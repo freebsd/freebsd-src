@@ -1,5 +1,5 @@
 # $Id: configure.ac,v 1.367 2006/09/24 19:08:59 tim Exp $
-# $FreeBSD$
+# $Id: configure.ac,v 1.369 2006/10/03 16:34:35 tim Exp $
 #
 # Copyright (c) 1999-2004 Damien Miller
 #
@@ -16,7 +16,7 @@
 # OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 
 AC_INIT(OpenSSH, Portable, openssh-unix-dev@mindrot.org)
-AC_REVISION($Revision: 1.367 $)
+AC_REVISION($Revision: 1.369 $)
 AC_CONFIG_SRCDIR([ssh.c])
 
 AC_CONFIG_HEADER(config.h)
@@ -127,6 +127,136 @@ AC_ARG_WITH(rpath,
 		fi
 	]
 )
+
+# Allow user to specify flags
+AC_ARG_WITH(cflags,
+	[  --with-cflags           Specify additional flags to pass to compiler],
+	[
+		if test -n "$withval"  &&  test "x$withval" != "xno"  &&  \
+		    test "x${withval}" != "xyes"; then
+			CFLAGS="$CFLAGS $withval"
+		fi
+	]
+)
+AC_ARG_WITH(cppflags,
+	[  --with-cppflags         Specify additional flags to pass to preprocessor] ,
+	[
+		if test -n "$withval"  &&  test "x$withval" != "xno"  &&  \
+		    test "x${withval}" != "xyes"; then
+			CPPFLAGS="$CPPFLAGS $withval"
+		fi
+	]
+)
+AC_ARG_WITH(ldflags,
+	[  --with-ldflags          Specify additional flags to pass to linker],
+	[
+		if test -n "$withval"  &&  test "x$withval" != "xno"  &&  \
+		    test "x${withval}" != "xyes"; then
+			LDFLAGS="$LDFLAGS $withval"
+		fi
+	]
+)
+AC_ARG_WITH(libs,
+	[  --with-libs             Specify additional libraries to link with],
+	[
+		if test -n "$withval"  &&  test "x$withval" != "xno"  &&  \
+		    test "x${withval}" != "xyes"; then
+			LIBS="$LIBS $withval"
+		fi
+	]
+)
+AC_ARG_WITH(Werror,
+	[  --with-Werror           Build main code with -Werror],
+	[
+		if test -n "$withval"  &&  test "x$withval" != "xno"; then
+			werror_flags="-Werror"
+			if test "x${withval}" != "xyes"; then
+				werror_flags="$withval"
+			fi
+		fi
+	]
+)
+
+AC_CHECK_HEADERS( \
+	bstring.h \
+	crypt.h \
+	crypto/sha2.h \
+	dirent.h \
+	endian.h \
+	features.h \
+	fcntl.h \
+	floatingpoint.h \
+	getopt.h \
+	glob.h \
+	ia.h \
+	iaf.h \
+	limits.h \
+	login.h \
+	maillock.h \
+	ndir.h \
+	net/if_tun.h \
+	netdb.h \
+	netgroup.h \
+	pam/pam_appl.h \
+	paths.h \
+	pty.h \
+	readpassphrase.h \
+	rpc/types.h \
+	security/pam_appl.h \
+	sha2.h \
+	shadow.h \
+	stddef.h \
+	stdint.h \
+	string.h \
+	strings.h \
+	sys/audit.h \
+	sys/bitypes.h \
+	sys/bsdtty.h \
+	sys/cdefs.h \
+	sys/dir.h \
+	sys/mman.h \
+	sys/ndir.h \
+	sys/prctl.h \
+	sys/pstat.h \
+	sys/select.h \
+	sys/stat.h \
+	sys/stream.h \
+	sys/stropts.h \
+	sys/strtio.h \
+	sys/sysmacros.h \
+	sys/time.h \
+	sys/timers.h \
+	sys/un.h \
+	time.h \
+	tmpdir.h \
+	ttyent.h \
+	unistd.h \
+	usersec.h \
+	util.h \
+	utime.h \
+	utmp.h \
+	utmpx.h \
+	vis.h \
+)
+
+# lastlog.h requires sys/time.h to be included first on Solaris
+AC_CHECK_HEADERS(lastlog.h, [], [], [
+#ifdef HAVE_SYS_TIME_H
+# include <sys/time.h>
+#endif
+])
+
+# sys/ptms.h requires sys/stream.h to be included first on Solaris
+AC_CHECK_HEADERS(sys/ptms.h, [], [], [
+#ifdef HAVE_SYS_STREAM_H
+# include <sys/stream.h>
+#endif
+])
+
+# login_cap.h requires sys/types.h on NetBSD
+AC_CHECK_HEADERS(login_cap.h, [], [], [
+#include <sys/types.h>
+])
 
 # Messages for features tested for in target-specific section
 SIA_MSG="no"
@@ -664,55 +794,6 @@ mips-sony-bsd|mips-sony-newsos4)
         ;;
 esac
 
-# Allow user to specify flags
-AC_ARG_WITH(cflags,
-	[  --with-cflags           Specify additional flags to pass to compiler],
-	[
-		if test -n "$withval"  &&  test "x$withval" != "xno"  &&  \
-		    test "x${withval}" != "xyes"; then
-			CFLAGS="$CFLAGS $withval"
-		fi
-	]
-)
-AC_ARG_WITH(cppflags,
-	[  --with-cppflags         Specify additional flags to pass to preprocessor] ,
-	[
-		if test -n "$withval"  &&  test "x$withval" != "xno"  &&  \
-		    test "x${withval}" != "xyes"; then
-			CPPFLAGS="$CPPFLAGS $withval"
-		fi
-	]
-)
-AC_ARG_WITH(ldflags,
-	[  --with-ldflags          Specify additional flags to pass to linker],
-	[
-		if test -n "$withval"  &&  test "x$withval" != "xno"  &&  \
-		    test "x${withval}" != "xyes"; then
-			LDFLAGS="$LDFLAGS $withval"
-		fi
-	]
-)
-AC_ARG_WITH(libs,
-	[  --with-libs             Specify additional libraries to link with],
-	[
-		if test -n "$withval"  &&  test "x$withval" != "xno"  &&  \
-		    test "x${withval}" != "xyes"; then
-			LIBS="$LIBS $withval"
-		fi
-	]
-)
-AC_ARG_WITH(Werror,
-	[  --with-Werror           Build main code with -Werror],
-	[
-		if test -n "$withval"  &&  test "x$withval" != "xno"; then
-			werror_flags="-Werror"
-			if test "x${withval}" != "xyes"; then
-				werror_flags="$withval"
-			fi
-		fi
-	]
-)
-
 AC_MSG_CHECKING(compiler and flags for sanity)
 AC_RUN_IFELSE(
 	[AC_LANG_SOURCE([
@@ -728,87 +809,6 @@ int main(){exit(0);}
 )
 
 dnl Checks for header files.
-AC_CHECK_HEADERS( \
-	bstring.h \
-	crypt.h \
-	crypto/sha2.h \
-	dirent.h \
-	endian.h \
-	features.h \
-	fcntl.h \
-	floatingpoint.h \
-	getopt.h \
-	glob.h \
-	ia.h \
-	iaf.h \
-	limits.h \
-	login.h \
-	maillock.h \
-	ndir.h \
-	net/if_tun.h \
-	netdb.h \
-	netgroup.h \
-	pam/pam_appl.h \
-	paths.h \
-	pty.h \
-	readpassphrase.h \
-	rpc/types.h \
-	security/pam_appl.h \
-	sha2.h \
-	shadow.h \
-	stddef.h \
-	stdint.h \
-	string.h \
-	strings.h \
-	sys/audit.h \
-	sys/bitypes.h \
-	sys/bsdtty.h \
-	sys/cdefs.h \
-	sys/dir.h \
-	sys/mman.h \
-	sys/ndir.h \
-	sys/prctl.h \
-	sys/pstat.h \
-	sys/select.h \
-	sys/stat.h \
-	sys/stream.h \
-	sys/stropts.h \
-	sys/strtio.h \
-	sys/sysmacros.h \
-	sys/time.h \
-	sys/timers.h \
-	sys/un.h \
-	time.h \
-	tmpdir.h \
-	ttyent.h \
-	unistd.h \
-	usersec.h \
-	util.h \
-	utime.h \
-	utmp.h \
-	utmpx.h \
-	vis.h \
-)
-
-# lastlog.h requires sys/time.h to be included first on Solaris
-AC_CHECK_HEADERS(lastlog.h, [], [], [
-#ifdef HAVE_SYS_TIME_H
-# include <sys/time.h>
-#endif
-])
-
-# sys/ptms.h requires sys/stream.h to be included first on Solaris
-AC_CHECK_HEADERS(sys/ptms.h, [], [], [
-#ifdef HAVE_SYS_STREAM_H
-# include <sys/stream.h>
-#endif
-])
-
-# login_cap.h requires sys/types.h on NetBSD
-AC_CHECK_HEADERS(login_cap.h, [], [], [
-#include <sys/types.h>
-])
-
 # Checks for libraries.
 AC_CHECK_FUNC(yp_match, , AC_CHECK_LIB(nsl, yp_match))
 AC_CHECK_FUNC(setsockopt, , AC_CHECK_LIB(socket, setsockopt))
@@ -1952,7 +1952,7 @@ AC_ARG_WITH(ssl-engine,
 		AC_TRY_COMPILE(
 			[ #include <openssl/engine.h>],
 			[
-int main(void){ENGINE_load_builtin_engines();ENGINE_register_all_complete();}
+ENGINE_load_builtin_engines();ENGINE_register_all_complete();
 			],
 			[ AC_MSG_RESULT(yes)
 			  AC_DEFINE(USE_OPENSSL_ENGINE, 1,
