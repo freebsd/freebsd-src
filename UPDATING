@@ -14,6 +14,10 @@ portupgrade.
 	continue to work but user applications that use this must
 	be updated (none exist in the base system).
 
+20060818:
+	The NMBCLUSTERS kernel option has been removed because it is obsolete.
+	Use the kern.ipc.nmbclusters loader(8) tunable instead.
+
 20060816:
 	The IPFIREWALL_FORWARD_EXTENDED option is gone and the behaviour
 	for IPFIREWALL_FORWARD is now as it was before when it was first
