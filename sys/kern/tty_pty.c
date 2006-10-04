@@ -277,14 +277,8 @@ ptcopen(struct cdev *dev, int flag, int devtype, struct thread *td)
 		return(ENXIO);
 	tp = dev->si_tty;
 
-	if (tp->t_oproc) {
-		/*
-		 * Only return if we have a non empty
-		 * state to avoid leakage.
-		 */
-        	if (tp->t_state != 0x0 || tp->t_refcnt > 1)
-			return (EIO);
-	}
+	if (tp->t_oproc)
+		return (EIO);
 	tp->t_timeout = -1;
 	tp->t_oproc = ptsstart;
 	tp->t_stop = ptsstop;
