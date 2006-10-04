@@ -9,42 +9,220 @@ CURRENTDIR=/usr/src/tools/tools/tinybsd
 WORKDIR=/usr/obj/tinybsdbuild
 KERNCONF=TINYBSD
 DEFINSTARGS="-o 0 -g 0 -m 555"
-SECTUNIT=$1
-TRACKCYL=$2 
-SECTRACK=$3
-CONF=$4
-IMG=$5
 TS="=====>"
 
-if [ "$#" -lt 3 ]
-then
-  echo "Woops!
-   Usage: $0 <mediasize in sectors> <heads according to firmware> 
-   <sectors according to firmware> <conf> [<tinybsd image name>]
+splitarg1 () {
+   local IFS
+   IFS='='
+   set $1
+   echo $1
+}
 
-   Example: $0 62592 4 32 
+splitarg2 () {
+   local IFS
+   IFS='='
+   set $1
+   echo $2
+}
 
-	or
+getargs () {
+ ARGS="$*"
+ for arg in $* 
+ do
+   ARG=`splitarg1 $arg`
+   VAL=`splitarg2 $arg`
+   case $ARG in
+     sectors)
+        SECTUNIT=$VAL
+        ;;
+     heads)
+        TRACKCYL=$VAL 
+        ;;
+     spt)
+        SECTRACK=$VAL
+        ;;
+     conf)
+        CONF=$VAL
+        ;;
+     mfsroot)
+        MFSROOT=$VAL
+        ;;
+     image)
+        IMG=$VAL
+        ;;
+     batch)
+        NO_PROMPTS="YES"
+        ;;
+     new)
+        NO_READ="YES"
+        ;;
+     *)
+         usage
+         ;;
+    esac
+ done
+}
 
-  $0 62592 4 32 wireless
+usage () {
+    echo "Woops
+    Usage: $0 sectors=<size of media> [80000]
+              heads=<heads according to firmware>  [4]
+              spt=<sectors per track according to firmware> [32]
+              conf=<configuration name> (see conf/name) [default]
+              mfsroot[=<yes|no>] [no]
+              image=<tinybsd image name> [tinybsd.bin]
+              batch[=<anything>]  (do not ask interactively)
+              new[=<anything>]  (do not read previous values)
 
-   Run diskinfo(8) -v against your CF device to get correct information
-   about your disk."
-  exit 1
-fi
+     Examples:
+    $0 sectors=65536 heads=8 spt=16 conf=wireless mfsroot=yes image=myimage.img batch
+
+     Default values are set in the program.
+     Environment values override defaults.
+     Previous values override environment values but can be disabled.
+     Command arguments override previous values.
+     Interactive values override command arguments but can be disabled. 
+
+     Run diskinfo(8) -v against your CF device to get correct information
+     about your disk. USB keys do not need any specific geometry"
+    exit 1
+}
+
+########
+# Load variables from stdin (could be a file)
+# Look for lines that match foo=bar
+# do not run the file.. that is asking for trouble
+########
+loadvars () {
+  while :
+  do
+    OIFS=$IFS
+    IFS="="
+    if read PART1 PART2
+    then
+      IFS="$OIFS"
+      case "$PART1" in
+      \#*)
+        echo "comment"
+        ;;
+      "")
+        ;;
+      *)
+        set "${PART1}"
+        if [ $# = "1" ]
+        then
+          eval "${PART1}='${PART2}'"
+        fi
+        ;;
+      esac
+    else
+      IFS="$OIFS"
+      return 0
+    fi
+  done
+}
+
+########
+# get values from the user
+########
+confirm_action(){
+    local ANSWER
+    local MESSAGE
+    ANSWER=$1
+    MESSAGE=$2
+    if [ "$NO_PROMPTS" != "YES" ]
+    then
+        echo -n "$MESSAGE [$ANSWER] use 'none' to clear ? " > /dev/tty
+        read result
+        [ "$result" != "" ] && ANSWER=$result
+        [ "$result" = "none" ] && ANSWER=""
+    fi
+
+    ANSWER=`eval "echo $ANSWER"`
+    echo $ANSWER
+}
+
+########
+# These are only used the VERY first time you run the program (on this machine)
+########
+setdefaults () {
+  NO_PROMPTS=${NO_PROMPTS:-NO}
+  NO_READ=${NO_READ:-NO}
+  SECTUNIT=${SECTUNIT:-80000}; export SECTUNIT
+  TRACKCYL=${TRACKCYL:-4}; export TRACKCYL
+  SECTRACK=${SECTRACK:-32}; export SECTRACK
+  CONF=${CONF:-default}; export CONF
+  MFSROOT=${MFSROOT:-NO}; export MFSROOT
+  IMG=${IMG:-tinybsd.bin}; export IMG
+
+}
+
+#######
+# get ourselves set up.
+# Partly by reading config files and partly from asking questions.
+#######
+loadconfig () {
+  if [ "${NO_READ}" = "YES" ]
+  then
+    return
+  fi
+
+  HOSTNAME=`hostname`
+  HOSTPART=${HOSTNAME%%.*}
+  FILENAME=".tinybsd.${HOSTPART}.${USER}"
+  FULLFILENAME=$HOME/$FILENAME
+
+  if [ -f ${FULLFILENAME} ]
+  then
+    loadvars <${FULLFILENAME}
+  fi
+
+  SECTUNIT=`confirm_action "$SECTUNIT" "512 byte sectors per unit?"`
+  TRACKCYL=`confirm_action "$TRACKCYL" "Tracks per cylinder?"`
+  SECTRACK=`confirm_action "$SECTRACK" "Sectors per track?"`
+  CONF=`confirm_action "$CONF" "Configuration name?"`
+  MFSROOT=`confirm_action "$MFSROOT" "Use an MFSROOT?"`
+  IMG=`confirm_action "$IMG" "Image file to generate?"`
+
+# example of formatted value (NNN in this case)
+#  #condition and format the number
+#  if [ -z "${BUILDNUM}" ]
+#  then
+#    echo "Starting with build 001"
+#    BUILDNUM="001"
+#  else
+#    BUILDNUM=`printf "%03d\n" $(($BUILDNUM))`
+#  fi
+
+
+}
+
+saveconfig () {
+  HOSTNAME=`hostname`
+  HOSTPART=${HOSTNAME%%.*}
+  FILENAME=".tinybsd.${HOSTPART}.${USER}"
+  FULLFILENAME=$HOME/$FILENAME
+  (
+    echo "# written by tinybsd" `date` 
+    echo "SECTUNIT=${SECTUNIT}"
+    echo "TRACKCYL=${TRACKCYL}"
+    echo "SECTRACK=${SECTRACK}"
+    echo "CONF=${CONF}"
+    echo "MFSROOT=${MFSROOT:-NO}"
+    echo "IMG=${IMG}"
+  ) >${FULLFILENAME}
+}
 
 check_conf() {
-        if [ -z ${CONF} ]
+        if [ ${CONF} = 'default' ]
         then
-                CONF="default"
                 echo "${TS} Alternative conf name not set; defaulting to 'default'"
         fi
 }
 
 check_alt_imgname() {
-	if [ -z ${IMG} ]
+	if [ ${IMG} = 'tinybsd.bin' ]
 	then
-		IMG="tinybsd.bin"
 		echo "${TS} Alternative image name not set; defaulting to 'tinybsd.bin'"
 	fi
 }
@@ -152,6 +330,13 @@ create_etc() {
 	make distribution DESTDIR=${WORKDIR}
 }
 
+create_ssh_keys() {
+	echo "Creating ssh keys..."
+	ssh-keygen -t rsa1 -b 1024  -f ${WORKDIR}/etc/ssh/ssh_host_key -N ''
+	ssh-keygen -t dsa -f ${WORKDIR}/etc/ssh/ssh_host_dsa_key -N ''
+	ssh-keygen -t rsa -f ${WORKDIR}/etc/ssh/ssh_host_rsa_key -N ''
+}
+
 personal_directories() {
 	echo "${TS} Copying your custom configuration on conf/ ..."
 	for custom in `find ${CURRENTDIR}/conf/${CONF}/ -type d -depth 1`; do
@@ -191,9 +376,38 @@ create_image() {
 
 	mount /dev/${MD}a ${IMGMNT}
 
-	( cd ${WORKDIR} && find . -print | cpio -dump ${IMGMNT} ) || true
+	if [ ${MFSROOT} = 'yes' ]
+	then
+		echo "${TS} Creating MFS root..."
+		# Update is not done yet
+		#mkdir -p ${WORKDIR}/usr/local/bin/
+		#cp -p ${CURRENTDIR}/update/update ${WORKDIR}/usr/local/bin/
+		rm ${WORKDIR}/etc/fstab
+		cd ${WORKDIR} && find . -print | sed '/kernel/ d' | cpio -dump ${IMGMNT} || true
+		umount ${IMGMNT}
+		dd if=/dev/${MD} of=${CURRENTDIR}/mfsroot.img		
+		gzip -9 < ${CURRENTDIR}/mfsroot.img > ${CURRENTDIR}/mfsroot.gz
+		rm ${CURRENTDIR}/mfsroot.img
+		mount /dev/${MD}a ${IMGMNT}
+		rm -rf ${IMGMNT}/*
+		cp -rp ${WORKDIR}/boot ${IMGMNT}
+		rm ${IMGMNT}/boot/device.hints
+		( \
+		echo 'set vfs.root.mountfrom="ufs:/dev/md0a"' ; \
+		echo 'set bootfile="/boot/kernel/kernel"' ; \
+		sed -e  '/^#/ d' -e 's/^/set /' < ${WORKDIR}/boot/device.hints ; \
+		echo 'load /boot/kernel/kernel' ; \
+		echo 'echo Loading mfsroot' ; \
+		echo 'load -t mfs_root /mfsroot' ;\
+		echo 'boot' ; \
+		) > ${IMGMNT}/boot/loader.rc
+		mv ${CURRENTDIR}/mfsroot.gz ${IMGMNT}
+	else
+		( cd ${WORKDIR} && find . -print | cpio -dump ${IMGMNT} ) || true
+	fi
 
 	df ${IMGMNT}
+	sleep 1
 	umount ${IMGMNT}
 
 	dd if=/dev/${MD} of=${CURRENTDIR}/${IMG} bs=64k
@@ -201,20 +415,42 @@ create_image() {
 	rm -vf ${VNODEFILE}
 	rm -rvf ${IMGMNT}
 	mdconfig -d -u ${MD}
+	echo ""
+	echo "${TS} Done!"
+	echo "${TS} Your configuration options were saved in ${FULLFILENAME}"
+	echo "${TS} You can see your build log in ${HOME}/tinybsd.log"
+	echo "${TS} Your final image is in ${CURRENTDIR}/${IMG}"
+	echo "${TS} Now use dd(1) to write it."
+
 }
 
 ##########################
 # run things
-prework
-check_conf
-check_alt_imgname
-create_tree
-copy_binaries
-make_kernel
-copy_libraries
-symlinks
-create_etc
-personal_directories
-create_image
+
+##########################################
+## The actual program
+##########################################
+getargs $*
+setdefaults
+# Load as many of the configuration options as we can
+loadconfig
+saveconfig
+
+# Now start logging.
+(
+  # Do the build
+  prework
+  check_conf
+  check_alt_imgname
+  create_tree
+  copy_binaries
+  make_kernel
+  copy_libraries
+  symlinks
+  create_etc
+  create_ssh_keys
+  personal_directories
+  create_image
 #set +xv
+) 2>&1 |tee -a  ${HOME}/tinybsd.log
 
