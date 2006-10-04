@@ -522,6 +522,7 @@ ptcioctl(struct cdev *dev, u_long cmd, caddr_t data, int flag, struct thread *td
 {
 	struct tty *tp = dev->si_tty;
 	struct ptsc *pt = dev->si_drv1;
+	int ival;
 
 	switch (cmd) {
 
@@ -578,6 +579,10 @@ ptcioctl(struct cdev *dev, u_long cmd, caddr_t data, int flag, struct thread *td
 		ndflush(&tp->t_outq, tp->t_outq.c_cc);
 		break;
 
+	case _IO('t', 95):
+		ival = IOCPARM_IVAL(data);
+		data = (caddr_t)&ival;
+		/* FALLTHROUGH */
 	case TIOCSIG:
 		if (*(unsigned int *)data >= NSIG ||
 		    *(unsigned int *)data == 0)

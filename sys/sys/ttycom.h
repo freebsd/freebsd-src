@@ -123,7 +123,7 @@ struct winsize {
 #define	TIOCSCTTY	 _IO('t', 97)		/* become controlling tty */
 						/* 97-90 tun; some conflicts */
 #define	TIOCEXT		_IOW('t', 96, int)	/* pty: external processing */
-#define	TIOCSIG		 _IO('t', 95)		/* pty: generate signal */
+#define	TIOCSIG		_IOWINT('t', 95)	/* pty: generate signal */
 #define	TIOCDRAIN	 _IO('t', 94)		/* wait till output drained */
 						/* 92-90 tap; some conflicts */
 #define	TIOCMSDTRWAIT	_IOW('t', 91, int)	/* modem: set wait on close */

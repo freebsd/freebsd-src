@@ -15,16 +15,16 @@
 #define K_XLATE		1		/* keyboard returns ascii 	*/
 #define K_CODE		2		/* keyboard returns keycodes 	*/
 #define KDGKBMODE 	_IOR('K', 6, int)
-#define KDSKBMODE 	_IO('K', 7 /*, int */)
+#define KDSKBMODE 	_IOWINT('K', 7)
 
 /* make tone */
-#define KDMKTONE	_IO('K', 8 /*, int */)
+#define KDMKTONE	_IOWINT('K', 8)
 
 /* see console.h for the definitions of the following ioctls */
 #if notdef
 #define KDGETMODE	_IOR('K', 9, int)
-#define KDSETMODE	_IO('K', 10 /*, int */)
-#define KDSBORDER	_IO('K', 13 /*, int */)
+#define KDSETMODE	_IOWINT('K', 10)
+#define KDSBORDER	_IOWINT('K', 13)
 #endif
 
 /* get/set keyboard lock state */
@@ -34,14 +34,14 @@
 #define ALKED		8		/* AltGr locked			*/
 #define LOCK_MASK	(CLKED | NLKED | SLKED | ALKED)
 #define KDGKBSTATE	_IOR('K', 19, int)
-#define KDSKBSTATE	_IO('K', 20 /*, int */)
+#define KDSKBSTATE	_IOWINT('K', 20)
 
 /* enable/disable I/O access */
 #define KDENABIO	_IO('K', 60)
 #define KDDISABIO	_IO('K', 61)
 
 /* make sound */
-#define KIOCSOUND	_IO('K', 63 /*, int */)
+#define KIOCSOUND	_IOWINT('K', 63)
 
 /* get keyboard model */
 #define KB_OTHER	0		/* keyboard not known 		*/
@@ -55,10 +55,10 @@
 #define LED_SCR		4		/* Scroll lock LED 		*/
 #define LED_MASK	(LED_CAP | LED_NUM | LED_SCR)
 #define KDGETLED	_IOR('K', 65, int)
-#define KDSETLED	_IO('K', 66 /*, int */)
+#define KDSETLED	_IOWINT('K', 66)
 
 /* set keyboard repeat rate (obsolete, use KDSETREPEAT below) */
-#define KDSETRAD	_IO('K', 67 /*, int */)
+#define KDSETRAD	_IOWINT('K', 67)
 
 struct keyboard_info {
 	int		kb_index;	/* kbdio index#			*/

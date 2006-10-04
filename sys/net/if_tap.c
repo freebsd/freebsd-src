@@ -612,6 +612,7 @@ tapioctl(struct cdev *dev, u_long cmd, caddr_t data, int flag, struct thread *td
 	struct tapinfo		*tapp = NULL;
 	int			 s;
 	int			 f;
+	int			 ival;
 
 	switch (cmd) {
 		case TAPSIFINFO:
@@ -686,8 +687,12 @@ tapioctl(struct cdev *dev, u_long cmd, caddr_t data, int flag, struct thread *td
 			bcopy(&ifp->if_flags, data, sizeof(ifp->if_flags));
 			break;
 
+		case _IO('V', 0):
+			ival = IOCPARM_IVAL(data);
+			data = (caddr_t)&ival;
+			/* FALLTHROUGH */
 		case VMIO_SIOCSIFFLAGS: /* VMware/VMnet SIOCSIFFLAGS */
-			f = *(intptr_t *)data;
+			f = *(int *)data;
 			f &= 0x0fff;
 			f &= ~IFF_CANTCHANGE;
 			f |= IFF_UP;
