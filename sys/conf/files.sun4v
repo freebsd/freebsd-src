@@ -1,0 +1,115 @@
+# This file tells config what files go into building a kernel,
+# files marked standard are always included.
+#
+# $FreeBSD$
+#
+# The long compile-with and dependency lines are required because of
+# limitations in config: backslash-newline doesn't work in strings, and
+# dependency lines other than the first are silently ignored.
+#
+atkbdmap.h			optional	atkbd_dflt_keymap	\
+	compile-with	"/usr/sbin/kbdcontrol -L ${ATKBD_DFLT_KEYMAP} | sed -e 's/^static keymap_t.* = /static keymap_t key_map = /' -e 's/^static accentmap_t.* = /static accentmap_t accent_map = /' > atkbdmap.h"			\
+	no-obj no-implicit-rule before-depend				\
+	clean		"atkbdmap.h"
+#
+ukbdmap.h			optional	ukbd_dflt_keymap	\
+	compile-with	"/usr/sbin/kbdcontrol -L ${UKBD_DFLT_KEYMAP} | sed -e 's/^static keymap_t.* = /static keymap_t key_map = /' -e 's/^static accentmap_t.* = /static accentmap_t accent_map = /' > ukbdmap.h"			\
+	no-obj no-implicit-rule before-depend				\
+	clean		"ukbdmap.h"
+#
+#
+crypto/blowfish/bf_enc.c	optional	crypto | ipsec ipsec_esp
+crypto/des/des_enc.c		optional	crypto | ipsec ipsec_esp | \
+						netsmbcrypto
+dev/ofw/ofw_bus_if.m		standard
+dev/ofw/ofw_bus_subr.c		standard
+dev/ofw/ofw_console.c		optional	ofw_console
+dev/ofw/openfirm.c		standard
+dev/ofw/openfirmio.c		standard
+dev/ofw/openpromio.c		standard
+dev/uart/uart_cpu_sparc64.c	optional	uart
+geom/geom_bsd.c			standard
+geom/geom_bsd_enc.c		standard
+geom/geom_sunlabel.c		standard
+geom/geom_sunlabel_enc.c	standard
+kern/syscalls.c			optional	ktr
+libkern/ffs.c			standard
+libkern/ffsl.c			standard
+libkern/fls.c			standard
+libkern/flsl.c			standard
+sun4v/sun4v/autoconf.c	standard
+sun4v/sun4v/bus_machdep.c	standard
+sun4v/sun4v/clock.c		standard
+sun4v/sun4v/counter.c	standard
+sun4v/sun4v/db_disasm.c	optional	ddb
+sun4v/sun4v/db_interface.c	optional	ddb
+sun4v/sun4v/db_trace.c	optional	ddb
+sun4v/sun4v/db_hwwatch.c	optional	ddb
+sun4v/sun4v/dump_machdep.c	standard
+sun4v/sun4v/elf_machdep.c	standard
+sun4v/sun4v/exception.S	standard	no-obj
+sun4v/sun4v/eeprom.c	optional	eeprom ebus | eeprom fhc | \
+						eeprom sbus
+sun4v/sun4v/gdb_machdep.c	optional	gdb
+sun4v/sun4v/hv_pci.c	optional	pci
+sun4v/sun4v/trap_trace.S	optional	trap_tracing
+sparc64/pci/ofw_pci.c		optional	pci
+sparc64/pci/ofw_pcib.c		optional	pci
+sparc64/pci/ofw_pcib_subr.c	optional	pci
+sparc64/pci/ofw_pcibus.c	optional	pci
+sparc64/pci/ofw_pci_if.m	optional	pci
+sparc64/dtrace/dtrace_asm.s	optional	dtrace
+sparc64/dtrace/dtrace_isa.c	optional	dtrace
+sparc64/dtrace/fasttrap_isa.c	optional	dtrace
+sparc64/dtrace/fbt.c		optional	dtrace
+sparc64/dtrace/sdt.c		optional	dtrace
+sparc64/dtrace/dtrace_stub.c	standard
+
+# XXX hvcons should be optional
+sun4v/sun4v/hvcons.c	standard	
+sun4v/sun4v/hcall.S	standard
+sun4v/sun4v/hviommu.c	standard
+sun4v/sun4v/identcpu.c	standard
+sun4v/sun4v/in_cksum.c	optional	inet
+sun4v/sun4v/interrupt.S	standard	no-obj
+sun4v/sun4v/intr_machdep.c	standard
+sun4v/sun4v/locore.S	standard	no-obj
+sun4v/sun4v/machdep.c	standard
+sun4v/sun4v/mem.c		optional	mem
+sun4v/sun4v/mp_exception.S	optional	smp
+sun4v/sun4v/mp_locore.S	optional	smp
+sun4v/sun4v/mp_machdep.c	optional	smp
+sun4v/sun4v/nexus.c		standard
+sun4v/sun4v/t1_copy.S	standard
+sun4v/sun4v/ofw_bus.c	standard
+sun4v/sun4v/ofw_machdep.c	standard
+sun4v/sun4v/pmap.c		standard
+sun4v/sun4v/prof_machdep.c	optional	profiling-routine
+sun4v/sun4v/rwindow.c		standard
+sun4v/sun4v/simdisk.c		optional	simulator
+sun4v/sun4v/support.S		standard
+sun4v/sun4v/sys_machdep.c	standard
+sun4v/sun4v/swtch.S		standard
+sun4v/sun4v/tsb.c		standard
+sun4v/sun4v/tte.c		standard
+sun4v/sun4v/tte_hash.c		standard
+sun4v/sun4v/tick.c		standard
+sun4v/sun4v/trap.c		standard
+sun4v/sun4v/uio_machdep.c	standard
+sun4v/sun4v/vm_machdep.c	standard
+sun4v/sun4v/vnex.c		standard
+
+
+sun4v/mdesc/mdesc_bus_if.m	standard
+sun4v/mdesc/mdesc_scandag.c	standard
+sun4v/mdesc/mdesc_init.c	standard
+sun4v/mdesc/mdesc_init_intern.c	standard
+sun4v/mdesc/mdesc_subr.c	standard
+sun4v/mdesc/mdesc_bus_subr.c	standard
+sun4v/mdesc/mdesc_getpropstr.c	standard
+sun4v/mdesc/mdesc_getpropval.c	standard
+sun4v/mdesc/mdesc_rootnode.c	standard
+sun4v/mdesc/mdesc_findname.c	standard
+sun4v/mdesc/mdesc_nodecount.c	standard
+sun4v/mdesc/mdesc_findnodeprop.c	standard
+sun4v/mdesc/mdesc_vdevfindval.c	standard
