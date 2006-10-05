@@ -63,6 +63,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/kernel.h>
 #include <sys/sysctl.h>
 #include <sys/bus.h>
+#include <sys/clock.h>
 #include <sys/timetc.h>
 #include <sys/interrupt.h>
 
@@ -82,7 +83,6 @@ static u_long		ticks_per_sec = 12500000;
 static long		ticks_per_intr;
 static volatile u_long	lasttb;
 
-#define	SECDAY		86400
 #define	DIFF19041970	2082844800
 
 static int		clockinitted = 0;
