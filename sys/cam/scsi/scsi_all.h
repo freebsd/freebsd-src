@@ -449,6 +449,7 @@ struct scsi_start_stop_unit
 #define	CHANGE_DEFINITION	0x40
 #define	MODE_SELECT_10		0x55
 #define	MODE_SENSE_10		0x5A
+#define	REPORT_LUNS		0xa0
 #define MOVE_MEDIUM     	0xa5
 #define READ_12			0xa8
 #define WRITE_12		0xaa
