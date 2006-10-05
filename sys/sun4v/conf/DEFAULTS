@@ -1,0 +1,9 @@
+#
+# DEFAULTS -- Default kernel configuration file for FreeBSD/sparc64
+#
+# $FreeBSD$
+
+machine		sun4v
+
+# Pseudo devices.
+device		mem		# Memory and kernel memory devices
