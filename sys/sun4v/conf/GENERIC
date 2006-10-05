@@ -29,7 +29,6 @@ makeoptions	NO_MODULES=""		# disable modules (aicasm in buildenv)
 # Platforms supported
 #	At this time all platforms are supported, as-is.
 
-#options 	SCHED_ULE		# ULE scheduler
 options 	SCHED_4BSD		# 4BSD scheduler
 #options 	PREEMPTION		# Enable kernel thread preemption
 options 	INET			# InterNETworking

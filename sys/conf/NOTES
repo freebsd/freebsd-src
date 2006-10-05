@@ -163,7 +163,8 @@ options 	ROOTDEVNAME=\"ufs:da0s2e\"
 #
 # SCHED_ULE is a new scheduler that has been designed for SMP and has some
 # advantages for UP as well.  It is intended to replace the 4BSD scheduler
-# over time.
+# over time.  NOTE: SCHED_ULE is currently considered experimental and is
+# not recommended for production use at this time.
 #
 options 	SCHED_4BSD
 #options 	SCHED_CORE
