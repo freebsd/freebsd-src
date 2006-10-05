@@ -666,18 +666,18 @@ MLINKS+=kobj.9 DEFINE_CLASS.9 \
 	kobj.9 kobj_create.9 \
 	kobj.9 kobj_delete.9 \
 	kobj.9 kobj_init.9
-MLINKS+=kqueue.9 kqfd_register.9 \
-	kqueue.9 knlist_add.9 \
-	kqueue.9 knlist_remove.9 \
-	kqueue.9 knlist_remove_inevent.9 \
-	kqueue.9 knlist_empty.9 \
-	kqueue.9 knlist_init.9 \
-	kqueue.9 knlist_destroy.9 \
+MLINKS+=kqueue.9 knlist_add.9 \
 	kqueue.9 knlist_clear.9 \
 	kqueue.9 knlist_delete.9 \
+	kqueue.9 knlist_destroy.9 \
+	kqueue.9 knlist_empty.9 \
+	kqueue.9 knlist_init.9 \
+	kqueue.9 knlist_remove.9 \
+	kqueue.9 knlist_remove_inevent.9 \
 	kqueue.9 knote_fdclose.9 \
 	kqueue.9 KNOTE_LOCKED.9 \
 	kqueue.9 KNOTE_UNLOCKED.9 \
+	kqueue.9 kqfd_register.9 \
 	kqueue.9 kqueue_add_filteropts.9 \
 	kqueue.9 kqueue_del_filteropts.9
 MLINKS+=kthread.9 kproc_shutdown.9 \
