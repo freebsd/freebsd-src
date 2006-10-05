@@ -481,7 +481,8 @@ int mode;
 	}
 
 	SPL_NET(s);
-	READ_ENTER(&ipf_global);
+	if (fr_running > 0)
+		READ_ENTER(&ipf_global);
 
 	error = fr_ioctlswitch(unit, data, cmd, mode);
 	if (error != -1) {
@@ -514,7 +515,10 @@ int mode;
 				else
 					(void) ipldetach();
 			} else {
-				error = ipldetach();
+				if (fr_running <= 0)
+					error = 0;
+				else
+					error = ipldetach();
 				if (error == 0)
 					fr_running = -1;
 			}
@@ -627,7 +631,9 @@ int mode;
 		break;
 	}
 
-	RWLOCK_EXIT(&ipf_global);
+	if (fr_running > 0)
+		if (mtx_owned(&(&ipf_global)->ipf_lk))
+			RWLOCK_EXIT(&ipf_global);
 	SPL_X(s);
 
 	return error;
