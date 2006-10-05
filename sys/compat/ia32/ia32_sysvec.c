@@ -64,6 +64,7 @@ __FBSDID("$FreeBSD$");
 #include <vm/vm_object.h>
 #include <vm/vm_extern.h>
 
+#include <compat/freebsd32/freebsd32_signal.h>
 #include <compat/freebsd32/freebsd32_util.h>
 #include <compat/freebsd32/freebsd32_proto.h>
 #include <compat/freebsd32/freebsd32_syscall.h>
@@ -85,7 +86,7 @@ __FBSDID("$FreeBSD$");
 CTASSERT(sizeof(struct ia32_mcontext) == 640);
 CTASSERT(sizeof(struct ia32_ucontext) == 704);
 CTASSERT(sizeof(struct ia32_sigframe) == 800);
-CTASSERT(sizeof(struct ia32_siginfo) == 64);
+CTASSERT(sizeof(struct siginfo32) == 64);
 #ifdef COMPAT_FREEBSD4
 CTASSERT(sizeof(struct ia32_mcontext4) == 260);
 CTASSERT(sizeof(struct ia32_ucontext4) == 324);

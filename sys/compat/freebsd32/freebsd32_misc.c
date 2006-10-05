@@ -88,6 +88,7 @@ __FBSDID("$FreeBSD$");
 
 #include <compat/freebsd32/freebsd32_util.h>
 #include <compat/freebsd32/freebsd32.h>
+#include <compat/freebsd32/freebsd32_signal.h>
 #include <compat/freebsd32/freebsd32_proto.h>
 
 CTASSERT(sizeof(struct timeval32) == 8);
@@ -191,12 +192,6 @@ freebsd4_freebsd32_getfsstat(struct thread *td, struct freebsd4_freebsd32_getfss
 	return (error);
 }
 #endif
-
-struct sigaltstack32 {
-	u_int32_t	ss_sp;
-	u_int32_t	ss_size;
-	int		ss_flags;
-};
 
 CTASSERT(sizeof(struct sigaltstack32) == 12);
 
@@ -2176,6 +2171,89 @@ freebsd32_thr_suspend(struct thread *td, struct freebsd32_thr_suspend_args *uap)
 		tsp = &ts;
 	}
 	return (kern_thr_suspend(td, tsp));
+}
+
+void
+siginfo_to_siginfo32(siginfo_t *src, struct siginfo32 *dst)
+{
+	bzero(dst, sizeof(*dst));
+	dst->si_signo = src->si_signo;
+	dst->si_errno = src->si_errno;
+	dst->si_code = src->si_code;
+	dst->si_pid = src->si_pid;
+	dst->si_uid = src->si_uid;
+	dst->si_status = src->si_status;
+	dst->si_addr = dst->si_addr;
+	dst->si_value.sigval_int = src->si_value.sival_int;
+	dst->si_timerid = src->si_timerid;
+	dst->si_overrun = src->si_overrun;
+}
+
+int
+freebsd32_sigtimedwait(struct thread *td, struct freebsd32_sigtimedwait_args *uap)
+{
+	struct timespec32 ts32;
+	struct timespec ts;
+	struct timespec *timeout;
+	sigset_t set;
+	ksiginfo_t ksi;
+	struct siginfo32 si32;
+	int error;
+
+	if (uap->timeout) {
+		error = copyin(uap->timeout, &ts32, sizeof(ts32));
+		if (error)
+			return (error);
+		ts.tv_sec = ts32.tv_sec;
+		ts.tv_nsec = ts32.tv_nsec;
+		timeout = &ts;
+	} else
+		timeout = NULL;
+
+	error = copyin(uap->set, &set, sizeof(set));
+	if (error)
+		return (error);
+
+	error = kern_sigtimedwait(td, set, &ksi, timeout);
+	if (error)
+		return (error);
+
+	if (uap->info) {
+		siginfo_to_siginfo32(&ksi.ksi_info, &si32);
+		error = copyout(&si32, uap->info, sizeof(struct siginfo32));
+	}
+
+	if (error == 0)
+		td->td_retval[0] = ksi.ksi_signo;
+	return (error);
+}
+
+/*
+ * MPSAFE
+ */
+int
+freebsd32_sigwaitinfo(struct thread *td, struct freebsd32_sigwaitinfo_args *uap)
+{
+	ksiginfo_t ksi;
+	struct siginfo32 si32;
+	sigset_t set;
+	int error;
+
+	error = copyin(uap->set, &set, sizeof(set));
+	if (error)
+		return (error);
+
+	error = kern_sigtimedwait(td, set, &ksi, NULL);
+	if (error)
+		return (error);
+
+	if (uap->info) {
+		siginfo_to_siginfo32(&ksi.ksi_info, &si32);
+		error = copyout(&si32, uap->info, sizeof(struct siginfo32));
+	}	
+	if (error == 0)
+		td->td_retval[0] = ksi.ksi_signo;
+	return (error);
 }
 
 #if 0
