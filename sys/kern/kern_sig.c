@@ -94,8 +94,6 @@ static int	filt_sigattach(struct knote *kn);
 static void	filt_sigdetach(struct knote *kn);
 static int	filt_signal(struct knote *kn, long hint);
 static struct thread *sigtd(struct proc *p, int sig, int prop);
-static int	kern_sigtimedwait(struct thread *, sigset_t,
-			ksiginfo_t *, struct timespec *);
 static int	do_tdsignal(struct proc *, struct thread *, int, ksiginfo_t *);
 static void	sigqueue_start(void);
 
@@ -1177,7 +1175,7 @@ sigwaitinfo(struct thread *td, struct sigwaitinfo_args *uap)
 	return (error);
 }
 
-static int
+int
 kern_sigtimedwait(struct thread *td, sigset_t waitset, ksiginfo_t *ksi,
 	struct timespec *timeout)
 {
