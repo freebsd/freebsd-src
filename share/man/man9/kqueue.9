@@ -1,4 +1,4 @@
-.\" Copyright 2004 John-Mark Gurney
+.\" Copyright 2006 John-Mark Gurney
 .\" All rights reserved.
 .\"
 .\" Redistribution and use in source and binary forms, with or without
@@ -28,62 +28,64 @@
 .Dt KQUEUE 9
 .Os
 .Sh NAME
-.Nm kqueue_add_filteropts , kqueue_del_filteropts
-.Nd "add and remove kqueue event filters"
-.Pp
-.Nm kqfd_register
-.Nd "register a kevent with kqueue by fd"
-.Pp
-.Nm knote_fdclose
-.Nd "deactivate all knotes associated with fd"
-.Pp
-.Nm knlist_add , knlist_remove , knlist_remove_inevent , knlist_empty , knlist_init , knlist_destroy , knlist_clear , knlist_delete
-.Nd "initalize and manipulate lists of knotes"
-.Pp
+.Nm kqueue_add_filteropts , kqueue_del_filteropts ,
+.Nm kqfd_register ,
+.Nm knote_fdclose ,
+.Nm knlist_add , knlist_remove , knlist_remove_inevent , knlist_empty ,
+.Nm knlist_init , knlist_destroy , knlist_clear , knlist_delete ,
 .Nm KNOTE_LOCKED , KNOTE_UNLOCKED
-.Nd "activate knotes on a knlist"
+.Nd "event delivery subsystem"
 .Sh SYNOPSIS
 .In sys/event.h
 .Ft int
-.Fn kqueue_add_filteropts "int filt" "struct filterops *"
+.Fn kqueue_add_filteropts "int filt" "struct filterops *filtops"
 .Ft int
 .Fn kqueue_del_filteropts "int filt"
 .Ft int
-.Fn kqfd_register "int fd" "struct kevent *" "struct thread *" "int waitok"
+.Fn kqfd_register "int fd" "struct kevent *kev" "struct thread *td" "int waitok"
 .Ft void
-.Fn knote_fdclose "struct thread *" "int fd"
+.Fn knote_fdclose "struct thread *td" "int fd"
 .Ft void
-.Fn knlist_add "struct knlist *" "struct knote *" "int islocked"
+.Fn knlist_add "struct knlist *knl" "struct knote *kn" "int islocked"
 .Ft void
-.Fn knlist_remove "struct knlist *" "struct knote *" "int islocked"
+.Fn knlist_remove "struct knlist *knl" "struct knote *kn" "int islocked"
 .Ft void
-.Fn knlist_remove_inevent "struct knlist *" "struct knote *"
+.Fn knlist_remove_inevent "struct knlist *knl" "struct knote *kn"
 .Ft int
-.Fn knlist_empty "struct knlist *"
+.Fn knlist_empty "struct knlist *knl"
 .Ft void
-.Fn knlist_init "struct knlist *" "void *lock" "void (*kl_lock)(void *)" "void (*kl_unlock)(void *) "int (*kl_locked)(void *)"
+.Fo knlist_init
+.Fa "struct knlist *knl"
+.Fa "void *lock"
+.Fa "void \*[lp]*kl_lock\*[rp]\*[lp]void *\*[rp]"
+.Fa "void \*[lp]*kl_unlock\*[rp]\*[lp]void *\*[rp]"
+.Fa "int \*[lp]*kl_locked\*[rp]\*[lp]void *\*[rp]"
+.Fc
 .Ft void
-.Fn knlist_destroy "struct knlist *"
+.Fn knlist_destroy "struct knlist *knl"
 .Ft void
-.Fn knlist_clear "struct knlist *" "int islocked"
+.Fn knlist_clear "struct knlist *knl" "int islocked"
 .Ft void
-.Fn knlist_delete "struct knlist *" "struct thread *" "int islocked"
+.Fn knlist_delete "struct knlist *knl" "struct thread *td" "int islocked"
 .Ft void
-.Fn KNOTE_LOCKED "struct knlist *" "long hint"
+.Fn KNOTE_LOCKED "struct knlist *knl" "long hint"
 .Ft void
-.Fn KNOTE_UNLOCKED "struct knlist *" "long hint"
+.Fn KNOTE_UNLOCKED "struct knlist *knl" "long hint"
 .Sh DESCRIPTION
 The functions
 .Fn kqueue_add_filteropts
 and
 .Fn kqueue_del_filteropts
-allows the addition and removal of a filter type.
-The filter is staticly defined by the
+allow for the addition and removal of a filter type.
+The filter is statically defined by the
 .Dv EVFILT_*
 macros.
 The function
 .Fn kqueue_add_filteropts
-will make filt available.  The
+will make
+.Fa filt
+available.
+The
 .Vt "struct filterops"
 has the following members:
 .Bl -tag -width ".Va f_attach"
@@ -95,28 +97,32 @@ is set,
 in
 .Vt "struct kevent"
 is taken to be a file descriptor.
-In this case, the knote passed into
+In this case, the
+.Vt knote
+passed into
 .Va f_attach
 will have the
 .Va kn_fp
-member initalized to the
+member initialized to the
 .Vt "struct file *"
-that represense the file descriptor.
+that represents the file descriptor.
 .It Va f_attach
 The
 .Va f_attach
-member will be called when attaching a
+function will be called when attaching a
 .Vt knote
 to the object.
 The method should call
 .Fn knlist_add
 to add the
 .Vt knote
-to the list that was initalized with
+to the list that was initialized with
 .Fn knlist_init .
 The call to
 .Fn knlist_add
-is only necesary if the object can have multiple knotes associated with it.
+is only necessary if the object can have multiple
+.Vt knotes
+associated with it.
 If there is no
 .Vt knlist
 to call
@@ -128,10 +134,10 @@ must clear the
 bit of
 .Va kn_status
 in the
-.Va knote .
-The function shall return 0 on success, or appropriate errno for the failure.
-Durning
-.Va f_attach
+.Vt knote .
+The function shall return 0 on success, or appropriate error for the failure.
+During
+.Va f_attach ,
 it is valid to change the
 .Va kn_fops
 pointer to a different pointer.
@@ -139,11 +145,12 @@ This will change the
 .Va f_event
 and
 .Va f_detach
-members called when processing the knote.
+functions called when processing the
+.Vt knote .
 .It Va f_detach
 The
 .Va f_detach
-member will be called to detach the
+function will be called to detach the
 .Vt knote
 if the
 .Vt knote
@@ -152,13 +159,18 @@ has not already been detached by a call to
 .It Va f_event
 The
 .Va f_event
-meber will be called to update the status of the
+function will be called to update the status of the
 .Vt knote .
 If the function returns 0, it will be assumed that the object is not
 ready (or no longer ready) to be woken up.
-The hint field will be 0 when called scanning knotes to see which
-are available.
-Otherwise the hint field will be populated with the value passed to
+The
+.Fa hint
+argument will be 0 when scanning
+.Vt knotes
+to see which are triggered.
+Otherwise, the
+.Fa hint
+argument will be the value passed to either
 .Dv KNOTE_LOCKED
 or
 .Dv KNOTE_UNLOCKED .
@@ -173,8 +185,8 @@ The function
 .Fn knlist_remove_inevent
 will remove the note from the list, the
 .Va f_detach
-member will not be called and the
-.Va knote
+function will not be called and the
+.Vt knote
 will not be returned as an event.
 .El
 .Pp
@@ -184,7 +196,9 @@ will register the
 .Vt kevent
 on the kqueue file descriptor
 .Fa fd .
-If it is safe to sleep, waitok should be set.
+If it is safe to sleep,
+.Fa waitok
+should be set.
 .Pp
 The function
 .Fn knote_fdclose
@@ -192,7 +206,7 @@ is used to delete all
 .Vt knotes
 associated with
 .Fa fd .
-Once returned there will no longer be any
+Once returned, there will no longer be any
 .Vt knotes
 associated with the
 .Fa fd .
@@ -205,19 +219,21 @@ call, so if userland uses the
 to track resources, they will be leaked.
 The
 .Fn FILEDESC_LOCK
-must be held over the call to
+lock must be held over the call to
 .Fn knote_fdclose
 so that file descriptors cannot be added or removed.
 .Pp
 The
 .Fn knlist_*
-family of functions are for managing knotes associated with an object.
+family of functions are for managing
+.Vt knotes
+associated with an object.
 A
-.Va knlist
+.Vt knlist
 is not required, but is commonly used.
 If used, the
 .Vt knlist
-must be initalized with the
+must be initialized with the
 .Fn knlist_init
 function.
 If
@@ -229,36 +245,38 @@ The
 .Fa kl_lock , kl_unlock
 and
 .Fa kl_locked
-will be used to manipulate
+functions will be used to manipulate a
 .Fa lock .
 If the argument is
 .Dv NULL ,
-a default routine operating on
+default routines operating on
 .Vt "struct mtx *"
 will be used.
 The
 .Vt knlist
-structure may be embeded in your object structure.
+structure may be embedded into the object structure.
 The
 .Fa lock
 will be held over calls to
-.Fn f_event .
+.Va f_event .
 If
 .Dv NULL
 is passed for the mutex, a private mutex will be used.
 The function
 .Fn knlist_empty
-requires that
+requires that a
 .Fa lock
 be held.
 The function
 .Fn knlist_clear
-is used to remove all knotes associated with the list.
+is used to remove all
+.Vt knotes
+associated with the list.
 The
 .Fa islocked
-argument declares if you have the
+argument declares if
 .Fa lock
-has been aquired.
+has been acquired.
 All
 .Vt knotes
 will be marked as detached, and
@@ -266,48 +284,53 @@ will be marked as detached, and
 will be set so that the
 .Vt knote
 will be deleted after the next scan.
-The function
+The
 .Fn knlist_destroy
-is to be used at object destruction time.
+function is used to destroy a
+.Vt knlist .
 There must be no
 .Vt knotes
 associated with the
 .Vt knlist
-.Fn ( knlist_clear
-be called before or
-.Fn knlist_empty
-returns true) and no more
+.Fn ( knlist_empty
+returns true)
+and no more
 .Vt knotes
-are able to be attached to the object.
+may be attached to the object.
+A
+.Vt knlist
+may be emptied by calling
+.Fn knlist_clear .
 .Pp
-.Pp
-The functions
+The macros
 .Fn KNOTE_LOCKED
 and
 .Fn KNOTE_UNLOCKED
-are used to notify knotes about events associated with your object.
-It will iterated over all
+are used to notify
+.Vt knotes
+about events associated with the object.
+It will iterate over all
 .Vt knotes
 on the list calling the
 .Va f_event
 function associated with the
 .Vt knote .
-The function
+The macro
 .Fn KNOTE_LOCKED
 must be used if the lock associated with the
 .Fa knl
 passed in is held.
 The function
 .Fn KNOTE_UNLOCKED
-will aquire the lock before iterating over the list of
-.Ft knotes .
+will acquire the lock before iterating over the list of
+.Vt knotes .
 .Sh RETURN VALUES
 The function
 .Fn kqueue_add_filteropts
 will return zero on success,
 .Er EINVAL
 in the case of an invalid
-.Fa filt
+.Fa filt ,
 or
 .Er EEXIST
 if the filter has already been installed.
@@ -317,7 +340,7 @@ The function
 will return zero on success,
 .Er EINVAL
 in the case of an invalid
-.Fa filt
+.Fa filt ,
 or
 .Er EBUSY
 if the filter is still in use.
@@ -326,12 +349,12 @@ The function
 .Fn kqfd_register
 will return zero on success,
 .Er EBADF
-if the file descriptor is not a kqueue or any of the possible values returned
+if the file descriptor is not a kqueue, or any of the possible values returned
 by
-.Xr kevent .
+.Xr kevent 2 .
 .Sh SEE ALSO
-.Xr kqueue 2 ,
-.Xr kevent 2
+.Xr kevent 2 ,
+.Xr kqueue 2
 .Sh AUTHORS
 This
 manual page was written by
