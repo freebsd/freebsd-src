@@ -64,7 +64,10 @@ static const char* ips_adapter_name[] = {
 	"ServeRAID 5i II (sarasota)",
 	"ServeRAID 5i (sarasota)",
 	"ServeRAID 6M (marco)",
-	"ServeRAID 6i (sebring)"
+	"ServeRAID 6i (sebring)",
+	"ServeRAID 7t",
+	"ServeRAID 7k",
+	"ServeRAID 7M"
 };
 
 
