@@ -44,7 +44,6 @@ options 	NFS_ROOT	# NFS usable as root device
 options 	PROCFS		# Process filesystem (/proc)
 options 	PSEUDOFS	# Pseudo-filesystem framework
 options 	SCHED_4BSD	# 4BSD scheduler
-#options 	SCHED_ULE	# ULE scheduler
 options 	SCSI_DELAY=5000	# Delay (in ms) before probing SCSI
 options 	SMP		# Symmetric Multi-Processor support
 options 	SOFTUPDATES	# Enable FFS soft updates support
