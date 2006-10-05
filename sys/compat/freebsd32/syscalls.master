@@ -578,10 +578,11 @@
 343	AUE_SIGPENDING	NOPROTO	{ int sigpending(sigset_t *set); }
 344	AUE_SIGRETURN	COMPAT4	{ int freebsd32_sigreturn( \
 		    const struct freebsd4_freebsd32_ucontext *sigcntxp); }
-; XXX implement
-345	AUE_SIGWAIT	UNIMPL	sigtimedwait
-; XXX implement
-346	AUE_NULL	UNIMPL	sigwaitinfo
+345	AUE_SIGWAIT	STD	{ int freebsd32_sigtimedwait(const sigset_t *set, \
+				    siginfo_t *info, \
+				    const struct timespec *timeout); }
+346	AUE_NULL	STD	{ int freebsd32_sigwaitinfo(const sigset_t *set, \
+				    siginfo_t *info); }
 347	AUE_NULL	NOPROTO	{ int __acl_get_file(const char *path, \
 				    acl_type_t type, struct acl *aclp); }
 348	AUE_NULL	NOPROTO	{ int __acl_set_file(const char *path, \

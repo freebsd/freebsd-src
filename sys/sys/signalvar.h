@@ -350,6 +350,8 @@ void	sigqueue_move(struct sigqueue *, struct sigqueue *, int sig);
 void	sigqueue_delete_set_proc(struct proc *, sigset_t *);
 void	sigqueue_delete_stopmask_proc(struct proc *);
 void	sigqueue_take(ksiginfo_t *ksi);
+int	kern_sigtimedwait(struct thread *, sigset_t,
+		ksiginfo_t *, struct timespec *);
 
 /*
  * Machine-dependent functions:

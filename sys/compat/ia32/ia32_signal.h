@@ -29,12 +29,6 @@
  * $FreeBSD$
  */
 
-struct ia32_sigaltstack {
-	u_int32_t	ss_sp;		/* signal stack base */
-	u_int32_t	ss_size;	/* signal stack length */
-	int		ss_flags;	/* SS_DISABLE and/or SS_ONSTACK */
-};
-
 struct ia32_mcontext {
 	u_int32_t	mc_onstack;		/* XXX - sigcontext compat. */
 	u_int32_t	mc_gs;			/* machine state (struct trapframe) */
@@ -72,7 +66,7 @@ struct ia32_ucontext {
 	sigset_t		uc_sigmask;
 	struct ia32_mcontext	uc_mcontext;
 	u_int32_t		uc_link;
-	struct ia32_sigaltstack	uc_stack;
+	struct sigaltstack32	uc_stack;
 	u_int32_t		uc_flags;
 	u_int32_t		__spare__[4];
 };
@@ -108,7 +102,7 @@ struct ia32_ucontext4 {
 	sigset_t		uc_sigmask;
 	struct ia32_mcontext4	uc_mcontext;
 	u_int32_t		uc_link;
-	struct ia32_sigaltstack	uc_stack;
+	struct sigaltstack32	uc_stack;
 	u_int32_t		__spare__[8];
 };
 #endif
@@ -142,39 +136,6 @@ struct ia32_sigcontext3 {
 /*
  * Signal frames, arguments passed to application signal handlers.
  */
-union ia32_sigval {
-	int			sigval_int;
-	u_int32_t		sigval_ptr;
-};
-struct ia32_siginfo {
-	int			si_signo;	/* signal number */
-	int			si_errno;	/* errno association */
-	int			si_code;	/* signal code */
-	int32_t			si_pid;		/* sending process */
-	u_int32_t		si_uid;		/* sender's ruid */
-	int			si_status;	/* exit value */
-	u_int32_t		si_addr;	/* faulting instruction */
-	union ia32_sigval	si_value;	/* signal value */
-	union	{
-		struct {
-			int	_trapno;/* machine specific trap code */
-		} _fault;
-		struct {
-			int	_timerid;
-			int	_overrun;
-		} _timer;
-		struct {
-			int	_mqd;
-		} _mesgq;
-		struct {
-			int	_band;		/* band event for SIGPOLL */
-		} _poll;			/* was this ever used ? */
-		struct {
-			int	__spare1__;
-			int	__spare2__[7];
-		} __spare__;
-	} _reason;
-};
 
 #ifdef COMPAT_FREEBSD4
 struct ia32_sigframe4 {
@@ -184,7 +145,7 @@ struct ia32_sigframe4 {
 	u_int32_t		sf_addr;	/* undocumented 4th arg */
 	u_int32_t		sf_ah;		/* action/handler pointer */
 	struct ia32_ucontext4	sf_uc;		/* = *sf_ucontext */
-	struct ia32_siginfo	sf_si;		/* = *sf_siginfo (SA_SIGINFO case) */
+	struct siginfo32	sf_si;		/* = *sf_siginfo (SA_SIGINFO case) */
 };
 #endif
 
@@ -196,7 +157,7 @@ struct ia32_sigframe {
 	u_int32_t		sf_ah;		/* action/handler pointer */
 	/* Beware, hole due to ucontext being 16 byte aligned! */
 	struct ia32_ucontext	sf_uc;		/* = *sf_ucontext */
-	struct ia32_siginfo	sf_si;		/* = *sf_siginfo (SA_SIGINFO case) */
+	struct siginfo32	sf_si;		/* = *sf_siginfo (SA_SIGINFO case) */
 };
 
 #ifdef COMPAT_FREEBSD3
@@ -204,7 +165,7 @@ struct ia32_siginfo3 {
 	struct ia32_sigcontext3 si_sc;
 	int			si_signo;
 	int			si_code;
-	union ia32_sigval si_value;
+	union sigval32		si_value;
 };
 struct ia32_sigframe3 {
 	int			sf_signum;
@@ -224,4 +185,3 @@ extern int sz_freebsd4_ia32_sigcode;
 extern void ia32_sendsig(sig_t, struct ksiginfo *, sigset_t *);
 extern void ia32_setregs(struct thread *td, u_long entry, u_long stack,
     u_long ps_strings);
-extern void siginfo_to_ia32siginfo(siginfo_t *src, struct ia32_siginfo *dst);

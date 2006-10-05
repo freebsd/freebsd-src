@@ -67,6 +67,7 @@ __FBSDID("$FreeBSD$");
 #include <vm/vm_object.h>
 #include <vm/vm_extern.h>
 
+#include <compat/freebsd32/freebsd32_signal.h>
 #include <compat/freebsd32/freebsd32_util.h>
 #include <compat/freebsd32/freebsd32_proto.h>
 #include <compat/ia32/ia32_signal.h>
@@ -298,7 +299,7 @@ static void
 freebsd4_ia32_sendsig(sig_t catcher, ksiginfo_t *ksi, sigset_t *mask)
 {
 	struct ia32_sigframe4 sf, *sfp;
-	struct ia32_siginfo siginfo;
+	struct siginfo32 siginfo;
 	struct proc *p;
 	struct thread *td;
 	struct sigacts *psp;
@@ -308,7 +309,7 @@ freebsd4_ia32_sendsig(sig_t catcher, ksiginfo_t *ksi, sigset_t *mask)
 
 	td = curthread;
 	p = td->td_proc;
-	siginfo_to_ia32siginfo(&ksi->ksi_info, &siginfo);
+	siginfo_to_siginfo32(&ksi->ksi_info, &siginfo);
 
 	PROC_LOCK_ASSERT(p, MA_OWNED);
 	sig = siginfo.si_signo;
@@ -407,7 +408,7 @@ void
 ia32_sendsig(sig_t catcher, ksiginfo_t *ksi, sigset_t *mask)
 {
 	struct ia32_sigframe sf, *sfp;
-	struct ia32_siginfo siginfo;
+	struct siginfo32 siginfo;
 	struct proc *p;
 	struct thread *td;
 	struct sigacts *psp;
@@ -416,7 +417,7 @@ ia32_sendsig(sig_t catcher, ksiginfo_t *ksi, sigset_t *mask)
 	int oonstack;
 	int sig;
 
-	siginfo_to_ia32siginfo(&ksi->ksi_info, &siginfo);
+	siginfo_to_siginfo32(&ksi->ksi_info, &siginfo);
 	td = curthread;
 	p = td->td_proc;
 	PROC_LOCK_ASSERT(p, MA_OWNED);
@@ -740,21 +741,4 @@ ia32_setregs(td, entry, stack, ps_strings)
 	/* Return via doreti so that we can change to a different %cs */
 	pcb->pcb_flags |= PCB_FULLCTX;
 	td->td_retval[1] = 0;
-}
-
-void
-siginfo_to_ia32siginfo(siginfo_t *src, struct ia32_siginfo *dst)
-{
-	dst->si_signo = src->si_signo;
-	dst->si_errno = src->si_errno;
-	dst->si_code = src->si_code;
-	dst->si_pid = src->si_pid;
-	dst->si_uid = src->si_uid;
-	dst->si_status = src->si_status;
-	dst->si_addr = dst->si_addr;
-	dst->si_value.sigval_int = src->si_value.sival_int;
-	dst->si_band = src->si_band;
-	dst->si_trapno = src->si_trapno;
-	dst->si_timerid = src->si_timerid;
-	dst->si_overrun = src->si_overrun;
 }
