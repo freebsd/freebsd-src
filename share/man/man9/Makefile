@@ -402,10 +402,6 @@ MLINKS+=bus_space.9 bus_space_barrier.9 \
 	bus_space.9 bus_space_read_2.9 \
 	bus_space.9 bus_space_read_4.9 \
 	bus_space.9 bus_space_read_8.9 \
-	bus_space.9 bus_space_read_stream_1.9 \
-	bus_space.9 bus_space_read_stream_2.9 \
-	bus_space.9 bus_space_read_stream_4.9 \
-	bus_space.9 bus_space_read_stream_8.9 \
 	bus_space.9 bus_space_read_multi_1.9 \
 	bus_space.9 bus_space_read_multi_2.9 \
 	bus_space.9 bus_space_read_multi_4.9 \
@@ -422,6 +418,10 @@ MLINKS+=bus_space.9 bus_space_barrier.9 \
 	bus_space.9 bus_space_read_region_stream_2.9 \
 	bus_space.9 bus_space_read_region_stream_4.9 \
 	bus_space.9 bus_space_read_region_stream_8.9 \
+	bus_space.9 bus_space_read_stream_1.9 \
+	bus_space.9 bus_space_read_stream_2.9 \
+	bus_space.9 bus_space_read_stream_4.9 \
+	bus_space.9 bus_space_read_stream_8.9 \
 	bus_space.9 bus_space_set_multi_1.9 \
 	bus_space.9 bus_space_set_multi_2.9 \
 	bus_space.9 bus_space_set_multi_4.9 \
@@ -444,10 +444,6 @@ MLINKS+=bus_space.9 bus_space_barrier.9 \
 	bus_space.9 bus_space_write_2.9 \
 	bus_space.9 bus_space_write_4.9 \
 	bus_space.9 bus_space_write_8.9 \
-	bus_space.9 bus_space_write_stream_1.9 \
-	bus_space.9 bus_space_write_stream_2.9 \
-	bus_space.9 bus_space_write_stream_4.9 \
-	bus_space.9 bus_space_write_stream_8.9 \
 	bus_space.9 bus_space_write_multi_1.9 \
 	bus_space.9 bus_space_write_multi_2.9 \
 	bus_space.9 bus_space_write_multi_4.9 \
@@ -463,7 +459,11 @@ MLINKS+=bus_space.9 bus_space_barrier.9 \
 	bus_space.9 bus_space_write_region_stream_1.9 \
 	bus_space.9 bus_space_write_region_stream_2.9 \
 	bus_space.9 bus_space_write_region_stream_4.9 \
-	bus_space.9 bus_space_write_region_stream_8.9
+	bus_space.9 bus_space_write_region_stream_8.9 \
+	bus_space.9 bus_space_write_stream_1.9 \
+	bus_space.9 bus_space_write_stream_2.9 \
+	bus_space.9 bus_space_write_stream_4.9 \
+	bus_space.9 bus_space_write_stream_8.9
 MLINKS+=byteorder.9 be16dec.9 \
 	byteorder.9 be16enc.9 \
 	byteorder.9 be16toh.9 \
@@ -555,8 +555,8 @@ MLINKS+=disk.9 disk_create.9 \
 	disk.9 disk_destroy.9
 MLINKS+=domain.9 DOMAIN_SET.9 \
 	domain.9 net_add_domain.9 \
-	domain.9 pfctlinput2.9 \
 	domain.9 pfctlinput.9 \
+	domain.9 pfctlinput2.9 \
 	domain.9 pffindproto.9 \
 	domain.9 pffindtype.9
 MLINKS+=DRIVER_MODULE.9 MULTI_DRIVER_MODULE.9
@@ -592,8 +592,8 @@ MLINKS+=g_provider.9 g_destroy_provider.9 \
 MLINKS+=hash.9 hash32.9 \
 	hash.9 hash32_buf.9 \
 	hash.9 hash32_str.9 \
-	hash.9 hash32_strn.9 \
 	hash.9 hash32_stre.9 \
+	hash.9 hash32_strn.9 \
 	hash.9 hash32_strne.9
 MLINKS+=hashinit.9 hashdestroy.9 \
 	hashinit.9 phashinit.9
@@ -1091,8 +1091,7 @@ MLINKS+=uidinfo.9 uifind.9 \
 	uidinfo.9 uihashinit.9 \
 	uidinfo.9 uihold.9
 MLINKS+=uio.9 uiomove.9
-MLINKS+=usbdi.9 usb_find_desc.9 \
-	usbdi.9 usbd_abort_default_pipe.9 \
+MLINKS+=usbdi.9 usbd_abort_default_pipe.9 \
 	usbdi.9 usbd_abort_pipe.9 \
 	usbdi.9 usbd_alloc_buffer.9 \
 	usbdi.9 usbd_alloc_xfer.9 \
@@ -1139,7 +1138,8 @@ MLINKS+=usbdi.9 usb_find_desc.9 \
 	usbdi.9 usbd_setup_isoc_xfer.9 \
 	usbdi.9 usbd_setup_xfer.9 \
 	usbdi.9 usbd_sync_transfer.9 \
-	usbdi.9 usbd_transfer.9
+	usbdi.9 usbd_transfer.9 \
+	usbdi.9 usb_find_desc.9
 MLINKS+=vcount.9 count_dev.9
 MLINKS+=vfsconf.9 vfs_modevent.9 \
 	vfsconf.9 vfs_register.9 \
