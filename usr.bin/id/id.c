@@ -96,7 +96,7 @@ main(int argc, char *argv[])
 	}
 
 	while ((ch = getopt(argc, argv,
-	    (isgroups || iswhoami) ? "" : "APGMgnpru")) != -1)
+	    (isgroups || iswhoami) ? "" : "APGMagnpru")) != -1)
 		switch(ch) {
 #ifdef USE_BSM_AUDIT
 		case 'A':
@@ -111,6 +111,8 @@ main(int argc, char *argv[])
 			break;
 		case 'P':
 			Pflag = 1;
+			break;
+		case 'a':
 			break;
 		case 'g':
 			gflag = 1;
