@@ -443,12 +443,12 @@ intrtn.1:	leal 0x10(%esi),%ebx		# Saved exception frame
 		movb $0x4,%cl			# Update seg regs
 		rep				#  in INT_V86
 		movsl				#  args
-intrtn.2:	movl %edx,%esi			# Segment registers
+intrtn.2:	xchgl %edx,%esi			# Segment registers
 		leal 0x28(%ebp),%edi		# Set up seg
 		movb $0x4,%cl			#  regs for
 		rep				#  later
 		movsl				#  pop
-		movl %ebx,%esi			# Restore exception
+		xchgl %ebx,%esi			# Restore exception
 		movb $0x5,%cl			#  frame to
 		rep				#  supervisor
 		movsl				#  stack
@@ -620,9 +620,10 @@ v86popf.1:	movl (%ebx),%eax		# Load flags
  */
 int15_87:	pushl %esi			# Save 
 		pushl %edi			#  registers
-		movzwl 0x4(%ebp),%eax		# Load user's SI
 		movl 0x3C(%ebp),%edi		# Load ES
-		leal (%eax,%edi,4),%edi		# EDI = (ES << 4) + SI
+		movzwl 0x4(%ebp),%eax		# Load user's SI
+		shll $0x4,%edi			# EDI = (ES << 4) +
+		addl %eax,%edi			#   SI
 		movl 0x11(%edi),%eax		# Read base of
 		movb 0x17(%edi),%al		#  GDT entry
 		ror $8,%eax			#  for source
@@ -898,7 +899,8 @@ dump.2: 	testb $DMP_MEM,%ch		# Dump memory?
 dump.3: 	lodsl				# Set offset
 		xchgl %eax,%edx 		# Save
 		lodsl				# Get segment
-		leal (%edx,%eax,4),%eax		#  * 0x10 + offset
+		shll $0x4,%eax			#  * 0x10
+		addl %edx,%eax			#  + offset
 		xchgl %eax,%esi 		# Set pointer
 dump.4: 	movb $2,%dl			# Num lines
 dump.4a:	movb $0x10,%cl			# Bytes to dump
