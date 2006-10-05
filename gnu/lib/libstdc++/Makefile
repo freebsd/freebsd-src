@@ -12,6 +12,9 @@ LIB=		stdc++
 SHLIB_MAJOR=	5
 
 CFLAGS+=	-DIN_GLIBCPP_V3 -DHAVE_CONFIG_H
+.if ${MACHINE_ARCH} == "arm"
+CFLAGS+=	-D_GLIBCXX_SJLJ_EXCEPTIONS=1
+.endif
 CFLAGS+=	-I${.CURDIR} -I${SUPDIR} -I${GCCDIR} -I${SRCDIR}/include
 CFLAGS+=	-frandom-seed=RepeatabilityConsideredGood
 CXXFLAGS+=	-fno-implicit-templates -ffunction-sections -fdata-sections \
