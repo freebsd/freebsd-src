@@ -293,8 +293,6 @@ smic_polled_request(struct ipmi_softc *sc, struct ipmi_request *req)
 		state = smic_read_byte(sc, &data);
 		if (state == 0)
 			return (0);
-		if (state == 2)
-			break;
 		if (i < req->ir_replybuflen)
 			req->ir_reply[i] = data;
 		i++;
