@@ -14,11 +14,11 @@ SUBDIR=	ac \
 	${_apmd} \
 	${_arlcontrol} \
 	arp \
+	${_asf} \
+	${_atm} \
 	${_audit} \
 	${_auditd} \
 	${_auditreduce} \
-	${_asf} \
-	${_atm} \
 	${_authpf} \
 	${_bluetooth} \
 	${_boot0cfg} \
@@ -77,9 +77,9 @@ SUBDIR=	ac \
 	${_kgzip} \
 	kldxref \
 	lastlogin \
+	lmcconfig \
 	${_lpr} \
 	${_lptcontrol} \
-	lmcconfig \
 	${_mailstats} \
 	mailwrapper \
 	${_makemap} \
