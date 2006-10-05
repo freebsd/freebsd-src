@@ -127,8 +127,8 @@ smic_write_next(struct ipmi_softc *sc, u_char data)
 {
 	u_char error, status;
 
-	OUTB(sc, SMIC_CTL_STS, SMIC_CC_SMS_WR_NEXT);
 	smic_wait_for_tx_okay(sc);
+	OUTB(sc, SMIC_CTL_STS, SMIC_CC_SMS_WR_NEXT);
 	OUTB(sc, SMIC_DATA, data);
 	smic_set_busy(sc);
 	smic_wait_for_not_busy(sc);
@@ -151,8 +151,8 @@ smic_write_last(struct ipmi_softc *sc, u_char data)
 {
 	u_char error, status;
 
-	OUTB(sc, SMIC_CTL_STS, SMIC_CC_SMS_WR_END);
 	smic_wait_for_tx_okay(sc);
+	OUTB(sc, SMIC_CTL_STS, SMIC_CC_SMS_WR_END);
 	OUTB(sc, SMIC_DATA, data);
 	smic_set_busy(sc);
 	smic_wait_for_not_busy(sc);
@@ -176,8 +176,8 @@ smic_start_read(struct ipmi_softc *sc, u_char *data)
 
 	smic_wait_for_not_busy(sc);
 
-	OUTB(sc, SMIC_CTL_STS, SMIC_CC_SMS_RD_START);
 	smic_wait_for_rx_okay(sc);
+	OUTB(sc, SMIC_CTL_STS, SMIC_CC_SMS_RD_START);
 	smic_set_busy(sc);
 	smic_wait_for_not_busy(sc);
 	status = INB(sc, SMIC_CTL_STS);
@@ -200,8 +200,8 @@ smic_read_byte(struct ipmi_softc *sc, u_char *data)
 {
 	u_char error, status;
 
-	OUTB(sc, SMIC_CTL_STS, SMIC_SC_SMS_RD_NEXT);
 	smic_wait_for_rx_okay(sc);
+	OUTB(sc, SMIC_CTL_STS, SMIC_SC_SMS_RD_NEXT);
 	smic_set_busy(sc);
 	smic_wait_for_not_busy(sc);
 	status = INB(sc, SMIC_CTL_STS);
