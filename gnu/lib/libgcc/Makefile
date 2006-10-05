@@ -97,8 +97,10 @@ LIB2FUNCS_EXTRA = qrnnd.asm
 #	from config/arm/t-strongarm-elf
 CFLAGS+=	-Dinhibit_libc -fno-inline
 LIB1ASMSRC =	lib1funcs.asm
-LIB1ASMFUNCS =	_udivsi3 _divsi3 _umodsi3 _modsi3 _dvmd_tls _bb_init_func
-OBJS+=	dp-bit.o fp-bit.o
+LIB1ASMFUNCS =	_dvmd_tls _bb_init_func 
+#LIB1ASMFUNCS+=	_fixunsdfsi _addsubsf3 _addsubdf3 \
+#		_truncdfsf2 _fixdfsi _extendsfdf2 _fixsfsi _cmpdf2 _cmpsf2 \
+#		_muldivdf3 _muldivsf3
 # We want fine grained libraries, so use the new code to build the
 # floating point emulation libraries.
 XXX fix this: NEED_FP_EMULATION set to "yes" with different rules per platform
@@ -168,7 +170,7 @@ ASM_S=		${LIB1ASMFUNCS:S/$/.So/}
 
 SYMS=		${LIB2FUNCS}		\
 		${LIB2_DIVMOD_FUNCS}
-.if ${TARGET_ARCH} == "arm" || ${TARGET_ARCH} == "powerpc" || ${TARGET_ARCH} == "sparc64"
+.if ${TARGET_ARCH} == "powerpc" || ${TARGET_ARCH} == "sparc64"
 SYMS+=		${FPBIT_FUNCS} ${DPBIT_FUNCS}
 .endif
 SYMS_ST=	${LIB2FUNCS_ST}		\
