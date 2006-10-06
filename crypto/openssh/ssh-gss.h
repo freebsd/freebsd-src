@@ -1,4 +1,4 @@
-/*	$OpenBSD: ssh-gss.h,v 1.5 2004/06/21 17:36:31 avsm Exp $	*/
+/* $OpenBSD: ssh-gss.h,v 1.9 2006/08/18 14:40:34 djm Exp $ */
 /*
  * Copyright (c) 2001-2003 Simon Wilkinson. All rights reserved.
  *
@@ -27,8 +27,6 @@
 #define _SSH_GSS_H
 
 #ifdef GSSAPI
-
-#include "buffer.h"
 
 #ifdef HAVE_GSSAPI_H
 #include <gssapi.h>
@@ -120,6 +118,7 @@ void ssh_gssapi_delete_ctx(Gssctxt **);
 OM_uint32 ssh_gssapi_sign(Gssctxt *, gss_buffer_t, gss_buffer_t);
 OM_uint32 ssh_gssapi_server_ctx(Gssctxt **, gss_OID);
 void ssh_gssapi_buildmic(Buffer *, const char *, const char *, const char *);
+int ssh_gssapi_check_mechanism(Gssctxt **, gss_OID, const char *);
 
 /* In the server */
 int ssh_gssapi_userok(char *name);

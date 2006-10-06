@@ -1,3 +1,4 @@
+/* $OpenBSD: kexgex.c,v 1.27 2006/08/03 03:34:42 deraadt Exp $ */
 /*
  * Copyright (c) 2000 Niels Provos.  All rights reserved.
  * Copyright (c) 2001 Markus Friedl.  All rights reserved.
@@ -24,17 +25,21 @@
  */
 
 #include "includes.h"
-RCSID("$OpenBSD: kexgex.c,v 1.23 2003/02/16 17:09:57 markus Exp $");
+
+#include <sys/types.h>
 
 #include <openssl/evp.h>
+#include <signal.h>
 
 #include "buffer.h"
-#include "bufaux.h"
+#include "key.h"
+#include "cipher.h"
 #include "kex.h"
 #include "ssh2.h"
 
-u_char *
+void
 kexgex_hash(
+    const EVP_MD *evp_md,
     char *client_version_string,
     char *server_version_string,
     char *ckexinit, int ckexinitlen,
@@ -43,11 +48,11 @@ kexgex_hash(
     int min, int wantbits, int max, BIGNUM *prime, BIGNUM *gen,
     BIGNUM *client_dh_pub,
     BIGNUM *server_dh_pub,
-    BIGNUM *shared_secret)
+    BIGNUM *shared_secret,
+    u_char **hash, u_int *hashlen)
 {
 	Buffer b;
 	static u_char digest[EVP_MAX_MD_SIZE];
-	const EVP_MD *evp_md = EVP_sha1();
 	EVP_MD_CTX md;
 
 	buffer_init(&b);
@@ -79,14 +84,15 @@ kexgex_hash(
 #ifdef DEBUG_KEXDH
 	buffer_dump(&b);
 #endif
+
 	EVP_DigestInit(&md, evp_md);
 	EVP_DigestUpdate(&md, buffer_ptr(&b), buffer_len(&b));
 	EVP_DigestFinal(&md, digest, NULL);
 
 	buffer_free(&b);
-
+	*hash = digest;
+	*hashlen = EVP_MD_size(evp_md);
 #ifdef DEBUG_KEXDH
-	dump_digest("hash", digest, EVP_MD_size(evp_md));
+	dump_digest("hash", digest, *hashlen);
 #endif
-	return digest;
 }

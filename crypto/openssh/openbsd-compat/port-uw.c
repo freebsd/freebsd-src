@@ -25,16 +25,27 @@
 
 #include "includes.h"
 
-#if defined(HAVE_LIBIAF)  &&  !defined(BROKEN_LIBIAF)
+#ifdef HAVE_LIBIAF
+#include <sys/types.h>
 #ifdef HAVE_CRYPT_H
-#include <crypt.h>
+# include <crypt.h>
 #endif
+#include <pwd.h>
+#include <stdarg.h>
+#include <stdlib.h>
+#include <stdio.h>
+#include <string.h>
+
+#include "xmalloc.h"
 #include "packet.h"
 #include "buffer.h"
+#include "auth-options.h"
 #include "log.h"
 #include "servconf.h"
+#include "key.h"
+#include "hostfile.h"
 #include "auth.h"
-#include "auth-options.h"
+#include "ssh.h"
 
 int nischeck(char *);
 
@@ -42,7 +53,6 @@ int
 sys_auth_passwd(Authctxt *authctxt, const char *password)
 {
 	struct passwd *pw = authctxt->pw;
-	char *encrypted_password;
 	char *salt;
 	int result;
 
@@ -55,21 +65,24 @@ sys_auth_passwd(Authctxt *authctxt, const char *password)
 
 	/* Encrypt the candidate password using the proper salt. */
 	salt = (pw_password[0] && pw_password[1]) ? pw_password : "xx";
-#ifdef UNIXWARE_LONG_PASSWORDS
-	if (!nischeck(pw->pw_name))
-		encrypted_password = bigcrypt(password, salt);
-	else
-#endif /* UNIXWARE_LONG_PASSWORDS */
-		encrypted_password = xcrypt(password, salt);
 
 	/*
 	 * Authentication is accepted if the encrypted passwords
 	 * are identical.
 	 */
-	result = (strcmp(encrypted_password, pw_password) == 0);
+#ifdef UNIXWARE_LONG_PASSWORDS
+	if (!nischeck(pw->pw_name)) {
+		result = ((strcmp(bigcrypt(password, salt), pw_password) == 0)
+		||  (strcmp(osr5bigcrypt(password, salt), pw_password) == 0));
+	}
+	else
+#endif /* UNIXWARE_LONG_PASSWORDS */
+		result = (strcmp(xcrypt(password, salt), pw_password) == 0);
 
+#if !defined(BROKEN_LIBIAF)
 	if (authctxt->valid)
 		free(pw_password);
+#endif
 	return(result);
 }
 
@@ -114,6 +127,7 @@ nischeck(char *namep)
 	functions that call shadow_pw() will need to free
  */
 
+#if !defined(BROKEN_LIBIAF)
 char *
 get_iaf_password(struct passwd *pw)
 {
@@ -130,5 +144,6 @@ get_iaf_password(struct passwd *pw)
 	else
 		fatal("ia_openinfo: Unable to open the shadow passwd file");
 }
-#endif /* HAVE_LIBIAF  && !BROKEN_LIBIAF */
+#endif /* !BROKEN_LIBIAF */
+#endif /* HAVE_LIBIAF */
 

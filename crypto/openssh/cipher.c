@@ -1,3 +1,4 @@
+/* $OpenBSD: cipher.c,v 1.81 2006/08/03 03:34:42 deraadt Exp $ */
 /*
  * Author: Tatu Ylonen <ylo@cs.hut.fi>
  * Copyright (c) 1995 Tatu Ylonen <ylo@cs.hut.fi>, Espoo, Finland
@@ -35,13 +36,17 @@
  */
 
 #include "includes.h"
-RCSID("$OpenBSD: cipher.c,v 1.77 2005/07/16 01:35:24 djm Exp $");
+
+#include <sys/types.h>
+
+#include <openssl/md5.h>
+
+#include <string.h>
+#include <stdarg.h>
 
 #include "xmalloc.h"
 #include "log.h"
 #include "cipher.h"
-
-#include <openssl/md5.h>
 
 /* compatibility with old or broken OpenSSL versions */
 #include "openbsd-compat/openssl-compat.h"
@@ -334,7 +339,7 @@ cipher_get_keyiv(CipherContext *cc, u_char *iv, u_int len)
 		if ((u_int)evplen != len)
 			fatal("%s: wrong iv length %d != %d", __func__,
 			    evplen, len);
-#if OPENSSL_VERSION_NUMBER < 0x00907000L
+#ifdef USE_BUILTIN_RIJNDAEL
 		if (c->evptype == evp_rijndael)
 			ssh_rijndael_iv(&cc->evp, 0, iv, len);
 		else
@@ -365,7 +370,7 @@ cipher_set_keyiv(CipherContext *cc, u_char *iv)
 		evplen = EVP_CIPHER_CTX_iv_length(&cc->evp);
 		if (evplen == 0)
 			return;
-#if OPENSSL_VERSION_NUMBER < 0x00907000L
+#ifdef USE_BUILTIN_RIJNDAEL
 		if (c->evptype == evp_rijndael)
 			ssh_rijndael_iv(&cc->evp, 1, iv, evplen);
 		else

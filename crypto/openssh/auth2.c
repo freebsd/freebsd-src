@@ -1,3 +1,4 @@
+/* $OpenBSD: auth2.c,v 1.113 2006/08/03 03:34:41 deraadt Exp $ */
 /*
  * Copyright (c) 2000 Markus Friedl.  All rights reserved.
  *
@@ -23,25 +24,33 @@
  */
 
 #include "includes.h"
-RCSID("$OpenBSD: auth2.c,v 1.107 2004/07/28 09:40:29 markus Exp $");
-RCSID("$FreeBSD$");
+__RCSID("$FreeBSD$");
 
-#include "canohost.h"
-#include "ssh2.h"
+#include <sys/types.h>
+
+#include <pwd.h>
+#include <stdarg.h>
+#include <string.h>
+
 #include "xmalloc.h"
+#include "ssh2.h"
 #include "packet.h"
 #include "log.h"
+#include "buffer.h"
 #include "servconf.h"
 #include "compat.h"
+#include "key.h"
+#include "hostfile.h"
 #include "auth.h"
 #include "dispatch.h"
 #include "pathnames.h"
-#include "monitor_wrap.h"
 #include "buffer.h"
+#include "canohost.h"
 
 #ifdef GSSAPI
 #include "ssh-gss.h"
 #endif
+#include "monitor_wrap.h"
 
 /* import */
 extern ServerOptions options;
@@ -98,6 +107,7 @@ do_authentication2(Authctxt *authctxt)
 	dispatch_run(DISPATCH_BLOCK, &authctxt->success, authctxt);
 }
 
+/*ARGSUSED*/
 static void
 input_service_request(int type, u_int32_t seq, void *ctxt)
 {
@@ -131,6 +141,7 @@ input_service_request(int type, u_int32_t seq, void *ctxt)
 	xfree(service);
 }
 
+/*ARGSUSED*/
 static void
 input_userauth_request(int type, u_int32_t seq, void *ctxt)
 {
@@ -165,21 +176,17 @@ input_userauth_request(int type, u_int32_t seq, void *ctxt)
 		if (authctxt->pw && strcmp(service, "ssh-connection")==0) {
 			authctxt->valid = 1;
 			debug2("input_userauth_request: setting up authctxt for %s", user);
-#ifdef USE_PAM
-			if (options.use_pam)
-				PRIVSEP(start_pam(authctxt));
-#endif
 		} else {
 			logit("input_userauth_request: invalid user %s", user);
 			authctxt->pw = fakepw();
-#ifdef USE_PAM
-			if (options.use_pam)
-				PRIVSEP(start_pam(authctxt));
-#endif
 #ifdef SSH_AUDIT_EVENTS
 			PRIVSEP(audit_event(SSH_INVALID_USER));
 #endif
 		}
+#ifdef USE_PAM
+		if (options.use_pam)
+			PRIVSEP(start_pam(authctxt));
+#endif
 		setproctitle("%s%s", authctxt->valid ? user : "unknown",
 		    use_privsep ? " [net]" : "");
 		authctxt->service = xstrdup(service);

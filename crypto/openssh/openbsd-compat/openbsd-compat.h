@@ -1,4 +1,4 @@
-/* $Id: openbsd-compat.h,v 1.30 2005/08/26 20:15:20 tim Exp $ */
+/* $Id: openbsd-compat.h,v 1.42 2006/09/03 12:44:50 dtucker Exp $ */
 
 /*
  * Copyright (c) 1999-2003 Damien Miller.  All rights reserved.
@@ -31,6 +31,11 @@
 
 #include "includes.h"
 
+#include <sys/types.h>
+#include <pwd.h>
+
+#include <sys/socket.h>
+
 /* OpenBSD function replacements */
 #include "base64.h"
 #include "sigact.h"
@@ -38,7 +43,7 @@
 #include "readpassphrase.h"
 #include "vis.h"
 #include "getrrsetbyname.h"
-
+#include "sha2.h"
 
 #ifndef HAVE_BASENAME
 char *basename(const char *path);
@@ -126,12 +131,15 @@ int getgrouplist(const char *, gid_t, gid_t *, int *);
 int BSDgetopt(int argc, char * const *argv, const char *opts);
 #endif
 
+#if defined(HAVE_DECL_WRITEV) && HAVE_DECL_WRITEV == 0
+# include <sys/types.h>
+# include <sys/uio.h>
+int writev(int, struct iovec *, int);
+#endif
 
 /* Home grown routines */
 #include "bsd-misc.h"
 #include "bsd-waitpid.h"
-
-/*#include <sys/types.h> XXX Still needed? * For uid_t, gid_t * */
 
 #ifndef HAVE_GETPEEREID
 int getpeereid(int , uid_t *, gid_t *);
@@ -142,18 +150,35 @@ unsigned int arc4random(void);
 void arc4random_stir(void);
 #endif /* !HAVE_ARC4RANDOM */
 
+#ifndef HAVE_ASPRINTF
+int asprintf(char **, const char *, ...);
+#endif 
+
 #ifndef HAVE_OPENPTY
+# include <sys/ioctl.h>	/* for struct winsize */
 int openpty(int *, int *, char *, struct termios *, struct winsize *);
 #endif /* HAVE_OPENPTY */
 
 /* #include <sys/types.h> XXX needed? For size_t */
 
 #ifndef HAVE_SNPRINTF
-int snprintf(char *, size_t, const char *, ...);
+int snprintf(char *, size_t, SNPRINTF_CONST char *, ...);
 #endif 
+
+#ifndef HAVE_STRTOLL
+long long strtoll(const char *, char **, int);
+#endif
 
 #ifndef HAVE_STRTONUM
 long long strtonum(const char *, long long, long long, const char **);
+#endif
+
+#if !defined(HAVE_VASPRINTF) || !defined(HAVE_VSNPRINTF)
+# include <stdarg.h>
+#endif
+
+#ifndef HAVE_VASPRINTF
+int vasprintf(char **, const char *, va_list);
 #endif
 
 #ifndef HAVE_VSNPRINTF
@@ -164,15 +189,18 @@ void *xmmap(size_t size);
 char *xcrypt(const char *password, const char *salt);
 char *shadow_pw(struct passwd *pw);
 
-
 /* rfc2553 socket API replacements */
 #include "fake-rfc2553.h"
 
 /* Routines for a single OS platform */
 #include "bsd-cray.h"
 #include "bsd-cygwin_util.h"
-#include "port-irix.h"
+
 #include "port-aix.h"
+#include "port-irix.h"
+#include "port-linux.h"
+#include "port-solaris.h"
+#include "port-tun.h"
 #include "port-uw.h"
 
 #endif /* _OPENBSD_COMPAT_H */

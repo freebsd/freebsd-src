@@ -1,9 +1,7 @@
-/* OPENBSD ORIGINAL: lib/libc/gen/dirname.c */
-
-/*      $OpenBSD: dirname.c,v 1.10 2003/06/17 21:56:23 millert Exp $    */
+/*	$OpenBSD: dirname.c,v 1.13 2005/08/08 08:05:33 espie Exp $	*/
 
 /*
- * Copyright (c) 1997 Todd C. Miller <Todd.Miller@courtesan.com>
+ * Copyright (c) 1997, 2004 Todd C. Miller <Todd.Miller@courtesan.com>
  *
  * Permission to use, copy, modify, and distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -18,12 +16,10 @@
  * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
+/* OPENBSD ORIGINAL: lib/libc/gen/dirname.c */
+
 #include "includes.h"
 #ifndef HAVE_DIRNAME
-
-#ifndef lint
-static char rcsid[] = "$OpenBSD: dirname.c,v 1.10 2003/06/17 21:56:23 millert Exp $";
-#endif /* not lint */
 
 #include <errno.h>
 #include <string.h>
@@ -32,16 +28,18 @@ static char rcsid[] = "$OpenBSD: dirname.c,v 1.10 2003/06/17 21:56:23 millert Ex
 char *
 dirname(const char *path)
 {
-	static char bname[MAXPATHLEN];
-	register const char *endp;
+	static char dname[MAXPATHLEN];
+	size_t len;
+	const char *endp;
 
 	/* Empty or NULL string gets treated as "." */
 	if (path == NULL || *path == '\0') {
-		(void)strlcpy(bname, ".", sizeof bname);
-		return(bname);
+		dname[0] = '.';
+		dname[1] = '\0';
+		return (dname);
 	}
 
-	/* Strip trailing slashes */
+	/* Strip any trailing slashes */
 	endp = path + strlen(path) - 1;
 	while (endp > path && *endp == '/')
 		endp--;
@@ -52,19 +50,23 @@ dirname(const char *path)
 
 	/* Either the dir is "/" or there are no slashes */
 	if (endp == path) {
-		(void)strlcpy(bname, *endp == '/' ? "/" : ".", sizeof bname);
-		return(bname);
+		dname[0] = *endp == '/' ? '/' : '.';
+		dname[1] = '\0';
+		return (dname);
 	} else {
+		/* Move forward past the separating slashes */
 		do {
 			endp--;
 		} while (endp > path && *endp == '/');
 	}
 
-	if (endp - path + 2 > sizeof(bname)) {
+	len = endp - path + 1;
+	if (len >= sizeof(dname)) {
 		errno = ENAMETOOLONG;
-		return(NULL);
+		return (NULL);
 	}
-	strlcpy(bname, path, endp - path + 2);
-	return(bname);
+	memcpy(dname, path, len);
+	dname[len] = '\0';
+	return (dname);
 }
 #endif

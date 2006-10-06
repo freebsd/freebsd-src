@@ -1,6 +1,7 @@
+/* $OpenBSD: misc.c,v 1.64 2006/08/03 03:34:42 deraadt Exp $ */
 /*
  * Copyright (c) 2000 Markus Friedl.  All rights reserved.
- * Copyright (c) 2005 Damien Miller.  All rights reserved.
+ * Copyright (c) 2005,2006 Damien Miller.  All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -24,11 +25,35 @@
  */
 
 #include "includes.h"
-RCSID("$OpenBSD: misc.c,v 1.34 2005/07/08 09:26:18 dtucker Exp $");
 
+#include <sys/types.h>
+#include <sys/ioctl.h>
+#include <sys/socket.h>
+#include <sys/param.h>
+
+#include <stdarg.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <unistd.h>
+
+#include <netinet/in.h>
+#include <netinet/tcp.h>
+
+#include <errno.h>
+#include <fcntl.h>
+#ifdef HAVE_PATHS_H
+# include <paths.h>
+#include <pwd.h>
+#endif
+#ifdef SSH_TUN_OPENBSD
+#include <net/if.h>
+#endif
+
+#include "xmalloc.h"
 #include "misc.h"
 #include "log.h"
-#include "xmalloc.h"
+#include "ssh.h"
 
 /* remove newline at end of string */
 char *
@@ -119,6 +144,7 @@ set_nodelay(int fd)
 
 /* Characters considered whitespace in strsep calls. */
 #define WHITESPACE " \t\r\n"
+#define QUOTE	"\""
 
 /* return next token in configuration line */
 char *
@@ -132,15 +158,27 @@ strdelim(char **s)
 
 	old = *s;
 
-	*s = strpbrk(*s, WHITESPACE "=");
+	*s = strpbrk(*s, WHITESPACE QUOTE "=");
 	if (*s == NULL)
 		return (old);
+
+	if (*s[0] == '\"') {
+		memmove(*s, *s + 1, strlen(*s)); /* move nul too */
+		/* Find matching quote */
+		if ((*s = strpbrk(*s, QUOTE)) == NULL) {
+			return (NULL);		/* no matching quote */
+		} else {
+			*s[0] = '\0';
+			return (old);
+		}
+	}
 
 	/* Allow only one '=' to be skipped */
 	if (*s[0] == '=')
 		wspace = 1;
 	*s[0] = '\0';
 
+	/* Skip any extra whitespace after first token */
 	*s += strspn(*s + 1, WHITESPACE) + 1;
 	if (*s[0] == '=' && !wspace)
 		*s += strspn(*s + 1, WHITESPACE) + 1;
@@ -151,9 +189,8 @@ strdelim(char **s)
 struct passwd *
 pwcopy(struct passwd *pw)
 {
-	struct passwd *copy = xmalloc(sizeof(*copy));
+	struct passwd *copy = xcalloc(1, sizeof(*copy));
 
-	memset(copy, 0, sizeof(*copy));
 	copy->pw_name = xstrdup(pw->pw_name);
 	copy->pw_passwd = xstrdup(pw->pw_passwd);
 	copy->pw_gecos = xstrdup(pw->pw_gecos);
@@ -192,6 +229,37 @@ a2port(const char *s)
 		return 0;
 
 	return port;
+}
+
+int
+a2tun(const char *s, int *remote)
+{
+	const char *errstr = NULL;
+	char *sp, *ep;
+	int tun;
+
+	if (remote != NULL) {
+		*remote = SSH_TUNID_ANY;
+		sp = xstrdup(s);
+		if ((ep = strchr(sp, ':')) == NULL) {
+			xfree(sp);
+			return (a2tun(s, NULL));
+		}
+		ep[0] = '\0'; ep++;
+		*remote = a2tun(ep, NULL);
+		tun = a2tun(sp, NULL);
+		xfree(sp);
+		return (*remote == SSH_TUNID_ERR ? *remote : tun);
+	}
+
+	if (strcasecmp(s, "any") == 0)
+		return (SSH_TUNID_ANY);
+
+	tun = strtonum(s, 0, SSH_TUNID_MAX, &errstr);
+	if (errstr != NULL)
+		return (SSH_TUNID_ERR);
+
+	return (tun);
 }
 
 #define SECONDS		1
@@ -245,6 +313,7 @@ convtime(const char *s)
 		switch (*endp++) {
 		case '\0':
 			endp--;
+			break;
 		case 's':
 		case 'S':
 			break;
@@ -274,6 +343,23 @@ convtime(const char *s)
 	}
 
 	return total;
+}
+
+/*
+ * Returns a standardized host+port identifier string.
+ * Caller must free returned string.
+ */
+char *
+put_host_port(const char *host, u_short port)
+{
+	char *hoststr;
+
+	if (port == 0 || port == SSH_DEFAULT_PORT)
+		return(xstrdup(host));
+	if (asprintf(&hoststr, "[%s]:%d", host, (int)port) < 0)
+		fatal("put_host_port: asprintf: %s", strerror(errno));
+	debug3("put_host_port: %s", hoststr);
+	return hoststr;
 }
 
 /*
@@ -356,12 +442,15 @@ void
 addargs(arglist *args, char *fmt, ...)
 {
 	va_list ap;
-	char buf[1024];
+	char *cp;
 	u_int nalloc;
+	int r;
 
 	va_start(ap, fmt);
-	vsnprintf(buf, sizeof(buf), fmt, ap);
+	r = vasprintf(&cp, fmt, ap);
 	va_end(ap);
+	if (r == -1)
+		fatal("addargs: argument too long");
 
 	nalloc = args->nalloc;
 	if (args->list == NULL) {
@@ -370,10 +459,44 @@ addargs(arglist *args, char *fmt, ...)
 	} else if (args->num+2 >= nalloc)
 		nalloc *= 2;
 
-	args->list = xrealloc(args->list, nalloc * sizeof(char *));
+	args->list = xrealloc(args->list, nalloc, sizeof(char *));
 	args->nalloc = nalloc;
-	args->list[args->num++] = xstrdup(buf);
+	args->list[args->num++] = cp;
 	args->list[args->num] = NULL;
+}
+
+void
+replacearg(arglist *args, u_int which, char *fmt, ...)
+{
+	va_list ap;
+	char *cp;
+	int r;
+
+	va_start(ap, fmt);
+	r = vasprintf(&cp, fmt, ap);
+	va_end(ap);
+	if (r == -1)
+		fatal("replacearg: argument too long");
+
+	if (which >= args->num)
+		fatal("replacearg: tried to replace invalid arg %d >= %d",
+		    which, args->num);
+	xfree(args->list[which]);
+	args->list[which] = cp;
+}
+
+void
+freeargs(arglist *args)
+{
+	u_int i;
+
+	if (args->list != NULL) {
+		for (i = 0; i < args->num; i++)
+			xfree(args->list[i]);
+		xfree(args->list);
+		args->nalloc = args->num = 0;
+		args->list = NULL;
+	}
 }
 
 /*
@@ -507,19 +630,194 @@ read_keyfile_line(FILE *f, const char *filename, char *buf, size_t bufsz,
 	return -1;
 }
 
-char *
-tohex(const u_char *d, u_int l)
+int
+tun_open(int tun, int mode)
 {
+#if defined(CUSTOM_SYS_TUN_OPEN)
+	return (sys_tun_open(tun, mode));
+#elif defined(SSH_TUN_OPENBSD)
+	struct ifreq ifr;
+	char name[100];
+	int fd = -1, sock;
+
+	/* Open the tunnel device */
+	if (tun <= SSH_TUNID_MAX) {
+		snprintf(name, sizeof(name), "/dev/tun%d", tun);
+		fd = open(name, O_RDWR);
+	} else if (tun == SSH_TUNID_ANY) {
+		for (tun = 100; tun >= 0; tun--) {
+			snprintf(name, sizeof(name), "/dev/tun%d", tun);
+			if ((fd = open(name, O_RDWR)) >= 0)
+				break;
+		}
+	} else {
+		debug("%s: invalid tunnel %u", __func__, tun);
+		return (-1);
+	}
+
+	if (fd < 0) {
+		debug("%s: %s open failed: %s", __func__, name, strerror(errno));
+		return (-1);
+	}
+
+	debug("%s: %s mode %d fd %d", __func__, name, mode, fd);
+
+	/* Set the tunnel device operation mode */
+	snprintf(ifr.ifr_name, sizeof(ifr.ifr_name), "tun%d", tun);
+	if ((sock = socket(PF_UNIX, SOCK_STREAM, 0)) == -1)
+		goto failed;
+
+	if (ioctl(sock, SIOCGIFFLAGS, &ifr) == -1)
+		goto failed;
+
+	/* Set interface mode */
+	ifr.ifr_flags &= ~IFF_UP;
+	if (mode == SSH_TUNMODE_ETHERNET)
+		ifr.ifr_flags |= IFF_LINK0;
+	else
+		ifr.ifr_flags &= ~IFF_LINK0;
+	if (ioctl(sock, SIOCSIFFLAGS, &ifr) == -1)
+		goto failed;
+
+	/* Bring interface up */
+	ifr.ifr_flags |= IFF_UP;
+	if (ioctl(sock, SIOCSIFFLAGS, &ifr) == -1)
+		goto failed;
+
+	close(sock);
+	return (fd);
+
+ failed:
+	if (fd >= 0)
+		close(fd);
+	if (sock >= 0)
+		close(sock);
+	debug("%s: failed to set %s mode %d: %s", __func__, name,
+	    mode, strerror(errno));
+	return (-1);
+#else
+	error("Tunnel interfaces are not supported on this platform");
+	return (-1);
+#endif
+}
+
+void
+sanitise_stdfd(void)
+{
+	int nullfd, dupfd;
+
+	if ((nullfd = dupfd = open(_PATH_DEVNULL, O_RDWR)) == -1) {
+		fprintf(stderr, "Couldn't open /dev/null: %s", strerror(errno));
+		exit(1);
+	}
+	while (++dupfd <= 2) {
+		/* Only clobber closed fds */
+		if (fcntl(dupfd, F_GETFL, 0) >= 0)
+			continue;
+		if (dup2(nullfd, dupfd) == -1) {
+			fprintf(stderr, "dup2: %s", strerror(errno));
+			exit(1);
+		}
+	}
+	if (nullfd > 2)
+		close(nullfd);
+}
+
+char *
+tohex(const void *vp, size_t l)
+{
+	const u_char *p = (const u_char *)vp;
 	char b[3], *r;
-	u_int i, hl;
+	size_t i, hl;
+
+	if (l > 65536)
+		return xstrdup("tohex: length > 65536");
 
 	hl = l * 2 + 1;
-	r = xmalloc(hl);
-	*r = '\0';
+	r = xcalloc(1, hl);
 	for (i = 0; i < l; i++) {
-		snprintf(b, sizeof(b), "%02x", d[i]);
+		snprintf(b, sizeof(b), "%02x", p[i]);
 		strlcat(r, b, hl);
 	}
 	return (r);
 }
 
+u_int64_t
+get_u64(const void *vp)
+{
+	const u_char *p = (const u_char *)vp;
+	u_int64_t v;
+
+	v  = (u_int64_t)p[0] << 56;
+	v |= (u_int64_t)p[1] << 48;
+	v |= (u_int64_t)p[2] << 40;
+	v |= (u_int64_t)p[3] << 32;
+	v |= (u_int64_t)p[4] << 24;
+	v |= (u_int64_t)p[5] << 16;
+	v |= (u_int64_t)p[6] << 8;
+	v |= (u_int64_t)p[7];
+
+	return (v);
+}
+
+u_int32_t
+get_u32(const void *vp)
+{
+	const u_char *p = (const u_char *)vp;
+	u_int32_t v;
+
+	v  = (u_int32_t)p[0] << 24;
+	v |= (u_int32_t)p[1] << 16;
+	v |= (u_int32_t)p[2] << 8;
+	v |= (u_int32_t)p[3];
+
+	return (v);
+}
+
+u_int16_t
+get_u16(const void *vp)
+{
+	const u_char *p = (const u_char *)vp;
+	u_int16_t v;
+
+	v  = (u_int16_t)p[0] << 8;
+	v |= (u_int16_t)p[1];
+
+	return (v);
+}
+
+void
+put_u64(void *vp, u_int64_t v)
+{
+	u_char *p = (u_char *)vp;
+
+	p[0] = (u_char)(v >> 56) & 0xff;
+	p[1] = (u_char)(v >> 48) & 0xff;
+	p[2] = (u_char)(v >> 40) & 0xff;
+	p[3] = (u_char)(v >> 32) & 0xff;
+	p[4] = (u_char)(v >> 24) & 0xff;
+	p[5] = (u_char)(v >> 16) & 0xff;
+	p[6] = (u_char)(v >> 8) & 0xff;
+	p[7] = (u_char)v & 0xff;
+}
+
+void
+put_u32(void *vp, u_int32_t v)
+{
+	u_char *p = (u_char *)vp;
+
+	p[0] = (u_char)(v >> 24) & 0xff;
+	p[1] = (u_char)(v >> 16) & 0xff;
+	p[2] = (u_char)(v >> 8) & 0xff;
+	p[3] = (u_char)v & 0xff;
+}
+
+
+void
+put_u16(void *vp, u_int16_t v)
+{
+	u_char *p = (u_char *)vp;
+
+	p[0] = (u_char)(v >> 8) & 0xff;
+	p[1] = (u_char)v & 0xff;
+}

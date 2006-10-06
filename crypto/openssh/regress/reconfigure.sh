@@ -15,8 +15,9 @@ esac
 
 start_sshd
 
-$SUDO kill -HUP `cat $PIDFILE`
-sleep 1
+PID=`cat $PIDFILE`
+rm -f $PIDFILE
+$SUDO kill -HUP $PID
 
 trace "wait for sshd to restart"
 i=0;

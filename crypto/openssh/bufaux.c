@@ -1,3 +1,4 @@
+/* $OpenBSD: bufaux.c,v 1.44 2006/08/03 03:34:41 deraadt Exp $ */
 /*
  * Author: Tatu Ylonen <ylo@cs.hut.fi>
  * Copyright (c) 1995 Tatu Ylonen <ylo@cs.hut.fi>, Espoo, Finland
@@ -37,174 +38,19 @@
  */
 
 #include "includes.h"
-RCSID("$OpenBSD: bufaux.c,v 1.36 2005/06/17 02:44:32 djm Exp $");
-RCSID("$FreeBSD$");
+__RCSID("$FreeBSD$");
+
+#include <sys/types.h>
 
 #include <openssl/bn.h>
-#include "bufaux.h"
+
+#include <string.h>
+#include <stdarg.h>
+
 #include "xmalloc.h"
-#include "getput.h"
+#include "buffer.h"
 #include "log.h"
-
-/*
- * Stores an BIGNUM in the buffer with a 2-byte msb first bit count, followed
- * by (bits+7)/8 bytes of binary data, msb first.
- */
-int
-buffer_put_bignum_ret(Buffer *buffer, const BIGNUM *value)
-{
-	int bits = BN_num_bits(value);
-	int bin_size = (bits + 7) / 8;
-	u_char *buf = xmalloc(bin_size);
-	int oi;
-	char msg[2];
-
-	/* Get the value of in binary */
-	oi = BN_bn2bin(value, buf);
-	if (oi != bin_size) {
-		error("buffer_put_bignum_ret: BN_bn2bin() failed: oi %d != bin_size %d",
-		    oi, bin_size);
-		return (-1);
-	}
-
-	/* Store the number of bits in the buffer in two bytes, msb first. */
-	PUT_16BIT(msg, bits);
-	buffer_append(buffer, msg, 2);
-	/* Store the binary data. */
-	buffer_append(buffer, (char *)buf, oi);
-
-	memset(buf, 0, bin_size);
-	xfree(buf);
-
-	return (0);
-}
-
-void
-buffer_put_bignum(Buffer *buffer, const BIGNUM *value)
-{
-	if (buffer_put_bignum_ret(buffer, value) == -1)
-		fatal("buffer_put_bignum: buffer error");
-}
-
-/*
- * Retrieves an BIGNUM from the buffer.
- */
-int
-buffer_get_bignum_ret(Buffer *buffer, BIGNUM *value)
-{
-	u_int bits, bytes;
-	u_char buf[2], *bin;
-
-	/* Get the number for bits. */
-	if (buffer_get_ret(buffer, (char *) buf, 2) == -1) {
-		error("buffer_get_bignum_ret: invalid length");
-		return (-1);
-	}
-	bits = GET_16BIT(buf);
-	/* Compute the number of binary bytes that follow. */
-	bytes = (bits + 7) / 8;
-	if (bytes > 8 * 1024) {
-		error("buffer_get_bignum_ret: cannot handle BN of size %d", bytes);
-		return (-1);
-	}
-	if (buffer_len(buffer) < bytes) {
-		error("buffer_get_bignum_ret: input buffer too small");
-		return (-1);
-	}
-	bin = buffer_ptr(buffer);
-	BN_bin2bn(bin, bytes, value);
-	if (buffer_consume_ret(buffer, bytes) == -1) {
-		error("buffer_get_bignum_ret: buffer_consume failed");
-		return (-1);
-	}
-	return (0);
-}
-
-void
-buffer_get_bignum(Buffer *buffer, BIGNUM *value)
-{
-	if (buffer_get_bignum_ret(buffer, value) == -1)
-		fatal("buffer_get_bignum: buffer error");
-}
-
-/*
- * Stores an BIGNUM in the buffer in SSH2 format.
- */
-int
-buffer_put_bignum2_ret(Buffer *buffer, const BIGNUM *value)
-{
-	u_int bytes;
-	u_char *buf;
-	int oi;
-	u_int hasnohigh = 0;
-
-	if (BN_is_zero(value)) {
-		buffer_put_int(buffer, 0);
-		return 0;
-	}
-	if (value->neg) {
-		error("buffer_put_bignum2_ret: negative numbers not supported");
-		return (-1);
-	}
-	bytes = BN_num_bytes(value) + 1; /* extra padding byte */
-	if (bytes < 2) {
-		error("buffer_put_bignum2_ret: BN too small");
-		return (-1);
-	}
-	buf = xmalloc(bytes);
-	buf[0] = 0x00;
-	/* Get the value of in binary */
-	oi = BN_bn2bin(value, buf+1);
-	if (oi < 0 || (u_int)oi != bytes - 1) {
-		error("buffer_put_bignum2_ret: BN_bn2bin() failed: "
-		    "oi %d != bin_size %d", oi, bytes);
-		xfree(buf);
-		return (-1);
-	}
-	hasnohigh = (buf[1] & 0x80) ? 0 : 1;
-	buffer_put_string(buffer, buf+hasnohigh, bytes-hasnohigh);
-	memset(buf, 0, bytes);
-	xfree(buf);
-	return (0);
-}
-
-void
-buffer_put_bignum2(Buffer *buffer, const BIGNUM *value)
-{
-	if (buffer_put_bignum2_ret(buffer, value) == -1)
-		fatal("buffer_put_bignum2: buffer error");
-}
-
-int
-buffer_get_bignum2_ret(Buffer *buffer, BIGNUM *value)
-{
-	u_int len;
-	u_char *bin;
-
-	if ((bin = buffer_get_string_ret(buffer, &len)) == NULL) {
-		error("buffer_get_bignum2_ret: invalid bignum");
-		return (-1);
-	}
-
-	if (len > 0 && (bin[0] & 0x80)) {
-		error("buffer_get_bignum2_ret: negative numbers not supported");
-		return (-1);
-	}
-	if (len > 8 * 1024) {
-		error("buffer_get_bignum2_ret: cannot handle BN of size %d", len);
-		return (-1);
-	}
-	BN_bin2bn(bin, len, value);
-	xfree(bin);
-	return (0);
-}
-
-void
-buffer_get_bignum2(Buffer *buffer, BIGNUM *value)
-{
-	if (buffer_get_bignum2_ret(buffer, value) == -1)
-		fatal("buffer_get_bignum2: buffer error");
-}
+#include "misc.h"
 
 /*
  * Returns integers from the buffer (msb first).
@@ -217,7 +63,7 @@ buffer_get_short_ret(u_short *ret, Buffer *buffer)
 
 	if (buffer_get_ret(buffer, (char *) buf, 2) == -1)
 		return (-1);
-	*ret = GET_16BIT(buf);
+	*ret = get_u16(buf);
 	return (0);
 }
 
@@ -239,7 +85,7 @@ buffer_get_int_ret(u_int *ret, Buffer *buffer)
 
 	if (buffer_get_ret(buffer, (char *) buf, 4) == -1)
 		return (-1);
-	*ret = GET_32BIT(buf);
+	*ret = get_u32(buf);
 	return (0);
 }
 
@@ -261,7 +107,7 @@ buffer_get_int64_ret(u_int64_t *ret, Buffer *buffer)
 
 	if (buffer_get_ret(buffer, (char *) buf, 8) == -1)
 		return (-1);
-	*ret = GET_64BIT(buf);
+	*ret = get_u64(buf);
 	return (0);
 }
 
@@ -284,7 +130,7 @@ buffer_put_short(Buffer *buffer, u_short value)
 {
 	char buf[2];
 
-	PUT_16BIT(buf, value);
+	put_u16(buf, value);
 	buffer_append(buffer, buf, 2);
 }
 
@@ -293,7 +139,7 @@ buffer_put_int(Buffer *buffer, u_int value)
 {
 	char buf[4];
 
-	PUT_32BIT(buf, value);
+	put_u32(buf, value);
 	buffer_append(buffer, buf, 4);
 }
 
@@ -302,7 +148,7 @@ buffer_put_int64(Buffer *buffer, u_int64_t value)
 {
 	char buf[8];
 
-	PUT_64BIT(buf, value);
+	put_u64(buf, value);
 	buffer_append(buffer, buf, 8);
 }
 

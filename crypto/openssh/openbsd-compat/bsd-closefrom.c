@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2004 Todd C. Miller <Todd.Miller@courtesan.com>
+ * Copyright (c) 2004-2005 Todd C. Miller <Todd.Miller@courtesan.com>
  *
  * Permission to use, copy, modify, and distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -22,9 +22,14 @@
 #include <sys/param.h>
 #include <unistd.h>
 #include <stdio.h>
+#ifdef HAVE_FCNTL_H
+# include <fcntl.h>
+#endif
 #include <limits.h>
 #include <stdlib.h>
 #include <stddef.h>
+#include <string.h>
+#include <unistd.h>
 #ifdef HAVE_DIRENT_H
 # include <dirent.h>
 # define NAMLEN(dirent) strlen((dirent)->d_name)
@@ -46,15 +51,20 @@
 # define OPEN_MAX	256
 #endif
 
-RCSID("$Id: bsd-closefrom.c,v 1.1 2004/08/15 08:41:00 djm Exp $");
-
-#ifndef lint
-static const char sudorcsid[] = "$Sudo: closefrom.c,v 1.6 2004/06/01 20:51:56 millert Exp $";
+#if 0
+__unused static const char rcsid[] = "$Sudo: closefrom.c,v 1.11 2006/08/17 15:26:54 millert Exp $";
 #endif /* lint */
 
 /*
  * Close all file descriptors greater than or equal to lowfd.
  */
+#ifdef HAVE_FCNTL_CLOSEM
+void
+closefrom(int lowfd)
+{
+    (void) fcntl(lowfd, F_CLOSEM, 0);
+}
+#else
 void
 closefrom(int lowfd)
 {
@@ -67,7 +77,7 @@ closefrom(int lowfd)
 
     /* Check for a /proc/$$/fd directory. */
     len = snprintf(fdpath, sizeof(fdpath), "/proc/%ld/fd", (long)getpid());
-    if (len != -1 && len <= sizeof(fdpath) && (dirp = opendir(fdpath))) {
+    if (len > 0 && (size_t)len <= sizeof(fdpath) && (dirp = opendir(fdpath))) {
 	while ((dent = readdir(dirp)) != NULL) {
 	    fd = strtol(dent->d_name, &endp, 10);
 	    if (dent->d_name != endp && *endp == '\0' &&
@@ -95,6 +105,5 @@ closefrom(int lowfd)
 	    (void) close((int) fd);
     }
 }
-
+#endif /* !HAVE_FCNTL_CLOSEM */
 #endif /* HAVE_CLOSEFROM */
-

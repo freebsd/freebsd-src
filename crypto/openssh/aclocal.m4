@@ -1,4 +1,4 @@
-dnl $Id: aclocal.m4,v 1.5 2001/10/22 00:53:59 tim Exp $
+dnl $Id: aclocal.m4,v 1.6 2005/09/19 16:33:39 tim Exp $
 dnl
 dnl OpenSSH-specific autoconf macros
 dnl
@@ -26,7 +26,7 @@ AC_DEFUN(OSSH_CHECK_HEADER_FOR_FIELD, [
 	if test -n "`echo $ossh_varname`"; then
 		AC_MSG_RESULT($ossh_result)
 		if test "x$ossh_result" = "xyes"; then
-			AC_DEFINE($3)
+			AC_DEFINE($3, 1, [Define if you have $1 in $2])
 		fi
 	else
 		AC_MSG_RESULT(no)

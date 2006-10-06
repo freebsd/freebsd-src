@@ -1,4 +1,4 @@
-/*	$OpenBSD: auth2-gss.c,v 1.10 2005/07/17 07:17:54 djm Exp $	*/
+/* $OpenBSD: auth2-gss.c,v 1.15 2006/08/03 03:34:41 deraadt Exp $ */
 
 /*
  * Copyright (c) 2001-2003 Simon Wilkinson. All rights reserved.
@@ -28,17 +28,22 @@
 
 #ifdef GSSAPI
 
+#include <sys/types.h>
+
+#include <stdarg.h>
+
+#include "xmalloc.h"
+#include "key.h"
+#include "hostfile.h"
 #include "auth.h"
 #include "ssh2.h"
-#include "xmalloc.h"
 #include "log.h"
 #include "dispatch.h"
+#include "buffer.h"
 #include "servconf.h"
-#include "compat.h"
 #include "packet.h"
-#include "monitor_wrap.h"
-
 #include "ssh-gss.h"
+#include "monitor_wrap.h"
 
 extern ServerOptions options;
 
@@ -49,7 +54,7 @@ static void input_gssapi_errtok(int, u_int32_t, void *);
 
 /*
  * We only support those mechanisms that we know about (ie ones that we know
- * how to check local user kuserok and the like
+ * how to check local user kuserok and the like)
  */
 static int
 userauth_gssapi(Authctxt *authctxt)
@@ -101,11 +106,13 @@ userauth_gssapi(Authctxt *authctxt)
 	}
 
 	if (GSS_ERROR(PRIVSEP(ssh_gssapi_server_ctx(&ctxt, &goid)))) {
+		if (ctxt != NULL)
+			ssh_gssapi_delete_ctx(&ctxt);
 		xfree(doid);
 		return (0);
 	}
 
-	authctxt->methoddata=(void *)ctxt;
+	authctxt->methoddata = (void *)ctxt;
 
 	packet_start(SSH2_MSG_USERAUTH_GSSAPI_RESPONSE);
 

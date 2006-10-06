@@ -1,4 +1,4 @@
-/*	$OpenBSD: sftp-common.h,v 1.5 2003/11/10 16:23:41 jakob Exp $	*/
+/* $OpenBSD: sftp-common.h,v 1.10 2006/08/03 03:34:42 deraadt Exp $ */
 
 /*
  * Copyright (c) 2001 Markus Friedl.  All rights reserved.
@@ -24,6 +24,9 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
+
+/* Maximum packet that we are willing to send/accept */
+#define SFTP_MAX_MSG_LENGTH	(256 * 1024)
 
 typedef struct Attrib Attrib;
 

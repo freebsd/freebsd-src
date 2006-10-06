@@ -1,3 +1,4 @@
+/* $OpenBSD: ssh-dss.c,v 1.23 2006/08/03 03:34:42 deraadt Exp $ */
 /*
  * Copyright (c) 2000 Markus Friedl.  All rights reserved.
  *
@@ -23,14 +24,17 @@
  */
 
 #include "includes.h"
-RCSID("$OpenBSD: ssh-dss.c,v 1.19 2003/11/10 16:23:41 jakob Exp $");
+
+#include <sys/types.h>
 
 #include <openssl/bn.h>
 #include <openssl/evp.h>
 
+#include <stdarg.h>
+#include <string.h>
+
 #include "xmalloc.h"
 #include "buffer.h"
-#include "bufaux.h"
 #include "compat.h"
 #include "log.h"
 #include "key.h"

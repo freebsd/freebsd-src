@@ -1,3 +1,4 @@
+/* $OpenBSD: scard.c,v 1.35 2006/08/03 03:34:42 deraadt Exp $ */
 /*
  * Copyright (c) 2001 Markus Friedl.  All rights reserved.
  *
@@ -24,14 +25,18 @@
 
 #include "includes.h"
 #if defined(SMARTCARD) && defined(USE_SECTOK)
-RCSID("$OpenBSD: scard.c,v 1.29 2004/05/08 00:21:31 djm Exp $");
+
+#include <sys/types.h>
+
+#include <sectok.h>
+#include <stdarg.h>
+#include <string.h>
 
 #include <openssl/evp.h>
-#include <sectok.h>
 
+#include "xmalloc.h"
 #include "key.h"
 #include "log.h"
-#include "xmalloc.h"
 #include "misc.h"
 #include "scard.h"
 
@@ -125,7 +130,7 @@ sc_init(void)
 	if (status == SCARD_ERROR_NOCARD) {
 		return SCARD_ERROR_NOCARD;
 	}
-	if (status < 0 ) {
+	if (status < 0) {
 		error("sc_open failed");
 		return status;
 	}
@@ -215,7 +220,7 @@ sc_private_decrypt(int flen, u_char *from, u_char *to, RSA *rsa,
 	olen = len = sw = 0;
 	if (sc_fd < 0) {
 		status = sc_init();
-		if (status < 0 )
+		if (status < 0)
 			goto err;
 	}
 	if (padding != RSA_PKCS1_PADDING)
@@ -255,7 +260,7 @@ sc_private_encrypt(int flen, u_char *from, u_char *to, RSA *rsa,
 	len = sw = 0;
 	if (sc_fd < 0) {
 		status = sc_init();
-		if (status < 0 )
+		if (status < 0)
 			goto err;
 	}
 	if (padding != RSA_PKCS1_PADDING)
@@ -378,12 +383,12 @@ sc_get_keys(const char *id, const char *pin)
 		key_free(k);
 		return NULL;
 	}
-	if (status < 0 ) {
+	if (status < 0) {
 		error("sc_read_pubkey failed");
 		key_free(k);
 		return NULL;
 	}
-	keys = xmalloc((nkeys+1) * sizeof(Key *));
+	keys = xcalloc((nkeys+1), sizeof(Key *));
 
 	n = key_new(KEY_RSA1);
 	BN_copy(n->rsa->n, k->rsa->n);

@@ -25,12 +25,12 @@
 #ifndef _DEFINES_H
 #define _DEFINES_H
 
-/* $Id: defines.h,v 1.127 2005/08/31 16:59:49 tim Exp $ */
+/* $Id: defines.h,v 1.138 2006/09/21 13:13:30 dtucker Exp $ */
 
 
 /* Constants */
 
-#ifndef SHUT_RDWR
+#if defined(HAVE_DECL_SHUT_RD) && HAVE_DECL_SHUT_RD == 0
 enum
 {
   SHUT_RD = 0,		/* No more receptions.  */
@@ -90,8 +90,8 @@ enum
 #endif
 #endif
 
-#ifndef O_NONBLOCK	/* Non Blocking Open */
-# define O_NONBLOCK      00004
+#if defined(HAVE_DECL_O_NONBLOCK) && HAVE_DECL_O_NONBLOCK == 0
+# define O_NONBLOCK      00004	/* Non Blocking Open */
 #endif
 
 #ifndef S_ISDIR
@@ -143,15 +143,10 @@ including rpc/rpc.h breaks Solaris 6
 #define INADDR_LOOPBACK ((u_long)0x7f000001)
 #endif
 
-#ifndef __unused
-#define __unused
-#endif
-
 /* Types */
 
 /* If sys/types.h does not supply intXX_t, supply them ourselves */
 /* (or die trying) */
-
 
 #ifndef HAVE_U_INT
 typedef unsigned int u_int;
@@ -450,6 +445,10 @@ struct winsize {
 # define __sentinel__
 #endif
 
+#if !defined(HAVE_ATTRIBUTE__BOUNDED__) && !defined(__bounded__)
+# define __bounded__(x, y, z)
+#endif
+
 /* *-*-nto-qnx doesn't define this macro in the system headers */
 #ifdef MISSING_HOWMANY
 # define howmany(x,y)	(((x)+((y)-1))/(y))
@@ -492,6 +491,22 @@ struct winsize {
 # define offsetof(type, member) ((size_t) &((type *)0)->member)
 #endif
 
+/* Set up BSD-style BYTE_ORDER definition if it isn't there already */
+/* XXX: doesn't try to cope with strange byte orders (PDP_ENDIAN) */
+#ifndef BYTE_ORDER
+# ifndef LITTLE_ENDIAN
+#  define LITTLE_ENDIAN  1234
+# endif /* LITTLE_ENDIAN */
+# ifndef BIG_ENDIAN
+#  define BIG_ENDIAN     4321
+# endif /* BIG_ENDIAN */
+# ifdef WORDS_BIGENDIAN
+#  define BYTE_ORDER BIG_ENDIAN
+# else /* WORDS_BIGENDIAN */
+#  define BYTE_ORDER LITTLE_ENDIAN
+# endif /* WORDS_BIGENDIAN */
+#endif /* BYTE_ORDER */
+
 /* Function replacement / compatibility hacks */
 
 #if !defined(HAVE_GETADDRINFO) && (defined(HAVE_OGETADDRINFO) || defined(HAVE_NGETADDRINFO))
@@ -511,19 +526,6 @@ struct winsize {
 # define optopt             BSDoptopt
 # define optreset           BSDoptreset
 # define optarg             BSDoptarg
-#endif
-
-/* In older versions of libpam, pam_strerror takes a single argument */
-#ifdef HAVE_OLD_PAM
-# define PAM_STRERROR(a,b) pam_strerror((b))
-#else
-# define PAM_STRERROR(a,b) pam_strerror((a),(b))
-#endif
-
-#ifdef PAM_SUN_CODEBASE
-# define PAM_MSG_MEMBER(msg, n, member) ((*(msg))[(n)].member)
-#else
-# define PAM_MSG_MEMBER(msg, n, member) ((msg)[(n)]->member)
 #endif
 
 #if defined(BROKEN_GETADDRINFO) && defined(HAVE_GETADDRINFO)
@@ -554,6 +556,7 @@ struct winsize {
 #endif /* defined(HAVE_VHANGUP) && !defined(HAVE_DEV_PTMX) */
 
 #ifndef GETPGRP_VOID
+# include <unistd.h>
 # define getpgrp() getpgrp(0)
 #endif
 
@@ -693,7 +696,7 @@ struct winsize {
 # define CUSTOM_SYS_AUTH_PASSWD 1
 #endif
 
-#if defined(HAVE_LIBIAF)  &&  !defined(BROKEN_LIBIAF)
+#ifdef HAVE_LIBIAF
 # define CUSTOM_SYS_AUTH_PASSWD 1
 #endif
 
@@ -714,6 +717,16 @@ struct winsize {
 
 #if defined(HAVE_MMAP) && defined(BROKEN_MMAP)
 # undef HAVE_MMAP
+#endif
+
+#ifndef IOV_MAX
+# if defined(_XOPEN_IOV_MAX)
+#  define	IOV_MAX		_XOPEN_IOV_MAX
+# elif defined(DEF_IOV_MAX)
+#  define	IOV_MAX		DEF_IOV_MAX
+# else
+#  define	IOV_MAX		16
+# endif
 #endif
 
 #endif /* _DEFINES_H */

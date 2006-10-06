@@ -1,5 +1,3 @@
-/* OPENBSD ORIGINAL: sys/sys/tree.h */
-
 /*	$OpenBSD: tree.h,v 1.7 2002/10/17 21:51:54 art Exp $	*/
 /*
  * Copyright 2002 Niels Provos <provos@citi.umich.edu>
@@ -25,6 +23,8 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
+
+/* OPENBSD ORIGINAL: sys/sys/tree.h */
 
 #ifndef	_SYS_TREE_H_
 #define	_SYS_TREE_H_

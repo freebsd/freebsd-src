@@ -7,7 +7,7 @@
  *
  * A list of symbols which need munging is obtained as follows:
  *
- * nm libssh.a | awk '$2 == "T" && $3 !~ /^ssh_/ { print $3 }'
+ * nm libssh.a | awk '$2 == "T" && $3 !~ /^ssh_/ { print "#define", $3, "ssh_" $3 }'
  *
  * $FreeBSD$
  */
@@ -21,9 +21,11 @@
 #define addargs					ssh_addargs
 #define ask_permission				ssh_ask_permission
 #define atomicio				ssh_atomicio
+#define atomiciov				ssh_atomiciov
 #define auth_request_forwarding	       		ssh_auth_request_forwarding
 #define buffer_append				ssh_buffer_append
 #define buffer_append_space			ssh_buffer_append_space
+#define buffer_check_alloc			ssh_buffer_check_alloc
 #define buffer_clear				ssh_buffer_clear
 #define buffer_compress				ssh_buffer_compress
 #define buffer_compress_init_recv		ssh_buffer_compress_init_recv
@@ -73,11 +75,13 @@
 #define chan_rcvd_oclose	       		ssh_chan_rcvd_oclose
 #define chan_read_failed	       		ssh_chan_read_failed
 #define chan_write_failed	       		ssh_chan_write_failed
+#define channel_add_adm_permitted_opens		ssh_channel_add_adm_permitted_opens
 #define channel_add_permitted_opens    		ssh_channel_add_permitted_opens
 #define channel_after_select	       		ssh_channel_after_select
 #define channel_by_id				ssh_channel_by_id
 #define channel_cancel_cleanup	       		ssh_channel_cancel_cleanup
 #define channel_cancel_rport_listener  		ssh_channel_cancel_rport_listener
+#define channel_clear_adm_permitted_opens	ssh_channel_clear_adm_permitted_opens
 #define channel_clear_permitted_opens  		ssh_channel_clear_permitted_opens
 #define channel_close_all			ssh_channel_close_all
 #define channel_close_fd			ssh_channel_close_fd
@@ -185,6 +189,9 @@
 #define get_remote_ipaddr			ssh_get_remote_ipaddr
 #define get_remote_name_or_ip			ssh_get_remote_name_or_ip
 #define get_remote_port				ssh_get_remote_port
+#define get_u16					ssh_get_u16
+#define get_u32					ssh_get_u32
+#define get_u64					ssh_get_u64
 #define getrrsetbyname				ssh_getrrsetbyname
 #define host_hash				ssh_host_hash
 #define hostfile_read_key			ssh_hostfile_read_key
@@ -217,6 +224,7 @@
 #define key_names_valid2			ssh_key_names_valid2
 #define key_new					ssh_key_new
 #define key_new_private				ssh_key_new_private
+#define key_perm_ok				ssh_key_perm_ok
 #define key_read				ssh_key_read
 #define key_save_private			ssh_key_save_private
 #define key_sign				ssh_key_sign
@@ -301,9 +309,14 @@
 #define packet_write_poll			ssh_packet_write_poll
 #define packet_write_wait			ssh_packet_write_wait
 #define percent_expand				ssh_percent_expand
+#define permanently_drop_suid			ssh_permanently_drop_suid
 #define permanently_set_uid			ssh_permanently_set_uid
 #define prime_test				ssh_prime_test
 #define proto_spec				ssh_proto_spec
+#define put_host_port				ssh_put_host_port
+#define put_u16					ssh_put_u16
+#define put_u32					ssh_put_u32
+#define put_u64					ssh_put_u64
 #define pwcopy					ssh_pwcopy
 #define read_keyfile_line			ssh_read_keyfile_line
 #define read_passphrase				ssh_read_passphrase
@@ -322,6 +335,7 @@
 #define set_nodelay				ssh_set_nodelay
 #define set_nonblock				ssh_set_nonblock
 #define shadow_pw				ssh_shadow_pw
+#define sigdie					ssh_sigdie
 #define ssh1_3des_iv				ssh_ssh1_3des_iv
 #define start_progress_meter			ssh_start_progress_meter
 #define stop_progress_meter			ssh_stop_progress_meter
@@ -345,6 +359,8 @@
 #define x11_create_display_inet			ssh_x11_create_display_inet
 #define x11_input_open				ssh_x11_input_open
 #define x11_request_forwarding_with_spoofing	ssh_x11_request_forwarding_with_spoofing
+#define xasprintf				ssh_xasprintf
+#define xcalloc					ssh_xcalloc
 #define xcrypt					ssh_xcrypt
 #define xfree					ssh_xfree
 #define xmalloc					ssh_xmalloc

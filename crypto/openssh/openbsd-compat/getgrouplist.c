@@ -1,5 +1,4 @@
-/* OPENBSD ORIGINAL: lib/libc/gen/getgrouplist.c */
-
+/*	$OpenBSD: getgrouplist.c,v 1.12 2005/08/08 08:05:34 espie Exp $ */
 /*
  * Copyright (c) 1991, 1993
  *	The Regents of the University of California.  All rights reserved.
@@ -29,13 +28,11 @@
  * SUCH DAMAGE.
  */
 
+/* OPENBSD ORIGINAL: lib/libc/gen/getgrouplist.c */
+
 #include "includes.h"
 
 #ifndef HAVE_GETGROUPLIST
-
-#if defined(LIBC_SCCS) && !defined(lint)
-static char rcsid[] = "$OpenBSD: getgrouplist.c,v 1.9 2003/06/25 21:16:47 deraadt Exp $";
-#endif /* LIBC_SCCS and not lint */
 
 /*
  * get credential
@@ -46,14 +43,10 @@ static char rcsid[] = "$OpenBSD: getgrouplist.c,v 1.9 2003/06/25 21:16:47 deraad
 #include <grp.h>
 
 int
-getgrouplist(uname, agroup, groups, grpcnt)
-	const char *uname;
-	gid_t agroup;
-	register gid_t *groups;
-	int *grpcnt;
+getgrouplist(const char *uname, gid_t agroup, gid_t *groups, int *grpcnt)
 {
-	register struct group *grp;
-	register int i, ngroups;
+	struct group *grp;
+	int i, ngroups;
 	int ret, maxgroups;
 	int bail;
 

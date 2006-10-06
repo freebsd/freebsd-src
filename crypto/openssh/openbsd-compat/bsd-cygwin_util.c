@@ -29,21 +29,7 @@
 
 #include "includes.h"
 
-RCSID("$Id: bsd-cygwin_util.c,v 1.14 2005/05/25 09:42:11 dtucker Exp $");
-
 #ifdef HAVE_CYGWIN
-
-#include <fcntl.h>
-#include <stdlib.h>
-#include <sys/utsname.h>
-#include <sys/vfs.h>
-#include <windows.h>
-#include "xmalloc.h"
-#define is_winnt       (GetVersion() < 0x80000000)
-
-#define ntsec_on(c)	((c) && strstr((c),"ntsec") && !strstr((c),"nontsec"))
-#define ntsec_off(c)	((c) && strstr((c),"nontsec"))
-#define ntea_on(c)	((c) && strstr((c),"ntea") && !strstr((c),"nontea"))
 
 #if defined(open) && open == binary_open
 # undef open
@@ -51,6 +37,23 @@ RCSID("$Id: bsd-cygwin_util.c,v 1.14 2005/05/25 09:42:11 dtucker Exp $");
 #if defined(pipe) && open == binary_pipe
 # undef pipe
 #endif
+
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <sys/utsname.h>
+#include <sys/vfs.h>
+
+#include <fcntl.h>
+#include <stdlib.h>
+#include <unistd.h>
+#include <windows.h>
+
+#include "xmalloc.h"
+#define is_winnt       (GetVersion() < 0x80000000)
+
+#define ntsec_on(c)	((c) && strstr((c),"ntsec") && !strstr((c),"nontsec"))
+#define ntsec_off(c)	((c) && strstr((c),"nontsec"))
+#define ntea_on(c)	((c) && strstr((c),"ntea") && !strstr((c),"nontea"))
 
 int 
 binary_open(const char *filename, int flags, ...)
@@ -268,9 +271,9 @@ char **
 fetch_windows_environment(void)
 {
 	char **e, **p;
-	int i, idx = 0;
+	unsigned int i, idx = 0;
 
-	p = xmalloc((WENV_SIZ + 1) * sizeof(char *));
+	p = xcalloc(WENV_SIZ + 1, sizeof(char *));
 	for (e = environ; *e != NULL; ++e) {
 		for (i = 0; i < WENV_SIZ; ++i) {
 			if (!strncmp(*e, wenv_arr[i].name, wenv_arr[i].namelen))
