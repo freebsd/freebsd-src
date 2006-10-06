@@ -2192,6 +2192,11 @@ fxp_ifmedia_upd(struct ifnet *ifp)
 
 	mii = device_get_softc(sc->miibus);
 	FXP_LOCK(sc);
+	if (mii->mii_instance) {                                                
+		struct mii_softc	*miisc;                                 
+		LIST_FOREACH(miisc, &mii->mii_phys, mii_list)                   
+			mii_phy_reset(miisc);                                   
+	}                                      
 	mii_mediachg(mii);
 	FXP_UNLOCK(sc);
 	return (0);
