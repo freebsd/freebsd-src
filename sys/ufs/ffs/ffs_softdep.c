@@ -5268,7 +5268,7 @@ loop:
 					goto restart;
 				FREE_LOCK(&lk);
 				if ((error = bwrite(nbp)) != 0) {
-					break;
+					goto loop_end;
 				}
 				ACQUIRE_LOCK(&lk);
 				goto restart;
@@ -5299,7 +5299,7 @@ loop:
 				    flush_pagedep_deps(vp, wk->wk_mp,
 						&pagedep->pd_diraddhd[i]))) {
 					FREE_LOCK(&lk);
-					break;
+					goto loop_end;
 				}
 			}
 			continue;
@@ -5351,6 +5351,7 @@ loop:
 			    TYPENAME(wk->wk_type));
 			/* NOTREACHED */
 		}
+	loop_end:
 		/* We reach here only in error and unlocked */
 		if (error == 0)
 			panic("softdep_sync_metadata: zero error");
