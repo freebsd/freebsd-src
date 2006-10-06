@@ -67,6 +67,8 @@
  *    * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
  */
 
+#include <sys/ctype.h>
+
 #include <dev/sound/pcm/sound.h>
 #include <dev/pci/pcireg.h>
 #include <dev/pci/pcivar.h>
@@ -78,7 +80,7 @@
 
 #include "mixer_if.h"
 
-#define HDA_DRV_TEST_REV	"20061003_0029"
+#define HDA_DRV_TEST_REV	"20061007_0030"
 #define HDA_WIDGET_PARSER_REV	1
 
 SND_DECLARE_FILE("$FreeBSD$");
@@ -87,16 +89,14 @@ SND_DECLARE_FILE("$FreeBSD$");
 #define HDA_DEBUG_ENABLED	1
 
 #ifdef HDA_DEBUG_ENABLED
-#define HDA_DEBUG_MSG(stmt)	do {	\
-	if (bootverbose) {		\
-		stmt			\
-	}				\
+#define HDA_DEBUG(stmt)	do {	\
+	stmt			\
 } while(0)
 #else
-#define HDA_DEBUG_MSG(stmt)
+#define HDA_DEBUG(stmt)
 #endif
 
-#define HDA_BOOTVERBOSE_MSG(stmt)	do {	\
+#define HDA_BOOTVERBOSE(stmt)	do {	\
 	if (bootverbose) {			\
 		stmt				\
 	}					\
@@ -109,6 +109,8 @@ SND_DECLARE_FILE("$FreeBSD$");
 
 #define hdac_lock(sc)		snd_mtxlock((sc)->lock)
 #define hdac_unlock(sc)		snd_mtxunlock((sc)->lock)
+#define hdac_lockassert(sc)	snd_mtxassert((sc)->lock)
+#define hdac_lockowned(sc)	mtx_owned((sc)->lock)
 
 #define HDA_FLAG_MATCH(fl, v)	(((fl) & (v)) == (v))
 #define HDA_MATCH_ALL		0xffffffff
@@ -180,15 +182,32 @@ SND_DECLARE_FILE("$FreeBSD$");
 #define HDA_ADC_PATH	(1 << 1)
 #define HDA_ADC_RECSEL	(1 << 2)
 
-#define HDA_CTL_OUT	0x1
-#define HDA_CTL_IN	0x2
+#define HDA_CTL_OUT	(1 << 0)
+#define HDA_CTL_IN	(1 << 1)
 #define HDA_CTL_BOTH	(HDA_CTL_IN | HDA_CTL_OUT)
 
-#define HDA_QUIRK_GPIO1		(1 << 0)
-#define HDA_QUIRK_GPIO2		(1 << 1)
-#define HDA_QUIRK_SOFTPCMVOL	(1 << 2)
-#define HDA_QUIRK_FIXEDRATE	(1 << 3)
-#define HDA_QUIRK_FORCESTEREO	(1 << 4)
+#define HDA_GPIO_MAX		15
+/* 0 - 14 = GPIO */
+#define HDA_QUIRK_GPIO0		(1 << 0)
+#define HDA_QUIRK_GPIO1		(1 << 1)
+#define HDA_QUIRK_GPIO2		(1 << 2)
+#define HDA_QUIRK_SOFTPCMVOL	(1 << 15)
+#define HDA_QUIRK_FIXEDRATE	(1 << 16)
+#define HDA_QUIRK_FORCESTEREO	(1 << 17)
+
+static const struct {
+	char *key;
+	uint32_t value;
+} hdac_quirks_tab[] = {
+	{ "gpio0", HDA_QUIRK_GPIO0 },
+	{ "gpio1", HDA_QUIRK_GPIO1 },
+	{ "gpio2", HDA_QUIRK_GPIO2 },
+	{ "softpcmvol", HDA_QUIRK_SOFTPCMVOL },
+	{ "fixedrate", HDA_QUIRK_FIXEDRATE },
+	{ "forcestereo", HDA_QUIRK_FORCESTEREO }
+};
+#define HDAC_QUIRKS_TAB_LEN	\
+		(sizeof(hdac_quirks_tab) / sizeof(hdac_quirks_tab[0]))
 
 #define HDA_BDL_MIN	2
 #define HDA_BDL_MAX	256
@@ -287,7 +306,8 @@ static const struct {
 #define HDA_CODEC_ALC260	HDA_CODEC_CONSTRUCT(REALTEK, 0x0260)
 #define HDA_CODEC_ALC861	HDA_CODEC_CONSTRUCT(REALTEK, 0x0861)
 #define HDA_CODEC_ALC880	HDA_CODEC_CONSTRUCT(REALTEK, 0x0880)
-#define HDA_CODEC_ALC882	HDA_CODEC_CONSTRUCT(REALTEK, 0x0260)
+#define HDA_CODEC_ALC882	HDA_CODEC_CONSTRUCT(REALTEK, 0x0882)
+#define HDA_CODEC_ALC883	HDA_CODEC_CONSTRUCT(REALTEK, 0x0883)
 #define HDA_CODEC_ALCXXXX	HDA_CODEC_CONSTRUCT(REALTEK, 0xffff)
 
 /* Analog Device */
@@ -316,9 +336,13 @@ static const struct {
  * Ok, the truth is, I don't have any idea at all whether
  * it is "Venice" or "Waikiki" or other unnamed CXyadayada. The only
  * place that tell me it is "Venice" is from its Windows driver INF.
+ *
+ *  Venice - CX?????
+ * Waikiki - CX20551-22
  */
 #define CONEXANT_VENDORID	0x14f1
 #define HDA_CODEC_CXVENICE	HDA_CODEC_CONSTRUCT(CONEXANT, 0x5045)
+#define HDA_CODEC_CXWAIKIKI	HDA_CODEC_CONSTRUCT(CONEXANT, 0x5047)
 #define HDA_CODEC_CXXXXX	HDA_CODEC_CONSTRUCT(CONEXANT, 0xffff)
 
 
@@ -331,6 +355,7 @@ static const struct {
 	{ HDA_CODEC_ALC861,    "Realtek ALC861" },
 	{ HDA_CODEC_ALC880,    "Realtek ALC880" },
 	{ HDA_CODEC_ALC882,    "Realtek ALC882" },
+	{ HDA_CODEC_ALC883,    "Realtek ALC883" },
 	{ HDA_CODEC_AD1981HD,  "Analog Device AD1981HD" },
 	{ HDA_CODEC_AD1983,    "Analog Device AD1983" },
 	{ HDA_CODEC_AD1986A,   "Analog Device AD1986A" },
@@ -340,6 +365,7 @@ static const struct {
 	{ HDA_CODEC_STAC9220,  "Sigmatel STAC9220" },
 	{ HDA_CODEC_STAC922XD, "Sigmatel STAC9220D/9223D" },
 	{ HDA_CODEC_CXVENICE,  "Conexant Venice" },
+	{ HDA_CODEC_CXWAIKIKI, "Conexant Waikiki" },
 	/* Unknown codec */
 	{ HDA_CODEC_ALCXXXX,   "Realtek (Unknown)" },
 	{ HDA_CODEC_ADXXXX,    "Analog Device (Unknown)" },
@@ -582,9 +608,9 @@ hdac_hp_switch_handler(struct hdac_devinfo *devinfo)
 
 	res = hdac_command(sc,
 	    HDA_CMD_GET_PIN_SENSE(cad, hdac_hp_switch[i].hpnid), cad);
-	HDA_BOOTVERBOSE_MSG(
+	HDA_BOOTVERBOSE(
 		device_printf(sc->dev,
-		    "Pin sense: nid=%d res=0x%08x\n",
+		    "HDA_DEBUG: Pin sense: nid=%d res=0x%08x\n",
 		    hdac_hp_switch[i].hpnid, res);
 	);
 	res >>= 31;
@@ -616,7 +642,8 @@ hdac_hp_switch_handler(struct hdac_devinfo *devinfo)
 		if (res != 0) {
 			/* HP in */
 			w = hdac_widget_get(devinfo, hdac_hp_switch[i].hpnid);
-			if (w != NULL) {
+			if (w != NULL && w->type ==
+			    HDA_PARAM_AUDIO_WIDGET_CAP_TYPE_PIN_COMPLEX) {
 				if (forcemute == 0)
 					w->wclass.pin.ctrl |=
 					    HDA_CMD_SET_PIN_WIDGET_CTRL_OUT_ENABLE;
@@ -630,7 +657,8 @@ hdac_hp_switch_handler(struct hdac_devinfo *devinfo)
 			for (j = 0; hdac_hp_switch[i].spkrnid[j] != -1; j++) {
 				w = hdac_widget_get(devinfo,
 				    hdac_hp_switch[i].spkrnid[j]);
-				if (w != NULL) {
+				if (w != NULL && w->type ==
+				    HDA_PARAM_AUDIO_WIDGET_CAP_TYPE_PIN_COMPLEX) {
 					w->wclass.pin.ctrl &=
 					    ~HDA_CMD_SET_PIN_WIDGET_CTRL_OUT_ENABLE;
 					hdac_command(sc,
@@ -642,7 +670,8 @@ hdac_hp_switch_handler(struct hdac_devinfo *devinfo)
 		} else {
 			/* HP out */
 			w = hdac_widget_get(devinfo, hdac_hp_switch[i].hpnid);
-			if (w != NULL) {
+			if (w != NULL && w->type ==
+			    HDA_PARAM_AUDIO_WIDGET_CAP_TYPE_PIN_COMPLEX) {
 				w->wclass.pin.ctrl &=
 				    ~HDA_CMD_SET_PIN_WIDGET_CTRL_OUT_ENABLE;
 				hdac_command(sc,
@@ -652,7 +681,8 @@ hdac_hp_switch_handler(struct hdac_devinfo *devinfo)
 			for (j = 0; hdac_hp_switch[i].spkrnid[j] != -1; j++) {
 				w = hdac_widget_get(devinfo,
 				    hdac_hp_switch[i].spkrnid[j]);
-				if (w != NULL) {
+				if (w != NULL && w->type ==
+				    HDA_PARAM_AUDIO_WIDGET_CAP_TYPE_PIN_COMPLEX) {
 					if (forcemute == 0)
 						w->wclass.pin.ctrl |=
 						    HDA_CMD_SET_PIN_WIDGET_CTRL_OUT_ENABLE;
@@ -685,8 +715,8 @@ hdac_unsolicited_handler(struct hdac_codec *codec, uint32_t tag)
 
 	sc = codec->sc;
 
-	HDA_BOOTVERBOSE_MSG(
-		device_printf(sc->dev, "Unsol Tag: 0x%08x\n", tag);
+	HDA_BOOTVERBOSE(
+		device_printf(sc->dev, "HDA_DEBUG: Unsol Tag: 0x%08x\n", tag);
 	);
 
 	device_get_children(sc->dev, &devlist, &devcount);
@@ -733,14 +763,17 @@ hdac_stream_intr(struct hdac_softc *sc, struct hdac_chan *ch)
 
 	/* XXX to be removed */
 #ifdef HDAC_INTR_EXTRA
-	if ((res & HDAC_SDSTS_DESE) || (res & HDAC_SDSTS_FIFOE))
-		device_printf(sc->dev,
-		    "PCMDIR_%s intr triggered beyond stream boundary: %08x\n",
-		    (ch->dir == PCMDIR_PLAY) ? "PLAY" : "REC", res);
+	HDA_BOOTVERBOSE(
+		if (res & (HDAC_SDSTS_DESE | HDAC_SDSTS_FIFOE))
+			device_printf(sc->dev,
+			    "PCMDIR_%s intr triggered beyond stream boundary:"
+			    "%08x\n",
+			    (ch->dir == PCMDIR_PLAY) ? "PLAY" : "REC", res);
+	);
 #endif
 
 	HDAC_WRITE_1(&sc->mem, ch->off + HDAC_SDSTS,
-		     HDAC_SDSTS_DESE | HDAC_SDSTS_FIFOE | HDAC_SDSTS_BCIS );
+	    HDAC_SDSTS_DESE | HDAC_SDSTS_FIFOE | HDAC_SDSTS_BCIS );
 
 	/* XXX to be removed */
 #ifdef HDAC_INTR_EXTRA
@@ -779,17 +812,17 @@ hdac_intr_handler(void *context)
 	hdac_lock(sc);
 	/* Do we have anything to do? */
 	intsts = HDAC_READ_4(&sc->mem, HDAC_INTSTS);
-	if ((intsts & HDAC_INTSTS_GIS) != HDAC_INTSTS_GIS) {
+	if (!HDA_FLAG_MATCH(intsts, HDAC_INTSTS_GIS)) {
 		hdac_unlock(sc);
 		return;
 	}
 
 	/* Was this a controller interrupt? */
-	if ((intsts & HDAC_INTSTS_CIS) == HDAC_INTSTS_CIS) {
+	if (HDA_FLAG_MATCH(intsts, HDAC_INTSTS_CIS)) {
 		rirb_base = (struct hdac_rirb *)sc->rirb_dma.dma_vaddr;
 		rirbsts = HDAC_READ_1(&sc->mem, HDAC_RIRBSTS);
 		/* Get as many responses that we can */
-		while ((rirbsts & HDAC_RIRBSTS_RINTFL) == HDAC_RIRBSTS_RINTFL) {
+		while (HDA_FLAG_MATCH(rirbsts, HDAC_RIRBSTS_RINTFL)) {
 			HDAC_WRITE_1(&sc->mem, HDAC_RIRBSTS, HDAC_RIRBSTS_RINTFL);
 			rirbwp = HDAC_READ_1(&sc->mem, HDAC_RIRBWP);
 			bus_dmamap_sync(sc->rirb_dma.dma_tag, sc->rirb_dma.dma_map,
@@ -818,7 +851,7 @@ hdac_intr_handler(void *context)
 		HDAC_WRITE_4(&sc->mem, HDAC_INTSTS, HDAC_INTSTS_CIS);
 #endif
 	}
-	if ((intsts & HDAC_INTSTS_SIS_MASK)) {
+	if (intsts & HDAC_INTSTS_SIS_MASK) {
 		if (intsts & (1 << sc->num_iss))
 			hdac_stream_intr(sc, &sc->play);
 		if (intsts & (1 << 0))
@@ -844,7 +877,7 @@ hdac_intr_handler(void *context)
 }
 
 /****************************************************************************
- * int had_reset(hdac_softc *)
+ * int hdac_reset(hdac_softc *)
  *
  * Reset the hdac to a quiescent and known state.
  ****************************************************************************/
@@ -893,7 +926,7 @@ hdac_reset(struct hdac_softc *sc)
 	count = 10000;
 	do {
 		gctl = HDAC_READ_4(&sc->mem, HDAC_GCTL);
-		if ((gctl & HDAC_GCTL_CRST))
+		if (gctl & HDAC_GCTL_CRST)
 			break;
 		DELAY(10);
 	} while (--count);
@@ -901,12 +934,6 @@ hdac_reset(struct hdac_softc *sc)
 		device_printf(sc->dev, "Device stuck in reset\n");
 		return (ENXIO);
 	}
-
-	/*
-	 * Enable unsolicited interrupt.
-	 */
-	gctl = HDAC_READ_4(&sc->mem, HDAC_GCTL);
-	HDAC_WRITE_4(&sc->mem, HDAC_GCTL, gctl | HDAC_GCTL_UNSOL);
 
 	/*
 	 * Wait for codecs to finish their own reset sequence. The delay here
@@ -941,7 +968,7 @@ hdac_get_capabilities(struct hdac_softc *sc)
 	sc->num_oss = HDAC_GCAP_OSS(gcap);
 	sc->num_bss = HDAC_GCAP_BSS(gcap);
 
-	sc->support_64bit = (gcap & HDAC_GCAP_64OK) == HDAC_GCAP_64OK;
+	sc->support_64bit = HDA_FLAG_MATCH(gcap, HDAC_GCAP_64OK);
 
 	corbsize = HDAC_READ_1(&sc->mem, HDAC_CORBSIZE);
 	if ((corbsize & HDAC_CORBSIZE_CORBSZCAP_256) ==
@@ -1356,8 +1383,6 @@ hdac_scan_codecs(struct hdac_softc *sc)
 	int i;
 	uint16_t statests;
 
-	SLIST_INIT(&sc->codec_list);
-
 	statests = HDAC_READ_2(&sc->mem, HDAC_STATESTS);
 	for (i = 0; i < HDAC_CODEC_MAX; i++) {
 		if (HDAC_STATESTS_SDIWAKE(statests, i)) {
@@ -1375,13 +1400,12 @@ hdac_scan_codecs(struct hdac_softc *sc)
 			codec->sc = sc;
 			codec->cad = i;
 			sc->codecs[i] = codec;
-			SLIST_INSERT_HEAD(&sc->codec_list, codec, next_codec);
 			if (hdac_probe_codec(codec) != 0)
 				break;
 		}
 	}
 	/* All codecs have been probed, now try to attach drivers to them */
-	bus_generic_attach(sc->dev);
+	/* bus_generic_attach(sc->dev); */
 }
 
 /****************************************************************************
@@ -1400,9 +1424,8 @@ hdac_probe_codec(struct hdac_codec *codec)
 	int i;
 	nid_t cad = codec->cad;
 
-	HDA_DEBUG_MSG(
-		device_printf(sc->dev, "%s: Probing codec: %d\n",
-		    __func__, cad);
+	HDA_BOOTVERBOSE(
+		device_printf(sc->dev, "HDA_DEBUG: Probing codec: %d\n", cad);
 	);
 	vendorid = hdac_command(sc,
 	    HDA_CMD_GET_PARAMETER(cad, 0x0, HDA_PARAM_VENDOR_ID),
@@ -1416,9 +1439,9 @@ hdac_probe_codec(struct hdac_codec *codec)
 	startnode = HDA_PARAM_SUB_NODE_COUNT_START(subnode);
 	endnode = startnode + HDA_PARAM_SUB_NODE_COUNT_TOTAL(subnode);
 
-	HDA_DEBUG_MSG(
-		device_printf(sc->dev, "%s: \tstartnode=%d endnode=%d\n",
-		    __func__, startnode, endnode);
+	HDA_BOOTVERBOSE(
+		device_printf(sc->dev, "HDA_DEBUG: \tstartnode=%d endnode=%d\n",
+		    startnode, endnode);
 	);
 	for (i = startnode; i < endnode; i++) {
 		devinfo = hdac_probe_function(codec, i);
@@ -1432,20 +1455,18 @@ hdac_probe_codec(struct hdac_codec *codec)
 			    HDA_PARAM_REVISION_ID_REVISION_ID(revisionid);
 			devinfo->stepping_id =
 			    HDA_PARAM_REVISION_ID_STEPPING_ID(revisionid);
-			HDA_DEBUG_MSG(
+			HDA_BOOTVERBOSE(
 				device_printf(sc->dev,
-				    "%s: \tFound AFG nid=%d "
+				    "HDA_DEBUG: \tFound AFG nid=%d "
 				    "[startnode=%d endnode=%d]\n",
-				    __func__, devinfo->nid,
-				    startnode, endnode);
+				    devinfo->nid, startnode, endnode);
 			);
 			return (1);
 		}
 	}
 
-	HDA_DEBUG_MSG(
-		device_printf(sc->dev, "%s: \tAFG not found\n",
-		    __func__);
+	HDA_BOOTVERBOSE(
+		device_printf(sc->dev, "HDA_DEBUG: \tAFG not found\n");
 	);
 	return (0);
 }
@@ -1536,10 +1557,10 @@ hdac_widget_connection_parse(struct hdac_widget *w)
 		i += entnum;
 	}
 
-	HDA_BOOTVERBOSE_MSG(
+	HDA_BOOTVERBOSE(
 		if (w->nconns != found) {
 			device_printf(sc->dev,
-			    "node %d: WARNING!!! Connection "
+			    "HDA_DEBUG: nid=%d WARNING!!! Connection "
 			    "length=%d != found=%d\n",
 			    nid, w->nconns, found);
 		}
@@ -1904,7 +1925,7 @@ hdac_stream_reset(struct hdac_chan *ch)
 			break;
 		DELAY(10);
 	} while (--to);
-	if ((ctl & HDAC_SDCTL_SRST))
+	if (ctl & HDAC_SDCTL_SRST)
 		device_printf(sc->dev, "can't reset!\n");
 }
 
@@ -2052,7 +2073,7 @@ hdac_command_sendone_internal(struct hdac_softc *sc, uint32_t verb, nid_t cad)
 	struct hdac_command_list cl;
 	uint32_t response = HDAC_INVALID;
 
-	if (!mtx_owned(sc->lock))
+	if (!hdac_lockowned(sc))
 		device_printf(sc->dev, "WARNING!!!! mtx not owned!!!!\n");
 	cl.num_commands = 1;
 	cl.verbs = &verb;
@@ -2312,13 +2333,6 @@ hdac_stream_setup(struct hdac_chan *ch)
 	nid_t cad = ch->devinfo->codec->cad;
 	uint16_t fmt;
 
-	/*
-	 *  8bit = 0
-	 * 16bit = 1
-	 * 20bit = 2
-	 * 24bit = 3
-	 * 32bit = 4
-	 */
 	fmt = 0;
 	if (ch->fmt & AFMT_S16_LE)
 		fmt |= ch->bit16 << 4;
@@ -2342,9 +2356,10 @@ hdac_stream_setup(struct hdac_chan *ch)
 	HDAC_WRITE_2(&sc->mem, ch->off + HDAC_SDFMT, fmt);
 
 	for (i = 0; ch->io[i] != -1; i++) {
-		HDA_BOOTVERBOSE_MSG(
+		HDA_BOOTVERBOSE(
 			device_printf(sc->dev,
-			    "PCMDIR_%s: Stream setup nid=%d fmt=0x%08x\n",
+			    "HDA_DEBUG: PCMDIR_%s: Stream setup nid=%d "
+			    "fmt=0x%08x\n",
 			    (ch->dir == PCMDIR_PLAY) ? "PLAY" : "REC",
 			    ch->io[i], fmt);
 		);
@@ -2474,14 +2489,6 @@ hdac_audio_ctl_ossmixer_init(struct snd_mixer *m)
 	int i, j, softpcmvol;
 	nid_t cad;
 
-	if (resource_int_value(device_get_name(sc->dev),
-	    device_get_unit(sc->dev), "softpcmvol", &softpcmvol) == 0)
-		softpcmvol = (softpcmvol != 0) ? 1 : 0;
-	else
-		softpcmvol = (devinfo->function.audio.quirks &
-		    HDA_QUIRK_SOFTPCMVOL) ?
-		    1 : 0;
-
 	hdac_lock(sc);
 
 	mask = 0;
@@ -2505,6 +2512,16 @@ hdac_audio_ctl_ossmixer_init(struct snd_mixer *m)
 			    HDA_CMD_SET_UNSOLICITED_RESPONSE_ENABLE|
 			    HDAC_UNSOLTAG_EVENT_HP), cad);
 			hdac_hp_switch_handler(devinfo);
+			HDA_BOOTVERBOSE(
+				device_printf(sc->dev,
+				    "HDA_DEBUG: Enabling headphone/speaker "
+				    "audio routing switching:\n");
+				device_printf(sc->dev,
+				    "HDA_DEBUG: \tindex=%d nid=%d "
+				    "pci_subvendor=0x%08x "
+				    "codec=0x%08x\n",
+				    i, w->nid, sc->pci_subvendor, id);
+			);
 		}
 		break;
 	}
@@ -2541,7 +2558,9 @@ hdac_audio_ctl_ossmixer_init(struct snd_mixer *m)
 	if (!(mask & SOUND_MASK_PCM)) {
 		softpcmvol = 1;
 		mask |= SOUND_MASK_PCM;
-	}
+	} else
+		softpcmvol = (devinfo->function.audio.quirks &
+		    HDA_QUIRK_SOFTPCMVOL) ? 1 : 0;
 
 	i = 0;
 	ctl = NULL;
@@ -2559,9 +2578,9 @@ hdac_audio_ctl_ossmixer_init(struct snd_mixer *m)
 		d = device_get_softc(sc->dev);
 		if (d != NULL) {
 			d->flags |= SD_F_SOFTPCMVOL;
-			HDA_BOOTVERBOSE_MSG(
+			HDA_BOOTVERBOSE(
 				device_printf(sc->dev,
-				    "%s Soft PCM volume\n",
+				    "HDA_DEBUG: %s Soft PCM volume\n",
 				    (softpcmvol == 1) ?
 				    "Forcing" : "Enabling");
 			);
@@ -2593,9 +2612,8 @@ hdac_audio_ctl_ossmixer_init(struct snd_mixer *m)
 			    NULL) {
 				if (ctl->widget == NULL || ctl->enable == 0)
 					continue;
-				if ((ctl->ossmask & (SOUND_MASK_VOLUME |
-				    SOUND_MASK_PCM)) != (SOUND_MASK_VOLUME |
-				    SOUND_MASK_PCM))
+				if (!HDA_FLAG_MATCH(ctl->ossmask,
+				    SOUND_MASK_VOLUME | SOUND_MASK_PCM))
 					continue;
 				if (!(ctl->mute == 1 && ctl->step == 0))
 					ctl->enable = 0;
@@ -2789,6 +2807,14 @@ hdac_attach(device_t dev)
 		device_printf(dev, "cannot allocate softc\n");
 		return (ENOMEM);
 	}
+
+	sc->lock = snd_mtxcreate(device_get_nameunit(dev), HDAC_MTX_NAME);
+	if (sc->lock == NULL) {
+		device_printf(dev, "mutex creation failed\n");
+		free(sc, M_DEVBUF);
+		return (ENOMEM);
+	}
+
 	sc->dev = dev;
 	sc->pci_subvendor = pci_get_subdevice(sc->dev) << 16;
 	sc->pci_subvendor |= pci_get_subvendor(sc->dev);
@@ -2827,6 +2853,7 @@ hdac_attach(device_t dev)
 	if (result != 0) {
 		device_printf(sc->dev, "%s: bus_dma_tag_create failed (%x)\n",
 		     __func__, result);
+		snd_mtxfree(sc->lock);
 		free(sc, M_DEVBUF);
 		return (ENXIO);
 	}
@@ -2838,31 +2865,28 @@ hdac_attach(device_t dev)
 
 	pci_enable_busmaster(dev);
 
-	/* Initialize driver mutex */
-	sc->lock = snd_mtxcreate(device_get_nameunit(dev), HDAC_MTX_NAME);
-
 	/* Allocate resources */
 	result = hdac_mem_alloc(sc);
 	if (result != 0)
-		goto fail;
+		goto hdac_attach_fail;
 	result = hdac_irq_alloc(sc);
 	if (result != 0)
-		goto fail;
+		goto hdac_attach_fail;
 
 	/* Get Capabilities */
 	result = hdac_get_capabilities(sc);
 	if (result != 0)
-		goto fail;
+		goto hdac_attach_fail;
 
 	/* Allocate CORB and RIRB dma memory */
 	result = hdac_dma_alloc(sc, &sc->corb_dma,
 	    sc->corb_size * sizeof(uint32_t));
 	if (result != 0)
-		goto fail;
+		goto hdac_attach_fail;
 	result = hdac_dma_alloc(sc, &sc->rirb_dma,
 	    sc->rirb_size * sizeof(struct hdac_rirb));
 	if (result != 0)
-		goto fail;
+		goto hdac_attach_fail;
 
 	/* Quiesce everything */
 	hdac_reset(sc);
@@ -2883,16 +2907,17 @@ hdac_attach(device_t dev)
 		hdac_attach2((void *)sc);
 	}
 
-	return(0);
+	return (0);
 
-fail:
+hdac_attach_fail:
 	hdac_dma_free(&sc->rirb_dma);
 	hdac_dma_free(&sc->corb_dma);
 	hdac_irq_free(sc);
 	hdac_mem_free(sc);
 	snd_mtxfree(sc->lock);
+	free(sc, M_DEVBUF);
 
-	return(ENXIO);
+	return (ENXIO);
 }
 
 static void
@@ -2919,7 +2944,7 @@ hdac_audio_parse(struct hdac_devinfo *devinfo)
 	devinfo->startnode = HDA_PARAM_SUB_NODE_COUNT_START(res);
 	devinfo->endnode = devinfo->startnode + devinfo->nodecnt;
 
-	HDA_BOOTVERBOSE_MSG(
+	HDA_BOOTVERBOSE(
 		device_printf(sc->dev, "       Vendor: 0x%08x\n",
 		    devinfo->vendor_id);
 		device_printf(sc->dev, "       Device: 0x%08x\n",
@@ -2995,6 +3020,7 @@ hdac_audio_ctl_parse(struct hdac_devinfo *devinfo)
 	struct hdac_audio_ctl *ctls;
 	struct hdac_widget *w, *cw;
 	int i, j, cnt, max, ocap, icap;
+	int mute, offset, step, size;
 
 	/* XXX This is redundant */
 	max = 0;
@@ -3053,22 +3079,44 @@ hdac_audio_ctl_parse(struct hdac_devinfo *devinfo)
 		ocap = w->param.outamp_cap;
 		icap = w->param.inamp_cap;
 		if (ocap != 0) {
+			mute = HDA_PARAM_OUTPUT_AMP_CAP_MUTE_CAP(ocap);
+			step = HDA_PARAM_OUTPUT_AMP_CAP_NUMSTEPS(ocap);
+			size = HDA_PARAM_OUTPUT_AMP_CAP_STEPSIZE(ocap);
+			offset = HDA_PARAM_OUTPUT_AMP_CAP_OFFSET(ocap);
+			/*if (offset > step) {
+				HDA_BOOTVERBOSE(
+					device_printf(sc->dev,
+					    "HDA_DEBUG: BUGGY outamp: nid=%d "
+					    "[offset=%d > step=%d]\n",
+					    w->nid, offset, step);
+				);
+				offset = step;
+			}*/
 			ctls[cnt].enable = 1;
 			ctls[cnt].widget = w;
-			ctls[cnt].mute =
-			    HDA_PARAM_OUTPUT_AMP_CAP_MUTE_CAP(ocap);
-			ctls[cnt].step =
-			    HDA_PARAM_OUTPUT_AMP_CAP_NUMSTEPS(ocap);
-			ctls[cnt].size =
-			    HDA_PARAM_OUTPUT_AMP_CAP_STEPSIZE(ocap);
-			ctls[cnt].offset =
-			    HDA_PARAM_OUTPUT_AMP_CAP_OFFSET(ocap);
-			ctls[cnt].left = ctls[cnt].offset;
-			ctls[cnt].right = ctls[cnt].offset;
+			ctls[cnt].mute = mute;
+			ctls[cnt].step = step;
+			ctls[cnt].size = size;
+			ctls[cnt].offset = offset;
+			ctls[cnt].left = offset;
+			ctls[cnt].right = offset;
 			ctls[cnt++].dir = HDA_CTL_OUT;
 		}
 
 		if (icap != 0) {
+			mute = HDA_PARAM_OUTPUT_AMP_CAP_MUTE_CAP(icap);
+			step = HDA_PARAM_OUTPUT_AMP_CAP_NUMSTEPS(icap);
+			size = HDA_PARAM_OUTPUT_AMP_CAP_STEPSIZE(icap);
+			offset = HDA_PARAM_OUTPUT_AMP_CAP_OFFSET(icap);
+			/*if (offset > step) {
+				HDA_BOOTVERBOSE(
+					device_printf(sc->dev,
+					    "HDA_DEBUG: BUGGY inamp: nid=%d "
+					    "[offset=%d > step=%d]\n",
+					    w->nid, offset, step);
+				);
+				offset = step;
+			}*/
 			switch (w->type) {
 			case HDA_PARAM_AUDIO_WIDGET_CAP_TYPE_AUDIO_SELECTOR:
 			case HDA_PARAM_AUDIO_WIDGET_CAP_TYPE_AUDIO_MIXER:
@@ -3087,16 +3135,12 @@ hdac_audio_ctl_parse(struct hdac_devinfo *devinfo)
 					ctls[cnt].widget = w;
 					ctls[cnt].childwidget = cw;
 					ctls[cnt].index = j;
-					ctls[cnt].mute =
-					    HDA_PARAM_INPUT_AMP_CAP_MUTE_CAP(icap);
-					ctls[cnt].step =
-					    HDA_PARAM_INPUT_AMP_CAP_NUMSTEPS(icap);
-					ctls[cnt].size =
-					    HDA_PARAM_INPUT_AMP_CAP_STEPSIZE(icap);
-					ctls[cnt].offset =
-					    HDA_PARAM_INPUT_AMP_CAP_OFFSET(icap);
-					ctls[cnt].left = ctls[cnt].offset;
-					ctls[cnt].right = ctls[cnt].offset;
+					ctls[cnt].mute = mute;
+					ctls[cnt].step = step;
+					ctls[cnt].size = size;
+					ctls[cnt].offset = offset;
+					ctls[cnt].left = offset;
+					ctls[cnt].right = offset;
 					ctls[cnt++].dir = HDA_CTL_IN;
 				}
 				break;
@@ -3109,16 +3153,12 @@ hdac_audio_ctl_parse(struct hdac_devinfo *devinfo)
 				}
 				ctls[cnt].enable = 1;
 				ctls[cnt].widget = w;
-				ctls[cnt].mute =
-				    HDA_PARAM_INPUT_AMP_CAP_MUTE_CAP(icap);
-				ctls[cnt].step =
-				    HDA_PARAM_INPUT_AMP_CAP_NUMSTEPS(icap);
-				ctls[cnt].size =
-				    HDA_PARAM_INPUT_AMP_CAP_STEPSIZE(icap);
-				ctls[cnt].offset =
-				    HDA_PARAM_INPUT_AMP_CAP_OFFSET(icap);
-				ctls[cnt].left = ctls[cnt].offset;
-				ctls[cnt].right = ctls[cnt].offset;
+				ctls[cnt].mute = mute;
+				ctls[cnt].step = step;
+				ctls[cnt].size = size;
+				ctls[cnt].offset = offset;
+				ctls[cnt].left = offset;
+				ctls[cnt].right = offset;
 				ctls[cnt++].dir = HDA_CTL_IN;
 				break;
 			}
@@ -3133,6 +3173,16 @@ static const struct {
 	uint32_t id;
 	uint32_t set, unset;
 } hdac_quirks[] = {
+	/*
+	 * XXX Fixed rate quirk. Other than 48000
+	 *     sounds pretty much like train wreck.
+	 *
+	 * XXX Force stereo quirk. Monoural recording / playback
+	 *     on few codecs (especially ALC880) seems broken or
+	 *     perhaps unsupported.
+	 */
+	{ HDA_MATCH_ALL, HDA_MATCH_ALL,
+	    HDA_QUIRK_FIXEDRATE | HDA_QUIRK_FORCESTEREO, 0 },
 	{ ACER_ALL_SUBVENDOR, HDA_MATCH_ALL,
 	    HDA_QUIRK_GPIO1, 0 },
 	{ ASUS_M5200_SUBVENDOR, HDA_CODEC_ALC880,
@@ -3151,19 +3201,24 @@ hdac_vendor_patch_parse(struct hdac_devinfo *devinfo)
 	uint32_t id, subvendor;
 	int i;
 
-	/*
-	 * XXX Fixed rate quirk. Other than 48000
-	 *     sounds pretty much like train wreck.
-	 */
-	devinfo->function.audio.quirks |= HDA_QUIRK_FIXEDRATE;
-	/*
-	 * XXX Force stereo quirk. Monoural recording / playback
-	 *     on few codecs (especially ALC880) seems broken or
-	 *     or perhaps unsupported.
-	 */
-	devinfo->function.audio.quirks |= HDA_QUIRK_FORCESTEREO;
 	id = hdac_codec_id(devinfo);
 	subvendor = devinfo->codec->sc->pci_subvendor;
+
+	/*
+	 * Quirks
+	 */
+	for (i = 0; i < HDAC_QUIRKS_LEN; i++) {
+		if (!(HDA_FLAG_MATCH(hdac_quirks[i].model, subvendor) &&
+		    HDA_FLAG_MATCH(hdac_quirks[i].id, id)))
+			continue;
+		if (hdac_quirks[i].set != 0)
+			devinfo->function.audio.quirks |=
+			    hdac_quirks[i].set;
+		if (hdac_quirks[i].unset != 0)
+			devinfo->function.audio.quirks &=
+			    ~(hdac_quirks[i].unset);
+	}
+
 	switch (id) {
 	case HDA_CODEC_ALC260:
 		for (i = devinfo->startnode; i < devinfo->endnode; i++) {
@@ -3189,8 +3244,10 @@ hdac_vendor_patch_parse(struct hdac_devinfo *devinfo)
 			} else if (w->type !=
 			    HDA_PARAM_AUDIO_WIDGET_CAP_TYPE_BEEP_WIDGET &&
 			    w->nid == 29) {
-				w->type = HDA_PARAM_AUDIO_WIDGET_CAP_TYPE_BEEP_WIDGET;
-				w->param.widget_cap &= ~HDA_PARAM_AUDIO_WIDGET_CAP_TYPE_MASK;
+				w->type =
+				    HDA_PARAM_AUDIO_WIDGET_CAP_TYPE_BEEP_WIDGET;
+				w->param.widget_cap &=
+				    ~HDA_PARAM_AUDIO_WIDGET_CAP_TYPE_MASK;
 				w->param.widget_cap |=
 				    HDA_PARAM_AUDIO_WIDGET_CAP_TYPE_BEEP_WIDGET <<
 				    HDA_PARAM_AUDIO_WIDGET_CAP_TYPE_SHIFT;
@@ -3235,22 +3292,6 @@ hdac_vendor_patch_parse(struct hdac_devinfo *devinfo)
 		}
 		break;
 	default:
-		break;
-	}
-
-	/*
-	 * Quirks
-	 */
-	for (i = 0; i < HDAC_QUIRKS_LEN; i++) {
-		if (!(HDA_FLAG_MATCH(hdac_quirks[i].model, subvendor) &&
-		    HDA_FLAG_MATCH(hdac_quirks[i].id, id)))
-			continue;
-		if (hdac_quirks[i].set != 0)
-			devinfo->function.audio.quirks |=
-			    hdac_quirks[i].set;
-		if (hdac_quirks[i].unset != 0)
-			devinfo->function.audio.quirks &=
-			    ~(hdac_quirks[i].unset);
 		break;
 	}
 }
@@ -3398,6 +3439,7 @@ hdac_audio_ctl_outamp_build(struct hdac_devinfo *devinfo,
 		while ((ctl = hdac_audio_ctl_each(devinfo, &i)) != NULL) {
 			if (ctl->enable == 0 || ctl->widget == NULL)
 				continue;
+			/* XXX This should be compressed! */
 			if ((ctl->widget->nid == w->nid) ||
 			    (ctl->widget->nid == pnid && ctl->index == index &&
 			    (ctl->dir & HDA_CTL_IN)) ||
@@ -3409,13 +3451,32 @@ hdac_audio_ctl_outamp_build(struct hdac_devinfo *devinfo,
 			    (ctl->dir & HDA_CTL_OUT)) ||
 			    (strategy == HDA_PARSE_DIRECT &&
 			    ctl->widget->nid == w->nid)) {
-				if (pw != NULL && pw->selconn == -1)
+				/*if (pw != NULL && pw->selconn == -1)
 					pw->selconn = index;
 				fl |= SOUND_MASK_VOLUME;
 				fl |= SOUND_MASK_PCM;
 				ctl->ossmask |= SOUND_MASK_VOLUME;
 				ctl->ossmask |= SOUND_MASK_PCM;
-				ctl->ossdev = SOUND_MIXER_PCM;
+				ctl->ossdev = SOUND_MIXER_PCM;*/
+				if (!(w->ctlflags & SOUND_MASK_PCM) ||
+				    (pw != NULL &&
+				    !(pw->ctlflags & SOUND_MASK_PCM))) {
+					fl |= SOUND_MASK_VOLUME;
+					fl |= SOUND_MASK_PCM;
+					ctl->ossmask |= SOUND_MASK_VOLUME;
+					ctl->ossmask |= SOUND_MASK_PCM;
+					ctl->ossdev = SOUND_MIXER_PCM;
+					w->ctlflags |= SOUND_MASK_VOLUME;
+					w->ctlflags |= SOUND_MASK_PCM;
+					if (pw != NULL) {
+						if (pw->selconn == -1)
+							pw->selconn = index;
+						pw->ctlflags |=
+						    SOUND_MASK_VOLUME;
+						pw->ctlflags |=
+						    SOUND_MASK_PCM;
+					}
+				}
 			}
 		}
 		w->ctlflags |= fl;
@@ -3429,6 +3490,7 @@ hdac_audio_ctl_outamp_build(struct hdac_devinfo *devinfo,
 		while ((ctl = hdac_audio_ctl_each(devinfo, &i)) != NULL) {
 			if (ctl->enable == 0 || ctl->widget == NULL)
 				continue;
+			/* XXX This should be compressed! */
 			if (((ctl->widget->nid == pnid && ctl->index == index &&
 			    (ctl->dir & HDA_CTL_IN)) ||
 			    (ctl->widget->nid == pnid && pw != NULL &&
@@ -3439,7 +3501,7 @@ hdac_audio_ctl_outamp_build(struct hdac_devinfo *devinfo,
 			    (ctl->dir & HDA_CTL_OUT)) ||
 			    (strategy == HDA_PARSE_DIRECT &&
 			    ctl->widget->nid == w->nid)) &&
-			    (ctl->ossmask & ~SOUND_MASK_VOLUME) == 0) {
+			    !(ctl->ossmask & ~SOUND_MASK_VOLUME)) {
 				if (pw != NULL && pw->selconn == -1)
 					pw->selconn = index;
 				ossdev = 0;
@@ -3477,6 +3539,7 @@ hdac_audio_ctl_outamp_build(struct hdac_devinfo *devinfo,
 		while ((ctl = hdac_audio_ctl_each(devinfo, &i)) != NULL) {
 			if (ctl->enable == 0 || ctl->widget == NULL)
 				continue;
+			/* XXX This should be compressed! */
 			if (((ctl->widget->nid == pnid && ctl->index == index &&
 			    (ctl->dir & HDA_CTL_IN)) ||
 			    (ctl->widget->nid == pnid && pw != NULL &&
@@ -3487,7 +3550,7 @@ hdac_audio_ctl_outamp_build(struct hdac_devinfo *devinfo,
 			    (ctl->dir & HDA_CTL_OUT)) ||
 			    (strategy == HDA_PARSE_DIRECT &&
 			    ctl->widget->nid == w->nid)) &&
-			    (ctl->ossmask & ~SOUND_MASK_VOLUME) == 0) {
+			    !(ctl->ossmask & ~SOUND_MASK_VOLUME)) {
 				if (pw != NULL && pw->selconn == -1)
 					pw->selconn = index;
 				fl |= SOUND_MASK_VOLUME;
@@ -3638,16 +3701,17 @@ hdac_audio_build_tree(struct hdac_devinfo *devinfo)
 	/* Construct DAC path */
 	strategy = HDA_PARSE_MIXER;
 	devinfo->function.audio.parsing_strategy = strategy;
-	HDA_BOOTVERBOSE_MSG(
+	HDA_BOOTVERBOSE(
 		device_printf(devinfo->codec->sc->dev,
-		    "HWiP: HDA Widget Parser - Revision %d\n",
+		    "HDA_DEBUG: HWiP: HDA Widget Parser - Revision %d\n",
 		    HDA_WIDGET_PARSER_REV);
 	);
 	dacs = hdac_audio_build_tree_strategy(devinfo);
 	if (dacs == 0) {
-		HDA_BOOTVERBOSE_MSG(
+		HDA_BOOTVERBOSE(
 			device_printf(devinfo->codec->sc->dev,
-			    "HWiP: 0 DAC found! Retrying parser "
+			    "HDA_DEBUG: HWiP: 0 DAC path found! "
+			    "Retrying parser "
 			    "using HDA_PARSE_DIRECT strategy.\n");
 		);
 		strategy = HDA_PARSE_DIRECT;
@@ -3655,9 +3719,10 @@ hdac_audio_build_tree(struct hdac_devinfo *devinfo)
 		dacs = hdac_audio_build_tree_strategy(devinfo);
 	}
 
-	HDA_BOOTVERBOSE_MSG(
+	HDA_BOOTVERBOSE(
 		device_printf(devinfo->codec->sc->dev,
-		    "HWiP: Found %d DAC(s) using HDA_PARSE_%s strategy.\n",
+		    "HDA_DEBUG: HWiP: Found %d DAC path using HDA_PARSE_%s "
+		    "strategy.\n",
 		    dacs, (strategy == HDA_PARSE_MIXER) ? "MIXER" : "DIRECT");
 	);
 
@@ -3727,36 +3792,29 @@ hdac_audio_commit(struct hdac_devinfo *devinfo, uint32_t cfl)
 {
 	struct hdac_softc *sc = devinfo->codec->sc;
 	struct hdac_widget *w;
-	nid_t cad;
-	int i;
+	nid_t cad, nid;
+	int i, gpioval;
 
 	if (!(cfl & HDA_COMMIT_ALL))
 		return;
 
 	cad = devinfo->codec->cad;
 
-	if ((cfl & HDA_COMMIT_GPIO)) {
-		if (devinfo->function.audio.quirks & HDA_QUIRK_GPIO1) {
+	if (cfl & HDA_COMMIT_GPIO) {
+		nid = devinfo->nid;
+		for (i = 0; i < HDA_GPIO_MAX; i++) {
+			if (!(devinfo->function.audio.quirks & (1 << i)))
+				continue;
+			gpioval = (1 << i) - 1;
 			hdac_command(sc,
-			    HDA_CMD_SET_GPIO_ENABLE_MASK(cad, 0x01,
-			    0x01), cad);
+			    HDA_CMD_SET_GPIO_ENABLE_MASK(cad, nid, gpioval),
+			    cad);
 			hdac_command(sc,
-			    HDA_CMD_SET_GPIO_DIRECTION(cad, 0x01,
-			    0x01), cad);
+			    HDA_CMD_SET_GPIO_DIRECTION(cad, nid, gpioval),
+			    cad);
 			hdac_command(sc,
-			    HDA_CMD_SET_GPIO_DATA(cad, 0x01,
-			    0x01), cad);
-		}
-		if (devinfo->function.audio.quirks & HDA_QUIRK_GPIO2) {
-			hdac_command(sc,
-			    HDA_CMD_SET_GPIO_ENABLE_MASK(cad, 0x01,
-			    0x02), cad);
-			hdac_command(sc,
-			    HDA_CMD_SET_GPIO_DIRECTION(cad, 0x01,
-			    0x02), cad);
-			hdac_command(sc,
-			    HDA_CMD_SET_GPIO_DATA(cad, 0x01,
-			    0x02), cad);
+			    HDA_CMD_SET_GPIO_DATA(cad, nid, gpioval),
+			    cad);
 		}
 	}
 
@@ -3818,7 +3876,7 @@ hdac_audio_ctl_commit(struct hdac_devinfo *devinfo)
 	i = 0;
 	while ((ctl = hdac_audio_ctl_each(devinfo, &i)) != NULL) {
 		if (ctl->enable == 0 || ctl->widget == NULL) {
-			HDA_BOOTVERBOSE_MSG(
+			HDA_BOOTVERBOSE(
 				device_printf(sc->dev, "[%2d] Ctl nid=%d",
 				    i, (ctl->widget != NULL) ?
 				    ctl->widget->nid : -1);
@@ -3831,7 +3889,7 @@ hdac_audio_ctl_commit(struct hdac_devinfo *devinfo)
 			);
 			continue;
 		}
-		HDA_BOOTVERBOSE_MSG(
+		HDA_BOOTVERBOSE(
 			if (ctl->ossmask == 0) {
 				device_printf(sc->dev, "[%2d] Ctl nid=%d",
 				    i, ctl->widget->nid);
@@ -3884,7 +3942,7 @@ hdac_pcmchannel_setup(struct hdac_devinfo *devinfo, int dir)
 	for (i = devinfo->startnode; i < devinfo->endnode && ret < max; i++) {
 		w = hdac_widget_get(devinfo, i);
 		if (w == NULL || w->enable == 0 || w->type != type ||
-		    (w->pflags & path) == 0)
+		    !(w->pflags & path))
 			continue;
 		cap = w->param.widget_cap;
 		/*if (HDA_PARAM_AUDIO_WIDGET_CAP_DIGITAL(cap))
@@ -4132,7 +4190,7 @@ hdac_dump_pin(struct hdac_softc *sc, struct hdac_widget *w)
 static void
 hdac_dump_amp(struct hdac_softc *sc, uint32_t cap, char *banner)
 {
-	device_printf(sc->dev, "     %s amp: 0x%0x\n", banner, cap);
+	device_printf(sc->dev, "     %s amp: 0x%08x\n", banner, cap);
 	device_printf(sc->dev, "                 "
 	    "mute=%d step=%d size=%d offset=%d\n",
 	    HDA_PARAM_OUTPUT_AMP_CAP_MUTE_CAP(cap),
@@ -4187,9 +4245,11 @@ hdac_dump_nodes(struct hdac_devinfo *devinfo)
 		if (w->param.eapdbtl != HDAC_INVALID)
 			device_printf(sc->dev, "           EAPD: 0x%08x\n",
 			    w->param.eapdbtl);
-		if (HDA_PARAM_AUDIO_WIDGET_CAP_OUT_AMP(w->param.widget_cap))
+		if (HDA_PARAM_AUDIO_WIDGET_CAP_OUT_AMP(w->param.widget_cap) &&
+		    w->param.outamp_cap != 0)
 			hdac_dump_amp(sc, w->param.outamp_cap, "Output");
-		if (HDA_PARAM_AUDIO_WIDGET_CAP_IN_AMP(w->param.widget_cap))
+		if (HDA_PARAM_AUDIO_WIDGET_CAP_IN_AMP(w->param.widget_cap) &&
+		    w->param.inamp_cap != 0)
 			hdac_dump_amp(sc, w->param.inamp_cap, " Input");
 		device_printf(sc->dev, "    connections: %d\n", w->nconns);
 		for (j = 0; j < w->nconns; j++) {
@@ -4210,10 +4270,78 @@ hdac_dump_nodes(struct hdac_devinfo *devinfo)
 
 }
 
+static int
+hdac_dump_dac_internal(struct hdac_devinfo *devinfo, nid_t nid, int depth)
+{
+	struct hdac_widget *w, *cw;
+	struct hdac_softc *sc = devinfo->codec->sc;
+	int i;
+
+	if (depth > HDA_PARSE_MAXDEPTH)
+		return (0);
+
+	w = hdac_widget_get(devinfo, nid);
+	if (w == NULL || w->enable == 0 || !(w->pflags & HDA_DAC_PATH))
+		return (0);
+
+	if (w->type == HDA_PARAM_AUDIO_WIDGET_CAP_TYPE_PIN_COMPLEX) {
+		device_printf(sc->dev, "\n");
+		device_printf(sc->dev, "    nid=%d [%s]\n", w->nid, w->name);
+		device_printf(sc->dev, "      ^\n");
+		device_printf(sc->dev, "      |\n");
+		device_printf(sc->dev, "      +-----<------+\n");
+	} else {
+		device_printf(sc->dev, "                   ^\n");
+		device_printf(sc->dev, "                   |\n");
+		device_printf(sc->dev, "               ");
+		printf("  nid=%d [%s]\n", w->nid, w->name);
+	}
+
+	if (w->type == HDA_PARAM_AUDIO_WIDGET_CAP_TYPE_AUDIO_OUTPUT) {
+		return (1);
+	} else if (w->type == HDA_PARAM_AUDIO_WIDGET_CAP_TYPE_AUDIO_MIXER) {
+		for (i = 0; i < w->nconns; i++) {
+			cw = hdac_widget_get(devinfo, w->conns[i]);
+			if (cw == NULL || cw->enable == 0 || cw->type ==
+			    HDA_PARAM_AUDIO_WIDGET_CAP_TYPE_PIN_COMPLEX)
+				continue;
+			if (hdac_dump_dac_internal(devinfo, cw->nid,
+			    depth + 1) != 0)
+				return (1);
+		}
+	} else if ((w->type ==
+	    HDA_PARAM_AUDIO_WIDGET_CAP_TYPE_AUDIO_SELECTOR ||
+	    w->type == HDA_PARAM_AUDIO_WIDGET_CAP_TYPE_PIN_COMPLEX) &&
+	    w->selconn > -1 && w->selconn < w->nconns) {
+		if (hdac_dump_dac_internal(devinfo, w->conns[w->selconn],
+		    depth + 1) != 0)
+			return (1);
+	}
+
+	return (0);
+}
+
 static void
 hdac_dump_dac(struct hdac_devinfo *devinfo)
 {
-	/* XXX TODO */
+	struct hdac_widget *w;
+	struct hdac_softc *sc = devinfo->codec->sc;
+	int i, printed = 0;
+
+	for (i = devinfo->startnode; i < devinfo->endnode; i++) {
+		w = hdac_widget_get(devinfo, i);
+		if (w == NULL || w->enable == 0)
+			continue;
+		if (w->type != HDA_PARAM_AUDIO_WIDGET_CAP_TYPE_PIN_COMPLEX ||
+		    !(w->pflags & HDA_DAC_PATH))
+			continue;
+		if (printed == 0) {
+			printed = 1;
+			device_printf(sc->dev, "\n");
+			device_printf(sc->dev, "Playback path:\n");
+		}
+		hdac_dump_dac_internal(devinfo, w->nid, 0);
+	}
 }
 
 static void
@@ -4284,11 +4412,122 @@ hdac_dump_pcmchannels(struct hdac_softc *sc, int pcnt, int rcnt)
 }
 
 static void
+hdac_release_resources(struct hdac_softc *sc)
+{
+	struct hdac_devinfo *devinfo = NULL;
+	device_t *devlist = NULL;
+	int i, devcount;
+
+	if (sc == NULL)
+		return;
+
+	hdac_lock(sc);
+	hdac_reset(sc);
+	hdac_unlock(sc);
+	snd_mtxfree(sc->lock);
+
+	device_get_children(sc->dev, &devlist, &devcount);
+	for (i = 0; devlist != NULL && i < devcount; i++) {
+		devinfo = (struct hdac_devinfo *)device_get_ivars(devlist[i]);
+		if (devinfo == NULL)
+			continue;
+		if (devinfo->widget != NULL)
+			free(devinfo->widget, M_HDAC);
+		if (devinfo->node_type ==
+		    HDA_PARAM_FCT_GRP_TYPE_NODE_TYPE_AUDIO &&
+		    devinfo->function.audio.ctl != NULL)
+			free(devinfo->function.audio.ctl, M_HDAC);
+		free(devinfo, M_HDAC);
+		device_delete_child(sc->dev, devlist[i]);
+	}
+	if (devlist != NULL)
+		free(devlist, M_TEMP);
+
+	for (i = 0; i < HDAC_CODEC_MAX; i++) {
+		if (sc->codecs[i] != NULL)
+			free(sc->codecs[i], M_HDAC);
+		sc->codecs[i] = NULL;
+	}
+
+	hdac_dma_free(&sc->rirb_dma);
+	hdac_dma_free(&sc->corb_dma);
+	if (sc->play.blkcnt > 0)
+		hdac_dma_free(&sc->play.bdl_dma);
+	if (sc->rec.blkcnt > 0)
+		hdac_dma_free(&sc->rec.bdl_dma);
+	hdac_irq_free(sc);
+	hdac_mem_free(sc);
+	free(sc, M_DEVBUF);
+
+}
+
+/* This function surely going to make its way into upper level someday. */
+static void
+hdac_config_fetch(struct hdac_softc *sc, uint32_t *on, uint32_t *off)
+{
+	const char *res = NULL;
+	int i = 0, j, k, len, inv;
+
+	if (on != NULL)
+		*on = 0;
+	if (off != NULL)
+		*off = 0;
+	if (sc == NULL)
+		return;
+	if (resource_string_value(device_get_name(sc->dev),
+	    device_get_unit(sc->dev), "config", &res) != 0)
+		return;
+	if (!(res != NULL && strlen(res) > 0))
+		return;
+	HDA_BOOTVERBOSE(
+		device_printf(sc->dev, "HDA_DEBUG: HDA Config:");
+	);
+	for (;;) {
+		while (res[i] != '\0' &&
+		    (res[i] == ',' || isspace(res[i]) != 0))
+			i++;
+		if (res[i] == '\0') {
+			HDA_BOOTVERBOSE(
+				printf("\n");
+			);
+			return;
+		}
+		j = i;
+		while (res[j] != '\0' &&
+		    !(res[j] == ',' || isspace(res[j]) != 0))
+			j++;
+		len = j - i;
+		if (len > 2 && strncmp(res + i, "no", 2) == 0)
+			inv = 2;
+		else
+			inv = 0;
+		for (k = 0; len > inv && k < HDAC_QUIRKS_TAB_LEN; k++) {
+			if (strncmp(res + i + inv,
+			    hdac_quirks_tab[k].key, len - inv) != 0)
+				continue;
+			if (len - inv != strlen(hdac_quirks_tab[k].key))
+				break;
+			HDA_BOOTVERBOSE(
+				printf(" %s%s", (inv != 0) ? "no" : "",
+				    hdac_quirks_tab[k].key);
+			);
+			if (inv == 0 && on != NULL)
+				*on |= hdac_quirks_tab[k].value;
+			else if (inv != 0 && off != NULL)
+				*off |= hdac_quirks_tab[k].value;
+			break;
+		}
+		i = j;
+	}
+}
+
+static void
 hdac_attach2(void *arg)
 {
 	struct hdac_softc *sc;
 	struct hdac_widget *w;
 	struct hdac_audio_ctl *ctl;
+	uint32_t quirks_on, quirks_off;
 	int pcnt, rcnt;
 	int i;
 	char status[SND_STATUSLEN];
@@ -4298,6 +4537,12 @@ hdac_attach2(void *arg)
 
 	sc = (struct hdac_softc *)arg;
 
+	hdac_config_fetch(sc, &quirks_on, &quirks_off);
+
+	HDA_BOOTVERBOSE(
+		device_printf(sc->dev, "HDA_DEBUG: HDA Config: on=0x%08x off=0x%08x\n",
+		    quirks_on, quirks_off);
+	);
 
 	hdac_lock(sc);
 
@@ -4308,24 +4553,26 @@ hdac_attach2(void *arg)
 	}
 
 	/* Start the corb and rirb engines */
-	HDA_DEBUG_MSG(
+	HDA_BOOTVERBOSE(
 		device_printf(sc->dev, "HDA_DEBUG: Starting CORB Engine...\n");
 	);
 	hdac_corb_start(sc);
-	HDA_DEBUG_MSG(
+	HDA_BOOTVERBOSE(
 		device_printf(sc->dev, "HDA_DEBUG: Starting RIRB Engine...\n");
 	);
 	hdac_rirb_start(sc);
 
-	HDA_DEBUG_MSG(
+	HDA_BOOTVERBOSE(
 		device_printf(sc->dev,
 		    "HDA_DEBUG: Enabling controller interrupt...\n");
 	);
 	HDAC_WRITE_4(&sc->mem, HDAC_INTCTL, HDAC_INTCTL_CIE | HDAC_INTCTL_GIE);
+	HDAC_WRITE_4(&sc->mem, HDAC_GCTL, HDAC_READ_4(&sc->mem, HDAC_GCTL) |
+	    HDAC_GCTL_UNSOL);
 
 	DELAY(1000);
 
-	HDA_DEBUG_MSG(
+	HDA_BOOTVERBOSE(
 		device_printf(sc->dev, "HDA_DEBUG: Scanning HDA codecs...\n");
 	);
 	hdac_scan_codecs(sc);
@@ -4345,23 +4592,28 @@ hdac_attach2(void *arg)
 	if (devinfo == NULL) {
 		hdac_unlock(sc);
 		device_printf(sc->dev, "Audio Function Group not found!\n");
+		hdac_release_resources(sc);
 		return;
 	}
 
-	HDA_DEBUG_MSG(
+	HDA_BOOTVERBOSE(
 		device_printf(sc->dev,
 		    "HDA_DEBUG: Parsing AFG nid=%d cad=%d\n",
 		    devinfo->nid, devinfo->codec->cad);
 	);
 	hdac_audio_parse(devinfo);
-	HDA_DEBUG_MSG(
+	HDA_BOOTVERBOSE(
 		device_printf(sc->dev, "HDA_DEBUG: Parsing Ctls...\n");
 	);
 	hdac_audio_ctl_parse(devinfo);
-	HDA_DEBUG_MSG(
+	HDA_BOOTVERBOSE(
 		device_printf(sc->dev, "HDA_DEBUG: Parsing vendor patch...\n");
 	);
 	hdac_vendor_patch_parse(devinfo);
+	if (quirks_on != 0)
+		devinfo->function.audio.quirks |= quirks_on;
+	if (quirks_off != 0)
+		devinfo->function.audio.quirks &= ~quirks_off;
 
 	/* XXX Disable all DIGITAL path. */
 	for (i = devinfo->startnode; i < devinfo->endnode; i++) {
@@ -4396,50 +4648,53 @@ hdac_attach2(void *arg)
 			ctl->enable = 0;
 	}
 
-	HDA_DEBUG_MSG(
+	HDA_BOOTVERBOSE(
 		device_printf(sc->dev, "HDA_DEBUG: Building AFG tree...\n");
 	);
 	hdac_audio_build_tree(devinfo);
 
-	HDA_DEBUG_MSG(
+	HDA_BOOTVERBOSE(
 		device_printf(sc->dev, "HDA_DEBUG: AFG commit...\n");
 	);
 	hdac_audio_commit(devinfo, HDA_COMMIT_ALL);
-	HDA_DEBUG_MSG(
+	HDA_BOOTVERBOSE(
 		device_printf(sc->dev, "HDA_DEBUG: Ctls commit...\n");
 	);
 	hdac_audio_ctl_commit(devinfo);
 
-	HDA_DEBUG_MSG(
+	HDA_BOOTVERBOSE(
 		device_printf(sc->dev, "HDA_DEBUG: PCMDIR_PLAY setup...\n");
 	);
 	pcnt = hdac_pcmchannel_setup(devinfo, PCMDIR_PLAY);
-	HDA_DEBUG_MSG(
+	HDA_BOOTVERBOSE(
 		device_printf(sc->dev, "HDA_DEBUG: PCMDIR_REC setup...\n");
 	);
 	rcnt = hdac_pcmchannel_setup(devinfo, PCMDIR_REC);
 
 	hdac_unlock(sc);
-	HDA_DEBUG_MSG(
+	HDA_BOOTVERBOSE(
 		device_printf(sc->dev,
 		    "HDA_DEBUG: OSS mixer initialization...\n");
 	);
-	if (mixer_init(sc->dev, &hdac_audio_ctl_ossmixer_class, devinfo)) {
+
+	/*
+	 * There is no point of return after this. If the driver failed,
+	 * so be it. Let the detach procedure do all the cleanup.
+	 */
+	if (mixer_init(sc->dev, &hdac_audio_ctl_ossmixer_class, devinfo) != 0)
 		device_printf(sc->dev, "Can't register mixer\n");
-	}
 
 	if (pcnt > 0)
 		pcnt = 1;
 	if (rcnt > 0)
 		rcnt = 1;
 
-	HDA_DEBUG_MSG(
+	HDA_BOOTVERBOSE(
 		device_printf(sc->dev,
 		    "HDA_DEBUG: Registering PCM channels...\n");
 	);
-	if (pcm_register(sc->dev, devinfo, pcnt, rcnt)) {
+	if (pcm_register(sc->dev, devinfo, pcnt, rcnt) != 0)
 		device_printf(sc->dev, "Can't register PCM\n");
-	}
 
 	sc->registered++;
 
@@ -4454,27 +4709,21 @@ hdac_attach2(void *arg)
 			PCM_KLDSTRING(snd_hda), HDA_DRV_TEST_REV);
 	pcm_setstatus(sc->dev, status);
 	device_printf(sc->dev, "<HDA Codec: %s>\n", hdac_codec_name(devinfo));
+	HDA_BOOTVERBOSE(
+		device_printf(sc->dev, "<HDA Codec ID: 0x%08x>\n",
+		    hdac_codec_id(devinfo));
+	);
 	device_printf(sc->dev, "<HDA Driver Revision: %s>\n", HDA_DRV_TEST_REV);
 
-	HDA_BOOTVERBOSE_MSG(
+	HDA_BOOTVERBOSE(
 		if (devinfo->function.audio.quirks != 0) {
 			device_printf(sc->dev, "\n");
-			device_printf(sc->dev, "HDA quirks:");
-			if (devinfo->function.audio.quirks &
-			    HDA_QUIRK_GPIO1)
-				printf(" GPIO1");
-			if (devinfo->function.audio.quirks &
-			    HDA_QUIRK_GPIO2)
-				printf(" GPIO2");
-			if (devinfo->function.audio.quirks &
-			    HDA_QUIRK_SOFTPCMVOL)
-				printf(" SOFTPCMVOL");
-			if (devinfo->function.audio.quirks &
-			    HDA_QUIRK_FIXEDRATE)
-				printf(" FIXEDRATE");
-			if (devinfo->function.audio.quirks &
-			    HDA_QUIRK_FORCESTEREO)
-				printf(" FORCESTEREO");
+			device_printf(sc->dev, "HDA config/quirks:");
+			for (i = 0; i < HDAC_QUIRKS_TAB_LEN; i++) {
+				if (devinfo->function.audio.quirks &
+				    hdac_quirks_tab[i].value)
+					printf(" %s", hdac_quirks_tab[i].key);
+			}
 			printf("\n");
 		}
 		device_printf(sc->dev, "\n");
@@ -4530,65 +4779,22 @@ static int
 hdac_detach(device_t dev)
 {
 	struct hdac_softc *sc = NULL;
-	device_t *devlist = NULL;
-	int devcount;
 	struct hdac_devinfo *devinfo = NULL;
-	struct hdac_codec *codec;
-	int i;
+	int err;
 
 	devinfo = (struct hdac_devinfo *)pcm_getdevinfo(dev);
 	if (devinfo != NULL && devinfo->codec != NULL)
 		sc = devinfo->codec->sc;
 	if (sc == NULL)
-		return (EINVAL);
+		return (0);
 
 	if (sc->registered > 0) {
-		i = pcm_unregister(dev);
-		if (i)
-			return (i);
+		err = pcm_unregister(dev);
+		if (err != 0)
+			return (err);
 	}
 
-	sc->registered = 0;
-
-	/* Lock the mutex before messing with the dma engines */
-	hdac_lock(sc);
-	hdac_reset(sc);
-	hdac_unlock(sc);
-	snd_mtxfree(sc->lock);
-	sc->lock = NULL;
-
-	device_get_children(sc->dev, &devlist, &devcount);
-	for (i = 0; devlist != NULL && i < devcount; i++) {
-		devinfo = (struct hdac_devinfo *)device_get_ivars(devlist[i]);
-		if (devinfo == NULL)
-			continue;
-		if (devinfo->widget != NULL)
-			free(devinfo->widget, M_HDAC);
-		if (devinfo->node_type ==
-		    HDA_PARAM_FCT_GRP_TYPE_NODE_TYPE_AUDIO &&
-		    devinfo->function.audio.ctl != NULL)
-			free(devinfo->function.audio.ctl, M_HDAC);
-		free(devinfo, M_HDAC);
-		device_delete_child(sc->dev, devlist[i]);
-	}
-	if (devlist != NULL)
-		free(devlist, M_TEMP);
-
-	while (!SLIST_EMPTY(&sc->codec_list)) {
-		codec = SLIST_FIRST(&sc->codec_list);
-		SLIST_REMOVE_HEAD(&sc->codec_list, next_codec);
-		free(codec, M_HDAC);
-	}
-
-	hdac_dma_free(&sc->rirb_dma);
-	hdac_dma_free(&sc->corb_dma);
-	if (sc->play.blkcnt)
-		hdac_dma_free(&sc->play.bdl_dma);
-	if (sc->rec.blkcnt)
-		hdac_dma_free(&sc->rec.bdl_dma);
-	hdac_irq_free(sc);
-	hdac_mem_free(sc);
-	free(sc, M_DEVBUF);
+	hdac_release_resources(sc);
 
 	return (0);
 }
