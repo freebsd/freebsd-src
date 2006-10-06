@@ -434,6 +434,8 @@ sioprobe(dev)
 	cy_addr	iobase;
 
 	iobase = (cy_addr)dev->id_maddr;
+	if (iobase == NULL)
+		return (0);
 
 	/* Cyclom-16Y hardware reset (Cyclom-8Ys don't care) */
 	cy_inb(iobase, CY16_RESET, 0);	/* XXX? */
