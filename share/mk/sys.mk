@@ -19,8 +19,6 @@ unix		?=	We run FreeBSD, not UNIX.
 .SUFFIXES:	.out .a .ln .o .c .cc .cpp .cxx .C .m .F .f .e .r .y .l .S .asm .s .cl .p .h .sh
 .endif
 
-X11BASE		?=	/usr/X11R6
-
 AR		?=	ar
 .if defined(%POSIX)
 ARFLAGS		?=	-rv
