@@ -289,6 +289,12 @@ struct freebsd32_swapcontext_args {
 	char oucp_l_[PADL_(struct freebsd32_ucontext *)]; struct freebsd32_ucontext * oucp; char oucp_r_[PADR_(struct freebsd32_ucontext *)];
 	char ucp_l_[PADL_(const struct freebsd32_ucontext *)]; const struct freebsd32_ucontext * ucp; char ucp_r_[PADR_(const struct freebsd32_ucontext *)];
 };
+struct freebsd32_umtx_lock_args {
+	char umtx_l_[PADL_(struct umtx *)]; struct umtx * umtx; char umtx_r_[PADR_(struct umtx *)];
+};
+struct freebsd32_umtx_unlock_args {
+	char umtx_l_[PADL_(struct umtx *)]; struct umtx * umtx; char umtx_r_[PADR_(struct umtx *)];
+};
 struct freebsd32_thr_suspend_args {
 	char timeout_l_[PADL_(const struct timespec32 *)]; const struct timespec32 * timeout; char timeout_r_[PADR_(const struct timespec32 *)];
 };
@@ -351,6 +357,8 @@ int	freebsd32_sigreturn(struct thread *, struct freebsd32_sigreturn_args *);
 int	freebsd32_getcontext(struct thread *, struct freebsd32_getcontext_args *);
 int	freebsd32_setcontext(struct thread *, struct freebsd32_setcontext_args *);
 int	freebsd32_swapcontext(struct thread *, struct freebsd32_swapcontext_args *);
+int	freebsd32_umtx_lock(struct thread *, struct freebsd32_umtx_lock_args *);
+int	freebsd32_umtx_unlock(struct thread *, struct freebsd32_umtx_unlock_args *);
 int	freebsd32_thr_suspend(struct thread *, struct freebsd32_thr_suspend_args *);
 int	freebsd32_umtx_op(struct thread *, struct freebsd32_umtx_op_args *);
 int	freebsd32_thr_new(struct thread *, struct freebsd32_thr_new_args *);
@@ -491,6 +499,8 @@ int	freebsd4_freebsd32_sigreturn(struct thread *, struct freebsd4_freebsd32_sigr
 #define	FREEBSD32_SYS_AUE_freebsd32_getcontext	AUE_NULL
 #define	FREEBSD32_SYS_AUE_freebsd32_setcontext	AUE_NULL
 #define	FREEBSD32_SYS_AUE_freebsd32_swapcontext	AUE_NULL
+#define	FREEBSD32_SYS_AUE_freebsd32_umtx_lock	AUE_NULL
+#define	FREEBSD32_SYS_AUE_freebsd32_umtx_unlock	AUE_NULL
 #define	FREEBSD32_SYS_AUE_freebsd32_thr_suspend	AUE_NULL
 #define	FREEBSD32_SYS_AUE_freebsd32_umtx_op	AUE_NULL
 #define	FREEBSD32_SYS_AUE_freebsd32_thr_new	AUE_NULL

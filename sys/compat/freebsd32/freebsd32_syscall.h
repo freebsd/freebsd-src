@@ -306,8 +306,8 @@
 #define	FREEBSD32_SYS_thr_exit	431
 #define	FREEBSD32_SYS_thr_self	432
 #define	FREEBSD32_SYS_thr_kill	433
-#define	FREEBSD32_SYS__umtx_lock	434
-#define	FREEBSD32_SYS__umtx_unlock	435
+#define	FREEBSD32_SYS_freebsd32_umtx_lock	434
+#define	FREEBSD32_SYS_freebsd32_umtx_unlock	435
 #define	FREEBSD32_SYS_jail_attach	436
 #define	FREEBSD32_SYS_freebsd32_thr_suspend	442
 #define	FREEBSD32_SYS_thr_wake	443
