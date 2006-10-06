@@ -68,6 +68,7 @@ __FBSDID("$FreeBSD$");
 #include <vm/vm_object.h>
 #include <vm/vm_extern.h>
 
+#include <compat/freebsd32/freebsd32_signal.h>
 #include <compat/freebsd32/freebsd32_util.h>
 #include <compat/freebsd32/freebsd32_proto.h>
 #include <compat/ia32/ia32_signal.h>
