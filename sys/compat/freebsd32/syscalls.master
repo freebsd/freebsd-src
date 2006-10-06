@@ -721,8 +721,8 @@
 431	AUE_NULL	NOPROTO	{ void thr_exit(long *state); }
 432	AUE_NULL	NOPROTO	{ int thr_self(long *id); }
 433	AUE_NULL	NOPROTO	{ int thr_kill(long id, int sig); }
-434	AUE_NULL	NOPROTO	{ int _umtx_lock(struct umtx *umtx); }
-435	AUE_NULL	NOPROTO	{ int _umtx_unlock(struct umtx *umtx); }
+434	AUE_NULL	STD	{ int freebsd32_umtx_lock(struct umtx *umtx); }
+435	AUE_NULL	STD	{ int freebsd32_umtx_unlock(struct umtx *umtx); }
 436	AUE_NULL	NOPROTO	{ int jail_attach(int jid); }
 437	AUE_EXTATTR_LIST_FD	UNIMPL	extattr_list_fd
 438	AUE_EXTATTR_LIST_FILE	UNIMPL	extattr_list_file
