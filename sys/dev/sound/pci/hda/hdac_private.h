@@ -170,8 +170,6 @@ struct hdac_codec {
 	nid_t	cad;
 	struct hdac_command_list *commands;
 	struct hdac_softc *sc;
-
-	SLIST_ENTRY(hdac_codec)	next_codec;
 };
 
 struct hdac_bdle {
@@ -321,7 +319,6 @@ struct hdac_softc {
 	uint32_t	unsolq[HDAC_UNSOLQ_MAX];
 
 	struct hdac_codec *codecs[HDAC_CODEC_MAX];
-	SLIST_HEAD(hdac_codec_list_head, hdac_codec) codec_list;
 
 	int		registered;
 };
