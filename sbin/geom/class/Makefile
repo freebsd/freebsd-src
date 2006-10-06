@@ -2,7 +2,8 @@
 
 .include <bsd.own.mk>
 
-SUBDIR=	concat
+SUBDIR=	cache
+SUBDIR+=concat
 .if ${MK_OPENSSL} != "no"
 SUBDIR+=eli
 .endif
