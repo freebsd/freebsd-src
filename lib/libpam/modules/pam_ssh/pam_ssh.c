@@ -57,6 +57,7 @@ __FBSDID("$FreeBSD$");
 #include <openssl/evp.h>
 
 #include "key.h"
+#include "buffer.h"
 #include "authfd.h"
 #include "authfile.h"
 

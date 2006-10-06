@@ -1,5 +1,4 @@
-/* OPENBSD ORIGINAL: lib/libc/net/rresvport.c */
-
+/* $OpenBSD: rresvport.c,v 1.9 2005/11/10 10:00:17 espie Exp $ */
 /*
  * Copyright (c) 1995, 1996, 1998 Theo de Raadt.  All rights reserved.
  * Copyright (c) 1983, 1993, 1994
@@ -30,26 +29,31 @@
  * SUCH DAMAGE.
  */
 
+/* OPENBSD ORIGINAL: lib/libc/net/rresvport.c */
+
 #include "includes.h"
 
 #ifndef HAVE_RRESVPORT_AF
 
-#if defined(LIBC_SCCS) && !defined(lint)
-static char *rcsid = "$OpenBSD: rresvport.c,v 1.6 2003/06/03 02:11:35 deraadt Exp $";
-#endif /* LIBC_SCCS and not lint */
+#include <sys/types.h>
+#include <sys/socket.h>
 
-#include "includes.h"
+#include <netinet/in.h>
+#include <arpa/inet.h>
+
+#include <errno.h>
+#include <stdlib.h>
+#include <string.h>
 
 #if 0
 int
-rresvport(alport)
-	int *alport;
+rresvport(int *alport)
 {
 	return rresvport_af(alport, AF_INET);
 }
 #endif
 
-int 
+int
 rresvport_af(int *alport, sa_family_t af)
 {
 	struct sockaddr_storage ss;

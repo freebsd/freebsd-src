@@ -1,3 +1,4 @@
+/* $OpenBSD: monitor_fdpass.c,v 1.12 2006/08/03 03:34:42 deraadt Exp $ */
 /*
  * Copyright 2001 Niels Provos <provos@citi.umich.edu>
  * All rights reserved.
@@ -24,9 +25,14 @@
  */
 
 #include "includes.h"
-RCSID("$OpenBSD: monitor_fdpass.c,v 1.6 2004/08/13 02:51:48 djm Exp $");
 
+#include <sys/types.h>
+#include <sys/socket.h>
 #include <sys/uio.h>
+
+#include <errno.h>
+#include <string.h>
+#include <stdarg.h>
 
 #include "log.h"
 #include "monitor_fdpass.h"

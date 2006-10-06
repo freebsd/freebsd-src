@@ -26,8 +26,12 @@
 #include "includes.h"
 #if defined(SMARTCARD) && defined(USE_OPENSC)
 
+#include <sys/types.h>
+
 #include <openssl/evp.h>
 #include <openssl/x509.h>
+
+#include <stdarg.h>
 
 #include <opensc/opensc.h>
 #include <opensc/pkcs15.h>
@@ -455,7 +459,9 @@ sc_get_keys(const char *id, const char *pin)
 		}
 		key_count = r;
 	}
-	keys = xmalloc(sizeof(Key *) * (key_count*2+1));
+	if (key_count > 1024)
+		fatal("Too many keys (%u), expected <= 1024", key_count);
+	keys = xcalloc(key_count * 2 + 1, sizeof(Key *));
 	for (i = 0; i < key_count; i++) {
 		sc_pkcs15_object_t *tmp_obj = NULL;
 		cert_id = ((sc_pkcs15_cert_info_t *)(certs[i]->data))->id;

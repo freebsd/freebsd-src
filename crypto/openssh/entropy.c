@@ -24,8 +24,22 @@
 
 #include "includes.h"
 
+#include <sys/types.h>
+#include <sys/wait.h>
+
+#ifdef HAVE_SYS_STAT_H
+# include <sys/stat.h>
+#endif
+
+#ifdef HAVE_FCNTL_H
+# include <fcntl.h>
+#endif
+#include <stdarg.h>
+#include <unistd.h>
+
 #include <openssl/rand.h>
 #include <openssl/crypto.h>
+#include <openssl/err.h>
 
 #include "ssh.h"
 #include "misc.h"
@@ -33,6 +47,7 @@
 #include "atomicio.h"
 #include "pathnames.h"
 #include "log.h"
+#include "buffer.h"
 
 /*
  * Portable OpenSSH PRNG seeding:
@@ -44,8 +59,6 @@
  *
  * XXX: we should tell the child how many bytes we need.
  */
-
-RCSID("$Id: entropy.c,v 1.49 2005/07/17 07:26:44 djm Exp $");
 
 #ifndef OPENSSL_PRNG_ONLY
 #define RANDOM_SEED_SIZE 48
@@ -145,10 +158,35 @@ init_rng(void)
 		    "have %lx", OPENSSL_VERSION_NUMBER, SSLeay());
 
 #ifndef OPENSSL_PRNG_ONLY
-	if ((original_uid = getuid()) == -1)
-		fatal("getuid: %s", strerror(errno));
-	if ((original_euid = geteuid()) == -1)
-		fatal("geteuid: %s", strerror(errno));
+	original_uid = getuid();
+	original_euid = geteuid();
 #endif
 }
 
+#ifndef OPENSSL_PRNG_ONLY
+void
+rexec_send_rng_seed(Buffer *m)
+{
+	u_char buf[RANDOM_SEED_SIZE];
+
+	if (RAND_bytes(buf, sizeof(buf)) <= 0) {
+		error("Couldn't obtain random bytes (error %ld)",
+		    ERR_get_error());
+		buffer_put_string(m, "", 0);
+	} else 
+		buffer_put_string(m, buf, sizeof(buf));
+}
+
+void
+rexec_recv_rng_seed(Buffer *m)
+{
+	u_char *buf;
+	u_int len;
+
+	buf = buffer_get_string_ret(m, &len);
+	if (buf != NULL) {
+		debug3("rexec_recv_rng_seed: seeding rng with %u bytes", len);
+		RAND_add(buf, len, len);
+	}
+}
+#endif

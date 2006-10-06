@@ -1,3 +1,4 @@
+/* $OpenBSD: sshd.c,v 1.347 2006/08/18 09:15:20 markus Exp $ */
 /*
  * Author: Tatu Ylonen <ylo@cs.hut.fi>
  * Copyright (c) 1995 Tatu Ylonen <ylo@cs.hut.fi>, Espoo, Finland
@@ -42,8 +43,34 @@
  */
 
 #include "includes.h"
-RCSID("$OpenBSD: sshd.c,v 1.312 2005/07/25 11:59:40 markus Exp $");
-RCSID("$FreeBSD$");
+__RCSID("$FreeBSD$");
+
+#include <sys/types.h>
+#include <sys/ioctl.h>
+#include <sys/socket.h>
+#ifdef HAVE_SYS_STAT_H
+# include <sys/stat.h>
+#endif
+#ifdef HAVE_SYS_TIME_H
+# include <sys/time.h>
+#endif
+#include "openbsd-compat/sys-tree.h"
+#include <sys/wait.h>
+
+#include <errno.h>
+#include <fcntl.h>
+#include <netdb.h>
+#ifdef HAVE_PATHS_H
+#include <paths.h>
+#endif
+#include <grp.h>
+#include <pwd.h>
+#include <signal.h>
+#include <stdarg.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <unistd.h>
 
 #include <openssl/dh.h>
 #include <openssl/bn.h>
@@ -56,30 +83,35 @@ RCSID("$FreeBSD$");
 
 #ifdef __FreeBSD__
 #include <resolv.h>
+#if defined(GSSAPI) && defined(HAVE_GSSAPI_H)
+#include <gssapi.h>
+#elif defined(GSSAPI) && defined(HAVE_GSSAPI_GSSAPI_H)
+#include <gssapi/gssapi.h>
+#endif
 #endif
 
+#include "xmalloc.h"
 #include "ssh.h"
 #include "ssh1.h"
 #include "ssh2.h"
-#include "xmalloc.h"
 #include "rsa.h"
 #include "sshpty.h"
 #include "packet.h"
 #include "log.h"
+#include "buffer.h"
 #include "servconf.h"
 #include "uidswap.h"
 #include "compat.h"
-#include "buffer.h"
-#include "bufaux.h"
 #include "cipher.h"
-#include "kex.h"
 #include "key.h"
+#include "kex.h"
 #include "dh.h"
 #include "myproposal.h"
 #include "authfile.h"
 #include "pathnames.h"
 #include "atomicio.h"
 #include "canohost.h"
+#include "hostfile.h"
 #include "auth.h"
 #include "misc.h"
 #include "msg.h"
@@ -88,8 +120,12 @@ RCSID("$FreeBSD$");
 #include "session.h"
 #include "monitor_mm.h"
 #include "monitor.h"
+#ifdef GSSAPI
+#include "ssh-gss.h"
+#endif
 #include "monitor_wrap.h"
 #include "monitor_fdpass.h"
+#include "version.h"
 
 #ifdef LIBWRAP
 #include <tcpd.h>
@@ -206,14 +242,20 @@ int *startup_pipes = NULL;
 int startup_pipe;		/* in child */
 
 /* variables used for privilege separation */
-int use_privsep;
+int use_privsep = -1;
 struct monitor *pmonitor = NULL;
 
 /* global authentication context */
 Authctxt *the_authctxt = NULL;
 
+/* sshd_config buffer */
+Buffer cfg;
+
 /* message to be displayed after login */
 Buffer loginmsg;
+
+/* Unprivileged user */
+struct passwd *privsep_pw = NULL;
 
 /* Prototypes for various functions defined later in this file. */
 void destroy_sensitive_data(void);
@@ -251,6 +293,8 @@ close_startup_pipes(void)
  * the effect is to reread the configuration file (and to regenerate
  * the server key).
  */
+
+/*ARGSUSED*/
 static void
 sighup_handler(int sig)
 {
@@ -280,6 +324,7 @@ sighup_restart(void)
 /*
  * Generic signal handler for terminating signals in the master daemon.
  */
+/*ARGSUSED*/
 static void
 sigterm_handler(int sig)
 {
@@ -290,6 +335,7 @@ sigterm_handler(int sig)
  * SIGCHLD handler.  This is called whenever a child dies.  This will then
  * reap any zombies left by exited children.
  */
+/*ARGSUSED*/
 static void
 main_sigchld_handler(int sig)
 {
@@ -308,11 +354,10 @@ main_sigchld_handler(int sig)
 /*
  * Signal handler for the alarm after the login grace period has expired.
  */
+/*ARGSUSED*/
 static void
 grace_alarm_handler(int sig)
 {
-	/* XXX no idea how fix this signal handler */
-
 	if (use_privsep && pmonitor != NULL && pmonitor->m_pid > 0)
 		kill(pmonitor->m_pid, SIGALRM);
 
@@ -350,6 +395,7 @@ generate_ephemeral_server_key(void)
 	arc4random_stir();
 }
 
+/*ARGSUSED*/
 static void
 key_regeneration_alarm(int sig)
 {
@@ -546,7 +592,6 @@ privsep_preauth_child(void)
 {
 	u_int32_t rnd[256];
 	gid_t gidset[1];
-	struct passwd *pw;
 	int i;
 
 	/* Enable challenge-response authentication for privilege separation */
@@ -559,12 +604,6 @@ privsep_preauth_child(void)
 	/* Demote the private keys to public keys. */
 	demote_sensitive_data();
 
-	if ((pw = getpwnam(SSH_PRIVSEP_USER)) == NULL)
-		fatal("Privilege separation user %s does not exist",
-		    SSH_PRIVSEP_USER);
-	memset(pw->pw_passwd, 0, strlen(pw->pw_passwd));
-	endpwent();
-
 	/* Change our root directory */
 	if (chroot(_PATH_PRIVSEP_CHROOT_DIR) == -1)
 		fatal("chroot(\"%s\"): %s", _PATH_PRIVSEP_CHROOT_DIR,
@@ -573,16 +612,16 @@ privsep_preauth_child(void)
 		fatal("chdir(\"/\"): %s", strerror(errno));
 
 	/* Drop our privileges */
-	debug3("privsep user:group %u:%u", (u_int)pw->pw_uid,
-	    (u_int)pw->pw_gid);
+	debug3("privsep user:group %u:%u", (u_int)privsep_pw->pw_uid,
+	    (u_int)privsep_pw->pw_gid);
 #if 0
 	/* XXX not ready, too heavy after chroot */
-	do_setusercontext(pw);
+	do_setusercontext(privsep_pw);
 #else
-	gidset[0] = pw->pw_gid;
+	gidset[0] = privsep_pw->pw_gid;
 	if (setgroups(1, gidset) < 0)
 		fatal("setgroups: %.100s", strerror(errno));
-	permanently_set_uid(pw);
+	permanently_set_uid(privsep_pw);
 #endif
 }
 
@@ -638,16 +677,8 @@ privsep_postauth(Authctxt *authctxt)
 	if (authctxt->pw->pw_uid == 0 || options.use_login) {
 #endif
 		/* File descriptor passing is broken or root login */
-		monitor_apply_keystate(pmonitor);
 		use_privsep = 0;
-		return;
-	}
-
-	/* Authentication complete */
-	alarm(0);
-	if (startup_pipe != -1) {
-		close(startup_pipe);
-		startup_pipe = -1;
+		goto skip;
 	}
 
 	/* New socket pair */
@@ -674,6 +705,7 @@ privsep_postauth(Authctxt *authctxt)
 	/* Drop privileges */
 	do_setusercontext(authctxt->pw);
 
+ skip:
 	/* It is safe now to apply the key state */
 	monitor_apply_keystate(pmonitor);
 
@@ -805,6 +837,7 @@ send_rexec_state(int fd, Buffer *conf)
 	 *	bignum	iqmp			"
 	 *	bignum	p			"
 	 *	bignum	q			"
+	 *	string rngseed		(only if OpenSSL is not self-seeded)
 	 */
 	buffer_init(&m);
 	buffer_put_cstring(&m, buffer_ptr(conf));
@@ -820,6 +853,10 @@ send_rexec_state(int fd, Buffer *conf)
 		buffer_put_bignum(&m, sensitive_data.server_key->rsa->q);
 	} else
 		buffer_put_int(&m, 0);
+
+#ifndef OPENSSL_PRNG_ONLY
+	rexec_send_rng_seed(&m);
+#endif
 
 	if (ssh_msg_send(fd, 0, &m) == -1)
 		fatal("%s: ssh_msg_send failed", __func__);
@@ -863,10 +900,334 @@ recv_rexec_state(int fd, Buffer *conf)
 		rsa_generate_additional_parameters(
 		    sensitive_data.server_key->rsa);
 	}
+
+#ifndef OPENSSL_PRNG_ONLY
+	rexec_recv_rng_seed(&m);
+#endif
+
 	buffer_free(&m);
 
 	debug3("%s: done", __func__);
 }
+
+/* Accept a connection from inetd */
+static void
+server_accept_inetd(int *sock_in, int *sock_out)
+{
+	int fd;
+
+	startup_pipe = -1;
+	if (rexeced_flag) {
+		close(REEXEC_CONFIG_PASS_FD);
+		*sock_in = *sock_out = dup(STDIN_FILENO);
+		if (!debug_flag) {
+			startup_pipe = dup(REEXEC_STARTUP_PIPE_FD);
+			close(REEXEC_STARTUP_PIPE_FD);
+		}
+	} else {
+		*sock_in = dup(STDIN_FILENO);
+		*sock_out = dup(STDOUT_FILENO);
+	}
+	/*
+	 * We intentionally do not close the descriptors 0, 1, and 2
+	 * as our code for setting the descriptors won't work if
+	 * ttyfd happens to be one of those.
+	 */
+	if ((fd = open(_PATH_DEVNULL, O_RDWR, 0)) != -1) {
+		dup2(fd, STDIN_FILENO);
+		dup2(fd, STDOUT_FILENO);
+		if (fd > STDOUT_FILENO)
+			close(fd);
+	}
+	debug("inetd sockets after dupping: %d, %d", *sock_in, *sock_out);
+}
+
+/*
+ * Listen for TCP connections
+ */
+static void
+server_listen(void)
+{
+	int ret, listen_sock, on = 1;
+	struct addrinfo *ai;
+	char ntop[NI_MAXHOST], strport[NI_MAXSERV];
+
+	for (ai = options.listen_addrs; ai; ai = ai->ai_next) {
+		if (ai->ai_family != AF_INET && ai->ai_family != AF_INET6)
+			continue;
+		if (num_listen_socks >= MAX_LISTEN_SOCKS)
+			fatal("Too many listen sockets. "
+			    "Enlarge MAX_LISTEN_SOCKS");
+		if ((ret = getnameinfo(ai->ai_addr, ai->ai_addrlen,
+		    ntop, sizeof(ntop), strport, sizeof(strport),
+		    NI_NUMERICHOST|NI_NUMERICSERV)) != 0) {
+			error("getnameinfo failed: %.100s",
+			    (ret != EAI_SYSTEM) ? gai_strerror(ret) :
+			    strerror(errno));
+			continue;
+		}
+		/* Create socket for listening. */
+		listen_sock = socket(ai->ai_family, ai->ai_socktype,
+		    ai->ai_protocol);
+		if (listen_sock < 0) {
+			/* kernel may not support ipv6 */
+			verbose("socket: %.100s", strerror(errno));
+			continue;
+		}
+		if (set_nonblock(listen_sock) == -1) {
+			close(listen_sock);
+			continue;
+		}
+		/*
+		 * Set socket options.
+		 * Allow local port reuse in TIME_WAIT.
+		 */
+		if (setsockopt(listen_sock, SOL_SOCKET, SO_REUSEADDR,
+		    &on, sizeof(on)) == -1)
+			error("setsockopt SO_REUSEADDR: %s", strerror(errno));
+
+		debug("Bind to port %s on %s.", strport, ntop);
+
+		/* Bind the socket to the desired port. */
+		if (bind(listen_sock, ai->ai_addr, ai->ai_addrlen) < 0) {
+			error("Bind to port %s on %s failed: %.200s.",
+			    strport, ntop, strerror(errno));
+			close(listen_sock);
+			continue;
+		}
+		listen_socks[num_listen_socks] = listen_sock;
+		num_listen_socks++;
+
+		/* Start listening on the port. */
+		if (listen(listen_sock, SSH_LISTEN_BACKLOG) < 0)
+			fatal("listen on [%s]:%s: %.100s",
+			    ntop, strport, strerror(errno));
+		logit("Server listening on %s port %s.", ntop, strport);
+	}
+	freeaddrinfo(options.listen_addrs);
+
+	if (!num_listen_socks)
+		fatal("Cannot bind any address.");
+}
+
+/*
+ * The main TCP accept loop. Note that, for the non-debug case, returns
+ * from this function are in a forked subprocess.
+ */
+static void
+server_accept_loop(int *sock_in, int *sock_out, int *newsock, int *config_s)
+{
+	fd_set *fdset;
+	int i, j, ret, maxfd;
+	int key_used = 0, startups = 0;
+	int startup_p[2] = { -1 , -1 };
+	struct sockaddr_storage from;
+	socklen_t fromlen;
+	pid_t pid;
+
+	/* setup fd set for accept */
+	fdset = NULL;
+	maxfd = 0;
+	for (i = 0; i < num_listen_socks; i++)
+		if (listen_socks[i] > maxfd)
+			maxfd = listen_socks[i];
+	/* pipes connected to unauthenticated childs */
+	startup_pipes = xcalloc(options.max_startups, sizeof(int));
+	for (i = 0; i < options.max_startups; i++)
+		startup_pipes[i] = -1;
+
+	/*
+	 * Stay listening for connections until the system crashes or
+	 * the daemon is killed with a signal.
+	 */
+	for (;;) {
+		if (received_sighup)
+			sighup_restart();
+		if (fdset != NULL)
+			xfree(fdset);
+		fdset = (fd_set *)xcalloc(howmany(maxfd + 1, NFDBITS),
+		    sizeof(fd_mask));
+
+		for (i = 0; i < num_listen_socks; i++)
+			FD_SET(listen_socks[i], fdset);
+		for (i = 0; i < options.max_startups; i++)
+			if (startup_pipes[i] != -1)
+				FD_SET(startup_pipes[i], fdset);
+
+		/* Wait in select until there is a connection. */
+		ret = select(maxfd+1, fdset, NULL, NULL, NULL);
+		if (ret < 0 && errno != EINTR)
+			error("select: %.100s", strerror(errno));
+		if (received_sigterm) {
+			logit("Received signal %d; terminating.",
+			    (int) received_sigterm);
+			close_listen_socks();
+			unlink(options.pid_file);
+			exit(255);
+		}
+		if (key_used && key_do_regen) {
+			generate_ephemeral_server_key();
+			key_used = 0;
+			key_do_regen = 0;
+		}
+		if (ret < 0)
+			continue;
+
+		for (i = 0; i < options.max_startups; i++)
+			if (startup_pipes[i] != -1 &&
+			    FD_ISSET(startup_pipes[i], fdset)) {
+				/*
+				 * the read end of the pipe is ready
+				 * if the child has closed the pipe
+				 * after successful authentication
+				 * or if the child has died
+				 */
+				close(startup_pipes[i]);
+				startup_pipes[i] = -1;
+				startups--;
+			}
+		for (i = 0; i < num_listen_socks; i++) {
+			if (!FD_ISSET(listen_socks[i], fdset))
+				continue;
+			fromlen = sizeof(from);
+			*newsock = accept(listen_socks[i],
+			    (struct sockaddr *)&from, &fromlen);
+			if (*newsock < 0) {
+				if (errno != EINTR && errno != EWOULDBLOCK)
+					error("accept: %.100s", strerror(errno));
+				continue;
+			}
+			if (unset_nonblock(*newsock) == -1) {
+				close(*newsock);
+				continue;
+			}
+			if (drop_connection(startups) == 1) {
+				debug("drop connection #%d", startups);
+				close(*newsock);
+				continue;
+			}
+			if (pipe(startup_p) == -1) {
+				close(*newsock);
+				continue;
+			}
+
+			if (rexec_flag && socketpair(AF_UNIX,
+			    SOCK_STREAM, 0, config_s) == -1) {
+				error("reexec socketpair: %s",
+				    strerror(errno));
+				close(*newsock);
+				close(startup_p[0]);
+				close(startup_p[1]);
+				continue;
+			}
+
+			for (j = 0; j < options.max_startups; j++)
+				if (startup_pipes[j] == -1) {
+					startup_pipes[j] = startup_p[0];
+					if (maxfd < startup_p[0])
+						maxfd = startup_p[0];
+					startups++;
+					break;
+				}
+
+			/*
+			 * Got connection.  Fork a child to handle it, unless
+			 * we are in debugging mode.
+			 */
+			if (debug_flag) {
+				/*
+				 * In debugging mode.  Close the listening
+				 * socket, and start processing the
+				 * connection without forking.
+				 */
+				debug("Server will not fork when running in debugging mode.");
+				close_listen_socks();
+				*sock_in = *newsock;
+				*sock_out = *newsock;
+				close(startup_p[0]);
+				close(startup_p[1]);
+				startup_pipe = -1;
+				pid = getpid();
+				if (rexec_flag) {
+					send_rexec_state(config_s[0],
+					    &cfg);
+					close(config_s[0]);
+				}
+				break;
+			}
+
+			/*
+			 * Normal production daemon.  Fork, and have
+			 * the child process the connection. The
+			 * parent continues listening.
+			 */
+			platform_pre_fork();
+			if ((pid = fork()) == 0) {
+				/*
+				 * Child.  Close the listening and
+				 * max_startup sockets.  Start using
+				 * the accepted socket. Reinitialize
+				 * logging (since our pid has changed).
+				 * We break out of the loop to handle
+				 * the connection.
+				 */
+				platform_post_fork_child();
+				startup_pipe = startup_p[1];
+				close_startup_pipes();
+				close_listen_socks();
+				*sock_in = *newsock;
+				*sock_out = *newsock;
+				log_init(__progname,
+				    options.log_level,
+				    options.log_facility,
+				    log_stderr);
+				if (rexec_flag)
+					close(config_s[0]);
+				break;
+			}
+
+			/* Parent.  Stay in the loop. */
+			platform_post_fork_parent(pid);
+			if (pid < 0)
+				error("fork: %.100s", strerror(errno));
+			else
+				debug("Forked child %ld.", (long)pid);
+
+			close(startup_p[1]);
+
+			if (rexec_flag) {
+				send_rexec_state(config_s[0], &cfg);
+				close(config_s[0]);
+				close(config_s[1]);
+			}
+
+			/*
+			 * Mark that the key has been used (it
+			 * was "given" to the child).
+			 */
+			if ((options.protocol & SSH_PROTO_1) &&
+			    key_used == 0) {
+				/* Schedule server key regeneration alarm. */
+				signal(SIGALRM, key_regeneration_alarm);
+				alarm(options.key_regeneration_time);
+				key_used = 1;
+			}
+
+			close(*newsock);
+
+			/*
+			 * Ensure that our random state differs
+			 * from that of the child
+			 */
+			arc4random_stir();
+		}
+
+		/* child process check (or debug mode) */
+		if (num_listen_socks < 0)
+			break;
+	}
+}
+
 
 /*
  * Main program for the daemon.
@@ -876,25 +1237,14 @@ main(int ac, char **av)
 {
 	extern char *optarg;
 	extern int optind;
-	int opt, j, i, fdsetsz, on = 1;
+	int opt, i, on = 1;
 	int sock_in = -1, sock_out = -1, newsock = -1;
-	pid_t pid;
-	socklen_t fromlen;
-	fd_set *fdset;
-	struct sockaddr_storage from;
 	const char *remote_ip;
 	int remote_port;
-	FILE *f;
-	struct addrinfo *ai;
-	char ntop[NI_MAXHOST], strport[NI_MAXSERV];
 	char *line;
-	int listen_sock, maxfd;
-	int startup_p[2] = { -1 , -1 }, config_s[2] = { -1 , -1 };
-	int startups = 0;
+	int config_s[2] = { -1 , -1 };
 	Key *key;
 	Authctxt *authctxt;
-	int ret, key_used = 0;
-	Buffer cfg;
 
 #ifdef HAVE_SECUREWARE
 	(void)set_auth_parameters(ac, av);
@@ -905,7 +1255,7 @@ main(int ac, char **av)
 	/* Save argv. Duplicate so setproctitle emulation doesn't clobber it */
 	saved_argc = ac;
 	rexec_argc = ac;
-	saved_argv = xmalloc(sizeof(*saved_argv) * (ac + 1));
+	saved_argv = xcalloc(ac + 1, sizeof(*saved_argv));
 	for (i = 0; i < ac; i++)
 		saved_argv[i] = xstrdup(av[i]);
 	saved_argv[i] = NULL;
@@ -918,6 +1268,9 @@ main(int ac, char **av)
 
 	if (geteuid() == 0 && setgroups(0, NULL) == -1)
 		debug("setgroups(): %.200s", strerror(errno));
+
+	/* Ensure that fds 0, 1 and 2 are open or directed to /dev/null */
+	sanitise_stdfd();
 
 	/* Initialize configuration options to their default values. */
 	initialize_server_options(&options);
@@ -964,7 +1317,8 @@ main(int ac, char **av)
 			options.log_level = SYSLOG_LEVEL_QUIET;
 			break;
 		case 'b':
-			options.server_key_bits = atoi(optarg);
+			options.server_key_bits = (int)strtonum(optarg, 256,
+			    32768, NULL);
 			break;
 		case 'p':
 			options.ports_from_cmdline = 1;
@@ -1001,7 +1355,7 @@ main(int ac, char **av)
 			test_flag = 1;
 			break;
 		case 'u':
-			utmp_len = atoi(optarg);
+			utmp_len = (u_int)strtonum(optarg, 0, MAXHOSTNAMELEN+1, NULL);
 			if (utmp_len > MAXHOSTNAMELEN) {
 				fprintf(stderr, "Invalid utmp length.\n");
 				exit(1);
@@ -1010,7 +1364,7 @@ main(int ac, char **av)
 		case 'o':
 			line = xstrdup(optarg);
 			if (process_server_config_line(&options, line,
-			    "command-line", 0) != 0)
+			    "command-line", 0, NULL, NULL, NULL, NULL) != 0)
 				exit(1);
 			xfree(line);
 			break;
@@ -1056,8 +1410,6 @@ main(int ac, char **av)
 	drop_cray_privs();
 #endif
 
-	seed_rng();
-
 	sensitive_data.server_key = NULL;
 	sensitive_data.ssh1_host_key = NULL;
 	sensitive_data.have_ssh1_key = 0;
@@ -1070,11 +1422,10 @@ main(int ac, char **av)
 	else
 		load_server_config(config_file_name, &cfg);
 
-	parse_server_config(&options,
-	    rexeced_flag ? "rexec" : config_file_name, &cfg);
+	parse_server_config(&options, rexeced_flag ? "rexec" : config_file_name,
+	    &cfg, NULL, NULL, NULL);
 
-	if (!rexec_flag)
-		buffer_free(&cfg);
+	seed_rng();
 
 	/* Fill in default values for those options not explicitly set. */
 	fill_default_server_options(&options);
@@ -1090,8 +1441,17 @@ main(int ac, char **av)
 
 	debug("sshd version %.100s", SSH_RELEASE);
 
+	/* Store privilege separation user for later use */
+	if ((privsep_pw = getpwnam(SSH_PRIVSEP_USER)) == NULL)
+		fatal("Privilege separation user %s does not exist",
+		    SSH_PRIVSEP_USER);
+	memset(privsep_pw->pw_passwd, 0, strlen(privsep_pw->pw_passwd));
+	privsep_pw->pw_passwd = "*";
+	privsep_pw = pwcopy(privsep_pw);
+	endpwent();
+
 	/* load private host keys */
-	sensitive_data.host_keys = xmalloc(options.num_host_key_files *
+	sensitive_data.host_keys = xcalloc(options.num_host_key_files,
 	    sizeof(Key *));
 	for (i = 0; i < options.num_host_key_files; i++)
 		sensitive_data.host_keys[i] = NULL;
@@ -1157,12 +1517,8 @@ main(int ac, char **av)
 	}
 
 	if (use_privsep) {
-		struct passwd *pw;
 		struct stat st;
 
-		if ((pw = getpwnam(SSH_PRIVSEP_USER)) == NULL)
-			fatal("Privilege separation user %s does not exist",
-			    SSH_PRIVSEP_USER);
 		if ((stat(_PATH_PRIVSEP_CHROOT_DIR, &st) == -1) ||
 		    (S_ISDIR(st.st_mode) == 0))
 			fatal("Missing privilege separation directory: %s",
@@ -1194,7 +1550,7 @@ main(int ac, char **av)
 		debug("setgroups() failed: %.200s", strerror(errno));
 
 	if (rexec_flag) {
-		rexec_argv = xmalloc(sizeof(char *) * (rexec_argc + 2));
+		rexec_argv = xcalloc(rexec_argc + 2, sizeof(char *));
 		for (i = 0; i < rexec_argc; i++) {
 			debug("rexec_argv[%d]='%s'", i, saved_argv[i]);
 			rexec_argv[i] = saved_argv[i];
@@ -1242,121 +1598,31 @@ main(int ac, char **av)
 	/* ignore SIGPIPE */
 	signal(SIGPIPE, SIG_IGN);
 
-	/* Start listening for a socket, unless started from inetd. */
+	/* Get a connection, either from inetd or a listening TCP socket */
 	if (inetd_flag) {
-		int fd;
+		server_accept_inetd(&sock_in, &sock_out);
 
-		startup_pipe = -1;
-		if (rexeced_flag) {
-			close(REEXEC_CONFIG_PASS_FD);
-			sock_in = sock_out = dup(STDIN_FILENO);
-			if (!debug_flag) {
-				startup_pipe = dup(REEXEC_STARTUP_PIPE_FD);
-				close(REEXEC_STARTUP_PIPE_FD);
-			}
-		} else {
-			sock_in = dup(STDIN_FILENO);
-			sock_out = dup(STDOUT_FILENO);
-		}
-		/*
-		 * We intentionally do not close the descriptors 0, 1, and 2
-		 * as our code for setting the descriptors won't work if
-		 * ttyfd happens to be one of those.
-		 */
-		if ((fd = open(_PATH_DEVNULL, O_RDWR, 0)) != -1) {
-			dup2(fd, STDIN_FILENO);
-			dup2(fd, STDOUT_FILENO);
-			if (fd > STDOUT_FILENO)
-				close(fd);
-		}
-		debug("inetd sockets after dupping: %d, %d", sock_in, sock_out);
 		if ((options.protocol & SSH_PROTO_1) &&
 		    sensitive_data.server_key == NULL)
 			generate_ephemeral_server_key();
 	} else {
-		for (ai = options.listen_addrs; ai; ai = ai->ai_next) {
-			if (ai->ai_family != AF_INET && ai->ai_family != AF_INET6)
-				continue;
-			if (num_listen_socks >= MAX_LISTEN_SOCKS)
-				fatal("Too many listen sockets. "
-				    "Enlarge MAX_LISTEN_SOCKS");
-			if ((ret = getnameinfo(ai->ai_addr, ai->ai_addrlen,
-			    ntop, sizeof(ntop), strport, sizeof(strport),
-			    NI_NUMERICHOST|NI_NUMERICSERV)) != 0) {
-				error("getnameinfo failed: %.100s",
-				    (ret != EAI_SYSTEM) ? gai_strerror(ret) :
-				    strerror(errno));
-				continue;
-			}
-			/* Create socket for listening. */
-			listen_sock = socket(ai->ai_family, ai->ai_socktype,
-			    ai->ai_protocol);
-			if (listen_sock < 0) {
-				/* kernel may not support ipv6 */
-				verbose("socket: %.100s", strerror(errno));
-				continue;
-			}
-			if (set_nonblock(listen_sock) == -1) {
-				close(listen_sock);
-				continue;
-			}
-			/*
-			 * Set socket options.
-			 * Allow local port reuse in TIME_WAIT.
-			 */
-			if (setsockopt(listen_sock, SOL_SOCKET, SO_REUSEADDR,
-			    &on, sizeof(on)) == -1)
-				error("setsockopt SO_REUSEADDR: %s", strerror(errno));
-
-			debug("Bind to port %s on %s.", strport, ntop);
-
-			/* Bind the socket to the desired port. */
-			if (bind(listen_sock, ai->ai_addr, ai->ai_addrlen) < 0) {
-				if (!ai->ai_next)
-				    error("Bind to port %s on %s failed: %.200s.",
-					    strport, ntop, strerror(errno));
-				close(listen_sock);
-				continue;
-			}
-			listen_socks[num_listen_socks] = listen_sock;
-			num_listen_socks++;
-
-			/* Start listening on the port. */
-			logit("Server listening on %s port %s.", ntop, strport);
-			if (listen(listen_sock, SSH_LISTEN_BACKLOG) < 0)
-				fatal("listen: %.100s", strerror(errno));
-
-		}
-		freeaddrinfo(options.listen_addrs);
-
-		if (!num_listen_socks)
-			fatal("Cannot bind any address.");
+		server_listen();
 
 		if (options.protocol & SSH_PROTO_1)
 			generate_ephemeral_server_key();
 
-		/*
-		 * Arrange to restart on SIGHUP.  The handler needs
-		 * listen_sock.
-		 */
 		signal(SIGHUP, sighup_handler);
-
+		signal(SIGCHLD, main_sigchld_handler);
 		signal(SIGTERM, sigterm_handler);
 		signal(SIGQUIT, sigterm_handler);
 
-		/* Arrange SIGCHLD to be caught. */
-		signal(SIGCHLD, main_sigchld_handler);
-
-		/* Write out the pid file after the sigterm handler is setup */
+		/*
+		 * Write out the pid file after the sigterm handler
+		 * is setup and the listen sockets are bound
+		 */
 		if (!debug_flag) {
-			/*
-			 * Record our pid in /var/run/sshd.pid to make it
-			 * easier to kill the correct sshd.  We don't want to
-			 * do this before the bind above because the bind will
-			 * fail if there already is a daemon, and this will
-			 * overwrite any old pid in the file.
-			 */
-			f = fopen(options.pid_file, "wb");
+			FILE *f = fopen(options.pid_file, "w");
+
 			if (f == NULL) {
 				error("Couldn't create pid file \"%s\": %s",
 				    options.pid_file, strerror(errno));
@@ -1366,194 +1632,9 @@ main(int ac, char **av)
 			}
 		}
 
-		/* setup fd set for listen */
-		fdset = NULL;
-		maxfd = 0;
-		for (i = 0; i < num_listen_socks; i++)
-			if (listen_socks[i] > maxfd)
-				maxfd = listen_socks[i];
-		/* pipes connected to unauthenticated childs */
-		startup_pipes = xmalloc(options.max_startups * sizeof(int));
-		for (i = 0; i < options.max_startups; i++)
-			startup_pipes[i] = -1;
-
-		/*
-		 * Stay listening for connections until the system crashes or
-		 * the daemon is killed with a signal.
-		 */
-		for (;;) {
-			if (received_sighup)
-				sighup_restart();
-			if (fdset != NULL)
-				xfree(fdset);
-			fdsetsz = howmany(maxfd+1, NFDBITS) * sizeof(fd_mask);
-			fdset = (fd_set *)xmalloc(fdsetsz);
-			memset(fdset, 0, fdsetsz);
-
-			for (i = 0; i < num_listen_socks; i++)
-				FD_SET(listen_socks[i], fdset);
-			for (i = 0; i < options.max_startups; i++)
-				if (startup_pipes[i] != -1)
-					FD_SET(startup_pipes[i], fdset);
-
-			/* Wait in select until there is a connection. */
-			ret = select(maxfd+1, fdset, NULL, NULL, NULL);
-			if (ret < 0 && errno != EINTR)
-				error("select: %.100s", strerror(errno));
-			if (received_sigterm) {
-				logit("Received signal %d; terminating.",
-				    (int) received_sigterm);
-				close_listen_socks();
-				unlink(options.pid_file);
-				exit(255);
-			}
-			if (key_used && key_do_regen) {
-				generate_ephemeral_server_key();
-				key_used = 0;
-				key_do_regen = 0;
-			}
-			if (ret < 0)
-				continue;
-
-			for (i = 0; i < options.max_startups; i++)
-				if (startup_pipes[i] != -1 &&
-				    FD_ISSET(startup_pipes[i], fdset)) {
-					/*
-					 * the read end of the pipe is ready
-					 * if the child has closed the pipe
-					 * after successful authentication
-					 * or if the child has died
-					 */
-					close(startup_pipes[i]);
-					startup_pipes[i] = -1;
-					startups--;
-				}
-			for (i = 0; i < num_listen_socks; i++) {
-				if (!FD_ISSET(listen_socks[i], fdset))
-					continue;
-				fromlen = sizeof(from);
-				newsock = accept(listen_socks[i], (struct sockaddr *)&from,
-				    &fromlen);
-				if (newsock < 0) {
-					if (errno != EINTR && errno != EWOULDBLOCK)
-						error("accept: %.100s", strerror(errno));
-					continue;
-				}
-				if (unset_nonblock(newsock) == -1) {
-					close(newsock);
-					continue;
-				}
-				if (drop_connection(startups) == 1) {
-					debug("drop connection #%d", startups);
-					close(newsock);
-					continue;
-				}
-				if (pipe(startup_p) == -1) {
-					close(newsock);
-					continue;
-				}
-
-				if (rexec_flag && socketpair(AF_UNIX,
-				    SOCK_STREAM, 0, config_s) == -1) {
-					error("reexec socketpair: %s",
-					    strerror(errno));
-					close(newsock);
-					close(startup_p[0]);
-					close(startup_p[1]);
-					continue;
-				}
-
-				for (j = 0; j < options.max_startups; j++)
-					if (startup_pipes[j] == -1) {
-						startup_pipes[j] = startup_p[0];
-						if (maxfd < startup_p[0])
-							maxfd = startup_p[0];
-						startups++;
-						break;
-					}
-
-				/*
-				 * Got connection.  Fork a child to handle it, unless
-				 * we are in debugging mode.
-				 */
-				if (debug_flag) {
-					/*
-					 * In debugging mode.  Close the listening
-					 * socket, and start processing the
-					 * connection without forking.
-					 */
-					debug("Server will not fork when running in debugging mode.");
-					close_listen_socks();
-					sock_in = newsock;
-					sock_out = newsock;
-					close(startup_p[0]);
-					close(startup_p[1]);
-					startup_pipe = -1;
-					pid = getpid();
-					if (rexec_flag) {
-						send_rexec_state(config_s[0],
-						    &cfg);
-						close(config_s[0]);
-					}
-					break;
-				} else {
-					/*
-					 * Normal production daemon.  Fork, and have
-					 * the child process the connection. The
-					 * parent continues listening.
-					 */
-					if ((pid = fork()) == 0) {
-						/*
-						 * Child.  Close the listening and max_startup
-						 * sockets.  Start using the accepted socket.
-						 * Reinitialize logging (since our pid has
-						 * changed).  We break out of the loop to handle
-						 * the connection.
-						 */
-						startup_pipe = startup_p[1];
-						close_startup_pipes();
-						close_listen_socks();
-						sock_in = newsock;
-						sock_out = newsock;
-						log_init(__progname, options.log_level, options.log_facility, log_stderr);
-						if (rexec_flag)
-							close(config_s[0]);
-						break;
-					}
-				}
-
-				/* Parent.  Stay in the loop. */
-				if (pid < 0)
-					error("fork: %.100s", strerror(errno));
-				else
-					debug("Forked child %ld.", (long)pid);
-
-				close(startup_p[1]);
-
-				if (rexec_flag) {
-					send_rexec_state(config_s[0], &cfg);
-					close(config_s[0]);
-					close(config_s[1]);
-				}
-
-				/* Mark that the key has been used (it was "given" to the child). */
-				if ((options.protocol & SSH_PROTO_1) &&
-				    key_used == 0) {
-					/* Schedule server key regeneration alarm. */
-					signal(SIGALRM, key_regeneration_alarm);
-					alarm(options.key_regeneration_time);
-					key_used = 1;
-				}
-
-				arc4random_stir();
-
-				/* Close the new socket (the child is now taking care of it). */
-				close(newsock);
-			}
-			/* child process check (or debug mode) */
-			if (num_listen_socks < 0)
-				break;
-		}
+		/* Accept a connection and return in a forked child */
+		server_accept_loop(&sock_in, &sock_out,
+		    &newsock, config_s);
 	}
 
 	/* This is the child processing a new connection. */
@@ -1636,6 +1717,18 @@ main(int ac, char **av)
 		debug("res_init()");         
 		res_init();         
 	}
+#ifdef GSSAPI
+	/*
+	 * Force GSS-API to parse its configuration and load any
+	 * mechanism plugins.
+	 */
+	{
+		gss_OID_set mechs;
+		OM_uint32 minor_status;
+		gss_indicate_mechs(&minor_status, &mechs);
+		gss_release_oid_set(&minor_status, &mechs);
+	}
+#endif
 #endif
 
 	/*
@@ -1654,6 +1747,17 @@ main(int ac, char **av)
 		debug("get_remote_port failed");
 		cleanup_exit(255);
 	}
+
+	/*
+	 * We use get_canonical_hostname with usedns = 0 instead of
+	 * get_remote_ipaddr here so IP options will be checked.
+	 */
+	(void) get_canonical_hostname(0);
+	/*
+	 * The rest of the code depends on the fact that
+	 * get_remote_ipaddr() caches the remote ip, even if
+	 * the socket goes away.
+	 */
 	remote_ip = get_remote_ipaddr();
 
 #ifdef SSH_AUDIT_EVENTS
@@ -1680,10 +1784,10 @@ main(int ac, char **av)
 	verbose("Connection from %.500s port %d", remote_ip, remote_port);
 
 	/*
-	 * We don\'t want to listen forever unless the other side
+	 * We don't want to listen forever unless the other side
 	 * successfully authenticates itself.  So we set up an alarm which is
 	 * cleared after successful authentication.  A limit of zero
-	 * indicates no limit. Note that we don\'t set the alarm in debugging
+	 * indicates no limit. Note that we don't set the alarm in debugging
 	 * mode; it is just annoying to have the server exit just when you
 	 * are about to discover the bug.
 	 */
@@ -1696,8 +1800,7 @@ main(int ac, char **av)
 	packet_set_nonblocking();
 
 	/* allocate authentication context */
-	authctxt = xmalloc(sizeof(*authctxt));
-	memset(authctxt, 0, sizeof(*authctxt));
+	authctxt = xcalloc(1, sizeof(*authctxt));
 
 	authctxt->loginmsg = &loginmsg;
 
@@ -1730,7 +1833,18 @@ main(int ac, char **av)
 	}
 
  authenticated:
+	/*
+	 * Cancel the alarm we set to limit the time taken for
+	 * authentication.
+	 */
+	alarm(0);
+	signal(SIGALRM, SIG_DFL);
 	authctxt->authenticated = 1;
+	if (startup_pipe != -1) {
+		close(startup_pipe);
+		startup_pipe = -1;
+	}
+
 #ifdef SSH_AUDIT_EVENTS
 	audit_event(SSH_AUTH_SUCCESS);
 #endif
@@ -1778,11 +1892,14 @@ ssh1_session_key(BIGNUM *session_key_int)
 {
 	int rsafail = 0;
 
-	if (BN_cmp(sensitive_data.server_key->rsa->n, sensitive_data.ssh1_host_key->rsa->n) > 0) {
+	if (BN_cmp(sensitive_data.server_key->rsa->n,
+	    sensitive_data.ssh1_host_key->rsa->n) > 0) {
 		/* Server key has bigger modulus. */
 		if (BN_num_bits(sensitive_data.server_key->rsa->n) <
-		    BN_num_bits(sensitive_data.ssh1_host_key->rsa->n) + SSH_KEY_BITS_RESERVED) {
-			fatal("do_connection: %s: server_key %d < host_key %d + SSH_KEY_BITS_RESERVED %d",
+		    BN_num_bits(sensitive_data.ssh1_host_key->rsa->n) +
+		    SSH_KEY_BITS_RESERVED) {
+			fatal("do_connection: %s: "
+			    "server_key %d < host_key %d + SSH_KEY_BITS_RESERVED %d",
 			    get_remote_ipaddr(),
 			    BN_num_bits(sensitive_data.server_key->rsa->n),
 			    BN_num_bits(sensitive_data.ssh1_host_key->rsa->n),
@@ -1797,8 +1914,10 @@ ssh1_session_key(BIGNUM *session_key_int)
 	} else {
 		/* Host key has bigger modulus (or they are equal). */
 		if (BN_num_bits(sensitive_data.ssh1_host_key->rsa->n) <
-		    BN_num_bits(sensitive_data.server_key->rsa->n) + SSH_KEY_BITS_RESERVED) {
-			fatal("do_connection: %s: host_key %d < server_key %d + SSH_KEY_BITS_RESERVED %d",
+		    BN_num_bits(sensitive_data.server_key->rsa->n) +
+		    SSH_KEY_BITS_RESERVED) {
+			fatal("do_connection: %s: "
+			    "host_key %d < server_key %d + SSH_KEY_BITS_RESERVED %d",
 			    get_remote_ipaddr(),
 			    BN_num_bits(sensitive_data.ssh1_host_key->rsa->n),
 			    BN_num_bits(sensitive_data.server_key->rsa->n),
@@ -2019,7 +2138,7 @@ do_ssh2_kex(void)
 		myproposal[PROPOSAL_COMP_ALGS_CTOS] =
 		myproposal[PROPOSAL_COMP_ALGS_STOC] = "none,zlib@openssh.com";
 	}
-	
+
 	myproposal[PROPOSAL_SERVER_HOST_KEY_ALGS] = list_hostkey_types();
 
 	/* start key exchange */
@@ -2027,6 +2146,7 @@ do_ssh2_kex(void)
 	kex->kex[KEX_DH_GRP1_SHA1] = kexdh_server;
 	kex->kex[KEX_DH_GRP14_SHA1] = kexdh_server;
 	kex->kex[KEX_DH_GEX_SHA1] = kexgex_server;
+	kex->kex[KEX_DH_GEX_SHA256] = kexgex_server;
 	kex->server = 1;
 	kex->client_version_string=client_version_string;
 	kex->server_version_string=server_version_string;

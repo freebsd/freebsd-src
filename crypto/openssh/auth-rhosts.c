@@ -1,3 +1,4 @@
+/* $OpenBSD: auth-rhosts.c,v 1.41 2006/08/03 03:34:41 deraadt Exp $ */
 /*
  * Author: Tatu Ylonen <ylo@cs.hut.fi>
  * Copyright (c) 1995 Tatu Ylonen <ylo@cs.hut.fi>, Espoo, Finland
@@ -14,14 +15,27 @@
  */
 
 #include "includes.h"
-RCSID("$OpenBSD: auth-rhosts.c,v 1.33 2005/07/17 07:17:54 djm Exp $");
+
+#include <sys/types.h>
+#include <sys/stat.h>
+
+#ifdef HAVE_NETGROUP_H
+# include <netgroup.h>
+#endif
+#include <pwd.h>
+#include <stdio.h>
+#include <string.h>
+#include <stdarg.h>
 
 #include "packet.h"
+#include "buffer.h"
 #include "uidswap.h"
 #include "pathnames.h"
 #include "log.h"
 #include "servconf.h"
 #include "canohost.h"
+#include "key.h"
+#include "hostfile.h"
 #include "auth.h"
 
 /* import */

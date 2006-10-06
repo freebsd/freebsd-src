@@ -1,3 +1,4 @@
+/* $OpenBSD: monitor.c,v 1.88 2006/08/12 20:46:46 miod Exp $ */
 /*
  * Copyright 2002 Niels Provos <provos@citi.umich.edu>
  * Copyright 2002 Markus Friedl <markus@openbsd.org>
@@ -25,10 +26,25 @@
  */
 
 #include "includes.h"
-RCSID("$OpenBSD: monitor.c,v 1.63 2005/03/10 22:01:05 deraadt Exp $");
-RCSID("$FreeBSD$");
+__RCSID("$FreeBSD$");
 
-#include <openssl/dh.h>
+#include <sys/types.h>
+#include <sys/param.h>
+#include <sys/socket.h>
+#include "openbsd-compat/sys-tree.h"
+#include <sys/wait.h>
+
+#include <errno.h>
+#include <fcntl.h>
+#ifdef HAVE_PATHS_H
+#include <paths.h>
+#endif
+#include <pwd.h>
+#include <signal.h>
+#include <stdarg.h>
+#include <stdlib.h>
+#include <string.h>
+#include <unistd.h>
 
 #ifdef SKEY
 #ifdef OPIE
@@ -42,8 +58,15 @@ RCSID("$FreeBSD$");
 #endif
 #endif
 
+#include <openssl/dh.h>
+
+#include "xmalloc.h"
 #include "ssh.h"
+#include "key.h"
+#include "buffer.h"
+#include "hostfile.h"
 #include "auth.h"
+#include "cipher.h"
 #include "kex.h"
 #include "dh.h"
 #ifdef TARGET_OS_MAC	/* XXX Broken krb5 headers on Mac */
@@ -64,17 +87,16 @@ RCSID("$FreeBSD$");
 #include "servconf.h"
 #include "monitor.h"
 #include "monitor_mm.h"
+#ifdef GSSAPI
+#include "ssh-gss.h"
+#endif
 #include "monitor_wrap.h"
 #include "monitor_fdpass.h"
-#include "xmalloc.h"
 #include "misc.h"
-#include "buffer.h"
-#include "bufaux.h"
 #include "compat.h"
 #include "ssh2.h"
 
 #ifdef GSSAPI
-#include "ssh-gss.h"
 static Gssctxt *gsscontext = NULL;
 #endif
 
@@ -180,6 +202,7 @@ struct mon_table {
 #define MON_ISAUTH	0x0004	/* Required for Authentication */
 #define MON_AUTHDECIDE	0x0008	/* Decides Authentication */
 #define MON_ONCE	0x0010	/* Disable after calling */
+#define MON_ALOG	0x0020	/* Log auth attempt without authenticating */
 
 #define MON_AUTH	(MON_ISAUTH|MON_AUTHDECIDE)
 
@@ -205,7 +228,7 @@ struct mon_table mon_dispatch_proto20[] = {
 #endif
 #ifdef BSD_AUTH
     {MONITOR_REQ_BSDAUTHQUERY, MON_ISAUTH, mm_answer_bsdauthquery},
-    {MONITOR_REQ_BSDAUTHRESPOND, MON_AUTH,mm_answer_bsdauthrespond},
+    {MONITOR_REQ_BSDAUTHRESPOND, MON_AUTH, mm_answer_bsdauthrespond},
 #endif
 #ifdef SKEY
     {MONITOR_REQ_SKEYQUERY, MON_ISAUTH, mm_answer_skeyquery},
@@ -240,13 +263,13 @@ struct mon_table mon_dispatch_proto15[] = {
     {MONITOR_REQ_SESSKEY, MON_ONCE, mm_answer_sesskey},
     {MONITOR_REQ_SESSID, MON_ONCE, mm_answer_sessid},
     {MONITOR_REQ_AUTHPASSWORD, MON_AUTH, mm_answer_authpassword},
-    {MONITOR_REQ_RSAKEYALLOWED, MON_ISAUTH, mm_answer_rsa_keyallowed},
-    {MONITOR_REQ_KEYALLOWED, MON_ISAUTH, mm_answer_keyallowed},
+    {MONITOR_REQ_RSAKEYALLOWED, MON_ISAUTH|MON_ALOG, mm_answer_rsa_keyallowed},
+    {MONITOR_REQ_KEYALLOWED, MON_ISAUTH|MON_ALOG, mm_answer_keyallowed},
     {MONITOR_REQ_RSACHALLENGE, MON_ONCE, mm_answer_rsa_challenge},
     {MONITOR_REQ_RSARESPONSE, MON_ONCE|MON_AUTHDECIDE, mm_answer_rsa_response},
 #ifdef BSD_AUTH
     {MONITOR_REQ_BSDAUTHQUERY, MON_ISAUTH, mm_answer_bsdauthquery},
-    {MONITOR_REQ_BSDAUTHRESPOND, MON_AUTH,mm_answer_bsdauthrespond},
+    {MONITOR_REQ_BSDAUTHRESPOND, MON_AUTH, mm_answer_bsdauthrespond},
 #endif
 #ifdef SKEY
     {MONITOR_REQ_SKEYQUERY, MON_ISAUTH, mm_answer_skeyquery},
@@ -335,6 +358,7 @@ monitor_child_preauth(Authctxt *_authctxt, struct monitor *pmonitor)
 
 	/* The first few requests do not require asynchronous access */
 	while (!authenticated) {
+		auth_method = "unknown";
 		authenticated = monitor_read(pmonitor, mon_dispatch, &ent);
 		if (authenticated) {
 			if (!(ent->flags & MON_AUTHDECIDE))
@@ -357,7 +381,7 @@ monitor_child_preauth(Authctxt *_authctxt, struct monitor *pmonitor)
 #endif
 		}
 
-		if (ent->flags & MON_AUTHDECIDE) {
+		if (ent->flags & (MON_AUTHDECIDE|MON_ALOG)) {
 			auth_log(authctxt, authenticated, auth_method,
 			    compat20 ? " ssh2" : "");
 			if (!authenticated)
@@ -367,6 +391,8 @@ monitor_child_preauth(Authctxt *_authctxt, struct monitor *pmonitor)
 
 	if (!authctxt->valid)
 		fatal("%s: authenticated invalid user", __func__);
+	if (strcmp(auth_method, "unknown") == 0)
+		fatal("%s: authentication method name unknown", __func__);
 
 	debug("%s: %s has been authenticated by privileged process",
 	    __func__, authctxt->user);
@@ -546,7 +572,11 @@ mm_answer_sign(int sock, Buffer *m)
 	keyid = buffer_get_int(m);
 	p = buffer_get_string(m, &datlen);
 
-	if (datlen != 20)
+	/*
+	 * Supported KEX types will only return SHA1 (20 byte) or
+	 * SHA256 (32 byte) hashes
+	 */
+	if (datlen != 20 && datlen != 32)
 		fatal("%s: data length incorrect: %u", __func__, datlen);
 
 	/* save session id, it will be passed on the first call */
@@ -840,9 +870,7 @@ mm_answer_pam_account(int sock, Buffer *m)
 	ret = do_pam_account();
 
 	buffer_put_int(m, ret);
-	buffer_append(&loginmsg, "\0", 1);
-	buffer_put_cstring(m, buffer_ptr(&loginmsg));
-	buffer_clear(&loginmsg);
+	buffer_put_string(m, buffer_ptr(&loginmsg), buffer_len(&loginmsg));
 
 	mm_request_send(sock, MONITOR_ANS_PAM_ACCOUNT, m);
 
@@ -901,6 +929,7 @@ mm_answer_pam_query(int sock, Buffer *m)
 		xfree(prompts);
 	if (echo_on != NULL)
 		xfree(echo_on);
+	auth_method = "keyboard-interactive/pam";
 	mm_request_send(sock, MONITOR_ANS_PAM_QUERY, m);
 	return (0);
 }
@@ -916,7 +945,7 @@ mm_answer_pam_respond(int sock, Buffer *m)
 	sshpam_authok = NULL;
 	num = buffer_get_int(m);
 	if (num > 0) {
-		resp = xmalloc(num * sizeof(char *));
+		resp = xcalloc(num, sizeof(char *));
 		for (i = 0; i < num; ++i)
 			resp[i] = buffer_get_string(m, NULL);
 		ret = (sshpam_device.respond)(sshpam_ctxt, num, resp);
@@ -943,6 +972,7 @@ mm_answer_pam_free_ctx(int sock, Buffer *m)
 	(sshpam_device.free_ctx)(sshpam_ctxt);
 	buffer_clear(m);
 	mm_request_send(sock, MONITOR_ANS_PAM_FREE_CTX, m);
+	auth_method = "keyboard-interactive/pam";
 	return (sshpam_authok == sshpam_ctxt);
 }
 #endif
@@ -988,17 +1018,20 @@ mm_answer_keyallowed(int sock, Buffer *m)
 		case MM_USERKEY:
 			allowed = options.pubkey_authentication &&
 			    user_key_allowed(authctxt->pw, key);
+			auth_method = "publickey";
 			break;
 		case MM_HOSTKEY:
 			allowed = options.hostbased_authentication &&
 			    hostbased_key_allowed(authctxt->pw,
 			    cuser, chost, key);
+			auth_method = "hostbased";
 			break;
 		case MM_RSAHOSTKEY:
 			key->type = KEY_RSA1; /* XXX */
 			allowed = options.rhosts_rsa_authentication &&
 			    auth_rhosts_rsa_key_allowed(authctxt->pw,
 			    cuser, chost, key);
+			auth_method = "rsa";
 			break;
 		default:
 			fatal("%s: unknown key type %d", __func__, type);
@@ -1018,6 +1051,12 @@ mm_answer_keyallowed(int sock, Buffer *m)
 		key_blobtype = type;
 		hostbased_cuser = cuser;
 		hostbased_chost = chost;
+	} else {
+		/* Log failed attempt */
+		auth_log(authctxt, 0, auth_method, compat20 ? " ssh2" : "");
+		xfree(blob);
+		xfree(cuser);
+		xfree(chost);
 	}
 
 	debug3("%s: key %p is %s",
@@ -1219,7 +1258,7 @@ mm_record_login(Session *s, struct passwd *pw)
 	fromlen = sizeof(from);
 	if (packet_connection_is_on_socket()) {
 		if (getpeername(packet_get_connection_in(),
-			(struct sockaddr *) & from, &fromlen) < 0) {
+		    (struct sockaddr *)&from, &fromlen) < 0) {
 			debug("getpeername: %.100s", strerror(errno));
 			cleanup_exit(255);
 		}
@@ -1235,7 +1274,7 @@ mm_session_close(Session *s)
 {
 	debug3("%s: session %d pid %ld", __func__, s->self, (long)s->pid);
 	if (s->ttyfd != -1) {
-		debug3("%s: tty %s ptyfd %d",  __func__, s->tty, s->ptyfd);
+		debug3("%s: tty %s ptyfd %d", __func__, s->tty, s->ptyfd);
 		session_pty_cleanup2(s);
 	}
 	s->used = 0;
@@ -1295,7 +1334,7 @@ mm_answer_pty(int sock, Buffer *m)
 	/* no need to dup() because nobody closes ptyfd */
 	s->ptymaster = s->ptyfd;
 
-	debug3("%s: tty %s ptyfd %d",  __func__, s->tty, s->ttyfd);
+	debug3("%s: tty %s ptyfd %d", __func__, s->tty, s->ttyfd);
 
 	return (0);
 
@@ -1382,6 +1421,7 @@ mm_answer_rsa_keyallowed(int sock, Buffer *m)
 
 	debug3("%s entering", __func__);
 
+	auth_method = "rsa";
 	if (options.rsa_authentication && authctxt->valid) {
 		if ((client_n = BN_new()) == NULL)
 			fatal("%s: BN_new", __func__);
@@ -1618,8 +1658,7 @@ mm_get_kex(Buffer *m)
 	void *blob;
 	u_int bloblen;
 
-	kex = xmalloc(sizeof(*kex));
-	memset(kex, 0, sizeof(*kex));
+	kex = xcalloc(1, sizeof(*kex));
 	kex->session_id = buffer_get_string(m, &kex->session_id_len);
 	if ((session_id2 == NULL) ||
 	    (kex->session_id_len != session_id2_len) ||
@@ -1629,6 +1668,7 @@ mm_get_kex(Buffer *m)
 	kex->kex[KEX_DH_GRP1_SHA1] = kexdh_server;
 	kex->kex[KEX_DH_GRP14_SHA1] = kexdh_server;
 	kex->kex[KEX_DH_GEX_SHA1] = kexgex_server;
+	kex->kex[KEX_DH_GEX_SHA256] = kexgex_server;
 	kex->server = 1;
 	kex->hostkey_type = buffer_get_int(m);
 	kex->kex_type = buffer_get_int(m);
@@ -1788,9 +1828,8 @@ monitor_init(void)
 	struct monitor *mon;
 	int pair[2];
 
-	mon = xmalloc(sizeof(*mon));
+	mon = xcalloc(1, sizeof(*mon));
 
-	mon->m_pid = 0;
 	monitor_socketpair(pair);
 
 	mon->m_recvfd = pair[0];
@@ -1837,7 +1876,7 @@ mm_answer_gss_setup_ctx(int sock, Buffer *m)
 	buffer_clear(m);
 	buffer_put_int(m, major);
 
-	mm_request_send(sock,MONITOR_ANS_GSSSETUP, m);
+	mm_request_send(sock, MONITOR_ANS_GSSSETUP, m);
 
 	/* Now we have a context, enable the step */
 	monitor_permit(mon_dispatch, MONITOR_REQ_GSSSTEP, 1);
@@ -1850,7 +1889,7 @@ mm_answer_gss_accept_ctx(int sock, Buffer *m)
 {
 	gss_buffer_desc in;
 	gss_buffer_desc out = GSS_C_EMPTY_BUFFER;
-	OM_uint32 major,minor;
+	OM_uint32 major, minor;
 	OM_uint32 flags = 0; /* GSI needs this */
 	u_int len;
 
@@ -1867,7 +1906,7 @@ mm_answer_gss_accept_ctx(int sock, Buffer *m)
 
 	gss_release_buffer(&minor, &out);
 
-	if (major==GSS_S_COMPLETE) {
+	if (major == GSS_S_COMPLETE) {
 		monitor_permit(mon_dispatch, MONITOR_REQ_GSSSTEP, 0);
 		monitor_permit(mon_dispatch, MONITOR_REQ_GSSUSEROK, 1);
 		monitor_permit(mon_dispatch, MONITOR_REQ_GSSCHECKMIC, 1);
@@ -1916,7 +1955,7 @@ mm_answer_gss_userok(int sock, Buffer *m)
 	debug3("%s: sending result %d", __func__, authenticated);
 	mm_request_send(sock, MONITOR_ANS_GSSUSEROK, m);
 
-	auth_method="gssapi-with-mic";
+	auth_method = "gssapi-with-mic";
 
 	/* Monitor loop will terminate if authenticated */
 	return (authenticated);

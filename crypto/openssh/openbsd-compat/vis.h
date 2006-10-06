@@ -1,6 +1,4 @@
-/* OPENBSD ORIGINAL: include/vis.h */
-
-/*	$OpenBSD: vis.h,v 1.6 2003/06/02 19:34:12 millert Exp $	*/
+/*	$OpenBSD: vis.h,v 1.11 2005/08/09 19:38:31 millert Exp $	*/
 /*	$NetBSD: vis.h,v 1.4 1994/10/26 00:56:41 cgd Exp $	*/
 
 /*-
@@ -34,6 +32,8 @@
  *	@(#)vis.h	5.9 (Berkeley) 4/3/91
  */
 
+/* OPENBSD ORIGINAL: include/vis.h */
+
 #include "includes.h"
 #if !defined(HAVE_STRNVIS)
 
@@ -63,6 +63,7 @@
  * other
  */
 #define	VIS_NOSLASH	0x40	/* inhibit printing '\' */
+#define	VIS_GLOB	0x100	/* encode glob(3) magics and '#' */
 
 /*
  * unvis return codes
@@ -80,10 +81,14 @@
 
 char	*vis(char *, int, int, int);
 int	strvis(char *, const char *, int);
-int	strnvis(char *, const char *, size_t, int);
-int	strvisx(char *, const char *, size_t, int);
+int	strnvis(char *, const char *, size_t, int)
+		__attribute__ ((__bounded__(__string__,1,3)));
+int	strvisx(char *, const char *, size_t, int)
+		__attribute__ ((__bounded__(__string__,1,3)));
 int	strunvis(char *, const char *);
 int	unvis(char *, char, int *, int);
+ssize_t strnunvis(char *, const char *, size_t)
+		__attribute__ ((__bounded__(__string__,1,3)));
 
 #endif /* !_VIS_H_ */
 

@@ -1,3 +1,4 @@
+/* $OpenBSD: auth-chall.c,v 1.12 2006/08/03 03:34:41 deraadt Exp $ */
 /*
  * Copyright (c) 2001 Markus Friedl.  All rights reserved.
  *
@@ -23,12 +24,17 @@
  */
 
 #include "includes.h"
-RCSID("$OpenBSD: auth-chall.c,v 1.9 2003/11/03 09:03:37 djm Exp $");
-RCSID("$FreeBSD$");
+__RCSID("$FreeBSD$");
 
+#include <sys/types.h>
+
+#include <stdarg.h>
+
+#include "xmalloc.h"
+#include "key.h"
+#include "hostfile.h"
 #include "auth.h"
 #include "log.h"
-#include "xmalloc.h"
 #include "servconf.h"
 
 /* limited protocol v1 interface to kbd-interactive authentication */

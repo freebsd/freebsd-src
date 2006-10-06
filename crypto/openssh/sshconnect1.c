@@ -1,3 +1,4 @@
+/* $OpenBSD: sshconnect1.c,v 1.69 2006/08/03 03:34:42 deraadt Exp $ */
 /*
  * Author: Tatu Ylonen <ylo@cs.hut.fi>
  * Copyright (c) 1995 Tatu Ylonen <ylo@cs.hut.fi>, Espoo, Finland
@@ -13,28 +14,38 @@
  */
 
 #include "includes.h"
-RCSID("$OpenBSD: sshconnect1.c,v 1.61 2005/06/17 02:44:33 djm Exp $");
+
+#include <sys/types.h>
+#include <sys/socket.h>
 
 #include <openssl/bn.h>
 #include <openssl/md5.h>
 
+#include <stdarg.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <signal.h>
+#include <pwd.h>
+
+#include "xmalloc.h"
 #include "ssh.h"
 #include "ssh1.h"
-#include "xmalloc.h"
 #include "rsa.h"
 #include "buffer.h"
 #include "packet.h"
+#include "key.h"
+#include "cipher.h"
 #include "kex.h"
 #include "uidswap.h"
 #include "log.h"
 #include "readconf.h"
-#include "key.h"
 #include "authfd.h"
 #include "sshconnect.h"
 #include "authfile.h"
 #include "misc.h"
-#include "cipher.h"
 #include "canohost.h"
+#include "hostfile.h"
 #include "auth.h"
 
 /* Session id for the current session. */
@@ -84,7 +95,7 @@ try_agent_authentication(void)
 		/* Wait for server's response. */
 		type = packet_read();
 
-		/* The server sends failure if it doesn\'t like our key or
+		/* The server sends failure if it doesn't like our key or
 		   does not support RSA authentication. */
 		if (type == SSH_SMSG_FAILURE) {
 			debug("Server refused our key.");
@@ -197,7 +208,7 @@ try_rsa_authentication(int idx)
 	BIGNUM *challenge;
 	Key *public, *private;
 	char buf[300], *passphrase, *comment, *authfile;
-	int i, type, quit;
+	int i, perm_ok = 1, type, quit;
 
 	public = options.identity_keys[idx];
 	authfile = options.identity_files[idx];
@@ -215,8 +226,8 @@ try_rsa_authentication(int idx)
 	type = packet_read();
 
 	/*
-	 * The server responds with failure if it doesn\'t like our key or
-	 * doesn\'t support RSA authentication.
+	 * The server responds with failure if it doesn't like our key or
+	 * doesn't support RSA authentication.
 	 */
 	if (type == SSH_SMSG_FAILURE) {
 		debug("Server refused our key.");
@@ -243,15 +254,16 @@ try_rsa_authentication(int idx)
 	if (public->flags & KEY_FLAG_EXT)
 		private = public;
 	else
-		private = key_load_private_type(KEY_RSA1, authfile, "", NULL);
-	if (private == NULL && !options.batch_mode) {
+		private = key_load_private_type(KEY_RSA1, authfile, "", NULL,
+		    &perm_ok);
+	if (private == NULL && !options.batch_mode && perm_ok) {
 		snprintf(buf, sizeof(buf),
 		    "Enter passphrase for RSA key '%.100s': ", comment);
 		for (i = 0; i < options.number_of_password_prompts; i++) {
 			passphrase = read_passphrase(buf, 0);
 			if (strcmp(passphrase, "") != 0) {
 				private = key_load_private_type(KEY_RSA1,
-				    authfile, passphrase, NULL);
+				    authfile, passphrase, NULL, NULL);
 				quit = 0;
 			} else {
 				debug2("no passphrase given, try next key");
@@ -268,7 +280,7 @@ try_rsa_authentication(int idx)
 	xfree(comment);
 
 	if (private == NULL) {
-		if (!options.batch_mode)
+		if (!options.batch_mode && perm_ok)
 			error("Bad passphrase.");
 
 		/* Send a dummy response packet to avoid protocol error. */

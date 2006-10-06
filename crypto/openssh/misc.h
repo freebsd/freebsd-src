@@ -1,4 +1,4 @@
-/*	$OpenBSD: misc.h,v 1.25 2005/07/14 04:00:43 dtucker Exp $	*/
+/* $OpenBSD: misc.h,v 1.36 2006/08/18 10:27:16 djm Exp $ */
 
 /*
  * Author: Tatu Ylonen <ylo@cs.hut.fi>
@@ -12,6 +12,9 @@
  * called by a name other than "ssh" or "Secure Shell".
  */
 
+#ifndef _MISC_H
+#define _MISC_H
+
 /* misc.c */
 
 char	*chop(char *);
@@ -20,13 +23,16 @@ int	 set_nonblock(int);
 int	 unset_nonblock(int);
 void	 set_nodelay(int);
 int	 a2port(const char *);
+int	 a2tun(const char *, int *);
+char	*put_host_port(const char *, u_short);
 char	*hpdelim(char **);
 char	*cleanhostname(char *);
 char	*colon(char *);
 long	 convtime(const char *);
 char	*tilde_expand_filename(const char *, uid_t);
 char	*percent_expand(const char *, ...) __attribute__((__sentinel__));
-char	*tohex(const u_char *, u_int);
+char	*tohex(const void *, size_t);
+void	 sanitise_stdfd(void);
 
 struct passwd *pwcopy(struct passwd *);
 
@@ -36,7 +42,39 @@ struct arglist {
 	u_int   num;
 	u_int   nalloc;
 };
-void	 addargs(arglist *, char *, ...) __attribute__((format(printf, 2, 3)));
+void	 addargs(arglist *, char *, ...)
+	     __attribute__((format(printf, 2, 3)));
+void	 replacearg(arglist *, u_int, char *, ...)
+	     __attribute__((format(printf, 3, 4)));
+void	 freeargs(arglist *);
+
+int	 tun_open(int, int);
+
+/* Common definitions for ssh tunnel device forwarding */
+#define SSH_TUNMODE_NO		0x00
+#define SSH_TUNMODE_POINTOPOINT	0x01
+#define SSH_TUNMODE_ETHERNET	0x02
+#define SSH_TUNMODE_DEFAULT	SSH_TUNMODE_POINTOPOINT
+#define SSH_TUNMODE_YES		(SSH_TUNMODE_POINTOPOINT|SSH_TUNMODE_ETHERNET)
+
+#define SSH_TUNID_ANY		0x7fffffff
+#define SSH_TUNID_ERR		(SSH_TUNID_ANY - 1)
+#define SSH_TUNID_MAX		(SSH_TUNID_ANY - 2)
+
+/* Functions to extract or store big-endian words of various sizes */
+u_int64_t	get_u64(const void *)
+    __attribute__((__bounded__( __minbytes__, 1, 8)));
+u_int32_t	get_u32(const void *)
+    __attribute__((__bounded__( __minbytes__, 1, 4)));
+u_int16_t	get_u16(const void *)
+    __attribute__((__bounded__( __minbytes__, 1, 2)));
+void		put_u64(void *, u_int64_t)
+    __attribute__((__bounded__( __minbytes__, 1, 8)));
+void		put_u32(void *, u_int32_t)
+    __attribute__((__bounded__( __minbytes__, 1, 4)));
+void		put_u16(void *, u_int16_t)
+    __attribute__((__bounded__( __minbytes__, 1, 2)));
+
 
 /* readpass.c */
 
@@ -48,3 +86,5 @@ void	 addargs(arglist *, char *, ...) __attribute__((format(printf, 2, 3)));
 char	*read_passphrase(const char *, int);
 int	 ask_permission(const char *, ...) __attribute__((format(printf, 1, 2)));
 int	 read_keyfile_line(FILE *, const char *, char *, size_t, u_long *);
+
+#endif /* _MISC_H */

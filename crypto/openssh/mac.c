@@ -1,3 +1,4 @@
+/* $OpenBSD: mac.c,v 1.12 2006/08/03 03:34:42 deraadt Exp $ */
 /*
  * Copyright (c) 2001 Markus Friedl.  All rights reserved.
  *
@@ -23,16 +24,23 @@
  */
 
 #include "includes.h"
-RCSID("$OpenBSD: mac.c,v 1.7 2005/06/17 02:44:32 djm Exp $");
+
+#include <sys/types.h>
 
 #include <openssl/hmac.h>
 
+#include <stdarg.h>
+#include <string.h>
+#include <signal.h>
+
 #include "xmalloc.h"
-#include "getput.h"
 #include "log.h"
 #include "cipher.h"
+#include "buffer.h"
+#include "key.h"
 #include "kex.h"
 #include "mac.h"
+#include "misc.h"
 
 struct {
 	char		*name;
@@ -83,7 +91,7 @@ mac_compute(Mac *mac, u_int32_t seqno, u_char *data, int datalen)
 	if (mac->mac_len > sizeof(m))
 		fatal("mac_compute: mac too long");
 	HMAC_Init(&c, mac->key, mac->key_len, mac->md);
-	PUT_32BIT(b, seqno);
+	put_u32(b, seqno);
 	HMAC_Update(&c, b, sizeof(b));
 	HMAC_Update(&c, data, datalen);
 	HMAC_Final(&c, m, NULL);

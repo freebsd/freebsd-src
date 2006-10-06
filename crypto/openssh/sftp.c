@@ -1,3 +1,4 @@
+/* $OpenBSD: sftp.c,v 1.92 2006/09/19 05:52:23 otto Exp $ */
 /*
  * Copyright (c) 2001-2004 Damien Miller <djm@openbsd.org>
  *
@@ -16,21 +17,39 @@
 
 #include "includes.h"
 
-RCSID("$OpenBSD: sftp.c,v 1.66 2005/08/08 13:22:48 jaredy Exp $");
+#include <sys/types.h>
+#include <sys/ioctl.h>
+#ifdef HAVE_SYS_STAT_H
+# include <sys/stat.h>
+#endif
+#include <sys/param.h>
+#include <sys/socket.h>
+#include <sys/wait.h>
 
+#include <errno.h>
+
+#ifdef HAVE_PATHS_H
+# include <paths.h>
+#endif
 #ifdef USE_LIBEDIT
 #include <histedit.h>
 #else
 typedef void EditLine;
 #endif
+#include <signal.h>
+#include <stdlib.h>
+#include <stdio.h>
+#include <string.h>
+#include <unistd.h>
+#include <stdarg.h>
 
-#include "buffer.h"
 #include "xmalloc.h"
 #include "log.h"
 #include "pathnames.h"
 #include "misc.h"
 
 #include "sftp.h"
+#include "buffer.h"
 #include "sftp-common.h"
 #include "sftp-client.h"
 
@@ -235,7 +254,7 @@ local_do_shell(const char *args)
 		if (errno != EINTR)
 			fatal("Couldn't wait for child: %s", strerror(errno));
 	if (!WIFEXITED(status))
-		error("Shell exited abormally");
+		error("Shell exited abnormally");
 	else if (WEXITSTATUS(status))
 		error("Shell exited with status %d", WEXITSTATUS(status));
 }
@@ -474,7 +493,7 @@ is_dir(char *path)
 	if (stat(path, &sb) == -1)
 		return(0);
 
-	return(sb.st_mode & S_IFDIR);
+	return(S_ISDIR(sb.st_mode));
 }
 
 static int
@@ -498,7 +517,7 @@ remote_is_dir(struct sftp_conn *conn, char *path)
 		return(0);
 	if (!(a->flags & SSH2_FILEXFER_ATTR_PERMISSIONS))
 		return(0);
-	return(a->perm & S_IFDIR);
+	return(S_ISDIR(a->perm));
 }
 
 static int
@@ -538,6 +557,7 @@ process_get(struct sftp_conn *conn, char *src, char *dst, char *pwd, int pflag)
 
 		if (g.gl_matchc == 1 && dst) {
 			/* If directory specified, append filename */
+			xfree(tmp);
 			if (is_dir(dst)) {
 				if (infer_path(g.gl_pathv[0], &tmp)) {
 					err = 1;
@@ -562,8 +582,6 @@ process_get(struct sftp_conn *conn, char *src, char *dst, char *pwd, int pflag)
 
 out:
 	xfree(abs_src);
-	if (abs_dst)
-		xfree(abs_dst);
 	globfree(&g);
 	return(err);
 }
@@ -697,6 +715,8 @@ do_ls_dir(struct sftp_conn *conn, char *path, char *strip_path, int lflag)
 	}
 
 	if (lflag & SORT_FLAGS) {
+		for (n = 0; d[n] != NULL; n++)
+			;	/* count entries */
 		sort_flag = lflag & (SORT_FLAGS|LS_REVERSE_SORT);
 		qsort(d, n, sizeof(*d), sdirent_comp);
 	}
@@ -1278,6 +1298,7 @@ interactive_loop(int fd_in, int fd_out, char *file1, char *file2)
 			if (parse_dispatch_command(conn, cmd, &pwd, 1) != 0) {
 				xfree(dir);
 				xfree(pwd);
+				xfree(conn);
 				return (-1);
 			}
 		} else {
@@ -1290,6 +1311,7 @@ interactive_loop(int fd_in, int fd_out, char *file1, char *file2)
 			err = parse_dispatch_command(conn, cmd, &pwd, 1);
 			xfree(dir);
 			xfree(pwd);
+			xfree(conn);
 			return (err);
 		}
 		xfree(dir);
@@ -1354,6 +1376,7 @@ interactive_loop(int fd_in, int fd_out, char *file1, char *file2)
 			break;
 	}
 	xfree(pwd);
+	xfree(conn);
 
 #ifdef USE_LIBEDIT
 	if (el != NULL)
@@ -1447,11 +1470,16 @@ main(int argc, char **argv)
 	extern int optind;
 	extern char *optarg;
 
+	/* Ensure that fds 0, 1 and 2 are open or directed to /dev/null */
+	sanitise_stdfd();
+
 	__progname = ssh_get_progname(argv[0]);
+	memset(&args, '\0', sizeof(args));
 	args.list = NULL;
-	addargs(&args, "ssh");		/* overwritten with ssh_program */
+	addargs(&args, "%s", ssh_program);
 	addargs(&args, "-oForwardX11 no");
 	addargs(&args, "-oForwardAgent no");
+	addargs(&args, "-oPermitLocalCommand no");
 	addargs(&args, "-oClearAllForwardings yes");
 
 	ll = SYSLOG_LEVEL_INFO;
@@ -1483,6 +1511,7 @@ main(int argc, char **argv)
 			break;
 		case 'S':
 			ssh_program = optarg;
+			replacearg(&args, 0, "%s", ssh_program);
 			break;
 		case 'b':
 			if (batchmode)
@@ -1559,7 +1588,6 @@ main(int argc, char **argv)
 		addargs(&args, "%s", host);
 		addargs(&args, "%s", (sftp_server != NULL ?
 		    sftp_server : "sftp"));
-		args.list[0] = ssh_program;
 
 		if (!batchmode)
 			fprintf(stderr, "Connecting to %s...\n", host);
@@ -1572,6 +1600,7 @@ main(int argc, char **argv)
 			fprintf(stderr, "Attaching to %s...\n", sftp_direct);
 		connect_to_server(sftp_direct, args.list, &in, &out);
 	}
+	freeargs(&args);
 
 	err = interactive_loop(in, out, file1, file2);
 

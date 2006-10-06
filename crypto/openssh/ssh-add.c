@@ -1,3 +1,4 @@
+/* $OpenBSD: ssh-add.c,v 1.89 2006/08/03 03:34:42 deraadt Exp $ */
 /*
  * Author: Tatu Ylonen <ylo@cs.hut.fi>
  * Copyright (c) 1995 Tatu Ylonen <ylo@cs.hut.fi>, Espoo, Finland
@@ -35,15 +36,27 @@
  */
 
 #include "includes.h"
-RCSID("$OpenBSD: ssh-add.c,v 1.72 2005/07/17 07:17:55 djm Exp $");
+
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <sys/param.h>
 
 #include <openssl/evp.h>
 
+#include <fcntl.h>
+#include <pwd.h>
+#include <stdarg.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <unistd.h>
+
+#include "xmalloc.h"
 #include "ssh.h"
 #include "rsa.h"
 #include "log.h"
-#include "xmalloc.h"
 #include "key.h"
+#include "buffer.h"
 #include "authfd.h"
 #include "authfile.h"
 #include "pathnames.h"
@@ -124,16 +137,25 @@ delete_all(AuthenticationConnection *ac)
 static int
 add_file(AuthenticationConnection *ac, const char *filename)
 {
-	struct stat st;
 	Key *private;
 	char *comment = NULL;
 	char msg[1024];
-	int ret = -1;
+	int fd, perms_ok, ret = -1;
 
-	if (stat(filename, &st) < 0) {
+	if ((fd = open(filename, O_RDONLY)) < 0) {
 		perror(filename);
 		return -1;
 	}
+
+	/*
+	 * Since we'll try to load a keyfile multiple times, permission errors
+	 * will occur multiple times, so check perms first and bail if wrong.
+	 */
+	perms_ok = key_perm_ok(fd, filename);
+	close(fd);
+	if (!perms_ok)
+		return -1;
+
 	/* At first, try empty passphrase */
 	private = key_load_private(filename, "", &comment);
 	if (comment == NULL)
@@ -287,7 +309,7 @@ do_file(AuthenticationConnection *ac, int deleting, char *file)
 static void
 usage(void)
 {
-	fprintf(stderr, "Usage: %s [options]\n", __progname);
+	fprintf(stderr, "Usage: %s [options] [file ...]\n", __progname);
 	fprintf(stderr, "Options:\n");
 	fprintf(stderr, "  -l          List fingerprints of all identities.\n");
 	fprintf(stderr, "  -L          List public key parameters of all identities.\n");
@@ -312,6 +334,9 @@ main(int argc, char **argv)
 	char *sc_reader_id = NULL;
 	int i, ch, deleting = 0, ret = 0;
 
+	/* Ensure that fds 0, 1 and 2 are open or directed to /dev/null */
+	sanitise_stdfd();
+
 	__progname = ssh_get_progname(argv[0]);
 	init_rng();
 	seed_rng();
@@ -321,7 +346,8 @@ main(int argc, char **argv)
 	/* At first, get a connection to the authentication agent. */
 	ac = ssh_get_authentication_connection();
 	if (ac == NULL) {
-		fprintf(stderr, "Could not open a connection to your authentication agent.\n");
+		fprintf(stderr,
+		    "Could not open a connection to your authentication agent.\n");
 		exit(2);
 	}
 	while ((ch = getopt(argc, argv, "lLcdDxXe:s:t:")) != -1) {
@@ -331,13 +357,11 @@ main(int argc, char **argv)
 			if (list_identities(ac, ch == 'l' ? 1 : 0) == -1)
 				ret = 1;
 			goto done;
-			break;
 		case 'x':
 		case 'X':
 			if (lock_agent(ac, ch == 'x' ? 1 : 0) == -1)
 				ret = 1;
 			goto done;
-			break;
 		case 'c':
 			confirm = 1;
 			break;
@@ -348,7 +372,6 @@ main(int argc, char **argv)
 			if (delete_all(ac) == -1)
 				ret = 1;
 			goto done;
-			break;
 		case 's':
 			sc_reader_id = optarg;
 			break;

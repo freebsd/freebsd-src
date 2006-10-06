@@ -146,9 +146,28 @@
  */
 
 #include "includes.h"
+__RCSID("$FreeBSD$");
 
-#include "ssh.h"
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <sys/socket.h>
+
+#include <netinet/in.h>
+
+#include <errno.h>
+#include <fcntl.h>
+#ifdef HAVE_PATHS_H
+# include <paths.h>
+#endif
+#include <pwd.h>
+#include <stdarg.h>
+#include <string.h>
+#include <unistd.h>
+
 #include "xmalloc.h"
+#include "key.h"
+#include "hostfile.h"
+#include "ssh.h"
 #include "loginrec.h"
 #include "log.h"
 #include "atomicio.h"
@@ -164,9 +183,6 @@
 #ifdef HAVE_LIBUTIL_H
 # include <libutil.h>
 #endif
-
-RCSID("$Id: loginrec.c,v 1.70 2005/07/17 07:26:44 djm Exp $");
-RCSID("$FreeBSD$");
 
 /**
  ** prototypes for helper functions in this file
@@ -1590,7 +1606,7 @@ lastlog_get_entry(struct logininfo *li)
 		return (0);
 	default:
 		error("%s: Error reading from %s: Expecting %d, got %d",
-		    __func__, LASTLOG_FILE, sizeof(last), ret);
+		    __func__, LASTLOG_FILE, (int)sizeof(last), ret);
 		return (0);
 	}
 
@@ -1614,7 +1630,7 @@ record_failed_login(const char *username, const char *hostname,
 	int fd;
 	struct utmp ut;
 	struct sockaddr_storage from;
-	size_t fromlen = sizeof(from);
+	socklen_t fromlen = sizeof(from);
 	struct sockaddr_in *a4;
 	struct sockaddr_in6 *a6;
 	time_t t;
