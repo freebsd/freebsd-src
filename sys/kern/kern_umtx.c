@@ -2303,6 +2303,20 @@ _umtx_op(struct thread *td, struct _umtx_op_args *uap)
 
 #ifdef COMPAT_IA32
 
+int
+freebsd32_umtx_lock(struct thread *td, struct freebsd32_umtx_lock_args *uap)
+    /* struct umtx *umtx */
+{
+	return (do_lock_umtx32(td, (uint32_t *)uap->umtx, td->td_tid, NULL));
+}
+
+int
+freebsd32_umtx_unlock(struct thread *td, struct freebsd32_umtx_unlock_args *uap)
+    /* struct umtx *umtx */
+{
+	return (do_unlock_umtx32(td, (uint32_t *)uap->umtx, td->td_tid));
+}
+
 struct timespec32 {
 	u_int32_t tv_sec;
 	u_int32_t tv_nsec;
