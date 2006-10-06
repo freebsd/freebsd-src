@@ -3,6 +3,7 @@
 SUBDIR=	geom_apple \
 	geom_bde \
 	geom_bsd \
+	geom_cache \
 	geom_ccd \
 	geom_concat \
 	geom_eli \
