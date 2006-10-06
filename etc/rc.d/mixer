@@ -34,6 +34,7 @@
 . /etc/rc.subr
 
 name="mixer"
+rcvar="mixer_enable"
 stop_cmd="mixer_stop"
 start_cmd="mixer_start"
 reload_cmd="mixer_start"
