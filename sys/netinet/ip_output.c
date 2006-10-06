@@ -218,6 +218,17 @@ again:
 		ifp = ia->ia_ifp;
 		ip->ip_ttl = 1;
 		isbroadcast = in_broadcast(dst->sin_addr, ifp);
+	} else if (flags & IP_SENDONES) {
+		if ((ia = ifatoia(ifa_ifwithbroadaddr(sintosa(dst)))) == NULL) {
+			ipstat.ips_noroute++;
+			error = ENETUNREACH;
+			goto bad;
+		}
+		ifp = ia->ia_ifp;
+		ip->ip_dst.s_addr = INADDR_BROADCAST;
+		dst->sin_addr = ip->ip_dst;
+		ip->ip_ttl = 1;
+		isbroadcast = 1;
 	} else if (IN_MULTICAST(ntohl(ip->ip_dst.s_addr)) &&
 	    imo != NULL && imo->imo_multicast_ifp != NULL) {
 		/*
@@ -401,8 +412,6 @@ again:
 			error = EMSGSIZE;
 			goto bad;
 		}
-		if (flags & IP_SENDONES)
-			ip->ip_dst.s_addr = INADDR_BROADCAST;
 		m->m_flags |= M_BCAST;
 	} else {
 		m->m_flags &= ~M_BCAST;
