@@ -64,7 +64,7 @@ copy_file(const FTSENT *entp, int dne)
 	int ch, checkch, from_fd = 0, rcount, rval, to_fd = 0;
 	ssize_t wcount;
 	size_t wresid;
-	size_t wtotal;
+	off_t wtotal;
 	char *bufp;
 #ifdef VM_AND_BUFFER_CACHE_SYNCHRONIZED
 	char *p;
