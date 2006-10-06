@@ -1,3 +1,4 @@
+/* $OpenBSD: ssh-keysign.c,v 1.29 2006/08/03 03:34:42 deraadt Exp $ */
 /*
  * Copyright (c) 2002 Markus Friedl.  All rights reserved.
  *
@@ -21,21 +22,30 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
+
 #include "includes.h"
-RCSID("$OpenBSD: ssh-keysign.c,v 1.18 2004/08/23 14:29:23 dtucker Exp $");
+
+#include <fcntl.h>
+#ifdef HAVE_PATHS_H
+#include <paths.h>
+#endif
+#include <pwd.h>
+#include <stdarg.h>
+#include <stdlib.h>
+#include <string.h>
+#include <unistd.h>
 
 #include <openssl/evp.h>
 #include <openssl/rand.h>
 #include <openssl/rsa.h>
 
+#include "xmalloc.h"
 #include "log.h"
 #include "key.h"
 #include "ssh.h"
 #include "ssh2.h"
 #include "misc.h"
-#include "xmalloc.h"
 #include "buffer.h"
-#include "bufaux.h"
 #include "authfile.h"
 #include "msg.h"
 #include "canohost.h"
@@ -64,9 +74,9 @@ valid_request(struct passwd *pw, char *host, Key **ret, u_char *data,
 	buffer_init(&b);
 	buffer_append(&b, data, datalen);
 
-	/* session id, currently limited to SHA1 (20 bytes) */
+	/* session id, currently limited to SHA1 (20 bytes) or SHA256 (32) */
 	p = buffer_get_string(&b, &len);
-	if (len != 20)
+	if (len != 20 && len != 32)
 		fail++;
 	xfree(p);
 
@@ -140,13 +150,20 @@ main(int argc, char **argv)
 {
 	Buffer b;
 	Options options;
-	Key *keys[2], *key;
+	Key *keys[2], *key = NULL;
 	struct passwd *pw;
 	int key_fd[2], i, found, version = 2, fd;
 	u_char *signature, *data;
 	char *host;
 	u_int slen, dlen;
 	u_int32_t rnd[256];
+
+	/* Ensure that stdin and stdout are connected */
+	if ((fd = open(_PATH_DEVNULL, O_RDWR)) < 2)
+		exit(1);
+	/* Leave /dev/null fd iff it is attached to stderr */
+	if (fd > 2)
+		close(fd);
 
 	key_fd[0] = open(_PATH_HOST_RSA_KEY_FILE, O_RDONLY);
 	key_fd[1] = open(_PATH_HOST_DSA_KEY_FILE, O_RDONLY);

@@ -1,4 +1,4 @@
-/*	$OpenBSD: dns.c,v 1.12 2005/06/17 02:44:32 djm Exp $	*/
+/* $OpenBSD: dns.c,v 1.23 2006/08/03 03:34:42 deraadt Exp $ */
 
 /*
  * Copyright (c) 2003 Wesley Griffin. All rights reserved.
@@ -25,27 +25,21 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-
 #include "includes.h"
 
-#include <openssl/bn.h>
-#ifdef LWRES
-#include <lwres/netdb.h>
-#include <dns/result.h>
-#else /* LWRES */
+#include <sys/types.h>
+#include <sys/socket.h>
+
 #include <netdb.h>
-#endif /* LWRES */
+#include <stdarg.h>
+#include <stdio.h>
+#include <string.h>
 
 #include "xmalloc.h"
 #include "key.h"
 #include "dns.h"
 #include "log.h"
-#include "uuencode.h"
 
-extern char *__progname;
-RCSID("$OpenBSD: dns.c,v 1.12 2005/06/17 02:44:32 djm Exp $");
-
-#ifndef LWRES
 static const char *errset_text[] = {
 	"success",		/* 0 ERRSET_SUCCESS */
 	"out of memory",	/* 1 ERRSET_NOMEMORY */
@@ -75,8 +69,6 @@ dns_result_totext(unsigned int res)
 		return "unknown error";
 	}
 }
-#endif /* LWRES */
-
 
 /*
  * Read SSHFP parameters from key buffer.
@@ -95,12 +87,14 @@ dns_read_key(u_int8_t *algorithm, u_int8_t *digest_type,
 		*algorithm = SSHFP_KEY_DSA;
 		break;
 	default:
-		*algorithm = SSHFP_KEY_RESERVED;
+		*algorithm = SSHFP_KEY_RESERVED; /* 0 */
 	}
 
 	if (*algorithm) {
 		*digest_type = SSHFP_HASH_SHA1;
 		*digest = key_fingerprint_raw(key, SSH_FP_SHA1, digest_len);
+		if (*digest == NULL)
+			fatal("dns_read_key: null from key_fingerprint_raw()");
 		success = 1;
 	} else {
 		*digest_type = SSHFP_HASH_RESERVED;
@@ -133,7 +127,7 @@ dns_read_rdata(u_int8_t *algorithm, u_int8_t *digest_type,
 			*digest = (u_char *) xmalloc(*digest_len);
 			memcpy(*digest, rdata + 2, *digest_len);
 		} else {
-			*digest = NULL;
+			*digest = (u_char *)xstrdup("");
 		}
 
 		success = 1;
@@ -187,7 +181,7 @@ verify_host_key_dns(const char *hostname, struct sockaddr *address,
 
 	*flags = 0;
 
-	debug3("verify_hostkey_dns");
+	debug3("verify_host_key_dns");
 	if (hostkey == NULL)
 		fatal("No key to look up!");
 
@@ -223,7 +217,7 @@ verify_host_key_dns(const char *hostname, struct sockaddr *address,
 	if (fingerprints->rri_nrdatas)
 		*flags |= DNS_VERIFY_FOUND;
 
-	for (counter = 0 ; counter < fingerprints->rri_nrdatas ; counter++)  {
+	for (counter = 0; counter < fingerprints->rri_nrdatas; counter++)  {
 		/*
 		 * Extract the key from the answer. Ignore any badly
 		 * formatted fingerprints.
@@ -247,8 +241,10 @@ verify_host_key_dns(const char *hostname, struct sockaddr *address,
 				*flags |= DNS_VERIFY_MATCH;
 			}
 		}
+		xfree(dnskey_digest);
 	}
 
+	xfree(hostkey_digest); /* from key_fingerprint_raw() */
 	freerrset(fingerprints);
 
 	if (*flags & DNS_VERIFY_FOUND)
@@ -261,7 +257,6 @@ verify_host_key_dns(const char *hostname, struct sockaddr *address,
 
 	return 0;
 }
-
 
 /*
  * Export the fingerprint of a key as a DNS resource record
@@ -278,7 +273,7 @@ export_dns_rr(const char *hostname, const Key *key, FILE *f, int generic)
 	int success = 0;
 
 	if (dns_read_key(&rdata_pubkey_algorithm, &rdata_digest_type,
-			 &rdata_digest, &rdata_digest_len, key)) {
+	    &rdata_digest, &rdata_digest_len, key)) {
 
 		if (generic)
 			fprintf(f, "%s IN TYPE%d \\# %d %02x %02x ", hostname,
@@ -291,9 +286,10 @@ export_dns_rr(const char *hostname, const Key *key, FILE *f, int generic)
 		for (i = 0; i < rdata_digest_len; i++)
 			fprintf(f, "%02x", rdata_digest[i]);
 		fprintf(f, "\n");
+		xfree(rdata_digest); /* from key_fingerprint_raw() */
 		success = 1;
 	} else {
-		error("dns_export_rr: unsupported algorithm");
+		error("export_dns_rr: unsupported algorithm");
 	}
 
 	return success;

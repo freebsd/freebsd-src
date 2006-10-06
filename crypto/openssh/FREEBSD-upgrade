@@ -42,20 +42,28 @@
 7) Run configure with the appropriate arguments:
 
 	$ ./configure --prefix=/usr --sysconfdir=/etc/ssh \
-		--with-pam --with-tcp-wrappers --with-libedit
+		--with-pam --with-tcp-wrappers --with-libedit \
+		--with-ssl-engine
+
+   This will regenerate config.h, which must be committed along with
+   the rest.
 
    Note that we don't want to configure OpenSSH for Kerberos using
    configure since we have to be able to turn it on or off depending
-   on the value of NO_KERBEROS.  Our Makefiles take care of this.
+   on the value of MK_KERBEROS.  Our Makefiles take care of this.
 
-8) Commit the resulting config.h.  Make sure you don't accidentally
-   commit any other files created by autoconf, autoheader or
-   configure; they'll just clutter up the repo and cause trouble at
-   the next upgrade.
+8) If source files have been added or removed, update the appropriate
+   makefiles to reflect changes in the vendor's Makefile.in.
 
-9) Build and test.
+9) Build libssh.  Follow the instructions in ssh_namespace.h to get a
+   list of new symbols.  Update ssh_namespace.h, build everything,
+   install and test.
 
-A) Re-commit everything on freefall (you *did* use a test repo for
+A) Build and test the pam_ssh PAM module.  It gropes around libssh's
+   internals and will break if something significant changes or if
+   ssh_namespace.h is out of whack.
+
+B) Re-commit everything on repoman (you *did* use a test repo for
    this, didn't you?)
 
 

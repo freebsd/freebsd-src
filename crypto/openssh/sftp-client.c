@@ -1,3 +1,4 @@
+/* $OpenBSD: sftp-client.c,v 1.74 2006/08/03 03:34:42 deraadt Exp $ */
 /*
  * Copyright (c) 2001-2004 Damien Miller <djm@openbsd.org>
  *
@@ -20,17 +21,32 @@
 /* XXX: copy between two remote sites */
 
 #include "includes.h"
-RCSID("$OpenBSD: sftp-client.c,v 1.57 2005/07/27 10:39:03 dtucker Exp $");
 
+#include <sys/types.h>
+#include <sys/param.h>
 #include "openbsd-compat/sys-queue.h"
+#ifdef HAVE_SYS_STAT_H
+# include <sys/stat.h>
+#endif
+#ifdef HAVE_SYS_TIME_H
+# include <sys/time.h>
+#endif
+#include <sys/uio.h>
 
-#include "buffer.h"
-#include "bufaux.h"
-#include "getput.h"
+#include <errno.h>
+#include <fcntl.h>
+#include <signal.h>
+#include <stdarg.h>
+#include <stdio.h>
+#include <string.h>
+#include <unistd.h>
+
 #include "xmalloc.h"
+#include "buffer.h"
 #include "log.h"
 #include "atomicio.h"
 #include "progressmeter.h"
+#include "misc.h"
 
 #include "sftp.h"
 #include "sftp-common.h"
@@ -39,11 +55,8 @@ RCSID("$OpenBSD: sftp-client.c,v 1.57 2005/07/27 10:39:03 dtucker Exp $");
 extern volatile sig_atomic_t interrupted;
 extern int showprogress;
 
-/* Minimum amount of data to read at at time */
+/* Minimum amount of data to read at a time */
 #define MIN_READ_SIZE	512
-
-/* Maximum packet size */
-#define MAX_MSG_LENGTH	(256 * 1024)
 
 struct sftp_conn {
 	int fd_in;
@@ -58,16 +71,19 @@ static void
 send_msg(int fd, Buffer *m)
 {
 	u_char mlen[4];
+	struct iovec iov[2];
 
-	if (buffer_len(m) > MAX_MSG_LENGTH)
+	if (buffer_len(m) > SFTP_MAX_MSG_LENGTH)
 		fatal("Outbound message too long %u", buffer_len(m));
 
 	/* Send length first */
-	PUT_32BIT(mlen, buffer_len(m));
-	if (atomicio(vwrite, fd, mlen, sizeof(mlen)) != sizeof(mlen))
-		fatal("Couldn't send packet: %s", strerror(errno));
+	put_u32(mlen, buffer_len(m));
+	iov[0].iov_base = mlen;
+	iov[0].iov_len = sizeof(mlen);
+	iov[1].iov_base = buffer_ptr(m);
+	iov[1].iov_len = buffer_len(m);
 
-	if (atomicio(vwrite, fd, buffer_ptr(m), buffer_len(m)) != buffer_len(m))
+	if (atomiciov(writev, fd, iov, 2) != buffer_len(m) + sizeof(mlen))
 		fatal("Couldn't send packet: %s", strerror(errno));
 
 	buffer_clear(m);
@@ -87,7 +103,7 @@ get_msg(int fd, Buffer *m)
 	}
 
 	msg_len = buffer_get_int(m);
-	if (msg_len > MAX_MSG_LENGTH)
+	if (msg_len > SFTP_MAX_MSG_LENGTH)
 		fatal("Received message too long %u", msg_len);
 
 	buffer_append_space(m, msg_len);
@@ -391,8 +407,7 @@ do_lsreaddir(struct sftp_conn *conn, char *path, int printflag,
 				printf("%s\n", longname);
 
 			if (dir) {
-				*dir = xrealloc(*dir, sizeof(**dir) *
-				    (ents + 2));
+				*dir = xrealloc(*dir, ents + 2, sizeof(**dir));
 				(*dir)[ents] = xmalloc(sizeof(***dir));
 				(*dir)[ents]->filename = xstrdup(filename);
 				(*dir)[ents]->longname = xstrdup(longname);

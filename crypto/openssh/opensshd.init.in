@@ -1,4 +1,4 @@
-#!/sbin/sh
+#!@STARTUP_SCRIPT_SHELL@
 # Donated code that was put under PD license.
 #
 # Stripped PRNGd out of it for the time being.

@@ -1,5 +1,4 @@
-/* OPENBSD ORIGINAL: lib/libc/gen/vis.c */
-
+/*	$OpenBSD: vis.c,v 1.19 2005/09/01 17:15:49 millert Exp $ */
 /*-
  * Copyright (c) 1989, 1993
  *	The Regents of the University of California.  All rights reserved.
@@ -28,12 +27,11 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  */
+
+/* OPENBSD ORIGINAL: lib/libc/gen/vis.c */
+
 #include "includes.h"
 #if !defined(HAVE_STRNVIS)
-
-#if defined(LIBC_SCCS) && !defined(lint)
-static char rcsid[] = "$OpenBSD: vis.c,v 1.12 2003/06/02 20:18:35 millert Exp $";
-#endif /* LIBC_SCCS and not lint */
 
 #include <ctype.h>
 #include <string.h>
@@ -41,23 +39,22 @@ static char rcsid[] = "$OpenBSD: vis.c,v 1.12 2003/06/02 20:18:35 millert Exp $"
 #include "vis.h"
 
 #define	isoctal(c)	(((u_char)(c)) >= '0' && ((u_char)(c)) <= '7')
-#define isvisible(c)	(((u_int)(c) <= UCHAR_MAX && isascii((u_char)(c)) && \
-				isgraph((u_char)(c))) ||		     \
-				((flag & VIS_SP) == 0 && (c) == ' ') ||	     \
-				((flag & VIS_TAB) == 0 && (c) == '\t') ||    \
-				((flag & VIS_NL) == 0 && (c) == '\n') ||     \
-				((flag & VIS_SAFE) && ((c) == '\b' ||	     \
-				(c) == '\007' || (c) == '\r' ||		     \
-				isgraph((u_char)(c)))))
+#define	isvisible(c)							\
+	(((u_int)(c) <= UCHAR_MAX && isascii((u_char)(c)) &&		\
+	(((c) != '*' && (c) != '?' && (c) != '[' && (c) != '#') ||	\
+		(flag & VIS_GLOB) == 0) && isgraph((u_char)(c))) ||	\
+	((flag & VIS_SP) == 0 && (c) == ' ') ||				\
+	((flag & VIS_TAB) == 0 && (c) == '\t') ||			\
+	((flag & VIS_NL) == 0 && (c) == '\n') ||			\
+	((flag & VIS_SAFE) && ((c) == '\b' ||				\
+		(c) == '\007' || (c) == '\r' ||				\
+		isgraph((u_char)(c)))))
 
 /*
  * vis - visually encode characters
  */
 char *
-vis(dst, c, flag, nextc)
-	register char *dst;
-	int c, nextc;
-	register int flag;
+vis(char *dst, int c, int flag, int nextc)
 {
 	if (isvisible(c)) {
 		*dst++ = c;
@@ -111,7 +108,8 @@ vis(dst, c, flag, nextc)
 			goto done;
 		}
 	}
-	if (((c & 0177) == ' ') || (flag & VIS_OCTAL)) {	
+	if (((c & 0177) == ' ') || (flag & VIS_OCTAL) ||
+	    ((flag & VIS_GLOB) && (c == '*' || c == '?' || c == '[' || c == '#'))) {
 		*dst++ = '\\';
 		*dst++ = ((u_char)c >> 6 & 07) + '0';
 		*dst++ = ((u_char)c >> 3 & 07) + '0';
@@ -124,7 +122,7 @@ vis(dst, c, flag, nextc)
 		c &= 0177;
 		*dst++ = 'M';
 	}
-	if (iscntrl(c)) {
+	if (iscntrl((u_char)c)) {
 		*dst++ = '^';
 		if (c == 0177)
 			*dst++ = '?';
@@ -153,12 +151,9 @@ done:
  *	This is useful for encoding a block of data.
  */
 int
-strvis(dst, src, flag)
-	register char *dst;
-	register const char *src;
-	int flag;
+strvis(char *dst, const char *src, int flag)
 {
-	register char c;
+	char c;
 	char *start;
 
 	for (start = dst; (c = *src);)
@@ -168,16 +163,11 @@ strvis(dst, src, flag)
 }
 
 int
-strnvis(dst, src, siz, flag)
-	char *dst;
-	const char *src;
-	size_t siz;
-	int flag;
+strnvis(char *dst, const char *src, size_t siz, int flag)
 {
-	char c;
 	char *start, *end;
 	char tbuf[5];
-	int  i;
+	int c, i;
 
 	i = 0;
 	for (start = dst, end = start + siz - 1; (c = *src) && dst < end; ) {
@@ -217,13 +207,9 @@ strnvis(dst, src, siz, flag)
 }
 
 int
-strvisx(dst, src, len, flag)
-	register char *dst;
-	register const char *src;
-	register size_t len;
-	int flag;
+strvisx(char *dst, const char *src, size_t len, int flag)
 {
-	register char c;
+	char c;
 	char *start;
 
 	for (start = dst; len > 1; len--) {

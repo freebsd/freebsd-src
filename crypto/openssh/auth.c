@@ -1,3 +1,4 @@
+/* $OpenBSD: auth.c,v 1.75 2006/08/03 03:34:41 deraadt Exp $ */
 /*
  * Copyright (c) 2000 Markus Friedl.  All rights reserved.
  *
@@ -23,40 +24,57 @@
  */
 
 #include "includes.h"
-RCSID("$OpenBSD: auth.c,v 1.60 2005/06/17 02:44:32 djm Exp $");
-RCSID("$FreeBSD$");
+__RCSID("$FreeBSD$");
 
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <sys/param.h>
+
+#include <netinet/in.h>
+
+#include <errno.h>
+#ifdef HAVE_PATHS_H
+# include <paths.h>
+#endif
+#include <pwd.h>
 #ifdef HAVE_LOGIN_H
 #include <login.h>
 #endif
 #ifdef USE_SHADOW
 #include <shadow.h>
 #endif
-
 #ifdef HAVE_LIBGEN_H
 #include <libgen.h>
 #endif
+#include <stdarg.h>
+#include <stdio.h>
+#include <string.h>
 
 #include "xmalloc.h"
 #include "match.h"
 #include "groupaccess.h"
 #include "log.h"
+#include "buffer.h"
 #include "servconf.h"
+#include "key.h"
+#include "hostfile.h"
 #include "auth.h"
 #include "auth-options.h"
 #include "canohost.h"
-#include "buffer.h"
-#include "bufaux.h"
 #include "uidswap.h"
 #include "misc.h"
-#include "bufaux.h"
 #include "packet.h"
 #include "loginrec.h"
+#ifdef GSSAPI
+#include "ssh-gss.h"
+#endif
 #include "monitor_wrap.h"
 
 /* import */
 extern ServerOptions options;
+extern int use_privsep;
 extern Buffer loginmsg;
+extern struct passwd *privsep_pw;
 
 /* Debugging messages */
 Buffer auth_debug;
@@ -232,6 +250,9 @@ auth_log(Authctxt *authctxt, int authenticated, char *method, char *info)
 	void (*authlog) (const char *fmt,...) = verbose;
 	char *authmsg;
 
+	if (use_privsep && !mm_is_monitor() && !authctxt->postponed)
+		return;
+
 	/* Raise logging level */
 	if (authenticated == 1 ||
 	    !authctxt->valid ||
@@ -260,44 +281,15 @@ auth_log(Authctxt *authctxt, int authenticated, char *method, char *info)
 	    strcmp(method, "challenge-response") == 0))
 		record_failed_login(authctxt->user,
 		    get_canonical_hostname(options.use_dns), "ssh");
+# ifdef WITH_AIXAUTHENTICATE
+	if (authenticated)
+		sys_auth_record_login(authctxt->user,
+		    get_canonical_hostname(options.use_dns), "ssh", &loginmsg);
+# endif
 #endif
 #ifdef SSH_AUDIT_EVENTS
-	if (authenticated == 0 && !authctxt->postponed) {
-		ssh_audit_event_t event;
-
-		debug3("audit failed auth attempt, method %s euid %d",
-		    method, (int)geteuid());
-		/*
-		 * Because the auth loop is used in both monitor and slave,
-		 * we must be careful to send each event only once and with
-		 * enough privs to write the event.
-		 */
-		event = audit_classify_auth(method);
-		switch(event) {
-		case SSH_AUTH_FAIL_NONE:
-		case SSH_AUTH_FAIL_PASSWD:
-		case SSH_AUTH_FAIL_KBDINT:
-			if (geteuid() == 0)
-				audit_event(event);
-			break;
-		case SSH_AUTH_FAIL_PUBKEY:
-		case SSH_AUTH_FAIL_HOSTBASED:
-		case SSH_AUTH_FAIL_GSSAPI:
-			/*
-			 * This is required to handle the case where privsep
-			 * is enabled but it's root logging in, since
-			 * use_privsep won't be cleared until after a
-			 * successful login.
-			 */
-			if (geteuid() == 0)
-				audit_event(event);
-			else
-				PRIVSEP(audit_event(event));
-			break;
-		default:
-			error("unknown authentication audit event %d", event);
-		}
-	}
+	if (authenticated == 0 && !authctxt->postponed)
+		audit_event(audit_classify_auth(method));
 #endif
 }
 
@@ -310,7 +302,6 @@ auth_root_allowed(char *method)
 	switch (options.permit_root_login) {
 	case PERMIT_YES:
 		return 1;
-		break;
 	case PERMIT_NO_PASSWD:
 		if (strcmp(method, "password") != 0)
 			return 1;
@@ -337,7 +328,8 @@ auth_root_allowed(char *method)
 static char *
 expand_authorized_keys(const char *filename, struct passwd *pw)
 {
-	char *file, *ret;
+	char *file, ret[MAXPATHLEN];
+	int i;
 
 	file = percent_expand(filename, "h", pw->pw_dir,
 	    "u", pw->pw_name, (char *)NULL);
@@ -349,14 +341,11 @@ expand_authorized_keys(const char *filename, struct passwd *pw)
 	if (*file == '/')
 		return (file);
 
-	ret = xmalloc(MAXPATHLEN);
-	if (strlcpy(ret, pw->pw_dir, MAXPATHLEN) >= MAXPATHLEN ||
-	    strlcat(ret, "/", MAXPATHLEN) >= MAXPATHLEN ||
-	    strlcat(ret, file, MAXPATHLEN) >= MAXPATHLEN)
+	i = snprintf(ret, sizeof(ret), "%s/%s", pw->pw_dir, file);
+	if (i < 0 || (size_t)i >= sizeof(ret))
 		fatal("expand_authorized_keys: path too long");
-
 	xfree(file);
-	return (ret);
+	return (xstrdup(ret));
 }
 
 char *
@@ -493,6 +482,9 @@ getpwnamallow(const char *user)
 #endif
 	struct passwd *pw;
 
+	parse_server_match_config(&options, user,
+	    get_canonical_hostname(options.use_dns), get_remote_ipaddr());
+
 	pw = getpwnam(user);
 	if (pw == NULL) {
 		logit("Invalid user %.100s from %.100s",
@@ -580,6 +572,8 @@ fakepw(void)
 	fake.pw_gecos = "NOUSER";
 	fake.pw_uid = (uid_t)-1;
 	fake.pw_gid = (gid_t)-1;
+	fake.pw_uid = privsep_pw->pw_uid;
+	fake.pw_gid = privsep_pw->pw_gid;
 #ifdef HAVE_PW_CLASS_IN_PASSWD
 	fake.pw_class = "";
 #endif

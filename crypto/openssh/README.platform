@@ -30,6 +30,18 @@ gcc, gcc-mingw-core, mingw-runtime, binutils, make, openssl,
 openssl-devel, zlib, minres, minires-devel.
 
 
+Darwin and MacOS X
+------------------
+Darwin does not provide a tun(4) driver required for OpenSSH-based
+virtual private networks. The BSD manpage still exists, but the driver
+has been removed in recent releases of Darwin and MacOS X.
+
+Nevertheless, tunnel support is known to work with Darwin 8 and
+MacOS X 10.4 in Point-to-Point (Layer 3) and Ethernet (Layer 2) mode
+using a third party driver. More information is available at:
+	http://www-user.rhrk.uni-kl.de/~nissler/tuntap/
+
+
 Solaris
 -------
 If you enable BSM auditing on Solaris, you need to update audit_event(4)
@@ -45,4 +57,14 @@ number is already in use on your system, you may change it at build time
 by configure'ing --with-cflags=-DAUE_openssh=32801 then rebuilding.
 
 
-$Id: README.platform,v 1.5 2005/02/20 10:01:49 dtucker Exp $
+Platforms using PAM
+-------------------
+As of OpenSSH 4.3p1, sshd will no longer check /etc/nologin itself when
+PAM is enabled.  To maintain existing behaviour, pam_nologin should be
+added to sshd's session stack which will prevent users from starting shell
+sessions.  Alternatively, pam_nologin can be added to either the auth or
+account stacks which will prevent authentication entirely, but will still
+return the output from pam_nologin to the client.
+
+
+$Id: README.platform,v 1.7 2006/06/23 11:05:13 dtucker Exp $

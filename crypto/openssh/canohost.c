@@ -1,3 +1,4 @@
+/* $OpenBSD: canohost.c,v 1.61 2006/08/03 03:34:41 deraadt Exp $ */
 /*
  * Author: Tatu Ylonen <ylo@cs.hut.fi>
  * Copyright (c) 1995 Tatu Ylonen <ylo@cs.hut.fi>, Espoo, Finland
@@ -12,10 +13,23 @@
  */
 
 #include "includes.h"
-RCSID("$OpenBSD: canohost.c,v 1.44 2005/06/17 02:44:32 djm Exp $");
 
-#include "packet.h"
+#include <sys/types.h>
+#include <sys/socket.h>
+
+#include <netinet/in.h>
+#include <arpa/inet.h>
+
+#include <ctype.h>
+#include <errno.h>
+#include <netdb.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <stdarg.h>
+
 #include "xmalloc.h"
+#include "packet.h"
 #include "log.h"
 #include "canohost.h"
 
@@ -87,7 +101,7 @@ get_remote_hostname(int sock, int use_dns)
 	 */
 	for (i = 0; name[i]; i++)
 		if (isupper(name[i]))
-			name[i] = tolower(name[i]);
+			name[i] = (char)tolower(name[i]);
 	/*
 	 * Map it back to an IP address and check that the given
 	 * address actually is an address of this host.  This is
@@ -102,7 +116,7 @@ get_remote_hostname(int sock, int use_dns)
 	hints.ai_socktype = SOCK_STREAM;
 	if (getaddrinfo(name, NULL, &hints, &aitop) != 0) {
 		logit("reverse mapping checking getaddrinfo for %.700s "
-		    "failed - POSSIBLE BREAKIN ATTEMPT!", name);
+		    "[%s] failed - POSSIBLE BREAK-IN ATTEMPT!", name, ntop);
 		return xstrdup(ntop);
 	}
 	/* Look for the address from the list of addresses. */
@@ -117,7 +131,7 @@ get_remote_hostname(int sock, int use_dns)
 	if (!ai) {
 		/* Address not found for the host name. */
 		logit("Address %.100s maps to %.600s, but this does not "
-		    "map back to the address - POSSIBLE BREAKIN ATTEMPT!",
+		    "map back to the address - POSSIBLE BREAK-IN ATTEMPT!",
 		    ntop, name);
 		return xstrdup(ntop);
 	}
@@ -158,9 +172,7 @@ check_ip_options(int sock, char *ipaddr)
 		for (i = 0; i < option_size; i++)
 			snprintf(text + i*3, sizeof(text) - i*3,
 			    " %2.2x", options[i]);
-		logit("Connection from %.100s with IP options:%.800s",
-		    ipaddr, text);
-		packet_disconnect("Connection from %.100s with IP options:%.800s",
+		fatal("Connection from %.100s with IP options:%.800s",
 		    ipaddr, text);
 	}
 #endif /* IP_OPTIONS */
@@ -200,26 +212,27 @@ ipv64_normalise_mapped(struct sockaddr_storage *addr, socklen_t *len)
 const char *
 get_canonical_hostname(int use_dns)
 {
+	char *host;
 	static char *canonical_host_name = NULL;
-	static int use_dns_done = 0;
+	static char *remote_ip = NULL;
 
 	/* Check if we have previously retrieved name with same option. */
-	if (canonical_host_name != NULL) {
-		if (use_dns_done != use_dns)
-			xfree(canonical_host_name);
-		else
-			return canonical_host_name;
-	}
+	if (use_dns && canonical_host_name != NULL)
+		return canonical_host_name;
+	if (!use_dns && remote_ip != NULL)
+		return remote_ip;
 
 	/* Get the real hostname if socket; otherwise return UNKNOWN. */
 	if (packet_connection_is_on_socket())
-		canonical_host_name = get_remote_hostname(
-		    packet_get_connection_in(), use_dns);
+		host = get_remote_hostname(packet_get_connection_in(), use_dns);
 	else
-		canonical_host_name = xstrdup("UNKNOWN");
+		host = "UNKNOWN";
 
-	use_dns_done = use_dns;
-	return canonical_host_name;
+	if (use_dns)
+		canonical_host_name = host;
+	else
+		remote_ip = host;
+	return host;
 }
 
 /*

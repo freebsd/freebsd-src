@@ -1,5 +1,3 @@
-/* OPENBSD ORIGINAL: lib/libc/stdlib/strtonum.c */
-
 /*	$OpenBSD: strtonum.c,v 1.6 2004/08/03 19:38:01 millert Exp $	*/
 
 /*
@@ -19,9 +17,14 @@
  * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
+/* OPENBSD ORIGINAL: lib/libc/stdlib/strtonum.c */
+
 #include "includes.h"
+
 #ifndef HAVE_STRTONUM
+#include <stdlib.h>
 #include <limits.h>
+#include <errno.h>
 
 #define INVALID 	1
 #define TOOSMALL 	2

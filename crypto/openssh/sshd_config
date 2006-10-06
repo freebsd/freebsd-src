@@ -1,4 +1,4 @@
-#	$OpenBSD: sshd_config,v 1.72 2005/07/25 11:59:40 markus Exp $
+#	$OpenBSD: sshd_config,v 1.74 2006/07/19 13:07:10 dtucker Exp $
 #	$FreeBSD$
 
 # This is the sshd server system-wide configuration file.  See
@@ -74,14 +74,15 @@
 #GSSAPIAuthentication no
 #GSSAPICleanupCredentials yes
 
-# Set this to 'no' to disable PAM authentication, account processing, 
+# Set this to 'no' to disable PAM authentication, account processing,
 # and session processing. If this is enabled, PAM authentication will 
-# be allowed through the ChallengeResponseAuthentication mechanism. 
-# Depending on your PAM configuration, this may bypass the setting of 
-# PasswordAuthentication, PermitEmptyPasswords, and 
-# "PermitRootLogin without-password". If you just want the PAM account and 
-# session checks to run without PAM authentication, then enable this but set 
-# ChallengeResponseAuthentication=no
+# be allowed through the ChallengeResponseAuthentication and
+# PasswordAuthentication.  Depending on your PAM configuration,
+# PAM authentication via ChallengeResponseAuthentication may bypass
+# the setting of "PermitRootLogin without-password".
+# If you just want the PAM account and session checks to run without
+# PAM authentication, then enable this but set PasswordAuthentication
+# and ChallengeResponseAuthentication to 'no'.
 #UsePAM yes
 
 #AllowTcpForwarding yes
@@ -101,9 +102,16 @@
 #UseDNS yes
 #PidFile /var/run/sshd.pid
 #MaxStartups 10
+#PermitTunnel no
 
 # no default banner path
 #Banner /some/path
 
 # override default of no subsystems
 Subsystem	sftp	/usr/libexec/sftp-server
+
+# Example of overriding settings on a per-user basis
+#Match User anoncvs
+#	X11Forwarding no
+#	AllowTcpForwarding no
+#	ForceCommand cvs server

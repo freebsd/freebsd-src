@@ -1,4 +1,4 @@
-/*	$OpenBSD: bufaux.h,v 1.21 2005/03/10 22:01:05 deraadt Exp $	*/
+/* $OpenBSD: bufaux.h,v 1.22 2006/03/25 22:22:42 djm Exp $ */
 
 /*
  * Author: Tatu Ylonen <ylo@cs.hut.fi>

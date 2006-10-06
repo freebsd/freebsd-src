@@ -16,9 +16,19 @@
  */
 
 #include "includes.h"
-#include "xmalloc.h"
 
-RCSID("$Id: bsd-misc.c,v 1.27 2005/05/27 11:13:41 dtucker Exp $");
+#ifdef HAVE_SYS_SELECT_H
+# include <sys/select.h>
+#endif
+#ifdef HAVE_SYS_TIME_H
+# include <sys/time.h>
+#endif
+
+#include <string.h>
+#include <signal.h>
+#include <stdlib.h>
+
+#include "xmalloc.h"
 
 #ifndef HAVE___PROGNAME
 char *__progname;
@@ -223,10 +233,7 @@ strdup(const char *str)
 	len = strlen(str) + 1;
 	cp = malloc(len);
 	if (cp != NULL)
-		if (strlcpy(cp, str, len) != len) {
-			free(cp);
-			return NULL;
-		}
-	return cp;
+		return(memcpy(cp, str, len));
+	return NULL;
 }
 #endif

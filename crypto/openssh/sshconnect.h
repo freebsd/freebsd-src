@@ -1,4 +1,4 @@
-/*	$OpenBSD: sshconnect.h,v 1.17 2002/06/19 00:27:55 deraadt Exp $	*/
+/* $OpenBSD: sshconnect.h,v 1.23 2006/08/03 03:34:42 deraadt Exp $ */
 
 /*
  * Copyright (c) 2000 Markus Friedl.  All rights reserved.
@@ -23,8 +23,6 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
-#ifndef SSHCONNECT_H
-#define SSHCONNECT_H
 
 typedef struct Sensitive Sensitive;
 struct Sensitive {
@@ -49,21 +47,23 @@ void	 ssh_userauth1(const char *, const char *, char *, Sensitive *);
 void	 ssh_userauth2(const char *, const char *, char *, Sensitive *);
 
 void	 ssh_put_password(char *);
-
+int	 ssh_local_cmd(const char *);
 
 /*
  * Macros to raise/lower permissions.
  */
-#define PRIV_START do {				\
-	int save_errno = errno;			\
-	(void)seteuid(original_effective_uid);	\
-	errno = save_errno;			\
+#define PRIV_START do {					\
+	int save_errno = errno;				\
+	if (seteuid(original_effective_uid) != 0)	\
+		fatal("PRIV_START: seteuid: %s",	\
+		    strerror(errno));			\
+	errno = save_errno;				\
 } while (0)
 
-#define PRIV_END do {				\
-	int save_errno = errno;			\
-	(void)seteuid(original_real_uid);	\
-	errno = save_errno;			\
+#define PRIV_END do {					\
+	int save_errno = errno;				\
+	if (seteuid(original_real_uid) != 0)		\
+		fatal("PRIV_END: seteuid: %s",		\
+		    strerror(errno));			\
+	errno = save_errno;				\
 } while (0)
-
-#endif
