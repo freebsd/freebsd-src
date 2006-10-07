@@ -247,6 +247,8 @@ do { \
 struct	route;
 struct	in_multi *in_addmulti(struct in_addr *, struct ifnet *);
 void	in_delmulti(struct in_multi *);
+void	in_delmulti_locked(struct in_multi *);
+void	in_delmulti_ifp(struct ifnet *ifp);
 int	in_control(struct socket *, u_long, caddr_t, struct ifnet *,
 	    struct thread *);
 void	in_rtqdrain(void);
