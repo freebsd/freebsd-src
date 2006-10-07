@@ -761,6 +761,7 @@ product CHICONY KB8933		0x0001	KB-8933 keyboard
 
 /* Compaq products */
 product COMPAQ PJB100		0x504a	Personal Jukebox PJB100
+product COMPAQ IPAQLINUX	0x505a	iPAQ Linux
 
 /* Connectix products */
 product CONNECTIX QUICKCAM	0x0001	QuickCam
