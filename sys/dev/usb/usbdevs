@@ -1170,10 +1170,11 @@ product LOGITECH MBA47		0xc002	M-BA47 mouse
 product LOGITECH WMMOUSE	0xc004	WingMan Gaming Mouse
 product LOGITECH BD58		0xc00c	BD58 mouse
 product LOGITECH UN58A		0xc030	iFeel Mouse
-product LOGITECH BB13		0xc401	USB-PS/2 Trackball
+product LOGITECH UN53B		0xc032	iFeel MouseMan
 product LOGITECH WMPAD		0xc208	WingMan GamePad Extreme
 product LOGITECH WMRPAD		0xc20a	WingMan RumblePad
 product LOGITECH WMJOY		0xc281	WingMan Force joystick
+product LOGITECH BB13		0xc401	USB-PS/2 Trackball
 product LOGITECH RK53		0xc501	Cordless mouse
 product LOGITECH RB6		0xc503	Cordless keyboard
 product LOGITECH MX700		0xc506	Cordless optical mouse
