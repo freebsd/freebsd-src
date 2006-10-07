@@ -29,7 +29,7 @@ Easter+60	Fronleichnam
 10/31   	Reformationstag
 11/01   	Allerheiligen
 11/02   	Allerseelen
-11/Wed+4 	Buß- und Bettag 
+11/Wed+4 	Buß- und Bettag
 
 12/24   	Heiligabend
 12/25   	Erster Weihnachtstag
@@ -38,13 +38,13 @@ Easter+60	Fronleichnam
 
 /*  Gedenktage - nicht arbeitsfreie Feiertage :-( */
 06/17	Arbeiteraufstand am 17. Juni 1953
-/* ??/?? Befreiung des KZs Auschwitz */
+01/27	Gedenktag für die Opfer des Nationalsozialismus
 
 /* Jahreszeiten */
 03/20*	Frühlingsanfang
 06/21*	Sommeranfang
 09/23*	Herbstanfang
-12/21*	Winteranfang	
+12/21*	Winteranfang
 
 /* Sommer- und Winterzeit */
 03/SundayLast	Anfang der Sommerzeit
