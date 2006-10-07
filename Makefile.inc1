@@ -1024,15 +1024,16 @@ _prebuild_libs+= lib/libipx
 _prebuild_libs+=	kerberos5/lib/libasn1
 _prebuild_libs+=	kerberos5/lib/libkrb5
 _prebuild_libs+=	kerberos5/lib/libroken
+_prebuild_libs+=	lib/libgssapi
 _generic_libs+=	kerberos5/lib
 .endif
 
 _prebuild_libs+= lib/libbz2 lib/libcom_err lib/libcrypt lib/libexpat \
 		lib/libkiconv lib/libkvm lib/libmd \
-		lib/libncurses lib/libnetgraph lib/libopie lib/libpam \
+		lib/libncurses lib/libopie lib/libpam \
 		lib/libradius \
 		lib/libsbuf lib/libtacplus lib/libutil \
-		lib/libz lib/msun lib/libgssapi
+		lib/libz lib/msun
 
 lib/libopie__L lib/libtacplus__L: lib/libmd__L
 
@@ -1046,7 +1047,9 @@ lib/libradius__L secure/lib/libssl__L: secure/lib/libcrypto__L
 _prebuild_libs+=	secure/lib/libssh
 secure/lib/libssh__L: lib/libz__L secure/lib/libcrypto__L lib/libcrypt__L
 .if ${MK_KERBEROS} != "no"
-secure/lib/libssh__L: lib/libgssapi__L
+secure/lib/libssh__L: lib/libgssapi__L kerberos5/lib/libkrb5__L \
+    kerberos5/lib/libasn1__L lib/libcom_err__L lib/libmd__L \
+    kerberos5/lib/libroken__L
 .endif
 .endif
 .endif
