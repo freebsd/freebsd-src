@@ -32,7 +32,7 @@
 .\"	@(#)cp.1	8.3 (Berkeley) 4/18/94
 .\" $FreeBSD$
 .\"
-.Dd August 24, 2006
+.Dd October 7, 2006
 .Dt CP 1
 .Os
 .Sh NAME
@@ -252,8 +252,37 @@ utility had a
 .Fl r
 option.
 This implementation supports that option, however, its use is strongly
-discouraged, as it does not correctly copy special files, symbolic links
-or fifo's.
+discouraged as its behavior is very implementation dependent.
+In this version of
+.Nm ,
+.Fl r
+is just a synonym for
+.Fl RL .
+The
+.Fl R
+option gives the correct behavior while
+.Fl L
+preserves the sometimes-useful historical behavior of following symbolic links. 
+The
+.Fl r
+option is deprecated in
+.Tn POSIX 
+ and its behavior is likely to be different
+in future versions of 
+.Nm
+and its behavior is likely to be different
+in future versions of
+.Fx .
+Previous versions of
+.Nm
+in
+.Fx ,
+the
+.Fl r
+behavior was to not correctly copy special files, symbolic links
+or fifos.
+Symbolic links were followed, and the contents of special
+files and fifos were copied to regular files.
 .Pp
 The
 .Fl v
