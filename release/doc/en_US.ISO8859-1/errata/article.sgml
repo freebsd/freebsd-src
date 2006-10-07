@@ -168,6 +168,13 @@
 	  </row>
 
 	  <row>
+	    <entry><ulink url="http://security.FreeBSD.org/advisories/FreeBSD-SA-06:22.openssh.asc"
+		>SA-06:22.openssh</ulink></entry>
+	    <entry>30&nbsp;September&nbsp;2006</entry>
+	    <entry><para>Multiple vulnerabilities in OpenSSH</para></entry>
+	  </row>
+
+	  <row>
 	    <entry><ulink url="http://security.FreeBSD.org/advisories/FreeBSD-SA-06:23.openssl.asc"
 		>SA-06:23.openssl</ulink></entry>
 	    <entry>28&nbsp;September&nbsp;2006</entry>
@@ -264,17 +271,16 @@
       RELENG_6_1.  More information is contained in errata notice
       <ulink url="ftp://ftp.FreeBSD.org/pub/FreeBSD/ERRATA/notices/FreeBSD-EN-06:02.net.asc">FreeBSD-EN-06:02.net</ulink>.</para>
 
-    <para>(2006/06/01) A longstanding bug in the i386 bootloader can
+    <para>(2006/06/01, update 2006/10/07) A longstanding bug in the i386 bootloader can
       cause root file system corruption when the &man.nextboot.8;
       utility is used and the <filename>/boot/nextboot.conf</filename>
       configuration file happens to be located after cylinder 1023 on
-      the boot disk.  A bugfix has been committed to HEAD and planned
-      for merging after additional testing.</para>
+      the boot disk.  A bugfix has been committed to HEAD and has been
+      merged to RELENG_6.</para>
 
-    <para>(2006/06/16) A locking-related bug has been observed to
+    <para>(2006/06/16, updated 2006/10/07) A locking-related bug has been observed to
       cause noticeable slowdowns in NFS server performance.  A
-      fix has been committed to HEAD and RELENG_6, and is a candidate
-      for a merge to RELENG_6_1 after additional testing.</para>
+      fix has been committed to HEAD and RELENG_6.</para>
 
     <para>(2006/08/28) A local kernel panic in the network stack could
       be caused by not checking the validity of a pointer before use.
