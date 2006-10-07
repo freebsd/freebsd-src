@@ -202,7 +202,8 @@ PTHREAD_MAN=	pthread.3 \
 		pthread_suspend_all_np.3 \
 		pthread_suspend_np.3 \
 		pthread_switch_add_np.3 \
-		pthread_testcancel.3
+		pthread_testcancel.3 \
+		pthread_yield.3
 
 PTHREAD_MLINKS=	pthread_attr.3 pthread_attr_destroy.3 \
 		pthread_attr.3 pthread_attr_getdetachstate.3 \
