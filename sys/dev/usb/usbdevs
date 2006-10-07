@@ -483,6 +483,7 @@ vendor HAWKING		0x0e66	Hawking
 vendor GMATE		0x0e7e	G.Mate, Inc
 vendor OTI		0x0ea0	Ours
 vendor PILOTECH		0x0eaf	Pilotech
+vendor NOVATECH		0x0eb0	NovaTech
 vendor EGALAX		0x0eef	eGalax
 vendor MICROTUNE	0x0f4d	Microtune
 vendor VTECH		0x0f88	VTech
@@ -1324,6 +1325,9 @@ product NETGEAR FA120		0x1040	USB 2.0 Ethernet
 /* Nikon products */
 product NIKON E990		0x0102	Digital Camera E990
 product NIKON LS40		0x4000	CoolScan LS40 ED
+
+/* NovaTech Products */
+product NOVATECH NV902		0x9020  NovaTech NV-902W
 
 /* Olympus products */
 product OLYMPUS C1		0x0102	C-1 Digital Camera
