@@ -238,6 +238,13 @@
 	  </row>
 
 	  <row>
+	    <entry><ulink url="http://security.FreeBSD.org/advisories/FreeBSD-SA-06:22.openssh.asc"
+		>SA-06:22.openssh</ulink></entry>
+	    <entry>30&nbsp;September&nbsp;2006</entry>
+	    <entry><para>Multiple vulnerabilities in OpenSSH</para></entry>
+	  </row>
+
+	  <row>
 	    <entry><ulink url="http://security.FreeBSD.org/advisories/FreeBSD-SA-06:23.openssl.asc"
 		>SA-06:23.openssl</ulink></entry>
 	    <entry>28&nbsp;September&nbsp;2006</entry>
