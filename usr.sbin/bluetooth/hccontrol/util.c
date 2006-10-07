@@ -36,7 +36,7 @@
 
 #define SIZE(x) (sizeof((x))/sizeof((x)[0]))
 
-char const * const
+char const *
 hci_link2str(int link_type)
 {
 	static char const * const	t[] = {
@@ -47,7 +47,7 @@ hci_link2str(int link_type)
 	return (link_type >= SIZE(t)? "?" : t[link_type]);
 } /* hci_link2str */
 
-char const * const
+char const *
 hci_pin2str(int type)
 {
 	static char const * const	t[] = {
@@ -58,7 +58,7 @@ hci_pin2str(int type)
 	return (type >= SIZE(t)? "?" : t[type]);
 } /* hci_pin2str */
 
-char const * const
+char const *
 hci_scan2str(int scan)
 {
 	static char const * const	t[] = {
@@ -71,7 +71,7 @@ hci_scan2str(int scan)
 	return (scan >= SIZE(t)? "?" : t[scan]);
 } /* hci_scan2str */
 
-char const * const
+char const *
 hci_encrypt2str(int encrypt, int brief)
 {
 	static char const * const	t[] = {
@@ -92,7 +92,7 @@ hci_encrypt2str(int encrypt, int brief)
 	return (encrypt >= SIZE(t)? "?" : t[encrypt]);
 } /* hci_encrypt2str */
 
-char const * const
+char const *
 hci_coding2str(int coding)
 {
 	static char const * const	t[] = {
@@ -105,7 +105,7 @@ hci_coding2str(int coding)
 	return (coding >= SIZE(t)? "?" : t[coding]);
 } /* hci_coding2str */
 
-char const * const
+char const *
 hci_vdata2str(int data)
 {
 	static char const * const	t[] = {
@@ -118,7 +118,7 @@ hci_vdata2str(int data)
 	return (data >= SIZE(t)? "?" : t[data]);
 } /* hci_vdata2str */
 
-char const * const
+char const *
 hci_hmode2str(int mode, char *buffer, int size)
 {
 	static char const * const	t[] = {
@@ -144,7 +144,7 @@ hci_hmode2str(int mode, char *buffer, int size)
 	return (buffer);
 } /* hci_hmode2str */
 
-char const * const
+char const *
 hci_ver2str(int ver)
 {
 	static char const * const	t[] = {
@@ -157,7 +157,7 @@ hci_ver2str(int ver)
 	return (ver >= SIZE(t)? "?" : t[ver]);
 } /* hci_ver2str */
 
-char const * const
+char const *
 hci_lmpver2str(int ver)
 {
 	static char const * const	t[] = {
@@ -170,7 +170,7 @@ hci_lmpver2str(int ver)
 	return (ver >= SIZE(t)? "?" : t[ver]);
 } /* hci_lmpver2str */
 
-char const * const
+char const *
 hci_manufacturer2str(int m)
 {
 	static char const * const	t[] = {
@@ -244,7 +244,7 @@ hci_manufacturer2str(int m)
 	return (m >= SIZE(t)? "?" : t[m]);
 } /* hci_manufacturer2str */
 
-char const * const 
+char const *
 hci_features2str(uint8_t *features, char *buffer, int size)
 {
 	static char const * const	t[][8] = {
@@ -307,7 +307,7 @@ done:
 	return (buffer);
 } /* hci_features2str */
 
-char const * const
+char const *
 hci_cc2str(int cc)
 {
 	static char const * const	t[] = {
@@ -318,7 +318,7 @@ hci_cc2str(int cc)
 	return (cc >= SIZE(t)? "?" : t[cc]);
 } /* hci_cc2str */
 
-char const * const
+char const *
 hci_con_state2str(int state)
 {
 	static char const * const	t[] = {
@@ -331,7 +331,7 @@ hci_con_state2str(int state)
 	return (state >= SIZE(t)? "UNKNOWN" : t[state]);
 } /* hci_con_state2str */
 
-char const * const
+char const *
 hci_status2str(int status)
 {
 	static char const * const       t[] = {
@@ -382,7 +382,7 @@ hci_status2str(int status)
 	return (status >= SIZE(t)? "Unknown error" : t[status]);
 } /* hci_status2str */
 
-char const * const
+char const *
 hci_bdaddr2str(bdaddr_t const *ba)
 {
 	extern int	 numeric_bdaddr;
