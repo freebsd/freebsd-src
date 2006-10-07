@@ -896,6 +896,7 @@ product EPSON 3590		0x0122	Perfection 3590 scanner
 product EPSON 4990		0x012a	Perfection 4990 Photo scanner
 product EPSON 3500		0x080e	CX-3500/3600/3650 MFP
 product EPSON RX425		0x080f	Stylus Photo RX425 scanner
+product EPSON 4200		0x0820  CX4200 MP scanner
 
 /* e-TEK Labs products */
 product ETEK 1COM		0x8007	Serial
