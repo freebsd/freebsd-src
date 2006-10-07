@@ -1507,6 +1507,9 @@ product SIIG DIGIFILMREADER	0x0004	DigiFilm-Combo Reader
 product SIIG WINTERREADER	0x0330	WINTERREADER Reader
 product SIIG2 US2308		0x0421	Serial
 
+/* Silicom products */
+product SILICOM GPE		0x0002	Psion Gold Port Ethernet
+
 /* Silicon Portals Inc. */
 product SILICONPORTALS YAPPH_NF	0x0200	YAP Phone (no firmware)
 product SILICONPORTALS YAPPHONE	0x0201	YAP Phone
