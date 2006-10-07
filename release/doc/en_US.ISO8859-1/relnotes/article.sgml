@@ -777,17 +777,18 @@
 	This feature can be re-enabled by using a new sysctl variable
 	<varname>net.inet6.ip6.mcast_pmtu</varname>.  &merged;</para>
 
+      <para>IPv6 link-local addresses are now enabled only
+	if <varname>ipv6_enable</varname> is set in &man.rc.conf.5;.
+	&merged;</para>
+
       <para>The &man.ipfw.4; IP packet filter now supports IPv6.  &merged;</para>
 
-      <para>The &man.ipfw.4; firewall system now supports substitution of the action
-	argument with the value obtained from table lookup,
-	which allows some optimization of rulesets.
-	This is now applicable only to <literal>pipe</literal>,
-	<literal>queue</literal>,
-	<literal>divert</literal>,
-	<literal>tee</literal>,
-	<literal>netgraph</literal>,
-	and <literal>ngtee</literal> rules.  &merged;
+      <para>The &man.ipfw.4; firewall system now supports
+	a <literal>tablearg</literal> feature, which allows
+	values obtained from a table lookup to be used as part of a
+	rule.  	&merged;
+	This feature can be used to optimize some rulesets
+	or to implement policy-based routing inside a firewall.
 	For example, the following rules will throw different
 	packets to different pipes:</para>
 
@@ -805,7 +806,7 @@ pipe tablearg ip from table(1) to any</programlisting>
 	The tag acts as an internal marker (it is not sent out over
 	the wire) that can be used to identify these packets later on,
 	for example, by using <literal>tagged</literal>
-	rule option.  For more details, see &man.ipfw.8;.</para>
+	rule option.  For more details, see &man.ipfw.8;. &merged;</para>
 
       <para>The <literal>IPFIREWALL_FORWARD_EXTENDED</literal> kernel
 	option has been removed.  This option was used to permit
@@ -822,6 +823,10 @@ pipe tablearg ip from table(1) to any</programlisting>
 
       <para>The &man.ng.iface.4; Netgraph node now supports &man.altq.4;.
 	&merged;</para>
+
+      <para>The &man.ng.tag.4; Netgraph node has been added to
+        support the manipulation of mbuf tags attached to data in the
+        kernel.  &merged;</para>
 
       <para>A bug has been fixed in which NFS over TCP would not reconnect
 	when the server sent a FIN.  This problem had occurred
@@ -1653,10 +1658,10 @@ mdconfig_md1="-t vnode -f /var/foo.img"</programlisting>
       NetBSD as of 31 August 2006. &merged;</para>
 
     <para><application>OpenSSH</application> has been updated from
-      4.2p1 to 4.3p1.</para>
+      4.2p1 to 4.4p1. &merged;</para>
 
     <para><application>OpenSSL</application> has been updated from
-      0.9.7e to 0.9.8b.</para>
+      0.9.7e to 0.9.8d.</para>
 
     <para><application>hostapd</application>
       has been updated from version 0.3.9 to version 0.4.8.
@@ -1676,7 +1681,7 @@ mdconfig_md1="-t vnode -f /var/foo.img"</programlisting>
       snapshot from OpenBSD as of 20060831.</para>
 
     <para>TrustedBSD <application>OpenBSM</application>,
-      version 1.0 alpha 10, an implementation of the documented Sun Basic
+      version 1.0 alpha 12, an implementation of the documented Sun Basic
       Security Module (BSM) Audit API and file format, as well as local
       extensions to support the Mac OS X and &os; operating systems
       has been added.  This also includes command line tools for audit
