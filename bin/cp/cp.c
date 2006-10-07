@@ -138,7 +138,8 @@ main(int argc, char *argv[])
 			pflag = 1;
 			break;
 		case 'r':
-			rflag = 1;
+			rflag = Lflag = 1;
+			Hflag = Pflag = 0;
 			break;
 		case 'v':
 			vflag = 1;
@@ -155,15 +156,12 @@ main(int argc, char *argv[])
 
 	fts_options = FTS_NOCHDIR | FTS_PHYSICAL;
 	if (rflag) {
-		if (Rflag)
+                if (Rflag)
 			errx(1,
 		    "the -R and -r options may not be specified together.");
-		if (Hflag || Lflag || Pflag)
-			errx(1,
-	"the -H, -L, and -P options may not be specified with the -r option.");
-		fts_options &= ~FTS_PHYSICAL;
-		fts_options |= FTS_LOGICAL;
-	}
+		}
+	if (rflag && !Hflag && !Pflag)
+		Rflag = 1;
 	if (Rflag) {
 		if (Hflag)
 			fts_options |= FTS_COMFOLLOW;
@@ -227,12 +225,12 @@ main(int argc, char *argv[])
 		 * the initial mkdir().
 		 */
 		if (r == -1) {
-			if (rflag || (Rflag && (Lflag || Hflag)))
+			if (Rflag && (Lflag || Hflag))
 				stat(*argv, &tmp_stat);
 			else
 				lstat(*argv, &tmp_stat);
 
-			if (S_ISDIR(tmp_stat.st_mode) && (Rflag || rflag))
+			if (S_ISDIR(tmp_stat.st_mode) && (Rflag))
 				type = DIR_TO_DNE;
 			else
 				type = FILE_TO_FILE;
@@ -420,7 +418,7 @@ copy(char *argv[], enum op type, int fts_options)
 			}
 			break;
 		case S_IFDIR:
-			if (!Rflag && !rflag) {
+			if (!Rflag) {
 				warnx("%s is a directory (not copied).",
 				    curr->fts_path);
 				(void)fts_set(ftsp, curr, FTS_SKIP);
