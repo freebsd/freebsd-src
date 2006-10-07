@@ -62,10 +62,10 @@ copy_file(const FTSENT *entp, int dne)
 {
 	static char buf[MAXBSIZE];
 	struct stat *fs;
-	int ch, checkch, from_fd = 0, rcount, rval, to_fd = 0;
 	ssize_t wcount;
 	size_t wresid;
 	off_t wtotal;
+	int ch, checkch, from_fd = 0, rcount, rval, to_fd = 0;
 	char *bufp;
 #ifdef VM_AND_BUFFER_CACHE_SYNCHRONIZED
 	char *p;
@@ -156,10 +156,9 @@ copy_file(const FTSENT *entp, int dne)
 					if (info) {
 						info = 0;
 						(void)fprintf(stderr,
-							"%s -> %s %3d%%\n",
-							entp->fts_path, to.p_path,
-							cp_pct(wtotal, fs->st_size));
-
+						    "%s -> %s %3d%%\n",
+						    entp->fts_path, to.p_path,
+						    cp_pct(wtotal, fs->st_size));
 					}
 					if (wcount >= (ssize_t)wresid)
 						break;
@@ -188,10 +187,9 @@ copy_file(const FTSENT *entp, int dne)
 					if (info) {
 						info = 0;
 						(void)fprintf(stderr,
-							"%s -> %s %3d%%\n",
-							entp->fts_path, to.p_path,
-							cp_pct(wtotal, fs->st_size));
-
+						    "%s -> %s %3d%%\n",
+						    entp->fts_path, to.p_path,
+						    cp_pct(wtotal, fs->st_size));
 					}
 					if (wcount >= (ssize_t)wresid)
 						break;
