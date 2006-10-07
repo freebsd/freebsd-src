@@ -167,7 +167,7 @@ and
 wordexp_t we;
 
 wordexp("${EDITOR:-vi} *.c /etc/motd", &we, 0);
-execvp(we->we_wordv[0], we->we_wordv);
+execvp(we.we_wordv[0], we.we_wordv);
 .Ed
 .Sh DIAGNOSTICS
 Diagnostic messages from the shell are written to the standard error output
