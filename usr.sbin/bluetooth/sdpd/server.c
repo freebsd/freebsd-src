@@ -66,7 +66,8 @@ server_init(server_p srv, char const *control)
 {
 	struct sockaddr_un	un;
 	struct sockaddr_l2cap	l2;
-	int32_t			unsock, l2sock, size;
+	int32_t			unsock, l2sock;
+	socklen_t		size;
 	uint16_t		imtu;
 
 	assert(srv != NULL);
@@ -289,8 +290,9 @@ static void
 server_accept_client(server_p srv, int32_t fd)
 {
 	uint8_t		*rsp = NULL;
-	int32_t		 cfd, size, priv;
+	int32_t		 cfd, priv;
 	uint16_t	 omtu;
+	socklen_t	 size;
 
 	do {
 		cfd = accept(fd, NULL, NULL);
