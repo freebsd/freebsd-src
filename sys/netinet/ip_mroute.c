@@ -123,6 +123,10 @@ static MALLOC_DEFINE(M_MRTABLE, "mroutetbl", "multicast routing tables");
  * to cover not only the specific data structure but also related data
  * structures.  It may be better to add more fine-grained locking later;
  * it's not clear how performance-critical this code is.
+ *
+ * XXX: This module could particularly benefit from being cleaned
+ *      up to use the <sys/queue.h> macros.
+ *
  */
 
 static struct mrtstat	mrtstat;
@@ -158,6 +162,8 @@ static struct mtx vif_mtx;
 #define	VIF_LOCK_DESTROY()	mtx_destroy(&vif_mtx)
 
 static u_char		nexpire[MFCTBLSIZ];
+
+static eventhandler_tag if_detach_event_tag = NULL;
 
 static struct callout expire_upcalls_ch;
 
@@ -303,8 +309,10 @@ static int	X_mrt_ioctl(int cmd, caddr_t data);
 
 static int get_sg_cnt(struct sioc_sg_req *);
 static int get_vif_cnt(struct sioc_vif_req *);
+static void if_detached_event(void *arg __unused, struct ifnet *);
 static int ip_mrouter_init(struct socket *, int);
 static int add_vif(struct vifctl *);
+static int del_vif_locked(vifi_t);
 static int del_vif(vifi_t);
 static int add_mfc(struct mfcctl2 *);
 static int del_mfc(struct mfcctl2 *);
@@ -651,6 +659,66 @@ ip_mrouter_reset(void)
 
 static struct mtx mrouter_mtx;		/* used to synch init/done work */
 
+static void
+if_detached_event(void *arg __unused, struct ifnet *ifp)
+{
+    vifi_t vifi;
+    int i;
+    struct mfc *mfc;
+    struct mfc *nmfc;
+    struct mfc **ppmfc;	/* Pointer to previous node's next-pointer */
+    struct rtdetq *pq;
+    struct rtdetq *npq;
+
+    mtx_lock(&mrouter_mtx);
+    if (ip_mrouter == NULL) {
+	mtx_unlock(&mrouter_mtx);
+    }
+
+    /*
+     * Tear down multicast forwarder state associated with this ifnet.
+     * 1. Walk the vif list, matching vifs against this ifnet.
+     * 2. Walk the multicast forwarding cache (mfc) looking for
+     *    inner matches with this vif's index.
+     * 3. Free any pending mbufs for this mfc.
+     * 4. Free the associated mfc entry and state associated with this vif.
+     *    Be very careful about unlinking from a singly-linked list whose
+     *    "head node" is a pointer in a simple array.
+     * 5. Free vif state. This should disable ALLMULTI on the interface.
+     */
+    VIF_LOCK();
+    MFC_LOCK();
+    for (vifi = 0; vifi < numvifs; vifi++) {
+	if (viftable[vifi].v_ifp != ifp)
+		continue;
+	for (i = 0; i < MFCTBLSIZ; i++) {
+	    ppmfc = &mfctable[i];
+	    for (mfc = mfctable[i]; mfc != NULL; ) {
+		nmfc = mfc->mfc_next;
+		if (mfc->mfc_parent == vifi) {
+		    for (pq = mfc->mfc_stall; pq != NULL; ) {
+			npq = pq->next;
+			m_freem(pq->m);
+			free(pq, M_MRTABLE);
+			pq = npq;
+		    }
+		    free_bw_list(mfc->mfc_bw_meter);
+		    free(mfc, M_MRTABLE);
+		    *ppmfc = nmfc;
+		} else {
+		    ppmfc = &mfc->mfc_next;
+		}
+		mfc = nmfc;
+	    }
+	}
+	del_vif_locked(vifi);
+    }
+    MFC_UNLOCK();
+    VIF_UNLOCK();
+
+    mtx_unlock(&mrouter_mtx);
+}
+                        
 /*
  * Enable multicast routing
  */
@@ -673,6 +741,11 @@ ip_mrouter_init(struct socket *so, int version)
 	mtx_unlock(&mrouter_mtx);
 	return EADDRINUSE;
     }
+
+    if_detach_event_tag = EVENTHANDLER_REGISTER(ifnet_departure_event, 
+        if_detached_event, NULL, EVENTHANDLER_PRI_ANY);
+    if (if_detach_event_tag == NULL)
+	return (ENOMEM);
 
     callout_reset(&expire_upcalls_ch, EXPIRE_TIMEOUT, expire_upcalls, NULL);
 
@@ -748,6 +821,7 @@ X_ip_mrouter_done(void)
     numvifs = 0;
     pim_assert = 0;
     VIF_UNLOCK();
+    EVENTHANDLER_DEREGISTER(ifnet_departure_event, if_detach_event_tag);
 
     /*
      * Free all multicast forwarding cache entries.
@@ -1085,19 +1159,17 @@ add_vif(struct vifctl *vifcp)
  * Delete a vif from the vif table
  */
 static int
-del_vif(vifi_t vifi)
+del_vif_locked(vifi_t vifi)
 {
     struct vif *vifp;
 
-    VIF_LOCK();
+    VIF_LOCK_ASSERT();
 
     if (vifi >= numvifs) {
-	VIF_UNLOCK();
 	return EINVAL;
     }
     vifp = &viftable[vifi];
     if (vifp->v_lcl_addr.s_addr == INADDR_ANY) {
-	VIF_UNLOCK();
 	return EADDRNOTAVAIL;
     }
 
@@ -1136,9 +1208,19 @@ del_vif(vifi_t vifi)
 	    break;
     numvifs = vifi;
 
+    return 0;
+}
+
+static int
+del_vif(vifi_t vifi)
+{
+    int cc;
+
+    VIF_LOCK();
+    cc = del_vif_locked(vifi);
     VIF_UNLOCK();
 
-    return 0;
+    return cc;
 }
 
 /*
