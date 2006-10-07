@@ -47,14 +47,10 @@ The
 .Fn aio_return
 system call
 should only be called once, to obtain the final status of an asynchronous
-I/O operation.
-If the error status of the request is
-.Er EINPROGRESS ,
-an undefined value is returned.
-The
-.Fn aio_return
-function should only be called on completion or failure of an
-AIO request.
+I/O operation once it has completed
+.Xr ( aio_error 2
+returns something other than
+.Er EINPROGRESS ) .
 .Sh RETURN VALUES
 If the asynchronous I/O request has completed, the status is returned
 as described in
@@ -62,12 +58,10 @@ as described in
 .Xr write 2 ,
 or
 .Xr fsync 2 .
-On failure,
+Otherwise,
 .Fn aio_return
-returns
-.Dv -1
-and sets
-.Dv errno
+returns \-1 and sets
+.Va errno
 to indicate the error condition.
 .Sh ERRORS
 The
@@ -78,7 +72,7 @@ system call will fail if:
 The
 .Fa iocb
 argument
-does not reference an outstanding asynchronous I/O request.
+does not reference a completed asynchronous I/O request.
 .El
 .Sh SEE ALSO
 .Xr aio_cancel 2 ,
