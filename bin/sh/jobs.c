@@ -98,7 +98,7 @@ STATIC void setcurjob(struct job *);
 STATIC void deljob(struct job *);
 STATIC struct job *getcurjob(struct job *);
 #endif
-STATIC void showjob(struct job *, pid_t, int, int);
+STATIC void showjob(struct job *, pid_t, int);
 
 
 /*
@@ -265,18 +265,21 @@ int
 jobscmd(int argc, char *argv[])
 {
 	char *id;
-	int ch, sformat, lformat;
+	int ch, mode;
 
 	optind = optreset = 1;
 	opterr = 0;
-	sformat = lformat = 0;
-	while ((ch = getopt(argc, argv, "ls")) != -1) {
+	mode = SHOWJOBS_DEFAULT;
+	while ((ch = getopt(argc, argv, "lps")) != -1) {
 		switch (ch) {
 		case 'l':
-			lformat = 1;
+			mode = SHOWJOBS_VERBOSE;
+			break;
+		case 'p':
+			mode = SHOWJOBS_PGIDS;
 			break;
 		case 's':
-			sformat = 1;
+			mode = SHOWJOBS_PIDS;
 			break;
 		case '?':
 		default:
@@ -287,24 +290,25 @@ jobscmd(int argc, char *argv[])
 	argv += optind;
 
 	if (argc == 0)
-		showjobs(0, sformat, lformat);
+		showjobs(0, mode);
 	else
 		while ((id = *argv++) != NULL)
-			showjob(getjob(id), 0, sformat, lformat);
+			showjob(getjob(id), 0, mode);
 
 	return (0);
 }
 
 STATIC void
-showjob(struct job *jp, pid_t pid, int sformat, int lformat)
+showjob(struct job *jp, pid_t pid, int mode)
 {
 	char s[64];
 	struct procstat *ps;
 	struct job *j;
 	int col, curr, i, jobno, prev, procno;
+	pid_t ppid;
 	char c;
 
-	procno = jp->nprocs;
+	procno = (mode == SHOWJOBS_PGIDS) ? 1 : jp->nprocs;
 	jobno = jp - jobtab + 1;
 	curr = prev = 0;
 #if JOBS
@@ -315,11 +319,13 @@ showjob(struct job *jp, pid_t pid, int sformat, int lformat)
 	}
 #endif
 	for (ps = jp->ps ; ; ps++) {	/* for each process */
-		if (sformat) {
-			out1fmt("%d\n", (int)ps->pid);
+		if (mode == SHOWJOBS_PIDS || mode == SHOWJOBS_PGIDS) {
+			ppid = (mode == SHOWJOBS_PIDS) ? ps->pid :
+			    getpgid(ps->pid);
+			out1fmt("%d\n", (int)ppid);
 			goto skip;
 		}
-		if (!lformat && ps != jp->ps && pid == 0)
+		if (mode != SHOWJOBS_VERBOSE && ps != jp->ps && pid == 0)
 			goto skip;
 		if (pid != 0 && pid != ps->pid)
 			goto skip;
@@ -335,7 +341,7 @@ showjob(struct job *jp, pid_t pid, int sformat, int lformat)
 			fmtstr(s, 64, "    %c ", c);
 		out1str(s);
 		col = strlen(s);
-		if (lformat) {
+		if (mode == SHOWJOBS_VERBOSE) {
 			fmtstr(s, 64, "%d ", (int)ps->pid);
 			out1str(s);
 			col += strlen(s);
@@ -388,7 +394,7 @@ skip:		if (--procno <= 0)
  */
 
 void
-showjobs(int change, int sformat, int lformat)
+showjobs(int change, int mode)
 {
 	int jobno;
 	struct job *jp;
@@ -404,7 +410,7 @@ showjobs(int change, int sformat, int lformat)
 		}
 		if (change && ! jp->changed)
 			continue;
-		showjob(jp, 0, sformat, lformat);
+		showjob(jp, 0, mode);
 		jp->changed = 0;
 		if (jp->state == JOBDONE) {
 			freejob(jp);
@@ -992,7 +998,7 @@ dowait(int block, struct job *job)
 					out1str(" (core dumped)");
 				out1c('\n');
 			} else
-				showjob(thisjob, pid, 0, 0);
+				showjob(thisjob, pid, SHOWJOBS_DEFAULT);
 		}
 	} else {
 		TRACE(("Not printing status, rootshell=%d, job=%p\n", rootshell, job));
