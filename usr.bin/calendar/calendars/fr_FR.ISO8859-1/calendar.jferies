@@ -39,7 +39,8 @@ Easter+50	Lundi de Pentecôte
 10/SundayLast	Passage à l'heure d'hiver
 
 /* Divers */
-May Sun+2 	Fêtes des mères
-June Sun+2	Fêtes des pères
+/* BUG : si Penteco^te = 05/SunLast, fe^te des me`res repousse'e d'une semaine */
+05/SundayLast	Fêtes des mères
+June Sun+3	Fêtes des pères
 
 #endif /*! _fr_FR_ISO8859_1_jferies_ */
