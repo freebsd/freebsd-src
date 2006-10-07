@@ -1025,13 +1025,23 @@ void
 in_delmulti(inm)
 	register struct in_multi *inm;
 {
-	struct ifmultiaddr *ifma;
-	struct in_multi my_inm;
 	struct ifnet *ifp;
 
 	ifp = inm->inm_ifp;
 	IFF_LOCKGIANT(ifp);
 	IN_MULTI_LOCK();
+	in_delmulti_locked(inm);
+	IN_MULTI_UNLOCK();
+	IFF_UNLOCKGIANT(ifp);
+}
+
+void
+in_delmulti_locked(inm)
+	register struct in_multi *inm;
+{
+	struct ifmultiaddr *ifma;
+	struct in_multi my_inm;
+
 	ifma = inm->inm_ifma;
 	my_inm.inm_ifp = NULL ; /* don't send the leave msg */
 	if (ifma->ifma_refcount == 1) {
@@ -1050,6 +1060,24 @@ in_delmulti(inm)
 	if_delmulti(ifma->ifma_ifp, ifma->ifma_addr);
 	if (my_inm.inm_ifp != NULL)
 		igmp_leavegroup(&my_inm);
+}
+
+/*
+ * Delete all multicast address records associated with the ifp.
+ */
+void
+in_delmulti_ifp(ifp)
+	register struct ifnet *ifp;
+{
+	struct in_multi *inm;
+	struct in_multi *oinm;
+
+	IFF_LOCKGIANT(ifp);
+	IN_MULTI_LOCK();
+	LIST_FOREACH_SAFE(inm, &in_multihead, inm_link, oinm) {
+		if (inm->inm_ifp == ifp)
+			in_delmulti_locked(inm);
+	}
 	IN_MULTI_UNLOCK();
 	IFF_UNLOCKGIANT(ifp);
 }
@@ -1064,4 +1092,5 @@ in_ifdetach(ifp)
 
 	in_pcbpurgeif0(&ripcbinfo, ifp);
 	in_pcbpurgeif0(&udbinfo, ifp);
+	in_delmulti_ifp(ifp);
 }
