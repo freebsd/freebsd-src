@@ -521,6 +521,7 @@ vendor UMAX		0x1606	UMAX
 vendor INSIDEOUT	0x1608	Inside Out Networks
 vendor ENTREGA		0x1645	Entrega
 vendor ACTIONTEC	0x1668	Actiontec
+vendor CMOTECH		0x16d8	CMOTECH CO., LTD.
 vendor LINKSYS3		0x1915	Linksys
 vendor DLINK		0x2001	D-Link
 vendor ERICSSON		0x2282	Ericsson
@@ -760,6 +761,9 @@ product CHIC CYPRESS		0x0003	Cypress USB Mouse
 
 /* Chicony products */
 product CHICONY KB8933		0x0001	KB-8933 keyboard
+
+/* CMOTECH products */
+product CMOTECH CDMAMODEM	0x5141	CMOTECH CDMA Technologies USB modem
 
 /* Compaq products */
 product COMPAQ PJB100		0x504a	Personal Jukebox PJB100
