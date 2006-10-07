@@ -286,10 +286,27 @@
 	the <literal>IPFIREWALL_FORWARD</literal> kernel option is
 	enabled.</para>
 
+      <para>The &man.ipfw.4; packet filter now supports
+	<literal>tag</literal> and <literal>untag</literal> rule keywords.
+	When a packet matches a rule with the <literal>tag</literal>
+	keyword, the numeric tag for the given number in the range
+	from 0 to 65535 will be attached to the packet.
+	The tag acts as an internal marker (it is not sent out over
+	the wire) that can be used to identify these packets later on,
+	for example, by using <literal>tagged</literal>
+	rule option.  For more details, see &man.ipfw.8;.</para>
+
+      <para>The &man.ng.tag.4; Netgraph node has been added to
+        support the manipulation of mbuf tags attached to data in the
+        kernel.</para>
+
       <para>&os; &release.prev; contained a bug in the IPv6
 	implementation, which caused spurious error messages to be
 	printed for point-to-point interfaces.  This problem has been
 	corrected.</para>
+
+      <para>IPv6 link-local addresses are now enabled only
+	if <varname>ipv6_enable</varname> is set in &man.rc.conf.5;.</para>
     </sect3>
 
     <sect3 id="disks">
@@ -468,6 +485,9 @@
       version in a 4 February 2005 OpenBSD snapshot to the version
       included in OpenBSD 3.9.</para>
 
+    <para><application>OpenSSH</application> has been updated from
+      4.2p1 to 4.4p1.</para>
+
     <para><application>sendmail</application> has been updated from
       8.13.6 to 8.13.8.</para>
 
@@ -476,7 +496,7 @@
       <application>tzdata2006g</application> release.</para>
 
     <para>TrustedBSD <application>OpenBSM</application>,
-      version 1.0 alpha 10, an implementation of the documented Sun Basic
+      version 1.0 alpha 12, an implementation of the documented Sun Basic
       Security Module (BSM) Audit API and file format, as well as local
       extensions to support the Mac OS X and FreeBSD operating systems
       has been added.  This also includes command line tools for audit
