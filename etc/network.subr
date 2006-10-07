@@ -41,10 +41,6 @@ ifconfig_up()
 {
 	_cfg=1
 
-	if checkyesno ipv6_enable; then
-		${SYSCTL_W} net.inet6.ip6.auto_linklocal=1
-	fi
-
 	ifconfig_args=`ifconfig_getargs $1`
 	if [ -n "${ifconfig_args}" ]; then
 		ifconfig $1 up
