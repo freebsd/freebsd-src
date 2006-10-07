@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd June 2, 1999
+.Dd October 7, 2006
 .Dt AIO_RETURN 2
 .Os
 .Sh NAME
@@ -47,10 +47,14 @@ The
 .Fn aio_return
 system call
 should only be called once, to obtain the final status of an asynchronous
-I/O operation once
-.Xr aio_error 2
-returns something other than
-.Er EINPROGRESS .
+I/O operation.
+If the error status of the request is
+.Er EINPROGRESS ,
+an undefined value is returned.
+The
+.Fn aio_return
+function should only be called on completion or failure of an
+AIO request.
 .Sh RETURN VALUES
 If the asynchronous I/O request has completed, the status is returned
 as described in
