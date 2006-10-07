@@ -74,6 +74,7 @@
 #include <netinet/ip_fw.h>
 #include <netinet/ip_divert.h>
 #include <netinet/ip_dummynet.h>
+#include <netinet/ip_carp.h>
 #include <netinet/pim.h>
 #include <netinet/tcp.h>
 #include <netinet/tcp_timer.h>
@@ -2282,6 +2283,16 @@ do {									\
 			case IPPROTO_PIM:
 				/* XXX PIM header check? */
 				PULLUP_TO(hlen, ulp, struct pim);
+				break;
+
+			case IPPROTO_CARP:
+				PULLUP_TO(hlen, ulp, struct carp_header);
+				if (((struct carp_header *)ulp)->carp_version !=
+				    CARP_VERSION) 
+					return (IP_FW_DENY);
+				if (((struct carp_header *)ulp)->carp_type !=
+				    CARP_ADVERTISEMENT) 
+					return (IP_FW_DENY);
 				break;
 
 			case IPPROTO_IPV6:	/* RFC 2893 */
