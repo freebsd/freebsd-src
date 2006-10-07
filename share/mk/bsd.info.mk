@@ -145,11 +145,18 @@ ${x:S/$/${ICOMPRESS_EXT}/}:	${x}
 .for x in ${INFO}
 INSTALLINFODIRS+= ${x:S/$/-install/}
 ${x:S/$/-install/}:
+.if !empty(.MAKEFLAGS:M-j)
 	lockf -k ${DESTDIR}${INFODIR}/${INFODIRFILE} \
 	${INSTALLINFO} ${INSTALLINFOFLAGS} \
 	    --defsection=${INFOSECTION} \
 	    --defentry=${INFOENTRY_${x}} \
 	    ${x}.info ${DESTDIR}${INFODIR}/${INFODIRFILE}
+.else
+	${INSTALLINFO} ${INSTALLINFOFLAGS} \
+	    --defsection=${INFOSECTION} \
+	    --defentry=${INFOENTRY_${x}} \
+	    ${x}.info ${DESTDIR}${INFODIR}/${INFODIRFILE}
+.endif
 .endfor
 
 .PHONY: ${INSTALLINFODIRS}
