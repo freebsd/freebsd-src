@@ -97,8 +97,7 @@ linux_proc_init(struct thread *td, pid_t child, int flags)
 			LIST_INIT(&s->threads);
 		}
 		p = pfind(child);
-		if (p == NULL)
-		   	panic("process not found in proc_init\n");
+		KASSERT(p != NULL, ("process not found in proc_init\n"));
 		p->p_emuldata = em;
 		PROC_UNLOCK(p);
 		EMUL_LOCK(&emul_lock);
@@ -182,8 +181,10 @@ linux_proc_exit(void *arg __unused, struct proc *p)
 		int null = 0;
 
 		error = copyout(&null, child_clear_tid, sizeof(null));
-		if (error)
+		if (error) {
+		   	free(em, M_LINUX);
 		   	return;
+		}
 
 		/* futexes stuff */
 		cup.uaddr = child_clear_tid;
