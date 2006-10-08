@@ -512,7 +512,7 @@ files_group(void *retval, void *mdata, va_list ap)
 	}
 	if (rv == NS_SUCCESS && retval != NULL)
 		*(struct group **)retval = grp;
-	else if (*errnop == ERANGE)
+	else if (rv == NS_RETURN && *errnop == ERANGE && st->fp != NULL)
 		fseeko(st->fp, pos, SEEK_SET);
 	return (rv);
 }
@@ -1066,7 +1066,7 @@ fin:
 	}
 	if (rv == NS_SUCCESS && retval != NULL)
 		*(struct group **)retval = grp;
-	else if (*errnop == ERANGE)
+	else if (rv == NS_RETURN && *errnop == ERANGE && st->fp != NULL)
 		fseeko(st->fp, pos, SEEK_SET);
 	return (rv);
 #undef set_lookup_type
