@@ -795,6 +795,12 @@ linux_waitpid(struct thread *td, struct linux_waitpid_args *args)
 		printf(ARGS(waitpid, "%d, %p, %d"),
 		    args->pid, (void *)args->status, args->options);
 #endif
+	/* 
+	 * this is necessary because the test in kern_wait doesnt
+	 * work because we mess with the options here
+	 */
+	if (args->options &~ (WUNTRACED|WNOHANG|WCONTINUED))
+	   	return (EINVAL);
 
 	options = (args->options & (WNOHANG | WUNTRACED));
 	/* WLINUXCLONE should be equal to __WCLONE, but we make sure */
@@ -880,7 +886,7 @@ linux_mknod(struct thread *td, struct linux_mknod_args *args)
 		printf(ARGS(mknod, "%s, %d, %d"), path, args->mode, args->dev);
 #endif
 
-	if (args->mode & S_IFIFO)
+	if (S_ISFIFO(args->mode))
 		error = kern_mkfifo(td, path, UIO_SYSSPACE, args->mode);
 	else
 		error = kern_mknod(td, path, UIO_SYSSPACE, args->mode,
