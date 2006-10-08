@@ -1,6 +1,6 @@
 # $FreeBSD$
 
-LIB=	alias_ftp
+NAME=	ftp
 SRCS=	alias_ftp.c
 
 .include <bsd.lib.mk>

@@ -1,6 +1,6 @@
 # $FreeBSD$
 
-LIB=	alias_smedia
+NAME=	smedia
 SRCS=	alias_smedia.c
 
 .include <bsd.lib.mk>

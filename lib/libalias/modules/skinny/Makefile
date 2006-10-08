@@ -1,6 +1,6 @@
 # $FreeBSD$
 
-LIB=	alias_skinny
+NAME=	skinny
 SRCS=	alias_skinny.c
 
 .include <bsd.lib.mk>

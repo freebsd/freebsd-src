@@ -3,5 +3,6 @@
 .PATH: ${.CURDIR}/../../../../sys/netinet/libalias
 
 SHLIBDIR?= /lib
-SHLIB_MAJOR= 4
+LIB?=   alias_${NAME}
+SHLIB_NAME?=libalias_${NAME}.so
 WARNS?=	1
