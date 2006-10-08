@@ -1,6 +1,6 @@
 # $FreeBSD$
 
-LIB=	alias_cuseeme
+NAME=	cuseeme
 SRCS=	alias_cuseeme.c
 
 .include <bsd.lib.mk>
