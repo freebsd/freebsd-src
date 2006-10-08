@@ -723,7 +723,7 @@ install_plt(Elf_Word *pltgot, Elf_Addr proc)
 void
 allocate_initial_tls(Obj_Entry *objs)
 {
-    register Elf_Addr** tp __asm__("%g7");
+    Elf_Addr* tpval;
 
     /*
      * Fix the size of the static TLS block by using the maximum
@@ -731,7 +731,8 @@ allocate_initial_tls(Obj_Entry *objs)
      * use.
      */
     tls_static_space = tls_last_offset + RTLD_STATIC_TLS_EXTRA;
-    tp = allocate_tls(objs, NULL, 3*sizeof(Elf_Addr), sizeof(Elf_Addr));
+    tpval = allocate_tls(objs, NULL, 3*sizeof(Elf_Addr), sizeof(Elf_Addr));
+    __asm __volatile("mov %0, %%g7" : : "r" (tpval));
 }
 
 void *__tls_get_addr(tls_index *ti)

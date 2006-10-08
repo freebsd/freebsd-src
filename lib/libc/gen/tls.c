@@ -58,6 +58,15 @@ void _rtld_free_tls(void *tls, size_t tcbsize, size_t tcbalign);
 void *__libc_allocate_tls(void *oldtls, size_t tcbsize, size_t tcbalign);
 void __libc_free_tls(void *tls, size_t tcbsize, size_t tcbalign);
 
+#if defined(__ia64__) || defined(__amd64__)
+#define TLS_TCB_ALIGN 16
+#elif defined(__powerpc__) || defined(__i386__) || defined(__arm__) || \
+    defined(__sparc64__)
+#define TLS_TCB_ALIGN sizeof(void *)
+#else
+#error TLS_TCB_ALIGN undefined for target architecture
+#endif
+
 #if defined(__ia64__) || defined(__powerpc__)
 #define TLS_VARIANT_I
 #endif
@@ -299,7 +308,7 @@ _init_tls()
 		}
 	}
 
-	tls = _rtld_allocate_tls(NULL, TLS_TCB_SIZE, 1);
+	tls = _rtld_allocate_tls(NULL, TLS_TCB_SIZE, TLS_TCB_ALIGN);
 
 	_set_tp(tls);
 #endif
