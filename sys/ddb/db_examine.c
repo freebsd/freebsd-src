@@ -176,7 +176,7 @@ db_examine(addr, fmt, count)
 				break;
 			}
 			if (db_print_position() != 0)
-			    db_end_line();
+			    db_end_line(1);
 			break;
 		}
 	    }
