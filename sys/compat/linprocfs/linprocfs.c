@@ -925,6 +925,17 @@ linprocfs_donetdev(PFS_FILL_ARGS)
 }
 
 /*
+ * Filler function for proc/pid_max
+ */
+static int
+linprocfs_dopid_max(PFS_FILL_ARGS)
+{
+	sbuf_printf(sb, "%i\n", PID_MAX);
+
+	return (0);
+}
+
+/*
  * Filler function for proc/scsi/device_info
  */
 static int
@@ -1063,6 +1074,14 @@ linprocfs_init(PFS_INIT_ARGS)
 	    NULL, NULL, PFS_RD);
 	pfs_create_file(dir, "scsi", &linprocfs_doscsiscsi,
 	    NULL, NULL, PFS_RD);
+
+	/* /proc/sys/... */
+	dir = pfs_create_dir(root, "sys", NULL, NULL, 0);
+	/* /proc/sys/kernel/... */
+	dir = pfs_create_dir(dir, "kernel", NULL, NULL, 0);
+	pfs_create_file(dir, "pid_max", &linprocfs_dopid_max,
+	    NULL, NULL, PFS_RD);
+
 	return (0);
 }
 
