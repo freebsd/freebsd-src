@@ -115,7 +115,7 @@ main(int argc, char *argv[])
 			"V:C:q"
 		},
 		{ /* grp  */
-			"V:C:qn:g:h:H:M:pNPY",
+			"V:C:qn:g:h:H:M:opNPY",
 			"V:C:qn:g:Y",
 			"V:C:qn:g:l:h:H:FM:m:NPY",
 			"V:C:qn:g:FPa",
