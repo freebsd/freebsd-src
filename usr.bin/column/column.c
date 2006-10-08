@@ -225,10 +225,10 @@ maketbl()
 		for (coloff = 0, p = *lp; (cols[coloff] = strtok(p, separator));
 		    p = NULL)
 			if (++coloff == maxcols) {
-				if (!(cols = realloc(cols, (u_int)maxcols +
-				    DEFCOLS * sizeof(char *))) ||
+				if (!(cols = realloc(cols, ((u_int)maxcols +
+				    DEFCOLS) * sizeof(char *))) ||
 				    !(lens = realloc(lens,
-				    (u_int)maxcols + DEFCOLS * sizeof(int))))
+				    ((u_int)maxcols + DEFCOLS) * sizeof(int))))
 					err(1, NULL);
 				memset((char *)lens + maxcols * sizeof(int),
 				    0, DEFCOLS * sizeof(int));
