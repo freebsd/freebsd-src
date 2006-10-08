@@ -218,6 +218,10 @@
       security advisory
       <ulink url="http://security.FreeBSD.org/advisories/FreeBSD-SA-06:21.gzip.asc">FreeBSD-SA-06:21.gzip</ulink>. &merged;</para>
 
+    <para>Several vulnerabilities have been fixed in OpenSSH.  More
+      details can be found in security advisory
+      <ulink url="http://security.FreeBSD.org/advisories/FreeBSD-SA-06:22.openssh.asc">FreeBSD-SA-06:22.openssh</ulink>. &merged;</para>
+
     <para>Multiple errors in the OpenSSL &man.crypto.3; library have
       been fixed.  Potential effects are varied, and are documented in
       more detail in security advisory
