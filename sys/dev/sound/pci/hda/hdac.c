@@ -80,7 +80,7 @@
 
 #include "mixer_if.h"
 
-#define HDA_DRV_TEST_REV	"20061007_0030"
+#define HDA_DRV_TEST_REV	"20061009_0031"
 #define HDA_WIDGET_PARSER_REV	1
 
 SND_DECLARE_FILE("$FreeBSD$");
@@ -125,18 +125,35 @@ SND_DECLARE_FILE("$FreeBSD$");
 #define INTEL_VENDORID		0x8086
 #define HDA_INTEL_82801F	HDA_MODEL_CONSTRUCT(INTEL, 0x2668)
 #define HDA_INTEL_82801G	HDA_MODEL_CONSTRUCT(INTEL, 0x27d8)
+#define HDA_INTEL_82801H	HDA_MODEL_CONSTRUCT(INTEL, 0x284b)
+#define HDA_INTEL_63XXESB	HDA_MODEL_CONSTRUCT(INTEL, 0x269a)
 #define HDA_INTEL_ALL		HDA_MODEL_CONSTRUCT(INTEL, 0xffff)
 
 /* Nvidia */
 #define NVIDIA_VENDORID		0x10de
 #define HDA_NVIDIA_MCP51	HDA_MODEL_CONSTRUCT(NVIDIA, 0x026c)
 #define HDA_NVIDIA_MCP55	HDA_MODEL_CONSTRUCT(NVIDIA, 0x0371)
+#define HDA_NVIDIA_MCP61A	HDA_MODEL_CONSTRUCT(NVIDIA, 0x03e4)
+#define HDA_NVIDIA_MCP61B	HDA_MODEL_CONSTRUCT(NVIDIA, 0x03f0)
+#define HDA_NVIDIA_MCP65A	HDA_MODEL_CONSTRUCT(NVIDIA, 0x044a)
+#define HDA_NVIDIA_MCP65B	HDA_MODEL_CONSTRUCT(NVIDIA, 0x044b)
 #define HDA_NVIDIA_ALL		HDA_MODEL_CONSTRUCT(NVIDIA, 0xffff)
 
 /* ATI */
 #define ATI_VENDORID		0x1002
 #define HDA_ATI_SB450		HDA_MODEL_CONSTRUCT(ATI, 0x437b)
+#define HDA_ATI_SB600		HDA_MODEL_CONSTRUCT(ATI, 0x4383)
 #define HDA_ATI_ALL		HDA_MODEL_CONSTRUCT(ATI, 0xffff)
+
+/* VIA */
+#define VIA_VENDORID		0x1106
+#define HDA_VIA_VT82XX		HDA_MODEL_CONSTRUCT(VIA, 0x3288)
+#define HDA_VIA_ALL		HDA_MODEL_CONSTRUCT(VIA, 0xffff)
+
+/* SiS */
+#define SIS_VENDORID		0x1039
+#define HDA_SIS_966		HDA_MODEL_CONSTRUCT(SIS, 0x7502)
+#define HDA_SIS_ALL		HDA_MODEL_CONSTRUCT(SIS, 0xffff)
 
 /* OEM/subvendors */
 
@@ -204,7 +221,7 @@ static const struct {
 	{ "gpio2", HDA_QUIRK_GPIO2 },
 	{ "softpcmvol", HDA_QUIRK_SOFTPCMVOL },
 	{ "fixedrate", HDA_QUIRK_FIXEDRATE },
-	{ "forcestereo", HDA_QUIRK_FORCESTEREO }
+	{ "forcestereo", HDA_QUIRK_FORCESTEREO },
 };
 #define HDAC_QUIRKS_TAB_LEN	\
 		(sizeof(hdac_quirks_tab) / sizeof(hdac_quirks_tab[0]))
@@ -242,13 +259,24 @@ static const struct {
 } hdac_devices[] = {
 	{ HDA_INTEL_82801F,  "Intel 82801F" },
 	{ HDA_INTEL_82801G,  "Intel 82801G" },
+	{ HDA_INTEL_82801H,  "Intel 82801H" },
+	{ HDA_INTEL_63XXESB, "Intel 631x/632xESB" },
 	{ HDA_NVIDIA_MCP51,  "NVidia MCP51" },
 	{ HDA_NVIDIA_MCP55,  "NVidia MCP55" },
+	{ HDA_NVIDIA_MCP61A, "NVidia MCP61A" },
+	{ HDA_NVIDIA_MCP61B, "NVidia MCP61B" },
+	{ HDA_NVIDIA_MCP65A, "NVidia MCP65A" },
+	{ HDA_NVIDIA_MCP65B, "NVidia MCP65B" },
 	{ HDA_ATI_SB450,     "ATI SB450"    },
+	{ HDA_ATI_SB600,     "ATI SB600"    },
+	{ HDA_VIA_VT82XX,    "VIA VT8251/8237A" },
+	{ HDA_SIS_966,       "SiS 966" },
 	/* Unknown */
 	{ HDA_INTEL_ALL,  "Intel (Unknown)"  },
 	{ HDA_NVIDIA_ALL, "NVidia (Unknown)" },
 	{ HDA_ATI_ALL,    "ATI (Unknown)"    },
+	{ HDA_VIA_ALL,    "VIA (Unknown)"    },
+	{ HDA_SIS_ALL,    "SiS (Unknown)"    },
 };
 #define HDAC_DEVICES_LEN (sizeof(hdac_devices) / sizeof(hdac_devices[0]))
 
