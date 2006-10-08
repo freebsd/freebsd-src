@@ -98,13 +98,12 @@ _start(char **ap, void (*cleanup)(void), struct Struct_Obj_Entry *obj __unused,
 				__progname = s + 1;
 	}
 
-	__sparc_utrap_setup();
-
 	if (&_DYNAMIC != NULL)
 		atexit(cleanup);
-	else
+	else {
+		__sparc_utrap_setup();
 		_init_tls();
-
+	}
 #ifdef GCRT
 	atexit(_mcleanup);
 #endif
