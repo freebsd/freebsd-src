@@ -551,6 +551,8 @@ int
 extractfile(char *name)
 {
 	int flags;
+	uid_t uid;
+	gid_t gid;
 	mode_t mode;
 	struct timeval mtimep[2], ctimep[2];
 	struct entry *ep;
@@ -565,6 +567,8 @@ extractfile(char *name)
 	ctimep[0].tv_usec = curfile.atime_nsec / 1000;
 	ctimep[1].tv_sec = curfile.birthtime_sec;
 	ctimep[1].tv_usec = curfile.birthtime_nsec / 1000;
+	uid = curfile.uid;
+	gid = curfile.gid;
 	mode = curfile.mode;
 	flags = curfile.file_flags;
 	switch (mode & IFMT) {
@@ -600,10 +604,11 @@ extractfile(char *name)
 			return (GOOD);
 		}
 		if (linkit(lnkbuf, name, SYMLINK) == GOOD) {
-			(void) lchown(name, curfile.uid, curfile.gid);
+			(void) lchown(name, uid, gid);
 			(void) lchmod(name, mode);
 			(void) lutimes(name, ctimep);
 			(void) lutimes(name, mtimep);
+			(void) lchflags(name, flags);
 			return (GOOD);
 		}
 		return (FAIL);
@@ -614,20 +619,20 @@ extractfile(char *name)
 			skipfile();
 			return (GOOD);
 		}
-		if (uflag && !Nflag)
-			(void)unlink(name);
-		if (mkfifo(name, mode) < 0) {
+		if (uflag)
+			(void) unlink(name);
+		if (mkfifo(name, 0600) < 0) {
 			fprintf(stderr, "%s: cannot create fifo: %s\n",
 			    name, strerror(errno));
 			skipfile();
 			return (FAIL);
 		}
-		(void) chown(name, curfile.uid, curfile.gid);
+		skipfile();
+		(void) chown(name, uid, gid);
 		(void) chmod(name, mode);
 		(void) utimes(name, ctimep);
 		(void) utimes(name, mtimep);
 		(void) chflags(name, flags);
-		skipfile();
 		return (GOOD);
 
 	case IFCHR:
@@ -638,19 +643,20 @@ extractfile(char *name)
 			return (GOOD);
 		}
 		if (uflag)
-			(void)unlink(name);
-		if (mknod(name, mode, (int)curfile.rdev) < 0) {
+			(void) unlink(name);
+		if (mknod(name, (mode & (IFCHR | IFBLK)) | 0600,
+			(int)curfile.rdev) < 0) {
 			fprintf(stderr, "%s: cannot create special file: %s\n",
 			    name, strerror(errno));
 			skipfile();
 			return (FAIL);
 		}
-		(void) chown(name, curfile.uid, curfile.gid);
+		skipfile();
+		(void) chown(name, uid, gid);
 		(void) chmod(name, mode);
 		(void) utimes(name, ctimep);
 		(void) utimes(name, mtimep);
 		(void) chflags(name, flags);
-		skipfile();
 		return (GOOD);
 
 	case IFREG:
@@ -660,21 +666,21 @@ extractfile(char *name)
 			return (GOOD);
 		}
 		if (uflag)
-			(void)unlink(name);
+			(void) unlink(name);
 		if ((ofile = open(name, O_WRONLY | O_CREAT | O_TRUNC,
-		    0666)) < 0) {
+		    0600)) < 0) {
 			fprintf(stderr, "%s: cannot create file: %s\n",
 			    name, strerror(errno));
 			skipfile();
 			return (FAIL);
 		}
-		(void) fchown(ofile, curfile.uid, curfile.gid);
-		(void) fchmod(ofile, mode);
 		getfile(xtrfile, xtrskip);
+		(void) fchown(ofile, uid, gid);
+		(void) fchmod(ofile, mode);
+		(void) futimes(ofile, ctimep);
+		(void) futimes(ofile, mtimep);
+		(void) fchflags(ofile, flags);
 		(void) close(ofile);
-		(void) utimes(name, ctimep);
-		(void) utimes(name, mtimep);
-		(void) chflags(name, flags);
 		return (GOOD);
 	}
 	/* NOTREACHED */
