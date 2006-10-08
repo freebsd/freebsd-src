@@ -1965,8 +1965,6 @@ out:
 	if (ret != 0) {
 		if (smrd != NULL)
 			free(smrd, M_DEVBUF);
-		if (smwr != NULL)
-			free(smwr, M_DEVBUF);
 		if ((sg != NULL) && SLIST_EMPTY(&sg->members)) {
 			sg_ids[2] = sg->id;
 			SLIST_REMOVE(&snd_pcm_syncgroups, sg, pcmchan_syncgroup, link);
