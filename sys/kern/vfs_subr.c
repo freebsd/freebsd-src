@@ -121,7 +121,8 @@ SYSCTL_INT(_debug, OID_AUTO, mpsafevfs, CTLFLAG_RD, &mpsafe_vfs, 0,
 
 /*
  * Number of vnodes in existence.  Increased whenever getnewvnode()
- * allocates a new vnode, never decreased.
+ * allocates a new vnode, decreased on vdestroy() called on VI_DOOMed
+ * vnode.
  */
 static unsigned long	numvnodes;
 
