@@ -832,7 +832,7 @@ out:
 	}
 	UFS_UNLOCK(ump);
 	MNT_ILOCK(mp);
-	mp->mnt_flag = flag;
+	mp->mnt_flag = (mp->mnt_flag & MNT_QUOTA) | (flag & ~MNT_QUOTA);
 	MNT_IUNLOCK(mp);
 	if (error)
 		(void) ffs_truncate(vp, (off_t)0, 0, NOCRED, td);
