@@ -1424,8 +1424,7 @@ softdep_mount(devvp, mp, fs, cred)
 	int error, cyl;
 
 	MNT_ILOCK(mp);
-	mp->mnt_flag &= ~MNT_ASYNC;
-	mp->mnt_flag |= MNT_SOFTDEP;
+	mp->mnt_flag = (mp->mnt_flag & ~MNT_ASYNC) | MNT_SOFTDEP;
 	MNT_IUNLOCK(mp);
 	ump = VFSTOUFS(mp);
 	LIST_INIT(&ump->softdep_workitem_pending);

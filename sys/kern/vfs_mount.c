@@ -915,10 +915,9 @@ vfs_domount(
 	 * Set the mount level flags.
 	 */
 	MNT_ILOCK(mp);
-	if (fsflags & MNT_RDONLY)
-		mp->mnt_flag |= MNT_RDONLY;
-	mp->mnt_flag &=~ MNT_UPDATEMASK;
-	mp->mnt_flag |= fsflags & (MNT_UPDATEMASK | MNT_FORCE | MNT_ROOTFS);
+	mp->mnt_flag = (mp->mnt_flag & ~MNT_UPDATEMASK) |
+		(fsflags & (MNT_UPDATEMASK | MNT_FORCE | MNT_ROOTFS |
+			    MNT_RDONLY));
 	MNT_IUNLOCK(mp);
 	/*
 	 * Mount the filesystem.
@@ -950,11 +949,12 @@ vfs_domount(
 	mp->mnt_optnew = NULL;
 	if (mp->mnt_flag & MNT_UPDATE) {
 		MNT_ILOCK(mp);
-		mp->mnt_flag &=
-		    ~(MNT_UPDATE | MNT_RELOAD | MNT_FORCE | MNT_SNAPSHOT);
 		if (error)
 			mp->mnt_flag = (mp->mnt_flag & MNT_QUOTA) |
 				(flag & ~MNT_QUOTA);
+		else
+			mp->mnt_flag &=	~(MNT_UPDATE | MNT_RELOAD |
+					  MNT_FORCE | MNT_SNAPSHOT);
 		MNT_IUNLOCK(mp);
 		if ((mp->mnt_flag & MNT_RDONLY) == 0) {
 			if (mp->mnt_syncer == NULL)
