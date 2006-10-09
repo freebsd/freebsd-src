@@ -35,7 +35,6 @@ __FBSDID("$FreeBSD$");
 #include <machine/metadata.h>
 #include <machine/tte.h>
 #include <machine/upa.h>
-#include <machine/hypervisor_api.h>
 
 #include "bootstrap.h"
 #include "libofw.h"
