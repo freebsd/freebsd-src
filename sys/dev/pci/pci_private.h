@@ -49,6 +49,10 @@ int		pci_read_ivar(device_t dev, device_t child, int which,
 		    uintptr_t *result);
 int		pci_write_ivar(device_t dev, device_t child, int which,
 		    uintptr_t value);
+int		pci_get_vpd_ident_method(device_t dev, device_t child,
+		    const char **identptr);
+int		pci_get_vpd_readonly_method(device_t dev, device_t child,
+		    const char *kw, const char **vptr);
 int		pci_set_powerstate_method(device_t dev, device_t child,
 		    int state);
 int		pci_get_powerstate_method(device_t dev, device_t child);

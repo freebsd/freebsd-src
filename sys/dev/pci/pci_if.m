@@ -56,6 +56,19 @@ METHOD int set_powerstate {
 	int		state;
 };
 
+METHOD int get_vpd_ident {
+	device_t	dev;
+	device_t	child;
+	const char	**identptr;
+};
+
+METHOD int get_vpd_readonly {
+	device_t	dev;
+	device_t	child;
+	const char	*kw;
+	const char	**vptr;
+};
+
 METHOD int enable_busmaster {
 	device_t	dev;
 	device_t	child;
