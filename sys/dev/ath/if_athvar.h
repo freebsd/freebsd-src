@@ -418,7 +418,7 @@ void	ath_intr(void *);
 	((*(_ah)->ah_getDiagState)((_ah), (_id), \
 		(_indata), (_insize), (_outdata), (_outsize)))
 #define	ath_hal_getfatalstate(_ah, _outdata, _outsize) \
-	ath_hal_getdiagstate(_ah, 27, NULL, 0, (void **)(_outdata), _outsize)
+	ath_hal_getdiagstate(_ah, 29, NULL, 0, (void **)(_outdata), _outsize)
 #define	ath_hal_setuptxqueue(_ah, _type, _irq) \
 	((*(_ah)->ah_setupTxQueue)((_ah), (_type), (_irq)))
 #define	ath_hal_resettxqueue(_ah, _q) \
