@@ -126,7 +126,9 @@ AcpiOsReadPort(ACPI_IO_ADDRESS InPort, UINT32 *Value, UINT32 Width)
 
     error = acpi_os_check_port(InPort, Width);
     if (error != 0) {
-	printf("acpi: bad read from port 0x%03x (%d)\n", (int)InPort, Width);
+	if (bootverbose)
+		printf("acpi: bad read from port 0x%03x (%d)\n",
+			(int)InPort, Width);
 	if (error == -1)
 	    return (AE_BAD_PARAMETER);
     }
@@ -159,8 +161,9 @@ AcpiOsWritePort(ACPI_IO_ADDRESS OutPort, UINT32	Value, UINT32 Width)
 
     error = acpi_os_check_port(OutPort, Width);
     if (error != 0) {
-	printf("acpi: bad write to port 0x%03x (%d), val %#x\n", (int)OutPort,
-	    Width, Value);
+	if (bootverbose)
+		printf("acpi: bad write to port 0x%03x (%d), val %#x\n",
+			(int)OutPort, Width, Value);
 	if (error == -1)
 	    return (AE_BAD_PARAMETER);
     }
