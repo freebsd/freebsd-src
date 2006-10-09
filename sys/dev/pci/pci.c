@@ -41,7 +41,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/kernel.h>
 #include <sys/queue.h>
 #include <sys/sysctl.h>
-#include <sys/types.h>
+#include <sys/endian.h>
 
 #include <vm/vm.h>
 #include <vm/pmap.h>
@@ -90,6 +90,13 @@ static int		pci_modevent(module_t mod, int what, void *arg);
 static void		pci_hdrtypedata(device_t pcib, int b, int s, int f, 
 			    pcicfgregs *cfg);
 static void		pci_read_extcap(device_t pcib, pcicfgregs *cfg);
+static uint32_t		pci_read_vpd_reg(device_t pcib, pcicfgregs *cfg,
+			    int reg);
+#if 0
+static void		pci_write_vpd_reg(device_t pcib, pcicfgregs *cfg,
+			    int reg, uint32_t data);
+#endif
+static void		pci_read_vpd(device_t pcib, pcicfgregs *cfg);
 
 static device_method_t pci_methods[] = {
 	/* Device interface */
@@ -127,6 +134,8 @@ static device_method_t pci_methods[] = {
 	DEVMETHOD(pci_disable_busmaster, pci_disable_busmaster_method),
 	DEVMETHOD(pci_enable_io,	pci_enable_io_method),
 	DEVMETHOD(pci_disable_io,	pci_disable_io_method),
+	DEVMETHOD(pci_get_vpd_ident,	pci_get_vpd_ident_method),
+	DEVMETHOD(pci_get_vpd_readonly,	pci_get_vpd_readonly_method),
 	DEVMETHOD(pci_get_powerstate,	pci_get_powerstate_method),
 	DEVMETHOD(pci_set_powerstate,	pci_set_powerstate_method),
 	DEVMETHOD(pci_assign_interrupt,	pci_assign_interrupt_method),
@@ -344,7 +353,6 @@ pci_hdrtypedata(device_t pcib, int b, int s, int f, pcicfgregs *cfg)
 }
 
 /* read configuration header into pcicfgregs structure */
-
 struct pci_devinfo *
 pci_read_device(device_t pcib, int b, int s, int f, size_t size)
 {
@@ -428,7 +436,7 @@ pci_read_extcap(device_t pcib, pcicfgregs *cfg)
 		ptrptr = PCIR_CAP_PTR;
 		break;
 	case 2:
-		ptrptr = PCIR_CAP_PTR_2;
+		ptrptr = PCIR_CAP_PTR_2;	/* cardbus capabilities ptr */
 		break;
 	default:
 		return;		/* no extended capabilities support */
@@ -468,11 +476,302 @@ pci_read_extcap(device_t pcib, pcicfgregs *cfg)
 				cfg->msi.msi_data = PCIR_MSI_DATA;
 			cfg->msi.msi_msgnum = 1 << ((cfg->msi.msi_ctrl &
 						     PCIM_MSICTRL_MMC_MASK)>>1);
+			break;
+		case PCIY_VPD:		/* PCI Vital Product Data */
+			cfg->vpd.vpd_reg = ptr;
+			pci_read_vpd(pcib, cfg);
+			break;
 		default:
 			break;
 		}
 	}
+/* REG use carry through to next functions */
+}
+
+/*
+ * PCI Vital Product Data
+ */
+static uint32_t
+pci_read_vpd_reg(device_t pcib, pcicfgregs *cfg, int reg)
+{
+#define WREG(n, v, w)	PCIB_WRITE_CONFIG(pcib, cfg->bus, cfg->slot, cfg->func, n, v, w)
+
+	KASSERT((reg & 3) == 0, ("VPD register must by 4 byte aligned"));
+
+	WREG(cfg->vpd.vpd_reg + 2, reg, 2);
+	while ((REG(cfg->vpd.vpd_reg + 2, 2) & 0x8000) != 0x8000)
+		DELAY(1);	/* limit looping */
+
+	return REG(cfg->vpd.vpd_reg + 4, 4);
+}
+
+#if 0
+static void
+pci_write_vpd_reg(device_t pcib, pcicfgregs *cfg, int reg, uint32_t data)
+{
+	KASSERT((reg & 3) == 0, ("VPD register must by 4 byte aligned"));
+
+	WREG(cfg->vpd.vpd_reg + 4, data, 4);
+	WREG(cfg->vpd.vpd_reg + 2, reg | 0x8000, 2);
+	while ((REG(cfg->vpd.vpd_reg + 2, 2) & 0x8000) == 0x8000)
+		DELAY(1);	/* limit looping */
+
+	return;
+}
+#endif
+#undef WREG
+
+struct vpd_readstate {
+	device_t	pcib;
+	pcicfgregs	*cfg;
+	uint32_t	val;
+	int		bytesinval;
+	int		off;
+	uint8_t		cksum;
+};
+
+static uint8_t
+vpd_nextbyte(struct vpd_readstate *vrs)
+{
+	uint8_t byte;
+
+	if (vrs->bytesinval == 0) {
+		vrs->val = le32toh(pci_read_vpd_reg(vrs->pcib, vrs->cfg,
+		    vrs->off));
+		vrs->off += 4;
+		byte = vrs->val & 0xff;
+		vrs->bytesinval = 3;
+	} else {
+		vrs->val = vrs->val >> 8;
+		byte = vrs->val & 0xff;
+		vrs->bytesinval--;
+	}
+
+	vrs->cksum += byte;
+	return byte;
+}
+
+static void
+pci_read_vpd(device_t pcib, pcicfgregs *cfg)
+{
+	struct vpd_readstate vrs;
+	int state;
+	int name;
+	int remain;
+	int end;
+	int i;
+	uint8_t byte;
+	int alloc, off;		/* alloc/off for RO/W arrays */
+	int cksumvalid;
+	int dflen;
+
+	/* init vpd reader */
+	vrs.bytesinval = 0;
+	vrs.off = 0;
+	vrs.pcib = pcib;
+	vrs.cfg = cfg;
+	vrs.cksum = 0;
+
+	state = 0;
+	name = remain = i = 0;	/* shut up stupid gcc */
+	alloc = off = 0;	/* shut up stupid gcc */
+	dflen = 0;		/* shut up stupid gcc */
+	end = 0;
+	cksumvalid = -1;
+	for (; !end;) {
+		byte = vpd_nextbyte(&vrs);
+#if 0
+		printf("vpd: val: %#x, off: %d, bytesinval: %d, byte: %#hhx, " \
+		    "state: %d, remain: %d, name: %#x, i: %d\n", vrs.val,
+		    vrs.off, vrs.bytesinval, byte, state, remain, name, i);
+#endif
+		switch (state) {
+		case 0:		/* item name */
+			if (byte & 0x80) {
+				remain = vpd_nextbyte(&vrs);
+				remain |= vpd_nextbyte(&vrs) << 8;
+				if (remain > (0x7f*4 - vrs.off)) {
+					end = 1;
+					printf(
+			    "pci%d:%d:%d: invalid vpd data, remain %#x\n",
+					    cfg->bus, cfg->slot, cfg->func,
+					    remain);
+				}
+				name = byte & 0x7f;
+			} else {
+				remain = byte & 0x7;
+				name = (byte >> 3) & 0xf;
+			}
+			switch (name) {
+			case 0x2:	/* String */
+				cfg->vpd.vpd_ident = malloc(remain + 1,
+				    M_DEVBUF, M_WAITOK);
+				i = 0;
+				state = 1;
+				break;
+			case 0xf:	/* End */
+				end = 1;
+				state = -1;
+				break;
+			case 0x10:	/* VPD-R */
+				alloc = 8;
+				off = 0;
+				cfg->vpd.vpd_ros = malloc(alloc *
+				    sizeof *cfg->vpd.vpd_ros, M_DEVBUF,
+				    M_WAITOK);
+				state = 2;
+				break;
+			case 0x11:	/* VPD-W */
+				alloc = 8;
+				off = 0;
+				cfg->vpd.vpd_w = malloc(alloc *
+				    sizeof *cfg->vpd.vpd_w, M_DEVBUF,
+				    M_WAITOK);
+				state = 5;
+				break;
+			default:	/* XXX - unimplemented */
+				state = 4;
+				break;
+			}
+			break;
+
+		case 1:	/* Identifier String */
+			cfg->vpd.vpd_ident[i++] = byte;
+			remain--;
+			if (remain == 0)  {
+				cfg->vpd.vpd_ident[i] = '\0';
+				state = 0;
+			}
+			break;
+
+		case 2:	/* VPD-R Keyword Header */
+			if (off == alloc) {
+				cfg->vpd.vpd_ros = reallocf(cfg->vpd.vpd_ros,
+				    (alloc *= 2) * sizeof *cfg->vpd.vpd_ros,
+				    M_DEVBUF, M_WAITOK);
+			}
+			cfg->vpd.vpd_ros[off].keyword[0] = byte;
+			cfg->vpd.vpd_ros[off].keyword[1] = vpd_nextbyte(&vrs);
+			dflen = vpd_nextbyte(&vrs);
+			cfg->vpd.vpd_ros[off].value = malloc((dflen + 1) *
+			    sizeof *cfg->vpd.vpd_ros[off].value,
+			    M_DEVBUF, M_WAITOK);
+			remain -= 3;
+			i = 0;
+			state = 3;
+			break;
+
+		case 3:	/* VPD-R Keyword Value */
+			cfg->vpd.vpd_ros[off].value[i++] = byte;
+			if (strncmp(cfg->vpd.vpd_ros[off].keyword,
+			    "RV", 2) == 0 && cksumvalid == -1) {
+				if (vrs.cksum == 0)
+					cksumvalid = 1;
+				else {
+					printf(
+				    "pci%d:%d:%d: bad VPD cksum, remain %hhu\n",
+					    cfg->bus, cfg->slot, cfg->func,
+					    vrs.cksum);
+					cksumvalid = 0;
+				}
+			}
+			dflen--;
+			remain--;
+			if (dflen == 0)
+				cfg->vpd.vpd_ros[off++].value[i++] = '\0';
+			if (dflen == 0 && remain == 0) {
+				cfg->vpd.vpd_rocnt = off;
+				cfg->vpd.vpd_ros = reallocf(cfg->vpd.vpd_ros,
+				    off * sizeof *cfg->vpd.vpd_ros,
+				    M_DEVBUF, M_WAITOK);
+				state = 0;
+			} else if (dflen == 0)
+				state = 2;
+			break;
+
+		case 4:
+			remain--;
+			if (remain == 0)
+				state = 0;
+			break;
+
+		case 5:	/* VPD-W Keyword Header */
+			if (off == alloc) {
+				cfg->vpd.vpd_w = reallocf(cfg->vpd.vpd_w,
+				    (alloc *= 2) * sizeof *cfg->vpd.vpd_w,
+				    M_DEVBUF, M_WAITOK);
+			}
+			cfg->vpd.vpd_w[off].keyword[0] = byte;
+			cfg->vpd.vpd_w[off].keyword[1] = vpd_nextbyte(&vrs);
+			cfg->vpd.vpd_w[off].len = dflen = vpd_nextbyte(&vrs);
+			cfg->vpd.vpd_w[off].start = vrs.off - vrs.bytesinval;
+			cfg->vpd.vpd_w[off].value = malloc((dflen + 1) *
+			    sizeof *cfg->vpd.vpd_w[off].value,
+			    M_DEVBUF, M_WAITOK);
+			remain -= 3;
+			i = 0;
+			state = 6;
+			break;
+
+		case 6:	/* VPD-W Keyword Value */
+			cfg->vpd.vpd_w[off].value[i++] = byte;
+			dflen--;
+			remain--;
+			if (dflen == 0)
+				cfg->vpd.vpd_w[off++].value[i++] = '\0';
+			if (dflen == 0 && remain == 0) {
+				cfg->vpd.vpd_wcnt = off;
+				cfg->vpd.vpd_w = reallocf(cfg->vpd.vpd_w,
+				    off * sizeof *cfg->vpd.vpd_w,
+				    M_DEVBUF, M_WAITOK);
+				state = 0;
+			} else if (dflen == 0)
+				state = 5;
+			break;
+
+		default:
+			printf("pci%d:%d:%d: invalid state: %d\n",
+			    cfg->bus, cfg->slot, cfg->func, state);
+			end = 1;
+			break;
+		}
+	}
 #undef REG
+}
+
+int
+pci_get_vpd_ident_method(device_t dev, device_t child, const char **identptr)
+{
+	struct pci_devinfo *dinfo = device_get_ivars(child);
+	pcicfgregs *cfg = &dinfo->cfg;
+
+	*identptr = cfg->vpd.vpd_ident;
+
+	if (*identptr == NULL)
+		return ENXIO;
+
+	return 0;
+}
+
+int
+pci_get_vpd_readonly_method(device_t dev, device_t child, const char *kw,
+	const char **vptr)
+{
+	struct pci_devinfo *dinfo = device_get_ivars(child);
+	pcicfgregs *cfg = &dinfo->cfg;
+	int i;
+
+	for (i = 0; i < cfg->vpd.vpd_rocnt; i++)
+		if (memcmp(kw, cfg->vpd.vpd_ros[i].keyword,
+		    sizeof cfg->vpd.vpd_ros[i].keyword) == 0) {
+			*vptr = cfg->vpd.vpd_ros[i].value;
+		}
+
+	if (i != cfg->vpd.vpd_rocnt)
+		return 0;
+
+	*vptr = NULL;
+	return ENXIO;
 }
 
 /*
@@ -532,9 +831,19 @@ int
 pci_freecfg(struct pci_devinfo *dinfo)
 {
 	struct devlist *devlist_head;
+	int i;
 
 	devlist_head = &pci_devq;
 
+	if (dinfo->cfg.vpd.vpd_reg) {
+		free(dinfo->cfg.vpd.vpd_ident, M_DEVBUF);
+		for (i = 0; i < dinfo->cfg.vpd.vpd_rocnt; i++)
+			free(dinfo->cfg.vpd.vpd_ros[i].value, M_DEVBUF);
+		free(dinfo->cfg.vpd.vpd_ros, M_DEVBUF);
+		for (i = 0; i < dinfo->cfg.vpd.vpd_wcnt; i++)
+			free(dinfo->cfg.vpd.vpd_w[i].value, M_DEVBUF);
+		free(dinfo->cfg.vpd.vpd_w, M_DEVBUF);
+	}
 	STAILQ_REMOVE(devlist_head, dinfo, pci_devinfo, pci_links);
 	free(dinfo, M_DEVBUF);
 
@@ -766,6 +1075,8 @@ pci_disable_io_method(device_t dev, device_t child, int space)
 void
 pci_print_verbose(struct pci_devinfo *dinfo)
 {
+	int i;
+
 	if (bootverbose) {
 		pcicfgregs *cfg = &dinfo->cfg;
 
@@ -793,6 +1104,31 @@ pci_print_verbose(struct pci_devinfo *dinfo)
 			    cfg->pp.pp_cap & PCIM_PCAP_D1SUPP ? " D1" : "",
 			    cfg->pp.pp_cap & PCIM_PCAP_D2SUPP ? " D2" : "",
 			    status & PCIM_PSTAT_DMASK);
+		}
+		if (cfg->vpd.vpd_reg) {
+			printf("\tVPD Ident: %s\n", cfg->vpd.vpd_ident);
+			for (i = 0; i < cfg->vpd.vpd_rocnt; i++) {
+				struct vpd_readonly *vrop;
+				vrop = &cfg->vpd.vpd_ros[i];
+				if (strncmp("CP", vrop->keyword, 2) == 0)
+					printf("CP: id %d, BAR%d, off %#x\n",
+					    vrop->value[0], vrop->value[1],
+					    le16toh(
+					      *(uint16_t *)&vrop->value[2]));
+				else if (strncmp("RV", vrop->keyword, 2) == 0)
+					printf("RV: %#hhx\n", vrop->value[0]);
+				else 
+					printf("\t%.2s: %s\n", vrop->keyword,
+					    vrop->value);
+			}
+			for (i = 0; i < cfg->vpd.vpd_wcnt; i++) {
+				struct vpd_write *vwp;
+				vwp = &cfg->vpd.vpd_w[i];
+				if (strncmp("RW", vwp->keyword, 2) != 0)
+					printf("\t%.2s(%#x-%#x): %s\n",
+					    vwp->keyword, vwp->start,
+					    vwp->start + vwp->len, vwp->value);
+			}
 		}
 		if (cfg->msi.msi_data) {
 			int ctrl;
