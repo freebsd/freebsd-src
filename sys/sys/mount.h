@@ -155,7 +155,7 @@ struct mount {
 	struct mtx	mnt_mtx;		/* mount structure interlock */
 #define	mnt_startzero2	mnt_writeopcount
 	int		mnt_writeopcount;	/* (i) write syscalls pending */
-	u_int		mnt_flag;		/* flags shared with user */
+	u_int		mnt_flag;		/* (i) flags shared with user */
 	struct vfsoptlist *mnt_opt;		/* current mount options */
 	struct vfsoptlist *mnt_optnew;		/* new options passed to fs */
 	int		mnt_kern_flag;		/* (i) kernel only flags */
