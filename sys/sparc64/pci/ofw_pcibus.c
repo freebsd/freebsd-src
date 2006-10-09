@@ -46,7 +46,9 @@ __FBSDID("$FreeBSD$");
 
 #include <machine/bus.h>
 #include <machine/bus_common.h>
+#ifndef SUN4V
 #include <machine/cache.h>
+#endif
 #include <machine/iommureg.h>
 #include <machine/resource.h>
 
@@ -123,8 +125,10 @@ ofw_pcibus_probe(device_t dev)
 static void
 ofw_pcibus_setup_device(device_t bridge, u_int busno, u_int slot, u_int func)
 {
-	u_int lat, clnsz;
-
+	u_int lat;
+#ifndef SUN4V
+	u_int clnsz;
+#endif
 	/*
 	 * Initialize the latency timer register for busmaster devices to work
 	 * properly. This is another task which the firmware does not always
@@ -146,6 +150,7 @@ ofw_pcibus_setup_device(device_t bridge, u_int busno, u_int slot, u_int func)
 		    PCIR_LATTIMER, min(lat, 255), 1);
 	}
 
+#ifndef SUN4V
 	/*
 	 * Compute a value to write into the cache line size register.
 	 * The role of the streaming cache is unclear in write invalidate
@@ -158,6 +163,7 @@ ofw_pcibus_setup_device(device_t bridge, u_int busno, u_int slot, u_int func)
 	PCIB_WRITE_CONFIG(bridge, busno, slot, func, PCIR_CACHELNSZ,
 	    clnsz / 4, 1);
 
+#endif
 	/*
 	 * The preset in the intline register is usually wrong. Reset it to 255,
 	 * so that the PCI code will reroute the interrupt if needed.

@@ -814,3 +814,36 @@ OF_chain(void *virt, u_int size,
 	entry(0, 0, openfirmware, arg, len);
 }
 #endif
+
+
+/*
+ * Extensions added for sun4v support
+ *
+ */
+
+/*
+ * This interface allows the client to safely take over the %tba by
+ * the prom's service. The prom will take care of the quiescence of
+ * interrupts and handle any pending soft interrupts.
+ * This call also sets the MMU fault status area for the cpu.
+ */
+void
+OF_set_mmfsa_traptable(void *tba_addr, uint64_t mmfsa_ra)
+{
+        static struct {
+                cell_t   name;
+                cell_t   nargs;
+                cell_t   nreturns;
+                cell_t   tba_addr;
+                cell_t   mmfsa_ra;
+        } args = {
+                (cell_t)"SUNW,set-trap-table",
+                2,
+                0,
+        };
+
+        args.tba_addr = p1275_ptr2cell(tba_addr);
+        args.mmfsa_ra = p1275_ptr2cell(mmfsa_ra);
+        openfirmware(&args);
+}
+
