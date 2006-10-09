@@ -298,7 +298,7 @@ hid_interrupt(bthid_session_p s, uint8_t *data, int32_t len)
 				val = 0x68;
 				break;
 
-			case 0227: /* WWW Refresh */
+			case 0x227: /* WWW Refresh */
 				val = 0x67;
 				break;
 
