@@ -4,6 +4,10 @@
 LIB=	kvm
 SHLIBDIR?= /lib
 CFLAGS+=-DLIBC_SCCS -I${.CURDIR}
+.if ${TARGET} == "sun4v"
+CFLAGS+=-DSUN4V
+.endif
+
 SRCS=	kvm.c kvm_${MACHINE_ARCH}.c kvm_file.c kvm_getloadavg.c \
 	kvm_getswapinfo.c kvm_proc.c
 .if ${MACHINE_ARCH} == "amd64" || ${MACHINE_ARCH} == "i386"
