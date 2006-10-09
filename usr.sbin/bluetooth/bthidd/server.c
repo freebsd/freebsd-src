@@ -1,7 +1,9 @@
 /*
  * server.c
- *
- * Copyright (c) 2004 Maksim Yevmenkin <m_evmenkin@yahoo.com>
+ */
+
+/*-
+ * Copyright (c) 2006 Maksim Yevmenkin <m_evmenkin@yahoo.com>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -25,13 +27,14 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: server.c,v 1.7 2004/11/17 21:59:42 max Exp $
+ * $Id: server.c,v 1.9 2006/09/07 21:06:53 max Exp $
  * $FreeBSD$
  */
 
 #include <sys/queue.h>
 #include <assert.h>
 #include <bluetooth.h>
+#include <dev/vkbd/vkbd_var.h>
 #include <errno.h>
 #include <fcntl.h>
 #include <stdio.h>
@@ -40,21 +43,21 @@
 #include <syslog.h>
 #include <unistd.h>
 #include <usbhid.h>
-#include "bthidd.h"
 #include "bthid_config.h"
+#include "bthidd.h"
 #include "kbd.h"
 
 #undef	max
 #define	max(x, y)	(((x) > (y))? (x) : (y))
 
-static int	server_accept (bthid_server_p srv, int fd);
-static int	server_process(bthid_server_p srv, int fd);
+static int32_t	server_accept (bthid_server_p srv, int32_t fd);
+static int32_t	server_process(bthid_server_p srv, int32_t fd);
 
 /*
  * Initialize server
  */
 
-int
+int32_t
 server_init(bthid_server_p srv)
 {
 	struct sockaddr_l2cap	l2addr;
@@ -66,25 +69,6 @@ server_init(bthid_server_p srv)
 	FD_ZERO(&srv->wfdset);
 	LIST_INIT(&srv->sessions);
 
-	/* Allocate HID keycodes buffer */
-	srv->keys = bit_alloc(kbd_maxkey());
-	if (srv->keys == NULL) {
-		syslog(LOG_ERR, "Could not allocate HID keys buffer");
-		return (-1);
-	}
-	memset(srv->keys, 0, bitstr_size(kbd_maxkey()));
-
-	/* Get wired keyboard index (if was not specified) */
-	if (srv->windex == -1) {
-		srv->windex = kbd_get_index("/dev/console");
-		if (srv->windex < 0) {
-			syslog(LOG_ERR, "Could not open get wired keyboard " \
-				"index. %s (%d)", strerror(errno), errno);
-			free(srv->keys);
-			return (-1);
-		}
-	}
-
 	/* Open /dev/consolectl */
 	srv->cons = open("/dev/consolectl", O_RDWR);
 	if (srv->cons < 0) {
@@ -93,24 +77,12 @@ server_init(bthid_server_p srv)
 		return (-1);
 	}
 
-	/* Open /dev/vkbdctl */
-	srv->vkbd = open("/dev/vkbdctl", O_RDWR);
-	if (srv->vkbd < 0) {
-		syslog(LOG_ERR, "Could not open /dev/vkbdctl. %s (%d)",
-			strerror(errno), errno);
-		close(srv->cons);
-		free(srv->keys);
-		return (-1);
-	}
-
 	/* Create control socket */
 	srv->ctrl = socket(PF_BLUETOOTH, SOCK_SEQPACKET, BLUETOOTH_PROTO_L2CAP);
 	if (srv->ctrl < 0) {
 		syslog(LOG_ERR, "Could not create control L2CAP socket. " \
 			"%s (%d)", strerror(errno), errno);
-		close(srv->vkbd);
 		close(srv->cons);
-		free(srv->keys);
 		return (-1);
 	}
 
@@ -123,9 +95,7 @@ server_init(bthid_server_p srv)
 		syslog(LOG_ERR, "Could not bind control L2CAP socket. " \
 			"%s (%d)", strerror(errno), errno);
 		close(srv->ctrl);
-		close(srv->vkbd);
 		close(srv->cons);
-		free(srv->keys);
 		return (-1);
 	}
 
@@ -133,9 +103,7 @@ server_init(bthid_server_p srv)
 		syslog(LOG_ERR, "Could not listen on control L2CAP socket. " \
 			"%s (%d)", strerror(errno), errno);
 		close(srv->ctrl);
-		close(srv->vkbd);
 		close(srv->cons);
-		free(srv->keys);
 		return (-1);
 	}
 
@@ -145,9 +113,7 @@ server_init(bthid_server_p srv)
 		syslog(LOG_ERR, "Could not create interrupt L2CAP socket. " \
 			"%s (%d)", strerror(errno), errno);
 		close(srv->ctrl);
-		close(srv->vkbd);
 		close(srv->cons);
-		free(srv->keys);
 		return (-1);
 	}
 
@@ -158,9 +124,7 @@ server_init(bthid_server_p srv)
 			"%s (%d)", strerror(errno), errno);
 		close(srv->intr);
 		close(srv->ctrl);
-		close(srv->vkbd);
 		close(srv->cons);
-		free(srv->keys);
 		return (-1);
 	}
 
@@ -169,9 +133,7 @@ server_init(bthid_server_p srv)
 			"%s (%d)", strerror(errno), errno);
 		close(srv->intr);
 		close(srv->ctrl);
-		close(srv->vkbd);
 		close(srv->cons);
-		free(srv->keys);
 		return (-1);
 	}
 
@@ -192,14 +154,11 @@ server_shutdown(bthid_server_p srv)
 	assert(srv != NULL);
 
 	close(srv->cons);
-	close(srv->vkbd);
 	close(srv->ctrl);
 	close(srv->intr);
 
 	while (!LIST_EMPTY(&srv->sessions))
 		session_close(LIST_FIRST(&srv->sessions));
-
-	free(srv->keys);
 
 	memset(srv, 0, sizeof(*srv));
 }
@@ -208,12 +167,12 @@ server_shutdown(bthid_server_p srv)
  * Do one server iteration
  */
 
-int
+int32_t
 server_do(bthid_server_p srv)
 {
 	struct timeval	tv;
 	fd_set		rfdset, wfdset;
-	int		n, fd;
+	int32_t		n, fd;
 
 	assert(srv != NULL);
 
@@ -258,13 +217,14 @@ server_do(bthid_server_p srv)
  * Accept new connection 
  */
 
-static int
-server_accept(bthid_server_p srv, int fd)
+static int32_t
+server_accept(bthid_server_p srv, int32_t fd)
 {
-	bthid_session_p		s = NULL;
-	hid_device_p		d = NULL;
+	bthid_session_p		s;
+	hid_device_p		d;
 	struct sockaddr_l2cap	l2addr;
-	int			len, new_fd;
+	int32_t			new_fd;
+	socklen_t		len;
 
 	len = sizeof(l2addr);
 	if ((new_fd = accept(fd, (struct sockaddr *) &l2addr, &len)) < 0) {
@@ -274,26 +234,25 @@ server_accept(bthid_server_p srv, int fd)
 		return (-1);
 	}
 
+	/* Is device configured? */
+	if ((d = get_hid_device(&l2addr.l2cap_bdaddr)) == NULL) {
+		syslog(LOG_ERR, "Rejecting %s connection from %s. " \
+			"Device not configured",
+			(fd == srv->ctrl)? "control" : "interrupt",
+			bt_ntoa(&l2addr.l2cap_bdaddr, NULL));
+		close(new_fd);
+		return (-1);
+	}
+
 	/* Check if we have session for the device */
 	if ((s = session_by_bdaddr(srv, &l2addr.l2cap_bdaddr)) == NULL) {
-		/* Is device configured? */
-		if ((d = get_hid_device(&l2addr.l2cap_bdaddr)) == NULL) {
-			syslog(LOG_ERR, "Rejecting %s connection from %s. " \
-				"Device not configured",
-				(fd == srv->ctrl)? "control" : "interrupt",
-				bt_ntoa(&l2addr.l2cap_bdaddr, NULL));
-			close(new_fd);
-			return (-1);
-		}
-
 		d->new_device = 0; /* reset new device flag */
 		write_hids_file();
 
 		/* Create new inbound session */
-		if ((s = session_open(srv, &l2addr.l2cap_bdaddr)) == NULL) {
-			syslog(LOG_CRIT, "Could not open inbound session " \
-				"for %s. Not enough memory",
-				bt_ntoa(&l2addr.l2cap_bdaddr, NULL));
+		if ((s = session_open(srv, d)) == NULL) {
+			syslog(LOG_CRIT, "Could not open inbound session "
+				"for %s", bt_ntoa(&l2addr.l2cap_bdaddr, NULL));
 			close(new_fd);
 			return (-1);
 		}
@@ -318,6 +277,15 @@ server_accept(bthid_server_p srv, int fd)
 		(fd == srv->ctrl)? "control" : "interrupt",
 		bt_ntoa(&l2addr.l2cap_bdaddr, NULL));
 
+	/* Register session's vkbd descriptor (if needed) for read */
+	if (s->state == OPEN && d->keyboard) {
+		assert(s->vkbd != -1);
+
+		FD_SET(s->vkbd, &srv->rfdset);
+		if (s->vkbd > srv->maxfd)
+			srv->maxfd = s->vkbd;
+	}
+
 	return (0);
 }
 
@@ -325,18 +293,36 @@ server_accept(bthid_server_p srv, int fd)
  * Process data on the connection
  */
 
-static int
-server_process(bthid_server_p srv, int fd)
+static int32_t
+server_process(bthid_server_p srv, int32_t fd)
 {
-	bthid_session_p	s = session_by_fd(srv, fd);
-	char		data[1024];
-	int		len;
+	bthid_session_p		s = session_by_fd(srv, fd);
+	int32_t			len, to_read;
+	int32_t			(*cb)(bthid_session_p, uint8_t *, int32_t);
+	union {
+		uint8_t		b[1024];
+		vkbd_status_t	s;
+	}			data;
 
 	if (s == NULL)
 		return (0); /* can happen on device disconnect */
 
+
+	if (fd == s->ctrl) {
+		cb = hid_control;
+		to_read = sizeof(data.b);
+	} else if (fd == s->intr) {
+		cb = hid_interrupt;
+		to_read = sizeof(data.b);
+	} else {
+		assert(fd == s->vkbd);
+
+		cb = kbd_status_changed;
+		to_read = sizeof(data.s);
+	}
+
 	do {
-		len = read(fd, data, sizeof(data));
+		len = read(fd, &data, to_read);
 	} while (len < 0 && errno == EINTR);
 
 	if (len < 0) {
@@ -356,10 +342,7 @@ server_process(bthid_server_p srv, int fd)
 		return (0);
 	}
 
-	if (fd == s->ctrl)
-		hid_control(s, data, len);
-	else
-		hid_interrupt(s, data, len);
+	(*cb)(s, (uint8_t *) &data, len);
 
 	return (0);
 }

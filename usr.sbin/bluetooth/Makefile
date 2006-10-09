@@ -4,6 +4,8 @@
 SUBDIR= \
 	bcmfw \
 	bt3cfw \
+	bthidcontrol \
+	bthidd \
 	hccontrol \
 	hcsecd \
 	hcseriald \
