@@ -10,7 +10,7 @@
 
 	The FreeBSD Simplified Chinese Project
 
-	Original Revision: 1.73.2.29
+	Original Revision: 1.73.2.32
 -->
 
 <!DOCTYPE article PUBLIC "-//FreeBSD//DTD DocBook V4.1-Based Extension//EN" [
@@ -143,6 +143,41 @@
 	    <entry>2006&nbsp;年&nbsp;8&nbsp;月&nbsp;23&nbsp;日</entry>
 	    <entry><para>在 &man.sppp.4; 中存在缓冲区溢出问题</para></entry>
 	  </row>
+
+	  <row>
+	    <entry><ulink url="http://security.FreeBSD.org/advisories/FreeBSD-SA-06:19.openssl.asc"
+		>SA-06:19.openssl</ulink></entry>
+	    <entry>2006&nbsp;年&nbsp;9&nbsp;月&nbsp;06日</entry>
+	    <entry><para>&man.crypto.3; 中对 PKCS#1 v1.5 补位验证不正确的问题</para></entry>
+	  </row>
+
+	  <row>
+	    <entry><ulink url="http://security.FreeBSD.org/advisories/FreeBSD-SA-06:20.bind.asc"
+		>SA-06:20.bind</ulink></entry>
+	    <entry>2006&nbsp;年&nbsp;9&nbsp;月&nbsp;06&nbsp;日</entry>
+	    <entry><para>&man.named.8;中的拒绝服务问题</para></entry>
+	  </row>
+
+	  <row>
+	    <entry><ulink url="http://security.FreeBSD.org/advisories/FreeBSD-SA-06:21.gzip.asc"
+		>SA-06:21.gzip</ulink></entry>
+	    <entry>2006&nbsp;年&nbsp;9&nbsp;月&nbsp;19&nbsp;日</entry>
+	    <entry><para>&man.gzip.1; 中的多处漏洞</para></entry>
+	  </row>
+
+	  <row>
+	    <entry><ulink url="http://security.FreeBSD.org/advisories/FreeBSD-SA-06:22.openssh.asc"
+		>SA-06:22.openssh</ulink></entry>
+	    <entry>2006&nbsp;年&nbsp;9&nbsp;月&nbsp;30&nbsp;日</entry>
+	    <entry><para>OpenSSH 中的多处漏洞</para></entry>
+	  </row>
+
+	  <row>
+	    <entry><ulink url="http://security.FreeBSD.org/advisories/FreeBSD-SA-06:23.openssl.asc"
+		>SA-06:23.openssl</ulink></entry>
+	    <entry>2006&nbsp;年&nbsp;9&nbsp;月&nbsp;28&nbsp;日</entry>
+	    <entry><para>&man.crypto.3; 中的多处问题</para></entry>
+	  </row>
 	</tbody>
       </tgroup>
     </informaltable>
@@ -219,14 +254,13 @@
       RELENG_6_1。 关于此问题的进一步详情， 请参见勘误公告
       <ulink url="ftp://ftp.FreeBSD.org/pub/FreeBSD/ERRATA/notices/FreeBSD-EN-06:02.net.asc">FreeBSD-EN-06:02.net</ulink>。</para>
 
-    <para>(2006/06/01) 修正了长期以来 i386 引导加载器在使用 &man.nextboot.8;
+    <para>(2006/06/01， 于 2006/10/07 更新) 修正了长期以来 i386 引导加载器在使用 &man.nextboot.8;
       工具， 且 <filename>/boot/nextboot.conf</filename>
       配置文件位于引导盘第 1023 柱面之后时可能导致根文件系统损坏的问题。
-      此问题的修正已经汇入了 HEAD， 在进行进一步测试之后会合并到其它分支。</para>
+      此问题的修正已经汇入了 HEAD， 并合并到了 RELENG_6。</para>
 
-    <para>(2006/06/16) 发现了一处与锁有关的， 可导致 NFS 服务器性能明显下降的问题。
-      对于此问题的修正已经汇入了 HEAD 和 RELENG_6，
-      在进行了更多测试之后可能会汇入 RELENG_6_1。</para>
+    <para>(2006/06/16， 于 2006/10/07 更新) 发现了一处与锁有关的， 可导致 NFS 服务器性能明显下降的问题。
+      对于此问题的修正已经汇入了 HEAD 和 RELENG_6。</para>
 
     <para>(2006/08/28) 由于在使用指针时未进行有效性验证，
       网络协议栈可以从本地触发 panic。 这一问题已经在 HEAD、 RELENG_6 以及 RELENG_6_1
