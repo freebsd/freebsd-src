@@ -58,12 +58,6 @@ sparc64/pci/ofw_pcib.c		optional	pci
 sparc64/pci/ofw_pcib_subr.c	optional	pci
 sparc64/pci/ofw_pcibus.c	optional	pci
 sparc64/pci/ofw_pci_if.m	optional	pci
-sparc64/dtrace/dtrace_asm.s	optional	dtrace
-sparc64/dtrace/dtrace_isa.c	optional	dtrace
-sparc64/dtrace/fasttrap_isa.c	optional	dtrace
-sparc64/dtrace/fbt.c		optional	dtrace
-sparc64/dtrace/sdt.c		optional	dtrace
-sparc64/dtrace/dtrace_stub.c	standard
 
 # XXX hvcons should be optional
 sun4v/sun4v/hvcons.c	standard	

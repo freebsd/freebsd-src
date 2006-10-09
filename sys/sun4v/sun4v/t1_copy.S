@@ -36,7 +36,6 @@ __FBSDID("$FreeBSD$")
 #include <machine/tstate.h>
 #include <machine/wstate.h>
 #include <machine/hypervisorvar.h>
-#include <machine/errata.h>
 
        .register %g2,#ignore
        .register %g3,#ignore
