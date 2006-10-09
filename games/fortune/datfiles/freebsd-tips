@@ -499,3 +499,7 @@ of the man(1) utility: ``man -t <topic>''.  For example:
 	man -t grep > grep.ps	# Save the PostScript version to a file
 or
 	man -t printf | lp	# Send the PostScript directly to printer
+%
+Want to strip UTF-8 BOM(Byte Order Mark) from given files?
+
+	sed -e '1s/^\xef\xbb\xbf//' < bomfile > newfile
