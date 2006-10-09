@@ -433,6 +433,7 @@ dev/ata/ata-lowlevel.c		optional ata
 dev/ata/ata-pci.c		optional ata pci
 dev/ata/ata-queue.c		optional ata
 dev/ata/ata-raid.c		optional ataraid
+dev/ata/ata-usb.c		optional atausb
 dev/ata/atapi-cam.c		optional atapicam
 dev/ata/atapi-cd.c		optional atapicd
 dev/ata/atapi-fd.c		optional atapifd
