@@ -340,7 +340,9 @@ agp_amd64_bind_page(device_t dev, int offset, vm_offset_t physical)
 	if (offset < 0 || offset >= (sc->gatt->ag_entries << AGP_PAGE_SHIFT))
 		return EINVAL;
 
-	sc->gatt->ag_virtual[offset >> AGP_PAGE_SHIFT] = physical;
+	sc->gatt->ag_virtual[offset >> AGP_PAGE_SHIFT] =
+	    (physical & 0xfffff000) | ((physical >> 28) & 0x00000ff0) | 3;
+
 	return 0;
 }
 
