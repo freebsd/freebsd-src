@@ -87,6 +87,20 @@ OF_init(int (*openfirm)(void *))
 		panic("failed to get mmu ihandle");
 }
 
+phandle_t
+OF_chosennode(void)
+{
+        static phandle_t        chosen;
+
+        if (chosen)
+                return (chosen);
+
+        if ((chosen = OF_finddevice("/chosen")) == -1)
+                OF_exit();
+
+        return (chosen);
+}
+
 /*
  * Generic functions
  */
