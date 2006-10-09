@@ -953,7 +953,8 @@ vfs_domount(
 		mp->mnt_flag &=
 		    ~(MNT_UPDATE | MNT_RELOAD | MNT_FORCE | MNT_SNAPSHOT);
 		if (error)
-			mp->mnt_flag = flag;
+			mp->mnt_flag = (mp->mnt_flag & MNT_QUOTA) |
+				(flag & ~MNT_QUOTA);
 		MNT_IUNLOCK(mp);
 		if ((mp->mnt_flag & MNT_RDONLY) == 0) {
 			if (mp->mnt_syncer == NULL)
