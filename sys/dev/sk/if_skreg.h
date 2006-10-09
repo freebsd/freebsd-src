@@ -1290,10 +1290,6 @@
 #define SK_PCI_PWRMGMTCAP	0x004A /* 16 bits */
 #define SK_PCI_PWRMGMTCTRL	0x004C /* 16 bits */
 #define SK_PCI_PME_EVENT	0x004F
-#define SK_PCI_VPD_CAPID	0x0050
-#define SK_PCI_VPD_NEXTPTR	0x0051
-#define SK_PCI_VPD_ADDR		0x0052
-#define SK_PCI_VPD_DATA		0x0054
 
 #define SK_PSTATE_MASK		0x0003
 #define SK_PSTATE_D0		0x0000
@@ -1302,30 +1298,6 @@
 #define SK_PSTATE_D3		0x0003
 #define SK_PME_EN		0x0010
 #define SK_PME_STATUS		0x8000
-
-/*
- * VPD flag bit. Set to 0 to initiate a read, will become 1 when
- * read is complete. Set to 1 to initiate a write, will become 0
- * when write is finished.
- */
-#define SK_VPD_FLAG		0x8000
-
-/* VPD structures */
-struct vpd_res {
-	u_int8_t		vr_id;
-	u_int8_t		vr_len;
-	u_int8_t		vr_pad;
-};
-
-struct vpd_key {
-	char			vk_key[2];
-	u_int8_t		vk_len;
-};
-
-#define VPD_RES_ID	0x82	/* ID string */
-#define VPD_RES_READ	0x90	/* start of read only area */
-#define VPD_RES_WRITE	0x81	/* start of read/write area */
-#define VPD_RES_END	0x78	/* end tag */
 
 #define CSR_WRITE_4(sc, reg, val)	\
 	bus_write_4((sc)->sk_res[0], (reg), (val))
@@ -1528,9 +1500,6 @@ struct sk_softc {
 	u_int8_t		sk_type;
 	u_int8_t		sk_rev;
 	u_int8_t		spare;
-	char			*sk_vpd_prodname;
-	char			*sk_vpd_readonly;
-	uint16_t		sk_vpd_readonly_len;
 	u_int32_t		sk_rboff;	/* RAMbuffer offset */
 	u_int32_t		sk_ramsize;	/* amount of RAM on NIC */
 	u_int32_t		sk_pmd;		/* physical media type */

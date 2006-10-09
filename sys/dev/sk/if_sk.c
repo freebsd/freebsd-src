@@ -256,9 +256,6 @@ static u_int8_t sk_win_read_1(struct sk_softc *, int);
 static void sk_win_write_4(struct sk_softc *, int, u_int32_t);
 static void sk_win_write_2(struct sk_softc *, int, u_int32_t);
 static void sk_win_write_1(struct sk_softc *, int, u_int32_t);
-static u_int8_t sk_vpd_readbyte(struct sk_softc *, int);
-static void sk_vpd_read_res(struct sk_softc *, struct vpd_res *, int);
-static void sk_vpd_read(struct sk_softc *);
 
 static int sk_miibus_readreg(device_t, int, int);
 static int sk_miibus_writereg(device_t, int, int, int);
@@ -469,113 +466,6 @@ sk_win_write_1(sc, reg, val)
 #else
 	CSR_WRITE_1(sc, reg, val);
 #endif
-	return;
-}
-
-/*
- * The VPD EEPROM contains Vital Product Data, as suggested in
- * the PCI 2.1 specification. The VPD data is separared into areas
- * denoted by resource IDs. The SysKonnect VPD contains an ID string
- * resource (the name of the adapter), a read-only area resource
- * containing various key/data fields and a read/write area which
- * can be used to store asset management information or log messages.
- * We read the ID string and read-only into buffers attached to
- * the controller softc structure for later use. At the moment,
- * we only use the ID string during skc_attach().
- */
-static u_int8_t
-sk_vpd_readbyte(sc, addr)
-	struct sk_softc		*sc;
-	int			addr;
-{
-	int			i;
-
-	sk_win_write_2(sc, SK_PCI_REG(SK_PCI_VPD_ADDR), addr);
-	for (i = 0; i < SK_TIMEOUT; i++) {
-		/* ASUS LOM takes a very long time to read VPD. */
-		DELAY(100);
-		if (sk_win_read_2(sc,
-		    SK_PCI_REG(SK_PCI_VPD_ADDR)) & SK_VPD_FLAG)
-			break;
-	}
-
-	if (i == SK_TIMEOUT)
-		return(0);
-
-	return(sk_win_read_1(sc, SK_PCI_REG(SK_PCI_VPD_DATA)));
-}
-
-static void
-sk_vpd_read_res(sc, res, addr)
-	struct sk_softc		*sc;
-	struct vpd_res		*res;
-	int			addr;
-{
-	int			i;
-	u_int8_t		*ptr;
-
-	ptr = (u_int8_t *)res;
-	for (i = 0; i < sizeof(struct vpd_res); i++)
-		ptr[i] = sk_vpd_readbyte(sc, i + addr);
-
-	return;
-}
-
-static void
-sk_vpd_read(sc)
-	struct sk_softc		*sc;
-{
-	int			pos = 0, i;
-	struct vpd_res		res;
-
-	/* Check VPD capability */
-	if (sk_win_read_1(sc, SK_PCI_REG(SK_PCI_VPD_CAPID)) != PCIY_VPD)
-		return;
-	if (sc->sk_vpd_prodname != NULL)
-		free(sc->sk_vpd_prodname, M_DEVBUF);
-	if (sc->sk_vpd_readonly != NULL)
-		free(sc->sk_vpd_readonly, M_DEVBUF);
-	sc->sk_vpd_prodname = NULL;
-	sc->sk_vpd_readonly = NULL;
-	sc->sk_vpd_readonly_len = 0;
-
-	sk_vpd_read_res(sc, &res, pos);
-
-	/*
-	 * Bail out quietly if the eeprom appears to be missing or empty.
-	 */
-	if (res.vr_id == 0xff && res.vr_len == 0xff && res.vr_pad == 0xff)
-		return;
-
-	if (res.vr_id != VPD_RES_ID) {
-		device_printf(sc->sk_dev, "bad VPD resource id: expected %x "
-		    "got %x\n", VPD_RES_ID, res.vr_id);
-		return;
-	}
-
-	pos += sizeof(res);
-	sc->sk_vpd_prodname = malloc(res.vr_len + 1, M_DEVBUF, M_NOWAIT);
-	if (sc->sk_vpd_prodname != NULL) {
-		for (i = 0; i < res.vr_len; i++)
-			sc->sk_vpd_prodname[i] = sk_vpd_readbyte(sc, i + pos);
-		sc->sk_vpd_prodname[i] = '\0';
-	}
-	pos += res.vr_len;
-
-	sk_vpd_read_res(sc, &res, pos);
-
-	if (res.vr_id != VPD_RES_READ) {
-		device_printf(sc->sk_dev, "bad VPD resource id: expected %x "
-		    "got %x\n", VPD_RES_READ, res.vr_id);
-		return;
-	}
-
-	pos += sizeof(res);
-	sc->sk_vpd_readonly = malloc(res.vr_len, M_DEVBUF, M_NOWAIT);
-	for (i = 0; i < res.vr_len; i++)
-		sc->sk_vpd_readonly[i] = sk_vpd_readbyte(sc, i + pos);
-	sc->sk_vpd_readonly_len = res.vr_len;
-
 	return;
 }
 
@@ -1690,7 +1580,8 @@ skc_attach(dev)
 	struct sk_softc		*sc;
 	int			error = 0, *port, sk_macs;
 	uint8_t			skrs;
-	char			*pname, *revstr;
+	const char		*pname;
+	char			*revstr;
 
 	sc = device_get_softc(dev);
 	sc->sk_dev = dev;
@@ -1757,9 +1648,6 @@ skc_attach(dev)
 	/* Reset the adapter. */
 	sk_reset(sc);
 
-	/* Read and save vital product data from EEPROM. */
-	sk_vpd_read(sc);
-
 	skrs = sk_win_read_1(sc, SK_EPROM0);
 	if (sc->sk_type == SK_GENESIS) {
 		/* Read and save RAM size and RAMbuffer offset */
@@ -1811,7 +1699,8 @@ skc_attach(dev)
 	case DEVICEID_DLINK_DGE530T_A1:
 	case DEVICEID_DLINK_DGE530T_B1:
 		/* Stay with VPD PN. */
-		pname = sc->sk_vpd_prodname;
+		if (pci_get_vpd_ident(dev, &pname))
+			goto vpdfailed;
 		break;
 	case DEVICEID_SK_V2:
 	case DEVICEID_MRVL_4360:
@@ -1821,7 +1710,8 @@ skc_attach(dev)
 		switch (sc->sk_type) {
 		case SK_GENESIS:
 			/* Stay with VPD PN. */
-			pname = sc->sk_vpd_prodname;
+			if (pci_get_vpd_ident(dev, &pname))
+				goto vpdfailed;
 			break;
 		case SK_YUKON:
 			pname = "Marvell Yukon Gigabit Ethernet";
@@ -1861,6 +1751,7 @@ skc_attach(dev)
 		}
 		break;
 	default:
+vpdfailed:
 		device_printf(dev, "unknown device: vendor=%04x, device=%04x, "
 			"chipver=%02x, rev=%x\n",
 			pci_get_vendor(dev), pci_get_device(dev),
@@ -1908,33 +1799,6 @@ skc_attach(dev)
 		pname != NULL ? pname : "<unknown>", revstr, sc->sk_rev);
 
 	if (bootverbose) {
-		if (sc->sk_vpd_readonly != NULL &&
-		    sc->sk_vpd_readonly_len != 0) {
-			char buf[256];
-			char *dp = sc->sk_vpd_readonly;
-			uint16_t l, len = sc->sk_vpd_readonly_len;
-
-			while (len >= 3) {
-				if ((*dp == 'P' && *(dp+1) == 'N') ||
-				    (*dp == 'E' && *(dp+1) == 'C') ||
-				    (*dp == 'M' && *(dp+1) == 'N') ||
-				    (*dp == 'S' && *(dp+1) == 'N')) {
-					l = 0;
-					while (l < *(dp+2)) {
-						buf[l] = *(dp+3+l);
-						++l;
-					}
-					buf[l] = '\0';
-					device_printf(dev, "%c%c: %s\n",
-					    *dp, *(dp+1), buf);
-					len -= (3 + l);
-					dp += (3 + l);
-				} else {
-					len -= (3 + *(dp+2));
-					dp += (3 + *(dp+2));
-				}
-			}
-		}
 		device_printf(dev, "chip ver  = 0x%02x\n", sc->sk_type);
 		device_printf(dev, "chip rev  = 0x%02x\n", sc->sk_rev);
 		device_printf(dev, "SK_EPROM0 = 0x%02x\n", skrs);
@@ -2083,11 +1947,6 @@ skc_detach(dev)
 		}
 		bus_generic_detach(dev);
 	}
-
-	if (sc->sk_vpd_prodname != NULL)
-		free(sc->sk_vpd_prodname, M_DEVBUF);
-	if (sc->sk_vpd_readonly != NULL)
-		free(sc->sk_vpd_readonly, M_DEVBUF);
 
 	if (sc->sk_intrhand)
 		bus_teardown_intr(dev, sc->sk_res[1], sc->sk_intrhand);

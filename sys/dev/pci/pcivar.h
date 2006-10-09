@@ -59,6 +59,27 @@ struct pcicfg_pp {
     uint8_t	pp_data;	/* config space address of PCI power data reg */
 };
  
+struct vpd_readonly {
+    char	keyword[2];
+    char	*value;
+};
+
+struct vpd_write {
+    char	keyword[2];
+    char	*value;
+    int 	start;
+    int 	len;
+};
+
+struct pcicfg_vpd {
+    uint8_t	vpd_reg;	/* base register, + 2 for addr, + 4 data */
+    char	*vpd_ident;	/* string identifier */
+    int 	vpd_rocnt;
+    struct vpd_readonly *vpd_ros;
+    int 	vpd_wcnt;
+    struct vpd_write *vpd_w;
+};
+
 /* Interesting values for PCI MSI */
 struct pcicfg_msi {
     uint16_t	msi_ctrl;	/* Message Control */
@@ -103,6 +124,7 @@ typedef struct pcicfg {
     uint8_t	func;		/* config space function number */
 
     struct pcicfg_pp pp;	/* pci power management */
+    struct pcicfg_vpd vpd;	/* pci vital product data */
     struct pcicfg_msi msi;	/* pci msi */
 } pcicfgregs;
 
@@ -290,6 +312,18 @@ static __inline int
 pci_disable_io(device_t dev, int space)
 {
     return(PCI_DISABLE_IO(device_get_parent(dev), dev, space));
+}
+
+static __inline int
+pci_get_vpd_ident(device_t dev, const char **identptr)
+{
+    return(PCI_GET_VPD_IDENT(device_get_parent(dev), dev, identptr));
+}
+
+static __inline int
+pci_get_vpd_readonly(device_t dev, const char *kw, const char **identptr)
+{
+    return(PCI_GET_VPD_READONLY(device_get_parent(dev), dev, kw, identptr));
 }
 
 /*
