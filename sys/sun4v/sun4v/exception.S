@@ -41,7 +41,6 @@ __FBSDID("$FreeBSD$")
 #include <machine/tstate.h>
 #include <machine/wstate.h>
 #include <machine/hypervisorvar.h>
-#include <machine/errata.h>
 
 #include "assym.s"
 #include <machine/mmu.h>
@@ -694,6 +693,7 @@ tick_ ## tl ## _entry:							\
 	.align	32
 	.endm
 
+#ifdef KDTRACE
 	.macro	dtrace_fasttrap
 	sethi	%hi(dtrace_fasttrap_probe_ptr), %g4
 	ldx	[%g4 + %lo(dtrace_fasttrap_probe_ptr)], %g4
@@ -716,7 +716,22 @@ tick_ ## tl ## _entry:							\
 	  sub	%g0, 1, %g4
 	.align 32
 	.endm
-	
+#else
+	.macro	dtrace_fasttrap
+	nop
+	.align 32
+	.endm
+		
+	.macro	dtrace_pid
+	nop
+	.align 32
+	.endm
+
+	.macro	dtrace_return
+	nop
+	.align 32
+	.endm
+#endif	
 	.macro	tl0_fp_restore
 	GET_PCB(PCB_REG)			! 3 instructions
 	ldx	[%g6 + PCB_FLAGS], %g1

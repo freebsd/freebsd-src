@@ -125,6 +125,17 @@ struct pmap;
 #define	VTD_32M		TTE32M 
 #define	VTD_256M	TTE256M 
 
+
+/*
+ * sparc64 compatibility for the loader
+ */
+
+#define	TD_SIZE_SHIFT	(61)
+#define	TS_4M		(3UL)
+
+#define	TD_V		(1UL << 63)
+#define	TD_4M		(TS_4M << TD_SIZE_SHIFT)
+
 /*
  * default flags for kernel pages
  */

@@ -71,9 +71,13 @@ __FBSDID("$FreeBSD$");
 #include <machine/tsb.h>
 #include <machine/tstate.h>
 #include <machine/utrap.h>
+#ifdef SUN4V
+#include <machine/mmu.h>
+#include <machine/tte_hash.h>
+#endif
+
 
 ASSYM(KERNBASE, KERNBASE);
-ASSYM(VM_MIN_PROM_ADDRESS, VM_MIN_PROM_ADDRESS);
 
 ASSYM(EFAULT, EFAULT);
 ASSYM(ENAMETOOLONG, ENAMETOOLONG);
@@ -99,29 +103,34 @@ ASSYM(TLB_DEMAP_NUCLEUS, TLB_DEMAP_NUCLEUS);
 ASSYM(TLB_DEMAP_PRIMARY, TLB_DEMAP_PRIMARY);
 ASSYM(TLB_DEMAP_CONTEXT, TLB_DEMAP_CONTEXT);
 ASSYM(TLB_DEMAP_PAGE, TLB_DEMAP_PAGE);
-ASSYM(TLB_DIRECT_TO_TTE_MASK, TLB_DIRECT_TO_TTE_MASK);
 
+#ifndef SUN4V
 ASSYM(TSB_BUCKET_MASK, TSB_BUCKET_MASK);
 ASSYM(TSB_BUCKET_SHIFT, TSB_BUCKET_SHIFT);
-
+#endif
 ASSYM(INT_SHIFT, INT_SHIFT);
 ASSYM(PTR_SHIFT, PTR_SHIFT);
 
 ASSYM(PAGE_SHIFT, PAGE_SHIFT);
+ASSYM(PAGE_MASK, PAGE_MASK);
+ASSYM(PAGE_MASK_4M, PAGE_MASK_4M);
 ASSYM(PAGE_SHIFT_8K, PAGE_SHIFT_8K);
 ASSYM(PAGE_SHIFT_4M, PAGE_SHIFT_4M);
 ASSYM(PAGE_SIZE, PAGE_SIZE);
+ASSYM(PAGE_SIZE_4M, PAGE_SIZE_4M);
 
 ASSYM(CPU_CLKSYNC, CPU_CLKSYNC);
 ASSYM(CPU_INIT, CPU_INIT);
 
-ASSYM(CSA_MID, offsetof(struct cpu_start_args, csa_mid));
 ASSYM(CSA_PCPU, offsetof(struct cpu_start_args, csa_pcpu));
 ASSYM(CSA_STATE, offsetof(struct cpu_start_args, csa_state));
+ASSYM(CSA_CPUID, offsetof(struct cpu_start_args, csa_cpuid));
+#ifndef SUN4V
 ASSYM(CSA_TICK, offsetof(struct cpu_start_args, csa_tick));
 ASSYM(CSA_VER, offsetof(struct cpu_start_args, csa_ver));
+ASSYM(CSA_MID, offsetof(struct cpu_start_args, csa_mid));
 ASSYM(CSA_TTES, offsetof(struct cpu_start_args, csa_ttes));
-
+#endif
 ASSYM(DC_TAG_SHIFT, DC_TAG_SHIFT);
 ASSYM(DC_TAG_MASK, DC_TAG_MASK);
 ASSYM(DC_VALID_SHIFT, DC_VALID_SHIFT);
@@ -151,9 +160,10 @@ ASSYM(KTR_PARM4, offsetof(struct ktr_entry, ktr_parms[3]));
 ASSYM(KTR_PARM5, offsetof(struct ktr_entry, ktr_parms[4]));
 ASSYM(KTR_PARM6, offsetof(struct ktr_entry, ktr_parms[5]));
 
+ASSYM(TTE_SHIFT, TTE_SHIFT);
+#ifndef SUN4V
 ASSYM(TTE_VPN, offsetof(struct tte, tte_vpn));
 ASSYM(TTE_DATA, offsetof(struct tte, tte_data));
-ASSYM(TTE_SHIFT, TTE_SHIFT);
 
 ASSYM(TD_EXEC, TD_EXEC);
 ASSYM(TD_REF, TD_REF);
@@ -167,25 +177,68 @@ ASSYM(TD_W, TD_W);
 
 ASSYM(TS_MIN, TS_MIN);
 ASSYM(TS_MAX, TS_MAX);
-
+ASSYM(TLB_DIRECT_TO_TTE_MASK, TLB_DIRECT_TO_TTE_MASK);
 ASSYM(TV_SIZE_BITS, TV_SIZE_BITS);
+#else 
+ASSYM(VTD_REF, VTD_REF);
+ASSYM(VTD_W, VTD_W);
+ASSYM(VTD_SW_W, VTD_SW_W);
+ASSYM(VTD_LOCK, VTD_LOCK);
+
+ASSYM(THE_SHIFT, THE_SHIFT);
+ASSYM(TH_COLLISION_SHIFT, TH_COLLISION_SHIFT);
+ASSYM(HVTSB_PA, offsetof(struct hv_tsb_info, hvtsb_pa));
+ASSYM(PM_HASHSCRATCH, offsetof(struct pmap, pm_hashscratch));
+ASSYM(PM_TSBSCRATCH, offsetof(struct pmap, pm_tsbscratch));
+ASSYM(PM_TSB_RA, offsetof(struct pmap, pm_tsb_ra));
+ASSYM(PM_TLBACTIVE, offsetof(struct pmap, pm_tlbactive));
+ASSYM(HASH_ENTRY_SHIFT, HASH_ENTRY_SHIFT);
+#endif
 
 ASSYM(V_INTR, offsetof(struct vmmeter, v_intr));
 
 ASSYM(PC_CURTHREAD, offsetof(struct pcpu, pc_curthread));
+ASSYM(PC_CALLER, offsetof(struct pcpu, pc_caller));
 ASSYM(PC_CURPCB, offsetof(struct pcpu, pc_curpcb));
 ASSYM(PC_CPUID, offsetof(struct pcpu, pc_cpuid));
 ASSYM(PC_CPUMASK, offsetof(struct pcpu, pc_cpumask));
 ASSYM(PC_IRHEAD, offsetof(struct pcpu, pc_irhead));
 ASSYM(PC_IRTAIL, offsetof(struct pcpu, pc_irtail));
 ASSYM(PC_IRFREE, offsetof(struct pcpu, pc_irfree));
+ASSYM(PC_CNT, offsetof(struct pcpu, pc_cnt));
+ASSYM(PC_SIZEOF, sizeof(struct pcpu));
+
+#ifdef SUN4V
+ASSYM(PC_CPU_Q_RA, offsetof(struct pcpu, pc_cpu_q_ra));
+ASSYM(PC_CPU_Q_SIZE, offsetof(struct pcpu, pc_cpu_q_size));
+ASSYM(PC_DEV_Q_RA, offsetof(struct pcpu, pc_dev_q_ra));
+ASSYM(PC_DEV_Q_SIZE, offsetof(struct pcpu, pc_dev_q_size));
+
+ASSYM(PC_RQ_BASE, offsetof(struct pcpu, pc_rq_ra));
+ASSYM(PC_RQ_SIZE, offsetof(struct pcpu, pc_rq_size));
+ASSYM(PC_NRQ_BASE, offsetof(struct pcpu, pc_nrq_ra));
+ASSYM(PC_NRQ_SIZE, offsetof(struct pcpu, pc_nrq_size));
+ASSYM(PC_MONDO_DATA, offsetof(struct pcpu, pc_mondo_data));
+ASSYM(PC_MONDO_DATA_RA, offsetof(struct pcpu, pc_mondo_data_ra));
+
+ASSYM(PC_KWBUF_FULL, offsetof(struct pcpu, pc_kwbuf_full));
+ASSYM(PC_KWBUF_SP, offsetof(struct pcpu, pc_kwbuf_sp));
+ASSYM(PC_KWBUF, offsetof(struct pcpu, pc_kwbuf));
+ASSYM(PC_PAD, offsetof(struct pcpu, pad));
+ASSYM(PC_PMAP, offsetof(struct pcpu, pc_curpmap));
+ASSYM(PC_TSBWBUF, offsetof(struct pcpu, pc_tsbwbuf));
+
+ASSYM(PCB_KSTACK, offsetof(struct pcb, pcb_kstack));
+ASSYM(INTR_REPORT_SIZE, INTR_REPORT_SIZE);
+#else
 ASSYM(PC_MID, offsetof(struct pcpu, pc_mid));
 ASSYM(PC_TLB_CTX, offsetof(struct pcpu, pc_tlb_ctx));
 ASSYM(PC_TLB_CTX_MAX, offsetof(struct pcpu, pc_tlb_ctx_max));
 ASSYM(PC_TLB_CTX_MIN, offsetof(struct pcpu, pc_tlb_ctx_min));
 ASSYM(PC_PMAP, offsetof(struct pcpu, pc_pmap));
-ASSYM(PC_CNT, offsetof(struct pcpu, pc_cnt));
-ASSYM(PC_SIZEOF, sizeof(struct pcpu));
+#endif 
+
+
 
 ASSYM(IH_SHIFT, IH_SHIFT);
 
@@ -232,6 +285,9 @@ ASSYM(TD_FRAME, offsetof(struct thread, td_frame));
 ASSYM(TD_KSTACK, offsetof(struct thread, td_kstack));
 ASSYM(TD_PCB, offsetof(struct thread, td_pcb));
 ASSYM(TD_PROC, offsetof(struct thread, td_proc));
+ASSYM(TD_MD, offsetof(struct thread, td_md));
+ASSYM(MD_SAVED_PIL, offsetof(struct mdthread, md_saved_pil));
+
 
 ASSYM(PCB_SIZEOF, sizeof(struct pcb));
 ASSYM(PCB_RW, offsetof(struct pcb, pcb_rw));
@@ -242,6 +298,10 @@ ASSYM(PCB_FLAGS, offsetof(struct pcb, pcb_flags));
 ASSYM(PCB_NSAVED, offsetof(struct pcb, pcb_nsaved));
 ASSYM(PCB_PC, offsetof(struct pcb, pcb_pc));
 ASSYM(PCB_SP, offsetof(struct pcb, pcb_sp));
+
+
+
+
 ASSYM(PCB_FEF, PCB_FEF);
 
 ASSYM(VM_PMAP, offsetof(struct vmspace, vm_pmap));
@@ -276,17 +336,27 @@ ASSYM(TF_O7, offsetof(struct trapframe, tf_out[7]));
 ASSYM(TF_FPRS, offsetof(struct trapframe, tf_fprs));
 ASSYM(TF_FSR, offsetof(struct trapframe, tf_fsr));
 ASSYM(TF_GSR, offsetof(struct trapframe, tf_gsr));
-ASSYM(TF_LEVEL, offsetof(struct trapframe, tf_level));
 ASSYM(TF_PIL, offsetof(struct trapframe, tf_pil));
+#ifndef SUN4V
+ASSYM(TF_LEVEL, offsetof(struct trapframe, tf_level));
 ASSYM(TF_SFAR, offsetof(struct trapframe, tf_sfar));
 ASSYM(TF_SFSR, offsetof(struct trapframe, tf_sfsr));
 ASSYM(TF_TAR, offsetof(struct trapframe, tf_tar));
+#else
+ASSYM(TF_ASI, offsetof(struct trapframe, tf_asi));
+#endif
 ASSYM(TF_TNPC, offsetof(struct trapframe, tf_tnpc));
 ASSYM(TF_TPC, offsetof(struct trapframe, tf_tpc));
 ASSYM(TF_TSTATE, offsetof(struct trapframe, tf_tstate));
+#if 0
 ASSYM(TF_TYPE, offsetof(struct trapframe, tf_type));
 ASSYM(TF_Y, offsetof(struct trapframe, tf_y));
+#endif
 ASSYM(TF_WSTATE, offsetof(struct trapframe, tf_wstate));
 ASSYM(TF_SIZEOF, sizeof(struct trapframe));
 
 ASSYM(UT_MAX, UT_MAX);
+ASSYM(VM_MIN_DIRECT_ADDRESS, VM_MIN_DIRECT_ADDRESS);
+ASSYM(VM_MIN_PROM_ADDRESS, VM_MIN_PROM_ADDRESS);
+ASSYM(VM_MAX_PROM_ADDRESS, VM_MAX_PROM_ADDRESS);
+
