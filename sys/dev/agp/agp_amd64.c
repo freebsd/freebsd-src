@@ -85,12 +85,10 @@ struct agp_amd64_softc {
 static const char*
 agp_amd64_match(device_t dev)
 {
-	if (pci_get_class(dev) != PCIC_BRIDGE
-	    || pci_get_subclass(dev) != PCIS_BRIDGE_HOST)
-		return NULL;
-
-	if (agp_find_caps(dev) == 0)
-		return NULL;
+	if (pci_get_class(dev) != PCIC_BRIDGE ||
+	    pci_get_subclass(dev) != PCIS_BRIDGE_HOST ||
+	    agp_find_caps(dev) == 0)
+		return (NULL);
 
 	switch (pci_get_devid(dev)) {
 	case 0x74541022:
@@ -103,11 +101,11 @@ agp_amd64_match(device_t dev)
 		return ("ULi M1689 AGP Controller");
 	case 0x00d110de:
 		if (agp_amd64_nvidia_match(0x00d2))
-			return NULL;
+			return (NULL);
 		return ("NVIDIA nForce3 AGP Controller");
 	case 0x00e110de:
 		if (agp_amd64_nvidia_match(0x00e2))
-			return NULL;
+			return (NULL);
 		return ("NVIDIA nForce3-250 AGP Controller");
 	case 0x02041106:
 		return ("VIA 8380 host to PCI bridge");
@@ -119,7 +117,7 @@ agp_amd64_match(device_t dev)
 		return ("VIA 8385 host to PCI bridge");
 	};
 
-	return NULL;
+	return (NULL);
 }
 
 static int
@@ -130,9 +128,9 @@ agp_amd64_nvidia_match(uint16_t devid)
 	    pci_cfgregread(0, 11, 0, PCIR_SUBCLASS, 1) != PCIS_BRIDGE_PCI ||
 	    pci_cfgregread(0, 11, 0, PCIR_VENDOR, 2) != 0x10de ||
 	    pci_cfgregread(0, 11, 0, PCIR_DEVICE, 2) != devid)
-		return ENXIO;
+		return (ENXIO);
 
-	return 0;
+	return (0);
 }
 
 static int
@@ -144,9 +142,9 @@ agp_amd64_via_match(void)
 	    pci_cfgregread(0, 1, 0, PCIR_VENDOR, 2) != 0x1106 ||
 	    pci_cfgregread(0, 1, 0, PCIR_DEVICE, 2) != 0xb188 ||
 	    (pci_cfgregread(0, 1, 0, AGP_VIA_AGPSEL, 1) & 2))
-		return 0;
+		return (0);
 
-	return 1;
+	return (1);
 }
 
 static int
@@ -155,13 +153,13 @@ agp_amd64_probe(device_t dev)
 	const char *desc;
 
 	if (resource_disabled("agp", device_get_unit(dev)))
-		return ENXIO;
+		return (ENXIO);
 	if ((desc = agp_amd64_match(dev))) {
 		device_set_desc(dev, desc);
-		return BUS_PROBE_DEFAULT;
+		return (BUS_PROBE_DEFAULT);
 	}
 
-	return ENXIO;
+	return (ENXIO);
 }
 
 static int
@@ -178,7 +176,7 @@ agp_amd64_attach(device_t dev)
 		}
 
 	if (n == 0)
-		return ENXIO;
+		return (ENXIO);
 
 	sc->n_mctrl = n;
 
@@ -187,7 +185,7 @@ agp_amd64_attach(device_t dev)
 		    sc->n_mctrl);
 
 	if ((error = agp_generic_attach(dev)))
-		return error;
+		return (error);
 
 	sc->initial_aperture = AGP_GET_APERTURE(dev);
 
@@ -202,7 +200,7 @@ agp_amd64_attach(device_t dev)
 		 */
 		if (AGP_SET_APERTURE(dev, AGP_GET_APERTURE(dev) / 2)) {
 			agp_generic_detach(dev);
-			return ENOMEM;
+			return (ENOMEM);
 		}
 	}
 	sc->gatt = gatt;
@@ -211,13 +209,13 @@ agp_amd64_attach(device_t dev)
 	case 0x10b9:	/* ULi */
 		agp_amd64_uli_init(dev);
 		if (agp_amd64_uli_set_aperture(dev, sc->initial_aperture))
-			return ENXIO;
+			return (ENXIO);
 		break;
 
 	case 0x10de:	/* nVidia */
 		agp_amd64_nvidia_init(dev);
 		if (agp_amd64_nvidia_set_aperture(dev, sc->initial_aperture))
-			return ENXIO;
+			return (ENXIO);
 		break;
 
 	case 0x1106:	/* VIA */
@@ -226,7 +224,7 @@ agp_amd64_attach(device_t dev)
 			agp_amd64_via_init(dev);
 			if (agp_amd64_via_set_aperture(dev,
 			    sc->initial_aperture))
-				return ENXIO;
+				return (ENXIO);
 		}
 		break;
 	}
@@ -245,7 +243,7 @@ agp_amd64_attach(device_t dev)
 
 	agp_flush_cache();
 
-	return 0;
+	return (0);
 }
 
 static int
@@ -255,7 +253,7 @@ agp_amd64_detach(device_t dev)
 	int i, error;
 
 	if ((error = agp_generic_detach(dev)))
-		return error;
+		return (error);
 
 	for (i = 0; i < sc->n_mctrl; i++)
 		pci_cfgregwrite(0, sc->mctrl[i], 3, AGP_AMD64_APCTRL,
@@ -265,7 +263,7 @@ agp_amd64_detach(device_t dev)
 	AGP_SET_APERTURE(dev, sc->initial_aperture);
 	agp_free_gatt(sc->gatt);
 
-	return 0;
+	return (0);
 }
 
 static uint32_t agp_amd64_table[] = {
@@ -291,7 +289,7 @@ agp_amd64_get_aperture(device_t dev)
 		AGP_AMD64_APCTRL_SIZE_MASK) >> 1;
 
 	if (i >= AGP_AMD64_TABLE_SIZE)
-		return 0;
+		return (0);
 
 	return (agp_amd64_table[i]);
 }
@@ -307,7 +305,7 @@ agp_amd64_set_aperture(device_t dev, uint32_t aperture)
 		if (agp_amd64_table[i] == aperture)
 			break;
 	if (i >= AGP_AMD64_TABLE_SIZE)
-		return EINVAL;
+		return (EINVAL);
 
 	for (j = 0; j < sc->n_mctrl; j++)
 		pci_cfgregwrite(0, sc->mctrl[j], 3, AGP_AMD64_APCTRL,
@@ -329,7 +327,7 @@ agp_amd64_set_aperture(device_t dev, uint32_t aperture)
 		break;
 	}
 
-	return 0;
+	return (0);
 }
 
 static int
@@ -338,12 +336,12 @@ agp_amd64_bind_page(device_t dev, int offset, vm_offset_t physical)
 	struct agp_amd64_softc *sc = device_get_softc(dev);
 
 	if (offset < 0 || offset >= (sc->gatt->ag_entries << AGP_PAGE_SHIFT))
-		return EINVAL;
+		return (EINVAL);
 
 	sc->gatt->ag_virtual[offset >> AGP_PAGE_SHIFT] =
 	    (physical & 0xfffff000) | ((physical >> 28) & 0x00000ff0) | 3;
 
-	return 0;
+	return (0);
 }
 
 static int
@@ -352,10 +350,11 @@ agp_amd64_unbind_page(device_t dev, int offset)
 	struct agp_amd64_softc *sc = device_get_softc(dev);
 
 	if (offset < 0 || offset >= (sc->gatt->ag_entries << AGP_PAGE_SHIFT))
-		return EINVAL;
+		return (EINVAL);
 
 	sc->gatt->ag_virtual[offset >> AGP_PAGE_SHIFT] = 0;
-	return 0;
+
+	return (0);
 }
 
 static void
@@ -408,13 +407,13 @@ agp_amd64_uli_set_aperture(device_t dev, uint32_t aperture)
 	case 0x10000000:	/* 256 MB */
 		break;
 	default:
-		return EINVAL;
+		return (EINVAL);
 	}
 
 	pci_write_config(dev, AGP_AMD64_ULI_ENU_SCR,
 	    sc->apbase + aperture - 1, 4);
 
-	return 0;
+	return (0);
 }
 
 static void
@@ -443,7 +442,7 @@ agp_amd64_nvidia_set_aperture(device_t dev, uint32_t aperture)
 	case 0x10000000:	apsize = 0x08;	break;	/* 256 MB */
 	case 0x20000000:	apsize = 0x00;	break;	/* 512 MB */
 	default:
-		return EINVAL;
+		return (EINVAL);
 	}
 
 	pci_cfgregwrite(0, 11, 0, AGP_AMD64_NVIDIA_1_APSIZE,
@@ -454,7 +453,7 @@ agp_amd64_nvidia_set_aperture(device_t dev, uint32_t aperture)
 	pci_cfgregwrite(0, 11, 0, AGP_AMD64_NVIDIA_1_APLIMIT2,
 	    sc->apbase + aperture - 1, 4);
 
-	return 0;
+	return (0);
 }
 
 static void
@@ -475,10 +474,10 @@ agp_amd64_via_set_aperture(device_t dev, uint32_t aperture)
 
 	apsize = ((aperture - 1) >> 20) ^ 0xff;
 	if ((((apsize ^ 0xff) << 20) | ((1 << 20) - 1)) + 1 != aperture)
-		return EINVAL;
+		return (EINVAL);
 	pci_cfgregwrite(0, 1, 0, AGP3_VIA_APSIZE, apsize, 1);
 
-	return 0;
+	return (0);
 }
 
 static device_method_t agp_amd64_methods[] = {
