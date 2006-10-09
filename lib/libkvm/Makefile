@@ -4,7 +4,8 @@
 LIB=	kvm
 SHLIBDIR?= /lib
 CFLAGS+=-DLIBC_SCCS -I${.CURDIR}
-.if ${TARGET} == "sun4v"
+
+.if ${MACHINE} == "sun4v"
 CFLAGS+=-DSUN4V
 .endif
 
