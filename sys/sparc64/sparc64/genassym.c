@@ -124,12 +124,13 @@ ASSYM(CPU_INIT, CPU_INIT);
 
 ASSYM(CSA_PCPU, offsetof(struct cpu_start_args, csa_pcpu));
 ASSYM(CSA_STATE, offsetof(struct cpu_start_args, csa_state));
-ASSYM(CSA_CPUID, offsetof(struct cpu_start_args, csa_cpuid));
 #ifndef SUN4V
 ASSYM(CSA_TICK, offsetof(struct cpu_start_args, csa_tick));
 ASSYM(CSA_VER, offsetof(struct cpu_start_args, csa_ver));
 ASSYM(CSA_MID, offsetof(struct cpu_start_args, csa_mid));
 ASSYM(CSA_TTES, offsetof(struct cpu_start_args, csa_ttes));
+#else
+ASSYM(CSA_CPUID, offsetof(struct cpu_start_args, csa_cpuid));
 #endif
 ASSYM(DC_TAG_SHIFT, DC_TAG_SHIFT);
 ASSYM(DC_TAG_MASK, DC_TAG_MASK);
@@ -198,7 +199,6 @@ ASSYM(HASH_ENTRY_SHIFT, HASH_ENTRY_SHIFT);
 ASSYM(V_INTR, offsetof(struct vmmeter, v_intr));
 
 ASSYM(PC_CURTHREAD, offsetof(struct pcpu, pc_curthread));
-ASSYM(PC_CALLER, offsetof(struct pcpu, pc_caller));
 ASSYM(PC_CURPCB, offsetof(struct pcpu, pc_curpcb));
 ASSYM(PC_CPUID, offsetof(struct pcpu, pc_cpuid));
 ASSYM(PC_CPUMASK, offsetof(struct pcpu, pc_cpumask));
@@ -209,6 +209,7 @@ ASSYM(PC_CNT, offsetof(struct pcpu, pc_cnt));
 ASSYM(PC_SIZEOF, sizeof(struct pcpu));
 
 #ifdef SUN4V
+ASSYM(PC_CALLER, offsetof(struct pcpu, pc_caller));
 ASSYM(PC_CPU_Q_RA, offsetof(struct pcpu, pc_cpu_q_ra));
 ASSYM(PC_CPU_Q_SIZE, offsetof(struct pcpu, pc_cpu_q_size));
 ASSYM(PC_DEV_Q_RA, offsetof(struct pcpu, pc_dev_q_ra));
@@ -342,16 +343,14 @@ ASSYM(TF_LEVEL, offsetof(struct trapframe, tf_level));
 ASSYM(TF_SFAR, offsetof(struct trapframe, tf_sfar));
 ASSYM(TF_SFSR, offsetof(struct trapframe, tf_sfsr));
 ASSYM(TF_TAR, offsetof(struct trapframe, tf_tar));
+ASSYM(TF_TYPE, offsetof(struct trapframe, tf_type));
+ASSYM(TF_Y, offsetof(struct trapframe, tf_y));
 #else
 ASSYM(TF_ASI, offsetof(struct trapframe, tf_asi));
 #endif
 ASSYM(TF_TNPC, offsetof(struct trapframe, tf_tnpc));
 ASSYM(TF_TPC, offsetof(struct trapframe, tf_tpc));
 ASSYM(TF_TSTATE, offsetof(struct trapframe, tf_tstate));
-#if 0
-ASSYM(TF_TYPE, offsetof(struct trapframe, tf_type));
-ASSYM(TF_Y, offsetof(struct trapframe, tf_y));
-#endif
 ASSYM(TF_WSTATE, offsetof(struct trapframe, tf_wstate));
 ASSYM(TF_SIZEOF, sizeof(struct trapframe));
 
