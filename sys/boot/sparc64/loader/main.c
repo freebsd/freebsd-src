@@ -9,7 +9,6 @@
 
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
-
 /*
  * FreeBSD/sparc64 kernel loader - machine dependent part
  *
@@ -25,7 +24,9 @@ __FBSDID("$FreeBSD$");
 #include <sys/param.h>
 #include <sys/queue.h>
 #include <sys/linker.h>
+#include <sys/types.h>
 
+#include <vm/vm.h>
 #include <machine/asi.h>
 #include <machine/atomic.h>
 #include <machine/cpufunc.h>
@@ -34,6 +35,7 @@ __FBSDID("$FreeBSD$");
 #include <machine/metadata.h>
 #include <machine/tte.h>
 #include <machine/upa.h>
+#include <machine/hypervisor_api.h>
 
 #include "bootstrap.h"
 #include "libofw.h"
@@ -50,6 +52,12 @@ struct memory_slice {
 	vm_offset_t size;
 };
 
+struct mmu_ops {
+	void (*tlb_init)(void);
+	int (*mmu_mapin)(vm_offset_t va, vm_size_t len);
+} *mmu_ops;
+
+
 typedef void kernel_entry_t(vm_offset_t mdp, u_long o1, u_long o2, u_long o3,
 			    void *openfirmware);
 
@@ -60,7 +68,33 @@ extern vm_offset_t dtlb_va_to_pa(vm_offset_t);
 extern vm_offset_t md_load(char *, vm_offset_t *);
 static int __elfN(exec)(struct preloaded_file *);
 static int sparc64_autoload(void);
-static int mmu_mapin(vm_offset_t, vm_size_t);
+static int mmu_mapin_sun4u(vm_offset_t, vm_size_t);
+static int mmu_mapin_sun4v(vm_offset_t, vm_size_t);
+static void tlb_init_sun4u(void);
+static void tlb_init_sun4v(void);
+
+struct mmu_ops mmu_ops_sun4u = 	{ tlb_init_sun4u, mmu_mapin_sun4u };
+struct mmu_ops mmu_ops_sun4v = 	{ tlb_init_sun4v, mmu_mapin_sun4v };
+
+extern char bootprog_name[], bootprog_rev[], bootprog_date[], bootprog_maker[];
+
+/* sun4u */
+struct tlb_entry *dtlb_store;
+struct tlb_entry *itlb_store;
+int dtlb_slot;
+int itlb_slot;
+int dtlb_slot_max;
+int itlb_slot_max;
+
+/* sun4v */
+struct tlb_entry *tlb_store;
+/* 
+ * no direct TLB access on sun4v
+ * we somewhat arbitrarily declare enough 
+ * slots to cover a 4GB AS with 4MB pages
+ */
+#define SUN4V_TLB_SLOT_MAX (1 << 10)
+
 
 extern char bootprog_name[], bootprog_rev[], bootprog_date[], bootprog_maker[];
 
@@ -204,14 +238,14 @@ sparc64_autoload(void)
 static ssize_t
 sparc64_readin(const int fd, vm_offset_t va, const size_t len)
 {
-	mmu_mapin(va, len);
+	mmu_ops->mmu_mapin(va, len);
 	return read(fd, (void *)va, len);
 }
 
 static ssize_t
 sparc64_copyin(const void *src, vm_offset_t dest, size_t len)
 {
-	mmu_mapin(dest, len);
+	mmu_ops->mmu_mapin(dest, len);
 	memcpy((void *)dest, src, len);
 	return len;
 }
@@ -252,7 +286,7 @@ __elfN(exec)(struct preloaded_file *fp)
 }
 
 static int
-mmu_mapin(vm_offset_t va, vm_size_t len)
+mmu_mapin_sun4u(vm_offset_t va, vm_size_t len)
 {
 	vm_offset_t pa, mva;
 	u_long data;
@@ -307,6 +341,53 @@ mmu_mapin(vm_offset_t va, vm_size_t len)
 	}
 	if (pa != (vm_offset_t)-1)
 		OF_release_phys(pa, PAGE_SIZE_4M);
+
+	return 0;
+}
+
+static int
+mmu_mapin_sun4v(vm_offset_t va, vm_size_t len)
+{
+
+	vm_offset_t pa, mva;
+	u_long data;
+	int ret;
+
+	if (va + len > curkva)
+		curkva = va + len;
+
+	pa = (vm_offset_t)-1;
+	len += va & PAGE_MASK_4M;
+	va &= ~PAGE_MASK_4M;
+	while (len) {
+		if ((va >> 22) > SUN4V_TLB_SLOT_MAX)
+			panic("trying to map more than 4GB");
+		if (tlb_store[va >> 22].te_pa == -1) {
+			/* Allocate a physical page, claim the virtual area */
+			if (pa == (vm_offset_t)-1) {
+				pa = (vm_offset_t)OF_alloc_phys(PAGE_SIZE_4M,
+				    PAGE_SIZE_4M);
+				if (pa == (vm_offset_t)-1)
+					panic("out of memory");
+				mva = (vm_offset_t)OF_claim_virt(va,
+				    PAGE_SIZE_4M, 0);
+				if (mva != va) {
+					panic("can't claim virtual page "
+					    "(wanted %#lx, got %#lx)",
+					    va, mva);
+				}
+			}
+
+			tlb_store[va >> 22].te_pa = pa;
+			if ((ret = OF_map_phys(-1, PAGE_SIZE_4M, va, pa)) != 0)
+				printf("OF_map_phys failed: %d\n", ret);
+			pa = (vm_offset_t)-1;
+		}
+		len -= len > PAGE_SIZE_4M ? PAGE_SIZE_4M : len;
+		va += PAGE_SIZE_4M;
+	}
+	if (pa != (vm_offset_t)-1)
+		OF_release_phys(pa, PAGE_SIZE_4M);
 	return 0;
 }
 
@@ -324,7 +405,7 @@ init_heap(void)
 }
 
 static void
-tlb_init(void)
+tlb_init_sun4u(void)
 {
 	phandle_t child;
 	phandle_t root;
@@ -361,11 +442,20 @@ tlb_init(void)
 		panic("init_tlb: malloc");
 }
 
+static void
+tlb_init_sun4v(void)
+{
+	tlb_store = malloc(SUN4V_TLB_SLOT_MAX * sizeof(*tlb_store));
+	memset(tlb_store, 0xFF, SUN4V_TLB_SLOT_MAX * sizeof(*tlb_store));
+}
+
 int
 main(int (*openfirm)(void *))
 {
 	char bootpath[64];
+	char compatible[32];
 	struct devsw **dp;
+	phandle_t rooth;
 	phandle_t chosenh;
 
 	/*
@@ -381,13 +471,22 @@ main(int (*openfirm)(void *))
 
 	init_heap();
 	setheap((void *)heapva, (void *)(heapva + HEAPSZ));
-
 	/*
 	 * Probe for a console.
 	 */
 	cons_probe();
 
-	tlb_init();
+	rooth = OF_peer(0);
+	OF_getprop(rooth, "compatible", compatible, sizeof(compatible));
+	if (!strcmp(compatible, "sun4v")) {
+		printf("\nBooting with sun4v support.\n");
+		mmu_ops = &mmu_ops_sun4v;
+	} else {
+		printf("\nBooting with sun4u support.\n");
+		mmu_ops = &mmu_ops_sun4u;
+	}
+
+	mmu_ops->tlb_init();
 
 	bcache_init(32, 512);
 

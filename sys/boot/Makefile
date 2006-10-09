@@ -18,6 +18,6 @@ SUBDIR+=		ofw
 .endif
 
 # Pick the machine-dependent subdir based on the target architecture.
-SUBDIR+=		${MACHINE:S/amd64/i386/}
+SUBDIR+=		${MACHINE:S/amd64/i386/:S/sun4v/sparc64/}
 
 .include <bsd.subdir.mk>
