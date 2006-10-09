@@ -203,6 +203,7 @@ void	transferlockers(struct lock *, struct lock *);
 void	lockmgr_printinfo(struct lock *);
 int	lockstatus(struct lock *, struct thread *);
 int	lockcount(struct lock *);
+int	lockwaiters(struct lock *);
 #ifdef DDB
 int	lockmgr_chain(struct thread *td, struct thread **ownerp);
 #endif

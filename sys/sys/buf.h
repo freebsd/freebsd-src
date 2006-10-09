@@ -367,6 +367,17 @@ BUF_REFCNT(struct buf *bp)
 	return ret;
 }
 
+
+/*
+ * Find out the number of waiters on a lock.
+ */
+static __inline int BUF_LOCKWAITERS(struct buf *);
+static __inline int
+BUF_LOCKWAITERS(struct buf *bp)
+{
+	return (lockwaiters(&bp->b_lock));
+}
+
 #endif /* _KERNEL */
 
 struct buf_queue_head {
