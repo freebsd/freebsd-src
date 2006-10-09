@@ -8,7 +8,7 @@ TD=	${.CURDIR}/tests
 
 TESTSCRIPTS=	nonexistshell devnullscript badinterplen goodscript \
 		scriptarg scriptarg-nospace
-CLEANFILES=	goodaout truncaout sparceaout empty ${TESTSCRIPTS}
+CLEANFILES=	goodaout truncaout sparseaout empty ${TESTSCRIPTS}
 
 all:		${PROG} goodaout ${TESTSCRIPTS}
 
@@ -21,7 +21,7 @@ ${x}: ${TD}/${x}
 regress:	test-empty test-nonexist test-nonexistshell \
 		test-devnullscript test-badinterplen test-goodscript \
 		test-scriptarg test-scriptarg-nospace test-goodaout \
-		test-truncaout test-sparceaout
+		test-truncaout test-sparseaout
 
 test-empty:	${PROG}
 	rm -f empty
@@ -61,10 +61,10 @@ test-truncaout: ${PROG} goodaout
 	chmod a+x truncaout
 	${RP} truncaout | grep 'Exec format error'
 
-test-sparceaout: ${PROG}
-	/bin/rm -rf sparceaout
-	truncate -s 20480 sparceaout
-	chmod a+x sparceaout
-	${RP} sparceaout | grep 'Exec format error'
+test-sparseaout: ${PROG}
+	/bin/rm -rf sparseaout
+	truncate -s 20480 sparseaout
+	chmod a+x sparseaout
+	${RP} sparseaout | grep 'Exec format error'
 
 .include <bsd.prog.mk>

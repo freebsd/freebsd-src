@@ -9,7 +9,7 @@ make >/dev/null 2>&1
 tests="test-empty test-nonexist test-nonexistshell \
 	test-devnullscript test-badinterplen test-goodscript \
 	test-scriptarg test-scriptarg-nospace test-goodaout \
-	test-truncaout test-sparceaout"
+	test-truncaout test-sparseaout"
 
 n=0
 
