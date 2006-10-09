@@ -120,8 +120,8 @@ tsb_deinit(hv_tsb_info_t *hvtsb)
 	for (i = 0, tm = m; i < TSB_SIZE; i++, m++) {
 		tm->wire_count--;
 		atomic_subtract_int(&cnt.v_wire_count, 1);
+		vm_page_free(tm);
 	}
-	vm_page_release_contig(m, TSB_SIZE);
 }
 
 

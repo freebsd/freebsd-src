@@ -151,5 +151,20 @@
 #define Q(queue_head) (queue_head >> 4)
 
 
+/*
+ * sparc64 compat for the loader
+ */
+#define	AA_IMMU_TAR			        0x30
+#define	AA_DMMU_TAR			        0x30
+
+#define ASI_UPA_CONFIG_REG                      0x4a    /* US-I, II */
+#define	ASI_IMMU				0x50
+#define	ASI_ITLB_DATA_IN_REG			0x54
+#define	ASI_ITLB_DATA_ACCESS_REG		0x55
+#define	ASI_ITLB_TAG_READ_REG			0x56
+#define	ASI_DMMU				0x58
+#define	ASI_DTLB_DATA_IN_REG			0x5c
+#define	ASI_DTLB_DATA_ACCESS_REG		0x5d
+#define	ASI_DTLB_TAG_READ_REG			0x5e
 
 #endif /* !_MACHINE_ASI_H_ */

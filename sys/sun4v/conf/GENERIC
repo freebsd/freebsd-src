@@ -211,6 +211,9 @@ device		ums		# Mouse
 #options			DEBUG_VFS_LOCKS
 
 device		ccd
-options		SPIN_PROFILING
+
+# sched_lock incurs a rather high overhead at a 1000Hz with 32 cpus
+# on most arches and in most cases 1000Hz pessimizes performance
+# its choice was not adequately researched
 options		HZ=100
-#device		vnet
+
