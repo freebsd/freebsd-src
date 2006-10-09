@@ -759,7 +759,7 @@ vfs_domount(
 	struct mount *mp;
 	struct vfsconf *vfsp;
 	struct export_args export;
-	int error, flag = 0, kern_flag = 0;
+	int error, flag = 0;
 	struct vattr va;
 	struct nameidata nd;
 
@@ -821,7 +821,6 @@ vfs_domount(
 		mp = vp->v_mount;
 		MNT_ILOCK(mp);
 		flag = mp->mnt_flag;
-		kern_flag = mp->mnt_kern_flag;
 		/*
 		 * We only allow the filesystem to be reloaded if it
 		 * is currently mounted read-only.
@@ -953,10 +952,8 @@ vfs_domount(
 		MNT_ILOCK(mp);
 		mp->mnt_flag &=
 		    ~(MNT_UPDATE | MNT_RELOAD | MNT_FORCE | MNT_SNAPSHOT);
-		if (error) {
+		if (error)
 			mp->mnt_flag = flag;
-			mp->mnt_kern_flag = kern_flag;
-		}
 		MNT_IUNLOCK(mp);
 		if ((mp->mnt_flag & MNT_RDONLY) == 0) {
 			if (mp->mnt_syncer == NULL)
