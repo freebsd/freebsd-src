@@ -25,7 +25,8 @@ SRCS+=	tc-i386.c
 .elif ${TARGET_ARCH} == "powerpc"
 SRCS+=	tc-ppc.c
 .elif ${TARGET_ARCH} == "sparc64"
-SRCS+=	tc-sparc.c
+# change back to tc-sparc.c when new binutils is imported
+SRCS+=	tc-sparc-fixed.c
 .else
 SRCS+=	tc-${TARGET_ARCH}.c
 .endif
