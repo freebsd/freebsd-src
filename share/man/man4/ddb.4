@@ -58,7 +58,7 @@
 .\" 	[90/08/30            dbg]
 .\"
 .\" $FreeBSD$
-.Dd September 15, 2006
+.Dd October 9, 2006
 .Dt DDB 4
 .Os
 .Sh NAME
@@ -225,6 +225,7 @@ except that the last start address subtracted by the size displayed by it
 is used as the start address.
 .Pp
 .It Cm print Ns Op Cm /acdoruxz
+.It Cm p Ns Op Cm /acdoruxz
 Print
 .Ar addr Ns s
 according to the modifier character (as described above for
@@ -257,6 +258,10 @@ ecx = yyyyyy
 .Cm write Ns Op Cm /bhl
 .Ar addr Ar expr1 Op Ar "expr2 ..."
 .Xc
+.It Xo
+.Cm w Ns Op Cm /bhl
+.Ar addr Ar expr1 Op Ar "expr2 ..."
+.Xc
 Write the expressions specified after
 .Ar addr
 on the command line at succeeding locations starting with
@@ -287,6 +292,7 @@ Set the named variable or register with the value of
 Valid variable names are described below.
 .Pp
 .It Cm break Ns Op Cm /u
+.It Cm b Ns Op Cm /u
 Set a break point at
 .Ar addr .
 If
@@ -319,7 +325,9 @@ Setting a break
 point at the low-level code paths may also cause strange behavior.
 .Pp
 .It Cm delete Ar addr
+.It Cm d Ar addr
 .It Cm delete Li \&# Ns Ar number
+.It Cm d Li \&# Ns Ar number
 Delete the break point.
 The target break point can be specified by a
 break point number with
@@ -331,6 +339,7 @@ specified in the original
 command.
 .Pp
 .It Cm step Ns Op Cm /p
+.It Cm s Ns Op Cm /p
 Single step
 .Ar count
 times (the comma is a mandatory part of the syntax).
@@ -347,6 +356,7 @@ stepping through code executed by interrupt handlers will probably
 do the wrong thing.
 .Pp
 .It Cm continue Ns Op Cm /c
+.It Cm c Ns Op Cm /c
 Continue execution until a breakpoint or watchpoint.
 If the
 .Li c
@@ -378,6 +388,21 @@ Otherwise, only print when the matching return is hit.
 .Pp
 .It Xo
 .Cm trace Ns Op Cm /u
+.Op Ar frame
+.Op , Ns Ar count
+.Xc
+.It Xo
+.Cm t Ns Op Cm /u
+.Op Ar frame
+.Op , Ns Ar count
+.Xc
+.It Xo
+.Cm where Ns Op Cm /u
+.Op Ar frame
+.Op , Ns Ar count
+.Xc
+.It Xo
+.Cm bt Ns Op Cm /u
 .Op Ar frame
 .Op , Ns Ar count
 .Xc
@@ -426,6 +451,7 @@ modifier will alter the display to show VM map
 addresses for the process and not show other info.
 .Pp
 .It Cm show registers Ns Op Cm /u
+.It Cm registers Ns Op Cm /u
 Display the register set.
 If the
 .Li u
@@ -437,6 +463,12 @@ The support of the
 .Li u
 modifier depends on the machine.
 If not supported, incorrect information will be displayed.
+.Pp
+The
+.Cm registers
+alias is a hack to prevent mistyping
+.Ql r
+from resetting the system.
 .Pp
 .It Cm show geom Op Ar addr
 If the
