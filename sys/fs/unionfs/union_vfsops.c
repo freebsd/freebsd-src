@@ -86,7 +86,9 @@ union_mount(mp, td)
 	/*
 	 * Disable clustered write, otherwise system becomes unstable.
 	 */
+	MNT_ILOCK(mp);
 	mp->mnt_flag |= MNT_NOCLUSTERW;
+	MNT_IUNLOCK(mp);
 
 	if (mp->mnt_flag & MNT_ROOTFS)
 		return (EOPNOTSUPP);
@@ -246,8 +248,11 @@ union_mount(mp, td)
 	if (um->um_op == UNMNT_ABOVE) {
 		if (((um->um_lowervp == NULLVP) ||
 		     (um->um_lowervp->v_mount->mnt_flag & MNT_LOCAL)) &&
-		    (um->um_uppervp->v_mount->mnt_flag & MNT_LOCAL))
+		    (um->um_uppervp->v_mount->mnt_flag & MNT_LOCAL)) {
+			MNT_ILOCK(mp);
 			mp->mnt_flag |= MNT_LOCAL;
+			MNT_IUNLOCK(mp);
+		}
 	}
 
 	/*
@@ -257,7 +262,9 @@ union_mount(mp, td)
 	 * mount of the underlying filesystem to go from rdonly to rdwr
 	 * will leave the unioned view as read-only.
 	 */
+	MNT_ILOCK(mp);
 	mp->mnt_flag |= (um->um_uppervp->v_mount->mnt_flag & MNT_RDONLY);
+	MNT_IUNLOCK(mp);
 
 	mp->mnt_data = (qaddr_t) um;
 	vfs_getnewfsid(mp);

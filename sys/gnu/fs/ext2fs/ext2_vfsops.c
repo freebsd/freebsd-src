@@ -230,7 +230,9 @@ ext2_mount(mp, td)
 			fs->s_es->s_state &= ~EXT2_VALID_FS;
 			ext2_sbupdate(ump, MNT_WAIT);
 			fs->s_rd_only = 0;
+			MNT_ILOCK(mp);
 			mp->mnt_flag &= ~MNT_RDONLY;
+			MNT_IUNLOCK(mp);
 		}
 		if (vfs_flagopt(opts, "export", NULL, 0)) {
 			/* Process export requests in vfs_mount.c. */
@@ -683,7 +685,9 @@ ext2_mountfs(devvp, mp, td)
 	mp->mnt_stat.f_fsid.val[0] = dev2udev(dev);
 	mp->mnt_stat.f_fsid.val[1] = mp->mnt_vfc->vfc_typenum;
 	mp->mnt_maxsymlinklen = EXT2_MAXSYMLINKLEN;
+	MNT_ILOCK(mp);
 	mp->mnt_flag |= MNT_LOCAL;
+	MNT_IUNLOCK(mp);
 	ump->um_mountp = mp;
 	ump->um_dev = dev;
 	ump->um_devvp = devvp;
@@ -771,7 +775,9 @@ ext2_unmount(mp, mntflags, td)
 	bsd_free(fs, M_EXT2MNT);
 	bsd_free(ump, M_EXT2MNT);
 	mp->mnt_data = (qaddr_t)0;
+	MNT_ILOCK(mp);
 	mp->mnt_flag &= ~MNT_LOCAL;
+	MNT_IUNLOCK(mp);
 	return (error);
 }
 

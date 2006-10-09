@@ -338,7 +338,9 @@ udf_mountfs(struct vnode *devvp, struct mount *mp, struct thread *td) {
 	mp->mnt_data = (qaddr_t)udfmp;
 	mp->mnt_stat.f_fsid.val[0] = dev2udev(devvp->v_rdev);
 	mp->mnt_stat.f_fsid.val[1] = mp->mnt_vfc->vfc_typenum;
+	MNT_ILOCK(mp);
 	mp->mnt_flag |= MNT_LOCAL;
+	MNT_IUNLOCK(mp);
 	udfmp->im_mountp = mp;
 	udfmp->im_dev = devvp->v_rdev;
 	udfmp->im_devvp = devvp;
@@ -514,7 +516,9 @@ udf_unmount(struct mount *mp, int mntflags, struct thread *td)
 	FREE(udfmp, M_UDFMOUNT);
 
 	mp->mnt_data = (qaddr_t)0;
+	MNT_ILOCK(mp);
 	mp->mnt_flag &= ~MNT_LOCAL;
+	MNT_IUNLOCK(mp);
 
 	return (0);
 }

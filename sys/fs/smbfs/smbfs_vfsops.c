@@ -304,7 +304,9 @@ smbfs_unmount(struct mount *mp, int mntflags, struct thread *td)
 #else
 	free(smp, M_SMBFSDATA);
 #endif
+	MNT_ILOCK(mp);
 	mp->mnt_flag &= ~MNT_LOCAL;
+	MNT_IUNLOCK(mp);
 	return error;
 }
 

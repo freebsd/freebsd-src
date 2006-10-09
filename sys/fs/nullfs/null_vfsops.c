@@ -179,9 +179,14 @@ nullfs_mount(struct mount *mp, struct thread *td)
 	 */
 	VOP_UNLOCK(vp, 0, td);
 
-	if (NULLVPTOLOWERVP(nullm_rootvp)->v_mount->mnt_flag & MNT_LOCAL)
+	if (NULLVPTOLOWERVP(nullm_rootvp)->v_mount->mnt_flag & MNT_LOCAL) {
+		MNT_ILOCK(mp);
 		mp->mnt_flag |= MNT_LOCAL;
+		MNT_IUNLOCK(mp);
+	}
+	MNT_ILOCK(mp);
 	mp->mnt_kern_flag |= lowerrootvp->v_mount->mnt_kern_flag & MNTK_MPSAFE;
+	MNT_IUNLOCK(mp);
 	mp->mnt_data = (qaddr_t) xmp;
 	vfs_getnewfsid(mp);
 

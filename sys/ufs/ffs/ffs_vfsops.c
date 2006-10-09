@@ -210,7 +210,9 @@ ffs_mount(struct mount *mp, struct thread *td)
 			g_topology_unlock();
 			PICKUP_GIANT();
 			fs->fs_ronly = 1;
+			MNT_ILOCK(mp);
 			mp->mnt_flag |= MNT_RDONLY;
+			MNT_IUNLOCK(mp);
 		}
 		if ((mp->mnt_flag & MNT_RELOAD) &&
 		    (error = ffs_reload(mp, td)) != 0)
@@ -262,7 +264,9 @@ ffs_mount(struct mount *mp, struct thread *td)
 			if ((error = vn_start_write(NULL, &mp, V_WAIT)) != 0)
 				return (error);
 			fs->fs_ronly = 0;
+			MNT_ILOCK(mp);
 			mp->mnt_flag &= ~MNT_RDONLY;
+			MNT_IUNLOCK(mp);
 			fs->fs_clean = 0;
 			if ((error = ffs_sbupdate(ump, MNT_WAIT, 0)) != 0) {
 				vn_finished_write(mp);
@@ -285,13 +289,21 @@ ffs_mount(struct mount *mp, struct thread *td)
 		 * Softdep_mount() clears it in an initial mount 
 		 * or ro->rw remount.
 		 */
-		if (mp->mnt_flag & MNT_SOFTDEP)
+		if (mp->mnt_flag & MNT_SOFTDEP) {
+			/* XXX: Reset too late ? */
+			MNT_ILOCK(mp);
 			mp->mnt_flag &= ~MNT_ASYNC;
+			MNT_IUNLOCK(mp);
+		}
 		/*
 		 * Keep MNT_ACLS flag if it is stored in superblock.
 		 */
-		if ((fs->fs_flags & FS_ACLS) != 0)
+		if ((fs->fs_flags & FS_ACLS) != 0) {
+			/* XXX: Set too late ? */
+			MNT_ILOCK(mp);
 			mp->mnt_flag |= MNT_ACLS;
+			MNT_IUNLOCK(mp);
+		}
 
 		/*
 		 * If this is a snapshot request, take the snapshot.
@@ -717,23 +729,31 @@ ffs_mountfs(devvp, mp, td)
 		vfs_getnewfsid(mp);
 	}
 	mp->mnt_maxsymlinklen = fs->fs_maxsymlinklen;
+	MNT_ILOCK(mp);
 	mp->mnt_flag |= MNT_LOCAL;
-	if ((fs->fs_flags & FS_MULTILABEL) != 0)
+	MNT_IUNLOCK(mp);
+	if ((fs->fs_flags & FS_MULTILABEL) != 0) {
 #ifdef MAC
+		MNT_ILOCK(mp);
 		mp->mnt_flag |= MNT_MULTILABEL;
+		MNT_IUNLOCK(mp);
 #else
 		printf(
 "WARNING: %s: multilabel flag on fs but no MAC support\n",
 		    mp->mnt_stat.f_mntonname);
 #endif
-	if ((fs->fs_flags & FS_ACLS) != 0)
+	}
+	if ((fs->fs_flags & FS_ACLS) != 0) {
 #ifdef UFS_ACL
+		MNT_ILOCK(mp);
 		mp->mnt_flag |= MNT_ACLS;
+		MNT_IUNLOCK(mp);
 #else
 		printf(
 "WARNING: %s: ACLs flag on fs but no ACLs support\n",
 		    mp->mnt_stat.f_mntonname);
 #endif
+	}
 	ump->um_mountp = mp;
 	ump->um_dev = dev;
 	ump->um_devvp = devvp;
@@ -791,7 +811,9 @@ ffs_mountfs(devvp, mp, td)
 #endif /* !UFS_EXTATTR_AUTOSTART */
 #endif /* !UFS_EXTATTR */
 #ifndef QUOTA
+	MNT_ILOCK(mp);
 	mp->mnt_kern_flag |= MNTK_MPSAFE;
+	MNT_IUNLOCK(mp);
 #endif
 	return (0);
 out:
@@ -969,7 +991,9 @@ ffs_unmount(mp, mntflags, td)
 	free(fs, M_UFSMNT);
 	free(ump, M_UFSMNT);
 	mp->mnt_data = (qaddr_t)0;
+	MNT_ILOCK(mp);
 	mp->mnt_flag &= ~MNT_LOCAL;
+	MNT_IUNLOCK(mp);
 	return (error);
 }
 
