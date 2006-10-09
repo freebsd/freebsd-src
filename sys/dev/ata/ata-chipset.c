@@ -950,6 +950,7 @@ ata_ali_ident(device_t dev)
     struct ata_chip_id *idx;
     static struct ata_chip_id ids[] =
     {{ ATA_ALI_5289, 0x00, 2, ALISATA, ATA_SA150, "M5289" },
+     { ATA_ALI_5288, 0x00, 4, ALISATA, ATA_SA300, "M5288" },
      { ATA_ALI_5287, 0x00, 4, ALISATA, ATA_SA150, "M5287" },
      { ATA_ALI_5281, 0x00, 2, ALISATA, ATA_SA150, "M5281" },
      { ATA_ALI_5229, 0xc5, 0, ALINEW,  ATA_UDMA6, "M5229" },
