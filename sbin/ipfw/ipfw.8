@@ -2516,3 +2516,7 @@ or similar system calls.
 Rules which use uid, gid or jail based matching should be used only
 if debug.mpsafenet=0 to avoid possible deadlocks due to layering
 violations in its implementation.
+.Pp
+Rule syntax is subject to the command line environment and some patterns
+may need to be escaped with the backslash character
+or quoted appropriately.
