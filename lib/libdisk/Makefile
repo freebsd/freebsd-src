@@ -10,7 +10,7 @@ _open_disk=	open_disk.c
 LIB=	disk
 SRCS=	blocks.c ${_change} chunk.c create_chunk.c disk.c ${_open_disk} \
 	rules.c write_disk.c 
-.if ${TARGET} == "sun4v"
+.if ${MACHINE} == "sun4v"
 SRCS+=  write_sparc64_disk.c
 .else
 SRCS+=  write_${MACHINE}_disk.c
