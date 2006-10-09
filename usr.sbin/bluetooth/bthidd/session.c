@@ -1,7 +1,9 @@
 /*
  * session.c
- *
- * Copyright (c) 2004 Maksim Yevmenkin <m_evmenkin@yahoo.com>
+ */
+
+/*-
+ * Copyright (c) 2006 Maksim Yevmenkin <m_evmenkin@yahoo.com>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -25,17 +27,22 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: session.c,v 1.2 2004/11/17 21:59:42 max Exp $
+ * $Id: session.c,v 1.3 2006/09/07 21:06:53 max Exp $
  * $FreeBSD$
  */
 
 #include <sys/queue.h>
 #include <assert.h>
 #include <bluetooth.h>
+#include <errno.h>
+#include <fcntl.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <syslog.h>
 #include <unistd.h>
+#include <usbhid.h>
+#include "bthid_config.h"
 #include "bthidd.h"
 #include "kbd.h"
 
@@ -44,26 +51,50 @@
  */
 
 bthid_session_p
-session_open(bthid_server_p srv, bdaddr_p bdaddr)
+session_open(bthid_server_p srv, hid_device_p const d)
 {
-	bthid_session_p	s = NULL;
+	bthid_session_p	s;
 
 	assert(srv != NULL);
-	assert(bdaddr != NULL);
+	assert(d != NULL);
 
-	if ((s = (bthid_session_p) malloc(sizeof(*s))) != NULL) {
-		s->srv = srv;  
-		memcpy(&s->bdaddr, bdaddr, sizeof(s->bdaddr));
-		s->ctrl = -1;
-		s->intr = -1;
-		s->state = CLOSED;
-		s->keys = bit_alloc(kbd_maxkey());
-		if (s->keys == NULL) {
+	if ((s = (bthid_session_p) malloc(sizeof(*s))) == NULL)
+		return (NULL);
+
+	s->srv = srv;  
+	memcpy(&s->bdaddr, &d->bdaddr, sizeof(s->bdaddr));
+	s->ctrl = -1;
+	s->intr = -1;
+
+	if (d->keyboard) {
+		/* Open /dev/vkbdctl */
+		s->vkbd = open("/dev/vkbdctl", O_RDWR);
+		if (s->vkbd < 0) {
+			syslog(LOG_ERR, "Could not open /dev/vkbdctl " \
+				"for %s. %s (%d)", bt_ntoa(&s->bdaddr, NULL),
+				strerror(errno), errno);
 			free(s);
-			s = NULL;
-		} else
-			LIST_INSERT_HEAD(&srv->sessions, s, next);
+			return (NULL);
+		}
+	} else
+		s->vkbd = -1;
+
+	s->state = CLOSED;
+
+	s->keys1 = bit_alloc(kbd_maxkey());
+	if (s->keys1 == NULL) {
+		free(s);
+		return (NULL);
 	}
+
+	s->keys2 = bit_alloc(kbd_maxkey());
+	if (s->keys2 == NULL) {
+		free(s->keys1);
+		free(s);
+		return (NULL);
+	}
+
+	LIST_INSERT_HEAD(&srv->sessions, s, next);
 
 	return (s);
 }
@@ -75,7 +106,7 @@ session_open(bthid_server_p srv, bdaddr_p bdaddr)
 bthid_session_p
 session_by_bdaddr(bthid_server_p srv, bdaddr_p bdaddr)
 {
-	bthid_session_p	s = NULL;
+	bthid_session_p	s;
 
 	assert(srv != NULL);
 	assert(bdaddr != NULL);
@@ -92,15 +123,15 @@ session_by_bdaddr(bthid_server_p srv, bdaddr_p bdaddr)
  */
 
 bthid_session_p
-session_by_fd(bthid_server_p srv, int fd)
+session_by_fd(bthid_server_p srv, int32_t fd)
 {
-	bthid_session_p	s = NULL;
+	bthid_session_p	s;
 
 	assert(srv != NULL);
 	assert(fd >= 0);
 
 	LIST_FOREACH(s, &srv->sessions, next)
-		if (s->ctrl == fd || s->intr == fd)
+		if (s->ctrl == fd || s->intr == fd || s->vkbd == fd)
 			break;
 
 	return (s);
@@ -136,7 +167,16 @@ session_close(bthid_session_p s)
 			s->srv->maxfd --;
 	}
 
-	free(s->keys);
+	if (s->vkbd != -1) {
+		FD_CLR(s->vkbd, &s->srv->rfdset);
+		close(s->vkbd);
+
+		if (s->srv->maxfd == s->vkbd)
+			s->srv->maxfd --;
+	}
+
+	free(s->keys1);
+	free(s->keys2);
 
 	memset(s, 0, sizeof(*s));
 	free(s);
