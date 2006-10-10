@@ -701,7 +701,7 @@ vnode_pager_generic_getpages(vp, m, bytecount, reqpage)
 	int runend;
 	struct buf *bp;
 	int count;
-	int error = 0;
+	int error;
 
 	object = vp->v_object;
 	count = bytecount / PAGE_SIZE;
@@ -724,7 +724,8 @@ vnode_pager_generic_getpages(vp, m, bytecount, reqpage)
 	/*
 	 * if we can't bmap, use old VOP code
 	 */
-	if (VOP_BMAP(vp, foff / bsize, &bo, &reqblock, NULL, NULL)) {
+	error = VOP_BMAP(vp, foff / bsize, &bo, &reqblock, NULL, NULL);
+	if (error == EOPNOTSUPP) {
 		VM_OBJECT_LOCK(object);
 		vm_page_lock_queues();
 		for (i = 0; i < count; i++)
@@ -736,6 +737,15 @@ vnode_pager_generic_getpages(vp, m, bytecount, reqpage)
 		error = vnode_pager_input_old(object, m[reqpage]);
 		VM_OBJECT_UNLOCK(object);
 		return (error);
+	} else if (error != 0) {
+		VM_OBJECT_LOCK(object);
+		vm_page_lock_queues();
+		for (i = 0; i < count; i++)
+			if (i != reqpage)
+				vm_page_free(m[i]);
+		vm_page_unlock_queues();
+		VM_OBJECT_UNLOCK(object);
+		return (VM_PAGER_ERROR);
 
 		/*
 		 * if the blocksize is smaller than a page size, then use
