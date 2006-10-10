@@ -965,9 +965,14 @@ carp_send_ad_locked(struct carp_softc *sc)
 		    sizeof(struct in6_addr));
 		/* set the multicast destination */
 
-		ip6->ip6_dst.s6_addr8[0] = 0xff;
-		ip6->ip6_dst.s6_addr8[1] = 0x02;
+		ip6->ip6_dst.s6_addr16[0] = htons(0xff02);
 		ip6->ip6_dst.s6_addr8[15] = 0x12;
+		if (in6_setscope(&ip6->ip6_dst, sc->sc_carpdev, NULL) != 0) {
+			SC2IFP(sc)->if_oerrors++;
+			m_freem(m);
+			CARP_LOG("%s: in6_setscope failed\n", __func__);
+			return;
+		}
 
 		ch_ptr = (struct carp_header *)(&ip6[1]);
 		bcopy(&ch, ch_ptr, sizeof(ch));
