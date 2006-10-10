@@ -151,11 +151,14 @@ volatile lapic_t *lapic;
 static u_long lapic_timer_divisor, lapic_timer_period, lapic_timer_hz;
 
 static void	lapic_enable(void);
+static void	lapic_resume(struct pic *pic);
 static void	lapic_timer_enable_intr(void);
 static void	lapic_timer_oneshot(u_int count);
 static void	lapic_timer_periodic(u_int count);
 static void	lapic_timer_set_divisor(u_int divisor);
 static uint32_t	lvt_mode(struct lapic *la, u_int pin, uint32_t value);
+
+struct pic lapic_pic = { .pic_resume = lapic_resume };
 
 static uint32_t
 lvt_mode(struct lapic *la, u_int pin, uint32_t value)
@@ -279,7 +282,7 @@ lapic_dump(const char* str)
 }
 
 void
-lapic_setup(void)
+lapic_setup(int boot)
 {
 	struct lapic *la;
 	u_int32_t maxlvt;
@@ -308,9 +311,13 @@ lapic_setup(void)
 
 	/* Program timer LVT and setup handler. */
 	lapic->lvt_timer = lvt_mode(la, LVT_TIMER, lapic->lvt_timer);
-	snprintf(buf, sizeof(buf), "cpu%d: timer", PCPU_GET(cpuid));
-	intrcnt_add(buf, &la->la_timer_count);
-	if (PCPU_GET(cpuid) != 0) {
+	if (boot) {
+		snprintf(buf, sizeof(buf), "cpu%d: timer", PCPU_GET(cpuid));
+		intrcnt_add(buf, &la->la_timer_count);
+	}
+
+	/* We don't setup the timer during boot on the BSP until later. */
+	if (!(boot && PCPU_GET(cpuid) == 0)) {
 		KASSERT(lapic_timer_period != 0, ("lapic%u: zero divisor",
 		    lapic_id()));
 		lapic_timer_set_divisor(lapic_timer_divisor);
@@ -398,6 +405,14 @@ lapic_enable(void)
 	value &= ~(APIC_SVR_VECTOR | APIC_SVR_FOCUS);
 	value |= (APIC_SVR_FEN | APIC_SVR_SWEN | APIC_SPURIOUS_INT);
 	lapic->svr = value;
+}
+
+/* Reset the local APIC on the BSP during resume. */
+static void
+lapic_resume(struct pic *pic)
+{
+
+	lapic_setup(0);
 }
 
 int
@@ -986,7 +1001,8 @@ apic_setup_io(void *dummy __unused)
 	 * Finish setting up the local APIC on the BSP once we know how to
 	 * properly program the LINT pins.
 	 */
-	lapic_setup();
+	lapic_setup(1);
+	intr_register_pic(&lapic_pic);
 	if (bootverbose)
 		lapic_dump("BSP");
 }

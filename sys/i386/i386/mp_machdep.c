@@ -594,7 +594,7 @@ init_secondary(void)
 	mtx_lock_spin(&ap_boot_mtx);
 
 	/* Init local apic for irq's */
-	lapic_setup();
+	lapic_setup(1);
 
 	/* Set memory range attributes for this CPU to match the BSP */
 	mem_range_AP_init();
