@@ -59,7 +59,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd October 9, 2006
+.Dd October 10, 2006
 .Dt DDB 4
 .Os
 .Sh NAME
@@ -510,7 +510,6 @@ modifier will alter the display to show VM map
 addresses for the process and not show other info.
 .Pp
 .It Ic show Cm registers Ns Op Li / Ns Cm u
-.It Ic registers Ns Op Li / Ns Cm u
 Display the register set.
 If the
 .Cm u
@@ -522,12 +521,6 @@ The support of the
 .Cm u
 modifier depends on the machine.
 If not supported, incorrect information will be displayed.
-.Pp
-The
-.Ic registers
-alias is a hack to prevent mistyping
-.Ql r
-from resetting the system.
 .Pp
 .It Ic show Cm geom Op Ar addr
 If the
@@ -570,6 +563,24 @@ Currently only available on the
 i386
 architecture.
 .Pp
+.It Ic halt
+Halt the system.
+.Pp
+.It Ic kill Ar sig pid
+Send signal
+.Ar sig
+to process
+.Ar pid .
+The signal is acted on upon returning from the debugger.
+This command can be used to kill a process causing resource contention
+in the case of a hung system.
+See
+.Xr signal 3
+for a list of signals.
+Note that the arguments are reversed relative to
+.Xr kill 2 .
+.Pp
+.It Ic reboot
 .It Ic reset
 Hard reset the system.
 .Pp
