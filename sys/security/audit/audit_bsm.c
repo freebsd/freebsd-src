@@ -411,8 +411,11 @@ kaudit_to_bsm(struct kaudit_record *kar, struct au_record **pau)
 	case AUE_ACCEPT:
 	case AUE_BIND:
 	case AUE_CONNECT:
+	case AUE_RECV:
 	case AUE_RECVFROM:
 	case AUE_RECVMSG:
+	case AUE_SEND:
+	case AUE_SENDFILE:
 	case AUE_SENDMSG:
 	case AUE_SENDTO:
 		/*
@@ -544,17 +547,34 @@ kaudit_to_bsm(struct kaudit_record *kar, struct au_record **pau)
 		break;
 
 	case AUE_ADJTIME:
+	case AUE_CLOCK_SETTIME:
 	case AUE_AUDIT:
+	case AUE_DUP2:
 	case AUE_GETAUDIT:
 	case AUE_GETAUDIT_ADDR:
 	case AUE_GETAUID:
+	case AUE_GETCWD:
 	case AUE_GETFSSTAT:
+	case AUE_GETRESUID:
+	case AUE_GETRESGID:
+	case AUE_KQUEUE:
+	case AUE_LSEEK:
+	case AUE_MODLOAD:
+	case AUE_MODUNLOAD:
+	case AUE_MSGSYS:
+	case AUE_NFS_SVC:
+	case AUE_NTP_ADJTIME:
 	case AUE_PIPE:
+	case AUE_PROFILE:
+	case AUE_RTPRIO:
+	case AUE_SEMSYS:
+	case AUE_SHMSYS:
 	case AUE_SETPGRP:
 	case AUE_SETRLIMIT:
 	case AUE_SETSID:
 	case AUE_SETTIMEOFDAY:
-	case AUE_NEWSYSTEMSHREG:
+	case AUE_SYSARCH:
+
 		/*
 		 * Header, subject, and return tokens added at end.
 		 */
@@ -571,6 +591,7 @@ kaudit_to_bsm(struct kaudit_record *kar, struct au_record **pau)
 	case AUE_CHROOT:
 	case AUE_EACCESS:
 	case AUE_GETATTRLIST:
+	case AUE_JAIL:
 	case AUE_LUTIMES:
 	case AUE_NFS_GETFH:
 	case AUE_LSTAT:
@@ -582,11 +603,19 @@ kaudit_to_bsm(struct kaudit_record *kar, struct au_record **pau)
 	case AUE_SETATTRLIST:
 	case AUE_STAT:
 	case AUE_STATFS:
+	case AUE_SWAPON:
+	case AUE_SWAPOFF:
 	case AUE_TRUNCATE:
 	case AUE_UNDELETE:
 	case AUE_UNLINK:
 	case AUE_UTIMES:
 		UPATH1_VNODE1_TOKENS;
+		break;
+
+	case AUE_FHSTATFS:
+	case AUE_FHOPEN:
+	case AUE_FHSTAT:
+		/* XXXRW: Need to audit vnode argument. */
 		break;
 
 	case AUE_CHFLAGS:
@@ -692,15 +721,23 @@ kaudit_to_bsm(struct kaudit_record *kar, struct au_record **pau)
 		FD_VNODE1_TOKENS;
 		break;
 
+	/*
+	 * XXXRW: Some of these need to handle non-vnode cases as well.
+	 */
 	case AUE_FCHDIR:
 	case AUE_FPATHCONF:
-	case AUE_FSTAT:		/* XXX Need to handle sockets and shm */
+	case AUE_FSTAT:
 	case AUE_FSTATFS:
 	case AUE_FSYNC:
 	case AUE_FTRUNCATE:
 	case AUE_FUTIMES:
 	case AUE_GETDIRENTRIES:
 	case AUE_GETDIRENTRIESATTR:
+	case AUE_POLL:
+	case AUE_READ:
+	case AUE_READV:
+	case AUE_WRITE:
+	case AUE_WRITEV:
 		FD_VNODE1_TOKENS;
 		break;
 
@@ -784,6 +821,7 @@ kaudit_to_bsm(struct kaudit_record *kar, struct au_record **pau)
 		break;
 
 	case AUE_KILL:
+	case AUE_KILLPG:
 		if (ARG_IS_VALID(kar, ARG_SIGNUM)) {
 			tok = au_to_arg32(2, "signal", ar->ar_arg_signum);
 			kau_write(rec, tok);
@@ -873,6 +911,7 @@ kaudit_to_bsm(struct kaudit_record *kar, struct au_record **pau)
 		break;
 
 	case AUE_MOUNT:
+	case AUE_NMOUNT:
 		/* XXX Need to handle NFS mounts */
 		if (ARG_IS_VALID(kar, ARG_FFLAGS)) {
 			tok = au_to_arg32(3, "flags", ar->ar_arg_fflags);
@@ -926,7 +965,7 @@ kaudit_to_bsm(struct kaudit_record *kar, struct au_record **pau)
 	case AUE_OPEN_RWTC:
 	case AUE_OPEN_WC:
 	case AUE_OPEN_WTC:
-	/* case AUE_O_CREAT: */		/* AUE_O_CREAT == AUE_OPEN_RWTC */
+	case AUE_CREAT:
 		if (ARG_IS_VALID(kar, ARG_MODE)) {
 			tok = au_to_arg32(3, "mode", ar->ar_arg_mode);
 			kau_write(rec, tok);
@@ -1311,10 +1350,7 @@ kaudit_to_bsm(struct kaudit_record *kar, struct au_record **pau)
 		}
 		break;
 
-	case AUE_GETCWD:
-	case AUE_SYSARCH:
-		break;
-
+	case AUE_NULL:
 	default:
 		printf("BSM conversion requested for unknown event %d\n",
 		    ar->ar_event);
