@@ -711,7 +711,6 @@ linux_shmctl(struct thread *td, struct linux_shmctl_args *args)
 	struct l_shminfo linux_shminfo;
 	struct l_shm_info linux_shm_info;
 	struct shmid_ds bsd_shmid;
-	size_t bufsz;
     int error;
 
     switch (args->cmd & ~LINUX_IPC_64) {
@@ -721,7 +720,7 @@ linux_shmctl(struct thread *td, struct linux_shmctl_args *args)
 
 	    /* Perform shmctl wanting removed segments lookup */
 	    error = kern_shmctl(td, args->shmid, IPC_INFO,
-	        (void *)&bsd_shminfo, &bufsz);
+	        (void *)&bsd_shminfo, NULL);
 	    if (error)
 		return error;
 	
@@ -736,7 +735,7 @@ linux_shmctl(struct thread *td, struct linux_shmctl_args *args)
 
 	    /* Perform shmctl wanting removed segments lookup */
 	    error = kern_shmctl(td, args->shmid, SHM_INFO,
-	        (void *)&bsd_shm_info, &bufsz);
+	        (void *)&bsd_shm_info, NULL);
 	    if (error)
 		return error;
 
@@ -749,7 +748,7 @@ linux_shmctl(struct thread *td, struct linux_shmctl_args *args)
 	case LINUX_IPC_STAT:
 	    /* Perform shmctl wanting removed segments lookup */
 	    error = kern_shmctl(td, args->shmid, IPC_STAT,
-	        (void *)&bsd_shmid, &bufsz);
+	        (void *)&bsd_shmid, NULL);
 	    if (error)
 		return error;
 		
@@ -761,7 +760,7 @@ linux_shmctl(struct thread *td, struct linux_shmctl_args *args)
     case LINUX_SHM_STAT:
 	/* Perform shmctl wanting removed segments lookup */
 	error = kern_shmctl(td, args->shmid, IPC_STAT,
-	    (void *)&bsd_shmid, &bufsz);
+	    (void *)&bsd_shmid, NULL);
 	if (error)
 		return error;
 		
@@ -780,7 +779,7 @@ linux_shmctl(struct thread *td, struct linux_shmctl_args *args)
 
 	/* Perform shmctl wanting removed segments lookup */
 	return kern_shmctl(td, args->shmid, IPC_SET,
-	    (void *)&bsd_shmid, &bufsz);
+	    (void *)&bsd_shmid, NULL);
 
     case LINUX_IPC_RMID: {
 	void *buf;
@@ -795,7 +794,7 @@ linux_shmctl(struct thread *td, struct linux_shmctl_args *args)
 		linux_to_bsd_shmid_ds(&linux_shmid, &bsd_shmid);
 		buf = (void *)&bsd_shmid;
 	}
-	return kern_shmctl(td, args->shmid, IPC_RMID, buf, &bufsz);
+	return kern_shmctl(td, args->shmid, IPC_RMID, buf, NULL);
     }
 
     case LINUX_SHM_LOCK:
