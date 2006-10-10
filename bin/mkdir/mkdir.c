@@ -99,19 +99,19 @@ main(int argc, char *argv[])
 	}
 
 	for (exitval = 0; *argv != NULL; ++argv) {
-		success = 1;
 		if (pflag) {
-			if (build(*argv, omode))
-				success = 0;
+			success = build(*argv, omode);
 		} else if (mkdir(*argv, omode) < 0) {
 			if (errno == ENOTDIR || errno == ENOENT)
 				warn("%s", dirname(*argv));
 			else
 				warn("%s", *argv);
 			success = 0;
-		} else if (vflag)
-			(void)printf("%s\n", *argv);
-		
+		} else {
+			success = 1;
+			if (vflag)
+				(void)printf("%s\n", *argv);
+		}
 		if (!success)
 			exitval = 1;
 		/*
@@ -119,9 +119,10 @@ main(int argc, char *argv[])
 		 * nine bits, so if you try to set a mode including the
 		 * sticky, setuid, setgid bits you lose them.  Don't do
 		 * this unless the user has specifically requested a mode,
-		 * as chmod will (obviously) ignore the umask.
+		 * as chmod will (obviously) ignore the umask.  Do this
+		 * on newly created directories only.
 		 */
-		if (success && mode != NULL && chmod(*argv, omode) == -1) {
+		if (success == 1 && mode != NULL && chmod(*argv, omode) == -1) {
 			warn("%s", *argv);
 			exitval = 1;
 		}
@@ -129,6 +130,11 @@ main(int argc, char *argv[])
 	exit(exitval);
 }
 
+
+/*
+ * Returns 1 if a directory has been created,
+ * 2 if it already existed, and 0 on failure.
+ */
 int
 build(char *path, mode_t omode)
 {
@@ -139,7 +145,7 @@ build(char *path, mode_t omode)
 
 	p = path;
 	oumask = 0;
-	retval = 0;
+	retval = 1;
 	if (p[0] == '/')		/* Skip leading '/'. */
 		++p;
 	for (first = 1, last = 0; !last ; ++p) {
@@ -154,7 +160,7 @@ build(char *path, mode_t omode)
 			/*
 			 * POSIX 1003.2:
 			 * For each dir operand that does not name an existing
-			 * directory, effects equivalent to those cased by the
+			 * directory, effects equivalent to those caused by the
 			 * following command shall occcur:
 			 *
 			 * mkdir -p -m $(umask -S),u+wx $(dirname dir) &&
@@ -174,7 +180,7 @@ build(char *path, mode_t omode)
 			if (errno == EEXIST || errno == EISDIR) {
 				if (stat(path, &sb) < 0) {
 					warn("%s", path);
-					retval = 1;
+					retval = 0;
 					break;
 				} else if (!S_ISDIR(sb.st_mode)) {
 					if (last)
@@ -182,12 +188,14 @@ build(char *path, mode_t omode)
 					else
 						errno = ENOTDIR;
 					warn("%s", path);
-					retval = 1;
+					retval = 0;
 					break;
 				}
+				if (last)
+					retval = 2;
 			} else {
 				warn("%s", path);
-				retval = 1;
+				retval = 0;
 				break;
 			}
 		} else if (vflag)
