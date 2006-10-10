@@ -32,7 +32,7 @@
 .\"     @(#)killpg.2	8.1 (Berkeley) 6/2/93
 .\" $FreeBSD$
 .\"
-.Dd June 2, 1993
+.Dd October 10, 2006
 .Dt KILLPG 2
 .Os
 .Sh NAME
@@ -66,7 +66,7 @@ The sending process and members of the process group must
 have the same effective user ID, or
 the sender must be the super-user.
 As a single special case the continue signal SIGCONT may be sent
-to any process that is a descendant of the current process.
+to any process with the same session ID as the caller.
 .Sh RETURN VALUES
 .Rv -std killpg
 .Sh ERRORS
