@@ -37,6 +37,7 @@
  * that source.
  */
 
+#include "opt_atpic.h"
 #include "opt_ddb.h"
 
 #include <sys/param.h>
@@ -62,6 +63,7 @@ typedef void (*mask_fn)(void *);
 static int intrcnt_index;
 static struct intsrc *interrupt_sources[NUM_IO_INTS];
 static struct mtx intr_table_lock;
+static STAILQ_HEAD(, pic) pics;
 
 #ifdef SMP
 static int assign_cpu;
@@ -70,9 +72,44 @@ static void	intr_assign_next_cpu(struct intsrc *isrc);
 #endif
 
 static void	intr_init(void *__dummy);
+static int	intr_pic_registered(struct pic *pic);
 static void	intrcnt_setname(const char *name, int index);
 static void	intrcnt_updatename(struct intsrc *is);
 static void	intrcnt_register(struct intsrc *is);
+
+static int
+intr_pic_registered(struct pic *pic)
+{
+	struct pic *p;
+
+	STAILQ_FOREACH(p, &pics, pics) {
+		if (p == pic)
+			return (1);
+	}
+	return (0);
+}
+
+/*
+ * Register a new interrupt controller (PIC).  This is to support suspend
+ * and resume where we suspend/resume controllers rather than individual
+ * sources.  This also allows controllers with no active sources (such as
+ * 8259As in a system using the APICs) to participate in suspend and resume.
+ */
+int
+intr_register_pic(struct pic *pic)
+{
+	int error;
+
+	mtx_lock_spin(&intr_table_lock);
+	if (intr_pic_registered(pic))
+		error = EBUSY;
+	else {
+		STAILQ_INSERT_TAIL(&pics, pic, pics);
+		error = 0;
+	}
+	mtx_unlock_spin(&intr_table_lock);
+	return (error);
+}
 
 /*
  * Register a new interrupt source with the global interrupt system.
@@ -84,6 +121,7 @@ intr_register_source(struct intsrc *isrc)
 {
 	int error, vector;
 
+	KASSERT(intr_pic_registered(isrc->is_pic), ("unregistered PIC"));
 	vector = isrc->is_pic->pic_vector(isrc);
 	if (interrupt_sources[vector] != NULL)
 		return (EEXIST);
@@ -255,26 +293,29 @@ intr_execute_handlers(struct intsrc *isrc, struct trapframe *frame)
 void
 intr_resume(void)
 {
-	struct intsrc **isrc;
-	int i;
+	struct pic *pic;
 
+#ifndef DEV_ATPIC
+	atpic_reset();
+#endif
 	mtx_lock_spin(&intr_table_lock);
-	for (i = 0, isrc = interrupt_sources; i < NUM_IO_INTS; i++, isrc++)
-		if (*isrc != NULL && (*isrc)->is_pic->pic_resume != NULL)
-			(*isrc)->is_pic->pic_resume(*isrc);
+	STAILQ_FOREACH(pic, &pics, pics) {
+		if (pic->pic_resume != NULL)
+			pic->pic_resume(pic);
+	}
 	mtx_unlock_spin(&intr_table_lock);
 }
 
 void
 intr_suspend(void)
 {
-	struct intsrc **isrc;
-	int i;
+	struct pic *pic;
 
 	mtx_lock_spin(&intr_table_lock);
-	for (i = 0, isrc = interrupt_sources; i < NUM_IO_INTS; i++, isrc++)
-		if (*isrc != NULL && (*isrc)->is_pic->pic_suspend != NULL)
-			(*isrc)->is_pic->pic_suspend(*isrc);
+	STAILQ_FOREACH(pic, &pics, pics) {
+		if (pic->pic_suspend != NULL)
+			pic->pic_suspend(pic);
+	}
 	mtx_unlock_spin(&intr_table_lock);
 }
 
@@ -327,9 +368,32 @@ intr_init(void *dummy __unused)
 
 	intrcnt_setname("???", 0);
 	intrcnt_index = 1;
+	STAILQ_INIT(&pics);
 	mtx_init(&intr_table_lock, "intr table", NULL, MTX_SPIN);
 }
 SYSINIT(intr_init, SI_SUB_INTR, SI_ORDER_FIRST, intr_init, NULL)
+
+#ifndef DEV_ATPIC
+/* Initialize the two 8259A's to a known-good shutdown state. */
+void
+atpic_reset(void)
+{
+
+	outb(IO_ICU1, ICW1_RESET | ICW1_IC4);
+	outb(IO_ICU1 + ICU_IMR_OFFSET, IDT_IO_INTS);
+	outb(IO_ICU1 + ICU_IMR_OFFSET, 1 << 2);
+	outb(IO_ICU1 + ICU_IMR_OFFSET, ICW4_8086);
+	outb(IO_ICU1 + ICU_IMR_OFFSET, 0xff);
+	outb(IO_ICU1, OCW3_SEL | OCW3_RR);
+
+	outb(IO_ICU2, ICW1_RESET | ICW1_IC4);
+	outb(IO_ICU2 + ICU_IMR_OFFSET, IDT_IO_INTS + 8);
+	outb(IO_ICU2 + ICU_IMR_OFFSET, 2);
+	outb(IO_ICU2 + ICU_IMR_OFFSET, ICW4_8086);
+	outb(IO_ICU2 + ICU_IMR_OFFSET, 0xff);
+	outb(IO_ICU2, OCW3_SEL | OCW3_RR);
+}
+#endif
 
 #ifdef DDB
 /*
