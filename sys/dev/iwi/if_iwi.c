@@ -2699,7 +2699,7 @@ iwi_scan(struct iwi_softc *sc)
 	struct ieee80211com *ic = &sc->sc_ic;
 	const struct ieee80211_channel *c;
 	struct iwi_scan_ext scan;
-	int i, ix, start, scan_type;
+	int i, ix, start, scan_type, error;
 
 	memset(&scan, 0, sizeof scan);
 
@@ -2710,8 +2710,22 @@ iwi_scan(struct iwi_softc *sc)
 
 	scan.full_scan_index = htole32(ic->ic_scan.nt_scangen);
 
-	scan_type = (ic->ic_des_esslen != 0) ? IWI_SCAN_TYPE_BDIRECTED :
-	    IWI_SCAN_TYPE_BROADCAST;
+	if (ic->ic_des_esslen != 0) {
+		scan_type = IWI_SCAN_TYPE_BDIRECTED;
+#ifdef IWI_DEBUG
+		if (iwi_debug > 0) {
+			printf("Setting desired ESSID to ");
+			ieee80211_print_essid(ic->ic_des_essid,
+			    ic->ic_des_esslen);
+			printf("\n");
+		}
+#endif
+		error = iwi_cmd(sc, IWI_CMD_SET_ESSID, ic->ic_des_essid,
+		    ic->ic_des_esslen);
+		if (error != 0)
+			return error;
+	} else
+		scan_type = IWI_SCAN_TYPE_BROADCAST;
 
 	ix = 0;
 	if (ic->ic_modecaps & IEEE80211_MODE_5GHZ) {
