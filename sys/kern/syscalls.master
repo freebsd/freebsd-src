@@ -66,7 +66,7 @@
 7	AUE_WAIT4	MSTD	{ int wait4(int pid, int *status, \
 				    int options, struct rusage *rusage); } \
 				    wait4 wait_args int
-8	AUE_O_CREAT	MCOMPAT	{ int creat(char *path, int mode); }
+8	AUE_CREAT	MCOMPAT	{ int creat(char *path, int mode); }
 9	AUE_LINK	MSTD	{ int link(char *path, char *link); }
 10	AUE_UNLINK	MSTD	{ int unlink(char *path); }
 11	AUE_NULL	OBSOL	execv
@@ -154,7 +154,7 @@
 63	AUE_NULL	MCOMPAT	{ int getkerninfo(int op, char *where, \
 				    size_t *size, int arg); } getkerninfo \
 				    getkerninfo_args int
-64	AUE_O_GETPAGESIZE	MCOMPAT	{ int getpagesize(void); } getpagesize \
+64	AUE_NULL	MCOMPAT	{ int getpagesize(void); } getpagesize \
 				    getpagesize_args int
 65	AUE_MSYNC	MSTD	{ int msync(void *addr, size_t len, \
 				    int flags); }
