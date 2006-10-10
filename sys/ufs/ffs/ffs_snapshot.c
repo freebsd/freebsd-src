@@ -2309,15 +2309,16 @@ readblock(vp, bp, lbn)
 	return (bp->b_error);
 }
 
-
 /*
  * Process file deletes that were deferred by ufs_inactive() due to
- * the file system being suspended.
+ * the file system being suspended. Transfer IN_LAZYACCESS into
+ * IN_MODIFIED for vnodes that were accessed during suspension.
  */
 static void
 process_deferred_inactive(struct mount *mp)
 {
 	struct vnode *vp, *mvp;
+	struct inode *ip;
 	struct thread *td;
 	int error;
 
@@ -2327,9 +2328,15 @@ process_deferred_inactive(struct mount *mp)
  loop:
 	MNT_VNODE_FOREACH(vp, mp, mvp) {
 		VI_LOCK(vp);
-		if ((vp->v_iflag & (VI_DOOMED | VI_OWEINACT)) != VI_OWEINACT ||
-		    vp->v_usecount > 0 ||
-		    vp->v_type == VNON) {
+		/*
+		 * IN_LAZYACCESS is checked here without holding any
+		 * vnode lock, but this flag is set only while holding
+		 * vnode interlock.
+		 */
+		if (vp->v_type == VNON || (vp->v_iflag & VI_DOOMED) != 0 ||
+		    ((VTOI(vp)->i_flag & IN_LAZYACCESS) == 0 &&
+			((vp->v_iflag & VI_OWEINACT) == 0 ||
+			vp->v_usecount > 0))) {
 			VI_UNLOCK(vp);
 			continue;
 		}
@@ -2344,8 +2351,13 @@ process_deferred_inactive(struct mount *mp)
 			MNT_VNODE_FOREACH_ABORT_ILOCKED(mp, mvp);
 			goto loop;
 		}
+		ip = VTOI(vp);
+		if ((ip->i_flag & IN_LAZYACCESS) != 0) {
+			ip->i_flag &= ~IN_LAZYACCESS;
+			ip->i_flag |= IN_MODIFIED;
+		}
 		VI_LOCK(vp);
-		if ((vp->v_iflag & VI_OWEINACT) == 0) {
+		if ((vp->v_iflag & VI_OWEINACT) == 0 || vp->v_usecount > 0) {
 			VI_UNLOCK(vp);
 			VOP_UNLOCK(vp, 0, td);
 			vdrop(vp);
