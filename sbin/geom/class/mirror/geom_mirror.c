@@ -215,6 +215,7 @@ mirror_label(struct gctl_req *req)
 	}
 	md.md_mediasize = mediasize;
 	md.md_sectorsize = sectorsize;
+	md.md_mediasize -= (md.md_mediasize % md.md_sectorsize);
 
 	/*
 	 * Clear last sector first, to spoil all components if device exists.
