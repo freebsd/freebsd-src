@@ -361,6 +361,39 @@ specified in the original
 .Ic break
 command.
 .Pp
+.It Ic watch Ar addr Ns Li , Ns Ar size
+Set a watchpoint for a region.
+Execution stops when an attempt to modify the region occurs.
+The
+.Ar size
+argument defaults to 4.
+If you specify a wrong space address, the request is rejected
+with an error message.
+.Pp
+.Sy Warning :
+Attempts to watch wired kernel memory
+may cause unrecoverable error in some systems such as i386.
+Watchpoints on user addresses work best.
+.Pp
+.It Ic hwatch Ar addr Ns Li , Ns Ar size
+Set a hardware watchpoint for a region if supported by the
+architecture.
+Execution stops when an attempt to modify the region occurs.
+The
+.Ar size
+argument defaults to 4.
+.Pp
+.Sy Warning :
+The hardware debug facilities do not have a concept of separate
+address spaces like the watch command does.
+Use
+.Ic hwatch
+for setting watchpoints on kernel address locations only, and avoid
+its use on user mode address spaces.
+.Pp
+.It Ic dhwatch Ar addr Ns Li , Ns Ar size
+Delete specified hardware watchpoint.
+.Pp
 .It Ic step Ns Op Li / Ns Cm p
 .It Ic s Ns Op Li / Ns Cm p
 Single step
@@ -527,42 +560,6 @@ Displays details about the given vnode.
 .It Ic show Cm watches
 Displays all watchpoints.
 .Pp
-.It Ic reset
-Hard reset the system.
-.Pp
-.It Ic watch Ar addr Ns Li , Ns Ar size
-Set a watchpoint for a region.
-Execution stops when an attempt to modify the region occurs.
-The
-.Ar size
-argument defaults to 4.
-If you specify a wrong space address, the request is rejected
-with an error message.
-.Pp
-.Sy Warning :
-Attempts to watch wired kernel memory
-may cause unrecoverable error in some systems such as i386.
-Watchpoints on user addresses work best.
-.Pp
-.It Ic hwatch Ar addr Ns Li , Ns Ar size
-Set a hardware watchpoint for a region if supported by the
-architecture.
-Execution stops when an attempt to modify the region occurs.
-The
-.Ar size
-argument defaults to 4.
-.Pp
-.Sy Warning :
-The hardware debug facilities do not have a concept of separate
-address spaces like the watch command does.
-Use
-.Ic hwatch
-for setting watchpoints on kernel address locations only, and avoid
-its use on user mode address spaces.
-.Pp
-.It Ic dhwatch Ar addr Ns Li , Ns Ar size
-Delete specified hardware watchpoint.
-.Pp
 .It Ic gdb
 Toggles between remote GDB and DDB mode.
 In remote GDB mode, another machine is required that runs
@@ -572,6 +569,9 @@ console port on the target machine.
 Currently only available on the
 i386
 architecture.
+.Pp
+.It Ic reset
+Hard reset the system.
 .Pp
 .It Ic help
 Print a short summary of the available commands and command
