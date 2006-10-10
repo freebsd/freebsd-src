@@ -465,7 +465,7 @@ linux_semop(struct thread *td, struct linux_semop_args *args)
 	} */ bsd_args;
 
 	bsd_args.semid = args->semid;
-	bsd_args.sops = (struct sembuf *)PTRIN(args->tsops);
+	bsd_args.sops = PTRIN(args->tsops);
 	bsd_args.nsops = args->nsops;
 	return semop(td, &bsd_args);
 }
@@ -520,7 +520,7 @@ linux_semctl(struct thread *td, struct linux_semctl_args *args)
 	case LINUX_IPC_SET:
 		cmd = IPC_SET;
 		error = linux_semid_pullup(args->cmd & LINUX_IPC_64,
-		    &linux_semid, (caddr_t)PTRIN(args->arg.buf));
+		    &linux_semid, PTRIN(args->arg.buf));
 		if (error)
 			return (error);
 		linux_to_bsd_semid_ds(&linux_semid, &semid);
@@ -540,7 +540,7 @@ linux_semctl(struct thread *td, struct linux_semctl_args *args)
 			return (error);
 		bsd_to_linux_semid_ds(&semid, &linux_semid);
 		error = linux_semid_pushdown(args->cmd & LINUX_IPC_64,
-		    &linux_semid, (caddr_t)PTRIN(args->arg.buf));
+		    &linux_semid, PTRIN(args->arg.buf));
 		if (error == 0)
 			td->td_retval[0] = (cmd == SEM_STAT) ? rval : 0;
 		return (error);
@@ -629,7 +629,7 @@ linux_msgctl(struct thread *td, struct linux_msgctl_args *args)
     struct msqid_ds bsd_msqid;
 
     error = linux_msqid_pullup(args->cmd & LINUX_IPC_64,
-      &linux_msqid, (caddr_t)PTRIN(args->buf));
+      &linux_msqid, PTRIN(args->buf));
     if (error != 0)
 	return (error);
     bsd_cmd = args->cmd & ~LINUX_IPC_64;
@@ -644,7 +644,7 @@ linux_msgctl(struct thread *td, struct linux_msgctl_args *args)
     if (bsd_cmd == LINUX_IPC_STAT) {
 	bsd_to_linux_msqid_ds(&bsd_msqid, &linux_msqid);
 	return (linux_msqid_pushdown(args->cmd & LINUX_IPC_64,
-	  &linux_msqid, (caddr_t)PTRIN(args->buf)));
+	  &linux_msqid, PTRIN(args->buf)));
     }
 
     return (0);
@@ -727,7 +727,7 @@ linux_shmctl(struct thread *td, struct linux_shmctl_args *args)
 	    bsd_to_linux_shminfo(&bsd_shminfo, &linux_shminfo);
 
 	    return (linux_shminfo_pushdown(args->cmd & LINUX_IPC_64,
-	       &linux_shminfo, (caddr_t)PTRIN(args->buf)));
+	       &linux_shminfo, PTRIN(args->buf)));
 	}
 
 	case LINUX_SHM_INFO: {
@@ -741,7 +741,7 @@ linux_shmctl(struct thread *td, struct linux_shmctl_args *args)
 
 	    bsd_to_linux_shm_info(&bsd_shm_info, &linux_shm_info);
 
-	    return copyout(&linux_shm_info, (caddr_t)PTRIN(args->buf),
+	    return copyout(&linux_shm_info, PTRIN(args->buf),
 	        sizeof(struct l_shm_info));
 	}
 
@@ -755,7 +755,7 @@ linux_shmctl(struct thread *td, struct linux_shmctl_args *args)
 	    bsd_to_linux_shmid_ds(&bsd_shmid, &linux_shmid);
 
 	    return (linux_shmid_pushdown(args->cmd & LINUX_IPC_64,
-	  &linux_shmid, (caddr_t)PTRIN(args->buf)));
+	  &linux_shmid, PTRIN(args->buf)));
 
     case LINUX_SHM_STAT:
 	/* Perform shmctl wanting removed segments lookup */
@@ -767,11 +767,11 @@ linux_shmctl(struct thread *td, struct linux_shmctl_args *args)
 	bsd_to_linux_shmid_ds(&bsd_shmid, &linux_shmid);
 	
 	return (linux_shmid_pushdown(args->cmd & LINUX_IPC_64,
-	   &linux_shmid, (caddr_t)PTRIN(args->buf)));
+	   &linux_shmid, PTRIN(args->buf)));
 
     case LINUX_IPC_SET:
 	error = linux_shmid_pullup(args->cmd & LINUX_IPC_64,
-	  &linux_shmid, (caddr_t)PTRIN(args->buf));
+	  &linux_shmid, PTRIN(args->buf));
 	if (error)
     		return error;
 
@@ -788,7 +788,7 @@ linux_shmctl(struct thread *td, struct linux_shmctl_args *args)
     		buf = NULL;
 	else {
     		error = linux_shmid_pullup(args->cmd & LINUX_IPC_64,
-		    &linux_shmid, (caddr_t)PTRIN(args->buf));
+		    &linux_shmid, PTRIN(args->buf));
 		if (error)
 			return error;
 		linux_to_bsd_shmid_ds(&linux_shmid, &bsd_shmid);
