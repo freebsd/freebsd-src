@@ -138,7 +138,7 @@ static void atpic_eoi_master(struct intsrc *isrc);
 static void atpic_eoi_slave(struct intsrc *isrc);
 static void atpic_enable_intr(struct intsrc *isrc);
 static int atpic_vector(struct intsrc *isrc);
-static void atpic_resume(struct intsrc *isrc);
+static void atpic_resume(struct pic *pic);
 static int atpic_source_pending(struct intsrc *isrc);
 static int atpic_config_intr(struct intsrc *isrc, enum intr_trigger trig,
     enum intr_polarity pol);
@@ -285,16 +285,13 @@ atpic_source_pending(struct intsrc *isrc)
 }
 
 static void
-atpic_resume(struct intsrc *isrc)
+atpic_resume(struct pic *pic)
 {
-	struct atpic_intsrc *ai = (struct atpic_intsrc *)isrc;
-	struct atpic *ap = (struct atpic *)isrc->is_pic;
+	struct atpic *ap = (struct atpic *)pic;
 
-	if (ai->at_irq == 0) {
-		i8259_init(ap, ap == &atpics[SLAVE]);
-		if (ap == &atpics[SLAVE] && elcr_found)
-			elcr_resume();
-	}
+	i8259_init(ap, ap == &atpics[SLAVE]);
+	if (ap == &atpics[SLAVE] && elcr_found)
+		elcr_resume();
 }
 
 static int
@@ -463,6 +460,14 @@ atpic_init(void *dummy __unused)
 {
 	struct atpic_intsrc *ai;
 	int i;
+
+	/*
+	 * Register our PICs, even if we aren't going to use any of their
+	 * pins so that they are suspended and resumed.
+	 */
+	if (intr_register_pic(&atpics[0].at_pic) != 0 ||
+	    intr_register_pic(&atpics[1].at_pic) != 0)
+		panic("Unable to register ATPICs");
 
 	/*
 	 * If any of the ISA IRQs have an interrupt source already, then
