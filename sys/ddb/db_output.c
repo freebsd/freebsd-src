@@ -142,7 +142,6 @@ db_putchar(c, arg)
 	}
 	else if (c == '\n') {
 	    /* Newline */
-	    db_force_whitespace();
 	    cnputc(c);
 	    db_output_position = 0;
 	    db_last_non_space = 0;
@@ -155,7 +154,6 @@ db_putchar(c, arg)
 	}
 	else if (c == '\r') {
 	    /* Return */
-	    db_force_whitespace();
 	    cnputc(c);
 	    db_output_position = 0;
 	    db_last_non_space = 0;
@@ -247,7 +245,9 @@ db_pager(void)
 #endif
 		}
 	}
-	db_printf("        \r");
+	db_printf("        ");
+	db_force_whitespace();
+	db_printf("\r");
 	db_newlines = 0;
 }
 
