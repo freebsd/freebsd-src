@@ -628,13 +628,14 @@ linux_msgctl(struct thread *td, struct linux_msgctl_args *args)
     struct l_msqid_ds linux_msqid;
     struct msqid_ds bsd_msqid;
 
-    error = linux_msqid_pullup(args->cmd & LINUX_IPC_64,
-      &linux_msqid, PTRIN(args->buf));
-    if (error != 0)
-	return (error);
     bsd_cmd = args->cmd & ~LINUX_IPC_64;
-    if (bsd_cmd == LINUX_IPC_SET)
+    if (bsd_cmd == LINUX_IPC_SET) {
+	error = linux_msqid_pullup(args->cmd & LINUX_IPC_64,
+	    &linux_msqid, PTRIN(args->buf));
+	if (error)
+	    return (error);
 	linux_to_bsd_msqid_ds(&linux_msqid, &bsd_msqid);
+    }
 
     error = kern_msgctl(td, args->msqid, bsd_cmd, &bsd_msqid);
     if (error != 0)
