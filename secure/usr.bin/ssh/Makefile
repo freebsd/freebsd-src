@@ -11,13 +11,15 @@ SRCS=	ssh.c readconf.c clientloop.c sshtty.c \
 	sshconnect.c sshconnect1.c sshconnect2.c \
 	gss-genr.c
 
+DPADD=	${LIBSSH} ${LIBMD} ${LIBUTIL} ${LIBZ}
+LDADD=	-lssh -lmd -lutil -lz
 DPADD=	${LIBSSH} ${LIBUTIL} ${LIBZ}
 LDADD=	-lssh -lutil -lz
 
 .if !defined(NO_KERBEROS)
 CFLAGS+= -DGSSAPI -DHAVE_GSSAPI_H=1 -DKRB5 -DHEIMDAL
-DPADD+=	 ${LIBGSSAPI} ${LIBKRB5} ${LIBASN1} ${LIBCOM_ERR} ${LIBMD} ${LIBROKEN}
-LDADD+=	 -lgssapi -lkrb5 -lasn1 -lcom_err -lmd -lroken
+DPADD+=	 ${LIBGSSAPI} ${LIBKRB5} ${LIBASN1} ${LIBCOM_ERR} ${LIBROKEN}
+LDADD+=	 -lgssapi -lkrb5 -lasn1 -lcom_err -lroken
 .endif
 
 .if defined(X11BASE)
