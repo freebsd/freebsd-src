@@ -707,7 +707,8 @@ ng_netflow_expire(void *arg)
 			if (used <= (NBUCKETS*2) && !INACTIVE(fle))
 				break;
 
-			if ((INACTIVE(fle) && (SMALL(fle) || (used > (NBUCKETS*2)))) ||
+			if ((INACTIVE(fle) && (SMALL(fle) ||
+			    (used > (NBUCKETS*2)))) ||
 			    AGED(fle)) {
 				TAILQ_REMOVE(&hsh->head, fle, fle_hash);
 				expire_flow(priv, &item, fle, NG_NOFLAGS);
