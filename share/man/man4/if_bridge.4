@@ -35,7 +35,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd August 13, 2006
+.Dd October 8, 2006
 .Dt IF_BRIDGE 4
 .Os
 .Sh NAME
@@ -76,6 +76,13 @@ command or using the
 .Va cloned_interfaces
 variable in
 .Xr rc.conf 5 .
+.Pp
+The
+.Nm
+interface randomly chooses a link (MAC) address in the range reserved for
+locally adminstered addresses when it is created.
+The address can be changed by assigning the desired link address using
+.Xr ifconfig 8 .
 .Pp
 A bridge can be used to provide several services, such as a simple
 802.11-to-Ethernet bridge for wireless hosts, and traffic isolation.
@@ -224,6 +231,17 @@ ifconfig bridge0 \e
     addm fxp6 stp fxp6 \e
     addm fxp7 stp fxp7 \e
     up
+.Ed
+.Pp
+The bridge can be used as a regular host interface at the same time as bridging
+between its member ports.
+In this example, the bridge connects em0 and em1, and will receive its IP
+address through DHCP:
+.Bd -literal -offset indent
+cloned_interfaces="bridge0"
+ifconfig_bridge0="addm em0 addm em1 DHCP"
+ifconfig_em0="up"
+ifconfig_em1="up"
 .Ed
 .Pp
 The bridge can tunnel Ethernet across an IP internet using the EtherIP
