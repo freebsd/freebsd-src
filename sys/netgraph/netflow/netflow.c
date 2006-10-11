@@ -60,7 +60,7 @@ static const char rcs_id[] =
 #define FULL_HASH(addr1, addr2, port1, port2)	\
 	(((addr1 ^ (addr1 >> 16) ^ 		\
 	htons(addr2 ^ (addr2 >> 16))) ^ 	\
-	srcport ^ htons(dstport)) &		\
+	port1 ^ htons(port2)) &			\
 	(NBUCKETS - 1))
 
 /* This hash is for all other IP packets. */
