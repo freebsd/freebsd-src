@@ -223,19 +223,6 @@ ng_netflow_copyinfo(priv_p priv, struct ng_netflow_info *i)
 	memcpy((void *)i, (void *)&priv->info, sizeof(priv->info));
 }
 
-/* Calculate number of bits in netmask */
-#define	g21	0x55555555ul	/* = 0101_0101_0101_0101_0101_0101_0101_0101 */
-#define	g22	0x33333333ul	/* = 0011_0011_0011_0011_0011_0011_0011_0011 */
-#define	g23	0x0f0f0f0ful	/* = 0000_1111_0000_1111_0000_1111_0000_1111 */
-static __inline u_char
-bit_count(uint32_t v)
-{
-	v = (v & g21) + ((v >> 1) & g21);
-	v = (v & g22) + ((v >> 2) & g22);
-	v = (v + (v >> 4)) & g23;
-	return (v + (v >> 8) + (v >> 16) + (v >> 24)) & 0x3f;
-}
-
 /*
  * Insert a record into defined slot.
  *
@@ -295,8 +282,8 @@ hash_insert(priv_p priv, struct flow_hash_entry  *hsh, struct flow_rec *r,
 			    ((struct sockaddr_in *)(rt->rt_gateway))->sin_addr;
 
 		if (rt_mask(rt))
-			fle->f.dst_mask =
-			    bit_count(((struct sockaddr_in *)rt_mask(rt))->sin_addr.s_addr);
+			fle->f.dst_mask = bitcount32(((struct sockaddr_in *)
+			    rt_mask(rt))->sin_addr.s_addr);
 		else if (rt->rt_flags & RTF_HOST)
 			/* Give up. We can't determine mask :( */
 			fle->f.dst_mask = 32;
@@ -316,8 +303,8 @@ hash_insert(priv_p priv, struct flow_hash_entry  *hsh, struct flow_rec *r,
 		struct rtentry *rt = ro.ro_rt;
 
 		if (rt_mask(rt))
-			fle->f.src_mask =
-			    bit_count(((struct sockaddr_in *)rt_mask(rt))->sin_addr.s_addr);
+			fle->f.src_mask = bitcount32(((struct sockaddr_in *)
+			    rt_mask(rt))->sin_addr.s_addr);
 		else if (rt->rt_flags & RTF_HOST)
 			/* Give up. We can't determine mask :( */
 			fle->f.src_mask = 32;
