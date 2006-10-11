@@ -925,7 +925,7 @@ linprocfs_donetdev(PFS_FILL_ARGS)
 }
 
 /*
- * Filler function for proc/pid_max
+ * Filler function for proc/sys/kernel/pid_max
  */
 static int
 linprocfs_dopid_max(PFS_FILL_ARGS)
