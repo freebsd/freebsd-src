@@ -1265,12 +1265,13 @@ vlan_link_state(struct ifnet *ifp, int link)
 		if (trunk->vlans[i] != NULL) {
 			ifv = trunk->vlans[i];
 #else
-	for (i = 0; i < (1 << trunk->hwidth); i++) {
-		LIST_FOREACH(ifv, &trunk->hash[i], ifv_list)
+	for (i = 0; i < (1 << trunk->hwidth); i++)
+		LIST_FOREACH(ifv, &trunk->hash[i], ifv_list) {
 #endif
+			ifv->ifv_ifp->if_baudrate = trunk->parent->if_baudrate;
 			if_link_state_change(ifv->ifv_ifp,
 			    trunk->parent->if_link_state);
-	}
+		}
 	TRUNK_UNLOCK(trunk);
 }
 
