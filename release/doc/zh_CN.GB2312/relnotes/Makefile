@@ -1,15 +1,15 @@
 # The FreeBSD Simplified Chinese Project
-# Original Revision: 1.6
+# Original Revision: 1.8
 #
 # $FreeBSD$
 
 RELN_ROOT?= ${.CURDIR}/../..
 
-SUBDIR = alpha
-SUBDIR+= amd64
+SUBDIR = amd64
 SUBDIR+= ia64
 SUBDIR+= i386
 SUBDIR+= pc98
+SUBDIR+= powerpc
 SUBDIR+= sparc64
 
 .include "${RELN_ROOT}/share/mk/doc.relnotes.mk"
