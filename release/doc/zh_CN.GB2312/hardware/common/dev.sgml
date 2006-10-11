@@ -1,7 +1,7 @@
 <!--
 	The FreeBSD Simplified Chinese Project
 
-	Original Revision: 1.299
+	Original Revision: 1.306
 -->
 
 <!--
@@ -142,6 +142,8 @@
 
     &hwlist.pst;
 
+    &hwlist.rr232x;
+
     &hwlist.stg;
 
     &hwlist.sym;
@@ -269,6 +271,8 @@
     &hwlist.snc;
 
     &hwlist.ste;
+
+    &hwlist.stge;
 
     &hwlist.ti;
 
@@ -677,6 +681,12 @@
 
     &hwlist.snd.emu10k1;
 
+    &hwlist.snd.emu10kx;
+
+    &hwlist.snd.envy24;
+
+    &hwlist.snd.envy24ht;
+
     &hwlist.snd.es137x;
 
     &hwlist.snd.ess;
@@ -684,6 +694,8 @@
     &hwlist.snd.fm801;
 
     &hwlist.snd.gusc;
+
+    &hwlist.snd.hda;
 
     &hwlist.snd.ich;
 
@@ -698,6 +710,8 @@
     &hwlist.snd.sbc;
 
     &hwlist.snd.solo;
+
+    &hwlist.snd.spicds;
 
     &hwlist.snd.t4dwave;
 

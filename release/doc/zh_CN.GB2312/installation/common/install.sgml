@@ -2,7 +2,7 @@
 
 The FreeBSD Simplified Chinese Project
 
-Original Revision: 1.32
+Original Revision: 1.33
 $FreeBSD$
 
 install.sgml
@@ -653,7 +653,7 @@ pqb0.0.1.4.0               PQB0                       PCI EIDE</screen>
 
         <screen>ftp://216.66.64.162/pub/FreeBSD/releases/&arch;/4.2-RELEASE</screen>
 
-        <para>您可以从三种 FTP 安装方式中选择合适的：
+        <para>您可以从三种 FTP 安装方式中选择适合的：</para>
 	  <itemizedlist>
 	    <listitem>
 	      <para>FTP:  这种方式使用标准的
@@ -685,7 +685,6 @@ pqb0.0.1.4.0               PQB0                       PCI EIDE</screen>
               是 FTP 代理服务器的端口号。</para>
 	    </listitem>
 	  </itemizedlist>
-	</para>
 
       </sect4>
     </sect3>

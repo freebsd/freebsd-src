@@ -1,7 +1,7 @@
 <!--
 	The FreeBSD Simplified Chinese Project
 
-	Original Revision: 1.10
+	Original Revision: 1.11
 	$FreeBSD$
 
 	This section contains the contents of the old LAYOUT.TXT file.
@@ -35,7 +35,7 @@ README.HTM      cdrom.inf       crypto          info            tools</screen>
   则应完整地阅读这份文档 (安装指引)。</para>
 
   <para>如果您在尝试进行某种其他类型的安装，
-  或对于发布目录是如何组织的感到好奇， 请参考下面的说明以了解进一步的内容：
+  或对于发布目录是如何组织的感到好奇， 请参考下面的说明以了解进一步的内容：</para>
     <orderedlist>
       <listitem>
 	<para><filename>*.TXT</filename> 和
@@ -86,7 +86,7 @@ README.HTM      cdrom.inf       crypto          info            tools</screen>
 	<para><filename>packages</filename> 和 <filename>ports</filename> 目录提供了 &os;
 	的 Packages 和 Ports Collections。 Packages 可以从其目录中通过下面的命令安装：</para>
 
-	<screen>&prompt.root;<userinput>/stand/sysinstall configPackages</userinput></screen>
+	<screen>&prompt.root; <userinput>sysinstall configPackages</userinput></screen>
 
 	<para>Packages 也可以通过将
 	<filename>packages</filename>/ 下的文件名交给 &man.pkg.add.1;
@@ -107,7 +107,6 @@ README.HTM      cdrom.inf       crypto          info            tools</screen>
 	提供它们是为了方便用户。</para>
       </listitem>
     </orderedlist>
-  </para>
 
   <para>典型的发布目录 (举例来说， <filename>info</filename> 发布) 在内部应该是这样：</para>
 
