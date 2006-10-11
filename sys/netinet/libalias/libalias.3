@@ -1028,7 +1028,9 @@ or as part of the userland library.
 .Ss LIBALIAS MODULES IN KERNEL LAND
 When compiled for the kernel,
 .Nm
-modules are plain KLDs recognizable with the "alias_" prefix.
+modules are plain KLDs recognizable with the
+.Pa alias_
+prefix.
 .Pp
 To add support for a new protocol, load the corresponding module.
 For example:
@@ -1045,7 +1047,11 @@ handle module loading/tracking/unloading in userland.
 .Pp
 While compiled for a userland
 .Nm ,
-all the modules are plain libraries, residing in /usr/lib, and recognizable with the "libalias_" prefix.
+all the modules are plain libraries, residing in
+.Pa /usr/lib ,
+and recognizable with the
+.Pa libalias_
+prefix.
 .Pp
 There is a configuration file,
 .Pa /etc/libalias.conf ,
@@ -1065,8 +1071,15 @@ This file contains the paths to the modules that
 will load.
 To load/unload a new module, just add its path to
 .Pa libalias.conf
-and call LibAliasRefreshModules from the program.
-In case the application provides an HUP signal handler, add a call to LibAliasRefreshModules inside the handler, and everytime you want to refresh the loaded modules, send it the
+and call
+.Fn LibAliasRefreshModules
+from the program.
+In case the application provides a
+.Dv SIGHUP
+signal handler, add a call to
+.Fn LibAliasRefreshModules
+inside the handler, and everytime you want to refresh the loaded modules,
+send it the
 .Dv SIGHUP
 signal:
 .Pp
@@ -1080,9 +1093,9 @@ From
 .Pa alias_mod.c :
 .Bd -literal
 /* Protocol and userland module handlers chains. */
-LIST_HEAD(handler_chain, proto_handler) handler_chain \&...
+LIST_HEAD(handler_chain, proto_handler) handler_chain ...
 \&...
-SLIST_HEAD(dll_chain, dll) dll_chain \&...
+SLIST_HEAD(dll_chain, dll) dll_chain ...
 .Ed
 .Pp
 .Va handler_chain
@@ -1096,13 +1109,13 @@ is composed of
 entries:
 .Bd -literal
 struct proto_handler {
-	u_int pri;                                              
-        int16_t dir;                                            
-	uint8_t proto;                                          
-	int (*fingerprint)(struct libalias *la,                 
+	u_int pri;
+	int16_t dir;
+	uint8_t proto;
+	int (*fingerprint)(struct libalias *la,
 		 struct ip *pip, struct alias_data *ah);
-	int (*protohandler)(struct libalias *la,                
-		 struct ip *pip, struct alias_data *ah);                 
+	int (*protohandler)(struct libalias *la,
+		 struct ip *pip, struct alias_data *ah);
 	LIST_ENTRY(proto_handler) entries;
 };
 .Ed
@@ -1355,7 +1368,7 @@ the following simple steps can be followed.
 Find the main file of an application
 (let us call it
 .Pa main.c ) .
-.It 
+.It
 Add this to the header section of
 .Pa main.c ,
 if not already present:
