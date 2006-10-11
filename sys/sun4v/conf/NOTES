@@ -12,7 +12,7 @@
 # deleting the specification for CPUs you don't need to use may make
 # parts of the system run faster.
 # XXX: On the Sparc64, there is only one CPU type
-cpu		SUN4U
+cpu		SUN4V
 
 
 #####################################################################
