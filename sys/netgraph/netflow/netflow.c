@@ -56,18 +56,18 @@ static const char rcs_id[] =
 
 #define	NBUCKETS	(65536)		/* must be power of 2 */
 
-/* This hash is for TCP or UDP packets */
-#define FULL_HASH(addr1,addr2,port1,port2)\
-	(((addr1 >> 16) ^		\
-	  (addr2 & 0x00FF) ^		\
-	  ((port1 ^ port2) << 8) )&	\
-	 (NBUCKETS - 1))
+/* This hash is for TCP or UDP packets. */
+#define FULL_HASH(addr1, addr2, port1, port2)	\
+	(((addr1 ^ (addr1 >> 16) ^ 		\
+	htons(addr2 ^ (addr2 >> 16))) ^ 	\
+	srcport ^ htons(dstport)) &		\
+	(NBUCKETS - 1))
 
-/* This hash is for all other IP packets */
-#define ADDR_HASH(addr1,addr2)\
-	(((addr1 >> 16) ^		\
-	  (addr2 & 0x00FF) )&		\
-	 (NBUCKETS - 1))
+/* This hash is for all other IP packets. */
+#define ADDR_HASH(addr1, addr2)			\
+	((addr1 ^ (addr1 >> 16) ^ 		\
+	htons(addr2 ^ (addr2 >> 16))) &		\
+	(NBUCKETS - 1))
 
 /* Macros to shorten logical constructions */
 /* XXX: priv must exist in namespace */
