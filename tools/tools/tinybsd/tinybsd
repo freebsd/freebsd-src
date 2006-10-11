@@ -9,6 +9,8 @@ CURRENTDIR=/usr/src/tools/tools/tinybsd
 if [ ! -d $CURRENTDIR ]
 then
   CURRENTDIR=`pwd`
+else
+  cd $CURRENTDIR
 fi
 WORKDIR=/usr/obj/tinybsdbuild
 KERNCONF=TINYBSD
