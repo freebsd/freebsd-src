@@ -842,8 +842,8 @@ OF_set_mmfsa_traptable(void *tba_addr, uint64_t mmfsa_ra)
                 0,
         };
 
-        args.tba_addr = p1275_ptr2cell(tba_addr);
-        args.mmfsa_ra = p1275_ptr2cell(mmfsa_ra);
+        args.tba_addr = (cell_t)tba_addr;
+        args.mmfsa_ra = (cell_t)mmfsa_ra;
         openfirmware(&args);
 }
 
