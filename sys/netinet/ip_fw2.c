@@ -1424,8 +1424,12 @@ install_state(struct ip_fw *rule, ipfw_insn_limit *cmd,
     struct ip_fw_args *args, uint32_t tablearg)
 {
 	static int last_log;
-
 	ipfw_dyn_rule *q;
+	struct in_addr da;
+	char src[48], dst[48];
+
+	src[0] = '\0';
+	dst[0] = '\0';
 
 	DEB(
 	printf("ipfw: %s: type %d 0x%08x %u -> 0x%08x %u\n",
@@ -1515,8 +1519,34 @@ install_state(struct ip_fw *rule, ipfw_insn_limit *cmd,
 			if (parent->count >= conn_limit) {
 				if (fw_verbose && last_log != time_uptime) {
 					last_log = time_uptime;
+#ifdef INET6
+					/*
+					 * XXX IPv6 flows are not
+					 * supported yet.
+					 * */
+					if (IS_IP6_FLOW_ID(&(args->f_id))) {
+						snprintf(src, sizeof(src),
+						    "[%s]", ip6_sprintf(
+							&args->f_id.src_ip6));
+						snprintf(dst, sizeof(dst),
+						    "[%s]", ip6_sprintf(
+							&args->f_id.dst_ip6));
+					} else
+#endif
+					{
+						da.s_addr =
+						    htonl(args->f_id.src_ip);
+						inet_ntoa_r(da, src);
+						da.s_addr =
+						    htonl(args->f_id.dst_ip);
+						inet_ntoa_r(da, dst);
+					}
 					log(LOG_SECURITY | LOG_DEBUG,
-					    "drop session, too many entries\n");
+					    "%s %s:%u -> %s:%u, %s\n",
+					    "drop session",
+					    src, (args->f_id.src_port),
+					    dst, (args->f_id.dst_port),
+					    "too many entries");
 				}
 				IPFW_DYN_UNLOCK();
 				return (1);
