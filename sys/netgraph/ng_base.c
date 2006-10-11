@@ -1129,6 +1129,9 @@ ng_bypass(hook_p hook1, hook_p hook2)
 	hook1->hk_peer = &ng_deadhook;
 	hook2->hk_peer = &ng_deadhook;
 
+	NG_HOOK_UNREF(hook1);
+	NG_HOOK_UNREF(hook2);
+
 	/* XXX If we ever cache methods on hooks update them as well */
 	ng_destroy_hook(hook1);
 	ng_destroy_hook(hook2);
