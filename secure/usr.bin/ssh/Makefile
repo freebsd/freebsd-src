@@ -13,8 +13,6 @@ SRCS=	ssh.c readconf.c clientloop.c sshtty.c \
 
 DPADD=	${LIBSSH} ${LIBMD} ${LIBUTIL} ${LIBZ}
 LDADD=	-lssh -lmd -lutil -lz
-DPADD=	${LIBSSH} ${LIBUTIL} ${LIBZ}
-LDADD=	-lssh -lutil -lz
 
 .if !defined(NO_KERBEROS)
 CFLAGS+= -DGSSAPI -DHAVE_GSSAPI_H=1 -DKRB5 -DHEIMDAL
