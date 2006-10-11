@@ -6,6 +6,10 @@
 # $FreeBSD$
 #set -xv
 CURRENTDIR=/usr/src/tools/tools/tinybsd
+if [ ! -d $CURRENTDIR ]
+then
+  CURRENTDIR=`pwd`
+fi
 WORKDIR=/usr/obj/tinybsdbuild
 KERNCONF=TINYBSD
 DEFINSTARGS="-o 0 -g 0 -m 555"
@@ -103,7 +107,6 @@ loadvars () {
       IFS="$OIFS"
       case "$PART1" in
       \#*)
-        echo "comment"
         ;;
       "")
         ;;
@@ -132,10 +135,9 @@ confirm_action(){
     MESSAGE=$2
     if [ "$NO_PROMPTS" != "YES" ]
     then
-        echo -n "$MESSAGE [$ANSWER] use 'none' to clear ? " > /dev/tty
+        echo -n "$MESSAGE [$ANSWER] " > /dev/tty
         read result
         [ "$result" != "" ] && ANSWER=$result
-        [ "$result" = "none" ] && ANSWER=""
     fi
 
     ANSWER=`eval "echo $ANSWER"`
@@ -180,8 +182,23 @@ loadconfig () {
   SECTUNIT=`confirm_action "$SECTUNIT" "512 byte sectors per unit?"`
   TRACKCYL=`confirm_action "$TRACKCYL" "Tracks per cylinder?"`
   SECTRACK=`confirm_action "$SECTRACK" "Sectors per track?"`
-  CONF=`confirm_action "$CONF" "Configuration name?"`
-  MFSROOT=`confirm_action "$MFSROOT" "Use an MFSROOT?"`
+  while :
+  do
+    echo "The following configurations exist:"
+    ls -l conf|awk '/^d/{print "    ",$9}'|grep -v CVS
+    CONF=`confirm_action "$CONF" "Configuration name?"`
+    if [ ! -d "${CURRENTDIR}/conf/$CONF" ]
+    then
+      echo "${TS} Error: Could not find config (${CONF})"
+      if [ "$NO_PROMPTS" = "YES" ]
+      then
+        exit 1
+      fi
+    else
+      break
+    fi
+  done
+  MFSROOT=`confirm_action "$MFSROOT" "Use an MFSROOT? (YES/NO)"`
   IMG=`confirm_action "$IMG" "Image file to generate?"`
 
 # example of formatted value (NNN in this case)
@@ -211,13 +228,6 @@ saveconfig () {
     echo "MFSROOT=${MFSROOT:-NO}"
     echo "IMG=${IMG}"
   ) >${FULLFILENAME}
-}
-
-check_conf() {
-        if [ ${CONF} = 'default' ]
-        then
-                echo "${TS} Alternative conf name not set; defaulting to 'default'"
-        fi
 }
 
 check_alt_imgname() {
@@ -440,7 +450,6 @@ saveconfig
 (
   # Do the build
   prework
-  check_conf
   check_alt_imgname
   create_tree
   copy_binaries
