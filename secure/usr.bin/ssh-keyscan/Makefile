@@ -3,8 +3,8 @@
 PROG=	ssh-keyscan
 CFLAGS+=-I${SSHDIR} -include ssh_namespace.h
 
-DPADD=	${LIBSSH} ${LIBCRYPT} ${LIBCRYPTO} ${LIBZ}
-LDADD=	-lssh -lcrypt -lcrypto -lz
+DPADD=	${LIBSSH} ${LIBCRYPT} ${LIBCRYPTO} ${LIBMD} ${LIBZ}
+LDADD=	-lssh -lcrypt -lcrypto -lmd -lz
 
 .include <bsd.prog.mk>
 

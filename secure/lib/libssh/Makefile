@@ -32,14 +32,14 @@ LDADD=	-lz
 
 .if !defined(NO_KERBEROS)
 CFLAGS+= -DGSSAPI -DHAVE_GSSAPI_H=1 -DKRB5 -DHEIMDAL
-DPADD+=	${LIBGSSAPI} ${LIBKRB5} ${LIBASN1} ${LIBCOM_ERR} ${LIBMD} ${LIBROKEN}
-LDADD+=	-lgssapi -lkrb5 -lasn1 -lcom_err -lmd -lroken
+DPADD+=	${LIBGSSAPI} ${LIBKRB5} ${LIBASN1} ${LIBCOM_ERR} ${LIBROKEN}
+LDADD+=	-lgssapi -lkrb5 -lasn1 -lcom_err -lroken
 .endif
 
 NO_LINT=
 
-DPADD+=	${LIBCRYPTO} ${LIBCRYPT}
-LDADD+=	-lcrypto -lcrypt
+DPADD+=	${LIBCRYPTO} ${LIBCRYPT} ${LIBMD}
+LDADD+=	-lcrypto -lcrypt -lmd
 
 .include <bsd.lib.mk>
 

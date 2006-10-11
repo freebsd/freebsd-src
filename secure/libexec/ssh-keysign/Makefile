@@ -8,8 +8,8 @@ CFLAGS+=-I${SSHDIR} -include ssh_namespace.h
 BINMODE=4511
 .endif
 
-DPADD=	${LIBSSH} ${LIBCRYPT} ${LIBCRYPTO} ${LIBZ}
-LDADD=	-lssh -lcrypt -lcrypto -lz
+DPADD=	${LIBSSH} ${LIBCRYPT} ${LIBCRYPTO} ${LIBMD} ${LIBZ}
+LDADD=	-lssh -lcrypt -lcrypto -lmd -lz
 
 .include <bsd.prog.mk>
 
