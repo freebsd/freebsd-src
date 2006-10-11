@@ -155,12 +155,9 @@ main(int argc, char *argv[])
 		usage();
 
 	fts_options = FTS_NOCHDIR | FTS_PHYSICAL;
-	if (rflag) {
-                if (Rflag)
-			errx(1,
-		    "the -R and -r options may not be specified together.");
-		}
-	if (rflag && !Hflag && !Pflag)
+	if (Rflag && rflag)
+		errx(1, "the -R and -r options may not be specified together");
+	if (rflag)
 		Rflag = 1;
 	if (Rflag) {
 		if (Hflag)
@@ -230,7 +227,7 @@ main(int argc, char *argv[])
 			else
 				lstat(*argv, &tmp_stat);
 
-			if (S_ISDIR(tmp_stat.st_mode) && (Rflag))
+			if (S_ISDIR(tmp_stat.st_mode) && Rflag)
 				type = DIR_TO_DNE;
 			else
 				type = FILE_TO_FILE;
