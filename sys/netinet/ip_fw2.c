@@ -1523,7 +1523,7 @@ install_state(struct ip_fw *rule, ipfw_insn_limit *cmd,
 					/*
 					 * XXX IPv6 flows are not
 					 * supported yet.
-					 * */
+					 */
 					if (IS_IP6_FLOW_ID(&(args->f_id))) {
 						snprintf(src, sizeof(src),
 						    "[%s]", ip6_sprintf(
