@@ -251,18 +251,20 @@ softclock(void *dummy)
 
 					if (c_mtx == &Giant) {
 						gcalls++;
-						CTR1(KTR_CALLOUT, "callout %p",
-						    c_func);
+						CTR3(KTR_CALLOUT,
+						    "callout %p func %p arg %p",
+						    c, c_func, c_arg);
 					} else {
 						mtxcalls++;
-						CTR1(KTR_CALLOUT,
-						    "callout mtx %p",
-						    c_func);
+						CTR3(KTR_CALLOUT, "callout mtx"
+						    " %p func %p arg %p",
+						    c, c_func, c_arg);
 					}
 				} else {
 					mpcalls++;
-					CTR1(KTR_CALLOUT, "callout mpsafe %p",
-					    c_func);
+					CTR3(KTR_CALLOUT,
+					    "callout mpsafe %p func %p arg %p",
+					    c, c_func, c_arg);
 				}
 #ifdef DIAGNOSTIC
 				binuptime(&bt1);
@@ -425,6 +427,9 @@ callout_reset(c, to_ticks, ftn, arg)
 			 * Someone has called callout_drain to kill this
 			 * callout.  Don't reschedule.
 			 */
+			CTR4(KTR_CALLOUT, "%s %p func %p arg %p",
+			    cancelled ? "cancelled" : "failed to cancel",
+			    c, c->c_func, c->c_arg);
 			mtx_unlock_spin(&callout_lock);
 			return (cancelled);
 		}
@@ -462,6 +467,8 @@ callout_reset(c, to_ticks, ftn, arg)
 	c->c_time = ticks + to_ticks;
 	TAILQ_INSERT_TAIL(&callwheel[c->c_time & callwheelmask], 
 			  c, c_links.tqe);
+	CTR5(KTR_CALLOUT, "%sscheduled %p func %p arg %p in %d",
+	    cancelled ? "re" : "", c, c->c_func, c->c_arg, to_ticks);
 	mtx_unlock_spin(&callout_lock);
 
 	return (cancelled);
@@ -499,6 +506,8 @@ _callout_stop_safe(c, safe)
 		 * callout, then we can't stop it, so just bail.
 		 */
 		if (c != curr_callout) {
+			CTR3(KTR_CALLOUT, "failed to stop %p func %p arg %p",
+			    c, c->c_func, c->c_arg);
 			mtx_unlock_spin(&callout_lock);
 			return (0);
 		}
@@ -524,9 +533,13 @@ _callout_stop_safe(c, safe)
 			 * softclock().
 			 */
 			curr_cancelled = 1;
+			CTR3(KTR_CALLOUT, "cancelled %p func %p arg %p",
+			    c, c->c_func, c->c_arg);
 			mtx_unlock_spin(&callout_lock);
 			return (1);
 		}
+		CTR3(KTR_CALLOUT, "failed to stop %p func %p arg %p",
+		    c, c->c_func, c->c_arg);
 		mtx_unlock_spin(&callout_lock);
 		return (0);
 	}
@@ -536,6 +549,9 @@ _callout_stop_safe(c, safe)
 		nextsoftcheck = TAILQ_NEXT(c, c_links.tqe);
 	}
 	TAILQ_REMOVE(&callwheel[c->c_time & callwheelmask], c, c_links.tqe);
+
+	CTR3(KTR_CALLOUT, "cancelled %p func %p arg %p",
+	    c, c->c_func, c->c_arg);
 
 	if (c->c_flags & CALLOUT_LOCAL_ALLOC) {
 		c->c_func = NULL;
