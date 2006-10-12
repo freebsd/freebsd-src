@@ -330,6 +330,8 @@ S_clockinfo(int l2, void *p)
 		warnx("S_clockinfo %d != %d", l2, sizeof(*ci));
 		return (0);
 	}
+uint32_t *x = (uint32_t *)p;
+printf("%06x %06x %06x %06x %06x\n", x[0], x[1], x[2], x[3], x[4]);
 	printf(hflag ? "{ hz = %'d, tick = %'d, profhz = %'d, stathz = %'d }" :
 		"{ hz = %d, tick = %d, profhz = %d, stathz = %d }",
 		ci->hz, ci->tick, ci->profhz, ci->stathz);
@@ -694,8 +696,9 @@ show_var(int *oid, int nlen)
 		if (func) {
 			if (!nflag)
 				printf("%s%s", name, sep);
+			i = (*func)(len, p);
 			free(oval);
-			return ((*func)(len, p));
+			return (i);
 		}
 		/* FALLTHROUGH */
 	default:
