@@ -32,7 +32,7 @@
 .\"     @(#)ls.1	8.7 (Berkeley) 7/29/94
 .\" $FreeBSD$
 .\"
-.Dd March 24, 2006
+.Dd October 12, 2006
 .Dt LS 1
 .Os
 .Sh NAME
@@ -68,7 +68,10 @@ lexicographical order.
 The following options are available:
 .Bl -tag -width indent
 .It Fl A
-List all entries except for
+Include directory entries whose names begin with a
+dot
+.Pq Sq Pa \&.
+except for
 .Pa \&.
 and
 .Pa .. .
@@ -159,7 +162,7 @@ Display each file's MAC label; see
 .It Fl a
 Include directory entries whose names begin with a
 dot
-.Pq Pa \&. .
+.Pq Sq Pa \&. .
 .It Fl b
 As
 .Fl B ,
@@ -364,6 +367,8 @@ The entry type character describes the type of file, as
 follows:
 .Pp
 .Bl -tag -width 4n -offset indent -compact
+.It Sy \-
+Regular file.
 .It Sy b
 Block special file.
 .It Sy c
@@ -372,12 +377,12 @@ Character special file.
 Directory.
 .It Sy l
 Symbolic link.
-.It Sy s
-Socket link.
 .It Sy p
 .Tn FIFO .
-.It Sy \-
-Regular file.
+.It Sy s
+Socket.
+.It Sy w
+Whiteout.
 .El
 .Pp
 The next three fields
