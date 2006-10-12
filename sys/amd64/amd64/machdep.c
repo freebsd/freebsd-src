@@ -125,9 +125,11 @@ __FBSDID("$FreeBSD$");
 #include <machine/smp.h>
 #endif
 
-#include <dev/ic/i8259.h>
+#ifdef DEV_ATPIC
 #include <amd64/isa/icu.h>
+#else
 #include <machine/apicvar.h>
+#endif
 
 #include <isa/isareg.h>
 #include <isa/rtc.h>
