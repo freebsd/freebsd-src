@@ -28,7 +28,7 @@
 .\"     @(#)restore.8	8.4 (Berkeley) 5/1/95
 .\" $FreeBSD$
 .\"
-.Dd May 1, 1995
+.Dd October 12, 2006
 .Dt RESTORE 8
 .Os
 .Sh NAME
@@ -458,7 +458,10 @@ utility appeared in
 The
 .Nm
 utility can get confused when doing incremental restores from
-dumps that were made on active file systems.
+dumps that were made on active file systems without the
+.Fl L
+option (see
+.Xr dump 8 ) .
 .Pp
 A level zero dump must be done after a full restore.
 Because restore runs in user code,
