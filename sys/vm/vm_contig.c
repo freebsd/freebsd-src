@@ -398,7 +398,8 @@ vm_page_alloc_contig(vm_pindex_t npages, vm_paddr_t low, vm_paddr_t high,
 	vm_page_t pga = vm_page_array;
 	static vm_pindex_t np = 0;
 	static vm_pindex_t start = 0;
-	int i, pass, pqtype;
+	vm_pindex_t startl = 0;
+ 	int i, pass, pqtype;
 
 	size = npages << PAGE_SHIFT;
 	if (size == 0)
@@ -417,6 +418,7 @@ vm_page_alloc_contig(vm_pindex_t npages, vm_paddr_t low, vm_paddr_t high,
 	 * cached amount.
 	 */
 	for (pass = 0; pass < 2; pass++) {
+		vm_page_lock_queues();
 		if ((np == 0) || (np > npages)) {
 			if (atop(high) < vm_page_array_size)
 				start = atop(high) - npages + 1;
@@ -424,7 +426,6 @@ vm_page_alloc_contig(vm_pindex_t npages, vm_paddr_t low, vm_paddr_t high,
 				start = vm_page_array_size - npages + 1;
 		}
 		np = 0;
-		vm_page_lock_queues();
 retry:
 		start--;
 		/*
@@ -517,12 +518,13 @@ cleanup_freed:
 			if (vm_contig_unqueue_free(m) != 0)
 				goto retry_page;
 		}
-		vm_page_unlock_queues();
 		/*
 		 * We've found a contiguous chunk that meets are requirements.
 		 */
 		np = npages;
-		return (&pga[start]);
+		startl = start;
+		vm_page_unlock_queues();
+		return (&pga[startl]);
 	}
 	return (NULL);
 }
