@@ -691,9 +691,12 @@ obsolete(int *argcp, char **argvp[])
 	argv = *argvp;
 	argc = *argcp;
 
-	/* Return if no arguments or first argument has leading dash. */
+	/*
+	 * Return if no arguments or first argument has leading
+	 * dash or slash.
+	 */
 	ap = argv[1];
-	if (argc == 1 || *ap == '-')
+	if (argc == 1 || *ap == '-' || *ap == '/')
 		return;
 
 	/* Allocate space for new arguments. */
