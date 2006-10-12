@@ -32,7 +32,7 @@
 .\"	@(#)systat.1	8.2 (Berkeley) 12/30/93
 .\" $FreeBSD$
 .\"
-.Dd May 25, 2006
+.Dd October 12, 2006
 .Dt SYSTAT 1
 .Os
 .Sh NAME
@@ -301,14 +301,14 @@ The first row of the table reports memory usage only among
 active processes, that is processes that have run in the previous
 twenty seconds.
 The second row reports on memory usage of all processes.
-The first column reports on the number of physical pages
+The first column reports on the number of kilobytes in physical pages
 claimed by processes.
-The second column reports the number of physical pages that
+The second column reports the number of kilobytes in physical pages that
 are devoted to read only text pages.
 The third and fourth columns report the same two figures for
-virtual pages, that is the number of pages that would be
+virtual pages, that is the number of kilobytes in pages that would be
 needed if all processes had all of their pages.
-Finally the last column shows the number of physical pages
+Finally the last column shows the number of kilobytes in physical pages
 on the free list.
 .Pp
 Below the memory display is a list of the
@@ -389,7 +389,7 @@ and
 in-transit blocking page faults (`intrn').
 Note that the units are special for `%ozfod' and `pdwak'.
 The next few lines describe,
-as amounts of memory in in kilobytes,
+as amounts of memory in kilobytes,
 pages wired down (`wire'),
 active pages (`act'),
 inactive pages (`inact'),
