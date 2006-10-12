@@ -584,9 +584,9 @@ int
 ipmi_polled_enqueue_request(struct ipmi_softc *sc, struct ipmi_request *req)
 {
 
-	IPMI_LOCK(sc);
+	IPMI_LOCK_ASSERT(sc);
+
 	TAILQ_INSERT_TAIL(&sc->ipmi_pending_requests, req, ir_link);
-	IPMI_UNLOCK(sc);
 	cv_signal(&sc->ipmi_request_added);
 	return (0);
 }
