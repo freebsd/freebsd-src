@@ -148,10 +148,10 @@ pcib_attach_common(device_t dev)
     if (sc->command & PCIM_CMD_MEMEN) {
 	sc->membase   = PCI_PPBMEMBASE(0, pci_read_config(dev, PCIR_MEMBASE_1, 2));
 	sc->memlimit  = PCI_PPBMEMLIMIT(0, pci_read_config(dev, PCIR_MEMLIMIT_1, 2));
-	sc->pmembase  = PCI_PPBMEMBASE((pci_addr_t)pci_read_config(dev, PCIR_PMBASEH_1, 4),
-				       pci_read_config(dev, PCIR_PMBASEL_1, 2));
-	sc->pmemlimit = PCI_PPBMEMLIMIT((pci_addr_t)pci_read_config(dev, PCIR_PMLIMITH_1, 4),
-					pci_read_config(dev, PCIR_PMLIMITL_1, 2));
+	sc->pmembase  = PCI_PPBMEMBASE(pci_read_config(dev, PCIR_PMBASEH_1, 4),
+	    pci_read_config(dev, PCIR_PMBASEL_1, 2));
+	sc->pmemlimit = PCI_PPBMEMLIMIT(pci_read_config(dev, PCIR_PMLIMITH_1, 4),
+	    pci_read_config(dev, PCIR_PMLIMITL_1, 2));
     }
 
     /*
