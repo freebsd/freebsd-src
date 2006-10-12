@@ -27,6 +27,7 @@
 __FBSDID("$FreeBSD$");
 
 #include "opt_ofw_pci.h"
+#include "opt_global.h"
 
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -52,8 +53,10 @@ void
 ofw_pcib_gen_setup(device_t bridge)
 {
 	struct ofw_pcib_gen_softc *sc;
+#ifndef SUN4V
 	u_int secbus;
 
+#endif
 	sc = device_get_softc(bridge);
 	sc->ops_pcib_sc.dev = bridge;
 	sc->ops_node = ofw_bus_get_node(bridge);
@@ -65,6 +68,7 @@ ofw_pcib_gen_setup(device_t bridge)
 	 * bus number for it; the firmware preset does not always seem to be
 	 * correct.
 	 */
+#ifndef SUN4V
 	secbus = ofw_pci_alloc_busno(sc->ops_node);
 	pci_write_config(bridge, PCIR_PRIBUS_1, pci_get_bus(bridge), 1);
 	pci_write_config(bridge, PCIR_SECBUS_1, secbus, 1);
@@ -73,6 +77,7 @@ ofw_pcib_gen_setup(device_t bridge)
 	/* Notify parent bridges. */
 	OFW_PCI_ADJUST_BUSRANGE(device_get_parent(bridge), secbus);
 
+#endif
 	ofw_bus_setup_iinfo(sc->ops_node, &sc->ops_iinfo,
 	    sizeof(ofw_pci_intr_t));
 }
