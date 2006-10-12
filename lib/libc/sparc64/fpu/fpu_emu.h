@@ -157,6 +157,7 @@ struct fpn {
 struct fpemu {
 	u_long	fe_fsr;			/* fsr copy (modified during op) */
 	int	fe_cx;			/* exceptions */
+	int     pad;                    /* align access to following fields */
 	struct	fpn fe_f1;		/* operand 1 */
 	struct	fpn fe_f2;		/* operand 2, if required */
 	struct	fpn fe_f3;		/* available storage for result */
