@@ -27,7 +27,7 @@
 .\" $OpenBSD: basename.3,v 1.12 2000/04/18 03:01:25 aaron Exp $
 .\" $FreeBSD$
 .\"
-.Dd August 17, 1997
+.Dd October 12, 2006
 .Dt BASENAME 3
 .Os
 .Sh NAME
@@ -58,6 +58,13 @@ If
 is a null pointer or the empty string, a pointer to the string
 .Qq \&.
 is returned.
+.Sh IMPLEMENTATION NOTES
+The
+.Fn basename
+function
+returns a pointer to internal storage space allocated on the first call
+that will be overwritten
+by subsequent calls.
 .Sh RETURN VALUES
 On successful completion,
 .Fn basename
@@ -77,12 +84,6 @@ The following error codes may be set in
 The path component to be returned was larger than
 .Dv MAXPATHLEN .
 .El
-.Sh WARNINGS
-The
-.Fn basename
-function
-returns a pointer to internal static storage space that will be overwritten
-by subsequent calls.
 .Sh SEE ALSO
 .Xr basename 1 ,
 .Xr dirname 1 ,
