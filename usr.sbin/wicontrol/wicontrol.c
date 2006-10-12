@@ -889,30 +889,30 @@ wi_dumpstats(const char *iface)
 static void
 usage(const char *p)
 {
-	fprintf(stderr, "usage:  %s -i iface\n", p);
-	fprintf(stderr, "\t%s -i iface -o\n", p);
-	fprintf(stderr, "\t%s -i iface -l\n", p);
-	fprintf(stderr, "\t%s -i iface -L\n", p);
-	fprintf(stderr, "\t%s -i iface -t tx rate\n", p);
-	fprintf(stderr, "\t%s -i iface -n network name\n", p);
-	fprintf(stderr, "\t%s -i iface -s station name\n", p);
-	fprintf(stderr, "\t%s -i iface -c 0|1\n", p);
-	fprintf(stderr, "\t%s -i iface -q SSID\n", p);
-	fprintf(stderr, "\t%s -i iface -p port type\n", p);
-	fprintf(stderr, "\t%s -i iface -a access point density\n", p);
-	fprintf(stderr, "\t%s -i iface -m mac address\n", p);
-	fprintf(stderr, "\t%s -i iface -d max data length\n", p);
-	fprintf(stderr, "\t%s -i iface -e 0|1\n", p);
-	fprintf(stderr, "\t%s -i iface -k encryption key [-v 1|2|3|4]\n", p);
-	fprintf(stderr, "\t%s -i iface -r RTS threshold\n", p);
-	fprintf(stderr, "\t%s -i iface -f frequency\n", p);
-	fprintf(stderr, "\t%s -i iface -F 0|1\n", p);
-	fprintf(stderr, "\t%s -i iface -P 0|1\n", p);
-	fprintf(stderr, "\t%s -i iface -S max sleep duration\n", p);
-	fprintf(stderr, "\t%s -i iface -T 1|2|3|4\n", p);
+	fprintf(stderr, "usage:  %s [[-i] iface]\n", p);
+	fprintf(stderr, "\t%s [[-i] iface] -o\n", p);
+	fprintf(stderr, "\t%s [[-i] iface] -l\n", p);
+	fprintf(stderr, "\t%s [[-i] iface] -L\n", p);
+	fprintf(stderr, "\t%s [[-i] iface] -t tx_rate\n", p);
+	fprintf(stderr, "\t%s [[-i] iface] -n network_name\n", p);
+	fprintf(stderr, "\t%s [[-i] iface] -s station_name\n", p);
+	fprintf(stderr, "\t%s [[-i] iface] -c 0|1\n", p);
+	fprintf(stderr, "\t%s [[-i] iface] -q SSID\n", p);
+	fprintf(stderr, "\t%s [[-i] iface] -p port_type\n", p);
+	fprintf(stderr, "\t%s [[-i] iface] -a access_point_density\n", p);
+	fprintf(stderr, "\t%s [[-i] iface] -m mac_address\n", p);
+	fprintf(stderr, "\t%s [[-i] iface] -d max_data_length\n", p);
+	fprintf(stderr, "\t%s [[-i] iface] -e 0|1\n", p);
+	fprintf(stderr, "\t%s [[-i] iface] -k key [-v 1|2|3|4]\n", p);
+	fprintf(stderr, "\t%s [[-i] iface] -r RTS_threshold\n", p);
+	fprintf(stderr, "\t%s [[-i] iface] -f frequency\n", p);
+	fprintf(stderr, "\t%s [[-i] iface] -F 0|1\n", p);
+	fprintf(stderr, "\t%s [[-i] iface] -P 0|1\n", p);
+	fprintf(stderr, "\t%s [[-i] iface] -S max_sleep_duration\n", p);
+	fprintf(stderr, "\t%s [[-i] iface] -T 1|2|3|4\n", p);
 #ifdef WICACHE
-	fprintf(stderr, "\t%s -i iface -Z zero out signal cache\n", p);
-	fprintf(stderr, "\t%s -i iface -C print signal cache\n", p);
+	fprintf(stderr, "\t%s [[-i] iface] -Z (zero signal cache)\n", p);
+	fprintf(stderr, "\t%s [[-i] iface] -C (display signal cache)\n", p);
 #endif
 
 	exit(1);
