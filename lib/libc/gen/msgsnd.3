@@ -31,7 +31,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd November 24, 1997
+.Dd October 12, 2006
 .Dt MSGSND 3
 .Os
 .Sh NAME
@@ -65,8 +65,13 @@ consist of the following members:
 is an integer greater than 0 that can be used for selecting messages (see
 .Xr msgrcv 3 ) ,
 .Va mtext
-is an array of bytes, with a size up to that of the system limit
-.Pf ( Dv MSGMAX ) .
+is an array of
+.Fa msgsz
+bytes.
+The argument
+.Fa msgsz
+can range from 0 to a system-imposed maximum,
+.Dv MSGMAX .
 .Pp
 If the number of bytes already on the message queue plus
 .Fa msgsz
@@ -144,7 +149,7 @@ message.
 The
 .Fa msgsz
 argument
-is less than 0, or greater than
+is greater than
 .Va msg_qbytes .
 .Pp
 The
