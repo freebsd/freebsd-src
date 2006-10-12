@@ -56,6 +56,11 @@
 #include <ddb/ddb.h>
 #endif
 
+#ifndef DEV_ATPIC
+#include <dev/ic/i8259.h>
+#include <amd64/isa/icu.h>
+#endif
+
 #define	MAX_STRAY_LOG	5
 
 typedef void (*mask_fn)(void *);
