@@ -98,7 +98,7 @@ LIB2FUNCS_EXTRA = qrnnd.asm
 #	from config/arm/t-strongarm-elf
 CFLAGS+=	-Dinhibit_libc -fno-inline
 LIB1ASMSRC =	lib1funcs.asm
-LIB1ASMFUNCS =	_udivsi3 _divsi3 _umodsi3 _modsi3 _dvmd_tls _bb_init_func
+LIB1ASMFUNCS =	_dvmd_tls _bb_init_func
 OBJS+=	dp-bit.o fp-bit.o
 # We want fine grained libraries, so use the new code to build the
 # floating point emulation libraries.
