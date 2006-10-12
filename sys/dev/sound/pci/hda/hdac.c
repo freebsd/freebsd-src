@@ -113,6 +113,12 @@ SND_DECLARE_FILE("$FreeBSD$");
 #define hdac_lockowned(sc)	mtx_owned((sc)->lock)
 
 #define HDA_FLAG_MATCH(fl, v)	(((fl) & (v)) == (v))
+#define HDA_DEV_MATCH(fl, v)	((fl) == (v) || \
+				(fl) == 0xffffffff || \
+				(((fl) & 0xffff0000) == 0xffff0000 && \
+				((fl) & 0x0000ffff) == ((v) & 0x0000ffff)) || \
+				(((fl) & 0x0000ffff) == 0x0000ffff && \
+				((fl) & 0xffff0000) == ((v) & 0xffff0000)))
 #define HDA_MATCH_ALL		0xffffffff
 #define HDAC_INVALID		0xffffffff
 
@@ -183,6 +189,11 @@ SND_DECLARE_FILE("$FreeBSD$");
 #define ASUS_VENDORID		0x1043
 #define ASUS_M5200_SUBVENDOR	HDA_MODEL_CONSTRUCT(ASUS, 0x1993)
 #define ASUS_ALL_SUBVENDOR	HDA_MODEL_CONSTRUCT(ASUS, 0xffff)
+
+/* IBM / Lenovo */
+#define IBM_VENDORID		0x1014
+#define IBM_M52_SUBVENDOR	HDA_MODEL_CONSTRUCT(IBM, 0x02f6)
+#define IBM_ALL_SUBVENDOR	HDA_MODEL_CONSTRUCT(IBM, 0xffff)
 
 
 /* Misc constants.. */
@@ -514,7 +525,7 @@ hdac_codec_name(struct hdac_devinfo *devinfo)
 	id = hdac_codec_id(devinfo);
 
 	for (i = 0; i < HDAC_CODECS_LEN; i++) {
-		if (HDA_FLAG_MATCH(hdac_codecs[i].id, id))
+		if (HDA_DEV_MATCH(hdac_codecs[i].id, id))
 			return (hdac_codecs[i].name);
 	}
 
@@ -617,7 +628,7 @@ hdac_hp_switch_handler(struct hdac_devinfo *devinfo)
 	cad = devinfo->codec->cad;
 	id = hdac_codec_id(devinfo);
 	for (i = 0; i < HDAC_HP_SWITCH_LEN; i++) {
-		if (HDA_FLAG_MATCH(hdac_hp_switch[i].model,
+		if (HDA_DEV_MATCH(hdac_hp_switch[i].model,
 		    sc->pci_subvendor) &&
 		    hdac_hp_switch[i].id == id)
 			break;
@@ -2231,7 +2242,8 @@ static int
 hdac_probe(device_t dev)
 {
 	int i, result;
-	uint32_t model, class, subclass;
+	uint32_t model;
+	uint16_t class, subclass;
 	char desc[64];
 
 	model = (uint32_t)pci_get_device(dev) << 16;
@@ -2247,7 +2259,7 @@ hdac_probe(device_t dev)
 		    	result = BUS_PROBE_DEFAULT;
 			break;
 		}
-		if (HDA_FLAG_MATCH(hdac_devices[i].model, model) &&
+		if (HDA_DEV_MATCH(hdac_devices[i].model, model) &&
 		    class == PCIC_MULTIMEDIA &&
 		    subclass == PCIS_MULTIMEDIA_HDA) {
 		    	strlcpy(desc, hdac_devices[i].desc, sizeof(desc));
@@ -2525,7 +2537,7 @@ hdac_audio_ctl_ossmixer_init(struct snd_mixer *m)
 	id = hdac_codec_id(devinfo);
 	cad = devinfo->codec->cad;
 	for (i = 0; i < HDAC_HP_SWITCH_LEN; i++) {
-		if (!(HDA_FLAG_MATCH(hdac_hp_switch[i].model,
+		if (!(HDA_DEV_MATCH(hdac_hp_switch[i].model,
 		    sc->pci_subvendor) &&
 		    hdac_hp_switch[i].id == id))
 			continue;
@@ -2554,7 +2566,7 @@ hdac_audio_ctl_ossmixer_init(struct snd_mixer *m)
 		break;
 	}
 	for (i = 0; i < HDAC_EAPD_SWITCH_LEN; i++) {
-		if (!(HDA_FLAG_MATCH(hdac_eapd_switch[i].model,
+		if (!(HDA_DEV_MATCH(hdac_eapd_switch[i].model,
 		    sc->pci_subvendor) &&
 		    hdac_eapd_switch[i].id == id))
 			continue;
@@ -2673,13 +2685,14 @@ hdac_audio_ctl_ossmixer_set(struct snd_mixer *m, unsigned dev,
 
 	hdac_lock(sc);
 	if (dev == SOUND_MIXER_OGAIN) {
+		uint32_t orig;
 		/*if (left != right || !(left == 0 || left == 1)) {
 			hdac_unlock(sc);
 			return (-1);
 		}*/
 		id = hdac_codec_id(devinfo);
 		for (i = 0; i < HDAC_EAPD_SWITCH_LEN; i++) {
-			if (HDA_FLAG_MATCH(hdac_eapd_switch[i].model,
+			if (HDA_DEV_MATCH(hdac_eapd_switch[i].model,
 			    sc->pci_subvendor) &&
 			    hdac_eapd_switch[i].id == id)
 				break;
@@ -2695,15 +2708,18 @@ hdac_audio_ctl_ossmixer_set(struct snd_mixer *m, unsigned dev,
 			hdac_unlock(sc);
 			return (-1);
 		}
+		orig = w->param.eapdbtl;
 		if (left == 0)
 			w->param.eapdbtl &= ~HDA_CMD_SET_EAPD_BTL_ENABLE_EAPD;
 		else
 			w->param.eapdbtl |= HDA_CMD_SET_EAPD_BTL_ENABLE_EAPD;
-		if (hdac_eapd_switch[i].hp_switch != 0)
-			hdac_hp_switch_handler(devinfo);
-		hdac_command(sc,
-		    HDA_CMD_SET_EAPD_BTL_ENABLE(devinfo->codec->cad, w->nid,
-		    w->param.eapdbtl), devinfo->codec->cad);
+		if (orig != w->param.eapdbtl) {
+			if (hdac_eapd_switch[i].hp_switch != 0)
+				hdac_hp_switch_handler(devinfo);
+			hdac_command(sc,
+			    HDA_CMD_SET_EAPD_BTL_ENABLE(devinfo->codec->cad,
+			    w->nid, w->param.eapdbtl), devinfo->codec->cad);
+		}
 		hdac_unlock(sc);
 		return (left | (left << 8));
 	}
@@ -2844,8 +2860,8 @@ hdac_attach(device_t dev)
 	}
 
 	sc->dev = dev;
-	sc->pci_subvendor = pci_get_subdevice(sc->dev) << 16;
-	sc->pci_subvendor |= pci_get_subvendor(sc->dev);
+	sc->pci_subvendor = (uint32_t)pci_get_subdevice(sc->dev) << 16;
+	sc->pci_subvendor |= (uint32_t)pci_get_subvendor(sc->dev) & 0x0000ffff;
 
 	sc->chan_size = pcm_getbuffersize(dev,
 	    HDA_BUFSZ_MIN, HDA_BUFSZ_DEFAULT, HDA_BUFSZ_DEFAULT);
@@ -3236,8 +3252,8 @@ hdac_vendor_patch_parse(struct hdac_devinfo *devinfo)
 	 * Quirks
 	 */
 	for (i = 0; i < HDAC_QUIRKS_LEN; i++) {
-		if (!(HDA_FLAG_MATCH(hdac_quirks[i].model, subvendor) &&
-		    HDA_FLAG_MATCH(hdac_quirks[i].id, id)))
+		if (!(HDA_DEV_MATCH(hdac_quirks[i].model, subvendor) &&
+		    HDA_DEV_MATCH(hdac_quirks[i].id, id)))
 			continue;
 		if (hdac_quirks[i].set != 0)
 			devinfo->function.audio.quirks |=
@@ -3281,6 +3297,18 @@ hdac_vendor_patch_parse(struct hdac_devinfo *devinfo)
 				    HDA_PARAM_AUDIO_WIDGET_CAP_TYPE_SHIFT;
 				strlcpy(w->name, "beep widget", sizeof(w->name));
 			}
+		}
+		break;
+	case HDA_CODEC_AD1981HD:
+		w = hdac_widget_get(devinfo, 11);
+		if (w != NULL && w->enable != 0 && w->nconns > 3)
+			w->selconn = 3;
+		if (subvendor == IBM_M52_SUBVENDOR) {
+			struct hdac_audio_ctl *ctl;
+
+			ctl = hdac_audio_ctl_amp_get(devinfo, 7, 0, 1);
+			if (ctl != NULL)
+				ctl->ossmask = SOUND_MASK_SPEAKER;
 		}
 		break;
 	case HDA_CODEC_AD1986A:
