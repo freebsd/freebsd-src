@@ -36,7 +36,7 @@
 .\"     @(#)getenv.3	8.2 (Berkeley) 12/11/93
 .\" $FreeBSD$
 .\"
-.Dd December 11, 1993
+.Dd October 12, 2006
 .Dt GETENV 3
 .Os
 .Sh NAME
@@ -75,6 +75,10 @@ The
 .Fn getenv
 function obtains the current value of the environment variable,
 .Fa name .
+The application should not modify the string pointed
+to by the
+.Fn getenv
+function.
 .Pp
 The
 .Fn setenv
