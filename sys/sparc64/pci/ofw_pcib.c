@@ -35,6 +35,7 @@
 __FBSDID("$FreeBSD$");
 
 #include "opt_ofw_pci.h"
+#include "opt_global.h"
 
 #include <sys/param.h>
 #include <sys/kernel.h>
@@ -119,6 +120,11 @@ ofw_pcib_attach(device_t dev)
 	sc = device_get_softc(dev);
 	ofw_pcib_gen_setup(dev);
 	pcib_attach_common(dev);
+#ifdef SUN4V
+	device_add_child(dev, "pci", -1);
+#else
 	device_add_child(dev, "pci", sc->ops_pcib_sc.secbus);
+#endif
+
 	return (bus_generic_attach(dev));
 }
