@@ -30,8 +30,16 @@
 #include "thr_private.h"
 #include "thr_umtx.h"
 
+void
+_thr_umutex_init(struct umutex *mtx)
+{
+	static struct umutex default_mtx = DEFAULT_UMUTEX;
+
+	*mtx = default_mtx;
+}
+
 int
-__thr_umutex_lock(struct umutex *mtx, uint32_t id)
+__thr_umutex_lock(struct umutex *mtx)
 {
 	if (_umtx_op(mtx, UMTX_OP_MUTEX_LOCK, 0, 0, 0) == 0)
 		return 0;
@@ -39,7 +47,7 @@ __thr_umutex_lock(struct umutex *mtx, uint32_t id)
 }
 
 int
-__thr_umutex_timedlock(struct umutex *mtx, uint32_t id,
+__thr_umutex_timedlock(struct umutex *mtx,
 	const struct timespec *timeout)
 {
 	if (timeout && (timeout->tv_sec < 0 || (timeout->tv_sec == 0 &&
@@ -52,7 +60,7 @@ __thr_umutex_timedlock(struct umutex *mtx, uint32_t id,
 }
 
 int
-__thr_umutex_unlock(struct umutex *mtx, uint32_t id)
+__thr_umutex_unlock(struct umutex *mtx)
 {
 	if (_umtx_op(mtx, UMTX_OP_MUTEX_UNLOCK, 0, 0, 0) == 0)
 		return (0);
@@ -60,7 +68,7 @@ __thr_umutex_unlock(struct umutex *mtx, uint32_t id)
 }
 
 int
-__thr_umutex_kern_trylock(struct umutex *mtx)
+__thr_umutex_trylock(struct umutex *mtx)
 {
 	if (_umtx_op(mtx, UMTX_OP_MUTEX_TRYLOCK, 0, 0, 0) == 0)
 		return (0);
@@ -82,7 +90,7 @@ _thr_umtx_wait(volatile umtx_t *mtx, long id, const struct timespec *timeout)
 	if (timeout && (timeout->tv_sec < 0 || (timeout->tv_sec == 0 &&
 		timeout->tv_nsec <= 0)))
 		return (ETIMEDOUT);
-	if (_umtx_op(__DEVOLATILE(struct umtx *, mtx), UMTX_OP_WAIT, id, 0,
+	if (_umtx_op(__DEVOLATILE(void *, mtx), UMTX_OP_WAIT, id, 0,
 		__DECONST(void*, timeout)) == 0)
 		return (0);
 	return (errno);
@@ -91,7 +99,7 @@ _thr_umtx_wait(volatile umtx_t *mtx, long id, const struct timespec *timeout)
 int
 _thr_umtx_wake(volatile umtx_t *mtx, int nr_wakeup)
 {
-	if (_umtx_op(__DEVOLATILE(struct umtx *, mtx), UMTX_OP_WAKE,
+	if (_umtx_op(__DEVOLATILE(void *, mtx), UMTX_OP_WAKE,
 		nr_wakeup, 0, 0) == 0)
 		return (0);
 	return (errno);
