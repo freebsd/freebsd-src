@@ -35,7 +35,7 @@
 .Os
 .Sh NAME
 .Nm sis
-.Nd "SiS 900, SiS 7016 and NS DP83815 Fast Ethernet device driver"
+.Nd "SiS 900, SiS 7016 and NS DP83815/DP83816 Fast Ethernet device driver"
 .Sh SYNOPSIS
 To compile this driver into the kernel,
 place the following lines in your
@@ -59,7 +59,7 @@ controllers based on the Silicon Integrated Systems SiS 900
 and SiS 7016 Fast Ethernet controller chips.
 .Pp
 This driver also supports
-adapters based on the National Semiconductor DP83815 (MacPhyter)
+adapters based on the National Semiconductor DP83815 (MacPhyter) and DP83816
 PCI Ethernet controller chip.
 .Pp
 The SiS 900 is a 100Mbps Ethernet MAC and MII-compliant transceiver
@@ -127,7 +127,8 @@ The
 .Nm
 driver supports Silicon Integrated Systems SiS 900 and SiS 7016 based
 Fast Ethernet adapters and embedded controllers, as well as Fast Ethernet
-adapters based on the National Semiconductor DP83815 (MacPhyter) chip.
+adapters based on the National Semiconductor DP83815 (MacPhyter) and DP83816
+chips.
 Supported adapters include:
 .Pp
 .Bl -bullet -compact
@@ -141,6 +142,8 @@ Netgear FA311-TX (DP83815)
 Netgear FA312-TX (DP83815)
 .It
 SiS 630, 635, and 735 motherboard chipsets
+.It
+Soekris Engineering net45xx, lan1621, and lan1641
 .El
 .Sh DIAGNOSTICS
 .Bl -diag
