@@ -31,7 +31,7 @@
 .\"	@(#)disklabel.8	8.2 (Berkeley) 4/19/94
 .\" $FreeBSD$
 .\"
-.Dd March 8, 2006
+.Dd October 13, 2006
 .Dt BSDLABEL 8
 .Os
 .Sh NAME
@@ -202,8 +202,8 @@ The format is:
 
 8 partitions:
 #        size   offset    fstype   [fsize bsize bps/cpg]
-  a:    81920       16    4.2BSD     1024  8192    16
-  b:   160000    81936      swap
+  a:    81920       16    4.2BSD     2048 16384  5128
+  b:  1091994    81936      swap
   c:  1173930        0    unused        0     0         # "raw" part, don't edit
 .Ed
 .Pp
@@ -334,28 +334,18 @@ for more details.)
 .It Ar fsize
 For
 .Cm 4.2BSD
-and
-.Tn LFS
-file systems only, the fragment size.
-Defaults to 1024 for partitions smaller than 1GB,
-4096 for partitions 1GB or larger.
+file systems only, the fragment size; see
+.Xr newfs 8 .
 .It Ar bsize
 For
 .Cm 4.2BSD
-and
-.Tn LFS
-file systems only, the block size.
-Defaults to 8192 for partitions smaller than 1GB,
-16384 for partitions 1GB or larger.
+file systems only, the block size; see
+.Xr newfs 8 .
 .It Ar bps/cpg
 For
 .Cm 4.2BSD
-file systems, the number of cylinders in a cylinder group.
-For
-.Tn LFS
-file systems, the segment shift value.
-Defaults to 16 for partitions smaller than 1GB,
-64 for partitions 1GB or larger.
+file systems, the number of cylinders in a cylinder group; see
+.Xr newfs 8 .
 .El
 .Sh EXAMPLES
 .Dl "bsdlabel da0s1"
@@ -504,4 +494,5 @@ are not generally compatible.
 .Xr disktab 5 ,
 .Xr boot0cfg 8 ,
 .Xr fdisk 8 ,
-.Xr gpt 8
+.Xr gpt 8 ,
+.Xr newfs 8
