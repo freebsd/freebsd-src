@@ -52,15 +52,15 @@
 #include <sys/systm.h>
 #include <machine/clock.h>
 #include <machine/intr_machdep.h>
-#include <machine/segments.h>
-#include <amd64/isa/isa.h>
 #ifdef DDB
 #include <ddb/ddb.h>
 #endif
 
 #ifndef DEV_ATPIC
+#include <machine/segments.h>
 #include <dev/ic/i8259.h>
 #include <amd64/isa/icu.h>
+#include <amd64/isa/isa.h>
 #endif
 
 #define	MAX_STRAY_LOG	5
