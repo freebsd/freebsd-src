@@ -121,7 +121,7 @@ kernel-clean:
 	    linterrs makelinks tags vers.c \
 	    vnode_if.c vnode_if.h vnode_if_newproto.h vnode_if_typedef.h \
 	    ${MFILES:T:S/.m$/.c/} ${MFILES:T:S/.m$/.h/} \
-	    ${CLEAN} ${_ILINKS}
+	    ${CLEAN}
 
 lint: ${LNFILES}
 	${LINT} ${LINTKERNFLAGS} ${CFLAGS:M-[DILU]*} ${.ALLSRC} 2>&1 | \
@@ -153,7 +153,7 @@ kernel-depend: .depend
 SRCS=	assym.s vnode_if.h ${BEFORE_DEPEND} ${CFILES} \
 	${SYSTEM_CFILES} ${GEN_CFILES} ${SFILES} \
 	${MFILES:T:S/.m$/.h/}
-.depend: ${SRCS}
+.depend: .PRECIOUS ${SRCS}
 	rm -f .newdep
 	${MAKE} -V CFILES -V SYSTEM_CFILES -V GEN_CFILES | \
 	    MKDEP_CPP="${CC} -E" CC="${CC}" xargs mkdep -a -f .newdep ${CFLAGS}
@@ -184,8 +184,9 @@ ${_ILINKS}:
 	${ECHO} ${.TARGET} "->" $$path ; \
 	ln -s $$path ${.TARGET}
 
+# .depend needs include links so we remove them only together.
 kernel-cleandepend:
-	rm -f .depend
+	rm -f .depend ${_ILINKS}
 
 links:
 	egrep '#if' ${CFILES} | sed -f $S/conf/defines | \
