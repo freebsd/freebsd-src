@@ -658,6 +658,7 @@ destroy_devl(struct cdev *dev)
 		dev->si_flags &= ~SI_CLONELIST;
 	}
 
+	dev->si_refcount++;	/* Avoid race with dev_rel() */
 	csw = dev->si_devsw;
 	dev->si_devsw = NULL;	/* already NULL for SI_ALIAS */
 	while (csw != NULL && csw->d_purge != NULL && dev->si_threadcount) {
@@ -666,6 +667,10 @@ destroy_devl(struct cdev *dev)
 		if (dev->si_threadcount)
 			printf("Still %lu threads in %s\n",
 			    dev->si_threadcount, devtoname(dev));
+	}
+	while (dev->si_threadcount != 0) {
+		/* Use unique dummy wait ident */
+		msleep(&csw, &devmtx, PRIBIO, "devdrn", hz / 10);
 	}
 
 	dev->si_drv1 = 0;
@@ -681,6 +686,7 @@ destroy_devl(struct cdev *dev)
 			fini_cdevsw(csw);
 	}
 	dev->si_flags &= ~SI_ALIAS;
+	dev->si_refcount--;	/* Avoid race with dev_rel() */
 
 	if (dev->si_refcount > 0) {
 		LIST_INSERT_HEAD(&dead_cdevsw.d_devs, dev, si_list);
