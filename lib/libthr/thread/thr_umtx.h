@@ -36,24 +36,18 @@
 
 typedef long umtx_t;
 
-int __thr_umutex_lock(struct umutex *mtx, uint32_t id) __hidden;
-int __thr_umutex_timedlock(struct umutex *mtx, uint32_t id,
+int __thr_umutex_lock(struct umutex *mtx) __hidden;
+int __thr_umutex_timedlock(struct umutex *mtx,
 	const struct timespec *timeout) __hidden;
-int __thr_umutex_unlock(struct umutex *mtx, uint32_t id) __hidden;
-int __thr_umutex_kern_trylock(struct umutex *mtx) __hidden;
+int __thr_umutex_unlock(struct umutex *mtx) __hidden;
+int __thr_umutex_trylock(struct umutex *mtx) __hidden;
 int __thr_umutex_set_ceiling(struct umutex *mtx, uint32_t ceiling,
 	uint32_t *oldceiling) __hidden;
 
+void _thr_umutex_init(struct umutex *mtx) __hidden;
 int _thr_umtx_wait(volatile umtx_t *mtx, umtx_t exp,
 	const struct timespec *timeout) __hidden;
 int _thr_umtx_wake(volatile umtx_t *mtx, int count) __hidden;
-
-static inline void
-_thr_umutex_init(struct umutex *mtx)
-{
-    struct umutex tmp = DEFAULT_UMUTEX;
-    *mtx = tmp;
-}
 
 static inline int
 _thr_umutex_trylock(struct umutex *mtx, uint32_t id)
@@ -62,7 +56,7 @@ _thr_umutex_trylock(struct umutex *mtx, uint32_t id)
 	return (0);
     if ((mtx->m_flags & UMUTEX_PRIO_PROTECT) == 0)
     	return (EBUSY);
-    return (__thr_umutex_kern_trylock(mtx));
+    return (__thr_umutex_trylock(mtx));
 }
 
 static inline int
@@ -70,7 +64,7 @@ _thr_umutex_lock(struct umutex *mtx, uint32_t id)
 {
     if (atomic_cmpset_acq_32(&mtx->m_owner, UMUTEX_UNOWNED, id))
 	return (0);
-    return (__thr_umutex_lock(mtx, id));
+    return (__thr_umutex_lock(mtx));
 }
 
 static inline int
@@ -79,7 +73,7 @@ _thr_umutex_timedlock(struct umutex *mtx, uint32_t id,
 {
     if (atomic_cmpset_acq_32(&mtx->m_owner, UMUTEX_UNOWNED, id))
 	return (0);
-    return (__thr_umutex_timedlock(mtx, id, timeout));
+    return (__thr_umutex_timedlock(mtx, timeout));
 }
 
 static inline int
@@ -87,7 +81,7 @@ _thr_umutex_unlock(struct umutex *mtx, uint32_t id)
 {
     if (atomic_cmpset_rel_32(&mtx->m_owner, id, UMUTEX_UNOWNED))
 	return (0);
-    return (__thr_umutex_unlock(mtx, id));
+    return (__thr_umutex_unlock(mtx));
 }
 
 #endif
