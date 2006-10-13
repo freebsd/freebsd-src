@@ -1,4 +1,4 @@
-# @(#)australasia	8.2
+# @(#)australasia	8.3
 # <pre>
 
 # This file also includes Pacific islands.
@@ -586,6 +586,12 @@ Zone	Pacific/Wallis	12:15:20 -	LMT	1901
 #	CST	for any place operating at a GMTOFF of 9:30
 #	WST	for any place operating at a GMTOFF of 8:00
 #	EST	for any place operating at a GMTOFF of 10:00
+
+# From Chuck Soper (2006-06-01):
+# I recently found this Australian government web page on time zones:
+# <http://www.australia.gov.au/about-australia-13time>
+# And this government web page lists time zone names and abbreviations:
+# <http://www.bom.gov.au/climate/averages/tables/daysavtm.shtml>
 
 # From Paul Eggert (2001-04-05), summarizing a long discussion about "EST"
 # versus "AEST" etc.:
