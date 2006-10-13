@@ -2044,7 +2044,6 @@ device	tnt4882
 # rc: RISCom/8 multiport card
 # rp: Comtrol Rocketport(ISA/PCI) - single card
 # si: Specialix SI/XIO 4-32 port terminal multiplexor
-# nmdm: nullmodem terminal driver (see nmdm(4))
 
 # Notes on the Comtrol Rocketport driver:
 #
