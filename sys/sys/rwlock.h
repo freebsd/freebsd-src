@@ -36,6 +36,7 @@
 #include <sys/_rwlock.h>
 
 #ifdef _KERNEL
+#include <sys/pcpu.h>
 #include <machine/atomic.h>
 #endif
 
