@@ -46,6 +46,7 @@ COPTFLAGS+= ${_CPUCFLAGS}
 . endif
 .endif
 .if ${CC} == "icc"
+C_DIALECT=
 NOSTDINC= -X
 .else
 C_DIALECT= -std=c99
