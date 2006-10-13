@@ -86,14 +86,14 @@ NETGRAPH_INIT(nat, &typestruct);
 MODULE_DEPEND(ng_nat, libalias, 1, 1, 1);
 
 /* Information we store for each node. */
-struct ng_priv_priv {
+struct ng_nat_priv {
 	node_p		node;		/* back pointer to node */
 	hook_p		in;		/* hook for demasquerading */
 	hook_p		out;		/* hook for masquerading */
 	struct libalias	*lib;		/* libalias handler */
 	uint32_t	flags;		/* status flags */
 };
-typedef struct ng_priv_priv *priv_p;
+typedef struct ng_nat_priv *priv_p;
 
 /* Values of flags */
 #define	NGNAT_READY		0x1	/* We have everything to work */
