@@ -429,7 +429,6 @@ mountfs(vfstype, spec, name, flags, options, mntopts)
 		}
 	}
 	optbuf = catopt(strdup(mntopts), options);
-	remopt(fstab, "late");
 
 	if (strcmp(name, "/") == 0)
 		flags |= MNT_UPDATE;
@@ -622,7 +621,8 @@ mangle(options, argcp, argv)
 					*p = '\0';
 					argv[argc++] = p+1;
 				}
-			} else if (strcmp(p, "rw") != 0) {
+			} else if (strcmp(p, "rw") != 0 &&
+			    strcmp(p, "late") != 0) {
 				argv[argc++] = "-o";
 				argv[argc++] = p;
 			}
