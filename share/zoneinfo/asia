@@ -1,4 +1,4 @@
-# @(#)asia	8.4
+# %W%
 # <pre>
 
 # This data is by no means authoritative; if you think you know better,
@@ -212,14 +212,27 @@ Rule	Shang	1941	only	-	Mar	16	0:00	1:00	D
 Rule	PRC	1986	only	-	May	 4	0:00	1:00	D
 Rule	PRC	1986	1991	-	Sep	Sun>=11	0:00	0	S
 Rule	PRC	1987	1991	-	Apr	Sun>=10	0:00	1:00	D
-#
-# Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
-#
+
 # From Anthony Fok (2001-12-20):
 # BTW, I did some research on-line and found some info regarding these five
 # historic timezones from some Taiwan websites.  And yes, there are official
-# Chinese names for these locales (before 1949):
+# Chinese names for these locales (before 1949).
+# 
+# From Jesper Norgaard Welen (2006-07-14):
+# I have investigated the timezones around 1970 on the
+# http://www.astro.com/atlas site [with provinces and county
+# boundaries summarized below]....  A few other exceptions were two
+# counties on the Sichuan side of the Xizang-Sichuan border,
+# counties Dege and Baiyu which lies on the Sichuan side and are
+# therefore supposed to be GMT+7, Xizang region being GMT+6, but Dege
+# county is GMT+8 according to astro.com while Baiyu county is GMT+6
+# (could be true), for the moment I am assuming that those two
+# counties are mistakes in the astro.com data.
+
+
+# Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
 # Changbai Time ("Long-white Time", Long-white = Heilongjiang area)
+# Heilongjiang (except Mohe county), Jilin
 Zone	Asia/Harbin	8:26:44	-	LMT	1928 # or Haerbin
 			8:30	-	CHAT	1932 Mar # Changbai Time
 			8:00	-	CST	1940
@@ -227,18 +240,35 @@ Zone	Asia/Harbin	8:26:44	-	LMT	1928 # or Haerbin
 			8:30	-	CHAT	1980 May
 			8:00	PRC	C%sT
 # Zhongyuan Time ("Central plain Time")
+# most of China
 Zone	Asia/Shanghai	8:05:52	-	LMT	1928
 			8:00	Shang	C%sT	1949
 			8:00	PRC	C%sT
 # Long-shu Time (probably due to Long and Shu being two names of that area)
+# Guangxi, Guizhou, Hainan, Ningxia, Sichuan, Shaanxi, and Yunnan;
+# most of Gansu; west Inner Mongolia; west Qinghai; and the Guangdong
+# counties Deqing, Enping, Kaiping, Luoding, Taishan, Xinxing,
+# Yangchun, Yangjiang, Yu'nan, and Yunfu.
 Zone	Asia/Chongqing	7:06:20	-	LMT	1928 # or Chungking
 			7:00	-	LONT	1980 May # Long-shu Time
 			8:00	PRC	C%sT
 # Xin-zang Time ("Xinjiang-Tibet Time")
+# The Gansu counties Aksay, Anxi, Dunhuang, Subei; west Qinghai;
+# the Guangdong counties  Xuwen, Haikang, Suixi, Lianjiang,
+# Zhanjiang, Wuchuan, Huazhou, Gaozhou, Maoming, Dianbai, and Xinyi;
+# east Tibet, including Lhasa, Chamdo, Shigaise, Jimsar, Shawan and Hutubi;
+# east Xinjiang, including Urumqi, Turpan, Karamay, Korla, Minfeng, Jinghe,
+# Wusu, Qiemo, Xinyan, Wulanwusu, Jinghe, Yumin, Tacheng, Tuoli, Emin,
+# Shihezi, Changji, Yanqi, Heshuo, Tuokexun, Tulufan, Shanshan, Hami,
+# Fukang, Kuitun, Kumukuli, Miquan, Qitai, and Turfan.
 Zone	Asia/Urumqi	5:50:20	-	LMT	1928 # or Urumchi
 			6:00	-	URUT	1980 May # Urumqi Time
 			8:00	PRC	C%sT
 # Kunlun Time
+# West Tibet, including Pulan, Aheqi, Shufu, Shule;
+# West Xinjiang, including Aksu, Atushi, Yining, Hetian, Cele, Luopu, Nileke,
+# Zhaosu, Tekesi, Gongliu, Chabuchaer, Huocheng, Bole, Pishan, Suiding,
+# and Yarkand.
 Zone	Asia/Kashgar	5:03:56	-	LMT	1928 # or Kashi or Kaxgar
 			5:30	-	KAST	1940	 # Kashgar Time
 			5:00	-	KAST	1980 May
@@ -923,6 +953,10 @@ Zone	Asia/Tokyo	9:18:59	-	LMT	1887 Dec 31 15:00u
 # For Jordan I have received multiple independent user reports every year
 # about DST end dates, as the end-rule is different every year.
 #
+# From Steffen Thorsen (2006-10-01), after a heads-up from Hilal Malawi:
+# http://www.petranews.gov.jo/nepras/2006/Sep/05/4000.htm
+# "Jordan will switch to winter time on Friday, October 27".
+#
 # Rule	NAME	FROM	TO	TYPE	IN	ON	AT	SAVE	LETTER/S
 Rule	Jordan	1973	only	-	Jun	6	0:00	1:00	S
 Rule	Jordan	1973	1975	-	Oct	1	0:00	0	-
@@ -949,7 +983,8 @@ Rule	Jordan	1999	2002	-	Sep	lastThu	0:00s	0	-
 Rule	Jordan	2000	max	-	Mar	lastThu	0:00s	1:00	S
 Rule	Jordan	2003	only	-	Oct	24	0:00s	0	-
 Rule	Jordan	2004	only	-	Oct	15	0:00s	0	-
-Rule	Jordan	2005	max	-	Sep	lastFri	0:00s	0	-
+Rule	Jordan	2005	only	-	Sep	lastFri	0:00s	0	-
+Rule	Jordan	2006	max	-	Oct	lastFri	0:00s	0	-
 # Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
 Zone	Asia/Amman	2:23:44 -	LMT	1931
 			2:00	Jordan	EE%sT
@@ -1076,10 +1111,12 @@ Zone	Asia/Bishkek	4:58:24 -	LMT	1924 May  2
 
 # Korea (North and South)
 
-# From Guy Harris:
-# According to someone at the Korean Times in San Francisco,
-# Daylight Savings Time was not observed until 1987.  He did not know
-# at what time of day DST starts or ends.
+# From Annie I. Bang (2006-07-10) in
+# <http://www.koreaherald.co.kr/SITE/data/html_dir/2006/07/10/200607100012.asp>:
+# The Ministry of Commerce, Industry and Energy has already
+# commissioned a research project [to reintroduce DST] and has said
+# the system may begin as early as 2008....  Korea ran a daylight
+# saving program from 1949-61 but stopped it during the 1950-53 Korean War.
 
 # From Shanks & Pottenger:
 # Rule	NAME	FROM	TO	TYPE	IN	ON	AT	SAVE	LETTER/S
@@ -1436,6 +1473,23 @@ Zone	Asia/Karachi	4:28:12 -	LMT	1907
 # there is a good chance next year's end date will be around two weeks
 # earlier--the same goes for Jordan.
 
+# From Steffen Thorsen (2006-08-17):
+# I was informed by a user in Bethlehem that in Bethlehem it started the
+# same day as Israel, and after checking with other users in the area, I
+# was informed that they started DST one day after Israel.  I was not
+# able to find any authoritative sources at the time, nor details if
+# Gaza changed as well, but presumed Gaza to follow the same rules as
+# the West Bank.
+
+# From Steffen Thorsen (2006-09-26):
+# according to the Palestine News Network (2006-09-19):
+# http://english.pnn.ps/index.php?option=com_content&task=view&id=596&Itemid=5
+# > The Council of Ministers announced that this year its winter schedule
+# > will begin early, as of midnight Thursday.  It is also time to turn
+# > back the clocks for winter.  Friday will begin an hour late this week.
+# I guess it is likely that next year's date will be moved as well,
+# because of the Ramadan.
+
 # The rules for Egypt are stolen from the `africa' file.
 # Rule	NAME	FROM	TO	TYPE	IN	ON	AT	SAVE	LETTER/S
 Rule EgyptAsia	1957	only	-	May	10	0:00	1:00	S
@@ -1445,10 +1499,13 @@ Rule EgyptAsia	1959	1967	-	May	 1	1:00	1:00	S
 Rule EgyptAsia	1959	1965	-	Sep	30	3:00	0	-
 Rule EgyptAsia	1966	only	-	Oct	 1	3:00	0	-
 
-Rule Palestine	1999	max	-	Apr	Fri>=15	0:00	1:00	S
+Rule Palestine	1999	2005	-	Apr	Fri>=15	0:00	1:00	S
 Rule Palestine	1999	2003	-	Oct	Fri>=15	0:00	0	-
 Rule Palestine	2004	only	-	Oct	 1	1:00	0	-
-Rule Palestine	2005	max	-	Oct	 4	2:00	0	-
+Rule Palestine	2005	only	-	Oct	 4	2:00	0	-
+Rule Palestine	2006	max	-	Apr	 1	0:00	1:00	S
+Rule Palestine	2006	only	-	Sep	22	0:00	0	-
+Rule Palestine	2007	max	-	Oct	Fri>=15	0:00	0	-
 
 # Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
 Zone	Asia/Gaza	2:17:52	-	LMT	1900 Oct
@@ -1627,11 +1684,18 @@ Rule	Syria	1993	only	-	Sep	25	0:00	0	-
 # IATA SSIM (1998-02) says 1998-04-02;
 # (1998-09) says 1999-03-29 and 1999-09-29; (1999-02) says 1999-04-02,
 # 2000-04-02, and 2001-04-02; (1999-09) says 2000-03-31 and 2001-03-31;
-# ignore all these claims and go with Shanks & Pottenger.
+# (2006) says 2006-03-31 and 2006-09-22;
+# for now ignore all these claims and go with Shanks & Pottenger,
+# except for the 2006-09-22 claim (which seems right for Ramadan).
 Rule	Syria	1994	1996	-	Apr	 1	0:00	1:00	S
-Rule	Syria	1994	max	-	Oct	 1	0:00	0	-
+Rule	Syria	1994	2005	-	Oct	 1	0:00	0	-
 Rule	Syria	1997	1998	-	Mar	lastMon	0:00	1:00	S
 Rule	Syria	1999	max	-	Apr	 1	0:00	1:00	S
+# From Stephen Colebourne (2006-09-18):
+# According to IATA data, Syria will change DST on 21st September [21:00 UTC]
+# this year [only]....  This is probably related to Ramadan, like Egypt.
+Rule	Syria	2006	only	-	Sep	22	0:00	0	-
+Rule	Syria	2007	max	-	Oct	 1	0:00	0	-
 # Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
 Zone	Asia/Damascus	2:25:12 -	LMT	1920	# Dimashq
 			2:00	Syria	EE%sT
