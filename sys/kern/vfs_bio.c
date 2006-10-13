@@ -3017,6 +3017,7 @@ dev_strategy(struct cdev *dev, struct buf *bp)
 	    devtoname(dev)));
 	csw = dev_refthread(dev);
 	if (csw == NULL) {
+		g_destroy_bio(bip);
 		bp->b_error = ENXIO;
 		bp->b_ioflags = BIO_ERROR;
 		bufdone(bp);
