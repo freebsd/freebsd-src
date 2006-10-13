@@ -49,11 +49,11 @@ The options are as follows:
 .Bl -tag -width indent
 .It Fl a Ar BD_ADDR
 Specify the local address to listen on.
-By default, server will listen on
+By default, the server will listen on
 .Dv ANY
 address.
 The address can be specified as BD_ADDR or name.
-If name was specified then the
+If a name was specified, the
 .Nm
 daemon will attempt to resolve the name via
 .Xr bt_gethostbyname 3 .
@@ -80,10 +80,10 @@ The
 daemon will periodically scan for newly configured Bluetooth HID devices or
 disconnected
 .Dq passive
-Bluetooth HID devices and will attempt to establish outgoing connection.
-Default rescan interval is 10 seconds.
+Bluetooth HID devices and will attempt to establish an outgoing connection.
+The default rescan interval is 10 seconds.
 .El
-.Sh CAVEAT
+.Sh CAVEATS
 Any Bluetooth HID device that has
 .Dv HUP_KEYBOARD
 or
@@ -95,10 +95,9 @@ For each
 Bluetooth HID device,
 the
 .Nm
-daemon will use separate instance of
-.Xr vkbd 4
-virtual keyboard.
-Therefore
+daemon will use a separate instance of the virtual keyboard interface
+.Xr vkbd 4 .
+Therefore the
 .Xr kbdmux 4
 driver must be used to properly multiplex input from multiple keyboards.
 .Sh KNOWN LIMITATIONS
@@ -110,10 +109,10 @@ Those events work under
 just fine,
 but not in text console.
 .Pp
-This man page needs more work.
-Also need a man page documenting format of the
+This manual page needs more work.
+A manual page documenting the format of the
 .Pa /etc/bluetooth/bthidd.conf
-configuraion file.
+configuration file is needed as well.
 .Sh FILES
 .Bl -tag -width ".Pa /etc/bluetooth/bthidd.conf" -compact
 .It Pa /etc/bluetooth/bthidd.conf
