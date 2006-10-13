@@ -246,7 +246,7 @@ ${_ILINKS}:
 	${ECHO} ${.TARGET} "->" $$path ; \
 	ln -sf $$path ${.TARGET}
 
-CLEANFILES+= ${PROG} ${KMOD}.kld ${OBJS} ${_ILINKS}
+CLEANFILES+= ${PROG} ${KMOD}.kld ${OBJS}
 
 .if defined(DEBUG_FLAGS)
 CLEANFILES+= ${FULLPROG} ${PROG}.symbols
@@ -434,6 +434,11 @@ lint: ${SRCS}
 	${LINT} ${LINTKERNFLAGS} ${CFLAGS:M-[DILU]*} ${.ALLSRC:M*.c}
 
 .include <bsd.dep.mk>
+
+cleandepend: cleanilinks
+# .depend needs include links so we remove them only together.
+cleanilinks:
+	rm -f ${_ILINKS}
 
 .if !exists(${.OBJDIR}/${DEPENDFILE})
 ${OBJS}: ${SRCS:M*.h}
