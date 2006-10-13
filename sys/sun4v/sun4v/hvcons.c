@@ -84,15 +84,14 @@ static int	hvcn_tty_param(struct tty *, struct termios *);
 static void	hvcn_tty_stop(struct tty *, int);
 static void     hvcn_timeout(void *);
 
-static cn_probe_t	hvcnprobe;
-static cn_init_t	hvcninit;
-static cn_getc_t	hvcngetc;
-static cn_checkc_t 	hvcncheckc;
-static cn_putc_t	hvcnputc;
+static cn_probe_t	hvcn_cnprobe;
+static cn_init_t	hvcn_cninit;
+static cn_getc_t	hvcn_cngetc;
+static cn_putc_t	hvcn_cnputc;
+static cn_term_t	hvcn_cnterm;
 
 
-CONS_DRIVER(hvcn, hvcnprobe, hvcninit, NULL, hvcngetc,
-    hvcncheckc, hvcnputc, NULL);
+CONSOLE_DRIVER(hvcn);
 
 
 static int
@@ -159,7 +158,7 @@ hvcn_close(struct cdev *dev, int flag, int mode, struct thread *td)
 }
 
 static void
-hvcnprobe(struct consdev *cp)
+hvcn_cnprobe(struct consdev *cp)
 {
 
 #if 0
@@ -190,13 +189,13 @@ done:
 }
 
 static void
-hvcninit(struct consdev *cp)
+hvcn_cninit(struct consdev *cp)
 {
 	sprintf(cp->cn_name, "hvcn");
 }
 
 static int
-hvcngetc(struct consdev *cp)
+hvcn_cngetc(struct consdev *cp)
 {
 	unsigned char ch;
 	int l;
@@ -222,7 +221,7 @@ hvcngetc(struct consdev *cp)
 }
 
 static int
-hvcncheckc(struct consdev *cp)
+hvcn_cncheckc(struct consdev *cp)
 {
 	unsigned char ch;
 	int l;
@@ -242,7 +241,13 @@ hvcncheckc(struct consdev *cp)
 
 
 static void
-hvcnputc(struct consdev *cp, int c)
+hvcn_cnterm(struct consdev *cp)
+{
+	;
+}
+
+static void
+hvcn_cnputc(struct consdev *cp, int c)
 {
 
 	int error;
@@ -309,7 +314,7 @@ hvcn_intr(void *v)
 
 	tp = (struct tty *)v;
 	
-	while ((c = hvcncheckc(NULL)) != -1) 
+	while ((c = hvcn_cncheckc(NULL)) != -1) 
 		if (tp->t_state & TS_ISOPEN) 
 			ttyld_rint(tp, c);
 
@@ -327,7 +332,7 @@ hvcn_timeout(void *v)
 
 
 static int
-hvcn_probe(device_t dev)
+hvcn_dev_probe(device_t dev)
 {
 
 	if (strcmp(mdesc_bus_get_name(dev), "console"))
@@ -340,11 +345,10 @@ hvcn_probe(device_t dev)
 
 
 static int
-hvcn_attach(device_t dev)
+hvcn_dev_attach(device_t dev)
 {
       
 	struct cdev *cdev;
-	char output[32];
 	int error, rid;
 
 	/* belongs in attach - but attach is getting called multiple times
@@ -354,14 +358,8 @@ hvcn_attach(device_t dev)
 	if (hvcn_consdev.cn_pri == CN_DEAD || 
 	    hvcn_consdev.cn_name[0] == '\0') 
 		return (ENXIO);
-#if 0
-	if ((options = OF_finddevice("/options")) == -1 ||
-	    OF_getprop(options, "output-device", output,
-		       sizeof(output)) == -1)
-		return (ENXIO);
 
-#endif
-	cdev = make_dev(&hvcn_cdevsw, 0, UID_ROOT, GID_WHEEL, 0600, "%s", output);
+	cdev = make_dev(&hvcn_cdevsw, 0, UID_ROOT, GID_WHEEL, 0600, "ttyv%r", 1);
 	make_dev_alias(cdev, "hvcn");
 	
 	rid = 0;
@@ -386,8 +384,8 @@ fail:
 }
 
 static device_method_t hvcn_methods[] = {
-        DEVMETHOD(device_probe, hvcn_probe),
-        DEVMETHOD(device_attach, hvcn_attach),
+        DEVMETHOD(device_probe, hvcn_dev_probe),
+        DEVMETHOD(device_attach, hvcn_dev_attach),
         {0, 0}
 };
 
