@@ -2100,7 +2100,6 @@ options 	SI_DEBUG
 hint.si.0.at="isa"
 hint.si.0.maddr="0xd0000"
 hint.si.0.irq="12"
-device		nmdm
 
 #
 # The 'bktr' device is a PCI video capture device using the Brooktree
