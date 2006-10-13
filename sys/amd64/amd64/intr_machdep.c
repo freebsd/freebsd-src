@@ -52,6 +52,8 @@
 #include <sys/systm.h>
 #include <machine/clock.h>
 #include <machine/intr_machdep.h>
+#include <machine/segments.h>
+#include <amd64/isa/isa.h>
 #ifdef DDB
 #include <ddb/ddb.h>
 #endif
