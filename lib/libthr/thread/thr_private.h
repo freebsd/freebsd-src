@@ -371,7 +371,7 @@ struct pthread {
 	sigset_t		sigmask;
 
 	/* Thread state: */
-	umtx_t			state;
+	enum pthread_state 	state;
 
 	/*
 	 * Error variable used instead of errno. The function __error()
