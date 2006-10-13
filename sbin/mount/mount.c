@@ -429,6 +429,7 @@ mountfs(vfstype, spec, name, flags, options, mntopts)
 		}
 	}
 	optbuf = catopt(strdup(mntopts), options);
+	remopt(fstab, "late");
 
 	if (strcmp(name, "/") == 0)
 		flags |= MNT_UPDATE;
