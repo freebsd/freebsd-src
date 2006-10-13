@@ -2287,18 +2287,18 @@ bce_dma_alloc(device_t dev)
 	 * Allocate the parent bus DMA tag appropriate for PCI.
 	 */
 	if (bus_dma_tag_create(NULL,		/* parent     */
-			BCE_DMA_ALIGN,				/* alignment  */
-			BCE_DMA_BOUNDARY,			/* boundary   */
-			sc->max_bus_addr,			/* lowaddr    */
-			BUS_SPACE_MAXADDR,			/* highaddr   */
-			NULL, 						/* filterfunc */
-			NULL,						/* filterarg  */
-			MAXBSIZE, 					/* maxsize    */
-			BUS_SPACE_UNRESTRICTED,		/* nsegments  */
-			BUS_SPACE_MAXSIZE_32BIT,	/* maxsegsize */
-			0,							/* flags      */
-			NULL, 						/* locfunc    */
-			NULL,						/* lockarg    */
+			BCE_DMA_ALIGN,		/* alignment  */
+			BCE_DMA_BOUNDARY,	/* boundary   */
+			sc->max_bus_addr,	/* lowaddr    */
+			BUS_SPACE_MAXADDR,	/* highaddr   */
+			NULL, 			/* filterfunc */
+			NULL,			/* filterarg  */
+			MAXBSIZE, 		/* maxsize    */
+			BUS_SPACE_UNRESTRICTED,	/* nsegments  */
+			BUS_SPACE_MAXSIZE_32BIT,/* maxsegsize */
+			0,			/* flags      */
+			NULL, 			/* locfunc    */
+			NULL,			/* lockarg    */
 			&sc->parent_tag)) {
 		BCE_PRINTF(sc, "%s(%d): Could not allocate parent DMA tag!\n",
 			__FILE__, __LINE__);
@@ -2312,19 +2312,19 @@ bce_dma_alloc(device_t dev)
 	 * address of the block.
 	 */
 	if (bus_dma_tag_create(
-			sc->parent_tag,			/* parent      */
+		sc->parent_tag,			/* parent      */
 	    	BCE_DMA_ALIGN,			/* alignment   */
 	    	BCE_DMA_BOUNDARY,		/* boundary    */
 	    	sc->max_bus_addr,		/* lowaddr     */
 	    	BUS_SPACE_MAXADDR,		/* highaddr    */
-	    	NULL, 					/* filterfunc  */
-	    	NULL, 					/* filterarg   */
+	    	NULL, 				/* filterfunc  */
+	    	NULL, 				/* filterarg   */
 	    	BCE_STATUS_BLK_SZ, 		/* maxsize     */
-	    	1,						/* nsegments   */
+	    	1,				/* nsegments   */
 	    	BCE_STATUS_BLK_SZ, 		/* maxsegsize  */
-	    	0,						/* flags       */
-	    	NULL, 					/* lockfunc    */
-	    	NULL,					/* lockarg     */
+	    	0,				/* flags       */
+	    	NULL, 				/* lockfunc    */
+	    	NULL,				/* lockarg     */
 	    	&sc->status_tag)) {
 		BCE_PRINTF(sc, "%s(%d): Could not allocate status block DMA tag!\n",
 			__FILE__, __LINE__);
@@ -2333,9 +2333,9 @@ bce_dma_alloc(device_t dev)
 	}
 
 	if(bus_dmamem_alloc(
-			sc->status_tag,				/* dmat        */
+		sc->status_tag,			/* dmat        */
 	    	(void **)&sc->status_block,	/* vaddr       */
-	    	BUS_DMA_NOWAIT,					/* flags       */
+	    	BUS_DMA_NOWAIT,			/* flags       */
 	    	&sc->status_map)) {
 		BCE_PRINTF(sc, "%s(%d): Could not allocate status block DMA memory!\n",
 			__FILE__, __LINE__);
@@ -2349,12 +2349,12 @@ bce_dma_alloc(device_t dev)
 	map_arg.maxsegs = 1;
 
 	error = bus_dmamap_load(
-			sc->status_tag,	   		/* dmat        */
+		sc->status_tag,	   		/* dmat        */
 	    	sc->status_map,	   		/* map         */
 	    	sc->status_block,	 	/* buf         */
 	    	BCE_STATUS_BLK_SZ,	 	/* buflen      */
 	    	bce_dma_map_addr, 	 	/* callback    */
-	    	&map_arg,			 	/* callbackarg */
+	    	&map_arg,		 	/* callbackarg */
 	    	BUS_DMA_NOWAIT);		/* flags       */
 	    	
 	if(error || (map_arg.maxsegs == 0)) {
@@ -2375,19 +2375,19 @@ bce_dma_alloc(device_t dev)
 	 * address of the block.
 	 */
 	if (bus_dma_tag_create(
-			sc->parent_tag,			/* parent      */
+		sc->parent_tag,			/* parent      */
 	    	BCE_DMA_ALIGN,	 		/* alignment   */
 	    	BCE_DMA_BOUNDARY, 		/* boundary    */
 	    	sc->max_bus_addr,		/* lowaddr     */
 	    	BUS_SPACE_MAXADDR,		/* highaddr    */
-	    	NULL,		 	  		/* filterfunc  */
-	    	NULL, 			  		/* filterarg   */
+	    	NULL,		   		/* filterfunc  */
+	    	NULL, 		  		/* filterarg   */
 	    	BCE_STATS_BLK_SZ, 		/* maxsize     */
-	    	1,				  		/* nsegments   */
+	    	1,		  		/* nsegments   */
 	    	BCE_STATS_BLK_SZ, 		/* maxsegsize  */
-	    	0, 				  		/* flags       */
-	    	NULL, 			  		/* lockfunc    */
-	    	NULL, 			  		/* lockarg     */
+	    	0, 		  		/* flags       */
+	    	NULL, 		 		/* lockfunc    */
+	    	NULL, 		  		/* lockarg     */
 	    	&sc->stats_tag)) {
 		BCE_PRINTF(sc, "%s(%d): Could not allocate statistics block DMA tag!\n",
 			__FILE__, __LINE__);
@@ -2396,9 +2396,9 @@ bce_dma_alloc(device_t dev)
 	}
 
 	if (bus_dmamem_alloc(
-			sc->stats_tag,				/* dmat        */
+		sc->stats_tag,			/* dmat        */
 	    	(void **)&sc->stats_block,	/* vaddr       */
-	    	BUS_DMA_NOWAIT,	 			/* flags       */
+	    	BUS_DMA_NOWAIT,			/* flags       */
 	    	&sc->stats_map)) {
 		BCE_PRINTF(sc, "%s(%d): Could not allocate statistics block DMA memory!\n",
 			__FILE__, __LINE__);
@@ -2412,12 +2412,12 @@ bce_dma_alloc(device_t dev)
 	map_arg.maxsegs = 1;
 
 	error = bus_dmamap_load(
-			sc->stats_tag,	 	/* dmat        */
+		sc->stats_tag,	 	/* dmat        */
 	    	sc->stats_map,	 	/* map         */
 	    	sc->stats_block, 	/* buf         */
 	    	BCE_STATS_BLK_SZ,	/* buflen      */
 	    	bce_dma_map_addr,	/* callback    */
-	    	&map_arg, 		 	/* callbackarg */
+	    	&map_arg, 	 	/* callbackarg */
 	    	BUS_DMA_NOWAIT);	/* flags       */
 
 	if(error || (map_arg.maxsegs == 0)) {
@@ -2438,19 +2438,19 @@ bce_dma_alloc(device_t dev)
 	 * physical address of the block.
 	 */
 	if(bus_dma_tag_create(
-			sc->parent_tag,		  /* parent      */
-	    	BCM_PAGE_SIZE,		  /* alignment   */
-	    	BCE_DMA_BOUNDARY,	  /* boundary    */
-			sc->max_bus_addr,	  /* lowaddr     */
-			BUS_SPACE_MAXADDR, 	  /* highaddr    */
-			NULL, 				  /* filterfunc  */ 
-			NULL, 				  /* filterarg   */
-			BCE_TX_CHAIN_PAGE_SZ, /* maxsize     */
-			1,			  		  /* nsegments   */
-			BCE_TX_CHAIN_PAGE_SZ, /* maxsegsize  */
-			0,				 	  /* flags       */
-			NULL, 				  /* lockfunc    */
-			NULL,				  /* lockarg     */
+			sc->parent_tag,		/* parent      */
+			BCM_PAGE_SIZE,		/* alignment   */
+		    	BCE_DMA_BOUNDARY,	/* boundary    */
+			sc->max_bus_addr,	/* lowaddr     */
+			BUS_SPACE_MAXADDR, 	/* highaddr    */
+			NULL,			/* filterfunc  */ 
+			NULL,			/* filterarg   */
+			BCE_TX_CHAIN_PAGE_SZ,	/* maxsize     */
+			1,			/* nsegments   */
+			BCE_TX_CHAIN_PAGE_SZ,	/* maxsegsize  */
+			0,			/* flags       */
+			NULL,			/* lockfunc    */
+			NULL,			/* lockarg     */
 			&sc->tx_bd_chain_tag)) {
 		BCE_PRINTF(sc, "%s(%d): Could not allocate TX descriptor chain DMA tag!\n",
 			__FILE__, __LINE__);
@@ -2461,9 +2461,9 @@ bce_dma_alloc(device_t dev)
 	for (i = 0; i < TX_PAGES; i++) {
 
 		if(bus_dmamem_alloc(
-				sc->tx_bd_chain_tag,			/* tag   */
+			sc->tx_bd_chain_tag,		/* tag   */
 	    		(void **)&sc->tx_bd_chain[i],	/* vaddr */
-	    		BUS_DMA_NOWAIT,					/* flags */
+	    		BUS_DMA_NOWAIT,			/* flags */
 		    	&sc->tx_bd_chain_map[i])) {
 			BCE_PRINTF(sc, "%s(%d): Could not allocate TX descriptor "
 				"chain DMA memory!\n", __FILE__, __LINE__);
@@ -2475,13 +2475,13 @@ bce_dma_alloc(device_t dev)
 		map_arg.sc = sc;
 
 		error = bus_dmamap_load(
-				sc->tx_bd_chain_tag,	 /* dmat        */
-	    		sc->tx_bd_chain_map[i],	 /* map         */
-	    		sc->tx_bd_chain[i],		 /* buf         */
-		    	BCE_TX_CHAIN_PAGE_SZ,  	 /* buflen      */
-		    	bce_dma_map_addr, 	   	 /* callback    */
-	    		&map_arg, 			   	 /* callbackarg */
-	    		BUS_DMA_NOWAIT);	   	 /* flags       */
+			sc->tx_bd_chain_tag,		/* dmat        */
+	    		sc->tx_bd_chain_map[i],		/* map         */
+	    		sc->tx_bd_chain[i],		/* buf         */
+		    	BCE_TX_CHAIN_PAGE_SZ,		/* buflen      */
+		    	bce_dma_map_addr,		/* callback    */
+	    		&map_arg,			/* callbackarg */
+	    		BUS_DMA_NOWAIT);		/* flags       */
 
 		if(error || (map_arg.maxsegs == 0)) {
 			BCE_PRINTF(sc, "%s(%d): Could not map TX descriptor chain DMA memory!\n",
@@ -2499,19 +2499,19 @@ bce_dma_alloc(device_t dev)
 	/* Create a DMA tag for TX mbufs. */
 	if (bus_dma_tag_create(
 			sc->parent_tag,	 	 	/* parent      */
-	    	BCE_DMA_ALIGN,	 		/* alignment   */
-	    	BCE_DMA_BOUNDARY, 		/* boundary    */
+			BCE_DMA_ALIGN,	 		/* alignment   */
+			BCE_DMA_BOUNDARY, 		/* boundary    */
 			sc->max_bus_addr,		/* lowaddr     */
 			BUS_SPACE_MAXADDR,		/* highaddr    */
-			NULL, 			  		/* filterfunc  */
-			NULL, 			  		/* filterarg   */
+			NULL,				/* filterfunc  */
+			NULL,				/* filterarg   */
 			MCLBYTES * BCE_MAX_SEGMENTS,	/* maxsize     */
 			BCE_MAX_SEGMENTS,  		/* nsegments   */
-			MCLBYTES,				/* maxsegsize  */
-			0,				 		/* flags       */
-			NULL, 			  		/* lockfunc    */
-			NULL,			  		/* lockarg     */
-	    	&sc->tx_mbuf_tag)) {
+			MCLBYTES,			/* maxsegsize  */
+			0,				/* flags       */
+			NULL,				/* lockfunc    */
+			NULL,				/* lockarg     */
+			&sc->tx_mbuf_tag)) {
 		BCE_PRINTF(sc, "%s(%d): Could not allocate TX mbuf DMA tag!\n",
 			__FILE__, __LINE__);
 		rc = ENOMEM;
@@ -2536,18 +2536,18 @@ bce_dma_alloc(device_t dev)
 	 */
 	if (bus_dma_tag_create(
 			sc->parent_tag,			/* parent      */
-	    	BCM_PAGE_SIZE,			/* alignment   */
-	    	BCE_DMA_BOUNDARY,		/* boundary    */
+			BCM_PAGE_SIZE,			/* alignment   */
+			BCE_DMA_BOUNDARY,		/* boundary    */
 			BUS_SPACE_MAXADDR,		/* lowaddr     */
 			sc->max_bus_addr,		/* lowaddr     */
-			NULL,					/* filter      */
-			NULL, 					/* filterarg   */
-			BCE_RX_CHAIN_PAGE_SZ,	/* maxsize     */
-			1, 						/* nsegments   */
-			BCE_RX_CHAIN_PAGE_SZ,	/* maxsegsize  */
-			0,				 		/* flags       */
-			NULL,					/* lockfunc    */
-			NULL,					/* lockarg     */
+			NULL,				/* filter      */
+			NULL, 				/* filterarg   */
+			BCE_RX_CHAIN_PAGE_SZ,		/* maxsize     */
+			1, 				/* nsegments   */
+			BCE_RX_CHAIN_PAGE_SZ,		/* maxsegsize  */
+			0,		 		/* flags       */
+			NULL,				/* lockfunc    */
+			NULL,				/* lockarg     */
 			&sc->rx_bd_chain_tag)) {
 		BCE_PRINTF(sc, "%s(%d): Could not allocate RX descriptor chain DMA tag!\n",
 			__FILE__, __LINE__);
@@ -2558,9 +2558,9 @@ bce_dma_alloc(device_t dev)
 	for (i = 0; i < RX_PAGES; i++) {
 
 		if (bus_dmamem_alloc(
-				sc->rx_bd_chain_tag,			/* tag   */
+			sc->rx_bd_chain_tag,		/* tag   */
 	    		(void **)&sc->rx_bd_chain[i], 	/* vaddr */
-	    		BUS_DMA_NOWAIT,				  	/* flags */
+	    		BUS_DMA_NOWAIT,		  	/* flags */
 		    	&sc->rx_bd_chain_map[i])) {
 			BCE_PRINTF(sc, "%s(%d): Could not allocate RX descriptor chain "
 				"DMA memory!\n", __FILE__, __LINE__);
@@ -2574,13 +2574,13 @@ bce_dma_alloc(device_t dev)
 		map_arg.sc = sc;
 
 		error = bus_dmamap_load(
-				sc->rx_bd_chain_tag,	/* dmat        */
+			sc->rx_bd_chain_tag,	/* dmat        */
 	    		sc->rx_bd_chain_map[i],	/* map         */
-	    		sc->rx_bd_chain[i],		/* buf         */
+	    		sc->rx_bd_chain[i],	/* buf         */
 		    	BCE_RX_CHAIN_PAGE_SZ,  	/* buflen      */
-		    	bce_dma_map_addr,	   	/* callback    */
-	    		&map_arg,			   	/* callbackarg */
-	    		BUS_DMA_NOWAIT);		/* flags       */
+		    	bce_dma_map_addr,   	/* callback    */
+	    		&map_arg,	   	/* callbackarg */
+	    		BUS_DMA_NOWAIT);	/* flags       */
 
 		if(error || (map_arg.maxsegs == 0)) {
 			BCE_PRINTF(sc, "%s(%d): Could not map RX descriptor chain DMA memory!\n",
@@ -2599,19 +2599,19 @@ bce_dma_alloc(device_t dev)
 	 * Create a DMA tag for RX mbufs.
 	 */
 	if (bus_dma_tag_create(
-			sc->parent_tag,			/* parent      */
-	    	BCE_DMA_ALIGN,		  	/* alignment   */
-	    	BCE_DMA_BOUNDARY,	  	/* boundary    */
-			sc->max_bus_addr,	  	/* lowaddr     */
-			BUS_SPACE_MAXADDR, 	  	/* highaddr    */
-			NULL, 				  	/* filterfunc  */
-			NULL, 				  	/* filterarg   */
-			MJUM9BYTES,				/* maxsize     */
-			BCE_MAX_SEGMENTS,  		/* nsegments   */
-			MJUM9BYTES,				/* maxsegsize  */
-			0,				 	  	/* flags       */
-			NULL, 				  	/* lockfunc    */
-			NULL,				  	/* lockarg     */
+			sc->parent_tag,		/* parent      */
+			BCE_DMA_ALIGN,		/* alignment   */
+			BCE_DMA_BOUNDARY,  	/* boundary    */
+			sc->max_bus_addr,  	/* lowaddr     */
+			BUS_SPACE_MAXADDR,	/* highaddr    */
+			NULL, 			/* filterfunc  */
+			NULL, 			/* filterarg   */
+			MJUM9BYTES,		/* maxsize     */
+			BCE_MAX_SEGMENTS, 	/* nsegments   */
+			MJUM9BYTES,		/* maxsegsize  */
+			0,			/* flags       */
+			NULL, 			/* lockfunc    */
+			NULL,			/* lockarg     */
 	    	&sc->rx_mbuf_tag)) {
 		BCE_PRINTF(sc, "%s(%d): Could not allocate RX mbuf DMA tag!\n",
 			__FILE__, __LINE__);
