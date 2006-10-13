@@ -190,7 +190,6 @@ static struct bge_type {
 
 	{ SK_VENDORID,		SK_DEVICEID_ALTIMA },
 
-	{ TC_VENDORID,		TC_DEVICEID_3C985 },
 	{ TC_VENDORID,		TC_DEVICEID_3C996 },
 
 	{ 0, 0 }
