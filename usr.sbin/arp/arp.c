@@ -761,9 +761,9 @@ get_ether_addr(in_addr_t ipaddr, struct ether_addr *hwaddr)
 	for (ifr = ifc.ifc_req; ifr < ifend; ifr = NEXTIFR(ifr) ) {
 		if (ifr->ifr_addr.sa_family != AF_INET)
 			continue;
-		/* XXX can't we use *ifr instead of ifreq ? */
 		strncpy(ifreq.ifr_name, ifr->ifr_name,
 			sizeof(ifreq.ifr_name));
+		ifreq.ifr_addr = ifr->ifr_addr;
 		/*
 		 * Check that the interface is up,
 		 * and not point-to-point or loopback.
