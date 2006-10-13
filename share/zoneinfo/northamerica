@@ -1,4 +1,4 @@
-# @(#)northamerica	8.6
+# @(#)northamerica	8.9
 # <pre>
 
 # also includes Central America and the Caribbean
@@ -900,6 +900,41 @@ Zone America/Menominee	-5:50:27 -	LMT	1885 Sep 18 12:00
 # U.S. and the rest of Canada....
 # http://www2.news.gov.bc.ca/news_releases_2005-2009/2006AG0014-000330.htm
 
+# From Chris Walton (2006-04-25):
+# Daylight saving time will be extended by four weeks starting in 2007....
+# Here is a news release which was issued today by the Nova Scotia government:
+# http://www.gov.ns.ca/news/details.asp?id=20060425004
+
+# From Chris Walton (2006-06-26):
+# [For New Brunswick] the new legislation dictates that the time change is to
+# be done at 02:00 instead of 00:01.
+# http://www.gnb.ca/0062/acts/BBA-2006/Chap-19.pdf
+# ...
+# Manitoba has traditionally changed the clock every fall at 03:00.
+# As of 2006, the transition is to take place one hour earlier at 02:00.
+# http://web2.gov.mb.ca/laws/statutes/ccsm/o030e.php
+# ...
+# [Alberta, Ontario, Quebec] will follow US rules.
+# http://www.qp.gov.ab.ca/documents/Acts/2006CH03_UNPR.cfm?frm_isbn=0779744934
+# http://www.e-laws.gov.on.ca/DBLaws/Source/Regs/English/2006/R06111_e.htm
+# http://www.assnat.qc.ca/eng/37legislature2/Projets-loi/Publics/06-a002.htm
+# ...
+# P.E.I. will follow US rules.  The new legislation is not law yet.
+# It passed first reading on April 20....
+# http://www.assembly.pe.ca/bills/pdf_first/62/3/bill-101.pdf
+# ...
+# Province of Newfoundland and Labrador.... The change is being considered.
+# http://www.releases.gov.nl.ca/releases/2006/mpa/0331n01.htm
+# ...
+# N.W.T. will follow US rules.  Whoever maintains the government web site
+# does not seem to believe in bookmarks.  To see the news release, click the
+# following link and search for "Daylight Savings Time Change".  Press the
+# "Daylight Savings Time Change" link; it will fire off a popup using
+# JavaScript.
+# http://www.exec.gov.nt.ca/currentnews/currentPR.asp?mode=archive
+
+
+
 # From Paul Eggert (2006-04-25):
 # H. David Matthews and Mary Vincent's map
 # <a href="http://www.canadiangeographic.ca/Magazine/SO98/geomap.asp">
@@ -912,16 +947,10 @@ Zone America/Menominee	-5:50:27 -	LMT	1885 Sep 18 12:00
 # information about standard and daylight saving time zones in Canada.
 # </a> (updated periodically).
 # Its unofficial information is often taken from Matthews and Vincent.
-#
-# CBC News reported that Ontario and Manitoba have announced plans to
-# follow the US change; see
-# <http://www.cbc.ca/news/background/daylightsavingtime/> (2005-10-21).
-# CBC news also reported that Prince Edward Island is the first
-# province in Atlantic Canada to follow the US change, and that Quebec
-# had agreed; see <http://www.cbc.ca/pei/story/pe_daylight_20051207.html>
-# (2005-12-07).  It also reported that Alberta will fall into line; see
-# <http://www.cbc.ca/calgary/story/ca_daylight20060202.html> (2006-02-02).
-# For now, assume all of Canada will fall into line.
+
+# From Paul Eggert (2006-06-27):
+# For now, assume all of DST-observing Canada will fall into line with the
+# new US DST rules,
 
 # Rule	NAME	FROM	TO	TYPE	IN	ON	AT	SAVE	LETTER/S
 Rule	Canada	1918	only	-	Apr	14	2:00	1:00	D
@@ -936,7 +965,7 @@ Rule	Canada	2007	max	-	Mar	Sun>=8	2:00	1:00	D
 Rule	Canada	2007	max	-	Nov	Sun>=1	2:00	0	S
 
 
-# Newfoundland (and far southeast Labrador)
+# Newfoundland and Labrador
 
 # From Paul Eggert (2000-10-02):
 # Matthews and Vincent (1998) write that Labrador should use NST/NDT,
@@ -974,9 +1003,6 @@ Rule	StJohns	1987	only	-	Apr	Sun>=1	0:01	1:00	D
 Rule	StJohns	1987	2006	-	Oct	lastSun	0:01	0	S
 Rule	StJohns	1988	only	-	Apr	Sun>=1	0:01	2:00	DD
 Rule	StJohns	1989	2006	-	Apr	Sun>=1	0:01	1:00	D
-# From Chris Walton (2006-04-05):
-# http://www.releases.gov.nl.ca/releases/2006/mpa/0331n01.htm
-# [This says Newfoundlandland expects to follow step with the US.]
 Rule	StJohns	2007	max	-	Mar	Sun>=8	0:01	1:00	D
 Rule	StJohns	2007	max	-	Nov	Sun>=1	0:01	0	S
 #
@@ -1014,11 +1040,6 @@ Zone America/Goose_Bay	-4:01:40 -	LMT	1884 # Happy Valley-Goose Bay
 # Shanks & Pottenger also write that Liverpool, NS was the only town
 # in Canada to observe DST in 1971 but not 1970; for now we'll assume
 # this is a typo.
-
-# From Chris Walton (2006-04-25):
-# Daylight saving time will be extended by four weeks starting in 2007....
-# Here is a news release which was issued today by the Nova Scotia government:
-# http://www.gov.ns.ca/news/details.asp?id=20060425004
 
 # Rule	NAME	FROM	TO	TYPE	IN	ON	AT	SAVE	LETTER/S
 Rule	Halifax	1916	only	-	Apr	 1	0:00	1:00	D
@@ -1084,10 +1105,7 @@ Zone America/Glace_Bay	-3:59:48 -	LMT	1902 Jun 15
 # <http://www.gnb.ca/0062/PDF-acts/t-06.pdf> says they change at 00:01, and
 # <http://www.canlii.org/nb/laws/sta/t-6/20030127/whole.html> makes it
 # clear that this has been the case since at least 1993.
-# For now, assume it started in 1993.  The Office of the Premier announced
-# <http://www.gnb.ca/cnb/news/pre/2005e1737pr.htm> (2005-12-23)
-# that they will bring forward proposed amendments to harmonize with the US;
-# for now assume that this will happen, but they'll still switch at 00:01.
+# For now, assume it started in 1993.
 
 # Rule	NAME	FROM	TO	TYPE	IN	ON	AT	SAVE	LETTER/S
 Rule	Moncton	1933	1935	-	Jun	Sun>=8	1:00	1:00	D
@@ -1103,8 +1121,6 @@ Rule	Moncton	1946	1956	-	Sep	lastSun	2:00	0	S
 Rule	Moncton	1957	1972	-	Oct	lastSun	2:00	0	S
 Rule	Moncton	1993	2006	-	Apr	Sun>=1	0:01	1:00	D
 Rule	Moncton	1993	2006	-	Oct	lastSun	0:01	0	S
-Rule	Moncton	2007	max	-	Mar	Sun>=8	0:01	1:00	D
-Rule	Moncton	2007	max	-	Nov	Sun>=1	0:01	0	S
 # Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
 Zone America/Moncton	-4:19:08 -	LMT	1883 Dec  9
 			-5:00	-	EST	1902 Jun 15
@@ -1113,57 +1129,30 @@ Zone America/Moncton	-4:19:08 -	LMT	1883 Dec  9
 			-4:00	Canada	A%sT	1946
 			-4:00	Moncton	A%sT	1973
 			-4:00	Canada	A%sT	1993
-			-4:00	Moncton	A%sT
+			-4:00	Moncton	A%sT	2007
+			-4:00	Canada	A%sT
 
-# Ontario, Quebec
+# Quebec
 
-# From Paul Eggert (2006-03-22):
-# Shanks & Pottenger writes that since 1970 most of Ontario has been like
-# Toronto, and most of Quebec has been like Montreal.
-# Thunder Bay skipped DST in 1973.
-# Many smaller locales did not observe peacetime DST until 1974;
-# Nipigon (EST) and Rainy River (CST) are the largest that we know of.
-# Far west Ontario is like Winnipeg; far east Quebec is like Halifax.
+# From Paul Eggert (2006-07-09):
+# Shanks & Pottenger write that since 1970 most of Quebec has been
+# like Montreal.
 
-# From Mark Brader (2003-07-26):
-# [According to the Toronto Star] Orillia, Ontario, adopted DST
-# effective Saturday, 1912-06-22, 22:00; the article mentions that
-# Port Arthur (now part of Thunder Bay, Ontario) as well as Moose Jaw
-# have already done so.  In Orillia DST was to run until Saturday,
-# 1912-08-31 (no time mentioned), but it was met with considerable
-# hostility from certain segments of the public, and was revoked after
-# only two weeks -- I copied it as Saturday, 1912-07-07, 22:00, but
-# presumably that should be -07-06.  (1912-06-19, -07-12; also letters
-# earlier in June).
-#
-# Kenora, Ontario, was to abandon DST on 1914-06-01 (-05-21).
-
-# From Paul Eggert (1997-10-17):
-# Mark Brader writes that an article in the 1997-10-14 Toronto Star
-# says that Atikokan, Ontario currently does not observe DST,
-# but will vote on 11-10 whether to use EST/EDT.
-# He also writes that the
-# <a href="http://www.gov.on.ca/MBS/english/publications/statregs/conttext.html">
-# Ontario Time Act (1990, Chapter T.9)
-# </a>
-# says that Ontario east of 90W uses EST/EDT, and west of 90W uses CST/CDT.
-# Officially Atikokan is therefore on CST/CDT, and most likely this report
-# concerns a non-official time observed as a matter of local practice.
-#
-# From Paul Eggert (2006-03-22):
-# For what it's worth, Shanks & Pottenger say that Atikokan has agreed with
-# Rainy River ever since standard time was introduced.
-
-# From Paul Eggert (2000-10-02):
-# Matthews and Vincent (1998) write that Atikokan, Pickle Lake, and
-# New Osnaburgh observe CST all year, that Big Trout Lake observes
-# CST/CDT, and that Upsala and Shebandowan observe EST/EDT, all in
-# violation of the official Ontario rules.
-# They also write that Quebec east of the -63 meridian is supposed to
-# observe AST, but residents as far east as Natashquan use EST/EDT,
-# and residents east of Natashquan use AST.
-# We probably need Zones for far east Quebec and for Atikokan,
-# but we don't know when their practices started.
+# From Paul Eggert (2006-06-27):
+# Matthews and Vincent (1998) also write that Quebec east of the -63
+# meridian is supposed to observe AST, but residents as far east as
+# Natashquan use EST/EDT, and residents east of Natashquan use AST.
+# In "Official time in Quebec" the Quebec department of justice writes in
+# http://www.justice.gouv.qc.ca/english/publications/generale/temps-regl-1-a.htm
+# that "The residents of the Municipality of the
+# Cote-Nord-du-Golfe-Saint-Laurent and the municipalities of Saint-Augustin,
+# Bonne-Esperance and Blanc-Sablon apply the Official Time Act as it is
+# written and use Atlantic standard time all year round. The same applies to
+# the residents of the Native facilities along the lower North Shore."
+# <http://www.assnat.qc.ca/eng/37legislature2/Projets-loi/Publics/06-a002.htm>
+# says this common practice was codified into law as of 2007.
+# For lack of better info, guess this practice began around 1970, contra to
+# Shanks & Pottenger who have this region observing AST/ADT.
 
 # Rule	NAME	FROM	TO	TYPE	IN	ON	AT	SAVE	LETTER/S
 Rule	Mont	1917	only	-	Mar	25	2:00	1:00	D
@@ -1195,6 +1184,93 @@ Rule	Mont	1949	1950	-	Oct	lastSun	2:00	0	S
 Rule	Mont	1951	1956	-	Sep	lastSun	2:00	0	S
 Rule	Mont	1957	1973	-	Oct	lastSun	2:00	0	S
 
+# Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
+Zone America/Blanc-Sablon -3:48:28 -	LMT	1884
+			-4:00	Canada	A%sT	1970
+			-4:00	-	AST
+Zone America/Montreal	-4:54:16 -	LMT	1884
+			-5:00	Mont	E%sT	1918
+			-5:00	Canada	E%sT	1919
+			-5:00	Mont	E%sT	1942 Feb  9 2:00s
+			-5:00	Canada	E%sT	1946
+			-5:00	Mont	E%sT	1974
+			-5:00	Canada	E%sT
+
+
+# Ontario
+
+# From Paul Eggert (2006-07-09):
+# Shanks & Pottenger write that since 1970 most of Ontario has been like
+# Toronto.
+# Thunder Bay skipped DST in 1973.
+# Many smaller locales did not observe peacetime DST until 1974;
+# Nipigon (EST) and Rainy River (CST) are the largest that we know of.
+# Far west Ontario is like Winnipeg; far east Quebec is like Halifax.
+
+# From Mark Brader (2003-07-26):
+# [According to the Toronto Star] Orillia, Ontario, adopted DST
+# effective Saturday, 1912-06-22, 22:00; the article mentions that
+# Port Arthur (now part of Thunder Bay, Ontario) as well as Moose Jaw
+# have already done so.  In Orillia DST was to run until Saturday,
+# 1912-08-31 (no time mentioned), but it was met with considerable
+# hostility from certain segments of the public, and was revoked after
+# only two weeks -- I copied it as Saturday, 1912-07-07, 22:00, but
+# presumably that should be -07-06.  (1912-06-19, -07-12; also letters
+# earlier in June).
+#
+# Kenora, Ontario, was to abandon DST on 1914-06-01 (-05-21).
+
+# From Paul Eggert (1997-10-17):
+# Mark Brader writes that an article in the 1997-10-14 Toronto Star
+# says that Atikokan, Ontario currently does not observe DST,
+# but will vote on 11-10 whether to use EST/EDT.
+# He also writes that the
+# <a href="http://www.gov.on.ca/MBS/english/publications/statregs/conttext.html">
+# Ontario Time Act (1990, Chapter T.9)
+# </a>
+# says that Ontario east of 90W uses EST/EDT, and west of 90W uses CST/CDT.
+# Officially Atikokan is therefore on CST/CDT, and most likely this report
+# concerns a non-official time observed as a matter of local practice.
+#
+# From Paul Eggert (2000-10-02):
+# Matthews and Vincent (1998) write that Atikokan, Pickle Lake, and
+# New Osnaburgh observe CST all year, that Big Trout Lake observes
+# CST/CDT, and that Upsala and Shebandowan observe EST/EDT, all in
+# violation of the official Ontario rules.
+#
+# From Paul Eggert (2006-07-09):
+# Chris Walton (2006-07-06) mentioned an article by Stephanie MacLellan in the
+# 2005-07-21 Chronicle-Journal, which said:
+#
+#	The clocks in Atikokan stay set on standard time year-round.
+#	This means they spend about half the time on central time and
+#	the other half on eastern time.
+#
+#	For the most part, the system works, Mayor Dennis Brown said.
+#
+#	"The majority of businesses in Atikokan deal more with Eastern
+#	Canada, but there are some that deal with Western Canada," he
+#	said.  "I don't see any changes happening here."
+#
+# Walton also writes "Supposedly Pickle Lake and Mishkeegogamang
+# [New Osnaburgh] follow the same practice."
+
+# From Garry McKinnon (2006-07-14) via Chris Walton:
+# I chatted with a member of my board who has an outstanding memory
+# and a long history in Atikokan (and in the telecom industry) and he
+# can say for certain that Atikokan has been practicing the current
+# time keeping since 1952, at least.
+
+# From Paul Eggert (2006-07-17):
+# Shanks & Pottenger say that Atikokan has agreed with Rainy River
+# ever since standard time was introduced, but the information from
+# McKinnon sounds more authoritative.  For now, assume that Atikokan
+# switched to EST immediately after WWII era daylight saving time
+# ended.  This matches the old (less-populous) America/Coral_Harbour
+# entry since our cutoff date of 1970, so we can move
+# America/Coral_Harbour to the 'backward' file.
+
+# Rule	NAME	FROM	TO	TYPE	IN	ON	AT	SAVE	LETTER/S
 Rule	Toronto	1919	only	-	Mar	30	23:30	1:00	D
 Rule	Toronto	1919	only	-	Oct	26	0:00	0	S
 Rule	Toronto	1920	only	-	May	 2	2:00	1:00	D
@@ -1228,9 +1304,9 @@ Rule	Toronto	1950	1973	-	Apr	lastSun	2:00	1:00	D
 Rule	Toronto	1950	only	-	Nov	lastSun	2:00	0	S
 Rule	Toronto	1951	1956	-	Sep	lastSun	2:00	0	S
 # Shanks & Pottenger say Toronto ended DST a week early in 1971,
-# namely on 1971-10-24, but Mark Brader wrote (2003-05-31) that he
-# checked the 1971-10-30 issue of the Toronto Star, and it said that
-# DST ended 1971-10-31 as usual.
+# namely on 1971-10-24, but Mark Brader wrote (2003-05-31) that this
+# is wrong, and that he had confirmed it by checking the 1971-10-30
+# Toronto Star, which said that DST was ending 1971-10-31 as usual.
 Rule	Toronto	1957	1973	-	Oct	lastSun	2:00	0	S
 
 # From Paul Eggert (2003-07-27):
@@ -1252,13 +1328,6 @@ Rule	Toronto	1957	1973	-	Oct	lastSun	2:00	0	S
 # months for the remainder of the war years.
 
 # Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
-Zone America/Montreal	-4:54:16 -	LMT	1884
-			-5:00	Mont	E%sT	1918
-			-5:00	Canada	E%sT	1919
-			-5:00	Mont	E%sT	1942 Feb  9 2:00s
-			-5:00	Canada	E%sT	1946
-			-5:00	Mont	E%sT	1974
-			-5:00	Canada	E%sT
 Zone America/Toronto	-5:17:32 -	LMT	1895
 			-5:00	Canada	E%sT	1919
 			-5:00	Toronto	E%sT	1942 Feb  9 2:00s
@@ -1276,18 +1345,18 @@ Zone America/Nipigon	-5:53:04 -	LMT	1895
 			-5:00	Canada	E%sT	1940 Sep 29
 			-5:00	1:00	EDT	1942 Feb  9 2:00s
 			-5:00	Canada	E%sT
-Zone America/Rainy_River -6:17:56 -	LMT	1895
+Zone America/Rainy_River -6:18:16 -	LMT	1895
 			-6:00	Canada	C%sT	1940 Sep 29
 			-6:00	1:00	CDT	1942 Feb  9 2:00s
 			-6:00	Canada	C%sT
+Zone America/Atikokan	-6:06:28 -	LMT	1895
+			-6:00	Canada	C%sT	1940 Sep 29
+			-6:00	1:00	CDT	1942 Feb  9 2:00s
+			-6:00	Canada	C%sT	1945 Sep 30 2:00
+			-5:00	-	EST
 
 
 # Manitoba
-
-# From Chris Walton (2006-04-05):
-# Here is a copy of the new official time act ...
-# http://web2.gov.mb.ca/laws/statutes/ccsm/o030e.php
-# The act indicates that daylight savings ends at 2:00am.
 
 # From Rob Douglas (2006-04-06):
 # the old Manitoba Time Act - as amended by Bill 2, assented to
@@ -1387,6 +1456,11 @@ Zone America/Winnipeg	-6:28:36 -	LMT	1887 Jul 16
 # a few towns on the border with Alberta (e.g. Lloydminster) follow MT
 # rules any more; all other districts appear to have used CST year round
 # since sometime in the 1960s.
+
+# From Chris Walton (2006-06-26):
+# The Saskatchewan time act which was last updated in 1996 is about 30 pages
+# long and rather painful to read.
+# http://www.qp.gov.sk.ca/documents/English/Statutes/Statutes/T14.pdf
 
 # Rule	NAME	FROM	TO	TYPE	IN	ON	AT	SAVE	LETTER/S
 Rule	Regina	1918	only	-	Apr	14	2:00	1:00	D
@@ -1490,6 +1564,10 @@ Zone America/Dawson_Creek -8:00:56 -	LMT	1884
 #	* O.I.C. 1987/056 changed DST to Apr firstSun 2:00 to Oct lastSun 2:00.
 # Shanks & Pottenger say Yukon's 1973-10-28 switch was at 2:00; go
 # with Englander.
+# From Chris Walton (2006-06-26):
+# Here is a link to the old daylight saving portion of the interpretation
+# act which was last updated in 1987:
+# http://www.gov.yk.ca/legislation/regs/oic1987_056.pdf
 
 # From Rives McDow (1999-09-04):
 # Nunavut ... moved ... to incorporate the whole territory into one time zone.
@@ -1597,10 +1675,10 @@ Zone America/Dawson_Creek -8:00:56 -	LMT	1884
 # From Paul Eggert (2005-07-26):
 # For lack of better information, assume that Southampton Island observed
 # daylight saving only during wartime.
-#
-# From Chris Walton (2006-04-25):
-# Daylight saving time will be extended by four weeks starting in 2007....
-# http://www.cbc.ca/north/story/nor-nwt-time-change.html
+
+# From Chris Walton (2006-07-19):
+# The government of Yukon Territory ... recently announced it will extend
+# daylight saving in 2007....  http://www.gov.yk.ca/news/2006/06-164.html
 
 # Rule	NAME	FROM	TO	TYPE	IN	ON	AT	SAVE	LETTER/S
 Rule	NT_YK	1918	only	-	Apr	14	2:00	1:00	D
@@ -1625,10 +1703,11 @@ Zone America/Iqaluit	-4:33:52 -	LMT	1884 # Frobisher Bay before 1987
 			-5:00	NT_YK	E%sT	1999 Oct 31 2:00
 			-6:00	Canada	C%sT	2000 Oct 29 2:00
 			-5:00	Canada	E%sT
-Zone America/Coral_Harbour -5:32:40 -	LMT	1884
-			-5:00	NT_YK	E%sT	1946
-			-5:00	-	EST
-Zone America/Rankin_Inlet -6:08:40 -	LMT	1884
+# Now subsumed by America/Atikokan.
+#Zone America/Coral_Harbour -5:32:40 -	LMT	1884
+#			-5:00	NT_YK	E%sT	1946
+#			-5:00	-	EST
+Zone America/Rankin_Inlet -6:08:20 -	LMT	1884
 			-6:00	NT_YK	C%sT	2000 Oct 29 2:00
 			-5:00	-	EST	2001 Apr  1 3:00
 			-6:00	Canada	C%sT
@@ -1641,7 +1720,7 @@ Zone America/Cambridge_Bay -7:00:20 -	LMT	1884
 Zone America/Yellowknife -7:37:24 -	LMT	1884
 			-7:00	NT_YK	M%sT	1980
 			-7:00	Canada	M%sT
-Zone America/Inuvik	-8:54:00 -	LMT	1884
+Zone America/Inuvik	-8:54:52 -	LMT	1884
 			-8:00	NT_YK	P%sT	1979 Apr lastSun 2:00
 			-7:00	NT_YK	M%sT	1980
 			-7:00	Canada	M%sT
@@ -1952,10 +2031,20 @@ Zone	America/Belize	-5:52:48 -	LMT	1912 Apr
 			-6:00	Belize	C%sT
 
 # Bermuda
+
+# From Dan Jones, reporting in The Royal Gazette (2006-06-26):
+
+# Next year, however, clocks in the US will go forward on the second Sunday
+# in March, until the first Sunday in November.  And, after the Time Zone
+# (Seasonal Variation) Bill 2006 was passed in the House of Assembly on
+# Friday, the same thing will happen in Bermuda.
+# http://www.theroyalgazette.com/apps/pbcs.dll/article?AID=/20060529/NEWS/105290135
+
 # Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
 Zone Atlantic/Bermuda	-4:19:04 -	LMT	1930 Jan  1 2:00    # Hamilton
 			-4:00	-	AST	1974 Apr 28 2:00
-			-4:00	Bahamas	A%sT
+			-4:00	Bahamas	A%sT	1976
+			-4:00	US	A%sT
 
 # Cayman Is
 # Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
@@ -2007,6 +2096,11 @@ Zone America/Costa_Rica	-5:36:20 -	LMT	1890		# San Jose
 # adjustment in Cuba.  We will stay in daylight saving time:
 # http://www.granma.cu/espanol/2005/noviembre/mier9/horario.html
 
+# From Steffen Thorsen (2006-08-17):
+# It is likely that they are not reverting back to standard time this
+# year either, based on the number of responses I have got from users
+# (when my site claimed Cuba will end DST on lastSun/October)
+
 # Rule	NAME	FROM	TO	TYPE	IN	ON	AT	SAVE	LETTER/S
 Rule	Cuba	1928	only	-	Jun	10	0:00	1:00	D
 Rule	Cuba	1928	only	-	Oct	10	0:00	0	S
@@ -2037,7 +2131,7 @@ Rule	Cuba	1997	only	-	Oct	12	0:00s	0	S
 Rule	Cuba	1998	1999	-	Mar	lastSun	0:00s	1:00	D
 Rule	Cuba	1998	2003	-	Oct	lastSun	0:00s	0	S
 Rule	Cuba	2000	max	-	Apr	Sun>=1	0:00s	1:00	D
-Rule	Cuba	2006	max	-	Oct	lastSun	0:00s	0	S
+Rule	Cuba	2007	max	-	Oct	lastSun	0:00s	0	S
 
 # Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
 Zone	America/Havana	-5:29:28 -	LMT	1890
@@ -2086,15 +2180,6 @@ Zone America/Santo_Domingo -4:39:36 -	LMT	1890
 
 # El Salvador
 
-# From Paul Eggert (2006-05-05):
-# worldtimezone.com reports a 2006-05-02 Spanish-language AP article
-# saying Honduras will start using DST midnight Saturday, effective 4
-# months until September, and a 2006-05-03 NACION article saying El
-# Salvador will follow suit.  However, ignore this for now, because:
-# From Jesper Norgaard Welen (2005-05-05):
-# Change of DST perhaps postponed in El Salvador:
-# http://www.laprensagrafica.com/lodeldia/883.asp
-
 # Rule	NAME	FROM	TO	TYPE	IN	ON	AT	SAVE	LETTER/S
 Rule	Salv	1987	1988	-	May	Sun>=1	0:00	1:00	D
 Rule	Salv	1987	1988	-	Sep	lastSun	0:00	0	S
@@ -2123,6 +2208,11 @@ Zone America/Guadeloupe	-4:06:08 -	LMT	1911 Jun 8	# Pointe a Pitre
 # decided on that date to advance official time by 60 minutes, to lessen the
 # impact of the elevated cost of oil....  Daylight saving time will last from
 # 2006-04-29 24:00 (Guatemalan standard time) to 2006-09-30 (time unspecified).
+# From Paul Eggert (2006-06-22):
+# The Ministry of Energy and Mines, press release CP-15/2006
+# (2006-04-19), says DST ends at 24:00.  See
+# <http://www.sieca.org.gt/Sitio_publico/Energeticos/Doc/Medidas/Cambio_Horario_Nac_190406.pdf>.
+
 # Rule	NAME	FROM	TO	TYPE	IN	ON	AT	SAVE	LETTER/S
 Rule	Guat	1973	only	-	Nov	25	0:00	1:00	D
 Rule	Guat	1974	only	-	Feb	24	0:00	0	S
@@ -2192,14 +2282,28 @@ Zone America/Port-au-Prince -4:49:20 -	LMT	1890
 # saying Honduras will start using DST midnight Saturday, effective 4
 # months until September.  La Tribuna reported today
 # <http://www.latribuna.hn/99299.html> that Manuel Zelaya, the president
-# of Honduras, refused to back down on this.  For lack of better info,
-# assume they'll use the same end-of-DST rules as in 1987 and 1988.
+# of Honduras, refused to back down on this.
+
+# From Jesper Norgaard Welen (2006-08-08):
+# It seems that Honduras has returned from DST to standard time this Monday at
+# 00:00 hours (prolonging Sunday to 25 hours duration).
+# http://www.worldtimezone.com/dst_news/dst_news_honduras04.html
+
+# From Paul Eggert (2006-08-08):
+# Also see Diario El Heraldo, The country returns to standard time (2006-08-08)
+# <http://www.elheraldo.hn/nota.php?nid=54941&sec=12>.
+# It mentions executive decree 18-2006.
+
+# From Steffen Thorsen (2006-08-17):
+# Honduras will observe DST from 2007 to 2009, exact dates are not
+# published, I have located this authoritative source:
+# http://www.presidencia.gob.hn/noticia.aspx?nId=47
 
 # Rule	NAME	FROM	TO	TYPE	IN	ON	AT	SAVE	LETTER/S
 Rule	Hond	1987	1988	-	May	Sun>=1	0:00	1:00	D
 Rule	Hond	1987	1988	-	Sep	lastSun	0:00	0	S
-Rule	Hond	2006	only	-	May	Sun>=1	0:00	1:00	D
-Rule	Hond	2006	only	-	Sep	lastSun	0:00	0	S
+Rule	Hond	2006	2009	-	May	Sun>=1	0:00	1:00	D
+Rule	Hond	2006	2009	-	Aug	Mon>=1	0:00	0	S
 # Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
 Zone America/Tegucigalpa -5:48:52 -	LMT	1921 Apr
 			-6:00	Hond	C%sT
@@ -2279,12 +2383,19 @@ Zone America/Montserrat	-4:08:52 -	LMT	1911 Jul 1 0:01   # Cork Hill
 # advanced by sixty minutes their official time, yesterday at 2 in the
 # morning, and will stay that way until 30.th. of september.
 #
+# From Jesper Norgaard Welen (2006-09-30):
+# http://www.presidencia.gob.ni/buscador_gaceta/BD/DECRETOS/2006/D-063-2006P-PRN-Cambio-Hora.pdf
+# My informal translation runs:
+# The natural sun time is restored in all the national territory, in that the
+# time is returned one hour at 01:00 am of October 1 of 2006.
+#
 # Rule	NAME	FROM	TO	TYPE	IN	ON	AT	SAVE	LETTER/S
 Rule	Nic	1979	1980	-	Mar	Sun>=16	0:00	1:00	D
 Rule	Nic	1979	1980	-	Jun	Mon>=23	0:00	0	S
 Rule	Nic	2005	only	-	Apr	10	0:00	1:00	D
-Rule	Nic	2005	2006	-	Oct	Sun>=1	0:00	0	S
+Rule	Nic	2005	only	-	Oct	Sun>=1	0:00	0	S
 Rule	Nic	2006	only	-	Apr	30	2:00	1:00	D
+Rule	Nic	2006	only	-	Oct	Sun>=1	1:00	0	S
 # Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
 Zone	America/Managua	-5:45:08 -	LMT	1890
 			-5:45:12 -	MMT	1934 Jun 23 # Managua Mean Time?
