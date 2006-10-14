@@ -80,6 +80,8 @@ typedef	__uint16_t	fexcept_t;
 #define	_SSE_ROUND_SHIFT	3
 #define	_SSE_EMASK_SHIFT	7
 
+__BEGIN_DECLS
+
 /* After testing for SSE support once, we cache the result in __has_sse. */
 enum __sse_support { __SSE_YES, __SSE_NO, __SSE_UNK };
 extern enum __sse_support __has_sse;
@@ -90,8 +92,6 @@ int __test_sse(void);
 #define	__HAS_SSE()	(__has_sse == __SSE_YES ||			\
 			 (__has_sse == __SSE_UNK && __test_sse()))
 #endif
-
-__BEGIN_DECLS
 
 /* Default floating-point environment */
 extern const fenv_t	__fe_dfl_env;
