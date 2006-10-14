@@ -4658,7 +4658,6 @@ struct bce_dmamap_arg {
 	u16					chain_prod;
 	int					maxsegs;		/* Max segments supported for this mapped memory */
 	u32					prod_bseq;
-	struct tx_bd		*tx_chain[TX_PAGES];
 };
 
 
