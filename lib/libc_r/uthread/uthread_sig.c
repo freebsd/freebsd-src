@@ -441,14 +441,13 @@ thread_sig_find(int sig)
 			}
 
 			if (suspended_thread == NULL &&
-			    signaled_thread == NULL) {
+			    signaled_thread == NULL)
 				/*
 				 * Add it to the set of signals pending
 				 * on the process:
 				 */
-				_thread_sigq[sig - 1].blocked = 0;
 				sigaddset(&_process_sigpending, sig);
-			} else {
+			else {
 				/*
 				 * We only deliver the signal to one thread;
 				 * give preference to the suspended thread:
