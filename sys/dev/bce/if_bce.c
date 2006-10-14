@@ -2220,7 +2220,7 @@ bce_dma_map_tx_desc(void *arg, bus_dma_segment_t *segs,
 	 * the mbuf.
 	 */
 
-	txbd = &map_arg->tx_chain[TX_PAGE(chain_prod)][TX_IDX(chain_prod)];
+	txbd = &sc->tx_bd_chain[TX_PAGE(chain_prod)][TX_IDX(chain_prod)];
 
 	/* Setup the first tx_bd for the first segment. */
 	txbd->tx_bd_haddr_lo       = htole32(BCE_ADDR_LO(segs[i].ds_addr));
@@ -2235,7 +2235,7 @@ bce_dma_map_tx_desc(void *arg, bus_dma_segment_t *segs,
 		prod       = NEXT_TX_BD(prod);
 		chain_prod = TX_CHAIN_IDX(prod);
 
-		txbd = &map_arg->tx_chain[TX_PAGE(chain_prod)][TX_IDX(chain_prod)];
+		txbd = &sc->tx_bd_chain[TX_PAGE(chain_prod)][TX_IDX(chain_prod)];
 
 		txbd->tx_bd_haddr_lo       = htole32(BCE_ADDR_LO(segs[i].ds_addr));
 		txbd->tx_bd_haddr_hi       = htole32(BCE_ADDR_HI(segs[i].ds_addr));
@@ -4645,7 +4645,7 @@ bce_tx_encap(struct bce_softc *sc, struct mbuf *m_head, u16 *prod,
 	u32 vlan_tag_flags = 0;
 	struct bce_dmamap_arg map_arg;
 	bus_dmamap_t map;
-	int i, error, rc = 0;
+	int error, rc = 0;
 
 	/* Transfer any checksum offload flags to the bd. */
 	if (m_head->m_pkthdr.csum_flags) {
@@ -4671,9 +4671,6 @@ bce_tx_encap(struct bce_softc *sc, struct mbuf *m_head, u16 *prod,
 		BCE_TX_SLACK_SPACE;
 
 	KASSERT(map_arg.maxsegs > 0, ("Invalid TX maxsegs value!"));
-
-	for (i = 0; i < TX_PAGES; i++)
-		map_arg.tx_chain[i] = sc->tx_bd_chain[i];
 
 	/* Map the mbuf into our DMA address space. */
 	error = bus_dmamap_load_mbuf(sc->tx_mbuf_tag, map, m_head,
