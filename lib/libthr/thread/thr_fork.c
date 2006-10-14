@@ -144,6 +144,8 @@ _fork(void)
 		/* Child process */
 		errsave = errno;
 		curthread->cancelflags &= ~THR_CANCEL_NEEDED;
+		curthread->flags &= ~THR_FLAGS_NEED_SUSPEND;
+
 		/*
 		 * Thread list will be reinitialized, and later we call
 		 * _libpthread_init(), it will add us back to list.
