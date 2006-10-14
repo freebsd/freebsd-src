@@ -300,7 +300,7 @@ static int  bce_init_rx_chain		(struct bce_softc *);
 static void bce_free_rx_chain		(struct bce_softc *);
 static void bce_free_tx_chain		(struct bce_softc *);
 
-static int  bce_tx_encap			(struct bce_softc *, struct mbuf *, u16 *, u16 *, u32 *);
+static int  bce_tx_encap			(struct bce_softc *, struct mbuf *, u16 *);
 static void bce_start_locked		(struct ifnet *);
 static void bce_start				(struct ifnet *);
 static int  bce_ioctl				(struct ifnet *, u_long, caddr_t);
@@ -4639,10 +4639,10 @@ bce_init(void *xsc)
 /*   0 for success, positive value for failure.                             */
 /****************************************************************************/
 static int
-bce_tx_encap(struct bce_softc *sc, struct mbuf *m_head, u16 *prod,
-	u16 *chain_prod, u32 *prod_bseq)
+bce_tx_encap(struct bce_softc *sc, struct mbuf *m_head, u16 *prod)
 {
 	u32 vlan_tag_flags = 0;
+	u16 chain_prod;
 	struct bce_dmamap_arg map_arg;
 	bus_dmamap_t map;
 	int error, rc = 0;
@@ -4661,11 +4661,12 @@ bce_tx_encap(struct bce_softc *sc, struct mbuf *m_head, u16 *prod,
 			(m_head->m_pkthdr.ether_vtag << 16));
 
 	/* Map the mbuf into DMAable memory. */
-	map = sc->tx_mbuf_map[*chain_prod];
+	chain_prod = TX_CHAIN_IDX(*prod);
+	map = sc->tx_mbuf_map[chain_prod];
 	map_arg.sc         = sc;
 	map_arg.prod       = *prod;
-	map_arg.chain_prod = *chain_prod;
-	map_arg.prod_bseq  = *prod_bseq;
+	map_arg.chain_prod = chain_prod;
+	map_arg.prod_bseq  = sc->tx_prod_bseq;
 	map_arg.tx_flags   = vlan_tag_flags;
 	map_arg.maxsegs    = USABLE_TX_BD - sc->used_tx_bd - 
 		BCE_TX_SLACK_SPACE;
@@ -4714,7 +4715,7 @@ bce_tx_encap(struct bce_softc *sc, struct mbuf *m_head, u16 *prod,
 	 * delete the map before all of the segments
 	 * have been freed.
 	 */
-	sc->tx_mbuf_map[*chain_prod] = 
+	sc->tx_mbuf_map[chain_prod] = 
 		sc->tx_mbuf_map[map_arg.chain_prod];
 	sc->tx_mbuf_map[map_arg.chain_prod] = map;
 	sc->tx_mbuf_ptr[map_arg.chain_prod] = m_head;
@@ -4725,13 +4726,12 @@ bce_tx_encap(struct bce_softc *sc, struct mbuf *m_head, u16 *prod,
 
 	DBRUNIF(1, sc->tx_mbuf_alloc++);
 
-	DBRUN(BCE_VERBOSE_SEND, bce_dump_tx_mbuf_chain(sc, *chain_prod, 
+	DBRUN(BCE_VERBOSE_SEND, bce_dump_tx_mbuf_chain(sc, chain_prod, 
 		map_arg.maxsegs));
 
 	/* prod still points the last used tx_bd at this point. */
 	*prod       = map_arg.prod;
-	*chain_prod = map_arg.chain_prod;
-	*prod_bseq  = map_arg.prod_bseq;
+	sc->tx_prod_bseq  = map_arg.prod_bseq;
 
 bce_tx_encap_exit:
 
@@ -4752,7 +4752,6 @@ bce_start_locked(struct ifnet *ifp)
 	struct mbuf *m_head = NULL;
 	int count = 0;
 	u16 tx_prod, tx_chain_prod;
-	u32	tx_prod_bseq;
 
 	/* If there's no link or the transmit queue is empty then just exit. */
 	if (!sc->bce_link || IFQ_DRV_IS_EMPTY(&ifp->if_snd)) {
@@ -4764,12 +4763,11 @@ bce_start_locked(struct ifnet *ifp)
 	/* prod points to the next free tx_bd. */
 	tx_prod = sc->tx_prod;
 	tx_chain_prod = TX_CHAIN_IDX(tx_prod);
-	tx_prod_bseq = sc->tx_prod_bseq;
 
 	DBPRINT(sc, BCE_INFO_SEND,
 		"%s(): Start: tx_prod = 0x%04X, tx_chain_prod = %04X, "
 		"tx_prod_bseq = 0x%08X\n",
-		__FUNCTION__, tx_prod, tx_chain_prod, tx_prod_bseq);
+		__FUNCTION__, tx_prod, tx_chain_prod, sc->tx_prod_bseq);
 
 	/* Keep adding entries while there is space in the ring. */
 	while(sc->tx_mbuf_ptr[tx_chain_prod] == NULL) {
@@ -4785,7 +4783,7 @@ bce_start_locked(struct ifnet *ifp)
 		 * head of the queue and set the OACTIVE flag
 		 * to wait for the NIC to drain the chain.
 		 */
-		if (bce_tx_encap(sc, m_head, &tx_prod, &tx_chain_prod, &tx_prod_bseq)) {
+		if (bce_tx_encap(sc, m_head, &tx_prod)) {
 			IFQ_DRV_PREPEND(&ifp->if_snd, m_head);
 			ifp->if_drv_flags |= IFF_DRV_OACTIVE;
 			DBPRINT(sc, BCE_INFO_SEND,
@@ -4800,7 +4798,6 @@ bce_start_locked(struct ifnet *ifp)
 		BPF_MTAP(ifp, m_head);
 
 		tx_prod = NEXT_TX_BD(tx_prod);
-		tx_chain_prod = TX_CHAIN_IDX(tx_prod);
 	}
 
 	if (count == 0) {
@@ -4812,12 +4809,12 @@ bce_start_locked(struct ifnet *ifp)
 
 	/* Update the driver's counters. */
 	sc->tx_prod      = tx_prod;
-	sc->tx_prod_bseq = tx_prod_bseq;
+	tx_chain_prod = TX_CHAIN_IDX(tx_prod);
 
 	DBPRINT(sc, BCE_INFO_SEND,
 		"%s(): End: tx_prod = 0x%04X, tx_chain_prod = 0x%04X, "
 		"tx_prod_bseq = 0x%08X\n",
-		__FUNCTION__, tx_prod, tx_chain_prod, tx_prod_bseq);
+		__FUNCTION__, tx_prod, tx_chain_prod, sc->tx_prod_bseq);
 
 	/* Start the transmit. */
 	REG_WR16(sc, MB_TX_CID_ADDR + BCE_L2CTX_TX_HOST_BIDX, sc->tx_prod);
