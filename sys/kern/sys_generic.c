@@ -565,7 +565,8 @@ ioctl(struct thread *td, struct ioctl_args *uap)
 	if (com & IOC_IN) {
 		error = copyin(uap->data, data, (u_int)size);
 		if (error) {
-			free(data, M_IOCTLOPS);
+			if (size > 0)
+				free(data, M_IOCTLOPS);
 			return (error);
 		}
 	} else if (com & IOC_OUT) {
