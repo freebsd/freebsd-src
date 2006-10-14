@@ -1,6 +1,10 @@
 #!/bin/sh
+# $Id: MKterminfo.sh,v 1.12 2003/01/11 21:42:12 tom Exp $
+#
+# MKterminfo.sh -- generate terminfo.5 from Caps tabular data
+#
 #***************************************************************************
-# Copyright (c) 1998,2000,2001 Free Software Foundation, Inc.              *
+# Copyright (c) 1998,2002,2003 Free Software Foundation, Inc.              *
 #                                                                          *
 # Permission is hereby granted, free of charge, to any person obtaining a  *
 # copy of this software and associated documentation files (the            *
@@ -27,10 +31,6 @@
 # authorization.                                                           *
 #***************************************************************************
 #
-# $Id: MKterminfo.sh,v 1.9 2001/09/01 23:06:18 tom Exp $
-#
-# MKterminfo.sh -- generate terminfo.5 from Caps tabular data
-#
 # This script takes terminfo.head and terminfo.tail and splices in between
 # them a table derived from the Caps data file.  Besides avoiding having
 # the docs fall out of sync with the table, this also lets us set up tbl
@@ -41,10 +41,13 @@
 # had better be no s in the table source text.
 #
 # keep the order independent of locale:
-LANGUAGE=C
-LC_ALL=C
-export LANGUAGE
-export LC_ALL
+if test "${LANGUAGE+set}"    = set; then LANGUAGE=C;    export LANGUAGE;    fi
+if test "${LANG+set}"        = set; then LANG=C;        export LANG;        fi
+if test "${LC_ALL+set}"      = set; then LC_ALL=C;      export LC_ALL;      fi
+if test "${LC_MESSAGES+set}" = set; then LC_MESSAGES=C; export LC_MESSAGES; fi
+if test "${LC_CTYPE+set}"    = set; then LC_CTYPE=C;    export LC_CTYPE;    fi
+if test "${LC_COLLATE+set}"  = set; then LC_COLLATE=C;  export LC_COLLATE;  fi
+
 #
 head=$1
 caps=$2
@@ -66,11 +69,11 @@ trap "rm -f $sorted $temp $unsorted; exit 99" 1 2 5 15
 
 sed -n <$caps "\
 /%%-STOP-HERE-%%/q
-/^#%/s///p
+/^#%/s/#%//p
 /^#/d
-s/[	]\+/	/g
+s/[	][	]*/	/g
 s/$/T}/
-s/	[A-Z0-9_()\-]\+	[0-9\-]\+	[Y\-][B\-][C\-][G\-][EK\-]\**	/	T{/
+s/	[A-Z0-9_()\-][A-Z0-9_()\-]*	[0-9\-][0-9\-]*	[Y\-][B\-][C\-][G\-][EK\-]\**	/	T{/
 s/	bool	/	/p
 s/	num	/	/p
 s/	str	/	/p
