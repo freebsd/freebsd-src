@@ -32,7 +32,7 @@
 .\"     @(#)disktab.5	8.1 (Berkeley) 6/5/93
 .\" $FreeBSD$
 .\"
-.Dd June 5, 1993
+.Dd October 14, 2006
 .Dt DISKTAB 5
 .Os
 .Sh NAME
@@ -88,10 +88,7 @@ default
 .It "\&d[0-4]	num	Drive-type-dependent parameters"
 .It "\&bs	num	Boot block size, default"
 .Dv BBSIZE
-.It "\&b[0-1]	num	Boot block filenames; see"
-.Xr bsdlabel 8
-.It "\&sb	num	Superblock size, default"
-.Dv SBSIZE
+.It "\&sb	num	Superblock size, default 0"
 .It "\&ba	num	Block size for partition `a' (bytes)"
 .It "\&bd	num	Block size for partition `d' (bytes)"
 .It "\&be	num	Block size for partition `e' (bytes)"
