@@ -331,7 +331,9 @@
     <para><application>sendmail</application> has been updated from
       version 8.13.1 to version 8.13.8.</para>
 
-    <para></para>
+    <para>The timezone database has been updated from the
+      <application>tzdata2004g</application> release to the
+      <application>tzdata2006n</application> release.</para>
 
   </sect2>
 
