@@ -196,6 +196,11 @@
       <para arch="pc98">A bootable CDROM loader has been implemented
 	for the pc98 platform.</para>
 
+      <para arch="i386">A bug in the i386 boot loader, which could
+	cause filesystem corruption if
+	a <filename>nextboot.conf</filename> file was used and landed
+	after cylinder 1023, has been fixed.</para>
+
     </sect3>
 
     <sect3 id="proc">
@@ -311,10 +316,20 @@
 
       <para>IPv6 link-local addresses are now enabled only
 	if <varname>ipv6_enable</varname> is set in &man.rc.conf.5;.</para>
+
+      <para>A bug that prevented &man.carp.4; from working correctly
+	in some IPv6 environments has been fixed.</para>
     </sect3>
 
     <sect3 id="disks">
       <title>Disks and Storage</title>
+
+      <para>The &man.ata.4; driver now supports USB mass storage class
+	devices.  To enable it, a line <literal>device atausb</literal>
+	in the kernel configuration file or loading the
+	<filename>atausb</filename> kernel module is needed.
+	Note that this functionality cannot coexist with the
+	&man.umass.4; driver.</para>
 
       <para>&man.geli.8; is now able to perform data integrity
         verification (data authentication) of encrypted data stored on
@@ -453,6 +468,9 @@
     <para>&man.traceroute.8; now decodes the complete set of ICMP
       unreachable messages in its output.</para>
 
+    <para>The compiler toolchain is now capable of generating
+      executables for systems using the ARM processor.</para>
+
     <sect3 id="rc-scripts">
       <title><filename>/etc/rc.d</filename> Scripts</title>
 
@@ -532,7 +550,7 @@
     <para>The supported version of
       the <application>GNOME</application> desktop environment
       (<filename role="package">x11/gnome2</filename>) has been
-      updated from 2.12.3 to 2.14.2.</para>
+      updated from 2.12.3 to 2.16.1.</para>
 
     <para>The supported version of
       the <application>KDE</application> desktop environment
