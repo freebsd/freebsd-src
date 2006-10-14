@@ -857,9 +857,7 @@ vnode_pager_generic_getpages(vp, m, bytecount, reqpage)
 	 * to be zero based...
 	 */
 	if (first != 0) {
-		for (i = first; i < count; i++) {
-			m[i - first] = m[i];
-		}
+		m += first;
 		count -= first;
 		reqpage -= first;
 	}
