@@ -468,10 +468,10 @@ bce_attach(device_t dev)
 	/* Allocate PCI memory resources. */
 	rid = PCIR_BAR(0);
 	sc->bce_res = bus_alloc_resource_any(
-		dev, 							/* dev */
-		SYS_RES_MEMORY, 				/* type */
-		&rid,							/* rid */
-	    RF_ACTIVE | PCI_RF_DENSE);		/* flags */
+		dev,				/* dev */
+		SYS_RES_MEMORY,			/* type */
+		&rid,				/* rid */
+		RF_ACTIVE | PCI_RF_DENSE);	/* flags */
 
 	if (sc->bce_res == NULL) {
 		BCE_PRINTF(sc, "%s(%d): PCI memory allocation failed\n", 
