@@ -25,7 +25,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd November 28, 2005
+.Dd October 14, 2006
 .Dt SOUND 4
 .Os
 .Sh NAME
@@ -37,15 +37,19 @@
 PCM audio device infrastructure
 .Sh SYNOPSIS
 For a card with bridge driver support, and a PnP card:
+.Bd -ragged -offset indent
 .Cd "device sound"
+.Ed
 .Pp
 For a card without bridge driver support, and a non-PnP card,
 the following lines may be required in
-.Pa /boot/device.hints :
-.Cd hint.pcm.0.at="isa"
-.Cd hint.pcm.0.irq="5"
-.Cd hint.pcm.0.drq="1"
-.Cd hint.pcm.0.flags="0x0"
+.Xr device.hints 5 :
+.Bd -literal -offset indent
+hint.pcm.0.at="isa"
+hint.pcm.0.irq="5"
+hint.pcm.0.drq="1"
+hint.pcm.0.flags="0x0"
+.Ed
 .Sh DESCRIPTION
 .Bf -emphasis
 Note: There exists some ambiguity in the naming at the moment
@@ -312,6 +316,9 @@ A device node is not created properly.
 .Xr snd_csa 4 ,
 .Xr snd_ds1 4 ,
 .Xr snd_emu10k1 4 ,
+.Xr snd_emu10kx 4 ,
+.Xr snd_envy24 4 ,
+.Xr snd_envy24ht 4 ,
 .Xr snd_es137x 4 ,
 .Xr snd_ess 4 ,
 .Xr snd_fm801 4 ,
@@ -324,12 +331,14 @@ A device node is not created properly.
 .Xr snd_neomagic 4 ,
 .Xr snd_sbc 4 ,
 .Xr snd_solo 4 ,
+.Xr snd_spicds 4 ,
 .Xr snd_t4dwave 4 ,
 .Xr snd_uaudio 4 ,
 .Xr snd_via8233 4 ,
 .Xr snd_via82c686 4 ,
 .Xr snd_vibes 4 ,
 .Xr devfs 5 ,
+.Xr device.hints 5 ,
 .Xr loader.conf 5 ,
 .Xr dmesg 8 ,
 .Xr kldload 8 ,
