@@ -414,7 +414,7 @@
       <para arch="i386">A bug in the i386 boot loader, which could
 	cause filesystem corruption if
 	a <filename>nextboot.conf</filename> file was used and landed
-	after cylinder 1023, has been fixed.</para>
+	after cylinder 1023, has been fixed. &merged;</para>
 
     </sect3>
 
@@ -938,7 +938,7 @@ pipe tablearg ip from table(1) to any</programlisting>
 	in the kernel configuration file or loading the
 	<filename>atausb</filename> kernel module is needed.
 	Note that this functionality cannot coexist with the
-	&man.umass.4; driver.</para>
+	&man.umass.4; driver. &merged;</para>
 
       <para>The &man.ataraid.4; driver now supports
 	JMicron ATA RAID metadata.  &merged;</para>
@@ -1360,6 +1360,14 @@ geli_da1s3a_keyfile0_name="/boot/keys/da1s3a.key"</programlisting>
       <option>-V</option> flag for vertical virtual scrolling.
       &merged;</para>
 
+    <para>The mrouted(8) multicast routing daemon has been removed
+      from the &os; base system.  It implements the DVMRP multicast
+      routing protocol, which has largely been replaced by PIM in many
+      multicast installations.  The related map-mbone(8) and mrinfo(8)
+      utilities have also been removed.  These programs are now
+      available in the &os; Ports Collection
+      as <filename role="package">net/mrouted</filename>.</para>
+
     <para>The &man.netstat.1; utility now supports an
       <option>-h</option> flag for interface stats mode,
       which prints all interface statistics in human readable form. &merged;</para>
@@ -1515,7 +1523,7 @@ geli_da1s3a_keyfile0_name="/boot/keys/da1s3a.key"</programlisting>
       systems.</para>
 
     <para>The compiler toolchain is now capable of generating
-      executables for systems using the ARM processor.</para>
+      executables for systems using the ARM processor. &merged;</para>
 
     <sect3 id="rc-scripts">
       <title><filename>/etc/rc.d</filename> Scripts</title>
@@ -1679,7 +1687,7 @@ mdconfig_md1="-t vnode -f /var/foo.img"</programlisting>
 
     <para>The timezone database has been updated from the
       <application>tzdata2005l</application> release to the
-      <application>tzdata2006g</application> release. &merged;</para>
+      <application>tzdata2006n</application> release. &merged;</para>
 
     <para><application>tip</application> has been updated to a
       snapshot from OpenBSD as of 20060831.</para>
@@ -1852,7 +1860,7 @@ mdconfig_md1="-t vnode -f /var/foo.img"</programlisting>
     <para>The supported version of
       the <application>GNOME</application> desktop environment
       (<filename role="package">x11/gnome2</filename>) has been
-      updated from 2.10.2 to 2.14.1. &merged;</para>
+      updated from 2.10.2 to 2.16.1. &merged;</para>
 
     <para>The supported version of
       the <application>KDE</application> desktop environment
