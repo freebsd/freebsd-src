@@ -1911,7 +1911,7 @@ do_mount(struct exportlist *ep, struct grouplist *grp, int exflags,
 		iov[5].iov_base = fsb->f_mntfromname; /* "from" */
 		iov[5].iov_len = strlen(fsb->f_mntfromname) + 1;
 
-		while (nmount(iov, iovlen, 0) < 0) {
+		while (nmount(iov, iovlen, fsb->f_flags) < 0) {
 			if (cp)
 				*cp-- = savedc;
 			else
