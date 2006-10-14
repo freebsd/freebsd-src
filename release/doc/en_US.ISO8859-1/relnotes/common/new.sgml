@@ -238,6 +238,10 @@
     <para><application>sendmail</application> has been updated from
       8.13.6 to 8.13.8.</para>
 
+    <para>The timezone database has been updated from the
+      <application>tzdata2006g</application> release to the
+      <application>tzdata2006n</application> release.</para>
+
   </sect2>
 
   <sect2 id="ports">
@@ -252,7 +256,7 @@
     <para>The supported version of
       the <application>GNOME</application> desktop environment
       (<filename role="package">x11/gnome2</filename>) has been
-      updated from 2.12.3 to 2.14.2.</para>
+      updated from 2.12.3 to 2.16.1.</para>
 
     <para>The supported version of
       the <application>KDE</application> desktop environment
