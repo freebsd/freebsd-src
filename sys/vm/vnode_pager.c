@@ -640,7 +640,7 @@ vnode_pager_generic_getpages(vp, m, bytecount, reqpage)
 	vm_offset_t kva;
 	off_t foff, tfoff, nextoff;
 	int i, j, size, bsize, first;
-	daddr_t firstaddr;
+	daddr_t firstaddr, reqblock;
 	struct vnode *dp;
 	int runpg;
 	int runend;
@@ -668,7 +668,7 @@ vnode_pager_generic_getpages(vp, m, bytecount, reqpage)
 	/*
 	 * if we can't bmap, use old VOP code
 	 */
-	if (VOP_BMAP(vp, 0, &dp, 0, NULL, NULL)) {
+	if (VOP_BMAP(vp, foff / bsize, &dp, &reqblock, NULL, NULL)) {
 		VM_OBJECT_LOCK(object);
 		vm_page_lock_queues();
 		for (i = 0; i < count; i++)
@@ -714,6 +714,17 @@ vnode_pager_generic_getpages(vp, m, bytecount, reqpage)
 		vm_page_unlock_queues();
 		VM_OBJECT_UNLOCK(object);
 		return VM_PAGER_OK;
+	} else if (reqblock == -1) {
+		pmap_zero_page(m[reqpage]);
+		vm_page_undirty(m[reqpage]);
+		m[reqpage]->valid = VM_PAGE_BITS_ALL;
+		vm_page_lock_queues();
+		for (i = 0; i < count; i++)
+			if (i != reqpage)
+				vm_page_free(m[i]);
+		vm_page_unlock_queues();
+		VM_OBJECT_UNLOCK(object);
+		return (VM_PAGER_OK);
 	}
 	m[reqpage]->valid = 0;
 	VM_OBJECT_UNLOCK(object);
