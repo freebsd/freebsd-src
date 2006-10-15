@@ -365,7 +365,7 @@ linux_clone(struct thread *td, struct linux_clone_args *args)
 #endif
 
 	exit_signal = args->flags & 0x000000ff;
-	if (exit_signal >= LINUX_NSIG)
+	if (!LINUX_SIG_VALID(exit_signal))
 		return (EINVAL);
 
 	if (exit_signal <= LINUX_SIGTBLSZ)
