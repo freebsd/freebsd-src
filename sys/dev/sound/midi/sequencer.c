@@ -613,7 +613,7 @@ seq_delunit(int unit)
 	int i;
 
 	//SEQ_DEBUG(4,printf("seq_delunit: %d\n", unit));
-	printf("seq_delunit: 1 \n");
+	SEQ_DEBUG(1, printf("seq_delunit: 1 \n"));
 	mtx_lock(&scp->seq_lock);
 
 	scp->playing = 0;
@@ -621,46 +621,46 @@ seq_delunit(int unit)
 	cv_broadcast(&scp->out_cv);
 	cv_broadcast(&scp->state_cv);
 	cv_broadcast(&scp->reset_cv);
-	printf("seq_delunit: 2 \n");
+	SEQ_DEBUG(1, printf("seq_delunit: 2 \n"));
 	cv_wait(&scp->th_cv, &scp->seq_lock);
-	printf("seq_delunit: 3.0 \n");
+	SEQ_DEBUG(1, printf("seq_delunit: 3.0 \n"));
 	mtx_unlock(&scp->seq_lock);
-	printf("seq_delunit: 3.1 \n");
+	SEQ_DEBUG(1, printf("seq_delunit: 3.1 \n"));
 
 	cv_destroy(&scp->state_cv);
-	printf("seq_delunit: 4 \n");
+	SEQ_DEBUG(1, printf("seq_delunit: 4 \n"));
 	cv_destroy(&scp->empty_cv);
-	printf("seq_delunit: 5 \n");
+	SEQ_DEBUG(1, printf("seq_delunit: 5 \n"));
 	cv_destroy(&scp->reset_cv);
-	printf("seq_delunit: 6 \n");
+	SEQ_DEBUG(1, printf("seq_delunit: 6 \n"));
 	cv_destroy(&scp->out_cv);
-	printf("seq_delunit: 7 \n");
+	SEQ_DEBUG(1, printf("seq_delunit: 7 \n"));
 	cv_destroy(&scp->in_cv);
-	printf("seq_delunit: 8 \n");
+	SEQ_DEBUG(1, printf("seq_delunit: 8 \n"));
 	cv_destroy(&scp->th_cv);
 
-	printf("seq_delunit: 10 \n");
+	SEQ_DEBUG(1, printf("seq_delunit: 10 \n"));
 	if (scp->seqdev)
 	    destroy_dev(scp->seqdev);
-	printf("seq_delunit: 11 \n");
+	SEQ_DEBUG(1, printf("seq_delunit: 11 \n"));
 	if (scp->musicdev)
 	    destroy_dev(scp->musicdev);
-	printf("seq_delunit: 12 \n");
+	SEQ_DEBUG(1, printf("seq_delunit: 12 \n"));
 	scp->seqdev = scp->musicdev = NULL;
 	if (scp->midis != NULL)
 	    free(scp->midis, M_TEMP);
-	printf("seq_delunit: 13 \n");
+	SEQ_DEBUG(1, printf("seq_delunit: 13 \n"));
 	if (scp->midi_flags != NULL)
 	    free(scp->midi_flags, M_TEMP);
-	printf("seq_delunit: 14 \n");
+	SEQ_DEBUG(1, printf("seq_delunit: 14 \n"));
 	free(scp->out_q.b, M_TEMP);
-	printf("seq_delunit: 15 \n");
+	SEQ_DEBUG(1, printf("seq_delunit: 15 \n"));
 	free(scp->in_q.b, M_TEMP);
 
-	printf("seq_delunit: 16 \n");
+	SEQ_DEBUG(1, printf("seq_delunit: 16 \n"));
 
 	mtx_destroy(&scp->seq_lock);
-	printf("seq_delunit: 17 \n");
+	SEQ_DEBUG(1, printf("seq_delunit: 17 \n"));
 	free(scp, M_DEVBUF);
 
 	mtx_lock(&seqinfo_mtx);
@@ -1391,7 +1391,7 @@ seq_poll(struct cdev *i_dev, int events, struct thread *td)
 	struct seq_softc *scp = i_dev->si_drv1;
 
 	SEQ_DEBUG(3, printf("seq_poll: unit %d.\n", scp->unit));
-	printf("seq_poll: unit %d.\n", scp->unit);
+	SEQ_DEBUG(1, printf("seq_poll: unit %d.\n", scp->unit));
 
 	mtx_lock(&scp->seq_lock);
 
@@ -1869,7 +1869,7 @@ seq_local(struct seq_softc *scp, u_char *event)
 	SEQ_DEBUG(5,printf("seq_local: unit %d, cmd %d\n", scp->unit, event[1]));
 	switch (event[1]) {
 	    default:
-		printf("seq_local event type %d not handled\n", event[1]);
+		SEQ_DEBUG(1, printf("seq_local event type %d not handled\n", event[1]));
 		ret = 1;
 		break;
 	}
