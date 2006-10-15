@@ -113,9 +113,17 @@ freopen(file, mode, fp)
 				return (NULL);
 			}
 		}
-		if (oflags & O_TRUNC)
-			ftruncate(fp->_file, 0);
-		if (_fseeko(fp, 0, oflags & O_APPEND ? SEEK_END : SEEK_SET,
+		if (oflags & O_TRUNC) {
+			if (ftruncate(fp->_file, (off_t)0) < 0) {
+				sverrno = errno;
+				fclose(fp);
+				FUNLOCKFILE(fp);
+				errno = sverrno;
+				return (NULL);
+			}
+		}
+		fp->_flags |= __SNPT;   /* real seek */
+		if (_fseeko(fp, (off_t)0, oflags & O_APPEND ? SEEK_END : SEEK_SET,
 		    0) < 0 && errno != ESPIPE) {
 			sverrno = errno;
 			fclose(fp);
