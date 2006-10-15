@@ -36,6 +36,7 @@ SUBDIR=	adjkerntz \
 	gpt \
 	growfs \
 	gvinum \
+	idmapd \
 	ifconfig \
 	init \
 	${_ipf} \
