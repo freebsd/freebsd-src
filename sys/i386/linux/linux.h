@@ -793,6 +793,7 @@ typedef int l_mqd_t;
 #define CLONE_FILES     0x400
 #define CLONE_SIGHAND   0x800
 #define CLONE_PID       0x1000          /* this flag does not exist in linux anymore */
+#define CLONE_VFORK	0x4000
 #define CLONE_PARENT    0x00008000
 #define CLONE_THREAD    0x10000
 #define CLONE_SETTLS    0x80000

@@ -532,6 +532,16 @@ linux_clone(struct thread *td, struct linux_clone_args *args)
 
 	td->td_retval[0] = p2->p_pid;
 	td->td_retval[1] = 0;
+
+	if (args->flags & CLONE_VFORK) {
+   	   	/* wait for the children to exit, ie. emulate vfork */
+   	   	PROC_LOCK(p2);
+		p2->p_flag |= P_PPWAIT;
+		while (p2->p_flag & P_PPWAIT)
+   		   	msleep(td->td_proc, &p2->p_mtx, PWAIT, "ppwait", 0);
+		PROC_UNLOCK(p2);
+	}
+
 	return (0);
 }
 
