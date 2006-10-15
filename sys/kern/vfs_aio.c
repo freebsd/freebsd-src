@@ -313,12 +313,12 @@ static struct mtx aio_sock_mtx;
 static TAILQ_HEAD(,aiocblist) aio_jobs;			/* (c) Async job list */
 static struct unrhdr *aiod_unr;
 
-static void	aio_init_aioinfo(struct proc *p);
+void		aio_init_aioinfo(struct proc *p);
 static void	aio_onceonly(void);
 static int	aio_free_entry(struct aiocblist *aiocbe);
 static void	aio_process(struct aiocblist *aiocbe);
 static int	aio_newproc(int *);
-static int	aio_aqueue(struct thread *td, struct aiocb *job,
+int		aio_aqueue(struct thread *td, struct aiocb *job,
 			struct aioliojob *lio, int type, int osigev);
 static void	aio_physwakeup(struct buf *bp);
 static void	aio_proc_rundown(void *arg, struct proc *p);
@@ -498,7 +498,7 @@ aio_unload(void)
  * Init the per-process aioinfo structure.  The aioinfo limits are set
  * per-process for user limit (resource) management.
  */
-static void
+void
 aio_init_aioinfo(struct proc *p)
 {
 	struct kaioinfo *ki;
@@ -1322,7 +1322,7 @@ aio_swake_cb(struct socket *so, struct sockbuf *sb)
  * Queue a new AIO request.  Choosing either the threaded or direct physio VCHR
  * technique is done in this code.
  */
-static int
+int
 aio_aqueue(struct thread *td, struct aiocb *job, struct aioliojob *lj,
 	int type, int oldsigev)
 {

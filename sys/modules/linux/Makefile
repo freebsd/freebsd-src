@@ -8,11 +8,13 @@ CFLAGS+=-DCOMPAT_IA32 -DCOMPAT_LINUX32
 .PATH: ${.CURDIR}/../../compat/linux ${.CURDIR}/../../${MACHINE_ARCH}/linux${SFX}
 
 KMOD=	linux
-SRCS=	linux${SFX}_dummy.c linux_emul.c linux_file.c linux_futex.c linux_getcwd.c linux_ioctl.c \
-	linux_ipc.c linux${SFX}_machdep.c linux_mib.c linux_misc.c linux_signal.c \
-	linux_socket.c linux_stats.c linux_sysctl.c linux${SFX}_sysent.c linux${SFX}_sysvec.c \
-	linux_uid16.c linux_util.c linux_time.c opt_inet6.h opt_mac.h opt_compat.h opt_posix.h \
-	vnode_if.h device_if.h bus_if.h
+SRCS=	linux_aio.c linux${SFX}_dummy.c linux_emul.c linux_file.c \
+	linux_futex.c linux_getcwd.c linux_ioctl.c linux_ipc.c \
+	linux${SFX}_machdep.c linux_mib.c linux_misc.c linux_signal.c \
+	linux_socket.c linux_stats.c linux_sysctl.c linux${SFX}_sysent.c \
+	linux${SFX}_sysvec.c linux_uid16.c linux_util.c linux_time.c \
+	opt_inet6.h opt_mac.h opt_compat.h opt_posix.h vnode_if.h \
+	device_if.h bus_if.h
 OBJS=	linux${SFX}_locore.o
 
 .if ${MACHINE_ARCH} == "i386"

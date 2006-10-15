@@ -803,4 +803,6 @@ typedef int l_mqd_t;
 
 #define THREADING_FLAGS (CLONE_VM | CLONE_FS | CLONE_FILES | CLONE_SIGHAND)
 
+#include <compat/linux/linux_aio.h>
+
 #endif /* !_I386_LINUX_LINUX_H_ */
