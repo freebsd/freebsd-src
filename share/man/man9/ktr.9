@@ -145,3 +145,13 @@ It might be profitable at some point in time to use per-CPU buffers instead
 so that if one CPU halts or starts spinning, then the log messages it
 emitted just prior to halting or spinning will not be drowned out by events
 from the other CPUs.
+.Pp
+The arguments given in
+.Fn CTRx
+macros are stored as
+.Vt u_long ,
+so don't pass arguments larger than size of an
+.Vt u_long
+type.
+For example passing 64bit arguments on 32bit architectures will give incorrect
+results.
