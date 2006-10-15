@@ -406,11 +406,11 @@
 242	AUE_NULL	UNIMPL	linux_sched_getaffinity
 243	AUE_NULL	UNIMPL	linux_set_thread_area
 244	AUE_NULL	UNIMPL	linux_get_thread_area
-245	AUE_NULL	UNIMPL	linux_io_setup
-246	AUE_NULL	UNIMPL	linux_io_destroy
-247	AUE_NULL	UNIMPL	linux_io_getevents
-248	AUE_NULL	UNIMPL	linux_io_submit
-249	AUE_NULL	UNIMPL	linux_io_cancel
+245	AUE_NULL	STD	{ int linux_io_setup(l_uint nr_reqs, linux_aio_context_t *ctxp); }
+246	AUE_NULL	STD	{ int linux_io_destroy(linux_aio_context_t ctx); }
+247	AUE_NULL	STD	{ int linux_io_getevents(linux_aio_context_t ctx_id, l_long min_nr, l_long nr, struct linux_io_event *events, struct l_timespec *timeout); }
+248	AUE_NULL	STD	{ int linux_io_submit(linux_aio_context_t ctx_id, l_long nr, struct linux_iocb **iocbpp); }
+249	AUE_NULL	STD	{ int linux_io_cancel(linux_aio_context_t ctx_id, struct linux_iocb *iocb, struct linux_io_event *result); }
 250	AUE_NULL	STD	{ int linux_fadvise64(void); }
 251	AUE_NULL	UNIMPL
 252	AUE_EXIT	STD	{ int linux_exit_group(int error_code); }
