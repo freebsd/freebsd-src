@@ -1764,7 +1764,7 @@ usage(void)
 
 	Fprintf(stderr, "Version %s\n", version);
 	Fprintf(stderr,
-	    "Usage: %s [-dDFInrSvx] [-g gateway] [-i iface] [-f first_ttl]\n"
+	    "Usage: %s [-dDeFInrSvx] [-f first_ttl] [-g gateway] [-i iface]\n"
 	    "\t[-m max_ttl] [-p port] [-P proto] [-q nqueries] [-s src_addr]\n"
 	    "\t[-t tos] [-w waittime] [-z pausemsecs] host [packetlen]\n", prog);
 	exit(1);
