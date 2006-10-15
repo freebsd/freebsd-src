@@ -530,7 +530,13 @@ linux_clone(struct thread *td, struct linux_clone_args *args)
 		ff |= RFMEM;
 	if (args->flags & CLONE_SIGHAND)
 		ff |= RFSIGSHARE;
-	if (!(args->flags & CLONE_FILES))
+	/* 
+	 * XXX: in linux sharing of fs info (chroot/cwd/umask)
+	 * and open files is independant. in fbsd its in one
+	 * structure but in reality it doesnt make any problems
+	 * because both this flags are set at once usually.
+	 */
+	if (!(args->flags & (CLONE_FILES | CLONE_FS)))
 		ff |= RFFDG;
 
 	/*
