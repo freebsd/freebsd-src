@@ -495,7 +495,6 @@ linux_vfork(struct thread *td, struct linux_vfork_args *args)
 		return (error);
 	/* wait for the children to exit, ie. emulate vfork */
 	PROC_LOCK(p2);
-	p2->p_flag |= P_PPWAIT;
 	while (p2->p_flag & P_PPWAIT)
 	   	msleep(td->td_proc, &p2->p_mtx, PWAIT, "ppwait", 0);
 	PROC_UNLOCK(p2);
