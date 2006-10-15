@@ -35,7 +35,7 @@
 .\"	@(#)find.1	8.7 (Berkeley) 5/9/95
 .\" $FreeBSD$
 .\"
-.Dd May 27, 2006
+.Dd October 15, 2006
 .Dt FIND 1
 .Os
 .Sh NAME
@@ -883,8 +883,10 @@ All the single character options except
 .Ic -H
 and
 .Ic -L
-as well as the
-.Ic -iname , -inum , -iregex , -print0 , -delete , -ls , -regex ,
+as well as
+.Ic -amin , -anewer , -cmin , -cnewer , -delete , -empty , -fstype ,
+.Ic -iname , -inum , -iregex , -ls , -maxdepth , -mindepth , -mmin ,
+.Ic -path , -print0 , -regex
 and all of the
 .Ic -B
 birthtime related primaries are extensions to
