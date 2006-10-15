@@ -427,7 +427,7 @@ rules_check(struct ucred *cred, int family, int type, u_int16_t port)
 	mtx_unlock(&rule_mtx);
 
 	if (error != 0 && mac_portacl_suser_exempt != 0)
-		error = suser_cred(cred, 0);
+		error = suser_cred(cred, SUSER_ALLOWJAIL);
 
 	return (error);
 }
