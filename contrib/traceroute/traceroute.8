@@ -24,7 +24,7 @@ traceroute \- print the route packets take to network host
 .na
 .B traceroute
 [
-.B \-deFISdnrvx
+.B \-dDeFISdnrvx
 ] [
 .B \-f
 .I first_ttl
@@ -112,6 +112,18 @@ Set the "don't fragment" bit.
 .B \-d
 Enable socket level debugging.
 .TP
+.B \-D
+When an ICMP response to our probe datagram is received,
+print the differences between the transmitted packet and
+the packet quoted by the ICMP response.
+A key showing the location of fields within the transmitted packet is printed,
+followed by the original packet in hex,
+followed by the quoted packet in hex.
+Bytes that are unchanged in the quoted packet are shown as underscores.
+Note,
+the IP checksum and the TTL of the quoted packet are not expected to match.
+By default, only one probe per hop is sent with this option.
+.TP
 .B \-g
 Specify a loose source route gateway (8 maximum).
 .TP
@@ -163,7 +175,11 @@ listening on a port in the default range, this option can be used
 to pick an unused port range.
 .TP
 .B \-q
-Set the number of probes per hop (default is 3).
+Set the number of probes per hop (default is 3,
+unless
+.B -D
+is specified,
+when it is 1).
 .TP
 .B \-r
 Bypass the normal routing tables and send directly to a host on an attached
