@@ -22,7 +22,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd November 14, 2003
+.Dd October 15, 2006
 .Dt IDMAPD 8
 .Os
 .Sh NAME
@@ -37,7 +37,7 @@ The
 .Nm
 daemon normally runs in the background and services UID/GID-to-name and
 name-to-UID/GID mapping
-requests from the NFSv4 client.
+requests from the NFSv4 client kernel threads.
 .Pp
 The options are:
 .Bl -tag -width indent
@@ -60,4 +60,4 @@ A Version 7 format password file.
 .Sh SEE ALSO
 .Xr getpwnam 3 ,
 .Xr getpwuid 3 ,
-.Xr mount_nfs 8
+.Xr mount_nfs4 8
