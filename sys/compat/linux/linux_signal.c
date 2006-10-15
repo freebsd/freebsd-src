@@ -144,7 +144,7 @@ linux_do_sigaction(struct thread *td, int linux_sig, l_sigaction_t *linux_nsa,
 	struct sigaction act, oact, *nsa, *osa;
 	int error, sig;
 
-	if (linux_sig <= 0 || linux_sig > LINUX_NSIG)
+	if (!LINUX_SIG_VALID(linux_sig))
 		return (EINVAL);
 
 	osa = (linux_osa != NULL) ? &oact : NULL;
@@ -438,7 +438,7 @@ linux_kill(struct thread *td, struct linux_kill_args *args)
 	/*
 	 * Allow signal 0 as a means to check for privileges
 	 */
-	if (args->signum < 0 || args->signum > LINUX_NSIG)
+	if (!LINUX_SIG_VALID(linux_sig) && args->signum != 0)
 		return EINVAL;
 
 	if (args->signum > 0 && args->signum <= LINUX_SIGTBLSZ)

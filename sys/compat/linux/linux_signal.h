@@ -35,4 +35,6 @@ void linux_to_bsd_sigset(l_sigset_t *, sigset_t *);
 void bsd_to_linux_sigset(sigset_t *, l_sigset_t *);
 int linux_do_sigaction(struct thread *, int, l_sigaction_t *, l_sigaction_t *);
 
+#define LINUX_SIG_VALID(sig)	((sig) <= LINUX_NSIG && (sig) > 0)
+
 #endif /* _LINUX_SIGNAL_H_ */
