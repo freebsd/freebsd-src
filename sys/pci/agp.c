@@ -180,7 +180,7 @@ agp_free_gatt(struct agp_gatt *gatt)
 	free(gatt, M_AGP);
 }
 
-static int agp_max[][2] = {
+static u_int agp_max[][2] = {
 	{0,	0},
 	{32,	4},
 	{64,	28},
@@ -197,7 +197,8 @@ int
 agp_generic_attach(device_t dev)
 {
 	struct agp_softc *sc = device_get_softc(dev);
-	int rid, memsize, i;
+	int rid, i;
+	u_int memsize;
 
 	/*
 	 * Find and map the aperture.
