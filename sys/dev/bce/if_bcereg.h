@@ -4644,22 +4644,6 @@ struct fw_info {
 #define BCE_STATS_BLK_SZ		sizeof(struct statistics_block)
 #define BCE_TX_CHAIN_PAGE_SZ	BCM_PAGE_SIZE
 #define BCE_RX_CHAIN_PAGE_SZ	BCM_PAGE_SIZE
-/*
- * Mbuf pointers. We need these to keep track of the virtual addresses
- * of our mbuf chains since we can only convert from physical to virtual,
- * not the other way around.
- */
-
-struct bce_dmamap_arg {
-	struct bce_softc	*sc;				/* Pointer back to device context */
-	bus_addr_t			busaddr;		/* Physical address of mapped memory */
-	u32					tx_flags;		/* Flags for frame transmit */
-	u16					prod;
-	u16					chain_prod;
-	int					maxsegs;		/* Max segments supported for this mapped memory */
-	u32					prod_bseq;
-};
-
 
 struct bce_softc
 {
