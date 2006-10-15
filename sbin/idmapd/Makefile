@@ -5,9 +5,7 @@
 PROG=	idmapd
 MAN=	idmapd.8
 
-CFLAGS+= -DNFS -I/usr/src/sys
+CFLAGS+= -DNFS -I${.CURDIR}/../../sys
 WARNS?=	2
-
-.PATH:
 
 .include <bsd.prog.mk>
