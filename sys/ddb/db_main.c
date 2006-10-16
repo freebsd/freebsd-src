@@ -198,6 +198,7 @@ db_trap(int type, int code)
 	if (cnunavailable())
 		return (0);
 
+	cndbctl(TRUE);
 	bkpt = IS_BREAKPOINT_TRAP(type, code);
 	watchpt = IS_WATCHPOINT_TRAP(type, code);
 
@@ -224,5 +225,6 @@ db_trap(int type, int code)
 
 	db_restart_at_pc(watchpt);
 
+	cndbctl(FALSE);
 	return (1);
 }
