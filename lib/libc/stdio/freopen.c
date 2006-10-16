@@ -104,6 +104,8 @@ freopen(file, mode, fp)
 			errno = EINVAL;
 			return (NULL);
 		}
+		if (fp->_flags & __SWR)
+			(void) __sflush(fp);
 		if ((oflags ^ dflags) & O_APPEND) {
 			dflags &= ~O_APPEND;
 			dflags |= oflags & O_APPEND;
@@ -117,15 +119,8 @@ freopen(file, mode, fp)
 		}
 		if (oflags & O_TRUNC)
 			(void) ftruncate(fp->_file, (off_t)0);
-		fp->_flags |= __SNPT;   /* real seek */
-		if (_fseeko(fp, (off_t)0, oflags & O_APPEND ? SEEK_END : SEEK_SET,
-		    0) < 0 && errno != ESPIPE) {
-			sverrno = errno;
-			fclose(fp);
-			FUNLOCKFILE(fp);
-			errno = sverrno;
-			return (NULL);
-		}
+		if (!(oflags & O_APPEND))
+			(void) _sseek(fp, (fpos_t)0, SEEK_SET);
 		f = fp->_file;
 		isopen = 0;
 		wantfd = -1;
@@ -219,6 +214,16 @@ finish:
 	fp->_write = __swrite;
 	fp->_seek = __sseek;
 	fp->_close = __sclose;
+	/*
+	 * When opening in append mode, even though we use O_APPEND,
+	 * we need to seek to the end so that ftell() gets the right
+	 * answer.  If the user then alters the seek pointer, or
+	 * the file extends, this will fail, but there is not much
+	 * we can do about this.  (We could set __SAPP and check in
+	 * fseek and ftell.)
+	 */
+	if (oflags & O_APPEND)
+		(void) _sseek(fp, (fpos_t)0, SEEK_END);
 	FUNLOCKFILE(fp);
 	return (fp);
 }
