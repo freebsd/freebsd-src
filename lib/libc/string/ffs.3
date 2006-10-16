@@ -34,7 +34,7 @@
 .\"     @(#)ffs.3	8.2 (Berkeley) 4/19/94
 .\" $FreeBSD$
 .\"
-.Dd January 13, 2004
+.Dd October 12, 2006
 .Dt FFS 3
 .Os
 .Sh NAME
@@ -60,7 +60,9 @@ The
 .Fn ffs
 and
 .Fn ffsl
-functions find the first bit set in
+functions find the first bit set
+(beginning with the least significant bit)
+in
 .Fa value
 and return the index of that bit.
 .Pp
@@ -72,8 +74,7 @@ functions find the last bit set in
 .Fa value
 and return the index of that bit.
 .Pp
-Bits are numbered starting from 1, starting at the right-most
-(least significant) bit.
+Bits are numbered starting at 1 (the least significant bit).
 A return value of zero from any of these functions means that the
 argument was zero.
 .Sh SEE ALSO
