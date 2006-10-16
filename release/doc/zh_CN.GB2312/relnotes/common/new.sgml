@@ -1,7 +1,7 @@
 <!--
      The FreeBSD Simplified Chinese Project
 
-     Original revision: 1.883.2.45
+     Original revision: 1.883.2.46
 -->
 <articleinfo>
   <title>&os;/&arch; &release.current; 发行说明</title>
@@ -176,6 +176,10 @@
 
       <para arch="pc98">为 pc98 平台实现了可引导 CDROM 的引导加载器。</para>
 
+      <para arch="i386">修正了 i386 引导加载器的一处当使用
+	<filename>nextboot.conf</filename> 文件， 且该文件位于 1023 柱面之后时，
+	根文件系统损坏的问题。</para>
+
     </sect3>
 
     <sect3 id="proc">
@@ -271,10 +275,18 @@
 
       <para>IPv6 link-local 地址现在只有在 &man.rc.conf.5;
 	中配置了 <varname>ipv6_enable</varname> 时才会启用了。</para>
+
+      <para>修正了导致在某些 IPv6 环境中 &man.carp.4; 工作不正常的问题。</para>
     </sect3>
 
     <sect3 id="disks">
       <title>磁盘及存储</title>
+
+      <para>&man.ata.4; 驱动能够支持 USB 大容量存储 (mass storage) 类的设备了。
+	您可以通过在内核编译配置文件中加入一行 <literal>device atausb</literal>
+	或加载内核模块
+	<filename>atausb</filename> 来启用它。 注意这个功能不能与
+	&man.umass.4; 驱动并存。</para>
 
       <para>&man.geli.8; 提供了对磁盘上的加密数据进行完整性检查 (数据验证) 的能力。
         注意加密算法目前是通过 &man.geli.8; 控制程序的 <option>-e</option>
@@ -381,6 +393,8 @@
     <para>&man.traceroute.8; 能够对 ICMP
       不可达消息进行完整解码了。</para>
 
+    <para>编译器工具套件能够为使用 ARM 处理器的系统生成可执行文件了。</para>
+
     <sect3 id="rc-scripts">
       <title><filename>/etc/rc.d</filename> 脚本</title>
 
@@ -450,7 +464,7 @@
 
     <para>支持的 <application>GNOME</application> 桌面环境
       (<filename role="package">x11/gnome2</filename>) 的版本，
-      从 2.12.3 升级到了 2.14.1。</para>
+      从 2.12.3 升级到了 2.16.1。</para>
 
     <para>支持的 <application>KDE</application> 桌面环境
       (<filename role="package">x11/kde3</filename>) 的版本，
