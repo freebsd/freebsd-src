@@ -48,7 +48,7 @@ void
 kgdb_trgt_fetch_registers(int regno __unused)
 {
 	struct kthr *kt;
-	struct pcb pcb;	
+	struct pcb pcb;
 	struct gdbarch_tdep *tdep;
 	int i;
 
@@ -69,7 +69,7 @@ kgdb_trgt_fetch_registers(int regno __unused)
 		supply_register(tdep->ppc_gp0_regnum + i,
 		    (char *)&pcb.pcb_context[i]);
 	}
-	
+
 	/* r1 is saved in the sp field */
 	supply_register(tdep->ppc_gp0_regnum + 1, (char *)&pcb.pcb_sp);
 
