@@ -19,7 +19,7 @@ cpu		SUN4V
 # HARDWARE BUS CONFIGURATION
 
 device		ebus
-device		isa
+#device		isa
 device		pci
 device		sbus
 #device		central
@@ -57,18 +57,33 @@ option 		OFWCONS_POLL_HZ=4 # 20 or more works best on Ultra2
 #####################################################################
 # Devices we don't want to deal with
 
-nodevice	atkbdc
+nodevice	aha
 nodevice	atkbd
-nodevice	psm
-nodevice	sc
-nodevice	splash
-nodevice	vga
-nodevice	daemon_saver
-nodevice	snake_saver
-nodevice	star_saver
+nodevice	atkbdc
 nodevice	bktr
+nodevice	blank_saver
+nodevice	bt
+nodevice	daemon_saver
+nodevice	dpt
+nodevice	dragon_saver
+nodevice	ep
+nodevice	ex
+nodevice	fade_saver
 nodevice	fdc
+nodevice	fire_saver
+nodevice	gpib
+nodevice	green_saver
+nodevice	hwpmc
+nodevice	isa
+nodevice	logo_saver
+nodevice	pcii
 nodevice	ppc
+nodevice	psm
+nodevice	rain_saver
+nodevice	sc
+nodevice	si
+nodevice	sio
+nodevice	snake_saver
 nodevice	snd_ad1816
 nodevice	snd_als4000
 nodevice	snd_au88x0
@@ -90,17 +105,18 @@ nodevice	snd_sb8
 nodevice	snd_sbc
 nodevice	snd_solo
 nodevice	snd_t4dwave
+nodevice	snd_uaudio
 nodevice	snd_via8233
 nodevice	snd_via82c686
 nodevice	snd_vibes
-nodevice	snd_uaudio
-nodevice	aha
-nodevice	bt
-nodevice	wds
-nodevice	ep
-nodevice	ex
-nodevice	sio
+nodevice	splash
+nodevice	star_saver
+nodevice	tnt4882
 nodevice	uart
+nodevice	ukbd
+nodevice	vga
+nodevice	warp_saver
+nodevice	wds
 
 
 #####################################################################
