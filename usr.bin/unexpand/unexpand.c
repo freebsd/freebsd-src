@@ -112,7 +112,7 @@ main(int argc, char *argv[])
 static void
 usage(void)
 {
-	fprintf(stderr, "usage: unexpand [-a] [-t tablist] [file ...]\n");
+	fprintf(stderr, "usage: unexpand [-a | -t tablist] [file ...]\n");
 	exit(1);
 }
 
