@@ -46,6 +46,9 @@ __FBSDID("$FreeBSD$");
 #include <machine/resource.h>
 #include <machine/bus.h>
 
+#include <vm/vm.h>
+#include <vm/pmap.h>
+
 #include <dev/mfi/mfireg.h>
 #include <dev/mfi/mfi_ioctl.h>
 #include <dev/mfi/mfivar.h>
@@ -223,6 +226,38 @@ mfi_dump_cmds(struct mfi_softc *sc)
 
 	for (i = 0; i < sc->mfi_total_cmds; i++)
 		mfi_print_generic_frame(sc, &sc->mfi_commands[i]);
+}
+
+void
+mfi_validate_sg(struct mfi_softc *sc, struct mfi_command *cm,
+	const char *function, int line)
+{
+	struct mfi_frame_header *hdr;
+	int i;
+	uint32_t count = 0, data_len;
+
+	hdr = &cm->cm_frame->header;
+	count = 0;
+	for (i = 0; i < hdr->sg_count; i++) {
+		count += cm->cm_sg->sg32[i].len;
+	}
+	/*
+	count++;
+	*/
+	data_len = hdr->data_len;
+	switch (hdr->cmd) {
+	case MFI_CMD_LD_READ:
+	case MFI_CMD_LD_WRITE:
+		data_len = data_len * 512;
+	case MFI_CMD_DCMD:
+		if (count != data_len) {
+			device_printf(sc->mfi_dev,
+			    "%s %d COMMAND %p S/G count bad %d %d %d 0x%jx\n",
+			    function, line, cm, count, data_len, cm->cm_len,
+			    (intmax_t)pmap_kextract((vm_offset_t)cm->cm_data));
+			MFI_PRINT_CMD(cm);
+		}
+	}
 }
 
 #endif

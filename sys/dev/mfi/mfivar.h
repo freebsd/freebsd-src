@@ -92,6 +92,7 @@ struct mfi_softc {
 #define MFI_FLAGS_SG64		(1<<0)
 #define MFI_FLAGS_QFRZN		(1<<1)
 #define MFI_FLAGS_OPEN		(1<<2)
+#define MFI_FLAGS_STOP		(1<<3)
 
 	struct mfi_hwcomms		*mfi_comms;
 	TAILQ_HEAD(,mfi_command)	mfi_free;
@@ -327,11 +328,14 @@ MALLOC_DECLARE(M_MFIBUF);
 #ifdef MFI_DEBUG
 extern void mfi_print_cmd(struct mfi_command *cm);
 extern void mfi_dump_cmds(struct mfi_softc *sc);
+extern void mfi_validate_sg(struct mfi_softc *, struct mfi_command *, const char *, int );
 #define MFI_PRINT_CMD(cm)	mfi_print_cmd(cm)
-#define MFI_DUMP_CMDS(sc)	mfi_dump_cmds(sc);
+#define MFI_DUMP_CMDS(sc)	mfi_dump_cmds(sc)
+#define MFI_VALIDATE_CMD(sc, cm) mfi_validate_sg(sc, cm, __FUNCTION__, __LINE__)
 #else
 #define MFI_PRINT_CMD(cm)
 #define MFI_DUMP_CMDS(sc)
+#define MFI_VALIDATE_CMD(sc, cm)
 #endif
 
 #endif /* _MFIVAR_H */
