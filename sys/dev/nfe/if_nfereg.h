@@ -85,7 +85,7 @@
 #define NFE_R2_MAGIC		0x16
 #define NFE_R4_MAGIC		0x08
 #define NFE_R6_MAGIC		0x03
-#define NFE_WOL_MAGIC		0x7770
+#define NFE_WOL_MAGIC		0x1111
 #define NFE_RX_START		0x01
 #define NFE_TX_START		0x01
 
