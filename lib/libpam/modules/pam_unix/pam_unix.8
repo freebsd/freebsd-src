@@ -34,7 +34,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd November 26, 2001
+.Dd October 12, 2006
 .Dt PAM_UNIX 8
 .Os
 .Sh NAME
@@ -51,15 +51,16 @@ The
 .Ux
 authentication service module for PAM,
 .Nm
-provides functionality for two PAM categories:
-authentication
-and account management.
+provides functionality for three PAM categories:
+authentication,
+account management, and password management.
 In terms of the
 .Ar module-type
 parameter, they are the
-.Dq Li auth
+.Dq Li auth ,
+.Dq Li account ,
 and
-.Dq Li account
+.Dq Li password
 features.
 It also provides a null function for session management.
 .Ss Ux Ss Authentication Module
@@ -156,7 +157,7 @@ level.
 The
 .Ux
 password management component
-provides a function to perform account management,
+provides a function to perform password management,
 .Fn pam_sm_chauthtok .
 The function changes
 the user's password.
