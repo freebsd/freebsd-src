@@ -1012,7 +1012,7 @@ only forth also support-functions definitions
   ." ^" cr
 ;
 
-\ Depuration support functions
+\ Debugging support functions
 
 only forth definitions also support-functions
 
