@@ -98,7 +98,7 @@ OSRELDATE=	0
 
 # Guess machine architecture from machine type, and vice versa.
 .if !defined(TARGET_ARCH) && defined(TARGET)
-TARGET_ARCH=	${TARGET:S/pc98/i386/}
+TARGET_ARCH=	${TARGET:S/pc98/i386/:S/sun4v/sparc64/}
 .elif !defined(TARGET) && defined(TARGET_ARCH) && \
     ${TARGET_ARCH} != ${MACHINE_ARCH}
 TARGET=		${TARGET_ARCH}
