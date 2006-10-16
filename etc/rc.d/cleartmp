@@ -10,47 +10,48 @@
 . /etc/rc.subr
 
 name="cleartmp"
-rcvar=`set_rcvar clear_tmp`
-
+# Disguise rcvar for the start method to run irrespective of its setting.
+rcvar1=`set_rcvar clear_tmp`
 start_cmd="${name}_start"
-
-cleartmp_prestart()
-{
-	checkyesno clear_tmp_X || return
-
-	local x11_socket_dirs="/tmp/.X11-unix /tmp/.ICE-unix /tmp/.font-unix \
-	    /tmp/.XIM-unix"
-
-	# Remove X lock files, since they will prevent you from restarting X.
-	rm -f /tmp/.X[0-9]-lock
-
-	# Create socket directories with correct permissions to avoid
-	# security problem.
-	#
-	rm -fr ${x11_socket_dirs}
-	mkdir -m 1777 ${x11_socket_dirs}
-}
+stop_cmd=":"
 
 cleartmp_start()
 {
-	echo "Clearing /tmp."
-	#
-	#	Prune quickly with one rm, then use find to clean up
-	#	/tmp/[lq]* (this is not needed with mfs /tmp, but
-	#	doesn't hurt anything).
-	#
-	(cd /tmp && rm -rf [a-km-pr-zA-Z]* &&
-	    find -x . ! -name . ! -name lost+found ! -name quota.user \
-		! -name quota.group ! -name .X11-unix ! -name .ICE-unix \
-		! -name .font-unix ! -name .XIM-unix \
-		-exec rm -rf -- {} \; -type d -prune)
+	# Make /tmp location variable for easier debugging.
+	local tmp="/tmp"
+
+	# X related directories to create in /tmp.
+	local x11_socket_dirs="${tmp}/.X11-unix ${tmp}/.XIM-unix \
+			       ${tmp}/.ICE-unix ${tmp}/.font-unix"
+
+	if checkyesno ${rcvar1}; then
+		echo "Clearing ${tmp}."
+
+		# This is not needed for mfs, but doesn't hurt anything.
+		# Things to note:
+		# + The dot in ${tmp}/. is important.
+		# + Put -prune before -exec so find never descends
+		#   into a directory that was already passed to rm -rf.
+		# + "--" in rm arguments isn't strictly necessary, but
+		#   it can prevent foot-shooting in future.
+		# + /tmp/lost+found is preserved, but its contents are removed.
+		# + lost+found and quota.* in subdirectories are removed.
+		find -x ${tmp}/. ! -name . \
+		    ! \( -name lost+found -type d -user root \) \
+		    ! \( \( -name quota.user -or -name quota.group \) \
+			-type f -user root \) \
+		    -prune -exec rm -rf -- {} +
+	elif checkyesno clear_tmp_X; then
+		# Remove X lock files, since they will prevent you from
+		# restarting X.  Remove other X related directories.
+		echo "Clearing ${tmp} (X related)."
+		rm -rf ${tmp}/.X[0-9]-lock ${x11_socket_dirs}
+	fi
+	if checkyesno clear_tmp_X; then
+		# Create X related directories with proper permissions.
+		mkdir -m 1777 ${x11_socket_dirs}
+	fi
 }
 
 load_rc_config $name
-
-# The clear_tmp_X variable should be tested even if clear_tmp_enable is NO
-case "$1" in
-*start)	cleartmp_prestart ;;
-esac
-
 run_rc_command "$1"
