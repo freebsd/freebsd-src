@@ -27,7 +27,7 @@
 .\" $OpenBSD: dirname.3,v 1.9 2000/04/18 03:01:25 aaron Exp $
 .\" $FreeBSD$
 .\"
-.Dd August 17, 1997
+.Dd October 12, 2006
 .Dt DIRNAME 3
 .Os
 .Sh NAME
@@ -58,6 +58,20 @@ characters,
 returns a pointer to the string
 .Qq \&. ,
 signifying the current directory.
+.Sh IMPLEMENTATION NOTES
+The
+.Fn dirname
+function
+returns a pointer to internal storage space allocated on the first call
+that will be overwritten
+by subsequent calls.
+.Pp
+Other vendor implementations of
+.Fn dirname
+may modify the contents of the string passed to
+.Fn dirname ;
+this should be taken into account when writing code which calls this function
+if portability is desired.
 .Sh RETURN VALUES
 On successful completion,
 .Fn dirname
@@ -77,19 +91,6 @@ The following error codes may be set in
 The path component to be returned was larger than
 .Dv MAXPATHLEN .
 .El
-.Sh WARNINGS
-The
-.Fn dirname
-function
-returns a pointer to internal static storage space that will be overwritten
-by subsequent calls (each function has its own separate storage).
-.Pp
-Other vendor implementations of
-.Fn dirname
-may modify the contents of the string passed to
-.Fn dirname ;
-this should be taken into account when writing code which calls this function
-if portability is desired.
 .Sh SEE ALSO
 .Xr basename 1 ,
 .Xr dirname 1 ,
