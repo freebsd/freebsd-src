@@ -59,7 +59,7 @@ INCLUDES+= -I$S/contrib/ipfilter
 INCLUDES+= -I$S/contrib/pf
 
 # ... and the same for Atheros HAL
-INCLUDES+= -I$S/contrib/dev/ath -I$S/contrib/dev/ath/freebsd
+INCLUDES+= -I$S/dev/ath
 
 # ... and the same for the NgATM stuff
 INCLUDES+= -I$S/contrib/ngatm
