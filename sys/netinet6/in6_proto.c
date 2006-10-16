@@ -502,6 +502,7 @@ SYSCTL_OID(_net_inet6_ip6, IPV6CTL_TEMPVLTIME, tempvltime,
 	   sysctl_ip6_tempvltime, "I", "");
 SYSCTL_INT(_net_inet6_ip6, IPV6CTL_V6ONLY,
 	v6only,	CTLFLAG_RW,	&ip6_v6only,			0, "");
+TUNABLE_INT("net.inet6.ip6.auto_linklocal", &ip6_auto_linklocal);
 SYSCTL_INT(_net_inet6_ip6, IPV6CTL_AUTO_LINKLOCAL,
 	auto_linklocal, CTLFLAG_RW, &ip6_auto_linklocal,	0, "");
 SYSCTL_STRUCT(_net_inet6_ip6, IPV6CTL_RIP6STATS, rip6stats, CTLFLAG_RD,
