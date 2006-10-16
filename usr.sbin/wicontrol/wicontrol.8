@@ -30,7 +30,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd March 4, 2003
+.Dd October 12, 2006
 .Dt WICONTROL 8
 .Os
 .Sh NAME
@@ -38,72 +38,77 @@
 .Nd "configure Lucent, Intersil, and Atheros wireless devices"
 .Sh SYNOPSIS
 .Nm
-.Op Fl i
-.Ar iface Op Fl o
+.Op Oo Fl i Oc Ar iface
 .Nm
-.Op Fl i
-.Ar iface Fl l
+.Op Oo Fl i Oc Ar iface
+.Fl o
+.Nm
+.Op Oo Fl i Oc Ar iface
+.Fl l
 (dump associated stations)
 .Nm
-.Op Fl i
-.Ar iface Fl L
+.Op Oo Fl i Oc Ar iface
+.Fl L
 (list available access points)
 .Nm
-.Op Fl i
-.Ar iface Fl t Ar tx_rate
+.Op Oo Fl i Oc Ar iface
+.Fl t Ar tx_rate
 .Nm
-.Op Fl i
-.Ar iface Fl n Ar network_name
+.Op Oo Fl i Oc Ar iface
+.Fl n Ar network_name
 .Nm
-.Op Fl i
-.Ar iface Fl s Ar station_name
+.Op Oo Fl i Oc Ar iface
+.Fl s Ar station_name
 .Nm
-.Op Fl i
-.Ar iface Fl c Cm 0 | 1
+.Op Oo Fl i Oc Ar iface
+.Fl c Cm 0 | 1
 .Nm
-.Op Fl i
-.Ar iface Fl q Ar SSID
+.Op Oo Fl i Oc Ar iface
+.Fl q Ar SSID
 .Nm
-.Op Fl i
-.Ar iface Fl p Ar port_type
+.Op Oo Fl i Oc Ar iface
+.Fl p Ar port_type
 .Nm
-.Op Fl i
-.Ar iface Fl a Ar access_point_density
+.Op Oo Fl i Oc Ar iface
+.Fl a Ar access_point_density
 .Nm
-.Op Fl i
-.Ar iface Fl m Ar mac_address
+.Op Oo Fl i Oc Ar iface
+.Fl m Ar mac_address
 .Nm
-.Op Fl i
-.Ar iface Fl d Ar max_data_length
+.Op Oo Fl i Oc Ar iface
+.Fl d Ar max_data_length
 .Nm
-.Op Fl i
-.Ar iface Fl e Cm 0 | 1
+.Op Oo Fl i Oc Ar iface
+.Fl e Cm 0 | 1
 .Nm
-.Op Fl i
-.Ar iface Fl k Ar key
+.Op Oo Fl i Oc Ar iface
+.Fl k Ar key
 .Op Fl v Cm 1 | 2 | 3 | 4
 .Nm
-.Op Fl i
-.Ar iface Fl T Cm 1 | 2 | 3 | 4
+.Op Oo Fl i Oc Ar iface
+.Fl r Ar RTS_threshold
 .Nm
-.Op Fl i
-.Ar iface Fl r Ar RTS_threshold
+.Op Oo Fl i Oc Ar iface
+.Fl f Ar frequency
 .Nm
-.Op Fl i
-.Ar iface Fl f Ar frequency
+.Op Oo Fl i Oc Ar iface
+.Fl F Cm 0 | 1
 .Nm
-.Op Fl i
-.Ar iface Fl P Cm 0 | 1
+.Op Oo Fl i Oc Ar iface
+.Fl P Cm 0 | 1
 .Nm
-.Op Fl i
-.Ar iface Fl S Ar max_sleep_duration
+.Op Oo Fl i Oc Ar iface
+.Fl S Ar max_sleep_duration
 .Nm
-.Op Fl i
-.Ar iface Fl Z
+.Op Oo Fl i Oc Ar iface
+.Fl T Cm 1 | 2 | 3 | 4
+.Nm
+.Op Oo Fl i Oc Ar iface
+.Fl Z
 (zero signal cache)
 .Nm
-.Op Fl i
-.Ar iface Fl C
+.Op Oo Fl i Oc Ar iface
+.Fl C
 (display signal cache)
 .Sh DESCRIPTION
 The
@@ -138,21 +143,20 @@ If none is specified then
 .Dq Li wi0
 is used as default.
 .Sh OPTIONS
+In the first synopsis form,
+.Nm
+displays the current settings of the specified wireless interface.
+It retrieves the current card settings from the driver and prints them
+out.
+.Pp
 The options are as follows:
 .Bl -tag -width indent
-.It Oo Fl i Oc Ar iface Op Fl o
-Display the current settings of the specified wireless interface.
-This retrieves the current card settings from the driver and prints them
-out.
-Using the additional
-.Fl o
-flag will cause
-.Nm
-to print out the statistics counters instead of the card settings.
+.It Fl o
+Print out the statistics counters instead of the card settings.
 Encryption keys are only displayed if
 .Nm
 is run as root.
-.It Oo Fl i Oc Ar iface Fl a Ar access_point_density
+.It Fl a Ar access_point_density
 Specify the
 access point density
 for a given interface.
@@ -164,7 +168,7 @@ Legal values are
 .Cm 3
 (high).
 This setting influences some of the radio modem threshold settings.
-.It Oo Fl i Oc Ar iface Fl m Ar mac_address
+.It Fl m Ar mac_address
 Set the station address for the specified interface.
 The
 .Ar mac_address
@@ -173,13 +177,13 @@ e.g.,
 .Dq Li 00:60:1d:12:34:56 .
 This programs the new address into the card
 and updates the interface as well.
-.It Oo Fl i Oc Ar iface Fl d Ar max_data_length
+.It Fl d Ar max_data_length
 Set the maximum receive and transmit frame size for a specified interface.
 The
 .Ar max_data_length
 can be any number from 350 to 2304.
 The default is 2304.
-.It Oo Fl i Oc Ar iface Fl r Ar RTS_threshold
+.It Fl r Ar RTS_threshold
 Set the RTS/CTS threshold for a given interface.
 This controls the
 number of bytes used for the RTS/CTS handshake boundary.
@@ -187,11 +191,11 @@ The
 .Ar RTS_threshold
 can be any value between 0 and 2347.
 The default is 2347.
-.It Oo Fl i Oc Ar iface Fl Z
+.It Fl Z
 Clear the signal strength cache maintained internally by the
 .Xr wi 4
 driver.
-.It Oo Fl i Oc Ar iface Fl C
+.It Fl C
 Display the cached signal strength information maintained by the
 .Xr wi 4
 driver.
@@ -212,7 +216,7 @@ have been overtaken by extensions to
 and changes to the driver.
 The deprecated and obsolete options are as follows:
 .Bl -tag -width indent
-.It Oo Fl i Oc Ar iface Fl t Ar tx_rate
+.It Fl t Ar tx_rate
 This flag is deprecated.
 Use
 .Xr ifconfig 8
@@ -243,7 +247,7 @@ The default driver setting is
 .Cm 3
 (auto rate select).
 The numbers vary from card to card.
-.It Oo Fl i Oc Ar iface Fl n Ar network_name
+.It Fl n Ar network_name
 This flag is deprecated.
 Use
 .Xr ifconfig 8
@@ -272,7 +276,7 @@ host to connect to any access point, however I have also seen a reference
 in another driver which indicates that the
 .Dq Li ANY
 string works as well.
-.It Oo Fl i Oc Ar iface Fl s Ar station_name
+.It Fl s Ar station_name
 This flag is deprecated.
 Use
 .Xr ifconfig 8
@@ -291,7 +295,7 @@ The
 .Tn "Lucent WaveMANAGER"
 software can
 poll the names of remote hosts.
-.It Oo Fl i Oc Ar iface Fl c Cm 0 | 1
+.It Fl c Cm 0 | 1
 This flag is deprecated.
 IBSS networks are automatically created on those cards whose firmware
 supports it while in IBSS mode.
@@ -306,7 +310,7 @@ The default is
 .Cm 0 .
 .Pp
 Only newer versions of the Lucent firmware support this.
-.It Oo Fl i Oc Ar iface Fl q Ar SSID
+.It Fl q Ar SSID
 This flag is deprecated.
 The
 .Cm ssid
@@ -321,7 +325,7 @@ can be any text string up to 30 characters long.
 .Pp
 Note: this option is provided for experimental purposes only: enabling
 the creation of an IBSS on a host system does not appear to actually work.
-.It Oo Fl i Oc Ar iface Fl p Ar port_type
+.It Fl p Ar port_type
 This flag is deprecated.
 It should never be used.
 Do not use this flag.
@@ -360,7 +364,7 @@ Lucent cards have one set of meanings.
 Prism cards have another.
 Symbol cards have a third.
 Do not use this flag.
-.It Oo Fl i Oc Ar iface Fl e Cm 0 | 1
+.It Fl e Cm 0 | 1
 This flag is deprecated.
 It has been replaced by the
 .Xr ifconfig 8
@@ -379,7 +383,7 @@ Both 128-bit and 64-bit WEP have been broken.
 See the
 .Sx BUGS
 section for details.
-.It Oo Fl i Oc Ar iface Fl k Ar key Op Fl v Cm 1 | 2 | 3 | 4
+.It Fl k Ar key Op Fl v Cm 1 | 2 | 3 | 4
 This flag is obsolete.
 The
 .Xr ifconfig 8
@@ -420,7 +424,7 @@ Note: Both 128-bit and 64-bit WEP encryption have been broken.
 See the
 .Sx BUGS
 section for details.
-.It Oo Fl i Oc Ar iface Fl T Cm 1 | 2 | 3 | 4
+.It Fl T Cm 1 | 2 | 3 | 4
 This flag is obsolete.
 The
 .Xr ifconfig 8
@@ -434,7 +438,7 @@ Note: Both 128-bit and 64-bit WEP have been broken.
 See the
 .Sx BUGS
 section for details.
-.It Oo Fl i Oc Ar iface Fl f Ar frequency
+.It Fl f Ar frequency
 This flag is deprecated.
 Use
 .Xr ifconfig 8
@@ -482,7 +486,7 @@ For NICs sold in Japan, the default channel is
 and it is the only available channel for pre-11Mbps NICs.
 Note that two stations must be set to the same channel in order to
 communicate.
-.It Oo Fl i Oc Ar iface Fl P Cm 0 | 1
+.It Fl P Cm 0 | 1
 This flag is obsolete.
 The
 .Xr ifconfig 8
@@ -509,7 +513,7 @@ values for this parameter are
 (off) and
 .Cm 1
 (on).
-.It Oo Fl i Oc Ar iface Fl S Ar max_sleep_interval
+.It Fl S Ar max_sleep_interval
 This flag is obsolete.
 The
 .Xr ifconfig 8
