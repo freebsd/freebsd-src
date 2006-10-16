@@ -48,7 +48,7 @@ their error returns, and other common definitions and concepts.
 .\".Pp
 .\".Sy System call restart
 .\".Pp
-.\"<more later...>
+.\"(more later...)
 .Sh RETURN VALUES
 Nearly all of the system calls provide an error number referenced via
 the external identifier errno.
@@ -76,8 +76,8 @@ indicating failure (usually -1)
 and sets the variable
 .Va errno
 accordingly.
-<This allows interpretation of the failure on receiving
-a -1 and to take action accordingly.>
+(This allows interpretation of the failure on receiving
+a -1 and to take action accordingly.)
 Successful calls never set
 .Va errno ;
 once set, it remains until another error occurs.
@@ -197,8 +197,8 @@ Maximum number of file descriptors allowable on the system
 has been reached and a requests for an open cannot be satisfied
 until at least one has been closed.
 .It Er 24 EMFILE Em "Too many open files" .
-<As released, the limit on the number of
-open files per process is 64.>
+(As released, the limit on the number of
+open files per process is 64.)
 The
 .Xr getdtablesize 2
 system call will obtain the current limit.
