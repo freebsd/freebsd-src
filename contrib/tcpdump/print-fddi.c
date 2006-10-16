@@ -23,7 +23,7 @@
 
 #ifndef lint
 static const char rcsid[] _U_ =
-    "@(#) $Header: /tcpdump/master/tcpdump/print-fddi.c,v 1.64 2004/03/17 23:24:37 guy Exp $ (LBL)";
+    "@(#) $Header: /tcpdump/master/tcpdump/print-fddi.c,v 1.64.2.1 2005/07/07 01:24:35 guy Exp $ (LBL)";
 #endif
 
 #ifdef HAVE_CONFIG_H
@@ -282,7 +282,7 @@ fddi_print(const u_char *p, u_int length, u_int caplen)
 				printf("(LLC %s) ",
 			etherproto_string(htons(extracted_ethertype)));
 			}
-			if (!xflag && !qflag)
+			if (!suppress_default_print)
 				default_print(p, caplen);
 		}
 	} else if ((fddip->fddi_fc & FDDIFC_CLFF) == FDDIFC_SMT)
@@ -292,7 +292,7 @@ fddi_print(const u_char *p, u_int length, u_int caplen)
 		if (!eflag)
 			fddi_hdr_print(fddip, length + FDDI_HDRLEN, ESRC(&ehdr),
 			    EDST(&ehdr));
-		if (!xflag && !qflag)
+		if (!suppress_default_print)
 			default_print(p, caplen);
 	}
 }

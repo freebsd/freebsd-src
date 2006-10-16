@@ -32,7 +32,7 @@
 
 #ifndef lint
 static const char rcsid[] _U_ =
-    "@(#) $Header: /tcpdump/master/libpcap/fad-win32.c,v 1.11 2005/01/29 00:52:22 guy Exp $ (LBL)";
+    "@(#) $Header: /tcpdump/master/libpcap/fad-win32.c,v 1.11.2.1 2005/09/01 22:07:41 risso Exp $ (LBL)";
 #endif
 
 #ifdef HAVE_CONFIG_H
@@ -224,12 +224,22 @@ pcap_findalldevs(pcap_if_t **alldevsp, char *errbuf)
 	ULONG NameLength;
 	char *name;
 	
-	PacketGetAdapterNames(NULL, &NameLength);
+	if(!PacketGetAdapterNames(NULL, &NameLength) && NameLength == 0)
+	{
+		/*
+		 * If PacketGetAdapterNames *and* sets the lenght of the buffer to zero, 
+		 * it means there was an error.
+		 */
+		snprintf(errbuf, PCAP_ERRBUF_SIZE, "PacketGetAdapterNames failed: %s", pcap_win32strerror());
+		*alldevsp = NULL;
+		return -1;
+	}
 
 	if (NameLength > 0)
 		AdaptersName = (char*) malloc(NameLength);
 	else
 	{
+		snprintf(errbuf, PCAP_ERRBUF_SIZE, "no adapters found.");
 		*alldevsp = NULL;
 		return 0;
 	}

@@ -10,7 +10,7 @@ SRCS=	addrtoname.c cpack.c gmpls.c gmt2local.c ipproto.c \
 	print-arcnet.c print-arp.c print-ascii.c print-atalk.c \
 	print-atm.c print-bfd.c print-bgp.c \
 	print-bootp.c print-beep.c print-cdp.c print-chdlc.c \
-	print-cip.c print-cnfp.c print-decnet.c print-domain.c \
+	print-cip.c print-cnfp.c print-dccp.c print-decnet.c print-domain.c \
 	print-dvmrp.c print-eap.c print-egp.c print-eigrp.c \
 	print-enc.c print-esp.c print-ether.c \
 	print-fddi.c print-fr.c print-gre.c print-hsrp.c print-icmp.c \
@@ -23,9 +23,9 @@ SRCS=	addrtoname.c cpack.c gmpls.c gmt2local.c ipproto.c \
 	print-ospf.c print-pflog.c print-pgm.c print-pim.c \
 	print-ppp.c print-pppoe.c print-pptp.c print-radius.c \
 	print-raw.c print-rip.c print-rsvp.c print-rx.c print-sctp.c \
-	print-sip.c print-sl.c print-sll.c print-smb.c print-snmp.c \
-	print-stp.c print-sunatm.c print-sunrpc.c print-symantec.c \
-	print-syslog.c print-tcp.c \
+	print-sip.c print-sl.c print-sll.c print-slow.c print-smb.c \
+	print-snmp.c print-stp.c print-sunatm.c print-sunrpc.c \
+	print-symantec.c print-syslog.c print-tcp.c \
 	print-telnet.c print-tftp.c print-timed.c print-token.c \
 	print-udp.c print-vjc.c print-vrrp.c print-wb.c print-zephyr.c \
 	setsignal.c smbutil.c tcpdump.c util.c version.c

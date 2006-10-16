@@ -523,6 +523,18 @@ struct bpf_hdr {
 #define DLT_LINUX_LAPD		177
 
 /*
+ * Juniper-private data link type, as per request from
+ * Hannes Gredler <hannes@juniper.net>. 
+ * The DLT_ are used for prepending meta-information
+ * like interface index, interface name
+ * before standard Ethernet, PPP, Frelay & C-HDLC Frames
+ */
+#define DLT_JUNIPER_ETHER       178
+#define DLT_JUNIPER_PPP         179
+#define DLT_JUNIPER_FRELAY      180
+#define DLT_JUNIPER_CHDLC       181
+
+/*
  * The instruction encodings.
  */
 /* instruction classes */

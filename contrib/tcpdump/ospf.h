@@ -1,4 +1,4 @@
-/* @(#) $Header: /tcpdump/master/tcpdump/ospf.h,v 1.16 2004/09/20 14:56:34 hannes Exp $ (LBL) */
+/* @(#) $Header: /tcpdump/master/tcpdump/ospf.h,v 1.16.2.1 2005/08/23 11:16:30 hannes Exp $ (LBL) */
 /*
  * Copyright (c) 1991, 1993, 1994, 1995, 1996, 1997
  *	The Regents of the University of California.  All rights reserved.
@@ -89,7 +89,7 @@
 #define LS_OPAQUE_TE_LINK_SUBTLV_LINK_PROTECTION_TYPE 14 /* draft-ietf-ccamp-ospf-gmpls-extensions */
 #define LS_OPAQUE_TE_LINK_SUBTLV_INTF_SW_CAP_DESCR    15 /* draft-ietf-ccamp-ospf-gmpls-extensions */
 #define LS_OPAQUE_TE_LINK_SUBTLV_SHARED_RISK_GROUP    16 /* draft-ietf-ccamp-ospf-gmpls-extensions */
-#define LS_OPAQUE_TE_LINK_SUBTLV_DIFFSERV_TE          17 /* draft-ietf-tewg-diff-te-proto-06 */
+#define LS_OPAQUE_TE_LINK_SUBTLV_BW_CONSTRAINTS       17 /* rfc4124 */
 
 #define LS_OPAQUE_TE_LINK_SUBTLV_LINK_TYPE_PTP        1  /* rfc3630 */
 #define LS_OPAQUE_TE_LINK_SUBTLV_LINK_TYPE_MA         2  /* rfc3630 */

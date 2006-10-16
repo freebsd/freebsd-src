@@ -37,7 +37,7 @@
  *
  *      @(#)bpf.h       7.1 (Berkeley) 5/7/91
  *
- * @(#) $Header: /tcpdump/master/libpcap/pcap-bpf.h,v 1.34.2.5 2005/05/27 23:33:00 guy Exp $ (LBL)
+ * @(#) $Header: /tcpdump/master/libpcap/pcap-bpf.h,v 1.34.2.6 2005/08/13 22:29:47 hannes Exp $ (LBL)
  */
 
 /*
@@ -592,6 +592,18 @@ struct bpf_version {
  * not necessarily a generic LAPD header.
  */
 #define DLT_LINUX_LAPD		177
+
+/*
+ * Juniper-private data link type, as per request from
+ * Hannes Gredler <hannes@juniper.net>. 
+ * The DLT_ are used for prepending meta-information
+ * like interface index, interface name
+ * before standard Ethernet, PPP, Frelay & C-HDLC Frames
+ */
+#define DLT_JUNIPER_ETHER       178
+#define DLT_JUNIPER_PPP         179
+#define DLT_JUNIPER_FRELAY      180
+#define DLT_JUNIPER_CHDLC       181
 
 /*
  * The instruction encodings.
