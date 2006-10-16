@@ -80,7 +80,7 @@
 
 #include "mixer_if.h"
 
-#define HDA_DRV_TEST_REV	"20061013_0032"
+#define HDA_DRV_TEST_REV	"20061017_0033"
 #define HDA_WIDGET_PARSER_REV	1
 
 SND_DECLARE_FILE("$FreeBSD$");
@@ -189,6 +189,7 @@ SND_DECLARE_FILE("$FreeBSD$");
 #define ASUS_VENDORID		0x1043
 #define ASUS_M5200_SUBVENDOR	HDA_MODEL_CONSTRUCT(ASUS, 0x1993)
 #define ASUS_U5F_SUBVENDOR	HDA_MODEL_CONSTRUCT(ASUS, 0x1263)
+#define ASUS_A8JC_SUBVENDOR	HDA_MODEL_CONSTRUCT(ASUS, 0x1153)
 #define ASUS_ALL_SUBVENDOR	HDA_MODEL_CONSTRUCT(ASUS, 0xffff)
 
 /* IBM / Lenovo */
@@ -2689,7 +2690,6 @@ hdac_audio_ctl_ossmixer_set(struct snd_mixer *m, unsigned dev,
 	hdac_lock(sc);
 	if (dev == SOUND_MIXER_OGAIN) {
 		uint32_t orig;
-		int set;
 		/*if (left != right || !(left == 0 || left == 1)) {
 			hdac_unlock(sc);
 			return (-1);
@@ -2713,19 +2713,21 @@ hdac_audio_ctl_ossmixer_set(struct snd_mixer *m, unsigned dev,
 			return (-1);
 		}
 		orig = w->param.eapdbtl;
-		set = (left != 0) ? 1 : 0;
-		if (devinfo->function.audio.quirks & HDA_QUIRK_EAPDINV)
-			set ^= 1;
-		if (set == 0)
+		if (left == 0)
 			w->param.eapdbtl &= ~HDA_CMD_SET_EAPD_BTL_ENABLE_EAPD;
 		else
 			w->param.eapdbtl |= HDA_CMD_SET_EAPD_BTL_ENABLE_EAPD;
 		if (orig != w->param.eapdbtl) {
+			uint32_t val;
+
 			if (hdac_eapd_switch[i].hp_switch != 0)
 				hdac_hp_switch_handler(devinfo);
+			val = w->param.eapdbtl;
+			if (devinfo->function.audio.quirks & HDA_QUIRK_EAPDINV)
+				val ^= HDA_CMD_SET_EAPD_BTL_ENABLE_EAPD;
 			hdac_command(sc,
 			    HDA_CMD_SET_EAPD_BTL_ENABLE(devinfo->codec->cad,
-			    w->nid, w->param.eapdbtl), devinfo->codec->cad);
+			    w->nid, val), devinfo->codec->cad);
 		}
 		hdac_unlock(sc);
 		return (left | (left << 8));
@@ -3239,6 +3241,8 @@ static const struct {
 	{ ASUS_M5200_SUBVENDOR, HDA_CODEC_ALC880,
 	    HDA_QUIRK_GPIO1, 0 },
 	{ ASUS_U5F_SUBVENDOR, HDA_CODEC_AD1986A,
+	    HDA_QUIRK_EAPDINV, 0 },
+	{ ASUS_A8JC_SUBVENDOR, HDA_CODEC_AD1986A,
 	    HDA_QUIRK_EAPDINV, 0 },
 	{ HDA_MATCH_ALL, HDA_CODEC_CXVENICE,
 	    0, HDA_QUIRK_FORCESTEREO },
@@ -3922,19 +3926,15 @@ hdac_audio_commit(struct hdac_devinfo *devinfo, uint32_t cfl)
 		}
 		if ((cfl & HDA_COMMIT_EAPD) &&
 		    w->param.eapdbtl != HDAC_INVALID) {
+		    	uint32_t val;
+
+			val = w->param.eapdbtl;
 			if (devinfo->function.audio.quirks &
-			    HDA_QUIRK_EAPDINV) {
-				if (w->param.eapdbtl &
-				    HDA_CMD_SET_EAPD_BTL_ENABLE_EAPD)
-					w->param.eapdbtl &=
-					    ~HDA_CMD_SET_EAPD_BTL_ENABLE_EAPD;
-				else
-					w->param.eapdbtl |=
-					    HDA_CMD_SET_EAPD_BTL_ENABLE_EAPD;
-			}
+			    HDA_QUIRK_EAPDINV)
+				val ^= HDA_CMD_SET_EAPD_BTL_ENABLE_EAPD;
 			hdac_command(sc,
 			    HDA_CMD_SET_EAPD_BTL_ENABLE(cad, w->nid,
-			    w->param.eapdbtl), cad);
+			    val), cad);
 
 		}
 		DELAY(1000);
