@@ -1,6 +1,7 @@
 # $FreeBSD$
 
 .PATH: ${.CURDIR}/../../dev/mem
+.PATH: ${.CURDIR}/../../${MACHINE}/${MACHINE}
 .PATH: ${.CURDIR}/../../${MACHINE_ARCH}/${MACHINE_ARCH}
 
 KMOD=	mem
