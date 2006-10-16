@@ -54,7 +54,7 @@ kgdb_trgt_fetch_registers(int regno __unused)
 	struct kthr *kt;
 	struct pcb pcb;
 	int i, reg;
-	
+
 	kt = kgdb_thr_lookup_tid(ptid_get_tid(inferior_ptid));
 	if (kt == NULL)
 		return;
@@ -63,7 +63,7 @@ kgdb_trgt_fetch_registers(int regno __unused)
 		memset(&pcb, 0, sizeof(pcb));
 	}
 	for (i = ARM_A1_REGNUM + 8; i <= ARM_SP_REGNUM; i++) {
-		supply_register(i, (char *)&pcb.un_32.pcb32_r8 + 
+		supply_register(i, (char *)&pcb.un_32.pcb32_r8 +
 		    (i - (ARM_A1_REGNUM + 8 )) * 4);
 	}
 	if (pcb.un_32.pcb32_sp != 0) {
@@ -174,7 +174,7 @@ kgdb_trgt_trapframe_prev_register(struct frame_info *next_frame,
 		return;
 
 	cache = kgdb_trgt_frame_cache(next_frame, this_cache);
-			
+
 	if (is_undef && (regnum == ARM_SP_REGNUM || regnum == ARM_PC_REGNUM)) {
 		*addrp = cache->sp + offsetof(struct trapframe, tf_spsr);
 		target_read_memory(*addrp, valuep, regsz);
