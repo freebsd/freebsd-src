@@ -58,6 +58,7 @@
 
 #ifndef DEV_ATPIC
 #include <machine/segments.h>
+#include <machine/frame.h>
 #include <dev/ic/i8259.h>
 #include <amd64/isa/icu.h>
 #include <amd64/isa/isa.h>
