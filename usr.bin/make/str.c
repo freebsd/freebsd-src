@@ -260,8 +260,10 @@ brk_string(ArgArray *aa, const char str[], Boolean expand)
 				}
 			} else {
 				*arg++ = str[0];
-				++str;
-				*arg++ = str[0];
+				if (str[1] != '\0') {
+					++str;
+					*arg++ = str[0];
+				}
 			}
 			break;
 		default:
