@@ -102,7 +102,7 @@ kgdb_thr_init(void)
 		stopped_cpus = 0;
 
 	stoppcbs = lookup("_stoppcbs");
-	
+
 	while (paddr != 0) {
 		if (kvm_read(kvm, paddr, &p, sizeof(p)) != sizeof(p))
 			warnx("kvm_read: %s", kvm_geterr(kvm));
@@ -118,7 +118,7 @@ kgdb_thr_init(void)
 			else if (td.td_state == TDS_RUNNING && ((1 << td.td_oncpu) & stopped_cpus)
 				&& stoppcbs != 0)
 				kt->pcb = (uintptr_t) stoppcbs + sizeof(struct pcb) * td.td_oncpu;
-			else 
+			else
 				kt->pcb = (uintptr_t)td.td_pcb;
 			kt->kstack = td.td_kstack;
 			kt->tid = td.td_tid;
