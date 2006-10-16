@@ -1446,7 +1446,7 @@ mfi_add_ld_complete(struct mfi_command *cm)
 	mtx_unlock(&Giant);
 	mtx_lock(&sc->mfi_io_lock);
 }
-int mfi_io=0;
+
 static struct mfi_command *
 mfi_bio_command(struct mfi_softc *sc)
 {
@@ -1495,7 +1495,6 @@ mfi_bio_command(struct mfi_softc *sc)
 	cm->cm_sg = &io->sgl;
 	cm->cm_total_frame_size = MFI_IO_FRAME_SIZE;
 	cm->cm_flags = flags;
-	mfi_io++;
 	return (cm);
 }
 
@@ -1520,7 +1519,6 @@ mfi_bio_complete(struct mfi_command *cm)
 
 	mfi_release_command(cm);
 	mfi_disk_complete(bio);
-	mfi_io--;
 }
 
 void
