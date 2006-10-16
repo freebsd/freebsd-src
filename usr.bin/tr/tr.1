@@ -35,7 +35,7 @@
 .\"     @(#)tr.1	8.1 (Berkeley) 6/6/93
 .\" $FreeBSD$
 .\"
-.Dd July 23, 2004
+.Dd October 13, 2006
 .Dt TR 1
 .Os
 .Sh NAME
@@ -182,16 +182,21 @@ previous implementations.
 Represents all characters belonging to the defined character class.
 Class names are:
 .Pp
-.Bl -column "xdigit"
+.Bl -column "phonogram"
 .It "alnum	<alphanumeric characters>
 .It "alpha	<alphabetic characters>
+.It "blank	<whitespace characters>
 .It "cntrl	<control characters>
 .It "digit	<numeric characters>
 .It "graph	<graphic characters>
+.It "ideogram	<ideographic characters>
 .It "lower	<lower-case alphabetic characters>
+.It "phonogram	<phonographic characters>
 .It "print	<printable characters>
 .It "punct	<punctuation characters>
+.It "rune	<valid characters>
 .It "space	<space characters>
+.It "special	<special characters>
 .It "upper	<upper-case characters>
 .It "xdigit	<hexadecimal characters>
 .El
@@ -396,6 +401,13 @@ The
 .Nm
 utility conforms to
 .St -p1003.1-2001 .
+The
+.Dq ideogram ,
+.Dq phonogram ,
+.Dq rune ,
+and
+.Dq special
+character classes are extensions.
 .Pp
 It should be noted that the feature wherein the last character of
 .Ar string2
