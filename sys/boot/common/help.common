@@ -44,7 +44,7 @@
 
 	bcachestat
 
-	Displays statistics about disk cache usage.  For depuration only.
+	Displays statistics about disk cache usage.  For debugging only.
 
 ################################################################################
 # Techo DEcho arguments
