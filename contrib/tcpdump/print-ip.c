@@ -23,7 +23,7 @@
 
 #ifndef lint
 static const char rcsid[] _U_ =
-    "@(#) $Header: /tcpdump/master/tcpdump/print-ip.c,v 1.149.2.1 2005/05/20 21:15:46 hannes Exp $ (LBL)";
+    "@(#) $Header: /tcpdump/master/tcpdump/print-ip.c,v 1.149.2.2 2005/09/20 06:05:38 guy Exp $ (LBL)";
 #endif
 
 #ifdef HAVE_CONFIG_H
@@ -413,6 +413,10 @@ again:
 	case IPPROTO_SCTP:
 		sctp_print(ipds->cp, (const u_char *)ipds->ip, ipds->len);
 		break;
+
+	case IPPROTO_DCCP:
+		dccp_print(ipds->cp, (const u_char *)ipds->ip, ipds->len);
+		break;
 		
 	case IPPROTO_TCP:
 		tcp_print(ipds->cp, ipds->len, (const u_char *)ipds->ip,
@@ -667,7 +671,7 @@ ip_print(netdissect_options *ndo,
 		ipds->nh = ipds->ip->ip_p;
 
 		if (ipds->nh != IPPROTO_TCP && ipds->nh != IPPROTO_UDP &&
-		    ipds->nh != IPPROTO_SCTP) {
+		    ipds->nh != IPPROTO_SCTP && ipds->nh != IPPROTO_DCCP) {
 			(void)printf("%s > %s: ",
 				     ipaddr_string(&ipds->ip->ip_src),
 				     ipaddr_string(&ipds->ip->ip_dst));

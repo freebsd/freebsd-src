@@ -21,7 +21,7 @@
  * WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED WARRANTIES OF
  * MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * @(#) $Header: /tcpdump/master/tcpdump/netdissect.h,v 1.16 2005/04/07 00:28:17 mcr Exp $ (LBL)
+ * @(#) $Header: /tcpdump/master/tcpdump/netdissect.h,v 1.16.2.3 2005/09/29 07:46:46 hannes Exp $ (LBL)
  */
 
 #ifndef netdissect_h
@@ -107,7 +107,8 @@ struct netdissect_options {
   int ndo_Cflag;                /* rotate dump files after this many bytes */ 
   int ndo_Cflag_count;      /* Keep track of which file number we're writing */
   int ndo_Wflag;          /* recycle output files after this number of files */
-  int ndo_WflagChars;     
+  int ndo_WflagChars;
+  int ndo_suppress_default_print; /* don't use default_print() for unknown packet types */
   const char *ndo_dltname;
 
   char *ndo_espsecret;
@@ -234,7 +235,6 @@ extern void safeputs(const char *);
 
 #if 0
 extern const char *isonsap_string(netdissect_options *, const u_char *);
-extern const char *llcsap_string(netdissect_options *, u_char);
 extern const char *protoid_string(netdissect_options *, const u_char *);
 extern const char *dnname_string(netdissect_options *, u_short);
 extern const char *dnnum_string(netdissect_options *, u_short);
@@ -261,13 +261,14 @@ extern void ip_print_inner(netdissect_options *ndo,
 
 /* stuff that has not yet been rototiled */
 #if 0
-extern void ascii_print_with_offset(netdissect_options *, const char *,
-				    u_int, u_int);    
-extern void ascii_print(netdissect_options *,const char *, u_int);    
+extern void ascii_print(netdissect_options *,u_int);
+extern void hex_and_ascii_print_with_offset(netdissect_options *,const char *,
+				    u_int, u_int);
+extern void hex_and_ascii_print(netdissect_options *,const char *, u_int);
 extern void hex_print_with_offset(netdissect_options *,const char *,
-				  u_int, u_int);    
-extern void telnet_print(netdissect_options *,const u_char *, u_int);    
-extern void hex_print(netdissect_options *,const char *, u_int);    
+				  u_int, u_int);
+extern void hex_print(netdissect_options *,const char *, u_int);
+extern void telnet_print(netdissect_options *,const u_char *, u_int);
 extern int ether_encap_print(netdissect_options *,u_short, const u_char *,
 			     u_int, u_int, u_short *);
 extern int llc_print(netdissect_options *,

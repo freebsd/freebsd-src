@@ -1,4 +1,4 @@
-.\" @(#) $Header: /tcpdump/master/tcpdump/tcpdump.1,v 1.167.2.4 2005/05/02 21:27:34 guy Exp $ (LBL)
+.\" @(#) $Header: /tcpdump/master/tcpdump/tcpdump.1,v 1.167.2.6 2005/09/05 09:14:37 guy Exp $ (LBL)
 .\"
 .\"	$NetBSD: tcpdump.8,v 1.9 2003/03/31 00:18:17 perry Exp $
 .\"
@@ -1029,20 +1029,72 @@ Note that
 \fItcpdump\fP does not currently know how to parse these protocols.
 .IP "\fBvlan \fI[vlan_id]\fR"
 True if the packet is an IEEE 802.1Q VLAN packet.
-If \fI[vlan_id]\fR is specified, only true is the packet has the specified
+If \fI[vlan_id]\fR is specified, only true if the packet has the specified
 \fIvlan_id\fR.
 Note that the first \fBvlan\fR keyword encountered in \fIexpression\fR
-changes the decoding offsets for the remainder of \fIexpression\fR
-on the assumption that the packet is a VLAN packet.
-the \fI[vlan_id]\fR statement may be used more than once, to filter on vlan hierarchies.
-each use of the \fI[vlan_id]\fR \fIexpression\fR increments the filter offsets by 4.
+changes the decoding offsets for the remainder of \fIexpression\fR on
+the assumption that the packet is a VLAN packet.  The \fBvlan
+\fI[vlan_id]\fR expression may be used more than once, to filter on VLAN
+hierarchies.  Each use of that expression increments the filter offsets
+by 4.
+.IP
+For example:
+.in +.5i
+.nf
+\fBvlan 100 && vlan 200\fR
 .fi
-example(s):
+.in -.5i
+filters on VLAN 200 encapsulated within VLAN 100, and
+.in +.5i
+.nf
+\fBvlan && vlan 300 && ip\fR
 .fi
-"vlan 100 && vlan 200" filters on vlan 200 encapsulated within vlan 100
+.in -.5i
+filters IPv4 protocols encapsulated in VLAN 300 encapsulated within any
+higher order VLAN.
+.IP "\fBmpls \fI[label_num]\fR"
+True if the packet is an MPLS packet.
+If \fI[label_num]\fR is specified, only true is the packet has the specified
+\fIlabel_num\fR.
+Note that the first \fBmpls\fR keyword encountered in \fIexpression\fR
+changes the decoding offsets for the remainder of \fIexpression\fR on
+the assumption that the packet is a MPLS-encapsulated IP packet.  The
+\fBmpls \fI[label_num]\fR expression may be used more than once, to
+filter on MPLS hierarchies.  Each use of that expression increments the
+filter offsets by 4. 
+.IP
+For example:
+.in +.5i
+.nf
+\fBmpls 100000 && mpls 1024\fR
 .fi
-"vlan && vlan 300 && ip" filters IPv4 protocols encapsulated in vlan 300 encapsulated within any higher order vlan
+.in -.5i
+filters packets with an outer label of 100000 and an inner label of
+1024, and
+.in +.5i
+.nf
+\fBmpls && mpls 1024 && host 192.9.200.1\fR
 .fi
+.in -.5i
+filters packets to or from 192.9.200.1 with an inner label of 1024 and
+any outer label.
+.IP \fBpppoed\fP
+True if the packet is a PPP-over-Ethernet Discovery packet (Ethernet
+type 0x8863).
+.IP \fBpppoes\fP
+True if the packet is a PPP-over-Ethernet Session packet (Ethernet
+type 0x8864).
+Note that the first \fBpppoes\fR keyword encountered in \fIexpression\fR
+changes the decoding offsets for the remainder of \fIexpression\fR on
+the assumption that the packet is a PPPoE session packet.
+.IP
+For example:
+.in +.5i
+.nf
+\fBpppoes && ip\fR
+.fi
+.in -.5i
+filters IPv4 protocols encapsulated in PPPoE.
 .IP  "\fBtcp\fR, \fBudp\fR, \fBicmp\fR"
 Abbreviations for:
 .in +.5i
@@ -2256,6 +2308,13 @@ patches@tcpdump.org
 .LP
 NIT doesn't let you watch your own outbound traffic, BPF will.
 We recommend that you use the latter.
+.LP
+When running
+.BR tcpdump
+with the
+.B \-v
+option on a network interface supporting checksum off-loading,
+IP packets sourced from this machine will have many false 'bad cksum 0' errors.
 .LP
 On Linux systems with 2.0[.x] kernels:
 .IP

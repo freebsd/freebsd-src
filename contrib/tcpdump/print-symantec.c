@@ -20,7 +20,7 @@
  */
 #ifndef lint
 static const char rcsid[] _U_ =
-    "@(#) $Header: /tcpdump/master/tcpdump/print-symantec.c,v 1.4 2004/04/05 00:13:59 mcr Exp $ (LBL)";
+    "@(#) $Header: /tcpdump/master/tcpdump/print-symantec.c,v 1.4.2.1 2005/07/07 01:24:39 guy Exp $ (LBL)";
 #endif
 
 #ifdef HAVE_CONFIG_H
@@ -105,7 +105,7 @@ symantec_if_print(const struct pcap_pkthdr *h, const u_char *p)
 		if (!eflag)
 			symantec_hdr_print((u_char *)sp, length + sizeof (struct symantec_header));
 
-		if (!xflag && !qflag)
+		if (!suppress_default_print)
 			default_print(p, caplen);
 	} else if (ether_encap_print(ether_type, p, length, caplen,
 	    &extracted_ether_type) == 0) {
@@ -113,7 +113,7 @@ symantec_if_print(const struct pcap_pkthdr *h, const u_char *p)
 		if (!eflag)
 			symantec_hdr_print((u_char *)sp, length + sizeof (struct symantec_header));
 
-		if (!xflag && !qflag)
+		if (!suppress_default_print)
 			default_print(p, caplen);
 	} 
 
