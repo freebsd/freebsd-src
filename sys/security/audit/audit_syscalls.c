@@ -36,6 +36,7 @@
 #include <sys/sysproto.h>
 #include <sys/systm.h>
 #include <sys/vnode.h>
+#include <sys/jail.h>
 
 #include <bsm/audit.h>
 #include <bsm/audit_kevents.h>
@@ -63,6 +64,8 @@ audit(struct thread *td, struct audit_args *uap)
 	void * rec;
 	struct kaudit_record *ar;
 
+	if (jailed(td->td_ucred))
+		return (ENOSYS);
 	error = suser(td);
 	if (error)
 		return (error);
@@ -150,6 +153,8 @@ auditon(struct thread *td, struct auditon_args *uap)
 	union auditon_udata udata;
 	struct proc *tp;
 
+	if (jailed(td->td_ucred))
+		return (ENOSYS);
 	AUDIT_ARG(cmd, uap->cmd);
 	error = suser(td);
 	if (error)
@@ -397,6 +402,8 @@ getauid(struct thread *td, struct getauid_args *uap)
 	int error;
 	au_id_t id;
 
+	if (jailed(td->td_ucred))
+		return (ENOSYS);
 	error = suser(td);
 	if (error)
 		return (error);
@@ -419,6 +426,8 @@ setauid(struct thread *td, struct setauid_args *uap)
 	int error;
 	au_id_t id;
 
+	if (jailed(td->td_ucred))
+		return (ENOSYS);
 	error = suser(td);
 	if (error)
 		return (error);
@@ -457,6 +466,8 @@ getaudit(struct thread *td, struct getaudit_args *uap)
 	struct auditinfo ai;
 	int error;
 
+	if (jailed(td->td_ucred))
+		return (ENOSYS);
 	error = suser(td);
 	if (error)
 		return (error);
@@ -476,6 +487,8 @@ setaudit(struct thread *td, struct setaudit_args *uap)
 	struct auditinfo ai;
 	int error;
 
+	if (jailed(td->td_ucred))
+		return (ENOSYS);
 	error = suser(td);
 	if (error)
 		return (error);
@@ -503,6 +516,8 @@ getaudit_addr(struct thread *td, struct getaudit_addr_args *uap)
 {
 	int error;
 
+	if (jailed(td->td_ucred))
+		return (ENOSYS);
 	error = suser(td);
 	if (error)
 		return (error);
@@ -516,6 +531,8 @@ setaudit_addr(struct thread *td, struct setaudit_addr_args *uap)
 {
 	int error;
 
+	if (jailed(td->td_ucred))
+		return (ENOSYS);
 	error = suser(td);
 	if (error)
 		return (error);
@@ -538,6 +555,8 @@ auditctl(struct thread *td, struct auditctl_args *uap)
 	int error = 0;
 	int flags, vfslocked;
 
+	if (jailed(td->td_ucred))
+		return (ENOSYS);
 	error = suser(td);
 	if (error)
 		return (error);
