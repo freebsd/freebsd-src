@@ -21,7 +21,7 @@
 
 #ifndef lint
 static const char rcsid[] _U_ =
-    "@(#) $Header: /tcpdump/master/tcpdump/print-pflog.c,v 1.13 2005/04/06 21:32:41 mcr Exp $ (LBL)";
+    "@(#) $Header: /tcpdump/master/tcpdump/print-pflog.c,v 1.13.2.1 2005/07/07 01:24:38 guy Exp $ (LBL)";
 #endif
 
 #ifdef HAVE_CONFIG_H
@@ -152,7 +152,7 @@ pflog_if_print(const struct pcap_pkthdr *h, register const u_char *p)
 		/* address family not handled, print raw packet */
 		if (!eflag)
 			pflog_print(hdr);
-		if (!xflag && !qflag)
+		if (!suppress_default_print)
 			default_print(p, caplen);
 	}
 	

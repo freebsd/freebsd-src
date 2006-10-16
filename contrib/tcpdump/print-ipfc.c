@@ -21,7 +21,7 @@
 
 #ifndef lint
 static const char rcsid[] _U_ =
-    "@(#) $Header: /tcpdump/master/tcpdump/print-ipfc.c,v 1.7 2004/03/17 23:24:37 guy Exp $ (LBL)";
+    "@(#) $Header: /tcpdump/master/tcpdump/print-ipfc.c,v 1.7.2.1 2005/07/07 01:24:36 guy Exp $ (LBL)";
 #endif
 
 #ifdef HAVE_CONFIG_H
@@ -117,7 +117,7 @@ ipfc_print(const u_char *p, u_int length, u_int caplen)
 			printf("(LLC %s) ",
 		etherproto_string(htons(extracted_ethertype)));
 		}
-		if (!xflag && !qflag)
+		if (!suppress_default_print)
 			default_print(p, caplen);
 	}
 }

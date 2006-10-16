@@ -1,4 +1,4 @@
-dnl @(#) $Header: /tcpdump/master/libpcap/configure.in,v 1.120.2.6 2005/06/20 21:37:43 guy Exp $ (LBL)
+dnl @(#) $Header: /tcpdump/master/libpcap/configure.in,v 1.120.2.7 2005/07/07 06:56:03 guy Exp $ (LBL)
 dnl
 dnl Copyright (c) 1994, 1995, 1996, 1997
 dnl	The Regents of the University of California.  All rights reserved.
@@ -6,7 +6,7 @@ dnl
 dnl Process this file with autoconf to produce a configure script.
 dnl
 
-AC_REVISION($Revision: 1.120.2.6 $)
+AC_REVISION($Revision: 1.120.2.7 $)
 AC_PREREQ(2.50)
 AC_INIT(pcap.c)
 
@@ -568,6 +568,10 @@ if test $ac_cv_lbl_dag_api = yes; then
 	LDFLAGS="-L$dag_lib_dir"
 	AC_CHECK_LIB([dag], [dag_attach_stream], [dag_version="2.5.x"], [dag_version="2.4.x"])
 	LDFLAGS=$saved_ldflags
+
+	if test "$dag_version" = 2.5.x; then
+		AC_DEFINE(HAVE_DAG_STREAMS_API, 1, [define if you have streams capable DAG API])
+	fi
 
 	# See if we can find a specific version string.
 	AC_MSG_CHECKING([the DAG API version])

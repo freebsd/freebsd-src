@@ -20,7 +20,7 @@
  */
 #ifndef lint
 static const char rcsid[] _U_ =
-    "@(#) $Header: /tcpdump/master/tcpdump/print-ap1394.c,v 1.3 2004/03/17 23:24:35 guy Exp $ (LBL)";
+    "@(#) $Header: /tcpdump/master/tcpdump/print-ap1394.c,v 1.3.2.1 2005/07/07 01:24:33 guy Exp $ (LBL)";
 #endif
 
 #ifdef HAVE_CONFIG_H
@@ -111,7 +111,7 @@ ap1394_if_print(const struct pcap_pkthdr *h, const u_char *p)
 		if (!eflag)
 			ap1394_hdr_print((u_char *)fp, length + FIREWIRE_HDRLEN);
 
-		if (!xflag && !qflag)
+		if (!suppress_default_print)
 			default_print(p, caplen);
 	} 
 

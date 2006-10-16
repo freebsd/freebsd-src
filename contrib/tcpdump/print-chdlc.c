@@ -21,7 +21,7 @@
 
 #ifndef lint
 static const char rcsid[] _U_ =
-    "@(#) $Header: /tcpdump/master/tcpdump/print-chdlc.c,v 1.32.2.7 2005/04/27 14:35:56 hannes Exp $ (LBL)";
+    "@(#) $Header: /tcpdump/master/tcpdump/print-chdlc.c,v 1.32.2.8 2005/08/23 10:29:42 hannes Exp $ (LBL)";
 #endif
 
 #ifdef HAVE_CONFIG_H
@@ -48,13 +48,18 @@ chdlc_if_print(const struct pcap_pkthdr *h, register const u_char *p)
 {
 	register u_int length = h->len;
 	register u_int caplen = h->caplen;
-	const struct ip *ip;
-	u_int proto;
 
 	if (caplen < CHDLC_HDRLEN) {
 		printf("[|chdlc]");
 		return (caplen);
 	}
+        return (chdlc_print(p,length));
+}
+
+u_int
+chdlc_print(register const u_char *p, u_int length) {
+	u_int proto;
+	const struct ip *ip;
 
 	proto = EXTRACT_16BITS(&p[2]);
 	if (eflag) {

@@ -15,7 +15,7 @@
 
 #ifndef lint
 static const char rcsid[] _U_ =
-    "@(#) $Header: /tcpdump/master/tcpdump/print-juniper.c,v 1.8.2.13 2005/06/20 07:45:05 hannes Exp $ (LBL)";
+    "@(#) $Header: /tcpdump/master/tcpdump/print-juniper.c,v 1.8.2.19 2005/08/23 10:29:42 hannes Exp $ (LBL)";
 #endif
 
 #ifdef HAVE_CONFIG_H
@@ -40,14 +40,18 @@ static const char rcsid[] _U_ =
 #define JUNIPER_BPF_IN            1       /* Incoming packet */
 #define JUNIPER_BPF_PKT_IN        0x1     /* Incoming packet */
 #define JUNIPER_BPF_NO_L2         0x2     /* L2 header stripped */
+#define JUNIPER_BPF_EXT           0x80    /* extensions present */
 #define JUNIPER_MGC_NUMBER        0x4d4743 /* = "MGC" */
 
+#define JUNIPER_LSQ_COOKIE_RE         (1 << 3)
+#define JUNIPER_LSQ_COOKIE_DIR        (1 << 2)
 #define JUNIPER_LSQ_L3_PROTO_SHIFT     4
 #define JUNIPER_LSQ_L3_PROTO_MASK     (0x17 << JUNIPER_LSQ_L3_PROTO_SHIFT)
 #define JUNIPER_LSQ_L3_PROTO_IPV4     (0 << JUNIPER_LSQ_L3_PROTO_SHIFT)
 #define JUNIPER_LSQ_L3_PROTO_IPV6     (1 << JUNIPER_LSQ_L3_PROTO_SHIFT)
 #define JUNIPER_LSQ_L3_PROTO_MPLS     (2 << JUNIPER_LSQ_L3_PROTO_SHIFT)
 #define JUNIPER_LSQ_L3_PROTO_ISO      (3 << JUNIPER_LSQ_L3_PROTO_SHIFT)
+#define AS_PIC_COOKIE_LEN 8
 
 #define JUNIPER_IPSEC_O_ESP_ENCRYPT_ESP_AUTHEN_TYPE 1
 #define JUNIPER_IPSEC_O_ESP_ENCRYPT_AH_AUTHEN_TYPE 2
@@ -140,6 +144,8 @@ struct juniper_l2info_t {
 #define JUNIPER_PROTO_NULL          1
 #define JUNIPER_PROTO_IPV4          2
 #define JUNIPER_PROTO_IPV6          6
+
+#define MFR_BE_MASK 0xc0
 
 static struct tok juniper_protocol_values[] = {
     { JUNIPER_PROTO_NULL, "Null" },
@@ -352,6 +358,74 @@ juniper_pppoe_print(const struct pcap_pkthdr *h, register const u_char *p)
 }
 #endif
 
+#ifdef DLT_JUNIPER_ETHER
+u_int
+juniper_ether_print(const struct pcap_pkthdr *h, register const u_char *p)
+{
+        struct juniper_l2info_t l2info;
+
+        l2info.pictype = DLT_JUNIPER_ETHER;
+        if(juniper_parse_header(p, h, &l2info) == 0)
+            return l2info.header_len;
+
+        p+=l2info.header_len;
+        /* this DLT contains nothing but raw Ethernet frames */
+        ether_print(p, l2info.length, l2info.caplen);
+        return l2info.header_len;
+}
+#endif
+
+#ifdef DLT_JUNIPER_PPP
+u_int
+juniper_ppp_print(const struct pcap_pkthdr *h, register const u_char *p)
+{
+        struct juniper_l2info_t l2info;
+
+        l2info.pictype = DLT_JUNIPER_PPP;
+        if(juniper_parse_header(p, h, &l2info) == 0)
+            return l2info.header_len;
+
+        p+=l2info.header_len;
+        /* this DLT contains nothing but raw ppp frames */
+        ppp_print(p, l2info.length);
+        return l2info.header_len;
+}
+#endif
+
+#ifdef DLT_JUNIPER_FRELAY
+u_int
+juniper_frelay_print(const struct pcap_pkthdr *h, register const u_char *p)
+{
+        struct juniper_l2info_t l2info;
+
+        l2info.pictype = DLT_JUNIPER_FRELAY;
+        if(juniper_parse_header(p, h, &l2info) == 0)
+            return l2info.header_len;
+
+        p+=l2info.header_len;
+        /* this DLT contains nothing but raw frame-relay frames */
+        fr_print(p, l2info.length);
+        return l2info.header_len;
+}
+#endif
+
+#ifdef DLT_JUNIPER_CHDLC
+u_int
+juniper_chdlc_print(const struct pcap_pkthdr *h, register const u_char *p)
+{
+        struct juniper_l2info_t l2info;
+
+        l2info.pictype = DLT_JUNIPER_CHDLC;
+        if(juniper_parse_header(p, h, &l2info) == 0)
+            return l2info.header_len;
+
+        p+=l2info.header_len;
+        /* this DLT contains nothing but raw c-hdlc frames */
+        chdlc_print(p, l2info.length);
+        return l2info.header_len;
+}
+#endif
+
 #ifdef DLT_JUNIPER_PPPOE_ATM
 u_int
 juniper_pppoe_atm_print(const struct pcap_pkthdr *h, register const u_char *p)
@@ -402,7 +476,13 @@ juniper_mlppp_print(const struct pcap_pkthdr *h, register const u_char *p)
         /* first try the LSQ protos */
         switch(l2info.proto) {
         case JUNIPER_LSQ_L3_PROTO_IPV4:
-            ip_print(gndo, p, l2info.length);
+            /* IP traffic going to the RE would not have a cookie
+             * -> this must be incoming IS-IS over PPP
+             */
+            if (l2info.cookie[4] == (JUNIPER_LSQ_COOKIE_RE|JUNIPER_LSQ_COOKIE_DIR))
+                ppp_print(p, l2info.length);
+            else
+                ip_print(gndo, p, l2info.length);
             return l2info.header_len;
 #ifdef INET6
         case JUNIPER_LSQ_L3_PROTO_IPV6:
@@ -446,6 +526,36 @@ juniper_mfr_print(const struct pcap_pkthdr *h, register const u_char *p)
             return l2info.header_len;
         
         p+=l2info.header_len;
+
+        /* child-link ? */
+        if (l2info.cookie_len == 0) {
+            mfr_print(p,l2info.length);
+            return l2info.header_len;
+        }
+
+        /* first try the LSQ protos */
+        if (l2info.cookie_len == AS_PIC_COOKIE_LEN) {
+            switch(l2info.proto) {
+            case JUNIPER_LSQ_L3_PROTO_IPV4:
+                ip_print(gndo, p, l2info.length);
+                return l2info.header_len;
+#ifdef INET6
+            case JUNIPER_LSQ_L3_PROTO_IPV6:
+                ip6_print(p,l2info.length);
+                return l2info.header_len;
+#endif
+            case JUNIPER_LSQ_L3_PROTO_MPLS:
+                mpls_print(p,l2info.length);
+                return l2info.header_len;
+            case JUNIPER_LSQ_L3_PROTO_ISO:
+                isoclns_print(p,l2info.length,l2info.caplen);
+                return l2info.header_len;
+            default:
+                break;
+            }
+            return l2info.header_len;
+        }
+
         /* suppress Bundle-ID if frame was captured on a child-link */
         if (eflag && EXTRACT_32BITS(l2info.cookie) != 1) printf("Bundle-ID %u, ",l2info.bundle);
         switch (l2info.proto) {
@@ -691,7 +801,7 @@ static int
 juniper_parse_header (const u_char *p, const struct pcap_pkthdr *h, struct juniper_l2info_t *l2info) {
 
     struct juniper_cookie_table_t *lp = juniper_cookie_table;
-    u_int idx;
+    u_int idx, offset;
 
     l2info->header_len = 0;
     l2info->cookie_len = 0;
@@ -703,13 +813,21 @@ juniper_parse_header (const u_char *p, const struct pcap_pkthdr *h, struct junip
     l2info->direction = p[3]&JUNIPER_BPF_PKT_IN;
     
     TCHECK2(p[0],4);
-    if (EXTRACT_24BITS(p) != JUNIPER_MGC_NUMBER) /* magic number found ? */
+    if (EXTRACT_24BITS(p) != JUNIPER_MGC_NUMBER) { /* magic number found ? */
+        printf("no magic-number found!");
         return 0;
-    else
-        l2info->header_len = 4;
+    } 
 
     if (eflag) /* print direction */
         printf("%3s ",tok2str(juniper_direction_values,"---",l2info->direction));
+
+    /* extensions present ?  - calculate how much bytes to skip */
+    if ((p[3] & JUNIPER_BPF_EXT ) == JUNIPER_BPF_EXT ) {
+        offset = 6 + EXTRACT_16BITS(p+4);
+        if (eflag>1)
+            printf("ext-len %u, ",EXTRACT_16BITS(p+4));
+    } else
+        offset = 4;
 
     if ((p[3] & JUNIPER_BPF_NO_L2 ) == JUNIPER_BPF_NO_L2 ) {            
         if (eflag)
@@ -719,15 +837,15 @@ juniper_parse_header (const u_char *p, const struct pcap_pkthdr *h, struct junip
          * perform the v4/v6 heuristics
          * to figure out what it is
          */
-        TCHECK2(p[8],1);
-        if(ip_heuristic_guess(p+8,l2info->length-8) == 0)
+        TCHECK2(p[offset+4],1);
+        if(ip_heuristic_guess(p+offset+4,l2info->length-(offset+4)) == 0)
             printf("no IP-hdr found!");
 
-        l2info->header_len+=4;
+        l2info->header_len=offset+4;
         return 0; /* stop parsing the output further */
         
     }
-
+    l2info->header_len = offset;
     p+=l2info->header_len;
     l2info->length -= l2info->header_len;
     l2info->caplen -= l2info->header_len;
@@ -736,25 +854,35 @@ juniper_parse_header (const u_char *p, const struct pcap_pkthdr *h, struct junip
     while (lp->s != NULL) {
         if (lp->pictype == l2info->pictype) {
 
-            l2info->cookie_len = lp->cookie_len;
-            l2info->header_len += lp->cookie_len;
+            l2info->cookie_len += lp->cookie_len;
 
             switch (p[0]) {
             case LS_COOKIE_ID:
                 l2info->cookie_type = LS_COOKIE_ID;
                 l2info->cookie_len += 2;
-                l2info->header_len += 2;
                 break;
             case AS_COOKIE_ID:
                 l2info->cookie_type = AS_COOKIE_ID;
-                l2info->cookie_len += 6;
-                l2info->header_len += 6;
+                l2info->cookie_len = 8;
                 break;
             
             default:
                 l2info->bundle = l2info->cookie[0];
                 break;
             }
+
+
+#ifdef DLT_JUNIPER_MFR
+            /* MFR child links don't carry cookies */
+            if (l2info->pictype == DLT_JUNIPER_MFR &&
+                (p[0] & MFR_BE_MASK) == MFR_BE_MASK) {
+                l2info->cookie_len = 0;
+            }
+#endif
+
+            l2info->header_len += l2info->cookie_len;
+            l2info->length -= l2info->cookie_len;
+            l2info->caplen -= l2info->cookie_len;
 
             if (eflag)
                 printf("%s-PIC, cookie-len %u",
@@ -783,6 +911,7 @@ juniper_parse_header (const u_char *p, const struct pcap_pkthdr *h, struct junip
 
     /* DLT_ specific parsing */
     switch(l2info->pictype) {
+#ifdef DLT_JUNIPER_MLPPP
     case DLT_JUNIPER_MLPPP:
         switch (l2info->cookie_type) {
         case LS_COOKIE_ID:
@@ -797,24 +926,51 @@ juniper_parse_header (const u_char *p, const struct pcap_pkthdr *h, struct junip
             break;
         }
         break;
-    case DLT_JUNIPER_MLFR: /* fall through */
+#endif
+#ifdef DLT_JUNIPER_MLFR
+    case DLT_JUNIPER_MLFR:
+        switch (l2info->cookie_type) {
+        case LS_COOKIE_ID:
+            l2info->bundle = l2info->cookie[1];
+            l2info->proto = EXTRACT_16BITS(p);        
+            l2info->header_len += 2;
+            l2info->length -= 2;
+            l2info->caplen -= 2;
+            break;
+        case AS_COOKIE_ID:
+            l2info->bundle = (EXTRACT_16BITS(&l2info->cookie[6])>>3)&0xfff;
+            l2info->proto = (l2info->cookie[5])&JUNIPER_LSQ_L3_PROTO_MASK;
+            break;
+        default:
+            l2info->bundle = l2info->cookie[0];
+            l2info->header_len += 2;
+            l2info->length -= 2;
+            l2info->caplen -= 2;
+            break;
+        }
+        break;
+#endif
+#ifdef DLT_JUNIPER_MFR
     case DLT_JUNIPER_MFR:
         switch (l2info->cookie_type) {
         case LS_COOKIE_ID:
             l2info->bundle = l2info->cookie[1];
+            l2info->proto = EXTRACT_16BITS(p);        
+            l2info->header_len += 2;
+            l2info->length -= 2;
+            l2info->caplen -= 2;
             break;
         case AS_COOKIE_ID:
             l2info->bundle = (EXTRACT_16BITS(&l2info->cookie[6])>>3)&0xfff;
+            l2info->proto = (l2info->cookie[5])&JUNIPER_LSQ_L3_PROTO_MASK;
             break;
         default:
             l2info->bundle = l2info->cookie[0];
             break;
         }
-        l2info->proto = EXTRACT_16BITS(p);        
-        l2info->header_len += 2;
-        l2info->length -= 2;
-        l2info->caplen -= 2;
         break;
+#endif
+#ifdef DLT_JUNIPER_ATM2
     case DLT_JUNIPER_ATM2:
         TCHECK2(p[0],4);
         /* ATM cell relay control word present ? */
@@ -824,8 +980,13 @@ juniper_parse_header (const u_char *p, const struct pcap_pkthdr *h, struct junip
                 printf("control-word 0x%08x ",EXTRACT_32BITS(p));
         }
         break;
+#endif
+#ifdef DLT_JUNIPER_ATM1
     case DLT_JUNIPER_ATM1:
+        break;
+#endif
     default:
+        printf("Unknown Juniper DLT_ type %u: ", l2info->pictype);
         break;
     }
     

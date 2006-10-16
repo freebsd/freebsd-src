@@ -22,7 +22,7 @@
 
 #ifndef lint
 static const char rcsid[] _U_ =
-    "@(#) $Header: /tcpdump/master/tcpdump/print-cip.c,v 1.25 2005/04/06 21:32:39 mcr Exp $ (LBL)";
+    "@(#) $Header: /tcpdump/master/tcpdump/print-cip.c,v 1.25.2.1 2005/07/07 01:24:34 guy Exp $ (LBL)";
 #endif
 
 #ifdef HAVE_CONFIG_H
@@ -94,7 +94,7 @@ cip_if_print(const struct pcap_pkthdr *h, const u_char *p)
 				printf("(LLC %s) ",
 			       etherproto_string(htons(extracted_ethertype)));
 			}
-			if (!xflag && !qflag)
+			if (!suppress_default_print)
 				default_print(p, caplen);
 		}
 	} else {
