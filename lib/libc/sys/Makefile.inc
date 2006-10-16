@@ -129,6 +129,8 @@ MLINKS+=mount.2 nmount.2 mount.2 unmount.2
 MLINKS+=pathconf.2 fpathconf.2
 MLINKS+=read.2 pread.2 read.2 readv.2 read.2 preadv.2
 MLINKS+=recv.2 recvfrom.2 recv.2 recvmsg.2
+MLINKS+=select.2 FD_CLR.3 select.2 FD_ISSET.3 select.2 FD_SET.3 \
+	select.2 FD_ZERO.3
 MLINKS+=send.2 sendmsg.2 send.2 sendto.2
 MLINKS+=setpgid.2 setpgrp.2
 MLINKS+=setresuid.2 setresgid.2 setresuid.2 getresuid.2 setresuid.2 getresgid.2
