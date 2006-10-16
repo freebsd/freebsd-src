@@ -67,7 +67,9 @@ freopen(file, mode, fp)
 	int dflags, flags, isopen, oflags, sverrno, wantfd;
 
 	if ((flags = __sflags(mode, &oflags)) == 0) {
+		sverrno = errno;
 		(void) fclose(fp);
+		errno = sverrno;
 		return (NULL);
 	}
 
@@ -193,8 +195,8 @@ finish:
 
 	if (f < 0) {			/* did not get it after all */
 		fp->_flags = 0;		/* set it free */
-		errno = sverrno;	/* restore in case _close clobbered */
 		FUNLOCKFILE(fp);
+		errno = sverrno;	/* restore in case _close clobbered */
 		return (NULL);
 	}
 
