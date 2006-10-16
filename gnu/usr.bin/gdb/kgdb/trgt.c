@@ -45,6 +45,26 @@ __FBSDID("$FreeBSD$");
 
 static struct target_ops kgdb_trgt_ops;
 
+#define	KERNOFF		(kgdb_kernbase ())
+#define	INKERNEL(x)	((x) >= KERNOFF)
+
+static CORE_ADDR
+kgdb_kernbase (void)
+{
+	static CORE_ADDR kernbase;
+	struct minimal_symbol *sym;
+
+	if (kernbase == 0) {
+		sym = lookup_minimal_symbol ("kernbase", NULL, NULL);
+		if (sym == NULL) {
+			kernbase = KERNBASE;
+		} else {
+			kernbase = SYMBOL_VALUE_ADDRESS (sym);
+		}
+	}
+	return kernbase;
+}
+
 static char *
 kgdb_trgt_extra_thread_info(struct thread_info *ti)
 {
@@ -114,6 +134,71 @@ kgdb_trgt_xfer_memory(CORE_ADDR memaddr, char *myaddr, int len, int write,
 	return (tb->to_xfer_memory(memaddr, myaddr, len, write, attrib, tb));
 }
 
+static void
+kgdb_switch_to_thread(struct kthr *thr)
+{
+	if (thr->tid == ptid_get_tid(inferior_ptid))
+		return;
+
+	inferior_ptid = ptid_build(thr->pid, 0, thr->tid);
+	flush_cached_frames ();
+	registers_changed ();
+	stop_pc = read_pc ();
+	select_frame (get_current_frame ());
+}
+
+static void
+kgdb_set_proc_cmd (char *arg, int from_tty)
+{
+	CORE_ADDR addr;
+	struct kthr *thr;
+
+	if (!arg)
+		error_no_arg ("proc address for the new context");
+
+	if (kvm == NULL)
+		error ("no kernel core file");
+
+	addr = (CORE_ADDR) parse_and_eval_address (arg);
+
+	if (!INKERNEL (addr)) {
+		thr = kgdb_thr_lookup_pid((int)addr);
+		if (thr == NULL)
+			error ("invalid pid");
+	} else {
+		thr = kgdb_thr_lookup_paddr(addr);
+		if (thr == NULL)
+			error("invalid proc address");
+	}
+	kgdb_switch_to_thread(thr);
+}
+
+static void
+kgdb_set_tid_cmd (char *arg, int from_tty)
+{
+	CORE_ADDR addr;
+	struct kthr *thr;
+
+	if (!arg)
+		error_no_arg ("TID or thread address for the new context");
+
+	if (kvm == NULL)
+		error ("no kernel core file");
+
+	addr = (CORE_ADDR) parse_and_eval_address (arg);
+
+	if (!INKERNEL (addr)) {
+		thr = kgdb_thr_lookup_tid((int)addr);
+		if (thr == NULL)
+			error ("invalid TID");
+	} else {
+		thr = kgdb_thr_lookup_taddr(addr);
+		if (thr == NULL)
+			error("invalid thread address");
+	}
+	kgdb_switch_to_thread(thr);
+}
+
 void
 kgdb_target(void)
 {
@@ -147,4 +232,8 @@ kgdb_target(void)
 	}
 	if (curkthr != 0)
 		inferior_ptid = ptid_build(curkthr->pid, 0, curkthr->tid);
+	add_com ("proc", class_obscure, kgdb_set_proc_cmd,
+	   "Set current process context");
+	add_com ("tid", class_obscure, kgdb_set_tid_cmd,
+	   "Set current thread context");
 }
