@@ -81,6 +81,9 @@ main(int argc, char **argv)
 	argc -= optind;
 	argv += optind;
 
+	if (argc < 1)
+		usage();
+
 	if (!term && !(term = getenv("TERM")))
 errx(2, "no terminal type specified and no TERM environmental variable.");
 	if (tgetent(tbuf, term) != 1)
