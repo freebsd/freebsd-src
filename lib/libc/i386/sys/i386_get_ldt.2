@@ -32,7 +32,7 @@
 .\"     from: @(#)fork.2	6.5 (Berkeley) 3/10/91
 .\" $FreeBSD$
 .\"
-.Dd September 20, 1993
+.Dd October 14, 2006
 .Dt I386_GET_LDT 2
 .Os
 .Sh NAME
@@ -52,24 +52,24 @@
 The
 .Fn i386_get_ldt
 system call
-will return the list of i386 descriptors that the process has in its
+returns a list of the i386 descriptors in the current process'
 LDT.
 The
 .Fn i386_set_ldt
 system call
-will set a list of i386 descriptors for the current process in its
+sets a list of i386 descriptors in the current process'
 LDT.
-Both routines accept a starting selector number
-.Fa start_sel ,
-an array of memory that
-will contain the descriptors to be set or returned
-.Fa descs ,
-and the number of entries to set or return
-.Fa num_sels .
-.Pp
-The argument
+For both routines,
+.Fa start_sel
+specifies the index of the selector in the LDT at which to begin and
 .Fa descs
-can be either segment_descriptor or gate_descriptor and are defined in
+points to an array of
+.Fa num_sels
+descriptors to be set or returned.
+.Pp
+Each entry in the
+.Fa descs
+array can be either a segment_descriptor or gate_descriptor and are defined in
 .In i386/segments.h .
 These structures are defined by the architecture
 as disjoint bit-fields, so care must be taken in constructing them.
@@ -113,9 +113,9 @@ returns the number of descriptors currently in the LDT.
 The
 .Fn i386_set_ldt
 system call
-returns the first selector set.
-In the case when a descriptor is allocated by the kernel, its number will
-be returned.
+returns the first selector set on success.
+If the kernel allocated a descriptor in the LDT,
+the allocated index is returned.
 Otherwise, a value of -1 is returned and the global
 variable
 .Va errno
