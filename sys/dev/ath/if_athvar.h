@@ -464,8 +464,12 @@ void	ath_intr(void *);
 	((*(_ah)->ah_setRegulatoryDomain)((_ah), (_rd), NULL))
 #define	ath_hal_getcountrycode(_ah, _pcc) \
 	(*(_pcc) = (_ah)->ah_countryCode)
-#define	ath_hal_tkipsplit(_ah) \
+#define	ath_hal_hastkipsplit(_ah) \
 	(ath_hal_getcapability(_ah, HAL_CAP_TKIP_SPLIT, 0, NULL) == HAL_OK)
+#define	ath_hal_gettkipsplit(_ah) \
+	(ath_hal_getcapability(_ah, HAL_CAP_TKIP_SPLIT, 1, NULL) == HAL_OK)
+#define	ath_hal_settkipsplit(_ah, _v) \
+	ath_hal_setcapability(_ah, HAL_CAP_TKIP_SPLIT, 1, _v, NULL)
 #define	ath_hal_hwphycounters(_ah) \
 	(ath_hal_getcapability(_ah, HAL_CAP_PHYCOUNTERS, 0, NULL) == HAL_OK)
 #define	ath_hal_hasdiversity(_ah) \
