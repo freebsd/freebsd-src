@@ -439,7 +439,7 @@ dev/ata/atapi-fd.c		optional atapifd
 dev/ata/atapi-tape.c		optional atapist
 dev/ath/ah_osdep.c optional ath_hal \
 	compile-with "${NORMAL_C} -I$S/dev/ath"
-dev/ath/ath_rate/amrr/amrr.c	optional ath_rate_amrr
+dev/ath/ath_rate/amrr/amrr.c	optional ath_rate_amrr \
 	compile-with "${NORMAL_C} -I$S/dev/ath"
 dev/ath/ath_rate/onoe/onoe.c	optional ath_rate_onoe \
 	compile-with "${NORMAL_C} -I$S/dev/ath"
