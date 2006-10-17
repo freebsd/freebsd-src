@@ -41,7 +41,7 @@
 .\" ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS
 .\" SOFTWARE.
 .\"
-.Dd October 17, 2002
+.Dd October 7, 2006
 .Dt DEVD.CONF 5
 .Os
 .Sh NAME
@@ -60,19 +60,22 @@ terminated with a semicolon.
 .Pp
 The following statements are supported:
 .Bl -tag -width ".Ic options"
-.It Ic options
-specifies various options and parameters for the operation of
-.Xr devd 8 .
 .It Ic attach
-specifies various matching criteria and actions to perform when
+Specifies various matching criteria and actions to perform when
 a newly attached device matches said criteria.
 .It Ic detach
-specifies various matching criteria and actions to perform when
+Specifies various matching criteria and actions to perform when
 a newly detached device matches said criteria.
 .It Ic nomatch
-specifies various matching criteria and actions to perform when
+Specifies various matching criteria and actions to perform when
 no device driver currently loaded in the kernel claims a (new)
 device.
+.It Ic notify
+Specifies various matching criteria and actions to perform when the kernel
+sends an event notification to userland.
+.It Ic options
+Specifies various options and parameters for the operation of
+.Xr devd 8 .
 .El
 .Pp
 Statements may occur in any order in the configuration file, and may be
@@ -80,6 +83,240 @@ repeated as often as required.
 Further details on the syntax and meaning of each statement and their
 substatements are explained below.
 .Pp
+Each statement, except
+.Dq options
+has a priority (an arbitrary number) associated with it, where
+.Ql 0
+is defined as the lowest priority.
+If two statements match the same event, only the action of the statement with
+highest priority will be executed.
+In this way generic statements can be overridden for devices or
+notifications that require special attention.
+.Pp
+The general syntax of a statement is:
+.Pp
+.Bd -literal -offset indent
+statement priority {
+	substatement "value";
+	...
+	substatement "value";
+};
+.Ed
+.Pp
+.Ss Sub-statements
+The following sub-statements are supported within the
+.Dq options
+statement.
+.Bl -tag -width ".Ic directory"
+.It Ic directory \*q/some/path\*q;
+Adds the given directory to the list of directories from which
+.Xr devd 8
+will read
+configuration files. Any number of
+.Dq directory
+statements can be used.
+.It Ic pid-file \*q/var/run/devd.pid\*q;
+Specifies pid file.
+.It Ic set regexp-name \*q(some|regexp)\*q;
+Creates a regular expression and assigns it to the variable
+.Va regexp-name .
+The variable is avaiable throughout the rest of
+the configuration file.
+All regular expressions have an implicit
+.Ql Li ^$
+around them.
+.El
+.Pp
+The following sub-statements are supported within the
+.Dq attach
+and
+.Dq detach
+statements.
+.Bl -tag -width ".Ic directory"
+.It Ic action \*qcommand\*q;
+Command to execute upon a successful match.
+Example
+.Ic /etc/pccard_ether $device-name start
+.It Ic class \*qstring\*q;
+This is shorthand for
+.Dq match \*qclass\*q .
+.It Ic device-name \*qstring\*q;
+This is shorthand for
+.Dq match \*qdevice-name\*q .
+This matches a device named
+.Va string ;
+which is allowed to be a regular expression or a variable previously created
+containing a regular expression.
+The
+.Va device-name
+variable
+is avaiable for later use with the action-statement.
+.It Ic match \*qvariable\*q \*qvalue\*q;
+Matches the content of
+.Va value
+against
+.Va variable ,
+the content of
+.Va value
+may be a regular expression.
+Not required during
+.Dq Li attach
+nor
+.Dq Li detach
+events since the
+.Dq Li device-name
+statement takes care of all device matching.
+For a partial list of variables, see below.
+.It Ic media-type \*qstring\*q;
+This is shorthand for
+.Dq match \*qdevice-name\*q .
+.It Ic subdevice \*qstring\*q;
+This is shorthand for
+.Dq match \*qsubdevice\*q .
+.El
+.Pp
+The following sub-statements are supported within the
+.Dq nomatch
+statement.
+.Bl -tag -width ".Ic directory"
+.It Ic action \*qcommand\*q;
+Same as above.
+.It Ic match \*qvariable\*q \*qvalue\*q;
+Matches the content of
+.Va value
+against
+.Va variable ,
+the content of
+.Va value
+may be a regular expression.
+For a partial list of variables, see below.
+.El
+.Pp
+The following sub-statements are supported within the
+.Dq notify
+statement.
+The
+.Dq Li notify
+variable is avaiable inside this statement and contains, a value, depending
+on which system and subsystem that delivered the event.
+.Bl -tag -width ".Ic directory"
+.It Ic action \*qcommand\*q;
+Command to execute upon a successful match. Example
+.Ic /etc/rc.d/power_profile $notify
+.It Ic match \*qsystem|subsystem|type|notify\*q \*qvalue\*q;
+Any number of
+.Dq match
+statements can exists within a
+.Dq notify
+statement.
+.Va value
+can be either a fixed string or a regular expression.
+Below is a list of avaiable systems, subsystems, and types.
+.El
+.Ss Variables that can be used with the match statement
+A partial list of variables and their possible values that can be used together
+with the
+.Dq match
+statement.
+.Pp
+.Bl -tag -width "manufacturer" -compact
+.It Ic Variable
+.Ic Description
+.It bus
+Device name of parent bus
+.It cisproduct
+CIS-product
+.It cisvendor
+CIS-vendor
+.It class
+Device class
+.It device
+Device ID
+.It device-name
+Name of attached/detached device
+.It function
+Card functions
+.It manufacturer
+Manufacturer ID (pccard)
+.It notify
+Match the value of the
+.Dq Li notify
+variable.
+.It product
+Product ID (pccard)
+.It serial
+Serial Number (USB)
+.It slot
+Card slot
+.It subvendor
+Sub-vendor ID
+.It subdevice
+Sub-device ID
+.It subsystem
+Matches a subsystem of a system, see below
+.It system
+Matches a system type, see below
+.It type
+Type of notification, see below
+.It vendor
+Vendor ID
+.El
+.Ss Notify matching
+A Partial list of systems, subsystems, and types used within the
+.Dq notify
+mechanism.
+.Pp
+.Bl -tag -width "IFNET" -compact
+.It Ic System
+.It ACPI
+Events related to the ACPI subsystem.
+.Bl -tag -compact
+.It Ic Subsystem
+.It ACAD
+AC Line state ($notify=0x00 is offline, 0x01 is online).
+.It Button
+Button state ($notify=0x00 is power, 0x01 is sleep).
+.It CMBAT
+Battery events.
+.It Lid
+Lid state ($notify=0x00 is closed, 0x01 is open).
+.It Thermal
+Thermal zone events.
+.El
+.Pp
+.It IFNET
+Events related to the network subsystem.
+.Bl -tag -compact
+.It Ic Subsystem
+.It [interface]
+The
+.Dq subsystem
+is the actual name of the network interface on which the event
+took place.
+.Bl -tag -compact
+.It Ic Type
+.It LINK_UP
+Carrier status changed to UP.
+.It LINK_DOWN
+Carrier status changed to DOWN.
+.El
+.El
+.El
+.Pp
+A link state change to UP on the interface
+.Dq fxp0
+would result in the following notify event:
+.Bd -literal -offset indent
+system=IFNET, subsystem=fxp0, type=LINK_UP
+.Ed
+.Pp
+An AC line state change to
+.Dq offline
+would result in the following event:
+.Bd -literal -offset indent
+system=ACPI, subsystem=ACAD, notify=0x00
+.Ed
+.Ss Comments
 Comments may appear anywhere that whitespace may appear in a
 configuration file.
 To appeal to programmers of all kinds, they can
@@ -110,7 +347,7 @@ C++-style comments start with the two characters
 (slash, slash) and continue to the end of the physical line.
 They cannot be continued across multiple physical lines; to have
 one logical comment span multiple lines, each line must use the
-.Ql //
+.Dq //
 pair.
 For example:
 .Bd -literal -offset indent
@@ -118,6 +355,59 @@ For example:
 // is a new comment, even though it is logically
 // part of the previous comment.
 .Ed
+.Sh EXAMPLES
+.Bd -literal
+#
+# This will catch link down events on the interfaces fxp0 and ath0
+#
+notify 0 {
+	match "system"			"IFNET";
+	match "subsystem"		"(fxp0|ath0)";
+	match "type"			"LINK_DOWN";
+	action "logger $subsystem is DOWN";
+};
+
+#
+# Match lid open/close events
+# These can be combined to a single event, by passing the
+# value of $notify to the external script.
+#
+notify 0 {
+	match "system"			"ACPI";
+	match "subsystem"		"Lid";
+	match "notify"			"0x00";
+	action "logger Lid closed, we can sleep now!";
+};
+
+notify 0 {
+	match "system"			"ACPI";
+	match "subsystem"		"Lid";
+	match "notify"			"0x01";
+	action "logger Lid opened, the sleeper must awaken!";
+};
+
+#
+# Try to configure ath and wi devices with pccard_ether
+# as they are attached.
+#
+attach 0 {
+        device-name "(ath|wi)[0-9]+";
+        action "/etc/pccard_ether $device-name start";
+};
+
+#
+# Stop ath and wi devices as they are detached from
+# the system.
+#
+detach 0 {
+        device-name "(ath|wi)[0-9]+";
+        action "/etc/pccard_ether $device-name stop";
+};
+.Ed
+.Pp
+The installed
+.Pa /etc/devd.conf
+has many additional examples.
 .Sh FILES
 .Bl -tag -width ".Pa /etc/devd.conf" -compact
 .It Pa /etc/devd.conf
