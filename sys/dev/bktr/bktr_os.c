@@ -262,6 +262,13 @@ static struct cdevsw bktr_cdevsw = {
 	.d_name =	"bktr",
 };
 
+#ifdef BKTR_USE_FREEBSD_SMBUS
+#include <dev/iicbus/iiconf.h>
+#include <dev/smbus/smbconf.h>
+MODULE_DEPEND(bktr, iicbb, IICBB_MINVER, IICBB_MODVER, IICBB_MAXVER);
+MODULE_DEPEND(bktr, iicbus, IICBUS_MINVER, IICBUS_MODVER, IICBUS_MAXVER);
+MODULE_DEPEND(bktr, smbus, SMBUS_MINVER, SMBUS_MODVER, SMBUS_MAXVER);
+#endif
 DRIVER_MODULE(bktr, pci, bktr_driver, bktr_devclass, 0, 0);
 MODULE_DEPEND(bktr, bktr_mem, 1,1,1);
 MODULE_VERSION(bktr, 1);
