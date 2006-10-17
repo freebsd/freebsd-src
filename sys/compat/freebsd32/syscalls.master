@@ -743,7 +743,7 @@
 452	AUE_SETAUDIT_ADDR	UNIMPL	setaudit_addr
 453	AUE_AUDITCTL	UNIMPL	auditctl
 454	AUE_NULL	STD	{ int freebsd32_umtx_op(void *obj, int op,\
-				    uintptr_t val, void *uaddr, \
+				    u_long val, void *uaddr, \
 				    void *uaddr2); }
 455	AUE_NULL	STD	{ int freebsd32_thr_new(	\
 				    struct thr_param32 *param,	\
