@@ -342,10 +342,10 @@ ENTRY(casuword32)
 	ret
 
 /*
- * casuptr.  Compare and set user pointer.  Returns -1 or the current value.
+ * casuword.  Compare and set user word.  Returns -1 or the current value.
  *        dst = %rdi, old = %rsi, new = %rdx
  */
-ENTRY(casuptr)
+ENTRY(casuword)
 	movq	PCPU(CURPCB),%rcx
 	movq	$fusufault,PCB_ONFAULT(%rcx)
 

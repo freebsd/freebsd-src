@@ -53,7 +53,7 @@ __FBSDID("$FreeBSD$");
  */
 
 ENTRY_NP(casuword32)
-ENTRY(casuptr)
+ENTRY(casuword)
 #ifdef MULTIPROCESSOR
 	/* XXX Probably not appropriate for non-Hydra SMPs */
 	stmfd	sp!, {r0, r14}
@@ -72,7 +72,7 @@ ENTRY(casuptr)
 	beq	.Lfusupcbfault
 #endif
 	stmfd	sp!, {r4, r5}
-	adr	r4, .Lcasuptrfault
+	adr	r4, .Lcasuwordfault
 	str	r4, [r3, #PCB_ONFAULT]
 	ldrt	r5, [r0]
 	cmp	r5, r1
@@ -85,10 +85,10 @@ ENTRY(casuptr)
 	RET
 
 /*
- * Handle faults from casuptr.  Clean up and return -1.
+ * Handle faults from casuword.  Clean up and return -1.
  */
 
-.Lcasuptrfault:
+.Lcasuwordfault:
 	mov	r0, #0x00000000
 	str	r0, [r3, #PCB_ONFAULT]
 	mvn	r0, #0x00000000

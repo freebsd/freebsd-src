@@ -1140,11 +1140,11 @@ fastmove_tail_fault:
 #endif /* I586_CPU && defined(DEV_NPX) */
 
 /*
- * casuptr.  Compare and set user pointer.  Returns -1 or the current value.
+ * casuword.  Compare and set user word.  Returns -1 or the current value.
  */
 
 ALTENTRY(casuword32)
-ENTRY(casuptr)
+ENTRY(casuword)
 	movl	PCPU(CURPCB),%ecx
 	movl	$fusufault,PCB_ONFAULT(%ecx)
 	movl	4(%esp),%edx			/* dst */

@@ -41,7 +41,7 @@
 #define	UMTX_CONTESTED	LONG_MIN
 
 struct umtx {
-	uintptr_t	u_owner;	/* Owner of the mutex. */
+	volatile u_long	u_owner;	/* Owner of the mutex. */
 };
 
 #define USYNC_PROCESS_SHARED	0x0001	/* Process shared sync objs */
@@ -53,7 +53,7 @@ struct umtx {
 #define UMUTEX_PRIO_INHERIT	0x0004	/* Priority inherited mutex */
 #define UMUTEX_PRIO_PROTECT	0x0008	/* Priority protect mutex */
 struct umutex {
-	__lwpid_t	m_owner;	/* Owner of the mutex */
+	volatile __lwpid_t	m_owner;	/* Owner of the mutex */
 	uint32_t	m_flags;	/* Flags of the mutex */
 	uint32_t	m_ceilings[2];	/* Priority protect ceiling */
 	uint32_t	m_spare[4];	/* Spare space */
@@ -72,11 +72,7 @@ struct umutex {
 
 #ifndef _KERNEL
 
-/*
- * System call for userland mutex operations.
- * Bug: assume sizeof(uintptr_t) == sizeof(long)
- */
-int _umtx_op(void *obj, int op, uintptr_t val, void *uaddr, void *uaddr2);
+int _umtx_op(void *obj, int op, u_long val, void *uaddr, void *uaddr2);
 
 /*
  * Old (deprecated) userland mutex system calls.
@@ -94,33 +90,33 @@ umtx_init(struct umtx *umtx)
 	umtx->u_owner = UMTX_UNOWNED;
 }
 
-static __inline uintptr_t
+static __inline u_long
 umtx_owner(struct umtx *umtx)
 {
 	return (umtx->u_owner & ~LONG_MIN);
 }
 
 static __inline int
-umtx_lock(struct umtx *umtx, uintptr_t id)
+umtx_lock(struct umtx *umtx, u_long id)
 {
-	if (atomic_cmpset_acq_ptr(&umtx->u_owner, UMTX_UNOWNED, id) == 0)
+	if (atomic_cmpset_acq_long(&umtx->u_owner, UMTX_UNOWNED, id) == 0)
 		if (_umtx_lock(umtx) == -1)
 			return (errno);
 	return (0);
 }
 
 static __inline int
-umtx_trylock(struct umtx *umtx, uintptr_t id)
+umtx_trylock(struct umtx *umtx, u_long id)
 {
-	if (atomic_cmpset_acq_ptr(&umtx->u_owner, UMTX_UNOWNED, id) == 0)
+	if (atomic_cmpset_acq_long(&umtx->u_owner, UMTX_UNOWNED, id) == 0)
 		return (EBUSY);
 	return (0);
 }
 
 static __inline int
-umtx_timedlock(struct umtx *umtx, uintptr_t id, const struct timespec *timeout)
+umtx_timedlock(struct umtx *umtx, u_long id, const struct timespec *timeout)
 {
-	if (atomic_cmpset_acq_ptr(&umtx->u_owner, UMTX_UNOWNED, id) == 0)
+	if (atomic_cmpset_acq_long(&umtx->u_owner, UMTX_UNOWNED, id) == 0)
 		if (_umtx_op(umtx, UMTX_OP_LOCK, id, 0,
 		    __DECONST(void *, timeout)) == -1)
 			return (errno);
@@ -128,16 +124,16 @@ umtx_timedlock(struct umtx *umtx, uintptr_t id, const struct timespec *timeout)
 }
 
 static __inline int
-umtx_unlock(struct umtx *umtx, uintptr_t id)
+umtx_unlock(struct umtx *umtx, u_long id)
 {
-	if (atomic_cmpset_rel_ptr(&umtx->u_owner, id, UMTX_UNOWNED) == 0)
+	if (atomic_cmpset_rel_long(&umtx->u_owner, id, UMTX_UNOWNED) == 0)
 		if (_umtx_unlock(umtx) == -1)
 			return (errno);
 	return (0);
 }
 
 static __inline int
-umtx_wait(long *p, long val, const struct timespec *timeout)
+umtx_wait(u_long *p, long val, const struct timespec *timeout)
 {
 	if (_umtx_op(p, UMTX_OP_WAIT, val, 0,
 	    __DECONST(void *, timeout)) == -1)
@@ -147,7 +143,7 @@ umtx_wait(long *p, long val, const struct timespec *timeout)
 
 /* Wake threads waiting on a user address. */
 static __inline int
-umtx_wake(long *p, int nr_wakeup)
+umtx_wake(u_long *p, int nr_wakeup)
 {
 	if (_umtx_op(p, UMTX_OP_WAKE, nr_wakeup, 0, 0) == -1)
 		return (errno);
