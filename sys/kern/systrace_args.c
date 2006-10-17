@@ -2645,7 +2645,7 @@ systrace_args(int sysnum, void *params, u_int64_t *uarg, int *n_args)
 		struct _umtx_op_args *p = params;
 		uarg[0] = (intptr_t) p->obj; /* void * */
 		iarg[1] = p->op; /* int */
-		uarg[2] = p->val; /* uintptr_t */
+		uarg[2] = p->val; /* u_long */
 		uarg[3] = (intptr_t) p->uaddr1; /* void * */
 		uarg[4] = (intptr_t) p->uaddr2; /* void * */
 		*n_args = 5;
