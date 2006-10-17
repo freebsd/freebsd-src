@@ -1930,7 +1930,7 @@ mxge_clean_rx_done(mxge_softc_t *sc)
 		length = ntohs(rx_done->entry[rx_done->idx].length);
 		rx_done->entry[rx_done->idx].length = 0;
 		checksum = ntohs(rx_done->entry[rx_done->idx].checksum);
-		if (length <= MHLEN)
+		if (length <= (MHLEN - MXGEFW_PAD))
 			mxge_rx_done_small(sc, length, checksum);
 		else
 			mxge_rx_done_big(sc, length, checksum);
@@ -2429,7 +2429,7 @@ mxge_open(mxge_softc_t *sc)
 	   of two. Luckily, FreeBSD's clusters are powers of two */
 	cmd.data0 = sc->ifp->if_mtu + ETHER_HDR_LEN;
 	err = mxge_send_cmd(sc, MXGEFW_CMD_SET_MTU, &cmd);
-	cmd.data0 = MHLEN;
+	cmd.data0 = MHLEN - MXGEFW_PAD;
 	err |= mxge_send_cmd(sc, MXGEFW_CMD_SET_SMALL_BUFFER_SIZE,
 			     &cmd);
 	cmd.data0 = sc->big_bytes;
