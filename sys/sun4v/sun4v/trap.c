@@ -450,10 +450,10 @@ trap_pfault(struct thread *td, struct trapframe *tf, int64_t type, uint64_t data
 #if 0
 	printf("trap_pfault(type=%ld, data=0x%lx, tpc=0x%lx, ctx=0x%lx)\n", 
 	       type, data, tf->tf_tpc, ctx);
-#endif
 
 	CTR4(KTR_TRAP, "trap_pfault: td=%p pm_ctx=%#lx va=%#lx ctx=%#lx",
 	    td, p->p_vmspace->vm_pmap.pm_context[PCPU_GET(cpuid)], va, ctx);
+#endif
 
 	if (type == T_DATA_PROTECTION) {
 		prot = VM_PROT_WRITE;
