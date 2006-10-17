@@ -147,18 +147,13 @@ extern u_int32_t rpc_auth_unix, rpc_msgaccepted, rpc_call, rpc_autherr;
 
 extern int nfsv3_procid[NFS_NPROCS];
 
-struct uio;
-struct buf;
-struct vattr;
-struct nameidata;
-
 /*
  * Socket errors ignored for connectionless sockets??
  * For now, ignore them all
  */
 #define	NFSIGNORE_SOERROR(s, e) \
 		((e) != EINTR && (e) != EIO && \
-		 (e) != ERESTART && (e) != EWOULDBLOCK && \
+		(e) != ERESTART && (e) != EWOULDBLOCK && \
 		((s) & PR_CONNREQUIRED) == 0)
 
 /*
@@ -200,18 +195,25 @@ extern TAILQ_HEAD(nfs_reqq, nfsreq) nfs_reqq;
 #define	R_GETONEREP	0x80		/* Probe for one reply only */
 #define	R_REXMIT_INPROG	0x100		/* Re-transmit in progress */
 
+struct buf;
+struct socket;
+struct uio;
+struct vattr;
+
 /*
  * Pointers to ops that differ from v3 to v4
  */
 struct nfs_rpcops {
-	int	(*nr_readrpc)(struct vnode *vp, struct uio *uiop, struct ucred *cred);
-	int	(*nr_writerpc)(struct vnode *vp, struct uio *uiop, struct ucred *cred,
-			       int *iomode, int *must_commit);
+	int	(*nr_readrpc)(struct vnode *vp, struct uio *uiop,
+		    struct ucred *cred);
+	int	(*nr_writerpc)(struct vnode *vp, struct uio *uiop,
+		    struct ucred *cred, int *iomode, int *must_commit);
 	int	(*nr_writebp)(struct buf *bp, int force, struct thread *td);
-	int	(*nr_readlinkrpc)(struct vnode *vp, struct uio *uiop, struct ucred *cred);
+	int	(*nr_readlinkrpc)(struct vnode *vp, struct uio *uiop,
+		    struct ucred *cred);
 	void	(*nr_invaldir)(struct vnode *vp);
 	int	(*nr_commit)(struct vnode *vp, u_quad_t offset, int cnt,
-			     struct ucred *cred, struct thread *td);
+		    struct ucred *cred, struct thread *td);
 };
 
 /*
@@ -305,8 +307,8 @@ int	nfs_readdirrpc(struct vnode *, struct uio *, struct ucred *);
 int	nfs_nfsiodnew(void);
 int	nfs_asyncio(struct nfsmount *, struct buf *, struct ucred *, struct thread *);
 int	nfs_doio(struct vnode *, struct buf *, struct ucred *, struct thread *);
-void    nfs_doio_directwrite (struct buf *);
-void    nfs_up(struct nfsreq *, struct nfsmount *, struct thread *,
+void	nfs_doio_directwrite (struct buf *);
+void	nfs_up(struct nfsreq *, struct nfsmount *, struct thread *,
 	    const char *, int);
 void	nfs_down(struct nfsreq *, struct nfsmount *, struct thread *,
 	    const char *, int, int);
@@ -337,10 +339,10 @@ int	nfs_fsinfo(struct nfsmount *, struct vnode *, struct ucred *,
 int	nfs_meta_setsize (struct vnode *, struct ucred *,
 	    struct thread *, u_quad_t);
 
-void    nfs_set_sigmask __P((struct thread *td, sigset_t *oldset));
-void    nfs_restore_sigmask __P((struct thread *td, sigset_t *set));
-int     nfs_msleep __P((struct thread *td, void *ident, struct mtx *mtx, int priority, 
-			char *wmesg, int timo));
+void	nfs_set_sigmask(struct thread *td, sigset_t *oldset);
+void	nfs_restore_sigmask(struct thread *td, sigset_t *set);
+int	nfs_msleep(struct thread *td, void *ident, struct mtx *mtx,
+	    int priority, char *wmesg, int timo);
 
 #endif	/* _KERNEL */
 
