@@ -192,10 +192,10 @@ ENTRY(fusufault, 0)
 END(fusufault)
 
 /*
- * casuptr(intptr_t *p, intptr_t old, intptr_t new)
+ * casuword(u_long *p, u_long old, u_long new)
  *	Perform a compare-exchange in user space.
  */
-ENTRY(casuptr, 3)
+ENTRY(casuword, 3)
 {	.mlx
 	add		r15=PC_CURTHREAD,r13
 	movl		r14=VM_MAX_ADDRESS
@@ -239,10 +239,10 @@ ENTRY(casuptr, 3)
 	br.ret.sptk	rp
 	;;
 }
-END(casuptr)
+END(casuword)
 
 /*
- * casuword32(int32_t *p, int32_t old, int32_t new)
+ * casuword32(uint32_t *p, uint32_t old, uint32_t new)
  *	Perform a 32-bit compare-exchange in user space.
  */
 ENTRY(casuword32, 3)
