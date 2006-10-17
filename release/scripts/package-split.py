@@ -81,7 +81,6 @@ def disc2_packages():
             'shells/bash2',
             'shells/pdksh',
             'shells/zsh',
-            'security/freebsd-update',
             'security/sudo',
             'sysutils/portupgrade',
             'www/links',
