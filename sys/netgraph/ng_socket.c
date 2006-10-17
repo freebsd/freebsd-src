@@ -127,8 +127,6 @@ static int	ng_connect_data(struct sockaddr *nam, struct ngpcb *pcbp);
 static int	ng_bind(struct sockaddr *nam, struct ngpcb *pcbp);
 
 static int	ngs_mod_event(module_t mod, int event, void *data);
-static int	ship_msg(struct ngpcb *pcbp, struct ng_mesg *msg,
-			struct sockaddr_ng *addr);
 static void	ng_socket_item_applied(void *context, int error);
 
 /* Netgraph type descriptor */
@@ -786,42 +784,6 @@ ng_bind(struct sockaddr *nam, struct ngpcb *pcbp)
 	return (ng_name_node(priv->node, sap->sg_data));
 }
 
-/*
- * Take a message and pass it up to the control socket associated
- * with the node.
- */
-static int
-ship_msg(struct ngpcb *pcbp, struct ng_mesg *msg, struct sockaddr_ng *addr)
-{
-	struct socket *const so = pcbp->ng_socket;
-	struct mbuf *mdata;
-	int msglen;
-	int error = 0;
-
-	/* Copy the message itself into an mbuf chain */
-	msglen = sizeof(struct ng_mesg) + msg->header.arglen;
-	mdata = m_devget((caddr_t) msg, msglen, 0, NULL, NULL);
-
-	/* Here we free the message, as we are the end of the line.
-	 * We need to do that regardless of whether we got mbufs. */
-	NG_FREE_MSG(msg);
-
-	if (mdata == NULL) {
-		TRAP_ERROR;
-		return (ENOBUFS);
-	}
-
-	/* Send it up to the socket */
-	if (sbappendaddr(&so->so_rcv,
-	    (struct sockaddr *) addr, mdata, NULL) == 0) {
-		TRAP_ERROR;
-		m_freem(mdata);
-		error = so->so_error = ENOBUFS;
-	}
-	sorwakeup(so);
-	return (error);
-}
-
 /***************************************************************
 	Netgraph node
 ***************************************************************/
@@ -873,20 +835,24 @@ ngs_rcvmsg(node_p node, item_p item, hook_p lasthook)
 {
 	struct ngsock *const priv = NG_NODE_PRIVATE(node);
 	struct ngpcb *const pcbp = priv->ctlsock;
-	struct sockaddr_ng *addr;
+	struct socket *const so = pcbp->ng_socket;
+	struct sockaddr_ng addr;
+	struct ng_mesg *msg;
+	struct mbuf *m;
+	ng_ID_t	retaddr = NGI_RETADDR(item);
 	int addrlen;
 	int error = 0;
-	struct	ng_mesg *msg;
-	ng_ID_t	retaddr = NGI_RETADDR(item);
-	char	retabuf[32];
 
 	NGI_GET_MSG(item, msg);
-	NG_FREE_ITEM(item); /* we have all we need */
+	NG_FREE_ITEM(item);
 
-	/* Only allow mesgs to be passed if we have the control socket.
-	 * Data sockets can only support the generic messages. */
+	/*
+	 * Only allow mesgs to be passed if we have the control socket.
+	 * Data sockets can only support the generic messages.
+	 */
 	if (pcbp == NULL) {
 		TRAP_ERROR;
+		NG_FREE_MSG(msg);
 		return (EINVAL);
 	}
 
@@ -911,27 +877,47 @@ ngs_rcvmsg(node_p node, item_p item, hook_p lasthook)
 		default:
 			error = EINVAL;		/* unknown command */
 		}
-		/* Free the message and return */
+		/* Free the message and return. */
 		NG_FREE_MSG(msg);
-		return(error);
-
+		return (error);
 	}
-	/* Get the return address into a sockaddr */
-	sprintf(retabuf,"[%x]:", retaddr);
-	addrlen = strlen(retabuf);
-	MALLOC(addr, struct sockaddr_ng *, addrlen + 4, M_NETGRAPH_PATH, M_NOWAIT);
-	if (addr == NULL) {
+
+	/* Get the return address into a sockaddr. */
+	bzero(&addr, sizeof(addr));
+	addr.sg_len = sizeof(addr);
+	addr.sg_family = AF_NETGRAPH;
+	addrlen = snprintf((char *)&addr.sg_data, sizeof(addr.sg_data),
+	    "[%x]:", retaddr);
+	if (addrlen < 0 || addrlen > sizeof(addr.sg_data)) {
+		printf("%s: snprintf([%x]) failed - %d\n", __func__, retaddr,
+		    addrlen);
+		NG_FREE_MSG(msg);
+		return (EINVAL);
+	}
+
+	/* Copy the message itself into an mbuf chain. */
+	m = m_devget((caddr_t)msg, sizeof(struct ng_mesg) + msg->header.arglen,
+	    0, NULL, NULL);
+
+	/*
+	 * Here we free the message. We need to do that
+	 * regardless of whether we got mbufs.
+	 */
+	NG_FREE_MSG(msg);
+
+	if (m == NULL) {
 		TRAP_ERROR;
-		return (ENOMEM);
+		return (ENOBUFS);
 	}
-	addr->sg_len = addrlen + 3;
-	addr->sg_family = AF_NETGRAPH;
-	bcopy(retabuf, addr->sg_data, addrlen);
-	addr->sg_data[addrlen] = '\0';
 
-	/* Send it up */
-	error = ship_msg(pcbp, msg, addr);
-	FREE(addr, M_NETGRAPH_PATH);
+	/* Send it up to the socket. */
+	if (sbappendaddr(&so->so_rcv, (struct sockaddr *)&addr, m, NULL) == 0) {
+		TRAP_ERROR;
+		m_freem(m);
+		error = so->so_error = ENOBUFS;
+	}
+	sorwakeup(so);
+	
 	return (error);
 }
 
