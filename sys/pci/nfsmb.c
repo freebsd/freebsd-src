@@ -144,8 +144,14 @@ nfsmbsub_attach(device_t dev)
 	nfsmbsub_sc->res = bus_alloc_resource_any(parent, SYS_RES_IOPORT,
 	    &nfsmbsub_sc->rid, RF_ACTIVE);
 	if (nfsmbsub_sc->res == NULL) {
-		device_printf(dev, "could not map i/o space\n");
-		return (ENXIO);
+		/* Older incarnations of the device used non-standard BARs. */
+		nfsmbsub_sc->rid = 0x54;
+		nfsmbsub_sc->res = bus_alloc_resource_any(parent,
+		    SYS_RES_IOPORT, &nfsmbsub_sc->rid, RF_ACTIVE);
+		if (nfsmbsub_sc->res == NULL) {
+			device_printf(dev, "could not map i/o space\n");
+			return (ENXIO);
+		}
 	}
 	nfsmbsub_sc->smbst = rman_get_bustag(nfsmbsub_sc->res);
 	nfsmbsub_sc->smbsh = rman_get_bushandle(nfsmbsub_sc->res);
@@ -171,8 +177,14 @@ nfsmb_attach(device_t dev)
 		&nfsmb_sc->rid, RF_ACTIVE);
 
 	if (nfsmb_sc->res == NULL) {
-		device_printf(dev, "could not map i/o space\n");
-		return (ENXIO);
+		/* Older incarnations of the device used non-standard BARs. */
+		nfsmb_sc->rid = 0x50;
+		nfsmb_sc->res = bus_alloc_resource_any(dev,
+		    SYS_RES_IOPORT, &nfsmb_sc->rid, RF_ACTIVE);
+		if (nfsmb_sc->res == NULL) {
+			device_printf(dev, "could not map i/o space\n");
+			return (ENXIO);
+		}
 	}
 
 	nfsmb_sc->smbst = rman_get_bustag(nfsmb_sc->res);
