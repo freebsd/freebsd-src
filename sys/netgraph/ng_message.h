@@ -109,8 +109,8 @@ struct ng_mesg {
 #define NGF_ORIG	0x00000000	/* the msg is the original request */
 #define NGF_RESP	0x00000001	/* the message is a response */
 
-/* Type of a unique node ID */
-#define ng_ID_t unsigned int
+/* Type of a unique node ID. */
+#define ng_ID_t uint32_t
 
 /*
  * Here we describe the "generic" messages that all nodes inherently
