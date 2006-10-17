@@ -522,11 +522,11 @@ umtx_key_release(struct umtx_key *key)
  * Lock a umtx object.
  */
 static int
-_do_lock_umtx(struct thread *td, struct umtx *umtx, uintptr_t id, int timo)
+_do_lock_umtx(struct thread *td, struct umtx *umtx, u_long id, int timo)
 {
 	struct umtx_q *uq;
-	intptr_t owner;
-	intptr_t old;
+	u_long owner;
+	u_long old;
 	int error = 0;
 
 	uq = td->td_umtxq;
@@ -539,7 +539,7 @@ _do_lock_umtx(struct thread *td, struct umtx *umtx, uintptr_t id, int timo)
 		/*
 		 * Try the uncontested case.  This should be done in userland.
 		 */
-		owner = casuptr((intptr_t *)&umtx->u_owner, UMTX_UNOWNED, id);
+		owner = casuword(&umtx->u_owner, UMTX_UNOWNED, id);
 
 		/* The acquire succeeded. */
 		if (owner == UMTX_UNOWNED)
@@ -551,7 +551,7 @@ _do_lock_umtx(struct thread *td, struct umtx *umtx, uintptr_t id, int timo)
 
 		/* If no one owns it but it is contested try to acquire it. */
 		if (owner == UMTX_CONTESTED) {
-			owner = casuptr((intptr_t *)&umtx->u_owner,
+			owner = casuword(&umtx->u_owner,
 			    UMTX_CONTESTED, id | UMTX_CONTESTED);
 
 			if (owner == UMTX_CONTESTED)
@@ -588,8 +588,7 @@ _do_lock_umtx(struct thread *td, struct umtx *umtx, uintptr_t id, int timo)
 		 * either some one else has acquired the lock or it has been
 		 * released.
 		 */
-		old = casuptr((intptr_t *)&umtx->u_owner, owner,
-		    owner | UMTX_CONTESTED);
+		old = casuword(&umtx->u_owner, owner, owner | UMTX_CONTESTED);
 
 		/* The address was invalid. */
 		if (old == -1) {
@@ -620,7 +619,7 @@ _do_lock_umtx(struct thread *td, struct umtx *umtx, uintptr_t id, int timo)
  * Lock a umtx object.
  */
 static int
-do_lock_umtx(struct thread *td, struct umtx *umtx, uintptr_t id,
+do_lock_umtx(struct thread *td, struct umtx *umtx, u_long id,
 	struct timespec *timeout)
 {
 	struct timespec ts, ts2, ts3;
@@ -660,21 +659,18 @@ do_lock_umtx(struct thread *td, struct umtx *umtx, uintptr_t id,
  * Unlock a umtx object.
  */
 static int
-do_unlock_umtx(struct thread *td, struct umtx *umtx, uintptr_t id)
+do_unlock_umtx(struct thread *td, struct umtx *umtx, u_long id)
 {
 	struct umtx_key key;
-	intptr_t owner;
-	intptr_t old;
+	u_long owner;
+	u_long old;
 	int error;
 	int count;
 
 	/*
 	 * Make sure we own this mtx.
-	 *
-	 * XXX Need a {fu,su}ptr this is not correct on arch where
-	 * sizeof(intptr_t) != sizeof(long).
 	 */
-	owner = fuword(&umtx->u_owner);
+	owner = fuword(__DEVOLATILE(u_long *, &umtx->u_owner));
 	if (owner == -1)
 		return (EFAULT);
 
@@ -683,8 +679,7 @@ do_unlock_umtx(struct thread *td, struct umtx *umtx, uintptr_t id)
 
 	/* This should be done in userland */
 	if ((owner & UMTX_CONTESTED) == 0) {
-		old = casuptr((intptr_t *)&umtx->u_owner, owner,
-			UMTX_UNOWNED);
+		old = casuword(&umtx->u_owner, owner, UMTX_UNOWNED);
 		if (old == -1)
 			return (EFAULT);
 		if (old == owner)
@@ -707,8 +702,8 @@ do_unlock_umtx(struct thread *td, struct umtx *umtx, uintptr_t id)
 	 * there is zero or one thread only waiting for it.
 	 * Otherwise, it must be marked as contested.
 	 */
-	old = casuptr((intptr_t *)&umtx->u_owner, owner,
-			count <= 1 ? UMTX_UNOWNED : UMTX_CONTESTED);
+	old = casuword(&umtx->u_owner, owner,
+		count <= 1 ? UMTX_UNOWNED : UMTX_CONTESTED);
 	umtxq_lock(&key);
 	umtxq_signal(&key,1);
 	umtxq_unbusy(&key);
@@ -873,9 +868,6 @@ do_unlock_umtx32(struct thread *td, uint32_t *m, uint32_t id)
 
 	/*
 	 * Make sure we own this mtx.
-	 *
-	 * XXX Need a {fu,su}ptr this is not correct on arch where
-	 * sizeof(intptr_t) != sizeof(long).
 	 */
 	owner = fuword32(m);
 	if (owner == -1)
@@ -928,13 +920,13 @@ do_unlock_umtx32(struct thread *td, uint32_t *m, uint32_t id)
  * Fetch and compare value, sleep on the address if value is not changed.
  */
 static int
-do_wait(struct thread *td, void *addr, uintptr_t id,
+do_wait(struct thread *td, void *addr, u_long id,
 	struct timespec *timeout, int compat32)
 {
 	struct umtx_q *uq;
 	struct timespec ts, ts2, ts3;
 	struct timeval tv;
-	uintptr_t tmp;
+	u_long tmp;
 	int error = 0;
 
 	uq = td->td_umtxq;
@@ -1132,7 +1124,7 @@ do_unlock_normal(struct thread *td, struct umutex *m, uint32_t flags)
 	/*
 	 * Make sure we own this mtx.
 	 */
-	owner = fuword32(&m->m_owner);
+	owner = fuword32(__DEVOLATILE(uint32_t *, &m->m_owner));
 	if (owner == -1)
 		return (EFAULT);
 
@@ -1729,7 +1721,7 @@ do_unlock_pi(struct thread *td, struct umutex *m, uint32_t flags)
 	/*
 	 * Make sure we own this mtx.
 	 */
-	owner = fuword32(&m->m_owner);
+	owner = fuword32(__DEVOLATILE(uint32_t *, &m->m_owner));
 	if (owner == -1)
 		return (EFAULT);
 
@@ -1945,7 +1937,7 @@ do_unlock_pp(struct thread *td, struct umutex *m, uint32_t flags)
 	/*
 	 * Make sure we own this mtx.
 	 */
-	owner = fuword32(&m->m_owner);
+	owner = fuword32(__DEVOLATILE(uint32_t *, &m->m_owner));
 	if (owner == -1)
 		return (EFAULT);
 
@@ -1977,7 +1969,8 @@ do_unlock_pp(struct thread *td, struct umutex *m, uint32_t flags)
 	 * to lock the mutex, it is necessary because thread priority
 	 * has to be adjusted for such mutex.
 	 */
-	error = suword32(&m->m_owner, UMUTEX_CONTESTED);
+	error = suword32(__DEVOLATILE(uint32_t *, &m->m_owner),
+		UMUTEX_CONTESTED);
 
 	umtxq_lock(&key);
 	if (error == 0)
@@ -2040,7 +2033,8 @@ do_set_ceiling(struct thread *td, struct umutex *m, uint32_t ceiling,
 
 		if (owner == UMUTEX_CONTESTED) {
 			suword32(&m->m_ceilings[0], ceiling);
-			suword32(&m->m_owner, UMUTEX_CONTESTED);
+			suword32(__DEVOLATILE(uint32_t *, &m->m_owner),
+				UMUTEX_CONTESTED);
 			error = 0;
 			break;
 		}

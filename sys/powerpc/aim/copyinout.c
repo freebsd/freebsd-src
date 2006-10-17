@@ -322,23 +322,23 @@ fuword32(const void *addr)
 	return ((int32_t)fuword(addr));
 }
 
-int32_t
-casuword32(int32_t *base, int32_t oldval, int32_t newval)
+uint32_t
+casuword32(volatile uint32_t *base, uint32_t oldval, uint32_t newval)
 {
-	return (casuptr(base, oldval, newval));
+	return (casuword(base, oldval, newval));
 }
 
-intptr_t
-casuptr(intptr_t *addr, intptr_t old, intptr_t new)
+u_long
+casuword(volatile u_long *addr, u_long old, u_long new)
 {
 	struct thread *td;
 	pmap_t pm;
 	faultbuf env;
-	intptr_t *p, val;
+	u_long *p, val;
 
 	td = PCPU_GET(curthread);
 	pm = &td->td_proc->p_vmspace->vm_pmap;
-	p = (intptr_t *)((u_int)USER_ADDR + ((u_int)addr & ~SEGMENT_MASK));
+	p = (u_long *)((u_int)USER_ADDR + ((u_int)addr & ~SEGMENT_MASK));
 
 	set_user_sr(pm->pm_sr[(u_int)addr >> ADDR_SR_SHFT]);
 
