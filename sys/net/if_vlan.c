@@ -963,9 +963,10 @@ vlan_link_state(struct ifnet *ifp, int link)
 
 	VLAN_LOCK();
 	LIST_FOREACH(ifv, &ifv_list, ifv_list) {
-		if (ifv->ifv_p == ifp)
-			if_link_state_change(ifv->ifv_ifp,
-			    ifv->ifv_p->if_link_state);
+		if (ifv->ifv_p == ifp) {
+			ifv->ifv_ifp->if_baudrate = ifp->if_baudrate;
+			if_link_state_change(ifv->ifv_ifp, ifp->if_link_state);
+		}
 	}
 	VLAN_UNLOCK();
 }
