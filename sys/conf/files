@@ -50,12 +50,7 @@ aic79xx_reg_print.c	optional ahd pci				   \
 aic79xx_reg_print.o		optional ahd pci ahd_reg_pretty_print	   \
 	compile-with	"${NORMAL_C}"					   \
 	no-implicit-rule local
-emu10k1-alsa%diked.h		optional snd_emu10k1 pci			   \
-	dependency	"$S/tools/emu10k1-mkalsa.sh $S/gnu/dev/sound/pci/emu10k1-alsa.h" \
-	compile-with	"CC='${CC}' AWK=${AWK} sh $S/tools/emu10k1-mkalsa.sh $S/gnu/dev/sound/pci/emu10k1-alsa.h emu10k1-alsa%diked.h" \
-	no-obj no-implicit-rule before-depend				   \
-	clean		"emu10k1-alsa%diked.h"
-emu10k1-alsa%diked.h		optional snd_emu10kx pci			   \
+emu10k1-alsa%diked.h		optional snd_emu10k1 | snd_emu10kx	   \
 	dependency	"$S/tools/emu10k1-mkalsa.sh $S/gnu/dev/sound/pci/emu10k1-alsa.h" \
 	compile-with	"CC='${CC}' AWK=${AWK} sh $S/tools/emu10k1-mkalsa.sh $S/gnu/dev/sound/pci/emu10k1-alsa.h emu10k1-alsa%diked.h" \
 	no-obj no-implicit-rule before-depend				   \
