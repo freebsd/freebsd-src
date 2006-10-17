@@ -58,13 +58,11 @@ enum {
 	NGM_SOCK_CMD_LINGER		/* Keep socket even if 0 hooks */
 };
 
-
-
 /* Netgraph version of struct sockaddr */
 struct sockaddr_ng {
-	u_char  sg_len;		/* total length */
-	u_char  sg_family;	/* address family */
-	char    sg_data[14];	/* actually longer; address value */
+	unsigned char	sg_len;		/* total length */
+	sa_family_t	sg_family;	/* address family */
+	char		sg_data[14];	/* actually longer; address value */
 };
 
 #endif /* _NETGRAPH_NG_SOCKET_H_ */
