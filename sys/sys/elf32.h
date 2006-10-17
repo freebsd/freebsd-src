@@ -141,11 +141,7 @@ typedef struct {
 /*
  *	Note entry header
  */
-typedef struct {
-	Elf32_Word	n_namesz;	/* length of note's name */
-	Elf32_Word	n_descsz;	/* length of note's "desc" */
-	Elf32_Word	n_type;		/* type of note */
-} Elf32_Nhdr;
+typedef Elf_Note Elf32_Nhdr;
 
 /*
  *	Move entry
