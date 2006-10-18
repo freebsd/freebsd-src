@@ -61,6 +61,8 @@ void devfs_destroy(struct cdev *dev);
 
 extern struct unrhdr *devfs_inos;
 extern struct mtx devmtx;
+extern struct mtx devfs_de_interlock;
+extern TAILQ_HEAD(cdev_priv_list, cdev_priv) cdevp_list;
 
 #endif /* _KERNEL */
 
