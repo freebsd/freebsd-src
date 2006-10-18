@@ -111,7 +111,7 @@ SUBDIR=	ac \
 	ntp \
 	${_nvram} \
 	${_ofwdump} \
-	${_pccard} \
+	pccard \
 	pciconf \
 	periodic \
 	pkg_install \
@@ -303,7 +303,6 @@ _mount_nwfs=	mount_nwfs
 _mount_smbfs=	mount_smbfs
 _mptable=	mptable
 _ndiscvt=	ndiscvt
-_pccard=	pccard
 _pnpinfo=	pnpinfo
 .if ${MK_LIBPTHREAD} != "no"
 _pppctl=	pppctl
