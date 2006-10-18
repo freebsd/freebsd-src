@@ -1,6 +1,6 @@
 # Makefile for pccardc/pccardd.
 # $FreeBSD$
 
-SUBDIR=	pccardc
+SUBDIR=	dumpcis
 
 .include <bsd.subdir.mk>
