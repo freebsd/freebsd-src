@@ -628,9 +628,10 @@ aclmode(char *buf, const FTSENT *p, int *haveacls)
 		    p->fts_parent->fts_accpath, p->fts_name);   
 	/*
 	 * We have no way to tell whether a symbolic link has an ACL since
-	 * pathconf() and acl_get_file() both follow them.
+	 * pathconf() and acl_get_file() both follow them.  They also don't
+	 * support whiteouts.
 	 */
-	if (S_ISLNK(p->fts_statp->st_mode)) {
+	if (S_ISLNK(p->fts_statp->st_mode) || S_ISWHT(p->fts_statp->st_mode)) {
 		*haveacls = 1;
 		return;
 	}
