@@ -835,7 +835,7 @@ ngs_rcvmsg(node_p node, item_p item, hook_p lasthook)
 {
 	struct ngsock *const priv = NG_NODE_PRIVATE(node);
 	struct ngpcb *const pcbp = priv->ctlsock;
-	struct socket *const so = pcbp->ng_socket;
+	struct socket *so;
 	struct sockaddr_ng addr;
 	struct ng_mesg *msg;
 	struct mbuf *m;
@@ -855,6 +855,7 @@ ngs_rcvmsg(node_p node, item_p item, hook_p lasthook)
 		NG_FREE_MSG(msg);
 		return (EINVAL);
 	}
+	so = pcbp->ng_socket;
 
 #ifdef TRACE_MESSAGES
 	printf("[%x]:---------->[socket]: c=<%d>cmd=%x(%s) f=%x #%d\n",
