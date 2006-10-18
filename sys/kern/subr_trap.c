@@ -190,7 +190,7 @@ ast(struct trapframe *framep)
 #endif
 	td->td_flags &= ~(TDF_ASTPENDING | TDF_NEEDSIGCHK |
 	    TDF_NEEDRESCHED | TDF_INTERRUPT);
-	cnt.v_soft++;
+	cnt.v_trap++;
 	mtx_unlock_spin(&sched_lock);
 
 	/*
