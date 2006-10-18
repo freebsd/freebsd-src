@@ -583,8 +583,6 @@ swi_sched(void *cookie, int flags)
 	struct intr_event *ie = ih->ih_event;
 	int error;
 
-	PCPU_LAZY_INC(cnt.v_intr);
-
 	CTR3(KTR_INTR, "swi_sched: %s %s need=%d", ie->ie_name, ih->ih_name,
 	    ih->ih_need);
 
@@ -594,7 +592,9 @@ swi_sched(void *cookie, int flags)
 	 * it will execute it the next time it runs.
 	 */
 	atomic_store_rel_int(&ih->ih_need, 1);
+
 	if (!(flags & SWI_DELAY)) {
+		PCPU_LAZY_INC(cnt.v_soft);
 		error = intr_event_schedule_thread(ie);
 		KASSERT(error == 0, ("stray software interrupt"));
 	}
