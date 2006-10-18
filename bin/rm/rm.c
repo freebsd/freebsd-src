@@ -317,6 +317,7 @@ rm_file(char **argv)
 	int rval;
 	char *f;
 
+	bzero(&sb, sizeof(sb));
 	/*
 	 * Remove a file.  POSIX 1003.2 states that, by default, attempting
 	 * to remove a directory is an error, so must always stat the file.
