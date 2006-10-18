@@ -325,7 +325,7 @@ fuword32(const void *addr)
 uint32_t
 casuword32(volatile uint32_t *base, uint32_t oldval, uint32_t newval)
 {
-	return (casuword(base, oldval, newval));
+	return (casuword((volatile u_long *)base, oldval, newval));
 }
 
 u_long
