@@ -3,7 +3,7 @@
 .PATH: ${.CURDIR}/..
 
 PROG=	zdump
-MAN=	${.CURDIR}/../zdump.8
+MAN=	zdump.8
 SRCS=	zdump.c ialloc.c scheck.c
 
 CFLAGS+= -DTM_GMTOFF=tm_gmtoff -DTM_ZONE=tm_zone -DSTD_INSPIRED -DPCTS
