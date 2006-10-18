@@ -348,7 +348,7 @@ casuword(volatile u_long *addr, u_long old, u_long new)
 	}
 
 	val = *p;
-	(void) atomic_cmpset_32(p, old, new);
+	(void) atomic_cmpset_32((volatile uint32_t *)p, old, new);
 
 	td->td_pcb->pcb_onfault = NULL;
 
