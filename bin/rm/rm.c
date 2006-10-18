@@ -317,7 +317,6 @@ rm_file(char **argv)
 	int rval;
 	char *f;
 
-	bzero(&sb, sizeof(sb));
 	/*
 	 * Remove a file.  POSIX 1003.2 states that, by default, attempting
 	 * to remove a directory is an error, so must always stat the file.
@@ -348,7 +347,7 @@ rm_file(char **argv)
 		if (!fflag && !S_ISWHT(sb.st_mode) && !check(f, f, &sb))
 			continue;
 		rval = 0;
-		if (!uid &&
+		if (!uid && !S_ISWHT(sb.st_mode) &&
 		    (sb.st_flags & (UF_APPEND|UF_IMMUTABLE)) &&
 		    !(sb.st_flags & (SF_APPEND|SF_IMMUTABLE)))
 			rval = chflags(f, sb.st_flags & ~(UF_APPEND|UF_IMMUTABLE));
