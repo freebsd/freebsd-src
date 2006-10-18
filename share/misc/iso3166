@@ -162,6 +162,7 @@ FM	FSM	583	Micronesia (Federated States of)
 MD	MDA	498	Moldova
 MC	MCO	492	Monaco
 MN	MNG	496	Mongolia
+ME	MNE	499	Montenegro
 MS	MSR	500	Montserrat
 MA	MAR	504	Morocco
 MZ	MOZ	508	Mozambique
@@ -206,7 +207,7 @@ SM	SMR	674	San Marino
 ST	STP	678	Sao Tome and Principe
 SA	SAU	682	Saudi Arabia
 SN	SEN	686	Senegal
-CS	SCG	891	Serbia and Montenegro
+RS	SRB	688	Serbia
 SC	SYC	690	Seychelles
 SL	SLE	694	Sierra Leone
 SG	SGP	702	Singapore
@@ -509,3 +510,6 @@ ZW	ZWE	716	Zimbabwe
 #  GUERNSEY (GG), ISLE OF MAN (IM), and JERSEY (JE) added as new entries.
 #  These territories were previously included as a part of the UNITED
 #  KINGDOM (GB).
+#
+# Newsletter V-12 2006-09-26
+#  Removed SERBIA AND MONTENEGRO (CS).  Added SERBIA (RS) and MONTENEGRO (ME).
