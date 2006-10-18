@@ -16,6 +16,7 @@ rcvar=`set_rcvar`
 command="/usr/sbin/${name}"
 start_precmd="amd_precmd"
 command_args="&"
+extra_commands="reload"
 
 amd_precmd()
 {
