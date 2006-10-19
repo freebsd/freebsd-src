@@ -78,8 +78,7 @@ __FBSDID("$FreeBSD$");
  * interact with pccardd) if you use other memory mapped cards in the
  * same pccard slot as currently old mappings are not cleaned up very well
  * by the bus_release_resource methods or pccardd.
- *
- * There is no support for running this driver on 4.0.
+ * XXX Are these workarounds necessary with NEWCARD?
  *
  * Ad-hoc and infra-structure modes
  * ================================
