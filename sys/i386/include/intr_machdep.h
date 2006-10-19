@@ -56,9 +56,9 @@
  * - 7 counters for each CPU for IPI counters for SMP.
  */
 #ifdef SMP
-#define	INTRCNT_COUNT	(1 + NUM_IO_INTS * 2 + 1)
-#else
 #define	INTRCNT_COUNT	(1 + NUM_IO_INTS * 2 + (1 + 7) * MAXCPU)
+#else
+#define	INTRCNT_COUNT	(1 + NUM_IO_INTS * 2 + 1)
 #endif
 
 #ifndef LOCORE
