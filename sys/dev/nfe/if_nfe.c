@@ -24,12 +24,12 @@
 __FBSDID("$FreeBSD$");
 
 /* Uncomment the following line to enable polling. */
-/* #define DEVICE_POLLING */
+/* #define	DEVICE_POLLING */
 
-#define NFE_NO_JUMBO
-#define NFE_CSUM
-#define NFE_CSUM_FEATURES	(CSUM_IP | CSUM_TCP | CSUM_UDP)
-#define NVLAN 0
+#define	NFE_NO_JUMBO
+#define	NFE_CSUM
+#define	NFE_CSUM_FEATURES	(CSUM_IP | CSUM_TCP | CSUM_UDP)
+#define	NVLAN 0
 
 #ifdef HAVE_KERNEL_OPTION_HEADERS
 #include "opt_device_polling.h"
@@ -75,15 +75,15 @@ MODULE_DEPEND(nfe, ether, 1, 1, 1);
 MODULE_DEPEND(nfe, miibus, 1, 1, 1);
 #include "miibus_if.h"
 
-static  int nfe_probe  (device_t);
-static  int nfe_attach (device_t);
-static  int nfe_detach (device_t);
-static  void nfe_shutdown(device_t);
-static  int nfe_miibus_readreg	(device_t, int, int);
-static  int nfe_miibus_writereg	(device_t, int, int, int);
-static  void nfe_miibus_statchg	(device_t); 
-static  int nfe_ioctl(struct ifnet *, u_long, caddr_t);
-static  void nfe_intr(void *);
+static int  nfe_probe(device_t);
+static int  nfe_attach(device_t);
+static int  nfe_detach(device_t);
+static void nfe_shutdown(device_t);
+static int  nfe_miibus_readreg(device_t, int, int);
+static int  nfe_miibus_writereg(device_t, int, int, int);
+static void nfe_miibus_statchg(device_t);
+static int  nfe_ioctl(struct ifnet *, u_long, caddr_t);
+static void nfe_intr(void *);
 static void nfe_txdesc32_sync(struct nfe_softc *, struct nfe_desc32 *, int);
 static void nfe_txdesc64_sync(struct nfe_softc *, struct nfe_desc64 *, int);
 static void nfe_txdesc32_rsync(struct nfe_softc *, int, int, int);
@@ -124,18 +124,18 @@ static void nfe_poll_locked(struct ifnet *, enum poll_cmd, int);
 
 #ifdef NFE_DEBUG
 int nfedebug = 0;
-#define DPRINTF(x)	do { if (nfedebug) printf x; } while (0)
-#define DPRINTFN(n,x)	do { if (nfedebug >= (n)) printf x; } while (0)
+#define	DPRINTF(x)	do { if (nfedebug) printf x; } while (0)
+#define	DPRINTFN(n,x)	do { if (nfedebug >= (n)) printf x; } while (0)
 #else
-#define DPRINTF(x)
-#define DPRINTFN(n,x)
+#define	DPRINTF(x)
+#define	DPRINTFN(n,x)
 #endif
 
 #define	NFE_LOCK(_sc)		mtx_lock(&(_sc)->nfe_mtx)
 #define	NFE_UNLOCK(_sc)		mtx_unlock(&(_sc)->nfe_mtx)
 #define	NFE_LOCK_ASSERT(_sc)	mtx_assert(&(_sc)->nfe_mtx, MA_OWNED)
 
-#define letoh16(x) le16toh(x)
+#define	letoh16(x) le16toh(x)
 
 #define	NV_RID		0x10
 
@@ -153,7 +153,7 @@ static device_method_t nfe_methods[] = {
 	/* MII interface */
 	DEVMETHOD(miibus_readreg,	nfe_miibus_readreg),
 	DEVMETHOD(miibus_writereg,	nfe_miibus_writereg),
-	DEVMETHOD(miibus_statchg,	nfe_miibus_statchg), 
+	DEVMETHOD(miibus_statchg,	nfe_miibus_statchg),
 
 	{ 0, 0 }
 };
@@ -171,51 +171,51 @@ DRIVER_MODULE(miibus, nfe, miibus_driver, miibus_devclass, 0, 0);
 
 static struct nfe_type nfe_devs[] = {
 	{PCI_VENDOR_NVIDIA, PCI_PRODUCT_NVIDIA_NFORCE_LAN,
-	"NVIDIA nForce MCP Networking Adapter"},
+	    "NVIDIA nForce MCP Networking Adapter"},
 	{PCI_VENDOR_NVIDIA, PCI_PRODUCT_NVIDIA_NFORCE2_LAN,
-	"NVIDIA nForce2 MCP2 Networking Adapter"},
+	    "NVIDIA nForce2 MCP2 Networking Adapter"},
 	{PCI_VENDOR_NVIDIA, PCI_PRODUCT_NVIDIA_NFORCE2_400_LAN1,
-	"NVIDIA nForce2 400 MCP4 Networking Adapter"},
+	    "NVIDIA nForce2 400 MCP4 Networking Adapter"},
 	{PCI_VENDOR_NVIDIA, PCI_PRODUCT_NVIDIA_NFORCE2_400_LAN2,
-	"NVIDIA nForce2 400 MCP5 Networking Adapter"},
+	    "NVIDIA nForce2 400 MCP5 Networking Adapter"},
 	{PCI_VENDOR_NVIDIA, PCI_PRODUCT_NVIDIA_NFORCE3_LAN1,
-	"NVIDIA nForce3 MCP3 Networking Adapter"},
+	    "NVIDIA nForce3 MCP3 Networking Adapter"},
 	{PCI_VENDOR_NVIDIA, PCI_PRODUCT_NVIDIA_NFORCE3_250_LAN,
-	"NVIDIA nForce3 250 MCP6 Networking Adapter"},
+	    "NVIDIA nForce3 250 MCP6 Networking Adapter"},
 	{PCI_VENDOR_NVIDIA, PCI_PRODUCT_NVIDIA_NFORCE3_LAN4,
-	"NVIDIA nForce3 MCP7 Networking Adapter"},
+	    "NVIDIA nForce3 MCP7 Networking Adapter"},
 	{PCI_VENDOR_NVIDIA, PCI_PRODUCT_NVIDIA_NFORCE4_LAN1,
-	"NVIDIA nForce4 CK804 MCP8 Networking Adapter"},
+	    "NVIDIA nForce4 CK804 MCP8 Networking Adapter"},
 	{PCI_VENDOR_NVIDIA, PCI_PRODUCT_NVIDIA_NFORCE4_LAN2,
-	"NVIDIA nForce4 CK804 MCP9 Networking Adapter"},
+	    "NVIDIA nForce4 CK804 MCP9 Networking Adapter"},
 	{PCI_VENDOR_NVIDIA, PCI_PRODUCT_NVIDIA_MCP04_LAN1,
-	"NVIDIA nForce MCP04 Networking Adapter"},		// MCP10
+	    "NVIDIA nForce MCP04 Networking Adapter"},		// MCP10
 	{PCI_VENDOR_NVIDIA, PCI_PRODUCT_NVIDIA_MCP04_LAN2,
-	"NVIDIA nForce MCP04 Networking Adapter"},		// MCP11
+	    "NVIDIA nForce MCP04 Networking Adapter"},		// MCP11
 	{PCI_VENDOR_NVIDIA, PCI_PRODUCT_NVIDIA_NFORCE430_LAN1,
-	"NVIDIA nForce 430 MCP12 Networking Adapter"},
+	    "NVIDIA nForce 430 MCP12 Networking Adapter"},
 	{PCI_VENDOR_NVIDIA, PCI_PRODUCT_NVIDIA_NFORCE430_LAN2,
-	"NVIDIA nForce 430 MCP13 Networking Adapter"},
+	    "NVIDIA nForce 430 MCP13 Networking Adapter"},
 	{PCI_VENDOR_NVIDIA, PCI_PRODUCT_NVIDIA_MCP55_LAN1,
-	"NVIDIA nForce MCP55 Networking Adapter"},
+	    "NVIDIA nForce MCP55 Networking Adapter"},
 	{PCI_VENDOR_NVIDIA, PCI_PRODUCT_NVIDIA_MCP55_LAN2,
-	"NVIDIA nForce MCP55 Networking Adapter"},
+	    "NVIDIA nForce MCP55 Networking Adapter"},
 	{PCI_VENDOR_NVIDIA, PCI_PRODUCT_NVIDIA_MCP61_LAN1,
-	"NVIDIA nForce MCP61 Networking Adapter"},
+	    "NVIDIA nForce MCP61 Networking Adapter"},
 	{PCI_VENDOR_NVIDIA, PCI_PRODUCT_NVIDIA_MCP61_LAN2,
-	"NVIDIA nForce MCP61 Networking Adapter"},
+	    "NVIDIA nForce MCP61 Networking Adapter"},
 	{PCI_VENDOR_NVIDIA, PCI_PRODUCT_NVIDIA_MCP61_LAN3,
-	"NVIDIA nForce MCP61 Networking Adapter"},
+	    "NVIDIA nForce MCP61 Networking Adapter"},
 	{PCI_VENDOR_NVIDIA, PCI_PRODUCT_NVIDIA_MCP61_LAN2,
-	"NVIDIA nForce MCP61 Networking Adapter"},
+	    "NVIDIA nForce MCP61 Networking Adapter"},
 	{PCI_VENDOR_NVIDIA, PCI_PRODUCT_NVIDIA_MCP65_LAN1,
-	"NVIDIA nForce MCP65 Networking Adapter"},
+	    "NVIDIA nForce MCP65 Networking Adapter"},
 	{PCI_VENDOR_NVIDIA, PCI_PRODUCT_NVIDIA_MCP65_LAN2,
-	"NVIDIA nForce MCP65 Networking Adapter"},
+	    "NVIDIA nForce MCP65 Networking Adapter"},
 	{PCI_VENDOR_NVIDIA, PCI_PRODUCT_NVIDIA_MCP65_LAN3,
-	"NVIDIA nForce MCP65 Networking Adapter"},
+	    "NVIDIA nForce MCP65 Networking Adapter"},
 	{PCI_VENDOR_NVIDIA, PCI_PRODUCT_NVIDIA_MCP65_LAN2,
-	"NVIDIA nForce MCP65 Networking Adapter"},
+	    "NVIDIA nForce MCP65 Networking Adapter"},
 	{0, 0, NULL}
 };
 
@@ -240,6 +240,7 @@ nfe_probe(device_t dev)
 	return (ENXIO);
 }
 
+
 static int
 nfe_attach(device_t dev)
 {
@@ -256,9 +257,8 @@ nfe_attach(device_t dev)
 	    MTX_DEF | MTX_RECURSE);
 	callout_init_mtx(&sc->nfe_stat_ch, &sc->nfe_mtx, 0);
 
-
 	pci_enable_busmaster(dev);
-	
+
 	rid = NV_RID;
 	sc->nfe_res = bus_alloc_resource(dev, SYS_RES_MEMORY, &rid,
 	    0, ~0, 1, RF_ACTIVE);
@@ -306,7 +306,8 @@ nfe_attach(device_t dev)
 		break;
 	case PCI_PRODUCT_NVIDIA_MCP55_LAN1:
 	case PCI_PRODUCT_NVIDIA_MCP55_LAN2:
-		sc->nfe_flags |= NFE_JUMBO_SUP | NFE_40BIT_ADDR | NFE_HW_CSUM | NFE_HW_VLAN;
+		sc->nfe_flags |= NFE_JUMBO_SUP | NFE_40BIT_ADDR | NFE_HW_CSUM |
+		    NFE_HW_VLAN;
 		break;
 	case PCI_PRODUCT_NVIDIA_MCP61_LAN1:
 	case PCI_PRODUCT_NVIDIA_MCP61_LAN2:
@@ -319,7 +320,7 @@ nfe_attach(device_t dev)
 	case PCI_PRODUCT_NVIDIA_MCP65_LAN3:
 	case PCI_PRODUCT_NVIDIA_MCP65_LAN4:
 		sc->nfe_flags |= NFE_JUMBO_SUP | NFE_40BIT_ADDR | NFE_HW_CSUM;
- 		break;
+		break;
 	}
 
 #ifndef NFE_NO_JUMBO
@@ -331,17 +332,17 @@ nfe_attach(device_t dev)
 	/*
 	 * Allocate the parent bus DMA tag appropriate for PCI.
 	 */
-#define NFE_NSEG_NEW 32
+#define	NFE_NSEG_NEW 32
 	error = bus_dma_tag_create(NULL,	/* parent */
-			1, 0,			/* alignment, boundary */
-			BUS_SPACE_MAXADDR_32BIT,/* lowaddr */
-			BUS_SPACE_MAXADDR,	/* highaddr */
-			NULL, NULL,		/* filter, filterarg */
-			MAXBSIZE, NFE_NSEG_NEW,	/* maxsize, nsegments */
-			BUS_SPACE_MAXSIZE_32BIT,/* maxsegsize */
-			BUS_DMA_ALLOCNOW,	/* flags */
-			NULL, NULL,		/* lockfunc, lockarg */
-			&sc->nfe_parent_tag);
+	    1, 0,				/* alignment, boundary */
+	    BUS_SPACE_MAXADDR_32BIT,		/* lowaddr */
+	    BUS_SPACE_MAXADDR,			/* highaddr */
+	    NULL, NULL,				/* filter, filterarg */
+	    MAXBSIZE, NFE_NSEG_NEW,		/* maxsize, nsegments */
+	    BUS_SPACE_MAXSIZE_32BIT,		/* maxsegsize */
+	    BUS_DMA_ALLOCNOW,			/* flags */
+	    NULL, NULL,				/* lockfunc, lockarg */
+	    &sc->nfe_parent_tag);
 	if (error)
 		goto fail;
 
@@ -397,7 +398,8 @@ nfe_attach(device_t dev)
 #endif
 
 	/* Do MII setup */
-	if (mii_phy_probe(dev, &sc->nfe_miibus, nfe_ifmedia_upd, nfe_ifmedia_sts)) {
+	if (mii_phy_probe(dev, &sc->nfe_miibus, nfe_ifmedia_upd,
+	    nfe_ifmedia_sts)) {
 		printf("nfe%d: MII without any phy!\n", unit);
 		error = ENXIO;
 		goto fail;
@@ -405,7 +407,7 @@ nfe_attach(device_t dev)
 
 	ether_ifattach(ifp, sc->eaddr);
 
-	error = bus_setup_intr(dev, sc->nfe_irq, INTR_TYPE_NET|INTR_MPSAFE,
+	error = bus_setup_intr(dev, sc->nfe_irq, INTR_TYPE_NET | INTR_MPSAFE,
 	    nfe_intr, sc, &sc->nfe_intrhand);
 
 	if (error) {
@@ -425,10 +427,10 @@ fail:
 static int
 nfe_detach(device_t dev)
 {
-	struct nfe_softc	*sc;
-	struct ifnet		*ifp;
-	u_char			eaddr[ETHER_ADDR_LEN];
-	int			i;
+	struct nfe_softc *sc;
+	struct ifnet *ifp;
+	u_char eaddr[ETHER_ADDR_LEN];
+	int i;
 
 	sc = device_get_softc(dev);
 	KASSERT(mtx_initialized(&sc->nfe_mtx), ("nfe mutex not initialized"));
@@ -521,6 +523,7 @@ nfe_miibus_statchg(device_t dev)
 	NFE_WRITE(sc, NFE_LINKSPEED, link);
 }
 
+
 static int
 nfe_miibus_readreg(device_t dev, int phy, int reg)
 {
@@ -556,17 +559,19 @@ nfe_miibus_readreg(device_t dev, int phy, int reg)
 	if (val != 0xffffffff && val != 0)
 		sc->mii_phyaddr = phy;
 
-	DPRINTFN(2, ("nfe%d: mii read phy %d reg 0x%x ret 0x%x\n", sc->nfe_unit, phy, reg, val));
+	DPRINTFN(2, ("nfe%d: mii read phy %d reg 0x%x ret 0x%x\n",
+	    sc->nfe_unit, phy, reg, val));
 
 	return val;
 }
+
 
 static int
 nfe_miibus_writereg(device_t dev, int phy, int reg, int val)
 {
 	struct nfe_softc *sc = device_get_softc(dev);
 	u_int32_t ctl;
-	int ntries; 
+	int ntries;
 
 	NFE_WRITE(sc, NFE_PHY_STATUS, 0xf);
 
@@ -591,6 +596,7 @@ nfe_miibus_writereg(device_t dev, int phy, int reg, int val)
 	return 0;
 }
 
+
 static int
 nfe_alloc_rx_ring(struct nfe_softc *sc, struct nfe_rx_ring *ring)
 {
@@ -613,23 +619,24 @@ nfe_alloc_rx_ring(struct nfe_softc *sc, struct nfe_rx_ring *ring)
 	ring->cur = ring->next = 0;
 	ring->bufsz = MCLBYTES;
 
-	error = bus_dma_tag_create(sc->nfe_parent_tag, 
-				   PAGE_SIZE, 0,	/* alignment, boundary */
-				   BUS_SPACE_MAXADDR_32BIT,/* lowaddr */
-				   BUS_SPACE_MAXADDR,	/* highaddr */
-				   NULL, NULL,		/* filter, filterarg */
-				   NFE_RX_RING_COUNT * descsize, 1, /* maxsize, nsegments */
-				   NFE_RX_RING_COUNT * descsize,   /* maxsegsize */
-				   BUS_DMA_ALLOCNOW,	/* flags */
-				   NULL, NULL,		/* lockfunc, lockarg */
-				   &ring->rx_desc_tag);
+	error = bus_dma_tag_create(sc->nfe_parent_tag,
+	   PAGE_SIZE, 0,			/* alignment, boundary */
+	   BUS_SPACE_MAXADDR_32BIT,		/* lowaddr */
+	   BUS_SPACE_MAXADDR,			/* highaddr */
+	   NULL, NULL,				/* filter, filterarg */
+	   NFE_RX_RING_COUNT * descsize, 1,	/* maxsize, nsegments */
+	   NFE_RX_RING_COUNT * descsize,	/* maxsegsize */
+	   BUS_DMA_ALLOCNOW,			/* flags */
+	   NULL, NULL,				/* lockfunc, lockarg */
+	   &ring->rx_desc_tag);
 	if (error != 0) {
 		printf("nfe%d: could not create desc DMA tag\n", sc->nfe_unit);
 		goto fail;
 	}
 
 	/* allocate memory to desc */
-	error = bus_dmamem_alloc(ring->rx_desc_tag, (void **)desc, BUS_DMA_NOWAIT, &ring->rx_desc_map);
+	error = bus_dmamem_alloc(ring->rx_desc_tag, (void **)desc,
+	    BUS_DMA_NOWAIT, &ring->rx_desc_map);
 	if (error != 0) {
 		printf("nfe%d: could not create desc DMA map\n", sc->nfe_unit);
 		goto fail;
@@ -637,7 +644,8 @@ nfe_alloc_rx_ring(struct nfe_softc *sc, struct nfe_rx_ring *ring)
 
 	/* map desc to device visible address space */
 	error = bus_dmamap_load(ring->rx_desc_tag, ring->rx_desc_map, *desc,
-	    NFE_RX_RING_COUNT * descsize, nfe_dma_map_segs, &ring->rx_desc_segs, BUS_DMA_NOWAIT);
+	    NFE_RX_RING_COUNT * descsize, nfe_dma_map_segs,
+	    &ring->rx_desc_segs, BUS_DMA_NOWAIT);
 	if (error != 0) {
 		printf("nfe%d: could not load desc DMA map\n", sc->nfe_unit);
 		goto fail;
@@ -650,7 +658,8 @@ nfe_alloc_rx_ring(struct nfe_softc *sc, struct nfe_rx_ring *ring)
 	if (sc->nfe_flags & NFE_USE_JUMBO) {
 		ring->bufsz = NFE_JBYTES;
 		if ((error = nfe_jpool_alloc(sc)) != 0) {
-			printf("nfe%d: could not allocate jumbo frames\n", sc->nfe_unit);
+			printf("nfe%d: could not allocate jumbo frames\n",
+			    sc->nfe_unit);
 			goto fail;
 		}
 	}
@@ -663,58 +672,67 @@ nfe_alloc_rx_ring(struct nfe_softc *sc, struct nfe_rx_ring *ring)
 
 		MGETHDR(data->m, M_DONTWAIT, MT_DATA);
 		if (data->m == NULL) {
-			printf("nfe%d: could not allocate rx mbuf\n", sc->nfe_unit);
+			printf("nfe%d: could not allocate rx mbuf\n",
+			    sc->nfe_unit);
 			error = ENOMEM;
 			goto fail;
 		}
 
 		if (sc->nfe_flags & NFE_USE_JUMBO) {
 			if ((jbuf = nfe_jalloc(sc)) == NULL) {
-				printf("nfe%d: could not allocate jumbo buffer\n", sc->nfe_unit);
+				printf("nfe%d: could not allocate jumbo buffer\n",
+				    sc->nfe_unit);
 				goto fail;
 			}
 			data->m->m_data = (void *)jbuf->buf;
 			data->m->m_len = data->m->m_pkthdr.len = NFE_JBYTES;
-			MEXTADD(data->m, jbuf->buf, NFE_JBYTES, nfe_jfree, (struct nfe_softc *)sc, 0, EXT_NET_DRV);
+			MEXTADD(data->m, jbuf->buf, NFE_JBYTES, nfe_jfree,
+			    (struct nfe_softc *)sc, 0, EXT_NET_DRV);
 			/* m_adj(data->m, ETHER_ALIGN); */
 			physaddr = jbuf->physaddr;
 		} else {
-		  error = bus_dma_tag_create(sc->nfe_parent_tag, 
-					     ETHER_ALIGN, 0,	/* alignment, boundary */
-					     BUS_SPACE_MAXADDR_32BIT,/* lowaddr */
-					     BUS_SPACE_MAXADDR,	/* highaddr */
-					     NULL, NULL,	/* filter, filterarg */
-					     MCLBYTES, 1,       /* maxsize, nsegments */
-					     MCLBYTES,          /* maxsegsize */
-					     BUS_DMA_ALLOCNOW,	/* flags */
-					     NULL, NULL,		/* lockfunc, lockarg */
-					     &data->rx_data_tag);
-		  if (error != 0) {
-		    printf("nfe%d: could not create DMA map\n", sc->nfe_unit);
-		    goto fail;
-		  }
+			error = bus_dma_tag_create(sc->nfe_parent_tag,
+			    ETHER_ALIGN, 0,	       /* alignment, boundary */
+			    BUS_SPACE_MAXADDR_32BIT,	/* lowaddr */
+			    BUS_SPACE_MAXADDR,		/* highaddr */
+			    NULL, NULL,		/* filter, filterarg */
+			    MCLBYTES, 1,		/* maxsize, nsegments */
+			    MCLBYTES,			/* maxsegsize */
+			    BUS_DMA_ALLOCNOW,		/* flags */
+			    NULL, NULL,		/* lockfunc, lockarg */
+			    &data->rx_data_tag);
+			if (error != 0) {
+				printf("nfe%d: could not create DMA map\n",
+				    sc->nfe_unit);
+				goto fail;
+			}
 
-		  error = bus_dmamap_create(data->rx_data_tag, 0, &data->rx_data_map);
-		  if (error != 0) {
-		    printf("nfe%d: could not allocate mbuf cluster\n", sc->nfe_unit);
-		    goto fail;
-		  }
+			error = bus_dmamap_create(data->rx_data_tag, 0,
+			    &data->rx_data_map);
+			if (error != 0) {
+				printf("nfe%d: could not allocate mbuf cluster\n",
+				    sc->nfe_unit);
+				goto fail;
+			}
 
-		  MCLGET(data->m, M_DONTWAIT);
-		  if (!(data->m->m_flags & M_EXT)) {
-		    error = ENOMEM;
-		    goto fail;
-		  }
+			MCLGET(data->m, M_DONTWAIT);
+			if (!(data->m->m_flags & M_EXT)) {
+				error = ENOMEM;
+				goto fail;
+			}
 
-		  error = bus_dmamap_load(data->rx_data_tag, data->rx_data_map, mtod(data->m, void *),
-					  MCLBYTES, nfe_dma_map_segs, &data->rx_data_segs, BUS_DMA_NOWAIT);
-		  if (error != 0) {
-		    printf("nfe%d: could not load rx buf DMA map\n", sc->nfe_unit);
-		    goto fail;
-		  }
+			error = bus_dmamap_load(data->rx_data_tag,
+			    data->rx_data_map, mtod(data->m, void *), MCLBYTES,
+			    nfe_dma_map_segs, &data->rx_data_segs,
+			    BUS_DMA_NOWAIT);
+			if (error != 0) {
+				printf("nfe%d: could not load rx buf DMA map\n",
+				    sc->nfe_unit);
+				goto fail;
+			}
 
-		  data->rx_data_addr = data->rx_data_segs.ds_addr;
-		  physaddr = data->rx_data_addr;
+			data->rx_data_addr = data->rx_data_segs.ds_addr;
+			physaddr = data->rx_data_addr;
 
 		}
 
@@ -735,7 +753,8 @@ nfe_alloc_rx_ring(struct nfe_softc *sc, struct nfe_rx_ring *ring)
 
 	}
 
-	bus_dmamap_sync(ring->rx_desc_tag, ring->rx_desc_map, BUS_DMASYNC_PREWRITE);
+	bus_dmamap_sync(ring->rx_desc_tag, ring->rx_desc_map,
+	    BUS_DMASYNC_PREWRITE);
 
 	return 0;
 
@@ -743,6 +762,7 @@ fail:	nfe_free_rx_ring(sc, ring);
 
 	return error;
 }
+
 
 static int
 nfe_jpool_alloc(struct nfe_softc *sc)
@@ -756,28 +776,32 @@ nfe_jpool_alloc(struct nfe_softc *sc)
 	/*
 	 * Allocate a big chunk of DMA'able memory.
 	 */
-	error = bus_dma_tag_create(sc->nfe_parent_tag, 
-				   PAGE_SIZE, 0,	/* alignment, boundary */
-				   BUS_SPACE_MAXADDR_32BIT,/* lowaddr */
-				   BUS_SPACE_MAXADDR,	/* highaddr */
-				   NULL, NULL,		/* filter, filterarg */
-				   NFE_JPOOL_SIZE, 1, /* maxsize, nsegments */
-				   NFE_JPOOL_SIZE,   /* maxsegsize */
-				   BUS_DMA_ALLOCNOW,	/* flags */
-				   NULL, NULL,		/* lockfunc, lockarg */
-				   &ring->rx_jumbo_tag);
+	error = bus_dma_tag_create(sc->nfe_parent_tag,
+	   PAGE_SIZE, 0,		/* alignment, boundary */
+	   BUS_SPACE_MAXADDR_32BIT,	/* lowaddr */
+	   BUS_SPACE_MAXADDR,		/* highaddr */
+	   NULL, NULL,			/* filter, filterarg */
+	   NFE_JPOOL_SIZE, 1,		/* maxsize, nsegments */
+	   NFE_JPOOL_SIZE,		/* maxsegsize */
+	   BUS_DMA_ALLOCNOW,		/* flags */
+	   NULL, NULL,			/* lockfunc, lockarg */
+	   &ring->rx_jumbo_tag);
 	if (error != 0) {
 		printf("nfe%d: could not create jumbo DMA tag\n", sc->nfe_unit);
 		goto fail;
 	}
-	error = bus_dmamem_alloc(ring->rx_jumbo_tag, (void **)&ring->jpool, BUS_DMA_NOWAIT, &ring->rx_jumbo_map);
+
+	error = bus_dmamem_alloc(ring->rx_jumbo_tag, (void **)&ring->jpool,
+	    BUS_DMA_NOWAIT, &ring->rx_jumbo_map);
 	if (error != 0) {
-		printf("nfe%d: could not create jumbo DMA memory\n", sc->nfe_unit);
+		printf("nfe%d: could not create jumbo DMA memory\n",
+		    sc->nfe_unit);
 		goto fail;
 	}
 
-	error = bus_dmamap_load(ring->rx_jumbo_tag, ring->rx_jumbo_map, ring->jpool,
-	    NFE_JPOOL_SIZE, nfe_dma_map_segs, &ring->rx_jumbo_segs, BUS_DMA_NOWAIT);
+	error = bus_dmamap_load(ring->rx_jumbo_tag, ring->rx_jumbo_map,
+	    ring->jpool, NFE_JPOOL_SIZE, nfe_dma_map_segs, &ring->rx_jumbo_segs,
+	    BUS_DMA_NOWAIT);
 	if (error != 0) {
 		printf("nfe%d: could not load jumbo DMA map\n", sc->nfe_unit);
 		goto fail;
@@ -816,16 +840,20 @@ nfe_jpool_free(struct nfe_softc *sc)
 
 	if (ring->jpool != NULL) {
 #if 0
-		bus_dmamem_unmap(ring->rx_jumbo_tag, ring->jpool, NFE_JPOOL_SIZE);
+		bus_dmamem_unmap(ring->rx_jumbo_tag, ring->jpool,
+		    NFE_JPOOL_SIZE);
 #endif
-		bus_dmamem_free(ring->rx_jumbo_tag, &ring->rx_jumbo_segs, ring->rx_jumbo_map);
+		bus_dmamem_free(ring->rx_jumbo_tag, &ring->rx_jumbo_segs,
+		    ring->rx_jumbo_map);
 	}
 	if (ring->rx_jumbo_map != NULL) {
-		bus_dmamap_sync(ring->rx_jumbo_tag, ring->rx_jumbo_map, BUS_DMASYNC_POSTWRITE);
+		bus_dmamap_sync(ring->rx_jumbo_tag, ring->rx_jumbo_map,
+		    BUS_DMASYNC_POSTWRITE);
 		bus_dmamap_unload(ring->rx_jumbo_tag, ring->rx_jumbo_map);
 		bus_dmamap_destroy(ring->rx_jumbo_tag, ring->rx_jumbo_map);
 	}
 }
+
 
 static struct nfe_jbuf *
 nfe_jalloc(struct nfe_softc *sc)
@@ -838,6 +866,7 @@ nfe_jalloc(struct nfe_softc *sc)
 	SLIST_REMOVE_HEAD(&sc->rxq.jfreelist, jnext);
 	return jbuf;
 }
+
 
 /*
  * This is called automatically by the network stack when the mbuf is freed.
@@ -854,7 +883,8 @@ nfe_jfree(void *buf, void *arg)
 	/* find the jbuf from the base pointer */
 	i = ((vm_offset_t)buf - (vm_offset_t)sc->rxq.jpool) / NFE_JBYTES;
 	if (i < 0 || i >= NFE_JPOOL_COUNT) {
-		printf("nfe%d: request to free a buffer (%p) not managed by us\n", sc->nfe_unit, buf);
+		printf("nfe%d: request to free a buffer (%p) not managed by us\n",
+		    sc->nfe_unit, buf);
 		return;
 	}
 	jbuf = &sc->rxq.jbuf[i];
@@ -879,7 +909,8 @@ nfe_reset_rx_ring(struct nfe_softc *sc, struct nfe_rx_ring *ring)
 		}
 	}
 
-	bus_dmamap_sync(ring->rx_desc_tag, ring->rx_desc_map, BUS_DMASYNC_PREWRITE);
+	bus_dmamap_sync(ring->rx_desc_tag, ring->rx_desc_map,
+	    BUS_DMASYNC_PREWRITE);
 
 	ring->cur = ring->next = 0;
 }
@@ -901,30 +932,35 @@ nfe_free_rx_ring(struct nfe_softc *sc, struct nfe_rx_ring *ring)
 	}
 
 	if (desc != NULL) {
-		bus_dmamap_sync(ring->rx_desc_tag, ring->rx_desc_map, BUS_DMASYNC_POSTWRITE);
+		bus_dmamap_sync(ring->rx_desc_tag, ring->rx_desc_map,
+		    BUS_DMASYNC_POSTWRITE);
 		bus_dmamap_unload(ring->rx_desc_tag, ring->rx_desc_map);
 		bus_dmamem_free(ring->rx_desc_tag, desc, ring->rx_desc_map);
 		bus_dma_tag_destroy(ring->rx_desc_tag);
 	}
 
-
 	if (sc->nfe_flags & NFE_USE_JUMBO) {
-	        nfe_jpool_free(sc);
+		nfe_jpool_free(sc);
 	} else {
-	  for (i = 0; i < NFE_RX_RING_COUNT; i++) {
-	    data = &ring->data[i];
+		for (i = 0; i < NFE_RX_RING_COUNT; i++) {
+			data = &ring->data[i];
 
-	    if (data->rx_data_map != NULL) {
-	      bus_dmamap_sync(data->rx_data_tag, data->rx_data_map, BUS_DMASYNC_POSTREAD);
-	      bus_dmamap_unload(data->rx_data_tag, data->rx_data_map);
-	      bus_dmamap_destroy(data->rx_data_tag, data->rx_data_map);
-	      bus_dma_tag_destroy(data->rx_data_tag);
-	    }
-	    if (data->m != NULL)
-	      m_freem(data->m);
-	  }
+			if (data->rx_data_map != NULL) {
+				bus_dmamap_sync(data->rx_data_tag,
+				    data->rx_data_map, BUS_DMASYNC_POSTREAD);
+				bus_dmamap_unload(data->rx_data_tag,
+				    data->rx_data_map);
+				bus_dmamap_destroy(data->rx_data_tag,
+				    data->rx_data_map);
+				bus_dma_tag_destroy(data->rx_data_tag);
+			}
+
+			if (data->m != NULL)
+				m_freem(data->m);
+		}
 	}
 }
+
 
 static int
 nfe_alloc_tx_ring(struct nfe_softc *sc, struct nfe_tx_ring *ring)
@@ -944,29 +980,31 @@ nfe_alloc_tx_ring(struct nfe_softc *sc, struct nfe_tx_ring *ring)
 	ring->queued = 0;
 	ring->cur = ring->next = 0;
 
-	error = bus_dma_tag_create(sc->nfe_parent_tag, 
-				   PAGE_SIZE, 0,	/* alignment, boundary */
-				   BUS_SPACE_MAXADDR_32BIT,/* lowaddr */
-				   BUS_SPACE_MAXADDR,	/* highaddr */
-				   NULL, NULL,		/* filter, filterarg */
-				   NFE_TX_RING_COUNT * descsize, 1, /* maxsize, nsegments */
-				   NFE_TX_RING_COUNT * descsize,   /* maxsegsize */
-				   BUS_DMA_ALLOCNOW,	/* flags */
-				   NULL, NULL,		/* lockfunc, lockarg */
-				   &ring->tx_desc_tag);
+	error = bus_dma_tag_create(sc->nfe_parent_tag,
+	   PAGE_SIZE, 0,			/* alignment, boundary */
+	   BUS_SPACE_MAXADDR_32BIT,		/* lowaddr */
+	   BUS_SPACE_MAXADDR,			/* highaddr */
+	   NULL, NULL,				/* filter, filterarg */
+	   NFE_TX_RING_COUNT * descsize, 1,	/* maxsize, nsegments */
+	   NFE_TX_RING_COUNT * descsize,	/* maxsegsize */
+	   BUS_DMA_ALLOCNOW,			/* flags */
+	   NULL, NULL,				/* lockfunc, lockarg */
+	   &ring->tx_desc_tag);
 	if (error != 0) {
 		printf("nfe%d: could not create desc DMA tag\n", sc->nfe_unit);
 		goto fail;
 	}
 
-	error = bus_dmamem_alloc(ring->tx_desc_tag, (void **)desc, BUS_DMA_NOWAIT, &ring->tx_desc_map);
+	error = bus_dmamem_alloc(ring->tx_desc_tag, (void **)desc,
+	    BUS_DMA_NOWAIT, &ring->tx_desc_map);
 	if (error != 0) {
 		printf("nfe%d: could not create desc DMA map\n", sc->nfe_unit);
 		goto fail;
 	}
 
 	error = bus_dmamap_load(ring->tx_desc_tag, ring->tx_desc_map, *desc,
-	    NFE_TX_RING_COUNT * descsize, nfe_dma_map_segs, &ring->tx_desc_segs, BUS_DMA_NOWAIT);
+	    NFE_TX_RING_COUNT * descsize, nfe_dma_map_segs, &ring->tx_desc_segs,
+	    BUS_DMA_NOWAIT);
 	if (error != 0) {
 		printf("nfe%d: could not load desc DMA map\n", sc->nfe_unit);
 		goto fail;
@@ -977,25 +1015,27 @@ nfe_alloc_tx_ring(struct nfe_softc *sc, struct nfe_tx_ring *ring)
 	ring->tx_desc_addr = ring->tx_desc_segs.ds_addr;
 	ring->physaddr = ring->tx_desc_addr;
 
-	error = bus_dma_tag_create(sc->nfe_parent_tag, 
-				   ETHER_ALIGN, 0,	
-				   BUS_SPACE_MAXADDR_32BIT,
-				   BUS_SPACE_MAXADDR,	
-				   NULL, NULL,		
-				   NFE_JBYTES, NFE_MAX_SCATTER, 
-				   NFE_JBYTES, 
-				   BUS_DMA_ALLOCNOW,
-				   NULL, NULL,	
-				   &ring->tx_data_tag);
+	error = bus_dma_tag_create(sc->nfe_parent_tag,
+	   ETHER_ALIGN, 0,
+	   BUS_SPACE_MAXADDR_32BIT,
+	   BUS_SPACE_MAXADDR,
+	   NULL, NULL,
+	   NFE_JBYTES, NFE_MAX_SCATTER,
+	   NFE_JBYTES,
+	   BUS_DMA_ALLOCNOW,
+	   NULL, NULL,
+	   &ring->tx_data_tag);
 	if (error != 0) {
 	  printf("nfe%d: could not create DMA tag\n", sc->nfe_unit);
 	  goto fail;
 	}
 
 	for (i = 0; i < NFE_TX_RING_COUNT; i++) {
-		error = bus_dmamap_create(ring->tx_data_tag, 0, &ring->data[i].tx_data_map);
+		error = bus_dmamap_create(ring->tx_data_tag, 0,
+		    &ring->data[i].tx_data_map);
 		if (error != 0) {
-			printf("nfe%d: could not create DMA map\n", sc->nfe_unit);
+			printf("nfe%d: could not create DMA map\n",
+			    sc->nfe_unit);
 			goto fail;
 		}
 	}
@@ -1022,18 +1062,21 @@ nfe_reset_tx_ring(struct nfe_softc *sc, struct nfe_tx_ring *ring)
 		data = &ring->data[i];
 
 		if (data->m != NULL) {
-			bus_dmamap_sync(ring->tx_data_tag, data->active, BUS_DMASYNC_POSTWRITE);
+			bus_dmamap_sync(ring->tx_data_tag, data->active,
+			    BUS_DMASYNC_POSTWRITE);
 			bus_dmamap_unload(ring->tx_data_tag, data->active);
 			m_freem(data->m);
 			data->m = NULL;
 		}
 	}
 
-	bus_dmamap_sync(ring->tx_desc_tag, ring->tx_desc_map, BUS_DMASYNC_PREWRITE);
+	bus_dmamap_sync(ring->tx_desc_tag, ring->tx_desc_map,
+	    BUS_DMASYNC_PREWRITE);
 
 	ring->queued = 0;
 	ring->cur = ring->next = 0;
 }
+
 
 static void
 nfe_free_tx_ring(struct nfe_softc *sc, struct nfe_tx_ring *ring)
@@ -1051,7 +1094,8 @@ nfe_free_tx_ring(struct nfe_softc *sc, struct nfe_tx_ring *ring)
 	}
 
 	if (desc != NULL) {
-		bus_dmamap_sync(ring->tx_desc_tag, ring->tx_desc_map, BUS_DMASYNC_POSTWRITE);
+		bus_dmamap_sync(ring->tx_desc_tag, ring->tx_desc_map,
+		    BUS_DMASYNC_POSTWRITE);
 		bus_dmamap_unload(ring->tx_desc_tag, ring->tx_desc_map);
 		bus_dmamem_free(ring->tx_desc_tag, desc, ring->tx_desc_map);
 		bus_dma_tag_destroy(ring->tx_desc_tag);
@@ -1061,7 +1105,8 @@ nfe_free_tx_ring(struct nfe_softc *sc, struct nfe_tx_ring *ring)
 		data = &ring->data[i];
 
 		if (data->m != NULL) {
-			bus_dmamap_sync(ring->tx_data_tag, data->active, BUS_DMASYNC_POSTWRITE);
+			bus_dmamap_sync(ring->tx_data_tag, data->active,
+			    BUS_DMASYNC_POSTWRITE);
 			bus_dmamap_unload(ring->tx_data_tag, data->active);
 			m_freem(data->m);
 		}
@@ -1080,6 +1125,7 @@ nfe_free_tx_ring(struct nfe_softc *sc, struct nfe_tx_ring *ring)
 
 #ifdef DEVICE_POLLING
 static poll_handler_t nfe_poll;
+
 
 static void
 nfe_poll(struct ifnet *ifp, enum poll_cmd cmd, int count)
@@ -1112,16 +1158,16 @@ nfe_poll_locked(struct ifnet *ifp, enum poll_cmd cmd, int count)
 		nfe_start_locked(ifp);
 
 	if (cmd == POLL_AND_CHECK_STATUS) {
-	  if ((r = NFE_READ(sc, NFE_IRQ_STATUS)) == 0) {
-	    return;
-	  }
-	  NFE_WRITE(sc, NFE_IRQ_STATUS, r);
+		if ((r = NFE_READ(sc, NFE_IRQ_STATUS)) == 0) {
+			return;
+		}
+		NFE_WRITE(sc, NFE_IRQ_STATUS, r);
 
-	  if (r & NFE_IRQ_LINK) {
-	    NFE_READ(sc, NFE_PHY_STATUS);
-	    NFE_WRITE(sc, NFE_PHY_STATUS, 0xf);
-	    DPRINTF(("nfe%d: link state changed\n", sc->nfe_unit));
-	  }
+		if (r & NFE_IRQ_LINK) {
+			NFE_READ(sc, NFE_PHY_STATUS);
+			NFE_WRITE(sc, NFE_PHY_STATUS, 0xf);
+			DPRINTF(("nfe%d: link state changed\n", sc->nfe_unit));
+		}
 	}
 }
 #endif /* DEVICE_POLLING */
@@ -1130,10 +1176,10 @@ nfe_poll_locked(struct ifnet *ifp, enum poll_cmd cmd, int count)
 static int
 nfe_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 {
-	int			error = 0;
-	struct nfe_softc	*sc = ifp->if_softc;
-	struct ifreq		*ifr = (struct ifreq *) data;
-	struct mii_data		*mii;
+	struct nfe_softc *sc = ifp->if_softc;
+	struct ifreq *ifr = (struct ifreq *) data;
+	struct mii_data *mii;
+	int error = 0;
 
 	switch (cmd) {
 	case SIOCSIFMTU:
@@ -1141,9 +1187,9 @@ nfe_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 		    ((sc->nfe_flags & NFE_USE_JUMBO) &&
 		    ifr->ifr_mtu > ETHERMTU_JUMBO) ||
 		    (!(sc->nfe_flags & NFE_USE_JUMBO) &&
-		    ifr->ifr_mtu > ETHERMTU))
+		    ifr->ifr_mtu > ETHERMTU)) {
 			error = EINVAL;
-		else if (ifp->if_mtu != ifr->ifr_mtu) {
+		} else if (ifp->if_mtu != ifr->ifr_mtu) {
 			ifp->if_mtu = ifr->ifr_mtu;
 			ifp->if_drv_flags &= ~IFF_DRV_RUNNING;
 			nfe_init(sc);
@@ -1186,7 +1232,7 @@ nfe_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 		error = ifmedia_ioctl(ifp, ifr, &mii->mii_media, cmd);
 		break;
 	case SIOCSIFCAP:
-	    {
+	{
 		int mask = ifr->ifr_reqcap ^ ifp->if_capenable;
 #ifdef DEVICE_POLLING
 		if (mask & IFCAP_POLLING) {
@@ -1196,7 +1242,7 @@ nfe_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 					return(error);
 				NFE_LOCK(sc);
 				NFE_WRITE(sc, NFE_IRQ_MASK, 0);
-				ifp->if_capenable |= IFCAP_POLLING;   
+				ifp->if_capenable |= IFCAP_POLLING;
 				NFE_UNLOCK(sc);
 			} else {
 				error = ether_poll_deregister(ifp);
@@ -1207,7 +1253,7 @@ nfe_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 				NFE_UNLOCK(sc);
 			}
 		}
-#endif
+#endif /* DEVICE_POLLING */
 		if (mask & IFCAP_HWCSUM) {
 			ifp->if_capenable ^= IFCAP_HWCSUM;
 			if (IFCAP_HWCSUM & ifp->if_capenable &&
@@ -1216,7 +1262,7 @@ nfe_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 			else
 				ifp->if_hwassist = 0;
 		}
-	    }
+	}
 		break;
 
 	default:
@@ -1228,13 +1274,14 @@ nfe_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 }
 
 
-static void nfe_intr(void *arg)
+static void
+nfe_intr(void *arg)
 {
 	struct nfe_softc *sc = arg;
 	struct ifnet *ifp = sc->nfe_ifp;
 	u_int32_t r;
 
-	NFE_LOCK(sc); 
+	NFE_LOCK(sc);
 
 #ifdef DEVICE_POLLING
 	if (ifp->if_capenable & IFCAP_POLLING) {
@@ -1244,7 +1291,7 @@ static void nfe_intr(void *arg)
 #endif
 
 	if ((r = NFE_READ(sc, NFE_IRQ_STATUS)) == 0) {
-	        NFE_UNLOCK(sc);
+		NFE_UNLOCK(sc);
 		return;	/* not for us */
 	}
 	NFE_WRITE(sc, NFE_IRQ_STATUS, r);
@@ -1266,7 +1313,7 @@ static void nfe_intr(void *arg)
 		nfe_txeof(sc);
 	}
 
-	NFE_WRITE(sc, NFE_IRQ_MASK, NFE_IRQ_WANTED); 
+	NFE_WRITE(sc, NFE_IRQ_MASK, NFE_IRQ_WANTED);
 
 	if (ifp->if_drv_flags & IFF_DRV_RUNNING &&
 	    !IFQ_DRV_IS_EMPTY(&ifp->if_snd))
@@ -1277,35 +1324,46 @@ static void nfe_intr(void *arg)
 	return;
 }
 
+
 static void
 nfe_txdesc32_sync(struct nfe_softc *sc, struct nfe_desc32 *desc32, int ops)
 {
+
 	bus_dmamap_sync(sc->txq.tx_desc_tag, sc->txq.tx_desc_map, ops);
 }
+
 
 static void
 nfe_txdesc64_sync(struct nfe_softc *sc, struct nfe_desc64 *desc64, int ops)
 {
+
 	bus_dmamap_sync(sc->txq.tx_desc_tag, sc->txq.tx_desc_map, ops);
 }
+
 
 static void
 nfe_txdesc32_rsync(struct nfe_softc *sc, int start, int end, int ops)
 {
+
 	bus_dmamap_sync(sc->txq.tx_desc_tag, sc->txq.tx_desc_map, ops);
 }
+
 
 static void
 nfe_txdesc64_rsync(struct nfe_softc *sc, int start, int end, int ops)
 {
+
 	bus_dmamap_sync(sc->txq.tx_desc_tag, sc->txq.tx_desc_map, ops);
 }
+
 
 static void
 nfe_rxdesc32_sync(struct nfe_softc *sc, struct nfe_desc32 *desc32, int ops)
 {
+
 	bus_dmamap_sync(sc->rxq.rx_desc_tag, sc->rxq.rx_desc_map, ops);
 }
+
 
 static void
 nfe_rxdesc64_sync(struct nfe_softc *sc, struct nfe_desc64 *desc64, int ops)
@@ -1314,7 +1372,9 @@ nfe_rxdesc64_sync(struct nfe_softc *sc, struct nfe_desc64 *desc64, int ops)
 	bus_dmamap_sync(sc->rxq.rx_desc_tag, sc->rxq.rx_desc_map, ops);
 }
 
-static void nfe_rxeof(struct nfe_softc *sc)
+
+static void
+nfe_rxeof(struct nfe_softc *sc)
 {
 	struct ifnet *ifp = sc->nfe_ifp;
 	struct nfe_desc32 *desc32=NULL;
@@ -1474,7 +1534,7 @@ static void nfe_rxeof(struct nfe_softc *sc)
 			if (flags & NFE_RX_UDP_CSUMOK_V2 ||
 			    flags & NFE_RX_TCP_CSUMOK_V2) {
 				m->m_pkthdr.csum_flags |=
-				    CSUM_DATA_VALID|CSUM_PSEUDO_HDR;
+				    CSUM_DATA_VALID | CSUM_PSEUDO_HDR;
 				m->m_pkthdr.csum_data = 0xffff;
 			}
 		}
@@ -1519,7 +1579,9 @@ skip:		if (sc->nfe_flags & NFE_40BIT_ADDR) {
 	}
 }
 
-static void nfe_txeof(struct nfe_softc *sc)
+
+static void
+nfe_txeof(struct nfe_softc *sc)
 {
 	struct ifnet *ifp = sc->nfe_ifp;
 	struct nfe_desc32 *desc32;
@@ -1553,7 +1615,7 @@ static void nfe_txeof(struct nfe_softc *sc)
 
 			if ((flags & NFE_TX_ERROR_V1) != 0) {
 				printf("nfe%d: tx v1 error 0x%4b\n",
-				    sc->nfe_unit, flags, NFE_V1_TXERR); 
+				    sc->nfe_unit, flags, NFE_V1_TXERR);
 
 				ifp->if_oerrors++;
 			} else
@@ -1564,7 +1626,7 @@ static void nfe_txeof(struct nfe_softc *sc)
 
 			if ((flags & NFE_TX_ERROR_V2) != 0) {
 				printf("nfe%d: tx v1 error 0x%4b\n",
-				    sc->nfe_unit, flags, NFE_V2_TXERR); 
+				    sc->nfe_unit, flags, NFE_V2_TXERR);
 
 				ifp->if_oerrors++;
 			} else
@@ -1572,7 +1634,7 @@ static void nfe_txeof(struct nfe_softc *sc)
 		}
 
 		if (data->m == NULL) {	/* should not get there */
-		       printf("nfe%d: last fragment bit w/o associated mbuf!\n",
+			printf("nfe%d: last fragment bit w/o associated mbuf!\n",
 			    sc->nfe_unit);
 			goto skip;
 		}
@@ -1596,16 +1658,17 @@ skip:		sc->txq.queued--;
 	}
 }
 
-static int nfe_encap(struct nfe_softc *sc, struct mbuf *m0)
+
+static int
+nfe_encap(struct nfe_softc *sc, struct mbuf *m0)
 {
 	struct nfe_desc32 *desc32=NULL;
 	struct nfe_desc64 *desc64=NULL;
 	struct nfe_tx_data *data=NULL;
 	bus_dmamap_t map;
-	u_int16_t flags = NFE_TX_VALID;
 	bus_dma_segment_t segs[NFE_MAX_SCATTER];
-	int nsegs;
-	int error, i;
+	int error, i, nsegs;
+	u_int16_t flags = NFE_TX_VALID;
 
 	map = sc->txq.data[sc->txq.cur].tx_data_map;
 
@@ -1662,7 +1725,7 @@ static int nfe_encap(struct nfe_softc *sc, struct mbuf *m0)
 		if (nsegs > 1) {
 			flags &= ~(NFE_TX_IP_CSUM | NFE_TX_TCP_CSUM);
 		}
-		
+
 		sc->txq.queued++;
 		sc->txq.cur = (sc->txq.cur + 1) % NFE_TX_RING_COUNT;
 	}
@@ -1689,15 +1752,17 @@ static int nfe_encap(struct nfe_softc *sc, struct mbuf *m0)
 }
 
 
-static void nfe_setmulti(struct nfe_softc *sc)
+static void
+nfe_setmulti(struct nfe_softc *sc)
 {
 	struct ifnet *ifp = sc->nfe_ifp;
-	struct ifmultiaddr	*ifma;
-	u_int8_t addr[ETHER_ADDR_LEN], mask[ETHER_ADDR_LEN];
-	u_int32_t filter = NFE_RXFILTER_MAGIC;
-	u_int8_t etherbroadcastaddr[ETHER_ADDR_LEN] =
-	    { 0xff, 0xff, 0xff, 0xff, 0xff, 0xff };
+	struct ifmultiaddr *ifma;
 	int i;
+	u_int32_t filter = NFE_RXFILTER_MAGIC;
+	u_int8_t addr[ETHER_ADDR_LEN], mask[ETHER_ADDR_LEN];
+	u_int8_t etherbroadcastaddr[ETHER_ADDR_LEN] = {
+		0xff, 0xff, 0xff, 0xff, 0xff, 0xff
+	};
 
 	NFE_LOCK_ASSERT(sc);
 
@@ -1746,7 +1811,9 @@ done:
 	NFE_WRITE(sc, NFE_RXFILTER, filter);
 }
 
-static void nfe_start(struct ifnet *ifp)
+
+static void
+nfe_start(struct ifnet *ifp)
 {
 	struct nfe_softc *sc;
 
@@ -1756,11 +1823,13 @@ static void nfe_start(struct ifnet *ifp)
 	NFE_UNLOCK(sc);
 }
 
-static void nfe_start_locked(struct ifnet *ifp)
+
+static void
+nfe_start_locked(struct ifnet *ifp)
 {
 	struct nfe_softc *sc = ifp->if_softc;
-	int old = sc->txq.cur;
 	struct mbuf *m0;
+	int old = sc->txq.cur;
 
 	if (!sc->nfe_link || ifp->if_drv_flags & IFF_DRV_OACTIVE) {
 		return;
@@ -1801,7 +1870,9 @@ static void nfe_start_locked(struct ifnet *ifp)
 	return;
 }
 
-static void nfe_watchdog(struct ifnet *ifp)
+
+static void
+nfe_watchdog(struct ifnet *ifp)
 {
 	struct nfe_softc *sc = ifp->if_softc;
 
@@ -1809,13 +1880,14 @@ static void nfe_watchdog(struct ifnet *ifp)
 
 	ifp->if_drv_flags &= ~IFF_DRV_RUNNING;
 	nfe_init(sc);
-
 	ifp->if_oerrors++;
 
 	return;
 }
 
-static void nfe_init(void *xsc)
+
+static void
+nfe_init(void *xsc)
 {
 	struct nfe_softc *sc = xsc;
 
@@ -1826,7 +1898,9 @@ static void nfe_init(void *xsc)
 	return;
 }
 
-static void nfe_init_locked(void *xsc)
+
+static void
+nfe_init_locked(void *xsc)
 {
 	struct nfe_softc *sc = xsc;
 	struct ifnet *ifp = sc->nfe_ifp;
@@ -1956,7 +2030,9 @@ static void nfe_init_locked(void *xsc)
 	return;
 }
 
-static void nfe_stop(struct ifnet *ifp, int disable)
+
+static void
+nfe_stop(struct ifnet *ifp, int disable)
 {
 	struct nfe_softc *sc = ifp->if_softc;
 	struct mii_data  *mii;
@@ -1988,7 +2064,9 @@ static void nfe_stop(struct ifnet *ifp, int disable)
 	return;
 }
 
-static int nfe_ifmedia_upd(struct ifnet *ifp)
+
+static int
+nfe_ifmedia_upd(struct ifnet *ifp)
 {
 	struct nfe_softc *sc = ifp->if_softc;
 
@@ -1998,10 +2076,12 @@ static int nfe_ifmedia_upd(struct ifnet *ifp)
 	return (0);
 }
 
-static int nfe_ifmedia_upd_locked(struct ifnet *ifp)
+
+static int
+nfe_ifmedia_upd_locked(struct ifnet *ifp)
 {
-	struct nfe_softc	*sc = ifp->if_softc;
-	struct mii_data		*mii;
+	struct nfe_softc *sc = ifp->if_softc;
+	struct mii_data *mii;
 
 	NFE_LOCK_ASSERT(sc);
 
@@ -2019,10 +2099,12 @@ static int nfe_ifmedia_upd_locked(struct ifnet *ifp)
 	return (0);
 }
 
-static void nfe_ifmedia_sts(struct ifnet *ifp, struct ifmediareq *ifmr)
+
+static void
+nfe_ifmedia_sts(struct ifnet *ifp, struct ifmediareq *ifmr)
 {
-	struct nfe_softc	*sc;
-	struct mii_data		*mii;
+	struct nfe_softc *sc;
+	struct mii_data *mii;
 
 	sc = ifp->if_softc;
 
@@ -2037,6 +2119,7 @@ static void nfe_ifmedia_sts(struct ifnet *ifp, struct ifmediareq *ifmr)
 	return;
 }
 
+
 static void
 nfe_tick(void *xsc)
 {
@@ -2050,15 +2133,16 @@ nfe_tick(void *xsc)
 }
 
 
-void nfe_tick_locked(struct nfe_softc *arg)
+void
+nfe_tick_locked(struct nfe_softc *arg)
 {
-	struct nfe_softc	*sc;
-	struct mii_data		*mii;
-	struct ifnet		*ifp;
+	struct nfe_softc *sc;
+	struct mii_data *mii;
+	struct ifnet *ifp;
 
 	sc = arg;
 
-	NFE_LOCK_ASSERT(sc); 
+	NFE_LOCK_ASSERT(sc);
 
 	ifp = sc->nfe_ifp;
 
@@ -2082,7 +2166,8 @@ void nfe_tick_locked(struct nfe_softc *arg)
 }
 
 
-static void nfe_shutdown(device_t dev)
+static void
+nfe_shutdown(device_t dev)
 {
 	struct nfe_softc *sc;
 	struct ifnet *ifp;
@@ -2099,7 +2184,8 @@ static void nfe_shutdown(device_t dev)
 }
 
 
-static void nfe_get_macaddr(struct nfe_softc *sc, u_char *addr)
+static void
+nfe_get_macaddr(struct nfe_softc *sc, u_char *addr)
 {
 	uint32_t tmp;
 
@@ -2114,13 +2200,16 @@ static void nfe_get_macaddr(struct nfe_softc *sc, u_char *addr)
 	addr[5] = (tmp & 0xff);
 }
 
-static void nfe_set_macaddr(struct nfe_softc *sc, u_char *addr)
+
+static void
+nfe_set_macaddr(struct nfe_softc *sc, u_char *addr)
 {
 
 	NFE_WRITE(sc, NFE_MACADDR_LO, addr[5] <<  8 | addr[4]);
 	NFE_WRITE(sc, NFE_MACADDR_HI, addr[3] << 24 | addr[2] << 16 |
 	    addr[1] << 8 | addr[0]);
 }
+
 
 /*
  * Map a single buffer address.
