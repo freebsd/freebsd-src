@@ -127,8 +127,8 @@ smic_write_next(struct ipmi_softc *sc, u_char data)
 {
 	u_char error, status;
 
-	OUTB(sc, SMIC_CTL_STS, SMIC_CC_SMS_WR_NEXT);
 	smic_wait_for_tx_okay(sc);
+	OUTB(sc, SMIC_CTL_STS, SMIC_CC_SMS_WR_NEXT);
 	OUTB(sc, SMIC_DATA, data);
 	smic_set_busy(sc);
 	smic_wait_for_not_busy(sc);
@@ -151,8 +151,8 @@ smic_write_last(struct ipmi_softc *sc, u_char data)
 {
 	u_char error, status;
 
-	OUTB(sc, SMIC_CTL_STS, SMIC_CC_SMS_WR_END);
 	smic_wait_for_tx_okay(sc);
+	OUTB(sc, SMIC_CTL_STS, SMIC_CC_SMS_WR_END);
 	OUTB(sc, SMIC_DATA, data);
 	smic_set_busy(sc);
 	smic_wait_for_not_busy(sc);
@@ -176,8 +176,8 @@ smic_start_read(struct ipmi_softc *sc, u_char *data)
 
 	smic_wait_for_not_busy(sc);
 
-	OUTB(sc, SMIC_CTL_STS, SMIC_CC_SMS_RD_START);
 	smic_wait_for_rx_okay(sc);
+	OUTB(sc, SMIC_CTL_STS, SMIC_CC_SMS_RD_START);
 	smic_set_busy(sc);
 	smic_wait_for_not_busy(sc);
 	status = INB(sc, SMIC_CTL_STS);
@@ -200,8 +200,8 @@ smic_read_byte(struct ipmi_softc *sc, u_char *data)
 {
 	u_char error, status;
 
-	OUTB(sc, SMIC_CTL_STS, SMIC_SC_SMS_RD_NEXT);
 	smic_wait_for_rx_okay(sc);
+	OUTB(sc, SMIC_CTL_STS, SMIC_SC_SMS_RD_NEXT);
 	smic_set_busy(sc);
 	smic_wait_for_not_busy(sc);
 	status = INB(sc, SMIC_CTL_STS);
@@ -247,28 +247,52 @@ smic_polled_request(struct ipmi_softc *sc, struct ipmi_request *req)
 	/* First, start the message with the address. */
 	if (!smic_start_write(sc, req->ir_addr))
 		return (0);
+#ifdef SMIC_DEBUG
+	device_printf(sc->ipmi_dev, "SMIC: WRITE_START address: %02x\n",
+	    req->ir_addr);
+#endif
 
 	if (req->ir_requestlen == 0) {
 		/* Send the command as the last byte. */
 		if (!smic_write_last(sc, req->ir_command))
 			return (0);
+#ifdef SMIC_DEBUG
+		device_printf(sc->ipmi_dev, "SMIC: Wrote command: %02x\n",
+		    req->ir_command);
+#endif
 	} else {
 		/* Send the command. */
 		if (!smic_write_next(sc, req->ir_command))
 			return (0);
+#ifdef SMIC_DEBUG
+		device_printf(sc->ipmi_dev, "SMIC: Wrote command: %02x\n",
+		    req->ir_command);
+#endif
 
 		/* Send the payload. */
 		cp = req->ir_request;
-		for (i = 0; i < req->ir_requestlen - 1; i++)
+		for (i = 0; i < req->ir_requestlen - 1; i++) {
 			if (!smic_write_next(sc, *cp++))
 				return (0);
+#ifdef SMIC_DEBUG
+			device_printf(sc->ipmi_dev, "SMIC: Wrote data: %02x\n",
+			    cp[-1]);
+#endif
+		}
 		if (!smic_write_last(sc, *cp))
 			return (0);
+#ifdef SMIC_DEBUG
+		device_printf(sc->ipmi_dev, "SMIC: Write last data: %02x\n",
+		    *cp);
+#endif
 	}
 
 	/* Start the read phase by reading the NetFn/LUN. */
 	if (smic_start_read(sc, &data) != 1)
 		return (0);
+#ifdef SMIC_DEBUG
+	device_printf(sc->ipmi_dev, "SMIC: Read address: %02x\n", data);
+#endif
 	if (data != IPMI_REPLY_ADDR(req->ir_addr)) {
 		device_printf(sc->ipmi_dev, "SMIC: Reply address mismatch\n");
 		return (0);
@@ -277,6 +301,9 @@ smic_polled_request(struct ipmi_softc *sc, struct ipmi_request *req)
 	/* Read the command. */
 	if (smic_read_byte(sc, &data) != 1)
 		return (0);
+#ifdef SMIC_DEBUG
+	device_printf(sc->ipmi_dev, "SMIC: Read command: %02x\n", data);
+#endif
 	if (data != req->ir_command) {
 		device_printf(sc->ipmi_dev, "SMIC: Command mismatch\n");
 		return (0);
@@ -286,6 +313,10 @@ smic_polled_request(struct ipmi_softc *sc, struct ipmi_request *req)
 	state = smic_read_byte(sc, &req->ir_compcode);
 	if (state == 0)
 		return (0);
+#ifdef SMIC_DEBUG
+	device_printf(sc->ipmi_dev, "SMIC: Read completion code: %02x\n",
+	    req->ir_compcode);
+#endif
 
 	/* Finally, read the reply from the BMC. */
 	i = 0;
@@ -293,10 +324,16 @@ smic_polled_request(struct ipmi_softc *sc, struct ipmi_request *req)
 		state = smic_read_byte(sc, &data);
 		if (state == 0)
 			return (0);
-		if (state == 2)
-			break;
-		if (i < req->ir_replybuflen)
+		if (i < req->ir_replybuflen) {
 			req->ir_reply[i] = data;
+#ifdef SMIC_DEBUG
+			device_printf(sc->ipmi_dev, "SMIC: Read data: %02x\n",
+			    data);
+		} else {
+			device_printf(sc->ipmi_dev,
+			    "SMIC: Read short %02x byte %d\n", data, i + 1);
+#endif
+		}
 		i++;
 	}
 
@@ -304,7 +341,12 @@ smic_polled_request(struct ipmi_softc *sc, struct ipmi_request *req)
 	if (!smic_read_end(sc))
 		return (0);
 	req->ir_replylen = i;
+#ifdef SMIC_DEBUG
+	device_printf(sc->ipmi_dev, "SMIC: READ finished (%d bytes)\n", i);
+	if (req->ir_replybuflen < i)
+#else
 	if (req->ir_replybuflen < i && req->ir_replybuflen != 0)
+#endif
 		device_printf(sc->ipmi_dev,
 		    "SMIC: Read short: %zd buffer, %d actual\n",
 		    req->ir_replybuflen, i);
@@ -356,6 +398,10 @@ ipmi_smic_attach(struct ipmi_softc *sc)
 		device_printf(sc->ipmi_dev, "couldn't find it\n");
 		return (ENXIO);
 	}
+
+#ifdef SMIC_DEBUG
+	device_printf(sc->ipmi_dev, "SMIC: initial state: %02x\n", flags);
+#endif
 
 	return (0);
 }
