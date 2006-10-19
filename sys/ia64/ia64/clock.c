@@ -138,10 +138,10 @@ inittodr(time_t base)
 	ct.sec = tm.tm_sec;
 	ct.min = tm.tm_min;
 	ct.hour = tm.tm_hour;
-	ct.day = tm.tm_mday -1;
+	ct.day = tm.tm_mday;
 	ct.mon = tm.tm_mon;
 	ct.year = tm.tm_year;
-
+	ct.dow = -1;
 	clock_ct_to_ts(&ct, &ts);
 	ts.tv_sec += utc_offset();
 
