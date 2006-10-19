@@ -103,7 +103,7 @@ options 	CLK_USE_I8254_CALIBRATION
 
 # 
 # sio: serial ports (see sio(4)), including support for various
-#      PC Card devices, such as Modem and NICs (see etc/defaults/pccard.conf)
+#      PC Card devices, such as Modem and NICs
 #
 device		sio
 hint.sio.0.at="isa"
@@ -257,7 +257,7 @@ options 	DRM_DEBUG	# Include debug printfs (slow)
 
 # ath:  Atheros a/b/g WiFi adapters (requires ath_hal and wlan)
 # ed:   Western Digital and SMC 80xx; Novell NE1000 and NE2000; 3Com 3C503
-#       HP PC Lan+, various PC Card devices (refer to etc/defaults/pccard.conf)
+#       HP PC Lan+, various PC Card devices
 #       (requires miibus)
 # ipw:	Intel PRO/Wireless 2100 IEEE 802.11 adapter
 # iwi:	Intel PRO/Wireless 2200BG/2225BG/2915ABG IEEE 802.11 adapters
