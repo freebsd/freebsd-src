@@ -4563,28 +4563,38 @@ bce_tx_encap(struct bce_softc *sc, struct mbuf **m_head)
 	if (error == EFBIG) {
             
 		/* Try to defrag the mbuf if there are too many segments. */
-		printf("bce: need to defrag\n");
 	        DBPRINT(sc, BCE_WARN, "%s(): fragmented mbuf (%d pieces)\n",
                     __FUNCTION__, map_arg.maxsegs);
 
                 m0 = m_defrag(*m_head, M_DONTWAIT);
-                if (m0 != NULL) {
-			*m_head = m0;
-			error = bus_dmamap_load_mbuf_sg(sc->tx_mbuf_tag,
-			    map, m0, segs, &nsegs, BUS_DMA_NOWAIT);
-                }
-
-		/* Still getting an error after a defrag. */
-		if (error) {
-			printf("bce: defrag failed\n");
-			BCE_PRINTF(sc,
-			    "%s(%d): Error mapping mbuf into TX chain!\n",
-			    __FILE__, __LINE__);
+                if (m0 == NULL) {
+			m_freem(*m_head);
+			*m_head = NULL;
 			return (ENOBUFS);
 		}
 
-	} else if (error != 0)
+		*m_head = m0;
+		error = bus_dmamap_load_mbuf_sg(sc->tx_mbuf_tag, map, m0,
+		    segs, &nsegs, BUS_DMA_NOWAIT);
+
+		/* Still getting an error after a defrag. */
+		if (error == ENOMEM) {
+			return (error);
+		} else if (error != 0) {
+			BCE_PRINTF(sc,
+			    "%s(%d): Error mapping mbuf into TX chain!\n",
+			    __FILE__, __LINE__);
+			m_freem(m0);
+			*m_head = NULL;
+			return (ENOBUFS);
+		}
+	} else if (error == ENOMEM) {
 		return (error);
+	} else if (error != 0) {
+		m_freem(m0);
+		*m_head = NULL;
+		return (error);
+	}
 
 
 	/* prod points to an empty tx_bd at this point. */
