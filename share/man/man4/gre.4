@@ -43,7 +43,21 @@
 .Nm gre
 .Nd encapsulating network device
 .Sh SYNOPSIS
+To compile the
+.Ns Nm
+device into the kernel, place the following line in the kernel
+configuration file:
+.Bd -ragged -offset indent
 .Cd "device gre"
+.Ed
+.Pp
+Alternatively, to load the
+.Ns Nm
+device as a module at boot time, place the following line in
+.Xr loader.conf 5 :
+.Bd -literal -offset indent
+if_gre_load="YES"
+.Ed
 .Sh DESCRIPTION
 The
 .Nm
@@ -278,7 +292,7 @@ the keyword
 must be given last on its command line.
 .Pp
 The kernel must be set to forward datagrams by setting the
-.Va ip.forwarding
+.Va net.inet.ip.forwarding
 .Xr sysctl 8
 variable to non-zero.
 .Sh SEE ALSO
