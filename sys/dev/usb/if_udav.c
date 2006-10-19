@@ -1244,7 +1244,7 @@ udav_send(struct udav_softc *sc, struct mbuf *m, int idx)
 		printf("%s: udav_send error=%s\n", device_get_nameunit(sc->sc_dev),
 		       usbd_errstr(err));
 		/* Stop the interface */
-		usb_add_task(sc->sc_udev, &sc->sc_stop_task);
+		usb_add_task(sc->sc_udev, &sc->sc_stop_task, USB_TASKQ_DRIVER);
 		return (EIO);
 	}
 
@@ -1714,7 +1714,7 @@ udav_tick(void *xsc)
 		return;
 
 	/* Perform periodic stuff in process context */
-	usb_add_task(sc->sc_udev, &sc->sc_tick_task);
+	usb_add_task(sc->sc_udev, &sc->sc_tick_task, USB_TASKQ_DRIVER);
 }
 
 static void

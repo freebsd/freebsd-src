@@ -1527,7 +1527,8 @@ uhci_timeout(void *addr)
 	}
 
 	/* Execute the abort in a process context. */
-	usb_add_task(uxfer->xfer.pipe->device, &uxfer->abort_task);
+	usb_add_task(uxfer->xfer.pipe->device, &uxfer->abort_task,
+	    USB_TASKQ_HC);
 }
 
 void
