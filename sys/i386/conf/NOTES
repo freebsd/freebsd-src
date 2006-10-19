@@ -274,7 +274,7 @@ options 	CLK_USE_I8254_CALIBRATION
 
 # 
 # sio: serial ports (see sio(4)), including support for various
-#      PC Card devices, such as Modem and NICs (see etc/defaults/pccard.conf)
+#      PC Card devices, such as Modem and NICs
 #
 device		sio
 hint.sio.0.at="isa"
@@ -532,7 +532,7 @@ hint.mse.0.irq="5"
 # cx:   Cronyx Sigma multiport sync/async adapter (requires sppp (default),
 #       or NETGRAPH if NETGRAPH_CRONYX is configured)
 # ed:   Western Digital and SMC 80xx; Novell NE1000 and NE2000; 3Com 3C503
-#       HP PC Lan+, various PC Card devices (refer to etc/defaults/pccard.conf)
+#       HP PC Lan+, various PC Card devices
 #       (requires miibus)
 # ie:   AT&T StarLAN 10 and EN100; 3Com 3C507; unknown NI5210;
 #       Intel EtherExpress
