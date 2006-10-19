@@ -25,9 +25,12 @@ BEGIN \
   match($0, " T[[:graph:]]+");
   T = substr($0, RSTART + 2, RLENGTH - 2);
   match($0, " S[[:graph:]]+");
+  SSTART = RSTART
   S = (RLENGTH == -1) ? "" : substr($0, RSTART + 2, RLENGTH - 2);
   match($0, " D[[:graph:]][[:print:]]*$");
   D = substr($0, RSTART + 2);
+  if (SSTART > RSTART)
+    S = "";
 
   # find a suitable place to store this one...
   ind++;
