@@ -162,7 +162,7 @@ MACHINE_CPU = itanium
 . endif
 .endif
 
-.if ${MACHINE_ARCH} == "arm" && defined(ARM_BIG_ENDIAN)
+.if ${MACHINE_ARCH} == "arm" && defined(TARGET_BIG_ENDIAN)
 CFLAGS += -mbig-endian
 LDFLAGS += -mbig-endian
 LD += -EB
