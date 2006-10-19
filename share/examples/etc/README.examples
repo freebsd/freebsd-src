@@ -44,7 +44,6 @@ networks	- see networks(5)
 newsyslog.conf	- configuration for system log file rotator newsyslog(8)
 nsmb.conf	- smbfs lookups configuration file
 opieaccess	- OPIE database of trusted networks
-pccard_ether	- configuration script for Ethernet pccards (see pccardd(8))
 pf.conf		- pf(4) example configuration file
 pf.os		- SYN fingerprint database
 phones		- phone number database for tip(1)
@@ -72,6 +71,5 @@ syslog.conf	- configuration file for syslogd(8)
 ttys		- defines port configuration for init(8)
 defaults/bluetooth.device.conf	- 
 defaults/devfs.rules		- default configuration rules for devfs(8)
-defaults/pccard.conf		- default configuration file for pccard(8)
 defaults/periodic.conf		- default configuration file for periodic(8)
 defaults/rc.conf		- default system configuration info (see rc.conf(5))
