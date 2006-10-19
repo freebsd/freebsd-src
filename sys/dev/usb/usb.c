@@ -140,7 +140,14 @@ struct usb_softc {
 	char		sc_dying;
 };
 
-TAILQ_HEAD(, usb_task) usb_all_tasks;
+struct usb_taskq {
+	TAILQ_HEAD(, usb_task) tasks;
+	struct proc *task_thread_proc;
+	const char *name;
+	int taskcreated;		/* task thread exists. */
+};
+
+static struct usb_taskq usb_taskq[USB_NUM_TASKQS];
 
 #if defined(__NetBSD__) || defined(__OpenBSD__)
 cdev_decl(usb);
@@ -173,12 +180,10 @@ static bus_child_detached_t usb_child_detached;
 static void	usb_create_event_thread(void *);
 static void	usb_event_thread(void *);
 static void	usb_task_thread(void *);
-static struct proc *usb_task_thread_proc = NULL;
 
 #ifdef __FreeBSD__
 static struct cdev *usb_dev;		/* The /dev/usb device. */
 static int usb_ndevs;			/* Number of /dev/usbN devices. */
-static int usb_taskcreated;		/* USB task thread exists. */
 /* Busses to explore at the end of boot-time device configuration. */
 static TAILQ_HEAD(, usb_softc) usb_coldexplist =
     TAILQ_HEAD_INITIALIZER(usb_coldexplist);
@@ -343,10 +348,14 @@ USB_ATTACH(usb)
 	USB_ATTACH_SUCCESS_RETURN;
 }
 
+static const char *taskq_names[] = USB_TASKQ_NAMES;
+
 void
 usb_create_event_thread(void *arg)
 {
 	struct usb_softc *sc = arg;
+	struct usb_taskq *taskq;
+	int i;
 
 	if (usb_kthread_create1(usb_event_thread, sc, &sc->sc_event_thread,
 			   "%s", device_get_nameunit(sc->sc_dev))) {
@@ -354,13 +363,18 @@ usb_create_event_thread(void *arg)
 		       device_get_nameunit(sc->sc_dev));
 		panic("usb_create_event_thread");
 	}
-	if (usb_taskcreated == 0) {
-		usb_taskcreated = 1;
-		TAILQ_INIT(&usb_all_tasks);
-		if (usb_kthread_create2(usb_task_thread, NULL,
-					&usb_task_thread_proc, "usbtask")) {
-			printf("unable to create task thread\n");
-			panic("usb_create_event_thread task");
+	for (i = 0; i < USB_NUM_TASKQS; i++) {
+		taskq = &usb_taskq[i];
+
+		if (taskq->taskcreated == 0) {
+			taskq->taskcreated = 1;
+			taskq->name = taskq_names[i];
+			TAILQ_INIT(&taskq->tasks);
+			if (usb_kthread_create2(usb_task_thread, taskq,
+			    &taskq->task_thread_proc, taskq->name)) {
+				printf("unable to create task thread\n");
+				panic("usb_create_event_thread task");
+			}
 		}
 	}
 }
@@ -371,31 +385,35 @@ usb_create_event_thread(void *arg)
  * context ASAP.
  */
 void
-usb_add_task(usbd_device_handle dev, struct usb_task *task)
+usb_add_task(usbd_device_handle dev, struct usb_task *task, int queue)
 {
+	struct usb_taskq *taskq;
 	int s;
 
 	s = splusb();
-	if (!task->onqueue) {
+	taskq = &usb_taskq[queue];
+	if (task->queue == -1) {
 		DPRINTFN(2,("usb_add_task: task=%p\n", task));
-		TAILQ_INSERT_TAIL(&usb_all_tasks, task, next);
-		task->onqueue = 1;
+		TAILQ_INSERT_TAIL(&taskq->tasks, task, next);
+		task->queue = queue;
 	} else {
 		DPRINTFN(3,("usb_add_task: task=%p on q\n", task));
 	}
-	wakeup(&usb_all_tasks);
+	wakeup(&taskq->tasks);
 	splx(s);
 }
 
 void
 usb_rem_task(usbd_device_handle dev, struct usb_task *task)
 {
+	struct usb_taskq *taskq;
 	int s;
 
 	s = splusb();
-	if (task->onqueue) {
-		TAILQ_REMOVE(&usb_all_tasks, task, next);
-		task->onqueue = 0;
+	if (task->queue != -1) {
+		taskq = &usb_taskq[task->queue];
+		TAILQ_REMOVE(&taskq->tasks, task, next);
+		task->queue = -1;
 	}
 	splx(s);
 }
@@ -462,25 +480,27 @@ void
 usb_task_thread(void *arg)
 {
 	struct usb_task *task;
+	struct usb_taskq *taskq;
 	int s;
 
 #if defined(__FreeBSD__) && __FreeBSD_version >= 500000
 	mtx_lock(&Giant);
 #endif
 
-	DPRINTF(("usb_task_thread: start\n"));
+	taskq = arg;
+	DPRINTF(("usb_task_thread: start taskq %s\n", taskq->name));
 
 	s = splusb();
 	while (usb_ndevs > 0) {
-		task = TAILQ_FIRST(&usb_all_tasks);
+		task = TAILQ_FIRST(&taskq->tasks);
 		if (task == NULL) {
-			tsleep(&usb_all_tasks, PWAIT, "usbtsk", 0);
-			task = TAILQ_FIRST(&usb_all_tasks);
+			tsleep(&taskq->tasks, PWAIT, "usbtsk", 0);
+			task = TAILQ_FIRST(&taskq->tasks);
 		}
 		DPRINTFN(2,("usb_task_thread: woke up task=%p\n", task));
 		if (task != NULL) {
-			TAILQ_REMOVE(&usb_all_tasks, task, next);
-			task->onqueue = 0;
+			TAILQ_REMOVE(&taskq->tasks, task, next);
+			task->queue = -1;
 			splx(s);
 			task->fun(task->arg);
 			s = splusb();
@@ -488,8 +508,8 @@ usb_task_thread(void *arg)
 	}
 	splx(s);
 
-	usb_taskcreated = 0;
-	wakeup(&usb_taskcreated);
+	taskq->taskcreated = 0;
+	wakeup(&taskq->taskcreated);
 
 	DPRINTF(("usb_event_thread: exit\n"));
 	kthread_exit(0);
@@ -909,6 +929,8 @@ USB_DETACH(usb)
 {
 	USB_DETACH_START(usb, sc);
 	struct usb_event ue;
+	struct usb_taskq *taskq;
+	int i;
 
 	DPRINTF(("usb_detach: start\n"));
 
@@ -932,9 +954,15 @@ USB_DETACH(usb)
 	if (--usb_ndevs == 0) {
 		destroy_dev(usb_dev);
 		usb_dev = NULL;
-		wakeup(&usb_all_tasks);
-		if (tsleep(&usb_taskcreated, PWAIT, "usbtdt", hz * 60))
-			printf("usb task thread didn't die\n");
+		for (i = 0; i < USB_NUM_TASKQS; i++) {
+			taskq = &usb_taskq[i];
+			wakeup(&taskq->tasks);
+			if (tsleep(&taskq->taskcreated, PWAIT, "usbtdt",
+			    hz * 60)) {
+				printf("usb task thread %s didn't die\n",
+				    taskq->name);
+			}
+		}
 	}
 #endif
 
