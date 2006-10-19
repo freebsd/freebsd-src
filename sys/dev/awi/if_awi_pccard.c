@@ -158,8 +158,9 @@ awi_pccard_attach(device_t dev)
 #if 1
 	/*
 	 * XXX: awi needs to access memory with 8bit,
-	 * but pccardd apparently maps memory with MDF_16BITS flag.
+	 * but OLDCARD apparently maps memory with MDF_16BITS flag.
 	 * So memory mapped access is disabled and use IO port instead.
+	 * XXX: Should check to see if this is true of NEWCARD
 	 */
 	psc->sc_mem_res = 0;
 #else
