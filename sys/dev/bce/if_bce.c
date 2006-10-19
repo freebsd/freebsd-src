@@ -2175,7 +2175,7 @@ bce_dma_alloc(device_t dev)
 	 * Allocate the parent bus DMA tag appropriate for PCI.
 	 */
 	if (bus_dma_tag_create(NULL,		/* parent     */
-			BCE_DMA_ALIGN,		/* alignment  */
+			1,			/* alignment  */
 			BCE_DMA_BOUNDARY,	/* boundary   */
 			sc->max_bus_addr,	/* lowaddr    */
 			BUS_SPACE_MAXADDR,	/* highaddr   */
@@ -2378,7 +2378,7 @@ bce_dma_alloc(device_t dev)
 	/* Create a DMA tag for TX mbufs. */
 	if (bus_dma_tag_create(
 			sc->parent_tag,	 	 	/* parent      */
-			BCE_DMA_ALIGN,	 		/* alignment   */
+			1,		 		/* alignment   */
 			BCE_DMA_BOUNDARY, 		/* boundary    */
 			sc->max_bus_addr,		/* lowaddr     */
 			BUS_SPACE_MAXADDR,		/* highaddr    */
@@ -2476,7 +2476,7 @@ bce_dma_alloc(device_t dev)
 	 */
 	if (bus_dma_tag_create(
 			sc->parent_tag,		/* parent      */
-			BCE_DMA_ALIGN,		/* alignment   */
+			1,			/* alignment   */
 			BCE_DMA_BOUNDARY,  	/* boundary    */
 			sc->max_bus_addr,  	/* lowaddr     */
 			BUS_SPACE_MAXADDR,	/* highaddr    */
