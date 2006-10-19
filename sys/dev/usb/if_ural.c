@@ -818,7 +818,7 @@ ural_newstate(struct ieee80211com *ic, enum ieee80211_state nstate, int arg)
 
 	/* do it in a process context */
 	sc->sc_state = nstate;
-	usb_add_task(sc->sc_udev, &sc->sc_task);
+	usb_add_task(sc->sc_udev, &sc->sc_task, USB_TASKQ_DRIVER);
 
 	return 0;
 }
