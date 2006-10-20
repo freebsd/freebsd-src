@@ -31,7 +31,13 @@
 
 /* ********************** PRIVATE FUNCTIONS/DATA ******************************/
 
-static char serverMACAddr[6];
+static receive_descriptor_t *p_rxBD;
+static unsigned short localPort;
+static unsigned short serverPort;
+static unsigned serverMACSet;
+static unsigned localIPSet, serverIPSet;
+static unsigned	lastSize;
+static unsigned char serverMACAddr[6];
 static unsigned char localIPAddr[4], serverIPAddr[4];
 static int	ackBlock;
 static char *dlAddress;
@@ -75,7 +81,7 @@ GetServerAddress(void)
 
 	p_memset((char*)p_ARP->dest_mac, 0xFF, 6);
 
-	p_memcpy((char*)p_ARP->src_mac, (char*)localMACAddr, 6);
+	memcpy(p_ARP->src_mac, localMACAddr, 6);
 
 	p_ARP->frame_type = SWAP16(PROTOCOL_ARP);
 	p_ARP->hard_type  = SWAP16(1);
@@ -84,13 +90,10 @@ GetServerAddress(void)
 	p_ARP->prot_size  = 4;
 	p_ARP->operation  = SWAP16(ARP_REQUEST);
 
-	p_memcpy((char*)p_ARP->sender_mac, (char*)localMACAddr, 6);
-
-	p_memcpy((char*)p_ARP->sender_ip, (char*)localIPAddr, 4);
-
+	memcpy(p_ARP->sender_mac, localMACAddr, 6);
+	memcpy(p_ARP->sender_ip, localIPAddr, 4);
 	p_memset((char*)p_ARP->target_mac, 0, 6);
-
-	p_memcpy((char*)p_ARP->target_ip, (char*)serverIPAddr, 4);
+	memcpy(p_ARP->target_ip, serverIPAddr, 4);
 
 	// wait until transmit is available
 	while (!(*AT91C_EMAC_TSR & AT91C_EMAC_BNQ)) ;
@@ -115,10 +118,8 @@ Send_TFTP_Packet(char *tftpData, unsigned tftpLength)
 	udp_header_t		*udpHdr;
 	unsigned		t_checksum;
 
-	p_memcpy((char*)macHdr->dest_mac, (char*)serverMACAddr, 6);
-
-	p_memcpy((char*)macHdr->src_mac, (char*)localMACAddr, 6);
-
+	memcpy(macHdr->dest_mac, serverMACAddr, 6);
+	memcpy(macHdr->src_mac, localMACAddr, 6);
 	macHdr->proto_mac = SWAP16(PROTOCOL_IP);
 
 	ipHdr = (ip_header_t*)&macHdr->packet_length;
@@ -132,9 +133,8 @@ Send_TFTP_Packet(char *tftpData, unsigned tftpLength)
 	ipHdr->ip_p = PROTOCOL_UDP;
 	ipHdr->ip_sum = 0;
 
-	p_memcpy((char*)ipHdr->ip_src, (char*)localIPAddr, 4);
-
-	p_memcpy((char*)ipHdr->ip_dst, (char*)serverIPAddr, 4);
+	memcpy(ipHdr->ip_src, localIPAddr, 4);
+	memcpy(ipHdr->ip_dst, serverIPAddr, 4);
 
 	ipHdr->ip_sum = SWAP16(IP_checksum((unsigned short*)ipHdr, 20));
 
@@ -145,7 +145,7 @@ Send_TFTP_Packet(char *tftpData, unsigned tftpLength)
 	udpHdr->udp_len   = SWAP16(8 + tftpLength);
 	udpHdr->udp_cksum = 0;
 
-	p_memcpy((char*)udpHdr+8, tftpData, tftpLength);
+	memcpy((char *)udpHdr+8, tftpData, tftpLength);
 
 	t_checksum = IP_checksum((unsigned short*)ipHdr + 6, (16 + tftpLength));
 
@@ -182,8 +182,8 @@ TFTP_RequestFile(char *filename)
 
 	cPtr = (char*)&(tftpHeader.block_num);
 
-	ePtr = p_strcpy(cPtr, filename);
-	mPtr = p_strcpy(ePtr, "octet");
+	ePtr = strcpy(cPtr, filename);
+	mPtr = strcpy(ePtr, "octet");
 
 	length = mPtr - cPtr;
 	length += 2;
@@ -205,7 +205,7 @@ TFTP_ACK_Data(char *data, unsigned short block_num, unsigned short len)
 
 	if (block_num == (ackBlock + 1)) {
 		++ackBlock;
-		p_memcpy(dlAddress, data, len);
+		memcpy(dlAddress, data, len);
 		dlAddress += len;
 		lastSize += len;
 		if (ackBlock % 128 == 0)
@@ -216,7 +216,7 @@ TFTP_ACK_Data(char *data, unsigned short block_num, unsigned short len)
 	Send_TFTP_Packet((char*)&tftpHeader, 4);
 	if (len < 512) {
 		ackBlock = -2;
-		printf("tftp: %u byte\r\n", lastSize);
+		printf("tftp: %u byte\n", lastSize);
 	}
 }
 
@@ -249,7 +249,6 @@ CheckForNewPacket(ip_header_t *pHeader)
 		
 	if (!process)
 		return (0);
-						
 	process = i;
 		
 	pFrameType = (unsigned short *)((p_rxBD[i].address & 0xFFFFFFFC) + 12);
@@ -266,9 +265,7 @@ CheckForNewPacket(ip_header_t *pHeader)
 					(char*)serverIPAddr, 4)))) {
 
 				serverMACSet = 1;
-
-				p_memcpy((char*)serverMACAddr,
-					(char*)p_ARP->sender_mac, 6);
+				memcpy(serverMACAddr, p_ARP->sender_mac, 6);
 			}
 		} else if (p_ARP->operation == SWAP16(ARP_REQUEST)) {
 			// ARP REPLY operation
@@ -299,7 +296,7 @@ CheckForNewPacket(ip_header_t *pHeader)
 		break;
 	case SWAP16(PROTOCOL_IP):
 		pIpHeader = (ip_header_t*)(pData + 14);			
-		p_memcpy((char*)pHeader, (char*)pIpHeader,sizeof(ip_header_t));
+		memcpy(pHeader, pIpHeader, sizeof(ip_header_t));
 		
 		if (pIpHeader->ip_p == PROTOCOL_UDP) {
 			udp_header_t	*udpHdr;
@@ -424,7 +421,7 @@ MII_GetLinkSpeed(AT91PS_EMAC pEmac)
 		printf(" FDX");
 		update |= AT91C_EMAC_FD;
 	}
-	printf("\r\n");
+	printf("\n");
 #endif
 	pEmac->EMAC_CFG = update;
 }
@@ -442,6 +439,9 @@ AT91F_EmacEntry(void)
 	unsigned	i;
 	char		*pRxPacket = (char*)RX_DATA_START;
 	AT91PS_EMAC	pEmac = AT91C_BASE_EMAC;
+
+	p_rxBD = (receive_descriptor_t*)RX_BUFFER_START;
+	localPort = SWAP16(0x8002);
 
 	for (i = 0; i < MAX_RX_PACKETS; ++i) {
 
@@ -553,10 +553,10 @@ TFTP_Download(unsigned address, char *filename)
 				// Be sure to send a NAK, which is done by
 				// ACKing the last block we got.
 				TFTP_ACK_Data(0, ackBlock, 512);
-				printf("\nNAK %u\r\n", ackBlock);
+				printf("\nNAK %u\n", ackBlock);
 			}
 		}
 	}
 	if (timeout == 0)
-		printf("TFTP TIMEOUT!\r\n");
+		printf("TFTP TIMEOUT!\n");
 }
