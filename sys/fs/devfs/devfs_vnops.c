@@ -78,12 +78,14 @@ static int
 devfs_fp_check(struct file *fp, struct cdev **devp, struct cdevsw **dswp)
 {
 
-	*devp = fp->f_vnode->v_rdev;
-	if (*devp != fp->f_data)
+	*dswp = devvn_refthread(fp->f_vnode, devp);
+	if (*devp != fp->f_data) {
+		if (*dswp != NULL)
+			dev_relthread(*devp);
 		return (ENXIO);
+	}
 	KASSERT((*devp)->si_refcount > 0,
 	    ("devfs: un-referenced struct cdev *(%s)", devtoname(*devp)));
-	*dswp = dev_refthread(*devp);
 	if (*dswp == NULL)
 		return (ENXIO);
 	return (0);
@@ -965,13 +967,15 @@ devfs_reclaim(struct vop_reclaim_args *ap)
 
 	vnode_destroy_vobject(vp);
 
+	dev_lock();
 	dev = vp->v_rdev;
 	vp->v_rdev = NULL;
 
-	if (dev == NULL)
+	if (dev == NULL) {
+		dev_unlock();
 		return (0);
+	}
 
-	dev_lock();
 	dev->si_usecount -= vp->v_usecount;
 	dev_unlock();
 	dev_rel(dev);
