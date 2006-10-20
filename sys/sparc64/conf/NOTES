@@ -51,11 +51,43 @@ device		machfb		# ATI Mach64 framebuffers
 device		ofw_console	# Open Firmware console device
 option 		OFWCONS_POLL_HZ=4 # 20 or more works best on Ultra2
 
+# PS/2 mouse
+device		psm
+hint.psm.0.at="atkbdc"
+hint.psm.0.irq="12"
+
+# Options for psm:
+options 	PSM_HOOKRESUME		#hook the system resume event, useful
+					#for some laptops
+options 	PSM_RESETAFTERSUSPEND	#reset the device at the resume event
+
+# The keyboard controller; it controls the keyboard and the PS/2 mouse.
+device		atkbdc
+hint.atkbdc.0.at="isa"
+hint.atkbdc.0.port="0x060"
+
+# The AT keyboard
+device		atkbd
+hint.atkbd.0.at="atkbdc"
+hint.atkbd.0.irq="1"
+
+# Options for atkbd:
+options 	ATKBD_DFLT_KEYMAP	# specify the built-in keymap
+makeoptions	ATKBD_DFLT_KEYMAP=jp.106
+
+# `flags' for atkbd:
+#       0x01    Force detection of keyboard, else we always assume a keyboard
+#       0x02    Don't reset keyboard, useful for some newer ThinkPads
+#	0x03	Force detection and avoid reset, might help with certain
+#		dockingstations
+#       0x04    Old-style (XT) keyboard support, useful for older ThinkPads
+
+device		splash			# Splash screen and screen saver support
+
 
 #####################################################################
 # Devices we don't want to deal with
 
-nodevice	vga
 nodevice	daemon_saver
 nodevice	snake_saver
 nodevice	star_saver
@@ -98,7 +130,6 @@ nodevice	ex
 # Options we don't want to deal with
 
 nooption	FDC_DEBUG
-nooption	VGA_DEBUG
 nooption	SC_RENDER_DEBUG
 nooption	SC_DEBUG_LEVEL
 nooption	PPC_DEBUG
@@ -111,11 +142,6 @@ nooption	SC_NORM_REV_ATTR
 nooption	SC_NORM_ATTR
 nooption	SC_DFLT_FONT
 nooption	SC_ALT_MOUSE_IMAGE
-nooption	VGA_WIDTH90
-nooption	VGA_SLOW_IOACCESS
-nooption	VGA_ALT_SEQACCESS
-nooption	PSM_RESETAFTERSUSPEND
-nooption	PSM_HOOKRESUME
 nooption	ATKBD_DFLT_KEYMAP
 nooption	EXT2FS
 
