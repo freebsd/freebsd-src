@@ -136,8 +136,10 @@ spibus_add_child(device_t dev, int order, const char *name, int unit)
 	if (child == NULL) 
 		return (child);
 	devi = malloc(sizeof(struct spibus_ivar), M_DEVBUF, M_NOWAIT | M_ZERO);
-	if (devi != NULL)
+	if (devi == NULL) {
+		device_delete_child(dev, child);
 		return (0);
+	}
 	device_set_ivars(child, devi);
 	return (child);
 }
@@ -156,7 +158,7 @@ spibus_hinted_child(device_t bus, const char *dname, int dunit)
 static int
 spibus_transfer_impl(device_t dev, device_t child, struct spi_command *cmd)
 {
-	return (SPIBUS_TRANSFER(dev, child, cmd));
+	return (SPIBUS_TRANSFER(device_get_parent(dev), child, cmd));
 }
 
 static device_method_t spibus_methods[] = {
