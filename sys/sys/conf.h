@@ -105,6 +105,7 @@ struct thread;
 struct uio;
 struct knote;
 struct clonedevs;
+struct vnode;
 
 /*
  * Note: d_thread_t is provided as a transition aid for those drivers
@@ -244,6 +245,7 @@ int clone_create(struct clonedevs **, struct cdevsw *, int *unit, struct cdev **
 int	count_dev(struct cdev *_dev);
 void	destroy_dev(struct cdev *_dev);
 struct cdevsw *dev_refthread(struct cdev *_dev);
+struct cdevsw *devvn_refthread(struct vnode *vp, struct cdev **devp);
 void	dev_relthread(struct cdev *_dev);
 void	dev_depends(struct cdev *_pdev, struct cdev *_cdev);
 void	dev_ref(struct cdev *dev);
