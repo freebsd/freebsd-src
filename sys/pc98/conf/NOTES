@@ -7,8 +7,6 @@
 # $FreeBSD$
 #
 
-options 	PC98
-
 #
 # We want LINT to cover profiling as well.
 profile         2
@@ -312,10 +310,6 @@ device		pckbd
 hint.pckbd.0.at="isa"
 hint.pckbd.0.port="0x041"
 hint.pckbd.0.irq="1"
-
-# These options are valid for other keyboard drivers as well.
-options 	KBD_DISABLE_KEYMAP_LOAD	# refuse to load a keymap
-options 	KBD_INSTALL_CDEV	# install a CDEV entry in /dev
 
 # GDC screen
 device		gdc
@@ -773,10 +767,6 @@ options 	VM_KMEM_SIZE_MAX
 options 	VM_KMEM_SIZE_SCALE
 
 
-# The I/O device
-device		io
-
-
 #####################################################################
 # Devices we don't want to deal with
 
@@ -826,5 +816,3 @@ nooption	ACPI_MAX_THREADS
 
 #####################################################################
 # Make options we don't want to deal with
-
-nomakeoption	ATKBD_DFLT_KEYMAP
