@@ -610,6 +610,5 @@ options 	VM_KMEM_SIZE_SCALE
 options 	NDISAPI
 device		ndis
 
-
-# The I/O device
-device		io
+# Yet more undocumented options for linting.
+options 	VGA_DEBUG

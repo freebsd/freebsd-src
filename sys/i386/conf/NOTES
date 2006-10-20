@@ -1161,3 +1161,6 @@ device		io
 # asr old ioctls support, needed by raidutils
 
 options		ASR_COMPAT
+
+# Yet more undocumented options for linting.
+options 	VGA_DEBUG
