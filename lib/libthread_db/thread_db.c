@@ -41,14 +41,12 @@ struct td_thragent
 
 static TAILQ_HEAD(, td_thragent) proclist = TAILQ_HEAD_INITIALIZER(proclist);
 
-extern struct ta_ops libc_r_db_ops;
 extern struct ta_ops libpthread_db_ops;
 extern struct ta_ops libthr_db_ops;
 
 static struct ta_ops *ops[] = {
 	&libpthread_db_ops,
 	&libthr_db_ops,
-	&libc_r_db_ops
 };
 
 td_err_e
