@@ -80,6 +80,14 @@ ip_divert_packet_t *ip_divert_ptr = NULL;
 /* ng_ipfw hooks. */
 ng_ipfw_input_t *ng_ipfw_input_p = NULL;
 
+/*
+ * ipfw_ether and ipfw_bridge hooks.
+ * XXX: Temporary until those are converted to pfil_hooks as well.
+ */
+ip_fw_chk_t *ip_fw_chk_ptr = NULL;
+ip_dn_io_t *ip_dn_io_ptr = NULL;
+int fw_one_pass = 1;
+
 /* Forward declarations. */
 static int	ipfw_divert(struct mbuf **, int, int);
 #define	DIV_DIR_IN	1
