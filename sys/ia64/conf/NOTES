@@ -49,3 +49,6 @@ device		pci
 # The following devices are not supported.
 nodevice	fdc
 nooption	FDC_DEBUG
+
+# Yet more undocumented options for linting.
+options 	VGA_DEBUG
