@@ -29,6 +29,7 @@
 
 int getc(int);
 void putchar(int);
+void xputchar(int);
 void printf(const char *fmt,...);
 
 /* The following function write eeprom at ee_addr using data 	*/
@@ -56,9 +57,9 @@ unsigned p_ASCIIToDec(const char *buf);
 
 void p_memset(char *buffer, char value, int size);
 int p_strlen(const char *buffer);
-char *p_strcpy(char *to, const char *from);
-void p_memcpy(char *to, const char *from, unsigned size);
+char *strcpy(char *to, const char *from);
+void memcpy(void *to, const void *from, unsigned size);
 int p_memcmp(const char *to, const char *from, unsigned size);
-int p_strcmp(const char *to, const char *from);
+int strcmp(const char *to, const char *from);
 
 #endif

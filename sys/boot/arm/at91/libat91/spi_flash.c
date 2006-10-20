@@ -234,5 +234,5 @@ SPI_InitFlash(void)
 	AT91C_BASE_ST->ST_RTMR = 1;
 
 	if (((value = GetFlashStatus()) & 0xFC) != 0xBC)
-		printf(" Bad SPI status: 0x%x\r\n", value);
+		printf(" Bad SPI status: 0x%x\n", value);
 }

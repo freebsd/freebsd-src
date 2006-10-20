@@ -83,12 +83,6 @@ AT91F_MCIDeviceWaitReady(unsigned int timeout)
 	}
 	while( !(status & AT91C_MCI_NOTBUSY)  && (timeout>0) );	
 
-#if IMP_DEBUG
-	if (timeout == 0)
-	    printf("Timeout, status is 0x%x\r\n", status);
-#endif
-	
-	//TODO: Make interrupts work!
 	AT91F_MCI_Handler();
 }
 
@@ -96,43 +90,10 @@ AT91F_MCIDeviceWaitReady(unsigned int timeout)
 int
 MCI_write (unsigned dest, char* source, unsigned length)
 {
-	unsigned sectorLength = MCI_Device.pMCI_DeviceFeatures->Max_Read_DataBlock_Lenfgth;
+	unsigned sectorLength = 1 << MCI_Device.pMCI_DeviceFeatures->WRITE_BL_LEN;
 	unsigned offset = dest % sectorLength;
 	AT91S_MCIDeviceStatus status;
 	int sizeToWrite;
-
-#if IMP_DEBUG
-	printf("\r\n");
-#endif
-
-	//See if we are requested to write partial sectors, and have the capability to do so
-	if ((length % sectorLength) && !(MCI_Device_Features.Write_Partial))
-		//Return error if appropriat
-		return MCI_UNSUPP_SIZE_ERROR;
-
-	//See if we are requested to write to anywhere but a sectors' boundary
-	//and have the capability to do so
-	if ((offset) && !(MCI_Device_Features.Write_Partial))
-		//Return error if appropriat
-		return MCI_UNSUPP_OFFSET_ERROR;
-
-	//If the address we're trying to write != sector boundary
-	if (offset)
-	{
-		//* Wait MCI Device Ready
-		AT91F_MCIDeviceWaitReady(AT91C_MCI_TIMEOUT);
-
-		//Calculate the nr of bytes to write
-		sizeToWrite = sectorLength - offset;
-		//Do the writing
-		status = AT91F_MCI_WriteBlock(&MCI_Device, dest, (unsigned int*)source, sizeToWrite);
-		//TODO:Status checking
-
-		//Update counters & pointers
-		length -= sizeToWrite;
-		dest += sizeToWrite;
-		source += sizeToWrite;
-	}
 
 	//As long as there is data to write
 	while (length)
@@ -169,87 +130,28 @@ swap(unsigned int a)
 int
 MCI_read(char* dest, unsigned source, unsigned length)
 {
-	unsigned sectorLength = MCI_Device.pMCI_DeviceFeatures->Max_Read_DataBlock_Length;
 	unsigned log2sl = MCI_Device.pMCI_DeviceFeatures->READ_BL_LEN;
-	unsigned slmask = ((1 << log2sl) - 1);
-//	unsigned sector = (unsigned)source >> log2sl;
-	unsigned offset = (unsigned)source & slmask;
+	unsigned sectorLength = 1 << log2sl;
 	AT91S_MCIDeviceStatus status;
 	int sizeToRead;
 	unsigned int *walker;
 
-#if IMP_DEBUG
-	printf("Reading 0x%x bytes into ARM Addr 0x%x from card offset 0x%x\r\n",
-	  length, dest, source);
-#endif
-	
-
-	//See if we are requested to read partial sectors, and have the capability to do so
-	if ((length & slmask) && !(MCI_Device_Features.Read_Partial))
-		//Return error if appropriat
-		return MCI_UNSUPP_SIZE_ERROR;
-
-	//See if we are requested to read from anywhere but a sectors' boundary
-	//and have the capability to do so
-	if ((offset) && !(MCI_Device_Features.Read_Partial))
-		//Return error if appropriat
-		return MCI_UNSUPP_OFFSET_ERROR;
-
-	//If the address we're trying to read != sector boundary
-	if (offset) {
-		//* Wait MCI Device Ready
-		AT91F_MCIDeviceWaitReady(AT91C_MCI_TIMEOUT);
-
-		//Calculate the nr of bytes to read
-		sizeToRead = sectorLength - offset;
-		//Do the writing
-		status = AT91F_MCI_ReadBlock(&MCI_Device, source, (unsigned int*)dest, sizeToRead);
-		//TODO:Status checking
-		if (status != AT91C_READ_OK) {
-#if IMP_DEBUG
-		    printf("STATUS is 0x%x\r\n", status);
-#endif
-		    return -1;
-		}
-		
-		//* Wait MCI Device Ready
-		AT91F_MCIDeviceWaitReady(AT91C_MCI_TIMEOUT);
-		// Fix erratum in MCI part
-		for (walker = (unsigned int *)dest;
-		     walker < (unsigned int *)(dest + sizeToRead); walker++)
-		    *walker = swap(*walker);
-
-		//Update counters & pointers
-		length -= sizeToRead;
-		dest += sizeToRead;
-		source += sizeToRead;
-	}
-
 	//As long as there is data to read
 	while (length)
 	{
-		//See if we've got at least a sector to read
 		if (length > sectorLength)
 			sizeToRead = sectorLength;
-		//Else just write the remainder
 		else
 			sizeToRead = length;
 
 		AT91F_MCIDeviceWaitReady(AT91C_MCI_TIMEOUT);
-		//Do the writing
-		status = AT91F_MCI_ReadBlock(&MCI_Device, source, (unsigned int*)dest, sizeToRead);
-#if IMP_DEBUG
-		printf("Reading 0x%x Addr 0x%x card 0x%x\r\n",
-		  sizeToRead, dest, source);
-#endif
+		//Do the reading
+		status = AT91F_MCI_ReadBlock(&MCI_Device, source,
+		  (unsigned int*)dest, sizeToRead);
 
 		//TODO:Status checking
-		if (status != AT91C_READ_OK) {
-#if IMP_DEBUG
-		        printf("STATUS is 0x%x\r\n", status);
-#endif
+		if (status != AT91C_READ_OK)
 			return -1;
-		}
 
 		//* Wait MCI Device Ready
 		AT91F_MCIDeviceWaitReady(AT91C_MCI_TIMEOUT);
@@ -277,20 +179,19 @@ static void AT91F_CfgDevice(void)
 {
 	// Init Device Structure
 
-	MCI_Device_Features.Relative_Card_Address 	= 0;
-	MCI_Device_Features.Card_Inserted 		= AT91C_SD_CARD_INSERTED;
-	MCI_Device_Features.Max_Read_DataBlock_Length	= 0;
-	MCI_Device_Features.Max_Write_DataBlock_Length 	= 0;
-	MCI_Device_Features.Read_Partial 		= 0;
-	MCI_Device_Features.Write_Partial 		= 0;
-	MCI_Device_Features.Erase_Block_Enable 		= 0;
-	MCI_Device_Features.Sector_Size 		= 0;
-	MCI_Device_Features.Memory_Capacity 		= 0;
-	MCI_Device_Desc.state				= AT91C_MCI_IDLE;
-	MCI_Device_Desc.SDCard_bus_width		= AT91C_MCI_SCDBUS;
-	MCI_Device.pMCI_DeviceDesc 			= &MCI_Device_Desc;
-	MCI_Device.pMCI_DeviceFeatures 			= &MCI_Device_Features;
-
+	MCI_Device_Features.Relative_Card_Address = 0;
+	MCI_Device_Features.Card_Inserted 	= AT91C_SD_CARD_INSERTED;
+	MCI_Device_Features.READ_BL_LEN		= 0;
+	MCI_Device_Features.WRITE_BL_LEN	= 0;
+	MCI_Device_Features.Read_Partial 	= 0;
+	MCI_Device_Features.Write_Partial 	= 0;
+	MCI_Device_Features.Erase_Block_Enable 	= 0;
+	MCI_Device_Features.Sector_Size 	= 0;
+	MCI_Device_Features.Memory_Capacity 	= 0;
+	MCI_Device_Desc.state			= AT91C_MCI_IDLE;
+	MCI_Device_Desc.SDCard_bus_width	= AT91C_MCI_SCDBUS;
+	MCI_Device.pMCI_DeviceDesc 		= &MCI_Device_Desc;
+	MCI_Device.pMCI_DeviceFeatures 		= &MCI_Device_Features;
 }
 
 static void AT91F_MCI_Handler(void)
@@ -300,7 +201,7 @@ static void AT91F_MCI_Handler(void)
 //	status = ( AT91C_BASE_MCI->MCI_SR & AT91C_BASE_MCI->MCI_IMR );
 	status = AT91C_BASE_MCI->MCI_SR;
 
-	AT91F_MCI_Device_Handler(&MCI_Device,status);
+	AT91F_MCI_Device_Handler(&MCI_Device, status);
 }
 
 //*----------------------------------------------------------------------------
@@ -326,7 +227,7 @@ sdcard_init(void)
 
 	AT91F_MCI_Configure(AT91C_BASE_MCI,
 	    AT91C_MCI_DTOR_1MEGA_CYCLES,
-	    AT91C_MCI_MR_PDCMODE,			// 15MHz for MCK = 60MHz (CLKDIV = 1)
+	    AT91C_MCI_PDCMODE,
 	    AT91C_MCI_SDCARD_4BITS_SLOTA);
 	
 	if (AT91F_MCI_SDCard_Init(&MCI_Device) != AT91C_INIT_OK)

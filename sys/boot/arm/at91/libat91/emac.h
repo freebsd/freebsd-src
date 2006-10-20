@@ -129,10 +129,7 @@ typedef struct {
 
 extern unsigned char localMACAddr[6];
 extern unsigned localMAClow, localMAChigh;
-extern unsigned localMACSet, serverMACSet;
-extern receive_descriptor_t *p_rxBD;
-extern unsigned	lastSize;
-extern unsigned localIPSet, serverIPSet;
-extern unsigned short	serverPort, localPort;
+extern unsigned localMACSet;
+#define EMAC_Init()
 
 #endif /* _EMAC_H_ */
