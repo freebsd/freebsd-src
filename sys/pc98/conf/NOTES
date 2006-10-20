@@ -348,6 +348,8 @@ device		npx
 # Optional devices:
 #
 
+device		splash			# Splash screen and screen saver support
+
 # 3Dfx Voodoo Graphics, Voodoo II /dev/3dfx CDEV support.  This will create
 # the /dev/3dfx0 device to work with glide implementations.  This should get
 # linked to /dev/3dfx and /dev/voodoo.  Note that this is not the same as
@@ -778,10 +780,6 @@ device		io
 #####################################################################
 # Devices we don't want to deal with
 
-nodevice	atkbdc
-nodevice	atkbd
-nodevice	psm
-nodevice	vga
 nodevice	bt
 nodevice	adw
 nodevice	aha
@@ -815,13 +813,6 @@ nodevice	nfsmb
 #####################################################################
 # Options we don't want to deal with
 
-nooption	VGA_DEBUG
-nooption	VGA_WIDTH90
-nooption	VGA_SLOW_IOACCESS
-nooption	VGA_ALT_SEQACCESS
-nooption	PSM_RESETAFTERSUSPEND
-nooption	PSM_HOOKRESUME
-nooption	ATKBD_DFLT_KEYMAP
 nooption	AHD_DEBUG
 nooption	AHD_DEBUG_OPTS
 nooption	AHD_REG_PRETTY_PRINT
