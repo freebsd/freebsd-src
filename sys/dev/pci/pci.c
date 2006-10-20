@@ -653,12 +653,37 @@ pci_read_vpd(device_t pcib, pcicfgregs *cfg)
 			cfg->vpd.vpd_ros[off].keyword[0] = byte;
 			cfg->vpd.vpd_ros[off].keyword[1] = vpd_nextbyte(&vrs);
 			dflen = vpd_nextbyte(&vrs);
-			cfg->vpd.vpd_ros[off].value = malloc((dflen + 1) *
-			    sizeof *cfg->vpd.vpd_ros[off].value,
-			    M_DEVBUF, M_WAITOK);
+			if (dflen == 0 &&
+			    strncmp(cfg->vpd.vpd_ros[off].keyword, "RV",
+			    2) == 0) {
+				/*
+				 * if this happens, we can't trust the rest
+				 * of the VPD.
+				 */
+				printf("pci%d:%d:%d: bad keyword length: %d\n",
+				    cfg->bus, cfg->slot, cfg->func, dflen);
+				cksumvalid = 0;
+				end = 1;
+				break;
+			} else if (dflen == 0) {
+				cfg->vpd.vpd_ros[off].value = malloc(1 *
+				    sizeof *cfg->vpd.vpd_ros[off].value,
+				    M_DEVBUF, M_WAITOK);
+				cfg->vpd.vpd_ros[off].value[0] = '\x00';
+			} else
+				cfg->vpd.vpd_ros[off].value = malloc(
+				    (dflen + 1) *
+				    sizeof *cfg->vpd.vpd_ros[off].value,
+				    M_DEVBUF, M_WAITOK);
 			remain -= 3;
 			i = 0;
-			state = 3;
+			/* keep in sync w/ state 3's transistions */
+			if (dflen == 0 && remain == 0)
+				state = 0;
+			else if (dflen == 0)
+				state = 2;
+			else
+				state = 3;
 			break;
 
 		case 3:	/* VPD-R Keyword Value */
@@ -673,10 +698,13 @@ pci_read_vpd(device_t pcib, pcicfgregs *cfg)
 					    cfg->bus, cfg->slot, cfg->func,
 					    vrs.cksum);
 					cksumvalid = 0;
+					end = 1;
+					break;
 				}
 			}
 			dflen--;
 			remain--;
+			/* keep in sync w/ state 2's transistions */
 			if (dflen == 0)
 				cfg->vpd.vpd_ros[off++].value[i++] = '\0';
 			if (dflen == 0 && remain == 0) {
@@ -710,13 +738,20 @@ pci_read_vpd(device_t pcib, pcicfgregs *cfg)
 			    M_DEVBUF, M_WAITOK);
 			remain -= 3;
 			i = 0;
-			state = 6;
+			/* keep in sync w/ state 6's transistions */
+			if (dflen == 0 && remain == 0)
+				state = 0;
+			else if (dflen == 0)
+				state = 5;
+			else
+				state = 6;
 			break;
 
 		case 6:	/* VPD-W Keyword Value */
 			cfg->vpd.vpd_w[off].value[i++] = byte;
 			dflen--;
 			remain--;
+			/* keep in sync w/ state 5's transistions */
 			if (dflen == 0)
 				cfg->vpd.vpd_w[off++].value[i++] = '\0';
 			if (dflen == 0 && remain == 0) {
@@ -735,6 +770,15 @@ pci_read_vpd(device_t pcib, pcicfgregs *cfg)
 			end = 1;
 			break;
 		}
+	}
+
+	if (cksumvalid == 0) {
+		/* read-only data bad, clean up */
+		for (; off; off--)
+			free(cfg->vpd.vpd_ros[off].value, M_DEVBUF);
+
+		free(cfg->vpd.vpd_ros, M_DEVBUF);
+		cfg->vpd.vpd_ros = NULL;
 	}
 #undef REG
 }
@@ -1111,12 +1155,12 @@ pci_print_verbose(struct pci_devinfo *dinfo)
 				struct vpd_readonly *vrop;
 				vrop = &cfg->vpd.vpd_ros[i];
 				if (strncmp("CP", vrop->keyword, 2) == 0)
-					printf("CP: id %d, BAR%d, off %#x\n",
+					printf("\tCP: id %d, BAR%d, off %#x\n",
 					    vrop->value[0], vrop->value[1],
 					    le16toh(
 					      *(uint16_t *)&vrop->value[2]));
 				else if (strncmp("RV", vrop->keyword, 2) == 0)
-					printf("RV: %#hhx\n", vrop->value[0]);
+					printf("\tRV: %#hhx\n", vrop->value[0]);
 				else 
 					printf("\t%.2s: %s\n", vrop->keyword,
 					    vrop->value);
