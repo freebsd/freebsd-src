@@ -148,7 +148,7 @@ main(int argc, char *argv[])
 	int ch, error = 0;
 	char const *name = 0;
 
-	while ((ch = getopt(argc, argv, "ABb:efm:nRrs:w")) != -1)
+	while ((ch = getopt(argc, argv, "ABb:efm:nRrw")) != -1)
 		switch (ch) {
 			case 'A':
 				allfields = 1;
