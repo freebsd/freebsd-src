@@ -249,6 +249,8 @@ board_init(void)
 	at91_pio_use_gpio(AT91RM92_PIOA_BASE, AT91C_PIO_PA24);
 	at91_pio_gpio_output(AT91RM92_PIOA_BASE, AT91C_PIO_PA24, 0);
 	at91_pio_gpio_clear(AT91RM92_PIOA_BASE, AT91C_PIO_PA24);
+	at91_pio_use_gpio(AT91RM92_PIOB_BASE,
+	    AT91C_PIO_PB16 | AT91C_PIO_PB17 | AT91C_PIO_PB18 | AT91C_PIO_PB19);
 #endif
 
 	return (ramsize());
