@@ -30,7 +30,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/bus.h>
 #include <sys/conf.h>
 #include <sys/kernel.h>
-#include <sys/lock.h>
 #include <sys/mbuf.h>
 #include <sys/malloc.h>
 #include <sys/module.h>
@@ -50,9 +49,9 @@ struct at91_spi_softc
 	void *intrhand;			/* Interrupt handle */
 	struct resource *irq_res;	/* IRQ resource */
 	struct resource	*mem_res;	/* Memory resource */
-	struct mtx sc_mtx;		/* basically a perimeter lock */
 	bus_dma_tag_t dmatag;		/* bus dma tag for mbufs */
 	bus_dmamap_t map[4];		/* Maps for the transaction */
+	int rxdone;
 };
 
 static inline uint32_t
@@ -67,19 +66,7 @@ WR4(struct at91_spi_softc *sc, bus_size_t off, uint32_t val)
 	bus_write_4(sc->mem_res, off, val);
 }
 
-#define AT91_SPI_LOCK(_sc)		mtx_lock(&(_sc)->sc_mtx)
-#define	AT91_SPI_UNLOCK(_sc)		mtx_unlock(&(_sc)->sc_mtx)
-#define AT91_SPI_LOCK_INIT(_sc) \
-	mtx_init(&_sc->sc_mtx, device_get_nameunit(_sc->dev), \
-	    "spi", MTX_DEF)
-#define AT91_SPI_LOCK_DESTROY(_sc)	mtx_destroy(&_sc->sc_mtx);
-#define AT91_SPI_ASSERT_LOCKED(_sc)	mtx_assert(&_sc->sc_mtx, MA_OWNED);
-#define AT91_SPI_ASSERT_UNLOCKED(_sc) mtx_assert(&_sc->sc_mtx, MA_NOTOWNED);
-
-static devclass_t at91_spi_devclass;
-
 /* bus entry points */
-
 static int at91_spi_probe(device_t dev);
 static int at91_spi_attach(device_t dev);
 static int at91_spi_detach(device_t dev);
@@ -87,6 +74,7 @@ static int at91_spi_detach(device_t dev);
 /* helper routines */
 static int at91_spi_activate(device_t dev);
 static void at91_spi_deactivate(device_t dev);
+static void at91_spi_intr(void *arg);
 
 static int
 at91_spi_probe(device_t dev)
@@ -106,8 +94,6 @@ at91_spi_attach(device_t dev)
 	if (err)
 		goto out;
 
-	AT91_SPI_LOCK_INIT(sc);
-
 	/*
 	 * Allocate DMA tags and maps
 	 */
@@ -124,6 +110,7 @@ at91_spi_attach(device_t dev)
 
 	// reset the SPI
 	WR4(sc, SPI_CR, SPI_CR_SWRST);
+	WR4(sc, SPI_IDR, 0xffffffff);
 
 	WR4(sc, SPI_MR, (0xf << 24) | SPI_MR_MSTR | SPI_MR_MODFDIS |
 	    (0xE << 16));
@@ -141,8 +128,6 @@ at91_spi_attach(device_t dev)
 	WR4(sc, PDC_RCR, 0);
 	WR4(sc, PDC_TPR, 0);
 	WR4(sc, PDC_TCR, 0);
-	WR4(sc, PDC_PTCR, PDC_PTCR_RXTEN);
-	WR4(sc, PDC_PTCR, PDC_PTCR_TXTEN);
 	RD4(sc, SPI_RDR);
 	RD4(sc, SPI_SR);
 
@@ -164,7 +149,7 @@ static int
 at91_spi_activate(device_t dev)
 {
 	struct at91_spi_softc *sc;
-	int rid;
+	int rid, err = ENOMEM;
 
 	sc = device_get_softc(dev);
 	rid = 0;
@@ -175,12 +160,16 @@ at91_spi_activate(device_t dev)
 	rid = 0;
 	sc->irq_res = bus_alloc_resource_any(dev, SYS_RES_IRQ, &rid,
 	    RF_ACTIVE);
-	if (sc->mem_res == NULL)
+	if (sc->irq_res == NULL)
+		goto errout;
+	err = bus_setup_intr(dev, sc->irq_res, INTR_TYPE_MISC | INTR_MPSAFE,
+	    at91_spi_intr, sc, &sc->intrhand);
+	if (err != 0)
 		goto errout;
 	return (0);
 errout:
 	at91_spi_deactivate(dev);
-	return (ENOMEM);
+	return (err);
 }
 
 static void
@@ -216,7 +205,7 @@ static int
 at91_spi_transfer(device_t dev, device_t child, struct spi_command *cmd)
 {
 	struct at91_spi_softc *sc;
-	int i;
+	int i, j, rxdone, err, mode[4];
 	bus_addr_t addr;
 
 	sc = device_get_softc(dev);
@@ -228,48 +217,72 @@ at91_spi_transfer(device_t dev, device_t child, struct spi_command *cmd)
 	WR4(sc, PDC_TPR, addr);
 	WR4(sc, PDC_TCR, cmd->tx_cmd_sz);
 	bus_dmamap_sync(sc->dmatag, sc->map[i], BUS_DMASYNC_PREWRITE);
-	i++;
-	if (bus_dmamap_load(sc->dmatag, sc->map[i], cmd->tx_data,
-	    cmd->tx_data_sz, at91_getaddr, &addr, 0) != 0)
-		goto out;
-	WR4(sc, PDC_TNPR, addr);
-	WR4(sc, PDC_TNCR, cmd->tx_cmd_sz);
-	bus_dmamap_sync(sc->dmatag, sc->map[i], BUS_DMASYNC_PREWRITE);
-	i++;
+	mode[i++] = BUS_DMASYNC_POSTWRITE;
+	if (cmd->tx_data_sz > 0) {
+		if (bus_dmamap_load(sc->dmatag, sc->map[i], cmd->tx_data,
+			cmd->tx_data_sz, at91_getaddr, &addr, 0) != 0)
+			goto out;
+		WR4(sc, PDC_TNPR, addr);
+		WR4(sc, PDC_TNCR, cmd->tx_cmd_sz);
+		bus_dmamap_sync(sc->dmatag, sc->map[i], BUS_DMASYNC_PREWRITE);
+		mode[i++] = BUS_DMASYNC_POSTWRITE;
+	}
 	if (bus_dmamap_load(sc->dmatag, sc->map[i], cmd->rx_cmd,
 	    cmd->tx_cmd_sz, at91_getaddr, &addr, 0) != 0)
 		goto out;
 	WR4(sc, PDC_RPR, addr);
 	WR4(sc, PDC_RCR, cmd->tx_cmd_sz);
 	bus_dmamap_sync(sc->dmatag, sc->map[i], BUS_DMASYNC_PREREAD);
-	i++;
-	if (bus_dmamap_load(sc->dmatag, sc->map[i], cmd->rx_data,
-	    cmd->tx_data_sz, at91_getaddr, &addr, 0) != 0)
-		goto out;
-	WR4(sc, PDC_RNPR, addr);
-	WR4(sc, PDC_RNCR, cmd->tx_data_sz);
-	bus_dmamap_sync(sc->dmatag, sc->map[i], BUS_DMASYNC_PREREAD);
-
+	mode[i++] = BUS_DMASYNC_POSTREAD;
+	if (cmd->tx_data_sz > 0) {
+		if (bus_dmamap_load(sc->dmatag, sc->map[i], cmd->rx_data,
+			cmd->tx_data_sz, at91_getaddr, &addr, 0) != 0)
+			goto out;
+		WR4(sc, PDC_RNPR, addr);
+		WR4(sc, PDC_RNCR, cmd->tx_data_sz);
+		bus_dmamap_sync(sc->dmatag, sc->map[i], BUS_DMASYNC_PREREAD);
+		mode[i++] = BUS_DMASYNC_POSTREAD;
+	}
+	WR4(sc, SPI_IER, SPI_SR_ENDRX);
 	WR4(sc, PDC_PTCR, PDC_PTCR_TXTEN | PDC_PTCR_RXTEN);
 
-	// wait for completion
-	// XXX should be done as an ISR of some sort.
-	while (RD4(sc, SPI_SR) & SPI_SR_ENDRX)
-		DELAY(700);
-
-	// Sync the buffers after the DMA is done, and unload them.
-	bus_dmamap_sync(sc->dmatag, sc->map[0], BUS_DMASYNC_POSTWRITE);
-	bus_dmamap_sync(sc->dmatag, sc->map[1], BUS_DMASYNC_POSTWRITE);
-	bus_dmamap_sync(sc->dmatag, sc->map[2], BUS_DMASYNC_POSTREAD);
-	bus_dmamap_sync(sc->dmatag, sc->map[3], BUS_DMASYNC_POSTREAD);
-	for (i = 0; i < 4; i++)
-		bus_dmamap_unload(sc->dmatag, sc->map[i]);
-	return (0);
+	rxdone = sc->rxdone;
+	do {
+		err = msleep(&sc->rxdone, NULL, PCATCH | PZERO, "spi", hz);
+	} while (rxdone == sc->rxdone && err != EINTR);
+	WR4(sc, PDC_PTCR, PDC_PTCR_TXTDIS | PDC_PTCR_RXTDIS);
+	if (err == 0) {
+		for (j = 0; j < i; j++) 
+			bus_dmamap_sync(sc->dmatag, sc->map[j], mode[j]);
+	}
+	for (j = 0; j < i; j++)
+		bus_dmamap_unload(sc->dmatag, sc->map[j]);
+	return (err);
 out:;
-	while (i-- > 0)
-		bus_dmamap_unload(sc->dmatag, sc->map[i]);
+	for (j = 0; j < i; j++)
+		bus_dmamap_unload(sc->dmatag, sc->map[j]);
 	return (EIO);
 }
+
+static void
+at91_spi_intr(void *arg)
+{
+	struct at91_spi_softc *sc = (struct at91_spi_softc*)arg;
+	uint32_t sr;
+
+	sr = RD4(sc, SPI_SR) & RD4(sc, SPI_IMR);
+	if (sr & SPI_SR_ENDRX) {
+		sc->rxdone++;
+		WR4(sc, SPI_IDR, SPI_SR_ENDRX);
+		wakeup(&sc->rxdone);
+	}
+	if (sr & ~SPI_SR_ENDRX) {
+		device_printf(sc->dev, "Unexpected ISR %#x\n", sr);
+		WR4(sc, SPI_IDR, sr & ~SPI_SR_ENDRX);
+	}
+}
+
+static devclass_t at91_spi_devclass;
 
 static device_method_t at91_spi_methods[] = {
 	/* Device interface */
