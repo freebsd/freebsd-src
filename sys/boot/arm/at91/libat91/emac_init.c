@@ -56,13 +56,9 @@
 
 /* ****************************** GLOBALS *************************************/
 
-unsigned	lastSize;
-unsigned localMACSet, serverMACSet;
+unsigned localMACSet;
 unsigned char localMACAddr[6];
 unsigned localMAClow, localMAChigh;
-unsigned localIPSet, serverIPSet;
-unsigned short	serverPort, localPort;
-receive_descriptor_t *p_rxBD;
 
 /* ********************** PRIVATE FUNCTIONS/DATA ******************************/
 
@@ -82,7 +78,7 @@ EMAC_SetMACAddress(unsigned char mac[6])
 	/* enable the peripheral clock before using EMAC */
 	pPMC->PMC_PCER = ((unsigned) 1 << AT91C_ID_EMAC);
 
-	p_memcpy(localMACAddr, mac, 6);
+	memcpy(localMACAddr, mac, 6);
 	localMAClow = (mac[2] << 24) | (mac[3] << 16) | (mac[4] << 8) | mac[5];
 	localMAChigh = (mac[0] << 8) | mac[1];
 	localMACSet = 1;
@@ -118,22 +114,4 @@ EMAC_SetMACAddress(unsigned char mac[6])
 	// the sequence write EMAC_SA1L and write EMAC_SA1H must be respected
 	pEmac->EMAC_SA1L = localMAClow;
 	pEmac->EMAC_SA1H = localMAChigh;
-}
-
-/*
- * .KB_C_FN_DEFINITION_START
- * void EMAC_Init(void)
- *  This global function initializes variables used in tftp transfers.
- * .KB_C_FN_DEFINITION_END
- */
-void
-EMAC_Init(void)
-{
-	p_rxBD = (receive_descriptor_t*)RX_BUFFER_START;
-	localMACSet = 0;
-	serverMACSet = 0;
-	localIPSet = 0;
-	serverIPSet = 0;
-	localPort = SWAP16(0x8002);
-	lastSize = 0;
 }

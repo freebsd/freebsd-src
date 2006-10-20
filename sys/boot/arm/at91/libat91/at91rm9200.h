@@ -1156,28 +1156,6 @@ typedef struct _AT91S_MCI {
 #define	AT91C_MCI_SCDSEL      (0x1u <<  0) // (MCI) SD Card Selector
 #define	AT91C_MCI_SCDBUS      (0x1u <<  7) // (MCI) SD Card Bus Width
 // -------- MCI_CMDR : (MCI Offset: 0x14) MCI Command Register -------- 
-#define	AT91C_MCI_CMDNB       (0x1Fu <<  0) // (MCI) Command Number
-#define	AT91C_MCI_RSPTYP      (0x3u <<  6) // (MCI) Response Type
-#define		AT91C_MCI_RSPTYP_NO                   (0x0u <<  6) // (MCI) No response
-#define		AT91C_MCI_RSPTYP_48                   (0x1u <<  6) // (MCI) 48-bit response
-#define		AT91C_MCI_RSPTYP_136                  (0x2u <<  6) // (MCI) 136-bit response
-#define	AT91C_MCI_SPCMD       (0x7u <<  8) // (MCI) Special CMD
-#define		AT91C_MCI_SPCMD_NONE                 (0x0u <<  8) // (MCI) Not a special CMD
-#define		AT91C_MCI_SPCMD_INIT                 (0x1u <<  8) // (MCI) Initialization CMD
-#define		AT91C_MCI_SPCMD_SYNC                 (0x2u <<  8) // (MCI) Synchronized CMD
-#define		AT91C_MCI_SPCMD_IT_CMD               (0x4u <<  8) // (MCI) Interrupt command
-#define		AT91C_MCI_SPCMD_IT_REP               (0x5u <<  8) // (MCI) Interrupt response
-#define	AT91C_MCI_OPDCMD      (0x1u << 11) // (MCI) Open Drain Command
-#define	AT91C_MCI_MAXLAT      (0x1u << 12) // (MCI) Maximum Latency for Command to respond
-#define	AT91C_MCI_TRCMD       (0x3u << 16) // (MCI) Transfer CMD
-#define		AT91C_MCI_TRCMD_NO                   (0x0u << 16) // (MCI) No transfer
-#define		AT91C_MCI_TRCMD_START                (0x1u << 16) // (MCI) Start transfer
-#define		AT91C_MCI_TRCMD_STOP                 (0x2u << 16) // (MCI) Stop transfer
-#define	AT91C_MCI_TRDIR       (0x1u << 18) // (MCI) Transfer Direction
-#define	AT91C_MCI_TRTYP       (0x3u << 19) // (MCI) Transfer Type
-#define		AT91C_MCI_TRTYP_BLOCK                (0x0u << 19) // (MCI) Block Transfer type
-#define		AT91C_MCI_TRTYP_MULTIPLE             (0x1u << 19) // (MCI) Multiple Block transfer type
-#define		AT91C_MCI_TRTYP_STREAM               (0x2u << 19) // (MCI) Stream transfer type
 // -------- MCI_SR : (MCI Offset: 0x40) MCI Status Register -------- 
 #define	AT91C_MCI_CMDRDY      (0x1u <<  0) // (MCI) Command Ready flag
 #define	AT91C_MCI_RXRDY       (0x1u <<  1) // (MCI) RX Ready flag

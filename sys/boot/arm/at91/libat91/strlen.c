@@ -21,42 +21,26 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * This software is derived from software provided by kwikbyte without
- * copyright as follows:
- *
- * No warranty, expressed or implied, is included with this software.  It is
- * provided "AS IS" and no warranty of any kind including statutory or aspects
- * relating to merchantability or fitness for any purpose is provided.  All
- * intellectual property rights of others is maintained with the respective
- * owners.  This software is not copyrighted and is intended for reference
- * only.
+ * This software is derived from software provide by Kwikbyte who specifically
+ * disclaimed copyright on the code.
  *
  * $FreeBSD$
  */
 
-#include "at91rm9200.h"
-#include "at91rm9200_lowlevel.h"
 #include "lib.h"
 
 /*
- * void putchar(int ch)
- * Writes a character to the DBGU port.  It assumes that DBGU has
- * already been initialized.
+ * .KB_C_FN_DEFINITION_START
+ * int p_strlen(char *)
+ *  This global function returns the number of bytes starting at the pointer
+ * before (not including) the string termination character ('/0').
+ * .KB_C_FN_DEFINITION_END
  */
-void
-putchar(int ch)
+int
+p_strlen(const char *buffer)
 {
-	AT91PS_USART pUSART = (AT91PS_USART)AT91C_BASE_DBGU;
-
-	while (!(pUSART->US_CSR & AT91C_US_TXRDY))
+	const char *ptr = buffer;
+	while (*ptr++)
 		continue;
-	pUSART->US_THR = (ch & 0xFF);
-}
-
-void
-xputchar(int ch)
-{
-    if (ch == '\n')
-	putchar('\r');
-    putchar(ch);
+	return (ptr - buffer);
 }
