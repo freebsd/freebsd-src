@@ -131,8 +131,8 @@ at91_twi_attach(device_t dev)
 	WR4(sc, TWI_CR, TWI_CR_SWRST);
 	WR4(sc, TWI_CR, TWI_CR_MSEN | TWI_CR_SVDIS);
 	WR4(sc, TWI_CWGR, sc->cwgr);
-	WR4(sc, TWI_IER, TWI_SR_RXRDY | TWI_SR_OVRE | TWI_SR_UNRE |
-	    TWI_SR_NACK);
+//	WR4(sc, TWI_IER, TWI_SR_RXRDY | TWI_SR_OVRE | TWI_SR_UNRE |
+//	    TWI_SR_NACK);
 
 	if ((sc->iicbus = device_add_child(dev, "iicbus", -1)) == NULL)
 		device_printf(dev, "could not allocate iicbus instance\n");
@@ -173,7 +173,7 @@ at91_twi_activate(device_t dev)
 	rid = 0;
 	sc->irq_res = bus_alloc_resource_any(dev, SYS_RES_IRQ, &rid,
 	    RF_ACTIVE);
-	if (sc->mem_res == NULL)
+	if (sc->irq_res == NULL)
 		goto errout;
 	return (0);
 errout:
@@ -229,9 +229,9 @@ at91_twi_wait(struct at91_twi_softc *sc, uint32_t bit)
 	int err = 0;
 	int counter = 10000;
 
-	while (!(RD4(sc, TWI_SR) & bit) && counter-- != 0)
-		continue;
-	if (counter == 0)
+	while (!(RD4(sc, TWI_SR) & bit) && counter-- >= 0)
+		DELAY(10);
+	if (counter <= 0)
 		err = EIO;
 	return (err);
 }
@@ -297,7 +297,7 @@ at91_twi_write(device_t dev, char *buf, int len, int *sent, int timeout /* us */
 	WR4(sc, TWI_MMR, ~TWI_MMR_MREAD & RD4(sc, TWI_MMR));
 	WR4(sc, TWI_CR, TWI_CR_START);
 	sc->sc_started = 1;
-	WR4(sc, TWI_IER, TWI_SR_TXRDY);
+//	WR4(sc, TWI_IER, TWI_SR_TXRDY);
 	while (len--) {
 		WR4(sc, TWI_THR, *walker++);
 		while (!(sc->flags & TXRDY)) {
@@ -327,7 +327,7 @@ at91_twi_read(device_t dev, char *buf, int len, int *read, int last,
 	WR4(sc, TWI_MMR, TWI_MMR_MREAD | RD4(sc, TWI_MMR));
 	WR4(sc, TWI_CR, TWI_CR_START);
 	sc->sc_started = 1;
-	WR4(sc, TWI_IER, TWI_SR_RXRDY);
+//	WR4(sc, TWI_IER, TWI_SR_RXRDY);
 	while (len-- > 0) {
 		err = 0;
 		while (!(sc->flags & RXRDY)) {
@@ -439,15 +439,17 @@ at91_twi_transfer(device_t dev, struct iic_msg *msgs, uint32_t nmsgs)
 		WR4(sc, TWI_MMR, TWI_MMR_DADR(msgs[i].slave) | rdwr);
 		len = msgs[i].len;
 		buf = msgs[i].buf;
-		if (len != 0 || buf == NULL)
-			return EINVAL;
+		if (len == 0 || buf == NULL)
+			return (EINVAL);
 		WR4(sc, TWI_CR, TWI_CR_START);
 		if (msgs[i].flags & IIC_M_RD) {
 			while (len--) {
 				if (len == 0)
 					WR4(sc, TWI_CR, TWI_CR_STOP);
-				if (!at91_twi_wait(sc, TWI_SR_RXRDY))
-					return EIO;
+				if (!at91_twi_wait(sc, TWI_SR_RXRDY)) {
+					printf("1\n");
+					return (EIO);
+				}
 				*buf++ = RD4(sc, TWI_RHR) & 0xff;
 			}
 		} else {
@@ -455,14 +457,18 @@ at91_twi_transfer(device_t dev, struct iic_msg *msgs, uint32_t nmsgs)
 				WR4(sc, TWI_THR, *buf++);
 				if (len == 0)
 					WR4(sc, TWI_CR, TWI_CR_STOP);
-				if (!at91_twi_wait(sc, TWI_SR_TXRDY))
-					return EIO;
+				if (!at91_twi_wait(sc, TWI_SR_TXRDY)) {
+					printf("3\n");
+					return (EIO);
+				}
 			}
 		}
-		if (!at91_twi_wait(sc, TWI_SR_TXCOMP))
-			return EIO;
+		if (!at91_twi_wait(sc, TWI_SR_TXCOMP)) {
+			printf("2\n");
+			return (EIO);
+		}
 	}
-	return 0;
+	return (0);
 }
 
 static device_method_t at91_twi_methods[] = {
