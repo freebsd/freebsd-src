@@ -30,6 +30,9 @@
 #include "at91rm9200.h"
 #include "at91rm9200_lowlevel.h"
 
+extern int __bss_start__[];
+extern int __bss_end__[];
+
 #define BAUD	115200
 #define AT91C_US_ASYNC_MODE (AT91C_US_USMODE_NORMAL | AT91C_US_NBSTOP_1_BIT | \
 		AT91C_US_PAR_NONE | AT91C_US_CHRL_8_BITS | AT91C_US_CLKS_CLOCK)
@@ -42,18 +45,22 @@
 void
 _init(void)
 {
+	int *i;
+
 	AT91PS_USART pUSART = (AT91PS_USART)AT91C_BASE_DBGU;
 	AT91PS_PDC pPDC = (AT91PS_PDC)&(pUSART->US_RPR);
 
 	register unsigned	value;
 	volatile sdram_size_t *p = (sdram_size_t *)SDRAM_BASE;
 
+#if 0
 #ifdef BOOT_TSC
 	// For the TSC board, we turn ON the one LED we have while
 	// early in boot.
 	AT91C_BASE_PIOC->PIO_PER = AT91C_PIO_PC10;
 	AT91C_BASE_PIOC->PIO_OER = AT91C_PIO_PC10;
 	AT91C_BASE_PIOC->PIO_CODR = AT91C_PIO_PC10;
+#endif
 #endif
 
 	// configure clocks
@@ -195,4 +202,9 @@ _init(void)
 	pUSART->US_MR = AT91C_US_ASYNC_MODE;
 	pUSART->US_CR = AT91C_US_TXEN;
 	pUSART->US_CR = AT91C_US_RXEN;
+
+	/* Zero BSS now that we have memory setup */
+	i = (int *)__bss_start__;
+	while (i < (int *)__bss_end__)
+		*i++ = 0;
 }

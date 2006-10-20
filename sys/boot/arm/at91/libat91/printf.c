@@ -36,12 +36,13 @@ printf(const char *fmt,...)
 			c = *fmt++;
 			switch (c) {
 			case 'c':
-				putchar(va_arg(ap, int));
+				xputchar(va_arg(ap, int));
 				continue;
 			case 's':
 				for (s = va_arg(ap, char *); *s; s++)
-					putchar(*s);
+					xputchar(*s);
 				continue;
+			case 'd':	/* A lie, always prints unsigned */
 			case 'u':
 				u = va_arg(ap, unsigned);
 				s = buf;
@@ -50,7 +51,7 @@ printf(const char *fmt,...)
 				while (u /= 10U);
 			dumpbuf:;
 				while (--s >= buf)
-					putchar(*s);
+					xputchar(*s);
 				continue;
 			case 'x':
 				u = va_arg(ap, unsigned);
@@ -61,7 +62,7 @@ printf(const char *fmt,...)
 				goto dumpbuf;
 			}
 		}
-		putchar(c);
+		xputchar(c);
 	}
 	va_end(ap);
 
