@@ -88,14 +88,16 @@ static void at91_ssc_deactivate(device_t dev);
 /* cdev routines */
 static d_open_t at91_ssc_open;
 static d_close_t at91_ssc_close;
-static d_ioctl_t at91_ssc_ioctl;
+static d_read_t at91_ssc_read;
+static d_write_t at91_ssc_write;
 
 static struct cdevsw at91_ssc_cdevsw =
 {
 	.d_version = D_VERSION,
 	.d_open = at91_ssc_open,
 	.d_close = at91_ssc_close,
-	.d_ioctl = at91_ssc_ioctl
+	.d_read = at91_ssc_read,
+	.d_write = at91_ssc_write,
 };
 
 static int
@@ -134,6 +136,19 @@ at91_ssc_attach(device_t dev)
 		goto out;
 	}
 	sc->cdev->si_drv1 = sc;
+
+	// Init for TSC needs
+	WR4(sc, SSC_CR, SSC_CR_SWRST);
+	WR4(sc, SSC_CMR, 0);		// clock divider unused
+	WR4(sc, SSC_RCMR,
+	    SSC_RCMR_CKS_RK | SSC_RCMR_CKO_NONE | SSC_RCMR_START_FALL_EDGE_RF);
+	WR4(sc, SSC_RFMR,
+	    0x1f | SSC_RFMR_MSFBF | SSC_RFMR_FSOS_NONE);
+	WR4(sc, SSC_TCMR,
+	    SSC_TCMR_CKS_TK | SSC_TCMR_CKO_NONE |  SSC_RCMR_START_CONT);
+	WR4(sc, SSC_TFMR,
+	    0x1f | SSC_TFMR_DATDEF | SSC_TFMR_MSFBF | SSC_TFMR_FSOS_NEG_PULSE);
+
 out:;
 	if (err)
 		at91_ssc_deactivate(dev);
@@ -161,7 +176,7 @@ at91_ssc_activate(device_t dev)
 	rid = 0;
 	sc->irq_res = bus_alloc_resource_any(dev, SYS_RES_IRQ, &rid,
 	    RF_ACTIVE);
-	if (sc->mem_res == NULL)
+	if (sc->irq_res == NULL)
 		goto errout;
 	return (0);
 errout:
@@ -241,10 +256,15 @@ at91_ssc_close(struct cdev *dev, int fflag, int devtype, struct thread *td)
 }
 
 static int
-at91_ssc_ioctl(struct cdev *dev, u_long cmd, caddr_t data, int fflag,
-    struct thread *td)
+at91_ssc_read(struct cdev *dev, struct uio *uio, int flag)
 {
-	return (ENXIO);
+	return EIO;
+}
+
+static int
+at91_ssc_write(struct cdev *dev, struct uio *uio, int flag)
+{
+	return EIO;
 }
 
 static device_method_t at91_ssc_methods[] = {
