@@ -850,9 +850,9 @@ devfs_read_f(struct file *fp, struct uio *uio, struct ucred *cred, int flags, st
 		uio->uio_offset = fp->f_offset;
 
 	error = dsw->d_read(dev, uio, ioflag);
-	dev_relthread(dev);
 	if (uio->uio_resid != resid || (error == 0 && resid != 0))
 		vfs_timestamp(&dev->si_atime);
+	dev_relthread(dev);
 
 	if ((flags & FOF_OFFSET) == 0)
 		fp->f_offset = uio->uio_offset;
@@ -1269,11 +1269,11 @@ devfs_write_f(struct file *fp, struct uio *uio, struct ucred *cred, int flags, s
 	resid = uio->uio_resid;
 
 	error = dsw->d_write(dev, uio, ioflag);
-	dev_relthread(dev);
 	if (uio->uio_resid != resid || (error == 0 && resid != 0)) {
 		vfs_timestamp(&dev->si_ctime);
 		dev->si_mtime = dev->si_ctime;
 	}
+	dev_relthread(dev);
 
 	if ((flags & FOF_OFFSET) == 0)
 		fp->f_offset = uio->uio_offset;
