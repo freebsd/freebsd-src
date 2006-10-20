@@ -2119,15 +2119,13 @@ do_tdsignal(struct proc *p, struct thread *td, int sig, ksiginfo_t *ksi)
 
 	/*
 	 * If the signal is being ignored,
-	 * or process is exiting or thread is exiting,
 	 * then we forget about it immediately.
 	 * (Note: we don't set SIGCONT in ps_sigignore,
 	 * and if it is set to SIG_IGN,
 	 * action will be SIG_DFL here.)
 	 */
 	mtx_lock(&ps->ps_mtx);
-	if (SIGISMEMBER(ps->ps_sigignore, sig) ||
-	    (p->p_flag & P_WEXIT)) {
+	if (SIGISMEMBER(ps->ps_sigignore, sig)) {
 		mtx_unlock(&ps->ps_mtx);
 		if (ksi && (ksi->ksi_flags & KSI_INS))
 			ksiginfo_tryfree(ksi);
