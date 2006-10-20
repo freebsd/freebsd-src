@@ -900,9 +900,9 @@ syscall(struct thread *td, trapframe_t *frame, u_int32_t insn)
 		
 		nap--;
 	} else if (code == SYS___syscall) {
-		code = *ap++;
+		code = ap[_QUAD_LOWWORD];
 		nap -= 2;
-		ap++;
+		ap += 2;
 	}
 	if (p->p_sysent->sv_mask)
 		code &= p->p_sysent->sv_mask;
