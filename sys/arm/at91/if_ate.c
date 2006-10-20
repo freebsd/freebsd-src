@@ -29,7 +29,7 @@
  *
  * 1) detach
  * 2) Free dma setup
- * 3) Turn on the clock in pmc and turn on pins?  Turn off?
+ * 3) Turn on the clock in pmc?  Turn off?
  */
 
 #include <sys/cdefs.h>
@@ -45,6 +45,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/rman.h>
 #include <sys/socket.h>
 #include <sys/sockio.h>
+#include <sys/sysctl.h>
 #include <machine/bus.h>
 
 #include <net/ethernet.h>
@@ -167,6 +168,8 @@ ate_attach(device_t dev)
 {
 	struct ate_softc *sc = device_get_softc(dev);
 	struct ifnet *ifp = NULL;
+	struct sysctl_ctx_list *sctx;
+	struct sysctl_oid *soid;
 	int err;
 	u_char eaddr[6];
 
@@ -176,6 +179,13 @@ ate_attach(device_t dev)
 		goto out;
 
 	sc->use_rmii = (RD4(sc, ETH_CFG) & ETH_CFG_RMII) == ETH_CFG_RMII;
+
+
+	/*Sysctls*/
+	sctx = device_get_sysctl_ctx(dev);
+	soid = device_get_sysctl_tree(dev);
+	SYSCTL_ADD_UINT(sctx, SYSCTL_CHILDREN(soid), OID_AUTO, "rmii",
+	    CTLFLAG_RD, &sc->use_rmii, 0, "rmii in use");
 
 	/* calling atestop before ifp is set is OK */
 	atestop(sc);
@@ -323,7 +333,7 @@ ate_activate(device_t dev)
 	rid = 0;
 	sc->irq_res = bus_alloc_resource_any(dev, SYS_RES_IRQ, &rid,
 	    RF_ACTIVE);
-	if (sc->mem_res == NULL)
+	if (sc->irq_res == NULL)
 		goto errout;
 
 	/*
