@@ -82,7 +82,7 @@ DumpBootCommands(void)
 	int	i;
 
 	for (i = 0; boot_commands[i][0]; i++)
-		printf("0x%x : %s[E]\r\n", i, boot_commands[i]);
+		printf("0x%x : %s[E]\n", i, boot_commands[i]);
 }
 
 
@@ -125,6 +125,6 @@ ExecuteEnvironmentFunctions(void)
 	currentOffset = 0;
 
 	DumpBootCommands();
-	printf("Autoboot...\r\n");
+	printf("Autoboot...\n");
 	Bootloader(ReadCharFromEnvironment);
 }
