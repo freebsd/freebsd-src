@@ -32,7 +32,7 @@
 .\"	@(#)vmstat.8	8.1 (Berkeley) 6/6/93
 .\" $FreeBSD$
 .\"
-.Dd February 11, 2006
+.Dd October 21, 2006
 .Dt VMSTAT 8
 .Os
 .Sh NAME
@@ -202,9 +202,6 @@ If no repeat
 interval is specified, the default is 1 second.
 .It Fl z
 Report on memory used by the kernel zone allocator, by zone.
-The information shown is the same as that returned by the
-.Va vm.zone
-sysctl variable.
 .El
 .Pp
 By default,
