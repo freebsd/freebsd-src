@@ -257,8 +257,6 @@ retry:
 		KASSERT(!timevalisset(&p->p_realtimer.it_value),
 		    ("realtime timer is still armed"));
 	}
-	sigqueue_flush(&p->p_sigqueue);
-	sigqueue_flush(&td->td_sigqueue);
 	PROC_UNLOCK(p);
 
 	/*
@@ -510,6 +508,14 @@ retry:
 	PROC_LOCK(p);
 	PROC_LOCK(p->p_pptr);
 	sx_xunlock(&proctree_lock);
+
+	/*
+	 * The state PRS_ZOMBIE prevents other proesses from sending
+	 * signal to the process, to avoid memory leak, we free memory
+	 * for signal queue at the time when the state is set.
+	 */
+	sigqueue_flush(&p->p_sigqueue);
+	sigqueue_flush(&td->td_sigqueue);
 
 	/*
 	 * We have to wait until after acquiring all locks before
