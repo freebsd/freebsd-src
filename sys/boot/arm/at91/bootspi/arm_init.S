@@ -59,7 +59,11 @@ pabtvec:
 dabtvec:
                 B           dabtvec         	@; Data Abort
 rsvdvec:
+#ifdef BOOT_IIC
+		.long	12 << 10		@; 12k from iic part
+#else
 		.long	((1056 << 17) | (13 << 13) | (12 * 2))
+#endif
 irqvec:
                 ldr         pc, [pc,#-0xF20]    @; IRQ : read the AIC
 fiqvec:
@@ -109,7 +113,7 @@ BootCommandSection:
 	.string "e 0x10000000                           "
 	.string "                 "
 #else
-#if 0
+#if 1
 	.string "Bootloader for KB9202 Evaluation Board."
 	.string "m 42 53 44 0 0 1                       "
 	.string "ip 206 168 13 194                      "
