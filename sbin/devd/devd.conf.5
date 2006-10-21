@@ -84,7 +84,7 @@ Further details on the syntax and meaning of each statement and their
 substatements are explained below.
 .Pp
 Each statement, except
-.Dq options
+.Ic options
 has a priority (an arbitrary number) associated with it, where
 .Ql 0
 is defined as the lowest priority.
@@ -102,209 +102,212 @@ statement priority {
 	substatement "value";
 };
 .Ed
-.Pp
 .Ss Sub-statements
 The following sub-statements are supported within the
-.Dq options
+.Ic options
 statement.
 .Bl -tag -width ".Ic directory"
-.It Ic directory \*q/some/path\*q;
+.It Ic directory Qq Ar /some/path ;
 Adds the given directory to the list of directories from which
 .Xr devd 8
 will read
-configuration files. Any number of
-.Dq directory
+configuration files.
+Any number of
+.Ic directory
 statements can be used.
-.It Ic pid-file \*q/var/run/devd.pid\*q;
-Specifies pid file.
-.It Ic set regexp-name \*q(some|regexp)\*q;
+.It Ic pid-file Qq Pa /var/run/devd.pid ;
+Specifies PID file.
+.It Ic set Ar regexp-name Qq Ar (some|regexp) ;
 Creates a regular expression and assigns it to the variable
-.Va regexp-name .
+.Ar regexp-name .
 The variable is avaiable throughout the rest of
 the configuration file.
 All regular expressions have an implicit
-.Ql Li ^$
+.Ql ^$
 around them.
 .El
 .Pp
 The following sub-statements are supported within the
-.Dq attach
+.Ic attach
 and
-.Dq detach
+.Ic detach
 statements.
 .Bl -tag -width ".Ic directory"
-.It Ic action \*qcommand\*q;
+.It Ic action Qq Ar command ;
 Command to execute upon a successful match.
 Example
-.Ic /etc/pccard_ether $device-name start
-.It Ic class \*qstring\*q;
+.Dq Li "/etc/pccard_ether $device-name start" .
+.It Ic class Qq Ar string ;
 This is shorthand for
-.Dq match \*qclass\*q .
-.It Ic device-name \*qstring\*q;
+.Dq Ic match Qo Li class Qc Qq Ar string .
+.It Ic device-name Qq string ;
 This is shorthand for
-.Dq match \*qdevice-name\*q .
+.Dq Ic match Qo Li device-name Qc Qq Ar string .
 This matches a device named
-.Va string ;
+.Ar string ,
 which is allowed to be a regular expression or a variable previously created
 containing a regular expression.
 The
-.Va device-name
+.Dq Li device-name
 variable
-is avaiable for later use with the action-statement.
-.It Ic match \*qvariable\*q \*qvalue\*q;
+is available for later use with the
+.Ic action
+statement.
+.It Ic match Qo Ar variable Qc Qq Ar value ;
 Matches the content of
-.Va value
+.Ar value
 against
-.Va variable ,
+.Ar variable ;
 the content of
-.Va value
+.Ar value
 may be a regular expression.
 Not required during
-.Dq Li attach
+.Ic attach
 nor
-.Dq Li detach
+.Ic detach
 events since the
-.Dq Li device-name
+.Ic device-name
 statement takes care of all device matching.
 For a partial list of variables, see below.
-.It Ic media-type \*qstring\*q;
+.It Ic media-type Qq Ar string ;
 This is shorthand for
-.Dq match \*qdevice-name\*q .
-.It Ic subdevice \*qstring\*q;
+.Dq Ic match Qo Li device-name Qc Qq Ar string .
+.It Ic subdevice Qq Ar string ;
 This is shorthand for
-.Dq match \*qsubdevice\*q .
+.Dq Ic match Qo Li subdevice Qc Qq Ar string .
 .El
 .Pp
 The following sub-statements are supported within the
-.Dq nomatch
+.Ic nomatch
 statement.
 .Bl -tag -width ".Ic directory"
-.It Ic action \*qcommand\*q;
+.It Ic action Qq Ar command ;
 Same as above.
-.It Ic match \*qvariable\*q \*qvalue\*q;
+.It Ic match Qo Ar variable Qc Qq Ar value ;
 Matches the content of
-.Va value
+.Ar value
 against
-.Va variable ,
+.Ar variable ;
 the content of
-.Va value
+.Ar value
 may be a regular expression.
 For a partial list of variables, see below.
 .El
 .Pp
 The following sub-statements are supported within the
-.Dq notify
+.Ic notify
 statement.
 The
 .Dq Li notify
 variable is avaiable inside this statement and contains, a value, depending
 on which system and subsystem that delivered the event.
 .Bl -tag -width ".Ic directory"
-.It Ic action \*qcommand\*q;
-Command to execute upon a successful match. Example
-.Ic /etc/rc.d/power_profile $notify
-.It Ic match \*qsystem|subsystem|type|notify\*q \*qvalue\*q;
+.It Ic action Qq Ar command ;
+Command to execute upon a successful match.
+Example
+.Dq Li "/etc/rc.d/power_profile $notify" .
+.It Ic match Qo Ar system | subsystem | type | notify Qc Qq Ar value ;
 Any number of
-.Dq match
-statements can exists within a
-.Dq notify
-statement.
-.Va value
+.Ic match
+statements can exist within a
+.Ic notify
+statement;
+.Ar value
 can be either a fixed string or a regular expression.
 Below is a list of avaiable systems, subsystems, and types.
 .El
 .Ss Variables that can be used with the match statement
 A partial list of variables and their possible values that can be used together
 with the
-.Dq match
+.Ic match
 statement.
 .Pp
-.Bl -tag -width "manufacturer" -compact
+.Bl -tag -width ".Li manufacturer" -compact
 .It Ic Variable
 .Ic Description
-.It bus
-Device name of parent bus
-.It cisproduct
-CIS-product
-.It cisvendor
-CIS-vendor
-.It class
-Device class
-.It device
-Device ID
-.It device-name
-Name of attached/detached device
-.It function
-Card functions
-.It manufacturer
-Manufacturer ID (pccard)
-.It notify
+.It Li bus
+Device name of parent bus.
+.It Li cisproduct
+CIS-product.
+.It Li cisvendor
+CIS-vendor.
+.It Li class
+Device class.
+.It Li device
+Device ID.
+.It Li device-name
+Name of attached/detached device.
+.It Li function
+Card functions.
+.It Li manufacturer
+Manufacturer ID (pccard).
+.It Li notify
 Match the value of the
 .Dq Li notify
 variable.
-.It product
-Product ID (pccard)
-.It serial
-Serial Number (USB)
-.It slot
-Card slot
-.It subvendor
-Sub-vendor ID
-.It subdevice
-Sub-device ID
-.It subsystem
-Matches a subsystem of a system, see below
-.It system
-Matches a system type, see below
-.It type
-Type of notification, see below
-.It vendor
-Vendor ID
+.It Li product
+Product ID (pccard).
+.It Li serial
+Serial Number (USB).
+.It Li slot
+Card slot.
+.It Li subvendor
+Sub-vendor ID.
+.It Li subdevice
+Sub-device ID.
+.It Li subsystem
+Matches a subsystem of a system, see below.
+.It Li system
+Matches a system type, see below.
+.It Li type
+Type of notification, see below.
+.It Li vendor
+Vendor ID.
 .El
 .Ss Notify matching
-A Partial list of systems, subsystems, and types used within the
-.Dq notify
+A partial list of systems, subsystems, and types used within the
+.Ic notify
 mechanism.
 .Pp
-.Bl -tag -width "IFNET" -compact
-.It Ic System
-.It ACPI
+.Bl -tag -width ".Li IFNET" -compact
+.It Sy System
+.It Li ACPI
 Events related to the ACPI subsystem.
-.Bl -tag -compact
-.It Ic Subsystem
-.It ACAD
-AC Line state ($notify=0x00 is offline, 0x01 is online).
-.It Button
+.Bl -tag -width ".Sy Subsystem" -compact
+.It Sy Subsystem
+.It Li ACAD
+AC line state ($notify=0x00 is offline, 0x01 is online).
+.It Li Button
 Button state ($notify=0x00 is power, 0x01 is sleep).
-.It CMBAT
+.It Li CMBAT
 Battery events.
-.It Lid
+.It Li Lid
 Lid state ($notify=0x00 is closed, 0x01 is open).
-.It Thermal
+.It Li Thermal
 Thermal zone events.
 .El
 .Pp
-.It IFNET
+.It Li IFNET
 Events related to the network subsystem.
-.Bl -tag -compact
-.It Ic Subsystem
-.It [interface]
+.Bl -tag -width ".Sy Subsystem" -compact
+.It Sy Subsystem
+.It Ar interface
 The
 .Dq subsystem
 is the actual name of the network interface on which the event
 took place.
-.Bl -tag -compact
-.It Ic Type
-.It LINK_UP
+.Bl -tag -width ".Li LINK_DOWN" -compact
+.It Sy Type
+.It Li LINK_UP
 Carrier status changed to UP.
-.It LINK_DOWN
+.It Li LINK_DOWN
 Carrier status changed to DOWN.
 .El
 .El
 .El
 .Pp
 A link state change to UP on the interface
-.Dq fxp0
+.Dq Li fxp0
 would result in the following notify event:
 .Bd -literal -offset indent
 system=IFNET, subsystem=fxp0, type=LINK_UP
@@ -347,7 +350,7 @@ C++-style comments start with the two characters
 (slash, slash) and continue to the end of the physical line.
 They cannot be continued across multiple physical lines; to have
 one logical comment span multiple lines, each line must use the
-.Dq //
+.Ql //
 pair.
 For example:
 .Bd -literal -offset indent
@@ -355,6 +358,13 @@ For example:
 // is a new comment, even though it is logically
 // part of the previous comment.
 .Ed
+.Sh FILES
+.Bl -tag -width ".Pa /etc/devd.conf" -compact
+.It Pa /etc/devd.conf
+The
+.Xr devd 8
+configuration file.
+.El
 .Sh EXAMPLES
 .Bd -literal
 #
@@ -408,12 +418,5 @@ detach 0 {
 The installed
 .Pa /etc/devd.conf
 has many additional examples.
-.Sh FILES
-.Bl -tag -width ".Pa /etc/devd.conf" -compact
-.It Pa /etc/devd.conf
-The
-.Xr devd 8
-configuration file.
-.El
 .Sh SEE ALSO
 .Xr devd 8
