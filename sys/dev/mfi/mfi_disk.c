@@ -103,6 +103,7 @@ mfi_disk_attach(device_t dev)
 	struct mfi_ld *ld;
 	uint64_t sectors;
 	uint32_t secsize;
+	char *state;
 
 	sc = device_get_softc(dev);
 	ld = device_get_ivars(dev);
@@ -117,8 +118,27 @@ mfi_disk_attach(device_t dev)
 	secsize = MFI_SECTOR_LEN;
 	TAILQ_INSERT_TAIL(&sc->ld_controller->mfi_ld_tqh, ld, ld_link);
 
-	device_printf(dev, "%juMB (%ju sectors) RAID\n",
-	    sectors / (1024 * 1024 / secsize), sectors);
+	switch (ld->ld_info->ld_config.params.state) {
+	case MFI_LD_STATE_OFFLINE:
+		state = "offline";
+		break;
+	case MFI_LD_STATE_PARTIALLY_DEGRADED:
+		state = "partially degraded";
+		break;
+	case MFI_LD_STATE_DEGRADED:
+		state = "degraded";
+		break;
+	case MFI_LD_STATE_OPTIMAL:
+		state = "optimal";
+		break;
+	default:
+		state = "unknown";
+		break;
+	}
+	device_printf(dev, "%juMB (%ju sectors) RAID volume '%s' is %s\n",
+		      sectors / (1024 * 1024 / secsize), sectors,
+		      ld->ld_info->ld_config.properties.name,
+		      state);
 
 	sc->ld_disk = disk_alloc();
 	sc->ld_disk->d_drv1 = sc;

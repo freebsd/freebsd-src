@@ -101,6 +101,8 @@ typedef enum {
 /* Direct commands */
 typedef enum {
 	MFI_DCMD_CTRL_GETINFO =		0x01010000,
+	MFI_DCMD_CTRL_MFC_DEFAULTS_GET =0x010e0201,
+	MFI_DCMD_CTRL_MFC_DEFAULTS_SET =0x010e0202,
 	MFI_DCMD_CTRL_FLUSHCACHE =	0x01101000,
 	MFI_DCMD_CTRL_SHUTDOWN =	0x01050000,
 	MFI_DCMD_CTRL_EVENT_GETINFO =	0x01040100,
@@ -110,6 +112,9 @@ typedef enum {
 	MFI_DCMD_LD_GET_INFO =		0x03020000,
 	MFI_DCMD_LD_GET_PROP =		0x03030000,
 	MFI_DCMD_LD_SET_PROP =		0x03040000,
+	MFI_DCMD_CFG_READ =		0x04010000,
+	MFI_DCMD_CFG_ADD =		0x04020000,
+	MFI_DCMD_CFG_CLEAR =		0x04030000,
 	MFI_DCMD_CLUSTER =		0x08000000,
 	MFI_DCMD_CLUSTER_RESET_ALL =	0x08010100,
 	MFI_DCMD_CLUSTER_RESET_LD =	0x08010200
@@ -243,6 +248,22 @@ typedef enum {
 	MR_EVT_ARGS_TIME,
 	MR_EVT_ARGS_ECC
 } mfi_evt_args;
+
+typedef enum {
+	MR_LD_CACHE_WRITE_BACK =	0x01,
+	MR_LD_CACHE_WRITE_ADAPTIVE =	0x02,
+	MR_LD_CACHE_READ_AHEAD =	0x04,
+	MR_LD_CACHE_READ_ADAPTIVE =	0x08,
+	MR_LD_CACHE_WRITE_CACHE_BAD_BBU=0x10,
+	MR_LD_CACHE_ALLOW_WRITE_CACHE =	0x20,
+	MR_LD_CACHE_ALLOW_READ_CACHE =	0x40
+} mfi_ld_cache;
+
+typedef enum {
+	MR_PD_CACHE_UNCHANGED  =	0,
+	MR_PD_CACHE_ENABLE =		1,
+	MR_PD_CACHE_DISABLE =		2
+} mfi_pd_cache;
 
 /*
  * Other propertities and definitions
@@ -456,6 +477,51 @@ struct mfi_info_component {
 	char		 build_time[16];
 } __packed;
 
+/* Controller default settings */
+struct mfi_defaults {
+	uint64_t	sas_addr;
+	uint8_t		phy_polarity;
+	uint8_t		background_rate;
+	uint8_t		stripe_size;
+	uint8_t		flush_time;
+	uint8_t		write_back;
+	uint8_t		read_ahead;
+	uint8_t		cache_when_bbu_bad;
+	uint8_t		cached_io;
+	uint8_t		smart_mode;
+	uint8_t		alarm_disable;
+	uint8_t		coercion;
+	uint8_t		zrc_config;
+	uint8_t		dirty_led_shows_drive_activity;
+	uint8_t		bios_continue_on_error;
+	uint8_t		spindown_mode;
+	uint8_t		allowed_device_types;
+	uint8_t		allow_mix_in_enclosure;
+	uint8_t		allow_mix_in_ld;
+	uint8_t		allow_sata_in_cluster;
+	uint8_t		max_chained_enclosures;
+	uint8_t		disable_ctrl_r;
+	uint8_t		enabel_web_bios;
+	uint8_t		phy_polarity_split;
+	uint8_t		direct_pd_mapping;
+	uint8_t		bios_enumerate_lds;
+	uint8_t		restored_hot_spare_on_insertion;
+	uint8_t		expose_enclosure_devices;
+	uint8_t		maintain_pd_fail_history;
+	uint8_t		resv[28];
+} __packed;
+
+/* Controller default settings */
+struct mfi_bios_data {
+	uint16_t	boot_target_id;
+	uint8_t		do_not_int_13;
+	uint8_t		continue_on_error;
+	uint8_t		verbose;
+	uint8_t		geometry;
+	uint8_t		expose_all_drives;
+	uint8_t		reserved[56];
+	uint8_t		check_sum;
+} __packed;
 
 /* SAS (?) controller info, returned from MFI_DCMD_CTRL_GETINFO. */
 struct mfi_ctrl_info {
@@ -564,7 +630,7 @@ union mfi_evt {
 	struct {
 		uint16_t	locale;
 		uint8_t		reserved;
-		uint8_t		class;
+		int8_t		class;
 	} members;
 	uint32_t		word;
 } __packed;
@@ -715,32 +781,123 @@ struct mfi_evt_detail {
 	char description[128];
 } __packed;
 
-/* SAS log detail guessed at */
-struct mfi_log_detail {
-	uint32_t		something1;
-	uint32_t		something2;
-	uint32_t		seq;
-	uint32_t		something3;
-	uint32_t		arg_type;
-	uint8_t			reserved1[15];
-
-	union {
-		uint8_t		b[96];
-	} args;
-	char description[128];
+struct mfi_evt_list {
+	uint32_t		count;
+	uint32_t		reserved;
+	struct mfi_evt_detail	event[1];
 } __packed;
 
-struct mfi_ldref {
-	uint8_t		target_id;
-	uint8_t		reserved;
-	uint16_t	seq;
+union mfi_pd_ref {
+	struct {
+		uint16_t	device_id;
+		uint16_t	seq_num;
+	} v;
+	uint32_t	ref;
+} __packed;
+
+union mfi_pd_ddf_type {
+	struct {
+		union {
+			struct {
+				uint16_t	forced_pd_guid	: 1;
+				uint16_t	in_vd		: 1;
+				uint16_t	is_global_spare	: 1;
+				uint16_t	is_spare	: 1;
+				uint16_t	is_foreign	: 1;
+				uint16_t	reserved	: 7;
+				uint16_t	intf		: 4;
+			} pd_type;
+			uint16_t	type;
+		} v;
+		uint16_t		reserved;
+	} ddf;
+	struct {
+		uint32_t		reserved;
+	} non_disk;
+	uint32_t			type;
+} __packed;
+
+struct mfi_pd_progress {
+	struct {
+		uint32_t		rbld	: 1;
+		uint32_t		patrol	: 1;
+		uint32_t		clear	: 1;
+		uint32_t		reserved: 29;
+	} active;
+	struct mfi_progress		rbld;
+	struct mfi_progress		patrol;
+	struct mfi_progress		clear;
+	struct mfi_progress		reserved[4];
+} __packed;
+
+struct mfi_pd_info {
+	union mfi_pd_ref		ref;
+	uint8_t				inquiry_data[96];
+	uint8_t				vpd_page83[64];
+	uint8_t				not_supported;
+	uint8_t				scsi_dev_type;
+	uint8_t				connected_port_bitmap;
+	uint8_t				device_speed;
+	uint32_t			media_err_count;
+	uint32_t			other_err_count;
+	uint32_t			pred_fail_count;
+	uint32_t			last_pred_fail_event_seq_num;
+	uint16_t			fw_state;
+	uint8_t				disable_for_removal;
+	uint8_t				link_speed;
+	union mfi_pd_ddf_type		state;
+	struct {
+		uint8_t			count;
+		uint8_t			is_path_broken;
+		uint8_t			reserved[6];
+		uint64_t		sas_addr[4];
+	} path_info;
+	uint64_t			raw_size;
+	uint64_t			non_coerced_size;
+	uint64_t			coerced_size;
+	uint16_t			encl_device_id;
+	uint8_t				encl_index;
+	uint8_t				slot_number;
+	struct mfi_pd_progress		prog_info;
+	uint8_t				bad_block_table_full;
+	uint8_t				unusable_in_current_config;
+	uint8_t				vpd_page83_ext[64];
+	uint8_t				reserved[512-358];
+} __packed;
+
+struct mfi_pd_address {
+	uint16_t		device_id;
+	uint16_t		encl_device_id;
+	uint8_t			encl_index;
+	uint8_t			slot_number;
+	uint8_t			scsi_dev_type;
+	uint8_t			connect_port_bitmap;
+	uint64_t		sas_addr[2];
+} __packed;
+
+struct mfi_pd_list {
+	uint32_t		size;
+	uint32_t		count;
+	uint8_t			data;
+	/*
+	struct mfi_pd_address	addr[];
+	*/
+} __packed;
+
+union mfi_ld_ref {
+	struct {
+		uint8_t		target_id;
+		uint8_t		reserved;
+		uint16_t	seq;
+	} v;
+	uint32_t		ref;
 } __packed;
 
 struct mfi_ld_list {
 	uint32_t		ld_count;
 	uint32_t		reserved1;
 	struct {
-		struct mfi_ldref	ld;
+		union mfi_ld_ref	ld;
 		uint8_t		state;
 		uint8_t		reserved2[3];
 		uint64_t	size;
@@ -762,7 +919,7 @@ enum mfi_ld_state {
 };
 
 struct mfi_ld_props {
-	struct mfi_ldref	ld;
+	union mfi_ld_ref	ld;
 	char			name[16];
 	uint8_t			default_cache_policy;
 	uint8_t			access_policy;
@@ -821,6 +978,59 @@ struct mfi_ld_info {
 	uint8_t			reserved1[1];
 	uint8_t			vpd_page83[64];
 	uint8_t			reserved2[16];
+} __packed;
+
+union mfi_spare_type {
+	struct {
+		uint8_t		is_dedicate		:1;
+		uint8_t		is_revertable		:1;
+		uint8_t		is_encl_affinity	:1;
+		uint8_t		reserved		:5;
+	} v;
+	uint8_t		type;
+} __packed;
+
+#define MAX_ARRAYS 16
+struct mfi_spare {
+	union mfi_pd_ref	ref;
+	union mfi_spare_type	spare_type;
+	uint8_t			reserved[2];
+	uint8_t			array_count;
+	uint16_t		array_refd[MAX_ARRAYS];
+} __packed;
+
+#define MAX_ROW_SIZE 32
+struct mfi_array {
+	uint64_t			size;
+	uint8_t				num_drives;
+	uint8_t				reserved;
+	uint16_t			array_ref;
+	uint8_t				pad[20];
+	struct {
+		union mfi_pd_ref	ref;
+		uint16_t		fw_state;
+		struct {
+			uint8_t		pd;
+			uint8_t		slot;
+		} encl;
+	} pd[MAX_ROW_SIZE];
+} __packed;
+
+struct mfi_config_data {
+	uint32_t		size;
+	uint16_t		array_count;
+	uint16_t		array_size;
+	uint16_t		log_drv_count;
+	uint16_t		log_drv_size;
+	uint16_t		spares_count;
+	uint16_t		spares_size;
+	uint8_t			reserved[16];
+	uint8_t			data;
+	/*
+	struct mfi_array	array[];
+	struct mfi_ld_config	ld[];
+	struct mfi_spare	spare[];
+	*/
 } __packed;
 
 #endif /* _MFIREG_H */
