@@ -4,7 +4,7 @@
 PROG=	quota
 BINOWN=	root
 
-DPADD=	${LIBRPCSVC}
-LDADD=	-lrpcsvc
+DPADD=	${LIBRPCSVC} ${LIBUTIL}
+LDADD=	-lrpcsvc -lutil
 
 .include <bsd.prog.mk>

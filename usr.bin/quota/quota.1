@@ -35,7 +35,7 @@
 .\"	from: @(#)quota.1	8.1 (Berkeley) 6/6/93
 .\" $FreeBSD$
 .\"
-.Dd August 8, 2002
+.Dd October 22, 2006
 .Dt QUOTA 1
 .Os
 .Sh NAME
@@ -43,15 +43,15 @@
 .Nd display disk usage and limits
 .Sh SYNOPSIS
 .Nm
-.Op Fl glu
+.Op Fl ghlu
 .Op Fl v | Fl q
 .Nm
-.Op Fl lu
+.Op Fl hlu
 .Op Fl v | Fl q
 .Ar user ...
 .Nm
 .Fl g
-.Op Fl l
+.Op Fl hl
 .Op Fl v | Fl q
 .Ar group ...
 .Sh DESCRIPTION
@@ -59,12 +59,16 @@ The
 .Nm
 utility displays users' disk usage and limits.
 By default only the user quotas are printed.
+Disk block usage and limits are shown in 1024-byte blocks.
 .Pp
 The following options are available:
 .Bl -tag -width indent
 .It Fl g
 Print group quotas for the group
 of which the user is a member.
+.It Fl h
+"Human-readable" output.
+Use unit suffixes: Byte, Kilobyte, Megabyte, Gigabyte, Terabyte and Petabyte.
 .It Fl l
 Do not report quotas on
 .Tn NFS
