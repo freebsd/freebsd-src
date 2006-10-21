@@ -108,6 +108,10 @@
 #define	BRDGSIFCOST		22	/* set if path cost (ifbreq) */
 #define	BRDGADDS		23	/* add bridge span member (ifbreq) */
 #define	BRDGDELS		24	/* delete bridge span member (ifbreq) */
+#define	BRDGPARAM		25	/* get bridge STP params (ifbropreq) */
+#define	BRDGGRTE		26	/* get cache drops (ifbrparam) */
+#define	BRDGGIFSSTP		27	/* get member STP params list
+					 * (ifbpstpconf) */
 
 /*
  * Generic bridge control request.
@@ -198,6 +202,45 @@ struct ifbrparam {
 #define	ifbrp_hellotime	ifbrp_ifbrpu.ifbrpu_int8	/* hello time (sec) */
 #define	ifbrp_fwddelay	ifbrp_ifbrpu.ifbrpu_int8	/* fwd time (sec) */
 #define	ifbrp_maxage	ifbrp_ifbrpu.ifbrpu_int8	/* max age (sec) */
+#define	ifbrp_cexceeded ifbrp_ifbrpu.ifbrpu_int32	/* # of cache dropped
+							 * adresses */
+/*
+ * Bridge current operational parameters structure.
+ */
+struct ifbropreq {
+	uint8_t		ifbop_maxage;
+	uint8_t		ifbop_hellotime;
+	uint8_t		ifbop_fwddelay;
+	uint16_t	ifbop_root_port;
+	uint32_t	ifbop_root_path_cost;
+	uint64_t	ifbop_designated_root;
+	struct timeval	ifbop_last_tc_time;
+};
+
+/*
+ * Bridge member operational STP params structure.
+ */
+struct ifbpstpreq {
+	uint8_t		ifbp_portno;		/* bp STP port number */
+	uint32_t	ifbp_fwd_trans;		/* bp STP fwd transitions */
+	uint32_t	ifbp_design_cost;	/* bp STP designated cost */
+	uint32_t	ifbp_design_port;	/* bp STP designated port */
+	uint64_t	ifbp_design_bridge;	/* bp STP designated bridge */
+	uint64_t	ifbp_design_root;	/* bp STP designated root */
+};
+
+/*
+ * Bridge STP ports list structure.
+ */
+struct ifbpstpconf {
+	uint32_t	ifbpstp_len;	/* buffer size */
+	union {
+		caddr_t	ifbpstpu_buf;
+		struct ifbpstpreq *ifbpstpu_req;
+	} ifbpstp_ifbpstpu;
+#define	ifbpstp_buf	ifbpstp_ifbpstpu.ifbpstpu_buf
+#define	ifbpstp_req	ifbpstp_ifbpstpu.ifbpstpu_req
+};
 
 #ifdef _KERNEL
 /*
@@ -249,6 +292,7 @@ struct bridge_iflist {
 	struct ifnet		*bif_ifp;	/* member if */
 	uint32_t		bif_flags;	/* member if flags */
 	int			bif_mutecap;	/* member muted caps */
+	uint32_t		bif_forward_transitions;
 };
 
 /*
@@ -302,6 +346,8 @@ struct bridge_softc {
 	uint32_t		sc_rthash_key;	/* key for hash */
 	LIST_HEAD(, bridge_iflist) sc_spanlist;	/* span ports list */
 	struct bridge_timer	sc_link_timer;
+ 	uint32_t		sc_brtexceeded;	/* # of cache drops */
+ 	struct timeval		sc_last_tc_time;
 };
 
 #define BRIDGE_LOCK_INIT(_sc)		do {			\

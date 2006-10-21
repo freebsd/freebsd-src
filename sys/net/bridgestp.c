@@ -163,6 +163,7 @@ static void	bstp_make_forwarding(struct bridge_softc *,
 static void	bstp_make_blocking(struct bridge_softc *,
 		    struct bridge_iflist *);
 static void	bstp_set_port_state(struct bridge_iflist *, uint8_t);
+static void	bstp_update_forward_transitions(struct bridge_iflist *);
 #ifdef notused
 static void	bstp_set_bridge_priority(struct bridge_softc *, uint64_t);
 static void	bstp_set_port_priority(struct bridge_softc *,
@@ -581,6 +582,12 @@ bstp_set_port_state(struct bridge_iflist *bif, uint8_t state)
 }
 
 static void
+bstp_update_forward_transitions(struct bridge_iflist *bif)
+{
+	bif->bif_forward_transitions++;
+}
+
+static void
 bstp_topology_change_detection(struct bridge_softc *sc)
 {
 	if (bstp_root_bridge(sc)) {
@@ -591,6 +598,7 @@ bstp_topology_change_detection(struct bridge_softc *sc)
 		bstp_timer_start(&sc->sc_tcn_timer, 0);
 	}
 	sc->sc_topology_change_detected = 1;
+ 	getmicrotime(&sc->sc_last_tc_time);
 }
 
 static void
@@ -795,6 +803,7 @@ bstp_forward_delay_timer_expiry(struct bridge_softc *sc,
 		bstp_timer_start(&bif->bif_forward_delay_timer, 0);
 	} else if (bif->bif_state == BSTP_IFSTATE_LEARNING) {
 		bstp_set_port_state(bif, BSTP_IFSTATE_FORWARDING);
+ 		bstp_update_forward_transitions(bif);
 		if (bstp_designated_for_some_port(sc) &&
 		    bif->bif_change_detection_enabled)
 			bstp_topology_change_detection(sc);
@@ -914,6 +923,7 @@ bstp_initialization(struct bridge_softc *sc)
 			bstp_disable_port(sc, bif);
 	}
 
+ 	getmicrotime(&sc->sc_last_tc_time);
 	bstp_port_state_selection(sc);
 	bstp_config_bpdu_generation(sc);
 	bstp_timer_start(&sc->sc_hello_timer, 0);
