@@ -29,7 +29,6 @@
 #include "env_vars.h"
 #include "lib.h"
 #include "spi_flash.h"
-#include "fpga.h"
 #include "ee.h"
 
 /******************************* GLOBALS *************************************/
