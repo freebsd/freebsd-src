@@ -54,17 +54,18 @@ __FBSDID("$FreeBSD$");
 #include <unistd.h>
 
 #include "extern.h"
-#define	cp_pct(x,y)	(int)(100.0 * (double)(x) / (double)(y))
+
+#define	cp_pct(x, y)	((y == 0) ? 0 : (int)(100.0 * (x) / (y)))
 
 int
 copy_file(const FTSENT *entp, int dne)
 {
 	static char buf[MAXBSIZE];
 	struct stat *fs;
-	int ch, checkch, from_fd = 0, rcount, rval, to_fd = 0;
 	ssize_t wcount;
 	size_t wresid;
-	size_t wtotal;
+	off_t wtotal;
+	int ch, checkch, from_fd = 0, rcount, rval, to_fd = 0;
 	char *bufp;
 #ifdef VM_AND_BUFFER_CACHE_SYNCHRONIZED
 	char *p;
@@ -149,16 +150,17 @@ copy_file(const FTSENT *entp, int dne)
 				for (bufp = p, wresid = fs->st_size; ;
 			    	bufp += wcount, wresid -= (size_t)wcount) {
 					wcount = write(to_fd, bufp, wresid);
+					if (wcount <= 0)
+						break;
 					wtotal += wcount;
 					if (info) {
 						info = 0;
 						(void)fprintf(stderr,
-							"%s -> %s %3d%%\n",
-							entp->fts_path, to.p_path,
-							cp_pct(wtotal, fs->st_size));
-
+						    "%s -> %s %3d%%\n",
+						    entp->fts_path, to.p_path,
+						    cp_pct(wtotal, fs->st_size));
 					}
-					if (wcount >= (ssize_t)wresid || wcount <= 0)
+					if (wcount >= (ssize_t)wresid)
 						break;
 				}
 				if (wcount != (ssize_t)wresid) {
@@ -179,16 +181,17 @@ copy_file(const FTSENT *entp, int dne)
 				for (bufp = buf, wresid = rcount; ;
 			    	bufp += wcount, wresid -= wcount) {
 					wcount = write(to_fd, bufp, wresid);
+					if (wcount <= 0)
+						break;
 					wtotal += wcount;
 					if (info) {
 						info = 0;
 						(void)fprintf(stderr,
-							"%s -> %s %3d%%\n",
-							entp->fts_path, to.p_path,
-							cp_pct(wtotal, fs->st_size));
-
+						    "%s -> %s %3d%%\n",
+						    entp->fts_path, to.p_path,
+						    cp_pct(wtotal, fs->st_size));
 					}
-					if (wcount >= (ssize_t)wresid || wcount <= 0)
+					if (wcount >= (ssize_t)wresid)
 						break;
 				}
 				if (wcount != (ssize_t)wresid) {
