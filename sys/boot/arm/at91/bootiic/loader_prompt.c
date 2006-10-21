@@ -93,7 +93,7 @@ StringToCommand(char *cPtr)
 	int	i;
 
 	for (i = 0; CommandTable[i].command != COMMAND_FINAL_FLAG; ++i)
-		if (!p_strcmp(CommandTable[i].c_string, cPtr))
+		if (!strcmp(CommandTable[i].c_string, cPtr))
 			return (CommandTable[i].command);
 
 	return (COMMAND_INVALID);
@@ -188,7 +188,7 @@ ParseCommand(char *buffer)
 			to = (char *)p_ASCIIToHex(argv[1]);
 			from = (char *)p_ASCIIToHex(argv[2]);
 			size = p_ASCIIToHex(argv[3]);
-			p_memcpy(to, from, size);
+			memcpy(to, from, size);
 		}
 		break;
 	}
@@ -234,20 +234,20 @@ ParseCommand(char *buffer)
 
 	case COMMAND_HELP:
 		// dump command info
-		printf("Commands:\r\n"
-		"\tc\r\n"
-		"\td\r\n"
-		"\te\r\n"
-		"\tip\r\n"
-		"\tserver_ip\r\n"
-		"\tm\r\n"
-		"\ttftp\r\n"
-		"\ts\r\n"
+		printf("Commands:\n"
+		"\tc\n"
+		"\td\n"
+		"\te\n"
+		"\tip\n"
+		"\tserver_ip\n"
+		"\tm\n"
+		"\ttftp\n"
+		"\ts\n"
 #ifdef SUPPORT_TAG_LIST
-		"\tt\r\n"
+		"\tt\n"
 #endif
-		"\tw\r\n"
-		"\tx\r\n");
+		"\tw\n"
+		"\tx\n");
 		break;
 
 	case COMMAND_LOCAL_IP:
@@ -315,7 +315,7 @@ ParseCommand(char *buffer)
 		break;
 	}
 
-	printf("\r\n");
+	printf("\n");
 }
 
 
@@ -324,7 +324,7 @@ ParseCommand(char *buffer)
  * void ServicePrompt(char)
  *  This private function process each character checking for valid commands.
  * This function is only executed if the character is considered valid.
- * Each command is terminated with NULL (0) or '\r'.
+ * Each command is terminated with NULL (0) or ''.
  * .KB_C_FN_DEFINITION_END
  */
 static void
@@ -346,11 +346,11 @@ ServicePrompt(char p_char)
 		putchar(p_char);
 	}
 	if (!p_char) {
-		printf("\r\n");
+		printf("\n");
 		ParseCommand(inputBuffer);
 		p_memset(inputBuffer, 0, MAX_INPUT_SIZE);
 		buffCount = 0;
-		printf("\r\n>");
+		printf("\n>");
 	}
 }
 
@@ -379,7 +379,7 @@ Bootloader(int(*inputFunction)(int))
 		inputFunction = getc;
 	}
 
-	printf("\r\n>");
+	printf("\n>");
 
 	while (1)
 		if ((ch = ((*inputFunction)(0))) > 0)

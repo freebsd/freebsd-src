@@ -93,7 +93,7 @@ WriteCommandTable(void)
 		if (size < 0) {
 			continue;
 		}
-		p_memcpy(cPtr, boot_commands[i], copySize);
+		memcpy(cPtr, boot_commands[i], copySize);
 		cPtr += copySize;
 		*cPtr++ = 0;
 	}
