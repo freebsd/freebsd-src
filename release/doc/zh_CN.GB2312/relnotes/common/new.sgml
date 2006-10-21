@@ -1,7 +1,7 @@
 <!--
      The FreeBSD Simplified Chinese Project
 
-     Original revision: 1.883.2.46
+     Original revision: 1.883.2.47
 -->
 <articleinfo>
   <title>&os;/&arch; &release.current; 发行说明</title>
@@ -421,6 +421,9 @@
     <para><application>less</application> 从 v381
       更新到了 v394。</para>
 
+    <para><application>libpcap</application> 从
+      0.9.1 更新到了 0.9.4。</para>
+
     <para><application>lukemftpd</application> 从 NetBSD 2004 年 8 月 9 日的快照版本更新到了
       NetBSD 2006 年 8 月 31 日的快照版本。</para>
 
@@ -432,6 +435,9 @@
 
     <para><application>sendmail</application> 由
       8.13.6 更新到了 8.13.8。</para>
+
+    <para><application>tcpdump</application> 由
+      3.9.1 更新到了 3.9.4。</para>
 
     <para>时区数据库从
       <application>tzdata2005r</application> 版升级到了
