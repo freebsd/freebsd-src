@@ -67,6 +67,7 @@ __FBSDID("$FreeBSD$");
 #include <err.h>
 #include <fstab.h>
 #include <grp.h>
+#include <libutil.h>
 #include <netdb.h>
 #include <pwd.h>
 #include <stdio.h>
@@ -102,6 +103,7 @@ static int callaurpc(char *host, int prognum, int versnum, int procnum,
 	xdrproc_t inproc, char *in, xdrproc_t outproc, char *out);
 static int alldigits(char *s);
 
+int	hflag;
 int	lflag;
 int	qflag;
 int	vflag;
@@ -113,10 +115,13 @@ main(int argc, char *argv[])
 	gid_t mygid, gidset[NGROUPS];
 	int i, ch, gflag = 0, uflag = 0;
 
-	while ((ch = getopt(argc, argv, "glquv")) != -1) {
+	while ((ch = getopt(argc, argv, "ghlquv")) != -1) {
 		switch(ch) {
 		case 'g':
 			gflag++;
+			break;
+		case 'h':
+			hflag++;
 			break;
 		case 'l':
 			lflag++;
@@ -180,9 +185,9 @@ usage(void)
 {
 
 	fprintf(stderr, "%s\n%s\n%s\n",
-	    "usage: quota [-glu] [-v | -q]",
-	    "       quota [-lu] [-v | -q] user ...",
-	    "       quota -g [-l] [-v | -q] group ...");
+	    "usage: quota [-ghlu] [-v | -q]",
+	    "       quota [-hlu] [-v | -q] user ...",
+	    "       quota -g [-hl] [-v | -q] group ...");
 	exit(1);
 }
 
@@ -249,6 +254,17 @@ showgrpname(char *name)
 }
 
 static void
+prthumanval(int len, int64_t bytes)
+{
+	char buf[len + 1];
+
+	humanize_number(buf, sizeof(buf), bytes, "", HN_AUTOSCALE,
+	    HN_B | HN_NOSPACE | HN_DECIMAL);
+
+	(void)printf(" %*s", len, buf);
+}
+
+static void
 showquotas(int type, u_long id, const char *name)
 {
 	struct quotause *qup;
@@ -310,18 +326,25 @@ showquotas(int type, u_long id, const char *name)
 				printf("%s\n", qup->fsname);
 				nam = "";
 			} 
-			printf("%15s%8lu%c%7lu%8lu%8s"
-				, nam
-				, (u_long) (dbtob(qup->dqblk.dqb_curblocks)
-					    / 1024)
-				, (msgb == (char *)0) ? ' ' : '*'
-				, (u_long) (dbtob(qup->dqblk.dqb_bsoftlimit)
-					    / 1024)
-				, (u_long) (dbtob(qup->dqblk.dqb_bhardlimit)
-					    / 1024)
+			printf("%15s", nam);
+			if (hflag) {
+				prthumanval(7, dbtob(qup->dqblk.dqb_curblocks));
+				printf("%c", (msgb == (char *)0) ? ' ' : '*');
+				prthumanval(6, dbtob(qup->dqblk.dqb_bsoftlimit));
+				prthumanval(7, dbtob(qup->dqblk.dqb_bhardlimit));
+			} else {
+				printf("%8lu%c%7lu%8lu"
+					, (u_long) (dbtob(qup->dqblk.dqb_curblocks)
+						    / 1024)
+					, (msgb == (char *)0) ? ' ' : '*'
+					, (u_long) (dbtob(qup->dqblk.dqb_bsoftlimit)
+						    / 1024)
+					, (u_long) (dbtob(qup->dqblk.dqb_bhardlimit)
+						    / 1024));
+			}
+			printf("%8s%8lu%c%7lu%8lu%8s\n"
 				, (msgb == (char *)0) ? ""
-				    :timeprt(qup->dqblk.dqb_btime));
-			printf("%8lu%c%7lu%8lu%8s\n"
+				    :timeprt(qup->dqblk.dqb_btime)
 				, (u_long)qup->dqblk.dqb_curinodes
 				, (msgi == (char *)0) ? ' ' : '*'
 				, (u_long)qup->dqblk.dqb_isoftlimit
