@@ -6,6 +6,7 @@ MAN=	mailwrapper.8
 
 DPADD=	${LIBUTIL}
 LDADD=	-lutil
+WARNS?=	6
 .endif
 
 .if !defined(NO_MAILWRAPPER) || !defined(NO_SENDMAIL)

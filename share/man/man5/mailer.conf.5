@@ -31,7 +31,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd December 16, 1998
+.Dd May 31, 2006
 .Dt MAILER.CONF 5
 .Os
 .Sh NAME
@@ -41,29 +41,58 @@
 .Sh DESCRIPTION
 The file
 .Pa /etc/mail/mailer.conf
-contains a series of pairs.
-The first member of each pair is the name
+contains a series of lines of the form
+.Pp
+.Ar name
+.Ar program
+.Op Ar arguments ...
+.Pp
+The first word of each line is the
+.Ar name
 of a program invoking
-.Xr mailwrapper 8
-which is typically a symbolic link to
-.Pa /usr/sbin/sendmail .
-(On a typical system,
+.Xr mailwrapper 8 .
+(For example, on a typical system
+.Pa /usr/sbin/sendmail
+would be a symbolic link to
+.Xr mailwrapper 8 ,
+as would
 .Xr newaliases 1
 and
-.Xr mailq 1
-would be set up this way.)
-The second member of each pair is the name of the program to
-actually execute when the first name is invoked.
-The file may also
-contain comments, denoted by a # mark in the first column of any line.
+.Xr mailq 1 .
+Thus,
+.Ar name
+might be
+.Dq Li sendmail
+or
+.Dq Li newaliases
+etc.)
+.Pp
+The second word of each line is the name of the
+.Ar program
+to actually execute when the first name is invoked.
+.Pp
+The further
+.Ar arguments ,
+if any, are passed to the
+.Ar program ,
+followed by the arguments
+.Xr mailwrapper 8
+was called with.
+.Pp
+The file may also contain comment lines, denoted by a
+.Ql #
+mark in the first column of any line.
 .Sh FILES
 /etc/mail/mailer.conf
 .Sh EXAMPLES
-The following is an example of how to set up an
+This example shows how to set up
 .Nm
-for traditional sendmail invocation behavior.
-.Bd -literal
-# Execute the "real" sendmail program, named /usr/libexec/sendmail/sendmail
+to invoke the traditional
+.Xr sendmail 8
+program:
+.Bd -literal -offset indent
+# Execute the "real" sendmail program located in
+# /usr/libexec/sendmail/sendmail
 sendmail	/usr/libexec/sendmail/sendmail
 send-mail	/usr/libexec/sendmail/sendmail
 mailq		/usr/libexec/sendmail/sendmail
@@ -71,13 +100,25 @@ newaliases	/usr/libexec/sendmail/sendmail
 .Ed
 .Pp
 This example shows how to invoke a sendmail-workalike like Postfix in
-place of sendmail.
-.Bd -literal
+place of
+.Xr sendmail 8 :
+.Bd -literal -offset indent
 # Emulate sendmail using postfix
 sendmail	/usr/local/sbin/sendmail
 send-mail	/usr/local/sbin/sendmail
 mailq		/usr/local/sbin/sendmail
 newaliases	/usr/local/sbin/sendmail
+.Ed
+.Pp
+This example shows the use of the
+.Nm mini_sendmail
+package from ports in place of
+.Xr sendmail 8 .
+Note the use of additional arguments.
+.Bd -literal -offset indent
+# Send outgoing mail to a smart relay using mini_sendmail
+sendmail	/usr/local/bin/mini_sendmail -srelayhost
+send-mail	/usr/local/bin/mini_sendmail -srelayhost
 .Ed
 .Sh SEE ALSO
 .Xr mail 1 ,
@@ -85,6 +126,9 @@ newaliases	/usr/local/sbin/sendmail
 .Xr newaliases 1 ,
 .Xr mailwrapper 8 ,
 .Xr sendmail 8
+.Pp
+.Xr postfix 1 Pq Pa ports/mail/postfix ,
+.Xr mini_sendmail 8 Pq Pa ports/mail/mini_sendmail
 .Sh HISTORY
 .Nm
 appeared in
