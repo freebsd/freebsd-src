@@ -77,6 +77,10 @@
 
 #include <sys/socketvar.h>
 
+/* XXX: Temporary until ipfw_ether and ipfw_bridge are converted. */
+#include <netinet/ip_fw.h>
+#include <netinet/ip_dummynet.h>
+
 int rsvp_on = 0;
 
 int	ipforwarding = 0;
@@ -187,6 +191,14 @@ int	ipstealth = 0;
 SYSCTL_INT(_net_inet_ip, OID_AUTO, stealth, CTLFLAG_RW,
     &ipstealth, 0, "");
 #endif
+
+/*
+ * ipfw_ether and ipfw_bridge hooks.
+ * XXX: Temporary until those are converted to pfil_hooks as well.
+ */
+ip_fw_chk_t *ip_fw_chk_ptr = NULL;
+ip_dn_io_t *ip_dn_io_ptr = NULL;
+int fw_one_pass = 1;
 
 static void	ip_freef(struct ipqhead *, struct ipq *);
 
