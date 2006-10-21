@@ -969,16 +969,16 @@ domemstat_zone(void)
 				    memstat_strerror(error));
 		}
 	}
-	printf("%-15s %-8s %-9s %-7s %-5s %-8s\n\n", "ITEM", "SIZE", "LIMIT",
-	    "USED", "FREE", "REQUESTS");
+	printf("%-15s %-8s %-9s %-7s %-5s %-8s %-8s\n\n", "ITEM", "SIZE",
+	    "LIMIT", "USED", "FREE", "REQUESTS", "FAILURES");
 	for (mtp = memstat_mtl_first(mtlp); mtp != NULL;
 	    mtp = memstat_mtl_next(mtp)) {
 		strlcpy(name, memstat_get_name(mtp), MEMTYPE_MAXNAME);
 		strcat(name, ":");
-		printf("%-15s %4llu, %8llu, %7llu, %6llu, %8llu\n", name,
+		printf("%-15s %4llu, %8llu, %7llu, %6llu, %8llu %8llu\n", name,
 		    memstat_get_size(mtp), memstat_get_countlimit(mtp),
 		    memstat_get_count(mtp), memstat_get_free(mtp),
-		    memstat_get_numallocs(mtp));
+		    memstat_get_numallocs(mtp), memstat_get_failures(mtp));
 	}
 	memstat_mtl_free(mtlp);
 	printf("\n");
