@@ -78,8 +78,6 @@
  * The assembly is volatilized to demark potential before-and-after side
  * effects if an interrupt or SMP collision were to occur.
  */
-#if __GNUC__ > 2 || (__GNUC__ == 2 && __GNUC_MINOR__ > 9)
-/* egcs 1.1.2+ version */
 #define ATOMIC_ASM(NAME, TYPE, OP, V)			\
 static __inline void					\
 atomic_##NAME##_##TYPE(volatile u_##TYPE *p, u_##TYPE v)\
@@ -88,23 +86,8 @@ atomic_##NAME##_##TYPE(volatile u_##TYPE *p, u_##TYPE v)\
 			 : "+m" (*p)			\
 			 : "ir" (V));			\
 }
-
-#else
-/* gcc <= 2.8 version */
-#define ATOMIC_ASM(NAME, TYPE, OP, V)			\
-static __inline void					\
-atomic_##NAME##_##TYPE(volatile u_##TYPE *p, u_##TYPE v)\
-{							\
-	__asm __volatile(MPLOCKED OP			\
-			 : "=m" (*p)			\
-			 : "ir" (V));		 	\
-}
-#endif
 #endif /* KLD_MODULE */
 
-#if __GNUC__ > 2 || (__GNUC__ == 2 && __GNUC_MINOR__ > 9)
-
-/* egcs 1.1.2+ version */
 ATOMIC_ASM(set,	     char,  "orb %b1,%0",   v)
 ATOMIC_ASM(clear,    char,  "andb %b1,%0", ~v)
 ATOMIC_ASM(add,	     char,  "addb %b1,%0",  v)
@@ -124,31 +107,6 @@ ATOMIC_ASM(set,	     long,  "orl %1,%0",   v)
 ATOMIC_ASM(clear,    long,  "andl %1,%0", ~v)
 ATOMIC_ASM(add,	     long,  "addl %1,%0",  v)
 ATOMIC_ASM(subtract, long,  "subl %1,%0",  v)
-
-#else
-
-/* gcc <= 2.8 version */
-ATOMIC_ASM(set,	     char,  "orb %1,%0",   v)
-ATOMIC_ASM(clear,    char,  "andb %1,%0", ~v)
-ATOMIC_ASM(add,	     char,  "addb %1,%0",  v)
-ATOMIC_ASM(subtract, char,  "subb %1,%0",  v)
-
-ATOMIC_ASM(set,	     short, "orw %1,%0",   v)
-ATOMIC_ASM(clear,    short, "andw %1,%0", ~v)
-ATOMIC_ASM(add,	     short, "addw %1,%0",  v)
-ATOMIC_ASM(subtract, short, "subw %1,%0",  v)
-
-ATOMIC_ASM(set,	     int,   "orl %1,%0",   v)
-ATOMIC_ASM(clear,    int,   "andl %1,%0", ~v)
-ATOMIC_ASM(add,	     int,   "addl %1,%0",  v)
-ATOMIC_ASM(subtract, int,   "subl %1,%0",  v)
-
-ATOMIC_ASM(set,	     long,  "orl %1,%0",   v)
-ATOMIC_ASM(clear,    long,  "andl %1,%0", ~v)
-ATOMIC_ASM(add,	     long,  "addl %1,%0",  v)
-ATOMIC_ASM(subtract, long,  "subl %1,%0",  v)
-
-#endif
 
 #define	atomic_readandclear_32	atomic_readandclear_int
 
