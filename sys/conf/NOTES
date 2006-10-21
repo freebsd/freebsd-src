@@ -1537,6 +1537,8 @@ device		mly
 device		ida		# Compaq Smart RAID
 device		mlx		# Mylex DAC960
 device		amr		# AMI MegaRAID
+device		mfi		# LSI MegaRAID SAS
+options 	MFI_DEBUG
 
 #
 # 3ware ATA RAID
