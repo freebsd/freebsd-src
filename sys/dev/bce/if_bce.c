@@ -4549,13 +4549,6 @@ bce_tx_encap(struct bce_softc *sc, struct mbuf **m_head)
 	chain_prod = TX_CHAIN_IDX(prod);
 	map = sc->tx_mbuf_map[chain_prod];
 
-	/*
-	 * XXX This should be handled higher up.
-	 */
-	if ((USABLE_TX_BD - sc->used_tx_bd - BCE_TX_SLACK_SPACE) <= 0) {
-		return (ENOBUFS);
-	}
-
 	/* Map the mbuf into our DMA address space. */
 	error = bus_dmamap_load_mbuf_sg(sc->tx_mbuf_tag, map, m0,
 	    segs, &nsegs, BUS_DMA_NOWAIT);
@@ -4596,6 +4589,16 @@ bce_tx_encap(struct bce_softc *sc, struct mbuf **m_head)
 		return (error);
 	}
 
+	/*
+	 * The chip seems to require that at least 16 descriptors be kept
+	 * empty at all times.  Make sure we honor that.
+	 * XXX Would it be faster to assume worst case scenario for nsegs
+	 * and do this calculation higher up?
+	 */
+	if (nsegs > (USABLE_TX_BD - sc->used_tx_bd - BCE_TX_SLACK_SPACE)) {
+		bus_dmamap_unload(sc->tx_mbuf_tag, map);
+		return (ENOBUFS);
+	}
 
 	/* prod points to an empty tx_bd at this point. */
 	prod_bseq  = sc->tx_prod_bseq;
@@ -4701,7 +4704,7 @@ bce_start_locked(struct ifnet *ifp)
 		__FUNCTION__, tx_prod, tx_chain_prod, sc->tx_prod_bseq);
 
 	/* Keep adding entries while there is space in the ring. */
-	while (!IFQ_DRV_IS_EMPTY(&ifp->if_snd)) {
+	while (sc->tx_mbuf_ptr[tx_chain_prod] == NULL) {
 
 		/* Check for any frames to send. */
 		IFQ_DRV_DEQUEUE(&ifp->if_snd, m_head);
