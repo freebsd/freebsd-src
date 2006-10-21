@@ -32,25 +32,26 @@
 .\"	@(#)intro.8	8.2 (Berkeley) 12/11/93
 .\" $FreeBSD$
 .\"
-.Dd December 11, 1993
+.Dd October 22, 2006
 .Dt INTRO 8
 .Os
 .Sh NAME
 .Nm intro
-.Nd "introduction to system maintenance and operation commands"
+.Nd "introduction to system maintenance procedures and commands"
 .Sh DESCRIPTION
 This section contains information related to system operation
 and maintenance.
-It describes commands used to create new file systems,
-.Xr newfs 8 ,
-verify the integrity of the file systems,
-.Xr fsck 8 ,
-control disk usage,
-.Xr edquota 8 ,
-maintain system backups,
-.Xr dump 8 ,
-and recover files when disks die an untimely death,
-.Xr restore 8 .
+.Pp
+It describes commands used to create new file systems
+.Pq Xr newfs 8 ,
+verify the integrity of the file systems
+.Pq Xr fsck 8 ,
+control disk usage
+.Pq Xr edquota 8 ,
+maintain system backups
+.Pq Xr dump 8 ,
+and recover files when disks die an untimely death
+.Pq Xr restore 8 .
 .\" The
 .\" .Xr format 8
 .\" manual
@@ -61,11 +62,6 @@ Network related services like
 and
 .Xr ftpd 8
 are also described.
-The
-.Xr crash 8
-manual page
-should be consulted to understand how to interpret system
-crash dumps.
 .Pp
 All commands set an exit status.
 Its value may be tested
@@ -77,6 +73,21 @@ error codes defined in
 .Xr sysexits 3 ,
 or set the status to arbitrary values >0 (typically 1), but many
 such values are not described in the manual.
+.Pp
+A number of pages in this section describe general system
+management topics.
+.Pp
+For example, the
+.Xr boot 8
+manual page describes the system bootstrapping procedures,
+and the
+.Xr diskless 8
+manual page describes how to boot a system over a network.
+The
+.Xr crash 8
+manual page
+should be consulted to understand how to interpret system
+crash dumps.
 .Sh HISTORY
 The
 .Nm
