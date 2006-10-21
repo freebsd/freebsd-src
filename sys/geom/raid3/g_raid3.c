@@ -2858,6 +2858,12 @@ g_raid3_check_metadata(struct g_raid3_softc *sc, struct g_provider *pp,
 		    "md_all", pp->name, sc->sc_name);
 		return (EINVAL);
 	}
+	if ((md->md_mediasize % md->md_sectorsize) != 0) {
+		G_RAID3_DEBUG(1, "Invalid metadata (mediasize %% sectorsize != "
+		    "0) on disk %s (device %s), skipping.", pp->name,
+		    sc->sc_name);
+		return (EINVAL);
+	}
 	if (md->md_mediasize != sc->sc_mediasize) {
 		G_RAID3_DEBUG(1,
 		    "Invalid '%s' field on disk %s (device %s), skipping.",
