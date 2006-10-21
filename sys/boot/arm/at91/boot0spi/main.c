@@ -40,12 +40,12 @@ main(void)
 	char *addr3 = (char *)SDRAM_BASE + (3 << 20); /* Load to base + 2MB */
 
 	SPI_InitFlash();
-	printf("Waiting for data\r\n");
+	printf("Waiting for data\n");
 	while ((len = xmodem_rx(addr)) == -1)
 		continue;
-	printf("\r\nDownloaded %u bytes.\r\n", len);
-	p_memcpy(addr3, addr, (len + FLASH_PAGE_SIZE - 1) / FLASH_PAGE_SIZE * FLASH_PAGE_SIZE);
-	printf("Writing %u bytes to flash at %u\r\n", len, OFFSET);
+	printf("\nDownloaded %u bytes.\n", len);
+	memcpy(addr3, addr, (len + FLASH_PAGE_SIZE - 1) / FLASH_PAGE_SIZE * FLASH_PAGE_SIZE);
+	printf("Writing %u bytes to flash at %u\n", len, OFFSET);
 	for (i = 0; i < len; i+= FLASH_PAGE_SIZE) {
 		for (j = 0; j < 10; j++) {
 			off = i + OFFSET;
@@ -55,7 +55,7 @@ main(void)
 				break;
 		}
 		if (j >= 10)
-			printf("Bad Readback at %u\r\n", i);
+			printf("Bad Readback at %u\n", i);
 	}
 	return (1);
 }
