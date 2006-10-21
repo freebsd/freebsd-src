@@ -9,6 +9,6 @@ OBJS+=  ${SRCS:N*.h:R:S/$/.o/g}
 
 .include <bsd.prog.mk>
 
-.if ${MK_FPGA} != "no"
+.if ${MK_FPGA} == "yes"
 CFLAGS += -DTSC_FPGA
 .endif

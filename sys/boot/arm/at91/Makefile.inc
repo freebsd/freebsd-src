@@ -44,10 +44,10 @@ MK_TAG_LIST:=yes
 MK_TAG_LIST:=no
 .endif
 
-.if defined(WITHOUT_FPGA)
-MK_FPGA:=no
-.else
+.if defined(WITH_FPGA)
 MK_FPGA:=yes
+.else
+MK_FPGA:=no
 .endif
 
 .endif
