@@ -4613,7 +4613,12 @@ struct fw_info {
 #define BCE_BUS_SPACE_MAXADDR		0xFFFFFFFFFF
 #endif
 
+/* XXX UDP checksum offload seems to cause problems on transmit */
+#ifdef BCE_UDP_CSUM
 #define BCE_IF_HWASSIST	(CSUM_IP | CSUM_TCP | CSUM_UDP)
+#else
+#define BCE_IF_HWASSIST	(CSUM_TCP)
+#endif
 
 #if __FreeBSD_version < 700000
 #define BCE_IF_CAPABILITIES (IFCAP_VLAN_MTU | IFCAP_VLAN_HWTAGGING | \
