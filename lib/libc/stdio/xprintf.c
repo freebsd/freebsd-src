@@ -261,7 +261,7 @@ static struct {
 
 
 static int
-__v2printf(FILE *fp, const char *fmt0, unsigned pct, const va_list ap)
+__v2printf(FILE *fp, const char *fmt0, unsigned pct, const va_list ap1)
 {
 	struct printf_info	*pi, *pil;
 	const char		*fmt;
@@ -274,7 +274,9 @@ __v2printf(FILE *fp, const char *fmt0, unsigned pct, const va_list ap)
 	int			ret = 0;
 	int			n;
 	struct __printf_io	io;
+	va_list			ap;
 
+	va_copy(ap, ap1);
 	__printf_init(&io);
 	io.fp = fp;
 
@@ -561,6 +563,7 @@ __v2printf(FILE *fp, const char *fmt0, unsigned pct, const va_list ap)
 			errx(1, "render[%c] = NULL", *fmt);
 	}
 	__printf_flush(&io);
+	va_end(ap);
 	return (ret);
 }
 
