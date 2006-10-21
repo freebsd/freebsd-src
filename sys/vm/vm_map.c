@@ -1494,7 +1494,7 @@ vm_map_pmap_enter(vm_map_t map, vm_offset_t addr, vm_prot_t prot,
 		}
 		if ((p->valid & VM_PAGE_BITS_ALL) == VM_PAGE_BITS_ALL &&
 		    (p->busy == 0) &&
-		    (p->flags & (PG_BUSY | PG_FICTITIOUS)) == 0) {
+		    (p->flags & PG_FICTITIOUS) == 0) {
 			if (p_start == NULL) {
 				start = addr + ptoa(tmpidx);
 				p_start = p;
