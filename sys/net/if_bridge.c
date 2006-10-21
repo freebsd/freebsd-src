@@ -261,6 +261,9 @@ static int	bridge_ioctl_sifprio(struct bridge_softc *, void *);
 static int	bridge_ioctl_sifcost(struct bridge_softc *, void *);
 static int	bridge_ioctl_addspan(struct bridge_softc *, void *);
 static int	bridge_ioctl_delspan(struct bridge_softc *, void *);
+static int	bridge_ioctl_gbparam(struct bridge_softc *, void *);
+static int	bridge_ioctl_grte(struct bridge_softc *, void *);
+static int	bridge_ioctl_gifsstp(struct bridge_softc *, void *);
 static int	bridge_pfil(struct mbuf **, struct ifnet *, struct ifnet *,
 		    int);
 static int	bridge_ip_checkbasic(struct mbuf **mp);
@@ -362,6 +365,15 @@ const struct bridge_control bridge_control_table[] = {
 	  BC_F_COPYIN|BC_F_SUSER },
 	{ bridge_ioctl_delspan,		sizeof(struct ifbreq),
 	  BC_F_COPYIN|BC_F_SUSER },
+
+	{ bridge_ioctl_gbparam,		sizeof(struct ifbropreq),
+	  BC_F_COPYOUT },
+
+	{ bridge_ioctl_grte,		sizeof(struct ifbrparam),
+	  BC_F_COPYOUT },
+
+	{ bridge_ioctl_gifsstp,		sizeof(struct ifbpstpconf),
+	  BC_F_COPYOUT },
 };
 const int bridge_control_table_size =
     sizeof(bridge_control_table) / sizeof(bridge_control_table[0]);
@@ -481,6 +493,7 @@ bridge_clone_create(struct if_clone *ifc, int unit)
 	sc->sc_bridge_forward_delay = BSTP_DEFAULT_FORWARD_DELAY;
 	sc->sc_bridge_priority = BSTP_DEFAULT_BRIDGE_PRIORITY;
 	sc->sc_hold_time = BSTP_DEFAULT_HOLD_TIME;
+ 	getmicrotime(&sc->sc_last_tc_time);
 
 	/* Initialize our routing table. */
 	bridge_rtable_init(sc);
@@ -1352,6 +1365,89 @@ bridge_ioctl_delspan(struct bridge_softc *sc, void *arg)
 	return (0);
 }
 
+static int
+bridge_ioctl_gbparam(struct bridge_softc *sc, void *arg)
+{
+	struct ifbropreq *req = arg;
+	struct bridge_iflist *root_port;
+
+	req->ifbop_maxage = sc->sc_max_age;
+	req->ifbop_hellotime = sc->sc_hello_time;
+	req->ifbop_fwddelay = sc->sc_forward_delay;
+
+	root_port = sc->sc_root_port;
+	if (root_port == NULL)
+		req->ifbop_root_port = 0;
+	else
+		req->ifbop_root_port = root_port->bif_ifp->if_index;
+
+	req->ifbop_root_path_cost = sc->sc_root_path_cost;
+	req->ifbop_designated_root = sc->sc_designated_root;
+	req->ifbop_last_tc_time.tv_sec = sc->sc_last_tc_time.tv_sec;
+	req->ifbop_last_tc_time.tv_usec = sc->sc_last_tc_time.tv_usec;
+
+	return (0);
+}
+
+static int
+bridge_ioctl_grte(struct bridge_softc *sc, void *arg)
+{
+	struct ifbrparam *param = arg;
+
+	param->ifbrp_cexceeded = sc->sc_brtexceeded;
+
+	return (0);
+}
+
+static int
+bridge_ioctl_gifsstp(struct bridge_softc *sc, void *arg)
+{
+	struct ifbpstpconf *bifstp = arg;
+	struct bridge_iflist *bif;
+	struct ifbpstpreq bpreq;
+	int count, len, error = 0;
+
+	count = 0;
+	LIST_FOREACH(bif, &sc->sc_iflist, bif_next) {
+		if ((bif->bif_flags & IFBIF_STP) != 0)
+			count++;
+	}
+
+	if (bifstp->ifbpstp_len == 0) {
+		bifstp->ifbpstp_len = sizeof(bpreq) * count;
+		return (0);
+	}
+
+	count = 0;
+	len = bifstp->ifbpstp_len;
+	bzero(&bpreq, sizeof(bpreq));
+	LIST_FOREACH(bif, &sc->sc_iflist, bif_next) {
+		if (len < sizeof(bpreq))
+			break;
+
+		if ((bif->bif_flags & IFBIF_STP) == 0)
+			continue;
+
+		bpreq.ifbp_portno = bif->bif_ifp->if_index & 0xff;
+		bpreq.ifbp_fwd_trans = bif->bif_forward_transitions;
+		bpreq.ifbp_design_cost = bif->bif_designated_cost;
+		bpreq.ifbp_design_port = bif->bif_designated_port;
+		bpreq.ifbp_design_bridge = bif->bif_designated_bridge;
+		bpreq.ifbp_design_root = bif->bif_designated_root;
+
+		error = copyout(&bpreq, bifstp->ifbpstp_req + count,
+				sizeof(bpreq));
+		if (error != 0)
+			break;
+
+		count++;
+		len -= sizeof(bpreq);
+	}
+
+	bifstp->ifbpstp_len = sizeof(bpreq) * count;
+	return (error);
+}
+
 /*
  * bridge_ifdetach:
  *
@@ -2173,8 +2269,10 @@ bridge_rtupdate(struct bridge_softc *sc, const uint8_t *dst,
 	 * update it, otherwise create a new one.
 	 */
 	if ((brt = bridge_rtnode_lookup(sc, dst)) == NULL) {
-		if (sc->sc_brtcnt >= sc->sc_brtmax)
+		if (sc->sc_brtcnt >= sc->sc_brtmax) {
+			sc->sc_brtexceeded++;
 			return (ENOSPC);
+		}
 
 		/*
 		 * Allocate a new bridge forwarding node, and
