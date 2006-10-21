@@ -41,12 +41,17 @@
 #include "emac.h"
 #include "lib.h"
 #include "spi_flash.h"
+#include "ee.h"
 
 int
 main(void)
 {
-	printf("\r\nBoot\r\n");
+	printf("\nBoot\n");
+	EEInit();
 	SPI_InitFlash();
+#ifdef TSC_FPGA
+	fpga_load();
+#endif
 	EMAC_Init();
 	LoadBootCommands();
 	if (getc(1) == -1) {

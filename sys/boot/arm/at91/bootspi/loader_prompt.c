@@ -29,6 +29,8 @@
 #include "env_vars.h"
 #include "lib.h"
 #include "spi_flash.h"
+#include "fpga.h"
+#include "ee.h"
 
 /******************************* GLOBALS *************************************/
 
@@ -65,6 +67,36 @@ static const command_entry_t	CommandTable[] = {
 	{COMMAND_FINAL_FLAG, 0}
 };
 
+#ifdef TSC_FPGA
+#include "fpga.h"
+
+const struct fpga main_fpga = 
+{
+    AT91C_BASE_PIOB, AT91C_PIO_PB0,
+    AT91C_BASE_PIOC, AT91C_PIO_PC11,
+    AT91C_BASE_PIOB, AT91C_PIO_PB2,
+    AT91C_BASE_PIOC, AT91C_PIO_PC12
+};
+
+void
+fpga_load(void)
+{
+	int len, off, i, offset;
+	char *addr = (char *)SDRAM_BASE + (1 << 20); /* Load to base + 1MB */
+
+	len = FPGA_LEN;
+	offset = FPGA_OFFSET;
+	for (i = 0; i < len; i+= FLASH_PAGE_SIZE) {
+		off = i + offset;
+		SPI_ReadFlash(off, addr + i, FLASH_PAGE_SIZE);
+	}
+	fpga_init(&main_fpga);
+	fpga_clear(&main_fpga);
+	fpga_write_bytes(&main_fpga, addr, len);
+	fpga_done(&main_fpga);
+}
+#endif
+
 /*
  * .KB_C_FN_DEFINITION_START
  * unsigned BuildIP(void)
@@ -93,7 +125,7 @@ StringToCommand(char *cPtr)
 	int	i;
 
 	for (i = 0; CommandTable[i].command != COMMAND_FINAL_FLAG; ++i)
-		if (!p_strcmp(CommandTable[i].c_string, cPtr))
+		if (!strcmp(CommandTable[i].c_string, cPtr))
 			return (CommandTable[i].command);
 
 	return (COMMAND_INVALID);
@@ -150,7 +182,7 @@ UpdateEEProm(int eeaddr)
 
 	while ((len = xmodem_rx(addr)) == -1)
 		continue;
-	printf("\r\nDownloaded %u bytes.\r\n", len);
+	printf("\nDownloaded %u bytes.\n", len);
 	WriteEEPROM(eeaddr, 0, addr, len);
 }
 #endif
@@ -163,7 +195,7 @@ UpdateFlash(int offset)
 
 	while ((len = xmodem_rx(addr)) == -1)
 		continue;
-	printf("\r\nDownloaded %u bytes.\r\n", len);
+	printf("\nDownloaded %u bytes.\n", len);
 	for (i = 0; i < len; i+= FLASH_PAGE_SIZE) {
 		off = i + offset;
 		SPI_WriteFlash(off, addr + i, FLASH_PAGE_SIZE);
@@ -270,29 +302,38 @@ ParseCommand(char *buffer)
 		break;
 
 	case COMMAND_RESET:
-		printf("Reset\r\n");
+		printf("Reset\n");
 		reset();
 		while (1) continue;
 		break;
 
 	case COMMAND_REPLACE_KERNEL_VIA_XMODEM:
-		printf("Updating KERNEL image\r\n");
+		printf("Updating KERNEL image\n");
 		UpdateFlash(KERNEL_OFFSET);
 		break;
 	case COMMAND_REPLACE_FPGA_VIA_XMODEM:
-		printf("Updating FPGA image\r\n");
+		printf("Updating FPGA image\n");
 		UpdateFlash(FPGA_OFFSET);
 		break;
 	case COMMAND_REPLACE_FLASH_VIA_XMODEM: 
-		printf("Updating FLASH image\r\n");
+		printf("Updating FLASH image\n");
 		UpdateFlash(FLASH_OFFSET);
 		break;
 
+	case COMMAND_REPLACE_ID_EEPROM: 
+	{
+	    char buf[25];
+		printf("Testing Config EEPROM\n");
+		EEWrite(0, "This is a test", 15);
+		EERead(0, buf, 15);
+		printf("Found '%s'\n", buf);
+		break;
+	}
 	default:
 		break;
 	}
 
-	printf("\r\n");
+	printf("\n");
 }
 
 
@@ -301,7 +342,7 @@ ParseCommand(char *buffer)
  * void ServicePrompt(char)
  *  This private function process each character checking for valid commands.
  * This function is only executed if the character is considered valid.
- * Each command is terminated with NULL (0) or '\r'.
+ * Each command is terminated with NULL (0) or ''.
  * .KB_C_FN_DEFINITION_END
  */
 static void
@@ -323,11 +364,11 @@ ServicePrompt(char p_char)
 		putchar(p_char);
 	}
 	if (!p_char) {
-		printf("\r\n");
+		printf("\n");
 		ParseCommand(inputBuffer);
 		p_memset(inputBuffer, 0, MAX_INPUT_SIZE);
 		buffCount = 0;
-		printf("\r\n>");
+		printf("\n>");
 	}
 }
 
@@ -352,7 +393,7 @@ Bootloader(int(*inputFunction)(int))
 	p_memset((void*)inputBuffer, 0, sizeof(inputBuffer));
 	buffCount = 0;
 
-	printf("\r\n>");
+	printf("\n>");
 
 	while (1)
 		if ((ch = ((*inputFunction)(0))) > 0)
