@@ -827,7 +827,7 @@ exec_map_first_page(imgp)
 			if ((ma[i] = vm_page_lookup(object, i)) != NULL) {
 				if (ma[i]->valid)
 					break;
-				if ((ma[i]->flags & PG_BUSY) || ma[i]->busy)
+				if ((ma[i]->oflags & VPO_BUSY) || ma[i]->busy)
 					break;
 				vm_page_lock_queues();
 				vm_page_busy(ma[i]);

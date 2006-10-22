@@ -2100,7 +2100,7 @@ retry_lookup:
 			 * If not and it is not valid, then free it.
 			 */
 			if (pg->wire_count == 0 && pg->valid == 0 &&
-			    pg->busy == 0 && !(pg->flags & PG_BUSY) &&
+			    pg->busy == 0 && !(pg->oflags & VPO_BUSY) &&
 			    pg->hold_count == 0) {
 				vm_page_free(pg);
 			}
