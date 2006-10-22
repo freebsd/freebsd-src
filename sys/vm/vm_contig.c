@@ -274,7 +274,7 @@ again1:
 					start++;
 					goto again0;
 				}
-				if ((m->flags & PG_BUSY) || m->busy != 0) {
+				if ((m->oflags & VPO_BUSY) || m->busy != 0) {
 					VM_OBJECT_UNLOCK(object);
 					start++;
 					goto again0;
@@ -504,7 +504,7 @@ cleanup_freed:
 				object = m->object;
 				if (!VM_OBJECT_TRYLOCK(object))
 					goto cleanup_freed;
-				if ((m->flags & PG_BUSY) || m->busy != 0) {
+				if ((m->oflags & VPO_BUSY) || m->busy != 0) {
 					VM_OBJECT_UNLOCK(object);
 					goto cleanup_freed;
 				}

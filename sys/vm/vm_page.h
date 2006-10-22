@@ -142,6 +142,7 @@ struct vm_page {
  * Access to these page flags is synchronized by the lock on the object
  * containing the page (O).
  */
+#define	VPO_BUSY	0x0001	/* page is in transit */
 #define	VPO_WANTED	0x0002	/* someone is waiting for page */
 #define	VPO_SWAPINPROG	0x0200	/* swap I/O in progress on page */
 #define	VPO_NOSYNC	0x0400	/* do not collect for syncer */
@@ -220,7 +221,6 @@ extern struct pq_coloring page_queue_coloring;
  *	 pte mappings, nor can they be removed from their objects via 
  *	 the object, and such pages are also not on any PQ queue.
  */
-#define	PG_BUSY		0x0001		/* page is in transit (O) */
 #define PG_WINATCFLS	0x0004		/* flush dirty page on inactive q */
 #define	PG_FICTITIOUS	0x0008		/* physical page doesn't exist (O) */
 #define	PG_WRITEABLE	0x0010		/* page is mapped writeable */
@@ -362,7 +362,7 @@ void vm_page_cowclear (vm_page_t);
 /*
  *	vm_page_sleep_if_busy:
  *
- *	Sleep and release the page queues lock if PG_BUSY is set or,
+ *	Sleep and release the page queues lock if VPO_BUSY is set or,
  *	if also_m_busy is TRUE, busy is non-zero.  Returns TRUE if the
  *	thread slept and the page queues lock was released.
  *	Otherwise, retains the page queues lock and returns FALSE.
@@ -373,7 +373,7 @@ static __inline int
 vm_page_sleep_if_busy(vm_page_t m, int also_m_busy, const char *msg)
 {
 
-	if ((m->flags & PG_BUSY) || (also_m_busy && m->busy)) {
+	if ((m->oflags & VPO_BUSY) || (also_m_busy && m->busy)) {
 		vm_page_sleep(m, msg);
 		return (TRUE);
 	}

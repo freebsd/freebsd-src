@@ -351,7 +351,7 @@ RetryFault:;
 
 			/*
 			 * Wait/Retry if the page is busy.  We have to do this
-			 * if the page is busy via either PG_BUSY or 
+			 * if the page is busy via either VPO_BUSY or 
 			 * vm_page_t->busy because the vm_pager may be using
 			 * vm_page_t->busy for pageouts ( and even pageins if
 			 * it is the vnode pager ), and we could end up trying
@@ -365,7 +365,7 @@ RetryFault:;
 			 * around with a vm_page_t->busy page except, perhaps,
 			 * to pmap it.
 			 */
-			if ((fs.m->flags & PG_BUSY) || fs.m->busy) {
+			if ((fs.m->oflags & VPO_BUSY) || fs.m->busy) {
 				vm_page_unlock_queues();
 				VM_OBJECT_UNLOCK(fs.object);
 				if (fs.object != fs.first_object) {
@@ -510,7 +510,8 @@ readrest:
 					if (mt == NULL || (mt->valid != VM_PAGE_BITS_ALL))
 						break;
 					if (mt->busy ||
-						(mt->flags & (PG_BUSY | PG_FICTITIOUS | PG_UNMANAGED)) ||
+					    (mt->oflags & VPO_BUSY) ||
+					    (mt->flags & (PG_FICTITIOUS | PG_UNMANAGED)) ||
 						mt->hold_count ||
 						mt->wire_count) 
 						continue;
@@ -539,7 +540,7 @@ readrest:
 			 * return value is the index into the marray for the
 			 * vm_page_t passed to the routine.
 			 *
-			 * fs.m plus the additional pages are PG_BUSY'd.
+			 * fs.m plus the additional pages are VPO_BUSY'd.
 			 *
 			 * XXX vm_fault_additional_pages() can block
 			 * without releasing the map lock.
@@ -559,7 +560,7 @@ readrest:
 			/*
 			 * Call the pager to retrieve the data, if any, after
 			 * releasing the lock on the map.  We hold a ref on
-			 * fs.object and the pages are PG_BUSY'd.
+			 * fs.object and the pages are VPO_BUSY'd.
 			 */
 			unlock_map(&fs);
 
@@ -684,7 +685,7 @@ readrest:
 		}
 	}
 
-	KASSERT((fs.m->flags & PG_BUSY) != 0,
+	KASSERT((fs.m->oflags & VPO_BUSY) != 0,
 	    ("vm_fault: not busy after main loop"));
 
 	/*
@@ -875,7 +876,7 @@ readrest:
 	/*
 	 * Page had better still be busy
 	 */
-	KASSERT(fs.m->flags & PG_BUSY,
+	KASSERT(fs.m->oflags & VPO_BUSY,
 		("vm_fault: page %p not busy!", fs.m));
 	/*
 	 * Sanity check: page must be completely valid or it is not fit to

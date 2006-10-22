@@ -295,8 +295,8 @@ dev_pager_getfake(paddr)
 
 	m = uma_zalloc(fakepg_zone, M_WAITOK);
 
-	m->flags = PG_BUSY | PG_FICTITIOUS;
-	m->oflags = 0;
+	m->flags = PG_FICTITIOUS;
+	m->oflags = VPO_BUSY;
 	m->valid = VM_PAGE_BITS_ALL;
 	m->dirty = 0;
 	m->busy = 0;
