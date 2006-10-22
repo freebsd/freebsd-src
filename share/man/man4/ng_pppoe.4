@@ -35,7 +35,7 @@
 .\" $FreeBSD$
 .\" $Whistle: ng_pppoe.8,v 1.1 1999/01/25 23:46:27 archie Exp $
 .\"
-.Dd August 9, 2006
+.Dd October 22, 2006
 .Dt NG_PPPOE 4
 .Os
 .Sh NAME
@@ -101,10 +101,10 @@ This generic message returns a human-readable version of the node status.
 (not yet)
 .It Dv NGM_PPPOE_CONNECT
 Tell a nominated newly created hook that its session should enter
-the state machine in a manner to become a client.
+the state machine as a client.
 It must be newly created and
 a service name can be given as an argument.
-It is legal to specify a zero length service name.
+It is legal to specify a zero-length service name.
 This is common on some DSL setups.
 A session request packet will be broadcast on the Ethernet.
 This command uses the
@@ -112,10 +112,10 @@ This command uses the
 structure shown below.
 .It Dv NGM_PPPOE_LISTEN
 Tell a nominated newly created hook that its session should enter
-the state machine in a manner to become a server listener.
+the state machine as a server listener.
 The argument
-given is the name of the service to listen on behalf of
-a zero length service length will match all requests for service.
+given is the name of the service to listen for.
+A zero-length service name will match all requests for service.
 A matching service request
 packet will be passed unmodified back to the process responsible
 for starting the service.
@@ -126,13 +126,13 @@ This command uses the
 structure shown below.
 .It Dv NGM_PPPOE_OFFER
 Tell a nominated newly created hook that its session should enter
-the state machine in a manner to become a server.
+the state machine as a server.
 The argument given is the name of the service to offer.
-A zero length service
+A zero-length service
 is legal.
 The State machine will progress to a state where it will await
 a request packet to be forwarded to it from the startup server,
-which in turn probably received it from a LISTEN mode hook ( see above).
+which in turn probably received it from a LISTEN mode hook (see above).
 This is so
 that information that is required for the session that is embedded in
 the original session request packet, is made available to the state machine
@@ -159,14 +159,15 @@ above messages, and reports a state change.
 This message reports successful Session negotiation.
 It uses the structure shown below, and
 reports back the hook name corresponding to the successful session.
-.It Dv NGM_NGM_PPPOE_FAIL
+.It Dv NGM_PPPOE_FAIL
 This command is sent to the node that started this session with one of the
 above messages, and reports a state change.
 This message reports failed Session negotiation.
 It uses the structure shown below, and
 reports back the hook name corresponding to the failed session.
-The hook will probably have been removed immediately after sending this message
-.It Dv NGM_NGM_PPPOE_CLOSE
+The hook will probably have been removed immediately after sending this
+message.
+.It Dv NGM_PPPOE_CLOSE
 This command is sent to the node that started this session with one of the
 above messages, and reports a state change.
 This message reports a request to close a session.
@@ -174,7 +175,9 @@ It uses the structure shown below, and
 reports back the hook name corresponding to the closed session.
 The hook will probably have been removed immediately after sending this
 message.
-At present this message is not yet used and a 'failed' message
+At present this message is not yet used and a
+.Dv NGM_PPPOE_FAIL
+message
 will be received at closure instead.
 .It Dv NGM_PPPOE_ACNAME
 This command is sent to the node that started this session with one of the
