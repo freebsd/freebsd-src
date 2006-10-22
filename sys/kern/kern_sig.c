@@ -276,8 +276,7 @@ sigqueue_get(sigqueue_t *sq, int signo, ksiginfo_t *si)
 		SIGDELSET(sq->sq_kill, signo);
 	}
 
-	for (ksi = TAILQ_FIRST(&sq->sq_list); ksi != NULL; ksi = next) {
-		next = TAILQ_NEXT(ksi, ksi_link);
+	TAILQ_FOREACH_SAFE(ksi, &sq->sq_list, ksi_link, next) {
 		if (ksi->ksi_signo == signo) {
 			if (count == 0) {
 				TAILQ_REMOVE(&sq->sq_list, ksi, ksi_link);
@@ -428,8 +427,7 @@ sigqueue_move_set(sigqueue_t *src, sigqueue_t *dst, sigset_t *setp)
 	p1 = src->sq_proc;
 	p2 = dst->sq_proc;
 	/* Move siginfo to target list */
-	for (ksi = TAILQ_FIRST(&src->sq_list); ksi != NULL; ksi = next) {
-		next = TAILQ_NEXT(ksi, ksi_link);
+	TAILQ_FOREACH_SAFE(ksi, &src->sq_list, ksi_link, next) {
 		if (SIGISMEMBER(set, ksi->ksi_signo)) {
 			TAILQ_REMOVE(&src->sq_list, ksi, ksi_link);
 			if (p1 != NULL)
@@ -475,8 +473,7 @@ sigqueue_delete_set(sigqueue_t *sq, sigset_t *set)
 	KASSERT(sq->sq_flags & SQ_INIT, ("src sigqueue not inited"));
 
 	/* Remove siginfo queue */
-	for (ksi = TAILQ_FIRST(&sq->sq_list); ksi != NULL; ksi = next) {
-		next = TAILQ_NEXT(ksi, ksi_link);
+	TAILQ_FOREACH_SAFE(ksi, &sq->sq_list, ksi_link, next) {
 		if (SIGISMEMBER(*set, ksi->ksi_signo)) {
 			TAILQ_REMOVE(&sq->sq_list, ksi, ksi_link);
 			ksi->ksi_sigq = NULL;
