@@ -829,9 +829,7 @@ exec_map_first_page(imgp)
 					break;
 				if ((ma[i]->oflags & VPO_BUSY) || ma[i]->busy)
 					break;
-				vm_page_lock_queues();
 				vm_page_busy(ma[i]);
-				vm_page_unlock_queues();
 			} else {
 				ma[i] = vm_page_alloc(object, i,
 				    VM_ALLOC_NORMAL);
@@ -855,8 +853,8 @@ exec_map_first_page(imgp)
 	}
 	vm_page_lock_queues();
 	vm_page_hold(ma[0]);
-	vm_page_wakeup(ma[0]);
 	vm_page_unlock_queues();
+	vm_page_wakeup(ma[0]);
 	VM_OBJECT_UNLOCK(object);
 
 	imgp->firstpage = sf_buf_alloc(ma[0], 0);
