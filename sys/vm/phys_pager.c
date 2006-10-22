@@ -158,7 +158,7 @@ phys_pager_getpages(vm_object_t object, vm_page_t *m, int count, int reqpage)
 		m[i]->dirty = 0;
 		/* The requested page must remain busy, the others not. */
 		if (reqpage != i) {
-			vm_page_flag_clear(m[i], PG_BUSY);
+			m[i]->oflags &= ~VPO_BUSY;
 			m[i]->busy = 0;
 		}
 	}

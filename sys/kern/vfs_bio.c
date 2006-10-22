@@ -1519,7 +1519,7 @@ vfs_vmio_release(struct buf *bp)
 		 * the responsibility of the process that
 		 * busied the pages to deal with them.
 		 */
-		if ((m->flags & PG_BUSY) || (m->busy != 0))
+		if ((m->oflags & VPO_BUSY) || (m->busy != 0))
 			continue;
 			
 		if (m->wire_count == 0) {
@@ -2879,7 +2879,7 @@ allocbuf(struct buf *bp, int size)
 				 * retry because it might have gotten freed out
 				 * from under us.
 				 *
-				 * We can only test PG_BUSY here.  Blocking on
+				 * We can only test VPO_BUSY here.  Blocking on
 				 * m->busy might lead to a deadlock:
 				 *
 				 *  vm_fault->getpages->cluster_read->allocbuf
@@ -3369,7 +3369,7 @@ vfs_page_set_valid(struct buf *bp, vm_ooffset_t off, int pageno, vm_page_t m)
  * This routine is called before a device strategy routine.
  * It is used to tell the VM system that paging I/O is in
  * progress, and treat the pages associated with the buffer
- * almost as being PG_BUSY.  Also the object paging_in_progress
+ * almost as being VPO_BUSY.  Also the object paging_in_progress
  * flag is handled to make sure that the object doesn't become
  * inconsistant.
  *
