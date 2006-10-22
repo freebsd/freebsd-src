@@ -1472,12 +1472,13 @@ retrylookup:
 				return (NULL);
 			goto retrylookup;
 		} else {
-			vm_page_lock_queues();
-			if (allocflags & VM_ALLOC_WIRED)
+			if ((allocflags & VM_ALLOC_WIRED) != 0) {
+				vm_page_lock_queues();
 				vm_page_wire(m);
+				vm_page_unlock_queues();
+			}
 			if ((allocflags & VM_ALLOC_NOBUSY) == 0)
 				vm_page_busy(m);
-			vm_page_unlock_queues();
 			return (m);
 		}
 	}

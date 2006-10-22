@@ -1364,10 +1364,8 @@ vm_object_split(vm_map_entry_t entry)
 		swap_pager_copy(orig_object, new_object, offidxstart, 0);
 	}
 	VM_OBJECT_UNLOCK(orig_object);
-	vm_page_lock_queues();
 	TAILQ_FOREACH(m, &new_object->memq, listq)
 		vm_page_wakeup(m);
-	vm_page_unlock_queues();
 	VM_OBJECT_UNLOCK(new_object);
 	entry->object.vm_object = new_object;
 	entry->offset = 0LL;

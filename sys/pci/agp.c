@@ -529,17 +529,13 @@ agp_generic_bind_memory(device_t dev, struct agp_memory *mem,
 				 * Bail out. Reverse all the mappings
 				 * and unwire the pages.
 				 */
-				vm_page_lock_queues();
 				vm_page_wakeup(m);
-				vm_page_unlock_queues();
 				for (k = 0; k < i + j; k += AGP_PAGE_SIZE)
 					AGP_UNBIND_PAGE(dev, offset + k);
 				goto bad;
 			}
 		}
-		vm_page_lock_queues();
 		vm_page_wakeup(m);
-		vm_page_unlock_queues();
 	}
 	VM_OBJECT_UNLOCK(mem->am_obj);
 
