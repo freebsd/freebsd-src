@@ -55,7 +55,6 @@
 #include <sys/param.h>
 #include <sys/kernel.h>
 #include <sys/lock.h>
-#include <sys/mac.h>
 #include <sys/mbuf.h>
 #include <sys/signalvar.h>
 #include <sys/socket.h>
@@ -71,6 +70,8 @@
 #include <netatalk/ddp_var.h>
 #include <netatalk/ddp_pcb.h>
 #include <netatalk/at_extern.h>
+
+#include <security/mac/mac_framework.h>
 
 static volatile int	ddp_forward = 1;
 static volatile int	ddp_firewall = 0;

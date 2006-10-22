@@ -59,7 +59,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/kernel.h>
 #include <sys/proc.h>
 #include <sys/lock.h>
-#include <sys/mac.h>
 #include <sys/mutex.h>
 #include <sys/module.h>
 #include <sys/msg.h>
@@ -69,6 +68,8 @@ __FBSDID("$FreeBSD$");
 #include <sys/sysctl.h>
 #include <sys/malloc.h>
 #include <sys/jail.h>
+
+#include <security/mac/mac_framework.h>
 
 static MALLOC_DEFINE(M_MSG, "msg", "SVID compatible message queues");
 

@@ -38,7 +38,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/filedesc.h>
 #include <sys/proc.h>
 #include <sys/jail.h>
-#include <sys/mac.h>
 #include <sys/malloc.h>
 #include <sys/mount.h>
 #include <sys/namei.h>
@@ -58,6 +57,8 @@ __FBSDID("$FreeBSD$");
 #endif
 
 #include <compat/linux/linux_util.h>
+
+#include <security/mac/mac_framework.h>
 
 /*
  * XXX: This was removed from newstat_copyout(), and almost identical

@@ -39,7 +39,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/sysproto.h>
 #include <sys/signalvar.h>
 #include <sys/kernel.h>
-#include <sys/mac.h>
 #include <sys/mount.h>
 #include <sys/filedesc.h>
 #include <sys/fcntl.h>
@@ -80,6 +79,7 @@ __FBSDID("$FreeBSD$");
 #include <machine/reg.h>
 
 #include <security/audit/audit.h>
+#include <security/mac/mac_framework.h>
 
 MALLOC_DEFINE(M_PARGS, "proc-args", "Process arguments");
 

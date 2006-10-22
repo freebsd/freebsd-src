@@ -41,7 +41,6 @@
 
 #include <sys/param.h>
 #include <sys/kernel.h>
-#include <sys/mac.h>
 #include <sys/malloc.h>
 #include <sys/mbuf.h>
 #include <sys/proc.h>		/* for proc0 declaration */
@@ -97,6 +96,8 @@
 #endif /*IPSEC*/
 
 #include <machine/in_cksum.h>
+
+#include <security/mac/mac_framework.h>
 
 static const int tcprexmtthresh = 3;
 

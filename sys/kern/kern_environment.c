@@ -44,7 +44,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/proc.h>
 #include <sys/queue.h>
 #include <sys/lock.h>
-#include <sys/mac.h>
 #include <sys/malloc.h>
 #include <sys/mutex.h>
 #include <sys/kernel.h>
@@ -53,6 +52,8 @@ __FBSDID("$FreeBSD$");
 #include <sys/sysproto.h>
 #include <sys/libkern.h>
 #include <sys/kenv.h>
+
+#include <security/mac/mac_framework.h>
 
 static MALLOC_DEFINE(M_KENV, "kenv", "kernel environment");
 

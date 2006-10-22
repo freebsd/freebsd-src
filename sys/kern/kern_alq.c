@@ -34,7 +34,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/kernel.h>
 #include <sys/kthread.h>
 #include <sys/lock.h>
-#include <sys/mac.h>
 #include <sys/mount.h>
 #include <sys/mutex.h>
 #include <sys/namei.h>
@@ -45,6 +44,8 @@ __FBSDID("$FreeBSD$");
 #include <sys/unistd.h>
 #include <sys/fcntl.h>
 #include <sys/eventhandler.h>
+
+#include <security/mac/mac_framework.h>
 
 /* Async. Logging Queue */
 struct alq {

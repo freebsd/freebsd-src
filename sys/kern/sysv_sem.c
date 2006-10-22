@@ -59,7 +59,8 @@ __FBSDID("$FreeBSD$");
 #include <sys/uio.h>
 #include <sys/malloc.h>
 #include <sys/jail.h>
-#include <sys/mac.h>
+
+#include <security/mac/mac_framework.h>
 
 static MALLOC_DEFINE(M_SEM, "sem", "SVID compatible semaphores");
 

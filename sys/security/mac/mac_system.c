@@ -47,6 +47,7 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/mac_policy.h>
 
+#include <security/mac/mac_framework.h>
 #include <security/mac/mac_internal.h>
 
 static int	mac_enforce_kld = 1;

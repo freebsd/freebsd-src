@@ -38,7 +38,6 @@
 #include <sys/jail.h>
 #include <sys/kernel.h>
 #include <sys/lock.h>
-#include <sys/mac.h>
 #include <sys/malloc.h>
 #include <sys/mbuf.h>
 #include <sys/proc.h>
@@ -73,6 +72,8 @@
 #ifdef IPSEC
 #include <netinet6/ipsec.h>
 #endif /*IPSEC*/
+
+#include <security/mac/mac_framework.h>
 
 struct	inpcbhead ripcb;
 struct	inpcbinfo ripcbinfo;

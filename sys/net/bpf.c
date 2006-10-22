@@ -45,7 +45,6 @@
 #include <sys/systm.h>
 #include <sys/conf.h>
 #include <sys/fcntl.h>
-#include <sys/mac.h>
 #include <sys/malloc.h>
 #include <sys/mbuf.h>
 #include <sys/time.h>
@@ -76,6 +75,8 @@
 #include <sys/sysctl.h>
 
 #include <net80211/ieee80211_freebsd.h>
+
+#include <security/mac/mac_framework.h>
 
 static MALLOC_DEFINE(M_BPF, "BPF", "BPF data");
 

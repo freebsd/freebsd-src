@@ -35,7 +35,6 @@
 
 #include <sys/param.h>
 #include <sys/systm.h>
-#include <sys/mac.h>
 #include <sys/mbuf.h>
 #include <sys/protosw.h>
 #include <sys/socket.h>
@@ -72,6 +71,8 @@
 #endif
 
 #include <machine/in_cksum.h>
+
+#include <security/mac/mac_framework.h>
 
 /*
  * ICMP routines: error generation, receive packet processing, and

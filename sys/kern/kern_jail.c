@@ -18,7 +18,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/systm.h>
 #include <sys/errno.h>
 #include <sys/sysproto.h>
-#include <sys/mac.h>
 #include <sys/malloc.h>
 #include <sys/proc.h>
 #include <sys/taskqueue.h>
@@ -34,6 +33,8 @@ __FBSDID("$FreeBSD$");
 #include <sys/vnode.h>
 #include <net/if.h>
 #include <netinet/in.h>
+
+#include <security/mac/mac_framework.h>
 
 MALLOC_DEFINE(M_PRISON, "prison", "Prison structures");
 

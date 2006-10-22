@@ -45,7 +45,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/resourcevar.h>
 #include <sys/signalvar.h>
 #include <sys/kernel.h>
-#include <sys/mac.h>
 #include <sys/syscallsubr.h>
 #include <sys/sysctl.h>
 #include <sys/sysent.h>
@@ -56,6 +55,8 @@ __FBSDID("$FreeBSD$");
 #include <sys/vnode.h>
 
 #include <posix4/posix4.h>
+
+#include <security/mac/mac_framework.h>
 
 #include <vm/vm.h>
 #include <vm/vm_extern.h>

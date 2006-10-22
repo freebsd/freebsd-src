@@ -101,7 +101,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/filio.h>
 #include <sys/kernel.h>
 #include <sys/lock.h>
-#include <sys/mac.h>
 #include <sys/mutex.h>
 #include <sys/ttycom.h>
 #include <sys/stat.h>
@@ -116,6 +115,8 @@ __FBSDID("$FreeBSD$");
 #include <sys/vnode.h>
 #include <sys/uio.h>
 #include <sys/event.h>
+
+#include <security/mac/mac_framework.h>
 
 #include <vm/vm.h>
 #include <vm/vm_param.h>
