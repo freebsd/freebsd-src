@@ -1374,6 +1374,7 @@ kern/subr_clock.c		standard
 kern/subr_devstat.c		standard
 kern/subr_disk.c		standard
 kern/subr_eventhandler.c	standard
+kern/subr_fattime.c		standard
 kern/subr_firmware.c		optional firmware
 kern/subr_hints.c		standard
 kern/subr_kdb.c			standard
