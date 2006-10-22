@@ -307,7 +307,7 @@ get_pv_entry(pmap_t locked_pmap)
 retry:
 	sched_pin();
 	TAILQ_FOREACH(m, &vpq->pl, pageq) {
-		if (m->hold_count || m->busy || (m->flags & PG_BUSY))
+		if (m->hold_count || m->busy)
 			continue;
 		TAILQ_FOREACH_SAFE(pv, &m->md.pv_list, pv_list, next_pv) {
 			va = pv->pv_va;
