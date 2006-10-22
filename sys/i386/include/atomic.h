@@ -64,8 +64,8 @@
  * This allows kernel modules to be portable between UP and SMP systems.
  */
 #if defined(KLD_MODULE)
-#define ATOMIC_ASM(NAME, TYPE, OP, V)			\
-	extern void atomic_##NAME##_##TYPE(volatile u_##TYPE *p, u_##TYPE v);
+#define	ATOMIC_ASM(NAME, TYPE, OP, CONS, V)			\
+void atomic_##NAME##_##TYPE(volatile u_##TYPE *p, u_##TYPE v)
 
 #else /* !KLD_MODULE */
 #if defined(SMP)
@@ -78,35 +78,36 @@
  * The assembly is volatilized to demark potential before-and-after side
  * effects if an interrupt or SMP collision were to occur.
  */
-#define ATOMIC_ASM(NAME, TYPE, OP, V)			\
+#define	ATOMIC_ASM(NAME, TYPE, OP, CONS, V)		\
 static __inline void					\
 atomic_##NAME##_##TYPE(volatile u_##TYPE *p, u_##TYPE v)\
 {							\
 	__asm __volatile(MPLOCKED OP			\
-			 : "+m" (*p)			\
-			 : "ir" (V));			\
-}
+			 : "=m" (*p)			\
+			 : CONS (V), "m" (*p));		\
+}							\
+struct __hack
 #endif /* KLD_MODULE */
 
-ATOMIC_ASM(set,	     char,  "orb %b1,%0",   v)
-ATOMIC_ASM(clear,    char,  "andb %b1,%0", ~v)
-ATOMIC_ASM(add,	     char,  "addb %b1,%0",  v)
-ATOMIC_ASM(subtract, char,  "subb %b1,%0",  v)
+ATOMIC_ASM(set,	     char,  "orb %b1,%0",  "iq",  v);
+ATOMIC_ASM(clear,    char,  "andb %b1,%0", "iq", ~v);
+ATOMIC_ASM(add,	     char,  "addb %b1,%0", "iq",  v);
+ATOMIC_ASM(subtract, char,  "subb %b1,%0", "iq",  v);
 
-ATOMIC_ASM(set,	     short, "orw %w1,%0",   v)
-ATOMIC_ASM(clear,    short, "andw %w1,%0", ~v)
-ATOMIC_ASM(add,	     short, "addw %w1,%0",  v)
-ATOMIC_ASM(subtract, short, "subw %w1,%0",  v)
+ATOMIC_ASM(set,	     short, "orw %w1,%0",  "ir",  v);
+ATOMIC_ASM(clear,    short, "andw %w1,%0", "ir", ~v);
+ATOMIC_ASM(add,	     short, "addw %w1,%0", "ir",  v);
+ATOMIC_ASM(subtract, short, "subw %w1,%0", "ir",  v);
 
-ATOMIC_ASM(set,	     int,   "orl %1,%0",   v)
-ATOMIC_ASM(clear,    int,   "andl %1,%0", ~v)
-ATOMIC_ASM(add,	     int,   "addl %1,%0",  v)
-ATOMIC_ASM(subtract, int,   "subl %1,%0",  v)
+ATOMIC_ASM(set,	     int,   "orl %1,%0",   "ir",  v);
+ATOMIC_ASM(clear,    int,   "andl %1,%0",  "ir", ~v);
+ATOMIC_ASM(add,	     int,   "addl %1,%0",  "ir",  v);
+ATOMIC_ASM(subtract, int,   "subl %1,%0",  "ir",  v);
 
-ATOMIC_ASM(set,	     long,  "orl %1,%0",   v)
-ATOMIC_ASM(clear,    long,  "andl %1,%0", ~v)
-ATOMIC_ASM(add,	     long,  "addl %1,%0",  v)
-ATOMIC_ASM(subtract, long,  "subl %1,%0",  v)
+ATOMIC_ASM(set,	     long,  "orl %1,%0",   "ir",  v);
+ATOMIC_ASM(clear,    long,  "andl %1,%0",  "ir", ~v);
+ATOMIC_ASM(add,	     long,  "addl %1,%0",  "ir",  v);
+ATOMIC_ASM(subtract, long,  "subl %1,%0",  "ir",  v);
 
 #define	atomic_readandclear_32	atomic_readandclear_int
 
