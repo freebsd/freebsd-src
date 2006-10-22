@@ -15,7 +15,7 @@ stop_cmd=":"
 
 auto_linklocal_start()
 {
-	if ! checkyesno ipv6_enable; then
+	if ! checkyesno ipv6_enable && ${SYSCTL} net.inet6 > /dev/null 2>&1; then
 		${SYSCTL_W} net.inet6.ip6.auto_linklocal=0
 	fi
 }
