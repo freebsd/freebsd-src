@@ -93,6 +93,9 @@ void clock_register(device_t, long);
 /* Traditional POSIX base year */
 #define	POSIX_BASE_YEAR	1970
 
+void timet2fattime(struct timespec *tsp, u_int16_t *ddp, u_int16_t *dtp, u_int8_t *dhp);
+void fattime2timet(unsigned dd, unsigned dt, unsigned dh, struct timespec *tsp);
+
 #endif /* _KERNEL */
 
 #endif /* !_SYS_CLOCK_H_ */
