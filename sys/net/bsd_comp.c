@@ -45,7 +45,6 @@
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/lock.h>
-#include <sys/mac.h>
 #include <sys/malloc.h>
 #include <sys/mbuf.h>
 #include <sys/mutex.h>
@@ -54,6 +53,8 @@
 
 #define PACKETPTR	struct mbuf *
 #include <net/ppp_comp.h>
+
+#include <security/mac/mac_framework.h>
 
 /*
  * PPP "BSD compress" compression

@@ -64,6 +64,7 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/mac_policy.h>
 
+#include <security/mac/mac_framework.h>
 #include <security/mac/mac_internal.h>
 
 int	mac_enforce_process = 1;

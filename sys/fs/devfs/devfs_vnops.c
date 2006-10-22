@@ -52,7 +52,6 @@
 #include <sys/filio.h>
 #include <sys/kernel.h>
 #include <sys/lock.h>
-#include <sys/mac.h>
 #include <sys/malloc.h>
 #include <sys/mount.h>
 #include <sys/namei.h>
@@ -70,6 +69,8 @@ static struct fileops devfs_ops_f;
 
 #include <fs/devfs/devfs.h>
 #include <fs/devfs/devfs_int.h>
+
+#include <security/mac/mac_framework.h>
 
 struct mtx	devfs_de_interlock;
 MTX_SYSINIT(devfs_de_interlock, &devfs_de_interlock, "devfs interlock", MTX_DEF);

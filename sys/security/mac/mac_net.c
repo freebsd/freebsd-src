@@ -61,6 +61,7 @@ __FBSDID("$FreeBSD$");
 #include <net/if.h>
 #include <net/if_var.h>
 
+#include <security/mac/mac_framework.h>
 #include <security/mac/mac_internal.h>
 
 /*

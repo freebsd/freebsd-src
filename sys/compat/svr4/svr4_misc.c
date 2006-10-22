@@ -45,7 +45,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/imgact.h>
 #include <sys/kernel.h>
 #include <sys/lock.h>
-#include <sys/mac.h>
 #include <sys/malloc.h>
 #include <sys/file.h>		/* Must come after sys/malloc.h */
 #include <sys/mman.h>
@@ -82,6 +81,8 @@ __FBSDID("$FreeBSD$");
 #include <compat/svr4/svr4_hrt.h>
 #include <compat/svr4/svr4_mman.h>
 #include <compat/svr4/svr4_wait.h>
+
+#include <security/mac/mac_framework.h>
 
 #include <machine/vmparam.h>
 #include <vm/vm.h>

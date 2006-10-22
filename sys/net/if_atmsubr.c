@@ -46,7 +46,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/systm.h>
 #include <sys/kernel.h>
 #include <sys/module.h>
-#include <sys/mac.h>
 #include <sys/mbuf.h>
 #include <sys/socket.h>
 #include <sys/sockio.h>
@@ -70,6 +69,8 @@ __FBSDID("$FreeBSD$");
 #ifdef NATM
 #include <netnatm/natm.h>
 #endif
+
+#include <security/mac/mac_framework.h>
 
 /*
  * Netgraph interface functions.

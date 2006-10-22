@@ -38,7 +38,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/systm.h>
 #include <sys/file.h>
 #include <sys/filedesc.h>
-#include <sys/mac.h>
 #include <sys/proc.h>
 #include <sys/protosw.h>
 #include <sys/sigio.h>
@@ -54,6 +53,8 @@ __FBSDID("$FreeBSD$");
 
 #include <net/if.h>
 #include <net/route.h>
+
+#include <security/mac/mac_framework.h>
 
 struct	fileops socketops = {
 	.fo_read = soo_read,

@@ -49,7 +49,6 @@
 
 #include <sys/param.h>
 #include <sys/systm.h>
-#include <sys/mac.h>
 #include <sys/malloc.h>
 #include <sys/mbuf.h>
 #include <sys/socket.h>
@@ -70,6 +69,8 @@
 #include <netinet/igmp_var.h>
 
 #include <machine/in_cksum.h>
+
+#include <security/mac/mac_framework.h>
 
 static MALLOC_DEFINE(M_IGMP, "igmp", "igmp state");
 

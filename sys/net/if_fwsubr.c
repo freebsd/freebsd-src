@@ -37,7 +37,6 @@
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/kernel.h>
-#include <sys/mac.h>
 #include <sys/malloc.h>
 #include <sys/mbuf.h>
 #include <sys/module.h>
@@ -61,6 +60,8 @@
 #ifdef INET6
 #include <netinet6/nd6.h>
 #endif
+
+#include <security/mac/mac_framework.h>
 
 MALLOC_DEFINE(M_FWCOM, "fw_com", "firewire interface internals");
 

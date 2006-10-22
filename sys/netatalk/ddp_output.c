@@ -27,7 +27,6 @@
 
 #include <sys/param.h>
 #include <sys/systm.h>
-#include <sys/mac.h>
 #include <sys/mbuf.h>
 #include <sys/socket.h>
 #include <sys/socketvar.h>
@@ -42,6 +41,8 @@
 #include <netatalk/ddp.h>
 #include <netatalk/ddp_var.h>
 #include <netatalk/at_extern.h>
+
+#include <security/mac/mac_framework.h>
 
 int	ddp_cksum = 1;
 

@@ -88,7 +88,6 @@
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/proc.h>
-#include <sys/mac.h>
 #include <sys/mbuf.h>
 #include <sys/socket.h>
 #include <sys/filio.h>
@@ -122,6 +121,8 @@
 
 #include <net/if_ppp.h>
 #include <net/if_pppvar.h>
+
+#include <security/mac/mac_framework.h>
 
 /* minimise diffs */
 #ifndef splsoftnet

@@ -55,6 +55,8 @@
  * Operations are sorted first by general class of operation, then
  * alphabetically.
  */
+#include <sys/acl.h>	/* XXX acl_type_t */
+
 struct acl;
 struct bpf_d;
 struct componentname;

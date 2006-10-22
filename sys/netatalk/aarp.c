@@ -56,7 +56,6 @@
 
 #include <sys/param.h>
 #include <sys/systm.h>
-#include <sys/mac.h>
 #include <sys/mbuf.h>
 #include <sys/kernel.h>
 #include <sys/socket.h>
@@ -74,6 +73,8 @@
 #include <netatalk/aarp.h>
 #include <netatalk/phase2.h>
 #include <netatalk/at_extern.h>
+
+#include <security/mac/mac_framework.h>
 
 static void aarptfree(struct aarptab *aat);
 static void at_aarpinput(struct ifnet *ifp, struct mbuf *m);

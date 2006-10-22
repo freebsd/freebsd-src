@@ -60,10 +60,11 @@ __FBSDID("$FreeBSD$");
 #include <sys/lockf.h>
 #include <sys/conf.h>
 #include <sys/acl.h>
-#include <sys/mac.h>
 #include <sys/jail.h>
 
 #include <machine/mutex.h>
+
+#include <security/mac/mac_framework.h>
 
 #include <sys/file.h>		/* XXX */
 

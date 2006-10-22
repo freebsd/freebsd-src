@@ -60,13 +60,14 @@ __FBSDID("$FreeBSD$");
 #include <sys/vnode.h>
 #include <sys/fcntl.h>
 #include <sys/file.h>
-#include <sys/mac.h>
 #include <sys/mman.h>
 #include <sys/mount.h>
 #include <sys/conf.h>
 #include <sys/stat.h>
 #include <sys/vmmeter.h>
 #include <sys/sysctl.h>
+
+#include <security/mac/mac_framework.h>
 
 #include <vm/vm.h>
 #include <vm/vm_param.h>

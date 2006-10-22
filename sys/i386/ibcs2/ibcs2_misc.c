@@ -65,7 +65,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/imgact.h>
 #include <sys/kernel.h>
 #include <sys/lock.h>
-#include <sys/mac.h>
 #include <sys/malloc.h>
 #include <sys/file.h>			/* Must come after sys/malloc.h */
 #include <sys/mutex.h>
@@ -89,6 +88,8 @@ __FBSDID("$FreeBSD$");
 #include <i386/ibcs2/ibcs2_util.h>
 #include <i386/ibcs2/ibcs2_utime.h>
 #include <i386/ibcs2/ibcs2_xenix.h>
+
+#include <security/mac/mac_framework.h>
 
 int
 ibcs2_ulimit(td, uap)

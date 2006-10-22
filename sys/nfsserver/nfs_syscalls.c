@@ -46,7 +46,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/file.h>
 #include <sys/filedesc.h>
 #include <sys/vnode.h>
-#include <sys/mac.h>
 #include <sys/malloc.h>
 #include <sys/mount.h>
 #include <sys/proc.h>
@@ -73,6 +72,8 @@ __FBSDID("$FreeBSD$");
 #include <nfsserver/nfs.h>
 #include <nfsserver/nfsm_subs.h>
 #include <nfsserver/nfsrvcache.h>
+
+#include <security/mac/mac_framework.h>
 
 static MALLOC_DEFINE(M_NFSSVC, "nfsserver_srvsock", "Nfs server structure");
 

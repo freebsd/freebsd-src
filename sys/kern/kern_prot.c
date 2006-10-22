@@ -51,7 +51,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/kdb.h>
 #include <sys/kernel.h>
 #include <sys/lock.h>
-#include <sys/mac.h>
 #include <sys/malloc.h>
 #include <sys/mutex.h>
 #include <sys/refcount.h>
@@ -67,6 +66,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/sysctl.h>
 
 #include <security/audit/audit.h>
+#include <security/mac/mac_framework.h>
 
 static MALLOC_DEFINE(M_CRED, "cred", "credentials");
 
