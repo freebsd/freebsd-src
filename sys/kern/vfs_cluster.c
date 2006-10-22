@@ -911,7 +911,7 @@ cluster_wbuild(vp, size, start_lbn, len)
 				if (i != 0) { /* if not first buffer */
 					for (j = 0; j < tbp->b_npages; j += 1) {
 						m = tbp->b_pages[j];
-						if (m->flags & PG_BUSY) {
+						if (m->oflags & VPO_BUSY) {
 							VM_OBJECT_UNLOCK(
 							    tbp->b_object);
 							bqrelse(tbp);

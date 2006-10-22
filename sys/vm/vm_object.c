@@ -650,7 +650,7 @@ vm_object_terminate(vm_object_t object)
 	 */
 	vm_page_lock_queues();
 	while ((p = TAILQ_FIRST(&object->memq)) != NULL) {
-		KASSERT(!p->busy && (p->flags & PG_BUSY) == 0,
+		KASSERT(!p->busy && (p->oflags & VPO_BUSY) == 0,
 			("vm_object_terminate: freeing busy page %p "
 			"p->busy = %d, p->flags %x\n", p, p->busy, p->flags));
 		if (p->wire_count == 0) {
@@ -909,7 +909,7 @@ vm_object_page_collect_flush(vm_object_t object, vm_page_t p, int curgeneration,
 		vm_page_t tp;
 
 		if ((tp = vm_page_lookup(object, pi + i)) != NULL) {
-			if ((tp->flags & PG_BUSY) ||
+			if ((tp->oflags & VPO_BUSY) ||
 				((pagerflags & VM_PAGER_IGNORE_CLEANCHK) == 0 &&
 				 (tp->flags & PG_CLEANCHK) == 0) ||
 				(tp->busy != 0))
@@ -937,7 +937,7 @@ vm_object_page_collect_flush(vm_object_t object, vm_page_t p, int curgeneration,
 			vm_page_t tp;
 
 			if ((tp = vm_page_lookup(object, pi - i)) != NULL) {
-				if ((tp->flags & PG_BUSY) ||
+				if ((tp->oflags & VPO_BUSY) ||
 					((pagerflags & VM_PAGER_IGNORE_CLEANCHK) == 0 &&
 					 (tp->flags & PG_CLEANCHK) == 0) ||
 					(tp->busy != 0))
@@ -1151,7 +1151,7 @@ shadowlookup:
 			vm_page_unlock_queues();
 			goto unlock_tobject;
 		}
-		if ((m->flags & PG_BUSY) || m->busy) {
+		if ((m->oflags & VPO_BUSY) || m->busy) {
 			vm_page_flag_set(m, PG_REFERENCED);
 			vm_page_unlock_queues();
 			if (object != tobject)
@@ -1340,7 +1340,7 @@ vm_object_split(vm_map_entry_t entry)
 		 * We do not have to VM_PROT_NONE the page as mappings should
 		 * not be changed by this operation.
 		 */
-		if ((m->flags & PG_BUSY) || m->busy) {
+		if ((m->oflags & VPO_BUSY) || m->busy) {
 			vm_page_flag_set(m, PG_REFERENCED);
 			vm_page_unlock_queues();
 			VM_OBJECT_UNLOCK(new_object);
@@ -1468,14 +1468,14 @@ vm_object_backing_scan(vm_object_t object, int op)
 			vm_page_t pp;
 
 			if (op & OBSC_COLLAPSE_NOWAIT) {
-				if ((p->flags & PG_BUSY) ||
+				if ((p->oflags & VPO_BUSY) ||
 				    !p->valid || 
 				    p->busy) {
 					p = next;
 					continue;
 				}
 			} else if (op & OBSC_COLLAPSE_WAIT) {
-				if ((p->flags & PG_BUSY) || p->busy) {
+				if ((p->oflags & VPO_BUSY) || p->busy) {
 					vm_page_lock_queues();
 					vm_page_flag_set(p, PG_REFERENCED);
 					vm_page_unlock_queues();

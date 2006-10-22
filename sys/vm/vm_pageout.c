@@ -236,7 +236,8 @@ vm_pageout_fallback_object_lock(vm_page_t m, vm_page_t *next)
 	 * Initialize our marker
 	 */
 	bzero(&marker, sizeof(marker));
-	marker.flags = PG_BUSY | PG_FICTITIOUS | PG_MARKER;
+	marker.flags = PG_FICTITIOUS | PG_MARKER;
+	marker.oflags = VPO_BUSY;
 	marker.queue = m->queue;
 	marker.wire_count = 1;
 
@@ -294,7 +295,8 @@ vm_pageout_clean(m)
 	 * Don't mess with the page if it's busy, held, or special
 	 */
 	if ((m->hold_count != 0) ||
-	    ((m->busy != 0) || (m->flags & (PG_BUSY|PG_UNMANAGED)))) {
+	    ((m->busy != 0) || (m->oflags & VPO_BUSY) ||
+	     (m->flags & PG_UNMANAGED))) {
 		return 0;
 	}
 
@@ -338,7 +340,8 @@ more:
 			break;
 		}
 		if (VM_PAGE_INQUEUE1(p, PQ_CACHE) ||
-		    (p->flags & (PG_BUSY|PG_UNMANAGED)) || p->busy) {
+		    (p->oflags & VPO_BUSY) || p->busy ||
+		    (p->flags & PG_UNMANAGED)) {
 			ib = 0;
 			break;
 		}
@@ -368,7 +371,8 @@ more:
 		if ((p = vm_page_lookup(object, pindex + is)) == NULL)
 			break;
 		if (VM_PAGE_INQUEUE1(p, PQ_CACHE) ||
-		    (p->flags & (PG_BUSY|PG_UNMANAGED)) || p->busy) {
+		    (p->oflags & VPO_BUSY) || p->busy ||
+		    (p->flags & PG_UNMANAGED)) {
 			break;
 		}
 		vm_page_test_dirty(p);
@@ -538,7 +542,8 @@ vm_pageout_object_deactivate_pages(pmap, first_object, desired)
 			if (p->wire_count != 0 ||
 			    p->hold_count != 0 ||
 			    p->busy != 0 ||
-			    (p->flags & (PG_BUSY|PG_UNMANAGED)) ||
+			    (p->oflags & VPO_BUSY) ||
+			    (p->flags & PG_UNMANAGED) ||
 			    !pmap_page_exists_quick(pmap, p)) {
 				p = next;
 				continue;
@@ -706,7 +711,8 @@ vm_pageout_scan(int pass)
 	 * Initialize our marker
 	 */
 	bzero(&marker, sizeof(marker));
-	marker.flags = PG_BUSY | PG_FICTITIOUS | PG_MARKER;
+	marker.flags = PG_FICTITIOUS | PG_MARKER;
+	marker.oflags = VPO_BUSY;
 	marker.queue = PQ_INACTIVE;
 	marker.wire_count = 1;
 
@@ -773,7 +779,7 @@ rescan0:
 			addl_page_shortage++;
 			continue;
 		}
-		if (m->busy || (m->flags & PG_BUSY)) {
+		if (m->busy || (m->oflags & VPO_BUSY)) {
 			VM_OBJECT_UNLOCK(object);
 			addl_page_shortage++;
 			continue;
@@ -987,7 +993,7 @@ rescan0:
 				 * page back onto the end of the queue so that
 				 * statistics are more correct if we don't.
 				 */
-				if (m->busy || (m->flags & PG_BUSY)) {
+				if (m->busy || (m->oflags & VPO_BUSY)) {
 					goto unlock_and_continue;
 				}
 
@@ -1071,7 +1077,7 @@ unlock_and_continue:
 		 * Don't deactivate pages that are busy.
 		 */
 		if ((m->busy != 0) ||
-		    (m->flags & PG_BUSY) ||
+		    (m->oflags & VPO_BUSY) ||
 		    (m->hold_count != 0)) {
 			VM_OBJECT_UNLOCK(object);
 			vm_pageq_requeue(m);
@@ -1157,7 +1163,7 @@ unlock_and_continue:
 			    ("Found wired cache page %p", m));
 			if (m->hold_count == 0 && VM_OBJECT_TRYLOCK(object =
 			    m->object)) {
-				KASSERT((m->flags & PG_BUSY) == 0 &&
+				KASSERT((m->oflags & VPO_BUSY) == 0 &&
 				    m->busy == 0, ("Found busy cache page %p",
 				    m));
 				vm_page_free(m);
@@ -1349,7 +1355,7 @@ vm_pageout_page_stats()
 		 * Don't deactivate pages that are busy.
 		 */
 		if ((m->busy != 0) ||
-		    (m->flags & PG_BUSY) ||
+		    (m->oflags & VPO_BUSY) ||
 		    (m->hold_count != 0)) {
 			VM_OBJECT_UNLOCK(object);
 			vm_pageq_requeue(m);
