@@ -9,11 +9,17 @@ DEPENDFILE=
 MAKESRCPATH= ${.CURDIR}
 CLEANFILES= acpi_wakecode.h acpi_wakecode.bin acpi_wakecode.o
 .endif
-CFLAGS+=	-I. -I@
+.if ${CC} == "icc"
+CFLAGS+=	-restrict
+NOSTDINC=	-X
+.else
+NOSTDINC=	-nostdinc
+.endif
+CFLAGS+=	${NOSTDINC} -I. -I${MAKESRCPATH}/../..
 
 all: acpi_wakecode.h
 
-acpi_wakecode.o: acpi_wakecode.S
+acpi_wakecode.o: acpi_wakecode.S assym.s
 
 acpi_wakecode.bin: acpi_wakecode.o
 	objcopy -S -O binary acpi_wakecode.o acpi_wakecode.bin
