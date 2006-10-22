@@ -43,7 +43,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/systm.h>
 #include <sys/kernel.h>
 #include <sys/lock.h>
-#include <sys/mac.h>
 #include <sys/mutex.h>
 #include <sys/sysproto.h>
 #include <sys/malloc.h>
@@ -67,6 +66,8 @@ __FBSDID("$FreeBSD$");
 #ifdef KTRACE
 #include <sys/ktrace.h>
 #endif
+
+#include <security/mac/mac_framework.h>
 
 #include <vm/vm.h>
 #include <vm/vm_object.h>

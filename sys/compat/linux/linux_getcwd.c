@@ -54,7 +54,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/mount.h>
 #include <sys/proc.h>
 #include <sys/uio.h>
-#include <sys/mac.h>
 #include <sys/malloc.h>
 #include <sys/dirent.h>
 #include <ufs/ufs/dir.h>	/* XXX only for DIRBLKSIZ */
@@ -67,6 +66,8 @@ __FBSDID("$FreeBSD$");
 #include <machine/../linux/linux_proto.h>
 #endif
 #include <compat/linux/linux_util.h>
+
+#include <security/mac/mac_framework.h>
 
 static int
 linux_getcwd_scandir(struct vnode **, struct vnode **,

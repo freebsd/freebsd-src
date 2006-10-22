@@ -65,7 +65,6 @@
 #include <sys/param.h>
 #include <sys/kernel.h>
 #include <sys/lock.h>
-#include <sys/mac.h>
 #include <sys/malloc.h>
 #include <sys/mbuf.h>
 #include <sys/module.h>
@@ -97,6 +96,8 @@
 #endif
 #include <netinet/udp.h>
 #include <machine/in_cksum.h>
+
+#include <security/mac/mac_framework.h>
 
 /*
  * Control debugging code for rsvp and multicast routing code.

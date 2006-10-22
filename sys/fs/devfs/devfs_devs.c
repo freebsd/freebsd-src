@@ -37,7 +37,6 @@
 #include <sys/kernel.h>
 #include <sys/limits.h>
 #include <sys/lock.h>
-#include <sys/mac.h>
 #include <sys/malloc.h>
 #include <sys/proc.h>
 #include <sys/sx.h>
@@ -48,6 +47,8 @@
 
 #include <fs/devfs/devfs.h>
 #include <fs/devfs/devfs_int.h>
+
+#include <security/mac/mac_framework.h>
 
 /*
  * The one true (but secret) list of active devices in the system.

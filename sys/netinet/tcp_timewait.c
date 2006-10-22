@@ -43,7 +43,6 @@
 #include <sys/callout.h>
 #include <sys/kernel.h>
 #include <sys/sysctl.h>
-#include <sys/mac.h>
 #include <sys/malloc.h>
 #include <sys/mbuf.h>
 #ifdef INET6
@@ -112,6 +111,8 @@
 
 #include <machine/in_cksum.h>
 #include <sys/md5.h>
+
+#include <security/mac/mac_framework.h>
 
 int	tcp_mssdflt = TCP_MSS;
 SYSCTL_INT(_net_inet_tcp, TCPCTL_MSSDFLT, mssdflt, CTLFLAG_RW,

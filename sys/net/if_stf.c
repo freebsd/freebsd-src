@@ -82,7 +82,6 @@
 #include <sys/systm.h>
 #include <sys/socket.h>
 #include <sys/sockio.h>
-#include <sys/mac.h>
 #include <sys/mbuf.h>
 #include <sys/errno.h>
 #include <sys/kernel.h>
@@ -116,6 +115,8 @@
 #include <machine/stdarg.h>
 
 #include <net/bpf.h>
+
+#include <security/mac/mac_framework.h>
 
 #define STFNAME		"stf"
 #define STFUNIT		0

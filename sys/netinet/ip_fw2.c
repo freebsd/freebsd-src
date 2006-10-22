@@ -52,7 +52,6 @@
 #include <sys/kernel.h>
 #include <sys/lock.h>
 #include <sys/jail.h>
-#include <sys/mac.h>
 #include <sys/module.h>
 #include <sys/proc.h>
 #include <sys/rwlock.h>
@@ -100,6 +99,8 @@
 #include <netinet/if_ether.h> /* XXX for ETHERTYPE_IP */
 
 #include <machine/in_cksum.h>	/* XXX for in_cksum */
+
+#include <security/mac/mac_framework.h>
 
 /*
  * set_disable contains one bit per set value (0..31).

@@ -37,7 +37,6 @@
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/kernel.h>
-#include <sys/mac.h>
 #include <sys/malloc.h>
 #include <sys/mbuf.h>
 #include <sys/module.h>
@@ -83,6 +82,8 @@
 #include <net/ethernet.h>
 #include <net/if_bridgevar.h>
 #include <net/if_gif.h>
+
+#include <security/mac/mac_framework.h>
 
 #define GIFNAME		"gif"
 

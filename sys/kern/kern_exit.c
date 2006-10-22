@@ -65,7 +65,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/ptrace.h>
 #include <sys/acct.h>		/* for acct_process() function prototype */
 #include <sys/filedesc.h>
-#include <sys/mac.h>
 #include <sys/shm.h>
 #include <sys/sem.h>
 #ifdef KTRACE
@@ -73,6 +72,7 @@ __FBSDID("$FreeBSD$");
 #endif
 
 #include <security/audit/audit.h>
+#include <security/mac/mac_framework.h>
 
 #include <vm/vm.h>
 #include <vm/vm_extern.h>

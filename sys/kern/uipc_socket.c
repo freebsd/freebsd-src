@@ -126,6 +126,8 @@ __FBSDID("$FreeBSD$");
 #include <sys/uio.h>
 #include <sys/jail.h>
 
+#include <security/mac/mac_framework.h>
+
 #include <vm/uma.h>
 
 #ifdef COMPAT_IA32

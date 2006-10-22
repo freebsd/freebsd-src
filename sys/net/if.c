@@ -39,7 +39,6 @@
 #include <sys/param.h>
 #include <sys/types.h>
 #include <sys/conf.h>
-#include <sys/mac.h>
 #include <sys/malloc.h>
 #include <sys/sbuf.h>
 #include <sys/bus.h>
@@ -81,6 +80,8 @@
 #ifdef DEV_CARP
 #include <netinet/ip_carp.h>
 #endif
+
+#include <security/mac/mac_framework.h>
 
 SYSCTL_NODE(_net, PF_LINK, link, CTLFLAG_RW, 0, "Link layers");
 SYSCTL_NODE(_net_link, 0, generic, CTLFLAG_RW, 0, "Generic link-management");

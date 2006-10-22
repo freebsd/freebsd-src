@@ -44,7 +44,6 @@
 #include <sys/lock.h>
 #include <sys/mutex.h>
 #include <sys/malloc.h>
-#include <sys/mac.h>
 #include <sys/mbuf.h>
 #include <sys/md5.h>
 #include <sys/proc.h>		/* for proc0 declaration */
@@ -96,6 +95,8 @@
 #endif /*FAST_IPSEC*/
 
 #include <machine/in_cksum.h>
+
+#include <security/mac/mac_framework.h>
 
 static int tcp_syncookies = 1;
 SYSCTL_INT(_net_inet_tcp, OID_AUTO, syncookies, CTLFLAG_RW,

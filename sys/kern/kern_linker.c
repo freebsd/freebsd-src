@@ -41,7 +41,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/lock.h>
 #include <sys/mutex.h>
 #include <sys/sx.h>
-#include <sys/mac.h>
 #include <sys/module.h>
 #include <sys/mount.h>
 #include <sys/linker.h>
@@ -51,6 +50,8 @@ __FBSDID("$FreeBSD$");
 #include <sys/vnode.h>
 #include <sys/syscallsubr.h>
 #include <sys/sysctl.h>
+
+#include <security/mac/mac_framework.h>
 
 #include "linker_if.h"
 

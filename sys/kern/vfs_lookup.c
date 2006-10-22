@@ -45,7 +45,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/systm.h>
 #include <sys/kernel.h>
 #include <sys/lock.h>
-#include <sys/mac.h>
 #include <sys/mutex.h>
 #include <sys/namei.h>
 #include <sys/vnode.h>
@@ -59,6 +58,7 @@ __FBSDID("$FreeBSD$");
 #endif
 
 #include <security/audit/audit.h>
+#include <security/mac/mac_framework.h>
 
 #include <vm/uma.h>
 
