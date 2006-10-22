@@ -54,7 +54,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/sysent.h>
 #include <sys/sysctl.h>
 #include <sys/time.h>
-#include <sys/mac.h>
 #include <sys/malloc.h>
 #include <sys/fcntl.h>
 
@@ -62,6 +61,8 @@ __FBSDID("$FreeBSD$");
 #include <posix4/posix4.h>
 #include <posix4/semaphore.h>
 #include <posix4/_semaphore.h>
+
+#include <security/mac/mac_framework.h>
 
 static int sem_count_proc(struct proc *p);
 static struct ksem *sem_lookup_byname(const char *name);

@@ -40,7 +40,6 @@
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/callout.h>
-#include <sys/mac.h>
 #include <sys/mbuf.h>
 #include <sys/malloc.h>
 #include <sys/domain.h>
@@ -80,6 +79,8 @@
 /* XXX: Temporary until ipfw_ether and ipfw_bridge are converted. */
 #include <netinet/ip_fw.h>
 #include <netinet/ip_dummynet.h>
+
+#include <security/mac/mac_framework.h>
 
 int rsvp_on = 0;
 

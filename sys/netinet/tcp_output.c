@@ -42,7 +42,6 @@
 #include <sys/domain.h>
 #include <sys/kernel.h>
 #include <sys/lock.h>
-#include <sys/mac.h>
 #include <sys/mbuf.h>
 #include <sys/mutex.h>
 #include <sys/protosw.h>
@@ -84,6 +83,8 @@
 #endif /*FAST_IPSEC*/
 
 #include <machine/in_cksum.h>
+
+#include <security/mac/mac_framework.h>
 
 #ifdef notyet
 extern struct mbuf *m_copypack();

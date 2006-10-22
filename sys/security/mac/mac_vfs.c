@@ -70,6 +70,7 @@ __FBSDID("$FreeBSD$");
 
 #include <fs/devfs/devfs.h>
 
+#include <security/mac/mac_framework.h>
 #include <security/mac/mac_internal.h>
 
 /*

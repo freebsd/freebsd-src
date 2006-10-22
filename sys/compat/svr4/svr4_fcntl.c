@@ -40,7 +40,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/filedesc.h>
 /*#include <sys/ioctl.h>*/
 #include <sys/lock.h>
-#include <sys/mac.h>
 #include <sys/malloc.h>
 #include <sys/mount.h>
 #include <sys/mutex.h>
@@ -59,6 +58,8 @@ __FBSDID("$FreeBSD$");
 #include <compat/svr4/svr4_proto.h>
 #include <compat/svr4/svr4_util.h>
 #include <compat/svr4/svr4_fcntl.h>
+
+#include <security/mac/mac_framework.h>
 
 static int svr4_to_bsd_flags(int);
 static u_long svr4_to_bsd_cmd(u_long);

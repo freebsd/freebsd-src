@@ -45,7 +45,6 @@
 #include <sys/conf.h>
 #include <sys/extattr.h>
 #include <sys/kernel.h>
-#include <sys/mac.h>
 #include <sys/malloc.h>
 #include <sys/mman.h>
 #include <sys/mount.h>
@@ -79,6 +78,7 @@
 
 #include <sys/mac_policy.h>
 
+#include <security/mac/mac_framework.h>
 #include <security/mac_lomac/mac_lomac.h>
 
 struct mac_lomac_proc {

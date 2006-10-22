@@ -36,7 +36,6 @@
 
 #include <sys/param.h>
 #include <sys/systm.h>
-#include <sys/mac.h>
 #include <sys/mbuf.h>
 /* #include <sys/malloc.h> */
 #include <sys/domain.h>
@@ -65,6 +64,8 @@
 #include <machine/in_cksum.h>
 
 #include <sys/socketvar.h>
+
+#include <security/mac/mac_framework.h>
 
 static int	ip_dosourceroute = 0;
 SYSCTL_INT(_net_inet_ip, IPCTL_SOURCEROUTE, sourceroute, CTLFLAG_RW,

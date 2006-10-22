@@ -71,10 +71,11 @@ __FBSDID("$FreeBSD$");
 #include <sys/systm.h>
 #include <sys/kernel.h>
 #include <sys/lock.h>
-#include <sys/mac.h>
 #include <sys/malloc.h>
 #include <sys/mbuf.h>
 #include <sys/mutex.h>
+
+#include <security/mac/mac_framework.h>
 
 static MALLOC_DEFINE(M_PACKET_TAGS, MBUF_TAG_MEM_NAME,
     "packet-attached information");

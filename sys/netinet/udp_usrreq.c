@@ -42,7 +42,6 @@
 #include <sys/jail.h>
 #include <sys/kernel.h>
 #include <sys/lock.h>
-#include <sys/mac.h>
 #include <sys/malloc.h>
 #include <sys/mbuf.h>
 #include <sys/proc.h>
@@ -86,6 +85,8 @@
 #endif /*IPSEC*/
 
 #include <machine/in_cksum.h>
+
+#include <security/mac/mac_framework.h>
 
 /*
  * UDP protocol implementation.

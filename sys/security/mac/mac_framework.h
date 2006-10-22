@@ -1,7 +1,7 @@
 /*-
  * Copyright (c) 1999-2002 Robert N. M. Watson
  * Copyright (c) 2001-2005 Networks Associates Technology, Inc.
- * Copyright (c) 2005 SPARTA, Inc.
+ * Copyright (c) 2005-2006 SPARTA, Inc.
  * All rights reserved.
  *
  * This software was developed by Robert Watson for the TrustedBSD Project.
@@ -37,91 +37,33 @@
  *
  * $FreeBSD$
  */
+
 /*
- * Userland/kernel interface for Mandatory Access Control.
- *
- * The POSIX.1e implementation page may be reached at:
- * http://www.trustedbsd.org/
+ * Kernel interface for Mandatory Access Control -- how kernel services
+ * interact with the TrustedBSD MAC Framework.
  */
 
-#ifndef _SYS_MAC_H_
-#define	_SYS_MAC_H_
+#ifndef _SYS_SECURITY_MAC_MAC_FRAMEWORK_H_
+#define	_SYS_SECURITY_MAC_MAC_MAC_FRAMEWORK_H_
+
+#ifndef _KERNEL
+#error "no user-serviceable parts inside"
+#endif
 
 #include <sys/_label.h>
 
-#ifndef _POSIX_MAC
-#define	_POSIX_MAC
-#endif
-
-/*
- * MAC framework-related constants and limits.
- */
-#define	MAC_MAX_POLICY_NAME		32
-#define	MAC_MAX_LABEL_ELEMENT_NAME	32
-#define	MAC_MAX_LABEL_ELEMENT_DATA	4096
-#define	MAC_MAX_LABEL_BUF_LEN		8192
-
-struct mac {
-	size_t		 m_buflen;
-	char		*m_string;
-};
-
-typedef struct mac	*mac_t;
-
-#ifndef _KERNEL
-
-/*
- * Location of the userland MAC framework configuration file.  mac.conf
- * binds policy names to shared libraries that understand those policies,
- * as well as setting defaults for MAC-aware applications.
- */
-#define	MAC_CONFFILE	"/etc/mac.conf"
-
-/*
- * Extended non-POSIX.1e interfaces that offer additional services
- * available from the userland and kernel MAC frameworks.
- */
-__BEGIN_DECLS
-int	 mac_execve(char *fname, char **argv, char **envv, mac_t _label);
-int	 mac_free(mac_t _label);
-int	 mac_from_text(mac_t *_label, const char *_text);
-int	 mac_get_fd(int _fd, mac_t _label);
-int	 mac_get_file(const char *_path, mac_t _label);
-int	 mac_get_link(const char *_path, mac_t _label);
-int	 mac_get_peer(int _fd, mac_t _label);
-int	 mac_get_pid(pid_t _pid, mac_t _label);
-int	 mac_get_proc(mac_t _label);
-int	 mac_is_present(const char *_policyname);
-int	 mac_prepare(mac_t *_label, const char *_elements);
-int	 mac_prepare_file_label(mac_t *_label);
-int	 mac_prepare_ifnet_label(mac_t *_label);
-int	 mac_prepare_process_label(mac_t *_label);
-int	 mac_prepare_type(mac_t *_label, const char *_type);
-int	 mac_set_fd(int _fildes, const mac_t _label);
-int	 mac_set_file(const char *_path, mac_t _label);
-int	 mac_set_link(const char *_path, mac_t _label);
-int	 mac_set_proc(const mac_t _label);
-int	 mac_syscall(const char *_policyname, int _call, void *_arg);
-int	 mac_to_text(mac_t mac, char **_text);
-__END_DECLS
-
-#else /* _KERNEL */
-
-/*
- * Kernel functions to manage and evaluate labels.
- */
 struct bpf_d;
 struct cdev;
 struct componentname;
 struct devfs_dirent;
 struct ifnet;
 struct ifreq;
-struct inpcb;
 struct image_params;
 struct inpcb;
 struct ipq;
 struct ksem;
 struct m_tag;
+struct mac;
 struct mbuf;
 struct mount;
 struct msg;
@@ -140,14 +82,14 @@ struct ucred;
 struct uio;
 struct vattr;
 struct vnode;
+struct vop_setlabel_args;
 
 #include <sys/acl.h>			/* XXX acl_type_t */
 
-struct vop_setlabel_args;
-
 /*
- * Label operations.
+ * Kernel functions to manage and evaluate labels.
  */
+
 void	mac_init_bpfdesc(struct bpf_d *);
 void	mac_init_cred(struct ucred *);
 void	mac_init_devfsdirent(struct devfs_dirent *);
@@ -472,6 +414,4 @@ void	mac_associate_nfsd_label(struct ucred *cred);
  */
 int	vop_stdsetlabel_ea(struct vop_setlabel_args *ap);
 
-#endif /* !_KERNEL */
-
-#endif /* !_SYS_MAC_H_ */
+#endif /* !_SYS_SECURITY_MAC_MAC_FRAMEWORK_H_ */

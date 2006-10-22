@@ -79,7 +79,6 @@
 #include <sys/kernel.h>
 #include <sys/time.h>
 #ifdef __FreeBSD__
-#include <sys/mac.h>
 #include <sys/sysctl.h>
 #include <sys/endian.h>
 #else
@@ -132,6 +131,7 @@
 #include <machine/in_cksum.h>
 #include <sys/limits.h>
 #include <sys/ucred.h>
+#include <security/mac/mac_framework.h>
 
 extern int ip_optcopy(struct ip *, struct ip *);
 #endif

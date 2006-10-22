@@ -41,13 +41,14 @@ __FBSDID("$FreeBSD$");
 #include <sys/kernel.h>
 #include <sys/limits.h>
 #include <sys/lock.h>
-#include <sys/mac.h>
 #include <sys/malloc.h>
 #include <sys/mbuf.h>
 #include <sys/sysctl.h>
 #include <sys/domain.h>
 #include <sys/protosw.h>
 #include <sys/uio.h>
+
+#include <security/mac/mac_framework.h>
 
 int	max_linkhdr;
 int	max_protohdr;

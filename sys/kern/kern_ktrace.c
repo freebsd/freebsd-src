@@ -44,7 +44,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/kthread.h>
 #include <sys/lock.h>
 #include <sys/mutex.h>
-#include <sys/mac.h>
 #include <sys/malloc.h>
 #include <sys/mount.h>
 #include <sys/namei.h>
@@ -56,6 +55,8 @@ __FBSDID("$FreeBSD$");
 #include <sys/sysctl.h>
 #include <sys/syslog.h>
 #include <sys/sysproto.h>
+
+#include <security/mac/mac_framework.h>
 
 /*
  * The ktrace facility allows the tracing of certain key events in user space

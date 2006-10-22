@@ -48,7 +48,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/proc.h>
 #include <sys/limits.h>
 #include <sys/lock.h>
-#include <sys/mac.h>
 #include <sys/mount.h>
 #include <sys/mutex.h>
 #include <sys/namei.h>
@@ -61,6 +60,8 @@ __FBSDID("$FreeBSD$");
 #include <sys/conf.h>
 #include <sys/syslog.h>
 #include <sys/unistd.h>
+
+#include <security/mac/mac_framework.h>
 
 static fo_rdwr_t	vn_read;
 static fo_rdwr_t	vn_write;

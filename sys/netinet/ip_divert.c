@@ -45,7 +45,6 @@
 #include <sys/kernel.h>
 #include <sys/lock.h>
 #include <sys/malloc.h>
-#include <sys/mac.h>
 #include <sys/mbuf.h>
 #include <sys/module.h>
 #include <sys/kernel.h>
@@ -71,6 +70,8 @@
 #include <netinet/ip_divert.h>
 #include <netinet/ip_var.h>
 #include <netinet/ip_fw.h>
+
+#include <security/mac/mac_framework.h>
 
 /*
  * Divert sockets

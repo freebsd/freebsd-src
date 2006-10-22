@@ -25,7 +25,6 @@
 #include <sys/param.h>
 #include <sys/proc.h>
 #include <sys/systm.h>
-#include <sys/mac.h>
 #include <sys/mbuf.h>
 #include <sys/module.h>
 #include <sys/socket.h>
@@ -55,6 +54,8 @@
 #include <net/if_tun.h>
 
 #include <sys/queue.h>
+
+#include <security/mac/mac_framework.h>
 
 /*
  * tun_list is protected by global tunmtx.  Other mutable fields are

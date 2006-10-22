@@ -41,6 +41,7 @@ __FBSDID("$FreeBSD$");
 
 #include <vm/uma.h>
 
+#include <security/mac/mac_framework.h>
 #include <security/mac/mac_internal.h>
 
 uma_zone_t	zone_label;

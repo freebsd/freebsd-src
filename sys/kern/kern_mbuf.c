@@ -32,7 +32,6 @@ __FBSDID("$FreeBSD$");
 #include "opt_param.h"
 
 #include <sys/param.h>
-#include <sys/mac.h>
 #include <sys/malloc.h>
 #include <sys/systm.h>
 #include <sys/mbuf.h>
@@ -42,6 +41,8 @@ __FBSDID("$FreeBSD$");
 #include <sys/protosw.h>
 #include <sys/smp.h>
 #include <sys/sysctl.h>
+
+#include <security/mac/mac_framework.h>
 
 #include <vm/vm.h>
 #include <vm/vm_page.h>

@@ -36,7 +36,6 @@
 
 #include <sys/param.h>
 #include <sys/systm.h>
-#include <sys/mac.h>
 #include <sys/malloc.h>
 #include <sys/mbuf.h>
 #include <sys/domain.h>
@@ -79,6 +78,8 @@
 #include <netipsec/ipsec.h>
 #include <netipsec/key.h>
 #endif /* FAST_IPSEC */
+
+#include <security/mac/mac_framework.h>
 
 /*
  * These configure the range of local port addresses assigned to

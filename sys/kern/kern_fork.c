@@ -59,7 +59,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/vmmeter.h>
 #include <sys/vnode.h>
 #include <sys/acct.h>
-#include <sys/mac.h>
 #include <sys/ktr.h>
 #include <sys/ktrace.h>
 #include <sys/unistd.h>	
@@ -67,6 +66,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/signalvar.h>
 
 #include <security/audit/audit.h>
+#include <security/mac/mac_framework.h>
 
 #include <vm/vm.h>
 #include <vm/pmap.h>

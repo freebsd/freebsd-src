@@ -45,7 +45,6 @@
 #include <sys/queue.h>
 #include <sys/sysctl.h>
 #include <sys/systm.h>
-#include <sys/mac.h>
 #include <sys/mbuf.h>
 #include <sys/malloc.h>
 #include <sys/socket.h>
@@ -69,6 +68,8 @@
 #ifdef DEV_CARP
 #include <netinet/ip_carp.h>
 #endif
+
+#include <security/mac/mac_framework.h>
 
 #define SIN(s) ((struct sockaddr_in *)s)
 #define SDL(s) ((struct sockaddr_dl *)s)
