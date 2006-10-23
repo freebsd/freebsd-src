@@ -58,8 +58,6 @@ option 		OFWCONS_POLL_HZ=4 # 20 or more works best on Ultra2
 # Devices we don't want to deal with
 
 nodevice	aha
-nodevice	atkbd
-nodevice	atkbdc
 nodevice	bktr
 nodevice	blank_saver
 nodevice	bt
@@ -71,22 +69,17 @@ nodevice	ex
 nodevice	fade_saver
 nodevice	fdc
 nodevice	fire_saver
-nodevice	gpib
 nodevice	green_saver
 nodevice	hwpmc
-nodevice	isa
 nodevice	logo_saver
 nodevice	pcii
 nodevice	ppc
-nodevice	psm
 nodevice	rain_saver
 nodevice	sc
 nodevice	si
-nodevice	sio
 nodevice	snake_saver
 nodevice	snd_ad1816
 nodevice	snd_als4000
-nodevice	snd_au88x0
 nodevice	snd_cmi
 nodevice	snd_cs4281
 nodevice	snd_csa
@@ -109,12 +102,10 @@ nodevice	snd_uaudio
 nodevice	snd_via8233
 nodevice	snd_via82c686
 nodevice	snd_vibes
-nodevice	splash
 nodevice	star_saver
 nodevice	tnt4882
 nodevice	uart
 nodevice	ukbd
-nodevice	vga
 nodevice	warp_saver
 nodevice	wds
 
@@ -123,9 +114,6 @@ nodevice	wds
 # Options we don't want to deal with
 
 nooption	FDC_DEBUG
-nooption	COM_ESP
-nooption	CONSPEED
-nooption	VGA_DEBUG
 nooption	SC_RENDER_DEBUG
 nooption	SC_DEBUG_LEVEL
 nooption	PPC_DEBUG
@@ -138,12 +126,6 @@ nooption	SC_NORM_REV_ATTR
 nooption	SC_NORM_ATTR
 nooption	SC_DFLT_FONT
 nooption	SC_ALT_MOUSE_IMAGE
-nooption	VGA_WIDTH90
-nooption	VGA_SLOW_IOACCESS
-nooption	VGA_ALT_SEQACCESS
-nooption	PSM_RESETAFTERSUSPEND
-nooption	PSM_HOOKRESUME
-nooption	ATKBD_DFLT_KEYMAP
 nooption	EXT2FS
 
 
@@ -151,4 +133,3 @@ nooption	EXT2FS
 # Make options we don't want to deal with
 
 nomakeoption	SC_DFLT_FONT
-nomakeoption	ATKBD_DFLT_KEYMAP
