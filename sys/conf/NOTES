@@ -1232,6 +1232,19 @@ options 	KBD_INSTALL_CDEV	# install a CDEV entry in /dev
 
 options 	FB_DEBUG		# Frame buffer debugging
 
+# Various screen savers.
+device		blank_saver
+device		daemon_saver
+device		dragon_saver
+device		fade_saver
+device		fire_saver
+device		green_saver
+device		logo_saver
+device		rain_saver
+device		snake_saver
+device		star_saver
+device		warp_saver
+
 # The syscons console driver (SCO color console compatible).
 device		sc
 hint.sc.0.at="isa"
