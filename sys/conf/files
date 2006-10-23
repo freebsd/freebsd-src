@@ -966,8 +966,15 @@ dev/syscons/green/green_saver.c	optional green_saver
 dev/syscons/logo/logo.c		optional logo_saver
 dev/syscons/logo/logo_saver.c	optional logo_saver
 dev/syscons/rain/rain_saver.c	optional rain_saver
+dev/syscons/schistory.c		optional sc
+dev/syscons/scmouse.c		optional sc
+dev/syscons/scterm-dumb.c	optional sc
+dev/syscons/scterm.c		optional sc
+dev/syscons/scvidctl.c		optional sc
 dev/syscons/snake/snake_saver.c	optional snake_saver
 dev/syscons/star/star_saver.c	optional star_saver
+dev/syscons/syscons.c		optional sc
+dev/syscons/sysmouse.c		optional sc
 dev/syscons/warp/warp_saver.c	optional warp_saver
 dev/tdfx/tdfx_linux.c		optional tdfx_linux tdfx compat_linux
 dev/tdfx/tdfx_pci.c		optional tdfx pci

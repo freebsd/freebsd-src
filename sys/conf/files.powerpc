@@ -29,15 +29,8 @@ dev/fb/fb.c			optional	sc
 dev/hwpmc/hwpmc_powerpc.c	optional	hwpmc
 dev/kbd/kbd.c			optional	sc
 dev/syscons/scgfbrndr.c		optional	sc
-dev/syscons/schistory.c		optional	sc
-dev/syscons/scmouse.c		optional	sc
-dev/syscons/scterm.c		optional	sc
-dev/syscons/scterm-dumb.c	optional	sc
 dev/syscons/scterm-sc.c		optional	sc
-dev/syscons/scvidctl.c		optional	sc
 dev/syscons/scvtb.c		optional	sc
-dev/syscons/syscons.c		optional	sc
-dev/syscons/sysmouse.c		optional	sc
 dev/uart/uart_cpu_powerpc.c	optional	uart
 geom/geom_apple.c		standard
 kern/syscalls.c			optional	ktr
