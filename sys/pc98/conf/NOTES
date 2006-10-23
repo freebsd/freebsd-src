@@ -811,7 +811,6 @@ nooption	DPT_LOST_IRQ
 nooption	DPT_RESET_HBA
 nooption	DPT_TIMEOUT_FACTOR
 nooption	AAC_DEBUG
-nooption	ACPI_MAX_THREADS
 
 
 #####################################################################
