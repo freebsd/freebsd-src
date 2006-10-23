@@ -42,7 +42,6 @@ dev/esp/esp_sbus.c		optional	esp sbus
 dev/fb/creator.c		optional	creator sc
 dev/fb/fb.c			optional	sc
 dev/fb/machfb.c			optional	machfb sc
-dev/fb/splash.c			optional	splash
 dev/hwpmc/hwpmc_sparc64.c	optional	hwpmc
 dev/kbd/kbd.c			optional	atkbd | sc | ukbd
 dev/le/if_le_ledma.c		optional	le sbus

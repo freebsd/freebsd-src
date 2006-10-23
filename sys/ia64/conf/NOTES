@@ -101,8 +101,6 @@ options 	VGA_WIDTH90		# support 90 column modes
 # Debugging.
 options 	VGA_DEBUG
 
-device		splash			# Splash screen and screen saver support
-
 # The following devices are not supported.
 nodevice	fdc
 nooption	FDC_DEBUG
