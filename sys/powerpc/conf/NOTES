@@ -29,6 +29,7 @@ device		ofwd		# Open Firmware disks
 
 nodevice	fdc
 nodevice	ppc
+nodevice	splash
 # when splash works enable *_saver
 nodevice	blank_saver
 nodevice	daemon_saver

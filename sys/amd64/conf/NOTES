@@ -257,8 +257,6 @@ options 	VGA_WIDTH90		# support 90 column modes
 # Debugging.
 options 	VGA_DEBUG
 
-device		splash			# Splash screen and screen saver support
-
 # 3Dfx Voodoo Graphics, Voodoo II /dev/3dfx CDEV support.  This will create
 # the /dev/3dfx0 device to work with glide implementations.  This should get
 # linked to /dev/3dfx and /dev/voodoo.  Note that this is not the same as

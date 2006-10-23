@@ -1232,6 +1232,8 @@ options 	KBD_INSTALL_CDEV	# install a CDEV entry in /dev
 
 options 	FB_DEBUG		# Frame buffer debugging
 
+device		splash			# Splash screen and screen saver support
+
 # Various screen savers.
 device		blank_saver
 device		daemon_saver

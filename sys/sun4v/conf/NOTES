@@ -102,6 +102,7 @@ nodevice	snd_uaudio
 nodevice	snd_via8233
 nodevice	snd_via82c686
 nodevice	snd_vibes
+nodevice	splash
 nodevice	star_saver
 nodevice	tnt4882
 nodevice	uart
