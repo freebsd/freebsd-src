@@ -71,10 +71,6 @@ device		atkbd
 hint.atkbd.0.at="atkbdc"
 hint.atkbd.0.irq="1"
 
-# Options for atkbd:
-options 	ATKBD_DFLT_KEYMAP	# specify the built-in keymap
-makeoptions	ATKBD_DFLT_KEYMAP=jp.106
-
 # `flags' for atkbd:
 #       0x01    Force detection of keyboard, else we always assume a keyboard
 #       0x02    Don't reset keyboard, useful for some newer ThinkPads
@@ -96,7 +92,6 @@ nodevice	fdc
 nodevice	ppc
 nodevice	snd_ad1816
 nodevice	snd_als4000
-nodevice	snd_au88x0
 nodevice	snd_cmi
 nodevice	snd_cs4281
 nodevice	snd_csa
@@ -142,7 +137,6 @@ nooption	SC_NORM_REV_ATTR
 nooption	SC_NORM_ATTR
 nooption	SC_DFLT_FONT
 nooption	SC_ALT_MOUSE_IMAGE
-nooption	ATKBD_DFLT_KEYMAP
 nooption	EXT2FS
 
 
@@ -150,4 +144,3 @@ nooption	EXT2FS
 # Make options we don't want to deal with
 
 nomakeoption	SC_DFLT_FONT
-nomakeoption	ATKBD_DFLT_KEYMAP

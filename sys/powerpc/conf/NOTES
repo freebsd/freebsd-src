@@ -27,14 +27,9 @@ device		ofwd		# Open Firmware disks
 #####################################################################
 # Devices we don't want to deal with
 
-nodevice	atkbdc
-nodevice	atkbd
-nodevice	psm
-nodevice	vga
 nodevice	fdc
 nodevice	ppc
 # when splash works enable *_saver
-nodevice	splash
 nodevice	blank_saver
 nodevice	daemon_saver
 nodevice	dragon_saver
@@ -49,8 +44,6 @@ nodevice	warp_saver
 nodevice	daemon_saver
 nodevice	star_saver
 nodevice	snake_saver
-# needs outsw use fixed
-nodevice	cs
 # isa
 nodevice	pcii
 nodevice	tnt4882
@@ -64,13 +57,6 @@ nodevice	dcons_crom
 
 nooption 	SMP
 nooption 	GDB
-nooption	VGA_DEBUG
-nooption	VGA_WIDTH90
-nooption	VGA_SLOW_IOACCESS
-nooption	VGA_ALT_SEQACCESS
 nooption	PPC_DEBUG
 nooption	PPC_PROBE_CHIPSET
-nooption	PSM_RESETAFTERSUSPEND
-nooption	PSM_HOOKRESUME
-nooption	ATKBD_DFLT_KEYMAP
 nooption 	UKBD_DFLT_KEYMAP
