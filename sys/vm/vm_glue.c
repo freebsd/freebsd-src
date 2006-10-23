@@ -272,8 +272,8 @@ vm_imgact_hold_page(vm_object_t object, vm_ooffset_t offset)
 	}
 	vm_page_lock_queues();
 	vm_page_hold(m);
-	vm_page_wakeup(m);
 	vm_page_unlock_queues();
+	vm_page_wakeup(m);
 out:
 	VM_OBJECT_UNLOCK(object);
 	return (m);
@@ -456,8 +456,8 @@ vm_thread_swapin(struct thread *td)
 		ma[i] = m;
 		vm_page_lock_queues();
 		vm_page_wire(m);
-		vm_page_wakeup(m);
 		vm_page_unlock_queues();
+		vm_page_wakeup(m);
 	}
 	VM_OBJECT_UNLOCK(ksobj);
 	pmap_qenter(td->td_kstack, ma, pages);

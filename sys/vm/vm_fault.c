@@ -133,8 +133,8 @@ struct faultstate {
 static inline void
 release_page(struct faultstate *fs)
 {
-	vm_page_lock_queues();
 	vm_page_wakeup(fs->m);
+	vm_page_lock_queues();
 	vm_page_deactivate(fs->m);
 	vm_page_unlock_queues();
 	fs->m = NULL;
@@ -914,8 +914,8 @@ readrest:
 	} else {
 		vm_page_activate(fs.m);
 	}
-	vm_page_wakeup(fs.m);
 	vm_page_unlock_queues();
+	vm_page_wakeup(fs.m);
 
 	/*
 	 * Unlock everything, and return
@@ -1198,8 +1198,8 @@ vm_fault_copy_entry(dst_map, src_map, dst_entry, src_entry)
 		 * Mark it no longer busy, and put it on the active list.
 		 */
 		vm_page_activate(dst_m);
-		vm_page_wakeup(dst_m);
 		vm_page_unlock_queues();
+		vm_page_wakeup(dst_m);
 	}
 	VM_OBJECT_UNLOCK(dst_object);
 }
