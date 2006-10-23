@@ -403,8 +403,8 @@ retry:
 		pmap_enter(kernel_pmap, addr + i, m, VM_PROT_ALL, 1);
 		vm_page_lock_queues();
 		vm_page_flag_set(m, PG_WRITEABLE | PG_REFERENCED);
-		vm_page_wakeup(m);
 		vm_page_unlock_queues();
+		vm_page_wakeup(m);
 	}
 	VM_OBJECT_UNLOCK(kmem_object);
 	vm_map_unlock(map);
