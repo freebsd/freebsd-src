@@ -1911,7 +1911,12 @@ do_mount(struct exportlist *ep, struct grouplist *grp, int exflags,
 		iov[5].iov_base = fsb->f_mntfromname; /* "from" */
 		iov[5].iov_len = strlen(fsb->f_mntfromname) + 1;
 
-		while (nmount(iov, iovlen, fsb->f_flags) < 0) {
+		/*
+		 * Remount the filesystem, but chop off the MNT_ROOTFS flag
+		 * as it is used internally (and will result in an error if
+		 * specified)
+		 */
+		while (nmount(iov, iovlen, fsb->f_flags & ~MNT_ROOTFS) < 0) {
 			if (cp)
 				*cp-- = savedc;
 			else
