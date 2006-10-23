@@ -71,6 +71,10 @@ device		atkbd
 hint.atkbd.0.at="atkbdc"
 hint.atkbd.0.irq="1"
 
+# Options for atkbd:
+options 	ATKBD_DFLT_KEYMAP	# specify the built-in keymap
+makeoptions	ATKBD_DFLT_KEYMAP=jp.106
+
 # `flags' for atkbd:
 #       0x01    Force detection of keyboard, else we always assume a keyboard
 #       0x02    Don't reset keyboard, useful for some newer ThinkPads
