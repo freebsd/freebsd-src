@@ -56,26 +56,6 @@ _select(int numfds, fd_set * readfds, fd_set * writefds, fd_set * exceptfds,
 	if (numfds > _thread_dtablesize) {
 		numfds = _thread_dtablesize;
 	}
-	/* Check if a timeout was specified: */
-	if (timeout) {
-		if (timeout->tv_sec < 0 ||
-			timeout->tv_usec < 0 || timeout->tv_usec >= 1000000) {
-			errno = EINVAL;
-			return (-1);
-		}
-
-		/* Convert the timeval to a timespec: */
-		TIMEVAL_TO_TIMESPEC(timeout, &ts);
-
-		/* Set the wake up time: */
-		_thread_kern_set_timeout(&ts);
-		if (ts.tv_sec == 0 && ts.tv_nsec == 0)
-			f_wait = 0;
-	} else {
-		/* Wait for ever: */
-		_thread_kern_set_timeout(NULL);
-	}
-
 	/* Count the number of file descriptors to be polled: */
 	if (readfds || writefds || exceptfds) {
 		for (i = 0; i < numfds; i++) {
@@ -109,6 +89,26 @@ _select(int numfds, fd_set * readfds, fd_set * writefds, fd_set * exceptfds,
 			curthread->poll_data.nfds = MAX(128, fd_count);
 		}
 	}
+	/* Check if a timeout was specified: */
+	if (timeout) {
+		if (timeout->tv_sec < 0 ||
+			timeout->tv_usec < 0 || timeout->tv_usec >= 1000000) {
+			errno = EINVAL;
+			return (-1);
+		}
+
+		/* Convert the timeval to a timespec: */
+		TIMEVAL_TO_TIMESPEC(timeout, &ts);
+
+		/* Set the wake up time: */
+		_thread_kern_set_timeout(&ts);
+		if (ts.tv_sec == 0 && ts.tv_nsec == 0)
+			f_wait = 0;
+	} else {
+		/* Wait for ever: */
+		_thread_kern_set_timeout(NULL);
+	}
+
 	if (ret == 0) {
 		/* Setup the wait data. */
 		data.fds = curthread->poll_data.fds;

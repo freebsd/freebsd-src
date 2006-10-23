@@ -52,7 +52,7 @@ static void	thread_sigframe_add(struct pthread *thread, int sig,
 static void	thread_sigframe_save(struct pthread *thread,
 		    struct pthread_signal_frame *psf);
 static void	thread_sig_invoke_handler(int sig, siginfo_t *info,
-		    ucontext_t *ucp);
+		    ucontext_t *ucp, int unblock);
 
 /*#define DEBUG_SIGNAL*/
 #ifdef DEBUG_SIGNAL
@@ -76,6 +76,7 @@ _thread_sig_handler(int sig, siginfo_t *info, ucontext_t *ucp)
 	struct pthread	*pthread, *pthread_h;
 	int		in_sched = _thread_kern_in_sched;
 	char		c;
+	sigset_t        sigset;
 
 	if (ucp == NULL)
 		PANIC("Thread signal handler received null context");
@@ -125,7 +126,14 @@ _thread_sig_handler(int sig, siginfo_t *info, ucontext_t *ucp)
 		 * be ready to read when this signal handler returns.
 		 */
 		if (_queue_signals != 0) {
-			__sys_write(_thread_kern_pipe[1], &c, 1);
+			ssize_t wgot;
+			do {
+				wgot = __sys_write(_thread_kern_pipe[1], &c,
+						   1);
+			} while (wgot < 0 && errno == EINTR);
+			if (wgot < 0 && errno != EAGAIN) {
+				PANIC("Failed to queue signal");
+			}
 			DBG_MSG("Got signal %d, queueing to kernel pipe\n", sig);
 		}
 		if (_thread_sigq[sig - 1].blocked == 0) {
@@ -198,15 +206,8 @@ _thread_sig_handler(int sig, siginfo_t *info, ucontext_t *ucp)
 		if ((pthread = thread_sig_find(sig)) == NULL)
 			DBG_MSG("No thread to handle signal %d\n", sig);
 		else if (pthread == curthread) {
-			/*
-			 * Unblock the signal and restore the process signal
-			 * mask in case we don't return from the handler:
-			 */
-			_thread_sigq[sig - 1].blocked = 0;
-			__sys_sigprocmask(SIG_SETMASK, &_process_sigmask, NULL);
-
 			/* Call the signal handler for the current thread: */
-			thread_sig_invoke_handler(sig, info, ucp);
+			thread_sig_invoke_handler(sig, info, ucp, 2);
 
 			/*
 			 * Set the process signal mask in the context; it
@@ -214,6 +215,16 @@ _thread_sig_handler(int sig, siginfo_t *info, ucontext_t *ucp)
  			 */
 			ucp->uc_sigmask = _process_sigmask;
  
+			/*
+			 * The signal mask was restored; check for any
+			 * pending signals: 
+			 */
+			sigset = curthread->sigpend;
+			SIGSETOR(sigset, _process_sigpending);
+			SIGSETNAND(sigset, curthread->sigmask);
+			if (SIGNOTEMPTY(sigset))
+				curthread->check_pending = 1;
+
 			/* Resume the interrupted thread: */
 			sigreturn(ucp);
 		} else {
@@ -250,7 +261,8 @@ _thread_sig_handler(int sig, siginfo_t *info, ucontext_t *ucp)
 }
 
 static void
-thread_sig_invoke_handler(int sig, siginfo_t *info, ucontext_t *ucp)
+thread_sig_invoke_handler(int sig, siginfo_t *info, ucontext_t *ucp,
+			  int unblock)
  {
 	struct pthread	*curthread = _get_curthread();
 	void (*sigfunc)(int, siginfo_t *, void *);
@@ -270,6 +282,17 @@ thread_sig_invoke_handler(int sig, siginfo_t *info, ucontext_t *ucp)
 	SIGSETOR(curthread->sigmask, _thread_sigact[sig - 1].sa_mask);
 	sigaddset(&curthread->sigmask, sig);
  
+	if (unblock > 0) {
+		/*
+		 * Unblock the signal and restore the process signal
+		 * mask in case we don't return from the handler:
+		 */
+		_thread_sigq[sig - 1].blocked = 0;
+		if (unblock > 1)
+			__sys_sigprocmask(SIG_SETMASK, &_process_sigmask,
+					  NULL);
+	}
+
 	/*
 	 * Check that a custom handler is installed and if
 	 * the signal is not blocked:
@@ -936,7 +959,7 @@ _thread_sig_send(struct pthread *pthread, int sig)
 			sigaddset(&pthread->sigpend, sig);
 		else if (pthread == curthread)
 			/* Call the signal handler for the current thread: */
-			thread_sig_invoke_handler(sig, NULL, NULL);
+			thread_sig_invoke_handler(sig, NULL, NULL, 0);
 		else {
 			/* Protect the scheduling queues: */
 			_thread_kern_sig_defer();
@@ -1008,9 +1031,6 @@ _thread_sig_wrapper(void)
 		}
 	}
 
-	/* Unblock the signal in case we don't return from the handler: */
-	_thread_sigq[psf->signo - 1].blocked = 0;
-
 	/*
 	 * Lower the priority before calling the handler in case
 	 * it never returns (longjmps back):
@@ -1027,9 +1047,10 @@ _thread_sig_wrapper(void)
 	 * Dispatch the signal via the custom signal handler:
 	 */
 	if (psf->sig_has_args == 0)
-		thread_sig_invoke_handler(psf->signo, NULL, NULL);
+		thread_sig_invoke_handler(psf->signo, NULL, NULL, 1);
 	else
-		thread_sig_invoke_handler(psf->signo, &psf->siginfo, &psf->uc);
+		thread_sig_invoke_handler(psf->signo, &psf->siginfo, &psf->uc,
+					  1);
 
 	/*
 	 * Call the kernel scheduler to safely restore the frame and
