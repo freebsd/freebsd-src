@@ -1,5 +1,5 @@
 # $FreeBSD$
 
-SUBDIR=at91
+SUBDIR=
 
 .include <bsd.subdir.mk>
