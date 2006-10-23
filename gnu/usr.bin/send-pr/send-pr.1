@@ -298,12 +298,14 @@ Submit small code samples with the PR.  Contact the support site for
 instructions on submitting larger test cases and problematic source
 code.
 .SH FILES
-.ta \w'/tmp/pbad$$  'u
-/tmp/p$$	copy of PR used in editing session
+.ta \w'/tmp/pbad.XXXXXXXX  'u
+/tmp/pf.XXXXXXXX	copy of PR used in editing session
 .br
-/tmp/pf$$	copy of empty PR form, for testing purposes
+/tmp/pf.XXXXXXXX	copy of empty PR form, for testing purposes
 .br
-/tmp/pbad$$	file for rejected PRs
+/tmp/pr.XXXXXXXX	copy of filled PR form, created on interrupt
+.br
+/tmp/pbad.XXXXXXXX	file for rejected PRs
 .SH EMACS USER INTERFACE
 An Emacs user interface for 
 .B send-pr
