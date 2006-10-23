@@ -785,6 +785,8 @@ installCommit(dialogMenuItem *self)
 	/* select reasonable defaults if necessary */
 	if (!Dists)
 	    Dists = _DIST_USER;
+	if (!KernelDists)
+	    KernelDists = selectKernel();
     }
 
     if (!mediaVerify())
