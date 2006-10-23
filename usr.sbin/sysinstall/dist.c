@@ -211,7 +211,7 @@ distSetX(void)
     return distSetXOrg(NULL);
 }
 
-static int
+int
 selectKernel(void)
 {
 #ifdef WITH_SMP
