@@ -1,3 +1,44 @@
+GNU cpio NEWS -- history of user-visible changes.  2004-12-20
+Copyright (C) 2003, 2004 Free Software Foundation, Inc.
+See the end of file for copying conditions.
+
+Please send cpio bug reports to <bug-cpio@gnu.org>.
+
+Version 2.6
+
+* Added NLS support
+
+* Improved configure script
+
+* Improved invocation consistency checking and help output
+
+* Printing warning about truncation of inode numbers is suppressed by
+default. See below.
+
+* New option --warning (-W) controls the level of output warnings:
+
+    -Wnone       Disables all warnings
+    -Wtruncate   Enable warning about truncation of the inode number
+    -Wall        Enables all warnings
+
+  To disable a particular warning, prefix its name with 'no-', just
+  like in gcc.
+
+* New option --to-stdout extracts files to standard output.
+
+* The output of `cpio --help' is largely improved.
+       
+* Bugfixes:
+** If a file grew n bytes in copy-pass mode, these n bytes got prepended
+to the contents of all subsequent files.
+** Padding the archive with zero bytes upon truncation of the file being
+archived was broken.
+
+
+Major changes in version 2.5:
+
+* bug fixes from Debian, Red Hat, and SuSE GNU/Linux Distribution patches
+* --rsh-command option
 
 Major changes in version 2.4:
 
@@ -62,3 +103,23 @@ Some options have changed meaning in 2.0, for SVR4 compatibility:
 
 Version 2.0 also fixes several bugs in the handling of files with
 multiple links and of multi-volume archives on floppy disks.
+
+----------------------------------------------------------------------
+Copyright information:
+
+Copyright (C) 2003, 2004 Free Software Foundation, Inc.
+
+   Permission is granted to anyone to make or distribute verbatim copies
+   of this document as received, in any medium, provided that the
+   copyright notice and this permission notice are preserved,
+   thus giving the recipient permission to redistribute in turn.
+
+   Permission is granted to distribute modified versions
+   of this document, or of portions of it,
+   under the above conditions, provided also that they
+   carry prominent notices stating who last changed them.
+
+Local variables:
+mode: outline
+paragraph-separate: "[ 	]*$"
+end:

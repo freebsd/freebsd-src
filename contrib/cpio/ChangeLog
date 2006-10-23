@@ -1,3 +1,433 @@
+2004-12-20  Sergey Poznyakoff  <gray@Mirddin.farlep.net>
+
+	Released version 2.6. Sources up to this point are tagged
+	release_2_6.
+
+	* configure.ac: Raised version number to 2.6
+	* NEWS: Likewise
+	* bootstrap (update_po): Give -r to wget. Always remove index.html
+	Ignore alloca-opt module (it duplicates alloca)
+
+2004-11-23  Sergey Poznyakoff  <gray@Mirddin.farlep.net>
+
+	* src/main.c (enum cpio_options): Bugfix: Initialize first enum
+	value to 256.
+	* bootstrap: Add unlocked-io
+	* headers/argp.h: Removed
+	* headers/getopt.h: Removed
+	* headers/Makefile.am: Updated
+
+2004-10-14  Sergey Poznyakoff  <gray@Mirddin.farlep.net>
+
+	* src/copyout.c: Add trailing slash to directory names in
+	ustar format.
+	* src/makepath.c: Removed redeclaration of error().
+	* src/tar.c: Fixed deviations from POSIX.1-1988:
+	Properly split long file names. Fill in octal fields with zeros,
+	not spaces. Save only protection modes, not the whole mode.
+	
+	* NEWS: Updated
+
+2004-09-08  Sergey Poznyakoff  <gray@Mirddin.farlep.net>
+
+	* NEWS: Updated
+	* TODO: Updated
+	* bootstrap: Install po files by default
+	* po/LINGUAS: Removed. File is generated automatically
+	* po/.cvsignore: Updated
+	* src/copyin.c: Implemented --to-stdout option
+	* src/copyout.c: Display the annoying 'truncating inode number'
+	message only if the user wishes it.
+	* src/extern.h: Added new globals.
+	* src/global.c: Likewise.
+
+	* src/main.c: Added support for --to-stdout and --warning options
+	* src/tar.c (read_in_tar_header): Use warn_junk_bytes()
+	* src/util.c (create_all_directories): Use dir_name.
+
+	* configure.ac: Added support for the test suite
+	* Makefile.am: Likewise
+
+	* tests: New directory
+	* tests/.cvsignore: New file
+	* tests/Makefile.am: New file
+	* tests/testsuite.at: New file
+	* tests/inout.at: New file
+	* tests/version.at: New file
+	* tests/atlocal.in: New file
+	
+2004-09-07  Sergey Poznyakoff  <gray@Mirddin.farlep.net>
+
+	* src/main.c (process_args): Bugfix. Allow extra arguments
+	in copy_in mode.
+	* src/util.c (write_nuls_to_file): Use buffered I/O. All
+	callers changed. Thanks Matthew Braithwaite <mab@cnet.com>
+	for noticing.
+	Bugfix: extra_bytes was mistakenly used instead of blocks.
+	* THANKS: Added Matthew Braithwaite.
+
+2004-09-06  Sergey Poznyakoff  <gray@Mirddin.farlep.net>
+
+	Started merging with tar into paxutils. Sources before
+	this point are tagged alpha-2_50_90.
+	
+	* bootstrap: New file
+	* autogen.sh: Removed
+	* Makefile.am: Updated
+	* NEWS: Updated
+	* README-alpha: Updated
+	* configure.ac: Updated
+	* doc/cpio.1: Updated
+	* po/POTFILES.in: Updated
+
+	* src/Makefile.am: Updated
+	* src/error.c: Removed
+	* src/dirname.c: Likewise
+	* src/xmalloc.c: Likewise
+	* src/stripslash.c: Likewise
+	* src/xstrdup.c
+	* src/gettext.h: Likewise
+	* src/system.h: Likewise
+	* src/rmt.h: Likewise
+	* src/getopt.c: Likewise
+	* src/getopt1.c: Likewise
+	* src/bcopy.c: Likewise
+	* src/fnmatch.c: Likewise
+	* src/mkdir.c: Likewise
+	* src/strdup.c: Likewise
+	* src/argp-ba.c: Likewise
+	* src/argp-eexst.c: Likewise
+	* src/argp-fmtstream.c: Likewise
+	* src/argp-fs-xinl.c: Likewise
+	* src/argp-help.c: Likewise
+	* src/argp-parse.c: Likewise
+	* src/argp-pv.c: Likewise
+	* src/argp-pvh.c: Likewise
+	* src/argp-xinl.c: Likewise
+	* src/pin.c: Likewise
+	* src/alloca.c: Likewise
+	* src/argmatch.c: Likewise
+	* src/rmt.c: Likewise
+	* src/rtapelib.c: Likewise
+	* src/strerror.c: Likewise
+	
+	* src/copyin.c: Switched to ANSI C (sigh)
+	* src/copyout.c: Likewise
+	* src/copypass.c: Likewise
+	* src/defer.c: Likewise
+	* src/defer.h: Likewise
+	* src/dstring.c: Likewise
+	* src/dstring.h: Likewise
+	* src/extern.h: Likewise
+	* src/filemode.c: Likewise
+	* src/global.c: Likewise
+	* src/idcache.c: Likewise
+	* src/main.c: Likewise
+	* src/makepath.c: Likewise
+	* src/mt.c: Likewise
+	* src/tar.c: Likewise
+	* src/userspec.c: Likewise
+	* src/util.c: Likewise
+
+	* lib: New directory
+	* lib/Makefile.tmpl: New file
+	* lib/bcopy.c: Moved from ../src
+	* lib/mkdir.c: Likewise.
+	* lib/strdup.c: Likewise.
+	* lib/strerror.c: Likewise.
+	
+2004-08-30  Sergey Poznyakoff  <gray@Mirddin.farlep.net>
+
+	* Makefile.am: Added headers to SUBDIRS.
+	* configure.ac: Check for AC_SYS_LARGEFILE.
+	Use AC_CONFIG_LINKS to provide for fnmatch.h and getopt.h on
+	the systems where these are missing
+	Check for argp and replace it if necessary.
+	* src/Makefile.am: Updated
+	* src/fnmatch.h: Moved to headers/
+	* src/getopt.h: Likewise.
+	* src/main.c: Option parsing rewritten using argp. Improved
+	option consistency checking.
+	* src/rmt.c: Include getopt.h
+
+	* src/argp-ba.c: New file
+	* src/argp-eexst.c: New file
+	* src/argp-fmtstream.c: New file
+	* src/argp-fs-xinl.c: New file
+	* src/argp-help.c: New file
+	* src/argp-parse.c: New file
+	* src/argp-pv.c: New file
+	* src/argp-pvh.c: New file
+	* src/argp-xinl.c: New file
+	* src/pin.c: New file
+
+	* headers: New directory
+	* headers/Makefile.am: New file
+	* headers/getopt.h: New file
+	* headers/argp.h: New file
+	* headers/fnmatch.h: New file
+	* headers/.cvsignore: New file
+	
+2004-03-02  Sergey Poznyakoff  <gray@Mirddin.farlep.net>
+
+	* src/util.c (copy_files_disk_to_disk): Bugfix. If a file
+	grew n bytes in copy-pass mode, these n bytes got prepended
+	to the contents of all subsequent files. Fix provided by
+	Holger Fleischmann <holger_fleischmann@mra.man.de>
+	* THANKS: Added Holger Fleischmann.
+
+2004-02-27  Sergey Poznyakoff  <gray@Mirddin.farlep.net>
+
+	* src/makepath.c: Remove unneded typedefs
+	
+	* src/copyin.c: Remove __MSDOS__ conditionals
+	* src/copyout.c: Likewise
+	* src/copypass.c: Likewise
+	* src/main.c: Likewise
+	* src/tar.c: Likewise
+	* src/util.c: Likewise
+	
+2004-02-27  Sergey Poznyakoff  <gray@Mirddin.farlep.net>
+	
+	Changed from flat to deep package layout. Added the framework
+	for NLS support.
+	
+	* .cvsignore: Updated
+	* Makefile.am: Updated
+	* configure.ac: Updated
+	* NEWS: Updated
+	* README-alpha: Updated
+	* THANKS: Updated
+
+	* autogen.sh: New file
+	
+	* alloca.c: Moved to src
+	* argmatch.c: Likewise
+	* bcopy.c: Likewise
+	* dstring.h: Likewise
+	* copyin.c: Likewise
+	* copyout.c: Likewise
+	* copypass.c: Likewise
+	* cpio.h: Likewise
+	* cpiohdr.h: Likewise
+	* defer.c: Likewise
+	* defer.h: Likewise
+	* dirname.c: Likewise
+	* dstring.c: Likewise
+	* dstring.h: Likewise
+        * error.c: Likewise
+        * extern.h: Likewise
+        * filemode.c: Likewise
+        * filetypes.h: Likewise
+        * fnmatch.c: Likewise
+        * fnmatch.h: Likewise
+        * getopt.c: Likewise
+        * getopt.h: Likewise
+        * getopt1.c: Likewise
+        * global.c: Likewise
+        * idcache.c: Likewise
+        * main.c: Likewise
+        * makepath.c: Likewise
+        * mkdir.c: Likewise
+        * mt.c: Likewise
+        * rmt.c: Likewise
+        * rmt.h: Likewise
+        * rtapelib.c: Likewise
+        * safe-stat.h: Likewise
+        * strdup.c: Likewise
+        * strerror.c: Likewise
+        * stripslash.c: Likewise
+        * system.h: Likewise
+	* tar.c: Likewise
+	* tar.h: Likewise
+	* tarhdr.h: Likewise
+	* userspec.c: Likewise
+	* util.c: Likewise
+	* xmalloc.c: Likewise
+	* xstrdup.c: Likewise
+
+ 	* cpio.1: Moved to doc
+	* cpio.texi: Likewise
+        * mt.1: Likewise
+
+	* src: New directory
+        * src/.cvsignore: New file
+        * src/Makefile.am: Likewise
+        * src/alloca.c: Likewise
+        * src/argmatch.c: Likewise
+        * src/bcopy.c: Likewise
+        * src/copyin.c: Likewise
+        * src/copyout.c: Likewise
+        * src/copypass.c: Likewise
+        * src/cpio.h: Likewise
+        * src/cpiohdr.h: Likewise
+        * src/defer.c: Likewise
+        * src/defer.h: Likewise
+        * src/dirname.c: Likewise
+        * src/dstring.c: Likewise
+        * src/dstring.h: Likewise
+        * src/error.c: Likewise
+        * src/extern.h: Likewise
+        * src/filemode.c: Likewise
+        * src/filetypes.h: Likewise
+        * src/fnmatch.c: Likewise
+        * src/fnmatch.h: Likewise
+        * src/getopt.c: Likewise
+        * src/getopt.h: Likewise
+        * src/getopt1.c: Likewise
+        * src/gettext.h: Likewise
+        * src/global.c: Likewise
+        * src/idcache.c: Likewise
+        * src/main.c: Likewise
+        * src/makepath.c: Likewise
+        * src/mkdir.c: Likewise
+        * src/mt.c: Likewise
+        * src/rmt.c: Likewise
+        * src/rmt.h: Likewise
+        * src/rtapelib.c: Likewise
+        * src/safe-stat.h: Likewise
+        * src/strdup.c: Likewise
+        * src/strerror.c: Likewise
+        * src/stripslash.c: Likewise
+        * src/system.h: Likewise
+        * src/tar.c: Likewise
+        * src/tar.h: Likewise
+        * src/tarhdr.h: Likewise
+        * src/userspec.c: Likewise
+        * src/util.c: Likewise
+	* src/xmalloc.c: Likewise
+	* src/xstrdup.c: Likewise
+
+	* doc: New directory
+	* doc/.cvsignore: New file
+	* doc/Makefile.am: New file
+	* doc/cpio.1: New file
+	* doc/cpio.info: New file
+	* doc/cpio.texi: New file
+	* doc/mt.1: New file
+
+	* po: New directory
+	* po/.cvsignore: New file
+	* po/LINGUAS: New file
+	* po/Makevars: New file
+	* po/POTFILES.in: New file
+	
+2003-11-28  Sergey Poznyakoff  <gray@Mirddin.farlep.net>
+
+	* configure.ac: Added various checks
+	* Makefile.am (rmt_LDADD): Added.
+	* error.c: Updated
+	* rmt.c: Removed useless private_errstring
+	* system.h: Updated
+	* userspec.c: Changed the way of handling declared vs. undeclared
+	system calls.
+	* strerror.c: New file. Borrowed from GNU Radius.
+
+	* copyin.c: Removed kludgy declaration of delayed_seek_count.
+	* copypass.c: Likewise
+	* extern.h: Declare delayed_seek_count.
+	* mkdir.c: Fixed handling of undeclared errno
+	* mt.c: Likewise
+	* util.c: Likewise
+	* rtapelib.c: Likewise
+	
+2003-11-28  Sergey Poznyakoff  <gray@Mirddin.farlep.net>
+
+	* TODO: New file
+
+	* README-alpha: New file
+	* Makefile.am: Require at least version 1.7.1
+	* configure.ac: Check for locale.h
+	* main.c (main): Call setlocale. Thanks
+	Mitsuru Chinen <mchinen@yamato.ibm.com>	for the patch.
+	* THANKS: Updated
+	
+2003-11-21  Sergey Poznyakoff  <gray@Mirddin.farlep.net>
+
+	* configure.ac: Added to the repository
+	* Makefile.am: Likewise
+	* NEWS: Likewise
+	* README: Likewise
+	* AUTHORS: Likewise
+	* .cvsignore: Likewise
+	
+	* configure.in: Removed
+	* Makefile.in: Removed
+	* makefile.pc: Removed
+	* configure: Removed
+	
+	* alloca.c: Added to the repository
+	* argmatch.c: Likewise
+	* bcopy.c: Likewise
+	* cpio.h: Likewise
+	* cpiohdr.h: Likewise
+	* defer.c: Likewise
+	* defer.h: Likewise
+	* dirname.c: Likewise
+	* dstring.c: Likewise
+	* dstring.h: Likewise
+	* error.c: Likewise
+	* filemode.c: Likewise
+	* filetypes.h: Likewise
+	* fnmatch.c: Likewise
+	* fnmatch.h: Likewise
+	* getopt.c: Likewise
+	* getopt.h: Likewise
+	* getopt1.c: Likewise
+	* idcache.c: Likewise
+	* mkdir.c: Likewise
+	* rmt.h: Likewise
+	* rtapelib.c: Likewise
+	* safe-stat.h: Likewise
+	* strdup.c: Likewise
+	* stripslash.c: Likewise
+	* tar.c: Likewise
+	* tar.h: Likewise
+	* tarhdr.h: Likewise
+	* xmalloc.c: Likewise
+	* xstrdup.c: Likewise
+	
+	* makepath.c: Updated
+	* mt.c: Likewise.
+	* rmt.c: Likewise.
+	* util.c: Likewise.
+	* copyin.c: Likewise.
+	* copyout.c: Likewise.
+	* copypass.c: Likewise.
+	* global.c: Likewise.
+	* main.c: Likewise.
+	
+Thu Jun 13 20:14:48 2002  John Oleynick  (juo@gnu.org)
+	* copyin.c:  Strip leading / on absolute filenames after
+	comparing to the list of files specified on the command line
+	(instead of before).  Problem reported by Jeff Holt.
+	* Version 2.5 released.
+
+Thu Jun 13 00:20:30 2002  John Oleynick  (juo@gnu.org)
+	* Makefile.in:  Fixed problem of looking in srcdir for info files.
+	Bug reported by Mike Castle.
+	* cpio.texi:  Fixed typo.  Problem reported by Fabrice Bauzac.
+
+Sun Jan 13 18:45:02 2002  John Oleynick  (juo@gnu.org)
+	* copyin.c:  Fixed a problem skipping files with multiple links
+	in a newc or CRC format archive.  If the file with the shared copy
+	of the data was skipped, but other links were not skipped, the
+	other links were created as empty files.  Bug reported by 
+	Hendrik-Jan Thomassen.
+
+Thu Dec  6 20:05:10 2001  John Oleynick  (juo@gnu.org)
+	* mt.c, mt.1:  Merged Debian --rsh-command option and -V fix.
+	* copyout.c, copypass.c, util.c, extern.h:  Modified to warn
+	  if a file grows or its mtime is changed while it is being
+	  copied.
+
+Wed Dec  6 00:02:04 2001  John Oleynick  (juo@gnu.org)
+	* Many files:  Updated FSF's address in copyright notices.
+
+Wed Aug 29 23:57:05 2001  John Oleynick  (juo@gnu.org)
+	* Many files:  Numerous fixes from Debian, Red Hat and SuSE
+	GNU/Linux distributions.
+
 Tue Jan 16 19:03:05 1996  John Oleynick  (juo@wombat.gnu.ai.mit.edu)
 	* util.c: An I/O error reading a file would cause the last byte
 	of the next file to be corrupted in the archive.  Thanks to a
@@ -962,7 +1392,6 @@ Sat Dec  2 13:22:37 1989  David J. MacKenzie  (djm at hobbes.ai.mit.edu)
 	(usage): Mention long options in message.
 
 Local Variables:
-mode: indented-text
-left-margin: 8
+mode: change-log
 version-control: never
 End:
