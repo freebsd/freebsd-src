@@ -57,15 +57,8 @@ dev/pcf/pcf_ebus.c		optional	pcf ebus
 dev/sound/sbus/cs4231.c		optional	snd_audiocs ebus | \
 						snd_audiocs sbus
 dev/syscons/scgfbrndr.c		optional	sc
-dev/syscons/schistory.c		optional	sc
-dev/syscons/scmouse.c		optional	sc
-dev/syscons/scterm.c		optional	sc
-dev/syscons/scterm-dumb.c	optional	sc
 dev/syscons/scterm-sc.c		optional	sc
-dev/syscons/scvidctl.c		optional	sc
 dev/syscons/scvtb.c		optional	sc
-dev/syscons/syscons.c		optional	sc
-dev/syscons/sysmouse.c		optional	sc
 dev/uart/uart_cpu_sparc64.c	optional	uart
 dev/uart/uart_kbd_sun.c		optional	uart sc
 geom/geom_bsd.c			standard

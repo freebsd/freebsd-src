@@ -58,16 +58,9 @@ dev/fb/splash.c			optional	splash
 dev/fb/vga.c			optional	vga
 dev/hwpmc/hwpmc_ia64.c		optional	hwpmc
 dev/kbd/kbd.c			optional	atkbd | sc | ukbd
-dev/syscons/schistory.c		optional	sc
-dev/syscons/scmouse.c		optional	sc
-dev/syscons/scterm-dumb.c	optional	sc
 dev/syscons/scterm-sc.c		optional	sc
-dev/syscons/scterm.c		optional	sc
 dev/syscons/scvgarndr.c		optional	sc vga
-dev/syscons/scvidctl.c		optional	sc
 dev/syscons/scvtb.c		optional	sc
-dev/syscons/syscons.c		optional	sc
-dev/syscons/sysmouse.c		optional	sc
 dev/uart/uart_cpu_ia64.c	optional	uart
 dev/acpica/acpi_if.m		standard
 ia64/acpica/OsdEnvironment.c	optional	acpi
