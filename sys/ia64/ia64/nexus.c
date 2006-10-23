@@ -75,9 +75,6 @@ static struct rman irq_rman, drq_rman, port_rman, mem_rman;
 
 static	int nexus_probe(device_t);
 static	int nexus_attach(device_t);
-static	int nexus_print_resources(struct resource_list *rl, const char *name, int type,
-				  const char *format);
-static	int nexus_print_all_resources(device_t dev);
 static	int nexus_print_child(device_t, device_t);
 static device_t nexus_add_child(device_t bus, int order, const char *name,
 				int unit);
@@ -230,58 +227,16 @@ nexus_attach(device_t dev)
 }
 
 static int
-nexus_print_resources(struct resource_list *rl, const char *name, int type,
-		      const char *format)
+nexus_print_child(device_t bus, device_t child)
 {
-	struct resource_list_entry *rle;
-	int printed, retval;
-
-	printed = 0;
-	retval = 0;
-	/* Yes, this is kinda cheating */
-	STAILQ_FOREACH(rle, rl, link) {
-		if (rle->type == type) {
-			if (printed == 0)
-				retval += printf(" %s ", name);
-			else if (printed > 0)
-				retval += printf(",");
-			printed++;
-			retval += printf(format, rle->start);
-			if (rle->count > 1) {
-				retval += printf("-");
-				retval += printf(format, rle->start +
-						 rle->count - 1);
-			}
-		}
-	}
-	return retval;
-}
-
-static int
-nexus_print_all_resources(device_t dev)
-{
-	struct	nexus_device *ndev = DEVTONX(dev);
+	struct nexus_device *ndev = DEVTONX(child);
 	struct resource_list *rl = &ndev->nx_resources;
 	int retval = 0;
 
-	if (STAILQ_FIRST(rl) || ndev->nx_pcibus != -1)
-		retval += printf(" at");
-	
-	retval += nexus_print_resources(rl, "port", SYS_RES_IOPORT, "%#lx");
-	retval += nexus_print_resources(rl, "iomem", SYS_RES_MEMORY, "%#lx");
-	retval += nexus_print_resources(rl, "irq", SYS_RES_IRQ, "%ld");
-
-	return retval;
-}
-
-static int
-nexus_print_child(device_t bus, device_t child)
-{
-	struct	nexus_device *ndev = DEVTONX(child);
-	int retval = 0;
-
 	retval += bus_print_child_header(bus, child);
-	retval += nexus_print_all_resources(child);
+	retval += resource_list_print_type(rl, "port", SYS_RES_IOPORT, "%#lx");
+	retval += resource_list_print_type(rl, "iomem", SYS_RES_MEMORY, "%#lx");
+	retval += resource_list_print_type(rl, "irq", SYS_RES_IRQ, "%ld");
 	if (ndev->nx_pcibus != -1)
 		retval += printf(" pcibus %d", ndev->nx_pcibus);
 	if (device_get_flags(child))
