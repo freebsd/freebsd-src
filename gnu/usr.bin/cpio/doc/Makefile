@@ -3,13 +3,13 @@
 
 # $FreeBSD$
 
-.PATH:	${.CURDIR}/../../../../contrib/cpio
+.PATH:	${.CURDIR}/../../../../contrib/cpio/doc
 
 INFO = cpio
 
 INFOSECTION= "Cpio Documentation"
 INFOENTRY_cpio="* CPIO: (cpio).                 Making tape (or disk) archives."
 
-SRCDIR= ${.CURDIR}/../../../../contrib/cpio
+SRCDIR= ${.CURDIR}/../../../../contrib/cpio/doc
 
 .include <bsd.info.mk>
