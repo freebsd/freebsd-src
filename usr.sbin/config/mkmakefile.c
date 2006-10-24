@@ -182,17 +182,11 @@ makefile(void)
 void
 makehints(void)
 {
-	FILE *ifp, *ofp;
+	FILE *ifp = NULL, *ofp;
 	char line[BUFSIZ];
 	char *s;
+	struct hint *hint;
 
-	if (hints) {
-		ifp = fopen(hints, "r");
-		if (ifp == NULL)
-			err(1, "%s", hints);
-	} else {
-		ifp = NULL;
-	}
 	ofp = fopen(path("hints.c.new"), "w");
 	if (ofp == NULL)
 		err(1, "%s", path("hints.c.new"));
@@ -201,7 +195,10 @@ makehints(void)
 	fprintf(ofp, "\n");
 	fprintf(ofp, "int hintmode = %d;\n", hintmode);
 	fprintf(ofp, "char static_hints[] = {\n");
-	if (ifp) {
+	STAILQ_FOREACH(hint, &hints, hint_next) {
+		ifp = fopen(hint->hint_name, "r");
+		if (ifp == NULL)
+			err(1, "%s", hint->hint_name);
 		while (fgets(line, BUFSIZ, ifp) != 0) {
 			/* zap trailing CR and/or LF */
 			while ((s = rindex(line, '\n')) != NULL)
