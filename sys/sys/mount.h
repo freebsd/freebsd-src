@@ -177,6 +177,7 @@ struct mount {
 #define	mnt_endzero2	mnt_secondary_accwrites
 	int		mnt_secondary_accwrites;/* (i) secondary wr. starts */
 	int		mnt_ref;		/* (i) Reference count */
+	int		mnt_gen;		/* struct mount generation */
 };
 
 struct vnode *__mnt_vnode_next(struct vnode **mvp, struct mount *mp);
