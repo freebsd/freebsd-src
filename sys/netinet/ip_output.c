@@ -1190,6 +1190,11 @@ ip_ctloutput(so, sopt)
 				m_free(m);
 				break;
 			}
+			if (so->so_pcb == NULL) {
+				m_free(m);
+				error = EINVAL;
+				break;
+			}
 			INP_LOCK(inp);
 			error = ip_pcbopts(inp, sopt->sopt_name, m);
 			INP_UNLOCK(inp);
@@ -1212,6 +1217,10 @@ ip_ctloutput(so, sopt)
 			if (error)
 				break;
 
+			if (so->so_pcb == NULL) {
+				error = EINVAL;
+				break;
+			}
 			switch (sopt->sopt_name) {
 			case IP_TOS:
 				inp->inp_ip_tos = optval;
@@ -1286,6 +1295,10 @@ ip_ctloutput(so, sopt)
 			if (error)
 				break;
 
+			if (so->so_pcb == NULL) {
+				error = EINVAL;
+				break;
+			}
 			INP_LOCK(inp);
 			switch (optval) {
 			case IP_PORTRANGE_DEFAULT:
@@ -1328,6 +1341,11 @@ ip_ctloutput(so, sopt)
 			req = mtod(m, caddr_t);
 			len = m->m_len;
 			optname = sopt->sopt_name;
+			if (so->so_pcb == NULL) {
+				m_free(m);
+				error = EINVAL;
+				break;
+			}
 			error = ipsec4_set_policy(inp, optname, req, len, priv);
 			m_freem(m);
 			break;
