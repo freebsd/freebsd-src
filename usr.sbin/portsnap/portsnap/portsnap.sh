@@ -1035,6 +1035,9 @@ cmd_update() {
 # Make sure we find utilities from the base system
 export PATH=/sbin:/bin:/usr/sbin:/usr/bin:${PATH}
 
+# Set LC_ALL in order to avoid problems with character ranges like [A-Z].
+export LC_ALL=C
+
 get_params $@
 for COMMAND in ${COMMANDS}; do
 	cmd_${COMMAND}
