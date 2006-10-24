@@ -182,7 +182,7 @@ makefile(void)
 void
 makehints(void)
 {
-	FILE *ifp = NULL, *ofp;
+	FILE *ifp, *ofp;
 	char line[BUFSIZ];
 	char *s;
 	struct hint *hint;
@@ -228,10 +228,9 @@ makehints(void)
 				continue;
 			fprintf(ofp, "\"%s\\0\"\n", line);
 		}
+		fclose(ifp);
 	}
 	fprintf(ofp, "\"\\0\"\n};\n");
-	if (ifp)
-		fclose(ifp);
 	fclose(ofp);
 	moveifchanged(path("hints.c.new"), path("hints.c"));
 }
