@@ -465,13 +465,13 @@ arm_ptovirt(vm_paddr_t pa)
 	vm_offset_t addr = alloc_firstaddr;
 
 	KASSERT(alloc_firstaddr != 0, ("arm_ptovirt called to early ?"));
-	for (i = 0; dump_avail[i]; i += 2) {
+	for (i = 0; dump_avail[i + 1]; i += 2) {
 		if (pa >= dump_avail[i] && pa < dump_avail[i + 1])
 			break;
 		addr += (dump_avail[i + 1] & L1_S_FRAME) + L1_S_SIZE -
 		    (dump_avail[i] & L1_S_FRAME);
 	}
-	KASSERT(dump_avail[i] != 0, ("Trying to access invalid physical address"));
+	KASSERT(dump_avail[i + 1] != 0, ("Trying to access invalid physical address"));
 	return (addr + (pa - (dump_avail[i] & L1_S_FRAME)));
 }
 
@@ -487,12 +487,12 @@ arm_init_smallalloc(void)
 	 * to be able to do a pa => va association for any address.
 	 */
 	   
-	for (i = 0; dump_avail[i]; i+= 2) {
+	for (i = 0; dump_avail[i + 1]; i+= 2) {
 		to_map += (dump_avail[i + 1] & L1_S_FRAME) + L1_S_SIZE -
 		    (dump_avail[i] & L1_S_FRAME);
 	}
 	alloc_firstaddr = mapaddr = KERNBASE - to_map;
-	for (i = 0; dump_avail[i]; i+= 2) {
+	for (i = 0; dump_avail[i + 1]; i+= 2) {
 		vm_offset_t size = (dump_avail[i + 1] & L1_S_FRAME) +
 		    L1_S_SIZE - (dump_avail[i] & L1_S_FRAME);
 		vm_offset_t did = 0;
