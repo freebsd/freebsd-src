@@ -183,6 +183,26 @@ exec_mountprog(const char *name, const char *execname, char *const argv[])
 	return (0);
 }
 
+static
+int specified_ro(const char *arg)
+{
+	char *optbuf, *opt;
+	int ret = 0;
+
+	optbuf = strdup(arg);
+	if (optbuf == NULL)
+		 err(1, NULL);
+
+	for (opt = optbuf; (opt = strtok(opt, ",")) != NULL; opt = NULL) {
+		if (strcmp(opt, "ro") == 0) {
+			ret = 1;
+			break;
+		}
+	}
+	free(optbuf);
+	return (ret);
+}
+
 int
 main(int argc, char *argv[])
 {
@@ -191,14 +211,12 @@ main(int argc, char *argv[])
 	struct statfs *mntbuf;
 	FILE *mountdfp;
 	pid_t pid;
-	int all, ch, i, init_flags, late, mntsize, rval, have_fstab;
+	int all, ch, i, init_flags, late, mntsize, rval, have_fstab, ro;
 	char *cp, *ep, *options;
 
-	options = strdup("noro");
-	if (options == NULL)
-		errx(1, "malloc failed");
-
 	all = init_flags = late = 0;
+	ro = 0;
+	options = NULL;
 	vfslist = NULL;
 	vfstype = "ufs";
 	while ((ch = getopt(argc, argv, "adlF:fo:prwt:uv")) != -1)
@@ -219,7 +237,11 @@ main(int argc, char *argv[])
 			late = 1;
 			break;
 		case 'o':
-			options = catopt(options, optarg);
+			if (*optarg) {
+				options = catopt(options, optarg);
+				if (specified_ro(optarg))
+					ro = 1;
+			}
 			break;
 		case 'p':
 			fstab_style = 1;
@@ -227,6 +249,7 @@ main(int argc, char *argv[])
 			break;
 		case 'r':
 			options = catopt(options, "ro");
+			ro = 1;
 			break;
 		case 't':
 			if (vfslist != NULL)
@@ -255,6 +278,9 @@ main(int argc, char *argv[])
 	(strcmp(type, FSTAB_RO) &&					\
 	    strcmp(type, FSTAB_RW) && strcmp(type, FSTAB_RQ))
 
+	if ((init_flags & MNT_UPDATE) && (ro == 0))
+		options = catopt(options, "noro");
+ 
 	rval = 0;
 	switch (argc) {
 	case 0:
