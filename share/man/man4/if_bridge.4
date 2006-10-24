@@ -182,6 +182,17 @@ and
 .Va pfil_member
 will be disabled so that IPFW
 is not run twice; these can be re-enabled if desired.
+.It Va net.link.bridge.ipfw_arp
+Set to
+.Li 1
+to enable layer2 ARP filtering with
+.Xr ipfirewall 4 ,
+set to
+.Li 0
+to disable it.
+Requires
+.Va ipfw
+to be enabled.
 .El
 .Pp
 ARP and REVARP packets are forwarded without being filtered and others
