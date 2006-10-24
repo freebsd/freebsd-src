@@ -55,6 +55,7 @@
 #include <sys/malloc.h>
 #include <sys/bio.h>
 #include <sys/buf.h>
+#include <sys/clock.h>
 #include <sys/vnode.h>
 #include <sys/mutex.h>
 
@@ -210,7 +211,7 @@ deget(pmp, dirclust, diroffset, depp)
 			ldep->de_FileSize = pmp->pm_rootdirsize * DEV_BSIZE;
 		}
 		/*
-		 * fill in time and date so that dos2unixtime() doesn't
+		 * fill in time and date so that fattime2timespec() doesn't
 		 * spit up when called from msdosfs_getattr() with root
 		 * denode
 		 */
