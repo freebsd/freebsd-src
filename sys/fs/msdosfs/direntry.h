@@ -139,9 +139,6 @@ struct msdosfsmount;
 char	*mbnambuf_flush(struct dirent *dp);
 void	mbnambuf_init(void);
 void	mbnambuf_write(char *name, int id);
-void	unix2dostime(struct timespec *tsp, u_int16_t *ddp, 
-	    u_int16_t *dtp, u_int8_t *dhp);
-void	dos2unixtime(u_int dd, u_int dt, u_int dh, struct timespec *tsp);
 int	dos2unixfn(u_char dn[11], u_char *un, int lower,
 	    struct msdosfsmount *pmp);
 int	unix2dosfn(const u_char *un, u_char dn[12], size_t unlen, u_int gen,

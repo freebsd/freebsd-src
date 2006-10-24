@@ -218,8 +218,8 @@ struct denode {
 #define	DETIMES(dep, acc, mod, cre) do {				\
 	if ((dep)->de_flag & DE_UPDATE) { 				\
 		(dep)->de_flag |= DE_MODIFIED;				\
-		unix2dostime((mod), &(dep)->de_MDate, &(dep)->de_MTime,	\
-		    NULL);						\
+		timespec2fattime((mod), 0, &(dep)->de_MDate,		\
+		    &(dep)->de_MTime, NULL);				\
 		(dep)->de_Attributes |= ATTR_ARCHIVE; 			\
 	}								\
 	if ((dep)->de_pmp->pm_flags & MSDOSFSMNT_NOWIN95) {		\
@@ -229,15 +229,15 @@ struct denode {
 	if ((dep)->de_flag & DE_ACCESS) {				\
 	    	u_int16_t adate;					\
 									\
-		unix2dostime((acc), &adate, NULL, NULL);		\
+		timespec2fattime((acc), 0, &adate, NULL, NULL);		\
 		if (adate != (dep)->de_ADate) {				\
 			(dep)->de_flag |= DE_MODIFIED;			\
 			(dep)->de_ADate = adate;			\
 		}							\
 	}								\
 	if ((dep)->de_flag & DE_CREATE) {				\
-		unix2dostime((cre), &(dep)->de_CDate, &(dep)->de_CTime,	\
-		    &(dep)->de_CHun);					\
+		timespec2fattime((cre), 0, &(dep)->de_CDate,		\
+		    &(dep)->de_CTime, &(dep)->de_CHun);			\
 		    (dep)->de_flag |= DE_MODIFIED;			\
 	}								\
 	(dep)->de_flag &= ~(DE_UPDATE | DE_CREATE | DE_ACCESS);		\
