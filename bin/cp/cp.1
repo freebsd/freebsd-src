@@ -32,7 +32,7 @@
 .\"	@(#)cp.1	8.3 (Berkeley) 4/18/94
 .\" $FreeBSD$
 .\"
-.Dd October 7, 2006
+.Dd October 24, 2006
 .Dt CP 1
 .Os
 .Sh NAME
@@ -251,38 +251,28 @@ Historic versions of the
 utility had a
 .Fl r
 option.
-This implementation supports that option, however, its use is strongly
-discouraged as its behavior is very implementation dependent.
-In this version of
+This implementation supports that option, however, its behavior
+is different from historical
+.Fx
+behavior.
+Use
+of this option
+is strongly discouraged as the behavior is
+implementation-dependent.
+In this implementation of
 .Nm ,
 .Fl r
-is just a synonym for
-.Fl RL .
-The
-.Fl R
-option gives the correct behavior while
-.Fl L
-preserves the sometimes-useful historical behavior of following symbolic links. 
-The
+works alike
+.Fl RL
+thus all files, including special files, are copied
+in a manner similar to normal files.
+Data within these special files
+will not be copied, only the file itself.
+Historical implemenations
+of
 .Fl r
-option is deprecated in
-.Tn POSIX 
- and its behavior is likely to be different
-in future versions of 
-.Nm
-and its behavior is likely to be different
-in future versions of
-.Fx .
-Previous versions of
-.Nm
-in
-.Fx ,
-the
-.Fl r
-behavior was to not correctly copy special files, symbolic links
-or fifos.
-Symbolic links were followed, and the contents of special
-files and fifos were copied to regular files.
+differ as they could copy the internal contents of special
+files while recreating a hierarchy.
 .Pp
 The
 .Fl v
