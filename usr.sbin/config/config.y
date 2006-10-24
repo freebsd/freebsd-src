@@ -186,16 +186,16 @@ Config_spec:
 	      = { profiling = $2; } |
 	ENV ID
 	      = {
-		      env = $2;
-		      envmode = 1;
+		env = $2;
+		envmode = 1;
 		} |
 	HINTS ID
 	      = {
-		      if (hints != NULL)
-			      errx(1, "More than one 'hints' line at %s:%d",
-				  yyfile, yyline);
-		      hints = $2;
-		      hintmode = 1;
+		if (hints != NULL)
+			errx(1, "More than one 'hints' line at %s:%d", yyfile,
+			    yyline);
+		hints = $2;
+		hintmode = 1;
 	        }
 
 System_spec:
