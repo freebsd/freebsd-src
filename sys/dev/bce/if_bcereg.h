@@ -63,7 +63,6 @@
 #include <netinet/in.h>
 #include <netinet/ip.h>
 
-#include <machine/clock.h>      /* for DELAY */
 #include <machine/bus.h>
 #include <machine/resource.h>
 #include <sys/bus.h>
@@ -4614,7 +4613,16 @@ struct fw_info {
 #define BCE_BUS_SPACE_MAXADDR		0xFFFFFFFFFF
 #endif
 
+/*
+ * XXX Checksum offload involving IP fragments seems to cause problems on
+ * transmit.  Disable it for now, hopefully there will be a more elegant
+ * solution later.
+ */
+#ifdef BCE_IP_CSUM
 #define BCE_IF_HWASSIST	(CSUM_IP | CSUM_TCP | CSUM_UDP)
+#else
+#define BCE_IF_HWASSIST	(CSUM_TCP | CSUM_UDP)
+#endif
 
 #if __FreeBSD_version < 700000
 #define BCE_IF_CAPABILITIES (IFCAP_VLAN_MTU | IFCAP_VLAN_HWTAGGING | \
@@ -4645,23 +4653,6 @@ struct fw_info {
 #define BCE_STATS_BLK_SZ		sizeof(struct statistics_block)
 #define BCE_TX_CHAIN_PAGE_SZ	BCM_PAGE_SIZE
 #define BCE_RX_CHAIN_PAGE_SZ	BCM_PAGE_SIZE
-/*
- * Mbuf pointers. We need these to keep track of the virtual addresses
- * of our mbuf chains since we can only convert from physical to virtual,
- * not the other way around.
- */
-
-struct bce_dmamap_arg {
-	struct bce_softc	*sc;				/* Pointer back to device context */
-	bus_addr_t			busaddr;		/* Physical address of mapped memory */
-	u32					tx_flags;		/* Flags for frame transmit */
-	u16					prod;
-	u16					chain_prod;
-	int					maxsegs;		/* Max segments supported for this mapped memory */
-	u32					prod_bseq;
-	struct tx_bd		*tx_chain[TX_PAGES];
-};
-
 
 struct bce_softc
 {
