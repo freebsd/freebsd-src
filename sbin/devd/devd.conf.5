@@ -41,7 +41,7 @@
 .\" ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS
 .\" SOFTWARE.
 .\"
-.Dd October 7, 2006
+.Dd October 25, 2006
 .Dt DEVD.CONF 5
 .Os
 .Sh NAME
@@ -170,8 +170,17 @@ events since the
 statement takes care of all device matching.
 For a partial list of variables, see below.
 .It Ic media-type Qq Ar string ;
-This is shorthand for
-.Dq Ic match Qo Li device-name Qc Qq Ar string .
+For network devices,
+.Ic media-type
+will match devices that have the given media type.
+Valid media types are:
+.Dq Li Ethernet ,
+.Dq Li Tokenring ,
+.Dq Li FDDI ,
+.Dq Li 802.11 ,
+.Dq Li ATM ,
+and
+.Dq Li CARP .
 .It Ic subdevice Qq Ar string ;
 This is shorthand for
 .Dq Ic match Qo Li subdevice Qc Qq Ar string .
@@ -215,6 +224,8 @@ statement;
 .Ar value
 can be either a fixed string or a regular expression.
 Below is a list of avaiable systems, subsystems, and types.
+.It Ic media-type Qq Ar string ;
+See above.
 .El
 .Ss Variables that can be used with the match statement
 A partial list of variables and their possible values that can be used together
