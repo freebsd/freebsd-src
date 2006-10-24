@@ -173,6 +173,8 @@ main(int argc, char *argv[])
 #ifdef USE_BSM_AUDIT
 	const char	*aerr;
 	au_id_t		 auid;
+
+	signal(SIGSYS, SIG_IGN);
 #endif
 
 	shell = class = cleanenv = NULL;
