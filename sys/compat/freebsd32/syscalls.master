@@ -733,15 +733,21 @@
 				    const struct timespec32 *timeout); }
 443	AUE_NULL	NOPROTO	{ int thr_wake(long id); }
 444	AUE_MODUNLOAD	NOPROTO	{ int kldunloadf(int fileid, int flags); }
-445	AUE_AUDIT	UNIMPL	audit
-446	AUE_AUDITON	UNIMPL	auditon
-447	AUE_GETAUID	UNIMPL	getauid
-448	AUE_SETAUID	UNIMPL	setauid
-449	AUE_GETAUDIT	UNIMPL	getaudit
-450	AUE_SETAUDIT	UNIMPL	setaudit
-451	AUE_GETAUDIT_ADDR	UNIMPL	getaudit_addr
-452	AUE_SETAUDIT_ADDR	UNIMPL	setaudit_addr
-453	AUE_AUDITCTL	UNIMPL	auditctl
+445	AUE_AUDIT	STD	{ int audit(const void *record, \
+				    u_int length); }
+446	AUE_AUDITON	STD	{ int auditon(int cmd, void *data, \
+				    u_int length); }
+447	AUE_GETAUID	STD	{ int getauid(uid_t *auid); }
+448	AUE_SETAUID	STD	{ int setauid(uid_t *auid); }
+449	AUE_GETAUDIT	STD	{ int getaudit(struct auditinfo *auditinfo); }
+450	AUE_SETAUDIT	STD	{ int setaudit(struct auditinfo *auditinfo); }
+451	AUE_GETAUDIT_ADDR	STD	{ int getaudit_addr( \
+				    struct auditinfo_addr *auditinfo_addr, \
+				    u_int length); }
+452	AUE_SETAUDIT_ADDR	STD	{ int setaudit_addr( \
+				    struct auditinfo_addr *auditinfo_addr, \
+				    u_int length); }
+453	AUE_AUDITCTL	STD	{ int auditctl(char *path); }
 454	AUE_NULL	STD	{ int freebsd32_umtx_op(void *obj, int op,\
 				    u_long val, void *uaddr, \
 				    void *uaddr2); }
