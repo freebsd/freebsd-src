@@ -451,6 +451,17 @@ If defined, only operate on a port if it can be installed 100% automatically.
 If defined, disable check for security vulnerabilities using
 .Xr portaudit 1 Pq Pa ports/security/portaudit
 when installing new ports.
+.It Va NO_IGNORE
+If defined, allow installation of ports marked as
+.Aq Va FORBIDDEN .
+The default behavior of the Ports framework is to abort when the
+installation of a forbidden port is attempted.
+Setting
+.Va NO_IGNORE
+Of course, these ports may not work as expected, but if you really know
+what you are doing and are sure about installing a forbidden port, then
+.Va NO_IGNORE
+lets you do it.
 .El
 .Sh FILES
 .Bl -tag -width ".Pa /usr/ports/Mk/bsd.port.mk" -compact
