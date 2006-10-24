@@ -146,6 +146,8 @@ The file
 .Ar filename
 must conform to the syntax specified by
 .Xr device.hints 5 .
+Multiple hints lines are allowed.
+The resulting hints will be the files concatenated in the order of appearance.
 .\" -------- IDENT --------
 .Pp
 .It Ic ident Ar name
@@ -164,7 +166,7 @@ and return to the current file after
 is successfully processed.
 .\" -------- MACHINE --------
 .Pp
-.It Ic machine Ar arch Op Ar basearch
+.It Ic machine Ar arch Op Ar cpuarch
 Specifies the architecture of the machine the kernel is being
 compiled for.
 Legal values for
@@ -174,12 +176,16 @@ include:
 .Bl -tag -width ".Cm powerpc" -compact
 .It Cm alpha
 The DEC Alpha architecture.
+.It Cm arm
+The ARM architecture.
 .It Cm amd64
 The AMD x86-64 architecture.
 .It Cm i386
 The Intel x86 based PC architecture.
 .It Cm ia64
 The Intel IA64 architecture.
+.It Cm mips
+The MIPS architecture.
 .It Cm pc98
 The PC98 architecture.
 .It Cm powerpc
@@ -189,15 +195,23 @@ The Sun Sparc64 architecture.
 .El
 .Pp
 If argument
-.Ar basearch
+.Ar cpuarch
 is specified, it points
 .Xr config 8
-to the base architecture of the machine.
+to the cpu architecture of the machine.
 Currently the
 .Cm pc98
-architecture requires its base architecture
+architecture requires its cpu architecture
 to be set to
 .Cm i386 .
+When
+.Ar cpuarch
+is not specified, it is assumed to be the same as
+.Ar arch .
+.Ar arch 
+corresponds to MACHINE.
+.Ar cpuarch 
+corresponds to MACHINE_ARCH.
 .Pp
 A kernel configuration file may have only one
 .Ic machine
