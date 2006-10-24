@@ -84,7 +84,7 @@ __FBSDID("$FreeBSD$");
 #define	SIMPLEQ_INSERT_TAIL	STAILQ_INSERT_TAIL
 #define	SIMPLEQ_EMPTY		STAILQ_EMPTY
 #define	SIMPLEQ_FIRST		STAILQ_FIRST
-#define	SIMPLEQ_REMOVE_HEAD	STAILQ_REMOVE_HEAD_UNTIL
+#define	SIMPLEQ_REMOVE_HEAD	STAILQ_REMOVE_HEAD
 #define	SIMPLEQ_FOREACH		STAILQ_FOREACH
 /* ditto for endian.h */
 #define	letoh16(x)		le16toh(x)
@@ -522,7 +522,7 @@ ubsec_detach(device_t dev)
 		struct ubsec_q *q;
 
 		q = SIMPLEQ_FIRST(&sc->sc_freequeue);
-		SIMPLEQ_REMOVE_HEAD(&sc->sc_freequeue, q, q_next);
+		SIMPLEQ_REMOVE_HEAD(&sc->sc_freequeue, q_next);
 		ubsec_dma_free(sc, &q->q_dma->d_alloc);
 		free(q, M_DEVBUF);
 	}
@@ -618,7 +618,7 @@ ubsec_intr(void *arg)
 			if ((dmap->d_dma->d_mcr.mcr_flags & htole16(UBS_MCR_DONE)) == 0)
 				break;
 
-			SIMPLEQ_REMOVE_HEAD(&sc->sc_qchip, q, q_next);
+			SIMPLEQ_REMOVE_HEAD(&sc->sc_qchip, q_next);
 
 			npkts = q->q_nstacked_mcrs;
 			sc->sc_nqchip -= 1+npkts;
@@ -666,7 +666,7 @@ ubsec_intr(void *arg)
 				    BUS_DMASYNC_PREREAD|BUS_DMASYNC_PREWRITE);
 				break;
 			}
-			SIMPLEQ_REMOVE_HEAD(&sc->sc_qchip2, q2, q_next);
+			SIMPLEQ_REMOVE_HEAD(&sc->sc_qchip2, q_next);
 			ubsec_callback2(sc, q2);
 			/*
 			 * Don't send any more packet to chip if there has been
@@ -771,7 +771,7 @@ ubsec_feed(struct ubsec_softc *sc)
 #endif /* UBSEC_DEBUG */
 
 	q = SIMPLEQ_FIRST(&sc->sc_queue);
-	SIMPLEQ_REMOVE_HEAD(&sc->sc_queue, q, q_next);
+	SIMPLEQ_REMOVE_HEAD(&sc->sc_queue, q_next);
 	--sc->sc_nqueue;
 
 	bus_dmamap_sync(sc->sc_dmat, q->q_src_map, BUS_DMASYNC_PREWRITE);
@@ -787,7 +787,7 @@ ubsec_feed(struct ubsec_softc *sc)
 		if (q2->q_dst_map != NULL)
 			bus_dmamap_sync(sc->sc_dmat, q2->q_dst_map,
 			    BUS_DMASYNC_PREREAD);
-		SIMPLEQ_REMOVE_HEAD(&sc->sc_queue, q2, q_next);
+		SIMPLEQ_REMOVE_HEAD(&sc->sc_queue, q_next);
 		--sc->sc_nqueue;
 
 		v = (void*)(((char *)&q2->q_dma->d_dma->d_mcr) + sizeof(struct ubsec_mcr) -
@@ -822,7 +822,7 @@ feed1:
 		      q, (u_int32_t)vtophys(&q->q_dma->d_dma->d_mcr),
 		      stat);
 #endif /* UBSEC_DEBUG */
-	SIMPLEQ_REMOVE_HEAD(&sc->sc_queue, q, q_next);
+	SIMPLEQ_REMOVE_HEAD(&sc->sc_queue, q_next);
 	--sc->sc_nqueue;
 	SIMPLEQ_INSERT_TAIL(&sc->sc_qchip, q, q_next);
 	sc->sc_nqchip++;
@@ -1065,7 +1065,7 @@ ubsec_process(void *arg, struct cryptop *crp, int hint)
 		return (ERESTART);
 	}
 	q = SIMPLEQ_FIRST(&sc->sc_freequeue);
-	SIMPLEQ_REMOVE_HEAD(&sc->sc_freequeue, q, q_next);
+	SIMPLEQ_REMOVE_HEAD(&sc->sc_freequeue, q_next);
 	mtx_unlock(&sc->sc_freeqlock);
 
 	dmap = q->q_dma; /* Save dma pointer */
@@ -1672,7 +1672,7 @@ ubsec_feed2(struct ubsec_softc *sc)
 		ubsec_dma_sync(&q->q_ctx, BUS_DMASYNC_PREWRITE);
 
 		WRITE_REG(sc, BS_MCR2, q->q_mcr.dma_paddr);
-		SIMPLEQ_REMOVE_HEAD(&sc->sc_queue2, q, q_next);
+		SIMPLEQ_REMOVE_HEAD(&sc->sc_queue2, q_next);
 		--sc->sc_nqueue2;
 		SIMPLEQ_INSERT_TAIL(&sc->sc_qchip2, q, q_next);
 	}
@@ -1997,7 +1997,7 @@ ubsec_cleanchip(struct ubsec_softc *sc)
 
 	while (!SIMPLEQ_EMPTY(&sc->sc_qchip)) {
 		q = SIMPLEQ_FIRST(&sc->sc_qchip);
-		SIMPLEQ_REMOVE_HEAD(&sc->sc_qchip, q, q_next);
+		SIMPLEQ_REMOVE_HEAD(&sc->sc_qchip, q_next);
 		ubsec_free_q(sc, q);
 	}
 	sc->sc_nqchip = 0;
@@ -2122,7 +2122,7 @@ ubsec_kprocess(void *arg, struct cryptkop *krp, int hint)
 		struct ubsec_q2 *q;
 
 		q = SIMPLEQ_FIRST(&sc->sc_q2free);
-		SIMPLEQ_REMOVE_HEAD(&sc->sc_q2free, q, q_next);
+		SIMPLEQ_REMOVE_HEAD(&sc->sc_q2free, q_next);
 		ubsec_kfree(sc, q);
 	}
 
