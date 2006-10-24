@@ -55,7 +55,6 @@
 #include <sys/clock.h>
 #include <sys/kernel.h>		/* defines tz */
 #include <sys/systm.h>
-#include <sys/clock.h>
 #include <sys/dirent.h>
 #include <sys/iconv.h>
 #include <sys/mount.h>
@@ -70,31 +69,6 @@ extern struct iconv_functions *msdosfs_iconv;
 #include <fs/msdosfs/msdosfsmount.h>
 #include <fs/msdosfs/direntry.h>
 
-/*
- * Total number of days that have passed for each month in a regular year.
- */
-static u_short regyear[] = {
-	31, 59, 90, 120, 151, 181,
-	212, 243, 273, 304, 334, 365
-};
-
-/*
- * Total number of days that have passed for each month in a leap year.
- */
-static u_short leapyear[] = {
-	31, 60, 91, 121, 152, 182,
-	213, 244, 274, 305, 335, 366
-};
-
-/*
- * Variables used to remember parts of the last time conversion.  Maybe we
- * can avoid a full conversion.
- */
-static u_long  lasttime;
-static u_long  lastday;
-static u_short lastddate;
-static u_short lastdtime;
-
 static int mbsadjpos(const char **, size_t, size_t, int, int, void *handle);
 static u_int16_t dos2unixchr(const u_char **, size_t *, int, struct msdosfsmount *);
 static u_int16_t unix2doschr(const u_char **, size_t *, struct msdosfsmount *);
@@ -104,144 +78,6 @@ static u_int16_t unix2winchr(const u_char **, size_t *, int, struct msdosfsmount
 static char	*nambuf_ptr;
 static size_t	nambuf_len;
 static int	nambuf_last_id;
-
-/*
- * Convert the unix version of time to dos's idea of time to be used in
- * file timestamps. The passed in unix time is assumed to be in GMT.
- */
-void
-unix2dostime(tsp, ddp, dtp, dhp)
-	struct timespec *tsp;
-	u_int16_t *ddp;
-	u_int16_t *dtp;
-	u_int8_t *dhp;
-{
-	u_long t;
-	u_long days;
-	u_long inc;
-	u_long year;
-	u_long month;
-	u_short *months;
-
-	/*
-	 * If the time from the last conversion is the same as now, then
-	 * skip the computations and use the saved result.
-	 */
-	t = tsp->tv_sec - utc_offset();
-	    /* - daylight savings time correction */
-	t &= ~1;
-	if (lasttime != t) {
-		lasttime = t;
-		lastdtime = (((t / 2) % 30) << DT_2SECONDS_SHIFT)
-		    + (((t / 60) % 60) << DT_MINUTES_SHIFT)
-		    + (((t / 3600) % 24) << DT_HOURS_SHIFT);
-
-		/*
-		 * If the number of days since 1970 is the same as the last
-		 * time we did the computation then skip all this leap year
-		 * and month stuff.
-		 */
-		days = t / (24 * 60 * 60);
-		if (days != lastday) {
-			lastday = days;
-			for (year = 1970;; year++) {
-				inc = year & 0x03 ? 365 : 366;
-				if (days < inc)
-					break;
-				days -= inc;
-			}
-			months = year & 0x03 ? regyear : leapyear;
-			for (month = 0; days >= months[month]; month++)
-				;
-			if (month > 0)
-				days -= months[month - 1];
-			lastddate = ((days + 1) << DD_DAY_SHIFT)
-			    + ((month + 1) << DD_MONTH_SHIFT);
-			/*
-			 * Remember dos's idea of time is relative to 1980.
-			 * unix's is relative to 1970.  If somehow we get a
-			 * time before 1980 then don't give totally crazy
-			 * results.
-			 */
-			if (year > 1980)
-				lastddate += (year - 1980) << DD_YEAR_SHIFT;
-		}
-	}
-	if (dtp)
-		*dtp = lastdtime;
-	if (dhp)
-		*dhp = (tsp->tv_sec & 1) * 100 + tsp->tv_nsec / 10000000;
-
-	*ddp = lastddate;
-}
-
-/*
- * The number of seconds between Jan 1, 1970 and Jan 1, 1980. In that
- * interval there were 8 regular years and 2 leap years.
- */
-#define	SECONDSTO1980	(((8 * 365) + (2 * 366)) * (24 * 60 * 60))
-
-static u_short lastdosdate;
-static u_long  lastseconds;
-
-/*
- * Convert from dos' idea of time to unix'. This will probably only be
- * called from the stat(), and fstat() system calls and so probably need
- * not be too efficient.
- */
-void
-dos2unixtime(dd, dt, dh, tsp)
-	u_int dd;
-	u_int dt;
-	u_int dh;
-	struct timespec *tsp;
-{
-	u_long seconds;
-	u_long month;
-	u_long year;
-	u_long days;
-	u_short *months;
-
-	if (dd == 0) {
-		/*
-		 * Uninitialized field, return the epoch.
-		 */
-		tsp->tv_sec = 0;
-		tsp->tv_nsec = 0;
-		return;
-	}
-	seconds = (((dt & DT_2SECONDS_MASK) >> DT_2SECONDS_SHIFT) << 1)
-	    + ((dt & DT_MINUTES_MASK) >> DT_MINUTES_SHIFT) * 60
-	    + ((dt & DT_HOURS_MASK) >> DT_HOURS_SHIFT) * 3600
-	    + dh / 100;
-	/*
-	 * If the year, month, and day from the last conversion are the
-	 * same then use the saved value.
-	 */
-	if (lastdosdate != dd) {
-		lastdosdate = dd;
-		days = 0;
-		year = (dd & DD_YEAR_MASK) >> DD_YEAR_SHIFT;
-		days = year * 365;
-		days += year / 4 + 1;	/* add in leap days */
-		if ((year & 0x03) == 0)
-			days--;		/* if year is a leap year */
-		months = year & 0x03 ? regyear : leapyear;
-		month = (dd & DD_MONTH_MASK) >> DD_MONTH_SHIFT;
-		if (month < 1 || month > 12) {
-			printf("dos2unixtime(): month value out of range (%ld)\n",
-			    month);
-			month = 1;
-		}
-		if (month > 1)
-			days += months[month - 2];
-		days += ((dd & DD_DAY_MASK) >> DD_DAY_SHIFT) - 1;
-		lastseconds = (days * 24 * 60 * 60) + SECONDSTO1980;
-	}
-	tsp->tv_sec = seconds + lastseconds + utc_offset();
-	     /* + daylight savings time correction */
-	tsp->tv_nsec = (dh % 100) * 10000000;
-}
 
 /*
  * 0 - character disallowed in long file name.
