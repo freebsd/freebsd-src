@@ -48,9 +48,8 @@
  * a century ago, already then.  Ironically "NT" was an abbreviation of 
  * "New Technology".  Anyway...
  *
- * The functions below always assume UTC time, and the calling code
- * must apply the local timezone offset as appropriate.  Unless special
- * conditions apply, the utc_offset() function be used for this.
+ * The 'utc' argument determines if the resulting FATTIME timestamp
+ * should b on the UTC or local timezone calendar.
  *
  * The conversion functions below cut time into four-year leap-second
  * cycles rather than single years and uses table lookups inside those
@@ -136,12 +135,14 @@ static const struct {
 
 
 void
-timet2fattime(struct timespec *tsp, u_int16_t *ddp, u_int16_t *dtp, u_int8_t *dhp)
+timespec2fattime(struct timespec *tsp, int utc, u_int16_t *ddp, u_int16_t *dtp, u_int8_t *dhp)
 {
 	time_t t1;
 	unsigned t2, l, m;
 
 	t1 = tsp->tv_sec;
+	if (!utc)
+		t1 -= utc_offset();
 
 	if (dhp != NULL)
 		*dhp = (tsp->tv_sec & 1) * 100 + tsp->tv_nsec / 10000000;
@@ -214,7 +215,7 @@ static const uint16_t daytab[64] = {
 };
 
 void
-fattime2timet(unsigned dd, unsigned dt, unsigned dh, struct timespec *tsp)
+fattime2timespec(unsigned dd, unsigned dt, unsigned dh, int utc, struct timespec *tsp)
 {
 	unsigned day;
 
@@ -245,6 +246,8 @@ fattime2timet(unsigned dd, unsigned dt, unsigned dh, struct timespec *tsp)
 	day += T1980;
 
 	tsp->tv_sec += DAY * day;
+	if (!utc)
+		tsp->tv_sec += utc_offset();
 }
 
 #ifdef TEST_DRIVER
