@@ -183,8 +183,8 @@ exec_mountprog(const char *name, const char *execname, char *const argv[])
 	return (0);
 }
 
-static
-int specified_ro(const char *arg)
+static int
+specified_ro(const char *arg)
 {
 	char *optbuf, *opt;
 	int ret = 0;
@@ -219,7 +219,7 @@ main(int argc, char *argv[])
 	options = NULL;
 	vfslist = NULL;
 	vfstype = "ufs";
-	while ((ch = getopt(argc, argv, "adlF:fo:prwt:uv")) != -1)
+	while ((ch = getopt(argc, argv, "adF:flo:prt:uvw")) != -1)
 		switch (ch) {
 		case 'a':
 			all = 1;
