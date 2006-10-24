@@ -127,9 +127,15 @@ struct opt_list {
 
 SLIST_HEAD(, opt_list) otab;
 
+struct hint {
+	char	*hint_name;
+	STAILQ_ENTRY(hint) hint_next;
+};
+
+STAILQ_HEAD(hint_head, hint) hints;
+
 extern char	*ident;
 extern char	*env;
-extern char	*hints;
 extern int	do_trace;
 extern int	envmode;
 extern int	hintmode;

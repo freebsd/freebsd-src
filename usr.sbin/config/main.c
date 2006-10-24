@@ -160,6 +160,7 @@ main(int argc, char **argv)
 	STAILQ_INIT(&fntab);
 	SLIST_INIT(&cputype);
 	STAILQ_INIT(&ftab);
+	STAILQ_INIT(&hints);
 	if (yyparse())
 		exit(3);
 
