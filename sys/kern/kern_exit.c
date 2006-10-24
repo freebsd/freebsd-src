@@ -843,11 +843,11 @@ loop:
 			td->td_retval[0] = p->p_pid;
 			if (status)
 				*status = W_STOPCODE(p->p_xstat);
-			PROC_UNLOCK(p);
 
 			PROC_LOCK(q);
 			sigqueue_take(p->p_ksi);
 			PROC_UNLOCK(q);
+			PROC_UNLOCK(p);
 
 			return (0);
 		}
@@ -856,11 +856,11 @@ loop:
 			sx_xunlock(&proctree_lock);
 			td->td_retval[0] = p->p_pid;
 			p->p_flag &= ~P_CONTINUED;
-			PROC_UNLOCK(p);
 
 			PROC_LOCK(q);
 			sigqueue_take(p->p_ksi);
 			PROC_UNLOCK(q);
+			PROC_UNLOCK(p);
 
 			if (status)
 				*status = SIGCONT;
