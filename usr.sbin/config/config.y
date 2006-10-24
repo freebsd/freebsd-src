@@ -81,7 +81,6 @@ struct	device_head dtab;
 char	*ident;
 char	*env;
 int	envmode;
-char	*hints;
 int	hintmode;
 int	yyline;
 const	char *yyfile;
@@ -191,10 +190,11 @@ Config_spec:
 		} |
 	HINTS ID
 	      = {
-		if (hints != NULL)
-			errx(1, "More than one 'hints' line at %s:%d", yyfile,
-			    yyline);
-		hints = $2;
+		struct hint *hint;
+
+		hint = (struct hint *)calloc(1, sizeof (struct hint));
+		hint->hint_name = $2;
+		STAILQ_INSERT_TAIL(&hints, hint, hint_next);
 		hintmode = 1;
 	        }
 
