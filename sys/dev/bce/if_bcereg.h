@@ -4613,11 +4613,15 @@ struct fw_info {
 #define BCE_BUS_SPACE_MAXADDR		0xFFFFFFFFFF
 #endif
 
-/* XXX UDP checksum offload seems to cause problems on transmit */
-#ifdef BCE_UDP_CSUM
+/*
+ * XXX Checksum offload involving IP fragments seems to cause problems on
+ * transmit.  Disable it for now, hopefully there will be a more elegant
+ * solution later.
+ */
+#ifdef BCE_IP_CSUM
 #define BCE_IF_HWASSIST	(CSUM_IP | CSUM_TCP | CSUM_UDP)
 #else
-#define BCE_IF_HWASSIST	(CSUM_TCP)
+#define BCE_IF_HWASSIST	(CSUM_TCP | CSUM_UDP)
 #endif
 
 #if __FreeBSD_version < 700000
