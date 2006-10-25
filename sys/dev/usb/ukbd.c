@@ -1218,7 +1218,8 @@ ukbd_ioctl(keyboard_t *kbd, u_long cmd, caddr_t arg)
 		}
 		i = *(int *)arg;
 		/* replace CAPS LED with ALTGR LED for ALTGR keyboards */
-		if (kbd->kb_keymap->n_keys > ALTGR_OFFSET) {
+		if (state->ks_mode == K_XLATE &&
+		    kbd->kb_keymap->n_keys > ALTGR_OFFSET) {
 			if (i & ALKED)
 				i |= CLKED;
 			else
