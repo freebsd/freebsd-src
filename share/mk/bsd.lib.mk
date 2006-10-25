@@ -154,7 +154,11 @@ _LIBS=		lib${LIB}.a
 lib${LIB}.a: ${OBJS} ${STATICOBJS}
 	@${ECHO} building static ${LIB} library
 	@rm -f ${.TARGET}
-	@${AR} cq ${.TARGET} `env NM=${NM} lorder ${OBJS} ${STATICOBJS} | tsort -q` ${ARADD}
+.if !defined(NM)
+	@${AR} cq ${.TARGET} `lorder ${OBJS} ${STATICOBJS} | tsort -q` ${ARADD}
+.else
+	@${AR} cq ${.TARGET} `NM='${NM}' lorder ${OBJS} ${STATICOBJS} | tsort -q` ${ARADD}
+.endif
 	${RANLIB} ${.TARGET}
 .endif
 
@@ -167,7 +171,11 @@ POBJS+=		${OBJS:.o=.po} ${STATICOBJS:.o=.po}
 lib${LIB}_p.a: ${POBJS}
 	@${ECHO} building profiled ${LIB} library
 	@rm -f ${.TARGET}
-	@${AR} cq ${.TARGET} `env NM=${NM} lorder ${POBJS} | tsort -q` ${ARADD}
+.if !defined(NM)
+	@${AR} cq ${.TARGET} `lorder ${POBJS} | tsort -q` ${ARADD}
+.else
+	@${AR} cq ${.TARGET} `NM='${NM}' lorder ${POBJS} | tsort -q` ${ARADD}
+.endif
 	${RANLIB} ${.TARGET}
 .endif
 
@@ -185,9 +193,15 @@ ${SHLIB_NAME}: ${SOBJS}
 .if defined(SHLIB_LINK)
 	@ln -fs ${.TARGET} ${SHLIB_LINK}
 .endif
+.if !defined(NM)
 	@${CC} ${LDFLAGS} -shared -Wl,-x \
 	    -o ${.TARGET} -Wl,-soname,${SONAME} \
-	    `env NM=${NM} lorder ${SOBJS} | tsort -q` ${LDADD}
+	    `lorder ${SOBJS} | tsort -q` ${LDADD}
+.else
+	@${CC} ${LDFLAGS} -shared -Wl,-x \
+	    -o ${.TARGET} -Wl,-soname,${SONAME} \
+	    `NM='${NM}' lorder ${SOBJS} | tsort -q` ${LDADD}
+.endif
 .endif
 
 .if defined(INSTALL_PIC_ARCHIVE) && defined(LIB) && !empty(LIB) && ${MK_TOOLCHAIN} != "no"
