@@ -10,7 +10,7 @@ CFLAGS+=	-ffreestanding -mpreferred-stack-boundary=2 \
 LDFLAGS+=	-nostdlib
 
 .if ${MACHINE_ARCH} == "amd64"
-CFLAGS+=	-m32
+CFLAGS+=	-m32 -march=i386
 LDFLAGS+=	-m elf_i386_fbsd
 AFLAGS+=	--32
 .endif
