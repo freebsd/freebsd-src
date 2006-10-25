@@ -7129,7 +7129,9 @@ expand_function_end (void)
       if (!initialized)
 	{
 	  mexitcount_libfunc = init_one_libfunc (".mexitcount");
+#if 0 /* Turn this off to prevent erroneous garbage collection.  */
 	  initialized = 1;
+#endif
 	}
       emit_library_call (mexitcount_libfunc, LCT_NORMAL, VOIDmode, 0);
     }
