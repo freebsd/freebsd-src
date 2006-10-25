@@ -197,10 +197,6 @@ retry:
 	while (p->p_lock > 0)
 		msleep(&p->p_lock, &p->p_mtx, PWAIT, "exithold", 0);
 
-	PROC_LOCK(p->p_pptr);
-	sigqueue_take(p->p_ksi);
-	PROC_UNLOCK(p->p_pptr);
-
 	PROC_UNLOCK(p);
 
 #ifdef AUDIT
@@ -903,6 +899,9 @@ proc_reparent(struct proc *child, struct proc *parent)
 	if (child->p_pptr == parent)
 		return;
 
+	PROC_LOCK(child->p_pptr);
+	sigqueue_take(child->p_ksi);
+	PROC_UNLOCK(child->p_pptr);
 	LIST_REMOVE(child, p_sibling);
 	LIST_INSERT_HEAD(&parent->p_children, child, p_sibling);
 	child->p_pptr = parent;
