@@ -32,7 +32,7 @@
 .\"     @(#)lorder.1	8.2 (Berkeley) 4/28/95
 .\" $FreeBSD$
 .\"
-.Dd April 27, 2006
+.Dd October 25, 2006
 .Dt LORDER 1
 .Os
 .Sh NAME
@@ -65,6 +65,14 @@ When linking static binaries,
 and
 .Xr tsort 1
 can be used to properly order library archives automatically.
+.Sh ENVIRONMENT
+.Bl -tag -width indent
+.It Ev NM
+Path to the
+.Xr nm 1
+binary, defaults to
+.Dq Li nm .
+.El
 .Sh EXAMPLES
 .Bd -literal -offset indent
 ar cr library.a `lorder ${OBJS} | tsort`
