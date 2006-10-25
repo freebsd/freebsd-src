@@ -2291,7 +2291,7 @@ static _umtx_op_func op_table[] = {
 int
 _umtx_op(struct thread *td, struct _umtx_op_args *uap)
 {
-	if (uap->op >= 0 && uap->op < UMTX_OP_MAX)
+	if ((unsigned)uap->op < UMTX_OP_MAX)
 		return (*op_table[uap->op])(td, uap);
 	return (EINVAL);
 }
@@ -2414,7 +2414,7 @@ static _umtx_op_func op_table_compat32[] = {
 int
 freebsd32_umtx_op(struct thread *td, struct freebsd32_umtx_op_args *uap)
 {
-	if (uap->op >= 0 && uap->op < UMTX_OP_MAX)
+	if ((unsigned)uap->op < UMTX_OP_MAX)
 		return (*op_table_compat32[uap->op])(td,
 			(struct _umtx_op_args *)uap);
 	return (EINVAL);
