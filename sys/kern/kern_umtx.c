@@ -481,7 +481,8 @@ umtx_key_get(void *addr, int type, int share, struct umtx_key *key)
 		key->shared = 0;
 		key->info.private.vs = td->td_proc->p_vmspace;
 		key->info.private.addr = (uintptr_t)addr;
-	} else if (share == PROCESS_SHARE || share == AUTO_SHARE) {
+	} else {
+		MPASS(share == PROCESS_SHARE || share == AUTO_SHARE);
 		map = &td->td_proc->p_vmspace->vm_map;
 		if (vm_map_lookup(&map, (vm_offset_t)addr, VM_PROT_WRITE,
 		    &entry, &key->info.shared.object, &pindex, &prot,
