@@ -690,12 +690,8 @@ kern_ptrace(struct thread *td, int req, pid_t pid, void *addr, int data)
 		/* security check done above */
 		p->p_flag |= P_TRACED;
 		p->p_oppid = p->p_pptr->p_pid;
-		if (p->p_pptr != td->td_proc) {
-			PROC_LOCK(p->p_pptr);
-			sigqueue_take(p->p_ksi);
-			PROC_UNLOCK(p->p_pptr);
+		if (p->p_pptr != td->td_proc)
 			proc_reparent(p, td->td_proc);
-		}
 		data = SIGSTOP;
 		goto sendsig;	/* in PT_CONTINUE below */
 
