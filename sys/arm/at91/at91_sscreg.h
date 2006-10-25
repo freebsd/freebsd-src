@@ -132,4 +132,18 @@
 #define	SSC_TFMR_DATDEF	(1u << 5)	/* DATDEF: Data Default Value */
 #define	SSC_TFMR_DATLEN	(0x1fu << 0)	/* DATLEN: Data Length */
 
+/* SSC_SR */
+#define	SSC_SR_TXRDY	(1u << 0)
+#define	SSC_SR_TXEMPTY	(1u << 1)
+#define	SSC_SR_ENDTX	(1u << 2)
+#define	SSC_SR_TXBUFE	(1u << 3)
+#define	SSC_SR_RXRDY	(1u << 4)
+#define	SSC_SR_OVRUN	(1u << 5)
+#define	SSC_SR_ENDRX	(1u << 6)
+#define	SSC_SR_RXBUFF	(1u << 7)
+#define	SSC_SR_TXSYN	(1u << 10)
+#define	SSC_SR_RSSYN	(1u << 11)
+#define	SSC_SR_TXEN	(1u << 16)
+#define	SSC_SR_RXEN	(1u << 17)
+
 #endif /* ARM_AT91_AT91_SSCREG_H */
