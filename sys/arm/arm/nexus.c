@@ -127,8 +127,11 @@ static int
 nexus_setup_intr(device_t dev, device_t child, struct resource *res, int flags,
     driver_intr_t *intr, void *arg, void **cookiep)
 {
-	arm_setup_irqhandler(device_get_nameunit(child), 
-	    intr, arg, rman_get_start(res), flags, cookiep);
+	int i;
+
+	for (i = rman_get_start(res); i <= rman_get_end(res); i++)
+		arm_setup_irqhandler(device_get_nameunit(child), 
+		    intr, arg, i, flags, cookiep);
 	return (0);
 }
 
