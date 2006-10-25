@@ -554,6 +554,21 @@ bsp_apic_configure(void)
  * local functions and data
  */
 
+typedef struct INTDATA {
+	u_char  int_type;
+	u_short int_flags;
+	u_char  src_bus_id;
+	u_char  src_bus_irq;
+	u_char  dst_apic_id;
+	u_char  dst_apic_int;
+	u_char	int_vector;
+}       io_int, local_int;
+
+/* the IO INT data, one entry per possible APIC INTerrupt */
+static io_int  *io_apic_ints;
+
+static int nintrs;
+
 /*
  * start the SMP system
  */
@@ -595,12 +610,22 @@ mp_enable(u_int boot_addr)
 	for (apic = 0; apic < mp_napics; ++apic) {
 		ux = io_apic_read(apic, IOAPIC_VER);
 		io_apic_versions[apic] = ux;
-		io_apic_set_id(apic, IO_TO_ID(apic));
+		if (ux == 0xffffffff) {
+			int i;
+
+			for (i = 0; i < nintrs; i++)
+				if (io_apic_ints[i].dst_apic_id ==
+				    IO_TO_ID(apic))
+					panic("Missing IO APIC");
+			printf("Skipping broken IO APIC #%d\n", apic);
+		} else
+			io_apic_set_id(apic, IO_TO_ID(apic));
 	}
 
 	/* program each IO APIC in the system */
 	for (apic = 0; apic < mp_napics; ++apic)
-		if (io_apic_setup(apic) < 0)
+		if (io_apic_versions[apic] != 0xffffffff &&
+		    io_apic_setup(apic) < 0)
 			panic("IO APIC setup failure");
 
 	/* install a 'Spurious INTerrupt' vector */
@@ -682,16 +707,6 @@ typedef struct BUSDATA {
 	enum busTypes bus_type;
 }       bus_datum;
 
-typedef struct INTDATA {
-	u_char  int_type;
-	u_short int_flags;
-	u_char  src_bus_id;
-	u_char  src_bus_irq;
-	u_char  dst_apic_id;
-	u_char  dst_apic_int;
-	u_char	int_vector;
-}       io_int, local_int;
-
 typedef struct BUSTYPENAME {
 	u_char  type;
 	char    name[7];
@@ -735,11 +750,6 @@ static int default_data[7][5] =
 
 /* the bus data */
 static bus_datum *bus_data;
-
-/* the IO INT data, one entry per possible APIC INTerrupt */
-static io_int  *io_apic_ints;
-
-static int nintrs;
 
 static int processor_entry	__P((proc_entry_ptr entry, int cpu));
 static int bus_entry		__P((bus_entry_ptr entry, int bus));
@@ -1570,11 +1580,14 @@ int_entry(int_entry_ptr entry, int intr)
 	if (entry->dst_apic_id == 255) {
 		/* This signal goes to all IO APICS.  Select an IO APIC
 		   with sufficient number of interrupt pins */
-		for (apic = 0; apic < mp_napics; apic++)
+		for (apic = 0; apic < mp_napics; apic++) {
+			if (io_apic_read(apic, IOAPIC_VER) == 0xffffffff)
+				continue;
 			if (((io_apic_read(apic, IOAPIC_VER) & 
 			      IOART_VER_MAXREDIR) >> MAXREDIRSHIFT) >= 
 			    entry->dst_apic_int)
 				break;
+		}
 		if (apic < mp_napics)
 			io_apic_ints[intr].dst_apic_id = IO_TO_ID(apic);
 		else
