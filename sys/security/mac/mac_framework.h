@@ -44,7 +44,7 @@
  */
 
 #ifndef _SYS_SECURITY_MAC_MAC_FRAMEWORK_H_
-#define	_SYS_SECURITY_MAC_MAC_MAC_FRAMEWORK_H_
+#define	_SYS_SECURITY_MAC_MAC_FRAMEWORK_H_
 
 #ifndef _KERNEL
 #error "no user-serviceable parts inside"
