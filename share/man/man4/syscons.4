@@ -26,7 +26,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd June 30, 1999
+.Dd October 22, 2006
 .Dt SYSCONS 4
 .Os
 .Sh NAME
@@ -105,12 +105,12 @@ virtual terminals.
 The following table summarizes the correspondence between the switch
 key and the virtual terminal.
 .Bd -literal -offset indent
-Alt-F1   ttyv0      Alt-F7   ttyv6      Shift-Alt-F1   ttyv10
-Alt-F2   ttyv1      Alt-F8   ttyv7      Shift-Alt-F2   ttyv11
-Alt-F3   ttyv2      Alt-F9   ttyv8      Shift-Alt-F3   ttyv12
-Alt-F4   ttyv3      Alt-F10  ttyv9      Shift-Alt-F4   ttyv13
-Alt-F5   ttyv4      Alt-F11  ttyv10     Shift-Alt-F5   ttyv14
-Alt-F6   ttyv5      Alt-F12  ttyv11     Shift-Alt-F6   ttyv15
+Alt-F1   ttyv0      Alt-F7   ttyv6      Shift-Alt-F1   ttyva
+Alt-F2   ttyv1      Alt-F8   ttyv7      Shift-Alt-F2   ttyvb
+Alt-F3   ttyv2      Alt-F9   ttyv8      Shift-Alt-F3   ttyvc
+Alt-F4   ttyv3      Alt-F10  ttyv9      Shift-Alt-F4   ttyvd
+Alt-F5   ttyv4      Alt-F11  ttyva      Shift-Alt-F5   ttyve
+Alt-F6   ttyv5      Alt-F12  ttyvb      Shift-Alt-F6   ttyvf
 .Ed
 .Pp
 You can also use the ``nscr'' key (usually the
@@ -292,7 +292,7 @@ If this option is not defined, this behavior may be controled at runtime
 by the
 .Xr sysctl 8
 variable
-.Pq Va hw.syscons.kbd_kbdkey .
+.Va hw.syscons.kbd_debug .
 .It Dv SC_DISABLE_REBOOT
 This option disables the ``reboot'' key (by default, it is
 .Dv Ctl-Alt-Del ) ,
@@ -301,7 +301,7 @@ If this option is not defined, this behavior may be controled at runtime
 by the
 .Xr sysctl 8
 variable
-.Pq Va hw.syscons.kbd_reboot .
+.Va hw.syscons.kbd_reboot .
 .It Dv SC_HISTORY_SIZE=N
 Sets the size of back scroll buffer to
 .Fa N
@@ -361,7 +361,7 @@ This option, which is also available as
 tunable and
 .Xr sysctl 8
 variable
-.Pq Va hw.syscons.sc_no_suspend_vtswitch ,
+.Va hw.syscons.sc_no_suspend_vtswitch ,
 disables switching between virtual terminals (graphics <-> text) during
 suspend/resume (ACPI and APM).
 Use this option if your system is freezing
@@ -518,7 +518,6 @@ to the kernel.
 .Dl "options SC_DFLT_FONT"
 .Dl "makeoptions SC_DFLT_FONT=cp850
 .Dl "device sc"
-.Pp
 .\".Sh DIAGNOSTICS
 .Sh CAVEATS
 The amount of data that is possible to insert from the cut buffer is limited
