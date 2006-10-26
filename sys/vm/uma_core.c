@@ -1,7 +1,7 @@
 /*-
  * Copyright (c) 2002, 2003, 2004, 2005 Jeffrey Roberson <jeff@FreeBSD.org>
  * Copyright (c) 2004, 2005 Bosko Milekic <bmilekic@FreeBSD.org>
- * Copyright (c) 2004-2005 Robert N. M. Watson
+ * Copyright (c) 2004-2006 Robert N. M. Watson
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -2972,8 +2972,8 @@ DB_SHOW_COMMAND(uma, db_show_uma)
 	uma_zone_t z;
 	int cachefree;
 
-	db_printf("%18s %12s %12s %12s %8s\n", "Zone", "Allocs", "Frees",
-	    "Used", "Cache");
+	db_printf("%18s %8s %8s %8s %12s\n", "Zone", "Size", "Used", "Free",
+	    "Requests");
 	LIST_FOREACH(kz, &uma_kegs, uk_link) {
 		LIST_FOREACH(z, &kz->uk_zones, uz_link) {
 			if (kz->uk_flags & UMA_ZFLAG_INTERNAL) {
@@ -2988,8 +2988,10 @@ DB_SHOW_COMMAND(uma, db_show_uma)
 				cachefree += kz->uk_free;
 			LIST_FOREACH(bucket, &z->uz_full_bucket, ub_link)
 				cachefree += bucket->ub_cnt;
-			db_printf("%18s %12ju %12ju %12ju %8d\n", z->uz_name,
-			    allocs, frees, allocs - frees, cachefree);
+			db_printf("%18s %8ju %8jd %8d %12ju\n", z->uz_name,
+			    (uintmax_t)kz->uk_size,
+			    (intmax_t)(allocs - frees), cachefree,
+			    (uintmax_t)allocs);
 		}
 	}
 }
