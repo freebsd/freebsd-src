@@ -1,7 +1,7 @@
 /*-
  * Copyright (c) 1987, 1991, 1993
  *	The Regents of the University of California.
- * Copyright (c) 2005 Robert N. M. Watson
+ * Copyright (c) 2005-2006 Robert N. M. Watson
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -802,20 +802,26 @@ DB_SHOW_COMMAND(malloc, db_show_malloc)
 	struct malloc_type_internal *mtip;
 	struct malloc_type *mtp;
 	u_int64_t allocs, frees;
+	u_int64_t alloced, freed;
 	int i;
 
-	db_printf("%18s %12s %12s %12s\n", "Type", "Allocs", "Frees",
-	    "Used");
+	db_printf("%18s %12s  %12s %12s\n", "Type", "InUse", "MemUse",
+	    "Requests");
 	for (mtp = kmemstatistics; mtp != NULL; mtp = mtp->ks_next) {
 		mtip = (struct malloc_type_internal *)mtp->ks_handle;
 		allocs = 0;
 		frees = 0;
+		alloced = 0;
+		freed = 0;
 		for (i = 0; i < MAXCPU; i++) {
 			allocs += mtip->mti_stats[i].mts_numallocs;
 			frees += mtip->mti_stats[i].mts_numfrees;
+			alloced += mtip->mti_stats[i].mts_memalloced;
+			freed += mtip->mti_stats[i].mts_memfreed;
 		}
-		db_printf("%18s %12ju %12ju %12ju\n", mtp->ks_shortdesc,
-		    allocs, frees, allocs - frees);
+		db_printf("%18s %12ju %12juK %12ju\n",
+		    mtp->ks_shortdesc, allocs - frees,
+		    (alloced - freed + 1023) / 1024, allocs);
 	}
 }
 #endif
