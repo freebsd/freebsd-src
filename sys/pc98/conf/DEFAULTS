@@ -20,3 +20,6 @@ device		io		# I/O device
 # UART chips on this platform
 device		uart_ns8250
 #device		uart_i8251
+
+# KSE support went from being default to a kernel option
+options 	KSE

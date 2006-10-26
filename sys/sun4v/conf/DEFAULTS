@@ -1,5 +1,5 @@
 #
-# DEFAULTS -- Default kernel configuration file for FreeBSD/sparc64
+# DEFAULTS -- Default kernel configuration file for FreeBSD/sun4v
 #
 # $FreeBSD$
 
