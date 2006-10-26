@@ -204,7 +204,9 @@ fork1(td, flags, pages, procp)
 	struct filedesc *fd;
 	struct filedesc_to_leader *fdtol;
 	struct thread *td2;
+#ifdef KSE
 	struct ksegrp *kg2;
+#endif
 	struct sigacts *newsigacts;
 	int error;
 
@@ -471,7 +473,9 @@ again:
 	 * then copy the section that is copied directly from the parent.
 	 */
 	td2 = FIRST_THREAD_IN_PROC(p2);
+#ifdef KSE
 	kg2 = FIRST_KSEGRP_IN_PROC(p2);
+#endif
 
 	/* Allocate and switch to an alternate kstack if specified. */
 	if (pages != 0)
@@ -484,15 +488,19 @@ again:
 	    __rangeof(struct proc, p_startzero, p_endzero));
 	bzero(&td2->td_startzero,
 	    __rangeof(struct thread, td_startzero, td_endzero));
+#ifdef KSE
 	bzero(&kg2->kg_startzero,
 	    __rangeof(struct ksegrp, kg_startzero, kg_endzero));
+#endif
 
 	bcopy(&p1->p_startcopy, &p2->p_startcopy,
 	    __rangeof(struct proc, p_startcopy, p_endcopy));
 	bcopy(&td->td_startcopy, &td2->td_startcopy,
 	    __rangeof(struct thread, td_startcopy, td_endcopy));
+#ifdef KSE
 	bcopy(&td->td_ksegrp->kg_startcopy, &kg2->kg_startcopy,
 	    __rangeof(struct ksegrp, kg_startcopy, kg_endcopy));
+#endif
 
 	td2->td_sigstk = td->td_sigstk;
 	td2->td_sigmask = td->td_sigmask;
@@ -514,7 +522,11 @@ again:
 
 	mtx_unlock_spin(&sched_lock);
 	p2->p_ucred = crhold(td->td_ucred);
+#ifdef KSE
 	td2->td_ucred = crhold(p2->p_ucred);	/* XXXKSE */
+#else
+	td2->td_ucred = crhold(p2->p_ucred);
+#endif
 #ifdef AUDIT
 	audit_proc_fork(p1, p2);
 #endif

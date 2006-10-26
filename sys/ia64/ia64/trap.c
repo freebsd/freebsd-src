@@ -975,8 +975,10 @@ syscall(struct trapframe *tf)
 	td->td_pticks = 0;
 	if (td->td_ucred != p->p_ucred)
 		cred_update_thread(td);
+#ifdef KSE
 	if (p->p_flag & P_SA)
 		thread_user_enter(td);
+#endif
 
 	if (p->p_sysent->sv_prepsyscall) {
 		/* (*p->p_sysent->sv_prepsyscall)(tf, args, &code, &params); */

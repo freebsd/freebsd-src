@@ -299,8 +299,10 @@ trap(frame)
 
 		case T_PAGEFLT:		/* page fault */
 			addr = frame.tf_addr;
+#ifdef KSE
 			if (td->td_pflags & TDP_SA)
 				thread_user_enter(td);
+#endif
 			i = trap_pfault(&frame, TRUE);
 			if (i == -1)
 				goto userout;
@@ -757,8 +759,10 @@ syscall(frame)
 	td->td_frame = &frame;
 	if (td->td_ucred != p->p_ucred) 
 		cred_update_thread(td);
+#ifdef KSE
 	if (p->p_flag & P_SA)
 		thread_user_enter(td);
+#endif
 	params = (caddr_t)frame.tf_rsp + sizeof(register_t);
 	code = frame.tf_rax;
 	orig_tf_rflags = frame.tf_rflags;
