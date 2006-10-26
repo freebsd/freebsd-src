@@ -61,7 +61,6 @@ options		BOOTP_NFSV3
 options		BOOTP_WIRED_TO=em0
 options		BOOTP_COMPAT
 #options		PREEMPTION
-options 	KSE			# KSE support
 device		genclock
 device		loop
 device		ether
