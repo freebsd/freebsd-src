@@ -166,9 +166,15 @@ struct umtxq_chain {
  * if it is using 100%CPU, this is unfair to other processes.
  */
 
+#ifdef KSE
 #define UPRI(td)	(((td)->td_ksegrp->kg_user_pri >= PRI_MIN_TIMESHARE &&\
 			  (td)->td_ksegrp->kg_user_pri <= PRI_MAX_TIMESHARE) ?\
 			 PRI_MAX_TIMESHARE : (td)->td_ksegrp->kg_user_pri)
+#else
+#define UPRI(td)	(((td)->td_user_pri >= PRI_MIN_TIMESHARE &&\
+			  (td)->td_user_pri <= PRI_MAX_TIMESHARE) ?\
+			 PRI_MAX_TIMESHARE : (td)->td_user_pri)
+#endif
 
 #define	GOLDEN_RATIO_PRIME	2654404609U
 #define	UMTX_CHAINS		128

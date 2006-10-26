@@ -202,6 +202,7 @@ hardclock_cpu(int usermode)
 	 */
 	mtx_lock_spin_flags(&sched_lock, MTX_QUIET);
 	sched_tick();
+#ifdef KSE
 	if (p->p_flag & P_SA) {
 		/* XXXKSE What to do? */
 	} else {
@@ -218,6 +219,20 @@ hardclock_cpu(int usermode)
 			td->td_flags |= TDF_ASTPENDING;
 		}
 	}
+#else
+	pstats = p->p_stats;
+	if (usermode &&
+	    timevalisset(&pstats->p_timer[ITIMER_VIRTUAL].it_value) &&
+	    itimerdecr(&pstats->p_timer[ITIMER_VIRTUAL], tick) == 0) {
+		p->p_sflag |= PS_ALRMPEND;
+		td->td_flags |= TDF_ASTPENDING;
+	}
+	if (timevalisset(&pstats->p_timer[ITIMER_PROF].it_value) &&
+	    itimerdecr(&pstats->p_timer[ITIMER_PROF], tick) == 0) {
+		p->p_sflag |= PS_PROFPEND;
+		td->td_flags |= TDF_ASTPENDING;
+	}
+#endif
 	mtx_unlock_spin_flags(&sched_lock, MTX_QUIET);
 
 #ifdef	HWPMC_HOOKS
@@ -414,8 +429,10 @@ statclock(int usermode)
 		/*
 		 * Charge the time as appropriate.
 		 */
+#ifdef KSE
 		if (p->p_flag & P_SA)
 			thread_statclock(1);
+#endif
 		td->td_uticks++;
 		if (p->p_nice > NZERO)
 			cp_time[CP_NICE]++;
@@ -439,8 +456,10 @@ statclock(int usermode)
 			td->td_iticks++;
 			cp_time[CP_INTR]++;
 		} else {
+#ifdef KSE
 			if (p->p_flag & P_SA)
 				thread_statclock(0);
+#endif
 			td->td_pticks++;
 			td->td_sticks++;
 			if (td != PCPU_GET(idlethread))

@@ -430,7 +430,11 @@ uio_yield(void)
 	td = curthread;
 	mtx_lock_spin(&sched_lock);
 	DROP_GIANT();
+#ifdef KSE
 	sched_prio(td, td->td_ksegrp->kg_user_pri); /* XXXKSE */
+#else
+	sched_prio(td, td->td_user_pri);
+#endif
 	mi_switch(SW_INVOL, NULL);
 	mtx_unlock_spin(&sched_lock);
 	PICKUP_GIANT();

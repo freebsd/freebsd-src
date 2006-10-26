@@ -142,14 +142,18 @@ create_thread(struct thread *td, mcontext_t *ctx,
 {
 	stack_t stack;
 	struct thread *newtd;
+#ifdef KSE
 	struct ksegrp *kg, *newkg;
+#endif
 	struct proc *p;
 	long id;
 	int error;
 
 	error = 0;
 	p = td->td_proc;
+#ifdef KSE
 	kg = td->td_ksegrp;
+#endif
 
 	/* Have race condition but it is cheap. */
 	if (p->p_numthreads >= max_threads_per_proc)
@@ -225,6 +229,7 @@ create_thread(struct thread *td, mcontext_t *ctx,
 		}
 	}
 
+#ifdef KSE
 	newkg = ksegrp_alloc();
 	bzero(&newkg->kg_startzero,
 	    __rangeof(struct ksegrp, kg_startzero, kg_endzero));
@@ -238,7 +243,16 @@ create_thread(struct thread *td, mcontext_t *ctx,
 	ksegrp_link(newkg, p);
 	thread_link(newtd, newkg);
 	PROC_UNLOCK(p);
+#else
+    PROC_LOCK(td->td_proc);
+	td->td_proc->p_flag |= P_HADTHREADS;
+	newtd->td_sigmask = td->td_sigmask;
+	mtx_lock_spin(&sched_lock);
+	thread_link(newtd, p); 
+	PROC_UNLOCK(p);
+#endif
 
+#ifdef KSE
 	/* let the scheduler know about these things. */
 	sched_fork_ksegrp(td, newkg);
 	sched_fork_thread(td, newtd);
@@ -249,6 +263,16 @@ create_thread(struct thread *td, mcontext_t *ctx,
 			sched_prio(newtd, newkg->kg_user_pri);
 		} /* ignore timesharing class */
 	}
+#else
+	sched_fork(td, newtd);
+	if (rtp != NULL) {
+		if (!(td->td_pri_class == PRI_TIMESHARE &&
+		      rtp->type == RTP_PRIO_NORMAL)) {
+			rtp_to_pri(rtp, newtd);
+			sched_prio(newtd, newtd->td_user_pri);
+		} /* ignore timesharing class */
+	}
+#endif
 	TD_SET_CAN_RUN(newtd);
 	/* if ((flags & THR_SUSPENDED) == 0) */
 		setrunqueue(newtd, SRQ_BORING);

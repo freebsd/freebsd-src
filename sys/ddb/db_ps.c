@@ -292,8 +292,12 @@ DB_SHOW_COMMAND(thread, db_show_thread)
 		td = kdb_thread;
 
 	db_printf("Thread %d at %p:\n", td->td_tid, td);
+#ifdef KSE
 	db_printf(" proc (pid %d): %p ", td->td_proc->p_pid, td->td_proc);
 	db_printf(" ksegrp: %p\n", td->td_ksegrp);
+#else
+	db_printf(" proc (pid %d): %p\n", td->td_proc->p_pid, td->td_proc);
+#endif
 	if (td->td_name[0] != '\0')
 		db_printf(" name: %s\n", td->td_name);
 	db_printf(" flags: %#x ", td->td_flags);

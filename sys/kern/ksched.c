@@ -106,7 +106,11 @@ getscheduler(struct ksched *ksched, struct thread *td, int *policy)
 	int e = 0;
 
 	mtx_lock_spin(&sched_lock);
+#ifdef KSE
 	pri_to_rtp(td->td_ksegrp, &rtp);
+#else
+	pri_to_rtp(td, &rtp);
+#endif
 	mtx_unlock_spin(&sched_lock);
 	switch (rtp.type)
 	{
@@ -153,7 +157,11 @@ ksched_getparam(struct ksched *ksched,
 	struct rtprio rtp;
 
 	mtx_lock_spin(&sched_lock);
+#ifdef KSE
 	pri_to_rtp(td->td_ksegrp, &rtp);
+#else
+	pri_to_rtp(td, &rtp);
+#endif
 	mtx_unlock_spin(&sched_lock);
 	if (RTP_PRIO_IS_REALTIME(rtp.type))
 		param->sched_priority = rtpprio_to_p4prio(rtp.prio);
@@ -174,7 +182,9 @@ ksched_setscheduler(struct ksched *ksched,
 {
 	int e = 0;
 	struct rtprio rtp;
+#ifdef KSE
 	struct ksegrp *kg = td->td_ksegrp;
+#endif
 
 	switch(policy)
 	{
@@ -189,6 +199,7 @@ ksched_setscheduler(struct ksched *ksched,
 				? RTP_PRIO_FIFO : RTP_PRIO_REALTIME;
 
 			mtx_lock_spin(&sched_lock);
+#ifdef KSE
 			rtp_to_pri(&rtp, kg);
 			FOREACH_THREAD_IN_GROUP(kg, td) { /* XXXKSE */
 				if (TD_IS_RUNNING(td)) {
@@ -199,6 +210,9 @@ ksched_setscheduler(struct ksched *ksched,
 					}
 				}
 			}
+#else
+			rtp_to_pri(&rtp, td);
+#endif
 			mtx_unlock_spin(&sched_lock);
 		}
 		else
@@ -212,6 +226,7 @@ ksched_setscheduler(struct ksched *ksched,
 			rtp.type = RTP_PRIO_NORMAL;
 			rtp.prio = p4prio_to_rtpprio(param->sched_priority);
 			mtx_lock_spin(&sched_lock);
+#ifdef KSE
 			rtp_to_pri(&rtp, kg);
 
 			/* XXX Simply revert to whatever we had for last
@@ -230,6 +245,9 @@ ksched_setscheduler(struct ksched *ksched,
 				}
 				
 			}
+#else
+			rtp_to_pri(&rtp, td);
+#endif
 			mtx_unlock_spin(&sched_lock);
 		}
 		break;

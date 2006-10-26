@@ -141,7 +141,7 @@ proc_dtor(void *mem, int size, void *arg)
 {
 	struct proc *p;
 	struct thread *td;
-#ifdef INVARIANTS
+#if defined(INVARIANTS) && defined(KSE)
 	struct ksegrp *kg;
 #endif
 
@@ -151,10 +151,14 @@ proc_dtor(void *mem, int size, void *arg)
 #ifdef INVARIANTS
 	KASSERT((p->p_numthreads == 1),
 	    ("bad number of threads in exiting process"));
+#ifdef KSE
 	KASSERT((p->p_numksegrps == 1), ("free proc with > 1 ksegrp"));
+#endif
 	KASSERT((td != NULL), ("proc_dtor: bad thread pointer"));
+#ifdef KSE
         kg = FIRST_KSEGRP_IN_PROC(p);
 	KASSERT((kg != NULL), ("proc_dtor: bad kg pointer"));
+#endif
 	KASSERT(STAILQ_EMPTY(&p->p_ktr), ("proc_dtor: non-empty p_ktr"));
 #endif
 
@@ -177,17 +181,25 @@ proc_init(void *mem, int size, int flags)
 {
 	struct proc *p;
 	struct thread *td;
+#ifdef KSE
 	struct ksegrp *kg;
+#endif
 
 	p = (struct proc *)mem;
 	p->p_sched = (struct p_sched *)&p[1];
 	td = thread_alloc();
+#ifdef KSE
 	kg = ksegrp_alloc();
+#endif
 	bzero(&p->p_mtx, sizeof(struct mtx));
 	mtx_init(&p->p_mtx, "process lock", NULL, MTX_DEF | MTX_DUPOK);
 	p->p_stats = pstats_alloc();
+#ifdef KSE
 	proc_linkup(p, kg, td);
 	sched_newproc(p, kg, td);
+#else
+	proc_linkup(p, td);
+#endif
 	return (0);
 }
 
@@ -203,7 +215,9 @@ proc_fini(void *mem, int size)
 
 	p = (struct proc *)mem;
 	pstats_free(p->p_stats);
+#ifdef KSE
 	ksegrp_free(FIRST_KSEGRP_IN_PROC(p));
+#endif
 	thread_free(FIRST_THREAD_IN_PROC(p));
 	mtx_destroy(&p->p_mtx);
 	if (p->p_ksi != NULL)
@@ -768,7 +782,9 @@ fill_kinfo_proc_only(struct proc *p, struct kinfo_proc *kp)
 static void
 fill_kinfo_thread(struct thread *td, struct kinfo_proc *kp)
 {
+#ifdef KSE
 	struct ksegrp *kg;
+#endif
 	struct proc *p;
 
 	p = td->td_proc;
@@ -808,6 +824,7 @@ fill_kinfo_thread(struct thread *td, struct kinfo_proc *kp)
 		kp->ki_stat = SIDL;
 	}
 
+#ifdef KSE
 	kg = td->td_ksegrp;
 
 	/* things in the KSE GROUP */
@@ -815,7 +832,7 @@ fill_kinfo_thread(struct thread *td, struct kinfo_proc *kp)
 	kp->ki_slptime = kg->kg_slptime;
 	kp->ki_pri.pri_user = kg->kg_user_pri;
 	kp->ki_pri.pri_class = kg->kg_pri_class;
-
+#endif
 	/* Things in the thread */
 	kp->ki_wchan = td->td_wchan;
 	kp->ki_pri.pri_level = td->td_priority;
@@ -828,6 +845,12 @@ fill_kinfo_thread(struct thread *td, struct kinfo_proc *kp)
 	kp->ki_pcb = td->td_pcb;
 	kp->ki_kstack = (void *)td->td_kstack;
 	kp->ki_pctcpu = sched_pctcpu(td);
+#ifndef KSE
+	kp->ki_estcpu = td->td_estcpu;
+	kp->ki_slptime = td->td_slptime;
+	kp->ki_pri.pri_class = td->td_pri_class;
+	kp->ki_pri.pri_user = td->td_user_pri;
+#endif
 
 	/* We can't get this anymore but ps etc never used it anyway. */
 	kp->ki_rqindex = 0;

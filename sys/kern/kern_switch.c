@@ -24,6 +24,7 @@
  * SUCH DAMAGE.
  */
 
+#ifdef KSE
 /***
 Here is the logic..
 
@@ -84,6 +85,7 @@ queued at the priorities they have inherrited from the M highest priority
 threads for that KSEGROUP. If this situation changes, the KSEs are
 reassigned to keep this true.
 ***/
+#endif
 
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
@@ -142,31 +144,48 @@ SYSCTL_INT(_kern_sched, OID_AUTO, preemption, CTLFLAG_RD,
 /************************************************************************
  * Functions that manipulate runnability from a thread perspective.	*
  ************************************************************************/
+#ifdef KSE
 /*
  * Select the KSE that will be run next.  From that find the thread, and
  * remove it from the KSEGRP's run queue.  If there is thread clustering,
  * this will be what does it.
  */
+#else
+/*
+ * Select the thread that will be run next.
+ */
+#endif
 struct thread *
 choosethread(void)
 {
+#ifdef KSE
 	struct kse *ke;
+#endif
 	struct thread *td;
+#ifdef KSE
 	struct ksegrp *kg;
+#endif
 
 #if defined(SMP) && (defined(__i386__) || defined(__amd64__))
 	if (smp_active == 0 && PCPU_GET(cpuid) != 0) {
 		/* Shutting down, run idlethread on AP's */
 		td = PCPU_GET(idlethread);
+#ifdef KSE
 		ke = td->td_kse;
+#endif
 		CTR1(KTR_RUNQ, "choosethread: td=%p (idle)", td);
+#ifdef KSE
 		ke->ke_flags |= KEF_DIDRUN;
+#else
+		td->td_kse->ke_flags |= KEF_DIDRUN;
+#endif
 		TD_SET_RUNNING(td);
 		return (td);
 	}
 #endif
 
 retry:
+#ifdef KSE
 	ke = sched_choose();
 	if (ke) {
 		td = ke->ke_thread;
@@ -179,15 +198,25 @@ retry:
 			}
 			TAILQ_REMOVE(&kg->kg_runq, td, td_runq);
 		}
+#else
+	td = sched_choose();
+	if (td) {
+#endif
 		CTR2(KTR_RUNQ, "choosethread: td=%p pri=%d",
 		    td, td->td_priority);
 	} else {
 		/* Simulate runq_choose() having returned the idle thread */
 		td = PCPU_GET(idlethread);
+#ifdef KSE
 		ke = td->td_kse;
+#endif
 		CTR1(KTR_RUNQ, "choosethread: td=%p (idle)", td);
 	}
+#ifdef KSE
 	ke->ke_flags |= KEF_DIDRUN;
+#else
+	td->td_kse->ke_flags |= KEF_DIDRUN;
+#endif
 
 	/*
 	 * If we are in panic, only allow system threads,
@@ -204,6 +233,7 @@ retry:
 	return (td);
 }
 
+#ifdef KSE
 /*
  * Given a surplus system slot, try assign a new runnable thread to it.
  * Called from:
@@ -287,6 +317,7 @@ remrunqueue(struct thread *td)
 	}
 }
 #endif
+#endif
 
 /*
  * Change the priority of a thread that is on the run queue.
@@ -294,7 +325,9 @@ remrunqueue(struct thread *td)
 void
 adjustrunqueue( struct thread *td, int newpri)
 {
+#ifdef KSE
 	struct ksegrp *kg;
+#endif
 	struct kse *ke;
 
 	mtx_assert(&sched_lock, MA_OWNED);
@@ -302,6 +335,7 @@ adjustrunqueue( struct thread *td, int newpri)
 
 	ke = td->td_kse;
 	CTR1(KTR_RUNQ, "adjustrunqueue: td%p", td);
+#ifdef KSE
 	/*
 	 * If it is not a threaded process, take the shortcut.
 	 */
@@ -338,8 +372,22 @@ adjustrunqueue( struct thread *td, int newpri)
 	TD_SET_CAN_RUN(td);
 	td->td_priority = newpri;
 	setrunqueue(td, SRQ_BORING);
+#else
+	/* We only care about the kse in the run queue. */
+	td->td_priority = newpri;
+#ifndef SCHED_CORE
+	if (ke->ke_rqindex != (newpri / RQ_PPQ))
+#else
+	if (ke->ke_rqindex != newpri)
+#endif
+	{
+		sched_rem(td);
+		sched_add(td, SRQ_BORING);
+	}
+#endif
 }
 
+#ifdef KSE
 /*
  * This function is called when a thread is about to be put on a
  * ksegrp run queue because it has been made runnable or its
@@ -485,15 +533,21 @@ maybe_preempt_in_ksegrp(struct thread *td)
 
 
 int limitcount;
+#endif
 void
 setrunqueue(struct thread *td, int flags)
 {
+#ifdef KSE
 	struct ksegrp *kg;
 	struct thread *td2;
 	struct thread *tda;
 
 	CTR3(KTR_RUNQ, "setrunqueue: td:%p kg:%p pid:%d",
 	    td, td->td_ksegrp, td->td_proc->p_pid);
+#else
+	CTR2(KTR_RUNQ, "setrunqueue: td:%p pid:%d",
+	    td, td->td_proc->p_pid);
+#endif
 	CTR5(KTR_SCHED, "setrunqueue: %p(%s) prio %d by %p(%s)",
             td, td->td_proc->p_comm, td->td_priority, curthread,
             curthread->td_proc->p_comm);
@@ -503,6 +557,7 @@ setrunqueue(struct thread *td, int flags)
 	KASSERT((TD_CAN_RUN(td) || TD_IS_RUNNING(td)),
 	    ("setrunqueue: bad thread state"));
 	TD_SET_RUNQ(td);
+#ifdef KSE
 	kg = td->td_ksegrp;
 	if ((td->td_proc->p_flag & P_HADTHREADS) == 0) {
 		/*
@@ -594,6 +649,9 @@ setrunqueue(struct thread *td, int flags)
 		if ((flags & SRQ_YIELDING) == 0)
 			maybe_preempt_in_ksegrp(td);
 	}
+#else
+	sched_add(td, flags);
+#endif
 }
 
 /*
@@ -705,6 +763,7 @@ maybe_preempt(struct thread *td)
 	 */
 	MPASS(TD_ON_RUNQ(td));
 	MPASS(td->td_sched->ke_state != KES_ONRUNQ);
+#ifdef KSE
 	if (td->td_proc->p_flag & P_HADTHREADS) {
 		/*
 		 * If this is a threaded process we actually ARE on the
@@ -721,6 +780,7 @@ maybe_preempt(struct thread *td)
 		TAILQ_REMOVE(&kg->kg_runq, td, td_runq);
 	}
 
+#endif
 	TD_SET_RUNNING(td);
 	CTR3(KTR_PROC, "preempting to thread %p (pid %d, %s)\n", td,
 	    td->td_proc->p_pid, td->td_proc->p_comm);
@@ -926,7 +986,11 @@ runq_remove(struct runq *rq, struct kse *ke)
 	struct rqhead *rqh;
 	int pri;
 
+#ifdef KSE
 	KASSERT(ke->ke_proc->p_sflag & PS_INMEM,
+#else
+	KASSERT(ke->ke_thread->td_proc->p_sflag & PS_INMEM,
+#endif
 		("runq_remove: process swapped out"));
 	pri = ke->ke_rqindex;
 	rqh = &rq->rq_queues[pri];
@@ -944,6 +1008,7 @@ runq_remove(struct runq *rq, struct kse *ke)
 #include <vm/uma.h>
 extern struct mtx kse_zombie_lock;
 
+#ifdef KSE
 /*
  *  Allocate scheduler specific per-process resources.
  * The thread and ksegrp have already been linked in.
@@ -959,6 +1024,7 @@ sched_newproc(struct proc *p, struct ksegrp *kg, struct thread *td)
 	/* This can go in sched_fork */
 	sched_init_concurrency(kg);
 }
+#endif
 
 /*
  * thread is being either created or recycled.
@@ -980,6 +1046,7 @@ sched_newthread(struct thread *td)
 	ke->ke_state	= KES_THREAD;
 }
 
+#ifdef KSE
 /*
  * Set up an initial concurrency of 1
  * and set the given thread (if given) to be using that
@@ -1036,5 +1103,6 @@ sched_thread_exit(struct thread *td)
 	SLOT_RELEASE(td->td_ksegrp);
 	slot_fill(td->td_ksegrp);
 }
+#endif
 
 #endif /* KERN_SWITCH_INCLUDE */
