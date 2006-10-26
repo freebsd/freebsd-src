@@ -64,7 +64,7 @@ u_int32_t entry_lo;
 extern void amd64_tramp();
 
 /*
- * There is an a.out kernel and one or more a.out modules loaded.  
+ * There is an ELF kernel and one or more ELF modules loaded.  
  * We wish to start executing the kernel image, so make such 
  * preparations as are required, and do so.
  */
