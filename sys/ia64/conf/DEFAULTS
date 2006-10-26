@@ -18,3 +18,5 @@ options 	GEOM_BSD
 options 	GEOM_GPT
 options 	GEOM_MBR
 
+# KSE support went from being default to a kernel option
+options 	KSE
