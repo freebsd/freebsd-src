@@ -2532,8 +2532,8 @@ out:
 		tond.ni_dvp = NULL;
 		tond.ni_vp = NULL;
 		if (error) {
-			fromnd.ni_cnd.cn_flags &= ~HASBUF;
-			tond.ni_cnd.cn_flags &= ~HASBUF;
+			NDFREE(&fromnd, NDF_ONLY_PNBUF);
+			NDFREE(&tond, NDF_ONLY_PNBUF);
 		}
 	} else {
 		if (error == -1)
