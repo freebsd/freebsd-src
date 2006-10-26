@@ -206,7 +206,7 @@ static int umtx_key_match(const struct umtx_key *k1, const struct umtx_key *k2);
 static int umtx_key_get(void *addr, int type, int share,
 	struct umtx_key *key);
 static void umtx_key_release(struct umtx_key *key);
-static struct umtx_pi *umtx_pi_alloc(void);
+static struct umtx_pi *umtx_pi_alloc(int);
 static void umtx_pi_free(struct umtx_pi *pi);
 static int do_unlock_pp(struct thread *td, struct umutex *m, uint32_t flags);
 static void umtx_thread_cleanup(struct thread *td);
@@ -1172,11 +1172,11 @@ do_unlock_normal(struct thread *td, struct umutex *m, uint32_t flags)
 }
 
 static inline struct umtx_pi *
-umtx_pi_alloc(void)
+umtx_pi_alloc(int flags)
 {
 	struct umtx_pi *pi;
 
-	pi = uma_zalloc(umtx_pi_zone, M_ZERO | M_WAITOK);
+	pi = uma_zalloc(umtx_pi_zone, M_ZERO | flags);
 	TAILQ_INIT(&pi->pi_blocked);
 	atomic_add_int(&umtx_pi_allocated, 1);
 	return (pi);
@@ -1571,32 +1571,35 @@ _do_lock_pi(struct thread *td, struct umutex *m, uint32_t flags, int timo,
 	if ((error = umtx_key_get(m, TYPE_PI_UMUTEX, GET_SHARE(flags),
 	    &uq->uq_key)) != 0)
 		return (error);
-	for (;;) {
-		pi = NULL;
-		umtxq_lock(&uq->uq_key);
-		pi = umtx_pi_lookup(&uq->uq_key);
-		if (pi == NULL) {
+	umtxq_lock(&uq->uq_key);
+	pi = umtx_pi_lookup(&uq->uq_key);
+	if (pi == NULL) {
+		new_pi = umtx_pi_alloc(M_NOWAIT);
+		if (new_pi == NULL) {
 			umtxq_unlock(&uq->uq_key);
-			new_pi = umtx_pi_alloc();
+			new_pi = umtx_pi_alloc(M_WAITOK);
 			new_pi->pi_key = uq->uq_key;
 			umtxq_lock(&uq->uq_key);
 			pi = umtx_pi_lookup(&uq->uq_key);
-			if (pi != NULL)
+			if (pi != NULL) {
 				umtx_pi_free(new_pi);
-			else {
-				umtx_pi_insert(new_pi);
-				pi = new_pi;
+				new_pi = NULL;
 			}
 		}
+		if (new_pi != NULL) {
+			new_pi->pi_key = uq->uq_key;
+			umtx_pi_insert(new_pi);
+			pi = new_pi;
+		}
+	}
+	umtx_pi_ref(pi);
+	umtxq_unlock(&uq->uq_key);
 
-		umtx_pi_ref(pi);
-		umtxq_unlock(&uq->uq_key);
-
-		/*
-		 * Care must be exercised when dealing with umtx structure.  It
-		 * can fault on any access.
-		 */
-
+	/*
+	 * Care must be exercised when dealing with umtx structure.  It
+	 * can fault on any access.
+	 */
+	for (;;) {
 		/*
 		 * Try the uncontested case.  This should be done in userland.
 		 */
@@ -1633,10 +1636,6 @@ _do_lock_pi(struct thread *td, struct umutex *m, uint32_t flags, int timo,
 			}
 
 			/* If this failed the lock has changed, restart. */
-			umtxq_lock(&uq->uq_key);
-			umtx_pi_unref(pi);
-			umtxq_unlock(&uq->uq_key);
-			pi = NULL;
 			continue;
 		}
 
@@ -1689,16 +1688,12 @@ _do_lock_pi(struct thread *td, struct umutex *m, uint32_t flags, int timo,
 		if (old == owner)
 			error = umtxq_sleep_pi(uq, pi, owner & ~UMUTEX_CONTESTED,
 				 "umtxpi", timo);
-		umtx_pi_unref(pi);
 		umtxq_unlock(&uq->uq_key);
-		pi = NULL;
 	}
 
-	if (pi != NULL) {
-		umtxq_lock(&uq->uq_key);
-		umtx_pi_unref(pi);
-		umtxq_unlock(&uq->uq_key);
-	}
+	umtxq_lock(&uq->uq_key);
+	umtx_pi_unref(pi);
+	umtxq_unlock(&uq->uq_key);
 
 	umtx_key_release(&uq->uq_key);
 	return (error);
