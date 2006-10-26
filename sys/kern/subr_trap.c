@@ -115,11 +115,13 @@ userret(struct thread *td, struct trapframe *frame)
 		PROC_UNLOCK(p);
 	}
 
+#ifdef KSE
 	/*
 	 * Do special thread processing, e.g. upcall tweaking and such.
 	 */
 	if (p->p_flag & P_SA)
 		thread_userret(td, frame);
+#endif
 
 	/*
 	 * Charge system time if profiling.
@@ -147,7 +149,9 @@ ast(struct trapframe *framep)
 {
 	struct thread *td;
 	struct proc *p;
+#ifdef KSE
 	struct ksegrp *kg;
+#endif
 	struct rlimit rlim;
 	int sflag;
 	int flags;
@@ -159,7 +163,9 @@ ast(struct trapframe *framep)
 
 	td = curthread;
 	p = td->td_proc;
+#ifdef KSE
 	kg = td->td_ksegrp;
+#endif
 
 	CTR3(KTR_SYSC, "ast: thread %p (pid %d, %s)", td, p->p_pid,
             p->p_comm);
@@ -170,8 +176,10 @@ ast(struct trapframe *framep)
 	td->td_frame = framep;
 	td->td_pticks = 0;
 
+#ifdef KSE
 	if ((p->p_flag & P_SA) && (td->td_mailbox == NULL))
 		thread_user_enter(td);
+#endif
 
 	/*
 	 * This updates the p_sflag's for the checks below in one
@@ -256,7 +264,11 @@ ast(struct trapframe *framep)
 			ktrcsw(1, 1);
 #endif
 		mtx_lock_spin(&sched_lock);
+#ifdef KSE
 		sched_prio(td, kg->kg_user_pri);
+#else
+		sched_prio(td, td->td_user_pri);
+#endif
 		mi_switch(SW_INVOL, NULL);
 		mtx_unlock_spin(&sched_lock);
 #ifdef KTRACE

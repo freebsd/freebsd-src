@@ -75,6 +75,7 @@ __FBSDID("$FreeBSD$");
 #endif
 #define	NICE_WEIGHT		1	/* Priorities per nice level. */
 
+#ifdef KSE
 /*
  * The schedulable entity that can be given a context to run.
  * A process may have several of these. Probably one per processor
@@ -82,6 +83,13 @@ __FBSDID("$FreeBSD$");
  * with a KSEG that contains the priority and niceness
  * for the group.
  */
+#else
+/*
+ * The schedulable entity that runs a context.
+ * A process may have several of these. Probably one per processor
+ * but posibly a few more.
+ */
+#endif
 struct kse {
 	TAILQ_ENTRY(kse) ke_procq;	/* (j/z) Run queue. */
 	struct thread	*ke_thread;	/* (*) Active associated thread. */
@@ -95,8 +103,10 @@ struct kse {
 	struct runq	*ke_runq;	/* runq the kse is currently on */
 };
 
+#ifdef KSE
 #define ke_proc		ke_thread->td_proc
 #define ke_ksegrp	ke_thread->td_ksegrp
+#endif
 
 #define td_kse td_sched
 
@@ -113,6 +123,7 @@ struct kse {
 #define SKE_RUNQ_PCPU(ke)						\
     ((ke)->ke_runq != 0 && (ke)->ke_runq != &runq)
 
+#ifdef KSE
 struct kg_sched {
 	struct thread	*skg_last_assigned; /* (j) Last thread assigned to */
 					   /* the system scheduler. */
@@ -144,6 +155,7 @@ do {									\
 /*	KASSERT((kg->kg_avail_opennings >= 0),				\
 	    ("slots out of whack"));*/					\
 } while (0)
+#endif
 
 /*
  * KSE_CAN_MIGRATE macro returns true if the kse can migrate between
@@ -153,7 +165,9 @@ do {									\
     ((ke)->ke_thread->td_pinned == 0 && ((ke)->ke_flags & KEF_BOUND) == 0)
 
 static struct kse kse0;
+#ifdef KSE
 static struct kg_sched kg_sched0;
+#endif
 
 static int	sched_tdcnt;	/* Total runnable threads in the system. */
 static int	sched_quantum;	/* Roundrobin scheduling quantum in ticks. */
@@ -161,8 +175,12 @@ static int	sched_quantum;	/* Roundrobin scheduling quantum in ticks. */
 
 static struct callout roundrobin_callout;
 
+#ifdef KSE
 static void	slot_fill(struct ksegrp *kg);
 static struct kse *sched_choose(void);		/* XXX Should be thread * */
+#else
+static struct thread *sched_choose(void);
+#endif
 
 static void	setup_runqs(void);
 static void	roundrobin(void *arg);
@@ -171,9 +189,15 @@ static void	schedcpu_thread(void);
 static void	sched_priority(struct thread *td, u_char prio);
 static void	sched_setup(void *dummy);
 static void	maybe_resched(struct thread *td);
+#ifdef KSE
 static void	updatepri(struct ksegrp *kg);
 static void	resetpriority(struct ksegrp *kg);
 static void	resetpriority_thread(struct thread *td, struct ksegrp *kg);
+#else
+static void	updatepri(struct thread *td);
+static void	resetpriority(struct thread *td);
+static void	resetpriority_thread(struct thread *td);
+#endif
 #ifdef SMP
 static int	forward_wakeup(int  cpunum);
 #endif
@@ -276,6 +300,7 @@ SYSCTL_INT(_kern_sched_ipiwakeup, OID_AUTO, htt2, CTLFLAG_RW,
 	   "account for htt");
 
 #endif
+#ifdef KSE
 static int sched_followon = 0;
 SYSCTL_INT(_kern_sched, OID_AUTO, followon, CTLFLAG_RW,
 	   &sched_followon, 0,
@@ -290,6 +315,7 @@ static int sched_kgfollowons = 0;
 SYSCTL_INT(_kern_sched, OID_AUTO, kgfollowons, CTLFLAG_RD,
 	   &sched_kgfollowons, 0,
 	   "number of followons done in a ksegrp");
+#endif
 
 static __inline void
 sched_load_add(void)
@@ -340,20 +366,40 @@ roundrobin(void *arg)
 
 /*
  * Constants for digital decay and forget:
+ * ifdef KSE
  *	90% of (kg_estcpu) usage in 5 * loadav time
+ * else
+ *	90% of (td_estcpu) usage in 5 * loadav time
+ * endif
  *	95% of (ke_pctcpu) usage in 60 seconds (load insensitive)
  *          Note that, as ps(1) mentions, this can let percentages
  *          total over 100% (I've seen 137.9% for 3 processes).
  *
+ * ifdef KSE
  * Note that schedclock() updates kg_estcpu and p_cpticks asynchronously.
+ * else
+ * Note that schedclock() updates td_estcpu and p_cpticks asynchronously.
+ * endif
  *
+ * ifdef KSE
  * We wish to decay away 90% of kg_estcpu in (5 * loadavg) seconds.
+ * else
+ * We wish to decay away 90% of td_estcpu in (5 * loadavg) seconds.
+ * endif
  * That is, the system wants to compute a value of decay such
  * that the following for loop:
  * 	for (i = 0; i < (5 * loadavg); i++)
+ * ifdef KSE
  * 		kg_estcpu *= decay;
+ * else
+ * 		td_estcpu *= decay;
+ * endif
  * will compute
+ * ifdef KSE
  * 	kg_estcpu *= 0.1;
+ * else
+ * 	td_estcpu *= 0.1;
+ * endif
  * for all values of loadavg:
  *
  * Mathematically this loop can be expressed by saying:
@@ -436,7 +482,9 @@ schedcpu(void)
 	struct thread *td;
 	struct proc *p;
 	struct kse *ke;
+#ifdef KSE
 	struct ksegrp *kg;
+#endif
 	int awake, realstathz;
 
 	realstathz = stathz ? stathz : hz;
@@ -451,8 +499,13 @@ schedcpu(void)
 		 * 16-bit int's (remember them?) overflow takes 45 days.
 		 */
 		p->p_swtime++;
+#ifdef KSE
 		FOREACH_KSEGRP_IN_PROC(p, kg) { 
+#else
+		FOREACH_THREAD_IN_PROC(p, td) { 
+#endif
 			awake = 0;
+#ifdef KSE
 			FOREACH_THREAD_IN_GROUP(kg, td) {
 				ke = td->td_kse;
 				/*
@@ -502,12 +555,70 @@ schedcpu(void)
 #endif
 				ke->ke_cpticks = 0;
 			} /* end of kse loop */
+#else
+			ke = td->td_kse;
+			/*
+			 * Increment sleep time (if sleeping).  We
+			 * ignore overflow, as above.
+			 */
+			/*
+			 * The kse slptimes are not touched in wakeup
+			 * because the thread may not HAVE a KSE.
+			 */
+			if (ke->ke_state == KES_ONRUNQ) {
+				awake = 1;
+				ke->ke_flags &= ~KEF_DIDRUN;
+			} else if ((ke->ke_state == KES_THREAD) &&
+			    (TD_IS_RUNNING(td))) {
+				awake = 1;
+				/* Do not clear KEF_DIDRUN */
+			} else if (ke->ke_flags & KEF_DIDRUN) {
+				awake = 1;
+				ke->ke_flags &= ~KEF_DIDRUN;
+			}
+
+			/*
+			 * ke_pctcpu is only for ps and ttyinfo().
+			 * Do it per kse, and add them up at the end?
+			 * XXXKSE
+			 */
+			ke->ke_pctcpu = (ke->ke_pctcpu * ccpu) >>
+			    FSHIFT;
+			/*
+			 * If the kse has been idle the entire second,
+			 * stop recalculating its priority until
+			 * it wakes up.
+			 */
+			if (ke->ke_cpticks == 0)
+				continue;
+#if	(FSHIFT >= CCPU_SHIFT)
+			ke->ke_pctcpu += (realstathz == 100)
+			    ? ((fixpt_t) ke->ke_cpticks) <<
+			    (FSHIFT - CCPU_SHIFT) :
+			    100 * (((fixpt_t) ke->ke_cpticks)
+			    << (FSHIFT - CCPU_SHIFT)) / realstathz;
+#else
+			ke->ke_pctcpu += ((FSCALE - ccpu) *
+			    (ke->ke_cpticks *
+			    FSCALE / realstathz)) >> FSHIFT;
+#endif
+			ke->ke_cpticks = 0;
+#endif
+
 			/* 
+			 * ifdef KSE
 			 * If there are ANY running threads in this KSEGRP,
+			 * else
+			 * If there are ANY running threads in this process,
+			 * endif
 			 * then don't count it as sleeping.
 			 */
 			if (awake) {
+#ifdef KSE
 				if (kg->kg_slptime > 1) {
+#else
+				if (td->td_slptime > 1) {
+#endif
 					/*
 					 * In an ideal world, this should not
 					 * happen, because whoever woke us
@@ -517,6 +628,7 @@ schedcpu(void)
 					 * priority.  Should KASSERT at some
 					 * point when all the cases are fixed.
 					 */
+#ifdef KSE
 					updatepri(kg);
 				}
 				kg->kg_slptime = 0;
@@ -530,6 +642,19 @@ schedcpu(void)
 				resetpriority_thread(td, kg);
 			}
 		} /* end of ksegrp loop */
+#else
+					updatepri(td);
+				}
+				td->td_slptime = 0;
+			} else
+				td->td_slptime++;
+			if (td->td_slptime > 1)
+				continue;
+			td->td_estcpu = decay_cpu(loadfac, td->td_estcpu);
+		      	resetpriority(td);
+			resetpriority_thread(td);
+		} /* end of thread loop */
+#endif
 		mtx_unlock_spin(&sched_lock);
 	} /* end of process loop */
 	sx_sunlock(&allproc_lock);
@@ -551,24 +676,48 @@ schedcpu_thread(void)
 
 /*
  * Recalculate the priority of a process after it has slept for a while.
+ * ifdef KSE
  * For all load averages >= 1 and max kg_estcpu of 255, sleeping for at
  * least six times the loadfactor will decay kg_estcpu to zero.
+ * else
+ * For all load averages >= 1 and max td_estcpu of 255, sleeping for at
+ * least six times the loadfactor will decay td_estcpu to zero.
+ * endif
  */
 static void
+#ifdef KSE
 updatepri(struct ksegrp *kg)
+#else
+updatepri(struct thread *td)
+#endif
 {
 	register fixpt_t loadfac;
 	register unsigned int newcpu;
 
 	loadfac = loadfactor(averunnable.ldavg[0]);
+#ifdef KSE
 	if (kg->kg_slptime > 5 * loadfac)
 		kg->kg_estcpu = 0;
+#else
+	if (td->td_slptime > 5 * loadfac)
+		td->td_estcpu = 0;
+#endif
 	else {
+#ifdef KSE
 		newcpu = kg->kg_estcpu;
 		kg->kg_slptime--;	/* was incremented in schedcpu() */
 		while (newcpu && --kg->kg_slptime)
+#else
+		newcpu = td->td_estcpu;
+		td->td_slptime--;	/* was incremented in schedcpu() */
+		while (newcpu && --td->td_slptime)
+#endif
 			newcpu = decay_cpu(loadfac, newcpu);
+#ifdef KSE
 		kg->kg_estcpu = newcpu;
+#else
+		td->td_estcpu = newcpu;
+#endif
 	}
 }
 
@@ -578,16 +727,30 @@ updatepri(struct ksegrp *kg)
  * than that of the current process.
  */
 static void
+#ifdef KSE
 resetpriority(struct ksegrp *kg)
+#else
+resetpriority(struct thread *td)
+#endif
 {
 	register unsigned int newpriority;
 
+#ifdef KSE
 	if (kg->kg_pri_class == PRI_TIMESHARE) {
 		newpriority = PUSER + kg->kg_estcpu / INVERSE_ESTCPU_WEIGHT +
 		    NICE_WEIGHT * (kg->kg_proc->p_nice - PRIO_MIN);
+#else
+	if (td->td_pri_class == PRI_TIMESHARE) {
+		newpriority = PUSER + td->td_estcpu / INVERSE_ESTCPU_WEIGHT +
+		    NICE_WEIGHT * (td->td_proc->p_nice - PRIO_MIN);
+#endif
 		newpriority = min(max(newpriority, PRI_MIN_TIMESHARE),
 		    PRI_MAX_TIMESHARE);
+#ifdef KSE
 		sched_user_prio(kg, newpriority);
+#else
+		sched_user_prio(td, newpriority);
+#endif
 	}
 }
 
@@ -596,7 +759,11 @@ resetpriority(struct ksegrp *kg)
  * priority changes.
  */
 static void
+#ifdef KSE
 resetpriority_thread(struct thread *td, struct ksegrp *kg)
+#else
+resetpriority_thread(struct thread *td)
+#endif
 {
 
 	/* Only change threads with a time sharing user priority. */
@@ -607,7 +774,11 @@ resetpriority_thread(struct thread *td, struct ksegrp *kg)
 	/* XXX the whole needresched thing is broken, but not silly. */
 	maybe_resched(td);
 
+#ifdef KSE
 	sched_prio(td, kg->kg_user_pri);
+#else
+	sched_prio(td, td->td_user_pri);
+#endif
 }
 
 /* ARGSUSED */
@@ -643,12 +814,16 @@ schedinit(void)
 	 * Set up the scheduler specific parts of proc0.
 	 */
 	proc0.p_sched = NULL; /* XXX */
+#ifdef KSE
 	ksegrp0.kg_sched = &kg_sched0;
+#endif
 	thread0.td_sched = &kse0;
 	kse0.ke_thread = &thread0;
 	kse0.ke_state = KES_THREAD;
+#ifdef KSE
 	kg_sched0.skg_concurrency = 1;
 	kg_sched0.skg_avail_opennings = 0; /* we are already running */
+#endif
 }
 
 int
@@ -672,8 +847,13 @@ sched_rr_interval(void)
 /*
  * We adjust the priority of the current process.  The priority of
  * a process gets worse as it accumulates CPU time.  The cpu usage
+ * ifdef KSE
  * estimator (kg_estcpu) is increased here.  resetpriority() will
  * compute a different priority each time kg_estcpu increases by
+ * else
+ * estimator (td_estcpu) is increased here.  resetpriority() will
+ * compute a different priority each time td_estcpu increases by
+ * endif
  * INVERSE_ESTCPU_WEIGHT
  * (until MAXPRI is reached).  The cpu usage estimator ramps up
  * quite quickly when the process is running (linearly), and decays
@@ -686,21 +866,33 @@ sched_rr_interval(void)
 void
 sched_clock(struct thread *td)
 {
+#ifdef KSE
 	struct ksegrp *kg;
+#endif
 	struct kse *ke;
 
 	mtx_assert(&sched_lock, MA_OWNED);
+#ifdef KSE
 	kg = td->td_ksegrp;
+#endif
 	ke = td->td_kse;
 
 	ke->ke_cpticks++;
+#ifdef KSE
 	kg->kg_estcpu = ESTCPULIM(kg->kg_estcpu + 1);
 	if ((kg->kg_estcpu % INVERSE_ESTCPU_WEIGHT) == 0) {
 		resetpriority(kg);
 		resetpriority_thread(td, kg);
+#else
+	td->td_estcpu = ESTCPULIM(td->td_estcpu + 1);
+	if ((td->td_estcpu % INVERSE_ESTCPU_WEIGHT) == 0) {
+		resetpriority(td);
+		resetpriority_thread(td);
+#endif
 	}
 }
 
+#ifdef KSE
 /*
  * charge childs scheduling cpu usage to parent.
  *
@@ -709,13 +901,30 @@ sched_clock(struct thread *td)
  * all ksegrps, this is strictly as expected.  Assume that the child process
  * aggregated all the estcpu into the 'built-in' ksegrp.
  */
+#else
+/*
+ * charge childs scheduling cpu usage to parent.
+ */
+#endif
 void
 sched_exit(struct proc *p, struct thread *td)
 {
+#ifdef KSE
 	sched_exit_ksegrp(FIRST_KSEGRP_IN_PROC(p), td);
 	sched_exit_thread(FIRST_THREAD_IN_PROC(p), td);
+#else
+	struct thread *parent = FIRST_THREAD_IN_PROC(p);
+
+	CTR3(KTR_SCHED, "sched_exit: %p(%s) prio %d",
+	    td, td->td_proc->p_comm, td->td_priority);
+
+	parent->td_estcpu = ESTCPULIM(parent->td_estcpu + td->td_estcpu);
+	if ((td->td_proc->p_flag & P_NOLOAD) == 0)
+		sched_load_rem();
+#endif
 }
 
+#ifdef KSE
 void
 sched_exit_ksegrp(struct ksegrp *kg, struct thread *childtd)
 {
@@ -732,14 +941,21 @@ sched_exit_thread(struct thread *td, struct thread *child)
 	if ((child->td_proc->p_flag & P_NOLOAD) == 0)
 		sched_load_rem();
 }
+#endif
 
 void
 sched_fork(struct thread *td, struct thread *childtd)
 {
+#ifdef KSE
 	sched_fork_ksegrp(td, childtd->td_ksegrp);
 	sched_fork_thread(td, childtd);
+#else
+	childtd->td_estcpu = td->td_estcpu;
+	sched_newthread(childtd);
+#endif
 }
 
+#ifdef KSE
 void
 sched_fork_ksegrp(struct thread *td, struct ksegrp *child)
 {
@@ -752,37 +968,61 @@ sched_fork_thread(struct thread *td, struct thread *childtd)
 {
 	sched_newthread(childtd);
 }
+#endif
 
 void
 sched_nice(struct proc *p, int nice)
 {
+#ifdef KSE
 	struct ksegrp *kg;
+#endif
 	struct thread *td;
 
 	PROC_LOCK_ASSERT(p, MA_OWNED);
 	mtx_assert(&sched_lock, MA_OWNED);
 	p->p_nice = nice;
+#ifdef KSE
 	FOREACH_KSEGRP_IN_PROC(p, kg) {
 		resetpriority(kg);
 		FOREACH_THREAD_IN_GROUP(kg, td) {
 			resetpriority_thread(td, kg);
 		}
 	}
+#else
+	FOREACH_THREAD_IN_PROC(p, td) {
+		resetpriority(td);
+		resetpriority_thread(td);
+	}
+#endif
 }
 
 void
+#ifdef KSE
 sched_class(struct ksegrp *kg, int class)
+#else
+sched_class(struct thread *td, int class)
+#endif
 {
 	mtx_assert(&sched_lock, MA_OWNED);
+#ifdef KSE
 	kg->kg_pri_class = class;
+#else
+	td->td_pri_class = class;
+#endif
 }
 
+#ifdef KSE
 /*
  * Adjust the priority of a thread.
  * This may include moving the thread within the KSEGRP,
  * changing the assignment of a kse to the thread,
  * and moving a KSE in the system run queue.
  */
+#else
+/*
+ * Adjust the priority of a thread.
+ */
+#endif
 static void
 sched_priority(struct thread *td, u_char prio)
 {
@@ -827,7 +1067,11 @@ sched_unlend_prio(struct thread *td, u_char prio)
 
 	if (td->td_base_pri >= PRI_MIN_TIMESHARE &&
 	    td->td_base_pri <= PRI_MAX_TIMESHARE)
+#ifdef KSE
 		base_pri = td->td_ksegrp->kg_user_pri;
+#else
+		base_pri = td->td_user_pri;
+#endif
 	else
 		base_pri = td->td_base_pri;
 	if (prio >= base_pri) {
@@ -865,11 +1109,18 @@ sched_prio(struct thread *td, u_char prio)
 }
 
 void
+#ifdef KSE
 sched_user_prio(struct ksegrp *kg, u_char prio)
+#else
+sched_user_prio(struct thread *td, u_char prio)
+#endif
 {
+#ifdef KSE
 	struct thread *td;
+#endif
 	u_char oldprio;
 
+#ifdef KSE
 	kg->kg_base_user_pri = prio;
 
 	/* XXXKSE only for 1:1 */
@@ -885,6 +1136,12 @@ sched_user_prio(struct ksegrp *kg, u_char prio)
 
 	oldprio = kg->kg_user_pri;
 	kg->kg_user_pri = prio;
+#else
+	td->td_base_user_pri = prio;
+
+	oldprio = td->td_user_pri;
+	td->td_user_pri = prio;
+#endif
 
 	if (TD_ON_UPILOCK(td) && oldprio != prio)
 		umtx_pi_adjust(td, oldprio);
@@ -897,8 +1154,13 @@ sched_lend_user_prio(struct thread *td, u_char prio)
 
 	td->td_flags |= TDF_UBORROWING;
 
+#ifdef KSE
 	oldprio = td->td_ksegrp->kg_user_pri;
 	td->td_ksegrp->kg_user_pri = prio;
+#else
+	oldprio = td->td_user_pri;
+	td->td_user_pri = prio;
+#endif
 
 	if (TD_ON_UPILOCK(td) && oldprio != prio)
 		umtx_pi_adjust(td, oldprio);
@@ -907,13 +1169,23 @@ sched_lend_user_prio(struct thread *td, u_char prio)
 void
 sched_unlend_user_prio(struct thread *td, u_char prio)
 {
+#ifdef KSE
 	struct ksegrp *kg = td->td_ksegrp;
+#endif
 	u_char base_pri;
 
+#ifdef KSE
 	base_pri = kg->kg_base_user_pri;
+#else
+	base_pri = td->td_base_user_pri;
+#endif
 	if (prio >= base_pri) {
 		td->td_flags &= ~TDF_UBORROWING;
+#ifdef KSE
 		sched_user_prio(kg, base_pri);
+#else
+		sched_user_prio(td, base_pri);
+#endif
 	} else
 		sched_lend_user_prio(td, prio);
 }
@@ -923,16 +1195,24 @@ sched_sleep(struct thread *td)
 {
 
 	mtx_assert(&sched_lock, MA_OWNED);
+#ifdef KSE
 	td->td_ksegrp->kg_slptime = 0;
+#else
+	td->td_slptime = 0;
+#endif
 }
 
+#ifdef KSE
 static void remrunqueue(struct thread *td);
+#endif
 
 void
 sched_switch(struct thread *td, struct thread *newtd, int flags)
 {
 	struct kse *ke;
+#ifdef KSE
 	struct ksegrp *kg;
+#endif
 	struct proc *p;
 
 	ke = td->td_kse;
@@ -942,6 +1222,7 @@ sched_switch(struct thread *td, struct thread *newtd, int flags)
 
 	if ((p->p_flag & P_NOLOAD) == 0)
 		sched_load_rem();
+#ifdef KSE
 	/* 
 	 * We are volunteering to switch out so we get to nominate
 	 * a successor for the rest of our quantum
@@ -967,6 +1248,7 @@ sched_switch(struct thread *td, struct thread *newtd, int flags)
 			}
 		}
 	}
+#endif
 
 	if (newtd) 
 		newtd->td_flags |= (td->td_flags & TDF_NEEDRESCHED);
@@ -984,12 +1266,15 @@ sched_switch(struct thread *td, struct thread *newtd, int flags)
 	if (td == PCPU_GET(idlethread))
 		TD_SET_CAN_RUN(td);
 	else {
+#ifdef KSE
 		SLOT_RELEASE(td->td_ksegrp);
+#endif
 		if (TD_IS_RUNNING(td)) {
 			/* Put us back on the run queue (kse and all). */
 			setrunqueue(td, (flags & SW_PREEMPT) ?
 			    SRQ_OURSELF|SRQ_YIELDING|SRQ_PREEMPTED :
 			    SRQ_OURSELF|SRQ_YIELDING);
+#ifdef KSE
 		} else if (p->p_flag & P_HADTHREADS) {
 			/*
 			 * We will not be on the run queue. So we must be
@@ -999,6 +1284,7 @@ sched_switch(struct thread *td, struct thread *newtd, int flags)
 			 */
 			if (newtd == NULL || newtd->td_ksegrp != td->td_ksegrp)
 				slot_fill(td->td_ksegrp);
+#endif
 		}
 	}
 	if (newtd) {
@@ -1007,12 +1293,16 @@ sched_switch(struct thread *td, struct thread *newtd, int flags)
 		 * as if it had been added to the run queue and selected.
 		 * It came from:
 		 * * A preemption
+		 * ifdef KSE
 		 * * An upcall 
+		 * endif
 		 * * A followon
 		 */
 		KASSERT((newtd->td_inhibitors == 0),
 			("trying to run inhibitted thread"));
+#ifdef KSE
 		SLOT_USE(newtd->td_ksegrp);
+#endif
 		newtd->td_kse->ke_flags |= KEF_DIDRUN;
         	TD_SET_RUNNING(newtd);
 		if ((newtd->td_proc->p_flag & P_NOLOAD) == 0)
@@ -1026,6 +1316,7 @@ sched_switch(struct thread *td, struct thread *newtd, int flags)
 		if (PMC_PROC_IS_USING_PMCS(td->td_proc))
 			PMC_SWITCH_CONTEXT(td, PMC_FN_CSW_OUT);
 #endif
+
 		cpu_switch(td, newtd);
 #ifdef	HWPMC_HOOKS
 		if (PMC_PROC_IS_USING_PMCS(td->td_proc))
@@ -1040,15 +1331,25 @@ sched_switch(struct thread *td, struct thread *newtd, int flags)
 void
 sched_wakeup(struct thread *td)
 {
+#ifdef KSE
 	struct ksegrp *kg;
+#endif
 
 	mtx_assert(&sched_lock, MA_OWNED);
+#ifdef KSE
 	kg = td->td_ksegrp;
 	if (kg->kg_slptime > 1) {
 		updatepri(kg);
 		resetpriority(kg);
 	}
 	kg->kg_slptime = 0;
+#else
+	if (td->td_slptime > 1) {
+		updatepri(td);
+		resetpriority(td);
+	}
+	td->td_slptime = 0;
+#endif
 	setrunqueue(td, SRQ_BORING);
 }
 
@@ -1188,8 +1489,13 @@ sched_add(struct thread *td, int flags)
 	mtx_assert(&sched_lock, MA_OWNED);
 	KASSERT(ke->ke_state != KES_ONRUNQ,
 	    ("sched_add: kse %p (%s) already in run queue", ke,
+#ifdef KSE
 	    ke->ke_proc->p_comm));
 	KASSERT(ke->ke_proc->p_sflag & PS_INMEM,
+#else
+	    td->td_proc->p_comm));
+	KASSERT(td->td_proc->p_sflag & PS_INMEM,
+#endif
 	    ("sched_add: process swapped out"));
 	CTR5(KTR_SCHED, "sched_add: %p(%s) prio %d by %p(%s)",
 	    td, td->td_proc->p_comm, td->td_priority, curthread,
@@ -1239,7 +1545,9 @@ sched_add(struct thread *td, int flags)
 	
 	if ((td->td_proc->p_flag & P_NOLOAD) == 0)
 		sched_load_add();
+#ifdef KSE
 	SLOT_USE(td->td_ksegrp);
+#endif
 	runq_add(ke->ke_runq, ke, flags);
 	ke->ke_state = KES_ONRUNQ;
 }
@@ -1250,8 +1558,13 @@ sched_add(struct thread *td, int flags)
 	mtx_assert(&sched_lock, MA_OWNED);
 	KASSERT(ke->ke_state != KES_ONRUNQ,
 	    ("sched_add: kse %p (%s) already in run queue", ke,
+#ifdef KSE
 	    ke->ke_proc->p_comm));
 	KASSERT(ke->ke_proc->p_sflag & PS_INMEM,
+#else
+	    td->td_proc->p_comm));
+	KASSERT(td->td_proc->p_sflag & PS_INMEM,
+#endif
 	    ("sched_add: process swapped out"));
 	CTR5(KTR_SCHED, "sched_add: %p(%s) prio %d by %p(%s)",
 	    td, td->td_proc->p_comm, td->td_priority, curthread,
@@ -1276,7 +1589,9 @@ sched_add(struct thread *td, int flags)
 	}	
 	if ((td->td_proc->p_flag & P_NOLOAD) == 0)
 		sched_load_add();
+#ifdef KSE
 	SLOT_USE(td->td_ksegrp);
+#endif
 	runq_add(ke->ke_runq, ke, flags);
 	ke->ke_state = KES_ONRUNQ;
 	maybe_resched(td);
@@ -1289,7 +1604,11 @@ sched_rem(struct thread *td)
 	struct kse *ke;
 
 	ke = td->td_kse;
+#ifdef KSE
 	KASSERT(ke->ke_proc->p_sflag & PS_INMEM,
+#else
+	KASSERT(td->td_proc->p_sflag & PS_INMEM,
+#endif
 	    ("sched_rem: process swapped out"));
 	KASSERT((ke->ke_state == KES_ONRUNQ),
 	    ("sched_rem: KSE not on run queue"));
@@ -1300,7 +1619,9 @@ sched_rem(struct thread *td)
 
 	if ((td->td_proc->p_flag & P_NOLOAD) == 0)
 		sched_load_rem();
+#ifdef KSE
 	SLOT_RELEASE(td->td_ksegrp);
+#endif
 	runq_remove(ke->ke_runq, ke);
 
 	ke->ke_state = KES_THREAD;
@@ -1310,7 +1631,11 @@ sched_rem(struct thread *td)
  * Select threads to run.
  * Notice that the running threads still consume a slot.
  */
+#ifdef KSE
 struct kse *
+#else
+struct thread *
+#endif
 sched_choose(void)
 {
 	struct kse *ke;
@@ -1339,20 +1664,36 @@ sched_choose(void)
 	ke = runq_choose(&runq);
 #endif
 
+#ifdef KSE
 	if (ke != NULL) {
+#else
+	if (ke) {
+#endif
 		runq_remove(rq, ke);
 		ke->ke_state = KES_THREAD;
 
+#ifdef KSE
 		KASSERT(ke->ke_proc->p_sflag & PS_INMEM,
 		    ("sched_choose: process swapped out"));
+#else
+		KASSERT(ke->ke_thread->td_proc->p_sflag & PS_INMEM,
+		    ("sched_choose: process swapped out"));
+		return (ke->ke_thread);
+#endif
 	}
+#ifdef KSE
 	return (ke);
+#else
+	return (NULL);
+#endif
 }
 
 void
 sched_userret(struct thread *td)
 {
+#ifdef KSE
 	struct ksegrp *kg;
+#endif
 	/*
 	 * XXX we cheat slightly on the locking here to avoid locking in
 	 * the usual case.  Setting td_priority here is essentially an
@@ -1364,6 +1705,7 @@ sched_userret(struct thread *td)
 	 */
 	KASSERT((td->td_flags & TDF_BORROWING) == 0,
 	    ("thread with borrowed priority returning to userland"));
+#ifdef KSE
 	kg = td->td_ksegrp;
 	if (td->td_priority != kg->kg_user_pri) {
 		mtx_lock_spin(&sched_lock);
@@ -1371,6 +1713,14 @@ sched_userret(struct thread *td)
 		td->td_base_pri = kg->kg_user_pri;
 		mtx_unlock_spin(&sched_lock);
 	}
+#else
+	if (td->td_priority != td->td_user_pri) {
+		mtx_lock_spin(&sched_lock);
+		td->td_priority = td->td_user_pri;
+		td->td_base_pri = td->td_user_pri;
+		mtx_unlock_spin(&sched_lock);
+	}
+#endif
 }
 
 void
@@ -1413,11 +1763,17 @@ sched_is_bound(struct thread *td)
 void
 sched_relinquish(struct thread *td)
 {
+#ifdef KSE
 	struct ksegrp *kg;
 
 	kg = td->td_ksegrp;
+#endif
 	mtx_lock_spin(&sched_lock);
+#ifdef KSE
 	if (kg->kg_pri_class == PRI_TIMESHARE)
+#else
+	if (td->td_pri_class == PRI_TIMESHARE)
+#endif
 		sched_prio(td, PRI_MAX_TIMESHARE);
 	mi_switch(SW_VOL, NULL);
 	mtx_unlock_spin(&sched_lock);
@@ -1429,11 +1785,13 @@ sched_load(void)
 	return (sched_tdcnt);
 }
 
+#ifdef KSE
 int
 sched_sizeof_ksegrp(void)
 {
 	return (sizeof(struct ksegrp) + sizeof(struct kg_sched));
 }
+#endif
 
 int
 sched_sizeof_proc(void)

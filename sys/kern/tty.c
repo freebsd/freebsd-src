@@ -2669,7 +2669,11 @@ proc_compare(struct proc *p1, struct proc *p2)
 {
 
 	int esta, estb;
+#ifdef KSE
 	struct ksegrp *kg;
+#else
+	struct thread *td;
+#endif
 	mtx_assert(&sched_lock, MA_OWNED);
 	if (p1 == NULL)
 		return (1);
@@ -2690,12 +2694,19 @@ proc_compare(struct proc *p1, struct proc *p2)
 		 * tie - favor one with highest recent cpu utilization
 		 */
 		esta = estb = 0;
+#ifdef KSE
 		FOREACH_KSEGRP_IN_PROC(p1,kg) {
 			esta += kg->kg_estcpu;
 		}
 		FOREACH_KSEGRP_IN_PROC(p2,kg) {
 			estb += kg->kg_estcpu;
 		}
+#else
+		FOREACH_THREAD_IN_PROC(p1, td)
+			esta += td->td_estcpu;
+		FOREACH_THREAD_IN_PROC(p2, td)
+			estb += td->td_estcpu;
+#endif
 		if (estb > esta)
 			return (1);
 		if (esta > estb)

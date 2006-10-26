@@ -802,7 +802,9 @@ kern_ptrace(struct thread *td, int req, pid_t pid, void *addr, int data)
 			 * continuing process.
 			 */
 			mtx_unlock_spin(&sched_lock);
+#ifdef KSE
 			thread_continued(p);
+#endif
 			p->p_flag &= ~(P_STOPPED_TRACE|P_STOPPED_SIG|P_WAITED);
 			mtx_lock_spin(&sched_lock);
 			thread_unsuspend(p);
@@ -940,6 +942,7 @@ kern_ptrace(struct thread *td, int req, pid_t pid, void *addr, int data)
 			pl->pl_event = PL_EVENT_SIGNAL;
 		else
 			pl->pl_event = 0;
+#ifdef KSE
 		if (td2->td_pflags & TDP_SA) {
 			pl->pl_flags = PL_FLAG_SA;
 			if (td2->td_upcall && !TD_CAN_UNBIND(td2))
@@ -947,6 +950,9 @@ kern_ptrace(struct thread *td, int req, pid_t pid, void *addr, int data)
 		} else {
 			pl->pl_flags = 0;
 		}
+#else
+		pl->pl_flags = 0;
+#endif
 		pl->pl_sigmask = td2->td_sigmask;
 		pl->pl_siglist = td2->td_siglist;
 		break;

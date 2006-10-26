@@ -21,6 +21,15 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 7.x IS SLOW:
 	developers choose to disable these features on build machines
 	to maximize performance.
 
+20061025:
+	KSE in the kernel has now been made optional and turned on by
+	default in the GENERIC kernels. Either add 'options KSE' to your
+	custom kernel or edit /etc/libmap.conf to redirect libpthread.so.2
+	to libthr.so.2. All kernel modules *must* be recompiled after
+	this change. There-after, modules from a KSE kernel should be
+	compatible with modules from a NOKSE kernel due to the temporary
+	padding fields added to 'struct proc'.
+
 20060929:
 	mrouted and its utilities have been removed from the base system.
 
