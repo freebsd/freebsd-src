@@ -47,6 +47,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/ktr.h>
 #include <vm/uma.h>
 
+#ifdef KSE
 /*
  * KSEGRP related storage.
  */
@@ -117,6 +118,7 @@ upcall_remove(struct thread *td)
 		td->td_upcall = NULL;
 	}
 }
+#endif
 
 #ifndef _SYS_SYSPROTO_H_
 struct kse_switchin_args {
@@ -128,6 +130,7 @@ struct kse_switchin_args {
 int
 kse_switchin(struct thread *td, struct kse_switchin_args *uap)
 {
+#ifdef KSE
 	struct kse_thr_mailbox tmbx;
 	struct kse_upcall *ku;
 	int error;
@@ -167,6 +170,9 @@ kse_switchin(struct thread *td, struct kse_switchin_args *uap)
 		PROC_UNLOCK(td->td_proc);
 	}
 	return ((error == 0) ? EJUSTRETURN : error);
+#else /* !KSE */
+	return (EOPNOTSUPP);
+#endif
 }
 
 /*
@@ -179,6 +185,7 @@ struct kse_thr_interrupt_args {
 int
 kse_thr_interrupt(struct thread *td, struct kse_thr_interrupt_args *uap)
 {
+#ifdef KSE
 	struct kse_execve_args args;
 	struct image_args iargs;
 	struct proc *p;
@@ -283,6 +290,9 @@ kse_thr_interrupt(struct thread *td, struct kse_thr_interrupt_args *uap)
 		return (EINVAL);
 	}
 	return (0);
+#else /* !KSE */
+	return (EOPNOTSUPP);
+#endif
 }
 
 /*
@@ -293,6 +303,7 @@ struct kse_exit_args {
 int
 kse_exit(struct thread *td, struct kse_exit_args *uap)
 {
+#ifdef KSE
 	struct proc *p;
 	struct ksegrp *kg;
 	struct kse_upcall *ku, *ku2;
@@ -379,6 +390,9 @@ kse_exit(struct thread *td, struct kse_exit_args *uap)
 #else
 	exit1(td, 0);
 #endif
+#else /* !KSE */
+	return (EOPNOTSUPP);
+#endif
 }
 
 /*
@@ -393,6 +407,7 @@ struct kse_release_args {
 int
 kse_release(struct thread *td, struct kse_release_args *uap)
 {
+#ifdef KSE
 	struct proc *p;
 	struct ksegrp *kg;
 	struct kse_upcall *ku;
@@ -454,6 +469,9 @@ kse_release(struct thread *td, struct kse_release_args *uap)
 		mtx_unlock_spin(&sched_lock);
 	}
 	return (0);
+#else /* !KSE */
+	return (EOPNOTSUPP);
+#endif
 }
 
 /* struct kse_wakeup_args {
@@ -462,6 +480,7 @@ kse_release(struct thread *td, struct kse_release_args *uap)
 int
 kse_wakeup(struct thread *td, struct kse_wakeup_args *uap)
 {
+#ifdef KSE
 	struct proc *p;
 	struct ksegrp *kg;
 	struct kse_upcall *ku;
@@ -517,6 +536,9 @@ kse_wakeup(struct thread *td, struct kse_wakeup_args *uap)
 	}
 	PROC_UNLOCK(p);
 	return (0);
+#else /* !KSE */
+	return (EOPNOTSUPP);
+#endif
 }
 
 /*
@@ -534,6 +556,7 @@ kse_wakeup(struct thread *td, struct kse_wakeup_args *uap)
 int
 kse_create(struct thread *td, struct kse_create_args *uap)
 {
+#ifdef KSE
 	struct ksegrp *newkg;
 	struct ksegrp *kg;
 	struct proc *p;
@@ -805,8 +828,12 @@ kse_create(struct thread *td, struct kse_create_args *uap)
 		mtx_unlock_spin(&sched_lock);
 	}
 	return (0);
+#else /* !KSE */
+	return (EOPNOTSUPP);
+#endif
 }
 
+#ifdef KSE
 /*
  * Initialize global thread allocation resources.
  */
@@ -1479,3 +1506,4 @@ thread_continued(struct proc *p)
 		}
 	}
 }
+#endif

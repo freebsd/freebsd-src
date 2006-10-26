@@ -581,7 +581,11 @@ poll_idle(void)
 	rtp.prio = RTP_PRIO_MAX;	/* lowest priority */
 	rtp.type = RTP_PRIO_IDLE;
 	mtx_lock_spin(&sched_lock);
+#ifdef KSE
 	rtp_to_pri(&rtp, td->td_ksegrp);
+#else
+	rtp_to_pri(&rtp, td);
+#endif
 	mtx_unlock_spin(&sched_lock);
 
 	for (;;) {

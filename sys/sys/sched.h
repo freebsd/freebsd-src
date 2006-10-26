@@ -52,17 +52,23 @@ void	sched_fork(struct thread *td, struct thread *childtd);
  * KSE Groups contain scheduling priority information.  They record the
  * behavior of groups of KSEs and threads.
  */
+#ifdef KSE
 void	sched_class(struct ksegrp *kg, int class);
 void	sched_exit_ksegrp(struct ksegrp *kg, struct thread *childtd);
 void	sched_fork_ksegrp(struct thread *td, struct ksegrp *child);
+#else
+void	sched_class(struct thread *td, int class);
+#endif
 void	sched_nice(struct proc *p, int nice);
 
 /*
  * Threads are switched in and out, block on resources, have temporary
  * priorities inherited from their ksegs, and use up cpu time.
  */
+#ifdef KSE
 void	sched_exit_thread(struct thread *td, struct thread *child);
 void	sched_fork_thread(struct thread *td, struct thread *child);
+#endif
 void	sched_lend_prio(struct thread *td, u_char prio);
 void	sched_lend_user_prio(struct thread *td, u_char pri);
 fixpt_t	sched_pctcpu(struct thread *td);
@@ -71,7 +77,11 @@ void	sched_sleep(struct thread *td);
 void	sched_switch(struct thread *td, struct thread *newtd, int flags);
 void	sched_unlend_prio(struct thread *td, u_char prio);
 void	sched_unlend_user_prio(struct thread *td, u_char pri);
+#ifdef KSE
 void	sched_user_prio(struct ksegrp *kg, u_char prio);
+#else
+void	sched_user_prio(struct thread *td, u_char prio);
+#endif
 void	sched_userret(struct thread *td);
 void	sched_wakeup(struct thread *td);
 
@@ -98,7 +108,9 @@ int	sched_is_bound(struct thread *td);
  * These procedures tell the process data structure allocation code how
  * many bytes to actually allocate.
  */
+#ifdef KSE
 int	sched_sizeof_ksegrp(void);
+#endif
 int	sched_sizeof_proc(void);
 int	sched_sizeof_thread(void);
 
@@ -116,11 +128,15 @@ sched_unpin(void)
 
 /* temporarily here */
 void schedinit(void);
+#ifdef KSE
 void sched_init_concurrency(struct ksegrp *kg);
 void sched_set_concurrency(struct ksegrp *kg, int cuncurrency);
+#endif
 void sched_schedinit(void);
+#ifdef KSE
 void sched_newproc(struct proc *p, struct ksegrp *kg, struct thread *td);
 void sched_thread_exit(struct thread *td);
+#endif
 void sched_newthread(struct thread *td);
 
 #endif /* !_SYS_SCHED_H_ */

@@ -179,7 +179,11 @@ pagezero_start(void __unused *arg)
 	PROC_UNLOCK(pagezero_proc);
 	mtx_lock_spin(&sched_lock);
 	td = FIRST_THREAD_IN_PROC(pagezero_proc);
+#ifdef KSE
 	sched_class(td->td_ksegrp, PRI_IDLE);
+#else
+	sched_class(td, PRI_IDLE);
+#endif
 	sched_prio(td, PRI_MAX_IDLE);
 	setrunqueue(td, SRQ_BORING);
 	mtx_unlock_spin(&sched_lock);
