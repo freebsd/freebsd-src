@@ -100,7 +100,7 @@ ASM_CFLAGS= -x assembler-with-cpp -DLOCORE ${CFLAGS}
 CFLAGS+=	-DGPROF -falign-functions=16
 .if ${PROFLEVEL} >= 2
 CFLAGS+=	-DGPROF4 -DGUPROF
-PROF=	-finstrument-functions -Wno-inline
+PROF=	-pg -mprofiler-epilogue
 .else
 PROF=	-pg
 .endif
