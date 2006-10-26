@@ -59,7 +59,6 @@ options 	KBD_INSTALL_CDEV	# install a CDEV entry in /dev
 options   	GEOM_GPT    # GUID Partition Tables.
 options   	GEOM_MBR    # DOS/MBR partitioning
 options   	GEOM_LABEL    # Providers labelization.
-options 	KSE			# KSE support
 
 options	BOOTP
 options	BOOTP_NFSROOT
