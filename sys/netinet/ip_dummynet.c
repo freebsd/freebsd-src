@@ -133,31 +133,30 @@ static struct callout dn_timeout;
 extern	void (*bridge_dn_p)(struct mbuf *, struct ifnet *);
 
 #ifdef SYSCTL_NODE
-SYSCTL_NODE(_net_inet_ip, OID_AUTO, dummynet,
-		CTLFLAG_RW, 0, "Dummynet");
+SYSCTL_NODE(_net_inet_ip, OID_AUTO, dummynet, CTLFLAG_RW, 0, "Dummynet");
 SYSCTL_INT(_net_inet_ip_dummynet, OID_AUTO, hash_size,
-	    CTLFLAG_RW, &dn_hash_size, 0, "Default hash table size");
+    CTLFLAG_RW, &dn_hash_size, 0, "Default hash table size");
 SYSCTL_INT(_net_inet_ip_dummynet, OID_AUTO, curr_time,
-	    CTLFLAG_RD, &curr_time, 0, "Current tick");
+    CTLFLAG_RD, &curr_time, 0, "Current tick");
 SYSCTL_INT(_net_inet_ip_dummynet, OID_AUTO, ready_heap,
-	    CTLFLAG_RD, &ready_heap.size, 0, "Size of ready heap");
+    CTLFLAG_RD, &ready_heap.size, 0, "Size of ready heap");
 SYSCTL_INT(_net_inet_ip_dummynet, OID_AUTO, extract_heap,
-	    CTLFLAG_RD, &extract_heap.size, 0, "Size of extract heap");
+    CTLFLAG_RD, &extract_heap.size, 0, "Size of extract heap");
 SYSCTL_INT(_net_inet_ip_dummynet, OID_AUTO, searches,
-	    CTLFLAG_RD, &searches, 0, "Number of queue searches");
+    CTLFLAG_RD, &searches, 0, "Number of queue searches");
 SYSCTL_INT(_net_inet_ip_dummynet, OID_AUTO, search_steps,
-	    CTLFLAG_RD, &search_steps, 0, "Number of queue search steps");
+    CTLFLAG_RD, &search_steps, 0, "Number of queue search steps");
 SYSCTL_INT(_net_inet_ip_dummynet, OID_AUTO, expire,
-	    CTLFLAG_RW, &pipe_expire, 0, "Expire queue if empty");
+    CTLFLAG_RW, &pipe_expire, 0, "Expire queue if empty");
 SYSCTL_INT(_net_inet_ip_dummynet, OID_AUTO, max_chain_len,
-	    CTLFLAG_RW, &dn_max_ratio, 0,
-	"Max ratio between dynamic queues and buckets");
+    CTLFLAG_RW, &dn_max_ratio, 0,
+    "Max ratio between dynamic queues and buckets");
 SYSCTL_INT(_net_inet_ip_dummynet, OID_AUTO, red_lookup_depth,
-	CTLFLAG_RD, &red_lookup_depth, 0, "Depth of RED lookup table");
+    CTLFLAG_RD, &red_lookup_depth, 0, "Depth of RED lookup table");
 SYSCTL_INT(_net_inet_ip_dummynet, OID_AUTO, red_avg_pkt_size,
-	CTLFLAG_RD, &red_avg_pkt_size, 0, "RED Medium packet size");
+    CTLFLAG_RD, &red_avg_pkt_size, 0, "RED Medium packet size");
 SYSCTL_INT(_net_inet_ip_dummynet, OID_AUTO, red_max_pkt_size,
-	CTLFLAG_RD, &red_max_pkt_size, 0, "RED Max packet size");
+    CTLFLAG_RD, &red_max_pkt_size, 0, "RED Max packet size");
 #endif
 
 #ifdef DUMMYNET_DEBUG
@@ -700,58 +699,65 @@ ready_event_wfq(struct dn_pipe *p, struct mbuf **head, struct mbuf **tail)
 static void
 dummynet(void * __unused unused)
 {
-    struct mbuf *head = NULL, *tail = NULL;
-    struct dn_pipe *pipe;
-    struct dn_heap *heaps[3];
-    struct dn_heap *h;
-    void *p; /* generic parameter to handler */
-    int i;
+	struct mbuf *head = NULL, *tail = NULL;
+	struct dn_pipe *pipe;
+	struct dn_heap *heaps[3];
+	struct dn_heap *h;
+	void *p;	/* generic parameter to handler */
+	int i;
 
-    heaps[0] = &ready_heap ;		/* fixed-rate queues */
-    heaps[1] = &wfq_ready_heap ;	/* wfq queues */
-    heaps[2] = &extract_heap ;		/* delay line */
+	heaps[0] = &ready_heap;			/* fixed-rate queues */
+	heaps[1] = &wfq_ready_heap;		/* wfq queues */
+	heaps[2] = &extract_heap;		/* delay line */
 
-    DUMMYNET_LOCK();
-    curr_time++ ;
-    for (i=0; i < 3 ; i++) {
-	h = heaps[i];
-	while (h->elements > 0 && DN_KEY_LEQ(h->p[0].key, curr_time) ) {
-	    if (h->p[0].key > curr_time)
-		printf("dummynet: warning, heap %d is %d ticks late\n",
-		    i, (int)(curr_time - h->p[0].key));
-	    p = h->p[0].object ; /* store a copy before heap_extract */
-	    heap_extract(h, NULL); /* need to extract before processing */
-	    if (i == 0)
-		ready_event(p, &head, &tail);
-	    else if (i == 1) {
-		struct dn_pipe *pipe = p;
-		if (pipe->if_name[0] != '\0')
-		    printf("dummynet: bad ready_event_wfq for pipe %s\n",
-			pipe->if_name);
-		else
-		    ready_event_wfq(p, &head, &tail);
-	    } else
-		transmit_event(p, &head, &tail);
-	}
-    }
-    /* Sweep pipes trying to expire idle flow_queues. */
-    for (i = 0; i < HASHSIZE; i++)
-	SLIST_FOREACH(pipe, &pipehash[i], next)
-		if (pipe->idle_heap.elements > 0 &&
-		    DN_KEY_LT(pipe->idle_heap.p[0].key, pipe->V) ) {
-			struct dn_flow_queue *q = pipe->idle_heap.p[0].object;
+	DUMMYNET_LOCK();
+	curr_time++;
 
-			heap_extract(&(pipe->idle_heap), NULL);
-			q->S = q->F + 1; /* Mark timestamp as invalid. */
-			pipe->sum -= q->fs->weight;
+	for (i = 0; i < 3; i++) {
+		h = heaps[i];
+		while (h->elements > 0 && DN_KEY_LEQ(h->p[0].key, curr_time)) {
+			if (h->p[0].key > curr_time)
+				printf("dummynet: warning, "
+				    "heap %d is %d ticks late\n",
+				    i, (int)(curr_time - h->p[0].key));
+			/* store a copy before heap_extract */
+			p = h->p[0].object;
+			/* need to extract before processing */
+			heap_extract(h, NULL);
+			if (i == 0)
+				ready_event(p, &head, &tail);
+			else if (i == 1) {
+				struct dn_pipe *pipe = p;
+				if (pipe->if_name[0] != '\0')
+					printf("dummynet: bad ready_event_wfq "
+					    "for pipe %s\n", pipe->if_name);
+				else
+					ready_event_wfq(p, &head, &tail);
+			} else
+				transmit_event(p, &head, &tail);
 		}
+	}
 
-    DUMMYNET_UNLOCK();
+	/* Sweep pipes trying to expire idle flow_queues. */
+	for (i = 0; i < HASHSIZE; i++)
+		SLIST_FOREACH(pipe, &pipehash[i], next)
+			if (pipe->idle_heap.elements > 0 &&
+			    DN_KEY_LT(pipe->idle_heap.p[0].key, pipe->V)) {
+				struct dn_flow_queue *q =
+				    pipe->idle_heap.p[0].object;
 
-    if (head != NULL)
-	dummynet_send(head);
+				heap_extract(&(pipe->idle_heap), NULL);
+				/* Mark timestamp as invalid. */
+				q->S = q->F + 1;
+				pipe->sum -= q->fs->weight;
+			}
 
-    callout_reset(&dn_timeout, 1, dummynet, NULL);
+	DUMMYNET_UNLOCK();
+
+	if (head != NULL)
+		dummynet_send(head);
+
+	callout_reset(&dn_timeout, 1, dummynet, NULL);
 }
 
 static void
@@ -994,103 +1000,106 @@ find_queue(struct dn_flow_set *fs, struct ipfw_flow_id *id)
 static int
 red_drops(struct dn_flow_set *fs, struct dn_flow_queue *q, int len)
 {
-    /*
-     * RED algorithm
-     *
-     * RED calculates the average queue size (avg) using a low-pass filter
-     * with an exponential weighted (w_q) moving average:
-     * 	avg  <-  (1-w_q) * avg + w_q * q_size
-     * where q_size is the queue length (measured in bytes or * packets).
-     *
-     * If q_size == 0, we compute the idle time for the link, and set
-     *	avg = (1 - w_q)^(idle/s)
-     * where s is the time needed for transmitting a medium-sized packet.
-     *
-     * Now, if avg < min_th the packet is enqueued.
-     * If avg > max_th the packet is dropped. Otherwise, the packet is
-     * dropped with probability P function of avg.
-     *
-     */
-
-    int64_t p_b = 0;
-    /* queue in bytes or packets ? */
-    u_int q_size = (fs->flags_fs & DN_QSIZE_IS_BYTES) ? q->len_bytes : q->len;
-
-    DPRINTF(("\ndummynet: %d q: %2u ", (int) curr_time, q_size));
-
-    /* average queue size estimation */
-    if (q_size != 0) {
 	/*
-	 * queue is not empty, avg <- avg + (q_size - avg) * w_q
+	 * RED algorithm
+	 *
+	 * RED calculates the average queue size (avg) using a low-pass filter
+	 * with an exponential weighted (w_q) moving average:
+	 * 	avg  <-  (1-w_q) * avg + w_q * q_size
+	 * where q_size is the queue length (measured in bytes or * packets).
+	 *
+	 * If q_size == 0, we compute the idle time for the link, and set
+	 *	avg = (1 - w_q)^(idle/s)
+	 * where s is the time needed for transmitting a medium-sized packet.
+	 *
+	 * Now, if avg < min_th the packet is enqueued.
+	 * If avg > max_th the packet is dropped. Otherwise, the packet is
+	 * dropped with probability P function of avg.
 	 */
-	int diff = SCALE(q_size) - q->avg;
-	int64_t v = SCALE_MUL((int64_t) diff, (int64_t) fs->w_q);
 
-	q->avg += (int) v;
-    } else {
-	/*
-	 * queue is empty, find for how long the queue has been
-	 * empty and use a lookup table for computing
-	 * (1 - * w_q)^(idle_time/s) where s is the time to send a
-	 * (small) packet.
-	 * XXX check wraps...
-	 */
-	if (q->avg) {
-	    u_int t = (curr_time - q->q_time) / fs->lookup_step;
+	int64_t p_b = 0;
 
-	    q->avg = (t < fs->lookup_depth) ?
-		    SCALE_MUL(q->avg, fs->w_q_lookup[t]) : 0;
-	}
-    }
-    DPRINTF(("dummynet: avg: %u ", SCALE_VAL(q->avg)));
+	/* Queue in bytes or packets? */
+	u_int q_size = (fs->flags_fs & DN_QSIZE_IS_BYTES) ?
+	    q->len_bytes : q->len;
 
-    /* should i drop ? */
+	DPRINTF(("\ndummynet: %d q: %2u ", (int)curr_time, q_size));
 
-    if (q->avg < fs->min_th) {
-	q->count = -1;
-	return 0; /* accept packet ; */
-    }
-    if (q->avg >= fs->max_th) { /* average queue >=  max threshold */
-	if (fs->flags_fs & DN_IS_GENTLE_RED) {
-	    /*
-	     * According to Gentle-RED, if avg is greater than max_th the
-	     * packet is dropped with a probability
-	     *	p_b = c_3 * avg - c_4
-	     * where c_3 = (1 - max_p) / max_th, and c_4 = 1 - 2 * max_p
-	     */
-	    p_b = SCALE_MUL((int64_t) fs->c_3, (int64_t) q->avg) - fs->c_4;
+	/* Average queue size estimation. */
+	if (q_size != 0) {
+		/* Queue is not empty, avg <- avg + (q_size - avg) * w_q */
+		int diff = SCALE(q_size) - q->avg;
+		int64_t v = SCALE_MUL((int64_t)diff, (int64_t)fs->w_q);
+
+		q->avg += (int)v;
 	} else {
-	    q->count = -1;
-	    DPRINTF(("dummynet: - drop"));
-	    return 1 ;
+		/*
+		 * Queue is empty, find for how long the queue has been
+		 * empty and use a lookup table for computing
+		 * (1 - * w_q)^(idle_time/s) where s is the time to send a
+		 * (small) packet.
+		 * XXX check wraps...
+		 */
+		if (q->avg) {
+			u_int t = (curr_time - q->q_time) / fs->lookup_step;
+
+			q->avg = (t < fs->lookup_depth) ?
+			    SCALE_MUL(q->avg, fs->w_q_lookup[t]) : 0;
+		}
 	}
-    } else if (q->avg > fs->min_th) {
-	/*
-	 * we compute p_b using the linear dropping function p_b = c_1 *
-	 * avg - c_2, where c_1 = max_p / (max_th - min_th), and c_2 =
-	 * max_p * min_th / (max_th - min_th)
-	 */
-	p_b = SCALE_MUL((int64_t) fs->c_1, (int64_t) q->avg) - fs->c_2;
-    }
-    if (fs->flags_fs & DN_QSIZE_IS_BYTES)
-	p_b = (p_b * len) / fs->max_pkt_size;
-    if (++q->count == 0)
-	q->random = random() & 0xffff;
-    else {
-	/*
-	 * q->count counts packets arrived since last drop, so a greater
-	 * value of q->count means a greater packet drop probability.
-	 */
-	if (SCALE_MUL(p_b, SCALE((int64_t) q->count)) > q->random) {
-	    q->count = 0;
-	    DPRINTF(("dummynet: - red drop"));
-	    /* after a drop we calculate a new random value */
-	    q->random = random() & 0xffff;
-	    return 1;    /* drop */
+	DPRINTF(("dummynet: avg: %u ", SCALE_VAL(q->avg)));
+
+	/* Should i drop? */
+	if (q->avg < fs->min_th) {
+		q->count = -1;
+		return (0);	/* accept packet */
 	}
-    }
-    /* end of RED algorithm */
-    return 0 ; /* accept */
+	if (q->avg >= fs->max_th) {	/* average queue >=  max threshold */
+		if (fs->flags_fs & DN_IS_GENTLE_RED) {
+			/*
+			 * According to Gentle-RED, if avg is greater than
+			 * max_th the packet is dropped with a probability
+			 *	 p_b = c_3 * avg - c_4
+			 * where c_3 = (1 - max_p) / max_th
+			 *       c_4 = 1 - 2 * max_p
+			 */
+			p_b = SCALE_MUL((int64_t)fs->c_3, (int64_t)q->avg) -
+			    fs->c_4;
+		} else {
+			q->count = -1;
+			DPRINTF(("dummynet: - drop"));
+			return (1);
+		}
+	} else if (q->avg > fs->min_th) {
+		/*
+		 * We compute p_b using the linear dropping function
+		 *	 p_b = c_1 * avg - c_2
+		 * where c_1 = max_p / (max_th - min_th)
+		 * 	 c_2 = max_p * min_th / (max_th - min_th)
+		 */
+		p_b = SCALE_MUL((int64_t)fs->c_1, (int64_t)q->avg) - fs->c_2;
+	}
+
+	if (fs->flags_fs & DN_QSIZE_IS_BYTES)
+		p_b = (p_b * len) / fs->max_pkt_size;
+	if (++q->count == 0)
+		q->random = random() & 0xffff;
+	else {
+		/*
+		 * q->count counts packets arrived since last drop, so a greater
+		 * value of q->count means a greater packet drop probability.
+		 */
+		if (SCALE_MUL(p_b, SCALE((int64_t)q->count)) > q->random) {
+			q->count = 0;
+			DPRINTF(("dummynet: - red drop"));
+			/* After a drop we calculate a new random value. */
+			q->random = random() & 0xffff;
+			return (1);	/* drop */
+		}
+	}
+	/* End of RED algorithm. */
+
+	return (0);	/* accept */
 }
 
 static __inline struct dn_flow_set *
@@ -1474,52 +1483,57 @@ dn_rule_delete(void *r)
 static int
 config_red(struct dn_flow_set *p, struct dn_flow_set * x)
 {
-    int i;
+	int i;
 
-    x->w_q = p->w_q;
-    x->min_th = SCALE(p->min_th);
-    x->max_th = SCALE(p->max_th);
-    x->max_p = p->max_p;
+	x->w_q = p->w_q;
+	x->min_th = SCALE(p->min_th);
+	x->max_th = SCALE(p->max_th);
+	x->max_p = p->max_p;
 
-    x->c_1 = p->max_p / (p->max_th - p->min_th);
-    x->c_2 = SCALE_MUL(x->c_1, SCALE(p->min_th));
-    if (x->flags_fs & DN_IS_GENTLE_RED) {
-	x->c_3 = (SCALE(1) - p->max_p) / p->max_th;
-	x->c_4 = (SCALE(1) - 2 * p->max_p);
-    }
+	x->c_1 = p->max_p / (p->max_th - p->min_th);
+	x->c_2 = SCALE_MUL(x->c_1, SCALE(p->min_th));
 
-    /* if the lookup table already exist, free and create it again */
-    if (x->w_q_lookup) {
-	free(x->w_q_lookup, M_DUMMYNET);
-	x->w_q_lookup = NULL ;
-    }
-    if (red_lookup_depth == 0) {
-	printf("\ndummynet: net.inet.ip.dummynet.red_lookup_depth must be > 0\n");
-	free(x, M_DUMMYNET);
-	return EINVAL;
-    }
-    x->lookup_depth = red_lookup_depth;
-    x->w_q_lookup = (u_int *) malloc(x->lookup_depth * sizeof(int),
+	if (x->flags_fs & DN_IS_GENTLE_RED) {
+		x->c_3 = (SCALE(1) - p->max_p) / p->max_th;
+		x->c_4 = SCALE(1) - 2 * p->max_p;
+	}
+
+	/* If the lookup table already exist, free and create it again. */
+	if (x->w_q_lookup) {
+		free(x->w_q_lookup, M_DUMMYNET);
+		x->w_q_lookup = NULL;
+	}
+	if (red_lookup_depth == 0) {
+		printf("\ndummynet: net.inet.ip.dummynet.red_lookup_depth"
+		    "must be > 0\n");
+		free(x, M_DUMMYNET);
+		return (EINVAL);
+	}
+	x->lookup_depth = red_lookup_depth;
+	x->w_q_lookup = (u_int *)malloc(x->lookup_depth * sizeof(int),
 	    M_DUMMYNET, M_NOWAIT);
-    if (x->w_q_lookup == NULL) {
-	printf("dummynet: sorry, cannot allocate red lookup table\n");
-	free(x, M_DUMMYNET);
-	return ENOSPC;
-    }
+	if (x->w_q_lookup == NULL) {
+		printf("dummynet: sorry, cannot allocate red lookup table\n");
+		free(x, M_DUMMYNET);
+		return(ENOSPC);
+	}
 
-    /* fill the lookup table with (1 - w_q)^x */
-    x->lookup_step = p->lookup_step ;
-    x->lookup_weight = p->lookup_weight ;
-    x->w_q_lookup[0] = SCALE(1) - x->w_q;
-    for (i = 1; i < x->lookup_depth; i++)
-	x->w_q_lookup[i] = SCALE_MUL(x->w_q_lookup[i - 1], x->lookup_weight);
-    if (red_avg_pkt_size < 1)
-	red_avg_pkt_size = 512 ;
-    x->avg_pkt_size = red_avg_pkt_size ;
-    if (red_max_pkt_size < 1)
-	red_max_pkt_size = 1500 ;
-    x->max_pkt_size = red_max_pkt_size ;
-    return 0 ;
+	/* Fill the lookup table with (1 - w_q)^x */
+	x->lookup_step = p->lookup_step;
+	x->lookup_weight = p->lookup_weight;
+	x->w_q_lookup[0] = SCALE(1) - x->w_q;
+
+	for (i = 1; i < x->lookup_depth; i++)
+		x->w_q_lookup[i] =
+		    SCALE_MUL(x->w_q_lookup[i - 1], x->lookup_weight);
+
+	if (red_avg_pkt_size < 1)
+		red_avg_pkt_size = 512;
+	x->avg_pkt_size = red_avg_pkt_size;
+	if (red_max_pkt_size < 1)
+		red_max_pkt_size = 1500;
+	x->max_pkt_size = red_max_pkt_size;
+	return (0);
 }
 
 static int
@@ -1550,137 +1564,146 @@ alloc_hash(struct dn_flow_set *x, struct dn_flow_set *pfs)
 static void
 set_fs_parms(struct dn_flow_set *x, struct dn_flow_set *src)
 {
-    x->flags_fs = src->flags_fs;
-    x->qsize = src->qsize;
-    x->plr = src->plr;
-    x->flow_mask = src->flow_mask;
-    if (x->flags_fs & DN_QSIZE_IS_BYTES) {
-	if (x->qsize > 1024*1024)
-	    x->qsize = 1024*1024 ;
-    } else {
-	if (x->qsize == 0)
-	    x->qsize = 50 ;
-	if (x->qsize > 100)
-	    x->qsize = 50 ;
-    }
-    /* configuring RED */
-    if ( x->flags_fs & DN_IS_RED )
-	config_red(src, x) ;    /* XXX should check errors */
+	x->flags_fs = src->flags_fs;
+	x->qsize = src->qsize;
+	x->plr = src->plr;
+	x->flow_mask = src->flow_mask;
+	if (x->flags_fs & DN_QSIZE_IS_BYTES) {
+		if (x->qsize > 1024 * 1024)
+			x->qsize = 1024 * 1024;
+	} else {
+		if (x->qsize == 0)
+			x->qsize = 50;
+		if (x->qsize > 100)
+			x->qsize = 50;
+	}
+	/* Configuring RED. */
+	if (x->flags_fs & DN_IS_RED)
+		config_red(src, x);	/* XXX should check errors */
 }
 
 /*
- * setup pipe or queue parameters.
+ * Setup pipe or queue parameters.
  */
-
 static int
 config_pipe(struct dn_pipe *p)
 {
-    struct dn_flow_set *pfs = &(p->fs);
-    struct dn_flow_queue *q;
-    int i, error;
+	struct dn_flow_set *pfs = &(p->fs);
+	struct dn_flow_queue *q;
+	int i, error;
 
-    /*
-     * The config program passes parameters as follows:
-     * bw = bits/second (0 means no limits),
-     * delay = ms, must be translated into ticks.
-     * qsize = slots/bytes
-     */
-    p->delay = ( p->delay * hz ) / 1000 ;
-    /* We need either a pipe number or a flow_set number */
-    if (p->pipe_nr == 0 && pfs->fs_nr == 0)
-	return EINVAL ;
-    if (p->pipe_nr != 0 && pfs->fs_nr != 0)
-	return EINVAL ;
-    if (p->pipe_nr != 0) { /* this is a pipe */
-	struct dn_pipe *pipe;
+	/*
+	 * The config program passes parameters as follows:
+	 * bw = bits/second (0 means no limits),
+	 * delay = ms, must be translated into ticks.
+	 * qsize = slots/bytes
+	 */
+	p->delay = (p->delay * hz) / 1000;
+	/* We need either a pipe number or a flow_set number. */
+	if (p->pipe_nr == 0 && pfs->fs_nr == 0)
+		return (EINVAL);
+	if (p->pipe_nr != 0 && pfs->fs_nr != 0)
+		return (EINVAL);
+	if (p->pipe_nr != 0) {			/* this is a pipe */
+		struct dn_pipe *pipe;
 
-	DUMMYNET_LOCK();
-	pipe = locate_pipe(p->pipe_nr);	/* locate pipe */
+		DUMMYNET_LOCK();
+		pipe = locate_pipe(p->pipe_nr);	/* locate pipe */
 
-	if (pipe == NULL) {	/* new pipe */
-	    pipe = malloc(sizeof(struct dn_pipe), M_DUMMYNET,
-	        M_NOWAIT | M_ZERO);
-	    if (pipe == NULL) {
-	    	DUMMYNET_UNLOCK();
-		printf("dummynet: no memory for new pipe\n");
-		return (ENOMEM);
-	    }
-	    pipe->pipe_nr = p->pipe_nr;
-	    pipe->fs.pipe = pipe ;
-	    /* idle_heap is the only one from which we extract from the middle.
-	     */
-	    pipe->idle_heap.size = pipe->idle_heap.elements = 0 ;
-	    pipe->idle_heap.offset=OFFSET_OF(struct dn_flow_queue, heap_pos);
-	} else
-	    /* Flush accumulated credit for all queues */
-	    for (i = 0; i <= pipe->fs.rq_size; i++)
-		for (q = pipe->fs.rq[i]; q; q = q->next)
-		    q->numbytes = 0;
+		if (pipe == NULL) {		/* new pipe */
+			pipe = malloc(sizeof(struct dn_pipe), M_DUMMYNET,
+			    M_NOWAIT | M_ZERO);
+			if (pipe == NULL) {
+				DUMMYNET_UNLOCK();
+				printf("dummynet: no memory for new pipe\n");
+				return (ENOMEM);
+			}
+			pipe->pipe_nr = p->pipe_nr;
+			pipe->fs.pipe = pipe;
+			/*
+			 * idle_heap is the only one from which
+			 * we extract from the middle.
+			 */
+			pipe->idle_heap.size = pipe->idle_heap.elements = 0;
+			pipe->idle_heap.offset =
+			    OFFSET_OF(struct dn_flow_queue, heap_pos);
+		} else
+			/* Flush accumulated credit for all queues. */
+			for (i = 0; i <= pipe->fs.rq_size; i++)
+				for (q = pipe->fs.rq[i]; q; q = q->next)
+					q->numbytes = 0;
 
-	pipe->bandwidth = p->bandwidth ;
-	pipe->numbytes = 0; /* just in case... */
-	bcopy(p->if_name, pipe->if_name, sizeof(p->if_name) );
-	pipe->ifp = NULL ; /* reset interface ptr */
-	pipe->delay = p->delay ;
-	set_fs_parms(&(pipe->fs), pfs);
+		pipe->bandwidth = p->bandwidth;
+		pipe->numbytes = 0;		/* just in case... */
+		bcopy(p->if_name, pipe->if_name, sizeof(p->if_name));
+		pipe->ifp = NULL;		/* reset interface ptr */
+		pipe->delay = p->delay;
+		set_fs_parms(&(pipe->fs), pfs);
 
-
-	if (pipe->fs.rq == NULL) {	/* a new pipe */
-	    error = alloc_hash(&(pipe->fs), pfs);
-	    if (error) {
+		if (pipe->fs.rq == NULL) {	/* a new pipe */
+			error = alloc_hash(&(pipe->fs), pfs);
+			if (error) {
+				DUMMYNET_UNLOCK();
+				free(pipe, M_DUMMYNET);
+				return (error);
+			}
+			SLIST_INSERT_HEAD(&pipehash[HASH(pipe->pipe_nr)],
+			    pipe, next);
+		}
 		DUMMYNET_UNLOCK();
-		free(pipe, M_DUMMYNET);
-		return (error);
-	    }
-	    SLIST_INSERT_HEAD(&pipehash[HASH(pipe->pipe_nr)], pipe, next);
-	}
-	DUMMYNET_UNLOCK();
-    } else { /* config queue */
-	struct dn_flow_set *fs;
+	} else {				/* config queue */
+		struct dn_flow_set *fs;
 
-	DUMMYNET_LOCK();
-	fs = locate_flowset(pfs->fs_nr); /* locate flow_set */
+		DUMMYNET_LOCK();
+		fs = locate_flowset(pfs->fs_nr); /* locate flow_set */
 
-	if (fs == NULL) {	/* new */
-	    if (pfs->parent_nr == 0) {	/* need link to a pipe */
-	    	DUMMYNET_UNLOCK();
-		return EINVAL ;
-	    }
-	    fs = malloc(sizeof(struct dn_flow_set), M_DUMMYNET,
-		M_NOWAIT|M_ZERO);
-	    if (fs == NULL) {
+		if (fs == NULL) {		/* new */
+			if (pfs->parent_nr == 0) { /* need link to a pipe */
+				DUMMYNET_UNLOCK();
+				return (EINVAL);
+			}
+			fs = malloc(sizeof(struct dn_flow_set), M_DUMMYNET,
+			    M_NOWAIT | M_ZERO);
+			if (fs == NULL) {
+				DUMMYNET_UNLOCK();
+				printf(
+				    "dummynet: no memory for new flow_set\n");
+				return (ENOMEM);
+			}
+			fs->fs_nr = pfs->fs_nr;
+			fs->parent_nr = pfs->parent_nr;
+			fs->weight = pfs->weight;
+			if (fs->weight == 0)
+				fs->weight = 1;
+			else if (fs->weight > 100)
+				fs->weight = 100;
+		} else {
+			/*
+			 * Change parent pipe not allowed;
+			 * must delete and recreate.
+			 */
+			if (pfs->parent_nr != 0 &&
+			    fs->parent_nr != pfs->parent_nr) {
+				DUMMYNET_UNLOCK();
+				return (EINVAL);
+			}
+		}
+
+		set_fs_parms(fs, pfs);
+
+		if (fs->rq == NULL) {		/* a new flow_set */
+			error = alloc_hash(fs, pfs);
+			if (error) {
+				DUMMYNET_UNLOCK();
+				free(fs, M_DUMMYNET);
+				return (error);
+			}
+			SLIST_INSERT_HEAD(&flowsethash[HASH(fs->fs_nr)],
+			    fs, next);
+		}
 		DUMMYNET_UNLOCK();
-		printf("dummynet: no memory for new flow_set\n");
-		return (ENOMEM);
-	    }
-	    fs->fs_nr = pfs->fs_nr;
-	    fs->parent_nr = pfs->parent_nr;
-	    fs->weight = pfs->weight;
-	    if (fs->weight == 0)
-		fs->weight = 1;
-	    else if (fs->weight > 100)
-		fs->weight = 100;
-	} else {
-	    /* Change parent pipe not allowed; must delete and recreate */
-	    if (pfs->parent_nr != 0 && fs->parent_nr != pfs->parent_nr) {
-	    	DUMMYNET_UNLOCK();
-		return EINVAL ;
-	    }
 	}
-	set_fs_parms(fs, pfs);
-
-	if (fs->rq == NULL) {	/* a new flow_set */
-	    error = alloc_hash(fs, pfs);
-	    if (error) {
-		DUMMYNET_UNLOCK();
-		free(fs, M_DUMMYNET);
-		return (error);
-	    }
-	    SLIST_INSERT_HEAD(&flowsethash[HASH(fs->fs_nr)], fs, next);
-	}
-	DUMMYNET_UNLOCK();
-    }
-    return 0 ;
+	return (0);
 }
 
 /*
@@ -2018,46 +2041,46 @@ ip_dn_ctl(struct sockopt *sopt)
 static void
 ip_dn_init(void)
 {
-    int i;
+	int i;
 
-    if (bootverbose)
-	    printf("DUMMYNET with IPv6 initialized (040826)\n");
+	if (bootverbose)
+		printf("DUMMYNET with IPv6 initialized (040826)\n");
 
-    DUMMYNET_LOCK_INIT();
+	DUMMYNET_LOCK_INIT();
 
-    for (i = 0; i < HASHSIZE; i++) {
-	SLIST_INIT(&pipehash[i]);
-	SLIST_INIT(&flowsethash[i]);
-    }
-    ready_heap.size = ready_heap.elements = 0 ;
-    ready_heap.offset = 0 ;
+	for (i = 0; i < HASHSIZE; i++) {
+		SLIST_INIT(&pipehash[i]);
+		SLIST_INIT(&flowsethash[i]);
+	}
+	ready_heap.size = ready_heap.elements = 0;
+	ready_heap.offset = 0;
 
-    wfq_ready_heap.size = wfq_ready_heap.elements = 0 ;
-    wfq_ready_heap.offset = 0 ;
+	wfq_ready_heap.size = wfq_ready_heap.elements = 0;
+	wfq_ready_heap.offset = 0;
 
-    extract_heap.size = extract_heap.elements = 0 ;
-    extract_heap.offset = 0 ;
+	extract_heap.size = extract_heap.elements = 0;
+	extract_heap.offset = 0;
 
-    ip_dn_ctl_ptr = ip_dn_ctl;
-    ip_dn_io_ptr = dummynet_io;
-    ip_dn_ruledel_ptr = dn_rule_delete;
+	ip_dn_ctl_ptr = ip_dn_ctl;
+	ip_dn_io_ptr = dummynet_io;
+	ip_dn_ruledel_ptr = dn_rule_delete;
 
-    callout_init(&dn_timeout, NET_CALLOUT_MPSAFE);
-    callout_reset(&dn_timeout, 1, dummynet, NULL);
+	callout_init(&dn_timeout, NET_CALLOUT_MPSAFE);
+	callout_reset(&dn_timeout, 1, dummynet, NULL);
 }
 
 #ifdef KLD_MODULE
 static void
 ip_dn_destroy(void)
 {
-    ip_dn_ctl_ptr = NULL;
-    ip_dn_io_ptr = NULL;
-    ip_dn_ruledel_ptr = NULL;
+	ip_dn_ctl_ptr = NULL;
+	ip_dn_io_ptr = NULL;
+	ip_dn_ruledel_ptr = NULL;
 
-    callout_stop(&dn_timeout);
-    dummynet_flush();
+	callout_stop(&dn_timeout);
+	dummynet_flush();
 
-    DUMMYNET_LOCK_DESTROY();
+	DUMMYNET_LOCK_DESTROY();
 }
 #endif /* KLD_MODULE */
 
