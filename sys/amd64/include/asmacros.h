@@ -108,8 +108,12 @@
 #define FAKE_MCOUNT(caller)	pushq caller ; call __mcount ; popq %rcx
 #define MCOUNT			call __mcount
 #define MCOUNT_LABEL(name)	GEN_ENTRY(name) ; nop ; ALIGN_TEXT
+#ifdef GUPROF
 #define MEXITCOUNT		call HIDENAME(mexitcount)
 #define ret			MEXITCOUNT ; NON_GPROF_RET
+#else
+#define MEXITCOUNT
+#endif
 
 #else /* !GPROF */
 /*
