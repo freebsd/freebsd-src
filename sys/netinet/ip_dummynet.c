@@ -91,13 +91,22 @@ static dn_key curr_time = 0 ; /* current simulation time */
 static int dn_hash_size = 64 ;	/* default hash size */
 
 /* statistics on number of queue searches and search steps */
-static int searches, search_steps ;
+static long searches, search_steps ;
 static int pipe_expire = 1 ;   /* expire queue if empty */
 static int dn_max_ratio = 16 ; /* max queues/buckets ratio */
 
 static int red_lookup_depth = 256;	/* RED - default lookup table depth */
 static int red_avg_pkt_size = 512;      /* RED - default medium packet size */
 static int red_max_pkt_size = 1500;     /* RED - default max packet size */
+
+static struct timeval prev_t, t;
+static long tick_last;			/* Last tick duration (usec). */
+static long tick_delta;			/* Last vs standard tick diff (usec). */
+static long tick_delta_sum;		/* Accumulated tick difference (usec).*/
+static long tick_adjustment;		/* Tick adjustments done. */
+static long tick_lost;			/* Lost(coalesced) ticks number. */
+/* Adjusted vs non-adjusted curr_time difference (ticks). */
+static long tick_diff;
 
 /*
  * Three heaps contain queues and pipes that the scheduler handles:
@@ -137,15 +146,15 @@ extern	void (*bridge_dn_p)(struct mbuf *, struct ifnet *);
 SYSCTL_NODE(_net_inet_ip, OID_AUTO, dummynet, CTLFLAG_RW, 0, "Dummynet");
 SYSCTL_INT(_net_inet_ip_dummynet, OID_AUTO, hash_size,
     CTLFLAG_RW, &dn_hash_size, 0, "Default hash table size");
-SYSCTL_INT(_net_inet_ip_dummynet, OID_AUTO, curr_time,
+SYSCTL_LONG(_net_inet_ip_dummynet, OID_AUTO, curr_time,
     CTLFLAG_RD, &curr_time, 0, "Current tick");
 SYSCTL_INT(_net_inet_ip_dummynet, OID_AUTO, ready_heap,
     CTLFLAG_RD, &ready_heap.size, 0, "Size of ready heap");
 SYSCTL_INT(_net_inet_ip_dummynet, OID_AUTO, extract_heap,
     CTLFLAG_RD, &extract_heap.size, 0, "Size of extract heap");
-SYSCTL_INT(_net_inet_ip_dummynet, OID_AUTO, searches,
+SYSCTL_LONG(_net_inet_ip_dummynet, OID_AUTO, searches,
     CTLFLAG_RD, &searches, 0, "Number of queue searches");
-SYSCTL_INT(_net_inet_ip_dummynet, OID_AUTO, search_steps,
+SYSCTL_LONG(_net_inet_ip_dummynet, OID_AUTO, search_steps,
     CTLFLAG_RD, &search_steps, 0, "Number of queue search steps");
 SYSCTL_INT(_net_inet_ip_dummynet, OID_AUTO, expire,
     CTLFLAG_RW, &pipe_expire, 0, "Expire queue if empty");
@@ -158,6 +167,18 @@ SYSCTL_INT(_net_inet_ip_dummynet, OID_AUTO, red_avg_pkt_size,
     CTLFLAG_RD, &red_avg_pkt_size, 0, "RED Medium packet size");
 SYSCTL_INT(_net_inet_ip_dummynet, OID_AUTO, red_max_pkt_size,
     CTLFLAG_RD, &red_max_pkt_size, 0, "RED Max packet size");
+SYSCTL_LONG(_net_inet_ip_dummynet, OID_AUTO, tick_delta,
+    CTLFLAG_RD, &tick_delta, 0, "Last vs standard tick difference (usec).");
+SYSCTL_LONG(_net_inet_ip_dummynet, OID_AUTO, tick_delta_sum,
+    CTLFLAG_RD, &tick_delta_sum, 0, "Accumulated tick difference (usec).");
+SYSCTL_LONG(_net_inet_ip_dummynet, OID_AUTO, tick_adjustment,
+    CTLFLAG_RD, &tick_adjustment, 0, "Tick adjustments done.");
+SYSCTL_LONG(_net_inet_ip_dummynet, OID_AUTO, tick_diff,
+    CTLFLAG_RD, &tick_diff, 0,
+    "Adjusted vs non-adjusted curr_time difference (ticks).");
+SYSCTL_LONG(_net_inet_ip_dummynet, OID_AUTO, tick_lost,
+    CTLFLAG_RD, &tick_lost, 0,
+    "Number of ticks coalesced by dummynet taskqueue.");
 #endif
 
 #ifdef DUMMYNET_DEBUG
@@ -728,7 +749,40 @@ dummynet_task(void *context, int pending)
 	heaps[1] = &wfq_ready_heap;		/* wfq queues */
 	heaps[2] = &extract_heap;		/* delay line */
 
-	curr_time++;
+ 	/* Update number of lost(coalesced) ticks. */
+ 	tick_lost += pending - 1;
+ 
+ 	getmicrouptime(&t);
+ 	/* Last tick duration (usec). */
+ 	tick_last = (t.tv_sec - prev_t.tv_sec) * 1000000 +
+ 	    (t.tv_usec - prev_t.tv_usec);
+ 	/* Last tick vs standard tick difference (usec). */
+ 	tick_delta = (tick_last * hz - 1000000) / hz;
+ 	/* Accumulated tick difference (usec). */
+ 	tick_delta_sum += tick_delta;
+ 
+ 	prev_t = t;
+ 
+ 	/*
+ 	 * Adjust curr_time if accumulated tick difference greater than
+ 	 * 'standard' tick. Since curr_time should be monotonically increasing,
+ 	 * we do positive adjustment as required and throttle curr_time in
+ 	 * case of negative adjustment.
+ 	 */
+  	curr_time++;
+ 	if (tick_delta_sum - tick >= 0) {
+ 		int diff = tick_delta_sum / tick;
+ 
+ 		curr_time += diff;
+ 		tick_diff += diff;
+ 		tick_delta_sum %= tick;
+ 		tick_adjustment++;
+ 	} else if (tick_delta_sum + tick <= 0) {
+ 		curr_time--;
+ 		tick_diff--;
+ 		tick_delta_sum += tick;
+ 		tick_adjustment++;
+ 	}
 
 	for (i = 0; i < 3; i++) {
 		h = heaps[i];
@@ -2091,6 +2145,9 @@ ip_dn_init(void)
 
 	callout_init(&dn_timeout, NET_CALLOUT_MPSAFE);
 	callout_reset(&dn_timeout, 1, dummynet, NULL);
+
+	/* Initialize curr_time adjustment mechanics. */
+	getmicrouptime(&prev_t);
 }
 
 #ifdef KLD_MODULE
