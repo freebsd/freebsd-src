@@ -661,9 +661,6 @@ struct proc {
 	int		p_suspcount;	/* (c) Num threads in suspended mode. */
 	struct thread	*p_xthread;	/* (c) Trap thread */
 	int		p_boundary_count;/* (c) Num threads at user boundary */
-#ifdef KSE
-	struct ksegrp	*p_procscopegrp;
-#endif
 	int		p_pendingcnt;	/* how many signals are pending */
 	struct itimers	*p_itimers;	/* (c) POSIX interval timers. */
 /* End area that is zeroed on creation. */
