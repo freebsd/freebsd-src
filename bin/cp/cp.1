@@ -32,7 +32,7 @@
 .\"	@(#)cp.1	8.3 (Berkeley) 4/18/94
 .\" $FreeBSD$
 .\"
-.Dd October 24, 2006
+.Dd October 27, 2006
 .Dt CP 1
 .Os
 .Sh NAME
@@ -255,23 +255,19 @@ This implementation supports that option, however, its behavior
 is different from historical
 .Fx
 behavior.
-Use
-of this option
+Use of this option
 is strongly discouraged as the behavior is
 implementation-dependent.
-In this implementation of
-.Nm ,
+In
+.Fx ,
 .Fl r
-works alike
+is a synonym for
 .Fl RL
-thus all files, including special files, are copied
-in a manner similar to normal files.
-Data within these special files
-will not be copied, only the file itself.
+and works the same unless modified by other flags.
 Historical implemenations
 of
 .Fl r
-differ as they could copy the internal contents of special
+differ as they copy special files as normal
 files while recreating a hierarchy.
 .Pp
 The
