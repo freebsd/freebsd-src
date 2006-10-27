@@ -375,17 +375,4 @@ stopguprof(gp)
 	}
 #endif
 }
-
-#else /* !GUPROF */
-#ifdef __GNUCLIKE_ASM
-__asm("								\n\
-	.text							\n\
-	.p2align 4,0x90						\n\
-	.globl	" __XSTRING(HIDENAME(mexitcount)) "		\n\
-" __XSTRING(HIDENAME(mexitcount)) ":				\n\
-	ret							\n\
-");
-#else /* !__GNUCLIKE_ASM */
-#error this file needs to be ported to your compiler
-#endif /* __GNUCLIKE_ASM */
 #endif /* GUPROF */
