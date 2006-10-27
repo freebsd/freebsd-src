@@ -66,6 +66,7 @@
 #include <sys/socketvar.h>
 #include <sys/time.h>
 #include <sys/sysctl.h>
+#include <sys/taskqueue.h>
 #include <net/if.h>
 #include <net/route.h>
 #include <netinet/in.h>
@@ -169,6 +170,10 @@ SYSCTL_INT(_net_inet_ip_dummynet, OID_AUTO, debug, CTLFLAG_RW, &dummynet_debug,
 #else
 #define	DPRINTF(X)
 #endif
+
+static struct task	dn_task;
+static struct taskqueue	*dn_tq = NULL;
+static void dummynet_task(void *, int);
 
 static struct mtx dummynet_mtx;
 /*
@@ -693,12 +698,22 @@ ready_event_wfq(struct dn_pipe *p, struct mbuf **head, struct mbuf **tail)
 }
 
 /*
- * This is called once per tick, or HZ times per second. It is used to
- * increment the current tick counter and schedule expired events.
+ * This is called one tick, after previous run. It is used to
+ * schedule next run.
  */
 static void
 dummynet(void * __unused unused)
 {
+	taskqueue_enqueue(dn_tq, &dn_task);
+}
+
+/*
+ * The main dummynet processing function.
+ */
+static void
+dummynet_task(void *context, int pending)
+{
+
 	struct mbuf *head = NULL, *tail = NULL;
 	struct dn_pipe *pipe;
 	struct dn_heap *heaps[3];
@@ -706,11 +721,13 @@ dummynet(void * __unused unused)
 	void *p;	/* generic parameter to handler */
 	int i;
 
+	NET_LOCK_GIANT();
+	DUMMYNET_LOCK();
+
 	heaps[0] = &ready_heap;			/* fixed-rate queues */
 	heaps[1] = &wfq_ready_heap;		/* wfq queues */
 	heaps[2] = &extract_heap;		/* delay line */
 
-	DUMMYNET_LOCK();
 	curr_time++;
 
 	for (i = 0; i < 3; i++) {
@@ -758,6 +775,8 @@ dummynet(void * __unused unused)
 		dummynet_send(head);
 
 	callout_reset(&dn_timeout, 1, dummynet, NULL);
+
+	NET_UNLOCK_GIANT();
 }
 
 static void
@@ -2065,6 +2084,11 @@ ip_dn_init(void)
 	ip_dn_io_ptr = dummynet_io;
 	ip_dn_ruledel_ptr = dn_rule_delete;
 
+	TASK_INIT(&dn_task, 0, dummynet_task, NULL);
+	dn_tq = taskqueue_create_fast("dummynet", M_NOWAIT,
+	    taskqueue_thread_enqueue, &dn_tq);
+	taskqueue_start_threads(&dn_tq, 1, PI_NET, "dummynet");
+
 	callout_init(&dn_timeout, NET_CALLOUT_MPSAFE);
 	callout_reset(&dn_timeout, 1, dummynet, NULL);
 }
@@ -2077,7 +2101,12 @@ ip_dn_destroy(void)
 	ip_dn_io_ptr = NULL;
 	ip_dn_ruledel_ptr = NULL;
 
+	DUMMYNET_LOCK();
 	callout_stop(&dn_timeout);
+	DUMMYNET_UNLOCK();
+	taskqueue_drain(dn_tq, &dn_task);
+	taskqueue_free(dn_tq);
+
 	dummynet_flush();
 
 	DUMMYNET_LOCK_DESTROY();
