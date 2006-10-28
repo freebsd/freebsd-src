@@ -30,16 +30,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/param.h>
 #include <sys/systm.h>
 
-#include <machine/asmacros.h>
 #include <machine/timerreg.h>
-
-/*
- * There are 2 definitions of MCOUNT to have a C version and an asm version
- * with the same name and not have LOCORE #ifdefs to distinguish them.
- * <machine/profile.h> provides a C version, and <machine/asmacros.h>
- * provides an asm version.  To avoid conflicts, #undef the asm version.
- */
-#undef MCOUNT
 
 #ifdef GUPROF
 #include "opt_i586_guprof.h"
@@ -82,7 +73,7 @@ __mcount:							\n\
 	#							\n\
 	# Check that we are profiling.  Do it early for speed.	\n\
 	#							\n\
-	cmpl	$GMON_PROF_OFF," __XSTRING(CNAME(_gmonparam)) "+GM_STATE \n\
+	cmpl	$GMON_PROF_OFF,_gmonparam+GM_STATE		\n\
  	je	.mcount_exit					\n\
  	#							\n\
  	# __mcount is the same as [.]mcount except the caller	\n\
@@ -93,11 +84,11 @@ __mcount:							\n\
  	jmp	.got_frompc					\n\
  								\n\
  	.p2align 4,0x90						\n\
- 	.globl	" __XSTRING(HIDENAME(mcount)) "			\n\
-" __XSTRING(HIDENAME(mcount)) ":				\n\
+ 	.globl	.mcount						\n\
+.mcount:							\n\
  	.globl	__cyg_profile_func_enter			\n\
 __cyg_profile_func_enter:					\n\
-	cmpl	$GMON_PROF_OFF," __XSTRING(CNAME(_gmonparam)) "+GM_STATE \n\
+	cmpl	$GMON_PROF_OFF,_gmonparam+GM_STATE		\n\
 	je	.mcount_exit					\n\
 	#							\n\
 	# The caller's stack frame has already been built, so	\n\
@@ -116,7 +107,7 @@ __cyg_profile_func_enter:					\n\
 	pushl	%eax						\n\
 	pushl	%edx						\n\
 	cli							\n\
-	call	" __XSTRING(CNAME(mcount)) "			\n\
+	call	mcount						\n\
 	addl	$8,%esp						\n\
 	popfl							\n\
 .mcount_exit:							\n\
@@ -148,11 +139,11 @@ __mexitcount:							\n\
 GMON_PROF_HIRES	=	4					\n\
 								\n\
 	.p2align 4,0x90						\n\
-	.globl	" __XSTRING(HIDENAME(mexitcount)) "		\n\
-" __XSTRING(HIDENAME(mexitcount)) ":				\n\
+	.globl	.mexitcount					\n\
+.mexitcount:							\n\
  	.globl	__cyg_profile_func_exit				\n\
 __cyg_profile_func_exit:					\n\
-	cmpl	$GMON_PROF_HIRES," __XSTRING(CNAME(_gmonparam)) "+GM_STATE \n\
+	cmpl	$GMON_PROF_HIRES,_gmonparam+GM_STATE		\n\
 	jne	.mexitcount_exit				\n\
 	pushl	%edx						\n\
 	pushl	%eax						\n\
@@ -160,7 +151,7 @@ __cyg_profile_func_exit:					\n\
 	pushfl							\n\
 	pushl	%eax						\n\
 	cli							\n\
-	call	" __XSTRING(CNAME(mexitcount)) "		\n\
+	call	mexitcount					\n\
 	addl	$4,%esp						\n\
 	popfl							\n\
 	popl	%eax						\n\

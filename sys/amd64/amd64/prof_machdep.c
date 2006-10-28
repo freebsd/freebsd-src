@@ -44,10 +44,8 @@ __FBSDID("$FreeBSD$");
 #include <machine/perfmon.h>
 #endif
 #include <machine/profile.h>
-#undef MCOUNT
 #endif
 
-#include <machine/asmacros.h>
 #include <machine/timerreg.h>
 
 #ifdef GUPROF
@@ -80,7 +78,7 @@ __mcount:							\n\
 	#							\n\
 	# Check that we are profiling.  Do it early for speed.	\n\
 	#							\n\
-	cmpl	$GMON_PROF_OFF," __XSTRING(CNAME(_gmonparam)) "+GM_STATE \n\
+	cmpl	$GMON_PROF_OFF,_gmonparam+GM_STATE		\n\
  	je	.mcount_exit					\n\
  	#							\n\
  	# __mcount is the same as [.]mcount except the caller	\n\
@@ -98,11 +96,11 @@ __mcount:							\n\
  	jmp	.got_frompc					\n\
  								\n\
  	.p2align 4,0x90						\n\
- 	.globl	" __XSTRING(HIDENAME(mcount)) "			\n\
-" __XSTRING(HIDENAME(mcount)) ":				\n\
+ 	.globl	.mcount						\n\
+.mcount:							\n\
  	.globl	__cyg_profile_func_enter			\n\
 __cyg_profile_func_enter:					\n\
-	cmpl	$GMON_PROF_OFF," __XSTRING(CNAME(_gmonparam)) "+GM_STATE \n\
+	cmpl	$GMON_PROF_OFF,_gmonparam+GM_STATE		\n\
 	je	.mcount_exit					\n\
 	#							\n\
 	# The caller's stack frame has already been built, so	\n\
@@ -126,7 +124,7 @@ __cyg_profile_func_enter:					\n\
 								\n\
 	pushfq							\n\
 	cli							\n\
-	call	" __XSTRING(CNAME(mcount)) "			\n\
+	call	mcount						\n\
 	popfq							\n\
 	popq	%r9						\n\
 	popq	%r8						\n\
@@ -164,11 +162,11 @@ __mexitcount:							\n\
 GMON_PROF_HIRES	=	4					\n\
 								\n\
 	.p2align 4,0x90						\n\
-	.globl	" __XSTRING(HIDENAME(mexitcount)) "		\n\
-" __XSTRING(HIDENAME(mexitcount)) ":				\n\
+	.globl	.mexitcount					\n\
+.mexitcount:							\n\
  	.globl	__cyg_profile_func_exit				\n\
 __cyg_profile_func_exit:					\n\
-	cmpl	$GMON_PROF_HIRES," __XSTRING(CNAME(_gmonparam)) "+GM_STATE \n\
+	cmpl	$GMON_PROF_HIRES,_gmonparam+GM_STATE		\n\
 	jne	.mexitcount_exit				\n\
 	pushq	%rax						\n\
 	pushq	%rdx						\n\
@@ -180,7 +178,7 @@ __cyg_profile_func_exit:					\n\
 	movq	7*8(%rsp),%rdi					\n\
 	pushfq							\n\
 	cli							\n\
-	call	" __XSTRING(CNAME(mexitcount)) "		\n\
+	call	mexitcount					\n\
 	popfq							\n\
 	popq	%r9						\n\
 	popq	%r8						\n\
