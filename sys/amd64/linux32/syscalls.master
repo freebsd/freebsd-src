@@ -298,7 +298,8 @@
 				    l_gid16_t egid, l_gid16_t sgid); }
 171	AUE_GETRESGID	STD	{ int linux_getresgid16(l_gid16_t *rgid, \
 				    l_gid16_t *egid, l_gid16_t *sgid); }
-172	AUE_PRCTL	STD	{ int linux_prctl(void); }
+172	AUE_PRCTL	STD	{ int linux_prctl(l_int option, l_int arg2, l_int arg3, \
+				    l_int arg4, l_int arg5); }
 173	AUE_NULL	STD	{ int linux_rt_sigreturn( \
 				    struct l_ucontext *ucp); }
 174	AUE_NULL	STD	{ int linux_rt_sigaction(l_int sig, \

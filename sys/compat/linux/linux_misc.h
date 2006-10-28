@@ -28,53 +28,16 @@
  * $FreeBSD$
  */
 
-#ifndef _LINUX_EMUL_H_
-#define _LINUX_EMUL_H_
+#ifndef _LINUX_MISC_H_
+#define _LINUX_MISC_H_
 
-struct linux_emuldata_shared {
-   	int	refs;
-	pid_t	group_pid;
+/* defines for prctl */
+#define LINUX_PR_SET_PDEATHSIG  1  /* Second arg is a signal */
+#define LINUX_PR_GET_PDEATHSIG  2  /* Second arg is a ptr to return the signal */
+#define LINUX_PR_SET_NAME	15 /* Set process name */
+#define LINUX_PR_GET_NAME	16 /* Get process name */
 
-	LIST_HEAD(, linux_emuldata) threads;	/* head of list of linux threads */
-};
+#define LINUX_MAX_COMM_LEN	16 /* max length of the proc name */
 
-/* 
- * modeled after similar structure in NetBSD 
- * this will be extended as we need more functionality
- */
-struct linux_emuldata {
-   	pid_t	pid;
+#endif /* _LINUX_MISC_H_ */
 
-	int *child_set_tid;     /* in clone(): Child's TID to set on clone */
-	int *child_clear_tid;   /* in clone(): Child's TID to clear on exit */
-
-	struct linux_emuldata_shared *shared;
-
-	int pdeath_signal;	/* parent death signal */
-
-	LIST_ENTRY(linux_emuldata) threads;	/* list of linux threads */
-};
-
-struct linux_emuldata *em_find(struct proc *, int locked);
-
-#define EMUL_LOCK(l)	sx_xlock(l)
-#define EMUL_UNLOCK(l)	sx_xunlock(l)
-
-#define EMUL_SHARED_RLOCK(l) sx_slock(l)
-#define EMUL_SHARED_RUNLOCK(l) sx_sunlock(l)
-#define EMUL_SHARED_WLOCK(l) sx_xlock(l)
-#define EMUL_SHARED_WUNLOCK(l) sx_xunlock(l)
-
-/* for em_find use */
-#define EMUL_LOCKED		1
-#define EMUL_UNLOCKED		0
-
-int linux_proc_init(struct thread *, pid_t, int);
-void linux_proc_exit(void *, struct proc *);
-void linux_schedtail(void *, struct proc *);
-void linux_proc_exec(void *, struct proc *, struct image_params *);
-
-extern struct sx emul_shared_lock;
-extern struct sx emul_lock;
-
-#endif /* !_LINUX_EMUL_H_ */
