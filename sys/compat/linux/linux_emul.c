@@ -84,6 +84,7 @@ linux_proc_init(struct thread *td, pid_t child, int flags)
 	   	/* non-exec call */
 		em = malloc(sizeof *em, M_LINUX, M_WAITOK | M_ZERO);
 		em->pid = child;
+		em->pdeath_signal = 0;
 		if (flags & CLONE_VM) {
 		   	/* handled later in the code */
 		} else {
@@ -151,6 +152,7 @@ linux_proc_exit(void *arg __unused, struct proc *p)
 	int error;
 	struct thread *td = FIRST_THREAD_IN_PROC(p);
 	int *child_clear_tid;
+	struct proc *q, *nq;
 
 	if (__predict_true(p->p_sysent != &elf_linux_sysvec))
 	   	return;
@@ -204,6 +206,26 @@ linux_proc_exit(void *arg __unused, struct proc *p)
 
 	/* clean the stuff up */
 	free(em, M_LINUX);
+
+	/* this is a little weird but rewritten from exit1() */
+	sx_xlock(&proctree_lock);
+	q = LIST_FIRST(&p->p_children);
+	for (; q != NULL; q = nq) {
+	   	nq = LIST_NEXT(q, p_sibling);
+	   	if (q->p_flag & P_WEXIT)
+		   	continue;
+		if (__predict_false(q->p_sysent != &elf_linux_sysvec))
+   		   	continue;
+   	   	em = em_find(q, EMUL_UNLOCKED);
+		KASSERT(em != NULL, ("linux_reparent: emuldata not found: %i\n", q->p_pid));
+		if (em->pdeath_signal != 0) {
+   		   	PROC_LOCK(q);
+   		   	psignal(q, em->pdeath_signal);
+			PROC_UNLOCK(q);
+		}
+		EMUL_UNLOCK(&emul_lock);
+	}
+	sx_xunlock(&proctree_lock);
 }
 
 /* 
@@ -251,7 +273,7 @@ linux_schedtail(void *arg __unused, struct proc *p)
 	int error = 0;
 	int *child_set_tid;
 
-	if (p->p_sysent != &elf_linux_sysvec)
+	if (__predict_true(p->p_sysent != &elf_linux_sysvec))
 	   	return;
 
 retry:	

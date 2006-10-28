@@ -76,6 +76,7 @@ __FBSDID("$FreeBSD$");
 
 #include <compat/linux/linux_sysproto.h>
 #include <compat/linux/linux_emul.h>
+#include <compat/linux/linux_misc.h>
 
 #ifdef COMPAT_LINUX32
 #include <machine/../linux32/linux.h>
@@ -86,6 +87,7 @@ __FBSDID("$FreeBSD$");
 #endif
 
 #include <compat/linux/linux_mib.h>
+#include <compat/linux/linux_signal.h>
 #include <compat/linux/linux_util.h>
 
 #ifdef __i386__
@@ -1545,4 +1547,53 @@ linux_exit_group(struct thread *td, struct linux_exit_group_args *args)
 	exit1(td, W_EXITCODE(args->error_code,0));
 
    	return (0);
+}
+
+int
+linux_prctl(struct thread *td, struct linux_prctl_args *args)
+{
+   	int error = 0;
+	struct proc *p = td->td_proc;
+	char comm[LINUX_MAX_COMM_LEN];
+	struct linux_emuldata *em;
+
+#ifdef DEBUG
+	if (ldebug(prctl))
+	   	printf(ARGS(prctl, "%d, %d, %d, %d, %d"), args->option, args->arg2,
+		      args->arg3, args->arg4, args->arg5);
+#endif
+   	
+   	switch (args->option) {
+	   	case LINUX_PR_SET_PDEATHSIG:
+		   	if (!LINUX_SIG_VALID(args->arg2))
+			   	return (EINVAL);
+			em = em_find(p, EMUL_UNLOCKED);
+			KASSERT(em != NULL, ("prctl: emuldata not found.\n"));
+			em->pdeath_signal = args->arg2;
+			EMUL_UNLOCK(&emul_lock);
+		   	break;
+		case LINUX_PR_GET_PDEATHSIG:
+			em = em_find(p, EMUL_UNLOCKED);
+			KASSERT(em != NULL, ("prctl: emuldata not found.\n"));
+			error = copyout(&em->pdeath_signal, (void *)(register_t) args->arg2, sizeof(em->pdeath_signal));
+			EMUL_UNLOCK(&emul_lock);
+			break;
+		case LINUX_PR_SET_NAME:
+			comm[LINUX_MAX_COMM_LEN-1] = 0;
+			error = copyin(comm, (void *)(register_t) args->arg2, LINUX_MAX_COMM_LEN-1);
+			if (error)
+			   	return (error);
+			PROC_LOCK(p);
+			strcpy(p->p_comm, comm);
+			PROC_UNLOCK(p);
+			break;
+		case LINUX_PR_GET_NAME:
+			error = copyout(&p->p_comm, (void *)(register_t) args->arg2, MAXCOMLEN+1);
+			break;
+		default:
+			error = EINVAL;
+			break;
+	}
+
+	return (error);
 }
