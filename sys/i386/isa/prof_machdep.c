@@ -27,22 +27,19 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-#include <sys/param.h>
-#include <sys/systm.h>
-
-#include <machine/timerreg.h>
-
 #ifdef GUPROF
 #include "opt_i586_guprof.h"
 #include "opt_perfmon.h"
 
+#include <sys/param.h>
+#include <sys/systm.h>
 #include <sys/gmon.h>
 #include <sys/kernel.h>
 #include <sys/sysctl.h>
 
 #include <machine/clock.h>
 #include <machine/perfmon.h>
-#include <machine/profile.h>
+#include <machine/timerreg.h>
 
 #define	CPUTIME_CLOCK_UNINITIALIZED	0
 #define	CPUTIME_CLOCK_I8254		1
@@ -114,7 +111,7 @@ __cyg_profile_func_enter:					\n\
 	ret							\n\
 ");
 #else /* !__GNUCLIKE_ASM */
-#error this file needs to be ported to your compiler
+#error "this file needs to be ported to your compiler"
 #endif /* __GNUCLIKE_ASM */
 
 #ifdef GUPROF
