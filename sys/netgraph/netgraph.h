@@ -962,17 +962,13 @@ _ngi_hook(item_p item, char *file, int line)
 			ng_ID_t _dest = NGI_RETADDR(item);		\
 			NGI_RETADDR(item) = 0;				\
 			NGI_MSG(item) = resp;				\
-			if ((ng_address_ID((here), (item),		\
+			if ((error = ng_address_ID((here), (item),	\
 					_dest, 0)) == 0) {		\
 				SAVE_LINE(item);			\
 				(error) = ng_snd_item((item), NG_QUEUE);\
-			} else {					\
-				NG_FREE_ITEM(item);			\
-				(error) = EINVAL;			\
 			}						\
-		} else {						\
+		} else							\
 			NG_FREE_ITEM(item);				\
-		}							\
 		(item) = NULL;						\
 	} while (0)
 
