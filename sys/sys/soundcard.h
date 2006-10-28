@@ -1769,9 +1769,9 @@ typedef struct oss_audioinfo
 	int	binding;	/* DSP_BIND_FRONT, etc. 0 means undefined */
 	int	rate_source;
 	char	handle[32];
-	#define MAX_SAMPLE_RATES	20	/* Cannot be changed  */
+	#define OSS_MAX_SAMPLE_RATES	20	/* Cannot be changed  */
 	unsigned int nrates;
-	unsigned int rates[MAX_SAMPLE_RATES]; /* Please read the manual before using these */
+	unsigned int rates[OSS_MAX_SAMPLE_RATES]; /* Please read the manual before using these */
 	oss_longname_t	song_name;	/* Song name (if given) */
 	oss_label_t	label;		/* Device label (if given) */
 	int		latency;	/* In usecs, -1=unknown */
