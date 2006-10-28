@@ -1564,35 +1564,35 @@ linux_prctl(struct thread *td, struct linux_prctl_args *args)
 #endif
    	
    	switch (args->option) {
-	   	case LINUX_PR_SET_PDEATHSIG:
-		   	if (!LINUX_SIG_VALID(args->arg2))
-			   	return (EINVAL);
-			em = em_find(p, EMUL_UNLOCKED);
-			KASSERT(em != NULL, ("prctl: emuldata not found.\n"));
-			em->pdeath_signal = args->arg2;
-			EMUL_UNLOCK(&emul_lock);
-		   	break;
-		case LINUX_PR_GET_PDEATHSIG:
-			em = em_find(p, EMUL_UNLOCKED);
-			KASSERT(em != NULL, ("prctl: emuldata not found.\n"));
-			error = copyout(&em->pdeath_signal, (void *)(register_t) args->arg2, sizeof(em->pdeath_signal));
-			EMUL_UNLOCK(&emul_lock);
-			break;
-		case LINUX_PR_SET_NAME:
-			comm[LINUX_MAX_COMM_LEN-1] = 0;
-			error = copyin(comm, (void *)(register_t) args->arg2, LINUX_MAX_COMM_LEN-1);
-			if (error)
-			   	return (error);
-			PROC_LOCK(p);
-			strcpy(p->p_comm, comm);
-			PROC_UNLOCK(p);
-			break;
-		case LINUX_PR_GET_NAME:
-			error = copyout(&p->p_comm, (void *)(register_t) args->arg2, MAXCOMLEN+1);
-			break;
-		default:
-			error = EINVAL;
-			break;
+   	case LINUX_PR_SET_PDEATHSIG:
+	   	if (!LINUX_SIG_VALID(args->arg2))
+		   	return (EINVAL);
+		em = em_find(p, EMUL_UNLOCKED);
+		KASSERT(em != NULL, ("prctl: emuldata not found.\n"));
+		em->pdeath_signal = args->arg2;
+		EMUL_UNLOCK(&emul_lock);
+	   	break;
+	case LINUX_PR_GET_PDEATHSIG:
+		em = em_find(p, EMUL_UNLOCKED);
+		KASSERT(em != NULL, ("prctl: emuldata not found.\n"));
+		error = copyout(&em->pdeath_signal, (void *)(register_t) args->arg2, sizeof(em->pdeath_signal));
+		EMUL_UNLOCK(&emul_lock);
+		break;
+	case LINUX_PR_SET_NAME:
+		comm[LINUX_MAX_COMM_LEN-1] = 0;
+		error = copyin(comm, (void *)(register_t) args->arg2, LINUX_MAX_COMM_LEN-1);
+		if (error)
+		   	return (error);
+		PROC_LOCK(p);
+		strcpy(p->p_comm, comm);
+		PROC_UNLOCK(p);
+		break;
+	case LINUX_PR_GET_NAME:
+		error = copyout(&p->p_comm, (void *)(register_t) args->arg2, MAXCOMLEN+1);
+		break;
+	default:
+		error = EINVAL;
+		break;
 	}
 
 	return (error);
