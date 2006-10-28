@@ -42,12 +42,14 @@ fi
 
 ############
 # Define the firewall type in /etc/rc.conf.  Valid values are:
-#   open     - will allow anyone in
-#   client   - will try to protect just this machine
-#   simple   - will try to protect a whole network
-#   closed   - totally disables IP services except via lo0 interface
-#   UNKNOWN  - disables the loading of firewall rules.
-#   filename - will load the rules in the given filename (full path required)
+#   open        - will allow anyone in
+#   client      - will try to protect just this machine
+#   simple      - will try to protect a whole network
+#   closed      - totally disables IP services except via lo0 interface
+#   workstation - will try to protect just this machine using statefull
+#		  firewalling. See below for rc.conf variables used
+#   UNKNOWN     - disables the loading of firewall rules.
+#   filename    - will load the rules in the given filename (full path required)
 #
 # For ``client'' and ``simple'' the entries below should be customized
 # appropriately.
@@ -107,6 +109,8 @@ esac
 #
 ${fwcmd} -f flush
 
+setup_loopback
+
 ############
 # Network Address Translation.  All packets are passed to natd(8)
 # before they encounter your remaining rules.  The firewall rules
@@ -140,7 +144,6 @@ esac
 #
 case ${firewall_type} in
 [Oo][Pp][Ee][Nn])
-	setup_loopback
 	${fwcmd} add 65000 pass all from any to any
 	;;
 
@@ -155,8 +158,6 @@ case ${firewall_type} in
 	mask="255.255.255.0"
 	ip="192.0.2.1"
 
-	setup_loopback
-
 	# Allow any traffic to or from my own net.
 	${fwcmd} add pass all from ${ip} to ${net}:${mask}
 	${fwcmd} add pass all from ${net}:${mask} to ${ip}
@@ -168,19 +169,19 @@ case ${firewall_type} in
 	${fwcmd} add pass all from any to any frag
 
 	# Allow setup of incoming email
-	${fwcmd} add pass tcp from any to ${ip} 25 setup
+	${fwcmd} add pass tcp from any to me 25 setup
 
 	# Allow setup of outgoing TCP connections only
-	${fwcmd} add pass tcp from ${ip} to any setup
+	${fwcmd} add pass tcp from me to any setup
 
 	# Disallow setup of all other TCP connections
 	${fwcmd} add deny tcp from any to any setup
 
 	# Allow DNS queries out in the world
-	${fwcmd} add pass udp from ${ip} to any 53 keep-state
+	${fwcmd} add pass udp from me to any 53 keep-state
 
 	# Allow NTP queries out in the world
-	${fwcmd} add pass udp from ${ip} to any 123 keep-state
+	${fwcmd} add pass udp from me to any 123 keep-state
 
 	# Everything else is denied by default, unless the
 	# IPFIREWALL_DEFAULT_TO_ACCEPT option is set in your kernel
@@ -205,8 +206,6 @@ case ${firewall_type} in
 	inet="192.0.2.16"
 	imask="255.255.255.240"
 	iip="192.0.2.17"
-
-	setup_loopback
 
 	# Stop spoofing
 	${fwcmd} add deny all from ${inet}:${imask} to any in via ${oif}
@@ -289,8 +288,100 @@ case ${firewall_type} in
 	# config file.
 	;;
 
+[Ww][Oo][Rr][Kk][Ss][Tt][Aa][Tt][Ii][Oo][Nn])
+	# Configuration:
+	#  firewall_myservices:		List of TCP ports on which this host
+	#			 	 offers services.
+	#  firewall_allowservices:	List of IPs which has access to
+	#				 $firewall_myservices.
+	#  firewall_trusted:		List of IPs which has full access 
+	#				 to this host. Be very carefull 
+	#				 when setting this. This option can
+	#				 seriously degrade the level of 
+	#				 protection provided by the firewall.
+	#  firewall_logdeny:		Boolean (YES/NO) specifying if the
+	#				 default denied packets should be
+	#				 logged (in /var/log/security).
+	#  firewall_nologports:		List of TCP/UDP ports for which
+	#				 denied incomming packets are not
+	#				 logged.
+	
+	# Allow packets for which a state has been built.
+	${fwcmd} add check-state
+
+	# For services permitted below.
+	${fwcmd} add pass tcp  from me to any established
+
+	# Allow any connection out, adding state for each.
+	${fwcmd} add pass tcp  from me to any setup keep-state
+	${fwcmd} add pass udp  from me to any       keep-state
+	${fwcmd} add pass icmp from me to any       keep-state
+
+	# Allow DHCP.
+	${fwcmd} add pass udp  from 0.0.0.0 68 to 255.255.255.255 67 out
+	${fwcmd} add pass udp  from any 67     to me 68 in
+	${fwcmd} add pass udp  from any 67     to 255.255.255.255 68 in
+	# Some servers will ping the IP while trying to decide if it's 
+	# still in use.
+	${fwcmd} add pass icmp from any to any icmptype 8
+
+	# Allow "mandatory" ICMP in.
+	${fwcmd} add pass icmp from any to any icmptype 3,4,11
+	
+	# Add permits for this workstations published services below
+	# Only IPs and nets in firewall_allowservices is allowed in.
+	# If you really wish to let anyone use services on your 
+	# workstation, then set "firewall_allowservices='any'" in /etc/rc.conf
+	#
+	# Note: We don't use keep-state as that would allow DoS of
+	#       our statetable. 
+	#       You can add 'keep-state' to the lines for slightly
+	#       better performance if you fell that DoS of your
+	#       workstation won't be a problem.
+	#
+	for i in ${firewall_allowservices} ; do
+	  for j in ${firewall_myservices} ; do
+	    ${fwcmd} add pass tcp from $i to me $j
+	  done
+	done
+
+	# Allow all connections from trusted IPs.
+	# Playing with the content of firewall_trusted could seriously
+	# degrade the level of protection provided by the firewall.
+	for i in ${firewall_trusted} ; do
+	  ${fwcmd} add pass ip from $i to me
+	done
+	
+	${fwcmd} add 65000 count ip from any to any
+
+	# Drop packets to ports where we don't want logging
+	for i in ${firewall_nologports} ; do
+	  ${fwcmd} add deny { tcp or udp } from any to any $i in
+	done
+
+	# Broadcasts and muticasts
+	${fwcmd} add deny ip  from any to 255.255.255.255
+	${fwcmd} add deny ip  from any to 224.0.0.0/24 in	# XXX
+
+	# Noise from routers
+	${fwcmd} add deny udp from any to any 520 in
+
+	# Noise from webbrowsing.
+	# The statefull filter is a bit agressive, and will cause some
+	#  connection teardowns to be logged.
+	${fwcmd} add deny tcp from any 80,443 to any 1024-65535 in
+
+	# Deny and (if wanted) log the rest unconditionally.
+	log=""
+	if [ ${firewall_logdeny:-x} = "YES" -o ${firewall_logdeny:-x} = "yes" ] ; then
+	  log="log logamount 500"	# The default of 100 is too low.
+	  sysctl net.inet.ip.fw.verbose=1 >/dev/null
+	fi
+	${fwcmd} add deny $log ip from any to any
+	;;
+
 [Cc][Ll][Oo][Ss][Ee][Dd])
-	setup_loopback
+	${fwcmd} add 65000 deny ip from any to any
 	;;
 [Uu][Nn][Kk][Nn][Oo][Ww][Nn])
 	;;
