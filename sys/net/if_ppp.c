@@ -560,7 +560,7 @@ pppioctl(sc, cmd, data, flag, td)
 		    sc->sc_flags &= ~SC_DECOMP_RUN;
 		    splx(s);
 		}
-		break;
+		return (error);
 	    }
 	if (sc->sc_flags & SC_DEBUG)
 	    if_printf(PPP2IFP(sc), "no compressor for [%x %x %x], %x\n",
