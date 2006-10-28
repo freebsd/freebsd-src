@@ -171,11 +171,7 @@ mcount()								\
 }
 #endif
 #else /* !__GNUCLIKE_ASM */
-#define	MCOUNT								\
-void									\
-mcount()								\
-{									\
-}
+#define	MCOUNT
 #endif /* __GNUCLIKE_ASM */
 
 typedef	u_long	uintfptr_t;
