@@ -1809,8 +1809,8 @@ dspfound:
 	ai->max_channels = maxch;
 
 	ai->nrates = chn_getrates(ch, &rates);
-	if (ai->nrates > MAX_SAMPLE_RATES)
-		ai->nrates = MAX_SAMPLE_RATES;
+	if (ai->nrates > OSS_MAX_SAMPLE_RATES)
+		ai->nrates = OSS_MAX_SAMPLE_RATES;
 
 	for (i = 0; i < ai->nrates; i++)
 		ai->rates[i] = rates[i];
