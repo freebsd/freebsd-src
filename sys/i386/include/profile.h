@@ -134,11 +134,7 @@ mcount()								\
 	_mcount(frompc, selfpc);					\
 }
 #else /* !__GNUCLIKE_ASM */
-void									\
-#define	MCOUNT								\
-mcount()								\
-{									\
-}
+#define	MCOUNT
 #endif /* __GNUCLIKE_ASM */
 
 typedef	u_int	uintfptr_t;
