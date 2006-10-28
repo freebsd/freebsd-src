@@ -3167,6 +3167,7 @@ bufdone_finish(struct buf *bp)
 		vm_object_t obj;
 		int iosize;
 		struct vnode *vp = bp->b_vp;
+		boolean_t are_queues_locked;
 
 		obj = bp->b_bufobj->bo_object;
 
@@ -3203,7 +3204,11 @@ bufdone_finish(struct buf *bp)
 		    !(bp->b_ioflags & BIO_ERROR)) {
 			bp->b_flags |= B_CACHE;
 		}
-		vm_page_lock_queues();
+		if (bp->b_iocmd == BIO_READ) {
+			vm_page_lock_queues();
+			are_queues_locked = TRUE;
+		} else
+			are_queues_locked = FALSE;
 		for (i = 0; i < bp->b_npages; i++) {
 			int bogusflag = 0;
 			int resid;
@@ -3272,7 +3277,8 @@ bufdone_finish(struct buf *bp)
 			foff = (foff + PAGE_SIZE) & ~(off_t)PAGE_MASK;
 			iosize -= resid;
 		}
-		vm_page_unlock_queues();
+		if (are_queues_locked)
+			vm_page_unlock_queues();
 		vm_object_pip_wakeupn(obj, 0);
 		VM_OBJECT_UNLOCK(obj);
 	}
