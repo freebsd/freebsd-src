@@ -114,11 +114,11 @@ static void _mcount
 
 #ifdef __GNUCLIKE_ASM
 #define	MCOUNT __asm("			\n\
+	.text				\n\
+	.p2align 4,0x90			\n\
 	.globl	.mcount			\n\
-	.type	.mcount @function	\n\
+	.type	.mcount,@function	\n\
 .mcount:				\n\
-	pushq	%rbp			\n\
-	movq	%rsp,%rbp		\n\
 	pushq	%rdi			\n\
 	pushq	%rsi			\n\
 	pushq	%rdx			\n\
@@ -126,9 +126,8 @@ static void _mcount
 	pushq	%r8			\n\
 	pushq	%r9			\n\
 	pushq	%rax			\n\
-	movq	8(%rbp),%rsi		\n\
-	movq	(%rbp),%rdi		\n\
-	movq	8(%rdi),%rdi		\n\
+	movq	8(%rbp),%rdi		\n\
+	movq	7*8(%rsp),%rsi		\n\
 	call	_mcount			\n\
 	popq	%rax			\n\
 	popq	%r9			\n\
@@ -137,7 +136,6 @@ static void _mcount
 	popq	%rdx			\n\
 	popq	%rsi			\n\
 	popq	%rdi			\n\
-	leave				\n\
 	ret				\n\
 	.size	.mcount, . - .mcount");
 #if 0
