@@ -37,14 +37,12 @@
 /* XXX too much duplication in various asm*.h's. */
 
 /*
- * CNAME and HIDENAME manage the relationship between symbol names in C
+ * CNAME is used to manage the relationship between symbol names in C
  * and the equivalent assembly language names.  CNAME is given a name as
  * it would be used in a C program.  It expands to the equivalent assembly
- * language name.  HIDENAME is given an assembly-language name, and expands
- * to a possibly-modified form that will be invisible to C programs.
+ * language name.
  */
 #define CNAME(csym)		csym
-#define HIDENAME(asmsym)	.asmsym
 
 #define ALIGN_DATA	.p2align 2	/* 4 byte alignment, zero filled */
 #ifdef GPROF
@@ -109,7 +107,7 @@
 #define MCOUNT			call __mcount
 #define MCOUNT_LABEL(name)	GEN_ENTRY(name) ; nop ; ALIGN_TEXT
 #ifdef GUPROF
-#define MEXITCOUNT		call HIDENAME(mexitcount)
+#define MEXITCOUNT		call .mexitcount
 #define ret			MEXITCOUNT ; NON_GPROF_RET
 #else
 #define MEXITCOUNT
