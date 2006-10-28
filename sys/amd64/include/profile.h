@@ -61,7 +61,7 @@
 #define	MCOUNT_OVERHEAD(label)						\
 	__asm __volatile("pushq %0; call __mcount; popq %%rcx"		\
 			 :						\
-			 : "i" (profil)					\
+			 : "i" (label)					\
 			 : "ax", "dx", "cx", "di", "si", "r8", "r9", "memory")
 #define	MEXITCOUNT_OVERHEAD()						\
 	__asm __volatile("call .mexitcount; 1:"				\
