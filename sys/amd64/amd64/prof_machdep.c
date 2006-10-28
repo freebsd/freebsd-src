@@ -43,12 +43,8 @@ __FBSDID("$FreeBSD$");
 #if 0
 #include <machine/perfmon.h>
 #endif
-#include <machine/profile.h>
-#endif
-
 #include <machine/timerreg.h>
 
-#ifdef GUPROF
 #define	CPUTIME_CLOCK_UNINITIALIZED	0
 #define	CPUTIME_CLOCK_I8254		1
 #define	CPUTIME_CLOCK_TSC		2
@@ -137,7 +133,7 @@ __cyg_profile_func_enter:					\n\
 	ret							\n\
 ");
 #else /* !__GNUCLIKE_ASM */
-#error this file needs to be ported to your compiler
+#error "this file needs to be ported to your compiler"
 #endif /* __GNUCLIKE_ASM */
 
 #ifdef GUPROF
@@ -190,8 +186,6 @@ __cyg_profile_func_exit:					\n\
 .mexitcount_exit:						\n\
 	ret							\n\
 ");
-#else /* !__GNUCLIKE_ASM */
-#error this file needs to be ported to your compiler
 #endif /* __GNUCLIKE_ASM */
 
 /*
