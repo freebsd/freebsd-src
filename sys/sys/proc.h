@@ -598,6 +598,8 @@ struct proc {
 	LIST_ENTRY(proc) p_list;	/* (d) List of all processes. */
 #ifdef KSE
 	TAILQ_HEAD(, ksegrp) p_ksegrps;	/* (c)(kg_ksegrp) All KSEGs. */
+#else
+	TAILQ_HEAD(, thread) was_p_ksegrps;	/* Temporary padding. */
 #endif
 	TAILQ_HEAD(, thread) p_threads;	/* (j)(td_plist) Threads. (shortcut) */
 	TAILQ_HEAD(, thread) p_suspended; /* (td_runq) Suspended threads. */
@@ -683,6 +685,8 @@ struct proc {
 	int		p_numthreads;	/* (j) Number of threads. */
 #ifdef KSE
 	int		p_numksegrps;	/* (c) Number of ksegrps. */
+#else
+	int		was_p_numksegrps;	/* Temporary padding. */
 #endif
 	struct mdproc	p_md;		/* Any machine-dependent fields. */
 	struct callout	p_itcallout;	/* (h + c) Interval timer callout. */
