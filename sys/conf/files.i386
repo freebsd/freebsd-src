@@ -85,7 +85,6 @@ rr232x_lib.o			optional	rr232x			\
 #
 compat/linprocfs/linprocfs.c	optional linprocfs
 compat/linsysfs/linsysfs.c	optional linsysfs
-compat/linux/linux_aio.c	optional compat_linux
 compat/linux/linux_emul.c	optional compat_linux
 compat/linux/linux_file.c	optional compat_linux
 compat/linux/linux_futex.c	optional compat_linux
