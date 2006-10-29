@@ -199,9 +199,9 @@ loadprog(void)
 	/*
 	 * We assume that the entry address is the same as the lowest text
 	 * address and that the kernel startup code handles relocation by
-	 * this address rounded down to a multiple of 16M.
+	 * this address rounded down to a multiple of 1G.
 	 */
-	startaddr = head.a_entry & 0x00FFFFFF;
+	startaddr = head.a_entry & 0x3FFFFFFF;
 	addr =  startaddr;
 	printf("Booting %d:%s(%d,%c)%s @ 0x%x\n"
 			, dosdev & 0x0f
