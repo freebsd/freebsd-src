@@ -85,12 +85,6 @@
 
 /* More types and definitions used throughout the kernel. */
 #ifdef _KERNEL
-#if 0
-#if (defined(BURN_BRIDGES) || __FreeBSD_version >= 600000) \
-	&& defined(OBSOLETE_IN_6)
-#error "This file contains obsolete code to be removed in 6.0-current"
-#endif
-#endif
 #include <sys/cdefs.h>
 #include <sys/errno.h>
 #ifndef LOCORE
