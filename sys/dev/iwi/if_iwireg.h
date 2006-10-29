@@ -338,7 +338,8 @@ struct iwi_rateset {
 #define IWI_RATESET_TYPE_SUPPORTED	1
 
 	uint8_t	reserved;
-	uint8_t	rates[12];
+#define	IWI_RATESET_SIZE	12
+	uint8_t	rates[IWI_RATESET_SIZE];
 } __packed;
 
 /* structure for command IWI_CMD_SET_TX_POWER */
