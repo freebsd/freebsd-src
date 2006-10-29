@@ -35,6 +35,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/systm.h>
 #include <sys/gmon.h>
 #include <sys/kernel.h>
+#include <sys/smp.h>
 #include <sys/sysctl.h>
 
 #include <machine/clock.h>
@@ -50,7 +51,7 @@ __FBSDID("$FreeBSD$");
 int	cputime_bias = 1;	/* initialize for locality of reference */
 
 static int	cputime_clock = CPUTIME_CLOCK_UNINITIALIZED;
-#ifdef I586_PMC_GUPROF
+#if defined(PERFMON) && defined(I586_PMC_GUPROF)
 static u_int	cputime_clock_pmc_conf = I586_PMC_GUPROF;
 static int	cputime_clock_pmc_init;
 static struct gmonparam saved_gmp;
@@ -174,7 +175,7 @@ cputime()
 	u_char high, low;
 	static u_int prev_count;
 
-#if (defined(I586_CPU) || defined(I686_CPU)) && !defined(SMP)
+#if defined(I586_CPU) || defined(I686_CPU)
 	if (cputime_clock == CPUTIME_CLOCK_TSC) {
 		/*
 		 * Scale the TSC a little to make cputime()'s frequency
@@ -188,7 +189,7 @@ cputime()
 		prev_count = count;
 		return (delta);
 	}
-#if defined(PERFMON) && defined(I586_PMC_GUPROF)
+#if defined(PERFMON) && defined(I586_PMC_GUPROF) && !defined(SMP)
 	if (cputime_clock == CPUTIME_CLOCK_I586_PMC) {
 		/*
 		 * XXX permon_read() should be inlined so that the
@@ -202,8 +203,8 @@ cputime()
 		prev_count = count;
 		return (delta);
 	}
-#endif /* PERFMON && I586_PMC_GUPROF */
-#endif /* (I586_CPU || I686_CPU) && !SMP */
+#endif /* PERFMON && I586_PMC_GUPROF && !SMP */
+#endif /* I586_CPU || I686_CPU */
 
 	/*
 	 * Read the current value of the 8254 timer counter 0.
@@ -285,13 +286,13 @@ startguprof(gp)
 {
 	if (cputime_clock == CPUTIME_CLOCK_UNINITIALIZED) {
 		cputime_clock = CPUTIME_CLOCK_I8254;
-#if (defined(I586_CPU) || defined(I686_CPU)) && !defined(SMP)
-		if (tsc_freq != 0)
+#if defined(I586_CPU) || defined(I686_CPU)
+		if (tsc_freq != 0 && !tsc_is_broken && mp_ncpus < 2)
 			cputime_clock = CPUTIME_CLOCK_TSC;
 #endif
 	}
 	gp->profrate = timer_freq << CPUTIME_CLOCK_I8254_SHIFT;
-#if (defined(I586_CPU) || defined(I686_CPU)) && !defined(SMP)
+#if defined(I586_CPU) || defined(I686_CPU)
 	if (cputime_clock == CPUTIME_CLOCK_TSC)
 		gp->profrate = tsc_freq >> 1;
 #if defined(PERFMON) && defined(I586_PMC_GUPROF)
@@ -320,7 +321,7 @@ startguprof(gp)
 		}
 	}
 #endif /* PERFMON && I586_PMC_GUPROF */
-#endif /* (I586_CPU || I686_CPU) && !SMP */
+#endif /* I586_CPU || I686_CPU */
 	cputime_bias = 0;
 	cputime();
 }
