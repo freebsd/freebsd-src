@@ -99,6 +99,7 @@ static void vfs_page_set_valid(struct buf *bp, vm_ooffset_t off,
 			       int pageno, vm_page_t m);
 static void vfs_clean_pages(struct buf *bp);
 static void vfs_setdirty(struct buf *bp);
+static void vfs_setdirty_locked_object(struct buf *bp);
 static void vfs_vmio_release(struct buf *bp);
 static int vfs_bio_clcheck(struct vnode *vp, int size,
 		daddr_t lblkno, daddr_t blkno);
@@ -2284,8 +2285,6 @@ notinmem:
 static void
 vfs_setdirty(struct buf *bp) 
 {
-	int i;
-	vm_object_t object;
 
 	/*
 	 * Degenerate case - empty buffer
@@ -2302,8 +2301,19 @@ vfs_setdirty(struct buf *bp)
 	if ((bp->b_flags & B_VMIO) == 0)
 		return;
 
-	object = bp->b_pages[0]->object;
-	VM_OBJECT_LOCK(object);
+	VM_OBJECT_LOCK(bp->b_bufobj->bo_object);
+	vfs_setdirty_locked_object(bp);
+	VM_OBJECT_UNLOCK(bp->b_bufobj->bo_object);
+}
+
+static void
+vfs_setdirty_locked_object(struct buf *bp)
+{
+	vm_object_t object;
+	int i;
+
+	object = bp->b_bufobj->bo_object;
+	VM_OBJECT_LOCK_ASSERT(object, MA_OWNED);
 	if (object->flags & (OBJ_MIGHTBEDIRTY|OBJ_CLEANING)) {
 		vm_offset_t boffset;
 		vm_offset_t eoffset;
@@ -2354,7 +2364,6 @@ vfs_setdirty(struct buf *bp)
 				bp->b_dirtyend = eoffset;
 		}
 	}
-	VM_OBJECT_UNLOCK(object);
 }
 
 /*
@@ -3398,8 +3407,9 @@ vfs_busy_pages(struct buf *bp, int clear_modify)
 	foff = bp->b_offset;
 	KASSERT(bp->b_offset != NOOFFSET,
 	    ("vfs_busy_pages: no buffer offset"));
-	vfs_setdirty(bp);
 	VM_OBJECT_LOCK(obj);
+	if (bp->b_bufsize != 0)
+		vfs_setdirty_locked_object(bp);
 retry:
 	for (i = 0; i < bp->b_npages; i++) {
 		m = bp->b_pages[i];
