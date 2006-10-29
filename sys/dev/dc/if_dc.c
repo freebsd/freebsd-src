@@ -104,7 +104,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/kernel.h>
 #include <sys/module.h>
 #include <sys/socket.h>
-#include <sys/sysctl.h>
+#include <sys/types.h>
 
 #include <net/if.h>
 #include <net/if_arp.h>
@@ -334,11 +334,6 @@ static driver_t dc_driver = {
 };
 
 static devclass_t dc_devclass;
-#ifdef __i386__
-static int dc_quick = 1;
-SYSCTL_INT(_hw, OID_AUTO, dc_quick, CTLFLAG_RW, &dc_quick, 0,
-    "do not m_devget() in dc driver");
-#endif
 
 DRIVER_MODULE(dc, cardbus, dc_driver, dc_devclass, 0, 0);
 DRIVER_MODULE(dc, pci, dc_driver, dc_devclass, 0, 0);
@@ -1394,9 +1389,20 @@ dc_setcfg(struct dc_softc *sc, int media)
 			DELAY(10);
 		}
 
-		if (i == DC_TIMEOUT)
-			device_printf(sc->dc_dev,
-			    "failed to force tx and rx to idle state\n");
+		if (i == DC_TIMEOUT) {
+			if (!(isr & DC_ISR_TX_IDLE) && !DC_IS_ASIX(sc))
+				device_printf(sc->dc_dev,
+				    "%s: failed to force tx to idle state\n",
+				    __func__);
+			if (!((isr & DC_ISR_RX_STATE) == DC_RXSTATE_STOPPED ||
+			    (isr & DC_ISR_RX_STATE) == DC_RXSTATE_WAIT) &&
+			    !(DC_IS_CENTAUR(sc) || DC_IS_CONEXANT(sc) ||
+			    (DC_IS_DAVICOM(sc) && pci_get_revid(sc->dc_dev) >=
+			    DC_REVISION_DM9102A)))
+				device_printf(sc->dc_dev,
+				    "%s: failed to force rx to idle state\n",
+				    __func__);
+		}
 	}
 
 	if (IFM_SUBTYPE(media) == IFM_100_TX) {
@@ -2649,7 +2655,7 @@ dc_rx_resync(struct dc_softc *sc)
 static void
 dc_rxeof(struct dc_softc *sc)
 {
-	struct mbuf *m;
+	struct mbuf *m, *m0;
 	struct ifnet *ifp;
 	struct dc_desc *cur_rx;
 	int i, total_len = 0;
@@ -2719,9 +2725,9 @@ dc_rxeof(struct dc_softc *sc)
 
 		/* No errors; receive the packet. */
 		total_len -= ETHER_CRC_LEN;
-#ifdef __i386__
+#ifdef __NO_STRICT_ALIGNMENT
 		/*
-		 * On the x86 we do not have alignment problems, so try to
+		 * On architectures without alignment problems we try to
 		 * allocate a new buffer for the receive ring, and pass up
 		 * the one where the packet is already, saving the expensive
 		 * copy done in m_devget().
@@ -2729,15 +2735,13 @@ dc_rxeof(struct dc_softc *sc)
 		 * if the allocation fails, then use m_devget and leave the
 		 * existing buffer in the receive ring.
 		 */
-		if (dc_quick && dc_newbuf(sc, i, 1) == 0) {
+		if (dc_newbuf(sc, i, 1) == 0) {
 			m->m_pkthdr.rcvif = ifp;
 			m->m_pkthdr.len = m->m_len = total_len;
 			DC_INC(i, DC_RX_LIST_CNT);
 		} else
 #endif
 		{
-			struct mbuf *m0;
-
 			m0 = m_devget(mtod(m, char *), total_len,
 				ETHER_ALIGN, ifp, NULL);
 			dc_newbuf(sc, i, 0);
@@ -2970,7 +2974,8 @@ dc_tx_underrun(struct dc_softc *sc)
 		}
 		if (i == DC_TIMEOUT) {
 			device_printf(sc->dc_dev,
-			    "failed to force tx to idle state\n");
+			    "%s: failed to force tx to idle state\n",
+			    __func__);
 			dc_init_locked(sc);
 		}
 	}
@@ -3568,6 +3573,7 @@ dc_ifmedia_sts(struct ifnet *ifp, struct ifmediareq *ifmr)
 		if (IFM_SUBTYPE(ifm->ifm_media) == IFM_HPNA_1) {
 			ifmr->ifm_active = ifm->ifm_media;
 			ifmr->ifm_status = 0;
+			DC_UNLOCK(sc);
 			return;
 		}
 	}
