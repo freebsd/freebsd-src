@@ -32,7 +32,7 @@
 .\"     @(#)read.2	8.4 (Berkeley) 2/26/94
 .\" $FreeBSD$
 .\"
-.Dd October 16, 2004
+.Dd October 11, 2006
 .Dt READ 2
 .Os
 .Sh NAME
@@ -169,8 +169,10 @@ points outside the allocated address space.
 .It Bq Er EIO
 An I/O error occurred while reading from the file system.
 .It Bq Er EINTR
-A read from a slow device was interrupted before
-any data arrived by the delivery of a signal.
+A read from a slow device
+(i.e.\& one that might block for an arbitrary amount of time)
+was interrupted by the delivery of a signal
+before any data arrived.
 .It Bq Er EINVAL
 The pointer associated with
 .Fa d
