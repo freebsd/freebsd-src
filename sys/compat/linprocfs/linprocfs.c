@@ -930,6 +930,7 @@ linprocfs_donetdev(PFS_FILL_ARGS)
 static int
 linprocfs_dopid_max(PFS_FILL_ARGS)
 {
+
 	sbuf_printf(sb, "%i\n", PID_MAX);
 
 	return (0);
