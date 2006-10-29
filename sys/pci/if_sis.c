@@ -70,7 +70,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/kernel.h>
 #include <sys/module.h>
 #include <sys/socket.h>
-#include <sys/sysctl.h>
+#include <sys/types.h>
 
 #include <net/if.h>
 #include <net/if_arp.h>
@@ -1398,8 +1398,8 @@ sis_newbuf(struct sis_softc *sc, struct sis_desc *c, struct mbuf *m)
 static void
 sis_rxeof(struct sis_softc *sc)
 {
-        struct mbuf		*m;
-        struct ifnet		*ifp;
+	struct mbuf		*m, *m0;
+	struct ifnet		*ifp;
 	struct sis_desc		*cur_rx;
 	int			total_len = 0;
 	u_int32_t		rxstat;
@@ -1442,9 +1442,9 @@ sis_rxeof(struct sis_softc *sc)
 		}
 
 		/* No errors; receive the packet. */	
-#if defined(__i386__) || defined(__amd64__)
+#ifdef __NO_STRICT_ALIGNMENT
 		/*
-		 * On the x86 we do not have alignment problems, so try to
+		 * On architectures without alignment problems we try to
 		 * allocate a new buffer for the receive ring, and pass up
 		 * the one where the packet is already, saving the expensive
 		 * copy done in m_devget().
@@ -1457,7 +1457,6 @@ sis_rxeof(struct sis_softc *sc)
 		else
 #endif
 		{
-			struct mbuf		*m0;
 			m0 = m_devget(mtod(m, char *), total_len,
 				ETHER_ALIGN, ifp, NULL);
 			sis_newbuf(sc, cur_rx, m);
