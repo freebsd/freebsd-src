@@ -482,6 +482,22 @@ atkbd_intr(keyboard_t *kbd, void *arg)
 	int delay[2];
 	int c;
 
+	if (!KBD_HAS_DEVICE(kbd)) {
+		/*
+		 * The keyboard was not detected before;
+		 * it must have been reconnected!
+		 */
+		state = (atkbd_state_t *)kbd->kb_data;
+		init_keyboard(state->kbdc, &kbd->kb_type,
+			      kbd->kb_config);
+		KBD_FOUND_DEVICE(kbd);
+		atkbd_ioctl(kbd, KDSETLED, (caddr_t)&state->ks_state);
+		get_typematic(kbd);
+		delay[0] = kbd->kb_delay1;
+		delay[1] = kbd->kb_delay2;
+		atkbd_ioctl(kbd, KDSETREPEAT, (caddr_t)delay);
+	}
+
 	if (KBD_IS_ACTIVE(kbd) && KBD_IS_BUSY(kbd)) {
 		/* let the callback function to process the input */
 		(*kbd->kb_callback.kc_func)(kbd, KBDIO_KEYINPUT,
@@ -491,22 +507,6 @@ atkbd_intr(keyboard_t *kbd, void *arg)
 		do {
 			c = atkbd_read_char(kbd, FALSE);
 		} while (c != NOKEY);
-
-		if (!KBD_HAS_DEVICE(kbd)) {
-			/*
-			 * The keyboard was not detected before;
-			 * it must have been reconnected!
-			 */
-			state = (atkbd_state_t *)kbd->kb_data;
-			init_keyboard(state->kbdc, &kbd->kb_type,
-				      kbd->kb_config);
-			atkbd_ioctl(kbd, KDSETLED, (caddr_t)&state->ks_state);
-			get_typematic(kbd);
-			delay[0] = kbd->kb_delay1;
-			delay[1] = kbd->kb_delay2;
-			atkbd_ioctl(kbd, KDSETREPEAT, (caddr_t)delay);
-			KBD_FOUND_DEVICE(kbd);
-		}
 	}
 	return 0;
 }
