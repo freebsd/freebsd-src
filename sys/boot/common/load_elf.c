@@ -263,7 +263,7 @@ __elfN(loadimage)(struct preloaded_file *fp, elf_file_t ef, u_int64_t off)
 #if __ELF_WORD_SIZE == 64
 	off = - (off & 0xffffffffff000000ull);/* x86_64 relocates after locore */
 #else
-	off = - (off & 0xff000000u);	/* i386 relocates after locore */
+	off = - (off & 0xc0000000u);	/* i386 relocates after locore */
 #endif
 #else
 	off = 0;		/* other archs use direct mapped kernels */
