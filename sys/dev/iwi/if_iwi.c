@@ -2936,6 +2936,11 @@ iwi_auth_and_assoc(struct iwi_softc *sc)
 	    IWI_MODE_11G;
 	rs.type = IWI_RATESET_TYPE_NEGOTIATED;
 	rs.nrates = ni->ni_rates.rs_nrates;
+	if (rs.nrates > IWI_RATESET_SIZE) {
+		DPRINTF(("Truncating negotiated rate set from %u\n",
+		    rs.nrates));
+		rs.nrates = IWI_RATESET_SIZE;
+	}
 	memcpy(rs.rates, ni->ni_rates.rs_rates, rs.nrates);
 	DPRINTF(("Setting negotiated rates (%u)\n", rs.nrates));
 	error = iwi_cmd(sc, IWI_CMD_SET_RATES, &rs, sizeof rs);
