@@ -613,6 +613,7 @@ extern int	distSetSrc(dialogMenuItem *self);
 extern int	distSetXOrg(dialogMenuItem *self);
 extern int	distSetKernel(dialogMenuItem *self);
 extern int	distExtractAll(dialogMenuItem *self);
+extern int	selectKernel(void);
 
 /* dmenu.c */
 extern int	dmenuDisplayFile(dialogMenuItem *tmp);
