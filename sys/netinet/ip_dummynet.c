@@ -68,6 +68,7 @@
 #include <sys/sysctl.h>
 #include <sys/taskqueue.h>
 #include <net/if.h>
+#include <net/netisr.h>
 #include <net/route.h>
 #include <netinet/in.h>
 #include <netinet/in_systm.h>
@@ -197,13 +198,8 @@ static struct taskqueue	*dn_tq = NULL;
 static void dummynet_task(void *, int);
 
 static struct mtx dummynet_mtx;
-/*
- * NB: Recursion is needed to deal with re-entry via ICMP.  That is,
- *     a packet may be dispatched via ip_input from dummynet_io and
- *     re-enter through ip_output.  Yech.
- */
 #define	DUMMYNET_LOCK_INIT() \
-	mtx_init(&dummynet_mtx, "dummynet", NULL, MTX_DEF | MTX_RECURSE)
+	mtx_init(&dummynet_mtx, "dummynet", NULL, MTX_DEF)
 #define	DUMMYNET_LOCK_DESTROY()	mtx_destroy(&dummynet_mtx)
 #define	DUMMYNET_LOCK()		mtx_lock(&dummynet_mtx)
 #define	DUMMYNET_UNLOCK()	mtx_unlock(&dummynet_mtx)
@@ -852,11 +848,11 @@ dummynet_send(struct mbuf *m)
 			ip = mtod(m, struct ip *);
 			ip->ip_len = htons(ip->ip_len);
 			ip->ip_off = htons(ip->ip_off);
-			ip_input(m);
+			netisr_dispatch(NETISR_IP, m);
 			break;
 #ifdef INET6
 		case DN_TO_IP6_IN:
-			ip6_input(m);
+			netisr_dispatch(NETISR_IPV6, m);
 			break;
 
 		case DN_TO_IP6_OUT:
@@ -1407,36 +1403,37 @@ dropit:
 static void
 purge_flow_set(struct dn_flow_set *fs, int all)
 {
-    struct dn_flow_queue *q, *qn ;
-    int i ;
+	struct dn_flow_queue *q, *qn;
+	int i;
 
-    DUMMYNET_LOCK_ASSERT();
+	DUMMYNET_LOCK_ASSERT();
 
-    for (i = 0 ; i <= fs->rq_size ; i++ ) {
-	for (q = fs->rq[i] ; q ; q = qn ) {
-	    struct mbuf *m, *mnext;
+	for (i = 0; i <= fs->rq_size; i++) {
+		for (q = fs->rq[i]; q != NULL; q = qn) {
+			struct mbuf *m, *mnext;
 
-	    mnext = q->head;
-	    while ((m = mnext) != NULL) {
-		mnext = m->m_nextpkt;
-		DN_FREE_PKT(m);
-	    }
-	    qn = q->next ;
-	    free(q, M_DUMMYNET);
+			mnext = q->head;
+			while ((m = mnext) != NULL) {
+				mnext = m->m_nextpkt;
+				DN_FREE_PKT(m);
+			}
+			qn = q->next;
+			free(q, M_DUMMYNET);
+		}
+		fs->rq[i] = NULL;
 	}
-	fs->rq[i] = NULL ;
-    }
-    fs->rq_elements = 0 ;
-    if (all) {
-	/* RED - free lookup table */
-	if (fs->w_q_lookup)
-	    free(fs->w_q_lookup, M_DUMMYNET);
-	if (fs->rq)
-	    free(fs->rq, M_DUMMYNET);
-	/* if this fs is not part of a pipe, free it */
-	if (fs->pipe && fs != &(fs->pipe->fs) )
-	    free(fs, M_DUMMYNET);
-    }
+
+	fs->rq_elements = 0;
+	if (all) {
+		/* RED - free lookup table. */
+		if (fs->w_q_lookup != NULL)
+			free(fs->w_q_lookup, M_DUMMYNET);
+		if (fs->rq != NULL)
+			free(fs->rq, M_DUMMYNET);
+		/* If this fs is not part of a pipe, free it. */
+		if (fs->pipe == NULL || fs != &(fs->pipe->fs))
+			free(fs, M_DUMMYNET);
+	}
 }
 
 /*
