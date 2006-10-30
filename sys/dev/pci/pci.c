@@ -1315,13 +1315,6 @@ pci_add_map(device_t pcib, device_t bus, device_t dev,
 		start = base;
 		end = base + (1 << ln2size) - 1;
 	}
-	if ((u_long)start != start) {
-		/* Wait a minute!  this platform can't do this address. */
-		device_printf(bus,
-		    "pci%d.%d.%x bar %#x start %#jx, too many bits.",
-		    b, s, f, reg, (uintmax_t)start);
-		return (barlen);
-	}
 	resource_list_add(rl, type, reg, start, end, count);
 
 	/*
@@ -1330,11 +1323,19 @@ pci_add_map(device_t pcib, device_t bus, device_t dev,
 	 */
 	res = resource_list_alloc(rl, bus, dev, type, &reg, start, end, count,
 	    prefetch ? RF_PREFETCHABLE : 0);
+	start = rman_get_start(res);
+	if ((u_long)start != start) {
+		/* Wait a minute!  this platform can't do this address. */
+		device_printf(bus,
+		    "pci%d.%d.%x bar %#x start %#jx, too many bits.",
+		    b, s, f, reg, (uintmax_t)start);
+		resource_list_release(rl, bus, dev, type, reg, res);
+		return (barlen);
+	}
 	if (res != NULL) {
-		pci_write_config(dev, reg, rman_get_start(res), 4);
+		pci_write_config(dev, reg, start, 4);
 		if (ln2range == 64)
-			pci_write_config(dev, reg + 4,
-			    rman_get_start(res) >> 32, 4);
+			pci_write_config(dev, reg + 4, start >> 32, 4);
 	}
 	return (barlen);
 }
