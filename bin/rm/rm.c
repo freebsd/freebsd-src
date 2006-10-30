@@ -400,6 +400,11 @@ rm_overwrite(char *file, struct stat *sbp)
 	}
 	if (!S_ISREG(sbp->st_mode))
 		return (1);
+	if (sbp->st_nlink > 1) {
+		warnx("%s (inode %u): not overwritten due to multiple links",
+		    file, sbp->st_ino);
+		return (1);
+	}
 	if ((fd = open(file, O_WRONLY, 0)) == -1)
 		goto err;
 	if (fstatfs(fd, &fsb) == -1)
