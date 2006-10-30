@@ -1,0 +1,6 @@
+# $FreeBSD$
+# Add here your third-party applications that are already installed on /usr/local
+# Make sure you have enough space to add it.
+# Example:
+# usr/local/sbin/httpd
+
