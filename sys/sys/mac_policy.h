@@ -59,6 +59,7 @@
 
 struct acl;
 struct bpf_d;
+struct cdev;
 struct componentname;
 struct devfs_dirent;
 struct ifnet;
