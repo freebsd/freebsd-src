@@ -245,7 +245,7 @@ pci_find_device(uint16_t vendor, uint16_t device)
 /* return base address of memory or port map */
 
 static uint32_t
-pci_mapbase(unsigned mapreg)
+pci_mapbase(uint32_t mapreg)
 {
 	int mask = 0x03;
 	if ((mapreg & 0x01) == 0)
@@ -275,7 +275,7 @@ pci_maptype(unsigned mapreg)
 /* return log2 of map size decoded for memory or port map */
 
 static int
-pci_mapsize(unsigned testval)
+pci_mapsize(uint32_t testval)
 {
 	int ln2size;
 
@@ -1211,8 +1211,8 @@ pci_add_map(device_t pcib, device_t bus, device_t dev,
     int prefetch)
 {
 	uint32_t map;
-	uint64_t base;
-	uint64_t start, end, count;
+	pci_addr_t base;
+	pci_addr_t start, end, count;
 	uint8_t ln2size;
 	uint8_t ln2range;
 	uint32_t testval;
@@ -1252,11 +1252,9 @@ pci_add_map(device_t pcib, device_t bus, device_t dev,
 	if (ln2range == 64)
 		/* Read the other half of a 64bit map register */
 		base |= (uint64_t) PCIB_READ_CONFIG(pcib, b, s, f, reg + 4, 4) << 32;
-
 	if (bootverbose) {
-		printf("\tmap[%02x]: type %x, range %2d, base %08x, size %2d",
-		    reg, pci_maptype(map), ln2range, 
-		    (unsigned int) base, ln2size);
+		printf("\tmap[%02x]: type %x, range %2d, base %#jx, size %2d",
+		    reg, pci_maptype(map), ln2range, (uintmax_t)base, ln2size);
 		if (type == SYS_RES_IOPORT && !pci_porten(pcib, b, s, f))
 			printf(", port disabled\n");
 		else if (type == SYS_RES_MEMORY && !pci_memen(pcib, b, s, f))
@@ -1278,7 +1276,11 @@ pci_add_map(device_t pcib, device_t bus, device_t dev,
 	 */
 	if (!force && (base == 0 || map == testval))
 		return (barlen);
-
+	if ((u_long)base != base) {
+		device_printf(bus,
+		    "pci%d:%d:%d bar %#x too many address bits", b, s, f, reg);
+		return (barlen);
+	}
 	/*
 	 * This code theoretically does the right thing, but has
 	 * undesirable side effects in some cases where peripherals
@@ -1313,6 +1315,13 @@ pci_add_map(device_t pcib, device_t bus, device_t dev,
 		start = base;
 		end = base + (1 << ln2size) - 1;
 	}
+	if ((u_long)start != start) {
+		/* Wait a minute!  this platform can't do this address. */
+		device_printf(bus,
+		    "pci%d.%d.%x bar %#x start %#jx, too many bits.",
+		    b, s, f, reg, (uintmax_t)start);
+		return (barlen);
+	}
 	resource_list_add(rl, type, reg, start, end, count);
 
 	/*
@@ -1321,8 +1330,12 @@ pci_add_map(device_t pcib, device_t bus, device_t dev,
 	 */
 	res = resource_list_alloc(rl, bus, dev, type, &reg, start, end, count,
 	    prefetch ? RF_PREFETCHABLE : 0);
-	if (res != NULL)
+	if (res != NULL) {
 		pci_write_config(dev, reg, rman_get_start(res), 4);
+		if (ln2range == 64)
+			pci_write_config(dev, reg + 4,
+			    rman_get_start(res) >> 32, 4);
+	}
 	return (barlen);
 }
 
@@ -2139,7 +2152,7 @@ pci_alloc_map(device_t dev, device_t child, int type, int *rid,
 	struct resource_list *rl = &dinfo->resources;
 	struct resource_list_entry *rle;
 	struct resource *res;
-	uint32_t map, testval;
+	pci_addr_t map, testval;
 	int mapsize;
 
 	/*
@@ -2153,6 +2166,8 @@ pci_alloc_map(device_t dev, device_t child, int type, int *rid,
 	map = pci_read_config(child, *rid, 4);
 	pci_write_config(child, *rid, 0xffffffff, 4);
 	testval = pci_read_config(child, *rid, 4);
+	if (pci_maprange(testval) == 64)
+		map |= (pci_addr_t)pci_read_config(child, *rid + 4, 4) << 32;
 	if (pci_mapbase(testval) == 0)
 		goto out;
 	if (pci_maptype(testval) & PCI_MAPMEM) {
@@ -2182,7 +2197,7 @@ pci_alloc_map(device_t dev, device_t child, int type, int *rid,
 	 * another driver, which won't work.
 	 */
 	mapsize = pci_mapsize(testval);
-	count = 1 << mapsize;
+	count = 1UL << mapsize;
 	if (RF_ALIGNMENT(flags) < mapsize)
 		flags = (flags & ~RF_ALIGNMENT_MASK) | RF_ALIGNMENT_LOG2(mapsize);
 	
@@ -2213,6 +2228,8 @@ pci_alloc_map(device_t dev, device_t child, int type, int *rid,
 	map = rman_get_start(res);
 out:;
 	pci_write_config(child, *rid, map, 4);
+	if (pci_maprange(testval) == 64)
+		pci_write_config(child, *rid + 4, map >> 32, 4);
 	return (res);
 }
 
