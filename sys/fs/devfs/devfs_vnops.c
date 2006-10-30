@@ -72,7 +72,7 @@ static struct fileops devfs_ops_f;
 #include <fs/devfs/devfs.h>
 #include <fs/devfs/devfs_int.h>
 
-static struct mtx	devfs_de_interlock;
+struct mtx	devfs_de_interlock;
 MTX_SYSINIT(devfs_de_interlock, &devfs_de_interlock, "devfs interlock", MTX_DEF);
 
 static int
@@ -287,7 +287,7 @@ devfs_close(struct vop_close_args *ap)
 	struct thread *td = ap->a_td;
 	struct cdev *dev = vp->v_rdev;
 	struct cdevsw *dsw;
-	int error;
+	int vp_locked, error;
 
 	/*
 	 * Hack: a tty device that is a controlling terminal
@@ -341,7 +341,10 @@ devfs_close(struct vop_close_args *ap)
 		dev_relthread(dev);
 		return (0);
 	}
+	vholdl(vp);
 	VI_UNLOCK(vp);
+	vp_locked = VOP_ISLOCKED(vp, td);
+	VOP_UNLOCK(vp, 0, td);
 	KASSERT(dev->si_refcount > 0,
 	    ("devfs_close() on un-referenced struct cdev *(%s)", devtoname(dev)));
 	if (!(dsw->d_flags & D_NEEDGIANT)) {
@@ -352,6 +355,8 @@ devfs_close(struct vop_close_args *ap)
 		error = dsw->d_close(dev, ap->a_fflag, S_IFCHR, td);
 	}
 	dev_relthread(dev);
+	vn_lock(vp, vp_locked | LK_RETRY, td);
+	vdrop(vp);
 	return (error);
 }
 
@@ -575,7 +580,14 @@ devfs_lookupx(struct vop_lookup_args *ap, int *dm_unlock)
 		return (error);
 	}
 
+	DEVFS_DMP_HOLD(dmp);
 	devfs_populate(dmp);
+	if (DEVFS_DMP_DROP(dmp)) {
+		*dm_unlock = 0;
+		sx_xunlock(&dmp->dm_lock);
+		devfs_unmount_final(dmp);
+		return (ENOENT);
+	}
 	dd = dvp->v_data;
 	de = devfs_find(dd, cnp->cn_nameptr, cnp->cn_namelen);
 	while (de == NULL) {	/* While(...) so we can use break */
@@ -597,7 +609,14 @@ devfs_lookupx(struct vop_lookup_args *ap, int *dm_unlock)
 		if (cdev == NULL)
 			break;
 
+		DEVFS_DMP_HOLD(dmp);
 		devfs_populate(dmp);
+		if (DEVFS_DMP_DROP(dmp)) {
+			*dm_unlock = 0;
+			sx_xunlock(&dmp->dm_lock);
+			devfs_unmount_final(dmp);
+			return (ENOENT);
+		}
 
 		dev_lock();
 		dde = &cdev->si_priv->cdp_dirents[dmp->dm_idx];
@@ -894,7 +913,15 @@ devfs_readdir(struct vop_readdir_args *ap)
 
 	dmp = VFSTODEVFS(ap->a_vp->v_mount);
 	sx_xlock(&dmp->dm_lock);
+	DEVFS_DMP_HOLD(dmp);
 	devfs_populate(dmp);
+	if (DEVFS_DMP_DROP(dmp)) {
+		sx_xunlock(&dmp->dm_lock);
+		devfs_unmount_final(dmp);
+		if (tmp_ncookies != NULL)
+			ap->a_ncookies = tmp_ncookies;
+		return (EIO);
+	}
 	error = 0;
 	de = ap->a_vp->v_data;
 	off = 0;
@@ -946,7 +973,7 @@ devfs_reclaim(struct vop_reclaim_args *ap)
 	struct vnode *vp = ap->a_vp;
 	struct devfs_dirent *de;
 	struct cdev *dev;
-		
+
 	mtx_lock(&devfs_de_interlock);
 	de = vp->v_data;
 	if (de != NULL) {
@@ -983,7 +1010,7 @@ devfs_remove(struct vop_remove_args *ap)
 	de = vp->v_data;
 	if (de->de_cdp == NULL) {
 		TAILQ_REMOVE(&dd->de_dlist, de, de_list);
-		devfs_delete(dmp, de);
+		devfs_delete(dmp, de, 1);
 	} else {
 		de->de_flags |= DE_WHITEOUT;
 	}
@@ -1010,6 +1037,17 @@ devfs_revoke(struct vop_revoke_args *ap)
 
 	dev = vp->v_rdev;
 	cdp = dev->si_priv;
+ 
+	dev_lock();
+	cdp->cdp_inuse++;
+	dev_unlock();
+
+	vhold(vp);
+	vgone(vp);
+	vdrop(vp);
+
+	VOP_UNLOCK(vp,0,curthread);
+ loop:
 	for (;;) {
 		mtx_lock(&devfs_de_interlock);
 		dev_lock();
@@ -1019,18 +1057,20 @@ devfs_revoke(struct vop_revoke_args *ap)
 			if (de == NULL)
 				continue;
 
-      			vp2 = de->de_vnode;
+			vp2 = de->de_vnode;
 			if (vp2 != NULL) {
-				de->de_vnode = NULL;
 				dev_unlock();
 				VI_LOCK(vp2);
 				mtx_unlock(&devfs_de_interlock);
-				vholdl(vp2);
-				VI_UNLOCK(vp2);
+				if (vget(vp2, LK_EXCLUSIVE | LK_INTERLOCK,
+				    curthread))
+					goto loop;
+				vhold(vp2);
 				vgone(vp2);
 				vdrop(vp2);
+				vput(vp2);
 				break;
-			}		
+			} 
 		}
 		if (vp2 != NULL) {
 			continue;
@@ -1039,6 +1079,16 @@ devfs_revoke(struct vop_revoke_args *ap)
 		mtx_unlock(&devfs_de_interlock);
 		break;
 	}
+	dev_lock();
+	cdp->cdp_inuse--;
+	if (!(cdp->cdp_flags & CDP_ACTIVE) && cdp->cdp_inuse == 0) {
+		TAILQ_REMOVE(&cdevp_list, cdp, cdp_list);
+		dev_unlock();
+		dev_rel(&cdp->cdp_c);
+	} else
+		dev_unlock();
+
+	vn_lock(vp, LK_EXCLUSIVE | LK_RETRY, curthread);
 	return (0);
 }
 
@@ -1050,7 +1100,13 @@ devfs_rioctl(struct vop_ioctl_args *ap)
 
 	dmp = VFSTODEVFS(ap->a_vp->v_mount);
 	sx_xlock(&dmp->dm_lock);
+	DEVFS_DMP_HOLD(dmp);
 	devfs_populate(dmp);
+	if (DEVFS_DMP_DROP(dmp)) {
+		sx_xunlock(&dmp->dm_lock);
+		devfs_unmount_final(dmp);
+		return (ENOENT);
+	}
 	error = devfs_rules_ioctl(dmp, ap->a_command, ap->a_data, ap->a_td);
 	sx_xunlock(&dmp->dm_lock);
 	return (error);
