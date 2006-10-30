@@ -69,14 +69,18 @@
 #define	__is_constant(x)	0
 #endif
 
-#define	__bswap16_const(x)	((x >> 8) | ((x << 8) & 0xff00))
-#define	__bswap32_const(x)	((x >> 24) | ((x >> 8) & 0xff00) |	\
-	((x << 8) & 0xff0000) | ((x << 24) & 0xff000000))
-#define	__bswap64_const(x)	((x >> 56) | ((x >> 40) & 0xff00) |	\
-	((x >> 24) & 0xff0000) | ((x >> 8) & 0xff000000) |		\
-	((x << 8) & ((__uint64_t)0xff << 32)) |				\
-	((x << 24) & ((__uint64_t)0xff << 40)) |			\
-	((x << 40) & ((__uint64_t)0xff << 48)) | ((x << 56)))
+#define	__bswap16_const(x)	((((x) >> 8) & 0xff) |			\
+	(((x) << 8) & 0xff00))
+#define	__bswap32_const(x)	((((x) >> 24) & 0xff) |			\
+	(((x) >> 8) & 0xff00) | (((x) << 8) & 0xff0000) |		\
+	(((x) << 24) & 0xff000000))
+#define	__bswap64_const(x)	((((x) >> 56) & 0xff) |			\
+	(((x) >> 40) & 0xff00) | (((x) >> 24) & 0xff0000) |		\
+	(((x) >> 8) & 0xff000000) |					\
+	(((x) << 8) & ((__uint64_t)0xff << 32)) |			\
+	(((x) << 24) & ((__uint64_t)0xff << 40)) |			\
+	(((x) << 40) & ((__uint64_t)0xff << 48)) |			\
+	(((x) << 56) & ((__uint64_t)0xff << 56)))
 
 static __inline __uint16_t
 __bswap16_var(__uint16_t _x)
