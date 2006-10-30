@@ -30,7 +30,6 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-#include "opt_atpic.h"
 #include "opt_isa.h"
 
 #include <sys/param.h>
@@ -60,8 +59,6 @@ __FBSDID("$FreeBSD$");
 #define	IRQ_NMI			(NUM_IO_INTS + 2)
 #define	IRQ_SMI			(NUM_IO_INTS + 3)
 #define	IRQ_DISABLED		(NUM_IO_INTS + 4)
-
-#define	TODO		printf("%s: not implemented!\n", __func__)
 
 static MALLOC_DEFINE(M_IOAPIC, "I/O APIC", "I/O APIC structures");
 
@@ -111,8 +108,7 @@ static int	ioapic_vector(struct intsrc *isrc);
 static int	ioapic_source_pending(struct intsrc *isrc);
 static int	ioapic_config_intr(struct intsrc *isrc, enum intr_trigger trig,
 		    enum intr_polarity pol);
-static void	ioapic_suspend(struct intsrc *isrc);
-static void	ioapic_resume(struct intsrc *isrc);
+static void	ioapic_resume(struct pic *pic);
 static void	ioapic_assign_cpu(struct intsrc *isrc, u_int apic_id);
 static void	ioapic_program_intpin(struct ioapic_intsrc *intpin);
 
@@ -120,7 +116,7 @@ static STAILQ_HEAD(,ioapic) ioapic_list = STAILQ_HEAD_INITIALIZER(ioapic_list);
 struct pic ioapic_template = { ioapic_enable_source, ioapic_disable_source,
 			       ioapic_eoi_source, ioapic_enable_intr,
 			       ioapic_vector, ioapic_source_pending,
-			       ioapic_suspend, ioapic_resume,
+			       NULL, ioapic_resume,
 			       ioapic_config_intr, ioapic_assign_cpu };
 
 static int next_ioapic_base;
@@ -415,17 +411,13 @@ ioapic_config_intr(struct intsrc *isrc, enum intr_trigger trig,
 }
 
 static void
-ioapic_suspend(struct intsrc *isrc)
+ioapic_resume(struct pic *pic)
 {
+	struct ioapic *io = (struct ioapic *)pic;
+	int i;
 
-	TODO;
-}
-
-static void
-ioapic_resume(struct intsrc *isrc)
-{
-
-	ioapic_program_intpin((struct ioapic_intsrc *)isrc);
+	for (i = 0; i < io->io_numintr; i++)
+		ioapic_program_intpin(&io->io_pins[i]);
 }
 
 /*
@@ -723,6 +715,7 @@ ioapic_register(void *cookie)
 	    io->io_intbase + io->io_numintr - 1);
 
 	/* Register valid pins as interrupt sources. */
+	intr_register_pic(&io->io_pic);
 	for (i = 0, pin = io->io_pins; i < io->io_numintr; i++, pin++)
 		if (pin->io_irq < NUM_IO_INTS)
 			intr_register_source(&pin->io_intsrc);
