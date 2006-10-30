@@ -69,6 +69,10 @@ usr/sbin/pw
 usr/sbin/pwd_mkdb
 usr/sbin/setkey
 
+tinybsd.localfiles: Similar to tinybsd.basefiles but for /usr/local/.  The
+difference is that directories will have to be created by TinyBSD because
+they are not handle by mtree(1).
+
 etc/: This is the directory where you can put your custom /etc configuration.
 
 # ls /usr/src/tools/tools/tinybsd/tinybsd
