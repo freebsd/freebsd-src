@@ -54,7 +54,7 @@
  * The one true (but secret) list of active devices in the system.
  * Locked by dev_lock()/devmtx
  */
-static TAILQ_HEAD(,cdev_priv) cdevp_list = TAILQ_HEAD_INITIALIZER(cdevp_list);
+struct cdev_priv_list cdevp_list = TAILQ_HEAD_INITIALIZER(cdevp_list);
 
 struct unrhdr *devfs_inos;
 
@@ -237,23 +237,41 @@ devfs_dirent_free(struct devfs_dirent *de)
 	free(de, M_DEVFS3);
 }
 
+/*
+ * The caller needs to hold the dm for the duration of the call since
+ * dm->dm_lock may be temporary dropped.
+ */
 void
-devfs_delete(struct devfs_mount *dm, struct devfs_dirent *de)
+devfs_delete(struct devfs_mount *dm, struct devfs_dirent *de, int vp_locked)
 {
+	struct vnode *vp;
+	struct thread *td;
 
 	KASSERT((de->de_flags & DE_DOOMED) == 0,
 		("devfs_delete doomed dirent"));
+	td = curthread;
 	de->de_flags |= DE_DOOMED;
+	mtx_lock(&devfs_de_interlock);
+	vp = de->de_vnode;
+	if (vp != NULL) {
+		VI_LOCK(vp);
+		mtx_unlock(&devfs_de_interlock);
+		vholdl(vp);
+		sx_unlock(&dm->dm_lock);
+		if (!vp_locked)
+			vn_lock(vp, LK_EXCLUSIVE | LK_INTERLOCK | LK_RETRY, td);
+		else
+			VI_UNLOCK(vp);
+		vgone(vp);
+		if (!vp_locked)
+			VOP_UNLOCK(vp, 0, td);
+		vdrop(vp);
+		sx_xlock(&dm->dm_lock);
+	} else
+		mtx_unlock(&devfs_de_interlock);
 	if (de->de_symlink) {
 		free(de->de_symlink, M_DEVFS);
 		de->de_symlink = NULL;
-	}
-	if (de->de_vnode != NULL) {
-		vhold(de->de_vnode);
-		de->de_vnode->v_data = NULL;
-		vgone(de->de_vnode);
-		vdrop(de->de_vnode);
-		de->de_vnode = NULL;
 	}
 #ifdef MAC
 	mac_destroy_devfsdirent(de);
@@ -268,7 +286,8 @@ devfs_delete(struct devfs_mount *dm, struct devfs_dirent *de)
 
 /*
  * Called on unmount.
- * Recursively removes the entire tree
+ * Recursively removes the entire tree.
+ * The caller needs to hold the dm for the duration of the call.
  */
 
 static void
@@ -283,13 +302,13 @@ devfs_purge(struct devfs_mount *dm, struct devfs_dirent *dd)
 			break;
 		TAILQ_REMOVE(&dd->de_dlist, de, de_list);
 		if (de->de_flags & (DE_DOT|DE_DOTDOT))
-			devfs_delete(dm, de);
+			devfs_delete(dm, de, 0);
 		else if (de->de_dirent->d_type == DT_DIR)
 			devfs_purge(dm, de);
 		else 
-			devfs_delete(dm, de);
+			devfs_delete(dm, de, 0);
 	}
-	devfs_delete(dm, dd);
+	devfs_delete(dm, dd, 0);
 }
 
 /*
@@ -325,6 +344,9 @@ devfs_metoo(struct cdev_priv *cdp, struct devfs_mount *dm)
 	dev_unlock();
 }
 
+/*
+ * The caller needs to hold the dm for the duration of the call.
+ */
 static int
 devfs_populate_loop(struct devfs_mount *dm, int cleanup)
 {
@@ -350,7 +372,6 @@ devfs_populate_loop(struct devfs_mount *dm, int cleanup)
 		    cdp->cdp_dirents[dm->dm_idx] != NULL) {
 			de = cdp->cdp_dirents[dm->dm_idx];
 			cdp->cdp_dirents[dm->dm_idx] = NULL;
-			cdp->cdp_inuse--;
 			KASSERT(cdp == de->de_cdp,
 			    ("%s %d %s %p %p", __func__, __LINE__,
 			    cdp->cdp_c.si_name, cdp, de->de_cdp));
@@ -360,7 +381,10 @@ devfs_populate_loop(struct devfs_mount *dm, int cleanup)
 			TAILQ_REMOVE(&de->de_dir->de_dlist, de, de_list);
 			de->de_cdp = NULL;
 			de->de_inode = 0;
-			devfs_delete(dm, de);
+			devfs_delete(dm, de, 0);
+			dev_lock();
+			cdp->cdp_inuse--;
+			dev_unlock();
 			return (1);
 		}
 		/*
@@ -448,6 +472,9 @@ devfs_populate_loop(struct devfs_mount *dm, int cleanup)
 	return (0);
 }
 
+/*
+ * The caller needs to hold the dm for the duration of the call.
+ */
 void
 devfs_populate(struct devfs_mount *dm)
 {
@@ -460,6 +487,9 @@ devfs_populate(struct devfs_mount *dm)
 	dm->dm_generation = devfs_generation;
 }
 
+/*
+ * The caller needs to hold the dm for the duration of the call.
+ */
 void
 devfs_cleanup(struct devfs_mount *dm)
 {
