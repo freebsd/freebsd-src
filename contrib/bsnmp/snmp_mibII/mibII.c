@@ -26,12 +26,13 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Begemot: bsnmp/snmp_mibII/mibII.c,v 1.24 2006/02/14 09:04:18 brandt_h Exp $
+ * $Begemot: mibII.c 516 2006-10-27 15:54:02Z brandt_h $
  *
  * Implementation of the standard interfaces and ip MIB.
  */
 #include "mibII.h"
 #include "mibII_oid.h"
+#include <net/if.h>
 #include <net/if_types.h>
 
 
@@ -376,16 +377,16 @@ mibif_reset_hc_timer(void)
 	u_int ticks;
 
 	if ((ticks = mibif_force_hc_update_interval) == 0) {
-		if (mibif_maxspeed <= 10000000) {
+		if (mibif_maxspeed <= IF_Mbps(10)) {
 			/* at 10Mbps overflow needs 3436 seconds */
 			ticks = 3000 * 100;	/* 50 minutes */
-		} else if (mibif_maxspeed <= 100000000) {
+		} else if (mibif_maxspeed <= IF_Mbps(100)) {
 			/* at 100Mbps overflow needs 343 seconds */
 			ticks = 300 * 100;	/* 5 minutes */
-		} else if (mibif_maxspeed < 650000000) {
+		} else if (mibif_maxspeed < IF_Mbps(622)) {
 			/* at 622Mbps overflow needs 53 seconds */
 			ticks = 40 * 100;	/* 40 seconds */
-		} else if (mibif_maxspeed <= 1000000000) {
+		} else if (mibif_maxspeed <= IF_Mbps(1000)) {
 			/* at 1Gbps overflow needs  34 seconds */
 			ticks = 20 * 100;	/* 20 seconds */
 		} else {
