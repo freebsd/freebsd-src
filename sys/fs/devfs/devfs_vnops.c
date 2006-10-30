@@ -72,6 +72,9 @@ static struct fileops devfs_ops_f;
 #include <fs/devfs/devfs.h>
 #include <fs/devfs/devfs_int.h>
 
+static struct mtx	devfs_de_interlock;
+MTX_SYSINIT(devfs_de_interlock, &devfs_de_interlock, "devfs interlock", MTX_DEF);
+
 static int
 devfs_fp_check(struct file *fp, struct cdev **devp, struct cdevsw **dswp)
 {
@@ -132,13 +135,18 @@ devfs_allocv(struct devfs_dirent *de, struct mount *mp, struct vnode **vpp, stru
 
 	KASSERT(td == curthread, ("devfs_allocv: td != curthread"));
 loop:
+
+	mtx_lock(&devfs_de_interlock);
 	vp = de->de_vnode;
 	if (vp != NULL) {
-		if (vget(vp, LK_EXCLUSIVE, td))
+		VI_LOCK(vp);
+		mtx_unlock(&devfs_de_interlock);
+		if (vget(vp, LK_EXCLUSIVE | LK_INTERLOCK, td))
 			goto loop;
 		*vpp = vp;
 		return (0);
 	}
+	mtx_unlock(&devfs_de_interlock);
 	if (de->de_dirent->d_type == DT_CHR) {
 		if (!(de->de_cdp->cdp_flags & CDP_ACTIVE))
 			return (ENOENT);
@@ -171,8 +179,10 @@ loop:
 	} else {
 		vp->v_type = VBAD;
 	}
+	mtx_lock(&devfs_de_interlock);
 	vp->v_data = de;
 	de->de_vnode = vp;
+	mtx_unlock(&devfs_de_interlock);
 	vn_lock(vp, LK_EXCLUSIVE | LK_RETRY, td);
 #ifdef MAC
 	mac_associate_vnode_devfs(mp, de, vp);
@@ -875,11 +885,15 @@ devfs_reclaim(struct vop_reclaim_args *ap)
 	struct vnode *vp = ap->a_vp;
 	struct devfs_dirent *de;
 	struct cdev *dev;
-
+		
+	mtx_lock(&devfs_de_interlock);
 	de = vp->v_data;
-	if (de != NULL)
+	if (de != NULL) {
 		de->de_vnode = NULL;
-	vp->v_data = NULL;
+		vp->v_data = NULL;
+	}
+	mtx_unlock(&devfs_de_interlock);
+
 	vnode_destroy_vobject(vp);
 
 	dev = vp->v_rdev;
@@ -921,10 +935,6 @@ devfs_remove(struct vop_remove_args *ap)
  * is orphaned by setting v_op to deadfs so we need to let go of it
  * as well so that we create a new one next time around.
  *
- * XXX: locking :-(
- * XXX: We mess around with other mountpoints without holding their sxlock.
- * XXX: We hold the devlock() when we zero their vnode pointer, but is that
- * XXX: enough ?
  */
 static int
 devfs_revoke(struct vop_revoke_args *ap)
@@ -940,25 +950,32 @@ devfs_revoke(struct vop_revoke_args *ap)
 	dev = vp->v_rdev;
 	cdp = dev->si_priv;
 	for (;;) {
+		mtx_lock(&devfs_de_interlock);
 		dev_lock();
 		vp2 = NULL;
 		for (i = 0; i <= cdp->cdp_maxdirent; i++) {
 			de = cdp->cdp_dirents[i];
 			if (de == NULL)
 				continue;
-			vp2 = de->de_vnode;
-			de->de_vnode = NULL;
-			if (vp2 != NULL)
+
+      			vp2 = de->de_vnode;
+			if (vp2 != NULL) {
+				de->de_vnode = NULL;
+				dev_unlock();
+				VI_LOCK(vp2);
+				mtx_unlock(&devfs_de_interlock);
+				vholdl(vp2);
+				VI_UNLOCK(vp2);
+				vgone(vp2);
+				vdrop(vp2);
 				break;
+			}		
 		}
-		dev_unlock();
 		if (vp2 != NULL) {
-			/* XXX */
-			vhold(vp2);
-			vgone(vp2);
-			vdrop(vp2);
 			continue;
 		}
+		dev_unlock();
+		mtx_unlock(&devfs_de_interlock);
 		break;
 	}
 	return (0);
