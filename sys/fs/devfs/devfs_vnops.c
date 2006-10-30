@@ -953,7 +953,10 @@ devfs_revoke(struct vop_revoke_args *ap)
 		}
 		dev_unlock();
 		if (vp2 != NULL) {
+			/* XXX */
+			vhold(vp2);
 			vgone(vp2);
+			vdrop(vp2);
 			continue;
 		}
 		break;
