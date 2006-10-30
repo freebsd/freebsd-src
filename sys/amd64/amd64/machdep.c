@@ -124,9 +124,11 @@ __FBSDID("$FreeBSD$");
 #include <machine/smp.h>
 #endif
 
-#include <dev/ic/i8259.h>
+#ifdef DEV_ATPIC
 #include <amd64/isa/icu.h>
+#else
 #include <machine/apicvar.h>
+#endif
 
 #include <isa/isareg.h>
 #include <isa/rtc.h>
@@ -1249,19 +1251,7 @@ hammer_time(u_int64_t modulep, u_int64_t physfree)
 	atpic_startup();
 #else
 	/* Reset and mask the atpics and leave them shut down. */
-	outb(IO_ICU1, ICW1_RESET | ICW1_IC4);
-	outb(IO_ICU1 + ICU_IMR_OFFSET, IDT_IO_INTS);
-	outb(IO_ICU1 + ICU_IMR_OFFSET, 1 << 2);
-	outb(IO_ICU1 + ICU_IMR_OFFSET, ICW4_8086);
-	outb(IO_ICU1 + ICU_IMR_OFFSET, 0xff);
-	outb(IO_ICU1, OCW3_SEL | OCW3_RR);
-
-	outb(IO_ICU2, ICW1_RESET | ICW1_IC4);
-	outb(IO_ICU2 + ICU_IMR_OFFSET, IDT_IO_INTS + 8);
-	outb(IO_ICU2 + ICU_IMR_OFFSET, 2);
-	outb(IO_ICU2 + ICU_IMR_OFFSET, ICW4_8086);
-	outb(IO_ICU2 + ICU_IMR_OFFSET, 0xff);
-	outb(IO_ICU2, OCW3_SEL | OCW3_RR);
+	atpic_reset();
 
 	/*
 	 * Point the ICU spurious interrupt vectors at the APIC spurious
