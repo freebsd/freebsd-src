@@ -125,6 +125,24 @@ dev_refthread(struct cdev *dev)
 	return (csw);
 }
 
+struct cdevsw *
+devvn_refthread(struct vnode *vp, struct cdev **devp)
+{
+	struct cdevsw *csw;
+
+	mtx_assert(&devmtx, MA_NOTOWNED);
+	csw = NULL;
+	dev_lock();
+	*devp = vp->v_rdev;
+	if (*devp != NULL) {
+		csw = (*devp)->si_devsw;
+		if (csw != NULL)
+			(*devp)->si_threadcount++;
+	}
+	dev_unlock();
+	return (csw);
+}
+
 void	
 dev_relthread(struct cdev *dev)
 {
