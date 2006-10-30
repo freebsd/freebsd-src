@@ -14,6 +14,8 @@ else
 fi
 WORKDIR=/usr/obj/tinybsdbuild
 KERNCONF=TINYBSD
+BASEFILE="tinybsd.basefiles"
+LOCALFILE="tinybsd.localfiles"
 DEFINSTARGS="-o 0 -g 0 -m 555"
 TS="=====>"
 
@@ -239,6 +241,10 @@ check_alt_imgname() {
 	fi
 }
 
+rotate_buidlog() {
+	mv -f ${HOME}/tinybsd.log ${HOME}/tinybsd.log.old
+}
+
 remove_workdir() {
 	chflags -R noschg ${WORKDIR}
 	echo "${TS} Removing "${WORKDIR}
@@ -250,7 +256,7 @@ remove_workdir() {
 
 
 prework() {
-	remove_workdir	
+	remove_workdir
 	mkdir -p ${WORKDIR}
 }
 
@@ -259,18 +265,18 @@ create_tree() {
 	echo "${TS} Creating directory hierarchy... "
 	mtree -deU -f /etc/mtree/BSD.root.dist -p ${WORKDIR}
 	mtree -deU -f /etc/mtree/BSD.usr.dist -p ${WORKDIR}/usr
+	mtree -deU -f /etc/mtree/BSD.local.dist -p ${WORKDIR}/usr/local
 	mtree -deU -f /etc/mtree/BSD.var.dist -p ${WORKDIR}/var
 }
 
-
 copy_binaries() {
-#set -xv
-	for file in `cat ${CURRENTDIR}/conf/${CONF}/tinybsd.basefiles | grep -v "#" | \
+	cd ${CURRENTDIR}/conf/${CONF}
+
+	for file in `cat ${BASEFILE} ${LOCALFILE} | grep -v "#" | \
 		cut -f1 -d":" | sort | uniq` ; do
 		echo "${TS} Copying "/${file}" to "${WORKDIR}/${file} 
 		cp -fp /${file} ${WORKDIR}/${file} ;
 	done
-#set +xv
 }
 
 make_kernel() {
@@ -293,7 +299,7 @@ copy_libraries() {
 	TDEPFILES="`mktemp -t depsymlnk`"
 
 	cd ${CURRENTDIR}/conf/${CONF}
-	for file in `cat tinybsd.basefiles | grep -v "#" | cut -f1 -d":"`; do
+	for file in `cat ${BASEFILE} ${LOCALFILE} | grep -v "#" | cut -f1 -d":"`; do
 		ldd -f "%p\n" /${file} >> ${TDEPFILE} ; # don't worry on progs been "not dynamic"
 	done
 
@@ -305,7 +311,7 @@ copy_libraries() {
 		echo $pamdep >> ${TDEPFILE} ;
 		ldd -f "%p\n" /${pamdep} >> ${TDEPFILE} ;
 	done	
-	
+
 	for lib in `cat ${TDEPFILE} | sort | uniq`; do
 		echo "${TS} Copying "${lib}" to "${WORKDIR}${lib}
 		cp -fp ${lib} ${WORKDIR}${lib} ;
@@ -321,6 +327,7 @@ copy_libraries() {
                 TARGET_FILE=`echo $i | awk -F ":" '{print $2}'`
 
 		echo "${TS} Unlinking ${WORKDIR}${TARGET_FILE}"
+		chroot ${WORKDIR} /bin/chflags 0 ${TARGET_FILE}
                 chroot ${WORKDIR} /bin/rm -f ${TARGET_FILE}
 
 		echo "${TS} Symlinking ${SOURCE_FILE} to ${TARGET_FILE}"
@@ -349,27 +356,29 @@ create_ssh_keys() {
 	ssh-keygen -t rsa -f ${WORKDIR}/etc/ssh/ssh_host_rsa_key -N ''
 }
 
-personal_directories() {
+personal_conf() {
 	echo "${TS} Copying your custom configuration on conf/ ..."
-	for custom in `find ${CURRENTDIR}/conf/${CONF}/ -type d -depth 1`; do
+	for custom in `find ${CURRENTDIR}/conf/${CONF}/ -type d -depth 1 \! -name CVS`; do
 		cp -Rp ${custom}/* ${WORKDIR}/${custom#${CURRENTDIR}/conf/${CONF}/}/
 	done
+
+	if [ -f ${CURRENTDIR}/conf/${CONF}/boot.config ]; then
+		cp ${CURRENTDIR}/conf/${CONF}/boot.config ${WORKDIR}/boot.config
+	fi
 }
 
 symlinks() {
-#set -xv
-	for i in `cat tinybsd.basefiles | grep -v "#" | grep ":"`; do
+set -xv
+	for i in `cat ${BASEFILE} ${LOCALFILE} | grep -v "#" | grep ":"`; do
 		SOURCE_FILE=`echo $i | awk -F ":" {'print $1'}`
 		TARGET_FILE=`echo $i | awk -F ":" {'print $2'}`
 		chroot ${WORKDIR} /bin/ln -vs /${SOURCE_FILE} ${TARGET_FILE}
 	done
-#set +xv
+set +xv
 }
 
 
 create_image() {
-	#set -ex
-
 	VNODEFILE=`mktemp -t tinybsd`
 	IMGMNT=`mktemp -d -t tinybsd`
 
@@ -448,6 +457,9 @@ setdefaults
 loadconfig
 saveconfig
 
+# Rotate build log
+rotate_buidlog
+
 # Now start logging.
 (
   # Do the build
@@ -460,7 +472,7 @@ saveconfig
   symlinks
   create_etc
   create_ssh_keys
-  personal_directories
+  personal_conf
   create_image
 #set +xv
 ) 2>&1 |tee -a  ${HOME}/tinybsd.log
