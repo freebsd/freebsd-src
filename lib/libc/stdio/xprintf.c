@@ -261,7 +261,7 @@ static struct {
 
 
 static int
-__v2printf(FILE *fp, const char *fmt0, unsigned pct, const va_list ap)
+__v2printf(FILE *fp, const char *fmt0, unsigned pct, va_list ap)
 {
 	struct printf_info	*pi, *pil;
 	const char		*fmt;
