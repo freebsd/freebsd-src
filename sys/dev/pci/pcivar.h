@@ -43,13 +43,7 @@
 #define PCI_MAXMAPS_1	2	/* max. no. of maps for PCI to PCI bridge */
 #define PCI_MAXMAPS_2	1	/* max. no. of maps for CardBus bridge */
 
-/* pci_addr_t covers this system's PCI bus address space: 32 or 64 bit */
-
-#ifdef PCI_A64
-typedef uint64_t pci_addr_t;	/* uint64_t for system with 64bit addresses */
-#else
-typedef uint32_t pci_addr_t;	/* uint64_t for system with 64bit addresses */
-#endif
+typedef uint64_t pci_addr_t;
 
 /* Interesting values for PCI power management */
 struct pcicfg_pp {
@@ -130,14 +124,8 @@ typedef struct pcicfg {
 
 /* additional type 1 device config header information (PCI to PCI bridge) */
 
-#ifdef PCI_A64
 #define PCI_PPBMEMBASE(h,l)  ((((pci_addr_t)(h) << 32) + ((l)<<16)) & ~0xfffff)
 #define PCI_PPBMEMLIMIT(h,l) ((((pci_addr_t)(h) << 32) + ((l)<<16)) | 0xfffff)
-#else
-#define PCI_PPBMEMBASE(h,l)  (((l)<<16) & ~0xfffff)
-#define PCI_PPBMEMLIMIT(h,l) (((l)<<16) | 0xfffff)
-#endif /* PCI_A64 */
-
 #define PCI_PPBIOBASE(h,l)   ((((h)<<16) + ((l)<<8)) & ~0xfff)
 #define PCI_PPBIOLIMIT(h,l)  ((((h)<<16) + ((l)<<8)) | 0xfff)
 

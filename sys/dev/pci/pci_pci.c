@@ -89,6 +89,33 @@ DEFINE_CLASS_0(pcib, pcib_driver, pcib_methods, sizeof(struct pcib_softc));
 DRIVER_MODULE(pcib, pci, pcib_driver, pcib_devclass, 0, 0);
 
 /*
+ * Is the prefetch window open (eg, can we allocate memory in it?)
+ */
+static int
+pcib_is_prefetch_open(struct pcib_softc *sc)
+{
+	return (sc->pmembase > 0 && sc->pmembase < sc->pmemlimit);
+}
+
+/*
+ * Is the nonprefetch window open (eg, can we allocate memory in it?)
+ */
+static int
+pcib_is_nonprefetch_open(struct pcib_softc *sc)
+{
+	return (sc->membase > 0 && sc->membase < sc->memlimit);
+}
+
+/*
+ * Is the io window open (eg, can we allocate ports in it?)
+ */
+static int
+pcib_is_io_open(struct pcib_softc *sc)
+{
+	return (sc->iobase > 0 && sc->iobase < sc->iolimit);
+}
+
+/*
  * Generic device interface
  */
 static int
@@ -225,8 +252,14 @@ pcib_attach_common(device_t dev)
 	device_printf(dev, "  secondary bus     %d\n", sc->secbus);
 	device_printf(dev, "  subordinate bus   %d\n", sc->subbus);
 	device_printf(dev, "  I/O decode        0x%x-0x%x\n", sc->iobase, sc->iolimit);
-	device_printf(dev, "  memory decode     0x%x-0x%x\n", sc->membase, sc->memlimit);
-	device_printf(dev, "  prefetched decode 0x%x-0x%x\n", sc->pmembase, sc->pmemlimit);
+	if (pcib_is_nonprefetch_open(sc))
+	    device_printf(dev, "  memory decode     0x%jx-0x%jx\n",
+	      (uintmax_t)sc->membase, (uintmax_t)sc->memlimit);
+	if (pcib_is_prefetch_open(sc))
+	    device_printf(dev, "  prefetched decode 0x%jx-0x%jx\n",
+	      (uintmax_t)sc->pmembase, (uintmax_t)sc->pmemlimit);
+	else
+	    device_printf(dev, "  no prefetched decode\n");
 	if (sc->flags & PCIB_SUBTRACTIVE)
 	    device_printf(dev, "  Subtractively decoded bridge.\n");
     }
@@ -286,33 +319,6 @@ pcib_write_ivar(device_t dev, device_t child, int which, uintptr_t value)
 	break;
     }
     return(ENOENT);
-}
-
-/*
- * Is the prefetch window open (eg, can we allocate memory in it?)
- */
-static int
-pcib_is_prefetch_open(struct pcib_softc *sc)
-{
-	return (sc->pmembase > 0 && sc->pmembase < sc->pmemlimit);
-}
-
-/*
- * Is the nonprefetch window open (eg, can we allocate memory in it?)
- */
-static int
-pcib_is_nonprefetch_open(struct pcib_softc *sc)
-{
-	return (sc->membase > 0 && sc->membase < sc->memlimit);
-}
-
-/*
- * Is the io window open (eg, can we allocate ports in it?)
- */
-static int
-pcib_is_io_open(struct pcib_softc *sc)
-{
-	return (sc->iobase > 0 && sc->iobase < sc->iolimit);
 }
 
 /*
@@ -444,11 +450,11 @@ pcib_alloc_resource(device_t dev, device_t child, int type, int *rid,
 		}
 		if (!ok && bootverbose)
 			device_printf(dev,
-			    "%s requested unsupported memory range "
-			    "0x%lx-0x%lx (decoding 0x%x-0x%x, 0x%x-0x%x)\n",
+			    "%s requested unsupported memory range %#lx-%#lx "
+			    "(decoding %#jx-%#jx, %#jx-%#jx)\n",
 			    device_get_nameunit(child), start, end,
-			    sc->membase, sc->memlimit, sc->pmembase,
-			    sc->pmemlimit);
+			    (uintmax_t)sc->membase, (uintmax_t)sc->memlimit,
+			    (uintmax_t)sc->pmembase, (uintmax_t)sc->pmemlimit);
 		if (!ok)
 			return (NULL);
 		if (bootverbose)
