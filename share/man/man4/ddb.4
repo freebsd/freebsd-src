@@ -59,7 +59,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd October 10, 2006
+.Dd October 27, 2006
 .Dt DDB 4
 .Os
 .Sh NAME
@@ -444,22 +444,22 @@ Otherwise, only print when the matching return is hit.
 .Pp
 .It Xo
 .Ic trace Ns Op Li / Ns Cm u
-.Op Ar frame
+.Op Ar pid | tid
 .Op Li , Ns Ar count
 .Xc
 .It Xo
 .Ic t Ns Op Li / Ns Cm u
-.Op Ar frame
+.Op Ar pid | tid
 .Op Li , Ns Ar count
 .Xc
 .It Xo
 .Ic where Ns Op Li / Ns Cm u
-.Op Ar frame
+.Op Ar pid | tid
 .Op Li , Ns Ar count
 .Xc
 .It Xo
 .Ic bt Ns Op Li / Ns Cm u
-.Op Ar frame
+.Op Ar pid | tid
 .Op Li , Ns Ar count
 .Xc
 Stack trace.
