@@ -25,6 +25,7 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 #include <machine/asm.h>
+#include <sys/types.h>
 #include <sys/elf32.h>
 #include <sys/param.h>
 #include <sys/inflate.h>
