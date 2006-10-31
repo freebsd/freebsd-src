@@ -219,7 +219,7 @@ static void	em_free_pci_resources(struct adapter *);
 static void	em_local_timer(void *);
 static int	em_hardware_init(struct adapter *);
 static void	em_setup_interface(device_t, struct adapter *);
-static int	em_setup_transmit_structures(struct adapter *);
+static void	em_setup_transmit_structures(struct adapter *);
 static void	em_initialize_transmit_unit(struct adapter *);
 static int	em_setup_receive_structures(struct adapter *);
 static void	em_initialize_receive_unit(struct adapter *);
@@ -556,6 +556,20 @@ em_attach(device_t dev)
 		goto err_hw_init;
 	}
 
+	/* Allocate transmit descriptors and buffers */
+	if (em_allocate_transmit_structures(adapter)) {
+		device_printf(dev, "Could not setup transmit structures\n");
+		error = ENOMEM;
+		goto err_tx_struct;
+	}
+
+	/* Allocate receive descriptors and buffers */
+	if (em_allocate_receive_structures(adapter)) {
+		device_printf(dev, "Could not setup receive structures\n");
+		error = ENOMEM;
+		goto err_rx_struct;
+	}
+
 	/* Setup OS specific network interface */
 	em_setup_interface(dev, adapter);
 
@@ -583,6 +597,9 @@ em_attach(device_t dev)
 
 	return (0);
 
+err_rx_struct:
+	em_free_transmit_structures(adapter);
+err_tx_struct:
 err_hw_init:
 	em_dma_free(adapter, &adapter->rxdma);
 err_rx_desc:
@@ -633,6 +650,9 @@ em_detach(device_t dev)
 	em_free_pci_resources(adapter);
 	bus_generic_detach(dev);
 	if_free(ifp);
+
+	em_free_transmit_structures(adapter);
+	em_free_receive_structures(adapter);
 
 	/* Free Transmit Descriptor ring */
 	if (adapter->tx_desc_base) {
@@ -1089,11 +1109,7 @@ em_init_locked(struct adapter *adapter)
 	}
 
 	/* Prepare transmit descriptors and buffers */
-	if (em_setup_transmit_structures(adapter)) {
-		device_printf(dev, "Could not setup transmit structures\n");
-		em_stop(adapter);
-		return;
-	}
+	em_setup_transmit_structures(adapter);
 	em_initialize_transmit_unit(adapter);
 
 	/* Setup Multicast table */
@@ -2088,8 +2104,6 @@ em_stop(void *arg)
 	em_reset_hw(&adapter->hw);
 	callout_stop(&adapter->timer);
 	callout_stop(&adapter->tx_fifo_timer);
-	em_free_transmit_structures(adapter);
-	em_free_receive_structures(adapter);
 
 	/* Tell the stack that the interface is no longer active */
 	ifp->if_drv_flags &= ~(IFF_DRV_RUNNING | IFF_DRV_OACTIVE);
@@ -2600,26 +2614,6 @@ em_dma_free(struct adapter *adapter, struct em_dma_alloc *dma)
 static int
 em_allocate_transmit_structures(struct adapter *adapter)
 {
-	adapter->tx_buffer_area =  malloc(sizeof(struct em_buffer) *
-	    adapter->num_tx_desc, M_DEVBUF, M_NOWAIT);
-	if (adapter->tx_buffer_area == NULL) {
-		device_printf(adapter->dev, "Unable to allocate tx_buffer memory\n");
-		return (ENOMEM);
-	}
-
-	bzero(adapter->tx_buffer_area, sizeof(struct em_buffer) * adapter->num_tx_desc);
-
-	return (0);
-}
-
-/*********************************************************************
- *
- *  Allocate and initialize transmit structures.
- *
- **********************************************************************/
-static int
-em_setup_transmit_structures(struct adapter *adapter)
-{
 	struct ifnet   *ifp = adapter->ifp;
 	device_t dev = adapter->dev;
 	struct em_buffer *tx_buffer;
@@ -2653,10 +2647,14 @@ em_setup_transmit_structures(struct adapter *adapter)
 		goto fail;
 	}
 
-	if ((error = em_allocate_transmit_structures(adapter)) != 0)
+	adapter->tx_buffer_area = malloc(sizeof(struct em_buffer) *
+	    adapter->num_tx_desc, M_DEVBUF, M_NOWAIT | M_ZERO);
+	if (adapter->tx_buffer_area == NULL) {
+		device_printf(dev, "Unable to allocate tx_buffer memory\n");
+		error = ENOMEM;
 		goto fail;
+	}
 
-	bzero(adapter->tx_desc_base, (sizeof(struct em_tx_desc)) * adapter->num_tx_desc);
 	tx_buffer = adapter->tx_buffer_area;
 	for (i = 0; i < adapter->num_tx_desc; i++) {
 		error = bus_dmamap_create(adapter->txtag, 0, &tx_buffer->map);
@@ -2667,8 +2665,40 @@ em_setup_transmit_structures(struct adapter *adapter)
 		tx_buffer++;
 	}
 
+	return (0);
+
+fail:
+	em_free_transmit_structures(adapter);
+	return (error);
+}
+
+/*********************************************************************
+ *
+ *  Initialize transmit structures.
+ *
+ **********************************************************************/
+static void
+em_setup_transmit_structures(struct adapter *adapter)
+{
+	struct em_buffer *tx_buffer;
+	int i;
+
+	bzero(adapter->tx_desc_base, (sizeof(struct em_tx_desc)) * adapter->num_tx_desc);
+
 	adapter->next_avail_tx_desc = 0;
 	adapter->next_tx_to_clean = 0;
+
+	/* Free any existing tx buffers. */
+	tx_buffer = adapter->tx_buffer_area;
+	for (i = 0; i < adapter->num_tx_desc; i++, tx_buffer++) {
+		if (tx_buffer->m_head != NULL) {
+			bus_dmamap_sync(adapter->txtag, tx_buffer->map,
+			    BUS_DMASYNC_POSTWRITE);
+			bus_dmamap_unload(adapter->txtag, tx_buffer->map);
+			m_freem(tx_buffer->m_head);
+			tx_buffer->m_head = NULL;
+		}
+	}
 
 	/* Set number of descriptors available */
 	adapter->num_tx_desc_avail = adapter->num_tx_desc;
@@ -2677,12 +2707,6 @@ em_setup_transmit_structures(struct adapter *adapter)
 	adapter->active_checksum_context = OFFLOAD_NONE;
 	bus_dmamap_sync(adapter->txdma.dma_tag, adapter->txdma.dma_map,
 	    BUS_DMASYNC_PREREAD | BUS_DMASYNC_PREWRITE);
-
-	return (0);
-
-fail:
-	em_free_transmit_structures(adapter);
-	return (error);
 }
 
 /*********************************************************************
@@ -3310,14 +3334,6 @@ em_allocate_receive_structures(struct adapter *adapter)
 		}
 	}
 
-	for (i = 0; i < adapter->num_rx_desc; i++) {
-		error = em_get_buf(adapter, i);
-		if (error)
-			goto fail;
-	}
-	bus_dmamap_sync(adapter->rxdma.dma_tag, adapter->rxdma.dma_map,
-	    BUS_DMASYNC_PREREAD | BUS_DMASYNC_PREWRITE);
-
 	return (0);
 
 fail:
@@ -3333,15 +3349,34 @@ fail:
 static int
 em_setup_receive_structures(struct adapter *adapter)
 {
-	int error;
+	struct em_buffer *rx_buffer;
+	int i, error;
 
 	bzero(adapter->rx_desc_base, (sizeof(struct em_rx_desc)) * adapter->num_rx_desc);
 
-	if ((error = em_allocate_receive_structures(adapter)) != 0)
-		return (error);
+	/* Free current RX buffers. */
+	rx_buffer = adapter->rx_buffer_area;
+	for (i = 0; i < adapter->num_rx_desc; i++, rx_buffer++) {
+		if (rx_buffer->m_head != NULL) {
+			bus_dmamap_sync(adapter->rxtag, rx_buffer->map,
+			    BUS_DMASYNC_POSTREAD);
+			bus_dmamap_unload(adapter->rxtag, rx_buffer->map);
+			m_freem(rx_buffer->m_head);
+			rx_buffer->m_head = NULL;
+		}
+	}
+
+	/* Allocate new ones. */
+	for (i = 0; i < adapter->num_rx_desc; i++) {
+		error = em_get_buf(adapter, i);
+		if (error)
+			return (error);
+	}
 
 	/* Setup our descriptor pointers */
 	adapter->next_rx_desc_to_check = 0;
+	bus_dmamap_sync(adapter->rxdma.dma_tag, adapter->rxdma.dma_map,
+	    BUS_DMASYNC_PREREAD | BUS_DMASYNC_PREWRITE);
 
 	return (0);
 }
