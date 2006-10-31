@@ -202,8 +202,10 @@ g_disk_done(struct bio *bp)
 	if (bp2->bio_error == 0)
 		bp2->bio_error = bp->bio_error;
 	bp2->bio_completed += bp->bio_completed;
-	if ((dp = bp2->bio_to->geom->softc))
+	if ((bp->bio_cmd & (BIO_READ|BIO_WRITE|BIO_DELETE)) &&
+	    (dp = bp2->bio_to->geom->softc)) {
 		devstat_end_transaction_bio(dp->d_devstat, bp);
+	}
 	g_destroy_bio(bp);
 	bp2->bio_inbed++;
 	if (bp2->bio_children == bp2->bio_inbed) {
@@ -303,6 +305,24 @@ g_disk_start(struct bio *bp)
 			g_disk_kerneldump(bp, dp);
 		else 
 			error = ENOIOCTL;
+		break;
+	case BIO_FLUSH:
+		g_trace(G_T_TOPOLOGY, "g_disk_flushcache(%s)",
+		    bp->bio_to->name);
+		if (!(dp->d_flags & DISKFLAG_CANFLUSHCACHE)) {
+			g_io_deliver(bp, ENODEV);
+			return;
+		}
+		bp2 = g_clone_bio(bp);
+		if (bp2 == NULL) {
+			g_io_deliver(bp, ENOMEM);
+			return;
+		}
+		bp2->bio_done = g_disk_done;
+		bp2->bio_disk = dp;
+		g_disk_lock_giant(dp);
+		dp->d_strategy(bp2);
+		g_disk_unlock_giant(dp);
 		break;
 	default:
 		error = EOPNOTSUPP;
