@@ -108,6 +108,8 @@
         ..
         gate
         ..
+        journal
+        ..
         label
         ..
         mirror

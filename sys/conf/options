@@ -83,6 +83,7 @@ GEOM_ELI	opt_geom.h
 GEOM_FOX	opt_geom.h
 GEOM_GATE	opt_geom.h
 GEOM_GPT	opt_geom.h
+GEOM_JOURNAL	opt_geom.h
 GEOM_LABEL	opt_geom.h
 GEOM_MBR	opt_geom.h
 GEOM_MIRROR	opt_geom.h
@@ -240,6 +241,9 @@ UFS_EXTATTR_AUTOSTART	opt_ufs.h
 
 # Enable fast hash lookups for large directories on UFS-based filesystems.
 UFS_DIRHASH	opt_ufs.h
+
+# Enable gjournal-based UFS journal.
+UFS_GJOURNAL	opt_ufs.h
 
 # The below sentence is not in English, and neither is this one.
 # We plan to remove the static dependences above, with a
