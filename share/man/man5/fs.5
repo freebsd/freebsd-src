@@ -32,7 +32,7 @@
 .\"     @(#)fs.5	8.2 (Berkeley) 4/19/94
 .\" $FreeBSD$
 .\"
-.Dd April 19, 1994
+.Dd October 31, 2006
 .Dt FS 5
 .Os
 .Sh NAME
@@ -153,7 +153,8 @@ struct fs {
 	u_int	*fs_active;        /* used by snapshots to track fs */
 	int32_t	 fs_old_cpc;       /* cyl per cycle in postbl */
 	int32_t	 fs_maxbsize;      /* maximum blocking factor permitted */
-	int64_t	 fs_sparecon64[17]; /* old rotation block list head */
+	int64_t	 fs_unrefs;        /* number of unreferenced inodes */
+	int64_t	 fs_sparecon64[16]; /* old rotation block list head */
 	int64_t	 fs_sblockloc;     /* byte offset of standard superblock */
 	struct	csum_total fs_cstotal;  /* cylinder summary information */
 	ufs_time_t fs_time;        /* last time written */
