@@ -520,6 +520,42 @@ failure:
 }
 
 static void
+g_stripe_flush(struct g_stripe_softc *sc, struct bio *bp)
+{
+	struct bio_queue_head queue;
+	struct g_consumer *cp;
+	struct bio *cbp;
+	u_int no;
+
+	bioq_init(&queue);
+	for (no = 0; no < sc->sc_ndisks; no++) {
+		cbp = g_clone_bio(bp);
+		if (cbp == NULL) {
+			for (cbp = bioq_first(&queue); cbp != NULL;
+			    cbp = bioq_first(&queue)) {
+				bioq_remove(&queue, cbp);
+				g_destroy_bio(cbp);
+			}
+			if (bp->bio_error == 0)
+				bp->bio_error = ENOMEM;
+			g_io_deliver(bp, bp->bio_error);
+			return;
+		}
+		bioq_insert_tail(&queue, cbp);
+		cbp->bio_done = g_std_done;
+		cbp->bio_caller1 = sc->sc_disks[no];
+		cbp->bio_to = sc->sc_disks[no]->provider;
+	}
+	for (cbp = bioq_first(&queue); cbp != NULL; cbp = bioq_first(&queue)) {
+		bioq_remove(&queue, cbp);
+		G_STRIPE_LOGREQ(cbp, "Sending request.");
+		cp = cbp->bio_caller1;
+		cbp->bio_caller1 = NULL;
+		g_io_request(cbp, cp);
+	}
+}
+
+static void
 g_stripe_start(struct bio *bp)
 {
 	off_t offset, start, length, nstripe;
@@ -542,10 +578,10 @@ g_stripe_start(struct bio *bp)
 	case BIO_READ:
 	case BIO_WRITE:
 	case BIO_DELETE:
-		/*
-		 * Only those requests are supported.
-		 */
 		break;
+        case BIO_FLUSH:
+                g_stripe_flush(sc, bp);
+                return;
 	case BIO_GETATTR:
 		/* To which provider it should be delivered? */
 	default:

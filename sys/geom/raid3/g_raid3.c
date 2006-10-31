@@ -1370,6 +1370,50 @@ g_raid3_sync_done(struct bio *bp)
 }
 
 static void
+g_raid3_flush(struct g_raid3_softc *sc, struct bio *bp)
+{
+	struct bio_queue_head queue;
+	struct g_raid3_disk *disk;
+	struct g_consumer *cp;
+	struct bio *cbp;
+	u_int i;
+
+	bioq_init(&queue);
+	for (i = 0; i < sc->sc_ndisks; i++) {
+		disk = &sc->sc_disks[i];
+		if (disk->d_state != G_RAID3_DISK_STATE_ACTIVE)
+			continue;
+		cbp = g_clone_bio(bp);
+		if (cbp == NULL) {
+			for (cbp = bioq_first(&queue); cbp != NULL;
+			    cbp = bioq_first(&queue)) {
+				bioq_remove(&queue, cbp);
+				g_destroy_bio(cbp);
+			}
+			if (bp->bio_error == 0)
+				bp->bio_error = ENOMEM;
+			g_io_deliver(bp, bp->bio_error);
+			return;
+		}
+		bioq_insert_tail(&queue, cbp);
+		cbp->bio_done = g_std_done;
+		cbp->bio_caller1 = disk;
+		cbp->bio_to = disk->d_consumer->provider;
+	}
+	for (cbp = bioq_first(&queue); cbp != NULL; cbp = bioq_first(&queue)) {
+		bioq_remove(&queue, cbp);
+		G_RAID3_LOGREQ(3, cbp, "Sending request.");
+		disk = cbp->bio_caller1;
+		cbp->bio_caller1 = NULL;
+		cp = disk->d_consumer;
+		KASSERT(cp->acr >= 1 && cp->acw >= 1 && cp->ace >= 1,
+		    ("Consumer %s not opened (r%dw%de%d).", cp->provider->name,
+		    cp->acr, cp->acw, cp->ace));
+		g_io_request(cbp, disk->d_consumer);
+	}
+}
+
+static void
 g_raid3_start(struct bio *bp)
 {
 	struct g_raid3_softc *sc;
@@ -1390,6 +1434,9 @@ g_raid3_start(struct bio *bp)
 	case BIO_WRITE:
 	case BIO_DELETE:
 		break;
+	case BIO_FLUSH:
+		g_raid3_flush(sc, bp);
+		return;
 	case BIO_GETATTR:
 	default:
 		g_io_deliver(bp, EOPNOTSUPP);
