@@ -164,6 +164,7 @@ pass5(void)
 			pfatal("CG %d: BAD MAGIC NUMBER\n", c);
 		newcg->cg_time = cg->cg_time;
 		newcg->cg_old_time = cg->cg_old_time;
+		newcg->cg_unrefs = cg->cg_unrefs;
 		newcg->cg_cgx = c;
 		dbase = cgbase(fs, c);
 		dmax = dbase + fs->fs_fpg;
