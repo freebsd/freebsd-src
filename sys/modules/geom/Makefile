@@ -10,6 +10,7 @@ SUBDIR=	geom_apple \
 	geom_fox \
 	geom_gate \
 	geom_gpt \
+	geom_journal \
 	geom_label \
 	geom_mbr \
 	geom_mirror \
