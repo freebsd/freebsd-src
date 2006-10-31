@@ -88,7 +88,7 @@ int	em_display_debug_stats = 0;
  *  Driver version
  *********************************************************************/
 
-char em_driver_version[] = "Version - 6.1.4 - TSO";
+char em_driver_version[] = "Version - 6.2.9";
 
 
 /*********************************************************************
@@ -154,6 +154,8 @@ static em_vendor_info_t em_vendor_info_array[] =
 	{ 0x8086, E1000_DEV_ID_82571EB_SERDES,	PCI_ANY_ID, PCI_ANY_ID, 0},
 	{ 0x8086, E1000_DEV_ID_82571EB_QUAD_COPPER,
 						PCI_ANY_ID, PCI_ANY_ID, 0},
+	{ 0x8086, E1000_DEV_ID_82571EB_QUAD_COPPER_LOWPROFILE,
+						PCI_ANY_ID, PCI_ANY_ID, 0},
 
 	{ 0x8086, E1000_DEV_ID_82572EI_COPPER,	PCI_ANY_ID, PCI_ANY_ID, 0},
 	{ 0x8086, E1000_DEV_ID_82572EI_FIBER,	PCI_ANY_ID, PCI_ANY_ID, 0},
@@ -171,9 +173,13 @@ static em_vendor_info_t em_vendor_info_array[] =
 						PCI_ANY_ID, PCI_ANY_ID, 0},
 	{ 0x8086, E1000_DEV_ID_80003ES2LAN_SERDES_DPT,
 						PCI_ANY_ID, PCI_ANY_ID, 0},
+	{ 0x8086, E1000_DEV_ID_ICH8_IGP_M_AMT,	PCI_ANY_ID, PCI_ANY_ID, 0},
 	{ 0x8086, E1000_DEV_ID_ICH8_IGP_AMT,	PCI_ANY_ID, PCI_ANY_ID, 0},
 	{ 0x8086, E1000_DEV_ID_ICH8_IGP_C,	PCI_ANY_ID, PCI_ANY_ID, 0},
 	{ 0x8086, E1000_DEV_ID_ICH8_IFE,	PCI_ANY_ID, PCI_ANY_ID, 0},
+	{ 0x8086, E1000_DEV_ID_ICH8_IFE_GT,	PCI_ANY_ID, PCI_ANY_ID, 0},
+	{ 0x8086, E1000_DEV_ID_ICH8_IFE_G,	PCI_ANY_ID, PCI_ANY_ID, 0},
+	{ 0x8086, E1000_DEV_ID_ICH8_IGP_M,	PCI_ANY_ID, PCI_ANY_ID, 0},
 
 	/* required last entry */
 	{ 0, 0, 0, 0, 0}
@@ -877,6 +883,15 @@ em_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 		}
 		break;
 	case SIOCSIFMEDIA:
+		/* Check SOL/IDER usage */
+		EM_LOCK(adapter);
+		if (em_check_phy_reset_block(&adapter->hw)) {
+			EM_UNLOCK(adapter);
+			device_printf(adapter->dev, "Media change is"
+			    "blocked due to SOL/IDER session.\n");
+			break;
+		}
+		EM_UNLOCK(adapter);
 	case SIOCGIFMEDIA:
 		IOCTL_DEBUGOUT("ioctl rcv'd: SIOCxIFMEDIA (Get/Set Interface Media)");
 		error = ifmedia_ioctl(ifp, ifr, &adapter->media, command);
@@ -2119,13 +2134,13 @@ em_allocate_pci_resources(struct adapter *adapter)
 		/* Figure our where our IO BAR is ? */
 		for (rid = PCIR_BAR(0); rid < PCIR_CIS;) {
 			val = pci_read_config(dev, rid, 4);
-			if (E1000_BAR_TYPE(val) == E1000_BAR_TYPE_IO) {
+			if (EM_BAR_TYPE(val) == EM_BAR_TYPE_IO) {
 				adapter->io_rid = rid;
 				break;
 			}
 			rid += 4;
 			/* check for 64bit BAR */
-			if (E1000_BAR_MEM_TYPE(val) == E1000_BAR_MEM_TYPE_64BIT)
+			if (EM_BAR_MEM_TYPE(val) == EM_BAR_MEM_TYPE_64BIT)
 				rid += 4;
 		}
 		if (rid >= PCIR_CIS) {
@@ -2318,7 +2333,7 @@ em_hardware_init(struct adapter *adapter)
 	else
 		adapter->hw.fc_pause_time = 0x1000;
 	adapter->hw.fc_send_xon = TRUE;
-	adapter->hw.fc = em_fc_full;
+	adapter->hw.fc = E1000_FC_FULL;
 
 	if (em_init_hw(&adapter->hw) < 0) {
 		device_printf(dev, "Hardware Initialization Failed");
@@ -2663,7 +2678,7 @@ fail:
 static void
 em_initialize_transmit_unit(struct adapter *adapter)
 {
-	uint32_t	reg_tctl, reg_tarc;
+	uint32_t	reg_tctl;
 	uint32_t	reg_tipg = 0;
 	uint64_t	bus_addr;
 
@@ -2710,24 +2725,6 @@ em_initialize_transmit_unit(struct adapter *adapter)
 	E1000_WRITE_REG(&adapter->hw, TIDV, adapter->tx_int_delay.value);
 	if(adapter->hw.mac_type >= em_82540)
 		E1000_WRITE_REG(&adapter->hw, TADV, adapter->tx_abs_int_delay.value);
-
-	/* Do adapter specific tweaks before we enable the transmitter. */
-	if (adapter->hw.mac_type == em_82571 || adapter->hw.mac_type == em_82572) {
-		reg_tarc = E1000_READ_REG(&adapter->hw, TARC0);
-		reg_tarc |= (1 << 25);
-		E1000_WRITE_REG(&adapter->hw, TARC0, reg_tarc);
-		reg_tarc = E1000_READ_REG(&adapter->hw, TARC1);
-		reg_tarc |= (1 << 25);
-		reg_tarc &= ~(1 << 28);
-		E1000_WRITE_REG(&adapter->hw, TARC1, reg_tarc);
-	} else if (adapter->hw.mac_type == em_80003es2lan) {
-		reg_tarc = E1000_READ_REG(&adapter->hw, TARC0);
-		reg_tarc |= 1;
-		E1000_WRITE_REG(&adapter->hw, TARC0, reg_tarc);
-		reg_tarc = E1000_READ_REG(&adapter->hw, TARC1);
-		reg_tarc |= 1;
-		E1000_WRITE_REG(&adapter->hw, TARC1, reg_tarc);
-	}
 
 	/* Program the Transmit Control Register */
 	reg_tctl = E1000_TCTL_PSP | E1000_TCTL_EN |
@@ -3352,10 +3349,6 @@ em_initialize_receive_unit(struct adapter *adapter)
 	E1000_WRITE_REG(&adapter->hw, RDBAH, (uint32_t)(bus_addr >> 32));
 	E1000_WRITE_REG(&adapter->hw, RDBAL, (uint32_t)bus_addr);
 
-	/* Setup the HW Rx Head and Tail Descriptor Pointers */
-	E1000_WRITE_REG(&adapter->hw, RDT, adapter->num_rx_desc - 1);
-	E1000_WRITE_REG(&adapter->hw, RDH, 0);
-
 	/* Setup the Receive Control Register */
 	reg_rctl = E1000_RCTL_EN | E1000_RCTL_BAM | E1000_RCTL_LBM_NO |
 		   E1000_RCTL_RDMTS_HALF |
@@ -3394,6 +3387,10 @@ em_initialize_receive_unit(struct adapter *adapter)
 
 	/* Enable Receives */
 	E1000_WRITE_REG(&adapter->hw, RCTL, reg_rctl);
+
+	/* Setup the HW Rx Head and Tail Descriptor Pointers */
+	E1000_WRITE_REG(&adapter->hw, RDH, 0);
+	E1000_WRITE_REG(&adapter->hw, RDT, adapter->num_rx_desc - 1);
 }
 
 /*********************************************************************
@@ -3807,6 +3804,16 @@ em_pci_clear_mwi(struct em_hw *hw)
 {
 	pci_write_config(((struct em_osdep *)hw->back)->dev, PCIR_COMMAND,
 	    (hw->pci_cmd_word & ~CMD_MEM_WRT_INVALIDATE), 2);
+}
+
+/*
+ * We may eventually really do this, but its unnecessary 
+ * for now so we just return unsupported.
+ */
+int32_t
+em_read_pcie_cap_reg(struct em_hw *hw, uint32_t reg, uint16_t *value)
+{
+	return (0);
 }
 
 /*********************************************************************
