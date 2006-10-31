@@ -260,6 +260,8 @@ g_slice_start(struct bio *bp)
 				gkd->length = gsp->slices[idx].length;
 			/* now, pass it on downwards... */
 		}
+		/* FALLTHROUGH */
+	case BIO_FLUSH:
 		bp2 = g_clone_bio(bp);
 		if (bp2 == NULL) {
 			g_io_deliver(bp, ENOMEM);
