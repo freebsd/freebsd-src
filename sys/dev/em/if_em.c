@@ -1464,11 +1464,11 @@ em_encap(struct adapter *adapter, struct mbuf **m_headp)
 	struct ifnet		*ifp = adapter->ifp;
 	bus_dma_segment_t	segs[EM_MAX_SCATTER];
 	bus_dmamap_t		map;
-	struct em_buffer	*tx_buffer, *tx_buffer_last;
+	struct em_buffer	*tx_buffer, *tx_buffer_mapped;
 	struct em_tx_desc	*current_tx_desc;
 	struct mbuf		*m_head;
 	uint32_t		txd_upper, txd_lower, txd_used, txd_saved;
-	int			nsegs, i, j;
+	int			nsegs, i, j, first, last = 0;
 	int			error, do_tso, tso_desc = 0;
 
 	m_head = *m_headp;
@@ -1543,9 +1543,15 @@ em_encap(struct adapter *adapter, struct mbuf **m_headp)
 
 	/*
 	 * Map the packet for DMA.
+	 *
+	 * Capture the first descriptor index,
+	 * this descriptor will have the index
+	 * of the EOP which is the only one that
+	 * now gets a DONE bit writeback.
 	 */
-	tx_buffer = &adapter->tx_buffer_area[adapter->next_avail_tx_desc];
-	tx_buffer_last = tx_buffer;
+	first = adapter->next_avail_tx_desc;
+	tx_buffer = &adapter->tx_buffer_area[first];
+	tx_buffer_mapped = tx_buffer;
 	map = tx_buffer->map;
 
 	error = bus_dmamap_load_mbuf_sg(adapter->txtag, map, *m_headp, segs,
@@ -1658,10 +1664,12 @@ em_encap(struct adapter *adapter, struct mbuf **m_headp)
 					(adapter->txd_cmd | txd_lower |
 					(uint16_t)desc_array.descriptor[counter].length));
 				current_tx_desc->upper.data = htole32((txd_upper));
+				last = i;
 				if (++i == adapter->num_tx_desc)
 					i = 0;
 
 				tx_buffer->m_head = NULL;
+				tx_buffer->next_eop = -1;
 				txd_used++;
 			}
 		} else {
@@ -1693,6 +1701,7 @@ em_encap(struct adapter *adapter, struct mbuf **m_headp)
 				adapter->txd_cmd | txd_lower | 4);
 				current_tx_desc->upper.data =
 				    htole32(txd_upper);
+				last = i;
 				if (++i == adapter->num_tx_desc)
 					i = 0;
 			} else {
@@ -1701,10 +1710,12 @@ em_encap(struct adapter *adapter, struct mbuf **m_headp)
 				adapter->txd_cmd | txd_lower | seg_len);
 				current_tx_desc->upper.data =
 				    htole32(txd_upper);
+				last = i;
 				if (++i == adapter->num_tx_desc)
 					i = 0;
 			}
 			tx_buffer->m_head = NULL;
+			tx_buffer->next_eop = -1;
 		}
 	}
 
@@ -1727,14 +1738,23 @@ em_encap(struct adapter *adapter, struct mbuf **m_headp)
 	}
 
 	tx_buffer->m_head = m_head;
-	tx_buffer_last->map = tx_buffer->map;
+	tx_buffer_mapped->map = tx_buffer->map;
 	tx_buffer->map = map;
 	bus_dmamap_sync(adapter->txtag, map, BUS_DMASYNC_PREWRITE);
 
 	/*
-	 * Last Descriptor of Packet needs End Of Packet (EOP).
+	 * Last Descriptor of Packet
+	 * needs End Of Packet (EOP)
+	 * and Report Status (RS)
 	 */
-	current_tx_desc->lower.data |= htole32(E1000_TXD_CMD_EOP);
+	current_tx_desc->lower.data |=
+	    htole32(E1000_TXD_CMD_EOP | E1000_TXD_CMD_RS);
+	/*
+	 * Keep track in the first buffer which
+	 * descriptor will be written back
+	 */
+	tx_buffer = &adapter->tx_buffer_area[first];
+	tx_buffer->next_eop = last;
 
 	/*
 	 * Advance the Transmit Descriptor Tail (Tdt), this tells the E1000
@@ -2653,7 +2673,7 @@ em_setup_transmit_structures(struct adapter *adapter)
 	}
 
 	adapter->next_avail_tx_desc = 0;
-	adapter->oldest_used_tx_desc = 0;
+	adapter->next_tx_to_clean = 0;
 
 	/* Set number of descriptors available */
 	adapter->num_tx_desc_avail = adapter->num_tx_desc;
@@ -2739,8 +2759,8 @@ em_initialize_transmit_unit(struct adapter *adapter)
 	/* This write will effectively turn on the transmit unit. */
 	E1000_WRITE_REG(&adapter->hw, TCTL, reg_tctl);
 
-	/* Setup Transmit Descriptor Settings for this adapter */
-	adapter->txd_cmd = E1000_TXD_CMD_IFCS | E1000_TXD_CMD_RS;
+	/* Setup Transmit Descriptor Base Settings */
+	adapter->txd_cmd = E1000_TXD_CMD_IFCS;
 
 	if (adapter->tx_int_delay.value > 0)
 		adapter->txd_cmd |= E1000_TXD_CMD_IDE;
@@ -2923,6 +2943,7 @@ em_transmit_checksum_setup(struct adapter *adapter, struct mbuf *mp,
 	TXD->cmd_and_length =
 	    htole32(adapter->txd_cmd | E1000_TXD_CMD_DEXT | cmd);
 	tx_buffer->m_head = NULL;
+	tx_buffer->next_eop = -1;
 
 	if (++curr_txd == adapter->num_tx_desc)
 		curr_txd = 0;
@@ -3099,9 +3120,9 @@ em_tso_setup(struct adapter *adapter, struct mbuf *mp, uint32_t *txd_upper,
 static void
 em_txeof(struct adapter *adapter)
 {
-	int i, num_avail;
+	int first, last, done, num_avail;
 	struct em_buffer *tx_buffer;
-	struct em_tx_desc   *tx_desc;
+	struct em_tx_desc   *tx_desc, *eop_desc;
 	struct ifnet   *ifp = adapter->ifp;
 
 	EM_LOCK_ASSERT(adapter);
@@ -3110,38 +3131,62 @@ em_txeof(struct adapter *adapter)
 		return;
 
 	num_avail = adapter->num_tx_desc_avail;
-	i = adapter->oldest_used_tx_desc;
+	first = adapter->next_tx_to_clean;
+	tx_desc = &adapter->tx_desc_base[first];
+	tx_buffer = &adapter->tx_buffer_area[first];
+	last = tx_buffer->next_eop;
+	eop_desc = &adapter->tx_desc_base[last];
 
-	tx_buffer = &adapter->tx_buffer_area[i];
-	tx_desc = &adapter->tx_desc_base[i];
+	/*
+	 * Now calculate the terminating index
+	 * for the cleanup loop below.
+	 */
+	if (++last == adapter->num_tx_desc)
+		last = 0;
+	done = last;
 
 	bus_dmamap_sync(adapter->txdma.dma_tag, adapter->txdma.dma_map,
 	    BUS_DMASYNC_POSTREAD);
-	while (tx_desc->upper.fields.status & E1000_TXD_STAT_DD) {
+	while (eop_desc->upper.fields.status & E1000_TXD_STAT_DD) {
+		/* We clean the range of the packet */
+		while (first != done) {
+			tx_desc->upper.data = 0;
+			tx_desc->lower.data = 0;
+			num_avail++;
 
-		tx_desc->upper.data = 0;
-		num_avail++;
+			if (tx_buffer->m_head) {
+				ifp->if_opackets++;
+				bus_dmamap_sync(adapter->txtag, tx_buffer->map,
+				    BUS_DMASYNC_POSTWRITE);
+				bus_dmamap_unload(adapter->txtag,
+				    tx_buffer->map);
 
-		if (tx_buffer->m_head) {
-			ifp->if_opackets++;
-			bus_dmamap_sync(adapter->txtag, tx_buffer->map,
-			    BUS_DMASYNC_POSTWRITE);
-			bus_dmamap_unload(adapter->txtag, tx_buffer->map);
+				m_freem(tx_buffer->m_head);
+				tx_buffer->m_head = NULL;
+			}
+			tx_buffer->next_eop = -1;
 
-			m_freem(tx_buffer->m_head);
-			tx_buffer->m_head = NULL;
+			if (++first == adapter->num_tx_desc)
+				first = 0;
+
+			tx_buffer = &adapter->tx_buffer_area[first];
+			tx_desc = &adapter->tx_desc_base[first];
 		}
-
-		if (++i == adapter->num_tx_desc)
-			i = 0;
-
-		tx_buffer = &adapter->tx_buffer_area[i];
-		tx_desc = &adapter->tx_desc_base[i];
+		/* See if we can continue to the next packet */
+		last = tx_buffer->next_eop;
+		if (last != -1) {
+			eop_desc = &adapter->tx_desc_base[last];
+			/* Get new done point */
+			if (++last == adapter->num_tx_desc)
+				last = 0;
+			done = last;
+		} else
+			break;
 	}
 	bus_dmamap_sync(adapter->txdma.dma_tag, adapter->txdma.dma_map,
 	    BUS_DMASYNC_PREREAD | BUS_DMASYNC_PREWRITE);
 
-	adapter->oldest_used_tx_desc = i;
+	adapter->next_tx_to_clean = first;
 
 	/*
 	 * If we have enough room, clear IFF_DRV_OACTIVE to tell the stack
