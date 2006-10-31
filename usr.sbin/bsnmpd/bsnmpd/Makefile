@@ -10,7 +10,8 @@ SRCS=	main.c action.c config.c export.c trap.c trans_udp.c trans_lsock.c
 SRCS+=	oid.h tree.c tree.h
 XSYM=	snmpMIB begemotSnmpdModuleTable begemotSnmpd begemotTrapSinkTable \
 	sysUpTime snmpTrapOID coldStart authenticationFailure \
-	begemotSnmpdTransUdp begemotSnmpdTransLsock begemotSnmpdLocalPortTable
+	begemotSnmpdTransUdp begemotSnmpdTransLsock begemotSnmpdLocalPortTable \
+	freeBSDVersion
 CLEANFILES= oid.h tree.c tree.h
 MAN=	bsnmpd.1 snmpmod.3
 WARNS?=	6
