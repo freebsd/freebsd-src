@@ -244,10 +244,7 @@ static int acpi_aiboost_fan_sysctl(SYSCTL_HANDLER_ARGS)
 static int
 acpi_aiboost_probe(device_t dev)
 {
-	struct acpi_aiboost_softc *sc;
 	int		ret = ENXIO;
-
-	sc = device_get_softc(dev);
 
 	if (ACPI_ID_PROBE(device_get_parent(dev), dev, abs_id)) {
 		device_set_desc(dev, "ASUStek AIBOOSTER");
