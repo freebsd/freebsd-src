@@ -2,6 +2,9 @@
  * Copyright (c) 2001-2003
  *	Fraunhofer Institute for Open Communication Systems (FhG Fokus).
  *	All rights reserved.
+ * Copyright (c) 2004-2006
+ *	Hartmut Brandt.
+ *	All rights reserved.
  *
  * Author: Harti Brandt <harti@freebsd.org>
  * 
@@ -26,13 +29,14 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Begemot: bsnmp/snmpd/action.c,v 1.58 2004/08/06 08:47:09 brandt Exp $
+ * $Begemot: action.c 517 2006-10-31 08:52:04Z brandt_h $
  *
  * Variable access for SNMPd
  */
 #include <sys/types.h>
 #include <sys/sysctl.h>
 #include <sys/un.h>
+#include <sys/utsname.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <stdarg.h>
@@ -47,6 +51,11 @@
 
 static const struct asn_oid
 	oid_begemotSnmpdModuleTable = OIDX_begemotSnmpdModuleTable;
+
+#ifdef __FreeBSD__
+static const struct asn_oid
+	oid_freeBSDVersion = OIDX_freeBSDVersion;
+#endif
 
 /*
  * Get a string value from the KERN sysctl subtree.
@@ -100,39 +109,57 @@ act_getkernint(int id)
 int
 init_actvals(void)
 {
-	char *v[4];
-	u_int i;
+	struct utsname uts;
+	char *hostid;
 	size_t len;
+#ifdef __FreeBSD__
+	char *rel, *p, *end;
+	u_long num;
+#endif
 
-	if ((systemg.name = act_getkernstring(KERN_HOSTNAME)) == NULL)
+	if (uname(&uts) == -1)
 		return (-1);
 
-	for (i = 0; i < 4; i++)
-		v[1] = NULL;
+	if ((systemg.name = strdup(uts.nodename)) == NULL)
+		return (-1);
 
-	if ((v[0] = act_getkernstring(KERN_HOSTNAME)) == NULL)
-		goto err;
-	if ((v[1] = act_getkernint(KERN_HOSTID)) == NULL)
-		goto err;
-	if ((v[2] = act_getkernstring(KERN_OSTYPE)) == NULL)
-		goto err;
-	if ((v[3] = act_getkernstring(KERN_OSRELEASE)) == NULL)
-		goto err;
+	if ((hostid = act_getkernint(KERN_HOSTID)) == NULL)
+		return (-1);
 
-	for (i = 0, len = 0; i < 4; i++)
-		len += strlen(v[i]) + 1;
+	len = strlen(uts.nodename) + 1;
+	len += strlen(hostid) + 1;
+	len += strlen(uts.sysname) + 1;
+	len += strlen(uts.release) + 1;
 
-	if ((systemg.descr = malloc(len)) == NULL)
-		goto err;
-	sprintf(systemg.descr, "%s %s %s %s", v[0], v[1], v[2], v[3]);
+	if ((systemg.descr = malloc(len)) == NULL) {
+		free(hostid);
+		return (-1);
+	}
+	sprintf(systemg.descr, "%s %s %s %s", uts.nodename, hostid, uts.sysname,
+	    uts.release);
+
+#ifdef __FreeBSD__
+	/*
+	 * Construct a FreeBSD oid
+	 */
+	systemg.object_id = oid_freeBSDVersion;
+	rel = uts.release;
+	while ((p = strsep(&rel, ".")) != NULL &&
+	    systemg.object_id.len < ASN_MAXOIDLEN) {
+		systemg.object_id.subs[systemg.object_id.len] = 0;
+		if (*p != '\0') {
+			num = strtoul(p, &end, 10);
+			if (end == p)
+				break;
+			systemg.object_id.subs[systemg.object_id.len] = num;
+		}
+		systemg.object_id.len++;
+	}
+#endif
+
+	free(hostid);
 
 	return (0);
-
-  err:
-	for (i = 0; i < 4; i++)
-		if (v[i] != NULL)
-			free(v[i]);
-	return (-1);
 }
 
 
