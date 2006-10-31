@@ -236,7 +236,7 @@ amrd_attach(device_t dev)
     sc->amrd_disk->d_name = "amrd";
     sc->amrd_disk->d_dump = (dumper_t *)amrd_dump;
     sc->amrd_disk->d_unit = sc->amrd_unit;
-    sc->amrd_disk->d_flags = 0;
+    sc->amrd_disk->d_flags = DISKFLAG_CANFLUSHCACHE;
     sc->amrd_disk->d_sectorsize = AMR_BLKSIZE;
     sc->amrd_disk->d_mediasize = (off_t)sc->amrd_drive->al_size * AMR_BLKSIZE;
     sc->amrd_disk->d_fwsectors = sc->amrd_drive->al_sectors;

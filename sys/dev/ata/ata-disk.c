@@ -159,6 +159,8 @@ ad_attach(device_t dev)
     adp->disk->d_fwsectors = adp->sectors;
     adp->disk->d_fwheads = adp->heads;
     adp->disk->d_unit = device_get_unit(dev);
+    if (atadev->param.support.command2 & ATA_SUPPORT_FLUSHCACHE)
+	adp->disk->d_flags = DISKFLAG_CANFLUSHCACHE;
     disk_create(adp->disk, DISK_VERSION);
     device_add_child(dev, "subdisk", device_get_unit(dev));
     ad_firmware_geom_adjust(dev, adp->disk);
@@ -268,6 +270,17 @@ ad_strategy(struct bio *bp)
 	    request->u.ata.command = ATA_WRITE_MUL;
 	else
 	    request->u.ata.command = ATA_WRITE;
+	break;
+    case BIO_FLUSH:
+	request->u.ata.lba = 0;
+	request->u.ata.count = 0;
+	request->u.ata.feature = 0;
+	request->bytecount = 0;
+	request->transfersize = 0;
+	request->timeout = 1;
+	request->retries = 0;
+	request->flags = ATA_R_CONTROL;
+	request->u.ata.command = ATA_FLUSHCACHE;
 	break;
     default:
 	device_printf(dev, "FAILURE - unknown BIO operation\n");
