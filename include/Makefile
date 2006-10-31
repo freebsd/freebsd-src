@@ -45,8 +45,8 @@ LSUBDIRS=	cam/scsi \
 	fs/devfs fs/fdescfs fs/fifofs fs/msdosfs fs/ntfs fs/nullfs \
 	${_fs_nwfs} fs/portalfs fs/procfs fs/smbfs fs/udf fs/umapfs \
 	fs/unionfs \
-	geom/cache geom/concat geom/eli geom/gate geom/label geom/mirror \
-	geom/nop geom/raid3 geom/shsec geom/stripe \
+	geom/cache geom/concat geom/eli geom/gate geom/journal geom/label \
+	geom/mirror geom/nop geom/raid3 geom/shsec geom/stripe \
 	isofs/cd9660 \
 	netatm/ipatm netatm/sigpvc netatm/spans netatm/uni \
 	netgraph/atm netgraph/netflow \
