@@ -518,7 +518,7 @@ options 	ACPI_DEBUG
 #!options 	ACPI_NO_SEMAPHORES
 #!options 	ACPICA_PEDANTIC
 
-# ACPI Asus Desctop Extras. (voltage, temp, fan)
+# ACPI Asus Desktop Extras. (voltage, temp, fan)
 device		acpi_aiboost
 
 # ACPI Asus Extras (LCD backlight/brightness, video output, etc.)
