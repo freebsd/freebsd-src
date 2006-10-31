@@ -281,6 +281,8 @@ dbg_dump_fs(struct fs *sb, const char *comment)
  */
 	fprintf(dbg_log, "maxbsize          int32_t          0x%08x\n",
 	    sb->fs_maxbsize);
+	fprintf(dbg_log, "unrefs            int64_t          0x%08x\n",
+	    sb->fs_unrefs);
 	fprintf(dbg_log, "sblockloc         int64_t          0x%08x%08x\n",
 		((unsigned int *)&(sb->fs_sblockloc))[1],
 		((unsigned int *)&(sb->fs_sblockloc))[0]);
@@ -399,6 +401,7 @@ dbg_dump_cg(const char *comment, struct cg *cgr)
 	    cgr->cg_nclusterblks);
 	fprintf(dbg_log, "niblk         int32_t    0x%08x\n", cgr->cg_niblk);
 	fprintf(dbg_log, "initediblk    int32_t    0x%08x\n", cgr->cg_initediblk);
+	fprintf(dbg_log, "unrefs        int32_t    0x%08x\n", cgr->cg_unrefs);
 	fprintf(dbg_log, "time          ufs_time_t %10u\n", 
 		(unsigned int)cgr->cg_initediblk);
 
