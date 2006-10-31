@@ -124,7 +124,8 @@ struct fs {
         u_int   *fs_active;             /* (u) used by snapshots to track fs */
         int32_t  fs_old_cpc;            /* cyl per cycle in postbl */
         int32_t  fs_maxbsize;           /* maximum blocking factor permitted */
-        int64_t  fs_sparecon64[17];     /* old rotation block list head */
+        int64_t  fs_unrefs;             /* number of unreferenced inodes */
+        int64_t  fs_sparecon64[16];     /* old rotation block list head */
         int64_t  fs_sblockloc;          /* byte offset of standard superblock */
         struct  csum_total fs_cstotal;  /* (u) cylinder summary information */
         ufs_time_t fs_time;             /* last time written */
