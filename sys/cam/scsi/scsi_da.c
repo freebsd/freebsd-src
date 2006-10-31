@@ -1179,6 +1179,8 @@ daregister(struct cam_periph *periph, void *arg)
 	softc->disk->d_maxsize = DFLTPHYS; /* XXX: probably not arbitrary */
 	softc->disk->d_unit = periph->unit_number;
 	softc->disk->d_flags = DISKFLAG_NEEDSGIANT;
+	if ((softc->quirks & DA_Q_NO_SYNC_CACHE) == 0)
+		softc->disk->d_flags |= DISKFLAG_CANFLUSHCACHE;
 	disk_create(softc->disk, DISK_VERSION);
 
 	/*
@@ -1250,20 +1252,35 @@ dastart(struct cam_periph *periph, union ccb *start_ccb)
 			} else {
 				tag_code = MSG_SIMPLE_Q_TAG;
 			}
-			scsi_read_write(&start_ccb->csio,
-					/*retries*/da_retry_count,
-					/*cbfcnp*/dadone,
-					/*tag_action*/tag_code,
-					/*read_op*/bp->bio_cmd == BIO_READ,
-					/*byte2*/0,
-					softc->minimum_cmd_size,
-					/*lba*/bp->bio_pblkno,
-					/*block_count*/bp->bio_bcount /
-					softc->params.secsize,
-					/*data_ptr*/ bp->bio_data,
-					/*dxfer_len*/ bp->bio_bcount,
-					/*sense_len*/SSD_FULL_SIZE,
-					/*timeout*/da_default_timeout*1000);
+			switch (bp->bio_cmd) {
+			case BIO_READ:
+			case BIO_WRITE:
+				scsi_read_write(&start_ccb->csio,
+						/*retries*/da_retry_count,
+						/*cbfcnp*/dadone,
+						/*tag_action*/tag_code,
+						/*read_op*/bp->bio_cmd == BIO_READ,
+						/*byte2*/0,
+						softc->minimum_cmd_size,
+						/*lba*/bp->bio_pblkno,
+						/*block_count*/bp->bio_bcount /
+						softc->params.secsize,
+						/*data_ptr*/ bp->bio_data,
+						/*dxfer_len*/ bp->bio_bcount,
+						/*sense_len*/SSD_FULL_SIZE,
+						/*timeout*/da_default_timeout*1000);
+				break;
+			case BIO_FLUSH:
+				scsi_synchronize_cache(&start_ccb->csio,
+						       /*retries*/1,
+						       /*cbfcnp*/dadone,
+						       MSG_SIMPLE_Q_TAG,
+						       /*begin_lba*/0,/* Cover the whole disk */
+						       /*lb_count*/0,
+						       SSD_FULL_SIZE,
+						       /*timeout*/da_default_timeout*1000);
+				break;
+			}
 			start_ccb->ccb_h.ccb_state = DA_CCB_BUFFER_IO;
 
 			/*

@@ -1287,7 +1287,7 @@ amr_bio_command(struct amr_softc *sc, struct amr_command **acp)
     int			driveno;
     int			cmd;
 
-    ac = NULL;
+    *acp = NULL;
     error = 0;
 
     /* get a command */
@@ -1305,38 +1305,49 @@ amr_bio_command(struct amr_softc *sc, struct amr_command **acp)
     ac->ac_bio = bio;
     ac->ac_data = bio->bio_data;
     ac->ac_length = bio->bio_bcount;
-    if (bio->bio_cmd == BIO_READ) {
+    cmd = 0;
+    switch (bio->bio_cmd) {
+    case BIO_READ:
 	ac->ac_flags |= AMR_CMD_DATAIN;
 	if (AMR_IS_SG64(sc)) {
 	    cmd = AMR_CMD_LREAD64;
 	    ac->ac_flags |= AMR_CMD_SG64;
 	} else
 	    cmd = AMR_CMD_LREAD;
-    } else {
+	break;
+    case BIO_WRITE:
 	ac->ac_flags |= AMR_CMD_DATAOUT;
 	if (AMR_IS_SG64(sc)) {
 	    cmd = AMR_CMD_LWRITE64;
 	    ac->ac_flags |= AMR_CMD_SG64;
 	} else
 	    cmd = AMR_CMD_LWRITE;
+	break;
+    case BIO_FLUSH:
+	ac->ac_flags |= AMR_CMD_PRIORITY | AMR_CMD_DATAOUT;
+	cmd = AMR_CMD_FLUSH;
+	break;
     }
     amrd = (struct amrd_softc *)bio->bio_disk->d_drv1;
     driveno = amrd->amrd_drive - sc->amr_drive;
     blkcount = (bio->bio_bcount + AMR_BLKSIZE - 1) / AMR_BLKSIZE;
 
     ac->ac_mailbox.mb_command = cmd;
-    ac->ac_mailbox.mb_blkcount = blkcount;
-    ac->ac_mailbox.mb_lba = bio->bio_pblkno;
+    if (bio->bio_cmd & (BIO_READ|BIO_WRITE)) {
+	ac->ac_mailbox.mb_blkcount = blkcount;
+	ac->ac_mailbox.mb_lba = bio->bio_pblkno;
+	if ((bio->bio_pblkno + blkcount) > sc->amr_drive[driveno].al_size) {
+	    device_printf(sc->amr_dev,
+			  "I/O beyond end of unit (%lld,%d > %lu)\n", 
+			  (long long)bio->bio_pblkno, blkcount,
+			  (u_long)sc->amr_drive[driveno].al_size);
+	}
+    }
     ac->ac_mailbox.mb_drive = driveno;
     if (sc->amr_state & AMR_STATE_REMAP_LD)
 	ac->ac_mailbox.mb_drive |= 0x80;
 
     /* we fill in the s/g related data when the command is mapped */
-
-    if ((bio->bio_pblkno + blkcount) > sc->amr_drive[driveno].al_size)
-	device_printf(sc->amr_dev, "I/O beyond end of unit (%lld,%d > %lu)\n", 
-		      (long long)bio->bio_pblkno, blkcount,
-		      (u_long)sc->amr_drive[driveno].al_size);
 
     *acp = ac;
     return(error);
