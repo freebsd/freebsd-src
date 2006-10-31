@@ -4,6 +4,7 @@
 .\" 	Manual page for libufs functions:
 .\"		cgread(3)
 .\"		cgread1(3)
+.\"		cgwrite1(3)
 .\"
 .\" This file is in the public domain.
 .\"
@@ -13,8 +14,8 @@
 .Dt CGREAD 3
 .Os
 .Sh NAME
-.Nm cgread , cgread1
-.Nd read cylinder groups of UFS disks
+.Nm cgread , cgread1, cgwrite1
+.Nd read/write cylinder groups of UFS disks
 .Sh LIBRARY
 .Lb libufs
 .Sh SYNOPSIS
@@ -28,6 +29,8 @@
 .Fn cgread "struct uufsd *disk"
 .Ft int
 .Fn cgread1 "struct uufsd *disk" "int c"
+.Ft int
+.Fn cgwrite1 "struct uufsd *disk" "int c"
 .Sh DESCRIPTION
 The
 .Fn cgread
@@ -60,6 +63,14 @@ with a cylinder group specifier equivalent to the value of the current
 field, and then incrementing the
 .Va d_ccg
 field.
+.Pp
+The
+.Fn cgwrite1
+function stores cylinder group specified by
+.Fa c
+from
+.Va d_cg
+field of a userland UFS disk structure on disk.
 .Sh RETURN VALUES
 Both functions return 0 if there are no more cylinder groups to read,
 1 if there are more cylinder groups, and \-1 on error.
@@ -75,8 +86,16 @@ The function
 .Fn cgread1
 has semantically identical failure conditions to those of
 .Fn cgread .
+.Pp
+The function
+.Fn cgwrite1
+may fail and set
+.Va errno
+for any of the errors specified for the library function
+.Xr bwrite 3 .
 .Sh SEE ALSO
 .Xr bread 3 ,
+.Xr bwrite 3 ,
 .Xr libufs 3
 .Sh HISTORY
 These functions first appeared as part of
