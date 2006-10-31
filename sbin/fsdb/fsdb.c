@@ -620,7 +620,7 @@ find_indirblks32(uint32_t blk, int ind_level, uint32_t *wantedblk)
     uint32_t idblk[MAXNINDIR];
     int i;
 
-    bread(fsreadfd, (char *)idblk, fsbtodb(&sblock, blk), (int)sblock.fs_bsize);
+    blread(fsreadfd, (char *)idblk, fsbtodb(&sblock, blk), (int)sblock.fs_bsize);
     if (ind_level <= 0) {
 	if (find_blks32(idblk, sblock.fs_bsize / sizeof(uint32_t), wantedblk))
 	    return 1;
@@ -662,7 +662,7 @@ find_indirblks64(uint64_t blk, int ind_level, uint64_t *wantedblk)
     uint64_t idblk[MAXNINDIR];
     int i;
 
-    bread(fsreadfd, (char *)idblk, fsbtodb(&sblock, blk), (int)sblock.fs_bsize);
+    blread(fsreadfd, (char *)idblk, fsbtodb(&sblock, blk), (int)sblock.fs_bsize);
     if (ind_level <= 0) {
 	if (find_blks64(idblk, sblock.fs_bsize / sizeof(uint64_t), wantedblk))
 	    return 1;
