@@ -110,6 +110,7 @@ ssize_t bwrite(struct uufsd *, ufs2_daddr_t, const void *, size_t);
  */
 int cgread(struct uufsd *);
 int cgread1(struct uufsd *, int);
+int cgwrite1(struct uufsd *, int);
 
 /*
  * inode.c
