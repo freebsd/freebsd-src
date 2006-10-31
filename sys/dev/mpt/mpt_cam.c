@@ -3035,12 +3035,12 @@ mpt_action(struct cam_sim *sim, union ccb *ccb)
 		spi = &cts->xport_specific.spi;
 
 		if ((spi->valid & CTS_SPI_VALID_DISC) != 0) {
-			dval |= (spi->flags & CTS_SPI_FLAGS_DISC_ENB) != 0) ?
+			dval |= ((spi->flags & CTS_SPI_FLAGS_DISC_ENB) != 0) ?
 			    DP_DISC_ENABLE : DP_DISC_DISABL;
 		}
 
 		if ((scsi->valid & CTS_SCSI_VALID_TQ) != 0) {
-			dval |= (scsi->flags & CTS_SCSI_FLAGS_TAG_ENB) != 0) ?
+			dval |= ((scsi->flags & CTS_SCSI_FLAGS_TAG_ENB) != 0) ?
 			    DP_TQING_ENABLE : DP_TQING_DISABL;
 		}
 
@@ -3074,7 +3074,9 @@ mpt_action(struct cam_sim *sim, union ccb *ccb)
 		if (dval & DP_SYNC) {
 			mpt_setsync(mpt, tgt, period, offset);
 		}
-
+		mpt_lprt(mpt, MPT_PRT_NEGOTIATION,
+		    "Set Settings[%d]: 0x%x period 0x%x offset %d\n", tgt,
+		    dval, period , offset);
 		if (mpt_update_spi_config(mpt, tgt)) {
 			mpt_set_ccb_status(ccb, CAM_REQ_CMP_ERR);
 		} else {
@@ -3105,7 +3107,7 @@ mpt_action(struct cam_sim *sim, union ccb *ccb)
 			    &cts->xport_specific.fc;
 
 			cts->protocol = PROTO_SCSI;
-			cts->protocol_version = SCSI_REV_2;
+			cts->protocol_version = SCSI_REV_SPC;
 			cts->transport = XPORT_FC;
 			cts->transport_version = 0;
 
@@ -3130,7 +3132,7 @@ mpt_action(struct cam_sim *sim, union ccb *ccb)
 			    &cts->xport_specific.sas;
 
 			cts->protocol = PROTO_SCSI;
-			cts->protocol_version = SCSI_REV_3;
+			cts->protocol_version = SCSI_REV_SPC2;
 			cts->transport = XPORT_SAS;
 			cts->transport_version = 0;
 
@@ -3195,16 +3197,32 @@ mpt_action(struct cam_sim *sim, union ccb *ccb)
 			cpi->base_transfer_speed =
 			    mpt->mpt_fcport_speed * 100000;
 			cpi->hba_inquiry = PI_TAG_ABLE;
+#ifdef	CAM_NEW_TRAN_CODE
+                        cpi->transport = XPORT_FC;
+                        cpi->transport_version = 0;
+#endif
 		} else if (mpt->is_sas) {
 			cpi->hba_misc = PIM_NOBUSRESET;
 			cpi->base_transfer_speed = 300000;
 			cpi->hba_inquiry = PI_TAG_ABLE;
+#ifdef	CAM_NEW_TRAN_CODE
+                        cpi->transport = XPORT_SAS;
+                        cpi->transport_version = 0;
+#endif
 		} else {
 			cpi->hba_misc = PIM_SEQSCAN;
 			cpi->base_transfer_speed = 3300;
 			cpi->hba_inquiry = PI_SDTR_ABLE|PI_TAG_ABLE|PI_WIDE_16;
+#ifdef	CAM_NEW_TRAN_CODE
+                        cpi->transport = XPORT_SPI;
+                        cpi->transport_version = 2;
+#endif
 		}
 
+#ifdef	CAM_NEW_TRAN_CODE
+                cpi->protocol = PROTO_SCSI;
+                cpi->protocol_version = SCSI_REV_2;
+#endif
 		/*
 		 * We give our fake RAID passhtru bus a width that is MaxVolumes
 		 * wide, restrict it to one lun and have it *not* be a bus

@@ -2097,6 +2097,12 @@ mly_cam_action(struct cam_sim *sim, union ccb *ccb)
         cpi->unit_number = cam_sim_unit(sim);
         cpi->bus_id = cam_sim_bus(sim);
 	cpi->base_transfer_speed = 132 * 1024;	/* XXX what to set this to? */
+#ifdef	CAM_NEW_TRAN_CODE
+	cpi->transport = XPORT_SPI;
+	cpi->transport_version = 2;
+	cpi->protocol = PROTO_SCSI;
+	cpi->protocol_version = SCSI_REV_2;
+#endif
 	ccb->ccb_h.status = CAM_REQ_CMP;
 	break;
     }
@@ -2105,13 +2111,71 @@ mly_cam_action(struct cam_sim *sim, union ccb *ccb)
     {
 	struct ccb_trans_settings	*cts = &ccb->cts;
 	int				bus, target;
+#ifdef	CAM_NEW_TRAN_CODE
+	struct ccb_trans_settings_scsi *scsi = &cts->proto_specific.scsi;
+	struct ccb_trans_settings_spi *spi = &cts->xport_specific.spi;
+
+	cts->protocol = PROTO_SCSI;
+	cts->protocol_version = SCSI_REV_2;
+	cts->transport = XPORT_SPI;
+	cts->transport_version = 2;
+
+	scsi->flags = 0;
+	scsi->valid = 0;
+	spi->flags = 0;
+	spi->valid = 0;
+
+	bus = cam_sim_bus(sim);
+	target = cts->ccb_h.target_id;
+	debug(2, "XPT_GET_TRAN_SETTINGS %d:%d", bus, target);
+	/* logical device? */
+	if (sc->mly_btl[bus][target].mb_flags & MLY_BTL_LOGICAL) {
+	    /* nothing special for these */
+	/* physical device? */
+	} else if (sc->mly_btl[bus][target].mb_flags & MLY_BTL_PHYSICAL) {
+	    /* allow CAM to try tagged transactions */
+	    scsi->flags |= CTS_SCSI_FLAGS_TAG_ENB;
+	    scsi->valid |= CTS_SCSI_VALID_TQ;
+
+	    /* convert speed (MHz) to usec */
+	    if (sc->mly_btl[bus][target].mb_speed == 0) {
+		spi->sync_period = 1000000 / 5;
+	    } else {
+		spi->sync_period = 1000000 / sc->mly_btl[bus][target].mb_speed;
+	    }
+
+	    /* convert bus width to CAM internal encoding */
+	    switch (sc->mly_btl[bus][target].mb_width) {
+	    case 32:
+		spi->bus_width = MSG_EXT_WDTR_BUS_32_BIT;
+		break;
+	    case 16:
+		spi->bus_width = MSG_EXT_WDTR_BUS_16_BIT;
+		break;
+	    case 8:
+	    default:
+		spi->bus_width = MSG_EXT_WDTR_BUS_8_BIT;
+		break;
+	    }
+	    spi->valid |= CTS_SPI_VALID_SYNC_RATE | CTS_SPI_VALID_BUS_WIDTH;
+
+	    /* not a device, bail out */
+	} else {
+	    cts->ccb_h.status = CAM_REQ_CMP_ERR;
+	    break;
+	}
+
+	/* disconnect always OK */
+	spi->flags |= CTS_SPI_FLAGS_DISC_ENB;
+	spi->valid |= CTS_SPI_VALID_DISC;
+#else
+	cts->valid = 0;
 
 	bus = cam_sim_bus(sim);
 	target = cts->ccb_h.target_id;
 	/* XXX validate bus/target? */
 
 	debug(2, "XPT_GET_TRAN_SETTINGS %d:%d", bus, target);
-	cts->valid = 0;
 
 	/* logical device? */
 	if (sc->mly_btl[bus][target].mb_flags & MLY_BTL_LOGICAL) {
@@ -2154,6 +2218,7 @@ mly_cam_action(struct cam_sim *sim, union ccb *ccb)
 	/* disconnect always OK */
 	cts->flags |= CCB_TRANS_DISC_ENB;
 	cts->valid |= CCB_TRANS_DISC_VALID;
+#endif
 
 	cts->ccb_h.status = CAM_REQ_CMP;
 	break;
