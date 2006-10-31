@@ -117,6 +117,7 @@ int	Oflag = 2;		/* file system format (1 => UFS1, 2 => UFS2) */
 int	Rflag;			/* regression test */
 int	Uflag;			/* enable soft updates for file system */
 int	Eflag = 0;		/* exit in middle of newfs for testing */
+int	Jflag;			/* enable gjournal for file system */
 int	lflag;			/* enable multilabel for file system */
 int	nflag;			/* do not create .snap directory */
 quad_t	fssize;			/* file system size */
@@ -156,10 +157,13 @@ main(int argc, char *argv[])
 	off_t mediasize;
 
 	while ((ch = getopt(argc, argv,
-	    "EL:NO:RS:T:Ua:b:c:d:e:f:g:h:i:lm:no:s:")) != -1)
+	    "EJL:NO:RS:T:Ua:b:c:d:e:f:g:h:i:lm:no:s:")) != -1)
 		switch (ch) {
 		case 'E':
 			Eflag++;
+			break;
+		case 'J':
+			Jflag = 1;
 			break;
 		case 'L':
 			volumelabel = optarg;

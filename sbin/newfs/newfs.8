@@ -36,7 +36,7 @@
 .Nd construct a new UFS1/UFS2 file system
 .Sh SYNOPSIS
 .Nm
-.Op Fl NUln
+.Op Fl JNUln
 .Op Fl L Ar volname
 .Op Fl O Ar filesystem-type
 .Op Fl S Ar sector-size
@@ -77,6 +77,8 @@ has numerous options to allow the defaults to be selectively overridden.
 .Pp
 The following options define the general layout policies:
 .Bl -tag -width indent
+.It Fl J
+Enable journaling on the new file system via gjournal.
 .It Fl L Ar volname
 Add a volume label to the new file system.
 .It Fl N
