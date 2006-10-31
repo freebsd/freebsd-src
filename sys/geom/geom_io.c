@@ -244,6 +244,26 @@ g_io_getattr(const char *attr, struct g_consumer *cp, int *len, void *ptr)
 	return (error);
 }
 
+int
+g_io_flush(struct g_consumer *cp)
+{
+	struct bio *bp;
+	int error;
+
+	g_trace(G_T_BIO, "bio_flush(%s)", cp->provider->name);
+	bp = g_alloc_bio();
+	bp->bio_cmd = BIO_FLUSH;
+	bp->bio_done = NULL;
+	bp->bio_attribute = NULL;
+	bp->bio_offset = cp->provider->mediasize;
+	bp->bio_length = 0;
+	bp->bio_data = NULL;
+	g_io_request(bp, cp);
+	error = biowait(bp, "gflush");
+	g_destroy_bio(bp);
+	return (error);
+}
+
 static int
 g_io_check(struct bio *bp)
 {
@@ -262,6 +282,7 @@ g_io_check(struct bio *bp)
 		break;
 	case BIO_WRITE:
 	case BIO_DELETE:
+	case BIO_FLUSH:
 		if (cp->acw == 0)
 			return (EPERM);
 		break;
@@ -304,7 +325,6 @@ g_io_request(struct bio *bp, struct g_consumer *cp)
 
 	KASSERT(cp != NULL, ("NULL cp in g_io_request"));
 	KASSERT(bp != NULL, ("NULL bp in g_io_request"));
-	KASSERT(bp->bio_data != NULL, ("NULL bp->data in g_io_request"));
 	pp = cp->provider;
 	KASSERT(pp != NULL, ("consumer not attached in g_io_request"));
 #ifdef DIAGNOSTIC
@@ -323,6 +343,10 @@ g_io_request(struct bio *bp, struct g_consumer *cp)
 	bp->_bio_cflags = bp->bio_cflags;
 #endif
 
+	if (bp->bio_cmd & (BIO_READ|BIO_WRITE|BIO_DELETE|BIO_GETATTR)) {
+		KASSERT(bp->bio_data != NULL,
+		    ("NULL bp->data in g_io_request"));
+	}
 	if (bp->bio_cmd & (BIO_READ|BIO_WRITE|BIO_DELETE)) {
 		KASSERT(bp->bio_offset % cp->provider->sectorsize == 0,
 		    ("wrong offset %jd for sectorsize %u",
@@ -631,6 +655,10 @@ g_print_bio(struct bio *bp)
 	case BIO_GETATTR:
 		cmd = "GETATTR";
 		printf("%s[%s(attr=%s)]", pname, cmd, bp->bio_attribute);
+		return;
+	case BIO_FLUSH:
+		cmd = "FLUSH";
+		printf("%s[%s]", pname, cmd);
 		return;
 	case BIO_READ:
 		cmd = "READ";
