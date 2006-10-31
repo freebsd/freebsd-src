@@ -1891,6 +1891,12 @@ static VOID arcmsr_action(struct cam_sim * psim,union ccb * pccb)
 			strncpy(cpi->dev_name,cam_sim_name(psim),DEV_IDLEN);
 			cpi->unit_number=cam_sim_unit(psim);
 			cpi->ccb_h.status=CAM_REQ_CMP;
+#ifdef	CAM_NEW_TRAN_CODE
+			cpi->transport = XPORT_SPI;
+			cpi->transport_version = 2;
+			cpi->protocol = PROTO_SCSI;
+			cpi->protocol_version = SCSI_REV_2;
+#endif
 			xpt_done(pccb);
 			break;
 		}
@@ -1958,20 +1964,43 @@ static VOID arcmsr_action(struct cam_sim * psim,union ccb * pccb)
 		}
 	case XPT_GET_TRAN_SETTINGS:
 		{
-			struct ccb_trans_settings *cts;
+			struct ccb_trans_settings *cts = &pccb->cts;
 			ULONG s;
+#ifdef	CAM_NEW_TRAN_CODE
+			struct ccb_trans_settings_scsi *scsi =
+			    &cts->proto_specific.scsi;
+			struct ccb_trans_settings_spi *spi =
+			    &cts->xport_specific.spi;
+
+			cts->protocol = PROTO_SCSI;
+			cts->protocol_version = SCSI_REV_2;
+			cts->transport = XPORT_SPI;
+			cts->transport_version = 2;
+
+#endif
 
 			#if ARCMSR_DEBUG0
 			printf("arcmsr_action: XPT_GET_TRAN_SETTINGS\n" );
 			#endif
 
-			cts=&pccb->cts;
 			s=splcam();
+#ifdef	CAM_NEW_TRAN_CODE
+			spi->flags = CTS_SPI_FLAGS_DISC_ENB;
+			spi->sync_period=3;
+			spi->sync_offset=32;
+			spi->bus_width=MSG_EXT_WDTR_BUS_16_BIT;
+			scsi->flags = CTS_SCSI_FLAGS_TAG_ENB;
+			spi->valid = CTS_SPI_VALID_SYNC_RATE
+				| CTS_SPI_VALID_SYNC_OFFSET
+				| CTS_SPI_VALID_BUS_WIDTH;
+			scsi->valid = CTS_SCSI_VALID_TQ;
+#else
 			cts->flags=(CCB_TRANS_DISC_ENB | CCB_TRANS_TAG_ENB);
 			cts->sync_period=3;
 			cts->sync_offset=32;
 			cts->bus_width=MSG_EXT_WDTR_BUS_16_BIT;
             cts->valid=CCB_TRANS_SYNC_RATE_VALID | CCB_TRANS_SYNC_OFFSET_VALID | CCB_TRANS_BUS_WIDTH_VALID | CCB_TRANS_DISC_VALID | CCB_TRANS_TQ_VALID;
+#endif
 			splx(s);
 			pccb->ccb_h.status=CAM_REQ_CMP;
 			xpt_done(pccb);
