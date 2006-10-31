@@ -255,7 +255,6 @@ static int	em_82547_fifo_workaround(struct adapter *, int);
 static void	em_82547_update_fifo_head(struct adapter *, int);
 static int	em_82547_tx_fifo_reset(struct adapter *);
 static void	em_82547_move_tail(void *arg);
-static void	em_82547_move_tail_locked(struct adapter *);
 static int	em_dma_malloc(struct adapter *, bus_size_t,
 		struct em_dma_alloc *, int);
 static void	em_dma_free(struct adapter *, struct em_dma_alloc *);
@@ -421,8 +420,8 @@ em_attach(device_t dev)
 	    OID_AUTO, "stats", CTLTYPE_INT|CTLFLAG_RW, adapter, 0,
 	    em_sysctl_stats, "I", "Statistics");
 
-	callout_init(&adapter->timer, CALLOUT_MPSAFE);
-	callout_init(&adapter->tx_fifo_timer, CALLOUT_MPSAFE);
+	callout_init_mtx(&adapter->timer, &adapter->mtx, 0);
+	callout_init_mtx(&adapter->tx_fifo_timer, &adapter->mtx, 0);
 
 	/* Determine hardware revision */
 	em_identify_hardware(adapter);
@@ -627,6 +626,9 @@ em_detach(device_t dev)
 	em_phy_hw_reset(&adapter->hw);
 	EM_UNLOCK(adapter);
 	ether_ifdetach(adapter->ifp);
+
+	callout_drain(&adapter->timer);
+	callout_drain(&adapter->tx_fifo_timer);
 
 	em_free_pci_resources(adapter);
 	bus_generic_detach(dev);
@@ -1249,6 +1251,10 @@ em_handle_link(void *context, int pending)
 	ifp = adapter->ifp;
 
 	EM_LOCK(adapter);
+	if (!(ifp->if_drv_flags & IFF_DRV_RUNNING)) {
+		EM_UNLOCK(adapter);
+		return;
+	}
 
 	callout_stop(&adapter->timer);
 	adapter->hw.get_link_status = 1;
@@ -1765,7 +1771,7 @@ em_encap(struct adapter *adapter, struct mbuf **m_headp)
 
 	if (adapter->hw.mac_type == em_82547 &&
 	    adapter->link_duplex == HALF_DUPLEX)
-		em_82547_move_tail_locked(adapter);
+		em_82547_move_tail(adapter);
 	else {
 		E1000_WRITE_REG(&adapter->hw, TDT, i);
 		if (adapter->hw.mac_type == em_82547)
@@ -1784,8 +1790,9 @@ em_encap(struct adapter *adapter, struct mbuf **m_headp)
  *
  **********************************************************************/
 static void
-em_82547_move_tail_locked(struct adapter *adapter)
+em_82547_move_tail(void *arg)
 {
+	struct adapter *adapter = arg;
 	uint16_t hw_tdt;
 	uint16_t sw_tdt;
 	struct em_tx_desc *tx_desc;
@@ -1816,16 +1823,6 @@ em_82547_move_tail_locked(struct adapter *adapter)
 			length = 0;
 		}
 	}	
-}
-
-static void
-em_82547_move_tail(void *arg)
-{
-	struct adapter *adapter = arg;
-
-	EM_LOCK(adapter);
-	em_82547_move_tail_locked(adapter);
-	EM_UNLOCK(adapter);
 }
 
 static int
@@ -2016,7 +2013,7 @@ em_local_timer(void *arg)
 	struct adapter	*adapter = arg;
 	struct ifnet	*ifp = adapter->ifp;
 
-	EM_LOCK(adapter);
+	EM_LOCK_ASSERT(adapter);
 
 	em_check_for_link(&adapter->hw);
 	em_update_link_status(adapter);
@@ -2026,8 +2023,6 @@ em_local_timer(void *arg)
 	em_smartspeed(adapter);
 
 	callout_reset(&adapter->timer, hz, em_local_timer, adapter);
-
-	EM_UNLOCK(adapter);
 }
 
 static void
