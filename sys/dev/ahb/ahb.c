@@ -728,12 +728,24 @@ ahbprocesserror(struct ahb_softc *ahb, struct ecb *ecb, union ccb *ccb)
 	case HS_TAG_MSG_REJECTED:
 	{
 		struct ccb_trans_settings neg; 
+#ifdef	CAM_NEW_TRAN_CODE
+		struct ccb_trans_settings_scsi *scsi = &neg.proto_specific.scsi;
+#endif
 
 		xpt_print_path(ccb->ccb_h.path);
 		printf("refuses tagged commands.  Performing "
 		       "non-tagged I/O\n");
+		memset(&neg, 0, sizeof (neg));
+#ifdef	CAM_NEW_TRAN_CODE
+		neg.protocol = PROTO_SCSI;
+		neg.protocol_version = SCSI_REV_2;
+		neg.transport = XPORT_SPI;
+		neg.transport_version = 2;
+		scsi->flags = CTS_SCSI_VALID_TQ;
+#else
 		neg.flags = 0;
 		neg.valid = CCB_TRANS_TQ_VALID;
+#endif
 		xpt_setup_ccb(&neg.ccb_h, ccb->ccb_h.path, /*priority*/1); 
 		xpt_async(AC_TRANSFER_NEG, ccb->ccb_h.path, &neg);
 		ahb->tags_permitted &= ~(0x01 << ccb->ccb_h.target_id);
@@ -1128,11 +1140,42 @@ ahbaction(struct cam_sim *sim, union ccb *ccb)
 	case XPT_GET_TRAN_SETTINGS:
 	/* Get default/user set transfer settings for the target */
 	{
-		struct	ccb_trans_settings *cts;
-		u_int	target_mask;
+		struct	ccb_trans_settings *cts = &ccb->cts;
+		u_int	target_mask = 0x01 << ccb->ccb_h.target_id;
+#ifdef	CAM_NEW_TRAN_CODE
+		struct ccb_trans_settings_scsi *scsi =
+		    &cts->proto_specific.scsi;
+		struct ccb_trans_settings_spi *spi =
+		    &cts->xport_specific.spi;
 
-		cts = &ccb->cts;
-		target_mask = 0x01 << ccb->ccb_h.target_id;
+		if (cts->type == CTS_TYPE_USER_SETTINGS) {
+			cts->protocol = PROTO_SCSI;
+			cts->protocol_version = SCSI_REV_2;
+			cts->transport = XPORT_SPI;
+			cts->transport_version = 2;
+
+			scsi->flags &= ~CTS_SCSI_FLAGS_TAG_ENB;
+			spi->flags &= ~CTS_SPI_FLAGS_DISC_ENB;
+			if ((ahb->disc_permitted & target_mask) != 0)
+				spi->flags |= CTS_SPI_FLAGS_DISC_ENB;
+			if ((ahb->tags_permitted & target_mask) != 0)
+				scsi->flags |= CTS_SCSI_FLAGS_TAG_ENB;
+			spi->bus_width = MSG_EXT_WDTR_BUS_8_BIT;
+			spi->sync_period = 25; /* 10MHz */
+
+			if (spi->sync_period != 0)
+				spi->sync_offset = 15;
+
+			spi->valid = CTS_SPI_VALID_SYNC_RATE
+				   | CTS_SPI_VALID_SYNC_OFFSET
+				   | CTS_SPI_VALID_BUS_WIDTH
+				   | CTS_SPI_VALID_DISC;
+			scsi->valid = CTS_SCSI_VALID_TQ;
+			ccb->ccb_h.status = CAM_REQ_CMP;
+		} else {
+			ccb->ccb_h.status = CAM_FUNC_NOTAVAIL;
+		}
+#else
 		if ((cts->flags & CCB_TRANS_USER_SETTINGS) != 0) {
 			cts->flags = 0;
 			if ((ahb->disc_permitted & target_mask) != 0)
@@ -1154,6 +1197,7 @@ ahbaction(struct cam_sim *sim, union ccb *ccb)
 		} else {
 			ccb->ccb_h.status = CAM_FUNC_NOTAVAIL;
 		}
+#endif
 		xpt_done(ccb);
 		break;
 	}
@@ -1215,6 +1259,12 @@ ahbaction(struct cam_sim *sim, union ccb *ccb)
 		strncpy(cpi->hba_vid, "Adaptec", HBA_IDLEN);
 		strncpy(cpi->dev_name, cam_sim_name(sim), DEV_IDLEN);
 		cpi->unit_number = cam_sim_unit(sim);
+#ifdef	CAM_NEW_TRAN_CODE
+                cpi->transport = XPORT_SPI;
+                cpi->transport_version = 2;
+                cpi->protocol = PROTO_SCSI;
+                cpi->protocol_version = SCSI_REV_2;
+#endif
 		cpi->ccb_h.status = CAM_REQ_CMP;
 		xpt_done(ccb);
 		break;

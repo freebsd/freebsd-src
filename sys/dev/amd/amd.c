@@ -504,6 +504,12 @@ amd_action(struct cam_sim * psim, union ccb * pccb)
 		strncpy(cpi->hba_vid, "TRM-AMD", HBA_IDLEN);
 		strncpy(cpi->dev_name, cam_sim_name(psim), DEV_IDLEN);
 		cpi->unit_number = cam_sim_unit(psim);
+#ifdef	CAM_NEW_TRAN_CODE
+                cpi->transport = XPORT_SPI;
+                cpi->transport_version = 2;
+                cpi->protocol = PROTO_SCSI;
+                cpi->protocol_version = SCSI_REV_2;
+#endif
 		cpi->ccb_h.status = CAM_REQ_CMP;
 		xpt_done(pccb);
 		break;
@@ -536,17 +542,64 @@ amd_action(struct cam_sim * psim, union ccb * pccb)
 	case XPT_TERM_IO:
 		pccb->ccb_h.status = CAM_REQ_INVALID;
 		xpt_done(pccb);
-		/* XXX: intentional fall-through ?? */
+		break;
 	case XPT_GET_TRAN_SETTINGS:
 	{
-		struct ccb_trans_settings *cts;
-		struct amd_target_info *targ_info;
+		struct ccb_trans_settings *cts = &pccb->cts;
+		struct amd_target_info *targ_info = &amd->tinfo[target_id];
 		struct amd_transinfo *tinfo;
 		int     intflag;
+#ifdef	CAM_NEW_TRAN_CODE
+		struct ccb_trans_settings_scsi *scsi =
+		    &cts->proto_specific.scsi;
+		struct ccb_trans_settings_spi *spi =
+		    &cts->xport_specific.spi;
 
-		cts = &pccb->cts;
+		cts->protocol = PROTO_SCSI;
+		cts->protocol_version = SCSI_REV_2;
+		cts->transport = XPORT_SPI;
+		cts->transport_version = 2;
+
 		intflag = splcam();
-		targ_info = &amd->tinfo[target_id];
+		if (cts->type == CTS_TYPE_CURRENT_SETTINGS) {
+			/* current transfer settings */
+			if (targ_info->disc_tag & AMD_CUR_DISCENB) {
+				spi->flags = CTS_SPI_FLAGS_DISC_ENB;
+			} else {
+				spi->flags = 0;
+			}
+			if (targ_info->disc_tag & AMD_CUR_TAGENB) {
+				scsi->flags = CTS_SCSI_FLAGS_TAG_ENB;
+			} else {
+				scsi->flags = 0;
+			}
+			tinfo = &targ_info->current;
+		} else {
+			/* default(user) transfer settings */
+			if (targ_info->disc_tag & AMD_USR_DISCENB) {
+				spi->flags = CTS_SPI_FLAGS_DISC_ENB;
+			} else {
+				spi->flags = 0;
+			}
+			if (targ_info->disc_tag & AMD_USR_TAGENB) {
+				scsi->flags = CTS_SCSI_FLAGS_TAG_ENB;
+			} else {
+				scsi->flags = 0;
+			}
+			tinfo = &targ_info->user;
+		}
+		spi->sync_period = tinfo->period;
+		spi->sync_offset = tinfo->offset;
+		splx(intflag);
+
+		spi->bus_width = MSG_EXT_WDTR_BUS_8_BIT;
+		spi->valid = CTS_SPI_VALID_SYNC_RATE
+			   | CTS_SPI_VALID_SYNC_OFFSET
+			   | CTS_SPI_VALID_BUS_WIDTH
+			   | CTS_SPI_VALID_DISC;
+		scsi->valid = CTS_SCSI_VALID_TQ;
+#else
+		intflag = splcam();
 		if ((cts->flags & CCB_TRANS_CURRENT_SETTINGS) != 0) {
 			/* current transfer settings */
 			if (targ_info->disc_tag & AMD_CUR_DISCENB) {
@@ -575,28 +628,40 @@ amd_action(struct cam_sim * psim, union ccb * pccb)
 		cts->sync_offset = tinfo->offset;
 		cts->bus_width = MSG_EXT_WDTR_BUS_8_BIT;
 		splx(intflag);
+
 		cts->valid = CCB_TRANS_SYNC_RATE_VALID
 			   | CCB_TRANS_SYNC_OFFSET_VALID
 			   | CCB_TRANS_BUS_WIDTH_VALID
 			   | CCB_TRANS_DISC_VALID
 			   | CCB_TRANS_TQ_VALID;
+#endif
 		pccb->ccb_h.status = CAM_REQ_CMP;
 		xpt_done(pccb);
 		break;
 	}
+#ifdef  CAM_NEW_TRAN_CODE
+#define	IS_CURRENT_SETTINGS(c)	(c->type == CTS_TYPE_CURRENT_SETTINGS)
+#define	IS_USER_SETTINGS(c)	(c->type == CTS_TYPE_USER_SETTINGS)
+#else
+#define	IS_CURRENT_SETTINGS(c)	(c->flags & CCB_TRANS_CURRENT_SETTINGS)
+#define	IS_USER_SETTINGS(c)	(c->flags & CCB_TRANS_USER_SETTINGS)
+#endif
 	case XPT_SET_TRAN_SETTINGS:
 	{
-		struct ccb_trans_settings *cts;
+		struct ccb_trans_settings *cts = &pccb->cts;
 		struct amd_target_info *targ_info;
-		u_int  update_type;
+		u_int  update_type = 0;
 		int    intflag;
 		int    last_entry;
-
-		cts = &pccb->cts;
-		update_type = 0;
-		if ((cts->flags & CCB_TRANS_CURRENT_SETTINGS) != 0) {
+#ifdef  CAM_NEW_TRAN_CODE
+		struct ccb_trans_settings_scsi *scsi =
+		    &cts->proto_specific.scsi;
+		struct ccb_trans_settings_spi *spi =
+		    &cts->xport_specific.spi;
+#endif
+		if (IS_CURRENT_SETTINGS(cts)) {
 			update_type |= AMD_TRANS_GOAL;
-		} else if ((cts->flags & CCB_TRANS_USER_SETTINGS) != 0) {
+		} else if (IS_USER_SETTINGS(cts)) {
 			update_type |= AMD_TRANS_USER;
 		}
 		if (update_type == 0
@@ -605,6 +670,82 @@ amd_action(struct cam_sim * psim, union ccb * pccb)
 			xpt_done(pccb);
 		}
 
+#ifdef	CAM_NEW_TRAN_CODE
+		intflag = splcam();
+		targ_info = &amd->tinfo[target_id];
+
+		if ((spi->valid & CTS_SPI_VALID_DISC) != 0) {
+			if (update_type & AMD_TRANS_GOAL) {
+				if ((spi->flags & CTS_SPI_FLAGS_DISC_ENB)
+				   != 0) {
+					targ_info->disc_tag |= AMD_CUR_DISCENB;
+				} else {
+					targ_info->disc_tag &= ~AMD_CUR_DISCENB;
+				}
+			}
+			if (update_type & AMD_TRANS_USER) {
+				if ((spi->flags & CTS_SPI_FLAGS_DISC_ENB)
+				   != 0) {
+					targ_info->disc_tag |= AMD_USR_DISCENB;
+				} else {
+					targ_info->disc_tag &= ~AMD_USR_DISCENB;
+				}
+			}
+		}
+		if ((scsi->valid & CTS_SCSI_VALID_TQ) != 0) {
+			if (update_type & AMD_TRANS_GOAL) {
+				if ((scsi->flags & CTS_SCSI_FLAGS_TAG_ENB)
+				   != 0) {
+					targ_info->disc_tag |= AMD_CUR_TAGENB;
+				} else {
+					targ_info->disc_tag &= ~AMD_CUR_TAGENB;
+				}
+			}
+			if (update_type & AMD_TRANS_USER) {
+				if ((scsi->flags & CTS_SCSI_FLAGS_TAG_ENB)
+				    != 0) {
+					targ_info->disc_tag |= AMD_USR_TAGENB;
+				} else {
+					targ_info->disc_tag &= ~AMD_USR_TAGENB;
+				}
+			}
+		}
+
+		if ((spi->valid & CTS_SPI_VALID_SYNC_OFFSET) == 0) {
+			if (update_type & AMD_TRANS_GOAL)
+				spi->sync_offset = targ_info->goal.offset;
+			else
+				spi->sync_offset = targ_info->user.offset;
+		}
+
+		if (spi->sync_offset > AMD_MAX_SYNC_OFFSET)
+			spi->sync_offset = AMD_MAX_SYNC_OFFSET;
+
+		if ((spi->valid & CTS_SPI_VALID_SYNC_RATE) == 0) {
+			if (update_type & AMD_TRANS_GOAL)
+				spi->sync_period = targ_info->goal.period;
+			else
+				spi->sync_period = targ_info->user.period;
+		}
+
+		last_entry = sizeof(tinfo_sync_period) - 1;
+		if ((spi->sync_period != 0)
+		 && (spi->sync_period < tinfo_sync_period[0]))
+			spi->sync_period = tinfo_sync_period[0];
+		if (spi->sync_period > tinfo_sync_period[last_entry])
+		 	spi->sync_period = 0;
+		if (spi->sync_offset == 0)
+			spi->sync_period = 0;
+
+		if ((update_type & AMD_TRANS_USER) != 0) {
+			targ_info->user.period = spi->sync_period;
+			targ_info->user.offset = spi->sync_offset;
+		}
+		if ((update_type & AMD_TRANS_GOAL) != 0) {
+			targ_info->goal.period = spi->sync_period;
+			targ_info->goal.offset = spi->sync_offset;
+		}
+#else
 		intflag = splcam();
 		targ_info = &amd->tinfo[target_id];
 
@@ -675,6 +816,7 @@ amd_action(struct cam_sim * psim, union ccb * pccb)
 			targ_info->goal.period = cts->sync_period;
 			targ_info->goal.offset = cts->sync_offset;
 		}
+#endif
 		splx(intflag);
 		pccb->ccb_h.status = CAM_REQ_CMP;
 		xpt_done(pccb);
@@ -817,12 +959,23 @@ amdsetsync(struct amd_softc *amd, u_int target, u_int clockrate,
 				    cam_sim_path(amd->psim), target,
 				    CAM_LUN_WILDCARD) == CAM_REQ_CMP) {
 			struct ccb_trans_settings neg;
-
+#ifdef	CAM_NEW_TRAN_CODE
+			struct ccb_trans_settings_spi *spi =
+			    &neg.xport_specific.spi;
+#endif
 			xpt_setup_ccb(&neg.ccb_h, path, /*priority*/1);
+			memset(&neg, 0, sizeof (neg));
+#ifdef	CAM_NEW_TRAN_CODE
+			spi->sync_period = period;
+			spi->sync_offset = offset;
+			spi->valid = CTS_SPI_VALID_SYNC_RATE
+				  | CTS_SPI_VALID_SYNC_OFFSET;
+#else
 			neg.sync_period = period;
 			neg.sync_offset = offset;
 			neg.valid = CCB_TRANS_SYNC_RATE_VALID
 				  | CCB_TRANS_SYNC_OFFSET_VALID;
+#endif
 			xpt_async(AC_TRANSFER_NEG, path, &neg);
 			xpt_free_path(path);	
 		}
@@ -1474,13 +1627,21 @@ amdhandlemsgreject(struct amd_softc *amd)
 	} else if ((srb != NULL)
 		&& (srb->pccb->ccb_h.flags & CAM_TAG_ACTION_VALID) != 0) {
 		struct  ccb_trans_settings neg;
+#ifdef CAM_NEW_TRAN_CODE
+		struct ccb_trans_settings_scsi *scsi = &neg.proto_specific.scsi;
+#endif
 
 		printf("amd%d:%d: refuses tagged commands.  Performing "
 		       "non-tagged I/O\n", amd->unit, amd->cur_target);
 
 		amdsettags(amd, amd->cur_target, FALSE);
+		memset(&neg, 0, sizeof (neg));
+#ifdef	CAM_NEW_TRAN_CODE
+		scsi->valid = CTS_SCSI_VALID_TQ;
+#else
 		neg.flags = 0;
 		neg.valid = CCB_TRANS_TQ_VALID;
+#endif
 		xpt_setup_ccb(&neg.ccb_h, srb->pccb->ccb_h.path, /*priority*/1);
 		xpt_async(AC_TRANSFER_NEG, srb->pccb->ccb_h.path, &neg);
 
