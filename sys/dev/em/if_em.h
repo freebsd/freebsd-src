@@ -319,7 +319,7 @@ struct adapter {
 	struct em_dma_alloc	txdma;		/* bus_dma glue for tx desc */
 	struct em_tx_desc	*tx_desc_base;
 	uint32_t		next_avail_tx_desc;
-	uint32_t		oldest_used_tx_desc;
+	uint32_t		next_tx_to_clean;
 	volatile uint16_t	num_tx_desc_avail;
         uint16_t		num_tx_desc;
         uint32_t		txd_cmd;
@@ -398,6 +398,7 @@ typedef struct _em_vendor_info_t {
 
 
 struct em_buffer {
+	int		next_eop;	/* Index of the desc to watch */
         struct mbuf    *m_head;
         bus_dmamap_t    map;         /* bus_dma map for packet */
 };
