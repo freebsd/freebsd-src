@@ -25,7 +25,7 @@
 .\" $Id: bthidcontrol.8,v 1.1 2004/02/13 21:44:41 max Exp $
 .\" $FreeBSD$
 .\"
-.Dd February 13, 2004
+.Dd October 30, 2006
 .Dt BTHIDCONTROL 8
 .Os
 .Sh NAME
@@ -38,6 +38,7 @@
 .Op Fl a Ar BD_ADDR
 .Op Fl c Ar file
 .Op Fl H Ar file
+.Op Fl v
 .Ar command
 .Sh DESCRIPTION
 The
@@ -67,6 +68,8 @@ The default path is
 .Pa /var/db/bthidd.hids .
 .It Fl h
 Display usage message and exit.
+.It Fl v
+Be verbose and show items that are being used for padding.
 .It Ar command
 One of the supported commands (see below).
 Special command
