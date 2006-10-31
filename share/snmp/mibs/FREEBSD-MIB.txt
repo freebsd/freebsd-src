@@ -16,7 +16,7 @@ IMPORTS
 		FROM SNMPv2-SMI;
 
 freeBSD MODULE-IDENTITY
-	LAST-UPDATED "200404110000Z"
+	LAST-UPDATED "200610310000Z"
 	ORGANIZATION "The FreeBSD Project."
 	CONTACT-INFO
 		"phk@FreeBSD.org is contact person for this file.
@@ -24,7 +24,7 @@ freeBSD MODULE-IDENTITY
 	DESCRIPTION
 		"The Structure of Management Information for the
 		FreeBSD Project enterprise MIB subtree."
-	REVISION      "200404110000Z"
+	REVISION      "200610310000Z"
 	DESCRIPTION
 		"Initial version of this MIB module."
 	::= { enterprises 2238 }	-- assigned by IANA
@@ -50,8 +50,14 @@ freeBSDpeople OBJECT-IDENTITY
 		 a subtree under his/her logname freefall.
 		 To avoid ambiguity with subset lognames, the length
 		 must be prepended.
-		 Example: phk's subtree is: {FreeBSD 3 3 112 104 107}
+		 Example: phk's subtree is: {FreeBSDpeople 3 112 104 107}
 		"
 	::= { freeBSD 3 }
+
+freeBSDpeoplePhk OBJECT-IDENTITY
+	STATUS current
+	DESCRIPTION
+		"Subtree for phk@FreeBSD.org"
+	::= {freeBSDpeople 3 112 104 107}
 
 END
