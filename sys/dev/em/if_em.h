@@ -86,7 +86,8 @@ POSSIBILITY OF SUCH DAMAGE.
 #define EM_TIDV                         64
 
 /*
- * EM_TADV - Transmit Absolute Interrupt Delay Value (Not valid for 82542/82543/82544)
+ * EM_TADV - Transmit Absolute Interrupt Delay Value
+ * (Not valid for 82542/82543/82544)
  * Valid Range: 0-65535 (0=off)
  * Default Value: 64
  *   This value, in units of 1.024 microseconds, limits the delay in which a
@@ -112,10 +113,10 @@ POSSIBILITY OF SUCH DAMAGE.
  *
  *   CAUTION: When setting EM_RDTR to a value other than 0, adapters
  *            may hang (stop transmitting) under certain network conditions.
- *            If this occurs a WATCHDOG message is logged in the system event log.
- *            In addition, the controller is automatically reset, restoring the
- *            network connection. To eliminate the potential for the hang
- *            ensure that EM_RDTR is set to 0.
+ *            If this occurs a WATCHDOG message is logged in the system
+ *            event log. In addition, the controller is automatically reset,
+ *            restoring the network connection. To eliminate the potential
+ *            for the hang ensure that EM_RDTR is set to 0.
  */
 #define EM_RDTR                         0
 
@@ -206,6 +207,16 @@ POSSIBILITY OF SUCH DAMAGE.
 #define EM_DBA_ALIGN			128
 
 #define SPEED_MODE_BIT (1<<21)		/* On PCI-E MACs only */
+
+/* PCI Config defines */
+#define EM_BAR_TYPE(v)			((v) & EM_BAR_TYPE_MASK)
+#define EM_BAR_TYPE_MASK		0x00000001
+#define EM_BAR_TYPE_MMEM		0x00000000
+#define EM_BAR_TYPE_IO			0x00000001
+#define EM_BAR_MEM_TYPE(v)		((v) & EM_BAR_MEM_TYPE_MASK)
+#define EM_BAR_MEM_TYPE_MASK		0x00000006
+#define EM_BAR_MEM_TYPE_32BIT 		0x00000000
+#define EM_BAR_MEM_TYPE_64BIT		0x00000004
 
 /* Defines for printing debug information */
 #define DEBUG_INIT  0
@@ -394,14 +405,14 @@ struct em_buffer {
 /* For 82544 PCIX  Workaround */
 typedef struct _ADDRESS_LENGTH_PAIR
 {
-    u_int64_t   address;
-    u_int32_t   length;
+    uint64_t   address;
+    uint32_t   length;
 } ADDRESS_LENGTH_PAIR, *PADDRESS_LENGTH_PAIR;
 
 typedef struct _DESCRIPTOR_PAIR
 {
     ADDRESS_LENGTH_PAIR descriptor[4];
-    u_int32_t   elements;
+    uint32_t   elements;
 } DESC_ARRAY, *PDESC_ARRAY;
 
 #define	EM_LOCK_INIT(_sc, _name) \
