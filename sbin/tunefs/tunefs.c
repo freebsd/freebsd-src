@@ -76,11 +76,11 @@ void printfs(void);
 int
 main(int argc, char *argv[])
 {
-	char *avalue, *Lvalue, *lvalue, *nvalue;
+	char *avalue, *Jvalue, *Lvalue, *lvalue, *nvalue;
 	const char *special, *on;
 	const char *name;
 	int active;
-	int Aflag, aflag, eflag, evalue, fflag, fvalue, Lflag, lflag;
+	int Aflag, aflag, eflag, evalue, fflag, fvalue, Jflag, Lflag, lflag;
 	int mflag, mvalue, nflag, oflag, ovalue, pflag, sflag, svalue;
 	int ch, found_arg, i;
 	const char *chg[2];
@@ -89,13 +89,13 @@ main(int argc, char *argv[])
 
 	if (argc < 3)
 		usage();
-	Aflag = aflag = eflag = fflag = Lflag = lflag = mflag = 0;
+	Aflag = aflag = eflag = fflag = Jflag = Lflag = lflag = mflag = 0;
 	nflag = oflag = pflag = sflag = 0;
-	avalue = Lvalue = lvalue = nvalue = NULL;
+	avalue = Jvalue = Lvalue = lvalue = nvalue = NULL;
 	evalue = fvalue = mvalue = ovalue = svalue = 0;
 	active = 0;
 	found_arg = 0;		/* At least one arg is required. */
-	while ((ch = getopt(argc, argv, "Aa:e:f:L:l:m:n:o:ps:")) != -1)
+	while ((ch = getopt(argc, argv, "Aa:e:f:J:L:l:m:n:o:ps:")) != -1)
 		switch (ch) {
 
 		case 'A':
@@ -134,6 +134,19 @@ main(int argc, char *argv[])
 				    name, optarg);
 			fflag = 1;
 			break;
+
+		case 'J':
+			found_arg = 1;
+			name = "gjournaled file system";
+			Jvalue = optarg;
+			if (strcmp(Jvalue, "enable") &&
+			    strcmp(Jvalue, "disable")) {
+				errx(10, "bad %s (options are %s)",
+				    name, "`enable' or `disable'");
+			}
+			Jflag = 1;
+			break;
+
 
 		case 'L':
 			found_arg = 1;
@@ -282,6 +295,26 @@ main(int argc, char *argv[])
 			sblock.fs_avgfilesize = fvalue;
 		}
 	}
+	if (Jflag) {
+		name = "gjournal";
+		if (strcmp(Jvalue, "enable") == 0) {
+			if (sblock.fs_flags & FS_GJOURNAL) {
+				warnx("%s remains unchanged as enabled", name);
+			} else {
+				sblock.fs_flags |= FS_GJOURNAL;
+				warnx("%s set", name);
+			}
+		} else if (strcmp(Jvalue, "disable") == 0) {
+			if ((~sblock.fs_flags & FS_GJOURNAL) ==
+			    FS_GJOURNAL) {
+				warnx("%s remains unchanged as disabled",
+				    name);
+			} else {
+				sblock.fs_flags &= ~FS_GJOURNAL;
+				warnx("%s cleared", name);
+			}
+		}
+	}
 	if (lflag) {
 		name = "multilabel";
 		if (strcmp(lvalue, "enable") == 0) {
@@ -389,8 +422,8 @@ usage(void)
 {
 	fprintf(stderr, "%s\n%s\n%s\n%s\n",
 "usage: tunefs [-A] [-a enable | disable] [-e maxbpg] [-f avgfilesize]",
-"              [-L volname] [-l enable | disable] [-m minfree]",
-"              [-n enable | disable] [-o space | time] [-p]",
+"              [-J enable | disable ] [-L volname] [-l enable | disable]",
+"              [-m minfree] [-n enable | disable] [-o space | time] [-p]",
 "              [-s avgfpdir] special | filesystem");
 	exit(2);
 }
@@ -404,6 +437,8 @@ printfs(void)
 		(sblock.fs_flags & FS_MULTILABEL)? "enabled" : "disabled");
 	warnx("soft updates: (-n)                                 %s", 
 		(sblock.fs_flags & FS_DOSOFTDEP)? "enabled" : "disabled");
+	warnx("gjournal: (-J)                                     %s",
+		(sblock.fs_flags & FS_GJOURNAL)? "enabled" : "disabled");
 	warnx("maximum blocks per file in a cylinder group: (-e)  %d",
 	      sblock.fs_maxbpg);
 	warnx("average file size: (-f)                            %d",
