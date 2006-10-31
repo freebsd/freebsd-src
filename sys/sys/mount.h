@@ -175,8 +175,9 @@ struct mount {
 	int		mnt_holdcnt;		/* hold count */
 	int		mnt_holdcntwaiters;	/* waits on hold count */
 	int		mnt_secondary_writes;   /* (i) # of secondary writes */
-#define	mnt_endzero	mnt_secondary_accwrites
 	int		mnt_secondary_accwrites;/* (i) secondary wr. starts */
+#define	mnt_endzero	mnt_gjprovider
+	char		*mnt_gjprovider;	/* gjournal provider name */
 };
 
 struct vnode *__mnt_vnode_next(struct vnode **mvp, struct mount *mp);
@@ -222,6 +223,7 @@ void          __mnt_vnode_markerfree(struct vnode **mvp, struct mount *mp);
 #define	MNT_SUIDDIR	0x00100000	/* special handling of SUID on dirs */
 #define	MNT_SOFTDEP	0x00200000	/* soft updates being done */
 #define	MNT_NOSYMFOLLOW	0x00400000	/* do not follow symlinks */
+#define	MNT_GJOURNAL	0x02000000	/* GEOM journal support enabled */
 #define	MNT_MULTILABEL	0x04000000	/* MAC support for individual objects */
 #define	MNT_ACLS	0x08000000	/* ACL support enabled */
 #define	MNT_NOATIME	0x10000000	/* disable update of file access time */
@@ -262,7 +264,7 @@ void          __mnt_vnode_markerfree(struct vnode **mvp, struct mount *mp);
 			MNT_ROOTFS	| MNT_NOATIME	| MNT_NOCLUSTERR| \
 			MNT_NOCLUSTERW	| MNT_SUIDDIR	| MNT_SOFTDEP	| \
 			MNT_IGNORE	| MNT_EXPUBLIC	| MNT_NOSYMFOLLOW | \
-			MNT_MULTILABEL	| MNT_ACLS)
+			MNT_GJOURNAL	| MNT_MULTILABEL | MNT_ACLS)
 
 /* Mask of flags that can be updated. */
 #define	MNT_UPDATEMASK (MNT_NOSUID	| MNT_NOEXEC	| \
@@ -291,7 +293,6 @@ void          __mnt_vnode_markerfree(struct vnode **mvp, struct mount *mp);
  * Still available.
  */
 #define	MNT_SPARE_0x00000010	0x00000010
-#define	MNT_SPARE_0x02000000	0x02000000
 /*
  * Internal filesystem control flags stored in mnt_kern_flag.
  *
