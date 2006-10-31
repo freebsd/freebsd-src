@@ -16,7 +16,7 @@ IMPORTS
 		FROM SNMPv2-SMI;
 
 freeBSD MODULE-IDENTITY
-	LAST-UPDATED "200610310800Z"
+	LAST-UPDATED "200610311000Z"
 	ORGANIZATION "The FreeBSD Project."
 	CONTACT-INFO
 		"phk@FreeBSD.org is contact person for this file.
@@ -57,5 +57,23 @@ freeBSDpeoplePhk OBJECT-IDENTITY
 	STATUS current DESCRIPTION
 		"Subtree for phk@FreeBSD.org"
 	::= {freeBSDpeople 1}
+
+freeBSDVersion OBJECT-IDENTITY
+	STATUS	current
+	DESCRIPTION
+		"Subtree to register FreeBSD versions. The OID for a FreeBSD
+		 version is formed by appending the dot delimited numbers
+		 from the release number to this base OID. Examples:
+
+		  5.2.1-STABLE:	freeBSDVersion.5.2.1
+		  6.1-STABLE:	freeBSDVersion.6.1
+		  7.0-CURRENT:	freeBSDVersion.7.0
+
+		 There is no indication whether this is STABLE or CURRENT.
+
+		 The sysObjectId is automatically set to the value indicated
+		 by the uname(3) release field by bsnmpd(1). This initial
+		 value can be overwritten in the configuration file."
+	::= { freeBSD 4 }
 
 END
