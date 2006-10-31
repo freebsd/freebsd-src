@@ -7,6 +7,7 @@ SUBDIR+=concat
 .if ${MK_OPENSSL} != "no"
 SUBDIR+=eli
 .endif
+SUBDIR+=journal
 SUBDIR+=label
 SUBDIR+=mirror
 SUBDIR+=nop

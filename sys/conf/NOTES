@@ -130,6 +130,7 @@ options 	GEOM_ELI		# Disk encryption.
 options 	GEOM_FOX		# Redundant path mitigation
 options 	GEOM_GATE		# Userland services.
 options 	GEOM_GPT		# GPT partitioning
+options 	GEOM_JOURNAL		# Journaling.
 options 	GEOM_LABEL		# Providers labelization.
 options 	GEOM_MBR		# DOS/MBR partitioning
 options 	GEOM_MIRROR		# Disk mirroring.
@@ -881,6 +882,9 @@ options 	UFS_ACL
 # Directory hashing improves the speed of operations on very large
 # directories at the expense of some memory.
 options 	UFS_DIRHASH
+
+# Gjournal-based UFS journaling support.
+options 	UFS_GJOURNAL
 
 # Make space in the kernel for a root filesystem on a md device.
 # Define to the number of kilobytes to reserve for the filesystem.
