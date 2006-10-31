@@ -40,9 +40,10 @@ ppp_precmd()
 
 ppp_postcmd()
 {
-	# Re-Sync ipfilter so it picks up any new network interfaces
+	# Re-Sync ipfilter and pf so they pick up any new network interfaces
 	#
 	/etc/rc.d/ipfilter resync
+	/etc/rc.d/pf resync
 }
 
 load_rc_config $name
