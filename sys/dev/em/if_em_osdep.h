@@ -148,19 +148,19 @@ struct em_osdep
 #define E1000_WRITE_REG_ARRAY_DWORD(hw, reg, index, value) \
     E1000_WRITE_OFFSET(hw, _E1000_REG_OFFSET(hw, _##reg) + ((index) << 2), value)
 
-#define E1000_READ_ICH8_REG(hw, reg) \
+#define E1000_READ_ICH_FLASH_REG(hw, reg) \
     bus_space_read_4(((struct em_osdep *)(hw)->back)->flash_bus_space_tag, \
         ((struct em_osdep *)(hw)->back)->flash_bus_space_handle, reg)
 
-#define E1000_READ_ICH8_REG16(hw, reg) \
+#define E1000_READ_ICH_FLASH_REG16(hw, reg) \
     bus_space_read_2(((struct em_osdep *)(hw)->back)->flash_bus_space_tag, \
         ((struct em_osdep *)(hw)->back)->flash_bus_space_handle, reg)
 
-#define E1000_WRITE_ICH8_REG(hw, reg, value) \
+#define E1000_WRITE_ICH_FLASH_REG(hw, reg, value) \
     bus_space_write_4(((struct em_osdep *)(hw)->back)->flash_bus_space_tag, \
         ((struct em_osdep *)(hw)->back)->flash_bus_space_handle, reg, value)
 
-#define E1000_WRITE_ICH8_REG16(hw, reg, value) \
+#define E1000_WRITE_ICH_FLASH_REG16(hw, reg, value) \
     bus_space_write_2(((struct em_osdep *)(hw)->back)->flash_bus_space_tag, \
         ((struct em_osdep *)(hw)->back)->flash_bus_space_handle, reg, value)
  
