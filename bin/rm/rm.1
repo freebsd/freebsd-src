@@ -88,7 +88,9 @@ yet provides almost the same level of protection against mistakes.
 Overwrite regular files before deleting them.
 Files are overwritten three times, first with the byte pattern 0xff,
 then 0x00, and then 0xff again, before they are deleted.
-Files with multiple links will not be overwritten.
+Files with multiple links will not be overwritten nor deleted unless
+.Fl f
+is specified, a warning is generated instead.
 .Pp
 Specifying this flag for a read only file will cause
 .Nm
@@ -170,6 +172,12 @@ path reference.
 For example:
 .Dl rm /home/user/-filename
 .Dl rm ./-filename
+.Pp
+When
+.Fl P
+is specified with
+.Fl f
+the file will be overwritten and removed even if it has hard links.
 .Sh COMPATIBILITY
 The
 .Nm
