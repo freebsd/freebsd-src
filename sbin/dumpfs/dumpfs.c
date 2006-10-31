@@ -168,8 +168,9 @@ dumpfs(const char *name)
 		    (intmax_t)afs.fs_cstotal.cs_ndir,
 		    (intmax_t)afs.fs_cstotal.cs_nifree, 
 		    (intmax_t)afs.fs_cstotal.cs_nffree);
-		printf("bpg\t%d\tfpg\t%d\tipg\t%d\n",
-		    afs.fs_fpg / afs.fs_frag, afs.fs_fpg, afs.fs_ipg);
+		printf("bpg\t%d\tfpg\t%d\tipg\t%d\tunrefs\t%jd\n",
+		    afs.fs_fpg / afs.fs_frag, afs.fs_fpg, afs.fs_ipg,
+		    (intmax_t)afs.fs_unrefs);
 		printf("nindir\t%d\tinopb\t%d\tmaxfilesize\t%ju\n",
 		    afs.fs_nindir, afs.fs_inopb, 
 		    (uintmax_t)afs.fs_maxfilesize);
@@ -228,10 +229,12 @@ dumpfs(const char *name)
 		printf("acls ");
 	if (fsflags & FS_MULTILABEL)
 		printf("multilabel ");
+	if (fsflags & FS_GJOURNAL)
+		printf("gjournal ");
 	if (fsflags & FS_FLAGS_UPDATED)
 		printf("fs_flags expanded ");
 	fsflags &= ~(FS_UNCLEAN | FS_DOSOFTDEP | FS_NEEDSFSCK | FS_INDEXDIRS |
-		     FS_ACLS | FS_MULTILABEL | FS_FLAGS_UPDATED);
+		     FS_ACLS | FS_MULTILABEL | FS_GJOURNAL | FS_FLAGS_UPDATED);
 	if (fsflags != 0)
 		printf("unknown flags (%#x)", fsflags);
 	putchar('\n');
@@ -282,8 +285,9 @@ dumpcg(void)
 		cgtime = acg.cg_time;
 		printf("magic\t%x\ttell\t%jx\ttime\t%s",
 		    acg.cg_magic, (intmax_t)cur, ctime(&cgtime));
-		printf("cgx\t%d\tndblk\t%d\tniblk\t%d\tinitiblk %d\n",
-		    acg.cg_cgx, acg.cg_ndblk, acg.cg_niblk, acg.cg_initediblk);
+		printf("cgx\t%d\tndblk\t%d\tniblk\t%d\tinitiblk %d\tunrefs %d\n",
+		    acg.cg_cgx, acg.cg_ndblk, acg.cg_niblk, acg.cg_initediblk,
+		    acg.cg_unrefs);
 		break;
 	case 1:
 		cgtime = acg.cg_old_time;
