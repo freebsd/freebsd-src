@@ -49,6 +49,8 @@ static void usage(void);
 
 int32_t hid_sdp_query(bdaddr_t const *local, bdaddr_t const *remote, int32_t *error);
 
+uint32_t verbose = 0;
+
 /*
  * bthidcontrol
  */
@@ -62,7 +64,7 @@ main(int argc, char *argv[])
 	hid_init(NULL);
 	memcpy(&bdaddr, NG_HCI_BDADDR_ANY, sizeof(bdaddr));
 
-	while ((opt = getopt(argc, argv, "a:c:H:h")) != -1) {
+	while ((opt = getopt(argc, argv, "a:c:H:hv")) != -1) {
 		switch (opt) {
 		case 'a': /* bdaddr */
 			if (!bt_aton(optarg, &bdaddr)) {
@@ -81,6 +83,10 @@ main(int argc, char *argv[])
 
 		case 'H': /* HIDs file */
 			hids_file = optarg;
+			break;
+
+		case 'v': /* verbose */
+			verbose++;
 			break;
 
 		case 'h':
@@ -202,6 +208,7 @@ usage(void)
 "	-c file		specify path to the bthidd config file\n" \
 "	-H file		specify path to the bthidd HIDs file\n" \
 "	-h		display usage and quit\n" \
+"	-v		be verbose\n" \
 "	command		one of the supported commands\n");
 	exit(255);
 } /* usage */
