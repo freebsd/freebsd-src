@@ -639,9 +639,9 @@ nfs_send(struct socket *so, struct sockaddr *nam, struct mbuf *top,
 
 		/*
 		 * Handle any recoverable (soft) socket errors here. (?)
+		 * Make EWOULDBLOCK a recoverable error, we'll rexmit from nfs_timer().
 		 */
-		if (error != EINTR && error != ERESTART && error != EIO &&
-			error != EWOULDBLOCK && error != EPIPE)
+		if (error != EINTR && error != ERESTART && error != EIO && error != EPIPE)
 			error = 0;
 	}
 out:
