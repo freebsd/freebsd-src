@@ -54,6 +54,7 @@ __FBSDID("$FreeBSD$");
 #include <security/mac/mac_framework.h>
 
 #include <ufs/ufs/extattr.h>
+#include <ufs/ufs/gjournal.h>
 #include <ufs/ufs/quota.h>
 #include <ufs/ufs/ufsmount.h>
 #include <ufs/ufs/inode.h>
@@ -71,7 +72,6 @@ __FBSDID("$FreeBSD$");
 
 static uma_zone_t uma_inode, uma_ufs1, uma_ufs2;
 
-static int	ffs_sbupdate(struct ufsmount *, int, int);
 static int	ffs_reload(struct mount *, struct thread *);
 static int	ffs_mountfs(struct vnode *, struct mount *, struct thread *);
 static void	ffs_oldfscompat_read(struct fs *, struct ufsmount *,
@@ -696,6 +696,35 @@ ffs_mountfs(devvp, mp, td)
 		fs->fs_pendingblocks = 0;
 		fs->fs_pendinginodes = 0;
 	}
+	if ((fs->fs_flags & FS_GJOURNAL) != 0) {
+#ifdef UFS_GJOURNAL
+		/*
+		 * Get journal provider name.
+		 */
+		size = 1024;
+		mp->mnt_gjprovider = malloc(size, M_UFSMNT, M_WAITOK);
+		if (g_io_getattr("GJOURNAL::provider", cp, &size,
+		    mp->mnt_gjprovider) == 0) {
+			mp->mnt_gjprovider = realloc(mp->mnt_gjprovider, size,
+			    M_UFSMNT, M_WAITOK);
+			MNT_ILOCK(mp);
+			mp->mnt_flag |= MNT_GJOURNAL;
+			MNT_IUNLOCK(mp);
+		} else {
+			printf(
+"WARNING: %s: GJOURNAL flag on fs but no gjournal provider below\n",
+			    mp->mnt_stat.f_mntonname);
+			free(mp->mnt_gjprovider, M_UFSMNT);
+			mp->mnt_gjprovider = NULL;
+		}
+#else
+		printf(
+"WARNING: %s: GJOURNAL flag on fs but no UFS_GJOURNAL support\n",
+		    mp->mnt_stat.f_mntonname);
+#endif
+	} else {
+		mp->mnt_gjprovider = NULL;
+	}
 	ump = malloc(sizeof *ump, M_UFSMNT, M_WAITOK | M_ZERO);
 	ump->um_cp = cp;
 	ump->um_bo = &devvp->v_bufobj;
@@ -871,6 +900,10 @@ out:
 	}
 	if (ump) {
 		mtx_destroy(UFS_MTX(ump));
+		if (mp->mnt_gjprovider != NULL) {
+			free(mp->mnt_gjprovider, M_UFSMNT);
+			mp->mnt_gjprovider = NULL;
+		}
 		free(ump->um_fs, M_UFSMNT);
 		free(ump, M_UFSMNT);
 		mp->mnt_data = (qaddr_t)0;
@@ -1030,6 +1063,10 @@ ffs_unmount(mp, mntflags, td)
 	PICKUP_GIANT();
 	vrele(ump->um_devvp);
 	mtx_destroy(UFS_MTX(ump));
+	if (mp->mnt_gjprovider != NULL) {
+		free(mp->mnt_gjprovider, M_UFSMNT);
+		mp->mnt_gjprovider = NULL;
+	}
 	free(fs->fs_csp, M_UFSMNT);
 	free(fs, M_UFSMNT);
 	free(ump, M_UFSMNT);
@@ -1514,7 +1551,7 @@ ffs_uninit(vfsp)
 /*
  * Write a superblock and associated information back to disk.
  */
-static int
+int
 ffs_sbupdate(mp, waitfor, suspended)
 	struct ufsmount *mp;
 	int waitfor;

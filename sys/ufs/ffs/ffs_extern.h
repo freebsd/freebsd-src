@@ -72,6 +72,7 @@ int	ffs_mountroot(void);
 int	ffs_reallocblks(struct vop_reallocblks_args *);
 int	ffs_realloccg(struct inode *, ufs2_daddr_t, ufs2_daddr_t,
 	    ufs2_daddr_t, int, int, struct ucred *, struct buf **);
+int	ffs_sbupdate(struct ufsmount *, int, int);
 void	ffs_setblock(struct fs *, u_char *, ufs1_daddr_t);
 int	ffs_snapblkfree(struct fs *, struct vnode *, ufs2_daddr_t, long, ino_t);
 void	ffs_snapremove(struct vnode *vp);

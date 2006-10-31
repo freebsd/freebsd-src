@@ -323,7 +323,8 @@ struct fs {
 	u_int	*fs_active;		/* (u) used by snapshots to track fs */
 	int32_t	 fs_old_cpc;		/* cyl per cycle in postbl */
 	int32_t	 fs_maxbsize;		/* maximum blocking factor permitted */
-	int64_t	 fs_sparecon64[17];	/* old rotation block list head */
+	int64_t	 fs_unrefs;		/* number of unreferenced inodes */
+	int64_t	 fs_sparecon64[16];	/* old rotation block list head */
 	int64_t	 fs_sblockloc;		/* byte offset of standard superblock */
 	struct	csum_total fs_cstotal;	/* (u) cylinder summary information */
 	ufs_time_t fs_time;		/* last time written */
@@ -406,6 +407,7 @@ CTASSERT(sizeof(struct fs) == 1376);
 #define FS_INDEXDIRS  0x08	/* kernel supports indexed directories */
 #define FS_ACLS       0x10	/* file system has ACLs enabled */
 #define FS_MULTILABEL 0x20	/* file system is MAC multi-label */
+#define FS_GJOURNAL   0x40	/* gjournaled file system */
 #define FS_FLAGS_UPDATED 0x80	/* flags have been moved to new location */
 
 /*
@@ -475,7 +477,8 @@ struct cg {
 	int32_t	 cg_nclusterblks;	/* number of clusters this cg */
 	int32_t  cg_niblk;		/* number of inode blocks this cg */
 	int32_t	 cg_initediblk;		/* last initialized inode */
-	int32_t	 cg_sparecon32[3];	/* reserved for future use */
+	int32_t	 cg_unrefs;		/* number of unreferenced inodes */
+	int32_t	 cg_sparecon32[2];	/* reserved for future use */
 	ufs_time_t cg_time;		/* time last written */
 	int64_t	 cg_sparecon64[3];	/* reserved for future use */
 	u_int8_t cg_space[1];		/* space for cylinder group maps */

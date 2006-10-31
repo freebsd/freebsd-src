@@ -57,6 +57,9 @@ __FBSDID("$FreeBSD$");
 #include <ufs/ufs/dir.h>
 #include <ufs/ufs/dirhash.h>
 #endif
+#ifdef UFS_GJOURNAL
+#include <ufs/ufs/gjournal.h>
+#endif
 
 /*
  * Last reference to an inode.  If necessary, write or delete it.
@@ -83,6 +86,9 @@ ufs_inactive(ap)
 	 */
 	if (ip->i_mode == 0)
 		goto out;
+#ifdef UFS_GJOURNAL
+	ufs_gjournal_close(vp);
+#endif
 	if ((ip->i_effnlink == 0 && DOINGSOFTDEP(vp)) ||
 	    (ip->i_nlink <= 0 &&
 	     (vp->v_mount->mnt_flag & MNT_RDONLY) == 0)) {
