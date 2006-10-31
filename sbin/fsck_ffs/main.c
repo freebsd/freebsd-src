@@ -237,6 +237,29 @@ checkfilesys(char *filesys)
 			exit(7);	/* Filesystem clean, report it now */
 		exit(0);
 	}
+	if (preen && skipclean) {
+		/*
+		 * If file system is gjournaled, check it here.
+		 */
+		if ((fsreadfd = open(filesys, O_RDONLY)) < 0 || readsb(0) == 0)
+			exit(3);	/* Cannot read superblock */
+		close(fsreadfd);
+		if ((sblock.fs_flags & FS_GJOURNAL) != 0) {
+			//printf("GJournaled file system detected on %s.\n",
+			//    filesys);
+			if (sblock.fs_clean == 1) {
+				pwarn("FILE SYSTEM CLEAN; SKIPPING CHECKS\n");
+				exit(0);
+			}
+			if ((sblock.fs_flags & (FS_UNCLEAN | FS_NEEDSFSCK)) == 0) {
+				gjournal_check(filesys);
+				exit(0);
+			} else {
+				pfatal("UNEXPECTED INCONSISTENCY, %s\n",
+				    "CANNOT RUN FAST FSCK\n");
+			}
+		}
+	}
 	/*
 	 * If we are to do a background check:
 	 *	Get the mount point information of the file system
@@ -437,7 +460,7 @@ checkfilesys(char *filesys)
 		 * Write out the duplicate super blocks
 		 */
 		for (cylno = 0; cylno < sblock.fs_ncg; cylno++)
-			bwrite(fswritefd, (char *)&sblock,
+			blwrite(fswritefd, (char *)&sblock,
 			    fsbtodb(&sblock, cgsblock(&sblock, cylno)),
 			    SBLOCKSIZE);
 	}
