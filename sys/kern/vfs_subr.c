@@ -2530,6 +2530,8 @@ vn_printf(struct vnode *vp, const char *fmt, ...)
 		strcat(buf, "|VV_TEXT");
 	if (vp->v_vflag & VV_SYSTEM)
 		strcat(buf, "|VV_SYSTEM");
+	if (vp->v_vflag & VV_DELETED)
+		strcat(buf, "|VV_DELETED");
 	if (vp->v_iflag & VI_DOOMED)
 		strcat(buf, "|VI_DOOMED");
 	if (vp->v_iflag & VI_FREE)
