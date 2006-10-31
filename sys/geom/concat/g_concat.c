@@ -212,6 +212,42 @@ g_concat_access(struct g_provider *pp, int dr, int dw, int de)
 }
 
 static void
+g_concat_flush(struct g_concat_softc *sc, struct bio *bp)
+{
+	struct bio_queue_head queue;
+	struct g_consumer *cp;
+	struct bio *cbp;
+	u_int no;
+
+	bioq_init(&queue);
+	for (no = 0; no < sc->sc_ndisks; no++) {
+		cbp = g_clone_bio(bp);
+		if (cbp == NULL) {
+			for (cbp = bioq_first(&queue); cbp != NULL;
+			    cbp = bioq_first(&queue)) {
+				bioq_remove(&queue, cbp);
+				g_destroy_bio(cbp);
+			}
+			if (bp->bio_error == 0)
+				bp->bio_error = ENOMEM;
+			g_io_deliver(bp, bp->bio_error);
+			return;
+		}
+		bioq_insert_tail(&queue, cbp);
+		cbp->bio_done = g_std_done;
+		cbp->bio_caller1 = sc->sc_disks[no].d_consumer;
+		cbp->bio_to = sc->sc_disks[no].d_consumer->provider;
+	}
+	for (cbp = bioq_first(&queue); cbp != NULL; cbp = bioq_first(&queue)) {
+		bioq_remove(&queue, cbp);
+		G_CONCAT_LOGREQ(cbp, "Sending request.");
+		cp = cbp->bio_caller1;
+		cbp->bio_caller1 = NULL;
+		g_io_request(cbp, cp);
+	}
+}
+
+static void
 g_concat_start(struct bio *bp)
 {
 	struct bio_queue_head queue;
@@ -240,6 +276,9 @@ g_concat_start(struct bio *bp)
 	case BIO_WRITE:
 	case BIO_DELETE:
 		break;
+	case BIO_FLUSH:
+		g_concat_flush(sc, bp);
+		return;
 	case BIO_GETATTR:
 		/* To which provider it should be delivered? */
 	default:
