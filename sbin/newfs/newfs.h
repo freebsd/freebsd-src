@@ -49,6 +49,7 @@ extern int	Oflag;		/* build UFS1 format file system */
 extern int	Rflag;		/* regression test */
 extern int	Uflag;		/* enable soft updates for file system */
 extern int	Eflag;		/* exit as if error, for testing */
+extern int	Jflag;		/* enable gjournal for file system */
 extern int	lflag;		/* enable multilabel MAC for file system */
 extern int	nflag;		/* do not create .snap directory */
 extern quad_t	fssize;		/* file system size */

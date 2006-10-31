@@ -135,6 +135,8 @@ mkfs(struct partition *pp, char *fsys)
 		sblock.fs_flags |= FS_DOSOFTDEP;
 	if (Lflag)
 		strlcpy(sblock.fs_volname, volumelabel, MAXVOLLEN);
+	if (Jflag)
+		sblock.fs_flags |= FS_GJOURNAL;
 	if (lflag)
 		sblock.fs_flags |= FS_MULTILABEL;
 	/*
