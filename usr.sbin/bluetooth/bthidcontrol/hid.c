@@ -39,6 +39,8 @@
 #include "bthid_config.h"
 #include "bthidcontrol.h"
 
+extern uint32_t verbose;
+
 static void hid_dump_descriptor	(report_desc_t r);
 static void hid_dump_item	(char const *label, struct hid_item *h);
 
@@ -153,6 +155,9 @@ hid_dump_descriptor(report_desc_t r)
 static void
 hid_dump_item(char const *label, struct hid_item *h)
 {
+	if ((h->flags & HIO_CONST) && !verbose)
+		return;
+
 	fprintf(stdout,
 "%s id=%u size=%u count=%u page=%s usage=%s%s%s%s%s%s%s%s%s%s",
 		label, (uint8_t) h->report_ID, h->report_size, h->report_count,
