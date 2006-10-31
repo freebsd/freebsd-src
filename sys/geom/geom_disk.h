@@ -91,6 +91,7 @@ struct disk {
 #define DISKFLAG_NEEDSGIANT	0x1
 #define DISKFLAG_OPEN		0x2
 #define DISKFLAG_CANDELETE	0x4
+#define DISKFLAG_CANFLUSHCACHE	0x8
 
 struct disk *disk_alloc(void);
 void disk_create(struct disk *disk, int version);

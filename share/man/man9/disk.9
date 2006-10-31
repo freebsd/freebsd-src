@@ -94,8 +94,10 @@ Currently supported flags are
 (maintained by device driver),
 .Dv DISKFLAG_OPEN
 (maintained by storage framework),
-and
 .Dv DISKFLAG_CANDELETE
+(maintained by device driver),
+and
+.Dv DISKFLAG_CANFLUSHCACHE
 (maintained by device driver).
 .It Vt "const char *" Va d_name
 Holds the name of the storage device class, e.g.,
