@@ -70,18 +70,17 @@ static void
 check_size(int fd, const char *fn)
 {
 	int name[] = { CTL_HW, HW_PHYSMEM };
-	size_t namelen = sizeof name / sizeof *name;
+	size_t namelen = sizeof(name) / sizeof(*name);
 	unsigned long physmem;
 	size_t len;
 	off_t mediasize;
 	int minidump;
 
-
-	len = sizeof minidump;
+	len = sizeof(minidump);
 	if (sysctlbyname("debug.minidump", &minidump, &len, NULL, 0) == 0 &&
 	    minidump == 1)
 		return;
-	len = sizeof physmem;
+	len = sizeof(physmem);
 	if (sysctl(name, namelen, &physmem, &len, NULL, 0) != 0)
 		err(EX_OSERR, "can't get memory size");
 	if (ioctl(fd, DIOCGMEDIASIZE, &mediasize) != 0)
