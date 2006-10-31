@@ -258,6 +258,7 @@ g_eli_start(struct bio *bp)
 	case BIO_READ:
 	case BIO_WRITE:
 	case BIO_GETATTR:
+	case BIO_FLUSH:
 		break;
 	case BIO_DELETE:
 		/*
@@ -298,6 +299,7 @@ g_eli_start(struct bio *bp)
 		wakeup(sc);
 		break;
 	case BIO_GETATTR:
+	case BIO_FLUSH:
 		cbp->bio_done = g_std_done;
 		cp = LIST_FIRST(&sc->sc_geom->consumer);
 		cbp->bio_to = cp->provider;
