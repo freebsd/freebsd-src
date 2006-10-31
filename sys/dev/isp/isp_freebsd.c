@@ -2924,7 +2924,6 @@ isp_async(ispsoftc_t *isp, ispasync_t cmd, void *arg)
 		if (flags & DPARM_TQING) {
 			scsi->valid |= CTS_SCSI_VALID_TQ;
 			scsi->flags |= CTS_SCSI_FLAGS_TAG_ENB;
-			spi->flags |= CTS_SPI_FLAGS_TAG_ENB;
 		}
 
 		if (flags & DPARM_DISC) {

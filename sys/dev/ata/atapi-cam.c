@@ -363,6 +363,12 @@ atapi_action(struct cam_sim *sim, union ccb *ccb)
 	cpi->unit_number = cam_sim_unit(sim);
 	cpi->bus_id = cam_sim_bus(sim);
 	cpi->base_transfer_speed = 3300;
+#ifdef	CAM_NEW_TRAN_CODE
+	cpi->transport = XPORT_ATA;
+	cpi->transport_version = 2;
+	cpi->protocol = PROTO_SCSI;
+	cpi->protocol_version = SCSI_REV_2;
+#endif
 
 	if (softc->ata_ch && tid != CAM_TARGET_WILDCARD) {
 	    mtx_lock(&softc->state_lock);
@@ -436,16 +442,25 @@ atapi_action(struct cam_sim *sim, union ccb *ccb)
 
     case XPT_GET_TRAN_SETTINGS: {
 	struct ccb_trans_settings *cts = &ccb->cts;
-
+#ifdef	CAM_NEW_TRAN_CODE
+	cts->protocol = PROTO_SCSI;
+	cts->protocol_version = SCSI_REV_2;
+	cts->transport = XPORT_ATA;
+	cts->transport_version = XPORT_VERSION_UNSPECIFIED;
+    	cts->proto_specific.valid = 0;
+    	cts->xport_specific.valid = 0;
+	/* nothing more to do */
+#else
 	/*
-	 * XXX The default CAM transport code is very SCSI-specific and
+	 * The default CAM transport code is very SCSI-specific and
 	 * doesn't understand IDE speeds very well. Be silent about it
 	 * here and let it default to what is set in XPT_PATH_INQ
 	 */
-	CAM_DEBUG(ccb->ccb_h.path, CAM_DEBUG_SUBTRACE, ("GET_TRAN_SETTINGS\n"));
 	cts->valid = (CCB_TRANS_DISC_VALID | CCB_TRANS_TQ_VALID);
 	cts->flags &= ~(CCB_TRANS_DISC_ENB | CCB_TRANS_TAG_ENB);
+#endif
 	ccb->ccb_h.status = CAM_REQ_CMP;
+	CAM_DEBUG(ccb->ccb_h.path, CAM_DEBUG_SUBTRACE, ("GET_TRAN_SETTINGS\n"));
 	xpt_done(ccb);
 	return;
     }
