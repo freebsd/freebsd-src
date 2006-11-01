@@ -145,6 +145,7 @@ journal_label(struct gctl_req *req)
 	int error, force, i, nargs, checksum, hardcode;
 
 	nargs = gctl_get_int(req, "nargs");
+	str = NULL;	/* gcc */
 
 	strlcpy(md.md_magic, G_JOURNAL_MAGIC, sizeof(md.md_magic));
 	md.md_version = G_JOURNAL_VERSION;
