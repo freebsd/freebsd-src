@@ -1,5 +1,5 @@
 .\"
-.\" Copyright (c) 2004 Pawel Jakub Dawidek <pjd@FreeBSD.org>
+.\" Copyright (c) 2004-2006 Pawel Jakub Dawidek <pjd@FreeBSD.org>
 .\" All rights reserved.
 .\"
 .\" Redistribution and use in source and binary forms, with or without
@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd January 16, 2004
+.Dd November 1, 2006
 .Dt G_BIO 9
 .Os
 .Sh NAME
@@ -39,7 +39,11 @@
 .Ft "struct bio *"
 .Fn g_new_bio void
 .Ft "struct bio *"
+.Fn g_alloc_bio void
+.Ft "struct bio *"
 .Fn g_clone_bio "struct bio *bp"
+.Ft "struct bio *"
+.Fn g_duplicate_bio "struct bio *bp"
 .Ft void
 .Fn g_destroy_bio "struct bio *bp"
 .Ft void
@@ -140,6 +144,13 @@ function allocates a new, empty
 .Vt bio
 structure.
 .Pp
+.Fn g_alloc_bio
+- same as
+.Fn g_new_bio ,
+but always succeeds (allocates bio with the
+.Dv M_WAITOK
+malloc flag).
+.Pp
 The
 .Fn g_clone_bio
 function allocates a new
@@ -175,6 +186,13 @@ Modify the clone.
 .It
 Schedule the clone on its own consumer.
 .El
+.Pp
+.Fn g_duplicate_bio
+- same as
+.Fn g_clone_bio ,
+but always succeeds (allocates bio with the
+.Dv M_WAITOK
+malloc flag).
 .Pp
 The
 .Fn g_destroy_bio
