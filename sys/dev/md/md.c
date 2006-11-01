@@ -406,6 +406,15 @@ mdstart_malloc(struct md_s *sc, struct bio *bp)
 	off_t secno, nsec, uc;
 	uintptr_t sp, osp;
 
+	switch (bp->bio_cmd) {
+	case BIO_READ:
+	case BIO_WRITE:
+	case BIO_DELETE:
+		break;
+	default:
+		return (EOPNOTSUPP);
+	}
+
 	nsec = bp->bio_length / sc->sectorsize;
 	secno = bp->bio_offset / sc->sectorsize;
 	dst = bp->bio_data;
@@ -491,6 +500,20 @@ mdstart_vnode(struct md_s *sc, struct bio *bp)
 	struct uio auio;
 	struct iovec aiov;
 	struct mount *mp;
+	struct vnode *vp;
+	struct thread *td;
+
+	switch (bp->bio_cmd) {
+	case BIO_READ:
+	case BIO_WRITE:
+	case BIO_FLUSH:
+		break;
+	default:
+		return (EOPNOTSUPP);
+	}
+
+	td = curthread;
+	vp = sc->vnode;
 
 	/*
 	 * VNODE I/O
@@ -499,6 +522,17 @@ mdstart_vnode(struct md_s *sc, struct bio *bp)
 	 * B_INVAL because (for a write anyway), the buffer is
 	 * still valid.
 	 */
+
+	if (bp->bio_cmd == BIO_FLUSH) {
+		vfslocked = VFS_LOCK_GIANT(vp->v_mount);
+		(void) vn_start_write(vp, &mp, V_WAIT);
+		vn_lock(vp, LK_EXCLUSIVE | LK_RETRY, td);
+		error = VOP_FSYNC(vp, MNT_WAIT, td);
+		VOP_UNLOCK(vp, 0, td);
+		vn_finished_write(mp);
+		VFS_UNLOCK_GIANT(vfslocked);
+		return (error);
+	}
 
 	bzero(&auio, sizeof(auio));
 
@@ -515,22 +549,22 @@ mdstart_vnode(struct md_s *sc, struct bio *bp)
 	else
 		panic("wrong BIO_OP in mdstart_vnode");
 	auio.uio_resid = bp->bio_length;
-	auio.uio_td = curthread;
+	auio.uio_td = td;
 	/*
 	 * When reading set IO_DIRECT to try to avoid double-caching
 	 * the data.  When writing IO_DIRECT is not optimal.
 	 */
-	vfslocked = VFS_LOCK_GIANT(sc->vnode->v_mount);
+	vfslocked = VFS_LOCK_GIANT(vp->v_mount);
 	if (bp->bio_cmd == BIO_READ) {
-		vn_lock(sc->vnode, LK_EXCLUSIVE | LK_RETRY, curthread);
-		error = VOP_READ(sc->vnode, &auio, IO_DIRECT, sc->cred);
-		VOP_UNLOCK(sc->vnode, 0, curthread);
+		vn_lock(vp, LK_EXCLUSIVE | LK_RETRY, td);
+		error = VOP_READ(vp, &auio, IO_DIRECT, sc->cred);
+		VOP_UNLOCK(vp, 0, td);
 	} else {
-		(void) vn_start_write(sc->vnode, &mp, V_WAIT);
-		vn_lock(sc->vnode, LK_EXCLUSIVE | LK_RETRY, curthread);
-		error = VOP_WRITE(sc->vnode, &auio,
-		    sc->flags & MD_ASYNC ? 0 : IO_SYNC, sc->cred);
-		VOP_UNLOCK(sc->vnode, 0, curthread);
+		(void) vn_start_write(vp, &mp, V_WAIT);
+		vn_lock(vp, LK_EXCLUSIVE | LK_RETRY, td);
+		error = VOP_WRITE(vp, &auio, sc->flags & MD_ASYNC ? 0 : IO_SYNC,
+		    sc->cred);
+		VOP_UNLOCK(vp, 0, td);
 		vn_finished_write(mp);
 	}
 	VFS_UNLOCK_GIANT(vfslocked);
@@ -546,6 +580,15 @@ mdstart_swap(struct md_s *sc, struct bio *bp)
 	vm_pindex_t i, lastp;
 	vm_page_t m;
 	u_char *p;
+
+	switch (bp->bio_cmd) {
+	case BIO_READ:
+	case BIO_WRITE:
+	case BIO_DELETE:
+		break;
+	default:
+		return (EOPNOTSUPP);
+	}
 
 	p = bp->bio_data;
 
