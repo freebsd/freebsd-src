@@ -53,8 +53,6 @@ option 		OFWCONS_POLL_HZ=4 # 20 or more works best on Ultra2
 
 # PS/2 mouse
 device		psm
-hint.psm.0.at="atkbdc"
-hint.psm.0.irq="12"
 
 # Options for psm:
 options 	PSM_HOOKRESUME		#hook the system resume event, useful
@@ -63,13 +61,9 @@ options 	PSM_RESETAFTERSUSPEND	#reset the device at the resume event
 
 # The keyboard controller; it controls the keyboard and the PS/2 mouse.
 device		atkbdc
-hint.atkbdc.0.at="isa"
-hint.atkbdc.0.port="0x060"
 
 # The AT keyboard
 device		atkbd
-hint.atkbd.0.at="atkbdc"
-hint.atkbd.0.irq="1"
 
 # Options for atkbd:
 options 	ATKBD_DFLT_KEYMAP	# specify the built-in keymap
