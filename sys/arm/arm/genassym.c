@@ -69,6 +69,7 @@ ASSYM(PCB_R12, offsetof(struct pcb, un_32.pcb32_r12));
 ASSYM(PCB_PC, offsetof(struct pcb, un_32.pcb32_pc));
 ASSYM(PCB_SP, offsetof(struct pcb, un_32.pcb32_sp));
 
+ASSYM(PC_CONS_BUFR, offsetof(struct pcpu, pc_cons_bufr));
 ASSYM(PC_CURPCB, offsetof(struct pcpu, pc_curpcb));
 ASSYM(PC_CURTHREAD, offsetof(struct pcpu, pc_curthread));
 ASSYM(M_LEN, offsetof(struct mbuf, m_len));

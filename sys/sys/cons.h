@@ -106,6 +106,7 @@ void	cnselect(struct consdev *);
 int	cncheckc(void);
 int	cngetc(void);
 void	cnputc(int);
+void	cnputs(char *);
 int	cnunavailable(void);
 
 #endif /* _KERNEL */

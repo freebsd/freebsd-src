@@ -48,6 +48,9 @@
 struct pcb;
 struct thread;
 
+/* Size of the per-cpu console buffer for printf(). */
+#define	PCPU_CONS_BUFR	128
+
 /*
  * This structure maps out the global data that needs to be kept on a
  * per-cpu basis.  The members are accessed via the PCPU_GET/SET/PTR
@@ -71,6 +74,8 @@ struct pcpu {
 	int		pc_ktr_idx;		/* Index into trace table */
 	char		*pc_ktr_buf;
 #endif
+	char		pc_cons_bufr[PCPU_CONS_BUFR];
+						/* Console buffer */
 	PCPU_MD_FIELDS;
 	struct vmmeter	pc_cnt;			/* VM stats counters */
 	struct device	*pc_device;
