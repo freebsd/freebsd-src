@@ -317,6 +317,7 @@ g_shsec_start(struct bio *bp)
 	switch (bp->bio_cmd) {
 	case BIO_READ:
 	case BIO_WRITE:
+	case BIO_FLUSH:
 		/*
 		 * Only those requests are supported.
 		 */
