@@ -71,6 +71,8 @@ attributes on a particular provider or path.
 Attributes are named by ascii strings and are stored in the
 .Va bio_attribute
 field.
+.It Dv BIO_FLUSH
+Tells underlying providers to flush theirs write cache.
 .El
 .It Va bio_flags
 Available flags:
