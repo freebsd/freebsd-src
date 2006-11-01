@@ -83,8 +83,55 @@
 #define	BSTP_IFSTATE_LEARNING	2
 #define	BSTP_IFSTATE_FORWARDING	3
 #define	BSTP_IFSTATE_BLOCKING	4
+#define	BSTP_IFSTATE_DISCARDING	5
+
+#define	BSTP_TCSTATE_ACTIVE	1
+#define	BSTP_TCSTATE_DETECTED	2
+#define	BSTP_TCSTATE_INACTIVE	3
+#define	BSTP_TCSTATE_LEARNING	4
+#define	BSTP_TCSTATE_PROPAG	5
+#define	BSTP_TCSTATE_ACK	6
+#define	BSTP_TCSTATE_TC		7
+#define	BSTP_TCSTATE_TCN	8
+
+#define	BSTP_ROLE_DISABLED	0
+#define	BSTP_ROLE_ROOT		1
+#define	BSTP_ROLE_DESIGNATED	2
+#define	BSTP_ROLE_ALTERNATE	3
+#define	BSTP_ROLE_BACKUP	4
 
 #ifdef _KERNEL
+
+/* STP port flags */
+#define	BSTP_PORT_CANMIGRATE	0x0001
+#define	BSTP_PORT_NEWINFO	0x0002
+#define	BSTP_PORT_DISPUTED	0x0004
+#define	BSTP_PORT_ADMCOST	0x0008
+#define	BSTP_PORT_AUTOEDGE	0x0010
+
+/* BPDU priority */
+#define	BSTP_PDU_SUPERIOR	1
+#define	BSTP_PDU_REPEATED	2
+#define	BSTP_PDU_INFERIOR	3
+#define	BSTP_PDU_INFERIORALT	4
+#define	BSTP_PDU_OTHER		5
+
+/* BPDU flags */
+#define	BSTP_PDU_PRMASK		0x0c		/* Port Role */
+#define	BSTP_PDU_PRSHIFT	2		/* Port Role offset */
+#define	BSTP_PDU_F_UNKN		0x00		/* Unknown port    (00) */
+#define	BSTP_PDU_F_ALT		0x01		/* Alt/Backup port (01) */
+#define	BSTP_PDU_F_ROOT		0x02		/* Root port       (10) */
+#define	BSTP_PDU_F_DESG		0x03		/* Designated port (11) */
+
+#define	BSTP_PDU_STPMASK	0x81		/* strip unused STP flags */
+#define	BSTP_PDU_RSTPMASK	0x7f		/* strip unused RSTP flags */
+#define	BSTP_PDU_F_TC		0x01		/* Topology change */
+#define	BSTP_PDU_F_P		0x02		/* Proposal flag */
+#define	BSTP_PDU_F_L		0x10		/* Learning flag */
+#define	BSTP_PDU_F_F		0x20		/* Forwarding flag */
+#define	BSTP_PDU_F_A		0x40		/* Agreement flag */
+#define	BSTP_PDU_F_TCA		0x80		/* Topology change ack */
 
 /*
  * Spanning tree defaults.
@@ -93,26 +140,49 @@
 #define	BSTP_DEFAULT_HELLO_TIME		(2 * 256)
 #define	BSTP_DEFAULT_FORWARD_DELAY	(15 * 256)
 #define	BSTP_DEFAULT_HOLD_TIME		(1 * 256)
+#define	BSTP_DEFAULT_MIGRATE_DELAY	(3 * 256)
+#define	BSTP_DEFAULT_HOLD_COUNT		6
 #define	BSTP_DEFAULT_BRIDGE_PRIORITY	0x8000
 #define	BSTP_DEFAULT_PORT_PRIORITY	0x80
 #define	BSTP_DEFAULT_PATH_COST		55
+#define	BSTP_MIN_HELLO_TIME		(1 * 256)
+#define	BSTP_MIN_MAX_AGE		(6 * 256)
+#define	BSTP_MIN_FORWARD_DELAY		(4 * 256)
+#define	BSTP_MIN_HOLD_COUNT		1
+#define	BSTP_MAX_HELLO_TIME		(2 * 256)
+#define	BSTP_MAX_MAX_AGE		(40 * 256)
+#define	BSTP_MAX_FORWARD_DELAY		(30 * 256)
+#define	BSTP_MAX_HOLD_COUNT		10
+#define	BSTP_MAX_PRIORITY		61440
+#define	BSTP_MAX_PORT_PRIORITY		240
+#define	BSTP_MAX_PATH_COST		200000000
 
 /* BPDU message types */
 #define	BSTP_MSGTYPE_CFG	0x00		/* Configuration */
+#define	BSTP_MSGTYPE_RSTP	0x02		/* Rapid STP */
 #define	BSTP_MSGTYPE_TCN	0x80		/* Topology chg notification */
 
-/* BPDU flags */
-#define	BSTP_FLAG_TC		0x01		/* Topology change */
-#define	BSTP_FLAG_TCA		0x80		/* Topology change ack */
+/* Protocol versions */
+#define	BSTP_PROTO_ID		0x00
+#define	BSTP_PROTO_STP		0x00
+#define	BSTP_PROTO_RSTP		0x02
+#define	BSTP_PROTO_MAX		BSTP_PROTO_RSTP
+
+#define	BSTP_INFO_RECIEVED	1
+#define	BSTP_INFO_MINE		2
+#define	BSTP_INFO_AGED		3
+#define	BSTP_INFO_DISABLED	4
+
 
 #define	BSTP_MESSAGE_AGE_INCR	(1 * 256)	/* in 256ths of a second */
 #define	BSTP_TICK_VAL		(1 * 256)	/* in 256ths of a second */
-#define	BSTP_LINK_TIMER		(BSTP_TICK_VAL * 30)
+#define	BSTP_LINK_TIMER		(BSTP_TICK_VAL * 15)
 
 /*
- *  * Driver callbacks for STP state changes
- *   */
+ * Driver callbacks for STP state changes
+ */
 typedef void (*bstp_state_cb_t)(struct ifnet *, int);
+typedef void (*bstp_rtage_cb_t)(struct ifnet *, int);
 
 /*
  * Because BPDU's do not make nicely aligned structures, two different
@@ -132,7 +202,7 @@ struct bstp_cbpdu {
 
 	/* root id */
 	uint16_t	cbu_rootpri;		/* root priority */
-	uint8_t	cbu_rootaddr[6];	/* root address */
+	uint8_t		cbu_rootaddr[6];	/* root address */
 
 	uint32_t	cbu_rootpathcost;	/* root path cost */
 
@@ -145,7 +215,10 @@ struct bstp_cbpdu {
 	uint16_t	cbu_maxage;		/* maximum age */
 	uint16_t	cbu_hellotime;		/* hello time */
 	uint16_t	cbu_forwarddelay;	/* forwarding delay */
+	uint8_t		cbu_versionlen;		/* version 1 length */
 } __attribute__((__packed__));
+#define	BSTP_BPDU_STP_LEN	(3 + 35)	/* LLC + STP pdu */
+#define	BSTP_BPDU_RSTP_LEN	(3 + 36)	/* LLC + RSTP pdu */
 
 /* topology change notification bridge protocol data unit */
 struct bstp_tbpdu {
@@ -161,53 +234,91 @@ struct bstp_tbpdu {
  * Timekeeping structure used in spanning tree code.
  */
 struct bstp_timer {
-	uint16_t	active;
-	uint16_t	value;
+	int		active;
+	int		latched;
+	int		value;
+};
+
+struct bstp_pri_vector {
+	uint64_t		pv_root_id;
+	uint32_t		pv_cost;
+	uint64_t		pv_dbridge_id;
+	uint16_t		pv_dport_id;
+	uint16_t		pv_port_id;
 };
 
 struct bstp_config_unit {
-	uint64_t	cu_rootid;
-	uint64_t	cu_bridge_id;
-	uint32_t	cu_root_path_cost;
+	struct bstp_pri_vector	cu_pv;
 	uint16_t	cu_message_age;
 	uint16_t	cu_max_age;
-	uint16_t	cu_hello_time;
 	uint16_t	cu_forward_delay;
-	uint16_t	cu_port_id;
+	uint16_t	cu_hello_time;
 	uint8_t		cu_message_type;
-	uint8_t		cu_topology_change_acknowledgment;
+	uint8_t		cu_topology_change_ack;
 	uint8_t		cu_topology_change;
+	uint8_t		cu_proposal;
+	uint8_t		cu_agree;
+	uint8_t		cu_learning;
+	uint8_t		cu_forwarding;
+	uint8_t		cu_role;
 };
 
 struct bstp_tcn_unit {
 	uint8_t		tu_message_type;
 };
 
-/*
- * Bridge interface list entry.
- */
 struct bstp_port {
 	LIST_ENTRY(bstp_port)	bp_next;
 	struct ifnet		*bp_ifp;	/* parent if */
 	struct bstp_state	*bp_bs;
-	int			bp_active;
-	uint64_t		bp_designated_root;
-	uint64_t		bp_designated_bridge;
+	uint8_t			bp_active;
+	uint8_t			bp_protover;
+	uint32_t		bp_flags;
 	uint32_t		bp_path_cost;
-	uint32_t		bp_designated_cost;
-	struct bstp_timer	bp_hold_timer;
-	struct bstp_timer	bp_message_age_timer;
+	uint16_t		bp_port_msg_age;
+	uint16_t		bp_port_max_age;
+	uint16_t		bp_port_fdelay;
+	uint16_t		bp_port_htime;
+	uint16_t		bp_desg_msg_age;
+	uint16_t		bp_desg_max_age;
+	uint16_t		bp_desg_fdelay;
+	uint16_t		bp_desg_htime;
+	struct bstp_timer	bp_edge_delay_timer;
 	struct bstp_timer	bp_forward_delay_timer;
-	struct bstp_config_unit	bp_config_bpdu;
+	struct bstp_timer	bp_hello_timer;
+	struct bstp_timer	bp_message_age_timer;
+	struct bstp_timer	bp_migrate_delay_timer;
+	struct bstp_timer	bp_recent_backup_timer;
+	struct bstp_timer	bp_recent_root_timer;
+	struct bstp_timer	bp_tc_timer;
+	struct bstp_config_unit bp_msg_cu;
+	struct bstp_pri_vector	bp_desg_pv;
+	struct bstp_pri_vector	bp_port_pv;
 	uint16_t		bp_port_id;
-	uint16_t		bp_designated_port;
 	uint8_t			bp_state;
-	uint8_t			bp_topology_change_acknowledge;
-	uint8_t			bp_config_pending;
-	uint8_t			bp_change_detection_enabled;
+	uint8_t			bp_tcstate;
+	uint8_t			bp_role;
+	uint8_t			bp_infois;
+	uint8_t			bp_tc_ack;
+	uint8_t			bp_tc_prop;
+	uint8_t			bp_fdbflush;
 	uint8_t			bp_priority;
+	uint8_t			bp_p2p_link;
+	uint8_t			bp_agree;
+	uint8_t			bp_agreed;
+	uint8_t			bp_sync;
+	uint8_t			bp_synced;
+	uint8_t			bp_proposing;
+	uint8_t			bp_proposed;
+	uint8_t			bp_operedge;
+	uint8_t			bp_reroot;
+	uint8_t			bp_rcvdtc;
+	uint8_t			bp_rcvdtca;
+	uint8_t			bp_rcvdtcn;
 	uint32_t		bp_forward_transitions;
+	uint8_t			bp_txcount;
 	struct task		bp_statetask;
+	struct task		bp_rtagetask;
 };
 
 /*
@@ -216,51 +327,59 @@ struct bstp_port {
 struct bstp_state {
 	LIST_ENTRY(bstp_state)	bs_list;
 	struct mtx		bs_mtx;
-	uint64_t		bs_designated_root;
-	uint64_t		bs_bridge_id;
+	struct bstp_pri_vector	bs_bridge_pv;
+	struct bstp_pri_vector	bs_root_pv;
 	struct bstp_port	*bs_root_port;
-	uint32_t		bs_root_path_cost;
-	uint16_t		bs_max_age;
-	uint16_t		bs_hello_time;
-	uint16_t		bs_forward_delay;
+	uint8_t			bs_protover;
+	uint16_t		bs_migration_delay;
+	uint16_t		bs_edge_delay;
 	uint16_t		bs_bridge_max_age;
-	uint16_t		bs_bridge_hello_time;
-	uint16_t		bs_bridge_forward_delay;
-	uint16_t		bs_topology_change_time;
+	uint16_t		bs_bridge_fdelay;
+	uint16_t		bs_bridge_htime;
+	uint16_t		bs_root_msg_age;
+	uint16_t		bs_root_max_age;
+	uint16_t		bs_root_fdelay;
+	uint16_t		bs_root_htime;
 	uint16_t		bs_hold_time;
 	uint16_t		bs_bridge_priority;
-	uint8_t			bs_topology_change_detected;
-	uint8_t			bs_topology_change;
-	struct bstp_timer	bs_hello_timer;
-	struct bstp_timer	bs_topology_change_timer;
-	struct bstp_timer	bs_tcn_timer;
+	uint8_t			bs_txholdcount;
+	uint8_t			bs_allsynced;
 	struct callout		bs_bstpcallout;	/* STP callout */
 	struct bstp_timer	bs_link_timer;
 	struct timeval		bs_last_tc_time;
 	LIST_HEAD(, bstp_port)	bs_bplist;
 	bstp_state_cb_t		bs_state_cb;
+	bstp_rtage_cb_t		bs_rtage_cb;
 };
 
-#define BSTP_LOCK_INIT(_bs)	mtx_init(&(_bs)->bs_mtx, "bstp", \
-					    NULL, MTX_DEF)
-#define BSTP_LOCK_DESTROY(_bs)	mtx_destroy(&(_bs)->bs_mtx)
-#define BSTP_LOCK(_bs)		mtx_lock(&(_bs)->bs_mtx)
-#define BSTP_UNLOCK(_bs)	mtx_unlock(&(_bs)->bs_mtx)
-#define BSTP_LOCK_ASSERT(_bs)	mtx_assert(&(_bs)->bs_mtx, MA_OWNED)
+#define	BSTP_LOCK_INIT(_bs)	mtx_init(&(_bs)->bs_mtx, "bstp", NULL, MTX_DEF)
+#define	BSTP_LOCK_DESTROY(_bs)	mtx_destroy(&(_bs)->bs_mtx)
+#define	BSTP_LOCK(_bs)		mtx_lock(&(_bs)->bs_mtx)
+#define	BSTP_UNLOCK(_bs)	mtx_unlock(&(_bs)->bs_mtx)
+#define	BSTP_LOCK_ASSERT(_bs)	mtx_assert(&(_bs)->bs_mtx, MA_OWNED)
 
 extern const uint8_t bstp_etheraddr[];
 
 extern	void (*bstp_linkstate_p)(struct ifnet *ifp, int state);
 
-void	bstp_attach(struct bstp_state *, bstp_state_cb_t);
+void	bstp_attach(struct bstp_state *, bstp_state_cb_t, bstp_rtage_cb_t);
 void	bstp_detach(struct bstp_state *);
 void	bstp_init(struct bstp_state *);
-void	bstp_reinit(struct bstp_state *);
 void	bstp_stop(struct bstp_state *);
 int	bstp_add(struct bstp_state *, struct bstp_port *, struct ifnet *);
 void	bstp_delete(struct bstp_port *);
 void	bstp_drain(struct bstp_port *);
 void	bstp_linkstate(struct ifnet *, int);
+int	bstp_set_htime(struct bstp_state *, int);
+int	bstp_set_fdelay(struct bstp_state *, int);
+int	bstp_set_maxage(struct bstp_state *, int);
+int	bstp_set_holdcount(struct bstp_state *, int);
+int	bstp_set_protocol(struct bstp_state *, int);
+int	bstp_set_priority(struct bstp_state *, int);
+int	bstp_set_port_priority(struct bstp_port *, int);
+int	bstp_set_path_cost(struct bstp_port *, uint32_t);
+int	bstp_set_edge(struct bstp_port *, int);
+int	bstp_set_autoedge(struct bstp_port *, int);
 struct mbuf *bstp_input(struct bstp_port *, struct ifnet *, struct mbuf *);
 
 #endif /* _KERNEL */
