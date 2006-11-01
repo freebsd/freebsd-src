@@ -97,7 +97,8 @@ g_mirror_ctl_configure(struct gctl_req *req, struct g_class *mp)
 	intmax_t *slicep;
 	uint32_t slice;
 	uint8_t balance;
-	int *nargs, *autosync, *noautosync, *hardcode, *dynamic, do_sync = 0;
+	int *autosync, *noautosync, *failsync, *nofailsync, *hardcode, *dynamic;
+	int *nargs, do_sync = 0, dirty = 1;
 
 	nargs = gctl_get_paraml(req, "nargs", sizeof(*nargs));
 	if (nargs == NULL) {
@@ -128,6 +129,16 @@ g_mirror_ctl_configure(struct gctl_req *req, struct g_class *mp)
 		gctl_error(req, "No '%s' argument.", "noautosync");
 		return;
 	}
+	failsync = gctl_get_paraml(req, "failsync", sizeof(*failsync));
+	if (failsync == NULL) {
+		gctl_error(req, "No '%s' argument.", "failsync");
+		return;
+	}
+	nofailsync = gctl_get_paraml(req, "nofailsync", sizeof(*nofailsync));
+	if (nofailsync == NULL) {
+		gctl_error(req, "No '%s' argument.", "nofailsync");
+		return;
+	}
 	hardcode = gctl_get_paraml(req, "hardcode", sizeof(*hardcode));
 	if (hardcode == NULL) {
 		gctl_error(req, "No '%s' argument.", "hardcode");
@@ -141,6 +152,11 @@ g_mirror_ctl_configure(struct gctl_req *req, struct g_class *mp)
 	if (*autosync && *noautosync) {
 		gctl_error(req, "'%s' and '%s' specified.", "autosync",
 		    "noautosync");
+		return;
+	}
+	if (*failsync && *nofailsync) {
+		gctl_error(req, "'%s' and '%s' specified.", "failsync",
+		    "nofailsync");
 		return;
 	}
 	if (*hardcode && *dynamic) {
@@ -180,7 +196,8 @@ g_mirror_ctl_configure(struct gctl_req *req, struct g_class *mp)
 		return;
 	}
 	if (sc->sc_balance == balance && sc->sc_slice == slice && !*autosync &&
-	    !*noautosync && !*hardcode && !*dynamic) {
+	    !*noautosync && !*failsync && !*nofailsync && !*hardcode &&
+	    !*dynamic) {
 		sx_xunlock(&sc->sc_lock);
 		gctl_error(req, "Nothing has changed.");
 		return;
@@ -196,6 +213,15 @@ g_mirror_ctl_configure(struct gctl_req *req, struct g_class *mp)
 		if (*noautosync)
 			sc->sc_flags |= G_MIRROR_DEVICE_FLAG_NOAUTOSYNC;
 	}
+	if ((sc->sc_flags & G_MIRROR_DEVICE_FLAG_NOFAILSYNC) != 0) {
+		if (*failsync)
+			sc->sc_flags &= ~G_MIRROR_DEVICE_FLAG_NOFAILSYNC;
+	} else {
+		if (*nofailsync) {
+			sc->sc_flags |= G_MIRROR_DEVICE_FLAG_NOFAILSYNC;
+			dirty = 0;
+		}
+	}
 	LIST_FOREACH(disk, &sc->sc_disks, d_next) {
 		if (do_sync) {
 			if (disk->d_state == G_MIRROR_DISK_STATE_SYNCHRONIZING)
@@ -205,6 +231,8 @@ g_mirror_ctl_configure(struct gctl_req *req, struct g_class *mp)
 			disk->d_flags |= G_MIRROR_DISK_FLAG_HARDCODED;
 		else if (*dynamic)
 			disk->d_flags &= ~G_MIRROR_DISK_FLAG_HARDCODED;
+		if (!dirty)
+			disk->d_flags &= ~G_MIRROR_DISK_FLAG_DIRTY;
 		g_mirror_update_metadata(disk);
 		if (do_sync) {
 			if (disk->d_state == G_MIRROR_DISK_STATE_STALE) {
