@@ -300,7 +300,7 @@ else
     for file in $TEMP $REF ; do
       cat  > $file << '__EOF__'
 SEND-PR: -*- send-pr -*-
-SEND-PR: vim: syntax=send-pr (needed for vim syntax highlighting)
+SEND-PR: vim: syntax=sendpr
 SEND-PR:
 SEND-PR: Lines starting with `SEND-PR' will be removed automatically, as
 SEND-PR: will all comments (text enclosed in `<' and `>').
