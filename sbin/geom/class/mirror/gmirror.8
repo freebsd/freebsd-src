@@ -33,7 +33,7 @@
 .Sh SYNOPSIS
 .Nm
 .Cm label
-.Op Fl hnv
+.Op Fl Fhnv
 .Op Fl b Ar balance
 .Op Fl s Ar slice
 .Ar name
@@ -44,7 +44,7 @@
 .Ar prov ...
 .Nm
 .Cm configure
-.Op Fl adhnv
+.Op Fl adfFhnv
 .Op Fl b Ar balance
 .Op Fl s Ar slice
 .Ar name
@@ -142,6 +142,9 @@ Split read requests, which are bigger than or equal to slice size on N pieces,
 where N is the number of active components.
 This is the default balance algorithm.
 .El
+.It Fl F
+Do not synchronize after a power failure or system crash.
+Assumes device is in consistent state.
 .It Fl h
 Hardcode providers' names in metadata.
 .It Fl n
@@ -167,6 +170,11 @@ Turn on autosynchronization of stale components.
 Specifies balance algorithm to use.
 .It Fl d
 Do not hardcode providers' names in metadata.
+.It Fl f
+Synchronize device after a power failure or system crash.
+.It Fl F
+Do not synchronize after a power failure or system crash.
+Assumes device is in consistent state.
 .It Fl h
 Hardcode providers' names in metadata.
 .It Fl n

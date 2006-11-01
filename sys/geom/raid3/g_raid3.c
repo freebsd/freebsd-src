@@ -861,6 +861,8 @@ g_raid3_idle(struct g_raid3_softc *sc, int acw)
 
 	if (sc->sc_provider == NULL)
 		return (0);
+	if ((sc->sc_flags & G_RAID3_DEVICE_FLAG_NOFAILSYNC) != 0)
+		return (0);
 	if (sc->sc_idle)
 		return (0);
 	if (sc->sc_writes > 0)
@@ -892,6 +894,8 @@ g_raid3_unidle(struct g_raid3_softc *sc)
 	g_topology_assert_not();
 	sx_assert(&sc->sc_lock, SX_XLOCKED);
 
+	if ((sc->sc_flags & G_RAID3_DEVICE_FLAG_NOFAILSYNC) != 0)
+		return;
 	sc->sc_idle = 0;
 	sc->sc_last_write = time_uptime;
 	for (i = 0; i < sc->sc_ndisks; i++) {
@@ -2154,6 +2158,8 @@ g_raid3_update_idle(struct g_raid3_softc *sc, struct g_raid3_disk *disk)
 {
 
 	sx_assert(&sc->sc_lock, SX_LOCKED);
+	if ((sc->sc_flags & G_RAID3_DEVICE_FLAG_NOFAILSYNC) != 0)
+		return;
 	if (!sc->sc_idle && (disk->d_flags & G_RAID3_DISK_FLAG_DIRTY) == 0) {
 		G_RAID3_DEBUG(1, "Disk %s (device %s) marked as dirty.",
 		    g_raid3_get_diskname(disk), sc->sc_name);
@@ -2206,7 +2212,8 @@ g_raid3_sync_start(struct g_raid3_softc *sc)
 
 	G_RAID3_DEBUG(0, "Device %s: rebuilding provider %s.", sc->sc_name,
 	    g_raid3_get_diskname(disk));
-	disk->d_flags |= G_RAID3_DISK_FLAG_DIRTY;
+	if ((sc->sc_flags & G_RAID3_DEVICE_FLAG_NOFAILSYNC) == 0)
+		disk->d_flags |= G_RAID3_DISK_FLAG_DIRTY;
 	KASSERT(disk->d_sync.ds_consumer == NULL,
 	    ("Sync consumer already exists (device=%s, disk=%s).",
 	    sc->sc_name, g_raid3_get_diskname(disk)));
@@ -3481,6 +3488,7 @@ g_raid3_dumpconf(struct sbuf *sb, const char *indent, struct g_geom *gp,
 		sbuf_printf(sb, name);					\
 	}								\
 } while (0)
+			ADD_FLAG(G_RAID3_DEVICE_FLAG_NOFAILSYNC, "NOFAILSYNC");
 			ADD_FLAG(G_RAID3_DEVICE_FLAG_NOAUTOSYNC, "NOAUTOSYNC");
 			ADD_FLAG(G_RAID3_DEVICE_FLAG_ROUND_ROBIN,
 			    "ROUND-ROBIN");

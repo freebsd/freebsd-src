@@ -802,6 +802,8 @@ g_mirror_idle(struct g_mirror_softc *sc, int acw)
 
 	if (sc->sc_provider == NULL)
 		return (0);
+	if ((sc->sc_flags & G_MIRROR_DEVICE_FLAG_NOFAILSYNC) != 0)
+		return (0);
 	if (sc->sc_idle)
 		return (0);
 	if (sc->sc_writes > 0)
@@ -831,6 +833,8 @@ g_mirror_unidle(struct g_mirror_softc *sc)
 	g_topology_assert_not();
 	sx_assert(&sc->sc_lock, SX_XLOCKED);
 
+	if ((sc->sc_flags & G_MIRROR_DEVICE_FLAG_NOFAILSYNC) != 0)
+		return;
 	sc->sc_idle = 0;
 	sc->sc_last_write = time_uptime;
 	LIST_FOREACH(disk, &sc->sc_disks, d_next) {
@@ -1884,6 +1888,8 @@ g_mirror_update_idle(struct g_mirror_softc *sc, struct g_mirror_disk *disk)
 
 	sx_assert(&sc->sc_lock, SX_LOCKED);
 
+	if ((sc->sc_flags & G_MIRROR_DEVICE_FLAG_NOFAILSYNC) != 0)
+		return;
 	if (!sc->sc_idle && (disk->d_flags & G_MIRROR_DISK_FLAG_DIRTY) == 0) {
 		G_MIRROR_DEBUG(1, "Disk %s (device %s) marked as dirty.",
 		    g_mirror_get_diskname(disk), sc->sc_name);
@@ -1928,7 +1934,8 @@ g_mirror_sync_start(struct g_mirror_disk *disk)
 
 	G_MIRROR_DEBUG(0, "Device %s: rebuilding provider %s.", sc->sc_name,
 	    g_mirror_get_diskname(disk));
-	disk->d_flags |= G_MIRROR_DISK_FLAG_DIRTY;
+	if ((sc->sc_flags & G_MIRROR_DEVICE_FLAG_NOFAILSYNC) == 0)
+		disk->d_flags |= G_MIRROR_DISK_FLAG_DIRTY;
 	KASSERT(disk->d_sync.ds_consumer == NULL,
 	    ("Sync consumer already exists (device=%s, disk=%s).",
 	    sc->sc_name, g_mirror_get_diskname(disk)));
@@ -3180,6 +3187,7 @@ g_mirror_dumpconf(struct sbuf *sb, const char *indent, struct g_geom *gp,
 		sbuf_printf(sb, name);					\
 	}								\
 } while (0)
+			ADD_FLAG(G_MIRROR_DEVICE_FLAG_NOFAILSYNC, "NOFAILSYNC");
 			ADD_FLAG(G_MIRROR_DEVICE_FLAG_NOAUTOSYNC, "NOAUTOSYNC");
 #undef	ADD_FLAG
 		}
