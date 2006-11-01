@@ -471,11 +471,11 @@ g_raid3_ctl_insert(struct gctl_req *req, struct g_class *mp)
 	g_raid3_fill_metadata(disk, &md);
 	sx_xunlock(&sc->sc_lock);
 	md.md_syncid = 0;
-        md.md_dflags = 0;
+	md.md_dflags = 0;
 	if (*hardcode)
-                strlcpy(md.md_provider, pp->name, sizeof(md.md_provider));
-        else
-                bzero(md.md_provider, sizeof(md.md_provider));
+		strlcpy(md.md_provider, pp->name, sizeof(md.md_provider));
+	else
+		bzero(md.md_provider, sizeof(md.md_provider));
 	md.md_provsize = pp->mediasize;
 	sector = g_malloc(pp->sectorsize, M_WAITOK);
 	raid3_metadata_encode(&md, sector);

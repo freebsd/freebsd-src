@@ -2905,7 +2905,7 @@ g_journal_do_switch(struct g_class *classp, struct thread *td)
 
 		error = vn_start_write(NULL, &mp, V_WAIT);
 		if (error != 0) {
-                	VFS_UNLOCK_GIANT(vfslocked);
+			VFS_UNLOCK_GIANT(vfslocked);
 			GJ_DEBUG(0, "vn_start_write(%s) failed (error=%d).",
 			    mountpoint, error);
 			goto next;
