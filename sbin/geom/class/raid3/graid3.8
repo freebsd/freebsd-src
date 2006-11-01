@@ -33,7 +33,7 @@
 .Sh SYNOPSIS
 .Nm
 .Cm label
-.Op Fl hnrvw
+.Op Fl Fhnrvw
 .Ar name
 .Ar prov prov prov ...
 .Nm
@@ -42,7 +42,7 @@
 .Ar prov ...
 .Nm
 .Cm configure
-.Op Fl adhnrRvwW
+.Op Fl adfFhnrRvwW
 .Ar name
 .Nm
 .Cm rebuild
@@ -97,6 +97,9 @@ The number of components must be equal to 3, 5, 9, 17, etc.\& (2^n + 1).
 .Pp
 Additional options include:
 .Bl -tag -width ".Fl h"
+.It Fl F
+Do not synchronize after a power failure or system crash.
+Assumes device is in consistent state.
 .It Fl h
 Hardcode providers' names in metadata.
 .It Fl n
@@ -134,6 +137,11 @@ Additional options include:
 Turn on autosynchronization of stale components.
 .It Fl d
 Do not hardcode providers' names in metadata.
+.It Fl f
+Synchronize device after a power failure or system crash.
+.It Fl F
+Do not synchronize after a power failure or system crash.
+Assumes device is in consistent state.
 .It Fl h
 Hardcode providers' names in metadata.
 .It Fl n

@@ -41,8 +41,9 @@
  * 1 - Added 'prefer' balance algorithm.
  * 2 - Added md_genid field to metadata.
  * 3 - Added md_provsize field to metadata.
+ * 4 - Added 'no failure synchronization' flag.
  */
-#define	G_MIRROR_VERSION	3
+#define	G_MIRROR_VERSION	4
 
 #define	G_MIRROR_BALANCE_NONE		0
 #define	G_MIRROR_BALANCE_ROUND_ROBIN	1
@@ -64,7 +65,9 @@
 					 G_MIRROR_DISK_FLAG_INACTIVE)
 
 #define	G_MIRROR_DEVICE_FLAG_NOAUTOSYNC	0x0000000000000001ULL
-#define	G_MIRROR_DEVICE_FLAG_MASK	(G_MIRROR_DEVICE_FLAG_NOAUTOSYNC)
+#define	G_MIRROR_DEVICE_FLAG_NOFAILSYNC	0x0000000000000002ULL
+#define	G_MIRROR_DEVICE_FLAG_MASK	(G_MIRROR_DEVICE_FLAG_NOAUTOSYNC | \
+					 G_MIRROR_DEVICE_FLAG_NOFAILSYNC)
 
 #ifdef _KERNEL
 extern u_int g_mirror_debug;
@@ -341,7 +344,7 @@ mirror_metadata_decode_v2(const u_char *data, struct g_mirror_metadata *md)
 	return (0);
 }
 static __inline int
-mirror_metadata_decode_v3(const u_char *data, struct g_mirror_metadata *md)
+mirror_metadata_decode_v3v4(const u_char *data, struct g_mirror_metadata *md)
 {
 	MD5_CTX ctx;
 
@@ -385,7 +388,8 @@ mirror_metadata_decode(const u_char *data, struct g_mirror_metadata *md)
 		error = mirror_metadata_decode_v2(data, md);
 		break;
 	case 3:
-		error = mirror_metadata_decode_v3(data, md);
+	case 4:
+		error = mirror_metadata_decode_v3v4(data, md);
 		break;
 	default:
 		error = EINVAL;
@@ -456,6 +460,8 @@ mirror_metadata_dump(const struct g_mirror_metadata *md)
 	if (md->md_mflags == 0)
 		printf(" NONE");
 	else {
+		if ((md->md_mflags & G_MIRROR_DEVICE_FLAG_NOFAILSYNC) != 0)
+			printf(" NOFAILSYNC");
 		if ((md->md_mflags & G_MIRROR_DEVICE_FLAG_NOAUTOSYNC) != 0)
 			printf(" NOAUTOSYNC");
 	}
