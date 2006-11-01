@@ -123,7 +123,7 @@ static struct cdevsw ptc_cdevsw = {
 /*-
  * Once a tty is allocated, it cannot (currently) be freed.  As such,
  * we keep a global list of ptys that have been used so we can recycle
- * them.  An another list is provided for released pts, whiiich are 
+ * them.  Another list is provided for released pts, which are 
  * not currently allocated, permitting reuse.  pt_flags holds state
  * associated with a particular session, so isn't overloaded for this.
  * When a pty descriptor is unused, its number is set to -1 giving
@@ -276,7 +276,7 @@ ptsopen(struct cdev *dev, int flag, int devtype, struct thread *td)
 	if (tp->t_oproc)			/* Ctrlr still around. */
 		ttyld_modem(tp, 1);
 	while ((tp->t_state & TS_CARR_ON) == 0) {
-		if (flag&FNONBLOCK)
+		if (flag & FNONBLOCK)
 			break;
 		error = ttysleep(tp, TSA_CARR_ON(tp), TTIPRI | PCATCH,
 				 "ptsopn", 0);
