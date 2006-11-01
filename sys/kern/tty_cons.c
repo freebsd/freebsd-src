@@ -41,6 +41,8 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/systm.h>
+#include <sys/lock.h>
+#include <sys/mutex.h>
 #include <sys/conf.h>
 #include <sys/cons.h>
 #include <sys/fcntl.h>
@@ -117,6 +119,8 @@ static u_char console_pausing;		/* pause after each line during probe */
 static char *console_pausestr=
 "<pause; press any key to proceed to next line or '.' to end pause mode>";
 struct tty *constty;			/* pointer to console "window" tty */
+static struct mtx cnputs_mtx;		/* Mutex for cnputs(). */
+static int use_cnputs_mtx = 0;		/* != 0 if cnputs_mtx locking reqd. */
 
 static void constty_timeout(void *arg);
 
@@ -639,6 +643,24 @@ cnputc(int c)
 	}
 }
 
+void
+cnputs(char *p)
+{
+	int c;
+	int unlock_reqd = 0;
+
+	if (use_cnputs_mtx) {
+		mtx_lock_spin(&cnputs_mtx);
+		unlock_reqd = 1;
+	}
+
+	while ((c = *p++) != '\0')
+		cnputc(c);
+
+	if (unlock_reqd)
+		mtx_unlock_spin(&cnputs_mtx);
+}
+
 static int consmsgbuf_size = 8192;
 SYSCTL_INT(_kern, OID_AUTO, consmsgbuf_size, CTLFLAG_RW, &consmsgbuf_size, 0,
     "");
@@ -708,6 +730,9 @@ cn_drvinit(void *unused)
 {
 
 	make_dev(&cn_cdevsw, 0, UID_ROOT, GID_WHEEL, 0600, "console");
+
+	mtx_init(&cnputs_mtx, "cnputs_mtx", NULL, MTX_SPIN | MTX_NOWITNESS);
+	use_cnputs_mtx = 1;
 }
 
 SYSINIT(cndev, SI_SUB_DRIVERS, SI_ORDER_MIDDLE, cn_drvinit, NULL)
