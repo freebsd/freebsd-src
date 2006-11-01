@@ -61,6 +61,27 @@ static const char rcsid[] =
 
 #include "ifconfig.h"
 
+static const char *stpstates[] = {
+	"disabled",
+	"listening",
+	"learning",
+	"forwarding",
+	"blocking",
+	"discarding"
+};
+static const char *stpproto[] = {
+	"stp",
+	"-",
+	"rstp"
+};
+static const char *stproles[] = {
+	"disabled",
+	"root",
+	"designated",
+	"alternate",
+	"backup"
+};
+
 static int
 get_val(const char *cp, u_long *valp)
 {
@@ -113,13 +134,6 @@ do_bridgeflag(int sock, const char *ifs, int flag, int set)
 static void
 bridge_interfaces(int s, const char *prefix)
 {
-	static const char *stpstates[] = {
-		"disabled",
-		"listening",
-		"learning",
-		"forwarding",
-		"blocking",
-	};
 	struct ifbifconf bifc;
 	struct ifbreq *req;
 	char *inbuf = NULL, *ninbuf;
@@ -159,12 +173,35 @@ bridge_interfaces(int s, const char *prefix)
 			printf("port %u priority %u",
 			    req->ifbr_portno, req->ifbr_priority);
 			printf(" path cost %u", req->ifbr_path_cost);
+			if (req->ifbr_proto <
+			    sizeof(stpproto) / sizeof(stpproto[0]))
+				printf(" proto %s", stpproto[req->ifbr_proto]);
+			else
+				printf(" <unknown proto %d>",
+				    req->ifbr_proto);
+
+			printf("\n%s", pad);
+			if (req->ifbr_role <
+			    sizeof(stproles) / sizeof(stproles[0]))
+				printf("role %s", stproles[req->ifbr_role]);
+			else
+				printf("<unknown role %d>",
+				    req->ifbr_role);
 			if (req->ifbr_state <
 			    sizeof(stpstates) / sizeof(stpstates[0]))
-				printf(" %s", stpstates[req->ifbr_state]);
+				printf(" state %s", stpstates[req->ifbr_state]);
 			else
 				printf(" <unknown state %d>",
 				    req->ifbr_state);
+
+			if (req->ifbr_p2p)
+				printf(" p2p");
+			else
+				printf(" shared");
+			if (req->ifbr_edge)
+				printf(" edge");
+			if (req->ifbr_autoedge)
+				printf(" autoedge");
 			printf("\n");
 		}
 	}
@@ -210,28 +247,22 @@ bridge_addresses(int s, const char *prefix)
 static void
 bridge_status(int s)
 {
-	struct ifbrparam param;
+	struct ifbropreq param;
 	u_int16_t pri;
-	u_int8_t ht, fd, ma;
+	u_int8_t ht, fd, ma, hc, pro;
 
-	if (do_cmd(s, BRDGGPRI, &param, sizeof(param), 0) < 0)
+	if (do_cmd(s, BRDGPARAM, &param, sizeof(param), 0) < 0)
 		return;
-	pri = param.ifbrp_prio;
+	pri = param.ifbop_priority;
+	pro = param.ifbop_protocol;
+	ht = param.ifbop_hellotime;
+	fd = param.ifbop_fwddelay;
+	hc = param.ifbop_holdcount;
+	ma = param.ifbop_maxage;
 
-	if (do_cmd(s, BRDGGHT, &param, sizeof(param), 0) < 0)
-		return;
-	ht = param.ifbrp_hellotime;
-
-	if (do_cmd(s, BRDGGFD, &param, sizeof(param), 0) < 0)
-		return;
-	fd = param.ifbrp_fwddelay;
-
-	if (do_cmd(s, BRDGGMA, &param, sizeof(param), 0) < 0)
-		return;
-	ma = param.ifbrp_maxage;
-
-	printf("\tpriority %u hellotime %u fwddelay %u maxage %u\n",
-	    pri, ht, fd, ma);
+	printf("\tpriority %u hellotime %u fwddelay %u"
+	    " maxage %u hc %u proto %s\n",
+	    pri, ht, fd, ma, hc, stpproto[pro]);
 
 	bridge_interfaces(s, "\tmember: ");
 
@@ -323,6 +354,54 @@ unsetbridge_stp(const char *val, int d, int s, const struct afswtch *afp)
 {
 
 	do_bridgeflag(s, val, IFBIF_STP, 0);
+}
+
+static void
+setbridge_edge(const char *val, int d, int s, const struct afswtch *afp)
+{
+	struct ifbreq req;
+
+	memset(&req, 0, sizeof(req));
+	strlcpy(req.ifbr_ifsname, val, sizeof(req.ifbr_ifsname));
+	req.ifbr_edge = 1;
+	if (do_cmd(s, BRDGSEDGE, &req, sizeof(req), 1) < 0)
+		err(1, "BRDGSEDGE %s",  val);
+}
+
+static void
+unsetbridge_edge(const char *val, int d, int s, const struct afswtch *afp)
+{
+	struct ifbreq req;
+
+	memset(&req, 0, sizeof(req));
+	strlcpy(req.ifbr_ifsname, val, sizeof(req.ifbr_ifsname));
+	req.ifbr_edge = 0;
+	if (do_cmd(s, BRDGSEDGE, &req, sizeof(req), 1) < 0)
+		err(1, "BRDGSEDGE %s",  val);
+}
+
+static void
+setbridge_autoedge(const char *val, int d, int s, const struct afswtch *afp)
+{
+	struct ifbreq req;
+
+	memset(&req, 0, sizeof(req));
+	strlcpy(req.ifbr_ifsname, val, sizeof(req.ifbr_ifsname));
+	req.ifbr_autoedge = 1;
+	if (do_cmd(s, BRDGSAEDGE, &req, sizeof(req), 1) < 0)
+		err(1, "BRDGSAEDGE %s",  val);
+}
+
+static void
+unsetbridge_autoedge(const char *val, int d, int s, const struct afswtch *afp)
+{
+	struct ifbreq req;
+
+	memset(&req, 0, sizeof(req));
+	strlcpy(req.ifbr_ifsname, val, sizeof(req.ifbr_ifsname));
+	req.ifbr_autoedge = 0;
+	if (do_cmd(s, BRDGSAEDGE, &req, sizeof(req), 1) < 0)
+		err(1, "BRDGSAEDGE %s",  val);
 }
 
 static void
@@ -469,6 +548,38 @@ setbridge_priority(const char *arg, int d, int s, const struct afswtch *afp)
 }
 
 static void
+setbridge_protocol(const char *arg, int d, int s, const struct afswtch *afp)
+{
+	struct ifbrparam param;
+
+	if (strcasecmp(arg, "stp") == 0) {
+		param.ifbrp_proto = 0;
+	} else if (strcasecmp(arg, "rstp") == 0) {
+		param.ifbrp_proto = 2;
+	} else {
+		errx(1, "unknown stp protocol");
+	}
+
+	if (do_cmd(s, BRDGSPROTO, &param, sizeof(param), 1) < 0)
+		err(1, "BRDGSPROTO %s",  arg);
+}
+
+static void
+setbridge_holdcount(const char *arg, int d, int s, const struct afswtch *afp)
+{
+	struct ifbrparam param;
+	u_long val;
+
+	if (get_val(arg, &val) < 0 || (val & ~0xff) != 0)
+		errx(1, "invalid value: %s",  arg);
+
+	param.ifbrp_txhc = val & 0xff;
+
+	if (do_cmd(s, BRDGSTXHC, &param, sizeof(param), 1) < 0)
+		err(1, "BRDGSTXHC %s",  arg);
+}
+
+static void
 setbridge_ifpriority(const char *ifn, const char *pri, int s,
     const struct afswtch *afp)
 {
@@ -496,11 +607,11 @@ setbridge_ifpathcost(const char *ifn, const char *cost, int s,
 
 	memset(&req, 0, sizeof(req));
 
-	if (get_val(cost, &val) < 0 || (val & ~0xff) != 0)
+	if (get_val(cost, &val) < 0)
 		errx(1, "invalid value: %s",  cost);
 
 	strlcpy(req.ifbr_ifsname, ifn, sizeof(req.ifbr_ifsname));
-	req.ifbr_path_cost = val & 0xffff;
+	req.ifbr_path_cost = val;
 
 	if (do_cmd(s, BRDGSIFCOST, &req, sizeof(req), 1) < 0)
 		err(1, "BRDGSIFCOST %s",  cost);
@@ -532,6 +643,10 @@ static struct cmd bridge_cmds[] = {
 	DEF_CMD_ARG("-span",		unsetbridge_span),
 	DEF_CMD_ARG("stp",		setbridge_stp),
 	DEF_CMD_ARG("-stp",		unsetbridge_stp),
+	DEF_CMD_ARG("edge",		setbridge_edge),
+	DEF_CMD_ARG("-edge",		unsetbridge_edge),
+	DEF_CMD_ARG("autoedge",		setbridge_autoedge),
+	DEF_CMD_ARG("-autoedge",	unsetbridge_autoedge),
 	DEF_CMD("flush", 0,		setbridge_flush),
 	DEF_CMD("flushall", 0,		setbridge_flushall),
 	DEF_CMD_ARG2("static",		setbridge_static),
@@ -542,6 +657,8 @@ static struct cmd bridge_cmds[] = {
 	DEF_CMD_ARG("fwddelay",		setbridge_fwddelay),
 	DEF_CMD_ARG("maxage",		setbridge_maxage),
 	DEF_CMD_ARG("priority",		setbridge_priority),
+	DEF_CMD_ARG("proto",		setbridge_protocol),
+	DEF_CMD_ARG("holdcount",	setbridge_holdcount),
 	DEF_CMD_ARG2("ifpriority",	setbridge_ifpriority),
 	DEF_CMD_ARG2("ifpathcost",	setbridge_ifpathcost),
 	DEF_CMD_ARG("timeout",		setbridge_timeout),
