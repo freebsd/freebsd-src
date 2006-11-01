@@ -579,9 +579,9 @@ g_stripe_start(struct bio *bp)
 	case BIO_WRITE:
 	case BIO_DELETE:
 		break;
-        case BIO_FLUSH:
-                g_stripe_flush(sc, bp);
-                return;
+	case BIO_FLUSH:
+		g_stripe_flush(sc, bp);
+		return;
 	case BIO_GETATTR:
 		/* To which provider it should be delivered? */
 	default:
