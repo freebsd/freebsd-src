@@ -1100,10 +1100,6 @@ em_init_locked(struct adapter *adapter)
 	if (adapter->hw.mac_type >= em_82543) {
 		if (ifp->if_capenable & IFCAP_TXCSUM)
 			ifp->if_hwassist = EM_CHECKSUM_FEATURES;
-		/*
-		 * em_setup_transmit_structures() will behave differently
-		 * based on the state of TSO.
-		 */
 		if (ifp->if_capenable & IFCAP_TSO)
 			ifp->if_hwassist |= EM_TCPSEG_FEATURES;
 	}
@@ -2626,7 +2622,8 @@ em_allocate_transmit_structures(struct adapter *adapter)
 	segsize = size = roundup2(adapter->hw.max_frame_size, MCLBYTES);
 
 	/* Overrides for TSO - want large sizes */
-	if (ifp->if_hwassist & EM_TCPSEG_FEATURES) {
+	if ((adapter->hw.mac_type > em_82544) &&
+	    (adapter->hw.mac_type != em_82547)) {
 		size = EM_TSO_SIZE;
 		segsize = PAGE_SIZE;
 	}
