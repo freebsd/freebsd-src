@@ -1324,6 +1324,23 @@ hv_hpriv(void *func, uint64_t arg1, uint64_t arg2, uint64_t arg3)
 	SET_SIZE(hv_ttrace_freeze)
 
 	/*
+	 * TTRACE_ADDENTRY
+	 * arg0 tag (16-bits) (%o0)
+	 * arg1 data word 0 (%o1)
+	 * arg2 data word 1 (%o2)
+	 * arg3 data word 2 (%o3)
+	 * arg4 data word 3 (%o4)
+	 * ret0 status (%o0)
+	*/
+	ENTRY(hv_ttrace_addentry)
+	ta	TTRACE_ADDENTRY
+	retl
+	  nop	
+	SET_SIZE(hv_ttrace_addentry)
+
+
+	
+	/*
 	 * MACH_DESC
 	 * arg0 buffer real address
 	 * arg1 pointer to uint64_t for size of buffer

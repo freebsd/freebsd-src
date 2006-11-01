@@ -37,6 +37,7 @@
 #define	CPU_STICK_NPT		0x82
 #define	MMU_MAP_ADDR		0x83
 #define	MMU_UNMAP_ADDR		0x84
+#define TTRACE_ADDENTRY         0x85
 
 /*
  * Error returns in %o0.
