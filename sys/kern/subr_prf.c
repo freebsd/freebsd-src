@@ -78,6 +78,10 @@ struct putchar_arg {
 	int	flags;
 	int	pri;
 	struct	tty *tty;
+	char	*p_bufr;
+	size_t	n_bufr;
+	char	*p_next;
+	size_t	remain;
 };
 
 struct snprintf_arg {
@@ -92,7 +96,6 @@ static void  putchar(int ch, void *arg);
 static char *ksprintn(char *nbuf, uintmax_t num, int base, int *len, int upper);
 static void  snprintf_func(int ch, void *arg);
 
-static int consintr = 1;		/* Ok to handle console interrupts? */
 static int msgbufmapped;		/* Set when safe to use msgbuf */
 int msgbuftrigger;
 
@@ -234,6 +237,7 @@ log(int level, const char *fmt, ...)
 	pca.tty = NULL;
 	pca.pri = level;
 	pca.flags = log_open ? TOLOG : TOCONS;
+	pca.p_bufr = NULL;
 
 	va_start(ap, fmt);
 	kvprintf(fmt, putchar, &pca, 10, ap);
@@ -284,41 +288,94 @@ int
 printf(const char *fmt, ...)
 {
 	va_list ap;
-	int savintr;
 	struct putchar_arg pca;
 	int retval;
 
-	savintr = consintr;		/* disable interrupts */
-	consintr = 0;
+	critical_enter();
+
 	va_start(ap, fmt);
 	pca.tty = NULL;
 	pca.flags = TOCONS | TOLOG;
 	pca.pri = -1;
+	pca.p_bufr = (char *) PCPU_PTR(cons_bufr);
+	pca.p_next = pca.p_bufr;
+	pca.n_bufr = PCPU_CONS_BUFR;
+	pca.remain = PCPU_CONS_BUFR;
+	*pca.p_next = '\0';
+
 	retval = kvprintf(fmt, putchar, &pca, 10, ap);
 	va_end(ap);
+
+	/* Write any buffered console output: */
+	if (*pca.p_bufr != '\0')
+		cnputs(pca.p_bufr);
+
 	if (!panicstr)
 		msgbuftrigger = 1;
-	consintr = savintr;		/* reenable interrupts */
+
+	critical_exit();
+
 	return (retval);
 }
 
 int
 vprintf(const char *fmt, va_list ap)
 {
-	int savintr;
 	struct putchar_arg pca;
 	int retval;
 
-	savintr = consintr;		/* disable interrupts */
-	consintr = 0;
+	critical_enter();
+
 	pca.tty = NULL;
 	pca.flags = TOCONS | TOLOG;
 	pca.pri = -1;
+	pca.p_bufr = (char *) PCPU_PTR(cons_bufr);
+	pca.p_next = pca.p_bufr;
+	pca.n_bufr = PCPU_CONS_BUFR;
+	pca.remain = PCPU_CONS_BUFR;
+	*pca.p_next = '\0';
+
 	retval = kvprintf(fmt, putchar, &pca, 10, ap);
+
+	/* Write any buffered console output: */
+	if (*pca.p_bufr != '\0')
+		cnputs(pca.p_bufr);
+
 	if (!panicstr)
 		msgbuftrigger = 1;
-	consintr = savintr;		/* reenable interrupts */
+
+	critical_exit();
+
 	return (retval);
+}
+
+static void
+putcons(int c, struct putchar_arg *ap)
+{
+	/* Check if no console output buffer was provided. */
+	if (ap->p_bufr == NULL)
+		/* Output direct to the console. */
+		cnputc(c);
+	else {
+		/* Buffer the character: */
+		if (c == '\n') {
+			*ap->p_next++ = '\r';
+			ap->remain--;
+		}
+		*ap->p_next++ = c;
+		ap->remain--;
+
+		/* Always leave the buffer zero terminated. */
+		*ap->p_next = '\0';
+
+		/* Check if the buffer needs to be flushed. */
+		if (ap->remain < 3 || c == '\n') {
+			cnputs(ap->p_bufr);
+			ap->p_next = ap->p_bufr;
+			ap->remain = ap->n_bufr;
+			*ap->p_next = '\0';
+		}
+	}
 }
 
 /*
@@ -331,17 +388,15 @@ putchar(int c, void *arg)
 {
 	struct putchar_arg *ap = (struct putchar_arg*) arg;
 	struct tty *tp = ap->tty;
-	int consdirect, flags = ap->flags;
+	int flags = ap->flags;
 
-	consdirect = ((flags & TOCONS) && constty == NULL);
 	/* Don't use the tty code after a panic or while in ddb. */
-	if (panicstr)
-		consdirect = 1;
-	if (kdb_active)
-		consdirect = 1;
-	if (consdirect) {
+	if (kdb_active) {
 		if (c != '\0')
 			cnputc(c);
+	} else if (panicstr || ((flags & TOCONS) && constty == NULL)) {
+		if (c != '\0')
+			putcons(c, ap);
 	} else {
 		if ((flags & TOTTY) && tp != NULL)
 			tputchar(c, tp);
@@ -349,7 +404,7 @@ putchar(int c, void *arg)
 			if (constty != NULL)
 				msgbuf_addchar(&consmsgbuf, c);
 			if (always_console_output && c != '\0')
-				cnputc(c);
+				putcons(c, ap);
 		}
 	}
 	if ((flags & TOLOG))

@@ -198,6 +198,7 @@ ASSYM(HASH_ENTRY_SHIFT, HASH_ENTRY_SHIFT);
 
 ASSYM(V_INTR, offsetof(struct vmmeter, v_intr));
 
+ASSYM(PC_CONS_BUFR, offsetof(struct pcpu, pc_cons_bufr));
 ASSYM(PC_CURTHREAD, offsetof(struct pcpu, pc_curthread));
 ASSYM(PC_CURPCB, offsetof(struct pcpu, pc_curpcb));
 ASSYM(PC_CPUID, offsetof(struct pcpu, pc_cpuid));
