@@ -1000,7 +1000,6 @@ end:
 		}
 		GJ_DEBUG(3, "INSERT(%p): DONE %d", *head, n);
 	}
-	sbuf_delete(sb);
 	return (n);
 }
 
