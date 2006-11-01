@@ -58,6 +58,8 @@ struct g_command class_commands[] = {
 	    {
 		{ 'a', "autosync", NULL, G_TYPE_BOOL },
 		{ 'd', "dynamic", NULL, G_TYPE_BOOL },
+		{ 'f', "failsync", NULL, G_TYPE_BOOL },
+		{ 'F', "nofailsync", NULL, G_TYPE_BOOL },
 		{ 'h', "hardcode", NULL, G_TYPE_BOOL },
 		{ 'n', "noautosync", NULL, G_TYPE_BOOL },
 		{ 'r', "round_robin", NULL, G_TYPE_BOOL },
@@ -66,7 +68,7 @@ struct g_command class_commands[] = {
 		{ 'W', "noverify", NULL, G_TYPE_BOOL },
 		G_OPT_SENTINEL
 	    },
-	    "[-adhnrRvwW] name"
+	    "[-adfFhnrRvwW] name"
 	},
 	{ "dump", 0, raid3_main, G_NULL_OPTS,
 	    "prov ..."
@@ -82,12 +84,13 @@ struct g_command class_commands[] = {
 	{ "label", G_FLAG_VERBOSE, raid3_main,
 	    {
 		{ 'h', "hardcode", NULL, G_TYPE_BOOL },
+		{ 'F', "nofailsync", NULL, G_TYPE_BOOL },
 		{ 'n', "noautosync", NULL, G_TYPE_BOOL },
 		{ 'r', "round_robin", NULL, G_TYPE_BOOL },
 		{ 'w', "verify", NULL, G_TYPE_BOOL },
 		G_OPT_SENTINEL
 	    },
-	    "[-hnrvw] name prov prov prov ..."
+	    "[-hFnrvw] name prov prov prov ..."
 	},
 	{ "rebuild", G_FLAG_VERBOSE, NULL, G_NULL_OPTS,
 	    "[-v] name prov"
@@ -142,7 +145,8 @@ raid3_label(struct gctl_req *req)
 	const char *str;
 	unsigned sectorsize, ssize;
 	off_t mediasize, msize;
-	int error, i, nargs, hardcode, noautosync, round_robin, verify;
+	int hardcode, round_robin, verify;
+	int error, i, nargs;
 
 	nargs = gctl_get_int(req, "nargs");
 	if (nargs < 4) {
@@ -165,9 +169,10 @@ raid3_label(struct gctl_req *req)
 	md.md_genid = 0;
 	md.md_syncid = 1;
 	md.md_sync_offset = 0;
-	noautosync = gctl_get_int(req, "noautosync");
-	if (noautosync)
+	if (gctl_get_int(req, "noautosync"))
 		md.md_mflags |= G_RAID3_DEVICE_FLAG_NOAUTOSYNC;
+	if (gctl_get_int(req, "nofailsync"))
+		md.md_mflags |= G_RAID3_DEVICE_FLAG_NOFAILSYNC;
 	round_robin = gctl_get_int(req, "round_robin");
 	if (round_robin)
 		md.md_mflags |= G_RAID3_DEVICE_FLAG_ROUND_ROBIN;

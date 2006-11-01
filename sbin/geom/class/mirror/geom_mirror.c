@@ -67,12 +67,14 @@ struct g_command class_commands[] = {
 		{ 'a', "autosync", NULL, G_TYPE_BOOL },
 		{ 'b', "balance", configure_balance, G_TYPE_STRING },
 		{ 'd', "dynamic", NULL, G_TYPE_BOOL },
+		{ 'f', "failsync", NULL, G_TYPE_BOOL },
+		{ 'F', "nofailsync", NULL, G_TYPE_BOOL },
 		{ 'h', "hardcode", NULL, G_TYPE_BOOL },
 		{ 'n', "noautosync", NULL, G_TYPE_BOOL },
 		{ 's', "slice", &configure_slice, G_TYPE_NUMBER },
 		G_OPT_SENTINEL
 	    },
-	    "[-adhnv] [-b balance] [-s slice] name"
+	    "[-adfFhnv] [-b balance] [-s slice] name"
 	},
 	{ "deactivate", G_FLAG_VERBOSE, NULL, G_NULL_OPTS,
 	    "[-v] name prov ..."
@@ -86,12 +88,13 @@ struct g_command class_commands[] = {
 	{ "label", G_FLAG_VERBOSE, mirror_main,
 	    {
 		{ 'b', "balance", label_balance, G_TYPE_STRING },
+		{ 'F', "nofailsync", NULL, G_TYPE_BOOL },
 		{ 'h', "hardcode", NULL, G_TYPE_BOOL },
 		{ 'n', "noautosync", NULL, G_TYPE_BOOL },
 		{ 's', "slice", &label_slice, G_TYPE_NUMBER },
 		G_OPT_SENTINEL
 	    },
-	    "[-hnv] [-b balance] [-s slice] name prov ..."
+	    "[-Fhnv] [-b balance] [-s slice] name prov ..."
 	},
 	{ "insert", G_FLAG_VERBOSE, NULL,
 	    {
@@ -154,7 +157,7 @@ mirror_label(struct gctl_req *req)
 	unsigned sectorsize;
 	off_t mediasize;
 	intmax_t val;
-	int error, i, nargs, bal, hardcode, noautosync;
+	int error, i, nargs, bal, hardcode;
 
 	nargs = gctl_get_int(req, "nargs");
 	if (nargs < 2) {
@@ -182,9 +185,10 @@ mirror_label(struct gctl_req *req)
 		return;
 	}
 	md.md_balance = bal;
-	noautosync = gctl_get_int(req, "noautosync");
-	if (noautosync)
+	if (gctl_get_int(req, "noautosync"))
 		md.md_mflags |= G_MIRROR_DEVICE_FLAG_NOAUTOSYNC;
+	if (gctl_get_int(req, "nofailsync"))
+		md.md_mflags |= G_MIRROR_DEVICE_FLAG_NOFAILSYNC;
 	hardcode = gctl_get_int(req, "hardcode");
 
 	/*

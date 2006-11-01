@@ -42,8 +42,9 @@
  * 2 - Added 'verify reading' algorithm.
  * 3 - Added md_genid field to metadata.
  * 4 - Added md_provsize field to metadata.
+ * 5 - Added 'no failure synchronization' flag.
  */
-#define	G_RAID3_VERSION		4
+#define	G_RAID3_VERSION		5
 
 #define	G_RAID3_DISK_FLAG_DIRTY		0x0000000000000001ULL
 #define	G_RAID3_DISK_FLAG_SYNCHRONIZING	0x0000000000000002ULL
@@ -57,9 +58,11 @@
 #define	G_RAID3_DEVICE_FLAG_NOAUTOSYNC	0x0000000000000001ULL
 #define	G_RAID3_DEVICE_FLAG_ROUND_ROBIN	0x0000000000000002ULL
 #define	G_RAID3_DEVICE_FLAG_VERIFY	0x0000000000000004ULL
+#define	G_RAID3_DEVICE_FLAG_NOFAILSYNC	0x0000000000000008ULL
 #define	G_RAID3_DEVICE_FLAG_MASK	(G_RAID3_DEVICE_FLAG_NOAUTOSYNC | \
 					 G_RAID3_DEVICE_FLAG_ROUND_ROBIN | \
-					 G_RAID3_DEVICE_FLAG_VERIFY)
+					 G_RAID3_DEVICE_FLAG_VERIFY | \
+					 G_RAID3_DEVICE_FLAG_NOFAILSYNC)
 
 #ifdef _KERNEL
 extern u_int g_raid3_debug;
@@ -363,7 +366,7 @@ raid3_metadata_decode_v3(const u_char *data, struct g_raid3_metadata *md)
 	return (0);
 }
 static __inline int
-raid3_metadata_decode_v4(const u_char *data, struct g_raid3_metadata *md)
+raid3_metadata_decode_v4v5(const u_char *data, struct g_raid3_metadata *md)
 {
 	MD5_CTX ctx;
 
@@ -405,7 +408,8 @@ raid3_metadata_decode(const u_char *data, struct g_raid3_metadata *md)
 		error = raid3_metadata_decode_v3(data, md);
 		break;
 	case 4:
-		error = raid3_metadata_decode_v4(data, md);
+	case 5:
+		error = raid3_metadata_decode_v4v5(data, md);
 		break;
 	default:
 		error = EINVAL;
@@ -442,6 +446,8 @@ raid3_metadata_dump(const struct g_raid3_metadata *md)
 			printf(" ROUND-ROBIN");
 		if ((md->md_mflags & G_RAID3_DEVICE_FLAG_VERIFY) != 0)
 			printf(" VERIFY");
+		if ((md->md_mflags & G_RAID3_DEVICE_FLAG_NOFAILSYNC) != 0)
+			printf(" NOFAILSYNC");
 	}
 	printf("\n");
 	printf("    dflags:");
