@@ -295,6 +295,7 @@ WITH_IDEA=
     BLUETOOTH \
     BOOT \
     CALENDAR \
+    CDDL \
     CPP \
     CRYPT \
     CVS \
