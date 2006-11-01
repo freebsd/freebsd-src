@@ -797,23 +797,12 @@ g_journal_insert(struct bio **head, off_t nstart, off_t nend, off_t joffset,
     u_char *data, int flags)
 {
 	struct bio *nbp, *cbp, *pbp;
-	struct sbuf *sb;
 	off_t cstart, cend;
 	u_char *tmpdata;
 	int n;
 
 	GJ_DEBUG(3, "INSERT(%p): (%jd, %jd, %jd)", *head, nstart, nend,
 	    joffset);
-	sb = sbuf_new(NULL, NULL, 0, SBUF_AUTOEXTEND);
-	sbuf_printf(sb, "Adding nstart=%jd nend=%jd joffset=%jd data=%p flags=0x%x\n",
-	    (intmax_t)nstart, (intmax_t)nend, (intmax_t)joffset, data, flags);
-	GJQ_FOREACH(*head, cbp) {
-		sbuf_printf(sb, "start=%jd end=%jd joffset=%jd data=%p\n",
-		    (intmax_t)cbp->bio_offset,
-		    (intmax_t)(cbp->bio_offset + cbp->bio_length),
-		    (intmax_t)cbp->bio_joffset, cbp->bio_data);
-	}
-	sbuf_finish(sb);
 	n = 0;
 	pbp = NULL;
 	GJQ_FOREACH(*head, cbp) {
@@ -1010,30 +999,6 @@ end:
 			    (intmax_t)cbp->bio_joffset, cbp->bio_data);
 		}
 		GJ_DEBUG(3, "INSERT(%p): DONE %d", *head, n);
-	}
-	pbp = NULL;
-	GJQ_FOREACH(*head, cbp) {
-		if (pbp == NULL) {
-			pbp = cbp;
-			continue;
-		}
-		if (pbp->bio_offset + pbp->bio_length < cbp->bio_offset) {
-			pbp = cbp;
-			continue;
-		}
-		GJ_DEBUG(0, "Request out of order:");
-		GJ_LOGREQ(0, pbp, "Previous: ");
-		GJ_LOGREQ(0, cbp, "Current: ");
-		printf("List before:\n");
-		printf("%s", sbuf_data(sb));
-		printf("List after:\n");
-		GJQ_FOREACH(*head, cbp) {
-			sbuf_printf(sb, "start=%jd end=%jd joffset=%jd data=%p\n",
-			    (intmax_t)cbp->bio_offset,
-			    (intmax_t)(cbp->bio_offset + cbp->bio_length),
-			    (intmax_t)cbp->bio_joffset, cbp->bio_data);
-		}
-		panic("Enough.");
 	}
 	sbuf_delete(sb);
 	return (n);
