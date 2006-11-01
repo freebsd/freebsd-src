@@ -67,8 +67,8 @@ static struct acpi_sony_name_list
 	{ "cmi", "GCMI", "SCMI", "????"},
 #endif
 	{ "wdp", "GWDP", NULL, "?????"},
-	{ "cdp", "GCDP", "CDPW", "??????"},  /*shares [\GL03]&0x8 flag*/
-	{NULL, NULL,NULL}
+	{ "cdp", "GCDP", "CDPW", "CD Power"},  /*shares [\GL03]&0x8 flag*/
+	{ NULL, NULL, NULL }
 };
 
 static int	acpi_sony_probe(device_t dev);
