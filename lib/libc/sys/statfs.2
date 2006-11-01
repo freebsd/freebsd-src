@@ -32,7 +32,7 @@
 .\"	@(#)statfs.2	8.5 (Berkeley) 5/24/95
 .\" $FreeBSD$
 .\"
-.Dd November 26, 2004
+.Dd November 1, 2006
 .Dt STATFS 2
 .Os
 .Sh NAME
@@ -115,6 +115,9 @@ No file system I/O is done synchronously.
 .It Dv MNT_SOFTDEP
 Soft updates being done (see
 .Xr ffs 7 ) .
+.It Dv MNT_GJOURNAL
+Journaling with gjournal is enabled (see
+.Xr gjournal 8 ) .
 .It Dv MNT_SUIDDIR
 Special handling of SUID bit on directories.
 .It Dv MNT_UNION
