@@ -81,6 +81,7 @@ __FBSDID("$FreeBSD$");
 #include <vm/vm.h>
 
 #include "opt_ffs.h"
+#include "opt_quota.h"
 
 #ifndef SOFTUPDATES
 
@@ -728,6 +729,9 @@ softdep_flush(void)
 
 	for (;;) {	
 		kthread_suspend_check(softdepproc);
+#ifdef QUOTA
+		mtx_lock(&Giant);
+#endif
 		ACQUIRE_LOCK(&lk);
 		/*
 		 * If requested, try removing inode or removal dependencies.
@@ -743,6 +747,9 @@ softdep_flush(void)
 			wakeup_one(&proc_waiting);
 		}
 		FREE_LOCK(&lk);
+#ifdef QUOTA
+		mtx_unlock(&Giant);
+#endif
 		remaining = 0;
 		mtx_lock(&mountlist_mtx);
 		for (mp = TAILQ_FIRST(&mountlist); mp != NULL; mp = nmp)  {
