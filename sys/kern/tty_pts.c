@@ -189,6 +189,7 @@ pty_new(void)
 		mtx_unlock(&pt_mtx);
 		return (NULL);
 	}
+	nb_allocated++;
 	pt = LIST_FIRST(&pt_free_list);
 	if (pt) {
 		LIST_REMOVE(pt, pt_list);
@@ -204,7 +205,6 @@ pty_new(void)
 		mtx_unlock(&pt_mtx);
 		pt->pt_tty = ttyalloc();
 	}
-	nb_allocated++;
 	return (pt);
 }
 
