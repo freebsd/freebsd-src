@@ -663,6 +663,7 @@ void
 gjournal_check(const char *filesys)
 {
 	struct ufs2_dinode *dino;
+	void *p;
 	struct cgchain *cgc;
 	struct cg *cgp;
 	uint8_t *inosused, *blksfree;
@@ -714,8 +715,9 @@ gjournal_check(const char *filesys)
 			/* Unallocated? Skip it. */
 			if (isclr(inosused, cino))
 				continue;
-			if (getino(disk, (void **)&dino, ino, &mode) == -1)
+			if (getino(disk, &p, ino, &mode) == -1)
 				err(1, "getino(cg=%d ino=%d)", cg, ino);
+			dino = p;
 			/* Not a regular file nor directory? Skip it. */
 			if (!S_ISREG(dino->di_mode) && !S_ISDIR(dino->di_mode))
 				continue;
