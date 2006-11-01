@@ -1339,6 +1339,8 @@ g_gpt_start(struct bio *bp)
 			gkd->offset += part->offset;
 			/* FALLTHROUGH */
 		}
+		/* FALLTHROUGH */
+	case BIO_FLUSH:
 		bp2 = g_clone_bio(bp);
 		if (bp2 == NULL) {
 			g_io_deliver(bp, ENOMEM);
