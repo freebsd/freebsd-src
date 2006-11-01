@@ -112,6 +112,10 @@
 #define	BRDGGRTE		26	/* get cache drops (ifbrparam) */
 #define	BRDGGIFSSTP		27	/* get member STP params list
 					 * (ifbpstpconf) */
+#define	BRDGSPROTO		28	/* set protocol (ifbrparam) */
+#define	BRDGSTXHC		29	/* set tx hold count (ifbrparam) */
+#define	BRDGSEDGE		30	/* set edge status (ifbreq) */
+#define	BRDGSAEDGE		31	/* set autoedge status (ifbreq) */
 
 /*
  * Generic bridge control request.
@@ -119,10 +123,16 @@
 struct ifbreq {
 	char		ifbr_ifsname[IFNAMSIZ];	/* member if name */
 	uint32_t	ifbr_ifsflags;		/* member if flags */
-	uint8_t		ifbr_state;		/* member if STP state */
-	uint8_t		ifbr_priority;		/* member if STP priority */
-	uint8_t		ifbr_path_cost;		/* member if STP cost */
+	uint32_t	ifbr_stpflags;		/* member if STP flags */
+	uint8_t		ifbr_edge;		/* member if STP edge */
+	uint8_t		ifbr_autoedge;		/* member if STP autoedge */
+	uint8_t		ifbr_p2p;		/* member if STP p2p */
+	uint32_t	ifbr_path_cost;		/* member if STP cost */
 	uint8_t		ifbr_portno;		/* member if port number */
+	uint8_t		ifbr_priority;		/* member if STP priority */
+	uint8_t		ifbr_proto;		/* member if STP protocol */
+	uint8_t		ifbr_role;		/* member if STP role */
+	uint8_t		ifbr_state;		/* member if STP state */
 };
 
 /* BRDGGIFFLAGS, BRDGSIFFLAGS */
@@ -192,6 +202,8 @@ struct ifbrparam {
 #define	ifbrp_csize	ifbrp_ifbrpu.ifbrpu_int32	/* cache size */
 #define	ifbrp_ctime	ifbrp_ifbrpu.ifbrpu_int32	/* cache time (sec) */
 #define	ifbrp_prio	ifbrp_ifbrpu.ifbrpu_int16	/* bridge priority */
+#define	ifbrp_proto	ifbrp_ifbrpu.ifbrpu_int8	/* bridge protocol */
+#define	ifbrp_txhc	ifbrp_ifbrpu.ifbrpu_int8	/* bpdu tx holdcount */
 #define	ifbrp_hellotime	ifbrp_ifbrpu.ifbrpu_int8	/* hello time (sec) */
 #define	ifbrp_fwddelay	ifbrp_ifbrpu.ifbrpu_int8	/* fwd time (sec) */
 #define	ifbrp_maxage	ifbrp_ifbrpu.ifbrpu_int8	/* max age (sec) */
@@ -201,9 +213,12 @@ struct ifbrparam {
  * Bridge current operational parameters structure.
  */
 struct ifbropreq {
+	uint8_t		ifbop_holdcount;
 	uint8_t		ifbop_maxage;
 	uint8_t		ifbop_hellotime;
 	uint8_t		ifbop_fwddelay;
+	uint8_t		ifbop_protocol;
+	uint16_t	ifbop_priority;
 	uint16_t	ifbop_root_port;
 	uint32_t	ifbop_root_path_cost;
 	uint64_t	ifbop_designated_root;
