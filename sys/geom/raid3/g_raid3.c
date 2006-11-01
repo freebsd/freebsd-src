@@ -1513,8 +1513,8 @@ static void
 g_raid3_regular_delay(struct g_raid3_softc *sc, struct bio *bp)
 {
 
-        G_RAID3_LOGREQ(2, bp, "Delaying request.");
-        bioq_insert_head(&sc->sc_regular_delayed, bp);
+	G_RAID3_LOGREQ(2, bp, "Delaying request.");
+	bioq_insert_head(&sc->sc_regular_delayed, bp);
 }
 
 /*
@@ -1524,8 +1524,8 @@ static void
 g_raid3_sync_delay(struct g_raid3_softc *sc, struct bio *bp)
 {
 
-        G_RAID3_LOGREQ(2, bp, "Delaying synchronization request.");
-        bioq_insert_tail(&sc->sc_sync_delayed, bp);
+	G_RAID3_LOGREQ(2, bp, "Delaying synchronization request.");
+	bioq_insert_tail(&sc->sc_sync_delayed, bp);
 }
 
 /*
@@ -1535,13 +1535,13 @@ g_raid3_sync_delay(struct g_raid3_softc *sc, struct bio *bp)
 static void
 g_raid3_regular_release(struct g_raid3_softc *sc)
 {
-        struct bio *bp, *bp2;
+	struct bio *bp, *bp2;
 
-        TAILQ_FOREACH_SAFE(bp, &sc->sc_regular_delayed.queue, bio_queue, bp2) {
-                if (g_raid3_sync_collision(sc, bp))
-                        continue;
-                bioq_remove(&sc->sc_regular_delayed, bp);
-                G_RAID3_LOGREQ(2, bp, "Releasing delayed request (%p).", bp);
+	TAILQ_FOREACH_SAFE(bp, &sc->sc_regular_delayed.queue, bio_queue, bp2) {
+		if (g_raid3_sync_collision(sc, bp))
+			continue;
+		bioq_remove(&sc->sc_regular_delayed, bp);
+		G_RAID3_LOGREQ(2, bp, "Releasing delayed request (%p).", bp);
 		mtx_lock(&sc->sc_queue_mtx);
 		bioq_insert_head(&sc->sc_queue, bp);
 #if 0
@@ -1552,7 +1552,7 @@ g_raid3_regular_release(struct g_raid3_softc *sc)
 		wakeup(&sc->sc_queue);
 #endif
 		mtx_unlock(&sc->sc_queue_mtx);
-        }
+	}
 }
 
 /*
@@ -1562,16 +1562,16 @@ g_raid3_regular_release(struct g_raid3_softc *sc)
 static void
 g_raid3_sync_release(struct g_raid3_softc *sc)
 {
-        struct bio *bp, *bp2;
+	struct bio *bp, *bp2;
 
-        TAILQ_FOREACH_SAFE(bp, &sc->sc_sync_delayed.queue, bio_queue, bp2) {
-                if (g_raid3_regular_collision(sc, bp))
-                        continue;
-                bioq_remove(&sc->sc_sync_delayed, bp);
-                G_RAID3_LOGREQ(2, bp,
-                    "Releasing delayed synchronization request.");
-                g_io_request(bp, bp->bio_from);
-        }
+	TAILQ_FOREACH_SAFE(bp, &sc->sc_sync_delayed.queue, bio_queue, bp2) {
+		if (g_raid3_regular_collision(sc, bp))
+			continue;
+		bioq_remove(&sc->sc_sync_delayed, bp);
+		G_RAID3_LOGREQ(2, bp,
+		    "Releasing delayed synchronization request.");
+		g_io_request(bp, bp->bio_from);
+	}
 }
 
 /*
