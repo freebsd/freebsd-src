@@ -542,9 +542,9 @@ mdstart_vnode(struct md_s *sc, struct bio *bp)
 	auio.uio_iovcnt = 1;
 	auio.uio_offset = (vm_ooffset_t)bp->bio_offset;
 	auio.uio_segflg = UIO_SYSSPACE;
-	if(bp->bio_cmd == BIO_READ)
+	if (bp->bio_cmd == BIO_READ)
 		auio.uio_rw = UIO_READ;
-	else if(bp->bio_cmd == BIO_WRITE)
+	else if (bp->bio_cmd == BIO_WRITE)
 		auio.uio_rw = UIO_WRITE;
 	else
 		panic("wrong BIO_OP in mdstart_vnode");
