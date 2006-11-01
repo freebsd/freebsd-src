@@ -2610,7 +2610,6 @@ em_dma_free(struct adapter *adapter, struct em_dma_alloc *dma)
 static int
 em_allocate_transmit_structures(struct adapter *adapter)
 {
-	struct ifnet   *ifp = adapter->ifp;
 	device_t dev = adapter->dev;
 	struct em_buffer *tx_buffer;
 	bus_size_t size, segsize;
