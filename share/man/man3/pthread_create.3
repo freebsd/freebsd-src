@@ -30,7 +30,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd April 4, 1996
+.Dd Nov 1, 2006 
 .Dt PTHREAD_CREATE 3
 .Os
 .Sh NAME
@@ -108,6 +108,9 @@ function will fail if:
 The system lacked the necessary resources to create another thread, or
 the system-imposed limit on the total number of threads in a process
 [PTHREAD_THREADS_MAX] would be exceeded.
+.It Bq Er EPERM
+The caller does not have appropriate permission to set the required scheduling
+parameters or scheduling policy.
 .It Bq Er EINVAL
 The value specified by
 .Fa attr
