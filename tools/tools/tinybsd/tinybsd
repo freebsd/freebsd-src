@@ -15,7 +15,10 @@ fi
 WORKDIR=/usr/obj/tinybsdbuild
 KERNCONF=TINYBSD
 BASEFILE="tinybsd.basefiles"
-LOCALFILE="tinybsd.localfiles"
+PORTSFILE="tinybsd.ports"
+PORTSDIR=/usr/ports
+PKGDIRS=/tmp/pkg.dirs
+PKGFILES=/tmp/pkg.files
 DEFINSTARGS="-o 0 -g 0 -m 555"
 TS="=====>"
 
@@ -272,11 +275,47 @@ create_tree() {
 copy_binaries() {
 	cd ${CURRENTDIR}/conf/${CONF}
 
-	for file in `cat ${BASEFILE} ${LOCALFILE} | grep -v "#" | \
+	for file in `cat ${BASEFILE} | grep -v "#" | \
 		cut -f1 -d":" | sort | uniq` ; do
 		echo "${TS} Copying "/${file}" to "${WORKDIR}/${file} 
 		cp -fp /${file} ${WORKDIR}/${file} ;
 	done
+}
+
+install_ports() {
+	for portname in `cat ${PORTSFILE} | grep -v '#'` ; do
+	    cd ${PORTSDIR}/${portname}
+	    pkgname=`make -V PKGNAME`
+	    pkg_info -VQ ${pkgname}
+	    install=`echo $?`
+            if [ ${install} -eq 0 ] ; then
+	       echo "$portname is already installed..."
+	       create_missingdir
+	       copy_ports
+	      else
+	        make install clean
+		create_missingdir
+	        copy_ports
+	    fi
+	done
+}
+
+create_missingdir() {
+pkg_info -L ${pkgname} | egrep -v '(Information|Files|www|share|doc|man|include)' | sort | uniq >> ${PKGDIRS}
+	for dir in `cat ${PKGDIRS}`; do
+   	  if [ ! -d `dirname ${WORKDIR}/${dir}` ] ; then
+    	    mkdir -p `dirname ${WORKDIR}/${dir}`
+   	  fi
+	done
+	rm ${PKGDIRS}
+}
+
+copy_ports() {
+pkg_info -L ${pkgname} | egrep -v '(Information|Files|www|share|doc|man|include)' >> ${PKGFILES}
+        for port in `cat ${PKGFILES}` ; do
+                echo "${TS} Copying "${port}" to "${WORKDIR}${port}
+                cp -fp ${port} ${WORKDIR}${port} ;
+        done
 }
 
 make_kernel() {
@@ -292,21 +331,21 @@ make_kernel() {
 	install -o 0 -g 0 -m 444 /sys/i386/conf/GENERIC.hints ${WORKDIR}/boot/device.hints
 }
 
-
 copy_libraries() {
-#set -xv
 	TDEPFILE="`mktemp -t deps`"
 	TDEPFILES="`mktemp -t depsymlnk`"
 
 	cd ${CURRENTDIR}/conf/${CONF}
-	for file in `cat ${BASEFILE} ${LOCALFILE} | grep -v "#" | cut -f1 -d":"`; do
+	for file in `cat ${BASEFILE} ${PKGFILES} | grep -v "#" | cut -f1 -d":"`; do
 		ldd -f "%p\n" /${file} >> ${TDEPFILE} ; # don't worry on progs been "not dynamic"
 	done
+
+	rm ${PKGFILES}
 
 	for libdeplib in `cat ${TDEPFILE} | sort | uniq`; do
 		ldd -f "%p\n" /${libdeplib} >> ${TDEPFILE} ;
 	done
-	
+
 	for pamdep in `ls -1 /usr/lib/pam*`; do
 		echo $pamdep >> ${TDEPFILE} ;
 		ldd -f "%p\n" /${pamdep} >> ${TDEPFILE} ;
@@ -336,9 +375,16 @@ copy_libraries() {
 
 	echo -n "${TS} Unlinking "
 	rm -fv ${TDEPFILE} ${TDEPFILES}
-#set +xv
 }
 
+deinstall_ports() {
+	for portname in `cat ${PORTSFILE} | grep -v '#'` ; do
+            cd ${PORTSDIR}/${portname}    
+             if [ $? -ne ${install} ] ; then
+               make deinstall
+             fi
+	done
+}
 
 create_etc() {
 	cd /usr/src/etc/sendmail/
@@ -368,13 +414,13 @@ personal_conf() {
 }
 
 symlinks() {
-set -xv
-	for i in `cat ${BASEFILE} ${LOCALFILE} | grep -v "#" | grep ":"`; do
+#set -xv
+	for i in `cat ${BASEFILE} ${PORTSFILE} | grep -v "#" | grep ":"`; do
 		SOURCE_FILE=`echo $i | awk -F ":" {'print $1'}`
 		TARGET_FILE=`echo $i | awk -F ":" {'print $2'}`
 		chroot ${WORKDIR} /bin/ln -vs /${SOURCE_FILE} ${TARGET_FILE}
 	done
-set +xv
+#set +xv
 }
 
 
@@ -467,9 +513,11 @@ rotate_buidlog
   check_alt_imgname
   create_tree
   copy_binaries
+  install_ports
   make_kernel
   copy_libraries
   symlinks
+  deinstall_ports
   create_etc
   create_ssh_keys
   personal_conf
