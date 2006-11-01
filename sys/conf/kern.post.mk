@@ -227,9 +227,13 @@ vers.c: $S/conf/newvers.sh $S/sys/param.h ${SYSTEM_DEP}
 vnode_if.c: $S/tools/vnode_if.awk $S/kern/vnode_if.src
 	${AWK} -f $S/tools/vnode_if.awk $S/kern/vnode_if.src -c
 
-vnode_if.h: $S/tools/vnode_if.awk $S/kern/vnode_if.src
+vnode_if.h vnode_if_newproto.h vnode_if_typedef.h: $S/tools/vnode_if.awk \
+    $S/kern/vnode_if.src
+vnode_if.h: vnode_if_newproto.h vnode_if_typedef.h
 	${AWK} -f $S/tools/vnode_if.awk $S/kern/vnode_if.src -h
+vnode_if_newproto.h:
 	${AWK} -f $S/tools/vnode_if.awk $S/kern/vnode_if.src -p
+vnode_if_typedef.h:
 	${AWK} -f $S/tools/vnode_if.awk $S/kern/vnode_if.src -q
 
 # XXX strictly, everything depends on Makefile because changes to ${PROF}
