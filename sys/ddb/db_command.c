@@ -690,14 +690,22 @@ db_stack_trace_all(db_expr_t dummy, boolean_t dummy2, db_expr_t dummy3,
 {
 	struct proc *p;
 	struct thread *td;
+	jmp_buf jb;
+	void *prev_jb;
 
 	LIST_FOREACH(p, &allproc, p_list) {
-		FOREACH_THREAD_IN_PROC(p, td) {
-			db_printf("\nTracing command %s pid %d tid %ld td %p\n",
-			    p->p_comm, p->p_pid, (long)td->td_tid, td);
-			db_trace_thread(td, -1);
-			if (db_pager_quit)
-				return;
+		prev_jb = kdb_jmpbuf(jb);
+		if (setjmp(jb) == 0) {
+			FOREACH_THREAD_IN_PROC(p, td) {
+				db_printf("\nTracing command %s pid %d tid %ld td %p\n",
+					  p->p_comm, p->p_pid, (long)td->td_tid, td);
+				db_trace_thread(td, -1);
+				if (db_pager_quit) {
+					kdb_jmpbuf(prev_jb);
+					return;
+				}
+			}
 		}
+		kdb_jmpbuf(prev_jb);
 	}
 }
