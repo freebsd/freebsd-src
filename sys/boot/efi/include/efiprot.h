@@ -4,7 +4,14 @@
 
 /*++
 
-Copyright (c) 1998  Intel Corporation
+Copyright (c)  1999 - 2002 Intel Corporation. All rights reserved
+This software and associated documentation (if any) is furnished
+under a license and may only be used or copied in accordance
+with the terms of the license. Except as permitted by such
+license, no part of this software or documentation may be
+reproduced, stored in a retrieval system, or transmitted in any
+form or by any means without the express written consent of
+Intel Corporation.
 
 Module Name:
 
@@ -20,17 +27,17 @@ Revision History
 
 --*/
 
-/*
- * Device Path protocol
- */
+//
+// Device Path protocol
+//
 
 #define DEVICE_PATH_PROTOCOL    \
     { 0x9576e91, 0x6d3f, 0x11d2, 0x8e, 0x39, 0x0, 0xa0, 0xc9, 0x69, 0x72, 0x3b }
 
 
-/*
- * Block IO protocol
- */
+//
+// Block IO protocol
+//
 
 #define BLOCK_IO_PROTOCOL \
     { 0x964e5b21, 0x6459, 0x11d2, 0x8e, 0x39, 0x0, 0xa0, 0xc9, 0x69, 0x72, 0x3b }
@@ -104,9 +111,9 @@ typedef struct _EFI_BLOCK_IO {
 
 
 
-/*
- * Disk Block IO protocol
- */
+//
+// Disk Block IO protocol
+//
 
 #define DISK_IO_PROTOCOL \
     { 0xce345171, 0xba0b, 0x11d2,  0x8e, 0x4f, 0x0, 0xa0, 0xc9, 0x69, 0x72, 0x3b }
@@ -143,9 +150,9 @@ typedef struct _EFI_DISK_IO {
 } EFI_DISK_IO;
 
 
-/*
- * Simple filesystem protocol
- */
+//
+// Simple file system protocol
+//
 
 #define SIMPLE_FILE_SYSTEM_PROTOCOL \
     { 0x964e5b22, 0x6459, 0x11d2, 0x8e, 0x39, 0x0, 0xa0, 0xc9, 0x69, 0x72, 0x3b }
@@ -167,6 +174,10 @@ typedef struct _EFI_FILE_IO_INTERFACE {
     EFI_VOLUME_OPEN         OpenVolume;
 } EFI_FILE_IO_INTERFACE;
 
+//
+//
+//
+
 typedef
 EFI_STATUS
 (EFIAPI *EFI_FILE_OPEN) (
@@ -177,12 +188,12 @@ EFI_STATUS
     IN UINT64                   Attributes
     );
 
-/* Open modes */
+// Open modes
 #define EFI_FILE_MODE_READ      0x0000000000000001
 #define EFI_FILE_MODE_WRITE     0x0000000000000002
 #define EFI_FILE_MODE_CREATE    0x8000000000000000
 
-/* File attributes */
+// File attributes
 #define EFI_FILE_READ_ONLY      0x0000000000000001
 #define EFI_FILE_HIDDEN         0x0000000000000002
 #define EFI_FILE_SYSTEM         0x0000000000000004
@@ -275,9 +286,9 @@ typedef struct _EFI_FILE_HANDLE {
 } EFI_FILE, *EFI_FILE_HANDLE;
 
 
-/*
- * File information types
- */
+//
+// File information types
+//
 
 #define EFI_FILE_INFO_ID   \
     { 0x9576e92, 0x6d3f, 0x11d2, 0x8e, 0x39, 0x0, 0xa0, 0xc9, 0x69, 0x72, 0x3b }
@@ -293,14 +304,13 @@ typedef struct {
     CHAR16                  FileName[1];
 } EFI_FILE_INFO;
 
-/*
- * The FileName field of the EFI_FILE_INFO data structure is variable length.
- * Whenever code needs to know the size of the EFI_FILE_INFO data structure,
- * it needs to be the size of the data structure without the FileName field.
- * The following macro computes this size correctly no matter how big the
- * FileName array is declared. This is required to make the EFI_FILE_INFO
- * data structure ANSI compliant. 
- */
+//
+// The FileName field of the EFI_FILE_INFO data structure is variable length.
+// Whenever code needs to know the size of the EFI_FILE_INFO data structure, it needs to
+// be the size of the data structure without the FileName field.  The following macro 
+// computes this size correctly no matter how big the FileName array is declared.
+// This is required to make the EFI_FILE_INFO data structure ANSI compilant. 
+//
 
 #define SIZE_OF_EFI_FILE_INFO EFI_FIELD_OFFSET(EFI_FILE_INFO,FileName)
 
@@ -316,15 +326,13 @@ typedef struct {
     CHAR16                  VolumeLabel[1];
 } EFI_FILE_SYSTEM_INFO;
 
-/*
- * The VolumeLabel field of the EFI_FILE_SYSTEM_INFO data structure is
- * variable length. Whenever code needs to know the size of the
- * EFI_FILE_SYSTEM_INFO data structure, it needs to be the size of the data
- * structure without the VolumeLable field.  The following macro computes
- * this size correctly no matter how big the VolumeLable array is declared.
- * This is required to make the EFI_FILE_SYSTEM_INFO data structure ANSI
- * compilant. 
- */
+//
+// The VolumeLabel field of the EFI_FILE_SYSTEM_INFO data structure is variable length.
+// Whenever code needs to know the size of the EFI_FILE_SYSTEM_INFO data structure, it needs
+// to be the size of the data structure without the VolumeLable field.  The following macro 
+// computes this size correctly no matter how big the VolumeLable array is declared.
+// This is required to make the EFI_FILE_SYSTEM_INFO data structure ANSI compilant. 
+//
 
 #define SIZE_OF_EFI_FILE_SYSTEM_INFO EFI_FIELD_OFFSET(EFI_FILE_SYSTEM_INFO,VolumeLabel)
 
@@ -337,9 +345,10 @@ typedef struct {
 
 #define SIZE_OF_EFI_FILE_SYSTEM_VOLUME_LABEL_INFO EFI_FIELD_OFFSET(EFI_FILE_SYSTEM_VOLUME_LABEL_INFO,VolumeLabel)
 
-/*
- * Load file protocol
- */
+//
+// Load file protocol
+//
+
 
 #define LOAD_FILE_PROTOCOL \
     { 0x56EC3091, 0x954C, 0x11d2, 0x8E, 0x3F, 0x00, 0xA0, 0xC9, 0x69, 0x72, 0x3B }
@@ -361,9 +370,9 @@ typedef struct _EFI_LOAD_FILE_INTERFACE {
 } EFI_LOAD_FILE_INTERFACE;
 
 
-/*
- * Device IO protocol
- */
+//
+// Device IO protocol
+//
 
 #define DEVICE_IO_PROTOCOL \
     { 0xaf6ac311, 0x84c3, 0x11d2, 0x8e, 0x3c, 0x00, 0xa0, 0xc9, 0x69, 0x72, 0x3b }
@@ -375,19 +384,17 @@ typedef enum {
     IO_UINT16,
     IO_UINT32,
     IO_UINT64,
-/*
- * Specification Change: Copy from MMIO to MMIO vs. MMIO to buffer, buffer to
- * MMIO
- */
+//
+// Specification Change: Copy from MMIO to MMIO vs. MMIO to buffer, buffer to MMIO
+//
     MMIO_COPY_UINT8,
     MMIO_COPY_UINT16,
     MMIO_COPY_UINT32,
     MMIO_COPY_UINT64
 } EFI_IO_WIDTH;
 
-#define EFI_PCI_ADDRESS(_bus,_dev,_func) \
-    ( (UINT64) ( (((UINTN)_bus) << 24) + (((UINTN)_dev) << 16) + (((UINTN)_func) << 8) ) )
-
+#define EFI_PCI_ADDRESS(bus,dev,func,reg) \
+  ( (UINT64) ( (((UINTN)bus) << 24) + (((UINTN)dev) << 16) + (((UINTN)func) << 8) + ((UINTN)reg) ))
 
 typedef
 EFI_STATUS
@@ -473,9 +480,9 @@ typedef struct _EFI_DEVICE_IO_INTERFACE {
 } EFI_DEVICE_IO_INTERFACE;
 
 
-/*
- * Unicode Collation protocol
- */
+//
+// Unicode Collation protocol
+//
 
 #define UNICODE_COLLATION_PROTOCOL \
     { 0x1d85cd7f, 0xf43d, 0x11d2, 0x9a, 0xc,  0x0, 0x90, 0x27, 0x3f, 0xc1, 0x4d }
@@ -486,7 +493,7 @@ INTERFACE_DECL(_EFI_UNICODE_COLLATION_INTERFACE);
 
 typedef
 INTN
-(EFIAPI *EFI_UNICODE_STRICOLL) (
+(EFIAPI *EFI_UNICODE_COLLATION_STRICOLL) (
     IN struct _EFI_UNICODE_COLLATION_INTERFACE  *This,
     IN CHAR16                         *s1,
     IN CHAR16                         *s2
@@ -494,7 +501,7 @@ INTN
 
 typedef
 BOOLEAN
-(EFIAPI *EFI_UNICODE_METAIMATCH) (
+(EFIAPI *EFI_UNICODE_COLLATION_METAIMATCH) (
     IN struct _EFI_UNICODE_COLLATION_INTERFACE  *This,
     IN CHAR16                         *String,
     IN CHAR16                         *Pattern
@@ -502,21 +509,21 @@ BOOLEAN
 
 typedef
 VOID
-(EFIAPI *EFI_UNICODE_STRLWR) (
+(EFIAPI *EFI_UNICODE_COLLATION_STRLWR) (
     IN struct _EFI_UNICODE_COLLATION_INTERFACE  *This,
     IN OUT CHAR16                       *Str
     );
 
 typedef
 VOID
-(EFIAPI *EFI_UNICODE_STRUPR) (
+(EFIAPI *EFI_UNICODE_COLLATION_STRUPR) (
     IN struct _EFI_UNICODE_COLLATION_INTERFACE  *This,
     IN OUT CHAR16                       *Str
     );
 
 typedef
 VOID
-(EFIAPI *EFI_UNICODE_FATTOSTR) (
+(EFIAPI *EFI_UNICODE_COLLATION_FATTOSTR) (
     IN struct _EFI_UNICODE_COLLATION_INTERFACE  *This,
     IN UINTN                            FatSize,
     IN CHAR8                            *Fat,
@@ -525,7 +532,7 @@ VOID
 
 typedef
 BOOLEAN
-(EFIAPI *EFI_UNICODE_STRTOFAT) (
+(EFIAPI *EFI_UNICODE_COLLATION_STRTOFAT) (
     IN struct _EFI_UNICODE_COLLATION_INTERFACE  *This,
     IN CHAR16                           *String,
     IN UINTN                            FatSize,
@@ -535,15 +542,15 @@ BOOLEAN
 
 typedef struct _EFI_UNICODE_COLLATION_INTERFACE {
 
-	/* general */
-    EFI_UNICODE_STRICOLL                StriColl;
-    EFI_UNICODE_METAIMATCH              MetaiMatch;
-    EFI_UNICODE_STRLWR                  StrLwr;
-    EFI_UNICODE_STRUPR                  StrUpr;
+    // general
+    EFI_UNICODE_COLLATION_STRICOLL                StriColl;
+    EFI_UNICODE_COLLATION_METAIMATCH              MetaiMatch;
+    EFI_UNICODE_COLLATION_STRLWR                  StrLwr;
+    EFI_UNICODE_COLLATION_STRUPR                  StrUpr;
 
-	/* for supporting fat volumes */
-    EFI_UNICODE_FATTOSTR                FatToStr;
-    EFI_UNICODE_STRTOFAT                StrToFat;
+    // for supporting fat volumes
+    EFI_UNICODE_COLLATION_FATTOSTR                FatToStr;
+    EFI_UNICODE_COLLATION_STRTOFAT                StrToFat;
 
     CHAR8                               *SupportedLanguages;
 } EFI_UNICODE_COLLATION_INTERFACE;

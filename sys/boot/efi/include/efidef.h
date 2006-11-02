@@ -4,7 +4,14 @@
 
 /*++
 
-Copyright (c) 1998  Intel Corporation
+Copyright (c)  1999 - 2002 Intel Corporation. All rights reserved
+This software and associated documentation (if any) is furnished
+under a license and may only be used or copied in accordance
+with the terms of the license. Except as permitted by such
+license, no part of this software or documentation may be
+reproduced, stored in a retrieval system, or transmitted in any
+form or by any means without the express written consent of
+Intel Corporation.
 
 Module Name:
 
@@ -41,14 +48,14 @@ typedef VOID            *EFI_HANDLE;
 typedef VOID            *EFI_EVENT;
 
 
-/*
- * Prototype argument decoration for EFI parameters to indicate
- * their direction
- *
- * IN - argument is passed into the function
- * OUT - argument (pointer) is returned from the function
- * OPTIONAL - argument is optional
- */
+//
+// Prototype argument decoration for EFI parameters to indicate
+// their direction
+//
+// IN - argument is passed into the function
+// OUT - argument (pointer) is returned from the function
+// OPTIONAL - argument is optional
+//
 
 #ifndef IN
     #define IN
@@ -57,9 +64,9 @@ typedef VOID            *EFI_EVENT;
 #endif
 
 
-/*
- * A GUID
- */
+//
+// A GUID
+//
 
 typedef struct {          
     UINT32  Data1;
@@ -69,36 +76,36 @@ typedef struct {
 } EFI_GUID;
 
 
-/*
- * Time
- */
+//
+// Time
+//
 
 typedef struct {          
-	UINT16      Year;       /* 1998 - 20XX */
-	UINT8       Month;      /* 1 - 12 */
-	UINT8       Day;        /* 1 - 31 */
-	UINT8       Hour;       /* 0 - 23 */
-	UINT8       Minute;     /* 0 - 59 */
-	UINT8       Second;     /* 0 - 59 */
-	UINT8       Pad1;
-	UINT32      Nanosecond; /* 0 - 999,999,999 */
-	INT16       TimeZone;   /* -1440 to 1440 or 2047 */
-	UINT8       Daylight;
-	UINT8       Pad2;
+    UINT16      Year;       // 1998 - 20XX
+    UINT8       Month;      // 1 - 12
+    UINT8       Day;        // 1 - 31
+    UINT8       Hour;       // 0 - 23
+    UINT8       Minute;     // 0 - 59
+    UINT8       Second;     // 0 - 59
+    UINT8       Pad1;
+    UINT32      Nanosecond; // 0 - 999,999,999
+    INT16       TimeZone;   // -1440 to 1440 or 2047
+    UINT8       Daylight;
+    UINT8       Pad2;
 } EFI_TIME;
 
-/* Bit definitions for EFI_TIME.Daylight */
+// Bit definitions for EFI_TIME.Daylight
 #define EFI_TIME_ADJUST_DAYLIGHT    0x01
 #define EFI_TIME_IN_DAYLIGHT        0x02
 
-/* Value definition for EFI_TIME.TimeZone */
+// Value definition for EFI_TIME.TimeZone
 #define EFI_UNSPECIFIED_TIMEZONE    0x07FF
 
 
 
-/*
- * Networking
- */
+//
+// Networking
+//
 
 typedef struct {
     UINT8                   Addr[4];
@@ -112,9 +119,9 @@ typedef struct {
     UINT8                   Addr[32];
 } EFI_MAC_ADDRESS;
 
-/*
- * Memory
- */
+//
+// Memory
+//
 
 typedef UINT64          EFI_PHYSICAL_ADDRESS;
 typedef UINT64          EFI_VIRTUAL_ADDRESS;
@@ -126,13 +133,12 @@ typedef enum {
     MaxAllocateType
 } EFI_ALLOCATE_TYPE;
 
-/*
- * Preseve the attr on any range supplied.
- * ConventialMemory must have WB,SR,SW when supplied.
- * When allocating from ConventialMemory always make it WB,SR,SW
- * When returning to ConventialMemory always make it WB,SR,SW
- * When getting the memory map, or on RT for runtime types
- */
+//Preseve the attr on any range supplied.
+//ConventialMemory must have WB,SR,SW when supplied.
+//When allocating from ConventialMemory always make it WB,SR,SW
+//When returning to ConventialMemory always make it WB,SR,SW
+//When getting the memory map, or on RT for runtime types
+
 
 typedef enum {
     EfiReservedMemoryType,
@@ -152,42 +158,46 @@ typedef enum {
     EfiMaxMemoryType
 } EFI_MEMORY_TYPE;
 
-/* possible caching types for the memory range */
+// possible caching types for the memory range
 #define EFI_MEMORY_UC           0x0000000000000001
 #define EFI_MEMORY_WC           0x0000000000000002
 #define EFI_MEMORY_WT           0x0000000000000004
 #define EFI_MEMORY_WB           0x0000000000000008
 #define EFI_MEMORY_UCE          0x0000000000000010  
 
-/* physical memory protection on range */
+// physical memory protection on range 
 #define EFI_MEMORY_WP           0x0000000000001000
 #define EFI_MEMORY_RP           0x0000000000002000
 #define EFI_MEMORY_XP           0x0000000000004000
 
-/* range requires a runtime mapping */
+// range requires a runtime mapping
 #define EFI_MEMORY_RUNTIME      0x8000000000000000
 
 #define EFI_MEMORY_DESCRIPTOR_VERSION  1
 typedef struct {
-	UINT32                          Type;           /* 32 bit padding */
-	EFI_PHYSICAL_ADDRESS            PhysicalStart;
-	EFI_VIRTUAL_ADDRESS             VirtualStart;
-	UINT64                          NumberOfPages;
-	UINT64                          Attribute;
+    UINT32                          Type;           // Field size is 32 bits followed by 32 bit pad
+    EFI_PHYSICAL_ADDRESS            PhysicalStart;  // Field size is 64 bits
+    EFI_VIRTUAL_ADDRESS             VirtualStart;   // Field size is 64 bits
+    UINT64                          NumberOfPages;  // Field size is 64 bits
+    UINT64                          Attribute;      // Field size is 64 bits
 } EFI_MEMORY_DESCRIPTOR;
 
-/*
- * International Language
- */
+//
+// International Language
+//
 
 typedef UINT8   ISO_639_2;
 #define ISO_639_2_ENTRY_SIZE    3
+
+//
+//
+//
 
 #define EFI_PAGE_SIZE   4096
 #define EFI_PAGE_MASK   0xFFF
 #define EFI_PAGE_SHIFT  12
 
 #define EFI_SIZE_TO_PAGES(a)  \
-    ( ((a) >> EFI_PAGE_SHIFT) + ((a) & EFI_PAGE_MASK ? 1 : 0) )
+    ( ((a) >> EFI_PAGE_SHIFT) + (((a) & EFI_PAGE_MASK) ? 1 : 0) )
 
 #endif

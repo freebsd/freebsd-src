@@ -4,7 +4,14 @@
 
 /*++
 
-Copyright (c) 1998  Intel Corporation
+Copyright (c)  1999 - 2002 Intel Corporation. All rights reserved
+This software and associated documentation (if any) is furnished
+under a license and may only be used or copied in accordance
+with the terms of the license. Except as permitted by such
+license, no part of this software or documentation may be
+reproduced, stored in a retrieval system, or transmitted in any
+form or by any means without the express written consent of
+Intel Corporation.
 
 Module Name:
 
@@ -20,9 +27,9 @@ Revision History
 
 --*/
 
-/*
- * Text output protocol
- */
+//
+// Text output protocol
+//
 
 #define SIMPLE_TEXT_OUTPUT_PROTOCOL \
     { 0x387477c2, 0x69c7, 0x11d2, 0x8e, 0x39, 0x0, 0xa0, 0xc9, 0x69, 0x72, 0x3b }
@@ -126,7 +133,7 @@ EFI_STATUS
 
 typedef struct {
     INT32                           MaxMode;
-	/* current settings */
+    // current settings
     INT32                           Mode;
     INT32                           Attribute;
     INT32                           CursorColumn;
@@ -148,13 +155,13 @@ typedef struct _SIMPLE_TEXT_OUTPUT_INTERFACE {
     EFI_TEXT_SET_CURSOR_POSITION    SetCursorPosition;
     EFI_TEXT_ENABLE_CURSOR          EnableCursor;
 
-	/* Current mode */
+    // Current mode
     SIMPLE_TEXT_OUTPUT_MODE         *Mode;
 } SIMPLE_TEXT_OUTPUT_INTERFACE;
 
-/*
- * Define's for required EFI Unicode Box Draw character
- */
+//
+// Define's for required EFI Unicode Box Draw character
+//
 
 #define BOXDRAW_HORIZONTAL                  0x2500
 #define BOXDRAW_VERTICAL                    0x2502
@@ -206,29 +213,31 @@ typedef struct _SIMPLE_TEXT_OUTPUT_INTERFACE {
 #define BOXDRAW_VERTICAL_DOUBLE_HORIZONTAL  0x256b
 #define BOXDRAW_DOUBLE_VERTICAL_HORIZONTAL  0x256c
 
-/*
- * EFI Required Block Elements Code Chart
- */
+//
+// EFI Required Block Elements Code Chart
+//
+
 #define BLOCKELEMENT_FULL_BLOCK             0x2588
 #define BLOCKELEMENT_LIGHT_SHADE            0x2591
+//
+// EFI Required Geometric Shapes Code Chart
+//
 
-/*
- * EFI Required Geometric Shapes Code Chart
- */
 #define GEOMETRICSHAPE_UP_TRIANGLE           0x25b2
 #define GEOMETRICSHAPE_RIGHT_TRIANGLE        0x25ba
 #define GEOMETRICSHAPE_DOWN_TRIANGLE         0x25bc
 #define GEOMETRICSHAPE_LEFT_TRIANGLE         0x25c4
 
-/*
- * EFI Required Arrow shapes
- */
+//
+// EFI Required Arrow shapes
+//
+
 #define ARROW_UP                            0x2191
 #define ARROW_DOWN                          0x2193
 
-/*
- * Text input protocol
- */
+//
+// Text input protocol
+//
 
 #define SIMPLE_TEXT_INPUT_PROTOCOL  \
     { 0x387477c1, 0x69c7, 0x11d2, 0x8e, 0x39, 0x0, 0xa0, 0xc9, 0x69, 0x72, 0x3b }
@@ -240,9 +249,9 @@ typedef struct {
     CHAR16                              UnicodeChar;
 } EFI_INPUT_KEY;
 
-/*
- * Baseline unicode control chars
- */
+//
+// Baseline unicode control chars
+//
 
 #define CHAR_NULL                       0x0000
 #define CHAR_BACKSPACE                  0x0008
@@ -250,9 +259,10 @@ typedef struct {
 #define CHAR_LINEFEED                   0x000A
 #define CHAR_CARRIAGE_RETURN            0x000D
 
-/*
- * Scan codes for base line keys
- */
+//
+// Scan codes for base line keys
+//
+
 #define SCAN_NULL                       0x0000
 #define SCAN_UP                         0x0001
 #define SCAN_DOWN                       0x0002

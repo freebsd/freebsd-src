@@ -4,7 +4,14 @@
 
 /*++
 
-Copyright (c) 1998  Intel Corporation
+Copyright (c)  1999 - 2002 Intel Corporation. All rights reserved
+This software and associated documentation (if any) is furnished
+under a license and may only be used or copied in accordance
+with the terms of the license. Except as permitted by such
+license, no part of this software or documentation may be
+reproduced, stored in a retrieval system, or transmitted in any
+form or by any means without the express written consent of
+Intel Corporation.
 
 Module Name:
 
@@ -18,9 +25,9 @@ Revision History
 
 --*/
 
-/*
- * Serial protocol
- */
+//
+// Serial protocol
+//
 
 #define SERIAL_IO_PROTOCOL \
     { 0xBB25CF6F, 0xF1D4, 0x11D2, 0x9A, 0x0C, 0x00, 0x90, 0x27, 0x3F, 0xC1, 0xFD }
@@ -37,23 +44,23 @@ typedef enum {
 } EFI_PARITY_TYPE;
 
 typedef enum {
-	DefaultStopBits,
-	OneStopBit,
-	OneFiveStopBits,
-	TwoStopBits
+    DefaultStopBits,        
+    OneStopBit,         // 1 stop bit
+    OneFiveStopBits,    // 1.5 stop bits
+    TwoStopBits         // 2 stop bits
 } EFI_STOP_BITS_TYPE;
 
-#define EFI_SERIAL_CLEAR_TO_SEND                   0x0010
-#define EFI_SERIAL_DATA_SET_READY                  0x0020
-#define EFI_SERIAL_RING_INDICATE                   0x0040
-#define EFI_SERIAL_CARRIER_DETECT                  0x0080
-#define EFI_SERIAL_REQUEST_TO_SEND                 0x0002
-#define EFI_SERIAL_DATA_TERMINAL_READY             0x0001
-#define EFI_SERIAL_INPUT_BUFFER_EMPTY              0x0100
-#define EFI_SERIAL_OUTPUT_BUFFER_EMPTY             0x0200
-#define EFI_SERIAL_HARDWARE_LOOPBACK_ENABLE        0x1000
-#define EFI_SERIAL_SOFTWARE_LOOPBACK_ENABLE        0x2000
-#define EFI_SERIAL_HARDWARE_FLOW_CONTROL_ENABLE    0x4000
+#define EFI_SERIAL_CLEAR_TO_SEND                   0x0010  // RO
+#define EFI_SERIAL_DATA_SET_READY                  0x0020  // RO
+#define EFI_SERIAL_RING_INDICATE                   0x0040  // RO
+#define EFI_SERIAL_CARRIER_DETECT                  0x0080  // RO
+#define EFI_SERIAL_REQUEST_TO_SEND                 0x0002  // WO
+#define EFI_SERIAL_DATA_TERMINAL_READY             0x0001  // WO
+#define EFI_SERIAL_INPUT_BUFFER_EMPTY              0x0100  // RO
+#define EFI_SERIAL_OUTPUT_BUFFER_EMPTY             0x0200  // RO
+#define EFI_SERIAL_HARDWARE_LOOPBACK_ENABLE        0x1000  // RW
+#define EFI_SERIAL_SOFTWARE_LOOPBACK_ENABLE        0x2000  // RW
+#define EFI_SERIAL_HARDWARE_FLOW_CONTROL_ENABLE    0x4000  // RW
 
 typedef
 EFI_STATUS
@@ -106,7 +113,7 @@ EFI_STATUS
 typedef struct {
     UINT32                  ControlMask;
 
-	/* current Attributes. */
+    // current Attributes
     UINT32                  Timeout;
     UINT64                  BaudRate;
     UINT32                  ReceiveFifoDepth;

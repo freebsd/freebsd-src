@@ -4,7 +4,14 @@
 
 /*++
 
-Copyright (c) 1998  Intel Corporation
+Copyright (c)  1999 - 2002 Intel Corporation. All rights reserved
+This software and associated documentation (if any) is furnished
+under a license and may only be used or copied in accordance
+with the terms of the license. Except as permitted by such
+license, no part of this software or documentation may be
+reproduced, stored in a retrieval system, or transmitted in any
+form or by any means without the express written consent of
+Intel Corporation.
 
 Module Name:
 
@@ -20,9 +27,9 @@ Revision History
 
 --*/
 
-/*
- * Device Path structures - Section C
- */
+//
+// Device Path structures - Section C
+//
 
 typedef struct _EFI_DEVICE_PATH {
         UINT8                           Type;
@@ -33,7 +40,9 @@ typedef struct _EFI_DEVICE_PATH {
 #define EFI_DP_TYPE_MASK                    0x7F
 #define EFI_DP_TYPE_UNPACKED                0x80
 
+//#define END_DEVICE_PATH_TYPE                0xff
 #define END_DEVICE_PATH_TYPE                0x7f
+//#define END_DEVICE_PATH_TYPE_UNPACKED       0x7f
 
 #define END_ENTIRE_DEVICE_PATH_SUBTYPE      0xff
 #define END_INSTANCE_DEVICE_PATH_SUBTYPE    0x01
@@ -47,6 +56,7 @@ typedef struct _EFI_DEVICE_PATH {
 #define DevicePathSubType(a)        ( (a)->SubType )
 #define DevicePathNodeLength(a)     ( ((a)->Length[0]) | ((a)->Length[1] << 8) )
 #define NextDevicePathNode(a)       ( (EFI_DEVICE_PATH *) ( ((UINT8 *) (a)) + DevicePathNodeLength(a)))
+//#define IsDevicePathEndType(a)      ( DevicePathType(a) == END_DEVICE_PATH_TYPE_UNPACKED )
 #define IsDevicePathEndType(a)      ( DevicePathType(a) == END_DEVICE_PATH_TYPE )
 #define IsDevicePathEndSubType(a)   ( (a)->SubType == END_ENTIRE_DEVICE_PATH_SUBTYPE )
 #define IsDevicePathEnd(a)          ( IsDevicePathEndType(a) && IsDevicePathEndSubType(a) )
@@ -82,7 +92,7 @@ typedef struct _PCI_DEVICE_PATH {
 #define HW_PCCARD_DP                    0x02
 typedef struct _PCCARD_DEVICE_PATH {
         EFI_DEVICE_PATH                 Header;
-        UINT8                           SocketNumber;
+        UINT8                           FunctionNumber;
 } PCCARD_DEVICE_PATH;
 
 #define HW_MEMMAP_DP                    0x03
@@ -125,16 +135,25 @@ typedef struct _ACPI_HID_DEVICE_PATH {
         UINT32                          UID;
 } ACPI_HID_DEVICE_PATH;
 
-/*
- * EISA ID Macro
- * EISA ID Definition 32-bits
- *  bits[15:0] - three character compressed ASCII EISA ID.
- *  bits[31:16] - binary number
- *   Compressed ASCII is 5 bits per character 0b00001 = 'A' 0b11010 = 'Z'
- */
+#define ACPI_EXTENDED_DP          0x02
+typedef struct _ACPI_EXTENDED_HID_DEVICE_PATH {
+  EFI_DEVICE_PATH                 Header;
+  UINT32                          HID;
+  UINT32                          UID;
+  UINT32                          CID;
+} ACPI_EXTENDED_HID_DEVICE_PATH;
+
+//
+// EISA ID Macro
+// EISA ID Definition 32-bits
+//  bits[15:0] - three character compressed ASCII EISA ID.
+//  bits[31:16] - binary number
+//   Compressed ASCII is 5 bits per character 0b00001 = 'A' 0b11010 = 'Z'
+//
 #define PNP_EISA_ID_CONST       0x41d0    
 #define EISA_ID(_Name, _Num)    ((UINT32) ((_Name) | (_Num) << 16))   
 #define EISA_PNP_ID(_PNPId)     (EISA_ID(PNP_EISA_ID_CONST, (_PNPId)))
+#define EFI_PNP_ID(_PNPId)      (EISA_ID(PNP_EISA_ID_CONST, (_PNPId)))
 
 #define PNP_EISA_ID_MASK        0xffff
 #define EISA_ID_TO_NUM(_Id)     ((_Id) >> 16)
@@ -175,9 +194,9 @@ typedef struct _F1394_DEVICE_PATH {
 
 #define MSG_USB_DP                      0x05
 typedef struct _USB_DEVICE_PATH {
-        EFI_DEVICE_PATH                 Header;
-        UINT8                           Port;
-        UINT8                           Endpoint;
+    EFI_DEVICE_PATH                     Header;
+    UINT8					                      ParentPortNumber;
+    UINT8					                      InterfaceNumber;
 } USB_DEVICE_PATH;
 
 #define MSG_USB_CLASS_DP                0x0F
@@ -186,7 +205,7 @@ typedef struct _USB_CLASS_DEVICE_PATH {
         UINT16                          VendorId;
         UINT16                          ProductId;
         UINT8                           DeviceClass;
-        UINT8                           DeviceSubclass;
+        UINT8                           DeviceSubClass;
         UINT8                           DeviceProtocol;
 } USB_CLASS_DEVICE_PATH;
 
@@ -227,12 +246,19 @@ typedef struct _IPv6_DEVICE_PATH {
 
 #define MSG_INFINIBAND_DP               0x09
 typedef struct _INFINIBAND_DEVICE_PATH {
-        EFI_DEVICE_PATH                 Header;
-        UINT32                          Reserved;
-        UINT64                          NodeGuid;
-        UINT64                          IocGuid;
-        UINT64                          DeviceId;
+  EFI_DEVICE_PATH                       Header;
+  UINT32                                ResourceFlags;
+  UINT8                                 PortGid[16];
+  UINT64                                ServiceId;
+  UINT64                                TargetPortId;
+  UINT64                                DeviceId;
 } INFINIBAND_DEVICE_PATH;
+
+#define INFINIBAND_RESOURCE_FLAG_IOC_SERVICE                0x01
+#define INFINIBAND_RESOURCE_FLAG_EXTENDED_BOOT_ENVIRONMENT  0x02
+#define INFINIBAND_RESOURCE_FLAG_CONSOLE_PROTOCOL           0x04
+#define INFINIBAND_RESOURCE_FLAG_STORAGE_PROTOCOL           0x08
+#define INFINIBAND_RESOURCE_FLAG_NETWORK_PROTOCOL           0x10
 
 #define MSG_UART_DP                     0x0e
 typedef struct _UART_DEVICE_PATH {
@@ -253,6 +279,11 @@ typedef struct _UART_DEVICE_PATH {
 #define DEVICE_PATH_MESSAGING_VT_100 \
     { 0xdfa66065, 0xb419, 0x11d3,  0x9a, 0x2d, 0x00, 0x90, 0x27, 0x3f, 0xc1, 0x4d  }
 
+#define DEVICE_PATH_MESSAGING_VT_100_PLUS \
+    { 0x7baec70b, 0x57e0, 0x4c76, 0x8e, 0x87, 0x2f, 0x9e, 0x28, 0x08, 0x83, 0x43  }
+    
+#define DEVICE_PATH_MESSAGING_VT_UTF8 \
+    { 0xad15a0d6, 0x8bec, 0x4acf, 0xa0, 0x73, 0xd0, 0x1d, 0xe7, 0x7e, 0x2d, 0x88 }   
 
 
 #define MEDIA_DEVICE_PATH               0x04
@@ -362,6 +393,7 @@ typedef union {
     UNKNOWN_DEVICE_VENDOR_DEVICE_PATH    *UnknownVendor;   
     CONTROLLER_DEVICE_PATH               *Controller;
     ACPI_HID_DEVICE_PATH                 *Acpi;
+    ACPI_EXTENDED_HID_DEVICE_PATH        *ExtendedAcpi;
 
     ATAPI_DEVICE_PATH                    *Atapi;
     SCSI_DEVICE_PATH                     *Scsi;
