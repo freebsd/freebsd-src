@@ -2237,6 +2237,8 @@ g_journal_create(struct g_class *mp, struct g_provider *pp,
 	struct g_consumer *cp;
 	int error;
 
+	sc = NULL;	/* gcc */
+
 	g_topology_assert();
 	/*
 	 * There are two possibilities:
