@@ -71,14 +71,29 @@ typedef enum {
  * in, and the external module to call back with a QIN_HBA_REG that
  * passes back the corresponding information.
  */
-#define    QR_VERSION    10
+#define    QR_VERSION    13
 typedef struct {
     void *                  r_identity;
     void                    (*r_action)(qact_e, void *);
     char                    r_name[8];
     int                     r_inst;
     int                     r_version;
-    enum { R_FC, R_SCSI }   r_type;
+    struct {
+        enum {
+            R_FC,
+            R_SCSI
+        } r_type;
+        union {
+            struct {
+                uint64_t    r_wwnn;
+                uint64_t    r_wwpn;
+            } fc;
+            struct {
+                int         r_iid;
+            } scsi;
+        } r_id;
+    } r_info;
+    void *                  r_private;
 } hba_register_t;
 
 /*
@@ -104,7 +119,8 @@ typedef struct tmd_notify {
     uint64_t    nt_iid;         /* inititator id */
     uint64_t    nt_tgt;         /* target id */
     uint16_t    nt_lun;         /* logical unit */
-    uint16_t    nt_padding;     /* padding */
+    uint16_t                : 15,
+                nt_need_ack : 1;    /* this notify needs an ACK */
     uint32_t    nt_tagval;      /* tag value */
     tmd_ncode_t nt_ncode;       /* action */
     void *      nt_lreserved;
@@ -251,7 +267,7 @@ typedef struct {
 #define    TMD_SENSELEN     18
 #endif
 #ifndef    QCDS
-#define    QCDS             8
+#define    QCDS             (sizeof (void *))
 #endif
 
 typedef struct tmd_cmd {
@@ -279,7 +295,7 @@ typedef struct tmd_cmd {
         uint32_t        longs[QCDS / sizeof (uint32_t)];
         uint16_t        shorts[QCDS / sizeof (uint16_t)];
         uint8_t         bytes[QCDS];
-    } cd_lreserved[3], cd_hreserved[3];
+    } cd_lreserved[4], cd_hreserved[4];
 } tmd_cmd_t;
 
 /* defined tags */

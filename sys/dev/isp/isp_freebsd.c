@@ -46,6 +46,9 @@ __FBSDID("$FreeBSD$");
 MODULE_VERSION(isp, 1);
 MODULE_DEPEND(isp, cam, 1, 1, 1);
 int isp_announced = 0;
+int isp_fabric_hysteresis = 5;
+int isp_loop_down_limit = 300;	/* default loop down limit */
+int isp_quickboot_time = 5;	/* don't wait more than N secs for loop up */
 
 static d_ioctl_t ispioctl;
 static void isp_intr_enable(void *);
@@ -242,7 +245,7 @@ isp_attach(ispsoftc_t *isp)
 
 	if (isp->isp_role != ISP_ROLE_NONE) {
 		isp->isp_state = ISP_RUNSTATE;
-		ENABLE_INTS(isp);
+		ISP_ENABLE_INTS(isp);
 	}
 	if (isplist == NULL) {
 		isplist = isp;
@@ -387,7 +390,7 @@ ispioctl(_DEV dev, u_long c, caddr_t addr, int flags, _IOP *td)
 	case ISP_FC_GETDINFO:
 	{
 		struct isp_fc_device *ifc = (struct isp_fc_device *) addr;
-		struct lportdb *lp;
+		fcportdb_t *lp;
 
 		if (IS_SCSI(isp)) {
 			break;
@@ -398,9 +401,9 @@ ispioctl(_DEV dev, u_long c, caddr_t addr, int flags, _IOP *td)
 		}
 		ISP_LOCK(isp);
 		lp = &FCPARAM(isp)->portdb[ifc->loopid];
-		if (lp->valid) {
+		if (lp->state == FC_PORTDB_STATE_VALID) {
 			ifc->role = lp->roles;
-			ifc->loopid = lp->loopid;
+			ifc->loopid = lp->handle;
 			ifc->portid = lp->portid;
 			ifc->node_wwn = lp->node_wwn;
 			ifc->port_wwn = lp->port_wwn;
@@ -566,7 +569,7 @@ ispioctl(_DEV dev, u_long c, caddr_t addr, int flags, _IOP *td)
 		memset(&mbs, 0, sizeof (mbs));
 		needmarker = retval = 0;
 		loopid = fct->loopid;
-		if (IS_2KLOGIN(isp) == 0) {
+		if (FCPARAM(isp)->isp_2klogin == 0) {
 			loopid <<= 8;
 		}
 		switch (fct->action) {
@@ -657,10 +660,7 @@ isp_intr_enable(void *arg)
 {
 	ispsoftc_t *isp = arg;
 	if (isp->isp_role != ISP_ROLE_NONE) {
-		ENABLE_INTS(isp);
-#if	0
-		isp->isp_osinfo.intsok = 1;
-#endif
+		ISP_ENABLE_INTS(isp);
 	}
 	/* Release our hook so that the boot can continue. */
 	config_intrhook_disestablish(&isp->isp_osinfo.ehook);
@@ -911,7 +911,7 @@ isp_en_lun(ispsoftc_t *isp, union ccb *ccb)
 		/*
 		 * This is as a good a place as any to check f/w capabilities.
 		 */
-		if ((FCPARAM(isp)->isp_fwattr & ISP_FW_ATTR_TMODE) == 0) {
+		if (FCPARAM(isp)->isp_tmode == 0) {
 			isp_prt(isp, ISP_LOGERR,
 			    "firmware does not support target mode");
 			ccb->ccb_h.status = CAM_FUNC_NOTAVAIL;
@@ -921,9 +921,8 @@ isp_en_lun(ispsoftc_t *isp, union ccb *ccb)
 		 * XXX: We *could* handle non-SCCLUN f/w, but we'd have to
 		 * XXX: dorks with our already fragile enable/disable code.
 		 */
-		if ((FCPARAM(isp)->isp_fwattr & ISP_FW_ATTR_SCCLUN) == 0) {
-			isp_prt(isp, ISP_LOGERR,
-			    "firmware not SCCLUN capable");
+		if (FCPARAM(isp)->isp_sccfw == 0) {
+			isp_prt(isp, ISP_LOGERR, "firmware not SCCLUN capable");
 			ccb->ccb_h.status = CAM_FUNC_NOTAVAIL;
 			return (-1);
 		}
@@ -1280,8 +1279,7 @@ isp_target_start_ctio(ispsoftc_t *isp, union ccb *ccb)
 {
 	void *qe;
 	struct ccb_scsiio *cso = &ccb->csio;
-	uint16_t *hp, save_handle;
-	uint16_t nxti, optr;
+	uint32_t nxti, optr, handle;
 	uint8_t local[QENTRY_LEN];
 
 
@@ -1303,11 +1301,11 @@ isp_target_start_ctio(ispsoftc_t *isp, union ccb *ccb)
 
 		cto->ct_header.rqs_entry_type = RQSTYPE_CTIO2;
 		cto->ct_header.rqs_entry_count = 1;
-		if (IS_2KLOGIN(isp)) {
+		if (FCPARAM(isp)->isp_2klogin) {
 			((ct2e_entry_t *)cto)->ct_iid = cso->init_id;
 		} else {
 			cto->ct_iid = cso->init_id;
-			if (!(FCPARAM(isp)->isp_fwattr & ISP_FW_ATTR_SCCLUN)) {
+			if (FCPARAM(isp)->isp_sccfw == 0) {
 				cto->ct_lun = ccb->ccb_h.target_lun;
 			}
 		}
@@ -1386,7 +1384,6 @@ isp_target_start_ctio(ispsoftc_t *isp, union ccb *ccb)
 			atp->state = ATPD_STATE_CTIO;
 		}
 		cto->ct_timeout = 10;
-		hp = &cto->ct_syshandle;
 	} else {
 		ct_entry_t *cto = (ct_entry_t *) local;
 
@@ -1422,10 +1419,9 @@ isp_target_start_ctio(ispsoftc_t *isp, union ccb *ccb)
 		}
 		ccb->ccb_h.flags &= ~CAM_SEND_SENSE;
 		cto->ct_timeout = 10;
-		hp = &cto->ct_syshandle;
 	}
 
-	if (isp_save_xs_tgt(isp, ccb, hp)) {
+	if (isp_save_xs_tgt(isp, ccb, &handle)) {
 		xpt_print_path(ccb->ccb_h.path);
 		printf("No XFLIST pointers for isp_target_start_ctio\n");
 		XS_SETERR(ccb, CAM_REQUEUE_REQ);
@@ -1442,7 +1438,13 @@ isp_target_start_ctio(ispsoftc_t *isp, union ccb *ccb)
 	 * format.
 	 */
 
-	save_handle = *hp;
+	if (IS_FC(isp)) {
+		ct2_entry_t *cto = (ct2_entry_t *) local;
+		cto->ct_syshandle = handle;
+	} else {
+		ct_entry_t *cto = (ct_entry_t *) local;
+		cto->ct_syshandle = handle;
+	}
 
 	switch (ISP_DMASETUP(isp, cso, (ispreq_t *) local, &nxti, optr)) {
 	case CMD_QUEUED:
@@ -1457,7 +1459,7 @@ isp_target_start_ctio(ispsoftc_t *isp, union ccb *ccb)
 	default:
 		break;
 	}
-	isp_destroy_tgt_handle(isp, save_handle);
+	isp_destroy_tgt_handle(isp, handle);
 
 out:
 	ISPLOCK_2_CAMLOCK(isp);
@@ -1478,7 +1480,7 @@ isp_target_putback_atio(union ccb *ccb)
 {
 	ispsoftc_t *isp;
 	struct ccb_scsiio *cso;
-	uint16_t nxti, optr;
+	uint32_t nxti, optr;
 	void *qe;
 
 	isp = XS_ISP(ccb);
@@ -1496,7 +1498,7 @@ isp_target_putback_atio(union ccb *ccb)
 		MEMZERO(at, sizeof (at2_entry_t));
 		at->at_header.rqs_entry_type = RQSTYPE_ATIO2;
 		at->at_header.rqs_entry_count = 1;
-		if ((FCPARAM(isp)->isp_fwattr & ISP_FW_ATTR_SCCLUN) != 0) {
+		if (FCPARAM(isp)->isp_sccfw) {
 			at->at_scclun = (uint16_t) ccb->ccb_h.target_lun;
 		} else {
 			at->at_lun = (uint8_t) ccb->ccb_h.target_lun;
@@ -1685,7 +1687,7 @@ isp_handle_platform_atio2(ispsoftc_t *isp, at2_entry_t *aep)
 		return (0);
 	}
 
-	if ((FCPARAM(isp)->isp_fwattr & ISP_FW_ATTR_SCCLUN) != 0) {
+	if (FCPARAM(isp)->isp_sccfw) {
 		lun = aep->at_scclun;
 	} else {
 		lun = aep->at_lun;
@@ -1731,8 +1733,7 @@ isp_handle_platform_atio2(ispsoftc_t *isp, at2_entry_t *aep)
 	    lun, tptr->atio_count);
 
 	if (tptr == &isp->isp_osinfo.tsdflt[0]) {
-		atiop->ccb_h.target_id =
-		    ((fcparam *)isp->isp_param)->isp_loopid;
+		atiop->ccb_h.target_id = FCPARAM(isp)->isp_loopid;
 		atiop->ccb_h.target_lun = lun;
 	}
 	/*
@@ -2004,7 +2005,8 @@ static void
 isp_poll(struct cam_sim *sim)
 {
 	ispsoftc_t *isp = cam_sim_softc(sim);
-	uint16_t isr, sema, mbox;
+	uint32_t isr;
+	uint16_t sema, mbox;
 
 	ISP_LOCK(isp);
 	if (ISP_READ_ISR(isp, &isr, &sema, &mbox)) {
@@ -2020,7 +2022,6 @@ isp_watchdog(void *arg)
 	XS_T *xs = arg;
 	ispsoftc_t *isp = XS_ISP(xs);
 	uint32_t handle;
-	int iok;
 
 	/*
 	 * We've decided this command is dead. Make sure we're not trying
@@ -2028,11 +2029,10 @@ isp_watchdog(void *arg)
 	 * and seeing whether it's still alive.
 	 */
 	ISP_LOCK(isp);
-	iok = isp->isp_osinfo.intsok;
-	isp->isp_osinfo.intsok = 0;
 	handle = isp_find_handle(isp, xs);
 	if (handle) {
-		uint16_t isr, sema, mbox;
+		uint32_t isr;
+		uint16_t sema, mbox;
 
 		if (XS_CMD_DONE_P(xs)) {
 			isp_prt(isp, ISP_LOGDEBUG1,
@@ -2077,28 +2077,14 @@ isp_watchdog(void *arg)
 			XS_CMD_C_WDOG(xs);
 			isp_done(xs);
 		} else {
-			uint16_t nxti, optr;
-			ispreq_t local, *mp= &local, *qe;
-
 			XS_CMD_C_WDOG(xs);
 			xs->ccb_h.timeout_ch = timeout(isp_watchdog, xs, hz);
-			if (isp_getrqentry(isp, &nxti, &optr, (void **) &qe)) {
-				ISP_UNLOCK(isp);
-				return;
-			}
 			XS_CMD_S_GRACE(xs);
-			MEMZERO((void *) mp, sizeof (*mp));
-			mp->req_header.rqs_entry_count = 1;
-			mp->req_header.rqs_entry_type = RQSTYPE_MARKER;
-			mp->req_modifier = SYNC_ALL;
-			mp->req_target = XS_CHANNEL(xs) << 7;
-			isp_put_request(isp, mp, qe);
-			ISP_ADD_REQUEST(isp, nxti);
+			isp->isp_sendmarker |= 1 << XS_CHANNEL(xs);
 		}
 	} else {
 		isp_prt(isp, ISP_LOGDEBUG2, "watchdog with no command");
 	}
-	isp->isp_osinfo.intsok = iok;
 	ISP_UNLOCK(isp);
 }
 
@@ -2106,13 +2092,13 @@ static void
 isp_kthread(void *arg)
 {
 	ispsoftc_t *isp = arg;
+	int slp;
 
 
 #if __FreeBSD_version < 500000  
         int s;
 
         s = splcam();
-        isp->isp_osinfo.intsok = 1;
 #else
 #ifdef	ISP_SMPLOCK
 	mtx_lock(&isp->isp_lock);
@@ -2125,32 +2111,63 @@ isp_kthread(void *arg)
 	 * gotten good fibre channel state.
 	 */
 	for (;;) {
-		int wasfrozen;
+		int wasfrozen, lb;
 
 		isp_prt(isp, ISP_LOGDEBUG0, "kthread: checking FC state");
-		while (isp_fc_runstate(isp, 2 * 1000000) != 0) {
-			isp_prt(isp, ISP_LOGDEBUG0, "kthread: FC state ungood");
-			if (FCPARAM(isp)->isp_fwstate != FW_READY ||
-			    FCPARAM(isp)->isp_loopstate < LOOP_PDB_RCVD) {
-				if (FCPARAM(isp)->loop_seen_once == 0 ||
-				    isp->isp_osinfo.ktmature == 0) {
-					break;
-				}
+		lb = isp_fc_runstate(isp, 250000);
+		if (lb) {
+			unsigned int inc = 1;
+
+			if (lb < 0) {
+				isp_prt(isp, ISP_LOGDEBUG0,
+				    "kthread: FC loop not up (down count %d)",
+				    isp->isp_osinfo.loop_down_time);
+			} else {
+				isp_prt(isp, ISP_LOGDEBUG0,
+				    "kthread: FC got to %d (down count %d)",
+				    lb, isp->isp_osinfo.loop_down_time);
 			}
-#ifdef	ISP_SMPLOCK
-			msleep(isp_kthread, &isp->isp_lock,
-			    PRIBIO, "isp_fcthrd", hz);
-#else
-			(void) tsleep(isp_kthread, PRIBIO, "isp_fcthrd", hz);
-#endif
+
+
+			/*
+			 * If we've never seen loop up and we've waited longer
+			 * than quickboot time, give up and go to sleep until
+			 * loop comes up. Otherwise, increment the loop down
+			 * time and figure out how long to sleep to the next
+			 * check. 
+			 */
+			if (FCPARAM(isp)->loop_seen_once == 0 &&
+			    isp->isp_osinfo.loop_down_time >=
+			    isp_quickboot_time) {
+				isp->isp_osinfo.loop_down_time = 0xffff;
+				slp = 0;
+			} else if (isp->isp_osinfo.loop_down_time > 30) {
+				inc = 30;
+				slp = 30 * hz;
+			} else if (isp->isp_osinfo.loop_down_time > 1) {
+				slp = hz;
+			} else {
+				slp = 1;
+			}
+
+			inc += isp->isp_osinfo.loop_down_time;
+			if (inc < 0xffff) {
+				isp->isp_osinfo.loop_down_time = inc;
+			} else {
+				isp->isp_osinfo.loop_down_time = 0xfffe;
+			}
+		} else {
+			isp_prt(isp, ISP_LOGDEBUG0, "kthread: FC state OK");
+			isp->isp_osinfo.loop_down_time = 0;
+			slp = 0;
 		}
 
 		/*
-		 * Even if we didn't get good loop state we may be
-		 * unfreezing the SIMQ so that we can kill off
-		 * commands (if we've never seen loop before, for example).
+		 * If we'd frozen the simq, unfreeze it now so that CAM
+		 * can start sending us commands. If the FC state isn't
+		 * okay yet, they'll hit that in isp_start which will
+		 * freeze the queue again.
 		 */
-		isp->isp_osinfo.ktmature = 1;
 		wasfrozen = isp->isp_osinfo.simqfrozen & SIMQFRZ_LOOPDOWN;
 		isp->isp_osinfo.simqfrozen &= ~SIMQFRZ_LOOPDOWN;
 		if (wasfrozen && isp->isp_osinfo.simqfrozen == 0) {
@@ -2159,16 +2176,26 @@ isp_kthread(void *arg)
 			xpt_release_simq(isp->isp_sim, 1);
 			CAMLOCK_2_ISPLOCK(isp);
 		}
-		isp_prt(isp, ISP_LOGDEBUG0, "kthread: waiting until called");
 #if __FreeBSD_version < 500000  
-		tsleep(&isp->isp_osinfo.kproc, PRIBIO, "isp_fc_worker", 0);
+		tsleep(&isp->isp_osinfo.kproc, PRIBIO, "ispf", slp);
 #else
 #ifdef	ISP_SMPLOCK
-		cv_wait(&isp->isp_osinfo.kthread_cv, &isp->isp_lock);
+		cv_timed_wait(&isp->isp_osinfo.kthread_cv, &isp->isp_lock, slp);
 #else
-		(void) tsleep(&isp->isp_osinfo.kthread_cv, PRIBIO, "fc_cv", 0);
+		(void) tsleep(&isp->isp_osinfo.kthread_cv, PRIBIO, "ispf", slp);
 #endif
 #endif
+		/*
+		 * If slp is zero, we're waking up for the first time after
+		 * things have been okay. In this case, we set a deferral state
+		 * for all commands and delay hysteresis seconds before starting
+		 * the FC state evaluation. This gives the loop/fabric a chance
+		 * to settle.
+		 */
+		if (slp == 0 && isp->isp_osinfo.hysteresis) {
+			(void) tsleep(&isp_fabric_hysteresis, PRIBIO, "ispT",
+			    (isp->isp_osinfo.hysteresis * hz));
+		}
 	}
 }
 
@@ -2260,8 +2287,12 @@ isp_action(struct cam_sim *sim, union ccb *ccb)
 			 * This can only happen for Fibre Channel
 			 */
 			KASSERT((IS_FC(isp)), ("CMD_RQLATER for FC only"));
-			if (FCPARAM(isp)->loop_seen_once == 0 &&
-			    isp->isp_osinfo.ktmature) {
+			/*
+			 * If we've exceeded the loop down limit start
+			 * failing commands.
+			 */
+			if (isp->isp_osinfo.loop_down_time > 
+			    isp->isp_osinfo.loop_down_limit) {
 				ISPLOCK_2_CAMLOCK(isp);
 				XS_SETERR(ccb, CAM_SEL_TIMEOUT);
 				xpt_done(ccb);
@@ -2303,25 +2334,22 @@ isp_action(struct cam_sim *sim, union ccb *ccb)
 #ifdef	ISP_TARGET_MODE
 	case XPT_EN_LUN:		/* Enable LUN as a target */
 	{
-		int seq, iok, i;
+		int seq, i;
 		CAMLOCK_2_ISPLOCK(isp);
-		iok = isp->isp_osinfo.intsok;
-		isp->isp_osinfo.intsok = 0;
 		seq = isp_en_lun(isp, ccb);
 		if (seq < 0) {
-			isp->isp_osinfo.intsok = iok;
 			ISPLOCK_2_CAMLOCK(isp);
 			xpt_done(ccb);
 			break;
 		}
 		for (i = 0; isp->isp_osinfo.leact[seq] && i < 30 * 1000; i++) {
-			uint16_t isr, sema, mbox;
+			uint32_t isr;
+			uint16_t sema, mbox;
 			if (ISP_READ_ISR(isp, &isr, &sema, &mbox)) {
 				isp_intr(isp, isr, sema, mbox);
 			}
 			DELAY(1000);
 		}
-		isp->isp_osinfo.intsok = iok;
 		ISPLOCK_2_CAMLOCK(isp);
 		break;
 	}
@@ -2519,7 +2547,7 @@ isp_action(struct cam_sim *sim, union ccb *ccb)
 			else
 				fc->bitrate = 100000;
 			if (tgt > 0 && tgt < MAX_FC_TARG) {
-				struct lportdb *lp = &fcp->portdb[tgt];
+				fcportdb_t *lp = &fcp->portdb[tgt];
 				fc->wwnn = lp->node_wwn;
 				fc->wwpn = lp->port_wwn;
 				fc->port = lp->portid;
@@ -2767,6 +2795,19 @@ int
 isp_async(ispsoftc_t *isp, ispasync_t cmd, void *arg)
 {
 	int bus, rv = 0;
+	static const char *roles[4] = {
+	    "(none)", "Target", "Initiator", "Target/Initiator"
+	};
+	static const char prom[] =
+	    "PortID 0x%06x handle 0x%x role %s %s\n"
+            "      WWNN 0x%08x%08x WWPN 0x%08x%08x";
+	static const char prom2[] =
+	    "PortID 0x%06x handle 0x%x role %s %s tgt %u\n"
+            "      WWNN 0x%08x%08x WWPN 0x%08x%08x";
+	target_id_t tgt;
+	fcportdb_t *lp;
+	struct cam_path *tmppath;
+
 	switch (cmd) {
 	case ISPASYNC_NEW_TGT_PARAMS:
 	{
@@ -2775,7 +2816,6 @@ isp_async(ispsoftc_t *isp, ispasync_t cmd, void *arg)
 		int flags, tgt;
 		sdparam *sdp = isp->isp_param;
 		struct ccb_trans_settings cts;
-		struct cam_path *tmppath;
 
 		memset(&cts, 0, sizeof (struct ccb_trans_settings));
 
@@ -2876,59 +2916,127 @@ isp_async(ispsoftc_t *isp, ispasync_t cmd, void *arg)
 		 */
 		isp_prt(isp, ISP_LOGINFO, "Loop UP");
 		break;
-	case ISPASYNC_PROMENADE:
-	{
-		const char *fmt = "Target %d (Loop 0x%x) Port ID 0x%x "
-		    "(role %s) %s\n Port WWN 0x%08x%08x\n Node WWN 0x%08x%08x";
-		static const char *roles[4] = {
-		    "(none)", "Target", "Initiator", "Target/Initiator"
-		};
-		fcparam *fcp = isp->isp_param;
-		int tgt = *((int *) arg);
-#if __FreeBSD_version >= 500000  
-		int is_tgt_mask = (SVC3_TGT_ROLE >> SVC3_ROLE_SHIFT);
-		struct cam_path *tmppath;
-#endif
-		struct lportdb *lp = &fcp->portdb[tgt]; 
+	case ISPASYNC_DEV_ARRIVED:
+		lp = arg;
 
-		isp_prt(isp, ISP_LOGINFO, fmt, tgt, lp->loopid, lp->portid,
-		    roles[lp->roles & 0x3],
-		    (lp->valid)? "Arrived" : "Departed",
-		    (uint32_t) (lp->port_wwn >> 32),
-		    (uint32_t) (lp->port_wwn & 0xffffffffLL),
-		    (uint32_t) (lp->node_wwn >> 32),
-		    (uint32_t) (lp->node_wwn & 0xffffffffLL));
-
-		ISPLOCK_2_CAMLOCK(isp);
+		if (lp->ini_map_idx) {
+			tgt = lp->ini_map_idx - 1;
+			isp_prt(isp, ISP_LOGCONFIG, prom2,
+			    lp->portid, lp->handle,
+		            roles[lp->roles & 0x3], "arrived at", tgt,
+		    	    (uint32_t) (lp->node_wwn >> 32),
+			    (uint32_t) lp->node_wwn,
+		    	    (uint32_t) (lp->port_wwn >> 32),
+			    (uint32_t) lp->port_wwn);
 #if __FreeBSD_version >= 500000  
-		if (xpt_create_path(&tmppath, NULL, cam_sim_path(isp->isp_sim),
-		    (target_id_t)tgt, CAM_LUN_WILDCARD) != CAM_REQ_CMP) {
-			CAMLOCK_2_ISPLOCK(isp);
-                        break;
-                }
-		/*
-		 * Policy: only announce targets.
-		 */
-		if (lp->roles & is_tgt_mask) {
-			if (lp->valid) {
-				xpt_async(AC_FOUND_DEVICE, tmppath, NULL);
-			} else {
-				xpt_async(AC_LOST_DEVICE, tmppath, NULL);
+			ISPLOCK_2_CAMLOCK(isp);
+			if (xpt_create_path(&tmppath, NULL,
+			    cam_sim_path(isp->isp_sim), tgt,
+			    CAM_LUN_WILDCARD) != CAM_REQ_CMP) {
+				CAMLOCK_2_ISPLOCK(isp);
+				break;
 			}
-		}
-		xpt_free_path(tmppath);
+			xpt_async(AC_FOUND_DEVICE, tmppath, NULL);
+			xpt_free_path(tmppath);
+			CAMLOCK_2_ISPLOCK(isp);
 #endif
-		CAMLOCK_2_ISPLOCK(isp);
-		break;
-	}
-	case ISPASYNC_CHANGE_NOTIFY:
-		if (arg == ISPASYNC_CHANGE_PDB) {
-			isp_prt(isp, ISP_LOGINFO,
-			    "Port Database Changed");
-		} else if (arg == ISPASYNC_CHANGE_SNS) {
-			isp_prt(isp, ISP_LOGINFO,
-			    "Name Server Database Changed");
+		} else {
+			isp_prt(isp, ISP_LOGCONFIG, prom,
+			    lp->portid, lp->handle,
+		            roles[lp->roles & 0x3], "arrived",
+		    	    (uint32_t) (lp->node_wwn >> 32),
+			    (uint32_t) lp->node_wwn,
+		    	    (uint32_t) (lp->port_wwn >> 32),
+			    (uint32_t) lp->port_wwn);
 		}
+		break;
+	case ISPASYNC_DEV_CHANGED:
+		lp = arg;
+		if (lp->ini_map_idx) {
+			tgt = lp->ini_map_idx - 1;
+			isp_prt(isp, ISP_LOGCONFIG, prom2,
+			    lp->portid, lp->handle,
+		    	    roles[lp->roles & 0x3], "changed at", tgt,
+			    (uint32_t) (lp->node_wwn >> 32),
+			    (uint32_t) lp->node_wwn,
+		    	    (uint32_t) (lp->port_wwn >> 32),
+			    (uint32_t) lp->port_wwn);
+		} else {
+			isp_prt(isp, ISP_LOGCONFIG, prom,
+			    lp->portid, lp->handle,
+		    	    roles[lp->roles & 0x3], "changed",
+			    (uint32_t) (lp->node_wwn >> 32),
+			    (uint32_t) lp->node_wwn,
+		    	    (uint32_t) (lp->port_wwn >> 32),
+			    (uint32_t) lp->port_wwn);
+		}
+		break;
+	case ISPASYNC_DEV_STAYED:
+		lp = arg;
+		if (lp->ini_map_idx) {
+			tgt = lp->ini_map_idx - 1;
+			isp_prt(isp, ISP_LOGCONFIG, prom2,
+			    lp->portid, lp->handle,
+		    	    roles[lp->roles & 0x3], "stayed at", tgt,
+			    (uint32_t) (lp->node_wwn >> 32),
+			    (uint32_t) lp->node_wwn,
+		    	    (uint32_t) (lp->port_wwn >> 32),
+			    (uint32_t) lp->port_wwn);
+		} else {
+			isp_prt(isp, ISP_LOGCONFIG, prom,
+			    lp->portid, lp->handle,
+		    	    roles[lp->roles & 0x3], "stayed",
+			    (uint32_t) (lp->node_wwn >> 32),
+			    (uint32_t) lp->node_wwn,
+		    	    (uint32_t) (lp->port_wwn >> 32),
+			    (uint32_t) lp->port_wwn);
+		}
+		break;
+	case ISPASYNC_DEV_GONE:
+		lp = arg;
+		if (lp->ini_map_idx) {
+			tgt = lp->ini_map_idx - 1;
+			isp_prt(isp, ISP_LOGCONFIG, prom2,
+			    lp->portid, lp->handle,
+		            roles[lp->roles & 0x3], "departed from", tgt,
+		    	    (uint32_t) (lp->node_wwn >> 32),
+			    (uint32_t) lp->node_wwn,
+		    	    (uint32_t) (lp->port_wwn >> 32),
+			    (uint32_t) lp->port_wwn);
+#if __FreeBSD_version >= 500000  
+			ISPLOCK_2_CAMLOCK(isp);
+			if (xpt_create_path(&tmppath, NULL,
+			    cam_sim_path(isp->isp_sim), tgt,
+			    CAM_LUN_WILDCARD) != CAM_REQ_CMP) {
+				CAMLOCK_2_ISPLOCK(isp);
+				break;
+			}
+			xpt_async(AC_LOST_DEVICE, tmppath, NULL);
+			xpt_free_path(tmppath);
+			CAMLOCK_2_ISPLOCK(isp);
+#endif
+		} else {
+			isp_prt(isp, ISP_LOGCONFIG, prom,
+			    lp->portid, lp->handle,
+		            roles[lp->roles & 0x3], "departed",
+		    	    (uint32_t) (lp->node_wwn >> 32),
+			    (uint32_t) lp->node_wwn,
+		    	    (uint32_t) (lp->port_wwn >> 32),
+			    (uint32_t) lp->port_wwn);
+		}
+		break;
+	case ISPASYNC_CHANGE_NOTIFY:
+	{
+		char *msg;
+		if (arg == ISPASYNC_CHANGE_PDB) {
+			msg = "Port Database Changed";
+		} else if (arg == ISPASYNC_CHANGE_SNS) {
+			msg = "Name Server Database Changed";
+		} else {
+			msg = "Other Change Notify";
+		}
+		isp_prt(isp, ISP_LOGINFO, msg);
+		isp_freeze_loopdown(isp, msg);
 #if __FreeBSD_version < 500000  
 		wakeup(&isp->isp_osinfo.kproc);
 #else
@@ -2938,117 +3046,6 @@ isp_async(ispsoftc_t *isp, ispasync_t cmd, void *arg)
 		wakeup(&isp->isp_osinfo.kthread_cv);
 #endif
 #endif
-		break;
-	case ISPASYNC_FABRIC_DEV:
-	{
-		int target, base, lim;
-		fcparam *fcp = isp->isp_param;
-		struct lportdb *lp = NULL;
-		struct lportdb *clp = (struct lportdb *) arg;
-		char *pt;
-
-		switch (clp->port_type) {
-		case 1:
-			pt = "   N_Port";
-			break;
-		case 2:
-			pt = "  NL_Port";
-			break;
-		case 3:
-			pt = "F/NL_Port";
-			break;
-		case 0x7f:
-			pt = "  Nx_Port";
-			break;
-		case 0x81:
-			pt = "  F_port";
-			break;
-		case 0x82:
-			pt = "  FL_Port";
-			break;
-		case 0x84:
-			pt = "   E_port";
-			break;
-		default:
-			pt = " ";
-			break;
-		}
-
-		isp_prt(isp, ISP_LOGINFO,
-		    "%s Fabric Device @ PortID 0x%x", pt, clp->portid);
-
-		/*
-		 * If we don't have an initiator role we bail.
-		 *
-		 * We just use ISPASYNC_FABRIC_DEV for announcement purposes.
-		 */
-
-		if ((isp->isp_role & ISP_ROLE_INITIATOR) == 0) {
-			break;
-		}
-
-		/*
-		 * Is this entry for us? If so, we bail.
-		 */
-
-		if (fcp->isp_portid == clp->portid) {
-			break;
-		}
-
-		/*
-		 * Else, the default policy is to find room for it in
-		 * our local port database. Later, when we execute
-		 * the call to isp_pdb_sync either this newly arrived
-		 * or already logged in device will be (re)announced.
-		 */
-
-		if (fcp->isp_topo == TOPO_FL_PORT)
-			base = FC_SNS_ID+1;
-		else
-			base = 0;
-
-		if (fcp->isp_topo == TOPO_N_PORT)
-			lim = 1;
-		else
-			lim = MAX_FC_TARG;
-
-		/*
-		 * Is it already in our list?
-		 */
-		for (target = base; target < lim; target++) {
-			if (target >= FL_PORT_ID && target <= FC_SNS_ID) {
-				continue;
-			}
-			lp = &fcp->portdb[target];
-			if (lp->port_wwn == clp->port_wwn &&
-			    lp->node_wwn == clp->node_wwn) {
-				lp->fabric_dev = 1;
-				break;
-			}
-		}
-		if (target < lim) {
-			break;
-		}
-		for (target = base; target < lim; target++) {
-			if (target >= FL_PORT_ID && target <= FC_SNS_ID) {
-				continue;
-			}
-			lp = &fcp->portdb[target];
-			if (lp->port_wwn == 0) {
-				break;
-			}
-		}
-		if (target == lim) {
-			isp_prt(isp, ISP_LOGWARN,
-			    "out of space for fabric devices");
-			break;
-		}
-		lp->port_type = clp->port_type;
-		lp->fc4_type = clp->fc4_type;
-		lp->node_wwn = clp->node_wwn;
-		lp->port_wwn = clp->port_wwn;
-		lp->portid = clp->portid;
-		lp->fabric_dev = 1;
 		break;
 	}
 #ifdef	ISP_TARGET_MODE
@@ -3136,8 +3133,12 @@ isp_async(ispsoftc_t *isp, ispasync_t cmd, void *arg)
 void
 isp_uninit(ispsoftc_t *isp)
 {
-	ISP_WRITE(isp, HCCR, HCCR_CMD_RESET);
-	DISABLE_INTS(isp);
+	if (IS_24XX(isp)) {
+		ISP_WRITE(isp, BIU2400_HCCR, HCCR_2400_CMD_RESET);
+	} else {
+		ISP_WRITE(isp, HCCR, HCCR_CMD_RESET);
+	}
+	ISP_DISABLE_INTS(isp);
 }
 
 void
