@@ -813,9 +813,11 @@ struct so_zerocopy_stats so_zerocp_stats = {0,0,0};
 #include <vm/vm.h>
 #include <vm/vm_page.h>
 #include <vm/vm_object.h>
-#endif /*ZERO_COPY_SOCKETS*/
 
 /*
+ * sosend_copyin() is only used if zero copy sockets are enabled.  Otherwise
+ * sosend_dgram() and sosend_generic() use m_uiotombuf().
+ * 
  * sosend_copyin() accepts a uio and prepares an mbuf chain holding part or
  * all of the data referenced by the uio.  If desired, it uses zero-copy.
  * *space will be updated to reflect data copied in.
@@ -939,6 +941,7 @@ out:
 	*retmp = top;
 	return (error);
 }
+#endif /*ZERO_COPY_SOCKETS*/
 
 #define	SBLOCKWAIT(f)	(((f) & MSG_DONTWAIT) ? M_NOWAIT : M_WAITOK)
 
@@ -954,7 +957,9 @@ sosend_dgram(so, addr, uio, top, control, flags, td)
 {
 	long space, resid;
 	int clen = 0, error, dontroute;
+#ifdef ZERO_COPY_SOCKETS
 	int atomic = sosendallatonce(so) || top;
+#endif
 
 	KASSERT(so->so_type == SOCK_DGRAM, ("sodgram_send: !SOCK_DGRAM"));
 	KASSERT(so->so_proto->pr_flags & PR_ATOMIC,
@@ -1040,9 +1045,19 @@ sosend_dgram(so, addr, uio, top, control, flags, td)
 		if (flags & MSG_EOR)
 			top->m_flags |= M_EOR;
 	} else {
+#ifdef ZERO_COPY_SOCKETS
 		error = sosend_copyin(uio, &top, atomic, &space, flags);
 		if (error)
 			goto out;
+#else
+		top = m_uiotombuf(uio, M_WAITOK, space, max_hdr,
+		    (M_PKTHDR | ((flags & MSG_EOR) ? M_EOR : 0)));
+		if (top == NULL) {
+			error = EFAULT;	/* only possible error */
+			goto out;
+		}
+		space -= resid - uio->uio_resid;
+#endif
 		resid = uio->uio_resid;
 	}
 	KASSERT(resid == 0, ("sosend_dgram: resid != 0"));
@@ -1202,12 +1217,25 @@ restart:
 				if (flags & MSG_EOR)
 					top->m_flags |= M_EOR;
 			} else {
+#ifdef ZERO_COPY_SOCKETS
 				error = sosend_copyin(uio, &top, atomic,
 				    &space, flags);
 				if (error != 0) {
 					SOCKBUF_LOCK(&so->so_snd);
 					goto release;
 				}
+#else
+				top = m_uiotombuf(uio, M_WAITOK, space,
+				    (atomic ? max_hdr : 0),
+				    (atomic ? M_PKTHDR : 0) |
+				    ((flags & MSG_EOR) ? M_EOR : 0));
+				if (top == NULL) {
+					SOCKBUF_LOCK(&so->so_snd);
+					error = EFAULT; /* only possible error */
+					goto release;
+				}
+				space -= resid - uio->uio_resid;
+#endif
 				resid = uio->uio_resid;
 			}
 			if (dontroute) {
