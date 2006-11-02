@@ -2648,12 +2648,10 @@ ciss_cam_action(struct cam_sim *sim, union ccb *ccb)
         cpi->unit_number = cam_sim_unit(sim);
         cpi->bus_id = cam_sim_bus(sim);
 	cpi->base_transfer_speed = 132 * 1024;	/* XXX what to set this to? */
-#ifdef	CAM_NEW_TRAN_CODE
 	cpi->transport = XPORT_SPI;
 	cpi->transport_version = 2;
 	cpi->protocol = PROTO_SCSI;
 	cpi->protocol_version = SCSI_REV_2;
-#endif
 	ccb->ccb_h.status = CAM_REQ_CMP;
 	break;
     }
@@ -2662,17 +2660,14 @@ ciss_cam_action(struct cam_sim *sim, union ccb *ccb)
     {
 	struct ccb_trans_settings	*cts = &ccb->cts;
 	int				bus, target;
-#ifdef	CAM_NEW_TRAN_CODE
 	struct ccb_trans_settings_spi *spi =
 	    &cts->xport_specific.spi;
-#endif
 
 	bus = cam_sim_bus(sim);
 	target = cts->ccb_h.target_id;
 
 	debug(1, "XPT_GET_TRAN_SETTINGS %d:%d", bus, target);
 	/* disconnect always OK */
-#ifdef	CAM_NEW_TRAN_CODE
 	cts->protocol = PROTO_SCSI;
 	cts->protocol_version = SCSI_REV_2;
 	cts->transport = XPORT_SPI;
@@ -2680,10 +2675,6 @@ ciss_cam_action(struct cam_sim *sim, union ccb *ccb)
 
 	spi->valid = CTS_SPI_VALID_DISC;
 	spi->flags = CTS_SPI_FLAGS_DISC_ENB;
-#else
-	cts->flags |= CCB_TRANS_DISC_ENB;
-	cts->valid = CCB_TRANS_DISC_VALID;
-#endif
 
 	cts->ccb_h.status = CAM_REQ_CMP;
 	break;

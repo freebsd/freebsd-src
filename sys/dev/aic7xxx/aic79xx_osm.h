@@ -77,10 +77,6 @@
 #include <cam/scsi/scsi_message.h>
 #include <cam/scsi/scsi_iu.h>
 
-#ifdef CAM_NEW_TRAN_CODE
-#define AHD_NEW_TRAN_SETTINGS
-#endif /* CAM_NEW_TRAN_CODE */
-
 /****************************** Platform Macros *******************************/
 #define	SIM_IS_SCSIBUS_B(ahd, sim)	\
 	(0)

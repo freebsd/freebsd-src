@@ -2606,21 +2606,12 @@ umass_cam_action(struct cam_sim *sim, union ccb *ccb)
 	case XPT_GET_TRAN_SETTINGS:
 	{
 		struct ccb_trans_settings *cts = &ccb->cts;
-#ifdef	CAM_NEW_TRAN_CODE
 		cts->protocol = PROTO_SCSI;
 		cts->protocol_version = SCSI_REV_2;
 		cts->transport = XPORT_USB;
 		cts->transport_version = XPORT_VERSION_UNSPECIFIED;
 		cts->xport_specific.valid = 0;
 
-#else
-		DPRINTF(UDMASS_SCSI, ("%s:%d:%d:%d:XPT_GET_TRAN_SETTINGS:.\n",
-			device_get_nameunit(sc->sc_dev), cam_sim_path(sc->umass_sim),
-			ccb->ccb_h.target_id, ccb->ccb_h.target_lun));
-
-		cts->valid = 0;
-		cts->flags = 0;		/* no disconnection, tagging */
-#endif
 
 		ccb->ccb_h.status = CAM_REQ_CMP;
 		xpt_done(ccb);
