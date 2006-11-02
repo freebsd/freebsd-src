@@ -109,8 +109,9 @@ extract the name list from the specified
 instead of the default,
 which is the kernel image the system has booted from.
 .It Fl m
-Report on the usage of kernel dynamic memory listed first by size of
-allocation and then by type of usage.
+Report on the usage of kernel dynamic memory allocated using
+.Xr malloc 9
+by type.
 .It Fl n
 Change the maximum number of disks to display from the default of 2.
 .It Fl p
@@ -201,7 +202,9 @@ If no repeat
 .Ar wait
 interval is specified, the default is 1 second.
 .It Fl z
-Report on memory used by the kernel zone allocator, by zone.
+Report on memory used by the kernel zone allocator,
+.Xr uma 9 ,
+by zone.
 .El
 .Pp
 By default,
@@ -330,10 +333,13 @@ statistics every second.
 .Xr nfsstat 1 ,
 .Xr ps 1 ,
 .Xr systat 1 ,
+.Xr libmemstat 3 ,
 .Xr gstat 8 ,
 .Xr iostat 8 ,
 .Xr pstat 8 ,
-.Xr sysctl 8
+.Xr sysctl 8 ,
+.Xr malloc 9 ,
+.Xr uma 9
 .Pp
 The sections starting with ``Interpreting system activity'' in
 .%T "Installing and Operating 4.3BSD" .
