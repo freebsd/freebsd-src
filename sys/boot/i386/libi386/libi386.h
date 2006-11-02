@@ -36,24 +36,19 @@ struct i386_devdesc
 {
     struct devsw	*d_dev;
     int			d_type;
+    int			d_unit;
     union 
     {
 	struct 
 	{
-	    int		unit;
+	    void	*data;
 	    int		slice;
 	    int		partition;
-	    void	*data;
 	} biosdisk;
 	struct
 	{
-	    int		unit;
 	    void	*data;
 	} bioscd;
-	struct 
-	{
-	    int		unit;		/* XXX net layer lives over these? */
-	} netif;
     } d_kind;
 };
 

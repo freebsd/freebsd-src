@@ -142,7 +142,7 @@ i386_parsedev(struct i386_devdesc **dev, const char *devspec, const char **path)
 	    goto fail;
 	}
 
-	idev->d_kind.biosdisk.unit = unit;
+	idev->d_unit = unit;
 	idev->d_kind.biosdisk.slice = slice;
 	idev->d_kind.biosdisk.partition = partition;
 	if (path != NULL)
@@ -165,10 +165,7 @@ i386_parsedev(struct i386_devdesc **dev, const char *devspec, const char **path)
 	    goto fail;
 	}
 
-	if (dv->dv_type == DEVT_NET)
-	    idev->d_kind.netif.unit = unit;
-	else
-	    idev->d_kind.bioscd.unit = unit;
+	idev->d_unit = unit;
 	if (path != NULL)
 	    *path = (*cp == 0) ? cp : cp + 1;
 	break;
@@ -205,12 +202,12 @@ i386_fmtdev(void *vdev)
 	break;
 
     case DEVT_CD:
-	sprintf(buf, "%s%d:", dev->d_dev->dv_name, dev->d_kind.bioscd.unit);
+	sprintf(buf, "%s%d:", dev->d_dev->dv_name, dev->d_unit);
 	break;
 
     case DEVT_DISK:
 	cp = buf;
-	cp += sprintf(cp, "%s%d", dev->d_dev->dv_name, dev->d_kind.biosdisk.unit);
+	cp += sprintf(cp, "%s%d", dev->d_dev->dv_name, dev->d_unit);
 	if (dev->d_kind.biosdisk.slice > 0)
 	    cp += sprintf(cp, "s%d", dev->d_kind.biosdisk.slice);
 	if (dev->d_kind.biosdisk.partition >= 0)
@@ -219,7 +216,7 @@ i386_fmtdev(void *vdev)
 	break;
 
     case DEVT_NET:
-	sprintf(buf, "%s%d:", dev->d_dev->dv_name, dev->d_kind.netif.unit);
+	sprintf(buf, "%s%d:", dev->d_dev->dv_name, dev->d_unit);
 	break;
     }
     return(buf);

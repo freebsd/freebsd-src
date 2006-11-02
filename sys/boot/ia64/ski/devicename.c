@@ -143,7 +143,7 @@ ski_parsedev(struct ski_devdesc **dev, const char *devspec, const char **path)
 			goto fail;
 		}
 
-		idev->d_kind.skidisk.unit = unit;
+		idev->d_unit = unit;
 		idev->d_kind.skidisk.slice = slice;
 		idev->d_kind.skidisk.partition = partition;
 
@@ -166,7 +166,7 @@ ski_parsedev(struct ski_devdesc **dev, const char *devspec, const char **path)
 			goto fail;
 		}
 	
-		idev->d_kind.netif.unit = unit;
+		idev->d_unit = unit;
 		if (path != NULL)
 			*path = (*cp == 0) ? cp : cp + 1;
 		break;
@@ -204,7 +204,7 @@ ski_fmtdev(void *vdev)
 
 	case DEVT_DISK:
 		cp = buf;
-		cp += sprintf(cp, "%s%d", dev->d_dev->dv_name, dev->d_kind.skidisk.unit);
+		cp += sprintf(cp, "%s%d", dev->d_dev->dv_name, dev->d_unit);
 		if (dev->d_kind.skidisk.slice > 0)
 			cp += sprintf(cp, "s%d", dev->d_kind.skidisk.slice);
 		if (dev->d_kind.skidisk.partition >= 0)
@@ -213,7 +213,7 @@ ski_fmtdev(void *vdev)
 		break;
 
 	case DEVT_NET:
-		sprintf(buf, "%s%d:", dev->d_dev->dv_name, dev->d_kind.netif.unit);
+		sprintf(buf, "%s%d:", dev->d_dev->dv_name, dev->d_unit);
 		break;
 	}
 	return(buf);

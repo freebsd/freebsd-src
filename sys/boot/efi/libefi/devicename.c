@@ -146,7 +146,7 @@ efi_parsedev(struct efi_devdesc **dev, const char *devspec, const char **path)
 			goto fail;
 		}
 
-		idev->d_kind.efidisk.unit = unit;
+		idev->d_unit = unit;
 		idev->d_kind.efidisk.slice = slice;
 		idev->d_kind.efidisk.partition = partition;
 
@@ -169,7 +169,7 @@ efi_parsedev(struct efi_devdesc **dev, const char *devspec, const char **path)
 			goto fail;
 		}
 	
-		idev->d_kind.netif.unit = unit;
+		idev->d_unit = unit;
 		if (path != NULL)
 			*path = (*cp == 0) ? cp : cp + 1;
 		break;
@@ -207,7 +207,7 @@ efi_fmtdev(void *vdev)
 
 	case DEVT_DISK:
 		cp = buf;
-		cp += sprintf(cp, "%s%d", dev->d_dev->dv_name, dev->d_kind.efidisk.unit);
+		cp += sprintf(cp, "%s%d", dev->d_dev->dv_name, dev->d_unit);
 		if (dev->d_kind.efidisk.slice > 0)
 			cp += sprintf(cp, "s%d", dev->d_kind.efidisk.slice);
 		if (dev->d_kind.efidisk.partition >= 0)
@@ -216,7 +216,7 @@ efi_fmtdev(void *vdev)
 		break;
 
 	case DEVT_NET:
-		sprintf(buf, "%s%d:", dev->d_dev->dv_name, dev->d_kind.netif.unit);
+		sprintf(buf, "%s%d:", dev->d_dev->dv_name, dev->d_unit);
 		break;
 	}
 	return(buf);
