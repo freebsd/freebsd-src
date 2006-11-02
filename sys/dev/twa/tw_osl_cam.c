@@ -420,7 +420,6 @@ twa_action(struct cam_sim *sim, union ccb *ccb)
 	case XPT_GET_TRAN_SETTINGS: 
 	{
 		struct ccb_trans_settings	*cts = &ccb->cts;
-#ifdef	CAM_NEW_TRAN_CODE
 		struct ccb_trans_settings_scsi *scsi =
 		    &cts->proto_specific.scsi;
 		struct ccb_trans_settings_spi *spi =
@@ -435,10 +434,6 @@ twa_action(struct cam_sim *sim, union ccb *ccb)
 		spi->flags = CTS_SPI_FLAGS_DISC_ENB;
 		scsi->valid = CTS_SCSI_VALID_TQ;
 		scsi->flags = CTS_SCSI_FLAGS_TAG_ENB;
-#else
-		cts->valid = (CCB_TRANS_DISC_VALID | CCB_TRANS_TQ_VALID);
-		cts->flags &= ~(CCB_TRANS_DISC_ENB | CCB_TRANS_TAG_ENB);
-#endif
 		tw_osli_dbg_dprintf(3, sc, "XPT_GET_TRAN_SETTINGS");
 		ccb_h->status = CAM_REQ_CMP;
 		xpt_done(ccb);
@@ -471,12 +466,10 @@ twa_action(struct cam_sim *sim, union ccb *ccb)
 		strncpy(path_inq->sim_vid, "FreeBSD", SIM_IDLEN);
 		strncpy(path_inq->hba_vid, "3ware", HBA_IDLEN);
 		strncpy(path_inq->dev_name, cam_sim_name(sim), DEV_IDLEN);
-#ifdef	CAM_NEW_TRAN_CODE
                 path_inq->transport = XPORT_SPI;
                 path_inq->transport_version = 2;
                 path_inq->protocol = PROTO_SCSI;
                 path_inq->protocol_version = SCSI_REV_2;
-#endif
 		ccb_h->status = CAM_REQ_CMP;
 		xpt_done(ccb);
 		break;

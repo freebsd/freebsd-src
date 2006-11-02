@@ -2944,11 +2944,7 @@ mpt_action(struct cam_sim *sim, union ccb *ccb)
 		break;
 	}
 
-#ifdef	CAM_NEW_TRAN_CODE
 #define	IS_CURRENT_SETTINGS(c)	((c)->type == CTS_TYPE_CURRENT_SETTINGS)
-#else
-#define	IS_CURRENT_SETTINGS(c)	((c)->flags & CCB_TRANS_CURRENT_SETTINGS)
-#endif
 #define	DP_DISC_ENABLE	0x1
 #define	DP_DISC_DISABL	0x2
 #define	DP_DISC		(DP_DISC_ENABLE|DP_DISC_DISABL)
@@ -2965,10 +2961,8 @@ mpt_action(struct cam_sim *sim, union ccb *ccb)
 
 	case XPT_SET_TRAN_SETTINGS:	/* Nexus Settings */
 	{
-#ifdef	CAM_NEW_TRAN_CODE
 		struct ccb_trans_settings_scsi *scsi;
 		struct ccb_trans_settings_spi *spi;
-#endif
 		uint8_t dval;
 		u_int period;
 		u_int offset;
@@ -3009,28 +3003,6 @@ mpt_action(struct cam_sim *sim, union ccb *ccb)
 		period = 0;
 		offset = 0;
 
-#ifndef	CAM_NEW_TRAN_CODE
-		if ((cts->valid & CCB_TRANS_DISC_VALID) != 0) {
-			dval |= (cts->flags & CCB_TRANS_DISC_ENB) ?
-			    DP_DISC_ENABLE : DP_DISC_DISABL;
-		}
-
-		if ((cts->valid & CCB_TRANS_TQ_VALID) != 0) {
-			dval |= (cts->flags & CCB_TRANS_TAG_ENB) ?
-			    DP_TQING_ENABLE : DP_TQING_DISABL;
-		}
-
-		if ((cts->valid & CCB_TRANS_BUS_WIDTH_VALID) != 0) {
-			dval |= cts->bus_width ? DP_WIDE : DP_NARROW;
-		}
-
-		if ((cts->valid & CCB_TRANS_SYNC_RATE_VALID) &&
-		    (cts->valid & CCB_TRANS_SYNC_OFFSET_VALID)) {
-			dval |= DP_SYNC;
-			period = cts->sync_period;
-			offset = cts->sync_offset;
-		}
-#else
 		scsi = &cts->proto_specific.scsi;
 		spi = &cts->xport_specific.spi;
 
@@ -3056,7 +3028,6 @@ mpt_action(struct cam_sim *sim, union ccb *ccb)
 			period = spi->sync_period;
 			offset = spi->sync_offset;
 		}
-#endif
 		CAMLOCK_2_MPTLOCK(mpt);
 		if (dval & DP_DISC_ENABLE) {
 			mpt->mpt_disc_enable |= (1 << tgt);
@@ -3088,21 +3059,6 @@ mpt_action(struct cam_sim *sim, union ccb *ccb)
 	case XPT_GET_TRAN_SETTINGS:
 		cts = &ccb->cts;
 		if (mpt->is_fc) {
-#ifndef	CAM_NEW_TRAN_CODE
-			/*
-			 * a lot of normal SCSI things don't make sense.
-			 */
-			cts->flags = CCB_TRANS_TAG_ENB | CCB_TRANS_DISC_ENB;
-			cts->valid = CCB_TRANS_DISC_VALID | CCB_TRANS_TQ_VALID;
-			/*
-			 * How do you measure the width of a high
-			 * speed serial bus? Well, in bytes.
-			 *
-			 * Offset and period make no sense, though, so we set
-			 * (above) a 'base' transfer speed to be gigabit.
-			 */
-			cts->bus_width = MSG_EXT_WDTR_BUS_8_BIT;
-#else
 			struct ccb_trans_settings_fc *fc =
 			    &cts->xport_specific.fc;
 
@@ -3114,20 +3070,7 @@ mpt_action(struct cam_sim *sim, union ccb *ccb)
 			fc->valid = CTS_FC_VALID_SPEED;
 			fc->bitrate = 100000;	/* XXX: Need for 2Gb/s */
 			/* XXX: need a port database for each target */
-#endif
 		} else if (mpt->is_sas) {
-#ifndef	CAM_NEW_TRAN_CODE
-			cts->flags = CCB_TRANS_TAG_ENB | CCB_TRANS_DISC_ENB;
-			cts->valid = CCB_TRANS_DISC_VALID | CCB_TRANS_TQ_VALID;
-			/*
-			 * How do you measure the width of a high
-			 * speed serial bus? Well, in bytes.
-			 *
-			 * Offset and period make no sense, though, so we set
-			 * (above) a 'base' transfer speed to be gigabit.
-			 */
-			cts->bus_width = MSG_EXT_WDTR_BUS_8_BIT;
-#else
 			struct ccb_trans_settings_sas *sas =
 			    &cts->xport_specific.sas;
 
@@ -3138,7 +3081,6 @@ mpt_action(struct cam_sim *sim, union ccb *ccb)
 
 			sas->valid = CTS_SAS_VALID_SPEED;
 			sas->bitrate = 300000;	/* XXX: Default 3Gbps */
-#endif
 		} else if (mpt_get_spi_settings(mpt, cts) != 0) {
 			mpt_set_ccb_status(ccb, CAM_REQ_CMP_ERR);
 			break;
@@ -3197,32 +3139,24 @@ mpt_action(struct cam_sim *sim, union ccb *ccb)
 			cpi->base_transfer_speed =
 			    mpt->mpt_fcport_speed * 100000;
 			cpi->hba_inquiry = PI_TAG_ABLE;
-#ifdef	CAM_NEW_TRAN_CODE
                         cpi->transport = XPORT_FC;
                         cpi->transport_version = 0;
-#endif
 		} else if (mpt->is_sas) {
 			cpi->hba_misc = PIM_NOBUSRESET;
 			cpi->base_transfer_speed = 300000;
 			cpi->hba_inquiry = PI_TAG_ABLE;
-#ifdef	CAM_NEW_TRAN_CODE
                         cpi->transport = XPORT_SAS;
                         cpi->transport_version = 0;
-#endif
 		} else {
 			cpi->hba_misc = PIM_SEQSCAN;
 			cpi->base_transfer_speed = 3300;
 			cpi->hba_inquiry = PI_SDTR_ABLE|PI_TAG_ABLE|PI_WIDE_16;
-#ifdef	CAM_NEW_TRAN_CODE
                         cpi->transport = XPORT_SPI;
                         cpi->transport_version = 2;
-#endif
 		}
 
-#ifdef	CAM_NEW_TRAN_CODE
                 cpi->protocol = PROTO_SCSI;
                 cpi->protocol_version = SCSI_REV_2;
-#endif
 		/*
 		 * We give our fake RAID passhtru bus a width that is MaxVolumes
 		 * wide, restrict it to one lun and have it *not* be a bus
@@ -3326,10 +3260,8 @@ mpt_action(struct cam_sim *sim, union ccb *ccb)
 static int
 mpt_get_spi_settings(struct mpt_softc *mpt, struct ccb_trans_settings *cts)
 {
-#ifdef	CAM_NEW_TRAN_CODE
 	struct ccb_trans_settings_scsi *scsi = &cts->proto_specific.scsi;
 	struct ccb_trans_settings_spi *spi = &cts->xport_specific.spi;
-#endif
 	target_id_t tgt;
 	uint8_t dval, pval, oval;
 	int rv;
@@ -3380,28 +3312,6 @@ mpt_get_spi_settings(struct mpt_softc *mpt, struct ccb_trans_settings *cts)
 		oval = (mpt->mpt_port_page0.Capabilities >> 16) & 0xff;
 		pval = (mpt->mpt_port_page0.Capabilities >>  8) & 0xff;
 	}
-#ifndef	CAM_NEW_TRAN_CODE
-	cts->flags &= ~(CCB_TRANS_DISC_ENB|CCB_TRANS_TAG_ENB);
-	if (dval & DP_DISC_ENABLE) {
-		cts->flags |= CCB_TRANS_DISC_ENB;
-	}
-	if (dval & DP_TQING_ENABLE) {
-		cts->flags |= CCB_TRANS_TAG_ENB;
-	}
-	if (dval & DP_WIDE) {
-		cts->bus_width = MSG_EXT_WDTR_BUS_16_BIT;
-	} else {
-		cts->bus_width = MSG_EXT_WDTR_BUS_8_BIT;
-	}
-	cts->valid = CCB_TRANS_BUS_WIDTH_VALID |
-	    CCB_TRANS_DISC_VALID | CCB_TRANS_TQ_VALID;
-	if (oval) {
-		cts->sync_period = pval;
-		cts->sync_offset = oval;
-		cts->valid |=
-		    CCB_TRANS_SYNC_RATE_VALID | CCB_TRANS_SYNC_OFFSET_VALID;
-	}
-#else
 	cts->protocol = PROTO_SCSI;
 	cts->protocol_version = SCSI_REV_2;
 	cts->transport = XPORT_SPI;
@@ -3433,7 +3343,6 @@ mpt_get_spi_settings(struct mpt_softc *mpt, struct ccb_trans_settings *cts)
 	} else {
 		scsi->valid = 0;
 	}
-#endif
 	mpt_lprt(mpt, MPT_PRT_NEGOTIATION,
 	    "mpt_get_spi_settings[%d]: %s 0x%x period 0x%x offset %d\n", tgt,
 	    IS_CURRENT_SETTINGS(cts)? "ACTIVE" : "NVRAM ", dval, pval, oval);

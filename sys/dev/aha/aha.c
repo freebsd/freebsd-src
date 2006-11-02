@@ -901,7 +901,6 @@ ahaaction(struct cam_sim *sim, union ccb *ccb)
 	{
 		struct	ccb_trans_settings *cts = &ccb->cts;
 		u_int	target_mask = 0x01 << ccb->ccb_h.target_id;
-#ifdef	CAM_NEW_TRAN_CODE
 		struct ccb_trans_settings_scsi *scsi =
 		    &cts->proto_specific.scsi;
 		struct ccb_trans_settings_spi *spi =
@@ -936,32 +935,6 @@ ahaaction(struct cam_sim *sim, union ccb *ccb)
 		} else {
 			ahafetchtransinfo(aha, cts);
 		}
-#else
-		if ((cts->flags & CCB_TRANS_USER_SETTINGS) != 0) {
-			cts->flags = 0;
-			if ((aha->disc_permitted & target_mask) != 0)
-				cts->flags |= CCB_TRANS_DISC_ENB;
-			cts->bus_width = MSG_EXT_WDTR_BUS_8_BIT;
-			if ((aha->sync_permitted & target_mask) != 0) {
-				if (aha->boardid >= BOARD_1542CF)
-					cts->sync_period = 25;
-				else
-					cts->sync_period = 50;
-			} else
-				cts->sync_period = 0;
-
-			if (cts->sync_period != 0)
-				cts->sync_offset = 15;
-
-			cts->valid = CCB_TRANS_SYNC_RATE_VALID
-				   | CCB_TRANS_SYNC_OFFSET_VALID
-				   | CCB_TRANS_BUS_WIDTH_VALID
-				   | CCB_TRANS_DISC_VALID
-				   | CCB_TRANS_TQ_VALID;
-		} else {
-			ahafetchtransinfo(aha, cts);
-		}
-#endif
 
 		ccb->ccb_h.status = CAM_REQ_CMP;
 		xpt_done(ccb);
@@ -1022,12 +995,10 @@ ahaaction(struct cam_sim *sim, union ccb *ccb)
 		strncpy(cpi->hba_vid, "Adaptec", HBA_IDLEN);
 		strncpy(cpi->dev_name, cam_sim_name(sim), DEV_IDLEN);
 		cpi->unit_number = cam_sim_unit(sim);
-#ifdef	CAM_NEW_TRAN_CODE
                 cpi->transport = XPORT_SPI;
                 cpi->transport_version = 2;
                 cpi->protocol = PROTO_SCSI;
                 cpi->protocol_version = SCSI_REV_2;
-#endif
 		cpi->ccb_h.status = CAM_REQ_CMP;
 		xpt_done(ccb);
 		break;
@@ -1714,9 +1685,7 @@ ahafetchtransinfo(struct aha_softc *aha, struct ccb_trans_settings* cts)
 	int		error;
 	uint8_t	param;
 	targ_syncinfo_t	sync_info;
-#ifdef	CAM_NEW_TRAN_CODE
 	struct ccb_trans_settings_spi *spi = &cts->xport_specific.spi;
-#endif
 
 	target = cts->ccb_h.target_id;
 	targ_offset = (target & 0x7);
@@ -1738,7 +1707,6 @@ ahafetchtransinfo(struct aha_softc *aha, struct ccb_trans_settings* cts)
 
 	sync_info = setup_info.syncinfo[targ_offset];
 
-#ifdef	CAM_NEW_TRAN_CODE
 	if (sync_info.sync == 0)
 		spi->sync_offset = 0;
 	else
@@ -1761,30 +1729,6 @@ ahafetchtransinfo(struct aha_softc *aha, struct ccb_trans_settings* cts)
 	spi->valid = CTS_SPI_VALID_SYNC_RATE
 		   | CTS_SPI_VALID_SYNC_OFFSET
 		   | CTS_SPI_VALID_BUS_WIDTH;
-#else
-	if (sync_info.sync == 0)
-		cts->sync_offset = 0;
-	else
-		cts->sync_offset = sync_info.offset;
-
-	cts->bus_width = MSG_EXT_WDTR_BUS_8_BIT;
-
-	if (aha->boardid >= BOARD_1542CF)
-		sync_period = 1000;
-	else
-		sync_period = 2000;
-	sync_period += 500 * sync_info.period;
-
-	/* Convert ns value to standard SCSI sync rate */
-	if (cts->sync_offset != 0)
-		cts->sync_period = scsi_calc_syncparam(sync_period);
-	else
-		cts->sync_period = 0;
-
-	cts->valid = CCB_TRANS_SYNC_RATE_VALID
-		   | CCB_TRANS_SYNC_OFFSET_VALID
-		   | CCB_TRANS_BUS_WIDTH_VALID;
-#endif
         xpt_async(AC_TRANSFER_NEG, cts->ccb_h.path, cts);
 }
 

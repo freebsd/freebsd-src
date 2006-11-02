@@ -1137,8 +1137,6 @@ device		pass		#CAM passthrough driver
 #                   CAM_DEBUG_SUBTRACE, and CAM_DEBUG_CDB
 #
 # CAM_MAX_HIGHPOWER: Maximum number of concurrent high power (start unit) cmds
-# CAM_NEW_TRAN_CODE: this is the new transport layer code that will be switched
-#			to soon
 # SCSI_NO_SENSE_STRINGS: When defined disables sense descriptions
 # SCSI_NO_OP_STRINGS: When defined disables opcode descriptions
 # SCSI_DELAY: The number of MILLISECONDS to freeze the SIM (scsi adapter)
