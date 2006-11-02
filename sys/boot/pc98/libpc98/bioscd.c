@@ -192,7 +192,7 @@ bc_open(struct open_file *f, ...)
 	va_start(ap, f);
 	dev = va_arg(ap, struct i386_devdesc *);
 	va_end(ap);
-	if (dev->d_kind.bioscd.unit >= nbcinfo) {
+	if (dev->d_unit >= nbcinfo) {
 		DEBUG("attempt to open nonexistent disk");
 		return(ENXIO);
 	}
@@ -227,7 +227,7 @@ bc_strategy(void *devdata, int rw, daddr_t dblk, size_t size, char *buf,
 	if (rw != F_READ)
 		return(EROFS);
 	dev = (struct i386_devdesc *)devdata;
-	unit = dev->d_kind.bioscd.unit;
+	unit = dev->d_unit;
 	blks = size / BIOSCD_SECSIZE;
 	if (dblk % (BIOSCD_SECSIZE / DEV_BSIZE) != 0)
 		return (EINVAL);
@@ -321,7 +321,7 @@ bc_getdev(struct i386_devdesc *dev)
     int major;
     int rootdev;
 
-    unit = dev->d_kind.bioscd.unit;
+    unit = dev->d_unit;
     biosdev = bc_unit2bios(unit);
     DEBUG("unit %d BIOS device %d", unit, biosdev);
     if (biosdev == -1)				/* not a BIOS device */

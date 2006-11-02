@@ -89,7 +89,7 @@ ski_main(void)
 	/* XXX presumes that biosdisk is first in devsw */
 	currdev.d_dev = devsw[0];
 	currdev.d_type = currdev.d_dev->dv_type;
-	currdev.d_kind.skidisk.unit = 0;
+	currdev.d_unit = 0;
 	/* XXX should be able to detect this, default to autoprobe */
 	currdev.d_kind.skidisk.slice = -1;
 	/* default to 'a' */

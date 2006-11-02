@@ -35,15 +35,12 @@ struct ski_devdesc {
 #define	DEVT_NONE	0
 #define	DEVT_DISK	1
 #define	DEVT_NET	2
+	int		d_unit;
 	union {
 		struct {
-			int	unit;
 			int	slice;
 			int	partition;
 		} skidisk;
-		struct {
-			int	unit;	/* XXX net layer lives over these? */
-		} netif;
 	} d_kind;
 };
 

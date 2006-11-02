@@ -256,7 +256,7 @@ bd_print(int verbose)
 	pager_output(line);
 
 	/* try to open the whole disk */
-	dev.d_kind.biosdisk.unit = i;
+	dev.d_unit = i;
 	dev.d_kind.biosdisk.slice = -1;
 	dev.d_kind.biosdisk.partition = -1;
 	
@@ -385,7 +385,7 @@ bd_opendisk(struct open_disk **odp, struct i386_devdesc *dev)
     int				error;
     char			buf[BUFSIZE];
 
-    if (dev->d_kind.biosdisk.unit >= nbdinfo) {
+    if (dev->d_unit >= nbdinfo) {
 	DEBUG("attempt to open nonexistent disk");
 	return(ENXIO);
     }
@@ -397,14 +397,14 @@ bd_opendisk(struct open_disk **odp, struct i386_devdesc *dev)
     }
 
     /* Look up BIOS unit number, intialise open_disk structure */
-    od->od_dkunit = dev->d_kind.biosdisk.unit;
+    od->od_dkunit = dev->d_unit;
     od->od_unit = bdinfo[od->od_dkunit].bd_unit;
     od->od_flags = bdinfo[od->od_dkunit].bd_flags;
     od->od_boff = 0;
     od->od_nslices = 0;
     error = 0;
     DEBUG("open '%s', unit 0x%x slice %d partition %c",
-	     i386_fmtdev(dev), dev->d_kind.biosdisk.unit, 
+	     i386_fmtdev(dev), dev->d_unit, 
 	     dev->d_kind.biosdisk.slice, dev->d_kind.biosdisk.partition + 'a');
 
     /* Get geometry for this open (removable device may have changed) */
@@ -1058,8 +1058,8 @@ bd_getdev(struct i386_devdesc *dev)
     char			*nip, *cp;
     int				unitofs = 0, i, unit;
 
-    biosdev = bd_unit2bios(dev->d_kind.biosdisk.unit);
-    DEBUG("unit %d BIOS device %d", dev->d_kind.biosdisk.unit, biosdev);
+    biosdev = bd_unit2bios(dev->d_unit);
+    DEBUG("unit %d BIOS device %d", dev->d_unit, biosdev);
     if (biosdev == -1)				/* not a BIOS device */
 	return(-1);
     if (bd_opendisk(&od, dev) != 0)		/* oops, not a viable device */
@@ -1067,7 +1067,7 @@ bd_getdev(struct i386_devdesc *dev)
 
     if ((biosdev & 0xf0) == 0x90 || (biosdev & 0xf0) == 0x30) {
 	/* floppy (or emulated floppy) or ATAPI device */
-	if (bdinfo[dev->d_kind.biosdisk.unit].bd_type == DT_ATAPI) {
+	if (bdinfo[dev->d_unit].bd_type == DT_ATAPI) {
 	    /* is an ATAPI disk */
 	    major = WFDMAJOR;
 	} else {
@@ -1093,7 +1093,7 @@ bd_getdev(struct i386_devdesc *dev)
     }
     /* default root disk unit number */
     if ((biosdev & 0xf0) == 0xa0)
-	unit = bdinfo[dev->d_kind.biosdisk.unit].bd_da_unit;
+	unit = bdinfo[dev->d_unit].bd_da_unit;
     else
 	unit = biosdev & 0xf;
 
