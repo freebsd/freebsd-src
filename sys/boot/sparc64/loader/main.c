@@ -487,8 +487,6 @@ main(int (*openfirm)(void *))
 
 	mmu_ops->tlb_init();
 
-	bcache_init(32, 512);
-
 	/*
 	 * Initialize devices.
 	 */

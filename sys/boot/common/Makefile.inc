@@ -1,6 +1,6 @@
 # $FreeBSD$
 
-SRCS+=	bcache.c boot.c commands.c console.c devopen.c interp.c 
+SRCS+=	boot.c commands.c console.c devopen.c interp.c 
 SRCS+=	interp_backslash.c interp_parse.c ls.c misc.c 
 SRCS+=	module.c panic.c
 
@@ -17,6 +17,10 @@ SRCS+=	load_elf64.c reloc_elf64.c
 
 .if defined(LOADER_NET_SUPPORT)
 SRCS+=	dev_net.c
+.endif
+
+.if defined(HAVE_BCACHE)
+SRCS+=  bcache.c
 .endif
 
 # Machine-independant ISA PnP

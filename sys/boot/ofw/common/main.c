@@ -125,11 +125,6 @@ main(int (*openfirm)(void *))
 	init_heap();
 
 	/*
-	 * Initialise the block cache
-	 */
-	bcache_init(32, 512);		/* 16k XXX tune this */
-
-	/*
 	 * March through the device switch probing for things.
 	 */
 	for (i = 0; devsw[i] != NULL; i++)
