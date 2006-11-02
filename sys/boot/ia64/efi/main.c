@@ -112,11 +112,6 @@ main(int argc, CHAR16 *argv[])
 	 */
 	cons_probe();
 
-	/*
-	 * Initialise the block cache
-	 */
-	bcache_init(32, 512);		/* 16k XXX tune this */
-
 	find_pal_proc();
 
 	/*

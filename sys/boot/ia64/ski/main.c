@@ -73,11 +73,6 @@ ski_main(void)
 	cons_probe();
 
 	/*
-	 * Initialise the block cache
-	 */
-	bcache_init(32, 512);		/* 16k XXX tune this */
-
-	/*
 	 * March through the device switch probing for things.
 	 */
 	for (i = 0; devsw[i] != NULL; i++)
