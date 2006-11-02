@@ -1045,16 +1045,17 @@ bstp_update_roles(struct bstp_state *bs, struct bstp_port *bp)
 		    bp->bp_operedge) &&
 		    (bp->bp_recent_root_timer.active == 0 || !bp->bp_reroot) &&
 		    !bp->bp_sync) {
-			switch (bp->bp_state) {
-			case BSTP_IFSTATE_DISCARDING:
-				bstp_set_port_state(bp, BSTP_IFSTATE_LEARNING);
-				break;
-			case BSTP_IFSTATE_LEARNING:
+			/*
+			 * If agreed|operedge then go straight to forwarding,
+			 * otherwise follow discard -> learn -> forward.
+			 */
+			if (bp->bp_agreed || bp->bp_operedge ||
+			    bp->bp_state == BSTP_IFSTATE_LEARNING) {
 				bstp_set_port_state(bp,
 				    BSTP_IFSTATE_FORWARDING);
 				bp->bp_agreed = bp->bp_protover;
-				break;
-			}
+			} else if (bp->bp_state == BSTP_IFSTATE_DISCARDING)
+				bstp_set_port_state(bp, BSTP_IFSTATE_LEARNING);
 		}
 
 		if (((bp->bp_sync && !bp->bp_synced) ||
