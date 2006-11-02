@@ -1966,13 +1966,11 @@ kern_sendfile(struct thread *td, struct sendfile_args *uap,
 		hdr_uio->uio_rw = UIO_WRITE;
 		if (hdr_uio->uio_resid > 0) {
 			m = m_uiotombuf(hdr_uio, (mnw ? M_NOWAIT : M_WAITOK),
-			    0, 0);
+			    0, 0, 0);
 			if (m == NULL) {
 				error = mnw ? EAGAIN : ENOBUFS;
 				goto done;
 			}
-			/* XXX: This should not be a header mbuf. */
-			m_demote(m, 0);
 			headersize = hdr_uio->uio_resid;
 			if (compat)
 				sbytes += headersize;

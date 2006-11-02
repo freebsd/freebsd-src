@@ -517,6 +517,8 @@ m_chtype(struct mbuf *m, short new_type)
 #define	MCLGET(m, how)		m_clget((m), (how))
 #define	MEXTADD(m, buf, size, free, args, flags, type) 			\
     m_extadd((m), (caddr_t)(buf), (size), (free), (args), (flags), (type))
+#define	m_getm(m, len, how, type)					\
+    m_getm2((m), (len), (how), (type), M_PKTHDR)
 
 /*
  * Evaluate TRUE if it's safe to write to the mbuf m's data region (this
@@ -657,7 +659,7 @@ int		 m_dup_pkthdr(struct mbuf *, struct mbuf *, int);
 u_int		 m_fixhdr(struct mbuf *);
 struct	mbuf	*m_fragment(struct mbuf *, int, int);
 void		 m_freem(struct mbuf *);
-struct	mbuf	*m_getm(struct mbuf *, int, int, short);
+struct	mbuf	*m_getm2(struct mbuf *, int, int, short, int);
 struct	mbuf	*m_getptr(struct mbuf *, int, int *);
 u_int		 m_length(struct mbuf *, struct mbuf **);
 void		 m_move_pkthdr(struct mbuf *, struct mbuf *);
@@ -667,7 +669,7 @@ struct	mbuf	*m_pulldown(struct mbuf *, int, int, int *);
 struct	mbuf	*m_pullup(struct mbuf *, int);
 int		m_sanity(struct mbuf *, int);
 struct	mbuf	*m_split(struct mbuf *, int, int);
-struct	mbuf	*m_uiotombuf(struct uio *, int, int, int);
+struct	mbuf	*m_uiotombuf(struct uio *, int, int, int, int);
 struct	mbuf	*m_unshare(struct mbuf *, int how);
 
 /*-

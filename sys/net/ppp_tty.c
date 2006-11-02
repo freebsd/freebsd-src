@@ -384,7 +384,7 @@ pppwrite(tp, uio, flag)
 	return (EMSGSIZE);
 
     s = spltty();
-    if ((m = m_uiotombuf(uio, M_DONTWAIT, 0, 0)) == NULL) {
+    if ((m = m_uiotombuf(uio, M_DONTWAIT, 0, 0, M_PKTHDR)) == NULL) {
 	splx(s);
 	return (ENOBUFS);
     }
