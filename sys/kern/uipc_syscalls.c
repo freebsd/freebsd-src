@@ -1882,19 +1882,20 @@ kern_sendfile(struct thread *td, struct sendfile_args *uap,
 	struct vnode *vp;
 	struct vm_object *obj = NULL;
 	struct socket *so = NULL;
-	struct mbuf *m, *m_header = NULL;
+	struct mbuf *m = NULL;
 	struct sf_buf *sf;
 	struct vm_page *pg;
-	off_t off, xfsize, hdtr_size, sbytes = 0;
-	int error, headersize = 0, headersent = 0;
+	off_t off, xfsize, hdtr_size = 0, sbytes = 0, rem = 0;
+	int error, headersize = 0, headersent = 0, mnw = 0;
 	int vfslocked;
 
 	NET_LOCK_GIANT();
 
-	hdtr_size = 0;
-
 	/*
-	 * The descriptor must be a regular file and have a backing VM object.
+	 * The file descriptor must be a regular file and have a
+	 * backing VM object.
+	 * File offset must be positive.  If it goes beyond EOF
+	 * we send only the header/trailer and no payload data.
 	 */
 	if ((error = fgetvp_read(td, uap->fd, &vp)) != 0)
 		goto done;
@@ -1922,7 +1923,17 @@ kern_sendfile(struct thread *td, struct sendfile_args *uap,
 		error = EINVAL;
 		goto done;
 	}
-	if ((error = getsock(td->td_proc->p_fd, uap->s, &sock_fp, NULL)) != 0)
+	if (uap->offset < 0) {
+		error = EINVAL;
+		goto done;
+	}
+
+	/*
+	 * The socket must be a stream socket and connected.
+	 * Remember if it a blocking or non-blocking socket.
+	 */
+	if ((error = getsock(td->td_proc->p_fd, uap->s, &sock_fp,
+	    NULL)) != 0)
 		goto done;
 	so = sock_fp->f_data;
 	if (so->so_type != SOCK_STREAM) {
@@ -1933,10 +1944,13 @@ kern_sendfile(struct thread *td, struct sendfile_args *uap,
 		error = ENOTCONN;
 		goto done;
 	}
-	if (uap->offset < 0) {
-		error = EINVAL;
-		goto done;
-	}
+	/*
+	 * Do not wait on memory allocations but return ENOMEM for
+	 * caller to retry later.
+	 * XXX: Experimental.
+	 */
+	if (uap->flags & SF_MNOWAIT)
+		mnw = 1;
 
 #ifdef MAC
 	SOCK_LOCK(so);
@@ -1946,263 +1960,91 @@ kern_sendfile(struct thread *td, struct sendfile_args *uap,
 		goto done;
 #endif
 
-	/*
-	 * If specified, get the pointer to the sf_hdtr struct for
-	 * any headers/trailers.
-	 */
+	/* If headers are specified copy them into mbufs. */
 	if (hdr_uio != NULL) {
 		hdr_uio->uio_td = td;
 		hdr_uio->uio_rw = UIO_WRITE;
 		if (hdr_uio->uio_resid > 0) {
-			m_header = m_uiotombuf(hdr_uio, M_DONTWAIT, 0, 0);
-			if (m_header == NULL)
+			m = m_uiotombuf(hdr_uio, (mnw ? M_NOWAIT : M_WAITOK),
+			    0, 0);
+			if (m == NULL) {
+				error = mnw ? EAGAIN : ENOBUFS;
 				goto done;
-			headersize = m_header->m_pkthdr.len;
+			}
+			/* XXX: This should not be a header mbuf. */
+			m_demote(m, 0);
+			headersize = hdr_uio->uio_resid;
 			if (compat)
 				sbytes += headersize;
 		}
 	}
 
-	/*
-	 * Protect against multiple writers to the socket.
-	 */
+	/* Protect against multiple writers to the socket. */
 	SOCKBUF_LOCK(&so->so_snd);
 	(void) sblock(&so->so_snd, M_WAITOK);
 	SOCKBUF_UNLOCK(&so->so_snd);
 
 	/*
-	 * Loop through the pages in the file, starting with the requested
+	 * Loop through the pages of the file, starting with the requested
 	 * offset. Get a file page (do I/O if necessary), map the file page
 	 * into an sf_buf, attach an mbuf header to the sf_buf, and queue
 	 * it on the socket.
+	 * This is done in two loops.  The inner loop turns as many pages
+	 * as it can, up to available socket buffer space, without blocking
+	 * into mbufs to have it bulk delivered into the socket send buffer.
+	 * The outer loop checks the state and available space of the socket
+	 * and takes care of the overall progress.
 	 */
-	for (off = uap->offset; ; off += xfsize, sbytes += xfsize) {
-		vm_pindex_t pindex;
-		vm_offset_t pgoff;
+	for (off = uap->offset; ; ) {
+		int loopbytes = 0;
+		int space = 0;
+		int done = 0;
 
-		pindex = OFF_TO_IDX(off);
-		VM_OBJECT_LOCK(obj);
-retry_lookup:
 		/*
-		 * Calculate the amount to transfer. Not to exceed a page,
-		 * the EOF, or the passed in nbytes.
-		 */
-		xfsize = obj->un_pager.vnp.vnp_size - off;
-		VM_OBJECT_UNLOCK(obj);
-		if (xfsize > PAGE_SIZE)
-			xfsize = PAGE_SIZE;
-		pgoff = (vm_offset_t)(off & PAGE_MASK);
-		if (PAGE_SIZE - pgoff < xfsize)
-			xfsize = PAGE_SIZE - pgoff;
-		if (uap->nbytes && xfsize > (uap->nbytes - sbytes))
-			xfsize = uap->nbytes - sbytes;
-		if (xfsize <= 0) {
-			if (m_header != NULL) {
-				m = m_header;
-				m_header = NULL;
-				SOCKBUF_LOCK(&so->so_snd);
-				goto retry_space;
-			} else
-				break;
-		}
-		/*
-		 * Optimize the non-blocking case by looking at the socket space
-		 * before going to the extra work of constituting the sf_buf.
+		 * Check the socket state for ongoing connection,
+		 * no errors and space in socket buffer.
+		 * If space is low allow for the remainder of the
+		 * file to be processed if it fits the socket buffer.
+		 * Otherwise block in waiting for sufficient space
+		 * to proceed, or if the socket is nonblocking, return
+		 * to userland with EAGAIN while reporting how far
+		 * we've come.
+		 * We wait until the socket buffer has significant free
+		 * space to do bulk sends.  This makes good use of file
+		 * system read ahead and allows packet segmentation
+		 * offloading hardware to take over lots of work.  If
+		 * we were not careful here we would send off only one
+		 * sfbuf at a time.
 		 */
 		SOCKBUF_LOCK(&so->so_snd);
-		if ((so->so_state & SS_NBIO) && sbspace(&so->so_snd) <= 0) {
-			if (so->so_snd.sb_state & SBS_CANTSENDMORE)
-				error = EPIPE;
-			else
-				error = EAGAIN;
-			sbunlock(&so->so_snd);
-			SOCKBUF_UNLOCK(&so->so_snd);
-			goto done;
-		}
-		SOCKBUF_UNLOCK(&so->so_snd);
-		VM_OBJECT_LOCK(obj);
-		/*
-		 * Attempt to look up the page.
-		 *
-		 *	Allocate if not found
-		 *
-		 *	Wait and loop if busy.
-		 */
-		pg = vm_page_lookup(obj, pindex);
-
-		if (pg == NULL) {
-			pg = vm_page_alloc(obj, pindex, VM_ALLOC_NOBUSY |
-			    VM_ALLOC_NORMAL | VM_ALLOC_WIRED);
-			if (pg == NULL) {
-				VM_OBJECT_UNLOCK(obj);
-				VM_WAIT;
-				VM_OBJECT_LOCK(obj);
-				goto retry_lookup;
-			}
-		} else if (vm_page_sleep_if_busy(pg, TRUE, "sfpbsy"))
-			goto retry_lookup;
-		else {
-			/*
-			 * Wire the page so it does not get ripped out from
-			 * under us.
-			 */
-			vm_page_lock_queues();
-			vm_page_wire(pg);
-			vm_page_unlock_queues();
-		}
-
-		/*
-		 * If page is not valid for what we need, initiate I/O
-		 */
-
-		if (pg->valid && vm_page_is_valid(pg, pgoff, xfsize)) {
-			VM_OBJECT_UNLOCK(obj);
-		} else if (uap->flags & SF_NODISKIO) {
-			error = EBUSY;
-		} else {
-			int bsize, resid;
-
-			/*
-			 * Ensure that our page is still around when the I/O
-			 * completes.
-			 */
-			vm_page_io_start(pg);
-			VM_OBJECT_UNLOCK(obj);
-
-			/*
-			 * Get the page from backing store.
-			 */
-			bsize = vp->v_mount->mnt_stat.f_iosize;
-			vfslocked = VFS_LOCK_GIANT(vp->v_mount);
-			vn_lock(vp, LK_SHARED | LK_RETRY, td);
-			/*
-			 * XXXMAC: Because we don't have fp->f_cred here,
-			 * we pass in NOCRED.  This is probably wrong, but
-			 * is consistent with our original implementation.
-			 */
-			error = vn_rdwr(UIO_READ, vp, NULL, MAXBSIZE,
-			    trunc_page(off), UIO_NOCOPY, IO_NODELOCKED |
-			    IO_VMIO | ((MAXBSIZE / bsize) << IO_SEQSHIFT),
-			    td->td_ucred, NOCRED, &resid, td);
-			VOP_UNLOCK(vp, 0, td);
-			VFS_UNLOCK_GIANT(vfslocked);
-			VM_OBJECT_LOCK(obj);
-			vm_page_io_finish(pg);
-			if (!error)
-				VM_OBJECT_UNLOCK(obj);
-			mbstat.sf_iocnt++;
-		}
-	
-		if (error) {
-			vm_page_lock_queues();
-			vm_page_unwire(pg, 0);
-			/*
-			 * See if anyone else might know about this page.
-			 * If not and it is not valid, then free it.
-			 */
-			if (pg->wire_count == 0 && pg->valid == 0 &&
-			    pg->busy == 0 && !(pg->oflags & VPO_BUSY) &&
-			    pg->hold_count == 0) {
-				vm_page_free(pg);
-			}
-			vm_page_unlock_queues();
-			VM_OBJECT_UNLOCK(obj);
-			SOCKBUF_LOCK(&so->so_snd);
-			sbunlock(&so->so_snd);
-			SOCKBUF_UNLOCK(&so->so_snd);
-			goto done;
-		}
-
-		/*
-		 * Get a sendfile buf. We usually wait as long as necessary,
-		 * but this wait can be interrupted.
-		 */
-		if ((sf = sf_buf_alloc(pg, SFB_CATCH)) == NULL) {
-			mbstat.sf_allocfail++;
-			vm_page_lock_queues();
-			vm_page_unwire(pg, 0);
-			if (pg->wire_count == 0 && pg->object == NULL)
-				vm_page_free(pg);
-			vm_page_unlock_queues();
-			SOCKBUF_LOCK(&so->so_snd);
-			sbunlock(&so->so_snd);
-			SOCKBUF_UNLOCK(&so->so_snd);
-			error = EINTR;
-			goto done;
-		}
-
-		/*
-		 * Get an mbuf header and set it up as having external storage.
-		 */
-		if (m_header)
-			MGET(m, M_TRYWAIT, MT_DATA);
-		else
-			MGETHDR(m, M_TRYWAIT, MT_DATA);
-		if (m == NULL) {
-			error = ENOBUFS;
-			sf_buf_mext((void *)sf_buf_kva(sf), sf);
-			SOCKBUF_LOCK(&so->so_snd);
-			sbunlock(&so->so_snd);
-			SOCKBUF_UNLOCK(&so->so_snd);
-			goto done;
-		}
-		/*
-		 * Setup external storage for mbuf.
-		 */
-		MEXTADD(m, sf_buf_kva(sf), PAGE_SIZE, sf_buf_mext, sf, M_RDONLY,
-		    EXT_SFBUF);
-		m->m_data = (char *)sf_buf_kva(sf) + pgoff;
-		m->m_pkthdr.len = m->m_len = xfsize;
-
-		if (m_header) {
-			m_cat(m_header, m);
-			m = m_header;
-			m_header = NULL;
-			m_fixhdr(m);
-		}
-
-		/*
-		 * Add the buffer to the socket buffer chain.
-		 */
-		SOCKBUF_LOCK(&so->so_snd);
+		if (so->so_snd.sb_lowat < so->so_snd.sb_hiwat / 2)
+			so->so_snd.sb_lowat = so->so_snd.sb_hiwat / 2;
 retry_space:
-		/*
-		 * Make sure that the socket is still able to take more data.
-		 * CANTSENDMORE being true usually means that the connection
-		 * was closed. so_error is true when an error was sensed after
-		 * a previous send.
-		 * The state is checked after the page mapping and buffer
-		 * allocation above since those operations may block and make
-		 * any socket checks stale. From this point forward, nothing
-		 * blocks before the pru_send (or more accurately, any blocking
-		 * results in a loop back to here to re-check).
-		 */
-		SOCKBUF_LOCK_ASSERT(&so->so_snd);
-		if ((so->so_snd.sb_state & SBS_CANTSENDMORE) || so->so_error) {
-			if (so->so_snd.sb_state & SBS_CANTSENDMORE) {
-				error = EPIPE;
-			} else {
-				error = so->so_error;
-				so->so_error = 0;
-			}
-			m_freem(m);
-			sbunlock(&so->so_snd);
+		if (so->so_snd.sb_state & SBS_CANTSENDMORE) {
+			error = EPIPE;
+			SOCKBUF_UNLOCK(&so->so_snd);
+			goto done;
+		} else if (so->so_error) {
+			error = so->so_error;
+			so->so_error = 0;
 			SOCKBUF_UNLOCK(&so->so_snd);
 			goto done;
 		}
-		/*
-		 * Wait for socket space to become available. We do this just
-		 * after checking the connection state above in order to avoid
-		 * a race condition with sbwait().
-		 */
-		if (sbspace(&so->so_snd) < so->so_snd.sb_lowat) {
+		space = sbspace(&so->so_snd);
+		if (space < rem &&
+		    (space <= 0 ||
+		     space < so->so_snd.sb_lowat)) {
 			if (so->so_state & SS_NBIO) {
-				m_freem(m);
-				sbunlock(&so->so_snd);
 				SOCKBUF_UNLOCK(&so->so_snd);
 				error = EAGAIN;
 				goto done;
 			}
+			/*
+			 * sbwait drops the lock while sleeping.
+			 * When we loop back to retry_space the
+			 * state may have changed and we retest
+			 * for it.
+			 */
 			error = sbwait(&so->so_snd);
 			/*
 			 * An error from sbwait usually indicates that we've
@@ -2210,26 +2052,217 @@ retry_space:
 			 * then return bytes sent, otherwise return the error.
 			 */
 			if (error) {
-				m_freem(m);
-				sbunlock(&so->so_snd);
 				SOCKBUF_UNLOCK(&so->so_snd);
 				goto done;
 			}
 			goto retry_space;
 		}
 		SOCKBUF_UNLOCK(&so->so_snd);
-		error = (*so->so_proto->pr_usrreqs->pru_send)(so, 0, m, 0, 0, td);
-		if (error) {
-			SOCKBUF_LOCK(&so->so_snd);
-			sbunlock(&so->so_snd);
-			SOCKBUF_UNLOCK(&so->so_snd);
-			goto done;
+
+		/*
+		 * Loop and construct maximum sized mbuf chain to be bulk
+		 * dumped into socket buffer.
+		 */
+		while(space > loopbytes) {
+			vm_pindex_t pindex;
+			vm_offset_t pgoff;
+			struct mbuf *m0;
+
+			VM_OBJECT_LOCK(obj);
+			/*
+			 * Calculate the amount to transfer.
+			 * Not to exceed a page, the EOF,
+			 * or the passed in nbytes.
+			 */
+			pgoff = (vm_offset_t)(off & PAGE_MASK);
+			xfsize = omin(PAGE_SIZE - pgoff,
+			    obj->un_pager.vnp.vnp_size - off -
+			    sbytes - loopbytes);
+			if (uap->nbytes)
+				rem = (uap->nbytes - sbytes - loopbytes);
+			else
+				rem = obj->un_pager.vnp.vnp_size - off -
+				    sbytes - loopbytes;
+			xfsize = omin(rem, xfsize);
+			if (xfsize <= 0) {
+				VM_OBJECT_UNLOCK(obj);
+				done = 1;		/* all data sent */
+				break;
+			}
+			/*
+			 * Don't overflow the send buffer.
+			 * Stop here and send out what we've
+			 * already got.
+			 */
+			if (space < loopbytes + xfsize) {
+				VM_OBJECT_UNLOCK(obj);
+				break;
+			}
+retry_lookup:
+			/*
+			 * Attempt to look up the page.
+			 * Allocate if not found or
+			 * wait and loop if busy.
+			 */
+			pindex = OFF_TO_IDX(off);
+			pg = vm_page_lookup(obj, pindex);
+			if (pg == NULL) {
+				pg = vm_page_alloc(obj, pindex,
+				    VM_ALLOC_NOBUSY | VM_ALLOC_NORMAL |
+				    VM_ALLOC_WIRED);
+				if (pg == NULL) {
+					VM_OBJECT_UNLOCK(obj);
+					VM_WAIT;
+					VM_OBJECT_LOCK(obj);
+					goto retry_lookup;
+				}
+			} else if (vm_page_sleep_if_busy(pg, TRUE, "sfpbsy"))
+				goto retry_lookup;
+			else {
+				/*
+				 * Wire the page so it does not get
+				 * ripped out from under us.
+				 */
+				vm_page_lock_queues();
+				vm_page_wire(pg);
+				vm_page_unlock_queues();
+			}
+
+			/*
+			 * Check if page is valid for what we need,
+			 * otherwise initiate I/O.
+			 * If we already turned some pages into mbufs,
+			 * send them off before we come here again and
+			 * block.
+			 */
+			if (pg->valid && vm_page_is_valid(pg, pgoff, xfsize))
+				VM_OBJECT_UNLOCK(obj);
+			else if (m != NULL)
+				error = EAGAIN;	/* send what we already got */
+			else if (uap->flags & SF_NODISKIO)
+				error = EBUSY;
+			else {
+				int bsize, resid;
+
+				/*
+				 * Ensure that our page is still around
+				 * when the I/O completes.
+				 */
+				vm_page_io_start(pg);
+				VM_OBJECT_UNLOCK(obj);
+
+				/*
+				 * Get the page from backing store.
+				 */
+				bsize = vp->v_mount->mnt_stat.f_iosize;
+				vfslocked = VFS_LOCK_GIANT(vp->v_mount);
+				vn_lock(vp, LK_SHARED | LK_RETRY, td);
+
+				/*
+				 * XXXMAC: Because we don't have fp->f_cred
+				 * here, we pass in NOCRED.  This is probably
+				 * wrong, but is consistent with our original
+				 * implementation.
+				 */
+				error = vn_rdwr(UIO_READ, vp, NULL, MAXBSIZE,
+				    trunc_page(off), UIO_NOCOPY, IO_NODELOCKED |
+				    IO_VMIO | ((MAXBSIZE / bsize) << IO_SEQSHIFT),
+				    td->td_ucred, NOCRED, &resid, td);
+				VOP_UNLOCK(vp, 0, td);
+				VFS_UNLOCK_GIANT(vfslocked);
+				VM_OBJECT_LOCK(obj);
+				vm_page_io_finish(pg);
+				if (!error)
+					VM_OBJECT_UNLOCK(obj);
+				mbstat.sf_iocnt++;
+			}
+			if (error) {
+				vm_page_lock_queues();
+				vm_page_unwire(pg, 0);
+				/*
+				 * See if anyone else might know about
+				 * this page.  If not and it is not valid,
+				 * then free it.
+				 */
+				if (pg->wire_count == 0 && pg->valid == 0 &&
+				    pg->busy == 0 && !(pg->oflags & VPO_BUSY) &&
+				    pg->hold_count == 0) {
+					vm_page_free(pg);
+				}
+				vm_page_unlock_queues();
+				VM_OBJECT_UNLOCK(obj);
+				if (error == EAGAIN)
+					error = 0;	/* not a real error */
+				break;
+			}
+
+			/*
+			 * Get a sendfile buf.  We usually wait as long
+			 * as necessary, but this wait can be interrupted.
+			 */
+			if ((sf = sf_buf_alloc(pg,
+			    (mnw ? SFB_NOWAIT : SFB_CATCH))) == NULL) {
+				mbstat.sf_allocfail++;
+				vm_page_lock_queues();
+				vm_page_unwire(pg, 0);
+				/*
+				 * XXX: Not same check as above!?
+				 */
+				if (pg->wire_count == 0 && pg->object == NULL)
+					vm_page_free(pg);
+				vm_page_unlock_queues();
+				error = (mnw ? EAGAIN : EINTR);
+				break;
+			}
+
+			/*
+			 * Get an mbuf and set it up as having
+			 * external storage.
+			 */
+			m0 = m_get((mnw ? M_NOWAIT : M_WAITOK), MT_DATA);
+			if (m0 == NULL) {
+				error = (mnw ? EAGAIN : ENOBUFS);
+				sf_buf_mext((void *)sf_buf_kva(sf), sf);
+				break;
+			}
+			MEXTADD(m0, sf_buf_kva(sf), PAGE_SIZE, sf_buf_mext,
+			    sf, M_RDONLY, EXT_SFBUF);
+			m0->m_data = (char *)sf_buf_kva(sf) + pgoff;
+			m0->m_len = xfsize;
+
+			/* Append to mbuf chain. */
+			if (m != NULL)
+				m_cat(m, m0);
+			else
+				m = m0;
+
+			/* Keep track of bits processed. */
+			loopbytes += xfsize;
+			off += xfsize;
 		}
-		headersent = 1;
+
+		/* Add the buffer chain to the socket buffer. */
+		if (m != NULL) {
+			SOCKBUF_LOCK(&so->so_snd);
+			if (so->so_snd.sb_state & SBS_CANTSENDMORE) {
+				error = EPIPE;
+				SOCKBUF_UNLOCK(&so->so_snd);
+				goto done;
+			}
+			SOCKBUF_UNLOCK(&so->so_snd);
+			error = (*so->so_proto->pr_usrreqs->pru_send)
+				    (so, 0, m, NULL, NULL, td);
+			if (!error) {
+				sbytes += loopbytes;
+				headersent = 1;
+			}
+			m = NULL;	/* pru_send always consumes */
+		}
+
+		/* Quit outer loop on error or when we're done. */
+		if (error || done)
+			goto done;
 	}
-	SOCKBUF_LOCK(&so->so_snd);
-	sbunlock(&so->so_snd);
-	SOCKBUF_UNLOCK(&so->so_snd);
 
 	/*
 	 * Send trailers. Wimp out and use writev(2).
@@ -2245,6 +2278,10 @@ retry_space:
 	}
 
 done:
+	SOCKBUF_LOCK(&so->so_snd);
+	sbunlock(&so->so_snd);
+	SOCKBUF_UNLOCK(&so->so_snd);
+
 	if (headersent) {
 		if (!compat)
 			hdtr_size += headersize;
@@ -2252,6 +2289,7 @@ done:
 		if (compat)
 			sbytes -= headersize;
 	}
+
 	/*
 	 * If there was no error we have to clear td->td_retval[0]
 	 * because it may have been set by writev.
@@ -2273,8 +2311,8 @@ done:
 	}
 	if (so)
 		fdrop(sock_fp, td);
-	if (m_header)
-		m_freem(m_header);
+	if (m)
+		m_freem(m);
 
 	NET_UNLOCK_GIANT();
 

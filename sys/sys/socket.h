@@ -546,7 +546,8 @@ struct sf_hdtr {
 /*
  * Sendfile-specific flag(s)
  */
-#define        SF_NODISKIO     0x00000001
+#define	SF_NODISKIO     0x00000001
+#define	SF_MNOWAIT	0x00000002
 #endif
 
 #ifndef	_KERNEL
