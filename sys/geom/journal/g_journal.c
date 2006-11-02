@@ -2063,6 +2063,7 @@ g_journal_worker(void *arg)
 	mtx_unlock_spin(&sched_lock);
 
 	sc = arg;
+	type = 0;	/* gcc */
 
 	if (sc->sc_flags & GJF_DEVICE_CLEAN) {
 		GJ_DEBUG(0, "Journal %s clean.", sc->sc_name);
