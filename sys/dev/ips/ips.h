@@ -174,7 +174,10 @@ MALLOC_DECLARE(M_IPSBUF);
 #define IPS_ADAPTER_SARASOTA1		0x0D
 #define IPS_ADAPTER_MARCO		0x0E
 #define IPS_ADAPTER_SEBRING		0x0F
-#define IPS_ADAPTER_MAX_T		IPS_ADAPTER_SEBRING
+#define IPS_ADAPTER_7T			0x10
+#define IPS_ADAPTER_7K			0x11
+#define IPS_ADAPTER_7M			0x12
+#define IPS_ADAPTER_MAX_T		IPS_ADAPTER_7M
 
 /* values for ffdc_settime (from gmtime) */
 #define IPS_SECSPERMIN      60
