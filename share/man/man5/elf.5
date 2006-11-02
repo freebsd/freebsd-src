@@ -90,6 +90,7 @@ The following types are being used for 32-bit architectures:
 .Bd -literal -offset indent
 Elf32_Addr	Unsigned 32-bit program address
 Elf32_Half	Unsigned 16-bit field
+Elf32_Lword	Unsigned 64-bit field
 Elf32_Off	Unsigned 32-bit file offset
 Elf32_Sword	Signed 32-bit field or integer
 Elf32_Word	Unsigned 32-bit field or integer
@@ -99,10 +100,11 @@ For 64-bit architectures we have the following types:
 .Bd -literal -offset indent
 Elf64_Addr	Unsigned 64-bit program address
 Elf64_Half	Unsigned 16-bit field
+Elf64_Lword	Unsigned 64-bit field
 Elf64_Off	Unsigned 64-bit file offset
 Elf64_Sword	Signed 32-bit field
-Elf64_Word	Unsigned 32-bit field
 Elf64_Sxword	Signed 64-bit field or integer
+Elf64_Word	Unsigned 32-bit field
 Elf64_Xword	Unsigned 64-bit field or integer
 .Ed
 .Pp
@@ -375,19 +377,31 @@ A section header is one
 entry in the section header table; all entries are the same size.
 .It Dv e_shnum
 This member holds the number of entries in the section header table.
-Thus
-the product of
+If the file is using extended section numbering, then the
+.Sy e_shnum
+field will be zero and the actual section number will be stored in the
+.Sy sh_size
+member of the section header at index
+.Dv SHN_UNDEF .
+If a file has no section header table, both the
+.Sy e_shnum
+and the
+.Sy e_shoff
+fields of the ELF header will be zero.
+The product of
 .Sy e_shentsize
-and
-.Sy e_shnum
-gives the section header table's size in bytes.
-If a file has no section
-header table,
-.Sy e_shnum
-holds the value of zero.
+and the number of sections in the file gives the section header
+table's size in bytes.
 .It Dv e_shstrndx
 This member holds the section header table index of the entry associated
 with the section name string table.
+If extended section numbering is being used, this field will hold the
+value
+.Sy SHN_XINDEX ,
+and the actual section header table index will be present in the
+.Sy sh_link
+field of the section header entry at index
+.Dv SHN_UNDEF .
 If the file has no section name string
 table, this member holds the value
 .Sy SHN_UNDEF .
