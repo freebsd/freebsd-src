@@ -155,28 +155,48 @@ typedef struct {
 #define	TASK_FLAGS_CLEAR_TASK_SET	(1<<10)
 #define	TASK_FLAGS_ABORT_TASK_SET	(1<<9)
 
-#ifndef	MSG_ABORT
-#define	MSG_ABORT		0x06
-#endif
-#ifndef	MSG_BUS_DEV_RESET
-#define	MSG_BUS_DEV_RESET	0x0c
-#endif
-#ifndef	MSG_ABORT_TAG
-#define	MSG_ABORT_TAG		0x0d
-#endif
-#ifndef	MSG_CLEAR_QUEUE
-#define	MSG_CLEAR_QUEUE		0x0e
-#endif
-#ifndef	MSG_REL_RECOVERY
-#define	MSG_REL_RECOVERY	0x10
-#endif
-#ifndef	MSG_TERM_IO_PROC
-#define	MSG_TERM_IO_PROC	0x11
-#endif
-#ifndef	MSG_LUN_RESET
-#define	MSG_LUN_RESET		0x17
-#endif
+/*
+ * ISP24XX Immediate Notify
+ */
+typedef struct {
+	isphdr_t	in_header;
+	uint32_t	in_reserved;
+	uint16_t	in_nphdl;
+	uint16_t	in_reserved1;
+	uint16_t	in_flags;
+	uint16_t	in_srr_rxid;
+	uint16_t	in_status;
+	uint8_t		in_status_subcode;
+	uint8_t		in_reserved2;
+	uint32_t	in_rxid;
+	uint16_t	in_srr_reloff_lo;
+	uint16_t	in_srr_reloff_hi;
+	uint16_t	in_srr_iu;
+	uint16_t	in_srr_oxid;
+	uint8_t		in_reserved3[18];
+	uint8_t		in_reserved4;
+	uint8_t		in_vpindex;
+	uint32_t	in_reserved5;
+	uint16_t	in_portid_lo;
+	uint8_t		in_portid_hi;
+	uint8_t		in_reserved6;
+	uint16_t	in_reserved7;
+	uint16_t	in_oxid;
+} in_fcentry_24xx_t;
 
+#define	IN24XX_FLAG_PUREX_IOCB		0x1
+#define	IN24XX_FLAG_GLOBAL_LOGOUT	0x2
+
+#define	IN24XX_LIP_RESET	0x0E
+#define	IN24XX_LINK_RESET	0x0F
+#define	IN24XX_PORT_LOGOUT	0x29
+#define	IN24XX_PORT_CHANGED	0x2A
+#define	IN24XX_LINK_FAILED	0x2E
+#define	IN24XX_SRR_RCVD		0x45
+#define	IN24XX_ELS_RCVD		0x46	/*
+					 * login-affectin ELS received- check
+					 * subcode for specific opcode
+					 */
 /*
  * Notify Acknowledge Entry structure
  */
@@ -233,6 +253,36 @@ typedef struct {
 #define	NAFC_RCOUNT	0x80	/* increment resource count */
 #define NAFC_RST_CLRD	0x20	/* Clear LIP Reset */
 #define	NAFC_TVALID	0x10	/* task mangement response code is valid */
+
+/*
+ * ISP24XX Notify Acknowledge
+ */
+
+typedef struct {
+	isphdr_t	na_header;
+	uint32_t	na_handle;
+	uint16_t	na_nphdl;
+	uint16_t	na_reserved1;
+	uint16_t	na_flags;
+	uint16_t	na_srr_rxid;
+	uint16_t	na_status;
+	uint8_t		na_status_subcode;
+	uint8_t		na_reserved2;
+	uint32_t	na_rxid;
+	uint16_t	na_srr_reloff_lo;
+	uint16_t	na_srr_reloff_hi;
+	uint16_t	na_srr_iu;
+	uint16_t	na_srr_flags;
+	uint8_t		na_reserved3[18];
+	uint8_t		na_reserved4;
+	uint8_t		na_vpindex;
+	uint8_t		na_srr_reject_vunique;
+	uint8_t		na_srr_reject_explanation;
+	uint8_t		na_srr_reject_code;
+	uint8_t		na_reserved5;
+	uint8_t		na_reserved6[6];
+	uint16_t	na_oxid;
+} na_fcentry_24xx_t;
 
 /*
  * Accept Target I/O Entry structure
@@ -399,6 +449,32 @@ typedef struct {
 	tid &= ~0xffff;							\
 	tid |= (inst << 16)
 
+/*
+ * 24XX ATIO Definition
+ *
+ * This is *quite* different from other entry types.
+ * First of all, it has its own queue it comes in on.
+ *
+ * Secondly, it doesn't have a normal header.
+ *
+ * Thirdly, it's just a passthru of the FCP CMND IU
+ * which is recorded in big endian mode.
+ */
+typedef struct {
+	uint8_t		at_type;
+	uint8_t		at_count;
+	/*
+	 * Task attribute in high four bits,
+	 * the rest is the FCP CMND IU Length.
+	 * NB: the command can extend past the
+	 * length for a single queue entry.
+	 */
+	uint16_t	at_ta_len;
+	uint32_t	at_rxid;
+	fc_hdr_t	at_hdr;
+	fcp_cmnd_iu_t	at_cmnd;
+} at7_entry_t;
+
 
 /*
  * Continue Target I/O Entry structure
@@ -409,8 +485,7 @@ typedef struct {
  */
 typedef struct {
 	isphdr_t	ct_header;
-	uint16_t	ct_reserved;
-#define	ct_syshandle	ct_reserved	/* we use this */
+	uint16_t	ct_syshandle;
 	uint16_t	ct_fwhandle;	/* required by f/w */
 	uint8_t		ct_lun;	/* lun */
 	uint8_t		ct_iid;	/* initiator id */
@@ -425,14 +500,7 @@ typedef struct {
 	uint32_t	ct_resid;	/* residual length */
 	uint16_t	ct_timeout;
 	uint16_t	ct_seg_count;
-	/*
-	 * This is so we can share tag name space with
-	 * CTIO{2,3,4} with the minimum of pain.
-	 */
-	union {
-		ispds_t		ct_a[ISP_RQDSEG];
-	} _u;
-#define	ct_dataseg	_u.ct_a
+	ispds_t		ct_dataseg[ISP_RQDSEG];
 } ct_entry_t;
 
 /*
@@ -481,10 +549,10 @@ typedef struct {
 #define	CT_BUS_ERROR	0x10	/* (FC Only) DMA PCI Error */
 #define	CT_PANIC	0x13	/* Unrecoverable Error */
 #define CT_PHASE_ERROR	0x14	/* Bus phase sequence error */
-#define CT_BDR_MSG	0x17	/* Bus Device Reset msg received */
 #define	CT_DATA_UNDER	0x15	/* (FC only) Data Underrun */
+#define CT_BDR_MSG	0x17	/* Bus Device Reset msg received */
 #define CT_TERMINATED	0x19	/* due to Terminate Transfer mbox cmd */
-#define	CT_PORTNOTAVAIL	0x28	/* port not available */
+#define	CT_PORTUNAVAIL	0x28	/* port not available */
 #define	CT_LOGOUT	0x29	/* port logout */
 #define	CT_PORTCHANGED	0x2A	/* port changed */
 #define	CT_IDE		0x33	/* Initiator Detected Error */
@@ -513,8 +581,7 @@ typedef struct {
 #define	MAXRESPLEN	26
 typedef struct {
 	isphdr_t	ct_header;
-	uint16_t	ct_reserved;
-	uint16_t	ct_fwhandle;	/* just to match CTIO */
+	uint32_t	ct_syshandle;
 	uint8_t		ct_lun;		/* lun */
 	uint8_t		ct_iid;		/* initiator id */
 	uint16_t	ct_rxid;	/* response ID */
@@ -544,13 +611,10 @@ typedef struct {
 			uint16_t ct_scsi_status;
 			uint32_t ct_xfrlen;
 			union {
-				ispds_t ct_a[ISP_RQDSEG_T2];	/* CTIO2 */
-				ispds64_t ct_b[ISP_RQDSEG_T3];	/* CTIO3 */
-				ispdslist_t ct_c;		/* CTIO4 */
-			} _u;
-#define	ct_dataseg	_u.ct_a
-#define	ct_dataseg64	_u.ct_b
-#define	ct_dslist	_u.ct_c
+				ispds_t ct_dataseg[ISP_RQDSEG_T2];
+				ispds64_t ct_dataseg64[ISP_RQDSEG_T3];
+				ispdslist_t ct_dslist;
+			} u;
 		} m0;
 		struct {
 			uint16_t _reserved;
@@ -572,8 +636,7 @@ typedef struct {
 
 typedef struct {
 	isphdr_t	ct_header;
-	uint16_t	ct_reserved;
-	uint16_t	ct_fwhandle;	/* just to match CTIO */
+	uint32_t	ct_syshandle;
 	uint16_t	ct_iid;		/* initiator id */
 	uint16_t	ct_rxid;	/* response ID */
 	uint16_t	ct_flags;
@@ -589,10 +652,10 @@ typedef struct {
 			uint16_t ct_scsi_status;
 			uint32_t ct_xfrlen;
 			union {
-				ispds_t ct_a[ISP_RQDSEG_T2];	/* CTIO2 */
-				ispds64_t ct_b[ISP_RQDSEG_T3];	/* CTIO3 */
-				ispdslist_t ct_c;		/* CTIO4 */
-			} _u;
+				ispds_t ct_dataseg[ISP_RQDSEG_T2];
+				ispds64_t ct_dataseg64[ISP_RQDSEG_T3];
+				ispdslist_t ct_dslist;
+			} u;
 		} m0;
 		struct {
 			uint16_t _reserved;
@@ -615,16 +678,17 @@ typedef struct {
 /*
  * ct_flags values for CTIO2
  */
-#define	CT2_FLAG_MMASK	0x0003
 #define	CT2_FLAG_MODE0	0x0000
 #define	CT2_FLAG_MODE1	0x0001
 #define	CT2_FLAG_MODE2	0x0002
-#define CT2_DATA_IN	CT_DATA_IN
-#define CT2_DATA_OUT	CT_DATA_OUT
-#define CT2_NO_DATA	CT_NO_DATA
-#define CT2_DATAMASK	CT_DATAMASK
+#define		CT2_FLAG_MMASK	0x0003
+#define CT2_DATA_IN	0x0040
+#define CT2_DATA_OUT	0x0080
+#define CT2_NO_DATA	0x00C0
+#define 	CT2_DATAMASK	0x00C0
 #define	CT2_CCINCR	0x0100
 #define	CT2_FASTPOST	0x0200
+#define	CT2_CONFIRM	0x2000
 #define	CT2_TERMINATE	0x4000
 #define CT2_SENDSTATUS	0x8000
 
@@ -643,12 +707,190 @@ typedef struct {
 #define	CT2_DATA_UNDER		0x0800
 
 /*
+ * ISP24XX CTIO
+ */
+#define	MAXRESPLEN_24XX	24
+typedef struct {
+	isphdr_t	ct_header;
+	uint32_t	ct_syshandle;
+	uint16_t	ct_nphdl;	/* status on returned CTIOs */
+	uint16_t	ct_timeout;
+	uint16_t	ct_seg_count;
+	uint8_t		ct_vpindex;
+	uint8_t		ct_xflags;
+	uint16_t	ct_iid_lo;	/* low 16 bits of portid */
+	uint8_t		ct_iid_hi;	/* hi 8 bits of portid */
+	uint8_t		ct_reserved;
+	uint32_t	ct_rxid;
+	uint16_t	ct_senselen;	/* mode 0 only */
+	uint16_t	ct_flags;
+	int32_t		ct_resid;	/* residual length */
+	uint16_t	ct_oxid;
+	uint16_t	ct_scsi_status;	/* modes 0 && 1 only */
+	union {
+		struct {
+			uint32_t	reloff;
+			uint32_t	reserved0;
+			uint32_t	ct_xfrlen;
+			uint32_t	reserved1;
+			ispds64_t	ds;
+		} m0;
+		struct {
+			uint16_t ct_resplen;
+			uint16_t reserved;
+			uint8_t  ct_resp[MAXRESPLEN_24XX];
+		} m1;
+		struct {
+			uint32_t reserved0;
+			uint32_t ct_datalen;
+			uint32_t reserved1;
+			ispds64_t ct_fcp_rsp_iudata;
+		} m2;
+	} rsp;
+} ct7_entry_t;
+
+/*
+ * ct_flags values for CTIO7
+ */
+#define CT7_DATA_IN	0x0002
+#define CT7_DATA_OUT	0x0001
+#define CT7_NO_DATA	0x0000
+#define 	CT7_DATAMASK	0x003
+#define	CT7_DSD_ENABLE	0x0004
+#define	CT7_CONF_STSFD	0x0010
+#define	CT7_EXPLCT_CONF	0x0020
+#define	CT7_FLAG_MODE0	0x0000
+#define	CT7_FLAG_MODE1	0x0040
+#define	CT7_FLAG_MODE7	0x0080
+#define		CT7_FLAG_MMASK	0x00C0
+#define	CT7_FASTPOST	0x0100
+#define	CT7_ATTR_MASK	0x1e00	/* task attributes from atio7 */
+#define	CT7_CONFIRM	0x2000
+#define	CT7_TERMINATE	0x4000
+#define CT7_SENDSTATUS	0x8000
+
+/*
+ * Type 7 CTIO status codes
+ */
+#define CT7_OK		0x01	/* completed without error */
+#define CT7_ABORTED	0x02	/* aborted by host */
+#define CT7_ERR		0x04	/* see sense data for error */
+#define CT7_INVAL	0x06	/* request for disabled lun */
+#define	CT7_INVRXID	0x08	/* (FC only) Invalid RX_ID */
+#define	CT7_DATA_OVER	0x09	/* (FC only) Data Overrun */
+#define CT7_TIMEOUT	0x0B	/* timed out */
+#define CT7_RESET	0x0E	/* LIP Rset Received */
+#define	CT7_BUS_ERROR	0x10	/* DMA PCI Error */
+#define	CT7_REASSY_ERR	0x11	/* DMA reassembly error */
+#define	CT7_DATA_UNDER	0x15	/* (FC only) Data Underrun */
+#define	CT7_PORTUNAVAIL	0x28	/* port not available */
+#define	CT7_LOGOUT	0x29	/* port logout */
+#define	CT7_PORTCHANGED	0x2A	/* port changed */
+#define	CT7_SRR		0x45	/* SRR Received */
+
+/*
+ * Other 24XX related target IOCBs
+ */
+
+/*
+ * ABTS Received
+ */
+typedef struct {
+	isphdr_t	abts_header;
+	uint8_t		abts_reserved0[6];
+	uint16_t	abts_nphdl;
+	uint16_t	abts_reserved1;
+	uint16_t	abts_sof;
+	uint32_t	abts_rxid_abts;
+	uint16_t	abts_did_lo;
+	uint8_t		abts_did_hi;
+	uint8_t		abts_r_ctl;
+	uint16_t	abts_sid_lo;
+	uint8_t		abts_sid_hi;
+	uint8_t		abts_cs_ctl;
+	uint16_t	abts_fs_ctl;
+	uint8_t		abts_f_ctl;
+	uint8_t		abts_type;
+	uint16_t	abts_seq_cnt;
+	uint8_t		abts_df_ctl;
+	uint8_t		abts_seq_id;
+	uint16_t	abts_rx_id;
+	uint16_t	abts_ox_id;
+	uint32_t	abts_param;
+	uint8_t		abts_reserved2[16];
+	uint32_t	abts_rxid_task;
+} abts_t;
+
+typedef struct {
+	isphdr_t	abts_rsp_header;
+	uint32_t	abts_rsp_handle;
+	uint16_t	abts_rsp_status;
+	uint16_t	abts_rsp_nphdl;
+	uint16_t	abts_rsp_ctl_flags;
+	uint16_t	abts_rsp_sof;
+	uint32_t	abts_rsp_rxid_abts;
+	uint16_t	abts_rsp_did_lo;
+	uint8_t		abts_rsp_did_hi;
+	uint8_t		abts_rsp_r_ctl;
+	uint16_t	abts_rsp_sid_lo;
+	uint8_t		abts_rsp_sid_hi;
+	uint8_t		abts_rsp_cs_ctl;
+	uint16_t	abts_rsp_f_ctl_lo;
+	uint8_t		abts_rsp_f_ctl_hi;
+	uint8_t		abts_rsp_type;
+	uint16_t	abts_rsp_seq_cnt;
+	uint8_t		abts_rsp_df_ctl;
+	uint8_t		abts_rsp_seq_id;
+	uint16_t	abts_rsp_rx_id;
+	uint16_t	abts_rsp_ox_id;
+	uint32_t	abts_rsp_param;
+	union {
+		struct {
+			uint16_t reserved;
+			uint8_t	last_seq_id;
+			uint8_t seq_id_valid;
+			uint16_t aborted_rx_id;
+			uint16_t aborted_ox_id;
+			uint16_t high_seq_cnt;
+			uint16_t low_seq_cnt;
+			uint8_t reserved2[4];
+		} ba_acc;
+		struct {
+			uint8_t vendor_unique;
+			uint8_t	explanation;
+			uint8_t reason;
+			uint8_t reserved;
+			uint8_t reserved2[12];
+		} ba_rjt;
+		struct {
+			uint8_t reserved[8];
+			uint32_t subcode1;
+			uint32_t subcode2;
+		} rsp;
+		uint8_t reserved[16];
+	} abts_rsp_payload;
+	uint32_t	abts_rsp_rxid_task;
+} abts_rsp_t;
+
+/* terminate this ABTS exchange */
+#define	ISP24XX_ABTS_RSP_TERMINATE	0x01
+
+#define	ISP24XX_ABTS_RSP_COMPLETE	0x00
+#define	ISP24XX_ABTS_RSP_RESET		0x04
+#define	ISP24XX_ABTS_RSP_ABORTED	0x05
+#define	ISP24XX_ABTS_RSP_TIMEOUT	0x06
+#define	ISP24XX_ABTS_RSP_INVXID		0x08
+#define	ISP24XX_ABTS_RSP_LOGOUT		0x29
+#define	ISP24XX_ABTS_RSP_SUBCODE	0x31
+
+/*
  * Debug macros
  */
 
 #define	ISP_TDQE(isp, msg, idx, arg)	\
     if (isp->isp_dblev & ISP_LOGTDEBUG2) isp_print_qentry(isp, msg, idx, arg)
 
+#ifndef	ISP_TOOLS
 /*
  * The functions below are for the publicly available
  * target mode functions that are internal to the Qlogic driver.
@@ -657,7 +899,7 @@ typedef struct {
 /*
  * This function handles new response queue entry appropriate for target mode.
  */
-int isp_target_notify(ispsoftc_t *, void *, uint16_t *);
+int isp_target_notify(ispsoftc_t *, void *, uint32_t *);
 
 /*
  * This function externalizes the ability to acknowledge an Immediate Notify
@@ -690,7 +932,7 @@ int isp_target_put_atio(ispsoftc_t *, void *);
  * General routine to send a final CTIO for a command- used mostly for
  * local responses.
  */
-int isp_endcmd(ispsoftc_t *, void *, uint32_t, uint16_t);
+int isp_endcmd(ispsoftc_t *, void *, uint32_t, uint32_t);
 #define	ECMD_SVALID	0x100
 
 /*
@@ -699,5 +941,5 @@ int isp_endcmd(ispsoftc_t *, void *, uint32_t, uint16_t);
  * Return nonzero if the interrupt that generated this event has been dismissed.
  */
 int isp_target_async(ispsoftc_t *, int, int);
-
+#endif
 #endif	/* _ISP_TARGET_H */

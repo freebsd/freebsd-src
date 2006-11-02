@@ -149,13 +149,16 @@ struct isposinfo {
 	struct cam_sim		*sim2;
 	struct cam_path		*path2;
 	struct intr_config_hook	ehook;
-	uint8_t
+	uint16_t		loop_down_time;
+	uint16_t		loop_down_limit;
+	uint32_t		: 5,
+		simqfrozen	: 3,
+		hysteresis	: 8,
+				: 4,
 		disabled	: 1,
 		fcbsy		: 1,
-		ktmature	: 1,
-		mboxwaiting	: 1,
-		intsok		: 1,
-		simqfrozen	: 3;
+		mboxcmd_done	: 1,
+		mboxbsy		: 1;
 #if __FreeBSD_version >= 500000  
 	struct firmware *	fw;
 	struct mtx		lock;
@@ -211,18 +214,13 @@ struct isposinfo {
  * Required Macros/Defines
  */
 
-#define	ISP2100_SCRLEN		0x800
+#define	ISP2100_SCRLEN		0x1000
 
 #define	MEMZERO(a, b)		memset(a, 0, b)
 #define	MEMCPY			memcpy
 #define	SNPRINTF		snprintf
 #define	USEC_DELAY		DELAY
-#define	USEC_SLEEP(isp, x)		\
-	if (isp->isp_osinfo.intsok)	\
-		ISP_UNLOCK(isp);	\
-	DELAY(x);			\
-	if (isp->isp_osinfo.intsok)	\
-		ISP_LOCK(isp)
+#define	USEC_SLEEP(isp, x)	DELAY(x)
 
 #define	NANOTIME_T		struct timespec
 #define	GET_NANOTIME		nanotime
@@ -247,15 +245,10 @@ default:							\
 	break;							\
 }
 
-#define	MBOX_ACQUIRE(isp)
+#define	MBOX_ACQUIRE			isp_mbox_acquire
 #define	MBOX_WAIT_COMPLETE		isp_mbox_wait_complete
-#define	MBOX_NOTIFY_COMPLETE(isp)	\
-	if (isp->isp_osinfo.mboxwaiting) { \
-		isp->isp_osinfo.mboxwaiting = 0; \
-		wakeup(&isp->isp_mbxworkp); \
-	} \
-	isp->isp_mboxbsy = 0
-#define	MBOX_RELEASE(isp)
+#define	MBOX_NOTIFY_COMPLETE(isp)	isp->isp_osinfo.mboxcmd_done = 1
+#define	MBOX_RELEASE			isp_mbox_release
 
 #define	FC_SCRATCH_ACQUIRE(isp)						\
 	if (isp->isp_osinfo.fcbsy) {					\
@@ -361,7 +354,8 @@ default:							\
 #define	ISP_IOXGET_32(isp, s, d)				\
 	d = (isp->isp_bustype == ISP_BT_SBUS)?			\
 	*((uint32_t *)s) : bswap32(*((uint32_t *)s))
-#else
+
+#else	/* ISP_SBUS_SUPPORTED */
 #define	ISP_IOXPUT_8(isp, s, d)		*(d) = s
 #define	ISP_IOXPUT_16(isp, s, d)	*(d) = bswap16(s)
 #define	ISP_IOXPUT_32(isp, s, d)	*(d) = bswap32(s)
@@ -370,6 +364,15 @@ default:							\
 #define	ISP_IOXGET_32(isp, s, d)	d = bswap32(*((uint32_t *)s))
 #endif
 #define	ISP_SWIZZLE_NVRAM_WORD(isp, rp)	*rp = bswap16(*rp)
+
+#define	ISP_IOZGET_8(isp, s, d)		d = (*((uint8_t *)s))
+#define	ISP_IOZGET_16(isp, s, d)	d = (*((uint16_t *)s))
+#define	ISP_IOZGET_32(isp, s, d)	d = (*((uint32_t *)s))
+#define	ISP_IOZPUT_8(isp, s, d)		*(d) = s
+#define	ISP_IOZPUT_16(isp, s, d)	*(d) = s
+#define	ISP_IOZPUT_32(isp, s, d)	*(d) = s
+
+
 #else
 #define	ISP_IOXPUT_8(isp, s, d)		*(d) = s
 #define	ISP_IOXPUT_16(isp, s, d)	*(d) = s
@@ -378,6 +381,15 @@ default:							\
 #define	ISP_IOXGET_16(isp, s, d)	d = *(s)
 #define	ISP_IOXGET_32(isp, s, d)	d = *(s)
 #define	ISP_SWIZZLE_NVRAM_WORD(isp, rp)
+
+#define	ISP_IOZPUT_8(isp, s, d)		*(d) = s
+#define	ISP_IOZPUT_16(isp, s, d)	*(d) = bswap16(s)
+#define	ISP_IOZPUT_32(isp, s, d)	*(d) = bswap32(s)
+
+#define	ISP_IOZGET_8(isp, s, d)		d = (*((uint8_t *)(s)))
+#define	ISP_IOZGET_16(isp, s, d)	d = bswap16(*((uint16_t *)(s)))
+#define	ISP_IOZGET_32(isp, s, d)	d = bswap32(*((uint32_t *)(s)))
+
 #endif
 
 /*
@@ -417,6 +429,9 @@ extern void isp_uninit(ispsoftc_t *);
  * driver global data
  */
 extern int isp_announced;
+extern int isp_fabric_hysteresis;
+extern int isp_loop_down_limit;
+extern int isp_quickboot_time;
 
 /*
  * Platform private flags
@@ -444,49 +459,61 @@ extern int isp_announced;
  * Platform specific inline functions
  */
 
-static __inline void isp_mbox_wait_complete(ispsoftc_t *);
-static __inline void
-isp_mbox_wait_complete(ispsoftc_t *isp)
+static __inline int isp_mbox_acquire(ispsoftc_t *);
+static __inline void isp_mbox_wait_complete(ispsoftc_t *, mbreg_t *);
+static __inline void isp_mbox_release(ispsoftc_t *);
+
+static __inline int
+isp_mbox_acquire(ispsoftc_t *isp)
 {
-	if (isp->isp_osinfo.intsok) {
-		int lim = ((isp->isp_mbxwrk0)? 120 : 20) * hz;
-		isp->isp_osinfo.mboxwaiting = 1;
-#ifdef	ISP_SMPLOCK
-		(void) msleep(&isp->isp_mbxworkp,
-		    &isp->isp_lock, PRIBIO, "isp_mboxwaiting", lim);
-#else
-		(void) tsleep(&isp->isp_mbxworkp,
-		    PRIBIO, "isp_mboxwaiting", lim);
-#endif
-		if (isp->isp_mboxbsy != 0) {
-			isp_prt(isp, ISP_LOGWARN,
-			    "Interrupting Mailbox Command (0x%x) Timeout",
-			    isp->isp_lastmbxcmd);
-			isp->isp_mboxbsy = 0;
-		}
-		isp->isp_osinfo.mboxwaiting = 0;
+	if (isp->isp_osinfo.mboxbsy) {
+		return (1);
 	} else {
-		int lim = ((isp->isp_mbxwrk0)? 240 : 60) * 10000;
-		int j;
-		for (j = 0; j < lim; j++) {
-			uint16_t isr, sema, mbox;
-			if (isp->isp_mboxbsy == 0) {
+		isp->isp_osinfo.mboxcmd_done = 0;
+		isp->isp_osinfo.mboxbsy = 1;
+		return (0);
+	}
+}
+
+static __inline void
+isp_mbox_wait_complete(ispsoftc_t *isp, mbreg_t *mbp)
+{
+	int lim = mbp->timeout;
+	int j;
+
+	if (lim == 0) {
+		lim = MBCMD_DEFAULT_TIMEOUT;
+	}
+	if (isp->isp_mbxwrk0) {
+		lim *= isp->isp_mbxwrk0;
+	}
+	for (j = 0; j < lim; j += 100) {
+		uint32_t isr;
+		uint16_t sema, mbox;
+		if (isp->isp_osinfo.mboxcmd_done) {
+			break;
+		}
+		if (ISP_READ_ISR(isp, &isr, &sema, &mbox)) {
+			isp_intr(isp, isr, sema, mbox);
+			if (isp->isp_osinfo.mboxcmd_done) {
 				break;
 			}
-			if (ISP_READ_ISR(isp, &isr, &sema, &mbox)) {
-				isp_intr(isp, isr, sema, mbox);
-				if (isp->isp_mboxbsy == 0) {
-					break;
-				}
-			}
-			USEC_DELAY(500);
 		}
-		if (isp->isp_mboxbsy != 0) {
-			isp_prt(isp, ISP_LOGWARN,
-			    "Polled Mailbox Command (0x%x) Timeout",
-			    isp->isp_lastmbxcmd);
-		}
+		USEC_DELAY(100);
 	}
+	if (isp->isp_osinfo.mboxcmd_done == 0) {
+		isp_prt(isp, ISP_LOGWARN,
+		    "Polled Mailbox Command (0x%x) Timeout",
+		    isp->isp_lastmbxcmd);
+		mbp->param[0] = MBOX_TIMEOUT;
+		isp->isp_osinfo.mboxcmd_done = 1;
+	}
+}
+
+static __inline void
+isp_mbox_release(ispsoftc_t *isp)
+{
+	isp->isp_osinfo.mboxbsy = 0;
 }
 
 static __inline uint64_t nanotime_sub(struct timespec *, struct timespec *);
