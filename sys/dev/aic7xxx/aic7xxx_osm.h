@@ -85,10 +85,6 @@
 #include <cam/scsi/scsi_all.h>
 #include <cam/scsi/scsi_message.h>
 
-#ifdef CAM_NEW_TRAN_CODE
-#define AHC_NEW_TRAN_SETTINGS
-#endif /* CAM_NEW_TRAN_CODE */
-
 /*************************** Attachment Bookkeeping ***************************/
 extern devclass_t ahc_devclass;
 

@@ -1084,10 +1084,8 @@ scsi_low_scsi_action_cam(sim, ccb)
 		break;
 
 	case XPT_SET_TRAN_SETTINGS: {
-#ifdef	CAM_NEW_TRAN_CODE
 		struct ccb_trans_settings_scsi *scsi;
         	struct ccb_trans_settings_spi *spi;
-#endif
 		struct ccb_trans_settings *cts;
 		u_int val;
 
@@ -1106,57 +1104,6 @@ scsi_low_scsi_action_cam(sim, ccb)
 			lun = 0;
 
 		s = SCSI_LOW_SPLSCSI();
-#ifndef	CAM_NEW_TRAN_CODE
-		if ((cts->valid & (CCB_TRANS_BUS_WIDTH_VALID |
-				   CCB_TRANS_SYNC_RATE_VALID |
-				   CCB_TRANS_SYNC_OFFSET_VALID)) != 0)
-		{
-			if ((cts->valid & CCB_TRANS_BUS_WIDTH_VALID) != 0) {
-				val = cts->bus_width;
-				if (val < ti->ti_width)
-					ti->ti_width = val;
-			}
-			if ((cts->valid & CCB_TRANS_SYNC_RATE_VALID) != 0) {
-				val = cts->sync_period;
-				if (val == 0 || val > ti->ti_maxsynch.period)
-					ti->ti_maxsynch.period = val;
-			}
-			if ((cts->valid & CCB_TRANS_SYNC_OFFSET_VALID) != 0) {
-				val = cts->sync_offset;
-				if (val < ti->ti_maxsynch.offset)
-					ti->ti_maxsynch.offset = val;
-			}
-
-			ti->ti_flags_valid |= SCSI_LOW_TARG_FLAGS_QUIRKS_VALID;
-			scsi_low_calcf_target(ti);
-		}
-
-		if ((cts->valid & (CCB_TRANS_DISC_VALID |
-				   CCB_TRANS_TQ_VALID)) != 0)
-		{
-			li = scsi_low_alloc_li(ti, lun, 1);
-			if ((cts->valid & CCB_TRANS_DISC_VALID) != 0)
-			{
-				if ((cts->flags & CCB_TRANS_DISC_ENB) != 0)
-					li->li_quirks |= SCSI_LOW_DISK_DISC;
-				else
-					li->li_quirks &= ~SCSI_LOW_DISK_DISC;
-			}
-			if ((cts->valid & CCB_TRANS_TQ_VALID) != 0)
-			{
-				if ((cts->flags & CCB_TRANS_TAG_ENB) != 0)
-					li->li_quirks |= SCSI_LOW_DISK_QTAG;
-				else
-					li->li_quirks &= ~SCSI_LOW_DISK_QTAG;
-			}
-
-			li->li_flags_valid |= SCSI_LOW_LUN_FLAGS_QUIRKS_VALID;
-			scsi_low_calcf_target(ti);
-			scsi_low_calcf_lun(li);
-			if ((slp->sl_show_result & SHOW_CALCF_RES) != 0)
-				scsi_low_calcf_show(li);
-		}
-#else
 		scsi = &cts->proto_specific.scsi;
 		spi = &cts->xport_specific.spi;
 		if ((spi->valid & (CTS_SPI_VALID_BUS_WIDTH |
@@ -1203,7 +1150,6 @@ scsi_low_scsi_action_cam(sim, ccb)
 			if ((slp->sl_show_result & SHOW_CALCF_RES) != 0)
 				scsi_low_calcf_show(li);
 		}
-#endif
 		splx(s);
 
 		ccb->ccb_h.status = CAM_REQ_CMP;
@@ -1231,7 +1177,6 @@ scsi_low_scsi_action_cam(sim, ccb)
 
 		s = SCSI_LOW_SPLSCSI();
 		li = scsi_low_alloc_li(ti, lun, 1);
-#ifdef CAM_NEW_TRAN_CODE
 		if (li != NULL && cts->type == CTS_TYPE_CURRENT_SETTINGS) {
 			struct ccb_trans_settings_scsi *scsi =
 				&cts->proto_specific.scsi;
@@ -1275,65 +1220,6 @@ scsi_low_scsi_action_cam(sim, ccb)
 				scsi->valid = 0;
 		} else
 			ccb->ccb_h.status = CAM_FUNC_NOTAVAIL;
-#else
- 		if ((cts->flags & CCB_TRANS_USER_SETTINGS) != 0)
- 		{
-#ifdef	SCSI_LOW_DIAGNOSTIC
-			if ((li->li_flags_valid & SCSI_LOW_LUN_FLAGS_DISK_VALID) == 0)
-			{
-				ccb->ccb_h.status = CAM_FUNC_NOTAVAIL;
-				printf("%s: invalid GET_TRANS_USER_SETTINGS call\n",
-					slp->sl_xname);
-				goto settings_out;
-			}
-#endif	/* SCSI_LOW_DIAGNOSTIC */
-			diskflags = li->li_diskflags & li->li_cfgflags;
-			if ((diskflags & SCSI_LOW_DISK_DISC) != 0)
-				cts->flags |= CCB_TRANS_DISC_ENB;
-			else
-				cts->flags &= ~CCB_TRANS_DISC_ENB;
-			if ((diskflags & SCSI_LOW_DISK_QTAG) != 0)
-				cts->flags |= CCB_TRANS_TAG_ENB;
-			else
-				cts->flags &= ~CCB_TRANS_TAG_ENB;
-		}
-		else if ((cts->flags & CCB_TRANS_CURRENT_SETTINGS) != 0)
-		{
-#ifdef	SCSI_LOW_DIAGNOSTIC
-			if (li->li_flags_valid != SCSI_LOW_LUN_FLAGS_ALL_VALID)
-			{
-				ccb->ccb_h.status = CAM_FUNC_NOTAVAIL;
-				printf("%s: invalid GET_TRANS_CURRENT_SETTINGS call\n",
-					slp->sl_xname);
-				goto settings_out;
-			}
-#endif	/* SCSI_LOW_DIAGNOSTIC */
-			if ((li->li_flags & SCSI_LOW_DISC) != 0)
-				cts->flags |= CCB_TRANS_DISC_ENB;
-			else
-				cts->flags &= ~CCB_TRANS_DISC_ENB;
-			if ((li->li_flags & SCSI_LOW_QTAG) != 0)
-				cts->flags |= CCB_TRANS_TAG_ENB;
-			else
-				cts->flags &= ~CCB_TRANS_TAG_ENB;
-		}
-		else
-		{
-			ccb->ccb_h.status = CAM_FUNC_NOTAVAIL;
-			goto settings_out;
-		}
-
-		cts->sync_period = ti->ti_maxsynch.period;
-		cts->sync_offset = ti->ti_maxsynch.offset;
-		cts->bus_width = ti->ti_width;
-
-		cts->valid = CCB_TRANS_SYNC_RATE_VALID
-			   | CCB_TRANS_SYNC_OFFSET_VALID
-			   | CCB_TRANS_BUS_WIDTH_VALID
-			   | CCB_TRANS_DISC_VALID
-			   | CCB_TRANS_TQ_VALID;
-		ccb->ccb_h.status = CAM_REQ_CMP;
-#endif
 settings_out:
 		splx(s);
 		xpt_done(ccb);
@@ -1414,12 +1300,10 @@ settings_out:
 		cpi->initiator_id = slp->sl_hostid;
 		cpi->bus_id = cam_sim_bus(sim);
 		cpi->base_transfer_speed = 3300;
-#ifdef CAM_NEW_TRAN_CODE
 		cpi->transport = XPORT_SPI;
 		cpi->transport_version = 2;
 		cpi->protocol = PROTO_SCSI;
 		cpi->protocol_version = SCSI_REV_2;
-#endif
 		strncpy(cpi->sim_vid, "FreeBSD", SIM_IDLEN);
 		strncpy(cpi->hba_vid, "SCSI_LOW", HBA_IDLEN);
 		strncpy(cpi->dev_name, cam_sim_name(sim), DEV_IDLEN);

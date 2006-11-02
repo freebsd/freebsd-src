@@ -602,7 +602,6 @@ ahc_action(struct cam_sim *sim, union ccb *ccb)
 	}
 	case XPT_SET_TRAN_SETTINGS:
 	{
-#ifdef AHC_NEW_TRAN_SETTINGS
 		struct	ahc_devinfo devinfo;
 		struct	ccb_trans_settings *cts;
 		struct	ccb_trans_settings_scsi *scsi;
@@ -731,126 +730,6 @@ ahc_action(struct cam_sim *sim, union ccb *ccb)
 		ahc_unlock(ahc, &s);
 		ccb->ccb_h.status = CAM_REQ_CMP;
 		xpt_done(ccb);
-#else
-		struct	  ahc_devinfo devinfo;
-		struct	  ccb_trans_settings *cts;
-		struct	  ahc_initiator_tinfo *tinfo;
-		struct	  ahc_tmode_tstate *tstate;
-		uint16_t *discenable;
-		uint16_t *tagenable;
-		u_int	  update_type;
-		long	  s;
-
-		cts = &ccb->cts;
-		ahc_compile_devinfo(&devinfo, SIM_SCSI_ID(ahc, sim),
-				    cts->ccb_h.target_id,
-				    cts->ccb_h.target_lun,
-				    SIM_CHANNEL(ahc, sim),
-				    ROLE_UNKNOWN);
-		tinfo = ahc_fetch_transinfo(ahc, devinfo.channel,
-					    devinfo.our_scsiid,
-					    devinfo.target, &tstate);
-		update_type = 0;
-		if ((cts->flags & CCB_TRANS_CURRENT_SETTINGS) != 0) {
-			update_type |= AHC_TRANS_GOAL;
-			discenable = &tstate->discenable;
-			tagenable = &tstate->tagenable;
-		} else if ((cts->flags & CCB_TRANS_USER_SETTINGS) != 0) {
-			update_type |= AHC_TRANS_USER;
-			discenable = &ahc->user_discenable;
-			tagenable = &ahc->user_tagenable;
-		} else {
-			ccb->ccb_h.status = CAM_REQ_INVALID;
-			xpt_done(ccb);
-			break;
-		}
-		
-		ahc_lock(ahc, &s);
-
-		if ((cts->valid & CCB_TRANS_DISC_VALID) != 0) {
-			if ((cts->flags & CCB_TRANS_DISC_ENB) != 0)
-				*discenable |= devinfo.target_mask;
-			else
-				*discenable &= ~devinfo.target_mask;
-		}
-		
-		if ((cts->valid & CCB_TRANS_TQ_VALID) != 0) {
-			if ((cts->flags & CCB_TRANS_TAG_ENB) != 0)
-				*tagenable |= devinfo.target_mask;
-			else
-				*tagenable &= ~devinfo.target_mask;
-		}	
-
-		if ((cts->valid & CCB_TRANS_BUS_WIDTH_VALID) != 0) {
-			ahc_validate_width(ahc, /*tinfo limit*/NULL,
-					   &cts->bus_width, ROLE_UNKNOWN);
-			ahc_set_width(ahc, &devinfo, cts->bus_width,
-				      update_type, /*paused*/FALSE);
-		}
-
-		if ((cts->valid & CCB_TRANS_SYNC_OFFSET_VALID) == 0) {
-			if (update_type == AHC_TRANS_USER)
-				cts->sync_offset = tinfo->user.offset;
-			else
-				cts->sync_offset = tinfo->goal.offset;
-		}
-
-		if ((cts->valid & CCB_TRANS_SYNC_RATE_VALID) == 0) {
-			if (update_type == AHC_TRANS_USER)
-				cts->sync_period = tinfo->user.period;
-			else
-				cts->sync_period = tinfo->goal.period;
-		}
-
-		if (((cts->valid & CCB_TRANS_SYNC_RATE_VALID) != 0)
-		 || ((cts->valid & CCB_TRANS_SYNC_OFFSET_VALID) != 0)) {
-			struct ahc_syncrate *syncrate;
-			u_int ppr_options;
-			u_int maxsync;
-
-			if ((ahc->features & AHC_ULTRA2) != 0)
-				maxsync = AHC_SYNCRATE_DT;
-			else if ((ahc->features & AHC_ULTRA) != 0)
-				maxsync = AHC_SYNCRATE_ULTRA;
-			else
-				maxsync = AHC_SYNCRATE_FAST;
-
-			ppr_options = 0;
-			if (cts->sync_period <= 9
-			 && cts->bus_width == MSG_EXT_WDTR_BUS_16_BIT)
-				ppr_options = MSG_EXT_PPR_DT_REQ;
-
-			syncrate = ahc_find_syncrate(ahc, &cts->sync_period,
-						     &ppr_options,
-						     maxsync);
-			ahc_validate_offset(ahc, /*tinfo limit*/NULL,
-					    syncrate, &cts->sync_offset,
-					    MSG_EXT_WDTR_BUS_8_BIT,
-					    ROLE_UNKNOWN);
-
-			/* We use a period of 0 to represent async */
-			if (cts->sync_offset == 0) {
-				cts->sync_period = 0;
-				ppr_options = 0;
-			}
-
-			if (ppr_options == MSG_EXT_PPR_DT_REQ
-			 && tinfo->user.transport_version >= 3) {
-				tinfo->goal.transport_version =
-				    tinfo->user.transport_version;
-				tinfo->curr.transport_version =
-				    tinfo->user.transport_version;
-			}
-			
-			ahc_set_syncrate(ahc, &devinfo, syncrate,
-					 cts->sync_period, cts->sync_offset,
-					 ppr_options, update_type,
-					 /*paused*/FALSE);
-		}
-		ahc_unlock(ahc, &s);
-		ccb->ccb_h.status = CAM_REQ_CMP;
-		xpt_done(ccb);
-#endif
 		break;
 	}
 	case XPT_GET_TRAN_SETTINGS:
@@ -931,7 +810,6 @@ ahc_action(struct cam_sim *sim, union ccb *ccb)
 		strncpy(cpi->hba_vid, "Adaptec", HBA_IDLEN);
 		strncpy(cpi->dev_name, cam_sim_name(sim), DEV_IDLEN);
 		cpi->unit_number = cam_sim_unit(sim);
-#ifdef AHC_NEW_TRAN_SETTINGS
 		cpi->protocol = PROTO_SCSI;
 		cpi->protocol_version = SCSI_REV_2;
 		cpi->transport = XPORT_SPI;
@@ -942,7 +820,6 @@ ahc_action(struct cam_sim *sim, union ccb *ccb)
 			cpi->xport_specific.spi.ppr_options =
 			    SID_SPI_CLOCK_DT_ST;
 		}
-#endif
 		cpi->ccb_h.status = CAM_REQ_CMP;
 		xpt_done(ccb);
 		break;
@@ -958,7 +835,6 @@ static void
 ahc_get_tran_settings(struct ahc_softc *ahc, int our_id, char channel,
 		      struct ccb_trans_settings *cts)
 {
-#ifdef AHC_NEW_TRAN_SETTINGS
 	struct	ahc_devinfo devinfo;
 	struct	ccb_trans_settings_scsi *scsi;
 	struct	ccb_trans_settings_spi *spi;
@@ -1019,52 +895,6 @@ ahc_get_tran_settings(struct ahc_softc *ahc, int our_id, char channel,
 	}
 
 	cts->ccb_h.status = CAM_REQ_CMP;
-#else
-	struct	ahc_devinfo devinfo;
-	struct	ahc_initiator_tinfo *targ_info;
-	struct	ahc_tmode_tstate *tstate;
-	struct	ahc_transinfo *tinfo;
-
-	ahc_compile_devinfo(&devinfo, our_id,
-			    cts->ccb_h.target_id,
-			    cts->ccb_h.target_lun,
-			    channel, ROLE_UNKNOWN);
-	targ_info = ahc_fetch_transinfo(ahc, devinfo.channel,
-					devinfo.our_scsiid,
-					devinfo.target, &tstate);
-	
-	if ((cts->flags & CCB_TRANS_CURRENT_SETTINGS) != 0)
-		tinfo = &targ_info->curr;
-	else
-		tinfo = &targ_info->user;
-	
-	cts->flags &= ~(CCB_TRANS_DISC_ENB|CCB_TRANS_TAG_ENB);
-	if ((cts->flags & CCB_TRANS_CURRENT_SETTINGS) == 0) {
-		if ((ahc->user_discenable & devinfo.target_mask) != 0)
-			cts->flags |= CCB_TRANS_DISC_ENB;
-
-		if ((ahc->user_tagenable & devinfo.target_mask) != 0)
-			cts->flags |= CCB_TRANS_TAG_ENB;
-	} else {
-		if ((tstate->discenable & devinfo.target_mask) != 0)
-			cts->flags |= CCB_TRANS_DISC_ENB;
-
-		if ((tstate->tagenable & devinfo.target_mask) != 0)
-			cts->flags |= CCB_TRANS_TAG_ENB;
-	}
-	cts->sync_period = tinfo->period;
-	cts->sync_offset = tinfo->offset;
-	cts->bus_width = tinfo->width;
-	
-	cts->valid = CCB_TRANS_SYNC_RATE_VALID
-		   | CCB_TRANS_SYNC_OFFSET_VALID
-		   | CCB_TRANS_BUS_WIDTH_VALID;
-
-	if (cts->ccb_h.target_lun != CAM_LUN_WILDCARD)
-		cts->valid |= CCB_TRANS_DISC_VALID|CCB_TRANS_TQ_VALID;
-
-	cts->ccb_h.status = CAM_REQ_CMP;
-#endif
 }
 
 static void
@@ -1538,14 +1368,10 @@ ahc_send_async(struct ahc_softc *ahc, char channel, u_int target,
 	switch (code) {
 	case AC_TRANSFER_NEG:
 	{
-#ifdef AHC_NEW_TRAN_SETTINGS
 		struct	ccb_trans_settings_scsi *scsi;
 	
 		cts.type = CTS_TYPE_CURRENT_SETTINGS;
 		scsi = &cts.proto_specific.scsi;
-#else
-		cts.flags = CCB_TRANS_CURRENT_SETTINGS;
-#endif
 		cts.ccb_h.path = path;
 		cts.ccb_h.target_id = target;
 		cts.ccb_h.target_lun = lun;
@@ -1553,23 +1379,13 @@ ahc_send_async(struct ahc_softc *ahc, char channel, u_int target,
 							  : ahc->our_id_b,
 				      channel, &cts);
 		arg = &cts;
-#ifdef AHC_NEW_TRAN_SETTINGS
 		scsi->valid &= ~CTS_SCSI_VALID_TQ;
 		scsi->flags &= ~CTS_SCSI_FLAGS_TAG_ENB;
-#else
-		cts.valid &= ~CCB_TRANS_TQ_VALID;
-		cts.flags &= ~CCB_TRANS_TAG_ENB;
-#endif
 		if (opt_arg == NULL)
 			break;
 		if (*((ahc_queue_alg *)opt_arg) == AHC_QUEUE_TAGGED)
-#ifdef AHC_NEW_TRAN_SETTINGS
 			scsi->flags |= ~CTS_SCSI_FLAGS_TAG_ENB;
 		scsi->valid |= CTS_SCSI_VALID_TQ;
-#else
-			cts.flags |= CCB_TRANS_TAG_ENB;
-		cts.valid |= CCB_TRANS_TQ_VALID;
-#endif
 		break;
 	}
 	case AC_SENT_BDR:

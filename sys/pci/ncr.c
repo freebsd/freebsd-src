@@ -4190,15 +4190,12 @@ ncr_action (struct cam_sim *sim, union ccb *ccb)
 		tcb_p	tp;
 		u_int	update_type;
 		int	s;
-#ifdef	CAM_NEW_TRAN_CODE
 		struct ccb_trans_settings_scsi *scsi =
 		    &cts->proto_specific.scsi;
 		struct ccb_trans_settings_spi *spi =
 		    &cts->xport_specific.spi;
-#endif
 
 		update_type = 0;
-#ifdef	CAM_NEW_TRAN_CODE
 		if (cts->type == CTS_TYPE_CURRENT_SETTINGS)
 			update_type |= NCR_TRANS_GOAL;
 		if (cts->type == CTS_TYPE_USER_SETTINGS)
@@ -4279,88 +4276,6 @@ ncr_action (struct cam_sim *sim, union ccb *ccb)
 				tp->tinfo.goal.width = spi->bus_width;
 		}
 		splx(s);
-#else
-		if ((cts->flags & CCB_TRANS_CURRENT_SETTINGS) != 0)
-			update_type |= NCR_TRANS_GOAL;
-		if ((cts->flags & CCB_TRANS_USER_SETTINGS) != 0)
-			update_type |= NCR_TRANS_USER;
-		
-		s = splcam();
-		tp = &np->target[ccb->ccb_h.target_id];
-		/* Tag and disc enables */
-		if ((cts->valid & CCB_TRANS_DISC_VALID) != 0) {
-			if (update_type & NCR_TRANS_GOAL) {
-				if ((cts->flags & CCB_TRANS_DISC_ENB) != 0)
-					tp->tinfo.disc_tag |= NCR_CUR_DISCENB;
-				else
-					tp->tinfo.disc_tag &= ~NCR_CUR_DISCENB;
-			}
-
-			if (update_type & NCR_TRANS_USER) {
-				if ((cts->flags & CCB_TRANS_DISC_ENB) != 0)
-					tp->tinfo.disc_tag |= NCR_USR_DISCENB;
-				else
-					tp->tinfo.disc_tag &= ~NCR_USR_DISCENB;
-			}
-
-		}
-
-		if ((cts->valid & CCB_TRANS_TQ_VALID) != 0) {
-			if (update_type & NCR_TRANS_GOAL) {
-				if ((cts->flags & CCB_TRANS_TAG_ENB) != 0)
-					tp->tinfo.disc_tag |= NCR_CUR_TAGENB;
-				else
-					tp->tinfo.disc_tag &= ~NCR_CUR_TAGENB;
-			}
-
-			if (update_type & NCR_TRANS_USER) {
-				if ((cts->flags & CCB_TRANS_TAG_ENB) != 0)
-					tp->tinfo.disc_tag |= NCR_USR_TAGENB;
-				else
-					tp->tinfo.disc_tag &= ~NCR_USR_TAGENB;
-			}	
-		}
-
-		/* Filter bus width and sync negotiation settings */
-		if ((cts->valid & CCB_TRANS_BUS_WIDTH_VALID) != 0) {
-			if (cts->bus_width > np->maxwide)
-				cts->bus_width = np->maxwide;
-		}
-
-		if (((cts->valid & CCB_TRANS_SYNC_RATE_VALID) != 0)
-		 || ((cts->valid & CCB_TRANS_SYNC_OFFSET_VALID) != 0)) {
-			if ((cts->valid & CCB_TRANS_SYNC_RATE_VALID) != 0) {
-				if (cts->sync_period != 0
-				 && (cts->sync_period < np->minsync))
-					cts->sync_period = np->minsync;
-			}
-			if ((cts->valid & CCB_TRANS_SYNC_OFFSET_VALID) != 0) {
-				if (cts->sync_offset == 0)
-					cts->sync_period = 0;
-				if (cts->sync_offset > np->maxoffs)
-					cts->sync_offset = np->maxoffs;
-			}
-		}
-		if ((update_type & NCR_TRANS_USER) != 0) {
-			if ((cts->valid & CCB_TRANS_SYNC_RATE_VALID) != 0)
-				tp->tinfo.user.period = cts->sync_period;
-			if ((cts->valid & CCB_TRANS_SYNC_OFFSET_VALID) != 0)
-				tp->tinfo.user.offset = cts->sync_offset;
-			if ((cts->valid & CCB_TRANS_BUS_WIDTH_VALID) != 0)
-				tp->tinfo.user.width = cts->bus_width;
-		}
-		if ((update_type & NCR_TRANS_GOAL) != 0) {
-			if ((cts->valid & CCB_TRANS_SYNC_RATE_VALID) != 0)
-				tp->tinfo.goal.period = cts->sync_period;
-
-			if ((cts->valid & CCB_TRANS_SYNC_OFFSET_VALID) != 0)
-				tp->tinfo.goal.offset = cts->sync_offset;
-
-			if ((cts->valid & CCB_TRANS_BUS_WIDTH_VALID) != 0)
-				tp->tinfo.goal.width = cts->bus_width;
-		}
-		splx(s);
-#endif
 		ccb->ccb_h.status = CAM_REQ_CMP;
 		xpt_done(ccb);
 		break;
@@ -4372,7 +4287,6 @@ ncr_action (struct cam_sim *sim, union ccb *ccb)
 		struct	ncr_transinfo *tinfo;
 		tcb_p	tp = &np->target[ccb->ccb_h.target_id];
 		int	s;
-#ifdef CAM_NEW_TRAN_CODE
 		struct ccb_trans_settings_scsi *scsi =
 		    &cts->proto_specific.scsi;
 		struct ccb_trans_settings_spi *spi =
@@ -4418,44 +4332,6 @@ ncr_action (struct cam_sim *sim, union ccb *ccb)
 			   | CTS_SPI_VALID_BUS_WIDTH
 			   | CTS_SPI_VALID_DISC;
 		scsi->valid = CTS_SCSI_VALID_TQ;
-#else
-		s = splcam();
-		if ((cts->flags & CCB_TRANS_CURRENT_SETTINGS) != 0) {
-			tinfo = &tp->tinfo.current;
-			if (tp->tinfo.disc_tag & NCR_CUR_DISCENB)
-				cts->flags |= CCB_TRANS_DISC_ENB;
-			else
-				cts->flags &= ~CCB_TRANS_DISC_ENB;
-
-			if (tp->tinfo.disc_tag & NCR_CUR_TAGENB)
-				cts->flags |= CCB_TRANS_TAG_ENB;
-			else
-				cts->flags &= ~CCB_TRANS_TAG_ENB;
-		} else {
-			tinfo = &tp->tinfo.user;
-			if (tp->tinfo.disc_tag & NCR_USR_DISCENB)
-				cts->flags |= CCB_TRANS_DISC_ENB;
-			else
-				cts->flags &= ~CCB_TRANS_DISC_ENB;
-
-			if (tp->tinfo.disc_tag & NCR_USR_TAGENB)
-				cts->flags |= CCB_TRANS_TAG_ENB;
-			else
-				cts->flags &= ~CCB_TRANS_TAG_ENB;
-		}
-
-		cts->sync_period = tinfo->period;
-		cts->sync_offset = tinfo->offset;
-		cts->bus_width = tinfo->width;
-
-		splx(s);
-
-		cts->valid = CCB_TRANS_SYNC_RATE_VALID
-			   | CCB_TRANS_SYNC_OFFSET_VALID
-			   | CCB_TRANS_BUS_WIDTH_VALID
-			   | CCB_TRANS_DISC_VALID
-			   | CCB_TRANS_TQ_VALID;
-#endif
 
 		ccb->ccb_h.status = CAM_REQ_CMP;
 		xpt_done(ccb);
@@ -4504,12 +4380,10 @@ ncr_action (struct cam_sim *sim, union ccb *ccb)
 		strncpy(cpi->hba_vid, "Symbios", HBA_IDLEN);
 		strncpy(cpi->dev_name, cam_sim_name(sim), DEV_IDLEN);
 		cpi->unit_number = cam_sim_unit(sim);
-#ifdef	CAM_NEW_TRAN_CODE
                 cpi->transport = XPORT_SPI;
                 cpi->transport_version = 2;
                 cpi->protocol = PROTO_SCSI;
                 cpi->protocol_version = SCSI_REV_2;
-#endif
 		cpi->ccb_h.status = CAM_REQ_CMP;
 		xpt_done(ccb);
 		break;
@@ -5085,7 +4959,6 @@ ncr_setsync(ncb_p np, nccb_p cp, u_char scntl3, u_char sxfer, u_char period)
 	** new transfer parameters.
 	*/
 	memset(&neg, 0, sizeof (neg));
-#ifdef	CAM_NEW_TRAN_CODE
 	neg.protocol = PROTO_SCSI;
 	neg.protocol_version = SCSI_REV_2;
 	neg.transport = XPORT_SPI;
@@ -5094,12 +4967,6 @@ ncr_setsync(ncb_p np, nccb_p cp, u_char scntl3, u_char sxfer, u_char period)
 	neg.xport_specific.spi.sync_offset = sxfer & 0x1f;
 	neg.xport_specific.spi.valid = CTS_SPI_VALID_SYNC_RATE
 		| CTS_SPI_VALID_SYNC_OFFSET;
-#else
-	neg.sync_period = period;
-	neg.sync_offset = sxfer & 0x1f;
-	neg.valid = CCB_TRANS_SYNC_RATE_VALID
-		| CCB_TRANS_SYNC_OFFSET_VALID;
-#endif
 	xpt_setup_ccb(&neg.ccb_h, ccb->ccb_h.path,
 		      /*priority*/1);
 	xpt_async(AC_TRANSFER_NEG, ccb->ccb_h.path, &neg);
@@ -5169,7 +5036,6 @@ static void ncr_setwide (ncb_p np, nccb_p cp, u_char wide, u_char ack)
 
 	/* Tell the SCSI layer about the new transfer params */
 	memset(&neg, 0, sizeof (neg));
-#ifdef	CAM_NEW_TRAN_CODE
 	neg.protocol = PROTO_SCSI;
 	neg.protocol_version = SCSI_REV_2;
 	neg.transport = XPORT_SPI;
@@ -5181,15 +5047,6 @@ static void ncr_setwide (ncb_p np, nccb_p cp, u_char wide, u_char ack)
 	neg.xport_specific.spi.valid = CTS_SPI_VALID_SYNC_RATE
 		| CTS_SPI_VALID_SYNC_OFFSET
 		| CTS_SPI_VALID_BUS_WIDTH;
-#else
-	neg.bus_width = (scntl3 & EWS) ? MSG_EXT_WDTR_BUS_16_BIT
-		                       : MSG_EXT_WDTR_BUS_8_BIT;
-	neg.sync_period = 0;
-	neg.sync_offset = 0;
-	neg.valid = CCB_TRANS_BUS_WIDTH_VALID
-		  | CCB_TRANS_SYNC_RATE_VALID
-		  | CCB_TRANS_SYNC_OFFSET_VALID;
-#endif
 	xpt_setup_ccb(&neg.ccb_h, ccb->ccb_h.path, /*priority*/1);
 	xpt_async(AC_TRANSFER_NEG, ccb->ccb_h.path, &neg);	
 
