@@ -525,10 +525,8 @@ adw_action(struct cam_sim *sim, union ccb *ccb)
 		break;
 	case XPT_SET_TRAN_SETTINGS:
 	{
-#ifdef	CAM_NEW_TRAN_CODE
 		struct ccb_trans_settings_scsi *scsi;
 		struct ccb_trans_settings_spi *spi;
-#endif
 		struct	  ccb_trans_settings *cts;
 		u_int	  target_mask;
 		int	  s;
@@ -537,7 +535,6 @@ adw_action(struct cam_sim *sim, union ccb *ccb)
 		target_mask = 0x01 << ccb->ccb_h.target_id;
 
 		s = splcam();
-#ifdef	CAM_NEW_TRAN_CODE
 		scsi = &cts->proto_specific.scsi;
 		spi = &cts->xport_specific.spi;
 		if (cts->type == CTS_TYPE_CURRENT_SETTINGS) {
@@ -649,117 +646,6 @@ adw_action(struct cam_sim *sim, union ccb *ccb)
 				}
 			} 
 		}
-#else
-		if ((cts->flags & CCB_TRANS_CURRENT_SETTINGS) != 0) {
-			u_int sdtrdone;
-
-			sdtrdone = adw_lram_read_16(adw, ADW_MC_SDTR_DONE);
-			if ((cts->valid & CCB_TRANS_DISC_VALID) != 0) {
-				u_int discenb;
-
-				discenb =
-				    adw_lram_read_16(adw, ADW_MC_DISC_ENABLE);
-
-				if ((cts->flags & CCB_TRANS_DISC_ENB) != 0)
-					discenb |= target_mask;
-				else
-					discenb &= ~target_mask;
-
-				adw_lram_write_16(adw, ADW_MC_DISC_ENABLE,
-						  discenb);
-			}
-		
-			if ((cts->valid & CCB_TRANS_TQ_VALID) != 0) {
-
-				if ((cts->flags & CCB_TRANS_TAG_ENB) != 0)
-					adw->tagenb |= target_mask;
-				else
-					adw->tagenb &= ~target_mask;
-			}	
-
-			if ((cts->valid & CCB_TRANS_BUS_WIDTH_VALID) != 0) {
-				u_int wdtrenb_orig;
-				u_int wdtrenb;
-				u_int wdtrdone;
-
-				wdtrenb_orig =
-				    adw_lram_read_16(adw, ADW_MC_WDTR_ABLE);
-				wdtrenb = wdtrenb_orig;
-				wdtrdone = adw_lram_read_16(adw,
-							    ADW_MC_WDTR_DONE);
-				switch (cts->bus_width) {
-				case MSG_EXT_WDTR_BUS_32_BIT:
-				case MSG_EXT_WDTR_BUS_16_BIT:
-					wdtrenb |= target_mask;
-					break;
-				case MSG_EXT_WDTR_BUS_8_BIT:
-				default:
-					wdtrenb &= ~target_mask;
-					break;
-				}
-				if (wdtrenb != wdtrenb_orig) {
-					adw_lram_write_16(adw,
-							  ADW_MC_WDTR_ABLE,
-							  wdtrenb);
-					wdtrdone &= ~target_mask;
-					adw_lram_write_16(adw,
-							  ADW_MC_WDTR_DONE,
-							  wdtrdone);
-					/* Wide negotiation forces async */
-					sdtrdone &= ~target_mask;
-					adw_lram_write_16(adw,
-							  ADW_MC_SDTR_DONE,
-							  sdtrdone);
-				}
-			}
-
-			if (((cts->valid & CCB_TRANS_SYNC_RATE_VALID) != 0)
-			 || ((cts->valid & CCB_TRANS_SYNC_OFFSET_VALID) != 0)) {
-				u_int sdtr_orig;
-				u_int sdtr;
-				u_int sdtrable_orig;
-				u_int sdtrable;
-
-				sdtr = adw_get_chip_sdtr(adw,
-							 ccb->ccb_h.target_id);
-				sdtr_orig = sdtr;
-				sdtrable = adw_lram_read_16(adw,
-							    ADW_MC_SDTR_ABLE);
-				sdtrable_orig = sdtrable;
-
-				if ((cts->valid
-				   & CCB_TRANS_SYNC_RATE_VALID) != 0) {
-
-					sdtr =
-					    adw_find_sdtr(adw,
-							  cts->sync_period);
-				}
-					
-				if ((cts->valid
-				   & CCB_TRANS_SYNC_OFFSET_VALID) != 0) {
-					if (cts->sync_offset == 0)
-						sdtr = ADW_MC_SDTR_ASYNC;
-				}
-
-				if (sdtr == ADW_MC_SDTR_ASYNC)
-					sdtrable &= ~target_mask;
-				else
-					sdtrable |= target_mask;
-				if (sdtr != sdtr_orig
-				 || sdtrable != sdtrable_orig) {
-					adw_set_chip_sdtr(adw,
-							  ccb->ccb_h.target_id,
-							  sdtr);
-					sdtrdone &= ~target_mask;
-					adw_lram_write_16(adw, ADW_MC_SDTR_ABLE,
-							  sdtrable);
-					adw_lram_write_16(adw, ADW_MC_SDTR_DONE,
-							  sdtrdone);
-					
-				}
-			} 
-		}
-#endif
 		splx(s);
 		ccb->ccb_h.status = CAM_REQ_CMP;
 		xpt_done(ccb);
@@ -768,16 +654,13 @@ adw_action(struct cam_sim *sim, union ccb *ccb)
 	case XPT_GET_TRAN_SETTINGS:
 	/* Get default/user set transfer settings for the target */
 	{
-#ifdef	CAM_NEW_TRAN_CODE
 		struct ccb_trans_settings_scsi *scsi;
 		struct ccb_trans_settings_spi *spi;
-#endif
 		struct	ccb_trans_settings *cts;
 		u_int	target_mask;
  
 		cts = &ccb->cts;
 		target_mask = 0x01 << ccb->ccb_h.target_id;
-#ifdef	CAM_NEW_TRAN_CODE
 		cts->protocol = PROTO_SCSI;
 		cts->protocol_version = SCSI_REV_2;
 		cts->transport = XPORT_SPI;
@@ -845,72 +728,6 @@ adw_action(struct cam_sim *sim, union ccb *ccb)
 			   | CTS_SPI_VALID_BUS_WIDTH
 			   | CTS_SPI_VALID_DISC;
 		scsi->valid = CTS_SCSI_VALID_TQ;
-#else
-		if ((cts->flags & CCB_TRANS_USER_SETTINGS) != 0) {
-			u_int mc_sdtr;
-
-			cts->flags = 0;
-			if ((adw->user_discenb & target_mask) != 0)
-				cts->flags |= CCB_TRANS_DISC_ENB;
-
-			if ((adw->user_tagenb & target_mask) != 0)
-				cts->flags |= CCB_TRANS_TAG_ENB;
-
-			if ((adw->user_wdtr & target_mask) != 0)
-				cts->bus_width = MSG_EXT_WDTR_BUS_16_BIT;
-			else
-				cts->bus_width = MSG_EXT_WDTR_BUS_8_BIT;
-
-			mc_sdtr = adw_get_user_sdtr(adw, ccb->ccb_h.target_id);
-			cts->sync_period = adw_find_period(adw, mc_sdtr);
-			if (cts->sync_period != 0)
-				cts->sync_offset = 15; /* XXX ??? */
-			else
-				cts->sync_offset = 0;
-
-			cts->valid = CCB_TRANS_SYNC_RATE_VALID
-				   | CCB_TRANS_SYNC_OFFSET_VALID
-				   | CCB_TRANS_BUS_WIDTH_VALID
-				   | CCB_TRANS_DISC_VALID
-				   | CCB_TRANS_TQ_VALID;
-			ccb->ccb_h.status = CAM_REQ_CMP;
-		} else {
-			u_int targ_tinfo;
-
-			cts->flags = 0;
-			if ((adw_lram_read_16(adw, ADW_MC_DISC_ENABLE)
-			  & target_mask) != 0)
-				cts->flags |= CCB_TRANS_DISC_ENB;
-
-			if ((adw->tagenb & target_mask) != 0)
-				cts->flags |= CCB_TRANS_TAG_ENB;
-
-			targ_tinfo =
-			    adw_lram_read_16(adw,
-					     ADW_MC_DEVICE_HSHK_CFG_TABLE
-					     + (2 * ccb->ccb_h.target_id));
-
-			if ((targ_tinfo & ADW_HSHK_CFG_WIDE_XFR) != 0)
-				cts->bus_width = MSG_EXT_WDTR_BUS_16_BIT;
-			else
-				cts->bus_width = MSG_EXT_WDTR_BUS_8_BIT;
-
-			cts->sync_period =
-			    adw_hshk_cfg_period_factor(targ_tinfo);
-
-			cts->sync_offset = targ_tinfo & ADW_HSHK_CFG_OFFSET;
-			if (cts->sync_period == 0)
-				cts->sync_offset = 0;
-
-			if (cts->sync_offset == 0)
-				cts->sync_period = 0;
-		}
-		cts->valid = CCB_TRANS_SYNC_RATE_VALID
-			   | CCB_TRANS_SYNC_OFFSET_VALID
-			   | CCB_TRANS_BUS_WIDTH_VALID
-			   | CCB_TRANS_DISC_VALID
-			   | CCB_TRANS_TQ_VALID;
-#endif
 		ccb->ccb_h.status = CAM_REQ_CMP;
 		xpt_done(ccb);
 		break;
@@ -965,12 +782,10 @@ adw_action(struct cam_sim *sim, union ccb *ccb)
 		strncpy(cpi->hba_vid, "AdvanSys", HBA_IDLEN);
 		strncpy(cpi->dev_name, cam_sim_name(sim), DEV_IDLEN);
 		cpi->unit_number = cam_sim_unit(sim);
-#ifdef	CAM_NEW_TRAN_CODE
                 cpi->transport = XPORT_SPI;
                 cpi->transport_version = 2;
                 cpi->protocol = PROTO_SCSI;
                 cpi->protocol_version = SCSI_REV_2;
-#endif
 		cpi->ccb_h.status = CAM_REQ_CMP;
 		xpt_done(ccb);
 		break;

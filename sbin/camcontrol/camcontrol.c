@@ -849,8 +849,8 @@ scsiserial(struct cam_device *device, int retry_count, int timeout)
 static int
 scsixferrate(struct cam_device *device)
 {
-	u_int32_t freq;
-	u_int32_t speed;
+	u_int32_t freq = 0;
+	u_int32_t speed = 0;
 	union ccb *ccb;
 	u_int mb;
 	int retval = 0;
@@ -866,7 +866,7 @@ scsixferrate(struct cam_device *device)
 	      sizeof(struct ccb_trans_settings) - sizeof(struct ccb_hdr));
 
 	ccb->ccb_h.func_code = XPT_GET_TRAN_SETTINGS;
-	ccb->cts.flags = CCB_TRANS_CURRENT_SETTINGS;
+	ccb->cts.type = CTS_TYPE_CURRENT_SETTINGS;
 
 	if (((retval = cam_send_ccb(device, ccb)) < 0)
 	 || ((ccb->ccb_h.status & CAM_STATUS_MASK) != CAM_REQ_CMP)) {
@@ -887,10 +887,49 @@ scsixferrate(struct cam_device *device)
 
 	}
 
-	if (((ccb->cts.valid & CCB_TRANS_SYNC_OFFSET_VALID) != 0)
-	 && (ccb->cts.sync_offset != 0)) {
-		freq = scsi_calc_syncsrate(ccb->cts.sync_period);
-		speed = freq;
+	if (ccb->cts.transport == XPORT_SPI) {
+		struct ccb_trans_settings_spi *spi =
+		    &ccb->cts.xport_specific.spi;
+
+		if ((spi->valid & CTS_SPI_VALID_SYNC_RATE) != 0) {
+			freq = scsi_calc_syncsrate(spi->sync_period);
+			speed = freq;
+		}
+
+		fprintf(stdout, "%s%d: ", device->device_name,
+			device->dev_unit_num);
+
+		if ((spi->valid & CTS_SPI_VALID_BUS_WIDTH) != 0) {
+			speed *= (0x01 << spi->bus_width);
+		}
+
+		mb = speed / 1000;
+
+		if (mb > 0) 
+			fprintf(stdout, "%d.%03dMB/s transfers ",
+				mb, speed % 1000);
+		else
+			fprintf(stdout, "%dKB/s transfers ",
+				speed);
+
+		if (((spi->valid & CTS_SPI_VALID_SYNC_OFFSET) != 0)
+		 && (spi->sync_offset != 0))
+			fprintf(stdout, "(%d.%03dMHz, offset %d", freq / 1000,
+				freq % 1000, spi->sync_offset);
+
+		if (((spi->valid & CTS_SPI_VALID_BUS_WIDTH) != 0)
+		 && (spi->bus_width > 0)) {
+			if (((spi->valid & CTS_SPI_VALID_SYNC_OFFSET) != 0)
+			 && (spi->sync_offset != 0)) {
+				fprintf(stdout, ", ");
+			} else {
+				fprintf(stdout, " (");
+			}
+			fprintf(stdout, "%dbit)", 8 * (0x01 << spi->bus_width));
+		} else if (((spi->valid & CTS_SPI_VALID_SYNC_OFFSET) != 0)
+		 && (spi->sync_offset != 0)) {
+			fprintf(stdout, ")");
+		}
 	} else {
 		struct ccb_pathinq cpi;
 
@@ -901,46 +940,28 @@ scsixferrate(struct cam_device *device)
 
 		speed = cpi.base_transfer_speed;
 		freq = 0;
+
+		mb = speed / 1000;
+
+		if (mb > 0) 
+			fprintf(stdout, "%d.%03dMB/s transfers ",
+				mb, speed % 1000);
+		else
+			fprintf(stdout, "%dKB/s transfers ",
+				speed);
 	}
 
-	fprintf(stdout, "%s%d: ", device->device_name,
-		device->dev_unit_num);
-
-	if ((ccb->cts.valid & CCB_TRANS_BUS_WIDTH_VALID) != 0)
-		speed *= (0x01 << device->bus_width);
-
-	mb = speed / 1000;
-
-	if (mb > 0) 
-		fprintf(stdout, "%d.%03dMB/s transfers ",
-			mb, speed % 1000);
-	else
-		fprintf(stdout, "%dKB/s transfers ",
-			speed);
-
-	if (((ccb->cts.valid & CCB_TRANS_SYNC_OFFSET_VALID) != 0)
-	 && (ccb->cts.sync_offset != 0))
-                fprintf(stdout, "(%d.%03dMHz, offset %d", freq / 1000,
-			freq % 1000, ccb->cts.sync_offset);
-
-	if (((ccb->cts.valid & CCB_TRANS_BUS_WIDTH_VALID) != 0)
-	 && (ccb->cts.bus_width > 0)) {
-		if (((ccb->cts.valid & CCB_TRANS_SYNC_OFFSET_VALID) != 0)
-		 && (ccb->cts.sync_offset != 0)) {
-			fprintf(stdout, ", ");
-		} else {
-			fprintf(stdout, " (");
+	if (ccb->cts.protocol == PROTO_SCSI) {
+		struct ccb_trans_settings_scsi *scsi =
+		    &ccb->cts.proto_specific.scsi;
+		if (scsi->valid & CTS_SCSI_VALID_TQ) {
+			if (scsi->flags & CTS_SCSI_FLAGS_TAG_ENB)
+				fprintf(stdout, ", Command Queueing Enabled");
+			else
+				fprintf(stdout, ", Command Queueing Supported");
 		}
-		fprintf(stdout, "%dbit)", 8 * (0x01 << ccb->cts.bus_width));
-	} else if (((ccb->cts.valid & CCB_TRANS_SYNC_OFFSET_VALID) != 0)
-		&& (ccb->cts.sync_offset != 0)) {
-		fprintf(stdout, ")");
 	}
 
-	if (((ccb->cts.valid & CCB_TRANS_TQ_VALID) != 0)
-	 && (ccb->cts.flags & CCB_TRANS_TAG_ENB))
-                fprintf(stdout, ", Tagged Queueing Enabled");
- 
         fprintf(stdout, "\n");
 
 xferrate_bailout:
@@ -2259,36 +2280,51 @@ cts_print(struct cam_device *device, struct ccb_trans_settings *cts)
 
 	cam_path_string(device, pathstr, sizeof(pathstr));
 
-	if ((cts->valid & CCB_TRANS_SYNC_RATE_VALID) != 0) {
+	if (cts->transport == XPORT_SPI) {
+		struct ccb_trans_settings_spi *spi =
+		    &cts->xport_specific.spi;
 
-		fprintf(stdout, "%ssync parameter: %d\n", pathstr,
-			cts->sync_period);
+		if ((spi->valid & CTS_SPI_VALID_SYNC_RATE) != 0) {
 
-		if (cts->sync_offset != 0) {
-			u_int freq;
+			fprintf(stdout, "%ssync parameter: %d\n", pathstr,
+				spi->sync_period);
 
-			freq = scsi_calc_syncsrate(cts->sync_period);
-			fprintf(stdout, "%sfrequency: %d.%03dMHz\n", pathstr,
-				freq / 1000, freq % 1000);
+			if (spi->sync_offset != 0) {
+				u_int freq;
+
+				freq = scsi_calc_syncsrate(spi->sync_period);
+				fprintf(stdout, "%sfrequency: %d.%03dMHz\n",
+					pathstr, freq / 1000, freq % 1000);
+			}
+		}
+
+		if (spi->valid & CTS_SPI_VALID_SYNC_OFFSET) {
+			fprintf(stdout, "%soffset: %d\n", pathstr,
+			    spi->sync_offset);
+		}
+
+		if (spi->valid & CTS_SPI_VALID_BUS_WIDTH) {
+			fprintf(stdout, "%sbus width: %d bits\n", pathstr,
+				(0x01 << spi->bus_width) * 8);
+		}
+
+		if (spi->valid & CTS_SPI_VALID_DISC) {
+			fprintf(stdout, "%sdisconnection is %s\n", pathstr,
+				(spi->flags & CTS_SPI_FLAGS_DISC_ENB) ?
+				"enabled" : "disabled");
 		}
 	}
 
-	if (cts->valid & CCB_TRANS_SYNC_OFFSET_VALID)
-		fprintf(stdout, "%soffset: %d\n", pathstr, cts->sync_offset);
+	if (cts->protocol == PROTO_SCSI) {
+		struct ccb_trans_settings_scsi *scsi=
+		    &cts->proto_specific.scsi;
 
-	if (cts->valid & CCB_TRANS_BUS_WIDTH_VALID)
-		fprintf(stdout, "%sbus width: %d bits\n", pathstr,
-			(0x01 << cts->bus_width) * 8);
-
-	if (cts->valid & CCB_TRANS_DISC_VALID)
-		fprintf(stdout, "%sdisconnection is %s\n", pathstr,
-			(cts->flags & CCB_TRANS_DISC_ENB) ? "enabled" :
-			"disabled");
-
-	if (cts->valid & CCB_TRANS_TQ_VALID)
-		fprintf(stdout, "%stagged queueing is %s\n", pathstr,
-			(cts->flags & CCB_TRANS_TAG_ENB) ? "enabled" :
-			"disabled");
+		if (scsi->valid & CTS_SCSI_VALID_TQ) {
+			fprintf(stdout, "%stagged queueing is %s\n", pathstr,
+				(scsi->flags & CTS_SCSI_FLAGS_TAG_ENB) ?
+				"enabled" : "disabled");
+		}
+	}
 
 }
 
@@ -2500,9 +2536,9 @@ get_print_cts(struct cam_device *device, int user_settings, int quiet,
 	ccb->ccb_h.func_code = XPT_GET_TRAN_SETTINGS;
 
 	if (user_settings == 0)
-		ccb->cts.flags = CCB_TRANS_CURRENT_SETTINGS;
+		ccb->cts.type = CTS_TYPE_CURRENT_SETTINGS;
 	else
-		ccb->cts.flags = CCB_TRANS_USER_SETTINGS;
+		ccb->cts.type = CTS_TYPE_USER_SETTINGS;
 
 	if (cam_send_ccb(device, ccb) < 0) {
 		perror("error sending XPT_GET_TRAN_SETTINGS CCB");
@@ -2676,16 +2712,27 @@ ratecontrol(struct cam_device *device, int retry_count, int timeout,
 		cpi_print(&cpi);
 
 	if (change_settings) {
-		if (disc_enable != -1) {
-			ccb->cts.valid |= CCB_TRANS_DISC_VALID;
-			if (disc_enable == 0)
-				ccb->cts.flags &= ~CCB_TRANS_DISC_ENB;
-			else
-				ccb->cts.flags |= CCB_TRANS_DISC_ENB;
-		} else
-			ccb->cts.valid &= ~CCB_TRANS_DISC_VALID;
+		int didsettings = 0;
+		struct ccb_trans_settings_spi *spi = NULL;
+		struct ccb_trans_settings_scsi *scsi = NULL;
 
-		if (tag_enable != -1) {
+		if (ccb->cts.transport == XPORT_SPI) {
+			spi = &ccb->cts.xport_specific.spi;
+			spi->valid = 0;
+		}
+		if (ccb->cts.protocol == PROTO_SCSI) {
+			scsi = &ccb->cts.proto_specific.scsi;
+			scsi->valid = 0;
+		}
+		if (spi && disc_enable != -1) {
+			spi->valid |= CTS_SPI_VALID_DISC;
+			if (disc_enable == 0)
+				spi->flags &= ~CTS_SPI_FLAGS_DISC_ENB;
+			else
+				spi->flags |= CTS_SPI_FLAGS_DISC_ENB;
+		}
+
+		if (scsi && tag_enable != -1) {
 			if ((cpi.hba_inquiry & PI_TAG_ABLE) == 0) {
 				warnx("HBA does not support tagged queueing, "
 				      "so you cannot modify tag settings");
@@ -2693,16 +2740,16 @@ ratecontrol(struct cam_device *device, int retry_count, int timeout,
 				goto ratecontrol_bailout;
 			}
 
-			ccb->cts.valid |= CCB_TRANS_TQ_VALID;
+			scsi->valid |= CTS_SCSI_VALID_TQ;
 
 			if (tag_enable == 0)
-				ccb->cts.flags &= ~CCB_TRANS_TAG_ENB;
+				scsi->flags &= ~CTS_SCSI_FLAGS_TAG_ENB;
 			else
-				ccb->cts.flags |= CCB_TRANS_TAG_ENB;
-		} else
-			ccb->cts.valid &= ~CCB_TRANS_TQ_VALID;
+				scsi->flags |= CTS_SCSI_FLAGS_TAG_ENB;
+			didsettings++;
+		}
 
-		if (offset != -1) {
+		if (spi && offset != -1) {
 			if ((cpi.hba_inquiry & PI_SDTR_ABLE) == 0) {
 				warnx("HBA at %s%d is not cable of changing "
 				      "offset", cpi.dev_name,
@@ -2710,12 +2757,12 @@ ratecontrol(struct cam_device *device, int retry_count, int timeout,
 				retval = 1;
 				goto ratecontrol_bailout;
 			}
-			ccb->cts.valid |= CCB_TRANS_SYNC_OFFSET_VALID;
-			ccb->cts.sync_offset = offset;
-		} else
-			ccb->cts.valid &= ~CCB_TRANS_SYNC_OFFSET_VALID;
+			spi->valid |= CTS_SPI_VALID_SYNC_OFFSET;
+			spi->sync_offset = offset;
+			didsettings++;
+		}
 
-		if (syncrate != -1) {
+		if (spi && syncrate != -1) {
 			int prelim_sync_period;
 			u_int freq;
 
@@ -2727,7 +2774,7 @@ ratecontrol(struct cam_device *device, int retry_count, int timeout,
 				goto ratecontrol_bailout;
 			}
 
-			ccb->cts.valid |= CCB_TRANS_SYNC_RATE_VALID;
+			spi->valid |= CTS_SPI_VALID_SYNC_RATE;
 
 			/*
 			 * The sync rate the user gives us is in MHz.
@@ -2745,12 +2792,12 @@ ratecontrol(struct cam_device *device, int retry_count, int timeout,
 			else
 				prelim_sync_period = 10000000 / syncrate;
 
-			ccb->cts.sync_period =
+			spi->sync_period =
 				scsi_calc_syncparam(prelim_sync_period);
 
-			freq = scsi_calc_syncsrate(ccb->cts.sync_period);
-		} else
-			ccb->cts.valid &= ~CCB_TRANS_SYNC_RATE_VALID;
+			freq = scsi_calc_syncsrate(spi->sync_period);
+			didsettings++;
+		}
 
 		/*
 		 * The bus_width argument goes like this:
@@ -2761,7 +2808,7 @@ ratecontrol(struct cam_device *device, int retry_count, int timeout,
 		 * command line right by 4, you should get the correct
 		 * number.
 		 */
-		if (bus_width != -1) {
+		if (spi && bus_width != -1) {
 
 			/*
 			 * We might as well validate things here with a
@@ -2787,11 +2834,14 @@ ratecontrol(struct cam_device *device, int retry_count, int timeout,
 				goto ratecontrol_bailout;
 			}
 
-			ccb->cts.valid |= CCB_TRANS_BUS_WIDTH_VALID;
-			ccb->cts.bus_width = bus_width >> 4;
-		} else
-			ccb->cts.valid &= ~CCB_TRANS_BUS_WIDTH_VALID;
+			spi->valid |= CTS_SPI_VALID_BUS_WIDTH;
+			spi->bus_width = bus_width >> 4;
+			didsettings++;
+		}
 
+		if  (didsettings == 0) {
+			goto ratecontrol_bailout;
+		}
 		ccb->ccb_h.func_code = XPT_SET_TRAN_SETTINGS;
 
 		if (cam_send_ccb(device, ccb) < 0) {

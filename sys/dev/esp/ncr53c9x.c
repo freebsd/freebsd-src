@@ -928,12 +928,10 @@ ncr53c9x_action(struct cam_sim *sim, union ccb *ccb)
 		strncpy(cpi->hba_vid, "Sun", HBA_IDLEN);
 		strncpy(cpi->dev_name, cam_sim_name(sim), DEV_IDLEN);
 		cpi->unit_number = cam_sim_unit(sim);
-#ifdef	CAM_NEW_TRAN_CODE
 		cpi->transport = XPORT_SPI;
 		cpi->transport_version = 2;
 		cpi->protocol = PROTO_SCSI;
 		cpi->protocol_version = SCSI_REV_2;
-#endif
 		ccb->ccb_h.status = CAM_REQ_CMP;
 		mtx_unlock(&sc->sc_lock);
 		xpt_done(ccb);
@@ -943,7 +941,6 @@ ncr53c9x_action(struct cam_sim *sim, union ccb *ccb)
 	{
 		struct ccb_trans_settings *cts = &ccb->cts;
 		struct ncr53c9x_tinfo *ti = &sc->sc_tinfo[ccb->ccb_h.target_id];
-#ifdef	CAM_NEW_TRAN_CODE
 		struct ccb_trans_settings_scsi *scsi =
 		    &cts->proto_specific.scsi;
 		struct ccb_trans_settings_spi *spi =
@@ -978,29 +975,6 @@ ncr53c9x_action(struct cam_sim *sim, union ccb *ccb)
 		    CTS_SPI_VALID_SYNC_OFFSET |
 		    CTS_SPI_VALID_DISC;
 		scsi->valid = CTS_SCSI_VALID_TQ;
-#else
-		if ((cts->flags & CCB_TRANS_CURRENT_SETTINGS) != 0) {
-			cts->sync_period = ti->period;
-			cts->sync_offset = ti->offset;
-			cts->bus_width = ti->width;
-			if ((ti->flags & T_TAG) != 0)
-				cts->flags |=
-				    (CCB_TRANS_DISC_ENB | CCB_TRANS_TAG_ENB);
-			else
-				cts->flags &=
-				    ~(CCB_TRANS_DISC_ENB | CCB_TRANS_TAG_ENB);
-		} else {
-			cts->sync_period = sc->sc_maxsync;
-			cts->sync_offset = sc->sc_maxoffset;
-			cts->bus_width = sc->sc_maxwidth;
-			cts->flags |= (CCB_TRANS_DISC_ENB | CCB_TRANS_TAG_ENB);
-		}
-		cts->valid = CCB_TRANS_BUS_WIDTH_VALID |
-			     CCB_TRANS_SYNC_RATE_VALID |
-			     CCB_TRANS_SYNC_OFFSET_VALID |
-			     CCB_TRANS_DISC_VALID |
-			     CCB_TRANS_TQ_VALID;
-#endif
 		ccb->ccb_h.status = CAM_REQ_CMP;
 		mtx_unlock(&sc->sc_lock);
 		xpt_done(ccb);
@@ -1081,7 +1055,6 @@ ncr53c9x_action(struct cam_sim *sim, union ccb *ccb)
 		struct ccb_trans_settings *cts = &ccb->cts;
 		int target = ccb->ccb_h.target_id;
 		struct ncr53c9x_tinfo *ti = &sc->sc_tinfo[target];
-#ifdef	CAM_NEW_TRAN_CODE
 		struct ccb_trans_settings_scsi *scsi =
 		    &cts->proto_specific.scsi;
 		struct ccb_trans_settings_spi *spi =
@@ -1125,46 +1098,6 @@ ncr53c9x_action(struct cam_sim *sim, union ccb *ccb)
 			ti->flags |= T_NEGOTIATE;
 			ti->offset = spi->sync_offset;
 		}
-#else
-		if ((cts->valid & CCB_TRANS_TQ_VALID) != 0) {
-			if ((sc->sc_cfflags & (1<<((target & 7) + 16))) == 0 &&
-			    (cts->flags & CCB_TRANS_TAG_ENB)) {
-				NCR_MISC(("%s: target %d: tagged queuing\n",
-				    device_get_nameunit(sc->sc_dev), target));
-				ti->flags |= T_TAG;
-			} else
-				ti->flags &= ~T_TAG;
-		}
-
-		if ((cts->valid & CCB_TRANS_BUS_WIDTH_VALID) != 0) {
-			if (cts->bus_width != 0) {
-				NCR_MISC(("%s: target %d: wide negotiation\n",
-				    device_get_nameunit(sc->sc_dev), target));
-				if (sc->sc_rev == NCR_VARIANT_FAS366) {
-					ti->flags |= T_WIDE;
-					ti->width = 1;
-				}
-			} else {
-				ti->flags &= ~T_WIDE;
-				ti->width = 0;
-			}
-			ti->flags |= T_NEGOTIATE;
-		}
-
-		if ((cts->valid & CCB_TRANS_SYNC_RATE_VALID) != 0) {
-			NCR_MISC(("%s: target %d: sync period negotiation\n",
-			    device_get_nameunit(sc->sc_dev), target));
-			ti->flags |= T_NEGOTIATE;
-			ti->period = cts->sync_period;
-		}
-
-		if ((cts->valid & CCB_TRANS_SYNC_OFFSET_VALID) != 0) {
-			NCR_MISC(("%s: target %d: sync offset negotiation\n",
-			    device_get_nameunit(sc->sc_dev), target));
-			ti->flags |= T_NEGOTIATE;
-			ti->offset = cts->sync_offset;
-		}
-#endif
 
 		mtx_unlock(&sc->sc_lock);
 		ccb->ccb_h.status = CAM_REQ_CMP;

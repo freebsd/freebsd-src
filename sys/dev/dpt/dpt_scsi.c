@@ -1005,7 +1005,6 @@ dpt_action(struct cam_sim *sim, union ccb *ccb)
 	/* Get default/user set transfer settings for the target */
 	{
 		struct	ccb_trans_settings *cts = &ccb->cts;
-#ifdef	CAM_NEW_TRAN_CODE
 		struct ccb_trans_settings_scsi *scsi =
 		    &cts->proto_specific.scsi;
 		struct ccb_trans_settings_spi *spi =
@@ -1036,27 +1035,6 @@ dpt_action(struct cam_sim *sim, union ccb *ccb)
 		} else {
 			ccb->ccb_h.status = CAM_FUNC_NOTAVAIL;
 		}
-#else
-		if ((cts->flags & CCB_TRANS_USER_SETTINGS) != 0) { 
-			cts->flags = CCB_TRANS_DISC_ENB|CCB_TRANS_TAG_ENB;
-			cts->bus_width = (dpt->max_id > 7)
-				       ? MSG_EXT_WDTR_BUS_8_BIT
-				       : MSG_EXT_WDTR_BUS_16_BIT;
-			cts->sync_period = 25; /* 10MHz */
-
-			if (cts->sync_period != 0)
-				cts->sync_offset = 15;
-
-			cts->valid = CCB_TRANS_SYNC_RATE_VALID
-				   | CCB_TRANS_SYNC_OFFSET_VALID
-				   | CCB_TRANS_BUS_WIDTH_VALID
-				   | CCB_TRANS_DISC_VALID
-				   | CCB_TRANS_TQ_VALID;
-			ccb->ccb_h.status = CAM_REQ_CMP;
-		} else {
-			ccb->ccb_h.status = CAM_FUNC_NOTAVAIL;
-		}
-#endif
 		xpt_done(ccb);
 		break;
 	}
@@ -1102,12 +1080,10 @@ dpt_action(struct cam_sim *sim, union ccb *ccb)
 		strncpy(cpi->hba_vid, "DPT", HBA_IDLEN);
 		strncpy(cpi->dev_name, cam_sim_name(sim), DEV_IDLEN);
 		cpi->unit_number = cam_sim_unit(sim);
-#ifdef	CAM_NEW_TRAN_CODE
                 cpi->transport = XPORT_SPI;
                 cpi->transport_version = 2;
                 cpi->protocol = PROTO_SCSI;
                 cpi->protocol_version = SCSI_REV_2;
-#endif
 		cpi->ccb_h.status = CAM_REQ_CMP;
 		xpt_done(ccb);
 		break;
