@@ -32,7 +32,7 @@
 .\"     @(#)getpid.2	8.1 (Berkeley) 6/4/93
 .\" $FreeBSD$
 .\"
-.Dd June 4, 1993
+.Dd November 2, 2006
 .Dt GETPID 2
 .Os
 .Sh NAME
@@ -75,7 +75,12 @@ and
 system calls are always successful, and no return value is reserved to
 indicate an error.
 .Sh SEE ALSO
-.Xr gethostid 3
+.Xr fork 2 ,
+.Xr getpgrp 2 ,
+.Xr kill 2 ,
+.Xr setpgid 2 ,
+.Xr setsid 2 ,
+.Xr exec 3
 .Sh STANDARDS
 The
 .Fn getpid
