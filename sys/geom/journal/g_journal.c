@@ -600,11 +600,9 @@ g_journal_metadata_read(struct g_consumer *cp, struct g_journal_metadata *md)
 	    &error);
 	g_topology_lock();
 	g_access(cp, -1, 0, 0);
-	if (error != 0) {
+	if (buf == NULL) {
 		GJ_DEBUG(1, "Cannot read metadata from %s (error=%d).",
 		    cp->provider->name, error);
-		if (buf != NULL)
-			g_free(buf);
 		return (error);
 	}
 
@@ -1622,7 +1620,7 @@ g_journal_read(struct g_journal_softc *sc, struct bio *pbp, off_t ostart,
 	}
 	if (bp != NULL) {
 		if (bp->bio_data == NULL) {
-			nbp = g_clone_bio(pbp);
+			nbp = g_duplicate_bio(pbp);
 			nbp->bio_cflags = GJ_BIO_READ;
 			nbp->bio_data =
 			    pbp->bio_data + cstart - pbp->bio_offset;
@@ -1646,7 +1644,7 @@ g_journal_read(struct g_journal_softc *sc, struct bio *pbp, off_t ostart,
 		 * Its time for asking data provider.
 		 */
 		GJ_DEBUG(3, "READ(data): (%jd, %jd)", ostart, oend);
-		nbp = g_clone_bio(pbp);
+		nbp = g_duplicate_bio(pbp);
 		nbp->bio_cflags = GJ_BIO_READ;
 		nbp->bio_data = pbp->bio_data + ostart - pbp->bio_offset;
 		nbp->bio_offset = ostart;
