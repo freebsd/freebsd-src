@@ -94,61 +94,61 @@ SYSCTL_INT(_kern_ipc, OID_AUTO, m_defragrandomfailures, CTLFLAG_RW,
  * chain.
  */
 struct mbuf *
-m_getm(struct mbuf *m, int len, int how, short type)
+m_getm2(struct mbuf *m, int len, int how, short type, int flags)
 {
-	struct mbuf *mb, *top, *cur, *mtail;
-	int num, rem;
-	int i;
+	struct mbuf *mb, *nm = NULL, *mtail = NULL;
 
-	KASSERT(len >= 0, ("m_getm(): len is < 0"));
+	KASSERT(len >= 0, ("%s: len is < 0", __func__));
 
-	/* If m != NULL, we will append to the end of that chain. */
-	if (m != NULL)
-		for (mtail = m; mtail->m_next != NULL; mtail = mtail->m_next);
-	else
-		mtail = NULL;
+	/* Validate flags. */
+	flags &= (M_PKTHDR | M_EOR);
 
-	/*
-	 * Calculate how many mbufs+clusters ("packets") we need and how much
-	 * leftover there is after that and allocate the first mbuf+cluster
-	 * if required.
-	 */
-	num = len / MCLBYTES;
-	rem = len % MCLBYTES;
-	top = cur = NULL;
-	if (num > 0) {
-		if ((top = cur = m_getcl(how, type, 0)) == NULL)
-			goto failed;
-		top->m_len = 0;
-	}
-	num--;
+	/* Packet header mbuf must be first in chain. */
+	if ((flags & M_PKTHDR) && m != NULL)
+		flags &= ~M_PKTHDR;
 
-	for (i = 0; i < num; i++) {
-		mb = m_getcl(how, type, 0);
-		if (mb == NULL)
-			goto failed;
-		mb->m_len = 0;
-		cur = (cur->m_next = mb);
-	}
-	if (rem > 0) {
-		mb = (rem >= MINCLSIZE) ?
-		    m_getcl(how, type, 0) : m_get(how, type);
-		if (mb == NULL)
-			goto failed;
-		mb->m_len = 0;
-		if (cur == NULL)
-			top = mb;
+	/* Loop and append maximum sized mbufs to the chain tail. */
+	while (len > 0) {
+		if (len > MCLBYTES)
+			mb = m_getjcl(how, type, (flags & M_PKTHDR),
+			    MJUMPAGESIZE);
+		else if (len >= MINCLSIZE)
+			mb = m_getcl(how, type, (flags & M_PKTHDR));
+		else if (flags & M_PKTHDR)
+			mb = m_gethdr(how, type);
 		else
-			cur->m_next = mb;
-	}
+			mb = m_get(how, type);
 
-	if (mtail != NULL)
-		mtail->m_next = top;
-	return top;
-failed:
-	if (top != NULL)
-		m_freem(top);
-	return NULL;
+		/* Fail the whole operation if one mbuf can't be allocated. */
+		if (mb == NULL) {
+			if (nm != NULL)
+				m_freem(nm);
+			return (NULL);
+		}
+
+		/* Book keeping. */
+		len -= (mb->m_flags & M_EXT) ? mb->m_ext.ext_size :
+			((mb->m_flags & M_PKTHDR) ? MHLEN : MLEN);
+		if (mtail != NULL)
+			mtail->m_next = mb;
+		else
+			nm = mb;
+		mtail = mb;
+		flags &= ~M_PKTHDR;	/* Only valid on the first mbuf. */
+	}
+	if (flags & M_EOR)
+		mtail->m_flags |= M_EOR;  /* Only valid on the last mbuf. */
+
+	/* If mbuf was supplied, append new chain to the end of it. */
+	if (m != NULL) {
+		for (mtail = m; mtail->m_next != NULL; mtail = mtail->m_next)
+			;
+		mtail->m_next = nm;
+		mtail->m_flags &= ~M_EOR;
+	} else
+		m = nm;
+
+	return (m);
 }
 
 /*
@@ -1610,55 +1610,58 @@ nospace:
 
 #endif
 
+/*
+ * Copy the contents of uio into a properly sized mbuf chain.
+ */
 struct mbuf *
-m_uiotombuf(struct uio *uio, int how, int len, int align)
+m_uiotombuf(struct uio *uio, int how, int len, int align, int flags)
 {
-	struct mbuf *m_new = NULL, *m_final = NULL;
-	int progress = 0, error = 0, length, total;
+	struct mbuf *m, *mb;
+	int error, length, total;
+	int progress = 0;
 
+	/*
+	 * len can be zero or an arbitrary large value bound by
+	 * the total data supplied by the uio.
+	 */
 	if (len > 0)
 		total = min(uio->uio_resid, len);
 	else
 		total = uio->uio_resid;
+
+	/*
+	 * The smallest unit returned by m_getm2() is a single mbuf
+	 * with pkthdr.  We can't align past it.  Align align itself.
+	 */
+	if (align)
+		align &= ~(sizeof(long) - 1);
 	if (align >= MHLEN)
-		goto nospace;
-	if (total + align > MHLEN)
-		m_final = m_getcl(how, MT_DATA, M_PKTHDR);
-	else
-		m_final = m_gethdr(how, MT_DATA);
-	if (m_final == NULL)
-		goto nospace;
-	m_final->m_data += align;
-	m_new = m_final;
-	while (progress < total) {
-		length = total - progress;
-		if (length > MCLBYTES)
-			length = MCLBYTES;
-		if (m_new == NULL) {
-			if (length > MLEN)
-				m_new = m_getcl(how, MT_DATA, 0);
-			else
-				m_new = m_get(how, MT_DATA);
-			if (m_new == NULL)
-				goto nospace;
+		return (NULL);
+
+	/* Give us all or nothing. */
+	m = m_getm2(NULL, total + align, how, MT_DATA, flags);
+	if (m == NULL)
+		return (NULL);
+	m->m_data += align;
+
+	/* Fill all mbufs with uio data and update header information. */
+	for (mb = m; mb != NULL; mb = mb->m_next) {
+		length = min(M_TRAILINGSPACE(mb), total - progress);
+
+		error = uiomove(mtod(mb, void *), length, uio);
+		if (error) {
+			m_freem(m);
+			return (NULL);
 		}
-		error = uiomove(mtod(m_new, void *), length, uio);
-		if (error)
-			goto nospace;
+
+		mb->m_len = length;
 		progress += length;
-		m_new->m_len = length;
-		if (m_new != m_final)
-			m_cat(m_final, m_new);
-		m_new = NULL;
+		if (flags & M_PKTHDR)
+			m->m_pkthdr.len += length;
 	}
-	m_fixhdr(m_final);
-	return (m_final);
-nospace:
-	if (m_new)
-		m_free(m_new);
-	if (m_final)
-		m_freem(m_final);
-	return (NULL);
+	KASSERT(progress == total, ("%s: progress != total", __func__));
+
+	return (m);
 }
 
 /*
