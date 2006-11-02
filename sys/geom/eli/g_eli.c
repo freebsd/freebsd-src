@@ -642,7 +642,7 @@ g_eli_create(struct gctl_req *req, struct g_class *mp, struct g_provider *bpp,
 	for (i = 0; i < threads; i++) {
 		if (g_eli_cpu_is_disabled(i)) {
 			G_ELI_DEBUG(1, "%s: CPU %u disabled, skipping.",
-			    bpp->name, threads);
+			    bpp->name, i);
 			continue;
 		}
 		wr = malloc(sizeof(*wr), M_ELI, M_WAITOK | M_ZERO);
