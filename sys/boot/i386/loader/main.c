@@ -201,11 +201,11 @@ extract_currdev(void)
         if ((kargs->bootflags & KARGS_FLAGS_CD) != 0) {
 	    /* we are booting from a CD with cdboot */
 	    new_currdev.d_dev = &bioscd;
-	    new_currdev.d_kind.bioscd.unit = bc_bios2unit(initial_bootdev);
+	    new_currdev.d_unit = bc_bios2unit(initial_bootdev);
 	} else if ((kargs->bootflags & KARGS_FLAGS_PXE) != 0) {
 	    /* we are booting from pxeldr */
 	    new_currdev.d_dev = &pxedisk;
-	    new_currdev.d_kind.netif.unit = 0;
+	    new_currdev.d_unit = 0;
 	} else {
 	    /* we don't know what our boot device is */
 	    new_currdev.d_kind.biosdisk.slice = -1;
@@ -240,10 +240,10 @@ extract_currdev(void)
      * which one we booted off of, just use disk0: as a reasonable default.
      */
     if ((new_currdev.d_type == biosdisk.dv_type) &&
-	((new_currdev.d_kind.biosdisk.unit = bd_bios2unit(biosdev)) == -1)) {
+	((new_currdev.d_unit = bd_bios2unit(biosdev)) == -1)) {
 	printf("Can't work out which disk we are booting from.\n"
 	       "Guessed BIOS device 0x%x not found by probes, defaulting to disk0:\n", biosdev);
-	new_currdev.d_kind.biosdisk.unit = 0;
+	new_currdev.d_unit = 0;
     }
     env_setenv("currdev", EV_VOLATILE, i386_fmtdev(&new_currdev),
 	       i386_setcurrdev, env_nounset);

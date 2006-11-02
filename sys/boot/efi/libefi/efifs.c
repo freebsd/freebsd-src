@@ -365,7 +365,7 @@ efifs_dev_open(struct open_file *f, ...)
 	dev = va_arg(args, struct efi_devdesc*);
 	va_end(args);
 
-	unit = dev->d_kind.efidisk.unit;
+	unit = dev->d_unit;
 	if (unit < 0 || unit >= fs_handle_count) {
 		printf("attempt to open nonexistent EFI filesystem\n");
 		return(ENXIO);
