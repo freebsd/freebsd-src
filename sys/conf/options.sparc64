@@ -18,3 +18,5 @@ ATKBD_DFLT_KEYMAP	opt_atkbd.h
 PSM_DEBUG		opt_psm.h
 PSM_HOOKRESUME		opt_psm.h
 PSM_RESETAFTERSUSPEND	opt_psm.h
+SUNKBD_DFLT_KEYMAP	opt_sunkbd.h
+SUNKBD_EMULATE_ATKBD	opt_sunkbd.h
