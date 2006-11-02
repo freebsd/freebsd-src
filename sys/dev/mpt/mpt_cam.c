@@ -3021,12 +3021,25 @@ mpt_action(struct cam_sim *sim, union ccb *ccb)
 			    DP_WIDE : DP_NARROW;
 		}
 
-		if ((spi->valid & CTS_SPI_VALID_SYNC_OFFSET) &&
-		    (spi->valid & CTS_SPI_VALID_SYNC_RATE) &&
-		    (spi->sync_period && spi->sync_offset)) {
+		if (spi->valid & CTS_SPI_VALID_SYNC_OFFSET) {
+			dval |= DP_SYNC;
+			offset = spi->sync_offset;
+		} else {
+			PTR_CONFIG_PAGE_SCSI_DEVICE_1 ptr =
+			    &mpt->mpt_dev_page1[tgt];
+			offset = ptr->RequestedParameters;
+			offset &= MPI_SCSIDEVPAGE1_RP_MAX_SYNC_OFFSET_MASK;
+	    		offset >>= MPI_SCSIDEVPAGE1_RP_SHIFT_MAX_SYNC_OFFSET;
+		}
+		if (spi->valid & CTS_SPI_VALID_SYNC_RATE) {
 			dval |= DP_SYNC;
 			period = spi->sync_period;
-			offset = spi->sync_offset;
+		} else {
+			PTR_CONFIG_PAGE_SCSI_DEVICE_1 ptr =
+			    &mpt->mpt_dev_page1[tgt];
+			period = ptr->RequestedParameters;
+			period &= MPI_SCSIDEVPAGE1_RP_MIN_SYNC_PERIOD_MASK;
+	    		period >>= MPI_SCSIDEVPAGE1_RP_SHIFT_MIN_SYNC_PERIOD;
 		}
 		CAMLOCK_2_MPTLOCK(mpt);
 		if (dval & DP_DISC_ENABLE) {
@@ -3045,6 +3058,12 @@ mpt_action(struct cam_sim *sim, union ccb *ccb)
 		if (dval & DP_SYNC) {
 			mpt_setsync(mpt, tgt, period, offset);
 		}
+		if (dval == 0) {
+			MPTLOCK_2_CAMLOCK(mpt);
+			mpt_set_ccb_status(ccb, CAM_REQ_CMP);
+			break;
+		}
+			
 		mpt_lprt(mpt, MPT_PRT_NEGOTIATION,
 		    "Set Settings[%d]: 0x%x period 0x%x offset %d\n", tgt,
 		    dval, period , offset);
@@ -3373,7 +3392,13 @@ mpt_setsync(struct mpt_softc *mpt, int tgt, int period, int offset)
 	ptr->RequestedParameters &= ~MPI_SCSIDEVPAGE1_RP_DT;
 	ptr->RequestedParameters &= ~MPI_SCSIDEVPAGE1_RP_QAS;
 	ptr->RequestedParameters &= ~MPI_SCSIDEVPAGE1_RP_IU;
-	ptr->RequestedParameters |= (period << 8) | (offset << 16);
+	if (period == 0) {
+		return;
+	}
+	ptr->RequestedParameters |=
+	    period << MPI_SCSIDEVPAGE1_RP_SHIFT_MIN_SYNC_PERIOD;
+	ptr->RequestedParameters |=
+	    offset << MPI_SCSIDEVPAGE1_RP_SHIFT_MAX_SYNC_OFFSET;
 	if (period < 0xa) {
 		ptr->RequestedParameters |= MPI_SCSIDEVPAGE1_RP_DT;
 	}
@@ -4513,7 +4538,12 @@ mpt_scsi_tgt_atio(struct mpt_softc *mpt, request_t *req, uint32_t reply_desc)
 	tgt->state = TGT_STATE_IN_CAM;
 	tgt->reply_desc = reply_desc;
 	ioindex = GET_IO_INDEX(reply_desc);
-
+	if (mpt->verbose >= MPT_PRT_DEBUG) {
+		mpt_dump_data(mpt, "mpt_scsi_tgt_atio response", vbuf,
+		    max(sizeof (MPI_TARGET_FCP_CMD_BUFFER),
+		    max(sizeof (MPI_TARGET_SSP_CMD_BUFFER),
+		    sizeof (MPI_TARGET_SCSI_SPI_CMD_BUFFER))));
+	}
 	if (mpt->is_fc) {
 		PTR_MPI_TARGET_FCP_CMD_BUFFER fc;
 		fc = (PTR_MPI_TARGET_FCP_CMD_BUFFER) vbuf;
