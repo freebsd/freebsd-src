@@ -491,8 +491,14 @@ static void		dashutdown(void *arg, int howto);
 #define	DA_DEFAULT_RETRY	4
 #endif
 
+#ifndef	DA_DEFAULT_SEND_ORDERED
+#define	DA_DEFAULT_SEND_ORDERED	1
+#endif
+
+
 static int da_retry_count = DA_DEFAULT_RETRY;
 static int da_default_timeout = DA_DEFAULT_TIMEOUT;
+static int da_send_ordered = DA_DEFAULT_SEND_ORDERED;
 
 SYSCTL_NODE(_kern_cam, OID_AUTO, da, CTLFLAG_RD, 0,
             "CAM Direct Access Disk driver");
@@ -502,6 +508,9 @@ TUNABLE_INT("kern.cam.da.retry_count", &da_retry_count);
 SYSCTL_INT(_kern_cam_da, OID_AUTO, default_timeout, CTLFLAG_RW,
            &da_default_timeout, 0, "Normal I/O timeout (in seconds)");
 TUNABLE_INT("kern.cam.da.default_timeout", &da_default_timeout);
+SYSCTL_INT(_kern_cam_da, OID_AUTO, da_send_ordered, CTLFLAG_RW,
+           &da_send_ordered, 0, "Send Ordered Tags");
+TUNABLE_INT("kern.cam.da.da_send_ordered", &da_send_ordered);
 
 /*
  * DA_ORDEREDTAG_INTERVAL determines how often, relative
@@ -851,7 +860,7 @@ dainit(void)
 	if (status != CAM_REQ_CMP) {
 		printf("da: Failed to attach master async callback "
 		       "due to status 0x%x!\n", status);
-	} else {
+	} else if (da_send_ordered) {
 
 		/*
 		 * Schedule a periodic event to occasionally send an
@@ -1938,24 +1947,25 @@ dasendorderedtag(void *arg)
 {
 	struct da_softc *softc;
 	int s;
+	if (da_send_ordered) {
+		for (softc = SLIST_FIRST(&softc_list);
+		     softc != NULL;
+		     softc = SLIST_NEXT(softc, links)) {
+			s = splsoftcam();
+			if ((softc->ordered_tag_count == 0) 
+			 && ((softc->flags & DA_FLAG_WENT_IDLE) == 0)) {
+				softc->flags |= DA_FLAG_NEED_OTAG;
+			}
+			if (softc->outstanding_cmds > 0)
+				softc->flags &= ~DA_FLAG_WENT_IDLE;
 
-	for (softc = SLIST_FIRST(&softc_list);
-	     softc != NULL;
-	     softc = SLIST_NEXT(softc, links)) {
-		s = splsoftcam();
-		if ((softc->ordered_tag_count == 0) 
-		 && ((softc->flags & DA_FLAG_WENT_IDLE) == 0)) {
-			softc->flags |= DA_FLAG_NEED_OTAG;
+			softc->ordered_tag_count = 0;
+			splx(s);
 		}
-		if (softc->outstanding_cmds > 0)
-			softc->flags &= ~DA_FLAG_WENT_IDLE;
-
-		softc->ordered_tag_count = 0;
-		splx(s);
+		/* Queue us up again */
+		timeout(dasendorderedtag, NULL,
+			(da_default_timeout * hz) / DA_ORDEREDTAG_INTERVAL);
 	}
-	/* Queue us up again */
-	timeout(dasendorderedtag, NULL,
-		(da_default_timeout * hz) / DA_ORDEREDTAG_INTERVAL);
 }
 
 /*
