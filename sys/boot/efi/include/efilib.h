@@ -26,10 +26,16 @@
  *	$FreeBSD$
  */
 
+#include <efifpswa.h>
+
 extern EFI_HANDLE		IH;
 extern EFI_SYSTEM_TABLE		*ST;
 extern EFI_BOOT_SERVICES	*BS;
 extern EFI_RUNTIME_SERVICES	*RS;
+
+/* DIG64 Headless Console & Debug Port Table. */
+#define	HCDP_TABLE_GUID		\
+	{0xf951938d,0x620b,0x42ef,{0x82,0x79,0xa8,0x4b,0x79,0x61,0x78,0x98}}
 
 void *efi_get_table(EFI_GUID *tbl);
 void efi_main(EFI_HANDLE image_handle, EFI_SYSTEM_TABLE *system_table);
