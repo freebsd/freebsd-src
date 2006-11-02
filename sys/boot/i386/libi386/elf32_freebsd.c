@@ -65,7 +65,7 @@ elf32_exec(struct preloaded_file *fp)
     err = bi_load32(fp->f_args, &boothowto, &bootdev, &bootinfop, &modulep, &kernend);
     if (err != 0)
 	return(err);
-    entry = ehdr->e_entry & 0x3fffffff;
+    entry = ehdr->e_entry & 0xffffff;
 
 #ifdef DEBUG
     printf("Start @ 0x%lx ...\n", entry);
