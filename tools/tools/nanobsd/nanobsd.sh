@@ -154,7 +154,7 @@ build_kernel ( ) (
 
 	cd ${NANO_SRC}
 	${NANO_PMAKE} buildkernel \
-		__MAKE_CONF=${NANO_MAKE_CONF} KERNCONF=${NANO_KERNEL} \
+		__MAKE_CONF=${NANO_MAKE_CONF} KERNCONF=`basename ${NANO_KERNEL}` \
 		> ${MAKEOBJDIRPREFIX}/_.bk 2>&1
 )
 
