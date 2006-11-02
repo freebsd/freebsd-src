@@ -988,10 +988,11 @@ bstp_update_roles(struct bstp_state *bs, struct bstp_port *bp)
 			DPRINTF("%s -> ROOT_PROPOSED\n", bp->bp_ifp->if_xname);
 		}
 
-		if (bp->bp_forward_delay_timer.active == 0 ||
+		if (bp->bp_state != BSTP_IFSTATE_FORWARDING &&
+		    (bp->bp_forward_delay_timer.active == 0 ||
 		    (bstp_rerooted(bs, bp) &&
 		    bp->bp_recent_backup_timer.active == 0 &&
-		    bp->bp_protover == BSTP_PROTO_RSTP)) {
+		    bp->bp_protover == BSTP_PROTO_RSTP))) {
 			switch (bp->bp_state) {
 			case BSTP_IFSTATE_DISCARDING:
 				bstp_set_port_state(bp, BSTP_IFSTATE_LEARNING);
@@ -1039,10 +1040,13 @@ bstp_update_roles(struct bstp_state *bs, struct bstp_port *bp)
 			    bp->bp_ifp->if_xname);
 		}
 
-		if ((bp->bp_forward_delay_timer.active == 0 || bp->bp_agreed ||
+		if (bp->bp_state != BSTP_IFSTATE_FORWARDING &&
+		    (bp->bp_forward_delay_timer.active == 0 || bp->bp_agreed ||
 		    bp->bp_operedge) &&
 		    (bp->bp_recent_root_timer.active == 0 || !bp->bp_reroot) &&
 		    !bp->bp_sync) {
+			if (bp->bp_agreed)
+				DPRINTF("%s -> AGREED\n", bp->bp_ifp->if_xname);
 			/*
 			 * If agreed|operedge then go straight to forwarding,
 			 * otherwise follow discard -> learn -> forward.
