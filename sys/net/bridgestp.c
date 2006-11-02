@@ -96,9 +96,9 @@ static void	bstp_send_bpdu(struct bstp_state *, struct bstp_port *,
 static void	bstp_enqueue(struct ifnet *, struct mbuf *);
 static int	bstp_pdu_flags(struct bstp_port *);
 static void	bstp_received_stp(struct bstp_state *, struct bstp_port *,
-		    struct mbuf *, struct bstp_tbpdu *);
+		    struct mbuf **, struct bstp_tbpdu *);
 static void	bstp_received_rstp(struct bstp_state *, struct bstp_port *,
-		    struct mbuf *, struct bstp_tbpdu *);
+		    struct mbuf **, struct bstp_tbpdu *);
 static void	bstp_received_tcn(struct bstp_state *, struct bstp_port *,
 		    struct bstp_tcn_unit *);
 static void	bstp_received_bpdu(struct bstp_state *, struct bstp_port *,
@@ -519,11 +519,11 @@ bstp_input(struct bstp_port *bp, struct ifnet *ifp, struct mbuf *m)
 
 	switch (tpdu.tbu_protover) {
 		case BSTP_PROTO_STP:
-			bstp_received_stp(bs, bp, m, &tpdu);
+			bstp_received_stp(bs, bp, &m, &tpdu);
 			break;
 
 		case BSTP_PROTO_RSTP:
-			bstp_received_rstp(bs, bp, m, &tpdu);
+			bstp_received_rstp(bs, bp, &m, &tpdu);
 			break;
 	}
 out:
@@ -535,7 +535,7 @@ out:
 
 static void
 bstp_received_stp(struct bstp_state *bs, struct bstp_port *bp,
-    struct mbuf *m, struct bstp_tbpdu *tpdu)
+    struct mbuf **mp, struct bstp_tbpdu *tpdu)
 {
 	struct bstp_cbpdu cpdu;
 	struct bstp_config_unit *cu = &bp->bp_msg_cu;
@@ -547,10 +547,10 @@ bstp_received_stp(struct bstp_state *bs, struct bstp_port *bp,
 		bstp_received_tcn(bs, bp, &tu);
 		break;
 	case BSTP_MSGTYPE_CFG:
-		if (m->m_len < BSTP_BPDU_STP_LEN &&
-		    (m = m_pullup(m, BSTP_BPDU_STP_LEN)) == NULL)
+		if ((*mp)->m_len < BSTP_BPDU_STP_LEN &&
+		    (*mp = m_pullup(*mp, BSTP_BPDU_STP_LEN)) == NULL)
 			return;
-		memcpy(&cpdu, mtod(m, caddr_t), BSTP_BPDU_STP_LEN);
+		memcpy(&cpdu, mtod(*mp, caddr_t), BSTP_BPDU_STP_LEN);
 
 		bstp_decode_bpdu(bp, &cpdu, cu);
 		bstp_received_bpdu(bs, bp, cu);
@@ -560,20 +560,18 @@ bstp_received_stp(struct bstp_state *bs, struct bstp_port *bp,
 
 static void
 bstp_received_rstp(struct bstp_state *bs, struct bstp_port *bp,
-    struct mbuf *m, struct bstp_tbpdu *tpdu)
+    struct mbuf **mp, struct bstp_tbpdu *tpdu)
 {
 	struct bstp_cbpdu cpdu;
 	struct bstp_config_unit *cu = &bp->bp_msg_cu;
 
-	if (tpdu->tbu_bpdutype != BSTP_MSGTYPE_RSTP) {
-		m_freem(m);
+	if (tpdu->tbu_bpdutype != BSTP_MSGTYPE_RSTP)
 		return;
-	}
 
-	if (m->m_len < BSTP_BPDU_RSTP_LEN &&
-			(m = m_pullup(m, BSTP_BPDU_RSTP_LEN)) == NULL)
+	if ((*mp)->m_len < BSTP_BPDU_RSTP_LEN &&
+	    (*mp = m_pullup(*mp, BSTP_BPDU_RSTP_LEN)) == NULL)
 		return;
-	memcpy(&cpdu, mtod(m, caddr_t), BSTP_BPDU_RSTP_LEN);
+	memcpy(&cpdu, mtod(*mp, caddr_t), BSTP_BPDU_RSTP_LEN);
 
 	bstp_decode_bpdu(bp, &cpdu, cu);
 	bstp_received_bpdu(bs, bp, cu);
