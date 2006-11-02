@@ -70,7 +70,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/kernel.h>
 #include <sys/module.h>
 #include <sys/socket.h>
-#include <sys/types.h>
 
 #include <net/if.h>
 #include <net/if_arp.h>
