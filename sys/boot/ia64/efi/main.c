@@ -135,13 +135,13 @@ main(int argc, CHAR16 *argv[])
 	i = efifs_get_unit(img->DeviceHandle);
 	if (i >= 0) {
 		currdev.d_dev = devsw[0];		/* XXX disk */
-		currdev.d_kind.efidisk.unit = i;
+		currdev.d_unit = i;
 		/* XXX should be able to detect this, default to autoprobe */
 		currdev.d_kind.efidisk.slice = -1;
 		currdev.d_kind.efidisk.partition = 0;
 	} else {
 		currdev.d_dev = devsw[1];		/* XXX net */
-		currdev.d_kind.netif.unit = 0;		/* XXX */
+		currdev.d_unit = 0;			/* XXX */
 	}
 	currdev.d_type = currdev.d_dev->dv_type;
 
