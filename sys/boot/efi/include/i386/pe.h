@@ -589,4 +589,43 @@ typedef struct _IMAGE_IMPORT_DESCRIPTOR {
     PIMAGE_THUNK_DATA FirstThunk;
 } IMAGE_IMPORT_DESCRIPTOR, *PIMAGE_IMPORT_DESCRIPTOR;
 
+#define IMAGE_DEBUG_TYPE_CODEVIEW   2
+
+typedef struct {
+  UINT32    Characteristics;
+  UINT32    TimeDateStamp;
+  UINT16    MajorVersion;
+  UINT16    MinorVersion;
+  UINT32    Type;
+  UINT32    SizeOfData;
+  UINT32    RVA;
+  UINT32    FileOffset;
+} IMAGE_DEBUG_DIRECTORY_ENTRY;
+
+#define CODEVIEW_SIGNATURE_NB10  0x3031424E // "NB10"
+
+typedef struct {
+  UINT32    Signature; // "NB10"
+  UINT32    Unknown;
+  UINT32    Unknown2;
+  UINT32    Unknown3;     
+  //
+  // Filename of .PDB goes here
+  //
+} EFI_IMAGE_DEBUG_CODEVIEW_NB10_ENTRY;
+
+#define CODEVIEW_SIGNATURE_RSDS  0x53445352 // "RSDS"
+
+typedef struct {
+  UINT32    Signature; // "RSDS"
+  UINT32    Unknown;
+  UINT32    Unknown2;
+  UINT32    Unknown3;     
+  UINT32    Unknown4;     
+  UINT32    Unknown5;     
+  //
+  // Filename of .PDB goes here
+  //
+} EFI_IMAGE_DEBUG_CODEVIEW_RSDS_ENTRY;
+
 #endif

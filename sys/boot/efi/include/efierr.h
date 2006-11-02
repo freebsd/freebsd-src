@@ -4,7 +4,14 @@
 
 /*++
 
-Copyright (c) 1998  Intel Corporation
+Copyright (c)  1999 - 2002 Intel Corporation. All rights reserved
+This software and associated documentation (if any) is furnished
+under a license and may only be used or copied in accordance
+with the terms of the license. Except as permitted by such
+license, no part of this software or documentation may be
+reproduced, stored in a retrieval system, or transmitted in any
+form or by any means without the express written consent of
+Intel Corporation.
 
 Module Name:
 
@@ -52,7 +59,7 @@ Revision History
 #define EFI_TFTP_ERROR                  EFIERR(23)
 #define EFI_PROTOCOL_ERROR              EFIERR(24)
 
-#define EFI_WARN_UNKOWN_GLYPH           EFIWARN(1)
+#define EFI_WARN_UNKNOWN_GLYPH          EFIWARN(1)
 #define EFI_WARN_DELETE_FAILURE         EFIWARN(2)
 #define EFI_WARN_WRITE_FAILURE          EFIWARN(3)
 #define EFI_WARN_BUFFER_TOO_SMALL       EFIWARN(4)
