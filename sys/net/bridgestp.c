@@ -1160,8 +1160,8 @@ bstp_update_info(struct bstp_port *bp)
 	bp->bp_port_htime = bp->bp_desg_htime;
 	bp->bp_infois = BSTP_INFO_MINE;
 
+	/* Set transmit flag but do not immediately send */
 	bp->bp_flags |= BSTP_PORT_NEWINFO;
-	bstp_transmit(bs, bp);
 }
 
 /* set tcprop on every port other than the caller */
