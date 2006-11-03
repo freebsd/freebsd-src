@@ -115,7 +115,7 @@ extern char fas_nofault_end[];
 
 extern char *syscallnames[];
 
-static int trap_conversion[256];
+int trap_conversion[256];
 
 const char *trap_msg[] = {
 	"reserved",
@@ -209,8 +209,7 @@ const int trap_sig[] = {
 	SIGILL,			/* trap instruction 29 */
 	SIGILL,			/* trap instruction 30 */
 	SIGILL,			/* trap instruction 31 */
-	SIGSEGV,		/* floating point not implemented */
-                                /* should be SIGFPE but other signals currently cause problems */
+	SIGFPE,		        /* floating point error */
 	SIGSEGV,		/* fast data access mmu miss */
 	-1,			/* interrupt */
 	-1,			/* physical address watchpoint */
@@ -238,6 +237,7 @@ SYSCTL_INT(_debug, OID_AUTO, debugger_on_signal, CTLFLAG_RW,
     &debugger_on_signal, 0, "");
 #endif
 
+
 void 
 trap_init(void)
 {
@@ -250,15 +250,20 @@ trap_init(void)
 
 	init_mondo_queue();
 	OF_set_mmfsa_traptable(&tl0_base, mmfsa);
-	for (i = 0; i < 128; i++)
-		trap_conversion[i] = i;
-	for (i = 128; i < 256; i++)
+	for (i = 0; i < 256; i++)
 		trap_conversion[i] = 0;
-	trap_conversion[0x31] = 35;
-	trap_conversion[0x34] = 15;
-	trap_conversion[0x9] = 34;
-	trap_conversion[0x6c] = 14;
-
+	trap_conversion[TT_INSTRUCTION_EXCEPTION] = T_INSTRUCTION_EXCEPTION;
+	trap_conversion[TT_INSTRUCTION_MISS]      = T_INSTRUCTION_MISS;
+	trap_conversion[TT_ILLEGAL_INSTRUCTION]   = T_ILLEGAL_INSTRUCTION;
+	trap_conversion[TT_PRIVILEGED_OPCODE]     = T_PRIVILEGED_OPCODE;
+	trap_conversion[TT_FP_EXCEPTION_IEEE_754] = T_FP_EXCEPTION_IEEE_754; 
+	trap_conversion[TT_TAG_OVERFLOW]          = T_TAG_OVERFLOW;
+	trap_conversion[TT_DIVISION_BY_ZERO]      = T_DIVISION_BY_ZERO;
+	trap_conversion[TT_DATA_EXCEPTION]        = T_DATA_EXCEPTION;
+	trap_conversion[TT_DATA_MISS]             = T_DATA_MISS;
+	trap_conversion[TT_ALIGNMENT]             = T_ALIGNMENT;
+	trap_conversion[TT_DATA_PROTECTION]       = T_DATA_PROTECTION;
+	trap_conversion[TT_BREAKPOINT]            = T_BREAKPOINT;
 }
 
 void
