@@ -93,6 +93,22 @@ static cn_term_t	hvcn_cnterm;
 
 CONSOLE_DRIVER(hvcn);
 
+void
+hv_cnputs(char *p)
+{
+	int c, error;
+
+	while ((c = *p++) != '\0') {
+		if (c == '\n') {
+			do {
+				error = hv_cnputchar('\r');
+			} while (error == H_EWOULDBLOCK);
+		}
+		do {
+			error = hv_cnputchar(c);
+		} while (error == H_EWOULDBLOCK);
+	}
+}
 
 static int
 hvcn_open(struct cdev *dev, int flag, int mode, struct thread *td)
