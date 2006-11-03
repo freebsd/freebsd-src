@@ -250,7 +250,7 @@ sctp_process_init(struct sctp_init_chunk *cp, struct sctp_tcb *stcb,
 					sctp_free_remote_addr(sp->net);
 					sp->net = NULL;
 					/* Free the chunk */
-					printf("sp:%x tcb:%x weird free case\n",
+					printf("sp:%p tcb:%p weird free case\n",
 					    (u_int)sp, (u_int)stcb);
 
 					sctp_free_a_strmoq(stcb, sp);
