@@ -116,6 +116,7 @@ extern uint64_t hv_dump_buf_update(uint64_t, uint64_t, uint64_t *);
 
 extern int64_t hv_cnputchar(uint8_t);
 extern int64_t hv_cngetchar(uint8_t *);
+extern void hv_cnputs(char *);
 
 extern uint64_t hv_tod_get(uint64_t *seconds);
 extern uint64_t hv_tod_set(uint64_t);
