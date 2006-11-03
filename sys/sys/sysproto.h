@@ -1451,6 +1451,37 @@ struct rtprio_thread_args {
 	char lwpid_l_[PADL_(lwpid_t)]; lwpid_t lwpid; char lwpid_r_[PADR_(lwpid_t)];
 	char rtp_l_[PADL_(struct rtprio *)]; struct rtprio * rtp; char rtp_r_[PADR_(struct rtprio *)];
 };
+struct sctp_peeloff_args {
+	char sd_l_[PADL_(int)]; int sd; char sd_r_[PADR_(int)];
+	char name_l_[PADL_(uint32_t)]; uint32_t name; char name_r_[PADR_(uint32_t)];
+};
+struct sctp_generic_sendmsg_args {
+	char sd_l_[PADL_(int)]; int sd; char sd_r_[PADR_(int)];
+	char msg_l_[PADL_(caddr_t)]; caddr_t msg; char msg_r_[PADR_(caddr_t)];
+	char mlen_l_[PADL_(int)]; int mlen; char mlen_r_[PADR_(int)];
+	char to_l_[PADL_(caddr_t)]; caddr_t to; char to_r_[PADR_(caddr_t)];
+	char tolen_l_[PADL_(__socklen_t)]; __socklen_t tolen; char tolen_r_[PADR_(__socklen_t)];
+	char sinfo_l_[PADL_(struct sctp_sndrcvinfo *)]; struct sctp_sndrcvinfo * sinfo; char sinfo_r_[PADR_(struct sctp_sndrcvinfo *)];
+	char flags_l_[PADL_(int)]; int flags; char flags_r_[PADR_(int)];
+};
+struct sctp_generic_sendmsg_iov_args {
+	char sd_l_[PADL_(int)]; int sd; char sd_r_[PADR_(int)];
+	char iov_l_[PADL_(struct iovec *)]; struct iovec * iov; char iov_r_[PADR_(struct iovec *)];
+	char iovlen_l_[PADL_(int)]; int iovlen; char iovlen_r_[PADR_(int)];
+	char to_l_[PADL_(caddr_t)]; caddr_t to; char to_r_[PADR_(caddr_t)];
+	char tolen_l_[PADL_(__socklen_t)]; __socklen_t tolen; char tolen_r_[PADR_(__socklen_t)];
+	char sinfo_l_[PADL_(struct sctp_sndrcvinfo *)]; struct sctp_sndrcvinfo * sinfo; char sinfo_r_[PADR_(struct sctp_sndrcvinfo *)];
+	char flags_l_[PADL_(int)]; int flags; char flags_r_[PADR_(int)];
+};
+struct sctp_generic_recvmsg_args {
+	char sd_l_[PADL_(int)]; int sd; char sd_r_[PADR_(int)];
+	char iov_l_[PADL_(struct iovec *)]; struct iovec * iov; char iov_r_[PADR_(struct iovec *)];
+	char iovlen_l_[PADL_(int)]; int iovlen; char iovlen_r_[PADR_(int)];
+	char from_l_[PADL_(struct sockaddr *)]; struct sockaddr * from; char from_r_[PADR_(struct sockaddr *)];
+	char fromlenaddr_l_[PADL_(__socklen_t *)]; __socklen_t * fromlenaddr; char fromlenaddr_r_[PADR_(__socklen_t *)];
+	char sinfo_l_[PADL_(struct sctp_sndrcvinfo *)]; struct sctp_sndrcvinfo * sinfo; char sinfo_r_[PADR_(struct sctp_sndrcvinfo *)];
+	char msg_flags_l_[PADL_(int *)]; int * msg_flags; char msg_flags_r_[PADR_(int *)];
+};
 int	nosys(struct thread *, struct nosys_args *);
 void	sys_exit(struct thread *, struct sys_exit_args *);
 int	fork(struct thread *, struct fork_args *);
@@ -1779,6 +1810,10 @@ int	abort2(struct thread *, struct abort2_args *);
 int	thr_set_name(struct thread *, struct thr_set_name_args *);
 int	aio_fsync(struct thread *, struct aio_fsync_args *);
 int	rtprio_thread(struct thread *, struct rtprio_thread_args *);
+int	sctp_peeloff(struct thread *, struct sctp_peeloff_args *);
+int	sctp_generic_sendmsg(struct thread *, struct sctp_generic_sendmsg_args *);
+int	sctp_generic_sendmsg_iov(struct thread *, struct sctp_generic_sendmsg_iov_args *);
+int	sctp_generic_recvmsg(struct thread *, struct sctp_generic_recvmsg_args *);
 
 #ifdef COMPAT_43
 
@@ -2326,6 +2361,10 @@ int	freebsd4_sigreturn(struct thread *, struct freebsd4_sigreturn_args *);
 #define	SYS_AUE_thr_set_name	AUE_NULL
 #define	SYS_AUE_aio_fsync	AUE_NULL
 #define	SYS_AUE_rtprio_thread	AUE_RTPRIO
+#define	SYS_AUE_sctp_peeloff	AUE_NULL
+#define	SYS_AUE_sctp_generic_sendmsg	AUE_NULL
+#define	SYS_AUE_sctp_generic_sendmsg_iov	AUE_NULL
+#define	SYS_AUE_sctp_generic_recvmsg	AUE_NULL
 
 #undef PAD_
 #undef PADL_

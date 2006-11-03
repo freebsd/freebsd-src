@@ -36,6 +36,7 @@
 #include "opt_inet6.h"
 #include "opt_pf.h"
 #include "opt_carp.h"
+#include "opt_sctp.h"
 
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -87,6 +88,13 @@ static struct pr_usrreqs nousrreqs;
 #ifdef IPXIP
 #include <netipx/ipx_ip.h>
 #endif
+
+#ifdef SCTP
+#include <netinet/in_pcb.h>
+#include <netinet/sctp_pcb.h>
+#include <netinet/sctp.h>
+#include <netinet/sctp_var.h>
+#endif /* SCTP */
 
 #ifdef DEV_PFSYNC
 #include <net/pfvar.h>
@@ -141,6 +149,43 @@ struct protosw inetsw[] = {
 	.pr_drain =		tcp_drain,
 	.pr_usrreqs =		&tcp_usrreqs
 },
+#ifdef SCTP
+{ 
+	.pr_type = 	SOCK_DGRAM,
+	.pr_domain =  	&inetdomain,
+        .pr_protocol = 	IPPROTO_SCTP,
+        .pr_flags = 	PR_WANTRCVD,
+        .pr_input = 	sctp_input,
+        .pr_ctlinput =  sctp_ctlinput,	
+        .pr_ctloutput = sctp_ctloutput,
+        .pr_init = 	sctp_init,	
+        .pr_drain = 	sctp_drain,
+        .pr_usrreqs = 	&sctp_usrreqs
+},
+{
+	.pr_type = 	SOCK_SEQPACKET,
+	.pr_domain =  	&inetdomain,
+        .pr_protocol = 	IPPROTO_SCTP,
+        .pr_flags = 	PR_WANTRCVD,
+        .pr_input = 	sctp_input,
+        .pr_ctlinput =  sctp_ctlinput,	
+        .pr_ctloutput = sctp_ctloutput,
+        .pr_drain = 	sctp_drain,
+        .pr_usrreqs = 	&sctp_usrreqs
+},
+
+{ 
+	.pr_type = 	SOCK_STREAM,
+	.pr_domain =  	&inetdomain,
+        .pr_protocol = 	IPPROTO_SCTP,
+        .pr_flags = 	PR_WANTRCVD,
+        .pr_input = 	sctp_input,
+        .pr_ctlinput =  sctp_ctlinput,	
+        .pr_ctloutput = sctp_ctloutput,
+        .pr_drain = 	sctp_drain,
+        .pr_usrreqs = 	&sctp_usrreqs
+},
+#endif /* SCTP */
 {
 	.pr_type =		SOCK_RAW,
 	.pr_domain =		&inetdomain,
@@ -376,6 +421,9 @@ SYSCTL_NODE(_net_inet, IPPROTO_IP,	ip,	CTLFLAG_RW, 0,	"IP");
 SYSCTL_NODE(_net_inet, IPPROTO_ICMP,	icmp,	CTLFLAG_RW, 0,	"ICMP");
 SYSCTL_NODE(_net_inet, IPPROTO_UDP,	udp,	CTLFLAG_RW, 0,	"UDP");
 SYSCTL_NODE(_net_inet, IPPROTO_TCP,	tcp,	CTLFLAG_RW, 0,	"TCP");
+#ifdef SCTP
+SYSCTL_NODE(_net_inet, IPPROTO_SCTP,	sctp,	CTLFLAG_RW, 0,	"SCTP");
+#endif
 SYSCTL_NODE(_net_inet, IPPROTO_IGMP,	igmp,	CTLFLAG_RW, 0,	"IGMP");
 #ifdef FAST_IPSEC
 /* XXX no protocol # to use, pick something "reserved" */

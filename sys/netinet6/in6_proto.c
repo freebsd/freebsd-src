@@ -66,6 +66,7 @@
 #include "opt_ipsec.h"
 #include "opt_ipstealth.h"
 #include "opt_carp.h"
+#include "opt_sctp.h"
 
 #include <sys/param.h>
 #include <sys/socket.h>
@@ -127,6 +128,14 @@
 #include <netinet/ip_carp.h>
 #endif
 
+#ifdef SCTP
+#include <netinet/in_pcb.h>
+#include <netinet/sctp_pcb.h>
+#include <netinet/sctp.h>
+#include <netinet/sctp_var.h>
+#include <netinet6/sctp6_var.h>
+#endif /* SCTP */
+
 #ifdef FAST_IPSEC
 #include <netipsec/ipsec6.h>
 #define	IPSEC
@@ -184,6 +193,42 @@ struct ip6protosw inet6sw[] = {
 	.pr_drain =		tcp_drain,
 	.pr_usrreqs =		&tcp6_usrreqs,
 },
+#ifdef SCTP
+{ 
+	.pr_type = 	SOCK_DGRAM,
+	.pr_domain =  	&inet6domain,
+        .pr_protocol = 	IPPROTO_SCTP,
+        .pr_flags = 	PR_WANTRCVD,
+        .pr_input = 	sctp6_input,
+        .pr_ctlinput =  sctp6_ctlinput,	
+        .pr_ctloutput = sctp_ctloutput,
+        .pr_drain = 	sctp_drain,
+        .pr_usrreqs = 	&sctp6_usrreqs
+},
+{
+	.pr_type = 	SOCK_SEQPACKET,
+	.pr_domain =  	&inet6domain,
+        .pr_protocol = 	IPPROTO_SCTP,
+        .pr_flags = 	PR_WANTRCVD,
+        .pr_input = 	sctp6_input,
+        .pr_ctlinput =  sctp6_ctlinput,	
+        .pr_ctloutput = sctp_ctloutput,
+        .pr_drain = 	sctp_drain,
+        .pr_usrreqs = 	&sctp6_usrreqs
+},
+
+{ 
+	.pr_type = 	SOCK_STREAM,
+	.pr_domain =  	&inet6domain,
+        .pr_protocol = 	IPPROTO_SCTP,
+        .pr_flags = 	PR_WANTRCVD,
+        .pr_input = 	sctp6_input,
+        .pr_ctlinput =  sctp6_ctlinput,	
+        .pr_ctloutput = sctp_ctloutput,
+        .pr_drain = 	sctp_drain,
+        .pr_usrreqs = 	&sctp6_usrreqs
+},
+#endif /* SCTP */
 {
 	.pr_type =		SOCK_RAW,
 	.pr_domain =		&inet6domain,
@@ -416,6 +461,9 @@ SYSCTL_NODE(_net_inet6,	IPPROTO_IPV6,	ip6,	CTLFLAG_RW, 0,	"IP6");
 SYSCTL_NODE(_net_inet6,	IPPROTO_ICMPV6,	icmp6,	CTLFLAG_RW, 0,	"ICMP6");
 SYSCTL_NODE(_net_inet6,	IPPROTO_UDP,	udp6,	CTLFLAG_RW, 0,	"UDP6");
 SYSCTL_NODE(_net_inet6,	IPPROTO_TCP,	tcp6,	CTLFLAG_RW, 0,	"TCP6");
+#ifdef SCTP
+SYSCTL_NODE(_net_inet6,	IPPROTO_SCTP,	sctp6,	CTLFLAG_RW, 0,	"SCTP6");
+#endif
 #ifdef IPSEC
 SYSCTL_NODE(_net_inet6,	IPPROTO_ESP,	ipsec6,	CTLFLAG_RW, 0,	"IPSEC6");
 #endif /* IPSEC */
