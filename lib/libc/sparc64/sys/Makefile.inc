@@ -11,6 +11,9 @@ SRCS+=	__sparc_sigtramp_setup.c \
 	sigcode.S
 
 CFLAGS+= -I${.CURDIR}/sparc64/fpu
+.if ${MACHINE} == "sun4v"
+CFLAGS+= -DSUN4V
+.endif
 
 MDASM+=	brk.S cerror.S exect.S pipe.S ptrace.S sbrk.S setlogin.S sigaction.S
 
