@@ -47,7 +47,7 @@ blocks of lines separated by
 .Em program
 and
 .Em hostname
-specifications (separations appear along on the line),
+specifications (separations appear alone on their lines),
 with each line containing two fields: the
 .Em selector
 field which specifies the types of messages and priorities to which the
@@ -94,9 +94,13 @@ are case insensitive.
 The
 .Em facility
 describes the part of the system generating the message, and is one of
-the following keywords: auth, authpriv, console, cron, daemon, ftp, kern,
-lpr, mail, mark, news, ntp, security, syslog, user, uucp and local0 through
-local7.
+the following keywords:
+.Cm auth , authpriv , console , cron , daemon , ftp , kern , lpr ,
+.Cm mail , mark , news , ntp , security , syslog , user , uucp ,
+and
+.Cm local0
+through
+.Cm local7 .
 These keywords (with the exception of mark) correspond to
 similar
 .Dq Dv LOG_
@@ -132,8 +136,10 @@ has the same meaning as
 The
 .Em level
 describes the severity of the message, and is a keyword from the
-following ordered list (higher to lower): emerg, alert, crit, err,
-warning, notice, info and debug.
+following ordered list (higher to lower):
+.Cm emerg , alert , err , warning , notice , info
+and
+.Cm debug .
 These keywords correspond to
 similar
 .Dq Dv LOG_
@@ -338,8 +344,9 @@ Selected messages are forwarded to the
 .Xr syslogd 8
 program on the named host.
 If a port number is added after a colon
-.Pq ':'
-then that port will be used as the destination port rather than the usual syslog port.
+.Pq Ql :\&
+then that port will be used as the destination port
+rather than the usual syslog port.
 .It
 A comma separated list of users.
 Selected messages are written to those users
