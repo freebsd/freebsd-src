@@ -232,7 +232,8 @@ commands in a script
 .Ql sh\ /etc/rc.firewall ) ,
 or by processing a file of many
 .Nm
-rules across a remote login session. It also stops a table add or delete
+rules across a remote login session.
+It also stops a table add or delete
 from failing if the entry already exists or is not present.
 If a
 .Cm flush
@@ -576,7 +577,8 @@ socket.
 .Pp
 To check for previously applied tags, use the
 .Cm tagged
-rule option. To delete previously applied tag, use the
+rule option.
+To delete previously applied tag, use the
 .Cm untag
 keyword.
 .Pp
@@ -1654,7 +1656,7 @@ operation comes through the
 and
 .Cm limit
 options of
-.Nm rules.
+.Nm rules .
 .Pp
 Dynamic rules are created when a packet matches a
 .Cm keep-state
@@ -2492,3 +2494,7 @@ or similar system calls.
 Rules which use uid, gid or jail based matching should be used only
 if debug.mpsafenet=0 to avoid possible deadlocks due to layering
 violations in its implementation.
+.Pp
+Rule syntax is subject to the command line environment and some patterns
+may need to be escaped with the backslash character
+or quoted appropriately.
