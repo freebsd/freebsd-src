@@ -57,6 +57,7 @@ __FBSDID("$FreeBSD$")
 	.register %g6,#ignore
 	.register %g7,#ignore
 
+	.globl trap_conversion
 
 #define PCB_REG %g6
 
@@ -314,7 +315,7 @@ __FBSDID("$FreeBSD$")
 	ldxa	[%g1 + %g2]ASI_REAL, %g3
 	sub	%g0, 1, %g4
 	set	trap, %g1
-	ba	%xcc, tl0_trap 
+	ba,pt	%xcc, tl0_trap 
 	  mov	T_INSTRUCTION_EXCEPTION, %g2
 
 	.align	32
@@ -327,8 +328,7 @@ __FBSDID("$FreeBSD$")
 	mov	MMFSA_I_CTX, %g7 
 	ldxa	[%g1 + %g2]ASI_REAL, %g4
 	ldxa	[%g1 + %g3]ASI_REAL, %g5
-	ba,pt	%xcc, tsb_miss_handler
-          mov   T_INSTRUCTION_MISS, %g3
+	ba,a,pt	%xcc, tsb_miss_handler
 	.align	32
 	.endm
 	
@@ -357,8 +357,7 @@ END(data_excptn_fault)
 	mov	MMFSA_D_CTX, %g7 
 	ldxa	[%g1 + %g2]ASI_REAL, %g4
 	ldxa	[%g1 + %g3]ASI_REAL, %g5
-	ba,pt	%xcc, tsb_miss_handler
-          mov   T_DATA_MISS, %g3
+	ba,a,pt	%xcc, tsb_miss_handler
 	.align	32
 	.endm
 
@@ -367,8 +366,7 @@ END(data_excptn_fault)
 	mov	MMFSA_D_ADDR, %g3
 	mov	MMFSA_D_CTX,  %g7
 	ldxa	[%g1 + %g3]ASI_REAL, %g5
-	ba,pt	%xcc, tsb_miss_handler
-	  mov   T_DATA_PROTECTION, %g3
+	ba,a,pt	%xcc, tsb_miss_handler
 	.align	32
 	.endm
 
@@ -406,7 +404,7 @@ END(align_fault)
 	clr	%g3
 	sub	%g0, 1, %g4
 	set	trap, %g1
-	ba	%xcc, tl0_trap
+	ba,pt	%xcc, tl0_trap
 	  mov	T_RESUMABLE_ERROR, %g2
 	.align	32
 	.endm
@@ -415,7 +413,7 @@ END(align_fault)
 	clr	%g3
 	sub	%g0, 1, %g4
 	set	trap, %g1
-	ba	%xcc, tl0_trap
+	ba,pt	%xcc, tl0_trap
 	  mov	T_NONRESUMABLE_ERROR, %g2
 	.align	32
 	.endm
@@ -732,6 +730,33 @@ tick_ ## tl ## _entry:							\
 	.align 32
 	.endm
 #endif	
+
+	! fetch FP context into local registers
+	.macro	tl0_fpemu_context
+	GET_PCB(PCB_REG)			! 3 instructions
+	ldx	[PCB_REG + PCB_PAD], %l5	! %tstate
+	ldx	[PCB_REG + PCB_PAD + 8], %l6	! %tpc
+	ldx	[PCB_REG + PCB_PAD + 16], %l7	! %tncp
+	ldx	[PCB_REG + PCB_PAD + 24], %g2	! %tt
+	ba,a,pt	%xcc, tl0_fpemu_context
+	.align	32
+	.endm
+
+ENTRY(tl0_fpemu_context)
+	mov	%g2, %o0
+	clr	%o1
+
+	rd	%fprs, %l1
+	or	%l1, FPRS_FEF, %l2
+	wr	%l2, 0, %fprs
+	stx	%fsr, [PCB_REG + PCB_PAD]
+	ldx	[PCB_REG + PCB_PAD], %l4
+	wr	%l1, 0, %fprs
+		
+	sub	%fp, CCFSZ, %sp 
+	done	
+END(tl0_fpemu_context)
+	
 	.macro	tl0_fp_restore
 	GET_PCB(PCB_REG)			! 3 instructions
 	ldx	[%g6 + PCB_FLAGS], %g1
@@ -898,7 +923,8 @@ tl0_soft_100:
 	tl0_gen		T_SYSCALL			! 0x108
 	tl0_gen		T_SYSCALL			! 0x109
 	tl0_fp_restore					! 0x10a
-	tl0_reserved	5				! 0x10b-0x10f
+	tl0_fpemu_context				! 0x10b
+	tl0_reserved	4				! 0x10c-0x10f
 	tl0_gen		T_TRAP_INSTRUCTION_16		! 0x110
 	tl0_gen		T_TRAP_INSTRUCTION_17		! 0x111
 	tl0_gen		T_TRAP_INSTRUCTION_18		! 0x112
@@ -1355,6 +1381,8 @@ ENTRY(tl0_intr)
 				
 	! %g1		pc of trap handler
 	! %g2, %g3	args of trap handler
+	! %g2           software trap type
+	! %g3           additional argument to trap
 	! %g4		desired pil
 	! %g5, %g6	temps
 	! %g7		saved
@@ -1380,6 +1408,37 @@ ENTRY(tl0_trap)
 	bnz,pn	%xcc, tl0_ktrap
 	  nop
 ENTRY(tl0_utrap)
+	GET_PCPU_SCRATCH
+
+	cmp	%g2, UT_MAX
+	bge,a,pn %xcc, skip_utrap
+	  nop
+	
+	ldx	[PCPU(CURTHREAD)], %g5
+	ldx	[%g5 + TD_PROC], %g5
+	ldx	[%g5 + P_MD + MD_UTRAP], %g5
+	brz,pn	%g5, skip_utrap
+	  sllx	%g2, PTR_SHIFT, %g6
+	ldx	[%g5 + %g6], %g5
+	brz,pn	%g5, skip_utrap	
+	  nop
+
+	mov	%g5, %g4
+	
+	! 0) save trap state to memory	
+	ldx	[PCPU_REG + PC_CURPCB], %g6	
+	rdpr	%tstate, %g5
+	stx	%g5, [%g6 + PCB_PAD]
+	rdpr	%tpc, %g5
+	stx	%g5, [%g6 + PCB_PAD + 8]
+	rdpr	%tnpc, %g5
+	stx	%g5, [%g6 + PCB_PAD + 16]
+	stx	%g2, [%g6 + PCB_PAD + 24]
+
+	wrpr	%g4, %tnpc
+	done
+skip_utrap:	
+
 #ifdef	notyet
 	/* we need to determine from the hardware the number of register windows */
 	sethi	%hi(nwin_minus_one), %g5
@@ -1387,29 +1446,12 @@ ENTRY(tl0_utrap)
 #else
 	mov	nwin_minus_one, %g5
 #endif
-	GET_PCB(%g6)
+	ldx	[PCPU_REG + PC_CURPCB], %g6	
 	wrpr	%g0, %g5, %cleanwin
 	ldx	[%g6 + PCB_KSTACK], %g6
 	sub	%g6, TF_SIZEOF, %g6
-#ifdef DEBUG_KSTACK
-	mov	%o0, %g5
-	mov	%o3, %l0
-	mov	%o4, %l1
-	mov	%o5, %l2
-	mov	%o6, %l3
-	mov	%o7, %l4
-	mov	0x10, %o0
-	mov	%g6, %o1
-	ta	TTRACE_ADDENTRY
-	mov	%g5, %o0
-	mov	%l0, %o3
-	mov	%l1, %o4
-	mov	%l2, %o5
-	mov	%l3, %o6
-	mov	%l4, %o7
-#endif
-	save	%g6, 0, %sp
 
+	save	%g6, 0, %sp
 	rdpr	%canrestore, %l0
 	rdpr	%wstate, %l1
 	wrpr	%g0, 0, %canrestore
@@ -1456,21 +1498,25 @@ win_saved:
 	!
 	brlz,pt	%g4, 1f
 	  nop
+#if 0
 #ifdef PMAP_DEBUG
 	rdpr	%pil, %l0
 	cmp	%g4, %l0
-	bge,pt	%xcc, 0f
+	bge,pt	%xcc, 10f
 	  nop
 	call	panic
-0:	
+10:	
 #endif
-	
+#endif
 	wrpr	%g0, %g4, %pil
 1:		
 	wrpr	%g0, %g6, %tnpc
+
+	! save g7 before it can be overwritten by PCPU when returning from an interrupt 
 	wrpr	%g0, 0, %gl
-	stx	%g7, [%l7 + TF_G7]		! save g7 before it can be overwritten by PCPU when returning from an interrupt 
+	stx	%g7, [%l7 + TF_G7]		
 	wrpr	%g0, 1, %gl
+	
 	rdpr	%cwp, %l0
 	set	TSTATE_KERNEL, %l1
 	wrpr	%l1, %l0, %tstate
@@ -1722,7 +1768,11 @@ tsb_miss_not_found:
 
 	RESTORE_TRAPWIN(PCPU_REG, %g1, 14, 15)
 
-	mov	%g3, %g2			! trap type	
+	! convert hardware trap type to kernel trap type
+	set	trap_conversion, %g2
+	sllx	%g3, INT_SHIFT, %g3
+	ld	[%g2 + %g3], %g2
+	
         sethi	%hi(trap), %g1
 	or	%g6, %g5, %g3			! trap data
 	sub	%g0, 1, %g4			! pil info
@@ -1732,13 +1782,13 @@ tsb_miss_not_found:
 tsb_miss_found:
 
 	wr	%g0, %l3, %asi
-	cmp	%g3, T_DATA_MISS		! TSB data miss
+	cmp	%g3, TT_DATA_MISS		! TSB data miss
 	be,pt	%xcc, 9f
 	  or	%l7, VTD_REF, %l7		! set referenced unconditionally
-	cmp	%g3, T_INSTRUCTION_MISS		! TSB instruction miss
+	cmp	%g3, TT_INSTRUCTION_MISS		! TSB instruction miss
 	be,pt	%xcc, 9f
 	  nop
-	cmp	%g3, T_DATA_PROTECTION		! protection fault
+	cmp	%g3, TT_DATA_PROTECTION		! protection fault
 	bne,pn	%xcc, unsupported_fault_trap	! we don't handle any other fault types currently
 	  nop
 	andcc	%l7, VTD_SW_W, %g0		! write enabled?
@@ -1798,7 +1848,7 @@ tsb_miss_found:
 	RESTORE_TRAPWIN(PCPU_REG, %g1, 13, 16)	
 upgrade_demap:
 	rdpr	%tt, %g3
-	cmp	%g3, T_DATA_PROTECTION
+	cmp	%g3, TT_DATA_PROTECTION
 	beq,pn	%xcc, demap_begin
 	  nop
 	retry
