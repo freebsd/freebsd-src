@@ -195,7 +195,6 @@ ate_attach(device_t dev)
 	ate_get_mac(sc, eaddr);
 	ate_set_mac(sc, eaddr);
 
-
 	sc->ifp = ifp = if_alloc(IFT_ETHER);
 	if (mii_phy_probe(dev, &sc->miibus, ate_ifmedia_upd, ate_ifmedia_sts)) {
 		device_printf(dev, "Cannot find my PHY.\n");
@@ -271,10 +270,12 @@ ate_load_rx_buf(void *arg, bus_dma_segment_t *segs, int nsegs, int error)
 	 * For the last buffer, set the wrap bit so the controller
 	 * restarts from the first descriptor.
 	 */
+	bus_dmamap_sync(sc->rx_desc_tag, sc->rx_desc_map, BUS_DMASYNC_PREWRITE);
 	if (i == ATE_MAX_RX_BUFFERS - 1)
 		sc->rx_descs[i].addr = segs[0].ds_addr | ETH_WRAP_BIT;
 	else
 		sc->rx_descs[i].addr = segs[0].ds_addr;
+	bus_dmamap_sync(sc->rx_desc_tag, sc->rx_desc_map, BUS_DMASYNC_POSTWRITE);
 	sc->rx_descs[i].status = 0;
 	/* Flush the memory in the mbuf */
 	bus_dmamap_sync(sc->rxtag, sc->rx_map[i], BUS_DMASYNC_PREREAD);
@@ -489,11 +490,30 @@ ate_ifmedia_sts(struct ifnet *ifp, struct ifmediareq *ifmr)
 }
 
 static void
+ate_stat_update(struct ate_softc *sc, int active)
+{
+	/*
+	 * The speed and full/half-duplex state needs to be reflected
+	 * in the ETH_CFG register.
+	 */
+	if (IFM_SUBTYPE(active) == IFM_10_T)
+		WR4(sc, ETH_CFG, RD4(sc, ETH_CFG) & ~ETH_CFG_SPD);
+	else
+		WR4(sc, ETH_CFG, RD4(sc, ETH_CFG) | ETH_CFG_SPD);
+	if (active & IFM_FDX)
+		WR4(sc, ETH_CFG, RD4(sc, ETH_CFG) | ETH_CFG_FD);
+	else
+		WR4(sc, ETH_CFG, RD4(sc, ETH_CFG) & ~ETH_CFG_FD);
+}
+
+static void
 ate_tick(void *xsc)
 {
 	struct ate_softc *sc = xsc;
+	struct ifnet *ifp = sc->ifp;
 	struct mii_data *mii;
 	int active;
+	uint32_t c;
 
 	/*
 	 * The KB920x boot loader tests ETH_SR & ETH_SR_LINK and will ask
@@ -506,25 +526,8 @@ ate_tick(void *xsc)
 		active = mii->mii_media_active;
 		mii_tick(mii);
 		if (mii->mii_media_status & IFM_ACTIVE &&
-		     active != mii->mii_media_active) {
-			/*
-			 * The speed and full/half-duplex state needs
-			 * to be reflected in the ETH_CFG register, it
-			 * seems.
-			 */
-			if (IFM_SUBTYPE(mii->mii_media_active) == IFM_10_T)
-				WR4(sc, ETH_CFG, RD4(sc, ETH_CFG) &
-				    ~ETH_CFG_SPD);
-			else
-				WR4(sc, ETH_CFG, RD4(sc, ETH_CFG) |
-				    ETH_CFG_SPD);
-			if (mii->mii_media_active & IFM_FDX)
-				WR4(sc, ETH_CFG, RD4(sc, ETH_CFG) |
-				    ETH_CFG_FD);
-			else
-				WR4(sc, ETH_CFG, RD4(sc, ETH_CFG) &
-				    ~ETH_CFG_FD);
-		}
+		     active != mii->mii_media_active)
+			ate_stat_update(sc, mii->mii_media_active);
 	}
 
 	/*
@@ -535,16 +538,25 @@ ate_tick(void *xsc)
 	 * the dot3Stats mib, so for those we just count them as general
 	 * errors.  Stats for iframes, ibutes, oframes and obytes are
 	 * collected elsewhere.  These registers zero on a read to prevent
-	 * races.
+	 * races.  For all the collision stats, also update the collision
+	 * stats for the interface.
 	 */
 	sc->mibdata.dot3StatsAlignmentErrors += RD4(sc, ETH_ALE);
 	sc->mibdata.dot3StatsFCSErrors += RD4(sc, ETH_SEQE);
-	sc->mibdata.dot3StatsSingleCollisionFrames += RD4(sc, ETH_SCOL);
-	sc->mibdata.dot3StatsMultipleCollisionFrames += RD4(sc, ETH_MCOL);
+	c = RD4(sc, ETH_SCOL);
+	ifp->if_collisions += c;
+	sc->mibdata.dot3StatsSingleCollisionFrames += c;
+	c = RD4(sc, ETH_MCOL);
+	sc->mibdata.dot3StatsMultipleCollisionFrames += c;
+	ifp->if_collisions += c;
 	sc->mibdata.dot3StatsSQETestErrors += RD4(sc, ETH_SQEE);
 	sc->mibdata.dot3StatsDeferredTransmissions += RD4(sc, ETH_DTE);
-	sc->mibdata.dot3StatsLateCollisions += RD4(sc, ETH_LCOL);
-	sc->mibdata.dot3StatsExcessiveCollisions += RD4(sc, ETH_ECOL);
+	c = RD4(sc, ETH_LCOL);
+	sc->mibdata.dot3StatsLateCollisions += c;
+	ifp->if_collisions += c;
+	c = RD4(sc, ETH_ECOL);
+	sc->mibdata.dot3StatsExcessiveCollisions += c;
+	ifp->if_collisions += c;
 	sc->mibdata.dot3StatsCarrierSenseErrors += RD4(sc, ETH_CSE);
 	sc->mibdata.dot3StatsFrameTooLongs += RD4(sc, ETH_ELR);
 	sc->mibdata.dot3StatsInternalMacReceiveErrors += RD4(sc, ETH_DRFC);
@@ -552,7 +564,7 @@ ate_tick(void *xsc)
 	 * not sure where to lump these, so count them against the errors
 	 * for the interface.
 	 */
-	sc->ifp->if_oerrors += RD4(sc, ETH_CSE) + RD4(sc, ETH_TUE);
+	sc->ifp->if_oerrors += RD4(sc, ETH_TUE);
 	sc->ifp->if_ierrors += RD4(sc, ETH_CDE) + RD4(sc, ETH_RJB) +
 	    RD4(sc, ETH_USF);
 
@@ -577,9 +589,9 @@ ate_get_mac(struct ate_softc *sc, u_char *eaddr)
     uint32_t low, high;
 
     /*
-     * The KB920x loaders will setup the MAC with an address, if one
-     * is set in the loader.  The TSC loader will also set the MAC address
-     * in a similar way.  Grab the MAC address from the SA1[HL] registers.
+     * The boot loader setup the MAC with an address, if one is set in
+     * the loader.  The TSC loader will also set the MAC address in a
+     * similar way.  Grab the MAC address from the SA1[HL] registers.
      */
     low = RD4(sc, ETH_SA1L);
     high =  RD4(sc, ETH_SA1H);
@@ -595,6 +607,7 @@ static void
 ate_intr(void *xsc)
 {
 	struct ate_softc *sc = xsc;
+	struct ifnet *ifp = sc->ifp;
 	int status;
 	int i;
 	void *bp;
@@ -614,15 +627,18 @@ ate_intr(void *xsc)
 			rx_stat = sc->rx_descs[i].status;
 			if ((rx_stat & ETH_LEN_MASK) == 0) {
 				printf("ignoring bogus 0 len packet\n");
-				sc->rx_descs[i].addr &= ~ETH_CPU_OWNER;
 				bus_dmamap_sync(sc->rx_desc_tag, sc->rx_desc_map,
 				    BUS_DMASYNC_PREWRITE);
+				sc->rx_descs[i].addr &= ~ETH_CPU_OWNER;
+				bus_dmamap_sync(sc->rx_desc_tag, sc->rx_desc_map,
+				    BUS_DMASYNC_POSTWRITE);
 				continue;
 			}
 			/* Flush memory for mbuf so we don't get stale bytes */
 			bus_dmamap_sync(sc->rxtag, sc->rx_map[i],
 			    BUS_DMASYNC_POSTREAD);
-			WR4(sc, ETH_RSR, RD4(sc, ETH_RSR));	// XXX WHY? XXX imp
+			WR4(sc, ETH_RSR, RD4(sc, ETH_RSR));
+
 			/*
 			 * The length returned by the device includes the
 			 * ethernet CRC calculation for the packet, but
@@ -630,25 +646,37 @@ ate_intr(void *xsc)
 			 */
 			mb = m_devget(sc->rx_buf[i],
 			    (rx_stat & ETH_LEN_MASK) - ETHER_CRC_LEN,
-			    ETHER_ALIGN, sc->ifp, NULL);
-			sc->rx_descs[i].addr &= ~ETH_CPU_OWNER;
+			    ETHER_ALIGN, ifp, NULL);
 			bus_dmamap_sync(sc->rx_desc_tag, sc->rx_desc_map,
 			    BUS_DMASYNC_PREWRITE);
+			sc->rx_descs[i].addr &= ~ETH_CPU_OWNER;
+			bus_dmamap_sync(sc->rx_desc_tag, sc->rx_desc_map,
+			    BUS_DMASYNC_POSTWRITE);
 			bus_dmamap_sync(sc->rxtag, sc->rx_map[i],
 			    BUS_DMASYNC_PREREAD);
-			if (mb != NULL)
-				(*sc->ifp->if_input)(sc->ifp, mb);
+			if (mb != NULL) {
+				ifp->if_ipackets++;
+				(*ifp->if_input)(ifp, mb);
+			}
+			
 		}
 	}
 	if (status & ETH_ISR_TCOM) {
 		ATE_LOCK(sc);
+		/* XXX TSR register should be cleared */
 		if (sc->sent_mbuf[0]) {
+			bus_dmamap_sync(sc->rxtag, sc->tx_map[0],
+			    BUS_DMASYNC_POSTWRITE);
 			m_freem(sc->sent_mbuf[0]);
+			ifp->if_opackets++;
 			sc->sent_mbuf[0] = NULL;
 		}
 		if (sc->sent_mbuf[1]) {
 			if (RD4(sc, ETH_TSR) & ETH_TSR_IDLE) {
+				bus_dmamap_sync(sc->rxtag, sc->tx_map[1],
+				    BUS_DMASYNC_POSTWRITE);
 				m_freem(sc->sent_mbuf[1]);
+				ifp->if_opackets++;
 				sc->txcur = 0;
 				sc->sent_mbuf[0] = sc->sent_mbuf[1] = NULL;
 			} else {
@@ -684,6 +712,7 @@ ateinit_locked(void *xsc)
 {
 	struct ate_softc *sc = xsc;
 	struct ifnet *ifp = sc->ifp;
+ 	struct mii_data *mii;
 
 	ATE_ASSERT_LOCKED(sc);
 
@@ -731,6 +760,10 @@ ateinit_locked(void *xsc)
 	 */
 	ifp->if_drv_flags |= IFF_DRV_RUNNING;
 	ifp->if_drv_flags &= ~IFF_DRV_OACTIVE;
+
+	mii = device_get_softc(sc->miibus);
+	mii_pollstat(mii);
+	ate_stat_update(sc, mii->mii_media_active);
 	atestart_locked(ifp);
 
 	callout_reset(&sc->tick_ch, hz, ate_tick, sc);
@@ -745,7 +778,7 @@ atestart_locked(struct ifnet *ifp)
 	struct ate_softc *sc = ifp->if_softc;
 	struct mbuf *m, *mdefrag;
 	bus_dma_segment_t segs[1];
-	int nseg;
+	int nseg, e;
 
 	ATE_ASSERT_LOCKED(sc);
 	if (ifp->if_drv_flags & IFF_DRV_OACTIVE)
@@ -767,14 +800,19 @@ atestart_locked(struct ifnet *ifp)
 			ifp->if_drv_flags &= ~IFF_DRV_OACTIVE;
 			return;
 		}
-		mdefrag = m_defrag(m, M_DONTWAIT);
-		if (mdefrag == NULL) {
-			IFQ_DRV_PREPEND(&ifp->if_snd, m);
-			return;
+		e = bus_dmamap_load_mbuf_sg(sc->mtag, sc->tx_map[sc->txcur], m,
+		    segs, &nseg, 0);
+		if (e == EFBIG) {
+			mdefrag = m_defrag(m, M_DONTWAIT);
+			if (mdefrag == NULL) {
+				IFQ_DRV_PREPEND(&ifp->if_snd, m);
+				return;
+			}
+			m = mdefrag;
+			e = bus_dmamap_load_mbuf_sg(sc->mtag,
+			    sc->tx_map[sc->txcur], m, segs, &nseg, 0);
 		}
-		m = mdefrag;
-		if (bus_dmamap_load_mbuf_sg(sc->mtag, sc->tx_map[sc->txcur], m,
-		    segs, &nseg, 0) != 0) {
+		if (e != 0) {
 			m_freem(m);
 			continue;
 		}
