@@ -70,7 +70,7 @@ struct {
 		APIC_SIG,			/* Signature. */
 		sizeof(apic),			/* Length of table. */
 		0,				/* ACPI minor revision. */
-		0,				/* XXX checksum. */
+		0,				/* Checksum. */
 		"FBSD",				/* OEM Id. */
 		"SKI",				/* OEM table Id. */
 		0,				/* OEM revision. */
@@ -177,6 +177,7 @@ acpi_stub_init(void)
 	cksum(&acpi_root, 20, &acpi_root.Checksum);
 	cksum(&acpi_root, sizeof(acpi_root), &acpi_root.ExtendedChecksum);
 
+	cksum(&apic, sizeof(apic), &apic.Header.Checksum);
 	xsdt.apic_tbl = (UINT32)&apic;
 	cksum(&xsdt, sizeof(xsdt), &xsdt.Header.Checksum);
 }
