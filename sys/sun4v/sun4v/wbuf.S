@@ -36,8 +36,13 @@ ENTRY(fault_64bit_sn0)
         SAVE_WINDOW(%g3)
 	mov	1, %g3
 	stx	%g3, [%g4 + PCB_NSAVED]
+
+	! convert hardware trap type to kernel trap type
+	set	trap_conversion, %g1
+	sllx	%g5, INT_SHIFT, %g5
+	ld	[%g1 + %g5], %g2
+	
 	set	trap, %g1
-	mov	%g5, %g2
 	mov	%g6, %g3
 	sub	%g0, 1, %g4
 
@@ -146,7 +151,12 @@ fault_fn1_common:
 	wrpr	%g0, %g1, %tpc
 	add	%g1, 4, %g1
 	wrpr	%g0, %g1, %tnpc
-	
+
+	! convert hardware trap type to kernel trap type
+	set	trap_conversion, %g1
+	sllx	%g5, INT_SHIFT, %g5
+	ld	[%g1 + %g5], %g5
+		
 	set	trap, %g1
 	mov	1, %g2
 	sllx	%g2, CTX_OTHER_SHIFT, %g2
