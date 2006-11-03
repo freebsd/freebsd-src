@@ -586,10 +586,11 @@ ia64_init(void)
 		preload_metadata = (caddr_t)bootinfo.bi_modulep;
 	else
 		metadata_missing = 1;
-	if (envmode == 1)
-		kern_envp = static_env;
-	else
+
+	if (envmode == 0 && bootinfo.bi_envp)
 		kern_envp = (caddr_t)bootinfo.bi_envp;
+	else
+		kern_envp = static_env;
 
 	/*
 	 * Look at arguments passed to us and compute boothowto.
