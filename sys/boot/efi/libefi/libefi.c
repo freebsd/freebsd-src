@@ -98,7 +98,7 @@ efi_main(EFI_HANDLE image_handle, EFI_SYSTEM_TABLE *system_table)
 	if (status != EFI_SUCCESS)
 		BS->Exit(IH, status, 0, NULL);
 
-	setheap((void *)heap, (void *)(heap + heapsize));
+	setheap((void *)(uintptr_t)heap, (void *)(uintptr_t)(heap + heapsize));
 
 	/* Use exit() from here on... */
 
