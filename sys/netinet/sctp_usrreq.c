@@ -3131,7 +3131,7 @@ sctp_optsset(struct socket *so,
 				error = EINVAL;
 				break;
 			}
-			on_off = (mtod(m, int));
+			on_off = *(mtod(m, int *));
 			if (on_off) {
 				sctp_feature_on(inp, SCTP_PCB_FLAGS_FRAG_INTERLEAVE);
 			} else {

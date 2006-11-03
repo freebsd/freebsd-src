@@ -3271,12 +3271,12 @@ sctp_ulp_notify(uint32_t notification, struct sctp_tcb *stcb,
 		break;
 	case SCTP_NOTIFY_AUTH_NEW_KEY:
 		sctp_notify_authentication(stcb, SCTP_AUTH_NEWKEY, error,
-		    (uint32_t) data);
+		    (uint16_t) (uintptr_t) data);
 		break;
 #if 0
 	case SCTP_NOTIFY_AUTH_KEY_CONFLICT:
 		sctp_notify_authentication(stcb, SCTP_AUTH_KEY_CONFLICT,
-		    error, (uint32_t) data);
+		    error, (uint16_t) (uintptr_t) data);
 		break;
 #endif				/* not yet? remove? */
 
