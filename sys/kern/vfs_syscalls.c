@@ -3279,7 +3279,8 @@ kern_rename(struct thread *td, char *from, char *to, enum uio_seg pathseg)
 	error = mac_check_vnode_rename_from(td->td_ucred, fromnd.ni_dvp,
 	    fromnd.ni_vp, &fromnd.ni_cnd);
 	VOP_UNLOCK(fromnd.ni_dvp, 0, td);
-	VOP_UNLOCK(fromnd.ni_vp, 0, td);
+	if (fromnd.ni_dvp != fromnd.ni_vp)
+		VOP_UNLOCK(fromnd.ni_vp, 0, td);
 #endif
 	fvp = fromnd.ni_vp;
 	if (error == 0)
