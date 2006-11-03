@@ -351,7 +351,7 @@ crypto/rijndael/rijndael-api.c	optional crypto | ipsec | wlan_ccmp
 crypto/sha1.c			optional carp | crypto | ipsec | \
 					 netgraph_mppc_encryption | sctp
 crypto/sha2/sha2.c		optional crypto | geom_bde | ipsec | random | \
-                                         sctp
+					 sctp
 ddb/db_access.c			optional	ddb
 ddb/db_break.c			optional	ddb
 ddb/db_command.c		optional	ddb
@@ -1813,7 +1813,7 @@ netinet6/nd6_rtr.c		optional inet6
 netinet6/raw_ip6.c		optional inet6
 netinet6/route6.c		optional inet6
 netinet6/scope6.c		optional inet6
-netinet6/sctp6_usrreq.c		optional inet6 inet6 sctp
+netinet6/sctp6_usrreq.c		optional inet6 sctp
 netinet6/udp6_output.c		optional inet6
 netinet6/udp6_usrreq.c		optional inet6
 netipsec/ipsec.c		optional fast_ipsec
