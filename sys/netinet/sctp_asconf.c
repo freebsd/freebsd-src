@@ -29,9 +29,10 @@
  */
 
 /* $KAME: sctp_asconf.c,v 1.24 2005/03/06 16:04:16 itojun Exp $	 */
-__FBSDID("$FreeBSD$");
 
 #include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
+
 
 
 #include "opt_ipsec.h"
