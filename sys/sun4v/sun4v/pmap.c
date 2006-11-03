@@ -500,24 +500,33 @@ pmap_bootstrap(vm_offset_t ekva)
 	CTR0(KTR_PMAP, "pmap_bootstrap: physical memory");
 
 	qsort(mra, sz, sizeof (*mra), mr_cmp);
-	physsz = 0;
-
-        if (TUNABLE_ULONG_FETCH("hw.physmem", &physmem_tunable))
+	physmem_tunable = physmem = physsz = 0;
+	
+        if (TUNABLE_ULONG_FETCH("hw.physmem", &physmem_tunable)) {
                 physmem = atop(physmem_tunable);
-
-	KDPRINTF("desired physmem=0x%lx\n", physmem_tunable);
+		KDPRINTF("desired physmem=0x%lx\n", physmem_tunable);
+	} 
 	for (i = 0, j = 0; i < sz; i++) {
 		vm_paddr_t start = mra[i].mr_start;
 		uint64_t size = mra[i].mr_size;
 		CTR2(KTR_PMAP, "start=%#lx size=%#lx\n", mra[i].mr_start, mra[i].mr_size);
 		KDPRINTF("start=%#lx size=%#lx\n", mra[i].mr_start, mra[i].mr_size);
+		/* 
+		 * Is kernel memory at the beginning of range?
+		 */
 		if (nucleus_memory_start == mra[i].mr_start) {
 			mra[i].mr_start += 2*PAGE_SIZE_4M;
 			mra[i].mr_size -= 2*PAGE_SIZE_4M;
 		}
+		/* 
+		 * Is kernel memory at the end of range?
+		 */
 		if (nucleus_memory_start == (start + size - 2*PAGE_SIZE_4M)) 
 			mra[i].mr_size -= 2*PAGE_SIZE_4M;
 
+		/* 
+		 * Is kernel memory in the middle somewhere?
+		 */
 		if ((nucleus_memory_start > start) && (nucleus_memory_start < (start + size))) {
 			uint64_t firstsize = (nucleus_memory_start - start);
 			phys_avail[j] = start;
