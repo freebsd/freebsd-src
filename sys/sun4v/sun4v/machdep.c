@@ -302,6 +302,7 @@ sparc64_init(caddr_t mdp, u_long o1, u_long o2, u_long o3, ofw_vec_t *vec)
 	 * Initialize Open Firmware (needed for console).
 	 */
 	OF_init(vec);
+
 	/*
 	 * Parse metadata if present and fetch parameters.  Must be before the
 	 * console is inited so cninit gets the right value of boothowto.
@@ -333,7 +334,38 @@ sparc64_init(caddr_t mdp, u_long o1, u_long o2, u_long o3, ofw_vec_t *vec)
 
 	/*
 	 * Initialize the console before printing anything.
+	 * console uses the pcpu area for serialization 
 	 */
+	pc = (struct pcpu *)(pcpu0 + (PCPU_PAGES * PAGE_SIZE)) - 1;
+	cpu_setregs(pc);
+
+	/*
+	 * Initialize proc0 stuff (p_contested needs to be done early).
+	 */
+
+#ifdef KSE
+	proc_linkup(&proc0, &ksegrp0, &thread0);
+#else
+	proc_linkup(&proc0, &thread0);
+#endif
+	proc0.p_md.md_sigtramp = NULL;
+	proc0.p_md.md_utrap = NULL;
+	frame0.tf_tstate = TSTATE_IE | TSTATE_PEF | TSTATE_PRIV;
+	thread0.td_frame = &frame0;
+	if ((u_long)thread0.td_frame & 0x3f) {
+		panic("unaligned frame0");
+	}
+
+	/*
+	 * Prime our per-cpu data page for use.  Note, we are using it for our
+	 * stack, so don't pass the real size (PAGE_SIZE) to pcpu_init or
+	 * it'll zero it out from under us.
+	 */
+	pc = (struct pcpu *)(pcpu0 + (PCPU_PAGES * PAGE_SIZE)) - 1;
+	pcpu_init(pc, 0, sizeof(struct pcpu));
+	pc->pc_curthread = &thread0;
+	pc->pc_addr = (vm_offset_t)pcpu0;
+
 	cninit();
 	tick_init(clock);
 
@@ -372,35 +404,7 @@ sparc64_init(caddr_t mdp, u_long o1, u_long o2, u_long o3, ofw_vec_t *vec)
 		freeenv(env);
 	}
 
-	/*
-	 * Initialize proc0 stuff (p_contested needs to be done early).
-	 */
 
-#ifdef KSE
-	proc_linkup(&proc0, &ksegrp0, &thread0);
-#else
-	proc_linkup(&proc0, &thread0);
-#endif
-	proc0.p_md.md_sigtramp = NULL;
-	proc0.p_md.md_utrap = NULL;
-	frame0.tf_tstate = TSTATE_IE | TSTATE_PEF | TSTATE_PRIV;
-	thread0.td_frame = &frame0;
-	if ((u_long)thread0.td_frame & 0x3f) {
-		panic("unaligned frame0");
-	}
-	/*
-	 * Prime our per-cpu data page for use.  Note, we are using it for our
-	 * stack, so don't pass the real size (PAGE_SIZE) to pcpu_init or
-	 * it'll zero it out from under us.
-	 */
-	pc = (struct pcpu *)(pcpu0 + (PCPU_PAGES * PAGE_SIZE)) - 1;
-	pcpu_init(pc, 0, sizeof(struct pcpu));
-	pc->pc_curthread = &thread0;
-#ifdef notyet
-	/* SUN4V_FIXME  what is pc_mid? */
-	pc->pc_mid = UPA_CR_GET_MID(ldxa(0, ASI_UPA_CONFIG_REG));
-#endif
-	pc->pc_addr = (vm_offset_t)pcpu0;
 
 	/*
 	 * Initialize global registers.
