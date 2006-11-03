@@ -30,7 +30,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd December 10, 2003
+.Dd October 13, 2006
 .Dt NDIS 4 i386
 .Os
 .Sh NAME
@@ -57,13 +57,13 @@ driver supplied with your network adapter.
 The
 .Nm
 driver uses the
-.Xr ndisapi 9
+.Nm ndisapi
 kernel subsystem to relocate and link the
 .Tn Windows\[rg]
 binary so
 that it can be used in conjunction with native code.
 The
-.Xr ndisapi 9
+.Nm ndisapi
 subsystem provides an interface between the NDIS API and the
 .Fx
 networking infrastructure.
@@ -89,10 +89,8 @@ file, which contains the
 definitions for driver-specific registry keys and other installation
 data such as device identifiers.
 These two files can be converted
-into a
-.Pa ndis_driver_data.h
-file using the
-.Xr ndiscvt 8
+into a kernel module file using the
+.Xr ndisgen 8
 utility.
 This file contains a binary image of the driver plus
 registry key data.
@@ -135,7 +133,7 @@ before a timeout expired.
 .Xr ng_ether 4 ,
 .Xr ifconfig 8 ,
 .Xr ndiscvt 8 ,
-.Xr ndisapi 9
+.Xr ndisgen 8
 .Rs
 .%T "NDIS 5.1 specification"
 .%O http://www.microsoft.com
