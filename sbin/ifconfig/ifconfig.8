@@ -28,7 +28,7 @@
 .\"     From: @(#)ifconfig.8	8.3 (Berkeley) 1/5/94
 .\" $FreeBSD$
 .\"
-.Dd July 25, 2006
+.Dd October 9, 2006
 .Dt IFCONFIG 8
 .Os
 .Sh NAME
@@ -706,6 +706,9 @@ indicates the address is present but the current policy open
 .It Cm list scan
 Display the access points and/or ad-hoc neighbors
 located in the vicinity.
+The
+.Fl v
+flag may be used to display long SSIDs.
 This information may be updated automatically by the adaptor
 and/or with a
 .Cm scan
@@ -867,6 +870,10 @@ The
 .Cm list scan
 request can be used to show recent scan results without
 initiating a new scan.
+.Pp
+The
+.Fl v
+flag may be used to prevent the shortening of long SSIDs.
 .It Cm stationname Ar name
 Set the name of this station.
 It appears that the station name is not really part of the IEEE 802.11
