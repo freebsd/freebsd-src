@@ -162,15 +162,15 @@ cninit(void)
 			/*
 			 * Initialize console, and attach to it.
 			 */
-			cnadd(cn);
 			cn->cn_init(cn);
+			cnadd(cn);
 		}
 	}
 	if (best_cn == NULL)
 		return;
 	if ((boothowto & RB_MULTIPLE) == 0) {
-		cnadd(best_cn);
 		best_cn->cn_init(best_cn);
+		cnadd(best_cn);
 	}
 	if (boothowto & RB_PAUSE)
 		console_pausing = 1;
