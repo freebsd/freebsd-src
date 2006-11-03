@@ -611,7 +611,6 @@ struct scsi_inquiry_data
     (((iqd)->flags & SID_CmdQue) && !((iqd)->spc2_flags & SPC2_SID_BQueue)) || \
     (!((iqd)->flags & SID_CmdQue) && ((iqd)->spc2_flags & SPC2_SID_BQueue)))
 
-
 	u_int8_t flags;
 #define	SID_SftRe	0x01
 #define	SID_CmdQue	0x02
