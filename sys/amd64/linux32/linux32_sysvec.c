@@ -844,7 +844,7 @@ linux_copyout_strings(struct image_params *imgp)
 	 */
 	if (sigcodesz)
 		copyout(imgp->proc->p_sysent->sv_sigcode,
-			((caddr_t)arginfo - sigcodesz), szsigcode);
+			((caddr_t)arginfo - sigcodesz), sigcodesz);
 
 	/*
 	 * If we have a valid auxargs ptr, prepare some room
