@@ -500,4 +500,8 @@ struct sysent sysent[] = {
 	{ 0, (sy_call_t *)nosys, AUE_NULL, NULL, 0, 0 },			/* 468 = nosys */
 	{ 0, (sy_call_t *)nosys, AUE_NULL, NULL, 0, 0 },			/* 469 = __getpath_fromfd */
 	{ 0, (sy_call_t *)nosys, AUE_NULL, NULL, 0, 0 },			/* 470 = __getpath_fromaddr */
+	{ AS(sctp_peeloff_args), (sy_call_t *)sctp_peeloff, AUE_NULL, NULL, 0, 0 },	/* 471 = sctp_peeloff */
+	{ AS(sctp_generic_sendmsg_args), (sy_call_t *)sctp_generic_sendmsg, AUE_NULL, NULL, 0, 0 },	/* 472 = sctp_generic_sendmsg */
+	{ AS(sctp_generic_sendmsg_iov_args), (sy_call_t *)sctp_generic_sendmsg_iov, AUE_NULL, NULL, 0, 0 },	/* 473 = sctp_generic_sendmsg_iov */
+	{ AS(sctp_generic_recvmsg_args), (sy_call_t *)sctp_generic_recvmsg, AUE_NULL, NULL, 0, 0 },	/* 474 = sctp_generic_recvmsg */
 };

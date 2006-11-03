@@ -2758,6 +2758,53 @@ systrace_args(int sysnum, void *params, u_int64_t *uarg, int *n_args)
 		*n_args = 3;
 		break;
 	}
+	/* sctp_peeloff */
+	case 471: {
+		struct sctp_peeloff_args *p = params;
+		iarg[0] = p->sd; /* int */
+		uarg[1] = p->name; /* uint32_t */
+		*n_args = 2;
+		break;
+	}
+	/* sctp_generic_sendmsg */
+	case 472: {
+		struct sctp_generic_sendmsg_args *p = params;
+		iarg[0] = p->sd; /* int */
+		uarg[1] = (intptr_t) p->msg; /* caddr_t */
+		iarg[2] = p->mlen; /* int */
+		uarg[3] = (intptr_t) p->to; /* caddr_t */
+		iarg[4] = p->tolen; /* __socklen_t */
+		uarg[5] = (intptr_t) p->sinfo; /* struct sctp_sndrcvinfo * */
+		iarg[6] = p->flags; /* int */
+		*n_args = 7;
+		break;
+	}
+	/* sctp_generic_sendmsg_iov */
+	case 473: {
+		struct sctp_generic_sendmsg_iov_args *p = params;
+		iarg[0] = p->sd; /* int */
+		uarg[1] = (intptr_t) p->iov; /* struct iovec * */
+		iarg[2] = p->iovlen; /* int */
+		uarg[3] = (intptr_t) p->to; /* caddr_t */
+		iarg[4] = p->tolen; /* __socklen_t */
+		uarg[5] = (intptr_t) p->sinfo; /* struct sctp_sndrcvinfo * */
+		iarg[6] = p->flags; /* int */
+		*n_args = 7;
+		break;
+	}
+	/* sctp_generic_recvmsg */
+	case 474: {
+		struct sctp_generic_recvmsg_args *p = params;
+		iarg[0] = p->sd; /* int */
+		uarg[1] = (intptr_t) p->iov; /* struct iovec * */
+		iarg[2] = p->iovlen; /* int */
+		uarg[3] = (intptr_t) p->from; /* struct sockaddr * */
+		uarg[4] = (intptr_t) p->fromlenaddr; /* __socklen_t * */
+		uarg[5] = (intptr_t) p->sinfo; /* struct sctp_sndrcvinfo * */
+		uarg[6] = (intptr_t) p->msg_flags; /* int * */
+		*n_args = 7;
+		break;
+	}
 	default:
 		*n_args = 0;
 		break;
