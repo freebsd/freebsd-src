@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd January 11, 2004
+.Dd October 9, 2006
 .Dt PW 8
 .Os
 .Sh NAME
@@ -428,6 +428,11 @@ The new home directory is populated with the contents of the
 .Ar skeleton
 directory, which typically contains a set of shell configuration files that the
 user may personalize to taste.
+Files in this directory are usually named
+.Pa dot . Ns Aq Ar config
+where the
+.Pa dot
+prefix will be stripped.
 When
 .Fl m
 is used on an account with
@@ -598,6 +603,9 @@ Set the default
 directory, from which prototype shell and other initialization files are copied when
 .Nm
 creates a user's home directory.
+See description of
+.Fl k
+for naming conventions of these files.
 .It Xo
 .Fl u Ar min , Ns Ar max ,
 .Fl i Ar min , Ns Ar max
