@@ -2206,7 +2206,7 @@ sctp_inpcb_free(struct sctp_inpcb *inp, int immediate, int from)
 					sp = TAILQ_LAST(&((asoc->asoc.locked_on_sending)->outqueue),
 					    sctp_streamhead);
 					if (sp == NULL) {
-						printf("Error, sp is NULL, locked on sending is %x strm:%d\n",
+						printf("Error, sp is NULL, locked on sending is %ps strm:%d\n",
 						    (u_int)asoc->asoc.locked_on_sending,
 						    asoc->asoc.locked_on_sending->stream_no);
 					} else {
