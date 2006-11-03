@@ -478,4 +478,8 @@ const char *syscallnames[] = {
 	"#468",			/* 468 = nosys */
 	"#469",			/* 469 = __getpath_fromfd */
 	"#470",			/* 470 = __getpath_fromaddr */
+	"sctp_peeloff",			/* 471 = sctp_peeloff */
+	"sctp_generic_sendmsg",			/* 472 = sctp_generic_sendmsg */
+	"sctp_generic_sendmsg_iov",			/* 473 = sctp_generic_sendmsg_iov */
+	"sctp_generic_recvmsg",			/* 474 = sctp_generic_recvmsg */
 };
