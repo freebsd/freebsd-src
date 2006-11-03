@@ -73,6 +73,7 @@ __FBSDID("$FreeBSD$");
 #include <machine/utrap.h>
 #ifdef SUN4V
 #include <machine/mmu.h>
+#include <machine/trap.h>
 #include <machine/tte_hash.h>
 #endif
 
@@ -300,6 +301,7 @@ ASSYM(PCB_FLAGS, offsetof(struct pcb, pcb_flags));
 ASSYM(PCB_NSAVED, offsetof(struct pcb, pcb_nsaved));
 ASSYM(PCB_PC, offsetof(struct pcb, pcb_pc));
 ASSYM(PCB_SP, offsetof(struct pcb, pcb_sp));
+ASSYM(PCB_PAD, offsetof(struct pcb, pcb_pad));
 
 
 
