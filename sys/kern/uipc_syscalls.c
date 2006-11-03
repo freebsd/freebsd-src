@@ -35,6 +35,7 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+#include "opt_sctp.h"
 #include "opt_compat.h"
 #include "opt_ktrace.h"
 #include "opt_mac.h"
@@ -75,6 +76,11 @@ __FBSDID("$FreeBSD$");
 #include <vm/vm_pageout.h>
 #include <vm/vm_kern.h>
 #include <vm/vm_extern.h>
+
+#ifdef SCTP
+#include <netinet/sctp.h>
+#include <netinet/sctp_peeloff.h>
+#endif /* SCTP */
 
 static int sendit(struct thread *td, int s, struct msghdr *mp, int flags);
 static int recvit(struct thread *td, int s, struct msghdr *mp, void *namelenp);
@@ -2318,4 +2324,449 @@ done:
 		error = EINTR;
 
 	return (error);
+}
+
+
+int
+sctp_peeloff(td, uap)
+	struct thread *td;
+	register struct sctp_peeloff_args /* {
+		int	sd;
+		caddr_t	name;
+	} */ *uap;
+{
+#ifdef SCTP
+	struct filedesc *fdp;
+	struct file *nfp = NULL;
+	int error;
+	struct socket *head, *so;
+	int fd;
+	u_int fflag;
+
+	fdp = td->td_proc->p_fd;
+	error = fgetsock(td, uap->sd, &head, &fflag);
+	if (error)
+		goto done2;
+	error = sctp_can_peel_off(head, (sctp_assoc_t)uap->name);
+	if (error)
+		goto done2;
+	/*
+	 * At this point we know we do have a assoc to pull
+	 * we proceed to get the fd setup. This may block
+	 * but that is ok.
+	 */
+
+	error = falloc(td, &nfp, &fd);
+	if (error)
+		goto done;
+	td->td_retval[0] = fd;
+
+	so = sonewconn(head, SS_ISCONNECTED);
+	if (so == NULL) 
+		goto noconnection;
+	/*
+	 * Before changing the flags on the socket, we have to bump the
+	 * reference count.  Otherwise, if the protocol calls sofree(),
+	 * the socket will be released due to a zero refcount.
+	 */
+        SOCK_LOCK(so);
+        soref(so);                      /* file descriptor reference */
+        SOCK_UNLOCK(so);
+
+	ACCEPT_LOCK();
+
+	TAILQ_REMOVE(&head->so_comp, so, so_list);
+	head->so_qlen--;
+	so->so_state |= (head->so_state & SS_NBIO);
+	so->so_state &= ~SS_NOFDREF;
+	so->so_qstate &= ~SQ_COMP;
+	so->so_head = NULL;
+
+	ACCEPT_UNLOCK();
+
+	error = sctp_do_peeloff(head, so, (sctp_assoc_t)uap->name);
+	if (error)
+		goto noconnection;
+	if (head->so_sigio != NULL)
+		fsetown(fgetown(&head->so_sigio), &so->so_sigio);
+
+	FILE_LOCK(nfp);
+	nfp->f_data = so;
+	nfp->f_flag = fflag;
+	nfp->f_ops = &socketops;
+	nfp->f_type = DTYPE_SOCKET;
+	FILE_UNLOCK(nfp);
+
+ noconnection:
+	/*
+	 * close the new descriptor, assuming someone hasn't ripped it
+	 * out from under us.
+	 */
+	if (error)
+		fdclose(fdp, nfp, fd, td);
+
+	/*
+	 * Release explicitly held references before returning.
+	 */
+ done:
+	if (nfp != NULL)
+		fdrop(nfp, td);
+	fputsock(head);
+ done2:
+	return (error);
+#else
+	return (EOPNOTSUPP);
+#endif
+}
+
+
+int sctp_generic_sendmsg (td, uap)
+	struct thread *td;
+	register struct sctp_generic_sendmsg_args /* {
+					  int sd, 
+					  caddr_t msg, 
+					  int mlen, 
+					  caddr_t to, 
+					  __socklen_t tolen, 
+					  struct sctp_sndrcvinfo *sinfo, 
+					  int flags
+					     } */ *uap;
+{
+#ifdef SCTP
+	struct sctp_sndrcvinfo sinfo, *u_sinfo=NULL;
+	struct socket *so;
+	struct file *fp;
+	int use_rcvinfo=1;
+	int error=0, len;
+	struct sockaddr *to=NULL;
+#ifdef KTRACE
+	struct uio *ktruio = NULL;
+#endif
+	struct uio auio;
+	struct iovec iov[1];
+
+	if(uap->sinfo) {
+		error = copyin(uap->sinfo, &sinfo, sizeof (sinfo));
+		if (error)
+			return (error);
+		u_sinfo = &sinfo;
+	}
+
+	if(uap->tolen) {
+		error = getsockaddr(&to, uap->to, uap->tolen);
+		if (error) {
+			to = NULL;
+			goto sctp_bad2;
+		}
+	}
+	error = getsock(td->td_proc->p_fd, uap->sd, &fp, NULL);
+	if (error)
+		goto sctp_bad;
+
+	iov[0].iov_base = uap->msg;
+	iov[0].iov_len = uap->mlen;
+
+	so = (struct socket *)fp->f_data;
+#ifdef MAC
+	SOCK_LOCK(so);
+	error = mac_check_socket_send(td->td_ucred, so);
+	SOCK_UNLOCK(so);
+	if (error)
+		goto sctp_bad;
+#endif
+
+
+	auio.uio_iov =  iov;
+	auio.uio_iovcnt = 1;
+	auio.uio_segflg = UIO_USERSPACE;
+	auio.uio_rw = UIO_WRITE;
+	auio.uio_td = td;
+	auio.uio_offset = 0;			/* XXX */
+	auio.uio_resid = 0;
+	len = auio.uio_resid = uap->mlen;
+	error = sctp_lower_sosend(so,
+				 to,
+				 &auio,
+				 (struct mbuf *)NULL,
+				 (struct mbuf *)NULL,
+				 uap->flags,
+				 use_rcvinfo,
+				 u_sinfo,
+				 td );
+	
+	if (error) {
+		if (auio.uio_resid != len && (error == ERESTART ||
+		    error == EINTR || error == EWOULDBLOCK))
+			error = 0;
+		/* Generation of SIGPIPE can be controlled per socket */
+		if (error == EPIPE && !(so->so_options & SO_NOSIGPIPE) &&
+		    !(uap->flags & MSG_NOSIGNAL)) {
+			PROC_LOCK(td->td_proc);
+			psignal(td->td_proc, SIGPIPE);
+			PROC_UNLOCK(td->td_proc);
+		}
+	}
+	if (error == 0)
+		td->td_retval[0] = len - auio.uio_resid;
+#ifdef KTRACE
+	if (ktruio != NULL) {
+		ktruio->uio_resid = td->td_retval[0];
+		ktrgenio(uap->sd, UIO_WRITE, ktruio, error);
+	}
+#endif
+ sctp_bad:
+	fdrop(fp, td);
+ sctp_bad2:
+	if (to)
+		FREE(to, M_SONAME);
+
+	return (error);
+#else
+	return (EOPNOTSUPP);
+#endif
+}
+
+
+int sctp_generic_sendmsg_iov(td, uap)
+	struct thread *td;
+	register struct sctp_generic_sendmsg_iov_args /* {
+					  int sd, 
+					  struct iovec *iov, 
+					  int iovlen, 
+					  caddr_t to, 
+					  __socklen_t tolen, 
+					  struct sctp_sndrcvinfo *sinfo, 
+					  int flags
+					     } */ *uap;
+{
+#ifdef SCTP
+	struct sctp_sndrcvinfo sinfo, *u_sinfo=NULL;
+	struct socket *so;
+	struct file *fp;
+	int use_rcvinfo=1;
+	int error=0, len, i;
+	struct sockaddr *to=NULL;
+#ifdef KTRACE
+	struct uio *ktruio = NULL;
+#endif
+	struct uio auio;
+	struct iovec *iov, *tiov;
+
+	if(uap->sinfo) {
+		error = copyin(uap->sinfo, &sinfo, sizeof (sinfo));
+		if (error)
+			return (error);
+		u_sinfo = &sinfo;
+	}
+
+	if(uap->tolen) {
+		error = getsockaddr(&to, uap->to, uap->tolen);
+		if (error) {
+			to = NULL;
+			goto sctp_bad2;
+		}
+	}
+	error = getsock(td->td_proc->p_fd, uap->sd, &fp, NULL);
+	if (error)
+		goto sctp_bad1;
+
+	error = copyiniov(uap->iov, uap->iovlen, &iov, EMSGSIZE);
+	if (error)
+		goto sctp_bad1;
+
+
+	so = (struct socket *)fp->f_data;
+#ifdef MAC
+	SOCK_LOCK(so);
+	error = mac_check_socket_send(td->td_ucred, so);
+	SOCK_UNLOCK(so);
+	if (error)
+		goto sctp_bad;
+#endif
+
+
+	auio.uio_iov =  iov;
+	auio.uio_iovcnt = uap->iovlen;
+	auio.uio_segflg = UIO_USERSPACE;
+	auio.uio_rw = UIO_WRITE;
+	auio.uio_td = td;
+	auio.uio_offset = 0;			/* XXX */
+	auio.uio_resid = 0;
+	tiov = iov;
+	for (i = 0; i <uap->iovlen; i++, tiov++) {
+		if ((auio.uio_resid += tiov->iov_len) < 0) {
+			error = EINVAL;
+			goto sctp_bad;
+		}
+	}
+	len = auio.uio_resid;
+	error = sctp_lower_sosend(so,
+				 to,
+				 &auio,
+				 (struct mbuf *)NULL,
+				 (struct mbuf *)NULL,
+				 uap->flags,
+				 use_rcvinfo,
+				 u_sinfo,
+				 td );
+	
+	if (error) {
+		if (auio.uio_resid != len && (error == ERESTART ||
+		    error == EINTR || error == EWOULDBLOCK))
+			error = 0;
+		/* Generation of SIGPIPE can be controlled per socket */
+		if (error == EPIPE && !(so->so_options & SO_NOSIGPIPE) &&
+		    !(uap->flags & MSG_NOSIGNAL)) {
+			PROC_LOCK(td->td_proc);
+			psignal(td->td_proc, SIGPIPE);
+			PROC_UNLOCK(td->td_proc);
+		}
+	}
+	if (error == 0)
+		td->td_retval[0] = len - auio.uio_resid;
+#ifdef KTRACE
+	if (ktruio != NULL) {
+		ktruio->uio_resid = td->td_retval[0];
+		ktrgenio(uap->sd, UIO_WRITE, ktruio, error);
+	}
+#endif
+ sctp_bad:
+	free(iov, M_IOV);
+ sctp_bad1:
+	fdrop(fp, td);
+ sctp_bad2:
+	if (to)
+		FREE(to, M_SONAME);
+
+	return (error);
+#else
+	return (EOPNOTSUPP);
+#endif
+}
+
+int sctp_generic_recvmsg(td, uap)
+	struct thread *td;
+	register struct sctp_generic_recvmsg_args /* {
+					     int sd, 
+					     struct iovec *iov, 
+					     int iovlen,
+					     struct sockaddr *from, 
+					     __socklen_t *fromlenaddr,
+					     struct sctp_sndrcvinfo *sinfo, 
+					     int *msg_flags
+					     } */ *uap;
+{
+#ifdef SCTP
+	u_int8_t sockbufstore[256];
+	struct uio auio;
+	struct iovec *iov, *tiov;
+	struct sctp_sndrcvinfo sinfo;
+	struct socket *so;
+	struct file *fp;
+	struct sockaddr *fromsa;
+	int fromlen;
+	int len, i, msg_flags=0;
+	int error=0;
+#ifdef KTRACE
+	struct uio *ktruio = NULL;
+#endif
+	error = getsock(td->td_proc->p_fd, uap->sd, &fp, NULL);
+	if (error) {
+		return (error);
+	}
+	error = copyiniov(uap->iov, uap->iovlen, &iov, EMSGSIZE);
+	if (error) {
+		goto out1;
+	}
+	so = fp->f_data;
+#ifdef MAC
+	SOCK_LOCK(so);
+	error = mac_check_socket_receive(td->td_ucred, so);
+	SOCK_UNLOCK(so);
+	if (error) {
+		goto out;
+		return (error);
+	}
+#endif
+	if (uap->fromlenaddr) {
+		error = copyin(uap->fromlenaddr,
+		    &fromlen, sizeof (fromlen));
+		if (error) {
+			goto out;
+		}
+	} else {
+		fromlen = 0;
+	}
+
+
+	auio.uio_iov = iov;
+	auio.uio_iovcnt = uap->iovlen;
+  	auio.uio_segflg = UIO_USERSPACE;
+	auio.uio_rw = UIO_READ;
+	auio.uio_td = td;
+	auio.uio_offset = 0;			/* XXX */
+	auio.uio_resid = 0;
+	tiov = iov;
+	for (i = 0; i <uap->iovlen; i++, tiov++) {
+		if ((auio.uio_resid += tiov->iov_len) < 0) {
+			error = EINVAL;
+			goto out;
+		}
+	}
+	len = auio.uio_resid;
+	fromsa = (struct sockaddr *)sockbufstore;
+#ifdef KTRACE
+	if (KTRPOINT(td, KTR_GENIO))
+		ktruio = cloneuio(&auio);
+#endif
+	error = sctp_sorecvmsg(so, &auio, (struct mbuf **)NULL,
+			       fromsa, fromlen, &msg_flags, (struct sctp_sndrcvinfo *)&sinfo, 
+			       1);
+	if (error) {
+		if (auio.uio_resid != (int)len && (error == ERESTART ||
+		    error == EINTR || error == EWOULDBLOCK))
+			error = 0;
+	} else {
+		if(uap->sinfo)
+			error = copyout(&sinfo, uap->sinfo, sizeof (sinfo));
+	}
+#ifdef KTRACE
+	if (ktruio != NULL) {
+		ktruio->uio_resid = (int)len - auio.uio_resid;
+		ktrgenio(uap->sd, UIO_READ, ktruio, error);
+	}
+#endif
+	if (error)
+		goto out;
+	td->td_retval[0] = (int)len - auio.uio_resid;
+	if (fromlen && uap->from) {
+		len = fromlen;
+		if (len <= 0 || fromsa == 0)
+			len = 0;
+		else {
+			len = MIN(len, fromsa->sa_len);
+			error = copyout(fromsa, uap->from, (unsigned)len);
+			if (error)
+				goto out;
+		}
+		error = copyout(&len, uap->fromlenaddr, sizeof (socklen_t));
+		if(error) {
+			goto out;
+		}
+	}
+	if (uap->msg_flags) {
+		error = copyout(&msg_flags, uap->msg_flags, sizeof (int));
+		if(error) {
+			goto out;
+		}
+	}
+out:
+	free(iov, M_IOV);
+out1:
+	fdrop(fp, td);
+	return (error);
+#else
+	return (EOPNOTSUPP);
+#endif
+
 }
