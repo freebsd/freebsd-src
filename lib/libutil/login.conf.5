@@ -19,7 +19,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd August 23, 2006
+.Dd October 9, 2006
 .Dt LOGIN.CONF 5
 .Os
 .Sh NAME
@@ -73,6 +73,13 @@ of the capability entry, and all others are synonyms.
 All names but the last should be in lower case and contain no blanks;
 the last name may contain upper case characters and blanks for
 readability.
+.Pp
+Note that since a colon
+.Pq Ql :\&
+is used to separate capability entries, a
+.Ql \ec
+escape sequence must be used to embed a literal colon in the
+value or name of a capability.
 .Pp
 The default
 .Pa /etc/login.conf
