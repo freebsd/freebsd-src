@@ -251,7 +251,7 @@ sctp_process_init(struct sctp_init_chunk *cp, struct sctp_tcb *stcb,
 					sp->net = NULL;
 					/* Free the chunk */
 					printf("sp:%p tcb:%p weird free case\n",
-					    (u_int)sp, (u_int)stcb);
+					    sp, stcb);
 
 					sctp_free_a_strmoq(stcb, sp);
 					sp = TAILQ_FIRST(&outs->outqueue);
