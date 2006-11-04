@@ -3439,7 +3439,7 @@ vop_rename_pre(void *ap)
 	if (a->a_tdvp != a->a_fdvp && a->a_tvp != a->a_fdvp)
 		ASSERT_VOP_UNLOCKED(a->a_fdvp, "vop_rename: fdvp locked");
 	if (a->a_tvp != a->a_fvp)
-		ASSERT_VOP_UNLOCKED(a->a_fvp, "vop_rename: tvp locked");
+		ASSERT_VOP_UNLOCKED(a->a_fvp, "vop_rename: fvp locked");
 
 	/* Check the target. */
 	if (a->a_tvp)
