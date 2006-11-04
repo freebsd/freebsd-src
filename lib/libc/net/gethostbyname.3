@@ -49,7 +49,7 @@
 .Lb libc
 .Sh SYNOPSIS
 .In netdb.h
-.Vt extern int h_errno ;
+.Vt int h_errno ;
 .Ft struct hostent *
 .Fn gethostbyname "const char *name"
 .Ft struct hostent *
@@ -261,7 +261,7 @@ and
 is indicated by return of a
 .Dv NULL
 pointer.
-The external integer
+The integer
 .Va h_errno
 may then be checked to see whether this is a temporary failure
 or an invalid or unknown host.
