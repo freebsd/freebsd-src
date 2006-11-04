@@ -812,7 +812,6 @@ tapwrite(struct cdev *dev, struct uio *uio, int flag)
 	struct tap_softc	*tp = dev->si_drv1;
 	struct ifnet		*ifp = tp->tap_ifp;
 	struct mbuf		*m;
-	int			 error = 0;
 
 	TAPDEBUG("%s writting, minor = %#x\n", 
 		ifp->if_xname, minor(dev));
@@ -830,7 +829,7 @@ tapwrite(struct cdev *dev, struct uio *uio, int flag)
 	if ((m = m_uiotombuf(uio, M_DONTWAIT, 0, ETHER_ALIGN,
 	    M_PKTHDR)) == NULL) {
 		ifp->if_ierrors ++;
-		return (error);
+		return (ENOBUFS);
 	}
 
 	m->m_pkthdr.rcvif = ifp;
