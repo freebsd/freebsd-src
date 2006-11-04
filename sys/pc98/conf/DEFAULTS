@@ -23,3 +23,6 @@ device		uart_ns8250
 
 # KSE support went from being default to a kernel option
 options 	KSE
+
+# Kernel support for loading DTrace modules
+options 	KDTRACE

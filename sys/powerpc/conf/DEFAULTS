@@ -14,3 +14,6 @@ device		uart_z8530
 
 # KSE support went from being default to a kernel option
 options 	KSE
+
+# Kernel support for loading DTrace modules
+options 	KDTRACE
