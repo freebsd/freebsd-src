@@ -32,7 +32,7 @@
 .\"     @(#)resolver.3	8.1 (Berkeley) 6/4/93
 .\" $FreeBSD$
 .\"
-.Dd June 4, 1993
+.Dd November 4, 2006
 .Dt RESOLVER 3
 .Os
 .Sh NAME
@@ -410,6 +410,20 @@ The
 .Fn res_init
 function will return 0 on success, or \-1 in a threaded program if
 per-thread storage could not be allocated.
+.Pp
+The
+.Fn res_mkquery ,
+.Fn res_search ,
+and
+.Fn res_query
+functions return the size of the response on success, or \-1 if an
+error occurs.
+The integer
+.Vt h_errno
+may be checked to determine the reason for error.
+See
+.Xr gethostbyname 3
+for more information.
 .Sh FILES
 .Bl -tag -width /etc/resolv.conf
 .It Pa /etc/resolv.conf
