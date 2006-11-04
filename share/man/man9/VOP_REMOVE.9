@@ -80,16 +80,6 @@ vop_remove(struct vnode *dvp, struct vnode *vp, struct componentname *cnp)
      */
     ...;
 
-    /*
-     * Careful about trying to remove ".".  XXX this should be handled
-     * higher up.
-     */
-    if (dvp == vp)
-	vrele(vp);
-    else
-	vput(vp);
-    vput(dvp);
-
     return error;
 }
 .Ed
