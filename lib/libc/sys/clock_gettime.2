@@ -33,7 +33,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd November 18, 2005
+.Dd November 4, 2006
 .Dt CLOCK_GETTIME 2
 .Os
 .Sh NAME
@@ -44,7 +44,7 @@
 .Sh LIBRARY
 .Lb libc
 .Sh SYNOPSIS
-.In sys/time.h
+.In time.h
 .Ft int
 .Fn clock_gettime "clockid_t clock_id" "struct timespec *tp"
 .Ft int
@@ -82,7 +82,7 @@ kernel mode.
 The structure pointed to by
 .Fa tp
 is defined in
-.In sys/time.h
+.In sys/timespec.h
 as:
 .Pp
 .Bd -literal
