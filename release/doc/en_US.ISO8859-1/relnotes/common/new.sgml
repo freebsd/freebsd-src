@@ -619,7 +619,7 @@
 	  architectures such as sparc64.  &merged;</para>
 
 	<para>The &man.em.4; driver has been updated to
-	  version 6.1.4 from Intel.  Among other changes, it now supports
+	  version 6.2.9 from Intel.  Among other changes, it now supports
 	  80003, 82571, 82571EB and 82572 based adapters, as well as
 	  onboard-NICs on ICH8-based motherboards. &merged;</para>
 
