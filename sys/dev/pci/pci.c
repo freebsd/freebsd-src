@@ -1323,6 +1323,8 @@ pci_add_map(device_t pcib, device_t bus, device_t dev,
 	 */
 	res = resource_list_alloc(rl, bus, dev, type, &reg, start, end, count,
 	    prefetch ? RF_PREFETCHABLE : 0);
+	if (res == NULL)
+		return (barlen);
 	start = rman_get_start(res);
 	if ((u_long)start != start) {
 		/* Wait a minute!  this platform can't do this address. */
@@ -1332,11 +1334,9 @@ pci_add_map(device_t pcib, device_t bus, device_t dev,
 		resource_list_release(rl, bus, dev, type, reg, res);
 		return (barlen);
 	}
-	if (res != NULL) {
-		pci_write_config(dev, reg, start, 4);
-		if (ln2range == 64)
-			pci_write_config(dev, reg + 4, start >> 32, 4);
-	}
+	pci_write_config(dev, reg, start, 4);
+	if (ln2range == 64)
+		pci_write_config(dev, reg + 4, start >> 32, 4);
 	return (barlen);
 }
 
