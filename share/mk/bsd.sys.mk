@@ -67,5 +67,9 @@ CWARNFLAGS	+=	-Werror
 . endif
 .endif
 
+.if defined(IGNORE_PRAGMA)
+CWARNFLAGS	+=	-Wno-unknown-pragmas
+.endif
+
 # Allow user-specified additional warning flags
 CFLAGS		+=	${CWARNFLAGS}
