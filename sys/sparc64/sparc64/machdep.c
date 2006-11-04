@@ -330,6 +330,12 @@ sparc64_init(caddr_t mdp, u_long o1, u_long o2, u_long o3, ofw_vec_t *vec)
 	tick_init(clock);
 
 	/*
+	 * Initialize global registers.
+	 */
+	pc = (struct pcpu *)(pcpu0 + (PCPU_PAGES * PAGE_SIZE)) - 1;
+	cpu_setregs(pc);
+
+	/*
 	 * Initialize the console before printing anything.
 	 */
 	cninit();
@@ -409,7 +415,6 @@ sparc64_init(caddr_t mdp, u_long o1, u_long o2, u_long o3, ofw_vec_t *vec)
 	 * stack, so don't pass the real size (PAGE_SIZE) to pcpu_init or
 	 * it'll zero it out from under us.
 	 */
-	pc = (struct pcpu *)(pcpu0 + (PCPU_PAGES * PAGE_SIZE)) - 1;
 	pcpu_init(pc, 0, sizeof(struct pcpu));
 	pc->pc_curthread = &thread0;
 	pc->pc_curpcb = thread0.td_pcb;
@@ -419,11 +424,6 @@ sparc64_init(caddr_t mdp, u_long o1, u_long o2, u_long o3, ofw_vec_t *vec)
 	pc->pc_tlb_ctx = TLB_CTX_USER_MIN;
 	pc->pc_tlb_ctx_min = TLB_CTX_USER_MIN;
 	pc->pc_tlb_ctx_max = TLB_CTX_USER_MAX;
-
-	/*
-	 * Initialize global registers.
-	 */
-	cpu_setregs(pc);
 
 	/*
 	 * Initialize the message buffer (after setting trap table).

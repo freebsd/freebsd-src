@@ -7,3 +7,6 @@ machine		sun4v
 
 # Pseudo devices.
 device		mem		# Memory and kernel memory devices
+
+# Kernel support for loading DTrace modules
+options 	KDTRACE
