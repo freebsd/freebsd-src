@@ -104,34 +104,13 @@ vop_rename(struct vnode *fdvp, struct vnode *fvp, struct componentname *fcnp,
     }
 
     /*
-     * Check if just deleting a link name.
+     * POSIX: "If the old argument and the new argument
+     * both refer to links to the same existing file,
+     * the rename() function shall return successfully
+     * and perform no other action."
+     * The upper layers already handle this case.
      */
-    if (fvp == tvp) {
-	if (fvp->v_type == VDIR) {
-	    error = EINVAL;
-	    goto abortit;
-	}
-
-	/*
-	 * Release destination.
-	 */
-	vput(tdvp);
-	vput(tvp);
-
-	/*
-	 * Delete source.  Pretty bizarre stuff.
-	 */
-	vrele(fdvp);
-	vrele(fvp);
-	fcnp->cn_flags &= ~MODMASK;
-	fcnp->cn_flags |= LOCKPARENT | LOCKLEAF;
-	fcnp->cn_nameiop = DELETE;
-	VREF(fdvp);
-	error = relookup(fdvp, &fvp, fcnp);
-	if (error == 0)
-	    vrele(fdvp);
-	return VOP_REMOVE(fdvp, fvp, fcnp);
-    }
+    KASSERT(fvp != tvp, ("vop_rename: source and destination are the same"));
 
     if (fvp is immutable) {
 	error = EPERM;
