@@ -356,7 +356,7 @@ init_inquiry(u_int16_t req_flags, u_int16_t sim_flags)
 
 	/* Advertise only what the SIM can actually support */
 	req_flags &= sim_flags;
-	scsi_ulto2b(req_flags, &inq->reserved[1]);
+	scsi_ulto2b(req_flags, &inq->spc2_flags);
 
 	inq->response_format = 2; /* SCSI2 Inquiry Format */
 	inq->additional_length = SHORT_INQUIRY_LENGTH -
