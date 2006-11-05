@@ -59,7 +59,7 @@ __FBSDID("$FreeBSD$");
 #define SECSPERDAY	(24 * SECSPERHOUR)
 
 time_t
-EfiTimeToUnixTime(EFI_TIME *ETime)
+efi_time(EFI_TIME *ETime)
 {
     /*
     //  These arrays give the cumulative number of days up to the first of the
@@ -170,15 +170,15 @@ EFI_GetTimeOfDay(
 	OUT struct timezone *tzp
 	)
 {
-	EFI_TIME				EfiTime;
+	EFI_TIME		EfiTime;
 	EFI_TIME_CAPABILITIES	Capabilities;
-	EFI_STATUS				Status;
+	EFI_STATUS		Status;
 
 	/*
 	//  Get time from EFI
 	*/
 
-	Status = RS->GetTime( &EfiTime, &Capabilities );
+	Status = RS->GetTime(&EfiTime, &Capabilities);
 	if (EFI_ERROR(Status))
 		return (-1);
 
@@ -186,7 +186,7 @@ EFI_GetTimeOfDay(
 	//  Convert to UNIX time (ie seconds since the epoch
 	*/
 
-	tp->tv_sec  = EfiTimeToUnixTime( &EfiTime );
+	tp->tv_sec  = efi_time( &EfiTime );
 	tp->tv_usec = 0; /* EfiTime.Nanosecond * 1000; */
 
 	/*

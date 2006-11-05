@@ -38,8 +38,6 @@ __FBSDID("$FreeBSD$");
 #include <efi.h>
 #include <efilib.h>
 
-#include "efiboot.h"
-
 /*
  * We could use linker sets for some or all of these, but
  * then we would have to control what ended up linked into
@@ -52,24 +50,23 @@ __FBSDID("$FreeBSD$");
 /* Exported for libstand */
 struct devsw *devsw[] = {
 	&efifs_dev,
-	&netdev,
+	&efinet_dev,
 	NULL
 };
 
 struct fs_ops *file_system[] = {
-	&efi_fsops,
-/*	&ufs_fsops, */
+	&efifs_fsops,
 	&nfs_fsops,
+	&ufs_fsops,
 	&gzipfs_fsops,
 	NULL
 };
 
 struct netif_driver *netif_drivers[] = {
-	&efi_net,
-	NULL,
+	&efinetif,
+	NULL
 };
 
-/* Exported for ia64 only */
 /* 
  * Sort formats so that those that can detect based on arguments
  * rather than reading the file go first.

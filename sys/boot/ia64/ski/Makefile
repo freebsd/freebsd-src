@@ -5,45 +5,34 @@ NO_MAN=
 .include <bsd.own.mk>
 
 PROG=		skiload
-NEWVERSWHAT=	"ia64 SKI boot" ${MACHINE_ARCH}
 STRIP=		# We must not strip skiload at install time.
 
-SRCS=		acpi_stub.c bootinfo.c conf.c copy.c delay.c devicename.c \
-		efi_stub.c elf_freebsd.c exit.c main.c pal_stub.S sal_stub.c \
-		skiconsole.c skifs.c ssc.c start.S time.c vers.c
+SRCS=		acpi_stub.c conf.c delay.c efi_stub.c exit.c main.c \
+		pal_stub.S sal_stub.c skiconsole.c skifs.c skimd.c \
+		ssc.c start.S time.c vers.c
 
-CFLAGS+=	-DLOADER
-CFLAGS+=	-I${.CURDIR}
-CFLAGS+=	-I${.CURDIR}/../../..
-CFLAGS+=	-I${.CURDIR}/../../efi/include
-CFLAGS+=	-I${.CURDIR}/../../efi/include/${MACHINE_ARCH}
-LDFLAGS=	-Wl,-T${.CURDIR}/ldscript.ia64
-
-.if ${MK_FORTH} != "no"
-CFLAGS+=	-DBOOT_FORTH
-CFLAGS+=	-I${.CURDIR}/../../ficl
-CFLAGS+=	-I${.CURDIR}/../../ficl/${MACHINE_ARCH}
-LIBFICL=	${.OBJDIR}/../../ficl/libficl.a
-BOOT_FORTH=	yes
-.endif
-
-# Always add MI sources (needs BOOT_FORTH)
-.PATH: ${.CURDIR}/../../common
+CFLAGS+=	-I${.CURDIR}/../common
 CFLAGS+=	-I${.CURDIR}/../../common
-.include "${.CURDIR}/../../common/Makefile.inc"
+CFLAGS+=	-I${.CURDIR}/../../..
+CFLAGS+=	-I${.CURDIR}/../../../../lib/libstand
 
-DPADD=	${LIBFICL} ${LIBSTAND}
-LDADD=	${LIBFICL} -lstand
+LDSCRIPT=	${.CURDIR}/ldscript.${MACHINE_ARCH}
+LDFLAGS=	-Wl,-T${LDSCRIPT}
 
-CLEANFILES=	vers.c ${PROG}.help
+NEWVERSWHAT=	"SKI boot" ${MACHINE_ARCH}
 
 vers.c: ${.CURDIR}/../../common/newvers.sh ${.CURDIR}/version
 	sh ${.CURDIR}/../../common/newvers.sh ${.CURDIR}/version ${NEWVERSWHAT}
 
-${PROG}.help: help.common
-	cat ${.ALLSRC} | awk -f ${.CURDIR}/../../common/merge_help.awk \
-	    > ${.TARGET}
+CLEANFILES=	vers.c
 
-FILES=	${PROG}.help
+LIBIA64=	${.OBJDIR}/../common/libia64.a
+.if ${MK_FORTH} != "no"
+LIBFICL=	${.OBJDIR}/../../ficl/libficl.a
+.endif
+
+DPADD=		${LIBIA64} ${LIBFICL} ${LIBSTAND}
+LDADD=		-Wl,--whole-archive ${LIBIA64} -Wl,--no-whole-archive \
+		    ${LIBFICL} -lstand
 
 .include <bsd.prog.mk>
