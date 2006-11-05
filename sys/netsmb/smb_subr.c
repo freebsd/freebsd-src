@@ -269,6 +269,8 @@ smb_maperror(int eclass, int eno)
 			return ENOENT;
 		    case 145:		/* samba */
 			return ENOTEMPTY;
+		    case ERRnotlocked:
+			return 0;	/* file become unlocked */
 		    case 183:
 			return EEXIST;
 		    case ERRquota:
