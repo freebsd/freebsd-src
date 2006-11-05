@@ -28,91 +28,47 @@
 __FBSDID("$FreeBSD$");
 
 #include <stand.h>
-#include <ia64/include/vmparam.h>
 
-#include "libia64.h"
+#include <libia64.h>
 
-#define	LDR_LOG2_PGSZ	20
+#include "libski.h"
 
-uint64_t *ia64_pgtbl;
-uint32_t ia64_pgtblsz;
+#define	PHYS_START	(4L*1024*1024*1024)
+#define	PHYS_SIZE	(64L*1024*1024 - 4L*1024)
 
-static void *
-va2pa(vm_offset_t va, size_t *len)
+extern void acpi_stub_init(void);
+extern void efi_stub_init(struct bootinfo *);
+extern void sal_stub_init(void);
+
+uint64_t
+ldr_alloc(vm_offset_t va)
 {
-	uint64_t pa;
 
-	if (va >= IA64_RR_BASE(7)) {
-		pa = IA64_RR_MASK(va);
-		return ((void *)pa);
-	}
-
-	printf("\n%s: va=%lx, *len=%lx\n", __func__, va, *len);
-	*len = 0;
-	return (NULL);
+	if (va >= PHYS_SIZE)
+		return (0);
+	return (va + PHYS_START);
 }
 
-ssize_t
-ia64_copyin(const void *src, vm_offset_t va, size_t len)
+int
+ldr_bootinfo(struct bootinfo *bi, uint64_t *bi_addr)
 {
-	void *pa;
-	ssize_t res;
-	size_t sz;
+	static struct bootinfo bootinfo;
 
-	res = 0;
-	while (len > 0) {
-		sz = len;
-		pa = va2pa(va, &sz);
-		if (sz == 0)
-			break;
-		bcopy(src, pa, sz);
-		len -= sz;
-		res += sz;
-		va += sz;
-	}
-	return (res);
+	efi_stub_init(bi);
+	sal_stub_init();
+	acpi_stub_init();
+
+	*bi_addr = (uint64_t)(&bootinfo);
+	bootinfo = *bi;
+	return (0);
 }
 
-ssize_t
-ia64_copyout(vm_offset_t va, void *dst, size_t len)
+int
+ldr_enter(const char *kernel)
 {
-	void *pa;
-	ssize_t res;
-	size_t sz;
 
-	res = 0;
-	while (len > 0) {
-		sz = len;
-		pa = va2pa(va, &sz);
-		if (sz == 0)
-			break;
-		bcopy(pa, dst, sz);
-		len -= sz;
-		res += sz;
-		va += sz;
-	}
-	return (res);
-}
-
-ssize_t
-ia64_readin(int fd, vm_offset_t va, size_t len)
-{
-	void *pa;
-	ssize_t res, s;
-	size_t sz;
-
-	res = 0;
-	while (len > 0) {
-		sz = len;
-		pa = va2pa(va, &sz);
-		if (sz == 0)
-			break;
-		s = read(fd, pa, sz);
-		if (s <= 0)
-			break;
-		len -= s;
-		res += s;
-		va += s;
-	}
-	return (res);
+	while (*kernel == '/')
+		kernel++;
+        ssc(0, (uint64_t)kernel, 0, 0, SSC_LOAD_SYMBOLS);
+	return (0);
 }

@@ -1,5 +1,6 @@
 /*-
  * Copyright (c) 2001 Doug Rabson
+ * Copyright (c) 2006 Marcel Moolenaar
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -22,88 +23,100 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
- *
- * $FreeBSD$
  */
+
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/time.h>
 #include <stddef.h>
-#include <stand.h>
 #include <stdarg.h>
+
+#include <bootstrap.h>
 
 #include <efi.h>
 #include <efilib.h>
-#include "efiboot.h"
+#include <efiprot.h>
 
 /* Perform I/O in blocks of size EFI_BLOCK_SIZE. */
 #define	EFI_BLOCK_SIZE	(1024 * 1024)
 
+union fileinfo {
+	EFI_FILE_INFO info;
+	char bytes[sizeof(EFI_FILE_INFO) + 508];
+};
+
+static EFI_GUID sfs_guid = SIMPLE_FILE_SYSTEM_PROTOCOL;
+static EFI_GUID fs_guid = EFI_FILE_SYSTEM_INFO_ID;
+static EFI_GUID fi_guid = EFI_FILE_INFO_ID;
+
 static int
 efifs_open(const char *upath, struct open_file *f)
 {
-	struct efi_devdesc *dev = f->f_devdata;
-	static EFI_GUID sfsid = SIMPLE_FILE_SYSTEM_PROTOCOL;
-	EFI_FILE_IO_INTERFACE *sfs;
-	EFI_FILE *root;
-	EFI_FILE *file;
+	struct devdesc *dev = f->f_devdata;
+	EFI_FILE_IO_INTERFACE *fsif;
+	EFI_FILE *file, *root;
+	EFI_HANDLE h;
 	EFI_STATUS status;
-	CHAR16 *cp;
-	CHAR16 *path;
+	CHAR16 *cp, *path;
 
-	/*
-	 * We cannot blindly assume that f->f_devdata points to a
-	 * efi_devdesc structure. Before we dereference 'dev', make
-	 * sure that the underlying device is ours.
-	 */
-	if (f->f_dev != &efifs_dev || dev->d_handle == NULL)
-		return ENOENT;
+	if (f->f_dev != &efifs_dev || dev->d_unit < 0)
+		return (EINVAL);
 
-	status = BS->HandleProtocol(dev->d_handle, &sfsid, (VOID **)&sfs);
+	h = efi_find_handle(f->f_dev, dev->d_unit);
+	if (h == NULL)
+		return (EINVAL);
+
+	status = BS->HandleProtocol(h, &sfs_guid, (VOID **)&fsif);
 	if (EFI_ERROR(status))
-		return ENOENT;
+		return (efi_status_to_errno(status));
 
-	/*
-	 * Find the root directory.
-	 */
-	status = sfs->OpenVolume(sfs, &root);
+	/* Get the root directory. */
+	status = fsif->OpenVolume(fsif, &root);
+	if (EFI_ERROR(status))
+		return (efi_status_to_errno(status));
 
-	/*
-	 * Convert path to CHAR16, skipping leading separators.
-	 */
 	while (*upath == '/')
 		upath++;
-	if (!*upath) {
-		/* Opening the root directory, */
+
+	/* Special case: opening the root directory. */
+	if (*upath == '\0') {
 		f->f_fsdata = root;
-		return 0;
+		return (0);
 	}
-	cp = path = malloc((strlen(upath) + 1) * sizeof(CHAR16));
-	if (path == NULL)
-		return ENOMEM;
-	while (*upath) {
-		if (*upath == '/')
+
+	path = malloc((strlen(upath) + 1) * sizeof(CHAR16));
+	if (path == NULL) {
+		root->Close(root);
+		return (ENOMEM);
+	}
+
+	cp = path;
+	while (*upath != '\0') {
+		if (*upath == '/') {
 			*cp = '\\';
-		else
+			while (upath[1] == '/')
+				upath++;
+		} else
 			*cp = *upath;
 		upath++;
 		cp++;
 	}
-	*cp++ = 0;
+	*cp = 0;
 
-	/*
-	 * Try to open it.
-	 */
-	status = root->Open(root, &file, path, EFI_FILE_MODE_READ, 0);
+	/* Open the file. */
+	status = root->Open(root, &file, path,
+	    EFI_FILE_MODE_READ | EFI_FILE_MODE_WRITE, 0);
+	if (status == EFI_ACCESS_DENIED || status == EFI_WRITE_PROTECTED)
+		status = root->Open(root, &file, path, EFI_FILE_MODE_READ, 0);
 	free(path);
-	if (EFI_ERROR(status)) {
-		root->Close(root);
-		return ENOENT;
-	}
-
 	root->Close(root);
+	if (EFI_ERROR(status))
+		return (efi_status_to_errno(status));
+
 	f->f_fsdata = file;
-	return 0;
+	return (0);
 }
 
 static int
@@ -111,8 +124,12 @@ efifs_close(struct open_file *f)
 {
 	EFI_FILE *file = f->f_fsdata;
 
+	if (file == NULL)
+		return (EBADF);
+
 	file->Close(file);
-	return 0;
+	f->f_fsdata = NULL;
+	return (0);
 }
 
 static int
@@ -123,15 +140,17 @@ efifs_read(struct open_file *f, void *buf, size_t size, size_t *resid)
 	UINTN sz = size;
 	char *bufp;
 
+	if (file == NULL)
+		return (EBADF);
+
 	bufp = buf;
 	while (size > 0) {
 		sz = size;
 		if (sz > EFI_BLOCK_SIZE)
 			sz = EFI_BLOCK_SIZE;
 		status = file->Read(file, &sz, bufp);
-		twiddle();
 		if (EFI_ERROR(status))
-			return EIO;
+			return (efi_status_to_errno(status));
 		if (sz == 0)
 			break;
 		size -= sz;
@@ -139,7 +158,7 @@ efifs_read(struct open_file *f, void *buf, size_t size, size_t *resid)
 	}
 	if (resid)
 		*resid = size;
-	return 0;
+	return (0);
 }
 
 static int
@@ -150,15 +169,17 @@ efifs_write(struct open_file *f, void *buf, size_t size, size_t *resid)
 	UINTN sz = size;
 	char *bufp;
 
+	if (file == NULL)
+		return (EBADF);
+
 	bufp = buf;
 	while (size > 0) {
 		sz = size;
 		if (sz > EFI_BLOCK_SIZE)
 			sz = EFI_BLOCK_SIZE;
 		status = file->Write(file, &sz, bufp);
-		twiddle();
 		if (EFI_ERROR(status))
-			return EIO;
+			return (efi_status_to_errno(status));
 		if (sz == 0)
 			break;
 		size -= sz;
@@ -166,7 +187,7 @@ efifs_write(struct open_file *f, void *buf, size_t size, size_t *resid)
 	}
 	if (resid)
 		*resid = size;
-	return 0;
+	return (0);
 }
 
 static off_t
@@ -175,156 +196,139 @@ efifs_seek(struct open_file *f, off_t offset, int where)
 	EFI_FILE *file = f->f_fsdata;
 	EFI_STATUS status;
 	UINT64 base;
-	UINTN sz;
-	static EFI_GUID infoid = EFI_FILE_INFO_ID;
-	EFI_FILE_INFO info;
+
+	if (file == NULL)
+		return (EBADF);
 
 	switch (where) {
 	case SEEK_SET:
-		base = 0;
 		break;
+
+	case SEEK_END:
+		status = file->SetPosition(file, ~0ULL);
+		if (EFI_ERROR(status))
+			return (-1);
+		/* FALLTHROUGH */
 
 	case SEEK_CUR:
 		status = file->GetPosition(file, &base);
 		if (EFI_ERROR(status))
-			return -1;
+			return (-1);
+		offset = (off_t)(base + offset);
 		break;
 
-	case SEEK_END:
-		sz = sizeof(info);
-		status = file->GetInfo(file, &infoid, &sz, &info);
-		if (EFI_ERROR(status))
-			return -1;
-		base = info.FileSize;
-		break;
+	default:
+		return (-1);
 	}
+	if (offset < 0)
+		return (-1);
 
-	status = file->SetPosition(file, base + offset);
-	if (EFI_ERROR(status))
-		return -1;
-	file->GetPosition(file, &base);
-
-	return base;
+	status = file->SetPosition(file, (UINT64)offset);
+	return (EFI_ERROR(status) ? -1 : offset);
 }
 
 static int
 efifs_stat(struct open_file *f, struct stat *sb)
 {
 	EFI_FILE *file = f->f_fsdata;
+	union fileinfo fi;
 	EFI_STATUS status;
-	char *buf;
 	UINTN sz;
-	static EFI_GUID infoid = EFI_FILE_INFO_ID;
-	EFI_FILE_INFO *info;
+
+	if (file == NULL)
+		return (EBADF);
 
 	bzero(sb, sizeof(*sb));
 
-	buf = malloc(1024);
-	sz = 1024;
+	sz = sizeof(fi);
+	status = file->GetInfo(file, &fi_guid, &sz, &fi);
+	if (EFI_ERROR(status))
+		return (efi_status_to_errno(status));
 
-	status = file->GetInfo(file, &infoid, &sz, buf);
-	if (EFI_ERROR(status)) {
-		free(buf);
-		return -1;
-	}
-
-	info = (EFI_FILE_INFO *) buf;
-
-	if (info->Attribute & EFI_FILE_READ_ONLY)
-		sb->st_mode = S_IRUSR;
-	else
-		sb->st_mode = S_IRUSR | S_IWUSR;
-	if (info->Attribute & EFI_FILE_DIRECTORY)
+	sb->st_mode = S_IRUSR | S_IRGRP | S_IROTH;
+	if ((fi.info.Attribute & EFI_FILE_READ_ONLY) == 0)
+		sb->st_mode |= S_IWUSR | S_IWGRP | S_IWOTH;
+	if (fi.info.Attribute & EFI_FILE_DIRECTORY)
 		sb->st_mode |= S_IFDIR;
 	else
 		sb->st_mode |= S_IFREG;
-	sb->st_size = info->FileSize;
-
-	free(buf);
-	return 0;
+	sb->st_nlink = 1;
+	sb->st_atime = efi_time(&fi.info.LastAccessTime);
+	sb->st_mtime = efi_time(&fi.info.ModificationTime);
+	sb->st_ctime = efi_time(&fi.info.CreateTime);
+	sb->st_size = fi.info.FileSize;
+	sb->st_blocks = fi.info.PhysicalSize / S_BLKSIZE;
+	sb->st_blksize = S_BLKSIZE;
+	sb->st_birthtime = sb->st_ctime;
+	return (0);
 }
 
 static int
 efifs_readdir(struct open_file *f, struct dirent *d)
 {
 	EFI_FILE *file = f->f_fsdata;
+	union fileinfo fi;
 	EFI_STATUS status;
-	char *buf;
 	UINTN sz;
-	EFI_FILE_INFO *info;
 	int i;
 
-	buf = malloc(1024);
-	sz = 1024;
+	if (file == NULL)
+		return (EBADF);
 
-	status = file->Read(file, &sz, buf);
-	if (EFI_ERROR(status) || sz < offsetof(EFI_FILE_INFO, FileName))
-	    return ENOENT;
-
-	info = (EFI_FILE_INFO *) buf;
+	sz = sizeof(fi);
+	status = file->Read(file, &sz, &fi);
+	if (EFI_ERROR(status))
+		return (efi_status_to_errno(status));
+	if (sz == 0)
+		return (ENOENT);
 
 	d->d_fileno = 0;
 	d->d_reclen = sizeof(*d);
-	if (info->Attribute & EFI_FILE_DIRECTORY)
+	if (fi.info.Attribute & EFI_FILE_DIRECTORY)
 		d->d_type = DT_DIR;
 	else
 		d->d_type = DT_REG;
-	d->d_namlen = ((info->Size - offsetof(EFI_FILE_INFO, FileName))
-		       / sizeof(CHAR16));
-	for (i = 0; i < d->d_namlen; i++)
-		d->d_name[i] = info->FileName[i];
+	for (i = 0; fi.info.FileName[i] != 0; i++)
+		d->d_name[i] = fi.info.FileName[i];
 	d->d_name[i] = 0;
-
-	free(buf);
-	return 0;
+	d->d_namlen = i;
+	return (0);
 }
 
-struct fs_ops efi_fsops = {
-	"fs",
-	efifs_open,
-	efifs_close,
-	efifs_read,
-	efifs_write,
-	efifs_seek,
-	efifs_stat,
-	efifs_readdir
+struct fs_ops efifs_fsops = {
+	.fs_name = "efifs",
+	.fo_open = efifs_open,
+	.fo_close = efifs_close,
+	.fo_read = efifs_read,
+	.fo_write = efifs_write,
+	.fo_seek = efifs_seek,
+	.fo_stat = efifs_stat,
+	.fo_readdir = efifs_readdir
 };
-
-static EFI_HANDLE *fs_handles;
-UINTN fs_handle_count;
-
-int
-efifs_get_unit(EFI_HANDLE h)
-{
-	UINTN u;
-
-	u = 0;
-	while (u < fs_handle_count && fs_handles[u] != h)
-		u++;
-	return ((u < fs_handle_count) ? u : -1);
-}
 
 static int
 efifs_dev_init(void) 
 {
-	EFI_STATUS	status;
-	UINTN		sz;
-	static EFI_GUID sfsid = SIMPLE_FILE_SYSTEM_PROTOCOL;
+	EFI_HANDLE *handles;
+	EFI_STATUS status;
+	UINTN sz;
+	int err;
 
 	sz = 0;
-	status = BS->LocateHandle(ByProtocol, &sfsid, 0, &sz, 0);
-	if (status != EFI_BUFFER_TOO_SMALL)
-		return ENOENT;
-	fs_handles = (EFI_HANDLE *) malloc(sz);
-	status = BS->LocateHandle(ByProtocol, &sfsid, 0,
-				  &sz, fs_handles);
-	if (EFI_ERROR(status)) {
-		free(fs_handles);
-		return ENOENT;
+	status = BS->LocateHandle(ByProtocol, &sfs_guid, 0, &sz, 0);
+	if (status == EFI_BUFFER_TOO_SMALL) {
+		handles = (EFI_HANDLE *)malloc(sz);
+		status = BS->LocateHandle(ByProtocol, &sfs_guid, 0, &sz,
+		    handles);
+		if (EFI_ERROR(status))
+			free(handles);
 	}
-	fs_handle_count = sz / sizeof(EFI_HANDLE);
-
-	return 0;
+	if (EFI_ERROR(status))
+		return (efi_status_to_errno(status));
+	err = efi_register_handles(&efifs_dev, handles,
+	    sz / sizeof(EFI_HANDLE));
+	free(handles);
+	return (err);
 }
 
 /*
@@ -333,14 +337,55 @@ efifs_dev_init(void)
 static void
 efifs_dev_print(int verbose)
 {
-	int		i;
-	char		line[80];
+	union {
+		EFI_FILE_SYSTEM_INFO info;
+		char buffer[1024];
+	} fi;
+	char line[80];
+	EFI_FILE_IO_INTERFACE *fsif;
+	EFI_FILE *volume;
+	EFI_HANDLE h;
+	EFI_STATUS status;
+	UINTN sz;
+	int i, unit;
 
-	for (i = 0; i < fs_handle_count; i++) {
-		sprintf(line, "    fs%d:   EFI filesystem", i);
+	for (unit = 0, h = efi_find_handle(&efifs_dev, 0);
+	    h != NULL; h = efi_find_handle(&efifs_dev, ++unit)) {
+		sprintf(line, "    %s%d: ", efifs_dev.dv_name, unit);
 		pager_output(line);
-		/* XXX more detail? */
+
+		status = BS->HandleProtocol(h, &sfs_guid, (VOID **)&fsif);
+		if (EFI_ERROR(status))
+			goto err;
+
+		status = fsif->OpenVolume(fsif, &volume);
+		if (EFI_ERROR(status))
+			goto err;
+
+		sz = sizeof(fi);
+		status = volume->GetInfo(volume, &fs_guid, &sz, &fi);
+		volume->Close(volume);
+		if (EFI_ERROR(status))
+			goto err;
+
+		if (fi.info.ReadOnly)
+			pager_output("[RO] ");
+		else
+			pager_output("     ");
+		for (i = 0; fi.info.VolumeLabel[i] != 0; i++)
+			fi.buffer[i] = fi.info.VolumeLabel[i];
+		fi.buffer[i] = 0;
+		if (fi.buffer[0] != 0)
+			pager_output(fi.buffer);
+		else
+			pager_output("EFI filesystem");
 		pager_output("\n");
+		continue;
+
+	err:
+		sprintf(line, "[--] error %d: unable to obtain information\n",
+		    efi_status_to_errno(status));
+		pager_output(line);
 	}
 }
 
@@ -357,45 +402,40 @@ efifs_dev_print(int verbose)
 static int 
 efifs_dev_open(struct open_file *f, ...)
 {
-	va_list			args;
-	struct efi_devdesc	*dev;
-	int			unit;
+	va_list		args;
+	struct devdesc	*dev;
 
 	va_start(args, f);
-	dev = va_arg(args, struct efi_devdesc*);
+	dev = va_arg(args, struct devdesc*);
 	va_end(args);
 
-	unit = dev->d_unit;
-	if (unit < 0 || unit >= fs_handle_count) {
-		printf("attempt to open nonexistent EFI filesystem\n");
+	if (dev->d_unit < 0)
 		return(ENXIO);
-	}
-
-	dev->d_handle = fs_handles[unit];
-
-	return 0;
+	return (0);
 }
 
 static int 
 efifs_dev_close(struct open_file *f)
 {
 
-	return 0;
+	return (0);
 }
 
 static int 
 efifs_dev_strategy(void *devdata, int rw, daddr_t dblk, size_t size, char *buf, size_t *rsize)
 {
-	return 0;
+
+	return (ENOSYS);
 }
 
 struct devsw efifs_dev = {
-	"fs", 
-	DEVT_DISK, 
-	efifs_dev_init,
-	efifs_dev_strategy, 
-	efifs_dev_open, 
-	efifs_dev_close, 
-	noioctl,
-	efifs_dev_print
+	.dv_name = "fs", 
+	.dv_type = DEVT_DISK, 
+	.dv_init = efifs_dev_init,
+	.dv_strategy = efifs_dev_strategy, 
+	.dv_open = efifs_dev_open, 
+	.dv_close = efifs_dev_close, 
+	.dv_ioctl = noioctl,
+	.dv_print = efifs_dev_print,
+	.dv_cleanup = NULL
 };

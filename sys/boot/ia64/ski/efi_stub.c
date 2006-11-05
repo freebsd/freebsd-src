@@ -28,16 +28,13 @@
 __FBSDID("$FreeBSD$");
 
 #include <sys/types.h>
-#include <machine/bootinfo.h>
 #include <machine/efi.h>
+#include <ia64/include/bootinfo.h>
 #include <stand.h>
 #include "libski.h"
 
 extern void acpi_root;
 extern void sal_systab;
-
-extern void acpi_stub_init(void);
-extern void sal_stub_init(void);
 
 struct efi_cfgtbl efi_cfgtab[] = {
 	{ EFI_TABLE_ACPI20,	(intptr_t)&acpi_root },
@@ -223,8 +220,8 @@ ResetSystem(enum efi_reset type, efi_status status, u_long datasz,
 	return (unsupported(__func__));
 }
 
-int
-ski_init_stubs(struct bootinfo *bi)
+void
+efi_stub_init(struct bootinfo *bi)
 {
 	struct efi_md *memp;
 
@@ -261,9 +258,4 @@ ski_init_stubs(struct bootinfo *bi)
 	memp[3].md_attr = EFI_MD_ATTR_UC;
 
 	bi->bi_systab = (u_int64_t)&efi_systab;
-
-	sal_stub_init();
-	acpi_stub_init();
-
-	return (0);
 }
