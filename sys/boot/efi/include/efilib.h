@@ -1,5 +1,6 @@
 /*-
  * Copyright (c) 2000 Doug Rabson
+ * Copyright (c) 2006 Marcel Moolenaar
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -23,24 +24,31 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$FreeBSD$
+ * $FreeBSD$
  */
 
-#include <efifpswa.h>
+#include <stand.h>
 
 extern EFI_HANDLE		IH;
 extern EFI_SYSTEM_TABLE		*ST;
 extern EFI_BOOT_SERVICES	*BS;
 extern EFI_RUNTIME_SERVICES	*RS;
 
-/* DIG64 Headless Console & Debug Port Table. */
-#define	HCDP_TABLE_GUID		\
-	{0xf951938d,0x620b,0x42ef,{0x82,0x79,0xa8,0x4b,0x79,0x61,0x78,0x98}}
+extern struct devsw efifs_dev;
+extern struct fs_ops efifs_fsops;
+
+extern struct devsw efinet_dev;
+extern struct netif_driver efinetif;
 
 void *efi_get_table(EFI_GUID *tbl);
 void efi_main(EFI_HANDLE image_handle, EFI_SYSTEM_TABLE *system_table);
 
-EFI_PHYSICAL_ADDRESS efimd_va2pa(EFI_VIRTUAL_ADDRESS);
+int efi_register_handles(struct devsw *, EFI_HANDLE *, int);
+EFI_HANDLE efi_find_handle(struct devsw *, int);
+int efi_handle_lookup(EFI_HANDLE, struct devsw **, int *);
+
+int efi_status_to_errno(EFI_STATUS);
+time_t efi_time(EFI_TIME *);
 
 EFI_STATUS main(int argc, CHAR16 *argv[]);
 void exit(EFI_STATUS status);

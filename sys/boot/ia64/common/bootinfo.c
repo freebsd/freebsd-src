@@ -1,5 +1,6 @@
 /*-
  * Copyright (c) 1998 Michael Smith <msmith@freebsd.org>
+ * Copyright (c) 2006 Marcel Moolenaar
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -32,15 +33,11 @@ __FBSDID("$FreeBSD$");
 #include <sys/param.h>
 #include <sys/reboot.h>
 #include <sys/linker.h>
-#include <machine/elf.h>
-#include <machine/bootinfo.h>
 
 #include <efi.h>
 #include <efilib.h>
 
-#include "bootstrap.h"
-
-static EFI_GUID hcdp = HCDP_TABLE_GUID;
+#include "libia64.h"
 
 /*
  * Return a 'boothowto' value corresponding to the kernel arguments in
@@ -48,92 +45,60 @@ static EFI_GUID hcdp = HCDP_TABLE_GUID;
  */
 static struct 
 {
-    const char	*ev;
-    int		mask;
+	const char	*ev;
+	int		mask;
 } howto_names[] = {
-    {"boot_askname",	RB_ASKNAME},
-    {"boot_cdrom",	RB_CDROM},
-    {"boot_ddb",	RB_KDB},
-    {"boot_dfltroot",	RB_DFLTROOT},
-    {"boot_gdb",	RB_GDB},
-    {"boot_multicons",	RB_MULTIPLE},
-    {"boot_mute",	RB_MUTE},
-    {"boot_pause",	RB_PAUSE},
-    {"boot_serial",	RB_SERIAL},
-    {"boot_single",	RB_SINGLE},
-    {"boot_verbose",	RB_VERBOSE},
-    {NULL,	0}
+	{ "boot_askname",	RB_ASKNAME},
+	{ "boot_cdrom",		RB_CDROM},
+	{ "boot_ddb",		RB_KDB},
+	{ "boot_dfltroot",	RB_DFLTROOT},
+	{ "boot_gdb",		RB_GDB},
+	{ "boot_multicons",	RB_MULTIPLE},
+	{ "boot_mute",		RB_MUTE},
+	{ "boot_pause",		RB_PAUSE},
+	{ "boot_serial",	RB_SERIAL},
+	{ "boot_single",	RB_SINGLE},
+	{ "boot_verbose",	RB_VERBOSE},
+	{ NULL,	0}
 };
 
-extern char *efi_fmtdev(void *vdev);
+static const char howto_switches[] = "aCdrgDmphsv";
+static int howto_masks[] = {
+	RB_ASKNAME, RB_CDROM, RB_KDB, RB_DFLTROOT, RB_GDB, RB_MULTIPLE,
+	RB_MUTE, RB_PAUSE, RB_SERIAL, RB_SINGLE, RB_VERBOSE
+};
 
 int
 bi_getboothowto(char *kargs)
 {
-    char	*cp;
-    int		howto;
-    int		active;
-    int		i;
-    
-    /* Parse kargs */
-    howto = 0;
-    if (kargs  != NULL) {
-	cp = kargs;
-	active = 0;
-	while (*cp != 0) {
-	    if (!active && (*cp == '-')) {
-		active = 1;
-	    } else if (active)
-		switch (*cp) {
-		case 'a':
-		    howto |= RB_ASKNAME;
-		    break;
-		case 'C':
-		    howto |= RB_CDROM;
-		    break;
-		case 'd':
-		    howto |= RB_KDB;
-		    break;
-		case 'D':
-		    howto |= RB_MULTIPLE;
-		    break;
-		case 'm':
-		    howto |= RB_MUTE;
-		    break;
-		case 'g':
-		    howto |= RB_GDB;
-		    break;
-		case 'h':
-		    howto |= RB_SERIAL;
-		    break;
-		case 'p':
-		    howto |= RB_PAUSE;
-		    break;
-		case 'r':
-		    howto |= RB_DFLTROOT;
-		    break;
-		case 's':
-		    howto |= RB_SINGLE;
-		    break;
-		case 'v':
-		    howto |= RB_VERBOSE;
-		    break;
-		default:
-		    active = 0;
-		    break;
-		}
-	    cp++;
+	const char *sw;
+	char *opts;
+	int howto, i;
+
+	howto = 0;
+
+	/* Get the boot options from the environment first. */
+	for (i = 0; howto_names[i].ev != NULL; i++) {
+		if (getenv(howto_names[i].ev) != NULL)
+			howto |= howto_names[i].mask;
 	}
-    }
-    /* get equivalents from the environment */
-    for (i = 0; howto_names[i].ev != NULL; i++)
-	if (getenv(howto_names[i].ev) != NULL)
-	    howto |= howto_names[i].mask;
-    if (!strcmp(getenv("console"), "comconsole"))
-	howto |= RB_SERIAL;
-    if (!strcmp(getenv("console"), "nullconsole"))
-	howto |= RB_MUTE;
-    return(howto);
+
+	/* Parse kargs */
+	if (kargs == NULL)
+		return (howto);
+
+	opts = strchr(kargs, '-');
+	while (opts != NULL) {
+		while (*(++opts) != '\0') {
+			sw = strchr(howto_switches, *opts);
+			if (sw == NULL)
+				break;
+			howto |= howto_masks[sw - howto_switches];
+		}
+		opts = strchr(opts, '-');
+	}
+
+	return (howto);
 }
 
 /*
@@ -142,26 +107,37 @@ bi_getboothowto(char *kargs)
  * separating each variable, and a double nul terminating the environment.
  */
 vm_offset_t
-bi_copyenv(vm_offset_t addr)
+bi_copyenv(vm_offset_t start)
 {
-    struct env_var	*ep;
-    
-    /* traverse the environment */
-    for (ep = environ; ep != NULL; ep = ep->ev_next) {
-	efi_copyin(ep->ev_name, addr, strlen(ep->ev_name));
-	addr += strlen(ep->ev_name);
-	efi_copyin("=", addr, 1);
-	addr++;
-	if (ep->ev_value != NULL) {
-	    efi_copyin(ep->ev_value, addr, strlen(ep->ev_value));
-	    addr += strlen(ep->ev_value);
+	struct env_var *ep;
+	vm_offset_t addr, last;
+	size_t len;
+
+	addr = last = start;
+
+	/* Traverse the environment. */
+	for (ep = environ; ep != NULL; ep = ep->ev_next) {
+		len = strlen(ep->ev_name);
+		if (ia64_copyin(ep->ev_name, addr, len) != len)
+			break;
+		addr += len;
+		if (ia64_copyin("=", addr, 1) != 1)
+			break;
+		addr++;
+		if (ep->ev_value != NULL) {
+			len = strlen(ep->ev_value);
+			if (ia64_copyin(ep->ev_value, addr, len) != len)
+				break;
+			addr += len;
+		}
+		if (ia64_copyin("", addr, 1) != 1)
+			break;
+		last = ++addr;
 	}
-	efi_copyin("", addr, 1);
-	addr++;
-    }
-    efi_copyin("", addr, 1);
-    addr++;
-    return(addr);
+
+	if (ia64_copyin("", last++, 1) != 1)
+		last = start;
+	return(last);
 }
 
 /*
@@ -182,14 +158,14 @@ bi_copyenv(vm_offset_t addr)
  */
 #define COPY32(v, a) {				\
     u_int32_t	x = (v);			\
-    efi_copyin(&x, a, sizeof(x));		\
+    ia64_copyin(&x, a, sizeof(x));		\
     a += sizeof(x);				\
 }
 
 #define MOD_STR(t, a, s) {			\
     COPY32(t, a);				\
     COPY32(strlen(s) + 1, a);			\
-    efi_copyin(s, a, strlen(s) + 1);		\
+    ia64_copyin(s, a, strlen(s) + 1);		\
     a += roundup(strlen(s) + 1, sizeof(u_int64_t));\
 }
 
@@ -200,7 +176,7 @@ bi_copyenv(vm_offset_t addr)
 #define MOD_VAR(t, a, s) {			\
     COPY32(t, a);				\
     COPY32(sizeof(s), a);			\
-    efi_copyin(&s, a, sizeof(s));		\
+    ia64_copyin(&s, a, sizeof(s));		\
     a += roundup(sizeof(s), sizeof(u_int64_t));	\
 }
 
@@ -210,7 +186,7 @@ bi_copyenv(vm_offset_t addr)
 #define MOD_METADATA(a, mm) {			\
     COPY32(MODINFO_METADATA | mm->md_type, a);	\
     COPY32(mm->md_size, a);			\
-    efi_copyin(mm->md_data, a, mm->md_size);	\
+    ia64_copyin(mm->md_data, a, mm->md_size);	\
     a += roundup(mm->md_size, sizeof(u_int64_t));\
 }
 
@@ -222,24 +198,25 @@ bi_copyenv(vm_offset_t addr)
 vm_offset_t
 bi_copymodules(vm_offset_t addr)
 {
-    struct preloaded_file	*fp;
-    struct file_metadata	*md;
+	struct preloaded_file *fp;
+	struct file_metadata *md;
 
-    /* start with the first module on the list, should be the kernel */
-    for (fp = file_findfile(NULL, NULL); fp != NULL; fp = fp->f_next) {
-
-	MOD_NAME(addr, fp->f_name);	/* this field must come first */
-	MOD_TYPE(addr, fp->f_type);
-	if (fp->f_args)
-	    MOD_ARGS(addr, fp->f_args);
-	MOD_ADDR(addr, fp->f_addr);
-	MOD_SIZE(addr, fp->f_size);
-	for (md = fp->f_metadata; md != NULL; md = md->md_next)
-	    if (!(md->md_type & MODINFOMD_NOCOPY))
-		MOD_METADATA(addr, md);
-    }
-    MOD_END(addr);
-    return(addr);
+	/* Start with the first module on the list, should be the kernel. */
+	for (fp = file_findfile(NULL, NULL); fp != NULL; fp = fp->f_next) {
+		/* The name field must come first. */
+		MOD_NAME(addr, fp->f_name);
+		MOD_TYPE(addr, fp->f_type);
+		if (fp->f_args)
+			MOD_ARGS(addr, fp->f_args);
+		MOD_ADDR(addr, fp->f_addr);
+		MOD_SIZE(addr, fp->f_size);
+		for (md = fp->f_metadata; md != NULL; md = md->md_next) {
+			if (!(md->md_type & MODINFOMD_NOCOPY))
+				MOD_METADATA(addr, md);
+		}
+	}
+	MOD_END(addr);
+	return(addr);
 }
 
 /*
@@ -249,103 +226,71 @@ bi_copymodules(vm_offset_t addr)
  * - Module metadata are formatted and placed in kernel space.
  */
 int
-bi_load(struct bootinfo *bi, struct preloaded_file *fp, UINTN *mapkey,
-    UINTN pages)
+bi_load(struct preloaded_file *fp, uint64_t *bi_addr)
 {
-    char			*rootdevname;
-    struct efi_devdesc		*rootdev;
-    struct preloaded_file	*xp;
-    vm_offset_t			addr, bootinfo_addr;
-    vm_offset_t			ssym, esym;
-    struct file_metadata	*md;
-    EFI_STATUS			status;
-    UINTN			bisz, key;
+	struct bootinfo bi;
+	struct preloaded_file *xp;
+	struct file_metadata *md;
+	struct devdesc *rootdev;
+	char *rootdevname;
+	vm_offset_t addr, ssym, esym;
 
-    /*
-     * Version 1 bootinfo.
-     */
-    bi->bi_magic = BOOTINFO_MAGIC;
-    bi->bi_version = 1;
+	bzero(&bi, sizeof(struct bootinfo));
+	bi.bi_magic = BOOTINFO_MAGIC;
+	bi.bi_version = 1;
+	bi.bi_boothowto = bi_getboothowto(fp->f_args);
 
-    /*
-     * Calculate boothowto.
-     */
-    bi->bi_boothowto = bi_getboothowto(fp->f_args);
+	/* 
+	 * Allow the environment variable 'rootdev' to override the supplied
+	 * device. This should perhaps go to MI code and/or have $rootdev
+	 * tested/set by MI code before launching the kernel.
+	 */
+	rootdevname = getenv("rootdev");
+	ia64_getdev((void**)&rootdev, rootdevname, NULL);
+	if (rootdev != NULL) {
+		/* Try reading /etc/fstab to select the root device. */
+		getrootmount(ia64_fmtdev(rootdev));
+		free(rootdev);
+	}
 
-    /*
-     * Stash EFI System Table.
-     */
-    bi->bi_systab = (u_int64_t) ST;
+	md = file_findmetadata(fp, MODINFOMD_SSYM);
+	ssym = (md != NULL) ? *((vm_offset_t *)&(md->md_data)) : 0;
+	md = file_findmetadata(fp, MODINFOMD_ESYM);
+	esym = (md != NULL) ? *((vm_offset_t *)&(md->md_data)) : 0;
+	if (ssym != 0 && esym != 0) {
+		bi.bi_symtab = ssym;
+		bi.bi_esymtab = esym;
+	}
 
-    /* 
-     * Allow the environment variable 'rootdev' to override the supplied
-     * device. This should perhaps go to MI code and/or have $rootdev
-     * tested/set by MI code before launching the kernel.
-     */
-    rootdevname = getenv("rootdev");
-    efi_getdev((void **)(&rootdev), rootdevname, NULL);
-    if (rootdev == NULL) {		/* bad $rootdev/$currdev */
-	printf("can't determine root device\n");
-	return(EINVAL);
-    }
+	/* Find the last module in the chain. */
+	addr = 0;
+	for (xp = file_findfile(NULL, NULL); xp != NULL; xp = xp->f_next) {
+		if (addr < (xp->f_addr + xp->f_size))
+			addr = xp->f_addr + xp->f_size;
+	}
 
-    /* Try reading the /etc/fstab file to select the root device */
-    getrootmount(efi_fmtdev((void *)rootdev));
-    free(rootdev);
+	addr = (addr + 15) & ~15;
 
-    ssym = esym = 0;
-    if ((md = file_findmetadata(fp, MODINFOMD_SSYM)) != NULL)
-	ssym = *((vm_offset_t *)&(md->md_data));
-    if ((md = file_findmetadata(fp, MODINFOMD_ESYM)) != NULL)
-	esym = *((vm_offset_t *)&(md->md_data));
-    if (ssym == 0 || esym == 0)
-	ssym = esym = 0;		/* sanity */
+	/* Copy module list and metadata. */
+	bi.bi_modulep = addr;
+	addr = bi_copymodules(addr);
+	if (addr <= bi.bi_modulep) {
+		addr = bi.bi_modulep;
+		bi.bi_modulep = 0;
+	}
 
-    bi->bi_symtab = ssym;
-    bi->bi_esymtab = esym;
+	addr = (addr + 15) & ~15;
 
-    bi->bi_hcdp = (uint64_t)efi_get_table(&hcdp); /* DIG64 HCDP table addr. */
-    fpswa_init(&bi->bi_fpswa);		/* find FPSWA interface */
+	/* Copy our environment. */
+	bi.bi_envp = addr;
+	addr = bi_copyenv(addr);
+	if (addr <= bi.bi_envp) {
+		addr = bi.bi_envp;
+		bi.bi_envp = 0;
+	}
 
-    /* find the last module in the chain */
-    addr = 0;
-    for (xp = file_findfile(NULL, NULL); xp != NULL; xp = xp->f_next) {
-	if (addr < (xp->f_addr + xp->f_size))
-	    addr = xp->f_addr + xp->f_size;
-    }
+	addr = (addr + PAGE_MASK) & ~PAGE_MASK;
+	bi.bi_kernend = addr;
 
-    /* pad to a page boundary */
-    addr = (addr + PAGE_MASK) & ~PAGE_MASK;
-
-    /* copy our environment */
-    bi->bi_envp = addr;
-    addr = bi_copyenv(addr);
-
-    /* pad to a page boundary */
-    addr = (addr + PAGE_MASK) & ~PAGE_MASK;
-
-    /* copy module list and metadata */
-    bi->bi_modulep = addr;
-    addr = bi_copymodules(addr);
-
-    /* all done copying stuff in, save end of loaded object space */
-    bi->bi_kernend = addr;
-
-    /*
-     * Read the memory map and stash it after bootinfo. Align the memory map
-     * on a 16-byte boundary (the bootinfo block is page aligned).
-     */
-    bisz = (sizeof(struct bootinfo) + 0x0f) & ~0x0f;
-    bi->bi_memmap = ((u_int64_t)bi) + bisz;
-    bi->bi_memmap_size = EFI_PAGE_SIZE * pages - bisz;
-    status = BS->GetMemoryMap(&bi->bi_memmap_size,
-		(EFI_MEMORY_DESCRIPTOR *)bi->bi_memmap, &key,
-		&bi->bi_memdesc_size, &bi->bi_memdesc_version);
-    if (EFI_ERROR(status)) {
-	printf("bi_load: Can't read memory map\n");
-	return EINVAL;
-    }
-    *mapkey = key;
-
-    return(0);
+	return (ldr_bootinfo(&bi, bi_addr));
 }

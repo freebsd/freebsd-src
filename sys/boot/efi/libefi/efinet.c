@@ -1,5 +1,6 @@
 /*-
  * Copyright (c) 2001 Doug Rabson
+ * Copyright (c) 2002, 2006 Marcel Moolenaar
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -35,10 +36,31 @@ __FBSDID("$FreeBSD$");
 #include <net.h>
 #include <netif.h>
 
+#include <dev_net.c>
+
 #include <efi.h>
 #include <efilib.h>
 
-extern struct netif_driver efi_net;
+static EFI_GUID sn_guid = EFI_SIMPLE_NETWORK_PROTOCOL;
+
+static void efinet_end(struct netif *);
+static int efinet_get(struct iodesc *, void *, size_t, time_t);
+static void efinet_init(struct iodesc *, void *);
+static int efinet_match(struct netif *, void *);
+static int efinet_probe(struct netif *, void *);
+static int efinet_put(struct iodesc *, void *, size_t);
+
+struct netif_driver efinetif = {   
+	.netif_bname = "efinet",
+	.netif_match = efinet_match,
+	.netif_probe = efinet_probe,
+	.netif_init = efinet_init,
+	.netif_get = efinet_get,
+	.netif_put = efinet_put,
+	.netif_end = efinet_end,
+	.netif_ifs = NULL,
+	.netif_nifs = 0
+};
 
 #ifdef EFINET_DEBUG
 static void
@@ -74,21 +96,21 @@ dump_mode(EFI_SIMPLE_NETWORK_MODE *mode)
 }
 #endif
 
-int
+static int
 efinet_match(struct netif *nif, void *machdep_hint)
 {
 
 	return (1);
 }
 
-int
+static int
 efinet_probe(struct netif *nif, void *machdep_hint)
 {
 
 	return (0);
 }
 
-int
+static int
 efinet_put(struct iodesc *desc, void *pkt, size_t len)
 {
 	struct netif *nif = desc->io_netif;
@@ -100,7 +122,7 @@ efinet_put(struct iodesc *desc, void *pkt, size_t len)
 
 	status = net->Transmit(net, 0, len, pkt, 0, 0, 0);
 	if (status != EFI_SUCCESS)
-		return -1;
+		return (-1);
 
 	/* Wait for the buffer to be transmitted */
 	do {
@@ -113,11 +135,10 @@ efinet_put(struct iodesc *desc, void *pkt, size_t len)
 	} while (status == EFI_SUCCESS && buf == 0);
 
 	/* XXX How do we deal with status != EFI_SUCCESS now? */
-	return (status == EFI_SUCCESS) ? len : -1;
+	return ((status == EFI_SUCCESS) ? len : -1);
 }
 
-
-int
+static int
 efinet_get(struct iodesc *desc, void *pkt, size_t len, time_t timeout)
 {
 	struct netif *nif = desc->io_netif;
@@ -143,30 +164,37 @@ efinet_get(struct iodesc *desc, void *pkt, size_t len, time_t timeout)
 			if (bufsz > len)
 				bufsz = len;
 			bcopy(buf, pkt, bufsz);
-			return bufsz;
+			return (bufsz);
 		}
 		if (status != EFI_NOT_READY)
-			return 0;
+			return (0);
 	}
 
-	return 0;
+	return (0);
 }
 
-void
+static void
 efinet_init(struct iodesc *desc, void *machdep_hint)
 {
 	struct netif *nif = desc->io_netif;
 	EFI_SIMPLE_NETWORK *net;
+	EFI_HANDLE h;
 	EFI_STATUS status;
 
-	net = nif->nif_driver->netif_ifs[nif->nif_unit].dif_private;
-	nif->nif_devdata = net;
+	h = nif->nif_driver->netif_ifs[nif->nif_unit].dif_private;
+	status = BS->HandleProtocol(h, &sn_guid, (VOID **)&nif->nif_devdata);
+	if (status != EFI_SUCCESS) {
+		printf("net%d: cannot start interface (status=%ld)\n",
+		    nif->nif_unit, (long)status);
+		return;
+	}
 
+	net = nif->nif_devdata;
 	if (net->Mode->State == EfiSimpleNetworkStopped) {
 		status = net->Start(net);
 		if (status != EFI_SUCCESS) {
 			printf("net%d: cannot start interface (status=%ld)\n",
-			    nif->nif_unit, status);
+			    nif->nif_unit, (long)status);
 			return;
 		}
 	}
@@ -175,7 +203,7 @@ efinet_init(struct iodesc *desc, void *machdep_hint)
 		status = net->Initialize(net, 0, 0);
 		if (status != EFI_SUCCESS) {
 			printf("net%d: cannot init. interface (status=%ld)\n",
-			    nif->nif_unit, status);
+			    nif->nif_unit, (long)status);
 			return;
 		}
 	}
@@ -187,7 +215,7 @@ efinet_init(struct iodesc *desc, void *machdep_hint)
 		status = net->ReceiveFilters(net, mask, 0, FALSE, 0, 0);
 		if (status != EFI_SUCCESS) {
 			printf("net%d: cannot set rx. filters (status=%ld)\n",
-			    nif->nif_unit, status);
+			    nif->nif_unit, (long)status);
 			return;
 		}
 	}
@@ -198,71 +226,84 @@ efinet_init(struct iodesc *desc, void *machdep_hint)
 
 	bcopy(net->Mode->CurrentAddress.Addr, desc->myea, 6);
 	desc->xid = 1;
-
-	return;
 }
 
-void
-efinet_init_driver()
-{
-	EFI_STATUS	status;
-	UINTN		sz;
-	static EFI_GUID netid = EFI_SIMPLE_NETWORK_PROTOCOL;
-	EFI_HANDLE	*handles;
-	int		nifs, i;
-#define MAX_INTERFACES	4
-	static struct netif_dif difs[MAX_INTERFACES];
-	static struct netif_stats stats[MAX_INTERFACES];
-
-	sz = 0;
-	status = BS->LocateHandle(ByProtocol, &netid, 0, &sz, 0);
-	if (status != EFI_BUFFER_TOO_SMALL)
-		return;
-	handles = (EFI_HANDLE *) malloc(sz);
-	status = BS->LocateHandle(ByProtocol, &netid, 0, &sz, handles);
-	if (EFI_ERROR(status)) {
-		free(handles);
-		return;
-	}
-
-	nifs = sz / sizeof(EFI_HANDLE);
-	if (nifs > MAX_INTERFACES)
-		nifs = MAX_INTERFACES;
-
-	efi_net.netif_nifs = nifs;
-	efi_net.netif_ifs = difs;
-
-	bzero(stats, sizeof(stats));
-	for (i = 0; i < nifs; i++) {
-		struct netif_dif *dif = &efi_net.netif_ifs[i];
-		dif->dif_unit = i;
-		dif->dif_nsel = 1;
-		dif->dif_stats = &stats[i];
-
-		BS->HandleProtocol(handles[i], &netid,
-				   (VOID**) &dif->dif_private);
-	}
-
-	return;
-}
-
-void
+static void
 efinet_end(struct netif *nif)
 {
-	EFI_SIMPLE_NETWORK *net = nif->nif_devdata;
+	EFI_SIMPLE_NETWORK *net = nif->nif_devdata; 
 
 	net->Shutdown(net);
 }
 
-struct netif_driver efi_net = {
-	"net",			/* netif_bname */
-	efinet_match,		/* netif_match */
-	efinet_probe,		/* netif_probe */
-	efinet_init,		/* netif_init */
-	efinet_get,		/* netif_get */
-	efinet_put,		/* netif_put */
-	efinet_end,		/* netif_end */
-	0,			/* netif_ifs */
-	0			/* netif_nifs */
+static int efinet_dev_init(void);
+static void efinet_dev_print(int);
+
+struct devsw efinet_dev = {
+	.dv_name = "net",
+	.dv_type = DEVT_NET,
+	.dv_init = efinet_dev_init,
+	.dv_strategy = net_strategy,
+	.dv_open = net_open,
+	.dv_close = net_close,
+	.dv_ioctl = noioctl,
+	.dv_print = efinet_dev_print,
+	.dv_cleanup = NULL
 };
 
+static int
+efinet_dev_init()
+{
+	struct netif_dif *dif;
+	struct netif_stats *stats;
+	EFI_HANDLE *handles;
+	EFI_STATUS status;
+	UINTN sz;
+	int err, i, nifs;
+
+	sz = 0;
+	status = BS->LocateHandle(ByProtocol, &sn_guid, 0, &sz, 0);
+	if (status == EFI_BUFFER_TOO_SMALL) {
+		handles = (EFI_HANDLE *)malloc(sz);
+		status = BS->LocateHandle(ByProtocol, &sn_guid, 0, &sz,
+		    handles);
+		if (EFI_ERROR(status))
+			free(handles);
+	}
+	if (EFI_ERROR(status))
+		return (efi_status_to_errno(status));
+	nifs = sz / sizeof(EFI_HANDLE);
+	err = efi_register_handles(&efinet_dev, handles, nifs);
+	free(handles);
+	if (err != 0)
+		return (err);
+
+	efinetif.netif_nifs = nifs;
+	efinetif.netif_ifs = calloc(nifs, sizeof(struct netif_dif));
+
+	stats = calloc(nifs, sizeof(struct netif_stats));
+
+	for (i = 0; i < nifs; i++) {
+		dif = &efinetif.netif_ifs[i];
+		dif->dif_unit = i;
+		dif->dif_nsel = 1;
+		dif->dif_stats = &stats[i];
+		dif->dif_private = efi_find_handle(&efinet_dev, i);
+	}
+
+	return (0);
+}
+
+static void
+efinet_dev_print(int verbose)
+{
+	char line[80];
+	EFI_HANDLE h;
+	int unit;
+
+	for (unit = 0, h = efi_find_handle(&efinet_dev, 0);
+	    h != NULL; h = efi_find_handle(&efinet_dev, ++unit)) {
+		sprintf(line, "    %s%d:\n", efinet_dev.dv_name, unit);
+		pager_output(line);
+	}
+}

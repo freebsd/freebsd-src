@@ -3,6 +3,7 @@ $FreeBSD$
 NOTE ANY CHANGES YOU MAKE TO THE BOOTBLOCKS HERE.  The format of this
 file is important.  Make sure the current version number is on line 6.
 
+1.2:	Restructured. Has some user visible differences.
 1.1:	Pass the HCDP table address to the kernel via bootinfo if one
 	is present in the EFI system table.
 1.0:	Don't map the I/O port range. We expect the kernel to do it. It

@@ -1,5 +1,6 @@
 /*-
  * Copyright (c) 1998 Michael Smith <msmith@freebsd.org>
+ * Copyright (c) 2006 Marcel Moolenaar
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -34,9 +35,8 @@ __FBSDID("$FreeBSD$");
 
 #include <efi.h>
 #include <efilib.h>
-#include "efiboot.h"
 
-static int	efi_parsedev(struct efi_devdesc **dev, const char *devspec, const char **path);
+static int ia64_parsedev(struct devdesc **, const char *, const char **);
 
 /* 
  * Point (dev) at an allocated device specifier for the device matching the
@@ -44,29 +44,24 @@ static int	efi_parsedev(struct efi_devdesc **dev, const char *devspec, const cha
  * use that.  If not, use the default device.
  */
 int
-efi_getdev(void **vdev, const char *devspec, const char **path)
+ia64_getdev(void **vdev, const char *devspec, const char **path)
 {
-	struct efi_devdesc **dev = (struct efi_devdesc **)vdev;
-	int		rv;
-    
-	/*
-	 * If it looks like this is just a path and no
-	 * device, go with the current device.
-	 */
-	if ((devspec == NULL) || 
-	    (devspec[0] == '/') || 
-	    (strchr(devspec, ':') == NULL)) {
+	struct devdesc **dev = (struct devdesc **)vdev;
+	int rv;
 
-		if (((rv = efi_parsedev(dev, getenv("currdev"), NULL)) == 0) &&
-		    (path != NULL))
-			*path = devspec;
-		return(rv);
-	}
-    
 	/*
-	 * Try to parse the device name off the beginning of the devspec
+	 * If it looks like this is just a path and no device, then
+	 * use the current device instead.
 	 */
-	return(efi_parsedev(dev, devspec, path));
+	if (devspec == NULL || *devspec == '/' || !strchr(devspec, ':')) {
+		rv = ia64_parsedev(dev, getenv("currdev"), NULL);
+		if (rv == 0 && path != NULL)
+			*path = devspec;
+		return (rv);
+	}
+
+	/* Parse the device name off the beginning of the devspec. */
+	return (ia64_parsedev(dev, devspec, path));
 }
 
 /*
@@ -80,162 +75,95 @@ efi_getdev(void **vdev, const char *devspec, const char **path)
  *
  * For disk-type devices, the syntax is:
  *
- * disk<unit>[s<slice>][<partition>]:
- * 
+ * fs<unit>:
  */
 static int
-efi_parsedev(struct efi_devdesc **dev, const char *devspec, const char **path)
+ia64_parsedev(struct devdesc **dev, const char *devspec, const char **path)
 {
-	struct efi_devdesc *idev;
-	struct devsw	*dv;
-	int		i, unit, slice, partition, err;
-	char		*cp;
-	const char	*np;
+	struct devdesc *idev;
+	struct devsw *dv;
+	char *cp;
+	const char *np;
+	int i, err;
 
 	/* minimum length check */
 	if (strlen(devspec) < 2)
-		return(EINVAL);
+		return (EINVAL);
 
 	/* look for a device that matches */
-	for (i = 0, dv = NULL; devsw[i] != NULL; i++) {
-		if (!strncmp(devspec, devsw[i]->dv_name, strlen(devsw[i]->dv_name))) {
-			dv = devsw[i];
+	for (i = 0; devsw[i] != NULL; i++) {
+		dv = devsw[i];
+		if (!strncmp(devspec, dv->dv_name, strlen(dv->dv_name)))
 			break;
-		}
 	}
+	if (devsw[i] == NULL)
+		return (ENOENT);
 
-	if (dv == NULL)
-		return(ENOENT);
-	idev = malloc(sizeof(struct efi_devdesc));
-	err = 0;
-	np = (devspec + strlen(dv->dv_name));
-        
-	switch(dv->dv_type) {
-	case DEVT_NONE:			/* XXX what to do here?  Do we care? */
-		break;
+	idev = malloc(sizeof(struct devdesc));
+	if (idev == NULL)
+		return (ENOMEM);
 
-	case DEVT_DISK:
-		unit = -1;
-		slice = -1;
-		partition = -1;
-		if (*np && (*np != ':')) {
-			unit = strtol(np, &cp, 10);	/* next comes the unit number */
-			if (cp == np) {
-				err = EUNIT;
-				goto fail;
-			}
-			if (*cp == 's') {		/* got a slice number */
-				np = cp + 1;
-				slice = strtol(np, &cp, 10);
-				if (cp == np) {
-					err = ESLICE;
-					goto fail;
-				}
-			}
-			if (*cp && (*cp != ':')) {
-				partition = *cp - 'a';		/* get a partition number */
-				if ((partition < 0) || (partition >= MAXPARTITIONS)) {
-					err = EPART;
-					goto fail;
-				}
-				cp++;
-			}
-		}
-		if (*cp && (*cp != ':')) {
-			err = EINVAL;
-			goto fail;
-		}
-
-		idev->d_unit = unit;
-		idev->d_kind.efidisk.slice = slice;
-		idev->d_kind.efidisk.partition = partition;
-
-		if (path != NULL)
-			*path = (*cp == 0) ? cp : cp + 1;
-		break;
-	
-	case DEVT_NET:
-		unit = 0;
-	
-		if (*np && (*np != ':')) {
-			unit = strtol(np, &cp, 0);	/* get unit number if present */
-			if (cp == np) {
-				err = EUNIT;
-				goto fail;
-			}
-		}
-		if (*cp && (*cp != ':')) {
-			err = EINVAL;
-			goto fail;
-		}
-	
-		idev->d_unit = unit;
-		if (path != NULL)
-			*path = (*cp == 0) ? cp : cp + 1;
-		break;
-
-	default:
-		err = EINVAL;
-		goto fail;
-	}
 	idev->d_dev = dv;
 	idev->d_type = dv->dv_type;
-	if (dev == NULL) {
-		free(idev);
-	} else {
-		*dev = idev;
-	}
-	return(0);
+	idev->d_unit = -1;
 
- fail:
-	free(idev);
-	return(err);
+	err = 0;
+	np = devspec + strlen(dv->dv_name);
+	if (*np != '\0' && *np != ':') {
+		idev->d_unit = strtol(np, &cp, 0);
+		if (cp == np) {
+			idev->d_unit = -1;
+			free(idev);
+			return (EUNIT);
+		}
+	}
+	if (*cp != '\0' && *cp != ':') {
+		free(idev);
+		return (EINVAL);
+	}
+
+	if (path != NULL)
+		*path = (*cp == 0) ? cp : cp + 1;
+	if (dev != NULL)
+		*dev = idev;
+	else
+		free(idev);
+	return (0);
 }
 
-
 char *
-efi_fmtdev(void *vdev)
+ia64_fmtdev(void *vdev)
 {
-	struct efi_devdesc *dev = (struct efi_devdesc *)vdev;
-	static char	buf[128];	/* XXX device length constant? */
-	char		*cp;
-    
+	struct devdesc *dev = (struct devdesc *)vdev;
+	static char buf[32];	/* XXX device length constant? */
+
 	switch(dev->d_type) {
 	case DEVT_NONE:
 		strcpy(buf, "(no device)");
 		break;
 
-	case DEVT_DISK:
-		cp = buf;
-		cp += sprintf(cp, "%s%d", dev->d_dev->dv_name, dev->d_unit);
-		if (dev->d_kind.efidisk.slice > 0)
-			cp += sprintf(cp, "s%d", dev->d_kind.efidisk.slice);
-		if (dev->d_kind.efidisk.partition >= 0)
-			cp += sprintf(cp, "%c", dev->d_kind.efidisk.partition + 'a');
-		strcat(cp, ":");
-		break;
-
-	case DEVT_NET:
+	default:
 		sprintf(buf, "%s%d:", dev->d_dev->dv_name, dev->d_unit);
 		break;
 	}
+
 	return(buf);
 }
-
 
 /*
  * Set currdev to suit the value being supplied in (value)
  */
 int
-efi_setcurrdev(struct env_var *ev, int flags, void *value)
+ia64_setcurrdev(struct env_var *ev, int flags, const void *value)
 {
-	struct efi_devdesc *ncurr;
-	int		rv;
-    
-	if ((rv = efi_parsedev(&ncurr, value, NULL)) != 0)
+	struct devdesc *ncurr;
+	int rv;
+
+	rv = ia64_parsedev(&ncurr, value, NULL);
+	if (rv != 0)
 		return(rv);
+
 	free(ncurr);
 	env_setenv(ev->ev_name, flags | EV_NOHOOK, value, NULL, NULL);
-	return(0);
+	return (0);
 }
-

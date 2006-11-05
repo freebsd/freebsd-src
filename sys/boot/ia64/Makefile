@@ -1,5 +1,5 @@
 # $FreeBSD$
 
-SUBDIR=		efi ski
+SUBDIR= common efi ski
 
 .include <bsd.subdir.mk>
