@@ -26,28 +26,6 @@
  * $FreeBSD$
  */
 
-/*
- * SKI fully-qualified device descriptor
- */
-struct ski_devdesc {
-	struct	devsw	*d_dev;
-	int		d_type;
-#define	DEVT_NONE	0
-#define	DEVT_DISK	1
-#define	DEVT_NET	2
-	int		d_unit;
-	union {
-		struct {
-			int	slice;
-			int	partition;
-		} skidisk;
-	} d_kind;
-};
-
-extern int	ski_getdev(void **vdev, const char *devspec, const char **path);
-extern char	*ski_fmtdev(void *vdev);
-extern int	ski_setcurrdev(struct env_var *ev, int flags, void *value);
-
 #define	MAXDEV	31	/* maximum number of distinct devices */
 
 typedef unsigned long physaddr_t;
@@ -63,10 +41,6 @@ extern struct fs_ops ski_fsops;
 /* this is in startup code */
 extern void		delay(int);
 extern void		reboot(void);
-
-extern ssize_t		ski_copyin(const void *src, vm_offset_t dest, size_t len);
-extern ssize_t		ski_copyout(const vm_offset_t src, void *dest, size_t len);
-extern ssize_t		ski_readin(int fd, vm_offset_t dest, size_t len);
 
 extern int		ski_boot(void);
 

@@ -39,16 +39,19 @@ __FBSDID("$FreeBSD$");
 #include <efi.h>
 #include <efilib.h>
 
-#include "bootstrap.h"
-#include "efiboot.h"
+#include <libia64.h>
 
+/* DIG64 Headless Console & Debug Port Table. */
+#define	HCDP_TABLE_GUID		\
+    {0xf951938d,0x620b,0x42ef,{0x82,0x79,0xa8,0x4b,0x79,0x61,0x78,0x98}}
+ 
 extern char bootprog_name[];
 extern char bootprog_rev[];
 extern char bootprog_date[];
 extern char bootprog_maker[];
 
-struct efi_devdesc	currdev;	/* our current device */
-struct arch_switch	archsw;		/* MI/MD interface boundary */
+struct devdesc currdev;		/* our current device */
+struct arch_switch archsw;	/* MI/MD interface boundary */
 
 extern u_int64_t	ia64_pal_entry;
 
@@ -121,8 +124,6 @@ main(int argc, CHAR16 *argv[])
 		if (devsw[i]->dv_init != NULL)
 			(devsw[i]->dv_init)();
 
-	efinet_init_driver();
-
 	/* Get our loaded image protocol interface structure. */
 	BS->HandleProtocol(IH, &imgid, (VOID**)&img);
 
@@ -132,17 +133,7 @@ main(int argc, CHAR16 *argv[])
 	printf("%s, Revision %s\n", bootprog_name, bootprog_rev);
 	printf("(%s, %s)\n", bootprog_maker, bootprog_date);
 
-	i = efifs_get_unit(img->DeviceHandle);
-	if (i >= 0) {
-		currdev.d_dev = devsw[0];		/* XXX disk */
-		currdev.d_unit = i;
-		/* XXX should be able to detect this, default to autoprobe */
-		currdev.d_kind.efidisk.slice = -1;
-		currdev.d_kind.efidisk.partition = 0;
-	} else {
-		currdev.d_dev = devsw[1];		/* XXX net */
-		currdev.d_unit = 0;			/* XXX */
-	}
+	efi_handle_lookup(img->DeviceHandle, &currdev.d_dev, &currdev.d_unit);
 	currdev.d_type = currdev.d_dev->dv_type;
 
 	/*
@@ -156,18 +147,18 @@ main(int argc, CHAR16 *argv[])
 	 */
 	BS->SetWatchdogTimer(0, 0, 0, NULL);
 
-	env_setenv("currdev", EV_VOLATILE, efi_fmtdev(&currdev),
-	    efi_setcurrdev, env_nounset);
-	env_setenv("loaddev", EV_VOLATILE, efi_fmtdev(&currdev), env_noset,
+	env_setenv("currdev", EV_VOLATILE, ia64_fmtdev(&currdev),
+	    ia64_setcurrdev, env_nounset);
+	env_setenv("loaddev", EV_VOLATILE, ia64_fmtdev(&currdev), env_noset,
 	    env_nounset);
 
 	setenv("LINES", "24", 1);	/* optional */
     
-	archsw.arch_autoload = efi_autoload;
-	archsw.arch_getdev = efi_getdev;
-	archsw.arch_copyin = efi_copyin;
-	archsw.arch_copyout = efi_copyout;
-	archsw.arch_readin = efi_readin;
+	archsw.arch_autoload = ia64_autoload;
+	archsw.arch_getdev = ia64_getdev;
+	archsw.arch_copyin = ia64_copyin;
+	archsw.arch_copyout = ia64_copyout;
+	archsw.arch_readin = ia64_readin;
 
 	interact();			/* doesn't return */
 

@@ -33,6 +33,7 @@ __FBSDID("$FreeBSD$");
 #include <stand.h>
 #include <stdarg.h>
 
+#include <bootstrap.h>
 #include "libski.h"
 
 struct disk_req {

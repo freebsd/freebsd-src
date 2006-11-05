@@ -22,97 +22,40 @@
  * THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ *
+ * $FreeBSD$
  */
 
-#include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+#ifndef _LIBIA64_H_
+#define	_LIBIA64_H_
 
-#include <stand.h>
-#include <ia64/include/vmparam.h>
+#include <bootstrap.h>
+#include <ia64/include/bootinfo.h>
 
-#include "libia64.h"
+/*
+ * Portability functions provided by the loader
+ * implementation specific to the platform.
+ */
+extern uint64_t ldr_alloc(vm_offset_t);
+extern int ldr_bootinfo(struct bootinfo *, uint64_t *);
+extern int ldr_enter(const char *);
 
-#define	LDR_LOG2_PGSZ	20
+/*
+ * Functions and variables provided by the ia64 common code
+ * and shared by all loader implementations.
+ */
 
-uint64_t *ia64_pgtbl;
-uint32_t ia64_pgtblsz;
+extern uint64_t *ia64_pgtbl;
+extern uint32_t ia64_pgtblsz;
 
-static void *
-va2pa(vm_offset_t va, size_t *len)
-{
-	uint64_t pa;
+extern int ia64_autoload(void);
 
-	if (va >= IA64_RR_BASE(7)) {
-		pa = IA64_RR_MASK(va);
-		return ((void *)pa);
-	}
+extern ssize_t ia64_copyin(const void *, vm_offset_t, size_t);
+extern ssize_t ia64_copyout(vm_offset_t, void *, size_t);
+extern ssize_t ia64_readin(int, vm_offset_t, size_t);
 
-	printf("\n%s: va=%lx, *len=%lx\n", __func__, va, *len);
-	*len = 0;
-	return (NULL);
-}
+extern char *ia64_fmtdev(struct devdesc *);
+extern int ia64_getdev(void **, const char *, const char **);
+extern int ia64_setcurrdev(struct env_var *, int, const void *);
 
-ssize_t
-ia64_copyin(const void *src, vm_offset_t va, size_t len)
-{
-	void *pa;
-	ssize_t res;
-	size_t sz;
-
-	res = 0;
-	while (len > 0) {
-		sz = len;
-		pa = va2pa(va, &sz);
-		if (sz == 0)
-			break;
-		bcopy(src, pa, sz);
-		len -= sz;
-		res += sz;
-		va += sz;
-	}
-	return (res);
-}
-
-ssize_t
-ia64_copyout(vm_offset_t va, void *dst, size_t len)
-{
-	void *pa;
-	ssize_t res;
-	size_t sz;
-
-	res = 0;
-	while (len > 0) {
-		sz = len;
-		pa = va2pa(va, &sz);
-		if (sz == 0)
-			break;
-		bcopy(pa, dst, sz);
-		len -= sz;
-		res += sz;
-		va += sz;
-	}
-	return (res);
-}
-
-ssize_t
-ia64_readin(int fd, vm_offset_t va, size_t len)
-{
-	void *pa;
-	ssize_t res, s;
-	size_t sz;
-
-	res = 0;
-	while (len > 0) {
-		sz = len;
-		pa = va2pa(va, &sz);
-		if (sz == 0)
-			break;
-		s = read(fd, pa, sz);
-		if (s <= 0)
-			break;
-		len -= s;
-		res += s;
-		va += s;
-	}
-	return (res);
-}
+#endif /* !_LIBIA64_H_ */

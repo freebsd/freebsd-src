@@ -33,7 +33,7 @@ __FBSDID("$FreeBSD$");
 #include <setjmp.h>
 #include <machine/fpu.h>
 
-#include "bootstrap.h"
+#include <libia64.h>
 #include "libski.h"
 
 extern char bootprog_name[];
@@ -41,15 +41,8 @@ extern char bootprog_rev[];
 extern char bootprog_date[];
 extern char bootprog_maker[];
 
-struct ski_devdesc	currdev;	/* our current device */
-struct arch_switch	archsw;		/* MI/MD interface boundary */
-
-static int
-ski_autoload(void)
-{
-
-	return (0);
-}
+struct devdesc currdev;		/* our current device */
+struct arch_switch archsw;	/* MI/MD interface boundary */
 
 void
 ski_main(void)
@@ -85,15 +78,11 @@ ski_main(void)
 #if 0
 	printf("Memory: %ld k\n", memsize() / 1024);
 #endif
-    
+
 	/* XXX presumes that biosdisk is first in devsw */
 	currdev.d_dev = devsw[0];
 	currdev.d_type = currdev.d_dev->dv_type;
 	currdev.d_unit = 0;
-	/* XXX should be able to detect this, default to autoprobe */
-	currdev.d_kind.skidisk.slice = -1;
-	/* default to 'a' */
-	currdev.d_kind.skidisk.partition = 0;
 
 #if 0
 	/* Create arc-specific variables */
@@ -102,18 +91,18 @@ ski_main(void)
 		setenv("bootfile", bootfile, 1);
 #endif
 
-	env_setenv("currdev", EV_VOLATILE, ski_fmtdev(&currdev),
-	    ski_setcurrdev, env_nounset);
-	env_setenv("loaddev", EV_VOLATILE, ski_fmtdev(&currdev), env_noset,
+	env_setenv("currdev", EV_VOLATILE, ia64_fmtdev(&currdev),
+	    ia64_setcurrdev, env_nounset);
+	env_setenv("loaddev", EV_VOLATILE, ia64_fmtdev(&currdev), env_noset,
 	    env_nounset);
 
 	setenv("LINES", "24", 1);	/* optional */
     
-	archsw.arch_autoload = ski_autoload;
-	archsw.arch_getdev = ski_getdev;
-	archsw.arch_copyin = ski_copyin;
-	archsw.arch_copyout = ski_copyout;
-	archsw.arch_readin = ski_readin;
+	archsw.arch_autoload = ia64_autoload;
+	archsw.arch_getdev = ia64_getdev;
+	archsw.arch_copyin = ia64_copyin;
+	archsw.arch_copyout = ia64_copyout;
+	archsw.arch_readin = ia64_readin;
 
 	interact();			/* doesn't return */
 
