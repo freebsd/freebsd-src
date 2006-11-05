@@ -587,7 +587,7 @@ struct sctp_str_log {
 };
 
 struct sctp_sb_log {
-	uint32_t stcb;
+	void *stcb;
 	uint32_t so_sbcc;
 	uint32_t stcb_sbcc;
 	uint32_t incr;
@@ -628,8 +628,8 @@ struct sctp_sack_log {
 };
 
 struct sctp_lock_log {
-	uint32_t sock;
-	uint32_t inp;
+	void *sock;
+	void *inp;
 	uint8_t tcb_lock;
 	uint8_t inp_lock;
 	uint8_t info_lock;
@@ -641,14 +641,14 @@ struct sctp_lock_log {
 };
 
 struct sctp_rto_log {
-	uint32_t net;
+	void *net;
 	uint32_t rtt;
 	uint32_t rttvar;
 	uint8_t direction;
 };
 
 struct sctp_nagle_log {
-	uint32_t stcb;
+	void *stcb;
 	uint32_t total_flight;
 	uint32_t total_in_queue;
 	uint16_t count_in_queue;
@@ -656,7 +656,7 @@ struct sctp_nagle_log {
 };
 
 struct sctp_sbwake_log {
-	uint32_t stcb;
+	void *stcb;
 	uint16_t send_q;
 	uint16_t sent_q;
 	uint16_t flight;
@@ -675,8 +675,8 @@ struct sctp_misc_info {
 };
 
 struct sctp_log_closing {
-	uint32_t inp;
-	uint32_t stcb;
+	void *inp;
+	void *stcb;
 	uint32_t sctp_flags;
 	uint16_t state;
 	int16_t loc;

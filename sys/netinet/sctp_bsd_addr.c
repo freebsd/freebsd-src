@@ -812,7 +812,7 @@ bound_all_v4_plan_c:
 		    loopscope, ipv4_scope, &sin_loop, &sin_local);
 #ifdef SCTP_DEBUG
 		if (sctp_debug_on & SCTP_DEBUG_OUTPUT1) {
-			printf("Found ifn:%x %d prefered source addresses\n", (uint32_t) ifn, num_prefered);
+			printf("Found ifn:%p %d prefered source addresses\n", ifn, num_prefered);
 		}
 #endif
 		if (num_prefered == 0) {
@@ -1521,7 +1521,7 @@ sctp_choose_v6_boundall(struct sctp_inpcb *inp,
 	if (sin6) {
 #ifdef SCTP_DEBUG
 		if (sctp_debug_on & SCTP_DEBUG_OUTPUT1) {
-			printf("Selected address %d ifn:%x for the route\n", cur_addr_num, (uint32_t) ifn);
+			printf("Selected address %d ifn:%p for the route\n", cur_addr_num, ifn);
 		}
 #endif
 		if (net) {
@@ -1547,14 +1547,14 @@ bound_all_v6_plan_b:
 		inp->next_ifn_touse = TAILQ_FIRST(&ifnet);
 #ifdef SCTP_DEBUG
 		if (sctp_debug_on & SCTP_DEBUG_OUTPUT1) {
-			printf("Start at first IFN:%x\n", (uint32_t) inp->next_ifn_touse);
+			printf("Start at first IFN:%p\n", inp->next_ifn_touse);
 		}
 #endif
 	} else {
 		inp->next_ifn_touse = TAILQ_NEXT(inp->next_ifn_touse, if_list);
 #ifdef SCTP_DEBUG
 		if (sctp_debug_on & SCTP_DEBUG_OUTPUT1) {
-			printf("Resume at IFN:%x\n", (uint32_t) inp->next_ifn_touse);
+			printf("Resume at IFN:%p\n", inp->next_ifn_touse);
 		}
 #endif
 		if (inp->next_ifn_touse == NULL) {
@@ -1598,7 +1598,7 @@ bound_all_v6_plan_b:
 		num_eligible_addr = sctp_count_v6_num_eligible_boundall(ifn, stcb, non_asoc_addr_ok, loopscope, loc_scope);
 #ifdef SCTP_DEBUG
 		if (sctp_debug_on & SCTP_DEBUG_OUTPUT1) {
-			printf("IFN:%x has %d eligible\n", (uint32_t) ifn, num_eligible_addr);
+			printf("IFN:%p has %d eligible\n", ifn, num_eligible_addr);
 		}
 #endif
 		if (num_eligible_addr == 0) {
@@ -1629,9 +1629,9 @@ bound_all_v6_plan_b:
 		}
 #ifdef SCTP_DEBUG
 		if (sctp_debug_on & SCTP_DEBUG_OUTPUT1) {
-			printf("Selected the %d'th address of ifn:%x\n",
+			printf("Selected the %d'th address of ifn:%p\n",
 			    cur_addr_num,
-			    (uint32_t) ifn);
+			    ifn);
 		}
 #endif
 		return (sin6);

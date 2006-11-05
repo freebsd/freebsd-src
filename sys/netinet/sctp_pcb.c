@@ -3391,7 +3391,7 @@ sctp_free_assoc(struct sctp_inpcb *inp, struct sctp_tcb *stcb, int from_inpcbfre
 	 * timer a passing stranger may have started :-S
 	 */
 	if (from_inpcbfree == 0) {
-		atomic_add_16(&stcb->asoc.refcnt, 1);
+		atomic_add_int(&stcb->asoc.refcnt, 1);
 
 		SCTP_TCB_UNLOCK(stcb);
 
@@ -3410,7 +3410,7 @@ sctp_free_assoc(struct sctp_inpcb *inp, struct sctp_tcb *stcb, int from_inpcbfre
 	sctp_iterator_asoc_being_freed(inp, stcb);
 	/* re-increment the lock */
 	if (from_inpcbfree == 0) {
-		atomic_add_16(&stcb->asoc.refcnt, -1);
+		atomic_add_int(&stcb->asoc.refcnt, -1);
 	}
 	/* now restop the timers to be sure - this is paranoia at is finest! */
 	callout_stop(&asoc->hb_timer.timer);
@@ -4379,9 +4379,9 @@ sctp_load_addresses_from_init(struct sctp_tcb *stcb, struct mbuf *m,
 	/* does the source address already exist? if so skip it */
 	l_inp = inp = stcb->sctp_ep;
 
-	atomic_add_16(&stcb->asoc.refcnt, 1);
+	atomic_add_int(&stcb->asoc.refcnt, 1);
 	stcb_tmp = sctp_findassociation_ep_addr(&inp, sa, &net_tmp, local_sa, stcb);
-	atomic_add_16(&stcb->asoc.refcnt, -1);
+	atomic_add_int(&stcb->asoc.refcnt, -1);
 
 	if ((stcb_tmp == NULL && inp == stcb->sctp_ep) || inp == NULL) {
 		/* we must add the source address */
@@ -4440,10 +4440,10 @@ sctp_load_addresses_from_init(struct sctp_tcb *stcb, struct mbuf *m,
 				sin.sin_addr.s_addr = p4->addr;
 				sa = (struct sockaddr *)&sin;
 				inp = stcb->sctp_ep;
-				atomic_add_16(&stcb->asoc.refcnt, 1);
+				atomic_add_int(&stcb->asoc.refcnt, 1);
 				stcb_tmp = sctp_findassociation_ep_addr(&inp, sa, &net,
 				    local_sa, stcb);
-				atomic_add_16(&stcb->asoc.refcnt, -1);
+				atomic_add_int(&stcb->asoc.refcnt, -1);
 
 				if ((stcb_tmp == NULL && inp == stcb->sctp_ep) ||
 				    inp == NULL) {
@@ -4502,10 +4502,10 @@ sctp_load_addresses_from_init(struct sctp_tcb *stcb, struct mbuf *m,
 				    sizeof(p6->addr));
 				sa = (struct sockaddr *)&sin6;
 				inp = stcb->sctp_ep;
-				atomic_add_16(&stcb->asoc.refcnt, 1);
+				atomic_add_int(&stcb->asoc.refcnt, 1);
 				stcb_tmp = sctp_findassociation_ep_addr(&inp, sa, &net,
 				    local_sa, stcb);
-				atomic_add_16(&stcb->asoc.refcnt, -1);
+				atomic_add_int(&stcb->asoc.refcnt, -1);
 				if (stcb_tmp == NULL && (inp == stcb->sctp_ep ||
 				    inp == NULL)) {
 					/*

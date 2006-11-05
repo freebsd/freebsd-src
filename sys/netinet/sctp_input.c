@@ -587,6 +587,7 @@ sctp_handle_shutdown(struct sctp_shutdown_chunk *cp,
 		}
 		stcb->asoc.control_pdapi = NULL;
 		SCTP_INP_READ_UNLOCK(stcb->sctp_ep);
+		sctp_sorwakeup(stcb->sctp_ep, stcb->sctp_socket);
 	}
 	/* goto SHUTDOWN_RECEIVED state to block new requests */
 	if (stcb->sctp_socket) {
@@ -677,6 +678,7 @@ sctp_handle_shutdown_ack(struct sctp_shutdown_ack_chunk *cp,
 		}
 		stcb->asoc.control_pdapi = NULL;
 		SCTP_INP_READ_UNLOCK(stcb->sctp_ep);
+		sctp_sorwakeup(stcb->sctp_ep, stcb->sctp_socket);
 	}
 	/* are the queues empty? */
 	if (!TAILQ_EMPTY(&asoc->send_queue) ||
@@ -4314,8 +4316,8 @@ sctp_common_input_processing(struct mbuf **mm, int iphlen, int offset,
 
 #ifdef SCTP_DEBUG
 	if (sctp_debug_on & SCTP_DEBUG_INPUT1) {
-		printf("Ok, Common input processing called, m:%x iphlen:%d offset:%d\n",
-		    (uint32_t) m, iphlen, offset);
+		printf("Ok, Common input processing called, m:%p iphlen:%d offset:%d\n",
+		    m, iphlen, offset);
 	}
 #endif				/* SCTP_DEBUG */
 
@@ -4624,8 +4626,8 @@ sctp_input(m, off)
 		if (calc_check != check) {
 #ifdef SCTP_DEBUG
 			if (sctp_debug_on & SCTP_DEBUG_INPUT1) {
-				printf("Bad CSUM on SCTP packet calc_check:%x check:%x  m:%x mlen:%d iphlen:%d\n",
-				    calc_check, check, (uint32_t) m, mlen, iphlen);
+				printf("Bad CSUM on SCTP packet calc_check:%x check:%x  m:%p mlen:%d iphlen:%d\n",
+				    calc_check, check, m, mlen, iphlen);
 			}
 #endif
 
@@ -4700,7 +4702,7 @@ sctp_skip_csum_4:
 	 * idea, so I will leave it in place.
 	 */
 
-	if (ipsec4_in_reject_so(m, inp->ip_inp.inp.inp_socket)) {
+	if (inp && ipsec4_in_reject(m, &inp->ip_inp.inp)) {
 		ipsecstat.in_polvio++;
 		SCTP_STAT_INCR(sctps_hdrops);
 		goto bad;
