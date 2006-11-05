@@ -198,14 +198,16 @@ FreeBSD 5.2           |      |                 |                       |
  |     |     |        |      | NetBSD 2.1      |                       |
  |     |     |        |      |                 |                       |
  |     |     |        |   NetBSD 3.0           |                       |
- |     |     |        |      |    |            |                 DragonFly 1.4.0
- |     |     |        |      |    |        OpenBSD 3.9                 |
- |  FreeBSD  |        |      |    |            |                       |
- |    6.1    |        |      |    |            |                       |
- |     |  FreeBSD 5.5 |      |    |            |                       |
- |     |              |      |   NetBSD 3.0.1  |                 DragonFly 1.6.0
- |     |              |      |                 |                       |
- |     V              |      |             OpenBSD 4.0                 |
+ |     |     |        |      | |  |            |                 DragonFly 1.4.0
+ |     |     |        |      | |  |        OpenBSD 3.9                 |
+ |  FreeBSD  |        |      | |  |            |                       |
+ |    6.1    |        |      | |  |            |                       |
+ |     |  FreeBSD 5.5 |      | |  |            |                       |
+ |     |              |      | | NetBSD 3.0.1  |                 DragonFly 1.6.0
+ |     |              |      | |  |            |                       |
+ |     V              |      | |  |        OpenBSD 4.0                 |
+ |                    |      | | NetBSD 3.0.2  |                       |
+ |                    |      | NetBSD 3.1      |                       |
  |                    |      |                 |                       |
 FreeBSD 7 -current    |  NetBSD -current  OpenBSD -current             |
  |                    |      |                 |                       |
@@ -454,6 +456,8 @@ FreeBSD 5.5		2006-05-25 [FBD]
 NetBSD 3.0.1		2006-07-24 [NBD] (security/critical release)
 DragonFly 1.6.0		2006-07-24 [DFB]
 OpenBSD 4.0		2006-11-01 [OBD]
+NetBSD 3.0.2		2006-11-04 [NBD] (security/critical release)
+NetBSD 3.1		2006-11-04 [NBD]
 
 Bibliography
 ------------------------
