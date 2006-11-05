@@ -40,6 +40,7 @@
 #include <sys/mount.h>
 #include <sys/proc.h>
 #include <sys/queue.h>
+#include <sys/stat.h>
 #include <sys/sysctl.h>
 #include <sys/time.h>
 #include <sys/vnode.h>
@@ -421,6 +422,8 @@ smbfs_attr_cachelookup(struct vnode *vp, struct vattr *va)
 	va->va_type = vp->v_type;		/* vnode type (for create) */
 	if (vp->v_type == VREG) {
 		va->va_mode = smp->sm_file_mode; /* files access mode and type */
+		if (np->n_dosattr & SMB_FA_RDONLY)
+			va->va_mode &= ~(S_IWUSR|S_IWGRP|S_IWOTH);
 	} else if (vp->v_type == VDIR) {
 		va->va_mode = smp->sm_dir_mode;	/* files access mode and type */
 	} else
