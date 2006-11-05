@@ -19,6 +19,7 @@
 #include <libutil.h>
 #include <string.h>
 #include <err.h>
+#include <assert.h>
 
 #include <sys/ioctl.h>
 #include <sys/param.h>
@@ -269,19 +270,28 @@ main(int argc, char **argv)
 	return (0);
 }
 
+static int
+mdunitcmp(const void *a, const void *b)
+{
+	return (*(int *)a - *(int *)b);
+}
+
 int
 list(const int fd)
 {
 	int unit;
+	int mdcount;
 
 	if (ioctl(fd, MDIOCLIST, &mdio) < 0)
 		err(1, "ioctl(/dev/%s)", MDCTL_NAME);
-	for (unit = 0; unit < mdio.md_pad[0] && unit < MDNPAD - 1; unit++) {
+	mdcount = mdio.md_pad[0];
+	assert(mdcount < MDNPAD - 1);
+	if (mdcount > 0)
+		qsort(&mdio.md_pad[1], mdcount, sizeof(mdio.md_pad[0]), mdunitcmp);
+	for (unit = 0; unit < mdcount; unit++) {
 		printf("%s%s%d", unit > 0 ? " " : "",
 		    nflag ? "" : MD_NAME, mdio.md_pad[unit + 1]);
 	}
-	if (mdio.md_pad[0] - unit > 0)
-		printf(" ... %d more", mdio.md_pad[0] - unit);
 	if (unit > 0)
 		printf("\n");
 	return (0);
@@ -334,32 +344,17 @@ query(const int fd, const int unit)
 void
 mdmaybeload(void)
 {
-        struct module_stat mstat;
-        int fileid, modid;
-        const char *name;
-	char *cp;
+	char name1[64], name2[64];
 
-	name = MD_MODNAME;
-        /* scan files in kernel */
-        mstat.version = sizeof(struct module_stat);
-        for (fileid = kldnext(0); fileid > 0; fileid = kldnext(fileid)) {
-                /* scan modules in file */
-                for (modid = kldfirstmod(fileid); modid > 0;
-                     modid = modfnext(modid)) {
-                        if (modstat(modid, &mstat) < 0)
-                                continue;
-                        /* strip bus name if present */
-                        if ((cp = strchr(mstat.name, '/')) != NULL) {
-                                cp++;
-                        } else {
-                                cp = mstat.name;
-                        }
-                        /* already loaded? */
-                        if (!strcmp(name, cp))
-                                return;
-                }
-        }
-        /* not present, we should try to load it */
-        kldload(name);
+	snprintf(name1, sizeof(name1), "g_%s", MD_NAME);
+	snprintf(name2, sizeof(name2), "geom_%s", MD_NAME);
+	if (modfind(name1) == -1) {
+		/* Not present in kernel, try loading it. */
+		if (kldload(name2) == -1 || modfind(name1) == -1) {
+			if (errno != EEXIST) {
+				errx(EXIT_FAILURE,
+				    "%s module not available!", name2);
+			}
+		}
+	}
 }
-
