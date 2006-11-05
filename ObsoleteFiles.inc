@@ -183,6 +183,17 @@ OLD_FILES+=usr/lib/libxpg4_p.a
 # 20041109: replaced by em(4)
 OLD_FILES+=usr/share/man/man4/gx.4.gz
 OLD_FILES+=usr/share/man/man4/if_gx.4.gz
+# 20041017: rune interface removed
+OLD_FILES+=usr/include/rune.h
+OLD_FILES+=usr/share/man/man3/fgetrune.3.gz
+OLD_FILES+=usr/share/man/man3/fputrune.3.gz
+OLD_FILES+=usr/share/man/man3/fungetrune.3.gz
+OLD_FILES+=usr/share/man/man3/mbrrune.3.gz
+OLD_FILES+=usr/share/man/man3/mbrune.3.gz
+OLD_FILES+=usr/share/man/man3/rune.3.gz
+OLD_FILES+=usr/share/man/man3/setinvalidrune.3.gz
+OLD_FILES+=usr/share/man/man3/sgetrune.3.gz
+OLD_FILES+=usr/share/man/man3/sputrune.3.gz
 # 20040925: bind9 import
 OLD_FILES+=usr/bin/dnskeygen
 OLD_FILES+=usr/bin/dnsquery
