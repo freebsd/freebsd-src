@@ -80,6 +80,7 @@ __FBSDID("$FreeBSD$");
 
 #ifdef IPSEC
 #include <netinet6/ipsec.h>
+#include <netinet6/ipsec6.h>
 #endif				/* IPSEC */
 
 #if defined(NFAITH) && NFAITH > 0
@@ -193,8 +194,8 @@ sctp6_input(mp, offp, proto)
 		if (calc_check != check) {
 #ifdef SCTP_DEBUG
 			if (sctp_debug_on & SCTP_DEBUG_INPUT1) {
-				printf("Bad CSUM on SCTP packet calc_check:%x check:%x  m:%x mlen:%d iphlen:%d\n",
-				    calc_check, check, (u_int)m,
+				printf("Bad CSUM on SCTP packet calc_check:%x check:%x  m:%p mlen:%d iphlen:%d\n",
+				    calc_check, check, m,
 				    mlen, iphlen);
 			}
 #endif
@@ -249,11 +250,11 @@ sctp_skip_csum:
 	/*
 	 * Check AH/ESP integrity.
 	 */
-		if (in6p->sctp_socket && (ipsec6_in_reject_so(m, in6p->sctp_socket)) {
+	if (in6p_ip && (ipsec6_in_reject(m, in6p_ip))) {
 /* XXX */
 		ipsec6stat.in_polvio++;
 		goto bad;
-		}
+	}
 #endif				/* IPSEC */
 
 

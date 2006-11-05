@@ -4486,7 +4486,7 @@ sctp_sendall_iterator(struct sctp_inpcb *inp, struct sctp_tcb *stcb, void *ptr,
 			 * We add one here to keep the assoc from
 			 * dis-appearing on us.
 			 */
-			atomic_add_16(&stcb->asoc.refcnt, 1);
+			atomic_add_int(&stcb->asoc.refcnt, 1);
 			sctp_abort_an_association(inp, stcb,
 			    SCTP_RESPONSE_TO_USER_REQ,
 			    m);
@@ -4504,7 +4504,7 @@ sctp_sendall_iterator(struct sctp_inpcb *inp, struct sctp_tcb *stcb, void *ptr,
 			 * iterator timer :-0
 			 */
 			SCTP_TCB_LOCK(stcb);
-			atomic_add_16(&stcb->asoc.refcnt, -1);
+			atomic_add_int(&stcb->asoc.refcnt, -1);
 			goto no_chunk_output;
 		}
 	} else {
@@ -4574,11 +4574,11 @@ sctp_sendall_iterator(struct sctp_inpcb *inp, struct sctp_tcb *stcb, void *ptr,
 					    TAILQ_EMPTY(&asoc->sent_queue) &&
 					    (asoc->state & SCTP_STATE_PARTIAL_MSG_LEFT)) {
 				abort_anyway:
-						atomic_add_16(&stcb->asoc.refcnt, 1);
+						atomic_add_int(&stcb->asoc.refcnt, 1);
 						sctp_abort_an_association(stcb->sctp_ep, stcb,
 						    SCTP_RESPONSE_TO_USER_REQ,
 						    NULL);
-						atomic_add_16(&stcb->asoc.refcnt, -1);
+						atomic_add_int(&stcb->asoc.refcnt, -1);
 						goto no_chunk_output;
 					}
 					sctp_timer_start(SCTP_TIMER_TYPE_SHUTDOWNGUARD, stcb->sctp_ep, stcb,
@@ -9566,7 +9566,7 @@ sctp_lower_sosend(struct socket *so,
 		}
 	}
 	/* Keep the stcb from being freed under our feet */
-	atomic_add_16(&stcb->asoc.refcnt, 1);
+	atomic_add_int(&stcb->asoc.refcnt, 1);
 	free_cnt_applied = 1;
 
 	if (stcb->asoc.state & SCTP_STATE_ABOUT_TO_BE_FREED) {
@@ -9717,7 +9717,7 @@ sctp_lower_sosend(struct socket *so,
 			SCTP_TCB_LOCK(stcb);
 			hold_tcblock = 1;
 		}
-		atomic_add_16(&stcb->asoc.refcnt, -1);
+		atomic_add_int(&stcb->asoc.refcnt, -1);
 		free_cnt_applied = 0;
 		/* release this lock, otherwise we hang on ourselves */
 		sctp_abort_an_association(stcb->sctp_ep, stcb,
@@ -10162,7 +10162,7 @@ dataless_eof:
 				    (asoc->state & SCTP_STATE_PARTIAL_MSG_LEFT)) {
 			abort_anyway:
 					if (free_cnt_applied) {
-						atomic_add_16(&stcb->asoc.refcnt, -1);
+						atomic_add_int(&stcb->asoc.refcnt, -1);
 						free_cnt_applied = 0;
 					}
 					sctp_abort_an_association(stcb->sctp_ep, stcb,
@@ -10292,8 +10292,8 @@ out_unlocked:
 	if ((stcb) && hold_tcblock) {
 		SCTP_TCB_UNLOCK(stcb);
 	}
-	if ((stcb) && (free_cnt_applied)) {
-		atomic_add_16(&stcb->asoc.refcnt, -1);
+	if (stcb && free_cnt_applied) {
+		atomic_add_int(&stcb->asoc.refcnt, -1);
 	}
 #ifdef INVARIENTS
 	if (stcb) {
