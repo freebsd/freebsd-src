@@ -3760,7 +3760,7 @@ struct sctp_hs_raise_drop sctp_cwnd_adjust[SCTP_HS_TABLE_SIZE] = {
 };
 
 static void
-sctp_hs_cwnd_increase(struct sctp_nets *net)
+sctp_hs_cwnd_increase(struct sctp_tcb *stcb, struct sctp_nets *net)
 {
 	int cur_val, i, indx, incr;
 
@@ -3797,7 +3797,7 @@ sctp_hs_cwnd_increase(struct sctp_nets *net)
 }
 
 static void
-sctp_hs_cwnd_decrease(struct sctp_nets *net)
+sctp_hs_cwnd_decrease(struct sctp_tcb *stcb, struct sctp_nets *net)
 {
 	int cur_val, i, indx;
 
@@ -3958,7 +3958,7 @@ sctp_cwnd_update(struct sctp_tcb *stcb,
 				if (net->flight_size + net->net_ack >=
 				    net->cwnd) {
 #ifdef SCTP_HIGH_SPEED
-					sctp_hs_cwnd_increase(net);
+					sctp_hs_cwnd_increase(stcb, net);
 #else
 					if (net->net_ack > (net->mtu * sctp_L2_abc_variable)) {
 						net->cwnd += (net->mtu * sctp_L2_abc_variable);
@@ -5062,7 +5062,7 @@ done_with_it:
 				struct sctp_tmit_chunk *lchk;
 
 #ifdef  SCTP_HIGH_SPEED
-				sctp_hs_cwnd_decrease(net);
+				sctp_hs_cwnd_decrease(stcb, net);
 #else
 #ifdef SCTP_CWND_MONITOR
 				int old_cwnd = net->cwnd;
