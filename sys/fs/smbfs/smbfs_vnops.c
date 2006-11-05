@@ -44,6 +44,7 @@
 #include <sys/vnode.h>
 #include <sys/limits.h>
 #include <sys/lockf.h>
+#include <sys/stat.h>
 
 #include <vm/vm.h>
 #include <vm/vm_extern.h>
@@ -301,6 +302,7 @@ smbfs_setattr(ap)
 	struct smb_vc *vcp = SSTOVC(ssp);
 	u_quad_t tsize = 0;
 	int isreadonly, doclose, error = 0;
+	int old_n_dosattr;
 
 	SMBVDEBUG("\n");
 	if (vap->va_flags != VNOVAL)
@@ -346,6 +348,18 @@ smbfs_setattr(ap)
 			return error;
 		}
   	}
+	if (vap->va_mode != (mode_t)VNOVAL) {
+		old_n_dosattr = np->n_dosattr;
+		if (vap->va_mode & S_IWUSR)
+			np->n_dosattr &= ~SMB_FA_RDONLY;
+		else
+			np->n_dosattr |= SMB_FA_RDONLY;
+		if (np->n_dosattr != old_n_dosattr) {
+			error = smbfs_smb_setpattr(np, np->n_dosattr, NULL, &scred);
+			if (error)
+				return error;
+		}
+	}
 	mtime = atime = NULL;
 	if (vap->va_mtime.tv_sec != VNOVAL)
 		mtime = &vap->va_mtime;

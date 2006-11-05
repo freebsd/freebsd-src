@@ -512,9 +512,10 @@ smbfs_smb_setpattr(struct smbnode *np, u_int16_t attr, struct timespec *mtime,
 		mb_put_uint8(mbp, 0);
 		smb_rq_bend(rqp);
 		error = smb_rq_simple(rqp);
-		SMBERROR("%d\n", error);
-		if (error)
+		if (error) {
+			SMBERROR("smb_rq_simple(rqp) => error %d\n", error);
 			break;
+		}
 	} while(0);
 	smb_rq_done(rqp);
 	return error;
