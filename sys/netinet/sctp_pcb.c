@@ -47,6 +47,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/protosw.h>
 #include <sys/socket.h>
 #include <sys/socketvar.h>
+#include <sys/priv.h>
 #include <sys/proc.h>
 #include <sys/kernel.h>
 #include <sys/sysctl.h>
@@ -1768,9 +1769,8 @@ sctp_inpcb_bind(struct socket *so, struct sockaddr *addr, struct thread *p)
 		 */
 		/* got to be root to get at low ports */
 		if (ntohs(lport) < IPPORT_RESERVED) {
-			if (p && (error =
-			    suser_cred(p->td_ucred, 0)
-			    )) {
+			if (p && (error = priv_check(p,
+			    PRIV_NETINET_RESERVEDPORT))) {
 				SCTP_INP_DECR_REF(inp);
 				SCTP_INP_WUNLOCK(inp);
 				SCTP_INP_INFO_WUNLOCK();
