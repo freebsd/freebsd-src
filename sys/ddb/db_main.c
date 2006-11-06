@@ -47,8 +47,9 @@ __FBSDID("$FreeBSD$");
 
 static dbbe_init_f db_init;
 static dbbe_trap_f db_trap;
+static dbbe_trace_f db_trace_self_wrapper;
 
-KDB_BACKEND(ddb, db_init, db_trace_self, db_trap);
+KDB_BACKEND(ddb, db_init, db_trace_self_wrapper, db_trap);
 
 vm_offset_t ksym_start, ksym_end;
 
@@ -225,4 +226,16 @@ db_trap(int type, int code)
 	db_restart_at_pc(watchpt);
 
 	return (1);
+}
+
+static void
+db_trace_self_wrapper(void)
+{
+	jmp_buf jb;
+	void *prev_jb;
+
+	prev_jb = kdb_jmpbuf(jb);
+	if (setjmp(jb) == 0)
+		db_trace_self();
+	(void)kdb_jmpbuf(prev_jb);
 }
