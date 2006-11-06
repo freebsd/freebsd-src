@@ -47,8 +47,6 @@ __FBSDID("$FreeBSD$");
 #include "archive_entry.h"
 #include "archive_private.h"
 
-extern char		**environ;
-
 /*
  * Allocate, initialize and return an archive object.
  */
