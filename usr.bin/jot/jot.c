@@ -66,6 +66,11 @@ __FBSDID("$FreeBSD$");
 #define	ENDER_DEF	100
 #define	STEP_DEF	1
 
+#define HAVE_STEP	1
+#define HAVE_ENDER	2
+#define HAVE_BEGIN	4
+#define HAVE_REPS	8
+
 #define	is_default(s)	(strcmp((s), "-") == 0)
 
 double	begin;
@@ -139,31 +144,34 @@ main(int argc, char **argv)
 		if (!is_default(argv[3])) {
 			if (!sscanf(argv[3], "%lf", &s))
 				errx(1, "bad s value: %s", argv[3]);
-			mask |= 01;
+			mask |= HAVE_STEP;
 		}
+		/* FALLTHROUGH */
 	case 3:
 		if (!is_default(argv[2])) {
 			if (!sscanf(argv[2], "%lf", &ender))
 				ender = argv[2][strlen(argv[2])-1];
-			mask |= 02;
+			mask |= HAVE_ENDER;
 			if (!prec)
 				n = getprec(argv[2]);
 		}
+		/* FALLTHROUGH */
 	case 2:
 		if (!is_default(argv[1])) {
 			if (!sscanf(argv[1], "%lf", &begin))
 				begin = argv[1][strlen(argv[1])-1];
-			mask |= 04;
+			mask |= HAVE_BEGIN;
 			if (!prec)
 				prec = getprec(argv[1]);
 			if (n > prec)		/* maximum precision */
 				prec = n;
 		}
+		/* FALLTHROUGH */
 	case 1:
 		if (!is_default(argv[0])) {
 			if (!sscanf(argv[0], "%ld", &reps))
 				errx(1, "bad reps value: %s", argv[0]);
-			mask |= 010;
+			mask |= HAVE_REPS;
 		}
 		break;
 	case 0:
@@ -175,31 +183,31 @@ main(int argc, char **argv)
 	getformat();
 	while (mask)	/* 4 bit mask has 1's where last 4 args were given */
 		switch (mask) {	/* fill in the 0's by default or computation */
-		case 001:
+		case HAVE_STEP:
 			reps = REPS_DEF;
-			mask = 011;
+			mask = HAVE_REPS | HAVE_STEP;
 			break;
-		case 002:
+		case HAVE_ENDER:
 			reps = REPS_DEF;
-			mask = 012;
+			mask = HAVE_REPS | HAVE_ENDER;
 			break;
-		case 003:
+		case HAVE_ENDER | HAVE_STEP:
 			reps = REPS_DEF;
-			mask = 013;
+			mask = HAVE_REPS | HAVE_ENDER | HAVE_STEP;
 			break;
-		case 004:
+		case HAVE_BEGIN:
 			reps = REPS_DEF;
-			mask = 014;
+			mask = HAVE_REPS | HAVE_BEGIN;
 			break;
-		case 005:
+		case HAVE_BEGIN | HAVE_STEP:
 			reps = REPS_DEF;
-			mask = 015;
+			mask = HAVE_REPS | HAVE_BEGIN | HAVE_STEP;
 			break;
-		case 006:
+		case HAVE_BEGIN | HAVE_ENDER:
 			reps = REPS_DEF;
-			mask = 016;
+			mask = HAVE_REPS | HAVE_BEGIN | HAVE_ENDER;
 			break;
-		case 007:
+		case HAVE_BEGIN | HAVE_ENDER | HAVE_STEP:
 			if (randomize) {
 				reps = REPS_DEF;
 				mask = 0;
@@ -215,19 +223,19 @@ main(int argc, char **argv)
 				errx(1, "impossible stepsize");
 			mask = 0;
 			break;
-		case 010:
+		case HAVE_REPS:
 			begin = BEGIN_DEF;
-			mask = 014;
+			mask = HAVE_REPS | HAVE_BEGIN;
 			break;
-		case 011:
+		case HAVE_REPS | HAVE_STEP:
 			begin = BEGIN_DEF;
-			mask = 015;
+			mask = HAVE_REPS | HAVE_BEGIN | HAVE_STEP;
 			break;
-		case 012:
+		case HAVE_REPS | HAVE_ENDER:
 			s = (randomize ? time(NULL) : STEP_DEF);
-			mask = 013;
+			mask = HAVE_REPS | HAVE_ENDER | HAVE_STEP;
 			break;
-		case 013:
+		case HAVE_REPS | HAVE_ENDER | HAVE_STEP:
 			if (randomize)
 				begin = BEGIN_DEF;
 			else if (reps == 0)
@@ -235,18 +243,18 @@ main(int argc, char **argv)
 			begin = ender - reps * s + s;
 			mask = 0;
 			break;
-		case 014:
+		case HAVE_REPS | HAVE_BEGIN:
 			s = (randomize ? -1.0 : STEP_DEF);
-			mask = 015;
+			mask = HAVE_REPS | HAVE_BEGIN | HAVE_STEP;
 			break;
-		case 015:
+		case HAVE_REPS | HAVE_BEGIN | HAVE_STEP:
 			if (randomize)
 				ender = ENDER_DEF;
 			else
 				ender = begin + reps * s - s;
 			mask = 0;
 			break;
-		case 016:
+		case HAVE_REPS | HAVE_BEGIN | HAVE_ENDER:
 			if (randomize)
 				s = -1.0;
 			else if (reps == 0)
@@ -257,7 +265,8 @@ main(int argc, char **argv)
 				s = (ender - begin) / (reps - 1);
 			mask = 0;
 			break;
-		case 017:		/* if reps given and implied, */
+		case HAVE_REPS | HAVE_BEGIN | HAVE_ENDER | HAVE_STEP:
+			/* if reps given and implied, */
 			if (!randomize && s != 0.0) {
 				long t = (ender - begin + s) / s;
 				if (t <= 0)
