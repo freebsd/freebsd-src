@@ -57,6 +57,7 @@ __FBSDID("$FreeBSD$");
 #include <stdio.h>
 #include <stdint.h>
 #include <stdlib.h>
+#include <stdbool.h>
 #include <string.h>
 #include <time.h>
 #include <unistd.h>
@@ -102,6 +103,7 @@ main(int argc, char **argv)
 	unsigned int	mask = 0;
 	int	n = 0;
 	int	ch;
+	bool	have_seed = false;
 
 	while ((ch = getopt(argc, argv, "rb:w:cs:np:")) != -1)
 		switch (ch) {
@@ -142,6 +144,8 @@ main(int argc, char **argv)
 			if (!sscanf(argv[3], "%lf", &s))
 				errx(1, "bad s value: %s", argv[3]);
 			mask |= HAVE_STEP;
+			if (randomize)
+				have_seed = true;
 		}
 		/* FALLTHROUGH */
 	case 3:
@@ -206,7 +210,7 @@ main(int argc, char **argv)
 			mask |= HAVE_BEGIN;
 			break;
 		case HAVE_REPS | HAVE_ENDER:
-			s = (randomize ? time(NULL) : STEP_DEF);
+			s = STEP_DEF;
 			mask = HAVE_REPS | HAVE_ENDER | HAVE_STEP;
 			break;
 		case HAVE_REPS | HAVE_ENDER | HAVE_STEP:
@@ -218,7 +222,7 @@ main(int argc, char **argv)
 			mask = 0;
 			break;
 		case HAVE_REPS | HAVE_BEGIN:
-			s = (randomize ? -1.0 : STEP_DEF);
+			s = STEP_DEF;
 			mask = HAVE_REPS | HAVE_BEGIN | HAVE_STEP;
 			break;
 		case HAVE_REPS | HAVE_BEGIN | HAVE_STEP:
@@ -229,9 +233,7 @@ main(int argc, char **argv)
 			mask = 0;
 			break;
 		case HAVE_REPS | HAVE_BEGIN | HAVE_ENDER:
-			if (randomize)
-				s = -1.0;
-			else if (reps == 0)
+			if (reps == 0)
 				errx(1, "infinite sequences cannot be bounded");
 			else if (reps == 1)
 				s = 0.0;
@@ -257,8 +259,13 @@ main(int argc, char **argv)
 		infinity = 1;
 	if (randomize) {
 		x = (ender - begin) * (ender > begin ? 1 : -1);
+		if (have_seed)
+			srandom((unsigned long)s);
 		for (i = 1; i <= reps || infinity; i++) {
-			y = arc4random() / ((double)UINT32_MAX + 1);
+			if (have_seed)
+				y = random() / ((double)LONG_MAX + 1);
+			else
+				y = arc4random() / ((double)UINT32_MAX + 1);
 			if (putdata(y * x + begin, reps - i))
 				errx(1, "range error in conversion");
 		}
