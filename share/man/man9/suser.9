@@ -54,6 +54,12 @@ and
 .Fn suser_cred
 functions check if the credentials given include superuser powers.
 .Pp
+These interfaces have now been obsoleted by
+.Xr priv 9 ,
+and are provided only for compatibility with third party kernel modules that
+have not yet been updated to the new interface.
+They should not be used in any new kernel code.
+.Pp
 The
 .Fn suser
 function is the most common, and should be used unless special
@@ -123,7 +129,8 @@ of some other implementations of
 in which a TRUE response indicates superuser powers.
 .Sh SEE ALSO
 .Xr chroot 2 ,
-.Xr jail 2
+.Xr jail 2 ,
+.Xr priv 9
 .Sh BUGS
 The
 .Fn suser

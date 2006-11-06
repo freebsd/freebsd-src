@@ -19,6 +19,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/errno.h>
 #include <sys/sysproto.h>
 #include <sys/malloc.h>
+#include <sys/priv.h>
 #include <sys/proc.h>
 #include <sys/taskqueue.h>
 #include <sys/jail.h>
@@ -205,7 +206,7 @@ jail_attach(struct thread *td, struct jail_attach_args *uap)
 	 * a process root from one prison, but attached to the jail
 	 * of another.
 	 */
-	error = suser(td);
+	error = priv_check(td, PRIV_JAIL_ATTACH);
 	if (error)
 		return (error);
 
@@ -520,6 +521,172 @@ prison_enforce_statfs(struct ucred *cred, struct mount *mp, struct statfs *sp)
 		*sp->f_mntonname = '/';
 	} else {
 		strlcpy(sp->f_mntonname, jpath, sizeof(sp->f_mntonname));
+	}
+}
+
+/*
+ * Check with permission for a specific privilege is granted within jail.  We
+ * have a specific list of accepted privileges; the rest are denied.
+ */
+int
+prison_priv_check(struct ucred *cred, int priv)
+{
+
+	if (!jailed(cred))
+		return (0);
+
+	switch (priv) {
+
+		/*
+		 * Allow ktrace privileges for root in jail.
+		 */
+	case PRIV_KTRACE:
+
+		/*
+		 * Allow jailed processes to configure audit identity and
+		 * submit audit records (login, etc).  In the future we may
+		 * want to further refine the relationship between audit and
+		 * jail.
+		 */
+	case PRIV_AUDIT_GETAUDIT:
+	case PRIV_AUDIT_SETAUDIT:
+	case PRIV_AUDIT_SUBMIT:
+
+		/*
+		 * Allow jailed processes to manipulate process UNIX
+		 * credentials in any way they see fit.
+		 */
+	case PRIV_CRED_SETUID:
+	case PRIV_CRED_SETEUID:
+	case PRIV_CRED_SETGID:
+	case PRIV_CRED_SETEGID:
+	case PRIV_CRED_SETGROUPS:
+	case PRIV_CRED_SETREUID:
+	case PRIV_CRED_SETREGID:
+	case PRIV_CRED_SETRESUID:
+	case PRIV_CRED_SETRESGID:
+
+		/*
+		 * Jail implements visibility constraints already, so allow
+		 * jailed root to override uid/gid-based constraints.
+		 */
+	case PRIV_SEEOTHERGIDS:
+	case PRIV_SEEOTHERUIDS:
+
+		/*
+		 * Jail implements inter-process debugging limits already, so
+		 * allow jailed root various debugging privileges.
+		 */
+	case PRIV_DEBUG_DIFFCRED:
+	case PRIV_DEBUG_SUGID:
+	case PRIV_DEBUG_UNPRIV:
+
+		/*
+		 * Allow jail to set various resource limits and login
+		 * properties, and for now, exceed process resource limits.
+		 */
+	case PRIV_PROC_LIMIT:
+	case PRIV_PROC_SETLOGIN:
+	case PRIV_PROC_SETRLIMIT:
+
+		/*
+		 * System V and POSIX IPC privileges are granted in jail.
+		 */
+	case PRIV_IPC_READ:
+	case PRIV_IPC_WRITE:
+	case PRIV_IPC_EXEC:
+	case PRIV_IPC_ADMIN:
+	case PRIV_IPC_MSGSIZE:
+	case PRIV_MQ_ADMIN:
+
+		/*
+		 * Jail implements its own inter-process limits, so allow
+		 * root processes in jail to change scheduling on other
+		 * processes in the same jail.  Likewise for signalling.
+		 */
+	case PRIV_SCHED_DIFFCRED:
+	case PRIV_SIGNAL_DIFFCRED:
+	case PRIV_SIGNAL_SUGID:
+
+		/*
+		 * Allow jailed processes to write to sysctls marked as jail
+		 * writable.
+		 */
+	case PRIV_SYSCTL_WRITEJAIL:
+
+		/*
+		 * Allow root in jail to manage a variety of quota
+		 * properties.  Some are a bit surprising and should be
+		 * reconsidered.
+		 */
+	case PRIV_UFS_GETQUOTA:
+	case PRIV_UFS_QUOTAOFF:		/* XXXRW: Slightly surprising. */
+	case PRIV_UFS_QUOTAON:		/* XXXRW: Slightly surprising. */
+	case PRIV_UFS_SETQUOTA:
+	case PRIV_UFS_SETUSE:		/* XXXRW: Slightly surprising. */
+
+		/*
+		 * Since Jail relies on chroot() to implement file system
+		 * protections, grant many VFS privileges to root in jail.
+		 * Be careful to exclude mount-related and NFS-related
+		 * privileges.
+		 */
+	case PRIV_VFS_READ:
+	case PRIV_VFS_WRITE:
+	case PRIV_VFS_ADMIN:
+	case PRIV_VFS_EXEC:
+	case PRIV_VFS_LOOKUP:
+	case PRIV_VFS_BLOCKRESERVE:	/* XXXRW: Slightly surprising. */
+	case PRIV_VFS_CHFLAGS_DEV:
+	case PRIV_VFS_CHOWN:
+	case PRIV_VFS_CHROOT:
+	case PRIV_VFS_CLEARSUGID:
+	case PRIV_VFS_FCHROOT:
+	case PRIV_VFS_LINK:
+	case PRIV_VFS_SETGID:
+	case PRIV_VFS_STICKYFILE:
+		return (0);
+
+		/*
+		 * Depending on the global setting, allow privilege of
+		 * setting system flags.
+		 */
+	case PRIV_VFS_SYSFLAGS:
+		if (jail_chflags_allowed)
+			return (0);
+		else
+			return (EPERM);
+
+		/*
+		 * Allow jailed root to bind reserved ports.
+		 */
+	case PRIV_NETINET_RESERVEDPORT:
+		return (0);
+
+		/*
+		 * Conditionally allow creating raw sockets in jail.
+		 */
+	case PRIV_NETINET_RAW:
+		if (jail_allow_raw_sockets)
+			return (0);
+		else
+			return (EPERM);
+
+		/*
+		 * Since jail implements its own visibility limits on netstat
+		 * sysctls, allow getcred.  This allows identd to work in
+		 * jail.
+		 */
+	case PRIV_NETINET_GETCRED:
+		return (0);
+
+	default:
+		/*
+		 * In all remaining cases, deny the privilege request.  This
+		 * includes almost all network privileges, many system
+		 * configuration privileges.
+		 */
+		return (EPERM);
 	}
 }
 
