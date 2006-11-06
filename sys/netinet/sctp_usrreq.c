@@ -46,6 +46,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/malloc.h>
 #include <sys/mbuf.h>
 #include <sys/domain.h>
+#include <sys/priv.h>
 #include <sys/proc.h>
 #include <sys/protosw.h>
 #include <sys/socket.h>
@@ -488,9 +489,15 @@ sctp_getcred(SYSCTL_HANDLER_ARGS)
 	struct sctp_tcb *stcb;
 	int error, s;
 
-	error = suser(req->td);
+	/*
+	 * XXXRW: Other instances of getcred use SUSER_ALLOWJAIL, as socket
+	 * visibility is scoped using cr_canseesocket(), which it is not
+	 * here.
+	 */
+	error = priv_check_cred(req->td->td_ucred, PRIV_NETINET_GETCRED, 0);
 	if (error)
 		return (error);
+
 	error = SYSCTL_IN(req, addrs, sizeof(addrs));
 	if (error)
 		return (error);
