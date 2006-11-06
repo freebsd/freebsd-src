@@ -48,6 +48,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/namei.h>
 #include <sys/malloc.h>
 #include <sys/fcntl.h>
+#include <sys/priv.h>
 #include <sys/proc.h>
 #include <sys/vnode.h>
 #include <sys/mount.h>
@@ -699,7 +700,8 @@ ufs_extattrctl(struct mount *mp, int cmd, struct vnode *filename_vp,
 	 * Processes with privilege, but in jail, are not allowed to
 	 * configure extended attributes.
 	 */
-	if ((error = suser(td))) {
+	error = priv_check(td, PRIV_UFS_EXTATTRCTL);
+	if (error) {
 		if (filename_vp != NULL)
 			VOP_UNLOCK(filename_vp, 0, td);
 		return (error);

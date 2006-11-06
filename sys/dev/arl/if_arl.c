@@ -43,6 +43,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/mbuf.h>
 #include <sys/socket.h>
 #include <sys/sockio.h>
+#include <sys/priv.h>
 #include <sys/proc.h>
 #include <sys/conf.h>
 
@@ -504,7 +505,7 @@ arl_ioctl(ifp, cmd, data)
 		break;
 
 	case SIOCS80211:
-		if ((error = suser(td)))
+		if ((error = priv_check(td, PRIV_NET80211_MANAGE)))
 			break;
 		switch (ireq->i_type) {
 		case IEEE80211_IOC_SSID:
@@ -577,7 +578,7 @@ arl_ioctl(ifp, cmd, data)
 	}
 	case SIOCGARLALL:
 		bzero(&arlan_io, sizeof(arlan_io));
-		if (!suser(td)) {
+		if (!priv_check(td, PRIV_DRIVER)) {
 			bcopy(ar->systemId, arlan_io.cfg.sid, 4);
 		}
 
@@ -616,7 +617,7 @@ arl_ioctl(ifp, cmd, data)
 	} while (0)
 
 	case SIOCSARLALL:
-		if (suser(td))
+		if (priv_check(td, PRIV_DRIVER))
 			break;
 
 		user = (void *)ifr->ifr_data;

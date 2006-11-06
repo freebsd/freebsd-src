@@ -47,6 +47,7 @@
 #include <sys/mbuf.h>
 #include <sys/module.h>
 #include <sys/poll.h>
+#include <sys/priv.h>
 #include <sys/proc.h>
 #include <sys/selinfo.h>
 #include <sys/signalvar.h>
@@ -373,10 +374,13 @@ tapopen(struct cdev *dev, int flag, int mode, struct thread *td)
 {
 	struct tap_softc	*tp = NULL;
 	struct ifnet		*ifp = NULL;
-	int			 s;
+	int			 error, s;
 
-	if (tapuopen == 0 && suser(td) != 0)
-		return (EPERM);
+	if (tapuopen == 0) {
+		error = priv_check(td, PRIV_NET_TAP);
+		if (error)
+			return (error);
+	}
 
 	if ((dev2unit(dev) & CLONE_UNITMASK) > TAPMAXUNIT)
 		return (ENXIO);

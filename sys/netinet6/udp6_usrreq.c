@@ -70,6 +70,7 @@
 #include <sys/kernel.h>
 #include <sys/lock.h>
 #include <sys/mbuf.h>
+#include <sys/priv.h>
 #include <sys/proc.h>
 #include <sys/protosw.h>
 #include <sys/signalvar.h>
@@ -434,7 +435,8 @@ udp6_getcred(SYSCTL_HANDLER_ARGS)
 	struct inpcb *inp;
 	int error;
 
-	error = suser(req->td);
+	error = priv_check_cred(req->td->td_ucred, PRIV_NETINET_GETCRED,
+	    SUSER_ALLOWJAIL);
 	if (error)
 		return (error);
 

@@ -501,11 +501,12 @@ hpfs_setattr(ap)
 	if (vap->va_atime.tv_sec != VNOVAL || vap->va_mtime.tv_sec != VNOVAL) {
 		if (vp->v_mount->mnt_flag & MNT_RDONLY)
 			return (EROFS);
-		if (cred->cr_uid != hp->h_uid &&
-		    (error = suser_cred(cred, SUSER_ALLOWJAIL)) &&
-		    ((vap->va_vaflags & VA_UTIMES_NULL) == 0 ||
-		    (error = VOP_ACCESS(vp, VWRITE, cred, td))))
-			return (error);
+		if (vap->va_vaflags & VA_UTIMES_NULL) {
+			error = VOP_ACCESS(vp, VADMIN, cred, td);
+			if (error)
+				error = VOP_ACCESS(vp, VWRITE, cred, td);
+		} else
+			error = VOP_ACCESS(vp, VADMIN, cred, td);
 		if (vap->va_atime.tv_sec != VNOVAL)
 			hp->h_atime = vap->va_atime.tv_sec;
 		if (vap->va_mtime.tv_sec != VNOVAL)

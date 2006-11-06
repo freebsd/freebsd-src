@@ -40,6 +40,7 @@
 #include <sys/kernel.h>
 #include <sys/malloc.h>
 #include <sys/mbuf.h>
+#include <sys/priv.h>
 #include <sys/protosw.h>
 #include <sys/socket.h>
 #include <sys/socketvar.h>
@@ -987,8 +988,20 @@ ip_ctloutput(so, sopt)
 				break;
 			if ((error = soopt_mcopyin(sopt, m)) != 0) /* XXX */
 				break;
-			priv = (sopt->sopt_td != NULL &&
-				suser(sopt->sopt_td) != 0) ? 0 : 1;
+			if (sopt->sopt_td != NULL) {
+				/*
+				 * XXXRW: Would be more desirable to do this
+				 * one layer down so that we only exercise
+				 * privilege if it is needed.
+				 */
+				error = priv_check(sopt->sopt_td,
+				    PRIV_NETINET_IPSEC);
+				if (error)
+					priv = 0;
+				else
+					priv = 1;
+			} else
+				priv = 1;
 			req = mtod(m, caddr_t);
 			len = m->m_len;
 			optname = sopt->sopt_name;

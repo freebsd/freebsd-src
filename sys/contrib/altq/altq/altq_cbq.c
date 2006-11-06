@@ -1062,7 +1062,9 @@ cbqioctl(dev, cmd, addr, flag, p)
 		/* currently only command that an ordinary user can call */
 		break;
 	default:
-#if (__FreeBSD_version > 400000)
+#if (__FreeBSD_version > 700000)
+		error = priv_check(p, PRIV_ALTQ_MANAGE);
+#elsif (__FreeBSD_version > 400000)
 		error = suser(p);
 #else
 		error = suser(p->p_ucred, &p->p_acflag);

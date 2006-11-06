@@ -46,6 +46,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/lock.h>
 #include <sys/malloc.h>
 #include <sys/mutex.h>
+#include <sys/priv.h>
 #include <sys/kernel.h>
 #include <sys/systm.h>
 #include <sys/sysent.h>
@@ -125,11 +126,18 @@ kenv(td, uap)
 		return (error);
 	}
 
-	if ((uap->what == KENV_SET) ||
-	    (uap->what == KENV_UNSET)) {
-		error = suser(td);
+	switch (uap->what) {
+	case KENV_SET:
+		error = priv_check(td, PRIV_KENV_SET);
 		if (error)
 			return (error);
+		break;
+
+	case KENV_UNSET:
+		error = priv_check(td, PRIV_KENV_UNSET);
+		if (error)
+			return (error);
+		break;
 	}
 
 	name = malloc(KENV_MNAMELEN, M_TEMP, M_WAITOK);

@@ -41,6 +41,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/sockio.h>
 #include <sys/mbuf.h>
 #include <sys/malloc.h>
+#include <sys/priv.h>
 #include <sys/kernel.h>
 #include <sys/socket.h>
 #include <sys/queue.h>
@@ -2836,7 +2837,7 @@ ndis_ioctl(ifp, command, data)
 			error = ENOTTY;
 		break;
 	case SIOCGDRVSPEC:
-		if ((error = suser(curthread)))
+		if ((error = priv_check(curthread, PRIV_DRIVER)))
 			break;
 		error =  copyin(ifr->ifr_data, &oid, sizeof(oid));
 		if (error)
@@ -2865,7 +2866,7 @@ ndis_ioctl(ifp, command, data)
 		free(oidbuf, M_TEMP);
 		break;
 	case SIOCSDRVSPEC:
-		if ((error = suser(curthread)))
+		if ((error = priv_check(curthread, PRIV_DRIVER)))
 			break;
 		error =  copyin(ifr->ifr_data, &oid, sizeof(oid));
 		if (error)
@@ -2894,7 +2895,7 @@ ndis_ioctl(ifp, command, data)
 		free(oidbuf, M_TEMP);
 		break;
 	case SIOCGPRIVATE_0:
-		if ((error = suser(curthread)))
+		if ((error = priv_check(curthread, PRIV_DRIVER)))
 			break;
 		NDIS_LOCK(sc);
 		if (sc->ndis_evt[sc->ndis_evtcidx].ne_sts == 0) {
@@ -3062,7 +3063,7 @@ ndis_wi_ioctl_set(ifp, command, data)
 	uint32_t		foo;
 	int			error, len;
 
-	error = suser(curthread);
+	error = priv_check(curthread, PRIV_DRIVER);
 	if (error)
 		return (error);
 
@@ -3370,7 +3371,7 @@ ndis_80211_ioctl_set(struct ifnet *ifp, u_long command, caddr_t data)
 		break;
 #endif
 	case IEEE80211_IOC_STATIONNAME:
-		error = suser(curthread);
+		error = priv_check(curthread, PRIV_NET80211_MANAGE);
 		if (error)
 			break;
 		if (ireq->i_val != 0 ||

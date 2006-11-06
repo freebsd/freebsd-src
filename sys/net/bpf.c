@@ -48,6 +48,7 @@
 #include <sys/malloc.h>
 #include <sys/mbuf.h>
 #include <sys/time.h>
+#include <sys/priv.h>
 #include <sys/proc.h>
 #include <sys/signalvar.h>
 #include <sys/filio.h>
@@ -1724,7 +1725,7 @@ bpf_stats_sysctl(SYSCTL_HANDLER_ARGS)
 	 * if the users who opened the devices were able to retrieve
 	 * the statistics for them, too.
 	 */
-	error = suser(req->td);
+	error = priv_check(req->td, PRIV_NET_BPF);
 	if (error)
 		return (error);
 	if (req->oldptr == NULL)

@@ -43,6 +43,7 @@
 #include <sys/malloc.h>
 #include <sys/mbuf.h>
 #include <sys/domain.h>
+#include <sys/priv.h>
 #include <sys/protosw.h>
 #include <sys/socket.h>
 #include <sys/socketvar.h>
@@ -1221,8 +1222,14 @@ ipsec_init_pcbpolicy(so, pcb_sp)
 	}
 	bzero(new, sizeof(*new));
 
-	if (so->so_cred != NULL &&
-	    suser_cred(so->so_cred, SUSER_ALLOWJAIL) == 0)
+	/*
+	 * XXXRW: Can we avoid caching the privilege decision here, and
+	 * instead cache the credential?
+	 *
+	 * XXXRW: Why is suser_allowjail set here?
+	 */
+	if (so->so_cred != NULL && priv_check_cred(so->so_cred,
+	    PRIV_NETINET_IPSEC, 0) == 0)
 		new->priv = 1;
 	else
 		new->priv = 0;

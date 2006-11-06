@@ -66,6 +66,7 @@
 #include <sys/kernel.h>
 #include <sys/malloc.h>
 #include <sys/mbuf.h>
+#include <sys/priv.h>
 #include <sys/socket.h>
 #include <sys/syslog.h>
 #include <sys/tty.h>
@@ -189,7 +190,8 @@ ngt_open(struct cdev *dev, struct tty *tp)
 	int error;
 
 	/* Super-user only */
-	if ((error = suser(td)))
+	error = priv_check(td, PRIV_NETGRAPH_TTY);
+	if (error)
 		return (error);
 
 	/* Initialize private struct */

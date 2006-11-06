@@ -66,6 +66,7 @@
 #include <sys/malloc.h>
 #include <sys/mount.h>
 #include <sys/mutex.h>
+#include <sys/priv.h>
 #include <sys/proc.h>
 #include <sys/protosw.h>
 #include <sys/queue.h>
@@ -427,7 +428,8 @@ rules_check(struct ucred *cred, int family, int type, u_int16_t port)
 	mtx_unlock(&rule_mtx);
 
 	if (error != 0 && mac_portacl_suser_exempt != 0)
-		error = suser_cred(cred, SUSER_ALLOWJAIL);
+		error = priv_check_cred(cred, PRIV_NETINET_RESERVEDPORT,
+		    SUSER_ALLOWJAIL);
 
 	return (error);
 }

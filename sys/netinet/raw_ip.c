@@ -40,6 +40,7 @@
 #include <sys/lock.h>
 #include <sys/malloc.h>
 #include <sys/mbuf.h>
+#include <sys/priv.h>
 #include <sys/proc.h>
 #include <sys/protosw.h>
 #include <sys/signalvar.h>
@@ -387,7 +388,11 @@ rip_ctloutput(struct socket *so, struct sockopt *sopt)
 		case IP_FW_GET:
 		case IP_FW_TABLE_GETSIZE:
 		case IP_FW_TABLE_LIST:
-			error = suser(curthread);
+			/*
+			 * XXXRW: Isn't this checked one layer down?  Yes, it
+			 * is.
+			 */
+			error = priv_check(curthread, PRIV_NETINET_IPFW);
 			if (error != 0)
 				return (error);
 			if (ip_fw_ctl_ptr != NULL)
@@ -397,7 +402,7 @@ rip_ctloutput(struct socket *so, struct sockopt *sopt)
 			break;
 
 		case IP_DUMMYNET_GET:
-			error = suser(curthread);
+			error = priv_check(curthread, PRIV_NETINET_DUMMYNET);
 			if (error != 0)
 				return (error);
 			if (ip_dn_ctl_ptr != NULL)
@@ -418,7 +423,7 @@ rip_ctloutput(struct socket *so, struct sockopt *sopt)
 		case MRT_API_CONFIG:
 		case MRT_ADD_BW_UPCALL:
 		case MRT_DEL_BW_UPCALL:
-			error = suser(curthread);
+			error = priv_check(curthread, PRIV_NETINET_MROUTE);
 			if (error != 0)
 				return (error);
 			error = ip_mrouter_get ? ip_mrouter_get(so, sopt) :
@@ -452,7 +457,10 @@ rip_ctloutput(struct socket *so, struct sockopt *sopt)
 		case IP_FW_TABLE_ADD:
 		case IP_FW_TABLE_DEL:
 		case IP_FW_TABLE_FLUSH:
-			error = suser(curthread);
+			/*
+			 * XXXRW: Isn't this checked one layer down?
+			 */
+			error = priv_check(curthread, PRIV_NETINET_IPFW);
 			if (error != 0)
 				return (error);
 			if (ip_fw_ctl_ptr != NULL)
@@ -464,7 +472,7 @@ rip_ctloutput(struct socket *so, struct sockopt *sopt)
 		case IP_DUMMYNET_CONFIGURE:
 		case IP_DUMMYNET_DEL:
 		case IP_DUMMYNET_FLUSH:
-			error = suser(curthread);
+			error = priv_check(curthread, PRIV_NETINET_DUMMYNET);
 			if (error != 0)
 				return (error);
 			if (ip_dn_ctl_ptr != NULL)
@@ -474,14 +482,14 @@ rip_ctloutput(struct socket *so, struct sockopt *sopt)
 			break ;
 
 		case IP_RSVP_ON:
-			error = suser(curthread);
+			error = priv_check(curthread, PRIV_NETINET_MROUTE);
 			if (error != 0)
 				return (error);
 			error = ip_rsvp_init(so);
 			break;
 
 		case IP_RSVP_OFF:
-			error = suser(curthread);
+			error = priv_check(curthread, PRIV_NETINET_MROUTE);
 			if (error != 0)
 				return (error);
 			error = ip_rsvp_done();
@@ -489,7 +497,7 @@ rip_ctloutput(struct socket *so, struct sockopt *sopt)
 
 		case IP_RSVP_VIF_ON:
 		case IP_RSVP_VIF_OFF:
-			error = suser(curthread);
+			error = priv_check(curthread, PRIV_NETINET_MROUTE);
 			if (error != 0)
 				return (error);
 			error = ip_rsvp_vif ?
@@ -508,7 +516,7 @@ rip_ctloutput(struct socket *so, struct sockopt *sopt)
 		case MRT_API_CONFIG:
 		case MRT_ADD_BW_UPCALL:
 		case MRT_DEL_BW_UPCALL:
-			error = suser(curthread);
+			error = priv_check(curthread, PRIV_NETINET_MROUTE);
 			if (error != 0)
 				return (error);
 			error = ip_mrouter_set ? ip_mrouter_set(so, sopt) :
@@ -598,9 +606,14 @@ rip_attach(struct socket *so, int proto, struct thread *td)
 
 	inp = sotoinpcb(so);
 	KASSERT(inp == NULL, ("rip_attach: inp != NULL"));
+	/*
+	 * XXXRW: Centralize privilege decision in kern_jail.c.
+	 */
 	if (jailed(td->td_ucred) && !jail_allow_raw_sockets)
 		return (EPERM);
-	if ((error = suser_cred(td->td_ucred, SUSER_ALLOWJAIL)) != 0)
+	error = priv_check_cred(td->td_ucred, PRIV_NETINET_RAW,
+	    SUSER_ALLOWJAIL);
+	if (error)
 		return error;
 	if (proto >= IPPROTO_MAX || proto < 0)
 		return EPROTONOSUPPORT;

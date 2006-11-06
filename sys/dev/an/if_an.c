@@ -92,6 +92,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/systm.h>
 #include <sys/sockio.h>
 #include <sys/mbuf.h>
+#include <sys/priv.h>
 #include <sys/proc.h>
 #include <sys/kernel.h>
 #include <sys/socket.h>
@@ -1920,7 +1921,7 @@ an_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 			break;
 #ifdef ANCACHE
 		if (sc->areq.an_type == AN_RID_ZERO_CACHE) {
-			error = suser(td);
+			error = priv_check(td, PRIV_DRIVER);
 			if (error)
 				break;
 			sc->an_sigitems = sc->an_nextitem = 0;
@@ -1944,7 +1945,7 @@ an_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 		error = copyout(&sc->areq, ifr->ifr_data, sizeof(sc->areq));
 		break;
 	case SIOCSAIRONET:
-		if ((error = suser(td)))
+		if ((error = priv_check(td, PRIV_DRIVER)))
 			goto out;
 		error = copyin(ifr->ifr_data, &sc->areq, sizeof(sc->areq));
 		if (error != 0)
@@ -1952,7 +1953,7 @@ an_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 		an_setdef(sc, &sc->areq);
 		break;
 	case SIOCGPRIVATE_0:              /* used by Cisco client utility */
-		if ((error = suser(td)))
+		if ((error = priv_check(td, PRIV_DRIVER)))
 			goto out;
 		error = copyin(ifr->ifr_data, &l_ioctl, sizeof(l_ioctl));
 		if (error)
@@ -1974,7 +1975,7 @@ an_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 		}
 		break;
 	case SIOCGPRIVATE_1:              /* used by Cisco client utility */
-		if ((error = suser(td)))
+		if ((error = priv_check(td, PRIV_DRIVER)))
 			goto out;
 		error = copyin(ifr->ifr_data, &l_ioctl, sizeof(l_ioctl));
 		if (error)
@@ -2226,7 +2227,7 @@ an_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 		}
 		break;
 	case SIOCS80211:
-		if ((error = suser(td)))
+		if ((error = priv_check(td, PRIV_NET80211_MANAGE)))
 			goto out;
 		sc->areq.an_len = sizeof(sc->areq);
 		/*

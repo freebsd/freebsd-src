@@ -71,6 +71,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/conf.h>
 #include <sys/file.h>
 #include <sys/filedesc.h>
+#include <sys/priv.h>
 #include <sys/proc.h>
 #include <sys/vnode.h>
 #include <sys/mount.h>
@@ -171,7 +172,7 @@ retry:
 #endif
 	if (size == fs->fs_bsize && fs->fs_cstotal.cs_nbfree == 0)
 		goto nospace;
-	if (suser_cred(cred, SUSER_ALLOWJAIL) &&
+	if (priv_check_cred(cred, PRIV_VFS_BLOCKRESERVE, SUSER_ALLOWJAIL) &&
 	    freespace(fs, fs->fs_minfree) - numfrags(fs, size) < 0)
 		goto nospace;
 	if (bpref >= fs->fs_size)
@@ -259,7 +260,7 @@ ffs_realloccg(ip, lbprev, bprev, bpref, osize, nsize, cred, bpp)
 #endif /* DIAGNOSTIC */
 	reclaimed = 0;
 retry:
-	if (suser_cred(cred, SUSER_ALLOWJAIL) &&
+	if (priv_check_cred(cred, PRIV_VFS_BLOCKRESERVE, SUSER_ALLOWJAIL) &&
 	    freespace(fs, fs->fs_minfree) -  numfrags(fs, nsize - osize) < 0) {
 		goto nospace;
 	}

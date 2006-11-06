@@ -46,6 +46,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/kernel.h>
 #include <sys/sysctl.h>
 #include <sys/malloc.h>
+#include <sys/priv.h>
 #include <sys/proc.h>
 #include <sys/lock.h>
 #include <sys/mutex.h>
@@ -512,7 +513,7 @@ sysctl_sysctl_debug(SYSCTL_HANDLER_ARGS)
 {
 	int error;
 
-	error = suser(req->td);
+	error = priv_check(req->td, PRIV_SYSCTL_DEBUG);
 	if (error)
 		return (error);
 	sysctl_sysctl_debug_dump_node(&sysctl__children, 0);
@@ -1253,13 +1254,11 @@ sysctl_root(SYSCTL_HANDLER_ARGS)
 
 	/* Is this sysctl writable by only privileged users? */
 	if (req->newptr && !(oid->oid_kind & CTLFLAG_ANYBODY)) {
-		int flags;
-
 		if (oid->oid_kind & CTLFLAG_PRISON)
-			flags = SUSER_ALLOWJAIL;
+			error = priv_check_cred(req->td->td_ucred,
+			    PRIV_SYSCTL_WRITEJAIL, SUSER_ALLOWJAIL);
 		else
-			flags = 0;
-		error = suser_cred(req->td->td_ucred, flags);
+			error = priv_check(req->td, PRIV_SYSCTL_WRITE);
 		if (error)
 			return (error);
 	}

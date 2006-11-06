@@ -101,6 +101,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/sysctl.h>
 #include <vm/uma.h>
 #include <sys/module.h>
+#include <sys/priv.h>
 #include <sys/proc.h>
 #include <sys/lock.h>
 #include <sys/mutex.h>
@@ -694,7 +695,7 @@ bridge_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 		}
 
 		if (bc->bc_flags & BC_F_SUSER) {
-			error = suser(td);
+			error = priv_check(td, PRIV_NET_BRIDGE);
 			if (error)
 				break;
 		}

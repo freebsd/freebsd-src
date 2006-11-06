@@ -39,6 +39,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/mount.h>
+#include <sys/priv.h>
 #include <sys/vnode.h>
 #include <sys/errno.h>
 #include <sys/stat.h>
@@ -46,9 +47,9 @@ __FBSDID("$FreeBSD$");
 
 /*
  * Implement a version of vaccess() that understands POSIX.1e ACL semantics;
- * the access ACL has already been prepared for evaluation by the file
- * system and is passed via 'uid', 'gid', and 'acl'.  Return 0 on success,
- * else an errno value.
+ * the access ACL has already been prepared for evaluation by the file system
+ * and is passed via 'uid', 'gid', and 'acl'.  Return 0 on success, else an
+ * errno value.
  */
 int
 vaccess_acl_posix1e(enum vtype type, uid_t file_uid, gid_t file_gid,
@@ -56,14 +57,14 @@ vaccess_acl_posix1e(enum vtype type, uid_t file_uid, gid_t file_gid,
 {
 	struct acl_entry *acl_other, *acl_mask;
 	mode_t dac_granted;
-	mode_t cap_granted;
+	mode_t priv_granted;
 	mode_t acl_mask_granted;
 	int group_matched, i;
 
 	/*
 	 * Look for a normal, non-privileged way to access the file/directory
 	 * as requested.  If it exists, go with that.  Otherwise, attempt to
-	 * use privileges granted via cap_granted.  In some cases, which
+	 * use privileges granted via priv_granted.  In some cases, which
 	 * privileges to use may be ambiguous due to "best match", in which
 	 * case fall back on first match for the time being.
 	 */
@@ -72,40 +73,34 @@ vaccess_acl_posix1e(enum vtype type, uid_t file_uid, gid_t file_gid,
 
 	/*
 	 * Determine privileges now, but don't apply until we've found a DAC
-	 * entry that matches but has failed to allow access.  POSIX.1e
-	 * capabilities are not implemented, but we document how they would
-	 * behave here if implemented.
+	 * entry that matches but has failed to allow access.
+	 *
+	 * XXXRW: Ideally, we'd determine the privileges required before
+	 * asking for them.
 	 */
-#ifndef CAPABILITIES
-	if (suser_cred(cred, SUSER_ALLOWJAIL) == 0)
-		cap_granted = VALLPERM;
-	else
-		cap_granted = 0;
-#else
-	cap_granted = 0;
+	priv_granted = 0;
 
 	if (type == VDIR) {
-		if ((acc_mode & VEXEC) && !cap_check(cred, NULL,
-		     CAP_DAC_READ_SEARCH, SUSER_ALLOWJAIL))
-			cap_granted |= VEXEC;
+		if ((acc_mode & VEXEC) && !priv_check_cred(cred,
+		     PRIV_VFS_LOOKUP, SUSER_ALLOWJAIL))
+			priv_granted |= VEXEC;
 	} else {
-		if ((acc_mode & VEXEC) && !cap_check(cred, NULL,
-		    CAP_DAC_EXECUTE, SUSER_ALLOWJAIL))
-			cap_granted |= VEXEC;
+		if ((acc_mode & VEXEC) && !priv_check_cred(cred,
+		    PRIV_VFS_EXEC, SUSER_ALLOWJAIL))
+			priv_granted |= VEXEC;
 	}
 
-	if ((acc_mode & VREAD) && !cap_check(cred, NULL, CAP_DAC_READ_SEARCH,
+	if ((acc_mode & VREAD) && !priv_check_cred(cred, PRIV_VFS_READ,
 	    SUSER_ALLOWJAIL))
-		cap_granted |= VREAD;
+		priv_granted |= VREAD;
 
 	if (((acc_mode & VWRITE) || (acc_mode & VAPPEND)) &&
-	    !cap_check(cred, NULL, CAP_DAC_WRITE, SUSER_ALLOWJAIL))
-		cap_granted |= (VWRITE | VAPPEND);
+	    !priv_check_cred(cred, PRIV_VFS_WRITE, SUSER_ALLOWJAIL))
+		priv_granted |= (VWRITE | VAPPEND);
 
-	if ((acc_mode & VADMIN) && !cap_check(cred, NULL, CAP_FOWNER,
+	if ((acc_mode & VADMIN) && !priv_check_cred(cred, PRIV_VFS_ADMIN,
 	    SUSER_ALLOWJAIL))
-		cap_granted |= VADMIN;
-#endif /* CAPABILITIES */
+		priv_granted |= VADMIN;
 
 	/*
 	 * The owner matches if the effective uid associated with the
@@ -129,7 +124,11 @@ vaccess_acl_posix1e(enum vtype type, uid_t file_uid, gid_t file_gid,
 				dac_granted |= (VWRITE | VAPPEND);
 			if ((acc_mode & dac_granted) == acc_mode)
 				return (0);
-			if ((acc_mode & (dac_granted | cap_granted)) ==
+
+			/*
+			 * XXXRW: Do privilege lookup here.
+			 */
+			if ((acc_mode & (dac_granted | priv_granted)) ==
 			    acc_mode) {
 				if (privused != NULL)
 					*privused = 1;
@@ -183,13 +182,9 @@ vaccess_acl_posix1e(enum vtype type, uid_t file_uid, gid_t file_gid,
 		acl_mask_granted = VEXEC | VREAD | VWRITE | VAPPEND;
 
 	/*
-	 * Iterate through user ACL entries.  Do checks twice, first without
-	 * privilege, and then if a match is found but failed, a second time
-	 * with privilege.
-	 */
-
-	/*
-	 * Check ACL_USER ACL entries.
+	 * Check ACL_USER ACL entries.  There will either be one or no
+	 * matches; if there is one, we accept or rejected based on the
+	 * match; otherwise, we continue on to groups.
 	 */
 	for (i = 0; i < acl->acl_cnt; i++) {
 		switch (acl->acl_entry[i].ae_tag) {
@@ -206,7 +201,10 @@ vaccess_acl_posix1e(enum vtype type, uid_t file_uid, gid_t file_gid,
 			dac_granted &= acl_mask_granted;
 			if ((acc_mode & dac_granted) == acc_mode)
 				return (0);
-			if ((acc_mode & (dac_granted | cap_granted)) !=
+			/*
+			 * XXXRW: Do privilege lookup here.
+			 */
+			if ((acc_mode & (dac_granted | priv_granted)) !=
 			    acc_mode)
 				goto error;
 
@@ -286,8 +284,11 @@ vaccess_acl_posix1e(enum vtype type, uid_t file_uid, gid_t file_gid,
 					dac_granted |= (VWRITE | VAPPEND);
 				dac_granted &= acl_mask_granted;
 
-				if ((acc_mode & (dac_granted | cap_granted)) !=
-				    acc_mode)
+				/*
+				 * XXXRW: Do privilege lookup here.
+				 */
+				if ((acc_mode & (dac_granted | priv_granted))
+				    != acc_mode)
 					break;
 
 				if (privused != NULL)
@@ -307,8 +308,11 @@ vaccess_acl_posix1e(enum vtype type, uid_t file_uid, gid_t file_gid,
 					dac_granted |= (VWRITE | VAPPEND);
 				dac_granted &= acl_mask_granted;
 
-				if ((acc_mode & (dac_granted | cap_granted)) !=
-				    acc_mode)
+				/*
+				 * XXXRW: Do privilege lookup here.
+				 */
+				if ((acc_mode & (dac_granted | priv_granted))
+				    != acc_mode)
 					break;
 
 				if (privused != NULL)
@@ -339,7 +343,10 @@ vaccess_acl_posix1e(enum vtype type, uid_t file_uid, gid_t file_gid,
 
 	if ((acc_mode & dac_granted) == acc_mode)
 		return (0);
-	if ((acc_mode & (dac_granted | cap_granted)) == acc_mode) {
+	/*
+	 * XXXRW: Do privilege lookup here.
+	 */
+	if ((acc_mode & (dac_granted | priv_granted)) == acc_mode) {
 		if (privused != NULL)
 			*privused = 1;
 		return (0);

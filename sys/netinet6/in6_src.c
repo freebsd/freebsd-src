@@ -68,6 +68,7 @@
 #include <sys/systm.h>
 #include <sys/malloc.h>
 #include <sys/mbuf.h>
+#include <sys/priv.h>
 #include <sys/protosw.h>
 #include <sys/socket.h>
 #include <sys/socketvar.h>
@@ -772,7 +773,9 @@ in6_pcbsetport(laddr, inp, cred)
 		last  = ipport_hilastauto;
 		lastport = &pcbinfo->lasthi;
 	} else if (inp->inp_flags & INP_LOWPORT) {
-		if ((error = suser_cred(cred, 0)))
+		error = priv_check_cred(cred, PRIV_NETINET_RESERVEDPORT,
+		    SUSER_ALLOWJAIL);
+		if (error)
 			return error;
 		first = ipport_lowfirstauto;	/* 1023 */
 		last  = ipport_lowlastauto;	/* 600 */

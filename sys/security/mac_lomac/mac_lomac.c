@@ -48,6 +48,7 @@
 #include <sys/malloc.h>
 #include <sys/mman.h>
 #include <sys/mount.h>
+#include <sys/priv.h>
 #include <sys/proc.h>
 #include <sys/sbuf.h>
 #include <sys/systm.h>
@@ -1697,8 +1698,10 @@ mac_lomac_check_ifnet_relabel(struct ucred *cred, struct ifnet *ifnet,
 		 * Rely on the traditional superuser status for the LOMAC
 		 * interface relabel requirements.  XXXMAC: This will go
 		 * away.
+		 *
+		 * XXXRW: This is also redundant to a higher layer check.
 		 */
-		error = suser_cred(cred, 0);
+		error = priv_check_cred(cred, PRIV_NET_SETIFMAC, 0);
 		if (error)
 			return (EPERM);
 

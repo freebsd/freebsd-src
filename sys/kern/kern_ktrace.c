@@ -47,6 +47,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/malloc.h>
 #include <sys/mount.h>
 #include <sys/namei.h>
+#include <sys/priv.h>
 #include <sys/proc.h>
 #include <sys/unistd.h>
 #include <sys/vnode.h>
@@ -807,7 +808,8 @@ ktrops(td, p, ops, facs, vp)
 			p->p_tracecred = crhold(td->td_ucred);
 		}
 		p->p_traceflag |= facs;
-		if (suser_cred(td->td_ucred, SUSER_ALLOWJAIL) == 0)
+		if (priv_check_cred(td->td_ucred, PRIV_KTRACE,
+		    SUSER_ALLOWJAIL) == 0)
 			p->p_traceflag |= KTRFAC_ROOT;
 	} else {
 		/* KTROP_CLEAR */
@@ -1013,7 +1015,7 @@ ktrcanset(td, targetp)
 
 	PROC_LOCK_ASSERT(targetp, MA_OWNED);
 	if (targetp->p_traceflag & KTRFAC_ROOT &&
-	    suser_cred(td->td_ucred, SUSER_ALLOWJAIL))
+	    priv_check_cred(td->td_ucred, PRIV_KTRACE, SUSER_ALLOWJAIL))
 		return (0);
 
 	if (p_candebug(td, targetp) != 0)

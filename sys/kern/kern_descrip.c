@@ -57,6 +57,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/mqueue.h>
 #include <sys/mutex.h>
 #include <sys/namei.h>
+#include <sys/priv.h>
 #include <sys/proc.h>
 #include <sys/resourcevar.h>
 #include <sys/signalvar.h>
@@ -1351,7 +1352,7 @@ falloc(struct thread *td, struct file **resultfp, int *resultfd)
 	sx_xlock(&filelist_lock);
 
 	if ((openfiles >= maxuserfiles &&
-	     suser_cred(td->td_ucred, SUSER_RUID) != 0) ||
+	    priv_check_cred(td->td_ucred, PRIV_MAXFILES, SUSER_RUID) != 0) ||
 	    openfiles >= maxfiles) {
 		if (ppsratecheck(&lastfail, &curfail, 1)) {
 			printf("kern.maxfiles limit exceeded by uid %i, please see tuning(7).\n",

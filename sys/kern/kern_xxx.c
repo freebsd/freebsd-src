@@ -38,6 +38,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/systm.h>
 #include <sys/sysproto.h>
 #include <sys/kernel.h>
+#include <sys/priv.h>
 #include <sys/proc.h>
 #include <sys/lock.h>
 #include <sys/mutex.h>
@@ -139,7 +140,8 @@ osethostid(td, uap)
 {
 	int error;
 
-	if ((error = suser(td)))
+	error = priv_check(td, PRIV_SETHOSTID);
+	if (error)
 		return (error);
 	mtx_lock(&Giant);
 	hostid = uap->hostid;
@@ -295,9 +297,10 @@ setdomainname(td, uap)
 {
         int error, domainnamelen;
 
+	error = priv_check(td, PRIV_SETDOMAINNAME);
+	if (error)
+		return (error);
 	mtx_lock(&Giant);
-        if ((error = suser(td)))
-		goto done2;
         if ((u_int)uap->len > sizeof (domainname) - 1) {
 		error = EINVAL;
 		goto done2;
@@ -309,4 +312,3 @@ done2:
 	mtx_unlock(&Giant);
         return (error);
 }
-

@@ -33,6 +33,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/kernel.h>
 #include <sys/lock.h>
 #include <sys/mutex.h>
+#include <sys/priv.h>
 #include <sys/proc.h>
 #include <sys/resourcevar.h>
 #include <sys/sched.h>
@@ -164,7 +165,7 @@ create_thread(struct thread *td, mcontext_t *ctx,
 		case RTP_PRIO_REALTIME:
 		case RTP_PRIO_FIFO:
 			/* Only root can set scheduler policy */
-			if (suser(td) != 0)
+			if (priv_check(td, PRIV_SCHED_SETPOLICY) != 0)
 				return (EPERM);
 			if (rtp->prio > RTP_PRIO_MAX)
 				return (EINVAL);

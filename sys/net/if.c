@@ -44,6 +44,7 @@
 #include <sys/bus.h>
 #include <sys/mbuf.h>
 #include <sys/systm.h>
+#include <sys/priv.h>
 #include <sys/proc.h>
 #include <sys/socket.h>
 #include <sys/socketvar.h>
@@ -1489,7 +1490,7 @@ ifhwioctl(u_long cmd, struct ifnet *ifp, caddr_t data, struct thread *td)
 		break;
 
 	case SIOCSIFFLAGS:
-		error = suser(td);
+		error = priv_check(td, PRIV_NET_SETIFFLAGS);
 		if (error)
 			return (error);
 		/*
@@ -1532,7 +1533,7 @@ ifhwioctl(u_long cmd, struct ifnet *ifp, caddr_t data, struct thread *td)
 		break;
 
 	case SIOCSIFCAP:
-		error = suser(td);
+		error = priv_check(td, PRIV_NET_SETIFCAP);
 		if (error)
 			return (error);
 		if (ifp->if_ioctl == NULL)
@@ -1553,8 +1554,8 @@ ifhwioctl(u_long cmd, struct ifnet *ifp, caddr_t data, struct thread *td)
 #endif
 
 	case SIOCSIFNAME:
-		error = suser(td);
-		if (error != 0)
+		error = priv_check(td, PRIV_NET_SETIFNAME);
+		if (error)
 			return (error);
 		error = copyinstr(ifr->ifr_data, new_name, IFNAMSIZ, NULL);
 		if (error != 0)
@@ -1600,7 +1601,7 @@ ifhwioctl(u_long cmd, struct ifnet *ifp, caddr_t data, struct thread *td)
 		break;
 
 	case SIOCSIFMETRIC:
-		error = suser(td);
+		error = priv_check(td, PRIV_NET_SETIFMETRIC);
 		if (error)
 			return (error);
 		ifp->if_metric = ifr->ifr_metric;
@@ -1608,7 +1609,7 @@ ifhwioctl(u_long cmd, struct ifnet *ifp, caddr_t data, struct thread *td)
 		break;
 
 	case SIOCSIFPHYS:
-		error = suser(td);
+		error = priv_check(td, PRIV_NET_SETIFPHYS);
 		if (error)
 			return (error);
 		if (ifp->if_ioctl == NULL)
@@ -1624,7 +1625,7 @@ ifhwioctl(u_long cmd, struct ifnet *ifp, caddr_t data, struct thread *td)
 	{
 		u_long oldmtu = ifp->if_mtu;
 
-		error = suser(td);
+		error = priv_check(td, PRIV_NET_SETIFMTU);
 		if (error)
 			return (error);
 		if (ifr->ifr_mtu < IF_MINMTU || ifr->ifr_mtu > IF_MAXMTU)
@@ -1651,7 +1652,10 @@ ifhwioctl(u_long cmd, struct ifnet *ifp, caddr_t data, struct thread *td)
 
 	case SIOCADDMULTI:
 	case SIOCDELMULTI:
-		error = suser(td);
+		if (cmd == SIOCADDMULTI)
+			error = priv_check(td, PRIV_NET_ADDMULTI);
+		else
+			error = priv_check(td, PRIV_NET_DELMULTI);
 		if (error)
 			return (error);
 
@@ -1681,7 +1685,7 @@ ifhwioctl(u_long cmd, struct ifnet *ifp, caddr_t data, struct thread *td)
 	case SIOCSLIFPHYADDR:
 	case SIOCSIFMEDIA:
 	case SIOCSIFGENERIC:
-		error = suser(td);
+		error = priv_check(td, PRIV_NET_HWIOCTL);
 		if (error)
 			return (error);
 		if (ifp->if_ioctl == NULL)
@@ -1710,7 +1714,7 @@ ifhwioctl(u_long cmd, struct ifnet *ifp, caddr_t data, struct thread *td)
 		break;
 
 	case SIOCSIFLLADDR:
-		error = suser(td);
+		error = priv_check(td, PRIV_NET_SETLLADDR);
 		if (error)
 			return (error);
 		error = if_setlladdr(ifp,
@@ -1721,7 +1725,7 @@ ifhwioctl(u_long cmd, struct ifnet *ifp, caddr_t data, struct thread *td)
 	{
 		struct ifgroupreq *ifgr = (struct ifgroupreq *)ifr;
 
-		error = suser(td);
+		error = priv_check(td, PRIV_NET_ADDIFGROUP);
 		if (error)
 			return (error);
 		if ((error = if_addgroup(ifp, ifgr->ifgr_group)))
@@ -1738,7 +1742,7 @@ ifhwioctl(u_long cmd, struct ifnet *ifp, caddr_t data, struct thread *td)
 	{
 		struct ifgroupreq *ifgr = (struct ifgroupreq *)ifr;
 
-		error = suser(td);
+		error = priv_check(td, PRIV_NET_DELIFGROUP);
 		if (error)
 			return (error);
 		if ((error = if_delgroup(ifp, ifgr->ifgr_group)))
@@ -1777,12 +1781,14 @@ ifioctl(struct socket *so, u_long cmd, caddr_t data, struct thread *td)
 	switch (cmd) {
 	case SIOCIFCREATE:
 	case SIOCIFCREATE2:
-		if ((error = suser(td)) != 0)
+		error = priv_check(td, PRIV_NET_IFCREATE);
+		if (error)
 			return (error);
 		return (if_clone_create(ifr->ifr_name, sizeof(ifr->ifr_name),
 			cmd == SIOCIFCREATE2 ? ifr->ifr_data : NULL));
 	case SIOCIFDESTROY:
-		if ((error = suser(td)) != 0)
+		error = priv_check(td, PRIV_NET_IFDESTROY);
+		if (error)
 			return (error);
 		return if_clone_destroy(ifr->ifr_name);
 

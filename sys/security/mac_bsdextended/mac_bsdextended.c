@@ -456,6 +456,9 @@ mac_bsdextended_check(struct ucred *cred, struct vnode *vp, struct vattr *vap,
 {
 	int error, i;
 
+	/*
+	 * XXXRW: More specific privilege selection needed?
+	 */
 	if (suser_cred(cred, 0) == 0)
 		return (0);
 

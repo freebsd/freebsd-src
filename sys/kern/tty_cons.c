@@ -51,6 +51,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/malloc.h>
 #include <sys/msgbuf.h>
 #include <sys/namei.h>
+#include <sys/priv.h>
 #include <sys/proc.h>
 #include <sys/queue.h>
 #include <sys/reboot.h>
@@ -510,7 +511,7 @@ cnioctl(struct cdev *dev, u_long cmd, caddr_t data, int flag, struct thread *td)
 	 * output from the "virtual" console.
 	 */
 	if (cmd == TIOCCONS && constty) {
-		error = suser(td);
+		error = priv_check(td, PRIV_TTY_CONSOLE);
 		if (error)
 			return (error);
 		constty = NULL;

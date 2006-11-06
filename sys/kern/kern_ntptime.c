@@ -39,6 +39,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/systm.h>
 #include <sys/sysproto.h>
 #include <sys/kernel.h>
+#include <sys/priv.h>
 #include <sys/proc.h>
 #include <sys/lock.h>
 #include <sys/mutex.h>
@@ -333,7 +334,7 @@ ntp_adjtime(struct thread *td, struct ntp_adjtime_args *uap)
 	mtx_lock(&Giant);
 	modes = ntv.modes;
 	if (modes)
-		error = suser(td);
+		error = priv_check(td, PRIV_NTP_ADJTIME);
 	if (error)
 		goto done2;
 	s = splclock();
@@ -954,7 +955,7 @@ kern_adjtime(struct thread *td, struct timeval *delta, struct timeval *olddelta)
 	struct timeval atv;
 	int error;
 
-	if ((error = suser(td)))
+	if ((error = priv_check(td, PRIV_ADJTIME)))
 		return (error);
 
 	mtx_lock(&Giant);

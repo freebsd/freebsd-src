@@ -1223,7 +1223,11 @@ struct softc
 #  define TOP_UNLOCK		mtx_unlock (&sc->top_mtx)
 #  define BOTTOM_TRYLOCK	mtx_trylock(&sc->bottom_mtx)
 #  define BOTTOM_UNLOCK		mtx_unlock (&sc->bottom_mtx)
-#  define CHECK_CAP		suser(curthread)
+#  if (__FreeBSD_version >= 700000)
+#   define CHECK_CAP		priv_check(curthread, PRIV_DRIVER)
+#  else
+#   define CHECK_CAP		suser(curthread)
+#  endif
 # else /* FreeBSD-4 */
 #  define TOP_TRYLOCK		(sc->top_spl = splimp())
 #  define TOP_UNLOCK		splx(sc->top_spl)

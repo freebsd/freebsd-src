@@ -44,6 +44,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/mount.h>
 #include <sys/mutex.h>
 #include <sys/namei.h>
+#include <sys/priv.h>
 #include <sys/proc.h>
 #include <sys/stat.h>
 #include <sys/syscallsubr.h>
@@ -280,7 +281,8 @@ fd_revoke(td, fd)
 		goto out;
 
 	if (td->td_ucred->cr_uid != vattr.va_uid &&
-	    (error = suser(td)) != 0)
+	    (error = priv_check_cred(td->td_ucred, PRIV_VFS_ADMIN,
+	    SUSER_ALLOWJAIL)) != 0)
 		goto out;
 
 	if ((error = vn_start_write(vp, &mp, V_WAIT | PCATCH)) != 0)

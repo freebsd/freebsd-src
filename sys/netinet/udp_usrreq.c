@@ -44,6 +44,7 @@
 #include <sys/lock.h>
 #include <sys/malloc.h>
 #include <sys/mbuf.h>
+#include <sys/priv.h>
 #include <sys/proc.h>
 #include <sys/protosw.h>
 #include <sys/signalvar.h>
@@ -687,7 +688,8 @@ udp_getcred(SYSCTL_HANDLER_ARGS)
 	struct inpcb *inp;
 	int error;
 
-	error = suser_cred(req->td->td_ucred, SUSER_ALLOWJAIL);
+	error = priv_check_cred(req->td->td_ucred, PRIV_NETINET_GETCRED,
+	    SUSER_ALLOWJAIL);
 	if (error)
 		return (error);
 	error = SYSCTL_IN(req, addrs, sizeof(addrs));
