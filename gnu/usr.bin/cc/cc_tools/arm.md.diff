@@ -5,16 +5,9 @@ RCS file: /cognet/ncvs/src/contrib/gcc/config/arm/arm.md,v
 retrieving revision 1.1.1.7
 diff -u -p -r1.1.1.7 arm.md
 --- arm.md	3 Jun 2005 03:28:42 -0000	1.1.1.7
-+++ arm.md	29 Aug 2005 12:39:39 -0000
-@@ -8836,12 +8836,12 @@
- 	ldm[2] = operands[4];
-       }
-     if (GET_CODE (XEXP (operands[2], 0)) != REG)
--      val1 = INTVAL (XEXP (XEXP (operands[2], 0), 1));
-+	val1 = INTVAL (XEXP (XEXP (operands[2], 0), 1));
-     if (GET_CODE (XEXP (operands[3], 0)) != REG)
--      val2 = INTVAL (XEXP (XEXP (operands[3], 0), 1));
-+        val2 = INTVAL (XEXP (XEXP (operands[3], 0), 1));
++++ arm.md	6 Nov 2006 02:44:36 -0000
+@@ -8840,7 +8840,7 @@
+       val2 = INTVAL (XEXP (XEXP (operands[3], 0), 1));
      arith[0] = operands[0];
      arith[3] = operands[1];
 -    if (val1 < val2)
@@ -22,7 +15,7 @@ diff -u -p -r1.1.1.7 arm.md
        {
  	arith[1] = ldm[1];
  	arith[2] = ldm[2];
-@@ -8871,7 +8871,7 @@
+@@ -8870,7 +8870,7 @@
  	else
  	  output_asm_insn (\"ldm%?ia\\t%0, {%1, %2}\", ldm);
        }
@@ -31,7 +24,7 @@ diff -u -p -r1.1.1.7 arm.md
        {
  	ldm[0] = XEXP (operands[2], 0);
  	if (val1 < val2)
-@@ -8879,6 +8879,14 @@
+@@ -8878,6 +8878,14 @@
  	else
  	  output_asm_insn (\"ldm%?da\\t%0, {%1, %2}\", ldm);
        }
