@@ -72,7 +72,7 @@ __FBSDID("$FreeBSD$");
 #define HAVE_BEGIN	4
 #define HAVE_REPS	8
 
-#define	is_default(s)	(strcmp((s), "-") == 0)
+#define	is_default(s)	(*(s) == 0 || strcmp((s), "-") == 0)
 
 double	begin;
 double	ender;
