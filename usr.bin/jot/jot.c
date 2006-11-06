@@ -103,7 +103,9 @@ main(int argc, char **argv)
 	unsigned int	mask = 0;
 	int	n = 0;
 	int	ch;
-	bool	have_seed = false;
+	bool	use_random = false;
+	bool	have_format = false;
+	double	divisor;
 
 	while ((ch = getopt(argc, argv, "rb:w:cs:np:")) != -1)
 		switch (ch) {
@@ -123,6 +125,7 @@ main(int argc, char **argv)
 			if (strlcpy(format, optarg, sizeof(format)) >=
 			    sizeof(format))
 				errx(1, "-%c word too long", ch);
+			have_format = true;
 			break;
 		case 's':
 			sepstring = optarg;
@@ -131,6 +134,7 @@ main(int argc, char **argv)
 			prec = atoi(optarg);
 			if (prec <= 0)
 				errx(1, "bad precision value");
+			have_format = true;
 			break;
 		default:
 			usage();
@@ -145,7 +149,7 @@ main(int argc, char **argv)
 				errx(1, "bad s value: %s", argv[3]);
 			mask |= HAVE_STEP;
 			if (randomize)
-				have_seed = true;
+				use_random = true;
 		}
 		/* FALLTHROUGH */
 	case 3:
@@ -258,14 +262,35 @@ main(int argc, char **argv)
 	if (reps == 0)
 		infinity = 1;
 	if (randomize) {
-		x = (ender - begin) * (ender > begin ? 1 : -1);
-		if (have_seed)
+		if (use_random) {
 			srandom((unsigned long)s);
+			divisor = (double)INT32_MAX + 1;
+		} else
+			divisor = (double)UINT32_MAX + 1;
+
+		/*
+		 * Attempt to DWIM when the user has specified an
+		 * integer range within that of the random number
+		 * generator: distribute the numbers equally in
+		 * the range [begin .. ender].  Jot's default %.0f
+		 * format would make the appearance of the first and
+		 * last specified value half as likely as the rest.
+		 */
+		if (!have_format && prec == 0 &&
+		    begin >= 0 && begin < divisor &&
+		    ender >= 0 && ender < divisor) {
+			ender += 1;
+			nosign = 1;
+			intdata = 1;
+			(void)strlcpy(format,
+			    chardata ? "%c" : "%u", sizeof(format));
+		}
+		x = (ender - begin) * (ender > begin ? 1 : -1);
 		for (i = 1; i <= reps || infinity; i++) {
-			if (have_seed)
-				y = random() / ((double)LONG_MAX + 1);
+			if (use_random)
+				y = random() / divisor;
 			else
-				y = arc4random() / ((double)UINT32_MAX + 1);
+				y = arc4random() / divisor;
 			if (putdata(y * x + begin, reps - i))
 				errx(1, "range error in conversion");
 		}
