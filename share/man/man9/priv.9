@@ -29,7 +29,7 @@
 .\" $FreeBSD$
 .\"
 .Dd August 30, 2006
-.Dt priv 9
+.Dt PRIV 9
 .Os
 .Sh NAME
 .Nm priv
@@ -42,12 +42,12 @@
 .Fn priv_check_cred "struct ucred *cred" "int priv" "int flags"
 .Sh DESCRIPTION
 The
-.Xr priv 9
+.Nm
 interfaces check to see if specific system privileges are granted to the
 passed thread,
-.Va td ,
+.Fa td ,
 or credential,
-.Va cred.
+.Fa cred .
 This interface replaces the
 .Xr suser 9
 privilege checking interface.
@@ -58,11 +58,12 @@ The caller identifies the desired privilege via the
 .Fa priv
 argument.
 Additional access control context may also be passed using the
-.Va flags .
+.Fa flags
+argument.
 .Ss Privilege Policies
 Privileges are typically granted based on one of two base system policies:
 the superuser policy, which grants privilege based on the effective (or
-sometimes real) uid having a value of 0, and the
+sometimes real) UID having a value of 0, and the
 .Xr jail 2
 policy, which permits only certain privileges to be granted to processes in a
 jail.
@@ -86,10 +87,10 @@ intended to be used by device drivers, rather than adding a new
 driver-specific privilege.
 .Sh RETURN VALUES
 Typically, 0 will be returned for success, and
-.Dv EPERM
+.Er EPERM
 will be returned on failure.
 Most consumers of
-.Xr priv 9
+.Nm
 will wish to directly return the error code from a failed privilege check to
 user space; a small number will wish to translate it to another error code
 appropriate to a specific context.
@@ -110,6 +111,8 @@ failure occured.
 .Xr ucred 9
 .Sh AUTHORS
 The
-.Xr priv 9
-API and implementation were created by Robert Watson under contract to
+.Nm
+API and implementation were created by
+.An Robert Watson
+under contract to
 nCircle Network Security, Inc.
