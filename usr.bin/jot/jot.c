@@ -97,11 +97,8 @@ static void	usage(void);
 int
 main(int argc, char **argv)
 {
-	double	xd, yd;
-	long	id;
-	double	*x = &xd;
-	double	*y = &yd;
-	long	*i = &id;
+	double	x, y;
+	long	i;
 	unsigned int	mask = 0;
 	int	n = 0;
 	int	ch;
@@ -259,15 +256,15 @@ main(int argc, char **argv)
 	if (reps == 0)
 		infinity = 1;
 	if (randomize) {
-		*x = (ender - begin) * (ender > begin ? 1 : -1);
-		for (*i = 1; *i <= reps || infinity; (*i)++) {
-			*y = arc4random() / ((double)UINT32_MAX + 1);
-			if (putdata(*y * *x + begin, reps - *i))
+		x = (ender - begin) * (ender > begin ? 1 : -1);
+		for (i = 1; i <= reps || infinity; i++) {
+			y = arc4random() / ((double)UINT32_MAX + 1);
+			if (putdata(y * x + begin, reps - i))
 				errx(1, "range error in conversion");
 		}
 	} else
-		for (*i = 1, *x = begin; *i <= reps || infinity; (*i)++, *x += s)
-			if (putdata(*x, reps - *i))
+		for (i = 1, x = begin; i <= reps || infinity; i++, x += s)
+			if (putdata(x, reps - i))
 				errx(1, "range error in conversion");
 	if (!nofinalnl)
 		putchar('\n');
