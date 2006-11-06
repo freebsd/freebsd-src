@@ -200,7 +200,6 @@ struct audit_record {
 	u_int			ar_arg_signum;
 	char			ar_arg_login[MAXLOGNAME];
 	int			ar_arg_ctlname[CTL_MAXNAME];
-	struct sockaddr		ar_arg_sockaddr;
 	struct socket_au_info	ar_arg_sockinfo;
 	char			*ar_arg_upath1;
 	char			*ar_arg_upath2;
@@ -221,6 +220,7 @@ struct audit_record {
 	int			ar_arg_envc;
 	int			ar_arg_exitstatus;
 	int			ar_arg_exitretval;
+	struct sockaddr_storage ar_arg_sockaddr;
 };
 
 /*
