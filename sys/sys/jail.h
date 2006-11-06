@@ -110,6 +110,7 @@ u_int32_t prison_getip(struct ucred *cred);
 void prison_hold(struct prison *pr);
 int prison_if(struct ucred *cred, struct sockaddr *sa);
 int prison_ip(struct ucred *cred, int flag, u_int32_t *ip);
+int prison_priv_check(struct ucred *cred, int priv);
 void prison_remote_ip(struct ucred *cred, int flags, u_int32_t *ip);
 
 #endif /* _KERNEL */

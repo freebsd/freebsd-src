@@ -2,6 +2,7 @@
  * Copyright (c) 1999-2002 Robert N. M. Watson
  * Copyright (c) 2001 Ilmar S. Habibulin
  * Copyright (c) 2001-2004 Networks Associates Technology, Inc.
+ * Copyright (c) 2006 nCircle Network Security, Inc.
  * All rights reserved.
  *
  * This software was developed by Robert Watson and Ilmar Habibulin for the
@@ -11,6 +12,9 @@
  * Associates Laboratories, the Security Research Division of Network
  * Associates, Inc. under DARPA/SPAWAR contract N66001-01-C-8035 ("CBOSS"),
  * as part of the DARPA CHATS research program.
+ *
+ * This software was developed by Robert N. M. Watson for the TrustedBSD
+ * Project under contract to nCircle Network Security, Inc.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -146,6 +150,36 @@ int	vn_setlabel(struct vnode *vp, struct label *intlabel,
 				error = mac_error_select(		\
 				    mpc->mpc_ops->mpo_ ## check (args),	\
 				    error);				\
+		}							\
+		mac_policy_list_unbusy();				\
+	}								\
+} while (0)
+
+/*
+ * MAC_GRANT performs the designated check by walking the policy module
+ * list and checking with each as to how it feels about the request.  Unlike
+ * MAC_CHECK, it grants if any policies return '0', and otherwise returns
+ * EPERM.  Note that it returns its value via 'error' in the scope of the
+ * caller.
+ */
+#define	MAC_GRANT(check, args...) do {					\
+	struct mac_policy_conf *mpc;					\
+	int entrycount;							\
+									\
+	error = EPERM;							\
+	LIST_FOREACH(mpc, &mac_static_policy_list, mpc_list) {		\
+		if (mpc->mpc_ops->mpo_ ## check != NULL) {		\
+			if (mpc->mpc_ops->mpo_ ## check(args) == 0)	\
+				error = 0;				\
+		}							\
+	}								\
+	if ((entrycount = mac_policy_list_conditional_busy()) != 0) {	\
+		LIST_FOREACH(mpc, &mac_policy_list, mpc_list) {		\
+			if (mpc->mpc_ops->mpo_ ## check != NULL) {	\
+				if (mpc->mpc_ops->mpo_ ## check (args)	\
+				    == 0)				\
+					error = 0;			\
+			}						\
 		}							\
 		mac_policy_list_unbusy();				\
 	}								\

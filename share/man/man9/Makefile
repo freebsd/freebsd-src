@@ -188,6 +188,7 @@ MAN=	accept_filter.9 \
 	pmap_zero_page.9 \
 	printf.9 \
 	prison_check.9 \
+	priv.9 \
 	pseudofs.9 \
 	psignal.9 \
 	random.9 \

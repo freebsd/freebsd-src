@@ -55,6 +55,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/mutex.h>
 #include <sys/refcount.h>
 #include <sys/sx.h>
+#include <sys/priv.h>
 #include <sys/proc.h>
 #include <sys/sysproto.h>
 #include <sys/jail.h>
@@ -547,7 +548,8 @@ setuid(struct thread *td, struct setuid_args *uap)
 #ifdef POSIX_APPENDIX_B_4_2_2	/* Use BSD-compat clause from B.4.2.2 */
 	    uid != oldcred->cr_uid &&		/* allow setuid(geteuid()) */
 #endif
-	    (error = suser_cred(oldcred, SUSER_ALLOWJAIL)) != 0)
+	    (error = priv_check_cred(oldcred, PRIV_CRED_SETUID,
+	    SUSER_ALLOWJAIL)) != 0)
 		goto fail;
 
 	/*
@@ -563,7 +565,8 @@ setuid(struct thread *td, struct setuid_args *uap)
 #ifdef POSIX_APPENDIX_B_4_2_2	/* Use the clause from B.4.2.2 */
 	    uid == oldcred->cr_uid ||
 #endif
-	    suser_cred(oldcred, SUSER_ALLOWJAIL) == 0) /* we are using privs */
+	    /* We are using privs. */
+	    priv_check_cred(oldcred, PRIV_CRED_SETUID, SUSER_ALLOWJAIL) == 0)
 #endif
 	{
 		/*
@@ -639,7 +642,8 @@ seteuid(struct thread *td, struct seteuid_args *uap)
 
 	if (euid != oldcred->cr_ruid &&		/* allow seteuid(getuid()) */
 	    euid != oldcred->cr_svuid &&	/* allow seteuid(saved uid) */
-	    (error = suser_cred(oldcred, SUSER_ALLOWJAIL)) != 0)
+	    (error = priv_check_cred(oldcred, PRIV_CRED_SETEUID,
+	    SUSER_ALLOWJAIL)) != 0)
 		goto fail;
 
 	/*
@@ -711,7 +715,8 @@ setgid(struct thread *td, struct setgid_args *uap)
 #ifdef POSIX_APPENDIX_B_4_2_2	/* Use BSD-compat clause from B.4.2.2 */
 	    gid != oldcred->cr_groups[0] && /* allow setgid(getegid()) */
 #endif
-	    (error = suser_cred(oldcred, SUSER_ALLOWJAIL)) != 0)
+	    (error = priv_check_cred(oldcred, PRIV_CRED_SETGID,
+	    SUSER_ALLOWJAIL)) != 0)
 		goto fail;
 
 	crcopy(newcred, oldcred);
@@ -724,7 +729,8 @@ setgid(struct thread *td, struct setgid_args *uap)
 #ifdef POSIX_APPENDIX_B_4_2_2	/* use the clause from B.4.2.2 */
 	    gid == oldcred->cr_groups[0] ||
 #endif
-	    suser_cred(oldcred, SUSER_ALLOWJAIL) == 0) /* we are using privs */
+	    /* We are using privs. */
+	    priv_check_cred(oldcred, PRIV_CRED_SETGID, SUSER_ALLOWJAIL) == 0)
 #endif
 	{
 		/*
@@ -796,7 +802,8 @@ setegid(struct thread *td, struct setegid_args *uap)
 
 	if (egid != oldcred->cr_rgid &&		/* allow setegid(getgid()) */
 	    egid != oldcred->cr_svgid &&	/* allow setegid(saved gid) */
-	    (error = suser_cred(oldcred, SUSER_ALLOWJAIL)) != 0)
+	    (error = priv_check_cred(oldcred, PRIV_CRED_SETEGID,
+	    SUSER_ALLOWJAIL)) != 0)
 		goto fail;
 
 	crcopy(newcred, oldcred);
@@ -859,7 +866,8 @@ kern_setgroups(struct thread *td, u_int ngrp, gid_t *groups)
 		goto fail;
 #endif
 
-	error = suser_cred(oldcred, SUSER_ALLOWJAIL);
+	error = priv_check_cred(oldcred, PRIV_CRED_SETGROUPS,
+	    SUSER_ALLOWJAIL);
 	if (error)
 		goto fail;
 
@@ -931,7 +939,8 @@ setreuid(register struct thread *td, struct setreuid_args *uap)
 	      ruid != oldcred->cr_svuid) ||
 	     (euid != (uid_t)-1 && euid != oldcred->cr_uid &&
 	      euid != oldcred->cr_ruid && euid != oldcred->cr_svuid)) &&
-	    (error = suser_cred(oldcred, SUSER_ALLOWJAIL)) != 0)
+	    (error = priv_check_cred(oldcred, PRIV_CRED_SETREUID,
+	     SUSER_ALLOWJAIL)) != 0)
 		goto fail;
 
 	crcopy(newcred, oldcred);
@@ -999,7 +1008,8 @@ setregid(register struct thread *td, struct setregid_args *uap)
 	    rgid != oldcred->cr_svgid) ||
 	     (egid != (gid_t)-1 && egid != oldcred->cr_groups[0] &&
 	     egid != oldcred->cr_rgid && egid != oldcred->cr_svgid)) &&
-	    (error = suser_cred(oldcred, SUSER_ALLOWJAIL)) != 0)
+	    (error = priv_check_cred(oldcred, PRIV_CRED_SETREGID,
+	     SUSER_ALLOWJAIL)) != 0)
 		goto fail;
 
 	crcopy(newcred, oldcred);
@@ -1079,7 +1089,8 @@ setresuid(register struct thread *td, struct setresuid_args *uap)
 	     (suid != (uid_t)-1 && suid != oldcred->cr_ruid &&
 	    suid != oldcred->cr_svuid &&
 	      suid != oldcred->cr_uid)) &&
-	    (error = suser_cred(oldcred, SUSER_ALLOWJAIL)) != 0)
+	    (error = priv_check_cred(oldcred, PRIV_CRED_SETRESUID,
+	     SUSER_ALLOWJAIL)) != 0)
 		goto fail;
 
 	crcopy(newcred, oldcred);
@@ -1160,7 +1171,8 @@ setresgid(register struct thread *td, struct setresgid_args *uap)
 	     (sgid != (gid_t)-1 && sgid != oldcred->cr_rgid &&
 	      sgid != oldcred->cr_svgid &&
 	      sgid != oldcred->cr_groups[0])) &&
-	    (error = suser_cred(oldcred, SUSER_ALLOWJAIL)) != 0)
+	    (error = priv_check_cred(oldcred, PRIV_CRED_SETRESGID,
+	     SUSER_ALLOWJAIL)) != 0)
 		goto fail;
 
 	crcopy(newcred, oldcred);
@@ -1324,64 +1336,13 @@ groupmember(gid_t gid, struct ucred *cred)
 }
 
 /*
- * `suser_enabled' (which can be set by the security.suser_enabled
- * sysctl) determines whether the system 'super-user' policy is in effect.
- * If it is nonzero, an effective uid of 0 connotes special privilege,
- * overriding many mandatory and discretionary protections.  If it is zero,
- * uid 0 is offered no special privilege in the kernel security policy.
- * Setting it to zero may seriously impact the functionality of many
- * existing userland programs, and should not be done without careful
- * consideration of the consequences.
- */
-int	suser_enabled = 1;
-SYSCTL_INT(_security_bsd, OID_AUTO, suser_enabled, CTLFLAG_RW,
-    &suser_enabled, 0, "processes with uid 0 have privilege");
-TUNABLE_INT("security.bsd.suser_enabled", &suser_enabled);
-
-/*
- * Test whether the specified credentials imply "super-user" privilege.
- * Return 0 or EPERM.
- */
-int
-suser_cred(struct ucred *cred, int flag)
-{
-
-	if (!suser_enabled)
-		return (EPERM);
-	if (((flag & SUSER_RUID) ? cred->cr_ruid : cred->cr_uid) != 0)
-		return (EPERM);
-	if (jailed(cred) && !(flag & SUSER_ALLOWJAIL))
-		return (EPERM);
-	return (0);
-}
-
-/*
- * Shortcut to hide contents of struct td and struct proc from the
- * caller, promoting binary compatibility.
- */
-int
-suser(struct thread *td)
-{
-
-#ifdef INVARIANTS
-	if (td != curthread) {
-		printf("suser: thread %p (%d %s) != curthread %p (%d %s)\n",
-		    td, td->td_proc->p_pid, td->td_proc->p_comm,
-		    curthread, curthread->td_proc->p_pid,
-		    curthread->td_proc->p_comm);
-#ifdef KDB
-		kdb_backtrace();
-#endif
-	}
-#endif
-	return (suser_cred(td->td_ucred, 0));
-}
-
-/*
  * Test the active securelevel against a given level.  securelevel_gt()
  * implements (securelevel > level).  securelevel_ge() implements
  * (securelevel >= level).  Note that the logic is inverted -- these
  * functions return EPERM on "success" and 0 on "failure".
+ *
+ * XXXRW: Possibly since this has to do with privilege, it should move to
+ * kern_priv.c.
  *
  * MPSAFE
  */
@@ -1435,7 +1396,8 @@ cr_seeotheruids(struct ucred *u1, struct ucred *u2)
 {
 
 	if (!see_other_uids && u1->cr_ruid != u2->cr_ruid) {
-		if (suser_cred(u1, SUSER_ALLOWJAIL) != 0)
+		if (priv_check_cred(u1, PRIV_SEEOTHERUIDS, SUSER_ALLOWJAIL)
+		    != 0)
 			return (ESRCH);
 	}
 	return (0);
@@ -1474,7 +1436,8 @@ cr_seeothergids(struct ucred *u1, struct ucred *u2)
 				break;
 		}
 		if (!match) {
-			if (suser_cred(u1, SUSER_ALLOWJAIL) != 0)
+			if (priv_check_cred(u1, PRIV_SEEOTHERGIDS,
+			    SUSER_ALLOWJAIL) != 0)
 				return (ESRCH);
 		}
 	}
@@ -1591,7 +1554,8 @@ cr_cansignal(struct ucred *cred, struct proc *proc, int signum)
 			break;
 		default:
 			/* Not permitted without privilege. */
-			error = suser_cred(cred, SUSER_ALLOWJAIL);
+			error = priv_check_cred(cred, PRIV_SIGNAL_SUGID,
+			    SUSER_ALLOWJAIL);
 			if (error)
 				return (error);
 		}
@@ -1606,14 +1570,14 @@ cr_cansignal(struct ucred *cred, struct proc *proc, int signum)
 	    cred->cr_uid != proc->p_ucred->cr_ruid &&
 	    cred->cr_uid != proc->p_ucred->cr_svuid) {
 		/* Not permitted without privilege. */
-		error = suser_cred(cred, SUSER_ALLOWJAIL);
+		error = priv_check_cred(cred, PRIV_SIGNAL_DIFFCRED,
+		    SUSER_ALLOWJAIL);
 		if (error)
 			return (error);
 	}
 
 	return (0);
 }
-
 
 /*-
  * Determine whether td may deliver the specified signal to p.
@@ -1683,19 +1647,14 @@ p_cansched(struct thread *td, struct proc *p)
 		return (error);
 	if ((error = cr_seeothergids(td->td_ucred, p->p_ucred)))
 		return (error);
-	if (td->td_ucred->cr_ruid == p->p_ucred->cr_ruid)
-		return (0);
-	if (td->td_ucred->cr_uid == p->p_ucred->cr_ruid)
-		return (0);
-	if (suser_cred(td->td_ucred, SUSER_ALLOWJAIL) == 0)
-		return (0);
-
-#ifdef CAPABILITIES
-	if (!cap_check(NULL, td, CAP_SYS_NICE, SUSER_ALLOWJAIL))
-		return (0);
-#endif
-
-	return (EPERM);
+	if (td->td_ucred->cr_ruid != p->p_ucred->cr_ruid &&
+	    td->td_ucred->cr_uid != p->p_ucred->cr_ruid) {
+		error = priv_check_cred(td->td_ucred, PRIV_SCHED_DIFFCRED,
+		    SUSER_ALLOWJAIL);
+		if (error)
+			return (error);
+	}
+	return (0);
 }
 
 /*
@@ -1730,7 +1689,8 @@ p_candebug(struct thread *td, struct proc *p)
 	KASSERT(td == curthread, ("%s: td not curthread", __func__));
 	PROC_LOCK_ASSERT(p, MA_OWNED);
 	if (!unprivileged_proc_debug) {
-		error = suser_cred(td->td_ucred, SUSER_ALLOWJAIL);
+		error = priv_check_cred(td->td_ucred, PRIV_DEBUG_UNPRIV,
+		    SUSER_ALLOWJAIL);
 		if (error)
 			return (error);
 	}
@@ -1778,11 +1738,18 @@ p_candebug(struct thread *td, struct proc *p)
 	/*
 	 * If p's gids aren't a subset, or the uids aren't a subset,
 	 * or the credential has changed, require appropriate privilege
-	 * for td to debug p.  For POSIX.1e capabilities, this will
-	 * require CAP_SYS_PTRACE.
+	 * for td to debug p.
 	 */
-	if (!grpsubset || !uidsubset || credentialchanged) {
-		error = suser_cred(td->td_ucred, SUSER_ALLOWJAIL);
+	if (!grpsubset || !uidsubset) {
+		error = priv_check_cred(td->td_ucred, PRIV_DEBUG_DIFFCRED,
+		    SUSER_ALLOWJAIL);
+		if (error)
+			return (error);
+	}
+
+	if (credentialchanged) {
+		error = priv_check_cred(td->td_ucred, PRIV_DEBUG_SUGID,
+		    SUSER_ALLOWJAIL);
 		if (error)
 			return (error);
 	}
@@ -1796,6 +1763,7 @@ p_candebug(struct thread *td, struct proc *p)
 
 	/*
 	 * Can't trace a process that's currently exec'ing.
+	 *
 	 * XXX: Note, this is not a security policy decision, it's a
 	 * basic correctness/functionality decision.  Therefore, this check
 	 * should be moved to the caller's of p_candebug().
@@ -2057,7 +2025,8 @@ setlogin(struct thread *td, struct setlogin_args *uap)
 	int error;
 	char logintmp[MAXLOGNAME];
 
-	error = suser_cred(td->td_ucred, SUSER_ALLOWJAIL);
+	error = priv_check_cred(td->td_ucred, PRIV_PROC_SETLOGIN,
+	    SUSER_ALLOWJAIL);
 	if (error)
 		return (error);
 	error = copyinstr(uap->namebuf, logintmp, sizeof(logintmp), NULL);
