@@ -32,7 +32,7 @@
 .\"	@(#)ktrace.1	8.1 (Berkeley) 6/6/93
 .\" $FreeBSD$
 .\"
-.Dd June 6, 1993
+.Dd November 6, 2006
 .Dt KTRACE 1
 .Os
 .Sh NAME
@@ -64,7 +64,7 @@ either the process exits or the trace point is cleared.
 A traced process can generate enormous amounts of log data quickly;
 It is strongly suggested that users memorize how to disable tracing before
 attempting to trace a process.
-The following command is sufficient to disable tracing on all user owned
+The following command is sufficient to disable tracing on all user-owned
 processes, and, if executed by root, all processes:
 .Pp
 .Dl \&$ ktrace -C
@@ -73,12 +73,16 @@ The trace file is not human readable; use
 .Xr kdump 1
 to decode it.
 .Pp
-The options are as follows:
+The utility may be used only with a kernel that has been built with the
+.Dq KTRACE
+option in the kernel configuration file.
+.Pp
+The options are:
 .Bl -tag -width indent
 .It Fl a
 Append to the trace file instead of recreating it.
 .It Fl C
-Disable tracing on all user owned processes, and, if executed by root, all
+Disable tracing on all user-owned processes, and, if executed by root, all
 processes in the system.
 .It Fl c
 Clear the trace points associated with the specified file or processes.
@@ -160,7 +164,7 @@ on process 67
 # disable all tracing to the file "tracedata"
 .Dl $ ktrace -c -f tracedata
 .Pp
-# disable tracing of all processes owned by the user
+# disable tracing of all user-owned processes
 .Dl $ ktrace -C
 .Sh SEE ALSO
 .Xr kdump 1
