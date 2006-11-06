@@ -2,16 +2,16 @@
 # $FreeBSD$
 
 # machine-independent net sources
-.PATH: ${.CURDIR}/${MACHINE_ARCH}/net ${.CURDIR}/net
+.PATH: ${.CURDIR}/net
 
-SRCS+=	addr2ascii.c ascii2addr.c base64.c ether_addr.c eui64.c \
+SRCS+=	addr2ascii.c ascii2addr.c base64.c  ether_addr.c eui64.c \
 	gai_strerror.c getaddrinfo.c \
 	gethostbydns.c gethostbyht.c gethostbynis.c gethostnamadr.c \
 	getifaddrs.c getifmaddrs.c getnameinfo.c \
 	getnetbydns.c getnetbyht.c getnetbynis.c getnetnamadr.c \
 	getproto.c getprotoent.c getprotoname.c getservent.c \
 	if_indextoname.c if_nameindex.c if_nametoindex.c \
-	ip6opt.c linkaddr.c map_v4v6.c name6.c \
+	ip6opt.c linkaddr.c map_v4v6.c name6.c ntoh.c \
 	nsdispatch.c nslexer.c nsparser.c nss_compat.c \
 	rcmd.c rcmdsh.c recv.c rthdr.c send.c sockatmark.c vars.c
 
@@ -41,11 +41,6 @@ nsparser.h: nsparser.c
 nslexer.c: nslexer.l nsparser.h
 	${LEX} ${LFLAGS} -o/dev/stdout ${.IMPSRC} | \
 		sed -e '/YY_BUF_SIZE/s/16384/1024/' >${.TARGET}
-
-# machine-dependent net sources
-.if exists(${.CURDIR}/${MACHINE_ARCH}/net/Makefile.inc)
-.include "${.CURDIR}/${MACHINE_ARCH}/net/Makefile.inc"
-.endif
 
 MAN+=	addr2ascii.3 byteorder.3 ethers.3 eui64.3 \
 	getaddrinfo.3 gai_strerror.3 gethostbyname.3 \
