@@ -22,7 +22,10 @@
 
 #undef  SUBTARGET_EXTRA_SPECS
 #define SUBTARGET_EXTRA_SPECS \
-  { "fbsd_dynamic_linker", FBSD_DYNAMIC_LINKER }
+  { "fbsd_dynamic_linker", FBSD_DYNAMIC_LINKER }, \
+  { "subtarget_extra_asm_spec", SUBTARGET_EXTRA_ASM_SPEC }, \
+  { "subtarget_asm_float_spec", SUBTARGET_ASM_FLOAT_SPEC }
+	
 
 #undef  SUBTARGET_CPP_SPEC
 #define SUBTARGET_CPP_SPEC FBSD_CPP_SPEC
@@ -39,7 +42,8 @@
       %{rdynamic:-export-dynamic}					\
       %{!dynamic-linker:-dynamic-linker %(fbsd_dynamic_linker) }}	\
     %{static:-Bstatic}}							\
-  %{symbolic:-Bsymbolic}"
+  %{symbolic:-Bsymbolic}						\
+  %{mbig-endian:-EB} %{mlittle-endian:-EL}"
 
 
 /************************[  Target stuff  ]***********************************/
@@ -66,4 +70,81 @@
 #define SUBTARGET_CPU_DEFAULT	TARGET_CPU_strongarm
 
 #undef  TARGET_VERSION
-#define TARGET_VERSION fprintf (stderr, " (FreeBSD/StrongARM ELF)");
+#define TARGET_VERSION fprintf (stderr, " (FreeBSD/ARM ELF)");
+
+#ifndef TARGET_ENDIAN_DEFAULT
+#define TARGET_ENDIAN_DEFAULT	0
+#endif
+
+#undef	TARGET_DEFAULT
+#define	TARGET_DEFAULT                  \
+  (ARM_FLAG_APCS_32                     \
+   | ARM_FLAG_SOFT_FLOAT                \
+   | ARM_FLAG_APCS_FRAME                \
+   | ARM_FLAG_ATPCS                     \
+   | ARM_FLAG_VFP                       \
+   | ARM_FLAG_MMU_TRAPS			\
+   | TARGET_ENDIAN_DEFAULT)
+
+#undef	TYPE_OPERAND_FMT
+#define	TYPE_OPERAND_FMT "%%%s"
+        
+#undef	SUBTARGET_EXTRA_ASM_SPEC
+#define	SUBTARGET_EXTRA_ASM_SPEC        \
+  "-matpcs %{fpic|fpie:-k} %{fPIC|fPIE:-k}"
+      
+  /* Default floating point model is soft-VFP.
+   *    FIXME: -mhard-float currently implies FPA.  */
+#undef	SUBTARGET_ASM_FLOAT_SPEC
+#define	SUBTARGET_ASM_FLOAT_SPEC        \
+  "%{mhard-float:-mfpu=fpa} \
+  %{msoft-float:-mfpu=softvfp} \
+  %{!mhard-float: \
+	  %{!msoft-float:-mfpu=softvfp}}"
+
+
+/* FreeBSD does its profiling differently to the Acorn compiler. We      
+   don't need a word following the mcount call; and to skip it
+   requires either an assembly stub or use of fomit-frame-pointer when  
+   compiling the profiling functions.  Since we break Acorn CC
+   compatibility below a little more won't hurt.  */
+   
+#undef ARM_FUNCTION_PROFILER                                  
+#define ARM_FUNCTION_PROFILER(STREAM,LABELNO)		\
+{							\
+  asm_fprintf (STREAM, "\tmov\t%Rip, %Rlr\n");		\
+  asm_fprintf (STREAM, "\tbl\t_mcount%s\n",		\
+	       NEED_PLT_RELOC ? "(PLT)" : "");		\
+}
+
+/* Emit code to set up a trampoline and synchronize the caches.  */
+#undef INITIALIZE_TRAMPOLINE
+#define INITIALIZE_TRAMPOLINE(TRAMP, FNADDR, CXT)			\
+do									\
+  {									\
+    emit_move_insn (gen_rtx (MEM, SImode, plus_constant ((TRAMP), 8)),	\
+		    (CXT));						\
+    emit_move_insn (gen_rtx (MEM, SImode, plus_constant ((TRAMP), 12)),	\
+		    (FNADDR));						\
+    emit_library_call (gen_rtx_SYMBOL_REF (Pmode, "__clear_cache"),	\
+		       0, VOIDmode, 2, TRAMP, Pmode,			\
+		       plus_constant (TRAMP, TRAMPOLINE_SIZE), Pmode);	\
+  }									\
+while (0)
+
+/* Clear the instruction cache from `BEG' to `END'.  This makes a
+   call to the ARM_SYNC_ICACHE architecture specific syscall.  */
+#define CLEAR_INSN_CACHE(BEG, END)					\
+do									\
+  {									\
+    extern int sysarch(int number, void *args);				\
+    struct								\
+      {									\
+	unsigned int addr;						\
+	int          len;						\
+      } s;								\
+    s.addr = (unsigned int)(BEG);					\
+    s.len = (END) - (BEG);						\
+    (void) sysarch (0, &s);						\
+  }									\
+while (0)
