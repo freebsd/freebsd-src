@@ -1,11 +1,6 @@
-/*	$NetBSD: byte_swap_4.S,v 1.2 2003/04/05 23:08:51 bjh21 Exp $	*/
-
 /*-
- * Copyright (c) 1997 The NetBSD Foundation, Inc.
+ * Copyright (c) 2006 Olivier Houchard
  * All rights reserved.
- *
- * This code is derived from software contributed to The NetBSD Foundation
- * by Neil A. Carson
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -15,13 +10,6 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. All advertising materials mentioning features or use of this software
- *    must display the following acknowledgement:
- *	This product includes software developed by the NetBSD
- *	Foundation, Inc. and its contributors.
- * 4. Neither the name of The NetBSD Foundation nor the names of its
- *    contributors may be used to endorse or promote products derived
- *    from this software without specific prior written permission.
  *
  * THIS SOFTWARE IS PROVIDED BY THE NETBSD FOUNDATION, INC. AND CONTRIBUTORS
  * ``AS IS'' AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED
@@ -36,15 +24,35 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include <machine/asm.h>
+#include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-_ENTRY(_C_LABEL(htonl))
-_PROF_PROLOGUE
-#ifndef __ARMEB__
-	eor		r1, r0, r0, ror #16
-	bic		r1, r1, #0x00FF0000
-	mov		r0, r0, ror #8
-	eor		r0, r0, r1, lsr #8
-#endif
-	mov		pc, lr
+#include <sys/endian.h>
+
+uint32_t
+htonl(uint32_t hl)
+{
+
+	return (__htonl(hl));
+}
+
+uint16_t
+htons(uint16_t hs)
+{
+	
+	return (__htons(hs));
+}
+
+uint32_t
+ntohl(uint32_t nl)
+{
+
+	return (__ntohl(nl));
+}
+
+uint16_t
+ntohs(uint16_t ns)
+{
+	
+	return (__ntohs(ns));
+}
