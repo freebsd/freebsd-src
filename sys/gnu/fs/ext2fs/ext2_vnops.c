@@ -52,6 +52,7 @@
 #include <sys/stat.h>
 #include <sys/bio.h>
 #include <sys/buf.h>
+#include <sys/priv.h>
 #include <sys/proc.h>
 #include <sys/mount.h>
 #include <sys/unistd.h>
@@ -411,7 +412,8 @@ ext2_setattr(ap)
 		 * Privileged non-jail processes may not modify system flags
 		 * if securelevel > 0 and any existing system flags are set.
 		 */
-		if (!suser_cred(cred, SUSER_ALLOWJAIL)) {
+		if (!priv_check_cred(cred, PRIV_VFS_SYSFLAGS,
+		    SUSER_ALLOWJAIL)) {
 			if (ip->i_flags
 			    & (SF_NOUNLINK | SF_IMMUTABLE | SF_APPEND)) {
 				error = securelevel_gt(cred, 0);
@@ -529,11 +531,17 @@ ext2_chmod(vp, mode, cred, td)
 	 * as well as set the setgid bit on a file with a group that the
 	 * process is not a member of.
 	 */
-	if (suser_cred(cred, SUSER_ALLOWJAIL)) {
-		if (vp->v_type != VDIR && (mode & S_ISTXT))
+	if (vp->v_type != VDIR && (mode & S_ISTXT)) {
+		error = priv_check_cred(cred, PRIV_VFS_STICKYFILE,
+		    SUSER_ALLOWJAIL);
+		if (error)
 			return (EFTYPE);
-		if (!groupmember(ip->i_gid, cred) && (mode & ISGID))
-			return (EPERM);
+	}
+	if (!groupmember(ip->i_gid, cred) && (mode & ISGID)) {
+		error = priv_check_cred(cred, PRIV_VFS_SETGID,
+		    SUSER_ALLOWJAIL);
+		if (error)
+			return (error);
 	}
 	ip->i_mode &= ~ALLPERMS;
 	ip->i_mode |= (mode & ALLPERMS);
@@ -573,17 +581,23 @@ ext2_chown(vp, uid, gid, cred, td)
 	 * to a group of which we are not a member, the caller must
 	 * have privilege.
 	 */
-	if ((uid != ip->i_uid || 
-	    (gid != ip->i_gid && !groupmember(gid, cred))) &&
-	    (error = suser_cred(cred, SUSER_ALLOWJAIL)))
-		return (error);
+	if (uid != ip->i_uid || (gid != ip->i_gid &&
+	    !groupmember(gid, cred))) {
+		error = priv_check_cred(cred, PRIV_VFS_CHOWN,
+		    SUSER_ALLOWJAIL);
+		if (error)
+			return (error);
+	}
 	ogid = ip->i_gid;
 	ouid = ip->i_uid;
 	ip->i_gid = gid;
 	ip->i_uid = uid;
 	ip->i_flag |= IN_CHANGE;
-	if (suser_cred(cred, SUSER_ALLOWJAIL) && (ouid != uid || ogid != gid))
-		ip->i_mode &= ~(ISUID | ISGID);
+	if (ouid != uid || ogid != gid) {
+		if (priv_check_cred(cred, PRIV_VFS_CLEARSUGID,
+		    SUSER_ALLOWJAIL) != 0)
+			ip->i_mode &= ~(ISUID | ISGID);
+	}
 	return (0);
 }
 
@@ -1608,9 +1622,11 @@ ext2_makeinode(mode, dvp, vpp, cnp)
 	ip->i_mode = mode;
 	tvp->v_type = IFTOVT(mode);	/* Rest init'd in getnewvnode(). */
 	ip->i_nlink = 1;
-	if ((ip->i_mode & ISGID) && !groupmember(ip->i_gid, cnp->cn_cred) &&
-	    suser_cred(cnp->cn_cred, SUSER_ALLOWJAIL))
-		ip->i_mode &= ~ISGID;
+	if ((ip->i_mode & ISGID) && !groupmember(ip->i_gid, cnp->cn_cred)) {
+		if (priv_check_cred(cnp->cn_cred, PRIV_VFS_CLEARSUGID,
+		    SUSER_ALLOWJAIL))
+			ip->i_mode &= ~ISGID;
+	}
 
 	if (cnp->cn_flags & ISWHITEOUT)
 		ip->i_flags |= UF_OPAQUE;

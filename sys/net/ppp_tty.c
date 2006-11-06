@@ -79,6 +79,7 @@
 
 #include <sys/param.h>
 #include <sys/systm.h>
+#include <sys/priv.h>
 #include <sys/proc.h>
 #include <sys/mbuf.h>
 #include <sys/socket.h>
@@ -179,7 +180,8 @@ pppopen(dev, tp)
     register struct ppp_softc *sc;
     int error, s;
 
-    if ((error = suser(td)) != 0)
+    error = priv_check(td, PRIV_NET_PPP);
+    if (error)
 	return (error);
 
     s = spltty();
@@ -423,7 +425,8 @@ ppptioctl(tp, cmd, data, flag, td)
     error = 0;
     switch (cmd) {
     case PPPIOCSASYNCMAP:
-	if ((error = suser(td)) != 0)
+	error = priv_check(td, PRIV_NET_PPP);
+	if (error)
 	    break;
 	sc->sc_asyncmap[0] = *(u_int *)data;
 	break;
@@ -433,7 +436,8 @@ ppptioctl(tp, cmd, data, flag, td)
 	break;
 
     case PPPIOCSRASYNCMAP:
-	if ((error = suser(td)) != 0)
+	error = priv_check(td, PRIV_NET_PPP);
+	if (error)
 	    break;
 	sc->sc_rasyncmap = *(u_int *)data;
 	break;
@@ -443,7 +447,8 @@ ppptioctl(tp, cmd, data, flag, td)
 	break;
 
     case PPPIOCSXASYNCMAP:
-	if ((error = suser(td)) != 0)
+	error = priv_check(td, PRIV_NET_PPP);
+	if (error)
 	    break;
 	s = spltty();
 	bcopy(data, sc->sc_asyncmap, sizeof(sc->sc_asyncmap));

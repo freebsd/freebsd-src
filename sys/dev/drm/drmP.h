@@ -50,6 +50,9 @@ typedef struct drm_file drm_file_t;
 #include <sys/systm.h>
 #include <sys/conf.h>
 #include <sys/stat.h>
+#if __FreeBSD_version >= 700000
+#include <sys/priv.h>
+#endif
 #include <sys/proc.h>
 #include <sys/lock.h>
 #include <sys/fcntl.h>
@@ -233,7 +236,11 @@ enum {
 
 #define PAGE_ALIGN(addr) round_page(addr)
 /* DRM_SUSER returns true if the user is superuser */
+#if __FreeBSD_version >= 700000
+#define	DRM_SUSER(p)		(priv_check(p, PRIV_DRIVER) == 0)
+#else
 #define DRM_SUSER(p)		(suser(p) == 0)
+#endif
 #define DRM_AGP_FIND_DEVICE()	agp_find_device()
 #define DRM_MTRR_WC		MDF_WRITECOMBINE
 #define jiffies			ticks

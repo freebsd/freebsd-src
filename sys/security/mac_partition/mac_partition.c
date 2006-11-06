@@ -45,6 +45,7 @@
 #include <sys/kernel.h>
 #include <sys/mac.h>
 #include <sys/mount.h>
+#include <sys/priv.h>
 #include <sys/proc.h>
 #include <sys/sbuf.h>
 #include <sys/systm.h>
@@ -191,7 +192,7 @@ mac_partition_check_cred_relabel(struct ucred *cred, struct label *newlabel)
 		 * in a partition in the first place, but this didn't
 		 * interact well with sendmail.
 		 */
-		error = suser_cred(cred, 0);
+		error = priv_check_cred(cred, PRIV_MAC_PARTITION, 0);
 	}
 
 	return (error);

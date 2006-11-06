@@ -48,6 +48,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/kernel.h>
 #include <sys/msgbuf.h>
 #include <sys/malloc.h>
+#include <sys/priv.h>
 #include <sys/proc.h>
 #include <sys/stddef.h>
 #include <sys/sysctl.h>
@@ -925,7 +926,7 @@ sysctl_kern_msgbuf(SYSCTL_HANDLER_ARGS)
 	int error, len;
 
 	if (!unprivileged_read_msgbuf) {
-		error = suser(req->td);
+		error = priv_check(req->td, PRIV_MSGBUF);
 		if (error)
 			return (error);
 	}

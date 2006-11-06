@@ -44,6 +44,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/lock.h>
 #include <sys/module.h>
 #include <sys/mutex.h>
+#include <sys/priv.h>
 #include <sys/proc.h>
 #include <sys/syscallsubr.h>
 #include <sys/sysctl.h>
@@ -186,9 +187,10 @@ sched_setscheduler(struct thread *td, struct sched_setscheduler_args *uap)
 	struct thread *targettd;
 	struct proc *targetp;
 
-	/* Don't allow non root user to set a scheduler policy */
-	if (suser(td) != 0)
-		return (EPERM);
+	/* Don't allow non root user to set a scheduler policy. */
+	e = priv_check(td, PRIV_SCHED_SET);
+	if (e)
+		return (e);
 
 	e = copyin(uap->param, &sched_param, sizeof(sched_param));
 	if (e)

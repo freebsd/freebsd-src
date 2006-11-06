@@ -53,6 +53,8 @@
 #include "xfs_version.h"
 #include "xfs_buf.h"
 
+#include <sys/priv.h>
+
 #include <geom/geom.h>
 #include <geom/geom_vfs.h>
 
@@ -149,14 +151,15 @@ xfs_blkdev_get(
 	vn_lock(devvp, LK_EXCLUSIVE | LK_RETRY, td);
 
 	ronly = ((XFS_MTOVFS(mp)->vfs_flag & VFS_RDONLY) != 0);
-	if (suser(td)) {
-		accessmode = VREAD;
-		if (!ronly)
-			accessmode |= VWRITE;
-		if ((error = VOP_ACCESS(devvp, accessmode, td->td_ucred, td))!= 0){
-			vput(devvp);
-			return (error);
-		}
+	accessmode = VREAD;
+	if (!ronly)
+		accessmode |= VWRITE;
+	error = VOP_ACCESS(devvp, accessmode, td->td_ucred, td);
+	if (error)
+		error = priv_check(td, PRIV_VFS_MOUNT_PERM);
+	if (error) {
+		vput(devvp);
+		return (error);
 	}
 
 	DROP_GIANT();

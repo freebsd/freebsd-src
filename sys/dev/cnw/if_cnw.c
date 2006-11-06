@@ -236,6 +236,7 @@ struct cfattach cnw_ca = {
 #include <sys/mbuf.h>
 #include <sys/malloc.h>
 #include <sys/kernel.h>
+#include <sys/priv.h>
 #include <sys/proc.h>
 #include <sys/ucred.h>
 #include <sys/socket.h>
@@ -1339,7 +1340,7 @@ cnw_ioctl(ifp, cmd, data)
 #if !defined(__FreeBSD__)
 		error = suser(p->p_ucred, &p->p_acflag);
 #else
-		error = suser(td);
+		error = priv_check(td, PRIV_DRIVER);
 #endif
 		if (error)
 			break;
@@ -1350,7 +1351,7 @@ cnw_ioctl(ifp, cmd, data)
 #if !defined(__FreeBSD__)
 		error = suser(p->p_ucred, &p->p_acflag);
 #else
-		error = suser(td);
+		error = priv_check(td, PRIV_DRIVER);
 #endif
 		if (error)
 			break;
@@ -1361,7 +1362,7 @@ cnw_ioctl(ifp, cmd, data)
 #if !defined(__FreeBSD__)
 		error = suser(p->p_ucred, &p->p_acflag);
 #else
-		error = suser(td);
+		error = priv_check(td, PRIV_DRIVER);
 #endif
 		if (error)
 			break;

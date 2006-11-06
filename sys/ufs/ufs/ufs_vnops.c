@@ -53,6 +53,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/bio.h>
 #include <sys/buf.h>
 #include <sys/mount.h>
+#include <sys/priv.h>
 #include <sys/refcount.h>
 #include <sys/unistd.h>
 #include <sys/vnode.h>
@@ -493,8 +494,11 @@ ufs_setattr(ap)
 		 * processes if the security.jail.chflags_allowed sysctl is
 		 * is non-zero; otherwise, they behave like unprivileged
 		 * processes.
+		 *
+		 * XXXRW: Move implementation of jail_chflags_allowed to
+		 * kern_jail.c.
 		 */
-		if (!suser_cred(cred,
+		if (!priv_check_cred(cred, PRIV_VFS_SYSFLAGS,
 		    jail_chflags_allowed ? SUSER_ALLOWJAIL : 0)) {
 			if (ip->i_flags
 			    & (SF_NOUNLINK | SF_IMMUTABLE | SF_APPEND)) {
@@ -585,10 +589,19 @@ ufs_setattr(ap)
 		 * super-user.
 		 * If times is non-NULL, ... The caller must be the owner of
 		 * the file or be the super-user.
+		 *
+		 * Possibly for historical reasons, try to use VADMIN in
+		 * preference to VADMIN for a NULL timestamp.  This means we
+		 * will return EACCES in preference to EPERM if neither
+		 * check succeeds.
 		 */
-		if ((error = VOP_ACCESS(vp, VADMIN, cred, td)) &&
-		    ((vap->va_vaflags & VA_UTIMES_NULL) == 0 ||
-		    (error = VOP_ACCESS(vp, VWRITE, cred, td))))
+		if (vap->va_vaflags & VA_UTIMES_NULL) {
+			error = VOP_ACCESS(vp, VADMIN, cred, td);
+			if (error)
+				error = VOP_ACCESS(vp, VWRITE, cred, td);
+		} else
+			error = VOP_ACCESS(vp, VADMIN, cred, td);
+		if (error)
 			return (error);
 		if (vap->va_atime.tv_sec != VNOVAL)
 			ip->i_flag |= IN_ACCESS;
@@ -654,11 +667,13 @@ ufs_chmod(vp, mode, cred, td)
 	 * jail(8).
 	 */
 	if (vp->v_type != VDIR && (mode & S_ISTXT)) {
-		if (suser_cred(cred, SUSER_ALLOWJAIL))
+		if (priv_check_cred(cred, PRIV_VFS_STICKYFILE,
+		    SUSER_ALLOWJAIL))
 			return (EFTYPE);
 	}
 	if (!groupmember(ip->i_gid, cred) && (mode & ISGID)) {
-		error = suser_cred(cred, SUSER_ALLOWJAIL);
+		error = priv_check_cred(cred, PRIV_VFS_SETGID,
+		    SUSER_ALLOWJAIL);
 		if (error)
 			return (error);
 	}
@@ -695,19 +710,19 @@ ufs_chown(vp, uid, gid, cred, td)
 	if (gid == (gid_t)VNOVAL)
 		gid = ip->i_gid;
 	/*
-	 * To modify the ownership of a file, must possess VADMIN
-	 * for that file.
+	 * To modify the ownership of a file, must possess VADMIN for that
+	 * file.
 	 */
 	if ((error = VOP_ACCESS(vp, VADMIN, cred, td)))
 		return (error);
 	/*
-	 * To change the owner of a file, or change the group of a file
-	 * to a group of which we are not a member, the caller must
-	 * have privilege.
+	 * To change the owner of a file, or change the group of a file to a
+	 * group of which we are not a member, the caller must have
+	 * privilege.
 	 */
 	if ((uid != ip->i_uid || 
 	    (gid != ip->i_gid && !groupmember(gid, cred))) &&
-	    (error = suser_cred(cred, SUSER_ALLOWJAIL)))
+	    (error = priv_check_cred(cred, PRIV_VFS_CHOWN, SUSER_ALLOWJAIL)))
 		return (error);
 	ogid = ip->i_gid;
 	ouid = ip->i_uid;
@@ -778,7 +793,8 @@ good:
 		panic("ufs_chown: lost quota");
 #endif /* QUOTA */
 	ip->i_flag |= IN_CHANGE;
-	if (suser_cred(cred, SUSER_ALLOWJAIL) && (ouid != uid || ogid != gid)) {
+	if (priv_check_cred(cred, PRIV_VFS_CLEARSUGID, SUSER_ALLOWJAIL) &&
+	    (ouid != uid || ogid != gid)) {
 		ip->i_mode &= ~(ISUID | ISGID);
 		DIP_SET(ip, i_mode, ip->i_mode);
 	}
@@ -2357,7 +2373,8 @@ ufs_makeinode(mode, dvp, vpp, cnp)
 	if (DOINGSOFTDEP(tvp))
 		softdep_change_linkcnt(ip);
 	if ((ip->i_mode & ISGID) && !groupmember(ip->i_gid, cnp->cn_cred) &&
-	    suser_cred(cnp->cn_cred, SUSER_ALLOWJAIL)) {
+	    priv_check_cred(cnp->cn_cred, PRIV_VFS_SETGID,
+	    SUSER_ALLOWJAIL)) {
 		ip->i_mode &= ~ISGID;
 		DIP_SET(ip, i_mode, ip->i_mode);
 	}

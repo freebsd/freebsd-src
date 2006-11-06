@@ -33,6 +33,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/lock.h>
 #include <sys/malloc.h>
 #include <sys/mutex.h>
+#include <sys/priv.h>
 #include <sys/proc.h>
 #include <sys/signalvar.h>
 #include <sys/systm.h>
@@ -54,7 +55,7 @@ ioopen(struct cdev *dev __unused, int flags __unused, int fmt __unused,
 {
 	int error;
 
-	error = suser(td);
+	error = priv_check(td, PRIV_IO);
 	if (error != 0)
 		return (error);
 	error = securelevel_gt(td->td_ucred, 0);

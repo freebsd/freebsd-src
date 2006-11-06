@@ -48,6 +48,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/vnode.h>
 #include <sys/malloc.h>
 #include <sys/mount.h>
+#include <sys/priv.h>
 #include <sys/proc.h>
 #include <sys/bio.h>
 #include <sys/buf.h>
@@ -142,7 +143,7 @@ nfssvc(struct thread *td, struct nfssvc_args *uap)
 	if (error)
 		return (error);
 #endif
-	error = suser(td);
+	error = priv_check(td, PRIV_NFSD);
 	if (error)
 		return (error);
 	NET_LOCK_GIANT();

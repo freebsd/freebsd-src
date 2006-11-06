@@ -60,6 +60,12 @@ SYSCTL_INT(_security_mac, OID_AUTO, enforce_system, CTLFLAG_RW,
     &mac_enforce_system, 0, "Enforce MAC policy on system operations");
 TUNABLE_INT("security.mac.enforce_system", &mac_enforce_system);
 
+/*
+ * XXXRW: Some of these checks now duplicate privilege checks.  However,
+ * others provide additional security context that may be useful to policies.
+ * We need to review these and remove ones that are pure duplicates.
+ */
+
 int
 mac_check_kenv_dump(struct ucred *cred)
 {

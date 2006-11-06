@@ -33,6 +33,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/lock.h>
 #include <sys/malloc.h>
 #include <sys/mutex.h>
+#include <sys/priv.h>
 #include <sys/proc.h>
 #include <sys/syscallsubr.h>
 #include <sys/sysproto.h>
@@ -123,7 +124,8 @@ linux_setgroups16(struct thread *td, struct linux_setgroups16_args *args)
 	 * Keep cr_groups[0] unchanged to prevent that.
 	 */
 
-	if ((error = suser_cred(oldcred, SUSER_ALLOWJAIL)) != 0) {
+	if ((error = priv_check_cred(oldcred, PRIV_CRED_SETGROUPS,
+	    SUSER_ALLOWJAIL)) != 0) {
 		PROC_UNLOCK(p);
 		crfree(newcred);
 		return (error);

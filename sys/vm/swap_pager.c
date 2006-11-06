@@ -77,6 +77,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/systm.h>
 #include <sys/conf.h>
 #include <sys/kernel.h>
+#include <sys/priv.h>
 #include <sys/proc.h>
 #include <sys/bio.h>
 #include <sys/buf.h>
@@ -1966,11 +1967,11 @@ swapon(struct thread *td, struct swapon_args *uap)
 	struct nameidata nd;
 	int error;
 
-	mtx_lock(&Giant);
-	error = suser(td);
+	error = priv_check(td, PRIV_SWAPON);
 	if (error)
-		goto done2;
+		return (error);
 
+	mtx_lock(&Giant);
 	while (swdev_syscall_active)
 	    tsleep(&swdev_syscall_active, PUSER - 1, "swpon", 0);
 	swdev_syscall_active = 1;
@@ -2009,7 +2010,6 @@ swapon(struct thread *td, struct swapon_args *uap)
 done:
 	swdev_syscall_active = 0;
 	wakeup_one(&swdev_syscall_active);
-done2:
 	mtx_unlock(&Giant);
 	return (error);
 }
@@ -2105,7 +2105,7 @@ swapoff(struct thread *td, struct swapoff_args *uap)
 	struct swdevt *sp;
 	int error;
 
-	error = suser(td);
+	error = priv_check(td, PRIV_SWAPOFF);
 	if (error)
 		return (error);
 

@@ -48,6 +48,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/mount.h>
 #include <sys/mutex.h>
 #include <sys/namei.h>
+#include <sys/priv.h>
 #include <sys/proc.h>
 #include <sys/reboot.h>
 #include <sys/resourcevar.h>
@@ -1020,7 +1021,8 @@ linux_setgroups(struct thread *td, struct linux_setgroups_args *args)
 	 * Keep cr_groups[0] unchanged to prevent that.
 	 */
 
-	if ((error = suser_cred(oldcred, SUSER_ALLOWJAIL)) != 0) {
+	if ((error = priv_check_cred(oldcred, PRIV_CRED_SETGROUPS,
+	    SUSER_ALLOWJAIL)) != 0) {
 		PROC_UNLOCK(p);
 		crfree(newcred);
 		return (error);
@@ -1341,7 +1343,7 @@ linux_reboot(struct thread *td, struct linux_reboot_args *args)
 	switch (args->cmd) {
 	case REBOOT_CAD_ON:
 	case REBOOT_CAD_OFF:
-		return suser(td);
+		return (priv_check(td, PRIV_REBOOT));
 	case REBOOT_HALT:
 		bsd_args.opt = RB_HALT;
 		break;

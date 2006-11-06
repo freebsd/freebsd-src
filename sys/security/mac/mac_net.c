@@ -45,6 +45,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/malloc.h>
 #include <sys/mutex.h>
 #include <sys/mac.h>
+#include <sys/priv.h>
 #include <sys/sbuf.h>
 #include <sys/systm.h>
 #include <sys/mount.h>
@@ -470,11 +471,11 @@ mac_ioctl_ifnet_set(struct ucred *cred, struct ifreq *ifr,
 	}
 
 	/*
-	 * XXX: Note that this is a redundant privilege check, since
-	 * policies impose this check themselves if required by the
-	 * policy.  Eventually, this should go away.
+	 * XXX: Note that this is a redundant privilege check, since policies
+	 * impose this check themselves if required by the policy.
+	 * Eventually, this should go away.
 	 */
-	error = suser_cred(cred, 0);
+	error = priv_check_cred(cred, PRIV_NET_SETIFMAC, 0);
 	if (error) {
 		mac_ifnet_label_free(intlabel);
 		return (error);

@@ -38,6 +38,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/fcntl.h>
 #include <sys/tty.h>
 #include <sys/poll.h>
+#include <sys/priv.h>
 #include <sys/proc.h>
 #include <sys/sysctl.h>
 #include <sys/uio.h>
@@ -972,11 +973,11 @@ key_change_ok(struct keyent_t *oldkey, struct keyent_t *newkey, struct thread *t
 	if (keymap_restrict_change >= 2) {
 		for (i = 0; i < NUM_STATES; i++)
 			if (oldkey->map[i] != newkey->map[i])
-				return suser(td);
+				return priv_check(td, PRIV_KEYBOARD);
 		if (oldkey->spcl != newkey->spcl)
-			return suser(td);
+			return priv_check(td, PRIV_KEYBOARD);
 		if (oldkey->flgs != newkey->flgs)
-			return suser(td);
+			return priv_check(td, PRIV_KEYBOARD);
 		return (0);
 	}
 
@@ -991,7 +992,7 @@ key_change_ok(struct keyent_t *oldkey, struct keyent_t *newkey, struct thread *t
 		if ((oldkey->spcl & (0x80 >> i)) == (newkey->spcl & (0x80 >> i))
 		    && oldkey->map[i] == newkey->map[i])
 			continue;
-		return suser(td);
+		return priv_check(td, PRIV_KEYBOARD);
 	}
 
 	return (0);
@@ -1020,20 +1021,20 @@ accent_change_ok(accentmap_t *oldmap, accentmap_t *newmap, struct thread *td)
 		return (0);
 
 	if (oldmap->n_accs != newmap->n_accs)
-		return suser(td);
+		return priv_check(td, PRIV_KEYBOARD);
 
 	for (accent = 0; accent < oldmap->n_accs; accent++) {
 		oldacc = &oldmap->acc[accent];
 		newacc = &newmap->acc[accent];
 		if (oldacc->accchar != newacc->accchar)
-			return suser(td);
+			return priv_check(td, PRIV_KEYBOARD);
 		for (i = 0; i < NUM_ACCENTCHARS; ++i) {
 			if (oldacc->map[i][0] != newacc->map[i][0])
-				return suser(td);
+				return priv_check(td, PRIV_KEYBOARD);
 			if (oldacc->map[i][0] == 0)	/* end of table */
 				break;
 			if (oldacc->map[i][1] != newacc->map[i][1])
-				return suser(td);
+				return priv_check(td, PRIV_KEYBOARD);
 		}
 	}
 
@@ -1048,7 +1049,7 @@ fkey_change_ok(fkeytab_t *oldkey, fkeyarg_t *newkey, struct thread *td)
 
 	if (oldkey->len != newkey->flen ||
 	    bcmp(oldkey->str, newkey->keydef, oldkey->len) != 0)
-		return suser(td);
+		return priv_check(td, PRIV_KEYBOARD);
 
 	return (0);
 }

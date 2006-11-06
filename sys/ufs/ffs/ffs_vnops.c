@@ -74,6 +74,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/limits.h>
 #include <sys/malloc.h>
 #include <sys/mount.h>
+#include <sys/priv.h>
 #include <sys/proc.h>
 #include <sys/resourcevar.h>
 #include <sys/signalvar.h>
@@ -781,7 +782,8 @@ ffs_write(ap)
 	 * tampering.
 	 */
 	if (resid > uio->uio_resid && ap->a_cred && 
-	    suser_cred(ap->a_cred, SUSER_ALLOWJAIL)) {
+	    priv_check_cred(ap->a_cred, PRIV_VFS_CLEARSUGID,
+	    SUSER_ALLOWJAIL)) {
 		ip->i_mode &= ~(ISUID | ISGID);
 		DIP_SET(ip, i_mode, ip->i_mode);
 	}
@@ -1107,7 +1109,7 @@ ffs_extwrite(struct vnode *vp, struct uio *uio, int ioflag, struct ucred *ucred)
 	 * tampering.
 	 */
 	if (resid > uio->uio_resid && ucred && 
-	    suser_cred(ucred, SUSER_ALLOWJAIL)) {
+	    priv_check_cred(ucred, PRIV_VFS_CLEARSUGID, SUSER_ALLOWJAIL)) {
 		ip->i_mode &= ~(ISUID | ISGID);
 		dp->di_mode = ip->i_mode;
 	}

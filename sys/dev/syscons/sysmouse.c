@@ -33,6 +33,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/conf.h>
+#include <sys/priv.h>
 #include <sys/tty.h>
 #include <sys/kernel.h>
 #include <sys/consio.h>
@@ -83,7 +84,8 @@ smopen(struct cdev *dev, int flag, int mode, struct thread *td)
 		ttyinitmode(tp, 0, 0);
 		smparam(tp, &tp->t_termios);
 		ttyld_modem(tp, 1);
-	} else if (tp->t_state & TS_XCLUDE && suser(td)) {
+	} else if (tp->t_state & TS_XCLUDE &&
+	    priv_check(td, PRIV_TTY_EXCLUSIVE)) {
 		return EBUSY;
 	}
 

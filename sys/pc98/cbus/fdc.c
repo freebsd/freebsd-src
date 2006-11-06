@@ -68,6 +68,7 @@
 #include <sys/malloc.h>
 #include <sys/module.h>
 #include <sys/mutex.h>
+#include <sys/priv.h>
 #include <sys/proc.h>
 #include <sys/rman.h>
 #include <sys/systm.h>
@@ -2512,7 +2513,7 @@ fdioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flag, struct thread *td)
 #endif
 
 	case FD_CLRERR:
-		if (suser(td) != 0)
+		if (priv_check(td, PRIV_DRIVER) != 0)
 			return (EPERM);
 		fd->fdc->fdc_errs = 0;
 		return (0);
@@ -2556,7 +2557,7 @@ fdioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flag, struct thread *td)
 
 	case FD_STYPE:                  /* set drive type */
 		/* this is considered harmful; only allow for superuser */
-		if (suser(td) != 0)
+		if (priv_check(td, PRIV_DRIVER) != 0)
 			return (EPERM);
 		*fd->ft = *(struct fd_type *)addr;
 		break;
@@ -2580,7 +2581,7 @@ fdioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flag, struct thread *td)
 #endif
 
 	case FD_CLRERR:
-		if (suser(td) != 0)
+		if (priv_check(td, PRIV_DRIVER) != 0)
 			return (EPERM);
 		fd->fdc->fdc_errs = 0;
 		break;

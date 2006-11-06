@@ -32,6 +32,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/mbuf.h>
 #include <sys/sockio.h>
 #include <sys/malloc.h>
+#include <sys/priv.h>
 #include <sys/socket.h>
 #include <sys/sysctl.h>
 #include <sys/conf.h>
@@ -1300,7 +1301,7 @@ static int ct_ioctl (struct cdev *dev, u_long cmd, caddr_t data, int flag, struc
 
 	case SERIAL_SETPROTO:
 		/* Only for superuser! */
-		error = suser (td);
+		error = priv_check (td, PRIV_DRIVER);
 		if (error)
 			return error;
 		if (d->ifp->if_drv_flags & IFF_DRV_RUNNING)
@@ -1328,7 +1329,7 @@ static int ct_ioctl (struct cdev *dev, u_long cmd, caddr_t data, int flag, struc
 
 	case SERIAL_SETKEEPALIVE:
 		/* Only for superuser! */
-		error = suser (td);
+		error = priv_check (td, PRIV_DRIVER);
 		if (error)
 			return error;
 		if ((IFP2SP(d->ifp)->pp_flags & PP_FR) ||
@@ -1357,7 +1358,7 @@ static int ct_ioctl (struct cdev *dev, u_long cmd, caddr_t data, int flag, struc
 
 	case SERIAL_SETCFG:
 		/* Only for superuser! */
-		error = suser (td);
+		error = priv_check (td, PRIV_DRIVER);
 		if (error)
 			return error;
 		if (c->mode == M_HDLC)
@@ -1435,7 +1436,7 @@ static int ct_ioctl (struct cdev *dev, u_long cmd, caddr_t data, int flag, struc
 
 	case SERIAL_CLRSTAT:
 		/* Only for superuser! */
-		error = suser (td);
+		error = priv_check (td, PRIV_DRIVER);
 		if (error)
 			return error;
 		c->rintr = 0;
@@ -1458,7 +1459,7 @@ static int ct_ioctl (struct cdev *dev, u_long cmd, caddr_t data, int flag, struc
 
 	case SERIAL_SETBAUD:
 		/* Only for superuser! */
-		error = suser (td);
+		error = priv_check (td, PRIV_DRIVER);
 		if (error)
 			return error;
 		s = splimp ();
@@ -1474,7 +1475,7 @@ static int ct_ioctl (struct cdev *dev, u_long cmd, caddr_t data, int flag, struc
 
 	case SERIAL_SETLOOP:
 		/* Only for superuser! */
-		error = suser (td);
+		error = priv_check (td, PRIV_DRIVER);
 		if (error)
 			return error;
 		s = splimp ();
@@ -1492,7 +1493,7 @@ static int ct_ioctl (struct cdev *dev, u_long cmd, caddr_t data, int flag, struc
 
 	case SERIAL_SETDPLL:
 		/* Only for superuser! */
-		error = suser (td);
+		error = priv_check (td, PRIV_DRIVER);
 		if (error)
 			return error;
 		if (c->mode == M_E1 || c->mode == M_G703)
@@ -1512,7 +1513,7 @@ static int ct_ioctl (struct cdev *dev, u_long cmd, caddr_t data, int flag, struc
 
 	case SERIAL_SETNRZI:
 		/* Only for superuser! */
-		error = suser (td);
+		error = priv_check (td, PRIV_DRIVER);
 		if (error)
 			return error;
 		if (c->mode == M_E1 || c->mode == M_G703)
@@ -1530,7 +1531,7 @@ static int ct_ioctl (struct cdev *dev, u_long cmd, caddr_t data, int flag, struc
 
 	case SERIAL_SETDEBUG:
 		/* Only for superuser! */
-		error = suser (td);
+		error = priv_check (td, PRIV_DRIVER);
 		if (error)
 			return error;
 		c->debug = *(int*)data;
@@ -1550,7 +1551,7 @@ static int ct_ioctl (struct cdev *dev, u_long cmd, caddr_t data, int flag, struc
 
 	case SERIAL_SETHIGAIN:
 		/* Only for superuser! */
-		error = suser (td);
+		error = priv_check (td, PRIV_DRIVER);
 		if (error)
 			return error;
 		s = splimp ();
@@ -1572,7 +1573,7 @@ static int ct_ioctl (struct cdev *dev, u_long cmd, caddr_t data, int flag, struc
 		if (c->mode != M_E1)
 			return EINVAL;
 		/* Only for superuser! */
-		error = suser (td);
+		error = priv_check (td, PRIV_DRIVER);
 		if (error)
 			return error;
 		s = splimp ();
@@ -1595,7 +1596,7 @@ static int ct_ioctl (struct cdev *dev, u_long cmd, caddr_t data, int flag, struc
 
 	case SERIAL_SETCLK:
 		/* Only for superuser! */
-		error = suser (td);
+		error = priv_check (td, PRIV_DRIVER);
 		if (error)
 			return error;
 		s = splimp ();
@@ -1619,7 +1620,7 @@ static int ct_ioctl (struct cdev *dev, u_long cmd, caddr_t data, int flag, struc
 
 	case SERIAL_SETTIMESLOTS:
 		/* Only for superuser! */
-		error = suser (td);
+		error = priv_check (td, PRIV_DRIVER);
 		if (error)
 			return error;
 		s = splimp ();
@@ -1637,7 +1638,7 @@ static int ct_ioctl (struct cdev *dev, u_long cmd, caddr_t data, int flag, struc
 
 	case SERIAL_SETSUBCHAN:
 		/* Only for superuser! */
-		error = suser (td);
+		error = priv_check (td, PRIV_DRIVER);
 		if (error)
 			return error;
 		s = splimp ();
@@ -1663,7 +1664,7 @@ static int ct_ioctl (struct cdev *dev, u_long cmd, caddr_t data, int flag, struc
 	case SERIAL_SETINVCLK:
 	case SERIAL_SETINVTCLK:
 		/* Only for superuser! */
-		error = suser (td);
+		error = priv_check (td, PRIV_DRIVER);
 		if (error)
 			return error;
 		if (c->mode == M_E1 || c->mode == M_G703)
@@ -1677,7 +1678,7 @@ static int ct_ioctl (struct cdev *dev, u_long cmd, caddr_t data, int flag, struc
 
 	case SERIAL_SETINVRCLK:
 		/* Only for superuser! */
-		error = suser (td);
+		error = priv_check (td, PRIV_DRIVER);
 		if (error)
 			return error;
 		if (c->mode == M_E1 || c->mode == M_G703)

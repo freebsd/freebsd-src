@@ -36,6 +36,7 @@
 #include <sys/malloc.h>
 #include <sys/mbuf.h>
 #include <sys/mutex.h>
+#include <sys/priv.h>
 #include <sys/protosw.h>
 #include <sys/signalvar.h>
 #include <sys/socket.h>
@@ -171,8 +172,11 @@ raw_uattach(struct socket *so, int proto, struct thread *td)
 	 */
 	KASSERT(sotorawcb(so) != NULL, ("raw_uattach: so_pcb == NULL"));
 
-	if (td && (error = suser(td)) != 0)
-		return error;
+	if (td != NULL) {
+		error = priv_check(td, PRIV_NET_RAW);
+		if (error)
+			return error;
+	}
 	return raw_attach(so, proto);
 }
 

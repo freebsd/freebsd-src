@@ -88,7 +88,8 @@ umapfs_omount(mp, path, data, ndp, td)
 	/*
 	 * Only for root
 	 */
-	if ((error = suser(td)) != 0)
+	error = priv_check(td, PRIV_VFS_MOUNT);
+	if (error)
 		return (error);
 
 #ifdef DEBUG

@@ -68,6 +68,7 @@
 #include <sys/systm.h>
 #include <sys/malloc.h>
 #include <sys/mbuf.h>
+#include <sys/priv.h>
 #include <sys/proc.h>
 #include <sys/socket.h>
 #include <sys/sockio.h>
@@ -366,7 +367,7 @@ slopen(struct cdev *dev, register struct tty *tp)
 	register struct sl_softc *sc;
 	int s, error;
 
-	error = suser(curthread);
+	error = priv_check(curthread, PRIV_NET_SLIP);
 	if (error)
 		return (error);
 

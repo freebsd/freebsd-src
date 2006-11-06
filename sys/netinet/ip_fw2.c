@@ -53,6 +53,7 @@
 #include <sys/lock.h>
 #include <sys/jail.h>
 #include <sys/module.h>
+#include <sys/priv.h>
 #include <sys/proc.h>
 #include <sys/rwlock.h>
 #include <sys/socket.h>
@@ -3980,7 +3981,7 @@ ipfw_ctl(struct sockopt *sopt)
 	struct ip_fw *buf, *rule;
 	u_int32_t rulenum[2];
 
-	error = suser(sopt->sopt_td);
+	error = priv_check(sopt->sopt_td, PRIV_NETINET_IPFW);
 	if (error)
 		return (error);
 

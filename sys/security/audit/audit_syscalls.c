@@ -32,6 +32,7 @@
 #include <sys/param.h>
 #include <sys/mount.h>
 #include <sys/namei.h>
+#include <sys/priv.h>
 #include <sys/proc.h>
 #include <sys/sysproto.h>
 #include <sys/systm.h>
@@ -66,7 +67,7 @@ audit(struct thread *td, struct audit_args *uap)
 
 	if (jailed(td->td_ucred))
 		return (ENOSYS);
-	error = suser(td);
+	error = priv_check(td, PRIV_AUDIT_SUBMIT);
 	if (error)
 		return (error);
 
@@ -156,7 +157,7 @@ auditon(struct thread *td, struct auditon_args *uap)
 	if (jailed(td->td_ucred))
 		return (ENOSYS);
 	AUDIT_ARG(cmd, uap->cmd);
-	error = suser(td);
+	error = priv_check(td, PRIV_AUDIT_CONTROL);
 	if (error)
 		return (error);
 
@@ -404,7 +405,7 @@ getauid(struct thread *td, struct getauid_args *uap)
 
 	if (jailed(td->td_ucred))
 		return (ENOSYS);
-	error = suser(td);
+	error = priv_check(td, PRIV_AUDIT_GETAUDIT);
 	if (error)
 		return (error);
 
@@ -428,7 +429,7 @@ setauid(struct thread *td, struct setauid_args *uap)
 
 	if (jailed(td->td_ucred))
 		return (ENOSYS);
-	error = suser(td);
+	error = priv_check(td, PRIV_AUDIT_SETAUDIT);
 	if (error)
 		return (error);
 
@@ -468,7 +469,7 @@ getaudit(struct thread *td, struct getaudit_args *uap)
 
 	if (jailed(td->td_ucred))
 		return (ENOSYS);
-	error = suser(td);
+	error = priv_check(td, PRIV_AUDIT_GETAUDIT);
 	if (error)
 		return (error);
 
@@ -489,7 +490,7 @@ setaudit(struct thread *td, struct setaudit_args *uap)
 
 	if (jailed(td->td_ucred))
 		return (ENOSYS);
-	error = suser(td);
+	error = priv_check(td, PRIV_AUDIT_SETAUDIT);
 	if (error)
 		return (error);
 
@@ -518,7 +519,7 @@ getaudit_addr(struct thread *td, struct getaudit_addr_args *uap)
 
 	if (jailed(td->td_ucred))
 		return (ENOSYS);
-	error = suser(td);
+	error = priv_check(td, PRIV_AUDIT_GETAUDIT);
 	if (error)
 		return (error);
 	return (ENOSYS);
@@ -533,7 +534,7 @@ setaudit_addr(struct thread *td, struct setaudit_addr_args *uap)
 
 	if (jailed(td->td_ucred))
 		return (ENOSYS);
-	error = suser(td);
+	error = priv_check(td, PRIV_AUDIT_SETAUDIT);
 	if (error)
 		return (error);
 	return (ENOSYS);
@@ -557,7 +558,7 @@ auditctl(struct thread *td, struct auditctl_args *uap)
 
 	if (jailed(td->td_ucred))
 		return (ENOSYS);
-	error = suser(td);
+	error = priv_check(td, PRIV_AUDIT_CONTROL);
 	if (error)
 		return (error);
 

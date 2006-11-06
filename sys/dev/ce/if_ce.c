@@ -29,6 +29,7 @@ __FBSDID("$FreeBSD$");
 #if NPCI > 0
 
 #include <sys/ucred.h>
+#include <sys/priv.h>
 #include <sys/proc.h>
 #include <sys/systm.h>
 #include <sys/mbuf.h>
@@ -1341,9 +1342,11 @@ static int ce_ioctl (struct cdev *dev, u_long cmd, caddr_t data, int flag, struc
 		/* Only for superuser! */
 #if __FreeBSD_version < 500000
 		error = suser (p);
-#else /* __FreeBSD_version >= 500000 */
+#elsif __FreeBSD_version < 700000
 		error = suser (td);
-#endif /* __FreeBSD_version >= 500000 */
+#else
+		error = priv_check (td, PRIV_DRIVER);
+#endif
 		if (error)
 			return error;
 #if __FreeBSD_version >= 600034
@@ -1380,8 +1383,10 @@ static int ce_ioctl (struct cdev *dev, u_long cmd, caddr_t data, int flag, struc
 		/* Only for superuser! */
 #if __FreeBSD_version < 500000
 		error = suser (p);
-#else
+#elsif __FreeBSD_version < 700000
 		error = suser (td);
+#else
+		error = priv_check (td, PRIV_DRIVER);
 #endif
 		if (error)
 			return error;
@@ -1408,8 +1413,10 @@ static int ce_ioctl (struct cdev *dev, u_long cmd, caddr_t data, int flag, struc
 		/* Only for superuser! */
 #if __FreeBSD_version < 500000
 		error = suser (p);
-#else
+#elsif __FreeBSD_version < 700000
 		error = suser (td);
+#else
+		error = priv_check (td, PRIV_DRIVER);
 #endif
 		if (error)
 			return error;
@@ -1426,8 +1433,10 @@ static int ce_ioctl (struct cdev *dev, u_long cmd, caddr_t data, int flag, struc
 		CE_DEBUG2 (d, ("ioctl: setcfg\n"));
 #if __FreeBSD_version < 500000
 		error = suser (p);
-#else
+#elsif __FreeBSD_version < 700000
 		error = suser (td);
+#else
+		error = priv_check (td, PRIV_DRIVER);
 #endif
 		if (error)
 			return error;
@@ -1526,8 +1535,10 @@ static int ce_ioctl (struct cdev *dev, u_long cmd, caddr_t data, int flag, struc
 		/* Only for superuser! */
 #if __FreeBSD_version < 500000
 		error = suser (p);
-#else
+#elsif __FreeBSD_version < 700000
 		error = suser (td);
+#else
+		error = priv_check (td, PRIV_DRIVER);
 #endif
 		if (error)
 			return error;
@@ -1560,8 +1571,10 @@ static int ce_ioctl (struct cdev *dev, u_long cmd, caddr_t data, int flag, struc
 		/* Only for superuser! */
 #if __FreeBSD_version < 500000
 		error = suser (p);
-#else
+#elsif __FreeBSD_version < 700000
 		error = suser (td);
+#else
+		error = priv_check (td, PRIV_DRIVER);
 #endif
 		if (error)
 			return error;
@@ -1586,8 +1599,10 @@ static int ce_ioctl (struct cdev *dev, u_long cmd, caddr_t data, int flag, struc
 		/* Only for superuser! */
 #if __FreeBSD_version < 500000
 		error = suser (p);
-#else
+#elsif __FreeBSD_version < 700000
 		error = suser (td);
+#else
+		error = priv_check (td, PRIV_DRIVER);
 #endif
 		if (error)
 			return error;
@@ -1608,8 +1623,10 @@ static int ce_ioctl (struct cdev *dev, u_long cmd, caddr_t data, int flag, struc
 		/* Only for superuser! */
 #if __FreeBSD_version < 500000
 		error = suser (p);
-#else
+#elsif __FreeBSD_version < 700000
 		error = suser (td);
+#else
+		error = priv_check (td, PRIV_DRIVER);
 #endif
 		if (error)
 			return error;
@@ -1634,8 +1651,10 @@ static int ce_ioctl (struct cdev *dev, u_long cmd, caddr_t data, int flag, struc
 		/* Only for superuser! */
 #if __FreeBSD_version < 500000
 		error = suser (p);
-#else
+#elsif __FreeBSD_version < 700000
 		error = suser (td);
+#else
+		error = priv_check (td, PRIV_DRIVER);
 #endif
 		if (error)
 			return error;
@@ -1658,8 +1677,10 @@ static int ce_ioctl (struct cdev *dev, u_long cmd, caddr_t data, int flag, struc
 		/* Only for superuser! */
 #if __FreeBSD_version < 500000
 		error = suser (p);
-#else
+#elsif __FreeBSD_version < 700000
 		error = suser (td);
+#else
+		error = priv_check (td, PRIV_DRIVER);
 #endif
 		if (error)
 			return error;
@@ -1686,8 +1707,10 @@ static int ce_ioctl (struct cdev *dev, u_long cmd, caddr_t data, int flag, struc
 		/* Only for superuser! */
 #if __FreeBSD_version < 500000
 		error = suser (p);
-#else
+#elsif __FreeBSD_version < 700000
 		error = suser (td);
+#else
+		error = priv_check (td, PRIV_DRIVER);
 #endif
 		if (error)
 			return error;
@@ -1708,8 +1731,10 @@ static int ce_ioctl (struct cdev *dev, u_long cmd, caddr_t data, int flag, struc
 		/* Only for superuser! */
 #if __FreeBSD_version < 500000
 		error = suser (p);
-#else
+#elsif __FreeBSD_version < 700000
 		error = suser (td);
+#else
+		error = priv_check (td, PRIV_DRIVER);
 #endif
 		if (error)
 			return error;
@@ -1734,8 +1759,10 @@ static int ce_ioctl (struct cdev *dev, u_long cmd, caddr_t data, int flag, struc
 		/* Only for superuser! */
 #if __FreeBSD_version < 500000
 		error = suser (p);
-#else
+#elsif __FreeBSD_version < 700000
 		error = suser (td);
+#else
+		error = priv_check (td, PRIV_DRIVER);
 #endif
 		if (error)
 			return error;
@@ -1758,8 +1785,10 @@ static int ce_ioctl (struct cdev *dev, u_long cmd, caddr_t data, int flag, struc
 		/* Only for superuser! */
 #if __FreeBSD_version < 500000
 		error = suser (p);
-#else
+#elsif __FreeBSD_version < 700000
 		error = suser (td);
+#else
+		error = priv_check (td, PRIV_DRIVER);
 #endif
 		if (error)
 			return error;
@@ -1784,8 +1813,10 @@ static int ce_ioctl (struct cdev *dev, u_long cmd, caddr_t data, int flag, struc
 		/* Only for superuser! */
 #if __FreeBSD_version < 500000
 		error = suser (p);
-#else
+#elsif __FreeBSD_version < 700000
 		error = suser (td);
+#else
+		error = priv_check (td, PRIV_DRIVER);
 #endif
 		if (error)
 			return error;
@@ -1810,8 +1841,10 @@ static int ce_ioctl (struct cdev *dev, u_long cmd, caddr_t data, int flag, struc
 		/* Only for superuser! */
 #if __FreeBSD_version < 500000
 		error = suser (p);
-#else
+#elsif __FreeBSD_version < 700000
 		error = suser (td);
+#else
+		error = priv_check (td, PRIV_DRIVER);
 #endif
 		if (error)
 			return error;
@@ -1836,8 +1869,10 @@ static int ce_ioctl (struct cdev *dev, u_long cmd, caddr_t data, int flag, struc
 		/* Only for superuser! */
 #if __FreeBSD_version < 500000
 		error = suser (p);
-#else
+#elsif __FreeBSD_version < 700000
 		error = suser (td);
+#else
+		error = priv_check (td, PRIV_DRIVER);
 #endif
 		if (error)
 			return error;
@@ -1867,8 +1902,10 @@ static int ce_ioctl (struct cdev *dev, u_long cmd, caddr_t data, int flag, struc
 		/* Only for superuser! */
 #if __FreeBSD_version < 500000
 		error = suser (p);
-#else
+#elsif __FreeBSD_version < 700000
 		error = suser (td);
+#else
+		error = priv_check (td, PRIV_DRIVER);
 #endif
 		if (error)
 			return error;
@@ -1892,8 +1929,10 @@ static int ce_ioctl (struct cdev *dev, u_long cmd, caddr_t data, int flag, struc
 		/* Only for superuser! */
 #if __FreeBSD_version < 500000
 		error = suser (p);
-#else
+#elsif __FreeBSD_version < 700000
 		error = suser (td);
+#else
+		error = priv_check (td, PRIV_DRIVER);
 #endif
 		if (error)
 			return error;
@@ -1909,8 +1948,10 @@ static int ce_ioctl (struct cdev *dev, u_long cmd, caddr_t data, int flag, struc
 		/* Only for superuser! */
 #if __FreeBSD_version < 500000
 		error = suser (p);
-#else
+#elsif __FreeBSD_version < 700000
 		error = suser (td);
+#else
+		error = priv_check (td, PRIV_DRIVER);
 #endif
 		if (error)
 			return error;
@@ -1945,8 +1986,10 @@ static int ce_ioctl (struct cdev *dev, u_long cmd, caddr_t data, int flag, struc
 		/* Only for superuser! */
 #if __FreeBSD_version < 500000
 		error = suser (p);
-#else
+#elsif __FreeBSD_version < 700000
 		error = suser (td);
+#else
+		error = priv_check (td, PRIV_DRIVER);
 #endif
 		if (error)
 			return error;

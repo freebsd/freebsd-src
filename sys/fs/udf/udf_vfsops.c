@@ -84,6 +84,7 @@
 #include <sys/malloc.h>
 #include <sys/mount.h>
 #include <sys/namei.h>
+#include <sys/priv.h>
 #include <sys/proc.h>
 #include <sys/queue.h>
 #include <sys/vnode.h>
@@ -238,7 +239,7 @@ udf_mount(struct mount *mp, struct thread *td)
 	/* Check the access rights on the mount device */
 	error = VOP_ACCESS(devvp, VREAD, td->td_ucred, td);
 	if (error)
-		error = suser(td);
+		error = priv_check(td, PRIV_VFS_MOUNT_PERM);
 	if (error) {
 		vput(devvp);
 		return (error);

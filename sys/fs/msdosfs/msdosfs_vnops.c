@@ -59,6 +59,7 @@
 #include <sys/conf.h>
 #include <sys/clock.h>
 #include <sys/buf.h>
+#include <sys/priv.h>
 #include <sys/proc.h>
 #include <sys/mount.h>
 #include <sys/unistd.h>
@@ -404,9 +405,12 @@ msdosfs_setattr(ap)
 	if (vap->va_flags != VNOVAL) {
 		if (vp->v_mount->mnt_flag & MNT_RDONLY)
 			return (EROFS);
-		if (cred->cr_uid != pmp->pm_uid &&
-		    (error = suser_cred(cred, SUSER_ALLOWJAIL)))
-			return (error);
+		if (cred->cr_uid != pmp->pm_uid) {
+			error = priv_check_cred(cred, PRIV_VFS_ADMIN,
+			    SUSER_ALLOWJAIL);
+			if (error)
+				return (error);
+		}
 		/*
 		 * We are very inconsistent about handling unsupported
 		 * attributes.  We ignored the access time and the
@@ -419,9 +423,11 @@ msdosfs_setattr(ap)
 		 * set ATTR_ARCHIVE for directories `cp -pr' from a more
 		 * sensible filesystem attempts it a lot.
 		 */
-		if (suser_cred(cred, SUSER_ALLOWJAIL)) {
-			if (vap->va_flags & SF_SETTABLE)
-				return EPERM;
+		if (vap->va_flags & SF_SETTABLE) {
+			error = priv_check_cred(cred, PRIV_VFS_SYSFLAGS,
+			    SUSER_ALLOWJAIL);
+			if (error)
+				return (error);
 		}
 		if (vap->va_flags & ~SF_ARCHIVED)
 			return EOPNOTSUPP;
@@ -444,10 +450,13 @@ msdosfs_setattr(ap)
 		gid = vap->va_gid;
 		if (gid == (gid_t)VNOVAL)
 			gid = pmp->pm_gid;
-		if ((cred->cr_uid != pmp->pm_uid || uid != pmp->pm_uid ||
-		    (gid != pmp->pm_gid && !groupmember(gid, cred))) &&
-		    (error = suser_cred(cred, SUSER_ALLOWJAIL)))
-			return error;
+		if (cred->cr_uid != pmp->pm_uid || uid != pmp->pm_uid ||
+		    (gid != pmp->pm_gid && !groupmember(gid, cred))) {
+			error = priv_check_cred(cred, PRIV_VFS_CHOWN,
+			    SUSER_ALLOWJAIL);
+			if (error)
+				return (error);
+		}
 		if (uid != pmp->pm_uid || gid != pmp->pm_gid)
 			return EINVAL;
 	}
@@ -477,11 +486,13 @@ msdosfs_setattr(ap)
 	if (vap->va_atime.tv_sec != VNOVAL || vap->va_mtime.tv_sec != VNOVAL) {
 		if (vp->v_mount->mnt_flag & MNT_RDONLY)
 			return (EROFS);
-		if (cred->cr_uid != pmp->pm_uid &&
-		    (error = suser_cred(cred, SUSER_ALLOWJAIL)) &&
-		    ((vap->va_vaflags & VA_UTIMES_NULL) == 0 ||
-		    (error = VOP_ACCESS(ap->a_vp, VWRITE, cred, ap->a_td))))
-			return (error);
+		if (vap->va_vaflags & VA_UTIMES_NULL) {
+			error = VOP_ACCESS(vp, VADMIN, cred, ap->a_td); 
+			if (error)
+				error = VOP_ACCESS(vp, VWRITE, cred,
+				    ap->a_td);
+		} else
+			error = VOP_ACCESS(vp, VADMIN, cred, ap->a_td);
 		if (vp->v_type != VDIR) {
 			if ((pmp->pm_flags & MSDOSFSMNT_NOWIN95) == 0 &&
 			    vap->va_atime.tv_sec != VNOVAL) {
@@ -506,9 +517,12 @@ msdosfs_setattr(ap)
 	if (vap->va_mode != (mode_t)VNOVAL) {
 		if (vp->v_mount->mnt_flag & MNT_RDONLY)
 			return (EROFS);
-		if (cred->cr_uid != pmp->pm_uid &&
-		    (error = suser_cred(cred, SUSER_ALLOWJAIL)))
-			return (error);
+		if (cred->cr_uid != pmp->pm_uid) {
+			error = priv_check_cred(cred, PRIV_VFS_ADMIN,
+			    SUSER_ALLOWJAIL);
+			if (error)
+				return (error);
+		}
 		if (vp->v_type != VDIR) {
 			/* We ignore the read and execute bits. */
 			if (vap->va_mode & VWRITE)

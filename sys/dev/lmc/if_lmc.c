@@ -113,6 +113,9 @@
 # include <sys/rman.h>
 # include <vm/vm.h>
 # include <vm/pmap.h>
+# if (__FreeBSD_version >= 700000)
+#  include <sys/priv.h>
+# endif
 # if (__FreeBSD_version >= 500000)
 #  include <sys/mutex.h>
 #  include <dev/pci/pcivar.h>

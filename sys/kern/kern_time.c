@@ -48,6 +48,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/syscallsubr.h>
 #include <sys/sysctl.h>
 #include <sys/sysent.h>
+#include <sys/priv.h>
 #include <sys/proc.h>
 #include <sys/time.h>
 #include <sys/timers.h>
@@ -286,7 +287,7 @@ kern_clock_settime(struct thread *td, clockid_t clock_id, struct timespec *ats)
 	if (error)
 		return (error);
 #endif
-	if ((error = suser(td)) != 0)
+	if ((error = priv_check(td, PRIV_CLOCK_SETTIME)) != 0)
 		return (error);
 	if (clock_id != CLOCK_REALTIME)
 		return (EINVAL);
@@ -504,7 +505,7 @@ kern_settimeofday(struct thread *td, struct timeval *tv, struct timezone *tzp)
 	if (error)
 		return (error);
 #endif
-	error = suser(td);
+	error = priv_check(td, PRIV_SETTIMEOFDAY);
 	if (error)
 		return (error);
 	/* Verify all parameters before changing time. */

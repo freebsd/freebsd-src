@@ -53,6 +53,7 @@ static const char si_copyright1[] =  "@(#) Copyright (C) Specialix International
 #include <sys/fcntl.h>
 #include <sys/kernel.h>
 #include <sys/malloc.h>
+#include <sys/priv.h>
 #include <sys/sysctl.h>
 #include <sys/bus.h>
 #include <machine/bus.h>
@@ -650,7 +651,7 @@ si_Sioctl(struct cdev *dev, u_long cmd, caddr_t data, int flag, struct thread *t
 
 	ip = (int *)data;
 
-#define SUCHECK if ((error = suser(td))) goto out
+#define SUCHECK if ((error = priv_check(td, PRIV_DRIVER))) goto out
 
 	switch (cmd) {
 	case TCSIPORTS:

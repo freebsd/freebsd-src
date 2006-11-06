@@ -42,6 +42,7 @@
 #include <sys/malloc.h>
 #include <sys/mount.h>
 #include <sys/namei.h>
+#include <sys/priv.h>
 #include <sys/proc.h>
 #include <sys/queue.h>
 #include <sys/socket.h>
@@ -509,7 +510,8 @@ audit_syscall_enter(unsigned short code, struct thread *td)
 		 * audit record is still required for this event by
 		 * re-calling au_preselect().
 		 */
-		if (audit_in_failure && suser(td) != 0) {
+		if (audit_in_failure &&
+		    priv_check(td, PRIV_AUDIT_FAILSTOP) != 0) {
 			cv_wait(&audit_fail_cv, &audit_mtx);
 			panic("audit_failing_stop: thread continued");
 		}

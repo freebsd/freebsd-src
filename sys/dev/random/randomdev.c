@@ -41,6 +41,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/module.h>
 #include <sys/mutex.h>
 #include <sys/poll.h>
+#include <sys/priv.h>
 #include <sys/proc.h>
 #include <sys/selinfo.h>
 #include <sys/uio.h>
@@ -85,7 +86,7 @@ static int
 random_close(struct cdev *dev __unused, int flags, int fmt __unused,
     struct thread *td)
 {
-	if ((flags & FWRITE) && (suser(td) == 0)
+	if ((flags & FWRITE) && (priv_check(td, PRIV_RANDOM_RESEED) == 0)
 	    && (securelevel_gt(td->td_ucred, 0) == 0)) {
 		(*random_systat.reseed)();
 		random_systat.seeded = 1;

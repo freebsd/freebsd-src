@@ -47,6 +47,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/mount.h>
 #include <sys/mutex.h>
 #include <sys/namei.h>
+#include <sys/priv.h>
 #include <sys/proc.h>
 #include <sys/filedesc.h>
 #include <sys/reboot.h>
@@ -808,23 +809,31 @@ vfs_domount(
 	if (jailed(td->td_ucred))
 		return (EPERM);
 	if (usermount == 0) {
-		if ((error = suser(td)) != 0)
+		if ((error = priv_check(td, PRIV_VFS_MOUNT)) != 0)
 			return (error);
 	}
 
 	/*
 	 * Do not allow NFS export or MNT_SUIDDIR by unprivileged users.
 	 */
-	if (fsflags & (MNT_EXPORTED | MNT_SUIDDIR)) {
-		if ((error = suser(td)) != 0)
+	if (fsflags & MNT_EXPORTED) {
+		error = priv_check(td, PRIV_VFS_MOUNT_EXPORTED);
+		if (error)
 			return (error);
 	}
+	if (fsflags & MNT_SUIDDIR) {
+		error = priv_check(td, PRIV_VFS_MOUNT_SUIDDIR);
+		if (error)
+			return (error);
+
+	}
 	/*
-	 * Silently enforce MNT_NOSUID and MNT_USER for
-	 * unprivileged users.
+	 * Silently enforce MNT_NOSUID and MNT_USER for unprivileged users.
 	 */
-	if (suser(td) != 0)
-		fsflags |= MNT_NOSUID | MNT_USER;
+	if ((fsflags & (MNT_NOSUID | MNT_USER)) != (MNT_NOSUID | MNT_USER)) {
+		if (priv_check(td, PRIV_VFS_MOUNT_NONUSER) != 0)
+			fsflags |= MNT_NOSUID | MNT_USER;
+	}
 
 	/* Load KLDs before we lock the covered vnode to avoid reversals. */
 	vfsp = NULL;
@@ -906,7 +915,9 @@ vfs_domount(
 			return (error);
 		}
 		if (va.va_uid != td->td_ucred->cr_uid) {
-			if ((error = suser(td)) != 0) {
+			error = priv_check_cred(td->td_ucred, PRIV_VFS_ADMIN,
+			    SUSER_ALLOWJAIL);
+			if (error) {
 				vput(vp);
 				return (error);
 			}
@@ -1078,7 +1089,8 @@ unmount(td, uap)
 	if (jailed(td->td_ucred))
 		return (EPERM);
 	if (usermount == 0) {
-		if ((error = suser(td)) != 0)
+		error = priv_check(td, PRIV_VFS_UNMOUNT);
+		if (error)
 			return (error);
 	}
 

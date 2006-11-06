@@ -36,6 +36,7 @@
 #include <sys/jail.h>
 #include <sys/malloc.h>
 #include <sys/mbuf.h>
+#include <sys/priv.h>
 #include <sys/proc.h>
 #include <sys/protosw.h>
 #include <sys/signalvar.h>
@@ -372,8 +373,11 @@ route_output(struct mbuf *m, struct socket *so)
 	 * Verify that the caller has the appropriate privilege; RTM_GET
 	 * is the only operation the non-superuser is allowed.
 	 */
-	if (rtm->rtm_type != RTM_GET && (error = suser(curthread)) != 0)
-		senderr(error);
+	if (rtm->rtm_type != RTM_GET) {
+		error = priv_check(curthread, PRIV_NET_ROUTE);
+		if (error)
+			senderr(error);
+	}
 
 	switch (rtm->rtm_type) {
 		struct rtentry *saved_nrt;

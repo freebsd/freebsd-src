@@ -61,6 +61,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/malloc.h>
 #include <sys/mount.h>
 #include <sys/namei.h>
+#include <sys/priv.h>
 #include <sys/reboot.h>
 #include <sys/sleepqueue.h>
 #include <sys/stat.h>
@@ -412,7 +413,7 @@ vfs_suser(struct mount *mp, struct thread *td)
 
 	if ((mp->mnt_flag & MNT_USER) == 0 ||
 	    mp->mnt_cred->cr_uid != td->td_ucred->cr_uid) {
-		if ((error = suser(td)) != 0)
+		if ((error = priv_check(td, PRIV_VFS_MOUNT_OWNER)) != 0)
 			return (error);
 	}
 	return (0);
@@ -3178,9 +3179,7 @@ vaccess(enum vtype type, mode_t file_mode, uid_t file_uid, gid_t file_gid,
     mode_t acc_mode, struct ucred *cred, int *privused)
 {
 	mode_t dac_granted;
-#ifdef CAPABILITIES
-	mode_t cap_granted;
-#endif
+	mode_t priv_granted;
 
 	/*
 	 * Look for a normal, non-privileged way to access the file/directory
@@ -3234,59 +3233,46 @@ vaccess(enum vtype type, mode_t file_mode, uid_t file_uid, gid_t file_gid,
 		return (0);
 
 privcheck:
-	if (!suser_cred(cred, SUSER_ALLOWJAIL)) {
-		/* XXX audit: privilege used */
-		if (privused != NULL)
-			*privused = 1;
-		return (0);
-	}
-
-#ifdef CAPABILITIES
 	/*
-	 * Build a capability mask to determine if the set of capabilities
+	 * Build a privilege mask to determine if the set of privileges
 	 * satisfies the requirements when combined with the granted mask
-	 * from above.  For each capability, if the capability is required,
-	 * bitwise or the request type onto the cap_granted mask.
-	 *
-	 * Note: This is never actually used, but is here for reference
-	 * purposes.
+	 * from above.  For each privilege, if the privilege is required,
+	 * bitwise or the request type onto the priv_granted mask.
 	 */
-	cap_granted = 0;
+	priv_granted = 0;
 
 	if (type == VDIR) {
 		/*
-		 * For directories, use CAP_DAC_READ_SEARCH to satisfy
-		 * VEXEC requests, instead of CAP_DAC_EXECUTE.
+		 * For directories, use PRIV_VFS_LOOKUP to satisfy VEXEC
+		 * requests, instead of PRIV_VFS_EXEC.
 		 */
 		if ((acc_mode & VEXEC) && ((dac_granted & VEXEC) == 0) &&
-		    !cap_check(cred, NULL, CAP_DAC_READ_SEARCH,
-		    SUSER_ALLOWJAIL))
-			cap_granted |= VEXEC;
+		    !priv_check_cred(cred, PRIV_VFS_LOOKUP, SUSER_ALLOWJAIL))
+			priv_granted |= VEXEC;
 	} else {
 		if ((acc_mode & VEXEC) && ((dac_granted & VEXEC) == 0) &&
-		    !cap_check(cred, NULL, CAP_DAC_EXECUTE, SUSER_ALLOWJAIL))
-			cap_granted |= VEXEC;
+		    !priv_check_cred(cred, PRIV_VFS_EXEC, SUSER_ALLOWJAIL))
+			priv_granted |= VEXEC;
 	}
 
 	if ((acc_mode & VREAD) && ((dac_granted & VREAD) == 0) &&
-	    !cap_check(cred, NULL, CAP_DAC_READ_SEARCH, SUSER_ALLOWJAIL))
-		cap_granted |= VREAD;
+	    !priv_check_cred(cred, PRIV_VFS_READ, SUSER_ALLOWJAIL))
+		priv_granted |= VREAD;
 
 	if ((acc_mode & VWRITE) && ((dac_granted & VWRITE) == 0) &&
-	    !cap_check(cred, NULL, CAP_DAC_WRITE, SUSER_ALLOWJAIL))
-		cap_granted |= (VWRITE | VAPPEND);
+	    !priv_check_cred(cred, PRIV_VFS_WRITE, SUSER_ALLOWJAIL))
+		priv_granted |= (VWRITE | VAPPEND);
 
 	if ((acc_mode & VADMIN) && ((dac_granted & VADMIN) == 0) &&
-	    !cap_check(cred, NULL, CAP_FOWNER, SUSER_ALLOWJAIL))
-		cap_granted |= VADMIN;
+	    !priv_check_cred(cred, PRIV_VFS_ADMIN, SUSER_ALLOWJAIL))
+		priv_granted |= VADMIN;
 
-	if ((acc_mode & (cap_granted | dac_granted)) == acc_mode) {
+	if ((acc_mode & (priv_granted | dac_granted)) == acc_mode) {
 		/* XXX audit: privilege used */
 		if (privused != NULL)
 			*privused = 1;
 		return (0);
 	}
-#endif
 
 	return ((acc_mode & VADMIN) ? EPERM : EACCES);
 }
@@ -3307,16 +3293,13 @@ extattr_check_cred(struct vnode *vp, int attrnamespace, struct ucred *cred,
 		return (0);
 
 	/*
-	 * Do not allow privileged processes in jail to directly
-	 * manipulate system attributes.
-	 *
-	 * XXX What capability should apply here?
-	 * Probably CAP_SYS_SETFFLAG.
+	 * Do not allow privileged processes in jail to directly manipulate
+	 * system attributes.
 	 */
 	switch (attrnamespace) {
 	case EXTATTR_NAMESPACE_SYSTEM:
 		/* Potentially should be: return (EPERM); */
-		return (suser_cred(cred, 0));
+		return (priv_check_cred(cred, PRIV_VFS_EXTATTR_SYSTEM, 0));
 	case EXTATTR_NAMESPACE_USER:
 		return (VOP_ACCESS(vp, access, cred, td));
 	default:

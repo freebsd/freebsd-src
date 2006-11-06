@@ -1975,7 +1975,10 @@ hfscioctl(dev, cmd, addr, flag, p)
 	case HFSC_GETSTATS:
 		break;
 	default:
-#if (__FreeBSD_version > 400000)
+#if (__FreeBSD_version > 700000)
+		if ((error = priv_check(p, PRIV_ALTQ_MANAGE)) != 0)
+			return (error);
+#elsif (__FreeBSD_version > 400000)
 		if ((error = suser(p)) != 0)
 			return (error);
 #else

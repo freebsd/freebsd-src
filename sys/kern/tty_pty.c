@@ -46,6 +46,7 @@ __FBSDID("$FreeBSD$");
 #if defined(COMPAT_43TTY)
 #include <sys/ioctl_compat.h>
 #endif
+#include <sys/priv.h>
 #include <sys/proc.h>
 #include <sys/tty.h>
 #include <sys/conf.h>
@@ -207,9 +208,11 @@ ptsopen(struct cdev *dev, int flag, int devtype, struct thread *td)
 
 	if ((tp->t_state & TS_ISOPEN) == 0) {
 		ttyinitmode(tp, 1, 0);
-	} else if (tp->t_state & TS_XCLUDE && suser(td))
+	} else if (tp->t_state & TS_XCLUDE && priv_check(td,
+	    PRIV_TTY_EXCLUSIVE))
 		return (EBUSY);
-	else if (pt->pt_prison != td->td_ucred->cr_prison && suser(td))
+	else if (pt->pt_prison != td->td_ucred->cr_prison &&
+	    priv_check(td, PRIV_TTY_PRISON))
 		return (EBUSY);
 	if (tp->t_oproc)			/* Ctrlr still around. */
 		(void)ttyld_modem(tp, 1);

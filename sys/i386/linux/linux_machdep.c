@@ -39,6 +39,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/mman.h>
 #include <sys/mutex.h>
 #include <sys/sx.h>
+#include <sys/priv.h>
 #include <sys/proc.h>
 #include <sys/queue.h>
 #include <sys/resource.h>
@@ -812,7 +813,7 @@ linux_iopl(struct thread *td, struct linux_iopl_args *args)
 
 	if (args->level < 0 || args->level > 3)
 		return (EINVAL);
-	if ((error = suser(td)) != 0)
+	if ((error = priv_check(td, PRIV_IO)) != 0)
 		return (error);
 	if ((error = securelevel_gt(td->td_ucred, 0)) != 0)
 		return (error);
