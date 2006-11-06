@@ -1,9 +1,36 @@
 # $FreeBSD$
 
-echo 1..1
+echo 1..28
 
 REGRESSION_START($1)
 
-REGRESSION_TEST_ONE(`jot -w "%X" -s , 100 1 200')
+REGRESSION_TEST(`x', `jot -w "%X" -s , 100 1 200')
+REGRESSION_TEST(`hhhh', `jot 50 20 120 2')
+REGRESSION_TEST(`hhhd', `jot 50 20 120 -')
+REGRESSION_TEST(`hhdh', `jot 50 20 - 2')
+REGRESSION_TEST(`hhdd', `jot 50 20 - -')
+REGRESSION_TEST(`hdhh', `jot 50 - 120 2')
+REGRESSION_TEST(`hdhd', `jot 50 - 120 -')
+REGRESSION_TEST(`hddh', `jot 50 - - 2')
+REGRESSION_TEST(`hddd', `jot 50 - - -')
+REGRESSION_TEST(`dhhh', `jot - 20 120 2')
+REGRESSION_TEST(`dhhd', `jot - 20 120 -')
+REGRESSION_TEST(`dhdh', `jot - 20 - 2')
+REGRESSION_TEST(`dhdd', `jot - 20 - -')
+REGRESSION_TEST(`ddhh', `jot - - 120 2')
+REGRESSION_TEST(`ddhd', `jot - - 120 -')
+REGRESSION_TEST(`dddh', `jot - - - 2')
+REGRESSION_TEST(`hhhh2', `jot 30 20 160 2')
+REGRESSION_TEST(`hhhd2', `jot 30 20 160 -')
+REGRESSION_TEST(`hhdh2', `jot 30 20 - 2')
+REGRESSION_TEST(`hhdd2', `jot 30 20 - -')
+REGRESSION_TEST(`hdhh2', `jot 30 - 160 2')
+REGRESSION_TEST(`hdhd2', `jot 30 - 160 -')
+REGRESSION_TEST(`hddh2', `jot 30 - - 2')
+REGRESSION_TEST(`hddd2', `jot 30 - - -')
+REGRESSION_TEST(`dhhh2', `jot - 20 160 2')
+REGRESSION_TEST(`dhhd2', `jot - 20 160 -')
+REGRESSION_TEST(`ddhh2', `jot - - 160 2')
+REGRESSION_TEST(`ddhd2', `jot - - 160 -')
 
 REGRESSION_END()
