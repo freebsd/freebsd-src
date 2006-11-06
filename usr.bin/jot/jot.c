@@ -184,52 +184,29 @@ main(int argc, char **argv)
 	while (mask)	/* 4 bit mask has 1's where last 4 args were given */
 		switch (mask) {	/* fill in the 0's by default or computation */
 		case HAVE_STEP:
-			reps = REPS_DEF;
-			mask = HAVE_REPS | HAVE_STEP;
-			break;
 		case HAVE_ENDER:
-			reps = REPS_DEF;
-			mask = HAVE_REPS | HAVE_ENDER;
-			break;
 		case HAVE_ENDER | HAVE_STEP:
-			reps = REPS_DEF;
-			mask = HAVE_REPS | HAVE_ENDER | HAVE_STEP;
-			break;
 		case HAVE_BEGIN:
-			reps = REPS_DEF;
-			mask = HAVE_REPS | HAVE_BEGIN;
-			break;
 		case HAVE_BEGIN | HAVE_STEP:
-			reps = REPS_DEF;
-			mask = HAVE_REPS | HAVE_BEGIN | HAVE_STEP;
-			break;
 		case HAVE_BEGIN | HAVE_ENDER:
 			reps = REPS_DEF;
-			mask = HAVE_REPS | HAVE_BEGIN | HAVE_ENDER;
+			mask |= HAVE_REPS;
 			break;
 		case HAVE_BEGIN | HAVE_ENDER | HAVE_STEP:
-			if (randomize) {
+			if (randomize)
 				reps = REPS_DEF;
-				mask = 0;
-				break;
-			}
-			if (s == 0.0) {
+			else if (s == 0.0)
 				reps = 0;
-				mask = 0;
-				break;
-			}
-			reps = (ender - begin + s) / s;
+			else
+				reps = (ender - begin + s) / s;
 			if (reps <= 0)
 				errx(1, "impossible stepsize");
 			mask = 0;
 			break;
 		case HAVE_REPS:
-			begin = BEGIN_DEF;
-			mask = HAVE_REPS | HAVE_BEGIN;
-			break;
 		case HAVE_REPS | HAVE_STEP:
 			begin = BEGIN_DEF;
-			mask = HAVE_REPS | HAVE_BEGIN | HAVE_STEP;
+			mask |= HAVE_BEGIN;
 			break;
 		case HAVE_REPS | HAVE_ENDER:
 			s = (randomize ? time(NULL) : STEP_DEF);
