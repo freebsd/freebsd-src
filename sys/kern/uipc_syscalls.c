@@ -1904,7 +1904,7 @@ kern_sendfile(struct thread *td, struct sendfile_args *uap,
 	 * we send only the header/trailer and no payload data.
 	 */
 	if ((error = fgetvp_read(td, uap->fd, &vp)) != 0)
-		goto done;
+		goto out;
 	vfslocked = VFS_LOCK_GIANT(vp->v_mount);
 	vn_lock(vp, LK_EXCLUSIVE | LK_RETRY, td);
 	obj = vp->v_object;
@@ -1927,11 +1927,11 @@ kern_sendfile(struct thread *td, struct sendfile_args *uap,
 	VFS_UNLOCK_GIANT(vfslocked);
 	if (obj == NULL) {
 		error = EINVAL;
-		goto done;
+		goto out;
 	}
 	if (uap->offset < 0) {
 		error = EINVAL;
-		goto done;
+		goto out;
 	}
 
 	/*
@@ -1940,15 +1940,15 @@ kern_sendfile(struct thread *td, struct sendfile_args *uap,
 	 */
 	if ((error = getsock(td->td_proc->p_fd, uap->s, &sock_fp,
 	    NULL)) != 0)
-		goto done;
+		goto out;
 	so = sock_fp->f_data;
 	if (so->so_type != SOCK_STREAM) {
 		error = EINVAL;
-		goto done;
+		goto out;
 	}
 	if ((so->so_state & SS_ISCONNECTED) == 0) {
 		error = ENOTCONN;
-		goto done;
+		goto out;
 	}
 	/*
 	 * Do not wait on memory allocations but return ENOMEM for
@@ -1963,7 +1963,7 @@ kern_sendfile(struct thread *td, struct sendfile_args *uap,
 	error = mac_check_socket_send(td->td_ucred, so);
 	SOCK_UNLOCK(so);
 	if (error)
-		goto done;
+		goto out;
 #endif
 
 	/* If headers are specified copy them into mbufs. */
@@ -1975,7 +1975,7 @@ kern_sendfile(struct thread *td, struct sendfile_args *uap,
 			    0, 0, 0);
 			if (m == NULL) {
 				error = mnw ? EAGAIN : ENOBUFS;
-				goto done;
+				goto out;
 			}
 			headersize = hdr_uio->uio_resid;
 			if (compat)
@@ -2285,7 +2285,7 @@ done:
 	SOCKBUF_LOCK(&so->so_snd);
 	sbunlock(&so->so_snd);
 	SOCKBUF_UNLOCK(&so->so_snd);
-
+out:
 	if (headersent) {
 		if (!compat)
 			hdtr_size += headersize;
