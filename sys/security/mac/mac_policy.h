@@ -596,6 +596,8 @@ typedef int	(*mpo_check_vnode_write_t)(struct ucred *active_cred,
 		    struct ucred *file_cred, struct vnode *vp,
 		    struct label *label);
 typedef void	(*mpo_associate_nfsd_label_t)(struct ucred *cred);
+typedef int	(*mpo_priv_check_t)(struct ucred *cred, int priv);
+typedef int	(*mpo_priv_grant_t)(struct ucred *cred, int priv);
 
 struct mac_policy_ops {
 	/*
@@ -886,6 +888,8 @@ struct mac_policy_ops {
 	mpo_check_vnode_write_t			mpo_check_vnode_write;
 	mpo_associate_nfsd_label_t		mpo_associate_nfsd_label;
 	mpo_create_mbuf_from_firewall_t		mpo_create_mbuf_from_firewall;
+	mpo_priv_check_t			mpo_priv_check;
+	mpo_priv_grant_t			mpo_priv_grant;
 };
 
 /*

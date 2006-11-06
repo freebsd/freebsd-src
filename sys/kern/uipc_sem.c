@@ -42,6 +42,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/sysproto.h>
 #include <sys/eventhandler.h>
 #include <sys/kernel.h>
+#include <sys/priv.h>
 #include <sys/proc.h>
 #include <sys/lock.h>
 #include <sys/mutex.h>
@@ -419,15 +420,23 @@ sem_perm(struct thread *td, struct ksem *ks)
 {
 	struct ucred *uc;
 
+	/*
+	 * XXXRW: This permission routine appears to be incorrect.  If the
+	 * user matches, we shouldn't go on to the group if the user
+	 * permissions don't allow the action?  Not changed for now.  To fix,
+	 * change from a series of if (); if (); to if () else if () else...
+	 */
 	uc = td->td_ucred;
 	DP(("sem_perm: uc(%d,%d) ks(%d,%d,%o)\n",
 	    uc->cr_uid, uc->cr_gid,
 	     ks->ks_uid, ks->ks_gid, ks->ks_mode));
-	if ((uc->cr_uid == ks->ks_uid && (ks->ks_mode & S_IWUSR) != 0) ||
-	    (uc->cr_gid == ks->ks_gid && (ks->ks_mode & S_IWGRP) != 0) ||
-	    (ks->ks_mode & S_IWOTH) != 0 || suser(td) == 0)
+	if ((uc->cr_uid == ks->ks_uid) && (ks->ks_mode & S_IWUSR) != 0)
 		return (0);
-	return (EPERM);
+	if ((uc->cr_gid == ks->ks_gid) && (ks->ks_mode & S_IWGRP) != 0)
+		return (0);
+	if ((ks->ks_mode & S_IWOTH) != 0)
+		return (0);
+	return (priv_check(td, PRIV_SEM_WRITE));
 }
 
 static void

@@ -86,6 +86,7 @@ __FBSDID("$FreeBSD$");
 #if defined(COMPAT_43TTY)
 #include <sys/ioctl_compat.h>
 #endif
+#include <sys/priv.h>
 #include <sys/proc.h>
 #define	TTYDEFCHARS
 #include <sys/tty.h>
@@ -1020,7 +1021,7 @@ ttioctl(struct tty *tp, u_long cmd, void *data, int flag)
 		break;
 	case TIOCMSDTRWAIT:
 		/* must be root since the wait applies to following logins */
-		error = suser(td);
+		error = priv_check(td, PRIV_TTY_DTRWAIT);
 		if (error)
 			return (error);
 		tp->t_dtr_wait = *(int *)data * hz / 100;
@@ -1169,9 +1170,9 @@ ttioctl(struct tty *tp, u_long cmd, void *data, int flag)
 		splx(s);
 		break;
 	case TIOCSTI:			/* simulate terminal input */
-		if ((flag & FREAD) == 0 && suser(td))
+		if ((flag & FREAD) == 0 && priv_check(td, PRIV_TTY_STI))
 			return (EPERM);
-		if (!isctty(p, tp) && suser(td))
+		if (!isctty(p, tp) && priv_check(td, PRIV_TTY_STI))
 			return (EACCES);
 		s = spltty();
 		ttyld_rint(tp, *(u_char *)data);
@@ -1244,7 +1245,7 @@ ttioctl(struct tty *tp, u_long cmd, void *data, int flag)
 		}
 		break;
 	case TIOCSDRAINWAIT:
-		error = suser(td);
+		error = priv_check(td, PRIV_TTY_DRAINWAIT);
 		if (error)
 			return (error);
 		tp->t_timeout = *(int *)data * hz;
@@ -3114,7 +3115,8 @@ open_top:
 				goto out;
 			goto open_top;
 		}
-		if (tp->t_state & TS_XCLUDE && suser(td))
+		if (tp->t_state & TS_XCLUDE && priv_check(td,
+		    PRIV_TTY_EXCLUSIVE))
 			return (EBUSY);
 	} else {
 		/*
@@ -3340,7 +3342,7 @@ ttysioctl(struct cdev *dev, u_long cmd, caddr_t data, int flag, struct thread *t
 	ct = dev->si_drv2;
 	switch (cmd) {
 	case TIOCSETA:
-		error = suser(td);
+		error = priv_check(td, PRIV_TTY_SETA);
 		if (error != 0)
 			return (error);
 		*ct = *(struct termios *)data;

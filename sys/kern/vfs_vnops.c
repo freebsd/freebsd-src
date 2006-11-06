@@ -45,6 +45,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/file.h>
 #include <sys/kdb.h>
 #include <sys/stat.h>
+#include <sys/priv.h>
 #include <sys/proc.h>
 #include <sys/limits.h>
 #include <sys/lock.h>
@@ -709,7 +710,7 @@ vn_stat(vp, sb, active_cred, file_cred, td)
 	sb->st_blksize = PAGE_SIZE;
 	
 	sb->st_flags = vap->va_flags;
-	if (suser(td))
+	if (priv_check(td, PRIV_VFS_GENERATION))
 		sb->st_gen = 0;
 	else
 		sb->st_gen = vap->va_gen;

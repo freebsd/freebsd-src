@@ -38,6 +38,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/errno.h>
 #include <sys/linker.h>
 #include <sys/firmware.h>
+#include <sys/priv.h>
 #include <sys/proc.h>
 #include <sys/module.h>
 
@@ -190,7 +191,8 @@ again:
 		return NULL;
 	}
 	td = curthread;
-	if (suser(td) != 0 || securelevel_gt(td->td_ucred, 0) != 0) {
+	if (priv_check(td, PRIV_FIRMWARE_LOAD) != 0 ||
+	    securelevel_gt(td->td_ucred, 0) != 0) {
 		printf("%s: insufficient privileges to "
 		    "load firmware image %s\n", __func__, imagename);
 		return NULL;

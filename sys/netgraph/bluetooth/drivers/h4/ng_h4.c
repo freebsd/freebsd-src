@@ -48,6 +48,7 @@
 #include <sys/ioccom.h>
 #include <sys/malloc.h>
 #include <sys/mbuf.h>
+#include <sys/priv.h>
 #include <sys/tty.h>
 #include <sys/ttycom.h>
 #include <netgraph/ng_message.h>
@@ -156,7 +157,7 @@ ng_h4_open(struct cdev *dev, struct tty *tp)
 	int		 s, error;
 
 	/* Super-user only */
-	error = suser(curthread); /* XXX */
+	error = priv_check(curthread, PRIV_NETGRAPH_TTY); /* XXX */
 	if (error != 0)
 		return (error);
 

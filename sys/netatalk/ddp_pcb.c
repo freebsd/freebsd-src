@@ -30,6 +30,7 @@
 #include <sys/systm.h>
 #include <sys/malloc.h>
 #include <sys/mbuf.h>
+#include <sys/priv.h>
 #include <sys/socket.h>
 #include <sys/socketvar.h>
 #include <sys/protosw.h>
@@ -100,7 +101,7 @@ at_pcbsetaddr(struct ddpcb *ddp, struct sockaddr *addr, struct thread *td)
 		return (EINVAL);
 	    }
 	    if (sat->sat_port < ATPORT_RESERVED &&
-		 suser(td)) {
+		    priv_check(td, PRIV_NETATALK_RESERVEDPORT)) {
 		return (EACCES);
 	    }
 	}

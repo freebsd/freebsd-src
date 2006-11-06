@@ -117,6 +117,7 @@
 #include <sys/malloc.h>
 #include <sys/conf.h>
 #include <sys/ioccom.h>
+#include <sys/priv.h>
 #include <sys/proc.h>
 #include <sys/bus.h>
 #include <machine/resource.h>
@@ -3125,7 +3126,7 @@ asr_open(struct cdev *dev, int32_t flags, int32_t ifmt, struct thread *td)
 	s = splcam ();
 	if (ASR_ctlr_held) {
 		error = EBUSY;
-	} else if ((error = suser(td)) == 0) {
+	} else if ((error = priv_check(td, PRIV_DRIVER)) == 0) {
 		++ASR_ctlr_held;
 	}
 	splx(s);

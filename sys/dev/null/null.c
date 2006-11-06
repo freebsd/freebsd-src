@@ -36,6 +36,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/kernel.h>
 #include <sys/malloc.h>
 #include <sys/module.h>
+#include <sys/priv.h>
 #include <sys/disk.h>
 #include <sys/bus.h>
 #include <machine/bus.h>
@@ -87,7 +88,7 @@ null_ioctl(struct cdev *dev __unused, u_long cmd, caddr_t data __unused,
 
 	if (cmd != DIOCSKERNELDUMP)
 		return (ENOIOCTL);
-	error = suser(td);
+	error = priv_check(td, PRIV_SETDUMPER);
 	if (error)
 		return (error);
 	return (set_dumper(NULL));

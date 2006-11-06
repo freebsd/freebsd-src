@@ -54,6 +54,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/mutex.h>
 #include <sys/sysproto.h>
 #include <sys/filedesc.h>
+#include <sys/priv.h>
 #include <sys/proc.h>
 #include <sys/resource.h>
 #include <sys/resourcevar.h>
@@ -684,7 +685,7 @@ madvise(td, uap)
 	 * "immortal."
 	 */
 	if (uap->behav == MADV_PROTECT) {
-		error = suser(td);
+		error = priv_check(td, PRIV_VM_MADV_PROTECT);
 		if (error == 0) {
 			p = td->td_proc;
 			PROC_LOCK(p);
@@ -951,7 +952,7 @@ mlock(td, uap)
 	vm_size_t npages, size;
 	int error;
 
-	error = suser(td);
+	error = priv_check(td, PRIV_VM_MLOCK);
 	if (error)
 		return (error);
 	addr = (vm_offset_t)uap->addr;
@@ -1016,7 +1017,7 @@ mlockall(td, uap)
 	}
 	PROC_UNLOCK(td->td_proc);
 #else
-	error = suser(td);
+	error = priv_check(td, PRIV_VM_MLOCK);
 	if (error)
 		return (error);
 #endif
@@ -1061,7 +1062,7 @@ munlockall(td, uap)
 	int error;
 
 	map = &td->td_proc->p_vmspace->vm_map;
-	error = suser(td);
+	error = priv_check(td, PRIV_VM_MUNLOCK);
 	if (error)
 		return (error);
 
@@ -1095,7 +1096,7 @@ munlock(td, uap)
 	vm_size_t size;
 	int error;
 
-	error = suser(td);
+	error = priv_check(td, PRIV_VM_MUNLOCK);
 	if (error)
 		return (error);
 	addr = (vm_offset_t)uap->addr;

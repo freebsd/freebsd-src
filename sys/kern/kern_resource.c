@@ -47,6 +47,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/lock.h>
 #include <sys/malloc.h>
 #include <sys/mutex.h>
+#include <sys/priv.h>
 #include <sys/proc.h>
 #include <sys/refcount.h>
 #include <sys/resourcevar.h>
@@ -264,7 +265,7 @@ donice(struct thread *td, struct proc *p, int n)
 		n = PRIO_MAX;
 	if (n < PRIO_MIN)
 		n = PRIO_MIN;
- 	if (n < p->p_nice && suser(td) != 0)
+ 	if (n < p->p_nice && priv_check(td, PRIV_SCHED_SETPRIORITY) != 0)
 		return (EACCES);
 	mtx_lock_spin(&sched_lock);
 	sched_nice(p, n);
@@ -468,7 +469,7 @@ rtprio(td, uap)
 			break;
 
 		/* Disallow setting rtprio in most cases if not superuser. */
-		if (suser(td) != 0) {
+		if (priv_check(td, PRIV_SCHED_RTPRIO) != 0) {
 			/* can't set someone else's */
 			if (uap->pid) {
 				error = EPERM;
@@ -754,7 +755,8 @@ kern_setrlimit(td, which, limp)
 	alimp = &oldlim->pl_rlimit[which];
 	if (limp->rlim_cur > alimp->rlim_max ||
 	    limp->rlim_max > alimp->rlim_max)
-		if ((error = suser_cred(td->td_ucred, SUSER_ALLOWJAIL))) {
+		if ((error = priv_check_cred(td->td_ucred,
+		    PRIV_PROC_SETRLIMIT, SUSER_ALLOWJAIL))) {
 			PROC_UNLOCK(p);
 			lim_free(newlim);
 			return (error);

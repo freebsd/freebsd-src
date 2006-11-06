@@ -42,6 +42,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/malloc.h>
+#include <sys/priv.h>
 #include <sys/socket.h>
 #include <sys/socketvar.h>
 
@@ -107,11 +108,10 @@ ipx_pcbbind(ipxp, nam, td)
 	lport = sipx->sipx_port;
 	if (lport) {
 		u_short aport = ntohs(lport);
-		int error;
 
-		if (aport < IPXPORT_RESERVED &&
-		    td != NULL && (error = suser(td)) != 0)
-			return (error);
+		if (aport < IPXPORT_RESERVED && td != NULL &&
+		    priv_check(td, PRIV_NETIPX_RESERVEDPORT))
+			return (EACCES);
 		if (ipx_pcblookup(&zeroipx_addr, lport, 0))
 			return (EADDRINUSE);
 	}

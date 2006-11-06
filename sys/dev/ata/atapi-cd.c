@@ -34,6 +34,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/kernel.h>
 #include <sys/module.h>
 #include <sys/malloc.h>
+#include <sys/priv.h>
 #include <sys/proc.h>
 #include <sys/bio.h>
 #include <sys/bus.h>
@@ -257,8 +258,11 @@ acd_geom_ioctl(struct g_provider *pp, u_long cmd, void *addr, int fflag, struct 
 	cdp->flags |= F_LOCKED;
 	break;
 
+    /*
+     * XXXRW: Why does this require privilege?
+     */
     case CDIOCRESET:
-	error = suser(td);
+	error = priv_check(td, PRIV_DRIVER);
 	if (error)
 	    break;
 	error = acd_test_ready(dev);

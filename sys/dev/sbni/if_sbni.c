@@ -67,6 +67,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/sockio.h>
 #include <sys/mbuf.h>
 #include <sys/kernel.h>
+#include <sys/priv.h>
 #include <sys/proc.h>
 #include <sys/callout.h>
 #include <sys/syslog.h>
@@ -1110,7 +1111,7 @@ sbni_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 
 	case SIOCSHWFLAGS:	/* set flags */
 		/* root only */
-		error = suser(td);
+		error = priv_check(td, PRIV_DRIVER);
 		if (error)
 			break;
 		flags = *(struct sbni_flags*)&ifr->ifr_data;
@@ -1132,7 +1133,7 @@ sbni_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 		break;
 
 	case SIOCRINSTATS:
-		if (!(error = suser(td)))	/* root only */
+		if (!(error = priv_check(td, PRIV_DRIVER)))	/* root only */
 			bzero(&sc->in_stats, sizeof(struct sbni_in_stats));
 		break;
 

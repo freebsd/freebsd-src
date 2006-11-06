@@ -57,6 +57,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/systm.h>
 #include <sys/sysproto.h>
 #include <sys/kernel.h>
+#include <sys/priv.h>
 #include <sys/proc.h>
 #include <sys/lock.h>
 #include <sys/mutex.h>
@@ -507,7 +508,7 @@ kern_msgctl(td, msqid, cmd, msqbuf)
 		if ((error = ipcperm(td, &msqkptr->u.msg_perm, IPC_M)))
 			goto done2;
 		if (msqbuf->msg_qbytes > msqkptr->u.msg_qbytes) {
-			error = suser(td);
+			error = priv_check(td, PRIV_IPC_MSGSIZE);
 			if (error)
 				goto done2;
 		}

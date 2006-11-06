@@ -46,6 +46,7 @@
 #include <sys/kernel.h>
 #include <sys/mac.h>
 #include <sys/mount.h>
+#include <sys/priv.h>
 #include <sys/proc.h>
 #include <sys/systm.h>
 #include <sys/sysproto.h>
@@ -126,7 +127,7 @@ mac_seeotheruids_check(struct ucred *u1, struct ucred *u2)
 		return (0);
 
 	if (suser_privileged) {
-		if (suser_cred(u1, 0) == 0)
+		if (priv_check_cred(u1, PRIV_SEEOTHERUIDS, 0) == 0)
 			return (0);
 	}
 

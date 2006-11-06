@@ -626,9 +626,9 @@ audit_pipe_clone(void *arg, struct ucred *cred, char *name, int namelen,
 }
 
 /*
- * Audit pipe open method.  Explicit suser check isn't used as this allows
- * file permissions on the special device to be used to grant audit review
- * access.
+ * Audit pipe open method.  Explicit privilege check isn't used as this
+ * allows file permissions on the special device to be used to grant audit
+ * review access.  Those file permissions should be managed carefully.
  */
 static int
 audit_pipe_open(struct cdev *dev, int oflags, int devtype, struct thread *td)

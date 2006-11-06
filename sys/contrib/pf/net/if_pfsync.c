@@ -54,6 +54,9 @@
 #endif
 
 #include <sys/param.h>
+#ifdef __FreeBSD__
+#include <sys/priv.h>
+#endif
 #include <sys/proc.h>
 #include <sys/systm.h>
 #include <sys/time.h>
@@ -1057,7 +1060,7 @@ pfsyncioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 		break;
 	case SIOCSETPFSYNC:
 #ifdef __FreeBSD__
-		if ((error = suser(curthread)) != 0)
+		if ((error = priv_check(curthread, PRIV_NETINET_PF)) != 0)
 #else
 		if ((error = suser(p, p->p_acflag)) != 0)
 #endif

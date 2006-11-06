@@ -65,6 +65,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/mutex.h>
 #include <sys/namei.h>
 #include <sys/poll.h>
+#include <sys/priv.h>
 #include <sys/proc.h>
 #include <sys/queue.h>
 #include <sys/sysproto.h>
@@ -955,8 +956,12 @@ int do_unlink(struct mqfs_node *pn, struct ucred *ucred)
 
 	sx_assert(&pn->mn_info->mi_lock, SX_LOCKED);
 
+	/*
+	 * XXXRW: Other instances of the message queue primitive are
+	 * allowed in jail?
+	 */
 	if (ucred->cr_uid != pn->mn_uid &&
-	    (error = suser_cred(ucred, 0)) != 0)
+	    (error = priv_check_cred(ucred, PRIV_MQ_ADMIN, 0)) != 0)
 		error = EACCES;
 	else if (!pn->mn_deleted) {
 		parent = pn->mn_parent;
@@ -1207,10 +1212,16 @@ mqfs_setattr(struct vop_setattr_args *ap)
 		 */
 		if ((error = VOP_ACCESS(vp, VADMIN, ap->a_cred, ap->a_td)))
 			return (error);
+
+		/*
+		 * XXXRW: Why is there a privilege check here: shouldn't the
+		 * check in VOP_ACCESS() be enough?  Also, are the group bits
+		 * below definitely right?
+		 */
 		if (((ap->a_cred->cr_uid != pn->mn_uid) || uid != pn->mn_uid ||
 		    (gid != pn->mn_gid && !groupmember(gid, ap->a_cred))) &&
-		    (error = suser_cred(ap->a_td->td_ucred, SUSER_ALLOWJAIL))
-                       != 0)
+		    (error = priv_check_cred(ap->a_td->td_ucred,
+		    PRIV_MQ_ADMIN, SUSER_ALLOWJAIL)) != 0)
 			return (error);
 		pn->mn_uid = uid;
 		pn->mn_gid = gid;
@@ -1219,7 +1230,8 @@ mqfs_setattr(struct vop_setattr_args *ap)
 
 	if (vap->va_mode != (mode_t)VNOVAL) {
 		if ((ap->a_cred->cr_uid != pn->mn_uid) &&
-		    (error = suser_cred(ap->a_td->td_ucred, SUSER_ALLOWJAIL)))
+		    (error = priv_check_cred(ap->a_td->td_ucred,
+		    PRIV_MQ_ADMIN, SUSER_ALLOWJAIL)))
 			return (error);
 		pn->mn_mode = vap->va_mode;
 		c = 1;

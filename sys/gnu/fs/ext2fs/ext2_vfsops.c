@@ -57,6 +57,7 @@
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/namei.h>
+#include <sys/priv.h>
 #include <sys/proc.h>
 #include <sys/kernel.h>
 #include <sys/vnode.h>
@@ -197,15 +198,16 @@ ext2_mount(mp, td)
 			 * If upgrade to read-write by non-root, then verify
 			 * that user has necessary permissions on the device.
 			 */
-			if (suser(td)) {
-				vn_lock(devvp, LK_EXCLUSIVE | LK_RETRY, td);
-				if ((error = VOP_ACCESS(devvp, VREAD | VWRITE,
-				    td->td_ucred, td)) != 0) {
-					VOP_UNLOCK(devvp, 0, td);
-					return (error);
-				}
+			vn_lock(devvp, LK_EXCLUSIVE | LK_RETRY, td);
+			error = VOP_ACCESS(devvp, VREAD | VWRITE,
+			    td->td_ucred, td);
+			if (error)
+				error = priv_check(td, PRIV_VFS_MOUNT_PERM);
+			if (error) {
 				VOP_UNLOCK(devvp, 0, td);
+				return (error);
 			}
+			VOP_UNLOCK(devvp, 0, td);
 			DROP_GIANT();
 			g_topology_lock();
 			error = g_access(ump->um_cp, 0, 1, 0);
@@ -259,15 +261,18 @@ ext2_mount(mp, td)
 	/*
 	 * If mount by non-root, then verify that user has necessary
 	 * permissions on the device.
+	 *
+	 * XXXRW: VOP_ACCESS() enough?
 	 */
-	if (suser(td)) {
-		accessmode = VREAD;
-		if ((mp->mnt_flag & MNT_RDONLY) == 0)
-			accessmode |= VWRITE;
-		if ((error = VOP_ACCESS(devvp, accessmode, td->td_ucred, td)) != 0) {
-			vput(devvp);
-			return (error);
-		}
+	accessmode = VREAD;
+	if ((mp->mnt_flag & MNT_RDONLY) == 0)
+		accessmode |= VWRITE;
+	error = VOP_ACCESS(devvp, accessmode, td->td_ucred, td);
+	if (error)
+		error = priv_check(td, PRIV_VFS_MOUNT_PERM);
+	if (error) {
+		vput(devvp);
+		return (error);
 	}
 
 	if ((mp->mnt_flag & MNT_UPDATE) == 0) {

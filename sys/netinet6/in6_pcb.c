@@ -77,6 +77,7 @@
 #include <sys/sockio.h>
 #include <sys/errno.h>
 #include <sys/time.h>
+#include <sys/priv.h>
 #include <sys/proc.h>
 #include <sys/jail.h>
 
@@ -190,8 +191,12 @@ in6_pcbbind(inp, nam, cred)
 			/* GROSS */
 			if (ntohs(lport) <= ipport_reservedhigh &&
 			    ntohs(lport) >= ipport_reservedlow &&
-			    suser_cred(cred, SUSER_ALLOWJAIL))
+			    priv_check_cred(cred, PRIV_NETINET_RESERVEDPORT,
+			    SUSER_ALLOWJAIL))
 				return (EACCES);
+			/*
+			 * XXXRW: What priv to use here?
+			 */
 			if (!IN6_IS_ADDR_MULTICAST(&sin6->sin6_addr) &&
 			    suser_cred(so->so_cred, SUSER_ALLOWJAIL) != 0) {
 				t = in6_pcblookup_local(pcbinfo,

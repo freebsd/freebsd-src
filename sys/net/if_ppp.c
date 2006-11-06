@@ -87,6 +87,7 @@
 
 #include <sys/param.h>
 #include <sys/systm.h>
+#include <sys/priv.h>
 #include <sys/proc.h>
 #include <sys/mbuf.h>
 #include <sys/socket.h>
@@ -451,7 +452,8 @@ pppioctl(sc, cmd, data, flag, td)
 	break;
 
     case PPPIOCSFLAGS:
-	if ((error = suser(td)) != 0)
+	error = priv_check(td, PRIV_NET_PPP);
+	if (error)
 	    break;
 	flags = *(int *)data & SC_MASK;
 	s = splsoftnet();
@@ -465,8 +467,9 @@ pppioctl(sc, cmd, data, flag, td)
 	break;
 
     case PPPIOCSMRU:
-	if ((error = suser(td)) != 0)
-	    return (error);
+	error = priv_check(td, PRIV_NET_PPP);
+	if (error)
+		return (error);
 	mru = *(int *)data;
 	if (mru >= PPP_MRU && mru <= PPP_MAXMRU)
 	    sc->sc_mru = mru;
@@ -478,7 +481,8 @@ pppioctl(sc, cmd, data, flag, td)
 
 #ifdef VJC
     case PPPIOCSMAXCID:
-	if ((error = suser(td)) != 0)
+	error = priv_check(td, PRIV_NET_PPP);
+	if (error)
 	    break;
 	if (sc->sc_comp) {
 	    s = splsoftnet();
@@ -489,14 +493,16 @@ pppioctl(sc, cmd, data, flag, td)
 #endif
 
     case PPPIOCXFERUNIT:
-	if ((error = suser(td)) != 0)
+	error = priv_check(td, PRIV_NET_PPP);
+	if (error)
 	    break;
 	sc->sc_xfer = p->p_pid;
 	break;
 
 #ifdef PPP_COMPRESS
     case PPPIOCSCOMPRESS:
-	if ((error = suser(td)) != 0)
+	error = priv_check(td, PRIV_NET_PPP);
+	if (error)
 	    break;
 	odp = (struct ppp_option_data *) data;
 	nb = odp->length;
@@ -569,7 +575,8 @@ pppioctl(sc, cmd, data, flag, td)
 	if (cmd == PPPIOCGNPMODE) {
 	    npi->mode = sc->sc_npmode[npx];
 	} else {
-	    if ((error = suser(td)) != 0)
+	    error = priv_check(td, PRIV_NET_PPP);
+	    if (error)
 		break;
 	    if (npi->mode != sc->sc_npmode[npx]) {
 		s = splsoftnet();
@@ -695,6 +702,10 @@ pppsioctl(ifp, cmd, data)
 	break;
 
     case SIOCSIFMTU:
+	/*
+	 * XXXRW: Isn't this suser() check redundant to the one at the ifnet
+	 * layer?
+	 */
 	if ((error = suser(td)) != 0)
 	    break;
 	if (ifr->ifr_mtu > PPP_MAXMTU)

@@ -40,6 +40,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/namei.h>
+#include <sys/priv.h>
 #include <sys/proc.h>
 #include <sys/kernel.h>
 #include <sys/vnode.h>
@@ -257,15 +258,16 @@ ffs_mount(struct mount *mp, struct thread *td)
 			 * If upgrade to read-write by non-root, then verify
 			 * that user has necessary permissions on the device.
 			 */
-			if (suser(td)) {
-				vn_lock(devvp, LK_EXCLUSIVE | LK_RETRY, td);
-				if ((error = VOP_ACCESS(devvp, VREAD | VWRITE,
-				    td->td_ucred, td)) != 0) {
-					VOP_UNLOCK(devvp, 0, td);
-					return (error);
-				}
+			vn_lock(devvp, LK_EXCLUSIVE | LK_RETRY, td);
+			error = VOP_ACCESS(devvp, VREAD | VWRITE,
+			    td->td_ucred, td);
+			if (error)
+				error = priv_check(td, PRIV_VFS_MOUNT_PERM);
+			if (error) {
 				VOP_UNLOCK(devvp, 0, td);
+				return (error);
 			}
+			VOP_UNLOCK(devvp, 0, td);
 			fs->fs_flags &= ~FS_UNCLEAN;
 			if (fs->fs_clean == 0) {
 				fs->fs_flags |= FS_UNCLEAN;
@@ -364,14 +366,15 @@ ffs_mount(struct mount *mp, struct thread *td)
 	 * If mount by non-root, then verify that user has necessary
 	 * permissions on the device.
 	 */
-	if (suser(td)) {
-		accessmode = VREAD;
-		if ((mp->mnt_flag & MNT_RDONLY) == 0)
-			accessmode |= VWRITE;
-		if ((error = VOP_ACCESS(devvp, accessmode, td->td_ucred, td))!= 0){
-			vput(devvp);
-			return (error);
-		}
+	accessmode = VREAD;
+	if ((mp->mnt_flag & MNT_RDONLY) == 0)
+		accessmode |= VWRITE;
+	error = VOP_ACCESS(devvp, accessmode, td->td_ucred, td);
+	if (error)
+		error = priv_check(td, PRIV_VFS_MOUNT_PERM);
+	if (error) {
+		vput(devvp);
+		return (error);
 	}
 
 	if (mp->mnt_flag & MNT_UPDATE) {

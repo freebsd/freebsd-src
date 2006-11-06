@@ -48,6 +48,7 @@
 #ifdef INET6
 #include <sys/domain.h>
 #endif
+#include <sys/priv.h>
 #include <sys/proc.h>
 #include <sys/socket.h>
 #include <sys/socketvar.h>
@@ -1081,7 +1082,8 @@ tcp_getcred(SYSCTL_HANDLER_ARGS)
 	struct inpcb *inp;
 	int error;
 
-	error = suser_cred(req->td->td_ucred, SUSER_ALLOWJAIL);
+	error = priv_check_cred(req->td->td_ucred, PRIV_NETINET_GETCRED,
+	    SUSER_ALLOWJAIL);
 	if (error)
 		return (error);
 	error = SYSCTL_IN(req, addrs, sizeof(addrs));
@@ -1125,7 +1127,8 @@ tcp6_getcred(SYSCTL_HANDLER_ARGS)
 	struct inpcb *inp;
 	int error, mapped = 0;
 
-	error = suser_cred(req->td->td_ucred, SUSER_ALLOWJAIL);
+	error = priv_check_cred(req->td->td_ucred, PRIV_NETINET_GETCRED,
+	    SUSER_ALLOWJAIL);
 	if (error)
 		return (error);
 	error = SYSCTL_IN(req, addrs, sizeof(addrs));

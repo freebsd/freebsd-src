@@ -76,6 +76,7 @@ __FBSDID("$FreeBSD$");
 #endif
 #include <sys/sockio.h>
 #include <sys/mbuf.h>
+#include <sys/priv.h>
 #include <sys/proc.h>
 #include <sys/kernel.h>
 #include <sys/socket.h>
@@ -1273,7 +1274,7 @@ wi_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 		WI_UNLOCK(sc);
 		break;
 	case SIOCSIFGENERIC:
-		error = suser(td);
+		error = priv_check(td, PRIV_DRIVER);
 		if (error == 0)
 			error = wi_set_cfg(ifp, cmd, data);
 		break;
@@ -1291,7 +1292,7 @@ wi_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 			error = copyout(&wreq, ifr->ifr_data, sizeof(wreq));
 		break;
 	case SIOCSPRISM2DEBUG:
-		if ((error = suser(td)))
+		if ((error = priv_check(td, PRIV_DRIVER)))
 			return (error);
 		error = copyin(ifr->ifr_data, &wreq, sizeof(wreq));
 		if (error)
@@ -1312,7 +1313,7 @@ wi_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 	case SIOCS80211:
 		ireq = (struct ieee80211req *) data;
 		if (ireq->i_type == IEEE80211_IOC_STATIONNAME) {
-			error = suser(td);
+			error = priv_check(td, PRIV_NET80211_MANAGE);
 			if (error)
 				break;
 			if (ireq->i_val != 0 ||

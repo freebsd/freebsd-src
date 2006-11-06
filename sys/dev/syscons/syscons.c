@@ -50,6 +50,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/lock.h>
 #include <sys/malloc.h>
 #include <sys/mutex.h>
+#include <sys/priv.h>
 #include <sys/proc.h>
 #include <sys/random.h>
 #include <sys/reboot.h>
@@ -517,7 +518,7 @@ scopen(struct cdev *dev, int flag, int mode, struct thread *td)
 	ttyld_modem(tp, 1);
     }
     else
-	if (tp->t_state & TS_XCLUDE && suser(td))
+	if (tp->t_state & TS_XCLUDE && priv_check(td, PRIV_TTY_EXCLUSIVE))
 	    return(EBUSY);
 
     error = ttyld_open(tp, dev);
@@ -1092,7 +1093,7 @@ scioctl(struct cdev *dev, u_long cmd, caddr_t data, int flag, struct thread *td)
 	return 0;
 
     case KDENABIO:      	/* allow io operations */
-	error = suser(td);
+	error = priv_check(td, PRIV_IO);
 	if (error != 0)
 	    return error;
 	error = securelevel_gt(td->td_ucred, 0);

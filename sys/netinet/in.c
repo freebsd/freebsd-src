@@ -37,6 +37,7 @@
 #include <sys/systm.h>
 #include <sys/sockio.h>
 #include <sys/malloc.h>
+#include <sys/priv.h>
 #include <sys/socket.h>
 #include <sys/kernel.h>
 #include <sys/sysctl.h>
@@ -232,10 +233,25 @@ in_control(so, cmd, data, ifp, td)
 
 	switch (cmd) {
 	case SIOCALIFADDR:
+		if (td != NULL) {
+			error = priv_check(td, PRIV_NET_ADDIFADDR);
+			if (error)
+				return (error);
+		}
+		if (!ifp)
+			return EINVAL;
+		return in_lifaddr_ioctl(so, cmd, data, ifp, td);
+
 	case SIOCDLIFADDR:
-		if (td && (error = suser(td)) != 0)
-			return error;
-		/*fall through*/
+		if (td != NULL) {
+			error = priv_check(td, PRIV_NET_DELIFADDR);
+			if (error)
+				return (error);
+		}
+		if (!ifp)
+			return EINVAL;
+		return in_lifaddr_ioctl(so, cmd, data, ifp, td);
+
 	case SIOCGLIFADDR:
 		if (!ifp)
 			return EINVAL;
@@ -292,8 +308,11 @@ in_control(so, cmd, data, ifp, td)
 	case SIOCSIFADDR:
 	case SIOCSIFNETMASK:
 	case SIOCSIFDSTADDR:
-		if (td && (error = suser(td)) != 0)
-			return error;
+		if (td != NULL) {
+			error = priv_check(td, PRIV_NET_ADDIFADDR);
+			if (error)
+				return (error);
+		}
 
 		if (ifp == 0)
 			return (EADDRNOTAVAIL);
@@ -330,8 +349,11 @@ in_control(so, cmd, data, ifp, td)
 		break;
 
 	case SIOCSIFBRDADDR:
-		if (td && (error = suser(td)) != 0)
-			return error;
+		if (td != NULL) {
+			error = priv_check(td, PRIV_NET_ADDIFADDR);
+			if (error)
+				return (error);
+		}
 		/* FALLTHROUGH */
 
 	case SIOCGIFADDR:

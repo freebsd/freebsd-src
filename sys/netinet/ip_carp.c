@@ -41,6 +41,7 @@
 #include <sys/mbuf.h>
 #include <sys/module.h>
 #include <sys/time.h>
+#include <sys/priv.h>
 #include <sys/proc.h>
 #include <sys/sysctl.h>
 #include <sys/syslog.h>
@@ -1853,7 +1854,8 @@ carp_ioctl(struct ifnet *ifp, u_long cmd, caddr_t addr)
 		break;
 
 	case SIOCSVH:
-		if ((error = suser(curthread)) != 0)
+		error = priv_check(curthread, PRIV_NETINET_CARP);
+		if (error)
 			break;
 		if ((error = copyin(ifr->ifr_data, &carpr, sizeof carpr)))
 			break;
@@ -1928,7 +1930,8 @@ carp_ioctl(struct ifnet *ifp, u_long cmd, caddr_t addr)
 		carpr.carpr_vhid = sc->sc_vhid;
 		carpr.carpr_advbase = sc->sc_advbase;
 		carpr.carpr_advskew = sc->sc_advskew;
-		if (suser(curthread) == 0)
+		error = priv_check(curthread, PRIV_NETINET_CARP);
+		if (error == 0)
 			bcopy(sc->sc_key, carpr.carpr_key,
 			    sizeof(carpr.carpr_key));
 		error = copyout(&carpr, ifr->ifr_data, sizeof(carpr));

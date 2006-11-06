@@ -41,6 +41,7 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/systm.h>
+#include <sys/priv.h>
 #include <sys/proc.h>
 #include <sys/tty.h>
 #include <sys/conf.h>
@@ -286,7 +287,8 @@ nmdmopen(struct cdev *dev, int flag, int devtype, struct thread *td)
 	if ((tp->t_state & TS_ISOPEN) == 0) {
 		ttyinitmode(tp, 0, 0);
 		ttsetwater(tp); /* XXX ? */
-	} else if (tp->t_state & TS_XCLUDE && suser(td)) {
+	} else if (tp->t_state & TS_XCLUDE &&
+	    priv_check(td, PRIV_TTY_EXCLUSIVE)) {
 		return (EBUSY);
 	}
 

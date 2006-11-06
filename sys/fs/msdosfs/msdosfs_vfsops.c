@@ -52,6 +52,7 @@
 #include <sys/systm.h>
 #include <sys/conf.h>
 #include <sys/namei.h>
+#include <sys/priv.h>
 #include <sys/proc.h>
 #include <sys/kernel.h>
 #include <sys/vnode.h>
@@ -293,17 +294,17 @@ msdosfs_mount(struct mount *mp, struct thread *td)
 			 * If upgrade to read-write by non-root, then verify
 			 * that user has necessary permissions on the device.
 			 */
-			if (suser(td)) {
-				devvp = pmp->pm_devvp;
-				vn_lock(devvp, LK_EXCLUSIVE | LK_RETRY, td);
-				error = VOP_ACCESS(devvp, VREAD | VWRITE,
-						   td->td_ucred, td);
-				if (error) {
-					VOP_UNLOCK(devvp, 0, td);
-					return (error);
-				}
+			devvp = pmp->pm_devvp;
+			vn_lock(devvp, LK_EXCLUSIVE | LK_RETRY, td);
+			error = VOP_ACCESS(devvp, VREAD | VWRITE,
+			   td->td_ucred, td);
+			if (error)
+				error = priv_check(td, PRIV_VFS_MOUNT_PERM);
+			if (error) {
 				VOP_UNLOCK(devvp, 0, td);
+				return (error);
 			}
+			VOP_UNLOCK(devvp, 0, td);
 			DROP_GIANT();
 			g_topology_lock();
 			error = g_access(pmp->pm_cp, 0, 1, 0);
@@ -353,15 +354,15 @@ msdosfs_mount(struct mount *mp, struct thread *td)
 	 * If mount by non-root, then verify that user has necessary
 	 * permissions on the device.
 	 */
-	if (suser(td)) {
-		accessmode = VREAD;
-		if ((mp->mnt_flag & MNT_RDONLY) == 0)
-			accessmode |= VWRITE;
-		error = VOP_ACCESS(devvp, accessmode, td->td_ucred, td);
-		if (error) {
-			vput(devvp);
-			return (error);
-		}
+	accessmode = VREAD;
+	if ((mp->mnt_flag & MNT_RDONLY) == 0)
+		accessmode |= VWRITE;
+	error = VOP_ACCESS(devvp, accessmode, td->td_ucred, td);
+	if (error)
+		error = priv_check(td, PRIV_VFS_MOUNT_PERM);
+	if (error) {
+		vput(devvp);
+		return (error);
 	}
 	if ((mp->mnt_flag & MNT_UPDATE) == 0) {
 		error = mountmsdosfs(devvp, mp, td);

@@ -18,6 +18,7 @@
 #include <sys/kernel.h>
 #include <sys/mount.h>
 #include <sys/namei.h>
+#include <sys/priv.h>
 #include <sys/proc.h>
 #include <sys/vnode.h>
 #include <sys/unistd.h>

@@ -29,6 +29,7 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/systm.h>
+#include <sys/priv.h>
 #include <sys/proc.h>
 #include <sys/lock.h>
 #include <sys/malloc.h>
@@ -724,7 +725,7 @@ vm86_sysarch(td, args)
 	case VM86_INTCALL: {
 		struct vm86_intcall_args sa;
 
-		if ((error = suser(td)))
+		if ((error = priv_check(td, PRIV_VM86_INTCALL)))
 			return (error);
 		if ((error = copyin(ua.sub_args, &sa, sizeof(sa))))
 			return (error);

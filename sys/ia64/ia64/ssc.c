@@ -147,7 +147,8 @@ ssc_open(struct cdev *dev, int flag, int mode, struct thread *td)
 		ttyconsolemode(tp, 0);
 
 		setuptimeout = 1;
-	} else if ((tp->t_state & TS_XCLUDE) && suser(td)) {
+	} else if ((tp->t_state & TS_XCLUDE) &&
+	    priv_check(td, PRIV_TTY_EXCLUSIVE)) {
 		splx(s);
 		return EBUSY;
 	}
