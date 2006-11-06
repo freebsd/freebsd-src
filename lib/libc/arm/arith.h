@@ -11,6 +11,11 @@
  * architecture.  See contrib/gdtoa/gdtoaimp.h for details.
  */
 
+#ifndef __ARMEB__
 #define IEEE_8087
 #define Arith_Kind_ASL 1
 #define Sudden_Underflow
+#else
+#define IEEE_MC68k
+#define Arith_Kind_ASL 2
+#endif
