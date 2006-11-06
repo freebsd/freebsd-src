@@ -32,7 +32,7 @@
 .\"	@(#)jot.1	8.1 (Berkeley) 6/6/93
 .\" $FreeBSD$
 .\"
-.Dd June 6, 1993
+.Dd November 6, 2006
 .Dt JOT 1
 .Os
 .Sh NAME
@@ -145,6 +145,23 @@ when no seed is specified,
 and through
 .Xr random 3
 when a seed is given.
+When
+.Nm
+is asked to generate random integers or characters with begin
+and end values in the range of the random number generator function
+and no format is specified with one of the
+.Fl w ,
+.Fl b ,
+or
+.Fl p
+options,
+.Nm
+will arrange for all the values in the range to appear in the output
+with an equal probability.
+In all other cases be careful to ensure that the output format's
+rounding or truncation will not skew the distribution of output
+values in an unintended way.
+.Pp
 The name
 .Nm
 derives in part from
