@@ -2176,6 +2176,7 @@ sc_switch_scr(sc_softc_t *sc, u_int next_scr)
 	DPRINTF(5, ("switch delayed\n"));
 	return 0;
     }
+    sc->delayed_next_scr = 0;
 
     s = spltty();
     cur_scp = sc->cur_scp;
@@ -2320,7 +2321,6 @@ sc_switch_scr(sc_softc_t *sc, u_int next_scr)
 
     /* this is the start of vty switching process... */
     ++sc->switch_in_progress;
-    sc->delayed_next_scr = 0;
     sc->old_scp = cur_scp;
     sc->new_scp = sc_get_stat(SC_DEV(sc, next_scr));
     if (sc->new_scp == sc->old_scp) {
