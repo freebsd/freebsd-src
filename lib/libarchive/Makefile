@@ -184,7 +184,6 @@ MLINKS+=	archive_write.3 archive_write_new.3
 MLINKS+=	archive_write.3 archive_write_open.3
 MLINKS+=	archive_write.3 archive_write_open_fd.3
 MLINKS+=	archive_write.3 archive_write_open_file.3
-MLINKS+=	archive_write.3 archive_write_prepare.3
 MLINKS+=	archive_write.3 archive_write_set_bytes_per_block.3
 MLINKS+=	archive_write.3 archive_write_set_bytes_in_last_block.3
 MLINKS+=	archive_write.3 archive_write_set_callbacks.3
