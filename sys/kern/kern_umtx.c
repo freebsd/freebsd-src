@@ -35,6 +35,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/lock.h>
 #include <sys/malloc.h>
 #include <sys/mutex.h>
+#include <sys/priv.h>
 #include <sys/proc.h>
 #include <sys/sched.h>
 #include <sys/sysctl.h>
@@ -1813,7 +1814,7 @@ _do_lock_pp(struct thread *td, struct umutex *m, uint32_t flags, int timo,
 	if ((error = umtx_key_get(m, TYPE_PP_UMUTEX, GET_SHARE(flags),
 	    &uq->uq_key)) != 0)
 		return (error);
-	su = (suser(td) == 0);
+	su = (priv_check(td, PRIV_SCHED_RTPRIO) == 0);
 	for (;;) {
 		old_inherited_pri = uq->uq_inherited_pri;
 		umtxq_lock(&uq->uq_key);
@@ -1934,7 +1935,7 @@ do_unlock_pp(struct thread *td, struct umutex *m, uint32_t flags)
 
 	id = td->td_tid;
 	uq = td->td_umtxq;
-	su = (suser(td) == 0);
+	su = (priv_check(td, PRIV_SCHED_RTPRIO) == 0);
 
 	/*
 	 * Make sure we own this mtx.

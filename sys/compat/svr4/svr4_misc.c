@@ -52,6 +52,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/msg.h>
 #include <sys/mutex.h>
 #include <sys/namei.h>
+#include <sys/priv.h>
 #include <sys/proc.h>
 #include <sys/ptrace.h>
 #include <sys/resource.h>
@@ -611,7 +612,8 @@ svr4_sys_fchroot(td, uap)
 	struct file	*fp;
 	int		 error, vfslocked;
 
-	if ((error = suser(td)) != 0)
+	if ((error = priv_check_cred(td->td_ucred, PRIV_VFS_FCHROOT,
+	    SUSER_ALLOWJAIL)) != 0)
 		return error;
 	if ((error = getvnode(fdp, uap->fd, &fp)) != 0)
 		return error;

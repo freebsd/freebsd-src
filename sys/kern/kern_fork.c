@@ -51,6 +51,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/lock.h>
 #include <sys/malloc.h>
 #include <sys/mutex.h>
+#include <sys/priv.h>
 #include <sys/proc.h>
 #include <sys/pioctl.h>
 #include <sys/resourcevar.h>
@@ -310,7 +311,7 @@ fork1(td, flags, pages, procp)
 	 */
 	sx_xlock(&allproc_lock);
 	if ((nprocs >= maxproc - 10 &&
-	    suser_cred(td->td_ucred, SUSER_RUID) != 0) ||
+	    priv_check_cred(td->td_ucred, PRIV_MAXPROC, SUSER_RUID) != 0) ||
 	    nprocs >= maxproc) {
 		error = EAGAIN;
 		goto fail;
@@ -319,8 +320,11 @@ fork1(td, flags, pages, procp)
 	/*
 	 * Increment the count of procs running with this uid. Don't allow
 	 * a nonprivileged user to exceed their current limit.
+	 *
+	 * XXXRW: Can we avoid privilege here if it's not needed?
 	 */
-	error = suser_cred(td->td_ucred, SUSER_RUID | SUSER_ALLOWJAIL);
+	error = priv_check_cred(td->td_ucred, PRIV_PROC_LIMIT, SUSER_RUID |
+	    SUSER_ALLOWJAIL);
 	if (error == 0)
 		ok = chgproccnt(td->td_ucred->cr_ruidinfo, 1, 0);
 	else {

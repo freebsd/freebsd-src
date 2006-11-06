@@ -69,6 +69,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/malloc.h>
 #include <sys/module.h>
 #include <sys/mutex.h>
+#include <sys/priv.h>
 #include <sys/proc.h>
 #include <sys/rman.h>
 #include <sys/sysctl.h>
@@ -1489,8 +1490,9 @@ fd_ioctl(struct g_provider *pp, u_long cmd, void *data, int fflag, struct thread
 		return (0);
 
 	case FD_CLRERR:
-		if (suser(td) != 0)
-			return (EPERM);
+		error = priv_check(td, PRIV_DRIVER);
+		if (error)
+			return (error);
 		fd->fdc->fdc_errs = 0;
 		return (0);
 

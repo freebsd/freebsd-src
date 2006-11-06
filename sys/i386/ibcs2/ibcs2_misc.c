@@ -68,6 +68,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/malloc.h>
 #include <sys/file.h>			/* Must come after sys/malloc.h */
 #include <sys/mutex.h>
+#include <sys/priv.h>
 #include <sys/reboot.h>
 #include <sys/resourcevar.h>
 #include <sys/stat.h>
@@ -1008,14 +1009,22 @@ ibcs2_plock(td, uap)
 #define IBCS2_DATALOCK	4
 
 	
-        if ((error = suser(td)) != 0)
-                return EPERM;
 	switch(uap->cmd) {
 	case IBCS2_UNLOCK:
+        	error = priv_check(td, PRIV_VM_MUNLOCK);
+		if (error)
+			return (error);
+		/* XXX - TODO */
+		return (0);
+
 	case IBCS2_PROCLOCK:
 	case IBCS2_TEXTLOCK:
 	case IBCS2_DATALOCK:
-		return 0;	/* XXX - TODO */
+        	error = priv_check(td, PRIV_VM_MLOCK);
+		if (error)
+			return (error);
+		/* XXX - TODO */
+		return 0;
 	}
 	return EINVAL;
 }
@@ -1043,9 +1052,6 @@ ibcs2_uadmin(td, uap)
 #define SCO_AD_GETBMAJ      0
 #define SCO_AD_GETCMAJ      1
 
-        if (suser(td))
-                return EPERM;
-
 	switch(uap->cmd) {
 	case SCO_A_REBOOT:
 	case SCO_A_SHUTDOWN:
@@ -1055,11 +1061,11 @@ ibcs2_uadmin(td, uap)
 		case SCO_AD_PWRDOWN:
 		case SCO_AD_PWRNAP:
 			r.opt = RB_HALT;
-			reboot(td, &r);
+			return (reboot(td, &r));
 		case SCO_AD_BOOT:
 		case SCO_AD_IBOOT:
 			r.opt = RB_AUTOBOOT;
-			reboot(td, &r);
+			return (reboot(td, &r));
 		}
 		return EINVAL;
 	case SCO_A_REMOUNT:

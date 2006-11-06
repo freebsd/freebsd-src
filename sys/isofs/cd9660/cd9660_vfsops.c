@@ -40,6 +40,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/namei.h>
+#include <sys/priv.h>
 #include <sys/proc.h>
 #include <sys/kernel.h>
 #include <sys/vnode.h>
@@ -174,7 +175,7 @@ cd9660_mount(struct mount *mp, struct thread *td)
 	vn_lock(devvp, LK_EXCLUSIVE | LK_RETRY, td);
 	error = VOP_ACCESS(devvp, accessmode, td->td_ucred, td);
 	if (error)
-		error = suser(td);
+		error = priv_check(td, PRIV_VFS_MOUNT_PERM);
 	if (error) {
 		vput(devvp);
 		return (error);

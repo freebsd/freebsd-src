@@ -45,6 +45,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/kernel.h>
 #include <sys/lock.h>
 #include <sys/mbuf.h>
+#include <sys/priv.h>
 #include <sys/protosw.h>
 #include <sys/signalvar.h>
 #include <sys/socket.h>
@@ -658,8 +659,13 @@ ripx_attach(so, proto, td)
 	struct ipxpcb *ipxp = sotoipxpcb(so);
 
 	KASSERT(ipxp == NULL, ("ripx_attach: ipxp != NULL"));
-	if (td != NULL && (error = suser(td)) != 0)
-		return (error);
+
+	if (td != NULL) {
+		error = priv_check(td, PRIV_NETIPX_RAW);
+		if (error)
+			return (error);
+	}
+
 	/*
 	 * We hold the IPX list lock for the duration as address parameters
 	 * of the IPX pcb are changed.  Since no one else holds a reference

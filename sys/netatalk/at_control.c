@@ -118,6 +118,8 @@ at_control(struct socket *so, u_long cmd, caddr_t data, struct ifnet *ifp,
 	case SIOCSIFADDR:
 		/* 
 		 * If we are not superuser, then we don't get to do these ops.
+		 *
+		 * XXXRW: Layering?
 		 */
 		if (suser(td))
 			return (EPERM);

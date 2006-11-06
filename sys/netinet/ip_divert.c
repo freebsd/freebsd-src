@@ -48,6 +48,7 @@
 #include <sys/mbuf.h>
 #include <sys/module.h>
 #include <sys/kernel.h>
+#include <sys/priv.h>
 #include <sys/proc.h>
 #include <sys/protosw.h>
 #include <sys/signalvar.h>
@@ -420,8 +421,11 @@ div_attach(struct socket *so, int proto, struct thread *td)
 
 	inp  = sotoinpcb(so);
 	KASSERT(inp == NULL, ("div_attach: inp != NULL"));
-	if (td && (error = suser(td)) != 0)
-		return error;
+	if (td != NULL) {
+		error = priv_check(td, PRIV_NETINET_DIVERT);
+		if (error)
+			return (error);
+	}
 	error = soreserve(so, div_sendspace, div_recvspace);
 	if (error)
 		return error;

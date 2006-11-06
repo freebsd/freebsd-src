@@ -95,6 +95,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/lock.h>
 #include <sys/malloc.h>
 #include <sys/mutex.h>
+#include <sys/priv.h>
 #include <sys/proc.h>
 #include <sys/sysctl.h>
 #include <sys/systm.h>
@@ -533,7 +534,10 @@ sysctl_debug_witness_watch(SYSCTL_HANDLER_ARGS)
 	error = sysctl_handle_int(oidp, &value, 0, req);
 	if (error != 0 || req->newptr == NULL)
 		return (error);
-	error = suser(req->td);
+	/*
+	 * XXXRW: Why a priv check here?
+	 */
+	error = priv_check(req->td, PRIV_WITNESS);
 	if (error != 0)
 		return (error);
 	if (value == witness_watch)

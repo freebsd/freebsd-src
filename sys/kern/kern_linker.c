@@ -37,6 +37,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/malloc.h>
 #include <sys/sysproto.h>
 #include <sys/sysent.h>
+#include <sys/priv.h>
 #include <sys/proc.h>
 #include <sys/lock.h>
 #include <sys/mutex.h>
@@ -854,7 +855,7 @@ kern_kldload(struct thread *td, const char *file, int *fileid)
 	if ((error = securelevel_gt(td->td_ucred, 0)) != 0)
 		return (error);
 
-	if ((error = suser(td)) != 0)
+	if ((error = priv_check(td, PRIV_KLD_LOAD)) != 0)
 		return (error);
 
 	/*
@@ -921,7 +922,7 @@ kern_kldunload(struct thread *td, int fileid, int flags)
 	if ((error = securelevel_gt(td->td_ucred, 0)) != 0)
 		return (error);
 
-	if ((error = suser(td)) != 0)
+	if ((error = priv_check(td, PRIV_KLD_UNLOAD)) != 0)
 		return (error);
 
 	KLD_LOCK();

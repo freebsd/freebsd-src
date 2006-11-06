@@ -36,6 +36,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/sockio.h>
+#include <sys/priv.h>
 #include <sys/protosw.h>
 #include <sys/socket.h>
 #include <net/if.h>
@@ -181,8 +182,11 @@ atm_dgram_control(so, cmd, data, ifp, td)
 		struct atmcfgreq	*acp = (struct atmcfgreq *)data;
 		struct atm_pif		*pip;
 
-		if (td && (suser(td) != 0))
-			ATM_RETERR(EPERM);
+		if (td != NULL) {
+			err = priv_check(td, PRIV_NETATM_CFG);
+			if (err)
+				ATM_RETERR(err);
+		}
 
 		switch (acp->acr_opcode) {
 
@@ -214,8 +218,11 @@ atm_dgram_control(so, cmd, data, ifp, td)
 		struct atmaddreq	*aap = (struct atmaddreq *)data;
 		Atm_endpoint		*epp;
 
-		if (td && (suser(td) != 0))
-			ATM_RETERR(EPERM);
+		if (td != NULL) {
+			err = priv_check(td, PRIV_NETATM_ADD);
+			if (err)
+				ATM_RETERR(err);
+		}
 
 		switch (aap->aar_opcode) {
 
@@ -264,8 +271,11 @@ atm_dgram_control(so, cmd, data, ifp, td)
 		struct sigmgr		*smp;
 		Atm_endpoint		*epp;
 
-		if (td && (suser(td) != 0))
-			ATM_RETERR(EPERM);
+		if (td != NULL) {
+			err = priv_check(td, PRIV_NETATM_DEL);
+			if (err)
+				ATM_RETERR(err);
+		}
 
 		switch (adp->adr_opcode) {
 
@@ -317,8 +327,11 @@ atm_dgram_control(so, cmd, data, ifp, td)
 		struct sigmgr		*smp;
 		struct ifnet		*ifp2;
 
-		if (td && (suser(td) != 0))
-			ATM_RETERR(EPERM);
+		if (td != NULL) {
+			err = priv_check(td, PRIV_NETATM_SET);
+			if (err)
+				ATM_RETERR(err);
+		}
 
 		switch (asp->asr_opcode) {
 

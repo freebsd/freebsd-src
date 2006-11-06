@@ -56,6 +56,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/mount.h>
 #include <sys/mutex.h>
 #include <sys/namei.h>
+#include <sys/priv.h>
 #include <sys/proc.h>
 #include <sys/resourcevar.h>
 #include <sys/sched.h>
@@ -166,8 +167,7 @@ acct(struct thread *td, struct acct_args *uap)
 	struct nameidata nd;
 	int error, flags, vfslocked;
 
-	/* Make sure that the caller is root. */
-	error = suser(td);
+	error = priv_check(td, PRIV_ACCT);
 	if (error)
 		return (error);
 

@@ -453,7 +453,7 @@ zsttyopen(struct cdev *dev, int flags, int mode, struct thread *td)
 
 	if ((tp->t_state & TS_ISOPEN) != 0 &&
 	    (tp->t_state & TS_XCLUDE) != 0 &&
-	    suser(td) != 0)
+	    priv_check(td, PRIV_TTY_EXCLUSIVE) != 0)
 		return (EBUSY);
 
 	if ((tp->t_state & TS_ISOPEN) == 0) {

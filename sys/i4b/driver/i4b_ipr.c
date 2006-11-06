@@ -490,7 +490,7 @@ i4biprioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 			{
 			struct thread *td = curthread;	/* XXX */
 
-			if((error = suser(td)))
+			if((error = priv_check(td, PRIV_DRIVER)))
 				return (error);
 		        sl_compress_setup(sc->sc_compr, *(int *)data);
 			}

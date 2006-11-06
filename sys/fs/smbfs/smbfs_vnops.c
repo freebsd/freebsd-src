@@ -366,11 +366,13 @@ smbfs_setattr(ap)
 	if (vap->va_atime.tv_sec != VNOVAL)
 		atime = &vap->va_atime;
 	if (mtime != atime) {
-		if (ap->a_cred->cr_uid != VTOSMBFS(vp)->sm_uid &&
-		    (error = suser_cred(ap->a_cred, SUSER_ALLOWJAIL)) &&
-		    ((vap->va_vaflags & VA_UTIMES_NULL) == 0 ||
-		    (error = VOP_ACCESS(vp, VWRITE, ap->a_cred, ap->a_td))))
-			return (error);
+		if (vap->va_vaflags & VA_UTIMES_NULL) {
+			error = VOP_ACCESS(vp, VADMIN, ap->a_cred, ap->a_td);
+			if (error)
+				error = VOP_ACCESS(vp, VWRITE, ap->a_cred,
+				    ap->a_td);
+		} else
+			error = VOP_ACCESS(vp, VADMIN, ap->a_cred, ap->a_td);
 #if 0
 		if (mtime == NULL)
 			mtime = &np->n_mtime;

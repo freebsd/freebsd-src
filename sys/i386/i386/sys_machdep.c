@@ -40,6 +40,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/lock.h>
 #include <sys/malloc.h>
 #include <sys/mutex.h>
+#include <sys/priv.h>
 #include <sys/proc.h>
 #include <sys/smp.h>
 #include <sys/sysproto.h>
@@ -292,7 +293,7 @@ i386_set_ioperm(td, uap)
 	if ((error = mac_check_sysarch_ioperm(td->td_ucred)) != 0)
 		return (error);
 #endif
-	if ((error = suser(td)) != 0)
+	if ((error = priv_check(td, PRIV_IO)) != 0)
 		return (error);
 	if ((error = securelevel_gt(td->td_ucred, 0)) != 0)
 		return (error);

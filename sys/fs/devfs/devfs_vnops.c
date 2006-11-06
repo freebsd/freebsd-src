@@ -55,6 +55,7 @@
 #include <sys/malloc.h>
 #include <sys/mount.h>
 #include <sys/namei.h>
+#include <sys/priv.h>
 #include <sys/proc.h>
 #include <sys/stat.h>
 #include <sys/sx.h>
@@ -1145,19 +1146,25 @@ devfs_setattr(struct vop_setattr_args *ap)
 	else
 		gid = vap->va_gid;
 	if (uid != de->de_uid || gid != de->de_gid) {
-		if (((ap->a_cred->cr_uid != de->de_uid) || uid != de->de_uid ||
-		    (gid != de->de_gid && !groupmember(gid, ap->a_cred))) &&
-		    (error = suser_cred(ap->a_td->td_ucred, SUSER_ALLOWJAIL)) != 0)
-			return (error);
+		if ((ap->a_cred->cr_uid != de->de_uid) || uid != de->de_uid ||
+		    (gid != de->de_gid && !groupmember(gid, ap->a_cred))) {
+			error = priv_check_cred(ap->a_td->td_ucred,
+			    PRIV_VFS_CHOWN, SUSER_ALLOWJAIL);
+			if (error)
+				return (error);
+		}
 		de->de_uid = uid;
 		de->de_gid = gid;
 		c = 1;
 	}
 
 	if (vap->va_mode != (mode_t)VNOVAL) {
-		if ((ap->a_cred->cr_uid != de->de_uid) &&
-		    (error = suser_cred(ap->a_td->td_ucred, SUSER_ALLOWJAIL)))
-			return (error);
+		if (ap->a_cred->cr_uid != de->de_uid) {
+			error = priv_check_cred(ap->a_td->td_ucred,
+			    PRIV_VFS_ADMIN, SUSER_ALLOWJAIL);
+			if (error)
+				return (error);
+		}
 		de->de_mode = vap->va_mode;
 		c = 1;
 	}
@@ -1227,7 +1234,8 @@ devfs_symlink(struct vop_symlink_args *ap)
 
 	td = ap->a_cnp->cn_thread;
 	KASSERT(td == curthread, ("devfs_symlink: td != curthread"));
-	error = suser(td);
+
+	error = priv_check(td, PRIV_DEVFS_SYMLINK);
 	if (error)
 		return(error);
 	dmp = VFSTODEVFS(ap->a_dvp->v_mount);

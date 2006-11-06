@@ -45,6 +45,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/endian.h>
 #include <sys/param.h>
 #include <sys/kernel.h>
+#include <sys/priv.h>
 #include <sys/socket.h>
 #include <sys/sockio.h>
 #include <sys/systm.h>
@@ -344,7 +345,7 @@ ieee80211_cfgget(struct ieee80211com *ic, u_long cmd, caddr_t data)
 	case WI_RID_DEFLT_CRYPT_KEYS:
 		keys = (struct wi_ltv_keys *)&wreq;
 		/* do not show keys to non-root user */
-		error = suser(curthread);
+		error = priv_check(curthread, PRIV_NET80211_GETKEY);
 		if (error) {
 			memset(keys, 0, sizeof(*keys));
 			error = 0;
@@ -861,7 +862,7 @@ ieee80211_ioctl_getkey(struct ieee80211com *ic, struct ieee80211req *ireq)
 	ik.ik_flags = wk->wk_flags & (IEEE80211_KEY_XMIT | IEEE80211_KEY_RECV);
 	if (wk->wk_keyix == ic->ic_def_txkey)
 		ik.ik_flags |= IEEE80211_KEY_DEFAULT;
-	if (suser(curthread) == 0) {
+	if (priv_check(curthread, PRIV_NET80211_GETKEY) == 0) {
 		/* NB: only root can read key data */
 		ik.ik_keyrsc = wk->wk_keyrsc;
 		ik.ik_keytsc = wk->wk_keytsc;
@@ -1510,7 +1511,7 @@ ieee80211_ioctl_get80211(struct ieee80211com *ic, u_long cmd, struct ieee80211re
 			return EINVAL;
 		len = (u_int) ic->ic_nw_keys[kid].wk_keylen;
 		/* NB: only root can read WEP keys */
-		if (suser(curthread) == 0) {
+		if (priv_check(curthread, PRIV_NET80211_GETKEY) == 0) {
 			bcopy(ic->ic_nw_keys[kid].wk_key, tmpkey, len);
 		} else {
 			bzero(tmpkey, len);
@@ -2692,7 +2693,7 @@ ieee80211_ioctl(struct ieee80211com *ic, u_long cmd, caddr_t data)
 				(struct ieee80211req *) data);
 		break;
 	case SIOCS80211:
-		error = suser(curthread);
+		error = priv_check(curthread, PRIV_NET80211_MANAGE);
 		if (error == 0)
 			error = ieee80211_ioctl_set80211(ic, cmd,
 					(struct ieee80211req *) data);
@@ -2701,7 +2702,7 @@ ieee80211_ioctl(struct ieee80211com *ic, u_long cmd, caddr_t data)
 		error = ieee80211_cfgget(ic, cmd, data);
 		break;
 	case SIOCSIFGENERIC:
-		error = suser(curthread);
+		error = priv_check(curthread, PRIV_NET80211_MANAGE);
 		if (error)
 			break;
 		error = ieee80211_cfgset(ic, cmd, data);

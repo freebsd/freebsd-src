@@ -57,6 +57,7 @@
 #include <sys/malloc.h>
 #include <sys/mbuf.h>
 #include <sys/mutex.h>
+#include <sys/priv.h>
 #include <sys/protosw.h>
 #include <sys/queue.h>
 #include <sys/socket.h>
@@ -167,9 +168,11 @@ static int
 ngc_attach(struct socket *so, int proto, struct thread *td)
 {
 	struct ngpcb *const pcbp = sotongpcb(so);
+	int error;
 
-	if (suser(td))
-		return (EPERM);
+	error = priv_check(td, PRIV_NETGRAPH_CONTROL);
+	if (error)
+		return (error);
 	if (pcbp != NULL)
 		return (EISCONN);
 	return (ng_attach_cntl(so));

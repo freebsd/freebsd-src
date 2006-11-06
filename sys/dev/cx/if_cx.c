@@ -30,6 +30,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/systm.h>
 #include <sys/kernel.h>
 #include <sys/module.h>
+#include <sys/priv.h>
 #include <sys/proc.h>
 #include <sys/mbuf.h>
 #include <sys/sockio.h>
@@ -1632,7 +1633,7 @@ static int cx_ioctl (struct cdev *dev, u_long cmd, caddr_t data, int flag, struc
 	case SERIAL_SETPORT:
 		CX_DEBUG2 (d, ("ioctl: setproto\n"));
 		/* Only for superuser! */
-		error = suser (td);
+		error = priv_check (td, PRIV_DRIVER);
 		if (error)
 			return error;
 
@@ -1658,7 +1659,7 @@ static int cx_ioctl (struct cdev *dev, u_long cmd, caddr_t data, int flag, struc
 	case SERIAL_SETPROTO:
 		CX_DEBUG2 (d, ("ioctl: setproto\n"));
 		/* Only for superuser! */
-		error = suser (td);
+		error = priv_check (td, PRIV_DRIVER);
 		if (error)
 			return error;
 		if (c->mode == M_ASYNC)
@@ -1695,7 +1696,7 @@ static int cx_ioctl (struct cdev *dev, u_long cmd, caddr_t data, int flag, struc
 	case SERIAL_SETKEEPALIVE:
 		CX_DEBUG2 (d, ("ioctl: setkeepalive\n"));
 		/* Only for superuser! */
-		error = suser (td);
+		error = priv_check (td, PRIV_DRIVER);
 		if (error)
 			return error;
 		if ((IFP2SP(d->ifp)->pp_flags & PP_FR) ||
@@ -1725,7 +1726,7 @@ static int cx_ioctl (struct cdev *dev, u_long cmd, caddr_t data, int flag, struc
 	case SERIAL_SETMODE:
 		CX_DEBUG2 (d, ("ioctl: setmode\n"));
 		/* Only for superuser! */
-		error = suser (td);
+		error = priv_check (td, PRIV_DRIVER);
 		if (error)
 			return error;
 
@@ -1778,7 +1779,7 @@ static int cx_ioctl (struct cdev *dev, u_long cmd, caddr_t data, int flag, struc
 	case SERIAL_CLRSTAT:
 		CX_DEBUG2 (d, ("ioctl: clrstat\n"));
 		/* Only for superuser! */
-		error = suser (td);
+		error = priv_check (td, PRIV_DRIVER);
 		if (error)
 			return error;
 		s = splhigh ();
@@ -1810,7 +1811,7 @@ static int cx_ioctl (struct cdev *dev, u_long cmd, caddr_t data, int flag, struc
 	case SERIAL_SETBAUD:
 		CX_DEBUG2 (d, ("ioctl: setbaud\n"));
 		/* Only for superuser! */
-		error = suser (td);
+		error = priv_check (td, PRIV_DRIVER);
 		if (error)
 			return error;
 		if (c->mode == M_ASYNC)
@@ -1836,7 +1837,7 @@ static int cx_ioctl (struct cdev *dev, u_long cmd, caddr_t data, int flag, struc
 	case SERIAL_SETLOOP:
 		CX_DEBUG2 (d, ("ioctl: setloop\n"));
 		/* Only for superuser! */
-		error = suser (td);
+		error = priv_check (td, PRIV_DRIVER);
 		if (error)
 			return error;
 		if (c->mode == M_ASYNC)
@@ -1862,7 +1863,7 @@ static int cx_ioctl (struct cdev *dev, u_long cmd, caddr_t data, int flag, struc
 	case SERIAL_SETDPLL:
 		CX_DEBUG2 (d, ("ioctl: setdpll\n"));
 		/* Only for superuser! */
-		error = suser (td);
+		error = priv_check (td, PRIV_DRIVER);
 		if (error)
 			return error;
 		if (c->mode == M_ASYNC)
@@ -1888,7 +1889,7 @@ static int cx_ioctl (struct cdev *dev, u_long cmd, caddr_t data, int flag, struc
 	case SERIAL_SETNRZI:
 		CX_DEBUG2 (d, ("ioctl: setnrzi\n"));
 		/* Only for superuser! */
-		error = suser (td);
+		error = priv_check (td, PRIV_DRIVER);
 		if (error)
 			return error;
 		if (c->mode == M_ASYNC)
@@ -1912,7 +1913,7 @@ static int cx_ioctl (struct cdev *dev, u_long cmd, caddr_t data, int flag, struc
 	case SERIAL_SETDEBUG:
 		CX_DEBUG2 (d, ("ioctl: setdebug\n"));
 		/* Only for superuser! */
-		error = suser (td);
+		error = priv_check (td, PRIV_DRIVER);
 		if (error)
 			return error;
 		s = splhigh ();

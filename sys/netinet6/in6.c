@@ -71,6 +71,7 @@
 #include <sys/socketvar.h>
 #include <sys/sockio.h>
 #include <sys/systm.h>
+#include <sys/priv.h>
 #include <sys/proc.h>
 #include <sys/time.h>
 #include <sys/kernel.h>
@@ -325,12 +326,8 @@ in6_control(so, cmd, data, ifp, td)
 	struct	in6_ifreq *ifr = (struct in6_ifreq *)data;
 	struct	in6_ifaddr *ia = NULL;
 	struct	in6_aliasreq *ifra = (struct in6_aliasreq *)data;
-	int error, privileged;
 	struct sockaddr_in6 *sa6;
-
-	privileged = 0;
-	if (td == NULL || !suser(td))
-		privileged++;
+	int error;
 
 	switch (cmd) {
 	case SIOCGETSGCNT_IN6:
@@ -341,8 +338,11 @@ in6_control(so, cmd, data, ifp, td)
 	switch(cmd) {
 	case SIOCAADDRCTL_POLICY:
 	case SIOCDADDRCTL_POLICY:
-		if (!privileged)
-			return (EPERM);
+		if (td != NULL) {
+			error = priv_check(td, PRIV_NETINET_ADDRCTRL6);
+			if (error)
+				return (error);
+		}
 		return (in6_src_ioctl(cmd, data));
 	}
 
@@ -355,8 +355,11 @@ in6_control(so, cmd, data, ifp, td)
 	case SIOCSRTRFLUSH_IN6:
 	case SIOCSDEFIFACE_IN6:
 	case SIOCSIFINFO_FLAGS:
-		if (!privileged)
-			return (EPERM);
+		if (td != NULL) {
+			error = priv_check(td, PRIV_NETINET_ND6);
+			if (error)
+				return (error);
+		}
 		/* FALLTHROUGH */
 	case OSIOCGIFINFO_IN6:
 	case SIOCGIFINFO_IN6:
@@ -383,8 +386,11 @@ in6_control(so, cmd, data, ifp, td)
 
 	switch (cmd) {
 	case SIOCSSCOPE6:
-		if (!privileged)
-			return (EPERM);
+		if (td != NULL) {
+			error = priv_check(td, PRIV_NETINET_SCOPE6);
+			if (error)
+				return (error);
+		}
 		return (scope6_set(ifp,
 		    (struct scope6_id *)ifr->ifr_ifru.ifru_scope_id));
 	case SIOCGSCOPE6:
@@ -398,8 +404,15 @@ in6_control(so, cmd, data, ifp, td)
 	switch (cmd) {
 	case SIOCALIFADDR:
 	case SIOCDLIFADDR:
-		if (!privileged)
-			return (EPERM);
+		/*
+		 * XXXRW: Is this checked at another layer?  What priv to use
+		 * here?
+		 */
+		if (td != NULL) {
+			error = suser(td);
+			if (error)
+				return (error);
+		}
 		/* FALLTHROUGH */
 	case SIOCGLIFADDR:
 		return in6_lifaddr_ioctl(so, cmd, data, ifp, td);
@@ -488,8 +501,16 @@ in6_control(so, cmd, data, ifp, td)
 		if (ifra->ifra_addr.sin6_family != AF_INET6 ||
 		    ifra->ifra_addr.sin6_len != sizeof(struct sockaddr_in6))
 			return (EAFNOSUPPORT);
-		if (!privileged)
-			return (EPERM);
+
+		/*
+		 * XXXRW: Is this checked at another layer?  What priv to use
+		 * here?
+		 */
+		if (td != NULL) {
+			error = suser(td);
+			if (error)
+				return (error);
+		}
 
 		break;
 
@@ -508,8 +529,11 @@ in6_control(so, cmd, data, ifp, td)
 	    {
 		struct in6_addrlifetime *lt;
 
-		if (!privileged)
-			return (EPERM);
+		if (td != NULL) {
+			error = priv_check(td, PRIV_NETINET_ALIFETIME6);
+			if (error)
+				return (error);
+		}
 		if (ia == NULL)
 			return (EADDRNOTAVAIL);
 		/* sanity for overflow - beware unsigned */

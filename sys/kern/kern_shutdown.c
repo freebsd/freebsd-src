@@ -55,6 +55,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/kthread.h>
 #include <sys/malloc.h>
 #include <sys/mount.h>
+#include <sys/priv.h>
 #include <sys/proc.h>
 #include <sys/reboot.h>
 #include <sys/resourcevar.h>
@@ -164,7 +165,7 @@ reboot(struct thread *td, struct reboot_args *uap)
 	error = mac_check_system_reboot(td->td_ucred, uap->opt);
 #endif
 	if (error == 0)
-		error = suser(td);
+		error = priv_check(td, PRIV_REBOOT);
 	if (error == 0) {
 		mtx_lock(&Giant);
 		boot(uap->opt);

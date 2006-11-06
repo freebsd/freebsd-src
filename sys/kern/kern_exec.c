@@ -48,6 +48,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/imgact_elf.h>
 #include <sys/wait.h>
 #include <sys/malloc.h>
+#include <sys/priv.h>
 #include <sys/proc.h>
 #include <sys/pioctl.h>
 #include <sys/namei.h>
@@ -571,8 +572,11 @@ interpret:
 		 * we do not regain any tracing during a possible block.
 		 */
 		setsugid(p);
+
 #ifdef KTRACE
-		if (p->p_tracevp != NULL && suser_cred(oldcred, SUSER_ALLOWJAIL)) {
+		if (p->p_tracevp != NULL &&
+		    priv_check_cred(oldcred, PRIV_DEBUG_DIFFCRED,
+		    SUSER_ALLOWJAIL)) {
 			mtx_lock(&ktrace_mtx);
 			p->p_traceflag = 0;
 			tracevp = p->p_tracevp;

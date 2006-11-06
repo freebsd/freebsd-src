@@ -43,6 +43,7 @@
 #include <sys/malloc.h>
 #include <sys/mbuf.h>
 #include <sys/mutex.h>
+#include <sys/priv.h>
 #include <sys/protosw.h>
 #include <sys/queue.h>
 #include <sys/socket.h>
@@ -620,7 +621,7 @@ ng_btsocket_l2cap_raw_attach(struct socket *so, int proto, struct thread *td)
 	so->so_pcb = (caddr_t) pcb;
 	pcb->so = so;
 
-	if (suser(td) == 0)
+	if (priv_check(td, PRIV_NETBLUETOOTH_RAW) == 0)
 		pcb->flags |= NG_BTSOCKET_L2CAP_RAW_PRIVILEGED;
 
 	mtx_init(&pcb->pcb_mtx, "btsocks_l2cap_raw_pcb_mtx", NULL, MTX_DEF);

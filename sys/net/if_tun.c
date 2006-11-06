@@ -23,6 +23,7 @@
 #include "opt_mac.h"
 
 #include <sys/param.h>
+#include <sys/priv.h>
 #include <sys/proc.h>
 #include <sys/systm.h>
 #include <sys/mbuf.h>
@@ -597,9 +598,11 @@ tunioctl(struct cdev *dev, u_long cmd, caddr_t data, int flag, struct thread *td
 		tunp = (struct tuninfo *)data;
 		if (tunp->mtu < IF_MINMTU)
 			return (EINVAL);
-		if (TUN2IFP(tp)->if_mtu != tunp->mtu
-		&& (error = suser(td)) != 0)
-			return (error);
+		if (TUN2IFP(tp)->if_mtu != tunp->mtu) {
+			error = priv_check(td, PRIV_NET_SETIFMTU);
+			if (error)
+				return (error);
+		}
 		TUN2IFP(tp)->if_mtu = tunp->mtu;
 		TUN2IFP(tp)->if_type = tunp->type;
 		TUN2IFP(tp)->if_baudrate = tunp->baudrate;

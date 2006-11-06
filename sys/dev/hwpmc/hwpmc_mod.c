@@ -41,6 +41,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/pmc.h>
 #include <sys/pmckern.h>
 #include <sys/pmclog.h>
+#include <sys/priv.h>
 #include <sys/proc.h>
 #include <sys/queue.h>
 #include <sys/resourcevar.h>
@@ -2782,10 +2783,9 @@ pmc_syscall_handler(struct thread *td, void *syscall_args)
 		KASSERT(td == curthread,
 		    ("[pmc,%d] td != curthread", __LINE__));
 
-		if (suser(td) || jailed(td->td_ucred)) {
-			error =  EPERM;
+		error = priv_check(td, PRIV_PMC_MANAGE);
+		if (error)
 			break;
-		}
 
 		if ((error = copyin(arg, &pma, sizeof(pma))) != 0)
 			break;
@@ -2918,11 +2918,16 @@ pmc_syscall_handler(struct thread *td, void *syscall_args)
 		 */
 
 		if (PMC_IS_SYSTEM_MODE(mode)) {
-			if (jailed(curthread->td_ucred))
+			if (jailed(curthread->td_ucred)) {
 				error = EPERM;
-			else if (suser(curthread) &&
-			    (pmc_unprivileged_syspmcs == 0))
-				error = EPERM;
+				break;
+			}
+			if (!pmc_unprivileged_syspmcs) {
+				error = priv_check(curthread,
+				    PRIV_PMC_SYSTEM);
+				if (error)
+					break;
+			}
 		}
 
 		if (error)

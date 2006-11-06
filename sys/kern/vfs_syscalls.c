@@ -60,6 +60,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/sx.h>
 #include <sys/unistd.h>
 #include <sys/vnode.h>
+#include <sys/priv.h>
 #include <sys/proc.h>
 #include <sys/dirent.h>
 #include <sys/extattr.h>
@@ -272,7 +273,7 @@ kern_statfs(struct thread *td, char *path, enum uio_seg pathseg,
 	error = VFS_STATFS(mp, sp, td);
 	if (error)
 		goto out;
-	if (suser(td)) {
+	if (priv_check(td, PRIV_VFS_GENERATION)) {
 		bcopy(sp, &sb, sizeof(sb));
 		sb.f_fsid.val[0] = sb.f_fsid.val[1] = 0;
 		prison_enforce_statfs(td->td_ucred, mp, &sb);
@@ -357,7 +358,7 @@ kern_fstatfs(struct thread *td, int fd, struct statfs *buf)
 	error = VFS_STATFS(mp, sp, td);
 	if (error)
 		goto out;
-	if (suser(td)) {
+	if (priv_check(td, PRIV_VFS_GENERATION)) {
 		bcopy(sp, &sb, sizeof(sb));
 		sb.f_fsid.val[0] = sb.f_fsid.val[1] = 0;
 		prison_enforce_statfs(td->td_ucred, mp, &sb);
@@ -468,7 +469,7 @@ kern_getfsstat(struct thread *td, struct statfs **buf, size_t bufsize,
 				vfs_unbusy(mp, td);
 				continue;
 			}
-			if (suser(td)) {
+			if (priv_check(td, PRIV_VFS_GENERATION)) {
 				bcopy(sp, &sb, sizeof(sb));
 				sb.f_fsid.val[0] = sb.f_fsid.val[1] = 0;
 				prison_enforce_statfs(td->td_ucred, mp, &sb);
@@ -842,7 +843,8 @@ chroot(td, uap)
 	struct nameidata nd;
 	int vfslocked;
 
-	error = suser_cred(td->td_ucred, SUSER_ALLOWJAIL);
+	error = priv_check_cred(td->td_ucred, PRIV_VFS_CHROOT,
+	    SUSER_ALLOWJAIL);
 	if (error)
 		return (error);
 	NDINIT(&nd, LOOKUP, FOLLOW | LOCKLEAF | MPSAFE | AUDITVNODE1,
@@ -896,8 +898,8 @@ change_dir(vp, td)
 
 /*
  * Common routine for kern_chroot() and jail_attach().  The caller is
- * responsible for invoking suser() and mac_check_chroot() to authorize this
- * operation.
+ * responsible for invoking priv_check() and mac_check_chroot() to authorize
+ * this operation.
  */
 int
 change_root(vp, td)
@@ -1186,10 +1188,16 @@ kern_mknod(struct thread *td, char *path, enum uio_seg pathseg, int mode,
 	switch (mode & S_IFMT) {
 	case S_IFCHR:
 	case S_IFBLK:
-		error = suser(td);
+		error = priv_check(td, PRIV_VFS_MKNOD_DEV);
+		break;
+	case S_IFMT:
+		error = priv_check(td, PRIV_VFS_MKNOD_BAD);
+		break;
+	case S_IFWHT:
+		error = priv_check(td, PRIV_VFS_MKNOD_WHT);
 		break;
 	default:
-		error = suser_cred(td->td_ucred, SUSER_ALLOWJAIL);
+		error = EINVAL;
 		break;
 	}
 	if (error)
@@ -1234,8 +1242,7 @@ restart:
 			whiteout = 1;
 			break;
 		default:
-			error = EINVAL;
-			break;
+			panic("kern_mknod: invalid mode");
 		}
 	}
 	if (vn_start_write(nd.ni_dvp, &mp, V_NOWAIT) != 0) {
@@ -1390,9 +1397,6 @@ can_hardlink(struct vnode *vp, struct thread *td, struct ucred *cred)
 	struct vattr va;
 	int error;
 
-	if (suser_cred(cred, SUSER_ALLOWJAIL) == 0)
-		return (0);
-
 	if (!hardlink_check_uid && !hardlink_check_gid)
 		return (0);
 
@@ -1400,14 +1404,18 @@ can_hardlink(struct vnode *vp, struct thread *td, struct ucred *cred)
 	if (error != 0)
 		return (error);
 
-	if (hardlink_check_uid) {
-		if (cred->cr_uid != va.va_uid)
-			return (EPERM);
+	if (hardlink_check_uid && cred->cr_uid != va.va_uid) {
+		error = priv_check_cred(cred, PRIV_VFS_LINK,
+		    SUSER_ALLOWJAIL);
+		if (error)
+			return (error);
 	}
 
-	if (hardlink_check_gid) {
-		if (!groupmember(va.va_gid, cred))
-			return (EPERM);
+	if (hardlink_check_gid && !groupmember(va.va_gid, cred)) {
+		error = priv_check_cred(cred, PRIV_VFS_LINK,
+		    SUSER_ALLOWJAIL);
+		if (error)
+			return (error);
 	}
 
 	return (0);
@@ -2361,7 +2369,8 @@ setfflags(td, vp, flags)
 	 * chown can't fail when done as root.
 	 */
 	if (vp->v_type == VCHR || vp->v_type == VBLK) {
-		error = suser_cred(td->td_ucred, SUSER_ALLOWJAIL);
+		error = priv_check_cred(td->td_ucred, PRIV_VFS_CHFLAGS_DEV,
+		    SUSER_ALLOWJAIL);
 		if (error)
 			return (error);
 	}
@@ -3894,7 +3903,8 @@ revoke(td, uap)
 	if (error)
 		goto out;
 	if (td->td_ucred->cr_uid != vattr.va_uid) {
-		error = suser_cred(td->td_ucred, SUSER_ALLOWJAIL);
+		error = priv_check_cred(td->td_ucred, PRIV_VFS_ADMIN,
+		    SUSER_ALLOWJAIL);
 		if (error)
 			goto out;
 	}
@@ -3960,7 +3970,7 @@ lgetfh(td, uap)
 	int vfslocked;
 	int error;
 
-	error = suser(td);
+	error = priv_check(td, PRIV_VFS_GETFH);
 	if (error)
 		return (error);
 	NDINIT(&nd, LOOKUP, NOFOLLOW | LOCKLEAF | MPSAFE | AUDITVNODE1,
@@ -3999,7 +4009,7 @@ getfh(td, uap)
 	int vfslocked;
 	int error;
 
-	error = suser(td);
+	error = priv_check(td, PRIV_VFS_GETFH);
 	if (error)
 		return (error);
 	NDINIT(&nd, LOOKUP, FOLLOW | LOCKLEAF | MPSAFE | AUDITVNODE1,
@@ -4022,10 +4032,10 @@ getfh(td, uap)
 }
 
 /*
- * syscall for the rpc.lockd to use to translate a NFS file handle into
- * an open descriptor.
+ * syscall for the rpc.lockd to use to translate a NFS file handle into an
+ * open descriptor.
  *
- * warning: do not remove the suser() call or this becomes one giant
+ * warning: do not remove the priv_check() call or this becomes one giant
  * security hole.
  *
  * MP SAFE
@@ -4058,7 +4068,7 @@ fhopen(td, uap)
 	int vfslocked;
 	int indx;
 
-	error = suser(td);
+	error = priv_check(td, PRIV_VFS_FHOPEN);
 	if (error)
 		return (error);
 	fmode = FFLAGS(uap->flags);
@@ -4242,7 +4252,7 @@ fhstat(td, uap)
 	int vfslocked;
 	int error;
 
-	error = suser(td);
+	error = priv_check(td, PRIV_VFS_FHSTAT);
 	if (error)
 		return (error);
 	error = copyin(uap->u_fhp, &fh, sizeof(fhandle_t));
@@ -4307,7 +4317,7 @@ kern_fhstatfs(struct thread *td, fhandle_t fh, struct statfs *buf)
 	int vfslocked;
 	int error;
 
-	error = suser(td);
+	error = priv_check(td, PRIV_VFS_FHSTATFS);
 	if (error)
 		return (error);
 	if ((mp = vfs_getvfs(&fh.fh_fsid)) == NULL)

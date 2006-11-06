@@ -33,6 +33,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/module.h>
 #include <sys/conf.h>
 #include <sys/malloc.h>
+#include <sys/priv.h>
 #include <sys/socket.h>
 #include <sys/sockio.h>
 #include <sys/sysctl.h>
@@ -1071,7 +1072,7 @@ static int cp_ioctl (struct cdev *dev, u_long cmd, caddr_t data, int flag, struc
 	case SERIAL_SETPROTO:
 		CP_DEBUG2 (d, ("ioctl: setproto\n"));
 		/* Only for superuser! */
-		error = suser (td);
+		error = priv_check (td, PRIV_DRIVER);
 		if (error)
 			return error;
 		if (d->ifp->if_drv_flags & IFF_DRV_RUNNING)
@@ -1102,7 +1103,7 @@ static int cp_ioctl (struct cdev *dev, u_long cmd, caddr_t data, int flag, struc
 	case SERIAL_SETKEEPALIVE:
 		CP_DEBUG2 (d, ("ioctl: setkeepalive\n"));
 		/* Only for superuser! */
-		error = suser (td);
+		error = priv_check (td, PRIV_DRIVER);
 		if (error)
 			return error;
 		if ((IFP2SP(d->ifp)->pp_flags & PP_FR) ||
@@ -1126,7 +1127,7 @@ static int cp_ioctl (struct cdev *dev, u_long cmd, caddr_t data, int flag, struc
 
 	case SERIAL_SETMODE:
 		/* Only for superuser! */
-		error = suser (td);
+		error = priv_check (td, PRIV_DRIVER);
 		if (error)
 			return error;
 		if (*(int*)data != SERIAL_HDLC)
@@ -1142,7 +1143,7 @@ static int cp_ioctl (struct cdev *dev, u_long cmd, caddr_t data, int flag, struc
 
 	case SERIAL_SETCFG:
 		CP_DEBUG2 (d, ("ioctl: setcfg\n"));
-		error = suser (td);
+		error = priv_check (td, PRIV_DRIVER);
 		if (error)
 			return error;
 		if (c->type != T_E1)
@@ -1239,7 +1240,7 @@ static int cp_ioctl (struct cdev *dev, u_long cmd, caddr_t data, int flag, struc
 	case SERIAL_CLRSTAT:
 		CP_DEBUG2 (d, ("ioctl: clrstat\n"));
 		/* Only for superuser! */
-		error = suser (td);
+		error = priv_check (td, PRIV_DRIVER);
 		if (error)
 			return error;
 		c->rintr    = 0;
@@ -1268,7 +1269,7 @@ static int cp_ioctl (struct cdev *dev, u_long cmd, caddr_t data, int flag, struc
 	case SERIAL_SETBAUD:
 		CP_DEBUG2 (d, ("ioctl: setbaud\n"));
 		/* Only for superuser! */
-		error = suser (td);
+		error = priv_check (td, PRIV_DRIVER);
 		if (error)
 			return error;
 		s = splimp ();
@@ -1286,7 +1287,7 @@ static int cp_ioctl (struct cdev *dev, u_long cmd, caddr_t data, int flag, struc
 	case SERIAL_SETLOOP:
 		CP_DEBUG2 (d, ("ioctl: setloop\n"));
 		/* Only for superuser! */
-		error = suser (td);
+		error = priv_check (td, PRIV_DRIVER);
 		if (error)
 			return error;
 		s = splimp ();
@@ -1306,7 +1307,7 @@ static int cp_ioctl (struct cdev *dev, u_long cmd, caddr_t data, int flag, struc
 	case SERIAL_SETDPLL:
 		CP_DEBUG2 (d, ("ioctl: setdpll\n"));
 		/* Only for superuser! */
-		error = suser (td);
+		error = priv_check (td, PRIV_DRIVER);
 		if (error)
 			return error;
 		if (c->type != T_SERIAL)
@@ -1328,7 +1329,7 @@ static int cp_ioctl (struct cdev *dev, u_long cmd, caddr_t data, int flag, struc
 	case SERIAL_SETNRZI:
 		CP_DEBUG2 (d, ("ioctl: setnrzi\n"));
 		/* Only for superuser! */
-		error = suser (td);
+		error = priv_check (td, PRIV_DRIVER);
 		if (error)
 			return error;
 		if (c->type != T_SERIAL)
@@ -1348,7 +1349,7 @@ static int cp_ioctl (struct cdev *dev, u_long cmd, caddr_t data, int flag, struc
 	case SERIAL_SETDEBUG:
 		CP_DEBUG2 (d, ("ioctl: setdebug\n"));
 		/* Only for superuser! */
-		error = suser (td);
+		error = priv_check (td, PRIV_DRIVER);
 		if (error)
 			return error;
 		d->chan->debug = *(int*)data;
@@ -1370,7 +1371,7 @@ static int cp_ioctl (struct cdev *dev, u_long cmd, caddr_t data, int flag, struc
 	case SERIAL_SETHIGAIN:
 		CP_DEBUG2 (d, ("ioctl: sethigain\n"));
 		/* Only for superuser! */
-		error = suser (td);
+		error = priv_check (td, PRIV_DRIVER);
 		if (error)
 			return error;
 		if (c->type != T_E1)
@@ -1392,7 +1393,7 @@ static int cp_ioctl (struct cdev *dev, u_long cmd, caddr_t data, int flag, struc
 	case SERIAL_SETPHONY:
 		CP_DEBUG2 (d, ("ioctl: setphony\n"));
 		/* Only for superuser! */
-		error = suser (td);
+		error = priv_check (td, PRIV_DRIVER);
 		if (error)
 			return error;
 		if (c->type != T_E1)
@@ -1414,7 +1415,7 @@ static int cp_ioctl (struct cdev *dev, u_long cmd, caddr_t data, int flag, struc
 	case SERIAL_SETUNFRAM:
 		CP_DEBUG2 (d, ("ioctl: setunfram\n"));
 		/* Only for superuser! */
-		error = suser (td);
+		error = priv_check (td, PRIV_DRIVER);
 		if (error)
 			return error;
 		if (c->type != T_E1)
@@ -1436,7 +1437,7 @@ static int cp_ioctl (struct cdev *dev, u_long cmd, caddr_t data, int flag, struc
 	case SERIAL_SETSCRAMBLER:
 		CP_DEBUG2 (d, ("ioctl: setscrambler\n"));
 		/* Only for superuser! */
-		error = suser (td);
+		error = priv_check (td, PRIV_DRIVER);
 		if (error)
 			return error;
 		if (c->type != T_G703 && !c->unfram)
@@ -1461,7 +1462,7 @@ static int cp_ioctl (struct cdev *dev, u_long cmd, caddr_t data, int flag, struc
 	case SERIAL_SETMONITOR:
 		CP_DEBUG2 (d, ("ioctl: setmonitor\n"));
 		/* Only for superuser! */
-		error = suser (td);
+		error = priv_check (td, PRIV_DRIVER);
 		if (error)
 			return error;
 		if (c->type != T_E1)
@@ -1483,7 +1484,7 @@ static int cp_ioctl (struct cdev *dev, u_long cmd, caddr_t data, int flag, struc
 	case SERIAL_SETUSE16:
 		CP_DEBUG2 (d, ("ioctl: setuse16\n"));
 		/* Only for superuser! */
-		error = suser (td);
+		error = priv_check (td, PRIV_DRIVER);
 		if (error)
 			return error;
 		if (c->type != T_E1)
@@ -1505,7 +1506,7 @@ static int cp_ioctl (struct cdev *dev, u_long cmd, caddr_t data, int flag, struc
 	case SERIAL_SETCRC4:
 		CP_DEBUG2 (d, ("ioctl: setcrc4\n"));
 		/* Only for superuser! */
-		error = suser (td);
+		error = priv_check (td, PRIV_DRIVER);
 		if (error)
 			return error;
 		if (c->type != T_E1)
@@ -1538,7 +1539,7 @@ static int cp_ioctl (struct cdev *dev, u_long cmd, caddr_t data, int flag, struc
 	case SERIAL_SETCLK:
 		CP_DEBUG2 (d, ("ioctl: setclk\n"));
 		/* Only for superuser! */
-		error = suser (td);
+		error = priv_check (td, PRIV_DRIVER);
 		if (error)
 			return error;
 		if (c->type != T_E1 &&
@@ -1571,7 +1572,7 @@ static int cp_ioctl (struct cdev *dev, u_long cmd, caddr_t data, int flag, struc
 	case SERIAL_SETTIMESLOTS:
 		CP_DEBUG2 (d, ("ioctl: settimeslots\n"));
 		/* Only for superuser! */
-		error = suser (td);
+		error = priv_check (td, PRIV_DRIVER);
 		if (error)
 			return error;
 		if ((c->type != T_E1 || c->unfram) && c->type != T_DATA)
@@ -1597,7 +1598,7 @@ static int cp_ioctl (struct cdev *dev, u_long cmd, caddr_t data, int flag, struc
 	case SERIAL_SETINVCLK:
 		CP_DEBUG2 (d, ("ioctl: setinvclk\n"));
 		/* Only for superuser! */
-		error = suser (td);
+		error = priv_check (td, PRIV_DRIVER);
 		if (error)
 			return error;
 		if (c->type != T_SERIAL)
@@ -1620,7 +1621,7 @@ static int cp_ioctl (struct cdev *dev, u_long cmd, caddr_t data, int flag, struc
 	case SERIAL_SETINVTCLK:
 		CP_DEBUG2 (d, ("ioctl: setinvtclk\n"));
 		/* Only for superuser! */
-		error = suser (td);
+		error = priv_check (td, PRIV_DRIVER);
 		if (error)
 			return error;
 		if (c->type != T_SERIAL)
@@ -1642,7 +1643,7 @@ static int cp_ioctl (struct cdev *dev, u_long cmd, caddr_t data, int flag, struc
 	case SERIAL_SETINVRCLK:
 		CP_DEBUG2 (d, ("ioctl: setinvrclk\n"));
 		/* Only for superuser! */
-		error = suser (td);
+		error = priv_check (td, PRIV_DRIVER);
 		if (error)
 			return error;
 		if (c->type != T_SERIAL)
@@ -1669,7 +1670,7 @@ static int cp_ioctl (struct cdev *dev, u_long cmd, caddr_t data, int flag, struc
 	case SERIAL_RESET:
 		CP_DEBUG2 (d, ("ioctl: reset\n"));
 		/* Only for superuser! */
-		error = suser (td);
+		error = priv_check (td, PRIV_DRIVER);
 		if (error)
 			return error;
 		s = splimp ();
@@ -1682,7 +1683,7 @@ static int cp_ioctl (struct cdev *dev, u_long cmd, caddr_t data, int flag, struc
 	case SERIAL_HARDRESET:
 		CP_DEBUG2 (d, ("ioctl: hardreset\n"));
 		/* Only for superuser! */
-		error = suser (td);
+		error = priv_check (td, PRIV_DRIVER);
 		if (error)
 			return error;
 		s = splimp ();
@@ -1714,7 +1715,7 @@ static int cp_ioctl (struct cdev *dev, u_long cmd, caddr_t data, int flag, struc
 	case SERIAL_SETDIR:
 		CP_DEBUG2 (d, ("ioctl: setdir\n"));
 		/* Only for superuser! */
-		error = suser (td);
+		error = priv_check (td, PRIV_DRIVER);
 		if (error)
 			return error;
 		s = splimp ();
@@ -1739,7 +1740,7 @@ static int cp_ioctl (struct cdev *dev, u_long cmd, caddr_t data, int flag, struc
 		if (c->type != T_E3 && c->type != T_T3 && c->type != T_STS1)
 			return EINVAL;
 		/* Only for superuser! */
-		error = suser (td);
+		error = priv_check (td, PRIV_DRIVER);
 		if (error)
 			return error;
 		s = splimp ();
@@ -1761,7 +1762,7 @@ static int cp_ioctl (struct cdev *dev, u_long cmd, caddr_t data, int flag, struc
 		if (c->type != T_T3 && c->type != T_STS1)
 			return EINVAL;
 		/* Only for superuser! */
-		error = suser (td);
+		error = priv_check (td, PRIV_DRIVER);
 		if (error)
 			return error;
 		s = splimp ();

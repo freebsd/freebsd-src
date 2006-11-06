@@ -68,6 +68,7 @@
 #include <sys/malloc.h>
 #include <sys/mbuf.h>
 #include <sys/module.h>
+#include <sys/priv.h>
 #include <sys/protosw.h>
 #include <sys/signalvar.h>
 #include <sys/socket.h>
@@ -576,7 +577,7 @@ X_mrt_ioctl(int cmd, caddr_t data)
      * Typically, only root can create the raw socket in order to execute
      * this ioctl method, however the request might be coming from a prison
      */
-    error = suser(curthread);
+    error = priv_check(curthread, PRIV_NETINET_MROUTE);
     if (error)
 	return (error);
     switch (cmd) {

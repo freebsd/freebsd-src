@@ -48,6 +48,7 @@
 #include <sys/consio.h>
 #include <sys/tty.h>
 #include <sys/malloc.h>
+#include <sys/priv.h>
 #include <sys/proc.h>
 #include <sys/ucred.h>
 
@@ -293,7 +294,8 @@ dcons_open(DEV dev, int flag, int mode, THREAD *td)
 	if ((tp->t_state & TS_ISOPEN) == 0) {
 		tp->t_state |= TS_CARR_ON;
 		ttyconsolemode(tp, 0);
-	} else if ((tp->t_state & TS_XCLUDE) && suser(td)) {
+	} else if ((tp->t_state & TS_XCLUDE) &&
+	    priv_check(td, PRIV_TTY_EXCLUSIVE)) {
 		splx(s);
 		return (EBUSY);
 	}
