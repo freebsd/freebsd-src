@@ -193,9 +193,12 @@ main(int argc, char **argv)
 		case HAVE_ENDER | HAVE_STEP:
 		case HAVE_BEGIN:
 		case HAVE_BEGIN | HAVE_STEP:
-		case HAVE_BEGIN | HAVE_ENDER:
 			reps = REPS_DEF;
 			mask |= HAVE_REPS;
+			break;
+		case HAVE_BEGIN | HAVE_ENDER:
+			s = ender > begin ? 1 : -1;
+			mask |= HAVE_STEP;
 			break;
 		case HAVE_BEGIN | HAVE_ENDER | HAVE_STEP:
 			if (randomize)
