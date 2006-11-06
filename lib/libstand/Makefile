@@ -37,13 +37,9 @@ SRCS+=	zutil.h __main.c assert.c bcd.c bswap.c environment.c getopt.c gets.c \
 # private (pruned) versions of libc string functions
 SRCS+=	strcasecmp.c
 
-# byte order functions from libc
-.if ${MACHINE_ARCH} != "amd64"
-.PATH: ${.CURDIR}/../libc/${MACHINE_ARCH}/net
-.else
-.PATH: ${.CURDIR}/../libc/i386/net
-.endif
-SRCS+= htons.S ntohs.S htonl.S ntohl.S
+.PATH: ${.CURDIR}/../libc/net
+
+SRCS+= ntoh.c
 
 # string functions from libc
 .PATH: ${.CURDIR}/../libc/string
