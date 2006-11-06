@@ -1362,6 +1362,20 @@ stub_check_vnode_write(struct ucred *active_cred,
 	return (0);
 }
 
+static int
+stub_priv_check(struct ucred *cred, int priv)
+{
+
+	return (0);
+}
+
+static int
+stub_priv_grant(struct ucred *cred, int priv)
+{
+
+	return (EPERM);
+}
+
 static struct mac_policy_ops mac_stub_ops =
 {
 	.mpo_destroy = stub_destroy,
@@ -1575,6 +1589,8 @@ static struct mac_policy_ops mac_stub_ops =
 	.mpo_check_vnode_setutimes = stub_check_vnode_setutimes,
 	.mpo_check_vnode_stat = stub_check_vnode_stat,
 	.mpo_check_vnode_write = stub_check_vnode_write,
+	.mpo_priv_check = stub_priv_check,
+	.mpo_priv_grant = stub_priv_grant,
 };
 
 MAC_POLICY_SET(&mac_stub_ops, mac_stub, "TrustedBSD MAC/Stub",
