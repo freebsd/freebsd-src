@@ -28,7 +28,7 @@
 .\" ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 .\" POSSIBILITY OF SUCH DAMAGE.
 .\"
-.Dd February 7, 2005
+.Dd October 30, 2006
 .Dt PF.CONF 5
 .Os
 .Sh NAME
@@ -2851,6 +2851,12 @@ from the
 for the moment.
 This workaround will still produce the LOR, but Giant will protect from the
 deadlock.
+.Pp
+Route labels are not supported by the
+.Fx
+.Xr route 4
+system.
+Rules with a route label do not match any traffic.
 .Sh SEE ALSO
 .Xr altq 4 ,
 .Xr icmp 4 ,
