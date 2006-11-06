@@ -3283,10 +3283,74 @@ sctp_free_assoc(struct sctp_inpcb *inp, struct sctp_tcb *stcb, int from_inpcbfre
 		callout_stop(&net->rxt_timer.timer);
 		callout_stop(&net->pmtu_timer.timer);
 	}
+	/* Now the read queue needs to be cleaned up (only once) */
+	if ((stcb->asoc.state & SCTP_STATE_ABOUT_TO_BE_FREED) == 0) {
+		SCTP_INP_READ_LOCK(inp);
+		TAILQ_FOREACH(sq, &inp->read_queue, next) {
+			if (sq->stcb == stcb) {
+				sq->do_not_ref_stcb = 1;
+				sq->sinfo_cumtsn = stcb->asoc.cumulative_tsn;
+				if ((from_inpcbfree == 0) && so) {
+					/*
+					 * Only if we have a socket lock do
+					 * we do this
+					 */
+					if ((sq->held_length) ||
+					    (sq->end_added == 0) ||
+					    ((sq->length == 0) && (sq->end_added == 0))) {
+						/* Held for PD-API */
+						sq->held_length = 0;
+						if (sctp_is_feature_on(inp, SCTP_PCB_FLAGS_PDAPIEVNT)) {
+							/*
+							 * need to change to
+							 * PD-API aborted
+							 */
+							stcb->asoc.control_pdapi = sq;
+							sctp_notify_partial_delivery_indication(stcb,
+							    SCTP_PARTIAL_DELIVERY_ABORTED, 1);
+							stcb->asoc.control_pdapi = NULL;
+						} else {
+							/*
+							 * need to get the
+							 * reader to remove
+							 * it
+							 */
+							sq->length = 0;
+							if (sq->data) {
+								struct mbuf *m;
 
+								m = sq->data;
+								while (m) {
+									sctp_sbfree(sq, stcb, &stcb->sctp_socket->so_rcv, m);
+									m = sctp_m_free(m);
+								}
+								sq->data = NULL;
+								sq->tail_mbuf = NULL;
+							}
+						}
+					}
+				}
+				sq->end_added = 1;
+				cnt++;
+			}
+		}
+		SCTP_INP_READ_UNLOCK(inp);
+		if (stcb->block_entry) {
+			stcb->block_entry->error = ECONNRESET;
+			stcb->block_entry = NULL;
+		}
+	}
 	stcb->asoc.state |= SCTP_STATE_ABOUT_TO_BE_FREED;
 	if ((from_inpcbfree != 2) && (stcb->asoc.refcnt)) {
-		/* reader or writer in the way */
+		/*
+		 * reader or writer in the way, we have hopefully given him
+		 * something to chew on above.
+		 */
+		if (so) {
+			/* Wake any reader/writers */
+			sctp_sorwakeup(inp, so);
+			sctp_sowwakeup(inp, so);
+		}
 		sctp_timer_start(SCTP_TIMER_TYPE_ASOCKILL, inp, stcb, NULL);
 		SCTP_TCB_UNLOCK(stcb);
 		splx(s);
@@ -3299,60 +3363,6 @@ sctp_free_assoc(struct sctp_inpcb *inp, struct sctp_tcb *stcb, int from_inpcbfre
 #ifdef SCTP_LOG_CLOSING
 	sctp_log_closing(inp, stcb, 10);
 #endif
-	/* Now the read queue needs to be cleaned up */
-	SCTP_INP_READ_LOCK(inp);
-	TAILQ_FOREACH(sq, &inp->read_queue, next) {
-		if (sq->stcb == stcb) {
-			sq->do_not_ref_stcb = 1;
-			sq->sinfo_cumtsn = stcb->asoc.cumulative_tsn;
-			if ((from_inpcbfree == 0) && so) {
-				/*
-				 * Only if we have a socket lock do we do
-				 * this
-				 */
-				if ((sq->held_length) ||
-				    (sq->end_added == 0) ||
-				    ((sq->length == 0) && (sq->end_added == 0))) {
-					/* Held for PD-API */
-					sq->held_length = 0;
-					if (sctp_is_feature_on(inp, SCTP_PCB_FLAGS_PDAPIEVNT)) {
-						/*
-						 * need to change to PD-API
-						 * aborted
-						 */
-						stcb->asoc.control_pdapi = sq;
-						sctp_notify_partial_delivery_indication(stcb,
-						    SCTP_PARTIAL_DELIVERY_ABORTED, 1);
-						stcb->asoc.control_pdapi = NULL;
-					} else {
-						/*
-						 * need to get the reader to
-						 * remove it
-						 */
-						sq->length = 0;
-						if (sq->data) {
-							struct mbuf *m;
-
-							m = sq->data;
-							while (m) {
-								sctp_sbfree(sq, stcb, &stcb->sctp_socket->so_rcv, m);
-								m = sctp_m_free(m);
-							}
-							sq->data = NULL;
-							sq->tail_mbuf = NULL;
-						}
-					}
-				}
-			}
-			sq->end_added = 1;
-			cnt++;
-		}
-	}
-	SCTP_INP_READ_UNLOCK(inp);
-	if (stcb->block_entry) {
-		stcb->block_entry->error = ECONNRESET;
-		stcb->block_entry = NULL;
-	}
 	if ((from_inpcbfree == 0) && so) {
 		sctp_sorwakeup(inp, so);
 	}
