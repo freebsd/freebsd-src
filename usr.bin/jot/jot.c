@@ -62,11 +62,13 @@ __FBSDID("$FreeBSD$");
 #include <time.h>
 #include <unistd.h>
 
+/* Defaults */
 #define	REPS_DEF	100
 #define	BEGIN_DEF	1
 #define	ENDER_DEF	100
 #define	STEP_DEF	1
 
+/* Flags of options that have been set */
 #define HAVE_STEP	1
 #define HAVE_ENDER	2
 #define HAVE_BEGIN	4
@@ -74,52 +76,43 @@ __FBSDID("$FreeBSD$");
 
 #define	is_default(s)	(*(s) == 0 || strcmp((s), "-") == 0)
 
-double	begin;
-double	ender;
-double	s;
-long	reps;
-int	randomize;
-int	infinity;
-int	boring;
-int	prec;
-int	longdata;
-int	intdata;
-int	chardata;
-int	nosign;
-int	nofinalnl;
-const	char *sepstring = "\n";
-char	format[BUFSIZ];
+static bool	boring;
+static int	prec;
+static bool	longdata;
+static bool	intdata;
+static bool	chardata;
+static bool	nosign;
+static const	char *sepstring = "\n";
+static char	format[BUFSIZ];
 
-void		getformat(void);
-int		getprec(char *);
-int		putdata(double, long);
+static void	getformat(void);
+static int	getprec(const char *);
+static int	putdata(double, bool);
 static void	usage(void);
 
 int
 main(int argc, char **argv)
 {
+	bool	have_format = false;
+	bool	infinity = false;
+	bool	nofinalnl = false;
+	bool	randomize = false;
+	bool	use_random = false;
+	int	ch;
+	int	mask = 0;
+	int	n = 0;
+	double	begin;
+	double	divisor;
+	double	ender;
+	double	s;
 	double	x, y;
 	long	i;
-	unsigned int	mask = 0;
-	int	n = 0;
-	int	ch;
-	bool	use_random = false;
-	bool	have_format = false;
-	double	divisor;
+	long	reps;
 
-	while ((ch = getopt(argc, argv, "rb:w:cs:np:")) != -1)
+	while ((ch = getopt(argc, argv, "b:cnp:rs:w:")) != -1)
 		switch (ch) {
-		case 'r':
-			randomize = 1;
-			break;
-		case 'c':
-			chardata = 1;
-			break;
-		case 'n':
-			nofinalnl = 1;
-			break;
 		case 'b':
-			boring = 1;
+			boring = true;
 			/* FALLTHROUGH */
 		case 'w':
 			if (strlcpy(format, optarg, sizeof(format)) >=
@@ -127,14 +120,23 @@ main(int argc, char **argv)
 				errx(1, "-%c word too long", ch);
 			have_format = true;
 			break;
-		case 's':
-			sepstring = optarg;
+		case 'c':
+			chardata = true;
+			break;
+		case 'n':
+			nofinalnl = true;
 			break;
 		case 'p':
 			prec = atoi(optarg);
 			if (prec <= 0)
 				errx(1, "bad precision value");
 			have_format = true;
+			break;
+		case 'r':
+			randomize = true;
+			break;
+		case 's':
+			sepstring = optarg;
 			break;
 		default:
 			usage();
@@ -263,7 +265,7 @@ main(int argc, char **argv)
 			errx(1, "bad mask");
 		}
 	if (reps == 0)
-		infinity = 1;
+		infinity = true;
 	if (randomize) {
 		if (use_random) {
 			srandom((unsigned long)s);
@@ -283,8 +285,8 @@ main(int argc, char **argv)
 		    begin >= 0 && begin < divisor &&
 		    ender >= 0 && ender < divisor) {
 			ender += 1;
-			nosign = 1;
-			intdata = 1;
+			nosign = true;
+			intdata = true;
 			(void)strlcpy(format,
 			    chardata ? "%c" : "%u", sizeof(format));
 		}
@@ -294,20 +296,26 @@ main(int argc, char **argv)
 				y = random() / divisor;
 			else
 				y = arc4random() / divisor;
-			if (putdata(y * x + begin, reps - i))
+			if (putdata(y * x + begin, !(reps - i)))
 				errx(1, "range error in conversion");
 		}
 	} else
 		for (i = 1, x = begin; i <= reps || infinity; i++, x += s)
-			if (putdata(x, reps - i))
+			if (putdata(x, !(reps - i)))
 				errx(1, "range error in conversion");
 	if (!nofinalnl)
 		putchar('\n');
 	exit(0);
 }
 
-int
-putdata(double x, long int notlast)
+/*
+ * Send x to stdout using the specified format.
+ * Last is  true if this is the set's last value.
+ * Return 0 if OK, or a positive number if the number passed was
+ * outside the range specified by the various flags.
+ */
+static int
+putdata(double x, bool last)
 {
 
 	if (boring)
@@ -335,7 +343,7 @@ putdata(double x, long int notlast)
 
 	} else
 		printf(format, x);
-	if (notlast != 0)
+	if (!last)
 		fputs(sepstring, stdout);
 
 	return (0);
@@ -350,11 +358,15 @@ usage(void)
 	exit(1);
 }
 
-int
-getprec(char *str)
+/* 
+ * Return the number of digits following the number's decimal point.
+ * Return 0 if no decimal point is found.
+ */
+static int
+getprec(const char *str)
 {
-	char	*p;
-	char	*q;
+	const char	*p;
+	const char	*q;
 
 	for (p = str; *p; p++)
 		if (*p == '.')
@@ -367,7 +379,11 @@ getprec(char *str)
 	return (p - q);
 }
 
-void
+/*
+ * Set format, intdata, chardata, longdata, and nosign
+ * based on the command line arguments.
+ */
+static void
 getformat(void)
 {
 	char	*p, *p2;
@@ -386,7 +402,7 @@ getformat(void)
 	} else if (!*p && chardata) {
 		if (strlcpy(p, "%c", sz) >= sz)
 			errx(1, "-w word too long");
-		intdata = 1;
+		intdata = true;
 	} else if (!*(p+1)) {
 		if (sz <= 0)
 			errx(1, "-w word too long");
@@ -413,7 +429,7 @@ getformat(void)
 				goto fmt_broken;
 		}
 		if (*p == 'l') {
-			longdata = 1;
+			longdata = true;
 			if (*++p == 'l') {
 				if (p[1] != '\0')
 					p++;
@@ -422,24 +438,24 @@ getformat(void)
 		}
 		switch (*p) {
 		case 'o': case 'u': case 'x': case 'X':
-			intdata = nosign = 1;
+			intdata = nosign = true;
 			break;
 		case 'd': case 'i':
-			intdata = 1;
+			intdata = true;
 			break;
 		case 'D':
 			if (!longdata) {
-				intdata = 1;
+				intdata = true;
 				break;
 			}
 		case 'O': case 'U':
 			if (!longdata) {
-				intdata = nosign = 1;
+				intdata = nosign = true;
 				break;
 			}
 		case 'c':
 			if (!(intdata | longdata)) {
-				chardata = 1;
+				chardata = true;
 				break;
 			}
 		case 'h': case 'n': case 'p': case 'q': case 's': case 'L':
