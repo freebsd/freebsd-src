@@ -139,7 +139,11 @@ representing the corresponding value in
 The last argument must be a real number.
 .Pp
 Random numbers are obtained through
-.Xr random 3 .
+.Xr arc4random 3
+when no seed is specified,
+and through
+.Xr random 3
+when a seed is given.
 The name
 .Nm
 derives in part from
