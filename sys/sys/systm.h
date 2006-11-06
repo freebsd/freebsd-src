@@ -230,7 +230,7 @@ void	cpu_stopprofclock(void);
 #define SUSER_RUID	2
 
 int	suser(struct thread *td);
-int	suser_cred(struct ucred *cred, int flag);
+int	suser_cred(struct ucred *cred, int flags);
 int	cr_cansee(struct ucred *u1, struct ucred *u2);
 int	cr_canseesocket(struct ucred *cred, struct socket *so);
 
