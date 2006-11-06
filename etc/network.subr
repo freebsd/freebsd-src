@@ -690,7 +690,7 @@ network6_interface_setup()
 		if [ ${rtsol_available} = yes -a ${rtsol_interface} = yes ]
 		then
 			case ${i} in
-			lo0|gif[0-9]*|stf[0-9]*|faith[0-9]*|lp[0-9]*|sl[0-9]*|tun[0-9]*)
+			lo0|gif[0-9]*|stf[0-9]*|faith[0-9]*|lp[0-9]*|sl[0-9]*|tun[0-9]*|pflog[0-9]*|pfsync[0-9]*)
 				;;
 			*)
 				rtsol_interfaces="${rtsol_interfaces} ${i}"
