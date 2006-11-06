@@ -101,7 +101,8 @@ static ACPI_STATUS acpi_aiboost_getcomponent(device_t dev, char *name, struct  a
 
 	buf.Pointer = NULL;
 	buf.Length = ACPI_ALLOCATE_BUFFER;
-	
+	buf2.Pointer = NULL;
+
 	status = AcpiEvaluateObject(acpi_get_handle(dev), name, NULL, &buf);
 	
 	if(ACPI_FAILURE(status))
