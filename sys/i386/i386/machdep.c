@@ -1739,7 +1739,7 @@ int15e820:
 			if (smap->base < physmap[i + 1]) {
 				if (boothowto & RB_VERBOSE)
 					printf(
-	"Overlapping or non-montonic memory region, ignoring second region\n");
+	"Overlapping or non-monotonic memory region, ignoring second region\n");
 				continue;
 			}
 		}
