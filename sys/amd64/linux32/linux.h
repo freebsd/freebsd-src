@@ -33,8 +33,6 @@
 #ifndef _AMD64_LINUX_LINUX_H_
 #define	_AMD64_LINUX_LINUX_H_
 
-#include <sys/signal.h> /* for sigval union */
-
 #include <amd64/linux32/linux32_syscall.h>
 
 /*
@@ -379,6 +377,11 @@ struct l_ucontext {
 #define LINUX_SI_MAX_SIZE     128
 #define LINUX_SI_PAD_SIZE     ((LINUX_SI_MAX_SIZE/sizeof(l_int)) - 3)
 
+union l_sigval {
+	l_int		sival_int;
+	l_uintptr_t	sival_ptr;
+};
+
 typedef struct l_siginfo {
 	l_int		lsi_signo;
 	l_int		lsi_errno;
@@ -399,7 +402,7 @@ typedef struct l_siginfo {
 		struct {
 			l_pid_t		_pid;		/* sender's pid */
 			l_uid16_t	_uid;		/* sender's uid */
-			union sigval _sigval;
+			union l_sigval _sigval;
 		} __packed _rt;
 
 		struct {
