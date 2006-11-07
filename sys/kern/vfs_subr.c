@@ -1716,7 +1716,7 @@ sched_sync(void)
 		}
 		mtx_unlock(&sync_mtx);
 		/*
-		 * Just sleep for a short period if time between
+		 * Just sleep for a short period of time between
 		 * iterations when shutting down to allow some I/O
 		 * to happen.
 		 *
@@ -1741,7 +1741,7 @@ sched_sync(void)
  * normal turn time, otherwise it could take over the cpu.
  */
 int
-speedup_syncer()
+speedup_syncer(void)
 {
 	struct thread *td;
 	int ret = 0;
