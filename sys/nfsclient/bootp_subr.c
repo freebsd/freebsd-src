@@ -1277,6 +1277,8 @@ mountopts(struct nfs_args *args, char *p)
 		args->flags |= NFSMNT_SOFT;
 	if ((tmp = (char *)substr(p, "noconn")))
 		args->flags |= NFSMNT_NOCONN;
+	if ((tmp = (char *)substr(p, "nolockd")))
+		args->flags |= NFSMNT_NOLOCKD;
 	if ((tmp = (char *)substr(p, "tcp")))
 		args->sotype = SOCK_STREAM;
 }
