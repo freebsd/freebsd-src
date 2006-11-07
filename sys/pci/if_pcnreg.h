@@ -218,12 +218,6 @@
 /* CSR88-89: Chip ID masks */
 #define AMD_MASK  0x003
 #define PART_MASK 0xffff
-#define Am79C960  0x0003
-#define Am79C961  0x2260
-#define Am79C961A 0x2261
-#define Am79C965  0x2430
-#define Am79C970  0x0242
-#define Am79C970A 0x2621
 #define Am79C971  0x2623
 #define Am79C972  0x2624
 #define Am79C973  0x2625
@@ -447,7 +441,7 @@ struct pcn_ring_data {
 struct pcn_type {
 	u_int16_t		pcn_vid;
 	u_int16_t		pcn_did;
-	char			*pcn_name;
+	const char		*pcn_name;
 };
 
 struct pcn_softc {
@@ -458,7 +452,6 @@ struct pcn_softc {
 	struct resource		*pcn_irq;
 	void			*pcn_intrhand;
 	device_t		pcn_miibus;
-	u_int8_t		pcn_unit;
 	u_int8_t		pcn_link;
 	u_int8_t		pcn_phyaddr;
 	int			pcn_if_flags;

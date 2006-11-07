@@ -97,22 +97,16 @@ MODULE_DEPEND(pcn, miibus, 1, 1, 1);
 /*
  * Various supported device vendors/types and their names.
  */
-static struct pcn_type pcn_devs[] = {
+static const struct pcn_type pcn_devs[] = {
 	{ PCN_VENDORID, PCN_DEVICEID_PCNET, "AMD PCnet/PCI 10/100BaseTX" },
 	{ PCN_VENDORID, PCN_DEVICEID_HOME, "AMD PCnet/Home HomePNA" },
 	{ 0, 0, NULL }
 };
 
-static struct pcn_chipid {
+static const struct pcn_chipid {
 	u_int32_t	id;
-	char *		name;
+	const char	*name;
 } pcn_chipid[] = {
-	{ Am79C960,	"Am79C960" },
-	{ Am79C961,	"Am79C961" },
-	{ Am79C961A,	"Am79C961A" },
-	{ Am79C965,	"Am79C965" },
-	{ Am79C970,	"Am79C970" },
-	{ Am79C970A,	"Am79C970A" },
 	{ Am79C971,	"Am79C971" },
 	{ Am79C972,	"Am79C972" },
 	{ Am79C973,	"Am79C973" },
@@ -122,8 +116,9 @@ static struct pcn_chipid {
 	{ 0, NULL },
 };
 
-static char * pcn_chipid_name(u_int32_t);
+static const char *pcn_chipid_name(u_int32_t);
 static u_int32_t pcn_chip_id(device_t);
+static const struct pcn_type *pcn_match(u_int16_t, u_int16_t);
 
 static u_int32_t pcn_csr_read(struct pcn_softc *, int);
 static u_int16_t pcn_csr_read16(struct pcn_softc *, int);
@@ -397,11 +392,12 @@ pcn_reset(sc)
         return;
 }
 
-static char *
-pcn_chipid_name	(u_int32_t id)
+static const char *
+pcn_chipid_name(u_int32_t id)
 {
-	struct pcn_chipid *p = pcn_chipid;
+	const struct pcn_chipid *p;
 
+	p = pcn_chipid;
 	while (p->name) {
 		if (id == p->id)
 			return (p->name);
@@ -411,7 +407,7 @@ pcn_chipid_name	(u_int32_t id)
 }
 
 static u_int32_t
-pcn_chip_id (device_t dev)
+pcn_chip_id(device_t dev)
 {
 	struct pcn_softc	*sc;
 	u_int32_t		chip_id;
@@ -463,13 +459,13 @@ pcn_chip_id (device_t dev)
 	return (chip_id);
 }
 
-static struct pcn_type *
-pcn_match (u_int16_t vid, u_int16_t did)
+static const struct pcn_type *
+pcn_match(u_int16_t vid, u_int16_t did)
 {
-	struct pcn_type		*t;
-	t = pcn_devs;
+	const struct pcn_type	*t;
 
-	while(t->pcn_name != NULL) {
+	t = pcn_devs;
+	while (t->pcn_name != NULL) {
 		if ((vid == t->pcn_vid) && (did == t->pcn_did))
 			return (t);
 		t++;
@@ -485,7 +481,7 @@ static int
 pcn_probe(dev)
 	device_t		dev;
 {
-	struct pcn_type		*t;
+	const struct pcn_type	*t;
 	struct pcn_softc	*sc;
 	int			rid;
 	u_int32_t		chip_id;
@@ -537,10 +533,9 @@ pcn_attach(dev)
 	u_int32_t		eaddr[2];
 	struct pcn_softc	*sc;
 	struct ifnet		*ifp;
-	int			unit, error = 0, rid;
+	int			error = 0, rid;
 
 	sc = device_get_softc(dev);
-	unit = device_get_unit(dev);
 
 	/* Initialize our mutex. */
 	mtx_init(&sc->pcn_mtx, device_get_nameunit(dev), MTX_NETWORK_LOCK,
@@ -559,7 +554,7 @@ pcn_attach(dev)
 	sc->pcn_res = bus_alloc_resource_any(dev, PCN_RES, &rid, RF_ACTIVE);
 
 	if (sc->pcn_res == NULL) {
-		printf("pcn%d: couldn't map ports/memory\n", unit);
+		device_printf(dev, "couldn't map ports/memory\n");
 		error = ENXIO;
 		goto fail;
 	}
@@ -573,7 +568,7 @@ pcn_attach(dev)
 	    RF_SHAREABLE | RF_ACTIVE);
 
 	if (sc->pcn_irq == NULL) {
-		printf("pcn%d: couldn't map interrupt\n", unit);
+		device_printf(dev, "couldn't map interrupt\n");
 		error = ENXIO;
 		goto fail;
 	}
@@ -587,14 +582,13 @@ pcn_attach(dev)
 	eaddr[0] = CSR_READ_4(sc, PCN_IO32_APROM00);
 	eaddr[1] = CSR_READ_4(sc, PCN_IO32_APROM01);
 
-	sc->pcn_unit = unit;
 	callout_init_mtx(&sc->pcn_stat_callout, &sc->pcn_mtx, 0);
 
 	sc->pcn_ldata = contigmalloc(sizeof(struct pcn_list_data), M_DEVBUF,
 	    M_NOWAIT, 0, 0xffffffff, PAGE_SIZE, 0);
 
 	if (sc->pcn_ldata == NULL) {
-		printf("pcn%d: no memory for list buffers!\n", unit);
+		device_printf(dev, "no memory for list buffers!\n");
 		error = ENXIO;
 		goto fail;
 	}
@@ -602,7 +596,7 @@ pcn_attach(dev)
 
 	ifp = sc->pcn_ifp = if_alloc(IFT_ETHER);
 	if (ifp == NULL) {
-		printf("pcn%d: can not if_alloc()\n", unit);
+		device_printf(dev, "can not if_alloc()\n");
 		error = ENOSPC;
 		goto fail;
 	}
@@ -621,7 +615,7 @@ pcn_attach(dev)
 	 */
 	if (mii_phy_probe(dev, &sc->pcn_miibus,
 	    pcn_ifmedia_upd, pcn_ifmedia_sts)) {
-		printf("pcn%d: MII without any PHY!\n", sc->pcn_unit);
+		device_printf(dev, "MII without any PHY!\n");
 		error = ENXIO;
 		goto fail;
 	}
@@ -636,7 +630,7 @@ pcn_attach(dev)
 	    pcn_intr, sc, &sc->pcn_intrhand);
 
 	if (error) {
-		printf("pcn%d: couldn't set up irq\n", unit);
+		device_printf(dev, "couldn't set up irq\n");
 		ether_ifdetach(ifp);
 		goto fail;
 	}
@@ -1178,8 +1172,8 @@ pcn_init_locked(sc)
 
 	/* Init circular RX list. */
 	if (pcn_list_rx_init(sc) == ENOBUFS) {
-		printf("pcn%d: initialization failed: no "
-		    "memory for rx buffers\n", sc->pcn_unit);
+		if_printf(ifp, "initialization failed: no "
+		    "memory for rx buffers\n");
 		pcn_stop(sc);
 		return;
 	}
@@ -1381,7 +1375,7 @@ pcn_watchdog(ifp)
 	PCN_LOCK(sc);
 
 	ifp->if_oerrors++;
-	printf("pcn%d: watchdog timeout\n", sc->pcn_unit);
+	if_printf(ifp, "watchdog timeout\n");
 
 	pcn_stop(sc);
 	pcn_reset(sc);
