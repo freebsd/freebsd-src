@@ -73,13 +73,17 @@ __FBSDID("$FreeBSD$");
 #include <arm/xscale/i80321/i80321var.h>
 #endif
 
+#if defined(CPU_XSCALE_81342)
+#include <arm/xscale/i8134x/i81342reg.h>
+#endif
+
 #ifdef CPU_XSCALE_IXP425
 #include <arm/xscale/ixp425/ixp425reg.h>
 #include <arm/xscale/ixp425/ixp425var.h>
 #endif
 
 #if defined(CPU_XSCALE_80200) || defined(CPU_XSCALE_80321) || \
-    defined(CPU_XSCALE_80219)
+    defined(CPU_XSCALE_80219) || defined(CPU_XSCALE_81342)
 #include <arm/xscale/xscalereg.h>
 #endif
 
@@ -570,6 +574,62 @@ struct cpu_functions xscale_cpufuncs = {
 /* CPU_XSCALE_80200 || CPU_XSCALE_80321 || CPU_XSCALE_PXA2X0 || CPU_XSCALE_IXP425
    CPU_XSCALE_80219 */
 
+#ifdef CPU_XSCALE_81342
+struct cpu_functions xscalec3_cpufuncs = {
+	/* CPU functions */
+	
+	cpufunc_id,			/* id			*/
+	xscale_cpwait,			/* cpwait		*/
+
+	/* MMU functions */
+
+	xscale_control,			/* control		*/
+	cpufunc_domains,		/* domain		*/
+	xscalec3_setttb,		/* setttb		*/
+	cpufunc_faultstatus,		/* faultstatus		*/
+	cpufunc_faultaddress,		/* faultaddress		*/
+
+	/* TLB functions */
+
+	armv4_tlb_flushID,		/* tlb_flushID		*/
+	xscale_tlb_flushID_SE,		/* tlb_flushID_SE	*/
+	armv4_tlb_flushI,		/* tlb_flushI		*/
+	(void *)armv4_tlb_flushI,	/* tlb_flushI_SE	*/
+	armv4_tlb_flushD,		/* tlb_flushD		*/
+	armv4_tlb_flushD_SE,		/* tlb_flushD_SE	*/
+
+	/* Cache operations */
+
+	xscalec3_cache_syncI,		/* icache_sync_all	*/
+	xscale_cache_syncI_rng,		/* icache_sync_range	*/
+
+	xscalec3_cache_purgeD,		/* dcache_wbinv_all	*/
+	xscalec3_cache_purgeD_rng,	/* dcache_wbinv_range	*/
+	xscale_cache_flushD_rng,	/* dcache_inv_range	*/
+	xscalec3_cache_cleanD_rng,	/* dcache_wb_range	*/
+
+	xscalec3_cache_purgeID,	/* idcache_wbinv_all	*/
+	xscalec3_cache_purgeID_rng,	/* idcache_wbinv_range	*/
+
+	/* Other functions */
+
+	cpufunc_nullop,			/* flush_prefetchbuf	*/
+	armv4_drain_writebuf,		/* drain_writebuf	*/
+	cpufunc_nullop,			/* flush_brnchtgt_C	*/
+	(void *)cpufunc_nullop,		/* flush_brnchtgt_E	*/
+
+	xscale_cpu_sleep,		/* sleep		*/
+
+	/* Soft functions */
+
+	cpufunc_null_fixup,		/* dataabt_fixup	*/
+	cpufunc_null_fixup,		/* prefetchabt_fixup	*/
+
+	xscalec3_context_switch,	/* context_switch	*/
+
+	xscale_setup			/* cpu setup		*/
+};
+#endif /* CPU_XSCALE_81342 */
 /*
  * Global constants also used by locore.s
  */
@@ -582,7 +642,7 @@ u_int cpu_reset_needs_v4_MMU_disable;	/* flag used in locore.s */
   defined (CPU_ARM10) ||					       \
   defined(CPU_XSCALE_80200) || defined(CPU_XSCALE_80321) ||	       \
   defined(CPU_XSCALE_PXA2X0) || defined(CPU_XSCALE_IXP425) ||	       \
-  defined(CPU_XSCALE_80219)
+  defined(CPU_XSCALE_80219) || defined(CPU_XSCALE_81342)
 
 static void get_cachetype_cp15(void);
 
@@ -895,7 +955,6 @@ set_cpufuncs()
 	if (cputype == CPU_ID_80321_400 || cputype == CPU_ID_80321_600 ||
 	    cputype == CPU_ID_80321_400_B0 || cputype == CPU_ID_80321_600_B0 ||
 	    cputype == CPU_ID_80219_400 || cputype == CPU_ID_80219_600) {
-
 		/*
 		 * Reset the Performance Monitoring Unit to a
 		 * pristine state:
@@ -920,6 +979,19 @@ set_cpufuncs()
 	}
 #endif /* CPU_XSCALE_80321 */
 
+#if defined(CPU_XSCALE_81342)
+	if (cputype == CPU_ID_81342) {
+		cpufuncs = xscalec3_cpufuncs;
+#if defined(PERFCTRS)
+		xscale_pmu_init();
+#endif
+
+		cpu_reset_needs_v4_MMU_disable = 1;	/* XScale needs it */
+		get_cachetype_cp15();
+		pmap_pte_init_xscale();
+		return 0;
+	}
+#endif /* CPU_XSCALE_81342 */
 #ifdef CPU_XSCALE_PXA2X0
 	/* ignore core revision to test PXA2xx CPUs */
 	if ((cputype & ~CPU_ID_XSCALE_COREREV_MASK) == CPU_ID_PXA250 ||
@@ -1326,7 +1398,7 @@ late_abort_fixup(arg)
   defined(CPU_SA110) || defined(CPU_SA1100) || defined(CPU_SA1110) ||	\
   defined(CPU_XSCALE_80200) || defined(CPU_XSCALE_80321) ||		\
   defined(CPU_XSCALE_PXA2X0) || defined(CPU_XSCALE_IXP425) ||		\
-  defined(CPU_XSCALE_80219)
+  defined(CPU_XSCALE_80219) || defined(CPU_XSCALE_81342)
 
 #define IGN	0
 #define OR	1
@@ -1794,7 +1866,7 @@ ixp12x0_setup(args)
 
 #if defined(CPU_XSCALE_80200) || defined(CPU_XSCALE_80321) || \
   defined(CPU_XSCALE_PXA2X0) || defined(CPU_XSCALE_IXP425) || \
-  defined(CPU_XSCALE_80219)
+  defined(CPU_XSCALE_80219) || defined(CPU_XSCALE_81342)
 struct cpu_option xscale_options[] = {
 #ifdef COMPAT_12
 	{ "branchpredict", 	BIC, OR,  CPU_CONTROL_BPRD_ENABLE },
