@@ -1990,6 +1990,11 @@ bridge_input(struct ifnet *ifp, struct mbuf *m)
 		 * local processing.
 		 */
 
+		/* Note where to send the reply to */
+		if (bif->bif_flags & IFBIF_LEARNING)
+			(void) bridge_rtupdate(sc,
+			    eh->ether_shost, ifp, 0, IFBAF_DYNAMIC);
+
 		/* Mark the packet as arriving on the bridge interface */
 		m->m_pkthdr.rcvif = bifp;
 		BPF_MTAP(bifp, m);
