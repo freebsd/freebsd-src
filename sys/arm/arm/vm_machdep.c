@@ -456,7 +456,7 @@ struct mtx smallalloc_mtx;
 
 MALLOC_DEFINE(M_VMSMALLALLOC, "vm_small_alloc", "VM Small alloc data");
 
-static vm_offset_t alloc_firstaddr;
+vm_offset_t alloc_firstaddr;
 
 vm_offset_t
 arm_ptovirt(vm_paddr_t pa)
