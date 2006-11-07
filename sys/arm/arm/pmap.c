@@ -278,6 +278,8 @@ struct msgbuf *msgbufp = 0;
 extern void bcopy_page(vm_offset_t, vm_offset_t);
 extern void bzero_page(vm_offset_t);
 
+extern vm_offset_t alloc_firstaddr;
+
 char *_tmppt;
 
 /*
@@ -2784,6 +2786,11 @@ pmap_remove_pages(pmap_t pmap)
 		KASSERT(l2b != NULL, ("No L2 bucket in pmap_remove_pages"));
 		pt = &l2b->l2b_kva[l2pte_index(pv->pv_va)];
 		m = PHYS_TO_VM_PAGE(*pt & L2_ADDR_MASK);
+#ifdef ARM_USE_SMALL_ALLOC
+		KASSERT((vm_offset_t)m >= alloc_firstaddr, ("Trying to access non-existent page va %x pte %x", pv->pv_va, *pt));
+#else
+		KASSERT((vm_offset_t)m >= KERNBASE, ("Trying to access non-existent page va %x pte %x", pv->pv_va, *pt));
+#endif
 		*pt = 0;
 		PTE_SYNC(pt);
 		npv = TAILQ_NEXT(pv, pv_plist);
@@ -4563,7 +4570,7 @@ pmap_map_section(vm_offset_t l1pt, vm_offset_t va, vm_offset_t pa,
 /*
  * pmap_link_l2pt:
  *
- *	Link the L2 page table specified by "pa" into the L1
+ *	Link the L2 page table specified by l2pv.pv_pa into the L1
  *	page table at the slot for "va".
  */
 void
@@ -4574,7 +4581,12 @@ pmap_link_l2pt(vm_offset_t l1pt, vm_offset_t va, struct pv_addr *l2pv)
 
 	proto = L1_S_DOM(PMAP_DOMAIN_KERNEL) | L1_C_PROTO;
 
+#ifdef VERBOSE_INIT_ARM     
+	printf("pmap_link_l2pt: pa=0x%x va=0x%x\n", l2pv->pv_pa, l2pv->pv_va);
+#endif
+
 	pde[slot + 0] = proto | (l2pv->pv_pa + 0x000);
+
 	PTE_SYNC(&pde[slot]);
 
 	SLIST_INSERT_HEAD(&kernel_pt_list, l2pv, pv_list);
