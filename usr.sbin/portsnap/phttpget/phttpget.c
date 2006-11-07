@@ -47,6 +47,7 @@ __FBSDID("$FreeBSD$");
 static const char *	env_HTTP_PROXY;
 static char *		env_HTTP_PROXY_AUTH;
 static const char *	env_HTTP_USER_AGENT;
+static char *		env_HTTP_TIMEOUT;
 static const char *	proxyport;
 static char *		proxyauth;
 
@@ -124,6 +125,7 @@ readenv(void)
 	char *proxy_auth_userpass, *proxy_auth_userpass64, *p;
 	char *proxy_auth_user = NULL;
 	char *proxy_auth_pass = NULL;
+	long http_timeout;
 
 	env_HTTP_PROXY = getenv("HTTP_PROXY");
 	if (env_HTTP_PROXY == NULL)
@@ -180,6 +182,17 @@ readenv(void)
 	env_HTTP_USER_AGENT = getenv("HTTP_USER_AGENT");
 	if (env_HTTP_USER_AGENT == NULL)
 		env_HTTP_USER_AGENT = "phttpget/0.1";
+
+	env_HTTP_TIMEOUT = getenv("HTTP_TIMEOUT");
+	if (env_HTTP_TIMEOUT != NULL) {
+		http_timeout = strtol(env_HTTP_TIMEOUT, &p, 10);
+		if ((*env_HTTP_TIMEOUT == '\0') || (*p != '\0') ||
+		    (http_timeout < 0))
+			warnx("HTTP_TIMEOUT (%s) is not a positive integer",
+			    env_HTTP_TIMEOUT);
+		else
+			timo.tv_sec = http_timeout;
+	}
 }
 
 static int
