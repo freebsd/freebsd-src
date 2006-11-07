@@ -875,7 +875,7 @@ getmemsize(caddr_t kmdp, u_int64_t first)
 			if (smap->base < physmap[i + 1]) {
 				if (boothowto & RB_VERBOSE)
 					printf(
-	"Overlapping or non-montonic memory region, ignoring second region\n");
+	"Overlapping or non-monotonic memory region, ignoring second region\n");
 				continue;
 			}
 		}
