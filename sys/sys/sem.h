@@ -27,8 +27,6 @@ typedef	__time_t	time_t;
 #define	_TIME_T_DECLARED
 #endif
 
-struct sem;
-
 struct semid_ds {
 	struct ipc_perm	sem_perm;	/* operation permission struct */
 	struct sem	*sem_base;	/* pointer to first semaphore in set */
