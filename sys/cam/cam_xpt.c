@@ -6403,8 +6403,8 @@ xpt_set_transfer_settings(struct ccb_trans_settings *cts, struct cam_ed *device,
 		  && (inq_data->flags & SID_Sync) == 0
 		  && cts->type == CTS_TYPE_CURRENT_SETTINGS)
 		 || ((cpi.hba_inquiry & PI_SDTR_ABLE) == 0)
-		 || (cur_spi->sync_offset == 0)
-		 || (cur_spi->sync_period == 0)) {
+		 || (spi->sync_offset == 0)
+		 || (spi->sync_period == 0)) {
 			/* Force async */
 			spi->sync_period = 0;
 			spi->sync_offset = 0;
