@@ -374,7 +374,7 @@ extern unsigned arm10_dcache_index_inc;
   defined(CPU_SA1100) || defined(CPU_SA1110) ||			     \
   defined(CPU_XSCALE_80200) || defined(CPU_XSCALE_80321) ||	     \
   defined(CPU_XSCALE_PXA2X0) || defined(CPU_XSCALE_IXP425) ||	     \
-  defined(CPU_XSCALE_80219)
+  defined(CPU_XSCALE_80219) || defined(CPU_XSCALE_81342)
   
 void	armv4_tlb_flushID	(void);
 void	armv4_tlb_flushI	(void);
@@ -392,7 +392,7 @@ void	ixp12x0_setup		(char *string);
 
 #if defined(CPU_XSCALE_80200) || defined(CPU_XSCALE_80321) ||	\
   defined(CPU_XSCALE_PXA2X0) || defined(CPU_XSCALE_IXP425) ||	\
-  defined(CPU_XSCALE_80219)
+  defined(CPU_XSCALE_80219) || defined(CPU_XSCALE_81342)
 void	xscale_cpwait		(void);
 
 void	xscale_cpu_sleep	(int mode);
@@ -432,6 +432,28 @@ void	xscale_context_switch	(void);
 void	xscale_setup		(char *string);
 #endif	/* CPU_XSCALE_80200 || CPU_XSCALE_80321 || CPU_XSCALE_PXA2X0 || CPU_XSCALE_IXP425 
 	   CPU_XSCALE_80219 */
+
+#ifdef	CPU_XSCALE_81342
+
+void	xscalec3_cache_cleanID	(void);
+void	xscalec3_cache_cleanD	(void);
+
+void	xscalec3_cache_purgeID	(void);
+void	xscalec3_cache_purgeID_E	(u_int entry);
+void	xscalec3_cache_purgeD	(void);
+void	xscalec3_cache_purgeD_E	(u_int entry);
+
+void	xscalec3_cache_syncI	(void);
+void	xscalec3_cache_cleanID_rng (vm_offset_t start, vm_size_t end);
+void	xscalec3_cache_cleanD_rng	(vm_offset_t start, vm_size_t end);
+void	xscalec3_cache_purgeID_rng (vm_offset_t start, vm_size_t end);
+void	xscalec3_cache_purgeD_rng	(vm_offset_t start, vm_size_t end);
+
+
+void	xscalec3_setttb		(u_int ttb);
+void	xscalec3_context_switch	(void);
+
+#endif /* CPU_XSCALE_81342 */
 
 #define tlb_flush	cpu_tlb_flushID
 #define setttb		cpu_setttb
