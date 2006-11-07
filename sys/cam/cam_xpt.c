@@ -1607,6 +1607,9 @@ xpt_announce_periph(struct cam_periph *periph, char *announce_string)
 	cts.ccb_h.func_code = XPT_GET_TRAN_SETTINGS;
 	cts.type = CTS_TYPE_CURRENT_SETTINGS;
 	xpt_action((union ccb*)&cts);
+	if ((cts.ccb_h.status & CAM_STATUS_MASK) != CAM_REQ_CMP) {
+		return;
+	}
 
 	/* Ask the SIM for its base transfer speed */
 	xpt_setup_ccb(&cpi.ccb_h, path, /*priority*/1);
@@ -5835,6 +5838,9 @@ proberequestdefaultnegotiation(struct cam_periph *periph)
 	cts.ccb_h.func_code = XPT_GET_TRAN_SETTINGS;
 	cts.type = CTS_TYPE_USER_SETTINGS;
 	xpt_action((union ccb *)&cts);
+	if ((cts.ccb_h.status & CAM_STATUS_MASK) != CAM_REQ_CMP) {
+		return;
+	}
 	cts.ccb_h.func_code = XPT_SET_TRAN_SETTINGS;
 	cts.type = CTS_TYPE_CURRENT_SETTINGS;
 	xpt_action((union ccb *)&cts);
@@ -6356,7 +6362,9 @@ xpt_set_transfer_settings(struct ccb_trans_settings *cts, struct cam_ed *device,
 		cur_cts.ccb_h.func_code = XPT_GET_TRAN_SETTINGS;
 		cur_cts.type = cts->type;
 		xpt_action((union ccb *)&cur_cts);
-
+		if ((cur_cts.ccb_h.status & CAM_STATUS_MASK) != CAM_REQ_CMP) {
+			return;
+		}
 		cur_scsi = &cur_cts.proto_specific.scsi;
 		if ((scsi->valid & CTS_SCSI_VALID_TQ) == 0) {
 			scsi->flags &= ~CTS_SCSI_FLAGS_TAG_ENB;
