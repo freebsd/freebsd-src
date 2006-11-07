@@ -55,6 +55,13 @@
  * is the permanent meta-data associated with the file which is read in
  * from the permanent dinode from long term storage when the file becomes
  * active, and is put back when the file is no longer being used.
+ *
+ * An inode may only be changed while holding either the exclusive
+ * vnode lock or the shared vnode lock and the vnode interlock. We use
+ * the latter only for "read" and "get" operations that require
+ * changing i_flag, or a timestamp. This locking protocol allows executing
+ * those operations without having to upgrade the vnode lock from shared to
+ * exclusive.
  */
 struct inode {
 	TAILQ_ENTRY(inode) i_nextsnap; /* snapshot file list. */
@@ -119,6 +126,8 @@ struct inode {
 #define	IN_RENAME	0x0010		/* Inode is being renamed. */
 #define	IN_LAZYMOD	0x0040		/* Modified, but don't write yet. */
 #define	IN_SPACECOUNTED	0x0080		/* Blocks to be freed in free count. */
+#define	IN_LAZYACCESS	0x0100		/* Process IN_ACCESS after the
+					   suspension finished */
 
 #define i_devvp i_ump->um_devvp
 #define i_umbufobj i_ump->um_bo
