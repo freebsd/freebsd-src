@@ -747,8 +747,6 @@ setidt(idx, func, typ, dpl, ist)
 	ip->gd_hioffset = ((uintptr_t)func)>>16 ;
 }
 
-#define	IDTVEC(name)	__CONCAT(X,name)
-
 extern inthand_t
 	IDTVEC(div), IDTVEC(dbg), IDTVEC(nmi), IDTVEC(bpt), IDTVEC(ofl),
 	IDTVEC(bnd), IDTVEC(ill), IDTVEC(dna), IDTVEC(fpusegm),
