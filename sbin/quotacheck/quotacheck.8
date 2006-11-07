@@ -31,7 +31,7 @@
 .\"     @(#)quotacheck.8	8.1 (Berkeley) 6/5/93
 .\" $FreeBSD$
 .\"
-.Dd June 5, 1993
+.Dd November 7, 2006
 .Dt QUOTACHECK 8
 .Os
 .Sh NAME
@@ -40,6 +40,7 @@
 .Sh SYNOPSIS
 .Nm
 .Op Fl guv
+.Op Fl l Ar maxrun
 .Fl a
 .Nm
 .Op Fl guv
@@ -72,6 +73,13 @@ are checked.
 Only group quotas listed in
 .Pa /etc/fstab
 are to be checked.
+.It Fl l Ar maxrun
+Specifies the maximum number of concurrent file systems
+to check in parallel.
+If this option is omitted, or if
+.Ar maxrun
+is zero, parallel passes are run as per
+.Xr fsck 8 .
 .It Fl u
 Only user quotas listed in
 .Pa /etc/fstab
