@@ -66,9 +66,11 @@ static int ffs_indirtrunc(struct inode *, ufs2_daddr_t, ufs2_daddr_t,
  * IN_ACCESS, IN_UPDATE, and IN_CHANGE flags respectively.  Write the inode
  * to disk if the IN_MODIFIED flag is set (it may be set initially, or by
  * the timestamp update).  The IN_LAZYMOD flag is set to force a write
- * later if not now.  If we write now, then clear both IN_MODIFIED and
- * IN_LAZYMOD to reflect the presumably successful write, and if waitfor is
- * set, then wait for the write to complete.
+ * later if not now.  The IN_LAZYACCESS is set instead of IN_MODIFIED if the fs
+ * is currently being suspended (or is suspended) and vnode has been accessed.
+ * If we write now, then clear IN_MODIFIED, IN_LAZYACCESS and IN_LAZYMOD to
+ * reflect the presumably successful write, and if waitfor is set, then wait
+ * for the write to complete.
  */
 int
 ffs_update(vp, waitfor)
@@ -80,12 +82,12 @@ ffs_update(vp, waitfor)
 	struct inode *ip;
 	int error;
 
-	ASSERT_VOP_LOCKED(vp, "ffs_update");
+	ASSERT_VOP_ELOCKED(vp, "ffs_update");
 	ufs_itimes(vp);
 	ip = VTOI(vp);
 	if ((ip->i_flag & IN_MODIFIED) == 0 && waitfor == 0)
 		return (0);
-	ip->i_flag &= ~(IN_LAZYMOD | IN_MODIFIED);
+	ip->i_flag &= ~(IN_LAZYACCESS | IN_LAZYMOD | IN_MODIFIED);
 	fs = ip->i_fs;
 	if (fs->fs_ronly)
 		return (0);
