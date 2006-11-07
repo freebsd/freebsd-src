@@ -800,22 +800,36 @@ getsysctl(const char *name, void *ptr, size_t len)
 	}
 }
 
-static
-const char *format_nice(const struct kinfo_proc *pp)
+static const char *
+format_nice(const struct kinfo_proc *pp)
 {
-	static char nicebuf[5];
+	const char *fifo, *kthread;
+	int rtpri;
+	static char nicebuf[4 + 1];
 
-	snprintf(nicebuf, sizeof(nicebuf), "%4d",
-	    /*
-	     * normal time      -> nice value -20 - +20
-	     * real time 0 - 31 -> nice value -52 - -21
-	     * idle time 0 - 31 -> nice value +21 - +52
-	     */
-	    (pp->ki_pri.pri_class ==  PRI_TIMESHARE ?
-		pp->ki_nice - NZERO :
-		(PRI_IS_REALTIME(pp->ki_pri.pri_class) ?
-		    (PRIO_MIN - 1 - (PRI_MAX_REALTIME - pp->ki_pri.pri_level)) :
-		    (PRIO_MAX + 1 + pp->ki_pri.pri_level - PRI_MIN_IDLE))));
+	fifo = PRI_NEED_RR(pp->ki_pri.pri_class) ? "" : "F";
+	kthread = (pp->ki_flag & P_KTHREAD) ? "k" : "";
+	switch (PRI_BASE(pp->ki_pri.pri_class)) {
+	case PRI_ITHD:
+		return ("-");
+	case PRI_REALTIME:
+		rtpri = pp->ki_pri.pri_level - PRI_MIN_REALTIME;
+		snprintf(nicebuf, sizeof(nicebuf), "%sr%d%s",
+		    kthread, rtpri, fifo);
+		break;
+	case PRI_TIMESHARE:
+		if (pp->ki_flag & P_KTHREAD)
+			return ("-");
+		snprintf(nicebuf, sizeof(nicebuf), "%d", pp->ki_nice - NZERO);
+		break;
+	case PRI_IDLE:
+		rtpri = pp->ki_pri.pri_level - PRI_MIN_IDLE;
+		snprintf(nicebuf, sizeof(nicebuf), "%si%d%s",
+		    kthread, rtpri, fifo);
+		break;
+	default:
+		return ("?");
+	}
 	return (nicebuf);
 }
 
