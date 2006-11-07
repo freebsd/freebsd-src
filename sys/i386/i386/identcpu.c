@@ -912,14 +912,6 @@ via_common:
 	else if (strcmp(cpu_vendor, "GenuineTMx86") == 0 ||
 		 strcmp(cpu_vendor, "TransmetaCPU") == 0)
 		print_transmeta_info();
-
-#ifdef I686_CPU
-	/*
-	 * XXX - Do PPro CPUID level=2 stuff here?
-	 *
-	 * No, but maybe in a print_Intel_info() function called from here.
-	 */
-#endif
 }
 
 void
