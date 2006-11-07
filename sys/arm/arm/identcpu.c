@@ -126,6 +126,13 @@ static const char * const i80321_steppings[16] = {
 	"rev 12",	"rev 13",	"rev 14",	"rev 15",
 };
 
+static const char * const i81342_steppings[16] = {
+	"step A-0",	"rev 1",	"rev 2",	"rev 3",
+	"rev 4",	"rev 5",	"rev 6",	"rev 7",
+	"rev 8",	"rev 9",	"rev 10",	"rev 11",
+	"rev 12",	"rev 13",	"rev 14",	"rev 15",
+};
+
 static const char * const pxa2x0_steppings[16] = {
 	"step A-0",	"step A-1",	"step B-0",	"step B-1",
 	"step B-2",	"step C-0",	"rev 6",	"rev 7",
@@ -228,6 +235,9 @@ const struct cpuidtab cpuids[] = {
 	  i80321_steppings },
 	{ CPU_ID_80321_600_B0,	CPU_CLASS_XSCALE,	"i80321 600MHz",
 	  i80321_steppings },
+
+	{ CPU_ID_81342,		CPU_CLASS_XSCALE,	"i81342",
+	  i81342_steppings },
 
 	{ CPU_ID_80219_400,	CPU_CLASS_XSCALE,	"i80219 400MHz",
 	  xscale_steppings },

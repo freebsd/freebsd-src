@@ -426,7 +426,7 @@ extern pt_entry_t		pte_l2_s_proto;
 extern void (*pmap_copy_page_func)(vm_paddr_t, vm_paddr_t);
 extern void (*pmap_zero_page_func)(vm_paddr_t, int, int);
 
-#if (ARM_MMU_GENERIC + ARM_MMU_SA1) != 0
+#if (ARM_MMU_GENERIC + ARM_MMU_SA1) != 0 || defined(CPU_XSCALE_81342)
 void	pmap_copy_page_generic(vm_paddr_t, vm_paddr_t);
 void	pmap_zero_page_generic(vm_paddr_t, int, int);
 
