@@ -135,14 +135,16 @@ static int
 fingerprint(struct libalias *la, struct ip *pip, struct alias_data *ah)
 {
 
+	if (ah->dport != NULL && ah->aport != NULL && ah->sport != NULL &&
+            ntohs(*ah->dport) == TFTP_PORT_NUMBER)
+		return (0);
 	if (ah->dport == NULL || ah->sport == NULL || ah->lnk == NULL || 
 	    ah->maxpktsize == 0)
 		return (-1);
 	if (ntohs(*ah->dport) == RTSP_CONTROL_PORT_NUMBER_1
 	    || ntohs(*ah->sport) == RTSP_CONTROL_PORT_NUMBER_1
 	    || ntohs(*ah->dport) == RTSP_CONTROL_PORT_NUMBER_2
-	    || ntohs(*ah->sport) == RTSP_CONTROL_PORT_NUMBER_2
-	    || ntohs(*ah->dport) == TFTP_PORT_NUMBER)
+	    || ntohs(*ah->sport) == RTSP_CONTROL_PORT_NUMBER_2)
 		return (0);
 	return (-1);
 }
