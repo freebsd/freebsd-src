@@ -337,6 +337,7 @@ atomic_cmpset_long(volatile u_long *dst, u_long exp, u_long src)
 #define atomic_cmpset_acq_int		atomic_cmpset_32
 #define atomic_cmpset_acq_ptr		atomic_cmpset_ptr
 #define atomic_cmpset_acq_long		atomic_cmpset_long
+#define atomic_cmpset_acq_32		atomic_cmpset_32
 #define atomic_store_rel_ptr		atomic_store_ptr
 #define atomic_store_rel_int		atomic_store_32
 #define atomic_cmpset_rel_32		atomic_cmpset_32
