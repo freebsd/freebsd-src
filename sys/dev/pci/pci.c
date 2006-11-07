@@ -83,11 +83,11 @@ static int		pci_add_map(device_t pcib, device_t bus, device_t dev,
 static int		pci_probe(device_t dev);
 static int		pci_attach(device_t dev);
 static void		pci_load_vendor_data(void);
-static int		pci_describe_parse_line(char **ptr, int *vendor, 
+static int		pci_describe_parse_line(char **ptr, int *vendor,
 			    int *device, char **desc);
 static char		*pci_describe_device(device_t dev);
 static int		pci_modevent(module_t mod, int what, void *arg);
-static void		pci_hdrtypedata(device_t pcib, int b, int s, int f, 
+static void		pci_hdrtypedata(device_t pcib, int b, int s, int f,
 			    pcicfgregs *cfg);
 static void		pci_read_extcap(device_t pcib, pcicfgregs *cfg);
 static uint32_t		pci_read_vpd_reg(device_t pcib, pcicfgregs *cfg,
@@ -371,7 +371,7 @@ pci_read_device(device_t pcib, int b, int s, int f, size_t size)
 			return (NULL);
 
 		cfg = &devlist_entry->cfg;
-		
+
 		cfg->bus		= b;
 		cfg->slot		= s;
 		cfg->func		= f;
@@ -1124,14 +1124,14 @@ pci_print_verbose(struct pci_devinfo *dinfo)
 	if (bootverbose) {
 		pcicfgregs *cfg = &dinfo->cfg;
 
-		printf("found->\tvendor=0x%04x, dev=0x%04x, revid=0x%02x\n", 
+		printf("found->\tvendor=0x%04x, dev=0x%04x, revid=0x%02x\n",
 		    cfg->vendor, cfg->device, cfg->revid);
 		printf("\tbus=%d, slot=%d, func=%d\n",
 		    cfg->bus, cfg->slot, cfg->func);
 		printf("\tclass=%02x-%02x-%02x, hdrtype=0x%02x, mfdev=%d\n",
 		    cfg->baseclass, cfg->subclass, cfg->progif, cfg->hdrtype,
 		    cfg->mfdev);
-		printf("\tcmdreg=0x%04x, statreg=0x%04x, cachelnsz=%d (dwords)\n", 
+		printf("\tcmdreg=0x%04x, statreg=0x%04x, cachelnsz=%d (dwords)\n",
 		    cfg->cmdreg, cfg->statreg, cfg->cachelnsz);
 		printf("\tlattimer=0x%02x (%d ns), mingnt=0x%02x (%d ns), maxlat=0x%02x (%d ns)\n",
 		    cfg->lattimer, cfg->lattimer * 30, cfg->mingnt,
@@ -1161,7 +1161,7 @@ pci_print_verbose(struct pci_devinfo *dinfo)
 					      *(uint16_t *)&vrop->value[2]));
 				else if (strncmp("RV", vrop->keyword, 2) == 0)
 					printf("\tRV: %#hhx\n", vrop->value[0]);
-				else 
+				else
 					printf("\t%.2s: %s\n", vrop->keyword,
 					    vrop->value);
 			}
@@ -1281,6 +1281,7 @@ pci_add_map(device_t pcib, device_t bus, device_t dev,
 		    "pci%d:%d:%d bar %#x too many address bits", b, s, f, reg);
 		return (barlen);
 	}
+
 	/*
 	 * This code theoretically does the right thing, but has
 	 * undesirable side effects in some cases where peripherals
@@ -1344,7 +1345,7 @@ pci_add_map(device_t pcib, device_t bus, device_t dev,
  * For ATA devices we need to decide early what addressing mode to use.
  * Legacy demands that the primary and secondary ATA ports sits on the
  * same addresses that old ISA hardware did. This dictates that we use
- * those addresses and ignore the BAR's if we cannot set PCI native 
+ * those addresses and ignore the BAR's if we cannot set PCI native
  * addressing mode.
  */
 static void
@@ -1511,7 +1512,7 @@ pci_add_children(device_t dev, int busno, size_t dinfo_size)
 
 	KASSERT(dinfo_size >= sizeof(struct pci_devinfo),
 	    ("dinfo_size too small"));
-	maxslots = PCIB_MAXSLOTS(pcib);	
+	maxslots = PCIB_MAXSLOTS(pcib);
 	for (s = 0; s <= maxslots; s++) {
 		pcifunchigh = 0;
 		f = 0;
@@ -1789,7 +1790,7 @@ static struct
 	{PCIC_PROCESSOR,	-1,			"processor"},
 	{PCIC_SERIALBUS,	-1,			"serial bus"},
 	{PCIC_SERIALBUS,	PCIS_SERIALBUS_FW,	"FireWire"},
-	{PCIC_SERIALBUS,	PCIS_SERIALBUS_ACCESS,	"AccessBus"},	 
+	{PCIC_SERIALBUS,	PCIS_SERIALBUS_ACCESS,	"AccessBus"},
 	{PCIC_SERIALBUS,	PCIS_SERIALBUS_SSA,	"SSA"},
 	{PCIC_SERIALBUS,	PCIS_SERIALBUS_USB,	"USB"},
 	{PCIC_SERIALBUS,	PCIS_SERIALBUS_FC,	"Fibre Channel"},
@@ -1818,7 +1819,7 @@ pci_probe_nomatch(device_t dev, device_t child)
 {
 	int	i;
 	char	*cp, *scp, *device;
-	
+
 	/*
 	 * Look for a listing for this device in a loaded device database.
 	 */
@@ -1842,7 +1843,7 @@ pci_probe_nomatch(device_t dev, device_t child)
 				}
 			}
 		}
-		device_printf(dev, "<%s%s%s>", 
+		device_printf(dev, "<%s%s%s>",
 		    cp ? cp : "",
 		    ((cp != NULL) && (scp != NULL)) ? ", " : "",
 		    scp ? scp : "");
@@ -1856,21 +1857,21 @@ pci_probe_nomatch(device_t dev, device_t child)
 }
 
 /*
- * Parse the PCI device database, if loaded, and return a pointer to a 
+ * Parse the PCI device database, if loaded, and return a pointer to a
  * description of the device.
  *
  * The database is flat text formatted as follows:
  *
  * Any line not in a valid format is ignored.
  * Lines are terminated with newline '\n' characters.
- * 
+ *
  * A VENDOR line consists of the 4 digit (hex) vendor code, a TAB, then
  * the vendor name.
- * 
+ *
  * A DEVICE line is entered immediately below the corresponding VENDOR ID.
  * - devices cannot be listed without a corresponding VENDOR line.
  * A DEVICE line consists of a TAB, the 4 digit (hex) device code,
- * another TAB, then the device name.                                            
+ * another TAB, then the device name.
  */
 
 /*
@@ -1884,7 +1885,7 @@ pci_probe_nomatch(device_t dev, device_t child)
  * database with a newline when we initialise.
  */
 static int
-pci_describe_parse_line(char **ptr, int *vendor, int *device, char **desc) 
+pci_describe_parse_line(char **ptr, int *vendor, int *device, char **desc)
 {
 	char	*cp = *ptr;
 	int	left;
@@ -1907,7 +1908,7 @@ pci_describe_parse_line(char **ptr, int *vendor, int *device, char **desc)
 		if (*cp == '\t' &&
 		    sscanf(cp, "%x\t%80[^\n]", device, *desc) == 2)
 			break;
-		
+
 		/* skip to next line */
 		while (*cp != '\n' && left > 0) {
 			cp++;
@@ -1936,7 +1937,7 @@ pci_describe_device(device_t dev)
 	char	*desc, *vp, *dp, *line;
 
 	desc = vp = dp = NULL;
-	
+
 	/*
 	 * If we have no vendor data, we can't do anything.
 	 */
@@ -2201,7 +2202,7 @@ pci_alloc_map(device_t dev, device_t child, int type, int *rid,
 	count = 1UL << mapsize;
 	if (RF_ALIGNMENT(flags) < mapsize)
 		flags = (flags & ~RF_ALIGNMENT_MASK) | RF_ALIGNMENT_LOG2(mapsize);
-	
+
 	/*
 	 * Allocate enough resource, and then write back the
 	 * appropriate bar for that resource.
@@ -2294,7 +2295,7 @@ pci_alloc_resource(device_t dev, device_t child, int type, int *rid,
 			    "Reserved %#lx bytes for rid %#x type %d at %#lx\n",
 				    rman_get_size(rle->res), *rid, type,
 				    rman_get_start(rle->res));
-			if ((flags & RF_ACTIVE) && 
+			if ((flags & RF_ACTIVE) &&
 			    bus_generic_activate_resource(dev, child, type,
 			    *rid, rle->res) != 0)
 				return NULL;
@@ -2333,7 +2334,7 @@ pci_delete_resource(device_t dev, device_t child, int type, int rid)
 		}
 		resource_list_delete(rl, type, rid);
 	}
-	/* 
+	/*
 	 * Why do we turn off the PCI configuration BAR when we delete a
 	 * resource? -- imp
 	 */
@@ -2360,7 +2361,7 @@ pci_read_config_method(device_t dev, device_t child, int reg, int width)
 }
 
 void
-pci_write_config_method(device_t dev, device_t child, int reg, 
+pci_write_config_method(device_t dev, device_t child, int reg,
     uint32_t val, int width)
 {
 	struct pci_devinfo *dinfo = device_get_ivars(child);
