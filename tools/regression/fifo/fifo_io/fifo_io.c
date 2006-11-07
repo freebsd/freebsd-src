@@ -266,7 +266,7 @@ test_simpleio(void)
 		exit(-1);
 	}
 	if (len != sizeof(buffer)) {
-		warnx("test_simplio: tried %d but wrote %d", sizeof(buffer),
+		warnx("test_simplio: tried %zu but wrote %zd", sizeof(buffer),
 		    len);
 		cleanfifo2("testfifo", reader_fd, writer_fd);
 		exit(-1);
@@ -279,7 +279,7 @@ test_simpleio(void)
 		exit(-1);
 	}
 	if (len != sizeof(buffer)) {
-		warnx("test_simpleio: tried %d but read %d", sizeof(buffer),
+		warnx("test_simpleio: tried %zu but read %zd", sizeof(buffer),
 		    len);
 		cleanfifo2("testfifo", reader_fd, writer_fd);
 		exit(-1);
@@ -503,7 +503,7 @@ test_blocking_one_byte(void)
 	}
 	if (len != sizeof(ch)) {
 		warnx("test_blocking_one_byte: timed_write: tried to write "
-		    "%d, wrote %d", sizeof(ch), len);
+		    "%zu, wrote %zd", sizeof(ch), len);
 		cleanfifo2("testfifo", reader_fd, writer_fd);
 		exit(-1);
 	}
@@ -517,8 +517,8 @@ test_blocking_one_byte(void)
 		exit(-1);
 	}
 	if (len != sizeof(ch)) {
-		warnx("test_blocking_one_byte: timed_read: wanted %d, "
-		    "read %d", sizeof(ch), len);
+		warnx("test_blocking_one_byte: timed_read: wanted %zu, "
+		    "read %zd", sizeof(ch), len);
 		cleanfifo2("testfifo", reader_fd, writer_fd);
 		exit(-1);
 	}
@@ -566,7 +566,7 @@ test_nonblocking_one_byte(void)
 	}
 	if (len != sizeof(ch)) {
 		warnx("test_nonblocking_one_byte: timed_write: tried to write "
-		    "%d, wrote %d", sizeof(ch), len);
+		    "%zu, wrote %zd", sizeof(ch), len);
 		cleanfifo2("testfifo", reader_fd, writer_fd);
 		exit(-1);
 	}
@@ -580,8 +580,8 @@ test_nonblocking_one_byte(void)
 		exit(-1);
 	}
 	if (len != sizeof(ch)) {
-		warnx("test_nonblocking_one_byte: timed_read: wanted %d, read "
-		    "%d", sizeof(ch), len);
+		warnx("test_nonblocking_one_byte: timed_read: wanted %zu, read "
+		    "%zd", sizeof(ch), len);
 		cleanfifo2("testfifo", reader_fd, writer_fd);
 		exit(-1);
 	}
@@ -707,7 +707,7 @@ test_nonblocking_partial_write(void)
 
 	if (len == 0 || len >= 512*1024) {
 		warnx("test_blocking_partial_write: timed_write: requested "
-		    "%d, sent %d", 512*1024, len);
+		    "%d, sent %zd", 512*1024, len);
 		free(buffer);
 		cleanfifo2("testfifo", reader_fd, writer_fd);
 		exit(-1);
@@ -754,7 +754,7 @@ test_coalesce_big_read(void)
 		exit(-1);
 	}
 	if (len != 5) {
-		warnx("test_coalesce_big_read: write 5 wrote %d", len);
+		warnx("test_coalesce_big_read: write 5 wrote %zd", len);
 		cleanfifo2("testfifo", reader_fd, writer_fd);
 		exit(-1);
 	}
@@ -766,7 +766,7 @@ test_coalesce_big_read(void)
 		exit(-1);
 	}
 	if (len != 5) {
-		warnx("test_coalesce_big_read: write 5 wrote %d", len);
+		warnx("test_coalesce_big_read: write 5 wrote %zd", len);
 		cleanfifo2("testfifo", reader_fd, writer_fd);
 		exit(-1);
 	}
@@ -778,7 +778,7 @@ test_coalesce_big_read(void)
 		exit(-1);
 	}
 	if (len != 10) {
-		warnx("test_coalesce_big_read: read 10 read %d", len);
+		warnx("test_coalesce_big_read: read 10 read %zd", len);
 		cleanfifo2("testfifo", reader_fd, writer_fd);
 		exit(-1);
 	}
@@ -826,7 +826,7 @@ test_coalesce_big_write(void)
 		exit(-1);
 	}
 	if (len != 10) {
-		warnx("test_coalesce_big_write: write 10 wrote %d", len);
+		warnx("test_coalesce_big_write: write 10 wrote %zd", len);
 		cleanfifo2("testfifo", reader_fd, writer_fd);
 		exit(-1);
 	}
@@ -838,7 +838,7 @@ test_coalesce_big_write(void)
 		exit(-1);
 	}
 	if (len != 5) {
-		warnx("test_coalesce_big_write: read 5 read %d", len);
+		warnx("test_coalesce_big_write: read 5 read %zd", len);
 		cleanfifo2("testfifo", reader_fd, writer_fd);
 		exit(-1);
 	}
@@ -850,7 +850,7 @@ test_coalesce_big_write(void)
 		exit(-1);
 	}
 	if (len != 5) {
-		warnx("test_coalesce_big_write: read 5 read %d", len);
+		warnx("test_coalesce_big_write: read 5 read %zd", len);
 		cleanfifo2("testfifo", reader_fd, writer_fd);
 		exit(-1);
 	}
