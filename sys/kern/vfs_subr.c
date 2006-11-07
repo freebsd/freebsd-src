@@ -1631,8 +1631,8 @@ sched_sync(void)
 	EVENTHANDLER_REGISTER(shutdown_pre_sync, syncer_shutdown, td->td_proc,
 	    SHUTDOWN_PRI_LAST);
 
+	mtx_lock(&sync_mtx);
 	for (;;) {
-		mtx_lock(&sync_mtx);
 		if (syncer_state == SYNCER_FINAL_DELAY &&
 		    syncer_final_iter == 0) {
 			mtx_unlock(&sync_mtx);
@@ -1697,7 +1697,6 @@ sched_sync(void)
 		}
 		if (syncer_state == SYNCER_FINAL_DELAY && syncer_final_iter > 0)
 			syncer_final_iter--;
-		mtx_unlock(&sync_mtx);
 		/*
 		 * The variable rushjob allows the kernel to speed up the
 		 * processing of the filesystem syncer process. A rushjob
@@ -1708,13 +1707,10 @@ sched_sync(void)
 		 * ahead of the disk that the kernel memory pool is being
 		 * threatened with exhaustion.
 		 */
-		mtx_lock(&sync_mtx);
 		if (rushjob > 0) {
 			rushjob -= 1;
-			mtx_unlock(&sync_mtx);
 			continue;
 		}
-		mtx_unlock(&sync_mtx);
 		/*
 		 * Just sleep for a short period of time between
 		 * iterations when shutting down to allow some I/O
@@ -1728,10 +1724,10 @@ sched_sync(void)
 		 * filesystem activity.
 		 */
 		if (syncer_state != SYNCER_RUNNING)
-			tsleep(&dummychan, PPAUSE, "syncfnl",
+			msleep(&dummychan, &sync_mtx, PPAUSE, "syncfnl",
 			    hz / SYNCER_SHUTDOWN_SPEEDUP);
 		else if (time_uptime == starttime)
-			tsleep(&lbolt, PPAUSE, "syncer", 0);
+			msleep(&lbolt, &sync_mtx, PPAUSE, "syncer", 0);
 	}
 }
 
