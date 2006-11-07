@@ -98,7 +98,7 @@ STATIC void expbackq(union node *, int, int);
 STATIC int subevalvar(char *, char *, int, int, int, int);
 STATIC char *evalvar(char *, int);
 STATIC int varisset(char *, int);
-STATIC void varvalue(char *, int, int);
+STATIC void varvalue(char *, int, int, int);
 STATIC void recordregion(int, int, int);
 STATIC void removerecordregions(int);
 STATIC void ifsbreakup(char *, struct arglist *);
@@ -633,7 +633,7 @@ evalvar(char *p, int flag)
 	int easy;
 	int quotes = flag & (EXP_FULL | EXP_CASE | EXP_REDIR);
 
-	varflags = *p++;
+	varflags = (unsigned char)*p++;
 	subtype = varflags & VSTYPE;
 	var = p;
 	special = 0;
@@ -669,7 +669,7 @@ again: /* jump here after setting a variable with ${var=text} */
 	if (set && subtype != VSPLUS) {
 		/* insert the value of the variable */
 		if (special) {
-			varvalue(var, varflags & VSQUOTE, flag & EXP_FULL);
+			varvalue(var, varflags & VSQUOTE, subtype, flag);
 			if (subtype == VSLENGTH) {
 				varlen = expdest - stackblock() - startloc;
 				STADJUST(-varlen, expdest);
@@ -841,7 +841,7 @@ varisset(char *name, int nulok)
  */
 
 STATIC void
-varvalue(char *name, int quoted, int allow_split)
+varvalue(char *name, int quoted, int subtype, int flag)
 {
 	int num;
 	char *p;
@@ -853,7 +853,7 @@ varvalue(char *name, int quoted, int allow_split)
 
 #define STRTODEST(p) \
 	do {\
-	if (allow_split) { \
+	if (flag & (EXP_FULL | EXP_CASE) && subtype != VSLENGTH) { \
 		syntax = quoted? DQSYNTAX : BASESYNTAX; \
 		while (*p) { \
 			if (syntax[(int)*p] == CCTL) \
@@ -888,7 +888,7 @@ numvar:
 		}
 		break;
 	case '@':
-		if (allow_split && quoted) {
+		if (flag & EXP_FULL && quoted) {
 			for (ap = shellparam.p ; (p = *ap++) != NULL ; ) {
 				STRTODEST(p);
 				if (*ap)
