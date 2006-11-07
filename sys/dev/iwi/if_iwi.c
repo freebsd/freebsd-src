@@ -488,13 +488,12 @@ iwi_detach(device_t dev)
 	struct ieee80211com *ic = &sc->sc_ic;
 	struct ifnet *ifp = ic->ic_ifp;
 
-	iwi_stop(sc);
-	iwi_put_firmware(sc);
-
 	if (ifp != NULL) {
+		iwi_stop(sc);
 		bpfdetach(ifp);
 		ieee80211_ifdetach(ic);
 	}
+	iwi_put_firmware(sc);
 
 	iwi_free_cmd_ring(sc, &sc->cmdq);
 	iwi_free_tx_ring(sc, &sc->txq[0]);
