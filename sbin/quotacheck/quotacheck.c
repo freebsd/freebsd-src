@@ -192,6 +192,12 @@ main(argc, argv)
 			(void) addid((u_long)pw->pw_uid, USRQUOTA, pw->pw_name);
 		endpwent();
 	}
+	/*
+	 * Setting maxrun (-l) makes no sense without the -a flag.
+	 * Historically this was never an error, so we just warn.
+	 */
+	if (maxrun > 0 && !aflag)
+		warnx("ignoring -l without -a");
 	if (aflag)
 		exit(checkfstab(1, maxrun, needchk, chkquota));
 	if (setfsent() == 0)
@@ -217,7 +223,7 @@ void
 usage()
 {
 	(void)fprintf(stderr, "%s\n%s\n", 
-		"usage: quotacheck [-guv] -a",
+		"usage: quotacheck [-guv] [-l maxrun] -a",
 		"       quotacheck [-guv] filesystem ...");
 	exit(1);
 }
