@@ -196,7 +196,7 @@ cpu_startup(dummy)
 #ifdef PERFMON
 	perfmon_init();
 #endif
-	printf("usable memory  = %ju (%ju MB)\n", ptoa((uintmax_t)physmem),
+	printf("usable memory = %ju (%ju MB)\n", ptoa((uintmax_t)physmem),
 	    ptoa((uintmax_t)physmem) / 1048576);
 	realmem = Maxmem;
 	/*
@@ -220,7 +220,7 @@ cpu_startup(dummy)
 
 	vm_ksubmap_init(&kmi);
 
-	printf("avail memory = %ju (%ju MB)\n",
+	printf("avail memory  = %ju (%ju MB)\n",
 	    ptoa((uintmax_t)cnt.v_free_count),
 	    ptoa((uintmax_t)cnt.v_free_count) / 1048576);
 
