@@ -408,7 +408,7 @@ installUpgradeNonInteractive(dialogMenuItem *self)
 	    return DITEM_FAILURE;
 	}
 	else {
-	    /* Enable all the drives befor we start */
+	    /* Enable all the drives before we start */
 	    for (i = 0; i < cnt; i++)
 		devs[i]->enabled = TRUE;
 	}
