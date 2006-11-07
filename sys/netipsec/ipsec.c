@@ -43,6 +43,7 @@
 #include <sys/malloc.h>
 #include <sys/mbuf.h>
 #include <sys/domain.h>
+#include <sys/priv.h>
 #include <sys/protosw.h>
 #include <sys/socket.h>
 #include <sys/socketvar.h>
