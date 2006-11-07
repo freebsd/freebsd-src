@@ -867,7 +867,7 @@ installFixupBase(dialogMenuItem *self)
 	Mkdir("/usr/compat");
 	vsystem("ln -s usr/compat /compat");
 
-	/* BOGON #5: aliases database not build for bin */
+	/* BOGON #5: aliases database not built for bin */
 	vsystem("newaliases");
 
 	/* BOGON #6: Remove /stand (finally) */
