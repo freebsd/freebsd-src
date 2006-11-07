@@ -85,4 +85,5 @@ int		pci_resume(device_t dev);
 int		pci_suspend(device_t dev);
 void		pci_cfg_restore(device_t, struct pci_devinfo *);
 void		pci_cfg_save(device_t, struct pci_devinfo *, int);
+
 #endif /* _PCI_PRIVATE_H_ */
