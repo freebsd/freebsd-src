@@ -1376,7 +1376,7 @@ sched_lend_user_prio(struct thread *td, u_char prio)
 	oldprio = td->td_ksegrp->kg_user_pri;
 	td->td_ksegrp->kg_user_pri = prio;
 #else
-	oldprio = td->td__user_pri;
+	oldprio = td->td_user_pri;
 	td->td_user_pri = prio;
 #endif
 
@@ -1553,7 +1553,7 @@ sched_fork(struct thread *td, struct thread *child)
 	child->td_sched->skg_slptime = td->td_sched->skg_slptime;
 	child->td_sched->skg_runtime = td->td_sched->skg_runtime;
 	child->td_user_pri = td->td_user_pri;
-	child->kg_base_user_pri = kg->kg_base_user_pri;
+	child->td_base_user_pri = td->td_base_user_pri;
 	sched_interact_fork(child);
 	td->td_sched->skg_runtime += tickincr;
 	sched_interact_update(td);
