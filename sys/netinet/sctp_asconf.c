@@ -1274,6 +1274,7 @@ sctp_asconf_queue_add_sa(struct sctp_tcb *stcb, struct sockaddr *sa,
 		    sizeof(struct in_addr));
 	} else {
 		/* invalid family! */
+		SCTP_FREE(aa);
 		return (-1);
 	}
 	aa->sent = 0;		/* clear sent flag */

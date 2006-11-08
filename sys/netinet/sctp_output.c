@@ -9870,6 +9870,9 @@ sctp_lower_sosend(struct socket *so,
 				}
 				mm = sctp_copy_resume(sp, uio, srcv, max_len, user_marks_eor, &error, &sndout, &new_tail);
 				if ((mm == NULL) || error) {
+					if (mm) {
+						sctp_m_freem(mm);
+					}
 					goto out;
 				}
 				/* Update the mbuf and count */
