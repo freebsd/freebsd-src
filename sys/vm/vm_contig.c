@@ -381,6 +381,7 @@ vm_contig_unqueue_free(vm_page_t m)
 		vm_page_zero_count--;
 	/* Don't clear the PG_ZERO flag; we'll need it later. */
 	m->flags = PG_UNMANAGED | (m->flags & PG_ZERO);
+	m->oflags = 0;
 	KASSERT(m->dirty == 0,
 	    ("contigmalloc2: page %p was dirty", m));
 	m->wire_count = 0;
