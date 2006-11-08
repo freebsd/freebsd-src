@@ -180,6 +180,14 @@
 	    <entry>28&nbsp;September&nbsp;2006</entry>
 	    <entry><para>Multiple problems in &man.crypto.3;</para></entry>
 	  </row>
+
+	  <row>
+	    <entry><ulink url="http://security.FreeBSD.org/advisories/FreeBSD-SA-06:24.libarchive.asc"
+		>SA-06:24.libarchive</ulink></entry>
+	    <entry>8&nbsp;November&nbsp;2006</entry>
+	    <entry><para>Infinite loop in corrupt archives handling in
+	      &man.libarchive.3;</para></entry>
+	  </row>
 	</tbody>
       </tgroup>
     </informaltable>
