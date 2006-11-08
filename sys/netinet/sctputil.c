@@ -377,7 +377,12 @@ sctp_log_lock(struct sctp_inpcb *inp, struct sctp_tcb *stcb, uint8_t from)
 	sctp_clog[sctp_cwnd_log_at].time_event = sctp_get_time_of_event();
 	sctp_clog[sctp_cwnd_log_at].from = (uint8_t) from;
 	sctp_clog[sctp_cwnd_log_at].event_type = (uint8_t) SCTP_LOG_LOCK_EVENT;
-	sctp_clog[sctp_cwnd_log_at].x.lock.sock = (void *)inp->sctp_socket;
+	if (inp) {
+		sctp_clog[sctp_cwnd_log_at].x.lock.sock = (void *)inp->sctp_socket;
+
+	} else {
+		sctp_clog[sctp_cwnd_log_at].x.lock.sock = (void *)NULL;
+	}
 	sctp_clog[sctp_cwnd_log_at].x.lock.inp = (void *)inp;
 	if (stcb) {
 		sctp_clog[sctp_cwnd_log_at].x.lock.tcb_lock = mtx_owned(&stcb->tcb_mtx);
@@ -2575,7 +2580,6 @@ sctp_notify_assoc_change(uint32_t event, struct sctp_tcb *stcb,
 	struct mbuf *m_notify;
 	struct sctp_assoc_change *sac;
 	struct sctp_queued_to_read *control;
-	int locked = 0;
 
 	/*
 	 * First if we are are going down dump everything we can to the
@@ -2588,58 +2592,6 @@ sctp_notify_assoc_change(uint32_t event, struct sctp_tcb *stcb,
 	    ) {
 		/* If the socket is gone we are out of here */
 		return;
-	}
-	if ((event == SCTP_COMM_LOST) || (event == SCTP_SHUTDOWN_COMP)) {
-		if (stcb->asoc.control_pdapi) {
-			/*
-			 * we were in the middle of a PD-API verify its
-			 * there.
-			 */
-			SCTP_INP_READ_LOCK(stcb->sctp_ep);
-			locked = 1;
-			TAILQ_FOREACH(control, &stcb->sctp_ep->read_queue, next) {
-				if (control == stcb->asoc.control_pdapi) {
-					/* Yep its here, notify them */
-					if (event == SCTP_COMM_LOST) {
-						/*
-						 * Abort/broken we had a
-						 * real PD-API aborted
-						 */
-						if (sctp_is_feature_off(stcb->sctp_ep, SCTP_PCB_FLAGS_PDAPIEVNT)) {
-							/*
-							 * hmm.. don't want
-							 * a notify if
-							 * held_lenght is
-							 * set,they may be
-							 * stuck. clear and
-							 * wake.
-							 */
-							if (control->held_length) {
-								control->held_length = 0;
-								control->end_added = 1;
-							}
-						} else {
-							sctp_notify_partial_delivery_indication(stcb, event, 1);
-
-						}
-					} else {
-						/* implicit EOR on EOF */
-						control->held_length = 0;
-						control->end_added = 1;
-					}
-					SCTP_INP_READ_UNLOCK(stcb->sctp_ep);
-					locked = 0;
-					/* wake him up */
-					control->do_not_ref_stcb = 1;
-					stcb->asoc.control_pdapi = NULL;
-					sorwakeup(stcb->sctp_socket);
-					break;
-				}
-			}
-			if (locked)
-				SCTP_INP_READ_UNLOCK(stcb->sctp_ep);
-
-		}
 	}
 	/*
 	 * For TCP model AND UDP connected sockets we will send an error up
@@ -2936,13 +2888,15 @@ sctp_notify_adaptation_layer(struct sctp_tcb *stcb,
 	    &stcb->sctp_socket->so_rcv, 1);
 }
 
+/* This always must be called with the read-queue LOCKED in the INP */
 void
 sctp_notify_partial_delivery_indication(struct sctp_tcb *stcb,
-    uint32_t error, int no_lock)
+    uint32_t error, int nolock)
 {
 	struct mbuf *m_notify;
 	struct sctp_pdapi_event *pdapi;
 	struct sctp_queued_to_read *control;
+	struct sockbuf *sb;
 
 	if (sctp_is_feature_off(stcb->sctp_ep, SCTP_PCB_FLAGS_PDAPIEVNT))
 		/* event not enabled */
@@ -2965,62 +2919,44 @@ sctp_notify_partial_delivery_indication(struct sctp_tcb *stcb,
 	m_notify->m_pkthdr.rcvif = 0;
 	m_notify->m_len = sizeof(struct sctp_pdapi_event);
 	m_notify->m_next = NULL;
-
-	if (stcb->asoc.control_pdapi != NULL) {
-		/* we will do some substitution */
-		control = stcb->asoc.control_pdapi;
-		if (no_lock == 0)
-			SCTP_INP_READ_LOCK(stcb->sctp_ep);
-
-		if (control->data == NULL) {
-			control->data = control->tail_mbuf = m_notify;
-			control->held_length = 0;
-			control->length = m_notify->m_len;
-			control->end_added = 1;
-			sctp_sballoc(stcb,
-			    &stcb->sctp_socket->so_rcv,
-			    m_notify);
-		} else if (control->end_added == 0) {
-			struct mbuf *m = NULL;
-
-			m = control->data;
-			while (m) {
-				sctp_sbfree(control, stcb,
-				    &stcb->sctp_socket->so_rcv, m);
-				m = sctp_m_free(m);
-			}
-			control->data = NULL;
-			control->length = m_notify->m_len;
-			control->data = control->tail_mbuf = m_notify;
-			control->held_length = 0;
-			control->end_added = 1;
-			sctp_sballoc(stcb, &stcb->sctp_socket->so_rcv, m);
-		} else {
-			/* Hmm .. should not happen */
-			control->end_added = 1;
-			stcb->asoc.control_pdapi = NULL;
-			goto add_to_end;
-		}
-		if (no_lock == 0)
-			SCTP_INP_READ_UNLOCK(stcb->sctp_ep);
+	control = sctp_build_readq_entry(stcb, stcb->asoc.primary_destination,
+	    0, 0, 0, 0, 0, 0,
+	    m_notify);
+	if (control == NULL) {
+		/* no memory */
+		sctp_m_freem(m_notify);
+		return;
+	}
+	control->length = m_notify->m_len;
+	/* not that we need this */
+	control->tail_mbuf = m_notify;
+	control->held_length = 0;
+	control->length = 0;
+	if (nolock == 0) {
+		SCTP_INP_READ_LOCK(stcb->sctp_ep);
+	}
+	sb = &stcb->sctp_socket->so_rcv;
+#ifdef SCTP_SB_LOGGING
+	sctp_sblog(sb, control->do_not_ref_stcb ? NULL : stcb, SCTP_LOG_SBALLOC, m_notify->m_len);
+#endif
+	sctp_sballoc(stcb, sb, m_notify);
+#ifdef SCTP_SB_LOGGING
+	sctp_sblog(sb, control->do_not_ref_stcb ? NULL : stcb, SCTP_LOG_SBRESULT, 0);
+#endif
+	atomic_add_int(&control->length, m_notify->m_len);
+	control->end_added = 1;
+	if (stcb->asoc.control_pdapi)
+		TAILQ_INSERT_AFTER(&stcb->sctp_ep->read_queue, stcb->asoc.control_pdapi, control, next);
+	else {
+		/* we really should not see this case */
+		TAILQ_INSERT_TAIL(&stcb->sctp_ep->read_queue, control, next);
+	}
+	if (nolock == 0) {
+		SCTP_INP_READ_UNLOCK(stcb->sctp_ep);
+	}
+	if (stcb->sctp_ep && stcb->sctp_socket) {
+		/* This should always be the case */
 		sctp_sorwakeup(stcb->sctp_ep, stcb->sctp_socket);
-	} else {
-		/* append to socket */
-add_to_end:
-		control = sctp_build_readq_entry(stcb, stcb->asoc.primary_destination,
-		    0, 0, 0, 0, 0, 0,
-		    m_notify);
-		if (control == NULL) {
-			/* no memory */
-			sctp_m_freem(m_notify);
-			return;
-		}
-		control->length = m_notify->m_len;
-		/* not that we need this */
-		control->tail_mbuf = m_notify;
-		sctp_add_to_readq(stcb->sctp_ep, stcb,
-		    control,
-		    &stcb->sctp_socket->so_rcv, 1);
 	}
 }
 
@@ -3150,10 +3086,14 @@ void
 sctp_ulp_notify(uint32_t notification, struct sctp_tcb *stcb,
     uint32_t error, void *data)
 {
+	if (stcb == NULL) {
+		/* unlikely but */
+		return;
+	}
 	if ((stcb->sctp_ep->sctp_flags & SCTP_PCB_FLAGS_SOCKET_GONE) ||
 	    (stcb->sctp_ep->sctp_flags & SCTP_PCB_FLAGS_SOCKET_ALLGONE) ||
 	    (stcb->asoc.state & SCTP_STATE_CLOSED_SOCKET)
-	) {
+	    ) {
 		/* No notifications up when we are in a no socket state */
 		return;
 	}
@@ -3829,6 +3769,13 @@ sctp_add_to_readq(struct sctp_inpcb *inp,
 	 */
 	struct mbuf *m, *prev = NULL;
 
+	if (inp == NULL) {
+		/* Gak, TSNH!! */
+#ifdef INVARIENTS
+		panic("Gak, inp NULL on add_to_readq");
+#endif
+		return;
+	}
 	SCTP_INP_READ_LOCK(inp);
 	m = control->data;
 	control->held_length = 0;
@@ -5032,6 +4979,8 @@ wait_some_more:
 			if (control->end_added == 1) {
 				/* he aborted, or is done i.e.did a shutdown */
 				out_flags |= MSG_EOR;
+				if (control->pdapi_aborted)
+					out_flags |= MSG_TRUNC;
 				goto done_with_control;
 			}
 			if (so->so_rcv.sb_cc > held_length) {
@@ -5143,6 +5092,8 @@ get_more_data2:
 					 * shutdown
 					 */
 					out_flags |= MSG_EOR;
+					if (control->pdapi_aborted)
+						out_flags |= MSG_TRUNC;
 					goto done_with_control;
 				}
 				if (so->so_rcv.sb_cc > held_length) {
