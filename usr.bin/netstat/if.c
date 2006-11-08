@@ -132,11 +132,22 @@ pfsync_stats(u_long off __unused, const char *name, int af1 __unused)
 static void
 show_stat(const char *fmt, int width, u_long value, short showvalue)
 {
+	const char *lsep, *rsep;
 	char newfmt[32];
 
+	lsep = "";
+	if (strncmp(fmt, "LS", 2) == 0) {
+		lsep = " ";
+		fmt += 2;
+	}
+	rsep = " ";
+	if (strncmp(fmt, "NRS", 3) == 0) {
+		rsep = "";
+		fmt += 3;
+	}
 	if (showvalue == 0) {
 		/* Print just dash. */
-		sprintf(newfmt, "%%%ds ", width);
+		sprintf(newfmt, "%s%%%ds%s", lsep, width, rsep);
 		printf(newfmt, "-");
 		return;
 	}
@@ -147,11 +158,11 @@ show_stat(const char *fmt, int width, u_long value, short showvalue)
 		/* Format in human readable form. */
 		humanize_number(buf, sizeof(buf), (int64_t)value, "",
 		    HN_AUTOSCALE, HN_NOSPACE | HN_DECIMAL);
-		sprintf(newfmt, "%%%ds ", width);
+		sprintf(newfmt, "%s%%%ds%s", lsep, width, rsep);
 		printf(newfmt, buf);
 	} else {
 		/* Construct the format string. */
-		sprintf(newfmt, "%%%d%s ", width, fmt);
+		sprintf(newfmt, "%s%%%d%s%s", lsep, width, fmt, rsep);
 		printf(newfmt, value);
 	}
 }
@@ -415,14 +426,13 @@ intpr(int _interval, u_long ifnetaddr, void (*pfunc)(char *))
 		if (bflag)
 			show_stat("lu", 10, obytes, link_layer|network_layer);
 
-		show_stat("lu", 5, collisions, link_layer);
+		show_stat("NRSlu", 5, collisions, link_layer);
 		if (tflag)
-			show_stat("d", 4, timer, link_layer);
-
+			show_stat("LSd", 4, timer, link_layer);
 		if (dflag)
-			show_stat("d", 4, drops, link_layer);
-
+			show_stat("LSd", 4, drops, link_layer);
 		putchar('\n');
+
 		if (aflag && ifaddrfound) {
 			/*
 			 * Print family's multicast addresses
@@ -600,9 +610,10 @@ loop:
 			show_stat("lu", 10, ifnet.if_opackets - ip->ift_op, 1);
 			show_stat("lu", 5, ifnet.if_oerrors - ip->ift_oe, 1);
 			show_stat("lu", 10, ifnet.if_obytes - ip->ift_ob, 1);
-			show_stat("lu", 5, ifnet.if_collisions - ip->ift_co, 1);
+			show_stat("NRSlu", 5, 
+			    ifnet.if_collisions - ip->ift_co, 1);
 			if (dflag)
-				show_stat("u", 5,
+				show_stat("LSu", 5,
 				    ifnet.if_snd.ifq_drops - ip->ift_dr, 1);
 		}
 		ip->ift_ip = ifnet.if_ipackets;
@@ -646,9 +657,9 @@ loop:
 			show_stat("lu", 10, sum->ift_op - total->ift_op, 1);
 			show_stat("lu", 5, sum->ift_oe - total->ift_oe, 1);
 			show_stat("lu", 10, sum->ift_ob - total->ift_ob, 1);
-			show_stat("lu", 5, sum->ift_co - total->ift_co, 1);
+			show_stat("NRSlu", 5, sum->ift_co - total->ift_co, 1);
 			if (dflag)
-				show_stat("u", 5,
+				show_stat("LSu", 5,
 				    sum->ift_dr - total->ift_dr, 1);
 		}
 		*total = *sum;
