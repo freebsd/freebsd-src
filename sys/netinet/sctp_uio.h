@@ -43,6 +43,7 @@ __FBSDID("$FreeBSD$");
 #endif
 #include <sys/types.h>
 #include <sys/socket.h>
+#include <netinet/in.h>
 
 typedef uint32_t sctp_assoc_t;
 
@@ -870,6 +871,17 @@ struct sctpstat {
 #define SCTP_STAT_DECR_COUNTER32(_x) SCTP_STAT_DECR(_x)
 #define SCTP_STAT_DECR_COUNTER64(_x) SCTP_STAT_DECR(_x)
 #define SCTP_STAT_DECR_GAUGE32(_x) SCTP_STAT_DECR(_x)
+
+union sctp_sockstore {
+#ifdef AF_INET
+	struct sockaddr_in sin;
+#endif
+#ifdef AF_INET6
+	struct sockaddr_in6 sin6;
+#endif
+	struct sockaddr sa;
+};
+
 
 /*
  * Kernel defined for sctp_send

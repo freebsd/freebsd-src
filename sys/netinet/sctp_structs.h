@@ -149,16 +149,6 @@ struct sctp_copy_all {
 	int cnt_failed;
 };
 
-union sctp_sockstore {
-#ifdef AF_INET
-	struct sockaddr_in sin;
-#endif
-#ifdef AF_INET6
-	struct sockaddr_in6 sin6;
-#endif
-	struct sockaddr sa;
-};
-
 struct sctp_nets {
 	TAILQ_ENTRY(sctp_nets) sctp_next;	/* next link */
 
@@ -371,6 +361,7 @@ struct sctp_queued_to_read {	/* sinfo structure Pluse more */
 	uint16_t port_from;
 	uint8_t do_not_ref_stcb;
 	uint8_t end_added;
+	uint8_t pdapi_aborted;
 };
 
 /* This data structure will be on the outbound

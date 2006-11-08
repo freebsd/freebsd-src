@@ -82,6 +82,7 @@ __FBSDID("$FreeBSD$");
 #include <netinet/sctp_asconf.h>
 #include <netinet/sctp_timer.h>
 #include <netinet/sctp_auth.h>
+
 #ifdef IPSEC
 #include <netinet6/ipsec.h>
 #include <netkey/key.h>
@@ -483,11 +484,12 @@ sctp_ctlinput(cmd, sa, vip)
 static int
 sctp_getcred(SYSCTL_HANDLER_ARGS)
 {
+	struct xucred xuc;
 	struct sockaddr_in addrs[2];
 	struct sctp_inpcb *inp;
 	struct sctp_nets *net;
 	struct sctp_tcb *stcb;
-	int error, s;
+	int error;
 
 	/*
 	 * XXXRW: Other instances of getcred use SUSER_ALLOWJAIL, as socket
@@ -502,7 +504,6 @@ sctp_getcred(SYSCTL_HANDLER_ARGS)
 	if (error)
 		return (error);
 
-	s = splnet();
 	stcb = sctp_findassociation_addr_sa(sintosa(&addrs[0]),
 	    sintosa(&addrs[1]),
 	    &inp, &net, 1);
@@ -511,15 +512,29 @@ sctp_getcred(SYSCTL_HANDLER_ARGS)
 			/* reduce ref-count */
 			SCTP_INP_WLOCK(inp);
 			SCTP_INP_DECR_REF(inp);
-			SCTP_INP_WUNLOCK(inp);
+			goto cred_can_cont;
 		}
 		error = ENOENT;
 		goto out;
 	}
-	error = SYSCTL_OUT(req, inp->sctp_socket->so_cred, sizeof(struct ucred));
 	SCTP_TCB_UNLOCK(stcb);
+	/*
+	 * We use the write lock here, only since in the error leg we need
+	 * it. If we used RLOCK, then we would have to
+	 * wlock/decr/unlock/rlock. Which in theory could create a hole.
+	 * Better to use higher wlock.
+	 */
+	SCTP_INP_WLOCK(inp);
+cred_can_cont:
+	error = cr_canseesocket(req->td->td_ucred, inp->sctp_socket);
+	if (error) {
+		SCTP_INP_WUNLOCK(inp);
+		goto out;
+	}
+	cru2x(inp->sctp_socket->so_cred, &xuc);
+	SCTP_INP_WUNLOCK(inp);
+	error = SYSCTL_OUT(req, &xuc, sizeof(struct xucred));
 out:
-	splx(s);
 	return (error);
 }
 
@@ -3384,6 +3399,7 @@ sctp_optsset(struct socket *so,
 				if (sctp_auth_add_hmacid(hmaclist, (uint16_t) hmacid)) {
 					 /* invalid HMACs were found */ ;
 					error = EINVAL;
+					sctp_free_hmaclist(hmaclist);
 					goto sctp_set_hmac_done;
 				}
 			}
@@ -4655,8 +4671,10 @@ sctp_accept(struct socket *so, struct sockaddr **addr)
 		sin6->sin6_port = ((struct sockaddr_in6 *)&store)->sin6_port;
 
 		sin6->sin6_addr = ((struct sockaddr_in6 *)&store)->sin6_addr;
-		if ((error = sa6_recoverscope(sin6)) != 0)
+		if ((error = sa6_recoverscope(sin6)) != 0) {
+			SCTP_FREE_SONAME(sin6);
 			return (error);
+		}
 		*addr = (struct sockaddr *)sin6;
 	}
 	/* Wake any delayed sleep action */
@@ -4725,6 +4743,10 @@ sctp_ingetaddr(struct socket *so, struct sockaddr **addr)
 			SCTP_TCB_LOCK(stcb);
 			TAILQ_FOREACH(net, &stcb->asoc.nets, sctp_next) {
 				sin_a = (struct sockaddr_in *)&net->ro._l_addr;
+				if (sin_a == NULL)
+					/* this will make coverity happy */
+					continue;
+
 				if (sin_a->sin_family == AF_INET) {
 					fnd = 1;
 					break;
