@@ -99,6 +99,12 @@ struct intr_vector intr_vectors[IV_MAX];
 uint16_t intr_countp[IV_MAX];
 static u_long intr_stray_count[IV_MAX];
 
+struct ithread_vector_handler {
+	iv_func_t *ivh_handler;
+	void *ivh_arg;
+	u_int ivh_vec;
+};
+
 static char *pil_names[] = {
 	"stray",
 	"low",		/* PIL_LOW */
@@ -203,23 +209,17 @@ intr_setup(int pri, ih_func_t *ihf, int vec, iv_func_t *ivf, void *iva)
 	char pilname[MAXCOMLEN + 1];
 	u_long ps;
 
-	ps = intr_disable();
+	ps = intr_disable_all();
 	if (vec != -1) {
-		if ((char *)intr_vectors[vec].iv_func == (char *)intr_stray_level) {
-			intr_vectors[vec].iv_func = ivf;
-			intr_vectors[vec].iv_arg = iva;
-		} else {
-			intr_vectors[vec].iv_func = intr_execute_handlers;
-			intr_vectors[vec].iv_arg = &intr_vectors[vec];
-		}
-		if (pri > intr_vectors[vec].iv_pri)
-			intr_vectors[vec].iv_pri = pri;
+		intr_vectors[vec].iv_func = ivf;
+		intr_vectors[vec].iv_arg = iva;
+		intr_vectors[vec].iv_pri = pri;
 		intr_vectors[vec].iv_vec = vec;
 	}
 	snprintf(pilname, MAXCOMLEN + 1, "pil%d: %s", pri, pil_names[pri]);
 	intrcnt_updatename(pri, pilname, 1);
 	intr_handlers[pri] = ihf;
-	intr_restore(ps);
+	intr_restore_all(ps);
 }
 
 static void
@@ -288,7 +288,6 @@ intr_execute_handlers(void *cookie)
 		return;
 	}
 
-	/* Execute fast interrupt handlers directly. */
 	thread = 0;
 	TAILQ_FOREACH(ih, &ie->ie_handlers, ih_next) {
 		if (!(ih->ih_flags & IH_FAST)) {
@@ -301,17 +300,26 @@ intr_execute_handlers(void *cookie)
 		ih->ih_handler(ih->ih_argument);
 	}
 
-	hvio_intr_setstate(iv->iv_vec, HV_INTR_IDLE_STATE);
-
 	/* Schedule a heavyweight interrupt process. */
-	if (thread)
+	if (thread) {
 		error = intr_event_schedule_thread(ie);
-	else if (TAILQ_EMPTY(&ie->ie_handlers))
-		error = EINVAL;
-	else
-		error = 0;
-	if (error == EINVAL)
-		intr_stray_vector(iv);
+	} else {
+		if (TAILQ_EMPTY(&ie->ie_handlers))
+			intr_stray_vector(iv);
+		else
+			hvio_intr_setstate(iv->iv_vec, HV_INTR_IDLE_STATE);
+	}
+}
+
+static void
+ithread_wrapper(void *arg)
+{
+	struct ithread_vector_handler *ivh = (struct ithread_vector_handler *)arg;
+	
+	ivh->ivh_handler(ivh->ivh_arg);
+	/* re-enable interrupt */
+	hvio_intr_setstate(ivh->ivh_vec, HV_INTR_IDLE_STATE);
+
 }
 
 int
@@ -321,9 +329,9 @@ inthand_add(const char *name, int vec, void (*handler)(void *), void *arg,
 	struct intr_vector *iv;
 	struct intr_event *ie;		/* descriptor for the IRQ */
 	struct intr_event *orphan;
+	struct ithread_vector_handler *ivh;
 	int errcode, pil;
-	iv_func_t *ivf;
-	void *iva;
+
 	/*
 	 * Work around a race where more than one CPU may be registering
 	 * handlers on the same IRQ at the same time.
@@ -349,16 +357,29 @@ inthand_add(const char *name, int vec, void (*handler)(void *), void *arg,
 		}
 	}
 
-	errcode = intr_event_add_handler(ie, name, handler, arg,
-	    intr_priority(flags), flags, cookiep);
-	if (errcode)
-		return (errcode);
-	
-	pil = (flags & INTR_FAST) ? PIL_FAST : PIL_ITHREAD;
-	ivf = (flags & INTR_FAST) ? handler : intr_execute_handlers;
-	iva = (flags & INTR_FAST) ? arg : iv;
+	if (!(flags & INTR_FAST)) {
+		ivh = (struct ithread_vector_handler *)
+			malloc(sizeof(struct ithread_vector_handler), M_DEVBUF, M_WAITOK);
+		ivh->ivh_handler = handler;
+		ivh->ivh_arg = arg;
+		ivh->ivh_vec = vec;
+		errcode = intr_event_add_handler(ie, name, ithread_wrapper, ivh,
+						 intr_priority(flags), flags, cookiep);
+	} else {
+		ivh = NULL;
+		errcode = intr_event_add_handler(ie, name, handler, arg,
+						 intr_priority(flags), flags, 
+						 cookiep);
+	}
 
-	intr_setup(pil, intr_fast, vec, ivf, iva);
+	if (errcode) {
+		if (ivh)
+			free(ivh, M_DEVBUF);
+		return (errcode);
+	}
+	pil = (flags & INTR_FAST) ? PIL_FAST : PIL_ITHREAD;
+
+	intr_setup(pil, intr_fast, vec, intr_execute_handlers, iv);
 
 	intr_stray_count[vec] = 0;
 
@@ -399,8 +420,6 @@ inthand_remove(int vec, void *cookie)
 static void 
 cpu_intrq_alloc(void)
 {
-	
-
 	
 	mondo_data_array = malloc(INTR_REPORT_SIZE*MAXCPU, M_DEVBUF, M_WAITOK | M_ZERO);
 	PANIC_IF(mondo_data_array == NULL);
