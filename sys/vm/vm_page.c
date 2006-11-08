@@ -320,6 +320,16 @@ vm_page_startup(vm_offset_t vaddr)
 	phys_avail[biggestone + 1] = new_end;
 
 	/*
+	 * This assertion tests the hypothesis that npages and total are
+	 * redundant.  XXX
+	 */
+	page_range = 0;
+	for (i = 0; phys_avail[i + 1] != 0; i += 2)
+		page_range += atop(phys_avail[i + 1] - phys_avail[i]);
+	KASSERT(page_range == npages,
+	    ("vm_page_startup: inconsistent page counts"));
+
+	/*
 	 * Clear all of the page structures
 	 */
 	bzero((caddr_t) vm_page_array, page_range * sizeof(struct vm_page));
@@ -334,10 +344,10 @@ vm_page_startup(vm_offset_t vaddr)
 	cnt.v_page_count = 0;
 	cnt.v_free_count = 0;
 	list = getenv("vm.blacklist");
-	for (i = 0; phys_avail[i + 1] && npages > 0; i += 2) {
+	for (i = 0; phys_avail[i + 1] != 0; i += 2) {
 		pa = phys_avail[i];
 		last_pa = phys_avail[i + 1];
-		while (pa < last_pa && npages-- > 0) {
+		while (pa < last_pa) {
 			if (list != NULL &&
 			    vm_page_blacklist_lookup(list, pa))
 				printf("Skipping page with pa 0x%jx\n",
