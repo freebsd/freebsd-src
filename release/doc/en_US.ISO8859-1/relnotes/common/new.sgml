@@ -227,6 +227,11 @@
       more detail in security advisory
       <ulink url="http://security.FreeBSD.org/advisories/FreeBSD-SA-06:23.openssl.asc">FreeBSD-SA-06:23.openssl</ulink>. &merged;</para>
 
+    <para>A bug that could permit corrupt archives to cause an
+      infinite loop in &man.libarchive.3; and &man.tar.1; has been
+      fixed.  More details are available in
+      <ulink url="http://security.FreeBSD.org/advisories/FreeBSD-SA-06:24.libarchive.asc">FreeBSD-SA-06:24.libarchive</ulink>. &merged;</para>
+
   </sect2>
 
   <sect2 id="kernel">
