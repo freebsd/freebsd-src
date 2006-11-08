@@ -257,7 +257,9 @@ archive_decompressor_none_read_consume(struct archive *a, size_t request)
 }
 
 /*
- * Skip at most request bytes. Skipped data is marked as consumed.
+ * Skip forward by exactly the requested bytes or else return
+ * ARCHIVE_FATAL.  Note that this differs from the contract for
+ * read_ahead, which does not gaurantee a minimum count.
  */
 static ssize_t
 archive_decompressor_none_skip(struct archive *a, size_t request)
@@ -287,9 +289,7 @@ archive_decompressor_none_skip(struct archive *a, size_t request)
 	if (request == 0)
 		return (total_bytes_skipped);
 	/*
-	 * If no client_skipper is provided, just read the old way. It is very
-	 * likely that after skipping, the request has not yet been fully
-	 * satisfied (and is still > 0). In that case, read as well.
+	 * If a client_skipper was provided, try that first.
 	 */
 	if (a->client_skipper != NULL) {
 		bytes_skipped = (a->client_skipper)(a, a->client_data,
@@ -307,6 +307,12 @@ archive_decompressor_none_skip(struct archive *a, size_t request)
 		a->raw_position += bytes_skipped;
 		state->client_avail = state->client_total = 0;
 	}
+	/*
+	 * Note that client_skipper will usually not satisfy the
+	 * full request (due to low-level blocking concerns),
+	 * so even if client_skipper is provided, we may still
+	 * have to use ordinary reads to finish out the request.
+	 */
 	while (request > 0) {
 		const void* dummy_buffer;
 		ssize_t bytes_read;
@@ -314,6 +320,12 @@ archive_decompressor_none_skip(struct archive *a, size_t request)
 		    &dummy_buffer, request);
 		if (bytes_read < 0)
 			return (bytes_read);
+		if (bytes_read == 0) {
+			/* We hit EOF before we satisfied the skip request. */
+			archive_set_error(a, ARCHIVE_ERRNO_MISC,
+			    "Truncated input file (need to skip %d bytes)", (int)request);
+			return (ARCHIVE_FATAL);
+		}
 		assert(bytes_read >= 0); /* precondition for cast below */
 		min = minimum((size_t)bytes_read, request);
 		bytes_read = archive_decompressor_none_read_consume(a, min);
