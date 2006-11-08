@@ -729,7 +729,7 @@ ENTRY(invlpg)
 	ta	FAST_TRAP
 	brz,pt	%o0, 1f
 	  nop
-	ba	panic_bad_hcall
+	ba,pt	%xcc, panic_bad_hcall
 	  mov	MMU_DEMAP_PAGE, %o1
 1:
 	retl
@@ -756,7 +756,7 @@ ENTRY(invlctx)
 	ta	FAST_TRAP
 	brz,pt	%o0, 1f
 	  nop
-	ba	panic_bad_hcall
+	ba,pt	%xcc, panic_bad_hcall
 	  mov	MMU_DEMAP_CTX, %o1
 1:
 	retl
@@ -771,13 +771,37 @@ ENTRY(invltlb)
 	ta	FAST_TRAP
 	brz,pt	%o0, 1f
 	  nop
-	ba	panic_bad_hcall
+	ba,pt	%xcc, panic_bad_hcall
 	  mov	MMU_DEMAP_ALL, %o1
 1:
 	retl
 	  nop
 END(invltlb)
 
+
+	/*
+	 * panic_bad_hcall is called when a hcall returns
+	 * unexpected error
+	 * %o0 error number
+	 * %o1 hcall number
+	 */
+
+	.text
+bad_hcall_error:
+	.asciz	"hypervisor call 0x%x returned an unexpected error %d"
+
+	
+ENTRY(panic_bad_hcall)
+	mov	%o0, %o2
+	sethi	%hi(bad_hcall_error), %o0
+	or	%o0, %lo(bad_hcall_error), %o0
+	mov	%o7, %o3
+	call	panic
+	  mov	%o3, %o7
+SET_SIZE(panic_bad_hcall)
+
+
+	
 ! %o0 = pa
 ! %o1 = size
 	

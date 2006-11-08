@@ -1401,27 +1401,6 @@ hv_hpriv(void *func, uint64_t arg1, uint64_t arg2, uint64_t arg3)
 	nop
 	SET_SIZE(hv_hpriv)
 
-	/*
-	 * panic_bad_hcall is called when a hcall returns
-	 * unexpected error
-	 * %o0 error number
-	 * %o1 hcall number
-	 */
-
-	.text
-bad_hcall_error:
-	.asciz	"hypervisor call 0x%x returned an unexpected error %d"
-
-	
-	ENTRY(panic_bad_hcall)
-	mov	%o0, %o2
-	sethi	%hi(bad_hcall_error), %o0
-	or	%o0, %lo(bad_hcall_error), %o0
-	mov	%o7, %o3
-	call	panic
-	  mov	%o3, %o7
-	SET_SIZE(panic_bad_hcall)
-
 	ENTRY(hv_magic_trap_on)
 	ta	0x77
 	retl
