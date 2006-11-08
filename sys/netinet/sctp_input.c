@@ -582,6 +582,7 @@ sctp_handle_shutdown(struct sctp_shutdown_chunk *cp,
 		 */
 		SCTP_INP_READ_LOCK(stcb->sctp_ep);
 		stcb->asoc.control_pdapi->end_added = 1;
+		stcb->asoc.control_pdapi->pdapi_aborted = 1;
 		if (stcb->asoc.control_pdapi->tail_mbuf) {
 			stcb->asoc.control_pdapi->tail_mbuf->m_flags |= M_EOR;
 		}
@@ -673,6 +674,7 @@ sctp_handle_shutdown_ack(struct sctp_shutdown_ack_chunk *cp,
 		 */
 		SCTP_INP_READ_LOCK(stcb->sctp_ep);
 		stcb->asoc.control_pdapi->end_added = 1;
+		stcb->asoc.control_pdapi->pdapi_aborted = 1;
 		if (stcb->asoc.control_pdapi->tail_mbuf) {
 			stcb->asoc.control_pdapi->tail_mbuf->m_flags |= M_EOR;
 		}
@@ -1823,6 +1825,7 @@ sctp_handle_cookie_echo(struct mbuf *m, int iphlen, int offset,
 	sig = (uint8_t *) sctp_m_getptr(m_sig, 0, SCTP_SIGNATURE_SIZE, (uint8_t *) & tmp_sig);
 	if (sig == NULL) {
 		/* couldn't find signature */
+		sctp_m_freem(m_sig);
 		return (NULL);
 	}
 	/* compare the received digest with the computed digest */
