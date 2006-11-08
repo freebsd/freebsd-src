@@ -320,6 +320,12 @@ vm_page_startup(vm_offset_t vaddr)
 	phys_avail[biggestone + 1] = new_end;
 
 	/*
+	 * Clear all of the page structures
+	 */
+	bzero((caddr_t) vm_page_array, page_range * sizeof(struct vm_page));
+	vm_page_array_size = page_range;
+
+	/*
 	 * This assertion tests the hypothesis that npages and total are
 	 * redundant.  XXX
 	 */
@@ -328,12 +334,6 @@ vm_page_startup(vm_offset_t vaddr)
 		page_range += atop(phys_avail[i + 1] - phys_avail[i]);
 	KASSERT(page_range == npages,
 	    ("vm_page_startup: inconsistent page counts"));
-
-	/*
-	 * Clear all of the page structures
-	 */
-	bzero((caddr_t) vm_page_array, page_range * sizeof(struct vm_page));
-	vm_page_array_size = page_range;
 
 	/*
 	 * Construct the free queue(s) in descending order (by physical
