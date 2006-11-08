@@ -86,9 +86,6 @@ ENTRY(intr_fast)
 	call	%o0
 	 mov	%o1, %o0
 
-	lduw	[%l0 + IR_VEC], %o0
-	call	hvio_intr_setstate
-	  mov	HV_INTR_IDLE_STATE, %o1
 	ba,a	%xcc, 1b
 	 nop
 END(intr_fast)
@@ -386,7 +383,7 @@ ENTRY(tl_invlctx)
 	ta	FAST_TRAP
 	brz,pt	%o0, 1f
 	  nop
-	ba	panic_bad_hcall
+	ba	interrupt_panic_bad_hcall
 	  mov	MMU_DEMAP_CTX, %o1
 1:	
 	mov	%g2, %o0
@@ -411,7 +408,7 @@ ENTRY(tl_invltlb)
 	ta	FAST_TRAP
 	brz,pt	%o0, 1f
 	  nop
-	ba	panic_bad_hcall
+	ba	interrupt_panic_bad_hcall
 	   mov	MMU_DEMAP_ALL, %o1
 1:
 	mov	%g1, %o0
@@ -433,7 +430,7 @@ ENTRY(tl_invlpg)
 	ta	MMU_UNMAP_ADDR
 	brz,pt	%o0, 1f
 	  nop
-	ba	panic_bad_hcall
+	ba	interrupt_panic_bad_hcall
 	   mov	MMU_UNMAP_ADDR, %o1
 1:
 	mov	%g5, %o0
@@ -475,3 +472,24 @@ ENTRY(set_ackmask)
 	  lda	[%g3]%asi, %g1
 	retry
 END(set_ackmask)
+
+	/*
+	 * interrupt_panic_bad_hcall is called when a hcall returns
+	 * unexpected error
+	 * %o0 error number
+	 * %o1 hcall number
+	 */
+
+	.text
+interrupt_bad_hcall_error:
+	.asciz	"hypervisor call 0x%x returned an unexpected error %d"
+
+	
+	ENTRY(interrupt_panic_bad_hcall)
+	mov	%o0, %o2
+	sethi	%hi(interrupt_bad_hcall_error), %o0
+	or	%o0, %lo(interrupt_bad_hcall_error), %o0
+	mov	%o7, %o3
+	call	panic
+	  mov	%o3, %o7
+	SET_SIZE(interrupt_panic_bad_hcall)
