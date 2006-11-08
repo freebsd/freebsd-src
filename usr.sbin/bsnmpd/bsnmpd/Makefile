@@ -32,8 +32,8 @@ LDADD=	-lbegemot -lbsnmp -lwrap
 
 LDFLAGS= -export-dynamic
 
-oid.h: tree.def
-	gensnmptree -e ${XSYM} < ${.ALLSRC} > ${.TARGET}
+oid.h: tree.def Makefile
+	gensnmptree -e ${XSYM} < ${.ALLSRC:M*.def} > ${.TARGET}
 
 .ORDER: tree.c tree.h
 tree.c tree.h: tree.def
