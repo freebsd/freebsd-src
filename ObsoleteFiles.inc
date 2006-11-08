@@ -14,6 +14,10 @@
 # The file is partitioned: OLD_FILES first, then OLD_LIBS and OLD_DIRS last.
 #
 
+.if ${TARGET_ARCH} == "ia64"
+# 20061104: skiload.help removed
+OLD_FILES+=boot/skiload.help
+.endif
 # 20061018: pccardc removed
 OLD_FILES+=usr/sbin/pccardc usr/share/man/man8/pccardc.8.gz
 # 20060930: demangle.h from contrib/libstdc++/include/ext/
