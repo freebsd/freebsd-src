@@ -1,4 +1,19 @@
 
+	--- 9.3.2-P2 released ---
+
+2090.	[port]		win32: Visual C++ 2005 command line manifest support.
+			[RT #16417]
+
+2089.	[security]	Raise the minimum safe OpenSSL versions to
+			OpenSSL 0.9.7l and OpenSSL 0.9.8d.  Versions
+			prior to these have known security flaws which
+			are (potentially) exploitable in named. [RT #16391]
+
+2088.	[security]	Change the default RSA exponent from 3 to 65537.
+			[RT #16391]
+
+2083.	[port]		win32: Visual C++ 2005 support.
+
 	--- 9.3.2-P1 released ---
 
 2066.	[security]	Handle SIG queries gracefully. [RT #16300]
