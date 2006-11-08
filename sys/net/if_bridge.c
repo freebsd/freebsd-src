@@ -1970,7 +1970,7 @@ bridge_input(struct ifnet *ifp, struct mbuf *m)
 		BPF_MTAP(bifp, m);
 		bifp->if_ipackets++;
 		bifp->if_ibytes += m->m_pkthdr.len;
-		m_free(m);
+		m_freem(m);
 		return (NULL);
 	}
 	BRIDGE_LOCK(sc);
