@@ -330,11 +330,18 @@ pcib_alloc_resource(device_t dev, device_t child, int type, int *rid,
     u_long start, u_long end, u_long count, u_int flags)
 {
 	struct pcib_softc	*sc = device_get_softc(dev);
+	const char *name, *suffix;
 	int ok;
 
 	/*
 	 * Fail the allocation for this range if it's not supported.
 	 */
+	name = device_get_nameunit(child);
+	if (name == NULL) {
+		name = "";
+		suffix = "";
+	} else
+		suffix = " ";
 	switch (type) {
 	case SYS_RES_IOPORT:
 		ok = 0;
@@ -375,16 +382,15 @@ pcib_alloc_resource(device_t dev, device_t child, int type, int *rid,
 			ok = 0;
 		}
 		if (!ok) {
-			device_printf(dev, "%s requested unsupported I/O "
+			device_printf(dev, "%s%srequested unsupported I/O "
 			    "range 0x%lx-0x%lx (decoding 0x%x-0x%x)\n",
-			    device_get_nameunit(child), start, end,
-			    sc->iobase, sc->iolimit);
+			    name, suffix, start, end, sc->iobase, sc->iolimit);
 			return (NULL);
 		}
 		if (bootverbose)
 			device_printf(dev,
-			    "%s requested I/O range 0x%lx-0x%lx: in range\n",
-			    device_get_nameunit(child), start, end);
+			    "%s%srequested I/O range 0x%lx-0x%lx: in range\n",
+			    name, suffix, start, end);
 		break;
 
 	case SYS_RES_MEMORY:
@@ -450,17 +456,17 @@ pcib_alloc_resource(device_t dev, device_t child, int type, int *rid,
 		}
 		if (!ok && bootverbose)
 			device_printf(dev,
-			    "%s requested unsupported memory range %#lx-%#lx "
+			    "%s%srequested unsupported memory range %#lx-%#lx "
 			    "(decoding %#jx-%#jx, %#jx-%#jx)\n",
-			    device_get_nameunit(child), start, end,
+			    name, suffix, start, end,
 			    (uintmax_t)sc->membase, (uintmax_t)sc->memlimit,
 			    (uintmax_t)sc->pmembase, (uintmax_t)sc->pmemlimit);
 		if (!ok)
 			return (NULL);
 		if (bootverbose)
-			device_printf(dev,"%s requested memory range "
+			device_printf(dev,"%s%srequested memory range "
 			    "0x%lx-0x%lx: good\n",
-			    device_get_nameunit(child), start, end);
+			    name, suffix, start, end);
 		break;
 
 	default:
