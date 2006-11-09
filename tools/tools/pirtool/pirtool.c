@@ -56,7 +56,9 @@ void usage(void);
 void banner(void);
 pir_table_t *find_pir_table(unsigned char *base);
 void dump_pir_table(pir_table_t *pir, char *map_addr);
-void print_irq_line(char line, u_int8_t link, u_int8_t irqs[2]);
+void pci_print_irqmask(u_int16_t irqs);
+void print_irq_line(int entry, pir_entry_t *p, char line, u_int8_t link,
+    u_int16_t irqs);
 char *lookup_southbridge(u_int32_t id);
 
 char *progname = NULL;
@@ -130,7 +132,7 @@ void
 banner(void)
 {
 
-	fprintf(stderr, "PIRTOOL for FreeBSD (c) 2002 Bruce M. Simpson\r\n");
+	fprintf(stderr, "PIRTOOL (c) 2002-2006 Bruce M. Simpson\r\n");
 	fprintf(stderr,
 	    "---------------------------------------------\r\n\r\n");
 }
@@ -180,6 +182,26 @@ find_pir_table(unsigned char *base)
 }
 
 void
+pci_print_irqmask(u_int16_t irqs)
+{
+	int i, first;
+
+	if (irqs == 0) {
+		printf("none");
+		return;
+	}
+	first = 1;
+	for (i = 0; i < 16; i++, irqs >>= 1)
+		if (irqs & 1) {
+			if (!first)
+				printf(" ");
+			else
+				first = 0;
+			printf("%d", i);
+		}
+}
+
+void
 dump_pir_table(pir_table_t *pir, char *map_addr)
 {
 	int i, num_slots;
@@ -192,12 +214,7 @@ dump_pir_table(pir_table_t *pir, char *map_addr)
 	    "0x%02x: Signature:          %c%c%c%c\r\n"
 	    "0x%02x: Version:            %u.%u\r\n"
 	    "0x%02x: Size:               %u bytes (%u entries)\r\n"
-	    "0x%02x: Device:             %u:%u:%u\r\n"
-	    "0x%02x: PCI Exclusive IRQs: 0x%08lX\r\n"
-	    "0x%02x: Compatible with:    0x%08X %s\r\n"
-	    "0x%02x: Miniport Data:      0x%08X\r\n"
-	    "0x%02x: Checksum:           0x%02X\r\n"
-	    "\r\n",
+	    "0x%02x: Device:             %u:%u:%u\r\n",
 	    (u_int32_t)(((char *)pir - map_addr) + PIR_BASE),
 	    offsetof(pir_table_t, signature),
 	    ((char *)&pir->signature)[0],
@@ -212,9 +229,16 @@ dump_pir_table(pir_table_t *pir, char *map_addr)
 	    offsetof(pir_table_t, bus),
 	    pir->bus,
 	    PIR_DEV(pir->devfunc),
-	    PIR_FUNC(pir->devfunc),
-	    offsetof(pir_table_t, excl_irqs),
-	    pir->excl_irqs,
+	    PIR_FUNC(pir->devfunc));
+	printf(
+	    "0x%02x: PCI Exclusive IRQs: ",
+	     offsetof(pir_table_t, excl_irqs));
+	pci_print_irqmask(pir->excl_irqs);
+	printf("\r\n"
+	    "0x%02x: Compatible with:    0x%08X %s\r\n"
+	    "0x%02x: Miniport Data:      0x%08X\r\n"
+	    "0x%02x: Checksum:           0x%02X\r\n"
+	    "\r\n",
 	    offsetof(pir_table_t, compatible),
 	    pir->compatible,
 	    lookup_southbridge(pir->compatible),
@@ -225,14 +249,12 @@ dump_pir_table(pir_table_t *pir, char *map_addr)
 
 	p = pend = &pir->entry[0];
 	pend += num_slots;
+	printf("Entry  Location  Bus Device Pin  Link  IRQs\n");
 	for (i = 0; p < pend; i++, p++) {
-		printf("Entry %u: Device %u:%u:%u Slot %u%s\r\n", i, p->bus,
-		    PIR_DEV(p->devfunc), PIR_FUNC(p->devfunc),
-		    p->slot, p->slot == 0 ? " (on-board)" : "");
-		print_irq_line('A', p->inta_link, p->inta_irqs);
-		print_irq_line('B', p->intb_link, p->intb_irqs);
-		print_irq_line('C', p->intc_link, p->intc_irqs);
-		print_irq_line('D', p->intd_link, p->intd_irqs);
+		print_irq_line(i, p, 'A', p->inta_link, p->inta_irqs);
+		print_irq_line(i, p, 'B', p->intb_link, p->intb_irqs);
+		print_irq_line(i, p, 'C', p->intc_link, p->intc_irqs);
+		print_irq_line(i, p, 'D', p->intd_link, p->intd_irqs);
 	}
 }
 
@@ -240,33 +262,23 @@ dump_pir_table(pir_table_t *pir, char *map_addr)
  * Print interrupt map for a given PCI interrupt line.
  */
 void
-print_irq_line(char line, u_int8_t link, u_int8_t irqs[2])
+print_irq_line(int entry, pir_entry_t *p, char line, u_int8_t link,
+    u_int16_t irqs)
 {
-	u_int16_t map;
-	int i;
 
-	printf("\tINT%c: %02xh ", line, link);
-	if (link == 0) {
-		printf("(not connected)\r\n");
+	if (link == 0)
 		return;
-	}
 
-	map = irqs[1];
-	map <<= 8;
-	map |= irqs[0];
-	if (map == 0) {
-		printf("(not routable)\r\n");
-		return;
-	}
+	printf("%3d    ", entry);
+	if (p->slot == 0)
+		printf("embedded ");
+	else
+		printf("slot %-3d ", p->slot);
 
-	printf("routable irqs:");
-	for (i = 0; i < 16; i++) {
-		if (map & 0x1)
-			printf(" %d", i);
-		map >>= 1;
-	}
-
-	printf("\r\n");
+	printf(" %3d  %3d    %c   0x%02x  ", p->bus, PIR_DEV(p->devfunc),
+	    line, link);
+	pci_print_irqmask(irqs);
+	printf("\n");
 }
 
 /*
@@ -277,12 +289,16 @@ lookup_southbridge(u_int32_t id)
 {
 
 	switch (id) {
+	case 0x157310b9:
+		return ("ALi M1573 (Hypertransport)");
 	case 0x06861106:
-		return ("VIA VT82C686/686A/686B");
+		return ("VIA VT82C686/686A/686B (Apollo)");
 	case 0x122E8086:
-		return ("Intel 82371FB (Triton I)");
+		return ("Intel 82371FB (Triton I/PIIX)");
+	case 0x26418086:
+		return ("Intel 82801FBM (ICH6M)");
 	case 0x70008086:
-		return ("Intel 82371SB (Triton II/PIIX3)");
+		return ("Intel 82371SB (Natoma/Triton II/PIIX3)");
 	default:
 		return ("unknown chipset");
 	}
