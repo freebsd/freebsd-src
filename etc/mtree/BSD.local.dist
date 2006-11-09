@@ -727,6 +727,12 @@
             ..
             mn_MN.UTF-8
             ..
+            nb_NO.ISO8859-1
+            ..
+            nb_NO.ISO8859-15
+            ..
+            nb_NO.UTF-8
+            ..
             nl_BE.ISO8859-1
             ..
             nl_BE.ISO8859-15
@@ -738,6 +744,12 @@
             nl_NL.ISO8859-15
             ..
             nl_NL.UTF-8
+            ..
+            nn_NO.ISO8859-1
+            ..
+            nn_NO.ISO8859-15
+            ..
+            nn_NO.UTF-8
             ..
             no_NO.ISO8859-1
             ..
