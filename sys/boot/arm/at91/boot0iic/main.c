@@ -36,8 +36,8 @@ main(void)
 	while (xmodem_rx(addr) == -1)
 		continue;
 	InitEEPROM();
-	printf("Writing EEPROM from 0x%x to addr 0\r\n", addr);
+	printf("Writing EEPROM from 0x%x to addr 0\n", addr);
 	WriteEEPROM(0, addr, 8192);
-	printf("Write complete.  Press reset\r\n");
+	printf("Write complete.  Press reset\n");
 	return (1);
 }
