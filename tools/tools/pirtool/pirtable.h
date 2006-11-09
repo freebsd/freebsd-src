@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2002-2005 Bruce M. Simpson.
+ * Copyright (c) 2002-2006 Bruce M. Simpson.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
