@@ -1,5 +1,7 @@
 #  $FreeBSD$
 
+.PATH: ${.CURDIR}/../libat91
+
 P=bootspi
 FILES=${P}
 SRCS=arm_init.S main.c loader_prompt.c env_vars.c ee.c
