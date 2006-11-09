@@ -100,14 +100,14 @@ Big5_UTF-8=	zh_TW
 eucJP_SJIS=	ja_JP
 eucKR_CP949=	ko_KR
 GB2312_GBK=	zh_CN
-ISO8859-1_ISO8859-1= es_ES:eu_ES de_CH:fr_CH de_CH:it_CH
+ISO8859-1_ISO8859-1= es_ES:eu_ES de_CH:fr_CH de_CH:it_CH no_NO:nb_NO no_NO:nn_NO
 ISO8859-1_ISO8859-15= af_ZA ca_ES da_DK de_AT de_CH de_DE en_AU en_CA \
 		en_GB en_NZ en_US es_ES fi_FI fr_BE fr_CA fr_CH fr_FR \
-		is_IS it_IT it_CH nl_BE nl_NL no_NO pt_PT sv_SE
+		is_IS it_IT it_CH nl_BE nl_NL nb_NO nn_NO no_NO pt_PT sv_SE
 ISO8859-1_US-ASCII= en_AU en_CA en_GB en_NZ en_US
 ISO8859-1_UTF-8= af_ZA ca_ES da_DK de_AT de_CH de_DE en_AU en_CA en_NZ \
 		en_US es_ES fi_FI fr_BE fr_CA fr_FR is_IS it_IT nl_BE \
-		nl_NL no_NO pt_BR pt_PT sv_SE
+		nl_NL nb_NO nn_NO no_NO pt_BR pt_PT sv_SE
 ISO8859-2_UTF-8= hr_HR hu_HU ro_RO sk_SK sl_SI sr_YU
 ISO8859-7_UTF-8= el_GR
 ISO8859-9_UTF-8= tr_TR
