@@ -286,6 +286,7 @@ struct adapter {
 	struct ifmedia	media;
 	struct callout	timer;
 	struct callout	tx_fifo_timer;
+	int		watchdog_timer;
 	int		io_rid;
 	int		if_flags;
 	struct mtx	mtx;

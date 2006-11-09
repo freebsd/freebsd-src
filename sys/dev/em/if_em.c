@@ -205,7 +205,7 @@ static int	em_resume(device_t);
 static void	em_start(struct ifnet *);
 static void	em_start_locked(struct ifnet *ifp);
 static int	em_ioctl(struct ifnet *, u_long, caddr_t);
-static void	em_watchdog(struct ifnet *);
+static void	em_watchdog(struct adapter *);
 static void	em_init(void *);
 static void	em_init_locked(struct adapter *);
 static void	em_stop(void *);
@@ -764,7 +764,7 @@ em_start_locked(struct ifnet *ifp)
 		BPF_MTAP(ifp, m_head);
 
 		/* Set timeout in case hardware has problems transmitting. */
-		ifp->if_timer = EM_TX_TIMEOUT;
+		adapter->watchdog_timer = EM_TX_TIMEOUT;
 	}
 }
 
@@ -971,47 +971,46 @@ em_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 }
 
 /*********************************************************************
- *  Watchdog entry point
+ *  Watchdog timer:
  *
- *  This routine is called whenever hardware quits transmitting.
+ *  This routine is called from the local timer every second.
+ *  As long as transmit descriptors are being cleaned the value
+ *  is non-zero and we do nothing. Reaching 0 indicates a tx hang
+ *  and we then reset the device.
  *
  **********************************************************************/
 
 static void
-em_watchdog(struct ifnet *ifp)
+em_watchdog(struct adapter *adapter)
 {
-	struct adapter *adapter = ifp->if_softc;
 
-	EM_LOCK(adapter);
+	EM_LOCK_ASSERT(adapter);
+
+	/*
+	 * The timer is set to 5 every time em_start() queues a packet.
+	 * Then em_txeof() keeps resetting to 5 as long as it cleans at
+	 * least one descriptor.
+	 * Finally, anytime all descriptors are clean the timer is
+	 * set to 0.
+	 */
+	if (adapter->watchdog_timer == 0 || --adapter->watchdog_timer)
+		return;
+
 	/* If we are in this routine because of pause frames, then
 	 * don't reset the hardware.
 	 */
 	if (E1000_READ_REG(&adapter->hw, STATUS) & E1000_STATUS_TXOFF) {
-		ifp->if_timer = EM_TX_TIMEOUT;
-		EM_UNLOCK(adapter);
-		return;
-	}
-
-	/*
-	 * Reclaim first as there is a possibility of losing Tx completion
-	 * interrupts. Possible cause of missing Tx completion interrupts
-	 * comes from Tx interrupt moderation mechanism(delayed interrupts)
-	 * or chipset bug.
-	 */
-	em_txeof(adapter);
-	if (adapter->num_tx_desc_avail == adapter->num_tx_desc) {
-		EM_UNLOCK(adapter);
+		adapter->watchdog_timer = EM_TX_TIMEOUT;
 		return;
 	}
 
 	if (em_check_for_link(&adapter->hw) == 0)
 		device_printf(adapter->dev, "watchdog timeout -- resetting\n");
 
-	ifp->if_drv_flags &= ~IFF_DRV_RUNNING;
+	adapter->ifp->if_drv_flags &= ~IFF_DRV_RUNNING;
 	adapter->watchdog_events++;
 
 	em_init_locked(adapter);
-	EM_UNLOCK(adapter);
 }
 
 /*********************************************************************
@@ -2033,6 +2032,11 @@ em_local_timer(void *arg)
 	if (em_display_debug_stats && ifp->if_drv_flags & IFF_DRV_RUNNING)
 		em_print_hw_stats(adapter);
 	em_smartspeed(adapter);
+	/*
+	 * Each second we check the watchdog to 
+	 * protect against hardware hangs.
+	 */
+	em_watchdog(adapter);
 
 	callout_reset(&adapter->timer, hz, em_local_timer, adapter);
 }
@@ -2391,7 +2395,6 @@ em_setup_interface(device_t dev, struct adapter *adapter)
 	ifp->if_flags = IFF_BROADCAST | IFF_SIMPLEX | IFF_MULTICAST;
 	ifp->if_ioctl = em_ioctl;
 	ifp->if_start = em_start;
-	ifp->if_watchdog = em_watchdog;
 	IFQ_SET_MAXLEN(&ifp->if_snd, adapter->num_tx_desc - 1);
 	ifp->if_snd.ifq_drv_maxlen = adapter->num_tx_desc - 1;
 	IFQ_SET_READY(&ifp->if_snd);
@@ -3212,9 +3215,9 @@ em_txeof(struct adapter *adapter)
 	if (num_avail > EM_TX_CLEANUP_THRESHOLD) {
 		ifp->if_drv_flags &= ~IFF_DRV_OACTIVE;
 		if (num_avail == adapter->num_tx_desc)
-			ifp->if_timer = 0;
+			adapter->watchdog_timer = 0;
 		else if (num_avail != adapter->num_tx_desc_avail)
-			ifp->if_timer = EM_TX_TIMEOUT;
+			adapter->watchdog_timer = EM_TX_TIMEOUT;
 	}
 	adapter->num_tx_desc_avail = num_avail;
 }
