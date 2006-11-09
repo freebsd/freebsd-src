@@ -104,8 +104,11 @@ utility uses the same access restriction mechanism as
 .Xr ypserv 8 .
 This means that slave servers will only be permitted to transfer
 files if the rules in the
-.Xr securenets 5
-database permit it.
+.Pa securenets
+database permit it (see
+.Xr ypserv 8
+for more information on
+.Pa securenets ) .
 Furthermore, only slave servers using reserved
 ports will be allowed to transfer the
 .Pa master.passwd
