@@ -5,7 +5,10 @@
 
 __at91_boot_Makefile.inc__:
 
-CFLAGS=-O2 -mcpu=arm9 -ffreestanding \
+# tsc, kb920x are the supported flavors
+BOOT_FLAVOR=kb920x
+
+CFLAGS=-Os -mcpu=arm9 -ffreestanding \
 	-I${.CURDIR}/../libat91 \
 	-I${.CURDIR}/../../../.. \
 	-I${.CURDIR}/../../../../arm \
@@ -13,13 +16,12 @@ CFLAGS=-O2 -mcpu=arm9 -ffreestanding \
 	-Wall -Waggregate-return  \
 	-Wnested-externs \
 	-Wpointer-arith -Wshadow -Wwrite-strings \
-	-Werror
-# -Wmissing-prototypes
-# -Wmissing-declarations 
+	-Werror \
+	-Wmissing-prototypes \
+	-Wmissing-declarations 
 # -Wstrict-prototypes 
 
-#CFLAGS+=-DBOOT_TSC
-CFLAGS+=-DBOOT_KB9202
+CFLAGS+=-DBOOT_${BOOT_FLAVOR:U}
 
 LIBAT91=${.OBJDIR}/../libat91/libat91.a
 
