@@ -384,7 +384,7 @@ MII_GetLinkSpeed(AT91PS_EMAC pEmac)
 	unsigned sec;
 	int i;
 #endif
-#ifdef BOOT_KB9202
+#ifdef BOOT_KB920X
 	stat2 = AT91F_MII_ReadPhy(pEmac, MII_STS2_REG);
 	if (!(stat2 & MII_STS2_LINK))
 		return ;

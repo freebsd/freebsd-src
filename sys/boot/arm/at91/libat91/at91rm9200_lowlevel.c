@@ -53,7 +53,6 @@ _init(void)
 	register unsigned	value;
 	volatile sdram_size_t *p = (sdram_size_t *)SDRAM_BASE;
 
-#if 0
 #ifdef BOOT_TSC
 	// For the TSC board, we turn ON the one LED we have while
 	// early in boot.
@@ -61,6 +60,15 @@ _init(void)
 	AT91C_BASE_PIOC->PIO_OER = AT91C_PIO_PC10;
 	AT91C_BASE_PIOC->PIO_CODR = AT91C_PIO_PC10;
 #endif
+
+#ifdef BOOT_KB920X
+	AT91C_BASE_PIOC->PIO_PER = AT91C_PIO_PC18 | AT91C_PIO_PC19 |
+	  AT91C_PIO_PC20;
+	AT91C_BASE_PIOC->PIO_OER = AT91C_PIO_PC18 | AT91C_PIO_PC19 |
+	  AT91C_PIO_PC20;
+	AT91C_BASE_PIOC->PIO_SODR = AT91C_PIO_PC18 | AT91C_PIO_PC19 |
+	  AT91C_PIO_PC20;
+	AT91C_BASE_PIOC->PIO_CODR = AT91C_PIO_PC18;
 #endif
 
 	// configure clocks
@@ -100,7 +108,7 @@ _init(void)
 	while (!(AT91C_BASE_PMC->PMC_SR & AT91C_PMC_MCKRDY))
 		continue;
 
-#ifdef BOOT_KB9202
+#ifdef BOOT_KB920X
 	// setup flash access (allow ample margin)
 	// 9 wait states, 1 setup, 1 hold, 1 float for 8-bit device
 	((AT91PS_SMC2)AT91C_BASE_SMC2)->SMC2_CSR[0] =

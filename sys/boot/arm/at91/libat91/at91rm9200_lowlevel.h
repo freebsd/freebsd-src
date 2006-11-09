@@ -31,7 +31,7 @@
 
 #define SDRAM_BASE		0x20000000
 
-#ifdef BOOT_KB9202
+#ifdef BOOT_KB920X
 /* The following divisor sets PLLA frequency: e.g. 10/5 * 90 = 180MHz */
 #define OSC_MAIN_FREQ_DIV	5	/* for 10MHz osc */
 #define SDRAM_WIDTH	AT91C_SDRC_DBW_16_BITS

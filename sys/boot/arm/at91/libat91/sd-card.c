@@ -51,13 +51,7 @@
 #define BUFFER_SIZE_MCI_DEVICE	512
 #define MASTER_CLOCK		60000000
 
-//Private functions
-//static void initInts(void);
-static void AT91F_MCI_Handler(void);
-
 //* Global Variables
-AT91S_MciDeviceFeatures		MCI_Device_Features;
-AT91S_MciDeviceDesc		MCI_Device_Desc;
 AT91S_MciDevice			MCI_Device;
 char				Buffer[BUFFER_SIZE_MCI_DEVICE];
 
@@ -68,11 +62,11 @@ char				Buffer[BUFFER_SIZE_MCI_DEVICE];
 #define MCI_UNSUPP_OFFSET_ERROR 6
 
 //*----------------------------------------------------------------------------
-//* \fn    AT91F_MCIDeviceWaitReady
+//* \fn    MCIDeviceWaitReady
 //* \brief Wait for MCI Device ready
 //*----------------------------------------------------------------------------
 static void
-AT91F_MCIDeviceWaitReady(unsigned int timeout)
+MCIDeviceWaitReady(unsigned int timeout)
 {
 	volatile int status;
 	
@@ -83,42 +77,22 @@ AT91F_MCIDeviceWaitReady(unsigned int timeout)
 	}
 	while( !(status & AT91C_MCI_NOTBUSY)  && (timeout>0) );	
 
-	AT91F_MCI_Handler();
+	status = AT91C_BASE_MCI->MCI_SR;
+
+	// If End of Tx Buffer Empty interrupt occurred
+	if (MCI_Device.state == AT91C_MCI_TX_SINGLE_BLOCK && status & AT91C_MCI_TXBUFE) {
+		AT91C_BASE_MCI->MCI_IDR = AT91C_MCI_TXBUFE;
+ 		AT91C_BASE_PDC_MCI->PDC_PTCR = AT91C_PDC_TXTDIS;
+		MCI_Device.state = AT91C_MCI_IDLE;
+	}	// End of if AT91C_MCI_TXBUFF
+
+	// If End of Rx Buffer Full interrupt occurred
+	if (MCI_Device.state == AT91C_MCI_RX_SINGLE_BLOCK && status & AT91C_MCI_RXBUFF) {
+		AT91C_BASE_MCI->MCI_IDR = AT91C_MCI_RXBUFF;
+ 		AT91C_BASE_PDC_MCI->PDC_PTCR = AT91C_PDC_RXTDIS;
+		MCI_Device.state = AT91C_MCI_IDLE;
+	}	// End of if AT91C_MCI_RXBUFF
 }
-
-#if 0
-int
-MCI_write (unsigned dest, char* source, unsigned length)
-{
-	unsigned sectorLength = 1 << MCI_Device.pMCI_DeviceFeatures->WRITE_BL_LEN;
-	unsigned offset = dest % sectorLength;
-	AT91S_MCIDeviceStatus status;
-	int sizeToWrite;
-
-	//As long as there is data to write
-	while (length)
-	{
-		//See if we've got at least a sector to write
-		if (length > sectorLength) 
-			sizeToWrite = sectorLength;
-		//Else just write the remainder
-		else
-			sizeToWrite = length;
-
-		AT91F_MCIDeviceWaitReady(AT91C_MCI_TIMEOUT);
-		//Do the writing
-		status = AT91F_MCI_WriteBlock(&MCI_Device, dest, (unsigned int*)source, sizeToWrite);
-		//TODO:Status checking
-
-		//Update counters & pointers
-		length -= sizeToWrite;
-		dest += sizeToWrite;
-		source += sizeToWrite;
-	}
-
-	return 0;
-}
-#endif
 
 inline static unsigned int
 swap(unsigned int a)
@@ -127,12 +101,102 @@ swap(unsigned int a)
       | ((a & 0xff000000) >> 24));
 }
 
+inline static void
+wait_ready()
+{
+	int status;
+
+	// wait for CMDRDY Status flag to read the response
+	do
+	{
+		status = AT91C_BASE_MCI->MCI_SR;
+	} while( !(status & AT91C_MCI_CMDRDY) );
+}
+
+//*----------------------------------------------------------------------------
+//* \fn    MCI_SendCommand
+//* \brief Generic function to send a command to the MMC or SDCard
+//*----------------------------------------------------------------------------
+static int
+MCI_SendCommand(
+	unsigned int Cmd,
+	unsigned int Arg)
+{
+	unsigned int	error;
+
+	AT91C_BASE_MCI->MCI_ARGR = Arg;
+	AT91C_BASE_MCI->MCI_CMDR = Cmd;
+
+//	printf("CMDR %x ARG %x\n", Cmd, Arg);
+	wait_ready();
+	// Test error  ==> if crc error and response R3 ==> don't check error
+	error = (AT91C_BASE_MCI->MCI_SR) & AT91C_MCI_SR_ERROR;
+	if (error != 0) {
+		if (error != AT91C_MCI_RCRCE)
+			return (1);
+	}
+	return 0;
+}
+
+//*----------------------------------------------------------------------------
+//* \fn    MCI_GetStatus
+//* \brief Addressed card sends its status register
+//*----------------------------------------------------------------------------
+static unsigned int
+MCI_GetStatus()
+{
+	if (MCI_SendCommand(SEND_STATUS_CMD, MCI_Device.RCA << 16))
+		return AT91C_CMD_SEND_ERROR;
+	return (AT91C_BASE_MCI->MCI_RSPR[0]);
+}
+
+//*----------------------------------------------------------------------------
+//* \fn    MCI_ReadBlock
+//* \brief Read an ENTIRE block or PARTIAL block
+//*----------------------------------------------------------------------------
+static int
+MCI_ReadBlock(int src, unsigned int *dataBuffer, int sizeToRead)
+{
+	unsigned log2sl = MCI_Device.READ_BL_LEN;
+	unsigned sectorLength = 1 << log2sl;
+
+	///////////////////////////////////////////////////////////////////////
+	if (MCI_Device.state != AT91C_MCI_IDLE)
+		return 1;
+    
+	if ((MCI_GetStatus() & AT91C_SR_READY_FOR_DATA) == 0)
+		return 1;
+
+	///////////////////////////////////////////////////////////////////////
+      
+        // Init Mode Register
+	AT91C_BASE_MCI->MCI_MR |= ((sectorLength << 16) | AT91C_MCI_PDCMODE);
+	 
+	sizeToRead = sizeToRead / 4;
+
+	AT91C_BASE_PDC_MCI->PDC_PTCR = (AT91C_PDC_TXTDIS | AT91C_PDC_RXTDIS);
+	AT91C_BASE_PDC_MCI->PDC_RPR  = (unsigned int)dataBuffer;
+	AT91C_BASE_PDC_MCI->PDC_RCR  = sizeToRead;
+
+	// Send the Read single block command
+	if (MCI_SendCommand(READ_SINGLE_BLOCK_CMD, src))
+		return AT91C_READ_ERROR;
+	MCI_Device.state = AT91C_MCI_RX_SINGLE_BLOCK;
+
+	// Enable AT91C_MCI_RXBUFF Interrupt
+	AT91C_BASE_MCI->MCI_IER = AT91C_MCI_RXBUFF;
+
+	// (PDC) Receiver Transfer Enable
+	AT91C_BASE_PDC_MCI->PDC_PTCR = AT91C_PDC_RXTEN;
+	
+	return 0;
+}
+
 int
 MCI_read(char* dest, unsigned source, unsigned length)
 {
-	unsigned log2sl = MCI_Device.pMCI_DeviceFeatures->READ_BL_LEN;
+	unsigned log2sl = MCI_Device.READ_BL_LEN;
 	unsigned sectorLength = 1 << log2sl;
-	AT91S_MCIDeviceStatus status;
 	int sizeToRead;
 	unsigned int *walker;
 
@@ -144,17 +208,14 @@ MCI_read(char* dest, unsigned source, unsigned length)
 		else
 			sizeToRead = length;
 
-		AT91F_MCIDeviceWaitReady(AT91C_MCI_TIMEOUT);
+		MCIDeviceWaitReady(AT91C_MCI_TIMEOUT);
 		//Do the reading
-		status = AT91F_MCI_ReadBlock(&MCI_Device, source,
-		  (unsigned int*)dest, sizeToRead);
-
-		//TODO:Status checking
-		if (status != AT91C_READ_OK)
+		if (MCI_ReadBlock(source,
+			(unsigned int*)dest, sizeToRead))
 			return -1;
 
 		//* Wait MCI Device Ready
-		AT91F_MCIDeviceWaitReady(AT91C_MCI_TIMEOUT);
+		MCIDeviceWaitReady(AT91C_MCI_TIMEOUT);
 
 		// Fix erratum in MCI part
 		for (walker = (unsigned int *)dest;
@@ -170,38 +231,113 @@ MCI_read(char* dest, unsigned source, unsigned length)
 	return 0;
 }
 
-
 //*----------------------------------------------------------------------------
-//* \fn    AT91F_CfgDevice
-//* \brief This function is used to initialise MMC or SDCard Features
+//* \fn    MCI_SDCard_SendAppCommand
+//* \brief Specific function to send a specific command to the SDCard
 //*----------------------------------------------------------------------------
-static void AT91F_CfgDevice(void)
+static int
+MCI_SDCard_SendAppCommand(
+	unsigned int Cmd_App,
+	unsigned int Arg)
 {
-	// Init Device Structure
+	// Send the CMD55 for application specific command
+	AT91C_BASE_MCI->MCI_ARGR = (MCI_Device.RCA << 16 );
+	AT91C_BASE_MCI->MCI_CMDR = APP_CMD;
 
-	MCI_Device_Features.Relative_Card_Address = 0;
-	MCI_Device_Features.Card_Inserted 	= AT91C_SD_CARD_INSERTED;
-	MCI_Device_Features.READ_BL_LEN		= 0;
-	MCI_Device_Features.WRITE_BL_LEN	= 0;
-	MCI_Device_Features.Read_Partial 	= 0;
-	MCI_Device_Features.Write_Partial 	= 0;
-	MCI_Device_Features.Erase_Block_Enable 	= 0;
-	MCI_Device_Features.Sector_Size 	= 0;
-	MCI_Device_Features.Memory_Capacity 	= 0;
-	MCI_Device_Desc.state			= AT91C_MCI_IDLE;
-	MCI_Device_Desc.SDCard_bus_width	= AT91C_MCI_SCDBUS;
-	MCI_Device.pMCI_DeviceDesc 		= &MCI_Device_Desc;
-	MCI_Device.pMCI_DeviceFeatures 		= &MCI_Device_Features;
+	wait_ready();
+	// if an error occurs
+	if (AT91C_BASE_MCI->MCI_SR & AT91C_MCI_SR_ERROR)
+		return (1);
+	return (MCI_SendCommand(Cmd_App,Arg));
 }
 
-static void AT91F_MCI_Handler(void)
+//*----------------------------------------------------------------------------
+//* \fn    MCI_GetCSD
+//* \brief Asks to the specified card to send its CSD
+//*----------------------------------------------------------------------------
+static int
+MCI_GetCSD(unsigned int rca, unsigned int *response)
 {
-	int status;
+ 	
+ 	if (MCI_SendCommand(SEND_CSD_CMD, (rca << 16)))
+		return 1;
+	
+	response[0] = AT91C_BASE_MCI->MCI_RSPR[0];
+   	response[1] = AT91C_BASE_MCI->MCI_RSPR[1];
+	response[2] = AT91C_BASE_MCI->MCI_RSPR[2];
+	response[3] = AT91C_BASE_MCI->MCI_RSPR[3];
+    
+	return 0;
+}
 
-//	status = ( AT91C_BASE_MCI->MCI_SR & AT91C_BASE_MCI->MCI_IMR );
-	status = AT91C_BASE_MCI->MCI_SR;
+//*----------------------------------------------------------------------------
+//* \fn    MCI_SDCard_GetOCR
+//* \brief Asks to all cards to send their operations conditions
+//*----------------------------------------------------------------------------
+static int
+MCI_SDCard_GetOCR()
+{
+	unsigned int	response=0x0;
 
-	AT91F_MCI_Device_Handler(&MCI_Device, status);
+	// The RCA to be used for CMD55 in Idle state shall be the card's default RCA=0x0000.
+	MCI_Device.RCA = 0x0;
+ 	
+ 	while( (response & AT91C_CARD_POWER_UP_BUSY) != AT91C_CARD_POWER_UP_BUSY ) {
+		if (MCI_SDCard_SendAppCommand(SDCARD_APP_OP_COND_CMD,
+			AT91C_MMC_HOST_VOLTAGE_RANGE))
+			return 1;
+		response = AT91C_BASE_MCI->MCI_RSPR[0];
+	}
+	return (0);
+}
+
+//*----------------------------------------------------------------------------
+//* \fn    MCI_SDCard_GetCID
+//* \brief Asks to the SDCard on the chosen slot to send its CID
+//*----------------------------------------------------------------------------
+static int
+MCI_SDCard_GetCID(unsigned int *response)
+{
+	if (MCI_SendCommand(ALL_SEND_CID_CMD, AT91C_NO_ARGUMENT))
+		return 1;
+	
+	response[0] = AT91C_BASE_MCI->MCI_RSPR[0];
+   	response[1] = AT91C_BASE_MCI->MCI_RSPR[1];
+	response[2] = AT91C_BASE_MCI->MCI_RSPR[2];
+	response[3] = AT91C_BASE_MCI->MCI_RSPR[3];
+    
+	return 0;
+}
+
+//*----------------------------------------------------------------------------
+//* \fn    MCI_SDCard_SetBusWidth
+//* \brief  Set bus width for SDCard
+//*----------------------------------------------------------------------------
+static int
+MCI_SDCard_SetBusWidth()
+{
+	volatile int	ret_value;
+	char			bus_width;
+
+	do {
+		ret_value=MCI_GetStatus();
+	}
+	while((ret_value > 0) && ((ret_value & AT91C_SR_READY_FOR_DATA) == 0));
+
+	// Select Card
+	MCI_SendCommand(SEL_DESEL_CARD_CMD, (MCI_Device.RCA)<<16);
+
+	// Set bus width for Sdcard
+	if (MCI_Device.SDCard_bus_width == AT91C_MCI_SCDBUS)
+		bus_width = AT91C_BUS_WIDTH_4BITS;
+	else
+		bus_width = AT91C_BUS_WIDTH_1BIT;
+
+	if (MCI_SDCard_SendAppCommand(
+	      SDCARD_SET_BUS_WIDTH_CMD,bus_width) != AT91C_CMD_SEND_OK)
+		return 1;
+
+	return 0;
 }
 
 //*----------------------------------------------------------------------------
@@ -211,26 +347,64 @@ static void AT91F_MCI_Handler(void)
 int
 sdcard_init(void)
 {
-///////////////////////////////////////////////////////////////////////////////
-//  MCI Init : common to MMC and SDCard
-///////////////////////////////////////////////////////////////////////////////
-
-	//initInts();
+	unsigned int	tab_response[4];
+#ifdef REPORT_SIZE
+	unsigned int	mult,blocknr;
+#endif
+	int i;
 
 	// Init MCI for MMC and SDCard interface
 	AT91F_MCI_CfgPIO();	
 	AT91F_MCI_CfgPMC();
 	AT91F_PDC_Open(AT91C_BASE_PDC_MCI);
 
-	// Init MCI Device Structures
-	AT91F_CfgDevice();
+	// Init Device Structure
+	MCI_Device.state		= AT91C_MCI_IDLE;
+	MCI_Device.SDCard_bus_width	= AT91C_MCI_SCDBUS;
 
-	AT91F_MCI_Configure(AT91C_BASE_MCI,
-	    AT91C_MCI_DTOR_1MEGA_CYCLES,
-	    AT91C_MCI_PDCMODE,
-	    AT91C_MCI_SDCARD_4BITS_SLOTA);
-	
-	if (AT91F_MCI_SDCard_Init(&MCI_Device) != AT91C_INIT_OK)
+	//* Reset the MCI
+	AT91C_BASE_MCI->MCI_CR = AT91C_MCI_MCIEN | AT91C_MCI_PWSEN;
+	AT91C_BASE_MCI->MCI_IDR = 0xFFFFFFFF;
+	AT91C_BASE_MCI->MCI_DTOR = AT91C_MCI_DTOR_1MEGA_CYCLES;
+	AT91C_BASE_MCI->MCI_MR = AT91C_MCI_PDCMODE;
+	AT91C_BASE_MCI->MCI_SDCR = AT91C_MCI_SDCARD_4BITS_SLOTA;
+	MCI_SendCommand(GO_IDLE_STATE_CMD, AT91C_NO_ARGUMENT);
+
+	for (i = 0; i < 100; i++) {
+		if (!MCI_SDCard_GetOCR(&MCI_Device))
+			break;
+		printf(".");
+	}
+	if (i >= 100)
 		return 0;
+	if (MCI_SDCard_GetCID(tab_response))
+		return 0;
+	if (MCI_SendCommand(SET_RELATIVE_ADDR_CMD, 0))
+		return 0;
+
+	MCI_Device.RCA = (AT91C_BASE_MCI->MCI_RSPR[0] >> 16);
+	if (MCI_GetCSD(MCI_Device.RCA,tab_response))
+		return 0;
+	MCI_Device.READ_BL_LEN = (tab_response[1] >> CSD_1_RD_B_LEN_S) &
+	    CSD_1_RD_B_LEN_M;
+#ifdef REPORT_SIZE
+	// compute MULT
+	mult = 1 << ( ((tab_response[2] >> CSD_2_C_SIZE_M_S) &
+	    CSD_2_C_SIZE_M_M) + 2 );
+	// compute MSB of C_SIZE
+	blocknr = ((tab_response[1] >> CSD_1_CSIZE_H_S) &
+	    CSD_1_CSIZE_H_M) << 2;
+	// compute MULT * (LSB of C-SIZE + MSB already computed + 1) = BLOCKNR
+	blocknr = mult * ((blocknr + ((tab_response[2] >> CSD_2_CSIZE_L_S) &
+	    CSD_2_CSIZE_L_M)) + 1);
+	MCI_Device.Memory_Capacity = (1 << MCI_Device.READ_BL_LEN) * blocknr;
+#endif
+	if (MCI_SDCard_SetBusWidth())
+		return 0;
+	if (MCI_SendCommand(SET_BLOCKLEN_CMD, 1 << MCI_Device.READ_BL_LEN))
+		return 0;
+#ifdef REPORT_SIZE
+	printf("Found SD card %u bytes\n", MCI_Device.Memory_Capacity);
+#endif
 	return 1;
 }

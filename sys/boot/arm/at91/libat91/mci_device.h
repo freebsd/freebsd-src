@@ -83,43 +83,19 @@ typedef unsigned int AT91S_MCIDeviceStatus;
 // MMC & SDCard Structures 
 ///////////////////////////////////////////////////////////////////////////////
 
-/*-----------------------------------------------*/
-/* SDCard Device Descriptor Structure Definition */
-/*-----------------------------------------------*/
-typedef struct	_AT91S_MciDeviceDesc
-{
-    volatile unsigned char	state;
-	unsigned char			SDCard_bus_width;
-
-} AT91S_MciDeviceDesc, *AT91PS_MciDeviceDesc;
-
-/*---------------------------------------------*/
-/* MMC & SDCard Structure Device Features	   */
-/*---------------------------------------------*/
-typedef struct	_AT91S_MciDeviceFeatures
-{
-	unsigned char	Card_Inserted;				// (0=AT91C_CARD_REMOVED) (1=AT91C_MMC_CARD_INSERTED) (2=AT91C_SD_CARD_INSERTED)
-	unsigned int 	Relative_Card_Address;		// RCA
-	unsigned int	READ_BL_LEN;
-	unsigned int	WRITE_BL_LEN;
-	unsigned char	Read_Partial;				// READ_BL_PARTIAL
-	unsigned char	Write_Partial;				// WRITE_BL_PARTIAL
-	unsigned char	Erase_Block_Enable;			// ERASE_BLK_EN
-	unsigned char	Read_Block_Misalignment;	// READ_BLK_MISALIGN
-	unsigned char	Write_Block_Misalignment;	// WRITE_BLK_MISALIGN
-	unsigned char	Sector_Size;				// SECTOR_SIZE
-	unsigned int	Memory_Capacity;			// Size in bits of the device
-	
-}	AT91S_MciDeviceFeatures, *AT91PS_MciDeviceFeatures ;
-
 /*---------------------------------------------*/
 /* MCI Device Structure Definition 			   */
 /*---------------------------------------------*/
 typedef struct _AT91S_MciDevice
 {
-	AT91PS_MciDeviceDesc		 	pMCI_DeviceDesc;	// MCI device descriptor
-	AT91PS_MciDeviceFeatures		pMCI_DeviceFeatures;// Pointer on a MCI device features array  
-} AT91S_MciDevice, *AT91PS_MciDevice;
+	volatile unsigned char	state;
+	unsigned char	SDCard_bus_width;
+	unsigned int 	RCA;		// RCA
+	unsigned int	READ_BL_LEN;
+#ifdef REPORT_SIZE
+	unsigned int	Memory_Capacity;
+#endif
+} AT91S_MciDevice;
 
 #include <dev/mmc/mmcreg.h>
 
@@ -450,15 +426,4 @@ typedef struct _AT91S_MciDevice
 #define	CSD_0_STRUCT_M 		0x03
 
 ///////////////////////////////////////////////////////////////////////////////
-
-void 				AT91F_MCI_Device_Handler(AT91PS_MciDevice,unsigned int);
-AT91S_MCIDeviceStatus 	AT91F_MCI_SDCard_Init (AT91PS_MciDevice);
-AT91S_MCIDeviceStatus 	AT91F_MCI_SetBlocklength(unsigned int);
-AT91S_MCIDeviceStatus 	AT91F_MCI_ReadBlock(AT91PS_MciDevice,int,unsigned int *,int);
-AT91S_MCIDeviceStatus 	AT91F_MCI_WriteBlock(AT91PS_MciDevice,int,unsigned int *,int);
-#if 0
-AT91S_MCIDeviceStatus AT91F_MCI_MMC_Init (AT91PS_MciDevice pMCI_Device);
-AT91S_MCIDeviceStatus AT91F_MCI_MMC_SelectCard(AT91PS_MciDevice pMCI_Device, unsigned int relative_card_address);
-#endif
-
 #endif
