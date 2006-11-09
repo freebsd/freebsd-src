@@ -21,11 +21,33 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * This software is derived from software provide by Kwikbyte who specifically
- * disclaimed copyright on the code.
- *
- * $FreeBSD$
  */
+
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
+
+/******************************************************************************
+ *
+ * Filename: p_string.c
+ *
+ * Instantiation of basic string operations to prevent inclusion of full
+ * string library.  These are simple implementations not necessarily optimized
+ * for speed, but rather to show intent.
+ *
+ * Revision information:
+ *
+ * 20AUG2004	kb_admin	initial creation
+ * 12JAN2005	kb_admin	minor updates
+ *
+ * BEGIN_KBDD_BLOCK
+ * No warranty, expressed or implied, is included with this software.  It is
+ * provided "AS IS" and no warranty of any kind including statutory or aspects
+ * relating to merchantability or fitness for any purpose is provided.  All
+ * intellectual property rights of others is maintained with the respective
+ * owners.  This software is not copyrighted and is intended for reference
+ * only.
+ * END_BLOCK
+ *****************************************************************************/
 
 #include "lib.h"
 
