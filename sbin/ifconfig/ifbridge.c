@@ -321,6 +321,20 @@ unsetbridge_learn(const char *val, int d, int s, const struct afswtch *afp)
 }
 
 static void
+setbridge_sticky(const char *val, int d, int s, const struct afswtch *afp)
+{
+
+	do_bridgeflag(s, val, IFBIF_STICKY,  1);
+}
+
+static void
+unsetbridge_sticky(const char *val, int d, int s, const struct afswtch *afp)
+{
+
+	do_bridgeflag(s, val, IFBIF_STICKY,  0);
+}
+
+static void
 setbridge_span(const char *val, int d, int s, const struct afswtch *afp)
 {
 	struct ifbreq req;
@@ -639,6 +653,8 @@ static struct cmd bridge_cmds[] = {
 	DEF_CMD_ARG("-discover",	unsetbridge_discover),
 	DEF_CMD_ARG("learn",		setbridge_learn),
 	DEF_CMD_ARG("-learn",		unsetbridge_learn),
+	DEF_CMD_ARG("sticky",		setbridge_sticky),
+	DEF_CMD_ARG("-sticky",		unsetbridge_sticky),
 	DEF_CMD_ARG("span",		setbridge_span),
 	DEF_CMD_ARG("-span",		unsetbridge_span),
 	DEF_CMD_ARG("stp",		setbridge_stp),
