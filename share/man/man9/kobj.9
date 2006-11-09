@@ -83,7 +83,7 @@ This will allocate memory for the object based on the object size
 specified by the class and initialise it by zeroing the memory and
 installing a pointer to the class' method dispatch table.
 Objects created in this way should be freed by calling
-.Fn kobj_free .
+.Fn kobj_delete .
 .Pp
 Clients which would like to manage the allocation of memory
 themselves should call
