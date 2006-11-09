@@ -30,7 +30,7 @@ __FBSDID("$FreeBSD$");
 
 #include "emac.h"
 #include "lib.h"
-#include "board.h.h"
+#include "board.h"
 
 extern unsigned char mac[];
 
