@@ -45,7 +45,7 @@
 #include "bthid_config.h"
 #include "bthidd.h"
 
-static int32_t	client_socket(bdaddr_p bdaddr, int32_t psm);
+static int32_t	client_socket(bdaddr_p bdaddr, uint16_t psm);
 
 /*
  * Get next config entry and create outbound connection (if required)
@@ -212,7 +212,7 @@ client_connect(bthid_server_p srv, int32_t fd)
  */
 
 static int
-client_socket(bdaddr_p bdaddr, int32_t psm)
+client_socket(bdaddr_p bdaddr, uint16_t psm)
 {
 	struct sockaddr_l2cap	l2addr;
 	int32_t			s, m;
@@ -243,7 +243,7 @@ client_socket(bdaddr_p bdaddr, int32_t psm)
 	}
 
 	memcpy(&l2addr.l2cap_bdaddr, bdaddr, sizeof(l2addr.l2cap_bdaddr));
-	l2addr.l2cap_psm = psm;
+	l2addr.l2cap_psm = htole16(psm);
 
 	if (connect(s, (struct sockaddr *) &l2addr, sizeof(l2addr)) < 0 &&
 	    errno != EINPROGRESS) {
