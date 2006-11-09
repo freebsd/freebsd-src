@@ -30,6 +30,7 @@ __FBSDID("$FreeBSD$");
 #include "lib.h"
 #include "sd-card.h"
 #include "ee.h"
+#include "board.h"
 
 #define RBX_ASKNAME	0x0	/* -a */
 #define RBX_SINGLE	0x1	/* -s */
@@ -66,7 +67,7 @@ __FBSDID("$FreeBSD$");
 
 #define PATH_CONFIG	"/boot.config"
 //#define PATH_KERNEL	"/boot/kernel/kernel"
-#define PATH_KERNEL	"/kernel.gz.tramp"
+#define PATH_KERNEL	"/boot/kernel/kernel.gz.tramp"
 
 #define NOPT		5
 
@@ -140,9 +141,6 @@ getstr(int c)
 	}
     }
 }
-
-// Each board has to provide one of these.
-void board_init(void);
 
 int
 main(void)
