@@ -56,10 +56,10 @@ void usage(void);
 void banner(void);
 pir_table_t *find_pir_table(unsigned char *base);
 void dump_pir_table(pir_table_t *pir, char *map_addr);
-void pci_print_irqmask(u_int16_t irqs);
-void print_irq_line(int entry, pir_entry_t *p, char line, u_int8_t link,
-    u_int16_t irqs);
-char *lookup_southbridge(u_int32_t id);
+void pci_print_irqmask(uint16_t irqs);
+void print_irq_line(int entry, pir_entry_t *p, char line, uint8_t link,
+    uint16_t irqs);
+char *lookup_southbridge(uint32_t id);
 
 char *progname = NULL;
 
@@ -182,7 +182,7 @@ find_pir_table(unsigned char *base)
 }
 
 void
-pci_print_irqmask(u_int16_t irqs)
+pci_print_irqmask(uint16_t irqs)
 {
 	int i, first;
 
@@ -215,7 +215,7 @@ dump_pir_table(pir_table_t *pir, char *map_addr)
 	    "0x%02x: Version:            %u.%u\r\n"
 	    "0x%02x: Size:               %u bytes (%u entries)\r\n"
 	    "0x%02x: Device:             %u:%u:%u\r\n",
-	    (u_int32_t)(((char *)pir - map_addr) + PIR_BASE),
+	    (uint32_t)(((char *)pir - map_addr) + PIR_BASE),
 	    offsetof(pir_table_t, signature),
 	    ((char *)&pir->signature)[0],
 	    ((char *)&pir->signature)[1],
@@ -262,8 +262,8 @@ dump_pir_table(pir_table_t *pir, char *map_addr)
  * Print interrupt map for a given PCI interrupt line.
  */
 void
-print_irq_line(int entry, pir_entry_t *p, char line, u_int8_t link,
-    u_int16_t irqs)
+print_irq_line(int entry, pir_entry_t *p, char line, uint8_t link,
+    uint16_t irqs)
 {
 
 	if (link == 0)
@@ -285,7 +285,7 @@ print_irq_line(int entry, pir_entry_t *p, char line, u_int8_t link,
  * Lookup textual descriptions for commonly-used south-bridges.
  */
 char *
-lookup_southbridge(u_int32_t id)
+lookup_southbridge(uint32_t id)
 {
 
 	switch (id) {
