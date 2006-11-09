@@ -2715,8 +2715,7 @@ sctp_clean_up_stream_reset(struct sctp_tcb *stcb)
 static int
 sctp_handle_stream_reset_response(struct sctp_tcb *stcb,
     uint32_t seq, uint32_t action,
-    struct sctp_stream_reset_response *respin
-)
+    struct sctp_stream_reset_response *respin)
 {
 	uint16_t type;
 	int lparm_len;
@@ -2735,8 +2734,8 @@ sctp_handle_stream_reset_response(struct sctp_tcb *stcb,
 			stcb->asoc.str_reset_seq_out++;
 			type = ntohs(srparam->ph.param_type);
 			lparm_len = ntohs(srparam->ph.param_length);
-			number_entries = (lparm_len - sizeof(struct sctp_stream_reset_out_request)) / sizeof(uint16_t);
 			if (type == SCTP_STR_RESET_OUT_REQUEST) {
+				number_entries = (lparm_len - sizeof(struct sctp_stream_reset_out_request)) / sizeof(uint16_t);
 				asoc->stream_reset_out_is_outstanding = 0;
 				if (asoc->stream_reset_outstanding)
 					asoc->stream_reset_outstanding--;
@@ -2748,6 +2747,7 @@ sctp_handle_stream_reset_response(struct sctp_tcb *stcb,
 				}
 			} else if (type == SCTP_STR_RESET_IN_REQUEST) {
 				/* Answered my request */
+				number_entries = (lparm_len - sizeof(struct sctp_stream_reset_in_request)) / sizeof(uint16_t);
 				if (asoc->stream_reset_outstanding)
 					asoc->stream_reset_outstanding--;
 				if (action != SCTP_STREAM_RESET_PERFORMED) {
