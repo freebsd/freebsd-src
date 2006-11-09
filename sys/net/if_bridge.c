@@ -250,7 +250,7 @@ static void	bridge_broadcast(struct bridge_softc *, struct ifnet *,
 static void	bridge_span(struct bridge_softc *, struct mbuf *);
 
 static int	bridge_rtupdate(struct bridge_softc *, const uint8_t *,
-		    struct ifnet *, int, uint8_t);
+		    struct bridge_iflist *, int, uint8_t);
 static struct ifnet *bridge_rtlookup(struct bridge_softc *, const uint8_t *);
 static void	bridge_rttrim(struct bridge_softc *);
 static void	bridge_rtage(struct bridge_softc *);
@@ -1194,7 +1194,7 @@ bridge_ioctl_saddr(struct bridge_softc *sc, void *arg)
 	if (bif == NULL)
 		return (ENOENT);
 
-	error = bridge_rtupdate(sc, req->ifba_dst, bif->bif_ifp, 1,
+	error = bridge_rtupdate(sc, req->ifba_dst, bif, 1,
 	    req->ifba_flags);
 
 	return (error);
@@ -1901,7 +1901,7 @@ bridge_forward(struct bridge_softc *sc, struct mbuf *m)
 	     eh->ether_shost[4] == 0 &&
 	     eh->ether_shost[5] == 0) == 0) {
 		(void) bridge_rtupdate(sc, eh->ether_shost,
-		    src_if, 0, IFBAF_DYNAMIC);
+		    bif, 0, IFBAF_DYNAMIC);
 	}
 
 	if ((bif->bif_flags & IFBIF_STP) != 0 &&
@@ -2014,7 +2014,7 @@ static struct mbuf *
 bridge_input(struct ifnet *ifp, struct mbuf *m)
 {
 	struct bridge_softc *sc = ifp->if_bridge;
-	struct bridge_iflist *bif;
+	struct bridge_iflist *bif, *bif2;
 	struct ifnet *bifp;
 	struct ether_header *eh;
 	struct mbuf *mc, *mc2;
@@ -2058,7 +2058,7 @@ bridge_input(struct ifnet *ifp, struct mbuf *m)
 		/* Note where to send the reply to */
 		if (bif->bif_flags & IFBIF_LEARNING)
 			(void) bridge_rtupdate(sc,
-			    eh->ether_shost, ifp, 0, IFBAF_DYNAMIC);
+			    eh->ether_shost, bif, 0, IFBAF_DYNAMIC);
 
 		/* Mark the packet as arriving on the bridge interface */
 		m->m_pkthdr.rcvif = bifp;
@@ -2140,31 +2140,31 @@ bridge_input(struct ifnet *ifp, struct mbuf *m)
 	/*
 	 * Unicast.  Make sure it's not for us.
 	 */
-	LIST_FOREACH(bif, &sc->sc_iflist, bif_next) {
-		if (bif->bif_ifp->if_type == IFT_GIF)
+	LIST_FOREACH(bif2, &sc->sc_iflist, bif_next) {
+		if (bif2->bif_ifp->if_type == IFT_GIF)
 			continue;
 		/* It is destined for us. */
-		if (memcmp(IF_LLADDR(bif->bif_ifp), eh->ether_dhost,
+		if (memcmp(IF_LLADDR(bif2->bif_ifp), eh->ether_dhost,
 		    ETHER_ADDR_LEN) == 0
 #ifdef DEV_CARP
-		    || (bif->bif_ifp->if_carp 
-			&& carp_forus(bif->bif_ifp->if_carp, eh->ether_dhost))
+		    || (bif2->bif_ifp->if_carp 
+			&& carp_forus(bif2->bif_ifp->if_carp, eh->ether_dhost))
 #endif
 		    ) {
 			if (bif->bif_flags & IFBIF_LEARNING)
 				(void) bridge_rtupdate(sc,
-				    eh->ether_shost, ifp, 0, IFBAF_DYNAMIC);
-			m->m_pkthdr.rcvif = bif->bif_ifp;
+				    eh->ether_shost, bif, 0, IFBAF_DYNAMIC);
+			m->m_pkthdr.rcvif = bif2->bif_ifp;
 			BRIDGE_UNLOCK(sc);
 			return (m);
 		}
 
 		/* We just received a packet that we sent out. */
-		if (memcmp(IF_LLADDR(bif->bif_ifp), eh->ether_shost,
+		if (memcmp(IF_LLADDR(bif2->bif_ifp), eh->ether_shost,
 		    ETHER_ADDR_LEN) == 0
 #ifdef DEV_CARP
-		    || (bif->bif_ifp->if_carp 
-			&& carp_forus(bif->bif_ifp->if_carp, eh->ether_shost))
+		    || (bif2->bif_ifp->if_carp 
+			&& carp_forus(bif2->bif_ifp->if_carp, eh->ether_shost))
 #endif
 		    ) {
 			BRIDGE_UNLOCK(sc);
@@ -2315,9 +2315,10 @@ bridge_span(struct bridge_softc *sc, struct mbuf *m)
  */
 static int
 bridge_rtupdate(struct bridge_softc *sc, const uint8_t *dst,
-    struct ifnet *dst_if, int setflags, uint8_t flags)
+    struct bridge_iflist *bif, int setflags, uint8_t flags)
 {
 	struct bridge_rtnode *brt;
+	struct ifnet *dst_if = bif->bif_ifp;
 	int error;
 
 	BRIDGE_LOCK_ASSERT(sc);
@@ -2341,7 +2342,12 @@ bridge_rtupdate(struct bridge_softc *sc, const uint8_t *dst,
 		if (brt == NULL)
 			return (ENOMEM);
 
-		brt->brt_flags = IFBAF_DYNAMIC;
+		if (bif->bif_flags & IFBIF_STICKY)
+			brt->brt_flags = IFBAF_STICKY;
+		else
+			brt->brt_flags = IFBAF_DYNAMIC;
+
+		brt->brt_ifp = dst_if;
 		memcpy(brt->brt_addr, dst, ETHER_ADDR_LEN);
 
 		if ((error = bridge_rtnode_insert(sc, brt)) != 0) {
