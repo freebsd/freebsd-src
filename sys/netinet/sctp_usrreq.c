@@ -1733,7 +1733,6 @@ sctp_do_connect_x(struct socket *so,
 	stcb = sctp_aloc_assoc(inp, sa, 1, &error, 0);
 	if (stcb == NULL) {
 		/* Gak! no memory */
-		error = ENOMEM;
 		goto out_now;
 	}
 	/* move to second address */
