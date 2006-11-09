@@ -51,23 +51,23 @@ typedef struct {
 	u_int8_t	bus;		/* bus number of this device */
 	u_int8_t	devfunc;	/* only upper 5 device bits valid */
 	u_int8_t	inta_link;	/* how INTA is linked */
-	u_int8_t	inta_irqs[2];	/* how INTA may be routed (bitset) */
+	u_int16_t	inta_irqs;	/* how INTA may be routed (bitset) */
 	u_int8_t	intb_link;
-	u_int8_t	intb_irqs[2];
+	u_int16_t	intb_irqs;
 	u_int8_t	intc_link;
-	u_int8_t	intc_irqs[2];
+	u_int16_t	intc_irqs;
 	u_int8_t	intd_link;
-	u_int8_t	intd_irqs[2];	/* how this pin may be routed */
+	u_int16_t	intd_irqs;	/* how this pin may be routed */
 	u_int8_t	slot;		/* physical slot number on bus,
 					 * slot 0 if motherboard */
 	u_int8_t	reserved00;	/* must be zero */
-} pir_entry_t __packed;
+} __packed pir_entry_t;
 
 typedef struct {
 	u_int32_t	signature;	/* $PIR */
 	u_int8_t	minor;		/* minor version (0) */
 	u_int8_t	major;		/* major version (1) */
-	u_int16_t	size;		/* total size of tab;e */
+	u_int16_t	size;		/* total size of table */
 	u_int8_t	bus;		/* Bus number of router */
 	u_int8_t	devfunc;	/* Dev/Func of router */
 	u_int16_t	excl_irqs;	/* PCI Exclusive IRQs */
@@ -77,6 +77,6 @@ typedef struct {
 	u_int8_t	reserved00[11]; /* Must be zero */
 	u_int8_t	checksum;	/* Inverse mod-256 sum of table bytes */
 	pir_entry_t	entry[1];	/* 1..N device entries */
-} pir_table_t __packed;
+} __packed pir_table_t;
 
 #endif /* _PIRTABLE_H */
