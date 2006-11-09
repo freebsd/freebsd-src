@@ -184,10 +184,6 @@ typedef struct {
 } config_data_t;
 
 typedef struct {
-	uint8_t enable;
-} target_mode_params_t;
-
-typedef struct {
 	uint8_t offset : 4,
 		 period : 3,
 		 sync	: 1;
@@ -212,27 +208,7 @@ typedef struct {
 	uint8_t	bios_mbox_addr[3];
 } setup_data_t;
 
-struct aha_isa_port {
-	uint16_t addr;
-	uint8_t  bio;	/* board IO offset */
-};
-
 #define AHA_NUM_ISAPORTS 6
-
-typedef enum {
-	BIO_330		= 0,
-	BIO_334		= 1,
-	BIO_230		= 2,
-	BIO_234		= 3,
-	BIO_130		= 4,
-	BIO_134		= 5,
-	BIO_DISABLED	= 6,
-	BIO_DISABLED2	= 7
-} isa_compat_io_t;
-
-typedef struct {
-	uint8_t sync_rate[16];		/* Sync in 10ns units */
-} target_sync_info_data_t;
 
 typedef struct {
 	uint8_t len[3];
@@ -409,7 +385,6 @@ void aha_find_probe_range(int, int *, int *);
 void aha_free(struct aha_softc *);
 int aha_init(struct aha_softc *); 
 void aha_intr(void *);
-int aha_iop_from_bio(isa_compat_io_t);
 int aha_probe(struct aha_softc *);
 
 #define DEFAULT_CMD_TIMEOUT 10000	/* 1 sec */
