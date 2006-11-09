@@ -21,40 +21,8 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
+ * $FreeBSD$
  */
 
-#include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
-
-#include <sys/param.h>
-
-#include "emac.h"
-#include "lib.h"
-#include "board.h.h"
-
-extern unsigned char mac[];
-
-static void
-MacFromEE()
-{	
-	uint32_t sig;
-	sig = 0;
-	ReadEEPROM(12 * 1024, (uint8_t *)&sig, sizeof(sig));
-	if (sig != 0xaa55aa55)
-		return;
-	ReadEEPROM(12 * 1024 + 4, mac, 6);
-	printf("MAC %x:%x:%x:%x:%x:%x\n", mac[0],
-	  mac[1], mac[2], mac[3], mac[4], mac[5]);
-}
-
-void
-Update(void)
-{
-}
-
-void
-board_init(void)
-{
-    InitEEPROM();
-    MacFromEE();
-}
+void Update(void);
+void board_init(void);
