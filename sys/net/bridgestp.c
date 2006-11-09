@@ -151,6 +151,9 @@ static void	bstp_stop_locked(struct bstp_state *);
 static void
 bstp_transmit(struct bstp_state *bs, struct bstp_port *bp)
 {
+	if (bs->bs_running == 0)
+		return;
+
 	/*
 	 * a PDU can only be sent if we have tx quota left and the
 	 * hello timer is running.
@@ -1745,6 +1748,7 @@ bstp_linkstate(struct ifnet *ifp, int state)
 		LIST_FOREACH(bp, &bs->bs_bplist, bp_next) {
 			if (bp->bp_ifp == ifp) {
 				bstp_ifupdstatus(bs, bp);
+				bstp_update_state(bs, bp);
 				/* it only exists once so return */
 				BSTP_UNLOCK(bs);
 				mtx_unlock(&bstp_list_mtx);
@@ -1808,6 +1812,9 @@ bstp_tick(void *arg)
 	struct bstp_port *bp;
 
 	BSTP_LOCK_ASSERT(bs);
+
+	if (bs->bs_running == 0)
+		return;
 
 	/* slow timer to catch missed link events */
 	if (bstp_timer_expired(&bs->bs_link_timer)) {
@@ -1915,8 +1922,10 @@ bstp_edge_delay_expiry(struct bstp_state *bs, struct bstp_port *bp)
 {
 	if ((bp->bp_flags & BSTP_PORT_AUTOEDGE) &&
 	    bp->bp_protover == BSTP_PROTO_RSTP && bp->bp_proposing &&
-	    bp->bp_role == BSTP_ROLE_DESIGNATED)
+	    bp->bp_role == BSTP_ROLE_DESIGNATED) {
 		bp->bp_operedge = 1;
+		DPRINTF("%s -> edge port\n", bp->bp_ifp->if_xname);
+	}
 }
 
 static int
@@ -1952,32 +1961,42 @@ bstp_same_bridgeid(uint64_t id1, uint64_t id2)
 void
 bstp_reinit(struct bstp_state *bs)
 {
-	struct bstp_port *bp, *mbp;
+	struct bstp_port *bp;
+	struct ifnet *ifp, *mif;
 	u_char *e_addr;
 
 	BSTP_LOCK_ASSERT(bs);
 
-	mbp = NULL;
-	LIST_FOREACH(bp, &bs->bs_bplist, bp_next) {
-		bp->bp_port_id = (bp->bp_priority << 8) |
-		    (bp->bp_ifp->if_index  & 0xfff);
-
-		if (mbp == NULL) {
-			mbp = bp;
-			continue;
-		}
-		if (bstp_addr_cmp(IF_LLADDR(bp->bp_ifp),
-		    IF_LLADDR(mbp->bp_ifp)) < 0) {
-			mbp = bp;
-			continue;
-		}
-	}
-	if (mbp == NULL) {
+	if (LIST_EMPTY(&bs->bs_bplist)) {
 		bstp_stop_locked(bs);
 		return;
 	}
 
-	e_addr = IF_LLADDR(mbp->bp_ifp);
+	mif = NULL;
+	/*
+	 * Search through the Ethernet adapters and find the one with the
+	 * lowest value. The adapter which we take the MAC address from does
+	 * not need to be part of the bridge, it just needs to be a unique
+	 * value. It is not possible for mif to be null, at this point we have
+	 * at least one stp port and hence at least one NIC.
+	 */
+	IFNET_RLOCK();
+	TAILQ_FOREACH(ifp, &ifnet, if_link) {
+		if (ifp->if_type != IFT_ETHER)
+			continue;
+
+		if (mif == NULL) {
+			mif = ifp;
+			continue;
+		}
+		if (bstp_addr_cmp(IF_LLADDR(ifp), IF_LLADDR(mif)) < 0) {
+			mif = ifp;
+			continue;
+		}
+	}
+	IFNET_RUNLOCK();
+
+	e_addr = IF_LLADDR(mif);
 	bs->bs_bridge_pv.pv_dbridge_id =
 	    (((uint64_t)bs->bs_bridge_priority) << 48) |
 	    (((uint64_t)e_addr[0]) << 40) |
@@ -1992,13 +2011,15 @@ bstp_reinit(struct bstp_state *bs)
 	bs->bs_bridge_pv.pv_dport_id = 0;
 	bs->bs_bridge_pv.pv_port_id = 0;
 
-	if (callout_pending(&bs->bs_bstpcallout) == 0)
+	if (bs->bs_running && callout_pending(&bs->bs_bstpcallout) == 0)
 		callout_reset(&bs->bs_bstpcallout, hz, bstp_tick, bs);
 
-	LIST_FOREACH(bp, &bs->bs_bplist, bp_next)
+	LIST_FOREACH(bp, &bs->bs_bplist, bp_next) {
+		bp->bp_port_id = (bp->bp_priority << 8) |
+		    (bp->bp_ifp->if_index  & 0xfff);
 		bstp_ifupdstatus(bs, bp);
+	}
 
-	getmicrotime(&bs->bs_last_tc_time);
 	bstp_assign_roles(bs);
 	bstp_timer_start(&bs->bs_link_timer, BSTP_LINK_TIMER);
 }
@@ -2064,6 +2085,7 @@ bstp_detach(struct bstp_state *bs)
 	mtx_lock(&bstp_list_mtx);
 	LIST_REMOVE(bs, bs_list);
 	mtx_unlock(&bstp_list_mtx);
+	callout_drain(&bs->bs_bstpcallout);
 	BSTP_LOCK_DESTROY(bs);
 }
 
@@ -2072,6 +2094,7 @@ bstp_init(struct bstp_state *bs)
 {
 	BSTP_LOCK(bs);
 	callout_reset(&bs->bs_bstpcallout, hz, bstp_tick, bs);
+	bs->bs_running = 1;
 	bstp_reinit(bs);
 	BSTP_UNLOCK(bs);
 }
@@ -2094,7 +2117,7 @@ bstp_stop_locked(struct bstp_state *bs)
 	LIST_FOREACH(bp, &bs->bs_bplist, bp_next)
 		bstp_set_port_state(bp, BSTP_IFSTATE_DISCARDING);
 
-	callout_drain(&bs->bs_bstpcallout);
+	bs->bs_running = 0;
 	callout_stop(&bs->bs_bstpcallout);
 }
 
