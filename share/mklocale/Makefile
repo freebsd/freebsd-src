@@ -53,8 +53,7 @@ US-ASCII_US-ASCII= ${ASCIILINKS:C/^/la_LN:/}
 
 LATIN1XLINKS=   af_ZA ca_ES da_DK de_AT de_CH de_DE en_AU en_CA en_GB en_NZ \
 		en_US es_ES eu_ES fi_FI fr_BE fr_CA fr_CH fr_FR is_IS it_CH \
-		it_IT \
-		nl_BE nl_NL no_NO pt_PT sv_SE
+		it_IT nb_NO nl_BE nl_NL nn_NO no_NO pt_PT sv_SE
 LATIN1LINKS=	${LATIN1XLINKS} pt_BR
 ISO8859-1_ISO8859-1= ${LATIN1LINKS:C/^/la_LN:/}
 
@@ -78,7 +77,7 @@ UTF8LINKS=	af_ZA be_BY bg_BG ca_ES cs_CZ da_DK de_AT de_CH de_DE el_GR \
 		fr_BE \
 		fr_CA fr_CH fr_FR he_IL hr_HR hu_HU hy_AM is_IS it_CH it_IT \
 		ja_JP kk_KZ ko_KR lt_LT mn_MN \
-		nl_BE nl_NL no_NO pl_PL pt_BR pt_PT \
+		nb_NO nl_BE nl_NL nn_NO no_NO pl_PL pt_BR pt_PT \
 		ro_RO ru_RU sk_SK sl_SI sr_YU sv_SE tr_TR uk_UA zh_CN zh_HK \
 		zh_TW
 UTF-8_UTF-8=	${UTF8LINKS:C/^/:/}
