@@ -36,42 +36,13 @@ __FBSDID("$FreeBSD$");
 #include "SYS.h"
 
 ENTRY(ptrace)
-#ifdef _REENTRANT
 	stmfd	sp!, {r0-r3, lr}
 	sub	sp, sp, #4	/* align stack */
-	bl	PIC_SYM(_C_LABEL(__errno), PLT)
+	bl	PIC_SYM(_C_LABEL(__error), PLT)
 	add	sp, sp, #4	/* unalign stack */
 	mov	r1, #0x00000000
 	str	r1, [r0]
 	ldmfd	sp!, {r0-r3, lr}
-#else
-	stmfd	sp!, {r0, r1}
-#ifdef PIC
-	/* Setup the GOT */
-	ldr	r0, .Lgot
-	add	r0, pc, r0
-.L1:
-	ldr	r1, .Lerrno
-	ldr	r1, [r0, r1]
-#else
-	ldr	r1, .Lerrno
-#endif /* PIC */
-	mov	r0, #0x00000000
-	str	r0, [r1]
-	ldmfd	sp!, {r0, r1}
-#endif /* _REENTRANT */
-
 	SYSTRAP(ptrace)
 	bcs	PIC_SYM(CERROR, PLT)
 	RET
-
-#ifndef _REENTRANT
-#ifdef PIC
-	.align	0
-.Lgot:
-	.word	_C_LABEL(_GLOBAL_OFFSET_TABLE_) + (. - (.L1+4))
-#endif /* PIC */
-
-.Lerrno:
-	.word	PIC_SYM(_C_LABEL(errno), GOT)
-#endif /* !_REENTRANT */

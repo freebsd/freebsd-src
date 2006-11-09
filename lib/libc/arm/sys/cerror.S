@@ -39,7 +39,6 @@ __FBSDID("$FreeBSD$");
 .type   _C_LABEL(__error),%function
 		
 ASENTRY(CERROR)
-#if 1
 	stmfd	sp!, {r4, lr}
 	mov	r4, r0
 	bl	PIC_SYM(_C_LABEL(__error), PLT)
@@ -47,30 +46,3 @@ ASENTRY(CERROR)
 	mvn	r0, #0x00000000
 	mvn	r1, #0x00000000
 	ldmfd	sp!, {r4, pc}
-#else
-#ifdef PIC
-	/* Setup the GOT */
-	ldr	r3, .Lgot
-	add	r3, pc, r3
-.L1:
-	ldr	r1, .Lerrno
-	ldr	r1, [r3, r1]
-#else
-	ldr	r1, .Lerrno
-#endif /* PIC */
-	str	r0, [r1]
-	mvn	r0, #0x00000000
-	mvn	r1, #0x00000000
-	RET
-
-#if 0
-	.align	0
-.Lgot:
-	.word	_C_LABEL(_GLOBAL_OFFSET_TABLE_) + (. - (.L1+4))
-#endif /* PIC */
-
-	.globl	_C_LABEL(errno)
-
-.Lerrno:
-	.word	PIC_SYM(_C_LABEL(errno), GOT)
-#endif /* _REENTRANT */
