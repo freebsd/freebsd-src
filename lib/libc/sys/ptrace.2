@@ -2,7 +2,7 @@
 .\"	$NetBSD: ptrace.2,v 1.2 1995/02/27 12:35:37 cgd Exp $
 .\"
 .\" This file is in the public domain.
-.Dd August 11, 2003
+.Dd November 9, 2006
 .Dt PTRACE 2
 .Os
 .Sh NAME
@@ -297,6 +297,8 @@ The
 .Fa data
 argument is to be set to the size of the structure known to the caller.
 This allows the structure to grow without affecting older programs.
+.It PT_GETLWPLIST
+This request can be used to get the current thread list.
 .El
 .Pp
 Additionally, machine-specific requests can exist.
