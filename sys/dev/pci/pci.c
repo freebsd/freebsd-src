@@ -629,9 +629,10 @@ pci_read_vpd(device_t pcib, pcicfgregs *cfg)
 				    M_WAITOK);
 				state = 5;
 				break;
-			default:	/* XXX - unimplemented */
-				state = 4;
-				break;
+			default:	/* Invalid data, abort */
+				end = 1;
+				cksumvalid = 0;
+				continue;
 			}
 			break;
 
