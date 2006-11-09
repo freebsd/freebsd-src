@@ -326,6 +326,7 @@ struct bstp_port {
  */
 struct bstp_state {
 	LIST_ENTRY(bstp_state)	bs_list;
+	uint8_t			bs_running;
 	struct mtx		bs_mtx;
 	struct bstp_pri_vector	bs_bridge_pv;
 	struct bstp_pri_vector	bs_root_pv;
