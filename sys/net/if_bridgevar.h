@@ -140,8 +140,9 @@ struct ifbreq {
 #define	IFBIF_DISCOVER		0x02	/* if sends packets w/ unknown dest. */
 #define	IFBIF_STP		0x04	/* if participates in spanning tree */
 #define	IFBIF_SPAN		0x08	/* if is a span port */
+#define	IFBIF_STICKY		0x10	/* if learned addresses stick */
 
-#define	IFBIFBITS	"\020\1LEARNING\2DISCOVER\3STP\4SPAN"
+#define	IFBIFBITS	"\020\1LEARNING\2DISCOVER\3STP\4SPAN\5STICKY"
 
 /* BRDGFLUSH */
 #define	IFBF_FLUSHDYN		0x00	/* flush learned addresses only */
@@ -173,8 +174,9 @@ struct ifbareq {
 #define	IFBAF_TYPEMASK	0x03	/* address type mask */
 #define	IFBAF_DYNAMIC	0x00	/* dynamically learned address */
 #define	IFBAF_STATIC	0x01	/* static address */
+#define	IFBAF_STICKY	0x02	/* sticky address */
 
-#define	IFBAFBITS	"\020\1STATIC"
+#define	IFBAFBITS	"\020\1STATIC\2STICKY"
 
 /*
  * Address list structure.
