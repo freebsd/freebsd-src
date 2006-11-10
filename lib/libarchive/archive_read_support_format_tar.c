@@ -27,7 +27,9 @@
 #include "archive_platform.h"
 __FBSDID("$FreeBSD$");
 
+#ifdef HAVE_SYS_STAT_H
 #include <sys/stat.h>
+#endif
 #ifdef MAJOR_IN_MKDEV
 #include <sys/mkdev.h>
 #else
@@ -35,12 +37,20 @@ __FBSDID("$FreeBSD$");
 #include <sys/sysmacros.h>
 #endif
 #endif
+#ifdef HAVE_ERRNO_H
 #include <errno.h>
+#endif
 #include <stddef.h>
 /* #include <stdint.h> */ /* See archive_platform.h */
+#ifdef HAVE_STDLIB_H
 #include <stdlib.h>
+#endif
+#ifdef HAVE_STRING_H
 #include <string.h>
+#endif
+#ifdef HAVE_UNISTD_H
 #include <unistd.h>
+#endif
 
 /* Obtain suitable wide-character manipulation functions. */
 #ifdef HAVE_WCHAR_H
@@ -250,7 +260,7 @@ archive_read_support_format_tar(struct archive *a)
 	struct tar *tar;
 	int r;
 
-	tar = malloc(sizeof(*tar));
+	tar = (struct tar *)malloc(sizeof(*tar));
 	if (tar == NULL) {
 		archive_set_error(a, ENOMEM, "Can't allocate tar data");
 		return (ARCHIVE_FATAL);
@@ -274,7 +284,7 @@ archive_read_format_tar_cleanup(struct archive *a)
 {
 	struct tar *tar;
 
-	tar = *(a->pformat_data);
+	tar = (struct tar *)*(a->pformat_data);
 	archive_string_free(&tar->acl_text);
 	archive_string_free(&tar->entry_name);
 	archive_string_free(&tar->entry_linkname);
@@ -342,7 +352,7 @@ archive_read_format_tar_bid(struct archive *a)
 	}
 
 	/* If it's an end-of-archive mark, we can handle it. */
-	if ((*(const char *)h) == 0 && archive_block_is_null(h)) {
+	if ((*(const char *)h) == 0 && archive_block_is_null((const unsigned char *)h)) {
 		/* If it's a known tar file, end-of-archive is definite. */
 		if ((a->archive_format & ARCHIVE_FORMAT_BASE_MASK) ==
 		    ARCHIVE_FORMAT_TAR)
@@ -356,7 +366,7 @@ archive_read_format_tar_bid(struct archive *a)
 		return (0);
 	bid += 48;  /* Checksum is usually 6 octal digits. */
 
-	header = h;
+	header = (const struct archive_entry_header_ustar *)h;
 
 	/* Recognize POSIX formats. */
 	if ((memcmp(header->magic, "ustar\0", 6) == 0)
@@ -438,7 +448,7 @@ archive_read_format_tar_read_header(struct archive *a,
 		default_inode = 0;
 	}
 
-	tar = *(a->pformat_data);
+	tar = (struct tar *)*(a->pformat_data);
 	tar->entry_offset = 0;
 
 	r = tar_read_header(a, tar, entry, &st);
@@ -470,7 +480,7 @@ archive_read_format_tar_read_data(struct archive *a,
 	struct tar *tar;
 	struct sparse_block *p;
 
-	tar = *(a->pformat_data);
+	tar = (struct tar *)*(a->pformat_data);
 	if (tar->sparse_list != NULL) {
 		/* Remove exhausted entries from sparse list. */
 		while (tar->sparse_list != NULL &&
@@ -535,7 +545,7 @@ archive_read_format_tar_skip(struct archive *a)
 	off_t o;
 
 
-	tar = *(a->pformat_data);
+	tar = (struct tar *)*(a->pformat_data);
 	if (a->compression_skip == NULL) {
 		while (r == ARCHIVE_OK)
 			r = archive_read_format_tar_read_data(a, &b, &s, &o);
@@ -593,7 +603,7 @@ tar_read_header(struct archive *a, struct tar *tar,
 	(a->compression_read_consume)(a, 512);
 
 	/* Check for end-of-archive mark. */
-	if (((*(const char *)h)==0) && archive_block_is_null(h)) {
+	if (((*(const char *)h)==0) && archive_block_is_null((const unsigned char *)h)) {
 		/* Try to consume a second all-null record, as well. */
 		bytes = (a->compression_read_ahead)(a, &h, 512);
 		if (bytes > 0)
@@ -620,7 +630,7 @@ tar_read_header(struct archive *a, struct tar *tar,
 	}
 
 	/* Determine the format variant. */
-	header = h;
+	header = (const struct archive_entry_header_ustar *)h;
 	switch(header->typeflag[0]) {
 	case 'A': /* Solaris tar ACL */
 		a->archive_format = ARCHIVE_FORMAT_TAR_PAX_INTERCHANGE;
@@ -684,8 +694,8 @@ checksum(struct archive *a, const void *h)
 	int check, i, sum;
 
 	(void)a; /* UNUSED */
-	bytes = h;
-	header = h;
+	bytes = (const unsigned char *)h;
+	header = (const struct archive_entry_header_ustar *)h;
 
 	/*
 	 * Test the checksum.  Note that POSIX specifies _unsigned_
@@ -758,7 +768,7 @@ header_Solaris_ACL(struct archive *a, struct tar *tar,
 		p++;
 	p++;
 
-	wp = malloc((strlen(p) + 1) * sizeof(wchar_t));
+	wp = (wchar_t *)malloc((strlen(p) + 1) * sizeof(wchar_t));
 	if (wp != NULL) {
 		utf8_decode(wp, p, strlen(p));
 		err2 = __archive_entry_acl_parse_w(entry, wp,
@@ -833,7 +843,7 @@ read_body_to_string(struct archive *a, struct tar *tar,
 	char *dest;
 
 	(void)tar; /* UNUSED */
-	header = h;
+	header = (const struct archive_entry_header_ustar *)h;
 	size  = tar_atol(header->size, sizeof(header->size));
 
 	/* Read the body into the string. */
@@ -878,7 +888,7 @@ header_common(struct archive *a, struct tar *tar, struct archive_entry *entry,
 
 	(void)a; /* UNUSED */
 
-	header = h;
+	header = (const struct archive_entry_header_ustar *)h;
 	if (header->linkname[0])
 		archive_strncpy(&(tar->entry_linkname), header->linkname,
 		    sizeof(header->linkname));
@@ -1008,7 +1018,7 @@ header_old_tar(struct archive *a, struct tar *tar, struct archive_entry *entry,
 	const struct archive_entry_header_ustar	*header;
 
 	/* Copy filename over (to ensure null termination). */
-	header = h;
+	header = (const struct archive_entry_header_ustar *)h;
 	archive_strncpy(&(tar->entry_name), header->name, sizeof(header->name));
 	archive_entry_set_pathname(entry, tar->entry_name.s);
 
@@ -1074,7 +1084,7 @@ header_ustar(struct archive *a, struct tar *tar, struct archive_entry *entry,
 	const struct archive_entry_header_ustar	*header;
 	struct archive_string *as;
 
-	header = h;
+	header = (const struct archive_entry_header_ustar *)h;
 
 	/* Copy name into an internal buffer to ensure null-termination. */
 	as = &(tar->entry_name);
@@ -1167,7 +1177,7 @@ pax_header(struct archive *a, struct tar *tar, struct archive_entry *entry,
 				tar->pax_entry_length *= 2;
 
 			old_entry = tar->pax_entry;
-			tar->pax_entry = realloc(tar->pax_entry,
+			tar->pax_entry = (wchar_t *)realloc(tar->pax_entry,
 			    tar->pax_entry_length * sizeof(wchar_t));
 			if (tar->pax_entry == NULL) {
 				free(old_entry);
@@ -1435,7 +1445,7 @@ header_gnutar(struct archive *a, struct tar *tar, struct archive_entry *entry,
 	header_common(a, tar, entry, st, h);
 
 	/* Copy filename over (to ensure null termination). */
-	header = h;
+	header = (const struct archive_entry_header_gnutar *)h;
 	archive_strncpy(&(tar->entry_name), header->name,
 	    sizeof(header->name));
 	archive_entry_set_pathname(entry, tar->entry_name.s);
@@ -1532,7 +1542,7 @@ gnu_parse_sparse_data(struct archive *a, struct tar *tar,
 		last = last->next;
 
 	while (length > 0 && sparse->offset[0] != 0) {
-		p = malloc(sizeof(*p));
+		p = (struct sparse_block *)malloc(sizeof(*p));
 		if (p == NULL)
 			__archive_errx(1, "Out of memory");
 		memset(p, 0, sizeof(*p));
@@ -1799,8 +1809,12 @@ UTF8_mbrtowc(wchar_t *pwc, const char *s, size_t n)
 static char *
 base64_decode(const wchar_t *src, size_t len, size_t *out_len)
 {
-	static const unsigned char digits[64] =
-	    "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
+	static const unsigned char digits[64] = {
+		'A','B','C','D','E','F','G','H','I','J','K','L','M','N',
+		'O','P','Q','R','S','T','U','V','W','X','Y','Z','a','b',
+		'c','d','e','f','g','h','i','j','k','l','m','n','o','p',
+		'q','r','s','t','u','v','w','x','y','z','0','1','2','3',
+		'4','5','6','7','8','9','+','/' };
 	static unsigned char decode_table[128];
 	char *out, *d;
 
@@ -1814,7 +1828,7 @@ base64_decode(const wchar_t *src, size_t len, size_t *out_len)
 
 	/* Allocate enough space to hold the entire output. */
 	/* Note that we may not use all of this... */
-	out = malloc((len * 3 + 3) / 4);
+	out = (char *)malloc((len * 3 + 3) / 4);
 	if (out == NULL) {
 		*out_len = 0;
 		return (NULL);
@@ -1880,7 +1894,7 @@ wide_to_narrow(const wchar_t *wval)
 	int converted_length;
 	/* Guess an output buffer size and try the conversion. */
 	int alloc_length = wcslen(wval) * 3;
-	char *mbs_val = malloc(alloc_length + 1);
+	char *mbs_val = (char *)malloc(alloc_length + 1);
 	if (mbs_val == NULL)
 		return (NULL);
 	converted_length = wcstombs(mbs_val, wval, alloc_length);
@@ -1889,7 +1903,7 @@ wide_to_narrow(const wchar_t *wval)
 	while (converted_length >= alloc_length) {
 		free(mbs_val);
 		alloc_length *= 2;
-		mbs_val = malloc(alloc_length + 1);
+		mbs_val = (char *)malloc(alloc_length + 1);
 		if (mbs_val == NULL)
 			return (NULL);
 		converted_length = wcstombs(mbs_val, wval, alloc_length);
@@ -1906,7 +1920,7 @@ url_decode(const char *in)
 	char *out, *d;
 	const char *s;
 
-	out = malloc(strlen(in) + 1);
+	out = (char *)malloc(strlen(in) + 1);
 	if (out == NULL)
 		return (NULL);
 	for (s = in, d = out; *s != '\0'; ) {

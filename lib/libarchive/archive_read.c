@@ -35,11 +35,19 @@
 #include "archive_platform.h"
 __FBSDID("$FreeBSD$");
 
+#ifdef HAVE_ERRNO_H
 #include <errno.h>
+#endif
 #include <stdio.h>
+#ifdef HAVE_STDLIB_H
 #include <stdlib.h>
+#endif
+#ifdef HAVE_STRING_H
 #include <string.h>
+#endif
+#ifdef HAVE_UNISTD_H
 #include <unistd.h>
+#endif
 
 #include "archive.h"
 #include "archive_entry.h"
@@ -57,7 +65,7 @@ archive_read_new(void)
 	struct archive	*a;
 	unsigned char	*nulls;
 
-	a = malloc(sizeof(*a));
+	a = (struct archive *)malloc(sizeof(*a));
 	if (a == NULL) {
 		archive_set_error(a, ENOMEM, "Can't allocate archive object");
 		return (NULL);
@@ -69,7 +77,7 @@ archive_read_new(void)
 	a->bytes_per_block = ARCHIVE_DEFAULT_BYTES_PER_BLOCK;
 
 	a->null_length = 1024;
-	nulls = malloc(a->null_length);
+	nulls = (unsigned char *)malloc(a->null_length);
 	if (nulls == NULL) {
 		archive_set_error(a, ENOMEM, "Can't allocate archive object 'nulls' element");
 		free(a);
@@ -399,7 +407,7 @@ archive_read_data(struct archive *a, void *buff, size_t s)
 	int	 r;
 
 	bytes_read = 0;
-	dest = buff;
+	dest = (char *)buff;
 
 	while (s > 0) {
 		if (a->read_data_remaining <= 0) {

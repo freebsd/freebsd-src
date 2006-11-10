@@ -27,10 +27,16 @@
 #include "archive_platform.h"
 __FBSDID("$FreeBSD$");
 
+#ifdef HAVE_SYS_STAT_H
 #include <sys/stat.h>
+#endif
+#ifdef HAVE_ERRNO_H
 #include <errno.h>
+#endif
 #include <stdio.h>
+#ifdef HAVE_STDLIB_H
 #include <stdlib.h>
+#endif
 #include <time.h>
 #ifdef HAVE_ZLIB_H
 #include <zlib.h>
@@ -137,7 +143,7 @@ archive_read_support_format_zip(struct archive *a)
 	struct zip *zip;
 	int r;
 
-	zip = malloc(sizeof(*zip));
+	zip = (struct zip *)malloc(sizeof(*zip));
 	if (zip == NULL) {
 		archive_set_error(a, ENOMEM, "Can't allocate zip data");
 		return (ARCHIVE_FATAL);
@@ -172,7 +178,7 @@ archive_read_format_zip_bid(struct archive *a)
 	bytes_read = (a->compression_read_ahead)(a, &h, 4);
 	if (bytes_read < 4)
 	    return (-1);
-	p = h;
+	p = (const char *)h;
 
 	if (p[0] == 'P' && p[1] == 'K') {
 		bid += 16;
@@ -201,7 +207,7 @@ archive_read_format_zip_read_header(struct archive *a,
 	if (a->archive_format_name == NULL)
 		a->archive_format_name = "ZIP";
 
-	zip = *(a->pformat_data);
+	zip = (struct zip *)*(a->pformat_data);
 	zip->decompress_init = 0;
 	zip->end_of_entry = 0;
 	zip->end_of_entry_cleanup = 0;
@@ -211,7 +217,7 @@ archive_read_format_zip_read_header(struct archive *a,
 	if (bytes_read < 4)
 		return (ARCHIVE_FATAL);
 
-	signature = h;
+	signature = (const char *)h;
 	if (signature[0] != 'P' || signature[1] != 'K') {
 		archive_set_error(a, ARCHIVE_ERRNO_FILE_FORMAT,
 		    "Bad ZIP file");
@@ -265,7 +271,7 @@ zip_read_file_header(struct archive *a, struct archive_entry *entry,
 		    "Truncated ZIP file header");
 		return (ARCHIVE_FATAL);
 	}
-	p = h;
+	p = (const struct zip_file_header *)h;
 
 	zip->version = p->version[0];
 	zip->system = p->version[1];
@@ -299,7 +305,7 @@ zip_read_file_header(struct archive *a, struct archive_entry *entry,
 		return (ARCHIVE_FATAL);
 	}
 	archive_string_ensure(&zip->pathname, zip->filename_length);
-	archive_strncpy(&zip->pathname, h, zip->filename_length);
+	archive_strncpy(&zip->pathname, (const char *)h, zip->filename_length);
 	(a->compression_read_consume)(a, zip->filename_length);
 	archive_entry_set_pathname(entry, zip->pathname.s);
 
@@ -369,7 +375,7 @@ archive_read_format_zip_read_data(struct archive *a,
 	int r;
 	struct zip *zip;
 
-	zip = *(a->pformat_data);
+	zip = (struct zip *)*(a->pformat_data);
 
 	/*
 	 * If we hit end-of-entry last time, clean up and return
@@ -388,7 +394,7 @@ archive_read_format_zip_read_data(struct archive *a,
 					    "Truncated ZIP end-of-file record");
 					return (ARCHIVE_FATAL);
 				}
-				p = h;
+				p = (const char *)h;
 				zip->crc32 = i4(p + 4);
 				zip->compressed_size = u4(p + 8);
 				zip->uncompressed_size = u4(p + 12);
@@ -473,7 +479,7 @@ zip_read_data_none(struct archive *a, const void **buff,
 	struct zip *zip;
 	ssize_t bytes_avail;
 
-	zip = *(a->pformat_data);
+	zip = (struct zip *)*(a->pformat_data);
 
 	if (zip->entry_bytes_remaining == 0) {
 		*buff = NULL;
@@ -516,13 +522,13 @@ zip_read_data_deflate(struct archive *a, const void **buff,
 	const void *compressed_buff;
 	int r;
 
-	zip = *(a->pformat_data);
+	zip = (struct zip *)*(a->pformat_data);
 
 	/* If the buffer hasn't been allocated, allocate it now. */
 	if (zip->uncompressed_buffer == NULL) {
 		zip->uncompressed_buffer_size = 32 * 1024;
 		zip->uncompressed_buffer
-		    = malloc(zip->uncompressed_buffer_size);
+		    = (unsigned char *)malloc(zip->uncompressed_buffer_size);
 		if (zip->uncompressed_buffer == NULL) {
 			archive_set_error(a, ENOMEM,
 			    "No memory for ZIP decompression");
@@ -561,7 +567,7 @@ zip_read_data_deflate(struct archive *a, const void **buff,
 	 * next_in pointer, only reads it).  The result: this ugly
 	 * cast to remove 'const'.
 	 */
-	zip->stream.next_in = (void *)(uintptr_t)(const void *)compressed_buff;
+	zip->stream.next_in = (Bytef *)(uintptr_t)(const void *)compressed_buff;
 	zip->stream.avail_in = bytes_avail;
 	zip->stream.total_in = 0;
 	zip->stream.next_out = zip->uncompressed_buffer;
@@ -603,8 +609,6 @@ static int
 zip_read_data_deflate(struct archive *a, const void **buff,
     size_t *size, off_t *offset)
 {
-	int r;
-
 	*buff = NULL;
 	*size = 0;
 	*offset = 0;
@@ -621,7 +625,7 @@ archive_read_format_zip_read_data_skip(struct archive *a)
 	const void *buff = NULL;
 	ssize_t bytes_avail;
 
-	zip = *(a->pformat_data);
+	zip = (struct zip *)*(a->pformat_data);
 
 	/*
 	 * If the length is at the end, we have no choice but
@@ -664,7 +668,7 @@ archive_read_format_zip_cleanup(struct archive *a)
 {
 	struct zip *zip;
 
-	zip = *(a->pformat_data);
+	zip = (struct zip *)*(a->pformat_data);
 	if (zip->uncompressed_buffer != NULL)
 		free(zip->uncompressed_buffer);
 	archive_string_free(&(zip->pathname));
@@ -714,7 +718,7 @@ static void
 process_extra(const void* extra, struct zip* zip)
 {
 	int offset = 0;
-	const char *p = extra;
+	const char *p = (const char *)extra;
 	while (offset < zip->extra_length - 4)
 	{
 		unsigned short headerid = u2(p + offset);

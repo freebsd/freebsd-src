@@ -28,10 +28,18 @@
 __FBSDID("$FreeBSD$");
 
 #include <assert.h>
+#ifdef HAVE_ERRNO_H
 #include <errno.h>
+#endif
+#ifdef HAVE_STDLIB_H
 #include <stdlib.h>
+#endif
+#ifdef HAVE_STRING_H
 #include <string.h>
+#endif
+#ifdef HAVE_UNISTD_H
 #include <unistd.h>
+#endif
 
 #include "archive.h"
 #include "archive_private.h"
@@ -110,7 +118,7 @@ archive_decompressor_none_init(struct archive *a, const void *buff, size_t n)
 	memset(state, 0, sizeof(*state));
 
 	state->buffer_size = BUFFER_SIZE;
-	state->buffer = malloc(state->buffer_size);
+	state->buffer = (char *)malloc(state->buffer_size);
 	state->next = state->buffer;
 	if (state->buffer == NULL) {
 		free(state);
@@ -119,7 +127,7 @@ archive_decompressor_none_init(struct archive *a, const void *buff, size_t n)
 	}
 
 	/* Save reference to first block of data. */
-	state->client_buff = buff;
+	state->client_buff = (const char *)buff;
 	state->client_total = n;
 	state->client_next = state->client_buff;
 	state->client_avail = state->client_total;
@@ -145,7 +153,7 @@ archive_decompressor_none_read_ahead(struct archive *a, const void **buff,
 	struct archive_decompress_none *state;
 	ssize_t bytes_read;
 
-	state = a->compression_data;
+	state = (struct archive_decompress_none *)a->compression_data;
 	if (state->fatal)
 		return (-1);
 
@@ -242,7 +250,7 @@ archive_decompressor_none_read_consume(struct archive *a, size_t request)
 {
 	struct archive_decompress_none *state;
 
-	state = a->compression_data;
+	state = (struct archive_decompress_none *)a->compression_data;
 	if (state->avail > 0) {
 		/* Read came from copy buffer. */
 		state->next += request;
@@ -268,7 +276,7 @@ archive_decompressor_none_skip(struct archive *a, size_t request)
 	ssize_t bytes_skipped, total_bytes_skipped = 0;
 	size_t min;
 
-	state = a->compression_data;
+	state = (struct archive_decompress_none *)a->compression_data;
 	if (state->fatal)
 		return (-1);
 	/*
@@ -341,7 +349,7 @@ archive_decompressor_none_finish(struct archive *a)
 {
 	struct archive_decompress_none	*state;
 
-	state = a->compression_data;
+	state = (struct archive_decompress_none *)a->compression_data;
 	free(state->buffer);
 	free(state);
 	a->compression_data = NULL;

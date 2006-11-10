@@ -27,12 +27,24 @@
 #include "archive_platform.h"
 __FBSDID("$FreeBSD$");
 
+#ifdef HAVE_SYS_STAT_H
 #include <sys/stat.h>
+#endif
+#ifdef HAVE_ERRNO_H
 #include <errno.h>
+#endif
+#ifdef HAVE_FCNTL_H
 #include <fcntl.h>
+#endif
+#ifdef HAVE_STDLIB_H
 #include <stdlib.h>
+#endif
+#ifdef HAVE_STRING_H
 #include <string.h>
+#endif
+#ifdef HAVE_UNISTD_H
 #include <unistd.h>
+#endif
 
 #include "archive.h"
 #include "archive_private.h"
@@ -52,14 +64,14 @@ archive_write_open_file(struct archive *a, const char *filename)
 	struct write_file_data *mine;
 
 	if (filename == NULL || filename[0] == '\0') {
-		mine = malloc(sizeof(*mine));
+		mine = (struct write_file_data *)malloc(sizeof(*mine));
 		if (mine == NULL) {
 			archive_set_error(a, ENOMEM, "No memory");
 			return (ARCHIVE_FATAL);
 		}
 		mine->filename[0] = '\0'; /* Record that we're using stdout. */
 	} else {
-		mine = malloc(sizeof(*mine) + strlen(filename));
+		mine = (struct write_file_data *)malloc(sizeof(*mine) + strlen(filename));
 		if (mine == NULL) {
 			archive_set_error(a, ENOMEM, "No memory");
 			return (ARCHIVE_FATAL);
@@ -79,7 +91,7 @@ file_open(struct archive *a, void *client_data)
 	struct stat st, *pst;
 
 	pst = NULL;
-	mine = client_data;
+	mine = (struct write_file_data *)client_data;
 	flags = O_WRONLY | O_CREAT | O_TRUNC;
 
 	if (mine->filename[0] != '\0') {
@@ -144,7 +156,7 @@ file_write(struct archive *a, void *client_data, void *buff, size_t length)
 	struct write_file_data	*mine;
 	ssize_t	bytesWritten;
 
-	mine = client_data;
+	mine = (struct write_file_data *)client_data;
 	bytesWritten = write(mine->fd, buff, length);
 	if (bytesWritten <= 0) {
 		archive_set_error(a, errno, "Write error");
@@ -156,7 +168,7 @@ file_write(struct archive *a, void *client_data, void *buff, size_t length)
 static int
 file_close(struct archive *a, void *client_data)
 {
-	struct write_file_data	*mine = client_data;
+	struct write_file_data	*mine = (struct write_file_data *)client_data;
 
 	(void)a; /* UNUSED */
 	if (mine->filename[0] != '\0')
