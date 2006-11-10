@@ -43,4 +43,4 @@
 #   Tunnel no
 #   TunnelDevice any:any
 #   PermitLocalCommand no
-#   VersionAddendum FreeBSD-20060930
+#   VersionAddendum FreeBSD-20061110
