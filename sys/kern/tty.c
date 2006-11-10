@@ -314,7 +314,7 @@ tty_open(struct cdev *device, struct tty *tp)
 int
 tty_close(struct tty *tp)
 {
-	int s;
+	int ostate, s;
 
 	funsetown(&tp->t_sigio);
 	s = spltty();
@@ -331,17 +331,16 @@ tty_close(struct tty *tp)
 	tp->t_hotchar = 0;
 	tp->t_pgrp = NULL;
 	tp->t_session = NULL;
+	ostate = tp->t_state;
 	tp->t_state = 0;
 	knlist_clear(&tp->t_rsel.si_note, 0);
 	knlist_clear(&tp->t_wsel.si_note, 0);
 	/*
-	 * Any close with tp->t_refcnt == 1 is wrong and is
-	 * an indication of a locking bug somewhere and that
-	 * our open call has not been finished properly.
-	 * Instead of putting an assert here we skip decrementing
-	 * the refcount to work around any problems.
+	 * Both final close and revocation close might end up calling
+	 * this method.  Only the thread clearing TS_ISOPEN should
+	 * release the reference to the tty.
 	 */
-	if (tp->t_refcnt > 1)
+	if (ISSET(ostate, TS_ISOPEN))
 		ttyrel(tp);
 	splx(s);
 	return (0);
