@@ -150,10 +150,11 @@ POSSIBILITY OF SUCH DAMAGE.
 #define EM_TX_TIMEOUT                   5    /* set to 5 seconds */
 
 /*
- * This parameter controls when the driver calls the routine to reclaim
+ * These parameters controls when the driver calls the routine to reclaim
  * transmit descriptors.
  */
 #define EM_TX_CLEANUP_THRESHOLD		(adapter->num_tx_desc / 8)
+#define EM_TX_OP_THRESHOLD		(adapter->num_tx_desc / 32)
 
 /*
  * This parameter controls whether or not autonegotation is enabled.
@@ -220,7 +221,7 @@ POSSIBILITY OF SUCH DAMAGE.
 #define EM_BAR_MEM_TYPE_32BIT		0x00000000
 #define EM_BAR_MEM_TYPE_64BIT		0x00000004
 /*
- * Backward compatibility hack
+ * Backward compatibility workaround
  */
 #if !defined(PCIR_CIS)
 #define PCIR_CIS	PCIR_CARDBUSCIS
@@ -292,7 +293,7 @@ typedef enum _XSUM_CONTEXT_T {
 	OFFLOAD_UDP_IP
 } XSUM_CONTEXT_T;
 
-struct adapter adapter;		/* XXX: ugly forward declaration */
+struct adapter;
 struct em_int_delay_info {
 	struct adapter *adapter;	/* Back-pointer to the adapter struct */
 	int offset;			/* Register offset to read/write */
@@ -328,10 +329,17 @@ struct adapter {
 	struct ifmedia	media;
 	struct callout	timer;
 	struct callout	tx_fifo_timer;
+	int		watchdog_timer;
 	int		io_rid;
 	int		if_flags;
 	struct mtx	mtx;
 	int		em_insert_vlan_header;
+
+#ifdef EM_FAST_INTR
+	struct task	link_task;
+	struct task	rxtx_task;
+	struct taskqueue *tq;
+#endif
 	/* Info about the board itself */
 	uint32_t	part_num;
 	uint8_t		link_active;
