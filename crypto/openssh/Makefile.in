@@ -1,4 +1,4 @@
-# $Id: Makefile.in,v 1.282 2006/09/12 11:54:10 djm Exp $
+# $Id: Makefile.in,v 1.283 2006/10/23 21:44:47 tim Exp $
 
 # uncomment if you run a non bourne compatable shell. Ie. csh
 #SHELL = @SH@
@@ -11,6 +11,7 @@ bindir=@bindir@
 sbindir=@sbindir@
 libexecdir=@libexecdir@
 datadir=@datadir@
+datarootdir=@datarootdir@
 mandir=@mandir@
 mansubdir=@mansubdir@
 sysconfdir=@sysconfdir@
