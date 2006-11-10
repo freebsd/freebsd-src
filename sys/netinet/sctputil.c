@@ -1020,6 +1020,10 @@ sctp_init_asoc(struct sctp_inpcb *m, struct sctp_association *asoc,
 	} else {
 		asoc->my_vtag = sctp_select_a_tag(m);
 	}
+	/* Get the nonce tags */
+	asoc->my_vtag_nonce = sctp_select_a_tag(m);
+	asoc->peer_vtag_nonce = sctp_select_a_tag(m);
+
 	if (sctp_is_feature_on(m, SCTP_PCB_FLAGS_DONOT_HEARTBEAT))
 		asoc->hb_is_disabled = 1;
 	else
