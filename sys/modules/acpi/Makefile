@@ -1,7 +1,7 @@
 # $FreeBSD$
 
 .if ${MACHINE_ARCH} == "amd64" || ${MACHINE_ARCH} == "ia64"
-.error "ACPI can only be compiled into the kernel on the amd64 and ia64 platforms"
+.error "ACPI must be compiled in (not built as a module) on amd64 and ia64"
 .endif
 
 .if ${MACHINE} != "i386"
