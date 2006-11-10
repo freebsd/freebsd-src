@@ -34,7 +34,7 @@
 .\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 .\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 .\"
-.\" $OpenBSD: ssh.1,v 1.263 2006/07/11 18:50:48 markus Exp $
+.\" $OpenBSD: ssh.1,v 1.265 2006/10/28 18:08:10 otto Exp $
 .\" $FreeBSD$
 .Dd September 25, 1999
 .Dt SSH 1
@@ -1079,12 +1079,22 @@ controls whether the server supports this,
 and at what level (layer 2 or 3 traffic).
 .Pp
 The following example would connect client network 10.0.50.0/24
-with remote network 10.0.99.0/24, provided that the SSH server
-running on the gateway to the remote network,
-at 192.168.1.15, allows it:
+with remote network 10.0.99.0/24 using a point-to-point connection
+from 10.1.1.1 to 10.1.1.2,
+provided that the SSH server running on the gateway to the remote network,
+at 192.168.1.15, allows it.
+.Pp
+On the client:
 .Bd -literal -offset indent
 # ssh -f -w 0:1 192.168.1.15 true
-# ifconfig tun0 10.0.50.1 10.0.99.1 netmask 255.255.255.252
+# ifconfig tun0 10.1.1.1 10.1.1.2 netmask 255.255.255.252
+# route add 10.0.99.0/24 10.1.1.2
+.Ed
+.Pp
+On the server:
+.Bd -literal -offset indent
+# ifconfig tun1 10.1.1.2 10.1.1.1 netmask 255.255.255.252
+# route add 10.0.50.0/24 10.1.1.1
 .Ed
 .Pp
 Client access may be more finely tuned via the
@@ -1107,7 +1117,7 @@ tunnel="1",command="sh /etc/netstart tun1" ssh-rsa ... jane
 tunnel="2",command="sh /etc/netstart tun2" ssh-rsa ... john
 .Ed
 .Pp
-Since a SSH-based setup entails a fair amount of overhead,
+Since an SSH-based setup entails a fair amount of overhead,
 it may be more suited to temporary setups,
 such as for wireless VPNs.
 More permanent VPNs are better provided by tools such as
