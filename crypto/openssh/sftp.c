@@ -1,4 +1,4 @@
-/* $OpenBSD: sftp.c,v 1.92 2006/09/19 05:52:23 otto Exp $ */
+/* $OpenBSD: sftp.c,v 1.93 2006/09/30 17:48:22 ray Exp $ */
 /*
  * Copyright (c) 2001-2004 Damien Miller <djm@openbsd.org>
  *
@@ -977,6 +977,7 @@ parse_args(const char **cpp, int *pflag, int *lflag, int *iflag,
 	case I_CHOWN:
 	case I_CHGRP:
 		/* Get numeric arg (mandatory) */
+		errno = 0;
 		l = strtol(cp, &cp2, base);
 		if (cp2 == cp || ((l == LONG_MIN || l == LONG_MAX) &&
 		    errno == ERANGE) || l < 0) {
