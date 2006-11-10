@@ -270,11 +270,11 @@ relunit	: '-' tUNUMBER tSEC_UNIT {
 	}
 	| tUNUMBER tSEC_UNIT {
 		/* "1 day" */
-		yyRelSeconds += $1;
+		yyRelSeconds += $1 * $2;
 	}
 	| tSEC_UNIT {
 		/* "hour" */
-		yyRelSeconds++;
+		yyRelSeconds += $1;
 	}
 	| '-' tUNUMBER tMONTH_UNIT {
 		/* "-3 months" */
