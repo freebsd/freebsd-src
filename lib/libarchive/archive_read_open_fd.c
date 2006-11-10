@@ -27,11 +27,21 @@
 #include "archive_platform.h"
 __FBSDID("$FreeBSD$");
 
+#ifdef HAVE_SYS_STAT_H
 #include <sys/stat.h>
+#endif
+#ifdef HAVE_ERRNO_H
 #include <errno.h>
+#endif
+#ifdef HAVE_STDLIB_H
 #include <stdlib.h>
+#endif
+#ifdef HAVE_STRING_H
 #include <string.h>
+#endif
+#ifdef HAVE_UNISTD_H
 #include <unistd.h>
+#endif
 
 #include "archive.h"
 #include "archive_private.h"
@@ -52,7 +62,7 @@ archive_read_open_fd(struct archive *a, int fd, size_t block_size)
 {
 	struct read_fd_data *mine;
 
-	mine = malloc(sizeof(*mine));
+	mine = (struct read_fd_data *)malloc(sizeof(*mine));
 	if (mine == NULL) {
 		archive_set_error(a, ENOMEM, "No memory");
 		return (ARCHIVE_FATAL);
@@ -71,7 +81,7 @@ archive_read_open_fd(struct archive *a, int fd, size_t block_size)
 static int
 file_open(struct archive *a, void *client_data)
 {
-	struct read_fd_data *mine = client_data;
+	struct read_fd_data *mine = (struct read_fd_data *)client_data;
 	struct stat st;
 
 	if (fstat(mine->fd, &st) != 0) {
@@ -87,7 +97,7 @@ file_open(struct archive *a, void *client_data)
 static ssize_t
 file_read(struct archive *a, void *client_data, const void **buff)
 {
-	struct read_fd_data *mine = client_data;
+	struct read_fd_data *mine = (struct read_fd_data *)client_data;
 	ssize_t bytes_read;
 
 	*buff = mine->buffer;
@@ -101,9 +111,9 @@ file_read(struct archive *a, void *client_data, const void **buff)
 static ssize_t
 file_skip(struct archive *a, void *client_data, size_t request)
 {
-	struct read_fd_data *mine = client_data;
+	struct read_fd_data *mine = (struct read_fd_data *)client_data;
 	off_t old_offset, new_offset;
-	
+
 	/* Reduce request to the next smallest multiple of block_size */
 	request = (request / mine->block_size) * mine->block_size;
 	/*
@@ -138,7 +148,7 @@ file_skip(struct archive *a, void *client_data, size_t request)
 static int
 file_close(struct archive *a, void *client_data)
 {
-	struct read_fd_data *mine = client_data;
+	struct read_fd_data *mine = (struct read_fd_data *)client_data;
 
 	(void)a; /* UNUSED */
 	if (mine->buffer != NULL)

@@ -27,12 +27,20 @@
 #include "archive_platform.h"
 __FBSDID("$FreeBSD$");
 
+#ifdef HAVE_SYS_STAT_H
 #include <sys/stat.h>
+#endif
+#ifdef HAVE_ERRNO_H
 #include <errno.h>
+#endif
 #include <stdarg.h>
 #include <stdio.h>
+#ifdef HAVE_STDLIB_H
 #include <stdlib.h>
+#endif
+#ifdef HAVE_STRING_H
 #include <string.h>
+#endif
 
 #include "archive.h"
 #include "archive_entry.h"
@@ -71,7 +79,7 @@ shar_printf(struct archive *a, const char *fmt, ...)
 	va_list ap;
 	int ret;
 
-	shar = a->format_data;
+	shar = (struct shar *)a->format_data;
 	va_start(ap, fmt);
 	archive_string_empty(&(shar->work));
 	archive_string_vsprintf(&(shar->work), fmt, ap);
@@ -92,7 +100,7 @@ archive_write_set_format_shar(struct archive *a)
 	if (a->format_finish != NULL)
 		(a->format_finish)(a);
 
-	shar = malloc(sizeof(*shar));
+	shar = (struct shar *)malloc(sizeof(*shar));
 	if (shar == NULL) {
 		archive_set_error(a, ENOMEM, "Can't allocate shar data");
 		return (ARCHIVE_FATAL);
@@ -122,7 +130,7 @@ archive_write_set_format_shar_dump(struct archive *a)
 	struct shar *shar;
 
 	archive_write_set_format_shar(a);
-	shar = a->format_data;
+	shar = (struct shar *)a->format_data;
 	shar->dump = 1;
 	a->format_write_data = archive_write_shar_data_uuencode;
 	a->archive_format = ARCHIVE_FORMAT_SHAR_DUMP;
@@ -140,7 +148,7 @@ archive_write_shar_header(struct archive *a, struct archive_entry *entry)
 	const struct stat *st;
 	int ret;
 
-	shar = a->format_data;
+	shar = (struct shar *)a->format_data;
 	if (!shar->wrote_header) {
 		ret = shar_printf(a, "#!/bin/sh\n");
 		if (ret != ARCHIVE_OK)
@@ -322,11 +330,11 @@ archive_write_shar_data_sed(struct archive *a, const void *buff, size_t n)
 	const char *src;
 	int ret;
 
-	shar = a->format_data;
+	shar = (struct shar *)a->format_data;
 	if (!shar->has_data)
 		return (0);
 
-	src = buff;
+	src = (const char *)buff;
 	ret = ARCHIVE_OK;
 	shar->outpos = 0;
 	while (n-- > 0) {
@@ -385,10 +393,10 @@ archive_write_shar_data_uuencode(struct archive *a, const void *buff,
 	size_t n;
 	int ret;
 
-	shar = a->format_data;
+	shar = (struct shar *)a->format_data;
 	if (!shar->has_data)
 		return (ARCHIVE_OK);
-	src = buff;
+	src = (const char *)buff;
 	n = length;
 	while (n-- > 0) {
 		if (shar->uuavail == 3)
@@ -415,7 +423,7 @@ archive_write_shar_finish_entry(struct archive *a)
 	struct shar *shar;
 	int ret;
 
-	shar = a->format_data;
+	shar = (struct shar *)a->format_data;
 	if (shar->entry == NULL)
 		return (0);
 
@@ -504,7 +512,7 @@ archive_write_shar_finish(struct archive *a)
 	 * fix them all up at end-of-archive.
 	 */
 
-	shar = a->format_data;
+	shar = (struct shar *)a->format_data;
 
 	/*
 	 * Only write the end-of-archive markers if the archive was

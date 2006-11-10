@@ -27,15 +27,25 @@
 #include "archive_platform.h"
 __FBSDID("$FreeBSD$");
 
+#ifdef HAVE_SYS_STAT_H
 #include <sys/stat.h>
+#endif
 
+#ifdef HAVE_ERRNO_H
 #include <errno.h>
+#endif
 /* #include <stdint.h> */ /* See archive_platform.h */
 #include <stdio.h>
+#ifdef HAVE_STDLIB_H
 #include <stdlib.h>
+#endif
+#ifdef HAVE_STRING_H
 #include <string.h>
+#endif
 #include <time.h>
+#ifdef HAVE_UNISTD_H
 #include <unistd.h>
+#endif
 
 #include "archive.h"
 #include "archive_entry.h"
@@ -202,7 +212,7 @@ archive_read_support_format_iso9660(struct archive *a)
 	struct iso9660 *iso9660;
 	int r;
 
-	iso9660 = malloc(sizeof(*iso9660));
+	iso9660 = (struct iso9660 *)malloc(sizeof(*iso9660));
 	if (iso9660 == NULL) {
 		archive_set_error(a, ENOMEM, "Can't allocate iso9660 data");
 		return (ARCHIVE_FATAL);
@@ -235,7 +245,7 @@ archive_read_format_iso9660_bid(struct archive *a)
 	const void *h;
 	const char *p;
 
-	iso9660 = *(a->pformat_data);
+	iso9660 = (struct iso9660 *)*(a->pformat_data);
 
 	if (iso9660->bid >= 0)
 		return (iso9660->bid);
@@ -300,7 +310,7 @@ archive_read_format_iso9660_read_header(struct archive *a,
 	ssize_t bytes_read;
 	int r;
 
-	iso9660 = *(a->pformat_data);
+	iso9660 = (struct iso9660 *)*(a->pformat_data);
 
 	if (!a->archive_format) {
 		a->archive_format = ARCHIVE_FORMAT_ISO9660;
@@ -382,7 +392,7 @@ archive_read_format_iso9660_read_header(struct archive *a,
 			(a->compression_read_consume)(a, bytes_read);
 			iso9660->current_position += bytes_read;
 			iso9660->entry_bytes_remaining -= bytes_read;
-			for (p = block;
+			for (p = (const unsigned char *)block;
 			     *p != 0 && p < (const unsigned char *)block + bytes_read;
 			     p += *p) {
 				const struct iso9660_directory_record *dr
@@ -420,7 +430,7 @@ archive_read_format_iso9660_read_data(struct archive *a,
 	ssize_t bytes_read;
 	struct iso9660 *iso9660;
 
-	iso9660 = *(a->pformat_data);
+	iso9660 = (struct iso9660 *)*(a->pformat_data);
 	if (iso9660->entry_bytes_remaining <= 0) {
 		*buff = NULL;
 		*size = 0;
@@ -451,7 +461,7 @@ archive_read_format_iso9660_cleanup(struct archive *a)
 	struct iso9660 *iso9660;
 	struct file_info *file;
 
-	iso9660 = *(a->pformat_data);
+	iso9660 = (struct iso9660 *)*(a->pformat_data);
 	while ((file = next_entry(iso9660)) != NULL)
 		release_file(iso9660, file);
 	archive_string_free(&iso9660->pathname);
@@ -474,7 +484,7 @@ parse_file_info(struct iso9660 *iso9660, struct file_info *parent,
 	/* TODO: Sanity check that name_len doesn't exceed length, etc. */
 
 	/* Create a new file entry and copy data from the ISO dir record. */
-	file = malloc(sizeof(*file));
+	file = (struct file_info *)malloc(sizeof(*file));
 	if (file == NULL)
 		return (NULL);
 	memset(file, 0, sizeof(*file));
@@ -486,7 +496,7 @@ parse_file_info(struct iso9660 *iso9660, struct file_info *parent,
 	file->size = toi(isodirrec->size, 4);
 	file->mtime = isodate7(isodirrec->date);
 	file->ctime = file->atime = file->mtime;
-	file->name = malloc(isodirrec->name_len[0] + 1);
+	file->name = (char *)malloc(isodirrec->name_len[0] + 1);
 	if (file->name == NULL) {
 		free(file);
 		return (NULL);
@@ -547,7 +557,7 @@ add_entry(struct iso9660 *iso9660, struct file_info *file)
 
 		if (new_size < 1024)
 			new_size = 1024;
-		new_pending_files = malloc(new_size * sizeof(new_pending_files[0]));
+		new_pending_files = (struct file_info **)malloc(new_size * sizeof(new_pending_files[0]));
 		if (new_pending_files == NULL)
 			__archive_errx(1, "Out of memory");
 		memcpy(new_pending_files, iso9660->pending_files,
@@ -610,7 +620,7 @@ parse_rockridge(struct iso9660 *iso9660, struct file_info *file,
 
 				data++;  /* Skip flag byte. */
 				data_length--;
-				file->name = malloc(data_length + 1);
+				file->name = (char *)malloc(data_length + 1);
 				if (file->name != NULL) {
 					free(old_name);
 					memcpy(file->name, data, data_length);

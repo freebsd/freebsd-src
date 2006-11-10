@@ -67,10 +67,18 @@
 #include "archive_platform.h"
 __FBSDID("$FreeBSD$");
 
+#ifdef HAVE_ERRNO_H
 #include <errno.h>
+#endif
+#ifdef HAVE_STDLIB_H
 #include <stdlib.h>
+#endif
+#ifdef HAVE_STRING_H
 #include <string.h>
+#endif
+#ifdef HAVE_UNISTD_H
 #include <unistd.h>
+#endif
 
 #include "archive.h"
 #include "archive_private.h"
@@ -155,7 +163,7 @@ bid(const void *buff, size_t len)
 	if (len < 1)
 		return (0);
 
-	buffer = buff;
+	buffer = (const unsigned char *)buff;
 	bits_checked = 0;
 	if (buffer[0] != 037)	/* Verify first ID byte. */
 		return (0);
@@ -193,7 +201,7 @@ init(struct archive *a, const void *buff, size_t n)
 	a->compression_skip = NULL; /* not supported */
 	a->compression_finish = finish;
 
-	state = malloc(sizeof(*state));
+	state = (struct private_data *)malloc(sizeof(*state));
 	if (state == NULL) {
 		archive_set_error(a, ENOMEM,
 		    "Can't allocate data for %s decompression",
@@ -213,9 +221,9 @@ init(struct archive *a, const void *buff, size_t n)
 		goto fatal;
 	}
 
-	state->next_in = buff;
+	state->next_in = (const unsigned char *)buff;
 	state->avail_in = n;
-	state->read_next = state->next_out = state->uncompressed_buffer;
+	state->read_next = state->next_out = (unsigned char *)state->uncompressed_buffer;
 	state->avail_out = state->uncompressed_buffer_size;
 
 	code = getbits(a, state, 8);
@@ -268,7 +276,7 @@ read_ahead(struct archive *a, const void **p, size_t min)
 	struct private_data *state;
 	int read_avail, was_avail, ret;
 
-	state = a->compression_data;
+	state = (struct private_data *)a->compression_data;
 	was_avail = -1;
 	if (!a->client_reader) {
 		archive_set_error(a, ARCHIVE_ERRNO_PROGRAMMER,
@@ -289,7 +297,7 @@ read_ahead(struct archive *a, const void **p, size_t min)
 	if (read_avail < (int)min) {
 		memmove(state->uncompressed_buffer, state->read_next,
 		    read_avail);
-		state->read_next = state->uncompressed_buffer;
+		state->read_next = (unsigned char *)state->uncompressed_buffer;
 		state->next_out = state->read_next + read_avail;
 		state->avail_out
 		    = state->uncompressed_buffer_size - read_avail;
@@ -322,7 +330,7 @@ read_consume(struct archive *a, size_t n)
 {
 	struct private_data *state;
 
-	state = a->compression_data;
+	state = (struct private_data *)a->compression_data;
 	a->file_position += n;
 	state->read_next += n;
 	if (state->read_next > state->next_out)
@@ -340,7 +348,7 @@ finish(struct archive *a)
 	struct private_data *state;
 	int ret = ARCHIVE_OK;
 
-	state = a->compression_data;
+	state = (struct private_data *)a->compression_data;
 
 	if (state != NULL) {
 		if (state->uncompressed_buffer != NULL)

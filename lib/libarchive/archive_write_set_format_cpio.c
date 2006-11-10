@@ -27,11 +27,19 @@
 #include "archive_platform.h"
 __FBSDID("$FreeBSD$");
 
+#ifdef HAVE_SYS_STAT_H
 #include <sys/stat.h>
+#endif
+#ifdef HAVE_ERRNO_H
 #include <errno.h>
+#endif
 #include <stdio.h>
+#ifdef HAVE_STDLIB_H
 #include <stdlib.h>
+#endif
+#ifdef HAVE_STRING_H
 #include <string.h>
+#endif
 
 #include "archive.h"
 #include "archive_entry.h"
@@ -76,7 +84,7 @@ archive_write_set_format_cpio(struct archive *a)
 	if (a->format_finish != NULL)
 		(a->format_finish)(a);
 
-	cpio = malloc(sizeof(*cpio));
+	cpio = (struct cpio *)malloc(sizeof(*cpio));
 	if (cpio == NULL) {
 		archive_set_error(a, ENOMEM, "Can't allocate cpio data");
 		return (ARCHIVE_FATAL);
@@ -103,7 +111,7 @@ archive_write_cpio_header(struct archive *a, struct archive_entry *entry)
 	const struct stat	*st;
 	struct cpio_header	 h;
 
-	cpio = a->format_data;
+	cpio = (struct cpio *)a->format_data;
 	ret = 0;
 
 	path = archive_entry_pathname(entry);
@@ -165,7 +173,7 @@ archive_write_cpio_data(struct archive *a, const void *buff, size_t s)
 	struct cpio *cpio;
 	int ret;
 
-	cpio = a->format_data;
+	cpio = (struct cpio *)a->format_data;
 	if (s > cpio->entry_bytes_remaining)
 		s = cpio->entry_bytes_remaining;
 
@@ -185,10 +193,10 @@ format_octal(int64_t v, void *p, int digits)
 
 	max = (((int64_t)1) << (digits * 3)) - 1;
 	if (v >= 0  &&  v <= max) {
-	    format_octal_recursive(v, p, digits);
+	    format_octal_recursive(v, (char *)p, digits);
 	    ret = 0;
 	} else {
-	    format_octal_recursive(max, p, digits);
+	    format_octal_recursive(max, (char *)p, digits);
 	    ret = -1;
 	}
 	return (ret);
@@ -212,7 +220,7 @@ archive_write_cpio_finish(struct archive *a)
 	int er;
 	struct archive_entry *trailer;
 
-	cpio = a->format_data;
+	cpio = (struct cpio *)a->format_data;
 	trailer = archive_entry_new();
 	memset(&st, 0, sizeof(st));
 	st.st_nlink = 1;
@@ -232,7 +240,7 @@ archive_write_cpio_finish_entry(struct archive *a)
 	struct cpio *cpio;
 	int to_write, ret;
 
-	cpio = a->format_data;
+	cpio = (struct cpio *)a->format_data;
 	ret = ARCHIVE_OK;
 	while (cpio->entry_bytes_remaining > 0) {
 		to_write = cpio->entry_bytes_remaining < a->null_length ?

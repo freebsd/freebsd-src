@@ -27,12 +27,24 @@
 #include "archive_platform.h"
 __FBSDID("$FreeBSD$");
 
+#ifdef HAVE_SYS_STAT_H
 #include <sys/stat.h>
+#endif
+#ifdef HAVE_ERRNO_H
 #include <errno.h>
+#endif
+#ifdef HAVE_FCNTL_H
 #include <fcntl.h>
+#endif
+#ifdef HAVE_STDLIB_H
 #include <stdlib.h>
+#endif
+#ifdef HAVE_STRING_H
 #include <string.h>
+#endif
+#ifdef HAVE_UNISTD_H
 #include <unistd.h>
+#endif
 
 #include "archive.h"
 #include "archive_private.h"
@@ -57,14 +69,14 @@ archive_read_open_file(struct archive *a, const char *filename,
 	struct read_file_data *mine;
 
 	if (filename == NULL || filename[0] == '\0') {
-		mine = malloc(sizeof(*mine));
+		mine = (struct read_file_data *)malloc(sizeof(*mine));
 		if (mine == NULL) {
 			archive_set_error(a, ENOMEM, "No memory");
 			return (ARCHIVE_FATAL);
 		}
 		mine->filename[0] = '\0';
 	} else {
-		mine = malloc(sizeof(*mine) + strlen(filename));
+		mine = (struct read_file_data *)malloc(sizeof(*mine) + strlen(filename));
 		if (mine == NULL) {
 			archive_set_error(a, ENOMEM, "No memory");
 			return (ARCHIVE_FATAL);
@@ -80,7 +92,7 @@ archive_read_open_file(struct archive *a, const char *filename,
 static int
 file_open(struct archive *a, void *client_data)
 {
-	struct read_file_data *mine = client_data;
+	struct read_file_data *mine = (struct read_file_data *)client_data;
 	struct stat st;
 
 	mine->buffer = malloc(mine->block_size);
@@ -117,7 +129,7 @@ file_open(struct archive *a, void *client_data)
 static ssize_t
 file_read(struct archive *a, void *client_data, const void **buff)
 {
-	struct read_file_data *mine = client_data;
+	struct read_file_data *mine = (struct read_file_data *)client_data;
 	ssize_t bytes_read;
 
 	*buff = mine->buffer;
@@ -135,7 +147,7 @@ file_read(struct archive *a, void *client_data, const void **buff)
 static ssize_t
 file_skip(struct archive *a, void *client_data, size_t request)
 {
-	struct read_file_data *mine = client_data;
+	struct read_file_data *mine = (struct read_file_data *)client_data;
 	off_t old_offset, new_offset;
 
 	/* Reduce request to the next smallest multiple of block_size */
@@ -180,7 +192,7 @@ file_skip(struct archive *a, void *client_data, size_t request)
 static int
 file_close(struct archive *a, void *client_data)
 {
-	struct read_file_data *mine = client_data;
+	struct read_file_data *mine = (struct read_file_data *)client_data;
 
 	(void)a; /* UNUSED */
 

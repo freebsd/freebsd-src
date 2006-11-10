@@ -27,16 +27,26 @@
 #include "archive_platform.h"
 __FBSDID("$FreeBSD$");
 
+#ifdef HAVE_SYS_STAT_H
 #include <sys/stat.h>
+#endif
 #ifdef MAJOR_IN_MKDEV
 #include <sys/mkdev.h>
 #endif
 
+#ifdef HAVE_ERRNO_H
 #include <errno.h>
+#endif
 /* #include <stdint.h> */ /* See archive_platform.h */
+#ifdef HAVE_STDLIB_H
 #include <stdlib.h>
+#endif
+#ifdef HAVE_STRING_H
 #include <string.h>
+#endif
+#ifdef HAVE_UNISTD_H
 #include <unistd.h>
+#endif
 
 #include "archive.h"
 #include "archive_entry.h"
@@ -136,7 +146,7 @@ archive_read_support_format_cpio(struct archive *a)
 	struct cpio *cpio;
 	int r;
 
-	cpio = malloc(sizeof(*cpio));
+	cpio = (struct cpio *)malloc(sizeof(*cpio));
 	if (cpio == NULL) {
 		archive_set_error(a, ENOMEM, "Can't allocate cpio data");
 		return (ARCHIVE_FATAL);
@@ -166,7 +176,7 @@ archive_read_format_cpio_bid(struct archive *a)
 	const unsigned char *p;
 	struct cpio *cpio;
 
-	cpio = *(a->pformat_data);
+	cpio = (struct cpio *)*(a->pformat_data);
 	bid = 0;
 	bytes_read = (a->compression_read_ahead)(a, &h, 6);
 	/* Convert error code into error return. */
@@ -175,7 +185,7 @@ archive_read_format_cpio_bid(struct archive *a)
 	if (bytes_read < 6)
 		return (-1);
 
-	p = h;
+	p = (const unsigned char *)h;
 	if (memcmp(p, "070707", 6) == 0) {
 		/* ASCII cpio archive (odc, POSIX.1) */
 		cpio->read_header = header_odc;
@@ -231,7 +241,7 @@ archive_read_format_cpio_read_header(struct archive *a,
 
 	memset(&st, 0, sizeof(st));
 
-	cpio = *(a->pformat_data);
+	cpio = (struct cpio *)*(a->pformat_data);
 	r = (cpio->read_header(a, cpio, &st, &namelength, &name_pad));
 
 	if (r != ARCHIVE_OK)
@@ -245,7 +255,7 @@ archive_read_format_cpio_read_header(struct archive *a,
 	if (bytes < namelength + name_pad)
 	    return (ARCHIVE_FATAL);
 	(a->compression_read_consume)(a, namelength + name_pad);
-	archive_strncpy(&cpio->entry_name, h, namelength);
+	archive_strncpy(&cpio->entry_name, (const char *)h, namelength);
 	archive_entry_set_pathname(entry, cpio->entry_name.s);
 	cpio->entry_offset = 0;
 
@@ -256,14 +266,14 @@ archive_read_format_cpio_read_header(struct archive *a,
 		if ((off_t)bytes < cpio->entry_bytes_remaining)
 			return (ARCHIVE_FATAL);
 		(a->compression_read_consume)(a, cpio->entry_bytes_remaining);
-		archive_strncpy(&cpio->entry_linkname, h,
+		archive_strncpy(&cpio->entry_linkname, (const char *)h,
 		    cpio->entry_bytes_remaining);
 		archive_entry_set_symlink(entry, cpio->entry_linkname.s);
 		cpio->entry_bytes_remaining = 0;
 	}
 
 	/* Compare name to "TRAILER!!!" to test for end-of-archive. */
-	if (namelength == 11 && strcmp(h, "TRAILER!!!") == 0) {
+	if (namelength == 11 && strcmp((const char *)h, "TRAILER!!!") == 0) {
 	    /* TODO: Store file location of start of block. */
 	    archive_set_error(a, 0, NULL);
 	    return (ARCHIVE_EOF);
@@ -282,7 +292,7 @@ archive_read_format_cpio_read_data(struct archive *a,
 	ssize_t bytes_read;
 	struct cpio *cpio;
 
-	cpio = *(a->pformat_data);
+	cpio = (struct cpio *)*(a->pformat_data);
 	if (cpio->entry_bytes_remaining > 0) {
 		bytes_read = (a->compression_read_ahead)(a, buff, 1);
 		if (bytes_read <= 0)
@@ -327,7 +337,7 @@ header_newc(struct archive *a, struct cpio *cpio, struct stat *st,
 	(a->compression_read_consume)(a, sizeof(struct cpio_newc_header));
 
 	/* Parse out hex fields into struct stat. */
-	header = h;
+	header = (const struct cpio_newc_header *)h;
 
 	if (memcmp(header->c_magic, "070701", 6) == 0) {
 		a->archive_format = ARCHIVE_FORMAT_CPIO_SVR4_NOCRC;
@@ -387,7 +397,7 @@ header_odc(struct archive *a, struct cpio *cpio, struct stat *st,
 	(a->compression_read_consume)(a, sizeof(struct cpio_odc_header));
 
 	/* Parse out octal fields into struct stat. */
-	header = h;
+	header = (const struct cpio_odc_header *)h;
 
 	st->st_dev = atol8(header->c_dev, sizeof(header->c_dev));
 	st->st_ino = atol8(header->c_ino, sizeof(header->c_ino));
@@ -431,7 +441,7 @@ header_bin_le(struct archive *a, struct cpio *cpio, struct stat *st,
 	(a->compression_read_consume)(a, sizeof(struct cpio_bin_header));
 
 	/* Parse out binary fields into struct stat. */
-	header = h;
+	header = (const struct cpio_bin_header *)h;
 
 	st->st_dev = header->c_dev[0] + header->c_dev[1] * 256;
 	st->st_ino = header->c_ino[0] + header->c_ino[1] * 256;
@@ -469,7 +479,7 @@ header_bin_be(struct archive *a, struct cpio *cpio, struct stat *st,
 	(a->compression_read_consume)(a, sizeof(struct cpio_bin_header));
 
 	/* Parse out binary fields into struct stat. */
-	header = h;
+	header = (const struct cpio_bin_header *)h;
 	st->st_dev = header->c_dev[0] * 256 + header->c_dev[1];
 	st->st_ino = header->c_ino[0] * 256 + header->c_ino[1];
 	st->st_mode = header->c_mode[0] * 256 + header->c_mode[1];
@@ -492,7 +502,7 @@ archive_read_format_cpio_cleanup(struct archive *a)
 {
 	struct cpio *cpio;
 
-	cpio = *(a->pformat_data);
+	cpio = (struct cpio *)*(a->pformat_data);
         /* Free inode->name map */
         while (cpio->links_head != NULL) {
                 struct links_entry *lp = cpio->links_head->next;
@@ -596,7 +606,7 @@ record_hardlink(struct cpio *cpio, struct archive_entry *entry,
                 }
         }
 
-        le = malloc(sizeof(struct links_entry));
+        le = (struct links_entry *)malloc(sizeof(struct links_entry));
 	if (le == NULL)
 		__archive_errx(1, "Out of memory adding file to list");
         if (cpio->links_head != NULL)
