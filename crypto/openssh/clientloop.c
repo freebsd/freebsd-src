@@ -1,4 +1,4 @@
-/* $OpenBSD: clientloop.c,v 1.175 2006/08/03 03:34:42 deraadt Exp $ */
+/* $OpenBSD: clientloop.c,v 1.176 2006/10/11 12:38:03 markus Exp $ */
 /*
  * Author: Tatu Ylonen <ylo@cs.hut.fi>
  * Copyright (c) 1995 Tatu Ylonen <ylo@cs.hut.fi>, Espoo, Finland
@@ -464,8 +464,10 @@ client_global_request_reply(int type, u_int32_t seq, void *ctxt)
 static void
 server_alive_check(void)
 {
-	if (++server_alive_timeouts > options.server_alive_count_max)
-		packet_disconnect("Timeout, server not responding.");
+	if (++server_alive_timeouts > options.server_alive_count_max) {
+		logit("Timeout, server not responding.");
+		cleanup_exit(255);
+	}
 	packet_start(SSH2_MSG_GLOBAL_REQUEST);
 	packet_put_cstring("keepalive@openssh.com");
 	packet_put_char(1);     /* boolean: want reply */

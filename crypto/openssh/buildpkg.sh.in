@@ -24,6 +24,7 @@ PKGNAME=OpenSSH
 # revisions within the same version (REV=a)
 #REV=
 SYSVINIT_NAME=opensshd
+AWK=${AWK:="nawk"}
 MAKE=${MAKE:="make"}
 SSHDUID=67	# Default privsep uid
 SSHDGID=67	# Default privsep gid
@@ -154,15 +155,22 @@ ARCH=`uname -m`
 DEF_MSG="\n"
 OS_VER=`uname -v`
 SCRIPT_SHELL=/sbin/sh
+UNAME_R=`uname -r`
 UNAME_S=`uname -s`
 case ${UNAME_S} in
 	SunOS)	UNAME_S=Solaris
+		OS_VER=${UNAME_R}
 		ARCH=`uname -p`
 		RCS_D=yes
 		DEF_MSG="(default: n)"
 		;;
-	SCO_SV)	UNAME_S=OpenServer
+	SCO_SV)	case ${UNAME_R} in
+			3.2)	UNAME_S=OpenServer5
 		OS_VER=`uname -X | grep Release | sed -e 's/^Rel.*3.2v//'`
+				;;
+			5)	UNAME_S=OpenServer6
+				;;
+		esac
 		SCRIPT_SHELL=/bin/sh
 		RC1_D=no
 		DEF_MSG="(default: n)"
@@ -481,7 +489,7 @@ _EOF
 [ -x /usr/bin/ckyorn ]  ||  cat >> request << _EOF
 
 ckyorn() {
-# for some strange reason OpenServer has no ckyorn
+# for some strange reason OpenServer5 has no ckyorn
 # We build a striped down version here
 
 DEFAULT=n
@@ -638,7 +646,7 @@ cat >mk-proto.awk << _EOF
 _EOF
 
 find . | egrep -v "prototype|pkginfo|mk-proto.awk" | sort | \
-	pkgproto $PROTO_ARGS | nawk -f mk-proto.awk > prototype
+	pkgproto $PROTO_ARGS | ${AWK} -f mk-proto.awk > prototype
 
 # /usr/local is a symlink on some systems
 [ "${USR_LOCAL_IS_SYMLINK}" = yes ]  &&  {

@@ -1,4 +1,4 @@
-/* $OpenBSD: bufbn.c,v 1.3 2006/08/03 03:34:41 deraadt Exp $*/
+/* $OpenBSD: bufbn.c,v 1.4 2006/11/06 21:25:28 markus Exp $*/
 /*
  * Author: Tatu Ylonen <ylo@cs.hut.fi>
  * Copyright (c) 1995 Tatu Ylonen <ylo@cs.hut.fi>, Espoo, Finland
@@ -118,7 +118,10 @@ buffer_get_bignum_ret(Buffer *buffer, BIGNUM *value)
 		return (-1);
 	}
 	bin = buffer_ptr(buffer);
-	BN_bin2bn(bin, bytes, value);
+	if (BN_bin2bn(bin, bytes, value) == NULL) {
+		error("buffer_get_bignum_ret: BN_bin2bn failed");
+		return (-1);
+	}
 	if (buffer_consume_ret(buffer, bytes) == -1) {
 		error("buffer_get_bignum_ret: buffer_consume failed");
 		return (-1);
@@ -202,7 +205,10 @@ buffer_get_bignum2_ret(Buffer *buffer, BIGNUM *value)
 		xfree(bin);
 		return (-1);
 	}
-	BN_bin2bn(bin, len, value);
+	if (BN_bin2bn(bin, len, value) == NULL) {
+		error("buffer_get_bignum2_ret: BN_bin2bn failed");
+		return (-1);
+	}
 	xfree(bin);
 	return (0);
 }
