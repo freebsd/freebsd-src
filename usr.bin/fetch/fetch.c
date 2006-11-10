@@ -569,6 +569,8 @@ fetch(char *URL, const char *path)
 			if (tmppath != NULL) {
 				mkstemps(tmppath, strlen(slash) + 1);
 				of = fopen(tmppath, "w");
+				chown(tmppath, sb.st_uid, sb.st_gid);
+				chmod(tmppath, sb.st_mode & ALLPERMS);
 			}
 		}
 		if (of == NULL)
