@@ -41,8 +41,14 @@
 #include "../config.h"
 #else
 
-/* A default configuration for FreeBSD, used if there is no config.h. */
+/*
+ * If there's no 'config.h' file, check if we have a hand-coded config
+ * for this platform.  This handles systems where the library is built
+ * without running the configure script, such as FreeBSD (where
+ * libarchive is part of the base system).
+ */
 #ifdef __FreeBSD__
+/* Begin of hand-coded __FreeBSD__ configuration. */
 #if __FreeBSD__ > 4
 #define	HAVE_ACL_CREATE_ENTRY 1
 #define	HAVE_ACL_INIT 1
@@ -62,7 +68,9 @@
 #define	HAVE_FCHMOD 1
 #define	HAVE_FCHOWN 1
 #define	HAVE_FCNTL_H 1
+#define	HAVE_FSEEKO 1
 #define	HAVE_FUTIMES 1
+#define	HAVE_GRP_H 1
 #define	HAVE_INTTYPES_H 1
 #define	HAVE_LCHFLAGS 1
 #define	HAVE_LCHMOD 1
@@ -71,11 +79,10 @@
 #define	HAVE_LUTIMES 1
 #define	HAVE_MALLOC 1
 #define	HAVE_MEMMOVE 1
-#define	HAVE_MEMORY_H 1
 #define	HAVE_MEMSET 1
 #define	HAVE_MKDIR 1
 #define	HAVE_MKFIFO 1
-#define	HAVE_PATHS_H 1
+#define	HAVE_PWD_H 1
 #define	HAVE_STDINT_H 1
 #define	HAVE_STDLIB_H 1
 #define	HAVE_STRCHR 1
@@ -99,6 +106,7 @@
 #define	HAVE_ZLIB_H 1
 #define	STDC_HEADERS 1
 #define	TIME_WITH_SYS_TIME 1
+/* End of __FreeBSD__ definitions. */
 #else /* !__FreeBSD__ */
 /* Warn if the library hasn't been (automatically or manually) configured. */
 #error Oops: No config.h and no built-in configuration in archive_platform.h.
@@ -115,6 +123,8 @@
 
 #if HAVE_INTTYPES_H
 #include <inttypes.h>
+#elif HAVE_STDINT_H
+#include <stdint.h>
 #endif
 
 /* FreeBSD 4 and earlier lack intmax_t/uintmax_t */
@@ -184,9 +194,9 @@
 #define	ARCHIVE_STAT_ATIME_NANOS(pstat)	0
 #define	ARCHIVE_STAT_CTIME_NANOS(pstat)	0
 #define	ARCHIVE_STAT_MTIME_NANOS(pstat)	0
-#define	ARCHIVE_STAT_SET_ATIME_NANOS(st, n)
-#define	ARCHIVE_STAT_SET_CTIME_NANOS(st, n)
-#define	ARCHIVE_STAT_SET_MTIME_NANOS(st, n)
+#define	ARCHIVE_STAT_SET_ATIME_NANOS(st, n) ((void)(n))
+#define	ARCHIVE_STAT_SET_CTIME_NANOS(st, n) ((void)(n))
+#define	ARCHIVE_STAT_SET_MTIME_NANOS(st, n) ((void)(n))
 #endif
 #endif
 

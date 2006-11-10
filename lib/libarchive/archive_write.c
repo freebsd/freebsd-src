@@ -35,13 +35,23 @@ __FBSDID("$FreeBSD$");
  * needlessly bloating statically-linked clients.
  */
 
+#ifdef HAVE_SYS_WAIT_H
 #include <sys/wait.h>
+#endif
+#ifdef HAVE_LIMITS_H
 #include <limits.h>
+#endif
 #include <stdio.h>
+#ifdef HAVE_STDLIB_H
 #include <stdlib.h>
+#endif
+#ifdef HAVE_STRING_H
 #include <string.h>
+#endif
 #include <time.h>
+#ifdef HAVE_UNISTD_H
 #include <unistd.h>
+#endif
 
 #include "archive.h"
 #include "archive_entry.h"
@@ -56,7 +66,7 @@ archive_write_new(void)
 	struct archive *a;
 	unsigned char *nulls;
 
-	a = malloc(sizeof(*a));
+	a = (struct archive *)malloc(sizeof(*a));
 	if (a == NULL)
 		return (NULL);
 	memset(a, 0, sizeof(*a));
@@ -69,7 +79,7 @@ archive_write_new(void)
 
 	/* Initialize a block of nulls for padding purposes. */
 	a->null_length = 1024;
-	nulls = malloc(a->null_length);
+	nulls = (unsigned char *)malloc(a->null_length);
 	if (nulls == NULL) {
 		free(a);
 		return (NULL);
