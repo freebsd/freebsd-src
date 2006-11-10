@@ -27,7 +27,9 @@
 #include "archive_platform.h"
 __FBSDID("$FreeBSD$");
 
+#ifdef HAVE_SYS_STAT_H
 #include <sys/stat.h>
+#endif
 #ifdef MAJOR_IN_MKDEV
 #include <sys/mkdev.h>
 #else
@@ -35,10 +37,16 @@ __FBSDID("$FreeBSD$");
 #include <sys/sysmacros.h>
 #endif
 #endif
+#ifdef HAVE_ERRNO_H
 #include <errno.h>
+#endif
 #include <stdio.h>
+#ifdef HAVE_STDLIB_H
 #include <stdlib.h>
+#endif
+#ifdef HAVE_STRING_H
 #include <string.h>
+#endif
 
 #include "archive.h"
 #include "archive_entry.h"
@@ -85,20 +93,22 @@ struct archive_entry_header_ustar {
  */
 static const struct archive_entry_header_ustar template_header = {
 	{ "" },				/* name */
-	{ "000000" }, { ' ', '\0' },	/* mode, space-null termination. */
-	{ "000000" }, { ' ', '\0' },	/* uid, space-null termination. */
-	{ "000000" }, { ' ', '\0' },	/* gid, space-null termination. */
-	{ "00000000000" }, { ' ' },	/* size, space termination. */
-	{ "00000000000" }, { ' ' },	/* mtime, space termination. */
-	{ "        " },			/* Initial checksum value. */
+	{ '0','0','0','0','0','0' }, { ' ', '\0' }, /* mode, space-null term.*/
+	{ '0','0','0','0','0','0' }, { ' ', '\0' }, /* uid, space-null term. */
+	{ '0','0','0','0','0','0' }, { ' ', '\0' }, /* gid, space-null term. */
+	{ '0','0','0','0','0','0','0','0','0','0','0' }, { ' ' },
+					/* size, space termination. */
+	{ '0','0','0','0','0','0','0','0','0','0','0' }, { ' ' },
+					/* mtime, space termination. */
+	{ ' ',' ',' ',' ',' ',' ',' ',' ' },	/* Initial checksum value. */
 	{ '0' },			/* default: regular file */
 	{ "" },				/* linkname */
-	{ "ustar" },			/* magic */
+	{ 'u','s','t','a','r' },	/* magic */
 	{ '0', '0' },			/* version */
 	{ "" },				/* uname */
 	{ "" },				/* gname */
-	{ "000000" }, { ' ', '\0' },	/* rdevmajor, space-null termination */
-	{ "000000" }, { ' ', '\0' },	/* rdevminor, space-null termination */
+	{ '0','0','0','0','0','0' }, { ' ', '\0' }, /* rdevmajor, space-null */
+	{ '0','0','0','0','0','0' }, { ' ', '\0' }, /* rdevminor, space-null */
 	{ "" },				/* prefix */
 	{ "" }				/* padding */
 };
@@ -126,7 +136,7 @@ archive_write_set_format_ustar(struct archive *a)
 	if (a->format_finish != NULL)
 		(a->format_finish)(a);
 
-	ustar = malloc(sizeof(*ustar));
+	ustar = (struct ustar *)malloc(sizeof(*ustar));
 	if (ustar == NULL) {
 		archive_set_error(a, ENOMEM, "Can't allocate ustar data");
 		return (ARCHIVE_FATAL);
@@ -151,7 +161,7 @@ archive_write_ustar_header(struct archive *a, struct archive_entry *entry)
 	int ret;
 	struct ustar *ustar;
 
-	ustar = a->format_data;
+	ustar = (struct ustar *)a->format_data;
 	ustar->written = 1;
 
 	/* Only regular files (not hardlinks) have data. */
@@ -442,7 +452,7 @@ archive_write_ustar_finish(struct archive *a)
 	int r;
 
 	r = ARCHIVE_OK;
-	ustar = a->format_data;
+	ustar = (struct ustar *)a->format_data;
 	/*
 	 * Suppress end-of-archive if nothing else was ever written.
 	 * This fixes a problem where setting one format, then another
@@ -461,7 +471,7 @@ archive_write_ustar_finish_entry(struct archive *a)
 	struct ustar *ustar;
 	int ret;
 
-	ustar = a->format_data;
+	ustar = (struct ustar *)a->format_data;
 	ret = write_nulls(a,
 	    ustar->entry_bytes_remaining + ustar->entry_padding);
 	ustar->entry_bytes_remaining = ustar->entry_padding = 0;
@@ -489,7 +499,7 @@ archive_write_ustar_data(struct archive *a, const void *buff, size_t s)
 	struct ustar *ustar;
 	int ret;
 
-	ustar = a->format_data;
+	ustar = (struct ustar *)a->format_data;
 	if (s > ustar->entry_bytes_remaining)
 		s = ustar->entry_bytes_remaining;
 	ret = (a->compression_write)(a, buff, s);

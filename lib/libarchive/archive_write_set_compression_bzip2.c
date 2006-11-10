@@ -31,11 +31,19 @@
 
 __FBSDID("$FreeBSD$");
 
+#ifdef HAVE_ERRNO_H
 #include <errno.h>
+#endif
 #include <stdio.h>
+#ifdef HAVE_STDLIB_H
 #include <stdlib.h>
+#endif
+#ifdef HAVE_STRING_H
 #include <string.h>
+#endif
+#ifdef HAVE_BZLIB_H
 #include <bzlib.h>
+#endif
 
 #include "archive.h"
 #include "archive_private.h"
@@ -53,7 +61,7 @@ struct private_data {
  * of ugly hackery to convert a const * pointer to a non-const pointer.
  */
 #define	SET_NEXT_IN(st,src)					\
-	(st)->stream.next_in = (void *)(uintptr_t)(const void *)(src)
+	(st)->stream.next_in = (char *)(uintptr_t)(const void *)(src)
 
 static int	archive_compressor_bzip2_finish(struct archive *);
 static int	archive_compressor_bzip2_init(struct archive *);
@@ -93,7 +101,7 @@ archive_compressor_bzip2_init(struct archive *a)
 			return (ret);
 	}
 
-	state = malloc(sizeof(*state));
+	state = (struct private_data *)malloc(sizeof(*state));
 	if (state == NULL) {
 		archive_set_error(a, ENOMEM,
 		    "Can't allocate data for compression");
@@ -102,7 +110,7 @@ archive_compressor_bzip2_init(struct archive *a)
 	memset(state, 0, sizeof(*state));
 
 	state->compressed_buffer_size = a->bytes_per_block;
-	state->compressed = malloc(state->compressed_buffer_size);
+	state->compressed = (char *)malloc(state->compressed_buffer_size);
 
 	if (state->compressed == NULL) {
 		archive_set_error(a, ENOMEM,
@@ -163,7 +171,7 @@ archive_compressor_bzip2_write(struct archive *a, const void *buff,
 {
 	struct private_data *state;
 
-	state = a->compression_data;
+	state = (struct private_data *)a->compression_data;
 	if (a->client_writer == NULL) {
 		archive_set_error(a, ARCHIVE_ERRNO_PROGRAMMER,
 		    "No write callback is registered?  "
@@ -197,7 +205,7 @@ archive_compressor_bzip2_finish(struct archive *a)
 	ssize_t bytes_written;
 	unsigned tocopy;
 
-	state = a->compression_data;
+	state = (struct private_data *)a->compression_data;
 	ret = ARCHIVE_OK;
 	if (a->client_writer == NULL) {
 		archive_set_error(a, ARCHIVE_ERRNO_PROGRAMMER,

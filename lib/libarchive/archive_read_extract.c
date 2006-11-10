@@ -27,7 +27,9 @@
 #include "archive_platform.h"
 __FBSDID("$FreeBSD$");
 
+#ifdef HAVE_SYS_TYPES_H
 #include <sys/types.h>
+#endif
 #ifdef HAVE_SYS_ACL_H
 #include <sys/acl.h>
 #endif
@@ -37,24 +39,44 @@ __FBSDID("$FreeBSD$");
 #ifdef HAVE_SYS_IOCTL_H
 #include <sys/ioctl.h>
 #endif
+#ifdef HAVE_SYS_STAT_H
 #include <sys/stat.h>
+#endif
+#ifdef HAVE_SYS_TIME_H
 #include <sys/time.h>
+#endif
 
 #ifdef HAVE_EXT2FS_EXT2_FS_H
 #include <ext2fs/ext2_fs.h>	/* for Linux file flags */
 #endif
+#ifdef HAVE_ERRNO_H
 #include <errno.h>
+#endif
+#ifdef HAVE_FCNTL_H
 #include <fcntl.h>
+#endif
+#ifdef HAVE_GRP_H
 #include <grp.h>
+#endif
 #ifdef HAVE_LINUX_EXT2_FS_H
 #include <linux/ext2_fs.h>	/* for Linux file flags */
 #endif
+#ifdef HAVE_LIMITS_H
 #include <limits.h>
+#endif
+#ifdef HAVE_PWD_H
 #include <pwd.h>
+#endif
 #include <stdio.h>
+#ifdef HAVE_STDLIB_H
 #include <stdlib.h>
+#endif
+#ifdef HAVE_STRING_H
 #include <string.h>
+#endif
+#ifdef HAVE_UNISTD_H
 #include <unistd.h>
+#endif
 
 #include "archive.h"
 #include "archive_string.h"
@@ -296,7 +318,7 @@ create_extract(struct archive *a)
 {
 	struct extract *extract;
 
-	extract = malloc(sizeof(*extract));
+	extract = (struct extract *)malloc(sizeof(*extract));
 	if (extract == NULL) {
 		archive_set_error(a, ENOMEM, "Can't extract");
 		return (ARCHIVE_FATAL);
@@ -460,7 +482,7 @@ new_fixup(struct archive *a, const char *pathname)
 	struct fixup_entry *fe;
 
 	extract = a->extract;
-	fe = malloc(sizeof(struct fixup_entry));
+	fe = (struct fixup_entry *)malloc(sizeof(struct fixup_entry));
 	if (fe == NULL)
 		return (NULL);
 	fe->next = extract->fixup_list;
@@ -1381,7 +1403,7 @@ set_acls(struct archive *a, int fd, struct archive_entry *entry)
 
 static int
 set_acl(struct archive *a, int fd, struct archive_entry *entry,
-    acl_type_t acl_type, int ae_requested_type, const char *typename)
+    acl_type_t acl_type, int ae_requested_type, const char *tname)
 {
 	acl_t		 acl;
 	acl_entry_t	 acl_entry;
@@ -1456,7 +1478,7 @@ set_acl(struct archive *a, int fd, struct archive_entry *entry,
 #endif
 #endif
 	if (acl_set_file(name, acl_type, acl) != 0) {
-		archive_set_error(a, errno, "Failed to set %s acl", typename);
+		archive_set_error(a, errno, "Failed to set %s acl", tname);
 		ret = ARCHIVE_WARN;
 	}
 	acl_free(acl);

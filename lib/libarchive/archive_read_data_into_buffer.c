@@ -27,7 +27,9 @@
 #include "archive_platform.h"
 __FBSDID("$FreeBSD$");
 
+#ifdef HAVE_STRING_H
 #include <string.h>
+#endif
 
 #include "archive.h"
 
@@ -37,7 +39,7 @@ archive_read_data_into_buffer(struct archive *a, void *d, ssize_t len)
 	char *dest;
 	ssize_t bytes_read, total_bytes;
 
-	dest = d;
+	dest = (char *)d;
 	total_bytes = 0;
 	bytes_read = archive_read_data(a, dest, len);
 	while (bytes_read > 0) {

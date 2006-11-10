@@ -27,9 +27,15 @@
 #include "archive_platform.h"
 __FBSDID("$FreeBSD$");
 
+#ifdef HAVE_ERRNO_H
 #include <errno.h>
+#endif
+#ifdef HAVE_STDLIB_H
 #include <stdlib.h>
+#endif
+#ifdef HAVE_STRING_H
 #include <string.h>
+#endif
 
 #include "archive.h"
 #include "archive_private.h"
@@ -83,7 +89,7 @@ archive_compressor_none_init(struct archive *a)
 	memset(state, 0, sizeof(*state));
 
 	state->buffer_size = a->bytes_per_block;
-	state->buffer = malloc(state->buffer_size);
+	state->buffer = (char *)malloc(state->buffer_size);
 
 	if (state->buffer == NULL) {
 		archive_set_error(a, ENOMEM,
@@ -113,8 +119,8 @@ archive_compressor_none_write(struct archive *a, const void *vbuff,
 	ssize_t bytes_written;
 	struct archive_none *state;
 
-	state = a->compression_data;
-	buff = vbuff;
+	state = (struct archive_none *)a->compression_data;
+	buff = (const char *)vbuff;
 	if (a->client_writer == NULL) {
 		archive_set_error(a, ARCHIVE_ERRNO_PROGRAMMER,
 		    "No write callback is registered?  "
@@ -166,7 +172,7 @@ archive_compressor_none_finish(struct archive *a)
 	int ret2;
 	struct archive_none *state;
 
-	state = a->compression_data;
+	state = (struct archive_none *)a->compression_data;
 	ret = ret2 = ARCHIVE_OK;
 	if (a->client_writer == NULL) {
 		archive_set_error(a, ARCHIVE_ERRNO_PROGRAMMER,

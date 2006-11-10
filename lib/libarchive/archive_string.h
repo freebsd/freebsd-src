@@ -31,7 +31,9 @@
 #define	ARCHIVE_STRING_H_INCLUDED
 
 #include <stdarg.h>
+#ifdef HAVE_STRING_H
 #include <string.h>
+#endif
 
 /*
  * Basic resizable/reusable string support a la Java's "StringBuffer."
