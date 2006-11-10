@@ -1,4 +1,4 @@
-/* $OpenBSD: auth-rsa.c,v 1.71 2006/08/03 03:34:41 deraadt Exp $ */
+/* $OpenBSD: auth-rsa.c,v 1.72 2006/11/06 21:25:27 markus Exp $ */
 /*
  * Author: Tatu Ylonen <ylo@cs.hut.fi>
  * Copyright (c) 1995 Tatu Ylonen <ylo@cs.hut.fi>, Espoo, Finland
@@ -76,10 +76,12 @@ auth_rsa_generate_challenge(Key *key)
 	if ((challenge = BN_new()) == NULL)
 		fatal("auth_rsa_generate_challenge: BN_new() failed");
 	/* Generate a random challenge. */
-	BN_rand(challenge, 256, 0, 0);
+	if (BN_rand(challenge, 256, 0, 0) == 0)
+		fatal("auth_rsa_generate_challenge: BN_rand failed");
 	if ((ctx = BN_CTX_new()) == NULL)
-		fatal("auth_rsa_generate_challenge: BN_CTX_new() failed");
-	BN_mod(challenge, challenge, key->rsa->n, ctx);
+		fatal("auth_rsa_generate_challenge: BN_CTX_new failed");
+	if (BN_mod(challenge, challenge, key->rsa->n, ctx) == 0)
+		fatal("auth_rsa_generate_challenge: BN_mod failed");
 	BN_CTX_free(ctx);
 
 	return challenge;
