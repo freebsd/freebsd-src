@@ -301,6 +301,11 @@
       &man.pmcstat.8; can now log over a network socket
       to a remote host.</para>
 
+    <para>Support for Kernel Scheduled Entities (KSE) is now a kernel
+      option (previously it was a mandatory feature in the kernel).
+      It is enabled in the GENERIC kernel (thus there is no change in
+      functionality) for all platforms except sun4v.</para>
+
     <para>The &man.random.4; entropy device driver is now MPSAFE.
       &merged;</para>
 
@@ -512,6 +517,14 @@
 
       <para arch="amd64">The smbios(4) driver support for amd64 has been
 	added.</para>
+
+      <para>&os; now has preliminary support for the Sun Microsystems
+	UltraSPARC-T1 archicture.  &os;/sun4v has been demonstrated
+	to run on the Sun Fire T1000 and Sun Fire T2000 servers.
+	More information can be found on the
+	<ulink url="http://www.FreeBSD.org/platforms/sun4v.html">sun4v
+	Project</ulink>
+	page.</para>
 
       <para>The tnt4882(4) driver, which supports the National Instruments
 	PCI-GPIB card, has been added.</para>
@@ -888,9 +901,16 @@ pipe tablearg ip from table(1) to any</programlisting>
 	userland implementation of <quote>The Generalized TTL
 	  Security Mechanism (GTSM)</quote> found in RFC 3682.</para>
 
+      <para>The kernel &man.ppp.4; driver now supports IPv6.</para>
+
       <para>Stealth forwarding now supports IPv6 as well as IPv4.
 	This behavior can be controlled by using a new sysctl variable
 	<varname>net.inet6.ip6.stealth</varname>.</para>
+
+      <para>Support has been added for the Stream Control Transmission
+	Protocol (SCTP).  SCTP implements a reliable, message-oriented
+	transport protocol, and is defined in RFC 3268.  It is enabled
+	in &os; with the <literal>SCTP</literal> kernel option.</para>
 
       <para>The <literal>IPV6_V6ONLY</literal> socket option
 	now works for UDP.</para>
@@ -903,6 +923,18 @@ pipe tablearg ip from table(1) to any</programlisting>
 	<varname>net.inet.tcp.inflight.rttthresh</varname> specifies
 	the threshold in milliseconds below which this feature
 	will disengage.  It defaults to 10ms.  &merged;</para>
+
+      <para>The &os; network stack now has support for TCP
+	Segmentation Offload (TSO).  TSO reduces the overhead of
+	sending bulk TCP data by allowing a network interface to
+	convert a large data transfer into multiple TCP segments to be
+	sent on the network.  This functionality can be enabled or
+	disabled on a per-interface basis with
+	the <literal>tso</literal> and <literal>-tso</literal> flags
+	to &man.ifconfig.8;.  Network interfaces and drivers
+	supporting TSO currently include &man.em.4; and
+	&man.mxge.4;.</para>
+
     </sect3>
 
     <sect3 id="disks">
@@ -1675,7 +1707,7 @@ mdconfig_md1="-t vnode -f /var/foo.img"</programlisting>
       NetBSD as of 31 August 2006. &merged;</para>
 
     <para><application>OpenSSH</application> has been updated from
-      4.2p1 to 4.4p1. &merged;</para>
+      4.2p1 to 4.5p1. &merged;</para>
 
     <para><application>OpenSSL</application> has been updated from
       0.9.7e to 0.9.8d.</para>
