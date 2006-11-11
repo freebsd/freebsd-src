@@ -36,7 +36,7 @@ LHDRS=	aio.h errno.h fcntl.h linker_set.h poll.h stdint.h syslog.h \
 LDIRS=	bsm cam geom net net80211 netatalk netatm netgraph netinet netinet6 \
 	netipsec ${_netipx} netkey netnatm ${_netncp} netsmb \
 	nfs nfsclient nfsserver \
-	pccard posix4 sys vm
+	pccard sys vm
 
 LSUBDIRS=	cam/scsi \
 	dev/acpica dev/an dev/bktr dev/firewire dev/hwpmc \
@@ -111,7 +111,7 @@ INCSLINKS+=	sys/$i ${INCLUDEDIR}/$i
 INCSLINKS+=	machine/$i ${INCLUDEDIR}/$i
 .endfor
 .for i in ${PHDRS}
-INCSLINKS+=	posix4/$i ${INCLUDEDIR}/$i
+INCSLINKS+=	sys/$i ${INCLUDEDIR}/$i
 .endfor
 
 .if ${MACHINE} != ${MACHINE_ARCH}

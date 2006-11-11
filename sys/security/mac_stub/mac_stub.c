@@ -51,6 +51,7 @@
 #include <sys/conf.h>
 #include <sys/extattr.h>
 #include <sys/kernel.h>
+#include <sys/ksem.h>
 #include <sys/mac.h>
 #include <sys/mount.h>
 #include <sys/proc.h>
@@ -67,8 +68,6 @@
 #include <sys/msg.h>
 #include <sys/sem.h>
 #include <sys/shm.h>
-
-#include <posix4/ksem.h>
 
 #include <fs/devfs/devfs.h>
 

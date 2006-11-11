@@ -50,12 +50,11 @@ __FBSDID("$FreeBSD$");
 #include <sys/sysent.h>
 #include <sys/priv.h>
 #include <sys/proc.h>
+#include <sys/posix4.h>
 #include <sys/time.h>
 #include <sys/timers.h>
 #include <sys/timetc.h>
 #include <sys/vnode.h>
-
-#include <posix4/posix4.h>
 
 #include <security/mac/mac_framework.h>
 

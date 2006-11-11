@@ -38,6 +38,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/lock.h>
 #include <sys/mutex.h>
 #include <sys/unistd.h>
+#include <sys/posix4.h>
 #include <sys/proc.h>
 #include <sys/resourcevar.h>
 #include <sys/signalvar.h>
@@ -57,7 +58,6 @@ __FBSDID("$FreeBSD$");
 
 #include <machine/atomic.h>
 
-#include <posix4/posix4.h>
 #include <vm/vm.h>
 #include <vm/vm_extern.h>
 #include <vm/pmap.h>
