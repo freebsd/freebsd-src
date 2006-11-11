@@ -11,8 +11,8 @@
 
 #include <sys/signal.h>
 #include <sys/acl.h>
-#include <sys/ucontext.h>
 #include <sys/_semaphore.h>
+#include <sys/ucontext.h>
 
 #include <bsm/audit_kevents.h>
 
