@@ -223,6 +223,7 @@ sctp_process_init(struct sctp_init_chunk *cp, struct sctp_tcb *stcb,
 
 		}
 	}
+	SCTP_TCB_SEND_LOCK(stcb);
 	if (asoc->pre_open_streams > ntohs(init->num_inbound_streams)) {
 		unsigned int newcnt;
 		struct sctp_stream_out *outs;
@@ -261,10 +262,7 @@ sctp_process_init(struct sctp_init_chunk *cp, struct sctp_tcb *stcb,
 		/* cut back the count and abandon the upper streams */
 		asoc->pre_open_streams = newcnt;
 	}
-	asoc->streamincnt = ntohs(init->num_outbound_streams);
-	if (asoc->streamincnt > MAX_SCTP_STREAMS) {
-		asoc->streamincnt = MAX_SCTP_STREAMS;
-	}
+	SCTP_TCB_SEND_UNLOCK(stcb);
 	asoc->streamoutcnt = asoc->pre_open_streams;
 	/* init tsn's */
 	asoc->highest_tsn_inside_map = asoc->asconf_seq_in = ntohl(init->initial_tsn) - 1;
@@ -281,7 +279,24 @@ sctp_process_init(struct sctp_init_chunk *cp, struct sctp_tcb *stcb,
 	/* open the requested streams */
 	if (asoc->strmin != NULL) {
 		/* Free the old ones */
+		struct sctp_queued_to_read *ctl;
+
+		for (i = 0; i < asoc->streamincnt; i++) {
+			ctl = TAILQ_FIRST(&asoc->strmin[i].inqueue);
+			while (ctl) {
+				TAILQ_REMOVE(&asoc->strmin[i].inqueue, ctl, next);
+				sctp_free_remote_addr(ctl->whoFrom);
+				sctp_m_freem(ctl->data);
+				ctl->data = NULL;
+				sctp_free_a_readq(stcb, ctl);
+				ctl = TAILQ_FIRST(&asoc->strmin[i].inqueue);
+			}
+		}
 		SCTP_FREE(asoc->strmin);
+	}
+	asoc->streamincnt = ntohs(init->num_outbound_streams);
+	if (asoc->streamincnt > MAX_SCTP_STREAMS) {
+		asoc->streamincnt = MAX_SCTP_STREAMS;
 	}
 	SCTP_MALLOC(asoc->strmin, struct sctp_stream_in *, asoc->streamincnt *
 	    sizeof(struct sctp_stream_in), "StreamsIn");
@@ -1256,12 +1271,13 @@ sctp_process_cookie_existing(struct mbuf *m, int iphlen, int offset,
 			sctp_timer_start(SCTP_TIMER_TYPE_AUTOCLOSE, inp, stcb,
 			    NULL);
 		}
+		/*
+		 * FIX? Should we go out, in this case (if the seq numbers
+		 * changed on the peer) and set any data to RETRANSMIT?
+		 */
 		asoc->my_rwnd = ntohl(initack_cp->init.a_rwnd);
 		asoc->pre_open_streams =
 		    ntohs(initack_cp->init.num_outbound_streams);
-		asoc->init_seq_number = ntohl(initack_cp->init.initial_tsn);
-		asoc->sending_seq = asoc->asconf_seq_out = asoc->str_reset_seq_out =
-		    asoc->init_seq_number;
 		asoc->last_cwr_tsn = asoc->init_seq_number - 1;
 		asoc->asconf_seq_in = asoc->last_acked_seq = asoc->init_seq_number - 1;
 		asoc->str_reset_seq_in = asoc->init_seq_number;
