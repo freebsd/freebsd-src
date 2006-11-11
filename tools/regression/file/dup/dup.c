@@ -114,7 +114,7 @@ main(int __unused argc, char __unused *argv[])
 	 * fuckups take out each other and make the end-result the way
 	 * it was meant to be.
 	 */
-        if ((fd2 = dup2(fd1, fd1)) < 0)
+	if ((fd2 = dup2(fd1, fd1)) < 0)
 		err(1, "dup2");
 	printf("ok %d - dup2(2) to itself works\n", ++test);
 
