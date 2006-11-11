@@ -24,19 +24,26 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd January 14, 2003
+.Dd November 11, 2006
 .Dt SEM 4
 .Os
 .Sh NAME
 .Nm sem
 .Nd POSIX semaphores
 .Sh SYNOPSIS
-To link into the kernel:
+To compile this driver into the kernel,
+place the following lines in your
+kernel configuration file:
 .Bd -ragged -offset indent
 .Cd "options P1003_1B_SEMAPHORES"
 .Ed
 .Pp
-To load as a kernel loadable module:
+Alternatively, to load the driver as a
+module at boot time, place the following line in
+.Xr loader.conf 5 :
+.Bd -literal -offset indent
+sem_load="YES"
+.Ed
 .Pp
 .Dl "kldload sem"
 .Sh DESCRIPTION
@@ -47,6 +54,10 @@ facility provides system calls used by the standard C library
 to implement
 .Tn POSIX
 semaphores.
+This facility offers support for such functions as
+.Fn sem_init
+and
+.Fn sem_wait .
 It is available both as a kernel option for static inclusion and as a
 dynamic kernel module.
 .Sh SEE ALSO

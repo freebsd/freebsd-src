@@ -219,6 +219,7 @@ SUBDIR=	${_3dfx} \
 	scc \
 	scd \
 	${_scsi_low} \
+	sem \
 	sf \
 	${_sio} \
 	sis \
