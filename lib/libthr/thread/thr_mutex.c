@@ -174,6 +174,18 @@ init_static_private(struct pthread *thread, pthread_mutex_t *mutex)
 	return (ret);
 }
 
+static void
+set_inherited_priority(struct pthread *curthread, struct pthread_mutex *m)
+{
+	struct pthread_mutex *m2;
+
+	m2 = TAILQ_LAST(&curthread->pp_mutexq, mutex_queue);
+	if (m2 != NULL)
+		m->m_lock.m_ceilings[1] = m2->m_lock.m_ceilings[0];
+	else
+		m->m_lock.m_ceilings[1] = -1;
+}
+
 int
 _pthread_mutex_init(pthread_mutex_t *mutex,
     const pthread_mutexattr_t *mutex_attr)
@@ -213,7 +225,7 @@ int
 _pthread_mutex_destroy(pthread_mutex_t *mutex)
 {
 	struct pthread *curthread = _get_curthread();
-	pthread_mutex_t m, m2;
+	pthread_mutex_t m;
 	uint32_t id;
 	int ret = 0;
 
@@ -230,20 +242,14 @@ _pthread_mutex_destroy(pthread_mutex_t *mutex)
 		if (ret)
 			return (ret);
 		m  = *mutex;
-		m2 = TAILQ_LAST(&curthread->pp_mutexq, mutex_queue);
 		/*
 		 * Check mutex other fields to see if this mutex is
 		 * in use. Mostly for prority mutex types, or there
 		 * are condition variables referencing it.
 		 */
 		if (m->m_owner != NULL || m->m_refcount != 0) {
-			if (m->m_lock.m_flags & UMUTEX_PRIO_PROTECT) {
-				if (m2 != NULL)
-					m->m_lock.m_ceilings[1] =
-						 m2->m_lock.m_ceilings[0];
-				else
-					m->m_lock.m_ceilings[1] = -1;
-			}
+			if (m->m_lock.m_flags & UMUTEX_PRIO_PROTECT)
+				set_inherited_priority(curthread, m);
 			_thr_umutex_unlock(&m->m_lock, id);
 			ret = EBUSY;
 		} else {
@@ -253,13 +259,8 @@ _pthread_mutex_destroy(pthread_mutex_t *mutex)
 			 */
 			*mutex = NULL;
 
-			if (m->m_lock.m_flags & UMUTEX_PRIO_PROTECT) {
-				if (m2 != NULL)
-					m->m_lock.m_ceilings[1] =
-						m2->m_lock.m_ceilings[0];
-				else
-					m->m_lock.m_ceilings[1] = -1;
-			}
+			if (m->m_lock.m_flags & UMUTEX_PRIO_PROTECT)
+				set_inherited_priority(curthread, m);
 			_thr_umutex_unlock(&m->m_lock, id);
 
 			MUTEX_ASSERT_NOT_OWNED(m);
@@ -582,7 +583,7 @@ static int
 mutex_unlock_common(pthread_mutex_t *mutex)
 {
 	struct pthread *curthread = _get_curthread();
-	struct pthread_mutex *m, *m2;
+	struct pthread_mutex *m;
 	uint32_t id;
 
 	if (__predict_false((m = *mutex) == NULL))
@@ -607,12 +608,7 @@ mutex_unlock_common(pthread_mutex_t *mutex)
 			TAILQ_REMOVE(&curthread->mutexq, m, m_qe);
 		else {
 			TAILQ_REMOVE(&curthread->pp_mutexq, m, m_qe);
-			m2 = TAILQ_LAST(&curthread->pp_mutexq, mutex_queue);
-			if (m2 != NULL)
-				m->m_lock.m_ceilings[1] =
-					m2->m_lock.m_ceilings[0];
-			else
-				m->m_lock.m_ceilings[1] = -1;
+			set_inherited_priority(curthread, m);
 		}
 		MUTEX_INIT_LINK(m);
 		_thr_umutex_unlock(&m->m_lock, id);
@@ -624,7 +620,7 @@ int
 _mutex_cv_unlock(pthread_mutex_t *mutex, int *count)
 {
 	struct pthread *curthread = _get_curthread();
-	struct pthread_mutex *m, *m2;
+	struct pthread_mutex *m;
 
 	if (__predict_false((m = *mutex) == NULL))
 		return (EINVAL);
@@ -648,12 +644,7 @@ _mutex_cv_unlock(pthread_mutex_t *mutex, int *count)
 		TAILQ_REMOVE(&curthread->mutexq, m, m_qe);
 	else {
 		TAILQ_REMOVE(&curthread->pp_mutexq, m, m_qe);
-
-		m2 = TAILQ_LAST(&curthread->pp_mutexq, mutex_queue);
-		if (m2 != NULL)
-			m->m_lock.m_ceilings[1] = m2->m_lock.m_ceilings[0];
-		else
-			m->m_lock.m_ceilings[1] = -1;
+		set_inherited_priority(curthread, m);
 	}
 	MUTEX_INIT_LINK(m);
 	_thr_umutex_unlock(&m->m_lock, TID(curthread));
