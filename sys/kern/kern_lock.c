@@ -44,6 +44,7 @@
 __FBSDID("$FreeBSD$");
 
 #include "opt_ddb.h"
+#include "opt_global.h"
 
 #include <sys/param.h>
 #include <sys/kdb.h>
@@ -54,6 +55,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/mutex.h>
 #include <sys/proc.h>
 #include <sys/systm.h>
+#include <sys/lock_profile.h>
 #ifdef DEBUG_LOCKS
 #include <sys/stack.h>
 #endif
@@ -148,15 +150,14 @@ acquire(struct lock **lkpp, int extflags, int wanted)
  * accepted shared locks and shared-to-exclusive upgrades to go away.
  */
 int
-lockmgr(lkp, flags, interlkp, td)
-	struct lock *lkp;
-	u_int flags;
-	struct mtx *interlkp;
-	struct thread *td;
+_lockmgr(struct lock *lkp, int flags, struct mtx *interlkp, 
+	 struct thread *td, char *file, int line)
+
 {
 	int error;
 	struct thread *thr;
 	int extflags, lockflags;
+	uint64_t waitstart;
 
 	error = 0;
 	if (td == NULL)
@@ -164,6 +165,7 @@ lockmgr(lkp, flags, interlkp, td)
 	else
 		thr = td;
 
+	lock_profile_waitstart(&waitstart);
 	if ((flags & LK_INTERNAL) == 0)
 		mtx_lock(lkp->lk_interlock);
 	CTR6(KTR_LOCK,
@@ -219,6 +221,9 @@ lockmgr(lkp, flags, interlkp, td)
 			if (error)
 				break;
 			sharelock(td, lkp, 1);
+			if (lkp->lk_sharecount == 1)
+				lock_profile_obtain_lock_success(&lkp->lk_object, waitstart, file, line);
+
 #if defined(DEBUG_LOCKS)
 			stack_save(&lkp->lk_stack);
 #endif
@@ -229,6 +234,8 @@ lockmgr(lkp, flags, interlkp, td)
 		 * An alternative would be to fail with EDEADLK.
 		 */
 		sharelock(td, lkp, 1);
+		if (lkp->lk_sharecount == 1)
+			lock_profile_obtain_lock_success(&lkp->lk_object, waitstart, file, line);
 		/* FALLTHROUGH downgrade */
 
 	case LK_DOWNGRADE:
@@ -272,6 +279,8 @@ lockmgr(lkp, flags, interlkp, td)
 		if (lkp->lk_sharecount <= 0)
 			panic("lockmgr: upgrade without shared");
 		shareunlock(td, lkp, 1);
+		if (lkp->lk_sharecount == 0)
+			lock_profile_release_lock(&lkp->lk_object);
 		/*
 		 * If we are just polling, check to see if we will block.
 		 */
@@ -302,6 +311,7 @@ lockmgr(lkp, flags, interlkp, td)
 			lkp->lk_lockholder = thr;
 			lkp->lk_exclusivecount = 1;
 			COUNT(td, 1);
+			lock_profile_obtain_lock_success(&lkp->lk_object, waitstart, file, line);
 #if defined(DEBUG_LOCKS)
 			stack_save(&lkp->lk_stack);
 #endif
@@ -361,6 +371,7 @@ lockmgr(lkp, flags, interlkp, td)
 			panic("lockmgr: non-zero exclusive count");
 		lkp->lk_exclusivecount = 1;
 		COUNT(td, 1);
+		lock_profile_obtain_lock_success(&lkp->lk_object, waitstart, file, line);
 #if defined(DEBUG_LOCKS)
 		stack_save(&lkp->lk_stack);
 #endif
@@ -380,6 +391,7 @@ lockmgr(lkp, flags, interlkp, td)
 				lkp->lk_flags &= ~LK_HAVE_EXCL;
 				lkp->lk_lockholder = LK_NOPROC;
 				lkp->lk_exclusivecount = 0;
+				lock_profile_release_lock(&lkp->lk_object);
 			} else {
 				lkp->lk_exclusivecount--;
 			}
@@ -509,6 +521,7 @@ lockinit(lkp, prio, wmesg, timo, flags)
 #ifdef DEBUG_LOCKS
 	stack_zero(&lkp->lk_stack);
 #endif
+	lock_profile_object_init(&lkp->lk_object, wmesg);
 }
 
 /*
@@ -520,6 +533,7 @@ lockdestroy(lkp)
 {
 	CTR2(KTR_LOCK, "lockdestroy(): lkp == %p (lk_wmesg == \"%s\")",
 	    lkp, lkp->lk_wmesg);
+	lock_profile_object_destroy(&lkp->lk_object);
 }
 
 /*

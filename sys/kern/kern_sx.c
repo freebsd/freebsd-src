@@ -47,6 +47,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/mutex.h>
 #include <sys/proc.h>
 #include <sys/sx.h>
+#include <sys/lock_profile.h>
 
 #ifdef DDB
 #include <ddb/ddb.h>
@@ -85,6 +86,7 @@ sx_init(struct sx *sx, const char *description)
 	cv_init(&sx->sx_excl_cv, description);
 	sx->sx_excl_wcnt = 0;
 	sx->sx_xholder = NULL;
+	lock_profile_object_init(&sx->sx_object, description);
 	lock_init(&sx->sx_object, &lock_class_sx, description, NULL,
 	    LO_WITNESS | LO_RECURSABLE | LO_SLEEPABLE | LO_UPGRADABLE);
 }
@@ -100,13 +102,16 @@ sx_destroy(struct sx *sx)
 	sx->sx_lock = NULL;
 	cv_destroy(&sx->sx_shrd_cv);
 	cv_destroy(&sx->sx_excl_cv);
-
+	
+	lock_profile_object_destroy(&sx->sx_object);
 	lock_destroy(&sx->sx_object);
 }
 
 void
 _sx_slock(struct sx *sx, const char *file, int line)
 {
+	uint64_t waittime = 0;
+	int contested;
 
 	mtx_lock(sx->sx_lock);
 	KASSERT(sx->sx_xholder != curthread,
@@ -117,14 +122,20 @@ _sx_slock(struct sx *sx, const char *file, int line)
 	/*
 	 * Loop in case we lose the race for lock acquisition.
 	 */
+        if (sx->sx_cnt < 0)
+		lock_profile_waitstart(&waittime);
 	while (sx->sx_cnt < 0) {
 		sx->sx_shrd_wcnt++;
+		lock_profile_obtain_lock_failed(&sx->sx_object, &contested);
 		cv_wait(&sx->sx_shrd_cv, sx->sx_lock);
 		sx->sx_shrd_wcnt--;
 	}
 
 	/* Acquire a shared lock. */
 	sx->sx_cnt++;
+
+        if (sx->sx_cnt == 1)
+		lock_profile_obtain_lock_success(&sx->sx_object, waittime, file, line);
 
 	LOCK_LOG_LOCK("SLOCK", &sx->sx_object, 0, 0, file, line);
 	WITNESS_LOCK(&sx->sx_object, 0, file, line);
@@ -155,6 +166,8 @@ _sx_try_slock(struct sx *sx, const char *file, int line)
 void
 _sx_xlock(struct sx *sx, const char *file, int line)
 {
+	int contested;
+	uint64_t waittime = 0;
 
 	mtx_lock(sx->sx_lock);
 
@@ -171,9 +184,12 @@ _sx_xlock(struct sx *sx, const char *file, int line)
 	WITNESS_CHECKORDER(&sx->sx_object, LOP_NEWORDER | LOP_EXCLUSIVE, file,
 	    line);
 
+        if (sx->sx_cnt)
+		lock_profile_waitstart(&waittime);
 	/* Loop in case we lose the race for lock acquisition. */
 	while (sx->sx_cnt != 0) {
 		sx->sx_excl_wcnt++;
+		lock_profile_obtain_lock_failed(&sx->sx_object, &contested);
 		cv_wait(&sx->sx_excl_cv, sx->sx_lock);
 		sx->sx_excl_wcnt--;
 	}
@@ -184,6 +200,7 @@ _sx_xlock(struct sx *sx, const char *file, int line)
 	sx->sx_cnt--;
 	sx->sx_xholder = curthread;
 
+	lock_profile_obtain_lock_success(&sx->sx_object, waittime, file, line);
 	LOCK_LOG_LOCK("XLOCK", &sx->sx_object, 0, 0, file, line);
 	WITNESS_LOCK(&sx->sx_object, LOP_EXCLUSIVE, file, line);
 	curthread->td_locks++;
@@ -225,6 +242,8 @@ _sx_sunlock(struct sx *sx, const char *file, int line)
 	/* Release. */
 	sx->sx_cnt--;
 
+       if (sx->sx_cnt == 0)
+	       lock_profile_release_lock(&sx->sx_object);
 	/*
 	 * If we just released the last shared lock, wake any waiters up, giving
 	 * exclusive lockers precedence.  In order to make sure that exclusive
@@ -257,6 +276,7 @@ _sx_xunlock(struct sx *sx, const char *file, int line)
 	sx->sx_cnt++;
 	sx->sx_xholder = NULL;
 
+	lock_profile_release_lock(&sx->sx_object);
 	/*
 	 * Wake up waiters if there are any.  Give precedence to slock waiters.
 	 */
