@@ -35,6 +35,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/mutex.h>
 #include <sys/priv.h>
 #include <sys/proc.h>
+#include <sys/posix4.h>
 #include <sys/resourcevar.h>
 #include <sys/sched.h>
 #include <sys/sysctl.h>
@@ -46,8 +47,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/ucontext.h>
 #include <sys/thr.h>
 #include <sys/rtprio.h>
-#include <posix4/sched.h>
-#include <posix4/posix4.h>
 #include <sys/umtx.h>
 #include <sys/limits.h>
 
