@@ -265,7 +265,7 @@ sctp_wakeup_log(struct sctp_tcb *stcb,
     uint32_t cumtsn,
     uint32_t wake_cnt, int from);
 
-void sctp_log_strm_del_alt(uint32_t, uint16_t, int);
+void sctp_log_strm_del_alt(struct sctp_tcb *stcb, uint32_t, uint16_t, uint16_t, int);
 
 void sctp_log_nagle_event(struct sctp_tcb *stcb, int action);
 

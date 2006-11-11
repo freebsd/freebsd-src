@@ -1760,7 +1760,7 @@ sctp_process_a_data_chunk(struct sctp_tcb *stcb, struct sctp_association *asoc,
 		}
 		SCTP_STAT_INCR(sctps_recvexpress);
 #ifdef SCTP_STR_LOGGING
-		sctp_log_strm_del_alt(tsn, strmseq,
+		sctp_log_strm_del_alt(stcb, tsn, strmseq, strmno,
 		    SCTP_STR_LOG_FROM_EXPRS_DEL);
 #endif
 		control = NULL;
@@ -2088,7 +2088,7 @@ finish_express_del:
 	SCTP_STAT_INCR(sctps_recvdata);
 	/* Set it present please */
 #ifdef SCTP_STR_LOGGING
-	sctp_log_strm_del_alt(tsn, strmseq, SCTP_STR_LOG_FROM_MARK_TSN);
+	sctp_log_strm_del_alt(stcb, tsn, strmseq, strmno, SCTP_STR_LOG_FROM_MARK_TSN);
 #endif
 #ifdef SCTP_MAP_LOGGING
 	sctp_log_map(asoc->mapping_array_base_tsn, asoc->cumulative_tsn,
