@@ -66,6 +66,16 @@ static int	 opt_l;		/* Show listening sockets */
 static int	 opt_u;		/* Show Unix domain sockets */
 static int	 opt_v;		/* Verbose mode */
 
+/*
+ * Default protocols to use if no -P was defined.
+ */
+static const char *default_protos[] = {"tcp", "udp", "divert" };
+static size_t	   default_numprotos =
+    sizeof(default_protos) / sizeof(default_protos[0]);
+
+static int	*protos;	/* protocols to use */
+static size_t	 numprotos;	/* allocated size of protos[] */
+
 static int	*ports;
 
 #define INT_BIT (sizeof(int)*CHAR_BIT)
@@ -103,6 +113,66 @@ xprintf(const char *fmt, ...)
 		err(1, "printf()");
 	return (len);
 }
+
+
+static int
+get_proto_type(const char *proto)
+{
+	struct protoent *pent;
+
+	if (strlen(proto) == 0)
+		return (0);
+	pent = getprotobyname(proto);
+	if (pent == NULL) {
+		warn("getprotobyname");
+		return (-1);
+	}
+	return (pent->p_proto);
+}
+
+
+static void init_protos(int num)
+{
+	int proto_count = 0;
+
+	if (num > 0) {
+		proto_count = num;
+	} else {
+		/* Find the maximum number of possible protocols. */
+		while (getprotoent() != NULL)
+			proto_count++;
+		endprotoent();
+	}
+
+	if ((protos = malloc(sizeof(int) * proto_count)) == NULL)
+		err(1, "malloc");
+	numprotos = proto_count;
+}
+
+
+static int
+parse_protos(char *protospec)
+{
+	char *prot;
+	char *tmp = protospec;
+	int proto_type, proto_index;
+
+	if (protospec == NULL)
+		return (-1);
+
+	init_protos(0);
+	proto_index = 0;
+	while ((prot = strsep(&tmp, ",")) != NULL) {
+		if (strlen(prot) == 0)
+			continue;
+		proto_type = get_proto_type(prot);
+		if (proto_type != -1)
+			protos[proto_index++] = proto_type;
+	}
+	numprotos = proto_index;
+	return (proto_index);
+}
+
 
 static void
 parse_ports(const char *portspec)
@@ -209,7 +279,7 @@ gather_inet(int proto)
 		protoname = "div";
 		break;
 	default:
-		abort();
+		errx(1, "protocol %d not supported", proto);
 	}
 
 	buf = NULL;
@@ -264,7 +334,7 @@ gather_inet(int proto)
 			so = &xip->xi_socket;
 			break;
 		default:
-			abort();
+			errx(1, "protocol %d not supported", proto);
 		}
 		if ((inp->inp_vflag & vflag) == 0)
 			continue;
@@ -573,19 +643,41 @@ display(void)
 	}
 }
 
+static int set_default_protos(void)
+{
+	struct protoent *prot;
+	const char *pname;
+	size_t pindex;
+
+	init_protos(default_numprotos);
+
+	for (pindex = 0; pindex < default_numprotos; pindex++) {
+		pname = default_protos[pindex];
+		prot = getprotobyname(pname);
+		if (prot == NULL)
+			err(1, "getprotobyname: %s", pname);
+		protos[pindex] = prot->p_proto;
+	}
+	numprotos = pindex;
+	return (pindex);
+}
+
+
 static void
 usage(void)
 {
-	fprintf(stderr, "Usage: sockstat [-46clu] [-p ports]\n");
+	fprintf(stderr,
+	    "Usage: sockstat [-46clu] [-p ports] [-P protocols]\n");
 	exit(1);
 }
 
 int
 main(int argc, char *argv[])
 {
-	int o;
+	int protos_defined = -1;
+	int o, i;
 
-	while ((o = getopt(argc, argv, "46clp:uv")) != -1)
+	while ((o = getopt(argc, argv, "46clp:P:uv")) != -1)
 		switch (o) {
 		case '4':
 			opt_4 = 1;
@@ -601,6 +693,9 @@ main(int argc, char *argv[])
 			break;
 		case 'p':
 			parse_ports(optarg);
+			break;
+		case 'P':
+			protos_defined = parse_protos(optarg);
 			break;
 		case 'u':
 			opt_u = 1;
@@ -618,22 +713,30 @@ main(int argc, char *argv[])
 	if (argc > 0)
 		usage();
 
-	if (!opt_4 && !opt_6 && !opt_u)
-		opt_4 = opt_6 = opt_u = 1;
+	/*
+	 * If protos_defined remains -1, no -P was provided, so we have to
+	 * set up the default protocol list in protos[] first.
+	 */
+	if (!opt_4 && !opt_6 && !opt_u && protos_defined == -1) {
+		opt_u = 1;
+		protos_defined = set_default_protos();
+	}
+
+	if (!opt_4 && !opt_6)
+		opt_4 = opt_6 = 1;
 	if (!opt_c && !opt_l)
 		opt_c = opt_l = 1;
 
 	if (opt_4 || opt_6) {
-		gather_inet(IPPROTO_TCP);
-		gather_inet(IPPROTO_UDP);
-		gather_inet(IPPROTO_DIVERT);
+		for (i = 0; i < protos_defined; i++)
+			gather_inet(protos[i]);
 	}
-	if (opt_u) {
+
+	if (opt_u || (protos_defined == -1 && !opt_4 && !opt_6)) {
 		gather_unix(SOCK_STREAM);
 		gather_unix(SOCK_DGRAM);
 	}
 	getfiles();
 	display();
-
 	exit(0);
 }
