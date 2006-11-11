@@ -251,10 +251,22 @@
 	  included in the <filename>GENERIC</filename> kernel by
 	  default.</para>
 
-	<para>The &man.em.4; driver has been updated to
-	  version 6.1.4 from Intel.  Among other changes, it now supports
-	  80003, 82571, 82571EB and 82572 based adapters, as well as
-	  onboard-NICs on ICH8-based motherboards.</para>
+	<para>Some improvements have been made to the &man.bce.4;
+	  driver to improve its stability.  One user-visible aspect of
+	  these changes is that transmit-side checksum offload
+	  involving IP fragments has been disabled, because it was not
+	  handled correctly by the hardware.</para>
+
+	<para>The &man.em.4; driver has been updated to version 6.2.9
+	  from Intel.  Among other changes, it adds support for a
+	  number of new adapters.  Compiling the driver with
+	  the <literal>EM_FAST_INTR</literal> preprocesor symbol
+	  defined will enabled optional <quote>fast interrupt</quote>
+	  processing.  <quote>Fast interrupt</quote> processing, as
+	  implemented in this version of the driver, has been shown to
+	  yield significant performance improvements in some cases,
+	  but has been linked to stability issues in other
+	  cases.</para>
 
 	<para>A number of improvements and bugfixes have been made to the
 	  functionality of the &man.iwi.4; driver.  This driver now
@@ -516,7 +528,7 @@
       included in OpenBSD 3.9.</para>
 
     <para><application>OpenSSH</application> has been updated from
-      4.2p1 to 4.4p1.</para>
+      4.2p1 to 4.5p1.</para>
 
     <para><application>sendmail</application> has been updated from
       8.13.6 to 8.13.8.</para>
