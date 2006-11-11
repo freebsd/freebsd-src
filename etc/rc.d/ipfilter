@@ -93,11 +93,17 @@ ipfilter_reload()
 	if [ -r "${ipfilter_rules}" ]; then
 		${ipfilter_program:-/sbin/ipf} -I \
 		    -f "${ipfilter_rules}" ${ipfilter_flags}
+		if [ $? -ne 0 ]; then
+			err 1 'Load of rules into alternate set failed; aborting reload'
+		fi
 	fi
 	${ipfilter_program:-/sbin/ipf} -I -6 -Fa
 	if [ -r "${ipv6_ipfilter_rules}" ]; then
 		${ipfilter_program:-/sbin/ipf} -I -6 \
 		    -f "${ipv6_ipfilter_rules}" ${ipfilter_flags}
+		if [ $? -ne 0 ]; then
+			err 1 'Load of IPv6 rules into alternate set failed; aborting reload'
+		fi
 	fi
 	${ipfilter_program:-/sbin/ipf} -s
 
