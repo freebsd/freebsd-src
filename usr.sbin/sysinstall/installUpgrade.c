@@ -467,13 +467,14 @@ installUpgradeNonInteractive(dialogMenuItem *self)
 	return DITEM_FAILURE;
     }
 
-    if (file_readable("/kernel")) {
-	msgNotify("Moving old kernel to /kernel.prev");
-	if (!system("chflags noschg /kernel && mv /kernel /kernel.prev")) {
-	    /* Give us a working kernel in case we crash and reboot */
-	    system("cp /kernel.prev /kernel");
-	}
-    }
+    /*
+     * Back up the old kernel, leaving it in place in case we
+     *  crash and reboot.
+     */
+    if (directory_exists("/boot/kernel")) {
+	msgNotify("Copying old kernel to /boot/kernel.prev");
+	vsystem("cp -Rp /boot/kernel /boot/kernel.prev");
+    }   
 
     msgNotify("Beginning extraction of distributions..");
     if (DITEM_STATUS(distExtractAll(self)) == DITEM_FAILURE) {
