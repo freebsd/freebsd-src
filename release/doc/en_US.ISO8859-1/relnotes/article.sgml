@@ -789,6 +789,9 @@
 	Packets are Ethernet frames with an EtherIP header prepended.
         &merged;</para>
 
+      <para>The &man.if.bridge.4; driver now supports RSTP, the Rapid
+	Spanning Tree Protocol (802.1w).</para>
+
       <para>A hard-coded limit on the number of IPv4 multicast group
         memberships (formerly 20) has been removed.</para>
 
