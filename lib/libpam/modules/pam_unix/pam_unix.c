@@ -372,7 +372,7 @@ pam_sm_chauthtok(pam_handle_t *pamh, int flags,
 			return (PAM_BUF_ERR);
 
 		pwd->pw_change = 0;
-		lc = login_getclass(NULL);
+		lc = login_getclass(pwd->pw_class);
 		if (login_setcryptfmt(lc, password_hash, NULL) == NULL)
 			openpam_log(PAM_LOG_ERROR,
 			    "can't set password cipher, relying on default");
