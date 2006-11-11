@@ -43,6 +43,7 @@
 .ds doc-str-Lb-libdevstat  Device Statistics Library (libdevstat, \-ldevstat)
 .ds doc-str-Lb-libdisk     Interface to Slice and Partition Labels Library (libdisk, \-ldisk)
 .ds doc-str-Lb-libedit     Line Editor and History Library (libedit, \-ledit)
+.ds doc-str-Lb-libelf      ELF Parsing Library (libelf, \-lelf)
 .ds doc-str-Lb-libfetch    File Transfer Library (libfetch, \-lfetch)
 .ds doc-str-Lb-libgeom     Userland API Library for kernel GEOM subsystem (libgeom, \-lgeom)
 .ds doc-str-Lb-libipx      IPX Address Conversion Support Library (libipx, \-lipx)
