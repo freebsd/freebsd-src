@@ -39,7 +39,11 @@
 #ifndef LPROF_HASH_SIZE
 #define LPROF_HASH_SIZE		4096
 #define LPROF_HASH_MASK		(LPROF_HASH_SIZE - 1)
+
+#ifndef USE_CPU_NANOSECONDS
+u_int64_t nanoseconds(void);
 #endif
+
 struct lock_prof {
 	const char	*name;
 	const char	*file;
