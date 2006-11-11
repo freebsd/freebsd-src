@@ -88,6 +88,7 @@ static const struct usbd_quirk_entry {
  { USB_VENDOR_HP, USB_PRODUCT_HP_810C,		    ANY,   { UQ_BROKEN_BIDIR }},
  { USB_VENDOR_HP, USB_PRODUCT_HP_830C,		    ANY,   { UQ_BROKEN_BIDIR }},
  { USB_VENDOR_HP, USB_PRODUCT_HP_1220C,		    ANY,   { UQ_BROKEN_BIDIR }},
+ { USB_VENDOR_XEROX, USB_PRODUCT_XEROX_WCM15,	    ANY,   { UQ_BROKEN_BIDIR }},
  /* YAMAHA router's ucdDevice is the version of farmware and often changes. */
  { USB_VENDOR_YAMAHA, USB_PRODUCT_YAMAHA_RTA54I,
 	ANY, { UQ_ASSUME_CM_OVER_DATA }},
