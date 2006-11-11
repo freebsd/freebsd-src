@@ -330,7 +330,7 @@ media:
 	    return DITEM_FAILURE | DITEM_REDRAW | DITEM_RESTORE;
     }
     
-    msgNotify("Beginning extraction of distributions..");
+    msgNotify("Beginning extraction of distributions.");
     if (DITEM_STATUS(distExtractAll(self)) == DITEM_FAILURE) {
 	msgConfirm("Hmmmm.  We couldn't even extract the base distribution.  This upgrade\n"
 		   "should be considered a failure and started from the beginning, sorry!\n"
@@ -476,7 +476,7 @@ installUpgradeNonInteractive(dialogMenuItem *self)
 	vsystem("cp -Rp /boot/kernel /boot/kernel.prev");
     }   
 
-    msgNotify("Beginning extraction of distributions..");
+    msgNotify("Beginning extraction of distributions.");
     if (DITEM_STATUS(distExtractAll(self)) == DITEM_FAILURE) {
 	msgConfirm("Hmmmm.  We couldn't even extract the base distribution.  This upgrade\n"
 		   "should be considered a failure and started from the beginning, sorry!\n"
