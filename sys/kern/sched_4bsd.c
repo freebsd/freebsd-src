@@ -1138,7 +1138,8 @@ sched_user_prio(struct thread *td, u_char prio)
 	kg->kg_user_pri = prio;
 #else
 	td->td_base_user_pri = prio;
-
+	if (td->td_flags & TDF_UBORROWING && td->td_user_pri <= prio)
+		return;
 	oldprio = td->td_user_pri;
 	td->td_user_pri = prio;
 #endif
