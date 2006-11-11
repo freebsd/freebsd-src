@@ -40,6 +40,8 @@
 #ifdef	DEBUG_LOCKS
 #include <sys/stack.h> /* XXX */
 #endif
+#include <sys/queue.h>
+#include <sys/_lock.h>
 
 struct	mtx;
 
@@ -49,20 +51,23 @@ struct	mtx;
  * can be gained.
  */
 struct lock {
+	struct lock_object lk_object;   /* common lock properties */
 	struct	mtx *lk_interlock;	/* lock on remaining fields */
-	u_int	lk_flags;		/* see below */
 	int	lk_sharecount;		/* # of accepted shared locks */
 	int	lk_waitcount;		/* # of processes sleeping for lock */
 	short	lk_exclusivecount;	/* # of recursive exclusive locks */
 	short	lk_prio;		/* priority at which to sleep */
-	const char *lk_wmesg;		/* resource sleeping (for tsleep) */
 	int	lk_timo;		/* maximum sleep time (for tsleep) */
 	struct thread *lk_lockholder;	/* thread of exclusive lock holder */
 	struct	lock *lk_newlock;	/* lock taking over this lock */
+
 #ifdef	DEBUG_LOCKS
 	struct stack lk_stack;
 #endif
 };
+
+#define lk_flags lk_object.lo_flags
+#define lk_wmesg lk_object.lo_name
 /*
  * Lock request types:
  *   LK_SHARED - get one of many possible shared locks. If a process
@@ -197,13 +202,15 @@ void	lockinit(struct lock *, int prio, const char *wmesg,
 			int timo, int flags);
 void	lockdestroy(struct lock *);
 
-int	lockmgr(struct lock *, u_int flags,
-			struct mtx *, struct thread *p);
+int	_lockmgr(struct lock *, int flags,
+		 struct mtx *, struct thread *p, char *file, int line);
 void	transferlockers(struct lock *, struct lock *);
 void	lockmgr_printinfo(struct lock *);
 int	lockstatus(struct lock *, struct thread *);
 int	lockcount(struct lock *);
 int	lockwaiters(struct lock *);
+
+#define lockmgr(lock, flags, mtx, td) _lockmgr((lock), (flags), (mtx), (td), __FILE__, __LINE__)
 #ifdef DDB
 int	lockmgr_chain(struct thread *td, struct thread **ownerp);
 #endif
