@@ -69,6 +69,7 @@ struct lock_class {
 #define	LO_DUPOK	0x00400000	/* Don't check for duplicate acquires */
 #define	LO_ENROLLPEND	0x00800000	/* On the pending enroll list. */
 #define	LO_CLASSMASK	0x0f000000	/* Class index bitmask. */
+#define LO_NOPROFILE    0x10000000      /* Don't profile this lock */
 
 /*
  * Lock classes are statically assigned an index into the gobal lock_classes
@@ -142,7 +143,7 @@ struct lock_list_entry {
  * calling conventions for this debugging code in modules so that modules can
  * work with both debug and non-debug kernels.
  */
-#if defined(KLD_MODULE) || defined(WITNESS) || defined(INVARIANTS) || defined(INVARIANT_SUPPORT) || defined(KTR) || defined(MUTEX_PROFILING)
+#if defined(KLD_MODULE) || defined(WITNESS) || defined(INVARIANTS) || defined(INVARIANT_SUPPORT) || defined(KTR) || defined(LOCK_PROFILING)
 #define	LOCK_DEBUG	1
 #else
 #define	LOCK_DEBUG	0

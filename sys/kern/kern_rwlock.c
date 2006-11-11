@@ -44,7 +44,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/rwlock.h>
 #include <sys/systm.h>
 #include <sys/turnstile.h>
-
+#include <sys/lock_profile.h>
 #include <machine/cpu.h>
 
 #ifdef DDB
@@ -86,6 +86,7 @@ rw_init(struct rwlock *rw, const char *name)
 
 	rw->rw_lock = RW_UNLOCKED;
 
+	lock_profile_object_init(&rw->rw_object, name);
 	lock_init(&rw->rw_object, &lock_class_rw, name, NULL, LO_WITNESS |
 	    LO_RECURSABLE | LO_UPGRADABLE);
 }
@@ -95,6 +96,7 @@ rw_destroy(struct rwlock *rw)
 {
 
 	KASSERT(rw->rw_lock == RW_UNLOCKED, ("rw lock not unlocked"));
+	lock_profile_object_destroy(&rw->rw_object);
 	lock_destroy(&rw->rw_object);
 }
 
@@ -109,6 +111,7 @@ rw_sysinit(void *arg)
 void
 _rw_wlock(struct rwlock *rw, const char *file, int line)
 {
+	uint64_t waitstart;
 
 	MPASS(curthread != NULL);
 	KASSERT(rw_wowner(rw) != curthread,
@@ -116,7 +119,9 @@ _rw_wlock(struct rwlock *rw, const char *file, int line)
 	    rw->rw_object.lo_name, file, line));
 	WITNESS_CHECKORDER(&rw->rw_object, LOP_NEWORDER | LOP_EXCLUSIVE, file,
 	    line);
+	lock_profile_waitstart(&waitstart);
 	__rw_wlock(rw, curthread, file, line);
+	lock_profile_obtain_lock_success(&rw->rw_object, waitstart, file, line);
 	LOCK_LOG_LOCK("WLOCK", &rw->rw_object, 0, 0, file, line);
 	WITNESS_LOCK(&rw->rw_object, LOP_EXCLUSIVE, file, line);
 	curthread->td_locks++;
@@ -131,6 +136,7 @@ _rw_wunlock(struct rwlock *rw, const char *file, int line)
 	curthread->td_locks--;
 	WITNESS_UNLOCK(&rw->rw_object, LOP_EXCLUSIVE, file, line);
 	LOCK_LOG_LOCK("WUNLOCK", &rw->rw_object, 0, 0, file, line);
+	lock_profile_release_lock(&rw->rw_object);
 	__rw_wunlock(rw, curthread, file, line);
 }
 
@@ -140,6 +146,8 @@ _rw_rlock(struct rwlock *rw, const char *file, int line)
 #ifdef SMP
 	volatile struct thread *owner;
 #endif
+	uint64_t waitstart;
+	int contested;
 	uintptr_t x;
 
 	KASSERT(rw_wowner(rw) != curthread,
@@ -158,6 +166,7 @@ _rw_rlock(struct rwlock *rw, const char *file, int line)
 	 * be blocked on the writer, and the writer would be blocked
 	 * waiting for the reader to release its original read lock.
 	 */
+	lock_profile_waitstart(&waitstart);
 	for (;;) {
 		/*
 		 * Handle the easy case.  If no other thread has a write
@@ -180,6 +189,7 @@ _rw_rlock(struct rwlock *rw, const char *file, int line)
 			MPASS((x & RW_LOCK_READ_WAITERS) == 0);
 			if (atomic_cmpset_acq_ptr(&rw->rw_lock, x,
 			    x + RW_ONE_READER)) {
+				lock_profile_obtain_lock_success(&rw->rw_object, waitstart, file, line);
 				if (LOCK_LOG_TEST(&rw->rw_object, 0))
 					CTR4(KTR_LOCK,
 					    "%s: %p succeed %p -> %p", __func__,
@@ -188,6 +198,7 @@ _rw_rlock(struct rwlock *rw, const char *file, int line)
 				break;
 			}
 			cpu_spinwait();
+			lock_profile_obtain_lock_failed(&rw->rw_object, &contested);
 			continue;
 		}
 
@@ -236,6 +247,7 @@ _rw_rlock(struct rwlock *rw, const char *file, int line)
 		 */
 		owner = (struct thread *)RW_OWNER(x);
 		if (TD_IS_RUNNING(owner)) {
+			lock_profile_obtain_lock_failed(&rw->rw_object, &contested);
 			turnstile_release(&rw->rw_object);
 			if (LOCK_LOG_TEST(&rw->rw_object, 0))
 				CTR3(KTR_LOCK, "%s: spinning on %p held by %p",
@@ -301,7 +313,9 @@ _rw_runlock(struct rwlock *rw, const char *file, int line)
 				break;
 			}
 			continue;
-		}
+		} else 
+			lock_profile_release_lock(&rw->rw_object);
+
 
 		/*
 		 * We should never have read waiters while at least one
@@ -397,6 +411,7 @@ _rw_wlock_hard(struct rwlock *rw, uintptr_t tid, const char *file, int line)
 #ifdef SMP
 	volatile struct thread *owner;
 #endif
+	int contested;
 	uintptr_t v;
 
 	if (LOCK_LOG_TEST(&rw->rw_object, 0))
@@ -438,6 +453,7 @@ _rw_wlock_hard(struct rwlock *rw, uintptr_t tid, const char *file, int line)
 			}
 			turnstile_release(&rw->rw_object);
 			cpu_spinwait();
+			lock_profile_obtain_lock_failed(&rw->rw_object, &contested);
 			continue;
 		}
 
@@ -451,6 +467,7 @@ _rw_wlock_hard(struct rwlock *rw, uintptr_t tid, const char *file, int line)
 			    v | RW_LOCK_WRITE_WAITERS)) {
 				turnstile_release(&rw->rw_object);
 				cpu_spinwait();
+				lock_profile_obtain_lock_failed(&rw->rw_object, &contested);
 				continue;
 			}
 			if (LOCK_LOG_TEST(&rw->rw_object, 0))
@@ -466,6 +483,7 @@ _rw_wlock_hard(struct rwlock *rw, uintptr_t tid, const char *file, int line)
 		 */
 		owner = (struct thread *)RW_OWNER(v);
 		if (!(v & RW_LOCK_READ) && TD_IS_RUNNING(owner)) {
+			lock_profile_obtain_lock_failed(&rw->rw_object, &contested);
 			turnstile_release(&rw->rw_object);
 			if (LOCK_LOG_TEST(&rw->rw_object, 0))
 				CTR3(KTR_LOCK, "%s: spinning on %p held by %p",

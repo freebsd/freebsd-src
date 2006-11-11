@@ -482,7 +482,7 @@ witness_initialize(void *dummy __unused)
 
 	CTR1(KTR_WITNESS, "%s: initializing witness", __func__);
 	mtx_init(&w_mtx, "witness lock", NULL, MTX_SPIN | MTX_QUIET |
-	    MTX_NOWITNESS);
+	    MTX_NOWITNESS | MTX_NOPROFILE);
 	for (i = 0; i < WITNESS_COUNT; i++)
 		witness_free(&w_data[i]);
 	for (i = 0; i < WITNESS_CHILDCOUNT; i++)

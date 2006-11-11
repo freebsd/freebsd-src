@@ -249,6 +249,9 @@ void aszero(u_long asi, vm_offset_t dst, size_t len);
 
 #include <machine/sun4v_cpufunc.h>
 
+#define USE_CPU_NANOSECONDS
+#define nanoseconds() rd(tick)
+
 #undef LDNC_GEN
 #undef STNC_GEN
 
