@@ -34,6 +34,7 @@
 #include <sys/stdint.h>
 #include <sys/ktr.h>
 #include <sys/mutex.h>
+#include <machine/cpufunc.h>
 
 #ifndef LPROF_HASH_SIZE
 #define LPROF_HASH_SIZE		4096
@@ -122,7 +123,7 @@ lock_profile_object_destroy(struct lock_object *lo)
 static inline void lock_profile_waitstart(uint64_t *waittime) 
 {
 	if (lock_prof_enable)
-		*waittime = rd(tick);
+		*waittime = nanoseconds();
 }
 
 static inline void lock_profile_obtain_lock_failed(struct lock_object *lo, int *contested) 

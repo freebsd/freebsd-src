@@ -103,7 +103,7 @@ SYSCTL_INT(_debug_lock_prof, OID_AUTO, collisions, CTLFLAG_RD,
     &lock_prof_collisions, 0, "Number of hash collisions");
 
 #ifndef USE_CPU_NANOSECONDS
-static u_int64_t
+u_int64_t
 nanoseconds(void)
 {
 	struct timespec tv;
