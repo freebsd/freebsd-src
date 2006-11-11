@@ -195,7 +195,7 @@ options 	ADAPTIVE_GIANT
 # MUTEX_NOINLINE forces mutex operations to call functions to perform each
 # operation rather than inlining the simple cases.  This can be used to
 # shrink the size of the kernel text segment.  Note that this behavior is
-# already implied by the INVARIANT_SUPPORT, INVARIANTS, KTR, MUTEX_PROFILING,
+# already implied by the INVARIANT_SUPPORT, INVARIANTS, KTR, LOCK_PROFILING,
 # and WITNESS options.
 options 	MUTEX_NOINLINE
 
@@ -207,7 +207,7 @@ options 	MUTEX_WAKE_ALL
 # RWLOCK_NOINLINE forces rwlock operations to call functions to perform each
 # operation rather than inlining the simple cases.  This can be used to
 # shrink the size of the kernel text segment.  Note that this behavior is
-# already implied by the INVARIANT_SUPPORT, INVARIANTS, KTR, MUTEX_PROFILING,
+# already implied by the INVARIANT_SUPPORT, INVARIANTS, KTR, LOCK_PROFILING,
 # and WITNESS options.
 options 	RWLOCK_NOINLINE
 
@@ -241,8 +241,7 @@ options 	WITNESS
 options 	WITNESS_KDB
 options 	WITNESS_SKIPSPIN
 
-# LOCK_PROFILING - Profiling locks.  See
-# MUTEX_PROFILING(9) for details.
+# LOCK_PROFILING - Profiling locks.  See LOCK_PROFILING(9) for details.
 options 	LOCK_PROFILING
 # Set the number of buffers and the hash size.  The hash size MUST be larger
 # than the number of buffers.  Hash size should be prime.
