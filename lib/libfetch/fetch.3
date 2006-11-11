@@ -1,4 +1,5 @@
-.\" Copyright (c) 1998 Dag-Erling Coïdan Smørgrav
+.\"-
+.\" Copyright (c) 1998-2004 Dag-Erling Coïdan Smørgrav
 .\" All rights reserved.
 .\"
 .\" Redistribution and use in source and binary forms, with or without
@@ -340,7 +341,7 @@ The
 and
 .Fn fetchPutHTTP
 functions implement the HTTP/1.1 protocol.
-With a little luck, there's
+With a little luck, there is
 even a chance that they comply with RFC2616 and RFC2617.
 .Pp
 If the
@@ -380,7 +381,7 @@ To register the authentication callback, simply set
 .Va fetchAuthMethod
 to point at it.
 The callback will be used whenever a site requires authentication and
-the appropriate environment variables aren't set.
+the appropriate environment variables are not set.
 .Pp
 This interface is experimental and may be subject to change.
 .Sh RETURN VALUES
@@ -640,7 +641,7 @@ examples of this are
 .Fn fetchListFTP
 and FTP proxy support.
 .Pp
-There's no way to select a proxy at run-time other than setting the
+There is no way to select a proxy at run-time other than setting the
 .Ev HTTP_PROXY
 or
 .Ev FTP_PROXY
