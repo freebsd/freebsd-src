@@ -37,7 +37,7 @@
 #include <sys/param.h>
 #include <sys/ioccom.h>
 #include <sys/malloc.h>
-#include <posix4/sched.h>
+#include <sys/sched.h>
 
 /* Generate syscall stubs for when something is optionally
  * loadable as a module.  References "syscall_not_present". 

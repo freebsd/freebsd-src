@@ -46,13 +46,12 @@ __FBSDID("$FreeBSD$");
 #include <sys/mutex.h>
 #include <sys/priv.h>
 #include <sys/proc.h>
+#include <sys/posix4.h>
 #include <sys/syscallsubr.h>
 #include <sys/sysctl.h>
 #include <sys/sysent.h>
 #include <sys/syslog.h>
 #include <sys/sysproto.h>
-
-#include <posix4/posix4.h>
 
 MALLOC_DEFINE(M_P31B, "p1003.1b", "Posix 1003.1B");
 
