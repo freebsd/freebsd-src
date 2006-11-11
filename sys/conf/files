@@ -1315,6 +1315,7 @@ kern/imgact_shell.c		standard
 kern/inflate.c			optional gzip
 kern/init_main.c		standard
 kern/init_sysent.c		standard
+kern/ksched.c			optional _kposix_priority_scheduling
 kern/kern_acct.c		standard
 kern/kern_acl.c			standard
 kern/kern_alq.c			optional alq
@@ -1375,6 +1376,8 @@ kern/link_elf.c			standard
 kern/linker_if.m		standard
 kern/md4c.c			optional netsmb
 kern/md5c.c			standard
+kern/p1003_1b.c			standard
+kern/posix4_mib.c		standard
 kern/sched_4bsd.c		optional sched_4bsd
 kern/sched_core.c		optional sched_core
 kern/sched_ule.c		optional sched_ule
@@ -1919,9 +1922,6 @@ pci/ncr.c			optional ncr pci
 pci/nfsmb.c			optional nfsmb pci
 pci/viapm.c			optional viapm pci
 pci/xrpu.c			optional xrpu pci
-posix4/ksched.c			optional _kposix_priority_scheduling
-posix4/p1003_1b.c		standard
-posix4/posix4_mib.c		standard
 rpc/rpcclnt.c			optional nfsclient
 security/audit/audit.c		optional audit
 security/audit/audit_arg.c	optional audit

@@ -42,14 +42,17 @@ __FBSDID("$FreeBSD$");
 #include <sys/sysproto.h>
 #include <sys/eventhandler.h>
 #include <sys/kernel.h>
+#include <sys/ksem.h>
 #include <sys/priv.h>
 #include <sys/proc.h>
+#include <sys/posix4.h>
 #include <sys/lock.h>
 #include <sys/mutex.h>
 #include <sys/module.h>
 #include <sys/condvar.h>
 #include <sys/sem.h>
 #include <sys/uio.h>
+#include <sys/semaphore.h>
 #include <sys/syscall.h>
 #include <sys/stat.h>
 #include <sys/sysent.h>
@@ -57,11 +60,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/time.h>
 #include <sys/malloc.h>
 #include <sys/fcntl.h>
-
-#include <posix4/ksem.h>
-#include <posix4/posix4.h>
-#include <posix4/semaphore.h>
-#include <posix4/_semaphore.h>
+#include <sys/_semaphore.h>
 
 #include <security/mac/mac_framework.h>
 

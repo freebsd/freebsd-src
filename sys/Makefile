@@ -11,7 +11,7 @@ SUBDIR=	boot
 CSCOPEDIRS=	coda compat conf contrib crypto ddb dev fs geom gnu i4b isa \
 		isofs kern libkern modules net net80211 netatalk netatm \
 		netgraph netinet netinet6 netipx netkey netnatm netncp \
-		netsmb nfs nfsclient nfs4client rpc pccard pci posix4 sys \
+		netsmb nfs nfsclient nfs4client rpc pccard pci sys \
 		ufs vm ${ARCHDIR}
 
 ARCHDIR	?=	${MACHINE}

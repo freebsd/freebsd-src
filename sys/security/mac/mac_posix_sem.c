@@ -37,13 +37,12 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/kernel.h>
+#include <sys/ksem.h>
 #include <sys/malloc.h>
 #include <sys/mac.h>
 #include <sys/module.h>
 #include <sys/systm.h>
 #include <sys/sysctl.h>
-
-#include <posix4/ksem.h>
 
 #include <sys/mac_policy.h>
 
