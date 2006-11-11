@@ -146,7 +146,6 @@ vm_paddr_t physical_start;
 vm_paddr_t physical_end;
 vm_paddr_t physical_freestart;
 vm_offset_t physical_pages;
-vm_offset_t clean_sva, clean_eva;
 
 struct pv_addr systempage;
 struct pv_addr irqstack;
@@ -455,7 +454,6 @@ initarm(void *arg, void *arg2)
 	init_param1();
 	init_param2(physmem);
 	kdb_init();
-	avail_end = 0xc0000000 + memsize - 1;
 	return ((void *)(kernelstack.pv_va + USPACE_SVC_STACK_TOP -
 	    sizeof(struct pcb)));
 }
