@@ -338,7 +338,7 @@ void _lock_profile_release_lock(struct lock_object *lo)
                 if (p == NULL || *p == '\0')
                         p = unknown;
                 hash = (l->lpo_namehash * 31 * 31 + (uintptr_t)p * 31 + l->lpo_lineno) & LPROF_HASH_MASK;
-                CTR5(KTR_SPARE1, "Hashing %s(%x) %s:%d to %d", l->lpo_name, 
+                CTR5(KTR_SPARE1, "Hashing %s(%x) %s:%d to %d", l->lpo_filename, 
 		     l->lpo_namehash, p, l->lpo_lineno, hash);
                 mpp = &lprof_buf[hash];
                 while (mpp->name != NULL) {
