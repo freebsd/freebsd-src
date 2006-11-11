@@ -1,4 +1,4 @@
-/* $OpenBSD: key.c,v 1.67 2006/08/03 03:34:42 deraadt Exp $ */
+/* $OpenBSD: key.c,v 1.68 2006/11/06 21:25:28 markus Exp $ */
 /*
  * read_bignum():
  * Copyright (c) 1995 Tatu Ylonen <ylo@cs.hut.fi>, Espoo, Finland
@@ -617,16 +617,18 @@ key_from_private(const Key *k)
 	switch (k->type) {
 	case KEY_DSA:
 		n = key_new(k->type);
-		BN_copy(n->dsa->p, k->dsa->p);
-		BN_copy(n->dsa->q, k->dsa->q);
-		BN_copy(n->dsa->g, k->dsa->g);
-		BN_copy(n->dsa->pub_key, k->dsa->pub_key);
+		if ((BN_copy(n->dsa->p, k->dsa->p) == NULL) ||
+		    (BN_copy(n->dsa->q, k->dsa->q) == NULL) ||
+		    (BN_copy(n->dsa->g, k->dsa->g) == NULL) ||
+		    (BN_copy(n->dsa->pub_key, k->dsa->pub_key) == NULL))
+			fatal("key_from_private: BN_copy failed");
 		break;
 	case KEY_RSA:
 	case KEY_RSA1:
 		n = key_new(k->type);
-		BN_copy(n->rsa->n, k->rsa->n);
-		BN_copy(n->rsa->e, k->rsa->e);
+		if ((BN_copy(n->rsa->n, k->rsa->n) == NULL) ||
+		    (BN_copy(n->rsa->e, k->rsa->e) == NULL))
+			fatal("key_from_private: BN_copy failed");
 		break;
 	default:
 		fatal("key_from_private: unknown type %d", k->type);

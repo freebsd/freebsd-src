@@ -1,4 +1,4 @@
-/* $Id: port-solaris.c,v 1.2 2006/09/01 05:38:41 djm Exp $ */
+/* $Id: port-solaris.c,v 1.3 2006/10/31 23:28:49 dtucker Exp $ */
 
 /*
  * Copyright (c) 2006 Chad Mynhier.
@@ -86,16 +86,25 @@ solaris_contract_pre_fork(void)
 	debug2("%s: setting up process contract template on fd %d",
 	    __func__, tmpl_fd);
 
-	/* We have to set certain attributes before activating the template */
-	if (ct_pr_tmpl_set_fatal(tmpl_fd,
-	    CT_PR_EV_HWERR|CT_PR_EV_SIGNAL|CT_PR_EV_CORE) != 0) {
+	/* First we set the template parameters and event sets. */
+	if (ct_pr_tmpl_set_param(tmpl_fd, CT_PR_PGRPONLY) != 0) {
+		error("%s: Error setting process contract parameter set "
+		    "(pgrponly): %s", __func__, strerror(errno));
+		goto fail;
+	}
+	if (ct_pr_tmpl_set_fatal(tmpl_fd, CT_PR_EV_HWERR) != 0) {
 		error("%s: Error setting process contract template "
 		    "fatal events: %s", __func__, strerror(errno));
 		goto fail;
 	}
-	if (ct_tmpl_set_critical(tmpl_fd, CT_PR_EV_HWERR) != 0) {
+	if (ct_tmpl_set_critical(tmpl_fd, 0) != 0) {
 		error("%s: Error setting process contract template "
 		    "critical events: %s", __func__, strerror(errno));
+		goto fail;
+	}
+	if (ct_tmpl_set_informative(tmpl_fd, CT_PR_EV_HWERR) != 0) {
+		error("%s: Error setting process contract template "
+		    "informative events: %s", __func__, strerror(errno));
 		goto fail;
 	}
 
