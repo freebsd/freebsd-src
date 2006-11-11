@@ -348,12 +348,18 @@
 	Note that this functionality cannot coexist with the
 	&man.umass.4; driver.</para>
 
+      <para>The &man.ata.4; driver has been updated to reflect the
+        version in &os; CURRENT.</para>
+
       <para>&man.geli.8; is now able to perform data integrity
         verification (data authentication) of encrypted data stored on
         disk.  Note that the encryption algorithm is now specified to
         the &man.geli.8; control program using the <option>-e</option>
         option; the <option>-a</option> option is now used to specify
         the authentication algorithm.</para>
+
+      <para>The &man.isp.4; driver has been updated to reflect the
+        version in &os; CURRENT.</para>
 
     </sect3>
 
@@ -413,6 +419,10 @@
     <para>The &man.freebsd-update.8; utility, a tool for managing
       binary updates to the &os; base system, has been added.</para>
 
+    <para>The &man.fsdb.8; utility now supports changing the birth
+      time of files on UFS2 file systems using the new 
+      the <literal>btime</literal> command.</para>
+
     <para>The &man.getent.1; utility has been imported from NetBSD.
       It retrieves and displays information from an administrative
       database (such as <filename>hosts</filename>) using the lookup
@@ -448,6 +458,10 @@
       corresponding <option>-l</option> command-line option to specify
       that these <quote>late</quote> file systems should be
       mounted.</para>
+
+    <para>The &man.ping.8; command now supports a <option>-W</option>
+      option to specify the maximum time to wait for an echo reply.
+      </para>
 
     <para>The &man.pkill.1; utility (also known as &man.pgrep.1;) has
       been moved from <filename>/usr/bin</filename>
@@ -550,6 +564,9 @@
       For this functionality, the <literal>AUDIT</literal> kernel option,
       <filename>/var/audit</filename> directory, and
       <literal>audit</literal> group have been added.</para>
+
+    <para><application>zlib</application>
+      has been updated from version 1.2.2 to version 1.2.3.</para>
   </sect2>
 
   <sect2 id="ports">
