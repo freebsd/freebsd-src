@@ -85,7 +85,7 @@ struct mtx lprof_locks[LPROF_LOCK_SIZE];
 
 static int lock_prof_acquisitions;
 SYSCTL_INT(_debug_lock_prof, OID_AUTO, acquisitions, CTLFLAG_RD,
-    &lock_prof_acquisitions, 0, "Number of mutex acquistions recorded");
+    &lock_prof_acquisitions, 0, "Number of lock acquistions recorded");
 static int lock_prof_records;
 SYSCTL_INT(_debug_lock_prof, OID_AUTO, records, CTLFLAG_RD,
     &lock_prof_records, 0, "Number of profiling records");
@@ -184,10 +184,10 @@ reset_lock_prof_stats(SYSCTL_HANDLER_ARGS)
 }
 
 SYSCTL_PROC(_debug_lock_prof, OID_AUTO, stats, CTLTYPE_STRING | CTLFLAG_RD,
-    NULL, 0, dump_lock_prof_stats, "A", "Mutex profiling statistics");
+    NULL, 0, dump_lock_prof_stats, "A", "Lock profiling statistics");
 
 SYSCTL_PROC(_debug_lock_prof, OID_AUTO, reset, CTLTYPE_INT | CTLFLAG_RW,
-    NULL, 0, reset_lock_prof_stats, "I", "Reset mutex profiling statistics");
+    NULL, 0, reset_lock_prof_stats, "I", "Reset lock profiling statistics");
 #endif
 
 void
@@ -379,7 +379,7 @@ void _lock_profile_release_lock(struct lock_object *lo)
                 }
                 LPROF_LOCK(hash);
                 /*
-                 * Record if the mutex has been held longer now than ever
+                 * Record if the lock has been held longer now than ever
                  * before.
                  */
                 if (now - acqtime > mpp->cnt_max)
