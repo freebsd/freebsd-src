@@ -11,7 +11,7 @@
 
 #include <sys/signal.h>
 #include <sys/acl.h>
-#include <posix4/_semaphore.h>
+#include <sys/_semaphore.h>
 #include <sys/ucontext.h>
 
 #include <bsm/audit_kevents.h>
