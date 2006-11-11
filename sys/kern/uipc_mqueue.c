@@ -64,6 +64,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/mqueue.h>
 #include <sys/mutex.h>
 #include <sys/namei.h>
+#include <sys/posix4.h>
 #include <sys/poll.h>
 #include <sys/priv.h>
 #include <sys/proc.h>
@@ -79,7 +80,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/unistd.h>
 #include <sys/vnode.h>
 #include <machine/atomic.h>
-#include <posix4/posix4.h>
 
 /*
  * Limits and constants

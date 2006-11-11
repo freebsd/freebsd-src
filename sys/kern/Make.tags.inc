@@ -47,7 +47,6 @@ COMM=	${SYS}/dev/advansys/*.[ch] \
 	${SYS}/netnatm/*.[ch] \
 	${SYS}/nfs/*.[ch] \
 	${SYS}/pci/*.[ch] \
-	${SYS}/posix4/*.[ch] \
 	${SYS}/ufs/ffs/*.[ch] \
 	${SYS}/ufs/ufs/*.[ch] \
 	${SYS}/vm/*.[ch] \
@@ -64,7 +63,6 @@ COMMDIR1= ${SYS}/conf \
 	${SYS}/netnatm \
 	${SYS}/nfs \
 	${SYS}/pci \
-	${SYS}/posix4 \
 	${SYS}/vm \
 	${SYS}/sys
 
