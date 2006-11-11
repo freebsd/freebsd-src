@@ -7164,7 +7164,6 @@ sctp_chunk_output(struct sctp_inpcb *inp,
 
 	un_sent = (stcb->asoc.total_output_queue_size - stcb->asoc.total_flight);
 
-
 	if ((un_sent <= 0) &&
 	    (TAILQ_EMPTY(&asoc->control_send_queue)) &&
 	    (asoc->sent_queue_retran_cnt == 0)) {
@@ -7184,7 +7183,17 @@ sctp_chunk_output(struct sctp_inpcb *inp,
 		 * Ok, it is retransmission time only, we send out only ONE
 		 * packet with a single call off to the retran code.
 		 */
-		if (from_where != SCTP_OUTPUT_FROM_HB_TMR) {
+		if (from_where == SCTP_OUTPUT_FROM_COOKIE_ACK) {
+			/*
+			 * Special hook for handling cookiess discarded by
+			 * peer that carried data. Send cookie-ack only and
+			 * then the next call with get the retran's.
+			 */
+			(void)sctp_med_chunk_output(inp, stcb, asoc, &num_out, &reason_code, 1,
+			    &cwnd_full, from_where,
+			    &now, &now_filled, frag_point);
+			return (0);
+		} else if (from_where != SCTP_OUTPUT_FROM_HB_TMR) {
 			/* if its not from a HB then do it */
 			ret = sctp_chunk_retransmission(inp, stcb, asoc, &num_out, &now, &now_filled);
 		} else {
