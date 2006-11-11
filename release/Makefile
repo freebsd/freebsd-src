@@ -420,7 +420,7 @@ release rerelease:
 .endif
 .endif
 .if make(rerelease)
-.if !defined(RELEASENOUPDATE)
+.if !defined(RELEASENOUPDATE) && !defined(EXTSRCDIR)
 .if !defined(RELEASETAG)
 	cd ${CHROOTDIR}/usr/src && ${CVSPREFIX} cvs -R ${CVSARGS} -q \
 	    update ${CVSCMDARGS} -P -d -A
