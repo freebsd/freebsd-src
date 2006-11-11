@@ -1,4 +1,4 @@
-/* $OpenBSD: moduli.c,v 1.18 2006/08/03 03:34:42 deraadt Exp $ */
+/* $OpenBSD: moduli.c,v 1.19 2006/11/06 21:25:28 markus Exp $ */
 /*
  * Copyright 1994 Phil Karn <karn@qualcomm.com>
  * Copyright 1996-1998, 2003 William Allen Simpson <wsimpson@greendragon.com>
@@ -327,20 +327,26 @@ gen_candidates(FILE *out, u_int32_t memory, u_int32_t power, BIGNUM *start)
 
 	/* validation check: count the number of primes tried */
 	largetries = 0;
-	q = BN_new();
+	if ((q = BN_new()) == NULL)
+		fatal("BN_new failed");
 
 	/*
 	 * Generate random starting point for subprime search, or use
 	 * specified parameter.
 	 */
-	largebase = BN_new();
-	if (start == NULL)
-		BN_rand(largebase, power, 1, 1);
-	else
-		BN_copy(largebase, start);
+	if ((largebase = BN_new()) == NULL)
+		fatal("BN_new failed");
+	if (start == NULL) {
+		if (BN_rand(largebase, power, 1, 1) == 0)
+			fatal("BN_rand failed");
+	} else {
+		if (BN_copy(largebase, start) == NULL)
+			fatal("BN_copy: failed");
+	}
 
 	/* ensure odd */
-	BN_set_bit(largebase, 0);
+	if (BN_set_bit(largebase, 0) == 0)
+		fatal("BN_set_bit: failed");
 
 	time(&time_start);
 
@@ -424,8 +430,10 @@ gen_candidates(FILE *out, u_int32_t memory, u_int32_t power, BIGNUM *start)
 			continue; /* Definitely composite, skip */
 
 		debug2("test q = largebase+%u", 2 * j);
-		BN_set_word(q, 2 * j);
-		BN_add(q, q, largebase);
+		if (BN_set_word(q, 2 * j) == 0)
+			fatal("BN_set_word failed");
+		if (BN_add(q, q, largebase) == 0)
+			fatal("BN_add failed");
 		if (qfileout(out, QTYPE_SOPHIE_GERMAIN, QTEST_SIEVE,
 		    largetries, (power - 1) /* MSB */, (0), q) == -1) {
 			ret = -1;
@@ -470,9 +478,12 @@ prime_test(FILE *in, FILE *out, u_int32_t trials, u_int32_t generator_wanted)
 
 	time(&time_start);
 
-	p = BN_new();
-	q = BN_new();
-	ctx = BN_CTX_new();
+	if ((p = BN_new()) == NULL)
+		fatal("BN_new failed");
+	if ((q = BN_new()) == NULL)
+		fatal("BN_new failed");
+	if ((ctx = BN_CTX_new()) == NULL)
+		fatal("BN_CTX_new failed");
 
 	debug2("%.24s Final %u Miller-Rabin trials (%x generator)",
 	    ctime(&time_start), trials, generator_wanted);
@@ -520,10 +531,13 @@ prime_test(FILE *in, FILE *out, u_int32_t trials, u_int32_t generator_wanted)
 		case QTYPE_SOPHIE_GERMAIN:
 			debug2("%10u: (%u) Sophie-Germain", count_in, in_type);
 			a = q;
-			BN_hex2bn(&a, cp);
+			if (BN_hex2bn(&a, cp) == 0)
+				fatal("BN_hex2bn failed");
 			/* p = 2*q + 1 */
-			BN_lshift(p, q, 1);
-			BN_add_word(p, 1);
+			if (BN_lshift(p, q, 1) == 0)
+				fatal("BN_lshift failed");
+			if (BN_add_word(p, 1) == 0)
+				fatal("BN_add_word failed");
 			in_size += 1;
 			generator_known = 0;
 			break;
@@ -534,9 +548,11 @@ prime_test(FILE *in, FILE *out, u_int32_t trials, u_int32_t generator_wanted)
 		case QTYPE_UNKNOWN:
 			debug2("%10u: (%u)", count_in, in_type);
 			a = p;
-			BN_hex2bn(&a, cp);
+			if (BN_hex2bn(&a, cp) == 0)
+				fatal("BN_hex2bn failed");
 			/* q = (p-1) / 2 */
-			BN_rshift(q, p, 1);
+			if (BN_rshift(q, p, 1) == 0)
+				fatal("BN_rshift failed");
 			break;
 		default:
 			debug2("Unknown prime type");

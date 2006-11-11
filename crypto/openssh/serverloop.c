@@ -1,4 +1,4 @@
-/* $OpenBSD: serverloop.c,v 1.144 2006/08/03 03:34:42 deraadt Exp $ */
+/* $OpenBSD: serverloop.c,v 1.145 2006/10/11 12:38:03 markus Exp $ */
 /*
  * Author: Tatu Ylonen <ylo@cs.hut.fi>
  * Copyright (c) 1995 Tatu Ylonen <ylo@cs.hut.fi>, Espoo, Finland
@@ -248,8 +248,10 @@ client_alive_check(void)
 	int channel_id;
 
 	/* timeout, check to see how many we have had */
-	if (++client_alive_timeouts > options.client_alive_count_max)
-		packet_disconnect("Timeout, your session not responding.");
+	if (++client_alive_timeouts > options.client_alive_count_max) {
+		logit("Timeout, client not responding.");
+		cleanup_exit(255);
+	}
 
 	/*
 	 * send a bogus global/channel request with "wantreply",

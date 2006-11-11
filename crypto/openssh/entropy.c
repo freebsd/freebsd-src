@@ -36,6 +36,7 @@
 #endif
 #include <stdarg.h>
 #include <unistd.h>
+#include <signal.h>
 
 #include <openssl/rand.h>
 #include <openssl/crypto.h>
