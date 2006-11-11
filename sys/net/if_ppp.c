@@ -76,6 +76,7 @@
 /* from NetBSD: if_ppp.c,v 1.15.2.2 1994/07/28 05:17:58 cgd Exp */
 
 #include "opt_inet.h"
+#include "opt_inet6.h"
 #include "opt_ipx.h"
 #include "opt_mac.h"
 #include "opt_ppp.h"
@@ -567,6 +568,9 @@ pppioctl(sc, cmd, data, flag, td)
 	case PPP_IP:
 	    npx = NP_IP;
 	    break;
+	case PPP_IPV6:
+	    npx = NP_IPV6;
+	    break;
 	default:
 	    error = EINVAL;
 	}
@@ -675,6 +679,10 @@ pppsioctl(ifp, cmd, data)
 	case AF_INET:
 	    break;
 #endif
+#ifdef INET6
+	case AF_INET6:
+	    break;
+#endif
 #ifdef IPX
 	case AF_IPX:
 	    break;
@@ -689,6 +697,10 @@ pppsioctl(ifp, cmd, data)
 	switch(ifa->ifa_addr->sa_family) {
 #ifdef INET
 	case AF_INET:
+	    break;
+#endif
+#ifdef INET6
+	case AF_INET6:
 	    break;
 #endif
 #ifdef IPX
@@ -730,6 +742,10 @@ pppsioctl(ifp, cmd, data)
 	switch(ifr->ifr_addr.sa_family) {
 #ifdef INET
 	case AF_INET:
+	    break;
+#endif
+#ifdef INET6
+	case AF_INET6:
 	    break;
 #endif
 	default:
@@ -827,6 +843,24 @@ pppoutput(ifp, m0, dst, rtp)
 	ip = mtod(m0, struct ip *);
 	if (ip->ip_tos & IPTOS_LOWDELAY)
 	    m0->m_flags |= M_HIGHPRI;
+	break;
+#endif
+#ifdef INET6
+    case AF_INET6:
+	address = PPP_ALLSTATIONS;	/*XXX*/
+	control = PPP_UI;		/*XXX*/
+	protocol = PPP_IPV6;
+	mode = sc->sc_npmode[NP_IPV6];
+
+#if 0	/* XXX flowinfo/traffic class, maybe? */
+	/*
+	 * If this packet has the "low delay" bit set in the IP header,
+	 * put it on the fastq instead.
+	 */
+	ip = mtod(m0, struct ip *);
+	if (ip->ip_tos & IPTOS_LOWDELAY)
+	    m0->m_flags |= M_HIGHPRI;
+#endif
 	break;
 #endif
 #ifdef IPX
@@ -984,6 +1018,9 @@ ppp_requeue(sc)
 	switch (PPP_PROTOCOL(mtod(m, u_char *))) {
 	case PPP_IP:
 	    mode = sc->sc_npmode[NP_IP];
+	    break;
+	case PPP_IPV6:
+	    mode = sc->sc_npmode[NP_IPV6];
 	    break;
 	default:
 	    mode = NPMODE_PASS;
@@ -1585,6 +1622,23 @@ ppp_inproc(sc, m)
 	if ((m = ip_fastforward(m)) == NULL)
 	    return;
 	isr = NETISR_IP;
+	break;
+#endif
+#ifdef INET6
+    case PPP_IPV6:
+	/*
+	 * IPv6 packet - take off the ppp header and pass it up to IPv6.
+	 */
+	if ((ifp->if_flags & IFF_UP) == 0
+	    || sc->sc_npmode[NP_IPV6] != NPMODE_PASS) {
+	    /* interface is down - drop the packet. */
+	    m_freem(m);
+	    return;
+	}
+	m->m_pkthdr.len -= PPP_HDRLEN;
+	m->m_data += PPP_HDRLEN;
+	m->m_len -= PPP_HDRLEN;
+	isr = NETISR_IPV6;
 	break;
 #endif
 #ifdef IPX
