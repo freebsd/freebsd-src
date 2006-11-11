@@ -52,6 +52,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/proc.h>
 #include <sys/reboot.h>
 #include <sys/resourcevar.h>
+#include <sys/sched.h>
 #include <sys/signalvar.h>
 #include <sys/stat.h>
 #include <sys/syscallsubr.h>
@@ -72,8 +73,6 @@ __FBSDID("$FreeBSD$");
 #include <vm/vm_extern.h>
 #include <vm/vm_object.h>
 #include <vm/swap_pager.h>
-
-#include <posix4/sched.h>
 
 #include <compat/linux/linux_sysproto.h>
 #include <compat/linux/linux_emul.h>

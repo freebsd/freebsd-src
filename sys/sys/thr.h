@@ -30,7 +30,7 @@
 #ifndef _SYS_THR_H_
 #define	_SYS_THR_H_
 
-#include <posix4/sched.h>
+#include <sys/sched.h>
 
 /* Create the thread in the suspended state. */
 #define	THR_SUSPENDED		0x0001

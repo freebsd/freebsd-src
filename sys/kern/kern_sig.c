@@ -57,9 +57,9 @@ __FBSDID("$FreeBSD$");
 #include <sys/mutex.h>
 #include <sys/namei.h>
 #include <sys/proc.h>
+#include <sys/posix4.h>
 #include <sys/pioctl.h>
 #include <sys/resourcevar.h>
-#include <sys/sched.h>
 #include <sys/sleepqueue.h>
 #include <sys/smp.h>
 #include <sys/stat.h>
@@ -76,7 +76,6 @@ __FBSDID("$FreeBSD$");
 #include <vm/vm_extern.h>
 #include <vm/uma.h>
 
-#include <posix4/posix4.h>
 #include <machine/cpu.h>
 
 #include <security/audit/audit.h>
