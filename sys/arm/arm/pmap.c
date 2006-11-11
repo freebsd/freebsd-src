@@ -218,7 +218,6 @@ static vm_offset_t	kernel_pt_lookup(vm_paddr_t);
 
 static MALLOC_DEFINE(M_VMPMAP, "pmap", "PMAP L1");
 
-vm_offset_t avail_end;		/* PA of last available physical page */
 vm_offset_t virtual_avail;	/* VA of first avail page (after kernel bss) */
 vm_offset_t virtual_end;	/* VA of last avail page (end of kernel AS) */
 vm_offset_t pmap_curmaxkvaddr;
