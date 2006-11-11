@@ -47,7 +47,7 @@ struct umtx {
 #define USYNC_PROCESS_SHARED	0x0001	/* Process shared sync objs */
 
 #define	UMUTEX_UNOWNED		0x0
-#define	UMUTEX_CONTESTED	0x80000000
+#define	UMUTEX_CONTESTED	0x80000000U
 
 #define UMUTEX_ERROR_CHECK	0x0002	/* Error-checking mutex */
 #define UMUTEX_PRIO_INHERIT	0x0004	/* Priority inherited mutex */
