@@ -1031,8 +1031,7 @@ installFilesystems(dialogMenuItem *self)
 	}
 	else {
 	    if (!upgrade) {
-		msgConfirm("Warning:  Using existing root partition.  It will be assumed\n"
-			   "that you have the appropriate device entries already in /dev.");
+		msgConfirm("Warning:  Using existing root partition.");
 	    }
 	    dialog_clear_norefresh();
 	    msgNotify("Checking integrity of existing %s filesystem.", dname);
