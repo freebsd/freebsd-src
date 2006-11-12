@@ -45,12 +45,13 @@ SRCS=	elf_begin.c						\
 	libelf_ehdr.c						\
 	libelf_phdr.c						\
 	libelf_shdr.c						\
-	libelf_xlate.c
+	libelf_xlate.c						\
+	${GENSRCS}
 INCS=	libelf.h gelf.h
 
-DPSRCS+=	libelf_fsize.c libelf_msize.c libelf_convert.c
-CLEANFILES+=	libelf_fsize.c libelf_msize.c libelf_convert.c
-CFLAGS+=	-I${.OBJDIR} -I${.CURDIR}
+GENSRCS+=	libelf_fsize.c libelf_msize.c libelf_convert.c
+CLEANFILES+=	${GENSRCS}
+CFLAGS+=	-I. -I${.CURDIR}
 
 OBJS+=	libelf_convert.o libelf_fsize.o libelf_msize.o
 
@@ -160,7 +161,7 @@ libelf_msize.c:		elf_types.m4 libelf_msize.m4
 
 .include <bsd.lib.mk>
 
-# Keep the .suffixes line after the include of bsd.lib.mk
+# Keep the .SUFFIXES line after the include of bsd.lib.mk
 .SUFFIXES:	.m4 .c
 .m4.c:
 	m4 -D SRCDIR=${.CURDIR} -D OSRELDATE=${OSRELDATE} ${.IMPSRC} > ${.TARGET}
