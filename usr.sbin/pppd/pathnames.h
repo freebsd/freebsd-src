@@ -26,6 +26,11 @@
 #define _PATH_PPPDENY  "/etc/ppp/ppp.deny"
 #define _PATH_PPPSHELLS	"/etc/ppp/ppp.shells"
 
+#ifdef INET6
+#define _PATH_IPV6UP	"/etc/ppp/ipv6-up"
+#define _PATH_IPV6DOWN	"/etc/ppp/ipv6-down"
+#endif
+
 #ifdef IPX_CHANGE
 #define _PATH_IPXUP	"/etc/ppp/ipx-up"
 #define _PATH_IPXDOWN	"/etc/ppp/ipx-down"
