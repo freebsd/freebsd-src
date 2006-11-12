@@ -3396,8 +3396,11 @@ do_l2b_alloc:
 		npte |= L2_TYPE_INV;
 	}
 	
-	if (prot & VM_PROT_WRITE)
+	if (prot & VM_PROT_WRITE) {
 		npte |= L2_S_PROT_W;
+		if (m != NULL)
+			vm_page_flag_set(m, PG_WRITEABLE);
+	}
 	npte |= pte_l2_s_cache_mode;
 	if (m && m == opg) {
 		/*

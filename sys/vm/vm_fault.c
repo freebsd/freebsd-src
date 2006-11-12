@@ -841,9 +841,6 @@ readrest:
 		}
 	}
 	if (prot & VM_PROT_WRITE) {
-		vm_page_lock_queues();
-		vm_page_flag_set(fs.m, PG_WRITEABLE);
-		vm_page_unlock_queues();
 		vm_object_set_writeable_dirty(fs.object);
 
 		/*
@@ -1189,14 +1186,12 @@ vm_fault_copy_entry(dst_map, src_map, dst_entry, src_entry)
 		 * Enter it in the pmap...
 		 */
 		pmap_enter(dst_map->pmap, vaddr, dst_m, prot, FALSE);
-		VM_OBJECT_LOCK(dst_object);
-		vm_page_lock_queues();
-		if ((prot & VM_PROT_WRITE) != 0)
-			vm_page_flag_set(dst_m, PG_WRITEABLE);
 
 		/*
 		 * Mark it no longer busy, and put it on the active list.
 		 */
+		VM_OBJECT_LOCK(dst_object);
+		vm_page_lock_queues();
 		vm_page_activate(dst_m);
 		vm_page_unlock_queues();
 		vm_page_wakeup(dst_m);

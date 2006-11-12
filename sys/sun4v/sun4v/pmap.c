@@ -1008,8 +1008,10 @@ pmap_enter(pmap_t pmap, vm_offset_t va, vm_page_t m, vm_prot_t prot,
 	/*
 	 * Now validate mapping with desired protection/wiring.
 	 */
-	if ((prot & VM_PROT_WRITE) != 0)
+	if ((prot & VM_PROT_WRITE) != 0) {
 		tte_data |= VTD_SW_W; 
+		vm_page_flag_set(m, PG_WRITEABLE);
+	}
 	if ((prot & VM_PROT_EXECUTE) != 0)
 		tte_data |= VTD_X;
 	if (wired)
