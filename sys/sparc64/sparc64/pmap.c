@@ -1348,6 +1348,7 @@ pmap_enter_locked(pmap_t pm, vm_offset_t va, vm_page_t m, vm_prot_t prot,
 			if (wired) {
 				tp->tte_data |= TD_W;
 			}
+			vm_page_flag_set(m, PG_WRITEABLE);
 		} else if ((data & TD_W) != 0) {
 			vm_page_dirty(m);
 		}
@@ -1387,8 +1388,10 @@ pmap_enter_locked(pmap_t pm, vm_offset_t va, vm_page_t m, vm_prot_t prot,
 		data = TD_V | TD_8K | TD_PA(pa);
 		if (pm == kernel_pmap)
 			data |= TD_P;
-		if (prot & VM_PROT_WRITE)
+		if ((prot & VM_PROT_WRITE) != 0) {
 			data |= TD_SW;
+			vm_page_flag_set(m, PG_WRITEABLE);
+		}
 		if (prot & VM_PROT_EXECUTE) {
 			data |= TD_EXEC;
 			icache_page_inval(pa);
