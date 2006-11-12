@@ -713,17 +713,12 @@ main(int argc, char *argv[])
 	if (argc > 0)
 		usage();
 
-	/*
-	 * If protos_defined remains -1, no -P was provided, so we have to
-	 * set up the default protocol list in protos[] first.
-	 */
-	if (!opt_4 && !opt_6 && !opt_u && protos_defined == -1) {
-		opt_u = 1;
-		protos_defined = set_default_protos();
-	}
-
-	if (!opt_4 && !opt_6)
+	if ((!opt_4 && !opt_6) && protos_defined != -1)
 		opt_4 = opt_6 = 1;
+	if (!opt_4 && !opt_6 && !opt_u)
+		opt_4 = opt_6 = opt_u = 1;
+	if ((opt_4 || opt_6) && protos_defined == -1)
+		protos_defined = set_default_protos();
 	if (!opt_c && !opt_l)
 		opt_c = opt_l = 1;
 
