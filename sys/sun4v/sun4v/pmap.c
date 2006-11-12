@@ -140,7 +140,7 @@ static int ctx_stack_top;
 
 static int permanent_mappings = 0;
 static uint64_t nucleus_memory;
-static uint64_t nucleus_mappings[2];
+static uint64_t nucleus_mappings[4];
 /*
  * Kernel pmap.
  */
@@ -438,8 +438,6 @@ pmap_bootstrap(vm_offset_t ekva)
 	int i, sz, j;
 	uint64_t tsb_8k_size, tsb_4m_size, error, physmem_tunable;
 
-
-
 	if ((vmem = OF_finddevice("/virtual-memory")) == -1)
 		panic("pmap_bootstrap: finddevice /virtual-memory");
 	if ((sz = OF_getproplen(vmem, "translations")) == -1)
@@ -454,13 +452,14 @@ pmap_bootstrap(vm_offset_t ekva)
 	nucleus_memory_start = 0;
 	CTR0(KTR_PMAP, "pmap_bootstrap: translations");
 	qsort(translations, sz, sizeof (*translations), om_cmp);
+
 	for (i = 0; i < sz; i++) {
 		KDPRINTF("om_size=%ld om_start=%lx om_tte=%lx\n", 
 			translations[i].om_size, translations[i].om_start, 
 			translations[i].om_tte);
 		if (translations[i].om_size == PAGE_SIZE_4M && 
-		    (translations[i].om_start == KERNBASE ||
-		     translations[i].om_start == KERNBASE + PAGE_SIZE_4M)) {
+		    (translations[i].om_start >= KERNBASE && 
+		     translations[i].om_start <= KERNBASE + 3*PAGE_SIZE_4M)) {
 			KDPRINTF("mapping permanent translation\n");
 			pa = TTE_GET_PA(translations[i].om_tte);
 			error = hv_mmu_map_perm_addr((char *)translations[i].om_start, 
@@ -515,14 +514,14 @@ pmap_bootstrap(vm_offset_t ekva)
 		 * Is kernel memory at the beginning of range?
 		 */
 		if (nucleus_memory_start == mra[i].mr_start) {
-			mra[i].mr_start += 2*PAGE_SIZE_4M;
-			mra[i].mr_size -= 2*PAGE_SIZE_4M;
+			mra[i].mr_start += nucleus_memory;
+			mra[i].mr_size -= nucleus_memory;
 		}
 		/* 
 		 * Is kernel memory at the end of range?
 		 */
-		if (nucleus_memory_start == (start + size - 2*PAGE_SIZE_4M)) 
-			mra[i].mr_size -= 2*PAGE_SIZE_4M;
+		if (nucleus_memory_start == (start + size - nucleus_memory)) 
+			mra[i].mr_size -= nucleus_memory;
 
 		/* 
 		 * Is kernel memory in the middle somewhere?
@@ -536,15 +535,15 @@ pmap_bootstrap(vm_offset_t ekva)
 				break;
 			}
 			phys_avail[j+1] = nucleus_memory_start;
-			size = size - firstsize - 2*PAGE_SIZE_4M;
-			mra[i].mr_start =  nucleus_memory_start + 2*PAGE_SIZE_4M;
+			size = size - firstsize - nucleus_memory;
+			mra[i].mr_start =  nucleus_memory_start + nucleus_memory;
 			mra[i].mr_size = size;
-			physsz += firstsize + 2*PAGE_SIZE_4M;
+			physsz += firstsize + nucleus_memory;
 			j += 2;
 		}
 		if (mra[i].mr_size < PAGE_SIZE_4M)
 			continue;
-		if ((mra[i].mr_start & PAGE_MASK_4M) && (mra[i].mr_size < 2*PAGE_SIZE_4M))
+		if ((mra[i].mr_start & PAGE_MASK_4M) && (mra[i].mr_size < nucleus_memory))
 			continue;
 		if (mra[i].mr_start & PAGE_MASK_4M) {
 			uint64_t newstart, roundup;
@@ -742,7 +741,7 @@ pmap_bootstrap(vm_offset_t ekva)
 		pa = phys_avail[i];
 	} while (pa != 0);
 
-	for (i = 0; i < 2; i++) {
+	for (i = 0; i < permanent_mappings; i++) {
                 pa = nucleus_mappings[i];
 		tsb_assert_invalid(&kernel_td[TSB4M_INDEX], TLB_PHYS_TO_DIRECT(pa));
                 tsb_set_tte_real(&kernel_td[TSB4M_INDEX], TLB_PHYS_TO_DIRECT(pa),
