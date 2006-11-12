@@ -93,7 +93,11 @@
  * $Id: ipv6cp.c,v 1.7 1999/10/08 01:08:18 masputra Exp $ 
  */
 
+#ifndef lint
 #define RCSID	"$Id: ipv6cp.c,v 1.7 1999/10/08 01:08:18 masputra Exp $"
+#endif
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 /*
  * TODO: 
@@ -107,6 +111,7 @@
 
 #include <stdio.h>
 #include <string.h>
+#include <syslog.h>
 #include <unistd.h>
 #include <netdb.h>
 #include <sys/param.h>
@@ -122,7 +127,11 @@
 #include "magic.h"
 #include "pathnames.h"
 
+#define s6_addr32 __u6_addr.__u6_addr32
+
+#ifdef RCSID
 static const char rcsid[] = RCSID;
+#endif
 
 /* global vars */
 ipv6cp_options ipv6cp_wantoptions[NUM_PPP];     /* Options that we want to request */
@@ -168,41 +177,6 @@ static fsm_callbacks ipv6cp_callbacks = { /* IPV6CP callback routines */
     "IPV6CP"			/* String name of protocol */
 };
 
-/*
- * Command-line options.
- */
-static int setifaceid __P((char **arg));
-
-static option_t ipv6cp_option_list[] = {
-    { "ipv6", o_special, setifaceid,
-      "Set interface identifiers for IPV6" },
-    { "noipv6", o_bool, &ipv6cp_protent.enabled_flag,
-      "Disable IPv6 and IPv6CP" },
-    { "-ipv6", o_bool, &ipv6cp_protent.enabled_flag,
-      "Disable IPv6 and IPv6CP" },
-    { "+ipv6", o_bool, &ipv6cp_protent.enabled_flag,
-      "Enable IPv6 and IPv6CP", 1 },
-
-    { "ipv6cp-accept-local", o_bool, &ipv6cp_allowoptions[0].accept_local,
-      "Accept peer's interface identifier for us", 1 },
-    { "ipv6cp-use-ipaddr", o_bool, &ipv6cp_allowoptions[0].use_ip,
-      "Use (default) IPv4 address as interface identifier", 0 },
-#if defined(SOL2)
-    { "ipv6cp-use-persistent", o_bool, &ipv6cp_wantoptions[0].use_persistent,
-      "Use uniquely-available persistent value for link local address", 1 },
-#endif /* defined(SOL2) */
-    { "ipv6cp-restart", o_int, &ipv6cp_fsm[0].timeouttime,
-      "Set timeout for IPv6CP" },
-    { "ipv6cp-max-terminate", o_int, &ipv6cp_fsm[0].maxtermtransmits,
-      "Set max #xmits for term-reqs" },
-    { "ipv6cp-max-configure", o_int, &ipv6cp_fsm[0].maxconfreqtransmits,
-      "Set max #xmits for conf-reqs" },
-    { "ipv6cp-max-failure", o_int, &ipv6cp_fsm[0].maxnakloops,
-      "Set max #conf-naks for IPv6CP" },
-
-   { NULL }
-};
-
 
 /*
  * Protocol entry points from main code.
@@ -233,8 +207,6 @@ struct protent ipv6cp_protent = {
     NULL,
     0,
     "IPV6CP",
-    "IPV6",
-    ipv6cp_option_list,
     ipv6_check_options,
     ipv6_demand_conf,
     ipv6_active_pkt
@@ -242,7 +214,6 @@ struct protent ipv6cp_protent = {
 
 static void ipv6cp_clear_addrs __P((int, eui64_t, eui64_t));
 static void ipv6cp_script __P((char *));
-static void ipv6cp_script_done __P((void *));
 
 /*
  * Lengths of configuration options.
@@ -262,12 +233,11 @@ static enum script_state {
     s_down,
     s_up,
 } ipv6cp_script_state;
-static pid_t ipv6cp_script_pid;
 
 /*
  * setifaceid - set the interface identifiers manually
  */
-static int
+int
 setifaceid(argv)
     char **argv;
 {
@@ -1069,9 +1039,9 @@ ipv6_demand_conf(u)
     if (!sifnpmode(u, PPP_IPV6, NPMODE_QUEUE))
 	return 0;
 
-    notice("ipv6_demand_conf");
-    notice("local  LL address %s", llv6_ntoa(wo->ourid));
-    notice("remote LL address %s", llv6_ntoa(wo->hisid));
+    syslog(LOG_NOTICE, "ipv6_demand_conf");
+    syslog(LOG_NOTICE, "local  LL address %s", llv6_ntoa(wo->ourid));
+    syslog(LOG_NOTICE, "remote LL address %s", llv6_ntoa(wo->hisid));
 
     return 1;
 }
@@ -1100,17 +1070,17 @@ ipv6cp_up(f)
 
     if(!no_ifaceid_neg) {
 	if (eui64_iszero(ho->hisid)) {
-	    error("Could not determine remote LL address");
+	    syslog(LOG_ERR, "Could not determine remote LL address");
 	    ipv6cp_close(f->unit, "Could not determine remote LL address");
 	    return;
 	}
 	if (eui64_iszero(go->ourid)) {
-	    error("Could not determine local LL address");
+	    syslog(LOG_ERR, "Could not determine local LL address");
 	    ipv6cp_close(f->unit, "Could not determine local LL address");
 	    return;
 	}
 	if (eui64_equals(go->ourid, ho->hisid)) {
-	    error("local and remote LL addresses are equal");
+	    syslog(LOG_ERR, "local and remote LL addresses are equal");
 	    ipv6cp_close(f->unit, "local and remote LL addresses are equal");
 	    return;
 	}
@@ -1191,8 +1161,8 @@ ipv6cp_up(f)
 #endif
 	sifnpmode(f->unit, PPP_IPV6, NPMODE_PASS);
 
-	notice("local  LL address %s", llv6_ntoa(go->ourid));
-	notice("remote LL address %s", llv6_ntoa(ho->hisid));
+	syslog(LOG_NOTICE, "local  LL address %s", llv6_ntoa(go->ourid));
+	syslog(LOG_NOTICE, "remote LL address %s", llv6_ntoa(ho->hisid));
     }
 
     np_up(f->unit, PPP_IPV6);
@@ -1202,7 +1172,7 @@ ipv6cp_up(f)
      * Execute the ipv6-up script, like this:
      *	/etc/ppp/ipv6-up interface tty speed local-LL remote-LL
      */
-    if (ipv6cp_script_state == s_down && ipv6cp_script_pid == 0) {
+    if (ipv6cp_script_state == s_down) {
 	ipv6cp_script_state = s_up;
 	ipv6cp_script(_PATH_IPV6UP);
     }
@@ -1220,7 +1190,6 @@ ipv6cp_down(f)
     fsm *f;
 {
     IPV6CPDEBUG(("ipv6cp: down"));
-    update_link_stats(f->unit);
     if (ipv6cp_is_up) {
 	ipv6cp_is_up = 0;
 	np_down(f->unit, PPP_IPV6);
@@ -1253,7 +1222,7 @@ ipv6cp_down(f)
     }
 
     /* Execute the ipv6-down script */
-    if (ipv6cp_script_state == s_up && ipv6cp_script_pid == 0) {
+    if (ipv6cp_script_state == s_up) {
 	ipv6cp_script_state = s_down;
 	ipv6cp_script(_PATH_IPV6DOWN);
     }
@@ -1286,32 +1255,6 @@ ipv6cp_finished(f)
 
 
 /*
- * ipv6cp_script_done - called when the ipv6-up or ipv6-down script
- * has finished.
- */
-static void
-ipv6cp_script_done(arg)
-    void *arg;
-{
-    ipv6cp_script_pid = 0;
-    switch (ipv6cp_script_state) {
-    case s_up:
-	if (ipv6cp_fsm[0].state != OPENED) {
-	    ipv6cp_script_state = s_down;
-	    ipv6cp_script(_PATH_IPV6DOWN);
-	}
-	break;
-    case s_down:
-	if (ipv6cp_fsm[0].state == OPENED) {
-	    ipv6cp_script_state = s_up;
-	    ipv6cp_script(_PATH_IPV6UP);
-	}
-	break;
-    }
-}
-
-
-/*
  * ipv6cp_script - Execute a script with arguments
  * interface-name tty-name speed local-LL remote-LL.
  */
@@ -1335,7 +1278,7 @@ ipv6cp_script(script)
     argv[6] = ipparam;
     argv[7] = NULL;
 
-    ipv6cp_script_pid = run_program(script, argv, 0, ipv6cp_script_done, NULL);
+    run_program(script, argv, 0);
 }
 
 /*
