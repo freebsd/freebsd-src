@@ -210,7 +210,7 @@ lock_init(struct lock_object *lock, struct lock_class *class, const char *name,
 
 	/* Initialize the lock object. */
 	lock->lo_name = name;
-	lock->lo_type = type != NULL ? type : class->lc_name;
+	lock->lo_type = type != NULL ? type : name;
 	lock->lo_flags |= flags | LO_INITIALIZED;
 	LOCK_LOG_INIT(lock, 0);
 	WITNESS_INIT(lock);
