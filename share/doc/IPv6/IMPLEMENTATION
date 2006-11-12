@@ -6,10 +6,10 @@
 	$FreeBSD$
 
 NOTE: The document tries to describe behaviors/implementation choices
-of the latest KAME/*BSD stack (like KAME/NetBSD 1.5.1).  The description
-here may not be applicable to KAME-integrated *BSD releases (like stock
-NetBSD 1.5.1), as we have certain amount of changes between them.  Still,
-some of the content can be useful for KAME-integrated *BSD releases.
+of the latest KAME/*BSD stack.  The description here may not be
+applicable to KAME-integrated *BSD releases, as we have certain amount
+of changes between them.  Still, some of the content can be useful for
+KAME-integrated *BSD releases.
 
 Table of Contents
 
@@ -83,11 +83,8 @@ Table of Contents
 	6.1 KAME node as correspondent node
 	6.2 KAME node as home agent/mobile node
 	6.3 Old Mobile IPv6 code
-	7. Routing table extensions
-	7.1 ART routing table lookup algorithm
-	7.2 Multipath routing support
-	8. Coding style
-	9. Policy on technology with intellectual property right restriction
+	7. Coding style
+	8. Policy on technology with intellectual property right restriction
 
 1. IPv6
 
@@ -2365,7 +2362,7 @@ you to adopt our rules.  We would rather regard your own style,
 especially when you have a policy about the style.
 
 
-9. Policy on technology with intellectual property right restriction
+8. Policy on technology with intellectual property right restriction
 
 There are quite a few IETF documents/whatever which has intellectual property
 right (IPR) restriction.  KAME's stance is stated below.
