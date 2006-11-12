@@ -142,13 +142,14 @@ Pppd
 will ask the peer to send packets of no more than \fIn\fR bytes.  The
 minimum MRU value is 128.  The default MRU value is 1500.  A value of
 296 is recommended for slow links (40 bytes for TCP/IP header + 256
-bytes of data).
+bytes of data).  (Note that for IPv6 MRU must be at least 1280)
 .TP
 .B mtu \fIn
 Set the MTU [Maximum Transmit Unit] value to \fIn\fR.  Unless the
 peer requests a smaller value via MRU negotiation, pppd will
 request that the kernel networking code send data packets of no more
-than \fIn\fR bytes through the PPP network interface.
+than \fIn\fR bytes through the PPP network interface.  (Note that for 
+IPv6 MTU must be at least 1280)
 .TP
 .B passive
 Enables the "passive" option in the LCP.  With this option, pppd will
@@ -170,6 +171,17 @@ this option, pppd
 will not accept a different value from the peer in the IPCP
 negotiation, unless the \fIipcp-accept-local\fR and/or
 \fIipcp-accept-remote\fR options are given, respectively.
+.TP
+.B ipv6 \fI<local_interface_identifier>\fR,\fI<remote_interface_identifier>
+Set the local and/or remote 64-bit interface identifier. Either one may be
+omitted. The identifier must be specified in standard ascii notation of
+IPv6 addresses (e.g. ::dead:beef). If the
+\fIipv6cp-use-ipaddr\fR
+option is given, the local identifier is the local IPv4 address (see above).
+On systems which supports a unique persistent id, such as EUI-48 derived
+from the Ethernet MAC address, \fIipv6cp-use-persistent\fR option can be
+used to replace the \fIipv6 <local>,<remote>\fR option. Otherwise the 
+identifier is randomized.
 .TP
 .B bsdcomp \fInr,nt
 Request that the peer compress packets that it sends, using the
@@ -299,6 +311,22 @@ seconds (default 3).
 Provides an extra parameter to the ip-up and ip-down scripts.  If this
 option is given, the \fIstring\fR supplied is given as the 6th
 parameter to those scripts.
+.TP
+.B ipv6cp-max-configure \fIn
+Set the maximum number of IPv6CP configure-request transmissions to
+\fIn\fR (default 10).
+.TP
+.B ipv6cp-max-failure \fIn
+Set the maximum number of IPv6CP configure-NAKs returned before starting
+to send configure-Rejects instead to \fIn\fR (default 10).
+.TP
+.B ipv6cp-max-terminate \fIn
+Set the maximum number of IPv6CP terminate-request transmissions to
+\fIn\fR (default 3).
+.TP
+.B ipv6cp-restart \fIn
+Set the IPv6CP restart interval (retransmission timeout) to \fIn\fR
+seconds (default 3).
 .TP
 .B ipx
 Enable the IPXCP and IPX protocols.  This option is presently only
@@ -525,6 +553,11 @@ specified, pppd will fork to become a background process.
 Disable IPCP negotiation and IP communication.  This option should
 only be required if the peer is buggy and gets confused by requests
 from pppd for IPCP negotiation.
+.TP
+.B noipv6
+Disable IPv6CP negotiation and IPv6 communication. This option should
+only be required if the peer is buggy and gets confused by requests
+from pppd for IPv6CP negotiation.
 .TP
 .B noipdefault
 Disables the default behaviour when no local IP address is specified,
@@ -1062,6 +1095,18 @@ available for sending and receiving IP packets.  This script can be
 used for undoing the effects of the /etc/ppp/ip-up script.  It is
 invoked in the same manner and with the same parameters as the ip-up
 script.
+.TP
+.B /etc/ppp/ipv6-up
+Like /etc/ppp/ip-up, except that it is executed when the link is available 
+for sending and receiving IPv6 packets. It is executed with the parameters
+.IP
+\fIinterface-name tty-device speed local-link-local-address
+remote-link-local-address ipparam\fR
+.TP
+.B /etc/ppp/ipv6-down
+Similar to /etc/ppp/ip-down, but it is executed when IPv6 packets can no
+longer be transmitted on the link. It is executed with the same parameters 
+as the ipv6-up script.
 .TP
 .B /etc/ppp/ipx-up
 A program or script which is executed when the link is available for

@@ -91,6 +91,7 @@
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
  * $Id: ipv6cp.h,v 1.3 1999/09/30 19:57:45 masputra Exp $
+ * $FreeBSD$
  */
 
 /*
@@ -124,3 +125,5 @@ extern ipv6cp_options ipv6cp_allowoptions[];
 extern ipv6cp_options ipv6cp_hisoptions[];
 
 extern struct protent ipv6cp_protent;
+
+extern int setifaceid __P((char **arg));
