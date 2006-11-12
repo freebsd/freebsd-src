@@ -208,7 +208,7 @@ struct thread;
  * BASE priority and total available quanta are properties of a KSEGRP.
  * Multiple KSEGRPs in a single process compete against each other
  * for total quanta in the same way that a forked child competes against
- * it's parent process.
+ * its parent process.
  */
 struct ksegrp;
 
@@ -784,7 +784,7 @@ struct proc {
 #define	SINGLE_EXIT	1
 #define	SINGLE_BOUNDARY	2
 
-/* XXXKSE: Missing values for thread_suspsend_check(). */
+/* XXXKSE: Missing values for thread_suspend_check(). */
 
 #ifdef MALLOC_DECLARE
 MALLOC_DECLARE(M_PARGS);
