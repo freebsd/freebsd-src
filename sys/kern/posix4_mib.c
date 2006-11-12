@@ -39,6 +39,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/queue.h>
 #include <sys/sysctl.h>
 #include <sys/vnode.h>
+#include <sys/proc.h>
 #include <sys/posix4.h>
 
 static int facility[CTL_P1003_1B_MAXID - 1];
