@@ -1,7 +1,7 @@
 <!--
      The FreeBSD Simplified Chinese Project
 
-     Original revision: 1.883.2.47
+     Original revision: 1.883.2.50
 -->
 <articleinfo>
   <title>&os;/&arch; &release.current; 发行说明</title>
@@ -143,6 +143,10 @@
       这些问题产生的影响是多方面的， 要了解进一步详情， 请参阅安全公告
       <ulink url="http://security.FreeBSD.org/advisories/FreeBSD-SA-06:23.openssl.asc">FreeBSD-SA-06:23.openssl</ulink>。</para>
 
+    <para>修正了一处使受损的压缩包导致 &man.libarchive.3; 和 &man.tar.1;
+      陷入死循环的问题。 要了解进一步详情， 请参阅安全公告
+      <ulink url="http://security.FreeBSD.org/advisories/FreeBSD-SA-06:24.libarchive.asc">FreeBSD-SA-06:24.libarchive</ulink>。</para>
+
   </sect2>
 
   <sect2 id="kernel">
@@ -217,10 +221,17 @@
 	  <literal>ath_rate_sample</literal> 驱动，
 	  已加入默认的 <filename>GENERIC</filename> 内核。</para>
 
-	<para>&man.em.4; 驱动更新到了来自 Intel 的 6.1.4 版，
-	  除了其它变动之外， 它提供了对采用
-	  80003、 82571、 82571EB 和 82572 的以太网适配器，
-	  以及基于 ICH8 的主板上的板载以太网适配器的支持。</para>
+	<para>对 &man.bce.4; 驱动进行了一系列改善其稳定性的改进。
+	  对用户可见的一项变动是禁用了发送方的校验和减负，
+	  这样做的原因是硬件无法正常完成这项工作。</para>
+
+	<para>&man.em.4; 驱动更新到了来自 Intel 的 6.2.9 版。
+	  除了其它变动之外， 它提供了对一系列新网卡的支持。
+	  当定义了预编译符 <literal>EM_FAST_INTR</literal> 时，
+	  会启用可选的 <quote>快速中断</quote>
+	  处理。 在这版驱动中实现的 <quote>快速中断</quote> 处理,
+	  会显著改善某些情况下的性能， 但在另一些情况下，
+	  则可能带来一些稳定性方面的问题。</para>
 
 	<para>对 &man.iwi.4; 驱动进行了一系列改进和修复。 这个驱动现在需要
 	  <filename role="package">net/iwi-firmware-kmod</filename>
@@ -288,9 +299,13 @@
 	<filename>atausb</filename> 来启用它。 注意这个功能不能与
 	&man.umass.4; 驱动并存。</para>
 
+      <para>&man.ata.4; 驱动更新到了与 &os; CURRENT 相同的版本。</para>
+
       <para>&man.geli.8; 提供了对磁盘上的加密数据进行完整性检查 (数据验证) 的能力。
         注意加密算法目前是通过 &man.geli.8; 控制程序的 <option>-e</option>
         选项来指定的了； 而 <option>-a</option> 选项则用于指定验证算法。</para>
+
+      <para>&man.isp.4; 驱动更新到了与 &os; CURRENT 相同的版本。</para>
 
     </sect3>
 
@@ -338,6 +353,9 @@
 
     <para>新增了用于对 &os; 基本系统进行二进制更新的 &man.freebsd-update.8; 工具。</para>
 
+    <para>&man.fsdb.8; 工具新增了用于修改 UFS2 文件系统创建时间的
+      <literal>btime</literal> 命令。</para>
+
     <para>从 NetBSD 汇入了 &man.getent.1; 工具。 它能够以 &man.nsswitch.conf.5;
       指定的顺序提取并显示来自管理数据库 (如 <filename>hosts</filename>) 的信息。</para>
 
@@ -363,6 +381,9 @@
     <para>&man.mount.8; 工具新增了对 &man.fstab.5; 关键字
       <literal>late</literal> 的支持。 通过在命令行指定对应的 <option>-l</option>
       就可以挂载这些 <quote>late (延后挂载)</quote> 的文件系统了。</para>
+
+    <para>&man.ping.8; 命令新增了用于指定等待回应超时时间的 <option>-W</option>
+      选项。</para>
 
     <para>&man.pkill.1; 工具 (也称为 &man.pgrep.1;)
       从 <filename>/usr/bin</filename>
@@ -431,7 +452,7 @@
       更新到了 OpenBSD 3.9 中附带的版本。</para>
 
     <para><application>OpenSSH</application> 由
-      4.2p1 更新到了 4.4p1。</para>
+      4.2p1 更新到了 4.5p1。</para>
 
     <para><application>sendmail</application> 由
       8.13.6 更新到了 8.13.8。</para>
@@ -451,6 +472,9 @@
       为实现此功能， 新增了内核选项 <literal>AUDIT</literal>、
       <filename>/var/audit</filename> 目录， 以及
       <literal>audit</literal> 用户组。</para>
+
+    <para><application>zlib</application>
+      由 1.2.2 版升级到了 1.2.3 版。</para>
   </sect2>
 
   <sect2 id="ports">
