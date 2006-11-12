@@ -166,6 +166,8 @@ _lockmgr(struct lock *lkp, int flags, struct mtx *interlkp,
 		thr = td;
 
 	lock_profile_waitstart(&waitstart);
+
+	lkp->lk_object.lo_type = "lockmgr";
 	if ((flags & LK_INTERNAL) == 0)
 		mtx_lock(lkp->lk_interlock);
 	CTR6(KTR_LOCK,

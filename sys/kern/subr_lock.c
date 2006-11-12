@@ -128,16 +128,14 @@ dump_lock_prof_stats(SYSCTL_HANDLER_ARGS)
 retry_sbufops:
         sb = sbuf_new(NULL, NULL, LPROF_SBUF_SIZE * multiplier, SBUF_FIXEDLEN);
         sbuf_printf(sb, "\n%6s %12s %12s %11s %5s %5s %12s %12s %s\n",
-            "max", "total", "wait_total", "count", "avg", "wait_avg", "cnt_hold", "cn\
-t_lock", "name");
+            "max", "total", "wait_total", "count", "avg", "wait_avg", "cnt_hold", "cnt_lock", "name");
         for (i = 0; i < LPROF_HASH_SIZE; ++i) {
                 if (lprof_buf[i].name == NULL)
                         continue;
                 for (p = lprof_buf[i].file;
                         p != NULL && strncmp(p, "../", 3) == 0; p += 3)
                                 /* nothing */ ;
-                sbuf_printf(sb, "%6ju %12ju %12ju %11ju %5ju %5ju %12ju %12ju %s:%d (\
-%s)\n",
+                sbuf_printf(sb, "%6ju %12ju %12ju %11ju %5ju %5ju %12ju %12ju %s:%d (%s:%s)\n",
                     lprof_buf[i].cnt_max / 1000,
                     lprof_buf[i].cnt_tot / 1000,
                     lprof_buf[i].cnt_wait / 1000,
@@ -148,7 +146,9 @@ t_lock", "name");
                         lprof_buf[i].cnt_wait / (lprof_buf[i].cnt_cur * 1000),
                     lprof_buf[i].cnt_contest_holding,
                     lprof_buf[i].cnt_contest_locking,
-                    p, lprof_buf[i].line, lprof_buf[i].name);
+                    p, lprof_buf[i].line, 
+			    lprof_buf[i].type,
+			    lprof_buf[i].name);
                 if (sbuf_overflowed(sb)) {
                         sbuf_delete(sb);
                         multiplier++;
@@ -210,7 +210,7 @@ lock_init(struct lock_object *lock, struct lock_class *class, const char *name,
 
 	/* Initialize the lock object. */
 	lock->lo_name = name;
-	lock->lo_type = type != NULL ? type : name;
+	lock->lo_type = type != NULL ? type : class->lc_name;
 	lock->lo_flags |= flags | LO_INITIALIZED;
 	LOCK_LOG_INIT(lock, 0);
 	WITNESS_INIT(lock);
@@ -303,14 +303,15 @@ void _lock_profile_update_wait(struct lock_object *lo, uint64_t waitstart)
                                 ++lock_prof_rejected;
                                 return;
                         }
-                        mpp->file = p;
-                        mpp->line = l->lpo_lineno;
-                        mpp->name = lo->lo_name;
-                        mpp->namehash = l->lpo_namehash;
-                        if (collision)
-                                ++lock_prof_collisions;
+			mpp->file = p;
+			mpp->line = l->lpo_lineno;
+			mpp->name = lo->lo_name;
+			mpp->type = lo->lo_type;
+			mpp->namehash = l->lpo_namehash;
+			if (collision)
+				++lock_prof_collisions;
                         /* We might have raced someone else but who cares, they'll try again next time */
-                        ++lock_prof_records;
+			++lock_prof_records;
                 }
                 LPROF_LOCK(hash);
                 mpp->cnt_wait += waittime;
@@ -364,12 +365,14 @@ void _lock_profile_release_lock(struct lock_object *lo)
                                 ++lock_prof_rejected;
                                 return;
                         }
-                        mpp->file = p;
-                        mpp->line = l->lpo_lineno;
-                        mpp->name = lo->lo_name;
-                        mpp->namehash = l->lpo_namehash;
-                        if (collision)
-                                ++lock_prof_collisions;
+			mpp->file = p;
+			mpp->line = l->lpo_lineno;
+			mpp->namehash = l->lpo_namehash;
+			mpp->type = lo->lo_type;
+			mpp->name = lo->lo_name;
+
+			if (collision)
+				++lock_prof_collisions;
 			
                         /* 
 			 * We might have raced someone else but who cares, 
