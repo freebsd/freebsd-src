@@ -47,6 +47,7 @@ u_int64_t nanoseconds(void);
 
 struct lock_prof {
 	const char	*name;
+	const char      *type;
 	const char	*file;
 	u_int		 namehash;
 	int		line;
