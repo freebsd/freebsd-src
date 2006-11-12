@@ -1,5 +1,5 @@
 # $FreeBSD$
-# $OpenBSD: pf.os,v 1.17 2004/04/28 01:01:27 deraadt Exp $
+# $OpenBSD: pf.os,v 1.21 2006/07/28 21:51:12 david Exp $
 # passive OS fingerprinting
 # -------------------------
 #
@@ -223,9 +223,10 @@
 S4:64:1:60:M1360,S,T,N,W0:	Linux:google::Linux (Google crawlbot)
 
 S2:64:1:60:M*,S,T,N,W0:		Linux:2.4::Linux 2.4 (big boy)
-S3:64:1:60:M*,S,T,N,W0:		Linux:2.4:18-21:Linux 2.4.18 and newer
-S4:64:1:60:M*,S,T,N,W0:		Linux:2.4::Linux 2.4/2.6
-S4:64:1:60:M*,S,T,N,W0:		Linux:2.6::Linux 2.4/2.6
+S3:64:1:60:M*,S,T,N,W0:		Linux:2.4:.18-21:Linux 2.4.18 and newer
+S4:64:1:60:M*,S,T,N,W0:		Linux:2.4::Linux 2.4/2.6 <= 2.6.7
+S4:64:1:60:M*,S,T,N,W0:		Linux:2.6:.1-7:Linux 2.4/2.6 <= 2.6.7
+S4:64:1:60:M*,S,T,N,W7:		Linux:2.6:8:Linux 2.6.8 and newer (?)
 
 S3:64:1:60:M*,S,T,N,W1:		Linux:2.5::Linux 2.5 (sometimes 2.4)
 S4:64:1:60:M*,S,T,N,W1:		Linux:2.5-2.6::Linux 2.5/2.6
@@ -260,27 +261,28 @@ S22:64:1:52:M*,N,N,S,N,W0:	Linux:2.2:ts:Linux 2.2 w/o timestamps
 
 # ----------------- FreeBSD -----------------
 
-16384:64:1:44:M*:		FreeBSD:2.0-2.2::FreeBSD 2.0-4.1
-16384:64:1:44:M*:		FreeBSD:3.0-3.5::FreeBSD 2.0-4.1
-16384:64:1:44:M*:		FreeBSD:4.0-4.1::FreeBSD 2.0-4.1
+16384:64:1:44:M*:		FreeBSD:2.0-2.2::FreeBSD 2.0-4.2
+16384:64:1:44:M*:		FreeBSD:3.0-3.5::FreeBSD 2.0-4.2
+16384:64:1:44:M*:		FreeBSD:4.0-4.2::FreeBSD 2.0-4.2
 16384:64:1:60:M*,N,W0,N,N,T:	FreeBSD:4.4::FreeBSD 4.4
 
 1024:64:1:60:M*,N,W0,N,N,T:	FreeBSD:4.4::FreeBSD 4.4
 
 57344:64:1:44:M*:		FreeBSD:4.6-4.8:noRFC1323:FreeBSD 4.6-4.8 (no RFC1323)
-57344:64:1:60:M*,N,W0,N,N,T:	FreeBSD:4.6-4.8::FreeBSD 4.6-4.8
+57344:64:1:60:M*,N,W0,N,N,T:	FreeBSD:4.6-4.9::FreeBSD 4.6-4.9
 
-32768:64:1:60:M*,N,W0,N,N,T:	FreeBSD:4.8-4.9::FreeBSD 4.8-5.1 (or MacOS X)
+32768:64:1:60:M*,N,W0,N,N,T:	FreeBSD:4.8-4.11::FreeBSD 4.8-5.1 (or MacOS X)
 32768:64:1:60:M*,N,W0,N,N,T:	FreeBSD:5.0-5.1::FreeBSD 4.8-5.1 (or MacOS X)
-65535:64:1:60:M*,N,W0,N,N,T:	FreeBSD:4.8-4.9::FreeBSD 4.8-5.1 (or MacOS X)
-65535:64:1:60:M*,N,W0,N,N,T:	FreeBSD:5.0-5.1::FreeBSD 4.8-5.1 (or MacOS X)
-65535:64:1:60:M*,N,W1,N,N,T:	FreeBSD:4.7-4.9::FreeBSD 4.7-5.1
-65535:64:1:60:M*,N,W1,N,N,T:	FreeBSD:5.0-5.1::FreeBSD 4.7-5.1
+65535:64:1:60:M*,N,W0,N,N,T:	FreeBSD:4.8-4.11::FreeBSD 4.8-5.2 (or MacOS X)
+65535:64:1:60:M*,N,W0,N,N,T:	FreeBSD:5.0-5.2::FreeBSD 4.8-5.2 (or MacOS X)
+65535:64:1:60:M*,N,W1,N,N,T:	FreeBSD:4.7-4.11::FreeBSD 4.7-5.2
+65535:64:1:60:M*,N,W1,N,N,T:	FreeBSD:5.0-5.2::FreeBSD 4.7-5.2
 
 # XXX need quirks support
-# 65535:64:1:60:M*,N,W0,N,N,T:Z:FreeBSD:5.1-current (1)
-# 65535:64:1:60:M*,N,W1,N,N,T:Z:FreeBSD:5.1-current (2)
-# 65535:64:1:60:M*,N,W2,N,N,T:Z:FreeBSD:5.1-current (3)
+# 65535:64:1:60:M*,N,W0,N,N,T:Z:FreeBSD:5.1-5.4::5.1-current (1)
+# 65535:64:1:60:M*,N,W1,N,N,T:Z:FreeBSD:5.1-5.4::5.1-current (2)
+# 65535:64:1:60:M*,N,W2,N,N,T:Z:FreeBSD:5.1-5.4::5.1-current (3)
+# 65535:64:1:44:M*:Z:FreeBSD:5.2::FreeBSD 5.2 (no RFC1323)
 
 # 16384:64:1:60:M*,N,N,N,N,N,N,T:FreeBSD:4.4:noTS:FreeBSD 4.4 (w/o timestamps)
 
@@ -297,12 +299,12 @@ S22:64:1:52:M*,N,N,S,N,W0:	Linux:2.2:ts:Linux 2.2 w/o timestamps
 # ----------------- OpenBSD -----------------
 
 16384:64:0:60:M*,N,W0,N,N,T:		OpenBSD:2.6::NetBSD 1.3 (or OpenBSD 2.6)
-16384:64:1:64:M*,N,N,S,N,W0,N,N,T:	OpenBSD:3.0-3.5::OpenBSD 3.0-3.5
-16384:64:0:64:M*,N,N,S,N,W0,N,N,T:	OpenBSD:3.0-3.5:no-df:OpenBSD 3.0-3.5 (scrub no-df)
-57344:64:1:64:M*,N,N,S,N,W0,N,N,T:	OpenBSD:3.3-3.5::OpenBSD 3.3-3.5
-57344:64:0:64:M*,N,N,S,N,W0,N,N,T:	OpenBSD:3.3-3.5:no-df:OpenBSD 3.3-3.5 (scrub no-df)
+16384:64:1:64:M*,N,N,S,N,W0,N,N,T:	OpenBSD:3.0-4.0::OpenBSD 3.0-4.0
+16384:64:0:64:M*,N,N,S,N,W0,N,N,T:	OpenBSD:3.0-4.0:no-df:OpenBSD 3.0-4.0 (scrub no-df)
+57344:64:1:64:M*,N,N,S,N,W0,N,N,T:	OpenBSD:3.3-4.0::OpenBSD 3.3-4.0
+57344:64:0:64:M*,N,N,S,N,W0,N,N,T:	OpenBSD:3.3-4.0:no-df:OpenBSD 3.3-4.0 (scrub no-df)
 
-65535:64:1:64:M*,N,N,S,N,W0,N,N,T:	OpenBSD:3.0-3.5:opera:OpenBSD 3.0-3.5 (Opera)
+65535:64:1:64:M*,N,N,S,N,W0,N,N,T:	OpenBSD:3.0-4.0:opera:OpenBSD 3.0-4.0 (Opera)
 
 # ----------------- Solaris -----------------
 
@@ -317,7 +319,8 @@ S44:255:1:44:M*:			Solaris:2.7::Solaris 7
 
 4096:64:0:44:M1460:			SunOS:4.1::SunOS 4.1.x
 
-S34:64:1:52:M*,N,W0,N,N,S:		Solaris:10::Solaris 10 (beta)
+S34:64:1:52:M*,N,W0,N,N,S:		Solaris:10:beta:Solaris 10 (beta)
+32850:64:1:64:M*,N,N,T,N,W1,N,N,S:	Solaris:10::Solaris 10 1203
 
 # ----------------- IRIX --------------------
 
@@ -328,6 +331,9 @@ S34:64:1:52:M*,N,W0,N,N,S:		Solaris:10::Solaris 10 (beta)
 
 61440:64:0:48:M*,N,N,S:			IRIX:6.5:12-21:IRIX 6.5.12 - 6.5.21
 49152:64:0:48:M*,N,N,S:			IRIX:6.5:15-21:IRIX 6.5.15 - 6.5.21
+
+49152:60:0:64:M*,N,W2,N,N,T,N,N,S:	IRIX:6.5:IP27:IRIX 6.5 IP27
+
 
 # ----------------- Tru64 -------------------
 
@@ -428,6 +434,11 @@ S52:128:1:48:M1260,N,N,S:		Windows:XP:cisco:Windows XP/2000 via Cisco
 16384:128:1:52:M536,N,W0,N,N,S:		Windows:2000:ZoneAlarm:Windows 2000 w/ZoneAlarm?
 2048:255:0:40:.:			Windows:.NET::Windows .NET Enterprise Server
 
+44620:64:0:48:M*,N,N,S:			Windows:ME::Windows ME no SP (?)
+S6:255:1:48:M536,N,N,S:			Windows:95:winsock2:Windows 95 winsock 2
+32768:32:1:52:M1460,N,W0,N,N,S:		Windows:2003:AS:Windows 2003 AS
+
+
 # No need to be more specific, it passes:
 # *:128:1:48:M*,N,N,S:U:-Windows:XP/2000 while downloading (leak!) XXX quirk
 # there is an equiv similar generic sig w/o the quirk
@@ -442,7 +453,6 @@ S52:128:1:48:M1260,N,N,S:		Windows:XP:cisco:Windows XP/2000 via Cisco
 # Whoa. Hardcore WSS.
 0:64:0:48:M*,W0,N:			HP-UX:B.11.00:A:HP-UX B.11.00 A (RFC1323)
 
-
 # ----------------- RiscOS ------------------
 
 # We don't yet support the ?12 TCP option
@@ -451,6 +461,7 @@ S52:128:1:48:M1260,N,N,S:		Windows:XP:cisco:Windows XP/2000 via Cisco
 
 # XXX quirk
 # 4096:64:1:56:M1460,N,N,T:T:			RISC OS:3.70:freenet:RISC OS 3.70 freenet 2.00
+
 
 
 # ----------------- BSD/OS ------------------
@@ -466,6 +477,7 @@ S52:128:1:48:M1260,N,N,S:		Windows:XP:cisco:Windows XP/2000 via Cisco
 
 # ---------------- NeXTSTEP -----------------
 
+S4:64:0:44:M1024:		NeXTSTEP:3.3::NeXTSTEP 3.3
 S8:64:0:44:M512:		NeXTSTEP:3.3::NeXTSTEP 3.3
 
 # ------------------ BeOS -------------------
@@ -501,21 +513,28 @@ S16:64:0:44:M512:		QNX:::QNX demodisk
 
 # ----------------- SCO ------------------
 S3:64:1:60:M1460,N,W0,N,N,T:	SCO:UnixWare:7.1:SCO UnixWare 7.1
+S17:64:1:60:M1380,N,W0,N,N,T:	SCO:UnixWare:7.1:SCO UnixWare 7.1.3 MP3
 S23:64:1:44:M1380:		SCO:OpenServer:5.0:SCO OpenServer 5.0
 
 # ------------------- DOS -------------------
 
 2048:255:0:44:M536:		DOS:WATTCP:1.05:DOS Arachne via WATTCP/1.05
+T2:255:0:44:M984:		DOS:WATTCP:1.05Arachne:Arachne via WATTCP/1.05 (eepro)
 
 # ------------------ OS/2 -------------------
 
 S56:64:0:44:M512:		OS/2:4::OS/2 4
+28672:64:0:44:M1460:		OS/2:4::OS/2 Warp 4.0
 
 # ----------------- TOPS-20 -----------------
 
 # Another hardcore MSS, one of the ACK leakers hunted down.
 # XXX QUIRK 0:64:0:44:M1460:A:TOPS-20:version 7
 0:64:0:44:M1460:		TOPS-20:7::TOPS-20 version 7
+
+# ----------------- FreeMiNT ----------------
+
+S44:255:0:44:M536:		FreeMiNT:1:16A:FreeMiNT 1 patch 16A (Atari)
 
 # ------------------ AMIGA ------------------
 
@@ -539,7 +558,6 @@ S56:64:0:44:M512:		OS/2:4::OS/2 4
 S12:64:1:44:M1460:			@Checkpoint:::Checkpoint (unknown 1)
 S12:64:1:48:N,N,S,M1460:		@Checkpoint:::Checkpoint (unknown 2)
 4096:32:0:44:M1460:			ExtremeWare:4.x::ExtremeWare 4.x
-60352:64:0:52:M1460,N,W2,N,N,S:		Clavister:7::Clavister firewall 7.x
 
 # XXX TCP option 12
 # S32:64:0:68:M512,N,W0,N,N,T,N,N,?12:.:Nokia:IPSO w/Checkpoint NG FP3
@@ -548,6 +566,9 @@ S12:64:1:48:N,N,S,M1460:		@Checkpoint:::Checkpoint (unknown 2)
 S4:64:1:60:W0,N,S,T,M1460:		FortiNet:FortiGate:50:FortiNet FortiGate 50
 
 8192:64:1:44:M1460:			Eagle:::Eagle Secure Gateway
+
+S52:128:1:48:M1260,N,N,N,N:		LinkSys:WRV54G::LinkSys WRV54G VPN router
+
 
 
 # ------- Switches and other stuff ----------
@@ -581,6 +602,10 @@ S1:255:1:60:M1460,S,T,N,W0:		LookSmart:ZyBorg::LookSmart ZyBorg
 
 16384:255:0:40:.:			Proxyblocker:::Proxyblocker (what's this?)
 
+65535:255:0:48:M*,N,N,S:		Redline:::Redline T|X 2200
+
+32696:128:0:40:M1460:			Spirent:Avalanche::Spirent Web Avalanche HTTP benchmarking engine
+
 # ----------- Embedded systems --------------
 
 S9:255:0:44:M536:			PalmOS:Tungsten:C:PalmOS Tungsten C
@@ -589,10 +614,15 @@ S5:255:0:44:M536:			PalmOS:4::PalmOS 3/4
 S4:255:0:44:M536:			PalmOS:3:5:PalmOS 3.5
 2948:255:0:44:M536:			PalmOS:3:5:PalmOS 3.5.3 (Handera)
 S29:255:0:44:M536:			PalmOS:5::PalmOS 5.0
+16384:255:0:44:M1398:			PalmOS:5.2:Clie:PalmOS 5.2 (Clie)
+S14:255:0:44:M1350:			PalmOS:5.2:Treo:PalmOS 5.2.1 (Treo)
 
 S23:64:1:64:N,W1,N,N,T,N,N,S,M1460:	SymbianOS:7::SymbianOS 7
-8192:255:0:44:M1460:			SymbianOS:6048::SymbianOS 6048 (on Nokia 7650?)
-8192:255:0:44:M536:			SymbianOS:::SymbianOS (on Nokia 9210?)
+
+8192:255:0:44:M1460:			SymbianOS:6048::Symbian OS 6048 (Nokia 7650?)
+8192:255:0:44:M536:			SymbianOS:9210::Symbian OS (Nokia 9210?)
+S22:64:1:56:M1460,T,S:			SymbianOS:P800::Symbian OS ? (SE P800?)
+S36:64:1:56:M1360,T,S:			SymbianOS:6600::Symbian OS 60xx (Nokia 6600?)
 
 
 # Perhaps S4?
@@ -608,7 +638,7 @@ S22:64:1:44:M1460:			Sony:PS2::Sony Playstation 2 (SOCOM?)
 
 S12:64:0:44:M1452:			AXIS:5600:v5.64:AXIS Printer Server 5600 v5.64
 
-
+3100:32:1:44:M1460:			Windows:CE:2.0:Windows CE 2.0
 
 ####################
 # Fancy signatures #
@@ -619,10 +649,22 @@ S12:64:0:44:M1452:			AXIS:5600:v5.64:AXIS Printer Server 5600 v5.64
 3072:64:0:40:.:				*NMAP:syn scan:3:NMAP syn scan (3)
 4096:64:0:40:.:				*NMAP:syn scan:4:NMAP syn scan (4)
 
+# Requires quirks support
+# 1024:64:0:40:.:A:*NMAP:TCP sweep probe (1)
+# 2048:64:0:40:.:A:*NMAP:TCP sweep probe (2)
+# 3072:64:0:40:.:A:*NMAP:TCP sweep probe (3)
+# 4096:64:0:40:.:A:*NMAP:TCP sweep probe (4)
+
 1024:64:0:60:W10,N,M265,T:		*NMAP:OS:1:NMAP OS detection probe (1)
 2048:64:0:60:W10,N,M265,T:		*NMAP:OS:2:NMAP OS detection probe (2)
 3072:64:0:60:W10,N,M265,T:		*NMAP:OS:3:NMAP OS detection probe (3)
 4096:64:0:60:W10,N,M265,T:		*NMAP:OS:4:NMAP OS detection probe (4)
+
+32767:64:0:40:.:			*NAST:::NASTsyn scan
+
+# Requires quirks support
+# 12345:255:0:40:.:A:-p0f:sendsyn utility
+
 
 #####################################
 # Generic signatures - just in case #
@@ -633,6 +675,8 @@ S12:64:0:44:M1452:			AXIS:5600:v5.64:AXIS Printer Server 5600 v5.64
 
 *:128:1:52:M*,N,W0,N,N,S:		@Windows:XP:RFC1323:Windows XP/2000 (RFC1323 no tstamp)
 *:128:1:52:M*,N,W0,N,N,S:		@Windows:2000:RFC1323:Windows XP/2000 (RFC1323 no tstamp)
+*:128:1:52:M*,N,W*,N,N,S:		@Windows:XP:RFC1323:Windows XP/2000 (RFC1323 no tstamp)
+*:128:1:52:M*,N,W*,N,N,S:		@Windows:2000:RFC1323:Windows XP/2000 (RFC1323 no tstamp)
 *:128:1:64:M*,N,W0,N,N,T0,N,N,S:	@Windows:XP:RFC1323:Windows XP/2000 (RFC1323)
 *:128:1:64:M*,N,W0,N,N,T0,N,N,S:	@Windows:2000:RFC1323:Windows XP/2000 (RFC1323)
 *:128:1:64:M*,N,W*,N,N,T0,N,N,S:	@Windows:XP:RFC1323:Windows XP (RFC1323, w+)
