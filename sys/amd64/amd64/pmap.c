@@ -2357,8 +2357,10 @@ validate:
 	 * Now validate mapping with desired protection/wiring.
 	 */
 	newpte = (pt_entry_t)(pa | PG_V);
-	if ((prot & VM_PROT_WRITE) != 0)
+	if ((prot & VM_PROT_WRITE) != 0) {
 		newpte |= PG_RW;
+		vm_page_flag_set(m, PG_WRITEABLE);
+	}
 	if ((prot & VM_PROT_EXECUTE) == 0)
 		newpte |= pg_nx;
 	if (wired)

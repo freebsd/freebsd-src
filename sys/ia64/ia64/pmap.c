@@ -1647,6 +1647,8 @@ validate:
 	pmap_pte_prot(pmap, pte, prot);
 	pmap_set_pte(pte, va, pa, wired, managed);
 
+	if ((prot & VM_PROT_WRITE) != 0)
+		vm_page_flag_set(m, PG_WRITEABLE);
 	vm_page_unlock_queues();
 	pmap_install(oldpmap);
 	PMAP_UNLOCK(pmap);
