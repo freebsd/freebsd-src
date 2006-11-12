@@ -122,12 +122,7 @@ idle_proc(void *dummy)
 #ifdef SMP
 		idle_cpus_mask &= ~mycpu;
 #endif
-#ifdef KSE
 		mi_switch(SW_VOL, NULL);
-#else
-		if ((td = choosethread()) != curthread)
-			mi_switch(SW_VOL, td);
-#endif
 #ifdef SMP
 		idle_cpus_mask |= mycpu;
 #endif
