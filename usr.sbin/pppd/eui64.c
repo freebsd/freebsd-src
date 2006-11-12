@@ -18,11 +18,17 @@
     $Id: eui64.c,v 1.3 1999/08/25 04:15:51 paulus Exp $
 */
 
+#ifndef lint
 #define RCSID	"$Id: eui64.c,v 1.3 1999/08/25 04:15:51 paulus Exp $"
+#endif
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 #include "pppd.h"
 
+#ifdef RCSID
 static const char rcsid[] = RCSID;
+#endif
 
 /*
  * eui64_ntoa - Make an ascii representation of an interface identifier
