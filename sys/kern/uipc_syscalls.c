@@ -1891,8 +1891,8 @@ kern_sendfile(struct thread *td, struct sendfile_args *uap,
 	struct mbuf *m = NULL;
 	struct sf_buf *sf;
 	struct vm_page *pg;
-	off_t off, xfsize, hdtr_size = 0, sbytes = 0, rem = 0;
-	int error, headersize = 0, headersent = 0, mnw = 0;
+	off_t off, xfsize, sbytes = 0, rem = 0;
+	int error, mnw = 0;
 	int vfslocked;
 
 	NET_LOCK_GIANT();
@@ -1971,15 +1971,23 @@ kern_sendfile(struct thread *td, struct sendfile_args *uap,
 		hdr_uio->uio_td = td;
 		hdr_uio->uio_rw = UIO_WRITE;
 		if (hdr_uio->uio_resid > 0) {
+			/*
+			 * In FBSD < 5.0 the nbytes to send also included
+			 * the header.  If compat is specified subtract the
+			 * header size from nbytes.
+			 */
+			if (compat) {
+				if (uap->nbytes > hdr_uio->uio_resid)
+					uap->nbytes -= hdr_uio->uio_resid;
+				else
+					uap->nbytes = 0;
+			}
 			m = m_uiotombuf(hdr_uio, (mnw ? M_NOWAIT : M_WAITOK),
 			    0, 0, 0);
 			if (m == NULL) {
 				error = mnw ? EAGAIN : ENOBUFS;
 				goto out;
 			}
-			headersize = hdr_uio->uio_resid;
-			if (compat)
-				sbytes += headersize;
 		}
 	}
 
@@ -2247,6 +2255,9 @@ retry_lookup:
 
 		/* Add the buffer chain to the socket buffer. */
 		if (m != NULL) {
+			int mlen;
+
+			mlen = m_length(m, NULL);
 			SOCKBUF_LOCK(&so->so_snd);
 			if (so->so_snd.sb_state & SBS_CANTSENDMORE) {
 				error = EPIPE;
@@ -2256,10 +2267,8 @@ retry_lookup:
 			SOCKBUF_UNLOCK(&so->so_snd);
 			error = (*so->so_proto->pr_usrreqs->pru_send)
 				    (so, 0, m, NULL, NULL, td);
-			if (!error) {
-				sbytes += loopbytes;
-				headersent = 1;
-			}
+			if (!error)
+				sbytes += mlen;
 			m = NULL;	/* pru_send always consumes */
 		}
 
@@ -2275,10 +2284,7 @@ retry_lookup:
 		error = kern_writev(td, uap->s, trl_uio);
 		if (error)
 			goto done;
-		if (compat)
-			sbytes += td->td_retval[0];
-		else
-			hdtr_size += td->td_retval[0];
+		sbytes += td->td_retval[0];
 	}
 
 done:
@@ -2286,14 +2292,6 @@ done:
 	sbunlock(&so->so_snd);
 	SOCKBUF_UNLOCK(&so->so_snd);
 out:
-	if (headersent) {
-		if (!compat)
-			hdtr_size += headersize;
-	} else {
-		if (compat)
-			sbytes -= headersize;
-	}
-
 	/*
 	 * If there was no error we have to clear td->td_retval[0]
 	 * because it may have been set by writev.
@@ -2302,8 +2300,6 @@ out:
 		td->td_retval[0] = 0;
 	}
 	if (uap->sbytes != NULL) {
-		if (!compat)
-			sbytes += hdtr_size;
 		copyout(&sbytes, uap->sbytes, sizeof(off_t));
 	}
 	if (obj != NULL)
