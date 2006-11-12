@@ -63,6 +63,7 @@ archive_read_data_into_fd(struct archive *a, int fd)
 
 	while ((r = archive_read_data_block(a, &buff, &size, &offset)) ==
 	    ARCHIVE_OK) {
+		const char *p = buff;
 		if (offset > output_offset) {
 			lseek(fd, offset - output_offset, SEEK_CUR);
 			output_offset = offset;
@@ -71,13 +72,14 @@ archive_read_data_into_fd(struct archive *a, int fd)
 			bytes_to_write = size;
 			if (bytes_to_write > MAX_WRITE)
 				bytes_to_write = MAX_WRITE;
-			bytes_written = write(fd, buff, bytes_to_write);
+			bytes_written = write(fd, p, bytes_to_write);
 			if (bytes_written < 0) {
 				archive_set_error(a, errno, "Write error");
 				return (-1);
 			}
 			output_offset += bytes_written;
 			total_written += bytes_written;
+			p += bytes_written;
 			size -= bytes_written;
 			if (a->extract_progress != NULL)
 				(*a->extract_progress)(a->extract_progress_user_data);
