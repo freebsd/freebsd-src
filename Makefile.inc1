@@ -30,18 +30,17 @@
 # entries works correctly.  Do it first since it is less likely to
 # grow dependencies on include and lib than vice versa.
 #
-# We must do lib and libexec before bin, because if installworld
+# We must do lib/ and libexec/ before bin/, because if installworld
 # installs a new /bin/sh, the 'make' command will *immediately*
 # use that new version.  And the new (dynamically-linked) /bin/sh
 # will expect to find appropriate libraries in /lib and /libexec.
 #
-# We must do etc last for install/distribute to work.
-#
-SUBDIR=	share/info include lib libexec bin
+SUBDIR=	share/info lib libexec
+SUBDIR+=bin
 .if ${MK_GAMES} != "no"
 SUBDIR+=games
 .endif
-SUBDIR+=gnu
+SUBDIR+=gnu include
 .if ${MK_KERBEROS} != "no"
 SUBDIR+=kerberos5
 .endif
@@ -55,7 +54,11 @@ SUBDIR+=secure
 .if !defined(NO_SHARE)
 SUBDIR+=share
 .endif
-SUBDIR+=sys usr.bin usr.sbin etc
+SUBDIR+=sys usr.bin usr.sbin
+#
+# We must do etc/ last for install/distribute to work.
+#
+SUBDIR+=etc
 
 # These are last, since it is nice to at least get the base system
 # rebuilt before you do them.
