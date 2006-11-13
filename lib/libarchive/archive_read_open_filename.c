@@ -110,9 +110,10 @@ file_open(struct archive *a, void *client_data)
 		return (ARCHIVE_FATAL);
 	}
 	if (fstat(mine->fd, &st) == 0) {
-		/* Set dev/ino of archive file so extract won't overwrite. */
-		a->skip_file_dev = st.st_dev;
-		a->skip_file_ino = st.st_ino;
+		/* If we're reading a file from disk, ensure that we don't
+		   overwrite it with an extracted file. */
+		if (S_ISREG(st.st_mode))
+			archive_read_extract_set_skip_file(a, st.st_dev, st.st_ino);
 		/* Remember mode so close can decide whether to flush. */
 		mine->st_mode = st.st_mode;
 	} else {
