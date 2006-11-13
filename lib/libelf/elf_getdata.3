@@ -25,7 +25,7 @@
 .\"
 .Dd August 26, 2006
 .Os
-.Dt ELF 3
+.Dt ELF_GETDATA 3
 .Sh NAME
 .Nm elf_getdata ,
 .Nm elf_newdata ,
@@ -99,7 +99,7 @@ Section
 .Ar scn
 must be associated with an ELF file opened for writing.
 If the application has not requested full control of layout by
-setting the 
+setting the
 .Dv ELF_F_LAYOUT
 flag on descriptor
 .Ar elf ,
