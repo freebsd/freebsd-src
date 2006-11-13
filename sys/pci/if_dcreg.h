@@ -717,6 +717,7 @@ struct dc_mii_frame {
 
 struct dc_softc {
 	struct ifnet		*dc_ifp;	/* interface info */
+	device_t		dc_dev;		/* device info */
 	bus_space_handle_t	dc_bhandle;	/* bus space handle */
 	bus_space_tag_t		dc_btag;	/* bus space tag */
 	bus_dma_tag_t		dc_ltag;	/* tag for descriptor ring */
