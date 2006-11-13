@@ -101,9 +101,10 @@
 	((unsigned long)(l2) << PDRSHIFT) | \
 	((unsigned long)(l1) << PAGE_SHIFT))
 
-/* Initial number of kernel page tables */
+/* Initial number of kernel page tables. */
 #ifndef NKPT
-#define	NKPT		240	/* Enough for 16GB (2MB page tables) */
+/* 240 page tables needed to map 16G (120B "struct vm_page", 2M page tables). */
+#define	NKPT		240
 #endif
 
 #define NKPML4E		1		/* number of kernel PML4 slots */
