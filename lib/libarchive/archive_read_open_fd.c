@@ -89,8 +89,8 @@ file_open(struct archive *a, void *client_data)
 		return (ARCHIVE_FATAL);
 	}
 
-	a->skip_file_dev = st.st_dev;
-	a->skip_file_ino = st.st_ino;
+	if (S_ISREG(st.st_mode))
+		archive_read_extract_set_skip_file(a, st.st_dev, st.st_ino);
 	return (ARCHIVE_OK);
 }
 
