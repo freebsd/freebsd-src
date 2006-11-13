@@ -1,0 +1,293 @@
+<!--
+	FreeBSD errata document.  Unlike some of the other RELNOTESng
+	files, this file should remain as a single SGML file, so that
+	the dollar FreeBSD dollar header has a meaningful modification
+	time.  This file is all but useless without a datestamp on it,
+	so we'll take some extra care to make sure it has one.
+
+	(If we didn't do this, then the file with the datestamp might
+	not be the one that received the last change in the document.)
+
+-->
+
+<!DOCTYPE article PUBLIC "-//FreeBSD//DTD DocBook V4.1-Based Extension//EN" [
+<!ENTITY % articles.ent PUBLIC "-//FreeBSD//ENTITIES DocBook FreeBSD Articles Entity Set//EN">
+%articles.ent;
+
+<!ENTITY % release PUBLIC "-//FreeBSD//ENTITIES Release Specification//EN">
+%release;
+<!ENTITY release.bugfix "6.1-RELEASE">
+]>
+
+<article>
+  <articleinfo>
+    <title>&os; &release.bugfix; Errata</title>
+
+    <corpauthor>
+    The &os; Project
+    </corpauthor>
+
+    <pubdate>$FreeBSD$</pubdate>
+
+    <copyright>
+      <year>2000</year>
+      <year>2001</year>
+      <year>2002</year>
+      <year>2003</year>
+      <year>2004</year>
+      <year>2005</year>
+      <year>2006</year>
+      <holder role="mailto:doc@FreeBSD.org">The &os; Documentation Project</holder>
+    </copyright>
+
+    <legalnotice id="trademarks" role="trademarks">
+      &tm-attrib.freebsd;
+      &tm-attrib.intel;
+      &tm-attrib.sparc;
+      &tm-attrib.general;
+    </legalnotice>
+  </articleinfo>
+
+  <abstract>
+    <para>This document lists errata items for &os; &release.bugfix;,
+      containing significant information discovered after the release
+      or too late in the release cycle to be otherwise included in the
+      release documentation.
+      This information includes security advisories, as well as news
+      relating to the software or documentation that could affect its
+      operation or usability.  An up-to-date version of this document
+      should always be consulted before installing this version of
+      &os;.</para>
+
+    <para>This errata document for &os; &release.bugfix;
+      will be maintained until the release of &os; &release.next;.</para>
+  </abstract>
+
+  <sect1 id="intro">
+    <title>Introduction</title>
+
+    <para>This errata document contains <quote>late-breaking news</quote>
+      about &os; &release.bugfix;.
+      Before installing this version, it is important to consult this
+      document to learn about any post-release discoveries or problems
+      that may already have been found and fixed.</para>
+
+    <para>Any version of this errata document actually distributed
+      with the release (for example, on a CDROM distribution) will be
+      out of date by definition, but other copies are kept updated on
+      the Internet and should be consulted as the <quote>current
+      errata</quote> for this release.  These other copies of the
+      errata are located at <ulink
+      url="http://www.FreeBSD.org/releases/"></ulink>, plus any sites
+      which keep up-to-date mirrors of this location.</para>
+
+    <para>Source and binary snapshots of &os; &release.branch; also
+      contain up-to-date copies of this document (as of the time of
+      the snapshot).</para>
+
+    <para>For a list of all &os; CERT security advisories, see <ulink
+      url="http://www.FreeBSD.org/security/"></ulink> or <ulink
+      url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/"></ulink>.</para>
+
+  </sect1>
+
+  <sect1 id="late-news">
+    <title>Update Information</title>
+
+    <para>No news.</para>
+  </sect1>
+
+  <sect1 id="security">
+    <title>Security Advisories</title>
+
+    <para>The following security advisories pertain to &os; &release.bugfix;.
+      For more information, consult the individual advisories available from
+      <ulink url="http://security.FreeBSD.org/"></ulink>.</para>
+
+    <informaltable frame="none" pgwide="0">
+      <tgroup cols="3">
+	<colspec colwidth="1*">
+	<colspec colwidth="1*">
+	<colspec colwidth="3*">
+	<thead>
+	  <row>
+	    <entry>Advisory</entry>
+	    <entry>Date</entry>
+	    <entry>Topic</entry>
+	  </row>
+	</thead>
+
+	<tbody>
+	  <row>
+	    <entry><ulink url="http://security.FreeBSD.org/advisories/FreeBSD-SA-06:15.ypserv.asc"
+		>SA-06:15.ypserv</ulink></entry>
+	    <entry>31&nbsp;May&nbsp;2006</entry>
+	    <entry><para>Inoperative access controls in &man.ypserv.8;</para></entry>
+	  </row>
+
+	  <row>
+	    <entry><ulink url="http://security.FreeBSD.org/advisories/FreeBSD-SA-06:16.smbfs.asc"
+		>SA-06:16.smbfs</ulink></entry>
+	    <entry>31&nbsp;May&nbsp;2006</entry>
+	    <entry><para>smbfs chroot escape</para></entry>
+	  </row>
+
+	  <row>
+	    <entry><ulink url="http://security.FreeBSD.org/advisories/FreeBSD-SA-06:17.sendmail.asc"
+		>SA-06:17.sendmail</ulink></entry>
+	    <entry>14&nbsp;June&nbsp;2006</entry>
+	    <entry><para>Incorrect multipart message handling in Sendmail</para></entry>
+	  </row>
+
+	  <row>
+	    <entry><ulink url="http://security.FreeBSD.org/advisories/FreeBSD-SA-06:18.ppp.asc"
+		>SA-06:18.ppp</ulink></entry>
+	    <entry>23&nbsp;August&nbsp;2006</entry>
+	    <entry><para>Buffer overflow in &man.sppp.4;</para></entry>
+	  </row>
+
+	  <row>
+	    <entry><ulink url="http://security.FreeBSD.org/advisories/FreeBSD-SA-06:19.openssl.asc"
+		>SA-06:19.openssl</ulink></entry>
+	    <entry>06&nbsp;September&nbsp;2006</entry>
+	    <entry><para>Incorrect PKCS#1 v1.5 padding validation in &man.crypto.3;</para></entry>
+	  </row>
+
+	  <row>
+	    <entry><ulink url="http://security.FreeBSD.org/advisories/FreeBSD-SA-06:20.bind.asc"
+		>SA-06:20.bind</ulink></entry>
+	    <entry>06&nbsp;September&nbsp;2006</entry>
+	    <entry><para>Denial of Service in &man.named.8;</para></entry>
+	  </row>
+
+	  <row>
+	    <entry><ulink url="http://security.FreeBSD.org/advisories/FreeBSD-SA-06:21.gzip.asc"
+		>SA-06:21.gzip</ulink></entry>
+	    <entry>19&nbsp;September&nbsp;2006</entry>
+	    <entry><para>Multiple vulnerabilities in &man.gzip.1;</para></entry>
+	  </row>
+
+	  <row>
+	    <entry><ulink url="http://security.FreeBSD.org/advisories/FreeBSD-SA-06:22.openssh.asc"
+		>SA-06:22.openssh</ulink></entry>
+	    <entry>30&nbsp;September&nbsp;2006</entry>
+	    <entry><para>Multiple vulnerabilities in OpenSSH</para></entry>
+	  </row>
+
+	  <row>
+	    <entry><ulink url="http://security.FreeBSD.org/advisories/FreeBSD-SA-06:23.openssl.asc"
+		>SA-06:23.openssl</ulink></entry>
+	    <entry>28&nbsp;September&nbsp;2006</entry>
+	    <entry><para>Multiple problems in &man.crypto.3;</para></entry>
+	  </row>
+	</tbody>
+      </tgroup>
+    </informaltable>
+  </sect1>
+
+  <sect1 id="known-problems">
+    <title>Known Problems and Solutions</title>
+
+    <para>(2006/05/10) The errata file distributed with &os;
+      &release.bugfix; mistakenly contained the errata applicable to
+      &os; 6.0-RELEASE.</para>
+
+    <para>(2006/05/10) The release notes for &os; &release.bugfix;
+      gave the wrong name for the KDE port in the item documenting the
+      KDE upgrade.  The correct name is
+      <filename role="package">x11/kde3</filename>.
+
+    <para>(2006/05/10) The release notes for &os; &release.bugfix;
+      should have mentioned changes that enable the second core of
+      dual-core i386 and amd64 CPUs by default when running an SMP
+      kernel.</para>
+
+    <para>(2006/05/13) A change in the &man.ata.4; driver in &os;
+      &release.bugfix; modified a software interface visible from
+      userland programs.  Programs that use the
+      <literal>IOCATAREQUEST</literal> &man.ioctl.2; interface will
+      need to be recompiled.  Typically, these programs communicate
+      directly with ATA and ATAPI drives, such as CDROM burning or
+      ripping tools, or monitoring utilities.  One known example
+      is <filename>smartd</filename> from the
+      <filename role="package">sysutils/smartmontools</filename>
+      port.</para>
+
+    <para>(2006/05/27, updated 2006/06/01) On &os;/alpha, &man.sysinstall.8; sometimes does not allow
+      a disk to be labeled.  The disk is presented in &man.sysinstall.8; but
+      actions like <guimenuitem>Auto</guimenuitem> do not result in a disklabel being presented.
+      One workaround is to boot the install CD, then select <guimenuitem>Fixit</guimenuitem>.  From
+      the <prompt>Fixit#</prompt> prompt, run &man.disklabel.8; manually.  For example:  
+      <command>disklabel -rw da1 auto</command> ensures a valid disklabel is written onto
+      <devicename>da1</devicename>.  Reboot from the install media.  &man.sysinstall.8; will now
+      detect a valid disklabel on the disk and allow it to be partitioned
+      to your preference.</para>
+
+    <para>(2006/05/27) &os; &release.bugfix; includes a change
+      to some definitions in <filename>src/sys/net/if_media.h</filename>
+      (revision 1.30.2.1).  This could break source-level compatibility
+      with externally-maintained 10Gb Ethernet network drivers written
+      for &os; 6.0-RELEASE.  This change should have been documented
+      in the release notes.</para>
+
+    <para>(2006/06/01, updated 2006/07/07) A bug in the <filename>rc.d/jail</filename>
+      startup script could cause various problems for users attempting
+      to configure &man.jail.2; environments at system startup time.
+      A fix has been committed to HEAD, RELENG_6, and RELENG_6_1.
+      More details can be found in errata notice
+      <ulink url="ftp://ftp.FreeBSD.org/pub/FreeBSD/ERRATA/notices/FreeBSD-EN-06:01.jail.asc">FreeBSD-EN-06:01.jail</ulink>.</para>
+
+    <para>(2006/06/01, updated 2006/08/30) Deadlocks have been observed (and can be
+      reproduced) in some cases where snapshots and quotas are both
+      being used on a file system.  This problem has been fixed on the
+      HEAD and RELENG_6 branches.</para>
+
+    <para>(2006/06/01, updated 2006/08/28) A bug in the Neighbor Discovery Protocol (NDP)
+      implementation causes spurious error messages for point-to-point
+      IPv6 links on &os; &release.bugfix;.  This behavior is a
+      regression from &os; 6.0-RELEASE.  A solution for this
+      problem has been committed to HEAD, RELENG_6, and RELENG_6_1.
+      Further details can be found in errata notice
+      <ulink url="ftp://ftp.FreeBSD.org/pub/FreeBSD/ERRATA/notices/FreeBSD-EN-06:02.net.asc">FreeBSD-EN-06:02.net</ulink>.</para>
+
+    <para>(2006/06/01) Problems have been observed when trying to load
+      packages from multiple CDROMs inside the &man.sysinstall.8;
+      environment.  Specifically, the disk-switching functionality in
+      &man.sysinstall.8; seems to become confused about the contents
+      of a disk that has just been requested.  This situation has been
+      seen primarily when installing the base system without &xorg;
+      (which lives on the first CDROM of a multi-disk set), and then
+      later using &man.sysinstall.8; to load some packages (such as
+      the GNOME or KDE desktop environments) from a subsequent CDROM
+      that depend on &xorg;.  As a workaround during a new install,
+      one should try to install &xorg; along with the base system, or
+      at least before any other packages that depend on it.</para>
+
+    <para>(2006/06/01, updated 2006/08/28) An error in the statistics-keeping logic in the
+      UMA kernel memory allocator has led to the number of
+      <literal>requests for mbufs denied</literal> (as reported by
+      <command>netstat -m</command>) to increase erroneously.  A fix
+      for this problem has been committed to HEAD, RELENG_6, and
+      RELENG_6_1.  More information is contained in errata notice
+      <ulink url="ftp://ftp.FreeBSD.org/pub/FreeBSD/ERRATA/notices/FreeBSD-EN-06:02.net.asc">FreeBSD-EN-06:02.net</ulink>.</para>
+
+    <para>(2006/06/01, update 2006/10/07) A longstanding bug in the i386 bootloader can
+      cause root file system corruption when the &man.nextboot.8;
+      utility is used and the <filename>/boot/nextboot.conf</filename>
+      configuration file happens to be located after cylinder 1023 on
+      the boot disk.  A bugfix has been committed to HEAD and has been
+      merged to RELENG_6.</para>
+
+    <para>(2006/06/16, updated 2006/10/07) A locking-related bug has been observed to
+      cause noticeable slowdowns in NFS server performance.  A
+      fix has been committed to HEAD and RELENG_6.</para>
+
+    <para>(2006/08/28) A local kernel panic in the network stack could
+      be caused by not checking the validity of a pointer before use.
+      This problem has been fixed on HEAD, RELENG_6, and RELENG_6_1,
+      as described in
+      <ulink url="ftp://ftp.FreeBSD.org/pub/FreeBSD/ERRATA/notices/FreeBSD-EN-06:02.net.asc">FreeBSD-EN-06:02.net</ulink>.</para>
+
+  </sect1>
+
+</article>
