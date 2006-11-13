@@ -25,7 +25,7 @@
 .\"
 .Dd October 31, 2006
 .Os
-.Dt ELF 3
+.Dt ELF_GETSHNUM 3
 .Sh NAME
 .Nm elf_getshnum
 .Nd return the number of sections in an ELF file
@@ -70,9 +70,9 @@ lacks an ELF Executable header.
 .El
 .Sh SEE ALSO
 .Xr elf 3 ,
+.Xr elf32_getehdr 3 ,
+.Xr elf64_getehdr 3 ,
 .Xr elf_getident 3 ,
 .Xr elf_getshstrndx 3 ,
-.Xr elf32_getehdr ,
-.Xr elf64_getehdr ,
 .Xr gelf 3 ,
 .Xr gelf_getehdr 3

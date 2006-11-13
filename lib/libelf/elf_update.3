@@ -25,7 +25,7 @@
 .\"
 .Dd August 29, 2006
 .Os
-.Dt ELF 3
+.Dt ELF_UPDATE 3
 .Sh NAME
 .Nm elf_update
 .Nd update an ELF descriptor
@@ -39,7 +39,7 @@
 Function
 .Fn elf_update
 causes the library to recalculate the structure of an ELF
-object and  optionally write out the image of the object
+object and optionally write out the image of the object
 to file.
 .Pp
 Argument
@@ -254,15 +254,6 @@ descriptor with an unsupported version.
 .El
 .Sh SEE ALSO
 .Xr elf 3 ,
-.Xr elf_cntl 3 ,
-.Xr elf_fill 3 ,
-.Xr elf_flagehdr 3 ,
-.Xr elf_flagelf 3 ,
-.Xr elf_getscn 3 ,
-.Xr elf_getdata 3 ,
-.Xr elf_newscn 3 ,
-.Xr elf_newdata 3 ,
-.Xr elf_rawdata 3 ,
 .Xr elf32_getehdr 3 ,
 .Xr elf32_getphdr 3 ,
 .Xr elf32_newehdr 3 ,
@@ -271,6 +262,15 @@ descriptor with an unsupported version.
 .Xr elf64_getphdr 3 ,
 .Xr elf64_newehdr 3 ,
 .Xr elf64_newphdr 3 ,
+.Xr elf_cntl 3 ,
+.Xr elf_fill 3 ,
+.Xr elf_flagehdr 3 ,
+.Xr elf_flagelf 3 ,
+.Xr elf_getdata 3 ,
+.Xr elf_getscn 3 ,
+.Xr elf_newdata 3 ,
+.Xr elf_newscn 3 ,
+.Xr elf_rawdata 3 ,
 .Xr gelf 3 ,
 .Xr gelf_newehdr 3 ,
 .Xr gelf_newphdr 3 ,
