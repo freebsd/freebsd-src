@@ -430,3 +430,19 @@
 #define PCIXM_STATUS_MAXSPLITS	0x0380	/* Maximum Split Transactions */
 #define PCIXM_STATUS_MAXCRDS	0x1C00	/* Maximum Cumulative Read Size */
 #define PCIXM_STATUS_RCVDSCEM	0x2000	/* Received a Split Comp w/Error msg */
+
+/* MSI-X definitions */
+#define	PCIR_MSIX_CTRL		0x2
+#define	PCIM_MSIXCTRL_MSIX_ENABLE	0x8000
+#define	PCIM_MSIXCTRL_FUNCTION_MASK	0x4000
+#define	PCIM_MSIXCTRL_TABLE_SIZE	0x07FF
+#define	PCIR_MSIX_TABLE		0x4
+#define	PCIR_MSIX_PBA		0x8
+#define	PCIM_MSIX_BIR_MASK		0x7
+#define	PCIM_MSIX_BIR_BAR_10		0
+#define	PCIM_MSIX_BIR_BAR_14		1
+#define	PCIM_MSIX_BIR_BAR_18		2
+#define	PCIM_MSIX_BIR_BAR_1C		3
+#define	PCIM_MSIX_BIR_BAR_20		4
+#define	PCIM_MSIX_BIR_BAR_24		5
+#define	PCIM_MSIX_VCTRL_MASK		0x1
