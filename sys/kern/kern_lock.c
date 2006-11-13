@@ -62,7 +62,18 @@ __FBSDID("$FreeBSD$");
 
 #ifdef DDB
 #include <ddb/ddb.h>
+static void	db_show_lockmgr(struct lock_object *lock);
 #endif
+
+
+struct lock_class lock_class_lockmgr = {
+	"lockmgr",
+	LC_SLEEPLOCK | LC_SLEEPABLE | LC_RECURSABLE | LC_UPGRADABLE,
+#ifdef DDB
+	db_show_lockmgr
+#endif
+};
+
 
 /*
  * Locking primitives implementation.
@@ -166,8 +177,6 @@ _lockmgr(struct lock *lkp, int flags, struct mtx *interlkp,
 		thr = td;
 
 	lock_profile_waitstart(&waitstart);
-
-	lkp->lk_object.lo_type = "lockmgr";
 	if ((flags & LK_INTERNAL) == 0)
 		mtx_lock(lkp->lk_interlock);
 	CTR6(KTR_LOCK,
@@ -523,7 +532,7 @@ lockinit(lkp, prio, wmesg, timo, flags)
 #ifdef DEBUG_LOCKS
 	stack_zero(&lkp->lk_stack);
 #endif
-	lock_profile_object_init(&lkp->lk_object, wmesg);
+	lock_profile_object_init(&lkp->lk_object, &lock_class_lockmgr, wmesg);
 }
 
 /*
@@ -648,14 +657,13 @@ lockmgr_chain(struct thread *td, struct thread **ownerp)
 	return (1);
 }
 
-DB_SHOW_COMMAND(lockmgr, db_show_lockmgr)
+void
+db_show_lockmgr(struct lock_object *lock)
 {
 	struct thread *td;
 	struct lock *lkp;
 
-	if (!have_addr)
-		return;
-	lkp = (struct lock *)addr;
+	lkp = (struct lock *)lock;
 
 	db_printf("lock type: %s\n", lkp->lk_wmesg);
 	db_printf("state: ");
