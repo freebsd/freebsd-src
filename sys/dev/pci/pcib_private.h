@@ -74,5 +74,9 @@ int		pcib_maxslots(device_t dev);
 uint32_t	pcib_read_config(device_t dev, int b, int s, int f, int reg, int width);
 void		pcib_write_config(device_t dev, int b, int s, int f, int reg, uint32_t val, int width);
 int		pcib_route_interrupt(device_t pcib, device_t dev, int pin);
+int		pcib_alloc_msi(device_t pcib, device_t dev, int count, int maxcount, int *irqs);
+int		pcib_release_msi(device_t pcib, device_t dev, int count, int *irqs);
+int		pcib_alloc_msix(device_t pcib, device_t dev, int index, int *irq);
+int		pcib_release_msix(device_t pcib, device_t dev, int irq);
 
 #endif

@@ -79,6 +79,10 @@ static device_method_t pcib_methods[] = {
     DEVMETHOD(pcib_read_config,		pcib_read_config),
     DEVMETHOD(pcib_write_config,	pcib_write_config),
     DEVMETHOD(pcib_route_interrupt,	pcib_route_interrupt),
+    DEVMETHOD(pcib_alloc_msi,		pcib_alloc_msi),
+    DEVMETHOD(pcib_release_msi,		pcib_release_msi),
+    DEVMETHOD(pcib_alloc_msix,		pcib_alloc_msix),
+    DEVMETHOD(pcib_release_msix,	pcib_release_msix),
 
     { 0, 0 }
 };
@@ -537,6 +541,47 @@ pcib_route_interrupt(device_t pcib, device_t dev, int pin)
 	    pci_get_slot(dev), 'A' + pin - 1, intnum);
     }
     return(intnum);
+}
+
+/* Pass request to alloc MSI messages up to the parent bridge. */
+int
+pcib_alloc_msi(device_t pcib, device_t dev, int count, int maxcount, int *irqs)
+{
+	device_t bus;
+
+	bus = device_get_parent(pcib);
+	return (PCIB_ALLOC_MSI(device_get_parent(bus), dev, count, maxcount,
+	    irqs));
+}
+
+/* Pass request to release MSI messages up to the parent bridge. */
+int
+pcib_release_msi(device_t pcib, device_t dev, int count, int *irqs)
+{
+	device_t bus;
+
+	bus = device_get_parent(pcib);
+	return (PCIB_RELEASE_MSI(device_get_parent(bus), dev, count, irqs));
+}
+
+/* Pass request to alloc an MSI-X message up to the parent bridge. */
+int
+pcib_alloc_msix(device_t pcib, device_t dev, int index, int *irq)
+{
+	device_t bus;
+
+	bus = device_get_parent(pcib);
+	return (PCIB_ALLOC_MSIX(device_get_parent(bus), dev, index, irq));
+}
+
+/* Pass request to release an MSI-X message up to the parent bridge. */
+int
+pcib_release_msix(device_t pcib, device_t dev, int irq)
+{
+	device_t bus;
+
+	bus = device_get_parent(pcib);
+	return (PCIB_RELEASE_MSIX(device_get_parent(bus), dev, irq));
 }
 
 /*
