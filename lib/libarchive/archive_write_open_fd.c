@@ -44,7 +44,6 @@ __FBSDID("$FreeBSD$");
 #endif
 
 #include "archive.h"
-#include "archive_private.h"
 
 struct write_fd_data {
 	off_t		offset;

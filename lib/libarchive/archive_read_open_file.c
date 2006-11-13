@@ -47,7 +47,6 @@ __FBSDID("$FreeBSD$");
 #endif
 
 #include "archive.h"
-#include "archive_private.h"
 
 struct read_file_data {
 	int	 fd;
