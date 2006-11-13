@@ -39,10 +39,14 @@
  * SUCH DAMAGE.
  *
  *	@(#)ar.h	8.2 (Berkeley) 1/21/94
+ *
+ * $FreeBSD$
  */
 
 #ifndef _AR_H_
 #define	_AR_H_
+
+#include <sys/cdefs.h>
 
 /* Pre-4BSD archives had these magic numbers in them. */
 #define	OARMAG1	0177555
@@ -62,6 +66,6 @@ struct ar_hdr {
 	char ar_size[10];		/* size in bytes */
 #define	ARFMAG	"`\n"
 	char ar_fmag[2];		/* consistency check */
-};
+} __packed;
 
 #endif /* !_AR_H_ */
