@@ -846,6 +846,9 @@ pipe tablearg ip from table(1) to any</programlisting>
 
       <para>The &man.natm.4;, Native Mode ATM protocol layer is now MPSAFE.</para>
 
+      <para>The &man.ng.ether.4; Netgraph node no longer overwrites
+        the MAC address of outgoing frames by default. &merged;</para>
+
       <para>The &man.ng.iface.4; Netgraph node now supports &man.altq.4;.
 	&merged;</para>
 
@@ -937,6 +940,9 @@ pipe tablearg ip from table(1) to any</programlisting>
 	to &man.ifconfig.8;.  Network interfaces and drivers
 	supporting TSO currently include &man.em.4; and
 	&man.mxge.4;.</para>
+
+      <para>Support for &man.kqueue.2; operations has been added to
+	the &man.tun.4; driver. &merged;</para>
 
     </sect3>
 
@@ -1186,7 +1192,11 @@ geli_da1s3a_keyfile0_name="/boot/keys/da1s3a.key"</programlisting>
 
     <para>The &man.fsdb.8; utility now supports changing the birth
       time of files on UFS2 file systems using the new 
-      the <literal>btime</literal> command. &merged;</para>
+      <literal>btime</literal> command. &merged;</para>
+
+    <para>The &man.fsdb.8; program now supports
+      a <literal>findblk</literal> command, which finds the inode(s)
+      owning a specific disk block. &merged;</para>
 
     <para>The &man.find.1; program now supports <option>-Btime</option>
       and other related primaries, which can be used to create expressions
