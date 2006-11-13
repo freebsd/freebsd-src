@@ -1538,6 +1538,11 @@ geli_da1s3a_keyfile0_name="/boot/keys/da1s3a.key"</programlisting>
     <para>The &man.time.1; utility now prints the time that a given
       command has been running if sent a <literal>SIGINFO</literal> signal.</para>
 
+    <para>The &man.traceroute.8; program now supports
+      a <option>-D</option> flag, which causes it to display the
+      differences between the sent and received
+      packets. &merged;</para>
+
     <para>The &man.traceroute.8; utility now supports
       a <option>-e</option> option, which sets a fixed destination
       port for probe packets.  This can be useful for tracing behind
