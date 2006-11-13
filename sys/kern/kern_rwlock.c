@@ -86,7 +86,7 @@ rw_init(struct rwlock *rw, const char *name)
 
 	rw->rw_lock = RW_UNLOCKED;
 
-	lock_profile_object_init(&rw->rw_object, name);
+	lock_profile_object_init(&rw->rw_object, &lock_class_rw, name);
 	lock_init(&rw->rw_object, &lock_class_rw, name, NULL, LO_WITNESS |
 	    LO_RECURSABLE | LO_UPGRADABLE);
 }

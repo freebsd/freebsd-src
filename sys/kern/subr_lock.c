@@ -58,6 +58,7 @@ struct lock_class *lock_classes[LOCK_CLASS_MAX + 1] = {
 	&lock_class_mtx_sleep,
 	&lock_class_sx,
 	&lock_class_rw,
+	&lock_class_lockmgr,
 };
 
 #ifdef LOCK_PROFILING
@@ -305,9 +306,9 @@ void _lock_profile_update_wait(struct lock_object *lo, uint64_t waitstart)
                         }
 			mpp->file = p;
 			mpp->line = l->lpo_lineno;
-			mpp->name = lo->lo_name;
-			mpp->type = lo->lo_type;
 			mpp->namehash = l->lpo_namehash;
+			mpp->type = l->lpo_type;
+			mpp->name = lo->lo_name;
 			if (collision)
 				++lock_prof_collisions;
                         /* We might have raced someone else but who cares, they'll try again next time */
@@ -368,7 +369,7 @@ void _lock_profile_release_lock(struct lock_object *lo)
 			mpp->file = p;
 			mpp->line = l->lpo_lineno;
 			mpp->namehash = l->lpo_namehash;
-			mpp->type = lo->lo_type;
+			mpp->type = l->lpo_type;
 			mpp->name = lo->lo_name;
 
 			if (collision)
