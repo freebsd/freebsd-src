@@ -365,10 +365,12 @@ vop_reclaim {
 %! lock		pre	vop_lock_pre
 %! lock		post	vop_lock_post
 
-vop_lock {
+_vop_lock {
 	IN struct vnode *vp;
 	IN int flags;
 	IN struct thread *td;
+	IN char *file;
+	IN int line;
 };
 
 

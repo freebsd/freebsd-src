@@ -799,10 +799,7 @@ vn_poll(fp, events, active_cred, td)
  * acquire requested lock.
  */
 int
-vn_lock(vp, flags, td)
-	struct vnode *vp;
-	int flags;
-	struct thread *td;
+_vn_lock(struct vnode *vp, int flags, struct thread *td, char *file, int line)
 {
 	int error;
 
@@ -825,7 +822,7 @@ vn_lock(vp, flags, td)
 		 * lockmgr drops interlock before it will return for
 		 * any reason.  So force the code above to relock it.
 		 */
-		error = VOP_LOCK(vp, flags | LK_INTERLOCK, td);
+		error = _VOP_LOCK(vp, flags | LK_INTERLOCK, td, file, line);
 		flags &= ~LK_INTERLOCK;
 		KASSERT((flags & LK_RETRY) == 0 || error == 0,
 		    ("LK_RETRY set with incompatible flags %d\n", flags));

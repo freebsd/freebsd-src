@@ -606,7 +606,8 @@ int	vn_close(struct vnode *vp,
 void	vn_finished_write(struct mount *mp);
 void	vn_finished_secondary_write(struct mount *mp);
 int	vn_isdisk(struct vnode *vp, int *errp);
-int	vn_lock(struct vnode *vp, int flags, struct thread *td);
+int	_vn_lock(struct vnode *vp, int flags, struct thread *td, char *file, int line);
+#define vn_lock(vp, flags, td) _vn_lock(vp, flags, td, __FILE__, __LINE__)
 int	vn_open(struct nameidata *ndp, int *flagp, int cmode, int fdidx);
 int	vn_open_cred(struct nameidata *ndp, int *flagp, int cmode,
 	    struct ucred *cred, int fdidx);
@@ -644,7 +645,7 @@ int	vop_stdgetpages(struct vop_getpages_args *);
 int	vop_stdinactive(struct vop_inactive_args *);
 int	vop_stdislocked(struct vop_islocked_args *);
 int	vop_stdkqfilter(struct vop_kqfilter_args *);
-int	vop_stdlock(struct vop_lock_args *);
+int	vop_stdlock(struct _vop_lock_args *);
 int	vop_stdputpages(struct vop_putpages_args *);
 int	vop_stdunlock(struct vop_unlock_args *);
 int	vop_nopoll(struct vop_poll_args *);
@@ -696,6 +697,9 @@ void	vop_unlock_pre(void *a);
 		VFS_KNOTE_LOCKED((ap)->a_vp, NOTE_WRITE			\
 		    | (noffset > osize ? NOTE_EXTEND : 0));		\
 	}
+
+#define VOP_LOCK(vp, flags, td) _VOP_LOCK(vp, flags, td, __FILE__, __LINE__)
+
 
 void	vput(struct vnode *vp);
 void	vrele(struct vnode *vp);
