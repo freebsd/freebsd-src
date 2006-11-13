@@ -744,6 +744,65 @@ apic_alloc_vector(u_int irq)
 	panic("Couldn't find an APIC vector for IRQ %u", irq);
 }
 
+/*
+ * Request 'count' free contiguous IDT vectors to be used by 'count'
+ * IRQs.  'count' must be a power of two and the vectors will be
+ * aligned on a boundary of 'align'.  If the request cannot be
+ * satisfied, 0 is returned.
+ */
+u_int
+apic_alloc_vectors(u_int *irqs, u_int count, u_int align)
+{
+	u_int first, run, vector;
+
+	KASSERT(powerof2(count), ("bad count"));
+	KASSERT(powerof2(align), ("bad align"));
+	KASSERT(align >= count, ("align < count"));
+#ifdef INVARIANTS
+	for (run = 0; run < count; run++)
+		KASSERT(irqs[run] < NUM_IO_INTS, ("Invalid IRQ %u at index %u",
+		    irqs[run], run));
+#endif
+
+	/*
+	 * Search for 'count' free vectors.  As with apic_alloc_vector(),
+	 * this just uses a simple first fit algorithm.
+	 */
+	run = 0;
+	first = 0;
+	mtx_lock_spin(&icu_lock);
+	for (vector = 0; vector < APIC_NUM_IOINTS; vector++) {
+
+		/* Vector is in use, end run. */
+		if (ioint_irqs[vector] != 0) {
+			run = 0;
+			first = 0;
+			continue;
+		}
+
+		/* Start a new run if run == 0 and vector is aligned. */
+		if (run == 0) {
+			if ((vector & (align - 1)) != 0)
+				continue;
+			first = vector;
+		}
+		run++;
+
+		/* Keep looping if the run isn't long enough yet. */
+		if (run < count)
+			continue;
+
+		/* Found a run, assign IRQs and return the first vector. */
+		for (vector = 0; vector < count; vector++)
+			ioint_irqs[first + vector] = irqs[vector];
+		mtx_unlock_spin(&icu_lock);
+		return (first + APIC_IO_INTS);
+	}
+	mtx_unlock_spin(&icu_lock);
+	printf("APIC: Couldn't find APIC vectors for %u IRQs\n", count);
+	return (0);
+}
+
 void
 apic_enable_vector(u_int vector)
 {
@@ -1002,6 +1061,9 @@ apic_setup_io(void *dummy __unused)
 	intr_register_pic(&lapic_pic);
 	if (bootverbose)
 		lapic_dump("BSP");
+
+	/* Enable the MSI "pic". */
+	msi_init();
 }
 SYSINIT(apic_setup_io, SI_SUB_INTR, SI_ORDER_SECOND, apic_setup_io, NULL)
 
