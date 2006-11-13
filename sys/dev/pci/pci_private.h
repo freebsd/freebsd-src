@@ -66,6 +66,9 @@ int		pci_enable_io_method(device_t dev, device_t child, int space);
 int		pci_disable_io_method(device_t dev, device_t child, int space);
 int		pci_find_extcap_method(device_t dev, device_t child,
 		    int capability, int *capreg);
+int		pci_alloc_msi_method(device_t dev, device_t child, int *count);
+int		pci_release_msi_method(device_t dev, device_t child);
+int		pci_msi_count_method(device_t dev, device_t child);
 struct resource	*pci_alloc_resource(device_t dev, device_t child, 
 		    int type, int *rid, u_long start, u_long end, u_long count,
 		    u_int flags);

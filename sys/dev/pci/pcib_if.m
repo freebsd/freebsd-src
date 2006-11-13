@@ -88,3 +88,48 @@ METHOD int route_interrupt {
 	device_t	dev;
 	int		pin;
 } DEFAULT null_route_interrupt;
+
+#
+# Allocate 'count' MSI messsages mapped onto 'count' IRQs.  'irq' points
+# to an array of at least 'count' ints.  The max number of messages this
+# device supports is included so that the MD code can take that into
+# account when assigning resources so that the proper number of low bits
+# are clear in the resulting message data value.
+#
+METHOD int alloc_msi {
+	device_t	pcib;
+	device_t	dev;
+	int		count;
+	int		maxcount;
+	int		*irqs;
+};
+
+#
+# Release 'count' MSI message mapped onto 'count' IRQs stored in the
+# array pointed to by 'irq'.
+#
+METHOD int release_msi {
+	device_t	pcib;
+	device_t	dev;
+	int		count;
+	int		*irqs;
+};
+
+#
+# Allocate a single MSI-X message mapped onto '*irq'.
+#
+METHOD int alloc_msix {
+	device_t	pcib;
+	device_t	dev;
+	int		index;
+	int		*irq;
+};
+
+#
+# Release a single MSI-X message mapped onto 'irq'.
+#
+METHOD int release_msix {
+	device_t	pcib;
+	device_t	dev;
+	int		irq;
+};
