@@ -100,7 +100,7 @@ extern struct pmap	kernel_pmap_store;
 
 /*
  * For each vm_page_t, there is a list of all currently valid virtual
- * mappings of that page.  An entry is a pv_entry_t, the list is pv_table.
+ * mappings of that page.  An entry is a pv_entry_t, the list is pv_list.
  */
 typedef struct pv_entry {
 	pmap_t		pv_pmap;	/* pmap where mapping lies */
