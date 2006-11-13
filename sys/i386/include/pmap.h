@@ -98,14 +98,17 @@
  */
 #define VADDR(pdi, pti) ((vm_offset_t)(((pdi)<<PDRSHIFT)|((pti)<<PAGE_SHIFT)))
 
-/* Actual number of kernel page tables */
+/* Initial number of kernel page tables. */
 #ifndef NKPT
 #ifdef PAE
-#define	NKPT		240	/* Enough for 16GB (2MB page tables) */
+/* 152 page tables needed to map 16G (76B "struct vm_page", 2M page tables). */
+#define	NKPT		240
 #else
-#define	NKPT		30	/* Enough for 4GB (4MB page tables) */
+/* 18 page tables needed to map 4G (72B "struct vm_page", 4M page tables). */
+#define	NKPT		30
 #endif
 #endif
+
 #ifndef NKPDE
 #ifdef SMP
 #define NKPDE	(KVA_PAGES - 1) /* number of page tables/pde's */
