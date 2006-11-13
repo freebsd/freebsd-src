@@ -1,7 +1,7 @@
 <!--
      The FreeBSD Simplified Chinese Project
 
-     Original revision: 1.883.2.50
+     Original revision: 1.883.2.51
 -->
 <articleinfo>
   <title>&os;/&arch; &release.current; 发行说明</title>
@@ -278,8 +278,13 @@
 	通过使用 <literal>tagged</literal>
 	规则选项。 要了解进一步的细节， 请参见 &man.ipfw.8;。</para>
 
+      <para>&man.ng.ether.4; Netgraph 节点默认不再覆盖发出的以太网帧中的
+        MAC 地址了。</para>
+
       <para>新增了用于支持管理在内核中与数据相关的 mbuf tag 的 Netgraph 节点
         &man.ng.tag.4;。</para>
+
+      <para>为 &man.tun.4; 驱动增加了 &man.kqueue.2; 操作支持。</para>
 
       <para>&os; &release.prev; 的 IPv6 实现有一个会导致点对点接口显示奇怪的错误消息的问题。
 	该问题已被修正。</para>
@@ -355,6 +360,9 @@
 
     <para>&man.fsdb.8; 工具新增了用于修改 UFS2 文件系统创建时间的
       <literal>btime</literal> 命令。</para>
+
+    <para>&man.fsdb.8; 工具新增了用于查找持有特定磁盘块的 inode 的
+      <literal>findblk</literal> 命令。</para>
 
     <para>从 NetBSD 汇入了 &man.getent.1; 工具。 它能够以 &man.nsswitch.conf.5;
       指定的顺序提取并显示来自管理数据库 (如 <filename>hosts</filename>) 的信息。</para>
