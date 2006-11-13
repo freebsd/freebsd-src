@@ -390,9 +390,7 @@ retry:
 	vm_map_simplify_entry(map, entry);
 
 	/*
-	 * Loop thru pages, entering them in the pmap. (We cannot add them to
-	 * the wired count without wrapping the vm_page_queue_lock in
-	 * splimp...)
+	 * Loop thru pages, entering them in the pmap.
 	 */
 	VM_OBJECT_LOCK(kmem_object);
 	for (i = 0; i < size; i += PAGE_SIZE) {
@@ -401,9 +399,6 @@ retry:
 		 * Because this is kernel_pmap, this call will not block.
 		 */
 		pmap_enter(kernel_pmap, addr + i, m, VM_PROT_ALL, 1);
-		vm_page_lock_queues();
-		vm_page_flag_set(m, PG_REFERENCED);
-		vm_page_unlock_queues();
 		vm_page_wakeup(m);
 	}
 	VM_OBJECT_UNLOCK(kmem_object);
