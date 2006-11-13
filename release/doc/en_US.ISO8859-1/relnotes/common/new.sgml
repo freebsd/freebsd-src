@@ -501,6 +501,11 @@
       flag to suppress header lines when multiple files are
       specified.</para>
 
+    <para>The &man.traceroute.8; program now supports
+      a <option>-D</option> flag, which causes it to display the
+      differences between the sent and received
+      packets.</para>
+
     <para>The &man.traceroute.8; utility now supports
       a <option>-e</option> option, which sets a fixed destination
       port for probe packets.  This can be useful for tracing behind
