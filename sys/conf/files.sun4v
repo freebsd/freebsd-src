@@ -80,6 +80,7 @@ sun4v/sun4v/ofw_machdep.c	standard
 sun4v/sun4v/pmap.c		standard
 sun4v/sun4v/prof_machdep.c	optional	profiling-routine
 sun4v/sun4v/rwindow.c		standard
+sun4v/sun4v/rtc.c		standard
 sun4v/sun4v/simdisk.c		optional	simulator
 sun4v/sun4v/support.S		standard
 sun4v/sun4v/sys_machdep.c	standard
