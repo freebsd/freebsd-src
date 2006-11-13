@@ -25,7 +25,7 @@
 .\"
 .Dd July 3, 2006
 .Os
-.Dt ELF 3
+.Dt ELF_GETIDENT 3
 .Sh NAME
 .Nm elf_getident
 .Nd return the initial bytes of a file
@@ -70,14 +70,14 @@ was called before a call to
 .El
 .Sh SEE ALSO
 .Xr elf 3 ,
+.Xr elf32_getehdr 3 ,
+.Xr elf64_getehdr 3 ,
 .Xr elf_getarhdr 3 ,
 .Xr elf_getbase 3 ,
 .Xr elf_getflags 3 ,
 .Xr elf_kind 3 ,
 .Xr elf_rawfile 3 ,
 .Xr elf_update 3 ,
-.Xr elf32_getehdr ,
-.Xr elf64_getehdr ,
 .Xr gelf 3 ,
 .Xr gelf_getclass 3 ,
 .Xr gelf_getehdr 3
