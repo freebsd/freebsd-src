@@ -86,7 +86,7 @@ sx_init(struct sx *sx, const char *description)
 	cv_init(&sx->sx_excl_cv, description);
 	sx->sx_excl_wcnt = 0;
 	sx->sx_xholder = NULL;
-	lock_profile_object_init(&sx->sx_object, description);
+	lock_profile_object_init(&sx->sx_object, &lock_class_sx, description);
 	lock_init(&sx->sx_object, &lock_class_sx, description, NULL,
 	    LO_WITNESS | LO_RECURSABLE | LO_SLEEPABLE | LO_UPGRADABLE);
 }

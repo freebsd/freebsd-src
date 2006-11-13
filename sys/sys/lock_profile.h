@@ -91,7 +91,7 @@ static inline void lock_profile_init(void)
         }
 }
 
-static inline void lock_profile_object_init(struct lock_object *lo, const char *name) {
+static inline void lock_profile_object_init(struct lock_object *lo, struct lock_class *class, const char *name) {
 	const char *p;
 	u_int hash = 0;
 	struct lock_profile_object *l = &lo->lo_profile_obj;
@@ -104,6 +104,7 @@ static inline void lock_profile_object_init(struct lock_object *lo, const char *
 	l->lpo_lineno = 0;
 	l->lpo_contest_holding = 0;
 	l->lpo_contest_locking = 0;
+	l->lpo_type = class->lc_name;
 
 	/* Hash the mutex name to an int so we don't have to strcmp() it repeatedly */
 	for (p = name; *p != '\0'; p++)
@@ -170,7 +171,7 @@ static inline void lock_profile_obtain_lock_failed(struct lock_object *lo, int *
 static inline void lock_profile_obtain_lock_success(struct lock_object *lo, uint64_t waittime,  
 						    const char *file, int line) {;}
 static inline void lock_profile_object_destroy(struct lock_object *lo) {;}
-static inline void lock_profile_object_init(struct lock_object *lo, const char *name) {;}
+static inline void lock_profile_object_init(struct lock_object *lo, struct lock_class *class, const char *name) {;}
 
 #endif  /* !LOCK_PROFILING */
 
