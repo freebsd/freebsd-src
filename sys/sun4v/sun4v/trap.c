@@ -92,6 +92,8 @@
 #include <machine/md_var.h>
 #include <machine/hypervisor_api.h>
 
+#include <security/audit/audit.h>
+
 void trap(struct trapframe *tf, int64_t type, uint64_t data);
 void syscall(struct trapframe *tf);
 
@@ -642,7 +644,9 @@ syscall(struct trapframe *tf)
 
 		PTRACESTOP_SC(p, td, S_PT_SCE);
 
+		AUDIT_SYSCALL_ENTER(code, td);
 		error = (*callp->sy_call)(td, argp);
+		AUDIT_SYSCALL_EXIT(error, td);
 
 		CTR5(KTR_SYSC, "syscall: p=%p error=%d %s return %#lx %#lx ", p,
 		    error, syscallnames[code], td->td_retval[0],
