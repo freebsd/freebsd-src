@@ -250,8 +250,12 @@ g_gate_send(int s, const void *buf, size_t len, int flags)
 ssize_t
 g_gate_recv(int s, void *buf, size_t len, int flags)
 {
+	ssize_t done;
 
-	return (recv(s, buf, len, flags));
+	do {
+		done = recv(s, buf, len, flags);
+	} while (done == -1 && errno == EAGAIN);
+	return (done);
 }
 
 int nagle = 1;
@@ -280,7 +284,7 @@ g_gate_socket_settings(int sfd)
 	bsize = sndbuf;
 	if (setsockopt(sfd, SOL_SOCKET, SO_SNDBUF, &bsize, sizeof(bsize)) == -1)
 		g_gate_xlog("setsockopt(SO_SNDBUF): %s.", strerror(errno));
-	tv.tv_sec = 1;
+	tv.tv_sec = 8;
 	tv.tv_usec = 0;
 	if (setsockopt(sfd, SOL_SOCKET, SO_SNDTIMEO, &tv, sizeof(tv)) == -1) {
 		g_gate_log(LOG_ERR, "setsockopt(SO_SNDTIMEO) error: %s.",
