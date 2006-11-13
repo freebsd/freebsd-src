@@ -174,6 +174,7 @@ inthand_t
 	IDTVEC(apic_isr7), IDTVEC(spuriousint), IDTVEC(timerint);
 
 u_int	apic_alloc_vector(u_int irq);
+u_int	apic_alloc_vectors(u_int *irqs, u_int count, u_int align);
 void	apic_enable_vector(u_int vector);
 void	apic_free_vector(u_int vector, u_int irq);
 u_int	apic_idt_to_irq(u_int vector);
