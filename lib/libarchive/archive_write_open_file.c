@@ -88,53 +88,42 @@ file_open(struct archive *a, void *client_data)
 {
 	int flags;
 	struct write_file_data *mine;
-	struct stat st, *pst;
+	struct stat st;
 
-	pst = NULL;
 	mine = (struct write_file_data *)client_data;
 	flags = O_WRONLY | O_CREAT | O_TRUNC;
 
+	/*
+	 * Open the file.
+	 */
 	if (mine->filename[0] != '\0') {
 		mine->fd = open(mine->filename, flags, 0666);
-
-		/*
-		 * If client hasn't explicitly set the last block
-		 * handling, then set it here: If the output is a
-		 * block or character device, pad the last block,
-		 * otherwise leave it unpadded.
-		 */
-		if (mine->fd >= 0 && a->bytes_in_last_block < 0) {
-			if (fstat(mine->fd, &st) == 0) {
-				pst = &st;
-				if (S_ISCHR(st.st_mode) ||
-				    S_ISBLK(st.st_mode) ||
-				    S_ISFIFO(st.st_mode))
-					/* Pad last block. */
-					archive_write_set_bytes_in_last_block(a, 0);
-				else
-					/* Don't pad last block. */
-					archive_write_set_bytes_in_last_block(a, 1);
-			}
+		if (mine->fd < 0) {
+			archive_set_error(a, errno, "Failed to open '%s'",
+			    mine->filename);
+			return (ARCHIVE_FATAL);
 		}
 	} else {
+		/*
+		 * NULL filename is stdout.
+		 */
 		mine->fd = 1;
-		if (a->bytes_in_last_block < 0) /* Still default? */
-			/* Last block will be fully padded. */
+		/* By default, pad archive when writing to stdout. */
+		if (archive_write_get_bytes_in_last_block(a) < 0)
 			archive_write_set_bytes_in_last_block(a, 0);
 	}
 
-	if (mine->fd < 0) {
-		archive_set_error(a, errno, "Failed to open '%s'",
-		    mine->filename);
-		return (ARCHIVE_FATAL);
-	}
-
-	if (pst == NULL && fstat(mine->fd, &st) == 0)
-		pst = &st;
-	if (pst == NULL) {
-		archive_set_error(a, errno, "Couldn't stat '%s'",
-		    mine->filename);
-		return (ARCHIVE_FATAL);
+	/*
+	 * Set up default last block handling.
+	 */
+	if (archive_write_get_bytes_in_last_block(a) < 0) {
+		if (S_ISCHR(st.st_mode) || S_ISBLK(st.st_mode) ||
+		    S_ISFIFO(st.st_mode))
+			/* Pad last block when writing to device or FIFO. */
+			archive_write_set_bytes_in_last_block(a, 0);
+		else
+			/* Don't pad last block otherwise. */
+			archive_write_set_bytes_in_last_block(a, 1);
 	}
 
 	/*
@@ -142,10 +131,8 @@ file_open(struct archive *a, void *client_data)
 	 * itself.  If it's a device file, it's okay to add the device
 	 * entry to the output archive.
 	 */
-	if (S_ISREG(pst->st_mode)) {
-		a->skip_file_dev = pst->st_dev;
-		a->skip_file_ino = pst->st_ino;
-	}
+	if (S_ISREG(st.st_mode))
+		archive_write_set_skip_file(a, st.st_dev, st.st_ino);
 
 	return (ARCHIVE_OK);
 }
