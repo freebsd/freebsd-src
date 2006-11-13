@@ -322,6 +322,10 @@ static device_method_t legacy_pcib_methods[] = {
 	DEVMETHOD(pcib_read_config,	legacy_pcib_read_config),
 	DEVMETHOD(pcib_write_config,	legacy_pcib_write_config),
 	DEVMETHOD(pcib_route_interrupt,	legacy_pcib_route_interrupt),
+	DEVMETHOD(pcib_alloc_msi,	pcib_alloc_msi),
+	DEVMETHOD(pcib_release_msi,	pcib_release_msi),
+	DEVMETHOD(pcib_alloc_msix,	pcib_alloc_msix),
+	DEVMETHOD(pcib_release_msix,	pcib_release_msix),
 
 	{ 0, 0 }
 };
