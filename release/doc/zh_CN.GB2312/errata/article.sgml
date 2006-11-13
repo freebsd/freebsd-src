@@ -10,7 +10,7 @@
 
 	The FreeBSD Simplified Chinese Project
 
-	Original Revision: 1.73.2.33
+	Original Revision: 1.73.2.34
 -->
 
 <!DOCTYPE article PUBLIC "-//FreeBSD//DTD DocBook V4.1-Based Extension//EN" [
@@ -177,14 +177,6 @@
 		>SA-06:23.openssl</ulink></entry>
 	    <entry>2006&nbsp;年&nbsp;9&nbsp;月&nbsp;28&nbsp;日</entry>
 	    <entry><para>&man.crypto.3; 中的多处问题</para></entry>
-	  </row>
-
-	  <row>
-	    <entry><ulink url="http://security.FreeBSD.org/advisories/FreeBSD-SA-06:24.libarchive.asc"
-		>SA-06:24.libarchive</ulink></entry>
-	    <entry>2006&nbsp;年&nbsp;11&nbsp;月&nbsp;8&nbsp;日</entry>
-	    <entry><para>处理受损的压缩包时， 在
-	      &man.libarchive.3; 中发生死循环。</para></entry>
 	  </row>
 	</tbody>
       </tgroup>
