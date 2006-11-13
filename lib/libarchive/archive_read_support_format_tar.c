@@ -497,7 +497,12 @@ archive_read_format_tar_read_data(struct archive *a,
 
 	if (tar->entry_bytes_remaining > 0) {
 		bytes_read = (a->compression_read_ahead)(a, buff, 1);
-		if (bytes_read <= 0)
+		if (bytes_read == 0) {
+			archive_set_error(a, ARCHIVE_ERRNO_MISC,
+			    "Truncated tar archive");
+			return (ARCHIVE_FATAL);
+		}
+		if (bytes_read < 0)
 			return (ARCHIVE_FATAL);
 		if (bytes_read > tar->entry_bytes_remaining)
 			bytes_read = tar->entry_bytes_remaining;
