@@ -322,9 +322,15 @@
 	for example, by using <literal>tagged</literal>
 	rule option.  For more details, see &man.ipfw.8;.</para>
 
+      <para>The &man.ng.ether.4; Netgraph node no longer overwrites
+        the MAC address of outgoing frames by default.</para>
+
       <para>The &man.ng.tag.4; Netgraph node has been added to
         support the manipulation of mbuf tags attached to data in the
         kernel.</para>
+
+      <para>Support for &man.kqueue.2; operations has been added to
+	the &man.tun.4; driver.</para>
 
       <para>&os; &release.prev; contained a bug in the IPv6
 	implementation, which caused spurious error messages to be
@@ -421,7 +427,11 @@
 
     <para>The &man.fsdb.8; utility now supports changing the birth
       time of files on UFS2 file systems using the new 
-      the <literal>btime</literal> command.</para>
+      <literal>btime</literal> command.</para>
+
+    <para>The &man.fsdb.8; program now supports
+      a <literal>findblk</literal> command, which finds the inode(s)
+      owning a specific disk block.</para>
 
     <para>The &man.getent.1; utility has been imported from NetBSD.
       It retrieves and displays information from an administrative
