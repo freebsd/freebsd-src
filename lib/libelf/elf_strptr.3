@@ -25,7 +25,7 @@
 .\"
 .Dd August 29, 2006
 .Os
-.Dt ELF 3
+.Dt ELF_STRPTR 3
 .Sh NAME
 .Nm elf_strptr
 .Nd retrieve a string pointer in a string table
@@ -86,7 +86,7 @@ Offset
 .Ar stroffset
 indexed a region that was not covered by any Elf_Data
 descriptor.
-.Iq Bq Er ELF_E_DATA
+.It Bq Er ELF_E_DATA
 An erroneous
 .Vt Elf_Data
 descriptor was part of the section specified by argument
@@ -104,9 +104,9 @@ contained a malformed section header.
 .El
 .Sh SEE ALSO
 .Xr elf 3 ,
-.Xr elf_getdata 3 ,
-.Xr elf_rawdata 3 ,
 .Xr elf32_getshdr 3 ,
 .Xr elf64_getshdr 3 ,
+.Xr elf_getdata 3 ,
+.Xr elf_rawdata 3 ,
 .Xr gelf 3 ,
 .Xr gelf_getshdr 3
