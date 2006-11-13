@@ -104,7 +104,7 @@ __FBSDID("$FreeBSD$");
 extern int	ffs_rawread(struct vnode *vp, struct uio *uio, int *workdone);
 #endif
 static vop_fsync_t	ffs_fsync;
-static vop_lock_t	ffs_lock;
+static _vop_lock_t	ffs_lock;
 static vop_getpages_t	ffs_getpages;
 static vop_read_t	ffs_read;
 static vop_write_t	ffs_write;
@@ -125,7 +125,7 @@ struct vop_vector ffs_vnodeops1 = {
 	.vop_default =		&ufs_vnodeops,
 	.vop_fsync =		ffs_fsync,
 	.vop_getpages =		ffs_getpages,
-	.vop_lock =		ffs_lock,
+	._vop_lock =		ffs_lock,
 	.vop_read =		ffs_read,
 	.vop_reallocblks =	ffs_reallocblks,
 	.vop_write =		ffs_write,
@@ -142,7 +142,7 @@ struct vop_vector ffs_vnodeops2 = {
 	.vop_default =		&ufs_vnodeops,
 	.vop_fsync =		ffs_fsync,
 	.vop_getpages =		ffs_getpages,
-	.vop_lock =		ffs_lock,
+	._vop_lock =		ffs_lock,
 	.vop_read =		ffs_read,
 	.vop_reallocblks =	ffs_reallocblks,
 	.vop_write =		ffs_write,
@@ -157,7 +157,7 @@ struct vop_vector ffs_vnodeops2 = {
 struct vop_vector ffs_fifoops2 = {
 	.vop_default =		&ufs_fifoops,
 	.vop_fsync =		ffs_fsync,
-	.vop_lock =		ffs_lock,
+	._vop_lock =		ffs_lock,
 	.vop_reallocblks =	ffs_reallocblks,
 	.vop_strategy =		ffsext_strategy,
 	.vop_closeextattr =	ffs_closeextattr,
@@ -333,10 +333,12 @@ loop:
 
 static int
 ffs_lock(ap)
-	struct vop_lock_args /* {
+	struct _vop_lock_args /* {
 		struct vnode *a_vp;
 		int a_flags;
 		struct thread *a_td;
+		char *file;
+		int line;
 	} */ *ap;
 {
 #ifndef NO_FFS_SNAPSHOT
@@ -363,7 +365,7 @@ ffs_lock(ap)
 				flags |= LK_INTERLOCK;
 			}
 			lkp = vp->v_vnlock;
-			result = lockmgr(lkp, flags, VI_MTX(vp), ap->a_td);
+			result = _lockmgr(lkp, flags, VI_MTX(vp), ap->a_td, ap->a_file, ap->a_line);
 			if (lkp == vp->v_vnlock || result != 0)
 				break;
 			/*
@@ -374,18 +376,18 @@ ffs_lock(ap)
 			 * right lock.  Release it, and try to get the
 			 * new lock.
 			 */
-			(void) lockmgr(lkp, LK_RELEASE, VI_MTX(vp), ap->a_td);
+			(void) _lockmgr(lkp, LK_RELEASE, VI_MTX(vp), ap->a_td, ap->a_file, ap->a_line);
 			if ((flags & LK_TYPE_MASK) == LK_UPGRADE)
 				flags = (flags & ~LK_TYPE_MASK) | LK_EXCLUSIVE;
 			flags &= ~LK_INTERLOCK;
 		}
 		break;
 	default:
-		result = VOP_LOCK_APV(&ufs_vnodeops, ap);
+		result = _VOP_LOCK_APV(&ufs_vnodeops, ap);
 	}
 	return (result);
 #else
-	return (VOP_LOCK_APV(&ufs_vnodeops, ap));
+	return (_VOP_LOCK_APV(&ufs_vnodeops, ap));
 #endif
 }
 
