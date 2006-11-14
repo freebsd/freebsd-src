@@ -483,6 +483,7 @@ vendor HAWKING		0x0e66	Hawking
 vendor GMATE		0x0e7e	G.Mate, Inc
 vendor OTI		0x0ea0	Ours
 vendor PILOTECH		0x0eaf	Pilotech
+vendor NOVATECH		0x0eb0	NovaTech
 vendor EGALAX		0x0eef	eGalax
 vendor MICROTUNE	0x0f4d	Microtune
 vendor VTECH		0x0f88	VTech
@@ -520,6 +521,7 @@ vendor UMAX		0x1606	UMAX
 vendor INSIDEOUT	0x1608	Inside Out Networks
 vendor ENTREGA		0x1645	Entrega
 vendor ACTIONTEC	0x1668	Actiontec
+vendor CMOTECH		0x16d8	CMOTECH CO., LTD.
 vendor LINKSYS3		0x1915	Linksys
 vendor DLINK		0x2001	D-Link
 vendor ERICSSON		0x2282	Ericsson
@@ -709,6 +711,7 @@ product BELKIN F5U103		0x0103	F5U103 Serial
 product BELKIN F5U109		0x0109	F5U109 Serial
 product BELKIN F5U208		0x0208	F5U208 VideoBus II
 product BELKIN F5U409		0x0409	F5U409 Serial
+product BELKIN F6C550AVR	0x0551	F6C550-AVR UPS
 product BELKIN F5U120		0x1203	F5U120-PC Hub
 product BELKIN F5D7050		0x7050	F5D7050 wireless adapter
 
@@ -759,8 +762,12 @@ product CHIC CYPRESS		0x0003	Cypress USB Mouse
 /* Chicony products */
 product CHICONY KB8933		0x0001	KB-8933 keyboard
 
+/* CMOTECH products */
+product CMOTECH CDMAMODEM	0x5141	CMOTECH CDMA Technologies USB modem
+
 /* Compaq products */
 product COMPAQ PJB100		0x504a	Personal Jukebox PJB100
+product COMPAQ IPAQLINUX	0x505a	iPAQ Linux
 
 /* Connectix products */
 product CONNECTIX QUICKCAM	0x0001	QuickCam
@@ -890,8 +897,11 @@ product EPSON 1660		0x011e	Perfection 1660 scanner
 product EPSON 1670		0x011f	Perfection 1670 scanner
 product EPSON 1270		0x0120	Perfection 1270 scanner
 product EPSON 2480		0x0121  Perfection 2480 scanner
+product EPSON 3590		0x0122	Perfection 3590 scanner
+product EPSON 4990		0x012a	Perfection 4990 Photo scanner
 product EPSON 3500		0x080e	CX-3500/3600/3650 MFP
 product EPSON RX425		0x080f	Stylus Photo RX425 scanner
+product EPSON 4200		0x0820  CX4200 MP scanner
 
 /* e-TEK Labs products */
 product ETEK 1COM		0x8007	Serial
@@ -1168,10 +1178,11 @@ product LOGITECH MBA47		0xc002	M-BA47 mouse
 product LOGITECH WMMOUSE	0xc004	WingMan Gaming Mouse
 product LOGITECH BD58		0xc00c	BD58 mouse
 product LOGITECH UN58A		0xc030	iFeel Mouse
-product LOGITECH BB13		0xc401	USB-PS/2 Trackball
+product LOGITECH UN53B		0xc032	iFeel MouseMan
 product LOGITECH WMPAD		0xc208	WingMan GamePad Extreme
 product LOGITECH WMRPAD		0xc20a	WingMan RumblePad
 product LOGITECH WMJOY		0xc281	WingMan Force joystick
+product LOGITECH BB13		0xc401	USB-PS/2 Trackball
 product LOGITECH RK53		0xc501	Cordless mouse
 product LOGITECH RB6		0xc503	Cordless keyboard
 product LOGITECH MX700		0xc506	Cordless optical mouse
@@ -1273,6 +1284,7 @@ product MITSUMI BT_DONGLE	0x641f	Bluetooth USB dongle
 /* Motorola products */
 product MOTOROLA MC141555	0x1555	MC141555 hub controller
 product MOTOROLA SB4100		0x4100	SB4100 USB Cable Modem
+product MOTOROLA2 A41XV32X      0x2a22  A41x/V32x Mobile Phones
 product MOTOROLA2 E398		0x4810	E398 Mobile Phone
 
 /* MultiTech products */
@@ -1312,11 +1324,15 @@ product NETCHIP ETHERNETGADGET	0xa4a2	Linux Ethernet/RNDIS gadget on pxa210/25x/
 
 /* Netgear products */
 product NETGEAR EA101		0x1001	Ethernet
+product NETGEAR FA101		0x1020	Ethernet 10/100, USB1.1
 product NETGEAR FA120		0x1040	USB 2.0 Ethernet
 
 /* Nikon products */
 product NIKON E990		0x0102	Digital Camera E990
 product NIKON LS40		0x4000	CoolScan LS40 ED
+
+/* NovaTech Products */
+product NOVATECH NV902		0x9020  NovaTech NV-902W
 
 /* Olympus products */
 product OLYMPUS C1		0x0102	C-1 Digital Camera
@@ -1343,6 +1359,7 @@ product PALM ZIRE31		0x0061	Palm Zire 31
 product PALM ZIRE		0x0070	Palm Zire
 
 /* Panasonic products */
+product PANASONIC KXL840AN	0x0d01	CD-R Drive KXL-840AN
 product PANASONIC KXLRW32AN	0x0d09	CD-R Drive KXL-RW32AN
 product PANASONIC KXLCB20AN	0x0d0a	CD-R Drive KXL-CB20AN
 product PANASONIC KXLCB35AN	0x0d0e	DVD-ROM & CD-R/RW
@@ -1500,6 +1517,9 @@ product SIGMATEL I_BEAD100	0x8008	i-Bead 100 MP3 Player
 product SIIG DIGIFILMREADER	0x0004	DigiFilm-Combo Reader
 product SIIG WINTERREADER	0x0330	WINTERREADER Reader
 product SIIG2 US2308		0x0421	Serial
+
+/* Silicom products */
+product SILICOM GPE		0x0002	Psion Gold Port Ethernet
 
 /* Silicon Portals Inc. */
 product SILICONPORTALS YAPPH_NF	0x0200	YAP Phone (no firmware)
