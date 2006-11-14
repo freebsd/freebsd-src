@@ -1,7 +1,7 @@
 <!--
      The FreeBSD Simplified Chinese Project
 
-     Original revision: 1.883.2.51
+     Original revision: 1.883.2.52
 -->
 <articleinfo>
   <title>&os;/&arch; &release.current; 发行说明</title>
@@ -415,6 +415,9 @@
 
     <para>&man.tail.1; 工具新增了用于禁止在追踪多个文件时显示标题的 <option>-q</option>
       选项。</para>
+
+    <para>&man.traceroute.8; 新增了用以显示发送和接收包之间差异的
+      <option>-D</option> 选项。</para>
 
     <para>&man.traceroute.8; 工具新增了用于设置探测包的固定目的端口的
       <option>-e</option> 选项。 这对在进行包过滤的防火墙后面追踪时很有用。</para>
