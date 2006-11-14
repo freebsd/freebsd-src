@@ -971,7 +971,7 @@ kern_ptrace(struct thread *td, int req, pid_t pid, void *addr, int data)
 		error = copyout(buf, addr, tmp * sizeof(lwpid_t));
 		free(buf, M_TEMP);
 		if (!error)
-			td->td_retval[0] = num;
+			td->td_retval[0] = tmp;
 		PROC_LOCK(p);
 		break;
 
