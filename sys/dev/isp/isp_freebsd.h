@@ -149,16 +149,22 @@ struct isposinfo {
 	struct cam_sim		*sim2;
 	struct cam_path		*path2;
 	struct intr_config_hook	ehook;
-	uint16_t		loop_down_time;
-	uint16_t		loop_down_limit;
+	uint32_t		loop_down_time;
+	uint32_t		loop_down_limit;
+	uint32_t		gone_device_time;
 	uint32_t		: 5,
 		simqfrozen	: 3,
 		hysteresis	: 8,
-				: 4,
+		gdt_running	: 1,
+		ldt_running	: 1,
 		disabled	: 1,
 		fcbsy		: 1,
+		mbox_sleeping	: 1,
+		mbox_sleep_ok	: 1,
 		mboxcmd_done	: 1,
 		mboxbsy		: 1;
+	struct callout_handle 	ldt;	/* loop down timer */
+	struct callout_handle	gdt;	/* gone device timer */
 #if __FreeBSD_version >= 500000  
 	struct firmware *	fw;
 	struct mtx		lock;
@@ -168,9 +174,6 @@ struct isposinfo {
 			char wwnn[17];
 			char wwpn[17];
 		} fc;
-		struct {
-			int iid;
-		} spi;
 	} sysctl_info;
 #endif
 	struct proc		*kproc;
@@ -204,10 +207,17 @@ struct isposinfo {
 #define	CAMLOCK_2_ISPLOCK(isp)	\
 	mtx_unlock(&Giant); mtx_lock(&(isp)->isp_lock)
 #else
+#if __FreeBSD_version < 500000
 #define	ISP_LOCK(x)		do { } while (0)
 #define	ISP_UNLOCK(x)		do { } while (0)
 #define	ISPLOCK_2_CAMLOCK(isp)	do { } while (0)
 #define	CAMLOCK_2_ISPLOCK(isp)	do { } while (0)
+#else
+#define	ISP_LOCK(x)		GIANT_REQUIRED
+#define	ISP_UNLOCK(x)		do { } while (0)
+#define	ISPLOCK_2_CAMLOCK(isp)	do { } while (0)
+#define	CAMLOCK_2_ISPLOCK(isp)	GIANT_REQUIRED
+#endif
 #endif
 
 /*
@@ -225,7 +235,7 @@ struct isposinfo {
 #define	NANOTIME_T		struct timespec
 #define	GET_NANOTIME		nanotime
 #define	GET_NANOSEC(x)		((x)->tv_sec * 1000000000 + (x)->tv_nsec)
-#define	NANOTIME_SUB		nanotime_sub
+#define	NANOTIME_SUB		isp_nanotime_sub
 
 #define	MAXISPREQUEST(isp)	((IS_FC(isp) || IS_ULTRA2(isp))? 1024 : 256)
 
@@ -247,7 +257,7 @@ default:							\
 
 #define	MBOX_ACQUIRE			isp_mbox_acquire
 #define	MBOX_WAIT_COMPLETE		isp_mbox_wait_complete
-#define	MBOX_NOTIFY_COMPLETE(isp)	isp->isp_osinfo.mboxcmd_done = 1
+#define	MBOX_NOTIFY_COMPLETE		isp_mbox_notify_done
 #define	MBOX_RELEASE			isp_mbox_release
 
 #define	FC_SCRATCH_ACQUIRE(isp)						\
@@ -326,10 +336,9 @@ default:							\
 #define	XS_INITERR(ccb)		\
 	XS_SETERR(ccb, CAM_REQ_INPROG), (ccb)->ccb_h.spriv_field0 = 0
 
-#define	XS_SAVE_SENSE(xs, sp)				\
-	(xs)->ccb_h.status |= CAM_AUTOSNS_VALID,	\
-	memcpy(&(xs)->sense_data, sp->req_sense_data,	\
-	    imin(XS_SNSLEN(xs), sp->req_sense_len))
+#define	XS_SAVE_SENSE(xs, sense_ptr, sense_len)		\
+	(xs)->ccb_h.status |= CAM_AUTOSNS_VALID;	\
+	memcpy(&(xs)->sense_data, sense_ptr, imin(XS_SNSLEN(xs), sense_len))
 
 #define	XS_SET_STATE_STAT(a, b, c)
 
@@ -404,8 +413,6 @@ default:							\
 #include <dev/isp/isp_tpublic.h>
 #endif
 
-void isp_prt(ispsoftc_t *, int level, const char *, ...)
-	__printflike(3, 4);
 /*
  * isp_osinfo definiitions && shorthand
  */
@@ -431,6 +438,7 @@ extern void isp_uninit(ispsoftc_t *);
 extern int isp_announced;
 extern int isp_fabric_hysteresis;
 extern int isp_loop_down_limit;
+extern int isp_gone_device_time;
 extern int isp_quickboot_time;
 
 /*
@@ -456,100 +464,22 @@ extern int isp_quickboot_time;
 #define	XS_CMD_S_CLEAR(sccb)	(sccb)->ccb_h.spriv_field0 = 0
 
 /*
+ * Platform Library Functions
+ */
+void isp_prt(ispsoftc_t *, int level, const char *, ...) __printflike(3, 4);
+uint64_t isp_nanotime_sub(struct timespec *, struct timespec *);
+int isp_mbox_acquire(ispsoftc_t *);
+void isp_mbox_wait_complete(ispsoftc_t *, mbreg_t *);
+void isp_mbox_notify_done(ispsoftc_t *);
+void isp_mbox_release(ispsoftc_t *);
+int isp_mstohz(int);
+
+/*
  * Platform specific inline functions
  */
 
-static __inline int isp_mbox_acquire(ispsoftc_t *);
-static __inline void isp_mbox_wait_complete(ispsoftc_t *, mbreg_t *);
-static __inline void isp_mbox_release(ispsoftc_t *);
-
-static __inline int
-isp_mbox_acquire(ispsoftc_t *isp)
-{
-	if (isp->isp_osinfo.mboxbsy) {
-		return (1);
-	} else {
-		isp->isp_osinfo.mboxcmd_done = 0;
-		isp->isp_osinfo.mboxbsy = 1;
-		return (0);
-	}
-}
-
-static __inline void
-isp_mbox_wait_complete(ispsoftc_t *isp, mbreg_t *mbp)
-{
-	int lim = mbp->timeout;
-	int j;
-
-	if (lim == 0) {
-		lim = MBCMD_DEFAULT_TIMEOUT;
-	}
-	if (isp->isp_mbxwrk0) {
-		lim *= isp->isp_mbxwrk0;
-	}
-	for (j = 0; j < lim; j += 100) {
-		uint32_t isr;
-		uint16_t sema, mbox;
-		if (isp->isp_osinfo.mboxcmd_done) {
-			break;
-		}
-		if (ISP_READ_ISR(isp, &isr, &sema, &mbox)) {
-			isp_intr(isp, isr, sema, mbox);
-			if (isp->isp_osinfo.mboxcmd_done) {
-				break;
-			}
-		}
-		USEC_DELAY(100);
-	}
-	if (isp->isp_osinfo.mboxcmd_done == 0) {
-		isp_prt(isp, ISP_LOGWARN,
-		    "Polled Mailbox Command (0x%x) Timeout",
-		    isp->isp_lastmbxcmd);
-		mbp->param[0] = MBOX_TIMEOUT;
-		isp->isp_osinfo.mboxcmd_done = 1;
-	}
-}
-
-static __inline void
-isp_mbox_release(ispsoftc_t *isp)
-{
-	isp->isp_osinfo.mboxbsy = 0;
-}
-
-static __inline uint64_t nanotime_sub(struct timespec *, struct timespec *);
-static __inline uint64_t
-nanotime_sub(struct timespec *b, struct timespec *a)
-{
-	uint64_t elapsed;
-	struct timespec x = *b;
-	timespecsub(&x, a);
-	elapsed = GET_NANOSEC(&x);
-	if (elapsed == 0)
-		elapsed++;
-	return (elapsed);
-}
-
-static __inline char *strncat(char *, const char *, size_t);
-static __inline char *
-strncat(char *d, const char *s, size_t c)
-{
-        char *t = d;
-
-        if (c) {
-                while (*d)
-                        d++;
-                while ((*d++ = *s++)) {
-                        if (--c == 0) {
-                                *d = '\0';
-                                break;
-                        }
-                }
-        }
-        return (t);
-}
-
 /*
- * ISP Library functions
+ * ISP General Library functions
  */
 
 #include <dev/isp/isp_library.h>

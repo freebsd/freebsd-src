@@ -197,13 +197,13 @@ isp_fc_runstate(ispsoftc_t *isp, int tval)
 	if (fcp->isp_fwstate < FW_READY ||
 	    fcp->isp_loopstate < LOOP_PDB_RCVD) {
 		if (isp_control(isp, ISPCTL_FCLINK_TEST, tptr) != 0) {
-			isp_prt(isp, ISP_LOGINFO,
+			isp_prt(isp, ISP_LOGSANCFG,
 			    "isp_fc_runstate: linktest failed");
 			return (-1);
 		}
 		if (fcp->isp_fwstate != FW_READY ||
 		    fcp->isp_loopstate < LOOP_PDB_RCVD) {
-			isp_prt(isp, ISP_LOGINFO,
+			isp_prt(isp, ISP_LOGSANCFG,
 				"isp_fc_runstate: f/w not ready");
 			return (-1);
 		}
@@ -212,25 +212,72 @@ isp_fc_runstate(ispsoftc_t *isp, int tval)
 		return (0);
 	}
 	if (isp_control(isp, ISPCTL_SCAN_LOOP, NULL) != 0) {
-		isp_prt(isp, ISP_LOGINFO,
+		isp_prt(isp, ISP_LOGSANCFG,
 		    "isp_fc_runstate: scan loop fails");
 		return (LOOP_PDB_RCVD);
 	}
 	if (isp_control(isp, ISPCTL_SCAN_FABRIC, NULL) != 0) {
-		isp_prt(isp, ISP_LOGINFO,
+		isp_prt(isp, ISP_LOGSANCFG,
 		    "isp_fc_runstate: scan fabric fails");
 		return (LOOP_LSCAN_DONE);
 	}
 	if (isp_control(isp, ISPCTL_PDB_SYNC, NULL) != 0) {
-		isp_prt(isp, ISP_LOGINFO, "isp_fc_runstate: pdb_sync fails");
+		isp_prt(isp, ISP_LOGSANCFG, "isp_fc_runstate: pdb_sync fails");
 		return (LOOP_FSCAN_DONE);
 	}
 	if (fcp->isp_fwstate != FW_READY || fcp->isp_loopstate != LOOP_READY) {
-		isp_prt(isp, ISP_LOGINFO,
+		isp_prt(isp, ISP_LOGSANCFG,
 		    "isp_fc_runstate: f/w not ready again");
 		return (-1);
 	}
 	return (0);
+}
+
+/*
+ * Fibre Channel Support- get the port database for the id.
+ */
+void
+isp_dump_portdb(ispsoftc_t *isp)
+{
+	fcparam *fcp = (fcparam *) isp->isp_param;
+	int i;
+
+	for (i = 0; i < MAX_FC_TARG; i++) {
+		char mb[4];
+		const char *dbs[8] = {
+			"NIL ",
+			"PROB",
+			"DEAD",
+			"CHGD",
+			"NEW ",
+			"PVLD",
+			"ZOMB",
+			"VLD "
+		};
+		const char *roles[4] = {
+			" UNK", " TGT", " INI", "TINI"
+		};
+		fcportdb_t *lp = &fcp->portdb[i];
+
+		if (lp->state == FC_PORTDB_STATE_NIL) {
+			continue;
+		}
+		if (lp->ini_map_idx) {
+			SNPRINTF(mb, sizeof (mb), "%3d",
+			    ((int) lp->ini_map_idx) - 1);
+		} else {
+			SNPRINTF(mb, sizeof (mb), "---");
+		}
+		isp_prt(isp, ISP_LOGALL, "%d: %s al%d tgt %s %s 0x%06x =>%s"
+		    " 0x%06x; WWNN 0x%08x%08x WWPN 0x%08x%08x", i,
+		    dbs[lp->state], lp->autologin, mb,
+		    roles[lp->roles], lp->portid,
+		    roles[lp->new_roles], lp->new_portid,
+		    (uint32_t) (lp->node_wwn >> 32),
+		    (uint32_t) (lp->node_wwn),
+		    (uint32_t) (lp->port_wwn >> 32),
+		    (uint32_t) (lp->port_wwn));
+	}
 }
 
 void
