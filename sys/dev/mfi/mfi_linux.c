@@ -45,6 +45,9 @@ __FBSDID("$FreeBSD$");
 #include <compat/linux/linux_ioctl.h>
 #include <compat/linux/linux_util.h>
 
+#include <dev/mfi/mfireg.h>
+#include <dev/mfi/mfi_ioctl.h>
+
 /* There are multiple ioctl number ranges that need to be handled */
 #define MFI_LINUX_IOCTL_MIN  0x4d00
 #define MFI_LINUX_IOCTL_MAX  0x4d04
@@ -81,10 +84,20 @@ mfi_linux_ioctl(d_thread_t *p, struct linux_ioctl_args *args)
 {
 	struct file *fp;
 	int error;
+	u_long cmd = args->cmd;
+
+	switch (cmd) {
+	case MFI_LINUX_CMD:
+		cmd = MFI_LINUX_CMD_2;
+		break;
+	case MFI_LINUX_SET_AEN:
+		cmd = MFI_LINUX_SET_AEN_2;
+		break;
+	}
 
 	if ((error = fget(p, args->fd, &fp)) != 0)
 		return (error);
-	error = fo_ioctl(fp, args->cmd, (caddr_t)args->arg, p->td_ucred, p);
+	error = fo_ioctl(fp, cmd, (caddr_t)args->arg, p->td_ucred, p);
 	fdrop(fp, p);
 	return (error);
 }
