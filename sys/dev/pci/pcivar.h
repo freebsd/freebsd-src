@@ -84,10 +84,10 @@ struct pcicfg_msi {
     uint16_t	msi_data;	/* Contents of data register. */
 };
 
-/* Interesting values for PCI MSI */
+/* Interesting values for PCI MSI-X */
 struct pcicfg_msix {
     uint16_t	msix_ctrl;	/* Message Control */
-    uint8_t	msix_location;	/* Offset of MSI capability registers. */
+    uint8_t	msix_location;	/* Offset of MSI-X capability registers. */
     uint16_t	msix_msgnum;	/* Number of messages */
     int		msix_alloc;	/* Number of allocated messages. */
     uint8_t	msix_table_bar;	/* BAR containing vector table. */
