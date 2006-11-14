@@ -530,7 +530,10 @@ mountfs(const char *vfstype, const char *spec, const char *name, int flags,
 	argv[argc] = NULL;
 
 	if (debug) {
-		(void)printf("exec: mount_%s", vfstype);
+		if (use_mountprog(vfstype))
+			printf("exec: mount_%s", vfstype);
+		else
+			printf("mount -t %s", vfstype);
 		for (i = 1; i < argc; i++)
 			(void)printf(" %s", argv[i]);
 		(void)printf("\n");
