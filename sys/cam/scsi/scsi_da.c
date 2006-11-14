@@ -443,6 +443,22 @@ static struct da_quirk_entry da_quirk_table[] =
 		{T_DIRECT, SIP_MEDIA_REMOVABLE, "Generic*", "STORAGE DEVICE*",
 		"*"}, /*quirks*/ DA_Q_NO_SYNC_CACHE
 	},
+	{
+		/*
+		 * Rekam Digital CAMERA
+		 * PR: usb/98713
+		 */
+		{T_DIRECT, SIP_MEDIA_REMOVABLE, "CAMERA*", "4MP-9J6*",
+		"*"}, /*quirks*/ DA_Q_NO_SYNC_CACHE
+	},
+	{
+		/*
+		 * iRiver H10 MP3 player
+		 * PR: usb/102547
+		 */
+		{T_DIRECT, SIP_MEDIA_REMOVABLE, "iriver", "H10*",
+		"*"}, /*quirks*/ DA_Q_NO_SYNC_CACHE
+       },
 };
 
 static	disk_strategy_t	dastrategy;
