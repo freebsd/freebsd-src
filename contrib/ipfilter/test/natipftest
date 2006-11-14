@@ -1,0 +1,59 @@
+#!/bin/sh
+mode=$1
+shift
+if [ $3 = hex ] ; then
+	format="-xF $2"
+else
+	format="-F $2"
+fi
+if [ "$4" != "" ] ; then
+	format="-T $4 $format"
+fi
+mkdir -p results
+if [ -f /usr/ucb/touch ] ; then
+	TOUCH=/usr/ucb/touch
+else
+	if [ -f /usr/bin/touch ] ; then
+		TOUCH=/usr/bin/touch
+	else
+		if [ -f /bin/touch ] ; then
+			TOUCH=/bin/touch
+		fi
+	fi
+fi
+
+case $mode in
+single)
+	echo "$1...";
+	/bin/cp /dev/null results/$1
+	( while read rule; do
+		echo "$rule" | ../ipftest -R $format -b -r regress/$1.ipf -N - -i input/$1 >> \
+			results/$1;
+		if [ $? -ne 0 ] ; then
+			exit 1;
+		fi
+		echo "-------------------------------" >> results/$1
+	done ) < regress/$1.nat
+	cmp expected/$1 results/$1
+	status=$?
+	if [ $status = 0 ] ; then
+		$TOUCH $1
+	fi
+	;;
+multi)
+	echo "$1...";
+	/bin/cp /dev/null results/$1
+	../ipftest -R $format -b -r regress/$1.ipf -N regress/$1.nat \
+		-i input/$1 >> results/$1;
+	if [ $? -ne 0 ] ; then
+		exit 2;
+	fi
+	echo "-------------------------------" >> results/$1
+	cmp expected/$1 results/$1
+	status=$?
+	if [ $status = 0 ] ; then
+		$TOUCH $1
+	fi
+	;;
+esac
+exit $status

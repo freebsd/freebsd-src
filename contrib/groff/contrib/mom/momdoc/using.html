@@ -1,0 +1,230 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 3.2 Final//EN">
+<html>
+<head>
+<meta http-equiv="content-type" content="text/html;charset=iso-8859-1">
+<title>Using mom</title>
+</head>
+<body bgcolor="#dfdfdf">
+
+<!====================================================================>
+
+<a href="typesetting.html#TOP">Next</a>&nbsp;&nbsp;
+<a href="definitions.html#TOP">Prev</a>&nbsp;&nbsp;
+<a href="toc.html">Back to Table of Contents</a>
+<p>
+<a name="TOP"></a>
+<a name="USING">
+	<h1 align="center"><u>USING MOM</u></h1>
+</a>
+
+<a href="#USING_INTRO">Introduction</a>
+<br>
+<a href="#USING_MACROS">Inputting macros</a>
+<br>
+<a href="#USING_INVOKING">Invoking groff</a>
+<br>
+<a href="#USING_PREVIEWING">Previewing documents</a>
+<p>
+<hr>
+<h2><a name="USING_INTRO"><u>Introduction</u></a></h2>
+
+As explained in the section
+<a href="intro.html#INTRO">What is mom?</a>,
+<strong>mom</strong> can be used in two ways: for straight typesetting
+or for document processing.  The difference between the two is
+that in straight typesetting, every macro is a literal
+typesetting instruction that determines precisely how text
+following it will look.  Document processing, on the other hand,
+uses markup &quot;tags&quot; (e.g. <kbd>.PP</kbd> for
+paragraphs, <kbd>.HEAD</kbd> for heads, <kbd>.FOOTNOTE</kbd>
+for footnotes, etc.) that make a lot of typesetting decisions
+automatically.
+<p>
+You tell <strong>mom</strong> that you want to use the document
+processing macros with the
+<a href="docprocessing.html#START">START</a>
+macro, explained below.  After <strong>START</strong>,
+<strong>mom</strong> determines the appearance of text following
+the markup tags automatically, although you, the user, can easily
+change how <strong>mom</strong> interprets the tags.  This gives you
+nearly complete control over document design.  In addition, the
+typesetting macros, in combination with document processing, let you
+meet all sorts of typesetting needs that just can't be covered by
+&quot;one macro fits all&quot; markup tags.
+<p>
+<a name="USING_MACROS">
+	<h2><u>How to input mom's macros</u></h2>
+</a>
+
+Regardless of which way you use <strong>mom</strong>, the
+following apply.
+<br>
+<ol>
+	<li>You need a good text editor for inputting
+		<strong>mom</strong> files.
+		<p>
+		I cannot recommend highly enough that you use an
+		editor that lets you write syntax highlighting
+		rules for <strong>mom</strong>'s macros and
+		<a href="definitions.html#TERMS_INLINES">inline escapes</a>.
+		I use the vi clone called elvis, and find it a pure
+		joy in this regard.  Simply colourizing macros and
+		inlines to half-intensity can be enough to make text stand
+		out clearly from formatting commands.
+	<li>All <strong>mom</strong>'s macros begin with a period
+		(dot) and must be entered in upper case (capital)
+		letters.
+	<li>Macro
+		<a href="definitions.html#TERMS_ARGUMENTS">arguments</a>
+		are separated from the macro itself by spaces.  Multiple
+		arguments to the same macro are separated from each
+		other by spaces.  Any number of spaces may be used.  All
+		arguments to a macro must appear on the same line as the
+		macro.
+	<li>Any argument (except a
+		<a href="definitions.html#TERMS_STRINGARGUMENT">string argument</a>)
+		that is not a digit must be entered in upper case
+		(capital) letters.
+	<li>Any argument that requires a plus or minus sign must
+		have the plus or minus sign prepended to the argument
+		with no intervening space (e.g. +2, -4).
+	<li>Any argument that requires a
+		<a href="definitions.html#TERMS_UNITOFMEASURE">unit of measure</a>
+		must have the unit appended directly to the argument,
+		with no intervening space (e.g. 4P, .5i, 2v).
+	<li><a href="definitions.html#TERMS_STRINGARGUMENT">String arguments</a>,
+		in the sense that the term is used in this manual, must
+		be surrounded by double-quotes (&quot;text of
+		string&quot;).  Multiple string arguments are separated
+		from each other by spaces (each argument surrounded by
+		double-quotes, of course).
+	<li>If a string argument, as entered in your text editor,
+		becomes uncomfortably long (i.e. runs longer than the
+		visible portion of your screen or window), you may break
+		it into two or more lines by placing the backslash
+		character (<kbd>\</kbd>) at the ends of lines to break
+		them up, like this:
+	<p>
+	<pre>
+	.SUBTITLE "An In-Depth Consideration of the \
+	Implications of Forty-Two as the Meaning of Life, \
+	The Universe, and Everything"
+	</pre>
+</ol>
+
+It's important that formatted documents be easy to read/interpret
+when you're looking at them in a text editor.  One way to achieve
+this is to group macros that serve a similar purpose together, and
+separate them from other groups of macros with a blank comment line.
+In groff, that's done with <kbd>\#</kbd> on a line by itself.
+Consider the following, which is a template for starting the
+chapter of a book.
+<p>
+<pre>
+	.TITLE   "My Pulitzer Novel"
+	.AUTHOR  "Joe Blow"
+	.CHAPTER  1
+	\#
+	.DOCTYPE    CHAPTER
+	.PRINTSTYLE TYPESET
+	\#
+	.FAM     P
+	.PT_SIZE 10
+	.LS      12
+	\#
+	.START
+</pre>
+
+<a name="USING_INVOKING">
+	<h2><u>Printing -- invoking groff with mom</u></h2>
+</a>
+
+After you've finished your document, naturally you will want to
+print it.  This involves invoking groff from the command line.
+In all likelihood, you already know how to do this, but in case
+you don't, here are two common ways to do it.
+<p>
+<pre>
+	groff -mom -l &lt;filename&gt;
+	groff -mom &lt;filename&gt; | lpr
+</pre>
+
+In the first, the <strong>-l</strong> option to groff tells
+groff to send the output to your printer.  In the second, you're
+doing the same thing, except you're telling groff to pipe the
+output to your printer.  Basically, they're the same thing.  The
+only advantage to the second is that your system may be set up
+to use something other than <strong>lpr</strong> as your print
+command, in which case, you can replace <strong>lpr</strong>
+with whatever is appropriate to your box.
+<p>
+Sadly, it is well beyond the scope of this manual to tell you
+how to set up a printing system.  See the README file for
+minimum requirements to run groff with <strong>mom</strong>.
+<p>
+<strong>NOTE FOR ADVANCED USERS:</strong> I've sporadically had groff
+choke on perfectly innocent sourced files within <strong>mom</strong>
+documents.  You'll know you have this problem when groff complains that
+it can't find the sourced file even when you can plainly see that the
+file exists, and that you've given <code>.so</code> the right path and
+name.  Should this happen, pass groff the <code>-U</code> (unsafe mode)
+option along with the other options you require.  Theoretically, you
+only need <code>-U</code> with <code>.open, .opena, .pso, .sy,</code>
+and <code>.pi</code>, however reality seems, at times, to dictate
+otherwise.
+<p>
+<a name="USING_PREVIEWING">
+	<h2><u>How to preview documents</u></h2>
+</a>
+
+Other than printing out hard copy, there are two well-established
+methods for previewing your work.  Both assume you have a working
+X server.
+<p>
+Groff itself comes with a quick and dirty previewer called
+gxditview. Invoke it with
+<p>
+<pre>
+	groff -X -mom filename
+</pre>
+
+It's not particularly pretty, doesn't have many navigation
+options, requires a lot of work if you want to use other than
+the &quot;standard&quot; groff PostScript fonts, and occasionally
+has difficulty accurately reproducing some of
+<strong>mom</strong>'s macro effects
+(<a href="goodies.html#SMARTQUOTES">smartquotes</a>
+and
+<a href="goodies.html#LEADER">leaders</a>
+come to mind).  What it does have going for it is that it's fast and
+doesn't gobble up system resources.
+<p>
+A surer way to preview documents is with <strong>gv</strong>
+(ghostview).  This involves processing documents with groff,
+and directing the output to a PostScript file, like this,
+<p>
+<pre>
+	groff -mom filename &gt; filename.ps
+</pre>
+then opening .ps file in <strong>gv</strong>.
+<p>
+While that may sound like a lot of work, I've set up my editor
+(elvis) to do it for me.  Whenever I'm working on a document that
+needs previewing/checking, I fire up <strong>gv</strong> with the
+&quot;Watch File&quot; option turned on.  To look at the file, I
+tell elvis to process it (with groff) and send it to a temporary
+file (<kbd>groff -mom filename &gt; filename.ps</kbd>), then open
+the file inside <strong>gv</strong>.  Ever after, when I want to
+look at any changes I make, I simply tell elvis to work his magic
+again.  The Watch File option in <strong>gv</strong> registers that
+the file has changed, and automatically loads the new version.
+Voilà! --instant previewing.
+
+<p>
+<hr>
+<a href="typesetting.html#TOP">Next</a>&nbsp;&nbsp;
+<a href="definitions.html#TOP">Prev</a>&nbsp;&nbsp;
+<a href="#TOP">Top</a>&nbsp;&nbsp;
+<a href="toc.html">Back to Table of Contents</a>
+</body>
+</html>

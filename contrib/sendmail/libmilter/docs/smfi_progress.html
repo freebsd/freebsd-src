@@ -1,0 +1,68 @@
+<html>
+<head><title>smfi_progress</title></head>
+<body>
+<!--
+$Id: smfi_progress.html,v 1.3 2003/03/05 19:57:54 ca Exp $
+-->
+<h1>smfi_progress</h1>
+
+<table border="0" cellspacing=4 cellpadding=4>
+<!---------- Synopsis ----------->
+<tr><th valign="top" align=left width=150>SYNOPSIS</th><td>
+<pre>
+#include &lt;libmilter/mfapi.h&gt;
+int smfi_progress(
+	SMFICTX *ctx;
+);
+</pre>
+Notify the MTA that an operation is still in progress.
+</td></tr>
+
+<!----------- Description ---------->
+<tr><th valign="top" align=left>DESCRIPTION</th><td>
+<table border="1" cellspacing=1 cellpadding=4>
+<tr align="left" valign=top>
+<th width="80">Called When</th>
+<td>Called only from <a href="xxfi_eom.html">xxfi_eom</a>.</td>
+</tr>
+<tr align="left" valign=top>
+<th width="80">Effects</th>
+<td>smfi_progress notifies the MTA that the filter is still working
+on a message, causing the MTA to re-start its timeouts.</td>
+</tr>
+</table>
+
+<!----------- Arguments ---------->
+<tr><th valign="top" align=left>ARGUMENTS</th><td>
+    <table border="1" cellspacing=0>
+    <tr bgcolor="#dddddd"><th>Argument</th><th>Description</th></tr>
+    <tr valign="top"><td>ctx</td>
+	<td>Opaque context structure.
+	</td></tr>
+    </table>
+</td></tr>
+
+<!----------- Return values ---------->
+<tr>
+<th valign="top" align=left>RETURN VALUES</th> 
+
+<td>smfi_progress will fail and return MI_FAILURE if:
+<ul>
+    <li>A network error occurs.
+</ul>
+Otherwise, it will return MI_SUCCESS
+</td>
+</tr>
+
+</table>
+
+<hr size="1">
+<font size="-1">
+Copyright (c) 2003 Sendmail, Inc. and its suppliers.
+All rights reserved.
+<br>
+By using this file, you agree to the terms and conditions set
+forth in the LICENSE.
+</font>
+</body>
+</html>

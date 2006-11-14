@@ -1,0 +1,979 @@
+<!--
+     The FreeBSD Russian Documentation Project
+
+     $FreeBSD$
+     $FreeBSDru: frdp/release/doc/ru_RU.KOI8-R/hardware/common/dev.sgml,v 1.18 2005/06/30 11:12:31 den Exp $
+
+     Original revision: 1.282
+-->
+
+<!--
+	The "Supported Devices" section of the release notes.
+	Generally processor-independent, with conditional text
+	inclusion handling any architecture-dependent text.
+
+	Within each subsection describing a class of hardware
+	(i.e. Ethernet interfaces), list broad groups of devices
+	alphabetically as paragraphs sorted alphabetically (frequently
+	these groups will be arranged by manufacturer, i.e. 3Com
+	Ethernet interfaces).
+
+	Where applicable, a "Miscellaneous" section may follow all
+	other named sections.
+
+	These guidelines are not hard-and-fast rules, and exceptions
+	will occur.  Following these guidelines (vague as they may be)
+	is highly recommended to try to keep the formatting of
+	this section consistent.
+
+	We give manpage references using the &man entities where
+	possible.  If a driver has no manpage (and consequently no
+	&man entity, we simply give the name of the driver).  
+	Please avoid doing &man entity conversions unless you
+	know for sure that an entity and manpage exist; sweeps through
+	this file to fix "missed" conversions are likely to break the
+	build.
+-->
+
+<sect1 id="support">
+  <sect1info>
+    <pubdate>$FreeBSD$</pubdate>
+  </sect1info>
+
+  <title>Поддерживаемые устройства</title>
+
+  <para>В этом разделе описаны устройства, поддерживаемые &os; на платформе
+    &arch.print;.  Другие конфигурации также могут работать, они просто еще
+    не были протестированы.  Приветствуются замечания, обновления и
+    исправления этого списка.</para>
+
+  <para>Когда это возможно, приводится список драйверов для каждого устройства
+    или класса устройств.  Если у этого драйвера есть страница справочника
+    в основной поставке &os; (что верно для большинства драйверов), на
+    нее дается ссылка.  Информация по определенным моделям поддерживаемых
+    устройств, контроллеров и т.д. может быть найдена в страницах
+    справочника.</para>
+
+  <note>
+    <para>Список устройств в этом документе генерируется автоматически из
+      страниц справочной системы &os;.  Это означает, что некоторые
+      устройства, поддерживаемые несколькими драйверами, могут
+      появляться несколько раз.</para>
+  </note>
+
+  <sect2 id="disk">
+    <title>Контроллеры дисков</title>
+
+    <para arch="i386,alpha,sparc64,ia64,pc98,amd64">IDE/ATA контроллеры
+      (драйвер &man.ata.4;)</para>
+    <para arch="pc98">IDE/ATA контроллеры (драйвер wdc)
+      <itemizedlist>
+	<listitem>
+	  <para>Встроенный IDE контроллер</para>
+	</listitem>
+      </itemizedlist>
+    </para>
+
+    &hwlist.aic;
+
+    &hwlist.aha;
+
+    &hwlist.ahb;
+
+    &hwlist.ahc;
+
+    &hwlist.ahd;
+
+    &hwlist.aac;
+
+    &hwlist.ct;
+
+    &hwlist.adv;
+
+    &hwlist.adw;
+
+    &hwlist.bt;
+
+    &hwlist.dpt;
+
+    &hwlist.asr;
+
+    &hwlist.amr;
+      <note>
+	<para arch="i386,amd64">Поддерживается загрузка с этих контроллеров.
+	  EISA адаптеры не поддерживаются.</para>
+
+	<para arch="alpha">Загрузка с этих контроллеров не поддерживается
+	  вследствие ограничений SRM.</para>
+      </note>
+
+    &hwlist.arcmsr;
+
+    &hwlist.mlx;
+
+      <note>
+	<para arch="i386,amd64">Поддерживается загрузка с этих контроллеров.
+	  EISA адаптеры не поддерживаются.</para>
+
+	<para arch="alpha">Загрузка с этих контроллеров не поддерживается
+	  вследствие ограничений SRM.  DAC960 контроллеры, продаваемые
+	  Digital/Compaq для систем Alpha в качестве части
+	  StorageWorks family, т.е. KZPSC или KZPAC поддерживают загрузку
+	  SRM.  Обратите внимание, что эти карты используют 2.x
+	  firmware.  Загрузка SRM на более свежих версиях firmware
+	  не проверялась.</para>
+      </note>
+
+    &hwlist.mly;
+
+    &hwlist.twe;
+
+    &hwlist.twa;
+
+    &hwlist.ncr;
+
+    &hwlist.sym;
+
+    &hwlist.ncv;
+
+    &hwlist.stg;
+
+    &hwlist.isp;
+
+    &hwlist.amd;
+
+    &hwlist.nsp;
+
+    &hwlist.vpo;
+
+    &hwlist.ida;
+
+    &hwlist.ciss;
+
+    &hwlist.iir;
+
+    &hwlist.pst;
+
+    &hwlist.hptmv;
+
+    &hwlist.ips;
+
+    &hwlist.mpt;
+ 
+    &hwlist.trm;
+
+    <para arch="i386">Драйвер wds(4) поддерживает контроллер WD7000
+      SCSI.</para>
+
+    <para>Со всеми поддерживаемыми SCSI контроллерами, предоставлена полная
+      поддержка периферии SCSI-I, SCSI-II и SCSI-III, включая жесткие диски,
+      оптические диски, ленточные накопители (включая DAT, 8mm
+      Exabyte, Mammoth, и DLT), устройства смены носителей, устройства
+      обработки и приводы CD-ROM.  WORM устройства, поддерживающие команды
+      CD-ROM, поддерживаются с доступом только для чтения приводами CD-ROM
+      (такими как &man.cd.4;).  Поддержка записи WORM/CD-R/CD-RW
+      предоставляется &man.cdrecord.1;, который является частью порта
+      <filename role="package">sysutils/cdrtools</filename> из коллекции
+      портов.</para>
+
+    <para>На данный момент поддерживаются следующие системы CD-ROM
+      типа:
+      <itemizedlist>
+	<listitem>
+	  <para>SCSI интерфейс (также включающий ProAudio Spectrum и
+	  SoundBlaster SCSI) (драйвер &man.cd.4;)</para>
+	</listitem>
+
+	<listitem arch="i386">
+	  <para>Matsushita CR-562, CR-563 и совместимые
+	    (драйвер &man.matcd.4;)</para>
+	</listitem>
+
+	<listitem arch="i386">
+	  <para>Sony закрытый интерфейс (все модели)
+	    (драйвер &man.scd.4;)</para>
+	</listitem>
+
+	<listitem>
+	  <para>ATAPI IDE интерфейс (драйвер &man.acd.4;)</para>
+	</listitem>
+      </itemizedlist>
+    </para>
+
+    <para arch="i386">Следующие устройства не поддерживаются:
+      <itemizedlist>
+	<listitem>
+	  <para>Mitsumi закрытый интерфейс CD-ROM (все
+	  модели) (драйвер &man.mcd.4;)</para>
+	</listitem>
+      </itemizedlist>
+    </para>
+
+  </sect2>
+  <sect2 id="ethernet">
+    <title>Ethernet интерфейсы</title>
+
+    &hwlist.sf;
+
+    &hwlist.ti;
+
+    &hwlist.pcn;
+
+    &hwlist.lnc;
+
+    <para arch="i386,pc98,amd64">SMC 83c17x (EPIC) Ethernet сетевые карты
+      (драйвер &man.tx.4;)
+    </para>
+
+    &hwlist.ed;
+
+    &hwlist.rl;
+
+    &hwlist.wb;
+
+    &hwlist.vr;
+
+    &hwlist.sis;
+
+    &hwlist.nge;
+
+    &hwlist.ste;
+
+    &hwlist.sk;
+
+    &hwlist.tl;
+
+    &hwlist.dc;
+
+    &hwlist.aue;
+
+    &hwlist.cue;
+
+    &hwlist.kue;
+
+    &hwlist.axe;
+
+    &hwlist.rue;
+
+    &hwlist.udav;
+
+    &hwlist.de;
+
+    &hwlist.fe;
+
+    &hwlist.fxp;
+
+    &hwlist.ex;
+
+    &hwlist.ie;
+
+    &hwlist.ep;
+
+    &hwlist.el;
+
+    &hwlist.xl;
+
+    &hwlist.vx;
+
+    <para arch="i386,amd64">Crystal Semiconductor CS89x0 сетевые карты 
+      (драйвер &man.cs.4;)
+    </para>
+
+    &hwlist.sn;
+
+    &hwlist.xe;
+
+    &hwlist.snc;
+
+    &hwlist.lge;
+
+    &hwlist.txp;
+
+    &hwlist.bge;
+
+    &hwlist.em;
+
+    &hwlist.hme;
+
+    &hwlist.gem;
+
+    &hwlist.my;
+
+    <para arch="i386,amd64">Broadcom BCM4401 based Fast Ethernet адаптеры
+      (драйвер &man.bfe.4;)</para>
+
+    &hwlist.re;
+
+    &hwlist.ixgb;
+
+    &hwlist.vge;
+
+    &hwlist.nve;
+
+  </sect2>
+
+  <sect2 id="tokenring">
+    <title>Token Ring интерфейсы</title>
+
+    &hwlist.oltr;
+
+  </sect2>
+
+  <sect2 id="fddi">
+    <title>FDDI интерфейсы</title>
+    <para arch="i386,pc98,alpha">DEC DEFPA PCI (драйвер &man.fpa.4;)</para>
+    <para arch="i386">DEC DEFEA EISA (драйвер &man.fpa.4;)</para>
+  </sect2>
+
+  <sect2 id="atm">
+    <title>ATM интерфейсы</title>
+
+    <para arch="i386,pc98">Midway ATM интерфейсы (драйвер &man.en.4;)</para>
+
+    <para arch="i386,pc98,sparc64">FORE Systems, Inc. PCA-200E ATM PCI
+      адаптеры (драйверы hfa и &man.fatm.4;)</para>
+
+    <para arch="i386,pc98">IDT NICStAR 77201/211 ATM адаптеры
+      (драйвер &man.idt.4;)</para>
+
+    <para arch="i386,pc98,sparc64">FORE Systems, Inc. HE155 и HE622
+      ATM интерфейсы (драйвер &man.hatm.4;)</para>
+
+    <para arch="i386,pc98">IDT77252 ATM карты (драйвер
+      &man.patm.4;)</para>
+
+  </sect2>
+  <sect2 id="wlan">
+    <title>Беспроводные сетевые интерфейсы</title>
+
+    <para arch="i386">NCR / AT&amp;T / Lucent Technologies WaveLan T1-speed
+    ISA/radio LAN карты (драйвер &man.wl.4;)</para>
+
+    <para arch="i386,pc98,amd64">Lucent Technologies WaveLAN/IEEE 802.11b
+      беспроводные сетевые адаптеры и им подобные, использующие
+      Lucent Hermes, Intersil
+      PRISM-II, Intersil PRISM-2.5, Intersil Prism-3, и Symbol
+      Spectrum24 чипсеты (драйвер &man.wi.4;)
+    </para>
+
+    <para arch="i386,pc98,amd64">Cisco/Aironet 802.11b беспроводные адаптеры
+      (драйвер &man.an.4;)
+    </para>
+
+    <para arch="i386,pc98">Raytheon Raylink 2.4GHz беспроводные адаптеры (драйвер &man.ray.4;)
+    </para>
+
+    &hwlist.awi;
+
+    &hwlist.cnw;
+
+    &hwlist.ath;
+
+  </sect2>
+
+  <sect2 id="misc-network">
+    <title>Различные сетевые устройства</title>
+
+    &hwlist.cx;
+
+    &hwlist.cp;
+
+    &hwlist.ctau;
+
+    <para arch="i386">Granch SBNI12 коммуникационные адаптеры точка-к-точке
+      (драйвер &man.sbni.4;)
+    </para>
+
+    <para arch="i386">Granch SBNI16 SHDSL модемы (драйвер &man.sbsh.4;)</para>
+
+    &hwlist.cm;
+
+  </sect2>
+
+  <sect2 id="isdn">
+    <title>ISDN интерфейсы</title>
+    <para arch="i386">AcerISDN P10 ISA PnP (экспериментальный)</para>
+    <para arch="i386">Asuscom ISDNlink 128K ISA</para>
+    <para arch="i386">ASUSCOM P-IN100-ST-D (и другие карты на Winbond W6692)</para>
+    <para arch="i386">AVM
+      <itemizedlist>
+	<listitem>
+	  <para>A1</para>
+	</listitem>
+	<listitem>
+	  <para>B1 ISA (протестировано с V2.0)</para>
+	</listitem>
+	<listitem>
+	  <para>B1 PCI (протестировано с V4.0)</para>
+	</listitem>
+	<listitem>
+	  <para>Fritz!Card classic</para>
+	</listitem>
+	<listitem>
+	  <para>Fritz!Card PnP</para>
+	</listitem>
+	<listitem>
+	  <para>Fritz!Card PCI</para>
+	</listitem>
+	<listitem>
+	  <para>Fritz!Card PCI, Version 2</para>
+	</listitem>
+	<listitem>
+	  <para>T1</para>
+	</listitem>
+      </itemizedlist>
+    </para>
+    <para arch="i386">Creatix
+      <itemizedlist>
+	<listitem>
+	  <para>ISDN-S0</para>
+	</listitem>
+	<listitem>
+	  <para>ISDN-S0 P&amp;P</para>
+	</listitem>
+      </itemizedlist>
+    </para>
+    <para arch="i386">Compaq Microcom 610 ISDN (Compaq series PSB2222I) ISA PnP</para>
+    <para arch="i386">Dr. Neuhaus Niccy Go@ и совместимые</para>
+    <para arch="i386">Dynalink IS64PPH и IS64PPH+</para>
+    <para arch="i386">Eicon Diehl DIVA 2.0 и 2.02</para>
+    <para arch="i386">ELSA
+      <itemizedlist>
+	<listitem>
+	  <para>ELSA PCC-16</para>
+	</listitem>
+	<listitem>
+	  <para>QuickStep 1000pro ISA</para>
+	</listitem>
+	<listitem>
+	  <para>MicroLink ISDN/PCI</para>
+	</listitem>
+	<listitem>
+	  <para>QuickStep 1000pro PCI</para>
+	</listitem>
+      </itemizedlist>
+    </para>
+    <para arch="i386">ITK ix1 Micro ( &lt; V.3, не-PnP версия )</para>
+    <para arch="i386">Sedlbauer Win Speed</para>
+    <para arch="i386">Siemens I-Surf 2.0</para>
+    <para arch="i386">TELEINT ISDN SPEED No.1 (экспериментальная)</para>
+    <para arch="i386">Teles
+      <itemizedlist>
+	<listitem>
+	  <para>S0/8</para>
+	</listitem>
+	<listitem>
+	  <para>S0/16</para>
+	</listitem>
+	<listitem>
+	  <para>S0/16.3</para>
+	</listitem>
+	<listitem>
+	  <para>S0/16.3 PnP</para>
+	</listitem>
+	<listitem>
+	  <para>16.3c ISA PnP (экспериментальная)</para>
+	</listitem>
+	<listitem>
+	  <para>Teles PCI-TJ</para>
+	</listitem>
+      </itemizedlist>
+    </para>
+    <para arch="i386">Traverse Technologies NETjet-S PCI</para>
+    <para arch="i386">USRobotics Sportster ISDN TA intern</para>
+    <para arch="i386">Winbond W6692 based PCI карты</para>
+  </sect2>
+
+  <sect2 id="serial">
+    <title>Последовательные интерфейсы</title>
+
+    <para arch="i386,alpha,ia64,amd64"><quote>PC standard</quote> 8250, 16450,
+      и 16550 последовательные порты (драйвер &man.sio.4;)</para>
+
+    <para arch="sparc64">Последовательные порты, основанные на чипе SAB82532
+      только консоль (драйвер &man.sab.4;)</para>
+
+    <para arch="sparc64">Последовательные порты, основанные на Zilog 8530 dual uart,
+      только консоль (драйвер zs)</para>
+
+    <para arch="i386,alpha,amd64">Последовательная карта AST на 4 порта с
+      совместным использованием IRQ</para>
+
+    <para arch="i386">Последовательные карты ARNET (драйвер &man.ar.4;)
+      <itemizedlist>
+	<listitem>
+	  <para>Последовательная карта ARNET на 8 портов с
+	    совместным использованием IRQ</para>
+	</listitem>
+	<listitem>
+	  <para>ARNET (теперь Digiboard) Sync 570/i high-speed serial</para>
+	</listitem>
+      </itemizedlist>
+    </para>
+    
+    <para arch="i386">Boca многопортовые последовательные карты
+      <itemizedlist>
+	<listitem>
+	  <para>Boca BB1004 4-Port последовательная карта (модемы
+	    <emphasis>не</emphasis> поддерживаются)</para>
+	</listitem>
+	<listitem>
+	  <para>Boca IOAT66 6-Port последовательная карта (модемы
+	    поддерживаются)</para>
+	</listitem>
+	<listitem>
+	  <para>Boca BB1008 8-Port последовательная карта (модемы
+	    <emphasis>не</emphasis> поддерживаются)</para>
+	</listitem>
+	<listitem>
+	  <para>Boca BB2016 16-Port последовательная карта (модемы
+	    поддерживаются)</para>
+	</listitem>
+      </itemizedlist>
+    </para>
+
+    <para arch="i386,alpha">Comtrol Rocketport карта (драйвер &man.rp.4;)</para>
+
+    <para arch="i386">Cyclades Cyclom-Y serial board (драйвер &man.cy.4;)</para>
+
+    <para arch="i386">STB на 4 порта с совместным использованием IRQ</para>
+
+    <para arch="i386">DigiBoard intelligent serial cards (драйвер digi)
+    </para>
+
+    <para arch="i386,ia64,amd64">PCI-Based многопортовые последовательные
+      карты (драйвер &man.puc.4;)
+      <itemizedlist>
+	<listitem arch="i386,amd64">
+	  <para>Actiontech 56K PCI</para>
+	</listitem>
+	<listitem arch="i386,amd64">
+	  <para>Avlab Technology, PCI IO 2S и PCI IO 4S</para>
+	</listitem>
+	<listitem arch="i386,amd64">
+	  <para>Comtrol RocketPort 550</para>
+	</listitem>
+	<listitem arch="i386,amd64">
+	  <para>Decision Computers PCCOM 4-портовая последовательная с двумя
+	    портами RS232/422/485</para>
+	</listitem>
+	<listitem arch="ia64">
+	  <para>Diva Serial (GSP) Multiport UART (только в ветви разработки)</para>
+	</listitem>
+	<listitem arch="i386,amd64">
+	  <para>Dolphin Peripherals 4025/4035/4036</para>
+	</listitem>
+	<listitem arch="i386,amd64">
+	  <para>IC Book Labs Dreadnought 16x Lite и Pro</para>
+	</listitem>
+	<listitem arch="i386,amd64">
+	  <para>Lava Computers 2SP-PCI/DSerial-PCI/Quattro-PCI/Octopus-550</para>
+	</listitem>
+	<listitem arch="i386,amd64">
+	  <para>Middle Digital, Weasle последовательный порт</para>
+	</listitem>
+	<listitem arch="i386,amd64">
+	  <para>Moxa Industio CP-114, Smartio C104H-PCI и C168H/PCI</para>
+	</listitem>
+	<listitem arch="i386,amd64">
+	  <para>NEC PK-UG-X001 и PK-UG-X008</para>
+	</listitem>
+	<listitem arch="i386,amd64">
+	  <para>Netmos NM9835 PCI-2S-550</para>
+	</listitem>
+	<listitem arch="i386,amd64">
+	  <para>Oxford Semiconductor OX16PCI954 PCI UART</para>
+	</listitem>
+	<listitem arch="i386,amd64">
+	  <para>Syba Tech SD-LAB PCI-4S2P-550-ECP</para>
+	</listitem>
+	<listitem arch="i386,amd64">
+	  <para>SIIG Cyber I/O PCI 16C550/16C650/16C850</para>
+	</listitem>
+	<listitem arch="i386,amd64">
+	  <para>SIIG Cyber 2P1S PCI 16C550/16C650/16C850</para>
+	</listitem>
+	<listitem arch="i386,amd64">
+	  <para>SIIG Cyber 2S1P PCI 16C550/16C650/16C850</para>
+	</listitem>
+	<listitem arch="i386,amd64">
+	  <para>SIIG Cyber 4S PCI 16C550/16C650/16C850</para>
+	</listitem>
+	<listitem arch="i386,amd64">
+	  <para>SIIG Cyber Serial (Single и Dual) PCI 16C550/16C650/16C850</para>
+	</listitem>
+	<listitem arch="i386,amd64">
+	  <para>Syba Tech Ltd. PCI-4S2P-550-ECP</para>
+	</listitem>
+	<listitem arch="i386,amd64">
+	  <para>Titan PCI-200H и PCI-800H</para>
+	</listitem>
+	<listitem arch="i386,amd64">
+	  <para>US Robotics (3Com) 3CP5609 модем</para>
+	</listitem>
+	<listitem arch="i386,amd64">
+	  <para>VScom PCI-400 и PCI-800</para>
+	</listitem>
+      </itemizedlist>
+    </para>
+
+    &hwlist.rc;
+
+    &hwlist.sr;
+
+    <para arch="i386,amd64">Specialix SI/XIO/SX многопортовые последовательные
+      карты, с старым SIHOST2.x и новым <quote>расширенным</quote> (transputer
+      based, aka JET) host картами (поддерживаются ISA, EISA и PCI)
+      (драйвер &man.si.4;)</para>
+
+    <para arch="pc98">Internel последовательные интерфейсы (драйвер &man.sio.4;)
+      <itemizedlist>
+	<listitem>
+	  <para>PC-9801 on-board</para>
+	</listitem>
+	<listitem>
+	  <para>PC-9821 2'nd CCU (flags 0x12000000)</para>
+	</listitem>
+      </itemizedlist>
+    </para>
+
+    <para arch="pc98">NEC PC-9861K, PC-9801-101 и Midori-Denshi MDC-926Rs
+      (драйвер &man.sio.4;)
+      <itemizedlist>
+	<listitem>
+	  <para>COM2 (flags 0x01000000)</para>
+	</listitem>
+	<listitem>
+	  <para>COM3 (flags 0x02000000)</para>
+	</listitem>
+      </itemizedlist>
+    </para>
+
+    <para arch="pc98">NEC PC-9801-120 (драйвер &man.sio.4;)</para>
+      <note arch="pc98">
+	<para>В файл настройки ядра необходимо добавить "flags 0x11000000".</para>
+      </note>
+
+    <para arch="pc98">Microcore MC-16550, MC-16550II, MC-RS98 (драйвер &man.sio.4;)</para>
+      <note arch="pc98">
+	<para>В файл настройки ядра необходимо добавить "flags 0x14000?01".</para>
+      </note>
+
+    <para arch="pc98">Media Intelligent RSB-2000, RSB-3000 и AIWA B98-02
+      (драйвер &man.sio.4;)</para>
+      <note arch="pc98">
+	<para>В файл настройки ядра необходимо добавить "flags 0x15000?01".</para>
+      </note>
+
+    <para arch="pc98">Media Intelligent RSB-384 (драйвер &man.sio.4;)</para>
+      <note arch="pc98">
+	<para>В файл настройки ядра необходимо добавить "flags 0x16000001".</para>
+      </note>
+
+    <para arch="pc98">I-O DATA RSA-98III (драйвер &man.sio.4;)</para>
+      <note arch="pc98">
+	<para>В файл настройки ядра необходимо добавить "flags 0x18000?01".</para>
+      </note>
+
+    <para arch="pc98">Hayes ESP98 (драйвер &man.sio.4;)</para>
+      <note arch="pc98">
+	<para>В файл настройки ядра необходимо добавить "options COM_ESP" и
+	  "flags 0x19000000".</para>
+      </note>
+
+  </sect2>
+  <sect2 id="sound">
+    <title>Звуковые устройства</title>
+
+    &hwlist.snd.ad1816;
+
+    &hwlist.snd.als4000;
+
+    &hwlist.snd.audiocs;
+
+    &hwlist.snd.cmi;
+
+    &hwlist.snd.cs4281;
+
+    &hwlist.snd.csa;
+
+    &hwlist.snd.ds1;
+
+    &hwlist.snd.emu10k1;
+
+    &hwlist.snd.es137x;
+
+    &hwlist.snd.ess;
+
+    &hwlist.snd.fm801;
+
+    &hwlist.snd.gusc;
+
+    &hwlist.snd.ich;
+
+    &hwlist.snd.maestro;
+
+    &hwlist.snd.maestro3;
+
+    &hwlist.snd.neomagic;
+
+    &hwlist.snd.sbc;
+
+    &hwlist.snd.solo;
+
+    &hwlist.snd.via8233;
+
+    &hwlist.snd.via82c686;
+
+    &hwlist.snd.vibes;
+
+    <para arch="pc98">NEC PC-9801-73, 86 и совместимые (драйвер nss)
+      <itemizedlist>
+	<listitem>
+	  <para>NEC A-MATE internal sound</para>
+	</listitem>
+	<listitem>
+	  <para>Q-Vision WaveStar, WaveMaster</para>
+	</listitem>
+      </itemizedlist>
+    </para>
+
+    <para arch="pc98">NEC X-MATE, CanBe, ValueStar internal (драйвер mss)</para>
+
+    <para arch="pc98">Creative Technologies SoundBlaster(98) (драйвер &man.sb.4;
+   )</para>
+
+    <para arch="pc98">I-O DATA CD-BOX (драйвер &man.sb.4;)</para>
+
+    <para arch="pc98">MPU-401 и совместимые интерфейсы (драйвер mpu)
+      <itemizedlist>
+	<listitem>
+	  <para>Q-Vision WaveStar</para>
+	</listitem>
+      </itemizedlist>
+    </para>
+  </sect2>
+
+  <sect2 id="camera">
+    <title>Камеры и устройства видеозахвата</title>
+
+    &hwlist.bktr;
+
+    <para arch="i386">Connectix QuickCam</para>
+  </sect2>
+
+  <sect2 id="usb">
+    <title>Устройства USB</title>
+
+    <para arch="alpha,i386,pc98,amd64">Поддерживается большой диапазон USB
+      периферии; устройства, работоспособность которых известна, приведены в
+      этом разделе.  Вследствие простой архитектуры большинства USB устройств,
+      за редкими исключениями любое устройство поддерживаемого класса будет
+      работать, даже если оно явно не приведено здесь.</para>
+
+    <note arch="alpha,i386,pc98,amd64">
+      <para>USB Ethernet адаптеры могут быть найдены в разделе <link
+      linkend="ethernet">Ethernet интерфейсы</link>.</para>
+    </note>
+
+    <note arch="alpha,i386,pc98,amd64">
+      <para>USB Bluetooth адаптеры могут быть найдены в разделе <link
+      linkend="bluetooth">Bluetooth</link>.</para>
+    </note>
+
+    &hwlist.ohci;
+
+    &hwlist.uhci;
+
+    <para arch="i386,ia64,pc98,amd64">USB 2.0 контроллеры, использующие EHCI
+      интерфейс (драйвер &man.ehci.4;)</para>
+
+    <para arch="i386,pc98,alpha,amd64">Концентраторы
+    </para>
+    <para arch="i386,pc98,alpha,amd64">Клавиатуры (драйвер &man.ukbd.4;)
+    </para>
+    <para arch="i386,pc98,amd64">Различные устройства
+      <itemizedlist>
+	<listitem>
+	  <para>Assist Computer Systems PC Camera C-M1</para>
+	</listitem>
+	<listitem>
+	  <para>ActiveWire I/O Board</para>
+	</listitem>
+	<listitem>
+	  <para>Creative Technology Video Blaster WebCam Plus</para>
+	</listitem>
+	<listitem>
+	  <para>D-Link DSB-R100 USB Radio (драйвер &man.ufm.4;)</para>
+	</listitem>
+	<listitem>
+	  <para>Mirunet AlphaCam Plus</para>
+	</listitem>
+      </itemizedlist>
+    </para>
+
+    &hwlist.urio;
+
+    &hwlist.umodem;
+
+    <para arch="i386,pc98,alpha,amd64">Мышь (драйвер &man.ums.4;)
+    </para>
+
+    &hwlist.ulpt;
+
+    &hwlist.ubsa;
+
+    &hwlist.ubser;
+
+    &hwlist.uftdi;
+
+    &hwlist.uplcom;
+
+    &hwlist.umct;
+
+    &hwlist.uscanner;
+
+    &hwlist.umass;
+
+    <para arch="i386,pc98,amd64">Аудио устройства (драйвер &man.uaudio.4;)
+    </para>
+
+    &hwlist.uvisor;
+
+ </sect2>
+
+  <sect2 id="firewire">
+    <title>IEEE 1394 (Firewire) устройства</title>
+
+    &hwlist.fwohci;
+
+    <para arch="i386,sparc64,amd64">Serial Bus Protocol 2 (SBP-2)
+      устройства хранения (драйвер &man.sbp.4;)</para>
+
+  </sect2>
+
+  <sect2 id="bluetooth">
+    <title>Bluetooth устройства</title>
+
+    &hwlist.ng.bt3c;
+
+    &hwlist.ng.ubt;
+
+  </sect2>
+
+  <sect2 id="crypto-accel">
+    <title>Криптографические акселераторы</title>
+
+    &hwlist.hifn;
+
+    &hwlist.safe;
+
+    &hwlist.ubsec;
+
+  </sect2>
+
+  <sect2 id="misc">
+    <title>Другие устройства</title>
+
+    <para arch="i386,pc98,amd64">Факс-модем/PCCARD
+      <itemizedlist>
+	<listitem>
+	  <para>MELCO IGM-PCM56K/IGM-PCM56KH</para>
+	</listitem>
+	<listitem>
+	  <para>Nokia Card Phone 2.0 (gsm900/dcs1800 HSCSD терминал)</para>
+	</listitem>
+      </itemizedlist>
+    </para>
+
+    <para arch="i386,pc98,alpha,amd64">Приводы гибких дисков (драйвер &man.fdc.4;)</para>
+
+    <para arch="i386,alpha,ia64,amd64">VGA-совместимые видеокарты
+      (драйвер &man.vga.4;)
+
+      <note>
+	<para>Информация, относящаяся к отдельным видеокартам и
+	  совместимости с <application>Xorg</application>, может быть
+	  найдена на <ulink
+	  url="http://www.x.org/"></ulink>.</para>
+      </note>
+
+      </para>
+
+    <para arch="i386,pc98,alpha,ia64,amd64">Клавиатуры, включая:
+      <itemizedlist>
+	<listitem arch="i386,alpha">
+	  <para>AT клавиатуры (драйвер &man.atkbd.4;)</para>
+	</listitem>
+	<listitem arch="i386,alpha,ia64,amd64">
+	  <para>PS/2 клавиатуры (драйвер &man.atkbd.4;)</para>
+	</listitem>
+	<listitem arch="pc98">
+	  <para>Стандартные клавиатуры</para>
+	</listitem>
+	<listitem arch="i386,pc98,alpha,amd64">
+	  <para>USB клавиатуры (драйвер &man.ukbd.4;)</para>
+	</listitem>
+      </itemizedlist>
+    </para>
+
+    <para arch="i386,pc98,alpha,ia64,amd64">Курсорные устройства, включая:
+      <itemizedlist>
+	<listitem arch="i386,pc98,amd64">
+	  <para>Bus мышь и совместимые устройства (драйвер &man.mse.4;)</para>
+	</listitem>
+	<listitem arch="i386,alpha,ia64,amd64">
+	  <para>PS/2 мышь и совместимые устройства, включая многие курсорные
+	    устройства на лэптопах (драйвер &man.psm.4;)</para>
+	</listitem>
+	<listitem>
+	  <para>Последовательная мышь и совместимые устройства</para>
+	</listitem>
+	<listitem arch="i386,pc98,alpha,amd64">
+	  <para>USB мышь (драйвер &man.ums.4;)</para>
+	</listitem>
+      </itemizedlist>
+
+      <note>
+	<para>На странице &man.moused.8; находится дополнительная
+	  информация по использованию курсорных устройств в &os;.
+	  Информация по использованию курсорных устройств с
+	  <application>Xorg</application> может быть найдена по
+	  адресу <ulink url="http://www.x.org/"></ulink>.</para>
+      </note>
+    </para>
+
+    <para arch="i386,alpha,amd64"><quote>PC standard</quote> параллельные
+      порты (драйвер &man.ppc.4;)</para>
+    <para arch="pc98"><quote>PC-9821 standard</quote> параллельные порты
+      (драйвер &man.ppc.4;)</para>
+
+    <para arch="i386,amd64">PC-совместимые джойстики (драйвер &man.joy.4;)</para>
+
+    <para arch="pc98">Порт джойстика на SoundBlaster(98) (драйвер &man.joy.4;)</para>
+
+    <para arch="i386,pc98">PHS Data Communication Card/PCCARD
+      <itemizedlist>
+	<listitem>
+	  <para>NTT DoCoMo P-in Comp@ct</para>
+	</listitem>
+	<listitem>
+	  <para>Panasonic KX-PH405</para>
+	</listitem>
+	<listitem>
+	  <para>SII MC-P200</para>
+	</listitem>
+      </itemizedlist>
+    </para>
+
+    <para arch="i386">Xilinx XC6200 перенастраиваемые аппаратные карты,
+      совместимые с HOT1 от <ulink url="http://www.vcc.com/">Virtual
+      Computers</ulink> (драйвер xrpu).</para>
+
+    <para arch="pc98">Power Management Controller на NEC PC-98 Note (драйвер
+      pmc)</para>
+
+    <para arch="sparc64">OpenFirmware консоль (драйвер ofwcons)</para>
+
+  </sect2>
+</sect1>

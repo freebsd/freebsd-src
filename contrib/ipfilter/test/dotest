@@ -1,0 +1,34 @@
+#!/bin/sh
+thistest=$1
+format=$2
+output=$3
+tuning=$4
+if [ -f /usr/ucb/touch ] ; then
+	TOUCH=/usr/ucb/touch
+else
+	if [ -f /usr/bin/touch ] ; then
+		TOUCH=/usr/bin/touch
+	else
+		if [ -f /bin/touch ] ; then
+			TOUCH=/bin/touch
+		fi
+	fi
+fi
+if [ "$tuning" != "" ] ; then
+	tuning="-T $tuning"
+fi
+echo "${thistest}...";
+/bin/cp /dev/null results/${thistest}
+( while read rule; do
+	echo "$rule" | ../ipftest -F $format -Rbr - -i input/${thistest} $tuning>> results/${thistest};
+	if [ $? -ne 0 ] ; then
+		exit 1;
+	fi
+	echo "--------" >> results/${thistest}
+done ) < regress/${thistest}
+cmp expected/${thistest} results/${thistest}
+status=$?
+if [ $status = 0 ] ; then
+	$TOUCH ${thistest}
+fi
+exit $status

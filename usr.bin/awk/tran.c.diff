@@ -1,0 +1,22 @@
+$FreeBSD$
+
+Index: tran.c
+===================================================================
+RCS file: /home/ncvs/src/contrib/one-true-awk/tran.c,v
+retrieving revision 1.1.1.4
+diff -u -p -r1.1.1.4 tran.c
+--- tran.c	16 May 2005 19:11:35 -0000	1.1.1.4
++++ tran.c	25 Oct 2006 20:56:18 -0000
+@@ -332,10 +332,10 @@ char *setsval(Cell *vp, const char *s)	/
+ 		donerec = 1;
+ 	}
+ 	t = tostring(s);	/* in case it's self-assign */
+-	vp->tval &= ~NUM;
+-	vp->tval |= STR;
+ 	if (freeable(vp))
+ 		xfree(vp->sval);
++	vp->tval &= ~NUM;
++	vp->tval |= STR;
+ 	vp->tval &= ~DONTFREE;
+ 	   dprintf( ("setsval %p: %s = \"%s (%p) \", t=%o r,f=%d,%d\n", 
+ 		vp, NN(vp->nval), t,t, vp->tval, donerec, donefld) );

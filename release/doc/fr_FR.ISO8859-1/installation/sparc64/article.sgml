@@ -1,0 +1,41 @@
+<!--
+     The FreeBSD Documentation Project
+     The FreeBSD French Documentation Project
+
+     $Id$
+     $FreeBSD$
+     Original revision: 1.3
+-->
+
+<!DOCTYPE article PUBLIC "-//FreeBSD//DTD DocBook V4.1-Based Extension//EN" [
+
+<!ENTITY release.url "ftp://ftp.FreeBSD.org/pub/FreeBSD/development/sparc64/">
+
+<!ENTITY % man PUBLIC "-//FreeBSD//ENTITIES DocBook Manual Page Entities//EN">
+%man;
+<!ENTITY % authors PUBLIC  "-//FreeBSD//ENTITIES DocBook Author Entities//EN">
+%authors;
+<!ENTITY % mlists PUBLIC "-//FreeBSD//ENTITIES DocBook Mailing List Entities//FR">
+%mlists;
+<!ENTITY % release PUBLIC "-//FreeBSD//ENTITIES Release Specification//EN">
+%release;
+<!ENTITY % sections SYSTEM "../common/install.ent"> %sections;
+
+<!-- Architecture-specific customization -->
+
+<!ENTITY arch "sparc64">
+<!ENTITY arch.print "UltraSPARC">
+<!ENTITY sect.sparc64.install SYSTEM "./install.sgml">
+]>
+
+<article>
+&artheader;
+<abstract>
+  <para>Ce document donne de brèves instructions sur l'installation
+  de &os;/&arch; &release.current;. Gardez bien à l'esprit que ce
+  portage est en cours, et que en conséquence, la procédure
+  d'installation demande beaucoup plus de travail que pour &os;/i386
+  ou &os;/alpha.</para>
+</abstract>
+&sect.sparc64.install;
+</article>

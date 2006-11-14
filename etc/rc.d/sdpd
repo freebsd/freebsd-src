@@ -1,0 +1,38 @@
+#!/bin/sh
+#
+# $FreeBSD$
+#
+
+# PROVIDE: sdpd
+# REQUIRE: DAEMON
+# BEFORE: LOGIN
+# KEYWORD: nojail
+
+. /etc/rc.subr
+
+name="sdpd"
+command="/usr/sbin/${name}"
+rcvar=`set_rcvar`
+start_precmd="sdpd_prestart"
+
+sdpd_prestart()
+{
+	if ! kldstat -q -m ng_btsocket ; then
+		if kldload ng_btsocket > /dev/null 2>&1 ; then
+			info 'ng_btsocket module loaded'
+		else
+			warn 'ng_btsocket module failed to load'
+			return 1
+		fi
+	fi
+
+	return 0
+}
+
+load_rc_config $name
+control="${sdpd_control:-/var/run/sdp}"
+group="${sdpd_groupname:-nobody}"
+user="${sdpd_username:-nobody}"
+command_args="-c ${control} -g ${group} -u ${user}"
+
+run_rc_command "$1"

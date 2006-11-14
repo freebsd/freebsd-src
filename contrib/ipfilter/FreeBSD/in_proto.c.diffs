@@ -1,0 +1,16 @@
+*** in_proto.c.orig	Wed Sep  6 20:31:34 1995
+--- in_proto.c	Mon Mar 11 22:40:03 1996
+***************
+*** 81,86 ****
+--- 81,91 ----
+  void	eoninput(), eonctlinput(), eonprotoinit();
+  #endif /* EON */
+  
++ #ifdef	IPFILTER
++ void	iplinit();
++ #define	ip_init	iplinit
++ #endif
++ 
+  void rsvp_input(struct mbuf *, int);
+  void ipip_input(struct mbuf *, int);
+  

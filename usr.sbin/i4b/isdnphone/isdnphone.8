@@ -1,0 +1,88 @@
+.\"
+.\" Copyright (c) 1999, 2002 Hellmuth Michaelis. All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.\"	last edit-date: [Tue Aug 27 16:42:12 2002]
+.\"
+.\"
+.Dd August 27, 2002
+.Dt ISDNPHONE 8
+.Os
+.Sh NAME
+.Nm isdnphone
+.Nd telephone dialing and more for isdn4bsd
+.Sh SYNOPSIS
+.Nm
+.Op Fl d
+.Op Fl h
+.Op Fl k Ar string
+.Op Fl n Ar number
+.Op Fl u Ar unit
+.Op Fl v
+.Op Fl w
+.Sh DESCRIPTION
+The
+.Nm
+utility
+is part of the isdn4bsd package and is used to handle dialing and hangup
+for the telephone control interfaces
+.Pa /dev/i4bteld Ns Aq Ar n .
+.Pp
+Options are provided to dial out or hang up using command line parameters
+(for use in scripts) or, if none of those options are specified, bring up
+a curses-based full-screen interface.
+.Pp
+The following options are available:
+.Bl -tag -width indent
+.It Fl d
+Enable debugging message display.
+.It Fl h
+Hang up a possibly open telephone connection on the selected interface.
+.It Fl k
+Send the specified string using the keypad facility information element.
+.It Fl n
+Dial the specified number on the selected interface.
+.It Fl u
+Set the unit number to specify the interface used.
+.It Fl v
+Enable verbose result messages for dialling (-n and -w)
+.It Fl w
+After dialling (using the -n option), wait for the first result message.
+.El
+.Sh FILES
+.Bl -tag -width indent -compact
+.It Pa /dev/i4bteld Ns Aq Ar n
+.El
+.Sh EXAMPLES
+The command:
+.Dl "isdnphone -n 1234"
+.Pp
+dials calls the number 1234 to establish a call on
+.Pa /dev/i4btel0
+.Sh AUTHORS
+The
+.Nm
+utility and this manpage were written by
+.An Hellmuth Michaelis Aq hm@FreeBSD.org .

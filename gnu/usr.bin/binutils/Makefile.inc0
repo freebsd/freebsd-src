@@ -1,0 +1,50 @@
+# $FreeBSD$
+#
+# This is included explicitly at the top of each sub-Makefile.  We can't
+# use the normal "Makefile.inc" mechanism, because we need some of these
+# definitions before the sub-Makefile is processed.
+
+VERSION=	"2.15 [FreeBSD] 2004-05-23"
+
+TARGET_ARCH?=	${MACHINE_ARCH}
+.if ${TARGET_ARCH} == "amd64"
+BINUTILS_ARCH=x86_64
+.else
+BINUTILS_ARCH=${TARGET_ARCH}
+.endif
+TARGET_TUPLE?=	${BINUTILS_ARCH}-obrien-freebsd
+
+# RELTOP is the relative path to this point in the source or object
+# tree, from any subdirectory of same.  It gets extra "../" prefixes
+# added to it as we descend into subdirectories.
+RELTOP:= ..
+
+RELSRC=	${RELTOP}/../../../contrib/binutils
+SRCDIR=	${.CURDIR}/${RELSRC}
+
+CFLAGS+= -I.
+.if exists(${.CURDIR}/${TARGET_ARCH})
+CFLAGS+= -I${.CURDIR}/${TARGET_ARCH}
+.endif
+CFLAGS+= -I${.CURDIR}
+CFLAGS+= -I${.CURDIR}/${RELTOP}/libbfd
+CFLAGS+= -I${.OBJDIR}/${RELTOP}/libbfd
+CFLAGS+= -I${SRCDIR}/include
+
+.if exists(${.CURDIR}/${TARGET_ARCH})
+.PATH: ${.CURDIR}/${TARGET_ARCH}
+.endif
+
+ARCHS=	${TARGET_ARCH}
+
+.for _arch in ${CROSS_ARCH}
+.if (${ARCHS:R:M${_arch:R}} == "")
+ARCHS+= $(_arch)
+.endif
+.endfor
+
+.for _arch in ${ARCHS}
+.if exists(${.CURDIR}/Makefile.${_arch})
+.include "${.CURDIR}/Makefile.${_arch}"
+.endif
+.endfor

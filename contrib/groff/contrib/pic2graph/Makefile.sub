@@ -1,0 +1,19 @@
+MAN1=pic2graph.n
+CLEANADD=pic2graph
+
+all: pic2graph
+
+pic2graph: pic2graph.sh
+	rm -f $@; \
+	sed -e "s|@g@|$(g)|g" \
+	    -e "s|@VERSION@|$(version)$(revision)|" \
+	    -e $(SH_SCRIPT_SED_CMD) $(srcdir)/pic2graph.sh >$@; \
+	chmod +x $@
+
+install_data: pic2graph
+	-test -d $(bindir) || $(mkinstalldirs) $(bindir)
+	-rm -f $(bindir)/pic2graph
+	$(INSTALL_SCRIPT) pic2graph $(bindir)/pic2graph
+
+uninstall_sub:
+	-rm -f $(bindir)/pic2graph

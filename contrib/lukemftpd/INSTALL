@@ -1,0 +1,101 @@
+INSTALLATION INTRODUCTION
+-------------------------
+
+This file describes how to compile and install lukemftpd on your
+system.
+
+	============================================
+	=					   =
+	=  NOTE: You will need an ANSI C compiler. =
+	=					   =
+	============================================
+
+
+For most systems, execute the following to compile and install
+lukemftpd:
+	./configure
+	make
+	make install
+
+Preformatted manual pages for ftpd(8), ftpd.conf(5), and ftpusers(5) are
+also installed.  If you wish to install the sources, ensure that your system
+has up-to-date mandoc macros. groff ships with this macro suite,
+but it has bugs. Try:
+    ftp://ftp.netbsd.org/pub/NetBSD/NetBSD-current/src/share/tmac/
+for a more recent version.
+
+
+CONFIGURATION OPTIONS
+---------------------
+
+lukemftpd is configured using an `autoconf' generated `configure'
+script.  `configure' supports the following options:
+
+* The standard `autoconf configure' options, including:
+  --prefix=PREFIX         install architecture-independent files in PREFIX
+                          [/usr/local]
+  --exec-prefix=EPREFIX   install architecture-dependent files in EPREFIX
+                          [same as prefix]
+  --srcdir=DIR            find the sources in DIR [configure dir or ..]
+                          BSD or GNU make may be required for this to work.
+
+* Specific options:
+
+  --enable-ipv6           Enable IPv6 support (if your OS supports it).
+  --disable-ipv6          Disable IPv6 support (even if your OS supports it).
+                          [default: enabled]
+  --enable-builtinls      Enable built-in /bin/ls.  [default: enabled]
+  --disable-builtinls     Disable built-in /bin/ls.
+  --with-socks            Compile with SOCKS firewall traversal support.
+  --with-socks5[=PATH]    Compile with SOCKS5 firewall traversal support.
+  --with-socks4[=PATH]    Compile with SOCKS4 firewall traversal support.
+  --with-skey             Compile with S/Key authentication support.
+
+The following environment variables can be set to override various
+compiler related settings.
+  CC=compiler		specify name of the C compiler (default: gcc or cc)
+  CFLAGS=flags		specify flags to C compiler (default: -O -g or just -O)
+  LDFLAGS=flags		specify flags to linker (default: none)
+
+This can be achieved with:
+	env CC="compiler" CFLAGS="flags" LDFLAGS="flags" ./configure
+
+
+	============================================
+	=					   =
+	=  NOTE: You will need an ANSI C compiler. =
+	=					   =
+	============================================
+
+
+PLATFORM SPECIFIC NOTES
+-----------------------
+
+The following platforms & compilers have been tested:
+
+- Irix 6.5
+	- Compiler: /usr/local/bin/gcc
+	   version: egcs-1.1.2
+
+	  Configure with:
+		./configure --disable-builtinls
+	  as the in-built ls code doesn't appear to work due to
+	  problems in the fts routines.
+
+- Linux 2.4 kernel with glibc prior to 2.2
+	Configure with:
+		./configure --disable-ipv6
+	as glibc before 2.2 doesn't correctly support sin6_scope_id.
+
+- NetBSD 1.5 (i386)
+	- Compiler: /usr/bin/cc
+	   version: egcs-1.1.2
+
+- Solaris 2.6 (sparc)
+	- Compiler: /opt/SUNWspro/bin/cc
+	   version: WorkShop Compilers 5.0
+
+- Tru64 5.0
+	- Compiler: /bin/cc
+	   version: Compaq C V6.1-011 on Digital UNIX V5.0 (Rev. 910)
+

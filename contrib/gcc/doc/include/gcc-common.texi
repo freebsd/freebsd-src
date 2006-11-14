@@ -1,0 +1,54 @@
+@c Copyright (C) 2001, 2002, 2003, 2004, 2005 Free Software Foundation, Inc.
+@c This is part of the GCC manual.
+@c For copying conditions, see the file gcc.texi.
+
+@c Common values used in the GCC manuals:
+
+@set version-GCC 3.4.6
+
+@c DEVELOPMENT is set to indicate an in-development version,
+@c as compared to a release version.  When making a release
+@c branch, clear this.
+@clear DEVELOPMENT
+
+@c Common macros to support generating man pages:
+
+@macro gcctabopt{body}
+@code{\body\}
+@end macro
+@macro gccoptlist{body}
+@smallexample
+\body\
+@end smallexample
+@end macro
+@c Makeinfo handles the above macro OK, TeX needs manual line breaks;
+@c they get lost at some point in handling the macro.  But if @macro is
+@c used here rather than @alias, it produces double line breaks.
+@iftex
+@alias gol = *
+@end iftex
+@ifnottex
+@macro gol
+@end macro
+@end ifnottex
+
+@c For FSF printing, define FSFPRINT.  Also update the ISBN and last
+@c printing date for the manual being printed.
+@c @set FSFPRINT
+@ifset FSFPRINT
+@smallbook
+@finalout
+@c Cause even numbered pages to be printed on the left hand side of
+@c the page and odd numbered pages to be printed on the right hand
+@c side of the page.  Using this, you can print on both sides of a
+@c sheet of paper and have the text on the same part of the sheet.
+
+@c The text on right hand pages is pushed towards the right hand
+@c margin and the text on left hand pages is pushed toward the left
+@c hand margin.
+@c (To provide the reverse effect, set bindingoffset to -0.75in.)
+@tex
+\global\bindingoffset=0.75in
+\global\normaloffset =0.75in
+@end tex
+@end ifset

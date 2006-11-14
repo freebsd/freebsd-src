@@ -1,0 +1,143 @@
+#!/bin/sh
+#
+# $FreeBSD$
+#
+
+# PROVIDE: named
+# REQUIRE: SERVERS cleanvar
+# KEYWORD: shutdown
+
+. /etc/rc.subr
+
+name="named"
+rcvar=named_enable
+
+command="/usr/sbin/named"
+extra_commands="reload"
+
+start_precmd="named_precmd"
+start_postcmd="make_symlinks"
+reload_cmd="named_reload"
+stop_cmd="named_stop"
+stop_postcmd="named_poststop"
+
+# If running in a chroot cage, ensure that the appropriate files
+# exist inside the cage, as well as helper symlinks into the cage
+# from outside.
+#
+# As this is called after the is_running and required_dir checks
+# are made in run_rc_command(), we can safely assume ${named_chrootdir}
+# exists and named isn't running at this point (unless forcestart
+# is used).
+#
+chroot_autoupdate()
+{
+	# Create (or update) the chroot directory structure
+	#
+	if [ -r /etc/mtree/BIND.chroot.dist ]; then
+		mtree -deU -f /etc/mtree/BIND.chroot.dist \
+		    -p ${named_chrootdir}
+	else
+		warn "/etc/mtree/BIND.chroot.dist missing,"
+		warn "chroot directory structure not updated"
+	fi
+
+	# Create /etc/namedb symlink
+	#
+	if [ ! -L /etc/namedb ]; then
+		if [ -d /etc/namedb ]; then
+			warn "named chroot: /etc/namedb is a directory!"
+		elif [ -e /etc/namedb ]; then
+			warn "named chroot: /etc/namedb exists!"
+		else
+			ln -s ${named_chrootdir}/etc/namedb /etc/namedb
+		fi
+	else
+		# Make sure it points to the right place.
+		ln -shf ${named_chrootdir}/etc/namedb /etc/namedb
+	fi
+
+	# Mount a devfs in the chroot directory if needed
+	#
+	umount ${named_chrootdir}/dev 2>/dev/null
+	devfs_domount ${named_chrootdir}/dev devfsrules_hide_all
+	devfs -m ${named_chrootdir}/dev rule apply path null unhide
+	devfs -m ${named_chrootdir}/dev rule apply path random unhide
+
+	# Copy local timezone information if it is not up to date.
+	#
+	if [ -r /etc/localtime ]; then
+		cmp -s /etc/localtime "${named_chrootdir}/etc/localtime" ||
+		    cp -p /etc/localtime "${named_chrootdir}/etc/localtime"
+	fi
+}
+
+# Make symlinks to the correct pid file
+#
+make_symlinks()
+{
+	checkyesno named_symlink_enable &&
+	    ln -fs "${named_chrootdir}${pidfile}" ${pidfile}
+}
+
+named_reload()
+{
+	rndc reload
+}
+
+named_stop()
+{
+	echo -n "Stopping named"
+	if rndc stop 2>/dev/null; then
+		echo .
+	else
+		echo -n ": rndc failed, trying killall: "
+		if killall named; then
+			echo .
+		fi
+	fi
+}
+
+named_poststop()
+{
+	if [ -n "${named_chrootdir}" -a -c ${named_chrootdir}/dev/null ]; then
+		umount ${named_chrootdir}/dev 2>/dev/null || true
+	fi
+}
+
+named_precmd()
+{
+	# Is the user using a sandbox?
+	#
+	if [ -n "$named_chrootdir" ]; then
+		rc_flags="$rc_flags -t $named_chrootdir"
+		checkyesno named_chroot_autoupdate && chroot_autoupdate
+	else
+		named_symlink_enable=NO
+	fi
+
+	# Create an rndc.key file for the user if none exists
+	#
+	if [ -s "${named_chrootdir}/etc/namedb/rndc.conf" ]; then
+		return 0
+	fi
+	confgen_command="rndc-confgen -a -b256 -u $named_uid \
+	    -c ${named_chrootdir}/etc/namedb/rndc.key"
+	if [ -s "${named_chrootdir}/etc/namedb/rndc.key" ]; then
+		if [ ! `stat -f%Su ${named_chrootdir}/etc/namedb/rndc.key` = \
+		    "$named_uid" ]; then
+			$confgen_command
+		fi
+	else
+		$confgen_command
+	fi
+}
+
+load_rc_config $name
+# Updating the following variables requires that rc.conf be loaded first
+#
+required_dirs="$named_chrootdir"	# if it is set, it must exist
+pidfile="${named_pidfile:-/var/run/named/pid}"
+command_args="-u ${named_uid:=root}"
+
+run_rc_command "$1"

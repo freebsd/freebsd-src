@@ -1,0 +1,84 @@
+#!/bin/sh
+#
+# $FreeBSD$
+#
+
+# PROVIDE: pf
+# REQUIRE: root mountcritlocal netif pflog pfsync
+# BEFORE:  routing
+# KEYWORD: nojail
+
+. /etc/rc.subr
+
+name="pf"
+rcvar=`set_rcvar`
+load_rc_config $name
+start_precmd="pf_prestart"
+start_cmd="pf_start"
+stop_cmd="pf_stop"
+check_cmd="pf_check"
+reload_cmd="pf_reload"
+resync_cmd="pf_resync"
+status_cmd="pf_status"
+extra_commands="check reload resync status"
+required_files="$pf_rules"
+
+pf_prestart()
+{
+	# load pf kernel module if needed
+	if ! kldstat -q -m pf ; then
+		if kldload pf ; then
+			info 'pf module loaded.'
+		else
+			warn 'pf module failed to load.'
+			return 1
+		fi
+	fi
+	return 0
+}
+
+pf_start()
+{
+	echo "Enabling pf."
+	$pf_program -Fall > /dev/null 2>&1
+	$pf_program -f "$pf_rules" $pf_flags
+	if ! $pf_program -s info | grep -q "Enabled" ; then
+		$pf_program -e
+	fi
+}
+
+pf_stop()
+{
+	if $pf_program -s info | grep -q "Enabled" ; then
+		echo "Disabling pf."
+		$pf_program -d
+	fi
+}
+
+pf_check()
+{
+	echo "Checking pf rules."
+	$pf_program -n -f "$pf_rules"
+}
+
+pf_reload()
+{
+	echo "Reloading pf rules."
+	$pf_program -n -f "$pf_rules" || return 1
+	# Flush everything but existing state entries that way when
+	# rules are read in, it doesn't break established connections.
+	$pf_program -Fnat -Fqueue -Frules -FSources -Finfo -FTables -Fosfp > /dev/null 2>&1
+	$pf_program -f "$pf_rules" $pf_flags
+}
+
+pf_resync()
+{
+	$pf_program -f "$pf_rules" $pf_flags
+}
+
+pf_status()
+{
+	$pf_program -s info
+}
+
+run_rc_command "$1"

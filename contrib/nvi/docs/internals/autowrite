@@ -1,0 +1,88 @@
+#	@(#)autowrite	8.3 (Berkeley) 2/17/95
+
+Vi autowrite behavior, the fields with *'s are "don't cares".
+
+=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
+Commands that are affected only by autowrite:
+
+Command	File		Autowrite?	Action:
+	modified?
+-----------------------------------------------
+^Z	Y		Y		Write file and suspend.
+^Z	Y		N		Suspend.
+^Z	N		*		Suspend.
+
+# This behavior is NOT identical to :edit.
+^^	Y		Y		Write file and jump.
+^^	Y		N		Error.
+^^	N		*		Jump.
+
+# The new nvi command ^T (:tagpop) behaves identically to ^].
+# This behavior is identical to :tag, :tagpop, and :tagpush with
+# force always set to N.
+^]	Y		Y		Write file and jump.
+^]	Y		N		Error.
+^]	N		*		Jump.
+
+# There's no way to specify a force flag to the '!' command.
+:!	Y		Y		Write file and execute.
+:!	Y		N		Warn (if warn option) and execute.
+:!	N		*		Execute.
+
+=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
+Commands that are affected by both autowrite and force:
+
+NOTE: the "force" flag is never passed on, i.e. the write
+to the file caused by the autowrite flag is never forced.
+
+Command	File		Autowrite?	Force? 	Action:
+	modified?			(!)
+-------------------------------------------------------
+# The first rule (YYY) is historic practice, but seems wrong.
+# In nvi, :next and :prev commands behave identically to :rewind.
+:next 	Y		Y		Y	Write changes and jump.
+:next 	Y		Y		N	Write changes and jump.
+:next 	Y		N		Y	Abandon changes and jump.
+:next 	Y		N		N	Error.
+:next 	N		*		*	Jump.
+
+:rewind	Y		Y		Y	Abandon changes and jump.
+:rewind	Y		Y		N	Write changes and jump.
+:rewind	Y		N		Y	Abandon changes and jump.
+:rewind	Y		N		N	Error.
+:rewind	N		*		*	Jump.
+
+# The new nvi commands, :tagpop and :tagtop, behave identically to :tag.
+# Note, this behavior is the same as :rewind and friends, as well.
+:tag	Y		Y		Y	Abandon changes and jump.
+:tag	Y		Y		N	Write changes and jump.
+:tag	Y		N		Y	Abandon changes and jump.
+:tag	Y		N		N	Error.
+:tag	N		*		*	Jump.
+
+# The command :suspend behaves identically to :stop.
+:stop	Y		Y		Y	Suspend.
+:stop	Y		Y		N	Write changes and suspend.
+:stop	Y		N		Y	Suspend.
+:stop	Y		N		N	Suspend.
+:stop	N		*		*	Suspend.
+
+=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
+Commands that might be affected by autowrite, but aren't:
+
+Command	File		Autowrite?	Force? 	Action:
+	modified?			(!)
+-------------------------------------------------------
+#:ex, and :vi (executed while in vi mode) behave identically to :edit.
+:edit 	Y		*		Y	Abandon changes and jump.
+:edit 	Y		*		N	Error.
+:edit 	N		*		*	Jump.
+
+:quit	Y		*		Y	Quit.
+:quit	Y		*		N	Error.
+:quit	N		*		*	Quit.
+
+:shell	*		*		*	Execute shell.
+
+:xit	Y		*		*	Write changes and exit.
+:xit	N		*		*	Exit.

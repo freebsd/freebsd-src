@@ -1,0 +1,411 @@
+
+#------------------------------------------------------------------------------
+# audio:  file(1) magic for sound formats (see also "iff")
+#
+# Jan Nicolai Langfeldt (janl@ifi.uio.no), Dan Quinlan (quinlan@yggdrasil.com),
+# and others
+#
+
+# Sun/NeXT audio data
+0	string		.snd		Sun/NeXT audio data:
+>12	belong		1		8-bit ISDN mu-law,
+>12	belong		2		8-bit linear PCM [REF-PCM],
+>12	belong		3		16-bit linear PCM,
+>12	belong		4		24-bit linear PCM,
+>12	belong		5		32-bit linear PCM,
+>12	belong		6		32-bit IEEE floating point,
+>12	belong		7		64-bit IEEE floating point,
+>12	belong		8		Fragmented sample data,
+>12	belong		10		DSP program,
+>12	belong		11		8-bit fixed point,
+>12	belong		12		16-bit fixed point,
+>12	belong		13		24-bit fixed point,
+>12	belong		14		32-bit fixed point,
+>12	belong		18		16-bit linear with emphasis,
+>12	belong		19		16-bit linear compressed,
+>12	belong		20		16-bit linear with emphasis and compression,
+>12	belong		21		Music kit DSP commands,
+>12	belong		23		8-bit ISDN mu-law compressed (CCITT G.721 ADPCM voice data encoding),
+>12	belong		24		compressed (8-bit CCITT G.722 ADPCM)
+>12	belong		25		compressed (3-bit CCITT G.723.3 ADPCM),
+>12	belong		26		compressed (5-bit CCITT G.723.5 ADPCM),
+>12	belong		27		8-bit A-law (CCITT G.711),
+>20	belong		1		mono,
+>20	belong		2		stereo,
+>20	belong		4		quad,
+>16	belong		>0		%d Hz
+
+# DEC systems (e.g. DECstation 5000) use a variant of the Sun/NeXT format
+# that uses little-endian encoding and has a different magic number
+0	lelong		0x0064732E	DEC audio data:
+>12	lelong		1		8-bit ISDN mu-law,
+>12	lelong		2		8-bit linear PCM [REF-PCM],
+>12	lelong		3		16-bit linear PCM,
+>12	lelong		4		24-bit linear PCM,
+>12	lelong		5		32-bit linear PCM,
+>12	lelong		6		32-bit IEEE floating point,
+>12	lelong		7		64-bit IEEE floating point,
+>12	belong		8		Fragmented sample data,
+>12	belong		10		DSP program,
+>12	belong		11		8-bit fixed point,
+>12	belong		12		16-bit fixed point,
+>12	belong		13		24-bit fixed point,
+>12	belong		14		32-bit fixed point,
+>12	belong		18		16-bit linear with emphasis,
+>12	belong		19		16-bit linear compressed,
+>12	belong		20		16-bit linear with emphasis and compression,
+>12	belong		21		Music kit DSP commands,
+>12	lelong		23		8-bit ISDN mu-law compressed (CCITT G.721 ADPCM voice data encoding),
+>12	belong		24		compressed (8-bit CCITT G.722 ADPCM)
+>12	belong		25		compressed (3-bit CCITT G.723.3 ADPCM),
+>12	belong		26		compressed (5-bit CCITT G.723.5 ADPCM),
+>12	belong		27		8-bit A-law (CCITT G.711),
+>20	lelong		1		mono,
+>20	lelong		2		stereo,
+>20	lelong		4		quad,
+>16	lelong		>0		%d Hz
+
+# Creative Labs AUDIO stuff
+0	string	MThd			Standard MIDI data
+>8 	beshort	x			(format %d)
+>10	beshort	x			using %d track
+>10	beshort		>1		\bs
+>12	beshort&0x7fff	x		at 1/%d
+>12	beshort&0x8000	>0		SMPTE
+
+0	string	CTMF			Creative Music (CMF) data
+0	string	SBI			SoundBlaster instrument data
+0	string	Creative\ Voice\ File	Creative Labs voice data
+# is this next line right?  it came this way...
+>19	byte	0x1A
+>23	byte	>0			- version %d
+>22	byte	>0			\b.%d
+
+# first entry is also the string "NTRK"
+0	belong		0x4e54524b	MultiTrack sound data
+>4	belong		x		- version %ld
+
+# Extended MOD format (*.emd) (Greg Roelofs, newt@uchicago.edu); NOT TESTED
+# [based on posting 940824 by "Dirk/Elastik", husberg@lehtori.cc.tut.fi]
+0	string		EMOD		Extended MOD sound data,
+>4	byte&0xf0	x		version %d
+>4	byte&0x0f	x		\b.%d,
+>45	byte		x		%d instruments
+>83	byte		0		(module)
+>83	byte		1		(song)
+
+# Real Audio (Magic .ra\0375)
+0	belong		0x2e7261fd	RealAudio sound file
+0	string		.RMF		RealMedia file
+
+# MTM/669/FAR/S3M/ULT/XM format checking [Aaron Eppert, aeppert@dialin.ind.net]
+# Oct 31, 1995
+# fixed by <doj@cubic.org> 2003-06-24
+# Too short...
+#0	string		MTM		MultiTracker Module sound file
+#0	string		if		Composer 669 Module sound data
+#0	string		JN		Composer 669 Module sound data (extended format)
+0	string		MAS_U		ULT(imate) Module sound data
+
+#0	string		FAR		Module sound data
+#>4	string		>\15		Title: "%s"
+
+0x2c	string		SCRM		ScreamTracker III Module sound data
+>0	string		>\0		Title: "%s"
+
+# Gravis UltraSound patches
+# From <ache@nagual.ru>
+
+0	string		GF1PATCH110\0ID#000002\0	GUS patch
+0	string		GF1PATCH100\0ID#000002\0	Old GUS	patch
+
+#
+# Taken from loader code from mikmod version 2.14
+# by Steve McIntyre (stevem@chiark.greenend.org.uk)
+# <doj@cubic.org> added title printing on 2003-06-24
+0	string	MAS_UTrack_V00
+>14	string	>/0		ultratracker V1.%.1s module sound data
+
+0	string	UN05		MikMod UNI format module sound data
+
+0	string	Extended\ Module: Fasttracker II module sound data
+>17	string	>\0		Title: "%s"
+
+21	string/c	!SCREAM!	Screamtracker 2 module sound data
+21	string	BMOD2STM	Screamtracker 2 module sound data
+1080	string	M.K.		4-channel Protracker module sound data
+>0	string	>\0		Title: "%s"
+1080	string	M!K!		4-channel Protracker module sound data
+>0	string	>\0		Title: "%s"
+1080	string	FLT4		4-channel Startracker module sound data
+>0	string	>\0		Title: "%s"
+1080	string	FLT8		8-channel Startracker module sound data
+>0	string	>\0		Title: "%s"
+1080	string	4CHN		4-channel Fasttracker module sound data
+>0	string	>\0		Title: "%s"
+1080	string	6CHN		6-channel Fasttracker module sound data
+>0	string	>\0		Title: "%s"
+1080	string	8CHN		8-channel Fasttracker module sound data
+>0	string	>\0		Title: "%s"
+1080	string	CD81		8-channel Octalyser module sound data
+>0	string	>\0		Title: "%s"
+1080	string	OKTA		8-channel Oktalyzer module sound data
+>0	string	>\0		Title: "%s"
+# Not good enough.
+#1082	string	CH
+#>1080	string	>/0		%.2s-channel Fasttracker "oktalyzer" module sound data
+1080	string	16CN		16-channel Taketracker module sound data
+>0	string	>\0		Title: "%s"
+1080	string	32CN		32-channel Taketracker module sound data
+>0	string	>\0		Title: "%s"
+
+# TOC sound files -Trevor Johnson <trevor@jpj.net>
+#
+0       string          TOC             TOC sound file
+
+# sidfiles <pooka@iki.fi>
+# added name,author,(c) and new RSID type by <doj@cubic.org> 2003-06-24
+0	string		SIDPLAY\ INFOFILE	Sidplay info file
+
+0	string		PSID			PlaySID v2.2+ (AMIGA) sidtune
+>4	beshort		>0			w/ header v%d,
+>14	beshort		=1			single song,
+>14	beshort		>1			%d songs,
+>16	beshort		>0			default song: %d
+>0x16	string		>\0			name: "%s"
+>0x36	string		>\0			author: "%s"
+>0x56	string		>\0			copyright: "%s"
+
+0	string		RSID			RSID sidtune PlaySID compatible
+>4	beshort		>0			w/ header v%d,
+>14	beshort		=1			single song,
+>14	beshort		>1			%d songs,
+>16	beshort		>0			default song: %d
+>0x16	string		>\0			name: "%s"
+>0x36	string		>\0			author: "%s"
+>0x56	string		>\0			copyright: "%s"
+
+# IRCAM <mpruett@sgi.com>
+# VAX and MIPS files are little-endian; Sun and NeXT are big-endian
+0	belong		0x64a30100		IRCAM file (VAX)
+0	belong		0x64a30200		IRCAM file (Sun)
+0	belong		0x64a30300		IRCAM file (MIPS little-endian)
+0	belong		0x64a30400		IRCAM file (NeXT)
+
+# NIST SPHERE <mpruett@sgi.com>
+0	string		NIST_1A\n\ \ \ 1024\n	NIST SPHERE file
+
+# Sample Vision <mpruett@sgi.com>
+0	string		SOUND\ SAMPLE\ DATA\ 	Sample Vision file
+
+# Audio Visual Research <tonigonenstein@users.sourceforge.net>
+0	string		2BIT			Audio Visual Research file,
+>12	beshort		=0			mono,
+>12	beshort		=-1			stereo,
+>14	beshort		x			%d bits
+>16	beshort		=0			unsigned,
+>16	beshort		=-1			signed,
+>22	belong&0x00ffffff	x		%d Hz,
+>18	beshort		=0			no loop,
+>18	beshort		=-1			loop,
+>21	ubyte		<=127			note %d,
+>22	byte		=0			replay 5.485 KHz
+>22	byte		=1			replay 8.084 KHz
+>22	byte		=2			replay 10.971 Khz
+>22	byte		=3			replay 16.168 Khz
+>22	byte		=4			replay 21.942 KHz
+>22	byte		=5			replay 32.336 KHz
+>22	byte		=6			replay 43.885 KHz
+>22	byte		=7			replay 47.261 KHz
+
+# SGI SoundTrack <mpruett@sgi.com>
+0	string		_SGI_SoundTrack		SGI SoundTrack project file
+# ID3 version 2 tags <waschk@informatik.uni-rostock.de>
+0	string		ID3	MP3 file with ID3 version 2.
+>3	ubyte	<0xff	\b%d.
+>4	ubyte	<0xff	\b%d tag
+
+# NSF (NES sound file) magic
+0	string		NESM\x1a	NES Sound File
+>14	string		>\0		("%s" by
+>46	string		>\0		%s, copyright
+>78	string		>\0		%s),
+>5	byte		x		version %d,
+>6	byte		x		%d tracks,
+>122	byte&0x2	=1		dual PAL/NTSC
+>122	byte&0x1	=1		PAL
+>122	byte&0x1	=0		NTSC
+
+# Impuse tracker module (audio/x-it)
+0	string		IMPM		Impulse Tracker module sound data -
+>4	string		>\0		"%s"
+>40	leshort		!0		compatible w/ITv%x
+>42	leshort		!0		created w/ITv%x
+
+# Imago Orpheus module (audio/x-imf)
+60	string		IM10		Imago Orpheus module sound data -
+>0	string		>\0		"%s"
+
+# From <collver1@attbi.com>
+# These are the /etc/magic entries to decode modules, instruments, and
+# samples in Impulse Tracker's native format.
+
+0	string		IMPS		Impulse Tracker Sample
+>18	byte		&2		16 bit
+>18	byte		^2		8 bit
+>18	byte		&4		stereo
+>18	byte		^4		mono
+0	string		IMPI		Impulse Tracker Instrument
+>28	leshort		!0		ITv%x
+>30	byte		!0		%d samples
+
+# Yamaha TX Wave:  file(1) magic for Yamaha TX Wave audio files
+# From <collver1@attbi.com>
+0	string		LM8953		Yamaha TX Wave
+>22	byte		0x49		looped
+>22	byte		0xC9		non-looped
+>23	byte		1		33kHz
+>23	byte		2		50kHz
+>23	byte		3		16kHz
+
+# scream tracker:  file(1) magic for Scream Tracker sample files
+#
+# From <collver1@attbi.com>
+76	string		SCRS		Scream Tracker Sample
+>0	byte		1		sample
+>0	byte		2		adlib melody
+>0	byte		>2		adlib drum
+>31	byte		&2		stereo
+>31	byte		^2		mono
+>31	byte		&4		16bit little endian
+>31	byte		^4		8bit
+>30	byte		0		unpacked
+>30	byte		1		packed
+
+# audio
+# From: Cory Dikkers <cdikkers@swbell.net>
+0	string		MMD0		MED music file, version 0
+0	string		MMD1		OctaMED Pro music file, version 1
+0	string		MMD3		OctaMED Soundstudio music file, version 3
+0	string		OctaMEDCmpr	OctaMED Soundstudio compressed file
+0	string		MED		MED_Song
+0	string		SymM		Symphonie SymMOD music file
+#
+0	string		THX		AHX version
+>3	byte		=0		1 module data
+>3	byte		=1		2 module data
+#
+0	string		OKTASONG	Oktalyzer module data
+#
+0	string		DIGI\ Booster\ module\0	%s
+>20	byte		>0		%c
+>>21	byte		>0		\b%c
+>>>22	byte		>0		\b%c
+>>>>23	byte		>0		\b%c
+>610	string		>\0		\b, "%s"
+#
+0	string		DBM0	   	DIGI Booster Pro Module
+>4	byte		>0		V%X.
+>>5	byte		x		\b%02X
+>16	string		>\0		\b, "%s"
+#
+0	string		FTMN		FaceTheMusic module
+>16	string		>\0d		\b, "%s"
+
+# From: <doj@cubic.org> 2003-06-24
+0	string		AMShdr\32	Velvet Studio AMS Module v2.2
+0	string		Extreme		Extreme Tracker AMS Module v1.3
+0	string		DDMF		Xtracker DMF Module
+>4	byte		x		v%i
+>0xD	string		>\0		Title: "%s"
+>0x2B	string		>\0		Composer: "%s"
+0	string		DSM\32		Dynamic Studio Module DSM
+0	string		SONG		DigiTrekker DTM Module
+0	string		DMDL		DigiTrakker MDL Module
+0	string		PSM\32		Protracker Studio PSM Module
+44	string		PTMF		Poly Tracker PTM Module
+>0	string		>\32		Title: "%s"
+0	string		MT20		MadTracker 2.0 Module MT2
+0	string		RAD\40by\40REALiTY!! RAD Adlib Tracker Module RAD
+0	string		RTMM		RTM Module
+0x426	string		MaDoKaN96	XMS Adlib Module
+>0	string		>\0		Composer: "%s"
+0	string		AMF		AMF Module
+>4	string		>\0		Title: "%s"
+0	string		MODINFO1	Open Cubic Player Module Inforation MDZ
+0	string		Extended\40Instrument: Fast Tracker II Instrument
+
+# From: Takeshi Hamasaki <hma@syd.odn.ne.jp>
+# NOA Nancy Codec file
+0	string		\210NOA\015\012\032	NOA Nancy Codec Movie file
+# Yamaha SMAF format
+0	string		MMMD		Yamaha SMAF file
+# Sharp Jisaku Melody format for PDC
+0	string		\001Sharp\040JisakuMelody	SHARP Cell-Phone ringing Melody
+>20	string		Ver01.00	Ver. 1.00
+>>32	byte		x		, %d tracks
+
+# Free lossless audio codec <http://flac.sourceforge.net>
+# From: Przemyslaw Augustyniak <silvathraec@rpg.pl>
+0	string			fLaC		FLAC audio bitstream data
+>4	byte&0x7f		>0		\b, unknown version
+>4	byte&0x7f		0		\b
+# some common bits/sample values
+>>20	beshort&0x1f0		0x030		\b, 4 bit
+>>20	beshort&0x1f0		0x050		\b, 6 bit
+>>20	beshort&0x1f0		0x070		\b, 8 bit
+>>20	beshort&0x1f0		0x0b0		\b, 12 bit
+>>20	beshort&0x1f0		0x0f0		\b, 16 bit
+>>20	beshort&0x1f0		0x170		\b, 24 bit
+>>20	byte&0xe		0x0		\b, mono
+>>20	byte&0xe		0x2		\b, stereo
+>>20	byte&0xe		0x4		\b, 3 channels
+>>20	byte&0xe		0x6		\b, 4 channels
+>>20	byte&0xe		0x8		\b, 5 channels
+>>20	byte&0xe		0xa		\b, 6 channels
+>>20	byte&0xe		0xc		\b, 7 channels
+>>20	byte&0xe		0xe		\b, 8 channels
+# some common sample rates
+>>17	belong&0xfffff0		0x0ac440	\b, 44.1 kHz
+>>17	belong&0xfffff0		0x0bb800	\b, 48 kHz
+>>17	belong&0xfffff0		0x07d000	\b, 32 kHz
+>>17	belong&0xfffff0		0x056220	\b, 22.05 kHz
+>>17	belong&0xfffff0		0x05dc00	\b, 24 kHz
+>>17	belong&0xfffff0		0x03e800	\b, 16 kHz
+>>17	belong&0xfffff0		0x02b110	\b, 11.025 kHz
+>>17	belong&0xfffff0		0x02ee00	\b, 12 kHz
+>>17	belong&0xfffff0		0x01f400	\b, 8 kHz
+>>17	belong&0xfffff0		0x177000	\b, 96 kHz
+>>17	belong&0xfffff0		0x0fa000	\b, 64 kHz
+>>21	byte&0xf		>0		\b, >4G samples
+>>21	byte&0xf		0		\b
+>>>22	belong			>0		\b, %u samples
+>>>22	belong			0		\b, length unknown
+
+# (ISDN) VBOX voice message file (Wolfram Kleff)
+0       string          VBOX            VBOX voice message data
+
+# ReBorn Song Files (.rbs)
+# David J. Singer <doc@deadvirgins.org.uk>
+8       string          RB40             RBS Song file
+>29     string          ReBorn           created by ReBorn
+>37     string          Propellerhead    created by ReBirth
+
+# Synthesizer Generator and Kimwitu share their file format
+0	string		A#S#C#S#S#L#V#3	    Synthesizer Generator or Kimwitu data
+# Kimwitu++ uses a slightly different magic
+0	string		A#S#C#S#S#L#HUB	    Kimwitu++ data
+
+# From "Simon Hosie
+0       string  TFMX-SONG       TFMX module sound data
+
+# From danny.milo@gmx.net (Danny Milosavljevic)
+# monkeysaudio for magic.mime
+0	string	MAC\	X/Monkey audio,
+>4	leshort >0	version %d,
+>6	leshort >0	compression level %d,
+>8	leshort >0	flags %x,
+>10	leshort >0	channels %d,
+>12	lelong	>0	samplerate %d,
+>24	lelong	>0	frames %d
+

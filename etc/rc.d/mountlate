@@ -1,0 +1,36 @@
+#!/bin/sh
+#
+# $FreeBSD$
+#
+
+# PROVIDE: mountlate
+# REQUIRE: DAEMON
+# BEFORE: LOGIN
+# KEYWORD: nojail
+
+. /etc/rc.subr
+
+name="mountlate"
+start_cmd="mountlate_start"
+stop_cmd=":"
+
+mountlate_start()
+{
+	# Mount "late" filesystems.
+	echo -n 'Mounting late file systems:'
+	mount -a -l
+	echo '.'
+
+	case $? in
+	0)
+		;;
+	*)
+		echo 'Mounting /etc/fstab filesystems failed,' \
+		    ' startup aborted'
+		kill -QUIT $$
+		;;
+	esac
+}
+
+load_rc_config $name
+run_rc_command "$1"

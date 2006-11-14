@@ -1,0 +1,40 @@
+#!/bin/sh
+#
+# $NetBSD: yppasswdd,v 1.6 2002/03/22 04:34:01 thorpej Exp $
+# $FreeBSD$
+#
+
+# PROVIDE: yppasswdd
+# REQUIRE: ypserv ypbind
+# BEFORE:  LOGIN
+
+. /etc/rc.subr
+
+name="yppasswdd"
+command="/usr/sbin/rpc.${name}"
+start_precmd="yppasswdd_precmd"
+
+load_rc_config $name
+rcvar="nis_yppasswdd_enable"
+command_args="${nis_yppasswdd_flags}"
+
+yppasswdd_precmd()
+{
+	if ! checkyesno rpcbind_enable  && \
+	    ! /etc/rc.d/rpcbind forcestatus 1>/dev/null 2>&1
+	then
+		force_depend rpcbind || return 1
+	fi
+	if ! checkyesno nis_server_enable && \
+	    ! /etc/rc.d/ypserv forcestatus 1>/dev/null 2>&1
+	then
+		force_depend ypserv || return 1
+	fi
+	_domain=`domainname`
+	if [ -z "$_domain" ]; then
+		warn "NIS domainname(1) is not set."
+		return 1
+	fi
+}
+
+run_rc_command "$1"

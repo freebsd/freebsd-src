@@ -1,0 +1,193 @@
+2004-11-24 12:39  Christos Zoulas  <christos@zoulas.com>
+
+	* Stack smash fix, and ELF more conservative reading.
+	  Jakub Bogusz <qboosh@pld-linux.org>
+
+2004-11-20 18:50  Christos Zoulas  <christos@zoulas.com>
+
+	* New FreeBSD version parsing code:
+	  Jon Noack <noackjr@alumni.rice.edu>
+
+	* Hackish support for ucs16 strings <christos@zoulas.com>
+
+2004-11-13 03:07  Christos Zoulas  <christos@zoulas.com>
+
+	* print the file name and line number in syntax errors.
+
+2004 10-12 10:50  Christos Zoulas  <christos@zoulas.com>
+
+	* Fix stack overwriting on 0 length strings: Tim Waugh
+	    <twaugh@redhat.com> Ned Ludd <solar@gentoo.org>
+
+2004-09-27 11:30  Christos Zoulas  <christos@zoulas.com>
+
+	* Remove 3rd and 4th copyright clause; approved by Ian Darwin.
+
+	* Fix small memory leaks; caught by: Tamas Sarlos 
+	    <stamas@csillag.ilab.sztaki.hu>
+
+2004-07-24 16:33  Christos Zoulas  <christos@zoulas.com>
+
+	* magic.mime update Danny Milosavljevic <danny.milo@gmx.net> 
+
+	* FreeBSD version update Oliver Eikemeier <eikemeier@fillmore-labs.com>
+
+	* utime/utimes detection Ian Lance Taylor <ian@wasabisystems.com>
+
+  	* errors reading elf magic Jakub Bogusz <qboosh@pld-linux.org>
+
+2004-04-12 10:55  Christos Zoulas  <christos@zoulas.com>
+
+	* make sure that magic formats match magic types during compilation
+
+	* fix broken sgi magic file
+
+2004-04-06 20:36  Christos Zoulas  <christos@zoulas.com>
+
+	* detect present of mbstate_t Petter Reinholdtsen <pere@hungry.com>
+
+	* magic fixes
+
+2004-03-22 15:25  Christos Zoulas  <christos@zoulas.com>
+
+	* Lots of mime fixes
+	  (Joerg Ostertag) <ostertag@rechengilde.de>
+
+	* FreeBSD ELF version handling
+	  (Edwin Groothuis) <edwin@mavetju.org>
+
+	* correct cleanup in all cases; don't just close the file.
+	  (Christos Zoulas) <christos@zoulas.com>
+
+	* add gettext message catalogue support
+	  (Michael Piefel) <piefel@debian.org>
+
+	* better printout for unreadable files
+	  (Michael Piefel) <piefel@debian.org>
+
+	* compensate for missing MAXPATHLEN
+	  (Michael Piefel) <piefel@debian.org>
+
+	* add wide character string length computation
+	  (Michael Piefel) <piefel@debian.org>
+
+	* Avoid infinite loops caused by bad elf alignments
+	  or name and description note sizes. Reported by
+	  (Mikael Magnusson) <mmikael@comhem.se>
+
+2004-03-09 13:55  Christos Zoulas  <christos@zoulas.com>
+
+	* Fix possible memory leak on error and add missing regfree
+	  (Dmitry V. Levin) <ldv@altlinux.org>
+
+2003-12-23 12:12  Christos Zoulas  <christos@zoulas.com>
+
+	* fix -k flag (Maciej W. Rozycki)
+
+2003-11-18 14:10  Christos Zoulas  <christos@zoulas.com>
+
+	* Try to give us much info as possible on corrupt elf files.
+	  (Willy Tarreau) <willy@w.ods.org>
+	* Updated python bindings (Brett Funderburg)
+	   <brettf@deepfile.com>
+
+2003-11-11 15:03  Christos Zoulas  <christos@zoulas.com>
+
+	* Include file.h first, because it includes config.h
+	  breaks largefile test macros otherwise.
+	  (Paul Eggert <eggert@CS.UCLA.EDU> via
+	   Lars Hecking <lhecking@nmrc.ie>)
+
+2003-10-14 21:39  Christos Zoulas  <christos@zoulas.com>
+
+	* Python bindings (Brett Funderburg) <brettf@deepfile.com>
+	* Don't lookup past the end of the buffer
+	  (Chad Hanson) <chanson@tcs-sec.com>
+	* Add MAGIC_ERROR and api on magic_errno()
+
+2003-10-08 12:40  Christos Zoulas  <christos@zoulas.com>
+
+	* handle error conditions from compile as fatal
+	  (Antti Kantee) <pooka@netbsd.org>
+	* handle magic filename parsing sanely
+	* more magic fixes.
+	* fix a memory leak (Illes Marton) <illes.marton@balabit.hu>
+	* describe magic file handling
+	  (Bryan Henderson) <bryanh@giraffe-data.com>
+
+2003-09-12 15:09  Christos Zoulas  <christos@zoulas.com>
+
+	* update magic files.
+	* remove largefile support from file.h; it breaks things on most OS's
+
+2003-08-10 10:25  Christos Zoulas  <christos@zoulas.com>
+
+	* fix unmapping'ing of mmaped files.
+
+2003-07-10 12:03  Christos Zoulas  <christos@zoulas.com>
+
+	* don't exit with -1 on error; always exit 1 (Marty Leisner)
+	* restore utimes code.
+
+2003-06-10 17:03  Christos Zoulas  <christos@zoulas.com>
+
+	* make sure we don't access uninitialized memory.
+	* pass lint
+	* #ifdef __cplusplus in magic.h
+
+2003-05-25 19:23  Christos Zoulas  <christos@zoulas.com>
+
+	* rename cvs magic file to revision to deal with
+	  case insensitive filesystems.
+
+2003-05-23 17:03  Christos Zoulas  <christos@zoulas.com>
+
+	* documentation fixes from Michael Piefel <piefel@debian.org>
+	* magic fixes (various)
+	* revert basename magic in .mgc name determination
+	* buffer protection in uncompress,
+	  signness issues,
+	  close files
+	  Maciej W. Rozycki <macro@ds2.pg.gda.pl
+
+2003-04-21 20:12  Christos Zoulas  <christos@zoulas.com>
+
+	* fix zsh magic
+
+2003-04-04 16:59  Christos Zoulas  <christos@zoulas.com>
+
+	* fix operand sort order in string.
+
+2003-04-02 17:30  Christos Zoulas  <christos@zoulas.com>
+
+	* cleanup namespace in magic.h
+
+2003-04-02 13:50  Christos Zoulas  <christos@zoulas.com>
+
+	* Magic additions (Alex Ott)
+	* Fix bug that broke VPATH compilation (Peter Breitenlohner)
+
+2003-03-28 16:03  Christos Zoulas  <christos@zoulas.com>
+
+	* remove packed attribute from magic struct.
+	* make the magic struct properly aligned.
+	* bump version number of compiled files to 2.
+
+2003-03-27 13:10  Christos Zoulas  <christos@zoulas.com>
+
+	* separate tar detection and run it before softmagic.
+	* fix reversed symlink test.
+	* fix version printing.
+	* make separator a string instead of a char.
+	* update manual page and sort options.
+
+2003-03-26 11:00  Christos Zoulas  <christos@zoulas.com>
+
+	* Pass lint
+	* make NULL in magic_file mean stdin
+	* Fix "-" argument to file to pass NULL to magic_file
+	* avoid pointer casts by using memcpy
+	* rename magic_buf -> magic_buffer
+	* keep only the first error
+	* manual page: new sentence, new line
+	* fix typo in api function (magic_buf -> magic_buffer)

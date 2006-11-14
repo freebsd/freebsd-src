@@ -1,0 +1,26 @@
+.ll 25
+.pl 20
+.nf
+file1 and file2 #1
+[[
+file1 only
+]]
+.
+.mc |
+file2 only
+file2 only
+.mc
+file1 and file2 #2
+.mc +
+file2 only
+.mc
+file1 and file2 #3
+[[
+file1 only
+file1 only
+]]
+.
+.mc *
+.mc
+file1 and file2 #4
+file1 and file2 #5

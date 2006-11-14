@@ -1,0 +1,73 @@
+#!/bin/sh
+#
+# $FreeBSD$
+#
+
+# PROVIDE: archdep
+# REQUIRE: mountcritremote
+# KEYWORD: nojail
+
+. /etc/rc.subr
+
+name=archdep
+start_cmd="archdep_start"
+stop_cmd=":"
+
+# should we print out unaligned access warnings?
+#
+unaligned_warnings()
+{
+	if ! checkyesno unaligned_print; then
+		sysctl machdep.unaligned_print=0
+	fi
+}
+
+# Alpha OSF/1 binary emulation
+#
+osf1_compat()
+{
+	if checkyesno osf1_enable; then
+		echo -n ' OSF/1'
+		if ! kldstat -v | grep osf1_ecoff > /dev/null; then
+			kldload osf1 > /dev/null 2>&1
+		fi
+	fi
+}
+
+# SCO binary emulation
+#
+ibcs2_compat()
+{
+	if checkyesno ibcs2_enable; then
+		echo -n ' ibcs2'
+		kldload ibcs2 > /dev/null 2>&1
+		case ${ibcs2_loaders} in
+		[Nn][Oo])
+			;;
+		*)
+			for i in ${ibcs2_loaders}; do
+				kldload ibcs2_$i > /dev/null 2>&1
+			done
+			;;
+		esac
+	fi
+}
+
+archdep_start()
+{
+	_arch=`${SYSCTL_N} hw.machine_arch`
+	echo -n "Initial $_arch initialization:"
+	case $_arch in
+	i386)
+		ibcs2_compat
+		;;
+	alpha)
+		osf1_compat
+		unaligned_warnings
+		;;
+	esac
+	echo '.'
+}
+
+load_rc_config $name
+run_rc_command "$1"

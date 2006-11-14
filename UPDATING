@@ -1,0 +1,519 @@
+Updating Information for FreeBSD STABLE users
+
+This file is maintained and copyrighted by M. Warner Losh
+<imp@village.org>.  See end of file for further details.  For commonly
+done items, please see the COMMON ITEMS: section later in the file.
+
+Items affecting the ports and packages system can be found in
+/usr/ports/UPDATING.  Please read that file before running
+portupgrade.
+
+20060902:
+	The IEEE80211_IOC_STA_INFO ioctl was updated to take a mac
+	address parameter.  Binaries using the old ioctl number will
+	continue to work but user applications that use this must
+	be updated (none exist in the base system).
+
+20060818:
+	The NMBCLUSTERS kernel option has been removed because it is obsolete.
+	Use the kern.ipc.nmbclusters loader(8) tunable instead.
+
+20060816:
+	The IPFIREWALL_FORWARD_EXTENDED option is gone and the behaviour
+	for IPFIREWALL_FORWARD is now as it was before when it was first
+	committed and for years thereafter. The behaviour is now ON.
+
+20060806:
+	The interface version of the i4b kernel part has changed. So
+	after updating the kernel sources and compiling a new kernel,
+	the i4b user space tools in "/usr/src/usr.sbin/i4b" must also
+	be rebuilt, and vice versa. This also applies to other tools
+	using the i4b kernel interface to userland.
+
+20060711:
+	The iwi(4) was updated to use the firmware(9) framework.  In order
+	for it to work you need a port change from net/iwi-firmware to
+	net/iwi-firmware-kmod.
+
+20060506:
+	FreeBSD 6.1-RELEASE
+
+20060309:
+	The support for Linux applications the 3dfx kernel module used
+	to provide is in a separate module named 3dfx_linux now.  The
+	latter will pull in 3dfx.ko and linux.ko through its dependencies
+	when loaded.
+
+20060211:
+	An IPv6 support of ipfw was enabled by default.  If you don't
+	want to filter an IPv6 by ipfw, please add following line into
+	your ipfw rule:
+
+		pass ip6 from any to any
+
+20060210:
+	Now most modules get their build-time options from the kernel
+	configuration file.  A few modules still have fixed options
+	due to their non-conformant implementation, but they will be
+	corrected eventually.  You may need to review the options of
+	the modules in use, explicitly specify the non-default options
+	in the kernel configuration file, and rebuild the kernel and
+	modules afterwards.
+
+20060204:
+	The 'audit' group was added to support the new auditing functionality
+	in the base system.  Be sure to follow the directions for updating,
+	including the requirement to run mergemaster -p.
+
+20060127:
+	The i386 loader(8) now defaults to the serial speed set by the
+	previous boot stage, if the comconsole is already in use.  If
+	you've changed BOOT_COMCONSOLE_SPEED in make.conf(5) and
+	installed a new loader, but have not rebuilt and reinstalled the
+	boot blocks, then your loader will leave the console at 9600
+	baud.  Either install the new boot blocks, or set
+	comconsole_speed in loader.conf(5).  Note that the new boot
+	blocks also support a -S<speed> flag described in boot(8).
+
+20060122:
+	/etc/rc.d/ppp-user has been renamed to /etc/rc.d/ppp.
+	Its /etc/rc.conf.d configuration file has been `ppp' from
+	the beginning, and hence there is no need to touch it.
+
+20060113:
+	si(4)'s device files now contain the unit number.
+	Uses of {cua,tty}A[0-9a-f] should be replaced by {cua,tty}A0[0-9a-f].
+	
+20051230:
+	A lot of fixes and new features in the soundsystem. To get all
+	benefits, you may want to recompile mplayer (if installed) after
+	booting the new world.
+
+20051222:
+	Bug fixes to the trimdomain(3) function in libutil may result in
+	slight changes to the host names appearing in log files under
+	relatively rare circumstances.
+
+20051220:
+	Scripts in the local_startup directories (as defined in
+	/etc/defaults/rc.conf) that have the new rc.d semantics will
+	now be run as part of the base system rcorder. If there are
+	errors or problems with one of these local scripts, it could
+	cause boot problems. If you encounter such problems, boot in
+	single user mode, remove that script from the */rc.d directory.
+	Please report the problem to the port's maintainer, and the
+	freebsd-ports@freebsd.org mailing list.
+
+20051215:
+	The setkey(8) utility was moved from /usr/sbin/setkey to /sbin/setkey.
+	You may want to update scripts which depend on its location.
+
+20051108:
+	rp(4)'s device files now contain the unit number.
+	Uses of {cua,tty}R[0-9a-f] should be replaced by {cua,tty}R0[0-9a-f].
+
+20051101:
+	FreeBSD 6.0-RELEASE
+
+20051001:
+	kern.polling.enable sysctl MIB is now deprecated. Use ifconfig(8)
+	to turn polling(4) on your interfaces.
+
+20050722:
+	The ai_addrlen of a struct addrinfo was changed to a socklen_t
+	to conform to POSIX-2001.  This change broke an ABI
+	compatibility on 64 bit architecture.  You have to recompile
+	userland programs that use getaddrinfo(3) on 64 bit
+	architecture.
+
+20050711:
+	RELENG_6 branched here.
+
+20050629:
+	The pccard_ifconfig rc.conf variable has been removed and a new
+	variable, ifconfig_DEFAULT has been introduced.  Unlike
+	pccard_ifconfig, ifconfig_DEFAULT applies to ALL interfaces that
+	do not have ifconfig_ifn entries rather than just those in
+	removable_interfaces.
+
+20050616:
+	Some previous versions of PAM have permitted the use of
+	non-absolute paths in /etc/pam.conf or /etc/pam.d/* when referring
+	to third party PAM modules in /usr/local/lib.  A change has been
+	made to require the use of absolute paths in order to avoid
+	ambiguity and dependence on library path configuration, which may
+	affect existing configurations.
+
+20050610:
+	Major changes to network interface API.  All drivers must be
+	recompiled.  Drivers not in the base system will need to be
+	updated to the new APIs.
+
+20050609:
+	Changes were made to kinfo_proc in sys/user.h.  Please recompile
+	userland, or commands like `fstat', `pkill', `ps', `top' and `w'
+	will not behave correctly.
+
+	The API and ABI for hwpmc(4) have changed with the addition
+	of sampling support.  Please recompile lib/libpmc(3) and
+	usr.sbin/{pmcstat,pmccontrol}.
+
+20050606:
+	The OpenBSD dhclient was imported in place of the ISC dhclient
+	and the network interface configuration scripts were updated
+	accordingly.  If you use DHCP to configure your interfaces, you
+	must now run devd.  Also, DNS updating was lost so you will need
+	to find a workaround if you use this feature.
+
+20050605:
+	if_bridge was added to the tree. This has changed struct ifnet.
+	Please recompile userland and all network related modules.
+
+20050603:
+	The n_net of a struct netent was changed to an uint32_t, and
+	1st argument of getnetbyaddr() was changed to an uint32_t, to
+	conform to POSIX-2001.  These changes broke an ABI
+	compatibility on 64 bit architecture.  With these changes,
+	shlib major of libpcap was bumped.  You have to recompile
+	userland programs that use getnetbyaddr(3), getnetbyname(3),
+	getnetent(3) and/or libpcap on 64 bit architecture.
+
+20050528:
+	Kernel parsing of extra options on '#!' first lines of shell
+	scripts has changed.  Lines with multiple options likely will
+	fail after this date.  For full details, please see
+		http://people.freebsd.org/~gad/Updating-20050528.txt
+
+20050503:
+	The packet filter (pf) code has been updated to OpenBSD 3.7
+	Please note the changed anchor syntax and the fact that
+	authpf(8) now needs a mounted fdescfs(5) to function.
+
+20050415:
+	The NO_MIXED_MODE kernel option has been removed from the i386
+	amd64 platforms as its use has been superceded by the new local
+	APIC timer code.  Any kernel config files containing this option
+	should be updated.
+
+20050227:
+	The on-disk format of LC_CTYPE files was changed to be machine
+	independent.  Please make sure NOT to use NO_CLEAN buildworld
+	when crossing this point. Crossing this point also requires
+	recompile or reinstall of all locale depended packages.
+
+20050225:
+	The ifi_epoch member of struct if_data has been changed to
+	contain the uptime at which the interface was created or the
+	statistics zeroed rather then the wall clock time because
+	wallclock time may go backwards.  This should have no impact
+	unless an snmp implementation is using this value (I know of
+	none at this point.)
+
+20050224:
+	The acpi_perf and acpi_throttle drivers are now part of the
+	acpi(4) main module.  They are no longer built separately.
+
+20050223:
+	The layout of struct image_params has changed. You have to
+	recompile all compatibility modules (linux, svr4, etc) for use
+	with the new kernel.
+
+20050223:
+	The p4tcc driver has been merged into cpufreq(4).  This makes
+	"options CPU_ENABLE_TCC" obsolete.  Please load cpufreq.ko or
+	compile in "device cpufreq" to restore this functionality.
+
+20050220:
+	The responsibility of recomputing the file system summary of
+	a SoftUpdates-enabled dirty volume has been transferred to the
+	background fsck.  A rebuild of fsck(8) utility is recommended
+	if you have updated the kernel.
+
+	To get the old behavior (recompute file system summary at mount
+	time), you can set vfs.ffs.compute_summary_at_mount=1 before
+	mounting the new volume.
+
+20050206:
+	The cpufreq import is complete.  As part of this, the sysctls for
+	acpi(4) throttling have been removed.  The power_profile script
+	has been updated, so you can use performance/economy_cpu_freq in
+	rc.conf(5) to set AC on/offline cpu frequencies.
+
+20050206:
+	NG_VERSION has been increased. Recompiling kernel (or ng_socket.ko)
+	requires recompiling libnetgraph and userland netgraph utilities.
+
+20050114:
+	Support for abbreviated forms of a number of ipfw options is
+	now deprecated.  Warnings are printed to stderr indicating the
+	correct full form when a match occurs.  Some abbreviations may
+	be supported at a later date based on user feedback.  To be
+	considered for support, abbreviations must be in use prior to
+	this commit and unlikely to be confused with current key words.
+
+20041221:
+	By a popular demand, a lot of NOFOO options were renamed
+	to NO_FOO (see bsd.compat.mk for a full list).  The old
+	spellings are still supported, but will cause annoying
+	warnings on stderr.  Make sure you upgrade properly (see
+	the COMMON ITEMS: section later in this file).
+
+20041219:
+	Auto-loading of ancillary wlan modules such as wlan_wep has
+	been temporarily disabled; you need to statically configure
+	the modules you need into your kernel or explicitly load them
+	prior to use.  Specifically, if you intend to use WEP encryption
+	with an 802.11 device load/configure wlan_wep; if you want to
+	use WPA with the ath driver load/configure wlan_tkip, wlan_ccmp,
+	and wlan_xauth as required.
+
+20041213:
+	The behaviour of ppp(8) has changed slightly.  If lqr is enabled
+	(``enable lqr''), older versions would revert to LCP ECHO mode on
+	negotiation failure.  Now, ``enable echo'' is required for this
+	behaviour.  The ppp version number has been bumped to 3.4.2 to
+	reflect the change.
+
+20041201:
+	The wlan support has been updated to split the crypto support
+	into separate modules.  For static WEP you must configure the
+	wlan_wep module in your system or build and install the module
+	in place where it can be loaded (the kernel will auto-load
+	the module when a wep key is configured).
+
+20041201:
+	The ath driver has been updated to split the tx rate control
+	algorithm into a separate module.  You need to include either
+	ath_rate_onoe or ath_rate_amrr when configuring the kernel.
+
+20041116:
+	Support for systems with an 80386 CPU has been removed.  Please
+	use FreeBSD 5.x or earlier on systems with an 80386.
+
+20041110:
+	We have had a hack which would mount the root filesystem
+	R/W if the device were named 'md*'.  As part of the vnode
+	work I'm doing I have had to remove this hack.  People
+	building systems which use preloaded MD root filesystems
+	may need to insert a "/sbin/mount -u -o rw /dev/md0 /" in
+	their /etc/rc scripts.
+
+20041104:
+	FreeBSD 5.3 shipped here.
+
+20041102:
+	The size of struct tcpcb has changed again due to the removal
+	of RFC1644 T/TCP.  You have to recompile userland programs that
+	read kmem for tcp sockets directly (netstat, sockstat, etc.)
+
+20041022:
+	The size of struct tcpcb has changed.  You have to recompile
+	userland programs that read kmem for tcp sockets directly
+	(netstat, sockstat, etc.)
+
+20041016:
+	RELENG_5 branched here.  For older entries, please see updating
+	in the RELENG_5 branch.
+
+COMMON ITEMS:
+
+	General Notes
+	-------------
+	Avoid using make -j when upgrading.  From time to time in the
+	past there have been problems using -j with buildworld and/or
+	installworld.  This is especially true when upgrading between
+	"distant" versions (eg one that cross a major release boundary
+	or several minor releases, or when several months have passed
+	on the -current branch).
+
+	Sometimes, obscure build problems are the result of environment
+	poisoning.  This can happen because the make utility reads its
+	environment when searching for values for global variables.
+	To run your build attempts in an "environmental clean room",
+	prefix all make commands with 'env -i '.  See the env(1) manual
+	page for more details.
+
+	Due to several updates to the build infrastructure, source
+	upgrades from versions prior to 5.3 no longer supported.
+
+	When upgrading from one major version to another it is generally
+	best to upgrade to the latest code in the currently installed branch
+	first, then do an upgrade to the new branch. This is the best-tested
+	upgrade path, and has the highest probability of being successful.
+	Please try this approach before reporting problems with a major
+	version upgrade.
+
+	To build a kernel
+	-----------------
+	If you are updating from a prior version of FreeBSD (even one just
+	a few days old), you should follow this procedure. With a
+	/usr/obj tree with a fresh buildworld,
+	make -DALWAYS_CHECK_MAKE buildkernel KERNCONF=YOUR_KERNEL_HERE
+	make -DALWAYS_CHECK_MAKE installkernel KERNCONF=YOUR_KERNEL_HERE
+
+	To test a kernel once
+	---------------------
+	If you just want to boot a kernel once (because you are not sure
+	if it works, or if you want to boot a known bad kernel to provide
+	debugging information) run
+	make installkernel KERNCONF=YOUR_KERNEL_HERE KODIR=/boot/testkernel
+	nextboot -k testkernel
+
+	To just build a kernel when you know that it won't mess you up
+	--------------------------------------------------------------
+	This assumes you are already running a 6.X system.  Replace
+	${arch} with the architecture of your machine (e.g. "i386",
+	"alpha", "amd64", "ia64", "pc98", "sparc64", etc).
+
+	cd src/sys/${arch}/conf
+	config KERNEL_NAME_HERE
+	cd ../compile/KERNEL_NAME_HERE
+	make depend
+	make
+	make install
+
+	If this fails, go to the "To build a kernel" section.
+
+	To rebuild everything and install it on the current system.
+	-----------------------------------------------------------
+	# Note: sometimes if you are running current you gotta do more than
+	# is listed here if you are upgrading from a really old current.
+
+	<make sure you have good level 0 dumps>
+	make buildworld
+	make kernel KERNCONF=YOUR_KERNEL_HERE
+							[1]
+	<reboot in single user>				[3]
+	mergemaster -p					[5]
+	make installworld
+	make delete-old
+	mergemaster					[4]
+	<reboot>
+
+
+	To cross-install current onto a separate partition
+	--------------------------------------------------
+	# In this approach we use a separate partition to hold
+	# current's root, 'usr', and 'var' directories.   A partition
+	# holding "/", "/usr" and "/var" should be about 2GB in
+	# size.
+
+	<make sure you have good level 0 dumps>
+	<boot into -stable>
+	make buildworld
+	make buildkernel KERNCONF=YOUR_KERNEL_HERE
+	<maybe newfs current's root partition>
+	<mount current's root partition on directory ${CURRENT_ROOT}>
+	make installworld DESTDIR=${CURRENT_ROOT}
+	cd src/etc; make distribution DESTDIR=${CURRENT_ROOT} # if newfs'd
+	make installkernel KERNCONF=YOUR_KERNEL_HERE DESTDIR=${CURRENT_ROOT}
+	cp /etc/fstab ${CURRENT_ROOT}/etc/fstab 		   # if newfs'd
+	<edit ${CURRENT_ROOT}/etc/fstab to mount "/" from the correct partition>
+	<reboot into current>
+	<do a "native" rebuild/install as described in the previous section>
+	<maybe install compatibility libraries from src/lib/compat>
+ 	<reboot>
+
+
+	To upgrade in-place from 5.x-stable or higher to 6.x-stable
+	-----------------------------------------------------------
+	<make sure you have good level 0 dumps>
+	make buildworld					[9]
+	make kernel KERNCONF=YOUR_KERNEL_HERE		[8]
+							[1]
+	<reboot in single user>				[3]
+	mergemaster -p					[5]
+	make installworld
+	make delete-old
+	mergemaster -i					[4]
+	<reboot>
+
+	Make sure that you've read the UPDATING file to understand the
+	tweaks to various things you need.  At this point in the life
+	cycle of current, things change often and you are on your own
+	to cope.  The defaults can also change, so please read ALL of
+	the UPDATING entries.
+
+	Also, if you are tracking -current, you must be subscribed to
+	freebsd-current@freebsd.org.  Make sure that before you update
+	your sources that you have read and understood all the recent
+	messages there.  If in doubt, please track -stable which has
+	much fewer pitfalls.
+
+	[1] If you have third party modules, such as vmware, you
+	should disable them at this point so they don't crash your
+	system on reboot.
+
+	[3] From the bootblocks, boot -s, and then do
+		fsck -p
+		mount -u /
+		mount -a
+		cd src
+		adjkerntz -i		# if CMOS is wall time
+	Also, when doing a major release upgrade, it is required that
+	you boot into single user mode to do the installworld.
+
+	[4] Note: This step is non-optional.  Failure to do this step
+	can result in a significant reduction in the functionality of the
+	system.  Attempting to do it by hand is not recommended and those
+	that pursue this avenue should read this file carefully, as well
+	as the archives of freebsd-current and freebsd-hackers mailing lists
+	for potential gotchas.
+
+	[5] Usually this step is a noop.  However, from time to time
+	you may need to do this if you get unknown user in the following
+	step.  It never hurts to do it all the time.
+
+	[8] In order to have a kernel that can run the 5.x binaries
+	needed to do an installworld, you must include the COMPAT_FREEBSD5
+	option in your kernel.  Failure to do so may leave you with a system
+	that is hard to boot to recover. A similar kernel option COMPAT_FREEBSD5
+	is required to run the 5.x binaries on more recent kernels.
+
+	Make sure that you merge any new devices from GENERIC since the
+	last time you updated your kernel config file.
+
+	[9] When checking out sources, you must include the -P flag to have
+	cvs prune empty directories.
+
+	If CPUTYPE is defined in your /etc/make.conf, make sure to use the
+	"?=" instead of the "=" assignment operator, so that buildworld can
+	override the CPUTYPE if it needs to.
+
+	MAKEOBJDIRPREFIX must be defined in an environment variable, and
+	not on the command line, or in /etc/make.conf.  buildworld will
+	warn if it is improperly defined.
+FORMAT:
+
+This file contains a list, in reverse chronological order, of major
+breakages in tracking -STABLE.  Not all things will be listed here,
+and it only starts on October 16, 2004.  Updating files can found in
+previous releases if your system is older than this.
+
+Copyright information:
+
+Copyright 1998-2005 M. Warner Losh.  All Rights Reserved.
+
+Redistribution, publication, translation and use, with or without
+modification, in full or in part, in any form or format of this
+document are permitted without further permission from the author.
+
+THIS DOCUMENT IS PROVIDED BY WARNER LOSH ``AS IS'' AND ANY EXPRESS OR
+IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+DISCLAIMED.  IN NO EVENT SHALL WARNER LOSH BE LIABLE FOR ANY DIRECT,
+INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
+(INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
+SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
+STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING
+IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+POSSIBILITY OF SUCH DAMAGE.
+
+If you find this document useful, and you want to, you may buy the
+author a beer.
+
+Contact Warner Losh if you have any questions about your use of
+this document.
+
+$FreeBSD$

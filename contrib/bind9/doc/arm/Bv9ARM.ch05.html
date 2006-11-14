@@ -1,0 +1,115 @@
+<!--
+ - Copyright (C) 2004, 2005 Internet Systems Consortium, Inc. ("ISC")
+ - Copyright (C) 2000-2003 Internet Software Consortium.
+ - 
+ - Permission to use, copy, modify, and distribute this software for any
+ - purpose with or without fee is hereby granted, provided that the above
+ - copyright notice and this permission notice appear in all copies.
+ - 
+ - THE SOFTWARE IS PROVIDED "AS IS" AND ISC DISCLAIMS ALL WARRANTIES WITH
+ - REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF MERCHANTABILITY
+ - AND FITNESS. IN NO EVENT SHALL ISC BE LIABLE FOR ANY SPECIAL, DIRECT,
+ - INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING FROM
+ - LOSS OF USE, DATA OR PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE
+ - OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
+ - PERFORMANCE OF THIS SOFTWARE.
+-->
+<!-- $Id: Bv9ARM.ch05.html,v 1.24.2.5.2.12 2005/10/13 02:34:00 marka Exp $ -->
+<html>
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=ISO-8859-1">
+<title>Chapter 5. The BIND 9 Lightweight Resolver</title>
+<meta name="generator" content="DocBook XSL Stylesheets V1.69.1">
+<link rel="start" href="Bv9ARM.html" title="BIND 9 Administrator Reference Manual">
+<link rel="up" href="Bv9ARM.html" title="BIND 9 Administrator Reference Manual">
+<link rel="prev" href="Bv9ARM.ch04.html" title="Chapter 4. Advanced DNS Features">
+<link rel="next" href="Bv9ARM.ch06.html" title="Chapter 6. BIND 9 Configuration Reference">
+</head>
+<body bgcolor="white" text="black" link="#0000FF" vlink="#840084" alink="#0000FF">
+<div class="navheader">
+<table width="100%" summary="Navigation header">
+<tr><th colspan="3" align="center">Chapter 5. The <span class="acronym">BIND</span> 9 Lightweight Resolver</th></tr>
+<tr>
+<td width="20%" align="left">
+<a accesskey="p" href="Bv9ARM.ch04.html">Prev</a> </td>
+<th width="60%" align="center"> </th>
+<td width="20%" align="right"> <a accesskey="n" href="Bv9ARM.ch06.html">Next</a>
+</td>
+</tr>
+</table>
+<hr>
+</div>
+<div class="chapter" lang="en">
+<div class="titlepage"><div><div><h2 class="title">
+<a name="Bv9ARM.ch05"></a>Chapter 5. The <span class="acronym">BIND</span> 9 Lightweight Resolver</h2></div></div></div>
+<div class="toc">
+<p><b>Table of Contents</b></p>
+<dl>
+<dt><span class="sect1"><a href="Bv9ARM.ch05.html#id2550652">The Lightweight Resolver Library</a></span></dt>
+<dt><span class="sect1"><a href="Bv9ARM.ch05.html#lwresd">Running a Resolver Daemon</a></span></dt>
+</dl>
+</div>
+<div class="sect1" lang="en">
+<div class="titlepage"><div><div><h2 class="title" style="clear: both">
+<a name="id2550652"></a>The Lightweight Resolver Library</h2></div></div></div>
+<p>Traditionally applications have been linked with a stub resolver
+library that sends recursive DNS queries to a local caching name
+server.</p>
+<p>IPv6 once introduced new complexity into the resolution process,
+such as following A6 chains and DNAME records, and simultaneous
+lookup of IPv4 and IPv6 addresses.  Though most of the complexity was
+then removed, these are hard or impossible
+to implement in a traditional stub resolver.</p>
+<p>Instead, <span class="acronym">BIND</span> 9 provides resolution services to local clients
+using a combination of a lightweight resolver library and a resolver
+daemon process running on the local host.  These communicate using
+a simple UDP-based protocol, the "lightweight resolver protocol"
+that is distinct from and simpler than the full DNS protocol.</p>
+</div>
+<div class="sect1" lang="en">
+<div class="titlepage"><div><div><h2 class="title" style="clear: both">
+<a name="lwresd"></a>Running a Resolver Daemon</h2></div></div></div>
+<p>To use the lightweight resolver interface, the system must
+run the resolver daemon <span><strong class="command">lwresd</strong></span> or a local
+name server configured with a <span><strong class="command">lwres</strong></span> statement.</p>
+<p>By default, applications using the lightweight resolver library will make
+UDP requests to the IPv4 loopback address (127.0.0.1) on port 921.  The
+address can be overridden by <span><strong class="command">lwserver</strong></span> lines in
+<code class="filename">/etc/resolv.conf</code>.</p>
+<p>The daemon currently only looks in the DNS, but in the future
+it may use other sources such as <code class="filename">/etc/hosts</code>,
+NIS, etc.</p>
+<p>The <span><strong class="command">lwresd</strong></span> daemon is essentially a
+caching-only name server that responds to requests using the lightweight
+resolver protocol rather than the DNS protocol.  Because it needs
+to run on each host, it is designed to require no or minimal configuration.
+Unless configured otherwise, it uses the name servers listed on
+<span><strong class="command">nameserver</strong></span> lines in <code class="filename">/etc/resolv.conf</code>
+as forwarders, but is also capable of doing the resolution autonomously if
+none are specified.</p>
+<p>The <span><strong class="command">lwresd</strong></span> daemon may also be configured with a
+<code class="filename">named.conf</code> style configuration file, in
+<code class="filename">/etc/lwresd.conf</code> by default.  A name server may also
+be configured to act as a lightweight resolver daemon using the
+<span><strong class="command">lwres</strong></span> statement in <code class="filename">named.conf</code>.</p>
+</div>
+</div>
+<div class="navfooter">
+<hr>
+<table width="100%" summary="Navigation footer">
+<tr>
+<td width="40%" align="left">
+<a accesskey="p" href="Bv9ARM.ch04.html">Prev</a> </td>
+<td width="20%" align="center"> </td>
+<td width="40%" align="right"> <a accesskey="n" href="Bv9ARM.ch06.html">Next</a>
+</td>
+</tr>
+<tr>
+<td width="40%" align="left" valign="top">Chapter 4. Advanced DNS Features </td>
+<td width="20%" align="center"><a accesskey="h" href="Bv9ARM.html">Home</a></td>
+<td width="40%" align="right" valign="top"> Chapter 6. <span class="acronym">BIND</span> 9 Configuration Reference</td>
+</tr>
+</table>
+</div>
+</body>
+</html>

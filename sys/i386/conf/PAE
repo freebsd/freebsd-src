@@ -1,0 +1,107 @@
+#
+# PAE -- Generic kernel configuration file for FreeBSD/i386 PAE
+#
+# $FreeBSD$
+
+include GENERIC
+
+ident		PAE-GENERIC
+
+# To make a PAE kernel, the next option is needed
+options		PAE			# Physical Address Extensions Kernel
+
+# Compile acpi in statically since the module isn't built properly.  Most
+# machines which support large amounts of memory require acpi.
+device		acpi
+
+# Don't build modules with this kernel config, since they are not built with
+# the correct options headers.
+makeoptions	NO_MODULES=yes
+
+# What follows is a list of drivers that are normally in GENERIC, but either
+# don't work or are untested with PAE.  Be very careful before enabling any
+# of these drivers.  Drivers which use DMA and don't handle 64 bit physical
+# address properly may cause data corruption when used in a machine with more
+# than 4 gigabytes of memory.
+
+nodevice	ahb
+nodevice	amd
+nodevice	sym
+nodevice	trm
+
+nodevice	adv
+nodevice	adw
+nodevice	aha
+nodevice	aic
+nodevice	bt
+
+nodevice	ncv
+nodevice	nsp
+nodevice	stg
+
+nodevice	asr
+nodevice	dpt
+nodevice	mly
+nodevice	hptmv
+
+nodevice	ida
+nodevice	mlx
+nodevice	pst
+
+nodevice	agp
+
+nodevice	de
+nodevice	txp
+nodevice	vx
+
+nodevice	nve
+nodevice	pcn
+nodevice	sf
+nodevice	sis
+nodevice	ste
+nodevice	tl
+nodevice	tx
+nodevice	vr
+nodevice	wb
+
+nodevice	cs
+nodevice	ed
+nodevice	ex
+nodevice	ep
+nodevice	fe
+nodevice	ie
+nodevice	lnc
+nodevice	sn
+nodevice	xe
+
+nodevice	wlan
+nodevice	wlan_wep	# 802.11 WEP support
+nodevice	wlan_ccmp	# 802.11 CCMP support
+nodevice	wlan_tkip	# 802.11 TKIP support
+nodevice	an
+nodevice	ath		# Atheros pci/cardbus NIC's
+nodevice	ath_hal		# Atheros HAL (Hardware Access Layer)
+nodevice	ath_rate_sample	# SampleRate tx rate control for ath
+nodevice	awi
+nodevice	ral
+nodevice	wi
+
+nodevice	uhci
+nodevice	ohci
+nodevice	ehci
+nodevice	usb
+nodevice	ugen
+nodevice	uhid
+nodevice	ukbd
+nodevice	ulpt
+nodevice	umass
+nodevice	ums
+nodevice	ural
+nodevice	urio
+nodevice	uscanner
+nodevice	aue
+nodevice	axe
+nodevice	cdce
+nodevice	cue
+nodevice	kue
+nodevice	rue

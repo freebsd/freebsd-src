@@ -1,0 +1,218 @@
+=head1 NAME
+
+VI - VI module within perl embedded nvi
+
+=head1 SYNOPSIS
+
+    sub wc {
+      my $words;
+      $i = $VI::StartLine;
+      while ($i <= $VI::StopLine) {
+        $_ = VI::GetLine($VI::ScreenId, $i++);
+        $words+=split;
+      }
+      VI::Msg($VI::ScreenId,"$words words");
+    }
+
+=head1 DESCRIPTION
+
+This pseudo module is available to perl programs run from within nvi and
+provides access to the files being edited and some internal data.
+
+Beware that you should not use this module from within a C<perldo> or
+from within an C<END> block or a C<DESTROY> method.
+
+=head2 Variables
+
+These are set by nvi before starting each perl command.
+
+=over 8
+
+=item * $ScreenId
+
+Screen id of the current screen.
+
+=item * $StartLine
+
+Line number of the first line of the selected range or of the file if no
+range was specified.
+
+=item * $StopLine
+
+Line number of the last line of the selected range or of the file if no
+range was specified.
+
+=back
+
+=head2 Functions
+
+=over 8
+
+=item * AppendLine
+
+    VI::AppendLine(screenId,lineNumber,text);
+
+Append the string text after the line in lineNumber.
+
+=item * DelLine
+
+    VI::DelLine(screenId,lineNum);
+
+Delete lineNum.
+
+=item * EndScreen
+
+VI::EndScreen(screenId);
+
+End a screen.
+
+=item * FindScreen
+
+    VI::FindScreen(file);
+
+Return the screen id associated with file name.
+
+=item * GetCursor
+
+    ($line, $column) = VI::GetCursor(screenId);
+
+Return the current cursor position as a list with two elements.
+
+=item * GetLine
+
+    VI::GetLine(screenId,lineNumber);
+
+Return lineNumber.
+
+=item * GetMark
+
+    ($line, $column) = VI::GetMark(screenId,mark);
+
+Return the mark's cursor position as a list with two elements.
+
+=item * GetOpt
+
+    VI::GetOpt(screenId,option);
+
+Return the value of an option.
+
+=item * InsertLine
+
+    VI::InsertLine(screenId,lineNumber,text);
+
+Insert the string text before the line in lineNumber.
+
+=item * LastLine
+
+    VI::LastLine(screenId);
+
+Return the last line in the screen.
+
+=item * MapKey
+
+    VI::MapKey(screenId,key,perlproc);
+
+Associate a key with a perl procedure.
+
+=item * Msg
+
+    VI::Msg(screenId,text);
+
+Set the message line to text.
+
+=item * NewScreen
+
+    VI::NewScreen(screenId);
+    VI::NewScreen(screenId,file);
+
+Create a new screen.  If a filename is specified then the screen is
+opened with that file.
+
+=item * Run
+
+    VI::Run(screenId,cmd);
+
+Run the ex command cmd.
+
+=item * SetCursor
+
+    VI::SetCursor(screenId,line,column);
+
+Set the cursor to the line and column numbers supplied.
+
+=item * SetLine
+
+    VI::SetLine(screenId,lineNumber,text);
+
+Set lineNumber to the text supplied.
+
+=item * SetMark
+
+    VI::SetMark(screenId,mark,line,column);
+
+Set the mark to the line and column numbers supplied.
+
+=item * SetOpt
+
+    VI::SetOpt(screenId,command);
+
+Set an option.
+
+=item * SwitchScreen
+
+    VI::SwitchScreen(screenId,screenId);
+
+Change the current focus to screen.
+
+=item * UnmapKey
+
+    VI::UnmmapKey(screenId,key);
+
+Unmap a key.
+
+=item * Warn
+
+This is the default warning handler.
+It adds any warnings to the error string.
+
+=back
+
+=head1 EXAMPLES
+
+    sub showmarks {
+      my ($mark, $all);
+      for $mark ('a' .. 'z') {
+        eval {VI::GetMark($VI::ScreenId, $mark)};
+        $all .= $mark unless ($@);
+      }
+      VI::Msg($VI::ScreenId,"Set marks: $all");
+    }
+
+    sub forall {
+      my ($code) = shift;
+      my ($i) = $VI::StartLine-1;
+      while (++$i <= $VI::StopLine) {
+        $_ = VI::GetLine($VI::ScreenId, $i);
+        VI::SetLine($VI::ScreenId, $i, $_) if(&$code);
+      }
+    }
+
+Now you can do
+
+    :perl forall sub{s/perlre/substitution/}
+
+Although you'll probably use
+
+    :perldo s/perlre/substitution/
+
+instead.
+
+See L<perlre> for perl regular expressions.
+
+=head1 SEE ALSO
+
+L<nviperl>
+
+=head1 AUTHOR
+
+Sven Verdoolaege <skimo@dns.ufsia.ac.be>

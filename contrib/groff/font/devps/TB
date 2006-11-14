@@ -1,0 +1,460 @@
+name TB
+internalname Times-Bold
+spacewidth 250
+encoding text.enc
+ligatures fi fl 0
+kernpairs
+A y -74
+A w -90
+A v -100
+A u -50
+A ' -74
+A cq -74
+A p -25
+A Y -100
+A W -130
+A V -145
+A U -50
+A T -95
+A Q -45
+A O -45
+A G -55
+A C -55
+B U -10
+B A -30
+D . -20
+D Y -40
+D W -40
+D V -40
+D A -35
+F . -110
+F o -25
+F e -25
+F , -92
+F a -25
+F A -90
+J u -15
+J . -20
+J o -15
+J e -15
+J a -15
+J A -30
+K y -45
+K u -15
+K o -25
+K e -25
+K O -30
+L y -55
+L ' -110
+L cq -110
+L rq -20
+L Y -92
+L W -92
+L V -92
+L T -92
+N A -20
+O Y -50
+O X -40
+O W -50
+O V -50
+O T -40
+O A -40
+P . -110
+P o -20
+P e -20
+P , -92
+P a -10
+P A -74
+Q . -20
+Q U -10
+R Y -35
+R W -35
+R V -55
+R U -30
+R T -40
+R O -30
+T y -74
+T w -74
+T u -92
+T ; -74
+T r -74
+T . -90
+T o -92
+T i -18
+T - -92
+T hy -92
+T e -92
+T , -74
+T : -74
+T a -92
+T O -18
+T A -90
+U . -50
+U , -50
+U A -60
+V u -92
+V ; -92
+V . -145
+V o -100
+V i -37
+V - -74
+V hy -74
+V e -100
+V , -129
+V : -92
+V a -92
+V O -45
+V G -30
+V A -135
+W y -60
+W u -50
+W ; -55
+W . -92
+W o -75
+W i -18
+W - -37
+W hy -37
+W e -65
+W , -92
+W : -55
+W a -65
+W O -10
+W A -120
+Y u -92
+Y ; -92
+Y . -92
+Y o -111
+Y i -37
+Y - -92
+Y hy -92
+Y e -111
+Y , -92
+Y : -92
+Y a -85
+Y O -35
+Y A -110
+a v -25
+b v -15
+b u -20
+b . -40
+b b -10
+, ' -55
+, cq -55
+, rq -45
+d w -15
+e v -15
+f ' 55
+f cq 55
+f rq 50
+f . -15
+f o -25
+f i -25
+f .i -35
+f , -15
+g . -15
+h y -15
+i v -10
+k y -15
+k o -15
+k e -10
+n v -40
+o w -10
+o v -10
+. ' -55
+. cq -55
+. rq -55
+lq A -10
+` ` -63
+` oq -63
+oq ` -63
+oq oq -63
+` A -10
+oq A -10
+' v -20
+cq v -20
+' u0020 -74
+cq u0020 -74
+' s -37
+cq s -37
+' r -20
+cq r -20
+' ' -63
+' cq -63
+cq ' -63
+cq cq -63
+' d -20
+cq d -20
+r v -10
+r q -18
+r . -100
+r p -10
+r o -18
+r n -15
+r - -37
+r hy -37
+r g -10
+r e -18
+r , -92
+r c -18
+u0020 Y -55
+u0020 W -30
+u0020 V -45
+u0020 T -30
+u0020 A -55
+v . -70
+v o -10
+v e -10
+v , -55
+v a -10
+w . -70
+w o -10
+w , -55
+y . -70
+y o -25
+y e -10
+y , -55
+charset
+ha	581,676	2	0	asciicircum
+ti	520,333	0	1	asciitilde
+vS	556,914,19	2	2	Scaron
+vZ	667,914	2	3	Zcaron
+vs	389,704,14	2	4	scaron
+vz	444,704	2	5	zcaron
+:Y	722,877	2	6	Ydieresis
+tm	1000,676	2	7	trademark
+aq	278,691	2	8	quotesingle
+space	250	0	32	space
+!	333,691,13	2	33	exclam
+"	555,691	2	34	quotedbl
+dq	"
+#	500,700	2	35	numbersign
+sh	"
+$	500,750,99	2	36	dollar
+Do	"
+%	1000,692,14	2	37	percent
+&	833,691,16	2	38	ampersand
+'	333,691	2	39	quoteright
+cq	"
+(	333,694,168	2	40	parenleft
+)	333,694,168	2	41	parenright
+*	500,691	2	42	asterisk
++	570,506	0	43	plus
+,	250,155,180	0	44	comma
+-	333,287	0	45	hyphen
+hy	"
+.	250,156,13	0	46	period
+/	278,691,19,24,24	2	47	slash
+sl	"
+0	500,688,13	2	48	zero
+1	500,688	2	49	one
+2	500,688	2	50	two
+3	500,688,14	2	51	three
+4	500,688	2	52	four
+5	500,676,8	2	53	five
+6	500,688,13	2	54	six
+7	500,676	2	55	seven
+8	500,688,13	2	56	eight
+9	500,688,13	2	57	nine
+:	333,472,13	0	58	colon
+;	333,472,180	0	59	semicolon
+<	570,514,8	0	60	less
+=	570,399	0	61	equal
+>	570,514,8	0	62	greater
+?	500,689,13	2	63	question
+@	930,691,19	2	64	at
+at	"
+A	722,690	2	65	A
+B	667,676	2	66	B
+C	722,691,19	2	67	C
+D	722,676	2	68	D
+E	667,676	2	69	E
+F	611,676	2	70	F
+G	778,691,19	2	71	G
+H	778,676	2	72	H
+I	389,676	2	73	I
+J	500,676,96	2	74	J
+K	778,676	2	75	K
+L	667,676	2	76	L
+M	944,676	2	77	M
+N	722,676,18	2	78	N
+O	778,691,19	2	79	O
+P	611,676	2	80	P
+Q	778,691,176	2	81	Q
+R	722,676	2	82	R
+S	556,692,19	2	83	S
+T	667,676	2	84	T
+U	722,676,19	2	85	U
+V	722,676,18	2	86	V
+W	1000,676,15	2	87	W
+X	722,676	2	88	X
+Y	722,676	2	89	Y
+Z	667,676	2	90	Z
+[	333,678,149	2	91	bracketleft
+lB	"
+\	278,691,19,25,25	2	92	backslash
+rs	"
+]	333,678,149	2	93	bracketright
+rB	"
+a^	333,704,0,2,2	2	94	circumflex
+^	"
+_	500,0,125	0	95	underscore
+`	333,691	2	96	quoteleft
+oq	"
+a	500,473,14	0	97	a
+b	556,676,14	2	98	b
+c	444,473,14	0	99	c
+d	556,676,14	2	100	d
+e	444,473,14	0	101	e
+f	333,691,0,56	2	102	f
+g	500,473,206	1	103	g
+h	556,676	2	104	h
+i	278,691	2	105	i
+j	333,691,203,0,57	3	106	j
+k	556,676	2	107	k
+l	278,676	2	108	l
+m	833,473	0	109	m
+n	556,473	0	110	n
+o	500,473,14	0	111	o
+p	556,473,205	1	112	p
+q	556,473,205	1	113	q
+r	444,473	0	114	r
+s	389,473,14	0	115	s
+t	333,630,12	2	116	t
+u	556,461,14	0	117	u
+v	500,461,14	0	118	v
+w	722,461,14	0	119	w
+x	500,461	0	120	x
+y	500,461,205	1	121	y
+z	444,461	0	122	z
+lC	394,698,175	2	123	braceleft
+{	"
+ba	220,691,19	2	124	bar
+|	"
+rC	394,698,175	2	125	braceright
+}	"
+a~	333,674,0,16,16	2	126	tilde
+~	"
+bq	333,155,180	0	128	quotesinglbase
+Fo	500,415	0	129	guillemotleft
+Fc	500,415	0	130	guillemotright
+bu	350,478	0	131	bullet
+Fn	500,706,155	2	132	florin
+f/	167,688,12,162,168	2	133	fraction
+%0	1000,706,29	2	134	perthousand
+dg	500,691,134	2	135	dagger
+dd	500,691,132	2	136	daggerdbl
+en	500,271	0	137	endash
+em	1000,271	0	138	emdash
+fi	556,691	2	140	fi
+fl	556,691	2	141	fl
+.i	278,461	0	144	dotlessi
+ga	333,713	2	146	grave
+a"	333,713,0,92,13	2	147	hungarumlaut
+a.	333,667	2	148	dotaccent
+ab	333,691	2	149	breve
+ah	333,704,0,2,2	2	150	caron
+ao	333,740	2	151	ring
+ho	333,44,173	0	152	ogonek
+lq	500,691	2	153	quotedblleft
+rq	500,691	2	154	quotedblright
+oe	722,473,14	0	155	oe
+/l	278,676,0,25,22	2	156	lslash
+Bq	500,155,180	0	157	quotedblbase
+OE	1000,684,5	2	158	OE
+/L	667,676	2	159	Lslash
+r!	333,501,203	1	161	exclamdown
+ct	500,588,140	0	162	cent
+Po	500,684,14	2	163	sterling
+Cs	500,613,0,26,26	0	164	currency
+Ye	500,676,0,47,64	2	165	yen
+bb	220,691,19	2	166	brokenbar
+sc	500,691,132	2	167	section
+ad	333,667,0,2,2	2	168	dieresis
+co	747,691,19	2	169	copyright
+Of	300,688,0,1,1	2	170	ordfeminine
+fo	333,415	0	171	guilsinglleft
+tno	570,399	0	172	logicalnot
+\-	570,297	0	173	minus
+rg	747,691,19	2	174	registered
+a-	333,637	2	175	macron
+de	400,688	2	176	degree
+t+-	570,506	0	177	plusminus
+S2	300,688	2	178	twosuperior
+S3	300,688	2	179	threesuperior
+aa	333,713	2	180	acute
+mc	556,461,206	1	181	mu
+ps	540,676,186	2	182	paragraph
+pc	250,417	0	183	periodcentered
+ac	333,0,218	1	184	cedilla
+S1	300,688	2	185	onesuperior
+Om	330,688	2	186	ordmasculine
+fc	333,415	0	187	guilsinglright
+14	750,688,12	2	188	onequarter
+12	750,688,12,25,7	2	189	onehalf
+34	750,688,12	2	190	threequarters
+r?	500,501,201	0	191	questiondown
+`A	722,923	2	192	Agrave
+'A	722,923	2	193	Aacute
+^A	722,914	2	194	Acircumflex
+~A	722,884	2	195	Atilde
+:A	722,877	2	196	Adieresis
+oA	722,935	2	197	Aring
+AE	1000,676	2	198	AE
+,C	722,691,218	3	199	Ccedilla
+`E	667,923	2	200	Egrave
+'E	667,923	2	201	Eacute
+^E	667,914	2	202	Ecircumflex
+:E	667,877	2	203	Edieresis
+`I	389,923	2	204	Igrave
+'I	389,923	2	205	Iacute
+^I	389,914	2	206	Icircumflex
+:I	389,877	2	207	Idieresis
+-D	722,676	2	208	Eth
+~N	722,884,18	2	209	Ntilde
+`O	778,923,19	2	210	Ograve
+'O	778,923,19	2	211	Oacute
+^O	778,914,19	2	212	Ocircumflex
+~O	778,884,19	2	213	Otilde
+:O	778,877,19	2	214	Odieresis
+tmu	570,490	0	215	multiply
+/O	778,737,74	2	216	Oslash
+`U	722,923,19	2	217	Ugrave
+'U	722,923,19	2	218	Uacute
+^U	722,914,19	2	219	Ucircumflex
+:U	722,877,19	2	220	Udieresis
+'Y	722,928	2	221	Yacute
+TP	611,676	2	222	Thorn
+ss	556,691,12	2	223	germandbls
+`a	500,713,14	2	224	agrave
+'a	500,713,14	2	225	aacute
+^a	500,704,14	2	226	acircumflex
+~a	500,674,14	2	227	atilde
+:a	500,667,14	2	228	adieresis
+oa	500,740,14	2	229	aring
+ae	722,473,14	0	230	ae
+,c	444,473,218	1	231	ccedilla
+`e	444,713,14	2	232	egrave
+'e	444,713,14	2	233	eacute
+^e	444,704,14	2	234	ecircumflex
+:e	444,667,14	2	235	edieresis
+`i	278,713,0,0,26	2	236	igrave
+'i	278,713,0,12	2	237	iacute
+^i	278,704,0,23,36	2	238	icircumflex
+:i	278,667,0,23,36	2	239	idieresis
+Sd	500,691,14	2	240	eth
+~n	556,674	2	241	ntilde
+`o	500,713,14	2	242	ograve
+'o	500,713,14	2	243	oacute
+^o	500,704,14	2	244	ocircumflex
+~o	500,674,14	2	245	otilde
+:o	500,667,14	2	246	odieresis
+tdi	570,537,31	0	247	divide
+/o	500,549,92	0	248	oslash
+`u	556,713,14	2	249	ugrave
+'u	556,713,14	2	250	uacute
+^u	556,704,14	2	251	ucircumflex
+:u	556,667,14	2	252	udieresis
+'y	500,713,205	3	253	yacute
+Tp	556,676,205	3	254	thorn
+:y	500,667,205	3	255	ydieresis
+u2026	1000,156,13	0	256	ellipsis

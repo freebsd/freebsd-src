@@ -1,0 +1,57 @@
+.\" Copyright (c) 2003 Alexey Zelkin <phantom@FreeBSD.org>
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd February 13, 2003
+.Dt PTHREAD_SET_NAME_NP 3
+.Os
+.Sh NAME
+.Nm pthread_set_name_np
+.Nd set the thread name
+.Sh LIBRARY
+.Lb libc_r
+.Lb libpthread
+.Lb libthr
+.Sh SYNOPSIS
+.In pthread_np.h
+.Ft void
+.Fn pthread_set_name_np "pthread_t tid" "const char *name"
+.Sh DESCRIPTION
+The
+.Fn pthread_set_name_np
+function sets internal name for thread specified by
+.Fa tid
+argument to string value specified by
+.Fa name
+argument.
+.Pp
+This is a debugging interface and using it on a day-by-day basis makes
+no sense.
+.Sh ERRORS
+Because of the debugging nature of this function, all errors that may
+appear inside are silently ignored.
+.Sh AUTHORS
+This manual page was written by
+.An Alexey Zelkin Aq phantom@FreeBSD.org .

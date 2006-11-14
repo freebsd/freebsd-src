@@ -1,0 +1,341 @@
+.\" Copyright (c) 2003-2004 Tim Kientzle
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd December 15, 2003
+.Dt archive_entry 3
+.Os
+.Sh NAME
+.Nm archive_entry_acl_add_entry ,
+.Nm archive_entry_acl_add_entry_w ,
+.Nm archive_entry_acl_clear ,
+.Nm archive_entry_acl_count ,
+.Nm archive_entry_acl_next ,
+.Nm archive_entry_acl_next_w ,
+.Nm archive_entry_acl_reset ,
+.Nm archive_entry_acl_text_w ,
+.Nm archive_entry_atime ,
+.Nm archive_entry_atime_nsec ,
+.Nm archive_entry_clear ,
+.Nm archive_entry_clone ,
+.Nm archive_entry_copy_fflags_text_w ,
+.Nm archive_entry_copy_gname_w ,
+.Nm archive_entry_copy_hardlink ,
+.Nm archive_entry_copy_hardlink_w ,
+.Nm archive_entry_copy_pathname_w ,
+.Nm archive_entry_copy_stat ,
+.Nm archive_entry_copy_symlink_w ,
+.Nm archive_entry_copy_uname_w ,
+.Nm archive_entry_dev ,
+.Nm archive_entry_fflags ,
+.Nm archive_entry_fflags_text ,
+.Nm archive_entry_free ,
+.Nm archive_entry_gid ,
+.Nm archive_entry_gname ,
+.Nm archive_entry_hardlink ,
+.Nm archive_entry_ino ,
+.Nm archive_entry_mode ,
+.Nm archive_entry_mtime ,
+.Nm archive_entry_mtime_nsec ,
+.Nm archive_entry_new ,
+.Nm archive_entry_pathname ,
+.Nm archive_entry_pathname_w ,
+.Nm archive_entry_rdev ,
+.Nm archive_entry_rdevmajor ,
+.Nm archive_entry_rdevminor ,
+.Nm archive_entry_set_fflags ,
+.Nm archive_entry_set_gid ,
+.Nm archive_entry_set_gname ,
+.Nm archive_entry_set_hardlink ,
+.Nm archive_entry_set_link ,
+.Nm archive_entry_set_mode ,
+.Nm archive_entry_set_mtime ,
+.Nm archive_entry_set_pathname ,
+.Nm archive_entry_set_rdevmajor ,
+.Nm archive_entry_set_rdevminor ,
+.Nm archive_entry_set_size ,
+.Nm archive_entry_set_symlink ,
+.Nm archive_entry_set_uid ,
+.Nm archive_entry_set_uname ,
+.Nm archive_entry_size ,
+.Nm archive_entry_stat ,
+.Nm archive_entry_symlink ,
+.Nm archive_entry_uid ,
+.Nm archive_entry_uname
+.Nd functions for manipulating archive entry descriptions
+.Sh SYNOPSIS
+.In archive_entry.h
+.Ft void
+.Fn archive_entry_acl_add_entry "struct archive_entry *" "int type" "int permset" "int tag" "int qual" "const char *name"
+.Ft void
+.Fn archive_entry_acl_add_entry_w "struct archive_entry *" "int type" "int permset" "int tag" "int qual" "const wchar_t *name"
+.Ft void
+.Fn archive_entry_acl_clear "struct archive_entry *"
+.Ft int
+.Fn archive_entry_acl_count "struct archive_entry *" "int type"
+.Ft int
+.Fn archive_entry_acl_next "struct archive_entry *" "int want_type" "int *type" "int *permset" "int *tag" "int *qual" "const char **name"
+.Ft int
+.Fn archive_entry_acl_next_w "struct archive_entry *" "int want_type" "int *type" "int *permset" "int *tag" "int *qual" "const wchar_t **name"
+.Ft int
+.Fn archive_entry_acl_reset "struct archive_entry *" "int want_type"
+.Ft const wchar_t *
+.Fn archive_entry_acl_text_w "struct archive_entry *" "int flags"
+.Ft time_t
+.Fn archive_entry_atime "struct archive_entry *"
+.Ft long
+.Fn archive_entry_atime_nsec "struct archive_entry *"
+.Ft "struct archive_entry *"
+.Fn archive_entry_clear "struct archive_entry *"
+.Ft struct archive_entry *
+.Fn archive_entry_clone "struct archive_entry *"
+.Ft const wchar_t *
+.Fn archive_entry_copy_fflags_text_w "struct archive_entry *" "const wchar_t *"
+.Ft void
+.Fn archive_entry_copy_gname_w "struct archive_entry *" "const wchar_t *"
+.Ft void
+.Fn archive_entry_copy_hardlink "struct archive_entry *" "const char *"
+.Ft void
+.Fn archive_entry_copy_hardlink_w "struct archive_entry *" "const wchar_t *"
+.Ft void
+.Fn archive_entry_copy_pathname_w "struct archive_entry *" "const wchar_t *"
+.Ft void
+.Fn archive_entry_copy_stat "struct archive_entry *" "const struct stat *"
+.Ft void
+.Fn archive_entry_copy_symlink_w "struct archive_entry *" "const wchar_t *"
+.Ft void
+.Fn archive_entry_copy_uname_w "struct archive_entry *" "const wchar_t *"
+.Ft dev_t
+.Fn archive_entry_dev "struct archive_entry *"
+.Ft void
+.Fn archive_entry_fflags "struct archive_entry *" "unsigned long *set" "unsigned long *clear"
+.Ft const char *
+.Fn archive_entry_fflags_text "struct archive_entry *"
+.Ft void
+.Fn archive_entry_free "struct archive_entry *"
+.Ft const char *
+.Fn archive_entry_gname "struct archive_entry *"
+.Ft const char *
+.Fn archive_entry_hardlink "struct archive_entry *"
+.Ft ino_t
+.Fn archive_entry_ino "struct archive_entry *"
+.Ft mode_t
+.Fn archive_entry_mode "struct archive_entry *"
+.Ft time_t
+.Fn archive_entry_mtime "struct archive_entry *"
+.Ft long
+.Fn archive_entry_mtime_nsec "struct archive_entry *"
+.Ft struct archive_entry *
+.Fn archive_entry_new "void"
+.Ft const char *
+.Fn archive_entry_pathname "struct archive_entry *"
+.Ft const wchar_t *
+.Fn archive_entry_pathname_w "struct archive_entry *"
+.Ft dev_t
+.Fn archive_entry_rdev "struct archive_entry *"
+.Ft dev_t
+.Fn archive_entry_rdevmajor "struct archive_entry *"
+.Ft dev_t
+.Fn archive_entry_rdevminor "struct archive_entry *"
+.Ft void
+.Fn archive_entry_set_fflags "struct archive_entry *" "unsigned long set" "unsigned long clear"
+.Ft void
+.Fn archive_entry_set_gid "struct archive_entry *" "gid_t"
+.Ft void
+.Fn archive_entry_set_gname "struct archive_entry *" "const char *"
+.Ft void
+.Fn archive_entry_set_hardlink "struct archive_entry *" "const char *"
+.Ft void
+.Fn archive_entry_set_link "struct archive_entry *" "const char *"
+.Ft void
+.Fn archive_entry_set_mode "struct archive_entry *" "mode_t"
+.Ft void
+.Fn archive_entry_set_mtime "struct archive_entry *" "time_t" "long nanos"
+.Ft void
+.Fn archive_entry_set_pathname "struct archive_entry *" "const char *"
+.Ft void
+.Fn archive_entry_set_rdevmajor "struct archive_entry *" "dev_t"
+.Ft void
+.Fn archive_entry_set_rdevminor "struct archive_entry *" "dev_t"
+.Ft void
+.Fn archive_entry_set_size "struct archive_entry *" "int64_t"
+.Ft void
+.Fn archive_entry_set_symlink "struct archive_entry *" "const char *"
+.Ft void
+.Fn archive_entry_set_uid "struct archive_entry *" "uid_t"
+.Ft void
+.Fn archive_entry_set_uname "struct archive_entry *" "const char *"
+.Ft int64_t
+.Fn archive_entry_size "struct archive_entry *"
+.Ft const struct stat *
+.Fn archive_entry_stat "struct archive_entry *"
+.Ft const char *
+.Fn archive_entry_symlink "struct archive_entry *"
+.Ft const char *
+.Fn archive_entry_uname "struct archive_entry *"
+.Sh DESCRIPTION
+These functions create and manipulate data objects that
+represent entries within an archive.
+You can think of a
+.Tn struct archive_entry
+as a heavy-duty version of
+.Tn struct stat :
+it includes everything from
+.Tn struct stat
+plus associated pathname, textual group and user names, etc.
+These objects are used by
+.Xr libarchive 3
+to represent the metadata associated with a particular
+entry in an archive.
+.Ss Create and Destroy
+There are functions to allocate, destroy, clear, and copy
+.Va archive_entry
+objects:
+.Bl -tag -compact -width indent
+.It Fn archive_entry_clear
+Erases the object, resetting all internal fields to the
+same state as a newly-created object.
+This is provided to allow you to quickly recycle objects
+without thrashing the heap.
+.It Fn archive_entry_clone
+A deep copy operation; all text fields are duplicated.
+.It Fn archive_entry_free
+Releases the
+.Tn struct archive_entry
+object.
+.It Fn archive_entry_new
+Allocate and return a blank
+.Tn struct archive_entry
+object.
+.El
+.Ss Set and Get Functions
+Most of the functions here set or read entries in an object.
+Such functions have one of the following forms:
+.Bl -tag -compact -width indent
+.It Fn archive_entry_set_XXXX
+Stores the provided data in the object.
+In particular, for strings, the pointer is stored,
+not the referenced string.
+.It Fn archive_entry_copy_XXXX
+As above, except that the referenced data is copied
+into the object.
+.It Fn archive_entry_XXXX
+Returns the specified data.
+In the case of strings, a const-qualified pointer to
+the string is returned.
+.El
+String data can be set or accessed as wide character strings
+or normal
+.Va char
+strings.
+The functions that use wide character strings are suffixed with
+.Cm _w .
+Note that these are different representations of the same data:
+For example, if you store a narrow string and read the corresponding
+wide string, the object will transparently convert formats
+using the current locale.
+Similarly, if you store a wide string and then store a
+narrow string for the same data, the previously-set wide string will
+be discarded in favor of the new data.
+.Pp
+There are a few set/get functions that merit additional description:
+.Bl -tag -compact -width indent
+.It Fn archive_entry_set_link
+This function sets the symlink field if it is already set.
+Otherwise, it sets the hardlink field.
+.El
+.Ss File Flags
+File flags are transparently converted between a bitmap
+representation and a textual format.
+For example, if you set the bitmap and ask for text, the library
+will build a canonical text format.
+However, if you set a text format and request a text format,
+you will get back the same text, even if it is ill-formed.
+If you need to canonicalize a textual flags string, you should first set the
+text form, then request the bitmap form, then use that to set the bitmap form.
+Setting the bitmap format will clear the internal text representation
+and force it to be reconstructed when you next request the text form.
+.Pp
+The bitmap format consists of two integers, one containing bits
+that should be set, the other specifying bits that should be
+cleared.
+Bits not mentioned in either bitmap will be ignored.
+Usually, the bitmap of bits to be cleared will be set to zero.
+In unusual circumstances, you can force a fully-specified set
+of file flags by setting the bitmap of flags to clear to the complement
+of the bitmap of flags to set.
+(This differs from
+.Xr fflagstostr 3 ,
+which only includes names for set bits.)
+Converting a bitmap to a textual string is a platform-specific
+operation; bits that are not meaningful on the current platform
+will be ignored.
+.Pp
+The canonical text format is a comma-separated list of flag names.
+The
+.Fn archive_entry_copy_fflags_text_w
+function parses the provided text and sets the internal bitmap values.
+This is a platform-specific operation; names that are not meaningful
+on the current platform will be ignored.
+The function returns a pointer to the start of the first name that was not
+recognized, or NULL if every name was recognized.
+Note that every name--including names that follow an unrecognized name--will
+be evaluated, and the bitmaps will be set to reflect every name that is
+recognized.
+(In particular, this differs from
+.Xr strtofflags 3 ,
+which stops parsing at the first unrecognized name.)
+.Ss ACL Handling
+XXX This needs serious help.
+XXX
+.Pp
+An
+.Dq Access Control List
+(ACL) is a list of permissions that grant access to particular users or
+groups beyond what would normally be provided by standard POSIX mode bits.
+The ACL handling here addresses some deficiencies in the POSIX.1e draft 17 ACL
+specification.
+In particular, POSIX.1e draft 17 specifies several different formats, but
+none of those formats include both textual user/group names and numeric
+UIDs/GIDs.
+.Pp
+XXX explain ACL stuff XXX
+.\" .Sh EXAMPLE
+.\" .Sh RETURN VALUES
+.\" .Sh ERRORS
+.Sh SEE ALSO
+.Xr archive 3
+.Sh HISTORY
+The
+.Nm libarchive
+library first appeared in
+.Fx 5.3 .
+.Sh AUTHORS
+.An -nosplit
+The
+.Nm libarchive
+library was written by
+.An Tim Kientzle Aq kientzle@acm.org .
+.\" .Sh BUGS

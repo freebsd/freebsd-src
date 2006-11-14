@@ -1,0 +1,147 @@
+These are the GNU core utilities.  This package is the union of
+the GNU fileutils, sh-utils, and textutils packages.
+
+Most of these programs have significant advantages over their Unix
+counterparts, such as greater speed, additional options, and fewer
+arbitrary limits.
+
+The programs that can be built with this package are:
+
+  [ basename cat chgrp chmod chown chroot cksum comm cp csplit cut date dd
+  df dir dircolors dirname du echo env expand expr factor false fmt fold
+  ginstall groups head hostid hostname id join kill link ln logname ls
+  md5sum mkdir mkfifo mknod mv nice nl nohup od paste pathchk pinky pr
+  printenv printf ptx pwd readlink rm rmdir seq sha1sum shred sleep sort
+  split stat stty su sum sync tac tail tee test touch tr true tsort tty
+  uname unexpand uniq unlink uptime users vdir wc who whoami yes
+
+See the file NEWS for a list of major changes in the current release.
+
+See the file INSTALL for compilation and installation instructions.
+
+These programs are intended to conform to POSIX (with BSD and other
+extensions), like the rest of the GNU system.  By default they conform
+to older POSIX (1003.2-1992), and therefore support obsolete usages
+like "head -10" and "chown owner.group file".  This default is
+overridden at build-time by the value of <unistd.h>'s _POSIX2_VERSION
+macro, and this in turn can be overridden at runtime as described in
+the documentation under "Standards conformance".
+
+The ls, dir, and vdir commands are all separate executables instead of
+one program that checks argv[0] because people often rename these
+programs to things like gls, gnuls, l, etc.  Renaming a program
+file shouldn't affect how it operates, so that people can get the
+behavior they want with whatever name they want.
+
+Special thanks to Paul Eggert, Brian Matthews, Bruce Evans, Karl Berry,
+Kaveh Ghazi, and François Pinard for help with debugging and porting
+these programs.  Many thanks to all of the people who have taken the
+time to submit problem reports and fixes.  All contributed changes are
+attributed in the ChangeLog file.
+
+And thanks to the following people who have provided accounts for
+portability testing on many different types of systems: Bob Proulx,
+Christian Robert, François Pinard, Greg McGary, Harlan Stenn,
+Joel N. Weber, Mark D. Roth, Matt Schalit, Nelson H. F. Beebe,
+Réjean Payette, Sam Tardieu.
+
+Thanks to Michael Stone for inflicting test releases of the fileutils
+on Debian's unstable distribution, and to all the kind folks who used
+that distribution and found and reported bugs.
+
+Note that each man page is now automatically generated from a template
+and from the corresponding --help usage message.  Patches to the template
+files (man/*.x) are welcome.  However, the authoritative documentation
+is in texinfo form in the doc directory.
+
+If you run the tests on a SunOS4.1.4 system, expect the ctime-part of
+the ls `time-1' test to fail.  I believe that is due to a bug in the
+way Sun implemented link(2) and chmod(2).
+
+***************************************
+Last-minute notes, before coreutils-5.0
+---------------------------------------
+
+A known problem exists when compiling on HPUX on both hppa and ia64
+in 64-bit mode (i.e. +DD64) on all known HPUX 11.x versions.  This
+is not due to a bug in the package but instead due to a bug in the
+system header file which breaks things in 64-bit mode.  The default
+compilation mode is 32-bit and the software compiles fine using the
+default mode.  To build this software in 64-bit mode you will need
+to fix the system /usr/include/inttypes.h header file.  After
+correcting that file the software also compiles fine in 64-bit mode.
+Here is one possible patch to correct the problem.
+
+--- /usr/include/inttypes.h.orig	Thu May 30 01:00:00 1996
++++ /usr/include/inttypes.h	Sun Mar 23 00:20:36 2003
+@@ -489 +489 @@
+-#ifndef __STDC_32_MODE__
++#ifndef __LP64__
+
+If you run the tests as root, note that a few of them create files
+and/or run programs as a non-root user, `nobody' by default.
+If you want to use some other non-root username, specify it via
+the NON_ROOT_USERNAME environment variable.  Depending on the
+permissions with which the working directories have been created,
+using `nobody' may fail, because that user won't have the required
+read and write access to the build and test directories.
+I find that it is best to unpack and build as a non-privileged
+user, and then to run the following command as that user in order
+to run the privilege-requiring tests:
+
+  sudo env NON_ROOT_USERNAME=$USER make check
+
+If you can run the tests as root, please do so and report any
+problems.  We get much less test coverage in that mode, and it's
+arguably more important that these tools work well when run by
+root than when run by less privileged users.
+
+***************************************
+
+There are pretty many tests, but nowhere near as many as we need.
+Additions and corrections are very welcome.
+
+If you see a problem that you've already reported, feel free to re-report
+it -- it won't bother me to get a reminder.  Besides, the more messages I
+get regarding a particular problem the sooner it'll be fixed -- usually.
+If you sent a complete patch and, after a couple weeks you haven't
+received any acknowledgement, please ping us.  A complete patch includes
+a well-written ChangeLog entry, unified (diff -u format) diffs relative
+to the most recent test release (or, better, relative to the latest
+sources in the CVS repository), an explanation for why the patch is
+necessary or useful, and if at all possible, enough information to
+reproduce whatever problem prompted it.  Plus, you'll earn lots of
+karma if you include a test case to exercise any bug(s) you fix.
+Instructions for checking out the latest source via CVS are here:
+
+  http://savannah.gnu.org/cvs/?group=coreutils
+
+
+If your patch adds a new feature, please try to get some sort of consensus
+that it is a worthwhile change.  One way to do that is to send mail to
+bug-coreutils@gnu.org including as much description and justification
+as you can.  Based on the feedback that generates, you may be able to
+convince us that it's worth adding.
+
+
+WARNING:  If you modify files like configure.in, m4/*.m4, aclocal.m4,
+or any Makefile.am, then don't be surprised if what gets regenerated no
+longer works.  To make things work, you'll have to be using appropriate
+versions of automake and autoconf.  As for what versions are `appropriate',
+use the versions of
+
+  * autoconf specified via AC_PREREQ in m4/jm-macros.m4
+  * automake specified via AM_INIT_AUTOMAKE in configure.ac
+
+Usually it's fine to use versions that are newer than those specified.
+
+These programs all recognize the `--version' option.  When reporting
+bugs, please include in the subject line both the package name/version
+and the name of the program for which you found a problem.
+
+For general documentation on the coding and usage standards
+this distribution follows, see the GNU Coding Standards,
+http://www.gnu.org/prep/standards_toc.html.
+
+Mail suggestions and bug reports for these programs to
+the address on the last line of --help output.

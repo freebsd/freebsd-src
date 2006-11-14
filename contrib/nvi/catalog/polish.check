@@ -1,0 +1,35 @@
+Unused message id's (this is okay):
+001
+047
+050
+051
+052
+081
+176
+213
+229
+288
+=========================
+MISSING ERROR MESSAGES (Please add!):
+=========================
+Extra error messages (just delete them):
+=========================
+MESSAGES WITH THE SAME MESSAGE ID's (FIX!):
+=========================
+Duplicate messages, both id and message (this is okay):
+=========================
+Duplicate messages, just message (this is okay):
+   2 %s istnieje, nie zapisany; u¿yj ! ¿eby wymusiæX
+   2 %s: %lu linii, %lu znakówX
+   2 %s: b³êdna kopia zapasowaX
+   2 Brak logowania, anulowanie (undo) niemo¿liweX
+   2 Bufor %s jest pustyX
+   2 Nie znaleziono wzorcaX
+   2 Przesuniêcie poza koniec plikuX
+   2 Tworzenie kopii zapasowej...X
+   2 Zmiany nie do odtworzenia, je¶li sesja zostanie przerwanaX
+   2 set: opcja %s nie jest zmienn± boolowsk±X
+   3 %s: usuñX
+   3 Plik zmodyfikowany od ostatniego zapisu; zapisz lub u¿yj ! ¿eby wymusiæX
+   4 Sposób u¿ycia: %sX
+=========================

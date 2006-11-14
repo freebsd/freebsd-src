@@ -1,0 +1,167 @@
+<!--
+	The FreeBSD Russian Documentation Project
+
+	$FreeBSD$
+	$FreeBSDru: frdp/release/doc/ru_RU.KOI8-R/installation/common/layout.sgml,v 1.5 2005/04/14 13:30:11 den Exp $
+
+	Original revision: 1.10
+
+	This section contains the contents of the old LAYOUT.TXT file.
+-->
+<sect1 id="layout">
+  <title>Содержимое дистрибутива</title>
+
+  <para>Типичный каталог дистрибутива &os; выглядит примерно так
+    (детали могут отличаться в зависимости от версии, архитектуры,
+    и других факторов):</para>
+
+<screen>ERRATA.HTM      README.TXT      compat1x        dict            kernel
+ERRATA.TXT      RELNOTES.HTM    compat20        doc             manpages
+HARDWARE.HTM    RELNOTES.TXT    compat21        docbook.css     packages
+HARDWARE.TXT    base            compat22        filename.txt    ports
+INSTALL.HTM     boot            compat3x        floppies        proflibs
+INSTALL.TXT     catpages        compat4x        games           src
+README.HTM      cdrom.inf       crypto          info            tools</screen>
+
+
+  <para>Те же файлы находятся на первом диске мультидискового набора,
+    но расположены там немного по-другому.  Для большинства архитектур
+    на диске с установкой находится также <quote>live filesystem</quote>.
+    Она полезна при восстановлении или решении проблем с существующей
+    установкой &os; (обратитесь к <xref
+    linkend="trouble"> за инструкциями по ее использованию).</para>
+
+  <para>Каталог <filename>floppies</filename> представляет определенный
+    интерес для пользователей, которые не могут выполнить загрузку с
+    компакт-диска (но могут прочитать его содержимое.  Несложно
+    создать набор 1.44Мб загрузочных дискет, воспользовавшись каталогом
+    <filename>floppies</filename> (см. <xref linkend="floppies">), и
+    использовать их для запуска установки с CDROM, FTP, или NFS.
+    Остальные файлы, необходимые для установки, будут
+    получены автоматически на основе вашего выбора.  Если вы никогда раньше
+    не устанавливали &os;, потребуется также полностью прочитать этот
+    документ (файл инструкций по установке).</para>
+
+  <para>Если вы хотите выполнить установку другого типа, или хотите узнать
+    больше об организации дистрибутива, вам поможет нижеследующая
+    более детальная информация:
+    <orderedlist>
+      <listitem>
+	<para>Файлы <filename>*.TXT</filename> и
+	  <filename>*.HTM</filename> содержат документацию
+	  (например, этот документ находится в
+	  <filename>INSTALL.TXT</filename> и
+	  <filename>INSTALL.HTM</filename>), их необходимо прочесть
+	  перед началом установки.  Файлы
+	  <filename>*.TXT</filename> это простой текст, а файлы
+	  <filename>*.HTM</filename> это HTML файлы, которые могут
+	  быть просмотрены практически любым веб браузером.  Некоторые
+	  дистрибутивы могут также содержать документацию в других форматах,
+	  таких как PDF или PostScript.</para>
+      </listitem>
+      <listitem>
+	<para><filename>docbook.css</filename> это файл Cascading Style
+	  Sheet (CSS), используемый некоторыми веб браузерами для форматирования
+	  HTML документации.</para>
+      </listitem>
+      <listitem>
+	<para>Каталоги <filename>base</filename>,
+	  <filename>catpages</filename>,
+	  <filename>crypto</filename>,
+	  <filename>dict</filename>,
+	  <filename>doc</filename>,
+	  <filename>games</filename>,
+	  <filename>info</filename>,
+	  <filename>manpages</filename>,
+	  <filename>proflibs</filename>, и
+	  <filename>src</filename> содержат основные компоненты дистрибутива
+	  &os; и разделены на небольшие файлы, которые могут поместиться на
+	  дискеты (если это потребуется).</para>
+      </listitem>
+      <listitem>
+	<para>Каталоги <filename>compat1x</filename>,
+	  <filename>compat20</filename>,
+	  <filename>compat21</filename>,
+	  <filename>compat22</filename>,
+	  <filename>compat3x</filename>, и
+	  <filename>compat4x</filename> содержат дистрибутивные наборы
+	  совместимости со старыми релизами и находятся в одиночных
+	  упакованных gzip tar файлах &mdash; они могут быть установлены
+	  во время установки релиза или позже путем запуска соответствующих
+	  скриптов <filename>install.sh</filename>.</para>
+      </listitem>
+      <listitem>
+	<para>В каталоге <filename>floppies/</filename> находятся образы
+	  загрузочных дискет; дальнейшая информация по их использованию
+	  дана в <xref linkend="floppies">.</para>
+      </listitem>
+      <listitem>
+	<para>Каталоги <filename>packages</filename> и
+	  <filename>ports</filename> содержат коллекцию пакетов и портов &os;.
+	  Пакеты могут быть установлены из каталога
+	  <filename>packages</filename> следующей командой:</para>
+
+	<screen>&prompt.root;<userinput>/stand/sysinstall configPackages</userinput></screen>
+
+	<para>Пакеты также могут быть установлены путем задания отдельных
+	  имен пакетов в каталоге <filename>packages</filename>/ команде
+	  &man.pkg.add.1;.</para>
+
+	<para>Коллекция портов может быть установлена как любой другой
+	  дистрибутивный набор и требует около 190MB места.  Дальнейшая
+	  информация по коллекции портов может быть получена с
+	  <ulink url="&url.base;/ru/ports/"></ulink>
+	  или локально из <filename>/usr/share/doc/handbook</filename>
+	  если вы установили дистрибутивный набор
+	  <filename>doc</filename>.</para>
+      </listitem>
+      <listitem>
+	<para>Наконец, каталог <filename>tools</filename> содержит различные
+	  утилиты DOS для определения геометрии диска, установки загрузочных
+	  менеджеров и т.п.  Эти утилиты опциональны и предоставляются только
+	  для удобства пользователей.</para>
+      </listitem>
+    </orderedlist>
+  </para>
+
+  <para>Типичный дистрибутивный каталог (например,  <filename>info</filename>)
+    изнутри выглядит примерно так:</para>
+
+<screen>CHECKSUM.MD5    info.ab         info.ad         info.inf        install.sh
+info.aa         info.ac         info.ae         info.mtree</screen>
+
+  <para>Файл <filename>CHECKSUM.MD5</filename> содержит контрольные суммы
+    MD5 для каждого файла, которые помогают определить не поврежден ли файл.
+    Он не используется программой установки и его не требуется копировать
+    вместе с остальными файлами набора.  Файлы <filename>info.a*</filename>
+    это части упакованного gzip tar файла, содержимое которого может
+    быть просмотрено так:</para>
+
+  <screen>&prompt.root; <userinput>cat info.a* | tar tvzf -</userinput></screen>
+
+  <para>Во время установки эти части автоматически объединяются и извлекаются
+    программой установки.</para>
+
+  <para>Файл <filename>info.inf</filename> также необходим, поскольку
+    он читается программой установки для определения числа частей, которые
+    необходимо объединить в дистрибутивный набор.  При помещении
+    дистрибутивных наборов на дискеты, файл <filename>.inf</filename>
+    <emphasis>должен</emphasis> быть помещен на первую дискету каждого
+    дистрибутивного набора!</para>
+
+  <para>Файл <filename>info.mtree</filename> это еще один не-необходимый файл,
+    предоставляемый для информации.  Он содержит контрольные суммы
+    MD5 для <emphasis>распакованных</emphasis> дистрибутивных файлов и
+    в дальнейшем может использоваться программой &man.mtree.8; для проверки
+    возможного изменения файлов.  Использование этого файла из набора
+    <filename>base</filename> это хороший способ обнаружения троянских атак
+    на вашу систему.</para>
+
+  <para>Наконец, <filename>install.sh</filename> предназначен для тех,
+    кто хочет установить дистрибутивный набор после установки системы.
+    Например, для установки набора info с CDROM после установки системы,
+    вы можете выполнить:</para>
+
+  <screen>&prompt.root; <userinput>cd /cdrom/info</userinput>
+&prompt.root; <userinput>sh install.sh</userinput></screen>
+</sect1>

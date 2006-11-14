@@ -1,0 +1,572 @@
+
+	HARP Native ATM Sockets API
+	===========================
+
+ATM sockets are an extension to the traditional BSD sockets API to allow
+direct user-level access to native ATM protocol services.  The ATM sockets
+extensions are implemented via the addition of a new protocol family (PF_ATM)
+and a new socket address structure (struct sockaddr_atm).  
+
+The HARP implementation of native ATM sockets capabilities is intended to be
+conformant with The Open Group specifications (with known differences listed 
+below) as defined in the following document:
+
+	The Open Group: Networking Services (XNS) Issue 5 
+		ISBN 1-85912-165-9
+		http://www.rdg.opengroup.org/public/pubs/catalog/c523.htm
+
+And in particular, it is based on the following ATM-specific sections in the
+above document:
+
+	ATM Transport Protocol Information for Sockets
+	ATM Transport Protocol Information for XTI
+	ATM Transport Headers
+
+The ATM sockets API is an implementation based on the definitions and
+descriptions set forth in the following document:
+
+	The ATM Forum: Native ATM Services: Semantic Description, Version 1.0
+		af-saa-0048.000
+		http://www.atmforum.com/atmforum/specs/approved.html
+
+
+Using the HARP Implementation
+-----------------------------
+This document only provides the HARP-specific information necessary for using 
+the ATM sockets API.  Please refer to the XNS document described above for
+all of the general interface specifications.  There is also sample source
+code for an ATM sockets application included at the end of this document.
+
+All user definitions for the HARP ATM sockets implementation are contained
+in the file /usr/include/netatm/atm.h.  This file must be included in the
+user's C program source file.  In this file, all HARP extensions to the base 
+XNS specifications are denoted with a comment string of "XNS_EXT".
+
+
+HARP Extensions to XNS Issue 5
+------------------------------
+o Socket address structure for ATM addresses
+
+  An ATM socket address structure was not specifically defined by XNS,
+  although the t_atm_sap structure was defined to be used as an ATM protocol
+  address.  Thus, HARP has defined an ATM socket address (using address
+  family AF_ATM) as a 'struct sockaddr_atm', which contains 'struct t_atm_sap'
+  as the protocol address.  This structure (properly cast) must be used on
+  all ATM socket system calls requiring a 'struct sockaddr' parameter.
+
+o Network Interface Selection socket option (T_ATM_NET_INTF)
+
+  This option is used to specify the name of the network interface to be
+  used to route an outgoing ATM call using a socket connection.  This option
+  is only needed when there are multiple ATM network interfaces defined on a
+  system.  If this option is not set, then the first network interface on
+  the first physical ATM interface defined will be used.
+
+  See the sample application below for an example of the use of this option.
+
+o LLC Multiplexing socket option (T_ATM_LLC)
+
+  For LLC encapsulated VCCs (BLLI Layer 2 Protocol == T_ATM_BLLI2_I8802),
+  HARP has implemented an LLC multiplexing facility.  In order to use this
+  multiplexing facility, a user must issue a setsockopt() call specifying the 
+  T_ATM_LLC option before the connect() or listen() system call is invoked.
+
+  If using the LLC multiplexor, the user will only receive PDUs which match
+  the LLC header information specified in the socket option.  The kernel 
+  multiplexing software will strip the LLC header from all inbound PDUs and 
+  add the specified LLC header to all outgoing PDUs - the user will never see 
+  the LLC header.  
+
+  For listening sockets, the listener will be notified for all incoming LLC 
+  calls (which also meet the other incoming call distribution selection 
+  criteria), since the LLC header information is only carried in the data 
+  PDUs, not in the signalling protocol.
+
+  The T_ATM_LLC_SHARING flag is used to denote whether this user wishes to
+  share the VCC with other LLC users requesting similar connection attributes 
+  to the same destination.
+
+o Application Name socket option (T_ATM_APP_NAME)
+
+  This option is used to associate an identifier string (typically, the
+  application's name) with an open ATM socket.  Currently, it is only used 
+  for the "Owner" field in the output of the 'atm show vcc' command.  If this 
+  option is not set, then the "Owner" field will default to "(AAL5)". 
+
+  See the sample application below for an example of the use of this option.
+
+o PVC support
+
+  The XNS document specifically does not provide support for ATM PVCs.
+  However, due in part to internal HARP requirements (the ILMI daemon), PVC
+  sockets are supported under the HARP implementation. 
+
+  To support PVC sockets, there is a new address format (T_ATM_PVC_ADDR) and
+  address definition (Atm_addr_pvc).   Since there is no actual signalling
+  involved in setting up a PVC, a PVC socket connection only defines the
+  local socket-to-pvc connection - the remainder of the virtual circuit through
+  the ATM network to the remote endpoint must be defined independent of the
+  local socket creation.  PVC socket connections are only allowed via the
+  connect() system call - listen()/accept() sockets cannot be supported.
+  Also, since there are no circuit parameters signalled, most of the 
+  setsockopt() options are silently ignored.
+
+o SPANS support
+
+  HARP has added ATM socket support for the FORE-proprietary SPANS address 
+  format (T_ATM_SPANS_ADDR).  A SPANS socket can only be established over 
+  an ATM physical interface which is using the SPANS signalling manager.
+  There is limited ATM socket option support - the socket options can be set, 
+  but most are silently ignored, since they are not applicable to the SPANS 
+  protocols.  The SPANS socket address support has not been thoroughly tested.
+
+o Miscellaneous user convenience typedefs, macros and defines
+
+
+XNS Issue 5 Features Not Supported in HARP
+------------------------------------------
+o ATM_PROTO_SSCOP
+
+  The socket protocol for reliable data transport (ATM_PROTO_SSCOP) is not
+  supported in this HARP release.  There is some initial skeleton code for
+  SSCOP support, but it was not completed.
+
+o Multipoint connections
+
+  The core HARP code does not provide support for multipoint connections, so,
+  obviously, multipoint socket connections are also not supported.  
+
+  The non-supported socket options are:
+	o T_ATM_ADD_LEAF
+	o T_ATM_DROP_LEAF
+	o T_ATM_LEAF_IND
+
+  The non-supported socket option values are:
+	o For the T_ATM_BEARER_CAP socket option:
+		o connection_configuration == T_ATM_1_TO_MANY
+
+
+Example ATM Socket Application
+------------------------------
+The following are simple example client and server applications using the ATM 
+socket API.
+
+/*
+ * ATM API sample client application
+ *
+ * This application will open an ATM socket to a server, send a text string 
+ * in a PDU and then read one PDU from the socket and print its contents.
+ *
+ */
+#include <stdio.h>
+#include <sys/param.h>
+#include <sys/types.h>
+#include <sys/socket.h>
+#include <net/if.h>
+#include <netatm/atm.h>
+
+#define	MAX_LEN		4096	/* Maximum PDU length */
+#define	MY_ID		11	/* BLLI Layer 2 protocol */
+#define MY_APPL		"Client"
+
+Atm_addr_nsap	dst_addr = {
+	0x47,
+#error FIX ME: Replace the 2 lines below with your nsap prefix and esi address
+	{0x00,0x05,0x80,0xff,0xdc,0x00,0x00,0x00,0x00,0x02,0xff,0xff},
+	{0x11,0x22,0x33,0x44,0x55,0x66},
+	0x00
+};
+
+static char	message[] = "A message from the client";
+
+void
+print_cause(int s)
+{
+	struct	t_atm_cause	cause;
+	int	optlen;
+
+	optlen = sizeof(cause);
+	if (getsockopt(s, T_ATM_SIGNALING, T_ATM_CAUSE, &cause, &optlen) < 0) {
+		perror("getsockopt(cause)");
+		return;
+	}
+	
+	fprintf(stderr, "Cause: coding=%d loc=%d cause=%d diag=(%d,%d,%d,%d)\n",
+		cause.coding_standard, cause.location, cause.cause_value,
+		cause.diagnostics[0], cause.diagnostics[1], 
+		cause.diagnostics[2], cause.diagnostics[3]);
+}
+
+main(argc, argv)
+	int	argc;
+	char	**argv;
+{
+	struct sockaddr_atm	satm;
+	struct t_atm_aal5	aal5;
+	struct t_atm_traffic	traffic;
+	struct t_atm_bearer	bearer;
+	struct t_atm_qos	qos;
+	struct t_atm_net_intf	netintf;
+	struct t_atm_app_name	appname;
+	char	buffer[MAX_LEN+1];
+	int	s, n, optlen;
+
+	/*
+	 * Create socket
+	 */
+	s = socket(AF_ATM, SOCK_SEQPACKET, ATM_PROTO_AAL5);
+	if (s < 0) {
+		perror("socket");
+		exit(1);
+	}
+
+	/*
+	 * Set up destination SAP
+	 */
+	bzero((caddr_t) &satm, sizeof(satm));
+	satm.satm_family = AF_ATM;
+#if (defined(BSD) && (BSD >= 199103))
+	satm.satm_len = sizeof(satm);
+#endif
+	/* Destination ATM address */
+	satm.satm_addr.t_atm_sap_addr.SVE_tag_addr = T_ATM_PRESENT;
+	satm.satm_addr.t_atm_sap_addr.SVE_tag_selector = T_ATM_PRESENT;
+	satm.satm_addr.t_atm_sap_addr.address_format = T_ATM_ENDSYS_ADDR;
+	satm.satm_addr.t_atm_sap_addr.address_length = sizeof(Atm_addr_nsap);
+	bcopy((caddr_t)&dst_addr,
+		(caddr_t)satm.satm_addr.t_atm_sap_addr.address,
+		sizeof(dst_addr));
+
+	/* BLLI Layer-2 protocol */
+	satm.satm_addr.t_atm_sap_layer2.SVE_tag = T_ATM_PRESENT;
+	satm.satm_addr.t_atm_sap_layer2.ID_type = T_ATM_USER_ID; 
+	satm.satm_addr.t_atm_sap_layer2.ID.user_defined_ID = MY_ID; 
+
+	/* BLLI Layer-3 protocol */
+	satm.satm_addr.t_atm_sap_layer3.SVE_tag = T_ATM_ABSENT;
+
+	/* BHLI protocol */
+	satm.satm_addr.t_atm_sap_appl.SVE_tag = T_ATM_ABSENT;
+
+	/*
+	 * Set up connection parameters
+	 */
+	aal5.forward_max_SDU_size = MAX_LEN;
+	aal5.backward_max_SDU_size = MAX_LEN;
+	aal5.SSCS_type = T_ATM_NULL;
+	optlen = sizeof(aal5);
+	if (setsockopt(s, T_ATM_SIGNALING, T_ATM_AAL5, (caddr_t)&aal5,
+			optlen) < 0) {
+		perror("setsockopt(aal5)");
+		exit(1);
+	}
+
+	traffic.forward.PCR_high_priority = T_ATM_ABSENT;
+	traffic.forward.PCR_all_traffic = 100000;
+	traffic.forward.SCR_high_priority = T_ATM_ABSENT;
+	traffic.forward.SCR_all_traffic = T_ATM_ABSENT;
+	traffic.forward.MBS_high_priority = T_ATM_ABSENT;
+	traffic.forward.MBS_all_traffic = T_ATM_ABSENT;
+	traffic.forward.tagging = T_NO;
+	traffic.backward.PCR_high_priority = T_ATM_ABSENT;
+	traffic.backward.PCR_all_traffic = 100000;
+	traffic.backward.SCR_high_priority = T_ATM_ABSENT;
+	traffic.backward.SCR_all_traffic = T_ATM_ABSENT;
+	traffic.backward.MBS_high_priority = T_ATM_ABSENT;
+	traffic.backward.MBS_all_traffic = T_ATM_ABSENT;
+	traffic.backward.tagging = T_NO;
+	traffic.best_effort = T_YES;
+	optlen = sizeof(traffic);
+	if (setsockopt(s, T_ATM_SIGNALING, T_ATM_TRAFFIC, (caddr_t)&traffic,
+			optlen) < 0) {
+		perror("setsockopt(traffic)");
+		exit(1);
+	}
+
+	bearer.bearer_class = T_ATM_CLASS_X;
+	bearer.traffic_type = T_ATM_NULL;
+	bearer.timing_requirements = T_ATM_NULL;
+	bearer.clipping_susceptibility = T_NO;
+	bearer.connection_configuration = T_ATM_1_TO_1;
+	optlen = sizeof(bearer);
+	if (setsockopt(s, T_ATM_SIGNALING, T_ATM_BEARER_CAP, (caddr_t)&bearer,
+			optlen) < 0) {
+		perror("setsockopt(bearer)");
+		exit(1);
+	}
+
+	qos.coding_standard = T_ATM_NETWORK_CODING;
+	qos.forward.qos_class = T_ATM_QOS_CLASS_0;
+	qos.backward.qos_class = T_ATM_QOS_CLASS_0;
+	optlen = sizeof(qos);
+	if (setsockopt(s, T_ATM_SIGNALING, T_ATM_QOS, (caddr_t)&qos,
+			optlen) < 0) {
+		perror("setsockopt(qos)");
+		exit(1);
+	}
+
+#ifdef REMOVE_TO_USE_NET_INTF
+#error FIX ME: Replace the ni0 below with the local atm network interface name
+	strncpy(netintf.net_intf, "ni0", IFNAMSIZ);
+	optlen = sizeof(netintf);
+	if (setsockopt(s, T_ATM_SIGNALING, T_ATM_NET_INTF, (caddr_t)&netintf,
+			optlen) < 0) {
+		perror("setsockopt(net_intf)");
+		exit(1);
+	}
+#endif
+
+	strncpy(appname.app_name, MY_APPL, T_ATM_APP_NAME_LEN);
+	optlen = sizeof(appname);
+	if (setsockopt(s, T_ATM_SIGNALING, T_ATM_APP_NAME, (caddr_t)&appname,
+			optlen) < 0) {
+		perror("setsockopt(app_name)");
+		exit(1);
+	}
+
+	/*
+	 * Now try to connect to destination
+	 */
+	if (connect(s, (struct sockaddr *) &satm, sizeof(satm)) < 0) {
+		perror("connect");
+		print_cause(s);
+		exit(1);
+	}
+
+	/*
+	 * Exchange message with peer
+	 */
+	if (write(s, message, sizeof(message)) != sizeof(message)) {
+		perror("write");
+		exit(1);
+	}
+
+	if ((n = read(s, buffer, MAX_LEN)) < 0) {
+		perror("read");
+		exit(1);
+	}
+
+	buffer[n] = '\0';
+	printf("received %d bytes: <%s>\n", n, buffer);
+
+	/*
+	 * Finish up
+	 */
+	if (close(s) < 0) {
+		perror("close");
+		exit(1);
+	}
+
+	exit(0);
+}
+
+
+
+/*
+ * ATM API sample server application
+ *
+ * This application will loop forever listening for connections on an ATM 
+ * socket.  When a new connection arrives, it will send a string in a PDU,
+ * read one PDU from the socket and print its contents.
+ *
+ */
+#include <stdio.h>
+#include <sys/param.h>
+#include <sys/types.h>
+#include <sys/socket.h>
+#include <net/if.h>
+#include <netatm/atm.h>
+
+#define	MAX_LEN		4096	/* Maximum PDU length */
+#define	MY_ID		11	/* BLLI Layer 2 protocol */
+#define MY_APPL		"Server"
+
+static char	message[] = "A message from the server";
+
+void
+print_cause(int s)
+{
+	struct	t_atm_cause	cause;
+	int	optlen;
+
+	optlen = sizeof(cause);
+	if (getsockopt(s, T_ATM_SIGNALING, T_ATM_CAUSE, &cause, &optlen) < 0) {
+		perror("getsockopt(cause)");
+		return;
+	}
+	
+	fprintf(stderr, "Cause: coding=%d loc=%d cause=%d diag=(%d,%d,%d,%d)\n",
+		cause.coding_standard, cause.location, cause.cause_value,
+		cause.diagnostics[0], cause.diagnostics[1], 
+		cause.diagnostics[2], cause.diagnostics[3]);
+}
+
+main(argc, argv)
+	int	argc;
+	char	**argv;
+{
+	struct sockaddr_atm	satm;
+	struct t_atm_aal5	aal5;
+	struct t_atm_traffic	traffic;
+	struct t_atm_bearer	bearer;
+	struct t_atm_qos	qos;
+	struct t_atm_net_intf	netintf;
+	struct t_atm_app_name	appname;
+	char	buffer[MAX_LEN+1];
+	int	s, n, optlen;
+
+	/*
+	 * Create socket
+	 */
+	s = socket(AF_ATM, SOCK_SEQPACKET, ATM_PROTO_AAL5);
+	if (s < 0) {
+		perror("socket");
+		exit(1);
+	}
+
+	/*
+	 * Set up destination SAP
+	 */
+	bzero((caddr_t) &satm, sizeof(satm));
+	satm.satm_family = AF_ATM;
+#if (defined(BSD) && (BSD >= 199103))
+	satm.satm_len = sizeof(satm);
+#endif
+	/* Destination ATM address */
+	satm.satm_addr.t_atm_sap_addr.SVE_tag_addr = T_ATM_ANY;
+	satm.satm_addr.t_atm_sap_addr.SVE_tag_selector = T_ATM_ANY;
+
+	/* BLLI Layer-2 protocol */
+	satm.satm_addr.t_atm_sap_layer2.SVE_tag = T_ATM_PRESENT;
+	satm.satm_addr.t_atm_sap_layer2.ID_type = T_ATM_USER_ID; 
+	satm.satm_addr.t_atm_sap_layer2.ID.user_defined_ID = MY_ID; 
+
+	/* BLLI Layer-3 protocol */
+	satm.satm_addr.t_atm_sap_layer3.SVE_tag = T_ATM_ABSENT;
+
+	/* BHLI protocol */
+	satm.satm_addr.t_atm_sap_appl.SVE_tag = T_ATM_ABSENT;
+
+	/*
+	 * Set up connection parameters
+	 */
+	aal5.forward_max_SDU_size = MAX_LEN;
+	aal5.backward_max_SDU_size = MAX_LEN;
+	aal5.SSCS_type = T_ATM_NULL;
+	optlen = sizeof(aal5);
+	if (setsockopt(s, T_ATM_SIGNALING, T_ATM_AAL5, (caddr_t)&aal5,
+			optlen) < 0) {
+		perror("setsockopt(aal5)");
+		exit(1);
+	}
+
+	traffic.forward.PCR_high_priority = T_ATM_ABSENT;
+	traffic.forward.PCR_all_traffic = 100000;
+	traffic.forward.SCR_high_priority = T_ATM_ABSENT;
+	traffic.forward.SCR_all_traffic = T_ATM_ABSENT;
+	traffic.forward.MBS_high_priority = T_ATM_ABSENT;
+	traffic.forward.MBS_all_traffic = T_ATM_ABSENT;
+	traffic.forward.tagging = T_NO;
+	traffic.backward.PCR_high_priority = T_ATM_ABSENT;
+	traffic.backward.PCR_all_traffic = 100000;
+	traffic.backward.SCR_high_priority = T_ATM_ABSENT;
+	traffic.backward.SCR_all_traffic = T_ATM_ABSENT;
+	traffic.backward.MBS_high_priority = T_ATM_ABSENT;
+	traffic.backward.MBS_all_traffic = T_ATM_ABSENT;
+	traffic.backward.tagging = T_NO;
+	traffic.best_effort = T_YES;
+	optlen = sizeof(traffic);
+	if (setsockopt(s, T_ATM_SIGNALING, T_ATM_TRAFFIC, (caddr_t)&traffic,
+			optlen) < 0) {
+		perror("setsockopt(traffic)");
+		exit(1);
+	}
+
+	bearer.bearer_class = T_ATM_CLASS_X;
+	bearer.traffic_type = T_ATM_NULL;
+	bearer.timing_requirements = T_ATM_NULL;
+	bearer.clipping_susceptibility = T_NO;
+	bearer.connection_configuration = T_ATM_1_TO_1;
+	optlen = sizeof(bearer);
+	if (setsockopt(s, T_ATM_SIGNALING, T_ATM_BEARER_CAP, (caddr_t)&bearer,
+			optlen) < 0) {
+		perror("setsockopt(bearer)");
+		exit(1);
+	}
+
+	qos.coding_standard = T_ATM_NETWORK_CODING;
+	qos.forward.qos_class = T_ATM_QOS_CLASS_0;
+	qos.backward.qos_class = T_ATM_QOS_CLASS_0;
+	optlen = sizeof(qos);
+	if (setsockopt(s, T_ATM_SIGNALING, T_ATM_QOS, (caddr_t)&qos,
+			optlen) < 0) {
+		perror("setsockopt(qos)");
+		exit(1);
+	}
+
+	strncpy(appname.app_name, MY_APPL, T_ATM_APP_NAME_LEN);
+	optlen = sizeof(appname);
+	if (setsockopt(s, T_ATM_SIGNALING, T_ATM_APP_NAME, (caddr_t)&appname,
+			optlen) < 0) {
+		perror("setsockopt(app_name)");
+		exit(1);
+	}
+
+	/*
+	 * Now try to bind/listen
+	 */
+	if (bind(s, (struct sockaddr *) &satm, sizeof(satm)) < 0) {
+		perror("bind");
+		exit(1);
+	}
+	if (listen(s, 4) < 0) {
+		perror("listen");
+		exit(1);
+	}
+
+	for (; ; ) {
+		struct sockaddr_atm	claddr;
+		int	clsock, cllen;
+
+		/* Wait for incoming call */
+		cllen = sizeof(claddr);
+		clsock = accept(s, (struct sockaddr *) &claddr, &cllen);
+		if (clsock < 0) {
+			perror("accept");
+			exit(1);
+		}
+		printf("Server: new connection\n");
+		
+		/*
+		 * Exchange message with peer
+		 */
+		if (write(clsock, message, sizeof(message)) != sizeof(message)) {
+			perror("write");
+			exit(1);
+		}
+
+		if ((n = read(clsock, buffer, MAX_LEN)) < 0) {
+			perror("read");
+			exit(1);
+		}
+
+		buffer[n] = '\0';
+		printf("received %d bytes: <%s>\n", n, buffer);
+
+		sleep(1);
+
+		/*
+		 * Finish up
+		 */
+		if (close(clsock) < 0) {
+			perror("close");
+			exit(1);
+		}
+	}
+
+	close(s);
+	exit(0);
+}
+
+	@(#) $FreeBSD$
+

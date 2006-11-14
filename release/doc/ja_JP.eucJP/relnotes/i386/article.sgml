@@ -1,0 +1,27 @@
+<!--
+    FreeBSD Japanese Documentation Project
+
+    $FreeBSD$
+
+    Original revision: 1.7
+-->
+
+<!DOCTYPE article PUBLIC "-//FreeBSD//DTD DocBook V4.1-Based Extension//EN" [
+<!ENTITY % articles.ent PUBLIC "-//FreeBSD//ENTITIES DocBook FreeBSD Articles Entity Set//EN">
+%articles.ent;
+
+<!ENTITY % release PUBLIC "-//FreeBSD//ENTITIES Release Specification//EN">
+%release;
+<!ENTITY % sections SYSTEM "../common/relnotes.ent">
+%sections;
+
+<!-- Architecture-specific customization -->
+
+<!ENTITY arch "i386">
+<!ENTITY arch.print "i386">
+
+]>
+
+<article>
+  &art;
+</article>

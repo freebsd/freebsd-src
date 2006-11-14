@@ -1,0 +1,925 @@
+.\" Copyright (c) 1997
+.\"	Jordan Hubbard <jkh@FreeBSD.org>.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY Jordan Hubbard AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL Jordan Hubbard OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd June 14, 2005
+.Dt SYSINSTALL 8
+.Os
+.Sh NAME
+.Nm sysinstall
+.Nd system installation and configuration tool
+.Sh SYNOPSIS
+.Nm
+.Op Ar var=value
+.Op Ar function
+.Op Ar ...
+.Sh DESCRIPTION
+The
+.Nm
+utility is used for installing and configuring
+.Fx
+systems.
+It is the first utility invoked by the
+.Fx
+installation boot
+floppy and is also available as
+.Pa /usr/sbin/sysinstall
+on newly installed
+.Fx
+systems for use in later configuring the system.
+.Pp
+The
+.Nm
+utility is generally invoked without arguments for the default
+behavior, where the main installation/configuration menu is presented.
+.Pp
+On those occasions where it is deemed necessary to invoke a subsystem
+of sysinstall directly, however, it is also possible to do so by
+naming the appropriate function entry points on the command line.
+Since this action is essentially identical to running an installation
+script, each command-line argument corresponding to a line of script,
+the reader is encouraged to read the section on scripting for more
+information on this feature.
+.Sh NOTES
+The
+.Nm
+utility is essentially nothing more than a monolithic C program with
+the ability to write MBRs and disk labels (through the services
+of the
+.Xr libdisk 3
+library) and install distributions or packages onto new and
+existing
+.Fx
+systems.
+It also contains some extra intelligence
+for running as a replacement for
+.Xr init 8
+when it is invoked by the
+.Fx
+installation boot procedure.
+It
+assumes very little in the way of additional utility support and
+performs most file system operations by calling the relevant syscalls
+(such as
+.Xr mount 2 )
+directly.
+.Pp
+The
+.Nm
+utility currently uses the
+.Xr dialog 3
+library to do user interaction with simple ANSI line graphics, color
+support for which is enabled by either running on a syscons VTY or some
+other color-capable terminal emulator (newer versions of xterm will support
+color when using the
+.Dq xterm-color
+termcap entry).
+.Pp
+This product is currently at the end of its life cycle and will
+eventually be replaced.
+.Sh RUNNING SCRIPTS
+The
+.Nm
+utility may be either driven interactively through its various internal menus
+or run in batch mode, driven by an external script.
+Such a script may
+be loaded and executed in one of 3 ways:
+.Bl -tag -width Ds
+.It Sy "LOAD_CONFIG_FILE"
+If
+.Nm
+is compiled with LOAD_CONFIG_FILE set in the environment
+(or in the Makefile) to some value, then that value will
+be used as the filename to automatically look for and load
+when
+.Nm
+starts up and with no user interaction required.
+This option is aimed primarily at large sites who wish to create a
+single prototype install for multiple machines with largely identical
+configurations and/or installation options.
+.It Sy "MAIN MENU"
+If
+.Nm
+is run interactively, that is to say in the default manner, it will
+bring up a main menu which contains a "load config file" option.
+Selecting this option will prompt for the name of a script file which
+it then will attempt to load from a DOS or UFS formatted floppy.
+.It Sy "COMMAND LINE"
+Each command line argument is treated as a script directive
+when
+.Nm
+is run in multi-user mode.
+Execution ends either by explicit request
+(e.g.\& calling the
+.Ar shutdown
+directive), upon reaching the end of the argument list or on error.
+.Pp
+For example:
+.Bd -literal
+/usr/sbin/sysinstall _ftpPath=ftp://ziggy/pub/ mediaSetFTP configPackages
+.Ed
+.Pp
+Would initialize
+.Nm
+for FTP installation media (using the server `ziggy') and then
+bring up the package installation editor, exiting when finished.
+.El
+.Sh SCRIPT SYNTAX
+A script is a list of one or more directives, each directive taking
+the form of:
+.Pp
+.Ar var=value
+.Pp
+.Ar function
+.Pp
+or
+.Ar #somecomment
+.Pp
+Where
+.Ar var=value
+is the assignment of some internal
+.Nm
+variable, e.g.\& "ftpPass=FuNkYChiKn", and
+.Ar function
+is the name of an internal
+.Nm
+function, e.g.\& "mediaSetFTP", and
+.Ar #comment
+is a single-line comment for documentation purposes (ignored by
+sysinstall).
+Each directive must be by itself on a single line,
+functions taking their arguments by examining known variable names.
+This requires that you be sure to assign the relevant variables before
+calling a function which requires them.
+.Pp
+The
+.Ar noError
+variable can be assigned before each directive: this will cause any error
+detected while processing the directive itself to be ignored.
+The value of
+.Ar noError
+will automatically reset to the default "unassigned" every time a directive is
+processed.
+.Pp
+When and where a function depends on the settings of one or more variables
+will be noted in the following table:
+.Pp
+.Sy "Function Glossary" :
+.Pp
+.Bl -tag -width indent
+.It configAnonFTP
+Invoke the Anonymous FTP configuration menu.
+.Pp
+.Sy Variables :
+None
+.It configRouter
+Select which routing daemon you wish to use, potentially
+loading any required 3rd-party routing daemons as necessary.
+.Pp
+.Sy Variables :
+.Bl -tag -width indent
+.It router
+can be set to the name of the desired routing daemon,
+e.g.\&
+.Dq routed
+or
+.Dq gated ,
+otherwise it is prompted for.
+.El
+.It configNFSServer
+Configure host as an NFS server.
+.Pp
+.Sy Variables :
+None
+.It configNTP
+Configure host as a user of the Network Time Protocol.
+.Pp
+.Sy Variables :
+.Bl -tag -width indent
+.It ntpdate_flags
+The flags to
+.Xr ntpdate 8 ,
+that is to say the name of the server to sync from.
+.El
+.It configPCNFSD
+Configure host to support PC NFS.
+.Pp
+.Sy Variables :
+.Bl -tag -width indent
+.It pcnfsd_pkg
+The name of the PCNFSD package to load if necessary (defaults to hard coded
+version).
+.El
+.It configPackages
+Bring up the interactive package management menu.
+.Pp
+.Sy Variables :
+None
+.It configUsers
+Add users and/or groups to the system.
+.Pp
+.Sy Variables :
+None
+.It diskPartitionEditor
+Invokes the disk partition (MBR) editor.
+.Pp
+.Sy Variables :
+.Bl -tag -width findx
+.It geometry
+The disk geometry, as a cyls/heads/sectors formatted string.
+Default: no
+change to geometry.
+.It partition
+Set to disk partitioning type or size, its value being
+.Ar free
+in order to use only remaining free space for
+.Fx ,
+.Ar all
+to use the entire disk for
+.Fx
+but maintain a proper partition
+table,
+.Ar existing
+to use an existing
+.Fx
+partition (first found),
+.Ar exclusive
+to use the disk in
+.Dq dangerously dedicated
+mode or, finally,
+.Ar somenumber
+to allocate
+.Ar somenumber
+blocks of available free space to a new
+.Fx
+partition.
+Default: Interactive mode.
+.It bootManager
+is set to one of
+.Ar boot
+to signify the installation of a boot manager,
+.Ar standard
+to signify installation of a "standard" non-boot MGR DOS
+MBR or
+.Ar none
+to indicate that no change to the boot manager is desired.
+Default: none.
+.It diskInteractive
+If set, bring up the interactive disk partition editor.
+.El
+.Pp
+Note: Nothing is actually written to disk by this function, an explicit call to
+.Ar diskPartitionWrite
+being required for that to happen.
+.It diskPartitionWrite
+Causes any pending MBR changes (typically from the
+.Ar diskPartitionEditor
+function) to be written out.
+.Pp
+.Sy Variables :
+None
+.It diskLabelEditor
+Invokes the disk label editor.
+This is a bit trickier from a script
+since you need to essentially label everything inside each
+.Fx
+(type 0xA5) partition created by the
+.Ar diskPartitionEditor
+function, and that requires knowing a few rules about how things are
+laid out.
+When creating a script to automatically allocate disk space
+and partition it up, it is suggested that you first perform the
+installation interactively at least once and take careful notes as to
+what the slice names will be, then and only then hardwiring them into
+the script.
+.Pp
+For example, let's say you have a SCSI disk on which you have created a new
+.Fx
+partition in slice 2 (your DOS partition residing in slice 1).
+The slice name would be
+.Ar da0s2
+for the whole
+.Fx
+partition
+.Ar ( da0s1
+being your DOS primary
+partition).
+Now let's further assume that you have 500MB in this
+partition and you want to sub-partition that space into root, swap,
+var and usr file systems for
+.Fx .
+Your invocation of the
+.Ar diskLabelEditor
+function might involve setting the following variables:
+.Bl -tag -width findx
+.It Li "da0s2-1=ufs 40960 /"
+A 20MB root file system (all sizes are in 512 byte blocks).
+.It Li "da0s2-2=swap 131072 /"
+A 64MB swap partition.
+.It Li "da0s2-3=ufs 204800 /var"
+A 100MB /var file system.
+.It Li "da0s2-4=ufs 0 /usr 1"
+With the balance of free space (around 316MB) going to the /usr
+file system and with soft-updates enabled (the argument following
+the mount point, if non-zero, means to set the soft updates flag).
+.El
+.Pp
+One can also use the
+.Ar diskLabelEditor
+for mounting or erasing existing partitions as well as creating new
+ones.
+Using the previous example again, let's say that we also wanted
+to mount our DOS partition and make sure that an
+.Pa /etc/fstab
+entry is created for it in the new installation.
+Before calling the
+.Ar diskLabelEditor
+function, we simply add an additional line:
+.Pp
+.Dl "da0s1=/dos_c N"
+.Pp
+before the call.
+This tells the label editor that you want to mount
+the first slice on
+.Pa /dos_c
+and not to attempt to newfs it (not that
+.Nm
+would attempt this for a DOS partition in any case, but it could just
+as easily be an existing UFS partition being named here and the 2nd
+field is non-optional).
+.Pp
+You can also set the
+.Ar diskInteractive
+variable to request that the disk label editor use an interactive dialog
+to partition the disk instead of using variables to explicitly layout the
+disk as described above.
+.Pp
+Note: No file system data is actually written to disk until an
+explicit call to
+.Ar diskLabelCommit
+is made.
+.It diskLabelCommit
+Writes out all pending disklabel information and creates and/or mounts any
+file systems which have requests pending from the
+.Ar diskLabelEditor
+function.
+.Pp
+.Sy Variables :
+None
+.It distReset
+Resets all selected distributions to the empty set (no distributions selected).
+.Pp
+.Sy Variables :
+None
+.It distSetCustom
+Allows the selection of a custom distribution set (e.g.\& not just one of the
+existing "canned" sets) with no user interaction.
+.Pp
+.Sy Variables :
+.Bl -tag -width indent
+.It dists
+List of distributions to load.
+Possible distribution values are:
+.Bl -tag -width indentxx
+.It Li base
+The base binary distribution.
+.It Li doc
+Miscellaneous documentation
+.It Li games
+Games
+.It Li manpages
+Manual pages (unformatted)
+.It Li catpages
+Pre-formatted manual pages
+.It Li proflibs
+Profiled libraries for developers.
+.It Li dict
+Dictionary information (for tools like spell).
+.It Li info
+GNU info files and other extra docs.
+.It Li lib32
+(amd64 only)
+32-bit runtime compatibility libraries.
+.It Li ports
+The ports collection.
+.It Li ssecure
+/usr/src/secure
+.It Li sbase
+/usr/src/[top level files]
+.It Li scontrib
+/usr/src/contrib
+.It Li sgnu
+/usr/src/gnu
+.It Li setc
+/usr/src/etc
+.It Li sgames
+/usr/src/games
+.It Li sinclude
+/usr/src/include
+.It Li skrb5
+/usr/src/kerberos5
+.It Li slib
+/usr/src/lib
+.It Li slibexec
+/usr/src/libexec
+.It Li srelease
+/usr/src/release
+.It Li srescue
+/usr/src/rescue
+.It Li sbin
+/usr/src/bin
+.It Li ssbin
+/usr/src/sbin
+.It Li sshare
+/usr/src/share
+.It Li ssys
+/usr/src/sys
+.It Li subin
+/usr/src/usr.bin
+.It Li susbin
+/usr/src/usr.sbin
+.It Li ssmailcf
+/usr/src/usr.sbin/sendmail/cf
+.It Li Xbin
+X.Org client applications.
+.It Li Xlib
+X.Org libraries.
+.It Li Xman
+X.Org manual pages.
+.It Li Xdoc
+X.Org protocol and library documentation.
+.It Li Xprog
+X.Org imake distribution.
+.It Li Xsrv
+X.Org X server.
+.It Li Xnest
+X.Org nested X server.
+.It Li Xprt
+X.Org print server.
+.It Li Xvfb
+X.Org virtual frame-buffer X server.
+.It Li Xfmsc
+X.Org miscellaneous font set.
+.It Li Xf75
+X.Org 75DPI font set.
+.It Li Xf100
+X.Org 100DPI font set.
+.It Li Xfcyr
+X.Org Cyrillic font set.
+.It Li Xft1
+X.Org Type 1 font set.
+.It Li Xftt
+X.Org TrueType font set.
+.It Li Xfs
+X.Org font server.
+.El
+.El
+.It distSetDeveloper
+Selects the standard Developer's distribution set.
+.Pp
+.Sy Variables :
+None
+.It distSetXDeveloper
+Selects the standard X Developer's distribution set.
+.Pp
+.Sy Variables :
+None
+.It distSetKernDeveloper
+Selects the standard kernel Developer's distribution set.
+.Pp
+.Sy Variables :
+None
+.It distSetUser
+Selects the standard user distribution set.
+.Pp
+.Sy Variables :
+None
+.It distSetXUser
+Selects the standard X user's distribution set.
+.Pp
+.Sy Variables :
+None
+.It distSetMinimum
+Selects the very minimum distribution set.
+.Pp
+.Sy Variables :
+None
+.It distSetEverything
+Selects the full whack - all available distributions.
+.Pp
+.Sy Variables :
+None
+.It distSetSrc
+Interactively select source subcomponents.
+.Pp
+.Sy Variables :
+None
+.It distSetXOrg
+Interactively select X.Org subcomponents.
+.Pp
+.Sy Variables :
+None
+.It distExtractAll
+Install all currently selected distributions (requires that
+media device also be selected).
+.Pp
+.Sy Variables :
+None
+.It docBrowser
+Install (if necessary) an HTML documentation browser and go to the
+HTML documentation submenu.
+.Pp
+.Sy Variables :
+.Bl -tag -width indent
+.It browserPackage
+The name of the browser package to try and install as necessary.
+Defaults to latest links package.
+.It browserBinary
+The name of the browser binary itself (if overriding the
+.Ar browserPackage
+variable).
+Defaults to links.
+.El
+.It installCommit
+Commit any and all pending changes to disk.
+This function
+is essentially shorthand for a number of more granular "commit"
+functions.
+.Pp
+.Sy Variables :
+None
+.It installExpress
+Start an "express" installation, asking few questions of
+the user.
+.Pp
+.Sy Variables :
+None
+.It installStandard
+Start a "standard" installation, the most user-friendly
+installation type available.
+.Pp
+.Sy Variables :
+None
+.It installUpgrade
+Start an upgrade installation.
+.Pp
+.Sy Variables :
+None
+.It installFixitHoloShell
+Start up the "emergency holographic shell" over on VTY4
+if running as init.
+This will also happen automatically
+as part of the installation process unless
+.Ar noHoloShell
+is set.
+.Pp
+.Sy Variables :
+None
+.It installFixitCDROM
+Go into "fixit" mode, assuming a live file system CDROM
+currently in the drive.
+.Pp
+.Sy Variables :
+None
+.It installFixitFloppy
+Go into "fixit" mode, assuming an available fixit floppy
+disk (user will be prompted for it).
+.Pp
+.Sy Variables :
+None
+.It installFilesystems
+Do just the file system initialization part of an install.
+.Pp
+.Sy Variables :
+None
+.It installVarDefaults
+Initialize all variables to their defaults, overriding any
+previous settings.
+.Pp
+.Sy Variables :
+None
+.It loadConfig
+Sort of like an #include statement, it allows you to load one
+configuration file from another.
+.Pp
+.Sy Variables :
+.Bl -tag -width indent
+.It configFile
+The fully qualified pathname of the file to load.
+.El
+.It mediaOpen
+If a media device is set, mount it.
+.Pp
+.Sy Variables :
+None
+.It mediaClose
+If a media device is open, close it.
+.Pp
+.Sy Variables :
+None
+.It mediaSetCDROM
+Select a
+.Fx
+CDROM as the installation media.
+.Pp
+.Sy Variables :
+None
+.It mediaSetFloppy
+Select a pre-made floppy installation set as the installation media.
+.Pp
+.Sy Variables :
+None
+.It mediaSetDOS
+Select an existing DOS primary partition as the installation media.
+The first primary partition found is used (e.g.\& C:).
+.Pp
+.Sy Variables :
+None
+.It mediaSetTape
+Select a tape device as the installation media.
+.Pp
+.Sy Variables :
+None
+.It mediaSetFTP
+Select an FTP site as the installation media.
+.Pp
+.Sy Variables :
+.Bl -tag -width indent
+.It hostname
+The name of the host being installed (non-optional).
+.It domainname
+The domain name of the host being installed (optional).
+.It defaultrouter
+The default router for this host (non-optional).
+.It netDev
+Which host interface to use
+.Ar ( ed0
+or
+.Ar ep0 ,
+for example.
+Non-optional).
+.It netInteractive
+If set, bring up the interactive network setup form even
+if all relevant configuration variables are already set (optional).
+.It ipaddr
+The IP address for the selected host interface (non-optional).
+.It netmask
+The netmask for the selected host interface (non-optional).
+.It _ftpPath
+The fully qualified URL of the FTP site containing the
+.Fx
+distribution you are interested in, e.g.\&
+.Ar ftp://ftp.FreeBSD.org/pub/FreeBSD/ .
+.El
+.It mediaSetFTPActive
+Alias for
+.Ar mediaSetFTP
+using "active" FTP transfer mode.
+.Pp
+.Sy Variables :
+Same as for
+.Ar mediaSetFTP .
+.It mediaSetFTPPassive
+Alias for
+.Ar mediaSetFTP
+using "passive" FTP transfer mode.
+.Pp
+.Sy Variables :
+Same as for
+.Ar mediaSetFTP .
+.It mediaSetHTTP
+Alias for
+.Ar mediaSetFTP
+using an HTTP proxy.
+.Pp
+.Sy Variables :
+See
+.Ar mediaSetFTP ,
+plus
+.Bl -tag -width indent
+.It _httpPath
+The proxy to use (host:port) (non-optional).
+.El
+.It mediaSetUFS
+Select an existing UFS partition (mounted with the label editor) as
+the installation media.
+.Pp
+.Sy Variables :
+.Bl -tag -width indent
+.It ufs
+full /path to directory containing the
+.Fx
+distribution you are
+interested in.
+.El
+.It mediaSetNFS
+.Pp
+.Sy Variables :
+.Bl -tag -width indent
+.It hostname
+The name of the host being installed (non-optional).
+.It domainname
+The domain name of the host being installed (optional).
+.It defaultrouter
+The default router for this host (non-optional).
+.It netDev
+Which host interface to use
+.Ar ( ed0
+or
+.Ar ep0 ,
+for example.
+Non-optional).
+.It netInteractive
+If set, bring up the interactive network setup form even
+if all relevant configuration variables are already set (optional).
+.It ipaddr
+The IP address for the selected host interface (non-optional).
+.It netmask
+The netmask for the selected host interface (non-optional).
+.It nfs
+full hostname:/path specification for directory containing
+the
+.Fx
+distribution you are interested in.
+.El
+.It mediaSetFTPUserPass
+.Pp
+.Sy Variables :
+.Bl -tag -width indent
+.It ftpUser
+The username to log in as on the ftp server site.
+Default: ftp
+.It ftpPass
+The password to use for this username on the ftp
+server site.
+Default: user@host
+.El
+.It mediaSetCPIOVerbosity
+.Pp
+.Sy Variables :
+.Bl -tag -width indent
+.It cpioVerbose
+Can be used to set the verbosity of cpio extractions to low, medium or
+high.
+.El
+.It mediaGetType
+Interactively get the user to specify some type of media.
+.Pp
+.Sy Variables :
+None
+.It optionsEditor
+Invoke the interactive options editor.
+.Pp
+.Sy Variables :
+None
+.It packageAdd
+Try to fetch and add a package to the system (requires
+that a media type be set),
+.Pp
+.Sy Variables :
+.Bl -tag -width indent
+.It package
+The name of the package to add, e.g.\& bash-1.14.7 or ncftp-2.4.2.
+.El
+.It addGroup
+Invoke the interactive group editor.
+.Pp
+.Sy Variables :
+None
+.It addUser
+Invoke the interactive user editor.
+.Pp
+.Sy Variables :
+None
+.It shutdown
+Stop the script and terminate sysinstall.
+.Pp
+.Sy Variables :
+None
+.It system
+Execute an arbitrary command with
+.Xr system 3
+.Pp
+.Sy Variables :
+.Bl -tag -width indent
+.It command
+The name of the command to execute.
+When running
+from a boot floppy, very minimal expectations should
+be made as to what is available until/unless a relatively
+full system installation has just been done.
+.El
+.It tcpMenuSelect
+Configure a network device.
+.Pp
+.Sy Variables :
+Same as for
+.Ar mediaSetFTP
+except that
+.Ar _ftpPath
+is not used.
+.El
+.Sh DISTRIBUTION MEDIA
+The following files can be used to affect the operation of
+.Nm
+when used during initial system installation.
+.Bl -tag -width ".Pa packages/INDEX"
+.It Pa cdrom.inf
+A text file of properties, listed one per line, that describe the
+contents of the media in use.
+The syntax for each line is simply
+.Dq Ar property No = Ar value .
+Currently, only the following properties are recognized.
+.Bl -tag -width ".Va CD_MACHINE_ARCH"
+.It Va CD_VERSION
+This property should be set to the
+.Fx
+version on the current
+media volume.
+For example,
+.Dq Li "CD_VERSION = 5.3" .
+.It Va CD_MACHINE_ARCH
+This property should be set to the architecture of the contents on
+this volume.
+This property is normally only used with
+.Fx
+products that contain
+CDs for different architectures, to provide better error messages if
+users try to install Alpha packages on an i386 machine.
+For example,
+.Dq Li "CD_MACHINE_ARCH = alpha" .
+.It Va CD_VOLUME
+In a multi-volume collection (such as the
+.Fx
+4-CD set), the
+.Pa ports/INDEX
+file on each disc should contain the full package index for the set.
+The last field of the
+.Pa INDEX
+file denotes which volume the package
+appears on, and the
+.Va CD_VOLUME
+property here defines the volume ID of the current disc.
+.El
+.It Pa packages/INDEX
+The package index file.
+Each package is listed on a separate line with additional meta-data
+such as the required dependencies.
+This index is generated by
+.Dq Li "make index"
+from the
+.Xr ports 7
+collection.
+When multi-volume support is enabled, an additional field should be
+added to each line indicating which media volume contains the given
+package.
+.El
+.Pp
+For information about building a full release of
+.Fx ,
+please see
+.Xr release 7 .
+.Sh FILES
+This utility may edit the contents of
+.Pa /etc/rc.conf ,
+.Pa /etc/hosts ,
+and
+.Pa /etc/resolv.conf
+as necessary to reflect changes in the network configuration.
+.Sh SEE ALSO
+If you have a reasonably complete source tree online, take
+a look at
+.Pa /usr/src/usr.sbin/sysinstall/install.cfg
+for a sample installation script.
+.Sh HISTORY
+This version of
+.Nm
+first appeared in
+.Fx 2.0 .
+.Sh AUTHORS
+.An Jordan K. Hubbard Aq jkh@FreeBSD.org
+.Sh BUGS
+This utility is a prototype which lasted several years past
+its expiration date and is greatly in need of death.
