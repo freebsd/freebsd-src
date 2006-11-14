@@ -274,6 +274,9 @@ typedef struct {
 #define PF_MASKOS	0x0ff00000	/* Operating system-specific. */
 #define PF_MASKPROC	0xf0000000	/* Processor-specific. */
 
+/* Extended program header index. */
+#define	PN_XNUM		0xffff
+
 /* Values for d_tag. */
 #define DT_NULL		0	/* Terminating entry. */
 #define DT_NEEDED	1	/* String table offset of a needed shared
