@@ -1,0 +1,81 @@
+.\"-
+.\" Copyright (c) 2005 Robert N. M. Watson
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $P4: //depot/projects/trustedbsd/openbsm/man/setaudit.2#5 $
+.\"
+.Dd April 19, 2005
+.Dt SETAUDIT 2
+.Os
+.Sh NAME
+.Nm setaudit ,
+.Nm setaudit_addr
+.Nd "Set audit session state"
+.Sh SYNOPSIS
+.In bsm/audit.h
+.Ft int
+.Fn setaudit "auditinfo_t *auditinfo"
+.Ft int
+.Fn setaudit_addr "auditinfo_addr_t *auditinfo" "u_int length"
+.Sh DESCRIPTION
+.Nm
+sets the active audit session state for the current process via the
+.Vt auditinfo_t
+pointed to by
+.Va auditinfo .
+.Fn setaudit_addr
+sets extended state via
+.Va auditinfo_addr
+and
+.Va length .
+.Pp
+This system call requires appropriate privilege to complete.
+.Sh RETURN VALUES
+.Nm
+returns 0 on success, or returns -1 on failure, providing additional error
+information via
+.Va errno .
+.Sh SEE ALSO
+.Xr audit 2 ,
+.Xr auditon 2 ,
+.Xr getaudit 2 ,
+.Xr getauid 2 ,
+.Xr setauid 2 ,
+.Xr getaudit 2 ,
+.Xr libbsm 3
+.Sh AUTHORS
+This software was created by McAfee Research, the security research division
+of McAfee, Inc., under contract to Apple Computer Inc.
+Additional authors include Wayne Salamon, Robert Watson, and SPARTA Inc.
+.Pp
+The Basic Security Module (BSM) interface to audit records and audit event
+stream format were defined by Sun Microsystems.
+.Pp
+This manual page was written by
+.An Robert Watson Aq rwatson@FreeBSD.org .
+.Sh HISTORY
+The OpenBSM implementation was created by McAfee Research, the security
+division of McAfee Inc., under contract to Apple Computer Inc. in 2004.
+It was subsequently adopted by the TrustedBSD Project as the foundation for
+the OpenBSM distribution.

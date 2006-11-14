@@ -1,0 +1,20 @@
+# $FreeBSD$
+
+.PATH: ${.CURDIR}/../../pci
+
+KMOD=	if_de
+SRCS=	if_de.c opt_bdg.h opt_ddb.h device_if.h bus_if.h pci_if.h
+
+# Compile-time options.
+
+#  Enable debugging:
+#CFLAGS+=	-DTULIP_DEBUG
+
+#  Enable performance statistics:
+#CFLAGS+=	-DTULIP_PERFSTATS
+
+#  Enable the use of a software interrupt to alleviate the occurrence of
+#  interrupt livelock when under heavy load:
+#CFLAGS+=	-DTULIP_USE_SOFTINTR
+
+.include <bsd.kmod.mk>

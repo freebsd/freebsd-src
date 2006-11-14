@@ -1,0 +1,241 @@
+/*
+ * top - a top users display for Unix
+ *
+ * THIS IS A TEMPLATE FILE FOR A MACHINE DEPENDENT (m_...c) FILE
+ *
+ * SYNOPSIS:  one line description of machine this module works with
+ *
+ * DESCRIPTION:
+ * Detailed description of this machine dependent module.
+ * It can be multiple lines, but a blank comment line (one with only an
+ * asterisk) is considered to end it.  Place here a complete list of 
+ * the machines and OS versions that this module works on.
+ *
+ * LIBS:  list of special libraries to include at link step (REMOVE THIS LINE IF NOT NEEDED)
+ *
+ * AUTHOR:  your name and <your@internet.address>
+ */
+
+#include "top.h"
+#include "machine.h"
+
+
+/*
+ *  These definitions control the format of the per-process area
+ */
+
+static char header[] =
+  "  PID X        PRI NICE   SIZE   RES STATE   TIME   WCPU    CPU COMMAND";
+/* 0123456   -- field to fill in starts at header+6 */
+#define UNAME_START 6
+
+#define Proc_format \
+	"%5d %-8.8s %3d %4d%6dK %4dK %-5s%4d:%02d %5.2f%% %5.2f%% %.14s"
+
+/* these are for detailing the process states */
+
+int process_states[?];
+char *procstatenames[] = {
+    "", " sleeping, ", " ABANDONED, ", " running, ", " starting, ",
+    " zombie, ", " stopped, ",
+    NULL
+};
+
+/* these are for detailing the cpu states */
+
+int cpu_states[?];
+char *cpustatenames[] = {
+    "user", "nice", "system", "idle",
+    NULL
+};
+
+/* these are for detailing the memory statistics */
+
+int memory_stats[?];
+char *memorynames[] = {
+    "K available, ", "K in use, ", "K free, ", "K locked", NULL
+};
+
+/* useful externals */
+extern int errno;
+extern char *sys_errlist[];
+
+long lseek();
+long time();
+long percentages();
+
+machine_init(statics)
+
+struct statics *statics;
+
+{
+    return(0);
+}
+
+char *format_header(uname_field)
+
+register char *uname_field;
+
+{
+    register char *ptr;
+
+    ptr = header + UNAME_START;
+    while (*uname_field != '\0')
+    {
+	*ptr++ = *uname_field++;
+    }
+
+    return(header);
+}
+
+get_system_info(si)
+
+struct system_info *si;
+
+{
+}
+
+static struct handle handle;
+
+caddr_t get_process_info(si, sel, compare)
+
+struct system_info *si;
+struct process_select *sel;
+int (*compare)();
+
+{
+    return((caddr_t)&handle);
+}
+
+char fmt[128];		/* static area where result is built */
+
+/* define what weighted cpu is.  */
+#define weighted_cpu(pct, pp) ((pp)->p_time == 0 ? 0.0 : \
+			 ((pct) / (1.0 - exp((pp)->p_time * logcpu))))
+
+char *format_next_process(handle, get_userid)
+
+caddr_t handle;
+char *(*get_userid)();
+
+{
+    return(fmt);
+}
+
+/*
+ *  getkval(offset, ptr, size, refstr) - get a value out of the kernel.
+ *	"offset" is the byte offset into the kernel for the desired value,
+ *  	"ptr" points to a buffer into which the value is retrieved,
+ *  	"size" is the size of the buffer (and the object to retrieve),
+ *  	"refstr" is a reference string used when printing error meessages,
+ *	    if "refstr" starts with a '!', then a failure on read will not
+ *  	    be fatal (this may seem like a silly way to do things, but I
+ *  	    really didn't want the overhead of another argument).
+ *  	
+ */
+
+getkval(offset, ptr, size, refstr)
+
+unsigned long offset;
+int *ptr;
+int size;
+char *refstr;
+
+{
+    if (kvm_read(kd, offset, ptr, size) != size)
+    {
+	if (*refstr == '!')
+	{
+	    return(0);
+	}
+	else
+	{
+	    fprintf(stderr, "top: kvm_read for %s: %s\n",
+		refstr, sys_errlist[errno]);
+	    quit(23);
+	}
+    }
+    return(1);
+}
+    
+/* comparison routine for qsort */
+/* NOTE: this is specific to the BSD proc structure, but it should
+   give you a good place to start. */
+
+/*
+ *  proc_compare - comparison function for "qsort"
+ *	Compares the resource consumption of two processes using five
+ *  	distinct keys.  The keys (in descending order of importance) are:
+ *  	percent cpu, cpu ticks, state, resident set size, total virtual
+ *  	memory usage.  The process states are ordered as follows (from least
+ *  	to most important):  WAIT, zombie, sleep, stop, start, run.  The
+ *  	array declaration below maps a process state index into a number
+ *  	that reflects this ordering.
+ */
+
+static unsigned char sorted_state[] =
+{
+    0,	/* not used		*/
+    3,	/* sleep		*/
+    1,	/* ABANDONED (WAIT)	*/
+    6,	/* run			*/
+    5,	/* start		*/
+    2,	/* zombie		*/
+    4	/* stop			*/
+};
+ 
+proc_compare(pp1, pp2)
+
+struct proc **pp1;
+struct proc **pp2;
+
+{
+    register struct proc *p1;
+    register struct proc *p2;
+    register int result;
+    register pctcpu lresult;
+
+    /* remove one level of indirection */
+    p1 = *pp1;
+    p2 = *pp2;
+
+    /* compare percent cpu (pctcpu) */
+    if ((lresult = p2->p_pctcpu - p1->p_pctcpu) == 0)
+    {
+	/* use cpticks to break the tie */
+	if ((result = p2->p_cpticks - p1->p_cpticks) == 0)
+	{
+	    /* use process state to break the tie */
+	    if ((result = sorted_state[p2->p_stat] -
+			  sorted_state[p1->p_stat])  == 0)
+	    {
+		/* use priority to break the tie */
+		if ((result = p2->p_pri - p1->p_pri) == 0)
+		{
+		    /* use resident set size (rssize) to break the tie */
+		    if ((result = p2->p_rssize - p1->p_rssize) == 0)
+		    {
+			/* use total memory to break the tie */
+			result = PROCSIZE(p2) - PROCSIZE(p1);
+		    }
+		}
+	    }
+	}
+    }
+    else
+    {
+	result = lresult < 0 ? -1 : 1;
+    }
+
+    return(result);
+}
+
+proc_owner(pid)
+
+int pid;
+
+{
+   /* returns uid of owner of process pid */
+   return(uid);
+}
+

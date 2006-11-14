@@ -1,0 +1,105 @@
+.\" Copyright (c) 2004 Apple Computer, Inc.
+.\" All rights reserved.
+.\"
+.\" @APPLE_BSD_LICENSE_HEADER_START@
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\"
+.\" 1.  Redistributions of source code must retain the above copyright
+.\"     notice, this list of conditions and the following disclaimer.
+.\" 2.  Redistributions in binary form must reproduce the above copyright
+.\"     notice, this list of conditions and the following disclaimer in the
+.\"     documentation and/or other materials provided with the distribution.
+.\" 3.  Neither the name of Apple Computer, Inc. ("Apple") nor the names of
+.\"     its contributors may be used to endorse or promote products derived
+.\"     from this software without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY APPLE AND ITS CONTRIBUTORS "AS IS" AND ANY
+.\" EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+.\" WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+.\" DISCLAIMED. IN NO EVENT SHALL APPLE OR ITS CONTRIBUTORS BE LIABLE FOR ANY
+.\" DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
+.\" (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+.\" LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
+.\" ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+.\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
+.\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.\" @APPLE_BSD_LICENSE_HEADER_END@
+.\"
+.\" $P4: //depot/projects/trustedbsd/openbsm/bin/auditd/auditd.8#9 $
+.\"
+.Dd January 24, 2004
+.Dt AUDITD 8
+.Os
+.Sh NAME
+.Nm auditd
+.Nd audit log management daemon
+.Sh SYNOPSIS
+.Nm auditd
+.Op Fl dhs
+.Sh DESCRIPTION
+The
+.Nm
+daemon responds to requests from the audit(1) utility and notifications
+from the kernel.  It manages the resulting audit log files and specified
+log file locations.
+.Pp
+The options are as follows:
+.Bl -tag -width Ds
+.It Fl d
+Starts the daemon in debug mode - it will not daemonize.
+.El
+.Pp
+The historical
+.Fl h
+and
+.Fl s
+flags are now configured using
+.Xr audit_control 5
+policy flags
+.Dv ahlt
+and
+.Dv cnt ,
+and are no longer available as arguments to
+.Xr auditd 8 .
+.Sh NOTE
+.Pp
+To assure uninterrupted audit support, the
+.Nm auditd
+daemon should not be started and stopped manually.
+Instead, the
+.Xr audit 8
+command
+should be used to inform the daemon to change state/configuration after altering
+the
+.Pa audit_control
+file.
+.Pp
+.\" Sending a SIGHUP to a running
+.\" .Nm auditd
+.\" daemon will force it to exit.
+Sending a SIGTERM to a running
+.Nm auditd
+daemon will force it to exit.
+.Sh FILES
+.Bl -tag -width "/var/audit" -compact
+.It Pa /var/audit
+Default directory for storing audit log files.
+.El
+.Sh SEE ALSO
+.Xr audit 8
+.Sh AUTHORS
+This software was created by McAfee Research, the security research division
+of McAfee, Inc., under contract to Apple Computer Inc.
+Additional authors include Wayne Salamon, Robert Watson, and SPARTA Inc.
+.Pp
+The Basic Security Module (BSM) interface to audit records and audit event
+stream format were defined by Sun Microsystems.
+.Sh HISTORY
+The OpenBSM implementation was created by McAfee Research, the security
+division of McAfee Inc., under contract to Apple Computer Inc. in 2004.
+It was subsequently adopted by the TrustedBSD Project as the foundation for
+the OpenBSM distribution.

@@ -1,0 +1,40 @@
+<!--
+	$FreeBSD$
+-->
+<sect1 id="proc-ia64">
+  <title>Supported Processors and Motherboards</title>
+
+  <para>Currently supported processors are the
+    <ulink url="http://people.freebsd.org/~marcel/refs/ia64/itanium/24532003.pdf">
+    Itanium</ulink> and the
+    <ulink url="http://people.freebsd.org/~marcel/refs/ia64/itanium2/25111003.pdf">
+    Itanium 2</ulink>.</para>
+
+  <para>Supported chipsets include:</para>
+   <itemizedlist>
+     <listitem>
+       <para>HP zx1</para>
+     </listitem>
+     <listitem>
+       <para>Intel 460GX</para>
+     </listitem>
+     <listitem>
+       <para>Intel E8870</para>
+     </listitem>
+   </itemizedlist>
+
+  <para>Both Uniprocessor (UP) and Symmetric Multi-processor (SMP)
+    configurations are supported.</para>
+
+  <sect2>
+    <title>Supported Devices Overview</title>
+
+    <para>Most devices that can be found in or are compatible with
+      &arch; machines are fully supported.  The notable exception
+      is the VGA console. The &os; support for VGA consoles is at
+      this time too much based on PC hardware and not all &arch;
+      machines have chipsets that provide sufficient PC legacy
+      support. As such &man.syscons.4; can not be enabled and the
+      use of a serial console is required.</para>
+  </sect2>
+</sect1>

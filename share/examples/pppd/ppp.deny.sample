@@ -1,0 +1,27 @@
+# $FreeBSD$
+#
+# list of users disallowed any pppd access via 'system
+# password login'.
+# read by pppd(8).
+root
+toor
+daemon
+operator
+bin
+tty
+kmem
+games
+news
+man
+sshd
+smmsp
+mailnull
+bind
+proxy
+_pflogd
+_dhcp
+ftp
+uucp
+pop
+www
+nobody

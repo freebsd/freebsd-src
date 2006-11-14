@@ -1,0 +1,70 @@
+.\" Copyright (C) 2004, 2005 Internet Systems Consortium, Inc. ("ISC")
+.\" Copyright (C) 2000-2002 Internet Software Consortium.
+.\" 
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\" 
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND ISC DISCLAIMS ALL WARRANTIES WITH
+.\" REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF MERCHANTABILITY
+.\" AND FITNESS. IN NO EVENT SHALL ISC BE LIABLE FOR ANY SPECIAL, DIRECT,
+.\" INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING FROM
+.\" LOSS OF USE, DATA OR PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE
+.\" OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
+.\" PERFORMANCE OF THIS SOFTWARE.
+.\"
+.\" $Id: named-checkconf.8,v 1.11.12.7 2005/10/13 02:33:41 marka Exp $
+.\"
+.hy 0
+.ad l
+.\" ** You probably do not want to edit this file directly **
+.\" It was generated using the DocBook XSL Stylesheets (version 1.69.1).
+.\" Instead of manually editing it, you probably should edit the DocBook XML
+.\" source for it and then use the DocBook XSL Stylesheets to regenerate it.
+.TH "NAMED\-CHECKCONF" "8" "June 14, 2000" "BIND9" "BIND9"
+.\" disable hyphenation
+.nh
+.\" disable justification (adjust text to left margin only)
+.ad l
+.SH "NAME"
+named\-checkconf \- named configuration file syntax checking tool
+.SH "SYNOPSIS"
+.HP 16
+\fBnamed\-checkconf\fR [\fB\-v\fR] [\fB\-j\fR] [\fB\-t\ \fR\fB\fIdirectory\fR\fR] {filename} [\fB\-z\fR]
+.SH "DESCRIPTION"
+.PP
+\fBnamed\-checkconf\fR
+checks the syntax, but not the semantics, of a named configuration file.
+.SH "OPTIONS"
+.TP
+\-t \fIdirectory\fR
+chroot to
+\fIdirectory\fR
+so that include directives in the configuration file are processed as if run by a similarly chrooted named.
+.TP
+\-v
+Print the version of the
+\fBnamed\-checkconf\fR
+program and exit.
+.TP
+\-z
+Perform a check load the master zonefiles found in
+\fInamed.conf\fR.
+.TP
+\-j
+When loading a zonefile read the journal if it exists.
+.TP
+filename
+The name of the configuration file to be checked. If not specified, it defaults to
+\fI/etc/named.conf\fR.
+.SH "RETURN VALUES"
+.PP
+\fBnamed\-checkconf\fR
+returns an exit status of 1 if errors were detected and 0 otherwise.
+.SH "SEE ALSO"
+.PP
+\fBnamed\fR(8),
+BIND 9 Administrator Reference Manual.
+.SH "AUTHOR"
+.PP
+Internet Systems Consortium

@@ -1,0 +1,35 @@
+
+NTP uses A.B.C - style release numbers.
+
+The third (C) part of the version number can be:
+
+ 0-69 for patches/bugfixes to the A.B.C series.
+ 70-79 for alpha releases of the A.B+1.0 series.
+ 80+ for beta releases of the A.B+1.0 series.
+
+At the moment:
+
+ A is 4, for ntp V4.
+ B is the minor release number.
+ C is the patch/bugfix number, and may have extra cruft in it.
+
+Any extra cruft in the C portion of the number indicates an "interim" release.
+
+Interim releases almost always have a C portion consisting of a number
+followed by an increasing letter, optionally followed by -rcX, where X
+is an increasing number.  The -rcX indicates a "release candidate".
+
+Here are some recent versions numbers as an example:
+
+ 4.1.0		A production release (from the ntp-stable repository)
+ 4.1.0b-rc1	A release candidate for 4.1.1 (from the ntp-stable repo)
+ 4.1.71		An alpha release of 4.2.0, from the ntp-dev repo
+
+Note that after the ntp-dev repo produces a production release it will
+be copied into the ntp-stable and the cycle will repeat.
+
+The goal of this scheme is to produce version numbers that collate
+"properly" with the output of the "ls" command.
+
+Feel free to suggest improvements...
+

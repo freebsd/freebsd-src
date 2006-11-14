@@ -1,0 +1,134 @@
+This is the GNU `groff' document formatting system.  The version
+number is given in the file VERSION.
+
+Included in this release are implementations of `troff', `pic', `eqn',
+`tbl', `grn', `refer', `-man', `-mdoc', `-mom', and `-ms' macros, and
+drivers for `PostScript', `TeX dvi' format, `HP LaserJet 4' printers,
+`Canon CAPSL' printers, `HTML' format (beta status), and
+typewriter-like devices.  Also included is a modified version of the
+Berkeley `-me' macros, the enhanced version `gxditview' of the X11
+`xditview' previewer, and an implementation of the `-mm' macros
+contributed by Joergen Haegg (jh@axis.se).
+
+See the file `INSTALL' for installation instructions.  You will
+require a C++ compiler.
+
+The file `NEWS' describes recent user-visible changes to `groff'.
+
+`groff' is free software.  See the file `COPYING' for copying
+permission.
+
+The file `PROBLEMS' describes various problems that have been
+encountered in compiling, installing, and running `groff'.
+
+The most recent released version of `groff' is always available by
+anonymous ftp from `ftp.gnu.org' in the directory `gnu/groff'.
+
+The current development version of `groff' is available from a `CVS'
+repository.  You can access it by first selecting a parent directory
+in which to create a working copy (call it, say, `~/cvswork'), and
+then executing the commands
+
+  cd ~/cvswork
+  CVS_RSH=ssh; export CVS_RSH
+  cvs -d:ext:anoncvs@savannah.gnu.org/cvsroot/groff -z5 co groff
+
+(Note that you need an `ssh' client for security reasons.)
+
+This will create a subdirectory, `~/cvswork/groff', with a "checked
+out" copy of the `CVS' repository.  An update of this working copy may
+be achieved, at any later time by invoking the commands
+
+  cd ~/cvswork/groff
+  CVS_RSH=ssh cvs -z5 update -dP
+
+Please read the `CVS' info pages for further details.
+
+Finally, it is possible to access the `CVS' with a web browser by
+pointing it to
+
+  http://savannah.gnu.org/cvs/?group=groff
+
+Alternatively, you can download snapshots (which are updated twice a day).
+The complete `groff' source as a single file is available at
+
+  http://groff.ffii.org/groff/devel/groff-current.tar.gz
+
+A diff file relative to `groff-<version>', the latest official `groff'
+release is available at
+
+  http://groff.ffii.org/groff/devel/groff-<version>-current.diff.gz
+
+Assuming that `groff-<version>.tar.gz' and
+`groff-<version>-current.diff.gz' are in the same directory, do the
+following to apply the diff file:
+
+  tar xzvf groff-<version>.tar.gz
+  cd groff-<version>
+  gunzip -c ../groff-<version>-current.diff.gz | patch -p1
+
+Depending on your requirements, you may need at least some of the
+following tools to build `groff' directly from its source:
+
+  ghostscript
+  the psutils package
+  the netpbm package
+  texinfo 4.8
+  bison >= 1.875b or byacc
+
+Note that `texinfo' and `bison' or `byacc' are required only for
+building from `CVS' sources (either a checked out working copy, or a
+daily snapshot).  They are not required for building from a stable
+release tarball.  Also note that the version numbers stated are the
+minimum supported.  No version of `texinfo' < 4.8 will work, and the
+original release of `bison' 1.875 is known not to work; you *may* find
+that `bison' releases < 1.875 will work, but in case of difficulty,
+please update to a later version *before* posting a bug report.
+
+For *all* sources, you need ghostscript for creation of either `PDF' or
+`HTML' output; the `netpbm' and `psutils' packages are required only for
+`HTML' output.  If you don't intend to produce output in either of these
+formats, then these packages are unnecessary.
+
+In Linux Debian, the installation of `texinfo' is dangerous.  For it
+creates a file `install-info' that will block the system installation.
+So the created `/usr/local/bin/install-info' must be renamed.
+
+The `groff' configure script searches for the X11 headers and
+libraries `Xaw' and `Xmu'.  So the corresponding developer packages of
+your system must be installed, otherwise `groff' does not install
+`gxditview' and the `-TX*' devices.  In Debian, the developer packages
+are `libxaw7-dev' and `libxmu-dev'.
+
+Please report bugs using the form in the file `BUG-REPORT'; the idea of
+this is to make sure that FSF has all the information it needs to fix
+the bug.  At the very least, read the `BUG-REPORT' form and make sure
+that you supply all the information that it asks for.  Even if you are
+not sure that something is a bug, report it using `BUG-REPORT': this will
+enable us to determine whether it really is a bug or not.
+
+Three mailing lists are available:
+
+  bug-groff@gnu.org          for reporting bugs
+  groff@gnu.org              for general discussion of groff
+  groff-commit@gnu.org       a read-only list showing commitments
+                             to the CVS repository
+
+You can post mails directly to the `bug-groff' list, without subscribing;
+to post mails to the `groff' list you must subscribe to it.
+
+To subscribe, send a mail to <list>-request@<domain> (example:
+groff-request@gnu.org for the `groff' list) with the word `subscribe'
+in either the subject or body of the email (don't include the quotes).
+Alternatively, you may subscribe by visiting the web pages at
+
+  http://lists.gnu.org/mailman/listinfo/bug-groff
+  http://lists.gnu.org/mailman/listinfo/groff
+  http://lists.gnu.org/mailman/listinfo/groff-commit
+
+Each of these web pages also provides a link to a browseable archive of
+postings to the corresponding mailing list.
+
+GNU `groff' was written by James Clark <jjc@jclark.com>.  It is now
+maintained by Ted Harding <ted.harding@nessie.mcc.ac.uk> and Werner
+Lemberg <wl@gnu.org>.

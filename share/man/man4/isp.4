@@ -1,0 +1,225 @@
+.\"     $NetBSD: isp.4,v 1.5 1999/12/18 18:33:05 mjacob Exp $
+.\"
+.\" Copyright (c) 1998, 1999, 2001
+.\"     Matthew Jacob, for NASA/Ames Research Center
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. The name of the author may not be used to endorse or promote products
+.\"    derived from this software without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND ANY EXPRESS OR
+.\" IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
+.\" OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
+.\" IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY DIRECT, INDIRECT,
+.\" INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
+.\" NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+.\" DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+.\" THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+.\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
+.\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.\" Additional Copyright (c) 2006 by Marcus Alves Grando
+.\"
+.\" $FreeBSD$
+.\"
+.Dd February 6, 2006
+.Dt ISP 4
+.Os
+.Sh NAME
+.Nm isp
+.Nd Qlogic based SCSI and FibreChannel SCSI Host Adapters
+.Sh SYNOPSIS
+To compile this driver into the kernel,
+place the following lines in your
+kernel configuration file:
+.Bd -ragged -offset indent
+.Cd "device scbus"
+.Cd "device isp"
+.Ed
+.Pp
+Alternatively, to load the driver as a
+module at boot time, place the following line in
+.Xr loader.conf 5 :
+.Bd -literal -offset indent
+isp_load="YES"
+.Ed
+.Sh DESCRIPTION
+This driver provides access to
+.Tn SCSI
+or
+.Tn FibreChannel
+devices.
+.Pp
+SCSI features include support for Ultra SCSI and wide mode transactions
+for
+.Tn SCSI ,
+Ultra2 LVD (for the ISP1080 and ISP1280), and Ultra3 LVD (for the
+ISP12160).
+.Pp
+Fibre Channel support uses FCP SCSI profile for
+.Tn FibreChannel .
+and utilizes Class 3 and Class 2 connections (Qlogic 2100 is Class
+3 only, minor patches to the Qlogic 2200 to force Class 2 mode).
+Support is available for Public and Private loops, and for
+point-to-point connections (Qlogic 2200 only).
+The newer 2-Gigabit cards (2300, 2312) are also supported.
+Command tagging is
+supported for all (in fact,
+.Tn FibreChannel
+requires tagging).
+Fabric support is enabled by default (but may
+be contingent upon the correct firmware being loaded).
+.Sh FIRMWARE
+Firmware is available if the
+.Xr ispfw 4
+module is loaded during bootstrap (q.v.).
+.Pp
+It is very strongly recommended that you use the firmware available
+from
+.Xr ispfw 4
+as it is the most likely to have been tested with this driver.
+.Sh HARDWARE
+Cards supported by the
+.Nm
+driver include:
+.Pp
+.Bl -tag -width xxxxxx -offset indent
+.It ISP1000
+SBus Fast Wide, Ultra Fast Wide cards, Single Ended or Differential
+cards.
+.It ISP1020
+Qlogic 1020 Fast Wide and Differential Fast Wide PCI cards.
+.It ISP1040
+Qlogic 1040 Ultra Wide and Differential Ultra Wide PCI cards.
+Also known as the DEC KZPBA-CA (single ended) and KZPBA-CB (HVD differential).
+.It Qlogic 1240
+Qlogic 1240 Dual Bus Ultra Wide and Differential Ultra Wide PCI
+cards.
+.It Qlogic 1020
+Qlogic 1020 SCSI cards.
+.It Qlogic 1040
+Qlogic 1040 Ultra SCSI cards.
+.It Qlogic 1080
+Qlogic 1280 LVD Ultra2 Wide PCI cards.
+.It Qlogic 1280
+Qlogic 1280 Dual Bus LVD Ultra2 Wide PCI cards.
+.It Qlogic 12160
+Qlogic 12160 Dual Bus LVD Ultra3 Wide PCI cards.
+.It Qlogic 210X
+Qlogic 2100 and 2100A Copper and Optical Fibre Channel Arbitrated
+Loop (single, dual).
+.It Qlogic 220X
+Qlogic 2200 Copper and Optical Fibre Channel Arbitrated Loop PCI
+cards (single, dual, quad).
+.It Qlogic 2300
+Qlogic 2300 Optical Fibre Channel PCI cards.
+.It Qlogic 2312
+Qlogic 2312 Optical Fibre Channel PCI cards.
+.It Qlogic 234X
+Qlogic 234X Optical Fibre Channel PCI cards (2312 chipset, single and dual attach).
+.It Qlogic 2322
+Qlogic 2322 Optical Fibre Channel PCI cards.
+.It Qlogic 200
+Dell Branded version of the QLogic 2312 Fibre Channel PCI cards.
+.El
+.Sh CONFIGURATION OPTIONS
+.Pp
+Target mode support may be enabled with the
+.Pp
+.Cd options ISP_TARGET_MODE
+.Pp
+option.
+.Sh BOOT OPTIONS
+The following options are switchable by setting values in
+.Pa /boot/device.hints .
+.Pp
+They are:
+.Pp
+.Bl -tag -width indent
+.It Va hint.isp.0.disable
+A hint value to disable driver in kernel.
+.It Va hint.isp.0.fwload_disable
+A hint value to disable loading of firmware
+.Cd ispfw(4) .
+.It Va hint.isp.0.prefer_memmap
+A hint value to use PCI Memory space instead of I/O space
+access for.
+.It Va hint.isp.0.prefer_iomap
+A hint value to use PCI I/O space instead of Memory space
+access for.
+.It Va hint.isp.0.ignore_nvram
+A hint value to ignore board NVRAM settings for. Otherwise
+use NVRAM settings.
+.It Va hint.isp.0.fullduplex
+A hint value to set full duplex mode.
+.It Va hint.isp.0.topology
+A hint value to select topology of connection. Supported
+values are:
+.Pp
+.Cd lport
+(Prefer loopback and fallback to point to point).
+.Pp
+.Cd nport
+(Prefer point to point and fallback to loopback).
+.Pp
+.Cd lport-only
+(Loopback only).
+.Pp
+.Cd nport-only
+(Point to point only).
+.Pp
+.It Va hint.isp.0.portwwn
+This should be the full 64 bit World Wide Port Name you would like
+to use, overriding the value in NVRAM for the card.
+.It Va hint.isp.0.nodewwn
+This should be the full 64 bit World Wide Node Name you would like
+to use, overriding the value in NVRAM for the card.
+.It Va hint.isp.0.iid
+A hint to override or set the Initiator ID (principally for SPI SCSI).
+.It Va hint.isp.0.role
+A hint to define default role for isp instance (target, initiator, both).
+.It Va hint.isp.0.debug
+A hint value for a driver debug level (values from 0 through 7).
+Default is 0.
+.El
+.Sh SEE ALSO
+.Xr da 4 ,
+.Xr intro 4 ,
+.Xr ispfw 4 ,
+.Xr sa 4 ,
+.Xr scsi 4
+.Sh AUTHORS
+The
+.Nm
+driver was written by Matthew Jacob for NASA/Ames Research Center.
+.Sh BUGS
+The driver currently ignores some NVRAM settings.
+.Pp
+The driver currently does not do error recovery for timed out commands
+very gracefully.
+.Pp
+Target mode support is not completely debugged yet.
+It works reasonably
+well for Fibre Channel, somewhat well for Qlogic 1040 cards, but
+does not yet work for the other cards (due to last minute unannounced
+changes in firmware interfaces).
+.Pp
+Sometimes, when booting, the driver gets stuck waiting for the
+Fibre Channel f/w to tell it that the loop port database is ready,
+or waiting for a good loop to be seen (this does not yet support
+booting without being connected to a fibre channel device).
+To
+unwedge the system, unplug and replug the fibre channel connection,
+or otherwise cause a LIP (Loop Initialization Primitive sequence)-
+this will kick the f/w into getting unstuck.
+.Pp
+QLogic 2322 support is limited to platforms where the BIOS can
+enable firmware as there is no code yet to do the 3 stage loading
+for 2322 firmware.

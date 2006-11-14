@@ -1,0 +1,90 @@
+.\" ----------------------------------------------------------------------------
+.\" "THE BEER-WARE LICENSE" (Revision 42):
+.\" <phk@FreeBSD.ORG> wrote this file.  As long as you retain this notice you
+.\" can do whatever you want with this stuff. If we meet some day, and you think
+.\" this stuff is worth it, you can buy me a beer in return.   Poul-Henning Kamp
+.\" ----------------------------------------------------------------------------
+.\"
+.\" $FreeBSD$
+.\"
+.Dd March 9, 2001
+.Dt MD 4
+.Os
+.Sh NAME
+.Nm md
+.Nd memory disk
+.Sh SYNOPSIS
+.Cd device md
+.Sh DESCRIPTION
+The
+.Nm
+driver provides support for four kinds of memory backed virtual disks:
+.Bl -tag -width preload
+.It Cm malloc
+Backing store is allocated using
+.Xr malloc 9 .
+Only one malloc-bucket is used, which means that all
+.Nm
+devices with
+.Cm malloc
+backing must share the malloc-per-bucket-quota.
+The exact size of this quota varies, in particular with the amount
+of RAM in the
+system.
+The exact value can be determined with
+.Xr vmstat 8 .
+.It Cm preload
+A file loaded by
+.Xr loader 8
+with type
+.Sq md_image
+is used for backing store.
+For backwards compatibility the type
+.Sq mfs_root
+is also recognized.
+If the kernel is created with option
+.Dv MD_ROOT
+the first preloaded image found will become the root file system.
+.It Cm vnode
+A regular file is used as backing store.
+This allows for mounting ISO images without the tedious
+detour over actual physical media.
+.It Cm swap
+Backing store is allocated from swap space.
+.El
+.Pp
+For more information, please see
+.Xr mdconfig 8 .
+.Sh SEE ALSO
+.Xr disklabel 5 ,
+.Xr disklabel 8 ,
+.Xr fdisk 8 ,
+.Xr loader 8 ,
+.Xr mdconfig 8 ,
+.Xr mdmfs 8 ,
+.Xr newfs 8 ,
+.Xr vmstat 8
+.Sh HISTORY
+The
+.Nm
+driver first appeared in
+.Fx 4.0
+as a cleaner replacement
+for the MFS functionality previously used in
+.Tn PicoBSD
+and in the
+.Fx
+installation process.
+.Pp
+The
+.Nm
+driver did a hostile takeover of the
+.Xr vn 4
+driver in
+.Fx 5.0 .
+.Sh AUTHORS
+The
+.Nm
+driver was written by
+.An Poul-Henning Kamp
+.Aq phk@FreeBSD.org .

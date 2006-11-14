@@ -1,0 +1,38 @@
+/**
+\page eap_module EAP peer implementation
+
+%wpa_supplicant uses a separate code module for EAP peer
+implementation. This module was designed to use only a minimal set of
+direct function calls (mainly, to debug/event functions) in order for
+it to be usable in other programs. The design of the EAP
+implementation is based loosely on RFC 4137. The state machine is
+defined in this RFC and so is the interface between the peer state
+machine and methods. As such, this RFC provides useful information for
+understanding the EAP peer implementation in %wpa_supplicant.
+
+Some of the terminology used in EAP state machine is referring to
+EAPOL (IEEE 802.1X), but there is no strict requirement on the lower
+layer being IEEE 802.1X if EAP module is built for other programs than
+%wpa_supplicant. These terms should be understood to refer to the
+lower layer as defined in RFC 4137.
+
+
+\section adding_eap_methods Adding EAP methods
+
+Each EAP method is implemented as a separate module, usually as one C
+file named eap_<name of the method>.c, e.g., eap_md5.c. All EAP
+methods use the same interface between the peer state machine and
+method specific functions. This allows new EAP methods to be added
+without modifying the core EAP state machine implementation.
+
+New EAP methods need to be registered by adding them into build
+(Makefile) and EAP method table in the beginning of eap.c. Each EAP
+method should use a build-time configuration option, e.g., EAP_TLS, in
+order to make it possible to select which of the methods are included
+in the build.
+
+EAP methods must implement the interface defined in eap_i.h. struct
+eap_method defines the needed function pointers that each EAP method
+must provide. In addition, the EAP type and name are registered using
+this structure. This interface is based on section 4.4 of RFC 4137.
+*/

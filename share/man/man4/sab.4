@@ -1,0 +1,84 @@
+.\"	$OpenBSD: sab.4,v 1.6 2003/06/06 10:29:42 jmc Exp $
+.\"
+.\" Copyright (c) 2001 Jason L. Wright (jason@thought.net)
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND ANY EXPRESS OR
+.\" IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+.\" WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+.\" DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY DIRECT,
+.\" INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
+.\" (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
+.\" SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
+.\" STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
+.\" ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+.\" POSSIBILITY OF SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd October 29, 2001
+.Dt SAB 4 sparc64
+.Os
+.Sh NAME
+.Nm sab
+.Nd Infineon SAB82532 (ESCC2) serial communications driver
+.Sh SYNOPSIS
+.Cd "device sab"
+.Sh DESCRIPTION
+The
+.Nm
+is a
+.Tn Infineon
+(formerly
+.Tn Siemens )
+SAB82532 (ESCC2) serial interface chip used in PCI-based UltraSPARC
+.Tn Sun
+workstations.
+The ESCC2 provides two independent input/output channels per instance.
+These chips are normally used to provide RS-423 and RS232 serial ports
+for general purpose use.
+.Pp
+The
+.Nm
+driver supports all of the standard
+.Xr tty 4
+ioctl calls.
+The status of the DTR, RTS, CTS, and DCD signals can be queried with
+.Dv TIOCMGET
+command, but, due to limitations in the hardware,
+only the DTR and RTS signals can be modified with
+.Dv TIOCMSET , TIOCMBIC ,
+and
+.Dv TIOCMBIS
+.Xr ioctl 2
+commands.
+.Sh FILES
+.Bl -tag -width ".Pa /dev/tty[a-b]" -compact
+.It Pa /dev/tty[a-b]
+Serial ports.
+.El
+.Sh SEE ALSO
+.Xr ioctl 2 ,
+.Xr intro 4 ,
+.Xr tty 4
+.Sh HISTORY
+The
+.Nm
+driver first appeared in
+.Fx 5.1 .
+.Sh BUGS
+The
+.Nm
+does not support
+.Pa cua
+minor devices.

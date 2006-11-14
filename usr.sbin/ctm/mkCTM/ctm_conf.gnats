@@ -1,0 +1,8 @@
+#!/usr/local/bin/tclsh
+
+#set CTMfirst	1
+set CTMname	gnats
+set CTMref	/home/gnats
+set CTMdest	$CTMSW/../CTM-pub/$CTMname
+set CTMignore	{\\.lock$}
+set CTMmail	ctm-gnats@freebsd.org

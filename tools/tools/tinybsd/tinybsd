@@ -1,0 +1,220 @@
+#!/bin/sh -
+# Copyright (c) 2006 Jean Milanez Melo <jmelo@freebsdbrasil.com.br>
+#				       <jmelo@FreeBSD.org>
+#		     Patrick Tracanelli <eksffa@freebsdbrasil.com.br>
+#
+# $FreeBSD$
+#set -xv
+CURRENTDIR=/usr/src/tools/tools/tinybsd
+WORKDIR=/usr/obj/tinybsdbuild
+KERNCONF=TINYBSD
+DEFINSTARGS="-o 0 -g 0 -m 555"
+SECTUNIT=$1
+TRACKCYL=$2 
+SECTRACK=$3
+CONF=$4
+IMG=$5
+TS="=====>"
+
+if [ "$#" -lt 3 ]
+then
+  echo "Woops!
+   Usage: $0 <mediasize in sectors> <heads according to firmware> 
+   <sectors according to firmware> <conf> [<tinybsd image name>]
+
+   Example: $0 62592 4 32 
+
+	or
+
+  $0 62592 4 32 wireless
+
+   Run diskinfo(8) -v against your CF device to get correct information
+   about your disk."
+  exit 1
+fi
+
+check_conf() {
+        if [ -z ${CONF} ]
+        then
+                CONF="default"
+                echo "${TS} Alternative conf name not set; defaulting to 'default'"
+        fi
+}
+
+check_alt_imgname() {
+	if [ -z ${IMG} ]
+	then
+		IMG="tinybsd.bin"
+		echo "${TS} Alternative image name not set; defaulting to 'tinybsd.bin'"
+	fi
+}
+
+remove_workdir() {
+	chflags -R noschg ${WORKDIR}
+	echo "${TS} Removing "${WORKDIR}
+	rm -rf ${WORKDIR}
+	echo "${TS} Removing Build Kernel Directory"
+	rm -rf /usr/obj/usr/src/sys/${KERNCONF}
+	echo "${TS}  done."
+}
+
+
+prework() {
+	remove_workdir	
+	mkdir -p ${WORKDIR}
+}
+
+
+create_tree() {
+	echo "${TS} Creating directory hierarchy... "
+	mtree -deU -f /etc/mtree/BSD.root.dist -p ${WORKDIR}
+	mtree -deU -f /etc/mtree/BSD.usr.dist -p ${WORKDIR}/usr
+	mtree -deU -f /etc/mtree/BSD.var.dist -p ${WORKDIR}/var
+}
+
+
+copy_binaries() {
+#set -xv
+	for file in `cat ${CURRENTDIR}/conf/${CONF}/tinybsd.basefiles | grep -v "#" | \
+		cut -f1 -d":" | sort | uniq` ; do
+		echo "${TS} Copying "/${file}" to "${WORKDIR}/${file} 
+		cp -fp /${file} ${WORKDIR}/${file} ;
+	done
+#set +xv
+}
+
+make_kernel() {
+	echo "${TS} Building customized tiny beastie kernel... "
+	cp -p ${CURRENTDIR}/conf/${CONF}/${KERNCONF} /usr/src/sys/i386/conf
+	cd /usr/src
+	make buildkernel KERNCONF=${KERNCONF} || exit 1
+	gzip -9 /usr/obj/usr/src/sys/${KERNCONF}/kernel
+	install ${DEFINSTARGS} /usr/obj/usr/src/sys/${KERNCONF}/kernel.gz ${WORKDIR}/boot/kernel/
+	install ${DEFINSTARGS} \
+	  /usr/obj/usr/src/sys/${KERNCONF}/modules/usr/src/sys/modules/acpi/acpi/acpi.ko \
+	    ${WORKDIR}/boot/kernel
+	install -o 0 -g 0 -m 444 /sys/i386/conf/GENERIC.hints ${WORKDIR}/boot/device.hints
+}
+
+
+copy_libraries() {
+#set -xv
+	TDEPFILE="`mktemp -t deps`"
+	TDEPFILES="`mktemp -t depsymlnk`"
+
+	cd ${CURRENTDIR}/conf/${CONF}
+	for file in `cat tinybsd.basefiles | grep -v "#" | cut -f1 -d":"`; do
+		ldd -f "%p\n" /${file} >> ${TDEPFILE} ; # don't worry on progs been "not dynamic"
+	done
+
+	for libdeplib in `cat ${TDEPFILE} | sort | uniq`; do
+		ldd -f "%p\n" /${libdeplib} >> ${TDEPFILE} ;
+	done
+	
+	for pamdep in `ls -1 /usr/lib/pam*`; do
+		echo $pamdep >> ${TDEPFILE} ;
+		ldd -f "%p\n" /${pamdep} >> ${TDEPFILE} ;
+	done	
+	
+	for lib in `cat ${TDEPFILE} | sort | uniq`; do
+		echo "${TS} Copying "${lib}" to "${WORKDIR}${lib}
+		cp -fp ${lib} ${WORKDIR}${lib} ;
+	done
+
+	for depsymlink in `cat ${TDEPFILE}`; do
+		echo "${TS} Checking if ${depsymlink} is a symbolic link"
+		/bin/ls -l $depsymlink | grep "\->" | awk '{print $11":"$9}' >> ${TDEPFILES}
+	done
+
+	for i in `cat ${TDEPFILES}`; do
+                SOURCE_FILE=`echo $i | awk -F ":" '{print $1}'`
+                TARGET_FILE=`echo $i | awk -F ":" '{print $2}'`
+
+		echo "${TS} Unlinking ${WORKDIR}${TARGET_FILE}"
+                chroot ${WORKDIR} /bin/rm -f ${TARGET_FILE}
+
+		echo "${TS} Symlinking ${SOURCE_FILE} to ${TARGET_FILE}"
+                chroot ${WORKDIR} /bin/ln -s ${SOURCE_FILE} ${TARGET_FILE}
+        done
+
+	echo -n "${TS} Unlinking "
+	rm -fv ${TDEPFILE} ${TDEPFILES}
+#set +xv
+}
+
+
+create_etc() {
+	cd /usr/src/etc/sendmail/
+	make freebsd.cf freebsd.submit.cf
+
+	cd /usr/src/etc/
+	mkdir -p ${WORKDIR}/var/named/etc/namedb
+	make distribution DESTDIR=${WORKDIR}
+}
+
+personal_directories() {
+	echo "${TS} Copying your custom configuration on conf/ ..."
+	for custom in `find ${CURRENTDIR}/conf/${CONF}/ -type d -depth 1`; do
+		cp -Rp ${custom}/* ${WORKDIR}/${custom#${CURRENTDIR}/conf/${CONF}/}/
+	done
+}
+
+symlinks() {
+#set -xv
+	for i in `cat tinybsd.basefiles | grep -v "#" | grep ":"`; do
+		SOURCE_FILE=`echo $i | awk -F ":" {'print $1'}`
+		TARGET_FILE=`echo $i | awk -F ":" {'print $2'}`
+		chroot ${WORKDIR} /bin/ln -vs /${SOURCE_FILE} ${TARGET_FILE}
+	done
+#set +xv
+}
+
+
+create_image() {
+	#set -ex
+
+	VNODEFILE=`mktemp -t tinybsd`
+	IMGMNT=`mktemp -d -t tinybsd`
+
+	dd if=/dev/zero of=${VNODEFILE} count=${SECTUNIT}
+
+	MD=`mdconfig -a -t vnode -f ${VNODEFILE} -x ${SECTRACK} -y ${TRACKCYL}`
+
+	diskinfo -v /dev/${MD}
+
+	fdisk -I /dev/${MD}
+	fdisk /dev/${MD}
+
+	cp -p /boot/boot0 ${WORKDIR}/boot/boot0
+	bsdlabel -w -B /dev/${MD}
+	newfs -O2 -U /dev/${MD}a
+
+	mount /dev/${MD}a ${IMGMNT}
+
+	( cd ${WORKDIR} && find . -print | cpio -dump ${IMGMNT} ) || true
+
+	df ${IMGMNT}
+	umount ${IMGMNT}
+
+	dd if=/dev/${MD} of=${CURRENTDIR}/${IMG} bs=64k
+
+	rm -vf ${VNODEFILE}
+	rm -rvf ${IMGMNT}
+	mdconfig -d -u ${MD}
+}
+
+##########################
+# run things
+prework
+check_conf
+check_alt_imgname
+create_tree
+copy_binaries
+make_kernel
+copy_libraries
+symlinks
+create_etc
+personal_directories
+create_image
+#set +xv
+

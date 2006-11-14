@@ -1,0 +1,124 @@
+<!--
+ - Copyright (C) 2004, 2005 Internet Systems Consortium, Inc. ("ISC")
+ - Copyright (C) 2000-2003 Internet Software Consortium.
+ - 
+ - Permission to use, copy, modify, and distribute this software for any
+ - purpose with or without fee is hereby granted, provided that the above
+ - copyright notice and this permission notice appear in all copies.
+ - 
+ - THE SOFTWARE IS PROVIDED "AS IS" AND ISC DISCLAIMS ALL WARRANTIES WITH
+ - REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF MERCHANTABILITY
+ - AND FITNESS. IN NO EVENT SHALL ISC BE LIABLE FOR ANY SPECIAL, DIRECT,
+ - INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING FROM
+ - LOSS OF USE, DATA OR PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE
+ - OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
+ - PERFORMANCE OF THIS SOFTWARE.
+-->
+<!-- $Id: Bv9ARM.ch08.html,v 1.50.2.9.2.24 2005/10/13 02:34:02 marka Exp $ -->
+<html>
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=ISO-8859-1">
+<title>Chapter 8. Troubleshooting</title>
+<meta name="generator" content="DocBook XSL Stylesheets V1.69.1">
+<link rel="start" href="Bv9ARM.html" title="BIND 9 Administrator Reference Manual">
+<link rel="up" href="Bv9ARM.html" title="BIND 9 Administrator Reference Manual">
+<link rel="prev" href="Bv9ARM.ch07.html" title="Chapter 7. BIND 9 Security Considerations">
+<link rel="next" href="Bv9ARM.ch09.html" title="Appendix A. Appendices">
+</head>
+<body bgcolor="white" text="black" link="#0000FF" vlink="#840084" alink="#0000FF">
+<div class="navheader">
+<table width="100%" summary="Navigation header">
+<tr><th colspan="3" align="center">Chapter 8. Troubleshooting</th></tr>
+<tr>
+<td width="20%" align="left">
+<a accesskey="p" href="Bv9ARM.ch07.html">Prev</a> </td>
+<th width="60%" align="center"> </th>
+<td width="20%" align="right"> <a accesskey="n" href="Bv9ARM.ch09.html">Next</a>
+</td>
+</tr>
+</table>
+<hr>
+</div>
+<div class="chapter" lang="en">
+<div class="titlepage"><div><div><h2 class="title">
+<a name="Bv9ARM.ch08"></a>Chapter 8. Troubleshooting</h2></div></div></div>
+<div class="toc">
+<p><b>Table of Contents</b></p>
+<dl>
+<dt><span class="sect1"><a href="Bv9ARM.ch08.html#id2567630">Common Problems</a></span></dt>
+<dd><dl><dt><span class="sect2"><a href="Bv9ARM.ch08.html#id2567636">It's not working; how can I figure out what's wrong?</a></span></dt></dl></dd>
+<dt><span class="sect1"><a href="Bv9ARM.ch08.html#id2567648">Incrementing and Changing the Serial Number</a></span></dt>
+<dt><span class="sect1"><a href="Bv9ARM.ch08.html#id2567665">Where Can I Get Help?</a></span></dt>
+</dl>
+</div>
+<div class="sect1" lang="en">
+<div class="titlepage"><div><div><h2 class="title" style="clear: both">
+<a name="id2567630"></a>Common Problems</h2></div></div></div>
+<div class="sect2" lang="en">
+<div class="titlepage"><div><div><h3 class="title">
+<a name="id2567636"></a>It's not working; how can I figure out what's wrong?</h3></div></div></div>
+<p>The best solution to solving installation and
+      configuration issues is to take preventative measures by setting
+      up logging files beforehand. The log files provide a
+      source of hints and information that can be used to figure out
+      what went wrong and how to fix the problem.</p>
+</div>
+</div>
+<div class="sect1" lang="en">
+<div class="titlepage"><div><div><h2 class="title" style="clear: both">
+<a name="id2567648"></a>Incrementing and Changing the Serial Number</h2></div></div></div>
+<p>Zone serial numbers are just numbers-they aren't date
+    related.  A lot of people set them to a number that represents a
+    date, usually of the form YYYYMMDDRR. A number of people have been
+    testing these numbers for Y2K compliance and have set the number
+    to the year 2000 to see if it will work. They then try to restore
+    the old serial number. This will cause problems because serial
+    numbers are used to indicate that a zone has been updated. If the
+    serial number on the slave server is lower than the serial number
+    on the master, the slave server will attempt to update its copy of
+    the zone.</p>
+<p>Setting the serial number to a lower number on the master
+    server than the slave server means that the slave will not perform
+    updates to its copy of the zone.</p>
+<p>The solution to this is to add 2147483647 (2^31-1) to the
+    number, reload the zone and make sure all slaves have updated to
+    the new zone serial number, then reset the number to what you want
+    it to be, and reload the zone again.</p>
+</div>
+<div class="sect1" lang="en">
+<div class="titlepage"><div><div><h2 class="title" style="clear: both">
+<a name="id2567665"></a>Where Can I Get Help?</h2></div></div></div>
+<p>The Internet Software Consortium (<span class="acronym">ISC</span>) offers a wide range
+    of support and service agreements for <span class="acronym">BIND</span> and <span class="acronym">DHCP</span> servers. Four
+    levels of premium support are available and each level includes
+    support for all <span class="acronym">ISC</span> programs, significant discounts on products
+    and training, and a recognized priority on bug fixes and
+    non-funded feature requests. In addition, <span class="acronym">ISC</span> offers a standard
+    support agreement package which includes services ranging from bug
+    fix announcements to remote support. It also includes training in
+    <span class="acronym">BIND</span> and <span class="acronym">DHCP</span>.</p>
+<p>To discuss arrangements for support, contact
+    <a href="mailto:info@isc.org" target="_top">info@isc.org</a> or visit the
+    <span class="acronym">ISC</span> web page at <a href="http://www.isc.org/services/support/" target="_top">http://www.isc.org/services/support/</a>
+    to read more.</p>
+</div>
+</div>
+<div class="navfooter">
+<hr>
+<table width="100%" summary="Navigation footer">
+<tr>
+<td width="40%" align="left">
+<a accesskey="p" href="Bv9ARM.ch07.html">Prev</a> </td>
+<td width="20%" align="center"> </td>
+<td width="40%" align="right"> <a accesskey="n" href="Bv9ARM.ch09.html">Next</a>
+</td>
+</tr>
+<tr>
+<td width="40%" align="left" valign="top">Chapter 7. <span class="acronym">BIND</span> 9 Security Considerations </td>
+<td width="20%" align="center"><a accesskey="h" href="Bv9ARM.html">Home</a></td>
+<td width="40%" align="right" valign="top"> Appendix A. Appendices</td>
+</tr>
+</table>
+</div>
+</body>
+</html>

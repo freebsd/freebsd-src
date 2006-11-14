@@ -1,0 +1,5 @@
+# $FreeBSD$
+
+files	"../at91/files.at91"
+cpu	CPU_ARM9
+makeoptions	CONF_CFLAGS=-mcpu=arm9

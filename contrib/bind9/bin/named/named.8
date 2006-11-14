@@ -1,0 +1,182 @@
+.\" Copyright (C) 2004, 2005 Internet Systems Consortium, Inc. ("ISC")
+.\" Copyright (C) 2000, 2001, 2003 Internet Software Consortium.
+.\" 
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\" 
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND ISC DISCLAIMS ALL WARRANTIES WITH
+.\" REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF MERCHANTABILITY
+.\" AND FITNESS. IN NO EVENT SHALL ISC BE LIABLE FOR ANY SPECIAL, DIRECT,
+.\" INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING FROM
+.\" LOSS OF USE, DATA OR PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE
+.\" OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
+.\" PERFORMANCE OF THIS SOFTWARE.
+.\"
+.\" $Id: named.8,v 1.17.208.6 2005/10/13 02:33:46 marka Exp $
+.\"
+.hy 0
+.ad l
+.\" ** You probably do not want to edit this file directly **
+.\" It was generated using the DocBook XSL Stylesheets (version 1.69.1).
+.\" Instead of manually editing it, you probably should edit the DocBook XML
+.\" source for it and then use the DocBook XSL Stylesheets to regenerate it.
+.TH "NAMED" "8" "June 30, 2000" "BIND9" "BIND9"
+.\" disable hyphenation
+.nh
+.\" disable justification (adjust text to left margin only)
+.ad l
+.SH "NAME"
+named \- Internet domain name server
+.SH "SYNOPSIS"
+.HP 6
+\fBnamed\fR [\fB\-4\fR] [\fB\-6\fR] [\fB\-c\ \fR\fB\fIconfig\-file\fR\fR] [\fB\-d\ \fR\fB\fIdebug\-level\fR\fR] [\fB\-f\fR] [\fB\-g\fR] [\fB\-n\ \fR\fB\fI#cpus\fR\fR] [\fB\-p\ \fR\fB\fIport\fR\fR] [\fB\-s\fR] [\fB\-t\ \fR\fB\fIdirectory\fR\fR] [\fB\-u\ \fR\fB\fIuser\fR\fR] [\fB\-v\fR] [\fB\-x\ \fR\fB\fIcache\-file\fR\fR]
+.SH "DESCRIPTION"
+.PP
+\fBnamed\fR
+is a Domain Name System (DNS) server, part of the BIND 9 distribution from ISC. For more information on the DNS, see RFCs 1033, 1034, and 1035.
+.PP
+When invoked without arguments,
+\fBnamed\fR
+will read the default configuration file
+\fI/etc/named.conf\fR, read any initial data, and listen for queries.
+.SH "OPTIONS"
+.TP
+\-4
+Use IPv4 only even if the host machine is capable of IPv6.
+\fB\-4\fR
+and
+\fB\-6\fR
+are mutually exclusive.
+.TP
+\-6
+Use IPv6 only even if the host machine is capable of IPv4.
+\fB\-4\fR
+and
+\fB\-6\fR
+are mutually exclusive.
+.TP
+\-c \fIconfig\-file\fR
+Use
+\fIconfig\-file\fR
+as the configuration file instead of the default,
+\fI/etc/named.conf\fR. To ensure that reloading the configuration file continues to work after the server has changed its working directory due to to a possible
+\fBdirectory\fR
+option in the configuration file,
+\fIconfig\-file\fR
+should be an absolute pathname.
+.TP
+\-d \fIdebug\-level\fR
+Set the daemon's debug level to
+\fIdebug\-level\fR. Debugging traces from
+\fBnamed\fR
+become more verbose as the debug level increases.
+.TP
+\-f
+Run the server in the foreground (i.e. do not daemonize).
+.TP
+\-g
+Run the server in the foreground and force all logging to
+\fIstderr\fR.
+.TP
+\-n \fI#cpus\fR
+Create
+\fI#cpus\fR
+worker threads to take advantage of multiple CPUs. If not specified,
+\fBnamed\fR
+will try to determine the number of CPUs present and create one thread per CPU. If it is unable to determine the number of CPUs, a single worker thread will be created.
+.TP
+\-p \fIport\fR
+Listen for queries on port
+\fIport\fR. If not specified, the default is port 53.
+.TP
+\-s
+Write memory usage statistics to
+\fIstdout\fR
+on exit.
+.RS
+.B "Note:"
+This option is mainly of interest to BIND 9 developers and may be removed or changed in a future release.
+.RE
+.TP
+\-t \fIdirectory\fR
+\fBchroot()\fR
+to
+\fIdirectory\fR
+after processing the command line arguments, but before reading the configuration file.
+.RS
+.B "Warning:"
+This option should be used in conjunction with the
+\fB\-u\fR
+option, as chrooting a process running as root doesn't enhance security on most systems; the way
+\fBchroot()\fR
+is defined allows a process with root privileges to escape a chroot jail.
+.RE
+.TP
+\-u \fIuser\fR
+\fBsetuid()\fR
+to
+\fIuser\fR
+after completing privileged operations, such as creating sockets that listen on privileged ports.
+.RS
+.B "Note:"
+On Linux,
+\fBnamed\fR
+uses the kernel's capability mechanism to drop all root privileges except the ability to
+\fBbind()\fR
+to a privileged port and set process resource limits. Unfortunately, this means that the
+\fB\-u\fR
+option only works when
+\fBnamed\fR
+is run on kernel 2.2.18 or later, or kernel 2.3.99\-pre3 or later, since previous kernels did not allow privileges to be retained after
+\fBsetuid()\fR.
+.RE
+.TP
+\-v
+Report the version number and exit.
+.TP
+\-x \fIcache\-file\fR
+Load data from
+\fIcache\-file\fR
+into the cache of the default view.
+.RS
+.B "Warning:"
+This option must not be used. It is only of interest to BIND 9 developers and may be removed or changed in a future release.
+.RE
+.SH "SIGNALS"
+.PP
+In routine operation, signals should not be used to control the nameserver;
+\fBrndc\fR
+should be used instead.
+.TP
+SIGHUP
+Force a reload of the server.
+.TP
+SIGINT, SIGTERM
+Shut down the server.
+.PP
+The result of sending any other signals to the server is undefined.
+.SH "CONFIGURATION"
+.PP
+The
+\fBnamed\fR
+configuration file is too complex to describe in detail here. A complete description is provided in the
+BIND 9 Administrator Reference Manual.
+.SH "FILES"
+.TP
+\fI/etc/named.conf\fR
+The default configuration file.
+.TP
+\fI/var/run/named.pid\fR
+The default process\-id file.
+.SH "SEE ALSO"
+.PP
+RFC 1033,
+RFC 1034,
+RFC 1035,
+\fBrndc\fR(8),
+\fBlwresd\fR(8),
+BIND 9 Administrator Reference Manual.
+.SH "AUTHOR"
+.PP
+Internet Systems Consortium

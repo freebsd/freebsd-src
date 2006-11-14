@@ -1,0 +1,323 @@
+.\" Copyright (c) 1991, 1993
+.\"	The Regents of the University of California.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. All advertising materials mentioning features or use of this software
+.\"    must display the following acknowledgement:
+.\"	This product includes software developed by the University of
+.\"	California, Berkeley and its contributors.
+.\" 4. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"     @(#)regexp.3	8.1 (Berkeley) 6/4/93
+.\" $FreeBSD$
+.\"
+.Dd June 4, 1993
+.Dt REGEXP 3
+.Os
+.Sh NAME
+.Nm regcomp ,
+.Nm regexec ,
+.Nm regsub ,
+.Nm regerror
+.Nd regular expression handlers
+.Sh LIBRARY
+.Lb libcompat
+.Sh SYNOPSIS
+.In regexp.h
+.Ft regexp *
+.Fn regcomp "const char *exp"
+.Ft int
+.Fn regexec "const regexp *prog" "const char *string"
+.Ft void
+.Fn regsub "const regexp *prog" "const char *source" "char *dest"
+.Sh DESCRIPTION
+.Bf Sy
+This interface is made obsolete by
+.Xr regex 3 .
+.Ef
+.Pp
+The
+.Fn regcomp ,
+.Fn regexec ,
+.Fn regsub ,
+and
+.Fn regerror
+functions
+implement
+.Xr egrep 1 Ns -style
+regular expressions and supporting facilities.
+.Pp
+The
+.Fn regcomp
+function
+compiles a regular expression into a structure of type
+.Vt regexp ,
+and returns a pointer to it.
+The space has been allocated using
+.Xr malloc 3
+and may be released by
+.Xr free 3 .
+.Pp
+The
+.Fn regexec
+function
+matches a
+.Dv NUL Ns -terminated
+.Fa string
+against the compiled regular expression
+in
+.Fa prog .
+It returns 1 for success and 0 for failure, and adjusts the contents of
+.Fa prog Ns 's
+.Em startp
+and
+.Em endp
+(see below) accordingly.
+.Pp
+The members of a
+.Vt regexp
+structure include at least the following (not necessarily in order):
+.Bd -literal -offset indent
+char *startp[NSUBEXP];
+char *endp[NSUBEXP];
+.Ed
+.Pp
+where
+.Dv NSUBEXP
+is defined (as 10) in the header file.
+Once a successful
+.Fn regexec
+has been done using the
+.Fn regexp ,
+each
+.Em startp Ns - Em endp
+pair describes one substring
+within the
+.Fa string ,
+with the
+.Em startp
+pointing to the first character of the substring and
+the
+.Em endp
+pointing to the first character following the substring.
+The 0th substring is the substring of
+.Fa string
+that matched the whole
+regular expression.
+The others are those substrings that matched parenthesized expressions
+within the regular expression, with parenthesized expressions numbered
+in left-to-right order of their opening parentheses.
+.Pp
+The
+.Fn regsub
+function
+copies
+.Fa source
+to
+.Fa dest ,
+making substitutions according to the
+most recent
+.Fn regexec
+performed using
+.Fa prog .
+Each instance of `&' in
+.Fa source
+is replaced by the substring
+indicated by
+.Em startp Ns Bq
+and
+.Em endp Ns Bq .
+Each instance of
+.Sq \e Ns Em n ,
+where
+.Em n
+is a digit, is replaced by
+the substring indicated by
+.Em startp Ns Bq Em n
+and
+.Em endp Ns Bq Em n .
+To get a literal `&' or
+.Sq \e Ns Em n
+into
+.Fa dest ,
+prefix it with `\e';
+to get a literal `\e' preceding `&' or
+.Sq \e Ns Em n ,
+prefix it with
+another `\e'.
+.Pp
+The
+.Fn regerror
+function
+is called whenever an error is detected in
+.Fn regcomp ,
+.Fn regexec ,
+or
+.Fn regsub .
+The default
+.Fn regerror
+writes the string
+.Fa msg ,
+with a suitable indicator of origin,
+on the standard
+error output
+and invokes
+.Xr exit 3 .
+The
+.Fn regerror
+function
+can be replaced by the user if other actions are desirable.
+.Sh REGULAR EXPRESSION SYNTAX
+A regular expression is zero or more
+.Em branches ,
+separated by `|'.
+It matches anything that matches one of the branches.
+.Pp
+A branch is zero or more
+.Em pieces ,
+concatenated.
+It matches a match for the first, followed by a match for the second, etc.
+.Pp
+A piece is an
+.Em atom
+possibly followed by `*', `+', or `?'.
+An atom followed by `*' matches a sequence of 0 or more matches of the atom.
+An atom followed by `+' matches a sequence of 1 or more matches of the atom.
+An atom followed by `?' matches a match of the atom, or the null string.
+.Pp
+An atom is a regular expression in parentheses (matching a match for the
+regular expression), a
+.Em range
+(see below), `.'
+(matching any single character), `^' (matching the null string at the
+beginning of the input string), `$' (matching the null string at the
+end of the input string), a `\e' followed by a single character (matching
+that character), or a single character with no other significance
+(matching that character).
+.Pp
+A
+.Em range
+is a sequence of characters enclosed in `[]'.
+It normally matches any single character from the sequence.
+If the sequence begins with `^',
+it matches any single character
+.Em not
+from the rest of the sequence.
+If two characters in the sequence are separated by `\-', this is shorthand
+for the full list of
+.Tn ASCII
+characters between them
+(e.g.\& `[0-9]' matches any decimal digit).
+To include a literal `]' in the sequence, make it the first character
+(following a possible `^').
+To include a literal `\-', make it the first or last character.
+.Sh AMBIGUITY
+If a regular expression could match two different parts of the input string,
+it will match the one which begins earliest.
+If both begin in the same place but match different lengths, or match
+the same length in different ways, life gets messier, as follows.
+.Pp
+In general, the possibilities in a list of branches are considered in
+left-to-right order, the possibilities for `*', `+', and `?' are
+considered longest-first, nested constructs are considered from the
+outermost in, and concatenated constructs are considered leftmost-first.
+The match that will be chosen is the one that uses the earliest
+possibility in the first choice that has to be made.
+If there is more than one choice, the next will be made in the same manner
+(earliest possibility) subject to the decision on the first choice.
+And so forth.
+.Pp
+For example,
+.Sq Li (ab|a)b*c
+could match
+`abc' in one of two ways.
+The first choice is between `ab' and `a'; since `ab' is earlier, and does
+lead to a successful overall match, it is chosen.
+Since the `b' is already spoken for,
+the `b*' must match its last possibility\(emthe empty string\(emsince
+it must respect the earlier choice.
+.Pp
+In the particular case where no `|'s are present and there is only one
+`*', `+', or `?', the net effect is that the longest possible
+match will be chosen.
+So
+.Sq Li ab* ,
+presented with `xabbbby', will match `abbbb'.
+Note that if
+.Sq Li ab* ,
+is tried against `xabyabbbz', it
+will match `ab' just after `x', due to the begins-earliest rule.
+(In effect, the decision on where to start the match is the first choice
+to be made, hence subsequent choices must respect it even if this leads them
+to less-preferred alternatives.)
+.Sh RETURN VALUES
+The
+.Fn regcomp
+function
+returns
+.Dv NULL
+for a failure
+.Pf ( Fn regerror
+permitting),
+where failures are syntax errors, exceeding implementation limits,
+or applying `+' or `*' to a possibly-null operand.
+.Sh SEE ALSO
+.Xr ed 1 ,
+.Xr egrep 1 ,
+.Xr ex 1 ,
+.Xr expr 1 ,
+.Xr fgrep 1 ,
+.Xr grep 1 ,
+.Xr regex 3
+.Sh HISTORY
+Both code and manual page for
+.Fn regcomp ,
+.Fn regexec ,
+.Fn regsub ,
+and
+.Fn regerror
+were written at the University of Toronto
+and appeared in
+.Bx 4.3 tahoe .
+They are intended to be compatible with the Bell V8
+.Xr regexp 3 ,
+but are not derived from Bell code.
+.Sh BUGS
+Empty branches and empty regular expressions are not portable to V8.
+.Pp
+The restriction against
+applying `*' or `+' to a possibly-null operand is an artifact of the
+simplistic implementation.
+.Pp
+Does not support
+.Xr egrep 1 Ns 's
+newline-separated branches;
+neither does the V8
+.Xr regexp 3 ,
+though.
+.Pp
+Due to emphasis on
+compactness and simplicity,
+it is not strikingly fast.
+It does give special attention to handling simple cases quickly.

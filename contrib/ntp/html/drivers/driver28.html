@@ -1,0 +1,76 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+
+<html>
+
+    <head>
+        <meta http-equiv="Content-Type" content="text/html; charset=iso-8859-1">
+        <meta name="GENERATOR" content="Mozilla/4.01 [en] (Win95; I) [Netscape]">
+        <title>Shared memoy Driver</title>
+        <link href="../scripts/style.css" type="text/css" rel="stylesheet">
+    </head>
+
+    <body>
+        <h3>Shared Memory Driver</h3>
+        <hr>
+        <h4>Synopsis</h4>
+        <p>Address: 127.127.28.<i>u</i><br>
+            Reference ID: <tt>SHM</tt><br>
+            Driver ID: <tt>SHM</tt></p>
+        <h4>Description</h4>
+        <p>This driver receives its reference clock info from a shared memory-segment. The shared memory-segment is created with owner-only access for unit 0 and 1, and world access for unit 2 and 3</p>
+        <h4>Structure of shared memory-segment</h4>
+        <pre>struct shmTime {
+&nbsp; int&nbsp;&nbsp;&nbsp; mode; /* 0 - if valid set
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; *&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; use values,&nbsp;
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; *&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; clear valid
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; * 1 - if valid set&nbsp;
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; *&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; if count before and after read of&nbsp;
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; *&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; values is equal,
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; *&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; use values&nbsp;
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; *&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; clear valid
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; */
+&nbsp; int&nbsp;&nbsp;&nbsp; count;
+&nbsp; time_t clockTimeStampSec;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; /* external clock */
+&nbsp; int&nbsp;&nbsp;&nbsp; clockTimeStampUSec;&nbsp;&nbsp;&nbsp;&nbsp; /* external clock */
+&nbsp; time_t receiveTimeStampSec;&nbsp;&nbsp;&nbsp; /* internal clock, when external value was received */
+&nbsp; int&nbsp;&nbsp;&nbsp; receiveTimeStampUSec;&nbsp;&nbsp; /* internal clock, when external value was received */
+&nbsp; int&nbsp;&nbsp;&nbsp; leap;
+&nbsp; int&nbsp;&nbsp;&nbsp; precision;
+&nbsp; int&nbsp;&nbsp;&nbsp; nsamples;
+&nbsp; int&nbsp;&nbsp;&nbsp; valid;
+&nbsp; int&nbsp;&nbsp;&nbsp; dummy[10];&nbsp;
+};</pre>
+        <h4>Operation mode=0</h4>
+        <p>When the poll-method of the driver is called, the valid-flag of the shared memory-segment is checked:</p>
+        <p>If set, the values in the record (clockTimeStampSec, clockTimeStampUSec, receiveTimeStampSec, receiveTimeStampUSec, leap, precision) are passed to ntp, and the valid-flag is cleared.</p>
+        <p>If not set, a timeout is reported to ntp, nothing else happend</p>
+        <h4>Operation mode=1</h4>
+        <p>When the poll-method of the driver is called, the valid-flag of the shared memory-segment is checked:</p>
+        <p>If set, the count-field of the record is remembered, and the values in the record (clockTimeStampSec, clockTimeStampUSec, receiveTimeStampSec, receiveTimeStampUSec, leap, precision) are read. Then, the remembered count is compared to the count now in the record. If both are equal, the values read from the record are passed to ntp. If they differ, another process has modified the record while it was read out (was not able to produce this case), and failure is reported to ntp. The valid flag is cleared.</p>
+        <p>If not set, a timeout is reported to ntp, nothing else happend</p>
+        <h4>Fudge Factors</h4>
+        <dl>
+            <dt><tt>time1 <i>time</i></tt>
+            <dd>Specifies the time offset calibration factor, in seconds and fraction, with default 0.0.
+            <dt><tt>time2 <i>time</i></tt>
+            <dd>Not used by this driver.
+            <dt><tt>stratum <i>number</i></tt>
+            <dd>Specifies the driver stratum, in decimal from 0 to 15, with default 0.
+            <dt><tt>refid <i>string</i></tt>
+            <dd>Specifies the driver reference identifier, an ASCII string from one to four characters, with default <tt>SHM</tt>.
+            <dt><tt>flag1 0 | 1</tt>
+            <dd>Not used by this driver.
+            <dt><tt>flag2 0 | 1</tt>
+            <dd>Not used by this driver.
+            <dt><tt>flag3 0 | 1</tt>
+            <dd>Not used by this driver.
+            <dt><tt>flag4 0 | 1</tt>
+            <dd>Not used by this driver.
+            <h4>Additional Information</h4>
+            <p><a href="../refclock.html">Reference Clock Drivers</a></p>
+        </dl>
+        <hr>
+        <script type="text/javascript" language="javascript" src="../scripts/footer.txt"></script>
+    </body>
+
+</html>

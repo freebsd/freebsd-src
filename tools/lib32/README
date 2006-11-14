@@ -1,0 +1,7 @@
+# $FreeBSD$
+
+Set WITH_LIB32=yes in /etc/make.conf and do a buildworld/installworld.
+
+Alternatively, if you have just done a buildworld/installworld, you
+might be able to 'make build32' and 'make install32' in the top of the
+/usr/src tree.

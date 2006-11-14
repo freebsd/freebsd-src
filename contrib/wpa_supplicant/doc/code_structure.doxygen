@@ -1,0 +1,264 @@
+/**
+\page code_structure Structure of the source code
+
+[ \ref wpa_supplicant_core "wpa_supplicant core functionality" |
+\ref generic_helper_func "Generic helper functions" |
+\ref crypto_func "Cryptographic functions" |
+\ref configuration "Configuration" |
+\ref ctrl_iface "Control interface" |
+\ref wpa_code "WPA supplicant" |
+\ref eap_peer "EAP peer" |
+\ref eapol_supp "EAPOL supplicant" |
+\ref win_port "Windows port" |
+\ref test_programs "Test programs" ]
+
+%wpa_supplicant implementation is divided into number of independent
+modules. Core code includes functionality for controlling the network
+selection, association, and configuration. Independent modules include
+WPA code (key handshake, PMKSA caching, pre-authentication), EAPOL
+state machine, and EAP state machine and methods. In addition, there
+are number of separate files for generic helper functions.
+
+Both WPA and EAPOL/EAP state machines can be used separately in other
+programs than %wpa_supplicant. As an example, the included test
+programs eapol_test and preauth_test are using these modules.
+
+\ref driver_wrapper "Driver interface API" is defined in driver.h and
+all hardware/driver dependent functionality is implemented in
+driver_*.c.
+
+
+\section wpa_supplicant_core wpa_supplicant core functionality
+
+wpa_supplicant.c
+	Program initialization, main control loop
+
+main.c
+	main() for UNIX-like operating systems and MinGW (Windows); this
+	uses command line arguments to configure wpa_supplicant
+
+events.c
+	Driver event processing; wpa_supplicant_event() and related functions
+
+wpa_supplicant_i.h
+	Internal definitions for %wpa_supplicant core; should not be
+	included into independent modules
+
+wpa_supplicant.h
+	Definitions for driver event data and message logging
+
+
+\section generic_helper_func Generic helper functions
+
+%wpa_supplicant uses generic helper functions some of which are shared
+with with hostapd. The following C files are currently used:
+
+eloop.c and eloop.h
+	Event loop (select() loop with registerable timeouts, socket read
+	callbacks, and signal callbacks)
+
+common.c and common.h
+	Common helper functions
+
+defs.h
+	Definitions shared by multiple files
+
+l2_packet.h, l2_packet_linux.c, and l2_packet_pcap.c
+	Layer 2 (link) access wrapper (includes native Linux implementation
+	and wrappers for libdnet/libpcap). A new l2_packet implementation
+	may need to be added when porting to new operating systems that are
+	not supported by libdnet/libpcap. Makefile can be used to select which
+	l2_packet implementation is included. l2_packet_linux.c uses Linux
+	packet sockets and l2_packet_pcap.c has a more portable version using
+	libpcap and libdnet.
+
+pcsc_funcs.c and pcsc_funcs.h
+	Wrapper for PC/SC lite SIM and smart card readers
+
+priv_netlink.h
+	Private version of netlink definitions from Linux kernel header files;
+	this could be replaced with C library header file once suitable
+	version becomes commonly available
+
+version.h
+	Version number definitions
+
+wireless_copy.h
+	Private version of Linux wireless extensions definitions from kernel
+	header files; this could be replaced with C library header file once
+	suitable version becomes commonly available
+
+
+\section crypto_func Cryptographic functions
+
+md5.c and md5.h
+	MD5 (replaced with a crypto library if TLS support is included)
+	HMAC-MD5 (keyed checksum for message authenticity validation)
+
+rc4.c and rc4.h
+	RC4 (broadcast/default key encryption)
+
+sha1.c and sha1.h
+	SHA-1 (replaced with a crypto library if TLS support is included)
+	HMAC-SHA-1 (keyed checksum for message authenticity validation)
+	PRF-SHA-1 (pseudorandom (key/nonce generation) function)
+	PBKDF2-SHA-1 (ASCII passphrase to shared secret)
+	T-PRF (for EAP-FAST)
+	TLS-PRF (RFC 2246)
+
+aes_wrap.c, aes_wrap.h, aes.c
+	AES (replaced with a crypto library if TLS support is included),
+	AES Key Wrap Algorithm with 128-bit KEK, RFC3394 (broadcast/default
+	key encryption),
+	One-Key CBC MAC (OMAC1) hash with AES-128,
+	AES-128 CTR mode encryption,
+	AES-128 EAX mode encryption/decryption,
+	AES-128 CBC
+
+crypto.h
+	Definition of crypto library wrapper
+
+crypto.c
+	Wrapper functions for libcrypto (OpenSSL)
+
+crypto_gnutls.c
+	Wrapper functions for libgcrypt (used by GnuTLS)
+
+ms_funcs.c and ms_funcs.h
+	Helper functions for MSCHAPV2 and LEAP
+
+tls.h
+	Definition of TLS library wrapper
+
+tls_none.c
+	Dummy implementation of TLS library wrapper for cases where TLS
+	functionality is not included.
+
+tls_openssl.c
+	TLS library wrapper for openssl
+
+tls_gnutls.c
+	TLS library wrapper for GnuTLS
+
+
+\section configuration Configuration
+
+config_ssid.h
+	Definition of per network configuration items
+
+config.h
+	Definition of the %wpa_supplicant configuration
+
+config.c
+	Configuration parser and common functions
+
+config_file.c
+	Configuration backend for text files (e.g., wpa_supplicant.conf)
+
+
+\section ctrl_iface Control interface
+
+%wpa_supplicant has a \ref ctrl_iface_page "control interface"
+that can be used to get status
+information and manage operations from external programs. An example
+command line interface (wpa_cli) and GUI (wpa_gui) for this interface
+are included in the %wpa_supplicant distribution.
+
+ctrl_iface.c and ctrl_iface.h
+	%wpa_supplicant-side of the control interface
+
+wpa_ctrl.c and wpa_ctrl.h
+	Library functions for external programs to provide access to the
+	%wpa_supplicant control interface
+
+wpa_cli.c
+	Example program for using %wpa_supplicant control interface
+
+
+\section wpa_code WPA supplicant
+
+wpa.c and wpa.h
+	WPA state machine and 4-Way/Group Key Handshake processing
+
+preauth.c and preauth.h
+	PMKSA caching and pre-authentication (RSN/WPA2)
+
+wpa_i.h
+	Internal definitions for WPA code; not to be included to other modules.
+
+\section eap_peer EAP peer
+
+\ref eap_module "EAP peer implementation" is a separate module that
+can be used by other programs than just %wpa_supplicant.
+
+eap.c and eap.h
+	EAP state machine and method interface
+
+eap_defs.h
+	Common EAP definitions
+
+eap_i.h
+	Internal definitions for EAP state machine and EAP methods; not to be
+	included in other modules
+
+eap_sim_common.c and eap_sim_common.h
+	Common code for EAP-SIM and EAP-AKA
+
+eap_tls_common.c and eap_tls_common.h
+	Common code for EAP-PEAP, EAP-TTLS, and EAP-FAST
+
+eap_tlv.c and eap_tlv.h
+	EAP-TLV code for EAP-PEAP and EAP-FAST
+
+eap_ttls.c and eap_ttls.h
+	EAP-TTLS
+
+eap_pax.c, eap_pax_common.h, eap_pax_common.c
+	EAP-PAX
+
+eap_psk.c, eap_psk_common.h, eap_psk_common.c
+	EAP-PSK (note: this is not needed for WPA-PSK)
+
+eap_aka.c, eap_fast.c, eap_gtc.c, eap_leap.c, eap_md5.c, eap_mschapv2.c,
+eap_otp.c, eap_peap.c, eap_sim.c, eap_tls.c
+	Other EAP method implementations
+
+
+\section eapol_supp EAPOL supplicant
+
+eapol_sm.c and eapol_sm.h
+	EAPOL supplicant state machine and IEEE 802.1X processing
+
+
+\section win_port Windows port
+
+ndis_events.cpp
+	External program for receiving NdisMIndicateStatus() events and
+	delivering them to %wpa_supplicant in more easier to use form
+
+win_if_list.c
+	External program for listing current network interface
+
+
+\section test_programs Test programs
+
+radius_client.c and radius_client.h
+	RADIUS authentication client implementation for eapol_test
+
+radius.c and radius.h
+	RADIUS message processing for eapol_test
+
+config_types.h and hostapd.h
+	Minimal version of hostapd header files for eapol_test
+
+eapol_test.c
+	Standalone EAP testing tool with integrated RADIUS authentication
+	client
+
+preauth_test.c
+	Standalone RSN pre-authentication tool
+
+wpa_passphrase.c
+	WPA ASCII passphrase to PSK conversion
+
+*/

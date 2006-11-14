@@ -1,0 +1,10 @@
+MAN5=\
+  groff_font.n \
+  groff_out.n \
+  groff_tmac.n
+MAN7=\
+  ditroff.n \
+  groff_char.n \
+  groff_diff.n \
+  groff.n \
+  roff.n

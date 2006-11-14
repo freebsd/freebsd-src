@@ -1,0 +1,190 @@
+.\" Copyright (c) 1989, 1991, 1993
+.\"	The Regents of the University of California.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 4. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"	@(#)nfsd.8	8.4 (Berkeley) 3/29/95
+.\" $FreeBSD$
+.\"
+.Dd March 29, 1995
+.Dt NFSD 8
+.Os
+.Sh NAME
+.Nm nfsd
+.Nd remote
+.Tn NFS
+server
+.Sh SYNOPSIS
+.Nm
+.Op Fl ardut
+.Op Fl n Ar num_servers
+.Op Fl h Ar bindip
+.Sh DESCRIPTION
+The
+.Nm
+utility runs on a server machine to service
+.Tn NFS
+requests from client machines.
+At least one
+.Nm
+must be running for a machine to operate as a server.
+.Pp
+Unless otherwise specified, four servers for
+.Tn UDP
+transport are started.
+.Pp
+The following options are available:
+.Bl -tag -width Ds
+.It Fl r
+Register the
+.Tn NFS
+service with
+.Xr rpcbind 8
+without creating any servers.
+This option can be used along with the
+.Fl u
+or
+.Fl t
+options to re-register NFS if the rpcbind server is restarted.
+.It Fl d
+Unregister the
+.Tn NFS
+service with
+.Xr rpcbind 8
+without creating any servers.
+.It Fl n
+Specifies how many servers to create.
+.It Fl h Ar bindip
+Specifies which IP address or hostname to bind to on the local host.
+This option is recommended when a host has multiple interfaces.
+Multiple
+.Fl h
+options may be specified.
+.It Fl a
+Specifies that nfsd should bind to the wildcard IP address.
+This is the default if no
+.Fl h
+options are given.
+It may also be specified in addition to any
+.Fl h
+options given.
+Note that NFS/UDP does not operate properly when
+bound to the wildcard IP address whether you use -a or do not use -h.
+.It Fl t
+Serve
+.Tn TCP NFS
+clients.
+.It Fl u
+Serve
+.Tn UDP NFS
+clients.
+.El
+.Pp
+For example,
+.Dq Li "nfsd -u -t -n 6"
+serves
+.Tn UDP
+and
+.Tn TCP
+transports using six daemons.
+.Pp
+A server should run enough daemons to handle
+the maximum level of concurrency from its clients,
+typically four to six.
+.Pp
+The
+.Nm
+utility listens for service requests at the port indicated in the
+.Tn NFS
+server specification; see
+.%T "Network File System Protocol Specification" ,
+RFC1094 and
+.%T "NFS: Network File System Version 3 Protocol Specification" .
+.Pp
+If
+.Nm
+detects that
+.Tn NFS
+is not loaded in the running kernel, it will attempt
+to load a loadable kernel module containing
+.Tn NFS
+support using
+.Xr kldload 2 .
+If this fails, or no
+.Tn NFS
+KLD is available,
+.Nm
+will exit with an error.
+.Pp
+If
+.Nm
+is to be run on a host with multiple interfaces or interface aliases, use
+of the
+.Fl h
+option is recommended.
+If you do not use the option NFS may not respond to
+UDP packets from the same IP address they were sent to.
+Use of this option
+is also recommended when securing NFS exports on a firewalling machine such
+that the NFS sockets can only be accessed by the inside interface.
+The
+.Nm ipfw
+utility
+would then be used to block nfs-related packets that come in on the outside
+interface.
+.Pp
+The
+.Nm
+utility has to be terminated with
+.Dv SIGUSR1
+and cannot be killed with
+.Dv SIGTERM
+or
+.Dv SIGQUIT .
+The
+.Nm
+utility needs to ignore these signals in order to stay alive as long
+as possible during a shutdown, otherwise loopback mounts will
+not be able to unmount.
+If you have to kill
+.Nm
+just do a
+.Dq Li "kill -USR1 <PID of master nfsd>"
+.Sh EXIT STATUS
+.Ex -std
+.Sh SEE ALSO
+.Xr nfsstat 1 ,
+.Xr kldload 2 ,
+.Xr nfssvc 2 ,
+.Xr exports 5 ,
+.Xr ipfw 8 ,
+.Xr mountd 8 ,
+.Xr nfsiod 8 ,
+.Xr rpcbind 8
+.Sh HISTORY
+The
+.Nm
+utility first appeared in
+.Bx 4.4 .

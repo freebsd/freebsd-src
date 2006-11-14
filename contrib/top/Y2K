@@ -1,0 +1,26 @@
+Top and the Year 2000
+
+The software package top will not be affected by years numbering
+between 2000 and 2037.  No portion of the top code stores dates on
+disk.  All date processing in top is performed with functions from the
+Unix C library and Unix kernel.  The specific functions are: time(2)
+and ctime(3S).  These functions deal exclusively with conventional
+Unix time values (number of seconds since Midnight January 1, 1970
+GMT) and produce strings with a 4-digit year.  At no point in the code
+for top are the last two digits used to represent a year.
+
+Top and the Year 2038
+
+In the year 2038 top will fail to represent the time of day correctly
+on 32-bit Unix operating systems.  This is due to a limitation in the
+way Unix represents time.  Top will only work on systems whose kernel
+call "time" and C library call "ctime" have been adjusted to represent
+time with a value greater than 32 bits.  The exact date and time of
+this failure is 3:14:08 January 19, 2038 GMT.  Note that this failure
+will only affect the display of the current time in the output from
+top.
+
+
+THERE IS ABSOLUTELY NO WARRANTY PROVIDED WITH THIS SOFTWARE.
+Please see the contents of the file "DISCLAIMER" for further
+information.

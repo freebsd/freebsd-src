@@ -1,0 +1,260 @@
+.\"
+.\" $FreeBSD$
+.\"
+.Dd September 27, 2005
+.Dt BRIDGE 4
+.Os
+.Sh NAME
+.Nm bridge
+.Nd bridging support
+.Sh SYNOPSIS
+.Cd "options BRIDGE"
+.Sh DESCRIPTION
+.Bf -symbolic
+This bridge implementation is made obsolete by:
+.Ef
+.Xr if_bridge 4
+.Bf -symbolic
+and will be removed from future releases.
+.Ef
+.Pp
+.Fx
+supports bridging on Ethernet-type interfaces, including VLANs.
+Bridging support can be either compiled into the kernel, or loaded
+at runtime as a kernel module.
+.Pp
+A single
+.Fx
+host can do bridging on independent sets of interfaces,
+which are called
+.Dq clusters .
+Each cluster connects a set of interfaces, and is
+identified by a
+.Dq cluster-ID
+which is a number in the range 1..65535.
+A cluster in fact is very similar to what commercial switches call
+a
+.Dq VLAN .
+Note however that there is no relation whatsoever
+between the cluster-ID and the IEEE 802.1q VLAN-ID which appears
+in the header of packets transmitted on the wire.
+In fact, in most cases there is no relation between the
+so-called
+.Dq "VLAN identifier"
+used in most commercial switches, and
+the IEEE 802.1q VLAN-ID.
+.Pp
+By putting both physical and logical
+.Pq Xr vlan 4
+interfaces in the same cluster, a
+.Fx
+box can also implement what in commercial terms is called a
+.Dq trunk
+interface.
+This means that packets
+coming from one of the interfaces in a cluster
+will appear on the wire of the
+.Dq parent
+interface of any VLAN interface in a cluster,
+with the proper VLAN tag.
+Similarly, packets
+coming from a parent interface of any VLAN interface in a cluster
+will have the VLAN tag stripped,
+and will be forwarded to other interfaces in a cluster.
+See the
+.Sx EXAMPLES
+section for more details.
+.Pp
+Runtime operation of the
+.Nm
+is controlled by several
+.Xr sysctl 8
+variables, as follows.
+.Bl -tag -width indent
+.It Va net.link.ether.bridge.enable
+Set to
+.Li 1
+to enable bridging, set to
+.Li 0
+to disable it.
+.It Va net.link.ether.bridge.ipfw
+Set to
+.Li 1
+to enable
+.Xr ipfw 8
+processing of bridged packets.
+Note that
+.Xr ipfw 8
+rules only apply
+to IP packets.
+Non-IP packets are accepted by default.
+See the
+.Sx BUGS
+section and the
+.Xr ipfw 8
+manpage for more details on the interaction of bridging
+and the firewall.
+.It Va net.link.ether.bridge.ipf
+Set to
+.Li 1
+to enable
+.Xr ipf 8
+processing of bridged packets.
+Note that
+.Xr ipf 8
+rules only apply
+to IP packets.
+Non-IP packets are accepted by default.
+.It Va net.link.ether.bridge.config
+Set to the list of interfaces to bridge.
+Interfaces are separated by spaces, commas or tabs.
+Each interface
+can be optionally followed by a colon and an integer indicating the
+cluster it belongs to (defaults to 1 if the cluster-ID is missing), e.g.\&
+.Dq Li "dc0:1,dc1,vlan0:3 dc2:3"
+will put
+.Li dc0
+and
+.Li dc1
+in cluster number 1, and
+.Li vlan0
+and
+.Li dc2
+in cluster
+number 3.
+See the
+.Sx EXAMPLES
+section for more examples.
+.Pp
+The list of interfaces is rescanned every time the list is
+modified, bridging is enabled, or new interfaces are created or
+destroyed.
+An explicit request to refresh the
+.Nm
+configuration can also
+be done by writing any value to
+.Va net.link.ether.bridge.refresh .
+Interfaces that are in the list but cannot be used
+for bridging (because they are non-existing, or not Ethernet or VLAN)
+are not used and a warning message is generated.
+.El
+.Pp
+Bridging requires interfaces to be put in promiscuous mode,
+and transmit packets with Ethernet source addresses different
+than their own.
+Some interfaces (e.g.\&
+.Xr wi 4 )
+do not support this functionality.
+Also, bridging is not compatible with interfaces which
+use hardware loopback, because there is no way to tell locally
+generated packets from externally generated ones.
+.Sh FILES
+.Bl -tag -width ".Pa /boot/kernel/bridge.ko" -compact
+.It Pa /boot/kernel/bridge.ko
+.Nm
+loadable module.
+.El
+.Sh EXAMPLES
+A simple
+.Nm
+configuration with three interfaces in the same
+cluster can be set as follows.
+No cluster-ID is specified here, which
+will cause the interfaces to appear as part of cluster #1.
+.Pp
+.Dl "sysctl net.link.ether.bridge.config=dc0,dc1,fxp1"
+.Pp
+If you do not know what actual interfaces will be present on
+your system, you can just put all existing interfaces in the
+configuration, as follows:
+.Pp
+.Dl sysctl net.link.ether.bridge.config="`ifconfig -l`"
+.Pp
+This will result in a space-separated list of interfaces.
+Out of the list, only Ethernet and VLAN interfaces will be
+used for bridging, whereas for others the kernel will produce
+a warning message.
+.Pp
+More complex configurations can be used to create multiple
+clusters, e.g.\&
+.Pp
+.Dl "sysctl net.link.ether.bridge.config=dc0:3,dc1:3,fxp0:4,fxp1:4"
+.Pp
+will create two completely independent clusters.
+.Pp
+Finally, interesting configurations involve VLANs and parent interfaces.
+As an example, the following configuration will use interface
+.Li dc0
+as a
+.Dq trunk
+interface, and pass packets
+for 802.1q VLANs 10 and 20 to physical interfaces
+.Li dc1
+and
+.Li dc2 ,
+respectively:
+.Bd -literal -offset indent
+sysctl net.link.ether.bridge.config=vlan0:34,dc1:34,vlan1:56,dc2:56
+ifconfig vlan0 vlan 10 vlandev dc0
+ifconfig vlan1 vlan 20 vlandev dc0
+.Ed
+.Pp
+Note how there is no relation between the 802.1q VLAN identifiers
+(10 and 20) and the cluster-ID's (34 and 56) used in
+the
+.Va bridge.config
+variable.
+.Pp
+Note also that the trunk interface
+does not even appear in the
+.Va bridge.config ,
+as VLAN tag insertion/removal
+is performed by the
+.Xr vlan 4
+devices.
+When using VLAN devices, care must be taken by not creating loops
+between these devices and their parent interfaces.
+.Sh SEE ALSO
+.Xr ip 4 ,
+.Xr ng_bridge 4 ,
+.Xr vlan 4 ,
+.Xr ipf 8 ,
+.Xr ipfw 8 ,
+.Xr sysctl 8
+.Sh HISTORY
+Bridging was introduced in
+.Fx 2.2.8
+by
+.An Luigi Rizzo Aq luigi@iet.unipi.it .
+.Sh BUGS
+Care must be taken not to construct loops in the
+.Nm
+topology.
+The kernel supports only a primitive form of loop detection, by disabling
+some interfaces when a loop is detected.
+No support for a daemon running the
+spanning tree algorithm is currently provided.
+.Pp
+With bridging active, interfaces are in promiscuous mode,
+thus causing some load on the system to receive and filter
+out undesired traffic.
+.Pp
+When passing bridged packets to
+.Xr ipfw 8 ,
+remember that only IP packets are passed to the firewall, while
+other packets are silently accepted.
+Also remember that bridged packets are accepted after the
+first pass through the firewall irrespective of the setting
+of the sysctl variable
+.Va net.inet.ip.fw.one_pass ,
+and that some
+.Xr ipfw 8
+actions such as
+.Cm divert
+do not apply to bridged packets.
+It might be useful to have a rule of the form
+.Pp
+.Dl "skipto 20000 ip from any to any bridged"
+.Pp
+near the beginning of your ruleset to implement specific rulesets
+for bridged packets.

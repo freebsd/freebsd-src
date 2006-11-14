@@ -1,0 +1,705 @@
+'\" t
+.ig
+troff.man
+
+Last update : 12 Oct 2003
+
+This file is part of groff, the GNU roff type-setting system.
+
+Copyright (C) 1989, 2000, 2001, 2002, 2003 Free Software Foundation, Inc.
+
+written by James Clark
+
+modified by Werner Lemberg <wl@gnu.org>
+            Bernd Warken <bwarken@mayn.de>
+
+Permission is granted to copy, distribute and/or modify this document
+under the terms of the GNU Free Documentation License, Version 1.1 or
+any later version published by the Free Software Foundation; with the
+Invariant Sections being this .ig-section and AUTHOR, with no
+Front-Cover Texts, and with no Back-Cover Texts.
+
+A copy of the Free Documentation License is included as a file called
+FDL in the main directory of the groff source package.
+..
+.
+.
+.\" --------------------------------------------------------------------
+.\" Setup
+.\" --------------------------------------------------------------------
+.
+.do nr troff_C \n[.C]
+.cp 0
+.
+.mso www.tmac
+.
+.if n \{\
+.  mso tty-char.tmac
+.  ftr CR R
+.  ftr CI I
+.  ftr CB B
+.\}
+.
+.if '\*[.T]'dvi' \
+.  ftr CB CW
+.
+.de TQ
+.br
+.ns
+.TP \\$1
+..
+.
+.\" Like TP, but if specified indent is more than half
+.\" the current line-length - indent, use the default indent.
+.de Tp
+.ie \\n(.$=0:((0\\$1)*2u>(\\n(.lu-\\n(.iu)) .TP
+.el .TP "\\$1"
+..
+.
+.
+.\" --------------------------------------------------------------------
+.\" Title
+.\" --------------------------------------------------------------------
+.
+.TH @G@TROFF @MAN1EXT@ "@MDATE@" "Groff Version @VERSION@"
+.SH NAME
+@g@troff \- the troff processor of the groff text formatting system
+.
+.
+.\" --------------------------------------------------------------------
+.SH SYNOPSIS
+.\" --------------------------------------------------------------------
+.
+.nr a \n(.j
+.ad l
+.nr i \n(.i
+.in +\w'\fB@g@troff 'u
+.ti \niu
+.B @g@troff
+.de OP
+.ie \\n(.$-1 .RI "[\ \fB\\$1\fP" "\\$2" "\ ]"
+.el .RB "[\ " "\\$1" "\ ]"
+..
+.OP \-abcivzCERU
+.OP \-d cs
+.OP \-f fam
+.OP \-F dir
+.OP \-I dir
+.OP \-m name
+.OP \-M dir
+.OP \-n num
+.OP \-o list
+.OP \-r cn
+.OP \-T name
+.OP \-w name
+.OP \-W name
+.RI "[\ " files\|.\|.\|. "\ ]"
+.br
+.ad \na
+.P
+It is possible to have whitespace between a command line option and
+its parameter.
+.
+.
+.\" --------------------------------------------------------------------
+.SH DESCRIPTION
+.\" --------------------------------------------------------------------
+.
+This manual page describes the GNU version of
+.BR troff .
+It is part of the groff document formatting system.
+.
+It is functionally compatible with UNIX troff, but has many extensions,
+see
+.BR \%groff_diff (@MAN7EXT@).
+Usually it should be invoked using the
+.BR groff (@MAN1EXT@)
+command which will also run preprocessors and postprocessors in the
+appropriate order and with the appropriate options.
+.
+.
+.\" --------------------------------------------------------------------
+.SH OPTIONS
+.\" --------------------------------------------------------------------
+.
+.TP \w'\-dname=s'u+2n
+.B \-a
+Generate an
+.SM ASCII
+approximation of the typeset output.
+.
+.TP
+.B \-b
+Print a backtrace with each warning or error message.
+.
+This backtrace should help track down the cause of the error.
+.
+The line numbers given in the backtrace may not always be correct, for
+.BR @g@troff 's
+idea of line numbers gets confused by
+.B as
+or 
+.B am
+requests.
+.
+.TP
+.B \-c
+Disable color output (always disabled in compatibility mode).
+.
+.TP
+.B \-C
+Enable compatibility mode.
+.
+.TP
+.BI \-d cs
+.TQ
+.BI \-d name = s
+Define
+.I c
+or
+.I name
+to be a string
+.IR s ;
+.I c
+must be a one letter name.
+.
+.TP
+.B \-E
+Inhibit all error messages of
+.BR @g@troff .
+Note that this doesn't affect messages output to standard error by macro
+packages using the
+.B tm
+or
+.B tm1
+requests.
+.
+.TP
+.BI \-f fam
+Use
+.I fam
+as the default font family.
+.
+.TP
+.BI \-F dir
+Search in directory (or directory path)
+.I dir
+for subdirectories
+.BI dev name
+.RI ( name
+is the name of the device) and there for the
+.B DESC
+file and font files.
+.I dir
+is scanned before all other font directories.
+.
+.TP
+.B \-i
+Read the standard input after all the named input files have been
+processed.
+.
+.TP
+.BI \-I dir
+This option may be used to specify a directory to search for
+files (both those on the command line and those named in
+.B \&.psbb
+requests).
+The current directory is always searched first.
+This option may be specified more than once;
+the directories will be searched in the order specified.
+No directory search is performed for files specified using an absolute path.
+.
+.TP
+.BI \-m name
+Read in the file
+.IB name .tmac\fR.
+If it isn't found, try
+.BI tmac. name
+instead.
+.
+It will be first searched for in directories given with the
+.B \-M
+command line option, then in directories given in the
+.B GROFF_TMAC_PATH
+environment variable, then in the current directory (only if in unsafe
+mode), the home directory, @SYSTEMMACRODIR@, @LOCALMACRODIR@, and
+@MACRODIR@.
+.
+.TP
+.BI \-M dir
+Search directory (or directory path)
+.I dir
+for macro files.
+.
+This is scanned before all other macro directories.
+.
+.TP
+.BI \-n num
+Number the first page
+.IR num .
+.
+.TP
+.BI \-o list
+Output only pages in
+.IR list ,
+which is a comma-separated list of page ranges;
+.I n
+means print page
+.IR n ,
+.IB m \- n
+means print every page between
+.I m
+and
+.IR n ,
+.BI \- n
+means print every page up to
+.IR n ,
+.IB n \-
+means print every page from
+.IR n .
+.B @g@troff
+will exit after printing the last page in the list.
+.
+.TP
+.BI \-r cn
+.TQ
+.BI \-r name = n
+Set number register
+.I c
+or
+.I name
+to
+.IR n ;
+.I c
+must be a one character name;
+.I n
+can be any troff numeric expression.
+.
+.TP
+.B \-R
+Don't load
+.B troffrc
+and
+.BR troffrc-end .
+.
+.TP
+.BI \-T name
+Prepare output for device
+.IR name ,
+rather than the default
+.BR @DEVICE@ ;
+see
+.BR groff (@MAN1EXT@)
+for a more detailed description.
+.
+.TP
+.B \-U
+Unsafe mode.
+.
+This will enable the following requests:
+.BR open ,
+.BR opena ,
+.BR pso ,
+.BR sy ,
+and
+.BR pi .
+For security reasons, these potentially dangerous requests are disabled
+otherwise.
+.
+It will also add the current directory to the macro search path.
+.
+.TP
+.B \-v
+Print the version number.
+.
+.TP
+.BI \-w name
+Enable warning
+.IR  name .
+Available warnings are described in the section
+.I WARNINGS
+below.
+.
+For example, to enable all warnings, use
+.B \-w
+.BR all .
+Multiple
+.B \-w
+options are allowed.
+.
+.TP
+.BI \-W name
+Inhibit warning
+.IR name .
+Multiple
+.B \-W
+options are allowed.
+.
+.TP
+.B \-z
+Suppress formatted output.
+.
+.
+.\" --------------------------------------------------------------------
+.SH WARNINGS
+.\" --------------------------------------------------------------------
+.
+The warnings that can be given by
+.B @g@troff
+are divided into the following categories.
+.
+The name associated with each warning is used by the
+.B \-w
+and
+.B \-W
+options; the number is used by the
+.B warn
+request, and by the
+.B .warn
+register; it is always a power of 2 to allow bitwise composition.
+.
+.P
+.TS
+tab(@), center, box;
+c c c | c c c
+r rI lB | r rI lB.
+Bit@Code@Warning@Bit@Code@Warning
+_
+0@1@char@10@1024@reg
+1@2@number@11@2048@tab
+2@4@break@12@4096@right-brace
+3@8@delim@13@8192@missing
+4@16@el@14@16384@input
+5@32@scale@15@32768@escape
+6@64@range@16@65536@space
+7@128@syntax@17@131072@font
+8@256@di@18@262144@ig
+9@512@mac@19@524288@color
+.TE
+.
+.P
+.nr x \w'\fBright-brace'+1n+\w'00000'u
+.ta \nxuR
+.
+.TP \nxu+3n
+.BR break "\t4"
+In fill mode, lines which could not be broken so that their length was
+less than the line length.
+.
+This is enabled by default.
+.
+.TP
+.BR char "\t1"
+Non-existent characters.
+.
+This is enabled by default.
+.
+.TP
+.BR color "\t524288"
+Color related warnings.
+.
+.TP
+.BR delim "\t8"
+Missing or mismatched closing delimiters.
+.
+.TP
+.BR di "\t256"
+Use of
+.B di
+or
+.B da
+without an argument when there is no current diversion.
+.
+.TP
+.BR el "\t16"
+Use of the
+.B el
+request with no matching
+.B ie
+request.
+.
+.TP
+.BR escape "\t32768"
+Unrecognized escape sequences.
+.
+When an unrecognized escape sequence is encountered, the escape
+character is ignored.
+.
+.TP
+.BR font "\t131072"
+Non-existent fonts.
+.
+This is enabled by default.
+.
+.TP
+.BR ig "\t262144"
+Invalid escapes in text ignored with the
+.B ig
+request.
+.
+These are conditions that are errors when they do not occur in ignored
+text.
+.
+.TP
+.BR input "\t16384"
+Invalid input characters.
+.
+.TP
+.BR mac "\t512"
+Use of undefined strings, macros and diversions.
+.
+When an undefined string, macro or diversion is used, that string is
+automatically defined as empty.
+.
+So, in most cases, at most one warning will be given for each name.
+.
+.TP
+.BR missing "\t8192"
+Requests that are missing non-optional arguments.
+.
+.TP
+.BR number "\t2"
+Invalid numeric expressions.
+.
+This is enabled by default.
+.
+.TP
+.BR range "\t64"
+Out of range arguments.
+.
+.TP
+.BR reg "\t1024"
+Use of undefined number registers.
+.
+When an undefined number register is used, that register is
+automatically defined to have a value of\~0.
+.
+So, in most cases, at most one warning will be given for use of a
+particular name.
+.
+.TP
+.BR right-brace "\t4096"
+Use of
+.B \[rs]}
+where a number was expected.
+.
+.TP
+.BR scale "\t32"
+Meaningless scaling indicators.
+.
+.TP
+.BR space "\t65536"
+Missing space between a request or macro and its argument.
+.
+This warning will be given when an undefined name longer than two
+characters is encountered, and the first two characters of the name
+make a defined name.
+.
+The request or macro will not be invoked.
+.
+When this warning is given, no macro is automatically defined.
+.
+This is enabled by default.
+.
+This warning will never occur in compatibility mode.
+.
+.TP
+.BR syntax "\t128"
+Dubious syntax in numeric expressions.
+.
+.TP
+.BR tab "\t2048"
+Inappropriate use of a tab character.
+Either use of a tab character where a number was expected, or use of tab
+character in an unquoted macro argument.
+.
+.P
+There are also names that can be used to refer to groups of warnings:
+.
+.TP
+.B all
+All warnings except
+.BR di ,
+.BR mac ,
+and
+.BR reg .
+It is intended that this covers all warnings that are useful with
+traditional macro packages.
+.
+.TP
+.B w
+All warnings.
+.
+.
+.\" --------------------------------------------------------------------
+.SH ENVIRONMENT
+.\" --------------------------------------------------------------------
+.
+.TP
+.SM
+.B GROFF_TMAC_PATH
+A colon separated list of directories in which to search for
+macro files.
+.B @g@troff
+will scan directories given in the
+.B \-M
+option before these, and in standard directories (current directory if
+in unsafe mode, home directory,
+.BR @SYSTEMMACRODIR@ ,
+.BR @LOCALMACRODIR@ ,
+.BR @MACRODIR@ )
+after these.
+.
+.TP
+.SM
+.B GROFF_TYPESETTER
+Default device.
+.
+.TP
+.SM
+.B GROFF_FONT_PATH
+A colon separated list of directories in which to search for the
+.BI dev name
+directory.
+.B @g@troff
+will scan directories given in the
+.B \-F
+option before these, and in standard directories
+.RB ( @LOCALFONTDIR@ ,
+.BR @FONTDIR@ ,
+.BR @LEGACYFONTDIR@ )
+after these.
+.
+.
+.\" --------------------------------------------------------------------
+.SH FILES
+.\" --------------------------------------------------------------------
+.
+.Tp \w'@FONTDIR@/devname/DESC'u+3n
+.B @MACRODIR@/troffrc
+Initialization file (called before any other macro package).
+.
+.TP
+.B @MACRODIR@/troffrc-end
+Initialization file (called after any other macro package).
+.
+.TP
+.BI @MACRODIR@/ name .tmac
+.TQ
+.BI @MACRODIR@/tmac. name
+Macro files
+.
+.TP
+.BI @FONTDIR@/dev name /DESC
+Device description file for device
+.IR name .
+.
+.TP
+.BI @FONTDIR@/dev name / F
+Font file for font
+.I F
+of device
+.IR name .
+.P
+Note that
+.B troffrc
+and
+.B troffrc-end
+are neither searched in the current nor in the home directory by
+default for security reasons (even if the
+.B \-U
+option is given).
+.
+Use the
+.B \-M
+command line option or the
+.B GROFF_TMAC_PATH
+environment variable to add these directories to the search path if
+necessary.
+.
+.
+.\" --------------------------------------------------------------------
+.SH AUTHOR
+.\" --------------------------------------------------------------------
+.
+Copyright (C) 1989, 2001, 2002, 2003 Free Software Foundation, Inc.
+.
+.P
+This document is distributed under the terms of the FDL (GNU Free
+Documentation License) version 1.1 or later.
+.
+You should have received a copy of the FDL on your system, it is also
+available on-line at the
+.URL http://www.gnu.org/copyleft/fdl.html "GNU copyleft site" .
+This document was written by James Clark, with modifications from
+.MTO wl@gnu.org "Werner Lemberg"
+and
+.MTO bwarken@mayn.de "Bernd Warken"
+.
+.P
+This document is part of
+.IR groff ,
+the GNU roff distribution.
+.
+.
+.\" --------------------------------------------------------------------
+.SH "SEE ALSO"
+.\" --------------------------------------------------------------------
+.
+.TP
+.BR groff (@MAN1EXT@)
+The main program of the
+.I groff
+system, a wrapper around
+.IR @g@troff .
+.
+.TP
+.BR groff (@MAN7EXT@)
+A description of the
+.I groff
+language, including a short but complete reference of all predefined
+requests, registers, and escapes of plain
+.IR groff .
+From the command line, this is called by
+.RS
+.IP
+.B man 7 groff
+.RE
+.
+.TP
+.BR \%groff_diff (@MAN7EXT@)
+The differences of the
+.I groff
+language and the
+.I classical troff
+language.
+.
+Currently, this is the most actual document of the
+.I groff
+system.
+.
+.TP
+.BR roff (@MAN7EXT@)
+An overview over
+.I groff
+and other
+.I roff
+systems, including pointers to further related documentation.
+.
+.P
+The
+.I groff info
+.IR file ,
+cf.\&
+.BR info (@MAN1EXT@),
+presents all groff documentation within a single document.
+.
+.cp \n[troff_C]
+.
+.\" --------------------------------------------------------------------
+.\" Emacs variables
+.\" --------------------------------------------------------------------
+.
+.\" Local Variables:
+.\" mode: nroff
+.\" End:

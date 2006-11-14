@@ -1,0 +1,36 @@
+Unused message id's (this is okay):
+001
+047
+050
+051
+052
+081
+176
+213
+229
+288
+=========================
+MISSING ERROR MESSAGES (Please add!):
+=========================
+Extra error messages (just delete them):
+=========================
+MESSAGES WITH THE SAME MESSAGE ID's (FIX!):
+=========================
+Duplicate messages, both id and message (this is okay):
+=========================
+Duplicate messages, just message (this is okay):
+   2 %s existiert, nicht geschrieben; verwende ! zum UeberschreibenX
+   2 %s wurde in zu viele Dateinamen expandiertX
+   2 %s: %lu Zeilen, %lu ZeichenX
+   2 %s: Wiederherstellungsdatei hat falsches FormatX
+   2 Aenderungen nicht wiederherstellbar falls die Editorsitzung schief gehtX
+   2 Kein altes SuchmusterX
+   2 Keine Protokollierung aktiv, rueckgaengig machen nicht moeglichX
+   2 Puffer %s ist leerX
+   2 geaendertX
+   2 kopiere Datei fuer Wiederherstellung ...X
+   2 set: %s ist keine boolsche OptionX
+   3 %s: loeschenX
+   3 Datei wurde seit dem letzten vollstaendigen Schreiben geaendert; schreibe oder verwende ! zum ignorierenX
+   4 Benutzung: %sX
+=========================

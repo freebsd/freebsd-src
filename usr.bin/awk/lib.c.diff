@@ -1,0 +1,18 @@
+$FreeBSD$
+
+Index: lib.c
+===================================================================
+RCS file: /home/ncvs/src/contrib/one-true-awk/lib.c,v
+retrieving revision 1.1.1.4
+diff -u -p -r1.1.1.4 lib.c
+--- lib.c	16 May 2005 19:11:33 -0000	1.1.1.4
++++ lib.c	15 Sep 2006 10:10:59 -0000
+@@ -58,7 +58,7 @@ static Cell dollar1 = { OCELL, CFLD, NUL
+ void recinit(unsigned int n)
+ {
+ 	if ( (record = (char *) malloc(n)) == NULL
+-	  || (fields = (char *) malloc(n)) == NULL
++	  || (fields = (char *) malloc(n+1)) == NULL
+ 	  || (fldtab = (Cell **) malloc((nfields+1) * sizeof(Cell *))) == NULL
+ 	  || (fldtab[0] = (Cell *) malloc(sizeof(Cell))) == NULL )
+ 		FATAL("out of space for $0 and fields");
