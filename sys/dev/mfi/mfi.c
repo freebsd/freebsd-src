@@ -1797,6 +1797,14 @@ mfi_ioctl(struct cdev *dev, u_long cmd, caddr_t arg, int flag, d_thread_t *td)
 {
 	struct mfi_softc *sc;
 	union mfi_statrequest *ms;
+	struct mfi_ioc_packet *ioc;
+	struct mfi_ioc_aen *aen;
+	struct mfi_command *cm = NULL;
+	struct mfi_dcmd_frame *dcmd;
+	uint32_t context;
+	uint32_t *sense_ptr;
+	uint8_t *data = NULL, *temp;
+	int i;
 	int error;
 
 	sc = dev->si_drv1;
@@ -1818,7 +1826,133 @@ mfi_ioctl(struct cdev *dev, u_long cmd, caddr_t arg, int flag, d_thread_t *td)
 			break;
 		}
 		break;
-	case 0xc1144d01: /* Firmware Linux ioctl shim */
+	case MFI_CMD:
+		ioc = (struct mfi_ioc_packet *)arg;
+
+		mtx_lock(&sc->mfi_io_lock);
+		if ((cm = mfi_dequeue_free(sc)) == NULL) {
+			mtx_unlock(&sc->mfi_io_lock);
+			return (EBUSY);
+		}
+		mtx_unlock(&sc->mfi_io_lock);
+
+		/*
+		 * save off original context since copying from user
+		 * will clobber some data
+		 */
+		context = cm->cm_frame->header.context;
+
+		bcopy(ioc->mi_frame.raw, cm->cm_frame,
+		      ioc->mi_sgl_off); /* Linux can do 2 frames ? */
+		cm->cm_total_frame_size = ioc->mi_sgl_off;
+		cm->cm_sg =
+		    (union mfi_sgl *)&cm->cm_frame->bytes[ioc->mi_sgl_off];
+		cm->cm_flags = MFI_CMD_DATAIN | MFI_CMD_DATAOUT
+			| MFI_CMD_POLLED;
+		cm->cm_len = cm->cm_frame->header.data_len;
+		cm->cm_data = data = malloc(cm->cm_len, M_MFIBUF,
+					    M_WAITOK | M_ZERO);
+
+		/* restore header context */
+		cm->cm_frame->header.context = context;
+		/* ioctl's are dcmd types */
+		dcmd =  &cm->cm_frame->dcmd;
+
+		temp = data;
+		for (i = 0; i < ioc->mi_sge_count; i++) {
+			error = copyin(ioc->mi_sgl[i].iov_base,
+			       temp,
+			       ioc->mi_sgl[i].iov_len);
+			if (error != 0) {
+				device_printf(sc->mfi_dev,
+				    "Copy in failed");
+				goto out;
+			}
+			temp = &temp[ioc->mi_sgl[i].iov_len];
+		}
+
+		if (ioc->mi_sense_len) {
+			sense_ptr =
+			    (void *)&cm->cm_frame->bytes[ioc->mi_sense_off];
+			*sense_ptr = cm->cm_sense_busaddr;
+		}
+
+		mtx_lock(&sc->mfi_io_lock);
+		if ((error = mfi_mapcmd(sc, cm)) != 0) {
+			device_printf(sc->mfi_dev,
+			    "Controller info buffer map failed");
+			mtx_unlock(&sc->mfi_io_lock);
+			goto out;
+		}
+
+		if ((error = mfi_polled_command(sc, cm)) != 0) {
+			device_printf(sc->mfi_dev,
+			    "Controller polled failed");
+			mtx_unlock(&sc->mfi_io_lock);
+			goto out;
+		}
+
+		bus_dmamap_sync(sc->mfi_buffer_dmat, cm->cm_dmamap,
+				BUS_DMASYNC_POSTREAD);
+		bus_dmamap_unload(sc->mfi_buffer_dmat, cm->cm_dmamap);
+		mtx_unlock(&sc->mfi_io_lock);
+
+		temp = data;
+		for (i = 0; i < ioc->mi_sge_count; i++) {
+			error = copyout(temp,
+				ioc->mi_sgl[i].iov_base,
+				ioc->mi_sgl[i].iov_len);
+			if (error != 0) {
+				device_printf(sc->mfi_dev,
+				    "Copy out failed");
+				goto out;
+			}
+			temp = &temp[ioc->mi_sgl[i].iov_len];
+		}
+
+		if (ioc->mi_sense_len) {
+			/* copy out sense */
+			sense_ptr = (void *)
+			    &ioc->mi_frame.raw[ioc->mi_sense_off];
+			temp = 0;
+			temp += cm->cm_sense_busaddr;
+			error = copyout(temp, sense_ptr,
+			    ioc->mi_sense_len);
+			if (error != 0) {
+				device_printf(sc->mfi_dev,
+				    "Copy out failed");
+				goto out;
+			}
+		}
+
+		ioc->mi_frame.hdr.cmd_status = cm->cm_frame->header.cmd_status;
+		if (cm->cm_frame->header.cmd_status == MFI_STAT_OK) {
+			switch (dcmd->opcode) {
+			case MFI_DCMD_CFG_CLEAR:
+			case MFI_DCMD_CFG_ADD:
+/*
+				mfi_ldrescan(sc);
+*/
+				break;
+			}
+		}
+out:
+		if (data)
+			free(data, M_MFIBUF);
+		if (cm) {
+			mtx_lock(&sc->mfi_io_lock);
+			mfi_release_command(cm);
+			mtx_unlock(&sc->mfi_io_lock);
+		}
+
+		break;
+	case MFI_SET_AEN:
+		aen = (struct mfi_ioc_aen *)arg;
+		error = mfi_aen_register(sc, aen->aen_seq_num,
+		    aen->aen_class_locale);
+
+		break;
+	case MFI_LINUX_CMD_2: /* Firmware Linux ioctl shim */
 		{
 			devclass_t devclass;
 			struct mfi_linux_ioc_packet l_ioc;
@@ -1839,7 +1973,7 @@ mfi_ioctl(struct cdev *dev, u_long cmd, caddr_t arg, int flag, d_thread_t *td)
 			    cmd, arg, flag, td));
 			break;
 		}
-	case 0x400c4d03: /* AEN Linux ioctl shim */
+	case MFI_LINUX_SET_AEN_2: /* AEN Linux ioctl shim */
 		{
 			devclass_t devclass;
 			struct mfi_linux_ioc_aen l_aen;
@@ -1880,13 +2014,14 @@ mfi_linux_ioctl_int(struct cdev *dev, u_long cmd, caddr_t arg, int flag, d_threa
 	uint32_t *sense_ptr;
 	uint32_t context;
 	uint8_t *data = NULL, *temp;
+	void *temp_convert;
 	int i;
 	int error;
 
 	sc = dev->si_drv1;
 	error = 0;
 	switch (cmd) {
-	case 0xc1144d01: /* Firmware Linux ioctl shim */
+	case MFI_LINUX_CMD_2: /* Firmware Linux ioctl shim */
 		error = copyin(arg, &l_ioc, sizeof(l_ioc));
 		if (error != 0)
 			return (error);
@@ -1924,7 +2059,9 @@ mfi_linux_ioctl_int(struct cdev *dev, u_long cmd, caddr_t arg, int flag, d_threa
 
 		temp = data;
 		for (i = 0; i < l_ioc.lioc_sge_count; i++) {
-			error = copyin(l_ioc.lioc_sgl[i].iov_base,
+			temp_convert =
+			    (void *)(uintptr_t)l_ioc.lioc_sgl[i].iov_base;
+			error = copyin(temp_convert,
 			       temp,
 			       l_ioc.lioc_sgl[i].iov_len);
 			if (error != 0) {
@@ -1963,8 +2100,10 @@ mfi_linux_ioctl_int(struct cdev *dev, u_long cmd, caddr_t arg, int flag, d_threa
 
 		temp = data;
 		for (i = 0; i < l_ioc.lioc_sge_count; i++) {
+			temp_convert =
+			    (void *)(uintptr_t)l_ioc.lioc_sgl[i].iov_base;
 			error = copyout(temp,
-				l_ioc.lioc_sgl[i].iov_base,
+				temp_convert,
 				l_ioc.lioc_sgl[i].iov_len);
 			if (error != 0) {
 				device_printf(sc->mfi_dev,
@@ -2017,7 +2156,7 @@ out:
 		}
 
 		return (error);
-	case 0x400c4d03: /* AEN Linux ioctl shim */
+	case MFI_LINUX_SET_AEN_2: /* AEN Linux ioctl shim */
 		error = copyin(arg, &l_aen, sizeof(l_aen));
 		if (error != 0)
 			return (error);
