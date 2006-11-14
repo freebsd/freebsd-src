@@ -92,7 +92,6 @@ makeoptions	SC_DFLT_FONT=cp437
 
 # Serial (COM) ports
 #device		sio		# 8250, 16[45]50 based serial ports
-device		zs		# Zilog 8350 based serial ports
 
 # PCI Ethernet NICs that use the common MII bus controller code.
 device		miibus		# MII bus support
