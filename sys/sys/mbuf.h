@@ -680,7 +680,7 @@ struct	mbuf	*m_unshare(struct mbuf *, int how);
  * a fixed header (struct m_tag) that specifies the size of the
  * memory block and a <cookie,type> pair that identifies it.
  * The cookie is a 32-bit unique unsigned value used to identify
- * a module or ABI.  By convention this value is chose as the
+ * a module or ABI.  By convention this value is chosen as the
  * date+time that the module is created, expressed as the number of
  * seconds since the epoch (e.g., using date -u +'%s').  The type value
  * is an ABI/module-specific value that identifies a particular annotation
