@@ -432,6 +432,9 @@ isp_get_options(device_t dev, ispsoftc_t *isp)
 	uint64_t wwn;
 	int bitmap, unit;
 
+	callout_handle_init(&isp->isp_osinfo.ldt);
+	callout_handle_init(&isp->isp_osinfo.gdt);
+
 	unit = device_get_unit(dev);
 	if (getenv_int("isp_disable", &bitmap)) {
 		if (bitmap & (1 << unit)) {
@@ -520,6 +523,14 @@ isp_get_options(device_t dev, ispsoftc_t *isp)
 		isp->isp_osinfo.loop_down_limit = isp_loop_down_limit;
 	}
 
+	bitmap = 0;
+	(void) getenv_int("isp_gone_device_time", &bitmap);
+	if (bitmap >= 0 && bitmap < 0xffff) {
+		isp->isp_osinfo.gone_device_time = bitmap;
+	} else {
+		isp->isp_osinfo.gone_device_time = isp_gone_device_time;
+	}
+
 
 #ifdef	ISP_FW_CRASH_DUMP
 	bitmap = 0;
@@ -578,6 +589,10 @@ isp_get_options(device_t dev, ispsoftc_t *isp)
 {
 	int tval;
 	const char *sptr;
+
+	callout_handle_init(&isp->isp_osinfo.ldt);
+	callout_handle_init(&isp->isp_osinfo.gdt);
+
 	/*
 	 * Figure out if we're supposed to skip this one.
 	 */
@@ -733,7 +748,7 @@ isp_get_options(device_t dev, ispsoftc_t *isp)
 		isp->isp_osinfo.hysteresis = isp_fabric_hysteresis;
 	}
 
-	tval = 0;
+	tval = -1;
 	(void) resource_int_value(device_get_name(dev), device_get_unit(dev),
 	    "loop_down_limit", &tval);
 	if (tval >= 0 && tval < 0xffff) {
@@ -742,6 +757,14 @@ isp_get_options(device_t dev, ispsoftc_t *isp)
 		isp->isp_osinfo.loop_down_limit = isp_loop_down_limit;
 	}
 
+	tval = -1;
+	(void) resource_int_value(device_get_name(dev), device_get_unit(dev),
+	    "gone_device_time", &tval);
+	if (tval >= 0 && tval < 0xffff) {
+		isp->isp_osinfo.gone_device_time = tval;
+	} else {
+		isp->isp_osinfo.gone_device_time = isp_gone_device_time;
+	}
 }
 
 static void
@@ -795,7 +818,7 @@ isp_pci_attach(device_t dev)
 	isp = &pcs->pci_isp;
 
 	/*
-	 * Get Generic Options
+	 * Set and Get Generic Options
 	 */
 	isp_get_options(dev, isp);
 
@@ -813,7 +836,6 @@ isp_pci_attach(device_t dev)
 	 * Get PCI options- which in this case are just mapping preferences.
 	 */
 	isp_get_pci_options(dev, &m1, &m2);
-
 
 	linesz = PCI_DFLT_LNSZ;
 	irq = regs = NULL;

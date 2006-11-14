@@ -75,7 +75,7 @@ struct ispmdvec {
  * Overall parameters
  */
 #define	MAX_TARGETS		16
-#define	MAX_FC_TARG		256
+#define	MAX_FC_TARG		512
 #define	ISP_MAX_TARGETS(isp)	(IS_FC(isp)? MAX_FC_TARG : MAX_TARGETS)
 #define	ISP_MAX_LUNS(isp)	(isp)->isp_maxluns
 
@@ -303,14 +303,33 @@ typedef struct {
  *    value.
  */
 typedef struct {
+	/*
+	 * This is the handle that the firmware needs in order for us to
+	 * send commands to the device. For pre-24XX cards, this would be
+	 * the 'loopid'.
+	 */
 	uint16_t	handle;
+	/*
+	 * The ini_map_idx, if nonzero, is the system virtual target ID (+1)
+	 * as a cross-reference with the isp_ini_map.
+	 *
+	 * A device is 'autologin' if the firmware automatically logs into
+	 * it (re-logins as needed). Basically, local private loop devices.
+	 *
+	 * The state is the current state of thsi entry.
+	 *
+	 * Role is Initiator, Target, Both
+	 *
+	 * Portid is obvious, as or node && port WWNs. The new_role and
+	 * new_portid is for when we are pending a change.
+	 */
 	uint16_t	ini_map_idx	: 12,
 			autologin	: 1,	/* F/W does PLOGI/PLOGO */
 			state		: 3;
-	uint32_t			: 6,
+	uint32_t	reserved	: 6,
 			roles		: 2,
 			portid		: 24;
-	uint32_t			: 6,
+	uint32_t	new_reserved	: 6,
 			new_roles	: 2,
 			new_portid	: 24;
 	uint64_t	node_wwn;
@@ -323,6 +342,7 @@ typedef struct {
 #define	FC_PORTDB_STATE_CHANGED		3
 #define	FC_PORTDB_STATE_NEW		4
 #define	FC_PORTDB_STATE_PENDING_VALID	5
+#define	FC_PORTDB_STATE_ZOMBIE		6
 #define	FC_PORTDB_STATE_VALID		7
 
 /*
@@ -357,8 +377,21 @@ typedef struct {
 	uint16_t		isp_maxfrmlen;
 	uint64_t		isp_nodewwn;
 	uint64_t		isp_portwwn;
+
+	/*
+	 * Our Port Data Base
+	 */
 	fcportdb_t		portdb[MAX_FC_TARG];
+
+	/*
+	 * This maps system virtual 'target' id to a portdb entry.
+	 *
+	 * The mapping function is to take any non-zero entry and
+	 * subtract one to get the portdb index. This means that
+	 * entries which are zero are unmapped (i.e., don't exist).
+	 */
 	uint16_t		isp_ini_map[MAX_FC_TARG];
+
 	/*
 	 * Scratch DMA mapped in area to fetch Port Database stuff, etc.
 	 */
@@ -849,7 +882,7 @@ int isp_async(ispsoftc_t *, ispasync_t, void *);
 #define	ISP_LOGDEBUG1	0x20	/* log intermediate debug messages */
 #define	ISP_LOGDEBUG2	0x40	/* log most debug messages */
 #define	ISP_LOGDEBUG3	0x80	/* log high frequency debug messages */
-#define	ISP_LOGDEBUG4	0x100	/* log high frequency debug messages */
+#define	ISP_LOGSANCFG	0x100	/* log SAN configuration */
 #define	ISP_LOGTDEBUG0	0x200	/* log simple debug messages (target mode) */
 #define	ISP_LOGTDEBUG1	0x400	/* log intermediate debug messages (target) */
 #define	ISP_LOGTDEBUG2	0x800	/* log all debug messages (target) */
@@ -934,7 +967,7 @@ int isp_async(ispsoftc_t *, ispasync_t, void *);
  *	XS_NOERR(xs)	there is no error currently set
  *	XS_INITERR(xs)	initialize error state
  *
- *	XS_SAVE_SENSE(xs, sp)		save sense data
+ *	XS_SAVE_SENSE(xs, sp, len)	save sense data
  *
  *	XS_SET_STATE_STAT(isp, sp, xs)	platform dependent interpreter of
  *					response queue entry status bits
