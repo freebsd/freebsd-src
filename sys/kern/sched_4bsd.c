@@ -589,20 +589,20 @@ schedcpu(void)
 			 * stop recalculating its priority until
 			 * it wakes up.
 			 */
-			if (ke->ke_cpticks == 0)
-				continue;
+			if (ke->ke_cpticks != 0) {
 #if	(FSHIFT >= CCPU_SHIFT)
-			ke->ke_pctcpu += (realstathz == 100)
-			    ? ((fixpt_t) ke->ke_cpticks) <<
-			    (FSHIFT - CCPU_SHIFT) :
-			    100 * (((fixpt_t) ke->ke_cpticks)
-			    << (FSHIFT - CCPU_SHIFT)) / realstathz;
+				ke->ke_pctcpu += (realstathz == 100)
+			    	? ((fixpt_t) ke->ke_cpticks) <<
+			    	(FSHIFT - CCPU_SHIFT) :
+			    	100 * (((fixpt_t) ke->ke_cpticks)
+			    	<< (FSHIFT - CCPU_SHIFT)) / realstathz;
 #else
-			ke->ke_pctcpu += ((FSCALE - ccpu) *
-			    (ke->ke_cpticks *
-			    FSCALE / realstathz)) >> FSHIFT;
+				ke->ke_pctcpu += ((FSCALE - ccpu) *
+			    	(ke->ke_cpticks *
+			    	FSCALE / realstathz)) >> FSHIFT;
 #endif
-			ke->ke_cpticks = 0;
+				ke->ke_cpticks = 0;
+			}
 #endif
 
 			/* 
