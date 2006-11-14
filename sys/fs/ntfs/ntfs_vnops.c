@@ -187,7 +187,7 @@ ntfs_getattr(ap)
 	vap->va_fsid = dev2udev(ip->i_dev);
 	vap->va_fileid = ip->i_number;
 	vap->va_mode = ip->i_mp->ntm_mode;
-	vap->va_nlink = ip->i_nlink;
+	vap->va_nlink = (ip->i_nlink || ip->i_flag & IN_LOADED ? ip->i_nlink : 1);
 	vap->va_uid = ip->i_mp->ntm_uid;
 	vap->va_gid = ip->i_mp->ntm_gid;
 	vap->va_rdev = 0;				/* XXX UNODEV ? */
