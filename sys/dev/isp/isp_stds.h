@@ -129,7 +129,7 @@ typedef struct {
 /*
  * RFT_ID Requet CT_IU
  *
- * Source: INCITS xxx-200x Generic Services- 5 Rev 8.5 Section 5.2.5.30
+ * Source: NCITS xxx-200x Generic Services- 5 Rev 8.5 Section 5.2.5.30
  */
 typedef struct {
 	ct_hdr_t	rftid_hdr;
@@ -137,6 +137,19 @@ typedef struct {
 	uint8_t		rftid_portid[3];
 	uint32_t	rftid_fc4types[8];
 } rft_id_t;
+
+/*
+ * FCP Response Code Definitions
+ * Source: NCITS T10, Project 1144D, Revision 07a (aka FCP2r07a)
+ */
+#define	FCP_RSPNS_CODE_OFFSET		3
+
+#define	FCP_RSPNS_TMF_DONE		0
+#define	FCP_RSPNS_DLBRSTX		1
+#define	FCP_RSPNS_BADCMND		2
+#define	FCP_RSPNS_EROFS			3
+#define	FCP_RSPNS_TMF_REJECT		4
+#define	FCP_RSPNS_TMF_FAILED		5
 
 
 /* unconverted miscellany */
