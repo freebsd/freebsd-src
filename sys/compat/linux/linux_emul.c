@@ -85,7 +85,7 @@ linux_proc_init(struct thread *td, pid_t child, int flags)
 		em = malloc(sizeof *em, M_LINUX, M_WAITOK | M_ZERO);
 		em->pid = child;
 		em->pdeath_signal = 0;
-		if (flags & CLONE_VM) {
+		if (flags & CLONE_THREAD) {
 		   	/* handled later in the code */
 		} else {
 		   	struct linux_emuldata_shared *s;
@@ -117,10 +117,10 @@ linux_proc_init(struct thread *td, pid_t child, int flags)
 	 * the newly created proc
 	 */
 	if (child != 0) {
-   	   	if (flags & CLONE_VM) {
+   	   	if (flags & CLONE_THREAD) {
    		   	/* lookup the parent */
 		   	p_em = em_find(td->td_proc, EMUL_LOCKED);
-			KASSERT(p_em != NULL, ("proc_init: parent emuldata not found for CLONE_VM\n"));
+			KASSERT(p_em != NULL, ("proc_init: parent emuldata not found for CLONE_THREAD\n"));
 			em->shared = p_em->shared;
 			em->shared->refs++;
 		} else {
