@@ -547,6 +547,10 @@ mpt_event_reply_handler(struct mpt_softc *mpt, request_t *req,
 
 		handled = 0;
 		msg = (MSG_EVENT_NOTIFY_REPLY *)reply_frame;
+		msg->EventDataLength = le16toh(msg->EventDataLength);
+		msg->IOCStatus = le16toh(msg->IOCStatus);
+		msg->IOCLogInfo = le32toh(msg->IOCLogInfo);
+		msg->Event = le32toh(msg->Event);
 		MPT_PERS_FOREACH(mpt, pers)
 			handled += pers->event(mpt, req, msg);
 
@@ -566,7 +570,7 @@ mpt_event_reply_handler(struct mpt_softc *mpt, request_t *req,
 			request_t *ack_req;
 			uint32_t context;
 
-			context = htole32(req->index|MPT_REPLY_HANDLER_EVENTS);
+			context = req->index | MPT_REPLY_HANDLER_EVENTS;
 			ack_req = mpt_get_request(mpt, FALSE);
 			if (ack_req == NULL) {
 				struct mpt_evtf_record *evtf;
@@ -683,9 +687,9 @@ mpt_send_event_ack(struct mpt_softc *mpt, request_t *ack_req,
 	ackp = (MSG_EVENT_ACK *)ack_req->req_vbuf;
 	memset(ackp, 0, sizeof (*ackp));
 	ackp->Function = MPI_FUNCTION_EVENT_ACK;
-	ackp->Event = msg->Event;
-	ackp->EventContext = msg->EventContext;
-	ackp->MsgContext = context;
+	ackp->Event = htole32(msg->Event);
+	ackp->EventContext = htole32(msg->EventContext);
+	ackp->MsgContext = htole32(context);
 	mpt_check_doorbell(mpt);
 	mpt_send_cmd(mpt, ack_req);
 }
@@ -1375,7 +1379,7 @@ mpt_send_handshake_cmd(struct mpt_softc *mpt, size_t len, void *cmd)
 
 	/* Send the command */
 	for (i = 0; i < len; i++) {
-		mpt_write(mpt, MPT_OFFSET_DOORBELL, *data32++);
+		mpt_write(mpt, MPT_OFFSET_DOORBELL, htole32(*data32++));
 		if (mpt_wait_db_ack(mpt) != MPT_OK) {
 			mpt_prt(mpt,
 				"mpt_send_handshake_cmd timeout! index = %d\n",
@@ -1392,6 +1396,7 @@ mpt_recv_handshake_reply(struct mpt_softc *mpt, size_t reply_len, void *reply)
 {
 	int left, reply_left;
 	u_int16_t *data16;
+	uint32_t data;
 	MSG_DEFAULT_REPLY *hdr;
 
 	/* We move things out in 16 bit chunks */
@@ -1405,7 +1410,8 @@ mpt_recv_handshake_reply(struct mpt_softc *mpt, size_t reply_len, void *reply)
 		mpt_prt(mpt, "mpt_recv_handshake_cmd timeout1\n");
 		return ETIMEDOUT;
 	}
-	*data16++ = mpt_read(mpt, MPT_OFFSET_DOORBELL) & MPT_DB_DATA_MASK;
+	data = mpt_read(mpt, MPT_OFFSET_DOORBELL);
+	*data16++ = le16toh(data & MPT_DB_DATA_MASK);
 	mpt_write(mpt, MPT_OFFSET_INTR_STATUS, 0);
 
 	/* Get Second Word */
@@ -1413,7 +1419,8 @@ mpt_recv_handshake_reply(struct mpt_softc *mpt, size_t reply_len, void *reply)
 		mpt_prt(mpt, "mpt_recv_handshake_cmd timeout2\n");
 		return ETIMEDOUT;
 	}
-	*data16++ = mpt_read(mpt, MPT_OFFSET_DOORBELL) & MPT_DB_DATA_MASK;
+	data = mpt_read(mpt, MPT_OFFSET_DOORBELL);
+	*data16++ = le16toh(data & MPT_DB_DATA_MASK);
 	mpt_write(mpt, MPT_OFFSET_INTR_STATUS, 0);
 
 	/*
@@ -1443,10 +1450,11 @@ mpt_recv_handshake_reply(struct mpt_softc *mpt, size_t reply_len, void *reply)
 			mpt_prt(mpt, "mpt_recv_handshake_cmd timeout3\n");
 			return ETIMEDOUT;
 		}
-		datum = mpt_read(mpt, MPT_OFFSET_DOORBELL);
+		data = mpt_read(mpt, MPT_OFFSET_DOORBELL);
+		datum = le16toh(data & MPT_DB_DATA_MASK);
 
 		if (reply_left-- > 0)
-			*data16++ = datum & MPT_DB_DATA_MASK;
+			*data16++ = datum;
 
 		mpt_write(mpt, MPT_OFFSET_INTR_STATUS, 0);
 	}
@@ -1553,9 +1561,9 @@ mpt_issue_cfg_req(struct mpt_softc *mpt, request_t *req, u_int Action,
 	cfgp->Header.PageLength = PageLength;
 	cfgp->Header.PageNumber = PageNumber;
 	cfgp->Header.PageType = PageType;
-	cfgp->PageAddress = PageAddress;
+	cfgp->PageAddress = htole32(PageAddress);
 	se = (SGE_SIMPLE32 *)&cfgp->PageBufferSGE;
-	se->Address = addr;
+	se->Address = htole32(addr);
 	MPI_pSGE_SET_LENGTH(se, len);
 	MPI_pSGE_SET_FLAGS(se, (MPI_SGE_FLAGS_SIMPLE_ELEMENT |
 	    MPI_SGE_FLAGS_LAST_ELEMENT | MPI_SGE_FLAGS_END_OF_BUFFER |
@@ -1563,6 +1571,7 @@ mpt_issue_cfg_req(struct mpt_softc *mpt, request_t *req, u_int Action,
 	    ((Action == MPI_CONFIG_ACTION_PAGE_WRITE_CURRENT
 	  || Action == MPI_CONFIG_ACTION_PAGE_WRITE_NVRAM)
 	   ? MPI_SGE_FLAGS_HOST_TO_IOC : MPI_SGE_FLAGS_IOC_TO_HOST)));
+	se->FlagsLength = htole32(se->FlagsLength);
 	cfgp->MsgContext = htole32(req->index | MPT_REPLY_HANDLER_CONFIG);
 
 	mpt_check_doorbell(mpt);
@@ -2488,7 +2497,7 @@ mpt_configure_ioc(struct mpt_softc *mpt)
 			 pfp.MaxDevices);
 
 		mpt->mpt_port_type = pfp.PortType;
-		mpt->mpt_proto_flags = pfp.ProtocolFlags;
+		mpt->mpt_proto_flags = le16toh(pfp.ProtocolFlags);
 		if (pfp.PortType != MPI_PORTFACTS_PORTTYPE_SCSI &&
 		    pfp.PortType != MPI_PORTFACTS_PORTTYPE_SAS &&
 		    pfp.PortType != MPI_PORTFACTS_PORTTYPE_FC) {
@@ -2521,10 +2530,10 @@ mpt_configure_ioc(struct mpt_softc *mpt)
 		 * if this is different from what is wanted.
 		 */
 		mpt->role = MPT_ROLE_NONE;
-		if (pfp.ProtocolFlags & MPI_PORTFACTS_PROTOCOL_INITIATOR) {
+		if (mpt->mpt_proto_flags & MPI_PORTFACTS_PROTOCOL_INITIATOR) {
 			mpt->role |= MPT_ROLE_INITIATOR;
 		}
-		if (pfp.ProtocolFlags & MPI_PORTFACTS_PROTOCOL_TARGET) {
+		if (mpt->mpt_proto_flags & MPI_PORTFACTS_PROTOCOL_TARGET) {
 			mpt->role |= MPT_ROLE_TARGET;
 		}
 		if (mpt_enable_ioc(mpt, 0) != MPT_OK) {
