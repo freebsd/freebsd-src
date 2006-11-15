@@ -315,7 +315,7 @@ msi_alloc(device_t dev, int count, int maxcount, int *irqs, int *newirq,
 		/* We need count - cnt more sources starting at index 'cnt'. */
 		*newirq = cnt;
 		*newcount = count - cnt;
-		for (j = 0; j < *newirq; j++) {
+		for (j = 0; j < *newcount; j++) {
 
 			/* Create a new MSI source. */
 			msi = malloc(sizeof(struct msi_intsrc), M_MSI,
