@@ -46,8 +46,8 @@ extern "C" {
 
 /*
  * If ARCHIVE_API_VERSION != archive_api_version(), then the library you
- * were linked with is using an incompatible API.  This is almost
- * certainly a fatal problem.
+ * were linked with is using an incompatible API to the one you were
+ * compiled with.  This is almost certainly a fatal problem.
  *
  * ARCHIVE_API_FEATURE is incremented with each significant feature
  * addition, so you can test (at compile or run time) if a particular
@@ -196,12 +196,17 @@ int		 archive_read_open2(struct archive *, void *_client_data,
 		     archive_skip_callback *, archive_close_callback *);
 
 /*
- * The archive_read_open_file function is a convenience function built
- * on archive_read_open that uses a canned callback suitable for
- * common situations.  Note that a NULL filename indicates stdin.
+ * A variety of shortcuts that invoke archive_read_open() with
+ * canned callbacks suitable for common situations.  The ones that
+ * accept a block size handle tape blocking correctly.
  */
-int		 archive_read_open_file(struct archive *, const char *_file,
-		     size_t _block_size);
+/* Use this if you know the filename.  Note: NULL indicates stdin. */
+int		 archive_read_open_filename(struct archive *,
+		     const char *_filename, size_t _block_size);
+/* archive_read_open_file() is a deprecated synonym for ..._open_filename(). */
+int		 archive_read_open_file(struct archive *,
+		     const char *_filename, size_t _block_size);
+/* Read an archive that's already open, using the file descriptor. */
 int		 archive_read_open_fd(struct archive *, int _fd,
 		     size_t _block_size);
 
@@ -325,6 +330,8 @@ int		 archive_write_open(struct archive *, void *,
 		     archive_open_callback *, archive_write_callback *,
 		     archive_close_callback *);
 int		 archive_write_open_fd(struct archive *, int _fd);
+int		 archive_write_open_filename(struct archive *, const char *_file);
+/* A deprecated synonym for archive_write_open_filename() */
 int		 archive_write_open_file(struct archive *, const char *_file);
 
 /*

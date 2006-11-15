@@ -65,6 +65,13 @@ int
 archive_read_open_file(struct archive *a, const char *filename,
     size_t block_size)
 {
+	return (archive_read_open_filename(a, filename, block_size));
+}
+
+int
+archive_read_open_filename(struct archive *a, const char *filename,
+    size_t block_size)
+{
 	struct read_file_data *mine;
 
 	if (filename == NULL || filename[0] == '\0') {
