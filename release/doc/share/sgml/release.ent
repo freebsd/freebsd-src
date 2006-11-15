@@ -29,10 +29,9 @@
 
 <!-- The type of release (usually this will be either "snapshot"
      or "release" -->
-<!ENTITY release.type "snapshot">
-<!ENTITY % release.type.current  "INCLUDE">
+<!ENTITY release.type "release">
 <!ENTITY % release.type.snapshot "IGNORE">
-<!ENTITY % release.type.release "IGNORE">
+<!ENTITY % release.type.release "INCLUDE">
 
 <!-- The manpaths for man page references -->
 <!ENTITY release.man.url "http://www.FreeBSD.org/cgi/man.cgi">
