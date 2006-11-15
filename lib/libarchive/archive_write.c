@@ -271,9 +271,7 @@ archive_write_header(struct archive *a, struct archive_entry *entry)
 int
 archive_write_data(struct archive *a, const void *buff, size_t s)
 {
-	int ret;
 	__archive_check_magic(a, ARCHIVE_WRITE_MAGIC, ARCHIVE_STATE_DATA, "archive_write_data");
 	archive_string_empty(&a->error_string);
-	ret = (a->format_write_data)(a, buff, s);
-	return (ret == ARCHIVE_OK ? (ssize_t)s : -1);
+	return ((a->format_write_data)(a, buff, s));
 }
