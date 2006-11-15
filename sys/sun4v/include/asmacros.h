@@ -302,6 +302,37 @@ name:
 	ldxa	[SBP + (6*8)]%asi, %l6;	\
 	ldxa	[SBP + (7*8)]%asi, %l7;	
 
+#define	SAVE_OUTS_ASI(SBP) \
+	stxa	%o0, [SBP + (0*8)]%asi; \
+	stxa	%o1, [SBP + (1*8)]%asi; \
+	stxa	%o2, [SBP + (2*8)]%asi; \
+	stxa	%o3, [SBP + (3*8)]%asi; \
+	stxa	%o4, [SBP + (4*8)]%asi; \
+	stxa	%o5, [SBP + (5*8)]%asi; \
+	stxa	%o6, [SBP + (6*8)]%asi; \
+	stxa	%o7, [SBP + (7*8)]%asi; 
+
+#define	RESTORE_OUTS_ASI(SBP) \
+	ldxa	[SBP + (0*8)]%asi, %o0;	\
+	ldxa	[SBP + (1*8)]%asi, %o1;	\
+	ldxa	[SBP + (2*8)]%asi, %o2;	\
+	ldxa	[SBP + (3*8)]%asi, %o3;	\
+	ldxa	[SBP + (4*8)]%asi, %o4;	\
+	ldxa	[SBP + (5*8)]%asi, %o5;	\
+	ldxa	[SBP + (6*8)]%asi, %o6;	\
+	ldxa	[SBP + (7*8)]%asi, %o7;	
+
+
+#define TTRACE_ADD_SAFE(SBP, arg0, arg1, arg2, arg3, arg4) \
+        SAVE_OUTS_ASI(SBP);  \
+        mov arg0, %o0; \
+        mov arg1, %o1; \
+        mov arg2, %o2; \
+        mov arg3, %o3; \
+        mov arg4, %o4; \
+        RESTORE_OUTS_ASI(SBP); 
+
+
 #endif /* LOCORE */
 
 #endif /* _KERNEL */
