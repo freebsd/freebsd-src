@@ -113,7 +113,7 @@ static const struct archive_entry_header_ustar template_header = {
 	{ "" }				/* padding */
 };
 
-static int	archive_write_ustar_data(struct archive *a, const void *buff,
+static ssize_t	archive_write_ustar_data(struct archive *a, const void *buff,
 		    size_t s);
 static int	archive_write_ustar_finish(struct archive *);
 static int	archive_write_ustar_finish_entry(struct archive *);
@@ -493,7 +493,7 @@ write_nulls(struct archive *a, size_t padding)
 	return (ARCHIVE_OK);
 }
 
-static int
+static ssize_t
 archive_write_ustar_data(struct archive *a, const void *buff, size_t s)
 {
 	struct ustar *ustar;
@@ -504,5 +504,7 @@ archive_write_ustar_data(struct archive *a, const void *buff, size_t s)
 		s = ustar->entry_bytes_remaining;
 	ret = (a->compression_write)(a, buff, s);
 	ustar->entry_bytes_remaining -= s;
-	return (ret);
+	if (ret != ARCHIVE_OK)
+		return (ret);
+	return (s);
 }

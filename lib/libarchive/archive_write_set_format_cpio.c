@@ -45,7 +45,7 @@ __FBSDID("$FreeBSD$");
 #include "archive_entry.h"
 #include "archive_private.h"
 
-static int	archive_write_cpio_data(struct archive *, const void *buff,
+static ssize_t	archive_write_cpio_data(struct archive *, const void *buff,
 		    size_t s);
 static int	archive_write_cpio_finish(struct archive *);
 static int	archive_write_cpio_finish_entry(struct archive *);
@@ -167,7 +167,7 @@ archive_write_cpio_header(struct archive *a, struct archive_entry *entry)
 	return (ret);
 }
 
-static int
+static ssize_t
 archive_write_cpio_data(struct archive *a, const void *buff, size_t s)
 {
 	struct cpio *cpio;
@@ -179,7 +179,10 @@ archive_write_cpio_data(struct archive *a, const void *buff, size_t s)
 
 	ret = (a->compression_write)(a, buff, s);
 	cpio->entry_bytes_remaining -= s;
-	return (ret);
+	if (ret >= 0)
+		return (s);
+	else
+		return (ret);
 }
 
 /*
