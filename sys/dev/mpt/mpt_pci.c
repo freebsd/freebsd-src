@@ -512,6 +512,13 @@ mpt_pci_attach(device_t dev)
 
 	/* Get a handle to the interrupt */
 	iqd = 0;
+	if (pci_msi_count(dev) == 1) {
+		mpt->pci_msi_count = 1;
+		if (pci_alloc_msi(dev, &mpt->pci_msi_count) == 0)
+			iqd = 1;
+		else
+			mpt->pci_msi_count = 0;
+	}	
 	mpt->pci_irq = bus_alloc_resource_any(dev, SYS_RES_IRQ, &iqd,
 	    RF_ACTIVE | RF_SHAREABLE);
 	if (mpt->pci_irq == NULL) {
@@ -608,10 +615,16 @@ mpt_free_bus_resources(struct mpt_softc *mpt)
 	}
 
 	if (mpt->pci_irq) {
-		bus_release_resource(mpt->dev, SYS_RES_IRQ, 0, mpt->pci_irq);
+		bus_release_resource(mpt->dev, SYS_RES_IRQ,
+		    mpt->pci_msi_count ? 1 : 0, mpt->pci_irq);
 		mpt->pci_irq = 0;
 	}
 
+	if (mpt->pci_msi_count) {
+		pci_release_msi(mpt->dev);
+		mpt->pci_msi_count = 0;
+	}
+		
 	if (mpt->pci_pio_reg) {
 		bus_release_resource(mpt->dev, SYS_RES_IOPORT, mpt->pci_pio_rid,
 			mpt->pci_pio_reg);
