@@ -1036,6 +1036,7 @@ bad:
 		MPI_pSGE_SET_FLAGS(se1,
 		    (MPI_SGE_FLAGS_LAST_ELEMENT | MPI_SGE_FLAGS_END_OF_BUFFER |
 		    MPI_SGE_FLAGS_SIMPLE_ELEMENT | MPI_SGE_FLAGS_END_OF_LIST));
+		se1->FlagsLength = htole32(se1->FlagsLength);
 		goto out;
 	}
 
@@ -1093,7 +1094,7 @@ bad:
 		uint32_t tf;
 
 		memset(se, 0, sizeof (*se));
-		se->Address.Low = dm_segs->ds_addr;
+		se->Address.Low = htole32(dm_segs->ds_addr & 0xffffffff);
 		if (sizeof(bus_addr_t) > 4) {
 			se->Address.High = ((uint64_t) dm_segs->ds_addr) >> 32;
 		}
@@ -1107,6 +1108,7 @@ bad:
 				MPI_SGE_FLAGS_END_OF_BUFFER;
 		}
 		MPI_pSGE_SET_FLAGS(se, tf);
+		se->FlagsLength = htole32(se->FlagsLength);
 	}
 
 	if (seg == nseg) {
@@ -1169,9 +1171,9 @@ bad:
 		chain_list_addr += cur_off;
 		if (sizeof (bus_addr_t) > 4) {
 			ce->Address.High =
-			    (uint32_t) ((uint64_t)chain_list_addr >> 32);
+			    htole32((uint32_t) ((uint64_t)chain_list_addr >> 32));
 		}
-		ce->Address.Low = (uint32_t) chain_list_addr;
+		ce->Address.Low = htole32((uint32_t) chain_list_addr);
 		ce->Flags = MPI_SGE_FLAGS_CHAIN_ELEMENT |
 			    MPI_SGE_FLAGS_64_BIT_ADDRESSING;
 
@@ -1208,10 +1210,10 @@ bad:
 		 */
 		while (seg < this_seg_lim) {
 			memset(se, 0, sizeof (*se));
-			se->Address.Low = dm_segs->ds_addr;
+			se->Address.Low = htole32(dm_segs->ds_addr);
 			if (sizeof (bus_addr_t) > 4) {
 				se->Address.High =
-				    ((uint64_t)dm_segs->ds_addr) >> 32;
+				    htole32(((uint64_t)dm_segs->ds_addr) >> 32);
 			}
 			MPI_pSGE_SET_LENGTH(se, dm_segs->ds_len);
 			tf = flags;
@@ -1223,6 +1225,7 @@ bad:
 					MPI_SGE_FLAGS_END_OF_BUFFER;
 			}
 			MPI_pSGE_SET_FLAGS(se, tf);
+			se->FlagsLength = htole32(se->FlagsLength);
 			se++;
 			seg++;
 			dm_segs++;
@@ -1436,6 +1439,7 @@ bad:
 		MPI_pSGE_SET_FLAGS(se1,
 		    (MPI_SGE_FLAGS_LAST_ELEMENT | MPI_SGE_FLAGS_END_OF_BUFFER |
 		    MPI_SGE_FLAGS_SIMPLE_ELEMENT | MPI_SGE_FLAGS_END_OF_LIST));
+		se1->FlagsLength = htole32(se1->FlagsLength);
 		goto out;
 	}
 
@@ -1507,6 +1511,7 @@ bad:
 				MPI_SGE_FLAGS_END_OF_BUFFER;
 		}
 		MPI_pSGE_SET_FLAGS(se, tf);
+		se->FlagsLength = htole32(se->FlagsLength);
 	}
 
 	if (seg == nseg) {
@@ -1622,6 +1627,7 @@ bad:
 					MPI_SGE_FLAGS_END_OF_BUFFER;
 			}
 			MPI_pSGE_SET_FLAGS(se, tf);
+			se->FlagsLength = htole32(se->FlagsLength);
 			se++;
 			seg++;
 			dm_segs++;
@@ -1866,8 +1872,8 @@ mpt_start(struct cam_sim *sim, union ccb *ccb)
 	}
 
 	mpt_req->CDBLength = csio->cdb_len;
-	mpt_req->DataLength = csio->dxfer_len;
-	mpt_req->SenseBufferLowAddr = req->sense_pbuf;
+	mpt_req->DataLength = htole32(csio->dxfer_len);
+	mpt_req->SenseBufferLowAddr = htole32(req->sense_pbuf);
 
 	/*
 	 * Do a *short* print here if we're set to MPT_PRT_DEBUG
@@ -2038,17 +2044,20 @@ static int
 mpt_cam_event(struct mpt_softc *mpt, request_t *req,
 	      MSG_EVENT_NOTIFY_REPLY *msg)
 {
+	uint32_t data0, data1;
 
+	data0 = le32toh(msg->Data[0]);
+	data1 = le32toh(msg->Data[1]);
 	switch(msg->Event & 0xFF) {
 	case MPI_EVENT_UNIT_ATTENTION:
 		mpt_prt(mpt, "UNIT ATTENTION: Bus: 0x%02x TargetID: 0x%02x\n",
-		    (msg->Data[0] >> 8) & 0xff, msg->Data[0] & 0xff);
+		    (data0 >> 8) & 0xff, data0 & 0xff);
 		break;
 
 	case MPI_EVENT_IOC_BUS_RESET:
 		/* We generated a bus reset */
 		mpt_prt(mpt, "IOC Generated Bus Reset Port: %d\n",
-		    (msg->Data[0] >> 8) & 0xff);
+		    (data0 >> 8) & 0xff);
 		xpt_async(AC_BUS_RESET, mpt->path, NULL);
 		break;
 
@@ -2066,81 +2075,81 @@ mpt_cam_event(struct mpt_softc *mpt, request_t *req,
 		/*
 		 * In general this means a device has been added to the loop.
 		 */
-		mpt_prt(mpt, "Rescan Port: %d\n", (msg->Data[0] >> 8) & 0xff);
+		mpt_prt(mpt, "Rescan Port: %d\n", (data0 >> 8) & 0xff);
 /*		xpt_async(AC_FOUND_DEVICE, path, NULL);  */
 		break;
 
 	case MPI_EVENT_LINK_STATUS_CHANGE:
 		mpt_prt(mpt, "Port %d: LinkState: %s\n",
-		    (msg->Data[1] >> 8) & 0xff,
-		    ((msg->Data[0] & 0xff) == 0)?  "Failed" : "Active");
+		    (data1 >> 8) & 0xff,
+		    ((data0 & 0xff) == 0)?  "Failed" : "Active");
 		break;
 
 	case MPI_EVENT_LOOP_STATE_CHANGE:
-		switch ((msg->Data[0] >> 16) & 0xff) {
+		switch ((data0 >> 16) & 0xff) {
 		case 0x01:
 			mpt_prt(mpt,
 			    "Port 0x%x: FC LinkEvent: LIP(%02x,%02x) "
 			    "(Loop Initialization)\n",
-			    (msg->Data[1] >> 8) & 0xff,
-			    (msg->Data[0] >> 8) & 0xff,
-			    (msg->Data[0]     ) & 0xff);
-			switch ((msg->Data[0] >> 8) & 0xff) {
+			    (data1 >> 8) & 0xff,
+			    (data0 >> 8) & 0xff,
+			    (data0     ) & 0xff);
+			switch ((data0 >> 8) & 0xff) {
 			case 0xF7:
-				if ((msg->Data[0] & 0xff) == 0xF7) {
+				if ((data0 & 0xff) == 0xF7) {
 					mpt_prt(mpt, "Device needs AL_PA\n");
 				} else {
 					mpt_prt(mpt, "Device %02x doesn't like "
 					    "FC performance\n",
-					    msg->Data[0] & 0xFF);
+					    data0 & 0xFF);
 				}
 				break;
 			case 0xF8:
-				if ((msg->Data[0] & 0xff) == 0xF7) {
+				if ((data0 & 0xff) == 0xF7) {
 					mpt_prt(mpt, "Device had loop failure "
 					    "at its receiver prior to acquiring"
 					    " AL_PA\n");
 				} else {
 					mpt_prt(mpt, "Device %02x detected loop"
 					    " failure at its receiver\n", 
-					    msg->Data[0] & 0xFF);
+					    data0 & 0xFF);
 				}
 				break;
 			default:
 				mpt_prt(mpt, "Device %02x requests that device "
 				    "%02x reset itself\n", 
-				    msg->Data[0] & 0xFF,
-				    (msg->Data[0] >> 8) & 0xFF);
+				    data0 & 0xFF,
+				    (data0 >> 8) & 0xFF);
 				break;
 			}
 			break;
 		case 0x02:
 			mpt_prt(mpt, "Port 0x%x: FC LinkEvent: "
 			    "LPE(%02x,%02x) (Loop Port Enable)\n",
-			    (msg->Data[1] >> 8) & 0xff, /* Port */
-			    (msg->Data[0] >>  8) & 0xff, /* Character 3 */
-			    (msg->Data[0]      ) & 0xff  /* Character 4 */);
+			    (data1 >> 8) & 0xff, /* Port */
+			    (data0 >>  8) & 0xff, /* Character 3 */
+			    (data0      ) & 0xff  /* Character 4 */);
 			break;
 		case 0x03:
 			mpt_prt(mpt, "Port 0x%x: FC LinkEvent: "
 			    "LPB(%02x,%02x) (Loop Port Bypass)\n",
-			    (msg->Data[1] >> 8) & 0xff, /* Port */
-			    (msg->Data[0] >> 8) & 0xff, /* Character 3 */
-			    (msg->Data[0]     ) & 0xff  /* Character 4 */);
+			    (data1 >> 8) & 0xff, /* Port */
+			    (data0 >> 8) & 0xff, /* Character 3 */
+			    (data0     ) & 0xff  /* Character 4 */);
 			break;
 		default:
 			mpt_prt(mpt, "Port 0x%x: FC LinkEvent: Unknown "
 			    "FC event (%02x %02x %02x)\n",
-			    (msg->Data[1] >> 8) & 0xff, /* Port */
-			    (msg->Data[0] >> 16) & 0xff, /* Event */
-			    (msg->Data[0] >>  8) & 0xff, /* Character 3 */
-			    (msg->Data[0]      ) & 0xff  /* Character 4 */);
+			    (data1 >> 8) & 0xff, /* Port */
+			    (data0 >> 16) & 0xff, /* Event */
+			    (data0 >>  8) & 0xff, /* Character 3 */
+			    (data0      ) & 0xff  /* Character 4 */);
 		}
 		break;
 
 	case MPI_EVENT_LOGOUT:
 		mpt_prt(mpt, "FC Logout Port: %d N_PortID: %02x\n",
-		    (msg->Data[1] >> 8) & 0xff, msg->Data[0]);
+		    (data1 >> 8) & 0xff, data0);
 		break;
 	case MPI_EVENT_EVENT_CHANGE:
 		mpt_lprt(mpt, MPT_PRT_DEBUG,
@@ -2352,6 +2361,7 @@ static void
 mpt_fc_els_send_response(struct mpt_softc *mpt, request_t *req,
     PTR_MSG_LINK_SERVICE_BUFFER_POST_REPLY rp, U8 length)
 {
+	uint32_t fl;
 	MSG_LINK_SERVICE_RSP_REQUEST tmp;
 	PTR_MSG_LINK_SERVICE_RSP_REQUEST rsp;
 
@@ -2391,15 +2401,16 @@ mpt_fc_els_send_response(struct mpt_softc *mpt, request_t *req,
 	bus_addr_t paddr = req->req_pbuf;
 	paddr += MPT_RQSL(mpt);
 
-	se->FlagsLength =
+	fl =
 		MPI_SGE_FLAGS_HOST_TO_IOC	|
 		MPI_SGE_FLAGS_SIMPLE_ELEMENT	|
 		MPI_SGE_FLAGS_LAST_ELEMENT	|
 		MPI_SGE_FLAGS_END_OF_LIST	|
 		MPI_SGE_FLAGS_END_OF_BUFFER;
-	se->FlagsLength <<= MPI_SGE_FLAGS_SHIFT;
-	se->FlagsLength |= (length);
-	se->Address = (uint32_t) paddr;
+	fl <<= MPI_SGE_FLAGS_SHIFT;
+	fl |= (length);
+	se->FlagsLength = htole32(fl);
+	se->Address = htole32((uint32_t) paddr);
 }
 #endif
 
@@ -3713,6 +3724,7 @@ mpt_fc_post_els(struct mpt_softc *mpt, request_t *req, int ioindex)
 	PTR_SGE_TRANSACTION32 tep;
 	PTR_SGE_SIMPLE32 se;
 	bus_addr_t paddr;
+	uint32_t fl;
 
 	paddr = req->req_pbuf;
 	paddr += MPT_RQSL(mpt);
@@ -3737,15 +3749,16 @@ mpt_fc_post_els(struct mpt_softc *mpt, request_t *req, int ioindex)
 	tep->TransactionContext[0] = htole32(ioindex);
 
 	se = (PTR_SGE_SIMPLE32) &tep->TransactionDetails[0];
-	se->FlagsLength =
+	fl =
 		MPI_SGE_FLAGS_HOST_TO_IOC	|
 		MPI_SGE_FLAGS_SIMPLE_ELEMENT	|
 		MPI_SGE_FLAGS_LAST_ELEMENT	|
 		MPI_SGE_FLAGS_END_OF_LIST	|
 		MPI_SGE_FLAGS_END_OF_BUFFER;
-	se->FlagsLength <<= MPI_SGE_FLAGS_SHIFT;
-	se->FlagsLength |= (MPT_NRFM(mpt) - MPT_RQSL(mpt));
-	se->Address = (uint32_t) paddr;
+	fl <<= MPI_SGE_FLAGS_SHIFT;
+	fl |= (MPT_NRFM(mpt) - MPT_RQSL(mpt));
+	se->FlagsLength = htole32(fl);
+	se->Address = htole32((uint32_t) paddr);
 	mpt_lprt(mpt, MPT_PRT_DEBUG,
 	    "add ELS index %d ioindex %d for %p:%u\n",
 	    req->index, ioindex, req, req->serno);
@@ -3773,7 +3786,7 @@ mpt_post_target_command(struct mpt_softc *mpt, request_t *req, int ioindex)
 
 	cb = &fc->Buffer[0];
 	cb->IoIndex = htole16(ioindex);
-	cb->u.PhysicalAddress32 = (U32) paddr;
+	cb->u.PhysicalAddress32 = htole32((U32) paddr);
 
 	mpt_check_doorbell(mpt);
 	mpt_send_cmd(mpt, req);
@@ -4301,6 +4314,7 @@ mpt_scsi_tgt_status(struct mpt_softc *mpt, union ccb *ccb, request_t *cmd_req,
 	request_t *req;
 	bus_addr_t paddr;
 	int resplen = 0;
+	uint32_t fl;
 
 	cmd_vbuf = cmd_req->req_vbuf;
 	cmd_vbuf += MPT_RQSL(mpt);
@@ -4420,15 +4434,16 @@ mpt_scsi_tgt_status(struct mpt_softc *mpt, union ccb *ccb, request_t *cmd_req,
 	if (status == SCSI_STATUS_OK && resplen == 0) {
 		tp->MsgFlags |= TARGET_STATUS_SEND_FLAGS_AUTO_GOOD_STATUS;
 	} else {
-		tp->StatusDataSGE.u.Address32 = (uint32_t) paddr;
-		tp->StatusDataSGE.FlagsLength =
+		tp->StatusDataSGE.u.Address32 = htole32((uint32_t) paddr);
+		fl =
 			MPI_SGE_FLAGS_HOST_TO_IOC	|
 			MPI_SGE_FLAGS_SIMPLE_ELEMENT	|
 			MPI_SGE_FLAGS_LAST_ELEMENT	|
 			MPI_SGE_FLAGS_END_OF_LIST	|
 			MPI_SGE_FLAGS_END_OF_BUFFER;
-		tp->StatusDataSGE.FlagsLength <<= MPI_SGE_FLAGS_SHIFT;
-		tp->StatusDataSGE.FlagsLength |= resplen;
+		fl <<= MPI_SGE_FLAGS_SHIFT;
+		fl |= resplen;
+		tp->StatusDataSGE.FlagsLength = htole32(fl);
 	}
 
 	mpt_lprt(mpt, MPT_PRT_DEBUG, 
