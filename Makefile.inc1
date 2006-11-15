@@ -87,7 +87,7 @@ CLEANDIR=	cleandir
 .endif
 
 CVS?=		cvs
-CVSFLAGS?=	-r RELENG_6 -P -d -I!
+CVSFLAGS?=	-r RELENG_6_2 -P -d -I!
 SUP?=		/usr/bin/csup
 SUPFLAGS?=	-g -L 2
 .if defined(SUPHOST)
