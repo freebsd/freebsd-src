@@ -137,12 +137,12 @@ struct dbreg {
 				/* Index 7: debug control */
 };
 
-#define DBREG_DR7_EXEC      0x00      /* break on execute       */
-#define DBREG_DR7_WRONLY    0x01      /* break on write         */
-#define DBREG_DR7_RDWR      0x03      /* break on read or write */
-#define DBREG_DRX(d,x) ((d)->dr[(x)]) /* reference dr0 - dr7 by
-                                         register number */
+#define	DBREG_DR7_EXEC		0x00	/* break on execute       */
+#define	DBREG_DR7_WRONLY	0x01	/* break on write         */
+#define	DBREG_DR7_RDWR		0x03	/* break on read or write */
 
+#define	DBREG_DRX(d,x)	((d)->dr[(x)])	/* reference dr0 - dr7 by
+					   register number */
 
 #ifdef _KERNEL
 /*
