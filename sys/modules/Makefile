@@ -247,6 +247,7 @@ SUBDIR=	${_3dfx} \
 	twe \
 	tx \
 	txp \
+	uark \
 	uart \
 	ubsa \
 	ubsec \
