@@ -802,7 +802,7 @@ linux_waitpid(struct thread *td, struct linux_waitpid_args *args)
 	 * this is necessary because the test in kern_wait doesnt
 	 * work because we mess with the options here
 	 */
-	if (args->options &~ (WUNTRACED|WNOHANG|WCONTINUED))
+	if (args->options &~ (WUNTRACED|WNOHANG|WCONTINUED|__WCLONE))
 	   	return (EINVAL);
 
 	options = (args->options & (WNOHANG | WUNTRACED));
