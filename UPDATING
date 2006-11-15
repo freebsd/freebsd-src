@@ -20,6 +20,14 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 7.x IS SLOW:
 	in userland, and various verbose features in the kernel.  Many
 	developers choose to disable these features on build machines
 	to maximize performance.
+
+20061113:
+	Support for PCI Message Signalled Interrupts on i386 and amd64
+	has been added to the kernel and various drivers will soon be
+	updated to use MSI when it is available.  If there are any problems,
+	MSI can be disabled completely by setting the 'hw.pci.enable_msi'
+	and 'hw.pci.enable_msix' tunables to 0 in the loader.
+
 20061110:
 	The MUTEX_PROFILING option has been renamed to LOCK_PROFILING.
 	The lockmgr object layout has been changed as a result of having
