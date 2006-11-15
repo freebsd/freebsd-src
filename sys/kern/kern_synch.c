@@ -135,8 +135,8 @@ msleep(ident, mtx, priority, wmesg, timo)
 #endif
 	WITNESS_WARN(WARN_GIANTOK | WARN_SLEEPOK, mtx == NULL ? NULL :
 	    &mtx->mtx_object, "Sleeping on \"%s\"", wmesg);
-	KASSERT(timo != 0 || mtx_owned(&Giant) || mtx != NULL,
-	    ("sleeping without a mutex"));
+	KASSERT(timo != 0 || mtx_owned(&Giant) || mtx != NULL ||
+	    ident == &lbolt, ("sleeping without a mutex"));
 	KASSERT(p != NULL, ("msleep1"));
 	KASSERT(ident != NULL && TD_IS_RUNNING(td), ("msleep"));
 
@@ -188,7 +188,7 @@ msleep(ident, mtx, priority, wmesg, timo)
 	 * stopped, then td will no longer be on a sleep queue upon
 	 * return from cursig().
 	 */
-	sleepq_add(ident, mtx, wmesg, flags);
+	sleepq_add(ident, ident == &lbolt ? NULL : mtx, wmesg, flags);
 	if (timo)
 		sleepq_set_timeout(ident, timo);
 
