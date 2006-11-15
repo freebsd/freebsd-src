@@ -452,7 +452,7 @@ bce_attach(device_t dev)
 	struct bce_softc *sc;
 	struct ifnet *ifp;
 	u32 val;
-	int mbuf, rid, rc = 0;
+	int count, mbuf, rid, rc = 0;
 
 	sc = device_get_softc(dev);
 	sc->bce_dev = dev;
@@ -485,7 +485,12 @@ bce_attach(device_t dev)
 	sc->bce_vhandle = (vm_offset_t) rman_get_virtual(sc->bce_res);
 
 	/* Allocate PCI IRQ resources. */
-	rid = 0;
+	count = pci_msi_count(dev);
+	if (count == 1 && pci_alloc_msi(dev, &count) == 0) {
+		rid = 1;
+		sc->bce_flags |= BCE_USING_MSI_FLAG;
+	} else
+		rid = 0;
 	sc->bce_irq = bus_alloc_resource_any(dev, SYS_RES_IRQ, &rid,
 	    RF_SHAREABLE | RF_ACTIVE);
 
@@ -2539,8 +2544,11 @@ bce_release_resources(struct bce_softc *sc)
 	if (sc->bce_irq != NULL)
 		bus_release_resource(dev,
 			SYS_RES_IRQ,
-			0,
+			sc->bce_flags & BCE_USING_MSI_FLAG ? 1 : 0,
 			sc->bce_irq);
+
+	if (sc->bce_flags & BCE_USING_MSI_FLAG)
+		pci_release_msi(dev);
 
 	if (sc->bce_res != NULL)
 		bus_release_resource(dev,
