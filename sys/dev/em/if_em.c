@@ -2200,7 +2200,12 @@ em_allocate_pci_resources(struct adapter *adapter)
 		    rman_get_bushandle(adapter->flash_mem);
 	}
 
-	rid = 0x0;
+	val = pci_msi_count(dev);
+	if (val == 1 && pci_alloc_msi(dev, &val) == 0) {
+		rid = 1;
+		adapter->msi = 1;
+	} else
+		rid = 0;
 	adapter->res_interrupt = bus_alloc_resource_any(dev, SYS_RES_IRQ, &rid,
 	    RF_SHAREABLE | RF_ACTIVE);
 	if (adapter->res_interrupt == NULL) {
@@ -2279,7 +2284,11 @@ em_free_pci_resources(struct adapter *adapter)
 	device_t dev = adapter->dev;
 
 	if (adapter->res_interrupt != NULL)
-		bus_release_resource(dev, SYS_RES_IRQ, 0, adapter->res_interrupt);
+		bus_release_resource(dev, SYS_RES_IRQ, adapter->msi ? 1 : 0,
+		    adapter->res_interrupt);
+
+	if (adapter->msi)
+		pci_release_msi(dev);
 
 	if (adapter->res_memory != NULL)
 		bus_release_resource(dev, SYS_RES_MEMORY, PCIR_BAR(0),

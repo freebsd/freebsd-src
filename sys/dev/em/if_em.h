@@ -288,6 +288,7 @@ struct adapter {
 	struct callout	tx_fifo_timer;
 	int		watchdog_timer;
 	int		io_rid;
+	int		msi;
 	int		if_flags;
 	struct mtx	mtx;
 	int		em_insert_vlan_header;

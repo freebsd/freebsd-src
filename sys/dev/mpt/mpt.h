@@ -599,6 +599,7 @@ struct mpt_softc {
 	/*
 	 * PCI Hardware info
 	 */
+	int			pci_msi_count;
 	struct resource *	pci_irq;	/* Interrupt map for chip */
 	void *			ih;		/* Interupt handle */
 	struct mpt_pci_cfg	pci_cfg;	/* saved PCI conf registers */
