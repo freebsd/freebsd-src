@@ -723,8 +723,8 @@ mpt_dma_mem_alloc(struct mpt_softc *mpt)
 	 * Align at byte boundaries,
 	 * Limit to 32-bit addressing for request/reply queues.
 	 */
-	if (mpt_dma_tag_create(mpt, /*parent*/NULL, /*alignment*/1,
-	    /*boundary*/0, /*lowaddr*/BUS_SPACE_MAXADDR,
+	if (mpt_dma_tag_create(mpt, /*parent*/bus_get_dma_tag(mpt->dev),
+	    /*alignment*/1, /*boundary*/0, /*lowaddr*/BUS_SPACE_MAXADDR,
 	    /*highaddr*/BUS_SPACE_MAXADDR, /*filter*/NULL, /*filterarg*/NULL,
 	    /*maxsize*/BUS_SPACE_MAXSIZE_32BIT,
 	    /*nsegments*/BUS_SPACE_MAXSIZE_32BIT,
