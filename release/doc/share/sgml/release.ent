@@ -6,7 +6,7 @@
 
 <!-- Version of the OS we're describing.  This needs to be updated
      with each new release. -->
-<!ENTITY release.current "6.2-BETA">
+<!ENTITY release.current "6.2-RELEASE">
 
 <!-- The previous version used for comparison in the "What's New"
      section.  For -CURRENT, we might point back to the last
@@ -19,10 +19,10 @@
 <!ENTITY release.prev.stable "6.1-RELEASE">
 
 <!-- The next version to be released, usually used for snapshots. -->
-<!ENTITY release.next "6.2-RELEASE">
+<!ENTITY release.next "6.3-RELEASE">
 
 <!-- The name of this branch. -->
-<!ENTITY release.branch "6-STABLE">
+<!ENTITY release.branch "6.2-STABLE">
 
 <!-- The URL for obtaining this version of FreeBSD. -->
 <!ENTITY release.url "http://www.FreeBSD.org/snapshots/">
