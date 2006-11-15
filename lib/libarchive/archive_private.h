@@ -182,7 +182,7 @@ struct archive {
 	int	(*format_finish_entry)(struct archive *);
 	int 	(*format_write_header)(struct archive *,
 		    struct archive_entry *);
-	int	(*format_write_data)(struct archive *,
+	ssize_t	(*format_write_data)(struct archive *,
 		    const void *buff, size_t);
 
 	/*
