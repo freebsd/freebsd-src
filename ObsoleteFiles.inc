@@ -708,6 +708,8 @@ OLD_FILES+=usr/lib/libscrypt_p.a
 OLD_FILES+=usr/sbin/pim6stat
 OLD_FILES+=usr/sbin/pim6sd
 OLD_FILES+=usr/sbin/pim6dd
+# 20010217
+OLD_FILES+=usr/share/doc/bind/misc/dns-setup
 # 20001200
 OLD_FILES+=usr/lib/libgcc_r_pic.a
 # 200009XX
