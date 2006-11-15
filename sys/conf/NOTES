@@ -2397,6 +2397,8 @@ device		uscanner
 #
 # USB serial support
 device		ucom
+# USB support for Technologies ARK3116 based serial adapters
+device		uark
 # USB support for Belkin F5U103 and compatible serial adapters
 device		ubsa
 # USB support for BWCT console serial adapters
