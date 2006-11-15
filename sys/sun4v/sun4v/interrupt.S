@@ -249,6 +249,16 @@ dev_mondo(void)
  *
  */
 ENTRY(dev_mondo)
+#ifdef TRAP_TRACING	
+	GET_PCPU_PHYS_SCRATCH(%g1)
+	rdpr	%tl, %g1
+	dec	%g1	
+	sll	%g1, RW_SHIFT, %g1
+	add	%g1, PC_TSBWBUF, %g1
+	add	PCPU_REG, %g1, %g1
+	wr	%g0, ASI_REAL, %asi
+	TTRACE_ADD_SAFE(%g1, 0, 0, 0, 0, 0)
+#endif		
         /*
          *       Register Usage:-
          *       %g5     inum
