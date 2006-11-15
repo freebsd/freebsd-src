@@ -1832,9 +1832,8 @@ user_dbreg_trap(void)
                 addr[nbp++] = (caddr_t)rdr3();
         }
 
-        for (i=0; i<nbp; i++) {
-                if (addr[i] <
-                    (caddr_t)VM_MAXUSER_ADDRESS) {
+        for (i = 0; i < nbp; i++) {
+                if (addr[i] < (caddr_t)VM_MAXUSER_ADDRESS) {
                         /*
                          * addr[i] is in user space
                          */
