@@ -166,11 +166,12 @@ tte_hash_kernel_create(vm_offset_t va, uint64_t size, vm_paddr_t fragment_page)
 	return th;
 }
 
-static inline vm_page_t
+static inline void *
 alloc_zeroed_page(void)
 {
 	vm_page_t m;
 	static int color;
+	void *ptr;
 
 	m = NULL;
 
@@ -186,45 +187,91 @@ alloc_zeroed_page(void)
 	if ((m->flags & PG_ZERO) == 0)
 		pmap_zero_page(m);
 
-	return (m);
+	ptr = (void *)TLB_PHYS_TO_DIRECT(VM_PAGE_TO_PHYS(m));
+	return (ptr);
 }
 
-tte_hash_t
-tte_hash_create(uint64_t context, uint64_t *scratchval)
+static inline void *
+alloc_zeroed_contig_pages(int npages)
 {
-	tte_hash_t th;
 	vm_page_t m, tm;
 	int i;
+	void *ptr;
 	
-	th = get_tte_hash();
-	
-	th->th_size = HASH_SIZE;
-	th->th_entries = 0;
-	th->th_context = (uint16_t)context;
 	m = NULL;
-
 	while (m == NULL) {
-		m = vm_page_alloc_contig(HASH_SIZE, phys_avail[0], 
+		m = vm_page_alloc_contig(npages, phys_avail[0], 
 					 phys_avail[1], PAGE_SIZE, (1UL<<34));
 		if (m == NULL) {
 			printf("vm_page_alloc_contig failed - waiting to retry\n");
 			VM_WAIT;
 		}
 	}
-	for (i = 0, tm = m; i < HASH_SIZE; i++, tm++) 
+	for (i = 0, tm = m; i < npages; i++, tm++) {
+		tm->wire_count++;
 		if ((tm->flags & PG_ZERO) == 0)
 			pmap_zero_page(tm);
+	}
+	ptr = (void *)TLB_PHYS_TO_DIRECT(VM_PAGE_TO_PHYS(m));
+	
+	return (ptr);
+}
 
-	th->th_hashtable = (void *)TLB_PHYS_TO_DIRECT(VM_PAGE_TO_PHYS(m));
-	m = alloc_zeroed_page();
+static inline void
+free_contig_pages(void *ptr, int npages)
+{
+	int i;
+	vm_page_t m;
 
+	m = PHYS_TO_VM_PAGE(TLB_DIRECT_TO_PHYS((vm_offset_t)ptr));
+	for (i = 0; i < npages; i++, m++) {
+		m->wire_count--;
+		atomic_subtract_int(&cnt.v_wire_count, 1);
+		vm_page_free(m);
+	}
+}
 
-	th->th_fhtail = th->th_fhhead = (void *)TLB_PHYS_TO_DIRECT(VM_PAGE_TO_PHYS(m));
+static inline void
+free_fragment_pages(void *ptr)
+{
+	struct tte_hash_fragment *fh;
+	vm_page_t m;
+	
+        for (fh = ptr; fh != NULL; fh = fh->thf_head.fh_next) {
+                m = PHYS_TO_VM_PAGE(TLB_DIRECT_TO_PHYS((vm_offset_t)fh));
+                m->wire_count--;
+		atomic_subtract_int(&cnt.v_wire_count, 1);
+                vm_page_free(m);
+        }
+}
+
+static inline tte_hash_t
+_tte_hash_create(uint64_t context, uint64_t *scratchval, uint16_t size)
+{
+	tte_hash_t th;
+	
+	th = get_tte_hash();
+	th->th_size = size;
+	th->th_entries = 0;
+	th->th_context = (uint16_t)context;
+
+	th->th_hashtable = alloc_zeroed_contig_pages(size);
+
+	th->th_fhtail = th->th_fhhead = alloc_zeroed_page();
 	KASSERT(th->th_fhtail != NULL, ("th->th_fhtail == NULL"));
-
-	*scratchval = (uint64_t)((vm_offset_t)th->th_hashtable) | ((vm_offset_t)th->th_size);
+	
+	if (scratchval)
+		*scratchval = (uint64_t)((vm_offset_t)th->th_hashtable) | ((vm_offset_t)th->th_size);
 
 	return (th);
+}
+
+
+tte_hash_t
+tte_hash_create(uint64_t context, uint64_t *scratchval)
+{
+	return _tte_hash_create(context, scratchval, HASH_SIZE);
+
 }
 
 void
@@ -238,23 +285,21 @@ tte_hash_destroy(tte_hash_t th)
 void
 tte_hash_reset(tte_hash_t th)
 {
-	struct tte_hash_fragment *fh;
-	vm_page_t m;
+	
+	free_fragment_pages(th->th_fhhead->thf_head.fh_next);
 
-	for (fh = th->th_fhhead->thf_head.fh_next; fh != NULL; fh = fh->thf_head.fh_next) {
-		m = PHYS_TO_VM_PAGE((vm_paddr_t)TLB_DIRECT_TO_PHYS((vm_offset_t)fh));
-		m->wire_count--;
-		vm_page_free(m);
-	}
-	fh = th->th_fhtail = th->th_fhhead;
+	th->th_fhtail = th->th_fhhead;
 	hwblkclr(th->th_fhhead, PAGE_SIZE); 
 
-#ifdef UNMANAGED_PAGES_ARE_TRACKED
-	if (th->th_entries != 0)
-		panic("%d remaining entries", th->th_entries);
-#else
-	hwblkclr(th->th_hashtable, th->th_size*PAGE_SIZE); 	
-#endif
+	if (th->th_entries != 0 && th->th_size == HASH_SIZE) {
+		hwblkclr(th->th_hashtable, th->th_size*PAGE_SIZE);
+	} else if (th->th_size > HASH_SIZE) {
+		free_contig_pages(th->th_hashtable, th->th_size);
+		th->th_entries = 0;
+		th->th_size = HASH_SIZE;
+		th->th_hashtable = alloc_zeroed_contig_pages(HASH_SIZE);
+		printf("reset pid=%d\n", curthread->td_proc->p_pid);
+	}
 }
 
 static __inline void
@@ -288,14 +333,10 @@ tte_hash_allocate_fragment_entry(tte_hash_t th)
 {
 	struct tte_hash_fragment *fh;
 	tte_hash_entry_t newentry;
-	vm_page_t m;
 	
 	fh = th->th_fhtail;
 	if (fh->thf_head.fh_free_head == MAX_FRAGMENT_ENTRIES) {
-		m = alloc_zeroed_page();
-
-		fh->thf_head.fh_next = (void *)TLB_PHYS_TO_DIRECT(VM_PAGE_TO_PHYS(m));
-		fh = th->th_fhtail = (void *)TLB_PHYS_TO_DIRECT(VM_PAGE_TO_PHYS(m));
+		fh = th->th_fhtail = fh->thf_head.fh_next = alloc_zeroed_page();
 		fh->thf_head.fh_free_head = 1;
 #ifdef NOISY_DEBUG
 		printf("new fh=%p \n", fh);
@@ -316,7 +357,7 @@ tte_hash_allocate_fragment_entry(tte_hash_t th)
  * 
  */
 static __inline tte_t 
-tte_hash_lookup_inline(tte_hash_entry_t entry, tte_t tte_tag, boolean_t insert)
+_tte_hash_lookup(tte_hash_entry_t entry, tte_t tte_tag, boolean_t insert)
 {
 	int i;
 	tte_t tte_data;
@@ -382,7 +423,7 @@ tte_hash_clear_bits(tte_hash_t th, vm_offset_t va, uint64_t flags)
 	tte_tag = (((uint64_t)th->th_context << TTARGET_CTX_SHIFT)|(va >> TTARGET_VA_SHIFT));
 	
 	s = hash_bucket_lock(entry->the_fields);
-	if((otte_data = tte_hash_lookup_inline(entry, tte_tag, FALSE)) != 0)
+	if((otte_data = _tte_hash_lookup(entry, tte_tag, FALSE)) != 0)
 		tte_hash_set_field((tte_hash_field_t)PCPU_GET(lookup_field), 
 				   ((tte_hash_field_t)PCPU_GET(lookup_field))->tag, 
 				   ((tte_hash_field_t)PCPU_GET(lookup_field))->data & ~flags);
@@ -406,7 +447,7 @@ tte_hash_delete(tte_hash_t th, vm_offset_t va)
 
 	s  = hash_bucket_lock(entry->the_fields);
 	
-	if ((tte_data = tte_hash_lookup_inline(entry, tte_tag, FALSE)) == 0) 
+	if ((tte_data = _tte_hash_lookup(entry, tte_tag, FALSE)) == 0) 
 		goto done;
 
 	tte_hash_lookup_last_inline(entry);
@@ -432,41 +473,64 @@ done:
 	return (tte_data);
 }
 
+static int 
+tte_hash_insert_locked(tte_hash_t th, tte_hash_entry_t entry, uint64_t tte_tag, tte_t tte_data)
+{
+	tte_hash_entry_t lentry;
+
+	lentry = tte_hash_lookup_last_entry(entry);
+
+	if (lentry->of.count == HASH_ENTRIES) 
+		return -1;
+	tte_hash_set_field(&lentry->the_fields[lentry->of.count++], 
+			   tte_tag, tte_data);
+	th->th_entries++;
+	return (0);
+}
+
+static void
+tte_hash_extend_locked(tte_hash_t th, tte_hash_entry_t entry, tte_hash_entry_t newentry, uint64_t tte_tag, tte_t tte_data)
+{
+	tte_hash_entry_t lentry;
+
+	lentry = tte_hash_lookup_last_entry(entry);
+	lentry->of.flags = MAGIC_VALUE;
+	lentry->of.next = newentry;
+	tte_hash_set_field(&newentry->the_fields[newentry->of.count++], tte_tag, tte_data);
+	th->th_entries++;
+}
+
 void
 tte_hash_insert(tte_hash_t th, vm_offset_t va, tte_t tte_data)
 {
 
-	tte_hash_entry_t entry, lentry, newentry;
+	tte_hash_entry_t entry, newentry;
 	tte_t tte_tag;
 	uint64_t s;
+	int retval;
 
 #ifdef DEBUG
 	if (tte_hash_lookup(th, va) != 0) 
 		panic("mapping for va=0x%lx already exists", va);
 #endif
-	entry = find_entry(th, va, PAGE_SHIFT);
+	entry = find_entry(th, va, PAGE_SHIFT); /* should actually be a function of tte_data */
 	tte_tag = (((uint64_t)th->th_context << TTARGET_CTX_SHIFT)|(va >> TTARGET_VA_SHIFT));
 
 	s = hash_bucket_lock(entry->the_fields);
-	lentry = tte_hash_lookup_last_entry(entry);
+	retval = tte_hash_insert_locked(th, entry, tte_tag, tte_data);
+	hash_bucket_unlock(entry->the_fields, s);
 
-	if (lentry->of.count == HASH_ENTRIES) {
-		hash_bucket_unlock(entry->the_fields, s);
+	if (retval == -1) {
 		newentry = tte_hash_allocate_fragment_entry(th); 
 		s = hash_bucket_lock(entry->the_fields);
-		lentry->of.flags = MAGIC_VALUE;
-		lentry->of.next = newentry;
-		lentry = newentry;
+		tte_hash_extend_locked(th, entry, newentry, tte_tag, tte_data);
+		hash_bucket_unlock(entry->the_fields, s);
 	} 
-	tte_hash_set_field(&lentry->the_fields[lentry->of.count++], 
-			   tte_tag, tte_data);
-	hash_bucket_unlock(entry->the_fields, s);
 
 #ifdef DEBUG
 	if (tte_hash_lookup(th, va) == 0) 
 		panic("insert for va=0x%lx failed", va);
 #endif
-	th->th_entries++;
 }
 
 /* 
@@ -486,7 +550,7 @@ tte_hash_lookup(tte_hash_t th, vm_offset_t va)
 	tte_tag = (((uint64_t)th->th_context << TTARGET_CTX_SHIFT)|(va >> TTARGET_VA_SHIFT));
 
 	s = hash_bucket_lock(entry->the_fields);
-	tte_data = tte_hash_lookup_inline(entry, tte_tag, FALSE);
+	tte_data = _tte_hash_lookup(entry, tte_tag, FALSE);
 	hash_bucket_unlock(entry->the_fields, s);
 	
 	return (tte_data);
@@ -527,12 +591,12 @@ tte_hash_update(tte_hash_t th, vm_offset_t va, tte_t tte_data)
 	tte_hash_entry_t entry;
 	tte_t otte_data, tte_tag;
 
-	entry = find_entry(th, va, PAGE_SHIFT);
+	entry = find_entry(th, va, PAGE_SHIFT); /* should actualy be a function of tte_data */
 
 	tte_tag = (((uint64_t)th->th_context << TTARGET_CTX_SHIFT)|(va >> TTARGET_VA_SHIFT));
 
 	s = hash_bucket_lock(entry->the_fields);
-	otte_data = tte_hash_lookup_inline(entry, tte_tag, TRUE);
+	otte_data = _tte_hash_lookup(entry, tte_tag, TRUE);
 
 	if (otte_data == 0) {
 		hash_bucket_unlock(entry->the_fields, s);
@@ -542,7 +606,67 @@ tte_hash_update(tte_hash_t th, vm_offset_t va, tte_t tte_data)
 				   tte_tag, tte_data);
 		hash_bucket_unlock(entry->the_fields, s);
 	}
-
 	return (otte_data);
 }
 
+/*
+ * resize when the average entry has a full fragment entry
+ */
+int
+tte_hash_needs_resize(tte_hash_t th)
+{
+#ifdef notyet
+	return ((th->th_entries > (th->th_size << (PAGE_SHIFT - TTE_SHIFT))) 
+		&& (th != &kernel_tte_hash) && (curthread->td_proc->p_numthreads == 1));
+#else 
+	return (0);
+#endif
+}
+
+tte_hash_t
+tte_hash_resize(tte_hash_t th, uint64_t *scratchval)
+{
+	int i, j, nentries;
+	tte_hash_t newth;
+	tte_hash_entry_t src_entry, dst_entry, newentry;
+
+	/*
+	 * only resize single threaded processes for now :-(
+	 */
+	if (th == &kernel_tte_hash || curthread->td_proc->p_numthreads != 1) 
+		panic("tte_hash_resize not supported for this pmap");
+
+	newth = _tte_hash_create(th->th_context, NULL, (th->th_size << 1));
+
+	nentries = th->th_size << (PAGE_SHIFT-THE_SHIFT);
+	for (i = 0; i < nentries; i++) {
+		tte_hash_field_t fields;
+		src_entry = (&th->th_hashtable[i]);
+		do {
+			fields = src_entry->the_fields;
+			for (j = 0; j < src_entry->of.count; j++) {
+				int shift = TTARGET_VA_SHIFT - PAGE_SHIFT;
+				int index = ((fields[j].tag<<shift) | (i&((1<<shift)-1))) & HASH_MASK(newth);	
+				dst_entry = &(newth->th_hashtable[index]);
+				if (tte_hash_insert_locked(newth, dst_entry, fields[j].tag, fields[j].data) == -1) {
+					newentry = tte_hash_allocate_fragment_entry(newth); 
+					tte_hash_extend_locked(newth, dst_entry, newentry, fields[j].tag, fields[j].data);
+				}
+			}		 
+			src_entry = src_entry->of.next;
+		} while (src_entry);
+	}
+
+	KASSERT(th->th_entries == newth->th_entries, 
+		("not all entries copied old=%d new=%d", th->th_entries, newth->th_entries));
+#ifdef notyet
+	free_fragment_pages(th->th_fhhead);
+	free_contig_pages(th->th_hashtable, th->th_size);
+	free_tte_hash(th);
+#endif       
+	printf("resized hash for pid=%d from %d to %d pages with %d entries\n", 
+	       curthread->td_proc->p_pid, newth->th_size >> 1, newth->th_size, newth->th_entries);
+	*scratchval = tte_hash_set_scratchpad_user(newth, newth->th_context);
+
+	return (newth);
+}
