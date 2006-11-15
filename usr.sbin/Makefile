@@ -49,7 +49,7 @@ SUBDIR=	ac \
 	${_eeprom} \
 	extattr \
 	extattrctl \
-	faithd \
+	${_faithd} \
 	fdcontrol \
 	fdformat \
 	fdread \
@@ -235,6 +235,7 @@ _keyserv=	keyserv
 .endif
 
 .if ${MK_INET6} != "no"
+_faithd=	faithd
 _ip6addrctl=	ip6addrctl
 _mld6query=	mld6query
 _ndp=		ndp
