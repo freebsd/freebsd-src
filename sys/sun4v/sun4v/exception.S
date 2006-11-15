@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2006 Kip Macy
+ * Copyright (c) 2006 Kip Macy <kmacy@FreeBSD.org>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -32,7 +32,8 @@ __FBSDID("$FreeBSD$")
 #include "opt_compat.h"
 #include "opt_ddb.h"
 #include "opt_simulator.h"
-
+#include "opt_trap_trace.h"
+	
 #include <machine/asi.h>
 #include <machine/asmacros.h>
 #include <machine/ktr.h>
@@ -1659,6 +1660,9 @@ ENTRY(tsb_miss_handler)
 	sll	%g1, RW_SHIFT, %g1
 	add	%g1, PC_TSBWBUF, %g1
 	add	PCPU_REG, %g1, %g1
+#ifdef TRAP_TRACING	
+	TTRACE_ADD_SAFE(%g1, 0, 0, 0, 0, 0)
+#endif	
 	SAVE_LOCALS_ASI(%g1)
 	mov	0, %g1			! cansave is 0
 	! %g1 == %cansave

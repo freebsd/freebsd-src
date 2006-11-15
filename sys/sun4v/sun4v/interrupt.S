@@ -1,6 +1,6 @@
 /*-
  * Copyright (c) 2002 Jake Burkholder.
- * Copyright (c) 2006 Kip Macy kmacy@FreeBSD.org
+ * Copyright (c) 2006 Kip Macy <kmacy@FreeBSD.org>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -30,6 +30,7 @@ __FBSDID("$FreeBSD$");
 
 #include "opt_simulator.h"
 #include "opt_trap_trace.h"
+	
 #include <machine/hypervisorvar.h>
 #include <machine/asi.h>
 #include <machine/asmacros.h>
@@ -146,6 +147,16 @@ cpu_mondo(void)
  *
  */
 ENTRY(cpu_mondo)
+#ifdef TRAP_TRACING	
+	GET_PCPU_PHYS_SCRATCH(%g1)
+	rdpr	%tl, %g1
+	dec	%g1	
+	sll	%g1, RW_SHIFT, %g1
+	add	%g1, PC_TSBWBUF, %g1
+	add	PCPU_REG, %g1, %g1
+	wr	%g0, ASI_REAL, %asi
+	TTRACE_ADD_SAFE(%g1, 0, 0, 0, 0, 0)
+#endif	
         !
         !       Register Usage:-
         !       %g5     PC for fasttrap TL>0 handler
