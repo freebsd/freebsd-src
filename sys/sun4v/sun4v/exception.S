@@ -1929,6 +1929,15 @@ END(fork_trampoline)
 #define	TRAP_ENTRY_SHIFT	5
 #define	TRAP_ENTRY_MASK		0x1ff
 ENTRY(tl1_trap)
+#ifdef TRAP_TRACING	
+	GET_PCPU_PHYS_SCRATCH(%g6)
+	mov	1, %g6	
+	sll	%g6, RW_SHIFT, %g6
+	add	%g6, PC_TSBWBUF, %g6
+	add	PCPU_REG, %g6, %g6
+	wr	%g0, ASI_REAL, %asi
+	TTRACE_ADD_SAFE(%g6, 0, 0, 0, 0, 0)
+#endif		
 	! assume no tl1 handler
 	rdpr	%tpc, %g7
 
