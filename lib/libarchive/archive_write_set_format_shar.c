@@ -329,7 +329,7 @@ archive_write_shar_data_sed(struct archive *a, const void *buff, size_t n)
 	struct shar *shar;
 	const char *src;
 	int ret;
-	int written = n;
+	size_t written = n;
 
 	shar = (struct shar *)a->format_data;
 	if (!shar->has_data)
