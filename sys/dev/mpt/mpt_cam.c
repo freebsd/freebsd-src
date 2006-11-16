@@ -3144,14 +3144,16 @@ mpt_action(struct cam_sim *sim, union ccb *ccb)
 		 * XXX: FC cards report MAX_DEVICES of 512- but we
 		 * XXX: seem to hang when going higher than 255.
 		 */
-		if (cpi->max_target > 255)
+		if (cpi->max_target > 255) {
 			cpi->max_target = 255;
+		}
 		/*
 		 * XXX: VMware ESX reports > 16 devices and then dies
 		 * XXX: when we probe.
 		 */
-		if (mpt->is_spi && cpi->max_target > 15)
+		if (mpt->is_spi && cpi->max_target > 15) {
 			cpi->max_target = 15;
+		}
 		cpi->max_lun = 7;
 		cpi->initiator_id = mpt->mpt_ini_id;
 
@@ -3166,8 +3168,7 @@ mpt_action(struct cam_sim *sim, union ccb *ccb)
 		 */
 		if (mpt->is_fc) {
 			cpi->hba_misc = PIM_NOBUSRESET;
-			cpi->base_transfer_speed =
-			    mpt->mpt_fcport_speed * 100000;
+			cpi->base_transfer_speed = 100000;
 			cpi->hba_inquiry = PI_TAG_ABLE;
                         cpi->transport = XPORT_FC;
                         cpi->transport_version = 0;
@@ -4151,12 +4152,16 @@ mpt_scsi_tgt_local(struct mpt_softc *mpt, request_t *cmd_req,
 	bus_addr_t pptr;
 	request_t *req;
 
-	if (length == 0) {
+	/*
+	 * We enter with resid set to the data load for the command.
+	 */
+	tgt = MPT_TGT_STATE(mpt, cmd_req);
+	if (length == 0 || tgt->resid == 0) {
+		tgt->resid = 0;
 		mpt_scsi_tgt_status(mpt, NULL, cmd_req, 0, NULL);
 		return;
 	}
 
-	tgt = MPT_TGT_STATE(mpt, cmd_req);
 	if ((req = mpt_get_request(mpt, FALSE)) == NULL) {
 		mpt_prt(mpt, "out of resources- dropping local response\n");
 		return;
@@ -4208,7 +4213,7 @@ mpt_scsi_tgt_local(struct mpt_softc *mpt, request_t *cmd_req,
 
 	tgt->ccb = NULL;
 	tgt->req = req;
-	tgt->resid = 0;
+	tgt->resid -= length;
 	tgt->bytes_xfered = length;
 #ifdef	WE_TRUST_AUTO_GOOD_STATUS
 	tgt->state = TGT_STATE_MOVING_DATA_AND_STATUS;
@@ -4514,6 +4519,13 @@ mpt_scsi_tgt_tsk_mgmt(struct mpt_softc *mpt, request_t *req, mpt_task_mgmt_t fc,
 static void
 mpt_scsi_tgt_atio(struct mpt_softc *mpt, request_t *req, uint32_t reply_desc)
 {
+	static uint8_t null_iqd[SHORT_INQUIRY_LENGTH] = {
+	    0x7f, 0x00, 0x02, 0x02, 0x20, 0x00, 0x00, 0x32,
+	     'F',  'R',  'E',  'E',  'B',  'S',  'D',  ' ',
+	     'L',  'S',  'I',  '-',  'L',  'O',  'G',  'I',
+	     'C',  ' ',  'N',  'U',  'L',  'D',  'E',  'V',
+	     '0',  '0',  '0',  '1'
+	};
 	struct ccb_accept_tio *atiop;
 	lun_id_t lun;
 	int tag_action = 0;
@@ -4660,11 +4672,8 @@ mpt_scsi_tgt_atio(struct mpt_softc *mpt, request_t *req, uint32_t reply_desc)
 			 * REPORT LUNS gets illegal command.
 			 * All other commands get 'no such device'.
 			 */
-
 			uint8_t *sp, cond, buf[MPT_SENSE_SIZE];
-
-			mpt_prt(mpt, "CMD 0x%x to unmanaged lun %u\n",
-			    cdbp[0], lun);
+			size_t len;
 
 			memset(buf, 0, MPT_SENSE_SIZE);
 			cond = SCSI_STATUS_CHECK_COND;
@@ -4677,31 +4686,38 @@ mpt_scsi_tgt_atio(struct mpt_softc *mpt, request_t *req, uint32_t reply_desc)
 			switch (cdbp[0]) {
 			case INQUIRY:
 			{
-				static uint8_t iqd[8] = {
-				    0x7f, 0x0, 0x4, 0x12, 0x0
-				};
 				if (cdbp[1] != 0) {
 					buf[12] = 0x26;
 					buf[13] = 0x01;
 					break;
 				}
-				mpt_prt(mpt, "local inquiry\n");
+				len = min(tgt->resid, cdbp[4]);
+				len = min(len, sizeof (null_iqd));
+				mpt_lprt(mpt, MPT_PRT_DEBUG,
+				    "local inquiry %ld bytes\n", len);
 				mpt_scsi_tgt_local(mpt, req, lun, 1,
-				    iqd, sizeof (iqd));
+				    null_iqd, len);
 				return;
 			}
 			case REQUEST_SENSE:
 			{
 				buf[2] = 0x0;
-				mpt_prt(mpt, "local request sense\n");
+				len = min(tgt->resid, cdbp[4]);
+				len = min(len, sizeof (buf));
+				mpt_lprt(mpt, MPT_PRT_DEBUG,
+				    "local reqsense %ld bytes\n", len);
 				mpt_scsi_tgt_local(mpt, req, lun, 1,
-				    buf, sizeof (buf));
+				    buf, len);
 				return;
 			}
 			case REPORT_LUNS:
+				mpt_lprt(mpt, MPT_PRT_DEBUG, "REPORT LUNS\n");
 				buf[12] = 0x26;
-				break;
+				return;
 			default:
+				mpt_lprt(mpt, MPT_PRT_DEBUG,
+				    "CMD 0x%x to unmanaged lun %u\n",
+				    cdbp[0], lun);
 				buf[12] = 0x25;
 				break;
 			}
