@@ -26,8 +26,9 @@
 
 /*
  * Machine and OS Independent (well, as best as possible)
- * code for the Qlogic ISP SCSI adapters.
+ * code for the Qlogic ISP SCSI and FC-SCSI adapters.
  */
+
 /*
  * Inspiration and ideas about this driver are from Erik Moe's Linux driver
  * (qlogicisp.c) and Dave Miller's SBus version of same (qlogicisp.c). Some
