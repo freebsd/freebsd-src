@@ -605,7 +605,7 @@ pmap_init(void)
 	pv_entry_max = roundup(pv_entry_max, _NPCPV);
 	pv_entry_high_water = 9 * (pv_entry_max / 10);
 
-	pv_maxchunks = pv_entry_max / _NPCPV;
+	pv_maxchunks = MAX(pv_entry_max / _NPCPV, maxproc);
 	pv_chunkbase = (struct pv_chunk *)kmem_alloc_nofault(kernel_map,
 	    PAGE_SIZE * pv_maxchunks);
 	if (pv_chunkbase == NULL)
