@@ -1,6 +1,6 @@
 #  $FreeBSD$
 
-.PATH: ${.CURDIR}/../libat91
+.PATH:	${.CURDIR}/../libat91
 
 P=bootiic
 FILES=${P}
@@ -11,4 +11,4 @@ OBJS+=  ${SRCS:N*.h:R:S/$/.o/g}
 
 .include <bsd.prog.mk>
 
-CFLAGS += -DBOOT_IIC  
+CFLAGS += -DBOOT_IIC -DBOOT_COMMANDS
