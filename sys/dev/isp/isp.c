@@ -2232,9 +2232,8 @@ isp_port_login(ispsoftc_t *isp, uint16_t handle, uint32_t portid)
 	}
 	mbs.param[2] = portid >> 16;
 	mbs.param[3] = portid;
-
 	mbs.logval = MBLOGNONE;
-	mbs.timeout = 250000;
+	mbs.timeout = 500000;
 	isp_mboxcmd(isp, &mbs);
 
 	switch (mbs.param[0]) {
@@ -2287,6 +2286,7 @@ isp_port_logout(ispsoftc_t *isp, uint16_t handle, uint32_t portid)
 		mbs.param[1] = handle << 8;
 	}
 	mbs.logval = MBLOGNONE;
+	mbs.timeout = 100000;
 	isp_mboxcmd(isp, &mbs);
 }
 
@@ -2315,6 +2315,7 @@ isp_getpdb(ispsoftc_t *isp, uint16_t id, isp_pdb_t *pdb, int dolock)
 	mbs.param[3] = DMA_WD0(fcp->isp_scdma);
 	mbs.param[6] = DMA_WD3(fcp->isp_scdma);
 	mbs.param[7] = DMA_WD2(fcp->isp_scdma);
+	mbs.timeout = 250000;
 	mbs.logval = MBLOGALL & ~MBOX_COMMAND_PARAM_ERROR;
 	if (dolock) {
 		FC_SCRATCH_ACQUIRE(isp);
@@ -2369,7 +2370,6 @@ isp_get_portname(ispsoftc_t *isp, int loopid, int nodename)
 		}
 	}
 	mbs.logval = MBLOGALL & ~MBOX_COMMAND_PARAM_ERROR;
-	mbs.timeout = 30000;
 	isp_mboxcmd(isp, &mbs);
 	if (mbs.param[0] != MBOX_COMMAND_COMPLETE) {
 		return (wwn);
@@ -2929,7 +2929,13 @@ isp_scan_loop(ispsoftc_t *isp)
 		 * which shift on a loop.
 		 */
 		if (tmp.node_wwn == 0 || tmp.port_wwn == 0 || tmp.portid == 0) {
-			isp_prt(isp, ISP_LOGWARN, "bad pdb @ loop %d", handle);
+			int a, b, c;
+			a = (tmp.node_wwn == 0);
+			b = (tmp.port_wwn == 0);
+			c = (tmp.portid == 0);
+			isp_prt(isp, ISP_LOGWARN,
+			    "bad pdb (%1d%1d%1d) @ handle 0x%x", a, b, c,
+			    handle);
 			isp_dump_portdb(isp);
 			continue;
 		}
@@ -2997,7 +3003,7 @@ isp_scan_loop(ispsoftc_t *isp)
 			 * decide what to do.
 			 */
 			isp_prt(isp, ISP_LOGSANCFG,
-			    "Loop Port 0x%06x@0x%x changed",
+			    "Loop Port 0x%02x@0x%x changed",
 			    tmp.portid, tmp.handle);
 			lp->state = FC_PORTDB_STATE_CHANGED;
 			lp->new_portid = tmp.portid;
@@ -3036,7 +3042,7 @@ isp_scan_loop(ispsoftc_t *isp)
 		lp->port_wwn = tmp.port_wwn;
 		lp->node_wwn = tmp.node_wwn;
 		isp_prt(isp, ISP_LOGSANCFG,
-		    "Loop Port 0x%06x@0x%x is New Entry",
+		    "Loop Port 0x%02x@0x%x is New Entry",
 		    tmp.portid, tmp.handle);
 	}
 	fcp->isp_loopstate = LOOP_LSCAN_DONE;
@@ -4856,7 +4862,8 @@ again:
 		switch (etype) {
 		case RQSTYPE_RESPONSE:
 			XS_SET_STATE_STAT(isp, xs, sp);
-			if (resp) {
+			if (resp && rlen >= 4 &&
+			    resp[FCP_RSPNS_CODE_OFFSET] != 0) {
 				isp_prt(isp, ISP_LOGWARN,
 				    "%d.%d FCP RESPONSE: 0x%x",
 				    XS_TGT(xs), XS_LUN(xs),
@@ -6797,7 +6804,6 @@ isp_fw_state(ispsoftc_t *isp)
 		MEMZERO(&mbs, sizeof (mbs));
 		mbs.param[0] = MBOX_GET_FW_STATE;
 		mbs.logval = MBLOGALL;
-		mbs.timeout = 100000;
 		isp_mboxcmd(isp, &mbs);
 		if (mbs.param[0] == MBOX_COMMAND_COMPLETE) {
 			fcp->isp_fwstate = mbs.param[1];
