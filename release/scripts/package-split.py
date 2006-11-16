@@ -34,7 +34,7 @@ def disc1_packages():
     if arch == 'alpha':
         pkgs.append('emulators/osf1_base')
     elif arch == 'i386':
-        pkgs.append('emulators/linux_base-8')
+        pkgs.append('emulators/linux_base-fc4')
     return pkgs
 
 # List of packages for disc2.  This includes packages that the X desktop
