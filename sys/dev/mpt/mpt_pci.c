@@ -512,7 +512,6 @@ mpt_pci_attach(device_t dev)
 
 	/* Get a handle to the interrupt */
 	iqd = 0;
-#if	0
 	if (pci_msi_count(dev) == 1) {
 		mpt->pci_msi_count = 1;
 		if (pci_alloc_msi(dev, &mpt->pci_msi_count) == 0)
@@ -520,7 +519,6 @@ mpt_pci_attach(device_t dev)
 		else
 			mpt->pci_msi_count = 0;
 	}	
-#endif
 	mpt->pci_irq = bus_alloc_resource_any(dev, SYS_RES_IRQ, &iqd,
 	    RF_ACTIVE | RF_SHAREABLE);
 	if (mpt->pci_irq == NULL) {
