@@ -191,7 +191,7 @@ static void
 extract_currdev(void)
 {
     struct i386_devdesc	new_currdev;
-    int			major, biosdev = -1;
+    int			biosdev = -1;
 
     /* Assume we are booting from a BIOS disk by default */
     new_currdev.d_dev = &biosdisk;
@@ -222,7 +222,6 @@ extract_currdev(void)
 					     B_CONTROLLER(initial_bootdev) - 1;
 	new_currdev.d_kind.biosdisk.partition = B_PARTITION(initial_bootdev);
 	biosdev = initial_bootinfo->bi_bios_dev;
-	major = B_TYPE(initial_bootdev);
 
 	/*
 	 * If we are booted by an old bootstrap, we have to guess at the BIOS
