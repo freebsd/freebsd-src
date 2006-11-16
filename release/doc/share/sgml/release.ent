@@ -30,6 +30,7 @@
 <!-- The type of release (usually this will be either "snapshot"
      or "release" -->
 <!ENTITY release.type "release">
+<!ENTITY % release.type.current "IGNORE">
 <!ENTITY % release.type.snapshot "IGNORE">
 <!ENTITY % release.type.release "INCLUDE">
 
