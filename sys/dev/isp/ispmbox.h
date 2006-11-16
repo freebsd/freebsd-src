@@ -1347,4 +1347,30 @@ typedef struct {
 #define	els_recv_dsd_a4732	inout.out._els_recv_dsd_a4732
 #define	els_recv_dsd_a6348	inout.out._els_recv_dsd_a6348
 } els_t;
+
+/*
+ * A handy package structure for running FC-SCSI commands via RUN IOCB A64.
+ */
+typedef struct {
+	uint16_t	handle;
+	uint16_t	lun;
+	uint32_t	portid;
+	uint32_t	timeout;
+	union {
+		struct {
+			uint32_t data_length;
+			uint8_t do_read;
+			uint8_t pad[3];
+			uint8_t cdb[16];
+			void *data_ptr;
+		} beg;
+		struct {
+			uint32_t data_residual;
+			uint8_t status;
+			uint8_t pad;
+			uint16_t sense_length;
+			uint8_t sense_data[32];
+		} end;
+	} fcd;
+} isp_xcmd_t;
 #endif	/* _ISPMBOX_H */

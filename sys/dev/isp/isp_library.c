@@ -268,9 +268,9 @@ isp_dump_portdb(ispsoftc_t *isp)
 		} else {
 			SNPRINTF(mb, sizeof (mb), "---");
 		}
-		isp_prt(isp, ISP_LOGALL, "%d: %s al%d tgt %s %s 0x%06x =>%s"
-		    " 0x%06x; WWNN 0x%08x%08x WWPN 0x%08x%08x", i,
-		    dbs[lp->state], lp->autologin, mb,
+		isp_prt(isp, ISP_LOGALL, "%d: hdl 0x%x %s al%d tgt %s %s "
+		    "0x%06x =>%s 0x%06x; WWNN 0x%08x%08x WWPN 0x%08x%08x", i,
+		    lp->handle, dbs[lp->state], lp->autologin, mb,
 		    roles[lp->roles], lp->portid,
 		    roles[lp->new_roles], lp->new_portid,
 		    (uint32_t) (lp->node_wwn >> 32),
