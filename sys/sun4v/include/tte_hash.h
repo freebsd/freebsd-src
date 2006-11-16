@@ -47,7 +47,7 @@ void tte_hash_clear(tte_hash_t hash);
 
 tte_t tte_hash_clear_bits(tte_hash_t hash, vm_offset_t va, uint64_t flags);
 
-tte_hash_t tte_hash_kernel_create(vm_offset_t, uint64_t, vm_paddr_t);
+tte_hash_t tte_hash_kernel_create(vm_offset_t, uint16_t, vm_paddr_t);
 
 tte_hash_t tte_hash_create(uint64_t context, uint64_t *scratchval);
 
@@ -63,7 +63,7 @@ tte_t tte_hash_lookup(tte_hash_t hash, vm_offset_t va);
 
 tte_t tte_hash_lookup_nolock(tte_hash_t hash, vm_offset_t va);
 
-void tte_hash_reset(tte_hash_t hash);
+tte_hash_t tte_hash_reset(tte_hash_t hash, uint64_t *scratchval);
 
 uint64_t tte_hash_set_scratchpad_kernel(tte_hash_t th);
 

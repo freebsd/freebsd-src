@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2006 Kip Macy
+ * Copyright (c) 2006 Kip Macy <kmacy@FreeBSD.org>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -433,7 +433,7 @@ pmap_bootstrap(vm_offset_t ekva)
 	struct pmap *pm;
 	vm_offset_t off, va;
 	vm_paddr_t pa, kernel_hash_pa, phys_avail_start, nucleus_memory_start;
-	vm_size_t physsz, virtsz, kernel_hash_size;
+	vm_size_t physsz, virtsz, kernel_hash_shift;
 	ihandle_t pmem, vmem;
 	int i, sz, j;
 	uint64_t tsb_8k_size, tsb_4m_size, error, physmem_tunable;
@@ -591,12 +591,12 @@ pmap_bootstrap(vm_offset_t ekva)
 	 *
 	 */
 #ifndef SIMULATOR
-	kernel_hash_size = PAGE_SIZE_4M*2;
+	kernel_hash_shift = 10; /* PAGE_SIZE_4M*2 */
 #else
-	kernel_hash_size = PAGE_SIZE_8K*64;
+	kernel_hash_shift = 6; /* PAGE_SIZE_8K*64 */
 #endif
 
-	kernel_hash_pa = pmap_bootstrap_alloc(kernel_hash_size);
+	kernel_hash_pa = pmap_bootstrap_alloc((1<<(kernel_hash_shift + PAGE_SHIFT)));
 	if (kernel_hash_pa & PAGE_MASK_4M)
 		panic("pmap_bootstrap: hashtable pa unaligned\n");
 	/*
@@ -772,7 +772,8 @@ pmap_bootstrap(vm_offset_t ekva)
 	 * This could happen earlier - but I put it here to avoid 
 	 * attempts to do updates until they're legal
 	 */
-	pm->pm_hash = tte_hash_kernel_create(TLB_PHYS_TO_DIRECT(kernel_hash_pa), kernel_hash_size, pmap_bootstrap_alloc(PAGE_SIZE));
+	pm->pm_hash = tte_hash_kernel_create(TLB_PHYS_TO_DIRECT(kernel_hash_pa), kernel_hash_shift, 
+					     pmap_bootstrap_alloc(PAGE_SIZE));
 	pm->pm_hashscratch = tte_hash_set_scratchpad_kernel(pm->pm_hash);
 
 	for (i = 0; i < translations_size; i++) {
@@ -899,10 +900,12 @@ pmap_copy(pmap_t dst_pmap, pmap_t src_pmap, vm_offset_t dst_addr,
 			} 
 		}		
 	}
-	
+	PMAP_UNLOCK(src_pmap);
+
+	if (tte_hash_needs_resize(dst_pmap->pm_hash))
+		dst_pmap->pm_hash = tte_hash_resize(dst_pmap->pm_hash, &dst_pmap->pm_hashscratch);
 	sched_unpin();
 	vm_page_unlock_queues();
-	PMAP_UNLOCK(src_pmap);
 	PMAP_UNLOCK(dst_pmap);
 
 }
@@ -1043,14 +1046,25 @@ pmap_enter(pmap_t pmap, vm_offset_t va, vm_page_t m, vm_prot_t prot,
 			}
 		}
 	} 
-	if (invlva)
-		pmap_invalidate_page(pmap, va, TRUE);
 
-	sched_unpin();
-	PMAP_UNLOCK(pmap);
+	if (tte_hash_needs_resize(pmap->pm_hash))
+		pmap->pm_hash = tte_hash_resize(pmap->pm_hash, &pmap->pm_hashscratch);
+#ifdef notyet
+	if ((PCPU_GET(curpmap) != kernel_pmap) && (curthread->td_proc->p_numthreads == 1)
+	    && (pmap->pm_tsb_cap_miss_count > pmap->pm_tsb_miss_count >> 2)) {
+		int size = tsb_size(&pmap->pm_tsb);
+		pmap->pm_tsb_ra = tsb_init(&pmap->pm_tsb, &pmap->pm_tsbscratch, size << 1);
+		pmap->pm_tsb_miss_count = 0;
+		pmap->pm_tsb_cap_miss_count = 0;
+	}
+#endif
 	vm_page_unlock_queues();
 
-	
+
+	if (invlva)
+		pmap_invalidate_page(pmap, va, TRUE);
+	sched_unpin();
+	PMAP_UNLOCK(pmap);
 }
 
 /*
@@ -1575,13 +1589,18 @@ pmap_pinit(pmap_t pmap)
 
 	pmap->pm_context = get_context();
 
+	vm_page_lock_queues();
 	pmap->pm_hash = tte_hash_create(pmap->pm_context, &pmap->pm_hashscratch);
+#ifdef notyet
+	pmap->pm_tsb_ra = tsb_init(&pmap->pm_tsb, &pmap->pm_tsbscratch, TSB_INIT_SIZE);
+#else
 	pmap->pm_tsb_ra = tsb_init(&pmap->pm_tsb, &pmap->pm_tsbscratch);
+#endif
+	vm_page_unlock_queues();
 	pmap->pm_active = pmap->pm_tlbactive = 0;
 	TAILQ_INIT(&pmap->pm_pvlist);
 	PMAP_LOCK_INIT(pmap);
 	bzero(&pmap->pm_stats, sizeof pmap->pm_stats);
-
 }
 
 /*
@@ -1634,11 +1653,12 @@ pmap_protect(pmap_t pmap, vm_offset_t sva, vm_offset_t eva, vm_prot_t prot)
 			}
 		} 
 	}
+
+	vm_page_unlock_queues();
+
 	if (anychanged)
 		pmap_invalidate_range(pmap, sva, eva, TRUE);
-
 	sched_unpin();
-	vm_page_unlock_queues();
 	PMAP_UNLOCK(pmap);
 }
 
@@ -1870,15 +1890,13 @@ pmap_remove_pages(pmap_t pmap)
 
 		free_pv_entry(pv);
 	}
-	tte_hash_reset(pmap->pm_hash);
+	pmap->pm_hash = tte_hash_reset(pmap->pm_hash, &pmap->pm_hashscratch);
+	vm_page_unlock_queues();
 
 	pmap_invalidate_all(pmap);
 	sched_unpin();
 	PMAP_UNLOCK(pmap);
-	vm_page_unlock_queues();
 }
-
-
 
 void
 pmap_scrub_pages(vm_paddr_t pa, int64_t size)
@@ -1890,6 +1908,7 @@ pmap_scrub_pages(vm_paddr_t pa, int64_t size)
 		size -= bytes_zeroed;
 	}
 }
+
 static void
 pmap_remove_tte(pmap_t pmap, tte_t tte_data, vm_offset_t va)
 {
