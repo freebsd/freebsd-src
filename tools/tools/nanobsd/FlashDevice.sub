@@ -160,6 +160,11 @@ sub_FlashDevice () {
 			NANO_HEADS=4
 			NANO_SECTS=32
 			;;
+		2048|2g)
+			NANO_MEDIASIZE=4061232
+			NANO_HEADS=16
+			NANO_SECTS=32
+			;;
 		*)
 			echo "Unknown Transcend Flash capacity"
 			exit 2
