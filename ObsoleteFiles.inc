@@ -14,6 +14,8 @@
 # The file is partitioned: OLD_FILES first, then OLD_LIBS and OLD_DIRS last.
 #
 
+# 20061116: uhidev.4 removed
+OLD_FILES+=usr/share/man/man4/uhidev.4.gz
 .if ${TARGET_ARCH} == "ia64"
 # 20061104: skiload.help removed
 OLD_FILES+=boot/skiload.help
