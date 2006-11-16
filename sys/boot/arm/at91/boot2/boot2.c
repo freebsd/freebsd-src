@@ -29,7 +29,6 @@ __FBSDID("$FreeBSD$");
 #include "emac.h"
 #include "lib.h"
 #include "sd-card.h"
-#include "ee.h"
 #include "board.h"
 
 #define RBX_ASKNAME	0x0	/* -a */
