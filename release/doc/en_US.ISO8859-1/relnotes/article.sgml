@@ -1519,6 +1519,11 @@ geli_da1s3a_keyfile0_name="/boot/keys/da1s3a.key"</programlisting>
     <para>The &man.snapinfo.8; utility, which shows snapshot locations
       on UFS filesystems, has been added.  &merged;</para>
 
+    <para>The &man.sockstat.1; utility, which shows connected and
+      listening network sockets, now supports a new <option>-P</option>
+      command-line option, which can be used to filter displayed sockets
+      by protocol name (as listed in &man.protocols.5;).</para>
+
     <para>The &man.strtonum.3; library function has been implemented
       based on OpenBSD's implementation.  This is an improved version of
       &man.strtoll.3;.  &merged;</para>
