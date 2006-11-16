@@ -54,7 +54,7 @@
 .Ft void
 .Fn sleepq_abort "struct thread *td"
 .Ft void
-.Fn sleepq_add "void *wchan" "struct mtx *lock" "const char *wmesg" "int flags"
+.Fn sleepq_add "void *wchan" "struct lock_object *lock" "const char *wmesg" "int flags"
 .Ft struct sleepqueue *
 .Fn sleepq_alloc "void"
 .Ft void
@@ -157,12 +157,12 @@ The sleep queue chain associated with argument
 must be locked by a prior call to
 .Fn sleepq_lock
 when this function is called.
-If a mutex is specified via the
+If a lock is specified via the
 .Fa lock
 argument, and if the kernel was compiled with
 .Cd "options INVARIANTS" ,
 then the sleep queue code will perform extra checks to ensure that
-the mutex is used by all threads sleeping on
+the lock is used by all threads sleeping on
 .Fa wchan .
 The
 .Fa wmesg
