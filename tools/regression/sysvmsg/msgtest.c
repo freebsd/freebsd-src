@@ -177,10 +177,11 @@ main(int argc, char *argv[])
 	 */
 	m.mtype = MTYPE_1;
 	strcpy(m.mtext, m1_str);
-	if (msgsnd(sender_msqid, &m, sizeof(m), 0) == -1)
+	if (msgsnd(sender_msqid, &m, strlen(m1_str) + 1, 0) == -1)
 		err(1, "sender: msgsnd 1");
 
-	if (msgrcv(sender_msqid, &m, sizeof(m), MTYPE_1_ACK, 0) != sizeof(m))
+	if (msgrcv(sender_msqid, &m, sizeof(m.mtext), MTYPE_1_ACK, 0) !=
+	    strlen(m1_str) + 1)
 		err(1, "sender: msgrcv 1 ack");
 
 	print_msqid_ds(&m_ds, 0600);
@@ -190,10 +191,11 @@ main(int argc, char *argv[])
 	 */
 	m.mtype = MTYPE_2;
 	strcpy(m.mtext, m2_str);
-	if (msgsnd(sender_msqid, &m, sizeof(m), 0) == -1)
+	if (msgsnd(sender_msqid, &m, strlen(m2_str) + 1, 0) == -1)
 		err(1, "sender: msgsnd 2");
 
-	if (msgrcv(sender_msqid, &m, sizeof(m), MTYPE_2_ACK, 0) != sizeof(m))
+	if (msgrcv(sender_msqid, &m, sizeof(m.mtext), MTYPE_2_ACK, 0) !=
+	    strlen(m2_str) + 1)
 		err(1, "sender: msgrcv 2 ack");
 
 	/*
@@ -315,7 +317,8 @@ receiver()
 	 * Receive the first message, print it, and send an ACK.
 	 */
 
-	if (msgrcv(msqid, &m, sizeof(m), MTYPE_1, 0) != sizeof(m))
+	if (msgrcv(msqid, &m, sizeof(m.mtext), MTYPE_1, 0) !=
+	    strlen(m1_str) + 1)
 		err(1, "receiver: msgrcv 1");
 
 	printf("%s\n", m.mtext);
@@ -324,14 +327,15 @@ receiver()
 
 	m.mtype = MTYPE_1_ACK;
 
-	if (msgsnd(msqid, &m, sizeof(m), 0) == -1)
+	if (msgsnd(msqid, &m, strlen(m1_str) + 1, 0) == -1)
 		err(1, "receiver: msgsnd ack 1");
 
 	/*
 	 * Receive the second message, print it, and send an ACK.
 	 */
 
-	if (msgrcv(msqid, &m, sizeof(m), MTYPE_2, 0) != sizeof(m))
+	if (msgrcv(msqid, &m, sizeof(m.mtext), MTYPE_2, 0) !=
+	    strlen(m2_str) + 1)
 		err(1, "receiver: msgrcv 2");
 
 	printf("%s\n", m.mtext);
@@ -340,7 +344,7 @@ receiver()
 
 	m.mtype = MTYPE_2_ACK;
 
-	if (msgsnd(msqid, &m, sizeof(m), 0) == -1)
+	if (msgsnd(msqid, &m, strlen(m2_str) + 1, 0) == -1)
 		err(1, "receiver: msgsnd ack 2");
 
 	exit(0);
