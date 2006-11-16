@@ -149,7 +149,7 @@ cv_wait_unlock(struct cv *cvp, struct mtx *mp)
 	DROP_GIANT();
 	mtx_unlock(mp);
 
-	sleepq_add(cvp, mp, cvp->cv_description, SLEEPQ_CONDVAR);
+	sleepq_add(cvp, &mp->mtx_object, cvp->cv_description, SLEEPQ_CONDVAR);
 	sleepq_wait(cvp);
 
 	PICKUP_GIANT();
@@ -196,7 +196,7 @@ cv_wait_sig(struct cv *cvp, struct mtx *mp)
 	DROP_GIANT();
 	mtx_unlock(mp);
 
-	sleepq_add(cvp, mp, cvp->cv_description, SLEEPQ_CONDVAR |
+	sleepq_add(cvp, &mp->mtx_object, cvp->cv_description, SLEEPQ_CONDVAR |
 	    SLEEPQ_INTERRUPTIBLE);
 	rval = sleepq_wait_sig(cvp);
 
@@ -250,7 +250,7 @@ cv_timedwait(struct cv *cvp, struct mtx *mp, int timo)
 	DROP_GIANT();
 	mtx_unlock(mp);
 
-	sleepq_add(cvp, mp, cvp->cv_description, SLEEPQ_CONDVAR);
+	sleepq_add(cvp, &mp->mtx_object, cvp->cv_description, SLEEPQ_CONDVAR);
 	sleepq_set_timeout(cvp, timo);
 	rval = sleepq_timedwait(cvp);
 
@@ -307,7 +307,7 @@ cv_timedwait_sig(struct cv *cvp, struct mtx *mp, int timo)
 	DROP_GIANT();
 	mtx_unlock(mp);
 
-	sleepq_add(cvp, mp, cvp->cv_description, SLEEPQ_CONDVAR |
+	sleepq_add(cvp, &mp->mtx_object, cvp->cv_description, SLEEPQ_CONDVAR |
 	    SLEEPQ_INTERRUPTIBLE);
 	sleepq_set_timeout(cvp, timo);
 	rval = sleepq_timedwait_sig(cvp);

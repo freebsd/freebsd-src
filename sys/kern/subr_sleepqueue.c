@@ -120,7 +120,7 @@ struct sleepqueue {
 	void	*sq_wchan;			/* (c) Wait channel. */
 #ifdef INVARIANTS
 	int	sq_type;			/* (c) Queue type. */
-	struct mtx *sq_lock;			/* (c) Associated lock. */
+	struct lock_object *sq_lock;		/* (c) Associated lock. */
 #endif
 };
 
@@ -262,7 +262,7 @@ sleepq_release(void *wchan)
  * woken up.
  */
 void
-sleepq_add(void *wchan, struct mtx *lock, const char *wmesg, int flags)
+sleepq_add(void *wchan, struct lock_object *lock, const char *wmesg, int flags)
 {
 	struct sleepqueue_chain *sc;
 	struct sleepqueue *sq;
@@ -895,7 +895,7 @@ found:
 #ifdef INVARIANTS
 	db_printf("Queue type: %d\n", sq->sq_type);
 	if (sq->sq_lock) {
-		lock = &sq->sq_lock->mtx_object;
+		lock = sq->sq_lock;
 		db_printf("Associated Interlock: %p - (%s) %s\n", lock,
 		    LOCK_CLASS(lock)->lc_name, lock->lo_name);
 	}
