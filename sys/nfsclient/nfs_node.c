@@ -159,8 +159,7 @@ nfs_nget(struct mount *mntp, nfsfh_t *fhp, int fhsize, struct nfsnode **npp, int
 		return (error);
 	if (nvp != NULL) {
 		*npp = VTONFS(nvp);
-		/* vrele() the duplicate allocated here, to get it recycled */
-		vrele(vp);
+		/* vfs_hash_insert() vput()'s the losing vnode */
 		return (0);
 	}
 	if (fhsize > NFS_SMALLFH) {
