@@ -737,7 +737,8 @@ struct tx_bd {
 	u32 tx_bd_haddr_hi;
 	u32 tx_bd_haddr_lo;
 	u32 tx_bd_mss_nbytes;
-	u32 tx_bd_vlan_tag_flags;
+	u16 tx_bd_flags;
+	u16 tx_bd_vlan_tag;
 		#define TX_BD_FLAGS_CONN_FAULT		(1<<0)
 		#define TX_BD_FLAGS_TCP_UDP_CKSUM	(1<<1)
 		#define TX_BD_FLAGS_IP_CKSUM		(1<<2)
