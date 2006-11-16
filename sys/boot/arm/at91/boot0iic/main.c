@@ -32,12 +32,19 @@ int
 main(void)
 {
 	char *addr = (char *)SDRAM_BASE + (1 << 20); /* Load to base + 1MB */
+	int len, sec;
 
-	while (xmodem_rx(addr) == -1)
+	printf("\nSend data to be written into EEPROM\n");
+	while ((len = xmodem_rx(addr)) == -1)
 		continue;
+	sec = GetSeconds() + 1;
+	while (sec >= GetSeconds())
+		continue;
+	printf("\nWriting EEPROM from 0x%x to addr 0, 0x%x bytes\n", addr,
+	    len);
 	InitEEPROM();
-	printf("Writing EEPROM from 0x%x to addr 0\n", addr);
-	WriteEEPROM(0, addr, 8192);
-	printf("Write complete.  Press reset\n");
+	printf("init done\n");
+	WriteEEPROM(0, addr, len);
+	printf("\nWrote %d bytes.  Press reset\n", len);
 	return (1);
 }
