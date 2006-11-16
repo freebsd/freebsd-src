@@ -58,7 +58,7 @@ __FBSDID("$FreeBSD$");
 #include <machine/tte_hash.h>
 
 #define HASH_SIZE        (1 << HASH_ENTRY_SHIFT)
-#define HASH_MASK(th)    ((th->th_size<<(PAGE_SHIFT-THE_SHIFT))-1)
+#define HASH_MASK(th)    ((1<<(th->th_shift+PAGE_SHIFT-THE_SHIFT))-1)
 #define NULL_TAG         0
 #define MAGIC_VALUE      0xcafebabe
 
@@ -94,13 +94,18 @@ struct fragment_header {
 
 CTASSERT(sizeof(struct fragment_header) == sizeof(struct tte_hash_entry));
 
+SLIST_HEAD(tte_hash_list, tte_hash); 
+
+struct tte_hash_list hash_free_list[PAGE_SHIFT];
+
 struct tte_hash {
-	uint16_t th_size;               /* size in pages */
+	uint16_t th_shift;              /* effective size in pages */
 	uint16_t th_context;            /* TLB context   */
 	uint32_t th_entries;            /* # pages held  */
-	tte_hash_entry_t th_hashtable;   /* hash of TTEs  */
+	tte_hash_entry_t th_hashtable;  /* hash of TTEs  */
 	struct tte_hash_fragment *th_fhhead;
 	struct tte_hash_fragment *th_fhtail;
+	SLIST_ENTRY(tte_hash) th_next;
 };
 
 struct tte_hash_fragment {
@@ -142,28 +147,54 @@ free_tte_hash(tte_hash_t th)
 	uma_zfree(thzone, th);
 }
 
+static tte_hash_t
+tte_hash_cached_get(int shift)
+{
+	tte_hash_t th;
+	struct tte_hash_list *head;
+
+	th = NULL;
+	head = &hash_free_list[shift];
+	if (!SLIST_EMPTY(head)) {
+		th = SLIST_FIRST(head);
+		SLIST_REMOVE_HEAD(head, th_next);
+	}
+	return (th);
+}
+
+static void
+tte_hash_cached_free(tte_hash_t th)
+{
+	th->th_context = 0xffff;
+	SLIST_INSERT_HEAD(&hash_free_list[th->th_shift - HASH_ENTRY_SHIFT], th, th_next);
+}
+
 void 
 tte_hash_init(void)
 {
+	int i;
+
 	thzone = uma_zcreate("TTE_HASH", sizeof(struct tte_hash), NULL, NULL, 
 	    NULL, NULL, UMA_ALIGN_PTR, UMA_ZONE_VM | UMA_ZONE_NOFREE);
 	tte_hash_max = maxproc;
 	uma_zone_set_obj(thzone, &thzone_obj, tte_hash_max);
+	for (i = 0; i < PAGE_SHIFT; i++)
+		SLIST_INIT(&hash_free_list[i]); 
 }
 
 tte_hash_t
-tte_hash_kernel_create(vm_offset_t va, uint64_t size, vm_paddr_t fragment_page)
+tte_hash_kernel_create(vm_offset_t va, uint16_t shift, vm_paddr_t fragment_page)
 {
 	tte_hash_t th;
 		
 	th = &kernel_tte_hash;
-	th->th_size = (size >> PAGE_SHIFT);
+	th->th_shift = shift;
 	th->th_entries = 0;
 	th->th_context = 0;
 	th->th_hashtable = (tte_hash_entry_t)va;
 	th->th_fhtail = th->th_fhhead = (void *)TLB_PHYS_TO_DIRECT(fragment_page);
 
-	return th;
+	return (th);
 }
 
 static inline void *
@@ -246,22 +277,22 @@ free_fragment_pages(void *ptr)
 }
 
 static inline tte_hash_t
-_tte_hash_create(uint64_t context, uint64_t *scratchval, uint16_t size)
+_tte_hash_create(uint64_t context, uint64_t *scratchval, uint16_t shift)
 {
 	tte_hash_t th;
 	
 	th = get_tte_hash();
-	th->th_size = size;
+	th->th_shift = shift;
 	th->th_entries = 0;
 	th->th_context = (uint16_t)context;
 
-	th->th_hashtable = alloc_zeroed_contig_pages(size);
+	th->th_hashtable = alloc_zeroed_contig_pages((1 << shift));
 
 	th->th_fhtail = th->th_fhhead = alloc_zeroed_page();
 	KASSERT(th->th_fhtail != NULL, ("th->th_fhtail == NULL"));
 	
 	if (scratchval)
-		*scratchval = (uint64_t)((vm_offset_t)th->th_hashtable) | ((vm_offset_t)th->th_size);
+		*scratchval = (uint64_t)((vm_offset_t)th->th_hashtable) | ((vm_offset_t)(1 << shift));
 
 	return (th);
 }
@@ -270,36 +301,47 @@ _tte_hash_create(uint64_t context, uint64_t *scratchval, uint16_t size)
 tte_hash_t
 tte_hash_create(uint64_t context, uint64_t *scratchval)
 {
-	return _tte_hash_create(context, scratchval, HASH_SIZE);
-
+	return (_tte_hash_create(context, scratchval, HASH_ENTRY_SHIFT));
 }
 
 void
 tte_hash_destroy(tte_hash_t th)
 {
-	panic("FIXME");
+	panic("FIXME");	
 
 	free_tte_hash(th);
 }
 
-void
-tte_hash_reset(tte_hash_t th)
+static void
+_tte_hash_reset(tte_hash_t th)
 {
 	
 	free_fragment_pages(th->th_fhhead->thf_head.fh_next);
 
 	th->th_fhtail = th->th_fhhead;
 	hwblkclr(th->th_fhhead, PAGE_SIZE); 
+#if 0
+	if (th->th_entries != 0) 
+#endif
+		hwblkclr(th->th_hashtable, (1 << (th->th_shift + PAGE_SHIFT)));
+	th->th_entries = 0;
+}
 
-	if (th->th_entries != 0 && th->th_size == HASH_SIZE) {
-		hwblkclr(th->th_hashtable, th->th_size*PAGE_SIZE);
-	} else if (th->th_size > HASH_SIZE) {
-		free_contig_pages(th->th_hashtable, th->th_size);
-		th->th_entries = 0;
-		th->th_size = HASH_SIZE;
-		th->th_hashtable = alloc_zeroed_contig_pages(HASH_SIZE);
-		printf("reset pid=%d\n", curthread->td_proc->p_pid);
+tte_hash_t
+tte_hash_reset(tte_hash_t th, uint64_t *scratchval)
+{
+	tte_hash_t newth;
+
+	if (th->th_shift != HASH_ENTRY_SHIFT && (newth = tte_hash_cached_get(0)) != NULL) {
+		newth->th_context = th->th_context;
+		tte_hash_cached_free(th);
+		*scratchval = (uint64_t)((vm_offset_t)newth->th_hashtable) | ((vm_offset_t)HASH_SIZE);
+	} else {
+		newth = th;
 	}
+	_tte_hash_reset(newth);
+
+	return (newth);
 }
 
 static __inline void
@@ -563,7 +605,7 @@ tte_hash_set_scratchpad_kernel(tte_hash_t th)
 	uint64_t hash_scratch;
 	/* This breaks if a hash table grows above 32MB
 	 */
-	hash_scratch = ((vm_offset_t)th->th_hashtable) | ((vm_offset_t)th->th_size);
+	hash_scratch = ((vm_offset_t)th->th_hashtable) | ((vm_offset_t)(1<<th->th_shift));
 	set_hash_kernel_scratchpad(hash_scratch);
 	
 	return (hash_scratch);
@@ -577,7 +619,7 @@ tte_hash_set_scratchpad_user(tte_hash_t th, uint64_t context)
 	/* This breaks if a hash table grows above 32MB
 	 */
 	th->th_context = (uint16_t)context;
-	hash_scratch = ((vm_offset_t)th->th_hashtable) | ((vm_offset_t)th->th_size);
+	hash_scratch = ((vm_offset_t)th->th_hashtable) | ((vm_offset_t)(1<<th->th_shift));
 	set_hash_user_scratchpad(hash_scratch);
 	
 	return (hash_scratch);
@@ -615,12 +657,8 @@ tte_hash_update(tte_hash_t th, vm_offset_t va, tte_t tte_data)
 int
 tte_hash_needs_resize(tte_hash_t th)
 {
-#ifdef notyet
-	return ((th->th_entries > (th->th_size << (PAGE_SHIFT - TTE_SHIFT))) 
+	return ((th->th_entries > (1 << (th->th_shift + PAGE_SHIFT - TTE_SHIFT))) 
 		&& (th != &kernel_tte_hash) && (curthread->td_proc->p_numthreads == 1));
-#else 
-	return (0);
-#endif
 }
 
 tte_hash_t
@@ -636,9 +674,14 @@ tte_hash_resize(tte_hash_t th, uint64_t *scratchval)
 	if (th == &kernel_tte_hash || curthread->td_proc->p_numthreads != 1) 
 		panic("tte_hash_resize not supported for this pmap");
 
-	newth = _tte_hash_create(th->th_context, NULL, (th->th_size << 1));
+	if ((newth = tte_hash_cached_get((th->th_shift - HASH_ENTRY_SHIFT) + 1)) != NULL) {
+		newth->th_context = th->th_context;
+		_tte_hash_reset(newth);
+	} else {
+		newth = _tte_hash_create(th->th_context, NULL, (th->th_shift + 1));
+	}
 
-	nentries = th->th_size << (PAGE_SHIFT-THE_SHIFT);
+	nentries = (1 << (th->th_shift + PAGE_SHIFT - THE_SHIFT));
 	for (i = 0; i < nentries; i++) {
 		tte_hash_field_t fields;
 		src_entry = (&th->th_hashtable[i]);
@@ -646,7 +689,7 @@ tte_hash_resize(tte_hash_t th, uint64_t *scratchval)
 			fields = src_entry->the_fields;
 			for (j = 0; j < src_entry->of.count; j++) {
 				int shift = TTARGET_VA_SHIFT - PAGE_SHIFT;
-				int index = ((fields[j].tag<<shift) | (i&((1<<shift)-1))) & HASH_MASK(newth);	
+				uint64_t index = ((fields[j].tag<<shift) | (uint64_t)(i&((1<<shift)-1))) & HASH_MASK(newth);	
 				dst_entry = &(newth->th_hashtable[index]);
 				if (tte_hash_insert_locked(newth, dst_entry, fields[j].tag, fields[j].data) == -1) {
 					newentry = tte_hash_allocate_fragment_entry(newth); 
@@ -659,14 +702,8 @@ tte_hash_resize(tte_hash_t th, uint64_t *scratchval)
 
 	KASSERT(th->th_entries == newth->th_entries, 
 		("not all entries copied old=%d new=%d", th->th_entries, newth->th_entries));
-#ifdef notyet
-	free_fragment_pages(th->th_fhhead);
-	free_contig_pages(th->th_hashtable, th->th_size);
-	free_tte_hash(th);
-#endif       
-	printf("resized hash for pid=%d from %d to %d pages with %d entries\n", 
-	       curthread->td_proc->p_pid, newth->th_size >> 1, newth->th_size, newth->th_entries);
-	*scratchval = tte_hash_set_scratchpad_user(newth, newth->th_context);
 
+	tte_hash_cached_free(th);
+	*scratchval = tte_hash_set_scratchpad_user(newth, newth->th_context);
 	return (newth);
 }
