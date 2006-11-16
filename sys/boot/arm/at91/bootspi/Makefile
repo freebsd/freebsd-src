@@ -1,6 +1,6 @@
 #  $FreeBSD$
 
-.PATH: ${.CURDIR}/../libat91
+.PATH:	${.CURDIR}/../libat91
 
 P=bootspi
 FILES=${P}
@@ -14,3 +14,4 @@ OBJS+=  ${SRCS:N*.h:R:S/$/.o/g}
 .if ${MK_FPGA} == "yes"
 CFLAGS += -DTSC_FPGA
 .endif
+CFLAGS += -DBOOT_COMMANDS
