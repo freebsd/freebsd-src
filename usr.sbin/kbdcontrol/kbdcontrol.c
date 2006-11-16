@@ -907,11 +907,11 @@ set_bell_values(char *opt)
 
 	bell = 0;
 	if (!strncmp(opt, "quiet.", 6)) {
-		bell = 2;
+		bell = CONS_QUIET_BELL;
 		opt += 6;
 	}
 	if (!strcmp(opt, "visual"))
-		bell |= 1;
+		bell |= CONS_VISUAL_BELL;
 	else if (!strcmp(opt, "normal"))
 		duration = 5, pitch = 800;
 	else if (!strcmp(opt, "off"))
@@ -936,7 +936,7 @@ badopt:
 	}
 
 	ioctl(0, CONS_BELLTYPE, &bell);
-	if ((bell & ~2) == 0)
+	if (!(bell & CONS_VISUAL_BELL))
 		fprintf(stderr, "[=%d;%dB", pitch, duration);
 }
 
