@@ -512,13 +512,6 @@ ioapic_create(uintptr_t addr, int32_t apic_id, int intbase)
 		 * be routed to other CPUs later after they are enabled.
 		 */
 		intpin->io_cpu = PCPU_GET(apic_id);
-		if (bootverbose && intpin->io_irq != IRQ_DISABLED) {
-			printf("ioapic%u: intpin %d -> ",  io->io_id, i);
-			ioapic_print_irq(intpin);
-			printf(" (%s, %s)\n", intpin->io_edgetrigger ?
-			    "edge" : "level", intpin->io_activehi ? "high" :
-			    "low");
-		}
 		value = ioapic_read(apic, IOAPIC_REDTBL_LO(i));
 		ioapic_write(apic, IOAPIC_REDTBL_LO(i), value | IOART_INTMSET);
 	}
@@ -583,6 +576,8 @@ ioapic_set_bus(void *cookie, u_int pin, int bus_type)
 		return (EINVAL);
 	if (io->io_pins[pin].io_irq >= NUM_IO_INTS)
 		return (EINVAL);
+	if (io->io_pins[pin].io_bus == bus_type)
+		return (0);
 	io->io_pins[pin].io_bus = bus_type;
 	if (bootverbose)
 		printf("ioapic%u: intpin %d bus %s\n", io->io_id, pin,
@@ -666,13 +661,17 @@ int
 ioapic_set_polarity(void *cookie, u_int pin, enum intr_polarity pol)
 {
 	struct ioapic *io;
+	int activehi;
 
 	io = (struct ioapic *)cookie;
 	if (pin >= io->io_numintr || pol == INTR_POLARITY_CONFORM)
 		return (EINVAL);
 	if (io->io_pins[pin].io_irq >= NUM_IO_INTS)
 		return (EINVAL);
-	io->io_pins[pin].io_activehi = (pol == INTR_POLARITY_HIGH);
+	activehi = (pol == INTR_POLARITY_HIGH);
+	if (io->io_pins[pin].io_activehi == activehi)
+		return (0);
+	io->io_pins[pin].io_activehi = activehi;
 	if (bootverbose)
 		printf("ioapic%u: intpin %d polarity: %s\n", io->io_id, pin,
 		    pol == INTR_POLARITY_HIGH ? "high" : "low");
@@ -683,13 +682,17 @@ int
 ioapic_set_triggermode(void *cookie, u_int pin, enum intr_trigger trigger)
 {
 	struct ioapic *io;
+	int edgetrigger;
 
 	io = (struct ioapic *)cookie;
 	if (pin >= io->io_numintr || trigger == INTR_TRIGGER_CONFORM)
 		return (EINVAL);
 	if (io->io_pins[pin].io_irq >= NUM_IO_INTS)
 		return (EINVAL);
-	io->io_pins[pin].io_edgetrigger = (trigger == INTR_TRIGGER_EDGE);
+	edgetrigger = (trigger == INTR_TRIGGER_EDGE);
+	if (io->io_pins[pin].io_edgetrigger == edgetrigger)
+		return (0);
+	io->io_pins[pin].io_edgetrigger = edgetrigger;
 	if (bootverbose)
 		printf("ioapic%u: intpin %d trigger: %s\n", io->io_id, pin,
 		    trigger == INTR_TRIGGER_EDGE ? "edge" : "level");
