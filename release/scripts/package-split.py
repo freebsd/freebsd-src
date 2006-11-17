@@ -54,7 +54,7 @@ def disc2_packages():
             'astro/xearth',                 
             'devel/gmake',
             'editors/emacs',
-            'editors/vim',
+            'editors/vim-lite',
             'emulators/mtools',
             'graphics/png',
             'graphics/xv',
