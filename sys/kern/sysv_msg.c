@@ -780,12 +780,16 @@ msgsnd(td, uap)
 				msqkptr->u.msg_perm.mode |= MSG_LOCKED;
 				we_own_it = 1;
 			}
-			DPRINTF(("goodnight\n"));
+			DPRINTF(("msgsnd:  goodnight\n"));
 			error = msleep(msqkptr, &msq_mtx, (PZERO - 4) | PCATCH,
-			    "msgwait", 0);
-			DPRINTF(("good morning, error=%d\n", error));
+			    "msgsnd", hz);
+			DPRINTF(("msgsnd:  good morning, error=%d\n", error));
 			if (we_own_it)
 				msqkptr->u.msg_perm.mode &= ~MSG_LOCKED;
+			if (error == EWOULDBLOCK) {
+				DPRINTF(("msgsnd:  timed out\n"));
+				continue;
+			}
 			if (error != 0) {
 				DPRINTF(("msgsnd:  interrupted system call\n"));
 				error = EINTR;
@@ -1178,11 +1182,11 @@ msgrcv(td, uap)
 
 		DPRINTF(("msgrcv:  goodnight\n"));
 		error = msleep(msqkptr, &msq_mtx, (PZERO - 4) | PCATCH,
-		    "msgwait", 0);
+		    "msgrcv", 0);
 		DPRINTF(("msgrcv:  good morning (error=%d)\n", error));
 
 		if (error != 0) {
-			DPRINTF(("msgsnd:  interrupted system call\n"));
+			DPRINTF(("msgrcv:  interrupted system call\n"));
 			error = EINTR;
 			goto done2;
 		}
