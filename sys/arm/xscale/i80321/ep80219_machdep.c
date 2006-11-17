@@ -474,7 +474,6 @@ initarm(void *arg, void *arg2)
 	/* Do basic tuning, hz etc */
 	init_param1();
 	init_param2(physmem);
-	avail_end = 0xa0000000 + memsize - 1;
 	kdb_init();
 	return ((void *)(kernelstack.pv_va + USPACE_SVC_STACK_TOP -
 	    sizeof(struct pcb)));
