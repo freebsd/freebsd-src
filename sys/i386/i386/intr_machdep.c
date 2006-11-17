@@ -412,10 +412,6 @@ intr_assign_next_cpu(struct intsrc *isrc)
 	current_cpu++;
 	if (current_cpu >= num_cpus)
 		current_cpu = 0;
-	if (bootverbose) {
-		printf("INTR: Assigning IRQ %d", pic->pic_vector(isrc));
-		printf(" to local APIC %u\n", apic_id);
-	}
 	pic->pic_assign_cpu(isrc, apic_id);
 }
 
@@ -449,7 +445,7 @@ intr_shuffle_irqs(void *arg __unused)
 	if (num_cpus <= 1)
 		return;
 
-	/* Round-robin assign each enabled source a CPU. */
+	/* Round-robin assign a CPU to each enabled source. */
 	mtx_lock_spin(&intr_table_lock);
 	assign_cpu = 1;
 	for (i = 0; i < NUM_IO_INTS; i++) {
