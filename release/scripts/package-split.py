@@ -31,9 +31,7 @@ def disc1_packages():
     pkgs.extend(['x11/xorg',
                  'x11/xorg-manpages',
                  'devel/imake-6'])
-    if arch == 'alpha':
-        pkgs.append('emulators/osf1_base')
-    elif arch == 'i386':
+    if arch == 'i386':
         pkgs.append('emulators/linux_base-fc4')
     return pkgs
 
