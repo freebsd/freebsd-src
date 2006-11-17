@@ -200,7 +200,7 @@ static int db_numargs(struct amd64_frame *);
 static void db_print_stack_entry(const char *, int, char **, long *, db_addr_t);
 static void decode_syscall(int, struct thread *);
 
-static char * watchtype_str(int type);
+static const char * watchtype_str(int type);
 int  amd64_set_watch(int watchnum, unsigned long watchaddr, int size,
 		    int access, struct dbreg *d);
 int  amd64_clr_watch(int watchnum, struct dbreg *d);
@@ -648,8 +648,8 @@ db_md_clr_watchpoint(addr, size)
 	db_expr_t addr;
 	db_expr_t size;
 {
-	int i;
 	struct dbreg d;
+	int i;
 
 	fill_dbregs(NULL, &d);
 
@@ -668,8 +668,7 @@ db_md_clr_watchpoint(addr, size)
 }
 
 
-static
-char *
+static const char *
 watchtype_str(type)
 	int type;
 {
