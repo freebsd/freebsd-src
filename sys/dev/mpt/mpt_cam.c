@@ -4694,7 +4694,7 @@ mpt_scsi_tgt_atio(struct mpt_softc *mpt, request_t *req, uint32_t reply_desc)
 				len = min(tgt->resid, cdbp[4]);
 				len = min(len, sizeof (null_iqd));
 				mpt_lprt(mpt, MPT_PRT_DEBUG,
-				    "local inquiry %ld bytes\n", len);
+				    "local inquiry %ld bytes\n", (long) len);
 				mpt_scsi_tgt_local(mpt, req, lun, 1,
 				    null_iqd, len);
 				return;
@@ -4705,7 +4705,7 @@ mpt_scsi_tgt_atio(struct mpt_softc *mpt, request_t *req, uint32_t reply_desc)
 				len = min(tgt->resid, cdbp[4]);
 				len = min(len, sizeof (buf));
 				mpt_lprt(mpt, MPT_PRT_DEBUG,
-				    "local reqsense %ld bytes\n", len);
+				    "local reqsense %ld bytes\n", (long) len);
 				mpt_scsi_tgt_local(mpt, req, lun, 1,
 				    buf, len);
 				return;
