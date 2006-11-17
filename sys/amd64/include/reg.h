@@ -97,6 +97,7 @@ struct dbreg {
 #define	DBREG_DR7_LEN_1		0x00	/* 1 byte length          */
 #define	DBREG_DR7_LEN_2		0x01
 #define	DBREG_DR7_LEN_4		0x03
+#define	DBREG_DR7_LEN_8		0x02
 #define	DBREG_DR7_EXEC		0x00	/* break on execute       */
 #define	DBREG_DR7_WRONLY	0x01	/* break on write         */
 #define	DBREG_DR7_RDWR		0x03	/* break on read or write */

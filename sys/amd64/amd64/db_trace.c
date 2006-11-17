@@ -562,7 +562,7 @@ amd64_set_watch(watchnum, watchaddr, size, access, d)
 	}
 
 	/*
-	 * we can watch a 1, 2, or 4 byte sized location
+	 * we can watch a 1, 2, 4, or 8 byte sized location
 	 */
 	switch (size) {
 	case 1:
@@ -573,6 +573,9 @@ amd64_set_watch(watchnum, watchaddr, size, access, d)
 		break;
 	case 4:
 		len = DBREG_DR7_LEN_4;
+		break;
+	case 8:
+		len = DBREG_DR7_LEN_8;
 		break;
 	default:
 		return (-1);
@@ -624,12 +627,14 @@ db_md_set_watchpoint(addr, size)
 			avail++;
 	}
 
-	if (avail * 4 < size)
+	if (avail * 8 < size)
 		return (-1);
 
 	for (i = 0; i < 4 && (size > 0); i++) {
 		if (!DBREG_DR7_ENABLED(d.dr[7], i)) {
-			if (size > 2)
+			if (size >= 8 || (avail == 1 && size > 4))
+				wsize = 8;
+			else if (size > 2)
 				wsize = 4;
 			else
 				wsize = size;
@@ -637,6 +642,7 @@ db_md_set_watchpoint(addr, size)
 				       DBREG_DR7_WRONLY, &d);
 			addr += wsize;
 			size -= wsize;
+			avail--;
 		}
 	}
 
@@ -699,8 +705,12 @@ db_md_list_watchpoints()
 		if (DBREG_DR7_ENABLED(d.dr[7], i)) {
 			type = DBREG_DR7_ACCESS(d.dr[7], i);
 			len = DBREG_DR7_LEN(d.dr[7], i);
+			if (len == DBREG_DR7_LEN_8)
+				len = 8;
+			else
+				len++;
 			db_printf("  %-5d  %-8s  %10s  %3d  ",
-			    i, "enabled", watchtype_str(type), len + 1);
+			    i, "enabled", watchtype_str(type), len);
 			db_printsym((db_addr_t)DBREG_DRX((&d), i), DB_STGY_ANY);
 			db_printf("\n");
 		} else {
