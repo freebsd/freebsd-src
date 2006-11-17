@@ -190,7 +190,7 @@ static int db_numargs(struct i386_frame *);
 static void db_print_stack_entry(const char *, int, char **, int *, db_addr_t);
 static void decode_syscall(int, struct thread *);
 
-static char * watchtype_str(int type);
+static const char * watchtype_str(int type);
 int  i386_set_watch(int watchnum, unsigned int watchaddr, int size, int access,
 		    struct dbreg *d);
 int  i386_clr_watch(int watchnum, struct dbreg *d);
@@ -681,8 +681,8 @@ db_md_clr_watchpoint(addr, size)
 	db_expr_t addr;
 	db_expr_t size;
 {
-	int i;
 	struct dbreg d;
+	int i;
 
 	fill_dbregs(NULL, &d);
 
@@ -701,8 +701,7 @@ db_md_clr_watchpoint(addr, size)
 }
 
 
-static
-char *
+static const char *
 watchtype_str(type)
 	int type;
 {
@@ -741,7 +740,7 @@ db_md_list_watchpoints()
 
 	db_printf("\ndebug register values:\n");
 	for (i = 0; i < 8; i++) {
-		db_printf("  dr%d 0x%08x\n", i, DBREG_DRX((&d),i));
+		db_printf("  dr%d 0x%08x\n", i, DBREG_DRX((&d), i));
 	}
 	db_printf("\n");
 }
