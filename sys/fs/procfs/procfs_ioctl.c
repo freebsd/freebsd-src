@@ -124,7 +124,7 @@ procfs_ioctl(PFS_IOCTL_ARGS)
 		*(unsigned int *)data = p->p_pfsflags;
 		break;
 	case PIOCWAIT:
-		while (p->p_step == 0) {
+		while (p->p_step == 0 && (p->p_flag & P_WEXIT) == 0) {
 			/* sleep until p stops */
 			error = msleep(&p->p_stype, &p->p_mtx,
 			    PWAIT|PCATCH, "pioctl", 0);
@@ -142,7 +142,7 @@ procfs_ioctl(PFS_IOCTL_ARGS)
 		break;
 #ifdef COMPAT_IA32
 	case PIOCWAIT32:
-		while (p->p_step == 0) {
+		while (p->p_step == 0 && (p->p_flag & P_WEXIT) == 0) {
 			/* sleep until p stops */
 			error = msleep(&p->p_stype, &p->p_mtx,
 			    PWAIT|PCATCH, "pioctl", 0);
