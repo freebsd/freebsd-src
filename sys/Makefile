@@ -1,5 +1,9 @@
 # $FreeBSD$
 
+.if ${MACHINE_ARCH} == "arm"
+NO_BOOT=
+.endif
+
 # The boot loader
 .if !defined(NO_BOOT)
 SUBDIR=	boot
