@@ -181,6 +181,10 @@
       <varname>debug.minidump</varname> sysctl variable be set to
       <literal>1</literal>.</para>
 
+    <para>Several workarounds for bugs in the &man.tty.4; layer have
+      been added; these changes prevent a variety of observed kernel
+      panics.</para>
+
     <para>A bug has been fixed in the statistics-keeping code in the
       kernel's UMA memory allocator.  This caused a count of memory
       allocation failures (as shown by <command>netstat -m</command>)
@@ -371,6 +375,10 @@
 
     <sect3 id="fs">
       <title>File Systems</title>
+
+      <para>Several bugs related to locking have been fixed in
+	&man.devfs.5;.  These fixes prevent several observed deadlock
+	conditions.</para>
 
       <para>The &man.linsysfs.5; pseudo-filesystem driver has been
 	added.  It provides a subset of the
@@ -605,7 +613,11 @@
     <para>The supported version of
       the <application>GNOME</application> desktop environment
       (<filename role="package">x11/gnome2</filename>) has been
-      updated from 2.12.3 to 2.16.1.</para>
+      updated from 2.12.3 to 2.16.1.  As a part of this update, the
+      default prefix for <application>GNOME</application> (and some
+      related programs) has moved from
+      <filename>/usr/X11R6</filename>
+      to <filename>/usr/local</filename>.</para>
 
     <para>The supported version of
       the <application>KDE</application> desktop environment
