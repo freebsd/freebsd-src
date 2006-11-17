@@ -168,11 +168,19 @@ db_list_watchpoints()
 	    return;
 	}
 
+#ifdef __LP64__
+	db_printf(" Map                Address          Size\n");
+#else
 	db_printf(" Map        Address  Size\n");
+#endif
 	for (watch = db_watchpoint_list;
 	     watch != 0;
 	     watch = watch->link)
+#ifdef __LP64__
+	    db_printf("%s%16p  %16lx  %lx\n",
+#else
 	    db_printf("%s%8p  %8lx  %lx\n",
+#endif
 		      db_map_current(watch->map) ? "*" : " ",
 		      (void *)watch->map, (long)watch->loaddr,
 		      (long)watch->hiaddr - (long)watch->loaddr);
