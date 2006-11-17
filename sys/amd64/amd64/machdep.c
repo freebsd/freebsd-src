@@ -1692,7 +1692,6 @@ set_dbregs(struct thread *td, struct dbreg *dbregs)
 {
 	struct pcb *pcb;
 	int i;
-	u_int64_t mask1, mask2;
 
 	if (td == NULL) {
 		load_dr0(dbregs->dr[0]);
@@ -1709,10 +1708,12 @@ set_dbregs(struct thread *td, struct dbreg *dbregs)
 		 * TRCTRAP or a general protection fault right here.
 		 * Upper bits of dr6 and dr7 must not be set
 		 */
-		for (i = 0, mask1 = 0x3<<16, mask2 = 0x2<<16; i < 8;
-		     i++, mask1 <<= 2, mask2 <<= 2)
-			if ((dbregs->dr[7] & mask1) == mask2)
+		for (i = 0; i < 4; i++) {
+			if (DBREG_DR7_ACCESS(dbregs->dr[7], i) == 0x02)
 				return (EINVAL);
+			if (DBREG_DR7_LEN(dbregs->dr[7], i) == 0x02)
+				return (EINVAL);
+		}
 		if ((dbregs->dr[6] & 0xffffffff00000000ul) != 0 ||
 		    (dbregs->dr[7] & 0xffffffff00000000ul) != 0)
 			return (EINVAL);
@@ -1733,22 +1734,22 @@ set_dbregs(struct thread *td, struct dbreg *dbregs)
 		 * from within kernel mode?
 		 */
 
-		if (dbregs->dr[7] & 0x3) {
+		if (DBREG_DR7_ENABLED(dbregs->dr[7], 0)) {
 			/* dr0 is enabled */
 			if (dbregs->dr[0] >= VM_MAXUSER_ADDRESS)
 				return (EINVAL);
 		}
-		if (dbregs->dr[7] & 0x3<<2) {
+		if (DBREG_DR7_ENABLED(dbregs->dr[7], 1)) {
 			/* dr1 is enabled */
 			if (dbregs->dr[1] >= VM_MAXUSER_ADDRESS)
 				return (EINVAL);
 		}
-		if (dbregs->dr[7] & 0x3<<4) {
+		if (DBREG_DR7_ENABLED(dbregs->dr[7], 2)) {
 			/* dr2 is enabled */
 			if (dbregs->dr[2] >= VM_MAXUSER_ADDRESS)
 				return (EINVAL);
 		}
-		if (dbregs->dr[7] & 0x3<<6) {
+		if (DBREG_DR7_ENABLED(dbregs->dr[7], 3)) {
 			/* dr3 is enabled */
 			if (dbregs->dr[3] >= VM_MAXUSER_ADDRESS)
 				return (EINVAL);
