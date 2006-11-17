@@ -571,12 +571,11 @@ i386_set_watch(watchnum, watchaddr, size, access, d)
 	int access;
 	struct dbreg *d;
 {
-	int i;
-	unsigned int mask;
+	int i, len;
 
 	if (watchnum == -1) {
-		for (i = 0, mask = 0x3; i < 4; i++, mask <<= 2)
-			if ((d->dr[7] & mask) == 0)
+		for (i = 0; i < 4; i++)
+			if (!DBREG_DR7_ENABLED(d->dr[7], i))
 				break;
 		if (i < 4)
 			watchnum = i;
@@ -599,22 +598,28 @@ i386_set_watch(watchnum, watchaddr, size, access, d)
 	 * we can watch a 1, 2, or 4 byte sized location
 	 */
 	switch (size) {
-	case 1	: mask = 0x00; break;
-	case 2	: mask = 0x01 << 2; break;
-	case 4	: mask = 0x03 << 2; break;
-	default : return (-1);
+	case 1:
+		len = DBREG_DR7_LEN_1;
+		break;
+	case 2:
+		len = DBREG_DR7_LEN_2;
+		break;
+	case 4:
+		len = DBREG_DR7_LEN_4;
+		break;
+	default:
+		return (-1);
 	}
 
-	mask |= access;
-
 	/* clear the bits we are about to affect */
-	d->dr[7] &= ~((0x3 << (watchnum*2)) | (0x0f << (watchnum*4+16)));
+	d->dr[7] &= ~DBREG_DR7_MASK(watchnum);
 
 	/* set drN register to the address, N=watchnum */
 	DBREG_DRX(d, watchnum) = watchaddr;
 
 	/* enable the watchpoint */
-	d->dr[7] |= (0x2 << (watchnum*2)) | (mask << (watchnum*4+16));
+	d->dr[7] |= DBREG_DR7_SET(watchnum, len, access,
+	    DBREG_DR7_GLOBAL_ENABLE);
 
 	return (watchnum);
 }
@@ -629,7 +634,7 @@ i386_clr_watch(watchnum, d)
 	if (watchnum < 0 || watchnum >= 4)
 		return (-1);
 
-	d->dr[7] = d->dr[7] & ~((0x3 << (watchnum*2)) | (0x0f << (watchnum*4+16)));
+	d->dr[7] &= ~DBREG_DR7_MASK(watchnum);
 	DBREG_DRX(d, watchnum) = 0;
 
 	return (0);
@@ -648,21 +653,19 @@ db_md_set_watchpoint(addr, size)
 
 	avail = 0;
 	for(i = 0; i < 4; i++) {
-		if ((d.dr[7] & (3 << (i*2))) == 0)
+		if (!DBREG_DR7_ENABLED(d.dr[7], i))
 			avail++;
 	}
 
 	if (avail * 4 < size)
 		return (-1);
 
-	for (i = 0; i < 4 && (size != 0); i++) {
-		if ((d.dr[7] & (3<<(i*2))) == 0) {
-			if (size > 4)
+	for (i = 0; i < 4 && (size > 0); i++) {
+		if (!DBREG_DR7_ENABLED(d.dr[7], i)) {
+			if (size > 2)
 				wsize = 4;
 			else
 				wsize = size;
-			if (wsize == 3)
-				wsize++;
 			i386_set_watch(i, addr, wsize,
 				       DBREG_DR7_WRONLY, &d);
 			addr += wsize;
@@ -687,7 +690,7 @@ db_md_clr_watchpoint(addr, size)
 	fill_dbregs(NULL, &d);
 
 	for(i = 0; i < 4; i++) {
-		if (d.dr[7] & (3 << (i*2))) {
+		if (DBREG_DR7_ENABLED(d.dr[7], i)) {
 			if ((DBREG_DRX((&d), i) >= addr) &&
 			    (DBREG_DRX((&d), i) < addr+size))
 				i386_clr_watch(i, &d);
@@ -726,14 +729,14 @@ db_md_list_watchpoints()
 	db_printf("  watch    status        type  len     address\n");
 	db_printf("  -----  --------  ----------  ---  ----------\n");
 	for (i = 0; i < 4; i++) {
-		if (d.dr[7] & (0x03 << (i*2))) {
-			type = (d.dr[7] >> (16+(i*4))) & 3;
-			len =  (d.dr[7] >> (16+(i*4)+2)) & 3;
-			db_printf("  %-5d  %-8s  %10s  %3d  0x%08x\n",
-				  i, "enabled", watchtype_str(type),
-				  len+1, DBREG_DRX((&d),i));
-		}
-		else {
+		if (DBREG_DR7_ENABLED(d.dr[7], i)) {
+			type = DBREG_DR7_ACCESS(d.dr[7], i);
+			len = DBREG_DR7_LEN(d.dr[7], i);
+			db_printf("  %-5d  %-8s  %10s  %3d  ",
+			    i, "enabled", watchtype_str(type), len + 1);
+			db_printsym((db_addr_t)DBREG_DRX((&d), i), DB_STGY_ANY);
+			db_printf("\n");
+		} else {
 			db_printf("  %-5d  disabled\n", i);
 		}
 	}
