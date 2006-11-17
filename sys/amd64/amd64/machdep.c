@@ -1711,7 +1711,8 @@ set_dbregs(struct thread *td, struct dbreg *dbregs)
 		for (i = 0; i < 4; i++) {
 			if (DBREG_DR7_ACCESS(dbregs->dr[7], i) == 0x02)
 				return (EINVAL);
-			if (DBREG_DR7_LEN(dbregs->dr[7], i) == 0x02)
+			if (td->td_frame->tf_cs == _ucode32sel &&
+			    DBREG_DR7_LEN(dbregs->dr[7], i) == DBREG_DR7_LEN_8)
 				return (EINVAL);
 		}
 		if ((dbregs->dr[6] & 0xffffffff00000000ul) != 0 ||
