@@ -1130,7 +1130,7 @@ static poll_handler_t nfe_poll;
 static void
 nfe_poll(struct ifnet *ifp, enum poll_cmd cmd, int count)
 {
-	struct  nfe_softc *sc = ifp->if_softc;
+	struct nfe_softc *sc = ifp->if_softc;
 
 	NFE_LOCK(sc);
 	if (ifp->if_drv_flags & IFF_DRV_RUNNING)
@@ -1142,7 +1142,7 @@ nfe_poll(struct ifnet *ifp, enum poll_cmd cmd, int count)
 static void
 nfe_poll_locked(struct ifnet *ifp, enum poll_cmd cmd, int count)
 {
-	struct  nfe_softc *sc = ifp->if_softc;
+	struct nfe_softc *sc = ifp->if_softc;
 	u_int32_t r;
 
 	NFE_LOCK_ASSERT(sc);
