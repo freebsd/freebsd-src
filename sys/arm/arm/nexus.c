@@ -142,7 +142,7 @@ nexus_teardown_intr(device_t dev, device_t child, struct resource *r, void *ih)
 	int i;
 
 	for (i = rman_get_start(r); i <= rman_get_end(r); i++)
-		arm_mask_irq(rman_get_start(r));
+		arm_mask_irq(i);
 	error = arm_remove_irqhandler(ih);
 	return (error);
 }
