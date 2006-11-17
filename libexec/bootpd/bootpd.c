@@ -67,6 +67,7 @@ __FBSDID("$FreeBSD$");
 #include <paths.h>
 #include <syslog.h>
 #include <assert.h>
+#include <inttypes.h>
 
 #ifdef	NO_SETSID
 # include <fcntl.h>		/* for O_RDONLY, etc */
@@ -535,8 +536,8 @@ main(argc, argv)
 		}
 		if (!FD_ISSET(s, &readfds)) {
 			if (debug > 1)
-				report(LOG_INFO, "exiting after %ld minutes of inactivity",
-					   actualtimeout.tv_sec / 60);
+				report(LOG_INFO, "exiting after %jd minutes of inactivity",
+					   (intmax_t)actualtimeout.tv_sec / 60);
 			exit(0);
 		}
 		ra_len = sizeof(recv_addr);
