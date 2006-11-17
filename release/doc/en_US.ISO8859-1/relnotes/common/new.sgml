@@ -1924,7 +1924,11 @@ mdconfig_md1="-t vnode -f /var/foo.img"</programlisting>
     <para>The supported version of
       the <application>GNOME</application> desktop environment
       (<filename role="package">x11/gnome2</filename>) has been
-      updated from 2.10.2 to 2.16.1. &merged;</para>
+      updated from 2.10.2 to 2.16.1.  As a part of this update, the
+      default prefix for <application>GNOME</application> (and some
+      related programs) has moved from
+      <filename>/usr/X11R6</filename>
+      to <filename>/usr/local</filename>.  &merged;</para>
 
     <para>The supported version of
       the <application>KDE</application> desktop environment
