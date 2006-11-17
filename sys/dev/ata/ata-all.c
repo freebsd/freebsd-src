@@ -601,12 +601,12 @@ ata_getparam(struct ata_device *atadev, int init)
 		   isprint(atadev->param.model[1]))) {
 	struct ata_params *atacap = &atadev->param;
 	char buffer[64];
-#if BYTE_ORDER == BIG_ENDIAN
+#ifndef __ARMEB__
 	int16_t *ptr;
 
 	for (ptr = (int16_t *)atacap;
 	     ptr < (int16_t *)atacap + sizeof(struct ata_params)/2; ptr++) {
-	    *ptr = bswap16(*ptr);
+	    *ptr = le16toh(*ptr);
 	}
 #endif
 	if (!(!strncmp(atacap->model, "FX", 2) ||
