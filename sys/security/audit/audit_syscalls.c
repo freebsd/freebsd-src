@@ -580,9 +580,9 @@ auditctl(struct thread *td, struct auditctl_args *uap)
 	error = vn_open(&nd, &flags, 0, -1);
 	if (error)
 		return (error);
-	vfslocked = NDHASGIANT(&nd);
-	VOP_UNLOCK(nd.ni_vp, 0, td);
 	vp = nd.ni_vp;
+	vfslocked = VFS_LOCK_GIANT(vp->v_mount);
+	VOP_UNLOCK(vp, 0, td);
 	if (vp->v_type != VREG) {
 		vn_close(vp, AUDIT_CLOSE_FLAGS, td->td_ucred, td);
 		VFS_UNLOCK_GIANT(vfslocked);
