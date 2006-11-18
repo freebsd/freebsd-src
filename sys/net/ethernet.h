@@ -61,7 +61,7 @@ struct	ether_header {
 	u_char	ether_dhost[ETHER_ADDR_LEN];
 	u_char	ether_shost[ETHER_ADDR_LEN];
 	u_short	ether_type;
-};
+} __packed;
 
 /*
  * Structure of a 48-bit Ethernet address.
