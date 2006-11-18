@@ -200,8 +200,8 @@ cpu_mp_add(u_int acpiid, u_int apicid, u_int apiceid)
 	}
 
 	if (acpiid != 0) {
-		pc = (struct pcpu *)kmem_alloc(kernel_map, PAGE_SIZE);
-		pcpu_init(pc, acpiid, PAGE_SIZE);
+		pc = (struct pcpu *)malloc(sizeof(*pc), M_PMAP, M_WAITOK);
+		pcpu_init(pc, acpiid, sizeof(*pc));
 	} else
 		pc = pcpup;
 
