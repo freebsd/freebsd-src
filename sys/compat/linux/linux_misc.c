@@ -1378,6 +1378,11 @@ linux_getpid(struct thread *td, struct linux_getpid_args *args)
    	struct linux_emuldata *em;
 	char osrel[LINUX_MAX_UTSNAME];
 
+#ifdef DEBUG
+	if (ldebug(getpid))
+		printf(ARGS(getpid, ""));
+#endif
+
 	linux_get_osrelease(td, osrel);
 	if (strlen(osrel) >= 3 && osrel[2] == '6') {
    	   	em = em_find(td->td_proc, EMUL_UNLOCKED);
@@ -1410,6 +1415,11 @@ linux_getppid(struct thread *td, struct linux_getppid_args *args)
    	struct linux_emuldata *em;
 	struct proc *p, *pp;
 	char osrel[LINUX_MAX_UTSNAME];
+
+#ifdef DEBUG
+	if (ldebug(getppid))
+		printf(ARGS(getppid, ""));
+#endif
 
 	linux_get_osrelease(td, osrel);
 	if (strlen(osrel) >= 3 && osrel[2] != '6') {
@@ -1456,6 +1466,11 @@ int
 linux_getgid(struct thread *td, struct linux_getgid_args *args)
 {
 
+#ifdef DEBUG
+	if (ldebug(getgid))
+		printf(ARGS(getgid, ""));
+#endif
+
 	td->td_retval[0] = td->td_ucred->cr_rgid;
 	return (0);
 }
@@ -1463,6 +1478,11 @@ linux_getgid(struct thread *td, struct linux_getgid_args *args)
 int
 linux_getuid(struct thread *td, struct linux_getuid_args *args)
 {
+
+#ifdef DEBUG
+	if (ldebug(getuid))
+		printf(ARGS(getuid, ""));
+#endif
 
 	td->td_retval[0] = td->td_ucred->cr_ruid;
 	return (0);
@@ -1473,6 +1493,12 @@ int
 linux_getsid(struct thread *td, struct linux_getsid_args *args)
 {
 	struct getsid_args bsd;
+
+#ifdef DEBUG
+	if (ldebug(getsid))
+		printf(ARGS(getsid, "%i"), args->pid);
+#endif
+
 	bsd.pid = args->pid;
 	return getsid(td, &bsd);
 }
@@ -1490,6 +1516,11 @@ linux_getpriority(struct thread *td, struct linux_getpriority_args *args)
 	struct getpriority_args	bsd_args;
 	int error;
 
+#ifdef DEBUG
+	if (ldebug(getpriority))
+		printf(ARGS(getpriority, "%i, %i"), args->which, args->who);
+#endif
+
 	bsd_args.which = args->which;
 	bsd_args.who = args->who;
 	error = getpriority(td, &bsd_args);
@@ -1501,6 +1532,11 @@ int
 linux_sethostname(struct thread *td, struct linux_sethostname_args *args)
 {
 	int name[2];
+
+#ifdef DEBUG
+	if (ldebug(sethostname))
+		printf(ARGS(sethostname, "*, %i"), args->len);
+#endif
 
 	name[0] = CTL_KERN;
 	name[1] = KERN_HOSTNAME;
