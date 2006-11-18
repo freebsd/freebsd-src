@@ -57,7 +57,6 @@ __FBSDID("$FreeBSD$");
 static int	mfi_alloc_commands(struct mfi_softc *);
 static void	mfi_release_command(struct mfi_command *cm);
 static int	mfi_comms_init(struct mfi_softc *);
-static int	mfi_polled_command(struct mfi_softc *, struct mfi_command *);
 static int	mfi_wait_command(struct mfi_softc *, struct mfi_command *);
 static int	mfi_get_controller_info(struct mfi_softc *);
 static int	mfi_get_log_state(struct mfi_softc *,
@@ -91,7 +90,7 @@ TUNABLE_INT("hw.mfi.event_locale", &mfi_event_locale);
 SYSCTL_INT(_hw_mfi, OID_AUTO, event_locale, CTLFLAG_RW, &mfi_event_locale,
             0, "event message locale");
 
-static int	mfi_event_class =  MFI_EVT_CLASS_DEBUG;
+static int	mfi_event_class = 10;
 TUNABLE_INT("hw.mfi.event_class", &mfi_event_class);
 SYSCTL_INT(_hw_mfi, OID_AUTO, event_class, CTLFLAG_RW, &mfi_event_class,
           0, "event message class");
@@ -546,8 +545,10 @@ mfi_comms_init(struct mfi_softc *sc)
 	init->header.cmd = MFI_CMD_INIT;
 	init->header.data_len = sizeof(struct mfi_init_qinfo);
 	init->qinfo_new_addr_lo = cm->cm_frame_busaddr + MFI_FRAME_SIZE;
+	cm->cm_data = NULL;
+	cm->cm_flags = MFI_CMD_POLLED;
 
-	if ((error = mfi_polled_command(sc, cm)) != 0) {
+	if ((error = mfi_mapcmd(sc, cm)) != 0) {
 		device_printf(sc->mfi_dev, "failed to send init command\n");
 		mtx_unlock(&sc->mfi_io_lock);
 		return (error);
@@ -574,15 +575,6 @@ mfi_get_controller_info(struct mfi_softc *sc)
 	cm->cm_flags = MFI_CMD_DATAIN | MFI_CMD_POLLED;
 
 	if ((error = mfi_mapcmd(sc, cm)) != 0) {
-		device_printf(sc->mfi_dev, "Controller info buffer map failed\n");
-		free(ci, M_MFIBUF);
-		mfi_release_command(cm);
-		mtx_unlock(&sc->mfi_io_lock);
-		return (error);
-	}
-
-	/* It's ok if this fails, just use default info instead */
-	if ((error = mfi_polled_command(sc, cm)) != 0) {
 		device_printf(sc->mfi_dev, "Failed to get controller info\n");
 		sc->mfi_max_io = (sc->mfi_max_sge - 1) * PAGE_SIZE /
 		    MFI_SECTOR_LEN;
@@ -620,11 +612,6 @@ mfi_get_log_state(struct mfi_softc *sc, struct mfi_evt_log_state **log_state)
 	cm->cm_flags = MFI_CMD_DATAIN | MFI_CMD_POLLED;
 
 	if ((error = mfi_mapcmd(sc, cm)) != 0) {
-		device_printf(sc->mfi_dev, "Log state buffer map failed\n");
-		goto out;
-	}
-
-	if ((error = mfi_polled_command(sc, cm)) != 0) {
 		device_printf(sc->mfi_dev, "Failed to get log state\n");
 		goto out;
 	}
@@ -675,35 +662,6 @@ mfi_aen_setup(struct mfi_softc *sc, uint32_t seq_start)
 	free(log_state, M_MFIBUF);
 
 	return 0;
-}
-
-static int
-mfi_polled_command(struct mfi_softc *sc, struct mfi_command *cm)
-{
-	struct mfi_frame_header *hdr;
-	int tm = MFI_POLL_TIMEOUT_SECS * 1000000;
-
-	mtx_assert(&sc->mfi_io_lock, MA_OWNED);
-
-	hdr = &cm->cm_frame->header;
-	hdr->cmd_status = 0xff;
-	hdr->flags |= MFI_FRAME_DONT_POST_IN_REPLY_QUEUE;
-
-	mfi_send_frame(sc, cm);
-
-	while (hdr->cmd_status == 0xff) {
-		DELAY(1000);
-		tm -= 1000;
-		if (tm <= 0)
-			break;
-	}
-
-	if (hdr->cmd_status == 0xff) {
-		device_printf(sc->mfi_dev, "Frame %p timed out\n", hdr);
-		return (ETIMEDOUT);
-	}
-
-	return (0);
 }
 
 static int
@@ -851,8 +809,10 @@ mfi_shutdown(struct mfi_softc *sc)
 
 	dcmd = &cm->cm_frame->dcmd;
 	dcmd->header.flags = MFI_FRAME_DIR_NONE;
+	cm->cm_flags = MFI_CMD_POLLED;
+	cm->cm_data = NULL;
 
-	if ((error = mfi_polled_command(sc, cm)) != 0) {
+	if ((error = mfi_mapcmd(sc, cm)) != 0) {
 		device_printf(sc->mfi_dev, "Failed to shutdown controller\n");
 	}
 
@@ -1336,13 +1296,6 @@ mfi_get_entry(struct mfi_softc *sc, int seq)
 	cm->cm_len = size;
 
 	if ((error = mfi_mapcmd(sc, cm)) != 0) {
-		device_printf(sc->mfi_dev, "Controller info buffer map failed");
-		free(el, M_MFIBUF);
-		mfi_release_command(cm);
-		return (error);
-	}
-
-	if ((error = mfi_polled_command(sc, cm)) != 0) {
 		device_printf(sc->mfi_dev, "Failed to get controller entry\n");
 		sc->mfi_max_io = (sc->mfi_max_sge - 1) * PAGE_SIZE /
 		    MFI_SECTOR_LEN;
@@ -1566,8 +1519,6 @@ mfi_mapcmd(struct mfi_softc *sc, struct mfi_command *cm)
 			return (0);
 		}
 	} else {
-		cm->cm_timestamp = time_uptime;
-		mfi_enqueue_busy(cm);
 		error = mfi_send_frame(sc, cm);
 	}
 
@@ -1626,12 +1577,7 @@ mfi_data_cb(void *arg, bus_dma_segment_t *segs, int nsegs, int error)
 	cm->cm_total_frame_size += (sc->mfi_sge_size * nsegs);
 	cm->cm_extra_frames = (cm->cm_total_frame_size - 1) / MFI_FRAME_SIZE;
 
-	/* The caller will take care of delivering polled commands */
-	if ((cm->cm_flags & MFI_CMD_POLLED) == 0) {
-		cm->cm_timestamp = time_uptime;
-		mfi_enqueue_busy(cm);
-		mfi_send_frame(sc, cm);
-	}
+	mfi_send_frame(sc, cm);
 
 	return;
 }
@@ -1639,6 +1585,18 @@ mfi_data_cb(void *arg, bus_dma_segment_t *segs, int nsegs, int error)
 static int
 mfi_send_frame(struct mfi_softc *sc, struct mfi_command *cm)
 {
+	struct mfi_frame_header *hdr;
+	int tm = MFI_POLL_TIMEOUT_SECS * 1000000;
+
+	hdr = &cm->cm_frame->header;
+
+	if ((cm->cm_flags & MFI_CMD_POLLED) == 0) {
+		cm->cm_timestamp = time_uptime;
+		mfi_enqueue_busy(cm);
+	} else {
+		hdr->cmd_status = 0xff;
+		hdr->flags |= MFI_FRAME_DONT_POST_IN_REPLY_QUEUE;
+	}
 
 	/*
 	 * The bus address of the command is aligned on a 64 byte boundary,
@@ -1657,6 +1615,23 @@ mfi_send_frame(struct mfi_softc *sc, struct mfi_command *cm)
 
 	MFI_WRITE4(sc, MFI_IQP, (cm->cm_frame_busaddr >> 3) |
 	    cm->cm_extra_frames);
+
+	if ((cm->cm_flags & MFI_CMD_POLLED) == 0)
+		return (0);
+
+	/* This is a polled command, so busy-wait for it to complete. */
+	while (hdr->cmd_status == 0xff) {
+		DELAY(1000);
+		tm -= 1000;
+		if (tm <= 0)
+			break;
+	}
+
+	if (hdr->cmd_status == 0xff) {
+		device_printf(sc->mfi_dev, "Frame %p timed out\n", hdr);
+		return (ETIMEDOUT);
+	}
+
 	return (0);
 }
 
@@ -1702,10 +1677,10 @@ mfi_abort(struct mfi_softc *sc, struct mfi_command *cm_abort)
 	abort->abort_mfi_addr_lo = cm_abort->cm_frame_busaddr;
 	abort->abort_mfi_addr_hi = 0;
 	cm->cm_data = NULL;
+	cm->cm_flags = MFI_CMD_POLLED;
 
 	sc->mfi_aen_cm->cm_aen_abort = 1;
 	mfi_mapcmd(sc, cm);
-	mfi_polled_command(sc, cm);
 	mfi_release_command(cm);
 
 	while (sc->mfi_aen_cm != NULL) {
@@ -1742,12 +1717,7 @@ mfi_dump_blocks(struct mfi_softc *sc, int id, uint64_t lba, void *virt, int len)
 	cm->cm_total_frame_size = MFI_IO_FRAME_SIZE;
 	cm->cm_flags = MFI_CMD_POLLED | MFI_CMD_DATAOUT;
 
-	if ((error = mfi_mapcmd(sc, cm)) != 0) {
-		mfi_release_command(cm);
-		return (error);
-	}
-
-	error = mfi_polled_command(sc, cm);
+	error = mfi_mapcmd(sc, cm);
 	bus_dmamap_sync(sc->mfi_buffer_dmat, cm->cm_dmamap,
 	    BUS_DMASYNC_POSTWRITE);
 	bus_dmamap_unload(sc->mfi_buffer_dmat, cm->cm_dmamap);
@@ -1879,13 +1849,6 @@ mfi_ioctl(struct cdev *dev, u_long cmd, caddr_t arg, int flag, d_thread_t *td)
 
 		mtx_lock(&sc->mfi_io_lock);
 		if ((error = mfi_mapcmd(sc, cm)) != 0) {
-			device_printf(sc->mfi_dev,
-			    "Controller info buffer map failed");
-			mtx_unlock(&sc->mfi_io_lock);
-			goto out;
-		}
-
-		if ((error = mfi_polled_command(sc, cm)) != 0) {
 			device_printf(sc->mfi_dev,
 			    "Controller polled failed");
 			mtx_unlock(&sc->mfi_io_lock);
@@ -2080,13 +2043,6 @@ mfi_linux_ioctl_int(struct cdev *dev, u_long cmd, caddr_t arg, int flag, d_threa
 
 		mtx_lock(&sc->mfi_io_lock);
 		if ((error = mfi_mapcmd(sc, cm)) != 0) {
-			device_printf(sc->mfi_dev,
-			    "Controller info buffer map failed");
-			mtx_unlock(&sc->mfi_io_lock);
-			goto out;
-		}
-
-		if ((error = mfi_polled_command(sc, cm)) != 0) {
 			device_printf(sc->mfi_dev,
 			    "Controller polled failed");
 			mtx_unlock(&sc->mfi_io_lock);
