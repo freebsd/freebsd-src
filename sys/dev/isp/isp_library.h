@@ -91,7 +91,11 @@ isp_put_plogx(ispsoftc_t *, isp_plogx_t *, isp_plogx_t *);
 extern void
 isp_get_ct_pt(ispsoftc_t *isp, isp_ct_pt_t *, isp_ct_pt_t *);
 extern void
+isp_get_ms(ispsoftc_t *isp, isp_ms_t *, isp_ms_t *);
+extern void
 isp_put_ct_pt(ispsoftc_t *isp, isp_ct_pt_t *, isp_ct_pt_t *);
+extern void
+isp_put_ms(ispsoftc_t *isp, isp_ms_t *, isp_ms_t *);
 extern void
 isp_put_sns_request(ispsoftc_t *, sns_screq_t *, sns_screq_t *);
 extern void

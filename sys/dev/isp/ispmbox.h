@@ -329,6 +329,7 @@ typedef struct {
 #define	RQSTYPE_IP_RECV		0x23
 #define	RQSTYPE_IP_RECV_CONT	0x24
 #define	RQSTYPE_CT_PASSTHRU	0x29
+#define	RQSTYPE_MS_PASSTHRU	0x29
 #define	RQSTYPE_ABORT_IO	0x33
 #define	RQSTYPE_T6RQS		0x48
 #define	RQSTYPE_LOGIN		0x52
@@ -630,6 +631,29 @@ typedef struct {
 	uint32_t	ctp_cmd_bcnt;	/* Command byte count */
 	ispds64_t	ctp_dataseg[2];
 } isp_ct_pt_t;
+
+/*
+ * MS Passthru IOCB
+ */
+typedef struct {
+	isphdr_t	ms_header;
+	uint32_t	ms_handle;
+	uint16_t	ms_nphdl;	/* XXX: Note, this is for 2K Logins only */
+	uint16_t	ms_status;
+	uint16_t	ms_flags;
+	uint16_t	ms_reserved1;	/* low 8 bits */
+	uint16_t	ms_time;
+	uint16_t	ms_cmd_cnt;	/* Command DSD count */;
+	uint16_t	ms_tot_cnt;	/* Total DSD Count */
+	uint8_t		ms_type;	/* MS type */
+	uint8_t		ms_r_ctl;	/* R_CTL */
+	uint16_t	ms_rxid;	/* RX_ID */
+	uint16_t	ms_reserved2;
+	uint32_t	ms_handle2;
+	uint32_t	ms_rsp_bcnt;	/* Response byte count */
+	uint32_t	ms_cmd_bcnt;	/* Command byte count */
+	ispds64_t	ms_dataseg[2];
+} isp_ms_t;
 
 /* 
  * Completion Status Codes.
@@ -1106,6 +1130,17 @@ typedef struct {
 	uint8_t		portname[8];
 	uint8_t		nodename[8];
 } isp_pdb_t;
+
+/*
+ * Genericized Port Login/Logout software structure
+ */
+typedef struct {
+	uint16_t	handle;
+	uint32_t
+		flags	: 8,
+		portid	: 24;
+} isp_plcmd_t;
+/* the flags to use are those for PLOGX_FLG_* below */
 
 /*
  * ISP24XX- Login/Logout Port IOCB
