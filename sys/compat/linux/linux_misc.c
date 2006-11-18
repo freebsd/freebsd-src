@@ -114,10 +114,11 @@ struct l_sysinfo {
 	l_ulong		totalswap;	/* Total swap space size */
 	l_ulong		freeswap;	/* swap space still available */
 	l_ushort	procs;		/* Number of current processes */
+	l_ushort	pads;
 	l_ulong		totalbig;
 	l_ulong		freebig;
 	l_uint		mem_unit;
-	char		_f[6];		/* Pads structure to 64 bytes */
+	char		_f[20-2*sizeof(l_long)-sizeof(l_int)];	/* padding */
 };
 int
 linux_sysinfo(struct thread *td, struct linux_sysinfo_args *args)
