@@ -791,7 +791,8 @@ typedef enum {
 	ISPCTL_GET_PORTNAME,		/* get portname from an N-port handle */
 	ISPCTL_RUN_MBOXCMD,		/* run a mailbox command */
 	ISPCTL_TOGGLE_TMODE,		/* toggle target mode */
-	ISPCTL_GET_PDB			/* get a single port database entry */
+	ISPCTL_GET_PDB,			/* get a single port database entry */
+	ISPCTL_PLOGX			/* do a port login/logout */
 } ispctl_t;
 int isp_control(ispsoftc_t *, ispctl_t, void *);
 
