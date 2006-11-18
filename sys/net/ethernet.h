@@ -343,6 +343,22 @@ struct	ether_addr {
 #define	ETHERMTU	(ETHER_MAX_LEN-ETHER_HDR_LEN-ETHER_CRC_LEN)
 #define	ETHERMIN	(ETHER_MIN_LEN-ETHER_HDR_LEN-ETHER_CRC_LEN)
 #define	ETHERMTU_JUMBO	(ETHER_MAX_LEN_JUMBO - ETHER_HDR_LEN - ETHER_CRC_LEN)
+/*
+ * The ETHER_BPF_MTAP macro should be used by drivers which support hardware
+ * offload for VLAN tag processing.  It will check the mbuf to see if it has
+ * M_VLANTAG set, and if it does, will pass the packet along to
+ * ether_vlan_mtap.  This function will re-insert VLAN tags for the duration
+ * of the tap, show they show up properly for network analyzers.
+ */
+#define ETHER_BPF_MTAP(_ifp, _m) do {					\
+	if (bpf_peers_present((_ifp)->if_bpf)) {			\
+		M_ASSERTVALID(_m);					\
+		if (((_m)->m_flags & M_VLANTAG) != 0)			\
+			ether_vlan_mtap((_ifp)->if_bpf, (_m), NULL, 0);	\
+		else							\
+			bpf_mtap((_ifp)->if_bpf, (_m));			\
+	}								\
+} while (0)
 
 #ifdef _KERNEL
 
@@ -350,6 +366,7 @@ struct ifnet;
 struct mbuf;
 struct rtentry;
 struct sockaddr;
+struct bpf_if;
 
 extern	uint32_t ether_crc32_le(const uint8_t *, size_t);
 extern	uint32_t ether_crc32_be(const uint8_t *, size_t);
@@ -361,6 +378,8 @@ extern	int  ether_output(struct ifnet *,
 		   struct mbuf *, struct sockaddr *, struct rtentry *);
 extern	int  ether_output_frame(struct ifnet *, struct mbuf *);
 extern	char *ether_sprintf(const u_int8_t *);
+void	ether_vlan_mtap(struct bpf_if *, struct mbuf *,
+	    void *, u_int);
 
 #else /* _KERNEL */
 
