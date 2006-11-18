@@ -16,7 +16,7 @@
 
 <!ENTITY % release PUBLIC "-//FreeBSD//ENTITIES Release Specification//EN">
 %release;
-<!ENTITY release.bugfix "6.1-RELEASE">
+<!ENTITY release.bugfix "6.2-RELEASE">
 ]>
 
 <article>
