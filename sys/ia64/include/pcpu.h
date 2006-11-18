@@ -32,13 +32,15 @@
 
 #ifdef _KERNEL
 
+#include <machine/pcb.h>
+
 #define	PCPU_MD_FIELDS							\
-	struct pcb	*pc_pcb;		/* Used by IPI_STOP */	\
+	struct pcb	pc_pcb;			/* Used by IPI_STOP */	\
 	struct pmap	*pc_current_pmap;	/* active pmap */	\
 	uint64_t	pc_lid;			/* local CPU ID */	\
-	uint32_t	pc_awake:1;		/* CPU is awake? */	\
 	uint64_t	pc_clock;		/* Clock counter. */	\
 	uint64_t	pc_clockadj;		/* Clock adjust. */	\
+	uint32_t	pc_awake:1;		/* CPU is awake? */	\
 	uint32_t	pc_acpi_id		/* ACPI CPU id. */
 
 struct pcpu;
