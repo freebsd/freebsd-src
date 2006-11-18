@@ -47,6 +47,14 @@
 
 #include <dev/ofw/openfirm.h>
 
+#ifdef SUN4V
+#define DCACHE_COLOR_BITS       (0)
+#else
+#define DCACHE_COLOR_BITS       (1)
+#endif
+
+#define DCACHE_COLORS           (1 << DCACHE_COLOR_BITS)
+
 #define	DC_TAG_SHIFT	2
 #define	DC_VALID_SHIFT	0
 

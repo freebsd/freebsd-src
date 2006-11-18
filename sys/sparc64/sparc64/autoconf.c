@@ -27,6 +27,7 @@
  */
 
 #include "opt_isa.h"
+#include "opt_global.h"
 
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -65,6 +66,9 @@ static void
 configure(void *dummy)
 {
 
+#ifdef SUN4V
+	intr_restore_all(0x16);
+#endif
 	root_bus_configure();
 #ifdef DEV_ISA
 	if (isa_bus_device != NULL)
