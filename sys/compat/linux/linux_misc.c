@@ -1385,9 +1385,7 @@ linux_getpid(struct thread *td, struct linux_getpid_args *args)
    		td->td_retval[0] = em->shared->group_pid;
 		EMUL_UNLOCK(&emul_lock);
 	} else {
-	   	PROC_LOCK(td->td_proc);
    	   	td->td_retval[0] = td->td_proc->p_pid;
-	   	PROC_UNLOCK(td->td_proc);
 	}
 
 	return (0);
