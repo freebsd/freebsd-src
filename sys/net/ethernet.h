@@ -348,7 +348,7 @@ struct	ether_addr {
  * offload for VLAN tag processing.  It will check the mbuf to see if it has
  * M_VLANTAG set, and if it does, will pass the packet along to
  * ether_vlan_mtap.  This function will re-insert VLAN tags for the duration
- * of the tap, show they show up properly for network analyzers.
+ * of the tap, so they show up properly for network analyzers.
  */
 #define ETHER_BPF_MTAP(_ifp, _m) do {					\
 	if (bpf_peers_present((_ifp)->if_bpf)) {			\
