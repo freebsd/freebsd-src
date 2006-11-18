@@ -36,14 +36,26 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd November 25, 1999
+.Dd November 18, 2006
 .Dt UCOM 4
 .Os
 .Sh NAME
 .Nm ucom
 .Nd USB tty support
 .Sh SYNOPSIS
+To compile this driver into the kernel,
+place the following line in your
+kernel configuration file:
+.Bd -ragged -offset indent
 .Cd "device ucom"
+.Ed
+.Pp
+Alternatively, to load the driver as a
+module at boot time, place the following line in
+.Xr loader.conf 5 :
+.Bd -literal -offset indent
+ucom_load="YES"
+.Ed
 .Sh DESCRIPTION
 The
 .Nm
@@ -69,6 +81,7 @@ multiple external ports.
 .El
 .Sh SEE ALSO
 .Xr tty 4 ,
+.Xr uark 4 ,
 .Xr uftdi 4 ,
 .Xr umct 4 ,
 .Xr umodem 4 ,
