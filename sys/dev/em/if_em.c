@@ -248,7 +248,6 @@ static void	em_print_hw_stats(struct adapter *);
 static void	em_update_link_status(struct adapter *);
 static int	em_get_buf(struct adapter *, int);
 static void	em_enable_vlans(struct adapter *);
-static void	em_disable_vlans(struct adapter *);
 static int	em_encap(struct adapter *, struct mbuf **);
 static void	em_smartspeed(struct adapter *);
 static int	em_82547_fifo_workaround(struct adapter *, int);
@@ -761,7 +760,7 @@ em_start_locked(struct ifnet *ifp)
 		}
 
 		/* Send a copy of the frame to the BPF listener */
-		BPF_MTAP(ifp, m_head);
+		ETHER_BPF_MTAP(ifp, m_head);
 
 		/* Set timeout in case hardware has problems transmitting. */
 		adapter->watchdog_timer = EM_TX_TIMEOUT;
@@ -1507,45 +1506,6 @@ em_encap(struct adapter *adapter, struct mbuf **m_headp)
 	}
 
 	/*
-	 * When operating in promiscuous mode, hardware stripping of the
-	 * VLAN tag on receive is disabled.  This should not prevent us
-	 * from doing hardware insertion of the VLAN tag here as that
-	 * is controlled by the dma descriptor flags and not the receive
-	 * tag strip setting.  Unfortunatly this hardware switches the
-	 * VLAN encapsulation type from 802.1q to ISL when stripping om
-	 * receive is disabled.  This means we have to add the vlan
-	 * encapsulation here in the driver, since it will have come down
-	 * from the VLAN layer with a tag instead of a VLAN header.
-	 */
-	if ((m_head->m_flags & M_VLANTAG) && adapter->em_insert_vlan_header) {
-		struct ether_vlan_header *evl;
-		struct ether_header eh;
-
-		m_head = m_pullup(m_head, sizeof(eh));
-		if (m_head == NULL) {
-			*m_headp = NULL;
-			return (ENOBUFS);
-		}
-		eh = *mtod(m_head, struct ether_header *);
-		M_PREPEND(m_head, sizeof(*evl), M_DONTWAIT);
-		if (m_head == NULL) {
-			*m_headp = NULL;
-			return (ENOBUFS);
-		}
-		m_head = m_pullup(m_head, sizeof(*evl));
-		if (m_head == NULL) {
-			*m_headp = NULL;
-			return (ENOBUFS);
-		}
-		evl = mtod(m_head, struct ether_vlan_header *);
-		bcopy(&eh, evl, sizeof(*evl));
-		evl->evl_proto = evl->evl_encap_proto;
-		evl->evl_encap_proto = htons(ETHERTYPE_VLAN);
-		evl->evl_tag = htons(m_head->m_pkthdr.ether_vtag);
-		*m_headp = m_head;
-	}
-
-	/*
 	 * TSO workaround:
 	 *  If an mbuf contains only the IP and TCP header we have
 	 *  to pull 4 bytes of data into it.
@@ -1915,29 +1875,16 @@ em_set_promisc(struct adapter *adapter)
 	if (ifp->if_flags & IFF_PROMISC) {
 		reg_rctl |= (E1000_RCTL_UPE | E1000_RCTL_MPE);
 		E1000_WRITE_REG(&adapter->hw, RCTL, reg_rctl);
-		/*
-		 * Disable VLAN stripping in promiscous mode.
-		 * This enables bridging of vlan tagged frames to occur
-		 * and also allows vlan tags to be seen in tcpdump.
-		 * XXX: This is a bit bogus as tcpdump may be used
-		 * w/o promisc mode as well.
-		 */
-		if (ifp->if_capenable & IFCAP_VLAN_HWTAGGING)
-			em_disable_vlans(adapter);
-		adapter->em_insert_vlan_header = 1;
 	} else if (ifp->if_flags & IFF_ALLMULTI) {
 		reg_rctl |= E1000_RCTL_MPE;
 		reg_rctl &= ~E1000_RCTL_UPE;
 		E1000_WRITE_REG(&adapter->hw, RCTL, reg_rctl);
-		adapter->em_insert_vlan_header = 0;
-	} else
-		adapter->em_insert_vlan_header = 0;
+	}
 }
 
 static void
 em_disable_promisc(struct adapter *adapter)
 {
-	struct ifnet	*ifp = adapter->ifp;
 	uint32_t	reg_rctl;
 
 	reg_rctl = E1000_READ_REG(&adapter->hw, RCTL);
@@ -1945,10 +1892,6 @@ em_disable_promisc(struct adapter *adapter)
 	reg_rctl &=  (~E1000_RCTL_UPE);
 	reg_rctl &=  (~E1000_RCTL_MPE);
 	E1000_WRITE_REG(&adapter->hw, RCTL, reg_rctl);
-
-	if (ifp->if_capenable & IFCAP_VLAN_HWTAGGING)
-		em_enable_vlans(adapter);
-	adapter->em_insert_vlan_header = 0;
 }
 
 
@@ -2429,7 +2372,7 @@ em_setup_interface(device_t dev, struct adapter *adapter)
 	 */
 	ifp->if_data.ifi_hdrlen = sizeof(struct ether_vlan_header);
 	ifp->if_capabilities |= IFCAP_VLAN_HWTAGGING | IFCAP_VLAN_MTU;
-	ifp->if_capenable |= IFCAP_VLAN_MTU;
+	ifp->if_capenable |= IFCAP_VLAN_HWTAGGING | IFCAP_VLAN_MTU;
 
 #ifdef DEVICE_POLLING
 	ifp->if_capabilities |= IFCAP_POLLING;
@@ -3812,16 +3755,6 @@ em_enable_vlans(struct adapter *adapter)
 
 	ctrl = E1000_READ_REG(&adapter->hw, CTRL);
 	ctrl |= E1000_CTRL_VME;
-	E1000_WRITE_REG(&adapter->hw, CTRL, ctrl);
-}
-
-static void
-em_disable_vlans(struct adapter *adapter)
-{
-	uint32_t ctrl;
-
-	ctrl = E1000_READ_REG(&adapter->hw, CTRL);
-	ctrl &= ~E1000_CTRL_VME;
 	E1000_WRITE_REG(&adapter->hw, CTRL, ctrl);
 }
 
