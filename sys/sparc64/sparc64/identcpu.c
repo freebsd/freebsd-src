@@ -17,7 +17,7 @@
 #include <machine/md_var.h>
 #include <machine/ver.h>
 
-char machine[] = "sparc64";
+char machine[] = MACHINE;
 SYSCTL_STRING(_hw, HW_MACHINE, machine, CTLFLAG_RD,
     machine, 0, "Machine class");
 
@@ -25,13 +25,20 @@ static char cpu_model[128];
 SYSCTL_STRING(_hw, HW_MODEL, model, CTLFLAG_RD,
     cpu_model, 0, "Machine model");
 
+#ifndef SUN4V
 int cpu_impl;
+#endif
 
 void setPQL2(int *const size, int *const ways);
 
 void
 setPQL2(int *const size, int *const ways)
 {
+#ifdef SUN4V
+/* XXX hardcoding is lame */
+	*size = 3*1024;
+	*ways = 12;
+#endif
 	return;
 }
 
