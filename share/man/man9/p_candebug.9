@@ -27,13 +27,14 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd November 11, 2003
+.Dd November 18, 2006
 .Os
 .Dt P_CANDEBUG 9
 .Sh NAME
 .Nm p_candebug
 .Nd determine debuggability of a process
 .Sh SYNOPSIS
+.In sys/param.h
 .In sys/proc.h
 .Ft int
 .Fn p_candebug "struct thread *td" "struct proc *p"
