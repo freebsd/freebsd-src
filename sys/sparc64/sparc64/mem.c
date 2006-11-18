@@ -47,6 +47,7 @@ __FBSDID("$FreeBSD$");
  * might cause illegal aliases to be created for the locked kernel page(s), so
  * it is not implemented.
  */
+#include "opt_global.h"
 
 #include <sys/param.h>
 #include <sys/conf.h>
@@ -91,9 +92,11 @@ memrw(struct cdev *dev, struct uio *uio, int flags)
 	vm_paddr_t pa;
 	vm_size_t cnt;
 	vm_page_t m;
-	int color;
 	int error;
 	int i;
+#ifndef SUN4V
+	int color;
+#endif
 
 	cnt = 0;
 	error = 0;
@@ -137,10 +140,12 @@ memrw(struct cdev *dev, struct uio *uio, int flags)
 					ova = kmem_alloc_wait(kernel_map,
 					    PAGE_SIZE * DCACHE_COLORS);
 				}
-				if ((color = m->md.color) == -1)
-					va = ova;
-				else
+#ifndef SUN4V
+				if ((color = m->md.color) != -1)
 					va = ova + color * PAGE_SIZE;
+				else
+#endif
+					va = ova;
 				pmap_qenter(va, &m, 1);
 				error = uiomove((void *)(va + off), cnt,
 				    uio);
