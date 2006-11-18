@@ -108,7 +108,7 @@ int cold = 1;
 u_int64_t pa_bootinfo;
 struct bootinfo bootinfo;
 
-struct pcpu early_pcpu;
+struct pcpu pcpu0;
 extern char kstack[]; 
 vm_offset_t proc0kstack;
 
@@ -601,11 +601,14 @@ ia64_init(void)
 		bootverbose = 1;
 
 	/*
-	 * Setup the global data for the bootstrap cpu.
+	 * Setup the PCPU data for the bootstrap processor. It is needed
+	 * by printf(). Also, since printf() has critical sections, we
+	 * need to initialize at least pc_curthread.
 	 */
-	pcpup = &early_pcpu;
+	pcpup = &pcpu0;
 	ia64_set_k4((u_int64_t)pcpup);
-	pcpu_init(pcpup, 0, sizeof(early_pcpu));
+	pcpu_init(pcpup, 0, sizeof(pcpu0));
+	PCPU_SET(curthread, &thread0);
 
 	/*
 	 * Initialize the console before we print anything out.
@@ -782,7 +785,6 @@ ia64_init(void)
 	proc0kstack = (vm_offset_t)kstack;
 	thread0.td_kstack = proc0kstack;
 	thread0.td_kstack_pages = KSTACK_PAGES;
-	PCPU_SET(curthread, &thread0);
 
 	mutex_init();
 
