@@ -224,7 +224,7 @@ interrupt(u_int64_t vector, struct trapframe *tf)
 		cpumask_t mybit = PCPU_GET(cpumask);
 
 		intr = intr_disable();
-		savectx(PCPU_GET(pcb));
+		savectx(PCPU_PTR(pcb));
 		atomic_set_int(&stopped_cpus, mybit);
 		while ((started_cpus & mybit) == 0)
 			/* spin */;

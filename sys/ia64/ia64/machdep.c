@@ -403,17 +403,7 @@ cpu_throw(struct thread *old __unused, struct thread *new)
 void
 cpu_pcpu_init(struct pcpu *pcpu, int cpuid, size_t size)
 {
-	size_t pcpusz;
 
-	/*
-	 * Make sure the PCB is 16-byte aligned by making the PCPU
-	 * a multiple of 16 bytes. We assume the PCPU is 16-byte
-	 * aligned itself.
-	 */
-	pcpusz = (sizeof(struct pcpu) + 15) & ~15;
-	KASSERT(size >= pcpusz + sizeof(struct pcb),
-	    ("%s: too small an allocation for pcpu", __func__));
-	pcpu->pc_pcb = (struct pcb *)((char*)pcpu + pcpusz);
 	pcpu->pc_acpi_id = cpuid;
 }
 
@@ -611,6 +601,13 @@ ia64_init(void)
 		bootverbose = 1;
 
 	/*
+	 * Setup the global data for the bootstrap cpu.
+	 */
+	pcpup = &early_pcpu;
+	ia64_set_k4((u_int64_t)pcpup);
+	pcpu_init(pcpup, 0, sizeof(early_pcpu));
+
+	/*
 	 * Initialize the console before we print anything out.
 	 */
 	cninit();
@@ -781,19 +778,10 @@ ia64_init(void)
 #else
 	proc_linkup(&proc0, &thread0);
 #endif
-	/*
-	 * Init mapping for kernel stack for proc 0
-	 */
+
 	proc0kstack = (vm_offset_t)kstack;
 	thread0.td_kstack = proc0kstack;
 	thread0.td_kstack_pages = KSTACK_PAGES;
-
-	/*
-	 * Setup the global data for the bootstrap cpu.
-	 */
-	pcpup = (struct pcpu *)pmap_steal_memory(PAGE_SIZE);
-	ia64_set_k4((u_int64_t)pcpup);
-	pcpu_init(pcpup, 0, PAGE_SIZE);
 	PCPU_SET(curthread, &thread0);
 
 	mutex_init();
