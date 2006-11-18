@@ -1038,6 +1038,36 @@ isp_get_ct_pt(ispsoftc_t *isp, isp_ct_pt_t *src, isp_ct_pt_t *dst)
 }
 
 void
+isp_get_ms(ispsoftc_t *isp, isp_ms_t *src, isp_ms_t *dst)
+{
+	int i;
+
+	isp_get_hdr(isp, &src->ms_header, &dst->ms_header);
+	ISP_IOXGET_32(isp, &src->ms_handle, dst->ms_handle);
+	ISP_IOXGET_16(isp, &src->ms_nphdl, dst->ms_nphdl);
+	ISP_IOXGET_16(isp, &src->ms_status, dst->ms_status);
+	ISP_IOXGET_16(isp, &src->ms_flags, dst->ms_flags);
+	ISP_IOXGET_16(isp, &src->ms_reserved1, dst->ms_reserved1);
+	ISP_IOXGET_16(isp, &src->ms_time, dst->ms_time);
+	ISP_IOXGET_16(isp, &src->ms_cmd_cnt, dst->ms_cmd_cnt);
+	ISP_IOXGET_16(isp, &src->ms_tot_cnt, dst->ms_tot_cnt);
+	ISP_IOXGET_8(isp, &src->ms_type, dst->ms_type);
+	ISP_IOXGET_8(isp, &src->ms_r_ctl, dst->ms_r_ctl);
+	ISP_IOXGET_16(isp, &src->ms_rxid, dst->ms_rxid);
+	ISP_IOXGET_16(isp, &src->ms_reserved2, dst->ms_reserved2);
+	ISP_IOXGET_32(isp, &src->ms_rsp_bcnt, dst->ms_rsp_bcnt);
+	ISP_IOXGET_32(isp, &src->ms_cmd_bcnt, dst->ms_cmd_bcnt);
+	for (i = 0; i < 2; i++) {
+		ISP_IOXGET_32(isp, &src->ms_dataseg[i].ds_base,
+		    dst->ms_dataseg[i].ds_base);
+		ISP_IOXGET_32(isp, &src->ms_dataseg[i].ds_basehi,
+		    dst->ms_dataseg[i].ds_basehi);
+		ISP_IOXGET_32(isp, &src->ms_dataseg[i].ds_count,
+		    dst->ms_dataseg[i].ds_count);
+	}
+}
+
+void
 isp_put_ct_pt(ispsoftc_t *isp, isp_ct_pt_t *src, isp_ct_pt_t *dst)
 {
 	int i;
@@ -1064,6 +1094,36 @@ isp_put_ct_pt(ispsoftc_t *isp, isp_ct_pt_t *src, isp_ct_pt_t *dst)
 		    &dst->ctp_dataseg[i].ds_basehi);
 		ISP_IOXPUT_32(isp, src->ctp_dataseg[i].ds_count,
 		    &dst->ctp_dataseg[i].ds_count);
+	}
+}
+
+void
+isp_put_ms(ispsoftc_t *isp, isp_ms_t *src, isp_ms_t *dst)
+{
+	int i;
+
+	isp_put_hdr(isp, &src->ms_header, &dst->ms_header);
+	ISP_IOXPUT_32(isp, src->ms_handle, &dst->ms_handle);
+	ISP_IOXPUT_16(isp, src->ms_nphdl, &dst->ms_nphdl);
+	ISP_IOXPUT_16(isp, src->ms_status, &dst->ms_status);
+	ISP_IOXPUT_16(isp, src->ms_flags, &dst->ms_flags);
+	ISP_IOXPUT_16(isp, src->ms_reserved1, &dst->ms_reserved1);
+	ISP_IOXPUT_16(isp, src->ms_time, &dst->ms_time);
+	ISP_IOXPUT_16(isp, src->ms_cmd_cnt, &dst->ms_cmd_cnt);
+	ISP_IOXPUT_16(isp, src->ms_tot_cnt, &dst->ms_tot_cnt);
+	ISP_IOXPUT_8(isp, src->ms_type, &dst->ms_type);
+	ISP_IOXPUT_8(isp, src->ms_r_ctl, &dst->ms_r_ctl);
+	ISP_IOXPUT_16(isp, src->ms_rxid, &dst->ms_rxid);
+	ISP_IOXPUT_16(isp, src->ms_reserved2, &dst->ms_reserved2);
+	ISP_IOXPUT_32(isp, src->ms_rsp_bcnt, &dst->ms_rsp_bcnt);
+	ISP_IOXPUT_32(isp, src->ms_cmd_bcnt, &dst->ms_cmd_bcnt);
+	for (i = 0; i < 2; i++) {
+		ISP_IOXPUT_32(isp, src->ms_dataseg[i].ds_base,
+		    &dst->ms_dataseg[i].ds_base);
+		ISP_IOXPUT_32(isp, src->ms_dataseg[i].ds_basehi,
+		    &dst->ms_dataseg[i].ds_basehi);
+		ISP_IOXPUT_32(isp, src->ms_dataseg[i].ds_count,
+		    &dst->ms_dataseg[i].ds_count);
 	}
 }
 

@@ -114,9 +114,9 @@ static void isp_scsi_channel_init(ispsoftc_t *, int);
 static void isp_fibre_init(ispsoftc_t *);
 static void isp_fibre_init_2400(ispsoftc_t *);
 static void isp_mark_portdb(ispsoftc_t *, int);
-static void isp_plogx_24xx(ispsoftc_t *, uint16_t, uint32_t, int *);
+static int isp_plogx(ispsoftc_t *, uint16_t, uint32_t, int, int);
 static int isp_port_login(ispsoftc_t *, uint16_t, uint32_t);
-static void isp_port_logout(ispsoftc_t *, uint16_t, uint32_t);
+static int isp_port_logout(ispsoftc_t *, uint16_t, uint32_t);
 static int isp_getpdb(ispsoftc_t *, uint16_t, isp_pdb_t *, int);
 static uint64_t isp_get_portname(ispsoftc_t *, int, int);
 static int isp_fclink_test(ispsoftc_t *, int);
@@ -2083,36 +2083,47 @@ isp_mark_portdb(ispsoftc_t *isp, int onprobation)
 
 /*
  * Perform an IOCB PLOGI or LOGO via EXECUTE IOCB A64 for 24XX cards
+ * or via FABRIC LOGIN/FABRIC LOGOUT for other cards.
  */
-static void
-isp_plogx_24xx(ispsoftc_t *isp, uint16_t handle, uint32_t portid, int *log_ret)
+static int
+isp_plogx(ispsoftc_t *isp, uint16_t handle, uint32_t portid, int flags, int gs)
 {
 	mbreg_t mbs;
 	uint8_t q[QENTRY_LEN];
-	isp_plogx_t *plp = (isp_plogx_t *) q;
-	uint8_t *scp = FCPARAM(isp)->isp_scratch;
+	isp_plogx_t *plp;
+	uint8_t *scp;
 	uint32_t sst, parm1;
-	int junk;
+	int rval;
+
+	if (!IS_24XX(isp)) {
+		int action = flags & PLOGX_FLG_CMD_MASK;
+		if (action == PLOGX_FLG_CMD_PLOGI) {
+			return (isp_port_login(isp, handle, portid));
+		} else if (action == PLOGX_FLG_CMD_LOGO) {
+			return (isp_port_logout(isp, handle, portid));
+		} else {
+			return (MBOX_INVALID_COMMAND);
+		}
+	}
 
 	MEMZERO(q, QENTRY_LEN);
+	plp = (isp_plogx_t *) q;
 	plp->plogx_header.rqs_entry_count = 1;
 	plp->plogx_header.rqs_entry_type = RQSTYPE_LOGIN;
 	plp->plogx_handle = 0xffffffff;
 	plp->plogx_nphdl = handle;
 	plp->plogx_portlo = portid;
 	plp->plogx_rspsz_porthi = (portid >> 16) & 0xff;
-	if (log_ret) {
-		plp->plogx_flags = *log_ret;
-	} else {
-		log_ret = &junk;
-	}
+	plp->plogx_flags = flags;
 
 	if (isp->isp_dblev & ISP_LOGDEBUG1) {
 		isp_print_bytes(isp, "IOCB LOGX", QENTRY_LEN, plp);
 	}
-	/*
-	 * XXX: We're going to assume somebody has acquired SCRATCH for us
-	 */
+
+	if (gs == 0) {
+		FC_SCRATCH_ACQUIRE(isp);
+	}
+	scp = FCPARAM(isp)->isp_scratch;
 	isp_put_plogx(isp, plp, (isp_plogx_t *) scp);
 
 
@@ -2128,7 +2139,8 @@ isp_plogx_24xx(ispsoftc_t *isp, uint16_t handle, uint32_t portid, int *log_ret)
 	MEMORYBARRIER(isp, SYNC_SFORDEV, 0, QENTRY_LEN);
 	isp_mboxcmd(isp, &mbs);
 	if (mbs.param[0] != MBOX_COMMAND_COMPLETE) {
-		*log_ret = mbs.param[0];
+		rval = mbs.param[0];
+		goto out;
 	}
 	MEMORYBARRIER(isp, SYNC_SFORCPU, QENTRY_LEN, QENTRY_LEN);
 	scp += QENTRY_LEN;
@@ -2138,19 +2150,19 @@ isp_plogx_24xx(ispsoftc_t *isp, uint16_t handle, uint32_t portid, int *log_ret)
 	}
 
 	if (plp->plogx_status == PLOGX_STATUS_OK) {
-		*log_ret = 0;
-		return;
+		rval = 0;
+		goto out;
 	} else if (plp->plogx_status != PLOGX_STATUS_IOCBERR) {
 		isp_prt(isp, ISP_LOGWARN, "status 0x%x on port login IOCB",
 		    plp->plogx_status);
-		*log_ret = -1;
-		return;
+		rval = -1;
+		goto out;
 	}
 
 	sst = plp->plogx_ioparm[0].lo16 | (plp->plogx_ioparm[0].hi16 << 16);
 	parm1 = plp->plogx_ioparm[1].lo16 | (plp->plogx_ioparm[1].hi16 << 16);
 
-	*log_ret = -1;
+	rval = -1;
 
 	switch (sst) {
 	case PLOGX_IOCBERR_NOLINK:
@@ -2166,8 +2178,8 @@ isp_plogx_24xx(ispsoftc_t *isp, uint16_t handle, uint32_t portid, int *log_ret)
 	case PLOGX_IOCBERR_FAILED:
 		isp_prt(isp, ISP_LOGERR,
 		    "PLOGX(0x%x) of Port 0x%06x failed: reason 0x%x (last LOGIN"
-		    " state 0x%x)", *log_ret, portid,
-		    parm1 & 0xff, (parm1 >> 8) & 0xff);
+		    " state 0x%x)", flags, portid, parm1 & 0xff,
+		    (parm1 >> 8) & 0xff);
 		break;
 	case PLOGX_IOCBERR_NOFABRIC:
 		isp_prt(isp, ISP_LOGERR, "PLOGX failed- no fabric");
@@ -2179,7 +2191,7 @@ isp_plogx_24xx(ispsoftc_t *isp, uint16_t handle, uint32_t portid, int *log_ret)
 		isp_prt(isp, ISP_LOGERR,
 		    "PLOGX failed- not logged in (last LOGIN state 0x%x)",
 		    parm1);
-		*log_ret = MBOX_NOT_LOGGED_IN;
+		rval = MBOX_NOT_LOGGED_IN;
 		break;
 	case PLOGX_IOCBERR_REJECT:
 		isp_prt(isp, ISP_LOGERR, "PLOGX failed: LS_RJT = 0x%x", parm1);
@@ -2195,13 +2207,13 @@ isp_plogx_24xx(ispsoftc_t *isp, uint16_t handle, uint32_t portid, int *log_ret)
 		isp_prt(isp, ISP_LOGDEBUG0,
 		    "portid 0x%x already logged in with N-port handle 0x%x",
 		    portid, parm1);
-		*log_ret = MBOX_PORT_ID_USED | (handle << 16);
+		rval = MBOX_PORT_ID_USED | (handle << 16);
 		break;
 	case PLOGX_IOCBERR_HNDLUSED:
 		isp_prt(isp, ISP_LOGDEBUG0,
 		    "N-port handle 0x%x already used for portid 0x%x",
 		    handle, parm1);
-		*log_ret = MBOX_LOOP_ID_USED;
+		rval = MBOX_LOOP_ID_USED;
 		break;
 	case PLOGX_IOCBERR_NOHANDLE:
 		isp_prt(isp, ISP_LOGERR, "PLOGX failed- no handle allocated");
@@ -2210,11 +2222,16 @@ isp_plogx_24xx(ispsoftc_t *isp, uint16_t handle, uint32_t portid, int *log_ret)
 		isp_prt(isp, ISP_LOGERR, "PLOGX failed- no FLOGI_ACC");
 		break;
 	default:
-		isp_prt(isp, ISP_LOGERR, "status %x from %s", plp->plogx_status,
-		    (*log_ret)? "PLOGI" : "LOGO");
-		*log_ret = -1;
+		isp_prt(isp, ISP_LOGERR, "status %x from %x", plp->plogx_status,
+		    flags);
+		rval = -1;
 		break;
 	}
+out:
+	if (gs == 0) {
+		FC_SCRATCH_RELEASE(isp);
+	}
+	return (rval);
 }
 
 static int
@@ -2239,14 +2256,14 @@ isp_port_login(ispsoftc_t *isp, uint16_t handle, uint32_t portid)
 	switch (mbs.param[0]) {
 	case MBOX_PORT_ID_USED:
 		isp_prt(isp, ISP_LOGDEBUG0,
-		    "isp_port_login: portid 0x%06x already logged in as %u",
+		    "isp_plogi_old: portid 0x%06x already logged in as %u",
 		    portid, mbs.param[1]);
 		return (MBOX_PORT_ID_USED | (mbs.param[1] << 16));
 		break;
 
 	case MBOX_LOOP_ID_USED:
 		isp_prt(isp, ISP_LOGDEBUG0,
-		    "isp_port_login: handle %u in use for port id 0x%02xXXXX",
+		    "isp_plogi_old: handle %u in use for port id 0x%02xXXXX",
 		    handle, mbs.param[1] & 0xff);
 		return (MBOX_LOOP_ID_USED);
 
@@ -2255,24 +2272,24 @@ isp_port_login(ispsoftc_t *isp, uint16_t handle, uint32_t portid)
 
 	case MBOX_COMMAND_ERROR:
 		isp_prt(isp, ISP_LOGINFO,
-		    "isp_port_login: error 0x%x in PLOGI to port 0x%06x",
+		    "isp_plogi_old: error 0x%x in PLOGI to port 0x%06x",
 		    mbs.param[1], portid);
 		return (MBOX_COMMAND_ERROR);
 
 	case MBOX_ALL_IDS_USED:
 		isp_prt(isp, ISP_LOGINFO,
-		    "isp_port_login: all IDs used for fabric login");
+		    "isp_plogi_old: all IDs used for fabric login");
 		return (MBOX_ALL_IDS_USED);
 
 	default:
 		isp_prt(isp, ISP_LOGINFO,
-		    "isp_port_login: error 0x%x on port login of 0x%06x@0x%0x",
+		    "isp_plogi_old: error 0x%x on port login of 0x%06x@0x%0x",
 		    mbs.param[0], portid, handle);
 		return (mbs.param[0]);
 	}
 }
 
-static void
+static int
 isp_port_logout(ispsoftc_t *isp, uint16_t handle, uint32_t portid)
 {
 	mbreg_t mbs;
@@ -2288,6 +2305,7 @@ isp_port_logout(ispsoftc_t *isp, uint16_t handle, uint32_t portid)
 	mbs.logval = MBLOGNONE;
 	mbs.timeout = 100000;
 	isp_mboxcmd(isp, &mbs);
+	return (mbs.param[0] == MBOX_COMMAND_COMPLETE? 0 : mbs.param[0]);
 }
 
 static int
@@ -2725,19 +2743,10 @@ isp_pdb_sync(ispsoftc_t *isp)
 			lp->state = FC_PORTDB_STATE_NIL;
 			isp_async(isp, ISPASYNC_DEV_GONE, lp);
 			if (lp->autologin == 0) {
-				if (IS_24XX(isp)) {
-					int action =
-					    PLOGX_FLG_CMD_LOGO |
-					    PLOGX_FLG_IMPLICIT |
-					    PLOGX_FLG_FREE_NPHDL;
-					FC_SCRATCH_ACQUIRE(isp);
-					isp_plogx_24xx(isp, lp->handle,
-					    lp->portid, &action);
-					FC_SCRATCH_RELEASE(isp);
-				} else {
-					isp_port_logout(isp, lp->handle,
-					    lp->portid);
-				}
+				(void) isp_plogx(isp, lp->handle, lp->portid,
+				    PLOGX_FLG_CMD_LOGO |
+				    PLOGX_FLG_IMPLICIT |
+				    PLOGX_FLG_FREE_NPHDL, 0);
 			} else {
 				lp->autologin = 0;
 			}
@@ -2987,7 +2996,7 @@ isp_scan_loop(ispsoftc_t *isp)
 				lp->new_roles = tmp.roles;
 				lp->state = FC_PORTDB_STATE_PENDING_VALID;
 				isp_prt(isp, ISP_LOGSANCFG,
-				    "Loop Port 0x%06x@0x%x Pending Valid",
+				    "Loop Port 0x%02x@0x%x Pending Valid",
 				    tmp.portid, tmp.handle);
 				break;
 			}
@@ -3686,7 +3695,7 @@ isp_scan_fabric(ispsoftc_t *isp)
 static int
 isp_login_device(ispsoftc_t *isp, uint32_t portid, isp_pdb_t *p, uint16_t *ohp)
 {
-	int lim, i, r, logval;
+	int lim, i, r;
 	uint16_t handle;
 
 	if (IS_24XX(isp)) {
@@ -3704,14 +3713,8 @@ isp_login_device(ispsoftc_t *isp, uint32_t portid, isp_pdb_t *p, uint16_t *ohp)
 		 */
 		r = isp_getpdb(isp, handle, p, 0);
 		if (r == 0 && p->portid != portid) {
-			if (IS_24XX(isp)) {
-				logval =
-				    PLOGX_FLG_CMD_LOGO |
-				    PLOGX_FLG_IMPLICIT;
-				isp_plogx_24xx(isp, handle, portid, &logval);
-			} else {
-				isp_port_logout(isp, handle, portid);
-			}
+			(void) isp_plogx(isp, handle,portid,
+			    PLOGX_FLG_CMD_LOGO | PLOGX_FLG_IMPLICIT, 1);
 		} else if (r == 0) {
 			break;
 		}
@@ -3721,22 +3724,17 @@ isp_login_device(ispsoftc_t *isp, uint32_t portid, isp_pdb_t *p, uint16_t *ohp)
 		/*
 		 * Now try and log into the device
 		 */
-		if (IS_24XX(isp)) {
-			logval = PLOGX_FLG_CMD_PLOGI;
-			isp_plogx_24xx(isp, handle, portid, &logval);
-		} else {
-			logval = isp_port_login(isp, handle, portid);
-		}
+		r = isp_plogx(isp, handle, portid, PLOGX_FLG_CMD_PLOGI, 1);
 		if (FCPARAM(isp)->isp_loopstate != LOOP_SCANNING_FABRIC) {
 			return (-1);
 		}
-		if (logval == 0) {
+		if (r == 0) {
 			*ohp = handle;
 			break;
-		} else if ((logval & 0xffff) == MBOX_PORT_ID_USED) {
-			handle = logval >> 16;
+		} else if ((r & 0xffff) == MBOX_PORT_ID_USED) {
+			handle = r >> 16;
 			break;
-		} else if (logval != MBOX_LOOP_ID_USED) {
+		} else if (r != MBOX_LOOP_ID_USED) {
 			i = lim;
 			break;
 		} else {
@@ -3929,6 +3927,9 @@ isp_nxt_handle(ispsoftc_t *isp, uint16_t handle)
 		}
 	} else {
 		handle += 1;
+		if (handle == NPH_MGT_ID) {
+			handle++;
+		}
 		if (handle >= FL_ID && handle <= SNS_ID) {
 			handle = SNS_ID+1;
 		} else if (IS_24XX(isp)) {
@@ -4423,6 +4424,11 @@ isp_control(ispsoftc_t *isp, ispctl_t ctl, void *arg)
 		isp_mboxcmd(isp, arg);
 		return(0);
 
+	case ISPCTL_PLOGX:
+	{
+		isp_plcmd_t *p = arg;
+		return (isp_plogx(isp, p->handle, p->portid, p->flags, 0));
+	}
 #ifdef	ISP_TARGET_MODE
 	case ISPCTL_TOGGLE_TMODE:
 	{
