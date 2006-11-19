@@ -2000,8 +2000,6 @@ ip_forward(struct mbuf *m, int srcrt)
 #else /* FAST_IPSEC */
 				KEY_FREESP(&sp);
 #endif
-				ipstat.ips_cantfrag++;
-				break;
 			}
 		}
 #endif /*IPSEC || FAST_IPSEC*/
