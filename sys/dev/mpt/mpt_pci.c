@@ -354,7 +354,7 @@ mpt_set_options(struct mpt_softc *mpt)
 	}
 
 	tval = 0;
-	mpt->msi_enable = 1;
+	mpt->msi_enable = 0;
 	if (resource_int_value(device_get_name(mpt->dev),
 	    device_get_unit(mpt->dev), "msi_enable", &tval) == 0 && tval == 1) {
 		mpt->msi_enable = 1;
