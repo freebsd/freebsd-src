@@ -10,7 +10,7 @@
 
 	The FreeBSD Simplified Chinese Project
 
-	Original Revision: 1.73.2.34
+	Original Revision: 1.73.2.34.2.2
 -->
 
 <!DOCTYPE article PUBLIC "-//FreeBSD//DTD DocBook V4.1-Based Extension//EN" [
@@ -19,7 +19,7 @@
 
 <!ENTITY % release PUBLIC "-//FreeBSD//ENTITIES Release Specification//EN">
 %release;
-<!ENTITY release.bugfix "6.1-RELEASE">
+<!ENTITY release.bugfix "6.2-RELEASE">
 ]>
 
 <article>
@@ -98,175 +98,13 @@
   <sect1 id="security">
     <title>安全公告</title>
 
-    <para>下列安全公告与 &os; &release.bugfix; 有关。
-      要了解进一步的信息， 请从
-      <ulink url="http://security.FreeBSD.org/"></ulink>
-      下载并阅读安全公告。</para>
-
-    <informaltable frame="none" pgwide="0">
-      <tgroup cols="3">
-	<colspec colwidth="1*">
-	<colspec colwidth="1*">
-	<colspec colwidth="3*">
-	<thead>
-	  <row>
-	    <entry>安全公告</entry>
-	    <entry>日期</entry>
-	    <entry>主题</entry>
-	  </row>
-	</thead>
-
-	<tbody>
-	  <row>
-	    <entry><ulink url="http://security.FreeBSD.org/advisories/FreeBSD-SA-06:15.ypserv.asc"
-		>SA-06:15.ypserv</ulink></entry>
-	    <entry>2006&nbsp;年&nbsp;5&nbsp;月&nbsp;31&nbsp;日</entry>
-	    <entry><para>&man.ypserv.8; 中的访问控制功能工作不正确</para></entry>
-	  </row>
-
-	  <row>
-	    <entry><ulink url="http://security.FreeBSD.org/advisories/FreeBSD-SA-06:16.smbfs.asc"
-		>SA-06:16.smbfs</ulink></entry>
-	    <entry>2006&nbsp;年&nbsp;5&nbsp;月&nbsp;31&nbsp;日</entry>
-	    <entry><para>在 smbfs 中可能绕过 chroot</para></entry>
-
-	  <row>
-	    <entry><ulink url="http://security.FreeBSD.org/advisories/FreeBSD-SA-06:17.sendmail.asc"
-		>SA-06:17.sendmail</ulink></entry>
-	    <entry>2006&nbsp;年&nbsp;6&nbsp;月&nbsp;14日</entry>
-	    <entry><para>在 Sendmail 中对 multipart 信件的处理不正确</para></entry>
-	  </row>
-
-	  <row>
-	    <entry><ulink url="http://security.FreeBSD.org/advisories/FreeBSD-SA-06:18.ppp.asc"
-		>SA-06:18.ppp</ulink></entry>
-	    <entry>2006&nbsp;年&nbsp;8&nbsp;月&nbsp;23&nbsp;日</entry>
-	    <entry><para>在 &man.sppp.4; 中存在缓冲区溢出问题</para></entry>
-	  </row>
-
-	  <row>
-	    <entry><ulink url="http://security.FreeBSD.org/advisories/FreeBSD-SA-06:19.openssl.asc"
-		>SA-06:19.openssl</ulink></entry>
-	    <entry>2006&nbsp;年&nbsp;9&nbsp;月&nbsp;06日</entry>
-	    <entry><para>&man.crypto.3; 中对 PKCS#1 v1.5 补位验证不正确的问题</para></entry>
-	  </row>
-
-	  <row>
-	    <entry><ulink url="http://security.FreeBSD.org/advisories/FreeBSD-SA-06:20.bind.asc"
-		>SA-06:20.bind</ulink></entry>
-	    <entry>2006&nbsp;年&nbsp;9&nbsp;月&nbsp;06&nbsp;日</entry>
-	    <entry><para>&man.named.8;中的拒绝服务问题</para></entry>
-	  </row>
-
-	  <row>
-	    <entry><ulink url="http://security.FreeBSD.org/advisories/FreeBSD-SA-06:21.gzip.asc"
-		>SA-06:21.gzip</ulink></entry>
-	    <entry>2006&nbsp;年&nbsp;9&nbsp;月&nbsp;19&nbsp;日</entry>
-	    <entry><para>&man.gzip.1; 中的多处漏洞</para></entry>
-	  </row>
-
-	  <row>
-	    <entry><ulink url="http://security.FreeBSD.org/advisories/FreeBSD-SA-06:22.openssh.asc"
-		>SA-06:22.openssh</ulink></entry>
-	    <entry>2006&nbsp;年&nbsp;9&nbsp;月&nbsp;30&nbsp;日</entry>
-	    <entry><para>OpenSSH 中的多处漏洞</para></entry>
-	  </row>
-
-	  <row>
-	    <entry><ulink url="http://security.FreeBSD.org/advisories/FreeBSD-SA-06:23.openssl.asc"
-		>SA-06:23.openssl</ulink></entry>
-	    <entry>2006&nbsp;年&nbsp;9&nbsp;月&nbsp;28&nbsp;日</entry>
-	    <entry><para>&man.crypto.3; 中的多处问题</para></entry>
-	  </row>
-	</tbody>
-      </tgroup>
-    </informaltable>
+    <para>暂无安全公告。</para>
   </sect1>
 
   <sect1 id="known-problems">
     <title>已知问题和解决方法</title>
 
-    <para>(2006/05/10) 随 &os;
-      &release.bugfix; 发布的勘误说明文件中错误地包含了仅适用于
-      &os; 6.0-RELEASE 的信息。</para>
-
-    <para>(2006/05/10) &os; &release.bugfix;
-      中的发行版说明文件中关于 KDE 升级的部分中，
-      KDE port 的名字是错的。 正确的名字应该是
-      <filename role="package">x11/kde3</filename>。</para>
-
-    <para>(2006/05/10) 针对 &os; &release.bugfix; 的发行版说明中，
-      未能提及在使用 SMP 内核时会默认启用双核的 i386 和 amd64 CPU 中的第二个核。</para>
-
-    <para>(2006/05/13) 在 &os;
-      &release.bugfix; 中 &man.ata.4; 驱动的变动，
-      导致了用户态程序可见的一个软件接口变化。 所有使用
-      <literal>IOCATAREQUEST</literal> &man.ioctl.2; 接口的程序，
-      都必须重新编译才能继续使用。 通常这种程序是直接与 ATA 和 ATAPI 驱动器通讯的，
-      这其中包括 CDROM 刻录和音轨抓取， 以及监控程序等等。
-      目前已知会受到影响的程序是
-      <filename role="package">sysutils/smartmontools</filename>
-      port 所安装的 <filename>smartd</filename>。</para>
-
-    <para>(2006/05/27， 于 2006/06/01 更新) 在 &os;/alpha 上， 有时 &man.sysinstall.8;
-      会不允许对磁盘做 label 操作。 磁盘在 &man.sysinstall.8; 中能够看到，
-      但类似 <guimenuitem>Auto</guimenuitem> 这样的操作不会产生 disklabel。
-      绕过这个问题的方法是使用安装 CD 启动， 选择 <guimenuitem>Fixit</guimenuitem>。
-      接着在 <prompt>Fixit#</prompt> 提示符下手工执行 &man.disklabel.8;。 例如：
-      <command>disklabel -rw da1 auto</command> 会在
-      <devicename>da1</devicename> 中写入可用的 disklabel。 再用安装光盘重新启动系统，
-      则 &man.sysinstall.8; 就能检测到有效的 disklabel，
-      并正确地进行分区操作了。</para>
-
-    <para>(2006/05/27) &os; &release.bugfix; 中包含了一些对 <filename>src/sys/net/if_media.h</filename>
-      中某些定义 (版本为 1.30.2.1) 的变动。 这会破坏与为 &os; 6.0-RELEASE
-      所撰写的 10Gb 以太网设备驱动的源代码级别兼容性。 这一变动未能在发行版说明中体现。</para>
-
-    <para>(2006/06/01， 于 2006/07/07 更新) 在 <filename>rc.d/jail</filename>
-      启动脚本中存在一系列问题， 这些问题可能会给使用它来配置系统引导时的 &man.jail.2;
-      环境的用户带来麻烦。 对于这些问题的修正， 目前已经汇入了 HEAD、 RELENG_6 和 RELENG_6_1。
-      关于这一问题的更多细节， 请参见勘误公告
-      <ulink url="ftp://ftp.FreeBSD.org/pub/FreeBSD/ERRATA/notices/FreeBSD-EN-06:01.jail.asc">FreeBSD-EN-06:01.jail</ulink>。</para>
-
-    <para>(2006/06/01， 于 2006/08/30 更新) 发现在某些情况下 (可重现) 文件系统同时使用快照和容量配额的机器上会发生死锁。
-      对于此问题的修正， 已经汇入
-      HEAD 和 RELENG_6 分支。</para>
-
-    <para>(2006/06/01， 于 2006/08/28 更新) 在 Neighbor Discovery Protocol (NDP)
-      实现中的一处问题会导致 &os; &release.bugfix; 通过点对点
-      IPv6 链路发送无效消息。 这是 &os; 6.0-RELEASE 上的一个回归问题。
-      对此问题的修正， 已经汇入 HEAD、 RELENG_6 和 RELENG_6_1。
-      关于此问题的进一步详情， 请参见勘误公告
-      <ulink url="ftp://ftp.FreeBSD.org/pub/FreeBSD/ERRATA/notices/FreeBSD-EN-06:02.net.asc">FreeBSD-EN-06:02.net</ulink>。</para>
-
-    <para>(2006/06/01) 发现在 &man.sysinstall.8; 环境中从多个 CDROM
-      上加载包时存在一些问题。 具体说来，
-      &man.sysinstall.8; 的换盘功能对磁盘内容的识别有些问题。
-      这一状况主要见于在安装不带 &xorg; 的基本系统
-      (通常是第一张 CDROM)， 之后又使用 &man.sysinstall.8; 从后续的 CDROM 来安装需要
-      &xorg; 的包 (例如 GNOME 或 KDE 桌面环境) 时可能会触发问题。
-      绕过这一问题的方法是随基本系统安装 &xorg;， 或在安装依赖它的其它包之前单独安装它。</para>
-
-    <para>(2006/06/01， 于 2006/08/28 更新) 在 UMA 内核内存分配器中负责统计数据的逻辑存在问题，
-      这会导致 <literal>requests for mbufs denied(拒绝的 mbufs 请求)</literal> 数量 (使用
-      <command>netstat -m</command> 查看) 错误地增多。 对于此问题的修正，
-      目前已经汇入了 HEAD、 RELENG_6 和
-      RELENG_6_1。 关于此问题的进一步详情， 请参见勘误公告
-      <ulink url="ftp://ftp.FreeBSD.org/pub/FreeBSD/ERRATA/notices/FreeBSD-EN-06:02.net.asc">FreeBSD-EN-06:02.net</ulink>。</para>
-
-    <para>(2006/06/01， 于 2006/10/07 更新) 修正了长期以来 i386 引导加载器在使用 &man.nextboot.8;
-      工具， 且 <filename>/boot/nextboot.conf</filename>
-      配置文件位于引导盘第 1023 柱面之后时可能导致根文件系统损坏的问题。
-      此问题的修正已经汇入了 HEAD， 并合并到了 RELENG_6。</para>
-
-    <para>(2006/06/16， 于 2006/10/07 更新) 发现了一处与锁有关的， 可导致 NFS 服务器性能明显下降的问题。
-      对于此问题的修正已经汇入了 HEAD 和 RELENG_6。</para>
-
-    <para>(2006/08/28) 由于在使用指针时未进行有效性验证，
-      网络协议栈可以从本地触发 panic。 这一问题已经在 HEAD、 RELENG_6 以及 RELENG_6_1
-      中修正。 关于此问题的进一步详情， 请参见勘误公告
-      <ulink url="ftp://ftp.FreeBSD.org/pub/FreeBSD/ERRATA/notices/FreeBSD-EN-06:02.net.asc">FreeBSD-EN-06:02.net</ulink>。</para>
-
+    <para>尚无已知问题。</para>
   </sect1>
 
 </article>

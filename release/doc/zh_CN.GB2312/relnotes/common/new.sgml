@@ -1,7 +1,7 @@
 <!--
      The FreeBSD Simplified Chinese Project
 
-     Original revision: 1.883.2.52
+     Original revision: 1.883.2.52.2.1
 -->
 <articleinfo>
   <title>&os;/&arch; &release.current; 发行说明</title>
@@ -162,6 +162,9 @@
       <varname>debug.minidump</varname> 设置为
       <literal>1</literal> 可以启用这一特性。</para>
 
+    <para>加入了一系列绕过 &man.tty.4; 层中的问题的措施；
+      这些变动有助于防止出现一些内核崩溃的情形。</para>
+
     <para>修正了内核的 UMA 内存分配器中与统计有关的部分代码中的问题。
       这个问题会导致内存分配失败的计数 (可以通过 <command>netstat -m</command> 查看)
       错误地增加。</para>
@@ -316,6 +319,9 @@
 
     <sect3 id="fs">
       <title>文件系统</title>
+
+      <para>修正了一系列与
+	&man.devfs.5; 有关的上锁问题。 这些变动会阻止死锁的出现。</para>
 
       <para arch="amd64,i386,pc98">新增了 &man.linsysfs.5;
 	伪文件系统驱动。 它提供了
@@ -505,7 +511,10 @@
 
     <para>支持的 <application>GNOME</application> 桌面环境
       (<filename role="package">x11/gnome2</filename>) 的版本，
-      从 2.12.3 升级到了 2.16.1。</para>
+      从 2.12.3 升级到了 2.16.1。 作为更新的一部分，
+      默认的 <application>GNOME</application> (及其相关程序) 前缀从
+      <filename>/usr/X11R6</filename>
+      挪到了 <filename>/usr/local</filename>。</para>
 
     <para>支持的 <application>KDE</application> 桌面环境
       (<filename role="package">x11/kde3</filename>) 的版本，
