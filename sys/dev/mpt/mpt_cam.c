@@ -2327,7 +2327,7 @@ mpt_scsi_tmf_reply_handler(struct mpt_softc *mpt, request_t *req,
 	req->IOCStatus = le16toh(tmf_reply->IOCStatus);
 	req->ResponseCode = tmf_reply->ResponseCode;
 
-	mpt_lprt(mpt, MPT_PRT_INFO, "TMF complete: req %p:%u status 0x%x\n",
+	mpt_lprt(mpt, MPT_PRT_DEBUG, "TMF complete: req %p:%u status 0x%x\n",
 	    req, req->serno, le16toh(tmf_reply->IOCStatus));
 	TAILQ_REMOVE(&mpt->request_pending_list, req, links);
 	if ((req->state & REQ_STATE_NEED_WAKEUP) != 0) {
@@ -3566,7 +3566,7 @@ mpt_scsi_send_tmf(struct mpt_softc *mpt, u_int type, u_int flags,
 	}
 	tmf_req->TaskMsgContext = abort_ctx;
 
-	mpt_lprt(mpt, MPT_PRT_INFO,
+	mpt_lprt(mpt, MPT_PRT_DEBUG,
 	    "Issuing TMF %p:%u with MsgContext of 0x%x\n", mpt->tmf_req,
 	    mpt->tmf_req->serno, tmf_req->MsgContext);
 	if (mpt->verbose > MPT_PRT_DEBUG) {
@@ -3578,6 +3578,8 @@ mpt_scsi_send_tmf(struct mpt_softc *mpt, u_int type, u_int flags,
 	TAILQ_INSERT_HEAD(&mpt->request_pending_list, mpt->tmf_req, links);
 	error = mpt_send_handshake_cmd(mpt, sizeof(*tmf_req), tmf_req);
 	if (error != MPT_OK) {
+		TAILQ_REMOVE(&mpt->request_pending_list, mpt->tmf_req, links);
+		mpt->tmf_req->state = REQ_STATE_FREE;
 		mpt_reset(mpt, TRUE);
 	}
 	return (error);
