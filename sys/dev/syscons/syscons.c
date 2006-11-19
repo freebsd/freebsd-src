@@ -767,11 +767,11 @@ scioctl(struct cdev *dev, u_long cmd, caddr_t data, int flag, struct thread *td)
 	return 0;
 
     case CONS_BELLTYPE: 	/* set bell type sound/visual */
-	if ((*(int *)data) & 0x01)
+	if ((*(int *)data) & CONS_VISUAL_BELL)
 	    sc->flags |= SC_VISUAL_BELL;
 	else
 	    sc->flags &= ~SC_VISUAL_BELL;
-	if ((*(int *)data) & 0x02)
+	if ((*(int *)data) & CONS_QUIET_BELL)
 	    sc->flags |= SC_QUIET_BELL;
 	else
 	    sc->flags &= ~SC_QUIET_BELL;
