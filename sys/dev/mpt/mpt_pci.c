@@ -326,6 +326,8 @@ mpt_set_options(struct mpt_softc *mpt)
 		}
 		mpt->do_cfg_role = 1;
 	}
+
+	mpt->msi_enable = 0;
 }
 #else
 static void
@@ -349,6 +351,13 @@ mpt_set_options(struct mpt_softc *mpt)
 	    tval <= 3) {
 		mpt->cfg_role = tval;
 		mpt->do_cfg_role = 1;
+	}
+
+	tval = 0;
+	mpt->msi_enable = 1;
+	if (resource_int_value(device_get_name(mpt->dev),
+	    device_get_unit(mpt->dev), "msi_enable", &tval) == 0 && tval == 1) {
+		mpt->msi_enable = 1;
 	}
 }
 #endif
@@ -512,12 +521,13 @@ mpt_pci_attach(device_t dev)
 
 	/* Get a handle to the interrupt */
 	iqd = 0;
-	if (pci_msi_count(dev) == 1) {
+	if (mpt->msi_enable && pci_msi_count(dev) == 1) {
 		mpt->pci_msi_count = 1;
-		if (pci_alloc_msi(dev, &mpt->pci_msi_count) == 0)
+		if (pci_alloc_msi(dev, &mpt->pci_msi_count) == 0) {
 			iqd = 1;
-		else
+		} else {
 			mpt->pci_msi_count = 0;
+		}
 	}	
 	mpt->pci_irq = bus_alloc_resource_any(dev, SYS_RES_IRQ, &iqd,
 	    RF_ACTIVE | RF_SHAREABLE);

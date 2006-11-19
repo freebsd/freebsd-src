@@ -496,7 +496,8 @@ struct mpt_softc {
 	uint32_t		mpt_pers_mask;
 	uint32_t
 		unit		: 8,
-				: 3,
+				: 2,
+		msi_enable	: 1,
 		twildcard	: 1,
 		tenabled	: 1,
 		do_cfg_role	: 1,
