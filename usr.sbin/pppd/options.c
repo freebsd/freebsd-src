@@ -55,6 +55,10 @@ static char rcsid[] = "$FreeBSD$";
 #include "cbcp.h"
 #endif
 
+#ifdef INET6
+#include "ipv6cp.h"
+#endif
+
 #ifdef IPX_CHANGE
 #include "ipxcp.h"
 #endif /* IPX_CHANGE */
@@ -227,6 +231,7 @@ static int setpapcrypt __P((char **));
 static int setidle __P((char **));
 static int setholdoff __P((char **));
 static int setdnsaddr __P((char **));
+static int resetipv6proto __P((char **));
 static int resetipxproto __P((char **));
 static int setwinsaddr __P((char **));
 static int showversion __P((char **));
@@ -237,6 +242,19 @@ static int setpdebug __P((char **));
 static int setpassfilter __P((char **));
 static int setactivefilter __P((char **));
 #endif
+
+#ifdef INET6
+static int setipv6cp_accept_local __P((char **));
+static int setipv6cp_use_ip __P((char **));
+#if defined(SOL2)
+static int setipv6cp_use_persistent __P((char **));
+#endif
+static int setipv6cptimeout __P((char **));
+static int setipv6cpterm __P((char **));
+static int setipv6cpconf __P((char **));
+static int setipv6cpfails __P((char **));
+static int setipv6proto __P((char **));
+#endif /* INET6 */
 
 #ifdef IPX_CHANGE
 static int setipxproto __P((char **));
@@ -388,6 +406,8 @@ static struct cmd {
 /* end compat hack */
     {"ms-dns", 1, setdnsaddr},		/* DNS address for the peer's use */
     {"ms-wins", 1, setwinsaddr},	/* Nameserver for SMB over TCP/IP for peer */
+    {"noipv6", 0, resetipv6proto},	/* Disable IPv6 and IPv6CP */
+    {"-ipv6", 0, resetipv6proto},	/* Disable IPv6 and IPv6CP */
     {"noipx",  0, resetipxproto},	/* Disable IPXCP (and IPX) */
     {"-ipx",   0, resetipxproto},	/* Disable IPXCP (and IPX) */
     {"--version", 0, showversion},	/* Show version number */
@@ -398,6 +418,20 @@ static struct cmd {
     {"pdebug", 1, setpdebug},		/* libpcap debugging */
     {"pass-filter", 1, setpassfilter},	/* set filter for packets to pass */
     {"active-filter", 1, setactivefilter}, /* set filter for active pkts */
+#endif
+
+#ifdef INET6
+    {"ipv6", 1, setifaceid},		/* Set interface id for IPV6" */
+    {"+ipv6", 0, setipv6proto},			/* Enable IPv6 and IPv6CP */
+    {"ipv6cp-accept-local", 0, setipv6cp_accept_local}, /* Accept peer's iface id for us */
+    {"ipv6cp-use-ipaddr", 0, setipv6cp_use_ip}, /* Use IPv4 addr as iface id */
+#if defined(SOL2)
+    {"ipv6cp-use-persistent", 0, setipv6cp_use_persistent}, /* Use uniquely-available persistent value for link local addr */
+#endif
+    {"ipv6cp-restart", 1, setipv6cptimeout},	/* Set timeout for IPv6CP */
+    {"ipv6cp-max-terminate", 1, setipv6cpterm},	/* max #xmits for term-reqs */
+    {"ipv6cp-max-configure", 1, setipv6cpconf},	/* max #xmits for conf-reqs */
+    {"ipv6cp-max-failure", 1, setipv6cpfails},	/* max #conf-naks for IPv6CP */
 #endif
 
 #ifdef IPX_CHANGE
@@ -2373,6 +2407,85 @@ setwinsaddr(argv)
 
     return (1);
 }
+
+#ifdef INET6
+static int
+setipv6cp_accept_local(argv)
+    char **argv;
+{
+    ipv6cp_allowoptions[0].accept_local = 1;
+    return 1;
+}
+
+static int
+setipv6cp_use_ip(argv)
+    char **argv;
+{
+    ipv6cp_allowoptions[0].use_ip = 1;
+    return 1;
+}
+
+#if defined(SOL2)
+static int
+setipv6cp_use_persistent(argv)
+    char **argv;
+{
+    ipv6cp_wantoptions[0].use_persistent = 1;
+    return 1;
+}
+#endif
+
+static int
+setipv6cptimeout(argv)
+    char **argv;
+{
+    return int_option(*argv, &ipv6cp_fsm[0].timeouttime);
+}
+
+static int
+setipv6cpterm(argv)
+    char **argv;
+{
+    return int_option(*argv, &ipv6cp_fsm[0].maxtermtransmits);
+}
+
+static int
+setipv6cpconf(argv)
+    char **argv;
+{
+    return int_option(*argv, &ipv6cp_fsm[0].maxconfreqtransmits);
+}
+
+static int
+setipv6cpfails(argv)
+    char **argv;
+{
+    return int_option(*argv, &ipv6cp_fsm[0].maxnakloops);
+}
+
+static int
+setipv6proto(argv)
+    char **argv;
+{
+    ipv6cp_protent.enabled_flag = 1;
+    return 1;
+}
+
+static int
+resetipv6proto(argv)
+    char **argv;
+{
+    ipv6cp_protent.enabled_flag = 0;
+    return 1;
+}
+#else
+static int
+resetipv6proto(argv)
+    char **argv;
+{
+    return 1;
+}
+#endif /* INET6 */
 
 #ifdef IPX_CHANGE
 static int
