@@ -152,7 +152,7 @@ nexus_bs_alloc(t, rstart, rend, size, alignment, boundary, cacheable,
 
 
 void
-nexus_bs_unmap(void *t, bus_size_t size)
+nexus_bs_unmap(void *t, bus_space_handle_t h, bus_size_t size)
 {
 	/*
 	 * Temporary implementation
