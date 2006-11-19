@@ -1608,7 +1608,7 @@ sdtossd(sd, ssd)
 static void
 getmemsize(int first)
 {
-	int i, physmap_idx, pa_indx, da_indx;
+	int i, off, physmap_idx, pa_indx, da_indx;
 	int hasbrokenint12, has_smap;
 	u_long physmem_tunable;
 	u_int extmem;
@@ -2036,7 +2036,10 @@ do_next:
 	/* Trim off space for the message buffer. */
 	phys_avail[pa_indx] -= round_page(MSGBUF_SIZE);
 
-	avail_end = phys_avail[pa_indx];
+	/* Map the message buffer. */
+	for (off = 0; off < round_page(MSGBUF_SIZE); off += PAGE_SIZE)
+		pmap_kenter((vm_offset_t)msgbufp + off, phys_avail[pa_indx] +
+		    off);
 }
 
 void
@@ -2044,7 +2047,7 @@ init386(first)
 	int first;
 {
 	struct gate_descriptor *gdp;
-	int gsel_tss, metadata_missing, off, x;
+	int gsel_tss, metadata_missing, x;
 	struct pcpu *pc;
 
 	thread0.td_kstack = proc0kstack;
@@ -2268,10 +2271,6 @@ init386(first)
 	init_param2(physmem);
 
 	/* now running on new page tables, configured,and u/iom is accessible */
-
-	/* Map the message buffer. */
-	for (off = 0; off < round_page(MSGBUF_SIZE); off += PAGE_SIZE)
-		pmap_kenter((vm_offset_t)msgbufp + off, avail_end + off);
 
 	msgbufinit(msgbufp, MSGBUF_SIZE);
 
