@@ -1015,7 +1015,6 @@ set_cpufuncs()
 #ifdef CPU_XSCALE_IXP425
 	if (cputype == CPU_ID_IXP425_533 || cputype == CPU_ID_IXP425_400 ||
             cputype == CPU_ID_IXP425_266) {
-		ixp425_icu_init();
 
 		cpufuncs = xscale_cpufuncs;
 #if defined(PERFCTRS)
