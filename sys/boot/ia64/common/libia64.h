@@ -45,9 +45,6 @@ extern int ldr_enter(const char *);
  * and shared by all loader implementations.
  */
 
-extern uint64_t *ia64_pgtbl;
-extern uint32_t ia64_pgtblsz;
-
 extern int ia64_autoload(void);
 
 extern ssize_t ia64_copyin(const void *, vm_offset_t, size_t);
