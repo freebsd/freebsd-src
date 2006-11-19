@@ -37,6 +37,11 @@ LDADD+=	-lcrypto
 DPADD+=	${LIBCRYPTO}
 .endif
 
+.if !defined(NO_INET6)
+CFLAGS+=-DINET6
+SRCS+=	eui64.c ipv6cp.c
+.endif
+
 .if defined(RELEASE_CRUNCH)
 # We must create these objects because crunchgen will link them,
 # and we don't want any unused symbols to spoil the final link.
