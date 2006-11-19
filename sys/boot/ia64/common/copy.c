@@ -32,11 +32,6 @@ __FBSDID("$FreeBSD$");
 
 #include "libia64.h"
 
-#define	LDR_LOG2_PGSZ	20
-
-uint64_t *ia64_pgtbl;
-uint32_t ia64_pgtblsz;
-
 static void *
 va2pa(vm_offset_t va, size_t *len)
 {
