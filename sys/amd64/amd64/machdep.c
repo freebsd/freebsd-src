@@ -833,7 +833,7 @@ u_int basemem;
 static void
 getmemsize(caddr_t kmdp, u_int64_t first)
 {
-	int i, physmap_idx, pa_indx, da_indx;
+	int i, off, physmap_idx, pa_indx, da_indx;
 	vm_paddr_t pa, physmap[PHYSMAP_SIZE];
 	u_long physmem_tunable;
 	pt_entry_t *pte;
@@ -1096,14 +1096,17 @@ do_next:
 	/* Trim off space for the message buffer. */
 	phys_avail[pa_indx] -= round_page(MSGBUF_SIZE);
 
-	avail_end = phys_avail[pa_indx];
+	/* Map the message buffer. */
+	for (off = 0; off < round_page(MSGBUF_SIZE); off += PAGE_SIZE)
+		pmap_kenter((vm_offset_t)msgbufp + off, phys_avail[pa_indx] +
+		    off);
 }
 
 u_int64_t
 hammer_time(u_int64_t modulep, u_int64_t physfree)
 {
 	caddr_t kmdp;
-	int gsel_tss, off, x;
+	int gsel_tss, x;
 	struct pcpu *pc;
 	u_int64_t msr;
 	char *env;
@@ -1269,10 +1272,6 @@ hammer_time(u_int64_t modulep, u_int64_t physfree)
 	init_param2(physmem);
 
 	/* now running on new page tables, configured,and u/iom is accessible */
-
-	/* Map the message buffer. */
-	for (off = 0; off < round_page(MSGBUF_SIZE); off += PAGE_SIZE)
-		pmap_kenter((vm_offset_t)msgbufp + off, avail_end + off);
 
 	msgbufinit(msgbufp, MSGBUF_SIZE);
 	fpuinit();
