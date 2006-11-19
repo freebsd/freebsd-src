@@ -69,6 +69,8 @@ static device_method_t iicbus_methods[] = {
 	DEVMETHOD(bus_driver_added,	bus_generic_driver_added),
         DEVMETHOD(bus_print_child,      bus_generic_print_child),
 
+	DEVMETHOD(iicbus_transfer,	iicbus_transfer_gen),
+
         { 0, 0 }
 };
 
@@ -141,6 +143,8 @@ iicbus_attach(device_t dev)
   
 	device_add_child(dev, "ic", -1);
 	device_add_child(dev, "iicsmb", -1);
+	device_add_child(dev, "ds1672", -1);
+	device_add_child(dev, "ad7418", -1);
 #if 0
 	/* attach any known device */
 	device_add_child(dev, "iic", -1);
