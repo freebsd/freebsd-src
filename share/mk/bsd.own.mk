@@ -104,9 +104,11 @@
 .if !target(__<bsd.own.mk>__)
 __<bsd.own.mk>__:
 
+.if !defined(_WITHOUT_SRCCONF)
 SRCCONF?=	/etc/src.conf
 .if exists(${SRCCONF})
 .include "${SRCCONF}"
+.endif
 .endif
 
 # Binaries
@@ -170,6 +172,7 @@ STRIP?=		-s
 COMPRESS_CMD?=	gzip -cn
 COMPRESS_EXT?=	.gz
 
+.if !defined(_WITHOUT_SRCCONF)
 #
 # Define MK_* variables (which are either "yes" or "no") for users
 # to set via WITH_*/WITHOUT_* in /etc/src.conf and override in the
@@ -448,5 +451,6 @@ MK_${var}_SUPPORT:= no
 MK_${var}_SUPPORT:= yes
 .endif
 .endfor
+.endif # !_WITHOUT_SRCCONF
 
 .endif	# !target(__<bsd.own.mk>__)
