@@ -168,8 +168,7 @@ __FBSDID("$FreeBSD$");
 
 struct pmap kernel_pmap_store;
 
-vm_paddr_t avail_start;		/* PA of first available physical page */
-vm_paddr_t avail_end;		/* PA of last available physical page */
+static vm_paddr_t avail_start;	/* PA of first available physical page */
 vm_offset_t virtual_avail;	/* VA of first avail page (after kernel bss) */
 vm_offset_t virtual_end;	/* VA of last avail page (end of kernel AS) */
 

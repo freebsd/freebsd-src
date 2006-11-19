@@ -196,7 +196,6 @@ LIST_HEAD(pmaplist, pmap);
 static struct pmaplist allpmaps;
 static struct mtx allpmaps_lock;
 
-vm_paddr_t avail_end;	/* PA of last available physical page */
 vm_offset_t virtual_avail;	/* VA of first avail page (after kernel bss) */
 vm_offset_t virtual_end;	/* VA of last avail page (end of kernel AS) */
 int pgeflag = 0;		/* PG_G or-in */
