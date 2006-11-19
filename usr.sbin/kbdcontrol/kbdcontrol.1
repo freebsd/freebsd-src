@@ -13,7 +13,7 @@
 .\"     @(#)kbdcontrol.1
 .\" $FreeBSD$
 .\"
-.Dd January 7, 2005
+.Dd November 16, 2006
 .Dt KBDCONTROL 1
 .Os
 .Sh NAME
@@ -92,6 +92,10 @@ If
 is preceded by the word
 .Cm quiet. ,
 the bell will not be rung when the ringing process is in the background vty.
+The
+.Cm visual
+bell, when chosen, applies to all vtys; other bell types
+can be set individually for each vty.
 .It Fl r Xo
 .Ar delay . Ns Ar repeat | Ar speed
 .Xc
