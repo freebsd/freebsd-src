@@ -25,7 +25,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd February 26, 2004
+.Dd November 3, 2006
 .Dt MDMFS 8
 .Os
 .Sh NAME
@@ -53,25 +53,6 @@ driver
 .Op Fl s Ar size
 .Op Fl v Ar version
 .Op Fl w Ar user : Ns Ar group
-.Ar md-device
-.Ar mount-point
-.Nm
-.Fl C
-.Op Fl lNU
-.Op Fl a Ar maxcontig
-.Op Fl b Ar block-size
-.Op Fl c Ar cylinders
-.Op Fl d Ar rotdelay
-.Op Fl e Ar maxbpg
-.Op Fl F Ar file
-.Op Fl f Ar frag-size
-.Op Fl i Ar bytes
-.Op Fl m Ar percent-free
-.Op Fl n Ar rotational-positions
-.Op Fl O Ar optimization
-.Op Fl o Ar mount-options
-.Op Fl s Ar size
-.Op Fl v Ar version
 .Ar md-device
 .Ar mount-point
 .Sh DESCRIPTION
@@ -130,12 +111,6 @@ out before forcing a rotational delay
 option).
 .It Fl b Ar block-size
 The block size of the file system, in bytes.
-.It Fl C
-Enable full compatibility mode with
-.Xr mount_mfs 8 .
-See the
-.Sx COMPATIBILITY
-section for more information.
 .It Fl c Ar cylinders
 The number of cylinders per cylinder group in the file system.
 .It Fl D
@@ -233,7 +208,7 @@ backed disks
 .Pq Dv MD_MALLOC .
 .It Fl U
 Enable soft-updates on the file system.
-This is the default, even in compatibility mode, and is accepted only
+This is the default, and is accepted only
 for compatibility.
 It is only really useful to negate the
 .Fl S
@@ -320,19 +295,16 @@ do not use soft-updates on it and mount it
 .Sh COMPATIBILITY
 The
 .Nm
-utility, while designed to be fully compatible with
+utility, while designed to be compatible with
 .Xr mount_mfs 8 ,
 can be useful by itself.
 Since
 .Xr mount_mfs 8
 had some silly defaults, a
-.Dq full compatibility
+.Dq compatibility
 mode is provided for the case where bug-to-bug compatibility is desired.
 .Pp
-Full compatibility is enabled with the
-.Fl C
-flag,
-or by starting
+Compatibility is enabled by starting
 .Nm
 with the name
 .Li mount_mfs
@@ -340,17 +312,14 @@ or
 .Li mfs
 (as returned by
 .Xr getprogname 3 ) .
-In this mode, only the options which would be accepted by
-.Xr mount_mfs 8
-are valid.
-Furthermore, the following behavior, as done by
+In this mode, the following behavior, as done by
 .Xr mount_mfs 8 ,
 is duplicated:
 .Bl -bullet -offset indent
 .It
 The file mode of
 .Ar mount-point
-is set to
+is set by default to
 .Li 01777
 as if
 .Fl p Ar 1777
