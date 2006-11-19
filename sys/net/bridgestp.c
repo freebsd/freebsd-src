@@ -146,7 +146,6 @@ static void	bstp_edge_delay_expiry(struct bstp_state *,
 static int	bstp_addr_cmp(const uint8_t *, const uint8_t *);
 static int	bstp_same_bridgeid(uint64_t, uint64_t);
 static void	bstp_reinit(struct bstp_state *);
-static void	bstp_stop_locked(struct bstp_state *);
 
 static void
 bstp_transmit(struct bstp_state *bs, struct bstp_port *bp)
@@ -1968,7 +1967,7 @@ bstp_reinit(struct bstp_state *bs)
 	BSTP_LOCK_ASSERT(bs);
 
 	if (LIST_EMPTY(&bs->bs_bplist)) {
-		bstp_stop_locked(bs);
+		callout_stop(&bs->bs_bstpcallout);
 		return;
 	}
 
@@ -2102,23 +2101,16 @@ bstp_init(struct bstp_state *bs)
 void
 bstp_stop(struct bstp_state *bs)
 {
-	BSTP_LOCK(bs);
-	bstp_stop_locked(bs);
-	BSTP_UNLOCK(bs);
-}
-
-static void
-bstp_stop_locked(struct bstp_state *bs)
-{
 	struct bstp_port *bp;
 
-	BSTP_LOCK_ASSERT(bs);
+	BSTP_LOCK(bs);
 
 	LIST_FOREACH(bp, &bs->bs_bplist, bp_next)
 		bstp_set_port_state(bp, BSTP_IFSTATE_DISCARDING);
 
 	bs->bs_running = 0;
 	callout_stop(&bs->bs_bstpcallout);
+	BSTP_UNLOCK(bs);
 }
 
 int
