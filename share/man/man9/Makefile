@@ -41,6 +41,7 @@ MAN=	accept_filter.9 \
 	config_intrhook.9 \
 	contigmalloc.9 \
 	copy.9 \
+	cr_cansee.9 \
 	critical_enter.9 \
 	cr_seeothergids.9 \
 	cr_seeotheruids.9 \
@@ -157,6 +158,7 @@ MAN=	accept_filter.9 \
 	panic.9 \
 	pbuf.9 \
 	p_candebug.9 \
+	p_cansee.9 \
 	pci.9 \
 	pfil.9 \
 	pfind.9 \
