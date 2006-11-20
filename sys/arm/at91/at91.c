@@ -171,7 +171,7 @@ struct bus_space at91_bs_tag = {
 static int
 at91_probe(device_t dev)
 {
-	device_set_desc(dev, "AT91RM9200 device bus");
+	device_set_desc(dev, "AT91 device bus");
 	return (0);
 }
 
@@ -410,12 +410,12 @@ at91_attach(device_t dev)
 	    AT91RM92_SYS_SIZE, &sc->sc_sys_sh) != 0)
 		panic("Enable to map IRQ registers");
 	sc->sc_irq_rman.rm_type = RMAN_ARRAY;
-	sc->sc_irq_rman.rm_descr = "AT91RM92 IRQs";
+	sc->sc_irq_rman.rm_descr = "AT91 IRQs";
 	sc->sc_mem_rman.rm_type = RMAN_ARRAY;
-	sc->sc_mem_rman.rm_descr = "AT91RM92 Memory";
+	sc->sc_mem_rman.rm_descr = "AT91 Memory";
 #if 0
 	sc->sc_usbmem_rman.rm_type = RMAN_ARRAY;
-	sc->sc_usbmem_rman.rm_descr = "AT91RM92 USB Memory-mapped regs";
+	sc->sc_usbmem_rman.rm_descr = "AT91RM9200 USB Memory-mapped regs";
 #endif
 	if (rman_init(&sc->sc_irq_rman) != 0 ||
 	    rman_manage_region(&sc->sc_irq_rman, 1, 31) != 0)
