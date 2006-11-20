@@ -488,9 +488,7 @@ nfs_reconnect(struct nfsreq *rep)
 			error = EINTR;
 		if (error == EIO || error == EINTR)
 			return (error);
-		mtx_lock(&Giant);
 		(void) tsleep(&lbolt, PSOCK, "nfscon", 0);
-		mtx_unlock(&Giant);
 	}
 
   	/*
@@ -1209,7 +1207,7 @@ tryagain:
 	 * comes back, it will be discarded (since the req struct for it no longer 
 	 * exists).
 	 */
-	while (rep->r_flags & R_REXMIT_INPROG) {
+	while (rep->r_flags & R_PIN_REQ) {
 		msleep((caddr_t)&rep->r_flags, &nfs_reqq_mtx, 
 		       (PZERO - 1), "nfsrxmt", 0);
 	}
@@ -1232,9 +1230,7 @@ tryagain:
 	 * tprintf a response.
 	 */
 	if (!error) {
-		mtx_lock(&Giant);
 		nfs_up(rep, nmp, rep->r_td, "is alive again", NFSSTA_TIMEO);
-		mtx_unlock(&Giant);
 	}
 	mrep = rep->r_mrep;
 	md = rep->r_md;
@@ -1292,9 +1288,7 @@ tryagain:
 				error = 0;
 				waituntil = time_second + nfs3_jukebox_delay;
 				while (time_second < waituntil) {
-					mtx_lock(&Giant);
 					(void) tsleep(&lbolt, PSOCK, "nqnfstry", 0);
-					mtx_unlock(&Giant);
 				}
 				mtx_lock(&nfs_reqq_mtx);
 				if (++nfs_xid == 0)
@@ -1350,7 +1344,7 @@ nfsmout:
  * lock ordering violation. The NFS client socket callback acquires 
  * inp_lock->nfsreq mutex and pru_send acquires inp_lock. So we drop the 
  * reqq mutex (and reacquire it after the pru_send()). The req structure
- * (for the rexmit) is prevented from being removed by the R_REXMIT_INPROG flag.
+ * (for the rexmit) is prevented from being removed by the R_PIN_REQ flag.
  */
 void
 nfs_timer(void *arg)
@@ -1364,7 +1358,6 @@ nfs_timer(void *arg)
 	struct timeval now;
 
 	getmicrouptime(&now);
-	mtx_lock(&Giant);	/* nfs_down -> tprintf */
 	mtx_lock(&nfs_reqq_mtx);
 	TAILQ_FOREACH(rep, &nfs_reqq, r_chain) {
 		nmp = rep->r_nmp;
@@ -1393,13 +1386,18 @@ nfs_timer(void *arg)
 		if (nmp->nm_tprintf_initial_delay != 0 &&
 		    (rep->r_rexmit > 2 || (rep->r_flags & R_RESENDERR)) &&
 		    rep->r_lastmsg + nmp->nm_tprintf_delay < now.tv_sec) {
+			rep->r_lastmsg = now.tv_sec;
+			rep->r_flags |= R_PIN_REQ;
 			mtx_unlock(&rep->r_mtx);
 			mtx_unlock(&nmp->nm_mtx);
-			rep->r_lastmsg = now.tv_sec;
+			mtx_unlock(&nfs_reqq_mtx);
 			nfs_down(rep, nmp, rep->r_td, "not responding",
 				 0, NFSSTA_TIMEO);
+			mtx_lock(&nfs_reqq_mtx);
 			mtx_lock(&nmp->nm_mtx);
 			mtx_lock(&rep->r_mtx);
+			rep->r_flags &= ~R_PIN_REQ;
+			wakeup((caddr_t)&rep->r_flags);
 		}
 		if (rep->r_rtt >= 0) {
 			rep->r_rtt++;
@@ -1463,7 +1461,7 @@ nfs_timer(void *arg)
 				 * removed in nfs_request().
 				 */
 				mtx_lock(&rep->r_mtx);
-				rep->r_flags |= R_REXMIT_INPROG;
+				rep->r_flags |= R_PIN_REQ;
 				mtx_unlock(&rep->r_mtx);
 				mtx_unlock(&nfs_reqq_mtx);
 				NET_LOCK_GIANT();
@@ -1478,7 +1476,7 @@ nfs_timer(void *arg)
 				mtx_lock(&nfs_reqq_mtx);
 				mtx_lock(&nmp->nm_mtx);
 				mtx_lock(&rep->r_mtx);
-				rep->r_flags &= ~R_REXMIT_INPROG;
+				rep->r_flags &= ~R_PIN_REQ;
 				wakeup((caddr_t)&rep->r_flags);
 				if (error) {
 					if (NFSIGNORE_SOERROR(nmp->nm_soflags, error))
@@ -1514,7 +1512,6 @@ nfs_timer(void *arg)
 		}
 	}
 	mtx_unlock(&nfs_reqq_mtx);
-	mtx_unlock(&Giant);	/* nfs_down -> tprintf */
 	callout_reset(&nfs_callout, nfs_ticks, nfs_timer, NULL);
 }
 
@@ -1552,9 +1549,7 @@ nfs_nmcancelreqs(nmp)
 		mtx_unlock(&nfs_reqq_mtx);
 		if (req == NULL)
 			return (0);
-		mtx_lock(&Giant);
 		tsleep(&lbolt, PSOCK, "nfscancel", 0);
-		mtx_unlock(&Giant);
 	}
 	return (EBUSY);
 }
@@ -1864,28 +1859,33 @@ nfs_down(rep, nmp, td, msg, error, flags)
 	const char *msg;
 	int error, flags;
 {
-
-	GIANT_REQUIRED;	/* nfs_msg */
-
 	if (nmp == NULL)
 		return;
+	mtx_lock(&nmp->nm_mtx);
 	if ((flags & NFSSTA_TIMEO) && !(nmp->nm_state & NFSSTA_TIMEO)) {
+		nmp->nm_state |= NFSSTA_TIMEO;
+		mtx_unlock(&nmp->nm_mtx);
 		vfs_event_signal(&nmp->nm_mountp->mnt_stat.f_fsid,
 		    VQ_NOTRESP, 0);
-		nmp->nm_state |= NFSSTA_TIMEO;
-	}
+	} else
+		mtx_unlock(&nmp->nm_mtx);
 #ifdef NFSSTA_LOCKTIMEO
+	mtx_lock(&nmp->nm_mtx);
 	if ((flags & NFSSTA_LOCKTIMEO) && !(nmp->nm_state & NFSSTA_LOCKTIMEO)) {
+		nmp->nm_state |= NFSSTA_LOCKTIMEO;
+		mtx_unlock(&nmp->nm_mtx);
 		vfs_event_signal(&nmp->nm_mountp->mnt_stat.f_fsid,
 		    VQ_NOTRESPLOCK, 0);
-		nmp->nm_state |= NFSSTA_LOCKTIMEO;
-	}
+	} else
+		mtx_unlock(&nmp->nm_mtx);
 #endif
 	mtx_lock(&rep->r_mtx);
 	if (rep)
 		rep->r_flags |= R_TPRINTFMSG;
 	mtx_unlock(&rep->r_mtx);
+	mtx_lock(&Giant);
 	nfs_msg(td, nmp->nm_mountp->mnt_stat.f_mntfromname, msg, error);
+	mtx_unlock(&Giant);
 }
 
 void
@@ -1896,25 +1896,34 @@ nfs_up(rep, nmp, td, msg, flags)
 	const char *msg;
 	int flags;
 {
-
-	GIANT_REQUIRED;	/* nfs_msg */
-
-	if (nmp == NULL)
+	if (nmp == NULL || rep == NULL)
 		return;
 	mtx_lock(&rep->r_mtx);
-	if ((rep == NULL) || (rep->r_flags & R_TPRINTFMSG) != 0)
+	if ((rep->r_flags & R_TPRINTFMSG) != 0) {
+		mtx_unlock(&rep->r_mtx);
+		mtx_lock(&Giant);
 		nfs_msg(td, nmp->nm_mountp->mnt_stat.f_mntfromname, msg, 0);
-	mtx_unlock(&rep->r_mtx);
+		mtx_unlock(&Giant);
+	} else
+		mtx_unlock(&rep->r_mtx);
+
+	mtx_lock(&nmp->nm_mtx);
 	if ((flags & NFSSTA_TIMEO) && (nmp->nm_state & NFSSTA_TIMEO)) {
 		nmp->nm_state &= ~NFSSTA_TIMEO;
+		mtx_unlock(&nmp->nm_mtx);
 		vfs_event_signal(&nmp->nm_mountp->mnt_stat.f_fsid,
 		    VQ_NOTRESP, 1);
-	}
+	} else
+		mtx_unlock(&nmp->nm_mtx);
+	
 #ifdef NFSSTA_LOCKTIMEO
+	mtx_lock(&nmp->nm_mtx);
 	if ((flags & NFSSTA_LOCKTIMEO) && (nmp->nm_state & NFSSTA_LOCKTIMEO)) {
 		nmp->nm_state &= ~NFSSTA_LOCKTIMEO;
+		mtx_unlock(&nmp->nm_mtx);
 		vfs_event_signal(&nmp->nm_mountp->mnt_stat.f_fsid,
 		    VQ_NOTRESPLOCK, 1);
-	}
+	} else
+		mtx_unlock(&nmp->nm_mtx);
 #endif
 }
