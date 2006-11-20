@@ -545,6 +545,7 @@ rtp_to_pri(struct rtprio *rtp, struct ksegrp *kg)
 rtp_to_pri(struct rtprio *rtp, struct thread *td)
 #endif
 {
+	u_char	newpri;
 
 	mtx_assert(&sched_lock, MA_OWNED);
 	if (rtp->prio > RTP_PRIO_MAX)
@@ -552,23 +553,23 @@ rtp_to_pri(struct rtprio *rtp, struct thread *td)
 	switch (RTP_PRIO_BASE(rtp->type)) {
 	case RTP_PRIO_REALTIME:
 #ifdef KSE
-		kg->kg_user_pri = PRI_MIN_REALTIME + rtp->prio;
+		newpri = PRI_MIN_REALTIME + rtp->prio;
 #else
-		td->td_user_pri = PRI_MIN_REALTIME + rtp->prio;
+		newpri = PRI_MIN_REALTIME + rtp->prio;
 #endif
 		break;
 	case RTP_PRIO_NORMAL:
 #ifdef KSE
-		kg->kg_user_pri = PRI_MIN_TIMESHARE + rtp->prio;
+		newpri = PRI_MIN_TIMESHARE + rtp->prio;
 #else
-		td->td_user_pri = PRI_MIN_TIMESHARE + rtp->prio;
+		newpri = PRI_MIN_TIMESHARE + rtp->prio;
 #endif
 		break;
 	case RTP_PRIO_IDLE:
 #ifdef KSE
-		kg->kg_user_pri = PRI_MIN_IDLE + rtp->prio;
+		newpri = PRI_MIN_IDLE + rtp->prio;
 #else
-		td->td_user_pri = PRI_MIN_IDLE + rtp->prio;
+		newpri = PRI_MIN_IDLE + rtp->prio;
 #endif
 		break;
 	default:
@@ -576,11 +577,13 @@ rtp_to_pri(struct rtprio *rtp, struct thread *td)
 	}
 #ifdef KSE
 	sched_class(kg, rtp->type);
+	sched_user_prio(kg, newpri);
 	if (curthread->td_ksegrp == kg) {
 		sched_prio(curthread, kg->kg_user_pri); /* XXX dubious */
 	}
 #else
 	sched_class(td, rtp->type);	/* XXX fix */
+	sched_user_prio(td, newpri);
 	if (curthread == td)
 		sched_prio(curthread, td->td_user_pri); /* XXX dubious */
 #endif
@@ -603,23 +606,23 @@ pri_to_rtp(struct thread *td, struct rtprio *rtp)
 #endif
 	case PRI_REALTIME:
 #ifdef KSE
-		rtp->prio = kg->kg_user_pri - PRI_MIN_REALTIME;
+		rtp->prio = kg->kg_base_user_pri - PRI_MIN_REALTIME;
 #else
-		rtp->prio = td->td_user_pri - PRI_MIN_REALTIME;
+		rtp->prio = td->td_base_user_pri - PRI_MIN_REALTIME;
 #endif
 		break;
 	case PRI_TIMESHARE:
 #ifdef KSE
-		rtp->prio = kg->kg_user_pri - PRI_MIN_TIMESHARE;
+		rtp->prio = kg->kg_base_user_pri - PRI_MIN_TIMESHARE;
 #else
-		rtp->prio = td->td_user_pri - PRI_MIN_TIMESHARE;
+		rtp->prio = td->td_base_user_pri - PRI_MIN_TIMESHARE;
 #endif
 		break;
 	case PRI_IDLE:
 #ifdef KSE
-		rtp->prio = kg->kg_user_pri - PRI_MIN_IDLE;
+		rtp->prio = kg->kg_base_user_pri - PRI_MIN_IDLE;
 #else
-		rtp->prio = td->td_user_pri - PRI_MIN_IDLE;
+		rtp->prio = td->td_base_user_pri - PRI_MIN_IDLE;
 #endif
 		break;
 	default:
