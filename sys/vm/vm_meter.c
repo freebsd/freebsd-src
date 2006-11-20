@@ -212,6 +212,13 @@ vmtotal(SYSCTL_HANDLER_ARGS)
 			 */
 			continue;
 		}
+		if (object->ref_count == 0) {
+			/*
+			 * Also skip unreferenced objects, including
+			 * vnodes representing mounted file systems.
+			 */
+			continue;
+		}
 		totalp->t_vm += object->size;
 		totalp->t_rm += object->resident_page_count;
 		if (object->flags & OBJ_ACTIVE) {
