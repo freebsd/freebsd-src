@@ -12,7 +12,20 @@
 
 #include <sys/ipc.h>
 
-struct sem;
+#ifndef _PID_T_DECLARED
+typedef	__pid_t		pid_t;
+#define	_PID_T_DECLARED
+#endif
+
+#ifndef _SIZE_T_DECLARED
+typedef	__size_t	size_t;
+#define	_SIZE_T_DECLARED
+#endif
+
+#ifndef _TIME_T_DECLARED
+typedef	__time_t	time_t;
+#define	_TIME_T_DECLARED
+#endif
 
 struct semid_ds {
 	struct ipc_perm	sem_perm;	/* operation permission struct */
@@ -100,21 +113,8 @@ struct semid_kernel {
  * Process sem_undo vectors at proc exit.
  */
 void	semexit(struct proc *p);
-#endif /* _KERNEL */
 
-#ifndef _KERNEL
-#include <sys/cdefs.h>
-#include <sys/_types.h>
-
-#ifndef _SIZE_T_DECLARED
-typedef __size_t        size_t;
-#define _SIZE_T_DECLARED
-#endif
-
-#ifndef _PID_T_DECLARED
-typedef __pid_t         pid_t;
-#define _PID_T_DECLARED
-#endif
+#else /* ! _KERNEL */
 
 __BEGIN_DECLS
 int semsys(int, ...);
@@ -122,6 +122,7 @@ int semctl(int, int, int, ...);
 int semget(key_t, int, int);
 int semop(int, struct sembuf *, size_t);
 __END_DECLS
+
 #endif /* !_KERNEL */
 
 #endif /* !_SYS_SEM_H_ */
