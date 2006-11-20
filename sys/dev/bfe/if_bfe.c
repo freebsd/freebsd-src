@@ -87,6 +87,8 @@ static struct bfe_type bfe_devs[] = {
 static int  bfe_probe				(device_t);
 static int  bfe_attach				(device_t);
 static int  bfe_detach				(device_t);
+static int  bfe_suspend				(device_t);
+static int  bfe_resume				(device_t);
 static void bfe_release_resources	(struct bfe_softc *);
 static void bfe_intr				(void *);
 static void bfe_start				(struct ifnet *);
@@ -136,6 +138,8 @@ static device_method_t bfe_methods[] = {
 	DEVMETHOD(device_attach,	bfe_attach),
 	DEVMETHOD(device_detach,	bfe_detach),
 	DEVMETHOD(device_shutdown,	bfe_shutdown),
+	DEVMETHOD(device_suspend,	bfe_suspend),
+	DEVMETHOD(device_resume,	bfe_resume),
 
 	/* bus interface */
 	DEVMETHOD(bus_print_child,	bus_generic_print_child),
@@ -477,6 +481,40 @@ bfe_shutdown(device_t dev)
 
 	BFE_UNLOCK(sc);
 	return;
+}
+
+static int
+bfe_suspend(device_t dev)
+{
+	struct bfe_softc *sc;
+
+	sc = device_get_softc(dev);
+	BFE_LOCK(sc);
+	bfe_stop(sc);
+	BFE_UNLOCK(sc);
+
+	return (0);
+}
+
+static int
+bfe_resume(device_t dev)
+{
+	struct bfe_softc *sc;
+	struct ifnet *ifp;
+
+	sc = device_get_softc(dev);
+	ifp = sc->bfe_ifp;
+	BFE_LOCK(sc);
+	bfe_chip_reset(sc);
+	if (ifp->if_flags & IFF_UP) {
+		bfe_init_locked(sc);
+		if (ifp->if_drv_flags & IFF_DRV_RUNNING &&
+		    !IFQ_DRV_IS_EMPTY(&ifp->if_snd))
+			bfe_start_locked(ifp);
+	}
+	BFE_UNLOCK(sc);
+
+	return (0);
 }
 
 static int
