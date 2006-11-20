@@ -396,6 +396,7 @@ filt_proc(struct knote *kn, long hint)
 		if (!(kn->kn_status & KN_DETACHED))
 			knlist_remove_inevent(&p->p_klist, kn);
 		kn->kn_flags |= (EV_EOF | EV_ONESHOT);
+		kn->kn_data = p->p_xstat;
 		kn->kn_ptr.p_proc = NULL;
 		return (1);
 	}
