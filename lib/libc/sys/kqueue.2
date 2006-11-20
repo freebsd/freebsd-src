@@ -364,6 +364,8 @@ The events to monitor are:
 .Bl -tag -width XXNOTE_TRACKERR
 .It NOTE_EXIT
 The process has exited.
+The exit status will be stored in
+.Va data .
 .It NOTE_FORK
 The process has called
 .Fn fork .
