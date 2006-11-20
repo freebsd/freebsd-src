@@ -58,6 +58,7 @@ static const char sccsid[] = "@(#)vmstat.c	8.2 (Berkeley) 1/12/94";
 #include <ctype.h>
 #include <err.h>
 #include <errno.h>
+#include <inttypes.h>
 #include <langinfo.h>
 #include <nlist.h>
 #include <paths.h>
@@ -136,6 +137,8 @@ static float cputime(int);
 static void dinfo(int, int, struct statinfo *, struct statinfo *);
 static void getinfo(struct Info *);
 static void putint(int, int, int, int);
+static void putuint(unsigned, int, int, int);
+static void putuintmax(uintmax_t, int, int, int);
 static void putfloat(double, int, int, int, int, int);
 static void putlongdouble(long double, int, int, int, int, int);
 static int ucount(void);
@@ -489,20 +492,20 @@ showkre()
 	putfloat(avenrun[2], STATROW, STATCOL + 32, 5, 2, 0);
 	mvaddstr(STATROW, STATCOL + 55, buf);
 #define pgtokb(pg)	((pg) * (s.v_page_size / 1024))
-	putint(pgtokb(total.t_arm), MEMROW + 2, MEMCOL + 4, 7);
-	putint(pgtokb(total.t_armshr), MEMROW + 2, MEMCOL + 12, 7);
-	putint(pgtokb(total.t_avm), MEMROW + 2, MEMCOL + 20, 8);
-	putint(pgtokb(total.t_avmshr), MEMROW + 2, MEMCOL + 29, 8);
-	putint(pgtokb(total.t_rm), MEMROW + 3, MEMCOL + 4, 7);
-	putint(pgtokb(total.t_rmshr), MEMROW + 3, MEMCOL + 12, 7);
-	putint(pgtokb(total.t_vm), MEMROW + 3, MEMCOL + 20, 8);
-	putint(pgtokb(total.t_vmshr), MEMROW + 3, MEMCOL + 29, 8);
-	putint(pgtokb(total.t_free), MEMROW + 2, MEMCOL + 38, 7);
-	putint(total.t_rq - 1, PROCSROW + 2, PROCSCOL, 3);
-	putint(total.t_pw, PROCSROW + 2, PROCSCOL + 4, 3);
-	putint(total.t_dw, PROCSROW + 2, PROCSCOL + 8, 3);
-	putint(total.t_sl, PROCSROW + 2, PROCSCOL + 12, 3);
-	putint(total.t_sw, PROCSROW + 2, PROCSCOL + 16, 3);
+	putuintmax(pgtokb(total.t_arm), MEMROW + 2, MEMCOL + 4, 7);
+	putuintmax(pgtokb(total.t_armshr), MEMROW + 2, MEMCOL + 12, 7);
+	putuintmax(pgtokb(total.t_avm), MEMROW + 2, MEMCOL + 20, 8);
+	putuintmax(pgtokb(total.t_avmshr), MEMROW + 2, MEMCOL + 29, 8);
+	putuintmax(pgtokb(total.t_rm), MEMROW + 3, MEMCOL + 4, 7);
+	putuintmax(pgtokb(total.t_rmshr), MEMROW + 3, MEMCOL + 12, 7);
+	putuintmax(pgtokb(total.t_vm), MEMROW + 3, MEMCOL + 20, 8);
+	putuintmax(pgtokb(total.t_vmshr), MEMROW + 3, MEMCOL + 29, 8);
+	putuintmax(pgtokb(total.t_free), MEMROW + 2, MEMCOL + 38, 7);
+	putuint(total.t_rq - 1, PROCSROW + 2, PROCSCOL, 3);
+	putuint(total.t_pw, PROCSROW + 2, PROCSCOL + 4, 3);
+	putuint(total.t_dw, PROCSROW + 2, PROCSCOL + 8, 3);
+	putuint(total.t_sl, PROCSROW + 2, PROCSCOL + 12, 3);
+	putuint(total.t_sw, PROCSROW + 2, PROCSCOL + 16, 3);
 	PUTRATE(v_cow_faults, VMSTATROW, VMSTATCOL + 2, 8 - 2);
 	PUTRATE(v_zfod, VMSTATROW + 1, VMSTATCOL + 2, 8 - 2);
 	PUTRATE(v_ozfod, VMSTATROW + 2, VMSTATCOL, 8);
@@ -515,11 +518,11 @@ showkre()
 	PUTRATE(v_pdwakeups, VMSTATROW + 8, VMSTATCOL, 8);
 	PUTRATE(v_pdpages, VMSTATROW + 9, VMSTATCOL, 8);
 	PUTRATE(v_intrans, VMSTATROW + 10, VMSTATCOL, 8);
-	putint(pgtokb(s.v_wire_count), VMSTATROW + 11, VMSTATCOL, 8);
-	putint(pgtokb(s.v_active_count), VMSTATROW + 12, VMSTATCOL, 8);
-	putint(pgtokb(s.v_inactive_count), VMSTATROW + 13, VMSTATCOL, 8);
-	putint(pgtokb(s.v_cache_count), VMSTATROW + 14, VMSTATCOL, 8);
-	putint(pgtokb(s.v_free_count), VMSTATROW + 15, VMSTATCOL, 8);
+	putuintmax(pgtokb(s.v_wire_count), VMSTATROW + 11, VMSTATCOL, 8);
+	putuintmax(pgtokb(s.v_active_count), VMSTATROW + 12, VMSTATCOL, 8);
+	putuintmax(pgtokb(s.v_inactive_count), VMSTATROW + 13, VMSTATCOL, 8);
+	putuintmax(pgtokb(s.v_cache_count), VMSTATROW + 14, VMSTATCOL, 8);
+	putuintmax(pgtokb(s.v_free_count), VMSTATROW + 15, VMSTATCOL, 8);
 	if (LINES - 1 > VMSTATROW + 16)
 		putint(s.bufspace / 1024, VMSTATROW + 16, VMSTATCOL, 8);
 	PUTRATE(v_vnodein, PAGEROW + 2, PAGECOL + 6, 5);
@@ -685,6 +688,70 @@ putint(n, l, lc, w)
 		snr = snprintf(b, sizeof(b), "%*dk", w - 1, n / 1000);
 	if (snr != w)
 		snr = snprintf(b, sizeof(b), "%*dM", w - 1, n / 1000000);
+	if (snr != w) {
+		while (w-- > 0)
+			addch('*');
+		return;
+	}
+	addstr(b);
+}
+
+static void
+putuint(n, l, lc, w)
+	unsigned n;
+	int l, lc, w;
+{
+	int snr;
+	char b[128];
+
+	move(l, lc);
+#ifdef DEBUG
+		while (w-- > 0)
+			addch('*');
+		return;
+#endif
+	if (n == 0) {
+		while (w-- > 0)
+			addch(' ');
+		return;
+	}
+	snr = snprintf(b, sizeof(b), "%*u", w, n);
+	if (snr != w)
+		snr = snprintf(b, sizeof(b), "%*uk", w - 1, n / 1000);
+	if (snr != w)
+		snr = snprintf(b, sizeof(b), "%*uM", w - 1, n / 1000000);
+	if (snr != w) {
+		while (w-- > 0)
+			addch('*');
+		return;
+	}
+	addstr(b);
+}
+
+static void
+putuintmax(n, l, lc, w)
+	uintmax_t n;
+	int l, lc, w;
+{
+	int snr;
+	char b[128];
+
+	move(l, lc);
+#ifdef DEBUG
+		while (w-- > 0)
+			addch('*');
+		return;
+#endif
+	if (n == 0) {
+		while (w-- > 0)
+			addch(' ');
+		return;
+	}
+	snr = snprintf(b, sizeof(b), "%*zu", w, n);
+	if (snr != w)
+		snr = snprintf(b, sizeof(b), "%*zuk", w - 1, n / 1000);
+	if (snr != w)
+		snr = snprintf(b, sizeof(b), "%*zuM", w - 1, n / 1000000);
 	if (snr != w) {
 		while (w-- > 0)
 			addch('*');
