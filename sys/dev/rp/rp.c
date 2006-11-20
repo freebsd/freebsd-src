@@ -42,6 +42,7 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/systm.h>
+#include <sys/endian.h>
 #include <sys/fcntl.h>
 #include <sys/malloc.h>
 #include <sys/serial.h>
@@ -210,7 +211,7 @@ int sInitChan(	CONTROLLER_T *CtlP,
       R[1] = RData[i+1] + 0x10 * ChanNum;
       R[2] = RData[i+2];
       R[3] = RData[i+3];
-      rp_writech4(ChP,_INDX_ADDR,*((DWord_t *)&R[0]));
+      rp_writech4(ChP,_INDX_ADDR,le32dec(R));
    }
 
    ChR = ChP->R;
@@ -229,43 +230,43 @@ int sInitChan(	CONTROLLER_T *CtlP,
    ChP->BaudDiv[1] = (Byte_t)((ChOff + _BAUD) >> 8);
    ChP->BaudDiv[2] = (Byte_t)BRD9600;
    ChP->BaudDiv[3] = (Byte_t)(BRD9600 >> 8);
-   rp_writech4(ChP,_INDX_ADDR,*(DWord_t *)&ChP->BaudDiv[0]);
+   rp_writech4(ChP,_INDX_ADDR,le32dec(ChP->BaudDiv));
 
    ChP->TxControl[0] = (Byte_t)(ChOff + _TX_CTRL);
    ChP->TxControl[1] = (Byte_t)((ChOff + _TX_CTRL) >> 8);
    ChP->TxControl[2] = 0;
    ChP->TxControl[3] = 0;
-   rp_writech4(ChP,_INDX_ADDR,*(DWord_t *)&ChP->TxControl[0]);
+   rp_writech4(ChP,_INDX_ADDR,le32dec(ChP->TxControl));
 
    ChP->RxControl[0] = (Byte_t)(ChOff + _RX_CTRL);
    ChP->RxControl[1] = (Byte_t)((ChOff + _RX_CTRL) >> 8);
    ChP->RxControl[2] = 0;
    ChP->RxControl[3] = 0;
-   rp_writech4(ChP,_INDX_ADDR,*(DWord_t *)&ChP->RxControl[0]);
+   rp_writech4(ChP,_INDX_ADDR,le32dec(ChP->RxControl));
 
    ChP->TxEnables[0] = (Byte_t)(ChOff + _TX_ENBLS);
    ChP->TxEnables[1] = (Byte_t)((ChOff + _TX_ENBLS) >> 8);
    ChP->TxEnables[2] = 0;
    ChP->TxEnables[3] = 0;
-   rp_writech4(ChP,_INDX_ADDR,*(DWord_t *)&ChP->TxEnables[0]);
+   rp_writech4(ChP,_INDX_ADDR,le32dec(ChP->TxEnables));
 
    ChP->TxCompare[0] = (Byte_t)(ChOff + _TXCMP1);
    ChP->TxCompare[1] = (Byte_t)((ChOff + _TXCMP1) >> 8);
    ChP->TxCompare[2] = 0;
    ChP->TxCompare[3] = 0;
-   rp_writech4(ChP,_INDX_ADDR,*(DWord_t *)&ChP->TxCompare[0]);
+   rp_writech4(ChP,_INDX_ADDR,le32dec(ChP->TxCompare));
 
    ChP->TxReplace1[0] = (Byte_t)(ChOff + _TXREP1B1);
    ChP->TxReplace1[1] = (Byte_t)((ChOff + _TXREP1B1) >> 8);
    ChP->TxReplace1[2] = 0;
    ChP->TxReplace1[3] = 0;
-   rp_writech4(ChP,_INDX_ADDR,*(DWord_t *)&ChP->TxReplace1[0]);
+   rp_writech4(ChP,_INDX_ADDR,le32dec(ChP->TxReplace1));
 
    ChP->TxReplace2[0] = (Byte_t)(ChOff + _TXREP2);
    ChP->TxReplace2[1] = (Byte_t)((ChOff + _TXREP2) >> 8);
    ChP->TxReplace2[2] = 0;
    ChP->TxReplace2[3] = 0;
-   rp_writech4(ChP,_INDX_ADDR,*(DWord_t *)&ChP->TxReplace2[0]);
+   rp_writech4(ChP,_INDX_ADDR,le32dec(ChP->TxReplace2));
 
    ChP->TxFIFOPtrs = ChOff + _TXF_OUTP;
    ChP->TxFIFO = ChOff + _TX_FIFO;
@@ -321,7 +322,7 @@ void sStopRxProcessor(CHANNEL_T *ChP)
    R[1] = ChP->R[1];
    R[2] = 0x0a;
    R[3] = ChP->R[3];
-   rp_writech4(ChP, _INDX_ADDR,*(DWord_t *)&R[0]);
+   rp_writech4(ChP,_INDX_ADDR,le32dec(R));
 }
 
 /***************************************************************************
@@ -425,7 +426,6 @@ Warnings: No context switches are allowed while executing this function.
 int sWriteTxPrioByte(CHANNEL_T *ChP, Byte_t Data)
 {
    Byte_t DWBuf[4];		/* buffer for double word writes */
-   Word_t *WordPtr;	     /* must be far because Win SS != DS */
 
    if(sGetTxCnt(ChP) > 1)	       /* write it to Tx priority buffer */
    {
@@ -433,17 +433,16 @@ int sWriteTxPrioByte(CHANNEL_T *ChP, Byte_t Data)
       if(rp_readch1(ChP,_INDX_DATA) & PRI_PEND) /* priority buffer busy */
 	 return(0);		       /* nothing sent */
 
-      WordPtr = (Word_t *)(&DWBuf[0]);
-      *WordPtr = ChP->TxPrioBuf;       /* data byte address */
+      le16enc(DWBuf,ChP->TxPrioBuf);   /* data byte address */
 
       DWBuf[2] = Data;		       /* data byte value */
-      rp_writech4(ChP,_INDX_ADDR,*((DWord_t *)(&DWBuf[0]))); /* write it out */
+      rp_writech4(ChP,_INDX_ADDR,le32dec(DWBuf)); /* write it out */
 
-      *WordPtr = ChP->TxPrioCnt;       /* Tx priority count address */
+      le16enc(DWBuf,ChP->TxPrioCnt);   /* Tx priority count address */
 
       DWBuf[2] = PRI_PEND + 1;	       /* indicate 1 byte pending */
       DWBuf[3] = 0;		       /* priority buffer pointer */
-      rp_writech4(ChP,_INDX_ADDR,*((DWord_t *)(&DWBuf[0]))); /* write it out */
+      rp_writech4(ChP,_INDX_ADDR,le32dec(DWBuf)); /* write it out */
    }
    else 			       /* write it to Tx FIFO */
    {
@@ -491,11 +490,11 @@ void sEnInterrupts(CHANNEL_T *ChP,Word_t Flags)
    ChP->RxControl[2] |=
       ((Byte_t)Flags & (RXINT_EN | SRCINT_EN | MCINT_EN));
 
-   rp_writech4(ChP,_INDX_ADDR,*(DWord_t *)&ChP->RxControl[0]);
+   rp_writech4(ChP,_INDX_ADDR,le32dec(ChP->RxControl));
 
    ChP->TxControl[2] |= ((Byte_t)Flags & TXINT_EN);
 
-   rp_writech4(ChP,_INDX_ADDR,*(DWord_t *)&ChP->TxControl[0]);
+   rp_writech4(ChP,_INDX_ADDR,le32dec(ChP->TxControl));
 
    if(Flags & CHANINT_EN)
    {
@@ -535,9 +534,9 @@ void sDisInterrupts(CHANNEL_T *ChP,Word_t Flags)
 
    ChP->RxControl[2] &=
 	 ~((Byte_t)Flags & (RXINT_EN | SRCINT_EN | MCINT_EN));
-   rp_writech4(ChP,_INDX_ADDR,*(DWord_t *)&ChP->RxControl[0]);
+   rp_writech4(ChP,_INDX_ADDR,le32dec(ChP->RxControl));
    ChP->TxControl[2] &= ~((Byte_t)Flags & TXINT_EN);
-   rp_writech4(ChP,_INDX_ADDR,*(DWord_t *)&ChP->TxControl[0]);
+   rp_writech4(ChP,_INDX_ADDR,le32dec(ChP->TxControl));
 
    if(Flags & CHANINT_EN)
    {
@@ -585,7 +584,7 @@ static void rp_do_receive(struct rp_port *rp, struct tty *tp,
 {
 	int	spl;
 	unsigned	int	CharNStat;
-	int	ToRecv, wRecv, ch, ttynocopy;
+	int	i, ToRecv, wRecv, ch, ttynocopy;
 
 	ToRecv = sGetRxCnt(cp);
 	if(ToRecv == 0)
@@ -645,17 +644,16 @@ static void rp_do_receive(struct rp_port *rp, struct tty *tp,
 			if ( ToRecv > RXFIFO_SIZE ) {
 				ToRecv = RXFIFO_SIZE;
 			}
-			wRecv = ToRecv >> 1;
-			if ( wRecv ) {
-				rp_readmultich2(cp,sGetTxRxDataIO(cp),(u_int16_t *)rp->RxBuf,wRecv);
+			for ( i = 0, wRecv = ToRecv >> 1; wRecv > 0; i += 2, wRecv-- ) {
+				le16enc(rp->RxBuf + i,rp_readch2(cp,sGetTxRxDataIO(cp)));
 			}
 			if ( ToRecv & 1 ) {
-				((unsigned char *)rp->RxBuf)[(ToRecv-1)] = (u_char) rp_readch1(cp,sGetTxRxDataIO(cp));
+				rp->RxBuf[(ToRecv-1)] = rp_readch1(cp,sGetTxRxDataIO(cp));
 			}
 			tk_nin += ToRecv;
 			tk_rawcc += ToRecv;
 			tp->t_rawcc += ToRecv;
-			ttynocopy = b_to_q((char *)rp->RxBuf, ToRecv, &tp->t_rawq);
+			ttynocopy = b_to_q(rp->RxBuf, ToRecv, &tp->t_rawq);
 			ttwakeup(tp);
 		} else {
 			while (ToRecv) {
@@ -892,7 +890,7 @@ rpopen(struct tty *tp, struct cdev *dev)
 		((rp->rp_channel.TxControl[3]
 		& ~(SET_RTS | SET_DTR)) | flags);
 	rp_writech4(&rp->rp_channel,_INDX_ADDR,
-		*(DWord_t *) &(rp->rp_channel.TxControl[0]));
+		le32dec(rp->rp_channel.TxControl));
 	sSetRxTrigger(&rp->rp_channel, TRIG_1);
 	sDisRxStatusMode(&rp->rp_channel);
 	sFlushRxFIFO(&rp->rp_channel);
@@ -996,7 +994,7 @@ rpmodem(struct tty *tp, int sigon, int sigoff)
 		rp->rp_channel.TxControl[3] &= ~i;
 		rp->rp_channel.TxControl[3] |= j;
 		rp_writech4(&rp->rp_channel,_INDX_ADDR,
-			*(DWord_t *) &(rp->rp_channel.TxControl[0]));
+			le32dec(rp->rp_channel.TxControl));
 	} else {
 		i = sGetChanStatusLo(&rp->rp_channel);
 		j = rp->rp_channel.TxControl[3];
@@ -1162,7 +1160,7 @@ rpstart(tp)
 	struct	clist	*qp;
 	char	flags;
 	int	spl, xmit_fifo_room;
-	int	count, wcount;
+	int	i, count, wcount;
 
 
 	rp = tp->t_sc;
@@ -1193,14 +1191,12 @@ rpstart(tp)
 	qp = &tp->t_outq;
 	if(xmit_fifo_room > 0 && qp->c_cc > 0) {
 		tp->t_state |= TS_BUSY;
-		count = q_to_b( qp, (char *)rp->TxBuf, xmit_fifo_room );
-		wcount = count >> 1;
-		if ( wcount ) {
-			rp_writemultich2(cp, sGetTxRxDataIO(cp), (u_int16_t *)rp->TxBuf, wcount);
+		count = q_to_b( qp, rp->TxBuf, xmit_fifo_room );
+		for( i = 0, wcount = count >> 1; wcount > 0; i += 2, wcount-- ) {
+			rp_writech2(cp, sGetTxRxDataIO(cp), le16dec(rp->TxBuf + i));
 		}
 		if ( count & 1 ) {
-			rp_writech1(cp, sGetTxRxDataIO(cp),
-				    ((unsigned char *)(rp->TxBuf))[(count-1)]);
+			rp_writech1(cp, sGetTxRxDataIO(cp), rp->TxBuf[(count-1)]);
 		}
 	}
 	rp->rp_restart = (qp->c_cc > 0) ? rp->rp_fifo_lw : 0;
