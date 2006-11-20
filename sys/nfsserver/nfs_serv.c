@@ -2829,6 +2829,12 @@ nfsrv_symlink(struct nfsrv_descript *nfsd, struct nfssvc_sock *slp,
 	nd.ni_cnd.cn_flags = LOCKPARENT | SAVESTART;
 	error = nfs_namei(&nd, fhp, len, slp, nam, &md, &dpos,
 		&dirp, v3, &dirfor, &dirfor_ret, td, FALSE);
+	if (error == 0) {
+		VATTR_NULL(vap);
+		if (v3)
+			nfsm_srvsattr(vap);
+		nfsm_srvpathsiz(len2);
+	}
 	NFSD_UNLOCK();
 	mtx_lock(&Giant);	/* VFS */
 	if (dirp && !v3) {
@@ -2837,11 +2843,6 @@ nfsrv_symlink(struct nfsrv_descript *nfsd, struct nfssvc_sock *slp,
 	}
 	if (error)
 		goto out;
-
-	VATTR_NULL(vap);
-	if (v3)
-		nfsm_srvsattr(vap);
-	nfsm_srvpathsiz(len2);
 	MALLOC(pathcp, caddr_t, len2 + 1, M_TEMP, M_WAITOK);
 	iv.iov_base = pathcp;
 	iv.iov_len = len2;
