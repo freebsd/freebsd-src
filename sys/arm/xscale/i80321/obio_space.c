@@ -181,7 +181,7 @@ obio_bs_alloc(void *t, bus_addr_t rstart, bus_addr_t rend, bus_size_t size,
 
 
 void
-obio_bs_unmap(void *t, bus_size_t size)
+obio_bs_unmap(void *t, bus_space_handle_t h, bus_size_t size)
 {
 	vm_offset_t va, endva;
 

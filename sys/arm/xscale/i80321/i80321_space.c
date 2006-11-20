@@ -228,7 +228,7 @@ i80321_io_bs_map(void *t, bus_addr_t bpa, bus_size_t size, int flags,
 }
 
 void
-i80321_io_bs_unmap(void *t, bus_size_t size)
+i80321_io_bs_unmap(void *t, bus_space_handle_t h, bus_size_t size)
 {
 
 	/* Nothing to do. */
@@ -268,7 +268,7 @@ i80321_mem_bs_map(void *t, bus_addr_t bpa, bus_size_t size, int flags,
 }
 
 void
-i80321_mem_bs_unmap(void *t, bus_size_t size)
+i80321_mem_bs_unmap(void *t, bus_space_handle_t h, bus_size_t size)
 {
 	vm_offset_t va, endva;
 
