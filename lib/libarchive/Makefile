@@ -54,7 +54,7 @@ SRCS=	archive.h					\
 	archive_read_data_into_fd.c			\
 	archive_read_extract.c				\
 	archive_read_open_fd.c				\
-	archive_read_open_file.c			\
+	archive_read_open_filename.c			\
 	archive_read_support_compression_all.c		\
 	archive_read_support_compression_bzip2.c	\
 	archive_read_support_compression_compress.c	\
@@ -70,7 +70,7 @@ SRCS=	archive.h					\
 	archive_util.c					\
 	archive_write.c					\
 	archive_write_open_fd.c				\
-	archive_write_open_file.c			\
+	archive_write_open_filename.c			\
 	archive_write_set_compression_bzip2.c		\
 	archive_write_set_compression_gzip.c		\
 	archive_write_set_compression_none.c		\
@@ -159,6 +159,7 @@ MLINKS+=	archive_read.3 archive_read_open.3
 MLINKS+=	archive_read.3 archive_read_open2.3
 MLINKS+=	archive_read.3 archive_read_open_fd.3
 MLINKS+=	archive_read.3 archive_read_open_file.3
+MLINKS+=	archive_read.3 archive_read_open_filename.3
 MLINKS+=	archive_read.3 archive_read_set_bytes_per_block.3
 MLINKS+=	archive_read.3 archive_read_support_compression_all.3
 MLINKS+=	archive_read.3 archive_read_support_compression_bzip2.3
@@ -184,6 +185,7 @@ MLINKS+=	archive_write.3 archive_write_new.3
 MLINKS+=	archive_write.3 archive_write_open.3
 MLINKS+=	archive_write.3 archive_write_open_fd.3
 MLINKS+=	archive_write.3 archive_write_open_file.3
+MLINKS+=	archive_write.3 archive_write_open_filename.3
 MLINKS+=	archive_write.3 archive_write_set_bytes_per_block.3
 MLINKS+=	archive_write.3 archive_write_set_bytes_in_last_block.3
 MLINKS+=	archive_write.3 archive_write_set_callbacks.3
