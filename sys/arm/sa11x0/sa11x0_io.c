@@ -190,8 +190,9 @@ sa11x0_bs_alloc(t, rstart, rend, size, alignment, boundary, cacheable,
 
 
 void
-sa11x0_bs_unmap(t, size)
+sa11x0_bs_unmap(t, h, size)
 	void *t;
+	bus_space_handle_t h;
 	bus_size_t size;
 {
 	vm_offset_t va, endva;
