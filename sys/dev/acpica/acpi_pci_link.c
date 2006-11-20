@@ -384,17 +384,23 @@ link_valid_irq(struct link *link, int irq)
 }
 
 static void
-acpi_pci_link_dump(struct acpi_pci_link_softc *sc)
+acpi_pci_link_dump(struct acpi_pci_link_softc *sc, int header, const char *tag)
 {
 	struct link *link;
+	char buf[16];
 	int i, j;
 
 	ACPI_SERIAL_ASSERT(pci_link);
-	printf("Index  IRQ  Rtd  Ref  IRQs\n");
+	if (header) {
+		snprintf(buf, sizeof(buf), "%s:",
+		    device_get_nameunit(sc->pl_dev));
+		printf("%-16.16s  Index  IRQ  Rtd  Ref  IRQs\n", buf);
+	}
 	for (i = 0; i < sc->pl_num_links; i++) {
 		link = &sc->pl_links[i];
-		printf("%5d  %3d   %c   %3d ", i, link->l_irq,
-		    link->l_routed ? 'Y' : 'N',  link->l_references);
+		printf("  %-14.14s  %5d  %3d   %c   %3d ", i == 0 ? tag : "", i,
+		    link->l_irq, link->l_routed ? 'Y' : 'N',
+		    link->l_references);
 		if (link->l_num_irqs == 0)
 			printf(" none");
 		else for (j = 0; j < link->l_num_irqs; j++)
@@ -488,10 +494,8 @@ acpi_pci_link_attach(device_t dev)
 		    AcpiFormatException(status));
 		goto fail;
 	}
-	if (bootverbose) {
-		device_printf(dev, "Links after initial probe:\n");
-		acpi_pci_link_dump(sc);
-	}
+	if (bootverbose)
+		acpi_pci_link_dump(sc, 1, "Initial Probe");
 
 	/* Verify initial IRQs if we have _PRS. */
 	if (status != AE_NOT_FOUND)
@@ -499,10 +503,8 @@ acpi_pci_link_attach(device_t dev)
 			if (!link_valid_irq(&sc->pl_links[i],
 			    sc->pl_links[i].l_irq))
 				sc->pl_links[i].l_irq = PCI_INVALID_IRQ;
-	if (bootverbose) {
-		device_printf(dev, "Links after initial validation:\n");
-		acpi_pci_link_dump(sc);
-	}
+	if (bootverbose)
+		acpi_pci_link_dump(sc, 0, "Validation");
 
 	/* Save initial IRQs. */
 	for (i = 0; i < sc->pl_num_links; i++)
@@ -522,10 +524,8 @@ acpi_pci_link_attach(device_t dev)
 		for (i = 0; i < sc->pl_num_links; i++)
 			if (PCI_INTERRUPT_VALID(sc->pl_links[i].l_irq))
 				sc->pl_links[i].l_routed = TRUE;
-	if (bootverbose) {
-		device_printf(dev, "Links after disable:\n");
-		acpi_pci_link_dump(sc);
-	}
+	if (bootverbose)
+		acpi_pci_link_dump(sc, 0, "After Disable");
 	ACPI_SERIAL_END(pci_link);
 	return (0);
 fail:
