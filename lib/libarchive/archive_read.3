@@ -43,7 +43,7 @@
 .Nm archive_read_open ,
 .Nm archive_read_open2 ,
 .Nm archive_read_open_fd ,
-.Nm archive_read_open_file ,
+.Nm archive_read_open_filename ,
 .Nm archive_read_next_header ,
 .Nm archive_read_data ,
 .Nm archive_read_data_block ,
@@ -88,7 +88,7 @@
 .Ft int
 .Fn archive_read_open_fd "struct archive *" "int fd" "size_t block_size"
 .Ft int
-.Fn archive_read_open_file "struct archive *" "const char *filename" "size_t block_size"
+.Fn archive_read_open_filename "struct archive *" "const char *filename" "size_t block_size"
 .Ft int
 .Fn archive_read_next_header "struct archive *" "struct archive_entry **"
 .Ft ssize_t
@@ -158,7 +158,7 @@ Freeze the settings, open the archive, and prepare for reading entries.
 This is the most generic version of this call, which accepts
 four callback functions.
 Most clients will want to use
-.Fn archive_read_open_file
+.Fn archive_read_open_filename
 or
 .Fn archive_read_open_fd
 instead.
@@ -173,6 +173,9 @@ Note that the file descriptor will not be automatically closed at
 end-of-archive.
 This function is safe for use with tape drives or other blocked devices.
 .It Fn archive_read_open_file
+This is a deprecated synonym for
+.Fn archive_read_open_filename .
+.It Fn archive_read_open_filename
 Like
 .Fn archive_read_open ,
 except that it accepts a simple filename and a block size.
