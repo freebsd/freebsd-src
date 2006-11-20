@@ -96,13 +96,17 @@ main(int argc, char *argv[])
 			printf(" r w l s    tot     act    tot    act    tot    act    tot    act\n");
 		}
 		printf("%2hu%2hu%2hu%2hu",v.t_rq-1,v.t_dw+v.t_pw,v.t_sl,v.t_sw);
-		printf("%7ld %7ld %7ld%7ld",
-			(long)pgtok(v.t_vm),(long)pgtok(v.t_avm),
-			(long)pgtok(v.t_rm),(long)pgtok(v.t_arm));
-		printf("%7ld%7ld%7ld%7ld%7ld\n",
-			(long)pgtok(v.t_vmshr),(long)pgtok(v.t_avmshr),
-			(long)pgtok(v.t_rmshr),(long)pgtok(v.t_armshr),
-			(long)pgtok(v.t_free));
+		printf("%7lu %7lu %7lu%7lu",
+		    (unsigned long)pgtok(v.t_vm),
+		    (unsigned long)pgtok(v.t_avm),
+		    (unsigned long)pgtok(v.t_rm),
+		    (unsigned long)pgtok(v.t_arm));
+		printf("%7lu%7lu%7lu%7lu%7lu\n",
+		    (unsigned long)pgtok(v.t_vmshr),
+		    (unsigned long)pgtok(v.t_avmshr),
+		    (unsigned long)pgtok(v.t_rmshr),
+		    (unsigned long)pgtok(v.t_armshr),
+		    (unsigned long)pgtok(v.t_free));
 		sleep(5);
 		i++;
 		if(i>22) i=0;
