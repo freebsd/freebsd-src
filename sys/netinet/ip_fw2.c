@@ -912,7 +912,7 @@ ipfw_log(struct ip_fw *f, u_int hlen, struct ip_fw_args *args,
 		src[0] = '\0';
 		dst[0] = '\0';
 #ifdef INET6
-		if (args->f_id.addr_type == 6) {
+		if (IS_IP6_FLOW_ID(&(args->f_id))) {
 			snprintf(src, sizeof(src), "[%s]",
 			    ip6_sprintf(&args->f_id.src_ip6));
 			snprintf(dst, sizeof(dst), "[%s]",
@@ -987,7 +987,7 @@ ipfw_log(struct ip_fw *f, u_int hlen, struct ip_fw_args *args,
 		}
 
 #ifdef INET6
-		if (args->f_id.addr_type == 6) {
+		if (IS_IP6_FLOW_ID(&(args->f_id))) {
 			if (offset & (IP6F_OFF_MASK | IP6F_MORE_FRAG))
 				snprintf(SNPARGS(fragment, 0),
 				    " (frag %08x:%d@%d%s)",
