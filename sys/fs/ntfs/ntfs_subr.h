@@ -45,8 +45,8 @@ struct ntvattr {
 
 	u_int32_t		va_compression;
 	u_int32_t		va_compressalg;
-	u_int32_t		va_datalen;
-	u_int32_t		va_allocated;
+	u_int64_t		va_datalen;
+	u_int64_t		va_allocated;
 	cn_t	 		va_vcnstart;
 	cn_t	 		va_vcnend;
 	u_int16_t		va_index;
