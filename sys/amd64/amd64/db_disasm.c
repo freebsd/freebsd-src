@@ -84,6 +84,7 @@ __FBSDID("$FreeBSD$");
 #define	Ib	21			/* byte immediate, unsigned */
 #define	Ibs	22			/* byte immediate, signed */
 #define	Iw	23			/* word immediate, unsigned */
+#define	Ilq	24			/* long/quad immediate, unsigned */
 #define	O	25			/* direct address */
 #define	Db	26			/* byte displacement from EIP */
 #define	Dl	27			/* long displacement from EIP */
@@ -348,7 +349,6 @@ static const struct inst * const db_inst_0f[] = {
 	db_inst_0f2x,
 	db_inst_0f3x,
 	db_inst_0f4x,
-	0,
 	0,
 	0,
 	0,
@@ -752,14 +752,14 @@ static const struct inst db_inst_table[256] = {
 /*b6*/	{ "mov",   FALSE, BYTE,  op2(I, Ri),  0 },
 /*b7*/	{ "mov",   FALSE, BYTE,  op2(I, Ri),  0 },
 
-/*b8*/	{ "mov",   FALSE, LONG,  op2(I, Ri),  0 },
-/*b9*/	{ "mov",   FALSE, LONG,  op2(I, Ri),  0 },
-/*ba*/	{ "mov",   FALSE, LONG,  op2(I, Ri),  0 },
-/*bb*/	{ "mov",   FALSE, LONG,  op2(I, Ri),  0 },
-/*bc*/	{ "mov",   FALSE, LONG,  op2(I, Ri),  0 },
-/*bd*/	{ "mov",   FALSE, LONG,  op2(I, Ri),  0 },
-/*be*/	{ "mov",   FALSE, LONG,  op2(I, Ri),  0 },
-/*bf*/	{ "mov",   FALSE, LONG,  op2(I, Ri),  0 },
+/*b8*/	{ "mov",   FALSE, LONG,  op2(Ilq, Ri),  0 },
+/*b9*/	{ "mov",   FALSE, LONG,  op2(Ilq, Ri),  0 },
+/*ba*/	{ "mov",   FALSE, LONG,  op2(Ilq, Ri),  0 },
+/*bb*/	{ "mov",   FALSE, LONG,  op2(Ilq, Ri),  0 },
+/*bc*/	{ "mov",   FALSE, LONG,  op2(Ilq, Ri),  0 },
+/*bd*/	{ "mov",   FALSE, LONG,  op2(Ilq, Ri),  0 },
+/*be*/	{ "mov",   FALSE, LONG,  op2(Ilq, Ri),  0 },
+/*bf*/	{ "mov",   FALSE, LONG,  op2(Ilq, Ri),  0 },
 
 /*c0*/	{ "",	   TRUE,  BYTE,  op2(Ib, E),  db_Grp2 },
 /*c1*/	{ "",	   TRUE,  LONG,  op2(Ib, E),  db_Grp2 },
@@ -854,17 +854,6 @@ struct i_addr {
 	int		ss;
 };
 
-static const char * const db_index_reg_16[8] = {
-	"%bx,%si",
-	"%bx,%di",
-	"%bp,%si",
-	"%bp,%di",
-	"%si",
-	"%di",
-	"%bp",
-	"%bx"
-};
-
 static const char * const db_reg[2][4][16] = {
 
 	{{"%al",  "%cl",  "%dl",  "%bl",  "%ah",  "%ch",  "%dh",  "%bh",
@@ -927,7 +916,7 @@ db_read_address(loc, short_addr, rex, regmodrm, addrp)
 	int		regmodrm;
 	struct i_addr *	addrp;		/* out */
 {
-	int		mod, rm, sib, index, disp;
+	int		mod, rm, sib, index, disp, size, have_sib;
 
 	mod = f_mod(rex, regmodrm);
 	rm  = f_rm(rex, regmodrm);
@@ -940,68 +929,49 @@ db_read_address(loc, short_addr, rex, regmodrm, addrp)
 	addrp->is_reg = FALSE;
 	addrp->index = 0;
 
-	if (short_addr) {
-	    addrp->index = 0;
-	    addrp->ss = 0;
-	    switch (mod) {
-		case 0:
-		    if (rm == 6) {
-			get_value_inc(disp, loc, 2, FALSE);
-			addrp->disp = disp;
+	if (short_addr)
+	    size = LONG;
+	else
+	    size = QUAD;
+
+	if ((rm & 0x7) == 4) {
+	    get_value_inc(sib, loc, 1, FALSE);
+	    rm = sib_base(rex, sib);
+	    index = sib_index(rex, sib);
+	    if (index != 4)
+		addrp->index = db_reg[1][size][index];
+	    addrp->ss = sib_ss(rex, sib);
+	    have_sib = 1;
+	} else
+	    have_sib = 0;
+
+	switch (mod) {
+	    case 0:
+		if (rm == 5) {
+		    get_value_inc(addrp->disp, loc, 4, FALSE);
+		    if (have_sib)
 			addrp->base = 0;
-		    }
-		    else {
-			addrp->disp = 0;
-			addrp->base = db_index_reg_16[rm];
-		    }
-		    break;
-		case 1:
-		    get_value_inc(disp, loc, 1, TRUE);
-		    disp &= 0xFFFF;
-		    addrp->disp = disp;
-		    addrp->base = db_index_reg_16[rm];
-		    break;
-		case 2:
-		    get_value_inc(disp, loc, 2, FALSE);
-		    addrp->disp = disp;
-		    addrp->base = db_index_reg_16[rm];
-		    break;
-	    }
-	}
-	else {
-	    if (mod != 3 && rm == 4) {
-		get_value_inc(sib, loc, 1, FALSE);
-		rm = sib_base(rex, sib);
-		index = sib_index(rex, sib);
-		if (index != 4)
-		    addrp->index = db_reg[1][QUAD][index];
-		addrp->ss = sib_ss(rex, sib);
-	    }
+		    else if (short_addr)
+			addrp->base = "%eip";
+		    else
+			addrp->base = "%rip";
+		} else {
+		    addrp->disp = 0;
+		    addrp->base = db_reg[1][size][rm];
+		}
+		break;
 
-	    switch (mod) {
-		case 0:
-		    if (rm == 5) {
-			get_value_inc(addrp->disp, loc, 4, FALSE);
-			addrp->base = 0;
-		    }
-		    else {
-			addrp->disp = 0;
-			addrp->base = db_reg[1][QUAD][rm];
-		    }
-		    break;
+	    case 1:
+		get_value_inc(disp, loc, 1, TRUE);
+		addrp->disp = disp;
+		addrp->base = db_reg[1][size][rm];
+		break;
 
-		case 1:
-		    get_value_inc(disp, loc, 1, TRUE);
-		    addrp->disp = disp;
-		    addrp->base = db_reg[1][QUAD][rm];
-		    break;
-
-		case 2:
-		    get_value_inc(disp, loc, 4, FALSE);
-		    addrp->disp = disp;
-		    addrp->base = db_reg[1][QUAD][rm];
-		    break;
-	    }
+	    case 2:
+		get_value_inc(disp, loc, 4, FALSE);
+		addrp->disp = disp;
+		addrp->base = db_reg[1][size][rm];
+		break;
 	}
 	return (loc);
 }
@@ -1022,7 +992,8 @@ db_print_address(seg, size, rex, addrp)
 	    db_printf("%s:", seg);
 	}
 
-	db_printsym((db_addr_t)addrp->disp, DB_STGY_ANY);
+	if (addrp->disp != 0 || (addrp->base == 0 && addrp->index == 0))
+		db_printsym((db_addr_t)addrp->disp, DB_STGY_ANY);
 	if (addrp->base != 0 || addrp->index != 0) {
 	    db_printf("(");
 	    if (addrp->base)
@@ -1154,6 +1125,7 @@ db_disasm(loc, altfmt)
 	int	prefix;
 	int	imm;
 	int	imm2;
+	long	imm64;
 	int	len;
 	struct i_addr	address;
 
@@ -1424,6 +1396,12 @@ db_disasm(loc, altfmt)
 		case Iw:
 		    get_value_inc(imm, loc, 2, FALSE);
 		    db_printf("$%#r", imm);
+		    break;
+
+		case Ilq:
+		    len = db_lengths[rex & REX_W ? QUAD : LONG];
+		    get_value_inc(imm64, loc, len, FALSE);
+		    db_printf("$%#lr", imm64);
 		    break;
 
 		case O:
