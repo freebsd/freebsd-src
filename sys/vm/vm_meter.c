@@ -97,7 +97,7 @@ vmtotal(SYSCTL_HANDLER_ARGS)
 {
 /* XXXKSE almost completely broken */
 	struct proc *p;
-	struct vmtotal total, *totalp;
+	struct vmtotal total;
 	vm_map_entry_t entry;
 	vm_object_t object;
 	vm_map_t map;
@@ -105,8 +105,7 @@ vmtotal(SYSCTL_HANDLER_ARGS)
 	struct thread *td;
 	struct vmspace *vm;
 
-	totalp = &total;
-	bzero(totalp, sizeof *totalp);
+	bzero(&total, sizeof(total));
 	/*
 	 * Mark all objects as inactive.
 	 */
@@ -146,23 +145,23 @@ vmtotal(SYSCTL_HANDLER_ARGS)
 					if (TD_ON_LOCK(td) ||
 					    (td->td_inhibitors ==
 					    TDI_SWAPPED)) {
-						totalp->t_sw++;
+						total.t_sw++;
 					} else if (TD_IS_SLEEPING(td) ||
 					   TD_AWAITING_INTR(td) ||
 					   TD_IS_SUSPENDED(td)) {
 						if (td->td_priority <= PZERO)
-							totalp->t_dw++;
+							total.t_dw++;
 						else
-							totalp->t_sl++;
+							total.t_sl++;
 					}
 					break;
 
 				case TDS_CAN_RUN:
-					totalp->t_sw++;
+					total.t_sw++;
 					break;
 				case TDS_RUNQ:
 				case TDS_RUNNING:
-					totalp->t_rq++;
+					total.t_rq++;
 					continue;
 				default:
 					break;
@@ -192,7 +191,7 @@ vmtotal(SYSCTL_HANDLER_ARGS)
 		vm_map_unlock_read(map);
 		vmspace_free(vm);
 		if (paging)
-			totalp->t_pw++;
+			total.t_pw++;
 	}
 	sx_sunlock(&allproc_lock);
 	/*
@@ -219,25 +218,25 @@ vmtotal(SYSCTL_HANDLER_ARGS)
 			 */
 			continue;
 		}
-		totalp->t_vm += object->size;
-		totalp->t_rm += object->resident_page_count;
+		total.t_vm += object->size;
+		total.t_rm += object->resident_page_count;
 		if (object->flags & OBJ_ACTIVE) {
-			totalp->t_avm += object->size;
-			totalp->t_arm += object->resident_page_count;
+			total.t_avm += object->size;
+			total.t_arm += object->resident_page_count;
 		}
 		if (object->shadow_count > 1) {
 			/* shared object */
-			totalp->t_vmshr += object->size;
-			totalp->t_rmshr += object->resident_page_count;
+			total.t_vmshr += object->size;
+			total.t_rmshr += object->resident_page_count;
 			if (object->flags & OBJ_ACTIVE) {
-				totalp->t_avmshr += object->size;
-				totalp->t_armshr += object->resident_page_count;
+				total.t_avmshr += object->size;
+				total.t_armshr += object->resident_page_count;
 			}
 		}
 	}
 	mtx_unlock(&vm_object_list_mtx);
-	totalp->t_free = cnt.v_free_count + cnt.v_cache_count;
-	return (sysctl_handle_opaque(oidp, totalp, sizeof total, req));
+	total.t_free = cnt.v_free_count + cnt.v_cache_count;
+	return (sysctl_handle_opaque(oidp, &total, sizeof(total), req));
 }
 
 /*
