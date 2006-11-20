@@ -1605,7 +1605,7 @@ sdtossd(sd, ssd)
 static void
 getmemsize(int first)
 {
-	int i, physmap_idx, pa_indx, da_indx;
+	int i, off, physmap_idx, pa_indx, da_indx;
 	int pg_n;
 	u_long physmem_tunable;
 	u_int extmem, under16;
@@ -1884,7 +1884,10 @@ do_next:
 	/* Trim off space for the message buffer. */
 	phys_avail[pa_indx] -= round_page(MSGBUF_SIZE);
 
-	avail_end = phys_avail[pa_indx];
+	/* Map the message buffer. */
+	for (off = 0; off < round_page(MSGBUF_SIZE); off += PAGE_SIZE)
+		pmap_kenter((vm_offset_t)msgbufp + off, phys_avail[pa_indx] +
+		    off);
 }
 
 void
@@ -1892,7 +1895,7 @@ init386(first)
 	int first;
 {
 	struct gate_descriptor *gdp;
-	int gsel_tss, metadata_missing, off, x;
+	int gsel_tss, metadata_missing, x;
 	struct pcpu *pc;
 
 	thread0.td_kstack = proc0kstack;
@@ -2094,10 +2097,6 @@ init386(first)
 	init_param2(physmem);
 
 	/* now running on new page tables, configured,and u/iom is accessible */
-
-	/* Map the message buffer. */
-	for (off = 0; off < round_page(MSGBUF_SIZE); off += PAGE_SIZE)
-		pmap_kenter((vm_offset_t)msgbufp + off, avail_end + off);
 
 	msgbufinit(msgbufp, MSGBUF_SIZE);
 
@@ -2596,7 +2595,6 @@ set_dbregs(struct thread *td, struct dbreg *dbregs)
 {
 	struct pcb *pcb;
 	int i;
-	u_int32_t mask1, mask2;
 
 	if (td == NULL) {
 		load_dr0(dbregs->dr[0]);
@@ -2614,10 +2612,12 @@ set_dbregs(struct thread *td, struct dbreg *dbregs)
 		 * result in undefined behaviour and can lead to an unexpected
 		 * TRCTRAP.
 		 */
-		for (i = 0, mask1 = 0x3<<16, mask2 = 0x2<<16; i < 8; 
-		     i++, mask1 <<= 2, mask2 <<= 2)
-			if ((dbregs->dr[7] & mask1) == mask2)
+		for (i = 0; i < 4; i++) {
+			if (DBREG_DR7_ACCESS(dbregs->dr[7], i) == 0x02)
 				return (EINVAL);
+			if (DBREG_DR7_LEN(dbregs->dr[7], i) == 0x02)
+				return (EINVAL);
+		}
 		
 		pcb = td->td_pcb;
 		
@@ -2635,25 +2635,25 @@ set_dbregs(struct thread *td, struct dbreg *dbregs)
 		 * from within kernel mode?
 		 */
 
-		if (dbregs->dr[7] & 0x3) {
+		if (DBREG_DR7_ENABLED(dbregs->dr[7], 0)) {
 			/* dr0 is enabled */
 			if (dbregs->dr[0] >= VM_MAXUSER_ADDRESS)
 				return (EINVAL);
 		}
 			
-		if (dbregs->dr[7] & (0x3<<2)) {
+		if (DBREG_DR7_ENABLED(dbregs->dr[7], 1)) {
 			/* dr1 is enabled */
 			if (dbregs->dr[1] >= VM_MAXUSER_ADDRESS)
 				return (EINVAL);
 		}
 			
-		if (dbregs->dr[7] & (0x3<<4)) {
+		if (DBREG_DR7_ENABLED(dbregs->dr[7], 2)) {
 			/* dr2 is enabled */
 			if (dbregs->dr[2] >= VM_MAXUSER_ADDRESS)
 				return (EINVAL);
 		}
 			
-		if (dbregs->dr[7] & (0x3<<6)) {
+		if (DBREG_DR7_ENABLED(dbregs->dr[7], 3)) {
 			/* dr3 is enabled */
 			if (dbregs->dr[3] >= VM_MAXUSER_ADDRESS)
 				return (EINVAL);
@@ -2725,9 +2725,8 @@ user_dbreg_trap(void)
                 addr[nbp++] = (caddr_t)rdr3();
         }
 
-        for (i=0; i<nbp; i++) {
-                if (addr[i] <
-                    (caddr_t)VM_MAXUSER_ADDRESS) {
+        for (i = 0; i < nbp; i++) {
+                if (addr[i] < (caddr_t)VM_MAXUSER_ADDRESS) {
                         /*
                          * addr[i] is in user space
                          */
