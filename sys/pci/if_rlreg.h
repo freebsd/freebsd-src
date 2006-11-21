@@ -541,6 +541,7 @@ struct rl_desc {
 #define RL_TDESC_CMD_UDPCSUM	0x00020000	/* UDP checksum enable */
 #define RL_TDESC_CMD_IPCSUM	0x00040000	/* IP header checksum enable */
 #define RL_TDESC_CMD_MSSVAL	0x07FF0000	/* Large send MSS value */
+#define RL_TDESC_CMD_MSSVAL_SHIFT	16	/* Large send MSS value shift */
 #define RL_TDESC_CMD_LGSEND	0x08000000	/* TCP large send enb */
 #define RL_TDESC_CMD_EOF	0x10000000	/* end of frame marker */
 #define RL_TDESC_CMD_SOF	0x20000000	/* start of frame marker */
