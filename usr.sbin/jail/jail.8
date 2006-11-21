@@ -132,7 +132,7 @@ cd /usr/src
 mkdir -p $D
 make world DESTDIR=$D
 make distribution DESTDIR=$D
-mount_devfs devfs $D/dev
+mount -t devfs devfs $D/dev
 .Ed
 .Pp
 NOTE: It is important that only appropriate device nodes in devfs be
@@ -587,7 +587,7 @@ and
 .Xr inetd 8 ,
 .Xr jexec 8 ,
 .Xr jls 8 ,
-.Xr mount_devfs 8 ,
+.Xr mount 8 ,
 .Xr named 8 ,
 .Xr reboot 8 ,
 .Xr rpcbind 8 ,
