@@ -657,7 +657,6 @@ pci_read_vpd(device_t pcib, pcicfgregs *cfg)
 				break;
 			default:	/* Invalid data, abort */
 				end = 1;
-				cksumvalid = 0;
 				continue;
 			}
 			break;
