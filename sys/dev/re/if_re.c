@@ -2550,7 +2550,7 @@ re_ioctl(ifp, command, data)
 			if (ifp->if_capenable & IFCAP_TXCSUM)
 				ifp->if_hwassist |= RE_CSUM_FEATURES;
 			else
-				ifp->if_hwassist = ~RE_CSUM_FEATURES;
+				ifp->if_hwassist &= ~RE_CSUM_FEATURES;
 			reinit = 1;
 		}
 		if (mask & IFCAP_VLAN_HWTAGGING) {
