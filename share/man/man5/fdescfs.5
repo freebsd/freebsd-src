@@ -87,13 +87,19 @@ call other than
 and
 .Dv O_RDWR
 are ignored.
+.Sh EXAMPLES
+To mount a  
+.Nm
+volume located on
+.Pa /dev/fd :
+.Pp
+.Dl "mount -t fdescfs null /dev/fd"
 .Sh FILES
 .Bl -tag -width /dev/stderr -compact
 .It Pa /dev/fd/#
 .El
 .Sh SEE ALSO
-.Xr mount_devfs 8 ,
-.Xr mount_fdescfs 8
+.Xr mount 8
 .Sh HISTORY
 The
 .Nm
