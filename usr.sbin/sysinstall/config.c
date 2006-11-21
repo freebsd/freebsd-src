@@ -542,7 +542,7 @@ configLinux(dialogMenuItem *self)
     variable_set2(VAR_LINUX_ENABLE, "YES", 1);
     Mkdir("/compat/linux");
     msgNotify("Installing Linux compatibility library...");
-    i = package_add("linux_base-8");
+    i = package_add("linux_base-fc4");
     restorescr(w);
     return i;
 }
