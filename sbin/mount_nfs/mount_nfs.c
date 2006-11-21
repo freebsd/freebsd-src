@@ -49,6 +49,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/socket.h>
 #include <sys/stat.h>
 #include <sys/syslog.h>
+#include <sys/uio.h>
 
 #include <rpc/rpc.h>
 #include <rpc/pmap_clnt.h>
@@ -249,7 +250,9 @@ main(int argc, char *argv[])
 	int c;
 	struct nfs_args *nfsargsp;
 	struct nfs_args nfsargs;
+	struct iovec *iov;
 	int mntflags, altflags, num;
+	int iovlen;
 	char *name, *p, *spec;
 	char mntpath[MAXPATHLEN];
 
@@ -257,6 +260,9 @@ main(int argc, char *argv[])
 	altflags = 0;
 	nfsargs = nfsdefargs;
 	nfsargsp = &nfsargs;
+	iov = NULL;
+	iovlen = 0;
+
 	while ((c = getopt(argc, argv,
 	    "23a:bcdD:g:I:iLlNo:PR:r:sTt:w:x:U")) != -1)
 		switch (c) {
@@ -454,7 +460,11 @@ main(int argc, char *argv[])
 	/* resolve the mountpoint with realpath(3) */
 	(void)checkpath(name, mntpath);
 
-	if (mount("nfs", mntpath, mntflags, nfsargsp))
+	build_iovec(&iov, &iovlen, "nfs_args", nfsargsp, sizeof(*nfsargsp));
+	build_iovec(&iov, &iovlen, "fstype", "nfs", (size_t)-1);
+	build_iovec(&iov, &iovlen, "fspath", mntpath, (size_t)-1);
+
+	if (nmount(iov, iovlen, mntflags))
 		err(1, "%s", mntpath);
 
 	exit(0);
