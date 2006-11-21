@@ -9,7 +9,7 @@ MAN=	mount_nfs.8
 MOUNT=	${.CURDIR}/../mount
 UMNTALL= ${.CURDIR}/../../usr.sbin/rpc.umntall
 CFLAGS+= -DNFS -I${MOUNT} -I${UMNTALL}
-WARNS?=	2
+WARNS?=	3
 
 .PATH: ${MOUNT} ${UMNTALL}
 
