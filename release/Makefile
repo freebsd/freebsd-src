@@ -269,6 +269,9 @@ CD=			${_R}/cdrom
 CD_BOOT=		${CD}/bootonly
 CD_DISC1=		${CD}/disc1
 CD_DISC2=		${CD}/disc2
+.if !defined(NODOC)
+CD_DOCS=		${CD}/docs
+.endif
 .if defined(SEPARATE_LIVEFS)
 CD_LIVEFS=		${CD}/livefs
 .else
@@ -992,12 +995,15 @@ cdrom.2:
 	@echo "CD_VERSION = ${BUILDNAME}" > ${CD_DISC2}/cdrom.inf
 	@echo "CD_VOLUME = 2" >> ${CD_DISC2}/cdrom.inf
 .if !defined(NODOC)
-	@mkdir -p ${CD_DISC2}/usr/share/doc
+	@echo "Building CDROM docs filesystem image"
+	@mkdir -p ${CD_DOCS}
+	@echo "CD_VERSION = ${BUILDNAME}" > ${CD_DOCS}/cdrom.inf
+	@mkdir -p ${CD_DOCS}/usr/share/doc
 	@for i in `ls ${CD_LIVEFS}/usr/share/doc`; do \
 		if [ -L ${CD_LIVEFS}/usr/share/doc/$$i -o \
 		    -d /usr/doc/$$i ]; then \
 			mv ${CD_LIVEFS}/usr/share/doc/$$i \
-			    ${CD_DISC2}/usr/share/doc; \
+			    ${CD_DOCS}/usr/share/doc; \
 		fi \
 	done
 .endif
@@ -1049,6 +1055,11 @@ iso.1:
 	    FreeBSD_Packages \
 	    ${CD}/${BUILDNAME}-${TARGET}-disc2.iso ${CD_DISC2} \
 	    ${CD_DISC2_PKGS}
+.if !defined(NODOC)
+	@sh ${.CURDIR}/${TARGET_ARCH}/mkisoimages.sh \
+	    FreeBSD_Documentation \
+	    ${CD}/${BUILDNAME}-${TARGET}-docs.iso ${CD_DOCS}
+.endif
 .if defined(SEPARATE_LIVEFS)
 	@sh ${.CURDIR}/${TARGET_ARCH}/mkisoimages.sh ${BOOTABLE} \
 	    FreeBSD_LiveFS \
