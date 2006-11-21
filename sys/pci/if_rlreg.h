@@ -637,7 +637,7 @@ struct rl_stats {
  * due to the 8139C+.  We need to put the number of descriptors in the ring
  * structure and use that value instead.
  */
-#if !defined(__i386__) && !defined(__amd64__)
+#ifndef	__NO_STRICT_ALIGNMENT
 #define RE_FIXUP_RX	1
 #endif
 
