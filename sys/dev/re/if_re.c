@@ -1258,8 +1258,8 @@ re_attach(dev)
 	ifp->if_flags = IFF_BROADCAST | IFF_SIMPLEX | IFF_MULTICAST;
 	ifp->if_ioctl = re_ioctl;
 	ifp->if_start = re_start;
-	ifp->if_hwassist = RE_CSUM_FEATURES;
-	ifp->if_capabilities = IFCAP_HWCSUM;
+	ifp->if_hwassist = RE_CSUM_FEATURES | CSUM_TSO;
+	ifp->if_capabilities = IFCAP_HWCSUM | IFCAP_TSO4;
 	ifp->if_capenable = ifp->if_capabilities;
 	ifp->if_watchdog = re_watchdog;
 	ifp->if_init = re_init;
@@ -2032,12 +2032,18 @@ re_encap(sc, m_head, idx)
 
 	arg.rl_flags = 0;
 
-	if ((*m_head)->m_pkthdr.csum_flags & CSUM_IP)
-		arg.rl_flags |= RL_TDESC_CMD_IPCSUM;
-	if ((*m_head)->m_pkthdr.csum_flags & CSUM_TCP)
-		arg.rl_flags |= RL_TDESC_CMD_TCPCSUM;
-	if ((*m_head)->m_pkthdr.csum_flags & CSUM_UDP)
-		arg.rl_flags |= RL_TDESC_CMD_UDPCSUM;
+	if (((*m_head)->m_pkthdr.csum_flags & CSUM_TSO) != 0)
+		arg.rl_flags = RL_TDESC_CMD_LGSEND |
+		    ((uint32_t)(*m_head)->m_pkthdr.tso_segsz <<
+		    RL_TDESC_CMD_MSSVAL_SHIFT);
+	else {
+		if ((*m_head)->m_pkthdr.csum_flags & CSUM_IP)
+			arg.rl_flags |= RL_TDESC_CMD_IPCSUM;
+		if ((*m_head)->m_pkthdr.csum_flags & CSUM_TCP)
+			arg.rl_flags |= RL_TDESC_CMD_TCPCSUM;
+		if ((*m_head)->m_pkthdr.csum_flags & CSUM_UDP)
+			arg.rl_flags |= RL_TDESC_CMD_UDPCSUM;
+	}
 
 	arg.sc = sc;
 	arg.rl_idx = *idx;
@@ -2542,14 +2548,22 @@ re_ioctl(ifp, command, data)
 		if (mask & IFCAP_HWCSUM) {
 			ifp->if_capenable ^= IFCAP_HWCSUM;
 			if (ifp->if_capenable & IFCAP_TXCSUM)
-				ifp->if_hwassist = RE_CSUM_FEATURES;
+				ifp->if_hwassist |= RE_CSUM_FEATURES;
 			else
-				ifp->if_hwassist = 0;
+				ifp->if_hwassist = ~RE_CSUM_FEATURES;
 			reinit = 1;
 		}
 		if (mask & IFCAP_VLAN_HWTAGGING) {
 			ifp->if_capenable ^= IFCAP_VLAN_HWTAGGING;
 			reinit = 1;
+		}
+		if (mask & IFCAP_TSO4) {
+			ifp->if_capenable ^= IFCAP_TSO4;
+			if ((IFCAP_TSO4 & ifp->if_capenable) &&
+			    (IFCAP_TSO4 & ifp->if_capabilities))
+				ifp->if_hwassist |= CSUM_TSO;
+			else
+				ifp->if_hwassist &= ~CSUM_TSO;
 		}
 		if (reinit && ifp->if_drv_flags & IFF_DRV_RUNNING)
 			re_init(sc);
