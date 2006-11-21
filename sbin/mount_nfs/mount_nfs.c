@@ -161,7 +161,7 @@ struct nc_protos {
 	{"tcp",		AF_INET,	SOCK_STREAM},
 	{"udp6",	AF_INET6,	SOCK_DGRAM},
 	{"tcp6",	AF_INET6,	SOCK_STREAM},
-	{NULL}
+	{NULL,		0,		0}
 };
 
 struct nfhret {
