@@ -2009,12 +2009,17 @@ mxge_intr(void *arg)
 	}
 	valid = stats->valid;
 
-	/* lower legacy IRQ  */
-	*sc->irq_deassert = 0;
-	mb();
-	if (!mxge_deassert_wait)
-		/* don't wait for conf. that irq is low */
+	if (!sc->msi_enabled) {
+		/* lower legacy IRQ  */
+		*sc->irq_deassert = 0;
+		if (!mxge_deassert_wait)
+			/* don't wait for conf. that irq is low */
+			stats->valid = 0;
+	} else {
 		stats->valid = 0;
+	}
+
+	/* loop while waiting for legacy irq deassertion */
 	do {
 		/* check for transmit completes and receives */
 		send_done_count = be32toh(stats->send_done_count);
@@ -2682,7 +2687,7 @@ mxge_attach(device_t dev)
 	mxge_softc_t *sc = device_get_softc(dev);
 	struct ifnet *ifp;
 	size_t bytes;
-	int rid, err;
+	int count, rid, err;
 	uint16_t cmd;
 
 	sc->dev = dev;
@@ -2782,17 +2787,27 @@ mxge_attach(device_t dev)
 		goto abort_with_fw_stats;
 	sc->rx_done.entry = sc->rx_done.dma.addr;
 	bzero(sc->rx_done.entry, bytes);
+
 	/* Add our ithread  */
-	rid = 0;
-	sc->irq_res = bus_alloc_resource(dev, SYS_RES_IRQ, &rid, 0, ~0, 
+	count = pci_msi_count(dev);
+	if (count == 1 && pci_alloc_msi(dev, &count) == 0) {
+		rid = 1;
+		sc->msi_enabled = 1;
+	} else {
+		rid = 0;
+	}
+	sc->irq_res = bus_alloc_resource(dev, SYS_RES_IRQ, &rid, 0, ~0,
 					 1, RF_SHAREABLE | RF_ACTIVE);
 	if (sc->irq_res == NULL) {
 		device_printf(dev, "could not alloc interrupt\n");
 		goto abort_with_rx_done;
 	}
-
+	if (bootverbose)
+		device_printf(dev, "using %s irq %ld\n",
+			      sc->msi_enabled ? "MSI" : "INTx",
+			      rman_get_start(sc->irq_res));
 	/* load the firmware */
-	mxge_select_firmware(sc);	
+	mxge_select_firmware(sc);
 
 	err = mxge_load_firmware(sc);
 	if (err != 0)
@@ -2827,7 +2842,10 @@ mxge_attach(device_t dev)
 	return 0;
 
 abort_with_irq_res:
-	bus_release_resource(dev, SYS_RES_IRQ, 0, sc->irq_res);
+	bus_release_resource(dev, SYS_RES_IRQ,
+			     sc->msi_enabled ? 1 : 0, sc->irq_res);
+	if (sc->msi_enabled)
+		pci_release_msi(dev);
 abort_with_rx_done:
 	sc->rx_done.entry = NULL;
 	mxge_dma_free(&sc->rx_done.dma);
@@ -2863,7 +2881,11 @@ mxge_detach(device_t dev)
 	sx_xunlock(&sc->driver_lock);
 	ether_ifdetach(sc->ifp);
 	mxge_dummy_rdma(sc, 0);
-	bus_release_resource(dev, SYS_RES_IRQ, 0, sc->irq_res);
+	bus_release_resource(dev, SYS_RES_IRQ,
+			     sc->msi_enabled ? 1 : 0, sc->irq_res);
+	if (sc->msi_enabled)
+		pci_release_msi(dev);
+
 	sc->rx_done.entry = NULL;
 	mxge_dma_free(&sc->rx_done.dma);
 	mxge_dma_free(&sc->fw_stats_dma);
