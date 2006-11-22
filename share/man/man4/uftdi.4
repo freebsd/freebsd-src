@@ -36,15 +36,27 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd April 8, 2004
+.Dd November 22, 2006
 .Dt UFTDI 4
 .Os
 .Sh NAME
 .Nm uftdi
 .Nd USB support for serial adapters based on the FT8U100AX and FT8U232AM chips
 .Sh SYNOPSIS
+To compile this driver into the kernel,
+place the following lines in your
+kernel configuration file:
+.Bd -ragged -offset indent
 .Cd "device uftdi"
 .Cd "device ucom"
+.Ed
+.Pp
+Alternatively, to load the driver as a
+module at boot time, place the following line in
+.Xr loader.conf 5 :
+.Bd -literal -offset indent
+uftdi_load="YES"
+.Ed
 .Sh DESCRIPTION
 The
 .Nm
