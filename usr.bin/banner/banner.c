@@ -1045,7 +1045,7 @@ main(int argc, char *argv[])
 			break;
 		case 'w':
 			width = atoi(optarg);
-			if (width <= 0)
+			if (width <= 0 || width > DWIDTH)
 				errx(1, "illegal argument for -w option");
 			break;
 		case '?':
@@ -1056,7 +1056,7 @@ main(int argc, char *argv[])
 	argv += optind;
 
 	for (i = 0; i < width; i++) {
-		j = i * 132 / width;
+		j = i * DWIDTH / width;
 		print[j] = 1;
 	}
 
