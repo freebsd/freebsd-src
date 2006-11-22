@@ -691,25 +691,6 @@ index_extract(Device *dev, PkgNodePtr top, PkgNodePtr who, Boolean depended)
     if (id->installed == 1)
 	return DITEM_SUCCESS;
 
-    /*
-     * Prompt user if the package is not available on the current volume.
-     */
-
-    if(mediaDevice->type == DEVICE_TYPE_CDROM) {
-	while (id->volume != dev->volume) {
-	    if (!msgYesNo("This is disc #%d.  Package %s is on disc #%d\n"
-			  "Would you like to switch discs now?\n", dev->volume,
-			  id->name, id->volume)) {
-		DEVICE_SHUTDOWN(mediaDevice);
-		msgConfirm("Please remove disc #%d from your drive, and add disc #%d\n",
-		    dev->volume, id->volume);
-		DEVICE_INIT(mediaDevice);
-	    } else {
-		return DITEM_FAILURE;
-	    }
-	}
-    }
-
     if (id && id->deps && strlen(id->deps)) {
 	char t[2048 * 8], *cp, *cp2;
 
@@ -741,6 +722,21 @@ index_extract(Device *dev, PkgNodePtr top, PkgNodePtr who, Boolean depended)
     }
     /* Done with the deps?  Load the real m'coy */
     if (DITEM_STATUS(status) == DITEM_SUCCESS) {
+	/* Prompt user if the package is not available on the current volume. */
+	if(mediaDevice->type == DEVICE_TYPE_CDROM) {
+	    while (id->volume != dev->volume) {
+		if (!msgYesNo("This is disc #%d.  Package %s is on disc #%d\n"
+			  "Would you like to switch discs now?\n", dev->volume,
+			  id->name, id->volume)) {
+		    DEVICE_SHUTDOWN(mediaDevice);
+		    msgConfirm("Please remove disc #%d from your drive, and add disc #%d\n",
+		        dev->volume, id->volume);
+		    DEVICE_INIT(mediaDevice);
+	    	} else {
+		    return DITEM_FAILURE;
+	    	}
+	    }
+    	}
 	status = package_extract(dev, who->name, depended);
 	if (DITEM_STATUS(status) == DITEM_SUCCESS)
 	    id->installed = 1;
