@@ -41,10 +41,12 @@ __FBSDID("$FreeBSD$");
 
 
 #define PUTCHAR(x) \
-	mov	x, %o0		; \
+0:	mov	x, %o0		; \
 	mov	CONS_WRITE, %o5	; \
-	ta	FAST_TRAP
-	
+	ta	FAST_TRAP	; \
+	brnz	%o0, 0b		; \
+	  nop
+		
 ENTRY(intr_fast)
 	save	%sp, -CCFSZ, %sp
 1:	ldx	[PCPU(IRHEAD)], %l0
@@ -460,7 +462,51 @@ ENTRY(tl_invlpg)
 	ba,a,pt	%xcc, set_ackmask
 	  nop
 END(tl_invlpg)
+
+ENTRY(tl_tsbupdate)
+/* compare current context with one to be updated */
+	mov	MMU_CID_S, %g4
+	GET_MMU_CONTEXT(%g4, %g4)
 	
+	cmp	%g1, %g4
+	bne,a,pt %xcc, set_ackmask			
+	  nop
+/*  update scratch pointer to tsbscratch */
+	wr	%g0, ASI_REAL, %asi	
+	ldxa	[%g2]%asi, %g4		! tsbscratch
+	ldxa	[%g2 + 8]%asi, %g2	! tsb_ra
+	mov	SCRATCH_REG_TSB_USER, %g5
+	SET_SCRATCH(%g5, %g4)
+/* reset tsb context with hypervisor */
+
+	
+	mov	%o0, %g1
+	mov	%o1, %g2
+	mov	%o5, %g4
+	mov	1, %o0
+	mov	%g2, %o1
+	mov	MMU_TSB_CTXNON0, %o5
+	ta	FAST_TRAP
+	/* XXX test %o0 */
+	mov	%g4, %o5
+	mov	%g2, %o1
+	mov	%g1, %o0	
+	ba,a,pt	%xcc, set_ackmask
+	  nop
+END(tl_tsbupdate)
+
+ENTRY(tl_ttehashupdate)
+/* compare current context with one to be updated */
+	mov	MMU_CID_S, %g4
+	GET_MMU_CONTEXT(%g4, %g4)
+	cmp	%g1, %g4
+	bne,a,pt %xcc, set_ackmask
+	  nop
+/*  update scratch pointer to hashscratch */
+	mov	SCRATCH_REG_HASH_USER, %g4
+	SET_SCRATCH(%g4, %g2)
+END(tl_ttehashupdate)
+		
 ENTRY(set_ackmask)
 	membar	#Sync
 	GET_PCPU_PHYS_SCRATCH(%g6)
@@ -507,6 +553,11 @@ interrupt_bad_hcall_error:
 
 	
 	ENTRY(interrupt_panic_bad_hcall)
+	PUTCHAR(0x5b)
+	PUTCHAR(0x5b)
+	PUTCHAR(0x5b)
+	PUTCHAR(0x5b)
+	PUTCHAR(0x5b)
 	mov	%o0, %o2
 	sethi	%hi(interrupt_bad_hcall_error), %o0
 	or	%o0, %lo(interrupt_bad_hcall_error), %o0
