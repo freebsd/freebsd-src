@@ -73,6 +73,8 @@ struct pmap {
 	pmap_cpumask_t          pm_active;      /* mask of cpus currently using pmap */
 	pmap_cpumask_t          pm_tlbactive;   /* mask of cpus that have used this pmap */
 	struct	pmap_statistics pm_stats;
+	uint32_t                pm_tsb_miss_count;
+	uint32_t                pm_tsb_cap_miss_count;
 };
 
 #define	PMAP_LOCK(pmap)		mtx_lock(&(pmap)->pm_mtx)

@@ -63,10 +63,14 @@ __FBSDID("$FreeBSD$")
 #define PCB_REG %g6
 
 #define PUTCHAR(x) \
+0:				; \
 	mov	x, %o0		; \
 	mov	CONS_WRITE, %o5	; \
-	ta	FAST_TRAP
-/*
+	ta	FAST_TRAP	; \
+	brnz	%o0, 0b		; \
+	  nop
+
+/*	
  * Atomically set the reference bit in a tte.
  */
 #define	TTE_SET_BIT(r1, r2, r3, bit) \
@@ -1410,7 +1414,7 @@ ENTRY(tl0_trap)
 	  nop
 ENTRY(tl0_utrap)
 	GET_PCPU_SCRATCH
-
+	
 	cmp	%g2, UT_MAX
 	bge,a,pn %xcc, skip_utrap
 	  nop
@@ -1543,7 +1547,7 @@ END(tl0_intr)
 #define ENTER #Sync
 #define EXIT  #Sync
 #endif
-	
+
 #define THE_LOCK_ENTER(addr, lock_bit, oldval, newval, label1) \
 	mov	1, lock_bit	; \
 	add	addr, 8, addr	; \
@@ -1789,7 +1793,7 @@ tsb_miss_found:
 	cmp	%g3, TT_DATA_MISS		! TSB data miss
 	be,pt	%xcc, 9f
 	  or	%l7, VTD_REF, %l7		! set referenced unconditionally
-	cmp	%g3, TT_INSTRUCTION_MISS		! TSB instruction miss
+	cmp	%g3, TT_INSTRUCTION_MISS	! TSB instruction miss
 	be,pt	%xcc, 9f
 	  nop
 	cmp	%g3, TT_DATA_PROTECTION		! protection fault
@@ -1805,44 +1809,48 @@ tsb_miss_found:
 	
         and	%g4, %l1, %g3			! size of TSB in pages
 	andn	%g4, %l1, %l3			! TSB real address
-	
-	sllx	%g3, (PAGE_SHIFT - TTE_SHIFT), %g3	! nttes
+
+#ifdef notyet
+	mov	1, %l2	
+	add	%g3, (PAGE_SHIFT - TTE_SHIFT), %g3	! add shift value for number of ttes / page
+	sllx	%l2, %g3, %g3			! nttes
+#else
+	sllx    %g3, (PAGE_SHIFT - TTE_SHIFT), %g3
+#endif	
 	subx	%g3, 1, %g3			! TSB_MASK
 	and	%g3, %l4, %g3			! masked index
 	sllx	%g3, TTE_SHIFT, %g3		! masked byte offset
 	add	%g3, %l3, %g3			! TTE RA
 
-#if 0
-#ifdef PMAP_DEBUG
-	ldxa	[%g3]%asi, %l2
-	ldxa	[%g3 + 8]%asi, %l3
-	cmp	%l3, %l7
-	bne,pt	%xcc, 12f
-	cmp	%l2, %l6
-	bne,pt	%xcc, 12f
+	rdpr	%tl, %l2			! don't track misses for kernel context
+	brz,pn	%g6, 13f
+	  dec	%l2
+	brnz,pn	%l2, 13f			! don't track misses at tl > 1
 	  nop
-#ifndef SMP	
-!	MAGIC_TRAP_ON;MAGIC_TRAP_ON;MAGIC_EXIT	! die if all we're doing 
-						! is storing same data
-#else
-	mov	%o0, %l2
-	mov	%o5, %g4
-	PUTCHAR(0x5a)
-	lda	[PCPU_REG + PC_CPUID]%asi, %o0
-	add	%o0, 0x30, %o0
-	PUTCHAR(%o0)
-	PUTCHAR(0x5a)	
-	mov	%l2, %o0
-	mov	%g4, %o5
-!	MAGIC_TRAP_ON; MAGIC_TRAP_OFF
-#endif
-12:
-#endif
-#endif
-	stxa	%g0, [%g3 + 8]%asi		! invalidate data
-#ifndef WORKING
-	membar #Sync
-#endif
+ 	ldx	[PCPU(PMAP)], %l1
+	ld	[%l1 + PM_TSB_MISS_COUNT], %l3
+	add	1, %l3, %l3
+	st	%l3, [%l1 + PM_TSB_MISS_COUNT]
+
+	!	if the data value is zero then this is not a capacity miss
+	ldda	[%g3]ASI_LDTD_N, %l2
+	brz,pt	%l3, 13f
+	  nop
+	!	compare the tag bits - if they're the same we're merely 
+	!	changing the mapping
+	brz,pt	%l3, 13f
+	  nop
+	cmp	%l6, %l2
+	beq,pt	%xcc, 13f
+	  nop
+			
+	ld	[%l1 + PM_TSB_CAP_MISS_COUNT], %l3
+	add	1, %l3, %l3
+	st	%l3, [%l1 + PM_TSB_CAP_MISS_COUNT]
+
+13:	stxa	%g0, [%g3 + 8]%asi		! invalidate data
+	membar	#StoreStore
+
 	stxa	%l6, [%g3]%asi			! store tag
 	stxa	%l7, [%g3 + 8]%asi		! store data
 	stxa	%l7, [%g2 + 8]%asi		! update TTE with ref bit  
@@ -1897,10 +1905,10 @@ END(prot_fault_trap)
  * Programming error
  */
 ENTRY(unsupported_fault_trap)
+	add	0x20, %g3, %g1
 	PUTCHAR(0x5b)
-	PUTCHAR(0x5b)
-	PUTCHAR(0x5b)
-!	MAGIC_TRAP_ON;MAGIC_TRAP_ON;MAGIC_EXIT
+	PUTCHAR(%g1)
+	PUTCHAR(0x5d)
 END(unsupported_fault_trap)
 
 
@@ -1938,7 +1946,7 @@ ENTRY(tl1_trap)
 	wr	%g0, ASI_REAL, %asi
 	TTRACE_ADD_SAFE(%g6, 0, 0, 0, 0, 0)
 #endif		
-	! assume no tl1 handler
+	! assume no tl1 handler   
 	rdpr	%tpc, %g7
 
 	set	rtt_fill_start, %g6
