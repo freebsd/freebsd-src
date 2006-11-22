@@ -227,130 +227,12 @@ static int
 at91_twi_wait(struct at91_twi_softc *sc, uint32_t bit)
 {
 	int err = 0;
-	int counter = 10000;
+	int counter = 100000;
 
 	while (!(RD4(sc, TWI_SR) & bit) && counter-- >= 0)
-		DELAY(10);
+		continue;
 	if (counter <= 0)
 		err = EIO;
-	return (err);
-}
-
-/*
- * Stop the transfer by entering a STOP state on the iic bus.  For read
- * operations, we've already entered the STOP state, since we need to do
- * that to read the last character.  For write operations, we need to
- * wait for the TXCOMP bit to turn on before returning.
- */
-static int
-at91_twi_stop(device_t dev)
-{
-	struct at91_twi_softc *sc;
-	int err = 0;
-
-	sc = device_get_softc(dev);
-	if (sc->sc_started) {
-		WR4(sc, TWI_CR, TWI_CR_STOP);
-		err = at91_twi_wait(sc, TWI_SR_TXCOMP);
-	}
-	return (err);
-}
-
-/*
- * enter a START condition without requiring the device to be in a STOP
- * state.
- */
-static int
-at91_twi_repeated_start(device_t dev, u_char slave, int timeout)
-{
-	struct at91_twi_softc *sc;
-
-	sc = device_get_softc(dev);
-	WR4(sc, TWI_MMR, TWI_MMR_DADR(slave));
-	return (0);
-}
-
-/*
- * enter a START condition from an idle state.
- */
-static int
-at91_twi_start(device_t dev, u_char slave, int timeout)
-{
-	struct at91_twi_softc *sc;
-
-	sc = device_get_softc(dev);
-	WR4(sc, TWI_MMR, TWI_MMR_DADR(slave));
-	sc->sc_started = 1;
-	return (0);
-}
-
-static int
-at91_twi_write(device_t dev, char *buf, int len, int *sent, int timeout /* us */)
-{
-	struct at91_twi_softc *sc;
-	uint8_t *walker;
-	int err = 0;
-
-	walker = buf;
-	sc = device_get_softc(dev);
-	AT91_TWI_LOCK(sc);
-	WR4(sc, TWI_MMR, ~TWI_MMR_MREAD & RD4(sc, TWI_MMR));
-	WR4(sc, TWI_CR, TWI_CR_START);
-	sc->sc_started = 1;
-//	WR4(sc, TWI_IER, TWI_SR_TXRDY);
-	while (len--) {
-		WR4(sc, TWI_THR, *walker++);
-		while (!(sc->flags & TXRDY)) {
-			err = msleep(sc, &sc->sc_mtx, PZERO | PCATCH, "twiwr",
-			    0);
-			if (err)
-				goto errout;
-		}
-	}
-errout:;
-	WR4(sc, TWI_IDR, TWI_SR_TXRDY);
-	AT91_TWI_UNLOCK(sc);
-	return (err);
-}
-
-static int
-at91_twi_read(device_t dev, char *buf, int len, int *read, int last,
-	 int delay /* us */)
-{
-	struct at91_twi_softc *sc;
-	char *walker;
-	int err = 0;
-
-	walker = buf;
-	sc = device_get_softc(dev);
-	AT91_TWI_LOCK(sc);
-	WR4(sc, TWI_MMR, TWI_MMR_MREAD | RD4(sc, TWI_MMR));
-	WR4(sc, TWI_CR, TWI_CR_START);
-	sc->sc_started = 1;
-//	WR4(sc, TWI_IER, TWI_SR_RXRDY);
-	while (len-- > 0) {
-		err = 0;
-		while (!(sc->flags & RXRDY)) {
-			err = msleep(sc, &sc->sc_mtx, PZERO | PCATCH, "twird",
-			    0);
-			if (err)
-				goto errout;
-		}
-		sc->flags &= ~RXRDY;
-		*walker++ = RD4(sc, TWI_RHR) & 0xff;
-		if (len == 1 && last)
-			break;
-	}
-	if (!last)
-		goto errout;
-	WR4(sc, TWI_CR, TWI_CR_STOP);
-	err = at91_twi_wait(sc, TWI_SR_TXCOMP);
-	*walker = RD4(sc, TWI_RHR) & 0xff;
-	if (read)
-		*read = walker - buf;
-errout:;
-	WR4(sc, TWI_IDR, TWI_SR_RXRDY);
-	AT91_TWI_UNLOCK(sc);
 	return (err);
 }
 
@@ -371,22 +253,21 @@ at91_twi_rst_card(device_t dev, u_char speed, u_char addr, u_char *oldaddr)
 	rate = 1;
 	
 	/*
-	 * 8 * is because "rate == 1" -> 4 clocks down, 4 clocks up.  The
 	 * speeds are for 1.5kb/s, 45kb/s and 90kb/s.
 	 */
 	switch (speed) {
 	case IIC_SLOW:
-		ckdiv = 8 * AT91C_MASTER_CLOCK / 1500;
+		ckdiv = AT91C_MASTER_CLOCK / (1500 * 4) - 2;
 		break;
 
 	case IIC_FAST:
-		ckdiv = 8 * AT91C_MASTER_CLOCK / 45000;
+		ckdiv = AT91C_MASTER_CLOCK / (45000 * 4) - 2;
 		break;
 
 	case IIC_UNKNOWN:
 	case IIC_FASTEST:
 	default:
-		ckdiv = 8 * AT91C_MASTER_CLOCK / 90000;
+		ckdiv = AT91C_MASTER_CLOCK / (90000 * 4) - 2;
 		break;
 	}
 
@@ -396,7 +277,7 @@ at91_twi_rst_card(device_t dev, u_char speed, u_char addr, u_char *oldaddr)
 	WR4(sc, TWI_CR, TWI_CR_MSEN | TWI_CR_SVDIS);
 	WR4(sc, TWI_CWGR, sc->cwgr);
 
-	return EIO;
+	return 0;
 }
 
 static int
@@ -446,10 +327,8 @@ at91_twi_transfer(device_t dev, struct iic_msg *msgs, uint32_t nmsgs)
 			while (len--) {
 				if (len == 0)
 					WR4(sc, TWI_CR, TWI_CR_STOP);
-				if (!at91_twi_wait(sc, TWI_SR_RXRDY)) {
-					printf("1\n");
+				if (at91_twi_wait(sc, TWI_SR_RXRDY))
 					return (EIO);
-				}
 				*buf++ = RD4(sc, TWI_RHR) & 0xff;
 			}
 		} else {
@@ -457,16 +336,12 @@ at91_twi_transfer(device_t dev, struct iic_msg *msgs, uint32_t nmsgs)
 				WR4(sc, TWI_THR, *buf++);
 				if (len == 0)
 					WR4(sc, TWI_CR, TWI_CR_STOP);
-				if (!at91_twi_wait(sc, TWI_SR_TXRDY)) {
-					printf("3\n");
+				if (at91_twi_wait(sc, TWI_SR_TXRDY))
 					return (EIO);
-				}
 			}
 		}
-		if (!at91_twi_wait(sc, TWI_SR_TXCOMP)) {
-			printf("2\n");
+		if (at91_twi_wait(sc, TWI_SR_TXCOMP))
 			return (EIO);
-		}
 	}
 	return (0);
 }
@@ -479,11 +354,6 @@ static device_method_t at91_twi_methods[] = {
 
 	/* iicbus interface */
 	DEVMETHOD(iicbus_callback,	at91_twi_callback),
-	DEVMETHOD(iicbus_repeated_start, at91_twi_repeated_start),
-	DEVMETHOD(iicbus_start,		at91_twi_start),
-	DEVMETHOD(iicbus_stop,		at91_twi_stop),
-	DEVMETHOD(iicbus_write,		at91_twi_write),
-	DEVMETHOD(iicbus_read,		at91_twi_read),
 	DEVMETHOD(iicbus_reset,		at91_twi_rst_card),
 	DEVMETHOD(iicbus_transfer,	at91_twi_transfer),
 	{ 0, 0 }
