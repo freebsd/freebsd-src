@@ -88,6 +88,7 @@ struct var vpath;
 struct var vppid;
 struct var vps1;
 struct var vps2;
+struct var vps4;
 struct var vvers;
 STATIC struct var voptind;
 
@@ -110,6 +111,8 @@ STATIC const struct varinit varinit[] = {
 	 * vps1 depends on uid
 	 */
 	{ &vps2,	VSTRFIXED|VTEXTFIXED,		"PS2=> ",
+	  NULL },
+	{ &vps4,	VSTRFIXED|VTEXTFIXED,		"PS4=+ ",
 	  NULL },
 	{ &voptind,	VSTRFIXED|VTEXTFIXED,		"OPTIND=1",
 	  getoptsreset },
