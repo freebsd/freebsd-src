@@ -306,7 +306,7 @@ iicioctl(struct cdev *dev, u_long cmd, caddr_t data, int flags, struct thread *t
 		error = copyin(d->msgs, buf, sizeof(*d->msgs) * d->nmsgs);
 		if (error)
 			break;
-		/* Allocate kernel buffers for userland data, copyin write data */
+		/* Alloc kernel buffers for userland data, copyin write data */
 		for (i = 0; i < d->nmsgs; i++) {
 			m = &((struct iic_msg *)buf)[i];
 			usrbufs[i] = m->buf;
@@ -318,7 +318,7 @@ iicioctl(struct cdev *dev, u_long cmd, caddr_t data, int flags, struct thread *t
 		/* Copyout all read segments, free up kernel buffers */
 		for (i = 0; i < d->nmsgs; i++) {
 			m = &((struct iic_msg *)buf)[i];
-			if (!(m->flags & IIC_M_RD))
+			if (m->flags & IIC_M_RD)
 				copyout(m->buf, usrbufs[i], m->len);
 			free(m->buf, M_TEMP);
 		}
