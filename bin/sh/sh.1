@@ -32,7 +32,7 @@
 .\"	from: @(#)sh.1	8.6 (Berkeley) 5/4/95
 .\" $FreeBSD$
 .\"
-.Dd July 29, 2006
+.Dd October 7, 2006
 .Dt SH 1
 .Os
 .Sh NAME
@@ -1777,7 +1777,7 @@ Print the process id's of the processes in the specified
 If the
 .Ar job
 argument is omitted, use the current job.
-.It Ic jobs Oo Fl ls Oc Op Ar job ...
+.It Ic jobs Oo Fl lps Oc Op Ar job ...
 Print information about the specified jobs, or all jobs if no
 .Ar job
 argument is given.
@@ -1787,8 +1787,13 @@ If the
 .Fl l
 option is specified, the PID of each job is also printed.
 If the
+.Fl p
+option is specified, only the process IDs for the process group leaders
+are printed, one per line.
+If the
 .Fl s
-option is specified, only the PIDs of the jobs are printed, one per line.
+option is specified, only the PIDs of the job commands are printed, one per
+line.
 .It Ic local Oo Ar variable ... Oc Op Fl
 See the
 .Sx Functions
