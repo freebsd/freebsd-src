@@ -377,6 +377,13 @@ usbd_start_transfer(void *arg, bus_dma_segment_t *segs, int nseg, int error)
 		    xfer->buffer != xfer->allocbuf)
 			memcpy(xfer->allocbuf, xfer->buffer, xfer->length);
 		bus_dmamap_sync(tag, dmap->map, BUS_DMASYNC_PREWRITE);
+	} else {
+		/*
+		 * Even if we have no data portion we still need to sync the
+		 * dmamap for the request data in the SETUP packet
+		 */
+		if (xfer->rqflags & URQ_REQUEST)
+			bus_dmamap_sync(tag, dmap->map, BUS_DMASYNC_PREWRITE);
 	}
 	err = pipe->methods->transfer(xfer);
 	if (err != USBD_IN_PROGRESS && err) {
