@@ -763,6 +763,11 @@ record:
 			goto record;
 		break;
 
+	case VSERROR:
+		c = p - var - 1;
+		error("${%.*s%s}: Bad substitution", c, var,
+		    (c > 0 && *p != CTLENDVAR) ? "..." : "");
+
 	default:
 		abort();
 	}
