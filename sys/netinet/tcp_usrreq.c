@@ -571,7 +571,7 @@ tcp_usr_disconnect(struct socket *so)
 	KASSERT(inp != NULL, ("tcp_usr_disconnect: inp == NULL"));
 	INP_LOCK(inp);
 	if (inp->inp_vflag & (INP_TIMEWAIT | INP_DROPPED)) {
-		error = EINVAL;
+		error = ECONNRESET;
 		goto out;
 	}
 	tp = intotcpcb(inp);
@@ -648,7 +648,7 @@ tcp6_usr_accept(struct socket *so, struct sockaddr **nam)
 	KASSERT(inp != NULL, ("tcp6_usr_accept: inp == NULL"));
 	INP_LOCK(inp);
 	if (inp->inp_vflag & (INP_TIMEWAIT | INP_DROPPED)) {
-		error = EINVAL;
+		error = ECONNABORTED;
 		goto out;
 	}
 	tp = intotcpcb(inp);
@@ -718,7 +718,7 @@ tcp_usr_shutdown(struct socket *so)
 	KASSERT(inp != NULL, ("inp == NULL"));
 	INP_LOCK(inp);
 	if (inp->inp_vflag & (INP_TIMEWAIT | INP_DROPPED)) {
-		error = EINVAL;
+		error = ECONNRESET;
 		goto out;
 	}
 	tp = intotcpcb(inp);
@@ -750,7 +750,7 @@ tcp_usr_rcvd(struct socket *so, int flags)
 	KASSERT(inp != NULL, ("tcp_usr_rcvd: inp == NULL"));
 	INP_LOCK(inp);
 	if (inp->inp_vflag & (INP_TIMEWAIT | INP_DROPPED)) {
-		error = EINVAL;
+		error = ECONNRESET;
 		goto out;
 	}
 	tp = intotcpcb(inp);
@@ -804,7 +804,7 @@ tcp_usr_send(struct socket *so, int flags, struct mbuf *m,
 			m_freem(control);
 		if (m)
 			m_freem(m);
-		error = EINVAL;
+		error = ECONNRESET;
 		goto out;
 	}
 #ifdef INET6
@@ -1015,7 +1015,7 @@ tcp_usr_rcvoob(struct socket *so, struct mbuf *m, int flags)
 	KASSERT(inp != NULL, ("tcp_usr_rcvoob: inp == NULL"));
 	INP_LOCK(inp);
 	if (inp->inp_vflag & (INP_TIMEWAIT | INP_DROPPED)) {
-		error = EINVAL;
+		error = ECONNRESET;
 		goto out;
 	}
 	tp = intotcpcb(inp);
