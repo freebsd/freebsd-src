@@ -85,6 +85,7 @@ nodevice	snd_cs4281
 nodevice	snd_csa
 nodevice	snd_ds1
 nodevice	snd_emu10k1
+nodevice	snd_emu10kx
 nodevice	snd_ess
 nodevice	snd_fm801
 nodevice	snd_gusc
