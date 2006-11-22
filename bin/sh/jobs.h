@@ -74,6 +74,13 @@ struct job {
 #endif
 };
 
+enum {
+	SHOWJOBS_DEFAULT,	/* job number, status, command */
+	SHOWJOBS_VERBOSE,	/* job number, PID, status, command */
+	SHOWJOBS_PIDS,		/* PID only */
+	SHOWJOBS_PGIDS		/* PID of the group leader only */
+};
+
 extern pid_t backgndpid;	/* pid of last background process */
 extern int job_warning;		/* user was warned about stopped jobs */
 extern int in_waitcmd;		/* are we in waitcmd()? */
@@ -84,7 +91,7 @@ void setjobctl(int);
 int fgcmd(int, char **);
 int bgcmd(int, char **);
 int jobscmd(int, char **);
-void showjobs(int, int, int);
+void showjobs(int, int);
 int waitcmd(int, char **);
 int jobidcmd(int, char **);
 struct job *makejob(union node *, int);
