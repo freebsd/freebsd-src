@@ -606,6 +606,14 @@
     <para>The &man.sysinstall.8; utility now displays the running &os;
       version in menu titles.</para>
 
+    <para>The &man.sysinstall.8; program contained a bug that could
+      prevent it from installing a kernel if no distribution was
+      explicitly selected at install-time.  This bug has now been
+      fixed.</para>
+
+    <para>A bug in &man.sysinstall.8; that sometimes prevented package
+      installs from multiple CDROM volumes has been fixed.</para>
+
     <para>A <filename>/media</filename> directory has been
       added to contain mount points for removable media
       such as CDROMs, floppy disks, USB drives, and so on.</para>
@@ -617,7 +625,11 @@
       default prefix for <application>GNOME</application> (and some
       related programs) has moved from
       <filename>/usr/X11R6</filename>
-      to <filename>/usr/local</filename>.</para>
+      to <filename>/usr/local</filename>.
+      This version of <application>GNOME</application> also adds
+      support for the Hardware Abstraction Layer (HAL), which provides
+      features such as auto-mounting removable media, auto-playing
+      CDs, and more integrated power control.</para>
 
     <para>The supported version of
       the <application>KDE</application> desktop environment
