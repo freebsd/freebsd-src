@@ -2765,7 +2765,7 @@ mxge_attach(device_t dev)
 		
 		pectl = pci_read_config(dev, reg + 0x8, 2);
 		pectl = (pectl & ~0x7000) | (5 << 12);
-		pci_write_config(dev, reg + 0x8, 2, pectl);
+		pci_write_config(dev, reg + 0x8, pectl, 2);
 	}
 
 	/* Enable DMA and Memory space access */
