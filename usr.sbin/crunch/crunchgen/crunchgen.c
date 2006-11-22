@@ -986,7 +986,7 @@ void top_makefile_rules(FILE *outmk)
 
 	fprintf(outmk, "all: objs exe\nobjs: $(SUBMAKE_TARGETS)\n");
 	fprintf(outmk, "exe: %s\n", execfname);
-	fprintf(outmk, "%s: %s.o $(CRUNCHED_OBJS)\n", execfname, execfname);
+	fprintf(outmk, "%s: %s.o $(CRUNCHED_OBJS) $(SUBMAKE_TARGETS)\n", execfname, execfname);
 	fprintf(outmk, ".if defined(LIBS_SO) && !empty(LIBS_SO)\n");
 	fprintf(outmk, "\t$(CC) -o %s %s.o $(CRUNCHED_OBJS) \\\n",
 	    execfname, execfname);
