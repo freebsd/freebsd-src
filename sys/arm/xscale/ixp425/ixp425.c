@@ -233,6 +233,7 @@ ixp425_attach(device_t dev)
 	device_add_child(dev, "npe", 0);	/* NPE-B */
 	device_add_child(dev, "npe", 1);	/* NPE-C */
 	device_add_child(dev, "ata_avila", 0);	/* XXX */
+	device_add_child(dev, "led_avila", 0);
 
 	if (bus_space_map(sc->sc_iot, IXP425_GPIO_HWBASE, IXP425_GPIO_SIZE,
 	    0, &sc->sc_gpio_ioh))
