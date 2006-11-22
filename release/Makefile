@@ -141,12 +141,11 @@ NOPORTSATALL=	YES
 #
 # Doing 'make index' in /usr/ports requires Perl.
 MAKEINDEXPORTS=	lang/perl5.8
-# By default, only English documentation (Handbook, FAQ, etc.) is built
-# to cut down on space used for documentation on disc2.  You can change
-# DOC_LANG to be other languages, or comment that line out to build
-# documentation for all languages. The language for the release notes
-# is controlled by the RELNOTES_LANG variable above.
-DOC_LANG=	en_US.ISO8859-1
+# By default, documentation (Handbook, FAQ, etc.) is built for all
+# the languages.  To speed up building, set the DOC_LANG to just
+# the languages you need.  (The language for the release notes is
+# controlled by the RELNOTES_LANG variable above.)
+#DOC_LANG=	en_US.ISO8859-1
 DOCPORTS=	textproc/docproj
 # Set this to wherever the distfiles required by release procedures.
 .if defined(DOCDISTFILES)
