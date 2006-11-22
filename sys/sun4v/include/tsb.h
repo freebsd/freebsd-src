@@ -51,7 +51,6 @@ extern hv_tsb_info_t kernel_td[MAX_TSB_INFO];
 
 struct hv_tsb_info;
 
-#define TSB_INIT_SHIFT        3
 
 void tsb_init(struct hv_tsb_info *tsb, uint64_t *scratchval, uint64_t page_shift);
 
