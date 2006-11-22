@@ -84,6 +84,7 @@ __FBSDID("$FreeBSD$");
 
 /* tunable params */
 static int mxge_nvidia_ecrc_enable = 1;
+static int mxge_force_firmware = 0;
 static int mxge_max_intr_slots = 1024;
 static int mxge_intr_coal_delay = 30;
 static int mxge_deassert_wait = 1;
@@ -403,6 +404,29 @@ mxge_select_firmware(mxge_softc_t *sc)
 	device_t pdev;
 	uint16_t pvend, pdid;
 
+
+	if (mxge_force_firmware != 0) {
+		if (mxge_force_firmware == 1)
+			aligned = 1;
+		else
+			aligned = 0;
+		if (mxge_verbose)
+			device_printf(sc->dev,
+				      "Assuming %s completions (forced)\n",
+				      aligned ? "aligned" : "unaligned");
+		goto abort;
+	}
+
+	/* if the PCIe link width is 4 or less, we can use the aligned
+	   firmware and skip any checks */
+	if (sc->link_width != 0 && sc->link_width <= 4) {
+		device_printf(sc->dev,
+			      "PCIe x%d Link, expect reduced performance\n",
+			      sc->link_width);
+		aligned = 1;
+		goto abort;
+	}
+
 	pdev = device_get_parent(device_get_parent(sc->dev));
 	if (pdev == NULL) {
 		device_printf(sc->dev, "could not find parent?\n");
@@ -428,8 +452,10 @@ mxge_select_firmware(mxge_softc_t *sc)
 	   provided aligned completions */
 	if (/* HT2000 */ (pvend == 0x1166 && pdid == 0x0132) ||
 	    /* PLX */    (pvend == 0x10b5 && pdid == 0x8532) || 
-	    /* Intel */   (pvend == 0x8086 && 
-			   /* E5000 */(pdid >= 0x25f7 && pdid <= 0x25fa))) {
+	    /* Intel */  (pvend == 0x8086 && 
+	      /* E5000 NorthBridge*/((pdid >= 0x25f7 && pdid <= 0x25fa) ||
+	      /* E5000 SouthBridge*/ (pdid >= 0x3510 && pdid <= 0x351b)))) {
+		aligned = 1;
 		if (mxge_verbose)
 			device_printf(sc->dev,
 				      "Assuming aligned completions "
@@ -722,7 +748,9 @@ mxge_load_firmware(mxge_softc_t *sc)
 				 "performance consider loading optimized "
 				 "firmware\n");
 		}
-		
+		sc->fw_name = mxge_fw_unaligned;
+		sc->tx.boundary = 2048;
+		return 0;
 	}
 	/* clear confirmation addr */
 	confirm = (volatile uint32_t *)sc->cmd;
@@ -1092,6 +1120,10 @@ mxge_add_sysctls(mxge_softc_t *sc)
 		       "product_code",
 		       CTLFLAG_RD, &sc->product_code_string,
 		       0, "product_code");
+	SYSCTL_ADD_INT(ctx, children, OID_AUTO, 
+		       "pcie_link_width",
+		       CTLFLAG_RD, &sc->link_width,
+		       0, "tx_boundary");
 	SYSCTL_ADD_INT(ctx, children, OID_AUTO, 
 		       "tx_boundary",
 		       CTLFLAG_RD, &sc->tx.boundary,
@@ -2669,6 +2701,8 @@ mxge_fetch_tunables(mxge_softc_t *sc)
 			  &mxge_intr_coal_delay);	
 	TUNABLE_INT_FETCH("hw.mxge.nvidia_ecrc_enable", 
 			  &mxge_nvidia_ecrc_enable);	
+	TUNABLE_INT_FETCH("hw.mxge.force_firmware", 
+			  &mxge_force_firmware);	
 	TUNABLE_INT_FETCH("hw.mxge.deassert_wait", 
 			  &mxge_deassert_wait);	
 	TUNABLE_INT_FETCH("hw.mxge.verbose", 
@@ -2687,8 +2721,8 @@ mxge_attach(device_t dev)
 	mxge_softc_t *sc = device_get_softc(dev);
 	struct ifnet *ifp;
 	size_t bytes;
-	int count, rid, err;
-	uint16_t cmd;
+	int count, rid, err, reg;
+	uint16_t cmd, pectl, lnk;
 
 	sc->dev = dev;
 	mxge_fetch_tunables(sc);
@@ -2723,6 +2757,16 @@ mxge_attach(device_t dev)
 	mtx_init(&sc->tx_lock, device_get_nameunit(dev),
 		 MTX_NETWORK_LOCK, MTX_DEF);
 	sx_init(&sc->driver_lock, device_get_nameunit(dev));
+
+	/* find the PCIe link width and set max read request to 4KB*/
+	if (pci_find_extcap(dev, PCIY_EXPRESS, &reg) == 0) {
+		lnk = pci_read_config(dev, reg + 0x12, 2);
+		sc->link_width = (lnk >> 4) & 0x3f;
+		
+		pectl = pci_read_config(dev, reg + 0x8, 2);
+		pectl = (pectl & ~0x7000) | (5 << 12);
+		pci_write_config(dev, reg + 0x8, 2, pectl);
+	}
 
 	/* Enable DMA and Memory space access */
 	pci_enable_busmaster(dev);
@@ -2802,7 +2846,7 @@ mxge_attach(device_t dev)
 		device_printf(dev, "could not alloc interrupt\n");
 		goto abort_with_rx_done;
 	}
-	if (bootverbose)
+	if (mxge_verbose)
 		device_printf(dev, "using %s irq %ld\n",
 			      sc->msi_enabled ? "MSI" : "INTx",
 			      rman_get_start(sc->irq_res));

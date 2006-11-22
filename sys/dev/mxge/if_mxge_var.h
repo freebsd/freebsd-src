@@ -156,6 +156,7 @@ typedef struct {
 	int write_dma;
 	int read_write_dma;
 	int fw_multicast_support;
+	int link_width;
 	char *mac_addr_string;
 	char product_code_string[64];
 	char serial_number_string[64];
