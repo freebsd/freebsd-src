@@ -233,6 +233,8 @@ ASSYM(PC_TSBWBUF, offsetof(struct pcpu, pc_tsbwbuf));
 
 ASSYM(PCB_KSTACK, offsetof(struct pcb, pcb_kstack));
 ASSYM(INTR_REPORT_SIZE, INTR_REPORT_SIZE);
+ASSYM(PM_TSB_MISS_COUNT, offsetof(struct pmap, pm_tsb_miss_count));
+ASSYM(PM_TSB_CAP_MISS_COUNT, offsetof(struct pmap, pm_tsb_cap_miss_count));
 #else
 ASSYM(PC_MID, offsetof(struct pcpu, pc_mid));
 ASSYM(PC_TLB_CTX, offsetof(struct pcpu, pc_tlb_ctx));
