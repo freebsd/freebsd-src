@@ -121,13 +121,4 @@ extern	vm_offset_t virtual_avail;
 extern	vm_offset_t virtual_end;
 extern	vm_paddr_t msgbuf_phys;
 
-static __inline int
-pmap_track_modified(pmap_t pm, vm_offset_t va)
-{
-	if (pm == kernel_pmap)
-		return ((va < kmi.clean_sva) || (va >= kmi.clean_eva));
-	else
-		return (1);
-}
-
 #endif /* !_MACHINE_PMAP_H_ */

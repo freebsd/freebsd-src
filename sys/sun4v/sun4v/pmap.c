@@ -331,8 +331,7 @@ retry:
 				KASSERT((tte_data & VTD_SW_W),
 				("get_pv_entry: modified page not writable: va: %lx, tte: %lx",
 				    va, tte_data));
-				if (pmap_track_modified(locked_pmap, va))
-					vm_page_dirty(m);
+				vm_page_dirty(m);
 			}
 
 			pmap_invalidate_page(pmap, va, TRUE);
@@ -1030,17 +1029,14 @@ pmap_enter(pmap_t pmap, vm_offset_t va, vm_page_t m, vm_prot_t prot,
 	
 	invlva = FALSE;
 	if ((otte_data & ~(VTD_W|VTD_REF)) != tte_data) {
-		if (otte_data & VTD_V) {
+		if (otte_data & VTD_MANAGED) {
 			if (otte_data & VTD_REF) {
-				if (otte_data & VTD_MANAGED)
-					vm_page_flag_set(om, PG_REFERENCED);
+				vm_page_flag_set(om, PG_REFERENCED);
 				if (opa != pa)
 					invlva = TRUE;
 			}
 			if (otte_data & VTD_W) {
-				if ((otte_data & VTD_MANAGED) &&
-				    pmap_track_modified(pmap, va))
-					vm_page_dirty(om);
+				vm_page_dirty(om);
 #if 0
 				if ((prot & VM_PROT_WRITE) == 0) /* XXX double check */
 #endif
@@ -1686,7 +1682,7 @@ pmap_protect(pmap_t pmap, vm_offset_t sva, vm_offset_t eva, vm_prot_t prot)
 				m = PHYS_TO_VM_PAGE(TTE_GET_PA(otte_data));
 				vm_page_flag_set(m, PG_REFERENCED);
 			}
-			if ((otte_data & VTD_W) && pmap_track_modified(pmap, tva)) {
+			if (otte_data & VTD_W) {
 				m = PHYS_TO_VM_PAGE(TTE_GET_PA(otte_data));
 				vm_page_dirty(m);
 			}
@@ -1838,8 +1834,7 @@ pmap_remove_all(vm_page_t m)
 			KASSERT((tte_data & VTD_SW_W),
 	("pmap_remove_all: modified page not writable: va: %lx, tte: %lx",
 			    pv->pv_va, tte_data));
-			if (pmap_track_modified(pv->pv_pmap, pv->pv_va))
-				vm_page_dirty(m);
+			vm_page_dirty(m);
 		}
 	
 		pmap_invalidate_page(pv->pv_pmap, pv->pv_va, TRUE);
@@ -1967,8 +1962,7 @@ pmap_remove_tte(pmap_t pmap, tte_t tte_data, vm_offset_t va)
 	if (tte_data & VTD_MANAGED) {
 		m = PHYS_TO_VM_PAGE(TTE_GET_PA(tte_data));
 		if (tte_data & VTD_W) {
-			if (pmap_track_modified(pmap, va))
-				vm_page_dirty(m);	
+			vm_page_dirty(m);	
 		}
 		if (tte_data & VTD_REF) 
 			vm_page_flag_set(m, PG_REFERENCED);
