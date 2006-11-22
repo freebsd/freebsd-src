@@ -21,6 +21,15 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 7.x IS SLOW:
 	developers choose to disable these features on build machines
 	to maximize performance.
 
+20061122:
+	The following binaries have been disconnected from the build:
+	mount_devfs, mount_ext2fs, mount_fdescfs, mount_procfs, mount_linprocfs,
+	and mount_std.  The functionality of these programs has been
+	moved into the mount program.  For example, to mount a devfs
+	filesystem, instead of using mount_devfs, use: "mount -t devfs".
+	This does not affect entries in /etc/fstab, since entries in
+	/etc/fstab are always processed with "mount -t fstype".
+
 20061113:
 	Support for PCI Message Signalled Interrupts on i386 and amd64
 	has been added to the kernel and various drivers will soon be
