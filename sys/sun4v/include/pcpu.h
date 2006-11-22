@@ -51,7 +51,6 @@ struct pmap;
 	struct	intr_request *pc_irfree;				\
 	struct 	pmap *pc_curpmap;					\
 	vm_offset_t pc_addr;						\
-	vm_offset_t pc_tsb;						\
 	vm_offset_t *pc_mondo_data;                                     \
         vm_offset_t *pc_cpu_list;                                       \
 	vm_offset_t *pc_cpu_q;                                          \
@@ -78,7 +77,7 @@ struct pmap;
 	struct rwindow pc_tsbwbuf[2];                                   \
         uint64_t pc_caller;                                             \
         uint16_t pc_cpulist[MAXCPU];                                    \
-        uint64_t pad[7];
+        uint64_t pad[0];
 
 	/* XXX SUN4V_FIXME - as we access the *_ra and *_size fields in quick
 	 * succession we _really_ want them to be L1 cache line size aligned
