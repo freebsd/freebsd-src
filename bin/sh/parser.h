@@ -60,6 +60,7 @@
 #define VSTRIMRIGHT	0x8		/* ${var%pattern} */
 #define VSTRIMRIGHTMAX 	0x9		/* ${var%%pattern} */
 #define VSLENGTH	0xa		/* ${#var} */
+#define VSERROR		0xb		/* Syntax error, issue when expanded */
 
 
 /*
