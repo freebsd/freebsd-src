@@ -95,6 +95,8 @@ device		ixpwdog		# watchdog timer
 device		ds1672		# DS1672 on I2C bus
 device		ad7418		# AD7418 on I2C bus
 
+device		avila_led
+
 device		ata
 device		atadisk         # ATA disk drives
 device		avila_ata	# Gateworks CF/IDE support
