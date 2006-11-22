@@ -1628,14 +1628,11 @@ pmap_pinit(pmap_t pmap)
 {
 
 	pmap->pm_context = get_context();
+	pmap->pm_tsb_ra = vtophys(&pmap->pm_tsb);
 
 	vm_page_lock_queues();
 	pmap->pm_hash = tte_hash_create(pmap->pm_context, &pmap->pm_hashscratch);
-#ifdef notyet
-	pmap->pm_tsb_ra = tsb_init(&pmap->pm_tsb, &pmap->pm_tsbscratch, TSB_INIT_SIZE);
-#else
-	pmap->pm_tsb_ra = tsb_init(&pmap->pm_tsb, &pmap->pm_tsbscratch);
-#endif
+	tsb_init(&pmap->pm_tsb, &pmap->pm_tsbscratch, TSB_INIT_SHIFT);
 	vm_page_unlock_queues();
 	pmap->pm_active = pmap->pm_tlbactive = 0;
 	TAILQ_INIT(&pmap->pm_pvlist);

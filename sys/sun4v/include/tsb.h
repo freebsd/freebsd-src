@@ -51,8 +51,9 @@ extern hv_tsb_info_t kernel_td[MAX_TSB_INFO];
 
 struct hv_tsb_info;
 
+#define TSB_INIT_SHIFT        3
 
-vm_paddr_t tsb_init(struct hv_tsb_info *tsb, uint64_t *scratchval);
+void tsb_init(struct hv_tsb_info *tsb, uint64_t *scratchval, uint64_t page_shift);
 
 void tsb_deinit(struct hv_tsb_info *tsb);
 
@@ -75,5 +76,9 @@ void tsb_clear_range(struct hv_tsb_info *tsb, vm_offset_t sva, vm_offset_t eva);
 uint64_t tsb_set_scratchpad_kernel(struct hv_tsb_info *tsb);
 
 uint64_t tsb_set_scratchpad_user(struct hv_tsb_info *tsb);
+
+int tsb_size(struct hv_tsb_info *tsb);
+
+int tsb_page_shift(pmap_t pmap);
 
 #endif /* !_MACHINE_TSB_H_ */
