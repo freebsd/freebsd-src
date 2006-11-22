@@ -73,7 +73,7 @@ options 	SMP			# Symmetric MultiProcessor Kernel
 
 # Linux 32-bit ABI support
 options 	COMPAT_LINUX32		# Compatible with i386 linux binaries 
-options 	LINPROCFS		# Cannot be a module yet.
+options 	LINPROCFS
 options		LINSYSFS
 
 # Bus support.
