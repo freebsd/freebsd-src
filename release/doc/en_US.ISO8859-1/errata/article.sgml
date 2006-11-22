@@ -250,7 +250,7 @@
       Further details can be found in errata notice
       <ulink url="ftp://ftp.FreeBSD.org/pub/FreeBSD/ERRATA/notices/FreeBSD-EN-06:02.net.asc">FreeBSD-EN-06:02.net</ulink>.</para>
 
-    <para>(2006/06/01) Problems have been observed when trying to load
+    <para>(2006/06/01, updated 2006/11/22) Problems have been observed when trying to load
       packages from multiple CDROMs inside the &man.sysinstall.8;
       environment.  Specifically, the disk-switching functionality in
       &man.sysinstall.8; seems to become confused about the contents
@@ -261,7 +261,8 @@
       the GNOME or KDE desktop environments) from a subsequent CDROM
       that depend on &xorg;.  As a workaround during a new install,
       one should try to install &xorg; along with the base system, or
-      at least before any other packages that depend on it.</para>
+      at least before any other packages that depend on it.  This
+      problem has been corrected on HEAD and RELENG_6.</para>
 
     <para>(2006/06/01, updated 2006/08/28) An error in the statistics-keeping logic in the
       UMA kernel memory allocator has led to the number of
