@@ -195,6 +195,8 @@ static void pmap_insert_entry(pmap_t pmap, vm_offset_t va, vm_page_t m);
 static void pmap_remove_entry(struct pmap *pmap, vm_page_t m, vm_offset_t va);
 static void pmap_remove_tte(pmap_t pmap, tte_t tte_data, vm_offset_t va);
 static void pmap_enter_quick_locked(pmap_t pmap, vm_offset_t va, vm_page_t m, vm_prot_t prot);
+static void pmap_tte_hash_resize(pmap_t pmap);
+
 void pmap_set_ctx_panic(uint64_t error, vm_paddr_t tsb_ra, pmap_t pmap);
 
 
@@ -903,7 +905,7 @@ pmap_copy(pmap_t dst_pmap, pmap_t src_pmap, vm_offset_t dst_addr,
 	PMAP_UNLOCK(src_pmap);
 
 	if (tte_hash_needs_resize(dst_pmap->pm_hash))
-		dst_pmap->pm_hash = tte_hash_resize(dst_pmap->pm_hash, &dst_pmap->pm_hashscratch);
+		pmap_tte_hash_resize(dst_pmap);
 	sched_unpin();
 	vm_page_unlock_queues();
 	PMAP_UNLOCK(dst_pmap);
@@ -1048,7 +1050,7 @@ pmap_enter(pmap_t pmap, vm_offset_t va, vm_page_t m, vm_prot_t prot,
 	} 
 
 	if (tte_hash_needs_resize(pmap->pm_hash))
-		pmap->pm_hash = tte_hash_resize(pmap->pm_hash, &pmap->pm_hashscratch);
+		pmap_tte_hash_resize(pmap);
 #ifdef notyet
 	if ((PCPU_GET(curpmap) != kernel_pmap) && (curthread->td_proc->p_numthreads == 1)
 	    && (pmap->pm_tsb_cap_miss_count > pmap->pm_tsb_miss_count >> 2)) {
@@ -1972,6 +1974,20 @@ pmap_remove_tte(pmap_t pmap, tte_t tte_data, vm_offset_t va)
 			vm_page_flag_set(m, PG_REFERENCED);
 		pmap_remove_entry(pmap, m, va);
 	}
+}
+
+static void
+pmap_tte_hash_resize(pmap_t pmap)
+{
+	tte_hash_t old_th = pmap->pm_hash;
+
+	pmap->pm_hash = tte_hash_resize(pmap->pm_hash);
+
+	if (curthread->td_proc->p_numthreads != 1) 
+		pmap_ipi(pmap, tl_ttehashupdate, pmap->pm_context, pmap->pm_hashscratch);
+
+	pmap->pm_hashscratch = tte_hash_set_scratchpad_user(pmap->pm_hash, pmap->pm_context);	
+	tte_hash_destroy(old_th);
 }
 
 /*

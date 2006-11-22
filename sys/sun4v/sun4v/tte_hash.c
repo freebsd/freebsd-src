@@ -267,9 +267,7 @@ tte_hash_create(uint64_t context, uint64_t *scratchval)
 void
 tte_hash_destroy(tte_hash_t th)
 {
-	panic("FIXME");	
-
-	free_tte_hash(th);
+	tte_hash_cached_free(th);
 }
 
 static void
@@ -617,22 +615,18 @@ tte_hash_update(tte_hash_t th, vm_offset_t va, tte_t tte_data)
 int
 tte_hash_needs_resize(tte_hash_t th)
 {
-	return ((th->th_entries > (1 << (th->th_shift + PAGE_SHIFT - TTE_SHIFT))) 
-		&& (th != &kernel_tte_hash) && (curthread->td_proc->p_numthreads == 1));
+	return ((th->th_entries > (1 << (th->th_shift + PAGE_SHIFT - TTE_SHIFT + 1))) 
+		&& (th != &kernel_tte_hash));
 }
 
 tte_hash_t
-tte_hash_resize(tte_hash_t th, uint64_t *scratchval)
+tte_hash_resize(tte_hash_t th)
 {
 	int i, j, nentries;
 	tte_hash_t newth;
 	tte_hash_entry_t src_entry, dst_entry, newentry;
 
-	/*
-	 * only resize single threaded processes for now :-(
-	 */
-	if (th == &kernel_tte_hash || curthread->td_proc->p_numthreads != 1) 
-		panic("tte_hash_resize not supported for this pmap");
+	KASSERT(th != &kernel_tte_hash,("tte_hash_resize not supported for this pmap"));
 
 	if ((newth = tte_hash_cached_get((th->th_shift - HASH_ENTRY_SHIFT) + 1)) != NULL) {
 		newth->th_context = th->th_context;
@@ -662,8 +656,6 @@ tte_hash_resize(tte_hash_t th, uint64_t *scratchval)
 
 	KASSERT(th->th_entries == newth->th_entries, 
 		("not all entries copied old=%d new=%d", th->th_entries, newth->th_entries));
-
-	tte_hash_cached_free(th);
-	*scratchval = tte_hash_set_scratchpad_user(newth, newth->th_context);
+	
 	return (newth);
 }

@@ -73,6 +73,6 @@ tte_t tte_hash_update(tte_hash_t hash, vm_offset_t va, tte_t tte_data);
 
 int tte_hash_needs_resize(tte_hash_t th);
 
-tte_hash_t  tte_hash_resize(tte_hash_t th, uint64_t *scratchval);
+tte_hash_t  tte_hash_resize(tte_hash_t th);
 
 #endif /* _MACHINE_TTE_HASH_H_ */
