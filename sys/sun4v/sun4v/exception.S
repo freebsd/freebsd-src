@@ -1807,16 +1807,13 @@ tsb_miss_found:
 
 	andn	%l7, %l0, %l7			! remove lock bit
 	
-        and	%g4, %l1, %g3			! size of TSB in pages
+        and	%g4, %l1, %g3			! shift of TSB in pages
 	andn	%g4, %l1, %l3			! TSB real address
 
-#ifdef notyet
 	mov	1, %l2	
 	add	%g3, (PAGE_SHIFT - TTE_SHIFT), %g3	! add shift value for number of ttes / page
 	sllx	%l2, %g3, %g3			! nttes
-#else
-	sllx    %g3, (PAGE_SHIFT - TTE_SHIFT), %g3
-#endif	
+
 	subx	%g3, 1, %g3			! TSB_MASK
 	and	%g3, %l4, %g3			! masked index
 	sllx	%g3, TTE_SHIFT, %g3		! masked byte offset
