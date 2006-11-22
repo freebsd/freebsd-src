@@ -914,7 +914,7 @@ prehash(union node *n)
 {
 	struct cmdentry entry;
 
-	if (n->type == NCMD && n->ncmd.args)
+	if (n && n->type == NCMD && n->ncmd.args)
 		if (goodname(n->ncmd.args->narg.text))
 			find_command(n->ncmd.args->narg.text, &entry, 0,
 				     pathval());
