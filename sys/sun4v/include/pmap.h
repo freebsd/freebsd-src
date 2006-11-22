@@ -46,7 +46,13 @@
 #include <machine/cache.h>
 #include <machine/hypervisorvar.h>
 
+#define TSB_INIT_SHIFT          3
 #define	PMAP_CONTEXT_MAX	8192
+/* 
+ *  We don't want TSBs getting above 1MB - which is enough 
+ *  for a working set of 512MB - revisit in the future 
+ */
+#define TSB_MAX_RESIZE          (20 - TSB_INIT_SHIFT - PAGE_SHIFT)
 
 typedef	struct pmap *pmap_t;
 typedef uint32_t pmap_cpumask_t;
@@ -75,6 +81,7 @@ struct pmap {
 	struct	pmap_statistics pm_stats;
 	uint32_t                pm_tsb_miss_count;
 	uint32_t                pm_tsb_cap_miss_count;
+	vm_paddr_t              pm_old_tsb_pa[TSB_MAX_RESIZE];
 };
 
 #define	PMAP_LOCK(pmap)		mtx_lock(&(pmap)->pm_mtx)
