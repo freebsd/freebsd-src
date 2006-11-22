@@ -222,46 +222,6 @@ alloc_zeroed_page(void)
 	return (ptr);
 }
 
-static inline void *
-alloc_zeroed_contig_pages(int npages)
-{
-	vm_page_t m, tm;
-	int i;
-	void *ptr;
-	
-	m = NULL;
-	while (m == NULL) {
-		m = vm_page_alloc_contig(npages, phys_avail[0], 
-					 phys_avail[1], PAGE_SIZE, (1UL<<34));
-		if (m == NULL) {
-			printf("vm_page_alloc_contig failed - waiting to retry\n");
-			VM_WAIT;
-		}
-	}
-	for (i = 0, tm = m; i < npages; i++, tm++) {
-		tm->wire_count++;
-		if ((tm->flags & PG_ZERO) == 0)
-			pmap_zero_page(tm);
-	}
-	ptr = (void *)TLB_PHYS_TO_DIRECT(VM_PAGE_TO_PHYS(m));
-	
-	return (ptr);
-}
-
-static inline void
-free_contig_pages(void *ptr, int npages)
-{
-	int i;
-	vm_page_t m;
-
-	m = PHYS_TO_VM_PAGE(TLB_DIRECT_TO_PHYS((vm_offset_t)ptr));
-	for (i = 0; i < npages; i++, m++) {
-		m->wire_count--;
-		atomic_subtract_int(&cnt.v_wire_count, 1);
-		vm_page_free(m);
-	}
-}
-
 static inline void
 free_fragment_pages(void *ptr)
 {
@@ -286,7 +246,7 @@ _tte_hash_create(uint64_t context, uint64_t *scratchval, uint16_t shift)
 	th->th_entries = 0;
 	th->th_context = (uint16_t)context;
 
-	th->th_hashtable = alloc_zeroed_contig_pages((1 << shift));
+	th->th_hashtable = pmap_alloc_zeroed_contig_pages((1 << shift), PAGE_SIZE);
 
 	th->th_fhtail = th->th_fhhead = alloc_zeroed_page();
 	KASSERT(th->th_fhtail != NULL, ("th->th_fhtail == NULL"));
