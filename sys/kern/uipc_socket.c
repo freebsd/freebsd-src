@@ -592,6 +592,10 @@ sofree(so)
 	    (so->so_qstate & SQ_INCOMP) == 0,
 	    ("sofree: so_head == NULL, but still SQ_COMP(%d) or SQ_INCOMP(%d)",
 	    so->so_qstate & SQ_COMP, so->so_qstate & SQ_INCOMP));
+	if (so->so_options & SO_ACCEPTCONN) {
+		KASSERT((TAILQ_EMPTY(&so->so_comp)), ("sofree: so_comp populated"));
+		KASSERT((TAILQ_EMPTY(&so->so_incomp)), ("sofree: so_comp populated"));
+	}
 	SOCK_UNLOCK(so);
 	ACCEPT_UNLOCK();
 
@@ -640,6 +644,28 @@ soclose(so)
 	KASSERT(!(so->so_state & SS_NOFDREF), ("soclose: SS_NOFDREF on enter"));
 
 	funsetown(&so->so_sigio);
+	if (so->so_state & SS_ISCONNECTED) {
+		if ((so->so_state & SS_ISDISCONNECTING) == 0) {
+			error = sodisconnect(so);
+			if (error)
+				goto drop;
+		}
+		if (so->so_options & SO_LINGER) {
+			if ((so->so_state & SS_ISDISCONNECTING) &&
+			    (so->so_state & SS_NBIO))
+				goto drop;
+			while (so->so_state & SS_ISCONNECTED) {
+				error = tsleep(&so->so_timeo,
+				    PSOCK | PCATCH, "soclos", so->so_linger * hz);
+				if (error)
+					break;
+			}
+		}
+	}
+
+drop:
+	if (so->so_proto->pr_usrreqs->pru_close != NULL)
+		(*so->so_proto->pr_usrreqs->pru_close)(so);
 	if (so->so_options & SO_ACCEPTCONN) {
 		struct socket *sp;
 		ACCEPT_LOCK();
@@ -663,28 +689,6 @@ soclose(so)
 		}
 		ACCEPT_UNLOCK();
 	}
-	if (so->so_state & SS_ISCONNECTED) {
-		if ((so->so_state & SS_ISDISCONNECTING) == 0) {
-			error = sodisconnect(so);
-			if (error)
-				goto drop;
-		}
-		if (so->so_options & SO_LINGER) {
-			if ((so->so_state & SS_ISDISCONNECTING) &&
-			    (so->so_state & SS_NBIO))
-				goto drop;
-			while (so->so_state & SS_ISCONNECTED) {
-				error = tsleep(&so->so_timeo,
-				    PSOCK | PCATCH, "soclos", so->so_linger * hz);
-				if (error)
-					break;
-			}
-		}
-	}
-
-drop:
-	if (so->so_proto->pr_usrreqs->pru_close != NULL)
-		(*so->so_proto->pr_usrreqs->pru_close)(so);
 	ACCEPT_LOCK();
 	SOCK_LOCK(so);
 	KASSERT((so->so_state & SS_NOFDREF) == 0, ("soclose: NOFDREF"));
