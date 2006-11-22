@@ -100,17 +100,13 @@ extern	u_long mp_tramp_func;
 
 extern	void mp_startup(void);
 
-extern	char tl_ipi_cheetah_dcache_page_inval[];
-extern	char tl_ipi_spitfire_dcache_page_inval[];
-extern	char tl_ipi_spitfire_icache_page_inval[];
-
 extern	char tl_ipi_level[];
 extern	char tl_invltlb[];
 extern	char tl_invlctx[];
 extern	char tl_invlpg[];
-extern	char tl_ipi_tlb_context_demap[];
-extern	char tl_ipi_tlb_page_demap[];
 extern	char tl_ipi_tlb_range_demap[];
+extern  char tl_tsbupdate[];
+extern  char tl_ttehashupdate[];
 
 #ifdef SMP
 
