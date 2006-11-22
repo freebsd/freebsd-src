@@ -54,13 +54,11 @@ SUBDIR=	adjkerntz \
 	mksnap_ffs \
 	mount \
 	mount_cd9660 \
-	mount_ext2fs \
 	mount_msdosfs \
 	mount_nfs \
 	mount_nfs4 \
 	mount_ntfs \
 	mount_nullfs \
-	mount_std \
 	mount_udf \
 	mount_umapfs \
 	mount_unionfs \
