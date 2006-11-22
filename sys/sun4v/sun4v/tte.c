@@ -68,14 +68,10 @@ tte_clear_phys_bit(vm_page_t m, uint64_t flags)
 	 */
 	TAILQ_FOREACH(pv, &m->md.pv_list, pv_list) {
 		tte_t otte_data;
-		/*
-		 * don't write protect pager mappings
-		 */
-		if (flags == VTD_SW_W) {
-			if (!pmap_track_modified(pv->pv_pmap, pv->pv_va))
-				continue;
+
+		if (flags == VTD_SW_W) 
 			flags = (VTD_SW_W|VTD_W);
-		}
+
 		otte_data = tte_hash_clear_bits(pv->pv_pmap->pm_hash, pv->pv_va, flags);
 
 		if (otte_data & flags) {
@@ -123,11 +119,8 @@ tte_clear_virt_bit(struct pmap *pmap, vm_offset_t va, uint64_t flags)
 {
 	tte_t otte_data;
 	
-	if (flags == VTD_SW_W) {
-		if (!pmap_track_modified(pmap, va))
-			return;
+	if (flags == VTD_SW_W) 
 		flags = (VTD_SW_W|VTD_W);
-	}
 
 	otte_data = tte_hash_clear_bits(pmap->pm_hash, va, flags);
 
