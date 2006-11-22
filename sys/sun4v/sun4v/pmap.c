@@ -1189,6 +1189,46 @@ pmap_extract_and_hold(pmap_t pmap, vm_offset_t va, vm_prot_t prot)
 	return (m);
 }
 
+void *
+pmap_alloc_zeroed_contig_pages(int npages, uint64_t alignment)
+{
+	vm_page_t m, tm;
+	int i;
+	void *ptr;
+	
+	m = NULL;
+	while (m == NULL) {
+		m = vm_page_alloc_contig(npages, phys_avail[0], 
+					 phys_avail[1], alignment, (1UL<<34));
+		if (m == NULL) {
+			printf("vm_page_alloc_contig failed - waiting to retry\n");
+			VM_WAIT;
+		}
+	}
+	for (i = 0, tm = m; i < npages; i++, tm++) {
+		tm->wire_count++;
+		if ((tm->flags & PG_ZERO) == 0)
+			pmap_zero_page(tm);
+	}
+	ptr = (void *)TLB_PHYS_TO_DIRECT(VM_PAGE_TO_PHYS(m));
+	
+	return (ptr);
+}
+
+void
+pmap_free_contig_pages(void *ptr, int npages)
+{
+	int i;
+	vm_page_t m;
+
+	m = PHYS_TO_VM_PAGE(TLB_DIRECT_TO_PHYS((vm_offset_t)ptr));
+	for (i = 0; i < npages; i++, m++) {
+		m->wire_count--;
+		atomic_subtract_int(&cnt.v_wire_count, 1);
+		vm_page_free(m);
+	}
+}
+
 void 
 pmap_growkernel(vm_offset_t addr)
 {

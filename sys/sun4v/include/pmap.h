@@ -109,6 +109,8 @@ void    pmap_invalidate_page(pmap_t pmap, vm_offset_t va, int cleartsb);
 void    pmap_invalidate_range(pmap_t pmap, vm_offset_t sva, vm_offset_t eva, int cleartsb);
 void    pmap_invalidate_all(pmap_t pmap);
 void	pmap_scrub_pages(vm_paddr_t pa, int64_t size);
+void    pmap_free_contig_pages(void *ptr, int npages);
+void    *pmap_alloc_zeroed_contig_pages(int npages, uint64_t alignment);
 
 #define	vtophys(va)	pmap_kextract((vm_offset_t)(va))
 
