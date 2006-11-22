@@ -113,7 +113,7 @@ CRUNCH_PROGS_sbin= atacontrol badsect bsdlabel		\
 	kldconfig kldload kldstat kldunload ldconfig 			\
 	md5 mdconfig mdmfs mknod mount mount_cd9660 mount_ext2fs	\
 	mount_msdosfs mount_nfs mount_ntfs mount_nullfs			\
-	mount_std mount_udf mount_umapfs mount_unionfs newfs		\
+	mount_udf mount_umapfs mount_unionfs newfs		\
 	newfs_msdos nos-tun ping reboot			\
 	restore rcorder route routed rtquery rtsol savecore 		\
 	slattach spppcontrol startslip swapon sysctl tunefs umount 
@@ -178,7 +178,6 @@ CRUNCH_ALIAS_reboot= fastboot halt fasthalt
 CRUNCH_ALIAS_restore= rrestore
 CRUNCH_ALIAS_dump= rdump
 CRUNCH_ALIAS_fsck_ffs= fsck_4.2bsd fsck_ufs
-CRUNCH_ALIAS_mount_std= mount_devfs mount_fdescfs mount_linprocfs mount_procfs
 
 # dhclient has historically been troublesome...
 CRUNCH_PROGS_sbin+= dhclient
