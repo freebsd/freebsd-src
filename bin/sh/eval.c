@@ -643,14 +643,19 @@ evalcommand(union node *cmd, int flags, struct backcmd *backcmd)
 
 	/* Print the command if xflag is set. */
 	if (xflag) {
-		outc('+', &errout);
+		char sep = 0;
+		out2str(ps4val());
 		for (sp = varlist.list ; sp ; sp = sp->next) {
-			outc(' ', &errout);
+			if (sep != 0)
+				outc(' ', &errout);
 			out2str(sp->text);
+			sep = ' ';
 		}
 		for (sp = arglist.list ; sp ; sp = sp->next) {
-			outc(' ', &errout);
+			if (sep != 0)
+				outc(' ', &errout);
 			out2str(sp->text);
+			sep = ' ';
 		}
 		outc('\n', &errout);
 		flushout(&errout);
