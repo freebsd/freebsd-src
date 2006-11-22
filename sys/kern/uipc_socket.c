@@ -434,29 +434,6 @@ soclose(so)
 	KASSERT(!(so->so_state & SS_NOFDREF), ("soclose: SS_NOFDREF on enter"));
 
 	funsetown(&so->so_sigio);
-	if (so->so_options & SO_ACCEPTCONN) {
-		struct socket *sp;
-		ACCEPT_LOCK();
-		while ((sp = TAILQ_FIRST(&so->so_incomp)) != NULL) {
-			TAILQ_REMOVE(&so->so_incomp, sp, so_list);
-			so->so_incqlen--;
-			sp->so_qstate &= ~SQ_INCOMP;
-			sp->so_head = NULL;
-			ACCEPT_UNLOCK();
-			(void) soabort(sp);
-			ACCEPT_LOCK();
-		}
-		while ((sp = TAILQ_FIRST(&so->so_comp)) != NULL) {
-			TAILQ_REMOVE(&so->so_comp, sp, so_list);
-			so->so_qlen--;
-			sp->so_qstate &= ~SQ_COMP;
-			sp->so_head = NULL;
-			ACCEPT_UNLOCK();
-			(void) soabort(sp);
-			ACCEPT_LOCK();
-		}
-		ACCEPT_UNLOCK();
-	}
 	if (so->so_pcb == NULL)
 		goto discard;
 	if (so->so_state & SS_ISCONNECTED) {
@@ -482,6 +459,29 @@ drop:
 		int error2 = (*so->so_proto->pr_usrreqs->pru_detach)(so);
 		if (error == 0)
 			error = error2;
+	}
+	if (so->so_options & SO_ACCEPTCONN) {
+		struct socket *sp;
+		ACCEPT_LOCK();
+		while ((sp = TAILQ_FIRST(&so->so_incomp)) != NULL) {
+			TAILQ_REMOVE(&so->so_incomp, sp, so_list);
+			so->so_incqlen--;
+			sp->so_qstate &= ~SQ_INCOMP;
+			sp->so_head = NULL;
+			ACCEPT_UNLOCK();
+			(void) soabort(sp);
+			ACCEPT_LOCK();
+		}
+		while ((sp = TAILQ_FIRST(&so->so_comp)) != NULL) {
+			TAILQ_REMOVE(&so->so_comp, sp, so_list);
+			so->so_qlen--;
+			sp->so_qstate &= ~SQ_COMP;
+			sp->so_head = NULL;
+			ACCEPT_UNLOCK();
+			(void) soabort(sp);
+			ACCEPT_LOCK();
+		}
+		ACCEPT_UNLOCK();
 	}
 discard:
 	ACCEPT_LOCK();
