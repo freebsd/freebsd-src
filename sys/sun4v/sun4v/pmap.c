@@ -195,10 +195,16 @@ static void pmap_insert_entry(pmap_t pmap, vm_offset_t va, vm_page_t m);
 static void pmap_remove_entry(struct pmap *pmap, vm_page_t m, vm_offset_t va);
 static void pmap_remove_tte(pmap_t pmap, tte_t tte_data, vm_offset_t va);
 static void pmap_enter_quick_locked(pmap_t pmap, vm_offset_t va, vm_page_t m, vm_prot_t prot);
+static void pmap_tsb_reset(pmap_t pmap);
+static void pmap_tsb_resize(pmap_t pmap);
 static void pmap_tte_hash_resize(pmap_t pmap);
 
 void pmap_set_ctx_panic(uint64_t error, vm_paddr_t tsb_ra, pmap_t pmap);
 
+struct tsb_resize_info {
+	uint64_t tri_tsbscratch;
+	uint64_t tri_tsb_ra;
+};
 
 /*
  * Quick sort callout for comparing memory regions.
@@ -409,6 +415,8 @@ pmap_activate(struct thread *td)
 
 	pmap->pm_hashscratch = tte_hash_set_scratchpad_user(pmap->pm_hash, pmap->pm_context);
 	pmap->pm_tsbscratch = tsb_set_scratchpad_user(&pmap->pm_tsb);
+	pmap->pm_tsb_miss_count = pmap->pm_tsb_cap_miss_count = 0;
+
 	PCPU_SET(curpmap, pmap);
 	if (pmap->pm_context != 0)
 		if ((err = hv_set_ctxnon0(1, pmap->pm_tsb_ra)) != H_EOK)
@@ -1056,6 +1064,13 @@ pmap_enter(pmap_t pmap, vm_offset_t va, vm_page_t m, vm_prot_t prot,
 		pmap->pm_tsb_cap_miss_count = 0;
 	}
 #endif
+	/*
+	 * 512 is an arbitrary number of tsb misses
+	 */
+	if (0 && pmap->pm_context != 0 && pmap->pm_tsb_miss_count > 512)
+		pmap_tsb_resize(pmap);
+
+
 	vm_page_unlock_queues();
 
 
@@ -1624,6 +1639,7 @@ pmap_pinit0(pmap_t pmap)
 void
 pmap_pinit(pmap_t pmap)
 {
+	int i;
 
 	pmap->pm_context = get_context();
 	pmap->pm_tsb_ra = vtophys(&pmap->pm_tsb);
@@ -1632,7 +1648,11 @@ pmap_pinit(pmap_t pmap)
 	pmap->pm_hash = tte_hash_create(pmap->pm_context, &pmap->pm_hashscratch);
 	tsb_init(&pmap->pm_tsb, &pmap->pm_tsbscratch, TSB_INIT_SHIFT);
 	vm_page_unlock_queues();
+	pmap->pm_tsb_miss_count = pmap->pm_tsb_cap_miss_count = 0;
 	pmap->pm_active = pmap->pm_tlbactive = 0;
+	for (i = 0; i < TSB_MAX_RESIZE; i++)
+		pmap->pm_old_tsb_pa[i] = 0;
+
 	TAILQ_INIT(&pmap->pm_pvlist);
 	PMAP_LOCK_INIT(pmap);
 	bzero(&pmap->pm_stats, sizeof pmap->pm_stats);
@@ -1925,11 +1945,35 @@ pmap_remove_pages(pmap_t pmap)
 		free_pv_entry(pv);
 	}
 	pmap->pm_hash = tte_hash_reset(pmap->pm_hash, &pmap->pm_hashscratch);
+	if (0)
+		pmap_tsb_reset(pmap);
+
 	vm_page_unlock_queues();
 
 	pmap_invalidate_all(pmap);
 	sched_unpin();
 	PMAP_UNLOCK(pmap);
+}
+
+static void
+pmap_tsb_reset(pmap_t pmap)
+{
+	int i;
+
+	for (i = 1; i < TSB_MAX_RESIZE && pmap->pm_old_tsb_pa[i]; i++) {
+		pmap_free_contig_pages((void *)TLB_PHYS_TO_DIRECT(pmap->pm_old_tsb_pa[i]), 
+				       (1 << (TSB_INIT_SHIFT + i)));
+		pmap->pm_old_tsb_pa[i] = 0;
+	}
+	if (pmap->pm_old_tsb_pa[0] != 0) {
+		vm_paddr_t tsb_pa = pmap->pm_tsb.hvtsb_pa;
+		int size = tsb_size(&pmap->pm_tsb);
+		pmap->pm_tsb.hvtsb_ntte = (1 << (TSB_INIT_SHIFT + PAGE_SHIFT - TTE_SHIFT));
+		pmap->pm_tsb.hvtsb_pa = pmap->pm_old_tsb_pa[0];
+		pmap_free_contig_pages((void *)TLB_PHYS_TO_DIRECT(tsb_pa), size);
+		pmap->pm_tsbscratch = pmap->pm_tsb.hvtsb_pa | (uint64_t)TSB_INIT_SHIFT;
+		pmap->pm_old_tsb_pa[0] = 0;
+	}
 }
 
 void
@@ -1968,6 +2012,57 @@ pmap_remove_tte(pmap_t pmap, tte_t tte_data, vm_offset_t va)
 			vm_page_flag_set(m, PG_REFERENCED);
 		pmap_remove_entry(pmap, m, va);
 	}
+}
+
+/* resize the tsb if the number of capacity misses is greater than 1/4 of
+ * the total 
+ */  
+static void
+pmap_tsb_resize(pmap_t pmap)
+{
+	uint32_t miss_count;
+	uint32_t cap_miss_count;
+	struct tsb_resize_info info;
+	hv_tsb_info_t hvtsb;
+	uint64_t tsbscratch;
+
+	KASSERT(pmap == PCPU_GET(curpmap), ("operating on non-current pmap"));
+	miss_count = pmap->pm_tsb_miss_count;
+	cap_miss_count = pmap->pm_tsb_cap_miss_count;
+	int npages_shift = tsb_page_shift(pmap);
+
+	if (npages_shift < (TSB_INIT_SHIFT + TSB_MAX_RESIZE) && 
+	    cap_miss_count > (miss_count >> 1)) {
+		DPRINTF("resizing tsb for proc=%s pid=%d\n", 
+			curthread->td_proc->p_comm, curthread->td_proc->p_pid);
+		pmap->pm_old_tsb_pa[npages_shift - TSB_INIT_SHIFT] = pmap->pm_tsb.hvtsb_pa;
+
+		/* double TSB size */
+		tsb_init(&hvtsb, &tsbscratch, npages_shift + 1);
+#ifdef SMP
+		spinlock_enter();
+		/* reset tsb */
+		bcopy(&hvtsb, &pmap->pm_tsb, sizeof(hv_tsb_info_t));
+		pmap->pm_tsbscratch = tsb_set_scratchpad_user(&pmap->pm_tsb);
+
+		if (hv_set_ctxnon0(1, pmap->pm_tsb_ra) != H_EOK)
+			panic("failed to set TSB 0x%lx - context == %ld\n", 
+			      pmap->pm_tsb_ra, pmap->pm_context);
+		info.tri_tsbscratch = pmap->pm_tsbscratch;
+		info.tri_tsb_ra = pmap->pm_tsb_ra;
+		pmap_ipi(pmap, tl_tsbupdate, pmap->pm_context, vtophys(&info));
+		pmap->pm_tlbactive = pmap->pm_active;
+		spinlock_exit();
+#else 
+		bcopy(&hvtsb, &pmap->pm_tsb, sizeof(hvtsb));
+		if (hv_set_ctxnon0(1, pmap->pm_tsb_ra) != H_EOK)
+			panic("failed to set TSB 0x%lx - context == %ld\n", 
+			      pmap->pm_tsb_ra, pmap->pm_context);
+		pmap->pm_tsbscratch = tsb_set_scratchpad_user(&pmap->pm_tsb);
+#endif		
+	}
+	pmap->pm_tsb_miss_count = 0;
+	pmap->pm_tsb_cap_miss_count = 0;
 }
 
 static void

@@ -273,3 +273,15 @@ tsb_set_scratchpad_user(hv_tsb_info_t *tsb)
 	membar(Sync);
 	return tsb_scratch;
 }
+
+int
+tsb_size(hv_tsb_info_t *hvtsb)
+{
+	return (hvtsb->hvtsb_ntte >> (PAGE_SHIFT - TTE_SHIFT));
+}
+
+int
+tsb_page_shift(pmap_t pmap)
+{
+	return (pmap->pm_tsbscratch & PAGE_MASK);
+}
