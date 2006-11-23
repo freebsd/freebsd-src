@@ -14,6 +14,19 @@
 # The file is partitioned: OLD_FILES first, then OLD_LIBS and OLD_DIRS last.
 #
 
+# 20061122: remove obsolete mount programs
+OLD_FILES+=sbin/mount_devfs
+OLD_FILES+=sbin/mount_ext2fs
+OLD_FILES+=sbin/mount_fdescfs
+OLD_FILES+=sbin/mount_linprocfs
+OLD_FILES+=sbin/mount_procfs
+OLD_FILES+=sbin/mount_std
+OLD_FILES+=usr/share/man/man8/mount_devfs.8.gz
+OLD_FILES+=usr/share/man/man8/mount_ext2fs.8.gz
+OLD_FILES+=usr/share/man/man8/mount_fdescfs.8.gz
+OLD_FILES+=usr/share/man/man8/mount_linprocfs.8.gz
+OLD_FILES+=usr/share/man/man8/mount_procfs.8.gz
+OLD_FILES+=usr/share/man/man8/mount_std.8.gz
 # 20061116: uhidev.4 removed
 OLD_FILES+=usr/share/man/man4/uhidev.4.gz
 .if ${TARGET_ARCH} == "ia64"
