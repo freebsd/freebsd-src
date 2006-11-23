@@ -157,7 +157,7 @@ ov_bkwd:
 
 	retl				! return
 	nop
-	SET_SIZE(bcopy)
+END(bcopy)
 
 #endif	/* lint */
 
