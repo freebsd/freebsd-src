@@ -25,7 +25,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd April 28, 2006
+.Dd November 23, 2006
 .Dt SYSCTL 9
 .Os
 .Sh NAME
@@ -246,7 +246,7 @@ SYSCTL_PROC(_kern_timecounter, OID_AUTO, hardware, CTLTYPE_STRING |
     CTLFLAG_RW, NULL, 0, sysctl_kern_timecounter_hardware, "A",
     "");
 .Ed
-.Pp
+.Sh SYSCTL NAMING
 When adding, modifying, or removing sysctl names, it is important to be
 aware that these interfaces may be used by users, libraries, applications,
 or documentation (such as published books), and are implicitly published application interfaces.
@@ -254,6 +254,30 @@ As with other application interfaces, caution must be taken not to break
 existing applications, and to think about future use of new name spaces so as
 to avoid the need to rename or remove interfaces that might be depended on in
 the future.
+.Pp
+The semantics chosen for a new sysctl should be as clear as possible,
+and the name of the sysctl must closely reflect its semantics.
+Therefore the sysctl name deserves a fair amount of consideration.
+It should be short but yet representative of the sysctl meaning.
+If the name consists of several words, they should be separated by
+underscore characters, as in
+.Va compute_summary_at_mount .
+Underscore characters may be omitted only if the name consists of not more
+than two words, each being not longer than four characters, as in
+.Va bootfile .
+For boolean sysctls, negative logic should be totally avoided.
+That is, do not use names like
+.Va no_foobar
+or
+.Va foobar_disable .
+They are confusing and lead to configuration errors.
+Use positive logic instead:
+.Va foobar ,
+.Va foobar_enable .
+.Pp
+A temporary sysctl node that should not be relied upon must be designated
+as such by a leading underscore character in its name.  For example:
+.Va _dirty_hack .
 .Sh SEE ALSO
 .Xr sysctl 8 ,
 .Xr sysctl_add_oid 9 ,
