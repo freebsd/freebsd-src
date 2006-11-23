@@ -84,6 +84,7 @@ enum listtype {
 	LT_GROUP,
 	LT_TTY,
 	LT_PGRP,
+	LT_JID,
 	LT_SID
 };
 
@@ -235,7 +236,7 @@ main(int argc, char **argv)
 			cflags |= REG_ICASE;
 			break;
 		case 'j':
-			makelist(&jidlist, LT_GENERIC, optarg);
+			makelist(&jidlist, LT_JID, optarg);
 			criteria = 1;
 			break;
 		case 'l':
@@ -451,12 +452,12 @@ main(int argc, char **argv)
 		}
 
 		SLIST_FOREACH(li, &jidlist, li_chain) {
-			if (kp->ki_jid > 0) {
-				if (li->li_number == 0)
-					break;
-				if (kp->ki_jid == (int)li->li_number)
-					break;
-			}
+			/* A particular jail ID, including 0 (not in jail) */
+			if (kp->ki_jid == (int)li->li_number)
+				break;
+			/* Any jail */
+			if (kp->ki_jid > 0 && li->li_number == -1)
+				break;
 		}
 		if (SLIST_FIRST(&jidlist) != NULL && li == NULL) {
 			selected[i] = 0;
@@ -636,6 +637,14 @@ makelist(struct listhead *head, enum listtype type, char *src)
 				if (li->li_number == 0)
 					li->li_number = getsid(mypid);
 				break;
+			case LT_JID:
+				if (li->li_number < 0)
+					errx(STATUS_BADUSAGE,
+					     "Negative jail ID `%s'", sp);
+				/* For compatibility with old -j */
+				if (li->li_number == 0)
+					li->li_number = -1;	/* any jail */
+				break;
 			case LT_TTY:
 				usage();
 				/* NOTREACHED */
@@ -682,6 +691,15 @@ makelist(struct listhead *head, enum listtype type, char *src)
 				errx(STATUS_BADUSAGE, "Not a tty: `%s'", sp);
 
 			li->li_number = st.st_rdev;
+			break;
+		case LT_JID:
+			if (strcmp(sp, "none") == 0)
+				li->li_number = 0;
+			else if (strcmp(sp, "any") == 0)
+				li->li_number = -1;
+			else if (*ep != '\0')
+				errx(STATUS_BADUSAGE,
+				     "Invalid jail ID `%s'", sp);
 			break;
 		default:
 			usage();
