@@ -156,7 +156,160 @@ ENTRY(hv_cpu_mondo_send)
 	retl
 	  membar	#Sync
 END(hv_cpu_mondo_send)
-		
+
+/*
+ * configure ldc tx queue
+ * arg0 ldc_id     (%o0)
+ * arg1 base_raddr (%o1)
+ * arg2 nentries   (%o2)
+ *
+ * ret0 status     (%o0)
+ *
+ */
+ENTRY(hvio_ldc_tx_qconf)
+	mov	HVIO_LDC_TX_QCONF, %o5
+	ta	FAST_TRAP
+	retl
+	  nop
+END(hvio_ldc_tx_qconf)
+
+/*
+ * return configuration info for ldc tx queue
+ * arg0 ldc_id     (%o0)
+ *
+ * ret0 status     (%o0)
+ * ret1 base_raddr (%o1)
+ * ret2 nentries   (%o2)
+ *
+ */
+ENTRY(hvio_ldc_tx_qinfo)
+	mov	%o1, %o3
+	mov	%o2, %o4
+	mov	HVIO_LDC_TX_QINFO, %o5
+	ta	FAST_TRAP
+	brnz	%o0, 1f
+	  nop
+	stx	%o1, [%o3]
+	stx	%o2, [%o4]
+1:	retl
+	  nop
+END(hvio_ldc_tx_qinfo)
+
+/*
+ * get the state of the ldc tx queue
+ * arg0 ldc_id        (%o0)
+ *
+ * ret0 status        (%o0)
+ * ret1 head_offset   (%o1)
+ * ret2 tail_offset   (%o2)
+ * ret3 channel_state (%o3)
+ * 
+ */
+ENTRY(hvio_ldc_tx_get_state)
+	mov	%o1, %o4
+	mov	HVIO_LDC_TX_GET_STATE, %o5
+	ta	FAST_TRAP
+	brnz	%o0, 1f
+	  nop
+	stx	%o1, [%o4]
+	stx	%o2, [%o4 + 8]
+	stx	%o3, [%o4 + 16]
+1:	retl
+	  nop		
+END(hvio_ldc_tx_get_state)
+
+/*
+ * update the tail pointer of the ldc tx queue
+ * arg0 ldc_id      (%o0)
+ * arg1 tail_offset (%o1)
+ *
+ * ret0 status      (%o0)
+ *
+ */
+ENTRY(hvio_ldc_tx_set_qtail)
+	mov	HVIO_LDC_TX_SET_QTAIL, %o5
+	ta	FAST_TRAP
+	retl
+	  nop
+END(hvio_ldc_tx_set_qtail)
+
+/*
+ * configure ldc rx queue
+ * arg0 ldc_id     (%o0)
+ * arg1 base_raddr (%o1)
+ * arg2 nentries   (%o2)
+ *
+ * ret0 status     (%o0)
+ *
+ */
+ENTRY(hvio_ldc_rx_qconf)
+	mov	HVIO_LDC_RX_QCONF, %o5
+	ta	FAST_TRAP
+	retl
+	  nop	
+END(hvio_ldc_rx_qconf)
+
+/*
+ * return configuration info for ldc rx queue
+ * arg0 ldc_id     (%o0)
+ *
+ * ret0 status     (%o0)
+ * ret1 base_raddr (%o1)
+ * ret2 nentries   (%o2)
+ *
+ */
+ENTRY(hvio_ldc_rx_qinfo)
+	mov	%o1, %o3
+	mov	%o2, %o4
+	mov	HVIO_LDC_RX_QINFO, %o5
+	ta	FAST_TRAP
+	brnz	%o0, 1f
+	  nop
+	stx	%o1, [%o3]
+	stx	%o2, [%o4]
+1:	retl
+	  nop
+END(hvio_ldc_rx_qinfo)
+
+/*
+ * get the state of the ldc rx queue
+ * arg0 ldc_id        (%o0)
+ *
+ * ret0 status        (%o0)
+ * ret1 head_offset   (%o1)
+ * ret2 tail_offset   (%o2)
+ * ret3 channel_state (%o3)
+ * 
+ */
+ENTRY(hvio_ldc_rx_get_state)
+	mov	%o1, %o4
+	mov	HVIO_LDC_RX_GET_STATE, %o5
+	ta	FAST_TRAP
+	brnz	%o0, 1f
+	  nop
+	stx	%o1, [%o4]
+	stx	%o2, [%o4 + 8]
+	stx	%o3, [%o4 + 16]
+1:	retl
+	  nop		
+END(hvio_ldc_rx_get_state)
+
+/*
+ * update the head pointer of the ldc rx queue
+ * arg0 ldc_id      (%o0)
+ * arg1 head_offset (%o1)
+ *
+ * ret0 status      (%o0)
+ *
+ */
+ENTRY(hvio_ldc_rx_set_qhead)
+	mov	HVIO_LDC_RX_SET_QHEAD, %o5
+	ta	FAST_TRAP
+	retl
+	  nop	
+END(hvio_ldc_rx_set_qhead)
+
+	
 /*
  * arg0 - devhandle
  * arg1 - pci_device
@@ -854,8 +1007,8 @@ END(hv_dump_buf_update)
  * For memory scrub
  * int hv_mem_scrub(uint64_t real_addr, uint64_t length,
  * 	uint64_t *scrubbed_len);
- * Retun %o0 -- status
- *       %o1 -- bytes scrubbed
+ * Return %o0 -- status
+ *        %o1 -- bytes scrubbed
  */
 ENTRY(hv_mem_scrub)
 	mov	%o2, %o4
@@ -869,8 +1022,8 @@ END(hv_mem_scrub)
  * Flush ecache 
  * int hv_mem_sync(uint64_t real_addr, uint64_t length,
  * 	uint64_t *flushed_len);
- * Retun %o0 -- status
- *       %o1 -- bytes flushed
+ * Return %o0 -- status
+ *        %o1 -- bytes flushed
  */
 ENTRY(hv_mem_sync)
 	mov	%o2, %o4
