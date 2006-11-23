@@ -579,8 +579,7 @@ dovmstat(unsigned int interval, int reps)
 		    total.t_rq - 1, total.t_dw + total.t_pw, total.t_sw);
 #define vmstat_pgtok(a) ((uintmax_t)(a) * (sum.v_page_size >> 10))
 #define	rate(x)	(((x) + halfuptime) / uptime)	/* round */
-		(void)printf(" %7zu %6zu ",
-		    vmstat_pgtok(total.t_avm),
+		(void)printf(" %7ju %6ju ", vmstat_pgtok(total.t_avm),
 		    vmstat_pgtok(total.t_free));
 		(void)printf("%5lu ",
 		    (unsigned long)rate(sum.v_vm_faults - osum.v_vm_faults));
