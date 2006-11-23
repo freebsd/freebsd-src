@@ -1,7 +1,7 @@
 <!--
      The FreeBSD Simplified Chinese Project
 
-     Original revision: 1.883.2.52.2.1
+     Original revision: 1.883.2.52.2.2
 -->
 <articleinfo>
   <title>&os;/&arch; &release.current; 发行说明</title>
@@ -506,6 +506,11 @@
 
     <para>对现有的 &man.sysinstall.8; 工具的分区算法进行了修改。</para>
 
+    <para>先前的 &man.sysinstall.8; 程序中存在一个导致在没有明确选择任何软件包时，
+      不安装内核的问题。 这一问题已经修正。</para>
+
+    <para>修正了导致 &man.sysinstall.8; 有时无法从多个 CDROM 卷上安装预编译包的问题。</para>
+
     <para>新增了 <filename>/media</filename> 目录，
       用于作为可移动介质， 如 CDROM、 软盘、 USB 驱动器等的挂载点。</para>
 
@@ -514,7 +519,10 @@
       从 2.12.3 升级到了 2.16.1。 作为更新的一部分，
       默认的 <application>GNOME</application> (及其相关程序) 前缀从
       <filename>/usr/X11R6</filename>
-      挪到了 <filename>/usr/local</filename>。</para>
+      挪到了 <filename>/usr/local</filename>。
+      这个版本的 <application>GNOME</application> 中也加入了对于硬件抽象层 (HAL)
+      的支持， 这使得它能够自动挂接可移动介质、 自动播放
+      CD， 并提供集成度更好的电源控制能力。</para>
 
     <para>支持的 <application>KDE</application> 桌面环境
       (<filename role="package">x11/kde3</filename>) 的版本，
