@@ -1,39 +1,9 @@
 /*
- * CDDL HEADER START
- *
- * The contents of this file are subject to the terms of the
- * Common Development and Distribution License (the "License").
- * You may not use this file except in compliance with the License.
- *
- * You can obtain a copy of the license at usr/src/OPENSOLARIS.LICENSE
- * or http://www.opensolaris.org/os/licensing.
- * See the License for the specific language governing permissions
- * and limitations under the License.
- *
- * When distributing Covered Code, include this CDDL HEADER in each
- * file and include the License file at usr/src/OPENSOLARIS.LICENSE.
- * If applicable, add the following below this CDDL HEADER, with the
- * fields enclosed by brackets "[]" replaced with your own identifying
- * information: Portions Copyright [yyyy] [name of copyright owner]
- *
- * CDDL HEADER END
  * $FreeBSD$
- */
-
-/*
- * Copyright 2006 Sun Microsystems, Inc.  All rights reserved.
- * Use is subject to license terms.
  */
 
 #ifndef _MACHINE_HYPERVISOR_API_H
 #define	_MACHINE_HYPERVISOR_API_H
-
-/*
- * sun4v Hypervisor API
- *
- * Reference: api.pdf Revision 0.12 dated May 12, 2004.
- *	      io-api.txt version 1.11 dated 10/19/2004
- */
 
 #include <machine/hypervisorvar.h>
 
@@ -78,6 +48,15 @@ typedef struct trap_trace_entry {
 	uint64_t	tte_f3;		/* Entry specific. */
 	uint64_t	tte_f4;		/* Entry specific. */
 } trap_trace_entry_t;
+
+typedef struct ldc_state_info {
+	uint64_t lsi_head_offset;
+	uint64_t lsi_tail_offset;
+	uint64_t lse_channel_state;
+} ldc_state_info_t;
+
+#define LDC_CHANNEL_DOWN     0
+#define LDC_CHANNEL_UP       1
 
 extern uint64_t hv_mmu_map_perm_addr(void *, int, uint64_t, int);
 extern uint64_t	hv_mmu_unmap_perm_addr(void *, int, int);
@@ -136,7 +115,14 @@ extern uint64_t hvio_peek(devhandle_t dev_hdl, uint64_t r_addr, uint64_t size,
 			  uint32_t *err_flag, uint64_t *data);
 extern uint64_t hvio_poke(devhandle_t dev_hdl, uint64_t r_addr, uint64_t size,
 			  uint64_t data, uint64_t pcidev, uint32_t *err_flag);
-
+extern uint64_t hvio_ldc_tx_qconf(uint64_t ldc_id, uint64_t base_raddr, uint64_t nentries);
+extern uint64_t hvio_ldc_tx_qinfo(uint64_t ldc_id, uint64_t *base_raddr, uint64_t *nentries);
+extern uint64_t hvio_ldc_tx_get_state(uint64_t ldc_id, ldc_state_info_t *info); 
+extern uint64_t hvio_ldc_tx_set_qtail(uint64_t ldc_id, uint64_t tail_offset);
+extern uint64_t hvio_ldc_rx_get_state(uint64_t ldc_id, ldc_state_info_t *info); 
+extern uint64_t hvio_ldc_rx_qconf(uint64_t ldc_id, uint64_t base_raddr, uint64_t nentries);
+extern uint64_t hvio_ldc_rx_qinfo(uint64_t ldc_id, uint64_t *base_raddr, uint64_t *nentries);
+extern uint64_t hvio_ldc_rx_set_qhead(uint64_t ldc_id, uint64_t head_offset);
 extern uint64_t hvio_config_get(devhandle_t dev_hdl, pci_device_t pci_device, 
 				pci_config_offset_t off, pci_config_size_t size, pci_cfg_data_t *data);
 extern uint64_t hvio_config_put(devhandle_t dev_hdl, pci_device_t pci_device, 
