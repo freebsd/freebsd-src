@@ -65,7 +65,7 @@ __FBSDID("$FreeBSD$")
 #define PUTCHAR(x) \
 0:				; \
 	mov	x, %o0		; \
-	mov	CONS_WRITE, %o5	; \
+	mov	CONS_PUTCHAR, %o5	; \
 	ta	FAST_TRAP	; \
 	brnz	%o0, 0b		; \
 	  nop

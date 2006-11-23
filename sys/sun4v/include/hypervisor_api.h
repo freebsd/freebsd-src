@@ -95,6 +95,9 @@ extern uint64_t hv_dump_buf_update(uint64_t, uint64_t, uint64_t *);
 
 extern int64_t hv_cnputchar(uint8_t);
 extern int64_t hv_cngetchar(uint8_t *);
+extern int64_t hv_cnwrite(uint64_t buf_raddr, uint64_t size, uint64_t *nwritten);
+extern int64_t hv_cnread(uint64_t buf_raddr, uint64_t size, uint64_t *nread);
+
 extern void hv_cnputs(char *);
 
 extern uint64_t hv_tod_get(uint64_t *seconds);
