@@ -181,6 +181,12 @@ POSSIBILITY OF SUCH DAMAGE.
  */
 /* #define EM_MASTER_SLAVE      2 */
 
+
+/*
+ * Limitation of some PCIe chipsets when using TSO
+ */
+#define EM_TSO_PCIE_SEGMENT_SIZE        4096
+
 /* Tunables -- End */
 
 #define AUTONEG_ADV_DEFAULT             (ADVERTISE_10_HALF | ADVERTISE_10_FULL | \

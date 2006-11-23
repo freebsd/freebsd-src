@@ -2579,7 +2579,7 @@ em_allocate_transmit_structures(struct adapter *adapter)
 	if ((adapter->hw.mac_type > em_82544) &&
 	    (adapter->hw.mac_type != em_82547)) {
 		size = EM_TSO_SIZE;
-		segsize = 4096; /* page size isn't always 4k */
+		segsize = EM_TSO_PCIE_SEGMENT_SIZE;
 	}
 
 	if ((error = bus_dma_tag_create(bus_get_dma_tag(dev),	/* parent */
