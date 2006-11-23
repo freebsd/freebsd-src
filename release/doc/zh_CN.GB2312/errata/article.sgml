@@ -10,7 +10,7 @@
 
 	The FreeBSD Simplified Chinese Project
 
-	Original Revision: 1.73.2.34
+	Original Revision: 1.73.2.35
 -->
 
 <!DOCTYPE article PUBLIC "-//FreeBSD//DTD DocBook V4.1-Based Extension//EN" [
@@ -239,13 +239,14 @@
       关于此问题的进一步详情， 请参见勘误公告
       <ulink url="ftp://ftp.FreeBSD.org/pub/FreeBSD/ERRATA/notices/FreeBSD-EN-06:02.net.asc">FreeBSD-EN-06:02.net</ulink>。</para>
 
-    <para>(2006/06/01) 发现在 &man.sysinstall.8; 环境中从多个 CDROM
+    <para>(2006/06/01， 于 2006/11/22 更新) 发现在 &man.sysinstall.8; 环境中从多个 CDROM
       上加载包时存在一些问题。 具体说来，
       &man.sysinstall.8; 的换盘功能对磁盘内容的识别有些问题。
       这一状况主要见于在安装不带 &xorg; 的基本系统
       (通常是第一张 CDROM)， 之后又使用 &man.sysinstall.8; 从后续的 CDROM 来安装需要
       &xorg; 的包 (例如 GNOME 或 KDE 桌面环境) 时可能会触发问题。
-      绕过这一问题的方法是随基本系统安装 &xorg;， 或在安装依赖它的其它包之前单独安装它。</para>
+      绕过这一问题的方法是随基本系统安装 &xorg;， 或在安装依赖它的其它包之前单独安装它。
+      此问题已在 HEAD 和 RELENG_6 上修正。</para>
 
     <para>(2006/06/01， 于 2006/08/28 更新) 在 UMA 内核内存分配器中负责统计数据的逻辑存在问题，
       这会导致 <literal>requests for mbufs denied(拒绝的 mbufs 请求)</literal> 数量 (使用
