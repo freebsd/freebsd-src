@@ -63,6 +63,9 @@ $FreeBSD$
  */
 
 vendor EGALAX2		0x0123	eGalax
+vendor NETGEAR3		0x1385	Netgear
+vendor WISTRONNEWEB	0x1435	Wistron NeWeb
+vendor UMEDIA		0x157e	U-MEDIA Communications
 vendor LTS		0x0386	LTS
 vendor AOX		0x03e8	AOX
 vendor THESYS		0x03e9	Thesys
@@ -474,11 +477,13 @@ vendor CHICONY2		0x0c45	Chicony
 vendor SEALEVEL		0x0c52	Sealevel
 vendor LUWEN		0x0c76	Luwen
 vendor ZCOM		0x0cde	Z-Com
+vendor ATHEROS2		0x0cf3	Atheros Communications
 vendor TANGTOP		0x0d3d	Tangtop
 vendor SMC3		0x0d5c	SMC
 vendor ADDON		0x0d7d	Add-on Technology
 vendor ACDC		0x0d7e	ACDC
 vendor ABC		0x0d8c	ABC
+vendor CONCEPTRONIC	0x0d8e	Conceptronic
 vendor MSI		0x0db0	Micro Star International
 vendor HAWKING		0x0e66	Hawking
 vendor GMATE		0x0e7e	G.Mate, Inc
@@ -514,7 +519,7 @@ vendor RADIOSHACK	0x1453	Radio Shack
 vendor SILICOM		0x1485	Silicom
 vendor RALINK		0x148f	Ralink Technology
 vendor IMAGINATION	0x149a	Imagination Technologies
-vendor CONCEPTRONIC	0x14b2	Conceptronic
+vendor CONCEPTRONIC2	0x14b2	Conceptronic
 vendor SILICONPORTALS	0x1527	Silicon Portals
 vendor PNY		0x154b	PNY
 vendor SOHOWARE		0x15e8	SOHOware
@@ -522,6 +527,9 @@ vendor UMAX		0x1606	UMAX
 vendor INSIDEOUT	0x1608	Inside Out Networks
 vendor ENTREGA		0x1645	Entrega
 vendor ACTIONTEC	0x1668	Actiontec
+vendor ATHEROS		0x168c	Atheros Communications
+vendor GIGASET		0x1690	Gigaset
+vendor GLOBALSUN	0x16ab	Global Sun Technology
 vendor CMOTECH		0x16d8	CMOTECH CO., LTD.
 vendor LINKSYS3		0x1915	Linksys
 vendor DLINK		0x2001	D-Link
@@ -695,6 +703,16 @@ product ATEN UC1284		0x2001	Parallel printer
 product ATEN UC10T		0x2002	10Mbps ethernet
 product ATEN UC232A		0x2008	Serial
 
+/* Atheros Communications products */
+product ATHEROS AR5523		0x0001	AR5523
+product ATHEROS AR5523_NF	0x0002	AR5523 (no firmware)
+product ATHEROS2 AR5523_1	0x0001	AR5523
+product ATHEROS2 AR5523_1_NF	0x0002	AR5523 (no firmware)
+product ATHEROS2 AR5523_2	0x0003	AR5523
+product ATHEROS2 AR5523_2_NF	0x0004	AR5523 (no firmware)
+product ATHEROS2 AR5523_3	0x0005	AR5523
+product ATHEROS2 AR5523_3_NF	0x0006	AR5523 (no firmware)
+
 /* Atmel Comp. products */
 product ATMEL UHB124		0x3301	UHB124 hub
 product ATMEL DWL120		0x7603	DWL-120 Wireless adapter
@@ -798,7 +816,14 @@ product CSR BT_DONGLE		0x0001	Bluetooth USB dongle
 product CSR CSRDFU		0xffff	USB Bluetooth Device in DFU State
 
 /* Conceptronic products */
-product CONCEPTRONIC C54U	0x3c02	C54U wireless adapter
+product CONCEPTRONIC C11U	0x7100	C11U
+product CONCEPTRONIC WL210	0x7110	WL-210
+product CONCEPTRONIC AR5523_1	0x7801	AR5523
+product CONCEPTRONIC AR5523_1_NF	0x7802	AR5523 (no firmware)
+product CONCEPTRONIC AR5523_2	0x7811	AR5523
+product CONCEPTRONIC AR5523_2_NF	0x7812	AR5523 (no firmware)
+product CONCEPTRONIC2 C54RU	0x3c02	C54RU WLAN
+product CONCEPTRONIC2 C54RU2	0x3c22	C54RU
 
 /* CTX products */
 product CTX EX1300		0x9999	Ex1300 hub
@@ -838,6 +863,14 @@ product DIGI ACCELEPORT8	0x0008	AccelePort USB 8
 product DLINK DUBE100		0x1a00	10/100 ethernet
 product DLINK DSB650TX4		0x200c	10/100 ethernet
 product DLINK DWLG122		0x3c00	DWL-G122 b1 wireless adapter
+product DLINK DWLAG122		0x3a04	DWL-AG122
+product DLINK DWLAG122_NF	0x3a05	DWL-AG122 (no firmware)
+product DLINK DWLAG132		0x3a00	DWL-AG132
+product DLINK DWLAG132_NF	0x3a01	DWL-AG132 (no firmware)
+product DLINK DWLG132		0x3a02	DWL-G132
+product DLINK DWLG132_NF	0x3a03	DWL-G132 (no firmware)
+product DLINK DWLAG122		0x3a04	DWL-AG122
+product DLINK DWLAG122_NF	0x3a05	DWL-AG122 (no firmware)
 product DLINK DSB650C		0x4000	10Mbps ethernet
 product DLINK DSB650TX1		0x4001	10/100 ethernet
 product DLINK DSB650TX		0x4002	10/100 ethernet
@@ -954,6 +987,20 @@ product GENESYS GL641USB_2	0x0760	GL641USB 6-in-1 Card Reader
 product GIGABYTE GNBR402W	0x8002	GN-BR402W
 product GIGABYTE GNWLBM101	0x8003	GN-WLBM101
 product GIGABYTE GNWBKG		0x8007	GN-WBKG
+
+/* Gigaset products */
+product GIGASET WLAN		0x0701	WLAN
+product GIGASET SMCWUSBTG	0x0710	SMCWUSBT-G
+product GIGASET SMCWUSBTG_NF	0x0711	SMCWUSBT-G (no firmware)
+product GIGASET AR5523		0x0712	AR5523
+product GIGASET AR5523_NF	0x0713	AR5523 (no firmware)
+product GIGASET RT2573		0x0722	RT2573
+
+/* Global Sun Technology product */
+product GLOBALSUN AR5523_1	0x7801	AR5523
+product GLOBALSUN AR5523_1_NF	0x7802	AR5523 (no firmware)
+product GLOBALSUN AR5523_2	0x7811	AR5523
+product GLOBALSUN AR5523_2_NF	0x7812	AR5523 (no firmware)
 
 /* G.Mate, Inc products */
 product GMATE YP3X00		0x1001	YP3X00 PDA
@@ -1331,6 +1378,12 @@ product NETCHIP ETHERNETGADGET	0xa4a2	Linux Ethernet/RNDIS gadget on pxa210/25x/
 product NETGEAR EA101		0x1001	Ethernet
 product NETGEAR FA101		0x1020	Ethernet 10/100, USB1.1
 product NETGEAR FA120		0x1040	USB 2.0 Ethernet
+product NETGEAR3 WG111T		0x4250	WG111T
+product NETGEAR3 WG111T_NF	0x4251	WG111T (no firmware)
+product NETGEAR WG111U		0x4300	WG111U
+product NETGEAR WG111U_NF	0x4301	WG111U (no firmware)
+product NETGEAR3 WPN111		0x5f00	WPN111
+product NETGEAR3 WPN111_NF	0x5f01	WPN111 (no firmware)
 
 /* Nikon products */
 product NIKON E990		0x0102	Digital Camera E990
@@ -1644,6 +1697,16 @@ product TRUMPION C3310		0x1100	Comotron C3310 MP3 player
 /* TwinMOS */
 product TWINMOS MDIV		0x1325	Memory Disk IV
 
+/* U-MEDIA Communications products */
+product UMEDIA AR5523_1		0x3006	AR5523
+product UMEDIA AR5523_1_NF	0x3007	AR5523 (no firmware)
+product UMEDIA TEW429UB_A	0x300a	TEW-429UB_A
+product UMEDIA TEW429UB		0x300b	TEW-429UB
+product UMEDIA TEW444UBEU	0x3006	TEW-444UB EU
+product UMEDIA TEW444UBEU_NF	0x3007	TEW-444UB EU (no firmware)
+product UMEDIA AR5523_2		0x3205	AR5523
+product UMEDIA AR5523_2_NF	0x3206	AR5523 (no firmware)
+
 /* Ultima products */
 product ULTIMA 1200UBPLUS	0x4002	1200 UB Plus scanner
 
@@ -1695,6 +1758,13 @@ product WESTERN HUB		0x0500	USB HUB
 /* Windbond Electronics */
 product WINBOND UH104		0x5518	4-port USB Hub
 
+/* Wistron NeWeb products */
+product WISTRONNEWEB UR055G	0x0711	UR055G
+product WISTRONNEWEB AR5523_1	0x0826	AR5523
+product WISTRONNEWEB AR5523_1_NF	0x0827	AR5523 (no firmware)
+product WISTRONNEWEB AR5523_2	0x0828	AR5523
+product WISTRONNEWEB AR5523_2_NF	0x0829	AR5523 (no firmware)
+
 /* Xerox products */
 product XEROX WCM15		0xffef	WorkCenter M15
 
@@ -1717,6 +1787,13 @@ product YANO U640MO		0x0101	U640MO-03
 
 /* Zinwell products */
 product ZINWELL RT2570		0x0260	RT2570
+
+/* Z-Com products */
+product ZCOM M4Y750		0x0001	M4Y-750
+product ZCOM XI725		0x0002	XI-725/726
+product ZCOM XI735		0x0005	XI-735
+product ZCOM AR5523		0x0012	AR5523
+product ZCOM AR5523_NF		0x0013	AR5523 driver (no firmware)
 
 /* Zoom Telephonics, Inc. products */
 product ZOOM 2986L		0x9700	2986L Fax modem
