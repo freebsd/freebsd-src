@@ -1652,7 +1652,7 @@ em_encap(struct adapter *adapter, struct mbuf **m_headp)
 		} else {
 			tx_buffer = &adapter->tx_buffer_area[i];
 			current_tx_desc = &adapter->tx_desc_base[i];
-			seg_addr = htole64(segs[j].ds_addr);
+			seg_addr = segs[j].ds_addr;
 			seg_len  = segs[j].ds_len;
 			/*
 			** TSO Workaround:
@@ -1661,7 +1661,7 @@ em_encap(struct adapter *adapter, struct mbuf **m_headp)
 			*/
 			if (tso_desc && (j == (nsegs -1)) && (seg_len > 8)) {
 				seg_len -= 4;
-				current_tx_desc->buffer_addr = seg_addr;
+				current_tx_desc->buffer_addr = htole64(seg_addr);
 				current_tx_desc->lower.data = htole32(
 				adapter->txd_cmd | txd_lower | seg_len);
 				current_tx_desc->upper.data =
@@ -1673,7 +1673,7 @@ em_encap(struct adapter *adapter, struct mbuf **m_headp)
 				current_tx_desc = &adapter->tx_desc_base[i];
 				tx_buffer = &adapter->tx_buffer_area[i];
 				current_tx_desc->buffer_addr =
-				    seg_addr + seg_len;
+					htole64(seg_addr + seg_len);
 				current_tx_desc->lower.data = htole32(
 				adapter->txd_cmd | txd_lower | 4);
 				current_tx_desc->upper.data =
@@ -1682,7 +1682,7 @@ em_encap(struct adapter *adapter, struct mbuf **m_headp)
 				if (++i == adapter->num_tx_desc)
 					i = 0;
 			} else {
-				current_tx_desc->buffer_addr = seg_addr;
+				current_tx_desc->buffer_addr = htole64(seg_addr);
 				current_tx_desc->lower.data = htole32(
 				adapter->txd_cmd | txd_lower | seg_len);
 				current_tx_desc->upper.data =
@@ -2579,7 +2579,7 @@ em_allocate_transmit_structures(struct adapter *adapter)
 	if ((adapter->hw.mac_type > em_82544) &&
 	    (adapter->hw.mac_type != em_82547)) {
 		size = EM_TSO_SIZE;
-		segsize = PAGE_SIZE;
+		segsize = 4096; /* page size isn't always 4k */
 	}
 
 	if ((error = bus_dma_tag_create(bus_get_dma_tag(dev),	/* parent */
@@ -3254,9 +3254,9 @@ em_allocate_receive_structures(struct adapter *adapter)
 				BUS_SPACE_MAXADDR,	/* lowaddr */
 				BUS_SPACE_MAXADDR,	/* highaddr */
 				NULL, NULL,		/* filter, filterarg */
-				MCLBYTES,		/* maxsize */
+				MCLBYTES,	        /* maxsize */
 				1,			/* nsegments */
-				MCLBYTES,		/* maxsegsize */
+				MCLBYTES,	        /* maxsegsize */
 				0,			/* flags */
 				NULL,			/* lockfunc */
 				NULL,			/* lockarg */
@@ -3829,7 +3829,24 @@ em_pci_clear_mwi(struct em_hw *hw)
 int32_t
 em_read_pcie_cap_reg(struct em_hw *hw, uint32_t reg, uint16_t *value)
 {
-	return (0);
+	int32_t  rc;
+	uint16_t pectl;
+	device_t dev;
+
+	dev = ((struct em_osdep *)hw->back)->dev;
+
+	/* find the PCIe link width and set max read request to 4KB*/
+	if (pci_find_extcap(dev, PCIY_EXPRESS, &reg) == 0) {
+		em_read_pci_cfg(hw, reg + 0x12, value);
+
+		em_read_pci_cfg(hw, reg + 0x8, &pectl);
+		pectl = (pectl & ~0x7000) | (5 << 12);
+		em_write_pci_cfg(hw, reg + 0x8, &pectl);
+		rc = 0;
+	} else
+		rc = -1;
+
+	return (rc);
 }
 
 /*********************************************************************
