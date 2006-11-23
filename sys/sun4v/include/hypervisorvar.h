@@ -62,6 +62,8 @@
 #define	H_ENOTSUPPORTED		13	/* Function not supported */
 #define	H_ENOMAP		14	/* Mapping is not valid, */
 					/* no translation exists */
+#define H_ETOOMANY              15      /* Too many items specified / limit reached */
+#define H_ECHANNEL              16      /* Invalid LDC channel */
 
 #define	H_BREAK			-1	/* Console Break */
 #define	H_HUP			-2	/* Console Break */
@@ -82,36 +84,51 @@
 /*
  * Function numbers for FAST_TRAP.
  */
-#define	HV_MACH_EXIT		0x00
-#define	HV_MACH_DESC		0x01
-#define HV_MACH_SET_SOFT_STATE  0x03
-#define HV_MACH_GET_SOFT_STATE  0x04
-#define HV_MACH_SET_WATCHDOG    0x05
+#define	MACH_EXIT		0x00
+#define	MACH_DESC		0x01
+#define MACH_SET_SOFT_STATE     0x03
+#define MACH_GET_SOFT_STATE     0x04
+#define MACH_SET_WATCHDOG       0x05
 
-#define HV_CPU_START            0x10
-#define HV_CPU_STOP             0x11
-#define	HV_CPU_YIELD		0x12
+#define CPU_START               0x10
+#define CPU_STOP                0x11
+#define	CPU_YIELD		0x12
 #define CPU_QCONF		0x14
 #define CPU_QINFO		0x15
 #define CPU_MYID		0x16
-#define	HV_CPU_STATE		0x17
-#define HV_CPU_SET_RTBA		0x18
-#define HV_CPU_GET_RTBA		0x19
+#define	CPU_STATE		0x17
+#define CPU_SET_RTBA		0x18
+#define CPU_GET_RTBA		0x19
+
+
 #define MMU_TSB_CTX0            0x20
 #define MMU_TSB_CTXNON0		0x21
 #define	MMU_DEMAP_PAGE		0x22
 #define	MMU_DEMAP_CTX		0x23
 #define	MMU_DEMAP_ALL		0x24
 #define	MAP_PERM_ADDR		0x25
-#define	MMU_SET_INFOPTR		0x26
+#define	MMU_MAP_PERM_ADDR	0x26
 #define MMU_ENABLE              0x27
-#define UNMAP_PERM_ADDR         0x28
+#define MMU_UNMAP_PERM_ADDR     0x28
 #define MMU_TSB_CTX0_INFO       0x29
 #define MMU_TSB_CTXNON0_INFO    0x2a
 #define MMU_FAULT_AREA_INFO     0x2b
-#define	HV_MEM_SCRUB		0x31
-#define	HV_MEM_SYNC		0x32
-#define	HV_INTR_SEND		0x42
+
+/*
+ * Bits for MMU functions flags argument:
+ *	arg3 of MMU_MAP_ADDR
+ *	arg3 of MMU_DEMAP_CTX
+ *	arg2 of MMU_DEMAP_ALL
+ */
+#define	MAP_DTLB		0x1
+#define	MAP_ITLB		0x2
+
+
+
+
+#define	MEM_SCRUB		0x31
+#define	MEM_SYNC		0x32
+#define	CPU_MONDO_SEND		0x42
 #define	TOD_GET			0x50
 #define	TOD_SET			0x51
 #define	CONS_GETCHAR		0x60
@@ -133,90 +150,75 @@
 #define	DUMP_BUF_UPDATE		0x94
 #define DUMP_BUF_INFO           0x95
 
-#define	HVIO_INTR_DEVINO2SYSINO	0xa0
-#define	HVIO_INTR_GETENABLED	0xa1
-#define	HVIO_INTR_SETENABLED	0xa2
-#define	HVIO_INTR_GETSTATE	0xa3
-#define	HVIO_INTR_SETSTATE	0xa4
-#define	HVIO_INTR_GETTARGET	0xa5
-#define	HVIO_INTR_SETTARGET	0xa6
+#define	INTR_DEVINO2SYSINO	0xa0
+#define	INTR_GETENABLED	        0xa1
+#define	INTR_SETENABLED	        0xa2
+#define	INTR_GETSTATE	        0xa3
+#define	INTR_SETSTATE	        0xa4
+#define	INTR_GETTARGET	        0xa5
+#define	INTR_SETTARGET	        0xa6
 
-#define	HVIO_IOMMU_MAP		0xb0
-#define	HVIO_IOMMU_DEMAP	0xb1
-#define	HVIO_IOMMU_GETMAP	0xb2
-#define	HVIO_IOMMU_GETBYPASS	0xb3
+#define	PCI_IOMMU_MAP		0xb0
+#define	PCI_IOMMU_DEMAP	        0xb1
+#define	PCI_IOMMU_GETMAP	0xb2
+#define	PCI_IOMMU_GETBYPASS	0xb3
 
-#define	HVIO_CONFIG_GET		0xb4
-#define	HVIO_CONFIG_PUT		0xb5
+#define	PCI_CONFIG_GET		0xb4
+#define	PCI_CONFIG_PUT		0xb5
 
-#define	HVIO_PEEK		0xb6
-#define	HVIO_POKE		0xb7
+#define	PCI_PEEK		0xb6
+#define	PCI_POKE		0xb7
 
-#define	HVIO_DMA_SYNC		0xb8
+#define	PCI_DMA_SYNC		0xb8
 
-#define	HVIO_MSIQ_CONF		0xc0
-#define	HVIO_MSIQ_INFO		0xc1
-#define	HVIO_MSIQ_GETVALID	0xc2
-#define	HVIO_MSIQ_SETVALID	0xc3
-#define	HVIO_MSIQ_GETSTATE	0xc4
-#define	HVIO_MSIQ_SETSTATE	0xc5
-#define	HVIO_MSIQ_GETHEAD	0xc6
-#define	HVIO_MSIQ_SETHEAD	0xc7
-#define	HVIO_MSIQ_GETTAIL	0xc8
+#define	PCI_MSIQ_CONF		0xc0
+#define	PCI_MSIQ_INFO		0xc1
+#define	PCI_MSIQ_GETVALID	0xc2
+#define	PCI_MSIQ_SETVALID	0xc3
+#define	PCI_MSIQ_GETSTATE	0xc4
+#define	PCI_MSIQ_SETSTATE	0xc5
+#define	PCI_MSIQ_GETHEAD	0xc6
+#define	PCI_MSIQ_SETHEAD	0xc7
+#define	PCI_MSIQ_GETTAIL	0xc8
 
-#define	HVIO_MSI_GETVALID	0xc9
-#define	HVIO_MSI_SETVALID	0xca
-#define	HVIO_MSI_GETMSIQ	0xcb
-#define	HVIO_MSI_SETMSIQ	0xcc
-#define	HVIO_MSI_GETSTATE	0xcd
-#define	HVIO_MSI_SETSTATE	0xce
+#define	PCI_MSI_GETVALID	0xc9
+#define	PCI_MSI_SETVALID	0xca
+#define	PCI_MSI_GETMSIQ	        0xcb
+#define	PCI_MSI_SETMSIQ	        0xcc
+#define	PCI_MSI_GETSTATE	0xcd
+#define	PCI_MSI_SETSTATE	0xce
 
-#define	HVIO_MSG_GETMSIQ	0xd0
-#define	HVIO_MSG_SETMSIQ	0xd1
-#define	HVIO_MSG_GETVALID	0xd2
-#define	HVIO_MSG_SETVALID	0xd3
+#define	PCI_MSG_GETMSIQ	        0xd0
+#define	PCI_MSG_SETMSIQ	        0xd1
+#define	PCI_MSG_GETVALID	0xd2
+#define	PCI_MSG_SETVALID	0xd3
 
-#define HVIO_LDC_TX_QCONF       0xe0
-#define HVIO_LDC_TX_QINFO       0xe1
-#define HVIO_LDC_TX_GET_STATE   0xe2
-#define HVIO_LDC_TX_SET_QTAIL   0xe3
-#define HVIO_LDC_RX_QCONF       0xe4
-#define HVIO_LDC_RX_QINFO       0xe5
-#define HVIO_LDC_RX_GET_STATE   0xe6
-#define HVIO_LDC_RX_SET_QHEAD   0xe7
+#define LDC_TX_QCONF            0xe0
+#define LDC_TX_QINFO            0xe1
+#define LDC_TX_GET_STATE        0xe2
+#define LDC_TX_SET_QTAIL        0xe3
+#define LDC_RX_QCONF            0xe4
+#define LDC_RX_QINFO            0xe5
+#define LDC_RX_GET_STATE        0xe6
+#define LDC_RX_SET_QHEAD        0xe7
+
+#define LDC_SET_MAP_TABLE       0xea
+#define LDC_GET_MAP_TABLE       0xeb
+#define LDC_COPY                0xec
+#define LDC_MAPIN               0xed
+#define LDC_UNMAP               0xee
+#define LDC_REVOKE              0xef
 
 
-#define HVIO_SIM_READ           0xf0
-#define HVIO_SIM_WRITE          0xf1
+#define SIM_READ                0xf0
+#define SIM_WRITE               0xf1
 
-
-#ifdef SET_MMU_STATS
-#define	MMU_STAT_AREA		0xfc
-#endif /* SET_MMU_STATS */
 
 #define NIAGARA_GET_PERFREG     0x100
 #define NIAGARA_SET_PERFREG     0x101
 
 #define NIAGARA_MMUSTAT_CONF    0x102
 #define NIAGARA_MMUSTAT_INFO    0x103
-
-#define	HV_NCS_REQUEST		0x110
-
-#define	FIRE_GET_PERFREG	0x120
-#define	FIRE_SET_PERFREG	0x121
-
-#define	HV_RA2PA		0x200
-#define	HV_HPRIV		0x201
-
-/*
- * Bits for MMU functions flags argument:
- *	arg3 of MMU_MAP_ADDR
- *	arg3 of MMU_DEMAP_CTX
- *	arg2 of MMU_DEMAP_ALL
- */
-#define	MAP_DTLB		0x1
-#define	MAP_ITLB		0x2
-
 
 /*
  * Interrupt state manipulation definitions.
@@ -231,20 +233,6 @@
 
 #ifndef LOCORE
 
-/*
- * TSB description structure for MMU_TSB_CTX0 and MMU_TSB_CTXNON0.
- */
-typedef struct hv_tsb_info {
-	uint16_t	hvtsb_idxpgsz;	/* page size used to index TSB */
-	uint16_t	hvtsb_assoc;	/* TSB associativity */
-	uint32_t	hvtsb_ntte;	/* TSB size (#TTE entries) */
-	uint32_t	hvtsb_ctx_index; /* context reg index */
-	uint32_t	hvtsb_pgszs;	/* sizes in use */
-	uint64_t	hvtsb_pa;	/* real address of TSB base */
-	uint64_t	hvtsb_rsvd;	/* reserved */
-} hv_tsb_info_t;
-
-#define	HVTSB_SHARE_INDEX	((uint32_t)-1)
 
 #ifdef SET_MMU_STATS
 #ifndef TTE4V_NPGSZ
@@ -337,27 +325,6 @@ struct mmu_stat {
  */
 #define	HVIO_DMA_SYNC_DIR_TO_DEV	0x01
 #define	HVIO_DMA_SYNC_DIR_FROM_DEV	0x02
-
-/*
- * Performance counter register definitions.
- */
-#define	HVIO_FIRE_PERFREG_JBC_SEL	0
-#define	HVIO_FIRE_PERFREG_JBC_CNT0	1
-#define	HVIO_FIRE_PERFREG_JBC_CNT1	2
-#define	HVIO_FIRE_PERFREG_PCIE_IMU_SEL	3
-#define	HVIO_FIRE_PERFREG_PCIE_IMU_CNT0	4
-#define	HVIO_FIRE_PERFREG_PCIE_IMU_CNT1	5
-#define	HVIO_FIRE_PERFREG_PCIE_MMU_SEL	6
-#define	HVIO_FIRE_PERFREG_PCIE_MMU_CNT0	7
-#define	HVIO_FIRE_PERFREG_PCIE_MMU_CNT1	8
-#define	HVIO_FIRE_PERFREG_PCIE_TLU_SEL	9
-#define	HVIO_FIRE_PERFREG_PCIE_TLU_CNT0	10
-#define	HVIO_FIRE_PERFREG_PCIE_TLU_CNT1	11
-#define	HVIO_FIRE_PERFREG_PCIE_TLU_CNT2	12
-#define	HVIO_FIRE_PERFREG_PCIE_LNK_SEL	13
-#define	HVIO_FIRE_PERFREG_PCIE_LNK_CNT1	14
-#define	HVIO_FIRE_PERFREG_PCIE_LNK_CNT2	15
-
 
 #ifdef SIMULATOR
 #define MAGIC_TRAP_ON	ta	0x77
