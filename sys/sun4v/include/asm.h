@@ -96,7 +96,6 @@ CNAME(x):
 #define	END(x)		.size x, . - x
 
 #define STACK_ALIGN     64
-#define SET_SIZE(x)     END(x)
 #define SA(X)           (((X)+(STACK_ALIGN-1)) & ~(STACK_ALIGN-1))  
 #define WINDOWSIZE64    (16*8)
 #define MINFRAME64      (WINDOWSIZE64 + 64)

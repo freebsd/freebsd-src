@@ -798,7 +798,7 @@ ENTRY(panic_bad_hcall)
 	mov	%o7, %o3
 	call	panic
 	  mov	%o3, %o7
-SET_SIZE(panic_bad_hcall)
+END(panic_bad_hcall)
 
 
 	
