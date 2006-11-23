@@ -2126,7 +2126,8 @@ pmap_protect(pmap_t pmap, vm_offset_t sva, vm_offset_t eva, vm_prot_t prot)
 		return;
 	}
 
-	if (prot & VM_PROT_WRITE)
+	if ((prot & (VM_PROT_WRITE|VM_PROT_EXECUTE)) ==
+	    (VM_PROT_WRITE|VM_PROT_EXECUTE))
 		return;
 
 	anychanged = 0;
@@ -2162,7 +2163,10 @@ pmap_protect(pmap_t pmap, vm_offset_t sva, vm_offset_t eva, vm_prot_t prot)
 		 * Check for large page.
 		 */
 		if ((ptpaddr & PG_PS) != 0) {
-			*pde &= ~(PG_M|PG_RW);
+			if ((prot & VM_PROT_WRITE) == 0)
+				*pde &= ~(PG_M|PG_RW);
+			if ((prot & VM_PROT_EXECUTE) == 0)
+				*pde |= pg_nx;
 			anychanged = 1;
 			continue;
 		}
@@ -2177,6 +2181,8 @@ pmap_protect(pmap_t pmap, vm_offset_t sva, vm_offset_t eva, vm_prot_t prot)
 
 retry:
 			obits = pbits = *pte;
+			if ((pbits & PG_V) == 0)
+				continue;
 			if (pbits & PG_MANAGED) {
 				m = NULL;
 				if (pbits & PG_A) {
@@ -2192,7 +2198,10 @@ retry:
 				}
 			}
 
-			pbits &= ~(PG_RW | PG_M);
+			if ((prot & VM_PROT_WRITE) == 0)
+				pbits &= ~(PG_RW | PG_M);
+			if ((prot & VM_PROT_EXECUTE) == 0)
+				pbits |= pg_nx;
 
 			if (pbits != obits) {
 				if (!atomic_cmpset_long(pte, obits, pbits))
