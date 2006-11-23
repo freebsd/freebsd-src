@@ -90,8 +90,10 @@
 #define	HV_INTR_SEND		0x42
 #define	TOD_GET			0x50
 #define	TOD_SET			0x51
-#define	CONS_READ		0x60
-#define	CONS_WRITE		0x61
+#define	CONS_GETCHAR		0x60
+#define	CONS_PUTCHAR		0x61
+#define CONS_READ               0x62
+#define CONS_WRITE              0x63
 
 #define	SVC_SEND		0x80
 #define	SVC_RECV		0x81
