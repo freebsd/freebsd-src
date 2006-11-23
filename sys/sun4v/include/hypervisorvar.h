@@ -149,6 +149,16 @@
 #define	HVIO_MSG_GETVALID	0xd2
 #define	HVIO_MSG_SETVALID	0xd3
 
+#define HVIO_LDC_TX_QCONF       0xe0
+#define HVIO_LDC_TX_QINFO       0xe1
+#define HVIO_LDC_TX_GET_STATE   0xe2
+#define HVIO_LDC_TX_SET_QTAIL   0xe3
+#define HVIO_LDC_RX_QCONF       0xe4
+#define HVIO_LDC_RX_QINFO       0xe5
+#define HVIO_LDC_RX_GET_STATE   0xe6
+#define HVIO_LDC_RX_SET_QHEAD   0xe7
+
+
 #define HVIO_SIM_READ           0xf0
 #define HVIO_SIM_WRITE          0xf1
 
