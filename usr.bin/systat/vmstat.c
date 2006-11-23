@@ -747,11 +747,11 @@ putuintmax(n, l, lc, w)
 			addch(' ');
 		return;
 	}
-	snr = snprintf(b, sizeof(b), "%*zu", w, n);
+	snr = snprintf(b, sizeof(b), "%*ju", w, n);
 	if (snr != w)
-		snr = snprintf(b, sizeof(b), "%*zuk", w - 1, n / 1000);
+		snr = snprintf(b, sizeof(b), "%*juk", w - 1, n / 1000);
 	if (snr != w)
-		snr = snprintf(b, sizeof(b), "%*zuM", w - 1, n / 1000000);
+		snr = snprintf(b, sizeof(b), "%*juM", w - 1, n / 1000000);
 	if (snr != w) {
 		while (w-- > 0)
 			addch('*');
