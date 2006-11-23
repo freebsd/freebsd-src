@@ -36,7 +36,7 @@
 .\" ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 .\" POSSIBILITY OF SUCH DAMAGE.
 .\"
-.Dd November 16, 2005
+.Dd November 23, 2006
 .Dt PKILL 1
 .Os
 .Sh NAME
@@ -146,7 +146,12 @@ Ignore case distinctions in both the process table and the supplied pattern.
 Restrict matches to processes inside jails with a jail ID in the comma-separated
 list
 .Ar jid .
-The value zero is taken to mean any jail ID.
+The value
+.Dq Li any
+matches processes in any jail.
+The value
+.Dq Li none
+matches processes not in jail.
 .It Fl l
 Long output.
 Print the process name in addition to the process ID for each matching
@@ -240,6 +245,18 @@ Invalid options were specified on the command line.
 .It 3
 An internal error occurred.
 .El
+.Sh COMPATIBILITY
+Historically the option
+.Dq Fl j Li 0
+means any jail, although in other utilities such as
+.Xr ps 1
+jail ID
+.Li 0
+has the opposite meaning, not in jail.
+Therefore
+.Dq Fl j Li 0
+is deprecated, and its use is discouraged in favor of
+.Dq Fl j Li any .
 .Sh SEE ALSO
 .Xr kill 1 ,
 .Xr killall 1 ,
