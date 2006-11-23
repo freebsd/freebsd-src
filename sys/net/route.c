@@ -137,7 +137,6 @@ rtalloc1(struct sockaddr *dst, int report, u_long ignflags)
 	int err = 0, msgtype = RTM_MISS;
 
 	newrt = NULL;
-	bzero(&info, sizeof(info));
 	/*
 	 * Look up the address in the table for that Address Family
 	 */
@@ -183,6 +182,7 @@ rtalloc1(struct sockaddr *dst, int report, u_long ignflags)
 				goto miss;
 			}
 			/* Inform listeners of the new route. */
+			bzero(&info, sizeof(info));
 			info.rti_info[RTAX_DST] = rt_key(newrt);
 			info.rti_info[RTAX_NETMASK] = rt_mask(newrt);
 			info.rti_info[RTAX_GATEWAY] = newrt->rt_gateway;
@@ -213,6 +213,7 @@ rtalloc1(struct sockaddr *dst, int report, u_long ignflags)
 			 * Authorities.
 			 * For a delete, this is not an error. (report == 0)
 			 */
+			bzero(&info, sizeof(info));
 			info.rti_info[RTAX_DST] = dst;
 			rt_missmsg(msgtype, &info, 0, err);
 		}
