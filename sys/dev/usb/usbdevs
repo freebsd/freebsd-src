@@ -468,6 +468,7 @@ vendor ATI2		0x0b6f	ATI
 vendor ZEEVO		0x0b7a	Zeevo
 vendor KURUSUGAWA	0x0b7e	Kurusugawa
 vendor ASIX		0x0b95	ASIX
+vendor O2		0x0b97	O2 Micro, Inc.
 vendor USR		0x0baf	U.S. Robotics
 vendor REALTEK		0x0bda	RealTek
 vendor ADDONICS2	0x0bf6	Addonics
@@ -846,6 +847,8 @@ product DALLAS J6502		0x4201	J-6502 speakers
 /* Dell products */
 product DELL PORT		0x0058	Port Replicator
 product DELL BC02		0x8000	BC02 Bluetooth USB Adapter
+product DELL TM350		0x8103	TrueMobile 350 Bluetooth USB Adapter
+
 
 /* Delorme Paublishing products */
 product DELORME EARTHMATE	0x0100	Earthmate GPS
