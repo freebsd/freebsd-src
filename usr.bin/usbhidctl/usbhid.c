@@ -97,11 +97,11 @@ usage(void)
 
 	fprintf(stderr,
                 "usage: %s -f device "
-                "[-l] [-n] [-r] [-t tablefile] [-v] [x] name ...\n",
+                "[-l] [-n] [-r] [-t tablefile] [-v] [-x] name ...\n",
                 __progname);
 	fprintf(stderr,
                 "       %s -f device "
-                "[-l] [-n] [-r] [-t tablefile] [-v] [x] -a\n",
+                "[-l] [-n] [-r] [-t tablefile] [-v] [-x] -a\n",
                 __progname);
 	exit(1);
 }
@@ -298,7 +298,7 @@ main(int argc, char **argv)
 			verbose++;
 			break;
 		case 'x':
-			hexdump ^= 1;
+			hexdump = 1;
 			break;
 		case '?':
 		default:
