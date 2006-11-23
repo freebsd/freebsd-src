@@ -65,6 +65,7 @@ __FBSDID("$FreeBSD$");
 #include <devstat.h>
 #include <err.h>
 #include <errno.h>
+#include <inttypes.h>
 #include <kvm.h>
 #include <limits.h>
 #include <memstat.h>
@@ -586,12 +587,12 @@ dovmstat(unsigned int interval, int reps)
 
 		fill_vmmeter(&sum);
 		fill_vmtotal(&total);
-		(void)printf("%2d %1d %1d",
+		(void)printf("%2u %1u %1u",
 		    total.t_rq - 1, total.t_dw + total.t_pw, total.t_sw);
-#define vmstat_pgtok(a) ((a) * (sum.v_page_size >> 10))
+#define vmstat_pgtok(a) ((uintmax_t)(a) * (sum.v_page_size >> 10))
 #define	rate(x)	(((x) + halfuptime) / uptime)	/* round */
-		(void)printf(" %7ld %6ld ", (long)vmstat_pgtok(total.t_avm),
-			     (long)vmstat_pgtok(total.t_free));
+		(void)printf(" %7ju %6ju ", vmstat_pgtok(total.t_avm),
+		    vmstat_pgtok(total.t_free));
 		(void)printf("%4lu ",
 		    (unsigned long)rate(sum.v_vm_faults - osum.v_vm_faults));
 		(void)printf("%3lu ",

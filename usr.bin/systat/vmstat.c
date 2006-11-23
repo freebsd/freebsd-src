@@ -58,6 +58,7 @@ static const char sccsid[] = "@(#)vmstat.c	8.2 (Berkeley) 1/12/94";
 #include <ctype.h>
 #include <err.h>
 #include <errno.h>
+#include <inttypes.h>
 #include <langinfo.h>
 #include <nlist.h>
 #include <paths.h>
@@ -136,6 +137,8 @@ static float cputime(int);
 static void dinfo(int, int, struct statinfo *, struct statinfo *);
 static void getinfo(struct Info *);
 static void putint(int, int, int, int);
+static void putuint(unsigned, int, int, int);
+static void putuintmax(uintmax_t, int, int, int);
 static void putfloat(double, int, int, int, int, int);
 static void putlongdouble(long double, int, int, int, int, int);
 static int ucount(void);
@@ -473,28 +476,28 @@ showkre()
 	putfloat(avenrun[2], STATROW, STATCOL + 29, 6, 2, 0);
 	mvaddstr(STATROW, STATCOL + 53, buf);
 #define pgtokb(pg)	((pg) * (s.v_page_size / 1024))
-	putint(pgtokb(total.t_arm), MEMROW + 2, MEMCOL + 3, 8);
-	putint(pgtokb(total.t_armshr), MEMROW + 2, MEMCOL + 11, 8);
-	putint(pgtokb(total.t_avm), MEMROW + 2, MEMCOL + 19, 9);
-	putint(pgtokb(total.t_avmshr), MEMROW + 2, MEMCOL + 28, 9);
-	putint(pgtokb(total.t_rm), MEMROW + 3, MEMCOL + 3, 8);
-	putint(pgtokb(total.t_rmshr), MEMROW + 3, MEMCOL + 11, 8);
-	putint(pgtokb(total.t_vm), MEMROW + 3, MEMCOL + 19, 9);
-	putint(pgtokb(total.t_vmshr), MEMROW + 3, MEMCOL + 28, 9);
-	putint(pgtokb(total.t_free), MEMROW + 2, MEMCOL + 37, 8);
-	putint(total.t_rq - 1, PROCSROW + 1, PROCSCOL + 3, 3);
-	putint(total.t_pw, PROCSROW + 1, PROCSCOL + 6, 3);
-	putint(total.t_dw, PROCSROW + 1, PROCSCOL + 9, 3);
-	putint(total.t_sl, PROCSROW + 1, PROCSCOL + 12, 3);
-	putint(total.t_sw, PROCSROW + 1, PROCSCOL + 15, 3);
+	putuintmax(pgtokb(total.t_arm), MEMROW + 2, MEMCOL + 3, 8);
+	putuintmax(pgtokb(total.t_armshr), MEMROW + 2, MEMCOL + 11, 8);
+	putuintmax(pgtokb(total.t_avm), MEMROW + 2, MEMCOL + 19, 9);
+	putuintmax(pgtokb(total.t_avmshr), MEMROW + 2, MEMCOL + 28, 9);
+	putuintmax(pgtokb(total.t_rm), MEMROW + 3, MEMCOL + 3, 8);
+	putuintmax(pgtokb(total.t_rmshr), MEMROW + 3, MEMCOL + 11, 8);
+	putuintmax(pgtokb(total.t_vm), MEMROW + 3, MEMCOL + 19, 9);
+	putuintmax(pgtokb(total.t_vmshr), MEMROW + 3, MEMCOL + 28, 9);
+	putuintmax(pgtokb(total.t_free), MEMROW + 2, MEMCOL + 37, 8);
+	putuint(total.t_rq - 1, PROCSROW + 1, PROCSCOL + 3, 3);
+	putuint(total.t_pw, PROCSROW + 1, PROCSCOL + 6, 3);
+	putuint(total.t_dw, PROCSROW + 1, PROCSCOL + 9, 3);
+	putuint(total.t_sl, PROCSROW + 1, PROCSCOL + 12, 3);
+	putuint(total.t_sw, PROCSROW + 1, PROCSCOL + 15, 3);
 	if (extended_vm_stats == 0) {
 		PUTRATE(v_zfod, VMSTATROW + 0, VMSTATCOL + 4, 5);
 	}
 	PUTRATE(v_cow_faults, VMSTATROW + 1, VMSTATCOL + 3, 6);
-	putint(pgtokb(s.v_wire_count), VMSTATROW + 2, VMSTATCOL, 9);
-	putint(pgtokb(s.v_active_count), VMSTATROW + 3, VMSTATCOL, 9);
-	putint(pgtokb(s.v_inactive_count), VMSTATROW + 4, VMSTATCOL, 9);
-	putint(pgtokb(s.v_cache_count), VMSTATROW + 5, VMSTATCOL, 9);
+	putuintmax(pgtokb(s.v_wire_count), VMSTATROW + 2, VMSTATCOL, 9);
+	putuintmax(pgtokb(s.v_active_count), VMSTATROW + 3, VMSTATCOL, 9);
+	putuintmax(pgtokb(s.v_inactive_count), VMSTATROW + 4, VMSTATCOL, 9);
+	putuintmax(pgtokb(s.v_cache_count), VMSTATROW + 5, VMSTATCOL, 9);
 	putint(pgtokb(s.v_free_count), VMSTATROW + 6, VMSTATCOL, 9);
 	PUTRATE(v_dfree, VMSTATROW + 7, VMSTATCOL, 9);
 	PUTRATE(v_pfree, VMSTATROW + 8, VMSTATCOL, 9);
@@ -669,19 +672,94 @@ static void
 putint(n, l, lc, w)
 	int n, l, lc, w;
 {
+	int snr;
 	char b[128];
 
 	move(l, lc);
+#ifdef DEBUG
+		while (w-- > 0)
+			addch('*');
+		return;
+#endif
 	if (n == 0) {
 		while (w-- > 0)
 			addch(' ');
 		return;
 	}
-	snprintf(b, sizeof(b), "%*d", w, n);
-	if ((int)strlen(b) > w)
-		snprintf(b, sizeof(b), "%*dk", w - 1, n / 1000);
-	if ((int)strlen(b) > w)
-		snprintf(b, sizeof(b), "%*dM", w - 1, n / 1000000);
+	snr = snprintf(b, sizeof(b), "%*d", w, n);
+	if (snr != w)
+		snr = snprintf(b, sizeof(b), "%*dk", w - 1, n / 1000);
+	if (snr != w)
+		snr = snprintf(b, sizeof(b), "%*dM", w - 1, n / 1000000);
+	if (snr != w) {
+		while (w-- > 0)
+			addch('*');
+		return;
+	}
+	addstr(b);
+}
+
+static void
+putuint(n, l, lc, w)
+	unsigned n;
+	int l, lc, w;
+{
+	int snr;
+	char b[128];
+
+	move(l, lc);
+#ifdef DEBUG
+		while (w-- > 0)
+			addch('*');
+		return;
+#endif
+	if (n == 0) {
+		while (w-- > 0)
+			addch(' ');
+		return;
+	}
+	snr = snprintf(b, sizeof(b), "%*u", w, n);
+	if (snr != w)
+		snr = snprintf(b, sizeof(b), "%*uk", w - 1, n / 1000);
+	if (snr != w)
+		snr = snprintf(b, sizeof(b), "%*uM", w - 1, n / 1000000);
+	if (snr != w) {
+		while (w-- > 0)
+			addch('*');
+		return;
+	}
+	addstr(b);
+}
+
+static void
+putuintmax(n, l, lc, w)
+	uintmax_t n;
+	int l, lc, w;
+{
+	int snr;
+	char b[128];
+
+	move(l, lc);
+#ifdef DEBUG
+		while (w-- > 0)
+			addch('*');
+		return;
+#endif
+	if (n == 0) {
+		while (w-- > 0)
+			addch(' ');
+		return;
+	}
+	snr = snprintf(b, sizeof(b), "%*ju", w, n);
+	if (snr != w)
+		snr = snprintf(b, sizeof(b), "%*juk", w - 1, n / 1000);
+	if (snr != w)
+		snr = snprintf(b, sizeof(b), "%*juM", w - 1, n / 1000000);
+	if (snr != w) {
+		while (w-- > 0)
+			addch('*');
+		return;
+	}
 	addstr(b);
 }
 
@@ -690,18 +768,24 @@ putfloat(f, l, lc, w, d, nz)
 	double f;
 	int l, lc, w, d, nz;
 {
+	int snr;
 	char b[128];
 
 	move(l, lc);
+#ifdef DEBUG
+		while (--w >= 0)
+			addch('*');
+		return;
+#endif
 	if (nz && f == 0.0) {
 		while (--w >= 0)
 			addch(' ');
 		return;
 	}
-	snprintf(b, sizeof(b), "%*.*f", w, d, f);
-	if ((int)strlen(b) > w)
-		snprintf(b, sizeof(b), "%*.0f", w, f);
-	if ((int)strlen(b) > w) {
+	snr = snprintf(b, sizeof(b), "%*.*f", w, d, f);
+	if (snr != w)
+		snr = snprintf(b, sizeof(b), "%*.0f", w, f);
+	if (snr != w) {
 		while (--w >= 0)
 			addch('*');
 		return;
@@ -714,18 +798,24 @@ putlongdouble(f, l, lc, w, d, nz)
 	long double f;
 	int l, lc, w, d, nz;
 {
+	int snr;
 	char b[128];
 
 	move(l, lc);
+#ifdef DEBUG
+		while (--w >= 0)
+			addch('*');
+		return;
+#endif
 	if (nz && f == 0.0) {
 		while (--w >= 0)
 			addch(' ');
 		return;
 	}
-	sprintf(b, "%*.*Lf", w, d, f);
-	if ((int)strlen(b) > w)
-		sprintf(b, "%*.0Lf", w, f);
-	if ((int)strlen(b) > w) {
+	snr = snprintf(b, sizeof(b), "%*.*Lf", w, d, f);
+	if (snr != w)
+		snr = snprintf(b, sizeof(b), "%*.0Lf", w, f);
+	if (snr != w) {
 		while (--w >= 0)
 			addch('*');
 		return;
