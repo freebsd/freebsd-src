@@ -39,6 +39,8 @@
 #define	MMU_UNMAP_ADDR		0x84
 #define	TTRACE_ADDENTRY		0x85
 
+#define API_TRAP                0xff
+
 /*
  * Error returns in %o0.
  * (Additional result is returned in %o1.)
@@ -70,21 +72,43 @@
 #define	HV_SEND_MONDO_ENTRYDONE	0xffff
 
 /*
+ * Function numbers for API_TRAP.
+ */
+#define API_SET_VERSION         0x00
+#define API_PUTCHAR             0x01
+#define API_EXIT                0x02
+#define API_GET_VERSION         0x03
+
+/*
  * Function numbers for FAST_TRAP.
  */
 #define	HV_MACH_EXIT		0x00
 #define	HV_MACH_DESC		0x01
+#define HV_MACH_SET_SOFT_STATE  0x03
+#define HV_MACH_GET_SOFT_STATE  0x04
+#define HV_MACH_SET_WATCHDOG    0x05
+
+#define HV_CPU_START            0x10
+#define HV_CPU_STOP             0x11
 #define	HV_CPU_YIELD		0x12
-#define	CPU_QCONF		0x14
+#define CPU_QCONF		0x14
+#define CPU_QINFO		0x15
+#define CPU_MYID		0x16
 #define	HV_CPU_STATE		0x17
-#define	MMU_TSB_CTX0		0x20
-#define	MMU_TSB_CTXNON0		0x21
+#define HV_CPU_SET_RTBA		0x18
+#define HV_CPU_GET_RTBA		0x19
+#define MMU_TSB_CTX0            0x20
+#define MMU_TSB_CTXNON0		0x21
 #define	MMU_DEMAP_PAGE		0x22
 #define	MMU_DEMAP_CTX		0x23
 #define	MMU_DEMAP_ALL		0x24
 #define	MAP_PERM_ADDR		0x25
 #define	MMU_SET_INFOPTR		0x26
-#define	UNMAP_PERM_ADDR		0x28
+#define MMU_ENABLE              0x27
+#define UNMAP_PERM_ADDR         0x28
+#define MMU_TSB_CTX0_INFO       0x29
+#define MMU_TSB_CTXNON0_INFO    0x2a
+#define MMU_FAULT_AREA_INFO     0x2b
 #define	HV_MEM_SCRUB		0x31
 #define	HV_MEM_SYNC		0x32
 #define	HV_INTR_SEND		0x42
@@ -107,6 +131,7 @@
 #define	TTRACE_FREEZE		0x93
 
 #define	DUMP_BUF_UPDATE		0x94
+#define DUMP_BUF_INFO           0x95
 
 #define	HVIO_INTR_DEVINO2SYSINO	0xa0
 #define	HVIO_INTR_GETENABLED	0xa1
@@ -168,6 +193,12 @@
 #ifdef SET_MMU_STATS
 #define	MMU_STAT_AREA		0xfc
 #endif /* SET_MMU_STATS */
+
+#define NIAGARA_GET_PERFREG     0x100
+#define NIAGARA_SET_PERFREG     0x101
+
+#define NIAGARA_MMUSTAT_CONF    0x102
+#define NIAGARA_MMUSTAT_INFO    0x103
 
 #define	HV_NCS_REQUEST		0x110
 
