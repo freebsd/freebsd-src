@@ -552,7 +552,7 @@ interrupt_bad_hcall_error:
 	.asciz	"hypervisor call 0x%x returned an unexpected error %d"
 
 	
-	ENTRY(interrupt_panic_bad_hcall)
+ENTRY(interrupt_panic_bad_hcall)
 	PUTCHAR(0x5b)
 	PUTCHAR(0x5b)
 	PUTCHAR(0x5b)
@@ -564,4 +564,4 @@ interrupt_bad_hcall_error:
 	mov	%o7, %o3
 	call	panic
 	  mov	%o3, %o7
-	SET_SIZE(interrupt_panic_bad_hcall)
+END(interrupt_panic_bad_hcall)
