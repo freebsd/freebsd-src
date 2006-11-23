@@ -1156,14 +1156,26 @@ ENTRY(hv_ttrace_addentry)
 	  nop	
 END(hv_ttrace_addentry)
 
-
+/*
+ * MACH_EXIT
+ * arg0 exit code
+ *
+ */
+ENTRY(hv_mach_exit)
+	mov	HV_MACH_EXIT, %o5
+	ta	FAST_TRAP
+	retl
+	  nop
+END(hv_mach_exit)
 	
 /*
  * MACH_DESC
  * arg0 buffer real address
  * arg1 pointer to uint64_t for size of buffer
+ *
  * ret0 status
  * ret1 return required size of buffer / returned data size
+ *
  */
 ENTRY(hv_mach_desc)
 	mov     %o1, %o4                ! save datap
@@ -1174,6 +1186,16 @@ ENTRY(hv_mach_desc)
 	  stx   %o1, [%o4]
 END(hv_mach_desc)
 
+ENTRY(hv_mach_watchdog)
+	mov	%o1, %o2
+	mov	HV_MACH_SET_WATCHDOG, %o5
+	ta	FAST_TRAP
+	brnz,pn %o0, 1f
+	  nop
+	stx	%o1, [%o2]
+1:	retl
+	  nop
+END(hv_mach_watchdog)
 /*
  * hv_ncs_request(int cmd, uint64_t realaddr, size_t sz)
  */
@@ -1187,7 +1209,6 @@ END(hv_ncs_request)
 /*
  * hv_ra2pa(uint64_t ra)
  *
- * MACH_DESC
  * arg0 Real address to convert
  * ret0 Returned physical address or -1 on error
  */
@@ -1204,7 +1225,6 @@ END(hv_ra2pa)
 /*
  * hv_hpriv(void *func, uint64_t arg1, uint64_t arg2, uint64_t arg3)
  *
- * MACH_DESC
  * arg0 OS function to call
  * arg1 First arg to OS function
  * arg2 Second arg to OS function

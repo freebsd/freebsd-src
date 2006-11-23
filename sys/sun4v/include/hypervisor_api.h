@@ -85,6 +85,7 @@ extern uint64_t hv_service_setstatus(uint64_t s_id, uint64_t bits);
 extern uint64_t hv_service_clrstatus(uint64_t s_id, uint64_t bits);
 
 extern uint64_t hv_mach_desc(uint64_t buffer_ra, uint64_t *buffer_sizep);
+extern uint64_t hv_mach_watchdog(uint64_t timeout, uint64_t *time_remaining);
 
 extern uint64_t hv_ttrace_buf_info(uint64_t *, uint64_t *);
 extern uint64_t hv_ttrace_buf_conf(uint64_t, uint64_t, uint64_t *);
