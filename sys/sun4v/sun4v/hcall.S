@@ -18,7 +18,7 @@ __FBSDID("$FreeBSD$")
  * %o0 - character
  */
 ENTRY(hv_cnputchar)
-	mov	CONS_WRITE, %o5
+	mov	CONS_PUTCHAR, %o5
 	ta	FAST_TRAP
 	retl
 	  nop
@@ -32,7 +32,7 @@ END(hv_cnputchar)
  */
 ENTRY(hv_cngetchar)
 	mov	%o0, %o2
-	mov	CONS_READ, %o5
+	mov	CONS_GETCHAR, %o5
 	ta	FAST_TRAP
 	brnz,a	%o0, 1f		! failure, just return error
 	  mov	1, %o0
@@ -51,6 +51,55 @@ ENTRY(hv_cngetchar)
 	retl
 	  nop
 END(hv_cngetchar)
+
+/*
+ * write characters in raddr to console
+ * arg0 raddr        (%o0)
+ * arg1 size         (%o1)
+ *
+ * ret0 status       (%o0)
+ * ret1 char written (%o1)
+ * 
+ */
+ENTRY(hv_cnwrite)
+	mov	%o2, %o3
+	mov	CONS_WRITE, %o5
+	ta	FAST_TRAP
+	brnz,a	%o0, 1f		! failure, just return error
+	  mov	1, %o0
+	stx	%o1, [%o3]
+1:	retl
+	  nop
+END(hv_cnwrite)
+
+/*
+ * read up to size characters from console in to raddr 
+ * arg0 raddr        (%o0)
+ * arg1 size
+ *
+ * ret0 status       (%o0)
+ * ret1 char written (%o1)
+ * 
+ */
+ENTRY(hv_cnread)
+	mov	%o2, %o3
+	mov	CONS_READ, %o5
+	ta	FAST_TRAP
+	brnz,a	%o0, 1f		! failure, just return error
+	  mov	1, %o0
+
+	cmp	%o1, H_BREAK
+	be	1f
+	  mov	%o1, %o0
+
+	cmp	%o1, H_HUP
+	be	1f
+	  mov	%o1, %o0
+
+	stx	%o1, [%o3]
+1:	retl
+	  nop
+END(hv_cnread)
 
 ENTRY(hv_tod_get)
 	mov	%o0, %o4
