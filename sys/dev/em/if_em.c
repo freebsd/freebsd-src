@@ -3822,10 +3822,6 @@ em_pci_clear_mwi(struct em_hw *hw)
 	    (hw->pci_cmd_word & ~CMD_MEM_WRT_INVALIDATE), 2);
 }
 
-/*
- * We may eventually really do this, but its unnecessary 
- * for now so we just return unsupported.
- */
 int32_t
 em_read_pcie_cap_reg(struct em_hw *hw, uint32_t reg, uint16_t *value)
 {
