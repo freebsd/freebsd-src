@@ -76,7 +76,7 @@ __FBSDID("$FreeBSD$");
 #include <machine/pstate.h>
 #include <machine/tsb.h>
 
-#include <machine/hypervisor_api.h>
+#include <machine/hv_api.h>
 
 #ifdef TRAP_TRACING
 void trap_trace_report(int);
@@ -623,25 +623,25 @@ pmap_bootstrap(vm_offset_t ekva)
 	if (pa & PAGE_MASK_4M)
 		panic("pmap_bootstrap: tsb unaligned\n");
 	KDPRINTF("tsb_8k_size is 0x%lx, tsb_8k_pa is 0x%lx\n", tsb_8k_size, pa);
-	kernel_td[TSB8K_INDEX].hvtsb_idxpgsz = TTE8K;
-	kernel_td[TSB8K_INDEX].hvtsb_assoc = 1;
-	kernel_td[TSB8K_INDEX].hvtsb_ntte = (tsb_8k_size >> TTE_SHIFT);
-	kernel_td[TSB8K_INDEX].hvtsb_ctx_index = 0;
-	kernel_td[TSB8K_INDEX].hvtsb_pgszs = TSB8K;
-	kernel_td[TSB8K_INDEX].hvtsb_rsvd = 0;
-	kernel_td[TSB8K_INDEX].hvtsb_pa = pa;
+	kernel_td[TSB8K_INDEX].hti_idxpgsz = TTE8K;
+	kernel_td[TSB8K_INDEX].hti_assoc = 1;
+	kernel_td[TSB8K_INDEX].hti_ntte = (tsb_8k_size >> TTE_SHIFT);
+	kernel_td[TSB8K_INDEX].hti_ctx_index = 0;
+	kernel_td[TSB8K_INDEX].hti_pgszs = TSB8K;
+	kernel_td[TSB8K_INDEX].hti_rsvd = 0;
+	kernel_td[TSB8K_INDEX].hti_pa = pa;
 
 	/*
 	 * Initialize kernel's private TSB from 8K page TSB
 	 *
 	 */
-	kernel_pmap->pm_tsb.hvtsb_idxpgsz = TTE8K;
-	kernel_pmap->pm_tsb.hvtsb_assoc = 1;
-	kernel_pmap->pm_tsb.hvtsb_ntte = (tsb_8k_size >> TTE_SHIFT);
-	kernel_pmap->pm_tsb.hvtsb_ctx_index = 0;
-	kernel_pmap->pm_tsb.hvtsb_pgszs = TSB8K;
-	kernel_pmap->pm_tsb.hvtsb_rsvd = 0;
-	kernel_pmap->pm_tsb.hvtsb_pa = pa;
+	kernel_pmap->pm_tsb.hti_idxpgsz = TTE8K;
+	kernel_pmap->pm_tsb.hti_assoc = 1;
+	kernel_pmap->pm_tsb.hti_ntte = (tsb_8k_size >> TTE_SHIFT);
+	kernel_pmap->pm_tsb.hti_ctx_index = 0;
+	kernel_pmap->pm_tsb.hti_pgszs = TSB8K;
+	kernel_pmap->pm_tsb.hti_rsvd = 0;
+	kernel_pmap->pm_tsb.hti_pa = pa;
 	
 	kernel_pmap->pm_tsb_ra = vtophys((vm_offset_t)&kernel_pmap->pm_tsb);
 	tsb_set_scratchpad_kernel(&kernel_pmap->pm_tsb);
@@ -655,13 +655,13 @@ pmap_bootstrap(vm_offset_t ekva)
 	pa = pmap_bootstrap_alloc(tsb_4m_size);
 
 	KDPRINTF("tsb_4m_pa is 0x%lx tsb_4m_size is 0x%lx\n", pa, tsb_4m_size);
-	kernel_td[TSB4M_INDEX].hvtsb_idxpgsz = TTE4M;
-	kernel_td[TSB4M_INDEX].hvtsb_assoc = 1;
-	kernel_td[TSB4M_INDEX].hvtsb_ntte = (tsb_4m_size >> TTE_SHIFT);
-	kernel_td[TSB4M_INDEX].hvtsb_ctx_index = 0;
-	kernel_td[TSB4M_INDEX].hvtsb_pgszs = TSB4M; 
-	kernel_td[TSB4M_INDEX].hvtsb_rsvd = 0;
-	kernel_td[TSB4M_INDEX].hvtsb_pa = pa;
+	kernel_td[TSB4M_INDEX].hti_idxpgsz = TTE4M;
+	kernel_td[TSB4M_INDEX].hti_assoc = 1;
+	kernel_td[TSB4M_INDEX].hti_ntte = (tsb_4m_size >> TTE_SHIFT);
+	kernel_td[TSB4M_INDEX].hti_ctx_index = 0;
+	kernel_td[TSB4M_INDEX].hti_pgszs = TSB4M; 
+	kernel_td[TSB4M_INDEX].hti_rsvd = 0;
+	kernel_td[TSB4M_INDEX].hti_pa = pa;
 
 	/*
 	 * allocate MMU fault status areas for all CPUS
@@ -1966,12 +1966,12 @@ pmap_tsb_reset(pmap_t pmap)
 		pmap->pm_old_tsb_pa[i] = 0;
 	}
 	if (pmap->pm_old_tsb_pa[0] != 0) {
-		vm_paddr_t tsb_pa = pmap->pm_tsb.hvtsb_pa;
+		vm_paddr_t tsb_pa = pmap->pm_tsb.hti_pa;
 		int size = tsb_size(&pmap->pm_tsb);
-		pmap->pm_tsb.hvtsb_ntte = (1 << (TSB_INIT_SHIFT + PAGE_SHIFT - TTE_SHIFT));
-		pmap->pm_tsb.hvtsb_pa = pmap->pm_old_tsb_pa[0];
+		pmap->pm_tsb.hti_ntte = (1 << (TSB_INIT_SHIFT + PAGE_SHIFT - TTE_SHIFT));
+		pmap->pm_tsb.hti_pa = pmap->pm_old_tsb_pa[0];
 		pmap_free_contig_pages((void *)TLB_PHYS_TO_DIRECT(tsb_pa), size);
-		pmap->pm_tsbscratch = pmap->pm_tsb.hvtsb_pa | (uint64_t)TSB_INIT_SHIFT;
+		pmap->pm_tsbscratch = pmap->pm_tsb.hti_pa | (uint64_t)TSB_INIT_SHIFT;
 		pmap->pm_old_tsb_pa[0] = 0;
 	}
 }
@@ -2035,7 +2035,7 @@ pmap_tsb_resize(pmap_t pmap)
 	    cap_miss_count > (miss_count >> 1)) {
 		DPRINTF("resizing tsb for proc=%s pid=%d\n", 
 			curthread->td_proc->p_comm, curthread->td_proc->p_pid);
-		pmap->pm_old_tsb_pa[npages_shift - TSB_INIT_SHIFT] = pmap->pm_tsb.hvtsb_pa;
+		pmap->pm_old_tsb_pa[npages_shift - TSB_INIT_SHIFT] = pmap->pm_tsb.hti_pa;
 
 		/* double TSB size */
 		tsb_init(&hvtsb, &tsbscratch, npages_shift + 1);
