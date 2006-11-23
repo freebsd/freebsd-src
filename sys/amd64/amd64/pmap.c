@@ -1612,7 +1612,7 @@ pv_to_chunk(pv_entry_t pv)
 #define	PC_FREE1	0xfffffffffffffffful
 #define	PC_FREE2	0x000000fffffffffful
 
-static uint64_t pc_freemask[3] = { PC_FREE0, PC_FREE1, PC_FREE2 };
+static uint64_t pc_freemask[_NPCM] = { PC_FREE0, PC_FREE1, PC_FREE2 };
 
 SYSCTL_INT(_vm_pmap, OID_AUTO, pv_entry_count, CTLFLAG_RD, &pv_entry_count, 0,
 	"Current number of pv entries");
