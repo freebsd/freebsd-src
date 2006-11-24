@@ -178,7 +178,7 @@ archive_write_ustar_header(struct archive *a, struct archive_entry *entry)
 		return (ret);
 
 	ustar->entry_bytes_remaining = archive_entry_size(entry);
-	ustar->entry_padding = 0x1ff & (- ustar->entry_bytes_remaining);
+	ustar->entry_padding = 0x1ff & (-(int64_t)ustar->entry_bytes_remaining);
 	return (ARCHIVE_OK);
 }
 
@@ -431,7 +431,7 @@ format_octal(int64_t v, char *p, int s)
 
 	p += s;		/* Start at the end and work backwards. */
 	while (s-- > 0) {
-		*--p = '0' + (v & 7);
+		*--p = (char)('0' + (v & 7));
 		v >>= 3;
 	}
 
