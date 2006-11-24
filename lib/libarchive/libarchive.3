@@ -1,4 +1,4 @@
-.\" Copyright (c) 2003-2005 Tim Kientzle
+.\" Copyright (c) 2003-2006 Tim Kientzle
 .\" All rights reserved.
 .\"
 .\" Redistribution and use in source and binary forms, with or without
@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd January 8, 2005
+.Dd August 19, 2006
 .Dt LIBARCHIVE 3
 .Os
 .Sh NAME
@@ -138,6 +138,17 @@ Once you have prepared the
 object, you call
 .Fn archive_read_open
 to actually open the archive and prepare it for reading.
+There are several variants of this function;
+the most basic expects you to provide pointers to several
+functions that can provide blocks of bytes from the archive.
+There are convenience forms that allow you to
+specify a filename, file descriptor,
+.Ft "FILE *"
+object, or a block of memory from which to read the archive data.
+Note that the core library makes no assumptions about the
+size of the blocks read;
+callback functions are free to read whatever block size is
+most appropriate for the medium.
 .Pp
 Each archive entry consists of a header followed by a certain
 amount of data.

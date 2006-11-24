@@ -43,7 +43,9 @@
 .Nm archive_read_open ,
 .Nm archive_read_open2 ,
 .Nm archive_read_open_fd ,
+.Nm archive_read_open_FILE ,
 .Nm archive_read_open_filename ,
+.Nm archive_read_open_memory ,
 .Nm archive_read_next_header ,
 .Nm archive_read_data ,
 .Nm archive_read_data_block ,
@@ -86,9 +88,13 @@
 .Ft int
 .Fn archive_read_open2 "struct archive *" "void *client_data" "archive_open_callback *" "archive_read_callback *" "archive_skip_callback *" "archive_close_callback *"
 .Ft int
+.Fn archive_read_open_FILE "struct archive *" "FILE *file"
+.Ft int
 .Fn archive_read_open_fd "struct archive *" "int fd" "size_t block_size"
 .Ft int
 .Fn archive_read_open_filename "struct archive *" "const char *filename" "size_t block_size"
+.Ft int
+.Fn archive_read_open_memory "struct archive *" "void *buff" "size_t size"
 .Ft int
 .Fn archive_read_next_header "struct archive *" "struct archive_entry **"
 .Ft ssize_t
@@ -158,12 +164,22 @@ Freeze the settings, open the archive, and prepare for reading entries.
 This is the most generic version of this call, which accepts
 four callback functions.
 Most clients will want to use
-.Fn archive_read_open_filename
+.Fn archive_read_open_filename ,
+.Fn archive_read_open_FILE ,
+.Fn archive_read_open_fd ,
 or
-.Fn archive_read_open_fd
+.Fn archive_read_open_memory
 instead.
 The library invokes the client-provided functions to obtain
 raw bytes from the archive.
+.It Fn archive_read_open_FILE
+Like
+.Fn archive_read_open ,
+except that it accepts a
+.Ft "FILE *"
+pointer.
+This function should not be used with tape drives or other devices
+that require strict I/O blocking.
 .It Fn archive_read_open_fd
 Like
 .Fn archive_read_open ,
@@ -181,6 +197,11 @@ Like
 except that it accepts a simple filename and a block size.
 A NULL filename represents standard input.
 This function is safe for use with tape drives or other blocked devices.
+.It Fn archive_read_open_memory
+Like
+.Fn archive_read_open ,
+except that it accepts a pointer and size of a block of
+memory containing the archive data.
 .It Fn archive_read_next_header
 Read the header for the next entry and return a pointer to
 a

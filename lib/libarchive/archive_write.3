@@ -1,4 +1,4 @@
-.\" Copyright (c) 2003-2005 Tim Kientzle
+.\" Copyright (c) 2003-2006 Tim Kientzle
 .\" All rights reserved.
 .\"
 .\" Redistribution and use in source and binary forms, with or without
@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd January 8, 2005
+.Dd August 19, 2006
 .Dt archive_write 3
 .Os
 .Sh NAME
@@ -41,7 +41,9 @@
 .Nm archive_write_set_compressor_bzip2 ,
 .Nm archive_write_open ,
 .Nm archive_write_open_fd ,
+.Nm archive_write_open_FILE ,
 .Nm archive_write_open_filename ,
+.Nm archive_write_open_memory ,
 .Nm archive_write_header ,
 .Nm archive_write_data ,
 .Nm archive_write_close ,
@@ -76,7 +78,11 @@
 .Ft int
 .Fn archive_write_open_fd "struct archive *" "int fd"
 .Ft int
+.Fn archive_write_open_FILE "struct archive *" "FILE *file"
+.Ft int
 .Fn archive_write_open_filename "struct archive *" "const char *filename"
+.Ft int
+.Fn archive_write_open_memory "struct archive *" "void *buffer" "size_t bufferSize" "size_t *outUsed"
 .Ft int
 .Fn archive_write_header "struct archive *" "struct archive_entry *"
 .Ft int
@@ -155,15 +161,24 @@ Freeze the settings, open the archive, and prepare for writing entries.
 This is the most generic form of this function, which accepts
 pointers to three callback functions which will be invoked by
 the compression layer to write the constructed archive.
-In order to support external compression programs, the compression
-is permitted to fork and invoke the callbacks from a separate process.
-In particular, clients should not assume that they can communicate
-between the callbacks and the mainline code using shared variables.
-(The standard gzip, bzip2, and "none" compression methods do not fork.)
 .It Fn archive_write_open_fd
 A convenience form of
 .Fn archive_write_open
 that accepts a file descriptor.
+The
+.Fn archive_write_open_fd
+function is safe for use with tape drives or other
+block-oriented devices.
+.It Fn archive_write_open_FILE
+A convenience form of
+.Fn archive_write_open
+that accepts a
+.Ft "FILE *"
+pointer.
+Note that
+.Fn archive_write_open_FILE
+is not safe for writing to tape drives or other devices
+that require correct blocking.
 .It Fn archive_write_open_file
 A deprecated synonym for
 .Fn archive_write_open_filename .
@@ -186,6 +201,23 @@ You can override this by manually invoking
 .Fn archive_write_set_bytes_in_last_block
 either before or after calling
 .Fn archive_write_open .
+The
+.Fn archive_write_open_filename
+function is safe for use with tape drives or other
+block-oriented devices.
+.It Fn archive_write_open_memory
+A convenience form of
+.Fn archive_write_open
+that accepts a pointer to a block of memory that will receive
+the archive.
+The final
+.Ft "size_t *"
+argument points to a variable that will be updated
+after each write to reflect how much of the buffer
+is currently in use.
+You should be careful to ensure that this variable
+remains allocated until after the archive is
+closed.
 .It Fn archive_write_header
 Build and write a header using the data in the provided
 .Tn struct archive_entry
