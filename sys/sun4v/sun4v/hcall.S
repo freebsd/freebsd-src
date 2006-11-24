@@ -55,7 +55,7 @@
 ENTRY(api_set_version)
 	mov     %o3, %o4
 	mov     API_SET_VERSION, %o5
-	ta      API_TRAP
+	ta      CORE_TRAP
 	retl
 	  stx   %o1, [%o4]
 END(api_set_version)
@@ -75,7 +75,7 @@ ENTRY(api_get_version)
 	mov	%o2, %o4
 	mov	%o1, %o3
 	mov     API_GET_VERSION, %o5
-	ta      API_TRAP
+	ta      CORE_TRAP
 	retl
 	  stx   %o1, [%o4]
 	
@@ -374,7 +374,7 @@ END(hv_mmu_tsb_ctx0)
  * set the tsb(s) for the current cpu for non-zero contexts 
  *
  * arg0 ntsb         (%o0)
- * arg0 tsbptr       (%o1)
+ * arg1 tsbptr       (%o1)
  *		
  * ret0 status       (%o0)
  * 
@@ -386,39 +386,160 @@ ENTRY(hv_mmu_tsb_ctxnon0)
 	  nop
 END(hv_mmu_tsb_ctxnon0)
 
+/*
+ * demap any page mapping of virtual address vaddr in context ctx
+ *
+ * arg0 reserved     (%o0)
+ * arg1 reserved     (%o1)
+ * arg2 vaddr        (%o2)
+ * arg3 ctx          (%o3)
+ * arg4 flags        (%o4)
+ *		
+ * ret0 status       (%o0)
+ * 
+ */
 ENTRY(hv_mmu_demap_page)
 END(hv_mmu_demap_page)
 
+/*
+ * demap all non-permanent virtual address mappings in context ctx
+ *
+ * arg0 reserved     (%o0)
+ * arg1 reserved     (%o1)
+ * arg2 ctx          (%o2)
+ * arg3 flags        (%o3)
+ *		
+ * ret0 status       (%o0)
+ * 
+ */
 ENTRY(hv_mmu_demap_ctx)
 END(hv_mmu_demap_ctx)
 
+/*
+ * demap all non-permanent virtual address mappings for the current
+ * virtual cpu
+ *
+ * arg0 reserved     (%o0)
+ * arg1 reserved     (%o1)
+ * arg2 flags        (%o2)
+ *		
+ * ret0 status       (%o0)
+ * 
+ */
 ENTRY(hv_mmu_demap_all)
 END(hv_mmu_demap_all)
 
+/*
+ * create a non-permanent mapping for the calling virtual cpu
+ *
+ * arg0 vaddr        (%o0)
+ * arg1 context      (%o1)
+ * arg2 TTE          (%o2)
+ * arg3 flags        (%o3)
+ *		
+ * ret0 status       (%o0)
+ * 
+ */
 ENTRY(hv_mmu_map_addr)
 END(hv_mmu_map_addr)
 
+/*
+ * create a permanent mapping for the calling virtual cpu
+ *
+ * arg0 vaddr        (%o0)
+ * arg1 reserved     (%o1)
+ * arg2 TTE          (%o2)
+ * arg3 flags        (%o3)
+ *		
+ * ret0 status       (%o0)
+ * 
+ */
 ENTRY(hv_mmu_map_perm_addr)
 END(hv_mmu_map_perm_addr)
 
+/*
+ * demap virtual address vaddr in context ctx on current virtual cpu
+ *
+ * arg0 vaddr        (%o0)
+ * arg1 ctx          (%o1)
+ * arg2 flags        (%o2)
+ *		
+ * ret0 status       (%o0)
+ * 
+ */
 ENTRY(hv_mmu_unmap_addr)
 END(hv_mmu_unmap_addr)
 
+/*
+ * demap any permanent mapping at virtual address vaddr on current virtual cpu
+ *
+ * arg0 vaddr        (%o0)
+ * arg1 reserved     (%o1)
+ * arg2 flags        (%o2)
+ *		
+ * ret0 status       (%o0)
+ * 
+ */
 ENTRY(hv_mmu_unmap_perm_addr)
 END(hv_mmu_unmap_perm_addr)
 
+/*
+ * configure the MMU fault status area for the current virtual cpu
+ *
+ * arg0 raddr        (%o0)
+ *		
+ * ret0 status       (%o0)
+ * ret1 prev_raddr   (%o0)
+ * 
+ */
 ENTRY(hv_mmu_fault_area_conf)
 END(hv_mmu_fault_area_conf)
 
+/*
+ * enable or disable virtual address translation for the current virtual cpu
+ *
+ * arg0 enable_flag   (%o0)
+ * arg1 return_target (%o1)
+ *		
+ * ret0 status        (%o0)
+ * 
+ */
 ENTRY(hv_mmu_enable)
 END(hv_mmu_enable)
 
+/*
+ * return the TSB configuration as previously defined by mmu_tsb_ctx0
+ *
+ * arg0 maxtsbs       (%o0)
+ * arg1 buffer_ra     (%o1)
+ *		
+ * ret0 status        (%o0)
+ * ret1 ntsbs         (%o1)
+ * 
+ */
 ENTRY(hv_mmu_tsb_ctx0_info)
 END(hv_mmu_tsb_ctx0_info)
 
+/*
+ * return the TSB configuration as previously defined by mmu_tsb_ctxnon0
+ *
+ * arg0 maxtsbs       (%o0)
+ * arg1 buffer_ra     (%o1)
+ *		
+ * ret0 status        (%o0)
+ * ret1 ntsbs         (%o1)
+ * 
+ */
 ENTRY(hv_mmu_tsb_ctxnon0_info)
 END(hv_mmu_tsb_ctxnon0_info)
 
+/*
+ * return the MMU fault status area defined for the current virtual cpu
+ *
+ * ret0 status        (%o0)
+ * ret1 mmfsara       (%o1)
+ * 
+ */
 ENTRY(hv_mmu_fault_area_info)
 END(hv_mmu_fault_area_info)
 
@@ -1371,10 +1492,40 @@ END(hv_pci_msg_setvalid)
  *
  */
 
+	
+/*
+ * read the value of the DRAM/JBus performance register as selected by
+ * the perfreg argument
+ *	
+ * arg0 perfreg          (%o0)
+ *
+ * ret0 status           (%o0)
+ * ret1 value            (%o1)
+ *
+ */	
 ENTRY(hv_niagara_get_perfreg)
+	mov	%o1, %o2
+	mov	NIAGARA_GET_PERFREG, %o5
+	ta	FAST_TRAP
+	retl
+	  stx	%o1, [%o2]
 END(hv_niagara_get_perfreg)
 
+/*
+ * set the value of the DRAM/JBus performance register as selected by
+ * the perfreg argument
+ *	
+ * arg0 perfreg          (%o0)
+ * arg1 value            (%o1)
+ *
+ * ret0 status           (%o0)
+ *
+ */	
 ENTRY(hv_niagara_set_perfreg)
+	mov	NIAGARA_SET_PERFREG, %o5
+	ta	FAST_TRAP
+	retl
+	  nop
 END(hv_niagara_set_perfreg)
 	
 /*
@@ -1382,10 +1533,37 @@ END(hv_niagara_set_perfreg)
  *
  */
 
+/*
+ * enable MMU statistics collection and supply the buffer to deposit the
+ * results for the current virtual cpu
+ *	
+ * arg0 raddr            (%o0)
+ *
+ * ret0 status           (%o0)
+ * ret1 prev_raddr       (%o1)
+ *
+ */	
 ENTRY(hv_niagara_mmustat_conf)
+	mov	%o1, %o2
+	mov	NIAGARA_MMUSTAT_CONF, %o5
+	ta	FAST_TRAP
+	retl
+	  stx	%o1, [%o2]
 END(hv_niagara_mmustat_conf)
 
+/*
+ * query the status and the real address for the currently configured buffer
+ *	
+ * ret0 status           (%o0)
+ * ret1 raddr            (%o1)
+ *
+ */	
 ENTRY(hv_niagara_mmustat_info)
+	mov	%o0, %o2
+	mov	NIAGARA_MMUSTAT_INFO, %o5
+	ta	FAST_TRAP
+	retl
+	  stx	%o1, [%o2]
 END(hv_niagara_mmustat_info)
 
 /*

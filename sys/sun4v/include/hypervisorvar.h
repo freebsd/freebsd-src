@@ -39,7 +39,7 @@
 #define	MMU_UNMAP_ADDR		0x84
 #define	TTRACE_ADDENTRY		0x85
 
-#define API_TRAP                0xff
+#define CORE_TRAP               0xff
 
 /*
  * Error returns in %o0.
