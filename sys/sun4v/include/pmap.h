@@ -44,7 +44,7 @@
 #include <sys/_lock.h>
 #include <sys/_mutex.h>
 #include <machine/cache.h>
-#include <machine/hypervisorvar.h>
+#include <machine/hv_api.h>
 
 #define TSB_INIT_SHIFT          3
 #define	PMAP_CONTEXT_MAX	8192
@@ -81,7 +81,7 @@ struct pmap {
 	struct	pmap_statistics pm_stats;
 	uint32_t                pm_tsb_miss_count;
 	uint32_t                pm_tsb_cap_miss_count;
-	vm_paddr_t              pm_old_tsb_pa[TSB_MAX_RESIZE];
+	vm_paddr_t              pm_old_tsb_ra[TSB_MAX_RESIZE];
 };
 
 #define	PMAP_LOCK(pmap)		mtx_lock(&(pmap)->pm_mtx)

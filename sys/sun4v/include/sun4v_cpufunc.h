@@ -28,7 +28,7 @@
 
 #ifndef	_MACHINE_SUN4V_CPUFUNC_H_
 #define	_MACHINE_SUN4V_CPUFUNC_H_
-#include <machine/hypervisor_api.h>
+#include <machine/hv_api.h>
 void set_mmfsa_scratchpad(vm_paddr_t mmfsa);
 
 void set_hash_user_scratchpad(uint64_t);

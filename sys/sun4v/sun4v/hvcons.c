@@ -48,7 +48,8 @@ __FBSDID("$FreeBSD$");
 #include "opt_simulator.h"
 
 #include <machine/resource.h>
-#include <machine/hypervisor_api.h>
+#include <machine/hypervisorvar.h>
+#include <machine/hv_api.h>
 
 #define HVCN_POLL_FREQ 10
 
@@ -102,11 +103,11 @@ hv_cnputs(char *p)
 	while ((c = *p++) != '\0') {
 		if (c == '\n') {
 			do {
-				error = hv_cnputchar('\r');
+				error = hv_cons_putchar('\r');
 			} while (error == H_EWOULDBLOCK);
 		}
 		do {
-			error = hv_cnputchar(c);
+			error = hv_cons_putchar(c);
 		} while (error == H_EWOULDBLOCK);
 	}
 }
@@ -220,7 +221,7 @@ hvcn_cngetc(struct consdev *cp)
 
 	ch = '\0';
 
-	while ((l = hv_cngetchar(&ch)) != H_EOK) {
+	while ((l = hv_cons_getchar(&ch)) != H_EOK) {
 #if defined(KDB)
 		if (l == H_BREAK || l ==  H_HUP)
 			kdb_enter("Break sequence on console");
@@ -244,7 +245,7 @@ hvcn_cncheckc(struct consdev *cp)
 	unsigned char ch;
 	int l;
 
-	if ((l = hv_cngetchar(&ch)) == H_EOK) {
+	if ((l = hv_cons_getchar(&ch)) == H_EOK) {
 #if defined(KDB)
 		if (l == H_BREAK || l ==  H_HUP)
 			kdb_enter("Break sequence on console");
@@ -273,10 +274,10 @@ hvcn_cnputc(struct consdev *cp, int c)
 	error = 0;
 	do {
 		if (c == '\n') 
-			error = hv_cnputchar('\r');
+			error = hv_cons_putchar('\r');
 	} while (error == H_EWOULDBLOCK);
 	do {
-		error = hv_cnputchar(c);
+		error = hv_cons_putchar(c);
 	} while (error == H_EWOULDBLOCK);
 }
 
@@ -303,7 +304,7 @@ hvcn_tty_start(struct tty *tp)
 				bufindex = 0;
 			}
 			while (buflen) {
-				if (hv_cnputchar(buf[bufindex]) == H_EWOULDBLOCK)
+				if (hv_cons_putchar(buf[bufindex]) == H_EWOULDBLOCK)
 					goto done;
 				bufindex++;
 				buflen--;

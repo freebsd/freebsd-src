@@ -34,6 +34,20 @@ typedef uint64_t pci_device_t;
 typedef uint32_t pci_config_offset_t;
 typedef uint8_t pci_config_size_t;
 
+typedef uint64_t tsbid_t;
+typedef uint32_t pages_t;
+typedef enum io_attributes {
+	PCI_MAP_ATTR_READ	= (uint32_t)0x01,
+	PCI_MAP_ATTR_WRITE	= (uint32_t)0x02,
+} io_attributes_t;
+typedef enum io_sync_direction {
+	IO_SYNC_DEVICE		= (uint32_t)0x01,
+	IO_SYNC_CPU		= (uint32_t)0x02,
+} io_sync_direction_t;
+typedef uint64_t io_page_list_t;
+typedef uint64_t r_addr_t;
+typedef uint64_t io_addr_t;
+
 /*
  * Section 10 Domain Services
  */
@@ -62,8 +76,8 @@ typedef struct hv_tsb_info {
 } hv_tsb_info_t;
 
 
-extern uint64_t	hv_tsb_ctx0(uint64_t, uint64_t);
-extern uint64_t	hv_tsb_ctxnon0(uint64_t, uint64_t);
+extern uint64_t	hv_mmu_tsb_ctx0(uint64_t, uint64_t);
+extern uint64_t	hv_mmu_tsb_ctxnon0(uint64_t, uint64_t);
 
 /*
  * Section 13 Cache and Memory Services
@@ -137,20 +151,36 @@ typedef struct ldc_state_info {
 #define LDC_CHANNEL_DOWN     0
 #define LDC_CHANNEL_UP       1
 
-extern uint64_t hvio_ldc_tx_qconf(uint64_t ldc_id, uint64_t base_raddr, uint64_t nentries);
-extern uint64_t hvio_ldc_tx_qinfo(uint64_t ldc_id, uint64_t *base_raddr, uint64_t *nentries);
-extern uint64_t hvio_ldc_tx_get_state(uint64_t ldc_id, ldc_state_info_t *info); 
-extern uint64_t hvio_ldc_tx_set_qtail(uint64_t ldc_id, uint64_t tail_offset);
-extern uint64_t hvio_ldc_rx_get_state(uint64_t ldc_id, ldc_state_info_t *info); 
-extern uint64_t hvio_ldc_rx_qconf(uint64_t ldc_id, uint64_t base_raddr, uint64_t nentries);
-extern uint64_t hvio_ldc_rx_qinfo(uint64_t ldc_id, uint64_t *base_raddr, uint64_t *nentries);
-extern uint64_t hvio_ldc_rx_set_qhead(uint64_t ldc_id, uint64_t head_offset);
+extern uint64_t hv_ldc_tx_qconf(uint64_t ldc_id, uint64_t base_raddr, uint64_t nentries);
+extern uint64_t hv_ldc_tx_qinfo(uint64_t ldc_id, uint64_t *base_raddr, uint64_t *nentries);
+extern uint64_t hv_ldc_tx_get_state(uint64_t ldc_id, ldc_state_info_t *info); 
+extern uint64_t hv_ldc_tx_set_qtail(uint64_t ldc_id, uint64_t tail_offset);
+extern uint64_t hv_ldc_rx_get_state(uint64_t ldc_id, ldc_state_info_t *info); 
+extern uint64_t hv_ldc_rx_qconf(uint64_t ldc_id, uint64_t base_raddr, uint64_t nentries);
+extern uint64_t hv_ldc_rx_qinfo(uint64_t ldc_id, uint64_t *base_raddr, uint64_t *nentries);
+extern uint64_t hv_ldc_rx_set_qhead(uint64_t ldc_id, uint64_t head_offset);
 
 
 /*
  * Section 20 PCI I/O Services
  *
  */
+
+extern uint64_t hv_pci_iommu_map(devhandle_t dh, uint64_t tsbid, uint64_t nttes, uint64_t io_attributes, 
+				 vm_paddr_t io_page_list, pages_t *nttes_mapped);
+extern uint64_t hv_pci_iommu_demap(devhandle_t dh, uint64_t tsbid, uint64_t nttes, pages_t *nttes_demapped);
+extern uint64_t hv_pci_iommu_getmap(devhandle_t dh, uint64_t tsbid, uint64_t nttes, uint64_t *io_attributes, 
+				    vm_paddr_t *ra);
+extern uint64_t hv_pci_iommu_getbypass(devhandle_t dh, vm_paddr_t ra, uint64_t io_attributes, uint64_t *io_addr);
+extern uint64_t hv_pci_config_get(devhandle_t dh, uint64_t pci_device, uint64_t pci_config_offset, uint64_t size,
+				  uint64_t *error, uint64_t *data);
+extern uint64_t hv_pci_config_put(devhandle_t dh, uint64_t pci_device, uint64_t pci_config_offset, uint64_t size,
+				  uint64_t data, uint64_t *error_flag);
+extern uint64_t hv_pci_peek(devhandle_t dh, vm_paddr_t ra, uint64_t size, uint64_t *error_flag, uint64_t *data);
+extern uint64_t hv_pci_poke(devhandle_t dh, vm_paddr_t ra, uint64_t size, uint64_t data, uint64_t pci_device, 
+			    uint64_t *error_flag);
+extern uint64_t hv_pci_dma_sync(devhandle_t dh, vm_paddr_t ra, uint64_t size, uint64_t io_sync_direction, 
+			    uint64_t *nsynced);
 
 
 /*
@@ -175,3 +205,5 @@ extern void hv_magic_trap_on(void);
 extern void hv_magic_trap_off(void);
 extern int hv_sim_read(uint64_t offset, vm_paddr_t buffer_ra, uint64_t size);
 extern int hv_sim_write(uint64_t offset, vm_paddr_t buffer_ra, uint64_t size);
+
+#endif /* _MACHINE_HV_API_H */
