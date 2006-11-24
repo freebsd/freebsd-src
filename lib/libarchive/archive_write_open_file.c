@@ -48,9 +48,8 @@ __FBSDID("$FreeBSD$");
 
 #include "archive.h"
 
-struct write_file_data {
-	int		fd;
-	char		filename[1];
+struct write_FILE_data {
+	FILE		*f;
 };
 
 static int	file_close(struct archive *, void *);
@@ -58,32 +57,16 @@ static int	file_open(struct archive *, void *);
 static ssize_t	file_write(struct archive *, void *, void *buff, size_t);
 
 int
-archive_write_open_file(struct archive *a, const char *filename)
+archive_write_open_FILE(struct archive *a, FILE *f)
 {
-	return (archive_write_open_filename(a, filename));
-}
+	struct write_FILE_data *mine;
 
-int
-archive_write_open_filename(struct archive *a, const char *filename)
-{
-	struct write_file_data *mine;
-
-	if (filename == NULL || filename[0] == '\0') {
-		mine = (struct write_file_data *)malloc(sizeof(*mine));
-		if (mine == NULL) {
-			archive_set_error(a, ENOMEM, "No memory");
-			return (ARCHIVE_FATAL);
-		}
-		mine->filename[0] = '\0'; /* Record that we're using stdout. */
-	} else {
-		mine = (struct write_file_data *)malloc(sizeof(*mine) + strlen(filename));
-		if (mine == NULL) {
-			archive_set_error(a, ENOMEM, "No memory");
-			return (ARCHIVE_FATAL);
-		}
-		strcpy(mine->filename, filename);
+	mine = (struct write_FILE_data *)malloc(sizeof(*mine));
+	if (mine == NULL) {
+		archive_set_error(a, ENOMEM, "No memory");
+		return (ARCHIVE_FATAL);
 	}
-	mine->fd = -1;
+	mine->f = f;
 	return (archive_write_open(a, mine,
 		    file_open, file_write, file_close));
 }
@@ -91,53 +74,8 @@ archive_write_open_filename(struct archive *a, const char *filename)
 static int
 file_open(struct archive *a, void *client_data)
 {
-	int flags;
-	struct write_file_data *mine;
-	struct stat st;
-
-	mine = (struct write_file_data *)client_data;
-	flags = O_WRONLY | O_CREAT | O_TRUNC;
-
-	/*
-	 * Open the file.
-	 */
-	if (mine->filename[0] != '\0') {
-		mine->fd = open(mine->filename, flags, 0666);
-		if (mine->fd < 0) {
-			archive_set_error(a, errno, "Failed to open '%s'",
-			    mine->filename);
-			return (ARCHIVE_FATAL);
-		}
-	} else {
-		/*
-		 * NULL filename is stdout.
-		 */
-		mine->fd = 1;
-		/* By default, pad archive when writing to stdout. */
-		if (archive_write_get_bytes_in_last_block(a) < 0)
-			archive_write_set_bytes_in_last_block(a, 0);
-	}
-
-	/*
-	 * Set up default last block handling.
-	 */
-	if (archive_write_get_bytes_in_last_block(a) < 0) {
-		if (S_ISCHR(st.st_mode) || S_ISBLK(st.st_mode) ||
-		    S_ISFIFO(st.st_mode))
-			/* Pad last block when writing to device or FIFO. */
-			archive_write_set_bytes_in_last_block(a, 0);
-		else
-			/* Don't pad last block otherwise. */
-			archive_write_set_bytes_in_last_block(a, 1);
-	}
-
-	/*
-	 * If the output file is a regular file, don't add it to
-	 * itself.  If it's a device file, it's okay to add the device
-	 * entry to the output archive.
-	 */
-	if (S_ISREG(st.st_mode))
-		archive_write_set_skip_file(a, st.st_dev, st.st_ino);
+	(void)a; /* UNUSED */
+	(void)client_data; /* UNUSED */
 
 	return (ARCHIVE_OK);
 }
@@ -145,12 +83,12 @@ file_open(struct archive *a, void *client_data)
 static ssize_t
 file_write(struct archive *a, void *client_data, void *buff, size_t length)
 {
-	struct write_file_data	*mine;
-	ssize_t	bytesWritten;
+	struct write_FILE_data	*mine;
+	size_t	bytesWritten;
 
-	mine = (struct write_file_data *)client_data;
-	bytesWritten = write(mine->fd, buff, length);
-	if (bytesWritten <= 0) {
+	mine = client_data;
+	bytesWritten = fwrite(buff, 1, length, mine->f);
+	if (bytesWritten < length) {
 		archive_set_error(a, errno, "Write error");
 		return (-1);
 	}
@@ -160,11 +98,9 @@ file_write(struct archive *a, void *client_data, void *buff, size_t length)
 static int
 file_close(struct archive *a, void *client_data)
 {
-	struct write_file_data	*mine = (struct write_file_data *)client_data;
+	struct write_FILE_data	*mine = client_data;
 
 	(void)a; /* UNUSED */
-	if (mine->filename[0] != '\0')
-		close(mine->fd);
 	free(mine);
 	return (ARCHIVE_OK);
 }
