@@ -77,15 +77,86 @@ END(hv_mach_watchdog)
  * 
  */
 
+ENTRY(hv_cpu_start)
+END(hv_cpu_start)
+
+ENTRY(hv_cpu_stop)
+END(hv_cpu_stop)
+
+ENTRY(hv_cpu_set_rtba)
+END(hv_cpu_set_rtba)
+
+ENTRY(hv_cpu_get_rtba)
+END(hv_cpu_get_rtba)			
+	
+/*
+ * suspend execution on current cpu
+ *
+ * ret0 status       (%o0)
+ * 
+ */
+ENTRY(hv_cpu_yield)
+END(hv_cpu_yield)
+
+/*
+ * configure queue of size nentries to be placed at base raddr 
+ *
+ * arg0 queue        (%o0)
+ * arg1 base raddr   (%o1)
+ * arg2 nentries     (%o2)
+ *
+ * ret0 status       (%o0)
+ * 
+ */
 ENTRY(hv_cpu_qconf)
 END(hv_cpu_qconf)
-
+	
+/*
+ * return configuration of queue queue 
+ *
+ * arg0 queue        (%o0)
+ *
+ * ret0 status       (%o0)
+ * ret1 base raddr   (%o1)
+ * ret2 nentries     (%o2)
+ * 
+ */
+/*
+ENTRY(hv_cpu_qinfo)
+END(hv_cpu_qinfo)
+	
+/*
+ * send cpu mondo interrupt to cpulist
+ *
+ * arg0 ncpus        (%o0)
+ * arg1 cpu list ra  (%o1)
+ * arg2 mondo data ra(%o2)
+ *	 				
+ * ret0 status       (%o0)
+ * 
+ */
 ENTRY(hv_cpu_mondo_send)
 END(hv_cpu_mondo_send)
 
+/*
+ * return the hypervisor id for the current cpu
+ *
+ * ret0 status       (%o0)
+ * ret1 cpuid        (%o1)
+ * 
+ */
 ENTRY(hv_cpu_myid)
 END(hv_cpu_myid)
 
+/*
+ * retrieve the current state of cpu cpuid
+ *
+ * arg0 cpuid        (%o0)
+ *		
+ * ret0 status       (%o0)
+ * ret1 state        (%o1)
+ * 
+ */
 ENTRY(hv_cpu_state)
 END(hv_cpu_state)
 	
@@ -94,9 +165,27 @@ END(hv_cpu_state)
  *
  */
 	
+/*
+ * set the tsb(s) for the current cpu for context 0
+ *
+ * arg0 ntsb         (%o0)
+ * arg0 tsbdptr      (%o1)
+ *		
+ * ret0 status       (%o0)
+ * 
+ */
 ENTRY(hv_tsb_ctx0)
 END(hv_tsb_ctx0)
 
+/*
+ * set the tsb(s) for the current cpu for non-zero contexts 
+ *
+ * arg0 ntsb         (%o0)
+ * arg0 tsbptr       (%o1)
+ *		
+ * ret0 status       (%o0)
+ * 
+ */
 ENTRY(hv_tsb_ctxnon0)
 END(hv_tsb_ctxnon0)
 
