@@ -624,7 +624,6 @@ nfs_namei(struct nameidata *ndp, fhandle_t *fhp, int len,
 
 	NFSD_LOCK_ASSERT();
 	NFSD_UNLOCK();
-	mtx_lock(&Giant);	/* VFS */
 
 	*retdirp = NULL;
 	cnp->cn_flags |= NOMACCHECK;
@@ -643,14 +642,14 @@ nfs_namei(struct nameidata *ndp, fhandle_t *fhp, int len,
 			md = md->m_next;
 			if (md == NULL) {
 				error = EBADRPC;
-				goto out;
+				goto out_nogiant;
 			}
 			fromcp = mtod(md, caddr_t);
 			rem = md->m_len;
 		}
 		if (*fromcp == '\0' || (!pubflag && *fromcp == '/')) {
 			error = EACCES;
-			goto out;
+			goto out_nogiant;
 		}
 		*tocp++ = *fromcp++;
 		rem--;
@@ -663,17 +662,17 @@ nfs_namei(struct nameidata *ndp, fhandle_t *fhp, int len,
 		if (rem >= len)
 			*dposp += len;
 		else if ((error = nfs_adv(mdp, dposp, len, rem)) != 0)
-			goto out;
+			goto out_nogiant;
 	}
 
 	/*
 	 * Extract and set starting directory.
+	 *
+	 * XXXRW: For now, acquire Giant unconditionally to avoid tracking it
+	 * on multiple vnodes.
 	 */
-	mtx_unlock(&Giant);	/* VFS */
-	NFSD_LOCK();
 	error = nfsrv_fhtovp(fhp, FALSE, &dp, ndp->ni_cnd.cn_cred, slp,
 	    nam, &rdonly, pubflag);
-	NFSD_UNLOCK();
 	mtx_lock(&Giant);	/* VFS */
 	if (error)
 		goto out;
@@ -889,6 +888,8 @@ nfs_namei(struct nameidata *ndp, fhandle_t *fhp, int len,
 	 * cleanup state trivially.
 	 */
 out:
+	mtx_unlock(&Giant);	/* VFS */
+out_nogiant:
 	if (error) {
 		uma_zfree(namei_zone, cnp->cn_pnbuf);
 		ndp->ni_vp = NULL;
@@ -898,7 +899,6 @@ out:
 	} else if ((ndp->ni_cnd.cn_flags & (WANTPARENT|LOCKPARENT)) == 0) {
 		ndp->ni_dvp = NULL;
 	}
-	mtx_unlock(&Giant);	/* VFS */
 	NFSD_LOCK();
 	return (error);
 }
@@ -1064,6 +1064,10 @@ nfsm_srvfattr(struct nfsrv_descript *nfsd, struct vattr *vap,
  *	- get vp and export rights by calling VFS_FHTOVP()
  *	- if cred->cr_uid == 0 or MNT_EXPORTANON set it to credanon
  *	- if not lockflag unlock it with VOP_UNLOCK()
+ *
+ * As this routine may acquire Giant and may sleep, it can't be called with
+ * nfsd_mtx.  Caller should invoke nfsrv_fhtovp_locked() if the lock is held
+ * so that it can be automatically dropped and re-acquired.
  */
 int
 nfsrv_fhtovp(fhandle_t *fhp, int lockflag, struct vnode **vpp,
@@ -1080,7 +1084,7 @@ nfsrv_fhtovp(fhandle_t *fhp, int lockflag, struct vnode **vpp,
 	struct sockaddr_int *saddr;
 #endif
 
-	NFSD_LOCK_ASSERT();
+	NFSD_UNLOCK_ASSERT();
 
 	*vpp = NULL;
 
@@ -1093,7 +1097,6 @@ nfsrv_fhtovp(fhandle_t *fhp, int lockflag, struct vnode **vpp,
 	mp = vfs_getvfs(&fhp->fh_fsid);
 	if (!mp)
 		return (ESTALE);
-	NFSD_UNLOCK();
 	vfslocked = VFS_LOCK_GIANT(mp);
 	error = VFS_CHECKEXP(mp, nam, &exflags, &credanon);
 	if (error)
@@ -1133,10 +1136,27 @@ nfsrv_fhtovp(fhandle_t *fhp, int lockflag, struct vnode **vpp,
 out:
 	vfs_rel(mp);
 	VFS_UNLOCK_GIANT(vfslocked);
-	NFSD_LOCK();
 	return (error);
 }
 
+/*
+ * Version of nfsrv_fhtovp() that can be called holding nfsd_mtx: it will
+ * drop and re-acquire the lock for the caller.
+ */
+int
+nfsrv_fhtovp_locked(fhandle_t *fhp, int lockflag, struct vnode **vpp,
+    struct ucred *cred, struct nfssvc_sock *slp, struct sockaddr *nam,
+    int *rdonlyp, int pubflag)
+{
+	int error;
+
+	NFSD_LOCK_ASSERT();
+	NFSD_UNLOCK();
+	error = nfsrv_fhtovp(fhp, lockflag, vpp, cred, slp, nam, rdonlyp,
+	    pubflag);
+	NFSD_LOCK();
+	return (error);
+}
 
 /*
  * WebNFS: check if a filehandle is a public filehandle. For v3, this
