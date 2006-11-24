@@ -72,7 +72,7 @@ sun4v/sun4v/mp_exception.S	optional	smp
 sun4v/sun4v/mp_locore.S	optional	smp
 sun4v/sun4v/mp_machdep.c	optional	smp
 sun4v/sun4v/nexus.c		standard
-sun4v/sun4v/t1_copy.S	standard
+sun4v/cddl/t1_copy.S	standard
 sparc64/sparc64/ofw_bus.c	standard
 sparc64/sparc64/ofw_machdep.c	standard
 sun4v/sun4v/pmap.c		standard
@@ -94,15 +94,15 @@ sun4v/sun4v/vnex.c		standard
 
 
 sun4v/mdesc/mdesc_bus_if.m	standard
-sun4v/mdesc/mdesc_scandag.c	standard
 sun4v/mdesc/mdesc_init.c	standard
-sun4v/mdesc/mdesc_init_intern.c	standard
 sun4v/mdesc/mdesc_subr.c	standard
 sun4v/mdesc/mdesc_bus_subr.c	standard
-sun4v/mdesc/mdesc_getpropstr.c	standard
-sun4v/mdesc/mdesc_getpropval.c	standard
-sun4v/mdesc/mdesc_rootnode.c	standard
-sun4v/mdesc/mdesc_findname.c	standard
-sun4v/mdesc/mdesc_nodecount.c	standard
-sun4v/mdesc/mdesc_findnodeprop.c	standard
+sun4v/cddl/mdesc/mdesc_findname.c	standard
+sun4v/cddl/mdesc/mdesc_getpropstr.c	standard
+sun4v/cddl/mdesc/mdesc_getpropval.c	standard
+sun4v/cddl/mdesc/mdesc_init_intern.c	standard
+sun4v/cddl/mdesc/mdesc_nodecount.c	standard
+sun4v/cddl/mdesc/mdesc_findnodeprop.c	standard
+sun4v/cddl/mdesc/mdesc_rootnode.c	standard
+sun4v/cddl/mdesc/mdesc_scandag.c	standard
 sun4v/mdesc/mdesc_vdevfindval.c	standard
