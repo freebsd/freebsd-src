@@ -39,13 +39,60 @@
  * Section 9 API Versioning
  *
  */
-	
 
+/*
+ * request and check for a version of the hypervisor apis
+ * which may be compatible
+ *
+ * arg0 api_group         (%o0)
+ * arg1 major_number      (%o1)
+ * arg2 req_minor_number  (%o2)
+ *	 				
+ * ret0 status            (%o0)
+ * ret1 act_minor_number  (%o1)
+ * 
+ */
+ENTRY(api_set_version)
+	mov     %o3, %o4
+	mov     API_SET_VERSION, %o5
+	ta      API_TRAP
+	retl
+	  stx   %o1, [%o4]
+END(api_set_version)
+
+/*
+ * retrieve the major and minor number of the most recently
+ * successfully negotiated API
+ *
+ * arg0 api_group         (%o0)
+ *	 				
+ * ret0 status            (%o0)
+ * ret1 major_number      (%o1)
+ * ret2 major_number      (%o2)
+ * 
+ */
+ENTRY(api_get_version)
+	mov	%o2, %o4
+	mov	%o1, %o3
+	mov     API_GET_VERSION, %o5
+	ta      API_TRAP
+	retl
+	  stx   %o1, [%o4]
+	
+END(api_get_version)
+		
 /*
  * Section 10 Domain Services
  *
  */
 
+/*
+ * stop all CPUs in the virtual machine domain and place them
+ * in the stopped state
+ *
+ * arg0 exit_code      (%o0)
+ *	 				
+ */
 ENTRY(hv_mach_exit)
 	mov	MACH_EXIT, %o5
 	ta	FAST_TRAP
@@ -53,6 +100,18 @@ ENTRY(hv_mach_exit)
 	  nop
 END(hv_mach_exit)
 	
+/*
+ * copy the most current machine description into buffer
+ * upon success or EINVAL the service returns the actual
+ * size of the machine description	
+ *
+ * arg0 buffer         (%o0)
+ * arg1 length         (%o1)
+ *	 				
+ * ret0 status         (%o0)
+ * ret1 length         (%o1)
+ * 
+ */
 ENTRY(hv_mach_desc)
 	mov     %o1, %o2
 	ldx     [%o1], %o1
@@ -62,9 +121,63 @@ ENTRY(hv_mach_desc)
 	  stx   %o1, [%o2]
 END(hv_mach_desc)
 
+/*
+ * execute a software initiated reset of a virtual machine domain
+ * 
+ */
+ENTRY(hv_mach_sir)
+	mov	MACH_SIR, %o5
+	ta	FAST_TRAP
+	retl
+	  nop
+END(hv_mach_sir)
+	
+/*
+ * report the guests soft state to the hypervisor
+ *
+ * arg0 soft_state          (%o0)
+ * arg1 soft_state_desc_ptr (%o1)
+ *	 				
+ * ret0 status              (%o0)
+ * 
+ */
+ENTRY(hv_mach_set_soft_state)
+	mov	MACH_SET_SOFT_STATE, %o5
+	ta	FAST_TRAP
+	retl
+	  nop
+END(hv_mach_set_soft_state)
+	
+/*
+ * retrieve the current value of the guest's software state
+ *
+ * arg0 soft_desc_ptr       (%o0)
+ *	 				
+ * ret0 status              (%o0)
+ * arg1 soft_state          (%o1)
+ * 
+ */
+ENTRY(hv_mach_get_soft_state)
+	mov	%o1, %o2
+	mov	MACH_SET_SOFT_STATE, %o5
+	ta	FAST_TRAP
+	retl
+	  stx	%o1, [%o2]
+END(hv_mach_get_soft_state)
+	
+/*
+ * set a watchdog timer, 0 disables, upon success
+ * time_remaining contains the time previously remaining
+ *
+ * arg0 timeout        (%o0)
+ *	 				
+ * ret0 status         (%o0)
+ * ret1 time_remaining (%o1)
+ * 
+ */
 ENTRY(hv_mach_watchdog)
 	mov	%o1, %o2
-	mov	MACH_SET_WATCHDOG, %o5
+	mov	MACH_WATCHDOG, %o5
 	ta	FAST_TRAP
 	brnz,pn %o0, 1f
 	  nop
@@ -78,16 +191,72 @@ END(hv_mach_watchdog)
  * 
  */
 
+/*
+ * start CPU with id cpuid with pc in %pc and real trap base address
+ * of rtba
+ *
+ * arg0 cpuid        (%o0)
+ * arg1 pc           (%o1)
+ * arg2 rtba         (%o2)
+ * arg3 target_arg0  (%o3)
+ *	 				
+ * ret0 status       (%o0)
+ * 
+ */
 ENTRY(hv_cpu_start)
+	mov	CPU_START, %o5
+	ta	FAST_TRAP
+	retl
+	  nop
 END(hv_cpu_start)
 
+/*
+ * stop CPU with id cpuid 
+ *
+ * arg0 cpuid        (%o0)
+ *	 				
+ * ret0 status       (%o0)
+ * 
+ */
 ENTRY(hv_cpu_stop)
+	mov	CPU_STOP, %o5
+	ta	FAST_TRAP
+	retl
+	  nop
 END(hv_cpu_stop)
 
+/*
+ * set the real trap base address of the local cpu to rtba
+ * upon success the previous_rtba contains the address of the
+ * old rtba
+ *
+ * arg0 rtba         (%o0)
+ *	 				
+ * ret0 status       (%o0)
+ * ret1 previous_rtba(%o1)
+ * 
+ */
 ENTRY(hv_cpu_set_rtba)
+	mov	%o1, %o2
+	mov	CPU_SET_RTBA, %o5
+	ta	FAST_TRAP
+	retl
+	  stx	%o1, [%o2]
+	
 END(hv_cpu_set_rtba)
 
+/*
+ * return the current real trap base address
+ *
+ * ret0 status       (%o0)
+ * ret1 rtba         (%o1)
+ * 
+ */
 ENTRY(hv_cpu_get_rtba)
+	mov	CPU_GET_RTBA, %o5
+	ta	FAST_TRAP
+	retl
+	  nop
 END(hv_cpu_get_rtba)			
 	
 /*
@@ -154,6 +323,12 @@ END(hv_cpu_mondo_send)
  * 
  */
 ENTRY(hv_cpu_myid)
+	mov	%o0, %o2
+	mov	CPU_MYID, %o5
+	ta	FAST_TRAP
+	stx	%o1, [%o2]
+	retl
+	  nop
 END(hv_cpu_myid)
 
 /*
@@ -166,6 +341,12 @@ END(hv_cpu_myid)
  * 
  */
 ENTRY(hv_cpu_state)
+	mov	%o1, %o2
+	mov	CPU_STATE, %o5
+	ta	FAST_TRAP
+	stx	%o1, [%o2]
+	retl
+	  nop
 END(hv_cpu_state)
 	
 /*
@@ -257,6 +438,11 @@ END(hv_mmu_fault_area_info)
  * 
  */
 ENTRY(hv_mem_scrub)
+	mov	MEM_SCRUB, %o5
+	ta	FAST_TRAP
+	stx	%o1, [%o2]
+	retl
+	  nop
 END(hv_mem_scrub)
 
 /*
@@ -271,6 +457,11 @@ END(hv_mem_scrub)
  * 
  */
 ENTRY(hv_mem_sync)
+	mov	MEM_SYNC, %o5
+	ta	FAST_TRAP
+	stx	%o1, [%o2]
+	retl
+	  nop	
 END(hv_mem_sync)
 
 /*
@@ -289,7 +480,12 @@ END(hv_mem_sync)
  * ret1 sysino        (%o1)
  * 
  */
-ENTRY(hv_intr_devino_to_sysino)	
+ENTRY(hv_intr_devino_to_sysino)
+	mov	INTR_DEVINO_TO_SYSINO, %o5
+	ta	FAST_TRAP
+	stx	%o1, [%o2]
+	retl
+	  nop
 END(hv_intr_devino_to_sysino)
 
 /*
@@ -302,6 +498,11 @@ END(hv_intr_devino_to_sysino)
  * 
  */
 ENTRY(hv_intr_getenabled)
+	mov	%o1, %o2
+	mov	INTR_GETENABLED, %o5
+	ta	FAST_TRAP
+	retl
+  	  stx	%o1, [%o2]	  
 END(hv_intr_getenabled)
 
 /*
@@ -331,6 +532,11 @@ END(hv_intr_setenabled)
  * 
  */
 ENTRY(hv_intr_getstate)
+	mov	%o1, %o2
+	mov	INTR_GETSTATE, %o5
+	ta	FAST_TRAP
+	retl
+  	  stx	%o1, [%o2]	  
 END(hv_intr_getstate)
 
 /*
@@ -361,6 +567,11 @@ END(hv_intr_setstate)
  * 
  */
 ENTRY(hv_intr_gettarget)
+	mov	%o1, %o2
+	mov	INTR_GETTARGET, %o5
+	ta	FAST_TRAP
+	retl
+  	  stx	%o1, [%o2]	  
 END(hv_intr_gettarget)
 
 /*
@@ -423,10 +634,15 @@ END(hv_tod_set)
  * return a character from the console device
  *
  * ret0 status       (%o0)
- * ret1 character    (%o0)
+ * ret1 character    (%o1)
  * 
  */
 ENTRY(hv_cons_getchar)
+	mov	%o0, %o2
+	mov	CONS_GETCHAR, %o5
+	ta	FAST_TRAP
+	retl
+  	  stx	%o1, [%o2]	  
 END(hv_cons_getchar)
 	
 /*
@@ -507,7 +723,11 @@ END(hv_cons_read)
  * ret1 required size of the dump buffer (%o1)
  * 
  */
-ENTRY(hv_dump_buf_update)	
+ENTRY(hv_dump_buf_update)
+	mov	DUMP_BUF_UPDATE, %o5
+	ta	FAST_TRAP
+	retl
+  	  stx	%o1, [%o2]	
 END(hv_dump_buf_update)
 
 /*
@@ -519,6 +739,13 @@ END(hv_dump_buf_update)
  * 
  */
 ENTRY(hv_dump_buf_info)
+	mov	%o0, %o3
+	mov	%o1, %o4
+	mov	DUMP_BUF_INFO, %o5
+	ta	FAST_TRAP
+  	stx	%o1, [%o3]	
+	retl
+	  stx	%o2, [%o4]		
 END(hv_dump_buf_info)
 
 /*
@@ -777,22 +1004,116 @@ ENTRY(hv_ldc_rx_set_qhead)
 	  nop	
 END(hv_ldc_rx_set_qhead)
 
-ENTRY(hv_ldc_get_map_table)
-END(hv_ldc_get_map_table)
-
+/*
+ * declare an export map table
+ *	
+ * arg0 channel      (%o0)
+ * arg1 base_ra      (%o1)
+ * arg2 nentries     (%o2)
+ *
+ * ret0 status      (%o0)
+ *
+ */
 ENTRY(hv_ldc_set_map_table)
+	mov	LDC_SET_MAPTABLE, %o5
+	ta	FAST_TRAP
+	retl
+	  nop	
 END(hv_ldc_set_map_table)
 
+/*
+ * retrieve the current map table configuration associated
+ * with the given domain channel
+ *	
+ * arg0 channel      (%o0)
+ *
+ * ret0 status       (%o0)
+ * ret1 base_ra      (%o1)
+ * ret2 nentries     (%o2)
+ *
+ */
+ENTRY(hv_ldc_get_map_table)
+	mov	%o1, %o3
+	mov	%o2, %o4
+	mov	LDC_MAPIN, %o5
+	ta	FAST_TRAP
+	stx	%o1, [%o3]
+	retl
+          stx	%o2, [%o4]	
+END(hv_ldc_get_map_table)
+
+/*
+ * copy data into or out of a local memory region form or to
+ * the logical domain at the other end of the specified domain
+ * channel	
+ *	
+ * arg0 channel      (%o0)
+ * arg1 flags        (%o1)
+ * arg2 cookie       (%o2)
+ * arg3 raddr        (%o3)
+ * arg4 length       (%o4)
+ *
+ * ret0 status       (%o0)
+ * ret1 ret_length   (%o1)
+ *
+ */
 ENTRY(hv_ldc_copy)
 END(hv_ldc_copy)
 
+/*
+ * attempt to map into the local guest's real address space the
+ * page identified by the shared memory cookie
+ *	
+ * arg0 channel      (%o0)
+ * arg1 cookie       (%o1)
+ *
+ * ret0 status       (%o0)
+ * ret1 raddr        (%o1)
+ * ret2 perms        (%o2)
+ *
+ */
 ENTRY(hv_ldc_mapin)
+	mov	%o3, %o4
+	mov	%o2, %o3
+	mov	LDC_MAPIN, %o5
+	ta	FAST_TRAP
+	stx	%o1, [%o3]
+	retl
+          stx	%o2, [%o4]	
 END(hv_ldc_mapin)
 
+/*
+ * attempt unmap from the local guest's real address space the imported
+ * page mapped at the real address raddr
+ *	
+ * arg0 raddr       (%o0)
+ *
+ * ret0 status      (%o0)
+ *
+ */
 ENTRY(hv_ldc_unmap)
+	mov	LDC_UNMAP, %o5
+	ta	FAST_TRAP
+	retl
+	  nop	
 END(hv_ldc_unmap)
 
+/*
+ * forcibly unmap from a remote guest's real address space a page 
+ * previously exported by the local guest
+ *	
+ * arg0 channel       (%o0)
+ * arg1 cookie        (%o1)
+ * arg2 revoke_cookie (%o2)
+ *
+ * ret0 status        (%o0)
+ *
+ */
 ENTRY(hv_ldc_revoke)
+	mov	LDC_REVOKE, %o5
+	ta	FAST_TRAP
+	retl
+	  nop	
 END(hv_ldc_revoke)
 		
 /*
@@ -828,6 +1149,14 @@ END(hv_pci_iommu_map)
  *
  */
 ENTRY(hv_pci_iommu_demap)
+	mov	%o3, %o4
+	mov	PCI_IOMMU_DEMAP, %o5
+	ta	FAST_TRAP
+	brnz	%o0, 1f
+	  nop
+	stx	%o1, [%o4]
+1:	retl
+	  nop	
 END(hv_pci_iommu_demap)
 
 /*
@@ -842,6 +1171,16 @@ END(hv_pci_iommu_demap)
  *
  */
 ENTRY(hv_pci_iommu_getmap)
+	mov	%o3, %o4
+	mov	%o2, %o3
+	mov	PCI_IOMMU_GETMAP, %o5
+	ta	FAST_TRAP
+	brnz	%o0, 1f
+	  nop
+	stx	%o1, [%o3]
+	stx	%o2, [%o4]
+1:	retl
+	  nop	
 END(hv_pci_iommu_getmap)
 
 /*
@@ -856,6 +1195,13 @@ END(hv_pci_iommu_getmap)
  *
  */
 ENTRY(hv_pci_iommu_getbypass)
+	mov	PCI_IOMMU_GETBYPASS, %o5
+	ta	FAST_TRAP
+	brnz	%o0, 1f
+	  nop
+	stx	%o1, [%o3]
+1:	retl
+	  nop	
 END(hv_pci_iommu_getbypass)
 	
 /*
@@ -889,6 +1235,10 @@ END(hv_pci_config_get)
  *
  */	
 ENTRY(hv_pci_config_put)
+	mov	PCI_CONFIG_PUT, %o5
+	ta	FAST_TRAP
+	retl
+	  nop
 END(hv_pci_config_put)
 
 /*
@@ -904,6 +1254,14 @@ END(hv_pci_config_put)
  *
  */	
 ENTRY(hv_pci_peek)
+	mov	PCI_PEEK, %o5
+	ta	FAST_TRAP
+	brnz	%o0, 1f
+	  nop
+	stx	%o1, [%o3]
+	stx	%o2, [%o4]
+1:	retl
+	  nop	
 END(hv_pci_peek)
 
 /*
@@ -937,6 +1295,13 @@ END(hv_pci_poke)
  *
  */	
 ENTRY(hv_pci_dma_sync)
+	mov	PCI_DMA_SYNC, %o5
+	ta	FAST_TRAP
+	brnz	%o0, 1f
+	  nop
+	stx	%o1, [%o4]
+1:	retl
+	  nop	
 END(hv_pci_dma_sync)
 
 /*

@@ -88,7 +88,7 @@
 #define	MACH_DESC		0x01
 #define MACH_SET_SOFT_STATE     0x03
 #define MACH_GET_SOFT_STATE     0x04
-#define MACH_SET_WATCHDOG       0x05
+#define MACH_WATCHDOG           0x05
 
 #define CPU_START               0x10
 #define CPU_STOP                0x11
