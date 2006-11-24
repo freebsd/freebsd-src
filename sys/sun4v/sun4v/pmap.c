@@ -76,6 +76,7 @@ __FBSDID("$FreeBSD$");
 #include <machine/pstate.h>
 #include <machine/tsb.h>
 
+#include <machine/hypervisorvar.h>
 #include <machine/hv_api.h>
 
 #ifdef TRAP_TRACING
@@ -419,7 +420,7 @@ pmap_activate(struct thread *td)
 
 	PCPU_SET(curpmap, pmap);
 	if (pmap->pm_context != 0)
-		if ((err = hv_set_ctxnon0(1, pmap->pm_tsb_ra)) != H_EOK)
+		if ((err = hv_mmu_tsb_ctxnon0(1, pmap->pm_tsb_ra)) != H_EOK)
 			panic("failed to set TSB 0x%lx - context == %ld\n", 
 			      pmap->pm_tsb_ra, pmap->pm_context);
 	stxa(MMU_CID_S, ASI_MMU_CONTEXTID, pmap->pm_context);
@@ -629,7 +630,7 @@ pmap_bootstrap(vm_offset_t ekva)
 	kernel_td[TSB8K_INDEX].hti_ctx_index = 0;
 	kernel_td[TSB8K_INDEX].hti_pgszs = TSB8K;
 	kernel_td[TSB8K_INDEX].hti_rsvd = 0;
-	kernel_td[TSB8K_INDEX].hti_pa = pa;
+	kernel_td[TSB8K_INDEX].hti_ra = pa;
 
 	/*
 	 * Initialize kernel's private TSB from 8K page TSB
@@ -641,7 +642,7 @@ pmap_bootstrap(vm_offset_t ekva)
 	kernel_pmap->pm_tsb.hti_ctx_index = 0;
 	kernel_pmap->pm_tsb.hti_pgszs = TSB8K;
 	kernel_pmap->pm_tsb.hti_rsvd = 0;
-	kernel_pmap->pm_tsb.hti_pa = pa;
+	kernel_pmap->pm_tsb.hti_ra = pa;
 	
 	kernel_pmap->pm_tsb_ra = vtophys((vm_offset_t)&kernel_pmap->pm_tsb);
 	tsb_set_scratchpad_kernel(&kernel_pmap->pm_tsb);
@@ -661,7 +662,7 @@ pmap_bootstrap(vm_offset_t ekva)
 	kernel_td[TSB4M_INDEX].hti_ctx_index = 0;
 	kernel_td[TSB4M_INDEX].hti_pgszs = TSB4M; 
 	kernel_td[TSB4M_INDEX].hti_rsvd = 0;
-	kernel_td[TSB4M_INDEX].hti_pa = pa;
+	kernel_td[TSB4M_INDEX].hti_ra = pa;
 
 	/*
 	 * allocate MMU fault status areas for all CPUS
@@ -726,7 +727,7 @@ pmap_bootstrap(vm_offset_t ekva)
 		}
 	}
 
-	error = hv_set_ctx0(MAX_TSB_INFO, vtophys((vm_offset_t)&kernel_td));
+	error = hv_mmu_tsb_ctx0(MAX_TSB_INFO, vtophys((vm_offset_t)&kernel_td));
 	if (error != H_EOK)
 		panic("failed to set ctx0 TSBs error: %ld", error);
 
@@ -1651,7 +1652,7 @@ pmap_pinit(pmap_t pmap)
 	pmap->pm_tsb_miss_count = pmap->pm_tsb_cap_miss_count = 0;
 	pmap->pm_active = pmap->pm_tlbactive = 0;
 	for (i = 0; i < TSB_MAX_RESIZE; i++)
-		pmap->pm_old_tsb_pa[i] = 0;
+		pmap->pm_old_tsb_ra[i] = 0;
 
 	TAILQ_INIT(&pmap->pm_pvlist);
 	PMAP_LOCK_INIT(pmap);
@@ -1960,19 +1961,19 @@ pmap_tsb_reset(pmap_t pmap)
 {
 	int i;
 
-	for (i = 1; i < TSB_MAX_RESIZE && pmap->pm_old_tsb_pa[i]; i++) {
-		pmap_free_contig_pages((void *)TLB_PHYS_TO_DIRECT(pmap->pm_old_tsb_pa[i]), 
+	for (i = 1; i < TSB_MAX_RESIZE && pmap->pm_old_tsb_ra[i]; i++) {
+		pmap_free_contig_pages((void *)TLB_PHYS_TO_DIRECT(pmap->pm_old_tsb_ra[i]), 
 				       (1 << (TSB_INIT_SHIFT + i)));
-		pmap->pm_old_tsb_pa[i] = 0;
+		pmap->pm_old_tsb_ra[i] = 0;
 	}
-	if (pmap->pm_old_tsb_pa[0] != 0) {
-		vm_paddr_t tsb_pa = pmap->pm_tsb.hti_pa;
+	if (pmap->pm_old_tsb_ra[0] != 0) {
+		vm_paddr_t tsb_pa = pmap->pm_tsb.hti_ra;
 		int size = tsb_size(&pmap->pm_tsb);
 		pmap->pm_tsb.hti_ntte = (1 << (TSB_INIT_SHIFT + PAGE_SHIFT - TTE_SHIFT));
-		pmap->pm_tsb.hti_pa = pmap->pm_old_tsb_pa[0];
+		pmap->pm_tsb.hti_ra = pmap->pm_old_tsb_ra[0];
 		pmap_free_contig_pages((void *)TLB_PHYS_TO_DIRECT(tsb_pa), size);
-		pmap->pm_tsbscratch = pmap->pm_tsb.hti_pa | (uint64_t)TSB_INIT_SHIFT;
-		pmap->pm_old_tsb_pa[0] = 0;
+		pmap->pm_tsbscratch = pmap->pm_tsb.hti_ra | (uint64_t)TSB_INIT_SHIFT;
+		pmap->pm_old_tsb_ra[0] = 0;
 	}
 }
 
@@ -2035,7 +2036,7 @@ pmap_tsb_resize(pmap_t pmap)
 	    cap_miss_count > (miss_count >> 1)) {
 		DPRINTF("resizing tsb for proc=%s pid=%d\n", 
 			curthread->td_proc->p_comm, curthread->td_proc->p_pid);
-		pmap->pm_old_tsb_pa[npages_shift - TSB_INIT_SHIFT] = pmap->pm_tsb.hti_pa;
+		pmap->pm_old_tsb_ra[npages_shift - TSB_INIT_SHIFT] = pmap->pm_tsb.hti_ra;
 
 		/* double TSB size */
 		tsb_init(&hvtsb, &tsbscratch, npages_shift + 1);
@@ -2045,7 +2046,7 @@ pmap_tsb_resize(pmap_t pmap)
 		bcopy(&hvtsb, &pmap->pm_tsb, sizeof(hv_tsb_info_t));
 		pmap->pm_tsbscratch = tsb_set_scratchpad_user(&pmap->pm_tsb);
 
-		if (hv_set_ctxnon0(1, pmap->pm_tsb_ra) != H_EOK)
+		if (hv_mmu_tsb_ctxnon0(1, pmap->pm_tsb_ra) != H_EOK)
 			panic("failed to set TSB 0x%lx - context == %ld\n", 
 			      pmap->pm_tsb_ra, pmap->pm_context);
 		info.tri_tsbscratch = pmap->pm_tsbscratch;
@@ -2055,7 +2056,7 @@ pmap_tsb_resize(pmap_t pmap)
 		spinlock_exit();
 #else 
 		bcopy(&hvtsb, &pmap->pm_tsb, sizeof(hvtsb));
-		if (hv_set_ctxnon0(1, pmap->pm_tsb_ra) != H_EOK)
+		if (hv_mmu_tsb_ctxnon0(1, pmap->pm_tsb_ra) != H_EOK)
 			panic("failed to set TSB 0x%lx - context == %ld\n", 
 			      pmap->pm_tsb_ra, pmap->pm_context);
 		pmap->pm_tsbscratch = tsb_set_scratchpad_user(&pmap->pm_tsb);

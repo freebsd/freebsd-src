@@ -246,7 +246,7 @@ hviommu_remove(struct hviommu *him, vm_offset_t va, vm_size_t len)
 	KASSERT((va & IO_PAGE_MASK) == 0 && (len & IO_PAGE_MASK) == 0,
 	    ("%s: va %#lx or len %#lx not page aligned", __func__, va, len));
 	while (len > 0) {
-		if ((error = hvio_iommu_demap(him->him_handle,
+		if ((error = hv_pci_iommu_demap(him->him_handle,
 		    VA_TO_TSBID(him, va), len >> IO_PAGE_SHIFT, &demapped))) {
 			printf("%s: demap: va: %#lx, npages: %#lx, err: %ld\n",
 			    __func__, va, len >> IO_PAGE_SHIFT, error);
@@ -559,7 +559,7 @@ hviommu_map_pages(struct hviommu *him, bus_addr_t dvmaddr, uint64_t *iottes, pag
 	/* push tte's */
 	cntdone = 0;
 	while (cntdone < iottecnt) {
-		if ((err = hvio_iommu_map(him->him_handle, VA_TO_TSBID(him,
+		if ((err = hv_pci_iommu_map(him->him_handle, VA_TO_TSBID(him,
 		    dvmaddr), iottecnt, PCI_MAP_ATTR_READ | PCI_MAP_ATTR_WRITE,
 		    (io_page_list_t *)pmap_kextract((vm_offset_t)&iottes[0]),
 		    &mapcnt))) {
@@ -569,7 +569,7 @@ hviommu_map_pages(struct hviommu *him, bus_addr_t dvmaddr, uint64_t *iottes, pag
 		cntdone += mapcnt;
 	}
 	for (i = 0; i < iottecnt; i++) {
-		DPRINTF("err: %ld", hvio_iommu_getmap(him->him_handle,
+		DPRINTF("err: %ld", hv_pci_iommu_getmap(him->him_handle,
 		    VA_TO_TSBID(him, dvmaddr + i * IO_PAGE_SIZE),
 						     &ioattr, &ra));
 		DPRINTF(", ioattr: %d, raddr: %#lx\n", ioattr, ra);
@@ -934,14 +934,14 @@ hviommu_dvmamap_sync(bus_dma_tag_t dt, bus_dmamap_t map, bus_dmasync_op_t op)
 		va = (vm_offset_t)BDR_START(r) + r->dr_offset ;
 		len = r->dr_used;
 		while (len > 0) {
-			if ((err = hvio_iommu_getmap(him->him_handle,
+			if ((err = hv_pci_iommu_getmap(him->him_handle,
 			    VA_TO_TSBID(him, va), &ioattr, &ra))) {
 				if (err != H_ENOMAP)
 					printf("failed to _g=etmap: err: %ld, handle: %#lx, tsbid: %#lx\n", 
 					       err, him->him_handle, VA_TO_TSBID(him, va));
 				continue;
 			}
-			if ((err = hvio_dma_sync(him->him_handle, ra,
+			if ((err = hv_pci_dma_sync(him->him_handle, ra,
 			    ulmin(len, (trunc_io_page(ra) + IO_PAGE_SIZE) - ra),
 			    iodir, &synced))) {
 				printf("failed to dma_sync: err: %ld, handle: %#lx, ra: %#lx, len: %#lx, dir: %d\n",
@@ -949,7 +949,7 @@ hviommu_dvmamap_sync(bus_dma_tag_t dt, bus_dmamap_t map, bus_dmasync_op_t op)
 				    (trunc_io_page(ra) + IO_PAGE_SIZE) - ra),
 				    iodir);
 				synced = ulmin(len, (trunc_io_page(ra) + IO_PAGE_SIZE) - ra);
-				printf("err: %ld", hvio_iommu_getmap(him->him_handle, VA_TO_TSBID(him, va),
+				printf("err: %ld", hv_pci_iommu_getmap(him->him_handle, VA_TO_TSBID(him, va),
 								     &ioattr, &raddr));
 				printf(", ioattr: %d, raddr: %#lx\n", ioattr, raddr);
 			}

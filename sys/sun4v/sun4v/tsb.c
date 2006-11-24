@@ -56,7 +56,7 @@ __FBSDID("$FreeBSD$");
 #include <machine/tlb.h>
 
 CTASSERT(sizeof(tte_t) == sizeof(uint64_t));
-#define TSB_MASK(tsb) ((tsb->hvtsb_ntte) - 1)
+#define TSB_MASK(tsb) ((tsb->hti_ntte) - 1)
 /* make TSB start off at the same size as the hash */
 #define TSB_SIZE       8
 
@@ -80,16 +80,16 @@ tsb_init(hv_tsb_info_t *hvtsb, uint64_t *scratchval, uint64_t page_shift)
 		panic("vm_page_alloc_contig allocated unaligned pages: %p",
 		      ptr);
 	
-	hvtsb->hvtsb_idxpgsz = TTE8K;
-	hvtsb->hvtsb_assoc = 1;
-	hvtsb->hvtsb_ntte = (npages*PAGE_SIZE >> TTE_SHIFT);
-	hvtsb->hvtsb_ctx_index = -1;    /* TSBs aren't shared so if we don't 
+	hvtsb->hti_idxpgsz = TTE8K;
+	hvtsb->hti_assoc = 1;
+	hvtsb->hti_ntte = (npages*PAGE_SIZE >> TTE_SHIFT);
+	hvtsb->hti_ctx_index = -1;    /* TSBs aren't shared so if we don't 
 					 * set the context in the TTEs we can 
 					 * simplify miss handling slightly
 					 */
-	hvtsb->hvtsb_pgszs = TSB8K;
-	hvtsb->hvtsb_rsvd = 0;
-	hvtsb->hvtsb_pa = TLB_DIRECT_TO_PHYS((vm_offset_t)ptr);
+	hvtsb->hti_pgszs = TSB8K;
+	hvtsb->hti_rsvd = 0;
+	hvtsb->hti_ra = TLB_DIRECT_TO_PHYS((vm_offset_t)ptr);
 
 	*scratchval = ((uint64_t) ptr) | page_shift;
 }
@@ -101,7 +101,7 @@ tsb_deinit(hv_tsb_info_t *hvtsb)
 	int i;
 	
 
-	m = PHYS_TO_VM_PAGE((vm_paddr_t)hvtsb->hvtsb_pa);
+	m = PHYS_TO_VM_PAGE((vm_paddr_t)hvtsb->hti_ra);
 	for (i = 0, tm = m; i < TSB_SIZE; i++, m++) {
 		tm->wire_count--;
 		atomic_subtract_int(&cnt.v_wire_count, 1);
@@ -115,9 +115,9 @@ tsb_assert_invalid(hv_tsb_info_t *tsb, vm_offset_t va)
 {
 	vm_paddr_t tsb_load_pa;
 	uint64_t tsb_index, tsb_shift, tte_tag, tte_data;
-	tsb_shift = TTE_PAGE_SHIFT(tsb->hvtsb_idxpgsz);
+	tsb_shift = TTE_PAGE_SHIFT(tsb->hti_idxpgsz);
 	tsb_index = (va >> tsb_shift) & TSB_MASK(tsb);
-	tsb_load_pa = tsb->hvtsb_pa + 2*tsb_index*sizeof(uint64_t);
+	tsb_load_pa = tsb->hti_ra + 2*tsb_index*sizeof(uint64_t);
 	load_real_dw(tsb_load_pa, &tte_tag, &tte_data);
 	if (tte_tag == 0 && tte_data == 0)
 		return;
@@ -132,14 +132,14 @@ tsb_set_tte_real(hv_tsb_info_t *tsb, vm_offset_t va, uint64_t tte_data, uint64_t
 {
 	vm_paddr_t tsb_store_pa;
 	uint64_t tsb_index, tsb_shift, tte_tag;
-	DPRINTF("tsb_set_tte va: 0x%lx idxpgsz: %x\n", va, tsb->hvtsb_idxpgsz);
+	DPRINTF("tsb_set_tte va: 0x%lx idxpgsz: %x\n", va, tsb->hti_idxpgsz);
 
-	tsb_shift = TTE_PAGE_SHIFT(tsb->hvtsb_idxpgsz);
+	tsb_shift = TTE_PAGE_SHIFT(tsb->hti_idxpgsz);
 
 	DPRINTF("tsb_shift: 0x%lx\n", tsb_shift);
 	tsb_index = (va >> tsb_shift) & TSB_MASK(tsb);
 	DPRINTF("tsb_index_absolute: 0x%lx tsb_index: 0x%lx\n", (va >> tsb_shift), tsb_index);
-	tsb_store_pa = tsb->hvtsb_pa + 2*tsb_index*sizeof(uint64_t);
+	tsb_store_pa = tsb->hti_ra + 2*tsb_index*sizeof(uint64_t);
 
 	tte_data &= ~VTD_V;
 	/* store new value with valid bit cleared 
@@ -161,9 +161,9 @@ tsb_set_tte(hv_tsb_info_t *tsb, vm_offset_t va, uint64_t tte_data, uint64_t ctx)
 	uint64_t tsb_index, tsb_shift, tte_tag;
 	tte_t *entry;
 
-	tsb_shift = TTE_PAGE_SHIFT(tsb->hvtsb_idxpgsz);
+	tsb_shift = TTE_PAGE_SHIFT(tsb->hti_idxpgsz);
 	tsb_index = (va >> tsb_shift) & TSB_MASK(tsb);
-	entry = (tte_t *)TLB_PHYS_TO_DIRECT(tsb->hvtsb_pa + 2*tsb_index*sizeof(uint64_t));
+	entry = (tte_t *)TLB_PHYS_TO_DIRECT(tsb->hti_ra + 2*tsb_index*sizeof(uint64_t));
 	tte_tag = (ctx << TTARGET_CTX_SHIFT) | (va >> TTARGET_VA_SHIFT);
 	/* store new value with valid bit cleared 
 	 * to avoid invalid intermediate value;
@@ -179,7 +179,7 @@ tsb_set_tte(hv_tsb_info_t *tsb, vm_offset_t va, uint64_t tte_data, uint64_t ctx)
 void 
 tsb_clear(hv_tsb_info_t *tsb)
 {
-	hwblkclr((void *)TLB_PHYS_TO_DIRECT(tsb->hvtsb_pa), tsb->hvtsb_ntte << TTE_SHIFT);
+	hwblkclr((void *)TLB_PHYS_TO_DIRECT(tsb->hti_ra), tsb->hti_ntte << TTE_SHIFT);
 }
 
 void 
@@ -188,9 +188,9 @@ tsb_clear_tte(hv_tsb_info_t *tsb, vm_offset_t va)
 	tte_t *entry;
 	uint64_t tsb_index, tsb_shift;
 
-	tsb_shift = TTE_PAGE_SHIFT(tsb->hvtsb_idxpgsz);
+	tsb_shift = TTE_PAGE_SHIFT(tsb->hti_idxpgsz);
 	tsb_index = (va >> tsb_shift) & TSB_MASK(tsb);
-	entry = (tte_t *)TLB_PHYS_TO_DIRECT(tsb->hvtsb_pa + 2*tsb_index*sizeof(uint64_t));
+	entry = (tte_t *)TLB_PHYS_TO_DIRECT(tsb->hti_ra + 2*tsb_index*sizeof(uint64_t));
 	
 	*(entry + 1) = 0;
 
@@ -205,11 +205,11 @@ tsb_clear_range(hv_tsb_info_t *tsb, vm_offset_t sva, vm_offset_t eva)
 	tte_t *entry;
 
 	tsb_mask = TSB_MASK(tsb);
-	tsb_shift = TTE_PAGE_SHIFT(tsb->hvtsb_idxpgsz);
+	tsb_shift = TTE_PAGE_SHIFT(tsb->hti_idxpgsz);
 
 	for (tva = sva; tva < eva; tva += PAGE_SIZE) {
 		tsb_index = (tva >> tsb_shift) & tsb_mask;
-		entry = (tte_t *)TLB_PHYS_TO_DIRECT(tsb->hvtsb_pa + 2*tsb_index*sizeof(uint64_t));
+		entry = (tte_t *)TLB_PHYS_TO_DIRECT(tsb->hti_ra + 2*tsb_index*sizeof(uint64_t));
 		*(entry + 1) = 0;
 	}
 
@@ -222,9 +222,9 @@ tsb_get_tte(hv_tsb_info_t *tsb, vm_offset_t va)
 	tte_t *entry;
 	uint64_t tsb_index, tsb_shift, tte_tag, tte_data;
 
-	tsb_shift = TTE_PAGE_SHIFT(tsb->hvtsb_idxpgsz);
+	tsb_shift = TTE_PAGE_SHIFT(tsb->hti_idxpgsz);
 	tsb_index = (va >> tsb_shift) & TSB_MASK(tsb);
-	entry = (tte_t *)TLB_PHYS_TO_DIRECT(tsb->hvtsb_pa + 2*tsb_index*sizeof(uint64_t));
+	entry = (tte_t *)TLB_PHYS_TO_DIRECT(tsb->hti_ra + 2*tsb_index*sizeof(uint64_t));
 	tte_tag = *(entry);
 	tte_data = *(entry + 1);
 
@@ -255,8 +255,8 @@ uint64_t
 tsb_set_scratchpad_kernel(hv_tsb_info_t *tsb)
 {
 	uint64_t tsb_shift, tsb_scratch;
-	tsb_shift = ffs(tsb->hvtsb_ntte >> (PAGE_SHIFT - TTE_SHIFT)) - 1;
-	tsb_scratch = TLB_PHYS_TO_DIRECT(tsb->hvtsb_pa) | tsb_shift;
+	tsb_shift = ffs(tsb->hti_ntte >> (PAGE_SHIFT - TTE_SHIFT)) - 1;
+	tsb_scratch = TLB_PHYS_TO_DIRECT(tsb->hti_ra) | tsb_shift;
 	
 	set_tsb_kernel_scratchpad(tsb_scratch);
 	membar(Sync);
@@ -267,8 +267,8 @@ uint64_t
 tsb_set_scratchpad_user(hv_tsb_info_t *tsb)
 {
 	uint64_t tsb_shift, tsb_scratch;
-	tsb_shift = ffs(tsb->hvtsb_ntte >> (PAGE_SHIFT - TTE_SHIFT)) - 1;
-	tsb_scratch = TLB_PHYS_TO_DIRECT(tsb->hvtsb_pa) | tsb_shift;
+	tsb_shift = ffs(tsb->hti_ntte >> (PAGE_SHIFT - TTE_SHIFT)) - 1;
+	tsb_scratch = TLB_PHYS_TO_DIRECT(tsb->hti_ra) | tsb_shift;
 	set_tsb_user_scratchpad(tsb_scratch);
 	membar(Sync);
 	return tsb_scratch;
@@ -277,7 +277,7 @@ tsb_set_scratchpad_user(hv_tsb_info_t *tsb)
 int
 tsb_size(hv_tsb_info_t *hvtsb)
 {
-	return (hvtsb->hvtsb_ntte >> (PAGE_SHIFT - TTE_SHIFT));
+	return (hvtsb->hti_ntte >> (PAGE_SHIFT - TTE_SHIFT));
 }
 
 int

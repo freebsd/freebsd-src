@@ -54,6 +54,9 @@ __FBSDID("$FreeBSD$");
 #include <machine/resource.h>
 #include <machine/ver.h>
 
+#include <machine/hypervisorvar.h>
+#include <machine/hv_api.h>
+
 #include <sys/rman.h>
 
 /*
@@ -329,7 +332,7 @@ nexus_setup_intr(device_t dev, device_t child, struct resource *res, int flags,
 	       ndi->ndi_devhandle, ino);
 #endif
 
-	if (hvio_intr_devino_to_sysino(ndi->ndi_devhandle, (uint32_t)ino,
+	if (hv_intr_devino_to_sysino(ndi->ndi_devhandle, (uint32_t)ino,
 	    &ihdl) != H_EOK) {
 		error = ENXIO;
 		goto fail;
@@ -346,15 +349,15 @@ nexus_setup_intr(device_t dev, device_t child, struct resource *res, int flags,
 			   intr, arg, flags, cookiep);
 
 	cpuid = 0;
-	if (hvio_intr_settarget(ihdl, cpuid) != H_EOK) {
+	if (hv_intr_settarget(ihdl, cpuid) != H_EOK) {
 		error = ENXIO;
 		goto fail;
 	}
-	if (hvio_intr_setstate(ihdl, HV_INTR_IDLE_STATE) != H_EOK) {
+	if (hv_intr_setstate(ihdl, HV_INTR_IDLE_STATE) != H_EOK) {
 		error = ENXIO;
 		goto fail;
 	}
-	if (hvio_intr_setvalid(ihdl, HV_INTR_VALID) != H_EOK) {
+	if (hv_intr_setenabled(ihdl, HV_INTR_ENABLED) != H_EOK) {
 		error = ENXIO;
 		goto fail;
 	}

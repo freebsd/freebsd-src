@@ -46,7 +46,8 @@ __FBSDID("$FreeBSD$");
 
 #include <machine/bus.h>
 
-#include <machine/hypervisor_api.h>
+#include <machine/hypervisorvar.h>
+#include <machine/hv_api.h>
 
 #include <dev/ofw/ofw_bus.h>
 #include <dev/ofw/ofw_bus_subr.h>
@@ -258,11 +259,6 @@ hvpci_maxslots(device_t dev)
 
 #define HVPCI_BDF(b, d, f)	\
 		((b & 0xff) << 16) | ((d & 0x1f) << 11) | ((f & 0x7) << 8)
-#if 0
-hvio_config_get(devhandle_t dev_hdl, pci_device_t bdf,
-    pci_config_offset_t off, pci_config_size_t size, pci_cfg_data_t *data_p)
-{ return (0); }
-#endif
 static uint32_t
 hvpci_read_config(device_t dev, u_int bus, u_int slot, u_int func, u_int reg,
     int width)
@@ -274,7 +270,7 @@ hvpci_read_config(device_t dev, u_int bus, u_int slot, u_int func, u_int reg,
 
 	sc = device_get_softc(dev);
 
-	r = hvio_config_get(sc->hs_devhandle, HVPCI_BDF(bus, slot, func),
+	r = hv_pci_config_get(sc->hs_devhandle, HVPCI_BDF(bus, slot, func),
 			    reg, width, (pci_cfg_data_t *)&data);
 		
 	if (r == H_EOK) {
@@ -299,11 +295,6 @@ hvpci_read_config(device_t dev, u_int bus, u_int slot, u_int func, u_int reg,
 	return -1;
 }
 
-#if 0
-uint64_t
-hvio_config_put(devhandle_t dev_hdl, pci_device_t bdf,
-    pci_config_offset_t off, pci_config_size_t size, pci_cfg_data_t data)
-#endif
 static void
 hvpci_write_config(device_t dev, u_int bus, u_int slot, u_int func, u_int reg,
      uint32_t val, int width)
@@ -327,7 +318,7 @@ hvpci_write_config(device_t dev, u_int bus, u_int slot, u_int func, u_int reg,
 		panic("unsupported width: %d", width);
 	}
 
-	r = hvio_config_put(sc->hs_devhandle, HVPCI_BDF(bus, slot, func), 
+	r = hv_pci_config_put(sc->hs_devhandle, HVPCI_BDF(bus, slot, func), 
 			    reg, width, (pci_cfg_data_t)data);
 
 	if (r)
