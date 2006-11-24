@@ -76,7 +76,6 @@ join_common(pthread_t pthread, void **thread_return,
 	struct timespec ts, ts2, *tsp;
 	void *tmp;
 	long tid;
-	int oldcancel;
 	int ret = 0;
 
 	if (pthread == NULL)
@@ -104,7 +103,7 @@ join_common(pthread_t pthread, void **thread_return,
 	THREAD_LIST_UNLOCK(curthread);
 
 	THR_CLEANUP_PUSH(curthread, backout_join, pthread);
-	oldcancel = _thr_cancel_enter(curthread);
+	_thr_cancel_enter(curthread);
 
 	tid = pthread->tid;
 	while (pthread->tid != TID_TERMINATED) {
@@ -123,7 +122,7 @@ join_common(pthread_t pthread, void **thread_return,
 			break;
 	}
 
-	_thr_cancel_leave(curthread, oldcancel);
+	_thr_cancel_leave(curthread);
 	THR_CLEANUP_POP(curthread, 0);
 
 	if (ret == ETIMEDOUT) {

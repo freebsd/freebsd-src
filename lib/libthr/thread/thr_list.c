@@ -293,6 +293,7 @@ _thr_ref_add(struct pthread *curthread, struct pthread *thread,
 	THREAD_LIST_LOCK(curthread);
 	if ((ret = _thr_find_thread(curthread, thread, include_dead)) == 0) {
 		thread->refcount++;
+		THR_CRITICAL_ENTER(curthread);
 	}
 	THREAD_LIST_UNLOCK(curthread);
 
@@ -309,7 +310,7 @@ _thr_ref_delete(struct pthread *curthread, struct pthread *thread)
 }
 
 void
-_thr_ref_delete_unlocked(struct pthread *curthread __unused,
+_thr_ref_delete_unlocked(struct pthread *curthread,
 	struct pthread *thread)
 {
 	if (thread != NULL) {
@@ -317,6 +318,7 @@ _thr_ref_delete_unlocked(struct pthread *curthread __unused,
 		if ((thread->refcount == 0) && thread->state == PS_DEAD &&
 		    (thread->tlflags & TLFLAGS_DETACHED) != 0)
 			THR_GCLIST_ADD(thread);
+		THR_CRITICAL_LEAVE(curthread);
 	}
 }
 
