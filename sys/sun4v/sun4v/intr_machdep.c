@@ -79,9 +79,11 @@ __FBSDID("$FreeBSD$");
 
 #include <machine/frame.h>
 #include <machine/intr_machdep.h>
-#include <machine/hypervisor_api.h>
 #include <machine/cpu.h>
 #include <machine/smp.h>
+
+#include <machine/hypervisorvar.h>
+#include <machine/hv_api.h>
 
 #include <vm/vm.h>
 #include <vm/pmap.h>
@@ -307,7 +309,7 @@ intr_execute_handlers(void *cookie)
 		if (TAILQ_EMPTY(&ie->ie_handlers))
 			intr_stray_vector(iv);
 		else
-			hvio_intr_setstate(iv->iv_vec, HV_INTR_IDLE_STATE);
+			hv_intr_setstate(iv->iv_vec, HV_INTR_IDLE_STATE);
 	}
 }
 
@@ -318,7 +320,7 @@ ithread_wrapper(void *arg)
 	
 	ivh->ivh_handler(ivh->ivh_arg);
 	/* re-enable interrupt */
-	hvio_intr_setstate(ivh->ivh_vec, HV_INTR_IDLE_STATE);
+	hv_intr_setstate(ivh->ivh_vec, HV_INTR_IDLE_STATE);
 
 }
 

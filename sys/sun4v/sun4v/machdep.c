@@ -108,7 +108,7 @@ __FBSDID("$FreeBSD$");
 #include <machine/tstate.h>
 #include <machine/asm.h>
 #include <machine/ver.h>
-#include <machine/hypervisor_api.h>
+#include <machine/hv_api.h>
 
 /* XXX move this to a header */
 extern void mdesc_init(void);

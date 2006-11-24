@@ -90,7 +90,7 @@
 #include <machine/wstate.h>
 
 #include <machine/md_var.h>
-#include <machine/hypervisor_api.h>
+#include <machine/hv_api.h>
 
 #include <security/audit/audit.h>
 

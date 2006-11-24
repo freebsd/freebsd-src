@@ -27,10 +27,11 @@
  */
 
 #include <sys/cdefs.h>
-
+	
+#include <machine/asm.h>
 #include <machine/asi.h>
 #include <machine/asmacros.h>
-#include <machine/hv_api.h>
+#include <machine/hypervisorvar.h>
 #include <machine/pstate.h>
 
 #include "assym.s"
@@ -96,6 +97,10 @@ END(hv_cpu_get_rtba)
  * 
  */
 ENTRY(hv_cpu_yield)
+	mov	CPU_YIELD, %o5
+	ta	FAST_TRAP
+	retl
+	  nop
 END(hv_cpu_yield)
 
 /*
@@ -109,6 +114,10 @@ END(hv_cpu_yield)
  * 
  */
 ENTRY(hv_cpu_qconf)
+	mov	CPU_QCONF, %o5
+	ta	FAST_TRAP
+	retl
+	  nop
 END(hv_cpu_qconf)
 	
 /*
@@ -121,7 +130,6 @@ END(hv_cpu_qconf)
  * ret2 nentries     (%o2)
  * 
  */
-/*
 ENTRY(hv_cpu_qinfo)
 END(hv_cpu_qinfo)
 	
@@ -169,13 +177,17 @@ END(hv_cpu_state)
  * set the tsb(s) for the current cpu for context 0
  *
  * arg0 ntsb         (%o0)
- * arg0 tsbdptr      (%o1)
+ * arg1 tsbdptr      (%o1)
  *		
  * ret0 status       (%o0)
  * 
  */
-ENTRY(hv_tsb_ctx0)
-END(hv_tsb_ctx0)
+ENTRY(hv_mmu_tsb_ctx0)
+	mov	MMU_TSB_CTX0, %o5
+	ta	FAST_TRAP
+	retl
+	  nop
+END(hv_mmu_tsb_ctx0)
 
 /*
  * set the tsb(s) for the current cpu for non-zero contexts 
@@ -186,8 +198,12 @@ END(hv_tsb_ctx0)
  * ret0 status       (%o0)
  * 
  */
-ENTRY(hv_tsb_ctxnon0)
-END(hv_tsb_ctxnon0)
+ENTRY(hv_mmu_tsb_ctxnon0)
+	mov	MMU_TSB_CTXNON0, %o5
+	ta	FAST_TRAP
+	retl
+	  nop
+END(hv_mmu_tsb_ctxnon0)
 
 ENTRY(hv_mmu_demap_page)
 END(hv_mmu_demap_page)
@@ -230,9 +246,30 @@ END(hv_mmu_fault_area_info)
  *
  */
 
+/*
+ * zero from raddr to raddr+length-1
+ *
+ * arg0 raddr         (%o0)
+ * arg1 length        (%o1)
+ *		
+ * ret0 status        (%o0)
+ * ret1 length scrubbed (%o1)
+ * 
+ */
 ENTRY(hv_mem_scrub)
 END(hv_mem_scrub)
 
+/*
+ * for the memory address range from raddr to raddr+length-1
+ * for the next access within that range from main system memory
+ *
+ * arg0 raddr         (%o0)
+ * arg1 length        (%o1)
+ *		
+ * ret0 status        (%o0)
+ * ret1 length synced (%o1)
+ * 
+ */
 ENTRY(hv_mem_sync)
 END(hv_mem_sync)
 
@@ -241,28 +278,106 @@ END(hv_mem_sync)
  *
  */
 
-ENTRY(hv_intr_devino_to_sysino)	
-END(hv_intr_devino_to_sysino)	
-
+/*
+ * converts a device specific interrupt number given by
+ * devhandle and devino	to a system specific ino (sysino)
+ *
+ * arg0 devhandle     (%o0)
+ * arg1 devino        (%o1)
+ *		
+ * ret0 status        (%o0)
+ * ret1 sysino        (%o1)
+ * 
+ */
 ENTRY(hv_intr_devino_to_sysino)	
 END(hv_intr_devino_to_sysino)
 
+/*
+ * return intr enabled state
+ *
+ * arg0 sysino        (%o0)
+ *		
+ * ret0 status        (%o0)
+ * ret1 intr_enabled  (%o1)
+ * 
+ */
 ENTRY(hv_intr_getenabled)
 END(hv_intr_getenabled)
 
+/*
+ * set intr enabled state
+ *
+ * arg0 sysino        (%o0)
+ * arg1 intr_enabled  (%o1)
+ *		
+ * ret0 status        (%o0)
+ * 
+ */
 ENTRY(hv_intr_setenabled)
+	mov	INTR_SETENABLED, %o5
+	ta	FAST_TRAP
+	retl
+	  nop
 END(hv_intr_setenabled)
 
+/*
+ * return current state of the interrupt given
+ * by the sysino 	
+ *
+ * arg0 sysino        (%o0)
+ *		
+ * ret0 status        (%o0)
+ * ret1 intr_state    (%o1)
+ * 
+ */
 ENTRY(hv_intr_getstate)
 END(hv_intr_getstate)
 
+/*
+ * set the current state of the interrupt given
+ * by the sysino 	
+ *
+ * arg0 sysino        (%o0)
+ * arg1 intr_state    (%o1)
+ *		
+ * ret0 status        (%o0)
+ * 
+ */
 ENTRY(hv_intr_setstate)
+	mov	INTR_SETSTATE, %o5
+	ta	FAST_TRAP
+	retl
+	  nop	
 END(hv_intr_setstate)
 
+/*
+ * return the cpuid that is the current target of the 
+ * interrupt given by the sysino
+ *
+ * arg0 sysino        (%o0)
+ *		
+ * ret0 status        (%o0)
+ * ret1 cpuid         (%o1)
+ * 
+ */
 ENTRY(hv_intr_gettarget)
 END(hv_intr_gettarget)
 
+/*
+ * set the target to cpuid that for the
+ * interrupt given by the sysino
+ *
+ * arg0 sysino        (%o0)
+ * arg1 cpuid         (%o1)
+ *		
+ * ret0 status        (%o0)
+ * 
+ */
 ENTRY(hv_intr_settarget)
+	mov	INTR_SETTARGET, %o5
+	ta	FAST_TRAP
+	retl
+	  nop
 END(hv_intr_settarget)
 
 /*
@@ -304,10 +419,28 @@ END(hv_tod_set)
  *
  */
 	
+/*
+ * return a character from the console device
+ *
+ * ret0 status       (%o0)
+ * ret1 character    (%o0)
+ * 
+ */
 ENTRY(hv_cons_getchar)
 END(hv_cons_getchar)
 	
+/*
+ * send a character to the console device
+ * arg0 char         (%o0)
+ *
+ * ret0 status       (%o0)
+ * 
+ */
 ENTRY(hv_cons_putchar)
+	mov	CONS_PUTCHAR, %o5
+	ta	FAST_TRAP
+	retl
+	  nop
 END(hv_cons_putchar)
 
 /*
@@ -364,10 +497,27 @@ END(hv_cons_read)
  * Section 17 Core Dump Services
  *
  */
-
-ENTRY(hv_dump_buf_update)
+	
+/*
+ * declare a domain dump buffer to the hypervisor
+ * arg0 raddr        (%o0)
+ * arg1 size         (%o1)
+ *
+ * ret0 status       (%o0)
+ * ret1 required size of the dump buffer (%o1)
+ * 
+ */
+ENTRY(hv_dump_buf_update)	
 END(hv_dump_buf_update)
 
+/*
+ * return the currently configured dump buffer description 
+ *
+ * ret0 status                          (%o0)
+ * ret1 ra of the current dump buffer   (%o1)
+ * ret2 size of the current dump buffer (%o2)
+ * 
+ */
 ENTRY(hv_dump_buf_info)
 END(hv_dump_buf_info)
 
@@ -377,12 +527,13 @@ END(hv_dump_buf_info)
  */
 
 /*
- * TTRACE_BUF_CONF Configure
- * arg0 RA base of buffer (%o0)
+ * arg0 RA base of buffer          (%o0)
  * arg1 buf size in no. of entries (%o1)
+ *
  * ret0 status (%o0)
  * ret1 minimum size in no. of entries on failure,
  * actual size in no. of entries on success (%o1)
+ *	
  */
 ENTRY(hv_ttrace_buf_conf)
 	mov	TTRACE_BUF_CONF, %o5
@@ -391,11 +542,14 @@ ENTRY(hv_ttrace_buf_conf)
 	  stx	%o1, [%o2]
 END(hv_ttrace_buf_conf)
 
- /*
- * TTRACE_BUF_INFO
- * ret0 status (%o0)
- * ret1 RA base of buffer (%o1)
- * ret2 size in no. of entries (%o2)
+/*
+ * return the size and location of a previously declare
+ * trap-trace buffer		
+ *	
+ * ret0 status                  (%o0)
+ * ret1 RA base of buffer       (%o1)
+ * ret2 size in no. of entries  (%o2)
+ *	
  */
 ENTRY(hv_ttrace_buf_info)
 	mov	%o0, %o3
@@ -408,10 +562,13 @@ ENTRY(hv_ttrace_buf_info)
 END(hv_ttrace_buf_info)
 
 /*
- * TTRACE_ENABLE
- * arg0 enable/ disable (%o0)
- * ret0 status (%o0)
+ * enable / disable trap tracing
+ *		
+ * arg0 enable / disable      (%o0)
+ *	
+ * ret0 status                (%o0)
  * ret1 previous enable state (%o1)
+ *	
  */
 ENTRY(hv_ttrace_enable)
 	mov	%o1, %o2
@@ -438,14 +595,15 @@ ENTRY(hv_ttrace_freeze)
 END(hv_ttrace_freeze)
 
 /*
- * TTRACE_ADDENTRY
+ * add an entry to the trap trace buffer
+ *		
  * arg0 tag (16-bits) (%o0)
- * arg1 data word 0 (%o1)
- * arg2 data word 1 (%o2)
- * arg3 data word 2 (%o3)
- * arg4 data word 3 (%o4)
+ * arg1 data word 0   (%o1)
+ * arg2 data word 1   (%o2)
+ * arg3 data word 2   (%o3)
+ * arg4 data word 3   (%o4)
  *
- * ret0 status (%o0)
+ * ret0 status        (%o0)
  *
 */
 ENTRY(hv_ttrace_addentry)
@@ -461,6 +619,7 @@ END(hv_ttrace_addentry)
 	
 /*
  * configure ldc tx queue
+ *	
  * arg0 ldc_id     (%o0)
  * arg1 base_raddr (%o1)
  * arg2 nentries   (%o2)
@@ -477,6 +636,7 @@ END(hv_ldc_tx_qconf)
 
 /*
  * return configuration info for ldc tx queue
+ *	
  * arg0 ldc_id     (%o0)
  *
  * ret0 status     (%o0)
@@ -499,6 +659,7 @@ END(hv_ldc_tx_qinfo)
 
 /*
  * get the state of the ldc tx queue
+ *	
  * arg0 ldc_id        (%o0)
  *
  * ret0 status        (%o0)
@@ -522,6 +683,7 @@ END(hv_ldc_tx_get_state)
 
 /*
  * update the tail pointer of the ldc tx queue
+ *	
  * arg0 ldc_id      (%o0)
  * arg1 tail_offset (%o1)
  *
@@ -537,6 +699,7 @@ END(hv_ldc_tx_set_qtail)
 
 /*
  * configure ldc rx queue
+ *	
  * arg0 ldc_id     (%o0)
  * arg1 base_raddr (%o1)
  * arg2 nentries   (%o2)
@@ -553,6 +716,7 @@ END(hv_ldc_rx_qconf)
 
 /*
  * return configuration info for ldc rx queue
+ *	
  * arg0 ldc_id     (%o0)
  *
  * ret0 status     (%o0)
@@ -575,6 +739,7 @@ END(hv_ldc_rx_qinfo)
 
 /*
  * get the state of the ldc rx queue
+ *	
  * arg0 ldc_id        (%o0)
  *
  * ret0 status        (%o0)
@@ -598,6 +763,7 @@ END(hv_ldc_rx_get_state)
 
 /*
  * update the head pointer of the ldc rx queue
+ *	
  * arg0 ldc_id      (%o0)
  * arg1 head_offset (%o1)
  *
@@ -626,7 +792,7 @@ END(hv_ldc_mapin)
 ENTRY(hv_ldc_unmap)
 END(hv_ldc_unmap)
 
-ENTRY(hv_ldc_revoke
+ENTRY(hv_ldc_revoke)
 END(hv_ldc_revoke)
 		
 /*
@@ -634,30 +800,142 @@ END(hv_ldc_revoke)
  *
  */
 	
+/*
+ * create iommu mappings in the device defined by devhandle
+ *	
+ * arg0 devhandle        (%o0)
+ * arg1 tsbid            (%o1)
+ * arg2 nttes            (%o2)
+ * arg3 io_attributes    (%o3)
+ * arg4 io_page_list_p   (%o4)
+ *
+ * ret0 status           (%o0)
+ * ret1 nttes_mapped     (%o1)
+ *
+ */
 ENTRY(hv_pci_iommu_map)
 END(hv_pci_iommu_map)
 
+/*
+ * demap and flush iommu mappings in the device defined by devhandle
+ *	
+ * arg0 devhandle        (%o0)
+ * arg1 tsbid            (%o1)
+ * arg2 nttes            (%o2)
+ *
+ * ret0 status           (%o0)
+ * ret1 nttes_demapped   (%o1)
+ *
+ */
 ENTRY(hv_pci_iommu_demap)
 END(hv_pci_iommu_demap)
 
+/*
+ * read and return the mapping in the device defined by devhandle
+ *	
+ * arg0 devhandle        (%o0)
+ * arg1 tsbid            (%o1)
+ *
+ * ret0 status           (%o0)
+ * ret1 io_attributes    (%o1)
+ * ret2 ra               (%o2)
+ *
+ */
 ENTRY(hv_pci_iommu_getmap)
 END(hv_pci_iommu_getmap)
 
+/*
+ * create a "special" mapping in the device given by devhandle
+ *	
+ * arg0 devhandle        (%o0)
+ * arg1 r_addr           (%o1)
+ * arg2 io_attributes    (%o2)
+ *
+ * ret0 status           (%o0)
+ * ret1 io_addr          (%o1)
+ *
+ */
 ENTRY(hv_pci_iommu_getbypass)
 END(hv_pci_iommu_getbypass)
 	
+/*
+ * read PCI configuration space for adapter specified by devhandle
+ *	
+ * arg0 devhandle        (%o0)
+ * arg1 pci_device       (%o1)
+ * arg2 pci_config_offset(%o2)
+ * arg3 size             (%o3)
+ *
+ * ret0 status           (%o0)
+ * ret1 error_flag       (%o1)
+ * ret2 data             (%o2)
+ *
+ */
 ENTRY(hv_pci_config_get)
 END(hv_pci_config_get)
 
+/*
+ * write PCI config space for the PCI adapter
+ * specified by devhandle	
+ *	
+ * arg0 devhandle        (%o0)
+ * arg1 pci_device       (%o1)
+ * arg2 pci_config_offset(%o2)
+ * arg3 size             (%o3)
+ * arg4 data             (%o4)
+ *
+ * ret0 status           (%o0)
+ * ret1 error_flag       (%o1)
+ *
+ */	
 ENTRY(hv_pci_config_put)
 END(hv_pci_config_put)
 
+/*
+ * read the io-address given by devhandle, raddr, and size
+ *	
+ * arg0 devhandle        (%o0)
+ * arg1 raddr            (%o1)
+ * arg2 size             (%o2)
+ *
+ * ret0 status           (%o0)
+ * ret1 error_flag       (%o1)
+ * ret2 data             (%o2)
+ *
+ */	
 ENTRY(hv_pci_peek)
 END(hv_pci_peek)
 
+/*
+ * attempt to write data to the io-address
+ * specified by devhandle, raddr, and size	
+ *	
+ * arg0 devhandle        (%o0)
+ * arg1 raddr            (%o1)
+ * arg2 size             (%o2)
+ * arg3 data             (%o3)
+ * arg4 pci_device       (%o4)
+ *
+ * ret0 status           (%o0)
+ * ret1 error_flag       (%o1)
+ *
+ */	
 ENTRY(hv_pci_poke)
 END(hv_pci_poke)
 
+/*
+ * attempt to write data to the io-address
+ * specified by devhandle, raddr, and size	
+ *	
+ * arg0 devhandle        (%o0)
+ * arg1 raddr            (%o1)
+ * arg2 size             (%o2)
+ * arg3 io_sync_direction(%o3)
+ *
+ * ret0 status           (%o0)
+ * ret1 nsynced          (%o1)
+ *
+ */	
 ENTRY(hv_pci_dma_sync)
 END(hv_pci_dma_sync)
 

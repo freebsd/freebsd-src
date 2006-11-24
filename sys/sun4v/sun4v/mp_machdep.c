@@ -94,7 +94,8 @@ __FBSDID("$FreeBSD$");
 #include <machine/tte_hash.h>
 #include <machine/tsb.h>
 #include <machine/trap.h>
-#include <machine/hypervisor_api.h>
+#include <machine/hypervisorvar.h>
+#include <machine/hv_api.h>
 #include <machine/asm.h>
 
 /*
