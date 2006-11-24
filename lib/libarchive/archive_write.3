@@ -199,7 +199,7 @@ it will enable padding when writing to standard output or
 to a character or block device node, it will disable padding otherwise.
 You can override this by manually invoking
 .Fn archive_write_set_bytes_in_last_block
-either before or after calling
+before calling
 .Fn archive_write_open .
 The
 .Fn archive_write_open_filename
@@ -222,6 +222,11 @@ closed.
 Build and write a header using the data in the provided
 .Tn struct archive_entry
 structure.
+See
+.Xr archive_entry 3
+for information on creating and populating
+.Tn struct archive_entry
+objects.
 .It Fn archive_write_data
 Write data corresponding to the header just written.
 Returns number of bytes written or -1 on error.
@@ -230,7 +235,7 @@ Complete the archive and invoke the close callback.
 .It Fn archive_write_finish
 Invokes
 .Fn archive_write_close
-if it was not invoked manually, then release all resources.
+if it was not invoked manually, then releases all resources.
 .El
 More information about the
 .Va struct archive
@@ -392,7 +397,17 @@ int main(int argc, const char **argv)
 }
 .Ed
 .Sh RETURN VALUES
-Most functions return zero on success, non-zero on error.
+Most functions return
+.Cm ARCHIVE_OK
+(zero) on success, or one of several non-zero
+error codes for errors.
+Specific error codes include:
+.Cm ARCHIVE_RETRY
+for operations that might succeed if retried,
+.Cm ARCHIVE_WARN
+for unusual conditions that do not prevent further operations, and
+.Cm ARCHIVE_FATAL
+for serious errors that make remaining operations impossible.
 The
 .Fn archive_errno
 and
@@ -464,4 +479,5 @@ These keys are compatible with Joerg Schilling's
 .Nm star
 archiver.
 Other implementations may not recognize these keys and will thus be unable
-to correctly restore large device numbers archived by this library.
+to correctly restore device nodes with large device numbers from archives
+created by this library.
