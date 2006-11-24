@@ -49,11 +49,9 @@ SRCS=	elf_begin.c						\
 	${GENSRCS}
 INCS=	libelf.h gelf.h
 
-GENSRCS+=	libelf_fsize.c libelf_msize.c libelf_convert.c
-CLEANFILES+=	${GENSRCS}
+GENSRCS=	libelf_fsize.c libelf_msize.c libelf_convert.c
+CLEANFILES=	${GENSRCS}
 CFLAGS+=	-I. -I${.CURDIR}
-
-OBJS+=	libelf_convert.o libelf_fsize.o libelf_msize.o
 
 OSRELDATE!=	sysctl -n kern.osreldate
 
