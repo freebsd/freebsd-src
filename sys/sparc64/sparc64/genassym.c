@@ -189,7 +189,6 @@ ASSYM(VTD_LOCK, VTD_LOCK);
 
 ASSYM(THE_SHIFT, THE_SHIFT);
 ASSYM(TH_COLLISION_SHIFT, TH_COLLISION_SHIFT);
-ASSYM(HVTSB_PA, offsetof(struct hv_tsb_info, hvtsb_pa));
 ASSYM(PM_HASHSCRATCH, offsetof(struct pmap, pm_hashscratch));
 ASSYM(PM_TSBSCRATCH, offsetof(struct pmap, pm_tsbscratch));
 ASSYM(PM_TSB_RA, offsetof(struct pmap, pm_tsb_ra));
