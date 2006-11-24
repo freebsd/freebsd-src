@@ -37,6 +37,7 @@
 
 #include <sys/types.h>  /* Linux requires this for off_t */
 @ARCHIVE_H_INCLUDE_INTTYPES_H@
+#include <stdio.h> /* For FILE * */
 #include <unistd.h>  /* For ssize_t and size_t */
 
 #ifdef __cplusplus
@@ -58,6 +59,7 @@ extern "C" {
  *
  *    1 - Version tests are available.
  *    2 - archive_{read,write}_close available separately from _finish.
+ *    3 - open_memory, open_memory2, open_FILE, open_fd available
  */
 #define	ARCHIVE_API_VERSION	@ARCHIVE_API_MAJOR@
 int		archive_api_version(void);
@@ -206,9 +208,18 @@ int		 archive_read_open_filename(struct archive *,
 /* archive_read_open_file() is a deprecated synonym for ..._open_filename(). */
 int		 archive_read_open_file(struct archive *,
 		     const char *_filename, size_t _block_size);
+/* Read an archive that's stored in memory. */
+int		 archive_read_open_memory(struct archive *,
+		     void * buff, size_t size);
+/* A more involved version that is only used for internal testing. */
+int		archive_read_open_memory2(struct archive *a, void *buff,
+		     size_t size, size_t read_size);
 /* Read an archive that's already open, using the file descriptor. */
 int		 archive_read_open_fd(struct archive *, int _fd,
 		     size_t _block_size);
+/* Read an archive that's already open, using a FILE *. */
+/* Note: DO NOT use this with tape drives. */
+int		 archive_read_open_FILE(struct archive *, FILE *_file);
 
 /* Parses and returns next entry header. */
 int		 archive_read_next_header(struct archive *,
@@ -333,6 +344,11 @@ int		 archive_write_open_fd(struct archive *, int _fd);
 int		 archive_write_open_filename(struct archive *, const char *_file);
 /* A deprecated synonym for archive_write_open_filename() */
 int		 archive_write_open_file(struct archive *, const char *_file);
+int		 archive_write_open_FILE(struct archive *, FILE *);
+/* _buffSize is the size of the buffer, _used refers to a variable that
+ * will be updated after each write into the buffer. */
+int		 archive_write_open_memory(struct archive *,
+			void *_buffer, size_t _buffSize, size_t *_used);
 
 /*
  * Note that the library will truncate writes beyond the size provided
