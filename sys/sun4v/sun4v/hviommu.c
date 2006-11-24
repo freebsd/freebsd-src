@@ -120,6 +120,10 @@
 #include <machine/pmap.h>
 #include <machine/resource.h>
 
+#include <machine/hypervisorvar.h>
+#include <machine/hv_api.h>
+
+
 #include <sys/rman.h>
 
 /*

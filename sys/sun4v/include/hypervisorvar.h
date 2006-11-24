@@ -42,8 +42,7 @@
 #define CORE_TRAP               0xff
 
 /*
- * Error returns in %o0.
- * (Additional result is returned in %o1.)
+ * Status returns in %o0.
  */
 #define	H_EOK			0	/* Successful return */
 #define	H_ENOCPU		1	/* Invalid CPU id */
@@ -74,7 +73,7 @@
 #define	HV_SEND_MONDO_ENTRYDONE	0xffff
 
 /*
- * Function numbers for API_TRAP.
+ * Function numbers for CORE_TRAP.
  */
 #define API_SET_VERSION         0x00
 #define API_PUTCHAR             0x01
