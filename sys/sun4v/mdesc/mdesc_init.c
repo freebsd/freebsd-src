@@ -145,7 +145,7 @@ mdesc_buf_free(void *buf, size_t align)
 static void *
 mdesc_meta_alloc(size_t size)
 {
-	return malloc(size, M_MDPROP, M_WAITOK);
+	return malloc(size, M_MDPROP, M_NOWAIT);
 }
 
 static void 
