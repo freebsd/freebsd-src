@@ -1017,6 +1017,16 @@ void prog_makefile_rules(FILE *outmk, prog_t *p)
 		    p->ident);
 	fprintf(outmk, "\n");
 
+	fprintf(outmk, "%s_OBJPATHS=", p->ident);
+	if (p->objpaths)
+		output_strlst(outmk, p->objpaths);
+	else {
+		for (lst = p->objs; lst != NULL; lst = lst->next) {
+			fprintf(outmk, " $(%s_OBJDIR)/%s", p->ident, lst->str);
+		}
+		fprintf(outmk, "\n");
+	}
+
 	if (p->srcdir && p->objs) {
 		fprintf(outmk, "%s_SRCDIR=%s\n", p->ident, p->srcdir);
 		fprintf(outmk, "%s_REALSRCDIR=%s\n", p->ident, p->realsrcdir);
@@ -1027,6 +1037,7 @@ void prog_makefile_rules(FILE *outmk, prog_t *p)
 			fprintf(outmk, "%s_OPTS+=", p->ident);
 			output_strlst(outmk, p->buildopts);
 		}
+		fprintf(outmk, "$(%s_OBJPATHS): %s_make\n\n", p->ident, p->ident);
 		fprintf(outmk, "%s_make:\n", p->ident);
 		fprintf(outmk, "\t(cd $(%s_SRCDIR) && ", p->ident);
 		if (makeobj)
@@ -1048,15 +1059,6 @@ void prog_makefile_rules(FILE *outmk, prog_t *p)
 		    p->name);
 	}
 
-	fprintf(outmk, "%s_OBJPATHS=", p->ident);
-	if (p->objpaths)
-		output_strlst(outmk, p->objpaths);
-	else {
-		for (lst = p->objs; lst != NULL; lst = lst->next) {
-			fprintf(outmk, " $(%s_OBJDIR)/%s", p->ident, lst->str);
-		}
-		fprintf(outmk, "\n");
-	}
 	if (p->libs) {
 		fprintf(outmk, "%s_LIBS=", p->ident);
 		output_strlst(outmk, p->libs);
