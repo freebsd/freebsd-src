@@ -143,7 +143,7 @@ _fork(void)
 	if ((ret = __sys_fork()) == 0) {
 		/* Child process */
 		errsave = errno;
-		curthread->cancelflags &= ~THR_CANCEL_NEEDED;
+		curthread->cancel_pending = 0;
 		curthread->flags &= ~THR_FLAGS_NEED_SUSPEND;
 
 		/*
