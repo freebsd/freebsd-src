@@ -85,6 +85,7 @@
  */
 #define	MACH_EXIT		0x00
 #define	MACH_DESC		0x01
+#define	MACH_SIR		0x02
 #define MACH_SET_SOFT_STATE     0x03
 #define MACH_GET_SOFT_STATE     0x04
 #define MACH_WATCHDOG           0x05
@@ -105,8 +106,8 @@
 #define	MMU_DEMAP_PAGE		0x22
 #define	MMU_DEMAP_CTX		0x23
 #define	MMU_DEMAP_ALL		0x24
-#define	MAP_PERM_ADDR		0x25
-#define	MMU_MAP_PERM_ADDR	0x26
+#define	MMU_MAP_PERM_ADDR	0x25
+#define MMU_FAULT_AREA_CONF     0x26
 #define MMU_ENABLE              0x27
 #define MMU_UNMAP_PERM_ADDR     0x28
 #define MMU_TSB_CTX0_INFO       0x29
@@ -201,8 +202,8 @@
 #define LDC_RX_GET_STATE        0xe6
 #define LDC_RX_SET_QHEAD        0xe7
 
-#define LDC_SET_MAP_TABLE       0xea
-#define LDC_GET_MAP_TABLE       0xeb
+#define LDC_SET_MAPTABLE        0xea
+#define LDC_GET_MAPTABLE        0xeb
 #define LDC_COPY                0xec
 #define LDC_MAPIN               0xed
 #define LDC_UNMAP               0xee
@@ -227,8 +228,8 @@
 #define	HV_INTR_RECEIVED_STATE	1
 #define	HV_INTR_DELIVERED_STATE	2
 
-#define	HV_INTR_NOTVALID	0
-#define	HV_INTR_VALID		1
+#define	HV_INTR_DISABLED	0
+#define	HV_INTR_ENABLED		1
 
 #ifndef LOCORE
 
