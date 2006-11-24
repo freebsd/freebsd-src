@@ -38,126 +38,120 @@ __weak_reference(_pthread_setcancelstate, pthread_setcancelstate);
 __weak_reference(_pthread_setcanceltype, pthread_setcanceltype);
 __weak_reference(_pthread_testcancel, pthread_testcancel);
 
+static inline void
+testcancel(struct pthread *curthread)
+{
+	if (__predict_false(SHOULD_CANCEL(curthread) &&
+	    !THR_IN_CRITICAL(curthread)))
+		_pthread_exit(PTHREAD_CANCELED);
+}
+
+void
+_thr_testcancel(struct pthread *curthread)
+{
+	testcancel(curthread);
+}
+
 int
 _pthread_cancel(pthread_t pthread)
 {
 	struct pthread *curthread = _get_curthread();
-	int oldval, newval = 0;
-	int oldtype;
 	int ret;
 
 	/*
-	 * POSIX says _pthread_cancel should be async cancellation safe,
-	 * so we temporarily disable async cancellation.
+	 * POSIX says _pthread_cancel should be async cancellation safe.
+	 * _thr_ref_add and _thr_ref_delete will enter and leave critical
+	 * region automatically.
 	 */
-	_pthread_setcanceltype(PTHREAD_CANCEL_DEFERRED, &oldtype);
-	if ((ret = _thr_ref_add(curthread, pthread, 0)) != 0) {
-		_pthread_setcanceltype(oldtype, NULL);
-		return (ret);
+	if ((ret = _thr_ref_add(curthread, pthread, 0)) == 0) {
+		THR_THREAD_LOCK(curthread, pthread);
+		if (!pthread->cancel_pending) {
+			pthread->cancel_pending = 1;
+			if (pthread->cancel_enable)
+				_thr_send_sig(pthread, SIGCANCEL);
+		}
+		THR_THREAD_UNLOCK(curthread, pthread);
+		_thr_ref_delete(curthread, pthread);
 	}
-
-	do {
-		oldval = pthread->cancelflags;
-		if (oldval & THR_CANCEL_NEEDED)
-			break;
-		newval = oldval | THR_CANCEL_NEEDED;
-	} while (!atomic_cmpset_acq_int(&pthread->cancelflags, oldval, newval));
-
-	if (!(oldval & THR_CANCEL_NEEDED) && SHOULD_ASYNC_CANCEL(newval))
-		_thr_send_sig(pthread, SIGCANCEL);
-
-	_thr_ref_delete(curthread, pthread);
-	_pthread_setcanceltype(oldtype, NULL);
-	return (0);
-}
-
-static inline void
-testcancel(struct pthread *curthread)
-{
-	int newval;
-
-	newval = curthread->cancelflags;
-	if (SHOULD_CANCEL(newval) && !THR_IN_CRITICAL(curthread))
-		_pthread_exit(PTHREAD_CANCELED);
+	return (ret);
 }
 
 int
 _pthread_setcancelstate(int state, int *oldstate)
 {
 	struct pthread *curthread = _get_curthread();
-	int oldval, ret;
+	int oldval;
 
-	oldval = curthread->cancelflags;
-	if (oldstate != NULL)
-		*oldstate = ((oldval & THR_CANCEL_DISABLE) ?
-		    PTHREAD_CANCEL_DISABLE : PTHREAD_CANCEL_ENABLE);
+	oldval = curthread->cancel_enable;
 	switch (state) {
 	case PTHREAD_CANCEL_DISABLE:
-		atomic_set_int(&curthread->cancelflags, THR_CANCEL_DISABLE);
-		ret = 0;
+		THR_LOCK(curthread);
+		curthread->cancel_enable = 0;
+		THR_UNLOCK(curthread);
 		break;
 	case PTHREAD_CANCEL_ENABLE:
-		atomic_clear_int(&curthread->cancelflags, THR_CANCEL_DISABLE);
-		testcancel(curthread);
-		ret = 0;
+		THR_LOCK(curthread);
+		curthread->cancel_enable = 1;
+		THR_UNLOCK(curthread);
 		break;
 	default:
-		ret = EINVAL;
+		return (EINVAL);
 	}
 
-	return (ret);
+	if (oldstate) {
+		*oldstate = oldval ? PTHREAD_CANCEL_ENABLE :
+			PTHREAD_CANCEL_DISABLE;
+	}
+	return (0);
 }
 
 int
 _pthread_setcanceltype(int type, int *oldtype)
 {
 	struct pthread	*curthread = _get_curthread();
-	int oldval, ret;
+	int oldval;
 
-	oldval = curthread->cancelflags;
-	if (oldtype != NULL)
-		*oldtype = ((oldval & THR_CANCEL_AT_POINT) ?
-				 PTHREAD_CANCEL_ASYNCHRONOUS :
-				 PTHREAD_CANCEL_DEFERRED);
+	oldval = curthread->cancel_async;
 	switch (type) {
 	case PTHREAD_CANCEL_ASYNCHRONOUS:
-		atomic_set_int(&curthread->cancelflags, THR_CANCEL_AT_POINT);
+		curthread->cancel_async = 1;
 		testcancel(curthread);
-		ret = 0;
 		break;
 	case PTHREAD_CANCEL_DEFERRED:
-		atomic_clear_int(&curthread->cancelflags, THR_CANCEL_AT_POINT);
-		ret = 0;
+		curthread->cancel_async = 0;
 		break;
 	default:
-		ret = EINVAL;
+		return (EINVAL);
 	}
 
-	return (ret);
+	if (oldtype) {
+		*oldtype = oldval ? PTHREAD_CANCEL_ASYNCHRONOUS :
+		 	PTHREAD_CANCEL_DEFERRED;
+	}
+	return (0);
 }
 
 void
 _pthread_testcancel(void)
 {
-	testcancel(_get_curthread());
-}
+	struct pthread *curthread = _get_curthread();
 
-int
-_thr_cancel_enter(struct pthread *curthread)
-{
-	int oldval;
-
-	oldval = curthread->cancelflags;
-	if (!(oldval & THR_CANCEL_AT_POINT)) {
-		atomic_set_int(&curthread->cancelflags, THR_CANCEL_AT_POINT);
-		testcancel(curthread);
-	}
-	return (oldval);
+	_thr_cancel_enter(curthread);
+	_thr_cancel_leave(curthread);
 }
 
 void
-_thr_cancel_leave(struct pthread *curthread, int previous)
+_thr_cancel_enter(struct pthread *curthread)
 {
-	if (!(previous & THR_CANCEL_AT_POINT))
-		atomic_clear_int(&curthread->cancelflags, THR_CANCEL_AT_POINT);
+	if (curthread->cancel_enable) {
+		curthread->cancel_point++;
+		testcancel(curthread);
+	}
+}
+
+void
+_thr_cancel_leave(struct pthread *curthread)
+{
+	if (curthread->cancel_enable)
+		curthread->cancel_point--;
 }

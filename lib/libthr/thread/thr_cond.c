@@ -195,7 +195,6 @@ cond_wait_common(pthread_cond_t *cond, pthread_mutex_t *mutex,
 	struct cond_cancel_info info;
 	pthread_cond_t  cv;
 	long		seq, oldseq;
-	int		oldcancel;
 	int		ret = 0;
 
 	/*
@@ -231,9 +230,9 @@ cond_wait_common(pthread_cond_t *cond, pthread_mutex_t *mutex,
 
 		if (cancel) {
 			THR_CLEANUP_PUSH(curthread, cond_cancel_handler, &info);
-			oldcancel = _thr_cancel_enter(curthread);
+			_thr_cancel_enter(curthread);
 			ret = _thr_umtx_wait(&cv->c_seqno, seq, tsp);
-			_thr_cancel_leave(curthread, oldcancel);
+			_thr_cancel_leave(curthread);
 			THR_CLEANUP_POP(curthread, 0);
 		} else {
 			ret = _thr_umtx_wait(&cv->c_seqno, seq, tsp);

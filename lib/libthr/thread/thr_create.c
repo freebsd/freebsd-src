@@ -105,8 +105,8 @@ _pthread_create(pthread_t * thread, const pthread_attr_t * attr,
 	new_thread->magic = THR_MAGIC;
 	new_thread->start_routine = start_routine;
 	new_thread->arg = arg;
-	new_thread->cancelflags = PTHREAD_CANCEL_ENABLE |
-	    PTHREAD_CANCEL_DEFERRED;
+	new_thread->cancel_enable = 1;
+	new_thread->cancel_async = 0;
 	/* Initialize the mutex queue: */
 	TAILQ_INIT(&new_thread->mutexq);
 	TAILQ_INIT(&new_thread->pp_mutexq);
