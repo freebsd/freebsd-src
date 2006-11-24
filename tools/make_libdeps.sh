@@ -65,7 +65,7 @@ genlibdepends()
 			libdir=$(dirname ${makefile})
 			deps=$(
 				cd ${libdir}
-				make -V LDADD
+				make -m ${USRSRC}/share/mk -V LDADD
 			)
 			if [ "${deps}" ]; then
 				echo ${libdir}"${FS}"$(
