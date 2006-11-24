@@ -59,6 +59,10 @@ extern uint64_t hv_mach_watchdog(uint64_t timeout, uint64_t *time_remaining);
  * Section 11 CPU Services
  */
 
+extern uint64_t hv_cpu_yield(void);
+extern uint64_t hv_cpu_state(uint64_t cpuid, uint64_t *state);
+extern uint64_t hv_cpu_mondo_send(int ncpu, vm_paddr_t cpulist_ra);
+
 /*
  * Section 12 MMU Services
  */
@@ -78,10 +82,13 @@ typedef struct hv_tsb_info {
 
 extern uint64_t	hv_mmu_tsb_ctx0(uint64_t, uint64_t);
 extern uint64_t	hv_mmu_tsb_ctxnon0(uint64_t, uint64_t);
+extern uint64_t	hv_mmu_map_perm_addr(vm_offset_t va, uint64_t, tte_t tte, uint64_t flags);
 
 /*
  * Section 13 Cache and Memory Services
  */
+
+extern uint64_t hv_mem_scrub(vm_paddr_t ra, uint64_t length, uint64_t *scrubbed);
 
 /*
  * Section 14 Device Interrupt Services

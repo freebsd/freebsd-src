@@ -472,7 +472,7 @@ pmap_bootstrap(vm_offset_t ekva)
 		     translations[i].om_start <= KERNBASE + 3*PAGE_SIZE_4M)) {
 			KDPRINTF("mapping permanent translation\n");
 			pa = TTE_GET_PA(translations[i].om_tte);
-			error = hv_mmu_map_perm_addr((char *)translations[i].om_start, 
+			error = hv_mmu_map_perm_addr(translations[i].om_start, 
 				KCONTEXT, pa | TTE_KERNEL | VTD_4M, MAP_ITLB | MAP_DTLB);
 			if (error != H_EOK)
 				panic("map_perm_addr returned error=%ld", error);
