@@ -805,7 +805,7 @@ archive_write_pax_header(struct archive *a,
 		}
 
 		pax->entry_bytes_remaining = archive_strlen(&(pax->pax_header));
-		pax->entry_padding = 0x1ff & (- pax->entry_bytes_remaining);
+		pax->entry_padding = 0x1ff & (-(int64_t)pax->entry_bytes_remaining);
 
 		r = (a->compression_write)(a, pax->pax_header.s,
 		    archive_strlen(&(pax->pax_header)));
@@ -834,7 +834,7 @@ archive_write_pax_header(struct archive *a,
 	 */
 	archive_entry_set_size(entry_original, archive_entry_size(entry_main));
 	pax->entry_bytes_remaining = archive_entry_size(entry_main);
-	pax->entry_padding = 0x1ff & (- pax->entry_bytes_remaining);
+	pax->entry_padding = 0x1ff & (-(int64_t)pax->entry_bytes_remaining);
 	archive_entry_free(entry_main);
 
 	return (ret);
