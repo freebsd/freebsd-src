@@ -265,7 +265,7 @@
 	  from Intel.  Among other changes, it adds support for a
 	  number of new adapters.  Compiling the driver with
 	  the <literal>EM_FAST_INTR</literal> preprocesor symbol
-	  defined will enabled optional <quote>fast interrupt</quote>
+	  defined will enable optional <quote>fast interrupt</quote>
 	  processing.  <quote>Fast interrupt</quote> processing, as
 	  implemented in this version of the driver, has been shown to
 	  yield significant performance improvements in some cases,
