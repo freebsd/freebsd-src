@@ -2508,7 +2508,8 @@ ath_descdma_setup(struct ath_softc *sc,
 	}
 
 	error = bus_dmamem_alloc(dd->dd_dmat, (void**) &dd->dd_desc,
-				 BUS_DMA_NOWAIT, &dd->dd_dmamap);
+				 BUS_DMA_NOWAIT | BUS_DMA_COHERENT, 
+				 &dd->dd_dmamap);
 	if (error != 0) {
 		if_printf(ifp, "unable to alloc memory for %u %s descriptors, "
 			"error %u\n", nbuf * ndesc, dd->dd_name, error);
