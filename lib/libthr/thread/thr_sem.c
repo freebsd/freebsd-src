@@ -176,16 +176,16 @@ int
 _sem_wait(sem_t *sem)
 {
 	struct pthread *curthread;
-	int val, oldcancel, retval;
+	int val, retval;
 
 	if (sem_check_validity(sem) != 0)
 		return (-1);
 
 	curthread = _get_curthread();
 	if ((*sem)->syssem != 0) {
-		oldcancel = _thr_cancel_enter(curthread);
+		_thr_cancel_enter(curthread);
 		retval = ksem_wait((*sem)->semid);
-		_thr_cancel_leave(curthread, oldcancel);
+		_thr_cancel_leave(curthread);
 		return (retval);
 	}
 
@@ -195,9 +195,9 @@ _sem_wait(sem_t *sem)
 			if (atomic_cmpset_acq_int(&(*sem)->count, val, val - 1))
 				return (0);
 		}
-		oldcancel = _thr_cancel_enter(curthread);
+		_thr_cancel_enter(curthread);
 		retval = _thr_umtx_wait((umtx_t *)&(*sem)->count, 0, NULL);
-		_thr_cancel_leave(curthread, oldcancel);
+		_thr_cancel_leave(curthread);
 	} while (retval == 0);
 	errno = retval;
 	return (-1);
@@ -209,16 +209,16 @@ _sem_timedwait(sem_t * __restrict sem,
 {
 	struct timespec ts, ts2;
 	struct pthread *curthread;
-	int val, oldcancel, retval;
+	int val, retval;
 
 	if (sem_check_validity(sem) != 0)
 		return (-1);
 
 	curthread = _get_curthread();
 	if ((*sem)->syssem != 0) {
-		oldcancel = _thr_cancel_enter(curthread);
+		_thr_cancel_enter(curthread);
 		retval = ksem_timedwait((*sem)->semid, abstime);
-		_thr_cancel_leave(curthread, oldcancel);
+		_thr_cancel_leave(curthread);
 		return (retval);
 	}
 
@@ -238,9 +238,9 @@ _sem_timedwait(sem_t * __restrict sem,
 		}
 		clock_gettime(CLOCK_REALTIME, &ts);
 		TIMESPEC_SUB(&ts2, abstime, &ts);
-		oldcancel = _thr_cancel_enter(curthread);
+		_thr_cancel_enter(curthread);
 		retval = _thr_umtx_wait((umtx_t *)&(*sem)->count, 0, &ts2);
-		_thr_cancel_leave(curthread, oldcancel);
+		_thr_cancel_leave(curthread);
 	} while (retval == 0);
 	errno = retval;
 	return (-1);

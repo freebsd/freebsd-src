@@ -350,22 +350,25 @@ struct pthread {
 	void			*arg;
 	struct pthread_attr	attr;
 
- 	/*
-	 * Cancelability flags 
-	 */
-#define	THR_CANCEL_DISABLE		0x0001
-#define	THR_CANCEL_EXITING		0x0002
-#define THR_CANCEL_AT_POINT		0x0004
-#define THR_CANCEL_NEEDED		0x0008
-#define	SHOULD_CANCEL(val)					\
-	(((val) & (THR_CANCEL_DISABLE | THR_CANCEL_EXITING |	\
-		 THR_CANCEL_NEEDED)) == THR_CANCEL_NEEDED)
+#define	SHOULD_CANCEL(thr)					\
+	((thr)->cancel_pending &&				\
+	 ((thr)->cancel_point || (thr)->cancel_async) &&	\
+	 (thr)->cancel_enable && (thr)->cancelling == 0)
 
-#define	SHOULD_ASYNC_CANCEL(val)				\
-	(((val) & (THR_CANCEL_DISABLE | THR_CANCEL_EXITING |	\
-		 THR_CANCEL_NEEDED | THR_CANCEL_AT_POINT)) ==	\
-		 (THR_CANCEL_NEEDED | THR_CANCEL_AT_POINT))
-	int			cancelflags;
+	/* Cancellation is enabled */
+	int			cancel_enable;
+
+	/* Cancellation request is pending */
+	int			cancel_pending;
+
+	/* Thread is at cancellation point */
+	int			cancel_point;
+
+	/* Asynchronouse cancellation is enabled */
+	int			cancel_async;
+
+	/* Cancellation is in progress */
+	int			cancelling;
 
 	/* Thread temporary signal mask. */
 	sigset_t		sigmask;
@@ -620,8 +623,9 @@ void    _thread_cleanupspecific(void) __hidden;
 void    _thread_dump_info(void) __hidden;
 void	_thread_printf(int, const char *, ...) __hidden;
 void	_thr_spinlock_init(void) __hidden;
-int	_thr_cancel_enter(struct pthread *) __hidden;
-void	_thr_cancel_leave(struct pthread *, int) __hidden;
+void	_thr_cancel_enter(struct pthread *) __hidden;
+void	_thr_cancel_leave(struct pthread *) __hidden;
+void	_thr_testcancel(struct pthread *) __hidden;
 void	_thr_signal_block(struct pthread *) __hidden;
 void	_thr_signal_unblock(struct pthread *) __hidden;
 void	_thr_signal_init(void) __hidden;

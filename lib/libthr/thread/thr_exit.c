@@ -87,7 +87,7 @@ _pthread_exit(void *status)
 	struct pthread *curthread = _get_curthread();
 
 	/* Check if this thread is already in the process of exiting: */
-	if ((curthread->cancelflags & THR_CANCEL_EXITING) != 0) {
+	if (curthread->cancelling) {
 		char msg[128];
 		snprintf(msg, sizeof(msg), "Thread %p has called "
 		    "pthread_exit() from a destructor. POSIX 1003.1 "
@@ -96,7 +96,7 @@ _pthread_exit(void *status)
 	}
 
 	/* Flag this thread as exiting. */
-	atomic_set_int(&curthread->cancelflags, THR_CANCEL_EXITING);
+	curthread->cancelling = 1;
 	
 	_thr_exit_cleanup();
 

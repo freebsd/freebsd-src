@@ -402,7 +402,8 @@ init_main_thread(struct pthread *thread)
 	 */
 	thread->magic = THR_MAGIC;
 
-	thread->cancelflags = PTHREAD_CANCEL_ENABLE | PTHREAD_CANCEL_DEFERRED;
+	thread->cancel_enable = 1;
+	thread->cancel_async = 0;
 	thr_set_name(thread->tid, "initial thread");
 
 	/* Initialize the mutex queue: */
