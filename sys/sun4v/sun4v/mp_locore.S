@@ -53,7 +53,7 @@ __FBSDID("$FreeBSD$");
 	mov	0, %o1				! ctx0
 	ldx	[%l2 + 8], %o2			! TTE
 	mov	MAP_ITLB|MAP_DTLB, %o3		
-	mov	MAP_PERM_ADDR, %o5
+	mov	MMU_MAP_PERM_ADDR, %o5
 	ta	FAST_TRAP
 #ifdef DEBUG
 	brz	%o0, 9f

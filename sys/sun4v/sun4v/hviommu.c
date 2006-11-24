@@ -565,7 +565,7 @@ hviommu_map_pages(struct hviommu *him, bus_addr_t dvmaddr, uint64_t *iottes, pag
 	while (cntdone < iottecnt) {
 		if ((err = hv_pci_iommu_map(him->him_handle, VA_TO_TSBID(him,
 		    dvmaddr), iottecnt, PCI_MAP_ATTR_READ | PCI_MAP_ATTR_WRITE,
-		    (io_page_list_t *)pmap_kextract((vm_offset_t)&iottes[0]),
+		    (io_page_list_t)pmap_kextract((vm_offset_t)&iottes[0]),
 		    &mapcnt))) {
 			DPRINTF("iommu_map: err: %ld\n", err);
 			mapcnt = 1;
