@@ -47,7 +47,7 @@ format and the compression.
 The library currently has read support for:
 .Bl -bullet -compact
 .It
-old-style tar
+old-style tar archives,
 .It
 most variants of the POSIX
 .Dq ustar
@@ -59,7 +59,11 @@ format,
 .It
 GNU-format tar archives,
 .It
-POSIX octet-oriented cpio archives.
+most common cpio archive formats,
+.It
+ISO9660 CD images (with or without RockRidge extensions),
+.It
+Zip archives.
 .El
 The library automatically detects archives compressed with
 .Xr gzip 1 ,
@@ -186,11 +190,10 @@ pathname, file permissions, or ownership.
 .Pp
 Once you have finished reading data from the archive, you
 should call
+.Fn archive_read_close
+to close the archive, then call
 .Fn archive_read_finish
-to release all resources.
-In particular,
-.Fn archive_read_finish
-closes the archive and frees any memory that was allocated by the library.
+to release all resources, including all memory allocated by the library.
 .Pp
 The
 .Xr archive_read 3
@@ -259,7 +262,7 @@ in arbitrary character sets that exceed
 Most functions return zero on success, non-zero on error.
 The return value indicates the general severity of the error, ranging
 from
-.Cm ARCHIVE_WARNING ,
+.Cm ARCHIVE_WARN ,
 which indicates a minor problem that should probably be reported
 to the user, to
 .Cm ARCHIVE_FATAL ,
