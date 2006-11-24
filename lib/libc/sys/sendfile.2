@@ -25,7 +25,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd October 31, 2005
+.Dd November 24, 2006
 .Dt SENDFILE 2
 .Os
 .Sh NAME
@@ -130,7 +130,7 @@ implementation of
 .Fn sendfile
 is "zero-copy", meaning that it has been optimized so that copying of the file data is avoided.
 .Sh TUNING
-Internally, this system call uses a special
+On some architectures, this system call internally uses a special
 .Fn sendfile
 buffer
 .Pq Vt "struct sf_buf"
@@ -184,6 +184,13 @@ variables show current and peak
 buffers usage respectively.
 These values may also be viewed through
 .Nm netstat Fl m .
+.Pp
+If a value of zero is reported for
+.Va kern.ipc.nsfbufs ,
+your architecture does not need to use
+.Fn sendfile
+buffers because their task can be efficiently performed
+by the generic virtual memory structures.
 .Sh RETURN VALUES
 .Rv -std sendfile
 .Sh ERRORS
@@ -262,6 +269,16 @@ The socket peer has closed the connection.
 .Xr socket 2 ,
 .Xr writev 2 ,
 .Xr tuning 7
+.Rs
+.%A K. Elmeleegy
+.%A A. Chanda
+.%A A. L. Cox
+.%A W. Zwaenepoel
+.%T A Portable Kernel Abstraction for Low-Overhead Ephemeral Mapping Management
+.%J The Proceedings of the 2005 USENIX Annual Technical Conference
+.%P pp 223-236
+.%D 2005
+.Re
 .Sh HISTORY
 The
 .Fn sendfile
