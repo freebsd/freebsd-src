@@ -313,7 +313,7 @@ END(hv_cpu_qinfo)
  */
 ENTRY(hv_cpu_mondo_send)
 	ldx	[PCPU(MONDO_DATA_RA)], %o2
-	mov	HV_INTR_SEND, %o5
+	mov	CPU_MONDO_SEND, %o5
 	ta	FAST_TRAP
 	retl
 	  membar	#Sync	
@@ -659,11 +659,10 @@ END(hv_mem_sync)
  * 
  */
 ENTRY(hv_intr_devino_to_sysino)
-	mov	INTR_DEVINO_TO_SYSINO, %o5
+	mov	INTR_DEVINO2SYSINO, %o5
 	ta	FAST_TRAP
-	stx	%o1, [%o2]
 	retl
-	  nop
+	  stx	%o1, [%o2]	
 END(hv_intr_devino_to_sysino)
 
 /*
@@ -680,7 +679,7 @@ ENTRY(hv_intr_getenabled)
 	mov	INTR_GETENABLED, %o5
 	ta	FAST_TRAP
 	retl
-  	  stx	%o1, [%o2]	  
+  	  st	%o1, [%o2]	  
 END(hv_intr_getenabled)
 
 /*
@@ -714,7 +713,7 @@ ENTRY(hv_intr_getstate)
 	mov	INTR_GETSTATE, %o5
 	ta	FAST_TRAP
 	retl
-  	  stx	%o1, [%o2]	  
+  	  st	%o1, [%o2]	  
 END(hv_intr_getstate)
 
 /*
@@ -749,7 +748,7 @@ ENTRY(hv_intr_gettarget)
 	mov	INTR_GETTARGET, %o5
 	ta	FAST_TRAP
 	retl
-  	  stx	%o1, [%o2]	  
+  	  st	%o1, [%o2]	  
 END(hv_intr_gettarget)
 
 /*
@@ -1213,7 +1212,7 @@ END(hv_ldc_set_map_table)
 ENTRY(hv_ldc_get_map_table)
 	mov	%o1, %o3
 	mov	%o2, %o4
-	mov	LDC_MAPIN, %o5
+	mov	LDC_GET_MAPTABLE, %o5
 	ta	FAST_TRAP
 	stx	%o1, [%o3]
 	retl
@@ -1313,6 +1312,20 @@ END(hv_ldc_revoke)
  *
  */
 ENTRY(hv_pci_iommu_map)
+	save	%sp, -CCFSZ, %sp
+	mov	%i0, %o0
+	mov	%i1, %o1
+	mov	%i2, %o2
+	mov	%i3, %o3
+	mov	%i4, %o4
+	mov	PCI_IOMMU_MAP, %o5
+	ta	FAST_TRAP
+	brnz	%o0, 1f
+	  mov	%o0, %i0
+	stuw	%o1, [%i5]
+1:
+	ret
+	  restore
 END(hv_pci_iommu_map)
 
 /*
@@ -1327,12 +1340,10 @@ END(hv_pci_iommu_map)
  *
  */
 ENTRY(hv_pci_iommu_demap)
-	mov	%o3, %o4
 	mov	PCI_IOMMU_DEMAP, %o5
 	ta	FAST_TRAP
-	brnz	%o0, 1f
-	  nop
-	stx	%o1, [%o4]
+	brz,a	%o0, 1f
+	  stuw	%o1, [%o3]
 1:	retl
 	  nop	
 END(hv_pci_iommu_demap)
@@ -1355,7 +1366,7 @@ ENTRY(hv_pci_iommu_getmap)
 	ta	FAST_TRAP
 	brnz	%o0, 1f
 	  nop
-	stx	%o1, [%o3]
+	st	%o1, [%o3]
 	stx	%o2, [%o4]
 1:	retl
 	  nop	
@@ -1396,6 +1407,14 @@ END(hv_pci_iommu_getbypass)
  *
  */
 ENTRY(hv_pci_config_get)
+	mov	PCI_CONFIG_GET, %o5
+	ta	FAST_TRAP
+	brnz	%o0, 1f
+	  movrnz %o1, -1, %o2
+	brz,a	%o1, 1f
+	  stuw	%o2, [%o4]
+1:	retl
+	  nop	
 END(hv_pci_config_get)
 
 /*
@@ -1436,7 +1455,7 @@ ENTRY(hv_pci_peek)
 	ta	FAST_TRAP
 	brnz	%o0, 1f
 	  nop
-	stx	%o1, [%o3]
+	st	%o1, [%o3]
 	stx	%o2, [%o4]
 1:	retl
 	  nop	
@@ -1457,6 +1476,20 @@ END(hv_pci_peek)
  *
  */	
 ENTRY(hv_pci_poke)
+	save	%sp, -CCFSZ, %sp
+	mov	%i0, %o0
+	mov	%i1, %o1
+	mov	%i2, %o2
+	mov	%i3, %o3
+	mov	%i4, %o4
+	mov	PCI_POKE, %o5
+	ta	FAST_TRAP
+	brnz	%o0, 1f
+	  mov	%o0, %i0
+	stuw	%o1, [%i5]
+1:
+	ret
+	  restore
 END(hv_pci_poke)
 
 /*

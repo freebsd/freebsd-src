@@ -62,6 +62,7 @@ extern uint64_t hv_mach_watchdog(uint64_t timeout, uint64_t *time_remaining);
 extern uint64_t hv_cpu_yield(void);
 extern uint64_t hv_cpu_state(uint64_t cpuid, uint64_t *state);
 extern uint64_t hv_cpu_mondo_send(int ncpu, vm_paddr_t cpulist_ra);
+extern uint64_t hv_cpu_qconf(int queue, vm_paddr_t ra, int nentries);
 
 /*
  * Section 12 MMU Services
@@ -93,6 +94,13 @@ extern uint64_t hv_mem_scrub(vm_paddr_t ra, uint64_t length, uint64_t *scrubbed)
 /*
  * Section 14 Device Interrupt Services
  */
+extern uint64_t hv_intr_devino_to_sysino(devhandle_t dev_hdl, uint32_t devino, uint64_t *sysino);
+extern uint64_t hv_intr_getenabled(uint64_t sysino, int *enabled);
+extern uint64_t hv_intr_setenabled(uint64_t sysino, int enabled);
+extern uint64_t hv_intr_getstate(uint64_t sysino, int *state);
+extern uint64_t hv_intr_setstate(uint64_t sysino, int state);
+extern uint64_t hv_intr_gettarget(uint64_t sysino, int *cpuid);
+extern uint64_t hv_intr_settarget(uint64_t sysino, int cpuid);
 
 /*
  * Section 15 Time of Day Services
@@ -173,19 +181,26 @@ extern uint64_t hv_ldc_rx_set_qhead(uint64_t ldc_id, uint64_t head_offset);
  *
  */
 
-extern uint64_t hv_pci_iommu_map(devhandle_t dh, uint64_t tsbid, uint64_t nttes, uint64_t io_attributes, 
-				 vm_paddr_t io_page_list, pages_t *nttes_mapped);
+typedef union pci_cfg_data {
+	uint8_t b;
+	uint16_t w;
+	uint32_t dw;
+	uint64_t qw;
+} pci_cfg_data_t;
+
+extern uint64_t hv_pci_iommu_map(devhandle_t dh, uint64_t tsbid, uint64_t nttes, io_attributes_t io_attributes, 
+				 io_page_list_t io_page_list, pages_t *nttes_mapped);
 extern uint64_t hv_pci_iommu_demap(devhandle_t dh, uint64_t tsbid, uint64_t nttes, pages_t *nttes_demapped);
-extern uint64_t hv_pci_iommu_getmap(devhandle_t dh, uint64_t tsbid, uint64_t nttes, uint64_t *io_attributes, 
+extern uint64_t hv_pci_iommu_getmap(devhandle_t dh, uint64_t tsbid,  io_attributes_t *io_attributes, 
 				    vm_paddr_t *ra);
 extern uint64_t hv_pci_iommu_getbypass(devhandle_t dh, vm_paddr_t ra, uint64_t io_attributes, uint64_t *io_addr);
 extern uint64_t hv_pci_config_get(devhandle_t dh, uint64_t pci_device, uint64_t pci_config_offset, uint64_t size,
-				  uint64_t *error, uint64_t *data);
+				  pci_cfg_data_t *data);
 extern uint64_t hv_pci_config_put(devhandle_t dh, uint64_t pci_device, uint64_t pci_config_offset, uint64_t size,
-				  uint64_t data, uint64_t *error_flag);
-extern uint64_t hv_pci_peek(devhandle_t dh, vm_paddr_t ra, uint64_t size, uint64_t *error_flag, uint64_t *data);
+				  pci_cfg_data_t data);
+extern uint64_t hv_pci_peek(devhandle_t dh, vm_paddr_t ra, uint64_t size, uint32_t *error_flag, uint64_t *data);
 extern uint64_t hv_pci_poke(devhandle_t dh, vm_paddr_t ra, uint64_t size, uint64_t data, uint64_t pci_device, 
-			    uint64_t *error_flag);
+			    uint32_t *error_flag);
 extern uint64_t hv_pci_dma_sync(devhandle_t dh, vm_paddr_t ra, uint64_t size, uint64_t io_sync_direction, 
 			    uint64_t *nsynced);
 
