@@ -49,7 +49,7 @@ __FBSDID("$FreeBSD$");
 #include <dev/ofw/openfirm.h>
 
 
-#include <machine/hypervisor_api.h>
+#include <machine/hv_api.h>
 
 #define	HVD_BLOCKSIZE	512
 

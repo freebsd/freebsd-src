@@ -43,6 +43,8 @@ __FBSDID("$FreeBSD$");
 
 #include <machine/bus.h>
 #include <machine/bus_common.h>
+#include <machine/hypervisorvar.h>
+#include <machine/hv_api.h>
 #include <machine/intr_machdep.h>
 #include <machine/nexusvar.h>
 #include <machine/resource.h>
@@ -265,24 +267,24 @@ vnex_setup_intr(device_t dev, device_t child, struct resource *res, int flags,
        
 	cfg = SUN4V_REG_SPEC2CFG_HDL(reg);
 
-	if (hvio_intr_devino_to_sysino(cfg, (uint32_t)ino, &ihdl) != H_EOK) {
+	if (hv_intr_devino_to_sysino(cfg, (uint32_t)ino, &ihdl) != H_EOK) {
 		error = ENXIO;
 		goto fail;
 	}
 
 	cpuid = 0;
 
-	if (hvio_intr_settarget(ihdl, cpuid) != H_EOK) {
+	if (hv_intr_settarget(ihdl, cpuid) != H_EOK) {
 		error = ENXIO;
 		goto fail;
 	}
 
-	if (hvio_intr_setstate(ihdl, HV_INTR_IDLE_STATE) != H_EOK) {
+	if (hv_intr_setstate(ihdl, HV_INTR_IDLE_STATE) != H_EOK) {
 		error = ENXIO;
 		goto fail;
 	}
 
-	if (hvio_intr_setvalid(ihdl, HV_INTR_VALID) != H_EOK) {
+	if (hv_intr_setenabled(ihdl, HV_INTR_ENABLED) != H_EOK) {
 		error = ENXIO;
 		goto fail;
 	}

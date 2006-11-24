@@ -41,7 +41,7 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/rman.h>
 
-#include <machine/hypervisor_api.h>
+#include <machine/hv_api.h>
 #include <machine/mdesc_bus.h>
 #include <machine/cddl/mdesc.h>
 #include <machine/cddl/mdesc_impl.h>
