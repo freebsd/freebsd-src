@@ -53,11 +53,10 @@
  * 
  */
 ENTRY(api_set_version)
-	mov     %o3, %o4
 	mov     API_SET_VERSION, %o5
 	ta      CORE_TRAP
 	retl
-	  stx   %o1, [%o4]
+	  stx   %o1, [%o3]
 END(api_set_version)
 
 /*
@@ -313,6 +312,11 @@ END(hv_cpu_qinfo)
  * 
  */
 ENTRY(hv_cpu_mondo_send)
+	ldx	[PCPU(MONDO_DATA_RA)], %o2
+	mov	HV_INTR_SEND, %o5
+	ta	FAST_TRAP
+	retl
+	  membar	#Sync	
 END(hv_cpu_mondo_send)
 
 /*
@@ -399,6 +403,10 @@ END(hv_mmu_tsb_ctxnon0)
  * 
  */
 ENTRY(hv_mmu_demap_page)
+	mov	MMU_DEMAP_PAGE, %o5
+	ta	FAST_TRAP
+	retl
+	  nop
 END(hv_mmu_demap_page)
 
 /*
@@ -413,6 +421,10 @@ END(hv_mmu_demap_page)
  * 
  */
 ENTRY(hv_mmu_demap_ctx)
+	mov	MMU_DEMAP_CTX, %o5
+	ta	FAST_TRAP
+	retl
+	  nop
 END(hv_mmu_demap_ctx)
 
 /*
@@ -427,6 +439,10 @@ END(hv_mmu_demap_ctx)
  * 
  */
 ENTRY(hv_mmu_demap_all)
+	mov	MMU_DEMAP_ALL, %o5
+	ta	FAST_TRAP
+	retl
+	  nop
 END(hv_mmu_demap_all)
 
 /*
@@ -441,6 +457,10 @@ END(hv_mmu_demap_all)
  * 
  */
 ENTRY(hv_mmu_map_addr)
+	mov	MMU_MAP_ADDR, %o5
+	ta	FAST_TRAP
+	retl
+	  nop
 END(hv_mmu_map_addr)
 
 /*
@@ -455,6 +475,10 @@ END(hv_mmu_map_addr)
  * 
  */
 ENTRY(hv_mmu_map_perm_addr)
+	mov	MMU_MAP_PERM_ADDR, %o5
+	ta	FAST_TRAP
+	retl
+	  nop
 END(hv_mmu_map_perm_addr)
 
 /*
@@ -468,6 +492,10 @@ END(hv_mmu_map_perm_addr)
  * 
  */
 ENTRY(hv_mmu_unmap_addr)
+	mov	MMU_UNMAP_ADDR, %o5
+	ta	FAST_TRAP
+	retl
+	  nop
 END(hv_mmu_unmap_addr)
 
 /*
@@ -481,6 +509,10 @@ END(hv_mmu_unmap_addr)
  * 
  */
 ENTRY(hv_mmu_unmap_perm_addr)
+	mov	MMU_UNMAP_PERM_ADDR, %o5
+	ta	FAST_TRAP
+	retl
+	  nop
 END(hv_mmu_unmap_perm_addr)
 
 /*
@@ -489,10 +521,15 @@ END(hv_mmu_unmap_perm_addr)
  * arg0 raddr        (%o0)
  *		
  * ret0 status       (%o0)
- * ret1 prev_raddr   (%o0)
+ * ret1 prev_raddr   (%o1)
  * 
  */
 ENTRY(hv_mmu_fault_area_conf)
+	mov	%o1, %o2
+	mov	MMU_FAULT_AREA_CONF, %o5
+	ta	FAST_TRAP
+	retl
+	  stx	%o1, [%o2]
 END(hv_mmu_fault_area_conf)
 
 /*
@@ -505,6 +542,10 @@ END(hv_mmu_fault_area_conf)
  * 
  */
 ENTRY(hv_mmu_enable)
+	mov	MMU_ENABLE, %o5
+	ta	FAST_TRAP
+	retl
+	  nop
 END(hv_mmu_enable)
 
 /*
@@ -518,6 +559,11 @@ END(hv_mmu_enable)
  * 
  */
 ENTRY(hv_mmu_tsb_ctx0_info)
+	mov	%o1, %o2
+	mov	MMU_TSB_CTX0_INFO, %o5
+	ta	FAST_TRAP
+	retl
+	  stx	%o1, [%o2]	
 END(hv_mmu_tsb_ctx0_info)
 
 /*
@@ -531,6 +577,11 @@ END(hv_mmu_tsb_ctx0_info)
  * 
  */
 ENTRY(hv_mmu_tsb_ctxnon0_info)
+	mov	%o1, %o2
+	mov	MMU_TSB_CTXNON0_INFO, %o5
+	ta	FAST_TRAP
+	retl
+	  stx	%o1, [%o2]	
 END(hv_mmu_tsb_ctxnon0_info)
 
 /*
@@ -541,6 +592,12 @@ END(hv_mmu_tsb_ctxnon0_info)
  * 
  */
 ENTRY(hv_mmu_fault_area_info)
+	mov	%o0, %o2
+	mov	MMU_FAULT_AREA_INFO, %o5
+	ta	FAST_TRAP
+	retl
+	  stx	%o1, [%o2]	
+	
 END(hv_mmu_fault_area_info)
 
 /*
