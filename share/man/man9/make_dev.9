@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd September 20, 2005
+.Dd November 24, 2006
 .Os
 .Dt MAKE_DEV 9
 .Sh NAME
@@ -57,9 +57,19 @@ the presence of the new device.
 The device will be owned by
 .Va uid ,
 with the group ownership as
-.Va gid ,
-and with the name as specified in
-.Va name .
+.Va gid .
+The name is the expansion of 
+.Va fmt 
+and following arguments as
+.Xr printf 9
+would print it.
+The name determines its path under
+.Pa /dev
+or other 
+.Xr devfs 5 
+mount point and may contain slash
+.Ql /
+characters to denote subdirectories.
 The permissions of the file specified in
 .Va perms
 are defined in
