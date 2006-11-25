@@ -908,10 +908,10 @@ no_kernend:
 	fillkpt(R(IdlePTD), $PG_RW)
 
 /*
- * For the non-PSE case, install PDEs for PTs covering the kernel.
+ * For the non-PSE case, install PDEs for PTs covering the KVA.
  * For the PSE case, do the same, but clobber the ones corresponding
- * to the kernel (from btext to KERNend) with 4M ('PS') PDEs immediately
- * after.
+ * to the kernel (from btext to KERNend) with 4M (2M for PAE) ('PS')
+ * PDEs immediately after.
  */
 	movl	R(KPTphys), %eax
 	movl	$KPTDI, %ebx
