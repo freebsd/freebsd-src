@@ -25,15 +25,27 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd February 29, 2004
+.Dd November 22, 2006
 .Dt UMCT 4
 .Os
 .Sh NAME
 .Nm umct
 .Nd Magic Control Technology USB-RS232 converter driver
 .Sh SYNOPSIS
+To compile this driver into the kernel,
+place the following lines in your
+kernel configuration file:
+.Bd -ragged -offset indent
 .Cd "device umct"
 .Cd "device ucom"
+.Ed
+.Pp
+Alternatively, to load the driver as a
+module at boot time, place the following line in
+.Xr loader.conf 5 :
+.Bd -literal -offset indent
+umct_load="YES"
+.Ed
 .Sh DESCRIPTION
 The
 .Nm
