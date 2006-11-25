@@ -818,8 +818,22 @@ ENTRY(hv_cons_getchar)
 	mov	%o0, %o2
 	mov	CONS_GETCHAR, %o5
 	ta	FAST_TRAP
+	brnz,a	%o0, 1f		
+	  mov	1, %o0
+
+	cmp	%o1, H_BREAK
+	be	1f
+	  mov	%o1, %o0
+
+	cmp	%o1, H_HUP
+	be	1f
+	  mov	%o1, %o0
+
+	stb	%o1, [%o2]	
+	mov	0, %o0
+1:
 	retl
-  	  stx	%o1, [%o2]	  
+	  nop
 END(hv_cons_getchar)
 	
 /*
