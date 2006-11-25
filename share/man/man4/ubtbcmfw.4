@@ -25,14 +25,26 @@
 .\" $Id: ubtbcmfw.4,v 1.3 2003/05/21 19:37:35 max Exp $
 .\" $FreeBSD$
 .\"
-.Dd April 28, 2003
+.Dd November 22, 2006
 .Dt UBTBCMFW 4
 .Os
 .Sh NAME
 .Nm ubtbcmfw
 .Nd Firmware driver for Broadcom BCM2033 chip based Bluetooth USB devices
 .Sh SYNOPSIS
+To compile this driver into the kernel,
+place the following line in your
+kernel configuration file:
+.Bd -ragged -offset indent
 .Cd "device ubtbcmfw"
+.Ed
+.Pp
+Alternatively, to load the driver as a
+module at boot time, place the following line in
+.Xr loader.conf 5 :
+.Bd -literal -offset indent
+ubtbcmfw_load="YES"
+.Ed
 .Sh DESCRIPTION
 The
 .Nm

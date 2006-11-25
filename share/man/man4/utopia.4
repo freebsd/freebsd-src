@@ -27,14 +27,26 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd May 8, 2003
+.Dd November 22, 2006
 .Dt UTOPIA 4
 .Os
 .Sh NAME
 .Nm utopia
 .Nd "driver module for ATM PHY chips"
 .Sh SYNOPSIS
-.Cd device utopia
+To compile this driver into the kernel,
+place the following line in your
+kernel configuration file:
+.Bd -ragged -offset indent
+.Cd "device utopia"
+.Ed
+.Pp
+Alternatively, to load the driver as a
+module at boot time, place the following line in
+.Xr loader.conf 5 :
+.Bd -literal -offset indent
+utopia_load="YES"
+.Ed
 .Sh DESCRIPTION
 This module is used by all ATM drivers for cards that use
 PMC-Sierra S/Uni and IDT77105/IDT77155

@@ -24,14 +24,26 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd November 7, 2003
+.Dd November 22, 2006
 .Dt UFM 4
 .Os
 .Sh NAME
 .Nm ufm
 .Nd USB driver for Cypress Semiconductor FM Radio
 .Sh SYNOPSIS
+To compile this driver into the kernel,
+place the following line in your
+kernel configuration file:
+.Bd -ragged -offset indent
 .Cd "device ufm"
+.Ed
+.Pp
+Alternatively, to load the driver as a
+module at boot time, place the following line in
+.Xr loader.conf 5 :
+.Bd -literal -offset indent
+ufm_load="YES"
+.Ed
 .Sh DESCRIPTION
 The
 .Nm
