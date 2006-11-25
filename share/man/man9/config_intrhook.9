@@ -87,8 +87,10 @@ Specifically, hooks are run at
 which is immeidately after the scheduler is started,
 and just before the root file system device is discovered.
 .Sh RETURN VALUES
-Zero return values mean success.
-Non-zero return values mean failure.
+A zero return value means the hook was successfully added to the queue
+(with either deferred or immediate execution).
+A non-zero return value means the hook could not be added to the queue
+because it was already on the queue.
 .Sh SEE ALSO
 .Xr DEVICE_ATTACH 9
 .Sh HISTORY
