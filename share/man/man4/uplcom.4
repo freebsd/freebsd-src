@@ -36,15 +36,27 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd July 30, 2005
+.Dd November 22, 2006
 .Dt UPLCOM 4
 .Os
 .Sh NAME
 .Nm uplcom
 .Nd USB support for Prolific PL-2303/2303X/2303HX serial adapters driver
 .Sh SYNOPSIS
+To compile this driver into the kernel,
+place the following lines in your
+kernel configuration file:
+.Bd -ragged -offset indent
 .Cd "device uplcom"
 .Cd "device ucom"
+.Ed
+.Pp
+Alternatively, to load the driver as a
+module at boot time, place the following line in
+.Xr loader.conf 5 :
+.Bd -literal -offset indent
+uplcom_load="YES"
+.Ed
 .Sh DESCRIPTION
 The
 .Nm

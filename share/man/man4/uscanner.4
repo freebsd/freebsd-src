@@ -30,14 +30,26 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd November 14, 2006
+.Dd November 22, 2006
 .Dt USCANNER 4
 .Os
 .Sh NAME
 .Nm uscanner
 .Nd USB Scanners
 .Sh SYNOPSIS
+To compile this driver into the kernel,
+place the following line in your
+kernel configuration file:
+.Bd -ragged -offset indent
 .Cd "device uscanner"
+.Ed
+.Pp
+Alternatively, to load the driver as a
+module at boot time, place the following line in
+.Xr loader.conf 5 :
+.Bd -literal -offset indent
+uscanner_load="YES"
+.Ed
 .Sh DESCRIPTION
 The
 .Nm
