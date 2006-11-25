@@ -1310,6 +1310,7 @@ nd6_rtrequest(req, rt, info)
 		nd6_inuse++;
 		nd6_allocated++;
 		bzero(ln, sizeof(*ln));
+		RT_ADDREF(rt);
 		ln->ln_rt = rt;
 		callout_init(&ln->ln_timer_ch, 0);
 
@@ -1420,6 +1421,7 @@ nd6_rtrequest(req, rt, info)
 		ln->ln_prev->ln_next = ln->ln_next;
 		ln->ln_prev = NULL;
 		nd6_llinfo_settimer(ln, -1);
+		RT_REMREF(rt);
 		rt->rt_llinfo = 0;
 		rt->rt_flags &= ~RTF_LLINFO;
 		clear_llinfo_pqueue(ln);
@@ -1955,13 +1957,16 @@ nd6_output(ifp, origifp, m0, dst, rt0)
 	/*
 	 * next hop determination.  This routine is derived from ether_output.
 	 */
+	/* NB: the locking here is tortuous... */
+	if (rt != NULL)
+		RT_LOCK(rt);
 again:
-	if (rt) {
+	if (rt != NULL) {
 		if ((rt->rt_flags & RTF_UP) == 0) {
+			RT_UNLOCK(rt);
 			rt0 = rt = rtalloc1((struct sockaddr *)dst, 1, 0UL);
 			if (rt != NULL) {
 				RT_REMREF(rt);
-				RT_UNLOCK(rt);
 				if (rt->rt_ifp != ifp)
 					/*
 					 * XXX maybe we should update ifp too,
@@ -1986,6 +1991,7 @@ again:
 			 */
 			if (!nd6_is_addr_neighbor(gw6, ifp) ||
 			    in6ifa_ifpwithaddr(ifp, &gw6->sin6_addr)) {
+				RT_UNLOCK(rt);
 				/*
 				 * We allow this kind of tricky route only
 				 * when the outgoing interface is p2p.
@@ -1997,18 +2003,32 @@ again:
 				goto sendpkt;
 			}
 
-			if (rt->rt_gwroute == 0)
+			if (rt->rt_gwroute == NULL)
 				goto lookup;
-			if (((rt = rt->rt_gwroute)->rt_flags & RTF_UP) == 0) {
-				RT_LOCK(rt);
-				rtfree(rt); rt = rt0;
+			rt = rt->rt_gwroute;
+			RT_LOCK(rt);		/* NB: gwroute */
+			if ((rt->rt_flags & RTF_UP) == 0) {
+				rtfree(rt);	/* unlock gwroute */
+				rt = rt0;
 			lookup:
-				rt->rt_gwroute = rtalloc1(rt->rt_gateway, 1, 0UL);
-				if ((rt = rt->rt_gwroute) == 0)
+				RT_UNLOCK(rt0);
+				rt = rtalloc1(rt->rt_gateway, 1, 0UL);
+				if (rt == rt0) {
+					rt0->rt_gwroute = NULL;
+					RT_REMREF(rt0);
+					RT_UNLOCK(rt0);
 					senderr(EHOSTUNREACH);
-				RT_UNLOCK(rt);
+				}
+				RT_LOCK(rt0);
+				rt0->rt_gwroute = rt;
+				if (rt == NULL) {
+					RT_UNLOCK(rt0);
+					senderr(EHOSTUNREACH);
+				}
 			}
+			RT_UNLOCK(rt0);
 		}
+		RT_UNLOCK(rt);
 	}
 
 	/*
