@@ -10,7 +10,6 @@ TARGET_ARCH?=	${MACHINE_ARCH}
 S?=/usr/src/sys
 LOCALBASE?=/usr/local
 
-MFILES+=contrib/dev/ath/freebsd/ah_if.m
 MFILES+=dev/acpica/acpi_if.m
 MFILES+=dev/ata/ata_if.m
 MFILES+=dev/eisa/eisa_if.m
