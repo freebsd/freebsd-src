@@ -158,6 +158,16 @@
 #define	INTR_GETTARGET	        0xa5
 #define	INTR_SETTARGET	        0xa6
 
+#define VINTR_GETCOOKIE         0xa7 
+#define VINTR_SETCOOKIE         0xa8 
+#define VINTR_GETENABLED        0xa9 
+#define VINTR_SETENABLED        0xaa 
+#define VINTR_GETSTATE          0xab 
+#define VINTR_SETSTATE          0xac 
+#define VINTR_GETTARGET         0xad 
+#define VINTR_SETTARGET         0xae 
+
+
 #define	PCI_IOMMU_MAP		0xb0
 #define	PCI_IOMMU_DEMAP	        0xb1
 #define	PCI_IOMMU_GETMAP	0xb2
