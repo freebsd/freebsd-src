@@ -142,10 +142,11 @@ fkchan_setup(device_t dev)
 	c->parentsnddev = d;
 	/*
 	 * Fake channel is such a blessing in disguise. Using this,
-	 * we can keep track prefered virtual channel speed without
+	 * we can keep track prefered virtual channel speed / format without
 	 * querying kernel hint repetitively (see vchan_create / vchan.c).
 	 */
 	c->speed = 0;
+	c->format = 0;
 	snprintf(c->name, CHN_NAMELEN, "%s:fake", device_get_nameunit(dev));
 
 	return c;

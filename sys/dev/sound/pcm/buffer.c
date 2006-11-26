@@ -254,10 +254,7 @@ sndbuf_clear(struct snd_dbuf *b, unsigned int length)
 	if (length > b->bufsize)
 		length = b->bufsize;
 
-	if (b->fmt & AFMT_SIGNED)
-		data = 0x00;
-	else
-		data = 0x80;
+	data = sndbuf_zerodata(b->fmt);
 
 	i = sndbuf_getfreeptr(b);
 	p = sndbuf_getbuf(b);
@@ -278,18 +275,8 @@ sndbuf_clear(struct snd_dbuf *b, unsigned int length)
 void
 sndbuf_fillsilence(struct snd_dbuf *b)
 {
-	int i;
-	u_char data, *p;
-
-	if (b->fmt & AFMT_SIGNED)
-		data = 0x00;
-	else
-		data = 0x80;
-
-	i = 0;
-	p = sndbuf_getbuf(b);
-	while (i < b->bufsize)
-		p[i++] = data;
+	if (b->bufsize > 0)
+		memset(sndbuf_getbuf(b), sndbuf_zerodata(b->fmt), b->bufsize);
 	b->rp = 0;
 	b->rl = b->bufsize;
 }
@@ -543,6 +530,52 @@ sndbuf_updateprevtotal(struct snd_dbuf *b)
 	b->prev_total = b->total;
 }
 
+unsigned int
+snd_xbytes(unsigned int v, unsigned int from, unsigned int to)
+{
+	unsigned int w, x, y;
+
+	if (from == to)
+		return v;
+
+	if (from == 0 || to == 0 || v == 0)
+		return 0;
+
+	x = from;
+	y = to;
+	while (y != 0) {
+		w = x % y;
+		x = y;
+		y = w;
+	}
+	from /= x;
+	to /= x;
+
+	return (unsigned int)(((u_int64_t)v * to) / from);
+}
+
+unsigned int
+sndbuf_xbytes(unsigned int v, struct snd_dbuf *from, struct snd_dbuf *to)
+{
+	if (from == NULL || to == NULL || v == 0)
+		return 0;
+
+	return snd_xbytes(v, sndbuf_getbps(from) * sndbuf_getspd(from),
+	    sndbuf_getbps(to) * sndbuf_getspd(to));
+}
+
+u_int8_t
+sndbuf_zerodata(u_int32_t fmt)
+{
+	if (fmt & AFMT_SIGNED)
+		return (0x00);
+	else if (fmt & AFMT_MU_LAW)
+		return (0x7f);
+	else if (fmt & AFMT_A_LAW)
+		return (0x55);
+	return (0x80);
+}
+
 /************************************************************/
 
 /**
@@ -624,15 +657,20 @@ sndbuf_dispose(struct snd_dbuf *b, u_int8_t *to, unsigned int count)
 int
 sndbuf_feed(struct snd_dbuf *from, struct snd_dbuf *to, struct pcm_channel *channel, struct pcm_feeder *feeder, unsigned int count)
 {
+	unsigned int cnt;
+
 	KASSERT(count > 0, ("can't feed 0 bytes"));
 
 	if (sndbuf_getfree(to) < count)
 		return EINVAL;
 
-	count = FEEDER_FEED(feeder, channel, to->tmpbuf, count, from);
-	if (count)
-		sndbuf_acquire(to, to->tmpbuf, count);
-	/* the root feeder has called sndbuf_dispose(from, , bytes fetched) */
+	do {
+		cnt = FEEDER_FEED(feeder, channel, to->tmpbuf, count, from);
+		if (cnt)
+			sndbuf_acquire(to, to->tmpbuf, cnt);
+		/* the root feeder has called sndbuf_dispose(from, , bytes fetched) */
+		count -= cnt;
+	} while (count && cnt);
 
 	return 0;
 }
@@ -682,12 +720,8 @@ sndbuf_clearshadow(struct snd_dbuf *b)
 	KASSERT(b != NULL, ("b is a null pointer"));
 	KASSERT(b->sl >= 0, ("illegal shadow length"));
 
-	if ((b->shadbuf != NULL) && (b->sl > 0)) {
-		if (b->fmt & AFMT_SIGNED)
-			memset(b->shadbuf, 0x00, b->sl);
-		else
-			memset(b->shadbuf, 0x80, b->sl);
-	}
+	if ((b->shadbuf != NULL) && (b->sl > 0))
+		memset(b->shadbuf, sndbuf_zerodata(b->fmt), b->sl);
 }
 
 #ifdef OSSV4_EXPERIMENT

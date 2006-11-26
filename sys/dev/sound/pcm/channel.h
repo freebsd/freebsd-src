@@ -79,6 +79,7 @@ struct pcm_channel {
 	u_int32_t align;
 
 	int volume;
+	int latency;
 	u_int32_t speed;
 	u_int32_t format;
 	u_int32_t flags;
@@ -86,7 +87,8 @@ struct pcm_channel {
 	u_int32_t blocks;
 
 	int direction;
-	unsigned int interrupts, xruns;
+	unsigned int interrupts, xruns, feedcount;
+	unsigned int timeout;
 	struct snd_dbuf *bufhard, *bufsoft;
 	struct snddev_info *parentsnddev;
 	struct pcm_channel *parentchannel;
@@ -142,6 +144,7 @@ int chn_setvolume(struct pcm_channel *c, int left, int right);
 int chn_setspeed(struct pcm_channel *c, int speed);
 int chn_setformat(struct pcm_channel *c, u_int32_t fmt);
 int chn_setblocksize(struct pcm_channel *c, int blkcnt, int blksz);
+int chn_setlatency(struct pcm_channel *c, int latency);
 int chn_trigger(struct pcm_channel *c, int go);
 int chn_getptr(struct pcm_channel *c);
 struct pcmchan_caps *chn_getcaps(struct pcm_channel *c);
@@ -181,6 +184,30 @@ int chn_getpeaks(struct pcm_channel *c, int *lpeak, int *rpeak);
 
 int fmtvalid(u_int32_t fmt, u_int32_t *fmtlist);
 
+#define AFMTSTR_NONE		0 /* "s16le" */
+#define AFMTSTR_SIMPLE		1 /* "s16le:s" */
+#define AFMTSTR_NUM		2 /* "s16le:2" */
+#define AFMTSTR_FULL		3 /* "s16le:stereo" */
+
+#define AFMTSTR_MAXSZ		13 /* include null terminator */
+
+#define AFMTSTR_MONO_RETURN	0
+#define AFMTSTR_STEREO_RETURN	1
+
+struct afmtstr_table {
+	char *fmtstr;
+	u_int32_t format;
+};
+
+int afmtstr_swap_sign(char *);
+int afmtstr_swap_endian(char *);
+u_int32_t afmtstr2afmt(struct afmtstr_table *, const char *, int);
+u_int32_t afmt2afmtstr(struct afmtstr_table *, u_int32_t, char *, size_t, int, int);
+
+extern int chn_latency;
+extern int chn_latency_profile;
+extern int report_soft_formats;
+
 #define PCMDIR_VIRTUAL 2
 #define PCMDIR_PLAY 1
 #define PCMDIR_REC -1
@@ -217,6 +244,17 @@ int fmtvalid(u_int32_t fmt, u_int32_t *fmtlist);
 #define CHN_N_VOLUME		0x00000004
 #define CHN_N_BLOCKSIZE		0x00000008
 #define CHN_N_TRIGGER		0x00000010
+
+#define CHN_LATENCY_MIN		0
+#define CHN_LATENCY_MAX		10
+#define CHN_LATENCY_DEFAULT	5
+#define CHN_POLICY_MIN		CHN_LATENCY_MIN
+#define CHN_POLICY_MAX		CHN_LATENCY_MAX
+#define CHN_POLICY_DEFAULT	CHN_LATENCY_DEFAULT
+
+#define CHN_LATENCY_PROFILE_MIN		0
+#define CHN_LATENCY_PROFILE_MAX		1
+#define CHN_LATENCY_PROFILE_DEFAULT	CHN_LATENCY_PROFILE_MAX
 
 /*
  * This should be large enough to hold all pcm data between

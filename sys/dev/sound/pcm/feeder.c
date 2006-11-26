@@ -35,6 +35,11 @@ MALLOC_DEFINE(M_FEEDER, "feeder", "pcm feeder");
 #define MAXFEEDERS 	256
 #undef FEEDER_DEBUG
 
+int feeder_buffersize = FEEDBUFSZ;
+TUNABLE_INT("hw.snd.feeder_buffersize", &feeder_buffersize);
+SYSCTL_INT(_hw_snd, OID_AUTO, feeder_buffersize, CTLFLAG_RD,
+	&feeder_buffersize, FEEDBUFSZ, "feeder buffer size");
+
 struct feedertab_entry {
 	SLIST_ENTRY(feedertab_entry) link;
 	struct feeder_class *feederclass;
@@ -71,6 +76,53 @@ feeder_register(void *p)
 		fte->idx = feedercnt;
 		SLIST_INSERT_HEAD(&feedertab, fte, link);
 		feedercnt++;
+
+		/* initialize global variables */
+
+		if (snd_verbose < 0 || snd_verbose > 3)
+			snd_verbose = 1;
+
+		if (snd_unit < 0 || snd_unit > PCMMAXDEV)
+			snd_unit = 0;
+		
+		if (snd_maxautovchans < 0 ||
+		    snd_maxautovchans > SND_MAXVCHANS)
+			snd_maxautovchans = 0;
+
+		if (chn_latency < CHN_LATENCY_MIN ||
+		    chn_latency > CHN_LATENCY_MAX)
+			chn_latency = CHN_LATENCY_DEFAULT;
+
+		if (chn_latency_profile < CHN_LATENCY_PROFILE_MIN ||
+		    chn_latency_profile > CHN_LATENCY_PROFILE_MAX)
+			chn_latency_profile = CHN_LATENCY_PROFILE_DEFAULT;
+
+		if (feeder_buffersize < FEEDBUFSZ_MIN ||
+		    	    feeder_buffersize > FEEDBUFSZ_MAX)
+			feeder_buffersize = FEEDBUFSZ;
+
+		if (feeder_rate_min < FEEDRATE_MIN ||
+			    feeder_rate_max < FEEDRATE_MIN ||
+			    feeder_rate_min > FEEDRATE_MAX ||
+			    feeder_rate_max > FEEDRATE_MAX ||
+			    !(feeder_rate_min < feeder_rate_max)) {
+			feeder_rate_min = FEEDRATE_RATEMIN;
+			feeder_rate_max = FEEDRATE_RATEMAX;
+		}
+
+		if (feeder_rate_round < FEEDRATE_ROUNDHZ_MIN ||
+		    	    feeder_rate_round > FEEDRATE_ROUNDHZ_MAX)
+			feeder_rate_round = FEEDRATE_ROUNDHZ;
+
+		if (bootverbose)
+			printf("%s: snd_unit=%d snd_maxautovchans=%d "
+			    "latency=%d feeder_buffersize=%d "
+			    "feeder_rate_min=%d feeder_rate_max=%d "
+			    "feeder_rate_round=%d\n",
+			    __func__, snd_unit, snd_maxautovchans,
+			    chn_latency, feeder_buffersize,
+			    feeder_rate_min, feeder_rate_max,
+			    feeder_rate_round);
 
 		/* we've got our root feeder so don't veto pcm loading anymore */
 		pcm_veto_load = 0;
@@ -259,98 +311,113 @@ chainok(struct pcm_feeder *test, struct pcm_feeder *stop)
 	return 1;
 }
 
-static struct pcm_feeder *
-feeder_fmtchain(u_int32_t *to, struct pcm_feeder *source, struct pcm_feeder *stop, int maxdepth)
-{
-	struct feedertab_entry *fte;
-	struct pcm_feeder *try, *ret;
+/*
+ * See feeder_fmtchain() for the mumbo-jumbo ridiculous explaination
+ * of what the heck is this FMT_Q_*
+ */
+#define FMT_Q_UP	1
+#define FMT_Q_DOWN	2
+#define FMT_Q_EQ	3
+#define FMT_Q_MULTI	4
 
-	DEB(printf("trying %s (0x%08x -> 0x%08x)...\n", source->class->name, source->desc->in, source->desc->out));
-	if (fmtvalid(source->desc->out, to)) {
-		DEB(printf("got it\n"));
-		return source;
-	}
-
-	if (maxdepth < 0)
-		return NULL;
-
-	SLIST_FOREACH(fte, &feedertab, link) {
-		if (fte->desc == NULL)
-			continue;
-		if (fte->desc->type != FEEDER_FMT)
-			continue;
-		if (fte->desc->in == source->desc->out) {
-			try = feeder_create(fte->feederclass, fte->desc);
-			if (try) {
-				try->source = source;
-				ret = chainok(try, stop)? feeder_fmtchain(to, try, stop, maxdepth - 1) : NULL;
-				if (ret != NULL)
-					return ret;
-				feeder_destroy(try);
-			}
-		}
-	}
-	/* printf("giving up %s...\n", source->class->name); */
-
-	return NULL;
-}
-
-int
-chn_fmtscore(u_int32_t fmt)
-{
-	if (fmt & AFMT_32BIT)
-		return 60;
-	if (fmt & AFMT_24BIT)
-		return 50;
-	if (fmt & AFMT_16BIT)
-		return 40;
-	if (fmt & (AFMT_U8|AFMT_S8))
-		return 30;
-	if (fmt & AFMT_MU_LAW)
-		return 20;
-	if (fmt & AFMT_A_LAW)
-		return 10;
-	return 0;
-}
+/*
+ * 14bit format scoring
+ * --------------------
+ *
+ *  13  12  11  10   9   8        2        1   0    offset
+ * +---+---+---+---+---+---+-------------+---+---+
+ * | X | X | X | X | X | X | X X X X X X | X | X |
+ * +---+---+---+---+---+---+-------------+---+---+
+ *   |   |   |   |   |   |        |        |   |
+ *   |   |   |   |   |   |        |        |   +--> signed?
+ *   |   |   |   |   |   |        |        |
+ *   |   |   |   |   |   |        |        +------> bigendian?
+ *   |   |   |   |   |   |        |
+ *   |   |   |   |   |   |        +---------------> total channels
+ *   |   |   |   |   |   |
+ *   |   |   |   |   |   +------------------------> AFMT_A_LAW
+ *   |   |   |   |   |
+ *   |   |   |   |   +----------------------------> AFMT_MU_LAW
+ *   |   |   |   |
+ *   |   |   |   +--------------------------------> AFMT_8BIT
+ *   |   |   |
+ *   |   |   +------------------------------------> AFMT_16BIT
+ *   |   |
+ *   |   +----------------------------------------> AFMT_24BIT
+ *   |
+ *   +--------------------------------------------> AFMT_32BIT
+ */
+#define score_signeq(s1, s2)	(((s1) & 0x1) == ((s2) & 0x1))
+#define score_endianeq(s1, s2)	(((s1) & 0x2) == ((s2) & 0x2))
+#define score_cheq(s1, s2)	(((s1) & 0xfc) == ((s2) & 0xfc))
+#define score_val(s1)		((s1) & 0x3f00)
+#define score_cse(s1)		((s1) & 0x7f)
 
 u_int32_t
-chn_fmtbestbit(u_int32_t fmt, u_int32_t *fmts)
+chn_fmtscore(u_int32_t fmt)
 {
-	u_int32_t best;
-	int i, score, score2, oldscore;
+	u_int32_t ret;
+
+	ret = 0;
+	if (fmt & AFMT_SIGNED)
+		ret |= 1 << 0;
+	if (fmt & AFMT_BIGENDIAN)
+		ret |= 1 << 1;
+	if (fmt & AFMT_STEREO)
+		ret |= (2 & 0x3f) << 2;
+	else
+		ret |= (1 & 0x3f) << 2;
+	if (fmt & AFMT_A_LAW)
+		ret |= 1 << 8;
+	else if (fmt & AFMT_MU_LAW)
+		ret |= 1 << 9;
+	else if (fmt & AFMT_8BIT)
+		ret |= 1 << 10;
+	else if (fmt & AFMT_16BIT)
+		ret |= 1 << 11;
+	else if (fmt & AFMT_24BIT)
+		ret |= 1 << 12;
+	else if (fmt & AFMT_32BIT)
+		ret |= 1 << 13;
+
+	return ret;
+}
+
+static u_int32_t
+chn_fmtbestfunc(u_int32_t fmt, u_int32_t *fmts, int cheq)
+{
+	u_int32_t best, score, score2, oldscore;
+	int i;
+
+	if (fmt == 0 || fmts == NULL || fmts[0] == 0)
+		return 0;
+
+	if (fmtvalid(fmt, fmts))
+		return fmt;
 
 	best = 0;
 	score = chn_fmtscore(fmt);
 	oldscore = 0;
 	for (i = 0; fmts[i] != 0; i++) {
 		score2 = chn_fmtscore(fmts[i]);
-		if (oldscore == 0 || (score2 == score) ||
-			    (score2 > oldscore && score2 < score) ||
-			    (score2 < oldscore && score2 > score) ||
-			    (oldscore < score && score2 > oldscore)) {
-			best = fmts[i];
-			oldscore = score2;
-		}
-	}
-	return best;
-}
-
-u_int32_t
-chn_fmtbeststereo(u_int32_t fmt, u_int32_t *fmts)
-{
-	u_int32_t best;
-	int i, score, score2, oldscore;
-
-	best = 0;
-	score = chn_fmtscore(fmt);
-	oldscore = 0;
-	for (i = 0; fmts[i] != 0; i++) {
-		if ((fmt & AFMT_STEREO) == (fmts[i] & AFMT_STEREO)) {
-			score2 = chn_fmtscore(fmts[i]);
-			if (oldscore == 0 || (score2 == score) ||
-				    (score2 > oldscore && score2 < score) ||
-				    (score2 < oldscore && score2 > score) ||
-				    (oldscore < score && score2 > oldscore)) {
+		if (cheq && !score_cheq(score, score2))
+			continue;
+		if (oldscore == 0 ||
+			    (score_val(score2) == score_val(score)) ||
+			    (score_val(score2) == score_val(oldscore)) ||
+			    (score_val(score2) > score_val(oldscore) &&
+			    score_val(score2) < score_val(score)) ||
+			    (score_val(score2) < score_val(oldscore) &&
+			    score_val(score2) > score_val(score)) ||
+			    (score_val(oldscore) < score_val(score) &&
+			    score_val(score2) > score_val(oldscore))) {
+			if (score_val(oldscore) != score_val(score2) ||
+				    score_cse(score) == score_cse(score2) ||
+				    ((score_cse(oldscore) != score_cse(score) &&
+				    !score_endianeq(score, oldscore) &&
+				    (score_endianeq(score, score2) ||
+				    (!score_signeq(score, oldscore) &&
+				    score_signeq(score, score2)))))) {
 				best = fmts[i];
 				oldscore = score2;
 			}
@@ -360,21 +427,36 @@ chn_fmtbeststereo(u_int32_t fmt, u_int32_t *fmts)
 }
 
 u_int32_t
+chn_fmtbestbit(u_int32_t fmt, u_int32_t *fmts)
+{
+	return chn_fmtbestfunc(fmt, fmts, 0);
+}
+
+u_int32_t
+chn_fmtbeststereo(u_int32_t fmt, u_int32_t *fmts)
+{
+	return chn_fmtbestfunc(fmt, fmts, 1);
+}
+
+u_int32_t
 chn_fmtbest(u_int32_t fmt, u_int32_t *fmts)
 {
 	u_int32_t best1, best2;
-	int score, score1, score2;
+	u_int32_t score, score1, score2;
+
+	if (fmtvalid(fmt, fmts))
+		return fmt;
 
 	best1 = chn_fmtbeststereo(fmt, fmts);
 	best2 = chn_fmtbestbit(fmt, fmts);
 
-	if (best1 != 0 && best2 != 0) {
+	if (best1 != 0 && best2 != 0 && best1 != best2) {
 		if (fmt & AFMT_STEREO)
 			return best1;
 		else {
-			score = chn_fmtscore(fmt);
-			score1 = chn_fmtscore(best1);
-			score2 = chn_fmtscore(best2);
+			score = score_val(chn_fmtscore(fmt));
+			score1 = score_val(chn_fmtscore(best1));
+			score2 = score_val(chn_fmtscore(best2));
 			if (score1 == score2 || score1 == score)
 				return best1;
 			else if (score2 == score)
@@ -389,6 +471,184 @@ chn_fmtbest(u_int32_t fmt, u_int32_t *fmts)
 		return best2;
 }
 
+static struct pcm_feeder *
+feeder_fmtchain(u_int32_t *to, struct pcm_feeder *source, struct pcm_feeder *stop, int maxdepth)
+{
+	struct feedertab_entry *fte, *ftebest;
+	struct pcm_feeder *try, *ret;
+	uint32_t fl, qout, qsrc, qdst;
+	int qtype;
+
+	if (to == NULL || to[0] == 0)
+		return NULL;
+
+	DEB(printf("trying %s (0x%08x -> 0x%08x)...\n", source->class->name, source->desc->in, source->desc->out));
+	if (fmtvalid(source->desc->out, to)) {
+		DEB(printf("got it\n"));
+		return source;
+	}
+
+	if (maxdepth < 0)
+		return NULL;
+
+	/*
+	 * WARNING: THIS IS _NOT_ FOR THE FAINT HEART
+	 * Disclaimer: I don't expect anybody could understand this
+	 *             without deep logical and mathematical analysis
+	 *             involving various unnamed probability theorem.
+	 *
+	 * This "Best Fit Random Chain Selection" (BLEHBLEHWHATEVER) algorithm
+	 * is **extremely** difficult to digest especially when applied to
+	 * large sets / numbers of random chains (feeders), each with
+	 * unique characteristic providing different sets of in/out format.
+	 *
+	 * Basically, our FEEDER_FMT (see feeder_fmt.c) chains characteristic:
+	 * 1) Format chains
+	 *    1.1 "8bit to any, not to 8bit"
+	 *      1.1.1 sign can remain consistent, e.g: u8 -> u16[le|be]
+	 *      1.1.2 sign can be changed, e.g: u8 -> s16[le|be]
+	 *      1.1.3 endian can be changed, e.g: u8 -> u16[le|be]
+	 *      1.1.4 both can be changed, e.g: u8 -> [u|s]16[le|be]
+	 *    1.2 "Any to 8bit, not from 8bit"
+	 *      1.2.1 sign can remain consistent, e.g: s16le -> s8
+	 *      1.2.2 sign can be changed, e.g: s16le -> u8
+	 *      1.2.3 source endian can be anything e.g: s16[le|be] -> s8
+	 *      1.2.4 source endian / sign can be anything e.g: [u|s]16[le|be] -> u8
+	 *    1.3 "Any to any where BOTH input and output either 8bit or non-8bit"
+	 *      1.3.1 endian MUST remain consistent
+	 *      1.3.2 sign CAN be changed
+	 *    1.4 "Long jump" is allowed, e.g: from 16bit to 32bit, excluding
+	 *        16bit to 24bit .
+	 * 2) Channel chains (mono <-> stereo)
+	 *    2.1 Both endian and sign MUST remain consistent
+	 * 3) Endian chains (big endian <-> little endian)
+	 *    3.1 Channels and sign MUST remain consistent
+	 * 4) Sign chains (signed <-> unsigned)
+	 *    4.1 Channels and endian MUST remain consistent
+	 *
+	 * .. and the mother of all chaining rules:
+	 *
+	 * Rules 0: Source and destination MUST not contain multiple selections.
+	 *          (qtype != FMT_Q_MULTI)
+	 *
+	 * First of all, our caller ( chn_fmtchain() ) will reduce the possible
+	 * multiple from/to formats to a single best format using chn_fmtbest().
+	 * Then, using chn_fmtscore(), we determine the chaining characteristic.
+	 * Our main goal is to narrow it down until it reach FMT_Q_EQ chaining
+	 * type while still adhering above chaining rules.
+	 *
+	 * The need for this complicated chaining procedures is inevitable,
+	 * since currently we have more than 200 different types of FEEDER_FMT
+	 * doing various unique format conversion. Without this (the old way),
+	 * it is possible to generate broken chain since it doesn't do any
+	 * sanity checking to ensure that the output format is "properly aligned"
+	 * with the direction of conversion (quality up/down/equal).
+	 *
+	 *   Conversion: s24le to s32le
+	 *   Possible chain: 1) s24le -> s32le (correct, optimized)
+	 *                   2) s24le -> s16le -> s32le
+	 *                      (since we have feeder_24to16 and feeder_16to32)
+	 *                      +-- obviously broken!
+	 *
+	 * Using scoring mechanisme, this will ensure that the chaining
+	 * process do the right thing, or at least, give the best chain
+	 * possible without causing quality (the 'Q') degradation.
+	 */
+
+	qdst = chn_fmtscore(to[0]);
+	qsrc = chn_fmtscore(source->desc->out);
+
+#define score_q(s1)			score_val(s1)
+#define score_8bit(s1)			((s1) & 0x700)
+#define score_non8bit(s1)		(!score_8bit(s1))
+#define score_across8bit(s1, s2)	((score_8bit(s1) && score_non8bit(s2)) || \
+					(score_8bit(s2) && score_non8bit(s1)))
+
+#define FMT_CHAIN_Q_UP(s1, s2)		(score_q(s1) < score_q(s2))
+#define FMT_CHAIN_Q_DOWN(s1, s2)	(score_q(s1) > score_q(s2))
+#define FMT_CHAIN_Q_EQ(s1, s2)		(score_q(s1) == score_q(s2))
+#define FMT_Q_DOWN_FLAGS(s1, s2)	(0x1 | (score_across8bit(s1, s2) ? \
+						0x2 : 0x0))
+#define FMT_Q_UP_FLAGS(s1, s2)		FMT_Q_DOWN_FLAGS(s1, s2)
+#define FMT_Q_EQ_FLAGS(s1, s2)		(0x3ffc | \
+					((score_cheq(s1, s2) && \
+						score_endianeq(s1, s2)) ? \
+						0x1 : 0x0) | \
+					((score_cheq(s1, s2) && \
+						score_signeq(s1, s2)) ? \
+						0x2 : 0x0))
+
+	/* Determine chaining direction and set matching flag */
+	fl = 0x3fff;
+	if (to[1] != 0) {
+		qtype = FMT_Q_MULTI;
+		printf("%s: WARNING: FMT_Q_MULTI chaining. Expect the unexpected.\n", __func__);
+	} else if (FMT_CHAIN_Q_DOWN(qsrc, qdst)) {
+		qtype = FMT_Q_DOWN;
+		fl = FMT_Q_DOWN_FLAGS(qsrc, qdst);
+	} else if (FMT_CHAIN_Q_UP(qsrc, qdst)) {
+		qtype = FMT_Q_UP;
+		fl = FMT_Q_UP_FLAGS(qsrc, qdst);
+	} else {
+		qtype = FMT_Q_EQ;
+		fl = FMT_Q_EQ_FLAGS(qsrc, qdst);
+	}
+
+	ftebest = NULL;
+
+	SLIST_FOREACH(fte, &feedertab, link) {
+		if (fte->desc == NULL)
+			continue;
+		if (fte->desc->type != FEEDER_FMT)
+			continue;
+		qout = chn_fmtscore(fte->desc->out);
+#define FMT_Q_MULTI_VALIDATE(qt)		((qt) == FMT_Q_MULTI)
+#define FMT_Q_FL_MATCH(qfl, s1, s2)		(((s1) & (qfl)) == ((s2) & (qfl)))
+#define FMT_Q_UP_VALIDATE(qt, s1, s2, s3)	((qt) == FMT_Q_UP && \
+						score_q(s3) >= score_q(s1) && \
+						score_q(s3) <= score_q(s2))
+#define FMT_Q_DOWN_VALIDATE(qt, s1, s2, s3)	((qt) == FMT_Q_DOWN && \
+						score_q(s3) <= score_q(s1) && \
+						score_q(s3) >= score_q(s2))
+#define FMT_Q_EQ_VALIDATE(qt, s1, s2)		((qt) == FMT_Q_EQ && \
+						score_q(s1) == score_q(s2))
+		if (fte->desc->in == source->desc->out &&
+			    (FMT_Q_MULTI_VALIDATE(qtype) ||
+			    (FMT_Q_FL_MATCH(fl, qout, qdst) &&
+			    (FMT_Q_UP_VALIDATE(qtype, qsrc, qdst, qout) ||
+			    FMT_Q_DOWN_VALIDATE(qtype, qsrc, qdst, qout) ||
+			    FMT_Q_EQ_VALIDATE(qtype, qdst, qout))))) {
+			try = feeder_create(fte->feederclass, fte->desc);
+			if (try) {
+				try->source = source;
+				ret = chainok(try, stop) ? feeder_fmtchain(to, try, stop, maxdepth - 1) : NULL;
+				if (ret != NULL)
+					return ret;
+				feeder_destroy(try);
+			}
+		} else if (fte->desc->in == source->desc->out) {
+			/* XXX quality must be considered! */
+			if (ftebest == NULL)
+				ftebest = fte;
+		}
+	}
+
+	if (ftebest != NULL) {
+		try = feeder_create(ftebest->feederclass, ftebest->desc);
+		if (try) {
+			try->source = source;
+			ret = chainok(try, stop) ? feeder_fmtchain(to, try, stop, maxdepth - 1) : NULL;
+			if (ret != NULL)
+				return ret;
+			feeder_destroy(try);
+		}
+	}
+
+	/* printf("giving up %s...\n", source->class->name); */
+
+	return NULL;
+}
+
 u_int32_t
 chn_fmtchain(struct pcm_channel *c, u_int32_t *to)
 {
@@ -401,13 +661,15 @@ chn_fmtchain(struct pcm_channel *c, u_int32_t *to)
 	KASSERT(to != NULL, ("to == NULL"));
 	KASSERT(to[0] != 0, ("to[0] == 0"));
 
+	if (c == NULL || c->feeder == NULL || to == NULL || to[0] == 0)
+		return 0;
+
 	stop = c->feeder;
+	best = 0;
 
 	if (c->direction == PCMDIR_REC && c->feeder->desc->type == FEEDER_ROOT) {
 		from = chn_getcaps(c)->fmtlist;
-		if (fmtvalid(to[0], from))
-			from = to;
-		else {
+		if (from[1] != 0) {
 			best = chn_fmtbest(to[0], from);
 			if (best != 0) {
 				tmpfrom[0] = best;
@@ -420,49 +682,60 @@ chn_fmtchain(struct pcm_channel *c, u_int32_t *to)
 		tmpfrom[1] = 0;
 		from = tmpfrom;
 		if (to[1] != 0) {
-			if (fmtvalid(tmpfrom[0], to)) {
-				tmpto[0] = tmpfrom[0];
+			best = chn_fmtbest(from[0], to);
+			if (best != 0) {
+				tmpto[0] = best;
 				tmpto[1] = 0;
 				to = tmpto;
-			} else {
-				best = chn_fmtbest(tmpfrom[0], to);
-				if (best != 0) {
-					tmpto[0] = best;
-					tmpto[1] = 0;
-					to = tmpto;
-				}
 			}
 		}
 	}
 
-	i = 0;
-	best = 0;
-	bestmax = 100;
-	while (from[i] != 0) {
-		c->feeder->desc->out = from[i];
-		try = NULL;
-		max = 0;
-		while (try == NULL && max < 8) {
-			try = feeder_fmtchain(to, c->feeder, stop, max);
-			if (try == NULL)
-				max++;
-		}
-		if (try != NULL && max < bestmax) {
-			bestmax = max;
-			best = from[i];
-		}
-		while (try != NULL && try != stop) {
-			del = try;
-			try = try->source;
-			feeder_destroy(del);
-		}
-		i++;
-	}
-	if (best == 0)
-		return 0;
+#define FEEDER_FMTCHAIN_MAXDEPTH	8
 
-	c->feeder->desc->out = best;
-	try = feeder_fmtchain(to, c->feeder, stop, bestmax);
+	try = NULL;
+
+	if (to[0] != 0 && from[0] != 0 &&
+		    to[1] == 0 && from[1] == 0) {
+		max = 0;
+		best = from[0];
+		c->feeder->desc->out = best;
+		do {
+			try = feeder_fmtchain(to, c->feeder, stop, max);
+			DEB(if (try != NULL) {
+				printf("%s: 0x%08x -> 0x%08x (maxdepth: %d)\n",
+					__func__, from[0], to[0], max)
+			});
+		} while (try == NULL && max++ < FEEDER_FMTCHAIN_MAXDEPTH);
+	} else {
+		printf("%s: Using the old-way format chaining!\n", __func__);
+		i = 0;
+		best = 0;
+		bestmax = 100;
+		while (from[i] != 0) {
+			c->feeder->desc->out = from[i];
+			try = NULL;
+			max = 0;
+			do {
+				try = feeder_fmtchain(to, c->feeder, stop, max);
+			} while (try == NULL && max++ < FEEDER_FMTCHAIN_MAXDEPTH);
+			if (try != NULL && max < bestmax) {
+				bestmax = max;
+				best = from[i];
+			}
+			while (try != NULL && try != stop) {
+				del = try;
+				try = try->source;
+				feeder_destroy(del);
+			}
+			i++;
+		}
+		if (best == 0)
+			return 0;
+
+		c->feeder->desc->out = best;
+		try = feeder_fmtchain(to, c->feeder, stop, bestmax);
+	}
 	if (try == NULL)
 		return 0;
 
@@ -521,28 +794,78 @@ static int
 feed_root(struct pcm_feeder *feeder, struct pcm_channel *ch, u_int8_t *buffer, u_int32_t count, void *source)
 {
 	struct snd_dbuf *src = source;
-	int l;
-	u_int8_t x;
+	int l, offset;
 
 	KASSERT(count > 0, ("feed_root: count == 0"));
 	/* count &= ~((1 << ch->align) - 1); */
 	KASSERT(count > 0, ("feed_root: aligned count == 0 (align = %d)", ch->align));
 
+	if (++ch->feedcount == 0)
+		ch->feedcount = 2;
+
 	l = min(count, sndbuf_getready(src));
-	sndbuf_dispose(src, buffer, l);
 
 	/* When recording only return as much data as available */
-	if (ch->direction == PCMDIR_REC)
+	if (ch->direction == PCMDIR_REC) {
+		sndbuf_dispose(src, buffer, l);
 		return l;
+	}
 
-/*
-	if (l < count)
-		printf("appending %d bytes\n", count - l);
-*/
 
-	x = (sndbuf_getfmt(src) & AFMT_SIGNED)? 0 : 0x80;
-	while (l < count)
-		buffer[l++] = x;
+	offset = count - l;
+
+	if (offset > 0) {
+		if (snd_verbose > 3)
+			printf("%s: (%s) %spending %d bytes "
+			    "(count=%d l=%d feed=%d)\n",
+			    __func__,
+			    (ch->flags & CHN_F_VIRTUAL) ? "virtual" : "hardware",
+			    (ch->feedcount == 1) ? "pre" : "ap",
+			    offset, count, l, ch->feedcount);
+
+		if (ch->feedcount == 1) {
+			if (offset > 0)
+				memset(buffer,
+				    sndbuf_zerodata(sndbuf_getfmt(src)),
+				    offset);
+			if (l > 0)
+				sndbuf_dispose(src, buffer + offset, l);
+			else
+				ch->feedcount--;
+		} else {
+			if (l > 0)
+				sndbuf_dispose(src, buffer, l);
+			if (offset > 0) {
+#if 1
+				memset(buffer + l,
+				    sndbuf_zerodata(sndbuf_getfmt(src)),
+				    offset);
+				if (!(ch->flags & CHN_F_CLOSING))
+					ch->xruns++;
+#else
+				if (l < 1 || (ch->flags & CHN_F_CLOSING)) {
+					memset(buffer + l,
+					    sndbuf_zerodata(sndbuf_getfmt(src)),
+					    offset);
+					if (!(ch->flags & CHN_F_CLOSING))
+						ch->xruns++;
+				} else {
+					int cp, tgt;
+
+					tgt = l;
+					while (offset > 0) {
+						cp = min(l, offset);
+						memcpy(buffer + tgt, buffer, cp);
+						offset -= cp;
+						tgt += cp;
+					}
+					ch->xruns++;
+				}
+#endif
+			}
+		}
+	} else if (l > 0)
+		sndbuf_dispose(src, buffer, l);
 
 	return count;
 }
@@ -561,8 +884,3 @@ static struct feeder_class feeder_root_class = {
 };
 SYSINIT(feeder_root, SI_SUB_DRIVERS, SI_ORDER_FIRST, feeder_register, &feeder_root_class);
 SYSUNINIT(feeder_root, SI_SUB_DRIVERS, SI_ORDER_FIRST, feeder_unregisterall, NULL);
-
-
-
-
-

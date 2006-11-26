@@ -631,7 +631,7 @@ sysctl_hw_snd_hwvol_mixer(SYSCTL_HANDLER_ARGS)
 
 	m = oidp->oid_arg1;
 	snd_mtxlock(m->lock);
-	strncpy(devname, snd_mixernames[m->hwvol_mixer], sizeof(devname));
+	strlcpy(devname, snd_mixernames[m->hwvol_mixer], sizeof(devname));
 	snd_mtxunlock(m->lock);
 	error = sysctl_handle_string(oidp, &devname[0], sizeof(devname), req);
 	snd_mtxlock(m->lock);
@@ -663,9 +663,11 @@ mixer_hwvol_init(device_t dev)
 	m->hwvol_mixer = SOUND_MIXER_VOLUME;
 	m->hwvol_step = 5;
 #ifdef SND_DYNSYSCTL
-	SYSCTL_ADD_INT(snd_sysctl_tree(dev), SYSCTL_CHILDREN(snd_sysctl_tree_top(dev)),
+	SYSCTL_ADD_INT(device_get_sysctl_ctx(dev),
+	    SYSCTL_CHILDREN(device_get_sysctl_tree(dev)),
             OID_AUTO, "hwvol_step", CTLFLAG_RW, &m->hwvol_step, 0, "");
-	SYSCTL_ADD_PROC(snd_sysctl_tree(dev), SYSCTL_CHILDREN(snd_sysctl_tree_top(dev)),
+	SYSCTL_ADD_PROC(device_get_sysctl_ctx(dev),
+	    SYSCTL_CHILDREN(device_get_sysctl_tree(dev)),
             OID_AUTO, "hwvol_mixer", CTLTYPE_STRING | CTLFLAG_RW, m, 0,
 	    sysctl_hw_snd_hwvol_mixer, "A", "");
 #endif

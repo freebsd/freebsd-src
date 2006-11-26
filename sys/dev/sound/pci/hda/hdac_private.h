@@ -266,7 +266,8 @@ struct hdac_chan {
 	struct hdac_dma	bdl_dma;
 	uint32_t spd, fmt, fmtlist[8], pcmrates[16];
 	uint32_t supp_stream_formats, supp_pcm_size_rate;
-	int ptr, prevptr, blkcnt, blksz;
+	uint32_t ptr, prevptr, blkcnt, blksz;
+	int active;
 	int dir;
 	int off;
 	int sid;
@@ -309,6 +310,14 @@ struct hdac_softc {
 	bus_dma_tag_t		chan_dmat;
 	int			chan_size;
 	int			chan_blkcnt;
+
+	/*
+	 * Polling
+	 */
+	int			polling;
+	int			poll_ticks;
+	struct callout		poll_hda;
+	struct callout		poll_hdac;
 
 #define HDAC_UNSOLQ_MAX		64
 #define HDAC_UNSOLQ_READY	0

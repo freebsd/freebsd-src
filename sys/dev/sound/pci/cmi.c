@@ -746,9 +746,9 @@ cmi_initsys(struct sc_info* sc)
 	   to a device specific sysctl "dev.pcm.X.yyy" via
 	   device_get_sysctl_*() as discussed on multimedia@ in msg-id
 	   <861wujij2q.fsf@xps.des.no> */
-	SYSCTL_ADD_INT(snd_sysctl_tree(sc->dev), 
-		       SYSCTL_CHILDREN(snd_sysctl_tree_top(sc->dev)),
-		       OID_AUTO, "_spdif_enabled", CTLFLAG_RW, 
+	SYSCTL_ADD_INT(device_get_sysctl_ctx(sc->dev), 
+		       SYSCTL_CHILDREN(device_get_sysctl_tree(sc->dev)),
+		       OID_AUTO, "spdif_enabled", CTLFLAG_RW, 
 		       &sc->spdif_enabled, 0, 
 		       "enable SPDIF output at 44.1 kHz and above");
 #endif /* SND_DYNSYSCTL */
