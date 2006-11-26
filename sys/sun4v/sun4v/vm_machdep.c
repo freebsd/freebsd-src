@@ -321,10 +321,7 @@ cpu_reset(void)
 			bspec[0] = '\0';
 		bspec[sizeof(bspec) - 1] = '\0';
 	}
-#ifdef notyet
-	/* XXX SUN4V_FIXME */
-	openfirmware_exit(&args);
-#endif
+	hv_mach_sir();
 }
 
 /*
