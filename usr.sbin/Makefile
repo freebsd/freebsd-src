@@ -105,7 +105,7 @@ SUBDIR=	ac \
 	${_ndp} \
 	newsyslog \
 	nfsd \
-	ngctl \
+	${_ngctl} \
 	nghook \
 	nologin \
 	ntp \
@@ -226,10 +226,6 @@ _rndc-confgen=		rndc-confgen
 _bluetooth=	bluetooth
 .endif
 
-.if ${MK_NS_CACHING} != "no"
-_cached=       cached
-.endif
-
 .if ${MK_OPENSSL} != "no"
 _keyserv=	keyserv
 .endif
@@ -267,8 +263,20 @@ _ypset=		ypset
 _authpf=	authpf
 .endif
 
+.if ${MK_LIBTHR} != "no" || \
+    (${MACHINE_ARCH} != "sparc64" && ${MK_LIBPTHREAD} != "no")
+_ngctl=		ngctl
+.endif
+
 .if ${MK_LPR} != "no"
 _lpr=		lpr
+.endif
+
+.if ${MK_NS_CACHING} != "no"
+.if ${MK_LIBTHR} != "no" || \
+    (${MACHINE_ARCH} != "sparc64" && ${MK_LIBPTHREAD} != "no")
+_cached=	cached
+.endif
 .endif
 
 .if ${MK_SENDMAIL} != "no"
@@ -305,7 +313,7 @@ _mount_smbfs=	mount_smbfs
 _mptable=	mptable
 _ndiscvt=	ndiscvt
 _pnpinfo=	pnpinfo
-.if ${MK_LIBPTHREAD} != "no"
+.if ${MK_LIBPTHREAD} != "no" || ${MK_LIBTHR} != "no"
 _pppctl=	pppctl
 .endif
 _sicontrol=	sicontrol
@@ -341,7 +349,7 @@ _mount_nwfs=	mount_nwfs
 _mount_smbfs=	mount_smbfs
 _mptable=	mptable
 _ndiscvt=	ndiscvt
-.if ${MK_LIBPTHREAD} != "no"
+.if ${MK_LIBPTHREAD} != "no" || ${MK_LIBTHR} != "no"
 _pppctl=	pppctl
 .endif
 _sicontrol=	sicontrol
@@ -355,7 +363,7 @@ _acpi=		acpi
 .endif
 _kgmon=		kgmon
 _mount_smbfs=	mount_smbfs
-.if ${MK_LIBPTHREAD} != "no"
+.if ${MK_LIBPTHREAD} != "no" || ${MK_LIBTHR} != "no"
 _pppctl=	pppctl
 .endif
 _zzz=		zzz

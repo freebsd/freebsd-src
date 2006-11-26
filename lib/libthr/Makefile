@@ -8,11 +8,11 @@
 # (for system call stubs) to CFLAGS below.  -DSYSLIBC_SCCS affects just the
 # system call stubs.
 
-.if ${MACHINE_ARCH} == "sparc64"
-SHLIBDIR?= /lib
-.endif
-
 .include <bsd.own.mk>
+
+.if ${MACHINE_ARCH} == "sparc64" || ${MK_LIBPTHREAD} == "no"
+SHLIBDIR= /lib
+.endif
 
 LIB=thr
 SHLIB_MAJOR= 2
@@ -42,7 +42,7 @@ PRECIOUSLIB=
 .include "${.CURDIR}/sys/Makefile.inc"
 .include "${.CURDIR}/thread/Makefile.inc"
 
-.if ${MACHINE_ARCH} == "sparc64"
+.if ${MACHINE_ARCH} == "sparc64" || ${MK_LIBPTHREAD} == "no"
 SYMLINKS+=lib${LIB}.a ${LIBDIR}/libpthread.a
 .if !defined(NO_PIC)
 SYMLINKS+=lib${LIB}.so ${LIBDIR}/libpthread.so
