@@ -80,56 +80,98 @@ __FBSDID("$FreeBSD$");
  * CDs with a single pass through the data, as required by libarchive.
  */
 
-/* Structure of on-disk PVD. */
-struct iso9660_primary_volume_descriptor {
-	unsigned char	type[1];
-	char	id[5];
-	unsigned char	version[1];
-	char	reserved1[1];
-	char	system_id[32];
-	char	volume_id[32];
-	char	reserved2[8];
-	char	volume_space_size[8];
-	char	reserved3[32];
-	char	volume_set_size[4];
-	char	volume_sequence_number[4];
-	char	logical_block_size[4];
-	char	path_table_size[8];
-	char	type_1_path_table[4];
-	char	opt_type_1_path_table[4];
-	char	type_m_path_table[4];
-	char	opt_type_m_path_table[4];
-	char	root_directory_record[34];
-	char	volume_set_id[128];
-	char	publisher_id[128];
-	char	preparer_id[128];
-	char	application_id[128];
-	char	copyright_file_id[37];
-	char	abstract_file_id[37];
-	char	bibliographic_file_id[37];
-	char	creation_date[17];
-	char	modification_date[17];
-	char	expiration_date[17];
-	char	effective_date[17];
-	char	file_structure_version[1];
-	char	reserved4[1];
-	char	application_data[512];
-};
+/* Structure of on-disk primary volume descriptor. */
+#define PVD_type_offset 0
+#define PVD_type_size 1
+#define PVD_id_offset (PVD_type_offset + PVD_type_size)
+#define PVD_id_size 5
+#define PVD_version_offset (PVD_id_offset + PVD_id_size)
+#define PVD_version_size 1
+#define PVD_reserved1_offset (PVD_version_offset + PVD_version_size)
+#define PVD_reserved1_size 1
+#define PVD_system_id_offset (PVD_reserved1_offset + PVD_reserved1_size)
+#define PVD_system_id_size 32
+#define PVD_volume_id_offset (PVD_system_id_offset + PVD_system_id_size)
+#define PVD_volume_id_size 32
+#define PVD_reserved2_offset (PVD_volume_id_offset + PVD_volume_id_size)
+#define PVD_reserved2_size 8
+#define PVD_volume_space_size_offset (PVD_reserved2_offset + PVD_reserved2_size)
+#define PVD_volume_space_size_size 8
+#define PVD_reserved3_offset (PVD_volume_space_size_offset + PVD_volume_space_size_size)
+#define PVD_reserved3_size 32
+#define PVD_volume_set_size_offset (PVD_reserved3_offset + PVD_reserved3_size)
+#define PVD_volume_set_size_size 4
+#define PVD_volume_sequence_number_offset (PVD_volume_set_size_offset + PVD_volume_set_size_size)
+#define PVD_volume_sequence_number_size 4
+#define PVD_logical_block_size_offset (PVD_volume_sequence_number_offset + PVD_volume_sequence_number_size)
+#define PVD_logical_block_size_size 4
+#define PVD_path_table_size_offset (PVD_logical_block_size_offset + PVD_logical_block_size_size)
+#define PVD_path_table_size_size 8
+#define PVD_type_1_path_table_offset (PVD_path_table_size_offset + PVD_path_table_size_size)
+#define PVD_type_1_path_table_size 4
+#define PVD_opt_type_1_path_table_offset (PVD_type_1_path_table_offset + PVD_type_1_path_table_size)
+#define PVD_opt_type_1_path_table_size 4
+#define PVD_type_m_path_table_offset (PVD_opt_type_1_path_table_offset + PVD_opt_type_1_path_table_size)
+#define PVD_type_m_path_table_size 4
+#define PVD_opt_type_m_path_table_offset (PVD_type_m_path_table_offset + PVD_type_m_path_table_size)
+#define PVD_opt_type_m_path_table_size 4
+#define PVD_root_directory_record_offset (PVD_opt_type_m_path_table_offset + PVD_opt_type_m_path_table_size)
+#define PVD_root_directory_record_size 34
+#define PVD_volume_set_id_offset (PVD_root_directory_record_offset + PVD_root_directory_record_size)
+#define PVD_volume_set_id_size 128
+#define PVD_publisher_id_offset (PVD_volume_set_id_offset + PVD_volume_set_id_size)
+#define PVD_publisher_id_size 128
+#define PVD_preparer_id_offset (PVD_publisher_id_offset + PVD_publisher_id_size)
+#define PVD_preparer_id_size 128
+#define PVD_application_id_offset (PVD_preparer_id_offset + PVD_preparer_id_size)
+#define PVD_application_id_size 128
+#define PVD_copyright_file_id_offset (PVD_application_id_offset + PVD_application_id_size)
+#define PVD_copyright_file_id_size 37
+#define PVD_abstract_file_id_offset (PVD_copyright_file_id_offset + PVD_copyright_file_id_size)
+#define PVD_abstract_file_id_size 37
+#define PVD_bibliographic_file_id_offset (PVD_abstract_file_id_offset + PVD_abstract_file_id_size)
+#define PVD_bibliographic_file_id_size 37
+#define PVD_creation_date_offset (PVD_bibliographic_file_id_offset + PVD_bibliographic_file_id_size)
+#define PVD_creation_date_size 17
+#define PVD_modification_date_offset (PVD_creation_date_offset + PVD_creation_date_size)
+#define PVD_modification_date_size 17
+#define PVD_expiration_date_offset (PVD_modification_date_offset + PVD_modification_date_size)
+#define PVD_expiration_date_size 17
+#define PVD_effective_date_offset (PVD_expiration_date_offset + PVD_expiration_date_size)
+#define PVD_effective_date_size 17
+#define PVD_file_structure_version_offset (PVD_effective_date_offset + PVD_effective_date_size)
+#define PVD_file_structure_version_size 1
+#define PVD_reserved4_offset (PVD_file_structure_version_offset + PVD_file_structure_version_size)
+#define PVD_reserved4_size 1
+#define PVD_application_data_offset (PVD_reserved4_offset + PVD_reserved4_size)
+#define PVD_application_data_size 512
 
 /* Structure of an on-disk directory record. */
-struct iso9660_directory_record {
-	unsigned char length[1];
-	unsigned char ext_attr_length[1];
-	unsigned char extent[8];
-	unsigned char size[8];
-	char date[7];
-	unsigned char flags[1];
-	unsigned char file_unit_size[1];
-	unsigned char interleave[1];
-	unsigned char volume_sequence_number[4];
-	unsigned char name_len[1];
-	char name[1];
-};
+/* Note:  ISO9660 stores each multi-byte integer twice, once in
+ * each byte order.  The sizes here are the size of just one
+ * of the two integers.  (This is why the offset of a field isn't
+ * the same as the offset+size of the previous field.) */
+#define DR_length_offset 0
+#define DR_length_size 1
+#define DR_ext_attr_length_offset 1
+#define DR_ext_attr_length_size 1
+#define DR_extent_offset 2
+#define DR_extent_size 4
+#define DR_size_offset 10
+#define DR_size_size 4
+#define DR_date_offset 18
+#define DR_date_size 7
+#define DR_flags_offset 25
+#define DR_flags_size 1
+#define DR_file_unit_size_offset 26
+#define DR_file_unit_size_size 1
+#define DR_interleave_offset 27
+#define DR_interleave_size 1
+#define DR_volume_sequence_number_offset 28
+#define DR_volume_sequence_number_size 2
+#define DR_name_len_offset 32
+#define DR_name_len_size 1
+#define DR_name_offset 33
 
 /*
  * Our private data.
@@ -188,18 +230,17 @@ static int	archive_read_format_iso9660_read_data(struct archive *,
 static int	archive_read_format_iso9660_read_header(struct archive *,
 		    struct archive_entry *);
 static const char *build_pathname(struct archive_string *, struct file_info *);
-static void	dump_isodirrec(FILE *, const struct iso9660_directory_record *);
+static void	dump_isodirrec(FILE *, const unsigned char *isodirrec);
 static time_t	time_from_tm(struct tm *);
-static time_t	isodate17(const void *);
-static time_t	isodate7(const void *);
-static int	isPVD(struct iso9660 *, const char *);
+static time_t	isodate17(const unsigned char *);
+static time_t	isodate7(const unsigned char *);
+static int	isPVD(struct iso9660 *, const unsigned char *);
 static struct file_info *next_entry(struct iso9660 *);
 static int	next_entry_seek(struct archive *a, struct iso9660 *iso9660,
 		    struct file_info **pfile);
 static struct file_info *
 		parse_file_info(struct iso9660 *iso9660,
-		    struct file_info *parent,
-		    const struct iso9660_directory_record *isodirrec);
+		    struct file_info *parent, const unsigned char *isodirrec);
 static void	parse_rockridge(struct iso9660 *iso9660,
 		    struct file_info *file, const unsigned char *start,
 		    const unsigned char *end);
@@ -279,9 +320,8 @@ archive_read_format_iso9660_bid(struct archive *a)
 }
 
 static int
-isPVD(struct iso9660 *iso9660, const char *h)
+isPVD(struct iso9660 *iso9660, const unsigned char *h)
 {
-	const struct iso9660_primary_volume_descriptor *voldesc;
 	struct file_info *file;
 
 	if (h[0] != 1)
@@ -289,13 +329,10 @@ isPVD(struct iso9660 *iso9660, const char *h)
 	if (memcmp(h+1, "CD001", 5) != 0)
 		return (0);
 
-
-	voldesc = (const struct iso9660_primary_volume_descriptor *)h;
-	iso9660->logical_block_size = toi(&voldesc->logical_block_size, 2);
+	iso9660->logical_block_size = toi(h + PVD_logical_block_size_offset, 2);
 
 	/* Store the root directory in the pending list. */
-	file = parse_file_info(iso9660, NULL,
-	    (struct iso9660_directory_record *)&voldesc->root_directory_record);
+	file = parse_file_info(iso9660, NULL, h + PVD_root_directory_record_offset);
 	add_entry(iso9660, file);
 	return (48);
 }
@@ -395,19 +432,17 @@ archive_read_format_iso9660_read_header(struct archive *a,
 			for (p = (const unsigned char *)block;
 			     *p != 0 && p < (const unsigned char *)block + bytes_read;
 			     p += *p) {
-				const struct iso9660_directory_record *dr
-				    = (const struct iso9660_directory_record *)p;
 				struct file_info *child;
 
 				/* Skip '.' entry. */
-				if (dr->name_len[0] == 1
-				    && dr->name[0] == '\0')
+				if (*(p + DR_name_len_offset) == 1
+				    && *(p + DR_name_offset) == '\0')
 					continue;
 				/* Skip '..' entry. */
-				if (dr->name_len[0] == 1
-				    && dr->name[0] == '\001')
+				if (*(p + DR_name_len_offset) == 1
+				    && *(p + DR_name_offset) == '\001')
 					continue;
-				child = parse_file_info(iso9660, file, dr);
+				child = parse_file_info(iso9660, file, p);
 				add_entry(iso9660, child);
 				if (iso9660->seenRockridge) {
 					a->archive_format =
@@ -477,9 +512,11 @@ archive_read_format_iso9660_cleanup(struct archive *a)
  */
 static struct file_info *
 parse_file_info(struct iso9660 *iso9660, struct file_info *parent,
-    const struct iso9660_directory_record *isodirrec)
+    const unsigned char *isodirrec)
 {
 	struct file_info *file;
+	size_t name_len;
+	int flags;
 
 	/* TODO: Sanity check that name_len doesn't exceed length, etc. */
 
@@ -491,19 +528,21 @@ parse_file_info(struct iso9660 *iso9660, struct file_info *parent,
 	file->parent = parent;
 	if (parent != NULL)
 		parent->refcount++;
-	file->offset = toi(isodirrec->extent, 4)
+	file->offset = toi(isodirrec + DR_extent_offset, DR_extent_size)
 	    * iso9660->logical_block_size;
-	file->size = toi(isodirrec->size, 4);
-	file->mtime = isodate7(isodirrec->date);
+	file->size = toi(isodirrec + DR_size_offset, DR_size_size);
+	file->mtime = isodate7(isodirrec + DR_date_offset);
 	file->ctime = file->atime = file->mtime;
-	file->name = (char *)malloc(isodirrec->name_len[0] + 1);
+	name_len = (size_t)*(const unsigned char *)(isodirrec + DR_name_len_offset);
+	file->name = (char *)malloc(name_len + 1);
 	if (file->name == NULL) {
 		free(file);
 		return (NULL);
 	}
-	memcpy(file->name, isodirrec->name, isodirrec->name_len[0]);
-	file->name[(int)isodirrec->name_len[0]] = '\0';
-	if (isodirrec->flags[0] & 0x02)
+	memcpy(file->name, isodirrec + DR_name_offset, name_len);
+	file->name[name_len] = '\0';
+	flags = *(isodirrec + DR_flags_offset);
+	if (flags & 0x02)
 		file->mode = S_IFDIR | 0700;
 	else
 		file->mode = S_IFREG | 0400;
@@ -512,33 +551,33 @@ parse_file_info(struct iso9660 *iso9660, struct file_info *parent,
 	{
 		const unsigned char *rr_start, *rr_end;
 		rr_end = (const unsigned char *)isodirrec
-		    + isodirrec->length[0];
-		rr_start = (const unsigned char *)isodirrec->name
-		    + isodirrec->name_len[0];
-		if ((isodirrec->name_len[0] & 1) == 0)
+		    + *(isodirrec + DR_length_offset);
+		rr_start = (const unsigned char *)(isodirrec + DR_name_offset
+		    + name_len);
+		if ((name_len & 1) == 0)
 			rr_start++;
 		rr_start += iso9660->suspOffset;
 		parse_rockridge(iso9660, file, rr_start, rr_end);
 	}
 
 	/* DEBUGGING: Warn about attributes I don't yet fully support. */
-	if ((isodirrec->flags[0] & ~0x02) != 0) {
+	if ((flags & ~0x02) != 0) {
 		fprintf(stderr, "\n ** Unrecognized flag: ");
 		dump_isodirrec(stderr, isodirrec);
 		fprintf(stderr, "\n");
-	} else if (toi(isodirrec->volume_sequence_number, 2) != 1) {
+	} else if (toi(isodirrec + DR_volume_sequence_number_offset, 2) != 1) {
 		fprintf(stderr, "\n ** Unrecognized sequence number: ");
 		dump_isodirrec(stderr, isodirrec);
 		fprintf(stderr, "\n");
-	} else if (isodirrec->file_unit_size[0] != 0) {
+	} else if (*(isodirrec + DR_file_unit_size_offset) != 0) {
 		fprintf(stderr, "\n ** Unexpected file unit size: ");
 		dump_isodirrec(stderr, isodirrec);
 		fprintf(stderr, "\n");
-	} else if (isodirrec->interleave[0] != 0) {
+	} else if (*(isodirrec + DR_interleave_offset) != 0) {
 		fprintf(stderr, "\n ** Unexpected interleave: ");
 		dump_isodirrec(stderr, isodirrec);
 		fprintf(stderr, "\n");
-	} else if (isodirrec->ext_attr_length[0] != 0) {
+	} else if (*(isodirrec + DR_ext_attr_length_offset) != 0) {
 		fprintf(stderr, "\n ** Unexpected extended attribute length: ");
 		dump_isodirrec(stderr, isodirrec);
 		fprintf(stderr, "\n");
@@ -959,10 +998,9 @@ toi(const void *p, int n)
 }
 
 static time_t
-isodate7(const void *p)
+isodate7(const unsigned char *v)
 {
 	struct tm tm;
-	const unsigned char *v = (const unsigned char *)p;
 	int offset;
 	memset(&tm, 0, sizeof(tm));
 	tm.tm_year = v[0];
@@ -971,8 +1009,8 @@ isodate7(const void *p)
 	tm.tm_hour = v[3];
 	tm.tm_min = v[4];
 	tm.tm_sec = v[5];
-	/* v[6] is the timezone offset, in 1/4-hour increments. */
-	offset = ((const signed char *)p)[6];
+	/* v[6] is the signed timezone offset, in 1/4-hour increments. */
+	offset = ((const signed char *)v)[6];
 	if (offset > -48 && offset < 52) {
 		tm.tm_hour -= offset / 4;
 		tm.tm_min -= (offset % 4) * 15;
@@ -981,10 +1019,9 @@ isodate7(const void *p)
 }
 
 static time_t
-isodate17(const void *p)
+isodate17(const unsigned char *v)
 {
 	struct tm tm;
-	const unsigned char *v = (const unsigned char *)p;
 	int offset;
 	memset(&tm, 0, sizeof(tm));
 	tm.tm_year = (v[0] - '0') * 1000 + (v[1] - '0') * 100
@@ -995,8 +1032,8 @@ isodate17(const void *p)
 	tm.tm_hour = (v[8] - '0') * 10 + (v[9] - '0');
 	tm.tm_min = (v[10] - '0') * 10 + (v[11] - '0');
 	tm.tm_sec = (v[12] - '0') * 10 + (v[13] - '0');
-	/* v[16] is the timezone offset, in 1/4-hour increments. */
-	offset = ((const signed char *)p)[16];
+	/* v[16] is the signed timezone offset, in 1/4-hour increments. */
+	offset = ((const signed char *)v)[16];
 	if (offset > -48 && offset < 52) {
 		tm.tm_hour -= offset / 4;
 		tm.tm_min -= (offset % 4) * 15;
@@ -1020,7 +1057,7 @@ time_from_tm(struct tm *t)
 	 * mktime() function is a close match, except that it uses
 	 * local timezone instead of GMT.  Close enough for now.
 	 * Note that it is not possible to emulate timegm() using
-	 * standard interfaces:
+	 * completely standard interfaces:
 	 *   * ANSI C90 does not even guarantee that time_t is
 	 *     an arithmetic type, so time adjustments can only be
 	 *     done by manipulating struct tm elements.  You cannot
@@ -1034,6 +1071,10 @@ time_from_tm(struct tm *t)
 	 *   * POSIX does not promise that the epoch begins in 1970,
 	 *     so you can't write a portable timegm() function from
 	 *     scratch.
+	 * In practice, of course, mktime() is a reasonable approximation
+	 * and most POSIX systems do use seconds since 1970, so you
+	 * can roll your own and have it work on all but a few pretty
+	 * whacky systems.
 	 */
 	time_t result = mktime(t);
 	/* TODO: Find a way to improve this approximation to timegm(). */
@@ -1056,16 +1097,26 @@ build_pathname(struct archive_string *as, struct file_info *file)
 }
 
 static void
-dump_isodirrec(FILE *out, const struct iso9660_directory_record *isodirrec)
+dump_isodirrec(FILE *out, const unsigned char *isodirrec)
 {
-	fprintf(out, " l %d,", isodirrec->length[0]);
-	fprintf(out, " a %d,", isodirrec->ext_attr_length[0]);
-	fprintf(out, " ext 0x%x,", toi(isodirrec->extent, 4));
-	fprintf(out, " s %d,", toi(isodirrec->size, 4));
-	fprintf(out, " f 0x%02x,", isodirrec->flags[0]);
-	fprintf(out, " u %d,", isodirrec->file_unit_size[0]);
-	fprintf(out, " ilv %d,", isodirrec->interleave[0]);
-	fprintf(out, " seq %d,", toi(isodirrec->volume_sequence_number,2));
-	fprintf(out, " nl %d:", isodirrec->name_len[0]);
-	fprintf(out, " `%.*s'", isodirrec->name_len[0], isodirrec->name);
+	fprintf(out, " l %d,",
+	    toi(isodirrec + DR_length_offset, DR_length_size));
+	fprintf(out, " a %d,",
+	    toi(isodirrec + DR_ext_attr_length_offset, DR_ext_attr_length_size));
+	fprintf(out, " ext 0x%x,",
+	    toi(isodirrec + DR_extent_offset, DR_extent_size));
+	fprintf(out, " s %d,",
+	    toi(isodirrec + DR_size_offset, DR_extent_size));
+	fprintf(out, " f 0x%02x,",
+	    toi(isodirrec + DR_flags_offset, DR_flags_size));
+	fprintf(out, " u %d,",
+	    toi(isodirrec + DR_file_unit_size_offset, DR_file_unit_size_size));
+	fprintf(out, " ilv %d,",
+	    toi(isodirrec + DR_interleave_offset, DR_interleave_size));
+	fprintf(out, " seq %d,",
+	    toi(isodirrec + DR_volume_sequence_number_offset, DR_volume_sequence_number_size));
+	fprintf(out, " nl %d:",
+	    toi(isodirrec + DR_name_len_offset, DR_name_len_size));
+	fprintf(out, " `%.*s'",
+	    toi(isodirrec + DR_name_len_offset, DR_name_len_size), isodirrec + DR_name_offset);
 }
