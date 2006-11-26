@@ -1608,6 +1608,11 @@ typedef unsigned short oss_peaks_t[MAX_PEAK_CHANNELS];
 #define SNDCTL_DSP_GETOPEAKS		_IOR('P', 44, oss_peaks_t)
 #define SNDCTL_DSP_POLICY               _IOW('P', 45, int)    /* See the manual */
 
+/*
+ * OSS_SYSIFO is obsolete. Use SNDCTL_SYSINFO insteads.
+ */
+#define OSS_GETVERSION                  _IOR ('M', 118, int)
+
 /**
  * @brief	Argument for SNDCTL_SYSINFO ioctl.
  *
