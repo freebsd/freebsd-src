@@ -107,6 +107,9 @@ unsigned int sndbuf_getreadyptr(struct snd_dbuf *b);
 unsigned int sndbuf_getblocks(struct snd_dbuf *b);
 unsigned int sndbuf_getprevblocks(struct snd_dbuf *b);
 unsigned int sndbuf_gettotal(struct snd_dbuf *b);
+unsigned int snd_xbytes(unsigned int v, unsigned int from, unsigned int to);
+unsigned int sndbuf_xbytes(unsigned int v, struct snd_dbuf *from, struct snd_dbuf *to);
+u_int8_t sndbuf_zerodata(u_int32_t fmt);
 void sndbuf_updateprevtotal(struct snd_dbuf *b);
 
 int sndbuf_acquire(struct snd_dbuf *b, u_int8_t *from, unsigned int count);

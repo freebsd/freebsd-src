@@ -215,10 +215,12 @@ dsp_open(struct cdev *i_dev, int flags, int mode, struct thread *td)
 		fmt = 0;
 		break;
 
-	case SND_DEV_DSPREC:
+	case SND_DEV_DSPHW:
+		/*
+		 * HW *specific* access without channel numbering confusion
+		 * caused by "first come first served" by dsp_clone().
+		 */
 		fmt = AFMT_U8;
-		if (flags & FWRITE)
-			return EINVAL;
 		chnum = PCMCHAN(i_dev);
 		break;
 
@@ -768,7 +770,7 @@ dsp_ioctl(struct cdev *i_dev, u_long cmd, caddr_t arg, int mode, struct thread *
 		/* chn_sync may sleep */
 		if (wrch) {
 			CHN_LOCK(wrch);
-			chn_sync(wrch, sndbuf_getsize(wrch->bufsoft) - 4);
+			chn_sync(wrch, 0);
 			CHN_UNLOCK(wrch);
 		}
 		break;
@@ -1085,12 +1087,11 @@ dsp_ioctl(struct cdev *i_dev, u_long cmd, caddr_t arg, int mode, struct thread *
 
 	case SNDCTL_DSP_GETODELAY:
 		if (wrch) {
-			struct snd_dbuf *b = wrch->bufhard;
 	        	struct snd_dbuf *bs = wrch->bufsoft;
 
 			CHN_LOCK(wrch);
 			/* XXX abusive DMA update: chn_wrupdate(wrch); */
-			*arg_i = sndbuf_getready(b) + sndbuf_getready(bs);
+			*arg_i = sndbuf_getready(bs);
 			CHN_UNLOCK(wrch);
 		} else
 			ret = EINVAL;
@@ -2131,30 +2132,28 @@ dsp_oss_syncstart(int sg_id)
 static int
 dsp_oss_policy(struct pcm_channel *wrch, struct pcm_channel *rdch, int policy)
 {
-	int fragln, fragsz, maxfrags, ret;
+	int ret;
+
+	if (policy < CHN_POLICY_MIN || policy > CHN_POLICY_MAX)
+		return EIO;
 
 	/* Default: success */
 	ret = 0;
 
-	/* Scale policy [0..10] to fragment size [2^4..2^16]. */
-	fragln = policy;
-	RANGE(fragln, 0, 10);
-	fragln += 4;
-	fragsz = 1 << fragln;
-
-	maxfrags = CHN_2NDBUFMAXSIZE / fragsz;
-
 	if (rdch) {
 		CHN_LOCK(rdch);
-		ret = chn_setblocksize(rdch, maxfrags, fragsz);
+		ret = chn_setlatency(rdch, policy);
 		CHN_UNLOCK(rdch);
 	}
 
 	if (wrch && ret == 0) {
 		CHN_LOCK(wrch);
-		ret = chn_setblocksize(wrch, maxfrags, fragsz);
+		ret = chn_setlatency(wrch, policy);
 		CHN_UNLOCK(wrch);
 	}
+
+	if (ret)
+		ret = EIO;
 
 	return ret;
 }

@@ -82,7 +82,6 @@
 
 #define	AC97_F_EAPD_INV		0x00000001
 #define	AC97_F_RDCD_BUG		0x00000002
-#define	AC97_F_SOFTVOL		0x00000004
 
 #define AC97_DECLARE(name) static DEFINE_CLASS(name, name ## _methods, sizeof(struct kobj))
 #define AC97_CREATE(dev, devinfo, cls) ac97_create(dev, devinfo, &cls ## _class)
@@ -105,4 +104,3 @@ u_int16_t ac97_getcaps(struct ac97_info *codec);
 
 u_int16_t ac97_rdcd(struct ac97_info *codec, int reg);
 void	  ac97_wrcd(struct ac97_info *codec, int reg, u_int16_t val);
-

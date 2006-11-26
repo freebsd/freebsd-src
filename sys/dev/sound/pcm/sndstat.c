@@ -72,11 +72,11 @@ static int sndstat_files = 0;
 
 static SLIST_HEAD(, sndstat_entry) sndstat_devlist = SLIST_HEAD_INITIALIZER(none);
 
-static int sndstat_verbose = 1;
+int snd_verbose = 1;
 #ifdef	USING_MUTEX
-TUNABLE_INT("hw.snd.verbose", &sndstat_verbose);
+TUNABLE_INT("hw.snd.verbose", &snd_verbose);
 #else
-TUNABLE_INT_DECL("hw.snd.verbose", 1, sndstat_verbose);
+TUNABLE_INT_DECL("hw.snd.verbose", 1, snd_verbose);
 #endif
 
 static int sndstat_prepare(struct sbuf *s);
@@ -86,20 +86,20 @@ sysctl_hw_sndverbose(SYSCTL_HANDLER_ARGS)
 {
 	int error, verbose;
 
-	verbose = sndstat_verbose;
+	verbose = snd_verbose;
 	error = sysctl_handle_int(oidp, &verbose, sizeof(verbose), req);
 	if (error == 0 && req->newptr != NULL) {
 		sx_xlock(&sndstat_lock);
-		if (verbose < 0 || verbose > 3)
+		if (verbose < 0 || verbose > 4)
 			error = EINVAL;
 		else
-			sndstat_verbose = verbose;
+			snd_verbose = verbose;
 		sx_xunlock(&sndstat_lock);
 	}
 	return error;
 }
 SYSCTL_PROC(_hw_snd, OID_AUTO, verbose, CTLTYPE_INT | CTLFLAG_RW,
-            0, sizeof(int), sysctl_hw_sndverbose, "I", "");
+            0, sizeof(int), sysctl_hw_sndverbose, "I", "verbosity level");
 
 static int
 sndstat_open(struct cdev *i_dev, int flags, int mode, struct thread *td)
@@ -300,7 +300,8 @@ sndstat_prepare(struct sbuf *s)
 	struct sndstat_entry *ent;
     	int i, j;
 
-	sbuf_printf(s, "FreeBSD Audio Driver (newpcm)\n");
+	sbuf_printf(s, "FreeBSD Audio Driver (newpcm: %ubit)\n",
+		(unsigned int)sizeof(intpcm_t) << 3);
 	if (SLIST_EMPTY(&sndstat_devlist)) {
 		sbuf_printf(s, "No devices installed.\n");
 		sbuf_finish(s);
@@ -318,14 +319,14 @@ sndstat_prepare(struct sbuf *s)
 			sbuf_printf(s, " <%s>", device_get_desc(ent->dev));
 			sbuf_printf(s, " %s", ent->str);
 			if (ent->handler)
-				ent->handler(s, ent->dev, sndstat_verbose);
+				ent->handler(s, ent->dev, snd_verbose);
 			else
 				sbuf_printf(s, " [no handler]");
 			sbuf_printf(s, "\n");
 		}
     	}
 
-	if (sndstat_verbose >= 3 && sndstat_files > 0) {
+	if (snd_verbose >= 3 && sndstat_files > 0) {
 		sbuf_printf(s, "\nFile Versions:\n");
 
 		SLIST_FOREACH(ent, &sndstat_devlist, link) {
