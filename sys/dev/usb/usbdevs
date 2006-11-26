@@ -185,6 +185,7 @@ vendor ITTCANON		0x04d1	ITT Canon
 vendor ALTEC		0x04d2	Altec Lansing
 vendor LSI		0x04d4	LSI
 vendor MENTORGRAPHICS	0x04d6	Mentor Graphics
+vendor ITUNERNET	0x04d8  I-Tuner Networks
 vendor HOLTEK		0x04d9	Holtek
 vendor PANASONIC	0x04da	Panasonic (Matsushita)
 vendor HUANHSIN		0x04dc	Huan Hsin
@@ -1115,6 +1116,9 @@ product IODATA USBRSAQ		0x0a03	Serial USB-RSAQ1
 /* Iomega products */
 product IOMEGA ZIP100		0x0001	Zip 100
 product IOMEGA ZIP250		0x0030	Zip 250
+
+/* Ituner networks products */
+product ITUNERNET USBLCD2X20	0x0002	USB-LCD 2x20
 
 /* JVC products */
 product JVC GR_DX95		0x000a	GR-DX95
