@@ -585,6 +585,8 @@ OLD_FILES+=usr/sbin/kenv
 OLD_FILES+=usr/bin/kenv
 OLD_FILES+=usr/sbin/elf2aout
 # 200210XX
+OLD_FILES+=usr/include/libusb.h
+OLD_FILES+=usr/include/libusbhid.h
 OLD_FILES+=usr/share/man/man3/All_FreeBSD.3.gz
 OLD_FILES+=usr/share/man/man3/CheckRules.3.gz
 OLD_FILES+=usr/share/man/man3/ChunkCanBeRoot.3.gz
