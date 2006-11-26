@@ -232,22 +232,22 @@ archive_write_finish(struct archive *a)
 	free(a);
 }
 
-
 /*
  * Write the appropriate header.
  */
 int
 archive_write_header(struct archive *a, struct archive_entry *entry)
 {
-	int ret;
+	int ret, r2;
 
 	__archive_check_magic(a, ARCHIVE_WRITE_MAGIC,
-	    ARCHIVE_STATE_HEADER | ARCHIVE_STATE_DATA, "archive_write_header");
+	    ARCHIVE_STATE_DATA | ARCHIVE_STATE_HEADER, "archive_write_header");
 	archive_string_empty(&a->error_string);
 
-	/* Finish last entry. */
-	if (a->state & ARCHIVE_STATE_DATA)
-		((a->format_finish_entry)(a));
+	/* In particular, "retry" and "fatal" get returned immediately. */
+	ret = archive_write_finish_entry(a);
+	if (ret < ARCHIVE_OK && ret != ARCHIVE_WARN)
+		return (ret);
 
 	if (a->skip_file_dev != 0 &&
 	    archive_entry_dev(entry) == a->skip_file_dev &&
@@ -258,9 +258,25 @@ archive_write_header(struct archive *a, struct archive_entry *entry)
 	}
 
 	/* Format and write header. */
-	ret = ((a->format_write_header)(a, entry));
+	r2 = ((a->format_write_header)(a, entry));
+	if (r2 < ret)
+		ret = r2;
 
 	a->state = ARCHIVE_STATE_DATA;
+	return (ret);
+}
+
+int
+archive_write_finish_entry(struct archive * a)
+{
+	int ret = ARCHIVE_OK;
+
+	__archive_check_magic(a, ARCHIVE_WRITE_MAGIC,
+	    ARCHIVE_STATE_HEADER | ARCHIVE_STATE_DATA,
+	    "archive_write_finish_entry");
+	if (a->state & ARCHIVE_STATE_DATA)
+		ret = (a->format_finish_entry)(a);
+	a->state = ARCHIVE_STATE_HEADER;
 	return (ret);
 }
 
@@ -271,7 +287,8 @@ archive_write_header(struct archive *a, struct archive_entry *entry)
 int
 archive_write_data(struct archive *a, const void *buff, size_t s)
 {
-	__archive_check_magic(a, ARCHIVE_WRITE_MAGIC, ARCHIVE_STATE_DATA, "archive_write_data");
+	__archive_check_magic(a, ARCHIVE_WRITE_MAGIC,
+	    ARCHIVE_STATE_DATA, "archive_write_data");
 	archive_string_empty(&a->error_string);
 	return ((a->format_write_data)(a, buff, s));
 }

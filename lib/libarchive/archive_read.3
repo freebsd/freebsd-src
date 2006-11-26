@@ -29,7 +29,6 @@
 .Os
 .Sh NAME
 .Nm archive_read_new ,
-.Nm archive_read_set_bytes_per_block ,
 .Nm archive_read_support_compression_all ,
 .Nm archive_read_support_compression_bzip2 ,
 .Nm archive_read_support_compression_compress ,
@@ -61,8 +60,6 @@
 .In archive.h
 .Ft struct archive *
 .Fn archive_read_new "void"
-.Ft int
-.Fn archive_read_set_bytes_per_block "struct archive *" "int"
 .Ft int
 .Fn archive_read_support_compression_all "struct archive *"
 .Ft int
@@ -129,11 +126,6 @@ order they would be used:
 Allocates and initializes a
 .Tn struct archive
 object suitable for reading from an archive.
-.It Fn archive_read_set_bytes_per_block
-Sets the block size used for reading the archive data.
-This controls the size that will be used when invoking the read
-callback function.
-The default is 20 records or 10240 bytes for tar formats.
 .It Fn archive_read_support_compression_all , Fn archive_read_support_compression_bzip2 , Fn archive_read_support_compression_compress , Fn archive_read_support_compression_gzip , Fn archive_read_support_compression_none
 Enables auto-detection code and decompression support for the
 specified compression.
