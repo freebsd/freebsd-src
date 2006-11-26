@@ -8,8 +8,8 @@ SUBDIR=	boot
 .endif
 
 # Directories to include in cscope name file and TAGS.
-CSCOPEDIRS=	coda compat conf contrib crypto ddb dev fs geom gnu i4b isa \
-		isofs kern libkern modules net net80211 netatalk netatm \
+CSCOPEDIRS=	cam coda compat conf contrib crypto ddb dev fs geom gnu i4b \
+		isa isofs kern libkern modules net net80211 netatalk netatm \
 		netgraph netinet netinet6 netipx netkey netnatm netncp \
 		netsmb nfs nfsclient nfs4client rpc pccard pci sys \
 		ufs vm ${ARCHDIR}
