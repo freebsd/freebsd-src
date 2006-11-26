@@ -61,6 +61,19 @@ const char *ieee80211_phymode_name[] = {
 	"turboG",	/* IEEE80211_MODE_TURBO_G */
 };
 
+/*
+ * Default supported rates for 802.11 operation (in IEEE .5Mb units).
+ */
+#define	B(r)	((r) | IEEE80211_RATE_BASIC)
+static const struct ieee80211_rateset ieee80211_rateset_11a =
+	{ 8, { B(12), 18, B(24), 36, B(48), 72, 96, 108 } };
+static const struct ieee80211_rateset ieee80211_rateset_11b =
+	{ 4, { B(2), B(4), B(11), B(22) } };
+/* NB: OFDM rates are handled specially based on mode */
+static const struct ieee80211_rateset ieee80211_rateset_11g =
+	{ 12, { B(2), B(4), B(11), B(22), 12, 18, 24, 36, 48, 72, 96, 108 } };
+#undef B
+
 /* list of all instances */
 SLIST_HEAD(ieee80211_list, ieee80211com);
 static struct ieee80211_list ieee80211_list =
@@ -121,6 +134,8 @@ ieee80211_default_reset(struct ifnet *ifp)
 void
 ieee80211_ifattach(struct ieee80211com *ic)
 {
+#define	RATESDEFINED(m) \
+	((ic->ic_modecaps & (1<<m)) && ic->ic_sup_rates[m].rs_nrates != 0)
 	struct ifnet *ifp = ic->ic_ifp;
 	struct ieee80211_channel *c;
 	int i;
@@ -179,6 +194,18 @@ ieee80211_ifattach(struct ieee80211com *ic)
 	if ((ic->ic_modecaps & (1<<ic->ic_curmode)) == 0)
 		ic->ic_curmode = IEEE80211_MODE_AUTO;
 	ic->ic_des_chan = IEEE80211_CHAN_ANYC;	/* any channel is ok */
+
+	/* fillin well-known rate sets if driver has not specified */
+	if (!RATESDEFINED(IEEE80211_MODE_11B))
+		ic->ic_sup_rates[IEEE80211_MODE_11B] = ieee80211_rateset_11b;
+	if (!RATESDEFINED(IEEE80211_MODE_11G))
+		ic->ic_sup_rates[IEEE80211_MODE_11G] = ieee80211_rateset_11g;
+	if (!RATESDEFINED(IEEE80211_MODE_11A))
+		ic->ic_sup_rates[IEEE80211_MODE_11A] = ieee80211_rateset_11a;
+	if (!RATESDEFINED(IEEE80211_MODE_TURBO_A))
+		ic->ic_sup_rates[IEEE80211_MODE_TURBO_A] = ieee80211_rateset_11a;
+	if (!RATESDEFINED(IEEE80211_MODE_TURBO_G))
+		ic->ic_sup_rates[IEEE80211_MODE_TURBO_G] = ieee80211_rateset_11g;
 #if 0
 	/*
 	 * Enable WME by default if we're capable.
@@ -214,6 +241,7 @@ ieee80211_ifattach(struct ieee80211com *ic)
 
 	KASSERT(ifp->if_spare2 == NULL, ("oops, hosed"));
 	ifp->if_spare2 = ic;			/* XXX temp backpointer */
+#undef RATESDEFINED
 }
 
 void
