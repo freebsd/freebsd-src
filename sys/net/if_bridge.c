@@ -875,7 +875,7 @@ bridge_delete_member(struct bridge_softc *sc, struct bridge_iflist *bif,
 	}
 
 	if (bif->bif_flags & IFBIF_STP)
-		bstp_delete(&bif->bif_stp);
+		bstp_disable(&bif->bif_stp);
 
 	ifs->if_bridge = NULL;
 	BRIDGE_XLOCK(sc);
@@ -885,7 +885,7 @@ bridge_delete_member(struct bridge_softc *sc, struct bridge_iflist *bif,
 	bridge_rtdelete(sc, ifs, IFBF_FLUSHALL);
 
 	BRIDGE_UNLOCK(sc);
-	bstp_drain(&bif->bif_stp);	/* prepare to free */
+	bstp_destroy(&bif->bif_stp);	/* prepare to free */
 	BRIDGE_LOCK(sc);
 	free(bif, M_DEVBUF);
 }
@@ -970,6 +970,7 @@ bridge_ioctl_add(struct bridge_softc *sc, void *arg)
 	}
 
 	ifs->if_bridge = sc;
+	bstp_create(&sc->sc_stp, &bif->bif_stp, bif->bif_ifp);
 	/*
 	 * XXX: XLOCK HERE!?!
 	 *
@@ -1044,14 +1045,13 @@ bridge_ioctl_sifflags(struct bridge_softc *sc, void *arg)
 
 	if (req->ifbr_ifsflags & IFBIF_STP) {
 		if ((bif->bif_flags & IFBIF_STP) == 0) {
-			error = bstp_add(&sc->sc_stp, &bif->bif_stp,
-				    bif->bif_ifp);
+			error = bstp_enable(&bif->bif_stp);
 			if (error)
 				return (error);
 		}
 	} else {
 		if ((bif->bif_flags & IFBIF_STP) != 0)
-			bstp_delete(&bif->bif_stp);
+			bstp_disable(&bif->bif_stp);
 	}
 
 	bif->bif_flags = req->ifbr_ifsflags;
