@@ -14,6 +14,8 @@
 # The file is partitioned: OLD_FILES first, then OLD_LIBS and OLD_DIRS last.
 #
 
+# 20061125: remove old man page
+OLD_FILES+=usr/share/man/man9/devsw.9.gz
 # 20061122: remove obsolete mount programs
 OLD_FILES+=sbin/mount_devfs
 OLD_FILES+=sbin/mount_ext2fs
