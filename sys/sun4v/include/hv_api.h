@@ -52,6 +52,7 @@ typedef uint64_t io_addr_t;
  * Section 10 Domain Services
  */
 
+extern void hv_mach_exit(uint64_t exit_code);
 extern uint64_t hv_mach_desc(uint64_t buffer_ra, uint64_t *buffer_sizep);
 extern uint64_t hv_mach_watchdog(uint64_t timeout, uint64_t *time_remaining);
 
@@ -75,7 +76,7 @@ typedef struct hv_tsb_info {
 	uint16_t	hti_assoc;	/* associativity of TSB                  */
 	uint32_t	hti_ntte;	/* size of TSB in TTEs                   */
 	uint32_t	hti_ctx_index;  /* context index                         */
-	uint32_t	hti_pgszs;	/* page size bitmasx                     */
+	uint32_t	hti_pgszs;	/* page size bitmask                     */
 	uint64_t	hti_ra;	        /* real address of TSB base              */
 	uint64_t	hti_rsvd;	/* reserved                              */
 } hv_tsb_info_t;
@@ -101,6 +102,16 @@ extern uint64_t hv_intr_getstate(uint64_t sysino, int *state);
 extern uint64_t hv_intr_setstate(uint64_t sysino, int state);
 extern uint64_t hv_intr_gettarget(uint64_t sysino, int *cpuid);
 extern uint64_t hv_intr_settarget(uint64_t sysino, int cpuid);
+
+extern uint64_t hv_vintr_getcookie(devhandle_t dh, uint64_t devino, uint64_t *cookie);
+extern uint64_t hv_vintr_setcookie(devhandle_t dh, uint64_t devino, uint64_t cookie);
+extern uint64_t hv_vintr_getenabled(devhandle_t dh, uint64_t devino, int *enabled);
+extern uint64_t hv_vintr_setenabled(devhandle_t dh, uint64_t devino, int enabled);
+extern uint64_t hv_vintr_getstate(devhandle_t dh, uint64_t devino, int *state);
+extern uint64_t hv_vintr_setstate(devhandle_t dh, uint64_t devino, int state);
+extern uint64_t hv_vintr_gettarget(devhandle_t dh, uint64_t devino, int *cpuid);
+extern uint64_t hv_vintr_settarget(devhandle_t dh, uint64_t devino, int cpuid);
+
 
 /*
  * Section 15 Time of Day Services

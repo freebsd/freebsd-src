@@ -769,6 +769,151 @@ ENTRY(hv_intr_settarget)
 END(hv_intr_settarget)
 
 /*
+ * get the cookie value that will be delivered
+ * in word 0 of a dev_mondo packet to a guest
+ *
+ * arg0 devhandle     (%o0)
+ * arg1 devino        (%o1)
+ *		
+ * ret0 status        (%o0)
+ * ret1 cookie_value  (%o1)
+ * 
+ */
+ENTRY(hv_vintr_getcookie)
+	mov	VINTR_GETCOOKIE, %o5
+	ta	FAST_TRAP
+	retl
+  	  stx	%o1, [%o2]	  
+END(hv_vintr_getcookie)
+
+/*
+ * set the cookie value that will be delivered
+ * in word 0 of a dev_mondo packet to a guest
+ *
+ * arg0 devhandle     (%o0)
+ * arg1 devino        (%o1)
+ * ret2 cookie_value  (%o2)
+ *		
+ * ret0 status        (%o0)
+ * 
+ */
+ENTRY(hv_vintr_setcookie)
+	mov	VINTR_SETCOOKIE, %o5
+	ta	FAST_TRAP
+	retl
+	  nop
+END(hv_vintr_setcookie)
+
+/*
+ * get the enabled status of the interrupt
+ * defined by devino
+ *
+ * arg0 devhandle     (%o0)
+ * arg1 devino        (%o1)
+ *		
+ * ret0 status        (%o0)
+ * ret1 intr_enabled  (%o1)
+ * 
+ */
+ENTRY(hv_vintr_getenabled)
+	mov	VINTR_GETENABLED, %o5
+	ta	FAST_TRAP
+	retl
+  	  st	%o1, [%o2]	  
+END(hv_vintr_getenabled)
+
+/*
+ * set the enabled status of the interrupt
+ * defined by devino
+ *
+ * arg0 devhandle     (%o0)
+ * arg1 devino        (%o1)
+ * arg2 intr_enabled  (%o2)
+ *		
+ * ret0 status        (%o0)
+ * 
+ */
+ENTRY(hv_vintr_setenabled)
+	mov	VINTR_SETENABLED, %o5
+	ta	FAST_TRAP
+	retl
+	  nop
+END(hv_vintr_setenabled)
+
+/*
+ * get the current state of the interrupt 
+ * defined by devino
+ *
+ * arg0 devhandle     (%o0)
+ * arg1 devino        (%o1)
+ *		
+ * ret0 status        (%o0)
+ * ret1 intr_state    (%o1)
+ * 
+ */
+ENTRY(hv_vintr_getstate)
+	mov	VINTR_GETSTATE, %o5
+	ta	FAST_TRAP
+	retl
+  	  st	%o1, [%o2]	  
+END(hv_vintr_getstate)
+
+/*
+ * set the current state of the interrupt 
+ * defined by devino
+ *
+ * arg0 devhandle     (%o0)
+ * arg1 devino        (%o1)
+ * arg2 intr_state    (%o2)
+ *		
+ * ret0 status        (%o0)
+ * 
+ */
+ENTRY(hv_vintr_setstate)
+	mov	VINTR_SETSTATE, %o5
+	ta	FAST_TRAP
+	retl
+	  nop
+END(hv_vintr_setstate)
+
+/*
+ * get the cpuid that is the current target 
+ * of the interrupt defined by devino
+ *
+ * arg0 devhandle     (%o0)
+ * arg1 devino        (%o1)
+ *		
+ * ret0 status        (%o0)
+ * ret1 cpuid         (%o1)
+ * 
+ */
+ENTRY(hv_vintr_gettarget)
+	mov	VINTR_GETTARGET, %o5
+	ta	FAST_TRAP
+	retl
+  	  st	%o1, [%o2]	  
+END(hv_vintr_gettarget)
+
+/*
+ * set the cpuid that is the current target 
+ * of the interrupt defined by devino
+ *
+ * arg0 devhandle     (%o0)
+ * arg1 devino        (%o1)
+ * arg2 cpuid         (%o2)
+ *		
+ * ret0 status        (%o0)
+ * 
+ */
+ENTRY(hv_vintr_settarget)
+	mov	VINTR_SETTARGET, %o5
+	ta	FAST_TRAP
+	retl
+	  nop
+END(hv_vintr_settarget)
+
+		
+/*
  * Section 15 Time of Day Services
  *
  */
