@@ -830,6 +830,9 @@ mixer_ioctl(struct cdev *i_dev, u_long cmd, caddr_t arg, int mode, struct thread
 	case SNDCTL_DSP_SET_RECSRC:
 		ret = mixer_set_recroute(m, *arg_i);
 		break;
+	case OSS_GETVERSION:
+		*arg_i = SOUND_VERSION;
+		break;
 	default:
 		ret = ENXIO;
 	}
