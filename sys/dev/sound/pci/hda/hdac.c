@@ -44,7 +44,7 @@
  *        http://people.freebsd.org/~ariff/HDA/parser.rb . This crude
  *        ruby parser take the verbose dmesg dump as its input. Refer to
  *        http://www.microsoft.com/whdc/device/audio/default.mspx for various
- *        interesting documents, especiall UAA (Universal Audio Architecture).
+ *        interesting documents, especially UAA (Universal Audio Architecture).
  *     4) Possible vendor specific support.
  *        (snd_hda_intel, snd_hda_ati, etc..)
  *
@@ -80,7 +80,7 @@
 
 #include "mixer_if.h"
 
-#define HDA_DRV_TEST_REV	"20061017_0033"
+#define HDA_DRV_TEST_REV	"20061111_0034"
 #define HDA_WIDGET_PARSER_REV	1
 
 SND_DECLARE_FILE("$FreeBSD$");
@@ -196,6 +196,11 @@ SND_DECLARE_FILE("$FreeBSD$");
 #define IBM_VENDORID		0x1014
 #define IBM_M52_SUBVENDOR	HDA_MODEL_CONSTRUCT(IBM, 0x02f6)
 #define IBM_ALL_SUBVENDOR	HDA_MODEL_CONSTRUCT(IBM, 0xffff)
+
+/* Lenovo */
+#define LNV_VENDORID		0x17aa
+#define LNV_3KN100_SUBVENDOR	HDA_MODEL_CONSTRUCT(LNV, 0x2066)
+#define LNV_ALL_SUBVENDOR	HDA_MODEL_CONSTRUCT(LNV, 0xffff)
 
 
 /* Misc constants.. */
@@ -512,6 +517,9 @@ static void	hdac_audio_ctl_amp_set_internal(struct hdac_softc *,
 static int	hdac_audio_ctl_ossmixer_getnextdev(struct hdac_devinfo *);
 static struct	hdac_widget *hdac_widget_get(struct hdac_devinfo *, nid_t);
 
+static int	hdac_rirb_flush(struct hdac_softc *sc);
+static int	hdac_unsolq_flush(struct hdac_softc *sc);
+
 #define hdac_command(a1, a2, a3)	\
 		hdac_command_sendone_internal(a1, a2, a3)
 
@@ -788,7 +796,7 @@ hdac_unsolicited_handler(struct hdac_codec *codec, uint32_t tag)
 	}
 }
 
-static void
+static int
 hdac_stream_intr(struct hdac_softc *sc, struct hdac_chan *ch)
 {
 	/* XXX to be removed */
@@ -797,7 +805,7 @@ hdac_stream_intr(struct hdac_softc *sc, struct hdac_chan *ch)
 #endif
 
 	if (ch->blkcnt == 0)
-		return;
+		return (0);
 
 	/* XXX to be removed */
 #ifdef HDAC_INTR_EXTRA
@@ -822,16 +830,13 @@ hdac_stream_intr(struct hdac_softc *sc, struct hdac_chan *ch)
 #ifdef HDAC_INTR_EXTRA
 	if (res & HDAC_SDSTS_BCIS) {
 #endif
-		ch->prevptr = ch->ptr;
-		ch->ptr += sndbuf_getblksz(ch->b);
-		ch->ptr %= sndbuf_getsize(ch->b);
-		hdac_unlock(sc);
-		chn_intr(ch->c);
-		hdac_lock(sc);
+		return (1);
 	/* XXX to be removed */
 #ifdef HDAC_INTR_EXTRA
 	}
 #endif
+
+	return (0);
 }
 
 /****************************************************************************
@@ -845,14 +850,16 @@ hdac_intr_handler(void *context)
 	struct hdac_softc *sc;
 	uint32_t intsts;
 	uint8_t rirbsts;
-	uint8_t rirbwp;
-	struct hdac_rirb *rirb_base, *rirb;
-	nid_t ucad;
-	uint32_t utag;
+	struct hdac_rirb *rirb_base;
+	uint32_t trigger = 0;
 
 	sc = (struct hdac_softc *)context;
 
 	hdac_lock(sc);
+	if (sc->polling != 0) {
+		hdac_unlock(sc);
+		return;
+	}
 	/* Do we have anything to do? */
 	intsts = HDAC_READ_4(&sc->mem, HDAC_INTSTS);
 	if (!HDA_FLAG_MATCH(intsts, HDAC_INTSTS_GIS)) {
@@ -866,26 +873,9 @@ hdac_intr_handler(void *context)
 		rirbsts = HDAC_READ_1(&sc->mem, HDAC_RIRBSTS);
 		/* Get as many responses that we can */
 		while (HDA_FLAG_MATCH(rirbsts, HDAC_RIRBSTS_RINTFL)) {
-			HDAC_WRITE_1(&sc->mem, HDAC_RIRBSTS, HDAC_RIRBSTS_RINTFL);
-			rirbwp = HDAC_READ_1(&sc->mem, HDAC_RIRBWP);
-			bus_dmamap_sync(sc->rirb_dma.dma_tag, sc->rirb_dma.dma_map,
-			    BUS_DMASYNC_POSTREAD);
-			while (sc->rirb_rp != rirbwp) {
-				sc->rirb_rp++;
-				sc->rirb_rp %= sc->rirb_size;
-				rirb = &rirb_base[sc->rirb_rp];
-				if (rirb->response_ex & HDAC_RIRB_RESPONSE_EX_UNSOLICITED) {
-					ucad = HDAC_RIRB_RESPONSE_EX_SDATA_IN(rirb->response_ex);
-					utag = rirb->response >> 26;
-					if (ucad > -1 && ucad < HDAC_CODEC_MAX &&
-					    sc->codecs[ucad] != NULL) {
-						sc->unsolq[sc->unsolq_wp++] =
-						    (ucad << 16) |
-						    (utag & 0xffff);
-						sc->unsolq_wp %= HDAC_UNSOLQ_MAX;
-					}
-				}
-			}
+			HDAC_WRITE_1(&sc->mem,
+			    HDAC_RIRBSTS, HDAC_RIRBSTS_RINTFL);
+			hdac_rirb_flush(sc);
 			rirbsts = HDAC_READ_1(&sc->mem, HDAC_RIRBSTS);
 		}
 		/* XXX to be removed */
@@ -894,29 +884,29 @@ hdac_intr_handler(void *context)
 		HDAC_WRITE_4(&sc->mem, HDAC_INTSTS, HDAC_INTSTS_CIS);
 #endif
 	}
+
+	hdac_unsolq_flush(sc);
+
 	if (intsts & HDAC_INTSTS_SIS_MASK) {
-		if (intsts & (1 << sc->num_iss))
-			hdac_stream_intr(sc, &sc->play);
-		if (intsts & (1 << 0))
-			hdac_stream_intr(sc, &sc->rec);
+		if ((intsts & (1 << sc->num_iss)) &&
+		    hdac_stream_intr(sc, &sc->play) != 0)
+			trigger |= 1;
+		if ((intsts & (1 << 0)) &&
+		    hdac_stream_intr(sc, &sc->rec) != 0)
+			trigger |= 2;
 		/* XXX to be removed */
 #ifdef HDAC_INTR_EXTRA
-		HDAC_WRITE_4(&sc->mem, HDAC_INTSTS, intsts & HDAC_INTSTS_SIS_MASK);
+		HDAC_WRITE_4(&sc->mem, HDAC_INTSTS, intsts &
+		    HDAC_INTSTS_SIS_MASK);
 #endif
 	}
 
-	if (sc->unsolq_st == HDAC_UNSOLQ_READY) {
-		sc->unsolq_st = HDAC_UNSOLQ_BUSY;
-		while (sc->unsolq_rp != sc->unsolq_wp) {
-			ucad = sc->unsolq[sc->unsolq_rp] >> 16;
-			utag = sc->unsolq[sc->unsolq_rp++] & 0xffff;
-			sc->unsolq_rp %= HDAC_UNSOLQ_MAX;
-			hdac_unsolicited_handler(sc->codecs[ucad], utag);
-		}
-		sc->unsolq_st = HDAC_UNSOLQ_READY;
-	}
-
 	hdac_unlock(sc);
+
+	if (trigger & 1)
+		chn_intr(sc->play.c);
+	if (trigger & 2)
+		chn_intr(sc->rec.c);
 }
 
 /****************************************************************************
@@ -1216,6 +1206,7 @@ hdac_mem_free(struct hdac_softc *sc)
 	if (mem->mem_res != NULL)
 		bus_release_resource(sc->dev, SYS_RES_MEMORY, mem->mem_rid,
 		    mem->mem_res);
+	mem->mem_res = NULL;
 }
 
 /****************************************************************************
@@ -1239,7 +1230,7 @@ hdac_irq_alloc(struct hdac_softc *sc)
 		goto fail;
 	}
 	result = snd_setup_intr(sc->dev, irq->irq_res, INTR_MPSAFE,
-		hdac_intr_handler, sc, &irq->irq_handle);
+	    hdac_intr_handler, sc, &irq->irq_handle);
 	if (result != 0) {
 		device_printf(sc->dev,
 		    "%s: Unable to setup interrupt handler (%x)\n",
@@ -1250,9 +1241,8 @@ hdac_irq_alloc(struct hdac_softc *sc)
 	return (0);
 
 fail:
-	if (irq->irq_res != NULL)
-		bus_release_resource(sc->dev, SYS_RES_IRQ, irq->irq_rid,
-		    irq->irq_res);
+	hdac_irq_free(sc);
+
 	return (ENXIO);
 }
 
@@ -1267,11 +1257,13 @@ hdac_irq_free(struct hdac_softc *sc)
 	struct hdac_irq *irq;
 
 	irq = &sc->irq;
-	if (irq->irq_handle != NULL)
+	if (irq->irq_res != NULL && irq->irq_handle != NULL)
 		bus_teardown_intr(sc->dev, irq->irq_res, irq->irq_handle);
 	if (irq->irq_res != NULL)
 		bus_release_resource(sc->dev, SYS_RES_IRQ, irq->irq_rid,
 		    irq->irq_res);
+	irq->irq_handle = NULL;
+	irq->irq_res = NULL;
 }
 
 /****************************************************************************
@@ -1362,16 +1354,18 @@ hdac_rirb_init(struct hdac_softc *sc)
 	sc->rirb_rp = 0;
 	HDAC_WRITE_2(&sc->mem, HDAC_RIRBWP, HDAC_RIRBWP_RIRBWPRST);
 
-	/* Setup the interrupt threshold */
-	HDAC_WRITE_2(&sc->mem, HDAC_RINTCNT, sc->rirb_size / 2);
+	if (sc->polling == 0) {
+		/* Setup the interrupt threshold */
+		HDAC_WRITE_2(&sc->mem, HDAC_RINTCNT, sc->rirb_size / 2);
 
-	/* Enable Overrun and response received reporting */
+		/* Enable Overrun and response received reporting */
 #if 0
-	HDAC_WRITE_1(&sc->mem, HDAC_RIRBCTL,
-	    HDAC_RIRBCTL_RIRBOIC | HDAC_RIRBCTL_RINTCTL);
+		HDAC_WRITE_1(&sc->mem, HDAC_RIRBCTL,
+		    HDAC_RIRBCTL_RIRBOIC | HDAC_RIRBCTL_RINTCTL);
 #else
-	HDAC_WRITE_1(&sc->mem, HDAC_RIRBCTL, HDAC_RIRBCTL_RINTCTL);
+		HDAC_WRITE_1(&sc->mem, HDAC_RIRBCTL, HDAC_RIRBCTL_RINTCTL);
 #endif
+	}
 
 	/*
 	 * Make sure that the Host CPU cache doesn't contain any dirty
@@ -1439,6 +1433,8 @@ hdac_scan_codecs(struct hdac_softc *sc)
 				    "Unable to allocate memory for codec\n");
 				continue;
 			}
+			codec->commands = NULL;
+			codec->responses_received = 0;
 			codec->verbs_sent = 0;
 			codec->sc = sc;
 			codec->cad = i;
@@ -1688,14 +1684,14 @@ hdac_widget_pin_parse(struct hdac_widget *w)
 	w->wclass.pin.config = config;
 
 	pincap = hdac_command(sc,
-		HDA_CMD_GET_PARAMETER(cad, nid, HDA_PARAM_PIN_CAP), cad);
+	    HDA_CMD_GET_PARAMETER(cad, nid, HDA_PARAM_PIN_CAP), cad);
 	w->wclass.pin.cap = pincap;
 
 	w->wclass.pin.ctrl = hdac_command(sc,
-		HDA_CMD_GET_PIN_WIDGET_CTRL(cad, nid), cad) &
-		~(HDA_CMD_SET_PIN_WIDGET_CTRL_HPHN_ENABLE |
-		HDA_CMD_SET_PIN_WIDGET_CTRL_OUT_ENABLE |
-		HDA_CMD_SET_PIN_WIDGET_CTRL_IN_ENABLE);
+	    HDA_CMD_GET_PIN_WIDGET_CTRL(cad, nid), cad) &
+	    ~(HDA_CMD_SET_PIN_WIDGET_CTRL_HPHN_ENABLE |
+	    HDA_CMD_SET_PIN_WIDGET_CTRL_OUT_ENABLE |
+	    HDA_CMD_SET_PIN_WIDGET_CTRL_IN_ENABLE);
 
 	if (HDA_PARAM_PIN_CAP_HEADPHONE_CAP(pincap))
 		w->wclass.pin.ctrl |= HDA_CMD_SET_PIN_WIDGET_CTRL_HPHN_ENABLE;
@@ -1907,6 +1903,144 @@ hdac_widget_get(struct hdac_devinfo *devinfo, nid_t nid)
 	return (&devinfo->widget[nid - devinfo->startnode]);
 }
 
+static __inline int
+hda_poll_channel(struct hdac_chan *ch)
+{
+	uint32_t sz, delta;
+	volatile uint32_t ptr;
+
+	if (ch->active == 0)
+		return (0);
+
+	sz = ch->blksz * ch->blkcnt;
+	ptr = HDAC_READ_4(&ch->devinfo->codec->sc->mem, ch->off + HDAC_SDLPIB);
+	ch->ptr = ptr;
+	ptr %= sz;
+	ptr &= ~(ch->blksz - 1);
+	delta = (sz + ptr - ch->prevptr) % sz;
+
+	if (delta < ch->blksz)
+		return (0);
+
+	ch->prevptr = ptr;
+
+	return (1);
+}
+
+#define hda_chan_active(sc)	((sc)->play.active + (sc)->rec.active)
+
+static void
+hda_poll_callback(void *arg)
+{
+	struct hdac_softc *sc = arg;
+	uint32_t trigger = 0;
+
+	if (sc == NULL)
+		return;
+
+	hdac_lock(sc);
+	if (sc->polling == 0 || hda_chan_active(sc) == 0) {
+		hdac_unlock(sc);
+		return;
+	}
+
+	trigger |= (hda_poll_channel(&sc->play) != 0) ? 1 : 0;
+	trigger |= (hda_poll_channel(&sc->rec) != 0) ? 2 : 0;
+
+	/* XXX */
+	callout_reset(&sc->poll_hda, 1/*sc->poll_ticks*/,
+	    hda_poll_callback, sc);
+
+	hdac_unlock(sc);
+
+	if (trigger & 1)
+		chn_intr(sc->play.c);
+	if (trigger & 2)
+		chn_intr(sc->rec.c);
+}
+
+static int
+hdac_rirb_flush(struct hdac_softc *sc)
+{
+	struct hdac_rirb *rirb_base, *rirb;
+	struct hdac_codec *codec;
+	struct hdac_command_list *commands;
+	nid_t cad;
+	uint32_t resp;
+	uint8_t rirbwp;
+	int ret = 0;
+
+	rirb_base = (struct hdac_rirb *)sc->rirb_dma.dma_vaddr;
+	rirbwp = HDAC_READ_1(&sc->mem, HDAC_RIRBWP);
+	bus_dmamap_sync(sc->rirb_dma.dma_tag, sc->rirb_dma.dma_map,
+	    BUS_DMASYNC_POSTREAD);
+
+	while (sc->rirb_rp != rirbwp) {
+		sc->rirb_rp++;
+		sc->rirb_rp %= sc->rirb_size;
+		rirb = &rirb_base[sc->rirb_rp];
+		cad = HDAC_RIRB_RESPONSE_EX_SDATA_IN(rirb->response_ex);
+		if (cad < 0 || cad >= HDAC_CODEC_MAX ||
+		    sc->codecs[cad] == NULL)
+			continue;
+		resp = rirb->response;
+		codec = sc->codecs[cad];
+		commands = codec->commands;
+		if (rirb->response_ex & HDAC_RIRB_RESPONSE_EX_UNSOLICITED) {
+			sc->unsolq[sc->unsolq_wp++] = (cad << 16) |
+			    ((resp >> 26) & 0xffff);
+			sc->unsolq_wp %= HDAC_UNSOLQ_MAX;
+		} else if (commands != NULL && commands->num_commands > 0 &&
+		    codec->responses_received < commands->num_commands)
+			commands->responses[codec->responses_received++] =
+			    resp;
+		ret++;
+	}
+
+	return (ret);
+}
+
+static int
+hdac_unsolq_flush(struct hdac_softc *sc)
+{
+	nid_t cad;
+	uint32_t tag;
+	int ret = 0;
+
+	if (sc->unsolq_st == HDAC_UNSOLQ_READY) {
+		sc->unsolq_st = HDAC_UNSOLQ_BUSY;
+		while (sc->unsolq_rp != sc->unsolq_wp) {
+			cad = sc->unsolq[sc->unsolq_rp] >> 16;
+			tag = sc->unsolq[sc->unsolq_rp++] & 0xffff;
+			sc->unsolq_rp %= HDAC_UNSOLQ_MAX;
+			hdac_unsolicited_handler(sc->codecs[cad], tag);
+			ret++;
+		}
+		sc->unsolq_st = HDAC_UNSOLQ_READY;
+	}
+
+	return (ret);
+}
+
+static void
+hdac_poll_callback(void *arg)
+{
+	struct hdac_softc *sc = arg;
+	if (sc == NULL)
+		return;
+	
+	hdac_lock(sc);
+	if (sc->polling == 0) {
+		hdac_unlock(sc);
+		return;
+	}
+	hdac_rirb_flush(sc);
+	hdac_unsolq_flush(sc);
+	callout_reset(&sc->poll_hdac, max(hz >> 2, 1),
+	    hdac_poll_callback, sc);
+	hdac_unlock(sc);
+}
+
 static void
 hdac_stream_stop(struct hdac_chan *ch)
 {
@@ -1918,9 +2052,50 @@ hdac_stream_stop(struct hdac_chan *ch)
 	    HDAC_SDCTL_RUN);
 	HDAC_WRITE_1(&sc->mem, ch->off + HDAC_SDCTL0, ctl);
 
-	ctl = HDAC_READ_4(&sc->mem, HDAC_INTCTL);
-	ctl &= ~(1 << (ch->off >> 5));
-	HDAC_WRITE_4(&sc->mem, HDAC_INTCTL, ctl);
+	ch->active = 0;
+
+	if (sc->polling != 0) {
+		int pollticks;
+
+		if (hda_chan_active(sc) == 0) {
+			callout_stop(&sc->poll_hda);
+			sc->poll_ticks = 1;
+		} else {
+			if (sc->play.active != 0)
+				ch = &sc->play;
+			else
+				ch = &sc->rec;
+			pollticks = ((uint64_t)hz * ch->blksz) /
+			    ((uint64_t)sndbuf_getbps(ch->b) *
+			    sndbuf_getspd(ch->b));
+			pollticks >>= 2;
+			if (pollticks > hz)
+				pollticks = hz;
+			if (pollticks < 1) {
+				HDA_BOOTVERBOSE(
+					device_printf(sc->dev,
+					    "%s: pollticks=%d < 1 !\n",
+					    __func__, pollticks);
+				);
+				pollticks = 1;
+			}
+			if (pollticks > sc->poll_ticks) {
+				HDA_BOOTVERBOSE(
+					device_printf(sc->dev,
+					    "%s: pollticks %d -> %d\n",
+					    __func__, sc->poll_ticks,
+					    pollticks);
+				);
+				sc->poll_ticks = pollticks;
+				callout_reset(&sc->poll_hda, 1,
+				    hda_poll_callback, sc);
+			}
+		}
+	} else {
+		ctl = HDAC_READ_4(&sc->mem, HDAC_INTCTL);
+		ctl &= ~(1 << (ch->off >> 5));
+		HDAC_WRITE_4(&sc->mem, HDAC_INTCTL, ctl);
+	}
 }
 
 static void
@@ -1929,14 +2104,52 @@ hdac_stream_start(struct hdac_chan *ch)
 	struct hdac_softc *sc = ch->devinfo->codec->sc;
 	uint32_t ctl;
 
-	ctl = HDAC_READ_4(&sc->mem, HDAC_INTCTL);
-	ctl |= 1 << (ch->off >> 5);
-	HDAC_WRITE_4(&sc->mem, HDAC_INTCTL, ctl);
+	if (sc->polling != 0) {
+		int pollticks;
 
-	ctl = HDAC_READ_1(&sc->mem, ch->off + HDAC_SDCTL0);
-	ctl |= HDAC_SDCTL_IOCE | HDAC_SDCTL_FEIE | HDAC_SDCTL_DEIE |
-	    HDAC_SDCTL_RUN;
+		pollticks = ((uint64_t)hz * ch->blksz) /
+		    ((uint64_t)sndbuf_getbps(ch->b) * sndbuf_getspd(ch->b));
+		pollticks >>= 2;
+		if (pollticks > hz)
+			pollticks = hz;
+		if (pollticks < 1) {
+			HDA_BOOTVERBOSE(
+				device_printf(sc->dev,
+				    "%s: pollticks=%d < 1 !\n",
+				    __func__, pollticks);
+			);
+			pollticks = 1;
+		}
+		if (hda_chan_active(sc) == 0 || pollticks < sc->poll_ticks) {
+			HDA_BOOTVERBOSE(
+				if (hda_chan_active(sc) == 0) {
+					device_printf(sc->dev,
+					    "%s: pollticks=%d\n",
+					    __func__, pollticks);
+				} else {
+					device_printf(sc->dev,
+					    "%s: pollticks %d -> %d\n",
+					    __func__, sc->poll_ticks,
+					    pollticks);
+				}
+			);
+			sc->poll_ticks = pollticks;
+			callout_reset(&sc->poll_hda, 1, hda_poll_callback,
+			    sc);
+		}
+		ctl = HDAC_READ_1(&sc->mem, ch->off + HDAC_SDCTL0);
+		ctl |= HDAC_SDCTL_RUN;
+	} else {
+		ctl = HDAC_READ_4(&sc->mem, HDAC_INTCTL);
+		ctl |= 1 << (ch->off >> 5);
+		HDAC_WRITE_4(&sc->mem, HDAC_INTCTL, ctl);
+		ctl = HDAC_READ_1(&sc->mem, ch->off + HDAC_SDCTL0);
+		ctl |= HDAC_SDCTL_IOCE | HDAC_SDCTL_FEIE | HDAC_SDCTL_DEIE |
+		    HDAC_SDCTL_RUN;
+	} 
 	HDAC_WRITE_1(&sc->mem, ch->off + HDAC_SDCTL0, ctl);
+
+	ch->active = 1;
 }
 
 static void
@@ -1988,28 +2201,32 @@ static void
 hdac_bdl_setup(struct hdac_chan *ch)
 {
 	struct hdac_softc *sc = ch->devinfo->codec->sc;
-	uint64_t addr;
-	int blks, size, blocksize;
 	struct hdac_bdle *bdle;
+	uint64_t addr;
+	uint32_t blksz, blkcnt;
 	int i;
 
 	addr = (uint64_t)sndbuf_getbufaddr(ch->b);
-	size = sndbuf_getsize(ch->b);
-	blocksize = sndbuf_getblksz(ch->b);
-	blks = size / blocksize;
-	bdle = (struct hdac_bdle*)ch->bdl_dma.dma_vaddr;
+	bdle = (struct hdac_bdle *)ch->bdl_dma.dma_vaddr;
 
-	for (i = 0; i < blks; i++, bdle++) {
-		bdle->addrl = (uint32_t)addr;
-		bdle->addrh = (uint32_t)(addr >> 32);
-		bdle->len = blocksize;
-		bdle->ioc = 1;
-
-		addr += blocksize;
+	if (sc->polling != 0) {
+		blksz = ch->blksz * ch->blkcnt;
+		blkcnt = 1;
+	} else {
+		blksz = ch->blksz;
+		blkcnt = ch->blkcnt;
 	}
 
-	HDAC_WRITE_4(&sc->mem, ch->off + HDAC_SDCBL, size);
-	HDAC_WRITE_2(&sc->mem, ch->off + HDAC_SDLVI, blks - 1);
+	for (i = 0; i < blkcnt; i++, bdle++) {
+		bdle->addrl = (uint32_t)addr;
+		bdle->addrh = (uint32_t)(addr >> 32);
+		bdle->len = blksz;
+		bdle->ioc = 1 ^ sc->polling;
+		addr += blksz;
+	}
+
+	HDAC_WRITE_4(&sc->mem, ch->off + HDAC_SDCBL, blksz * blkcnt);
+	HDAC_WRITE_2(&sc->mem, ch->off + HDAC_SDLVI, blkcnt - 1);
 	addr = ch->bdl_dma.dma_paddr;
 	HDAC_WRITE_4(&sc->mem, ch->off + HDAC_SDBDPL, (uint32_t)addr);
 	HDAC_WRITE_4(&sc->mem, ch->off + HDAC_SDBDPU, (uint32_t)(addr >> 32));
@@ -2046,7 +2263,7 @@ hdac_audio_ctl_amp_set_internal(struct hdac_softc *sc, nid_t cad, nid_t nid,
 		v = (1 << (15 - dir)) | (1 << 13) | (index << 8) |
 		    (lmute << 7) | left;
 		hdac_command(sc,
-			HDA_CMD_SET_AMP_GAIN_MUTE(cad, nid, v), cad);
+		    HDA_CMD_SET_AMP_GAIN_MUTE(cad, nid, v), cad);
 		v = (1 << (15 - dir)) | (1 << 12) | (index << 8) |
 		    (rmute << 7) | right;
 	} else
@@ -2142,14 +2359,12 @@ hdac_command_send_internal(struct hdac_softc *sc,
 	struct hdac_codec *codec;
 	int corbrp;
 	uint32_t *corb;
-	uint8_t rirbwp;
 	int timeout;
 	int retry = 10;
-	struct hdac_rirb *rirb_base, *rirb;
-	nid_t ucad;
-	uint32_t utag;
+	struct hdac_rirb *rirb_base;
 
-	if (sc == NULL || sc->codecs[cad] == NULL || commands == NULL)
+	if (sc == NULL || sc->codecs[cad] == NULL || commands == NULL ||
+	    commands->num_commands < 1)
 		return;
 
 	codec = sc->codecs[cad];
@@ -2180,55 +2395,22 @@ hdac_command_send_internal(struct hdac_softc *sc,
 		}
 
 		timeout = 1000;
-		do {
-			rirbwp = HDAC_READ_1(&sc->mem, HDAC_RIRBWP);
-			bus_dmamap_sync(sc->rirb_dma.dma_tag, sc->rirb_dma.dma_map,
-			    BUS_DMASYNC_POSTREAD);
-			if (sc->rirb_rp != rirbwp) {
-				do {
-					sc->rirb_rp++;
-					sc->rirb_rp %= sc->rirb_size;
-					rirb = &rirb_base[sc->rirb_rp];
-					if (rirb->response_ex & HDAC_RIRB_RESPONSE_EX_UNSOLICITED) {
-						ucad = HDAC_RIRB_RESPONSE_EX_SDATA_IN(rirb->response_ex);
-						utag = rirb->response >> 26;
-						if (ucad > -1 && ucad < HDAC_CODEC_MAX &&
-						    sc->codecs[ucad] != NULL) {
-							sc->unsolq[sc->unsolq_wp++] =
-							    (ucad << 16) |
-							    (utag & 0xffff);
-							sc->unsolq_wp %= HDAC_UNSOLQ_MAX;
-						}
-					} else if (codec->responses_received < commands->num_commands)
-						codec->commands->responses[codec->responses_received++] =
-						    rirb->response;
-				} while (sc->rirb_rp != rirbwp);
-				break;
-			}
+		while (hdac_rirb_flush(sc) == 0 && --timeout)
 			DELAY(10);
-		} while (--timeout);
 	} while ((codec->verbs_sent != commands->num_commands ||
-	    	codec->responses_received != commands->num_commands) &&
-		--retry);
+	    codec->responses_received != commands->num_commands) && --retry);
 
 	if (retry == 0)
 		device_printf(sc->dev,
-			"%s: TIMEOUT numcmd=%d, sent=%d, received=%d\n",
-			__func__, commands->num_commands,
-			codec->verbs_sent, codec->responses_received);
+		    "%s: TIMEOUT numcmd=%d, sent=%d, received=%d\n",
+		    __func__, commands->num_commands, codec->verbs_sent,
+		    codec->responses_received);
 
+	codec->commands = NULL;
+	codec->responses_received = 0;
 	codec->verbs_sent = 0;
 
-	if (sc->unsolq_st == HDAC_UNSOLQ_READY) {
-		sc->unsolq_st = HDAC_UNSOLQ_BUSY;
-		while (sc->unsolq_rp != sc->unsolq_wp) {
-			ucad = sc->unsolq[sc->unsolq_rp] >> 16;
-			utag = sc->unsolq[sc->unsolq_rp++] & 0xffff;
-			sc->unsolq_rp %= HDAC_UNSOLQ_MAX;
-			hdac_unsolicited_handler(sc->codecs[ucad], utag);
-		}
-		sc->unsolq_st = HDAC_UNSOLQ_READY;
-	}
+	hdac_unsolq_flush(sc);
 }
 
 
@@ -2352,16 +2534,18 @@ static int
 hdac_channel_setspeed(kobj_t obj, void *data, uint32_t speed)
 {
 	struct hdac_chan *ch = data;
-	uint32_t spd = 0;
+	uint32_t spd = 0, threshold;
 	int i;
 
 	for (i = 0; ch->pcmrates[i] != 0; i++) {
 		spd = ch->pcmrates[i];
-		if (spd >= speed)
+		threshold = spd + ((ch->pcmrates[i + 1] != 0) ?
+		    ((ch->pcmrates[i + 1] - spd) >> 1) : 0);
+		if (speed < threshold)
 			break;
 	}
 
-	if (spd == 0)
+	if (spd == 0)	/* impossible */
 		ch->spd = 48000;
 	else
 		ch->spd = spd;
@@ -2416,11 +2600,25 @@ hdac_stream_setup(struct hdac_chan *ch)
 }
 
 static int
-hdac_channel_setblocksize(kobj_t obj, void *data, uint32_t blocksize)
+hdac_channel_setblocksize(kobj_t obj, void *data, uint32_t blksz)
 {
 	struct hdac_chan *ch = data;
+	struct hdac_softc *sc = ch->devinfo->codec->sc;
 
-	sndbuf_resize(ch->b, ch->blkcnt, ch->blksz);
+	blksz &= ~0x7f;
+	if (blksz < 0x80)
+		blksz = 0x80;
+
+	if ((blksz * ch->blkcnt) > sndbuf_getmaxsize(ch->b))
+		blksz = sndbuf_getmaxsize(ch->b) / ch->blkcnt;
+
+	if ((sndbuf_getblksz(ch->b) != blksz ||
+	    sndbuf_getblkcnt(ch->b) != ch->blkcnt) &&
+	    sndbuf_resize(ch->b, ch->blkcnt, blksz) != 0)
+		device_printf(sc->dev, "%s: failed blksz=%u blkcnt=%u\n",
+		    __func__, blksz, ch->blkcnt);
+
+	ch->blksz = sndbuf_getblksz(ch->b);
 
 	return (ch->blksz);
 }
@@ -2480,26 +2678,20 @@ hdac_channel_getptr(kobj_t obj, void *data)
 {
 	struct hdac_chan *ch = data;
 	struct hdac_softc *sc = ch->devinfo->codec->sc;
-	int sz, delta;
 	uint32_t ptr;
 
 	hdac_lock(sc);
-	ptr = HDAC_READ_4(&sc->mem, ch->off + HDAC_SDLPIB);
+	if (sc->polling != 0)
+		ptr = ch->ptr;
+	else
+		ptr = HDAC_READ_4(&sc->mem, ch->off + HDAC_SDLPIB);
 	hdac_unlock(sc);
 
-	sz = sndbuf_getsize(ch->b);
-	ptr %= sz;
-
-	if (ch->dir == PCMDIR_REC) {
-		delta = ptr % sndbuf_getblksz(ch->b);
-		if (delta != 0) {
-			ptr -= delta;
-			if (ptr < delta)
-				ptr = sz - delta;
-			else
-				ptr -= delta;
-		}
-	}
+	/*
+	 * Round to available space and force 128 bytes aligment.
+	 */
+	ptr %= ch->blksz * ch->blkcnt;
+	ptr &= ~0x7f;
 
 	return (ptr);
 }
@@ -2872,11 +3064,24 @@ hdac_attach(device_t dev)
 	sc->pci_subvendor = (uint32_t)pci_get_subdevice(sc->dev) << 16;
 	sc->pci_subvendor |= (uint32_t)pci_get_subvendor(sc->dev) & 0x0000ffff;
 
-	sc->chan_size = pcm_getbuffersize(dev,
-	    HDA_BUFSZ_MIN, HDA_BUFSZ_DEFAULT, HDA_BUFSZ_DEFAULT);
+	callout_init(&sc->poll_hda, CALLOUT_MPSAFE);
+	callout_init(&sc->poll_hdac, CALLOUT_MPSAFE);
+
+	sc->poll_ticks = 1;
 	if (resource_int_value(device_get_name(sc->dev),
-	    device_get_unit(sc->dev), "blocksize", &i) == 0 &&
-	    i > 0) {
+	    device_get_unit(sc->dev), "polling", &i) == 0 && i != 0)
+		sc->polling = 1;
+	else
+		sc->polling = 0;
+
+	sc->chan_size = pcm_getbuffersize(dev,
+	    HDA_BUFSZ_MIN, HDA_BUFSZ_DEFAULT, HDA_BUFSZ_MAX);
+
+	if (resource_int_value(device_get_name(sc->dev),
+	    device_get_unit(sc->dev), "blocksize", &i) == 0 && i > 0) {
+		i &= ~0x7f;
+		if (i < 0x80)
+			i = 0x80;
 		sc->chan_blkcnt = sc->chan_size / i;
 		i = 0;
 		while (sc->chan_blkcnt >> i)
@@ -3227,15 +3432,12 @@ static const struct {
 	uint32_t set, unset;
 } hdac_quirks[] = {
 	/*
-	 * XXX Fixed rate quirk. Other than 48000
-	 *     sounds pretty much like train wreck.
-	 *
 	 * XXX Force stereo quirk. Monoural recording / playback
 	 *     on few codecs (especially ALC880) seems broken or
 	 *     perhaps unsupported.
 	 */
 	{ HDA_MATCH_ALL, HDA_MATCH_ALL,
-	    HDA_QUIRK_FIXEDRATE | HDA_QUIRK_FORCESTEREO, 0 },
+	    HDA_QUIRK_FORCESTEREO, 0 },
 	{ ACER_ALL_SUBVENDOR, HDA_MATCH_ALL,
 	    HDA_QUIRK_GPIO1, 0 },
 	{ ASUS_M5200_SUBVENDOR, HDA_CODEC_ALC880,
@@ -3243,6 +3445,8 @@ static const struct {
 	{ ASUS_U5F_SUBVENDOR, HDA_CODEC_AD1986A,
 	    HDA_QUIRK_EAPDINV, 0 },
 	{ ASUS_A8JC_SUBVENDOR, HDA_CODEC_AD1986A,
+	    HDA_QUIRK_EAPDINV, 0 },
+	{ LNV_3KN100_SUBVENDOR, HDA_CODEC_AD1986A,
 	    HDA_QUIRK_EAPDINV, 0 },
 	{ HDA_MATCH_ALL, HDA_CODEC_CXVENICE,
 	    0, HDA_QUIRK_FORCESTEREO },
@@ -3550,8 +3754,8 @@ hdac_audio_ctl_outamp_build(struct hdac_devinfo *devinfo,
 		}
 		w->ctlflags |= fl;
 		return (fl);
-	} else if (w->type == HDA_PARAM_AUDIO_WIDGET_CAP_TYPE_PIN_COMPLEX
-	    && HDA_PARAM_PIN_CAP_INPUT_CAP(w->wclass.pin.cap) &&
+	} else if (w->type == HDA_PARAM_AUDIO_WIDGET_CAP_TYPE_PIN_COMPLEX &&
+	    HDA_PARAM_PIN_CAP_INPUT_CAP(w->wclass.pin.cap) &&
 	    (w->pflags & HDA_ADC_PATH)) {
 		conndev = w->wclass.pin.config &
 		    HDA_CONFIG_DEFAULTCONF_DEVICE_MASK;
@@ -4032,9 +4236,14 @@ hdac_pcmchannel_setup(struct hdac_devinfo *devinfo, int dir)
 		}*/
 		if (!HDA_PARAM_SUPP_STREAM_FORMATS_PCM(cap))
 			continue;
+		if (ret == 0) {
+			fmtcap = w->param.supp_stream_formats;
+			pcmcap = w->param.supp_pcm_size_rate;
+		} else {
+			fmtcap &= w->param.supp_stream_formats;
+			pcmcap &= w->param.supp_pcm_size_rate;
+		}
 		ch->io[ret++] = i;
-		fmtcap &= w->param.supp_stream_formats;
-		pcmcap &= w->param.supp_pcm_size_rate;
 	}
 	ch->io[ret] = -1;
 
@@ -4498,6 +4707,8 @@ hdac_release_resources(struct hdac_softc *sc)
 		return;
 
 	hdac_lock(sc);
+	if (sc->polling != 0)
+		callout_stop(&sc->poll_hdac);
 	hdac_reset(sc);
 	hdac_unlock(sc);
 	snd_mtxfree(sc->lock);
@@ -4597,6 +4808,65 @@ hdac_config_fetch(struct hdac_softc *sc, uint32_t *on, uint32_t *off)
 	}
 }
 
+#ifdef SND_DYNSYSCTL
+static int
+sysctl_hdac_polling(SYSCTL_HANDLER_ARGS)
+{
+	struct hdac_softc *sc;
+	struct hdac_devinfo *devinfo;
+	device_t dev;
+	uint32_t ctl;
+	int err, val;
+
+	dev = oidp->oid_arg1;
+	devinfo = pcm_getdevinfo(dev);
+	if (devinfo == NULL || devinfo->codec == NULL ||
+	    devinfo->codec->sc == NULL)
+		return (EINVAL);
+	sc = devinfo->codec->sc;
+	hdac_lock(sc);
+	val = sc->polling;
+	hdac_unlock(sc);
+	err = sysctl_handle_int(oidp, &val, sizeof(val), req);
+
+	if (err || req->newptr == NULL)
+		return (err);
+	if (val < 0 || val > 1)
+		return (EINVAL);
+
+	hdac_lock(sc);
+	if (val != sc->polling) {
+		if (hda_chan_active(sc) != 0)
+			err = EBUSY;
+		else if (val == 0) {
+			callout_stop(&sc->poll_hdac);
+			HDAC_WRITE_2(&sc->mem, HDAC_RINTCNT,
+			    sc->rirb_size / 2);
+			ctl = HDAC_READ_1(&sc->mem, HDAC_RIRBCTL);
+			ctl |= HDAC_RIRBCTL_RINTCTL;
+			HDAC_WRITE_1(&sc->mem, HDAC_RIRBCTL, ctl);
+			HDAC_WRITE_4(&sc->mem, HDAC_INTCTL,
+			    HDAC_INTCTL_CIE | HDAC_INTCTL_GIE);
+			sc->polling = 0;
+			DELAY(1000);
+		} else {
+			HDAC_WRITE_4(&sc->mem, HDAC_INTCTL, 0);
+			HDAC_WRITE_2(&sc->mem, HDAC_RINTCNT, 0);
+			ctl = HDAC_READ_1(&sc->mem, HDAC_RIRBCTL);
+			ctl &= ~HDAC_RIRBCTL_RINTCTL;
+			HDAC_WRITE_1(&sc->mem, HDAC_RIRBCTL, ctl);
+			callout_reset(&sc->poll_hdac, 1, hdac_poll_callback,
+			    sc);
+			sc->polling = 1;
+			DELAY(1000);
+		}
+	}
+	hdac_unlock(sc);
+
+	return (err);
+}
+#endif
+
 static void
 hdac_attach2(void *arg)
 {
@@ -4642,7 +4912,9 @@ hdac_attach2(void *arg)
 		device_printf(sc->dev,
 		    "HDA_DEBUG: Enabling controller interrupt...\n");
 	);
-	HDAC_WRITE_4(&sc->mem, HDAC_INTCTL, HDAC_INTCTL_CIE | HDAC_INTCTL_GIE);
+	if (sc->polling == 0)
+		HDAC_WRITE_4(&sc->mem, HDAC_INTCTL,
+		    HDAC_INTCTL_CIE | HDAC_INTCTL_GIE);
 	HDAC_WRITE_4(&sc->mem, HDAC_GCTL, HDAC_READ_4(&sc->mem, HDAC_GCTL) |
 	    HDAC_GCTL_UNSOL);
 
@@ -4779,17 +5051,24 @@ hdac_attach2(void *arg)
 	for (i = 0; i < rcnt; i++)
 		pcm_addchan(sc->dev, PCMDIR_REC, &hdac_channel_class, devinfo);
 
+#ifdef SND_DYNSYSCTL
+	SYSCTL_ADD_PROC(device_get_sysctl_ctx(sc->dev),
+	    SYSCTL_CHILDREN(device_get_sysctl_tree(sc->dev)), OID_AUTO,
+	    "polling", CTLTYPE_INT | CTLFLAG_RW, sc->dev, sizeof(sc->dev),
+	    sysctl_hdac_polling, "I", "Enable polling mode");
+#endif
+
 	snprintf(status, SND_STATUSLEN, "at memory 0x%lx irq %ld %s [%s]",
-			rman_get_start(sc->mem.mem_res),
-			rman_get_start(sc->irq.irq_res),
-			PCM_KLDSTRING(snd_hda), HDA_DRV_TEST_REV);
+	    rman_get_start(sc->mem.mem_res), rman_get_start(sc->irq.irq_res),
+	    PCM_KLDSTRING(snd_hda), HDA_DRV_TEST_REV);
 	pcm_setstatus(sc->dev, status);
 	device_printf(sc->dev, "<HDA Codec: %s>\n", hdac_codec_name(devinfo));
 	HDA_BOOTVERBOSE(
 		device_printf(sc->dev, "<HDA Codec ID: 0x%08x>\n",
 		    hdac_codec_id(devinfo));
 	);
-	device_printf(sc->dev, "<HDA Driver Revision: %s>\n", HDA_DRV_TEST_REV);
+	device_printf(sc->dev, "<HDA Driver Revision: %s>\n",
+	    HDA_DRV_TEST_REV);
 
 	HDA_BOOTVERBOSE(
 		if (devinfo->function.audio.quirks != 0) {
@@ -4844,6 +5123,12 @@ hdac_attach2(void *arg)
 		device_printf(sc->dev, "+--------------------------------------+\n");
 		hdac_dump_pcmchannels(sc, pcnt, rcnt);
 	);
+
+	if (sc->polling != 0) {
+		hdac_lock(sc);
+		callout_reset(&sc->poll_hdac, 1, hdac_poll_callback, sc);
+		hdac_unlock(sc);
+	}
 }
 
 /****************************************************************************

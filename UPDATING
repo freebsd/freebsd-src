@@ -21,6 +21,19 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 7.x IS SLOW:
 	developers choose to disable these features on build machines
 	to maximize performance.
 
+20061126:
+	Sound infrastructure has been updated with various fixes and
+	improvements. Most of the changes are pretty much transparent,
+	with exceptions of followings:
+	1) All sound driver specific sysctls (hw.snd.pcm%d.*) have been
+	   moved to their own dev sysctl nodes, for example:
+		hw.snd.pcm0.vchans -> dev.pcm.0.vchans
+	2) /dev/dspr%d.%d has been deprecated. Each channel now has its
+	   own chardev in the form of "dsp%d.<function>%d", where <function>
+	   is p = playback, r = record and v = virtual, respectively. Users
+	   are encouraged to use these devs instead of (old) "/dev/dsp%d.%d".
+	   This does not affect those who are using "/dev/dsp".
+
 20061122:
 	The following binaries have been disconnected from the build:
 	mount_devfs, mount_ext2fs, mount_fdescfs, mount_procfs, mount_linprocfs,

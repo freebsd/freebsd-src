@@ -25,6 +25,15 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
+ * 2006-02-21:
+ * ==========
+ *
+ * Major cleanup and overhaul to remove much redundant codes.
+ * Highlights:
+ *	1) Support for signed / unsigned 16, 24 and 32 bit,
+ *	   big / little endian,
+ *	2) Unlimited channels.
+ *
  * 2005-06-11:
  * ==========
  *
@@ -68,30 +77,24 @@
 
 SND_DECLARE_FILE("$FreeBSD$");
 
-#define RATE_ASSERT(x, y) /* KASSERT(x,y) */
-#define RATE_TEST(x, y)  /* if (!(x)) printf y */
-#define RATE_TRACE(x...) /* printf(x) */
+#define RATE_ASSERT(x, y)	/* KASSERT(x,y) */
+#define RATE_TEST(x, y)		/* if (!(x)) printf y */
+#define RATE_TRACE(x...)	/* printf(x) */
 
 MALLOC_DEFINE(M_RATEFEEDER, "ratefeed", "pcm rate feeder");
 
-#define FEEDBUFSZ	8192
-#define ROUNDHZ		25
-#define RATEMIN		4000
-/* 8000 * 138 or 11025 * 100 . This is insane, indeed! */
-#define RATEMAX		1102500
-#define MINGAIN		92
-#define MAXGAIN		96
+/*
+ * Don't overflow 32bit integer, since everything is done
+ * within 32bit arithmetic.
+ */
+#define RATE_FACTOR_MIN		1
+#define RATE_FACTOR_MAX		PCM_S24_MAX
+#define RATE_FACTOR_SAFE(val)	(!((val) < RATE_FACTOR_MIN || \
+						(val) > RATE_FACTOR_MAX))
 
-#define FEEDRATE_CONVERT_64		0
-#define FEEDRATE_CONVERT_SCALE64	1
-#define FEEDRATE_CONVERT_SCALE32	2
-#define FEEDRATE_CONVERT_PLAIN		3
-#define FEEDRATE_CONVERT_FIXED		4
-#define FEEDRATE_CONVERT_OPTIMAL	5
-#define FEEDRATE_CONVERT_WORST		6
+struct feed_rate_info;
 
-#define FEEDRATE_64_MAXROLL	32
-#define FEEDRATE_32_MAXROLL	16
+typedef uint32_t (*feed_rate_converter)(struct feed_rate_info *, uint8_t *, uint32_t);
 
 struct feed_rate_info {
 	uint32_t src, dst;	/* rounded source / destination rates */
@@ -99,138 +102,148 @@ struct feed_rate_info {
 	uint32_t gx, gy;	/* interpolation / decimation ratio */
 	uint32_t alpha;		/* interpolation distance */
 	uint32_t pos, bpos;	/* current sample / buffer positions */
-	uint32_t bufsz;		/* total buffer size */
+	uint32_t bufsz;		/* total buffer size limit */
+	uint32_t bufsz_init;	/* allocated buffer size */
+	uint32_t channels;	/* total channels */
+	uint32_t bps;		/* bytes-per-sample */
 	uint32_t stray;		/* stray bytes */
-	int32_t  scale, roll;	/* scale / roll factor */
-	int16_t  *buffer;
-	uint32_t (*convert)(struct feed_rate_info *, int16_t *, uint32_t);
+	uint8_t  *buffer;
+	feed_rate_converter convert;
 };
 
-static uint32_t
-feed_convert_64(struct feed_rate_info *, int16_t *, uint32_t);
-static uint32_t
-feed_convert_scale64(struct feed_rate_info *, int16_t *, uint32_t);
-static uint32_t
-feed_convert_scale32(struct feed_rate_info *, int16_t *, uint32_t);
-static uint32_t
-feed_convert_plain(struct feed_rate_info *, int16_t *, uint32_t);
+int feeder_rate_min = FEEDRATE_RATEMIN;
+int feeder_rate_max = FEEDRATE_RATEMAX;
+int feeder_rate_round = FEEDRATE_ROUNDHZ;
 
-int feeder_rate_ratemin = RATEMIN;
-int feeder_rate_ratemax = RATEMAX;
-/*
- * See 'Feeder Scaling Type' below..
- */
-static int feeder_rate_scaling = FEEDRATE_CONVERT_OPTIMAL;
-static int feeder_rate_buffersize = FEEDBUFSZ & ~1;
-
-/* 
- * sysctls.. I love sysctls..
- */
-TUNABLE_INT("hw.snd.feeder_rate_ratemin", &feeder_rate_ratemin);
-TUNABLE_INT("hw.snd.feeder_rate_ratemax", &feeder_rate_ratemin);
-TUNABLE_INT("hw.snd.feeder_rate_scaling", &feeder_rate_scaling);
-TUNABLE_INT("hw.snd.feeder_rate_buffersize", &feeder_rate_buffersize);
+TUNABLE_INT("hw.snd.feeder_rate_min", &feeder_rate_min);
+TUNABLE_INT("hw.snd.feeder_rate_max", &feeder_rate_max);
+TUNABLE_INT("hw.snd.feeder_rate_round", &feeder_rate_round);
 
 static int
-sysctl_hw_snd_feeder_rate_ratemin(SYSCTL_HANDLER_ARGS)
+sysctl_hw_snd_feeder_rate_min(SYSCTL_HANDLER_ARGS)
 {
 	int err, val;
 
-	val = feeder_rate_ratemin;
+	val = feeder_rate_min;
 	err = sysctl_handle_int(oidp, &val, sizeof(val), req);
-	if (val < 1 || val >= feeder_rate_ratemax)
-		err = EINVAL;
+	if (RATE_FACTOR_SAFE(val) && val < feeder_rate_max)
+		feeder_rate_min = val;
 	else
-		feeder_rate_ratemin = val;
+		err = EINVAL;
 	return err;
 }
-SYSCTL_PROC(_hw_snd, OID_AUTO, feeder_rate_ratemin, CTLTYPE_INT | CTLFLAG_RW,
-	0, sizeof(int), sysctl_hw_snd_feeder_rate_ratemin, "I", "");
+SYSCTL_PROC(_hw_snd, OID_AUTO, feeder_rate_min, CTLTYPE_INT | CTLFLAG_RW,
+	0, sizeof(int), sysctl_hw_snd_feeder_rate_min, "I",
+	"minimum allowable rate");
 
 static int
-sysctl_hw_snd_feeder_rate_ratemax(SYSCTL_HANDLER_ARGS)
+sysctl_hw_snd_feeder_rate_max(SYSCTL_HANDLER_ARGS)
 {
 	int err, val;
 
-	val = feeder_rate_ratemax;
+	val = feeder_rate_max;
 	err = sysctl_handle_int(oidp, &val, sizeof(val), req);
-	if (val <= feeder_rate_ratemin || val > 0x7fffff)
-		err = EINVAL;
+	if (RATE_FACTOR_SAFE(val) && val > feeder_rate_min)
+		feeder_rate_max = val;
 	else
-		feeder_rate_ratemax = val;
+		err = EINVAL;
 	return err;
 }
-SYSCTL_PROC(_hw_snd, OID_AUTO, feeder_rate_ratemax, CTLTYPE_INT | CTLFLAG_RW,
-	0, sizeof(int), sysctl_hw_snd_feeder_rate_ratemax, "I", "");
+SYSCTL_PROC(_hw_snd, OID_AUTO, feeder_rate_max, CTLTYPE_INT | CTLFLAG_RW,
+	0, sizeof(int), sysctl_hw_snd_feeder_rate_max, "I",
+	"maximum allowable rate");
 
 static int
-sysctl_hw_snd_feeder_rate_scaling(SYSCTL_HANDLER_ARGS)
+sysctl_hw_snd_feeder_rate_round(SYSCTL_HANDLER_ARGS)
 {
 	int err, val;
 
-	val = feeder_rate_scaling;
+	val = feeder_rate_round;
 	err = sysctl_handle_int(oidp, &val, sizeof(val), req);
-	/*
-	 *      Feeder Scaling Type
-	 *      ===================
-	 *
-	 *	1. Plain 64bit (high precision)
-	 *	2. 64bit scaling (high precision, CPU friendly, but can
-	 *	   cause gain up/down).
-	 *	3. 32bit scaling (somehow can cause hz roundup, gain
-	 *	   up/down).
-	 *	4. Plain copy (default if src == dst. Except if src == dst,
-	 *	   this is the worst / silly conversion method!).
-	 *
-	 *	Sysctl options:-
-	 *
-	 *	0 - Plain 64bit - no fallback.
-	 *	1 - 64bit scaling - no fallback.
-	 *	2 - 32bit scaling - no fallback.
-	 *	3 - Plain copy - no fallback.
-	 *	4 - Fixed rate. Means that, choose optimal conversion method
-	 *	    without causing hz roundup.
-	 *	    32bit scaling (as long as hz roundup does not occur),
-	 *	    64bit scaling, Plain 64bit.
-	 *	5 - Optimal / CPU friendly (DEFAULT).
-	 *	    32bit scaling, 64bit scaling, Plain 64bit
-	 *	6 - Optimal to worst, no 64bit arithmetic involved.
-	 *	    32bit scaling, Plain copy.
-	 */
-	if (val < FEEDRATE_CONVERT_64 || val > FEEDRATE_CONVERT_WORST)
+	if (val < FEEDRATE_ROUNDHZ_MIN || val > FEEDRATE_ROUNDHZ_MAX)
 		err = EINVAL;
 	else
-		feeder_rate_scaling = val;
+		feeder_rate_round = val - (val % FEEDRATE_ROUNDHZ);
 	return err;
 }
-SYSCTL_PROC(_hw_snd, OID_AUTO, feeder_rate_scaling, CTLTYPE_INT | CTLFLAG_RW,
-	0, sizeof(int), sysctl_hw_snd_feeder_rate_scaling, "I", "");
+SYSCTL_PROC(_hw_snd, OID_AUTO, feeder_rate_round, CTLTYPE_INT | CTLFLAG_RW,
+	0, sizeof(int), sysctl_hw_snd_feeder_rate_round, "I",
+	"sample rate converter rounding threshold");
 
-static int
-sysctl_hw_snd_feeder_rate_buffersize(SYSCTL_HANDLER_ARGS)
-{
-	int err, val;
-
-	val = feeder_rate_buffersize;
-	err = sysctl_handle_int(oidp, &val, sizeof(val), req);
-	/*
-	 * Don't waste too much kernel space
-	 */
-	if (val < 2 || val > 65536)
-		err = EINVAL;
-	else
-		feeder_rate_buffersize = val & ~1;
-	return err;
+#define FEEDER_RATE_CONVERT(FMTBIT, RATE_INTCAST, SIGN, SIGNS, ENDIAN, ENDIANS)	\
+static uint32_t									\
+feed_convert_##SIGNS##FMTBIT##ENDIANS(struct feed_rate_info *info,		\
+						uint8_t *dst, uint32_t max)	\
+{										\
+	uint32_t ret, smpsz, bps, ch, pos, bpos, gx, gy, alpha, distance;	\
+	int32_t x, y;								\
+	int i;									\
+	uint8_t *src, *sx, *sy;							\
+										\
+	ret = 0;								\
+	alpha = info->alpha;							\
+	gx = info->gx;								\
+	gy = info->gy;								\
+	pos = info->pos;							\
+	bpos = info->bpos;							\
+	src = info->buffer + pos;						\
+	ch = info->channels;							\
+	bps = info->bps;							\
+	smpsz = bps * ch;							\
+	for (;;) {								\
+		if (alpha < gx) {						\
+			alpha += gy;						\
+			pos += smpsz;						\
+			if (pos == bpos)					\
+				break;						\
+			src += smpsz;						\
+		} else {							\
+			alpha -= gx;						\
+			distance = (alpha << PCM_FXSHIFT) / gy;			\
+			sx = src - smpsz;					\
+			sy = src;						\
+			i = ch;							\
+			do {							\
+				x = PCM_READ_##SIGN##FMTBIT##_##ENDIAN(sx);	\
+				y = PCM_READ_##SIGN##FMTBIT##_##ENDIAN(sy);	\
+				x = (((RATE_INTCAST)x * distance) +		\
+				    ((RATE_INTCAST)y * ((1 << PCM_FXSHIFT) -	\
+				    distance))) >> PCM_FXSHIFT;			\
+				PCM_WRITE_##SIGN##FMTBIT##_##ENDIAN(dst, x);	\
+				dst += bps;					\
+				sx += bps;					\
+				sy += bps;					\
+				ret += bps;					\
+			} while (--i);						\
+			if (ret == max)						\
+				break;						\
+		}								\
+	}									\
+	info->alpha = alpha;							\
+	info->pos = pos;							\
+	return ret;								\
 }
-/* XXX: this should be settable by an user via a control tool, the sysadmin
-   needs a max and min sysctl to limit what an user can do */
-SYSCTL_PROC(_hw_snd, OID_AUTO, _feeder_rate_buffersize, CTLTYPE_INT | CTLFLAG_RW,
-	0, sizeof(int), sysctl_hw_snd_feeder_rate_buffersize, "I", "");
+
+FEEDER_RATE_CONVERT(8, int32_t, S, s, NE, ne)
+FEEDER_RATE_CONVERT(16, int32_t, S, s, LE, le)
+FEEDER_RATE_CONVERT(24, int32_t, S, s, LE, le)
+FEEDER_RATE_CONVERT(32, intpcm_t, S, s, LE, le)
+FEEDER_RATE_CONVERT(16, int32_t, S, s, BE, be)
+FEEDER_RATE_CONVERT(24, int32_t, S, s, BE, be)
+FEEDER_RATE_CONVERT(32, intpcm_t, S, s, BE, be)
+/* unsigned */
+FEEDER_RATE_CONVERT(8, int32_t, U, u, NE, ne)
+FEEDER_RATE_CONVERT(16, int32_t, U, u, LE, le)
+FEEDER_RATE_CONVERT(24, int32_t, U, u, LE, le)
+FEEDER_RATE_CONVERT(32, intpcm_t, U, u, LE, le)
+FEEDER_RATE_CONVERT(16, int32_t, U, u, BE, be)
+FEEDER_RATE_CONVERT(24, int32_t, U, u, BE, be)
+FEEDER_RATE_CONVERT(32, intpcm_t, U, u, BE, be)
 
 static void
-feed_speed_ratio(uint32_t x, uint32_t y, uint32_t *gx, uint32_t *gy)
+feed_speed_ratio(uint32_t src, uint32_t dst, uint32_t *gx, uint32_t *gy)
 {
-	uint32_t w, src = x, dst = y;
+	uint32_t w, x = src, y = dst;
 
 	while (y != 0) {
 		w = x % y;
@@ -242,242 +255,112 @@ feed_speed_ratio(uint32_t x, uint32_t y, uint32_t *gx, uint32_t *gy)
 }
 
 static void
-feed_scale_roll(uint32_t dst, int32_t *scale, int32_t *roll, int32_t max)
-{
-	int64_t k, tscale;
-	int32_t j, troll;
-
-	*scale = *roll = -1;
-	for (j = MAXGAIN; j >= MINGAIN; j -= 3) {
-		for (troll = 0; troll < max; troll++) {
-			tscale = (1 << troll) / dst;
-			k = (tscale * dst * 100) >> troll;
-			if (k > j && k <= 100) {
-				*scale = tscale;
-				*roll = troll;
-				return;
-			}
-		}
-	}
-}
-
-static int
-feed_get_best_coef(uint32_t *src, uint32_t *dst, uint32_t *gx, uint32_t *gy,
-			int32_t *scale, int32_t *roll)
-{
-	uint32_t tsrc, tdst, sscale, dscale;
-	int32_t tscale, troll;
-	int i, j, hzmin, hzmax;
-
-	*scale = *roll = -1;
-	for (i = 0; i < 2; i++) {
-		hzmin = (ROUNDHZ * i) + 1;
-		hzmax = hzmin + ROUNDHZ;
-		for (j = hzmin; j < hzmax; j++) {
-			tsrc = *src - (*src % j);
-			tdst = *dst;
-			if (tsrc < 1 || tdst < 1)
-				goto coef_failed;
-			feed_speed_ratio(tsrc, tdst, &sscale, &dscale);
-			feed_scale_roll(dscale, &tscale, &troll,
-						FEEDRATE_32_MAXROLL);
-			if (tscale != -1 && troll != -1) {
-				*src = tsrc;
-				*gx = sscale;
-				*gy = dscale;
-				*scale = tscale;
-				*roll = troll;
-				return j;
-			}
-		}
-		for (j = hzmin; j < hzmax; j++) {
-			tsrc = *src - (*src % j);
-			tdst = *dst - (*dst % j);
-			if (tsrc < 1 || tdst < 1)
-				goto coef_failed;
-			feed_speed_ratio(tsrc, tdst, &sscale, &dscale);
-			feed_scale_roll(dscale, &tscale, &troll,
-						FEEDRATE_32_MAXROLL);
-			if (tscale != -1 && troll != -1) {
-				*src = tsrc;
-				*dst = tdst;
-				*gx = sscale;
-				*gy = dscale;
-				*scale = tscale;
-				*roll = troll;
-				return j;
-			}
-		}
-		for (j = hzmin; j < hzmax; j++) {
-			tsrc = *src;
-			tdst = *dst - (*dst % j);
-			if (tsrc < 1 || tdst < 1)
-				goto coef_failed;
-			feed_speed_ratio(tsrc, tdst, &sscale, &dscale);
-			feed_scale_roll(dscale, &tscale, &troll,
-						FEEDRATE_32_MAXROLL);
-			if (tscale != -1 && troll != -1) {
-				*src = tsrc;
-				*dst = tdst;
-				*gx = sscale;
-				*gy = dscale;
-				*scale = tscale;
-				*roll = troll;
-				return j;
-			}
-		}
-	}
-coef_failed:
-	feed_speed_ratio(*src, *dst, gx, gy);
-	feed_scale_roll(*gy, scale, roll, FEEDRATE_32_MAXROLL);
-	return 0;
-}
-
-static void
 feed_rate_reset(struct feed_rate_info *info)
 {
-	info->scale = -1;
-	info->roll = -1;
-	info->src = info->rsrc;
-	info->dst = info->rdst;
-	info->gx = 0;
-	info->gy = 0;
+	info->src = info->rsrc - (info->rsrc %
+		((feeder_rate_round > 0) ? feeder_rate_round : 1));
+	info->dst = info->rdst - (info->rdst %
+		((feeder_rate_round > 0) ? feeder_rate_round : 1));
+	info->gx = 1;
+	info->gy = 1;
+	info->alpha = 0;
+	info->channels = 2;
+	info->bps = 2;
+	info->convert = NULL;
+	info->bufsz = info->bufsz_init;
+	info->pos = 4;
+	info->bpos = 8;
+	info->stray = 0;
 }
 
 static int
 feed_rate_setup(struct pcm_feeder *f)
 {
 	struct feed_rate_info *info = f->data;
-	int r = 0;
+	static const struct {
+		uint32_t format;	/* pcm / audio format */
+		uint32_t bps;		/* bytes-per-sample, regardless of
+					   total channels */
+		feed_rate_converter convert;
+	} convtbl[] = {
+		{ AFMT_S8, PCM_8_BPS, feed_convert_s8ne },
+		{ AFMT_S16_LE, PCM_16_BPS, feed_convert_s16le },
+		{ AFMT_S24_LE, PCM_24_BPS, feed_convert_s24le },
+		{ AFMT_S32_LE, PCM_32_BPS, feed_convert_s32le },
+		{ AFMT_S16_BE, PCM_16_BPS, feed_convert_s16be },
+		{ AFMT_S24_BE, PCM_24_BPS, feed_convert_s24be },
+		{ AFMT_S32_BE, PCM_32_BPS, feed_convert_s32be },
+		/* unsigned */
+		{ AFMT_U8, PCM_8_BPS, feed_convert_u8ne },
+		{ AFMT_U16_LE, PCM_16_BPS, feed_convert_u16le },
+		{ AFMT_U24_LE, PCM_24_BPS, feed_convert_u24le },
+		{ AFMT_U32_LE, PCM_32_BPS, feed_convert_u32le },
+		{ AFMT_U16_BE, PCM_16_BPS, feed_convert_u16be },
+		{ AFMT_U24_BE, PCM_24_BPS, feed_convert_u24be },
+		{ AFMT_U32_BE, PCM_32_BPS, feed_convert_u32be },
+		{ 0, 0, NULL },
+	};
+	uint32_t i;
 
-	info->pos = 2;
-	info->bpos = 4;
-	info->alpha = 0;
-	info->stray = 0;
 	feed_rate_reset(info);
-	if (info->src == info->dst) {
-		/*
-		 * No conversion ever needed. Just do plain copy.
-		 */
-		info->convert = feed_convert_plain;
-		info->gx = 1;
-		info->gy = 1;
-	} else {
-		switch (feeder_rate_scaling) {
-			case FEEDRATE_CONVERT_64:
-				feed_speed_ratio(info->src, info->dst,
+
+	if (info->src != info->dst)
+		feed_speed_ratio(info->src, info->dst,
 					&info->gx, &info->gy);
-				info->convert = feed_convert_64;
-				break;
-			case FEEDRATE_CONVERT_SCALE64:
-				feed_speed_ratio(info->src, info->dst,
-					&info->gx, &info->gy);
-				feed_scale_roll(info->gy, &info->scale,
-					&info->roll, FEEDRATE_64_MAXROLL);
-				if (info->scale == -1 || info->roll == -1)
-					return -1;
-				info->convert = feed_convert_scale64;
-				break;
-			case FEEDRATE_CONVERT_SCALE32:
-				r = feed_get_best_coef(&info->src, &info->dst,
-					&info->gx, &info->gy, &info->scale,
-					&info->roll);
-				if (r == 0)
-					return -1;
-				info->convert = feed_convert_scale32;
-				break;
-			case FEEDRATE_CONVERT_PLAIN:
-				feed_speed_ratio(info->src, info->dst,
-					&info->gx, &info->gy);
-				info->convert = feed_convert_plain;
-				break;
-			case FEEDRATE_CONVERT_FIXED:
-				r = feed_get_best_coef(&info->src, &info->dst,
-					&info->gx, &info->gy, &info->scale,
-					&info->roll);
-				if (r != 0 && info->src == info->rsrc &&
-						info->dst == info->rdst)
-					info->convert = feed_convert_scale32;
-				else {
-					/* Fallback */
-					feed_rate_reset(info);
-					feed_speed_ratio(info->src, info->dst,
-						&info->gx, &info->gy);
-					feed_scale_roll(info->gy, &info->scale,
-						&info->roll, FEEDRATE_64_MAXROLL);
-					if (info->scale != -1 && info->roll != -1)
-						info->convert = feed_convert_scale64;
-					else
-						info->convert = feed_convert_64;
-				}
-				break;
-			case FEEDRATE_CONVERT_OPTIMAL:
-				r = feed_get_best_coef(&info->src, &info->dst,
-					&info->gx, &info->gy, &info->scale,
-					&info->roll);
-				if (r != 0)
-					info->convert = feed_convert_scale32;
-				else {
-					/* Fallback */
-					feed_rate_reset(info);
-					feed_speed_ratio(info->src, info->dst,
-						&info->gx, &info->gy);
-					feed_scale_roll(info->gy, &info->scale,
-						&info->roll, FEEDRATE_64_MAXROLL);
-					if (info->scale != -1 && info->roll != -1)
-						info->convert = feed_convert_scale64;
-					else
-						info->convert = feed_convert_64;
-				}
-				break;
-			case FEEDRATE_CONVERT_WORST:
-				r = feed_get_best_coef(&info->src, &info->dst,
-					&info->gx, &info->gy, &info->scale,
-					&info->roll);
-				if (r != 0)
-					info->convert = feed_convert_scale32;
-				else {
-					/* Fallback */
-					feed_rate_reset(info);
-					feed_speed_ratio(info->src, info->dst,
-						&info->gx, &info->gy);
-					info->convert = feed_convert_plain;
-				}
-				break;
-			default:
-				return -1;
-				break;
-		}
-		/* No way! */
-		if (info->gx == 0 || info->gy == 0)
+
+	if (!(RATE_FACTOR_SAFE(info->gx) && RATE_FACTOR_SAFE(info->gy)))
+		return -1;
+
+	for (i = 0; i < sizeof(convtbl) / sizeof(*convtbl); i++) {
+		if (convtbl[i].format == 0)
 			return -1;
-		/*
-		 * No need to interpolate/decimate, just do plain copy.
-		 * This probably caused by Hz roundup.
-		 */
-		if (info->gx == info->gy)
-			info->convert = feed_convert_plain;
+		if ((f->desc->out & ~AFMT_STEREO) == convtbl[i].format) {
+			info->bps = convtbl[i].bps;
+			info->convert = convtbl[i].convert;
+			break;
+		}
 	}
+
+	/*
+	 * No need to interpolate/decimate, just do plain copy.
+	 */
+	if (info->gx == info->gy)
+		info->convert = NULL;
+
+	info->channels = (f->desc->out & AFMT_STEREO) ? 2 : 1;
+	info->pos = info->bps * info->channels;
+	info->bpos = info->pos << 1;
+	info->bufsz -= info->bufsz % info->pos;
+
+	memset(info->buffer, sndbuf_zerodata(f->desc->out), info->bpos);
+
+	RATE_TRACE("%s: %u (%u) -> %u (%u) [%u/%u] , "
+			"format=0x%08x, channels=%u, bufsz=%u\n",
+			__func__, info->src, info->rsrc, info->dst, info->rdst,
+			info->gx, info->gy,
+			f->desc->out, info->channels,
+			info->bufsz - info->pos);
+
 	return 0;
 }
 
 static int
-feed_rate_set(struct pcm_feeder *f, int what, int value)
+feed_rate_set(struct pcm_feeder *f, int what, int32_t value)
 {
 	struct feed_rate_info *info = f->data;
 
-	if (value < feeder_rate_ratemin || value > feeder_rate_ratemax)
+	if (value < feeder_rate_min || value > feeder_rate_max)
 		return -1;
-	
+
 	switch (what) {
-		case FEEDRATE_SRC:
-			info->rsrc = value;
-			break;
-		case FEEDRATE_DST:
-			info->rdst = value;
-			break;
-		default:
-			return -1;
+	case FEEDRATE_SRC:
+		info->rsrc = value;
+		break;
+	case FEEDRATE_DST:
+		info->rdst = value;
+		break;
+	default:
+		return -1;
 	}
 	return feed_rate_setup(f);
 }
@@ -487,16 +370,13 @@ feed_rate_get(struct pcm_feeder *f, int what)
 {
 	struct feed_rate_info *info = f->data;
 
-	/*
-	 * Return *real* src/dst rate.
-	 */
 	switch (what) {
-		case FEEDRATE_SRC:
-			return info->rsrc;
-		case FEEDRATE_DST:
-			return info->rdst;
-		default:
-			return -1;
+	case FEEDRATE_SRC:
+		return info->rsrc;
+	case FEEDRATE_DST:
+		return info->rdst;
+	default:
+		return -1;
 	}
 	return -1;
 }
@@ -506,14 +386,17 @@ feed_rate_init(struct pcm_feeder *f)
 {
 	struct feed_rate_info *info;
 
+	if (f->desc->out != f->desc->in)
+		return EINVAL;
+
 	info = malloc(sizeof(*info), M_RATEFEEDER, M_NOWAIT | M_ZERO);
 	if (info == NULL)
 		return ENOMEM;
 	/*
 	 * bufsz = sample from last cycle + conversion space
 	 */
-	info->bufsz = 2 + feeder_rate_buffersize;
-	info->buffer = malloc(sizeof(*info->buffer) * info->bufsz,
+	info->bufsz_init = 8 + feeder_buffersize;
+	info->buffer = malloc(sizeof(*info->buffer) * info->bufsz_init,
 					M_RATEFEEDER, M_NOWAIT | M_ZERO);
 	if (info->buffer == NULL) {
 		free(info, M_RATEFEEDER);
@@ -539,233 +422,88 @@ feed_rate_free(struct pcm_feeder *f)
 	return 0;
 }
 
-static uint32_t
-feed_convert_64(struct feed_rate_info *info, int16_t *dst, uint32_t max)
-{
-	int64_t x, alpha, distance;
-	uint32_t ret;
-	int32_t pos, bpos, gx, gy;
-	int16_t *src;
-	/*
-	 * Plain, straight forward 64bit arith. No bit-magic applied here.
-	 */
-	ret = 0;
-	alpha = info->alpha;
-	gx = info->gx;
-	gy = info->gy;
-	pos = info->pos;
-	bpos = info->bpos;
-	src = info->buffer;
-	for (;;) {
-		if (alpha < gx) {
-			alpha += gy;
-			pos += 2;
-			if (pos == bpos)
-				break;
-		} else {
-			alpha -= gx;
-			distance = gy - alpha;
-			x = (alpha * src[pos - 2]) + (distance * src[pos]);
-			dst[ret++] = x / gy;
-			x = (alpha * src[pos - 1]) + (distance * src[pos + 1]);
-			dst[ret++] = x / gy;
-			if (ret == max)
-				break;
-		}
-	}
-	info->alpha = alpha;
-	info->pos = pos;
-	return ret;
-}
-
-static uint32_t
-feed_convert_scale64(struct feed_rate_info *info, int16_t *dst, uint32_t max)
-{
-	int64_t x, alpha, distance;
-	uint32_t ret;
-	int32_t pos, bpos, gx, gy, roll;
-	int16_t *src;
-	/*
-	 * 64bit scaling.
-	 */
-	ret = 0;
-	roll = info->roll;
-	alpha = info->alpha * info->scale;
-	gx = info->gx * info->scale;
-	gy = info->gy * info->scale;
-	pos = info->pos;
-	bpos = info->bpos;
-	src = info->buffer;
-	for (;;) {
-		if (alpha < gx) {
-			alpha += gy;
-			pos += 2;
-			if (pos == bpos)
-				break;
-		} else {
-			alpha -= gx;
-			distance = gy - alpha;
-			x = (alpha * src[pos - 2]) + (distance * src[pos]);
-			dst[ret++] = x >> roll;
-			x = (alpha * src[pos - 1]) + (distance * src[pos + 1]);
-			dst[ret++] = x >> roll;
-			if (ret == max)
-				break;
-		}
-	}
-	info->alpha = alpha / info->scale;
-	info->pos = pos;
-	return ret;
-}
-
-static uint32_t
-feed_convert_scale32(struct feed_rate_info *info, int16_t *dst, uint32_t max)
-{
-	uint32_t ret;
-	int32_t x, pos, bpos, gx, gy, alpha, roll, distance;
-	int16_t *src;
-	/*
-	 * 32bit scaling.
-	 */
-	ret = 0;
-	roll = info->roll;
-	alpha = info->alpha * info->scale;
-	gx = info->gx * info->scale;
-	gy = info->gy * info->scale;
-	pos = info->pos;
-	bpos = info->bpos;
-	src = info->buffer;
-	for (;;) {
-		if (alpha < gx) {
-			alpha += gy;
-			pos += 2;
-			if (pos == bpos)
-				break;
-		} else {
-			alpha -= gx;
-			distance = gy - alpha;
-			x = (alpha * src[pos - 2]) + (distance * src[pos]);
-			dst[ret++] = x >> roll;
-			x = (alpha * src[pos - 1]) + (distance * src[pos + 1]);
-			dst[ret++] = x >> roll;
-			if (ret == max)
-				break;
-		}
-	}
-	info->alpha = alpha / info->scale;
-	info->pos = pos;
-	return ret;
-}
-
-static uint32_t
-feed_convert_plain(struct feed_rate_info *info, int16_t *dst, uint32_t max)
-{
-	uint32_t ret;
-	int32_t pos, bpos, gx, gy, alpha;
-	int16_t *src;
-	/*
-	 * Plain copy.
-	 */
-	ret = 0;
-	gx = info->gx;
-	gy = info->gy;
-	alpha = info->alpha;
-	pos = info->pos;
-	bpos = info->bpos;
-	src = info->buffer;
-	for (;;) {
-		if (alpha < gx) {
-			alpha += gy;
-			pos += 2;
-			if (pos == bpos)
-				break;
-		} else {
-			alpha -= gx;
-			dst[ret++] = src[pos];
-			dst[ret++] = src[pos + 1];
-			if (ret == max)
-				break;
-		}
-	}
-	info->pos = pos;
-	info->alpha = alpha;
-	return ret;
-}
-
-static int32_t
+static int
 feed_rate(struct pcm_feeder *f, struct pcm_channel *c, uint8_t *b,
-			uint32_t count, void *source)
+						uint32_t count, void *source)
 {
 	struct feed_rate_info *info = f->data;
-	uint32_t i;
+	uint32_t i, smpsz;
 	int32_t fetch, slot;
-	int16_t *dst = (int16_t *)b;
+
+	if (info->convert == NULL)
+		return FEEDER_FEED(f->source, c, b, count, source);
+
 	/*
 	 * This loop has been optimized to generalize both up / down
 	 * sampling without causing missing samples or excessive buffer
-	 * feeding.
+	 * feeding. The tricky part is to calculate *precise* (slot) value
+	 * needed for the entire conversion space since we are bound to
+	 * return and fill up the buffer according to the requested 'count'.
+	 * Too much feeding will cause the extra buffer stay within temporary
+	 * circular buffer forever and always manifest itself as a truncated
+	 * sound during end of playback / recording. Too few, and we end up
+	 * with possible underruns and waste of cpu cycles.
+	 *
+	 * 'Stray' management exist to combat with possible unaligned
+	 * buffering by the caller.
 	 */
-	RATE_TEST(count >= 4 && (count & 3) == 0,
-		("%s: Count size not byte integral (%d)\n", __func__, count));
-	if (count < 4)
+	smpsz = info->bps * info->channels;
+	RATE_TEST(count >= smpsz && (count % smpsz) == 0,
+		("%s: Count size not sample integral (%d)\n", __func__, count));
+	if (count < smpsz)
 		return 0;
-	count >>= 1;
-	count &= ~1;
-	slot = (((info->gx * (count >> 1)) + info->gy - info->alpha - 1) / info->gy) << 1;
-	RATE_TEST((slot & 1) == 0, ("%s: Slot count not sample integral (%d)\n",
-						__func__, slot));
+	count -= count % smpsz;
 	/*
-	 * Optimize buffer feeding aggressively to ensure calculated slot
-	 * can be fitted nicely into available buffer free space, hence
-	 * avoiding multiple feeding.
+	 * This slot count formula will stay here for the next million years
+	 * to come. This is the key of our circular buffering precision.
 	 */
+	slot = (((info->gx * (count / smpsz)) + info->gy - info->alpha - 1) / info->gy) * smpsz;
+	RATE_TEST((slot % smpsz) == 0, ("%s: Slot count not sample integral (%d)\n",
+						__func__, slot));
 	RATE_TEST(info->stray == 0, ("%s: [1] Stray bytes: %u\n",
 		__func__,info->stray));
-	if (info->pos != 2 && info->bpos - info->pos == 2 &&
+	if (info->pos != smpsz && info->bpos - info->pos == smpsz &&
 			info->bpos + slot > info->bufsz) {
 		/*
 		 * Copy last unit sample and its previous to
 		 * beginning of buffer.
 		 */
-		info->buffer[0] = info->buffer[info->pos - 2];
-		info->buffer[1] = info->buffer[info->pos - 1];
-		info->buffer[2] = info->buffer[info->pos];
-		info->buffer[3] = info->buffer[info->pos + 1];
-		info->pos = 2;
-		info->bpos = 4;
+		bcopy(info->buffer + info->pos - smpsz, info->buffer,
+			sizeof(*info->buffer) * (smpsz << 1));
+		info->pos = smpsz;
+		info->bpos = smpsz << 1;
 	}
 	RATE_ASSERT(slot >= 0, ("%s: Negative Slot: %d\n",
 			__func__, slot));
 	i = 0;
 	for (;;) {
 		for (;;) {
-			fetch = (info->bufsz - info->bpos) << 1;
+			fetch = info->bufsz - info->bpos;
 			fetch -= info->stray;
 			RATE_ASSERT(fetch >= 0,
 				("%s: [1] Buffer overrun: %d > %d\n",
 					__func__, info->bpos, info->bufsz));
-			if ((slot << 1) < fetch)
-				fetch = slot << 1;
+			if (slot < fetch)
+				fetch = slot;
 			if (fetch > 0) {
-				RATE_ASSERT(((info->bpos << 1) - info->stray) >= 0 &&
-					((info->bpos << 1) - info->stray) < (info->bufsz << 1),
+				RATE_ASSERT((int32_t)(info->bpos - info->stray) >= 0 &&
+					(info->bpos  - info->stray) < info->bufsz,
 					("%s: DANGER - BUFFER OVERRUN! bufsz=%d, pos=%d\n", __func__,
-					info->bufsz << 1, (info->bpos << 1) - info->stray));
+					info->bufsz, info->bpos - info->stray));
 				fetch = FEEDER_FEED(f->source, c,
-						(uint8_t *)(info->buffer) + (info->bpos << 1) - info->stray,
+						info->buffer + info->bpos - info->stray,
 						fetch, source);
 				info->stray = 0;
 				if (fetch == 0)
 					break;
-				RATE_TEST((fetch & 3) == 0,
-					("%s: Fetch size not byte integral (%d)\n",
+				RATE_TEST((fetch % smpsz) == 0,
+					("%s: Fetch size not sample integral (%d)\n",
 					__func__, fetch));
-				info->stray += fetch & 3;
+				info->stray += fetch % smpsz;
 				RATE_TEST(info->stray == 0,
 					("%s: Stray bytes detected (%d)\n",
 					__func__, info->stray));
-				fetch >>= 1;
-				fetch &= ~1;
+				fetch -= fetch % smpsz;
 				info->bpos += fetch;
 				slot -= fetch;
 				RATE_ASSERT(slot >= 0,
@@ -779,7 +517,7 @@ feed_rate(struct pcm_feeder *f, struct pcm_channel *c, uint8_t *b,
 				break;
 		}
 		if (info->pos == info->bpos) {
-			RATE_TEST(info->pos == 2,
+			RATE_TEST(info->pos == smpsz,
 				("%s: EOF while in progress\n", __func__));
 			break;
 		}
@@ -788,10 +526,10 @@ feed_rate(struct pcm_feeder *f, struct pcm_channel *c, uint8_t *b,
 			info->pos, info->bpos));
 		RATE_ASSERT(info->pos < info->bpos,
 			("%s: Zero buffer!\n", __func__));
-		RATE_ASSERT(((info->bpos - info->pos) & 1) == 0,
+		RATE_ASSERT(((info->bpos - info->pos) % smpsz) == 0,
 			("%s: Buffer not sample integral (%d)\n",
 			__func__, info->bpos - info->pos));
-		i += info->convert(info, dst + i, count - i);
+		i += info->convert(info, b + i, count - i);
 		RATE_ASSERT(info->pos <= info->bpos,
 				("%s: [3] Buffer overrun: %d > %d\n",
 					__func__, info->pos, info->bpos));
@@ -802,31 +540,67 @@ feed_rate(struct pcm_feeder *f, struct pcm_channel *c, uint8_t *b,
 			 * interpolate using it.
 			 */
 			RATE_TEST(info->stray == 0, ("%s: [2] Stray bytes: %u\n", __func__, info->stray));
-			info->buffer[0] = info->buffer[info->pos - 2];
-			info->buffer[1] = info->buffer[info->pos - 1];
-			info->bpos = 2;
-			info->pos = 2;
+			bcopy(info->buffer + info->pos - smpsz, info->buffer,
+				sizeof(*info->buffer) * smpsz);
+			info->bpos = smpsz;
+			info->pos = smpsz;
 		}
 		if (i == count)
 			break;
 	}
-#if 0
-	RATE_TEST(count == i, ("Expect: %u , Got: %u\n", count << 1, i << 1));
-#endif
+
+	RATE_TEST((slot == 0 && count == i) ||
+		    (slot > 0 && count > i &&
+		    info->pos == info->bpos && info->pos == smpsz),
+		("%s: Inconsistent slot/count! "
+		"Count Expect: %u , Got: %u, Slot Left: %d\n",
+		__func__, count, i, slot));
+
 	RATE_TEST(info->stray == 0, ("%s: [3] Stray bytes: %u\n", __func__, info->stray));
-	return i << 1;
+
+	return i;
 }
 
 static struct pcm_feederdesc feeder_rate_desc[] = {
+	{FEEDER_RATE, AFMT_S8, AFMT_S8, 0},
+	{FEEDER_RATE, AFMT_S16_LE, AFMT_S16_LE, 0},
+	{FEEDER_RATE, AFMT_S24_LE, AFMT_S24_LE, 0},
+	{FEEDER_RATE, AFMT_S32_LE, AFMT_S32_LE, 0},
+	{FEEDER_RATE, AFMT_S16_BE, AFMT_S16_BE, 0},
+	{FEEDER_RATE, AFMT_S24_BE, AFMT_S24_BE, 0},
+	{FEEDER_RATE, AFMT_S32_BE, AFMT_S32_BE, 0},
+	{FEEDER_RATE, AFMT_S8 | AFMT_STEREO, AFMT_S8 | AFMT_STEREO, 0},
 	{FEEDER_RATE, AFMT_S16_LE | AFMT_STEREO, AFMT_S16_LE | AFMT_STEREO, 0},
+	{FEEDER_RATE, AFMT_S24_LE | AFMT_STEREO, AFMT_S24_LE | AFMT_STEREO, 0},
+	{FEEDER_RATE, AFMT_S32_LE | AFMT_STEREO, AFMT_S32_LE | AFMT_STEREO, 0},
+	{FEEDER_RATE, AFMT_S16_BE | AFMT_STEREO, AFMT_S16_BE | AFMT_STEREO, 0},
+	{FEEDER_RATE, AFMT_S24_BE | AFMT_STEREO, AFMT_S24_BE | AFMT_STEREO, 0},
+	{FEEDER_RATE, AFMT_S32_BE | AFMT_STEREO, AFMT_S32_BE | AFMT_STEREO, 0},
+	/* unsigned */
+	{FEEDER_RATE, AFMT_U8, AFMT_U8, 0},
+	{FEEDER_RATE, AFMT_U16_LE, AFMT_U16_LE, 0},
+	{FEEDER_RATE, AFMT_U24_LE, AFMT_U24_LE, 0},
+	{FEEDER_RATE, AFMT_U32_LE, AFMT_U32_LE, 0},
+	{FEEDER_RATE, AFMT_U16_BE, AFMT_U16_BE, 0},
+	{FEEDER_RATE, AFMT_U24_BE, AFMT_U24_BE, 0},
+	{FEEDER_RATE, AFMT_U32_BE, AFMT_U32_BE, 0},
+	{FEEDER_RATE, AFMT_U8 | AFMT_STEREO, AFMT_U8 | AFMT_STEREO, 0},
+	{FEEDER_RATE, AFMT_U16_LE | AFMT_STEREO, AFMT_U16_LE | AFMT_STEREO, 0},
+	{FEEDER_RATE, AFMT_U24_LE | AFMT_STEREO, AFMT_U24_LE | AFMT_STEREO, 0},
+	{FEEDER_RATE, AFMT_U32_LE | AFMT_STEREO, AFMT_U32_LE | AFMT_STEREO, 0},
+	{FEEDER_RATE, AFMT_U16_BE | AFMT_STEREO, AFMT_U16_BE | AFMT_STEREO, 0},
+	{FEEDER_RATE, AFMT_U24_BE | AFMT_STEREO, AFMT_U24_BE | AFMT_STEREO, 0},
+	{FEEDER_RATE, AFMT_U32_BE | AFMT_STEREO, AFMT_U32_BE | AFMT_STEREO, 0},
 	{0, 0, 0, 0},
 };
+
 static kobj_method_t feeder_rate_methods[] = {
-    	KOBJMETHOD(feeder_init,		feed_rate_init),
-    	KOBJMETHOD(feeder_free,		feed_rate_free),
-    	KOBJMETHOD(feeder_set,		feed_rate_set),
-    	KOBJMETHOD(feeder_get,		feed_rate_get),
-    	KOBJMETHOD(feeder_feed,		feed_rate),
+	KOBJMETHOD(feeder_init,		feed_rate_init),
+	KOBJMETHOD(feeder_free,		feed_rate_free),
+	KOBJMETHOD(feeder_set,		feed_rate_set),
+	KOBJMETHOD(feeder_get,		feed_rate_get),
+	KOBJMETHOD(feeder_feed,		feed_rate),
 	{0, 0}
 };
+
 FEEDER_DECLARE(feeder_rate, 2, NULL);
