@@ -116,7 +116,7 @@ typedef ssize_t	archive_skip_callback(struct archive *, void *_client_data,
 		    size_t request);
 /* Returns size actually written, zero on EOF, -1 on error. */
 typedef ssize_t	archive_write_callback(struct archive *, void *_client_data,
-		    void *_buffer, size_t _length);
+		    const void *_buffer, size_t _length);
 typedef int	archive_open_callback(struct archive *, void *_client_data);
 typedef int	archive_close_callback(struct archive *, void *_client_data);
 
@@ -358,6 +358,7 @@ int		 archive_write_header(struct archive *,
 		     struct archive_entry *);
 /* TODO: should be ssize_t, but that might require .so version bump? */
 int		 archive_write_data(struct archive *, const void *, size_t);
+int		 archive_write_finish_entry(struct archive *);
 int		 archive_write_close(struct archive *);
 void		 archive_write_finish(struct archive *);
 
