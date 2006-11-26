@@ -374,6 +374,7 @@ ieee80211_anyhdrspace(struct ieee80211com *ic, const void *data)
 #define	IEEE80211_MSG_DOTH	0x00000100	/* 802.11h support */
 #define	IEEE80211_MSG_INACT	0x00000080	/* inactivity handling */
 #define	IEEE80211_MSG_ROAM	0x00000040	/* sta-mode roaming */
+#define	IEEE80211_MSG_RATECTL	0x00000020	/* tx rate control */
 
 #define	IEEE80211_MSG_ANY	0xffffffff	/* anything */
 
