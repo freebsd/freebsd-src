@@ -473,7 +473,7 @@ comment.
 	while ((ch = getopt(argc, argv, "abNn:")) != -1)
 		switch (ch) {		/* Indent the switch. */
 		case 'a':		/* Don't indent the case. */
-			aflag = 1;
+			aflag = 1;	/* Indent case body one tab. */
 			/* FALLTHROUGH */
 		case 'b':
 			bflag = 1;
