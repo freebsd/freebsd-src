@@ -2114,8 +2114,34 @@ bstp_stop(struct bstp_state *bs)
 }
 
 int
-bstp_add(struct bstp_state *bs, struct bstp_port *bp, struct ifnet *ifp)
+bstp_create(struct bstp_state *bs, struct bstp_port *bp, struct ifnet *ifp)
 {
+	bzero(bp, sizeof(struct bstp_port));
+
+	BSTP_LOCK(bs);
+	bp->bp_ifp = ifp;
+	bp->bp_bs = bs;
+	bp->bp_priority = BSTP_DEFAULT_PORT_PRIORITY;
+	TASK_INIT(&bp->bp_statetask, 0, bstp_notify_state, bp);
+	TASK_INIT(&bp->bp_rtagetask, 0, bstp_notify_rtage, bp);
+
+	/* Init state */
+	bp->bp_flags = BSTP_PORT_AUTOEDGE;
+	bstp_set_port_state(bp, BSTP_IFSTATE_DISCARDING);
+	bstp_set_port_proto(bp, bs->bs_protover);
+	bstp_set_port_role(bp, BSTP_ROLE_DISABLED);
+	bstp_set_port_tc(bp, BSTP_TCSTATE_INACTIVE);
+	bp->bp_path_cost = bstp_calc_path_cost(bp);
+	BSTP_UNLOCK(bs);
+	return (0);
+}
+
+int
+bstp_enable(struct bstp_port *bp)
+{
+	struct bstp_state *bs = bp->bp_bs;
+	struct ifnet *ifp = bp->bp_ifp;
+
 	KASSERT(bp->bp_active == 0, ("already a bstp member"));
 
 	switch (ifp->if_type) {
@@ -2126,27 +2152,8 @@ bstp_add(struct bstp_state *bs, struct bstp_port *bp, struct ifnet *ifp)
 			return (EINVAL);
 	}
 
-	bzero(bp, sizeof(struct bstp_port));
-
 	BSTP_LOCK(bs);
-	bp->bp_ifp = ifp;
-	bp->bp_bs = bs;
-	bp->bp_priority = BSTP_DEFAULT_PORT_PRIORITY;
-	bp->bp_txcount = 0;
-	TASK_INIT(&bp->bp_statetask, 0, bstp_notify_state, bp);
-	TASK_INIT(&bp->bp_rtagetask, 0, bstp_notify_rtage, bp);
-
-	/* Init state */
-	bp->bp_infois = BSTP_INFO_DISABLED;
-	bp->bp_flags = BSTP_PORT_AUTOEDGE;
-	bstp_set_port_state(bp, BSTP_IFSTATE_DISCARDING);
-	bstp_set_port_proto(bp, bs->bs_protover);
-	bstp_set_port_role(bp, BSTP_ROLE_DISABLED);
-	bstp_set_port_tc(bp, BSTP_TCSTATE_INACTIVE);
-	bp->bp_path_cost = bstp_calc_path_cost(bp);
-
 	LIST_INSERT_HEAD(&bs->bs_bplist, bp, bp_next);
-
 	bp->bp_active = 1;
 	bp->bp_flags |= BSTP_PORT_NEWINFO;
 	bstp_reinit(bs);
@@ -2156,15 +2163,15 @@ bstp_add(struct bstp_state *bs, struct bstp_port *bp, struct ifnet *ifp)
 }
 
 void
-bstp_delete(struct bstp_port *bp)
+bstp_disable(struct bstp_port *bp)
 {
 	struct bstp_state *bs = bp->bp_bs;
 
 	KASSERT(bp->bp_active == 1, ("not a bstp member"));
 
 	BSTP_LOCK(bs);
+	bstp_disable_port(bs, bp);
 	LIST_REMOVE(bp, bp_next);
-	bp->bp_bs = NULL;
 	bp->bp_active = 0;
 	bstp_reinit(bs);
 	BSTP_UNLOCK(bs);
@@ -2174,7 +2181,7 @@ bstp_delete(struct bstp_port *bp)
  * The bstp_port structure is about to be freed by the parent bridge.
  */
 void
-bstp_drain(struct bstp_port *bp)
+bstp_destroy(struct bstp_port *bp)
 {
 	KASSERT(bp->bp_active == 0, ("port is still attached"));
 	taskqueue_drain(taskqueue_swi, &bp->bp_statetask);
