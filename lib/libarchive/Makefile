@@ -6,12 +6,13 @@ LDADD=	-lbz2 -lz
 
 # The libarchive version stamp.
 # Version is three numbers:
-#  Major: Bumped ONLY when API/ABI breakage happens.
-#  Minor: Bumped when significant new features are added (see SHLIB_MAJOR)
+#  Major: Bumped ONLY when API/ABI breakage happens (see SHLIB_MAJOR)
+#  Minor: Bumped when significant new features are added
 #  Revision: Bumped on any notable change
-VERSION= 1.2.53
-ARCHIVE_API_MAJOR!=	echo ${VERSION} | sed -e 's/\..*//'
-ARCHIVE_API_MINOR!=	echo ${VERSION} | sed -e 's/[0-9]*\.//' | sed -e 's/\..*//'
+VERSION= 1.3.1
+
+ARCHIVE_API_MAJOR!=	echo ${VERSION} | sed -e 's/[^0-9]/./g' -e 's/\..*//'
+ARCHIVE_API_MINOR!=	echo ${VERSION} | sed -e 's/[^0-9]/./g' -e 's/[0-9]*\.//' -e 's/\..*//'
 
 # FreeBSD SHLIB_MAJOR value is managed as part of the FreeBSD system.
 # It has no real relation to the version number above.
