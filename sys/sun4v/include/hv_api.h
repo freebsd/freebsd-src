@@ -52,6 +52,7 @@ typedef uint64_t io_addr_t;
  * Section 10 Domain Services
  */
 
+extern void hv_mach_sir(void);
 extern void hv_mach_exit(uint64_t exit_code);
 extern uint64_t hv_mach_desc(uint64_t buffer_ra, uint64_t *buffer_sizep);
 extern uint64_t hv_mach_watchdog(uint64_t timeout, uint64_t *time_remaining);
