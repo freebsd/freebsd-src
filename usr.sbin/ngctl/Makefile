@@ -17,7 +17,7 @@ LDADD=	-lnetgraph
 .if !defined(NGCTL_NO_LIBEDIT)
 CFLAGS+= -DEDITLINE
 DPADD+=	${LIBPTHREAD} ${LIBEDIT} ${LIBTERMCAP}
-LDADD+=	-pthread -ledit -ltermcap
+LDADD+=	-lpthread -ledit -ltermcap
 .endif
 
 .include <bsd.prog.mk>
