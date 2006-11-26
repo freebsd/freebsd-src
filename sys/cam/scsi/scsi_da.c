@@ -463,7 +463,7 @@ static struct da_quirk_entry da_quirk_table[] =
 		 * X-Micro Flash Disk
 		 * PR: usb/96901
 		 */
-		{T_DIRECT, SIP_MEDIA_REMOVABLE, "X-Micro" , "Flash Disk",
+		{T_DIRECT, SIP_MEDIA_REMOVABLE, "X-Micro", "Flash Disk",
 		"*"}, /*quirks*/ DA_Q_NO_SYNC_CACHE
 	},
 };
