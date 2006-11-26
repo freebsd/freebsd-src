@@ -808,9 +808,9 @@ $command $rc_flags $command_args"
 			echo "# $name"
 			if [ -n "$rcvar" ]; then
 				if checkyesno ${rcvar}; then
-					echo "\$${rcvar}=YES"
+					echo "${rcvar}=YES"
 				else
-					echo "\$${rcvar}=NO"
+					echo "${rcvar}=NO"
 				fi
 			fi
 			;;
