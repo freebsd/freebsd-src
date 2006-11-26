@@ -1800,7 +1800,6 @@ static void
 bstp_disable_port(struct bstp_state *bs, struct bstp_port *bp)
 {
 	bp->bp_infois = BSTP_INFO_DISABLED;
-	bstp_set_port_state(bp, BSTP_IFSTATE_DISCARDING);
 	bstp_assign_roles(bs);
 }
 
