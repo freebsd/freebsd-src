@@ -448,7 +448,6 @@ cpu_ipi_stop(struct trapframe *tf)
 	while ((started_cpus & PCPU_GET(cpumask)) == 0) {
 		if ((shutdown_cpus & PCPU_GET(cpumask)) != 0) {
 			atomic_clear_int(&shutdown_cpus, PCPU_GET(cpumask));
-			OF_exit();
 		}
 	}
 	atomic_clear_rel_int(&started_cpus, PCPU_GET(cpumask));
