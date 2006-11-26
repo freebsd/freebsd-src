@@ -717,7 +717,7 @@ cpu_shutdown(void *args)
 #ifdef SMP
 	cpu_mp_shutdown();
 #endif
-	OF_exit();
+	hv_mach_exit(0);
 }
 
 /* Get current clock frequency for the given cpu id. */
