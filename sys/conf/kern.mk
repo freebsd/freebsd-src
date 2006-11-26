@@ -56,7 +56,7 @@ INLINE_LIMIT?=	15000
 # operations which it has a tendency to do.
 #
 .if ${MACHINE_ARCH} == "sparc64"
-CFLAGS+=	-mcmodel=medlow -msoft-float
+CFLAGS+=	-mcmodel=medany -msoft-float
 INLINE_LIMIT?=	15000
 .endif
 
