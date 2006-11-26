@@ -169,7 +169,6 @@ static struct da_quirk_entry da_quirk_table[] =
 		 */
 		{T_DIRECT, SIP_MEDIA_FIXED, "FUJITSU", "M2954*", "*"},
 		/*quirks*/ DA_Q_NO_SYNC_CACHE
-	
 	},
 	{
 		/*
@@ -241,7 +240,7 @@ static struct da_quirk_entry da_quirk_table[] =
 		 * Reported by: walter@pelissero.de
 		 */
 		{T_DIRECT, SIP_MEDIA_FIXED, "CONNER", "CP3500*", "*"},
-                /*quirks*/ DA_Q_NO_SYNC_CACHE
+		/*quirks*/ DA_Q_NO_SYNC_CACHE
 	},
 	{
 		/*
@@ -266,7 +265,7 @@ static struct da_quirk_entry da_quirk_table[] =
 		 */
 		{T_DIRECT, SIP_MEDIA_REMOVABLE, "Generic*", "USB Flash Disk*",
 		"*"}, /*quirks*/ DA_Q_NO_SYNC_CACHE
-	}, 
+	},
  	{
  		/*
  		 * Creative Nomad MUVO mp3 player (USB)
@@ -458,7 +457,7 @@ static struct da_quirk_entry da_quirk_table[] =
 		 */
 		{T_DIRECT, SIP_MEDIA_REMOVABLE, "iriver", "H10*",
 		"*"}, /*quirks*/ DA_Q_NO_SYNC_CACHE
-       },
+	},
 	{
 		/*
 		 * X-Micro Flash Disk
