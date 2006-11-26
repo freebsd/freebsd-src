@@ -21,12 +21,7 @@ CFLAGS+=	-DPACKAGE_NAME=\"lib${LIB}\"
 CFLAGS+=	-DPACKAGE_VERSION=\"${VERSION}\"
 CFLAGS+=	-I${.OBJDIR}
 
-# FreeBSD/arm has some limitations.
-.if ${MACHINE_ARCH} == "arm"
-WARNS?= 3
-.else
 WARNS?=	6
-.endif
 
 # Headers to be installed in /usr/include
 INCS=	archive.h archive_entry.h
