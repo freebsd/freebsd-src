@@ -2125,6 +2125,7 @@ bstp_create(struct bstp_state *bs, struct bstp_port *bp, struct ifnet *ifp)
 	TASK_INIT(&bp->bp_rtagetask, 0, bstp_notify_rtage, bp);
 
 	/* Init state */
+	bp->bp_infois = BSTP_INFO_DISABLED;
 	bp->bp_flags = BSTP_PORT_AUTOEDGE;
 	bstp_set_port_state(bp, BSTP_IFSTATE_DISCARDING);
 	bstp_set_port_proto(bp, bs->bs_protover);
