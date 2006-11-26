@@ -459,6 +459,14 @@ static struct da_quirk_entry da_quirk_table[] =
 		{T_DIRECT, SIP_MEDIA_REMOVABLE, "iriver", "H10*",
 		"*"}, /*quirks*/ DA_Q_NO_SYNC_CACHE
        },
+	{
+		/*
+		 * X-Micro Flash Disk
+		 * PR: usb/96901
+		 */
+		{T_DIRECT, SIP_MEDIA_REMOVABLE, "X-Micro" , "Flash Disk",
+		"*"}, /*quirks*/ DA_Q_NO_SYNC_CACHE
+	},
 };
 
 static	disk_strategy_t	dastrategy;
