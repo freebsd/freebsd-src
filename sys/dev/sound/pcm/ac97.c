@@ -28,6 +28,8 @@
 #include <dev/sound/pcm/ac97.h>
 #include <dev/sound/pcm/ac97_patch.h>
 
+#include <dev/pci/pcivar.h>
+
 #include "mixer_if.h"
 
 SND_DECLARE_FILE("$FreeBSD$");
@@ -791,7 +793,7 @@ struct ac97_info *
 ac97_create(device_t dev, void *devinfo, kobj_class_t cls)
 {
 	struct ac97_info *codec;
-	int eapd_inv;
+	int eapdinv;
 
 	codec = (struct ac97_info *)malloc(sizeof *codec, M_AC97, M_NOWAIT | M_ZERO);
 	if (codec == NULL)
@@ -811,8 +813,8 @@ ac97_create(device_t dev, void *devinfo, kobj_class_t cls)
 	codec->devinfo = devinfo;
 	codec->flags = 0;
 	if (resource_int_value(device_get_name(dev), device_get_unit(dev),
-		    "ac97_eapd_inv", &eapd_inv) == 0) {
-		if (eapd_inv != 0)
+		    "eapdinv", &eapdinv) == 0) {
+		if (eapdinv != 0)
 			codec->flags |= AC97_F_EAPD_INV;
 	}
 	return codec;
@@ -842,11 +844,66 @@ ac97_getflags(struct ac97_info *codec)
 
 /* -------------------------------------------------------------------- */
 
+#ifdef SND_DYNSYSCTL
+static int
+sysctl_hw_snd_ac97_eapd(SYSCTL_HANDLER_ARGS)
+{
+	struct ac97_info *codec;
+	int ea, inv, err = 0;
+	u_int16_t val;
+
+	codec = oidp->oid_arg1;
+	if (codec == NULL || codec->id == 0 || codec->lock == NULL)
+		return EINVAL;
+	snd_mtxlock(codec->lock);
+	val = ac97_rdcd(codec, AC97_REG_POWER);
+	inv = (codec->flags & AC97_F_EAPD_INV) ? 0 : 1;
+	ea = (val >> 15) ^ inv;
+	snd_mtxunlock(codec->lock);
+	err = sysctl_handle_int(oidp, &ea, sizeof(ea), req);
+	if (err == 0 && req->newptr != NULL) {
+		if (ea != 0 && ea != 1)
+			return EINVAL;
+		if (ea != ((val >> 15) ^ inv)) {
+			snd_mtxlock(codec->lock);
+			ac97_wrcd(codec, AC97_REG_POWER, val ^ 0x8000);
+			snd_mtxunlock(codec->lock);
+		}
+	}
+	return err;
+}
+#endif
+
+static void
+ac97_init_sysctl(struct ac97_info *codec)
+{
+#ifdef SND_DYNSYSCTL
+	u_int16_t orig, val;
+
+	if (codec == NULL || codec->dev == NULL)
+		return;
+	snd_mtxlock(codec->lock);
+	orig = ac97_rdcd(codec, AC97_REG_POWER);
+	ac97_wrcd(codec, AC97_REG_POWER, orig ^ 0x8000);
+	val = ac97_rdcd(codec, AC97_REG_POWER);
+	ac97_wrcd(codec, AC97_REG_POWER, orig);
+	snd_mtxunlock(codec->lock);
+	if ((val & 0x8000) == (orig & 0x8000))
+		return;
+	SYSCTL_ADD_PROC(device_get_sysctl_ctx(codec->dev),
+	    SYSCTL_CHILDREN(device_get_sysctl_tree(codec->dev)),
+            OID_AUTO, "eapd", CTLTYPE_INT | CTLFLAG_RW,
+	    codec, sizeof(codec), sysctl_hw_snd_ac97_eapd,
+	    "I", "AC97 External Amplifier");
+#endif
+}
+
 static int
 ac97mix_init(struct snd_mixer *m)
 {
 	struct ac97_info *codec = mix_getdevinfo(m);
 	struct snddev_info *d;
+	u_int32_t subvendor;
 	u_int32_t i, mask;
 
 	if (codec == NULL)
@@ -857,20 +914,30 @@ ac97mix_init(struct snd_mixer *m)
 
 	switch (codec->id) {
 	case 0x41445374:	/* AD1981B */
-#if 0
-		mask = 0;
-		if (codec->mix[SOUND_MIXER_OGAIN].enable)
-			mask |= SOUND_MASK_OGAIN;
-		if (codec->mix[SOUND_MIXER_PHONEOUT].enable)
-			mask |= SOUND_MASK_PHONEOUT;
-		/* Tie ogain/phone to master volume */
-		if (codec->mix[SOUND_MIXER_VOLUME].enable)
-			mix_setparentchild(m, SOUND_MIXER_VOLUME, mask);
-		else {
-			mix_setparentchild(m, SOUND_MIXER_VOLUME, mask);
-			mix_setrealdev(m, SOUND_MIXER_VOLUME, SOUND_MIXER_NONE);
+		subvendor = (u_int32_t)pci_get_subdevice(codec->dev) << 16;
+		subvendor |= (u_int32_t)pci_get_subvendor(codec->dev) &
+		    0x0000ffff;
+		/* IBM Thinkcentre */
+		if (subvendor == 0x02d91014) {
+			/* Enable headphone jack sensing */
+			ac97_wrcd(codec, 0x72, ac97_rdcd(codec, 0x72) |
+			    0x0800);
+			mask = 0;
+			if (codec->mix[SOUND_MIXER_OGAIN].enable)
+				mask |= SOUND_MASK_OGAIN;
+			if (codec->mix[SOUND_MIXER_PHONEOUT].enable)
+				mask |= SOUND_MASK_PHONEOUT;
+			/* Tie ogain/phone to master volume */
+			if (codec->mix[SOUND_MIXER_VOLUME].enable)
+				mix_setparentchild(m, SOUND_MIXER_VOLUME,
+				    mask);
+			else {
+				mix_setparentchild(m, SOUND_MIXER_VOLUME,
+				    mask);
+				mix_setrealdev(m, SOUND_MIXER_VOLUME,
+				    SOUND_MIXER_NONE);
+			}
 		}
-#endif
 		break;
 	case 0x434d4941:	/* CMI9738 */
 	case 0x434d4961:	/* CMI9739 */
@@ -906,6 +973,9 @@ ac97mix_init(struct snd_mixer *m)
 	for (i = 0; i < 32; i++)
 		mask |= codec->mix[i].recidx? 1 << i : 0;
 	mix_setrecdevs(m, mask);
+
+	ac97_init_sysctl(codec);
+
 	return 0;
 }
 
@@ -975,5 +1045,3 @@ ac97_getmixerclass(void)
 {
 	return &ac97mixer_class;
 }
-
-

@@ -26,6 +26,7 @@
  */
 
 #include <dev/sound/pcm/sound.h>
+#include <dev/sound/pcm/ac97.h>
 #include <dev/sound/pcm/vchan.h>
 #include <dev/sound/pcm/dsp.h>
 #include <sys/limits.h>
@@ -58,22 +59,6 @@ SYSCTL_NODE(_hw, OID_AUTO, snd, CTLFLAG_RD, 0, "Sound driver");
 struct unrhdr *pcmsg_unrhdr = NULL;
 
 static int sndstat_prepare_pcm(struct sbuf *s, device_t dev, int verbose);
-
-struct sysctl_ctx_list *
-snd_sysctl_tree(device_t dev)
-{
-	struct snddev_info *d = device_get_softc(dev);
-
-	return &d->sysctl_tree;
-}
-
-struct sysctl_oid *
-snd_sysctl_tree_top(device_t dev)
-{
-	struct snddev_info *d = device_get_softc(dev);
-
-	return d->sysctl_tree_top;
-}
 
 void *
 snd_mtxcreate(const char *desc, const char *type)
@@ -176,6 +161,11 @@ pcm_setvchans(struct snddev_info *d, int newcnt)
 
 	pcm_inprog(d, 1);
 		
+	if (d->playcount < 1) {
+		err = ENODEV;
+		goto setvchans_out;
+	}
+
 	if (!(d->flags & SD_F_AUTOVCHAN)) {
 		err = EINVAL;
 		goto setvchans_out;
@@ -238,7 +228,7 @@ addok:
 							ORPHAN_CDEVT(sce->dsp_devt) &&
 							ORPHAN_CDEVT(sce->dspW_devt) &&
 							ORPHAN_CDEVT(sce->audio_devt) &&
-							ORPHAN_CDEVT(sce->dspr_devt))
+							ORPHAN_CDEVT(sce->dspHW_devt))
 						goto remok;
 					/*
 					 * Either we're busy, or our cdev
@@ -392,7 +382,7 @@ sysctl_hw_snd_default_unit(SYSCTL_HANDLER_ARGS)
 }
 /* XXX: do we need a way to let the user change the default unit? */
 SYSCTL_PROC(_hw_snd, OID_AUTO, default_unit, CTLTYPE_INT | CTLFLAG_RW,
-            0, sizeof(int), sysctl_hw_snd_default_unit, "I", "");
+            0, sizeof(int), sysctl_hw_snd_default_unit, "I", "default sound device");
 #endif
 
 static int
@@ -419,7 +409,7 @@ sysctl_hw_snd_maxautovchans(SYSCTL_HANDLER_ARGS)
 	return (error);
 }
 SYSCTL_PROC(_hw_snd, OID_AUTO, maxautovchans, CTLTYPE_INT | CTLFLAG_RW,
-            0, sizeof(int), sysctl_hw_snd_maxautovchans, "I", "");
+            0, sizeof(int), sysctl_hw_snd_maxautovchans, "I", "maximum virtual channel");
 
 struct pcm_channel *
 pcm_chn_create(struct snddev_info *d, struct pcm_channel *parent, kobj_class_t cls, int dir, void *devinfo)
@@ -556,6 +546,7 @@ pcm_chn_add(struct snddev_info *d, struct pcm_channel *ch)
 	unsigned rdevcount;
 	int device = device_get_unit(d->dev);
 	size_t namelen;
+	char dtype;
 
 	/*
 	 * Note it's confusing nomenclature.
@@ -647,11 +638,20 @@ retry_chan_num_search_out:
 	}
 #endif
 
+	if (ch->flags & CHN_F_VIRTUAL)
+		dtype = 'v';
+	else if (ch->direction == PCMDIR_PLAY)
+		dtype = 'p';
+	else if (ch->direction == PCMDIR_REC)
+		dtype = 'r';
+	else
+		dtype = 'u';	/* we're screwed */
+
 	namelen = strlen(ch->name);
-	if ((CHN_NAMELEN - namelen) > 10) {	/* ":dspXX.YYY" */
+	if ((CHN_NAMELEN - namelen) > 11) {	/* ":dspXX.TYYY" */
 		snprintf(ch->name + namelen,
-			CHN_NAMELEN - namelen, ":dsp%d.%d",
-			device, sce->chan_num);
+			CHN_NAMELEN - namelen, ":dsp%d.%c%d",
+			device, dtype, ch->num);
 	}
 	snd_mtxunlock(d->lock);
 
@@ -673,11 +673,11 @@ retry_chan_num_search_out:
 			UID_ROOT, GID_WHEEL, 0666, "audio%d.%d",
 			device, sce->chan_num);
 
-	if (ch->direction == PCMDIR_REC)
-		sce->dspr_devt = make_dev(&dsp_cdevsw,
-				PCMMKMINOR(device, SND_DEV_DSPREC,
-					sce->chan_num), UID_ROOT, GID_WHEEL,
-				0666, "dspr%d.%d", device, sce->chan_num);
+	/* Except this. */
+	sce->dspHW_devt = make_dev(&dsp_cdevsw,
+			PCMMKMINOR(device, SND_DEV_DSPHW, sce->chan_num),
+			UID_ROOT, GID_WHEEL, 0666, "dsp%d.%c%d",
+			device, dtype, ch->num);
 
 	return 0;
 }
@@ -770,7 +770,7 @@ pcm_setstatus(device_t dev, char *str)
 	struct snddev_info *d = device_get_softc(dev);
 
 	snd_mtxlock(d->lock);
-	strncpy(d->status, str, SND_STATUSLEN);
+	strlcpy(d->status, str, SND_STATUSLEN);
 	snd_mtxunlock(d->lock);
 	if (snd_maxautovchans > 0)
 		pcm_setvchans(d, 1);
@@ -869,18 +869,11 @@ pcm_register(device_t dev, void *devinfo, int numplay, int numrec)
 	chn_init(d->fakechan, NULL, 0, 0);
 
 #ifdef SND_DYNSYSCTL
-	sysctl_ctx_init(&d->sysctl_tree);
-	d->sysctl_tree_top = SYSCTL_ADD_NODE(&d->sysctl_tree,
-				 SYSCTL_STATIC_CHILDREN(_hw_snd), OID_AUTO,
-				 device_get_nameunit(dev), CTLFLAG_RD, 0, "");
-	if (d->sysctl_tree_top == NULL) {
-		sysctl_ctx_free(&d->sysctl_tree);
-		goto no;
-	}
 	/* XXX: an user should be able to set this with a control tool, the
 	   sysadmin then needs min+max sysctls for this */
-	SYSCTL_ADD_INT(snd_sysctl_tree(dev), SYSCTL_CHILDREN(snd_sysctl_tree_top(dev)),
-            OID_AUTO, "_buffersize", CTLFLAG_RD, &d->bufsz, 0, "");
+	SYSCTL_ADD_INT(device_get_sysctl_ctx(dev),
+	    SYSCTL_CHILDREN(device_get_sysctl_tree(dev)),
+            OID_AUTO, "buffersize", CTLFLAG_RD, &d->bufsz, 0, "allocated buffer size");
 #endif
 	if (numplay > 0) {
 		d->flags |= SD_F_AUTOVCHAN;
@@ -889,9 +882,6 @@ pcm_register(device_t dev, void *devinfo, int numplay, int numrec)
 
 	sndstat_register(dev, d->status, sndstat_prepare_pcm);
 	return 0;
-no:
-	snd_mtxfree(d->lock);
-	return ENXIO;
 }
 
 int
@@ -945,9 +935,9 @@ pcm_unregister(device_t dev)
 			destroy_dev(sce->audio_devt);
 			sce->audio_devt = NULL;
 		}
-		if (sce->dspr_devt) {
-			destroy_dev(sce->dspr_devt);
-			sce->dspr_devt = NULL;
+		if (sce->dspHW_devt) {
+			destroy_dev(sce->dspHW_devt);
+			sce->dspHW_devt = NULL;
 		}
 		d->devcount--;
 		ch = sce->channel;
@@ -967,8 +957,10 @@ pcm_unregister(device_t dev)
 	}
 
 #ifdef SND_DYNSYSCTL
+#if 0
 	d->sysctl_tree_top = NULL;
 	sysctl_ctx_free(&d->sysctl_tree);
+#endif
 #endif
 
 #if 0
@@ -1068,15 +1060,15 @@ sndstat_prepare_pcm(struct sbuf *s, device_t dev, int verbose)
 
 			sbuf_printf(s, "interrupts %d, ", c->interrupts);
 			if (c->direction == PCMDIR_REC)
-				sbuf_printf(s, "overruns %d, hfree %d, sfree %d [b:%d/%d/%d|bs:%d/%d/%d]",
-					c->xruns, sndbuf_getfree(c->bufhard), sndbuf_getfree(c->bufsoft),
+				sbuf_printf(s, "overruns %d, feed %u, hfree %d, sfree %d [b:%d/%d/%d|bs:%d/%d/%d]",
+					c->xruns, c->feedcount, sndbuf_getfree(c->bufhard), sndbuf_getfree(c->bufsoft),
 					sndbuf_getsize(c->bufhard), sndbuf_getblksz(c->bufhard),
 					sndbuf_getblkcnt(c->bufhard),
 					sndbuf_getsize(c->bufsoft), sndbuf_getblksz(c->bufsoft),
 					sndbuf_getblkcnt(c->bufsoft));
 			else
-				sbuf_printf(s, "underruns %d, ready %d [b:%d/%d/%d|bs:%d/%d/%d]",
-					c->xruns, sndbuf_getready(c->bufsoft),
+				sbuf_printf(s, "underruns %d, feed %u, ready %d [b:%d/%d/%d|bs:%d/%d/%d]",
+					c->xruns, c->feedcount, sndbuf_getready(c->bufsoft),
 					sndbuf_getsize(c->bufhard), sndbuf_getblksz(c->bufhard),
 					sndbuf_getblkcnt(c->bufhard),
 					sndbuf_getsize(c->bufsoft), sndbuf_getblksz(c->bufsoft),

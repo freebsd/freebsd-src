@@ -2517,7 +2517,7 @@ uaudio_query_devinfo(void *addr, mixer_devinfo_t *mi)
 		break;
 	default:
 		mi->type = AUDIO_MIXER_VALUE;
-		strncpy(mi->un.v.units.name, mc->ctlunit, MAX_AUDIO_DEV_LEN);
+		strlcpy(mi->un.v.units.name, mc->ctlunit, MAX_AUDIO_DEV_LEN);
 		mi->un.v.num_channels = mc->nchan;
 		mi->un.v.delta = mc->delta;
 		break;

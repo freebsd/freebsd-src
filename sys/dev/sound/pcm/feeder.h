@@ -53,7 +53,7 @@ struct pcm_feeder {
 void feeder_register(void *p);
 struct feeder_class *feeder_getclass(struct pcm_feederdesc *desc);
 
-int chn_fmtscore(u_int32_t fmt);
+u_int32_t chn_fmtscore(u_int32_t fmt);
 u_int32_t chn_fmtbestbit(u_int32_t fmt, u_int32_t *fmts);
 u_int32_t chn_fmtbeststereo(u_int32_t fmt, u_int32_t *fmts);
 u_int32_t chn_fmtbest(u_int32_t fmt, u_int32_t *fmts);
@@ -72,11 +72,11 @@ static struct feeder_class feeder ## _class = { \
 	.desc =		feeder ## _desc, \
 	.data =		pdata, \
 }; \
-SYSINIT(feeder, SI_SUB_DRIVERS, SI_ORDER_MIDDLE, feeder_register, &feeder ## _class);
+SYSINIT(feeder, SI_SUB_DRIVERS, SI_ORDER_ANY, feeder_register, &feeder ## _class);
 
 #define FEEDER_ROOT	1
 #define FEEDER_FMT 	2
-#define	FEEDER_MIXER	3
+#define FEEDER_MIXER	3
 #define FEEDER_RATE 	4
 #define FEEDER_FILTER 	5
 #define FEEDER_VOLUME 	6
@@ -85,4 +85,27 @@ SYSINIT(feeder, SI_SUB_DRIVERS, SI_ORDER_MIDDLE, feeder_register, &feeder ## _cl
 #define FEEDRATE_SRC	1
 #define FEEDRATE_DST	2
 
+#define FEEDRATE_RATEMIN	1
+#define FEEDRATE_RATEMAX	2016000	/* 48000 * 42 */
 
+#define FEEDRATE_MIN		1
+#define FEEDRATE_MAX		0x7fffff	/* sign 24bit ~ 8ghz ! */
+
+#define FEEDRATE_ROUNDHZ	25
+#define FEEDRATE_ROUNDHZ_MIN	0
+#define FEEDRATE_ROUNDHZ_MAX	500
+
+/*
+ * Default buffer size for feeder processing.
+ *
+ * Big   = less sndbuf_feed(), more memory usage.
+ * Small = aggresive sndbuf_feed() (perhaps too much), less memory usage.
+ */
+#define FEEDBUFSZ	16384
+#define FEEDBUFSZ_MIN	2048
+#define FEEDBUFSZ_MAX	131072
+
+extern int feeder_rate_min;
+extern int feeder_rate_max;
+extern int feeder_rate_round;
+extern int feeder_buffersize;
