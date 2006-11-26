@@ -1031,40 +1031,31 @@ pmap_enter(pmap_t pmap, vm_offset_t va, vm_page_t m, vm_prot_t prot,
 		tte_data |= VTD_WIRED;
 	if (pmap == kernel_pmap)
 		tte_data |= TTE_KERNEL_MINFLAGS;
-
-
-	tte_hash_insert(pmap->pm_hash, va, tte_data|TTE_MINFLAGS|VTD_REF);
-	tsb_set_tte(&pmap->pm_tsb, va, tte_data|TTE_MINFLAGS|VTD_REF, pmap->pm_context);
 	
 	invlva = FALSE;
 	if ((otte_data & ~(VTD_W|VTD_REF)) != tte_data) {
-		if (otte_data & VTD_MANAGED) {
+		if (otte_data & VTD_V) {
 			if (otte_data & VTD_REF) {
-				vm_page_flag_set(om, PG_REFERENCED);
+				if (otte_data & VTD_MANAGED) 
+					vm_page_flag_set(om, PG_REFERENCED);
 				if (opa != pa)
 					invlva = TRUE;
 			}
 			if (otte_data & VTD_W) {
-				vm_page_dirty(om);
-#if 0
-				if ((prot & VM_PROT_WRITE) == 0) /* XXX double check */
-#endif
+				if (otte_data & VTD_MANAGED) 
+					vm_page_dirty(om);
+				if ((prot & VM_PROT_WRITE) == 0) 
 					invlva = TRUE;
 			}
 		}
 	} 
 
+	tte_hash_insert(pmap->pm_hash, va, tte_data|TTE_MINFLAGS|VTD_REF);
+	tsb_set_tte(&pmap->pm_tsb, va, tte_data|TTE_MINFLAGS|VTD_REF, pmap->pm_context);
+
 	if (tte_hash_needs_resize(pmap->pm_hash))
 		pmap_tte_hash_resize(pmap);
-#ifdef notyet
-	if ((PCPU_GET(curpmap) != kernel_pmap) && (curthread->td_proc->p_numthreads == 1)
-	    && (pmap->pm_tsb_cap_miss_count > pmap->pm_tsb_miss_count >> 2)) {
-		int size = tsb_size(&pmap->pm_tsb);
-		pmap->pm_tsb_ra = tsb_init(&pmap->pm_tsb, &pmap->pm_tsbscratch, size << 1);
-		pmap->pm_tsb_miss_count = 0;
-		pmap->pm_tsb_cap_miss_count = 0;
-	}
-#endif
+
 	/*
 	 * 512 is an arbitrary number of tsb misses
 	 */
