@@ -138,6 +138,7 @@ typedef struct mii_softc mii_softc_t;
 #define	MIIF_IS_1000X	0x0080		/* is a 1000BASE-X device */
 #define	MIIF_DOPAUSE	0x0100		/* advertise PAUSE capability */
 #define	MIIF_IS_HPNA	0x0200		/* is a HomePNA device */
+#define	MIIF_FORCEANEG	0x0400		/* force auto-negotiation */
 
 /* Default mii_anegticks values */
 #define	MII_ANEGTICKS		5
