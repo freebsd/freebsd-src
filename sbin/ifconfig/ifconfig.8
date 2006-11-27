@@ -1296,6 +1296,26 @@ This is the default for all interfaces added to a bridge.
 .It Cm -autoedge Ar interface
 Disable automatic edge status on 
 .Ar interface .
+.It Cm p2p Ar interface
+Set the
+.Ar interface
+as a point to point link.
+This is required for straight transitions to forwarding and
+should be enabled on a direct link to another RSTP capable switch.
+.It Cm -p2p Ar interface
+Disable point to point link status on
+.Ar interface .
+This should be disabled for a half duplex link and for an interface
+connected to a shared network segment,
+like a hub or a wireless network.
+.It Cm autop2p Ar interface
+Automatically detect the point to point status on
+.Ar interface
+by checking the full duplex link status.
+This is the default for interfaces added to the bridge.
+.It Cm -autop2p Ar interface
+Disable automatic point to point link detection on
+.Ar interface .
 .It Cm maxage Ar seconds
 Set the time that a Spanning Tree protocol configuration is valid.
 The default is 20 seconds.
