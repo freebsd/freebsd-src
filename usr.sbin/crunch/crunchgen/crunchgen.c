@@ -1037,7 +1037,9 @@ void prog_makefile_rules(FILE *outmk, prog_t *p)
 			fprintf(outmk, "%s_OPTS+=", p->ident);
 			output_strlst(outmk, p->buildopts);
 		}
+#if 0
 		fprintf(outmk, "$(%s_OBJPATHS): %s_make\n\n", p->ident, p->ident);
+#endif
 		fprintf(outmk, "%s_make:\n", p->ident);
 		fprintf(outmk, "\t(cd $(%s_SRCDIR) && ", p->ident);
 		if (makeobj)
