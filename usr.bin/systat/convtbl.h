@@ -39,15 +39,17 @@
 #define	MEGA	(KILO * 1024)
 #define GIGA	(MEGA * 1024)
 
-#define SC_BYTE		(0)
-#define SC_KILOBYTE	(1)
-#define SC_MEGABYTE	(2)
-#define SC_GIGABYTE	(3)
-#define SC_BIT		(4)
-#define	SC_KILOBIT	(5)
-#define	SC_MEGABIT	(6)
-#define SC_GIGABIT	(7)
-#define SC_AUTO		(8)
+enum scale {
+	SC_BYTE,
+	SC_KILOBYTE,
+	SC_MEGABYTE,
+	SC_GIGABYTE,
+	SC_BIT,
+	SC_KILOBIT,
+	SC_MEGABIT,
+	SC_GIGABIT,
+	SC_AUTO
+};
 
 #define BIT	(8)
 #define BYTE	(1)
