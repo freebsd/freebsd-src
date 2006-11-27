@@ -447,10 +447,10 @@ nfe_detach(device_t dev)
 	nfe_set_macaddr(sc, eaddr);
 
 	if (device_is_attached(dev)) {
-	    	NFE_LOCK(sc)
+	    	NFE_LOCK(sc);
 		nfe_stop(ifp, 1);
 		ifp->if_flags &= ~IFF_UP;
-	    	NFE_UNLOCK(sc)
+	    	NFE_UNLOCK(sc);
 		callout_drain(&sc->nfe_stat_ch);
 		ether_ifdetach(ifp);
 	}
