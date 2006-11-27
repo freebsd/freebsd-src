@@ -1387,6 +1387,10 @@ nfs_timer(void *arg)
 		    (rep->r_rexmit > 2 || (rep->r_flags & R_RESENDERR)) &&
 		    rep->r_lastmsg + nmp->nm_tprintf_delay < now.tv_sec) {
 			rep->r_lastmsg = now.tv_sec;
+			/*
+			 * Pin down the request and drop locks for the acquisition
+			 * of Giant from tprintf() in nfs_down().
+			 */
 			rep->r_flags |= R_PIN_REQ;
 			mtx_unlock(&rep->r_mtx);
 			mtx_unlock(&nmp->nm_mtx);
@@ -1839,8 +1843,6 @@ nfs_msg(struct thread *td, const char *server, const char *msg, int error)
 {
 	struct proc *p;
 
-	GIANT_REQUIRED;	/* tprintf */
-
 	p = td ? td->td_proc : NULL;
 	if (error) {
 		tprintf(p, LOG_INFO, "nfs server %s: %s, error %d\n", server,
@@ -1883,9 +1885,7 @@ nfs_down(rep, nmp, td, msg, error, flags)
 	if (rep)
 		rep->r_flags |= R_TPRINTFMSG;
 	mtx_unlock(&rep->r_mtx);
-	mtx_lock(&Giant);
 	nfs_msg(td, nmp->nm_mountp->mnt_stat.f_mntfromname, msg, error);
-	mtx_unlock(&Giant);
 }
 
 void
@@ -1901,9 +1901,7 @@ nfs_up(rep, nmp, td, msg, flags)
 	mtx_lock(&rep->r_mtx);
 	if ((rep->r_flags & R_TPRINTFMSG) != 0) {
 		mtx_unlock(&rep->r_mtx);
-		mtx_lock(&Giant);
 		nfs_msg(td, nmp->nm_mountp->mnt_stat.f_mntfromname, msg, 0);
-		mtx_unlock(&Giant);
 	} else
 		mtx_unlock(&rep->r_mtx);
 
