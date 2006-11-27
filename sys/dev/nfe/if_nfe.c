@@ -26,7 +26,7 @@ __FBSDID("$FreeBSD$");
 /* Uncomment the following line to enable polling. */
 /* #define	DEVICE_POLLING */
 
-#define	NFE_NO_JUMBO
+#define	NFE_JUMBO
 #define	NFE_CSUM
 #define	NFE_CSUM_FEATURES	(CSUM_IP | CSUM_TCP | CSUM_UDP)
 #define	NVLAN 0
@@ -93,10 +93,6 @@ static void nfe_rxdesc64_sync(struct nfe_softc *, struct nfe_desc64 *, int);
 static void nfe_rxeof(struct nfe_softc *);
 static void nfe_txeof(struct nfe_softc *);
 static int  nfe_encap(struct nfe_softc *, struct mbuf *);
-static struct nfe_jbuf *nfe_jalloc(struct nfe_softc *);
-static void nfe_jfree(void *, void *);
-static int  nfe_jpool_alloc(struct nfe_softc *);
-static void nfe_jpool_free(struct nfe_softc *);
 static void nfe_setmulti(struct nfe_softc *);
 static void nfe_start(struct ifnet *);
 static void nfe_start_locked(struct ifnet *);
@@ -323,12 +319,6 @@ nfe_attach(device_t dev)
 		break;
 	}
 
-#ifndef NFE_NO_JUMBO
-	/* enable jumbo frames for adapters that support it */
-	if (sc->nfe_flags & NFE_JUMBO_SUP)
-		sc->nfe_flags |= NFE_USE_JUMBO;
-#endif
-
 	/*
 	 * Allocate the parent bus DMA tag appropriate for PCI.
 	 */
@@ -346,6 +336,14 @@ nfe_attach(device_t dev)
 	if (error)
 		goto fail;
 
+	ifp = sc->nfe_ifp = if_alloc(IFT_ETHER);
+	if (ifp == NULL) {
+		printf("nfe%d: can not if_alloc()\n", unit);
+		error = ENOSPC;
+		goto fail;
+	}
+	sc->nfe_mtu = ifp->if_mtu = ETHERMTU;
+
 	/*
 	 * Allocate Tx and Rx rings.
 	 */
@@ -362,16 +360,8 @@ nfe_attach(device_t dev)
 		goto fail;
 	}
 
-	ifp = sc->nfe_ifp = if_alloc(IFT_ETHER);
-	if (ifp == NULL) {
-		printf("nfe%d: can not if_alloc()\n", unit);
-		error = ENOSPC;
-		goto fail;
-	}
-
 	ifp->if_softc = sc;
 	if_initname(ifp, device_get_name(dev), device_get_unit(dev));
-	ifp->if_mtu = ETHERMTU;
 	ifp->if_flags = IFF_BROADCAST | IFF_SIMPLEX | IFF_MULTICAST;
 	ifp->if_ioctl = nfe_ioctl;
 	ifp->if_start = nfe_start;
@@ -382,6 +372,14 @@ nfe_attach(device_t dev)
 	ifp->if_snd.ifq_maxlen = NFE_IFQ_MAXLEN;
 
 	ifp->if_capabilities = IFCAP_VLAN_MTU;
+
+#ifdef NFE_JUMBO
+	ifp->if_capabilities |= IFCAP_JUMBO_MTU;
+#else
+	ifp->if_capabilities &= ~IFCAP_JUMBO_MTU;
+	sc->nfe_flags &= ~NFE_JUMBO_SUP;
+#endif
+
 #if NVLAN > 0
 	if (sc->nfe_flags & NFE_HW_VLAN)
 		ifp->if_capabilities |= IFCAP_VLAN_HWTAGGING;
@@ -605,7 +603,6 @@ nfe_alloc_rx_ring(struct nfe_softc *sc, struct nfe_rx_ring *ring)
 	struct nfe_desc32 *desc32;
 	struct nfe_desc64 *desc64;
 	struct nfe_rx_data *data;
-	struct nfe_jbuf *jbuf;
 	void **desc;
 	bus_addr_t physaddr;
 	int i, error, descsize;
@@ -619,7 +616,8 @@ nfe_alloc_rx_ring(struct nfe_softc *sc, struct nfe_rx_ring *ring)
 	}
 
 	ring->cur = ring->next = 0;
-	ring->bufsz = MCLBYTES;
+	ring->bufsz = (sc->nfe_mtu + NFE_RX_HEADERS <= MCLBYTES) ?
+	    MCLBYTES : MJUM9BYTES;
 
 	error = bus_dma_tag_create(sc->nfe_parent_tag,
 	   PAGE_SIZE, 0,			/* alignment, boundary */
@@ -657,15 +655,6 @@ nfe_alloc_rx_ring(struct nfe_softc *sc, struct nfe_rx_ring *ring)
 	ring->rx_desc_addr = ring->rx_desc_segs.ds_addr;
 	ring->physaddr = ring->rx_desc_addr;
 
-	if (sc->nfe_flags & NFE_USE_JUMBO) {
-		ring->bufsz = NFE_JBYTES;
-		if ((error = nfe_jpool_alloc(sc)) != 0) {
-			printf("nfe%d: could not allocate jumbo frames\n",
-			    sc->nfe_unit);
-			goto fail;
-		}
-	}
-
 	/*
 	 * Pre-allocate Rx buffers and populate Rx ring.
 	 */
@@ -680,19 +669,6 @@ nfe_alloc_rx_ring(struct nfe_softc *sc, struct nfe_rx_ring *ring)
 			goto fail;
 		}
 
-		if (sc->nfe_flags & NFE_USE_JUMBO) {
-			if ((jbuf = nfe_jalloc(sc)) == NULL) {
-				printf("nfe%d: could not allocate jumbo buffer\n",
-				    sc->nfe_unit);
-				goto fail;
-			}
-			data->m->m_data = (void *)jbuf->buf;
-			data->m->m_len = data->m->m_pkthdr.len = NFE_JBYTES;
-			MEXTADD(data->m, jbuf->buf, NFE_JBYTES, nfe_jfree,
-			    (struct nfe_softc *)sc, 0, EXT_NET_DRV);
-			/* m_adj(data->m, ETHER_ALIGN); */
-			physaddr = jbuf->physaddr;
-		} else {
 			error = bus_dma_tag_create(sc->nfe_parent_tag,
 			    ETHER_ALIGN, 0,	       /* alignment, boundary */
 			    BUS_SPACE_MAXADDR_32BIT,	/* lowaddr */
@@ -724,8 +700,8 @@ nfe_alloc_rx_ring(struct nfe_softc *sc, struct nfe_rx_ring *ring)
 			}
 
 			error = bus_dmamap_load(data->rx_data_tag,
-			    data->rx_data_map, mtod(data->m, void *), MCLBYTES,
-			    nfe_dma_map_segs, &data->rx_data_segs,
+			    data->rx_data_map, mtod(data->m, void *),
+			    /*DEO,MCLBYTES*/ring->bufsz, nfe_dma_map_segs, &data->rx_data_segs,
 			    BUS_DMA_NOWAIT);
 			if (error != 0) {
 				printf("nfe%d: could not load rx buf DMA map\n",
@@ -736,7 +712,6 @@ nfe_alloc_rx_ring(struct nfe_softc *sc, struct nfe_rx_ring *ring)
 			data->rx_data_addr = data->rx_data_segs.ds_addr;
 			physaddr = data->rx_data_addr;
 
-		}
 
 		if (sc->nfe_flags & NFE_40BIT_ADDR) {
 			desc64 = &sc->rxq.desc64[i];
@@ -763,136 +738,6 @@ nfe_alloc_rx_ring(struct nfe_softc *sc, struct nfe_rx_ring *ring)
 fail:	nfe_free_rx_ring(sc, ring);
 
 	return error;
-}
-
-
-static int
-nfe_jpool_alloc(struct nfe_softc *sc)
-{
-	struct nfe_rx_ring *ring = &sc->rxq;
-	struct nfe_jbuf *jbuf;
-	bus_addr_t physaddr;
-	caddr_t buf;
-	int i, error;
-
-	/*
-	 * Allocate a big chunk of DMA'able memory.
-	 */
-	error = bus_dma_tag_create(sc->nfe_parent_tag,
-	   PAGE_SIZE, 0,		/* alignment, boundary */
-	   BUS_SPACE_MAXADDR_32BIT,	/* lowaddr */
-	   BUS_SPACE_MAXADDR,		/* highaddr */
-	   NULL, NULL,			/* filter, filterarg */
-	   NFE_JPOOL_SIZE, 1,		/* maxsize, nsegments */
-	   NFE_JPOOL_SIZE,		/* maxsegsize */
-	   BUS_DMA_ALLOCNOW,		/* flags */
-	   NULL, NULL,			/* lockfunc, lockarg */
-	   &ring->rx_jumbo_tag);
-	if (error != 0) {
-		printf("nfe%d: could not create jumbo DMA tag\n", sc->nfe_unit);
-		goto fail;
-	}
-
-	error = bus_dmamem_alloc(ring->rx_jumbo_tag, (void **)&ring->jpool,
-	    BUS_DMA_NOWAIT, &ring->rx_jumbo_map);
-	if (error != 0) {
-		printf("nfe%d: could not create jumbo DMA memory\n",
-		    sc->nfe_unit);
-		goto fail;
-	}
-
-	error = bus_dmamap_load(ring->rx_jumbo_tag, ring->rx_jumbo_map,
-	    ring->jpool, NFE_JPOOL_SIZE, nfe_dma_map_segs, &ring->rx_jumbo_segs,
-	    BUS_DMA_NOWAIT);
-	if (error != 0) {
-		printf("nfe%d: could not load jumbo DMA map\n", sc->nfe_unit);
-		goto fail;
-	}
-
-	/* ..and split it into 9KB chunks */
-	SLIST_INIT(&ring->jfreelist);
-
-	buf = ring->jpool;
-	ring->rx_jumbo_addr = ring->rx_jumbo_segs.ds_addr;
-	physaddr = ring->rx_jumbo_addr;
-
-	for (i = 0; i < NFE_JPOOL_COUNT; i++) {
-		jbuf = &ring->jbuf[i];
-
-		jbuf->buf = buf;
-		jbuf->physaddr = physaddr;
-
-		SLIST_INSERT_HEAD(&ring->jfreelist, jbuf, jnext);
-
-		buf += NFE_JBYTES;
-		physaddr += NFE_JBYTES;
-	}
-
-	return 0;
-
-fail:	nfe_jpool_free(sc);
-	return error;
-}
-
-
-static void
-nfe_jpool_free(struct nfe_softc *sc)
-{
-	struct nfe_rx_ring *ring = &sc->rxq;
-
-	if (ring->jpool != NULL) {
-#if 0
-		bus_dmamem_unmap(ring->rx_jumbo_tag, ring->jpool,
-		    NFE_JPOOL_SIZE);
-#endif
-		bus_dmamem_free(ring->rx_jumbo_tag, &ring->rx_jumbo_segs,
-		    ring->rx_jumbo_map);
-	}
-	if (ring->rx_jumbo_map != NULL) {
-		bus_dmamap_sync(ring->rx_jumbo_tag, ring->rx_jumbo_map,
-		    BUS_DMASYNC_POSTWRITE);
-		bus_dmamap_unload(ring->rx_jumbo_tag, ring->rx_jumbo_map);
-		bus_dmamap_destroy(ring->rx_jumbo_tag, ring->rx_jumbo_map);
-	}
-}
-
-
-static struct nfe_jbuf *
-nfe_jalloc(struct nfe_softc *sc)
-{
-	struct nfe_jbuf *jbuf;
-
-	jbuf = SLIST_FIRST(&sc->rxq.jfreelist);
-	if (jbuf == NULL)
-		return NULL;
-	SLIST_REMOVE_HEAD(&sc->rxq.jfreelist, jnext);
-	return jbuf;
-}
-
-
-/*
- * This is called automatically by the network stack when the mbuf is freed.
- * Caution must be taken that the NIC might be reset by the time the mbuf is
- * freed.
- */
-static void
-nfe_jfree(void *buf, void *arg)
-{
-	struct nfe_softc *sc = arg;
-	struct nfe_jbuf *jbuf;
-	int i;
-
-	/* find the jbuf from the base pointer */
-	i = ((vm_offset_t)buf - (vm_offset_t)sc->rxq.jpool) / NFE_JBYTES;
-	if (i < 0 || i >= NFE_JPOOL_COUNT) {
-		printf("nfe%d: request to free a buffer (%p) not managed by us\n",
-		    sc->nfe_unit, buf);
-		return;
-	}
-	jbuf = &sc->rxq.jbuf[i];
-
-	/* ..and put it back in the free list */
-	SLIST_INSERT_HEAD(&sc->rxq.jfreelist, jbuf, jnext);
 }
 
 
@@ -941,9 +786,7 @@ nfe_free_rx_ring(struct nfe_softc *sc, struct nfe_rx_ring *ring)
 		bus_dma_tag_destroy(ring->rx_desc_tag);
 	}
 
-	if (sc->nfe_flags & NFE_USE_JUMBO) {
-		nfe_jpool_free(sc);
-	} else {
+
 		for (i = 0; i < NFE_RX_RING_COUNT; i++) {
 			data = &ring->data[i];
 
@@ -960,7 +803,6 @@ nfe_free_rx_ring(struct nfe_softc *sc, struct nfe_rx_ring *ring)
 			if (data->m != NULL)
 				m_freem(data->m);
 		}
-	}
 }
 
 
@@ -1185,16 +1027,39 @@ nfe_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 
 	switch (cmd) {
 	case SIOCSIFMTU:
-		if (ifr->ifr_mtu < ETHERMIN ||
-		    ((sc->nfe_flags & NFE_USE_JUMBO) &&
-		    ifr->ifr_mtu > ETHERMTU_JUMBO) ||
-		    (!(sc->nfe_flags & NFE_USE_JUMBO) &&
-		    ifr->ifr_mtu > ETHERMTU)) {
+		if (ifr->ifr_mtu == ifp->if_mtu) {
 			error = EINVAL;
-		} else if (ifp->if_mtu != ifr->ifr_mtu) {
-			ifp->if_mtu = ifr->ifr_mtu;
-			ifp->if_drv_flags &= ~IFF_DRV_RUNNING;
-			nfe_init(sc);
+			break;
+		}
+		if ((sc->nfe_flags & NFE_JUMBO_SUP) && (ifr->ifr_mtu >=
+		    ETHERMIN && ifr->ifr_mtu <= NV_PKTLIMIT_2)) {
+			NFE_LOCK(sc);
+			sc->nfe_mtu = ifp->if_mtu = ifr->ifr_mtu;
+			nfe_stop(ifp, 1);
+			nfe_free_tx_ring(sc, &sc->txq);
+			nfe_free_rx_ring(sc, &sc->rxq);
+			NFE_UNLOCK(sc);
+
+			/* Reallocate Tx and Rx rings. */
+			if (nfe_alloc_tx_ring(sc, &sc->txq) != 0) {
+				printf("nfe%d: could not allocate Tx ring\n",
+				    sc->nfe_unit);
+				error = ENXIO;
+				break;
+			}
+
+			if (nfe_alloc_rx_ring(sc, &sc->rxq) != 0) {
+				printf("nfe%d: could not allocate Rx ring\n",
+				    sc->nfe_unit);
+				nfe_free_tx_ring(sc, &sc->txq);
+				error = ENXIO;
+				break;
+			}
+			NFE_LOCK(sc);
+			nfe_init_locked(sc);
+			NFE_UNLOCK(sc);
+		} else {
+			error = EINVAL;
 		}
 		break;
 	case SIOCSIFFLAGS:
@@ -1382,7 +1247,6 @@ nfe_rxeof(struct nfe_softc *sc)
 	struct nfe_desc32 *desc32=NULL;
 	struct nfe_desc64 *desc64=NULL;
 	struct nfe_rx_data *data;
-	struct nfe_jbuf *jbuf;
 	struct mbuf *m, *mnew;
 	bus_addr_t physaddr;
 	u_int16_t flags;
@@ -1466,21 +1330,6 @@ nfe_rxeof(struct nfe_softc *sc)
 			goto skip;
 		}
 
-		if (sc->nfe_flags & NFE_USE_JUMBO) {
-			if ((jbuf = nfe_jalloc(sc)) == NULL) {
-				m_freem(mnew);
-				ifp->if_ierrors++;
-				goto skip;
-			}
-			mnew->m_data = (void *)jbuf->buf;
-			mnew->m_len = mnew->m_pkthdr.len = NFE_JBYTES;
-			MEXTADD(mnew, jbuf->buf, NFE_JBYTES, nfe_jfree,
-			    (struct nfe_softc *)sc, 0 , EXT_NET_DRV);
-
-			bus_dmamap_sync(sc->rxq.rx_jumbo_tag,
-			    sc->rxq.rx_jumbo_map, BUS_DMASYNC_POSTREAD);
-			physaddr = jbuf->physaddr;
-		} else {
 			MCLGET(mnew, M_DONTWAIT);
 			if (!(mnew->m_flags & M_EXT)) {
 				m_freem(mnew);
@@ -1513,7 +1362,6 @@ nfe_rxeof(struct nfe_softc *sc)
 			}
 			data->rx_data_addr = data->rx_data_segs.ds_addr;
 			physaddr = data->rx_data_addr;
-		}
 
 		/*
 		 * New mbuf successfully loaded, update Rx ring and continue
