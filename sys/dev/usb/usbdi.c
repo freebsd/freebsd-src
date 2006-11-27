@@ -371,19 +371,26 @@ usbd_start_transfer(void *arg, bus_dma_segment_t *segs, int nseg, int error)
 	}
 	dmap->nsegs = nseg;
 
-	if (segs > 0 && !usbd_xfer_isread(xfer)) {
-		/* Copy data if it is not already in the correct buffer. */
-		if (!(xfer->flags & USBD_NO_COPY) && xfer->allocbuf != NULL &&
-		    xfer->buffer != xfer->allocbuf)
-			memcpy(xfer->allocbuf, xfer->buffer, xfer->length);
-		bus_dmamap_sync(tag, dmap->map, BUS_DMASYNC_PREWRITE);
-	} else {
-		/*
-		 * Even if we have no data portion we still need to sync the
-		 * dmamap for the request data in the SETUP packet
-		 */
-		if (xfer->rqflags & URQ_REQUEST)
+	if (nseg > 0) {
+		if (!usbd_xfer_isread(xfer)) {
+			/*
+			 * Copy data if it is not already in the correct
+			 * buffer.
+			 */
+			if (!(xfer->flags & USBD_NO_COPY) &&
+			    xfer->allocbuf != NULL &&
+			    xfer->buffer != xfer->allocbuf)
+				memcpy(xfer->allocbuf, xfer->buffer,
+				    xfer->length);
 			bus_dmamap_sync(tag, dmap->map, BUS_DMASYNC_PREWRITE);
+		} else if (xfer->rqflags & URQ_REQUEST) {
+			/*
+			 * Even if we have no data portion we still need to
+			 * sync the dmamap for the request data in the SETUP
+			 * packet.
+			 */
+			bus_dmamap_sync(tag, dmap->map, BUS_DMASYNC_PREWRITE);
+		}
 	}
 	err = pipe->methods->transfer(xfer);
 	if (err != USBD_IN_PROGRESS && err) {
