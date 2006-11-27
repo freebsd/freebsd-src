@@ -33,7 +33,23 @@
 #include <string.h>
 #include "convtbl.h"
 
-struct	convtbl convtbl[] = {
+#define BIT	(8)
+#define BYTE	(1)
+
+#define BITS	(1)
+#define BYTES	(1)
+#define KILO	(1024LL)
+#define MEGA	(KILO * 1024)
+#define GIGA	(MEGA * 1024)
+
+struct convtbl {
+	uintmax_t	 mul;
+	uintmax_t	 scale;
+	const char	*str;
+	const char	*name;
+};
+
+static struct convtbl convtbl[] = {
 	/* mul, scale, str, name */
 	[SC_BYTE] =	{ BYTE, BYTES, "B",  "byte"  },
 	[SC_KILOBYTE] =	{ BYTE, KILO,  "KB", "kbyte" },
