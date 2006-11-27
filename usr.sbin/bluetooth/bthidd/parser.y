@@ -372,7 +372,7 @@ check_hid_device(hid_device_p d)
 		case hid_input:
 			/* Check if the device may send keystrokes */
 			page = HID_PAGE(hi.usage);
-			if (page == HUP_KEYBOARD || page == HUP_CONSUMER)
+			if (page == HUP_KEYBOARD)
 				d->keyboard = 1;
 			break;
 		}
