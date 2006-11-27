@@ -688,7 +688,7 @@ static struct cmd bridge_cmds[] = {
 	DEF_CMD_ARG("maxage",		setbridge_maxage),
 	DEF_CMD_ARG("priority",		setbridge_priority),
 	DEF_CMD_ARG("proto",		setbridge_protocol),
-	DEF_CMD_ARG("holdcount",	setbridge_holdcount),
+	DEF_CMD_ARG("holdcnt",		setbridge_holdcount),
 	DEF_CMD_ARG2("ifpriority",	setbridge_ifpriority),
 	DEF_CMD_ARG2("ifpathcost",	setbridge_ifpathcost),
 	DEF_CMD_ARG("timeout",		setbridge_timeout),
