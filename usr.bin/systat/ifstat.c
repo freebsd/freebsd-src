@@ -78,7 +78,7 @@ struct if_stat {
 
 extern	 u_int curscale;
 
-static	 void  right_align_string(const struct if_stat *);
+static	 void  right_align_string(struct if_stat *);
 static	 void  getifmibdata(const int, struct ifmibdata *);
 static	 void  sort_interface_list(void);
 static	 u_int getifnum(void);
@@ -306,7 +306,7 @@ fetchifstat(void)
  * (first sixteen or so characters), so we need to do some alignment.
  */
 static void
-right_align_string(const struct if_stat *ifp)
+right_align_string(struct if_stat *ifp)
 {
 	int	 str_len = 0, pad_len = 0;
 	char	*newstr = NULL, *ptr = NULL;
@@ -318,7 +318,7 @@ right_align_string(const struct if_stat *ifp)
 		str_len = strlen(ifp->if_mib.ifmd_name)+1;
 		pad_len = IF_NAMESIZE-(str_len);
 
-		newstr = (char *)ifp->if_name;
+		newstr = ifp->if_name;
 		ptr = newstr + pad_len;
 		(void)memset((void *)newstr, (int)' ', IF_NAMESIZE);
 		(void)strncpy(ptr, (const char *)&ifp->if_mib.ifmd_name,
