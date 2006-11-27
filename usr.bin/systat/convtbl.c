@@ -52,13 +52,11 @@ static
 struct convtbl *
 get_tbl_ptr(const u_long size, const u_int scale)
 {
-	struct	convtbl *tbl_ptr = NULL;
-	u_long	tmp = 0;
-	u_int	idx = scale;
+	u_long	tmp;
+	u_int	idx;
 
 	/* If our index is out of range, default to auto-scaling. */
-	if (idx > SC_AUTO)
-		idx = SC_AUTO;
+	idx = scale < SC_AUTO ? scale : SC_AUTO;
 
 	if (idx == SC_AUTO)
 		/*
@@ -71,17 +69,15 @@ get_tbl_ptr(const u_long size, const u_int scale)
 		     tmp >= MEGA && idx < SC_GIGABYTE;
 		     tmp >>= 10, idx++);
 
-	tbl_ptr = &convtbl[idx];
-	return tbl_ptr;
+	return (&convtbl[idx]);
 }
 
 double
 convert(const u_long size, const u_int scale)
 {
-	struct	convtbl	*tp = NULL;
+	struct convtbl	*tp;
 
 	tp = get_tbl_ptr(size, scale);
-
 	return ((double)size * tp->mul / tp->scale);
 
 }
@@ -89,9 +85,8 @@ convert(const u_long size, const u_int scale)
 const char *
 get_string(const u_long size, const u_int scale)
 {
-	struct	convtbl *tp = NULL;
+	struct convtbl	*tp;
 
 	tp = get_tbl_ptr(size, scale);
-
-	return tp->str;
+	return (tp->str);
 }
