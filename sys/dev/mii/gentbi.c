@@ -198,11 +198,7 @@ gentbi_attach(device_t dev)
 		sc->mii_extcapabilities = PHY_READ(sc, MII_EXTSR);
 
 	device_printf(dev, " ");
-	if ((sc->mii_capabilities & BMSR_MEDIAMASK) == 0 &&
-	    (sc->mii_extcapabilities & EXTSR_MEDIAMASK) == 0)
-		printf("no media present");
-	else
-		mii_phy_add_media(sc);
+	mii_phy_add_media(sc);
 	printf("\n");
 
 	return (0);
