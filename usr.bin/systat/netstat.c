@@ -252,8 +252,8 @@ fetchnetstat_sysctl()
 	struct xinpgen *inpg;
 	char *cur, *end;
 	struct inpcb *inpcb;
-	struct xinpcb *xip;
-	struct xtcpcb *xtp;
+	struct xinpcb *xip = NULL;
+	struct xtcpcb *xtp = NULL;
 	int plen;
 	size_t lsz;
 
