@@ -148,6 +148,13 @@ nfs_nget(struct mount *mntp, nfsfh_t *fhp, int fhsize, struct nfsnode **npp, int
 		vp->v_bufobj.bo_ops = &buf_ops_nfs;
 	vp->v_data = np;
 	np->n_vnode = vp;
+	/* 
+	 * Initialize the mutex even if the vnode is going to be a loser.
+	 * This simplifies the logic in reclaim, which can then unconditionally
+	 * destroy the mutex (in the case of the loser, or if hash_insert happened
+	 * to return an error no special casing is needed).
+	 */
+	mtx_init(&np->n_mtx, "NFSnode lock", NULL, MTX_DEF);
 	/*
 	 * NFS supports recursive and shared locking.
 	 */
@@ -168,7 +175,6 @@ nfs_nget(struct mount *mntp, nfsfh_t *fhp, int fhsize, struct nfsnode **npp, int
 		np->n_fhp = &np->n_fh;
 	bcopy((caddr_t)fhp, (caddr_t)np->n_fhp, fhsize);
 	np->n_fhsize = fhsize;
-	mtx_init(&np->n_mtx, "NFSnode lock", NULL, MTX_DEF);
 	*npp = np;
 
 	return (0);
