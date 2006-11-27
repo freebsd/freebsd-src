@@ -49,7 +49,7 @@ enum scale {
 	SC_KILOBIT,
 	SC_MEGABIT,
 	SC_GIGABIT,
-	SC_AUTO
+	SC_AUTO		/* KEEP THIS LAST */
 };
 
 #define BIT	(8)
@@ -59,11 +59,14 @@ struct convtbl {
 	uintmax_t	 mul;
 	uintmax_t	 scale;
 	const char	*str;
+	const char	*name;
 };
 
 extern	struct convtbl convtbl[];
 
 extern	double		 convert(const uintmax_t, const int);
+extern	const char	*get_helplist(void);
+extern	int		 get_scale(const char *);
 extern	const char	*get_string(const uintmax_t, const int);
 
 #endif		/* ! _CONVTBL_H_ */

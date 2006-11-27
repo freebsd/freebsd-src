@@ -28,55 +28,26 @@
  * $FreeBSD$
  */
 
-#include <string.h>
-
 #include "systat.h"
 #include "extern.h"
 #include "convtbl.h"
 
-int		curscale = SC_AUTO;
-
-static int	selectscale(const char *);
+int curscale = SC_AUTO;
 
 int
 ifcmd(const char *cmd, const char *args)
 {
+	int scale;
 
 	if (prefix(cmd, "scale")) {
-		if (*args != '\0' && selectscale(args) != -1)
-			;
+		if ((scale = get_scale(args)) != -1)
+			curscale = scale;
 		else {
 			move(CMDLINE, 0);
 			clrtoeol();
-			addstr("what scale? kbit, kbyte, mbit, mbyte, " \
-			       "gbit, gbyte, auto");
+			addstr("what scale? ");
+			addstr(get_helplist());
 		} 
 	}
 	return (1);
-}
-
-static int
-selectscale(const char *args)
-{
-	int	retval = 0;
-
-#define streq(a,b)	(strcmp(a,b) == 0)
-	if (streq(args, "default") || streq(args, "auto"))
-		curscale = SC_AUTO;
-	else if (streq(args, "kbit"))
-		curscale = SC_KILOBIT;
-	else if (streq(args, "kbyte"))
-		curscale = SC_KILOBYTE;
-	else if (streq(args, "mbit"))
-		curscale = SC_MEGABIT;
-	else if (streq(args, "mbyte"))
-		curscale = SC_MEGABYTE;
-	else if (streq(args, "gbit"))
-		curscale = SC_GIGABIT;
-	else if (streq(args, "gbyte"))
-		curscale = SC_GIGABYTE;
-	else
-		retval = -1;
-
-	return (retval);
 }
