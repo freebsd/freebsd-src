@@ -14,6 +14,8 @@
 # The file is partitioned: OLD_FILES first, then OLD_LIBS and OLD_DIRS last.
 #
 
+# 20061123: uhidev.4 removed
+OLD_FILES+=usr/share/man/man4/uhidev.4.gz
 # 20060928: kvmdb cleanup script removed
 OLD_FILES+=etc/periodic/weekly/120.clean-kvmdb
 # 20060905: demangle.h from contrib/libstdc++/include/ext/
