@@ -34,18 +34,17 @@
 
 struct	convtbl convtbl[] = {
 	/* mul, scale, str */
-	{ BYTE, BYTES, "bytes" },	/* SC_BYTE	(0) */
-	{ BYTE, KILO, "KB" },		/* SC_KILOBYTE	(1) */
-	{ BYTE, MEGA, "MB" },		/* SC_MEGABYTE	(2) */
-	{ BYTE, GIGA, "GB" },		/* SC_GIGABYTE	(3) */
+	[SC_BYTE] =	{ BYTE, BYTES, "bytes" },
+	[SC_KILOBYTE] =	{ BYTE, KILO, "KB" },
+	[SC_MEGABYTE] =	{ BYTE, MEGA, "MB" },
+	[SC_GIGABYTE] =	{ BYTE, GIGA, "GB" },
 
-	{ BIT, BITS, "b" },		/* SC_BITS	(4) */
-	{ BIT, KILO, "Kb" },		/* SC_KILOBITS	(5) */
-	{ BIT, MEGA, "Mb" },		/* SC_MEGABITS	(6) */
-	{ BIT, GIGA, "Gb" },		/* SC_GIGABITS	(7) */
+	[SC_BIT] =	{ BIT, BITS, "b" },
+	[SC_KILOBIT] =	{ BIT, KILO, "Kb" },
+	[SC_MEGABIT] =	{ BIT, MEGA, "Mb" },
+	[SC_GIGABIT] =	{ BIT, GIGA, "Gb" },
 
-	{ 0, 0, "" }			/* SC_AUTO	(8) */
-
+	[SC_AUTO] =	{ 0, 0, "" }
 };
 
 
