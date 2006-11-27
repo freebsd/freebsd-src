@@ -182,7 +182,7 @@ labeliostat()
 	row = 0;
 	wmove(wnd, row, 0); wclrtobot(wnd);
 	mvwaddstr(wnd, row++, INSET,
-	    "/0   /10  /20  /30  /40  /50  /60  /70  /80  /90  /100");
+	    "/0%  /10  /20  /30  /40  /50  /60  /70  /80  /90  /100");
 	mvwaddstr(wnd, row++, 0, "cpu  user|");
 	mvwaddstr(wnd, row++, 0, "     nice|");
 	mvwaddstr(wnd, row++, 0, "   system|");
@@ -244,7 +244,7 @@ barlabels(row)
 	char tmpstr[10];
 
 	mvwaddstr(wnd, row++, INSET,
-	    "/0   /10  /20  /30  /40  /50  /60  /70  /80  /90  /100");
+	    "/0%  /10  /20  /30  /40  /50  /60  /70  /80  /90  /100");
 	linesperregion = 2 + kbpt;
 	for (i = 0; i < num_devices; i++)
 		if (dev_select[i].selected) {
