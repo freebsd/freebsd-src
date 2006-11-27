@@ -669,48 +669,48 @@ nfe_alloc_rx_ring(struct nfe_softc *sc, struct nfe_rx_ring *ring)
 			goto fail;
 		}
 
-			error = bus_dma_tag_create(sc->nfe_parent_tag,
-			    ETHER_ALIGN, 0,	       /* alignment, boundary */
-			    BUS_SPACE_MAXADDR_32BIT,	/* lowaddr */
-			    BUS_SPACE_MAXADDR,		/* highaddr */
-			    NULL, NULL,		/* filter, filterarg */
-			    MCLBYTES, 1,		/* maxsize, nsegments */
-			    MCLBYTES,			/* maxsegsize */
-			    BUS_DMA_ALLOCNOW,		/* flags */
-			    NULL, NULL,		/* lockfunc, lockarg */
-			    &data->rx_data_tag);
-			if (error != 0) {
-				printf("nfe%d: could not create DMA map\n",
-				    sc->nfe_unit);
-				goto fail;
-			}
+		error = bus_dma_tag_create(sc->nfe_parent_tag,
+		    ETHER_ALIGN, 0,	       /* alignment, boundary */
+		    BUS_SPACE_MAXADDR_32BIT,	/* lowaddr */
+		    BUS_SPACE_MAXADDR,		/* highaddr */
+		    NULL, NULL,		/* filter, filterarg */
+		    MCLBYTES, 1,		/* maxsize, nsegments */
+		    MCLBYTES,			/* maxsegsize */
+		    BUS_DMA_ALLOCNOW,		/* flags */
+		    NULL, NULL,		/* lockfunc, lockarg */
+		    &data->rx_data_tag);
+		if (error != 0) {
+			printf("nfe%d: could not create DMA map\n",
+			    sc->nfe_unit);
+			goto fail;
+		}
 
-			error = bus_dmamap_create(data->rx_data_tag, 0,
-			    &data->rx_data_map);
-			if (error != 0) {
-				printf("nfe%d: could not allocate mbuf cluster\n",
-				    sc->nfe_unit);
-				goto fail;
-			}
+		error = bus_dmamap_create(data->rx_data_tag, 0,
+		    &data->rx_data_map);
+		if (error != 0) {
+			printf("nfe%d: could not allocate mbuf cluster\n",
+			    sc->nfe_unit);
+			goto fail;
+		}
 
-			MCLGET(data->m, M_DONTWAIT);
-			if (!(data->m->m_flags & M_EXT)) {
-				error = ENOMEM;
-				goto fail;
-			}
+		MCLGET(data->m, M_DONTWAIT);
+		if (!(data->m->m_flags & M_EXT)) {
+			error = ENOMEM;
+			goto fail;
+		}
 
-			error = bus_dmamap_load(data->rx_data_tag,
-			    data->rx_data_map, mtod(data->m, void *),
-			    /*DEO,MCLBYTES*/ring->bufsz, nfe_dma_map_segs, &data->rx_data_segs,
-			    BUS_DMA_NOWAIT);
-			if (error != 0) {
-				printf("nfe%d: could not load rx buf DMA map\n",
-				    sc->nfe_unit);
-				goto fail;
-			}
+		error = bus_dmamap_load(data->rx_data_tag,
+		    data->rx_data_map, mtod(data->m, void *),
+		    ring->bufsz, nfe_dma_map_segs, &data->rx_data_segs,
+		    BUS_DMA_NOWAIT);
+		if (error != 0) {
+			printf("nfe%d: could not load rx buf DMA map\n",
+			    sc->nfe_unit);
+			goto fail;
+		}
 
-			data->rx_data_addr = data->rx_data_segs.ds_addr;
-			physaddr = data->rx_data_addr;
+		data->rx_data_addr = data->rx_data_segs.ds_addr;
+		physaddr = data->rx_data_addr;
 
 
 		if (sc->nfe_flags & NFE_40BIT_ADDR) {
@@ -786,23 +786,22 @@ nfe_free_rx_ring(struct nfe_softc *sc, struct nfe_rx_ring *ring)
 		bus_dma_tag_destroy(ring->rx_desc_tag);
 	}
 
+	for (i = 0; i < NFE_RX_RING_COUNT; i++) {
+		data = &ring->data[i];
 
-		for (i = 0; i < NFE_RX_RING_COUNT; i++) {
-			data = &ring->data[i];
-
-			if (data->rx_data_map != NULL) {
-				bus_dmamap_sync(data->rx_data_tag,
-				    data->rx_data_map, BUS_DMASYNC_POSTREAD);
-				bus_dmamap_unload(data->rx_data_tag,
-				    data->rx_data_map);
-				bus_dmamap_destroy(data->rx_data_tag,
-				    data->rx_data_map);
-				bus_dma_tag_destroy(data->rx_data_tag);
-			}
-
-			if (data->m != NULL)
-				m_freem(data->m);
+		if (data->rx_data_map != NULL) {
+			bus_dmamap_sync(data->rx_data_tag,
+			    data->rx_data_map, BUS_DMASYNC_POSTREAD);
+			bus_dmamap_unload(data->rx_data_tag,
+			    data->rx_data_map);
+			bus_dmamap_destroy(data->rx_data_tag,
+			    data->rx_data_map);
+			bus_dma_tag_destroy(data->rx_data_tag);
 		}
+
+		if (data->m != NULL)
+			m_freem(data->m);
+	}
 }
 
 
@@ -1330,38 +1329,38 @@ nfe_rxeof(struct nfe_softc *sc)
 			goto skip;
 		}
 
-			MCLGET(mnew, M_DONTWAIT);
-			if (!(mnew->m_flags & M_EXT)) {
-				m_freem(mnew);
-				ifp->if_ierrors++;
-				goto skip;
-			}
+		MCLGET(mnew, M_DONTWAIT);
+		if (!(mnew->m_flags & M_EXT)) {
+			m_freem(mnew);
+			ifp->if_ierrors++;
+			goto skip;
+		}
 
-			bus_dmamap_sync(data->rx_data_tag, data->rx_data_map,
-			    BUS_DMASYNC_POSTREAD);
-			bus_dmamap_unload(data->rx_data_tag, data->rx_data_map);
+		bus_dmamap_sync(data->rx_data_tag, data->rx_data_map,
+		    BUS_DMASYNC_POSTREAD);
+		bus_dmamap_unload(data->rx_data_tag, data->rx_data_map);
+		error = bus_dmamap_load(data->rx_data_tag,
+		    data->rx_data_map, mtod(mnew, void *), MCLBYTES,
+		    nfe_dma_map_segs, &data->rx_data_segs,
+		    BUS_DMA_NOWAIT);
+		if (error != 0) {
+			m_freem(mnew);
+
+			/* try to reload the old mbuf */
 			error = bus_dmamap_load(data->rx_data_tag,
-			    data->rx_data_map, mtod(mnew, void *), MCLBYTES,
-			    nfe_dma_map_segs, &data->rx_data_segs,
-			    BUS_DMA_NOWAIT);
+			    data->rx_data_map, mtod(data->m, void *),
+			    MCLBYTES, nfe_dma_map_segs,
+			    &data->rx_data_segs, BUS_DMA_NOWAIT);
 			if (error != 0) {
-				m_freem(mnew);
-
-				/* try to reload the old mbuf */
-				error = bus_dmamap_load(data->rx_data_tag,
-				    data->rx_data_map, mtod(data->m, void *),
-				    MCLBYTES, nfe_dma_map_segs,
-				    &data->rx_data_segs, BUS_DMA_NOWAIT);
-				if (error != 0) {
-					/* very unlikely that it will fail.. */
-				      panic("nfe%d: could not load old rx mbuf",
-					    sc->nfe_unit);
-				}
-				ifp->if_ierrors++;
-				goto skip;
+				/* very unlikely that it will fail.. */
+			      panic("nfe%d: could not load old rx mbuf",
+				    sc->nfe_unit);
 			}
-			data->rx_data_addr = data->rx_data_segs.ds_addr;
-			physaddr = data->rx_data_addr;
+			ifp->if_ierrors++;
+			goto skip;
+		}
+		data->rx_data_addr = data->rx_data_segs.ds_addr;
+		physaddr = data->rx_data_addr;
 
 		/*
 		 * New mbuf successfully loaded, update Rx ring and continue
@@ -1396,7 +1395,6 @@ nfe_rxeof(struct nfe_softc *sc)
 			m->m_flags |= M_VLANTAG;
 		}
 #endif
-
 		ifp->if_ipackets++;
 
 		NFE_UNLOCK(sc);
@@ -1416,17 +1414,15 @@ nfe_rxeof(struct nfe_softc *sc)
 skip:		if (sc->nfe_flags & NFE_40BIT_ADDR) {
 			desc64->length = htole16(sc->rxq.bufsz);
 			desc64->flags = htole16(NFE_RX_READY);
-
 			nfe_rxdesc64_sync(sc, desc64, BUS_DMASYNC_PREWRITE);
 		} else {
 			desc32->length = htole16(sc->rxq.bufsz);
 			desc32->flags = htole16(NFE_RX_READY);
-
 			nfe_rxdesc32_sync(sc, desc32, BUS_DMASYNC_PREWRITE);
 		}
 
 		sc->rxq.cur = (sc->rxq.cur + 1) % NFE_RX_RING_COUNT;
-	}
+	} //end for(;;)
 }
 
 
