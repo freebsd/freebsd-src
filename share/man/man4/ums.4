@@ -27,7 +27,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd November 22, 2006
+.Dd November 27, 2006
 .Dt UMS 4
 .Os
 .Sh NAME
@@ -35,10 +35,13 @@
 .Nd USB mouse driver
 .Sh SYNOPSIS
 To compile this driver into the kernel,
-place the following line in your
+place the following lines in your
 kernel configuration file:
 .Bd -ragged -offset indent
 .Cd "device ums"
+.Cd "device uhci"
+.Cd "device ohci"
+.Cd "device usb"
 .Ed
 .Pp
 Alternatively, to load the driver as a
@@ -53,20 +56,16 @@ The
 driver provides support for mice that attach to the USB port.
 Supported are
 mice with any number of buttons and mice with a wheel.
-.Nm usb
-and one of
-.Nm uhci
-or
-.Nm ohci
-must be configured in the kernel as well.
 .Pp
-The /dev/ums device presents the mouse as a
+The
+.Pa /dev/ums0
+device presents the mouse as a
 .Ar sysmouse
 or
 .Ar mousesystems
 type device.
 See
-.Nm moused
+.Xr moused 8
 for an explanation of these mouse types.
 .Sh FILES
 .Bl -tag -width /dev/ums0 -compact
@@ -74,29 +73,17 @@ for an explanation of these mouse types.
 blocking device node
 .El
 .Sh EXAMPLES
-.Dl device ums
-.Pp
-Add the
-.Nm
-driver to the kernel.
+Use the first
+USB mouse on the system as your console mouse:
 .Pp
 .Dl moused -p /dev/ums0 -t auto
 .Pp
-Use the first
-.Nm USB
-mouse on the system as your console mouse.
-.Pp
-Change the "Pointer" section in
+To be able to use the USB mouse under X, change the "Pointer" section in
 .Nm xorg.conf
-to the following
+to the following:
 .Pp
 .Dl Device "/dev/ums0"
 .Dl Protocol "Auto"
-.Pp
-to be able to use the USB mouse under X.
-When using the XiG accelerated X
-server, change the mouse device to /dev/ums0 and the mouse type to
-"MouseSystems".
 .Pp
 If you want to be able to use the mouse in both virtual consoles as well
 as in X change it to:
@@ -108,9 +95,8 @@ as in X change it to:
 .Xr sysmouse 4 ,
 .Xr uhci 4 ,
 .Xr usb 4 ,
-.Xr xorg.conf 5 ,
+.Xr xorg.conf 5 Pq Pa ports/x11/xorg ,
 .Xr moused 8
-.\".Sh HISTORY
 .Sh AUTHORS
 .An -nosplit
 The
