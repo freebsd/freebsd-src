@@ -469,7 +469,7 @@ vendor ATI2		0x0b6f	ATI
 vendor ZEEVO		0x0b7a	Zeevo
 vendor KURUSUGAWA	0x0b7e	Kurusugawa
 vendor ASIX		0x0b95	ASIX
-vendor O2Micro		0x0b97	O2 Micro, Inc.
+vendor O2MICRO		0x0b97	O2 Micro, Inc.
 vendor USR		0x0baf	U.S. Robotics
 vendor REALTEK		0x0bda	RealTek
 vendor ADDONICS2	0x0bf6	Addonics
