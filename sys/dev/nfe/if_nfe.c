@@ -28,7 +28,6 @@ __FBSDID("$FreeBSD$");
 
 #define	NFE_JUMBO
 #define	NFE_CSUM
-#define	NFE_CSUM_FEATURES	(CSUM_IP | CSUM_TCP | CSUM_UDP)
 #define	NVLAN 0
 
 #ifdef HAVE_KERNEL_OPTION_HEADERS
@@ -387,7 +386,11 @@ nfe_attach(device_t dev)
 #ifdef NFE_CSUM
 	if (sc->nfe_flags & NFE_HW_CSUM) {
 		ifp->if_capabilities |= IFCAP_HWCSUM;
+		ifp->if_capenable |= IFCAP_HWCSUM;
+		ifp->if_hwassist = NFE_CSUM_FEATURES;
 	}
+#else
+	sc->nfe_flags &= ~NFE_HW_CSUM;
 #endif
 	ifp->if_capenable = ifp->if_capabilities;
 
@@ -1099,6 +1102,7 @@ nfe_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 		break;
 	case SIOCSIFCAP:
 	{
+		int init = 0;
 		int mask = ifr->ifr_reqcap ^ ifp->if_capenable;
 #ifdef DEVICE_POLLING
 		if (mask & IFCAP_POLLING) {
@@ -1120,6 +1124,7 @@ nfe_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 			}
 		}
 #endif /* DEVICE_POLLING */
+#ifdef NFE_CSUM
 		if (mask & IFCAP_HWCSUM) {
 			ifp->if_capenable ^= IFCAP_HWCSUM;
 			if (IFCAP_HWCSUM & ifp->if_capenable &&
@@ -1127,7 +1132,12 @@ nfe_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 				ifp->if_hwassist = NFE_CSUM_FEATURES;
 			else
 				ifp->if_hwassist = 0;
+			sc->nfe_flags ^= NFE_HW_CSUM;
+			init = 1;
 		}
+#endif
+		if (init && ifp->if_drv_flags & IFF_DRV_RUNNING)
+			nfe_init(sc);
 	}
 		break;
 
@@ -1373,8 +1383,6 @@ nfe_rxeof(struct nfe_softc *sc)
 		m->m_pkthdr.len = m->m_len = len;
 		m->m_pkthdr.rcvif = ifp;
 
-
-#if defined(NFE_CSUM)
 		if ((sc->nfe_flags & NFE_HW_CSUM) && (flags & NFE_RX_CSUMOK)) {
 			m->m_pkthdr.csum_flags |= CSUM_IP_CHECKED;
 			if (flags & NFE_RX_IP_CSUMOK_V2) {
@@ -1387,7 +1395,6 @@ nfe_rxeof(struct nfe_softc *sc)
 				m->m_pkthdr.csum_data = 0xffff;
 			}
 		}
-#endif
 
 #if NVLAN > 1
 		if (have_tag) {
@@ -1532,15 +1539,14 @@ nfe_encap(struct nfe_softc *sc, struct mbuf *m0)
 		return ENOBUFS;
 	}
 
-
-#ifdef NFE_CSUM
-	if (m0->m_pkthdr.csum_flags & CSUM_IP)
-		flags |= NFE_TX_IP_CSUM;
-	if (m0->m_pkthdr.csum_flags & CSUM_TCP)
-		flags |= NFE_TX_TCP_CSUM;
-	if (m0->m_pkthdr.csum_flags & CSUM_UDP)
-		flags |= NFE_TX_TCP_CSUM;
-#endif
+	if(sc->nfe_flags & NFE_HW_CSUM){
+		if (m0->m_pkthdr.csum_flags & CSUM_IP)
+			flags |= NFE_TX_IP_CSUM;
+		if (m0->m_pkthdr.csum_flags & CSUM_TCP)
+			flags |= NFE_TX_TCP_CSUM;
+		if (m0->m_pkthdr.csum_flags & CSUM_UDP)
+			flags |= NFE_TX_TCP_CSUM;
+	}
 
 	for (i = 0; i < nsegs; i++) {
 		data = &sc->txq.data[sc->txq.cur];
@@ -1771,10 +1777,9 @@ nfe_init_locked(void *xsc)
 		sc->rxtxctl |= NFE_RXTX_V3MAGIC;
 	else if (sc->nfe_flags & NFE_JUMBO_SUP)
 		sc->rxtxctl |= NFE_RXTX_V2MAGIC;
-#ifdef NFE_CSUM
+
 	if (sc->nfe_flags & NFE_HW_CSUM)
 		sc->rxtxctl |= NFE_RXTX_RXCSUM;
-#endif
 
 #if NVLAN > 0
 	/*

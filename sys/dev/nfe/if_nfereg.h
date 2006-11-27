@@ -29,7 +29,6 @@
 /* Maximum MTU size. */
 #define	NV_PKTLIMIT_1		ETH_DATA_LEN	/* Hard limit not known. */
 #define	NV_PKTLIMIT_2		9100 /* Actual limit according to NVidia:9202 */
-
 #define	NFE_JBYTES		(ETHER_MAX_LEN_JUMBO + ETHER_ALIGN)
 #define	NFE_JPOOL_COUNT		(NFE_RX_RING_COUNT + NFE_RX_HEADERS)
 
@@ -122,6 +121,7 @@
 #define	NFE_RXFILTER_MAGIC	0x007f0008
 #define	NFE_U2M			(1 << 5)
 #define	NFE_PROMISC		(1 << 7)
+#define	NFE_CSUM_FEATURES	(CSUM_IP | CSUM_TCP | CSUM_UDP)
 
 /* default interrupt moderation timer of 128us */
 #define	NFE_IM_DEFAULT	((128 * 100) / 1024)
