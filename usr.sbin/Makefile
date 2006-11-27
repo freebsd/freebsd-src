@@ -105,7 +105,7 @@ SUBDIR=	ac \
 	${_ndp} \
 	newsyslog \
 	nfsd \
-	${_ngctl} \
+	ngctl \
 	nghook \
 	nologin \
 	ntp \
@@ -261,11 +261,6 @@ _ypset=		ypset
 
 .if ${MK_AUTHPF} != "no"
 _authpf=	authpf
-.endif
-
-.if ${MK_LIBTHR} != "no" || \
-    (${MACHINE_ARCH} != "sparc64" && ${MK_LIBPTHREAD} != "no")
-_ngctl=		ngctl
 .endif
 
 .if ${MK_LPR} != "no"
