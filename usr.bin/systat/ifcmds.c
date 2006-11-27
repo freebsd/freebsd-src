@@ -28,25 +28,10 @@
  * $FreeBSD$
  */
 
-#include <sys/types.h>
-#include <sys/socket.h>
-#include <sys/sysctl.h>
-#include <sys/time.h>
-#include <sys/queue.h>
-#include <net/if.h>
-#include <net/if_mib.h>
-#include <net/if_types.h>	/* For IFT_ETHER */
-
-#include <stdio.h>
-#include <stdlib.h>
 #include <string.h>
-#include <unistd.h>
-#include <float.h>
-#include <err.h>
 
 #include "systat.h"
 #include "extern.h"
-#include "mode.h"
 #include "convtbl.h"
 
 int	curscale = SC_AUTO;
