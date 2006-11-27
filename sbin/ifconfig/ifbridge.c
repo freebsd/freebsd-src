@@ -61,6 +61,16 @@ static const char rcsid[] =
 
 #include "ifconfig.h"
 
+#define PV2ID(pv, epri, eaddr)  do {		\
+		epri     = pv >> 48;		\
+		eaddr[0] = pv >> 40;		\
+		eaddr[1] = pv >> 32;		\
+		eaddr[2] = pv >> 24;		\
+		eaddr[3] = pv >> 16;		\
+		eaddr[4] = pv >> 8;		\
+		eaddr[5] = pv >> 0;		\
+} while (0)
+
 static const char *stpstates[] = {
 	"disabled",
 	"listening",
@@ -193,15 +203,6 @@ bridge_interfaces(int s, const char *prefix)
 			else
 				printf(" <unknown state %d>",
 				    req->ifbr_state);
-
-			if (req->ifbr_p2p)
-				printf(" p2p");
-			else
-				printf(" shared");
-			if (req->ifbr_edge)
-				printf(" edge");
-			if (req->ifbr_autoedge)
-				printf(" autoedge");
 			printf("\n");
 		}
 	}
@@ -250,6 +251,8 @@ bridge_status(int s)
 	struct ifbropreq param;
 	u_int16_t pri;
 	u_int8_t ht, fd, ma, hc, pro;
+	u_int8_t lladdr[ETHER_ADDR_LEN];
+	u_int16_t bprio;
 
 	if (do_cmd(s, BRDGPARAM, &param, sizeof(param), 0) < 0)
 		return;
@@ -260,9 +263,16 @@ bridge_status(int s)
 	hc = param.ifbop_holdcount;
 	ma = param.ifbop_maxage;
 
-	printf("\tpriority %u hellotime %u fwddelay %u"
-	    " maxage %u hc %u proto %s\n",
-	    pri, ht, fd, ma, hc, stpproto[pro]);
+	PV2ID(param.ifbop_bridgeid, bprio, lladdr);
+	printf("\tid %s priority %u hellotime %u fwddelay %u\n",
+	    ether_ntoa((struct ether_addr *)lladdr), pri, ht, fd);
+	printf("\tmaxage %u holdcnt %u proto %s\n",
+	    ma, hc, stpproto[pro]);
+
+	PV2ID(param.ifbop_designated_root, bprio, lladdr);
+	printf("\troot id %s priority %d ifcost %u port %u\n",
+	    ether_ntoa((struct ether_addr *)lladdr), bprio,
+	    param.ifbop_root_path_cost, param.ifbop_root_port & 0xfff);
 
 	bridge_interfaces(s, "\tmember: ");
 
@@ -373,49 +383,49 @@ unsetbridge_stp(const char *val, int d, int s, const struct afswtch *afp)
 static void
 setbridge_edge(const char *val, int d, int s, const struct afswtch *afp)
 {
-	struct ifbreq req;
-
-	memset(&req, 0, sizeof(req));
-	strlcpy(req.ifbr_ifsname, val, sizeof(req.ifbr_ifsname));
-	req.ifbr_edge = 1;
-	if (do_cmd(s, BRDGSEDGE, &req, sizeof(req), 1) < 0)
-		err(1, "BRDGSEDGE %s",  val);
+	do_bridgeflag(s, val, IFBIF_BSTP_EDGE, 1);
 }
 
 static void
 unsetbridge_edge(const char *val, int d, int s, const struct afswtch *afp)
 {
-	struct ifbreq req;
-
-	memset(&req, 0, sizeof(req));
-	strlcpy(req.ifbr_ifsname, val, sizeof(req.ifbr_ifsname));
-	req.ifbr_edge = 0;
-	if (do_cmd(s, BRDGSEDGE, &req, sizeof(req), 1) < 0)
-		err(1, "BRDGSEDGE %s",  val);
+	do_bridgeflag(s, val, IFBIF_BSTP_EDGE, 0);
 }
 
 static void
 setbridge_autoedge(const char *val, int d, int s, const struct afswtch *afp)
 {
-	struct ifbreq req;
-
-	memset(&req, 0, sizeof(req));
-	strlcpy(req.ifbr_ifsname, val, sizeof(req.ifbr_ifsname));
-	req.ifbr_autoedge = 1;
-	if (do_cmd(s, BRDGSAEDGE, &req, sizeof(req), 1) < 0)
-		err(1, "BRDGSAEDGE %s",  val);
+	do_bridgeflag(s, val, IFBIF_BSTP_AUTOEDGE, 1);
 }
 
 static void
 unsetbridge_autoedge(const char *val, int d, int s, const struct afswtch *afp)
 {
-	struct ifbreq req;
+	do_bridgeflag(s, val, IFBIF_BSTP_AUTOEDGE, 0);
+}
 
-	memset(&req, 0, sizeof(req));
-	strlcpy(req.ifbr_ifsname, val, sizeof(req.ifbr_ifsname));
-	req.ifbr_autoedge = 0;
-	if (do_cmd(s, BRDGSAEDGE, &req, sizeof(req), 1) < 0)
-		err(1, "BRDGSAEDGE %s",  val);
+static void
+setbridge_p2p(const char *val, int d, int s, const struct afswtch *afp)
+{
+	do_bridgeflag(s, val, IFBIF_BSTP_P2P, 1);
+}
+
+static void
+unsetbridge_p2p(const char *val, int d, int s, const struct afswtch *afp)
+{
+	do_bridgeflag(s, val, IFBIF_BSTP_P2P, 0);
+}
+
+static void
+setbridge_autop2p(const char *val, int d, int s, const struct afswtch *afp)
+{
+	do_bridgeflag(s, val, IFBIF_BSTP_AUTOP2P, 1);
+}
+
+static void
+unsetbridge_autop2p(const char *val, int d, int s, const struct afswtch *afp)
+{
+	do_bridgeflag(s, val, IFBIF_BSTP_AUTOP2P, 0);
 }
 
 static void
@@ -663,6 +673,10 @@ static struct cmd bridge_cmds[] = {
 	DEF_CMD_ARG("-edge",		unsetbridge_edge),
 	DEF_CMD_ARG("autoedge",		setbridge_autoedge),
 	DEF_CMD_ARG("-autoedge",	unsetbridge_autoedge),
+	DEF_CMD_ARG("p2p",		setbridge_p2p),
+	DEF_CMD_ARG("-p2p",		unsetbridge_p2p),
+	DEF_CMD_ARG("autop2p",		setbridge_autop2p),
+	DEF_CMD_ARG("-autop2p",		unsetbridge_autop2p),
 	DEF_CMD("flush", 0,		setbridge_flush),
 	DEF_CMD("flushall", 0,		setbridge_flushall),
 	DEF_CMD_ARG2("static",		setbridge_static),
