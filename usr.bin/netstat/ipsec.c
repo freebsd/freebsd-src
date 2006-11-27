@@ -335,7 +335,7 @@ print_newipsecstats(const struct newipsecstat *newipsecstat)
 }
   
 void
-ipsec_stats_new(u_long off, const char *name, int af __unused)
+ipsec_stats_new(u_long off, const char *name, int family __unused)
 {
 	struct newipsecstat newipsecstat;
 
@@ -384,7 +384,7 @@ print_ahstats(const struct ahstat *ahstat)
 }
 
 void
-ah_stats(u_long off, const char *name, int af __unused)
+ah_stats(u_long off, const char *name, int family __unused)
 {
 	struct ahstat ahstat;
 
@@ -434,7 +434,7 @@ print_espstats(const struct espstat *espstat)
 }
 
 void
-esp_stats(u_long off, const char *name, int af __unused)
+esp_stats(u_long off, const char *name, int family __unused)
 {
 	struct espstat espstat;
 
@@ -479,7 +479,7 @@ print_ipcompstats(const struct ipcompstat *ipcompstat)
 }
 
 void
-ipcomp_stats(u_long off, const char *name, int af __unused)
+ipcomp_stats(u_long off, const char *name, int family __unused)
 {
 	struct ipcompstat ipcompstat;
 

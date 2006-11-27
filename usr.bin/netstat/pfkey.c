@@ -120,7 +120,7 @@ pfkey_msgtype_names(int x)
 }
 
 void
-pfkey_stats(u_long off, const char *name, int af __unused)
+pfkey_stats(u_long off, const char *name, int family __unused)
 {
 	struct pfkeystat pfkeystat;
 	unsigned first, type;
