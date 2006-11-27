@@ -248,31 +248,39 @@ bridge_addresses(int s, const char *prefix)
 static void
 bridge_status(int s)
 {
-	struct ifbropreq param;
+	struct ifbropreq ifbp;
+	struct ifbrparam param;
 	u_int16_t pri;
 	u_int8_t ht, fd, ma, hc, pro;
 	u_int8_t lladdr[ETHER_ADDR_LEN];
 	u_int16_t bprio;
+	u_int32_t csize, ctime;
 
-	if (do_cmd(s, BRDGPARAM, &param, sizeof(param), 0) < 0)
+	if (do_cmd(s, BRDGGCACHE, &param, sizeof(param), 0) < 0)
 		return;
-	pri = param.ifbop_priority;
-	pro = param.ifbop_protocol;
-	ht = param.ifbop_hellotime;
-	fd = param.ifbop_fwddelay;
-	hc = param.ifbop_holdcount;
-	ma = param.ifbop_maxage;
+	csize = param.ifbrp_csize;
+	if (do_cmd(s, BRDGGTO, &param, sizeof(param), 0) < 0)
+		return;
+	ctime = param.ifbrp_ctime;
+	if (do_cmd(s, BRDGPARAM, &ifbp, sizeof(ifbp), 0) < 0)
+		return;
+	pri = ifbp.ifbop_priority;
+	pro = ifbp.ifbop_protocol;
+	ht = ifbp.ifbop_hellotime;
+	fd = ifbp.ifbop_fwddelay;
+	hc = ifbp.ifbop_holdcount;
+	ma = ifbp.ifbop_maxage;
 
-	PV2ID(param.ifbop_bridgeid, bprio, lladdr);
+	PV2ID(ifbp.ifbop_bridgeid, bprio, lladdr);
 	printf("\tid %s priority %u hellotime %u fwddelay %u\n",
 	    ether_ntoa((struct ether_addr *)lladdr), pri, ht, fd);
-	printf("\tmaxage %u holdcnt %u proto %s\n",
-	    ma, hc, stpproto[pro]);
+	printf("\tmaxage %u holdcnt %u proto %s maxaddr %u timeout %u\n",
+	    ma, hc, stpproto[pro], csize, ctime);
 
-	PV2ID(param.ifbop_designated_root, bprio, lladdr);
+	PV2ID(ifbp.ifbop_designated_root, bprio, lladdr);
 	printf("\troot id %s priority %d ifcost %u port %u\n",
 	    ether_ntoa((struct ether_addr *)lladdr), bprio,
-	    param.ifbop_root_path_cost, param.ifbop_root_port & 0xfff);
+	    ifbp.ifbop_root_path_cost, ifbp.ifbop_root_port & 0xfff);
 
 	bridge_interfaces(s, "\tmember: ");
 
