@@ -114,8 +114,6 @@
 					 * (ifbpstpconf) */
 #define	BRDGSPROTO		28	/* set protocol (ifbrparam) */
 #define	BRDGSTXHC		29	/* set tx hold count (ifbrparam) */
-#define	BRDGSEDGE		30	/* set edge status (ifbreq) */
-#define	BRDGSAEDGE		31	/* set autoedge status (ifbreq) */
 
 /*
  * Generic bridge control request.
@@ -124,9 +122,6 @@ struct ifbreq {
 	char		ifbr_ifsname[IFNAMSIZ];	/* member if name */
 	uint32_t	ifbr_ifsflags;		/* member if flags */
 	uint32_t	ifbr_stpflags;		/* member if STP flags */
-	uint8_t		ifbr_edge;		/* member if STP edge */
-	uint8_t		ifbr_autoedge;		/* member if STP autoedge */
-	uint8_t		ifbr_p2p;		/* member if STP p2p */
 	uint32_t	ifbr_path_cost;		/* member if STP cost */
 	uint8_t		ifbr_portno;		/* member if port number */
 	uint8_t		ifbr_priority;		/* member if STP priority */
@@ -136,13 +131,20 @@ struct ifbreq {
 };
 
 /* BRDGGIFFLAGS, BRDGSIFFLAGS */
-#define	IFBIF_LEARNING		0x01	/* if can learn */
-#define	IFBIF_DISCOVER		0x02	/* if sends packets w/ unknown dest. */
-#define	IFBIF_STP		0x04	/* if participates in spanning tree */
-#define	IFBIF_SPAN		0x08	/* if is a span port */
-#define	IFBIF_STICKY		0x10	/* if learned addresses stick */
+#define	IFBIF_LEARNING		0x0001	/* if can learn */
+#define	IFBIF_DISCOVER		0x0002	/* if sends packets w/ unknown dest. */
+#define	IFBIF_STP		0x0004	/* if participates in spanning tree */
+#define	IFBIF_SPAN		0x0008	/* if is a span port */
+#define	IFBIF_STICKY		0x0010	/* if learned addresses stick */
+#define	IFBIF_BSTP_EDGE		0x0020	/* member stp edge port */
+#define	IFBIF_BSTP_AUTOEDGE	0x0040	/* member stp autoedge enabled */
+#define	IFBIF_BSTP_P2P		0x0080	/* member stp p2p */
+#define	IFBIF_BSTP_AUTOP2P	0x0100	/* member stp autop2p enabled */
 
-#define	IFBIFBITS	"\020\1LEARNING\2DISCOVER\3STP\4SPAN\5STICKY"
+#define	IFBIFBITS	"\020\001LEARNING\002DISCOVER\003STP\004SPAN" \
+			"\005STICKY\006EDGE\007AUTOEDGE\010P2P\011AUTOP2P"
+#define	IFBIFMASK	~(IFBIF_BSTP_EDGE|IFBIF_BSTP_AUTOEDGE|IFBIF_BSTP_P2P| \
+			IFBIF_BSTP_AUTOP2P)	/* not saved */
 
 /* BRDGFLUSH */
 #define	IFBF_FLUSHDYN		0x00	/* flush learned addresses only */
@@ -223,7 +225,9 @@ struct ifbropreq {
 	uint16_t	ifbop_priority;
 	uint16_t	ifbop_root_port;
 	uint32_t	ifbop_root_path_cost;
+	uint64_t	ifbop_bridgeid;
 	uint64_t	ifbop_designated_root;
+	uint64_t	ifbop_designated_bridge;
 	struct timeval	ifbop_last_tc_time;
 };
 
