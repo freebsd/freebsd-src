@@ -34,13 +34,14 @@
 #include "extern.h"
 #include "convtbl.h"
 
-int	curscale = SC_AUTO;
+int		curscale = SC_AUTO;
 
-static	int selectscale(const char *);
+static int	selectscale(const char *);
 
 int
 ifcmd(const char *cmd, const char *args)
 {
+
 	if (prefix(cmd, "scale")) {
 		if (*args != '\0' && selectscale(args) != -1)
 			;
@@ -51,13 +52,13 @@ ifcmd(const char *cmd, const char *args)
 			       "gbit, gbyte, auto");
 		} 
 	}
-	return 1;
+	return (1);
 }
 
 static int
 selectscale(const char *args)
 {
-	int	retval = 0;
+	int	retval;
 
 #define streq(a,b)	(strcmp(a,b) == 0)
 	if (streq(args, "default") || streq(args, "auto"))
@@ -77,5 +78,5 @@ selectscale(const char *args)
 	else
 		retval = -1;
 
-	return retval;
+	return (retval);
 }
