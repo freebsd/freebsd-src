@@ -105,8 +105,8 @@ struct nfe_softc {
 #define	NFE_40BIT_ADDR	0x02
 #define	NFE_HW_CSUM	0x04
 #define	NFE_HW_VLAN	0x08
-#define	NFE_USE_JUMBO	0x10
 	u_int32_t		rxtxctl;
+	u_int32_t		nfe_mtu;
 	u_int8_t		mii_phyaddr;
 	u_char			eaddr[ETHER_ADDR_LEN];
 	struct task		nfe_txtask;
