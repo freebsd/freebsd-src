@@ -146,12 +146,14 @@ static const char *miblist[] = {
 	"net.inet.udp.pcblist"
 };
 
+static char tcb[] = "tcb", udb[] = "udb";
+
 struct nlist namelist[] = {
 #define	X_TCB	0
-	{ "tcb" },
+	{ .n_name = tcb },
 #define	X_UDB	1
-	{ "udb" },
-	{ "" },
+	{ .n_name = udb },
+	{ .n_name = NULL },
 };
 
 int
