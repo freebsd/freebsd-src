@@ -108,6 +108,7 @@
 #define	BSTP_PORT_DISPUTED	0x0004
 #define	BSTP_PORT_ADMCOST	0x0008
 #define	BSTP_PORT_AUTOEDGE	0x0010
+#define	BSTP_PORT_AUTOP2P	0x0020
 
 /* BPDU priority */
 #define	BSTP_PDU_SUPERIOR	1
@@ -382,6 +383,8 @@ int	bstp_set_port_priority(struct bstp_port *, int);
 int	bstp_set_path_cost(struct bstp_port *, uint32_t);
 int	bstp_set_edge(struct bstp_port *, int);
 int	bstp_set_autoedge(struct bstp_port *, int);
+int	bstp_set_p2p(struct bstp_port *, int);
+int	bstp_set_autop2p(struct bstp_port *, int);
 struct mbuf *bstp_input(struct bstp_port *, struct ifnet *, struct mbuf *);
 
 #endif /* _KERNEL */

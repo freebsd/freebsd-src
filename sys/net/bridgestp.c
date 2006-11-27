@@ -1658,6 +1658,33 @@ bstp_set_autoedge(struct bstp_port *bp, int set)
 	BSTP_UNLOCK(bs);
 	return (0);
 }
+
+int
+bstp_set_p2p(struct bstp_port *bp, int set)
+{
+	struct bstp_state *bs = bp->bp_bs;
+
+	BSTP_LOCK(bs);
+	bp->bp_p2p_link = set;
+	BSTP_UNLOCK(bs);
+	return (0);
+}
+
+int
+bstp_set_autop2p(struct bstp_port *bp, int set)
+{
+	struct bstp_state *bs = bp->bp_bs;
+
+	BSTP_LOCK(bs);
+	if (set) {
+		bp->bp_flags |= BSTP_PORT_AUTOP2P;
+		bstp_ifupdstatus(bs, bp);
+	} else
+		bp->bp_flags &= ~BSTP_PORT_AUTOP2P;
+	BSTP_UNLOCK(bs);
+	return (0);
+}
+
 /*
  * Calculate the path cost according to the link speed.
  */
@@ -1675,7 +1702,7 @@ bstp_calc_path_cost(struct bstp_port *bp)
 		return (BSTP_DEFAULT_PATH_COST);
 
  	/* formula from section 17.14, IEEE Std 802.1D-2004 */
-	path_cost = 20000000000 / (ifp->if_baudrate / 1000);
+	path_cost = 20000000000ULL / (ifp->if_baudrate / 1000);
 
 	if (path_cost > BSTP_MAX_PATH_COST)
 		path_cost = BSTP_MAX_PATH_COST;
@@ -1774,7 +1801,10 @@ bstp_ifupdstatus(struct bstp_state *bs, struct bstp_port *bp)
 	if ((error == 0) && (ifp->if_flags & IFF_UP)) {
 		if (ifmr.ifm_status & IFM_ACTIVE) {
 			/* A full-duplex link is assumed to be point to point */
-			bp->bp_p2p_link = ifmr.ifm_active & IFM_FDX ? 1 : 0;
+			if (bp->bp_flags & BSTP_PORT_AUTOP2P) {
+				bp->bp_p2p_link =
+				    ifmr.ifm_active & IFM_FDX ? 1 : 0;
+			}
 
 			if (bp->bp_role == BSTP_ROLE_DISABLED)
 				bstp_enable_port(bs, bp);
@@ -2126,7 +2156,7 @@ bstp_create(struct bstp_state *bs, struct bstp_port *bp, struct ifnet *ifp)
 
 	/* Init state */
 	bp->bp_infois = BSTP_INFO_DISABLED;
-	bp->bp_flags = BSTP_PORT_AUTOEDGE;
+	bp->bp_flags = BSTP_PORT_AUTOEDGE|BSTP_PORT_AUTOP2P;
 	bstp_set_port_state(bp, BSTP_IFSTATE_DISCARDING);
 	bstp_set_port_proto(bp, bs->bs_protover);
 	bstp_set_port_role(bp, BSTP_ROLE_DISABLED);
