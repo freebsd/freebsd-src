@@ -58,7 +58,7 @@ ifcmd(const char *cmd, const char *args)
 static int
 selectscale(const char *args)
 {
-	int	retval;
+	int	retval = 0;
 
 #define streq(a,b)	(strcmp(a,b) == 0)
 	if (streq(args, "default") || streq(args, "auto"))
