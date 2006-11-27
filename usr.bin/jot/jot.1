@@ -32,7 +32,7 @@
 .\"	@(#)jot.1	8.1 (Berkeley) 6/6/93
 .\" $FreeBSD$
 .\"
-.Dd June 6, 1993
+.Dd November 6, 2006
 .Dt JOT 1
 .Os
 .Sh NAME
@@ -106,7 +106,8 @@ and the step size or, for random data, the seed.
 While at least one of them must appear,
 any of the other three may be omitted, and
 will be considered as such if given as
-.Fl "" .
+.Fl ""
+or as an empty string.
 Any three of these arguments determines the fourth.
 If four are specified and the given and computed values of
 .Ar reps
@@ -114,7 +115,7 @@ conflict, the lower value is used.
 If fewer than three are specified, defaults are assigned
 left to right, except for
 .Ar s ,
-which assumes its default unless both
+which assumes a default of 1 or -1 if both
 .Ar begin
 and
 .Ar end
@@ -139,7 +140,28 @@ representing the corresponding value in
 The last argument must be a real number.
 .Pp
 Random numbers are obtained through
-.Xr random 3 .
+.Xr arc4random 3
+when no seed is specified,
+and through
+.Xr random 3
+when a seed is given.
+When
+.Nm
+is asked to generate random integers or characters with begin
+and end values in the range of the random number generator function
+and no format is specified with one of the
+.Fl w ,
+.Fl b ,
+or
+.Fl p
+options,
+.Nm
+will arrange for all the values in the range to appear in the output
+with an equal probability.
+In all other cases be careful to ensure that the output format's
+rounding or truncation will not skew the distribution of output
+values in an unintended way.
+.Pp
 The name
 .Nm
 derives in part from
@@ -149,6 +171,10 @@ a function in APL.
 .Ex -std
 .Sh EXAMPLES
 The command
+.Dl jot - 1 10
+.Pp
+prints the integers from 1 to 10,
+while the command
 .Dl jot 21 -1 1.00
 .Pp
 prints 21 evenly spaced numbers increasing from -1 to 1.
@@ -214,6 +240,7 @@ but only one is allowed.
 .Xr expand 1 ,
 .Xr rs 1 ,
 .Xr yes 1 ,
+.Xr arc4random 3 ,
 .Xr printf 3 ,
 .Xr random 3
 .Sh HISTORY
