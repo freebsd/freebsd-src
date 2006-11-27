@@ -417,6 +417,12 @@ mii_phy_add_media(struct mii_softc *sc)
 	struct mii_data *mii = sc->mii_pdata;
 	const char *sep = "";
 
+	if ((sc->mii_capabilities & BMSR_MEDIAMASK) == 0 &&
+	    (sc->mii_extcapabilities & EXTSR_MEDIAMASK) == 0) {
+		printf("no media present");
+		return;
+	}
+
 	/* Set aneg timer for 10/100 media. Gigabit media handled below. */
 	sc->mii_anegticks = MII_ANEGTICKS;
 
