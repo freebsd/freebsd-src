@@ -997,7 +997,8 @@ fetch_metadata () {
 		if [ ! -f "files/${Y}.gz" ]; then
 			echo ${Y};
 		fi
-	    done > filelist
+	    done |
+	    sort -u > filelist
 
 	if [ -s filelist ]; then
 		echo -n "Fetching `wc -l < filelist | tr -d ' '` "
