@@ -32,10 +32,11 @@
 #define _CONVTBL_H_
 
 #include <sys/types.h>
+#include <stdint.h>
 
 #define BITS	(1)
 #define BYTES	(1)
-#define KILO	(1024)
+#define KILO	(1024LL)
 #define	MEGA	(KILO * 1024)
 #define GIGA	(MEGA * 1024)
 
@@ -55,14 +56,14 @@ enum scale {
 #define BYTE	(1)
 
 struct convtbl {
-	u_int	 mul;
-	u_int	 scale;
+	uintmax_t	 mul;
+	uintmax_t	 scale;
 	const char	*str;
 };
 
 extern	struct convtbl convtbl[];
 
-extern	double 	 convert(const u_long, const u_int);
-extern	const char	*get_string(const u_long, const u_int);
+extern	double		 convert(const uintmax_t, const int);
+extern	const char	*get_string(const uintmax_t, const int);
 
 #endif		/* ! _CONVTBL_H_ */
