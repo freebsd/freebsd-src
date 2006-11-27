@@ -925,6 +925,24 @@ linprocfs_donetdev(PFS_FILL_ARGS)
 }
 
 /*
+ * Filler function for proc/sys/kernel/msgmni
+ */
+static int
+linprocfs_domsgmni(PFS_FILL_ARGS)
+{
+	int msgmni;
+	size_t size;
+
+	size = sizeof(msgmni);
+	if (kernel_sysctlbyname(td, "kern.ipc.msgmni", &msgmni, &size,
+	    0, 0, 0, 0) != 0)
+		msgmni = 0;
+	sbuf_printf(sb, "%i\n", msgmni);
+
+	return (0);
+}
+
+/*
  * Filler function for proc/sys/kernel/pid_max
  */
 static int
@@ -932,6 +950,44 @@ linprocfs_dopid_max(PFS_FILL_ARGS)
 {
 
 	sbuf_printf(sb, "%i\n", PID_MAX);
+
+	return (0);
+}
+
+/*
+ * Filler function for proc/sys/kernel/sem
+ */
+static int
+linprocfs_dosem(PFS_FILL_ARGS)
+{
+	int semmsl, semmns, semopm, semmni;
+	size_t size;
+
+	/* Field 1: SEMMSL */
+	size = sizeof(semmsl);
+	if (kernel_sysctlbyname(td, "kern.ipc.semmsl", &semmsl, &size,
+	    0, 0, 0, 0) != 0)
+		semmsl = 0;
+
+	/* Field 2: SEMMNS */
+	size = sizeof(semmns);
+	if (kernel_sysctlbyname(td, "kern.ipc.semmns", &semmns, &size,
+	    0, 0, 0, 0) != 0)
+		semmns = 0;
+
+	/* Field 3: SEMOPM */
+	size = sizeof(semopm);
+	if (kernel_sysctlbyname(td, "kern.ipc.semopm", &semopm, &size,
+	    0, 0, 0, 0) != 0)
+		semopm = 0;
+
+	/* Field 4: SEMMNI */
+	size = sizeof(semmni);
+	if (kernel_sysctlbyname(td, "kern.ipc.semmni", &semmni, &size,
+	    0, 0, 0, 0) != 0)
+		semmni = 0;
+
+	sbuf_printf(sb, "%i %i %i %i\n", semmsl, semmns, semopm, semmni);
 
 	return (0);
 }
@@ -1080,7 +1136,11 @@ linprocfs_init(PFS_INIT_ARGS)
 	dir = pfs_create_dir(root, "sys", NULL, NULL, 0);
 	/* /proc/sys/kernel/... */
 	dir = pfs_create_dir(dir, "kernel", NULL, NULL, 0);
+	pfs_create_file(dir, "msgmni", &linprocfs_domsgmni,
+	    NULL, NULL, PFS_RD);
 	pfs_create_file(dir, "pid_max", &linprocfs_dopid_max,
+	    NULL, NULL, PFS_RD);
+	pfs_create_file(dir, "sem", &linprocfs_dosem,
 	    NULL, NULL, PFS_RD);
 
 	return (0);
