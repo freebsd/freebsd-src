@@ -114,7 +114,8 @@ mii_phy_setmedia(struct mii_softc *sc)
 	int bmcr, anar, gtcr;
 
 	if (IFM_SUBTYPE(ife->ifm_media) == IFM_AUTO) {
-		if ((PHY_READ(sc, MII_BMCR) & BMCR_AUTOEN) == 0)
+		if ((PHY_READ(sc, MII_BMCR) & BMCR_AUTOEN) == 0 ||
+		    (sc->mii_flags & MIIF_FORCEANEG))
 			(void) mii_phy_auto(sc);
 		return;
 	}
@@ -247,6 +248,7 @@ mii_phy_tick(struct mii_softc *sc)
 void
 mii_phy_reset(struct mii_softc *sc)
 {
+	struct ifmedia_entry *ife = sc->mii_pdata->mii_media.ifm_cur;
 	int reg, i;
 
 	if (sc->mii_flags & MIIF_NOISOLATE)
@@ -257,14 +259,17 @@ mii_phy_reset(struct mii_softc *sc)
 
 	/* Wait 100ms for it to complete. */
 	for (i = 0; i < 100; i++) {
-		reg = PHY_READ(sc, MII_BMCR); 
+		reg = PHY_READ(sc, MII_BMCR);
 		if ((reg & BMCR_RESET) == 0)
 			break;
 		DELAY(1000);
 	}
 
-	if (sc->mii_inst != 0 && ((sc->mii_flags & MIIF_NOISOLATE) == 0))
-		PHY_WRITE(sc, MII_BMCR, reg | BMCR_ISO);
+	if ((sc->mii_flags & MIIF_NOISOLATE) == 0) {
+		if ((ife == NULL && sc->mii_inst != 0) ||
+		    (ife != NULL && IFM_INST(ife->ifm_media) != sc->mii_inst))
+			PHY_WRITE(sc, MII_BMCR, reg | BMCR_ISO);
+	}
 }
 
 void
@@ -548,5 +553,6 @@ mii_phy_match_gen(const struct mii_attach_args *ma,
 const struct mii_phydesc *
 mii_phy_match(const struct mii_attach_args *ma, const struct mii_phydesc *mpd)
 {
+
 	return (mii_phy_match_gen(ma, mpd, sizeof(struct mii_phydesc)));
 }
