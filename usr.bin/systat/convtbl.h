@@ -34,12 +34,6 @@
 #include <sys/types.h>
 #include <stdint.h>
 
-#define BITS	(1)
-#define BYTES	(1)
-#define KILO	(1024LL)
-#define	MEGA	(KILO * 1024)
-#define GIGA	(MEGA * 1024)
-
 enum scale {
 	SC_BYTE,
 	SC_KILOBYTE,
@@ -51,18 +45,6 @@ enum scale {
 	SC_GIGABIT,
 	SC_AUTO		/* KEEP THIS LAST */
 };
-
-#define BIT	(8)
-#define BYTE	(1)
-
-struct convtbl {
-	uintmax_t	 mul;
-	uintmax_t	 scale;
-	const char	*str;
-	const char	*name;
-};
-
-extern	struct convtbl convtbl[];
 
 extern	double		 convert(const uintmax_t, const int);
 extern	const char	*get_helplist(void);
