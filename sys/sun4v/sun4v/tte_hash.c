@@ -615,8 +615,6 @@ tte_hash_update(tte_hash_t th, vm_offset_t va, tte_t tte_data)
 int
 tte_hash_needs_resize(tte_hash_t th)
 {
-	return (0); /* XXX disabel resize for the moment */
-
 	return ((th->th_entries > (1 << (th->th_shift + PAGE_SHIFT - TTE_SHIFT + 1))) 
 		&& (th != &kernel_tte_hash));
 }
