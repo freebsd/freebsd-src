@@ -41,6 +41,7 @@
 #define KILO	(1024LL)
 #define MEGA	(KILO * 1024)
 #define GIGA	(MEGA * 1024)
+#define TERA	(GIGA * 1024)
 
 struct convtbl {
 	uintmax_t	 mul;
@@ -55,11 +56,13 @@ static struct convtbl convtbl[] = {
 	[SC_KILOBYTE] =	{ BYTE, KILO,  "KB", "kbyte" },
 	[SC_MEGABYTE] =	{ BYTE, MEGA,  "MB", "mbyte" },
 	[SC_GIGABYTE] =	{ BYTE, GIGA,  "GB", "gbyte" },
+	[SC_TERABYTE] =	{ BYTE, TERA,  "TB", "tbyte" },
 
 	[SC_BIT] =	{ BIT, BITS, "b",  "bit"  },
 	[SC_KILOBIT] =	{ BIT, KILO, "Kb", "kbit" },
 	[SC_MEGABIT] =	{ BIT, MEGA, "Mb", "mbit" },
 	[SC_GIGABIT] =	{ BIT, GIGA, "Gb", "gbit" },
+	[SC_TERABIT] =	{ BIT, TERA, "Tb", "tbit" },
 
 	[SC_AUTO] =	{ 0, 0, "", "auto" }
 };
@@ -82,7 +85,7 @@ get_tbl_ptr(const uintmax_t size, const int scale)
 		 * index as the array index into the conversion table.
 		 */
 		for (tmp = size, idx = SC_KILOBYTE;
-		     tmp >= MEGA && idx < SC_GIGABYTE;
+		     tmp >= MEGA && idx < SC_BIT - 1;
 		     tmp >>= 10, idx++);
 
 	return (&convtbl[idx]);

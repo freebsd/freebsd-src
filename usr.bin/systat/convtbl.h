@@ -34,15 +34,20 @@
 #include <sys/types.h>
 #include <stdint.h>
 
+/*
+ * Keep the order in the enum.
+ */
 enum scale {
 	SC_BYTE,
 	SC_KILOBYTE,
 	SC_MEGABYTE,
 	SC_GIGABYTE,
+	SC_TERABYTE,
 	SC_BIT,
 	SC_KILOBIT,
 	SC_MEGABIT,
 	SC_GIGABIT,
+	SC_TERABIT,
 	SC_AUTO		/* KEEP THIS LAST */
 };
 
