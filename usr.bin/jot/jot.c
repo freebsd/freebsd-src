@@ -57,76 +57,86 @@ __FBSDID("$FreeBSD$");
 #include <stdio.h>
 #include <stdint.h>
 #include <stdlib.h>
+#include <stdbool.h>
 #include <string.h>
 #include <time.h>
 #include <unistd.h>
 
+/* Defaults */
 #define	REPS_DEF	100
 #define	BEGIN_DEF	1
 #define	ENDER_DEF	100
 #define	STEP_DEF	1
 
-#define	is_default(s)	(strcmp((s), "-") == 0)
+/* Flags of options that have been set */
+#define HAVE_STEP	1
+#define HAVE_ENDER	2
+#define HAVE_BEGIN	4
+#define HAVE_REPS	8
 
-double	begin;
-double	ender;
-double	s;
-long	reps;
-int	randomize;
-int	infinity;
-int	boring;
-int	prec;
-int	longdata;
-int	intdata;
-int	chardata;
-int	nosign;
-int	nofinalnl;
-const	char *sepstring = "\n";
-char	format[BUFSIZ];
+#define	is_default(s)	(*(s) == 0 || strcmp((s), "-") == 0)
 
-void		getformat(void);
-int		getprec(char *);
-int		putdata(double, long);
+static bool	boring;
+static int	prec;
+static bool	longdata;
+static bool	intdata;
+static bool	chardata;
+static bool	nosign;
+static const	char *sepstring = "\n";
+static char	format[BUFSIZ];
+
+static void	getformat(void);
+static int	getprec(const char *);
+static int	putdata(double, bool);
 static void	usage(void);
 
 int
 main(int argc, char **argv)
 {
-	double	xd, yd;
-	long	id;
-	double	*x = &xd;
-	double	*y = &yd;
-	long	*i = &id;
-	unsigned int	mask = 0;
-	int	n = 0;
+	bool	have_format = false;
+	bool	infinity = false;
+	bool	nofinalnl = false;
+	bool	randomize = false;
+	bool	use_random = false;
 	int	ch;
+	int	mask = 0;
+	int	n = 0;
+	double	begin;
+	double	divisor;
+	double	ender;
+	double	s;
+	double	x, y;
+	long	i;
+	long	reps;
 
-	while ((ch = getopt(argc, argv, "rb:w:cs:np:")) != -1)
+	while ((ch = getopt(argc, argv, "b:cnp:rs:w:")) != -1)
 		switch (ch) {
-		case 'r':
-			randomize = 1;
-			break;
-		case 'c':
-			chardata = 1;
-			break;
-		case 'n':
-			nofinalnl = 1;
-			break;
 		case 'b':
-			boring = 1;
+			boring = true;
 			/* FALLTHROUGH */
 		case 'w':
 			if (strlcpy(format, optarg, sizeof(format)) >=
 			    sizeof(format))
 				errx(1, "-%c word too long", ch);
+			have_format = true;
 			break;
-		case 's':
-			sepstring = optarg;
+		case 'c':
+			chardata = true;
+			break;
+		case 'n':
+			nofinalnl = true;
 			break;
 		case 'p':
 			prec = atoi(optarg);
 			if (prec <= 0)
 				errx(1, "bad precision value");
+			have_format = true;
+			break;
+		case 'r':
+			randomize = true;
+			break;
+		case 's':
+			sepstring = optarg;
 			break;
 		default:
 			usage();
@@ -139,31 +149,36 @@ main(int argc, char **argv)
 		if (!is_default(argv[3])) {
 			if (!sscanf(argv[3], "%lf", &s))
 				errx(1, "bad s value: %s", argv[3]);
-			mask |= 01;
+			mask |= HAVE_STEP;
+			if (randomize)
+				use_random = true;
 		}
+		/* FALLTHROUGH */
 	case 3:
 		if (!is_default(argv[2])) {
 			if (!sscanf(argv[2], "%lf", &ender))
 				ender = argv[2][strlen(argv[2])-1];
-			mask |= 02;
+			mask |= HAVE_ENDER;
 			if (!prec)
 				n = getprec(argv[2]);
 		}
+		/* FALLTHROUGH */
 	case 2:
 		if (!is_default(argv[1])) {
 			if (!sscanf(argv[1], "%lf", &begin))
 				begin = argv[1][strlen(argv[1])-1];
-			mask |= 04;
+			mask |= HAVE_BEGIN;
 			if (!prec)
 				prec = getprec(argv[1]);
 			if (n > prec)		/* maximum precision */
 				prec = n;
 		}
+		/* FALLTHROUGH */
 	case 1:
 		if (!is_default(argv[0])) {
 			if (!sscanf(argv[0], "%ld", &reps))
 				errx(1, "bad reps value: %s", argv[0]);
-			mask |= 010;
+			mask |= HAVE_REPS;
 		}
 		break;
 	case 0:
@@ -175,59 +190,39 @@ main(int argc, char **argv)
 	getformat();
 	while (mask)	/* 4 bit mask has 1's where last 4 args were given */
 		switch (mask) {	/* fill in the 0's by default or computation */
-		case 001:
+		case HAVE_STEP:
+		case HAVE_ENDER:
+		case HAVE_ENDER | HAVE_STEP:
+		case HAVE_BEGIN:
+		case HAVE_BEGIN | HAVE_STEP:
 			reps = REPS_DEF;
-			mask = 011;
+			mask |= HAVE_REPS;
 			break;
-		case 002:
-			reps = REPS_DEF;
-			mask = 012;
+		case HAVE_BEGIN | HAVE_ENDER:
+			s = ender > begin ? 1 : -1;
+			mask |= HAVE_STEP;
 			break;
-		case 003:
-			reps = REPS_DEF;
-			mask = 013;
-			break;
-		case 004:
-			reps = REPS_DEF;
-			mask = 014;
-			break;
-		case 005:
-			reps = REPS_DEF;
-			mask = 015;
-			break;
-		case 006:
-			reps = REPS_DEF;
-			mask = 016;
-			break;
-		case 007:
-			if (randomize) {
+		case HAVE_BEGIN | HAVE_ENDER | HAVE_STEP:
+			if (randomize)
 				reps = REPS_DEF;
-				mask = 0;
-				break;
-			}
-			if (s == 0.0) {
+			else if (s == 0.0)
 				reps = 0;
-				mask = 0;
-				break;
-			}
-			reps = (ender - begin + s) / s;
+			else
+				reps = (ender - begin + s) / s;
 			if (reps <= 0)
 				errx(1, "impossible stepsize");
 			mask = 0;
 			break;
-		case 010:
+		case HAVE_REPS:
+		case HAVE_REPS | HAVE_STEP:
 			begin = BEGIN_DEF;
-			mask = 014;
+			mask |= HAVE_BEGIN;
 			break;
-		case 011:
-			begin = BEGIN_DEF;
-			mask = 015;
+		case HAVE_REPS | HAVE_ENDER:
+			s = STEP_DEF;
+			mask = HAVE_REPS | HAVE_ENDER | HAVE_STEP;
 			break;
-		case 012:
-			s = (randomize ? time(NULL) : STEP_DEF);
-			mask = 013;
-			break;
-		case 013:
+		case HAVE_REPS | HAVE_ENDER | HAVE_STEP:
 			if (randomize)
 				begin = BEGIN_DEF;
 			else if (reps == 0)
@@ -235,21 +230,19 @@ main(int argc, char **argv)
 			begin = ender - reps * s + s;
 			mask = 0;
 			break;
-		case 014:
-			s = (randomize ? -1.0 : STEP_DEF);
-			mask = 015;
+		case HAVE_REPS | HAVE_BEGIN:
+			s = STEP_DEF;
+			mask = HAVE_REPS | HAVE_BEGIN | HAVE_STEP;
 			break;
-		case 015:
+		case HAVE_REPS | HAVE_BEGIN | HAVE_STEP:
 			if (randomize)
 				ender = ENDER_DEF;
 			else
 				ender = begin + reps * s - s;
 			mask = 0;
 			break;
-		case 016:
-			if (randomize)
-				s = -1.0;
-			else if (reps == 0)
+		case HAVE_REPS | HAVE_BEGIN | HAVE_ENDER:
+			if (reps == 0)
 				errx(1, "infinite sequences cannot be bounded");
 			else if (reps == 1)
 				s = 0.0;
@@ -257,7 +250,8 @@ main(int argc, char **argv)
 				s = (ender - begin) / (reps - 1);
 			mask = 0;
 			break;
-		case 017:		/* if reps given and implied, */
+		case HAVE_REPS | HAVE_BEGIN | HAVE_ENDER | HAVE_STEP:
+			/* if reps given and implied, */
 			if (!randomize && s != 0.0) {
 				long t = (ender - begin + s) / s;
 				if (t <= 0)
@@ -271,25 +265,57 @@ main(int argc, char **argv)
 			errx(1, "bad mask");
 		}
 	if (reps == 0)
-		infinity = 1;
+		infinity = true;
 	if (randomize) {
-		*x = (ender - begin) * (ender > begin ? 1 : -1);
-		for (*i = 1; *i <= reps || infinity; (*i)++) {
-			*y = arc4random() / ((double)UINT32_MAX + 1);
-			if (putdata(*y * *x + begin, reps - *i))
+		if (use_random) {
+			srandom((unsigned long)s);
+			divisor = (double)INT32_MAX + 1;
+		} else
+			divisor = (double)UINT32_MAX + 1;
+
+		/*
+		 * Attempt to DWIM when the user has specified an
+		 * integer range within that of the random number
+		 * generator: distribute the numbers equally in
+		 * the range [begin .. ender].  Jot's default %.0f
+		 * format would make the appearance of the first and
+		 * last specified value half as likely as the rest.
+		 */
+		if (!have_format && prec == 0 &&
+		    begin >= 0 && begin < divisor &&
+		    ender >= 0 && ender < divisor) {
+			ender += 1;
+			nosign = true;
+			intdata = true;
+			(void)strlcpy(format,
+			    chardata ? "%c" : "%u", sizeof(format));
+		}
+		x = (ender - begin) * (ender > begin ? 1 : -1);
+		for (i = 1; i <= reps || infinity; i++) {
+			if (use_random)
+				y = random() / divisor;
+			else
+				y = arc4random() / divisor;
+			if (putdata(y * x + begin, !(reps - i)))
 				errx(1, "range error in conversion");
 		}
 	} else
-		for (*i = 1, *x = begin; *i <= reps || infinity; (*i)++, *x += s)
-			if (putdata(*x, reps - *i))
+		for (i = 1, x = begin; i <= reps || infinity; i++, x += s)
+			if (putdata(x, !(reps - i)))
 				errx(1, "range error in conversion");
 	if (!nofinalnl)
 		putchar('\n');
 	exit(0);
 }
 
-int
-putdata(double x, long int notlast)
+/*
+ * Send x to stdout using the specified format.
+ * Last is  true if this is the set's last value.
+ * Return 0 if OK, or a positive number if the number passed was
+ * outside the range specified by the various flags.
+ */
+static int
+putdata(double x, bool last)
 {
 
 	if (boring)
@@ -317,7 +343,7 @@ putdata(double x, long int notlast)
 
 	} else
 		printf(format, x);
-	if (notlast != 0)
+	if (!last)
 		fputs(sepstring, stdout);
 
 	return (0);
@@ -332,11 +358,15 @@ usage(void)
 	exit(1);
 }
 
-int
-getprec(char *str)
+/* 
+ * Return the number of digits following the number's decimal point.
+ * Return 0 if no decimal point is found.
+ */
+static int
+getprec(const char *str)
 {
-	char	*p;
-	char	*q;
+	const char	*p;
+	const char	*q;
 
 	for (p = str; *p; p++)
 		if (*p == '.')
@@ -349,7 +379,11 @@ getprec(char *str)
 	return (p - q);
 }
 
-void
+/*
+ * Set format, intdata, chardata, longdata, and nosign
+ * based on the command line arguments.
+ */
+static void
 getformat(void)
 {
 	char	*p, *p2;
@@ -368,7 +402,7 @@ getformat(void)
 	} else if (!*p && chardata) {
 		if (strlcpy(p, "%c", sz) >= sz)
 			errx(1, "-w word too long");
-		intdata = 1;
+		intdata = true;
 	} else if (!*(p+1)) {
 		if (sz <= 0)
 			errx(1, "-w word too long");
@@ -395,7 +429,7 @@ getformat(void)
 				goto fmt_broken;
 		}
 		if (*p == 'l') {
-			longdata = 1;
+			longdata = true;
 			if (*++p == 'l') {
 				if (p[1] != '\0')
 					p++;
@@ -404,24 +438,24 @@ getformat(void)
 		}
 		switch (*p) {
 		case 'o': case 'u': case 'x': case 'X':
-			intdata = nosign = 1;
+			intdata = nosign = true;
 			break;
 		case 'd': case 'i':
-			intdata = 1;
+			intdata = true;
 			break;
 		case 'D':
 			if (!longdata) {
-				intdata = 1;
+				intdata = true;
 				break;
 			}
 		case 'O': case 'U':
 			if (!longdata) {
-				intdata = nosign = 1;
+				intdata = nosign = true;
 				break;
 			}
 		case 'c':
 			if (!(intdata | longdata)) {
-				chardata = 1;
+				chardata = true;
 				break;
 			}
 		case 'h': case 'n': case 'p': case 'q': case 's': case 'L':
