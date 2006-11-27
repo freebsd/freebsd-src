@@ -23,9 +23,15 @@
 #define	NFE_RX_RING_COUNT	128
 #define	NFE_TX_RING_COUNT	256
 
+/* RX/TX MAC addr + type + VLAN + align + slack */
+#define	NFE_RX_HEADERS		64
+
+/* Maximum MTU size. */
+#define	NV_PKTLIMIT_1		ETH_DATA_LEN	/* Hard limit not known. */
+#define	NV_PKTLIMIT_2		9100 /* Actual limit according to NVidia:9202 */
+
 #define	NFE_JBYTES		(ETHER_MAX_LEN_JUMBO + ETHER_ALIGN)
-#define	NFE_JPOOL_COUNT		(NFE_RX_RING_COUNT + 64)
-#define	NFE_JPOOL_SIZE		(NFE_JPOOL_COUNT * NFE_JBYTES)
+#define	NFE_JPOOL_COUNT		(NFE_RX_RING_COUNT + NFE_RX_HEADERS)
 
 #define	NFE_MAX_SCATTER		(NFE_TX_RING_COUNT - 2)
 
