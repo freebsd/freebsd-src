@@ -641,7 +641,9 @@ fmt_sockaddr(struct sockaddr *sa, struct sockaddr *mask, int flags)
 	    }
 	case AF_NETGRAPH:
 	    {
-		printf("%s", ((struct sockaddr_ng *)sa)->sg_data);
+		strlcpy(workbuf, ((struct sockaddr_ng *)sa)->sg_data,
+		        sizeof(workbuf));
+		cp = workbuf;
 		break;
 	    }
 
