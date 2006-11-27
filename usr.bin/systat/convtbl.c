@@ -50,10 +50,10 @@ struct	convtbl convtbl[] = {
 
 static
 struct convtbl *
-get_tbl_ptr(const u_long size, const u_int scale)
+get_tbl_ptr(const uintmax_t size, const int scale)
 {
-	u_long	tmp;
-	u_int	idx;
+	uintmax_t	 tmp;
+	int		 idx;
 
 	/* If our index is out of range, default to auto-scaling. */
 	idx = scale < SC_AUTO ? scale : SC_AUTO;
@@ -73,7 +73,7 @@ get_tbl_ptr(const u_long size, const u_int scale)
 }
 
 double
-convert(const u_long size, const u_int scale)
+convert(const uintmax_t size, const int scale)
 {
 	struct convtbl	*tp;
 
@@ -83,7 +83,7 @@ convert(const u_long size, const u_int scale)
 }
 
 const char *
-get_string(const u_long size, const u_int scale)
+get_string(const uintmax_t size, const int scale)
 {
 	struct convtbl	*tp;
 
