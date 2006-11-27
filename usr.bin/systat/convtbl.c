@@ -29,24 +29,24 @@
  */
 
 #include <sys/types.h>
-#include <unistd.h>
+#include <stdlib.h>
+#include <string.h>
 #include "convtbl.h"
 
 struct	convtbl convtbl[] = {
-	/* mul, scale, str */
-	[SC_BYTE] =	{ BYTE, BYTES, "bytes" },
-	[SC_KILOBYTE] =	{ BYTE, KILO, "KB" },
-	[SC_MEGABYTE] =	{ BYTE, MEGA, "MB" },
-	[SC_GIGABYTE] =	{ BYTE, GIGA, "GB" },
+	/* mul, scale, str, name */
+	[SC_BYTE] =	{ BYTE, BYTES, "B",  "byte"  },
+	[SC_KILOBYTE] =	{ BYTE, KILO,  "KB", "kbyte" },
+	[SC_MEGABYTE] =	{ BYTE, MEGA,  "MB", "mbyte" },
+	[SC_GIGABYTE] =	{ BYTE, GIGA,  "GB", "gbyte" },
 
-	[SC_BIT] =	{ BIT, BITS, "b" },
-	[SC_KILOBIT] =	{ BIT, KILO, "Kb" },
-	[SC_MEGABIT] =	{ BIT, MEGA, "Mb" },
-	[SC_GIGABIT] =	{ BIT, GIGA, "Gb" },
+	[SC_BIT] =	{ BIT, BITS, "b",  "bit"  },
+	[SC_KILOBIT] =	{ BIT, KILO, "Kb", "kbit" },
+	[SC_MEGABIT] =	{ BIT, MEGA, "Mb", "mbit" },
+	[SC_GIGABIT] =	{ BIT, GIGA, "Gb", "gbit" },
 
-	[SC_AUTO] =	{ 0, 0, "" }
+	[SC_AUTO] =	{ 0, 0, "", "auto" }
 };
-
 
 static
 struct convtbl *
@@ -89,4 +89,39 @@ get_string(const uintmax_t size, const int scale)
 
 	tp = get_tbl_ptr(size, scale);
 	return (tp->str);
+}
+
+int
+get_scale(const char *name)
+{
+	int i;
+
+	for (i = 0; i <= SC_AUTO; i++)
+		if (strcmp(convtbl[i].name, name) == 0)
+			return (i);
+	return (-1);
+}
+
+const char *
+get_helplist()
+{
+	int i;
+	size_t len;
+	static char *buf;
+
+	if (buf == NULL) {
+		len = 0;
+		for (i = 0; i <= SC_AUTO; i++)
+			len += strlen(convtbl[i].name) + 2;
+		if ((buf = malloc(len)) != NULL) {
+			buf[0] = '\0';
+			for (i = 0; i <= SC_AUTO; i++) {
+				strcat(buf, convtbl[i].name);
+				if (i < SC_AUTO)
+					strcat(buf, ", ");
+			}
+		} else
+			return ("");
+	}
+	return (buf);
 }
