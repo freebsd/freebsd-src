@@ -471,7 +471,8 @@ void
 shownetstat()
 {
 	struct netinfo *p, *q;
-	char proto[6], *family = "";
+	char proto[6];
+	const char *family = "";
 
 	/*
 	 * First, delete any connections that have gone
