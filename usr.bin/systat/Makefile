@@ -9,10 +9,6 @@ SRCS=	cmds.c cmdtab.c devs.c fetch.c iostat.c keyboard.c main.c \
 	mode.c ip.c tcp.c \
 	vmstat.c convtbl.c ifcmds.c ifstat.c
 
-.if ${MACHINE_ARCH} == "i386" || ${MACHINE_ARCH} == "amd64"
-WARNS?=	6
-.endif
-
 .if ${MK_INET6_SUPPORT} != "no"
 SRCS+=	icmp6.c ip6.c
 CFLAGS+= -DINET6
