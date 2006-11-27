@@ -874,7 +874,7 @@ _gensnmptree=	usr.sbin/bsnmpd/gensnmptree
 .endif
 
 .if ${MK_RESCUE} != "no" && \
-    ${BOOTSTRAPPING} < 600008
+    ${BOOTSTRAPPING} < 700026
 _crunchgen=	usr.sbin/crunch/crunchgen
 .endif
 
