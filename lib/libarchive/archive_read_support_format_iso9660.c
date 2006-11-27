@@ -219,7 +219,7 @@ struct iso9660 {
 	ssize_t	logical_block_size;
 
 	off_t	entry_sparse_offset;
-	ssize_t	entry_bytes_remaining;
+	int64_t	entry_bytes_remaining;
 };
 
 static void	add_entry(struct iso9660 *iso9660, struct file_info *file);
@@ -227,6 +227,7 @@ static int	archive_read_format_iso9660_bid(struct archive *);
 static int	archive_read_format_iso9660_cleanup(struct archive *);
 static int	archive_read_format_iso9660_read_data(struct archive *,
 		    const void **, size_t *, off_t *);
+static int	archive_read_format_iso9660_read_data_skip(struct archive *);
 static int	archive_read_format_iso9660_read_header(struct archive *,
 		    struct archive_entry *);
 static const char *build_pathname(struct archive_string *, struct file_info *);
@@ -245,7 +246,7 @@ static void	parse_rockridge(struct iso9660 *iso9660,
 		    struct file_info *file, const unsigned char *start,
 		    const unsigned char *end);
 static void	release_file(struct iso9660 *, struct file_info *);
-static int	toi(const void *p, int n);
+static unsigned	toi(const void *p, int n);
 
 int
 archive_read_support_format_iso9660(struct archive *a)
@@ -267,7 +268,7 @@ archive_read_support_format_iso9660(struct archive *a)
 	    archive_read_format_iso9660_bid,
 	    archive_read_format_iso9660_read_header,
 	    archive_read_format_iso9660_read_data,
-	    NULL,
+	    archive_read_format_iso9660_read_data_skip,
 	    archive_read_format_iso9660_cleanup);
 
 	if (r != ARCHIVE_OK) {
@@ -455,6 +456,15 @@ archive_read_format_iso9660_read_header(struct archive *a,
 	}
 
 	release_file(iso9660, file);
+	return (ARCHIVE_OK);
+}
+
+static int
+archive_read_format_iso9660_read_data_skip(struct archive *a)
+{
+	/* Because read_next_header always does an explicit skip
+	 * to the next entry, we don't need to do anything here. */
+	(void)a; /* UNUSED */
 	return (ARCHIVE_OK);
 }
 
@@ -906,6 +916,17 @@ fprintf(stderr, " *** Discarding CE data.\n");
 			offset = file->offset;
 
 		/* Seek forward to the start of the entry. */
+		/* Use fast compression_skip if it's available. */
+		if (iso9660->current_position < offset
+		    && a->compression_skip != NULL) {
+			ssize_t step = offset - iso9660->current_position;
+			ssize_t bytes_read;
+			bytes_read = (a->compression_skip)(a, step);
+			iso9660->current_position += bytes_read;
+		}
+
+		/* Use a series of reads if compression_skip didn't
+		 * get us all the way there. */
 		while (iso9660->current_position < offset) {
 			ssize_t step = offset - iso9660->current_position;
 			ssize_t bytes_read;
@@ -986,7 +1007,7 @@ next_entry(struct iso9660 *iso9660)
 	return (r);
 }
 
-static int
+static unsigned int
 toi(const void *p, int n)
 {
 	const unsigned char *v = (const unsigned char *)p;
