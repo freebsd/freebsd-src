@@ -276,7 +276,18 @@ pcn_miibus_readreg(dev, phy, reg)
 
 	sc = device_get_softc(dev);
 
-	if (sc->pcn_phyaddr && phy > sc->pcn_phyaddr)
+	/*
+	 * At least Am79C971 with DP83840A wedge when isolating the
+	 * external PHY so we can't allow multiple external PHYs.
+	 * This needs refinement as there are some Allied Telesyn
+	 * card models which use multiple external PHYs.
+	 * For internal PHYs it doesn't really matter whether we can
+	 * isolate the remaining internal and the external ones in
+	 * the PHY drivers as the internal PHYs have to be enabled
+	 * individually in PCN_BCR_PHYSEL, PCN_CSR_MODE, etc.
+	 */
+	if (phy != PCN_PHYAD_10BT && sc->pcn_extphyaddr != -1 &&
+	    phy != sc->pcn_extphyaddr)
 		return(0);
 
 	pcn_bcr_write(sc, PCN_BCR_MIIADDR, reg | (phy << 5));
@@ -284,7 +295,8 @@ pcn_miibus_readreg(dev, phy, reg)
 	if (val == 0xFFFF)
 		return(0);
 
-	sc->pcn_phyaddr = phy;
+	if (phy != PCN_PHYAD_10BT && sc->pcn_extphyaddr != -1)
+		sc->pcn_extphyaddr = phy;
 
 	return(val);
 }
@@ -532,6 +544,8 @@ pcn_attach(dev)
 {
 	u_int32_t		eaddr[2];
 	struct pcn_softc	*sc;
+	struct mii_data		*mii;
+	struct mii_softc	*miisc;
 	struct ifnet		*ifp;
 	int			error = 0, rid;
 
@@ -613,11 +627,30 @@ pcn_attach(dev)
 	/*
 	 * Do MII setup.
 	 */
+	sc->pcn_extphyaddr = -1;
 	if (mii_phy_probe(dev, &sc->pcn_miibus,
 	    pcn_ifmedia_upd, pcn_ifmedia_sts)) {
 		device_printf(dev, "MII without any PHY!\n");
 		error = ENXIO;
 		goto fail;
+	}
+	/*
+	 * Record the media instances of internal PHYs, which map the
+	 * built-in interfaces to the MII, so we can set the active
+	 * PHY/port based on the currently selected media.
+	 */
+	sc->pcn_inst_10bt = -1;
+	mii = device_get_softc(sc->pcn_miibus);
+	LIST_FOREACH(miisc, &mii->mii_phys, mii_list) {
+		switch (miisc->mii_phy) {
+		case PCN_PHYAD_10BT:
+			sc->pcn_inst_10bt = miisc->mii_inst;
+			break;
+		/*
+		 * XXX deal with the Am79C97{3,5} internal 100baseT
+		 * and the Am79C978 internal HomePNA PHYs.
+		 */
+		}
 	}
 
 	/*
@@ -1151,6 +1184,7 @@ pcn_init_locked(sc)
 {
 	struct ifnet		*ifp = sc->pcn_ifp;
 	struct mii_data		*mii = NULL;
+	struct ifmedia_entry	*ife;
 
 	PCN_LOCK_ASSERT(sc);
 
@@ -1161,6 +1195,7 @@ pcn_init_locked(sc)
 	pcn_reset(sc);
 
 	mii = device_get_softc(sc->pcn_miibus);
+	ife = mii->mii_media.ifm_cur;
 
 	/* Set MAC address */
 	pcn_csr_write(sc, PCN_CSR_PAR0,
@@ -1183,8 +1218,19 @@ pcn_init_locked(sc)
 	 */
 	pcn_list_tx_init(sc);
 
-	/* Set up the mode register. */
-	pcn_csr_write(sc, PCN_CSR_MODE, PCN_PORT_MII);
+	/* Clear PCN_MISC_ASEL so we can set the port via PCN_CSR_MODE. */
+	PCN_BCR_CLRBIT(sc, PCN_BCR_MISCCFG, PCN_MISC_ASEL);
+
+	/*
+	 * Set up the port based on the currently selected media.
+	 * For Am79C978 we've to unconditionally set PCN_PORT_MII and
+	 * set the PHY in PCN_BCR_PHYSEL instead.
+	 */
+	if (sc->pcn_type != Am79C978 &&
+	    IFM_INST(ife->ifm_media) == sc->pcn_inst_10bt)
+		pcn_csr_write(sc, PCN_CSR_MODE, PCN_PORT_10BASET);
+	else
+		pcn_csr_write(sc, PCN_CSR_MODE, PCN_PORT_MII);
 
 	/* Set up RX filter. */
 	pcn_setfilt(ifp);
@@ -1234,6 +1280,7 @@ pcn_init_locked(sc)
 	PCN_BCR_SETBIT(sc, PCN_BCR_MIICTL, PCN_MIICTL_DANAS);
 
 	if (sc->pcn_type == Am79C978)
+		/* XXX support other PHYs? */
 		pcn_bcr_write(sc, PCN_BCR_PHYSEL,
 		    PCN_PHYSEL_PCNET|PCN_PHY_HOMEPNA);
 
@@ -1258,19 +1305,26 @@ pcn_ifmedia_upd(ifp)
 	struct ifnet		*ifp;
 {
 	struct pcn_softc	*sc;
-	struct mii_data		*mii;
 
 	sc = ifp->if_softc;
-	mii = device_get_softc(sc->pcn_miibus);
 
 	PCN_LOCK(sc);
+
+	/*
+	 * At least Am79C971 with DP83840A can wedge when switching
+	 * from the internal 10baseT PHY to the external PHY without
+	 * issuing pcn_reset(). For setting the port in PCN_CSR_MODE
+	 * the PCnet chip has to be powered down or stopped anyway
+	 * and although documented otherwise it doesn't take effect
+	 * until the next initialization.
+	 */
 	sc->pcn_link = 0;
-	if (mii->mii_instance) {
-		struct mii_softc        *miisc;
-		LIST_FOREACH(miisc, &mii->mii_phys, mii_list)
-			mii_phy_reset(miisc);
-	}
-	mii_mediachg(mii);
+	pcn_stop(sc);
+	pcn_reset(sc);
+	pcn_init_locked(sc);
+	if (ifp->if_snd.ifq_head != NULL)
+		pcn_start_locked(ifp);
+
 	PCN_UNLOCK(sc);
 
 	return(0);
