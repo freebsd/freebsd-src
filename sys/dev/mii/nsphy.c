@@ -117,6 +117,7 @@ DRIVER_MODULE(nsphy, miibus, nsphy_driver, nsphy_devclass, 0, 0);
 
 static int	nsphy_service(struct mii_softc *, struct mii_data *, int);
 static void	nsphy_status(struct mii_softc *);
+static void	nsphy_reset(struct mii_softc *);
 
 static int
 nsphy_probe(device_t dev)
@@ -128,7 +129,7 @@ nsphy_probe(device_t dev)
 	if (MII_OUI(ma->mii_id1, ma->mii_id2) == MII_OUI_NATSEMI &&
 	    MII_MODEL(ma->mii_id2) == MII_MODEL_NATSEMI_DP83840) {
 		device_set_desc(dev, MII_STR_NATSEMI_DP83840);
-	} else 
+	} else
 		return (ENXIO);
 
 	return (BUS_PROBE_DEFAULT);
@@ -140,6 +141,7 @@ nsphy_attach(device_t dev)
 	struct mii_softc *sc;
 	struct mii_attach_args *ma;
 	struct mii_data *mii;
+	const char *nic;
 
 	sc = device_get_softc(dev);
 	ma = device_get_ivars(dev);
@@ -152,38 +154,51 @@ nsphy_attach(device_t dev)
 	sc->mii_service = nsphy_service;
 	sc->mii_pdata = mii;
 
-#ifdef foo
-	/*
-	 * i82557 wedges if all of its PHYs are isolated!
-	 */
-	if (strcmp(device_get_name(device_get_parent(sc->mii_dev)),
-	    "fxp") == 0 && mii->mii_instance == 0)
-#endif
-
-	sc->mii_flags |= MIIF_NOISOLATE;
 	mii->mii_instance++;
+
+	nic = device_get_name(device_get_parent(sc->mii_dev));
+	/*
+	 * Am79C971 and i82557 wedge when isolating all of their
+	 * (external) PHYs.
+	 */
+	if (strcmp(nic, "fxp") == 0 || strcmp(nic, "pcn") == 0)
+		sc->mii_flags |= MIIF_NOISOLATE;
+
+ 	/*
+	 * DP83840A used with HME chips don't advertise their media
+	 * capabilities themselves properly so force writing the ANAR
+	 * according to the BMSR in mii_phy_setmedia().
+ 	 */
+	if (strcmp(nic, "hme") == 0)
+		sc->mii_flags |= MIIF_FORCEANEG;
 
 #define	ADD(m, c)	ifmedia_add(&mii->mii_media, (m), (c), NULL)
 
-#if 0
-	/* Can't do this on the i82557! */
-	ADD(IFM_MAKEWORD(IFM_ETHER, IFM_NONE, 0, sc->mii_inst),
-	    BMCR_ISO);
+ 	/*
+	 * In order for MII loopback to work Am79C971 and greater PCnet
+	 * chips additionally need to be placed into external loopback
+	 * mode which pcn(4) doesn't do so far.
+ 	 */
+	if (strcmp(nic, "pcn") != 0)
+#if 1
+		ADD(IFM_MAKEWORD(IFM_ETHER, IFM_100_TX, IFM_LOOP,
+		    sc->mii_inst), BMCR_LOOP|BMCR_S100);
+#else
+	if (strcmp(nic, "pcn") == 0)
+		sc->mii_flags |= MIIF_NOLOOP;
 #endif
-	ADD(IFM_MAKEWORD(IFM_ETHER, IFM_100_TX, IFM_LOOP, sc->mii_inst),
-	    BMCR_LOOP|BMCR_S100);
 
-	mii_phy_reset(sc);
+	nsphy_reset(sc);
 
 	sc->mii_capabilities =
 	    PHY_READ(sc, MII_BMSR) & ma->mii_capmask;
 	device_printf(dev, " ");
-	mii_add_media(sc);
+	mii_phy_add_media(sc);
 	printf("\n");
 #undef ADD
 
 	MIIBUS_MEDIAINIT(sc->mii_dev);
-	return(0);
+	return (0);
 }
 
 static int
@@ -191,7 +206,6 @@ nsphy_service(struct mii_softc *sc, struct mii_data *mii, int cmd)
 {
 	struct ifmedia_entry *ife = mii->mii_media.ifm_cur;
 	int reg;
-	device_t parent;
 
 	switch (cmd) {
 	case MII_POLLSTAT:
@@ -218,8 +232,6 @@ nsphy_service(struct mii_softc *sc, struct mii_data *mii, int cmd)
 		 */
 		if ((mii->mii_ifp->if_flags & IFF_UP) == 0)
 			break;
-
-		parent = device_get_parent(sc->mii_dev);
 
 		reg = PHY_READ(sc, MII_NSPHY_PCR);
 
@@ -254,36 +266,10 @@ nsphy_service(struct mii_softc *sc, struct mii_data *mii, int cmd)
 		 */
 		reg |= 0x0100 | 0x0400;
 
-		if (strcmp(device_get_name(parent), "fxp") == 0)
+		if (strcmp(mii->mii_ifp->if_dname, "fxp") == 0)
 			PHY_WRITE(sc, MII_NSPHY_PCR, reg);
 
-		switch (IFM_SUBTYPE(ife->ifm_media)) {
-		case IFM_AUTO:
-			/*
-			 * If we're already in auto mode and don't hang off
-			 * of a hme(4), just return. DP83840A on hme(4) don't
-			 * advertise their media capabilities themselves
-			 * properly so force writing the ANAR according to
-			 * the BMSR by mii_phy_auto() every time.
-			 */
-			if ((PHY_READ(sc, MII_BMCR) & BMCR_AUTOEN) == 0 &&
-			    strcmp(device_get_name(parent), "hme") != 0)
-				return (0);
-			(void) mii_phy_auto(sc);
-			break;
-		case IFM_100_T4:
-			/*
-			 * XXX Not supported as a manual setting right now.
-			 */
-			return (EINVAL);
-		default:
-			/*
-			 * BMCR data is stored in the ifmedia entry.
-			 */
-			PHY_WRITE(sc, MII_ANAR,
-			    mii_anar(ife->ifm_media));
-			PHY_WRITE(sc, MII_BMCR, ife->ifm_data);
-		}
+		mii_phy_setmedia(sc);
 		break;
 
 	case MII_TICK:
@@ -309,6 +295,7 @@ static void
 nsphy_status(struct mii_softc *sc)
 {
 	struct mii_data *mii = sc->mii_pdata;
+	struct ifmedia_entry *ife = mii->mii_media.ifm_cur;
 	int bmsr, bmcr, par, anlpar;
 
 	mii->mii_media_status = IFM_AVALID;
@@ -378,5 +365,46 @@ nsphy_status(struct mii_softc *sc)
 			mii->mii_media_active |= IFM_FDX;
 #endif
 	} else
-		mii->mii_media_active |= mii_media_from_bmcr(bmcr);
+		mii->mii_media_active = ife->ifm_media;
+}
+
+static void
+nsphy_reset(struct mii_softc *sc)
+{
+	struct ifmedia_entry *ife = sc->mii_pdata->mii_media.ifm_cur;
+	int reg, i;
+
+	if (sc->mii_flags & MIIF_NOISOLATE)
+		reg = BMCR_RESET;
+	else
+		reg = BMCR_RESET | BMCR_ISO;
+	PHY_WRITE(sc, MII_BMCR, reg);
+
+	/*
+	 * Give it a little time to settle in case we just got power.
+	 * The DP83840A data sheet suggests that a soft reset should not
+	 * happen within 500us of power being applied. Be conservative.
+	 */
+	DELAY(1000);
+
+	/*
+	 * Wait another 2s for it to complete.
+	 * This is only a little overkill as under normal circumstances
+	 * the PHY can take up to 1s to complete reset.
+	 * This is also a bit odd because after a reset, the BMCR will
+	 * clear the reset bit and simply reports 0 even though the reset
+	 * is not yet complete.
+	 */
+	for (i = 0; i < 1000; i++) {
+		reg = PHY_READ(sc, MII_BMCR);
+		if (reg != 0 && (reg & BMCR_RESET) == 0)
+			break;
+		DELAY(2000);
+	}
+
+	if ((sc->mii_flags & MIIF_NOISOLATE) == 0) {
+		if ((ife == NULL && sc->mii_inst != 0) ||
+		    (ife != NULL && IFM_INST(ife->ifm_media) != sc->mii_inst))
+			PHY_WRITE(sc, MII_BMCR, reg | BMCR_ISO);
+	}
 }
