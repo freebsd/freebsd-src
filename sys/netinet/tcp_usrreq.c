@@ -1035,7 +1035,7 @@ tcp_ctloutput(so, sopt)
 			error = ip6_ctloutput(so, sopt);
 		else
 #endif /* INET6 */
-		error = ip_ctloutput(so, sopt);
+		error = ip_ctloutput_pcbinfo(so, sopt, &tcbinfo);
 		return (error);
 	}
 	tp = intotcpcb(inp);
