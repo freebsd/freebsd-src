@@ -129,8 +129,10 @@ nfsm_v4init(void)
 	FA4_SET(FA4_OWNER, __getattr_bm);
 	FA4_SET(FA4_OWNER_GROUP, __getattr_bm);
 	FA4_SET(FA4_FILEID, __getattr_bm);
-	FA4_SET(FA4_TIME_MODIFY, __getattr_bm);
 	FA4_SET(FA4_TIME_ACCESS, __getattr_bm);
+	FA4_SET(FA4_TIME_CREATE, __getattr_bm);
+	FA4_SET(FA4_TIME_METADATA, __getattr_bm);
+	FA4_SET(FA4_TIME_MODIFY, __getattr_bm);
 
 	FA4_SET(FA4_TYPE, __readdir_bm);
 	FA4_SET(FA4_FSID, __readdir_bm);
@@ -1343,6 +1345,11 @@ nfsm_v4dissect_attrs_xx(struct nfsv4_fattr *fa, struct mbuf **md, caddr_t *dpos)
 		len += 3 * NFSX_UNSIGNED;
 	}
 	if (FA4_ISSET(FA4_TIME_CREATE, bmval)) {
+		NFSM_MTOTIME(fa->fa4_btime);
+		fa->fa4_valid |= FA4V_BTIME;
+		len += 3 * NFSX_UNSIGNED;
+	}
+	if (FA4_ISSET(FA4_TIME_METADATA, bmval)) {
 		NFSM_MTOTIME(fa->fa4_ctime);
 		fa->fa4_valid |= FA4V_CTIME;
 		len += 3 * NFSX_UNSIGNED;

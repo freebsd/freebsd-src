@@ -508,6 +508,7 @@ struct nfsv4_fattr {
 	uint32_t	fa4_rdev_major;
 	uint32_t	fa4_rdev_minor;
 	struct timespec	fa4_atime;
+	struct timespec	fa4_btime;
 	struct timespec	fa4_ctime;
 	struct timespec	fa4_mtime;
 	uint64_t	fa4_maxread;
@@ -533,21 +534,22 @@ struct nfsv4_fattr {
 #define FA4V_GID	0x00000040
 #define FA4V_RDEV	0x00000080
 #define FA4V_ATIME	0x00000100
-#define FA4V_CTIME	0x00000200
-#define FA4V_MTIME	0x00000400
-#define FA4V_MAXREAD	0x00000800
-#define FA4V_MAXWRITE	0x00001000
-#define FA4V_TYPE	0x00002000
-#define FA4V_FFREE	0x00004000
-#define FA4V_FTOTAL	0x00008000
-#define FA4V_MAXNAME	0x00010000
-#define FA4V_SAVAIL	0x00020000
-#define FA4V_SFREE	0x00040000
-#define FA4V_STOTAL	0x00080000
-#define FA4V_CHANGEID	0x00100000
-#define FA4V_LEASE_TIME	0x00200000
-#define FA4V_MAXFILESIZE 0x00400000
-#define FA4V_ACL	0x00800000
+#define FA4V_BTIME	0x00000200
+#define FA4V_CTIME	0x00000400
+#define FA4V_MTIME	0x00000800
+#define FA4V_MAXREAD	0x00001000
+#define FA4V_MAXWRITE	0x00002000
+#define FA4V_TYPE	0x00004000
+#define FA4V_FFREE	0x00008000
+#define FA4V_FTOTAL	0x00010000
+#define FA4V_MAXNAME	0x00020000
+#define FA4V_SAVAIL	0x00040000
+#define FA4V_SFREE	0x00080000
+#define FA4V_STOTAL	0x00100000
+#define FA4V_CHANGEID	0x00200000
+#define FA4V_LEASE_TIME	0x00400000
+#define FA4V_MAXFILESIZE 0x00800000
+#define FA4V_ACL	0x01000000
 
 /* Offsets into bitmask */
 #define FA4_SUPPORTED_ATTRS	0

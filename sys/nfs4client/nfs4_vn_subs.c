@@ -121,6 +121,8 @@ nfs4_vnop_loadattrcache(struct vnode *vp, struct nfsv4_fattr *fap,
                 vap->va_fileid = nfs_v4fileid4_to_fileid(fap->fa4_fileid);
         if (fap->fa4_valid & FA4V_ATIME)
                 vap->va_atime = fap->fa4_atime;
+        if (fap->fa4_valid & FA4V_BTIME)
+                vap->va_birthtime = fap->fa4_btime;
         if (fap->fa4_valid & FA4V_CTIME)
                 vap->va_ctime = fap->fa4_ctime;
         vap->va_flags = 0;
