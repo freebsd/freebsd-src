@@ -1148,14 +1148,28 @@ ip_optcopy(ip, jp)
 
 /*
  * IP socket option processing.
+ *
+ * There are two versions of this call in order to work around a race
+ * condition in TCP in FreeBSD 6.x.  In the TCP implementation, so->so_pcb
+ * can become NULL if the pcb or pcbinfo lock isn't held.  However, when
+ * entering ip_ctloutput(), neither lock is held, and finding the pointer to
+ * either lock requires follow so->so_pcb, which may be NULL.
+ * ip_ctloutput_pcbinfo() accepts the pcbinfo pointer so that the lock can be
+ * safely acquired.  This is not required in FreeBSD 7.x because the
+ * invariants on so->so_pcb are much stronger, so it cannot become NULL
+ * while the socket is in use.
  */
 int
-ip_ctloutput(so, sopt)
+ip_ctloutput_pcbinfo(so, sopt, pcbinfo)
 	struct socket *so;
 	struct sockopt *sopt;
+	struct inpcbinfo *pcbinfo;
 {
 	struct	inpcb *inp = sotoinpcb(so);
 	int	error, optval;
+
+	if (pcbinfo == NULL)
+		pcbinfo = inp->inp_pcbinfo;
 
 	error = optval = 0;
 	if (sopt->sopt_level != IPPROTO_IP) {
@@ -1190,12 +1204,15 @@ ip_ctloutput(so, sopt)
 				m_free(m);
 				break;
 			}
+			INP_INFO_WLOCK(pcbinfo);
 			if (so->so_pcb == NULL) {
+				INP_INFO_WUNLOCK(pcbinfo);
 				m_free(m);
 				error = EINVAL;
 				break;
 			}
 			INP_LOCK(inp);
+			INP_INFO_WUNLOCK(pcbinfo);
 			error = ip_pcbopts(inp, sopt->sopt_name, m);
 			INP_UNLOCK(inp);
 			return (error);
@@ -1217,10 +1234,14 @@ ip_ctloutput(so, sopt)
 			if (error)
 				break;
 
+			INP_INFO_WLOCK(pcbinfo);
 			if (so->so_pcb == NULL) {
+				INP_INFO_WUNLOCK(pcbinfo);
 				error = EINVAL;
 				break;
 			}
+			INP_LOCK(inp);
+			INP_INFO_WUNLOCK(pcbinfo);
 			switch (sopt->sopt_name) {
 			case IP_TOS:
 				inp->inp_ip_tos = optval;
@@ -1277,6 +1298,7 @@ ip_ctloutput(so, sopt)
 				OPTSET(INP_DONTFRAG);
 				break;
 			}
+			INP_UNLOCK(inp);
 			break;
 #undef OPTSET
 
@@ -1295,11 +1317,13 @@ ip_ctloutput(so, sopt)
 			if (error)
 				break;
 
+			INP_INFO_WLOCK(pcbinfo);
 			if (so->so_pcb == NULL) {
 				error = EINVAL;
 				break;
 			}
 			INP_LOCK(inp);
+			INP_INFO_WUNLOCK(pcbinfo);
 			switch (optval) {
 			case IP_PORTRANGE_DEFAULT:
 				inp->inp_flags &= ~(INP_LOWPORT);
@@ -1478,6 +1502,15 @@ ip_ctloutput(so, sopt)
 		break;
 	}
 	return (error);
+}
+
+int
+ip_ctloutput(so, sopt)
+	struct socket *so;
+	struct sockopt *sopt;
+{
+
+	return (ip_ctloutput_pcbinfo(so, sopt, NULL));
 }
 
 /*
