@@ -127,7 +127,8 @@
 #define	com_dlbl	com_dll
 #define	com_dlm		1	/* divisor latch high (R/W) */
 #define	com_dlbh	com_dlm
-#define	REG_DL		com_dll
+#define	REG_DLL		com_dll
+#define	REG_DLH		com_dlm
 
 /* 16450 register #7.  Not multiplexed. */
 #define	com_scr		7	/* scratch register (R/W) */
