@@ -78,6 +78,8 @@ struct mfi_disk {
 #define	MFID_OPEN	(1<<0)		/* drive is open */
 };
 
+#define	MFID_CDEV_MAJOR	178
+
 static struct cdevsw mfid_cdevsw = {
 	mfi_disk_open,
 	mfi_disk_close,
@@ -88,7 +90,7 @@ static struct cdevsw mfid_cdevsw = {
 	nommap,
 	mfi_disk_strategy,
 	"mfid",
-	201,
+	MFID_CDEV_MAJOR,
 	mfi_disk_dump,
 	nopsize,
 	D_DISK,

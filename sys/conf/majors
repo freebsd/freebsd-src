@@ -163,6 +163,8 @@ maj 	name		comments
 174	pciwd		Berkshire Watchdog PCI <marcel@progressix.com>
 175	ips		IBM/Adaptec ServeRAID (control device)
 176	ipsd		IBM/Adaptec ServeRAID (disk device)
+177	mfi		LSI MegaRAID SAS (control device)
+178	mfid		LSI MegaRAID SAS (disk device)
 180	nvidia		NVIDIA (nvidiaN/nvidiactl) <mdodd>
 181	casm		HP/Compaq ProLiant Advanced Server Management <peter>
 183	*smapi		SMAPI BIOS interface <mdodd>

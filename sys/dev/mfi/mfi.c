@@ -96,16 +96,22 @@ static d_close_t	mfi_close;
 static d_ioctl_t	mfi_ioctl;
 static d_poll_t		mfi_poll;
 
+#define	MFI_CDEV_MAJOR	177
+
 static struct cdevsw mfi_cdevsw = {
-mfi_open,
-mfi_close,
-noread, nowrite,
-mfi_ioctl,
-mfi_poll,
-nommap, nostrategy,
-"mfi",
-200,
-nodump, nopsize, 0
+	mfi_open,
+	mfi_close,
+	noread,
+	nowrite,
+	mfi_ioctl,
+	mfi_poll,
+	nommap,
+	nostrategy,
+	"mfi",
+	MFI_CDEV_MAJOR,
+	nodump,
+	nopsize,
+	0
 };
 
 MALLOC_DEFINE(M_MFIBUF, "mfibuf", "Buffers for the MFI driver");
