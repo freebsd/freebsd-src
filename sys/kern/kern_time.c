@@ -85,7 +85,7 @@ static int	itimer_init(void *, int, int);
 static void	itimer_fini(void *, int);
 static void	itimer_enter(struct itimer *);
 static void	itimer_leave(struct itimer *);
-static struct itimer *itimer_find(struct proc *, int, int);
+static struct itimer *itimer_find(struct proc *, int);
 static void	itimers_alloc(struct proc *);
 static void	itimers_event_hook_exec(void *arg, struct proc *p, struct image_params *imgp);
 static void	itimers_event_hook_exit(void *arg, struct proc *p);
@@ -96,7 +96,6 @@ static int	realtimer_settime(struct itimer *, int,
 static int	realtimer_delete(struct itimer *);
 static void	realtimer_clocktime(clockid_t, struct timespec *);
 static void	realtimer_expire(void *);
-static void	realtimer_event_hook(struct proc *, clockid_t, int event);
 static int	kern_timer_create(struct thread *, clockid_t,
 			struct sigevent *, int *, int);
 static int	kern_timer_delete(struct thread *, int);
@@ -882,7 +881,7 @@ itimer_start(void)
 		.timer_delete  = realtimer_delete,
 		.timer_settime = realtimer_settime,
 		.timer_gettime = realtimer_gettime,
-		.event_hook     = realtimer_event_hook
+		.event_hook    = NULL
 	};
 
 	itimer_zone = uma_zcreate("itimer", sizeof(struct itimer),
@@ -1102,7 +1101,7 @@ ktimer_delete(struct thread *td, struct ktimer_delete_args *uap)
 }
 
 static struct itimer *
-itimer_find(struct proc *p, int timerid, int include_deleting)
+itimer_find(struct proc *p, int timerid)
 {
 	struct itimer *it;
 
@@ -1112,7 +1111,7 @@ itimer_find(struct proc *p, int timerid, int include_deleting)
 		return (NULL);
 	}
 	ITIMER_LOCK(it);
-	if (!include_deleting && (it->it_flags & ITF_DELETING) != 0) {
+	if ((it->it_flags & ITF_DELETING) != 0) {
 		ITIMER_UNLOCK(it);
 		it = NULL;
 	}
@@ -1126,7 +1125,7 @@ kern_timer_delete(struct thread *td, int timerid)
 	struct itimer *it;
 
 	PROC_LOCK(p);
-	it = itimer_find(p, timerid, 0);
+	it = itimer_find(p, timerid);
 	if (it == NULL) {
 		PROC_UNLOCK(p);
 		return (EINVAL);
@@ -1179,7 +1178,7 @@ ktimer_settime(struct thread *td, struct ktimer_settime_args *uap)
 
 	PROC_LOCK(p);
 	if (uap->timerid < 3 ||
-	    (it = itimer_find(p, uap->timerid, 0)) == NULL) {
+	    (it = itimer_find(p, uap->timerid)) == NULL) {
 		PROC_UNLOCK(p);
 		error = EINVAL;
 	} else {
@@ -1212,7 +1211,7 @@ ktimer_gettime(struct thread *td, struct ktimer_gettime_args *uap)
 
 	PROC_LOCK(p);
 	if (uap->timerid < 3 ||
-	   (it = itimer_find(p, uap->timerid, 0)) == NULL) {
+	   (it = itimer_find(p, uap->timerid)) == NULL) {
 		PROC_UNLOCK(p);
 		error = EINVAL;
 	} else {
@@ -1243,7 +1242,7 @@ ktimer_getoverrun(struct thread *td, struct ktimer_getoverrun_args *uap)
 
 	PROC_LOCK(p);
 	if (uap->timerid < 3 ||
-	    (it = itimer_find(p, uap->timerid, 0)) == NULL) {
+	    (it = itimer_find(p, uap->timerid)) == NULL) {
 		PROC_UNLOCK(p);
 		error = EINVAL;
 	} else {
@@ -1266,7 +1265,10 @@ static int
 realtimer_delete(struct itimer *it)
 {
 	mtx_assert(&it->it_mtx, MA_OWNED);
-	callout_stop(&it->it_callout);
+	
+	ITIMER_UNLOCK(it);
+	callout_drain(&it->it_callout);
+	ITIMER_LOCK(it);
 	return (0);
 }
 
@@ -1354,7 +1356,7 @@ itimer_accept(struct proc *p, int timerid, ksiginfo_t *ksi)
 	struct itimer *it;
 
 	PROC_LOCK_ASSERT(p, MA_OWNED);
-	it = itimer_find(p, timerid, 0);
+	it = itimer_find(p, timerid);
 	if (it != NULL) {
 		ksi->ksi_overrun = it->it_overrun;
 		it->it_overrun_last = it->it_overrun;
@@ -1374,32 +1376,6 @@ itimespecfix(struct timespec *ts)
 	if (ts->tv_sec == 0 && ts->tv_nsec != 0 && ts->tv_nsec < tick * 1000)
 		ts->tv_nsec = tick * 1000;
 	return (0);
-}
-
-static void
-realtimer_event_hook(struct proc *p, clockid_t clock_id, int event)
-{
-	struct itimers *its;
-	struct itimer  *it;
-	int i;
-
-	/*
-	 * Timer 0 (ITIMER_REAL) is XSI interval timer, according to POSIX
-	 * specification, it should be inherited by new process image.
-	 */
-	if (event == ITIMER_EV_EXEC)
-		i = 1;
-	else
-		i = 0;
-	its = p->p_itimers;
-	for (; i < TIMER_MAX; i++) {
-		if ((it = its->its_timers[i]) != NULL &&
-		     it->it_clockid == clock_id) {
-			ITIMER_LOCK(it);
-			callout_stop(&it->it_callout);
-			ITIMER_UNLOCK(it);
-		}
-	}
 }
 
 /* Timeout callback for realtime timer */
@@ -1513,7 +1489,7 @@ itimers_alloc(struct proc *p)
 static void
 itimers_event_hook_exec(void *arg, struct proc *p, struct image_params *imgp __unused)
 {
-   	itimers_event_hook_exit(arg, p);
+	itimers_event_hook_exit(arg, p);
 }
 
 /* Clean up timers when some process events are being triggered. */
@@ -1542,14 +1518,8 @@ itimers_event_hook_exit(void *arg, struct proc *p)
 		else
 			panic("unhandled event");
 		for (; i < TIMER_MAX; ++i) {
-			if ((it = its->its_timers[i]) != NULL) {
-				PROC_LOCK(p);
-				if (KSI_ONQ(&it->it_ksi))
-					sigqueue_take(&it->it_ksi);
-				PROC_UNLOCK(p);
-				uma_zfree(itimer_zone, its->its_timers[i]);
-				its->its_timers[i] = NULL;
-			}
+			if ((it = its->its_timers[i]) != NULL)
+				kern_timer_delete(curthread, i);
 		}
 		if (its->its_timers[0] == NULL &&
 		    its->its_timers[1] == NULL &&
