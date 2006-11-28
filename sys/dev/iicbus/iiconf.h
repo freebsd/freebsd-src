@@ -34,8 +34,6 @@
 
 #define IICPRI (PZERO+8)		/* XXX sleep/wakeup queue priority */
 
-#define n(flags) (~(flags) & (flags))
-
 #define LSB 0x1
 
 /*
@@ -94,11 +92,6 @@
 #define IIC_ENOTSUPP	0x8	/* request not supported */
 #define IIC_ENOADDR	0x9	/* no address assigned to the interface */
 
-/*
- * ivars codes
- */
-#define IICBUS_IVAR_ADDR	0x1	/* I2C address of the device */
-
 extern int iicbus_request_bus(device_t, device_t, int);
 extern int iicbus_release_bus(device_t, device_t);
 extern device_t iicbus_alloc_bus(device_t);
@@ -126,8 +119,6 @@ extern int iicbus_read_byte(device_t, char *, int);
 /* Read/write operations with start/stop conditions managed */
 extern int iicbus_block_write(device_t, u_char, char *, int, int *);
 extern int iicbus_block_read(device_t, u_char, char *, int, int *);
-
-extern u_char iicbus_get_addr(device_t);
 
 /* vectors of iic operations to pass to bridge */
 int iicbus_transfer(device_t bus, struct iic_msg *msgs, uint32_t nmsgs);
