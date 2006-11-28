@@ -115,10 +115,10 @@ nsgphy_probe(device_t dev)
 	mpd = mii_phy_match(ma, gphyters);
 	if (mpd != NULL) {
 		device_set_desc(dev, mpd->mpd_name);
-		return(BUS_PROBE_DEFAULT);
+		return (BUS_PROBE_DEFAULT);
 	}
 
-	return(ENXIO);
+	return (ENXIO);
 }
 
 static int
@@ -141,7 +141,6 @@ nsgphy_attach(device_t dev)
 	sc->mii_phy = ma->mii_phyno;
 	sc->mii_service = nsgphy_service;
 	sc->mii_pdata = mii;
-	sc->mii_anegticks = 5;
 
 	mii->mii_instance++;
 
@@ -154,7 +153,7 @@ nsgphy_attach(device_t dev)
 	printf("\n");
 
 	MIIBUS_MEDIAINIT(sc->mii_dev);
-	return(0);
+	return (0);
 }
 
 static int
