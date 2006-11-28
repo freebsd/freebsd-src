@@ -28,8 +28,6 @@
  * CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF
  * THE POSSIBILITY OF SUCH DAMAGE.
- *
- * $FreeBSD$
  */
 
 #include <sys/cdefs.h>
@@ -100,22 +98,22 @@ ciphy_probe(device_t dev)
 	if (MII_OUI(ma->mii_id1, ma->mii_id2) == MII_OUI_CICADA &&
 	    MII_MODEL(ma->mii_id2) == MII_MODEL_CICADA_CS8201) {
 		device_set_desc(dev, MII_STR_CICADA_CS8201);
-		return(BUS_PROBE_DEFAULT);
+		return (BUS_PROBE_DEFAULT);
 	}
 
 	if (MII_OUI(ma->mii_id1, ma->mii_id2) == MII_OUI_CICADA &&
 	    MII_MODEL(ma->mii_id2) == MII_MODEL_CICADA_CS8201A) {
 		device_set_desc(dev, MII_STR_CICADA_CS8201A);
-		return(BUS_PROBE_DEFAULT);
+		return (BUS_PROBE_DEFAULT);
 	}
 
 	if (MII_OUI(ma->mii_id1, ma->mii_id2) == MII_OUI_CICADA &&
 	    MII_MODEL(ma->mii_id2) == MII_MODEL_CICADA_CS8201B) {
 		device_set_desc(dev, MII_STR_CICADA_CS8201B);
-		return(BUS_PROBE_DEFAULT);
+		return (BUS_PROBE_DEFAULT);
 	}
 
-	return(ENXIO);
+	return (ENXIO);
 }
 
 static int
@@ -150,7 +148,7 @@ ciphy_attach(device_t dev)
 	printf("\n");
 
 	MIIBUS_MEDIAINIT(sc->mii_dev);
-	return(0);
+	return (0);
 }
 
 static int
@@ -218,7 +216,7 @@ setit:
 			PHY_WRITE(sc, CIPHY_MII_BMCR, speed);
 			PHY_WRITE(sc, CIPHY_MII_ANAR, CIPHY_SEL_TYPE);
 
-			if (IFM_SUBTYPE(ife->ifm_media) != IFM_1000_T) 
+			if (IFM_SUBTYPE(ife->ifm_media) != IFM_1000_T)
 				break;
 
 			PHY_WRITE(sc, CIPHY_MII_1000CTL, gig);
@@ -283,7 +281,7 @@ setit:
 		 */
 		if (++sc->mii_ticks <= 5/*10*/)
 			break;
-		
+
 		sc->mii_ticks = 0;
 		mii_phy_auto(sc);
 		return (0);
@@ -296,7 +294,7 @@ setit:
 	 * Callback if something changed. Note that we need to poke
 	 * apply fixups for certain PHY revs.
 	 */
-	if (sc->mii_media_active != mii->mii_media_active || 
+	if (sc->mii_media_active != mii->mii_media_active ||
 	    sc->mii_media_status != mii->mii_media_status ||
 	    cmd == MII_MEDIACHG) {
 		ciphy_fixup(sc);
