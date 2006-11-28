@@ -151,6 +151,9 @@ USB_MATCH(ukbd)
 	if ((*sw->probe)(unit, (void *)arg, 0))
 		return (UMATCH_NONE);
 
+	if (usbd_get_quirks(uaa->device)->uq_flags & UQ_KBD_IGNORE)
+		return (UMATCH_NONE);
+
 	return (UMATCH_IFACECLASS_IFACESUBCLASS_IFACEPROTO);
 }
 

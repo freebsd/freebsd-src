@@ -119,6 +119,9 @@ static const struct usbd_quirk_entry {
 	ANY, { UQ_HID_IGNORE }},
  { USB_VENDOR_MGE, USB_PRODUCT_MGE_UPS2,
 	ANY, { UQ_HID_IGNORE }},
+ /* Devices which should be ignored by both ukbd and uhid */
+ { USB_VENDOR_CYPRESS, USB_PRODUCT_CYPRESS_WISPY,
+	ANY, { UQ_KBD_IGNORE }},
  { 0, 0, 0, { 0 } }
 };
 
