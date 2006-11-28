@@ -95,7 +95,7 @@ rlphy_probe(device_t dev)
 	if (MII_OUI(ma->mii_id1, ma->mii_id2) == MII_OUI_REALTEK &&
 	    MII_MODEL(ma->mii_id2) == MII_MODEL_REALTEK_RTL8201L) {
 		device_set_desc(dev, MII_STR_REALTEK_RTL8201L);
-		return(BUS_PROBE_DEFAULT);
+		return (BUS_PROBE_DEFAULT);
 	}
 
 	/*
@@ -136,7 +136,7 @@ rlphy_attach(device_t dev)
 	 */
 	if (mii->mii_instance != 0) {
 		device_printf(dev, "ignoring this PHY, non-zero instance\n");
-		return(ENXIO);
+		return (ENXIO);
 	}
 
 	LIST_INSERT_HEAD(&mii->mii_phys, sc, mii_list);
@@ -151,11 +151,6 @@ rlphy_attach(device_t dev)
 
 #define	ADD(m, c)	ifmedia_add(&mii->mii_media, (m), (c), NULL)
 
-#if 0 /* See above. */
-	ADD(IFM_MAKEWORD(IFM_ETHER, IFM_NONE, 0, sc->mii_inst),
-	    BMCR_ISO);
-#endif
-
 	ADD(IFM_MAKEWORD(IFM_ETHER, IFM_100_TX, IFM_LOOP, sc->mii_inst),
 	    BMCR_LOOP|BMCR_S100);
 
@@ -164,11 +159,11 @@ rlphy_attach(device_t dev)
 	sc->mii_capabilities =
 	    PHY_READ(sc, MII_BMSR) & ma->mii_capmask;
 	device_printf(dev, " ");
-	mii_add_media(sc);
+	mii_phy_add_media(sc);
 	printf("\n");
 #undef ADD
 	MIIBUS_MEDIAINIT(sc->mii_dev);
-	return(0);
+	return (0);
 }
 
 static int
@@ -193,28 +188,7 @@ rlphy_service(struct mii_softc *sc, struct mii_data *mii, int cmd)
 		if ((mii->mii_ifp->if_flags & IFF_UP) == 0)
 			break;
 
-		switch (IFM_SUBTYPE(ife->ifm_media)) {
-		case IFM_AUTO:
-			/*
-			 * If we're already in auto mode, just return.
-			 */
-			if (PHY_READ(sc, MII_BMCR) & BMCR_AUTOEN)
-				return (0);
-			(void) mii_phy_auto(sc);
-			break;
-		case IFM_100_T4:
-			/*
-			 * XXX Not supported as a manual setting right now.
-			 */
-			return (EINVAL);
-		default:
-			/*
-			 * BMCR data is stored in the ifmedia entry.
-			 */
-			PHY_WRITE(sc, MII_ANAR,
-			    mii_anar(ife->ifm_media));
-			PHY_WRITE(sc, MII_BMCR, ife->ifm_data);
-		}
+		mii_phy_setmedia(sc);
 		break;
 
 	case MII_TICK:
@@ -223,12 +197,6 @@ rlphy_service(struct mii_softc *sc, struct mii_data *mii, int cmd)
 		 */
 		if ((mii->mii_ifp->if_flags & IFF_UP) == 0)
 			return (0);
-
-		/*
-		 * Only used for autonegotiation.
-		 */
-		if (IFM_SUBTYPE(ife->ifm_media) != IFM_AUTO)
-			break;
 
 		/*
 		 * The RealTek PHY's autonegotiation doesn't need to be
@@ -249,8 +217,8 @@ static void
 rlphy_status(struct mii_softc *phy)
 {
 	struct mii_data *mii = phy->mii_pdata;
+	struct ifmedia_entry *ife = mii->mii_media.ifm_cur;
 	int bmsr, bmcr, anlpar;
-	device_t		parent;
 
 	mii->mii_media_status = IFM_AVALID;
 	mii->mii_media_active = IFM_ETHER;
@@ -294,18 +262,17 @@ rlphy_status(struct mii_softc *phy)
 			else if (anlpar & ANLPAR_10)
 				mii->mii_media_active |= IFM_10_T;
 			else
-				mii->mii_media_active |= IFM_NONE; 
+				mii->mii_media_active |= IFM_NONE;
 			return;
 		}
 		/*
 		 * If the other side doesn't support NWAY, then the
 		 * best we can do is determine if we have a 10Mbps or
-		 * 100Mbps link. There's no way to know if the link 
+		 * 100Mbps link. There's no way to know if the link
 		 * is full or half duplex, so we default to half duplex
 		 * and hope that the user is clever enough to manually
 		 * change the media settings if we're wrong.
 		 */
-
 
 		/*
 		 * The RealTek PHY supports non-NWAY link speed
@@ -325,8 +292,7 @@ rlphy_status(struct mii_softc *phy)
 		 *   can test the 'SPEED10' bit of the MAC's media status
 		 *   register.
 		 */
-		parent = device_get_parent(phy->mii_dev);
-		if (strcmp(device_get_name(parent), "rl") != 0) {
+		if (strcmp(mii->mii_ifp->if_dname, "rl") != 0) {
 			if (PHY_READ(phy, 0x0019) & 0x01)
 				mii->mii_media_active |= IFM_100_TX;
 			else
@@ -338,7 +304,6 @@ rlphy_status(struct mii_softc *phy)
 			else
 				mii->mii_media_active |= IFM_100_TX;
 		}
-
 	} else
-		mii->mii_media_active = mii_media_from_bmcr(bmcr);
+		mii->mii_media_active = ife->ifm_media;
 }
