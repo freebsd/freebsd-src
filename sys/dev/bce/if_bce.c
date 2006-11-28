@@ -4254,7 +4254,7 @@ bce_tx_intr(struct bce_softc *sc)
 		if (sc->tx_mbuf_ptr[sw_tx_chain_cons] != NULL) {
 
 			/* Validate that this is the last tx_bd. */
-			DBRUNIF((!(txbd->tx_bd_vlan_tag_flags & TX_BD_FLAGS_END)),
+			DBRUNIF((!(txbd->tx_bd_flags & TX_BD_FLAGS_END)),
 				BCE_PRINTF(sc, "%s(%d): tx_bd END flag not set but "
 				"txmbuf == NULL!\n", __FILE__, __LINE__);
 				bce_breakpoint(sc));
@@ -4523,9 +4523,9 @@ bce_tx_encap(struct bce_softc *sc, struct mbuf **m_head)
 	struct tx_bd *txbd = NULL;
 	struct m_tag *mtag;
 	struct mbuf *m0;
-	u32 vlan_tag_flags = 0;
-	u32 prod_bseq;
+	u16 vlan_tag = 0, flags = 0;
 	u16 chain_prod, prod;
+	u32 prod_bseq;
 
 #ifdef BCE_DEBUG
 	u16 debug_prod;
@@ -4536,16 +4536,17 @@ bce_tx_encap(struct bce_softc *sc, struct mbuf **m_head)
 	m0 = *m_head;
 	if (m0->m_pkthdr.csum_flags) {
 		if (m0->m_pkthdr.csum_flags & CSUM_IP)
-			vlan_tag_flags |= TX_BD_FLAGS_IP_CKSUM;
+			flags |= TX_BD_FLAGS_IP_CKSUM;
 		if (m0->m_pkthdr.csum_flags & (CSUM_TCP | CSUM_UDP))
-			vlan_tag_flags |= TX_BD_FLAGS_TCP_UDP_CKSUM;
+			flags |= TX_BD_FLAGS_TCP_UDP_CKSUM;
 	}
 
 	/* Transfer any VLAN tags to the bd. */
 	mtag = VLAN_OUTPUT_TAG(sc->bce_ifp, m0);
-	if (mtag != NULL)
-		vlan_tag_flags |= (TX_BD_FLAGS_VLAN_TAG |
-			(VLAN_TAG_VALUE(mtag) << 16));
+	if (mtag != NULL) {
+		flags |= TX_BD_FLAGS_VLAN_TAG;
+		vlan_tag = VLAN_TAG_VALUE(mtag);
+	}
 
 	/* Map the mbuf into DMAable memory. */
 	prod = sc->tx_prod;
@@ -4629,15 +4630,16 @@ bce_tx_encap(struct bce_softc *sc, struct mbuf **m_head)
 		txbd->tx_bd_haddr_lo = htole32(BCE_ADDR_LO(segs[i].ds_addr));
 		txbd->tx_bd_haddr_hi = htole32(BCE_ADDR_HI(segs[i].ds_addr));
 		txbd->tx_bd_mss_nbytes = htole16(segs[i].ds_len);
-		txbd->tx_bd_vlan_tag_flags = htole16(vlan_tag_flags);
+		txbd->tx_bd_vlan_tag = htole16(vlan_tag);
+		txbd->tx_bd_flags = htole16(flags);
 		prod_bseq += segs[i].ds_len;
 		if (i == 0)
-			txbd->tx_bd_vlan_tag_flags |=htole16(TX_BD_FLAGS_START);
+			txbd->tx_bd_flags |= htole16(TX_BD_FLAGS_START);
 		prod = NEXT_TX_BD(prod);
 	}
 
 	/* Set the END flag on the last TX buffer descriptor. */
-	txbd->tx_bd_vlan_tag_flags |= htole16(TX_BD_FLAGS_END);
+	txbd->tx_bd_flags |= htole16(TX_BD_FLAGS_END);
 
 	DBRUN(BCE_INFO_SEND, bce_dump_tx_chain(sc, debug_prod, nseg));
 
@@ -4647,17 +4649,14 @@ bce_tx_encap(struct bce_softc *sc, struct mbuf **m_head)
 		__FUNCTION__, prod, chain_prod, prod_bseq);
 
 	/*
-	 * Ensure that the map for this transmission
+	 * Ensure that the mbuf pointer for this transmission
 	 * is placed at the array index of the last
 	 * descriptor in this chain.  This is done
 	 * because a single map is used for all 
 	 * segments of the mbuf and we don't want to
-	 * delete the map before all of the segments
+	 * unload the map before all of the segments
 	 * have been freed.
 	 */
-	sc->tx_mbuf_map[TX_CHAIN_IDX(sc->tx_prod)] = 
-		sc->tx_mbuf_map[chain_prod];
-	sc->tx_mbuf_map[chain_prod] = map;
 	sc->tx_mbuf_ptr[chain_prod] = m0;
 	sc->used_tx_bd += nsegs;
 
@@ -4668,7 +4667,7 @@ bce_tx_encap(struct bce_softc *sc, struct mbuf **m_head)
 
 	DBRUN(BCE_VERBOSE_SEND, bce_dump_tx_mbuf_chain(sc, chain_prod, nsegs));
 
-	/* prod still points the last used tx_bd at this point. */
+	/* prod points to the next free tx_bd at this point. */
 	sc->tx_prod = prod;
 	sc->tx_prod_bseq = prod_bseq;
 
@@ -4706,8 +4705,11 @@ bce_start_locked(struct ifnet *ifp)
 		"tx_prod_bseq = 0x%08X\n",
 		__FUNCTION__, tx_prod, tx_chain_prod, sc->tx_prod_bseq);
 
-	/* Keep adding entries while there is space in the ring. */
-	while (sc->tx_mbuf_ptr[tx_chain_prod] == NULL) {
+	/*
+	 * Keep adding entries while there is space in the ring.  We keep
+	 * BCE_TX_SLACK_SPACE entries unused at all times.
+	 */
+	while (sc->used_tx_bd < USABLE_TX_BD - BCE_TX_SLACK_SPACE) {
 
 		/* Check for any frames to send. */
 		IFQ_DRV_DEQUEUE(&ifp->if_snd, m_head);
@@ -6156,9 +6158,10 @@ bce_dump_txbd(struct bce_softc *sc, int idx, struct tx_bd *txbd)
 	else
 		/* Normal tx_bd entry. */
 		BCE_PRINTF(sc, "tx_bd[0x%04X]: haddr = 0x%08X:%08X, nbytes = 0x%08X, "
-			"flags = 0x%08X\n", idx, 
+			"vlan tag= 0x%4X, "flags = 0x%04X\n", idx, 
 			txbd->tx_bd_haddr_hi, txbd->tx_bd_haddr_lo,
-			txbd->tx_bd_mss_nbytes, txbd->tx_bd_vlan_tag_flags);
+			txbd->tx_bd_mss_nbytes, txbd->tx_bd_vlan_tag,
+			txbd->tx_bd_flags);
 }
 
 
