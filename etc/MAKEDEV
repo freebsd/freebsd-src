@@ -49,6 +49,8 @@
 #	idad*	Compaq Smart-2 RAID arrays
 #	mcd*	Mitsumi CD-ROM disks
 #	md*	Memory (or malloc) disk
+#	mfi*	MegaSAS RAID controllers
+#	mfid*	MegaSAS RAID disk volumes
 #	mlx*	Mylex DAC960 RAID controllers
 #	mlxd*	Mylex DAC960 RAID disk volumes
 #	pst*	Promise SuperTrak RAID disks
@@ -463,7 +465,7 @@ wt*)
 	;;
 
 # Individual slices.
-aacd*s*|ad*s*|ar*s*|afd*s*|amrd*s*|da*s*|fla*s*|idad*s*|ipsd*s*|md*s*|mlxd*s*|pst*s*|twed*s*|vn*s*|wd*s*|wfd*s*)
+aacd*s*|ad*s*|ar*s*|afd*s*|amrd*s*|da*s*|fla*s*|idad*s*|ipsd*s*|md*s*|mfid*s*|mlxd*s*|pst*s*|twed*s*|vn*s*|wd*s*|wfd*s*)
 	umask $disk_umask
 	case $i in
 	aacd*s*) name=aacd; chr=151;;
@@ -476,6 +478,7 @@ aacd*s*|ad*s*|ar*s*|afd*s*|amrd*s*|da*s*|fla*s*|idad*s*|ipsd*s*|md*s*|mlxd*s*|ps
 	idad*s*) name=idad; chr=109;;
 	ipsd*s*) name=ipsd; chr=176;;
 	md*s*) name=md;  chr=95;;
+	mfid*s*) name=mfid; chr=178;;
 	mlxd*s*) name=mlxd; chr=131;;
 	pst*s*) name=pst; chr=168;;
 	twed*s*) name=twed; chr=147;;
@@ -484,7 +487,7 @@ aacd*s*|ad*s*|ar*s*|afd*s*|amrd*s*|da*s*|fla*s*|idad*s*|ipsd*s*|md*s*|mlxd*s*|ps
 	wfd*s*) name=wfd; chr=87;;
 	esac
 	case $i in
-	aacd*s*|amrd*s*|idad*s*|ips*s*|mlxd*s*|twed*s*)
+	aacd*s*|amrd*s*|idad*s*|ips*s*|mfid*s*|mlxd*s*|twed*s*)
 		unit=`expr $i : '....\([0-9]*\)s'`
 		slice=`expr $i : '....[0-9]*s\([0-9]*\)'`
 		part=`expr $i : '....[0-9]*s[0-9]*\(.*\)'`
@@ -649,7 +652,7 @@ fd*)
 	umask 77
 	;;
 
-aacd*|ad*|ar*|afd*|amrd*|da*|fla*|idad*|ips*|md*|mlxd*|pst*|twed*|vn*|wd*|wfd*)
+aacd*|ad*|ar*|afd*|amrd*|da*|fla*|idad*|ips*|md*|mfid*|mlxd*|pst*|twed*|vn*|wd*|wfd*)
 	umask $disk_umask
 	case $i in
 	aacd*) name=aacd; chr=151;;
@@ -662,6 +665,7 @@ aacd*|ad*|ar*|afd*|amrd*|da*|fla*|idad*|ips*|md*|mlxd*|pst*|twed*|vn*|wd*|wfd*)
 	idad*) name=idad; chr=109;;
 	ipsd*) name=ipsd; char=176;;
 	md*) name=md; chr=95;;
+	mfid*) name=mfid; chr=178;;
 	mlxd*) name=mlxd; chr=131;;
 	pst*) name=pst; chr=168;;
 	twed*) name=twed; chr=147;;
@@ -670,7 +674,7 @@ aacd*|ad*|ar*|afd*|amrd*|da*|fla*|idad*|ips*|md*|mlxd*|pst*|twed*|vn*|wd*|wfd*)
 	wfd*) name=wfd; chr=87;;
 	esac
 	case $i in
-	aacd*|amrd*|idad*|ipsd*|mlxd*|twed*)
+	aacd*|amrd*|idad*|ipsd*|mfid*|mlxd*|twed*)
 		unit=`expr $i : '....\(.*\)'`
 		;;
 	afd*|fla*|pst*|wfd*)
@@ -1916,6 +1920,11 @@ aac*)
 ips*)
 	unit=`expr $i : 'ips\(.*\)'`
 	mknod ips$unit c 175 `unit2minor $unit`
+	;;
+
+mfi*)
+	unit=`expr $i : 'mfi\(.*\)'`
+	mknod mfi$unit c 177 `unit2minor $unit`
 	;;
 
 mlx*)
