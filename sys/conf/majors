@@ -125,6 +125,8 @@ maj 	name		comments
 128	arla		Arla (AFS-clone) driver
 129	i2o		Intelligent I/O Character Device
 130	*mlx		Mylex DAC960 RAID (control device)
+131	amr		LSI MegaRAID (control device)
+132	amrd		LSI MegaRAID (disk device)
 134	*cp		Cronyx Tau-PCI synchronous WAN adapters
 135	*zsc		TurboLaser console uart
 136	ipr		Iprobe on-chip perf. counters (gallatin@freebsd.org)
