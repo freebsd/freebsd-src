@@ -56,6 +56,7 @@ struct usbd_quirks {
 #define UQ_BROKEN_BIDIR	0x2000	/* printer has broken bidir mode */
 #define UQ_OPEN_CLEARSTALL	0x4000	/* device needs clear endpoint stall */
 #define UQ_HID_IGNORE	0x8000	/* device should be ignored by hid class */
+#define UQ_KBD_IGNORE  0x18000	/* device should be ignored by both kbd and hid class */
 					
 };
 
