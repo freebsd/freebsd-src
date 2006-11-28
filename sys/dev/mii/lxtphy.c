@@ -154,19 +154,16 @@ lxtphy_attach(device_t dev)
 	sc->mii_phy = ma->mii_phyno;
 	sc->mii_service = lxtphy_service;
 	sc->mii_pdata = mii;
-	sc->mii_flags |= MIIF_NOISOLATE;
-
-	mii_phy_reset(sc);
 
 	mii->mii_instance++;
+
+	mii_phy_reset(sc);
 
 	sc->mii_capabilities =
 	    PHY_READ(sc, MII_BMSR) & ma->mii_capmask;
 	device_printf(dev, " ");
 
 #define	ADD(m, c)	ifmedia_add(&mii->mii_media, (m), (c), NULL)
-	ADD(IFM_MAKEWORD(IFM_ETHER, IFM_NONE, 0, sc->mii_inst),
-	    BMCR_ISO);
 	ADD(IFM_MAKEWORD(IFM_ETHER, IFM_100_FX, 0, sc->mii_inst),
 	    BMCR_S100);
 	printf("100baseFX, ");
@@ -175,11 +172,11 @@ lxtphy_attach(device_t dev)
 	printf("100baseFX-FDX, ");
 #undef ADD
 
-	mii_add_media(sc);
+	mii_phy_add_media(sc);
 	printf("\n");
 
 	MIIBUS_MEDIAINIT(sc->mii_dev);
-	return(0);
+	return (0);
 }
 
 static int
@@ -214,35 +211,12 @@ lxtphy_service(struct mii_softc *sc, struct mii_data *mii, int cmd)
 		if ((mii->mii_ifp->if_flags & IFF_UP) == 0)
 			break;
 
-		switch (IFM_SUBTYPE(ife->ifm_media)) {
-		case IFM_AUTO:
-			/*
-			 * If we're already in auto mode, just return.
-			 */
-			if (PHY_READ(sc, MII_BMCR) & BMCR_AUTOEN)
-				return (0);
-
+		if (IFM_SUBTYPE(ife->ifm_media) == IFM_100_FX)
+			lxtphy_set_fx(sc);
+		else
 			lxtphy_set_tp(sc);
 
-			(void) mii_phy_auto(sc);
-			break;
-		case IFM_100_T4:
-			/*
-			 * XXX Not supported as a manual setting right now.
-			 */
-			return (EINVAL);
-
-		case IFM_100_FX:
-			lxtphy_set_fx(sc);
-			/* XXX: fall though intentional ?? */
-		default:
-			/*
-			 * BMCR data is stored in the ifmedia entry.
-			 */
-			PHY_WRITE(sc, MII_ANAR,
-			    mii_anar(ife->ifm_media));
-			PHY_WRITE(sc, MII_BMCR, ife->ifm_data);
-		}
+		mii_phy_setmedia(sc);
 		break;
 
 	case MII_TICK:
@@ -329,4 +303,3 @@ lxtphy_set_fx(struct mii_softc *sc)
 	cfg |= CONFIG_100BASEFX;
 	PHY_WRITE(sc, MII_LXTPHY_CONFIG, cfg);
 }
-
