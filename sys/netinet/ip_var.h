@@ -144,6 +144,7 @@ struct	ipstat {
 
 struct ip;
 struct inpcb;
+struct inpcbinfo;
 struct route;
 struct sockopt;
 
@@ -164,6 +165,8 @@ extern int rsvp_on;
 extern struct	pr_usrreqs rip_usrreqs;
 
 int	 ip_ctloutput(struct socket *, struct sockopt *sopt);
+int	 ip_ctloutput_pcbinfo(struct socket *, struct sockopt *sopt,
+	    struct inpcbinfo *pcbinfo);
 void	 ip_drain(void);
 void	 ip_fini(void *xtp);
 int	 ip_fragment(struct ip *ip, struct mbuf **m_frag, int mtu,
