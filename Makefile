@@ -266,7 +266,7 @@ universe_prologue:
 	@echo "--------------------------------------------------------------"
 	@echo ">>> make universe started on ${STARTTIME}"
 	@echo "--------------------------------------------------------------"
-.for target in amd64 i386 ia64 pc98 sparc64 sun4v
+.for target in amd64 arm i386 ia64 pc98 powerpc sparc64 sun4v
 KERNCONFS!=	cd ${.CURDIR}/sys/${target}/conf && \
 		find [A-Z]*[A-Z] -type f -maxdepth 0 \
 		! -name DEFAULTS ! -name LINT
