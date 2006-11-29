@@ -75,7 +75,7 @@ ns8250_delay(struct uart_bas *bas)
 	lcr = uart_getreg(bas, REG_LCR);
 	uart_setreg(bas, REG_LCR, lcr | LCR_DLAB);
 	uart_barrier(bas);
-	divisor = uart_getdreg(bas, REG_DL);
+	divisor = uart_getreg(bas, REG_DLL) | (uart_getreg(bas, REG_DLH) << 8);
 	uart_barrier(bas);
 	uart_setreg(bas, REG_LCR, lcr);
 	uart_barrier(bas);
@@ -194,12 +194,13 @@ ns8250_param(struct uart_bas *bas, int baudrate, int databits, int stopbits,
 
 	/* Set baudrate. */
 	if (baudrate > 0) {
-		uart_setreg(bas, REG_LCR, lcr | LCR_DLAB);
-		uart_barrier(bas);
 		divisor = ns8250_divisor(bas->rclk, baudrate);
 		if (divisor == 0)
 			return (EINVAL);
-		uart_setdreg(bas, REG_DL, divisor);
+		uart_setreg(bas, REG_LCR, lcr | LCR_DLAB);
+		uart_barrier(bas);
+		uart_setreg(bas, REG_DLL, divisor & 0xff);
+		uart_setreg(bas, REG_DLH, (divisor >> 8) & 0xff);
 		uart_barrier(bas);
 	}
 
@@ -519,7 +520,8 @@ ns8250_bus_ioctl(struct uart_softc *sc, int request, intptr_t data)
 		lcr = uart_getreg(bas, REG_LCR);
 		uart_setreg(bas, REG_LCR, lcr | LCR_DLAB);
 		uart_barrier(bas);
-		divisor = uart_getdreg(bas, REG_DL);
+		divisor = uart_getreg(bas, REG_DLL) |
+		    (uart_getreg(bas, REG_DLH) << 8);
 		uart_barrier(bas);
 		uart_setreg(bas, REG_LCR, lcr);
 		uart_barrier(bas);
