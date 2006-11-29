@@ -265,7 +265,6 @@ trap_init(void)
 	trap_conversion[TT_DATA_MISS]             = T_DATA_MISS;
 	trap_conversion[TT_ALIGNMENT]             = T_ALIGNMENT;
 	trap_conversion[TT_DATA_PROTECTION]       = T_DATA_PROTECTION;
-	trap_conversion[TT_BREAKPOINT]            = T_BREAKPOINT;
 }
 
 void
@@ -319,15 +318,17 @@ trap(struct trapframe *tf, int64_t type, uint64_t data)
 		case T_DATA_EXCEPTION:
 		case T_DATA_ERROR:
 		case T_MEM_ADDRESS_NOT_ALIGNED:
+			printf("bad trap trapno=%ld data=0x%lx pc=0x%lx\n",
+			       trapno, data, tf->tf_tpc);
 			addr = data;
-			sig = trap_sig[trap_conversion[trapno]];
+			sig = trap_sig[trapno];
 			break;
 
 		default:
 			if (trapno < 0 || trapno >= T_MAX ||
 			    trap_sig[trapno] == -1)
 				panic("trap: bad trap type");
-			sig = trap_sig[trap_conversion[trapno]];
+			sig = trap_sig[trapno];
 			break;
 		}
 
@@ -350,9 +351,9 @@ trap(struct trapframe *tf, int64_t type, uint64_t data)
 			 */
 			ksiginfo_init_trap(&ksi);
 			ksi.ksi_signo = sig;
-			ksi.ksi_code = (int)trap_conversion[trapno]; /* XXX not POSIX */
+			ksi.ksi_code = (int)trapno; /* XXX not POSIX */
 			ksi.ksi_addr = (void *)addr;
-			ksi.ksi_trapno = (int)trap_conversion[trapno];
+			ksi.ksi_trapno = (int)trapno;
 			trapsignal(td, &ksi);
 		}
 
