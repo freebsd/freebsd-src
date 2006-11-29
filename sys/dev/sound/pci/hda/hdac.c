@@ -207,6 +207,11 @@ SND_DECLARE_FILE("$FreeBSD$");
 #define SAMSUNG_Q1_SUBVENDOR	HDA_MODEL_CONSTRUCT(SAMSUNG, 0xc027)
 #define SAMSUNG_ALL_SUBVENDOR	HDA_MODEL_CONSTRUCT(SAMSUNG, 0xffff)
 
+/* Medion ? */
+#define MEDION_VENDORID			0x161f
+#define MEDION_MD95257_SUBVENDOR	HDA_MODEL_CONSTRUCT(MEDION, 0x203d)
+#define MEDION_ALL_SUBVENDOR		HDA_MODEL_CONSTRUCT(MEDION, 0xffff)
+
 /* Misc constants.. */
 #define HDA_AMP_MUTE_DEFAULT	(0xffffffff)
 #define HDA_AMP_MUTE_NONE	(0)
@@ -3446,6 +3451,8 @@ static const struct {
 	    HDA_QUIRK_GPIO1, 0 },
 	{ ASUS_M5200_SUBVENDOR, HDA_CODEC_ALC880,
 	    HDA_QUIRK_GPIO1, 0 },
+	{ MEDION_MD95257_SUBVENDOR, HDA_CODEC_ALC880,
+	    HDA_QUIRK_GPIO2, 0 },
 	{ ASUS_U5F_SUBVENDOR, HDA_CODEC_AD1986A,
 	    HDA_QUIRK_EAPDINV, 0 },
 	{ ASUS_A8JC_SUBVENDOR, HDA_CODEC_AD1986A,
@@ -4071,8 +4078,8 @@ hdac_audio_commit(struct hdac_devinfo *devinfo, uint32_t cfl)
 {
 	struct hdac_softc *sc = devinfo->codec->sc;
 	struct hdac_widget *w;
-	nid_t cad, nid;
-	int i, gpioval;
+	nid_t cad;
+	int i;
 
 	if (!(cfl & HDA_COMMIT_ALL))
 		return;
@@ -4080,19 +4087,17 @@ hdac_audio_commit(struct hdac_devinfo *devinfo, uint32_t cfl)
 	cad = devinfo->codec->cad;
 
 	if (cfl & HDA_COMMIT_GPIO) {
-		nid = devinfo->nid;
 		for (i = 0; i < HDA_GPIO_MAX; i++) {
 			if (!(devinfo->function.audio.quirks & (1 << i)))
 				continue;
-			gpioval = (1 << i) - 1;
 			hdac_command(sc,
-			    HDA_CMD_SET_GPIO_ENABLE_MASK(cad, nid, gpioval),
+			    HDA_CMD_SET_GPIO_ENABLE_MASK(cad, devinfo->nid, i),
 			    cad);
 			hdac_command(sc,
-			    HDA_CMD_SET_GPIO_DIRECTION(cad, nid, gpioval),
+			    HDA_CMD_SET_GPIO_DIRECTION(cad, devinfo->nid, i),
 			    cad);
 			hdac_command(sc,
-			    HDA_CMD_SET_GPIO_DATA(cad, nid, gpioval),
+			    HDA_CMD_SET_GPIO_DATA(cad, devinfo->nid, i),
 			    cad);
 		}
 	}
