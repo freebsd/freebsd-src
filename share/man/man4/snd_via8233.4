@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd April 25, 2006
+.Dd November 29, 2006
 .Dt SND_VIA8233 4
 .Os
 .Sh NAME
@@ -52,6 +52,20 @@ bridge driver allows the generic audio driver,
 to attach to the VIA VT8233 audio devices.
 These audio chipsets are integrated in the southbridge on many VIA based
 motherboards.
+.Ss Runtime Configuration
+The following
+.Xr sysctl 8
+variables are available in addition to those available to all
+.Xr sound 4
+devices:
+.Bl -tag -width ".Va dev.pcm.%d.polling" -offset indent
+.It Va dev.pcm.%d.polling
+Experimental polling mode, where the driver operates by querying the device
+state on each tick using
+.Xr callout 9 .
+Polling is disabled by default.
+Do not enable it unless you are facing weird interrupt problems or if the
+device cannot generate interrupts at all.
 .Sh HARDWARE
 The
 .Nm

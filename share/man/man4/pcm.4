@@ -25,7 +25,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd November 26, 2006
+.Dd November 29, 2006
 .Dt SOUND 4
 .Os
 .Sh NAME
@@ -268,6 +268,12 @@ Format for
 mixing.
 All playback paths will be converted to this format before the mixing
 process begins.
+.It Va dev.pcm.%d.polling
+Experimental polling mode support where the driver operates by querying the
+device state on each tick using a
+.Xr callout 9
+mechanism.
+Disabled by default and currently only available for a few device drivers.
 .El
 .Ss Recording Channels
 On devices that have more than one recording source (ie: mic and line),
