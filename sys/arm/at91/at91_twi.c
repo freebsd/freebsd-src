@@ -52,9 +52,7 @@ struct at91_twi_softc
 	struct resource *irq_res;	/* IRQ resource */
 	struct resource	*mem_res;	/* Memory resource */
 	struct mtx sc_mtx;		/* basically a perimeter lock */
-	volatile int flags;
-#define RXRDY		4
-#define TXRDY		0x10
+	volatile uint32_t flags;
 	uint32_t cwgr;
 	int	sc_started;
 	int	twi_addr;
@@ -131,8 +129,6 @@ at91_twi_attach(device_t dev)
 	WR4(sc, TWI_CR, TWI_CR_SWRST);
 	WR4(sc, TWI_CR, TWI_CR_MSEN | TWI_CR_SVDIS);
 	WR4(sc, TWI_CWGR, sc->cwgr);
-//	WR4(sc, TWI_IER, TWI_SR_RXRDY | TWI_SR_OVRE | TWI_SR_UNRE |
-//	    TWI_SR_NACK);
 
 	if ((sc->iicbus = device_add_child(dev, "iicbus", -1)) == NULL)
 		device_printf(dev, "could not allocate iicbus instance\n");
@@ -208,17 +204,17 @@ at91_twi_intr(void *xsc)
 	struct at91_twi_softc *sc = xsc;
 	uint32_t status;
 
-	/* Reading the status also clears the interrupt */
 	status = RD4(sc, TWI_SR);
-	printf("status %x\n", status);
 	if (status == 0)
 		return;
-	AT91_TWI_LOCK(sc);
+	sc->flags |= status & (TWI_SR_OVRE | TWI_SR_UNRE | TWI_SR_NACK);
 	if (status & TWI_SR_RXRDY)
-		sc->flags |= RXRDY;
+		sc->flags |= TWI_SR_RXRDY;
 	if (status & TWI_SR_TXRDY)
-		sc->flags |= TXRDY;
-	AT91_TWI_UNLOCK(sc);
+		sc->flags |= TWI_SR_TXRDY;
+	if (status & TWI_SR_TXCOMP)
+		sc->flags |= TWI_SR_TXCOMP;
+	WR4(sc, TWI_IDR, status);
 	wakeup(sc);
 	return;
 }
@@ -228,11 +224,16 @@ at91_twi_wait(struct at91_twi_softc *sc, uint32_t bit)
 {
 	int err = 0;
 	int counter = 100000;
+	uint32_t sr;
 
-	while (!(RD4(sc, TWI_SR) & bit) && counter-- >= 0)
+	while (!((sr = RD4(sc, TWI_SR)) & bit) && counter-- > 0)
 		continue;
 	if (counter <= 0)
-		err = EIO;
+		err = EBUSY;
+	else if (sr & TWI_SR_NACK)
+		err = EADDRNOTAVAIL;
+	if (sr & ~bit)
+		printf("status is %x\n", sr);
 	return (err);
 }
 
@@ -240,42 +241,37 @@ static int
 at91_twi_rst_card(device_t dev, u_char speed, u_char addr, u_char *oldaddr)
 {
 	struct at91_twi_softc *sc;
-	int ckdiv, rate;
+	int clk;
 
 	sc = device_get_softc(dev);
 	if (oldaddr)
 		*oldaddr = sc->twi_addr;
-	if (addr != 0)
-		sc->twi_addr = 0;
-	else
-		sc->twi_addr = addr;
+	sc->twi_addr = addr;
 
-	rate = 1;
-	
 	/*
 	 * speeds are for 1.5kb/s, 45kb/s and 90kb/s.
 	 */
 	switch (speed) {
 	case IIC_SLOW:
-		ckdiv = AT91C_MASTER_CLOCK / (1500 * 4) - 2;
+		clk = 1500;
 		break;
 
 	case IIC_FAST:
-		ckdiv = AT91C_MASTER_CLOCK / (45000 * 4) - 2;
+		clk = 45000;
 		break;
 
 	case IIC_UNKNOWN:
 	case IIC_FASTEST:
 	default:
-		ckdiv = AT91C_MASTER_CLOCK / (90000 * 4) - 2;
+		clk = 90000;
 		break;
 	}
-
-	sc->cwgr = TWI_CWGR_CKDIV(ckdiv) | TWI_CWGR_CHDIV(TWI_CWGR_DIV(rate)) |
-	    TWI_CWGR_CLDIV(TWI_CWGR_DIV(rate));
+	sc->cwgr = TWI_CWGR_CKDIV(1) | TWI_CWGR_CHDIV(TWI_CWGR_DIV(clk)) |
+	    TWI_CWGR_CLDIV(TWI_CWGR_DIV(clk));
 	WR4(sc, TWI_CR, TWI_CR_SWRST);
 	WR4(sc, TWI_CR, TWI_CR_MSEN | TWI_CR_SVDIS);
 	WR4(sc, TWI_CWGR, sc->cwgr);
+	printf("setting cwgr to %#x\n", sc->cwgr);
 
 	return 0;
 }
@@ -303,32 +299,36 @@ static int
 at91_twi_transfer(device_t dev, struct iic_msg *msgs, uint32_t nmsgs)
 {
 	struct at91_twi_softc *sc;
-	int i, len;
+	int i, len, err;
 	uint32_t rdwr;
 	uint8_t *buf;
 
 	sc = device_get_softc(dev);
+	err = 0;
+	AT91_TWI_LOCK(sc);
 	for (i = 0; i < nmsgs; i++) {
 		/*
 		 * The linux atmel driver doesn't use the internal device
 		 * address feature of twi.  A separate i2c message needs to
 		 * be written to use this.
 		 * See http://lists.arm.linux.org.uk/pipermail/linux-arm-kernel/2004-September/024411.html
-		 * for details.
+		 * for details.  Upon reflection, we could use this as an
+		 * optimization, but it is unclear the code bloat will
+		 * result in faster/better operations.
 		 */
 		rdwr = (msgs[i].flags & IIC_M_RD) ? TWI_MMR_MREAD : 0;
 		WR4(sc, TWI_MMR, TWI_MMR_DADR(msgs[i].slave) | rdwr);
 		len = msgs[i].len;
 		buf = msgs[i].buf;
-		if (len == 0 || buf == NULL)
+		if (len != 0 && buf == NULL)
 			return (EINVAL);
 		WR4(sc, TWI_CR, TWI_CR_START);
 		if (msgs[i].flags & IIC_M_RD) {
 			while (len--) {
 				if (len == 0)
 					WR4(sc, TWI_CR, TWI_CR_STOP);
-				if (at91_twi_wait(sc, TWI_SR_RXRDY))
-					return (EIO);
+				if ((err = at91_twi_wait(sc, TWI_SR_RXRDY)))
+					goto out;
 				*buf++ = RD4(sc, TWI_RHR) & 0xff;
 			}
 		} else {
@@ -336,14 +336,22 @@ at91_twi_transfer(device_t dev, struct iic_msg *msgs, uint32_t nmsgs)
 				WR4(sc, TWI_THR, *buf++);
 				if (len == 0)
 					WR4(sc, TWI_CR, TWI_CR_STOP);
-				if (at91_twi_wait(sc, TWI_SR_TXRDY))
-					return (EIO);
+				if ((err = at91_twi_wait(sc, TWI_SR_TXRDY))) {
+					printf("Len %d\n", len);
+					goto out;
+				}
 			}
 		}
-		if (at91_twi_wait(sc, TWI_SR_TXCOMP))
-			return (EIO);
+		if ((err = at91_twi_wait(sc, TWI_SR_TXCOMP)))
+			break;
 	}
-	return (0);
+out:;
+	if (err) {
+		WR4(sc, TWI_CR, TWI_CR_STOP);
+		printf("Err is %d\n", err);
+	}
+	AT91_TWI_UNLOCK(sc);
+	return (err);
 }
 
 static device_method_t at91_twi_methods[] = {
