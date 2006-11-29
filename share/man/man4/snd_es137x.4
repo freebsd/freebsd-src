@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd December 15, 2005
+.Dd November 29, 2006
 .Dt SND_ES137X 4
 .Os
 .Sh NAME
@@ -66,6 +66,13 @@ Enables S/PDIF output on the primary playback channel.
 This
 .Xr sysctl 8
 variable is available only if the device is known to support S/PDIF output.
+.It Va dev.pcm.%d.polling
+Experimental polling mode, where the driver operates by querying the device
+state on each tick using
+.Xr callout 9 .
+Polling is disabled by default.
+Do not enable it unless you are facing weird interrupt problems or if the
+device cannot generate interrupts at all.
 .El
 .Sh HARDWARE
 The
