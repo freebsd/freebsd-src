@@ -134,6 +134,7 @@ static uma_zone_t pvzone;
 static struct vm_object pvzone_obj;
 static int pv_entry_count = 0, pv_entry_max = 0, pv_entry_high_water = 0;
 int pmap_debug = 0;
+int pmap_debug_range = 0;
 
 static struct mtx pmap_ctx_lock;
 static uint16_t ctx_stack[PMAP_CONTEXT_MAX];
@@ -520,6 +521,20 @@ pmap_bootstrap(vm_offset_t ekva)
 		uint64_t size = mra[i].mr_size;
 		CTR2(KTR_PMAP, "start=%#lx size=%#lx\n", mra[i].mr_start, mra[i].mr_size);
 		KDPRINTF("start=%#lx size=%#lx\n", mra[i].mr_start, mra[i].mr_size);
+
+		if (mra[i].mr_size < PAGE_SIZE_4M)
+			continue;
+		if ((mra[i].mr_start & PAGE_MASK_4M) || (mra[i].mr_size & PAGE_MASK_4M)) {
+			uint64_t newstart, roundup, size;
+			newstart = ((mra[i].mr_start + (PAGE_SIZE_4M-1)) & ~PAGE_MASK_4M);
+			roundup = newstart - mra[i].mr_start;
+			size = mra[i].mr_size - roundup;
+			if (size < PAGE_SIZE_4M)
+				continue;
+			size = (size & ~PAGE_MASK_4M);
+			mra[i].mr_size = size;
+			mra[i].mr_start = newstart;
+		}
 		/* 
 		 * Is kernel memory at the beginning of range?
 		 */
@@ -551,18 +566,6 @@ pmap_bootstrap(vm_offset_t ekva)
 			physsz += firstsize + nucleus_memory;
 			j += 2;
 		}
-		if (mra[i].mr_size < PAGE_SIZE_4M)
-			continue;
-		if ((mra[i].mr_start & PAGE_MASK_4M) && (mra[i].mr_size < nucleus_memory))
-			continue;
-		if (mra[i].mr_start & PAGE_MASK_4M) {
-			uint64_t newstart, roundup;
-			newstart = ((mra[i].mr_start + (PAGE_SIZE_4M-1)) & ~PAGE_MASK_4M);
-			roundup = newstart - mra[i].mr_start;
-			mra[i].mr_size -= roundup;
-			mra[i].mr_start = newstart;
-		}
-		mra[i].mr_size &= ~PAGE_MASK_4M;
 		phys_avail[j] = mra[i].mr_start;
 		if (physmem_tunable != 0 && ((physsz + mra[i].mr_size) >= physmem_tunable)) {
 			size = physmem_tunable - physsz;
@@ -579,7 +582,8 @@ pmap_bootstrap(vm_offset_t ekva)
 	
 
 	for (i = 0; phys_avail[i] != 0; i += 2)
-		KDPRINTF("phys_avail[%d]=0x%lx phys_avail[%d]=0x%lx\n",
+		if (pmap_debug_range || pmap_debug)
+			printf("phys_avail[%d]=0x%lx phys_avail[%d]=0x%lx\n",
 			i, phys_avail[i], i+1, phys_avail[i+1]);
 	/*
 	 * Calculate the size of kernel virtual memory, and the size and mask
