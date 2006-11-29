@@ -160,6 +160,12 @@ nfs_nget(struct mount *mntp, nfsfh_t *fhp, int fhsize, struct nfsnode **npp, int
 	 */
 	vp->v_vnlock->lk_flags |= LK_CANRECURSE;
 	vp->v_vnlock->lk_flags &= ~LK_NOSHARE;
+	if (fhsize > NFS_SMALLFH) {
+		MALLOC(np->n_fhp, nfsfh_t *, fhsize, M_NFSBIGFH, M_WAITOK);
+	} else
+		np->n_fhp = &np->n_fh;
+	bcopy((caddr_t)fhp, (caddr_t)np->n_fhp, fhsize);
+	np->n_fhsize = fhsize;
 	error = vfs_hash_insert(vp, hash, flags, 
 	    td, &nvp, nfs_vncmpf, &ncmp);
 	if (error)
@@ -169,12 +175,6 @@ nfs_nget(struct mount *mntp, nfsfh_t *fhp, int fhsize, struct nfsnode **npp, int
 		/* vfs_hash_insert() vput()'s the losing vnode */
 		return (0);
 	}
-	if (fhsize > NFS_SMALLFH) {
-		MALLOC(np->n_fhp, nfsfh_t *, fhsize, M_NFSBIGFH, M_WAITOK);
-	} else
-		np->n_fhp = &np->n_fh;
-	bcopy((caddr_t)fhp, (caddr_t)np->n_fhp, fhsize);
-	np->n_fhsize = fhsize;
 	*npp = np;
 
 	return (0);
