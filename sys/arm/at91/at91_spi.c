@@ -223,7 +223,7 @@ at91_spi_transfer(device_t dev, device_t child, struct spi_command *cmd)
 			cmd->tx_data_sz, at91_getaddr, &addr, 0) != 0)
 			goto out;
 		WR4(sc, PDC_TNPR, addr);
-		WR4(sc, PDC_TNCR, cmd->tx_cmd_sz);
+		WR4(sc, PDC_TNCR, cmd->tx_data_sz);
 		bus_dmamap_sync(sc->dmatag, sc->map[i], BUS_DMASYNC_PREWRITE);
 		mode[i++] = BUS_DMASYNC_POSTWRITE;
 	}
@@ -234,12 +234,12 @@ at91_spi_transfer(device_t dev, device_t child, struct spi_command *cmd)
 	WR4(sc, PDC_RCR, cmd->tx_cmd_sz);
 	bus_dmamap_sync(sc->dmatag, sc->map[i], BUS_DMASYNC_PREREAD);
 	mode[i++] = BUS_DMASYNC_POSTREAD;
-	if (cmd->tx_data_sz > 0) {
+	if (cmd->rx_data_sz > 0) {
 		if (bus_dmamap_load(sc->dmatag, sc->map[i], cmd->rx_data,
 			cmd->tx_data_sz, at91_getaddr, &addr, 0) != 0)
 			goto out;
 		WR4(sc, PDC_RNPR, addr);
-		WR4(sc, PDC_RNCR, cmd->tx_data_sz);
+		WR4(sc, PDC_RNCR, cmd->rx_data_sz);
 		bus_dmamap_sync(sc->dmatag, sc->map[i], BUS_DMASYNC_PREREAD);
 		mode[i++] = BUS_DMASYNC_POSTREAD;
 	}
