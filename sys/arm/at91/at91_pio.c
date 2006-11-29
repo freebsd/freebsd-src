@@ -154,8 +154,8 @@ at91_pio_attach(device_t dev)
 		AT91_PIO_LOCK_DESTROY(sc);
 		goto out;
 	}
-	sc->cdev = make_dev(&at91_pio_cdevsw, device_get_unit(dev), UID_ROOT
-	    , GID_WHEEL, 0600, "pio%d", device_get_unit(dev));
+	sc->cdev = make_dev(&at91_pio_cdevsw, device_get_unit(dev), UID_ROOT,
+	    GID_WHEEL, 0600, "pio%d", device_get_unit(dev));
 	if (sc->cdev == NULL) {
 		err = ENOMEM;
 		goto out;
