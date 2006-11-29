@@ -620,7 +620,7 @@ dev/firewire/if_fwe.c		optional fwe
 dev/firewire/if_fwip.c		optional fwip
 dev/firewire/sbp.c		optional sbp
 dev/firewire/sbp_targ.c		optional sbp_targ
-dev/flash/at45.c		optional at45
+dev/flash/at45d.c		optional at45d
 dev/fxp/if_fxp.c		optional fxp
 dev/gem/if_gem.c		optional gem
 dev/gem/if_gem_pci.c		optional gem pci
