@@ -61,13 +61,13 @@ enum uio_seg {
 #ifdef _KERNEL
 
 struct uio {
-	struct	iovec *uio_iov;
-	int	uio_iovcnt;
-	off_t	uio_offset;
-	int	uio_resid;
-	enum	uio_seg uio_segflg;
-	enum	uio_rw uio_rw;
-	struct	thread *uio_td;
+	struct	iovec *uio_iov;		/* scatter/gather list */
+	int	uio_iovcnt;		/* length of scatter/gather list */
+	off_t	uio_offset;		/* offset in target object */
+	int	uio_resid;		/* remaining bytes to process */
+	enum	uio_seg uio_segflg;	/* address space */
+	enum	uio_rw uio_rw;		/* operation */
+	struct	thread *uio_td;		/* owner */
 };
 
 /*
