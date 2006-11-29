@@ -70,6 +70,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/kernel.h>
 #include <sys/module.h>
 #include <sys/socket.h>
+#include <sys/taskqueue.h>
 
 #include <net/if.h>
 #include <net/if_arp.h>
@@ -189,6 +190,8 @@ static void aue_intr(usbd_xfer_handle, usbd_private_handle, usbd_status);
 #endif
 static void aue_rxeof(usbd_xfer_handle, usbd_private_handle, usbd_status);
 static void aue_txeof(usbd_xfer_handle, usbd_private_handle, usbd_status);
+static void aue_task_tick(void *xsc, int pending);
+static void aue_task_tick_locked(struct aue_softc *sc);
 static void aue_tick(void *);
 static void aue_rxstart(struct ifnet *);
 static void aue_start(struct ifnet *);
@@ -789,6 +792,7 @@ aue_detach(device_t dev)
 
 	sc->aue_dying = 1;
 	untimeout(aue_tick, sc, sc->aue_stat_ch);
+	taskqueue_drain(taskqueue_thread, &sc->aue_stat_task);
 #if __FreeBSD_version >= 500000
 	ether_ifdetach(ifp);
 	if_free(ifp);
@@ -1015,18 +1019,40 @@ static void
 aue_tick(void *xsc)
 {
 	struct aue_softc	*sc = xsc;
-	struct ifnet		*ifp;
-	struct mii_data		*mii;
 
 	if (sc == NULL)
 		return;
 
+        taskqueue_enqueue(taskqueue_thread, &sc->aue_stat_task);
+	timeout(aue_tick, sc, hz);
+}
+
+
+static void
+aue_task_tick(void *xsc, int pending)
+{
+	struct aue_softc	*sc = xsc;
+
+	if (sc == NULL)
+		return;
+
+	mtx_lock(&Giant);
 	AUE_LOCK(sc);
+	aue_task_tick_locked(sc);
+	AUE_UNLOCK(sc);
+	mtx_unlock(&Giant);
+}
+
+
+static void
+aue_task_tick_locked(struct aue_softc *sc)
+{
+	struct ifnet		*ifp;
+	struct mii_data		*mii;
 
 	ifp = sc->aue_ifp;
 	mii = GET_MII(sc);
 	if (mii == NULL) {
-		AUE_UNLOCK(sc);
 		return;
 	}
 
@@ -1037,10 +1063,6 @@ aue_tick(void *xsc)
 		if (ifp->if_snd.ifq_head != NULL)
 			aue_start(ifp);
 	}
-
-	sc->aue_stat_ch = timeout(aue_tick, sc, hz);
-
-	AUE_UNLOCK(sc);
 
 	return;
 }
@@ -1241,6 +1263,7 @@ aue_init(void *xsc)
 	ifp->if_drv_flags |= IFF_DRV_RUNNING;
 	ifp->if_drv_flags &= ~IFF_DRV_OACTIVE;
 
+	TASK_INIT(&sc->aue_stat_task, 0, aue_task_tick, sc);
 	sc->aue_stat_ch = timeout(aue_tick, sc, hz);
 
 	AUE_UNLOCK(sc);
@@ -1374,6 +1397,7 @@ aue_stop(struct aue_softc *sc)
 	aue_csr_write_1(sc, AUE_CTL1, 0);
 	aue_reset(sc);
 	untimeout(aue_tick, sc, sc->aue_stat_ch);
+	taskqueue_drain(taskqueue_thread, &sc->aue_stat_task);
 
 	/* Stop transfers. */
 	if (sc->aue_ep[AUE_ENDPT_RX] != NULL) {
