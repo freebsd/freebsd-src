@@ -253,7 +253,7 @@ main(int argc, char *argv[])
 	struct iovec *iov;
 	int mntflags, altflags, num;
 	int iovlen;
-	char *name, *p, *spec;
+	char *name, *p, *spec, *fstype;
 	char mntpath[MAXPATHLEN];
 
 	mntflags = 0;
@@ -262,6 +262,12 @@ main(int argc, char *argv[])
 	nfsargsp = &nfsargs;
 	iov = NULL;
 	iovlen = 0;
+
+	fstype = strrchr(argv[0], '_');
+	if (fstype == NULL)
+		errx(EX_USAGE, "argv[0] must end in _fstype");
+
+	++fstype;
 
 	while ((c = getopt(argc, argv,
 	    "23a:bcdD:g:I:iLlNo:PR:r:sTt:w:x:U")) != -1)
@@ -461,7 +467,7 @@ main(int argc, char *argv[])
 	(void)checkpath(name, mntpath);
 
 	build_iovec(&iov, &iovlen, "nfs_args", nfsargsp, sizeof(*nfsargsp));
-	build_iovec(&iov, &iovlen, "fstype", "nfs", (size_t)-1);
+	build_iovec(&iov, &iovlen, "fstype", fstype, (size_t)-1);
 	build_iovec(&iov, &iovlen, "fspath", mntpath, (size_t)-1);
 
 	if (nmount(iov, iovlen, mntflags))
