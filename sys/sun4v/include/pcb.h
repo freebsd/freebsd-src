@@ -46,7 +46,12 @@ struct pcb {
 	uint64_t pcb_pc;
 	uint64_t pcb_sp;
 	uint64_t pcb_kstack;               /* pcb's kernel stack */
-	uint64_t pcb_pad[4]; 
+	uint64_t pcb_tstate;
+	uint64_t pcb_tpc;
+	uint64_t pcb_tnpc;
+	uint64_t pcb_tt;
+	uint64_t pcb_sfar;
+	uint64_t pcb_pad[7]; 
 } __aligned(64);
 
 #ifdef _KERNEL

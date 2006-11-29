@@ -231,6 +231,11 @@ ASSYM(PC_PMAP, offsetof(struct pcpu, pc_curpmap));
 ASSYM(PC_TSBWBUF, offsetof(struct pcpu, pc_tsbwbuf));
 
 ASSYM(PCB_KSTACK, offsetof(struct pcb, pcb_kstack));
+ASSYM(PCB_TSTATE, offsetof(struct pcb, pcb_tstate));
+ASSYM(PCB_TPC, offsetof(struct pcb, pcb_tpc));
+ASSYM(PCB_TNPC, offsetof(struct pcb, pcb_tnpc));
+ASSYM(PCB_TT, offsetof(struct pcb, pcb_tt));
+ASSYM(PCB_SFAR, offsetof(struct pcb, pcb_sfar));
 ASSYM(INTR_REPORT_SIZE, INTR_REPORT_SIZE);
 ASSYM(PM_TSB_MISS_COUNT, offsetof(struct pmap, pm_tsb_miss_count));
 ASSYM(PM_TSB_CAP_MISS_COUNT, offsetof(struct pmap, pm_tsb_cap_miss_count));
