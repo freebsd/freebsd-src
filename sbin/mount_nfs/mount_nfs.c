@@ -254,7 +254,7 @@ main(int argc, char *argv[])
 	int mntflags, altflags, num;
 	int iovlen;
 	char *name, *p, *spec, *fstype;
-	char mntpath[MAXPATHLEN];
+	char mntpath[MAXPATHLEN], errmsg[255];
 
 	mntflags = 0;
 	altflags = 0;
@@ -262,6 +262,7 @@ main(int argc, char *argv[])
 	nfsargsp = &nfsargs;
 	iov = NULL;
 	iovlen = 0;
+	memset(errmsg, 0, sizeof(errmsg));
 
 	fstype = strrchr(argv[0], '_');
 	if (fstype == NULL)
@@ -469,9 +470,10 @@ main(int argc, char *argv[])
 	build_iovec(&iov, &iovlen, "nfs_args", nfsargsp, sizeof(*nfsargsp));
 	build_iovec(&iov, &iovlen, "fstype", fstype, (size_t)-1);
 	build_iovec(&iov, &iovlen, "fspath", mntpath, (size_t)-1);
+	build_iovec(&iov, &iovlen, "errmsg", errmsg, sizeof(errmsg));
 
 	if (nmount(iov, iovlen, mntflags))
-		err(1, "%s", mntpath);
+		err(1, "%s, %s", mntpath, errmsg);
 
 	exit(0);
 }
