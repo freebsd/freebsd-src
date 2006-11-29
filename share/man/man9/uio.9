@@ -38,13 +38,13 @@
 .Pp
 .Bd -literal
 struct uio {
-	struct	iovec *uio_iov;
-	int	uio_iovcnt;
-	off_t	uio_offset;
-	int	uio_resid;
-	enum	uio_seg uio_segflg;
-	enum	uio_rw uio_rw;
-	struct	thread *uio_td;
+	struct	iovec *uio_iov;		/* scatter/gather list */
+	int	uio_iovcnt;		/* length of scatter/gather list */
+	off_t	uio_offset;		/* offset in target object */
+	int	uio_resid;		/* remaining bytes to copy */
+	enum	uio_seg uio_segflg;	/* address space */
+	enum	uio_rw uio_rw;		/* operation */
+	struct	thread *uio_td;		/* owner */
 };
 .Ed
 .Ft int
@@ -87,7 +87,7 @@ The number of I/O vectors present.
 .It Va uio_offset
 The offset into the device.
 .It Va uio_resid
-The number of bytes to process.
+The remaining number of bytes to process, updated after transfer.
 .It Va uio_segflg
 One of the following flags:
 .Bl -tag -width ".Dv UIO_USERSPACE"
@@ -112,14 +112,20 @@ indicates that the transfer is to be made from/to a process's address
 space.
 .El
 .Sh RETURN VALUES
+On success
 .Fn uiomove
-can return
-.Er EFAULT
-from the invoked
+will return 0, on error it will return an appropriate errno.
+.Sh ERRORS
+.Fn uiomove
+will fail and return the following error code if:
+.Bl -tag -width Er
+.It Bq Er EFAULT
+The invoked
 .Xr copyin 9
 or
 .Xr copyout 9
-in case the transfer was to/from a process's address space.
+returned
+.Er EFAULT
 .Sh EXAMPLES
 The idea is that the driver maintains a private buffer for its data,
 and processes the request in chunks of maximal the size of this
