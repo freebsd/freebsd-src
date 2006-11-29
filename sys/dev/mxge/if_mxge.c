@@ -1705,7 +1705,9 @@ mxge_submit_8rx(volatile mcp_kreq_ether_recv_t *dst,
 
 	low = src->addr_low;
 	src->addr_low = 0xffffffff;
-	mxge_pio_copy(dst, src, 8 * sizeof (*src));
+	mxge_pio_copy(dst, src, 4 * sizeof (*src));
+	mb();
+	mxge_pio_copy(dst + 4, src + 4, 4 * sizeof (*src));
 	mb();
 	dst->addr_low = low;
 	mb();
