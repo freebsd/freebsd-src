@@ -739,10 +739,10 @@ tick_ ## tl ## _entry:							\
 	! fetch FP context into local registers
 	.macro	tl0_fpemu_context
 	GET_PCB(PCB_REG)			! 3 instructions
-	ldx	[PCB_REG + PCB_PAD], %l5	! %tstate
-	ldx	[PCB_REG + PCB_PAD + 8], %l6	! %tpc
-	ldx	[PCB_REG + PCB_PAD + 16], %l7	! %tncp
-	ldx	[PCB_REG + PCB_PAD + 24], %g2	! %tt
+	ldx	[PCB_REG + PCB_TSTATE], %l5	! %tstate
+	ldx	[PCB_REG + PCB_TPC], %l6	! %tpc
+	ldx	[PCB_REG + PCB_TNPC], %l7	! %tnpc
+	ldx	[PCB_REG + PCB_TT], %g2		! %tt
 	ba,a,pt	%xcc, tl0_fpemu_context
 	.align	32
 	.endm
@@ -750,7 +750,8 @@ tick_ ## tl ## _entry:							\
 ENTRY(tl0_fpemu_context)
 	mov	%g2, %o0
 	clr	%o1
-
+	ldx	[PCB_REG + PCB_SFAR], %o4
+	
 	rd	%fprs, %l1
 	or	%l1, FPRS_FEF, %l2
 	wr	%l2, 0, %fprs
@@ -1414,32 +1415,35 @@ ENTRY(tl0_trap)
 	  nop
 ENTRY(tl0_utrap)
 	GET_PCPU_SCRATCH
-	
-	cmp	%g2, UT_MAX
-	bge,a,pn %xcc, skip_utrap
+
+	and	%g2, TRAP_MASK, %g4
+	cmp	%g4, UT_MAX
+	bge,a,pt %xcc, skip_utrap
 	  nop
 	
 	ldx	[PCPU(CURTHREAD)], %g5
 	ldx	[%g5 + TD_PROC], %g5
 	ldx	[%g5 + P_MD + MD_UTRAP], %g5
 	brz,pn	%g5, skip_utrap
-	  sllx	%g2, PTR_SHIFT, %g6
+	  sllx	%g4, PTR_SHIFT, %g6
 	ldx	[%g5 + %g6], %g5
 	brz,pn	%g5, skip_utrap	
 	  nop
 
+	mov	%g4, %g2
 	mov	%g5, %g4
 	
 	! 0) save trap state to memory	
 	ldx	[PCPU_REG + PC_CURPCB], %g6	
 	rdpr	%tstate, %g5
-	stx	%g5, [%g6 + PCB_PAD]
+	stx	%g5, [%g6 + PCB_TSTATE]
 	rdpr	%tpc, %g5
-	stx	%g5, [%g6 + PCB_PAD + 8]
+	stx	%g5, [%g6 + PCB_TPC]
 	rdpr	%tnpc, %g5
-	stx	%g5, [%g6 + PCB_PAD + 16]
-	stx	%g2, [%g6 + PCB_PAD + 24]
-
+	stx	%g5, [%g6 + PCB_TNPC]
+	stx	%g2, [%g6 + PCB_TT]
+	stx	%g3, [%g6 + PCB_SFAR]
+	
 	wrpr	%g4, %tnpc
 	done
 skip_utrap:	
