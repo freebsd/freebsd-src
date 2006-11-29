@@ -185,9 +185,6 @@ static void vge_miibus_statchg	(device_t);
 
 static void vge_cam_clear	(struct vge_softc *);
 static int vge_cam_set		(struct vge_softc *, uint8_t *);
-#if __FreeBSD_version < 502113
-static uint32_t vge_mchash	(uint8_t *);
-#endif
 static void vge_setmulti	(struct vge_softc *);
 static void vge_reset		(struct vge_softc *);
 
@@ -541,31 +538,6 @@ fail:
 	return (error);
 }
 
-#if __FreeBSD_version < 502113
-static uint32_t
-vge_mchash(addr)
-        uint8_t			*addr;
-{
-	uint32_t		crc, carry;
-	int			idx, bit;
-	uint8_t			data;
-
-	/* Compute CRC for the address value. */
-	crc = 0xFFFFFFFF; /* initial value */
-
-	for (idx = 0; idx < 6; idx++) {
-		for (data = *addr++, bit = 0; bit < 8; bit++, data >>= 1) {
-			carry = ((crc & 0x80000000) ? 1 : 0) ^ (data & 0x01);
-			crc <<= 1;
-			if (carry)
-				crc = (crc ^ 0x04c11db6) | carry;
-		}
-	}
-
-	return(crc);
-}
-#endif
-
 /*
  * Program the multicast filter. We use the 64-entry CAM filter
  * for perfect filtering. If there's more than 64 multicast addresses,
@@ -615,13 +587,8 @@ vge_setmulti(sc)
 		TAILQ_FOREACH(ifma, &ifp->if_multiaddrs, ifma_link) {
 			if (ifma->ifma_addr->sa_family != AF_LINK)
 				continue;
-#if __FreeBSD_version < 502113
-			h = vge_mchash(LLADDR((struct sockaddr_dl *)
-			    ifma->ifma_addr)) >> 26;
-#else
 			h = ether_crc32_be(LLADDR((struct sockaddr_dl *)
 			    ifma->ifma_addr), ETHER_ADDR_LEN) >> 26;
-#endif
 			if (h < 32)
 				hashes[0] |= (1 << h);
 			else
@@ -1004,10 +971,6 @@ vge_attach(dev)
 	vge_read_eeprom(sc, (caddr_t)eaddr, VGE_EE_EADDR, 3, 0);
 
 	sc->vge_unit = unit;
-
-#if __FreeBSD_version < 502113
-	printf("vge%d: Ethernet address: %6D\n", unit, eaddr, ":");
-#endif
 
 	/*
 	 * Allocate the parent bus DMA tag appropriate for PCI.
@@ -1603,11 +1566,7 @@ vge_tick(xsc)
 			sc->vge_link = 1;
 			if_link_state_change(sc->vge_ifp,
 			    LINK_STATE_UP);
-#if __FreeBSD_version < 502114
-			if (ifp->if_snd.ifq_head != NULL)
-#else
 			if (!IFQ_DRV_IS_EMPTY(&ifp->if_snd))
-#endif
 				taskqueue_enqueue(taskqueue_swi,
 				    &sc->vge_txtask);
 		}
@@ -1632,11 +1591,7 @@ vge_poll (struct ifnet *ifp, enum poll_cmd cmd, int count)
 	vge_rxeof(sc);
 	vge_txeof(sc);
 
-#if __FreeBSD_version < 502114
-	if (ifp->if_snd.ifq_head != NULL)
-#else
 	if (!IFQ_DRV_IS_EMPTY(&ifp->if_snd))
-#endif
 		taskqueue_enqueue(taskqueue_swi, &sc->vge_txtask);
 
 	if (cmd == POLL_AND_CHECK_STATUS) { /* also check status register */
@@ -1736,11 +1691,7 @@ vge_intr(arg)
 
 	VGE_UNLOCK(sc);
 
-#if __FreeBSD_version < 502114
-	if (ifp->if_snd.ifq_head != NULL)
-#else
 	if (!IFQ_DRV_IS_EMPTY(&ifp->if_snd))
-#endif
 		taskqueue_enqueue(taskqueue_swi, &sc->vge_txtask);
 
 	return;
@@ -1856,11 +1807,7 @@ vge_start(ifp)
 		return;
 	}
 
-#if __FreeBSD_version < 502114
-	if (ifp->if_snd.ifq_head == NULL) {
-#else
 	if (IFQ_DRV_IS_EMPTY(&ifp->if_snd)) {
-#endif
 		VGE_UNLOCK(sc);
 		return;
 	}
@@ -1873,20 +1820,12 @@ vge_start(ifp)
 
 
 	while (sc->vge_ldata.vge_tx_mbuf[idx] == NULL) {
-#if __FreeBSD_version < 502114
-		IF_DEQUEUE(&ifp->if_snd, m_head);
-#else
 		IFQ_DRV_DEQUEUE(&ifp->if_snd, m_head);
-#endif
 		if (m_head == NULL)
 			break;
 
 		if (vge_encap(sc, m_head, idx)) {
-#if __FreeBSD_version >= 502114
 			IFQ_DRV_PREPEND(&ifp->if_snd, m_head);
-#else
-			IF_PREPEND(&ifp->if_snd, m_head);
-#endif
 			ifp->if_drv_flags |= IFF_DRV_OACTIVE;
 			break;
 		}
