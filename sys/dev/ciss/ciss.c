@@ -219,6 +219,8 @@ static driver_t ciss_pci_driver = {
 
 static devclass_t	ciss_devclass;
 DRIVER_MODULE(ciss, pci, ciss_pci_driver, ciss_devclass, 0, 0);
+MODULE_DEPEND(ciss, cam, 1, 1, 1);
+MODULE_DEPEND(ciss, pci, 1, 1, 1);
 
 /*
  * Control device interface.
