@@ -228,7 +228,7 @@ static void		fxp_stop(struct fxp_softc *sc);
 static void 		fxp_release(struct fxp_softc *sc);
 static int		fxp_ioctl(struct ifnet *ifp, u_long command,
 			    caddr_t data);
-static void 		fxp_watchdog(struct ifnet *ifp);
+static void 		fxp_watchdog(struct fxp_softc *sc);
 static int		fxp_add_rfabuf(struct fxp_softc *sc,
     			    struct fxp_rx *rxp);
 static int		fxp_mc_addrs(struct fxp_softc *sc);
@@ -766,7 +766,6 @@ fxp_attach(device_t dev)
 	ifp->if_flags = IFF_BROADCAST | IFF_SIMPLEX | IFF_MULTICAST;
 	ifp->if_ioctl = fxp_ioctl;
 	ifp->if_start = fxp_start;
-	ifp->if_watchdog = fxp_watchdog;
 
 	ifp->if_capabilities = ifp->if_capenable = 0;
 
@@ -1408,7 +1407,7 @@ fxp_encap(struct fxp_softc *sc, struct mbuf *m_head)
 		 * Set a 5 second timer just in case we don't hear
 		 * from the card again.
 		 */
-		ifp->if_timer = 5;
+		sc->watchdog_timer = 5;
 	}
 	txp->tx_cb->tx_threshold = tx_threshold;
 
@@ -1589,7 +1588,7 @@ fxp_intr_body(struct fxp_softc *sc, struct ifnet *ifp, uint8_t statack,
 	if (statack & (FXP_SCB_STATACK_CXTNO | FXP_SCB_STATACK_CNA)) {
 		fxp_txeof(sc);
 
-		ifp->if_timer = 0;
+		sc->watchdog_timer = 0;
 		if (sc->tx_queued == 0) {
 			if (sc->need_mcsetup)
 				fxp_mc_setup(sc);
@@ -1817,6 +1816,11 @@ fxp_tick(void *xsc)
 		mii_tick(device_get_softc(sc->miibus));
 
 	/*
+	 * Check that chip hasn't hang.
+	 */
+	fxp_watchdog(sc);
+
+	/*
 	 * Schedule another timeout one second from now.
 	 */
 	callout_reset(&sc->stat_ch, hz, fxp_tick, sc);
@@ -1834,7 +1838,7 @@ fxp_stop(struct fxp_softc *sc)
 	int i;
 
 	ifp->if_drv_flags &= ~(IFF_DRV_RUNNING | IFF_DRV_OACTIVE);
-	ifp->if_timer = 0;
+	sc->watchdog_timer = 0;
 
 	/*
 	 * Cancel stats updater.
@@ -1876,16 +1880,18 @@ fxp_stop(struct fxp_softc *sc)
  * card has wedged for some reason.
  */
 static void
-fxp_watchdog(struct ifnet *ifp)
+fxp_watchdog(struct fxp_softc *sc)
 {
-	struct fxp_softc *sc = ifp->if_softc;
 
-	FXP_LOCK(sc);
+	FXP_LOCK_ASSERT(sc, MA_OWNED);
+
+	if (sc->watchdog_timer == 0 || --sc->watchdog_timer)
+		return;
+
 	device_printf(sc->dev, "device timeout\n");
-	ifp->if_oerrors++;
+	sc->ifp->if_oerrors++;
 
 	fxp_init_body(sc);
-	FXP_UNLOCK(sc);
 }
 
 /*
@@ -2511,7 +2517,6 @@ static void
 fxp_mc_setup(struct fxp_softc *sc)
 {
 	struct fxp_cb_mcs *mcsp = sc->mcsp;
-	struct ifnet *ifp = sc->ifp;
 	struct fxp_tx *txp;
 	int count;
 
@@ -2558,7 +2563,7 @@ fxp_mc_setup(struct fxp_softc *sc)
 		 * Set a 5 second timer just in case we don't hear from the
 		 * card again.
 		 */
-		ifp->if_timer = 5;
+		sc->watchdog_timer = 5;
 
 		return;
 	}
@@ -2600,7 +2605,7 @@ fxp_mc_setup(struct fxp_softc *sc)
 	CSR_WRITE_4(sc, FXP_CSR_SCB_GENERAL, sc->mcs_addr);
 	fxp_scb_cmd(sc, FXP_SCB_COMMAND_CU_START);
 
-	ifp->if_timer = 2;
+	sc->watchdog_timer = 2;
 	return;
 }
 
