@@ -709,6 +709,9 @@ SC_PIXEL_MODE		opt_syscons.h
 SC_RENDER_DEBUG		opt_syscons.h
 SC_TWOBUTTON_MOUSE	opt_syscons.h
 
+# options for printf
+PRINTF_BUFR_SIZE	opt_printf.h
+
 # kbd options
 KBD_DISABLE_KEYMAP_LOAD	opt_kbd.h
 KBD_INSTALL_CDEV	opt_kbd.h
