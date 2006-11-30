@@ -520,6 +520,9 @@ if_attach(struct ifnet *ifp)
 
 	/* Announce the interface. */
 	rt_ifannouncemsg(ifp, IFAN_ARRIVAL);
+
+	if (ifp->if_watchdog != NULL)
+		if_printf(ifp, "using obsoleted if_watchdog interface\n");
 }
 
 static void
