@@ -202,7 +202,7 @@ in_pcballoc(struct socket *so, struct inpcbinfo *pcbinfo)
 	if (error != 0)
 		goto out;
 #endif /*IPSEC*/
-#if defined(INET6)
+#ifdef INET6
 	if (INP_SOCKAF(so) == AF_INET6) {
 		inp->inp_vflag |= INP_IPV6PROTO;
 		if (ip6_v6only)
@@ -375,14 +375,14 @@ in_pcbbind_setup(struct inpcb *inp, struct sockaddr *nam, in_addr_t *laddrp,
 					return (EADDRINUSE);
 			} else if (t &&
 			    (reuseport & t->inp_socket->so_options) == 0) {
-#if defined(INET6)
+#ifdef INET6
 				if (ntohl(sin->sin_addr.s_addr) !=
 				    INADDR_ANY ||
 				    ntohl(t->inp_laddr.s_addr) !=
 				    INADDR_ANY ||
 				    INP_SOCKAF(so) ==
 				    INP_SOCKAF(t->inp_socket))
-#endif /* defined(INET6) */
+#endif
 				return (EADDRINUSE);
 			}
 		}
@@ -1027,7 +1027,8 @@ in_pcblookup_hash(struct inpcbinfo *pcbinfo, struct in_addr faddr,
 	/*
 	 * First look for an exact match.
 	 */
-	head = &pcbinfo->hashbase[INP_PCBHASH(faddr.s_addr, lport, fport, pcbinfo->hashmask)];
+	head = &pcbinfo->hashbase[INP_PCBHASH(faddr.s_addr, lport, fport,
+	    pcbinfo->hashmask)];
 	LIST_FOREACH(inp, head, inp_hash) {
 #ifdef INET6
 		if ((inp->inp_vflag & INP_IPV4) == 0)
@@ -1036,20 +1037,21 @@ in_pcblookup_hash(struct inpcbinfo *pcbinfo, struct in_addr faddr,
 		if (inp->inp_faddr.s_addr == faddr.s_addr &&
 		    inp->inp_laddr.s_addr == laddr.s_addr &&
 		    inp->inp_fport == fport &&
-		    inp->inp_lport == lport) {
-			/*
-			 * Found.
-			 */
+		    inp->inp_lport == lport)
 			return (inp);
-		}
 	}
+
+	/*
+	 * Then look for a wildcard match, if requested.
+	 */
 	if (wildcard) {
 		struct inpcb *local_wild = NULL;
-#if defined(INET6)
+#ifdef INET6
 		struct inpcb *local_wild_mapped = NULL;
-#endif /* defined(INET6) */
+#endif
 
-		head = &pcbinfo->hashbase[INP_PCBHASH(INADDR_ANY, lport, 0, pcbinfo->hashmask)];
+		head = &pcbinfo->hashbase[INP_PCBHASH(INADDR_ANY, lport, 0,
+		    pcbinfo->hashmask)];
 		LIST_FOREACH(inp, head, inp_hash) {
 #ifdef INET6
 			if ((inp->inp_vflag & INP_IPV4) == 0)
@@ -1063,26 +1065,22 @@ in_pcblookup_hash(struct inpcbinfo *pcbinfo, struct in_addr faddr,
 				if (inp->inp_laddr.s_addr == laddr.s_addr)
 					return (inp);
 				else if (inp->inp_laddr.s_addr == INADDR_ANY) {
-#if defined(INET6)
+#ifdef INET6
 					if (INP_CHECK_SOCKAF(inp->inp_socket,
 							     AF_INET6))
 						local_wild_mapped = inp;
 					else
-#endif /* defined(INET6) */
-					local_wild = inp;
+#endif
+						local_wild = inp;
 				}
 			}
 		}
-#if defined(INET6)
+#ifdef INET6
 		if (local_wild == NULL)
 			return (local_wild_mapped);
-#endif /* defined(INET6) */
+#endif
 		return (local_wild);
 	}
-
-	/*
-	 * Not found.
-	 */
 	return (NULL);
 }
 
