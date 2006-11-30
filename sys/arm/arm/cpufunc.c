@@ -1885,7 +1885,9 @@ void
 xscale_setup(args)
 	char *args;
 {
+#ifndef CPU_XSCALE_CORE3
 	uint32_t auxctl;
+#endif
 	int cpuctrl, cpuctrlmask;
 
 	/*
@@ -1931,6 +1933,7 @@ xscale_setup(args)
 /*	cpu_control(cpuctrlmask, cpuctrl);*/
 	cpu_control(0xffffffff, cpuctrl);
 
+#ifndef CPU_XSCALE_CORE3
 	/* Make sure write coalescing is turned on */
 	__asm __volatile("mrc p15, 0, %0, c1, c0, 1"
 		: "=r" (auxctl));
@@ -1941,6 +1944,7 @@ xscale_setup(args)
 #endif
 	__asm __volatile("mcr p15, 0, %0, c1, c0, 1"
 		: : "r" (auxctl));
+#endif
 }
 #endif	/* CPU_XSCALE_80200 || CPU_XSCALE_80321 || CPU_XSCALE_PXA2X0 || CPU_XSCALE_IXP425 
 	   CPU_XSCALE_80219 */
