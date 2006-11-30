@@ -4442,6 +4442,8 @@ int
 pmap_ts_referenced(vm_page_t m)
 {
 
+	if (m->flags & PG_FICTITIOUS)
+		return (0);
 	return (pmap_clearbit(m, PVF_REF));
 }
 
