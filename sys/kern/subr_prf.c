@@ -38,6 +38,7 @@
 __FBSDID("$FreeBSD$");
 
 #include "opt_ddb.h"
+#include "opt_printf.h"
 
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -291,18 +292,24 @@ printf(const char *fmt, ...)
 	va_list ap;
 	struct putchar_arg pca;
 	int retval;
-
-	critical_enter();
+#ifdef PRINTF_BUFR_SIZE
+	char bufr[PRINTF_BUFR_SIZE];
+#endif
 
 	va_start(ap, fmt);
 	pca.tty = NULL;
 	pca.flags = TOCONS | TOLOG;
 	pca.pri = -1;
-	pca.p_bufr = (char *) PCPU_PTR(cons_bufr);
+#ifdef PRINTF_BUFR_SIZE
+	pca.p_bufr = bufr;
 	pca.p_next = pca.p_bufr;
-	pca.n_bufr = PCPU_CONS_BUFR;
-	pca.remain = PCPU_CONS_BUFR;
+	pca.n_bufr = sizeof(bufr);
+	pca.remain = sizeof(bufr);
 	*pca.p_next = '\0';
+#else
+	/* Don't buffer console output. */
+	pca.p_bufr = NULL;
+#endif
 
 	retval = kvprintf(fmt, putchar, &pca, 10, ap);
 	va_end(ap);
@@ -314,8 +321,6 @@ printf(const char *fmt, ...)
 	if (!panicstr)
 		msgbuftrigger = 1;
 
-	critical_exit();
-
 	return (retval);
 }
 
@@ -324,17 +329,23 @@ vprintf(const char *fmt, va_list ap)
 {
 	struct putchar_arg pca;
 	int retval;
-
-	critical_enter();
+#ifdef PRINTF_BUFR_SIZE
+	char bufr[PRINTF_BUFR_SIZE];
+#endif
 
 	pca.tty = NULL;
 	pca.flags = TOCONS | TOLOG;
 	pca.pri = -1;
-	pca.p_bufr = (char *) PCPU_PTR(cons_bufr);
+#ifdef PRINTF_BUFR_SIZE
+	pca.p_bufr = bufr;
 	pca.p_next = pca.p_bufr;
-	pca.n_bufr = PCPU_CONS_BUFR;
-	pca.remain = PCPU_CONS_BUFR;
+	pca.n_bufr = sizeof(bufr);
+	pca.remain = sizeof(bufr);
 	*pca.p_next = '\0';
+#else
+	/* Don't buffer console output. */
+	pca.p_bufr = NULL;
+#endif
 
 	retval = kvprintf(fmt, putchar, &pca, 10, ap);
 
@@ -344,8 +355,6 @@ vprintf(const char *fmt, va_list ap)
 
 	if (!panicstr)
 		msgbuftrigger = 1;
-
-	critical_exit();
 
 	return (retval);
 }
