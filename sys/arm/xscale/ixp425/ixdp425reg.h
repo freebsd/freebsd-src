@@ -43,9 +43,9 @@
 #define	GPIO_PCI_INTC	9
 #define	GPIO_PCI_INTD	8
 #define	GPIO_I2C_SDA	7
-#define  GPIO_I2C_SDA_BIT	(1U << 7)
+#define  GPIO_I2C_SDA_BIT	(1U << GPIO_I2C_SDA)
 #define	GPIO_I2C_SCL	6
-#define	  GPIO_I2C_SCL_BIT	(1U << 6)
+#define	  GPIO_I2C_SCL_BIT	(1U << GPIO_I2C_SCL)
 /* Interrupt */
 #define	PCI_INT_A	IXP425_INT_GPIO_11
 #define	PCI_INT_B	IXP425_INT_GPIO_10
