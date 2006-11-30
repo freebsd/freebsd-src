@@ -585,7 +585,7 @@ pmap_pte_init_sa1(void)
 #endif /* ARM_MMU_SA1 == 1*/
 
 #if ARM_MMU_XSCALE == 1
-#if (ARM_NMMUS > 1)
+#if (ARM_NMMUS > 1) || defined (CPU_XSCALE_CORE3)
 static u_int xscale_use_minidata;
 #endif
 
@@ -614,9 +614,11 @@ pmap_pte_init_xscale(void)
 	 * is significantly faster than the traditional, write-through
 	 * behavior of this case.
 	 */
+#ifndef CPU_XSCALE_CORE3
 	pte_l1_s_cache_mode |= L1_S_XSCALE_TEX(TEX_XSCALE_X);
 	pte_l2_l_cache_mode |= L2_XSCALE_L_TEX(TEX_XSCALE_X);
 	pte_l2_s_cache_mode |= L2_XSCALE_T_TEX(TEX_XSCALE_X);
+#endif
 #endif /* XSCALE_CACHE_READ_WRITE_ALLOCATE */
 #ifdef XSCALE_CACHE_WRITE_THROUGH
 	/*
@@ -673,8 +675,16 @@ pmap_pte_init_xscale(void)
 	pte_l1_c_proto = L1_C_PROTO_xscale;
 	pte_l2_s_proto = L2_S_PROTO_xscale;
 
+#ifdef CPU_XSCALE_CORE3
+	pmap_copy_page_func = pmap_copy_page_generic;
+	pmap_zero_page_func = pmap_zero_page_generic;
+	xscale_use_minidata = 0;
+	pte_l1_s_cache_mode_pt = pte_l2_l_cache_mode_pt =
+	    pte_l2_s_cache_mode_pt = 0;
+#else
 	pmap_copy_page_func = pmap_copy_page_xscale;
 	pmap_zero_page_func = pmap_zero_page_xscale;
+#endif
 
 	/*
 	 * Disable ECC protection of page table access, for now.
@@ -3136,6 +3146,7 @@ pmap_remove_all(vm_page_t m)
 
 	if (TAILQ_EMPTY(&m->md.pv_list))
 		return;
+	mtx_assert(&vm_page_queue_mtx, MA_OWNED);
 	curpm = vmspace_pmap(curproc->p_vmspace);
 	while ((pv = TAILQ_FIRST(&m->md.pv_list)) != NULL) {
 		if (flush == FALSE && (pv->pv_pmap == curpm ||
@@ -4005,7 +4016,7 @@ pmap_remove(pmap_t pm, vm_offset_t sva, vm_offset_t eva)
  * StrongARM accesses to non-cached pages are non-burst making writing
  * _any_ bulk data very slow.
  */
-#if (ARM_MMU_GENERIC + ARM_MMU_SA1) != 0
+#if (ARM_MMU_GENERIC + ARM_MMU_SA1) != 0 || defined(CPU_XSCALE_CORE3)
 void
 pmap_zero_page_generic(vm_paddr_t phys, int off, int size)
 {
@@ -4094,7 +4105,7 @@ pmap_use_minicache(vm_offset_t va, vm_size_t size)
 	pt_entry_t *ptep, *sptep, pte;
 	vm_offset_t next_bucket, eva;
 
-#if (ARM_NMMUS > 1)
+#if (ARM_NMMUS > 1) || defined(CPU_XSCALE_CORE3)
 	if (xscale_use_minidata == 0)
 		return;
 #endif
@@ -4267,7 +4278,7 @@ pmap_clean_page(struct pv_entry *pv, boolean_t is_src)
  * hook points. The same comment regarding cachability as in
  * pmap_zero_page also applies here.
  */
-#if  (ARM_MMU_GENERIC + ARM_MMU_SA1) != 0 
+#if  (ARM_MMU_GENERIC + ARM_MMU_SA1) != 0 || defined (CPU_XSCALE_CORE3)
 void
 pmap_copy_page_generic(vm_paddr_t src, vm_paddr_t dst)
 {
@@ -4430,6 +4441,7 @@ pmap_page_exists_quick(pmap_t pmap, vm_page_t m)
 int
 pmap_ts_referenced(vm_page_t m)
 {
+
 	return (pmap_clearbit(m, PVF_REF));
 }
 
