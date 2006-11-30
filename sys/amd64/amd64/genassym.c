@@ -185,7 +185,6 @@ ASSYM(PC_CURTHREAD, offsetof(struct pcpu, pc_curthread));
 ASSYM(PC_FPCURTHREAD, offsetof(struct pcpu, pc_fpcurthread));
 ASSYM(PC_IDLETHREAD, offsetof(struct pcpu, pc_idlethread));
 ASSYM(PC_CURPCB, offsetof(struct pcpu, pc_curpcb));
-ASSYM(PC_CONS_BUFR, offsetof(struct pcpu, pc_cons_bufr));
 ASSYM(PC_CPUID, offsetof(struct pcpu, pc_cpuid));
 ASSYM(PC_SCRATCH_RSP, offsetof(struct pcpu, pc_scratch_rsp));
 ASSYM(PC_CURPMAP, offsetof(struct pcpu, pc_curpmap));
