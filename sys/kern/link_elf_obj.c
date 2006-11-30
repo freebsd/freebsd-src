@@ -1115,6 +1115,51 @@ elf_obj_lookup(linker_file_t lf, Elf_Size symidx, int deps)
 }
 
 static void
+link_elf_fix_link_set(elf_file_t ef)
+{
+	static const char startn[] = "__start_";
+	static const char stopn[] = "__stop_";
+	Elf_Sym *sym;
+	const char *sym_name, *linkset_name;
+	Elf_Addr startp, stopp;
+	Elf_Size symidx;
+	int start, i;
+
+	startp = stopp = 0;
+	for (symidx = 1 /* zero entry is special */;
+		symidx < ef->ddbsymcnt; symidx++) {
+		sym = ef->ddbsymtab + symidx;
+		if (sym->st_shndx != SHN_UNDEF)
+			continue;
+
+		sym_name = ef->ddbstrtab + sym->st_name;
+		if (strncmp(sym_name, startn, sizeof(startn) - 1) == 0) {
+			start = 1;
+			linkset_name = sym_name + sizeof(startn) - 1;
+		}
+		else if (strncmp(sym_name, stopn, sizeof(stopn) - 1) == 0) {
+			start = 0;
+			linkset_name = sym_name + sizeof(stopn) - 1;
+		}
+		else
+			continue;
+
+		for (i = 0; i < ef->nprogtab; i++) {
+			if (strcmp(ef->progtab[i].name, linkset_name) == 0) {
+				startp = (Elf_Addr)ef->progtab[i].addr;
+				stopp = (Elf_Addr)(startp + ef->progtab[i].size);
+				break;
+			}
+		}
+		if (i == ef->nprogtab)
+			continue;
+
+		sym->st_value = start ? startp : stopp;
+		sym->st_shndx = i;
+	}
+}
+
+static void
 link_elf_reloc_local(linker_file_t lf)
 {
 	elf_file_t ef = (elf_file_t)lf;
@@ -1126,6 +1171,8 @@ link_elf_reloc_local(linker_file_t lf)
 	Elf_Addr base;
 	int i;
 	Elf_Size symidx;
+
+	link_elf_fix_link_set(ef);
 
 	/* Perform relocations without addend if there are any: */
 	for (i = 0; i < ef->nrel; i++) {
