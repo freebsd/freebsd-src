@@ -162,6 +162,7 @@ struct fxp_softc {
 	uint32_t stats_addr;		/* DMA address of the stats structure */
 	int rx_idle_secs;		/* # of seconds RX has been idle */
 	struct callout stat_ch;		/* stat callout */
+	int watchdog_timer;		/* seconds until chip reset */
 	struct fxp_cb_mcs *mcsp;	/* Pointer to mcast setup descriptor */
 	uint32_t mcs_addr;		/* DMA address of the multicast cmd */
 	struct ifmedia sc_media;	/* media information */
