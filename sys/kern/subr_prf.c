@@ -314,9 +314,11 @@ printf(const char *fmt, ...)
 	retval = kvprintf(fmt, putchar, &pca, 10, ap);
 	va_end(ap);
 
+#ifdef PRINTF_BUFR_SIZE
 	/* Write any buffered console output: */
 	if (*pca.p_bufr != '\0')
 		cnputs(pca.p_bufr);
+#endif
 
 	if (!panicstr)
 		msgbuftrigger = 1;
@@ -349,9 +351,11 @@ vprintf(const char *fmt, va_list ap)
 
 	retval = kvprintf(fmt, putchar, &pca, 10, ap);
 
+#ifdef PRINTF_BUFR_SIZE
 	/* Write any buffered console output: */
 	if (*pca.p_bufr != '\0')
 		cnputs(pca.p_bufr);
+#endif
 
 	if (!panicstr)
 		msgbuftrigger = 1;
