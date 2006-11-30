@@ -139,4 +139,7 @@
 #define ARM_XSCALE_PMU	0
 #endif
 
+#if defined(CPU_XSCALE_81342)
+#define CPU_XSCALE_CORE3
+#endif
 #endif /* _MACHINE_CPUCONF_H_ */
