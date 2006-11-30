@@ -124,7 +124,7 @@ msleep(ident, mtx, priority, wmesg, timo)
 {
 	struct thread *td;
 	struct proc *p;
-	int catch, rval, flags;
+	int catch, rval, flags, pri;
 	WITNESS_SAVE_DECL(mtx);
 
 	td = curthread;
@@ -194,11 +194,12 @@ msleep(ident, mtx, priority, wmesg, timo)
 		sleepq_set_timeout(ident, timo);
 
 	/*
-	 * Adjust this thread's priority.
+	 * Adjust this thread's priority, if necessary.
 	 */
-	if ((priority & PRIMASK) != 0) {
+	pri = priority & PRIMASK;
+	if (pri != 0 && pri != td->td_priority) {
 		mtx_lock_spin(&sched_lock);
-		sched_prio(td, priority & PRIMASK);
+		sched_prio(td, pri);
 		mtx_unlock_spin(&sched_lock);
 	}
 
