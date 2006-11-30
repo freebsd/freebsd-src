@@ -2486,6 +2486,7 @@ struct bge_softc {
 	int			bge_txcnt;
 	int			bge_link;	/* link state */
 	int			bge_link_evt;	/* pending link event */
+	int			bge_timer;
 	struct callout		bge_stat_ch;
 	char			*bge_vpd_prodname;
 	char			*bge_vpd_readonly;

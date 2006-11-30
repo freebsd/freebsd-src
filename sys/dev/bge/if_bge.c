@@ -327,7 +327,6 @@ static void bge_txeof(struct bge_softc *);
 static void bge_rxeof(struct bge_softc *);
 
 static void bge_asf_driver_up (struct bge_softc *);
-static void bge_tick_locked(struct bge_softc *);
 static void bge_tick(void *);
 static void bge_stats_update(struct bge_softc *);
 static void bge_stats_update_regs(struct bge_softc *);
@@ -340,7 +339,7 @@ static int bge_ioctl(struct ifnet *, u_long, caddr_t);
 static void bge_init_locked(struct bge_softc *);
 static void bge_init(void *);
 static void bge_stop(struct bge_softc *);
-static void bge_watchdog(struct ifnet *);
+static void bge_watchdog(struct bge_softc *);
 static void bge_shutdown(device_t);
 static int bge_ifmedia_upd_locked(struct ifnet *);
 static int bge_ifmedia_upd(struct ifnet *);
@@ -2274,7 +2273,6 @@ bge_attach(device_t dev)
 	ifp->if_flags = IFF_BROADCAST | IFF_SIMPLEX | IFF_MULTICAST;
 	ifp->if_ioctl = bge_ioctl;
 	ifp->if_start = bge_start;
-	ifp->if_watchdog = bge_watchdog;
 	ifp->if_init = bge_init;
 	ifp->if_mtu = ETHERMTU;
 	ifp->if_snd.ifq_drv_maxlen = BGE_TX_RING_CNT - 1;
@@ -2386,7 +2384,7 @@ again:
 	 * Call MI attach routine.
 	 */
 	ether_ifattach(ifp, eaddr);
-	callout_init(&sc->bge_stat_ch, CALLOUT_MPSAFE);
+	callout_init_mtx(&sc->bge_stat_ch, &sc->bge_mtx, 0);
 
 	/*
 	 * Hookup IRQ last.
@@ -2813,7 +2811,7 @@ bge_txeof(struct bge_softc *sc)
 		}
 		sc->bge_txcnt--;
 		BGE_INC(sc->bge_tx_saved_considx, BGE_TX_RING_CNT);
-		ifp->if_timer = 0;
+		sc->bge_timer = 0;
 	}
 
 	if (cur_tx != NULL)
@@ -2939,8 +2937,9 @@ bge_asf_driver_up(struct bge_softc *sc)
 }
 
 static void
-bge_tick_locked(struct bge_softc *sc)
+bge_tick(void *xsc)
 {
+	struct bge_softc *sc = xsc;
 	struct mii_data *mii = NULL;
 
 	BGE_LOCK_ASSERT(sc);
@@ -2972,20 +2971,9 @@ bge_tick_locked(struct bge_softc *sc)
 	}
 
 	bge_asf_driver_up(sc);
+	bge_watchdog(sc);
 
 	callout_reset(&sc->bge_stat_ch, hz, bge_tick, sc);
-}
-
-static void
-bge_tick(void *xsc)
-{
-	struct bge_softc *sc;
-
-	sc = xsc;
-
-	BGE_LOCK(sc);
-	bge_tick_locked(sc);
-	BGE_UNLOCK(sc);
 }
 
 static void
@@ -3285,7 +3273,7 @@ bge_start_locked(struct ifnet *ifp)
 	/*
 	 * Set a timeout in case the chip goes out to lunch.
 	 */
-	ifp->if_timer = 5;
+	sc->bge_timer = 5;
 }
 
 /*
@@ -3667,11 +3655,16 @@ bge_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 }
 
 static void
-bge_watchdog(struct ifnet *ifp)
+bge_watchdog(struct bge_softc *sc)
 {
-	struct bge_softc *sc;
+	struct ifnet *ifp;
 
-	sc = ifp->if_softc;
+	BGE_LOCK_ASSERT(sc);
+
+	if (sc->bge_timer == 0 || --sc->bge_timer)
+		return;
+
+	ifp = sc->bge_ifp;
 
 	if_printf(ifp, "watchdog timeout -- resetting\n");
 
@@ -3889,7 +3882,7 @@ bge_link_upd(struct bge_softc *sc)
 		status = CSR_READ_4(sc, BGE_MAC_STS);
 		if (status & BGE_MACSTAT_MI_INTERRUPT) {
 			callout_stop(&sc->bge_stat_ch);
-			bge_tick_locked(sc);
+			bge_tick(sc);
 
 			mii = device_get_softc(sc->bge_miibus);
 			if (!sc->bge_link &&
@@ -3948,7 +3941,7 @@ bge_link_upd(struct bge_softc *sc)
 		if (link != sc->bge_link ||
 		    sc->bge_asicrev == BGE_ASICREV_BCM5700) {
 			callout_stop(&sc->bge_stat_ch);
-			bge_tick_locked(sc);
+			bge_tick(sc);
 
 			mii = device_get_softc(sc->bge_miibus);
 			if (!sc->bge_link &&
