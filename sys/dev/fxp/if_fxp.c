@@ -1816,7 +1816,7 @@ fxp_tick(void *xsc)
 		mii_tick(device_get_softc(sc->miibus));
 
 	/*
-	 * Check that chip hasn't hang.
+	 * Check that chip hasn't hung.
 	 */
 	fxp_watchdog(sc);
 
