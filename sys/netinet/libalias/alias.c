@@ -1574,3 +1574,41 @@ LibAliasUnLoadAllModule(void)
 }
 
 #endif
+
+#ifdef _KERNEL
+/*
+ * m_megapullup() function is a big hack (only used in ng_nat and ipfw+nat).
+ *
+ * It allocates an mbuf with cluster and copies the whole
+ * chain into cluster, so that it is all contigous and the
+ * whole packet can be accessed via char pointer.
+ * This is required, because libalias doesn't have idea
+ * about mbufs.
+ * 
+ * On success, m_megapullup returns an mbuf with cluster
+ * containing the input packet, on failure NULL.
+ * In both cases, the input packet is consumed.
+ */
+struct mbuf *
+m_megapullup(struct mbuf *m, int len) {
+	struct mbuf *mcl;
+	caddr_t cp;
+	
+	if (len > MCLBYTES)
+		goto bad;
+	
+	if ((mcl = m_getcl(M_DONTWAIT, MT_DATA, M_PKTHDR)) == NULL)
+		goto bad;
+ 
+	cp = mtod(mcl, caddr_t);
+	m_copydata(m, 0, len, cp);
+	m_move_pkthdr(mcl, m);
+	mcl->m_len = mcl->m_pkthdr.len;
+	m_freem(m);
+ 
+	return (mcl);
+bad:
+	m_freem(m);
+	return (NULL);
+}
+#endif
