@@ -574,8 +574,7 @@
 #define BGE_SERDES_STS			0x0594
 #define BGE_SGDIG_CFG			0x05B0
 #define BGE_SGDIG_STS			0x05B4
-#define BGE_RX_STATS			0x0800
-#define BGE_TX_STATS			0x0880
+#define BGE_MAC_STATS			0x0800
 
 /* Ethernet MAC Mode register */
 #define BGE_MACMODE_RESET		0x00000001
@@ -2490,9 +2489,9 @@ struct bge_softc {
 	struct callout		bge_stat_ch;
 	char			*bge_vpd_prodname;
 	char			*bge_vpd_readonly;
-	u_long			bge_rx_discards;
-	u_long			bge_tx_discards;
-	u_long			bge_tx_collisions;
+	uint32_t		bge_rx_discards;
+	uint32_t		bge_tx_discards;
+	uint32_t		bge_tx_collisions;
 #ifdef DEVICE_POLLING
 	int			rxcycles;
 #endif /* DEVICE_POLLING */
