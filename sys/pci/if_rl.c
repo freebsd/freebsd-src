@@ -215,7 +215,7 @@ static void rl_stop(struct rl_softc *);
 static int rl_suspend(device_t);
 static void rl_tick(void *);
 static void rl_txeof(struct rl_softc *);
-static void rl_watchdog(struct ifnet *);
+static void rl_watchdog(struct rl_softc *);
 
 #ifdef RL_USEIOSPACE
 #define RL_RES			SYS_RES_IOPORT
@@ -955,7 +955,6 @@ rl_attach(device_t dev)
 	ifp->if_flags = IFF_BROADCAST | IFF_SIMPLEX | IFF_MULTICAST;
 	ifp->if_ioctl = rl_ioctl;
 	ifp->if_start = rl_start;
-	ifp->if_watchdog = rl_watchdog;
 	ifp->if_init = rl_init;
 	ifp->if_capabilities = IFCAP_VLAN_MTU;
 	ifp->if_capenable = ifp->if_capabilities;
@@ -1265,9 +1264,9 @@ rl_txeof(struct rl_softc *sc)
 	} while (sc->rl_cdata.last_tx != sc->rl_cdata.cur_tx);
 
 	if (RL_LAST_TXMBUF(sc) == NULL)
-		ifp->if_timer = 0;
-	else if (ifp->if_timer == 0)
-		ifp->if_timer = 5;
+		sc->rl_watchdog_timer = 0;
+	else if (sc->rl_watchdog_timer == 0)
+		sc->rl_watchdog_timer = 5;
 }
 
 static void
@@ -1279,6 +1278,8 @@ rl_tick(void *xsc)
 	RL_LOCK_ASSERT(sc);
 	mii = device_get_softc(sc->rl_miibus);
 	mii_tick(mii);
+
+	rl_watchdog(sc);
 
 	callout_reset(&sc->rl_stat_callout, hz, rl_tick, sc);
 }
@@ -1466,7 +1467,7 @@ rl_start_locked(struct ifnet *ifp)
 		RL_INC(sc->rl_cdata.cur_tx);
 
 		/* Set a timeout in case the chip goes out to lunch. */
-		ifp->if_timer = 5;
+		sc->rl_watchdog_timer = 5;
 	}
 
 	/*
@@ -1693,20 +1694,20 @@ rl_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 }
 
 static void
-rl_watchdog(struct ifnet *ifp)
+rl_watchdog(struct rl_softc *sc)
 {
-	struct rl_softc		*sc = ifp->if_softc;
 
-	RL_LOCK(sc);
+	RL_LOCK_ASSERT(sc);
 
-	if_printf(ifp, "watchdog timeout\n");
-	ifp->if_oerrors++;
+	if (sc->rl_watchdog_timer == 0 || --sc->rl_watchdog_timer >0)
+		return;
+
+	device_printf(sc->rl_dev, "watchdog timeout\n");
+	sc->rl_ifp->if_oerrors++;
 
 	rl_txeof(sc);
 	rl_rxeof(sc);
 	rl_init_locked(sc);
-
-	RL_UNLOCK(sc);
 }
 
 /*
@@ -1721,7 +1722,7 @@ rl_stop(struct rl_softc *sc)
 
 	RL_LOCK_ASSERT(sc);
 
-	ifp->if_timer = 0;
+	sc->rl_watchdog_timer = 0;
 	callout_stop(&sc->rl_stat_callout);
 	ifp->if_drv_flags &= ~(IFF_DRV_RUNNING | IFF_DRV_OACTIVE);
 
