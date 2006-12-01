@@ -746,7 +746,7 @@ ieee80211_decap(struct ieee80211com *ic, struct mbuf *m, int hdrlen)
 	if (llc->llc_dsap == LLC_SNAP_LSAP && llc->llc_ssap == LLC_SNAP_LSAP &&
 	    llc->llc_control == LLC_UI && llc->llc_snap.org_code[0] == 0 &&
 	    llc->llc_snap.org_code[1] == 0 && llc->llc_snap.org_code[2] == 0) {
-		m_adj(m, hdrlen + sizeof(struct llc) - sizeof(*eh));
+		m_adj(m, hdrlen + LLC_SNAPFRAMELEN - sizeof(*eh));
 		llc = NULL;
 	} else {
 		m_adj(m, hdrlen - sizeof(*eh));
