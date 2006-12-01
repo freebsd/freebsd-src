@@ -3448,7 +3448,8 @@ do_l2b_alloc:
 			else if (!pve && 
 			    !(m->flags & (PG_UNMANAGED | PG_FICTITIOUS)))
 				pve = pmap_get_pv_entry();
-			KASSERT(pve != NULL, ("No pv"));
+			KASSERT(pve != NULL || m->flags & (PG_UNMANAGED | 
+			    PG_FICTITIOUS), ("No pv"));
 			oflags = pve->pv_flags;
 			
 			/*
