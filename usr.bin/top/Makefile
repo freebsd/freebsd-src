@@ -1,32 +1,35 @@
 # $FreeBSD$
-PROG=	top
 
 TOPDIR=	${.CURDIR}/../../contrib/top
-.PATH:	${TOPDIR}
+.PATH: ${TOPDIR}
 
-CFLAGS+= -DHAVE_GETOPT -DHAVE_STRERROR -I${.CURDIR} -I${TOPDIR} -I. -DORDER
+PROG=	top
+SRCS=	commands.c display.c machine.c screen.c top.c \
+	username.c utils.c version.c
+SRCS+=	sigdesc.h top.local.h
+CFLAGS+= -DHAVE_GETOPT -DHAVE_STRERROR -DORDER
+CFLAGS+= -I${.CURDIR} -I${TOPDIR} -I.
 
 #
 # The table size should be a prime number approximately twice as
 # large as the number of lines in /etc/passwd.  The default number
-# is 20011, use /etc/make.conf to override this.
+# is 20011; use /etc/make.conf to override this.
 #
 .if defined(TOP_TABLE_SIZE)
 CFLAGS+= -D"Table_size=${TOP_TABLE_SIZE}"
 .endif
 
-SRCS=	commands.c display.c machine.c screen.c top.c \
-	username.c utils.c version.c top.local.h
+DPADD=	${LIBTERMCAP} ${LIBM} ${LIBKVM}
+LDADD=	-ltermcap -lm -lkvm
 
-CLEANFILES+= top.local.h top.x top.1
-DPADD=  ${LIBTERMCAP} ${LIBM} ${LIBKVM}
-LDADD=  -ltermcap -lm -lkvm
+CLEANFILES= sigdesc.h
+SIGCONV_AWK= ${.CURDIR}/../../contrib/top/sigconv.awk
+SIGNAL_H= ${DESTDIR}/usr/include/sys/signal.h
+sigdesc.h: ${SIGCONV_AWK} ${SIGNAL_H}
+	awk -f ${SIGCONV_AWK} < ${SIGNAL_H} > ${.TARGET}
 
-top.1:	top.x top.local.1
-	cat ${.ALLSRC} > top.1
-
+CLEANFILES+= top.local.h top.x
 .SUFFIXES: .X .x .H .h
-
 .X.x .H.h:
 	@${ECHO} Making ${.TARGET} from ${.IMPSRC}
 	@sed -e's,%LoadMax%,5.0,g' \
@@ -36,5 +39,9 @@ top.1:	top.x top.local.1
 	-e's,%delay%,2,g' \
 	-e's,%random%,1,g' \
 	${.IMPSRC} > ${.TARGET}
+
+CLEANFILES+= top.1
+top.1: top.x top.local.1
+	cat ${.ALLSRC} > ${.TARGET}
 
 .include <bsd.prog.mk>

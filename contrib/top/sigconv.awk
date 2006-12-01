@@ -1,3 +1,5 @@
+# $FreeBSD$
+
 BEGIN		{
 		    nsig = 0;
 		    j = 0;
@@ -10,7 +12,7 @@ BEGIN		{
 		    print "struct sigdesc sigdesc[] = {"
 		}
 
-/^#define[ \t][ \t]*SIG[A-Z]/	{
+/^#define[ \t][ \t]*SIG[A-Z]+[0-9]*[ \t]/	{
 
 				    j = sprintf("%d", $3);
 				    str = $2;
@@ -18,10 +20,10 @@ BEGIN		{
 				    if (nsig < j) 
 					nsig = j;
 
-				    siglist[j] = sprintf("\"%s\",\t%2d,", \
+				    siglist[j] = sprintf("{ \"%s\",\t%2d },", \
 						substr(str, 4), j);
 				}
-/^#[ \t]*define[ \t][ \t]*SIG[A-Z]/	{
+/^#[ \t]*define[ \t][ \t]*SIG[A-Z]+[0-9]*[ \t]/	{
 
 				    j = sprintf("%d", $4);
 				    str = $3;
@@ -29,10 +31,10 @@ BEGIN		{
 				    if (nsig < j)
 					nsig = j;
 
-				    siglist[j] = sprintf("\"%s\",\t%2d,", \
+				    siglist[j] = sprintf("{ \"%s\",\t%2d },", \
 						substr(str, 4), j);
 				}
-/^#[ \t]*define[ \t][ \t]*_SIG[A-Z]/	{
+/^#[ \t]*define[ \t][ \t]*_SIG[A-Z]+[0-9]*[ \t]/	{
 
 				    j = sprintf("%d", $4);
 				    str = $3;
@@ -40,7 +42,7 @@ BEGIN		{
 				    if (nsig < j)
 					nsig = j;
 
-				    siglist[j] = sprintf("\"%s\",\t%2d,", \
+				    siglist[j] = sprintf("{ \"%s\",\t%2d },", \
 					    substr(str, 5), j);
 				}
 
@@ -49,5 +51,5 @@ END				{
 					if (siglist[n] != "")
 					    printf("    %s\n", siglist[n]);
 
-				    printf("    NULL,\t 0\n};\n");
+				    printf("    { NULL,\t 0 }\n};\n");
 				}
