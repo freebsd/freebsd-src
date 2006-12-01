@@ -977,6 +977,7 @@ ich_pci_attach(device_t dev)
 	case 0x81c0104d:	/* Sony VAIO type T */
 	case 0x81c5104d:	/* Sony VAIO VGN B1VP/B1XP */
 	case 0x3089103c:	/* Compaq Presario B3800 */
+	case 0x309a103c:	/* HP Compaq nx4300 */
 	case 0x82131033:	/* NEC VersaPro VJ10F/BH */
 	case 0x82be1033:	/* NEC VersaPro VJ12F/CH */
 		ac97_setflags(sc->codec, ac97_getflags(sc->codec) | AC97_F_EAPD_INV);
