@@ -56,8 +56,6 @@ static ng_newhook_t	ng_nat_newhook;
 static ng_rcvdata_t	ng_nat_rcvdata;
 static ng_disconnect_t	ng_nat_disconnect;
 
-static struct mbuf * m_megapullup(struct mbuf *, int);
-
 /* List of commands and how to convert arguments to/from ASCII. */
 static const struct ng_cmdlist ng_nat_cmdlist[] = {
 	{
@@ -327,36 +325,3 @@ ng_nat_disconnect(hook_p hook)
 	return (0);
 }
 
-/*
- * m_megapullup() function is a big hack.
- *
- * It allocates an mbuf with cluster and copies the whole
- * chain into cluster, so that it is all contigous and the
- * whole packet can be accessed via char pointer.
- *
- * This is required, because libalias doesn't have idea
- * about mbufs.
- */
-static struct mbuf *
-m_megapullup(struct mbuf *m, int len)
-{
-	struct mbuf *mcl;
-	caddr_t cp;
-
-	if (len > MCLBYTES)
-		goto bad;
-
-	if ((mcl = m_getcl(M_DONTWAIT, MT_DATA, M_PKTHDR)) == NULL)
-		goto bad;
-
-	cp = mtod(mcl, caddr_t);
-	m_copydata(m, 0, len, cp);
-	m_move_pkthdr(mcl, m);
-	mcl->m_len = mcl->m_pkthdr.len;
-	m_freem(m);
-
-	return (mcl);
-bad:
-	m_freem(m);
-	return (NULL);
-}
