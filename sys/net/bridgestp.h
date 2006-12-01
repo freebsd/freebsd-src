@@ -217,7 +217,7 @@ struct bstp_cbpdu {
 	uint16_t	cbu_hellotime;		/* hello time */
 	uint16_t	cbu_forwarddelay;	/* forwarding delay */
 	uint8_t		cbu_versionlen;		/* version 1 length */
-} __packed__;
+} __packed;
 #define	BSTP_BPDU_STP_LEN	(3 + 35)	/* LLC + STP pdu */
 #define	BSTP_BPDU_RSTP_LEN	(3 + 36)	/* LLC + RSTP pdu */
 
