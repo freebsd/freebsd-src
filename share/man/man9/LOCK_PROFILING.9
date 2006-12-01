@@ -67,7 +67,8 @@ The total number of times another thread tried to acquire the lock
 while it was held after having been acquired at this point.
 .El
 .Pp
-In addition, the average hold time and average wait time are derived from the total hold time
+In addition, the average hold time and average wait time are derived
+from the total hold time
 and total wait time respectively and the number of acquisitions.
 .Pp
 The
@@ -143,18 +144,18 @@ and line number, followed by the name of the lock in parentheses.
 Mutex profiling support appeared in
 .Fx 5.0 .
 Generalized lock profiling support appeared in
-.Fx 5.0 .
+.Fx 7.0 .
 .Sh AUTHORS
 .An -nosplit
 The
-.Nm MUTEX_PROFILING 
+.Nm MUTEX_PROFILING
 code was written by
 .An Eivind Eklund Aq eivind@FreeBSD.org ,
 .An Dag-Erling Sm\(/orgrav Aq des@FreeBSD.org
 and
-.An Robert Watson Aq rwatson@FreeBSD.org . 
+.An Robert Watson Aq rwatson@FreeBSD.org .
 The
-.Nm LOCK_PROFILING 
+.Nm
 code was written by
 .An Kip Macy Aq kmacy@FreeBSD.org .
 This manual page was written by
@@ -170,7 +171,8 @@ without it.
 The
 .Dv LOCK_PROFILING
 option also prevents inlining of the mutex code, which can result in a
-fairly severe performance penalty. This is, however, not always the case.
+fairly severe performance penalty.
+This is, however, not always the case.
 .Dv LOCK_PROFILING
 can introduce a substantial performance overhead that is easily
 monitorable using other profiling tools, so combining profiling tools
