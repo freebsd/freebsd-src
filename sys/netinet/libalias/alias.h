@@ -189,6 +189,9 @@ int             LibAliasLoadModule(char *);
 int             LibAliasUnLoadAllModule(void);
 int             LibAliasRefreshModules(void);
 
+/* Mbuf helper function. */
+struct mbuf    *m_megapullup(struct mbuf *, int);
+
 /*
  * Mode flags and other constants.
  */
