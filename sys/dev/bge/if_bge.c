@@ -2991,7 +2991,7 @@ bge_stats_update_regs(struct bge_softc *sc)
 
 	cnt = CSR_READ_4(sc, BGE_RXLP_LOCSTAT_IFIN_DROPS);
 	ifp->if_ierrors += (u_long)(cnt - sc->bge_rx_discards);
-        sc->bge_rx_discards = cnt;
+	sc->bge_rx_discards = cnt;
 }
 
 static void
