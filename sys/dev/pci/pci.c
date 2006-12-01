@@ -425,6 +425,7 @@ pci_read_extcap(device_t pcib, pcicfgregs *cfg)
 
 	switch (cfg->hdrtype & PCIM_HDRTYPE) {
 	case 0:
+	case 1:
 		ptrptr = PCIR_CAP_PTR;
 		break;
 	case 2:
