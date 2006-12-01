@@ -190,14 +190,8 @@ atm_output(struct ifnet *ifp, struct mbuf *m0, struct sockaddr *dst,
 			break;
 			
 		default:
-#if (defined(__FreeBSD__) && __FreeBSD_version >= 501113) || \
-    defined(__NetBSD__) || defined(__OpenBSD__)
 			printf("%s: can't handle af%d\n", ifp->if_xname, 
 			    dst->sa_family);
-#elif defined(__FreeBSD__) || defined(__bsdi__)
-			printf("%s%d: can't handle af%d\n", ifp->if_name, 
-			    ifp->if_unit, dst->sa_family);
-#endif
 			senderr(EAFNOSUPPORT);
 		}
 
@@ -316,17 +310,9 @@ atm_input(struct ifnet *ifp, struct atm_pseudohdr *ah, struct mbuf *m,
 				return; /* failed */
 			alc = mtod(m, struct atmllc *);
 			if (bcmp(alc, ATMLLC_HDR, 6)) {
-#if (defined(__FreeBSD__) && __FreeBSD_version >= 501113) || \
-    defined(__NetBSD__) || defined(__OpenBSD__)
 				printf("%s: recv'd invalid LLC/SNAP frame "
 				    "[vp=%d,vc=%d]\n", ifp->if_xname,
 				    ATM_PH_VPI(ah), ATM_PH_VCI(ah));
-#elif defined(__FreeBSD__) || defined(__bsdi__)
-				printf("%s%d: recv'd invalid LLC/SNAP frame "
-				    "[vp=%d,vc=%d]\n", ifp->if_name,
-				    ifp->if_unit, ATM_PH_VPI(ah),
-				    ATM_PH_VCI(ah));
-#endif
 				m_freem(m);
 				return;
 			}
@@ -381,13 +367,7 @@ atm_ifattach(struct ifnet *ifp)
 #endif
 	ifp->if_snd.ifq_maxlen = 50;	/* dummy */
 
-#if defined(__NetBSD__) || defined(__OpenBSD__)
-	TAILQ_FOREACH(ifa, &ifp->if_addrlist, ifa_list)
-#elif defined(__FreeBSD__) && (__FreeBSD__ > 2)
 	TAILQ_FOREACH(ifa, &ifp->if_addrhead, ifa_link)
-#elif defined(__FreeBSD__) || defined(__bsdi__)
-	for (ifa = ifp->if_addrlist; ifa; ifa = ifa->ifa_next) 
-#endif
 		if (ifa->ifa_addr->sa_family == AF_LINK) {
 			sdl = (struct sockaddr_dl *)ifa->ifa_addr;
 			sdl->sdl_type = IFT_ATM;
