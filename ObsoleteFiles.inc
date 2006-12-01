@@ -14,6 +14,24 @@
 # The file is partitioned: OLD_FILES first, then OLD_LIBS and OLD_DIRS last.
 #
 
+# 20061201: remove symlink to *.so.4 libalias modules
+OLD_FILES+=usr/lib/libalias_cuseeme.so
+OLD_FILES+=usr/lib/libalias_dummy.so
+OLD_FILES+=usr/lib/libalias_ftp.so
+OLD_FILES+=usr/lib/libalias_irc.so
+OLD_FILES+=usr/lib/libalias_nbt.so
+OLD_FILES+=usr/lib/libalias_pptp.so
+OLD_FILES+=usr/lib/libalias_skinny.so
+OLD_FILES+=usr/lib/libalias_smedia.so
+# 20061201: remove old *.so.4 liablias modules
+OLD_FILES+=lib/libalias_cuseeme.so.4
+OLD_FILES+=lib/libalias_dummy.so.4
+OLD_FILES+=lib/libalias_ftp.so.4
+OLD_FILES+=lib/libalias_irc.so.4
+OLD_FILES+=lib/libalias_nbt.so.4
+OLD_FILES+=lib/libalias_pptp.so.4
+OLD_FILES+=lib/libalias_skinny.so.4
+OLD_FILES+=lib/libalias_smedia.so.4
 # 20061125: remove old man page
 OLD_FILES+=usr/share/man/man9/devsw.9.gz
 # 20061122: remove obsolete mount programs
