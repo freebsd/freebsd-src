@@ -217,7 +217,7 @@ struct bstp_cbpdu {
 	uint16_t	cbu_hellotime;		/* hello time */
 	uint16_t	cbu_forwarddelay;	/* forwarding delay */
 	uint8_t		cbu_versionlen;		/* version 1 length */
-} __attribute__((__packed__));
+} __packed__;
 #define	BSTP_BPDU_STP_LEN	(3 + 35)	/* LLC + STP pdu */
 #define	BSTP_BPDU_RSTP_LEN	(3 + 36)	/* LLC + RSTP pdu */
 
@@ -229,7 +229,7 @@ struct bstp_tbpdu {
 	uint16_t	tbu_protoid;		/* protocol id */
 	uint8_t		tbu_protover;		/* protocol version */
 	uint8_t		tbu_bpdutype;		/* message type */
-} __attribute__((__packed__));
+} __packed;
 
 /*
  * Timekeeping structure used in spanning tree code.
