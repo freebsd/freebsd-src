@@ -721,6 +721,7 @@ struct rl_softc {
 	struct rl_chain_data	rl_cdata;
 	struct rl_list_data	rl_ldata;
 	struct callout		rl_stat_callout;
+	int			rl_watchdog_timer;
 	struct mtx		rl_mtx;
 	struct mbuf		*rl_head;
 	struct mbuf		*rl_tail;
