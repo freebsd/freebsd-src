@@ -113,10 +113,13 @@ __FBSDID("$FreeBSD$");
 
 #ifdef _KERNEL
 #include <sys/param.h>
+#include <sys/systm.h>
+#include <sys/mbuf.h>
 #else
 #include <sys/types.h>
 #include <stdlib.h>
 #include <stdio.h>
+#include <ctype.h>
 #include <dlfcn.h>
 #include <errno.h>
 #include <string.h>
@@ -1492,7 +1495,7 @@ LibAliasRefreshModules(void)
 {
 	char buf[256], conf[] = "/etc/libalias.conf";
 	FILE *fd;
-	int len;
+	int i, len;
 
 	fd = fopen(conf, "r");
 	if (fd == NULL)
@@ -1506,6 +1509,11 @@ LibAliasRefreshModules(void)
 		        break;
 		len = strlen(buf);
 		if (len > 1) {
+			for (i = 0; i < len; i++)
+				if (!isspace(buf[i]))
+					break;
+			if (buf[i] == '#')
+				continue;
 			buf[len - 1] = '\0';
 			printf("Loading %s\n", buf);
 			LibAliasLoadModule(buf);
@@ -1525,16 +1533,16 @@ LibAliasLoadModule(char *path)
 
         handle = dlopen (path, RTLD_LAZY);
         if (!handle) {
-            fputs (dlerror(), stderr);
-            return (EINVAL);
+		fprintf(stderr, "%s\n", dlerror());
+		return (EINVAL);
         }
 
 	p = dlsym(handle, "alias_mod");
         if ((error = dlerror()) != NULL)  {
-            fputs(error, stderr);
-	    return (EINVAL);
+		fprintf(stderr, "%s\n", dlerror());
+		return (EINVAL);
         }
-	
+
 	t = malloc(sizeof(struct dll));
 	if (t == NULL)
 		return (ENOMEM);
@@ -1542,15 +1550,15 @@ LibAliasLoadModule(char *path)
 	t->handle = handle;
 	if (attach_dll(t) == EEXIST) {
 		free(t);
-		fputs("dll conflict", stderr);
+		fprintf(stderr, "dll conflict\n");
 		return (EEXIST);
 	}
 
         m = dlsym(t->handle, "handlers");
         if ((error = dlerror()) != NULL)  {
-            fputs(error, stderr);
-	    return (EINVAL);
-        }       
+		fprintf(stderr, "%s\n", error);
+		return (EINVAL);
+	}
 
 	LibAliasAttachHandlers(m);
 	return (0);
