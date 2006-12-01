@@ -95,18 +95,14 @@ main(int argc, char *argv[])
 			printf("  procs    kB virt mem       real mem     shared vm   shared real    free\n");
 			printf(" r w l s    tot     act    tot    act    tot    act    tot    act\n");
 		}
-		printf("%2hu%2hu%2hu%2hu",v.t_rq-1,v.t_dw+v.t_pw,v.t_sl,v.t_sw);
-		printf("%7lu %7lu %7lu%7lu",
-		    (unsigned long)pgtok(v.t_vm),
-		    (unsigned long)pgtok(v.t_avm),
-		    (unsigned long)pgtok(v.t_rm),
-		    (unsigned long)pgtok(v.t_arm));
-		printf("%7lu%7lu%7lu%7lu%7lu\n",
-		    (unsigned long)pgtok(v.t_vmshr),
-		    (unsigned long)pgtok(v.t_avmshr),
-		    (unsigned long)pgtok(v.t_rmshr),
-		    (unsigned long)pgtok(v.t_armshr),
-		    (unsigned long)pgtok(v.t_free));
+		printf("%2hd%2hd%2hd%2hd",v.t_rq-1,v.t_dw+v.t_pw,v.t_sl,v.t_sw);
+		printf("%7d %7d %7d%7d",
+			pgtok(v.t_vm),pgtok(v.t_avm),
+			pgtok(v.t_rm),pgtok(v.t_arm));
+		printf("%7d%7d%7d%7d%7d\n",
+			pgtok(v.t_vmshr),pgtok(v.t_avmshr),
+			pgtok(v.t_rmshr),pgtok(v.t_armshr),
+			pgtok(v.t_free));
 		sleep(5);
 		i++;
 		if(i>22) i=0;
