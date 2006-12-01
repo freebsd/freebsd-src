@@ -500,7 +500,7 @@ static struct mbuf *
 ieee80211_mbuf_adjust(struct ieee80211com *ic, int hdrsize,
 	struct ieee80211_key *key, struct mbuf *m)
 {
-#define	TO_BE_RECLAIMED	(sizeof(struct ether_header) - sizeof(struct llc))
+#define	TO_BE_RECLAIMED	(sizeof(struct ether_header) - LLC_SNAPFRAMELEN)
 	int needed_space = hdrsize;
 
 	if (key != NULL) {
@@ -527,7 +527,7 @@ ieee80211_mbuf_adjust(struct ieee80211com *ic, int hdrsize,
 	 * We know we are called just before stripping an Ethernet
 	 * header and prepending an LLC header.  This means we know
 	 * there will be
-	 *	sizeof(struct ether_header) - sizeof(struct llc)
+	 *	sizeof(struct ether_header) - LLC_SNAPFRAMELEN
 	 * bytes recovered to which we need additional space for the
 	 * 802.11 header and any crypto header.
 	 */
@@ -675,7 +675,7 @@ ieee80211_encap(struct ieee80211com *ic, struct mbuf *m,
 	}
 
 	/* NB: this could be optimized because of ieee80211_mbuf_adjust */
-	m_adj(m, sizeof(struct ether_header) - sizeof(struct llc));
+	m_adj(m, sizeof(struct ether_header) - LLC_SNAPFRAMELEN);
 	llc = mtod(m, struct llc *);
 	llc->llc_dsap = llc->llc_ssap = LLC_SNAP_LSAP;
 	llc->llc_control = LLC_UI;
