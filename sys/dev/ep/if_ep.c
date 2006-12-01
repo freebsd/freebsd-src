@@ -304,7 +304,9 @@ ep_attach(struct ep_softc *sc)
 	ifp->if_ioctl = epioctl;
 	ifp->if_watchdog = epwatchdog;
 	ifp->if_init = epinit;
-	ifp->if_snd.ifq_maxlen = IFQ_MAXLEN;
+	IFQ_SET_MAXLEN(&ifp->if_snd, IFQ_MAXLEN);
+	ifp->if_snd.ifq_drv_maxlen = IFQ_MAXLEN;
+	IFQ_SET_READY(&ifp->if_snd);
 
 	if (!sc->epb.mii_trans) {
 		ifmedia_init(&sc->ifmedia, 0, ep_ifmedia_upd, ep_ifmedia_sts);
@@ -482,7 +484,7 @@ epstart_locked(struct ifnet *ifp)
 		return;
 startagain:
 	/* Sneak a peek at the next packet */
-	IF_DEQUEUE(&ifp->if_snd, m0);
+	IFQ_DRV_DEQUEUE(&ifp->if_snd, m0);
 	if (m0 == NULL)
 		return;
 	for (len = 0, m = m0; m != NULL; m = m->m_next)
@@ -507,7 +509,7 @@ startagain:
 		/* make sure */
 		if (CSR_READ_2(sc, EP_W1_FREE_TX) < len + pad + 4) {
 			ifp->if_drv_flags |= IFF_DRV_OACTIVE;
-			IF_PREPEND(&ifp->if_snd, m0);
+			IFQ_DRV_PREPEND(&ifp->if_snd, m0);
 			goto done;
 		}
 	} else
@@ -562,7 +564,7 @@ readcheck:
 		 * we check if we have packets left, in that case
 		 * we prepare to come back later
 		 */
-		if (ifp->if_snd.ifq_head)
+		if (!IFQ_DRV_IS_EMPTY(&ifp->if_snd))
 			CSR_WRITE_2(sc, EP_COMMAND, SET_TX_AVAIL_THRESH | 8);
 		goto done;
 	}
@@ -672,7 +674,7 @@ rescan:
 				         * To have a tx_avail_int but giving
 					 * the chance to the Reception
 				         */
-					if (ifp->if_snd.ifq_head)
+					if (!IFQ_DRV_IS_EMPTY(&ifp->if_snd))
 						CSR_WRITE_2(sc, EP_COMMAND,
 						    SET_TX_AVAIL_THRESH | 8);
 				}
