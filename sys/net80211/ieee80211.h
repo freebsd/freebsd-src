@@ -428,7 +428,7 @@ struct ieee80211_country_ie {
 		u_int8_t schan;			/* starting channel */
 		u_int8_t nchan;			/* number channels */
 		u_int8_t maxtxpwr;		/* tx power cap */
-	} band[4] __packed;			/* up to 4 sub bands */
+	} __packed band[4];			/* up to 4 sub bands */
 } __packed;
 
 #define IEEE80211_CHALLENGE_LEN		128
