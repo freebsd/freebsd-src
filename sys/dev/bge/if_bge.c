@@ -2979,27 +2979,19 @@ bge_tick(void *xsc)
 static void
 bge_stats_update_regs(struct bge_softc *sc)
 {
-	struct bge_mac_stats_regs stats;
 	struct ifnet *ifp;
-	uint32_t *s;
-	u_long cnt;	/* current register value */
-	int i;
+	uint32_t cnt;	/* current register value */
 
 	ifp = sc->bge_ifp;
 
-	s = (uint32_t *)&stats;
-	for (i = 0; i < sizeof(struct bge_mac_stats_regs); i += 4) {
-		*s = CSR_READ_4(sc, BGE_RX_STATS + i);
-		s++;
-	}
-
-	cnt = stats.dot3StatsSingleCollisionFrames +
-	    stats.dot3StatsMultipleCollisionFrames +
-	    stats.dot3StatsExcessiveCollisions +
-	    stats.dot3StatsLateCollisions;
-	ifp->if_collisions += cnt >= sc->bge_tx_collisions ?
-	    cnt - sc->bge_tx_collisions : cnt;
+	cnt = CSR_READ_4(sc, BGE_MAC_STATS +
+	    offsetof(struct bge_mac_stats_regs, etherStatsCollisions));
+	ifp->if_collisions += (u_long)(cnt - sc->bge_tx_collisions);
 	sc->bge_tx_collisions = cnt;
+
+	cnt = CSR_READ_4(sc, BGE_RXLP_LOCSTAT_IFIN_DROPS);
+	ifp->if_ierrors += (u_long)(cnt - sc->bge_rx_discards);
+        sc->bge_rx_discards = cnt;
 }
 
 static void
@@ -3007,7 +2999,7 @@ bge_stats_update(struct bge_softc *sc)
 {
 	struct ifnet *ifp;
 	bus_size_t stats;
-	u_long cnt;	/* current register value */
+	uint32_t cnt;	/* current register value */
 
 	ifp = sc->bge_ifp;
 
@@ -3024,18 +3016,15 @@ bge_stats_update(struct bge_softc *sc)
 	    txstats.dot3StatsExcessiveCollisions.bge_addr_lo);
 	cnt += READ_STAT(sc, stats,
 		txstats.dot3StatsLateCollisions.bge_addr_lo);
-	ifp->if_collisions += cnt >= sc->bge_tx_collisions ?
-	    cnt - sc->bge_tx_collisions : cnt;
+	ifp->if_collisions += (u_long)(cnt - sc->bge_tx_collisions);
 	sc->bge_tx_collisions = cnt;
 
 	cnt = READ_STAT(sc, stats, ifInDiscards.bge_addr_lo);
-	ifp->if_ierrors += cnt >= sc->bge_rx_discards ?
-	    cnt - sc->bge_rx_discards : cnt;
+	ifp->if_ierrors += (u_long)(cnt - sc->bge_rx_discards);
 	sc->bge_rx_discards = cnt;
 
 	cnt = READ_STAT(sc, stats, txstats.ifOutDiscards.bge_addr_lo);
-	ifp->if_oerrors += cnt >= sc->bge_tx_discards ?
-	    cnt - sc->bge_tx_discards : cnt;
+	ifp->if_oerrors += (u_long)(cnt - sc->bge_tx_discards);
 	sc->bge_tx_discards = cnt;
 
 #undef READ_STAT
@@ -3368,6 +3357,9 @@ bge_init_locked(struct bge_softc *sc)
 
 	/* Init our RX return ring index. */
 	sc->bge_rx_saved_considx = 0;
+
+	/* Init our RX/TX stat counters. */
+	sc->bge_rx_discards = sc->bge_tx_discards = sc->bge_tx_collisions = 0;
 
 	/* Init TX ring. */
 	bge_init_tx_ring(sc);
