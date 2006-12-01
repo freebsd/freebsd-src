@@ -76,6 +76,10 @@ struct carp_header {
 	unsigned char	carp_md[20];	/* SHA1 HMAC */
 } __packed;
 
+#ifdef CTASSERT
+CTASSERT(sizeof(struct carp_header) == 36);
+#endif
+
 #define	CARP_DFLTTL		255
 
 /* carp_version */
