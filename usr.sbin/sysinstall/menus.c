@@ -547,7 +547,9 @@ DMenu MenuMediaFTP = {
       { "Snapshots Server Sweden", "snapshots.se.freebsd.org", NULL, dmenuSetVariable, NULL,
 	VAR_FTP_PATH "=ftp://snapshots.se.freebsd.org" },
 
-      { "IPv6 Ireland", "ftp3.ie.freebsd.org", NULL, dmenuSetVariable, NULL,
+      { "IPv6 Main Site", "ftp.freebsd.org", NULL, dmenuSetVariable, NULL,
+	VAR_FTP_PATH "=ftp://ftp.freebsd.org" },
+      { " IPv6 Ireland", "ftp3.ie.freebsd.org", NULL, dmenuSetVariable, NULL,
 	VAR_FTP_PATH "=ftp://ftp3.ie.freebsd.org" },
       { " IPv6 Japan", "ftp2.jp.freebsd.org", NULL, dmenuSetVariable, NULL,
 	VAR_FTP_PATH "=ftp://ftp2.jp.freebsd.org" },
@@ -688,6 +690,9 @@ DMenu MenuMediaFTP = {
 	VAR_FTP_PATH "=ftp://ftp2.ie.freebsd.org" },
       { " Ireland #3",	"ftp3.ie.freebsd.org", NULL, dmenuSetVariable, NULL,
 	VAR_FTP_PATH "=ftp://ftp3.ie.freebsd.org" },
+
+      { "Isreal",	"ftp.il.freebsd.org", NULL, dmenuSetVariable, NULL,
+	VAR_FTP_PATH "=ftp://ftp.il.freebsd.org" },
 
       { "Italy",	"ftp.it.freebsd.org", NULL, dmenuSetVariable, NULL,
 	VAR_FTP_PATH "=ftp://ftp.it.freebsd.org" },
