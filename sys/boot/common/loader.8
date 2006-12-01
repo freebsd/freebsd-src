@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd August 18, 2006
+.Dd November 29, 2006
 .Dt LOADER 8
 .Os
 .Sh NAME
@@ -515,6 +515,9 @@ Set the number of
 buffers to be allocated.
 Overrides
 .Dv NSFBUFS .
+Not all architectures use such buffers; see
+.Xr sendfile 2
+for details.
 .It Va kern.maxswzone
 Limits the amount of KVM to be used to hold swap
 meta information, which directly governs the
