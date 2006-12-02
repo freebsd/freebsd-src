@@ -1588,7 +1588,7 @@ linux_exit_group(struct thread *td, struct linux_exit_group_args *args)
 int
 linux_prctl(struct thread *td, struct linux_prctl_args *args)
 {
-   	int error = 0;
+   	int error = 0, max_size;
 	struct proc *p = td->td_proc;
 	char comm[LINUX_MAX_COMM_LEN];
 	struct linux_emuldata *em;
@@ -1615,16 +1615,41 @@ linux_prctl(struct thread *td, struct linux_prctl_args *args)
 		EMUL_UNLOCK(&emul_lock);
 		break;
 	case LINUX_PR_SET_NAME:
-		comm[LINUX_MAX_COMM_LEN-1] = 0;
-		error = copyin(comm, (void *)(register_t) args->arg2, LINUX_MAX_COMM_LEN-1);
+		/*
+		 * To be on the safe side we need to make sure to not
+		 * overflow the size a linux program expects. We already
+		 * do this here in the copyin, so that we don't need to
+		 * check on copyout.
+		 */
+		max_size = MIN(sizeof(comm), sizeof(p->p_comm));
+		error = copyinstr((void *)(register_t) args->arg2, comm,
+		    max_size, NULL);
+
+		/* Linux silently truncates the name if it is too long. */
+		if (error == ENAMETOOLONG) {
+			/*
+			 * XXX: copyinstr() isn't documented to populate the
+			 * array completely, so do a copyin() to be on the
+			 * safe side. This should be changed in case
+			 * copyinstr() is changed to guarantee this.
+			 */
+			error = copyin((void *)(register_t)args->arg2, comm,
+			    max_size - 1);
+			comm[max_size - 1] = '\0';
+		}
 		if (error)
 		   	return (error);
+
 		PROC_LOCK(p);
-		strcpy(p->p_comm, comm);
+		strlcpy(p->p_comm, comm, sizeof(p->p_comm));
 		PROC_UNLOCK(p);
 		break;
 	case LINUX_PR_GET_NAME:
-		error = copyout(&p->p_comm, (void *)(register_t) args->arg2, MAXCOMLEN+1);
+		PROC_LOCK(p);
+		strlcpy(comm, p->p_comm, sizeof(comm));
+		PROC_UNLOCK(p);
+		error = copyout(comm, (void *)(register_t) args->arg2,
+		    strlen(comm)+1);
 		break;
 	default:
 		error = EINVAL;
