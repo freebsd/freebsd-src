@@ -54,6 +54,8 @@
 #include <sys/stat.h>
 #include <sys/dirent.h>
 #include <sys/proc.h>
+#include <sys/bio.h>
+#include <sys/buf.h>
 
 #include <fs/unionfs/union.h>
 
