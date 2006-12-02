@@ -35,8 +35,8 @@ __FBSDID("$FreeBSD$");
 
 /*
  * driver for AMD AM79c873 PHYs
- * This driver also works for the Davicom DM9101 PHY, which appears to
- * be an AM79c873 workalike.
+ * This driver also works for Davicom DM910{1,2} PHYs, which appear
+ * to be AM79c873 workalikes.
  */
 
 #include <sys/param.h>
@@ -83,6 +83,7 @@ static int	amphy_service(struct mii_softc *, struct mii_data *, int);
 static void	amphy_status(struct mii_softc *);
 
 static const struct mii_phydesc amphys[] = {
+	MII_PHY_DESC(DAVICOM, DM9102),
 	MII_PHY_DESC(xxAMD, 79C873),
 	MII_PHY_DESC(xxDAVICOM, DM9101),
 	MII_PHY_END
@@ -113,13 +114,10 @@ amphy_attach(device_t dev)
 	sc->mii_service = amphy_service;
 	sc->mii_pdata = mii;
 
-	sc->mii_flags |= MIIF_NOISOLATE;
 	mii->mii_instance++;
 
 #define	ADD(m, c)	ifmedia_add(&mii->mii_media, (m), (c), NULL)
 
-	ADD(IFM_MAKEWORD(IFM_ETHER, IFM_NONE, 0, sc->mii_inst),
-	    BMCR_ISO);
 #if 0
 	ADD(IFM_MAKEWORD(IFM_ETHER, IFM_100_TX, IFM_LOOP, sc->mii_inst),
 	    BMCR_LOOP|BMCR_S100);
@@ -130,11 +128,11 @@ amphy_attach(device_t dev)
 	sc->mii_capabilities =
 	    PHY_READ(sc, MII_BMSR) & ma->mii_capmask;
 	device_printf(dev, " ");
-	mii_add_media(sc);
+	mii_phy_add_media(sc);
 	printf("\n");
 #undef ADD
 	MIIBUS_MEDIAINIT(sc->mii_dev);
-	return(0);
+	return (0);
 }
 
 static int
@@ -169,28 +167,7 @@ amphy_service(struct mii_softc *sc, struct mii_data *mii, int cmd)
 		if ((mii->mii_ifp->if_flags & IFF_UP) == 0)
 			break;
 
-		switch (IFM_SUBTYPE(ife->ifm_media)) {
-		case IFM_AUTO:
-			/*
-			 * If we're already in auto mode, just return.
-			 */
-			if (PHY_READ(sc, MII_BMCR) & BMCR_AUTOEN)
-				return (0);
-			(void) mii_phy_auto(sc);
-			break;
-		case IFM_100_T4:
-			/*
-			 * XXX Not supported as a manual setting right now.
-			 */
-			return (EINVAL);
-		default:
-			/*
-			 * BMCR data is stored in the ifmedia entry.
-			 */
-			PHY_WRITE(sc, MII_ANAR,
-			    mii_anar(ife->ifm_media));
-			PHY_WRITE(sc, MII_BMCR, ife->ifm_data);
-		}
+		mii_phy_setmedia(sc);
 		break;
 
 	case MII_TICK:
@@ -216,6 +193,7 @@ static void
 amphy_status(struct mii_softc *sc)
 {
 	struct mii_data *mii = sc->mii_pdata;
+	struct ifmedia_entry *ife = mii->mii_media.ifm_cur;
 	int bmsr, bmcr, par, anlpar;
 
 	mii->mii_media_status = IFM_AVALID;
@@ -278,5 +256,5 @@ amphy_status(struct mii_softc *sc)
 		else if (par & DSCSR_10HDX)
 			mii->mii_media_active |= IFM_10_T;
 	} else
-		mii->mii_media_active = mii_media_from_bmcr(bmcr);
+		mii->mii_media_active = ife->ifm_media;
 }
