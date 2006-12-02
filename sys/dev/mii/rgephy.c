@@ -119,14 +119,11 @@ rgephy_attach(device_t dev)
 	sc->mii_service = rgephy_service;
 	sc->mii_pdata = mii;
 
-	sc->mii_flags |= MIIF_NOISOLATE;
 	mii->mii_instance++;
 
 #define	ADD(m, c)	ifmedia_add(&mii->mii_media, (m), (c), NULL)
 #define PRINT(s)	printf("%s%s", sep, s); sep = ", "
 
-	ADD(IFM_MAKEWORD(IFM_ETHER, IFM_NONE, 0, sc->mii_inst),
-	    BMCR_ISO);
 #if 0
 	ADD(IFM_MAKEWORD(IFM_ETHER, IFM_100_TX, IFM_LOOP, sc->mii_inst),
 	    BMCR_LOOP|BMCR_S100);
@@ -136,15 +133,10 @@ rgephy_attach(device_t dev)
 	sc->mii_capabilities &= ~BMSR_ANEG;
 
 	device_printf(dev, " ");
-	mii_add_media(sc);
-	ADD(IFM_MAKEWORD(IFM_ETHER, IFM_1000_T, 0, sc->mii_inst),
-	    RGEPHY_BMCR_FDX);
-	PRINT(", 1000baseTX");
-	ADD(IFM_MAKEWORD(IFM_ETHER, IFM_1000_T, IFM_FDX, sc->mii_inst), 0);
-	PRINT("1000baseTX-FDX");
-	ADD(IFM_MAKEWORD(IFM_ETHER, IFM_AUTO, 0, sc->mii_inst), 0);
+	mii_phy_add_media(sc);
+	/* RTL8169S do not report auto-sense; add manually. */
+	ADD(IFM_MAKEWORD(IFM_ETHER, IFM_AUTO, 0, sc->mii_inst), MII_NMEDIA);
 	PRINT("auto");
-
 	printf("\n");
 #undef ADD
 #undef PRINT
@@ -251,11 +243,9 @@ setit:
 			PHY_WRITE(sc, RGEPHY_MII_BMCR, speed |
 			    RGEPHY_BMCR_AUTOEN | RGEPHY_BMCR_STARTNEG);
 			break;
-#ifdef foo
 		case IFM_NONE:
 			PHY_WRITE(sc, MII_BMCR, BMCR_ISO|BMCR_PDOWN);
 			break;
-#endif
 		case IFM_100_T4:
 		default:
 			return (EINVAL);
