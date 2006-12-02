@@ -40,7 +40,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/socket.h>
 #include <sys/bus.h>
 
-
 #include <net/if.h>
 #include <net/if_media.h>
 
@@ -89,17 +88,8 @@ static const struct mii_phydesc ip1000phys[] = {
 static int
 ip1000phy_probe(device_t dev)
 {
-	struct mii_attach_args *ma;
-	const struct mii_phydesc *mpd;
 
-	ma = device_get_ivars(dev);
-	mpd = mii_phy_match(ma, ip1000phys);
-	if (mpd != NULL) {
-		device_set_desc(dev, mpd->mpd_name);
-		return (BUS_PROBE_DEFAULT);
-	}
-
-	return (ENXIO);
+	return (mii_phy_dev_probe(dev, ip1000phys, BUS_PROBE_DEFAULT));
 }
 
 static int
@@ -237,7 +227,7 @@ ip1000phy_service(struct mii_softc *sc, struct mii_data *mii, int cmd)
 		PHY_WRITE(sc, IP1000PHY_MII_BMCR, speed);
 
 		/*
-		 * When settning the link manually, one side must
+		 * When setting the link manually, one side must
 		 * be the master and the other the slave. However
 		 * ifmedia doesn't give us a good way to specify
 		 * this, so we fake it by using one of the LINK

@@ -78,38 +78,20 @@ DRIVER_MODULE(inphy, miibus, inphy_driver, inphy_devclass, 0, 0);
 static int	inphy_service(struct mii_softc *, struct mii_data *, int);
 static void	inphy_status(struct mii_softc *);
 
+static const struct mii_phydesc inphys[] = {
+	MII_PHY_DESC(INTEL, I82553C),
+	MII_PHY_DESC(INTEL, I82555),
+	MII_PHY_DESC(INTEL, I82562EM),
+	MII_PHY_DESC(INTEL, I82562ET),
+	MII_PHY_DESC(xxINTEL, I82553AB),
+	MII_PHY_END
+};
+
 static int
 inphy_probe(device_t dev)
 {
-	struct mii_attach_args *ma;
 
-	ma = device_get_ivars(dev);
-
-	/* Intel 82553 A/B steppings */
-	if (MII_OUI(ma->mii_id1, ma->mii_id2) == MII_OUI_xxINTEL &&
-	    MII_MODEL(ma->mii_id2) == MII_MODEL_xxINTEL_I82553AB) {
-		device_set_desc(dev, MII_STR_xxINTEL_I82553AB);
-		return (BUS_PROBE_DEFAULT);
-	}
-
-	if (MII_OUI(ma->mii_id1, ma->mii_id2) == MII_OUI_INTEL) {
-		switch (MII_MODEL(ma->mii_id2)) {
-		case MII_MODEL_INTEL_I82555:
-			device_set_desc(dev, MII_STR_INTEL_I82555);
-			return (BUS_PROBE_DEFAULT);
-		case MII_MODEL_INTEL_I82553C:
-			device_set_desc(dev, MII_STR_INTEL_I82553C);
-			return (BUS_PROBE_DEFAULT);
-		case MII_MODEL_INTEL_I82562EM:
-			device_set_desc(dev, MII_STR_INTEL_I82562EM);
-			return (BUS_PROBE_DEFAULT);
-		case MII_MODEL_INTEL_I82562ET:
-			device_set_desc(dev, MII_STR_INTEL_I82562ET);
-			return (BUS_PROBE_DEFAULT);
-		}
-	}
-
-	return (ENXIO);
+	return (mii_phy_dev_probe(dev, inphys, BUS_PROBE_DEFAULT));
 }
 
 static int
@@ -130,10 +112,6 @@ inphy_attach(device_t dev)
 	sc->mii_service = inphy_service;
 	sc->mii_pdata = mii;
 	mii->mii_instance++;
-
-#if 0
-	sc->mii_flags |= MIIF_NOISOLATE;
-#endif
 
 	ifmedia_add(&mii->mii_media,
 	    IFM_MAKEWORD(IFM_ETHER, IFM_100_TX, IFM_LOOP, sc->mii_inst),

@@ -127,20 +127,16 @@ static int	tlphy_auto(struct tlphy_softc *);
 static void	tlphy_acomp(struct tlphy_softc *);
 static void	tlphy_status(struct tlphy_softc *);
 
+static const struct mii_phydesc tlphys[] = {
+	MII_PHY_DESC(xxTI, TLAN10T),
+	MII_PHY_END
+};
+
 static int
 tlphy_probe(device_t dev)
 {
-	struct mii_attach_args *ma;       
 
-	ma = device_get_ivars(dev);
-
-	if (MII_OUI(ma->mii_id1, ma->mii_id2) != MII_OUI_xxTI ||
-	    MII_MODEL(ma->mii_id2) != MII_MODEL_xxTI_TLAN10T)
-		return (ENXIO);
-
-	device_set_desc(dev, MII_STR_xxTI_TLAN10T);
-
-	return (BUS_PROBE_DEFAULT);
+	return (mii_phy_dev_probe(dev, tlphys, BUS_PROBE_DEFAULT));
 }
 
 static int

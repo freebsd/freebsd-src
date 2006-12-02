@@ -90,20 +90,16 @@ static void	rgephy_loop(struct mii_softc *);
 static void	rgephy_load_dspcode(struct mii_softc *);
 static int	rgephy_mii_model;
 
+static const struct mii_phydesc rgephys[] = {
+	MII_PHY_DESC(xxREALTEK, RTL8169S),
+	MII_PHY_END
+};
+
 static int
 rgephy_probe(device_t dev)
 {
-	struct mii_attach_args *ma;
 
-	ma = device_get_ivars(dev);
-
-	if (MII_OUI(ma->mii_id1, ma->mii_id2) == MII_OUI_xxREALTEK &&
-	    MII_MODEL(ma->mii_id2) == MII_MODEL_xxREALTEK_RTL8169S) {
-		device_set_desc(dev, MII_STR_xxREALTEK_RTL8169S);
-		return(BUS_PROBE_DEFAULT);
-	}
-
-	return(ENXIO);
+	return (mii_phy_dev_probe(dev, rgephys, BUS_PROBE_DEFAULT));
 }
 
 static int

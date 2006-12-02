@@ -82,26 +82,27 @@ DRIVER_MODULE(rlphy, miibus, rlphy_driver, rlphy_devclass, 0, 0);
 static int	rlphy_service(struct mii_softc *, struct mii_data *, int);
 static void	rlphy_status(struct mii_softc *);
 
+static const struct mii_phydesc rlphys[] = {
+	MII_PHY_DESC(REALTEK, RTL8201L),
+	MII_PHY_END
+};
+
 static int
 rlphy_probe(device_t dev)
 {
 	struct mii_attach_args *ma;
-	device_t		parent;
+	const char *nic;
+	int rv;
 
-	ma = device_get_ivars(dev);
-	parent = device_get_parent(device_get_parent(dev));
-
-	/* Test for RealTek 8201L PHY */
-	if (MII_OUI(ma->mii_id1, ma->mii_id2) == MII_OUI_REALTEK &&
-	    MII_MODEL(ma->mii_id2) == MII_MODEL_REALTEK_RTL8201L) {
-		device_set_desc(dev, MII_STR_REALTEK_RTL8201L);
-		return (BUS_PROBE_DEFAULT);
-	}
+	rv = mii_phy_dev_probe(dev, rlphys, BUS_PROBE_DEFAULT);
+	if (rv <= 0)
+		return (rv);
 
 	/*
-	 * RealTek PHY doesn't have vendor/device ID registers:
-	 * the rl driver fakes up a return value of all zeros.
+	 * RealTek interal PHYs don't have vendor/device ID registers;
+	 * the `re' and `rl' drivers fake up a return value of all zeros.
 	 */
+	ma = device_get_ivars(dev);
 	if (MII_OUI(ma->mii_id1, ma->mii_id2) != 0 ||
 	    MII_MODEL(ma->mii_id2) != 0)
 		return (ENXIO);
@@ -109,8 +110,8 @@ rlphy_probe(device_t dev)
 	/*
 	 * Make sure the parent is an `rl' or an `re'.
 	 */
-	if (strcmp(device_get_name(parent), "rl") != 0 &&
-	    strcmp(device_get_name(parent), "re") != 0)
+	nic = device_get_name(device_get_parent(device_get_parent(dev)));
+	if (strcmp(nic, "rl") != 0 && strcmp(nic, "re") != 0)
 		return (ENXIO);
 
 	device_set_desc(dev, "RealTek internal media interface");
