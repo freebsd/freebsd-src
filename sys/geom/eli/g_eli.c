@@ -479,6 +479,16 @@ g_eli_access(struct g_provider *pp, int dr, int dw, int de)
 	return (0);
 }
 
+static int
+g_eli_cpu_is_disabled(int cpu)
+{
+#ifdef SMP
+	return ((hlt_cpus_mask & (1 << cpu)) != 0);
+#else
+	return (0);
+#endif
+}
+
 struct g_geom *
 g_eli_create(struct gctl_req *req, struct g_class *mp, struct g_provider *bpp,
     const struct g_eli_metadata *md, const u_char *mkey, int nkey)
@@ -628,6 +638,11 @@ g_eli_create(struct gctl_req *req, struct g_class *mp, struct g_provider *bpp,
 		G_ELI_DEBUG(0, "Reducing number of threads to %u.", threads);
 	}
 	for (i = 0; i < threads; i++) {
+		if (g_eli_cpu_is_disabled(i)) {
+			G_ELI_DEBUG(1, "%s: CPU %u disabled, skipping.",
+			    bpp->name, i);
+			continue;
+		}
 		wr = malloc(sizeof(*wr), M_ELI, M_WAITOK | M_ZERO);
 		wr->w_softc = sc;
 		wr->w_number = i;
@@ -636,7 +651,7 @@ g_eli_create(struct gctl_req *req, struct g_class *mp, struct g_provider *bpp,
 		 * If this is the first pass, try to get hardware support.
 		 * Use software cryptography, if we cannot get it.
 		 */
-		if (i == 0) {
+		if (LIST_EMPTY(&sc->sc_workers)) {
 			error = crypto_newsession(&wr->w_sid, &crie, 1);
 			if (error == 0)
 				sc->sc_crypto = G_ELI_CRYPTO_HW;
