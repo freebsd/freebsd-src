@@ -1,6 +1,9 @@
-/*
+/*-
  * Copyright (c) 1992, 1993, 1994
- *	The Regents of the University of California.  All rights reserved.
+ *	The Regents of the University of California.
+ * Copyright (c) 2005, 2006 Masanori Ozawa <ozawa@ongs.co.jp>, ONGS Inc.
+ * Copyright (c) 2006 Daichi Goto <daichi@freebsd.org>
+ * All rights reserved.
  *
  * This code is derived from software donated to Berkeley by
  * Jan-Simon Pendry.
@@ -48,6 +51,7 @@ static const char rcsid[] =
 #include <sys/param.h>
 #include <sys/mount.h>
 #include <sys/uio.h>
+#include <sys/errno.h>
 
 #include <err.h>
 #include <stdio.h>
@@ -55,54 +59,115 @@ static const char rcsid[] =
 #include <string.h>
 #include <sysexits.h>
 #include <unistd.h>
+#include <grp.h>
+#include <pwd.h>
 
 #include "mntopts.h"
 
-static struct mntopt mopts[] = {
-	MOPT_STDOPTS,
-	MOPT_END
-};
-
-static int	subdir(const char *, const char *);
-static void	usage (void) __dead2;
-
-int
-main(argc, argv)
-	int argc;
-	char *argv[];
+static int 
+subdir(const char *p, const char *dir)
 {
-	struct iovec iov[8];
-	int ch, mntflags;
-	char source[MAXPATHLEN];
-	char target[MAXPATHLEN];
-	int iovcnt;
+	int		l;
 
-	iovcnt = 6;
+	l = strlen(dir);
+	if (l <= 1)
+		return (1);
+
+	if ((strncmp(p, dir, l) == 0) && (p[l] == '/' || p[l] == '\0'))
+		return (1);
+
+	return (0);
+}
+
+static void 
+usage(void)
+{
+	(void)fprintf(stderr,
+	    "usage: mount_unionfs [-o options] directory uniondir\n");
+	exit(EX_USAGE);
+}
+
+static void
+parse_gid(const char *s, char *buf, size_t bufsize)
+{
+	struct group *gr;
+	char *inval;
+
+	if ((gr = getgrnam(s)) != NULL)
+		snprintf(buf, bufsize, "%d", gr->gr_gid);
+	else {
+		strtol(s, &inval, 10);
+		if (*inval != 0) {
+                       errx(EX_NOUSER, "unknown group id: %s", s);
+                       usage();
+		} else {
+			strncpy(buf, s, bufsize);
+		}
+	}
+}
+
+static uid_t 
+parse_uid(const char *s, char *buf, size_t bufsize)
+{
+	struct passwd  *pw;
+	char *inval;
+
+	if ((pw = getpwnam(s)) != NULL)
+		snprintf(buf, bufsize, "%d", pw->pw_uid);
+	else {
+		strtol(s, &inval, 10);
+		if (*inval != 0) {
+                       errx(EX_NOUSER, "unknown user id: %s", s);
+                       usage();
+		} else {
+			strncpy(buf, s, bufsize);
+		}
+	}
+}
+
+int 
+main(int argc, char *argv[])
+{
+	struct iovec	*iov;
+	int ch, mntflags, iovlen;
+	char source [MAXPATHLEN], target[MAXPATHLEN], errmsg[255];
+	char uid_str[20], gid_str[20];
+	char *p, *val;
+
+	iov = NULL;
+	iovlen = 0;
 	mntflags = 0;
-	while ((ch = getopt(argc, argv, "bo:r")) != -1)
+	memset(errmsg, 0, sizeof(errmsg));
+
+	while ((ch = getopt(argc, argv, "bo:")) != -1) {
 		switch (ch) {
 		case 'b':
-			iov[6].iov_base = "below";
-			iov[6].iov_len = strlen(iov[6].iov_base) + 1;
-			iov[7].iov_base = NULL;
-			iov[7].iov_len = 0;
-			iovcnt = 8;
+			printf("\n  -b is deprecated.  Use \"-o below\" instead\n");
+			build_iovec(&iov, &iovlen, "below", NULL, 0);
 			break;
 		case 'o':
-			getmntopts(optarg, mopts, &mntflags, 0);
-			break;
-		case 'r':
-			iov[6].iov_base = "replace";
-			iov[6].iov_len = strlen(iov[6].iov_base) + 1;
-			iov[7].iov_base = NULL;
-			iov[7].iov_len = 0;
-			iovcnt = 8;
+                        p = strchr(optarg, '=');
+                        val = NULL;
+                        if (p != NULL) {
+                                *p = '\0';
+                                val = p + 1;
+				if (strncmp(optarg, "gid", 3) == 0) {
+					parse_gid(val, gid_str, sizeof(gid_str));
+					val = gid_str;
+				}
+				else if (strncmp(optarg, "uid", 3) == 0) {
+					parse_uid(val, uid_str, sizeof(uid_str));
+					val = uid_str;
+				}
+                        }
+                        build_iovec(&iov, &iovlen, optarg, val, (size_t)-1);
 			break;
 		case '?':
 		default:
 			usage();
 			/* NOTREACHED */
 		}
+	}
 	argc -= optind;
 	argv += optind;
 
@@ -115,46 +180,14 @@ main(argc, argv)
 
 	if (subdir(target, source) || subdir(source, target))
 		errx(EX_USAGE, "%s (%s) and %s (%s) are not distinct paths",
-		    argv[0], target, argv[1], source);
+		     argv[0], target, argv[1], source);
 
-	iov[0].iov_base = "fstype";
-	iov[0].iov_len = strlen(iov[0].iov_base) + 1;
-	iov[1].iov_base = "unionfs";
-	iov[1].iov_len = strlen(iov[1].iov_base) + 1;
-	iov[2].iov_base = "fspath";
-	iov[2].iov_len = strlen(iov[2].iov_base) + 1;
-	iov[3].iov_base = source;
-	iov[3].iov_len = strlen(source) + 1;
-	iov[4].iov_base = "target";
-	iov[4].iov_len = strlen(iov[4].iov_base) + 1;
-	iov[5].iov_base = target;
-	iov[5].iov_len = strlen(target) + 1;
-	if (nmount(iov, iovcnt, mntflags))
-		err(EX_OSERR, "%s", target);
+	build_iovec(&iov, &iovlen, "fstype", "unionfs", (size_t)-1);
+	build_iovec(&iov, &iovlen, "fspath", source, (size_t)-1);
+	build_iovec(&iov, &iovlen, "from", target, (size_t)-1);
+	build_iovec(&iov, &iovlen, "errmsg", errmsg, sizeof(errmsg));
+
+	if (nmount(iov, iovlen, mntflags))
+		err(EX_OSERR, "%s: %s", source, errmsg);
 	exit(0);
-}
-
-int
-subdir(p, dir)
-	const char *p;
-	const char *dir;
-{
-	int l;
-
-	l = strlen(dir);
-	if (l <= 1)
-		return (1);
-
-	if ((strncmp(p, dir, l) == 0) && (p[l] == '/' || p[l] == '\0'))
-		return (1);
-
-	return (0);
-}
-
-void
-usage()
-{
-	(void)fprintf(stderr,
-		"usage: mount_unionfs [-br] [-o options] directory uniondir\n");
-	exit(EX_USAGE);
 }
