@@ -229,6 +229,7 @@ const struct mii_phydesc * mii_phy_match(const struct mii_attach_args *ma,
     const struct mii_phydesc *mpd);
 const struct mii_phydesc * mii_phy_match_gen(const struct mii_attach_args *ma,
     const struct mii_phydesc *mpd, size_t endlen);
+int mii_phy_dev_probe(device_t dev, const struct mii_phydesc *mpd, int mrv);
 
 void	ukphy_status(struct mii_softc *);
 #endif /* _KERNEL */

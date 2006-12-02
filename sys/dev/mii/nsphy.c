@@ -119,20 +119,16 @@ static int	nsphy_service(struct mii_softc *, struct mii_data *, int);
 static void	nsphy_status(struct mii_softc *);
 static void	nsphy_reset(struct mii_softc *);
 
+static const struct mii_phydesc nsphys[] = {
+	MII_PHY_DESC(NATSEMI, DP83840),
+	MII_PHY_END
+};
+
 static int
 nsphy_probe(device_t dev)
 {
-	struct mii_attach_args *ma;
 
-	ma = device_get_ivars(dev);
-
-	if (MII_OUI(ma->mii_id1, ma->mii_id2) == MII_OUI_NATSEMI &&
-	    MII_MODEL(ma->mii_id2) == MII_MODEL_NATSEMI_DP83840) {
-		device_set_desc(dev, MII_STR_NATSEMI_DP83840);
-	} else
-		return (ENXIO);
-
-	return (BUS_PROBE_DEFAULT);
+	return (mii_phy_dev_probe(dev, nsphys, BUS_PROBE_DEFAULT));
 }
 
 static int

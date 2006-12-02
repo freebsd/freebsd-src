@@ -54,7 +54,6 @@ __FBSDID("$FreeBSD$");
 #include <net/if.h>
 #include <net/if_media.h>
 
-
 #include <dev/mii/mii.h>
 #include <dev/mii/miivar.h>
 #include "miidevs.h"
@@ -95,17 +94,16 @@ DRIVER_MODULE(tdkphy, miibus, tdkphy_driver, tdkphy_devclass, 0, 0);
 static int tdkphy_service(struct mii_softc *, struct mii_data *, int);
 static void tdkphy_status(struct mii_softc *);
 
+static const struct mii_phydesc tdkphys[] = {
+	MII_PHY_DESC(TDK, 78Q2120),
+	MII_PHY_END
+};
+
 static int
 tdkphy_probe(device_t dev)
 {
-        struct mii_attach_args *ma;
-        ma = device_get_ivars(dev);
- 	if ((MII_OUI(ma->mii_id1, ma->mii_id2) != MII_OUI_TDK ||
-	     MII_MODEL(ma->mii_id2) != MII_MODEL_TDK_78Q2120))
-		return (ENXIO);
 
-	device_set_desc(dev, MII_STR_TDK_78Q2120);
-	return (BUS_PROBE_DEFAULT);
+	return (mii_phy_dev_probe(dev, tdkphys, BUS_PROBE_DEFAULT));
 }
 
 static int

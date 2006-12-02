@@ -88,32 +88,18 @@ static void	ciphy_status(struct mii_softc *);
 static void	ciphy_reset(struct mii_softc *);
 static void	ciphy_fixup(struct mii_softc *);
 
+static const struct mii_phydesc ciphys[] = {
+	MII_PHY_DESC(CICADA, CS8201),
+	MII_PHY_DESC(CICADA, CS8201A),
+	MII_PHY_DESC(CICADA, CS8201B),
+	MII_PHY_END
+};
+
 static int
 ciphy_probe(device_t dev)
 {
-	struct mii_attach_args *ma;
 
-	ma = device_get_ivars(dev);
-
-	if (MII_OUI(ma->mii_id1, ma->mii_id2) == MII_OUI_CICADA &&
-	    MII_MODEL(ma->mii_id2) == MII_MODEL_CICADA_CS8201) {
-		device_set_desc(dev, MII_STR_CICADA_CS8201);
-		return (BUS_PROBE_DEFAULT);
-	}
-
-	if (MII_OUI(ma->mii_id1, ma->mii_id2) == MII_OUI_CICADA &&
-	    MII_MODEL(ma->mii_id2) == MII_MODEL_CICADA_CS8201A) {
-		device_set_desc(dev, MII_STR_CICADA_CS8201A);
-		return (BUS_PROBE_DEFAULT);
-	}
-
-	if (MII_OUI(ma->mii_id1, ma->mii_id2) == MII_OUI_CICADA &&
-	    MII_MODEL(ma->mii_id2) == MII_MODEL_CICADA_CS8201B) {
-		device_set_desc(dev, MII_STR_CICADA_CS8201B);
-		return (BUS_PROBE_DEFAULT);
-	}
-
-	return (ENXIO);
+	return (mii_phy_dev_probe(dev, ciphys, BUS_PROBE_DEFAULT));
 }
 
 static int

@@ -118,17 +118,8 @@ static const struct mii_phydesc brgphys[] = {
 static int
 brgphy_probe(device_t dev)
 {
-	struct mii_attach_args *ma;
-	const struct mii_phydesc *mpd;
 
-	ma = device_get_ivars(dev);
-	mpd = mii_phy_match(ma, brgphys);
-	if (mpd != NULL) {
-		device_set_desc(dev, mpd->mpd_name);
-		return (BUS_PROBE_DEFAULT);
-	}
-
-	return (ENXIO);
+	return (mii_phy_dev_probe(dev, brgphys, BUS_PROBE_DEFAULT));
 }
 
 static int

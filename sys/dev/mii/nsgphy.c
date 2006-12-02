@@ -61,7 +61,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/socket.h>
 #include <sys/bus.h>
 
-
 #include <net/if.h>
 #include <net/if_media.h>
 
@@ -93,13 +92,12 @@ static driver_t nsgphy_driver = {
 	sizeof(struct mii_softc)
 };
 
-
 DRIVER_MODULE(nsgphy, miibus, nsgphy_driver, nsgphy_devclass, 0, 0);
 
 static int	nsgphy_service(struct mii_softc *, struct mii_data *,int);
 static void	nsgphy_status(struct mii_softc *);
 
-const struct mii_phydesc gphyters[] = {
+static const struct mii_phydesc nsgphys[] = {
 	MII_PHY_DESC(NATSEMI, DP83861),
 	MII_PHY_DESC(NATSEMI, DP83891),
 	MII_PHY_END
@@ -108,17 +106,8 @@ const struct mii_phydesc gphyters[] = {
 static int
 nsgphy_probe(device_t dev)
 {
-	struct mii_attach_args *ma;
-	const struct mii_phydesc *mpd;
 
-	ma = device_get_ivars(dev);
-	mpd = mii_phy_match(ma, gphyters);
-	if (mpd != NULL) {
-		device_set_desc(dev, mpd->mpd_name);
-		return (BUS_PROBE_DEFAULT);
-	}
-
-	return (ENXIO);
+	return (mii_phy_dev_probe(dev, nsgphys, BUS_PROBE_DEFAULT));
 }
 
 static int
