@@ -144,7 +144,7 @@ xmphy_attach(device_t dev)
 #undef PRINT
 
 	MIIBUS_MEDIAINIT(sc->mii_dev);
-	return(0);
+	return (0);
 }
 
 static int
@@ -239,14 +239,14 @@ xmphy_service(struct mii_softc *sc, struct mii_data *mii, int cmd)
 		/*
 		 * Only retry autonegotiation every 5 seconds.
 		 */
-		if (++sc->mii_ticks <= 5)
+		if (++sc->mii_ticks <= MII_ANEGTICKS)
 			break;
-		
+
 		sc->mii_ticks = 0;
 
 		mii_phy_reset(sc);
 		xmphy_mii_phy_auto(sc);
-		return(0);
+		return (0);
 	}
 
 	/* Update the media status. */
@@ -306,10 +306,7 @@ xmphy_status(struct mii_softc *sc)
 		mii->mii_media_active |= IFM_FDX;
 	else
 		mii->mii_media_active |= IFM_HDX;
-
-	return;
 }
-
 
 static int
 xmphy_mii_phy_auto(struct mii_softc *mii)

@@ -44,7 +44,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/socket.h>
 #include <sys/bus.h>
 
-
 #include <net/if.h>
 #include <net/if_arp.h>
 #include <net/if_media.h>
@@ -265,7 +264,7 @@ setit:
 		/*
 		 * Only retry autonegotiation every 5 seconds.
 		 */
-		if (++sc->mii_ticks <= 5/*10*/)
+		if (++sc->mii_ticks <= MII_ANEGTICKS)
 			break;
 
 		sc->mii_ticks = 0;
@@ -335,17 +334,14 @@ ciphy_status(struct mii_softc *sc)
 
 	if (bmsr & CIPHY_AUXCSR_FDX)
 		mii->mii_media_active |= IFM_FDX;
-
-	return;
 }
 
 static void
 ciphy_reset(struct mii_softc *sc)
 {
+
 	mii_phy_reset(sc);
 	DELAY(1000);
-
-	return;
 }
 
 #define PHY_SETBIT(x, y, z) \
@@ -405,6 +401,4 @@ ciphy_fixup(struct mii_softc *sc)
 		    model);
 		break;
 	}
-
-	return;
 }
