@@ -80,7 +80,7 @@
 
 #include "mixer_if.h"
 
-#define HDA_DRV_TEST_REV	"20061111_0034"
+#define HDA_DRV_TEST_REV	"20061203_0035"
 #define HDA_WIDGET_PARSER_REV	1
 
 SND_DECLARE_FILE("$FreeBSD$");
@@ -211,6 +211,13 @@ SND_DECLARE_FILE("$FreeBSD$");
 #define MEDION_VENDORID			0x161f
 #define MEDION_MD95257_SUBVENDOR	HDA_MODEL_CONSTRUCT(MEDION, 0x203d)
 #define MEDION_ALL_SUBVENDOR		HDA_MODEL_CONSTRUCT(MEDION, 0xffff)
+
+/*
+ * Apple Intel MacXXXX seems using Sigmatel codec/vendor id
+ * instead of their own, which is beyond my comprehension
+ * (see HDA_CODEC_STAC9221 below).
+ */
+#define APPLE_INTEL_MAC		0x76808384
 
 /* Misc constants.. */
 #define HDA_AMP_MUTE_DEFAULT	(0xffffffff)
@@ -456,6 +463,8 @@ static const struct {
 	    13, { 14, -1 }, -1 },
 	{ DELL_I1300_SUBVENDOR, HDA_CODEC_STAC9220, HDAC_HP_SWITCH_CTRL,
 	    13, { 14, -1 }, -1 },
+	{ APPLE_INTEL_MAC, HDA_CODEC_STAC9221, HDAC_HP_SWITCH_CTRL,
+	    10, { 13, -1 }, -1 },
 	/*
 	 * All models that at least come from the same vendor with
 	 * simmilar codec.
@@ -4087,18 +4096,47 @@ hdac_audio_commit(struct hdac_devinfo *devinfo, uint32_t cfl)
 	cad = devinfo->codec->cad;
 
 	if (cfl & HDA_COMMIT_GPIO) {
-		for (i = 0; i < HDA_GPIO_MAX; i++) {
-			if (!(devinfo->function.audio.quirks & (1 << i)))
-				continue;
-			hdac_command(sc,
-			    HDA_CMD_SET_GPIO_ENABLE_MASK(cad, devinfo->nid, i),
+		if (sc->pci_subvendor == APPLE_INTEL_MAC) {
+			uint32_t gdata, gmask, gdir;
+
+			gdata = hdac_command(sc,
+			    HDA_CMD_GET_GPIO_DATA(cad, devinfo->nid),
 			    cad);
-			hdac_command(sc,
-			    HDA_CMD_SET_GPIO_DIRECTION(cad, devinfo->nid, i),
+			gmask = hdac_command(sc,
+			    HDA_CMD_GET_GPIO_ENABLE_MASK(cad, devinfo->nid),
 			    cad);
-			hdac_command(sc,
-			    HDA_CMD_SET_GPIO_DATA(cad, devinfo->nid, i),
+			gdir = hdac_command(sc,
+			    HDA_CMD_GET_GPIO_DIRECTION(cad, devinfo->nid),
 			    cad);
+			gdata |= 0x03;
+			gmask |= 0x03;
+			gdir |= 0x03;
+			hdac_command(sc, HDA_CMD_12BIT(cad, devinfo->nid,
+			    0x7e7, 0), cad);
+			hdac_command(sc,
+			    HDA_CMD_SET_GPIO_ENABLE_MASK(cad, devinfo->nid,
+			    gmask), cad);
+			hdac_command(sc,
+			    HDA_CMD_SET_GPIO_DIRECTION(cad, devinfo->nid,
+			    gdir), cad);
+			hdac_command(sc,
+			    HDA_CMD_SET_GPIO_DATA(cad, devinfo->nid,
+			    gdata), cad);
+		} else {
+			for (i = 0; i < HDA_GPIO_MAX; i++) {
+				if (!(devinfo->function.audio.quirks &
+				    (1 << i)))
+					continue;
+				hdac_command(sc,
+				    HDA_CMD_SET_GPIO_ENABLE_MASK(cad,
+				    devinfo->nid, i), cad);
+				hdac_command(sc,
+				    HDA_CMD_SET_GPIO_DIRECTION(cad,
+				    devinfo->nid, i), cad);
+				hdac_command(sc,
+				    HDA_CMD_SET_GPIO_DATA(cad, devinfo->nid,
+				    i), cad);
+			}
 		}
 	}
 
