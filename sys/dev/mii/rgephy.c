@@ -44,7 +44,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/socket.h>
 #include <sys/bus.h>
 
-
 #include <net/if.h>
 #include <net/if_arp.h>
 #include <net/if_media.h>
@@ -88,7 +87,6 @@ static int	rgephy_mii_phy_auto(struct mii_softc *);
 static void	rgephy_reset(struct mii_softc *);
 static void	rgephy_loop(struct mii_softc *);
 static void	rgephy_load_dspcode(struct mii_softc *);
-static int	rgephy_mii_model;
 
 static const struct mii_phydesc rgephys[] = {
 	MII_PHY_DESC(xxREALTEK, RTL8169S),
@@ -134,8 +132,6 @@ rgephy_attach(device_t dev)
 	    BMCR_LOOP|BMCR_S100);
 #endif
 
-	rgephy_mii_model = MII_MODEL(ma->mii_id2);
-
 	sc->mii_capabilities = PHY_READ(sc, MII_BMSR) & ma->mii_capmask;
 	sc->mii_capabilities &= ~BMSR_ANEG;
 
@@ -155,7 +151,7 @@ rgephy_attach(device_t dev)
 
 	rgephy_reset(sc);
 	MIIBUS_MEDIAINIT(sc->mii_dev);
-	return(0);
+	return (0);
 }
 
 static int
@@ -238,7 +234,7 @@ setit:
 			}
 
 			/*
-			 * When settning the link manually, one side must
+			 * When setting the link manually, one side must
 			 * be the master and the other the slave. However
 			 * ifmedia doesn't give us a good way to specify
 			 * this, so we fake it by using one of the LINK
@@ -297,9 +293,9 @@ setit:
 		/*
 		 * Only retry autonegotiation every 5 seconds.
 		 */
-		if (++sc->mii_ticks <= 5/*10*/)
+		if (++sc->mii_ticks <= MII_ANEGTICKS)
 			break;
-		
+
 		sc->mii_ticks = 0;
 		rgephy_mii_phy_auto(sc);
 		return (0);
@@ -313,7 +309,7 @@ setit:
 	 * the DSP on the RealTek PHYs if the media changes.
 	 *
 	 */
-	if (sc->mii_media_active != mii->mii_media_active || 
+	if (sc->mii_media_active != mii->mii_media_active ||
 	    sc->mii_media_status != mii->mii_media_status ||
 	    cmd == MII_MEDIACHG) {
 		rgephy_load_dspcode(sc);
@@ -361,14 +357,12 @@ rgephy_status(struct mii_softc *sc)
 		mii->mii_media_active |= IFM_NONE;
 	if (bmsr & RL_GMEDIASTAT_FDX)
 		mii->mii_media_active |= IFM_FDX;
-
-	return;
 }
-
 
 static int
 rgephy_mii_phy_auto(struct mii_softc *mii)
 {
+
 	rgephy_loop(mii);
 	rgephy_reset(mii);
 
@@ -388,15 +382,13 @@ rgephy_mii_phy_auto(struct mii_softc *mii)
 static void
 rgephy_loop(struct mii_softc *sc)
 {
-	u_int32_t bmsr;
 	int i;
 
 	PHY_WRITE(sc, RGEPHY_MII_BMCR, RGEPHY_BMCR_PDOWN);
 	DELAY(1000);
 
 	for (i = 0; i < 15000; i++) {
-		bmsr = PHY_READ(sc, RGEPHY_MII_BMSR);
-		if (!(bmsr & RGEPHY_BMSR_LINK)) {
+		if (!(PHY_READ(sc, RGEPHY_MII_BMSR) & RGEPHY_BMSR_LINK)) {
 #if 0
 			device_printf(sc->mii_dev, "looped %d\n", i);
 #endif
@@ -468,16 +460,15 @@ rgephy_load_dspcode(struct mii_softc *sc)
 	PHY_SETBIT(sc, 4, 0x0800);
 	PHY_CLRBIT(sc, 4, 0x0800);
 	PHY_WRITE(sc, 31, 0x0000);
-	
+
 	DELAY(40);
 }
 
 static void
 rgephy_reset(struct mii_softc *sc)
 {
+
 	mii_phy_reset(sc);
 	DELAY(1000);
 	rgephy_load_dspcode(sc);
-
-	return;
 }

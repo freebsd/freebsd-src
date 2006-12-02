@@ -62,13 +62,6 @@ __FBSDID("$FreeBSD$");
 
 #include "miibus_if.h"
 
-#if 0
-#if !defined(lint)
-static const char rcsid[] =
-  "$Id: tdkphy.c,v 1.18 2006/05/16 14:36:28 phk Exp $";
-#endif
-#endif
-
 static int tdkphy_probe(device_t);
 static int tdkphy_attach(device_t);
 
@@ -151,8 +144,7 @@ tdkphy_attach(device_t dev)
 #undef ADD
 
 	MIIBUS_MEDIAINIT(sc->mii_dev);
-
-	return(0);
+	return (0);
 }
 
 static int

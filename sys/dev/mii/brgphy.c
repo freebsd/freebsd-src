@@ -45,7 +45,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/socket.h>
 #include <sys/bus.h>
 
-
 #include <net/if.h>
 #include <net/ethernet.h>
 #include <net/if_media.h>
@@ -102,16 +101,16 @@ static const struct mii_phydesc brgphys[] = {
 	MII_PHY_DESC(xxBROADCOM, BCM5400),
 	MII_PHY_DESC(xxBROADCOM, BCM5401),
 	MII_PHY_DESC(xxBROADCOM, BCM5411),
-	MII_PHY_DESC(xxBROADCOM, BCM5752),
 	MII_PHY_DESC(xxBROADCOM, BCM5701),
 	MII_PHY_DESC(xxBROADCOM, BCM5703),
 	MII_PHY_DESC(xxBROADCOM, BCM5704),
 	MII_PHY_DESC(xxBROADCOM, BCM5705),
-	MII_PHY_DESC(xxBROADCOM, BCM5750),
-	MII_PHY_DESC(xxBROADCOM, BCM5714),
-	MII_PHY_DESC(xxBROADCOM, BCM5780),
 	MII_PHY_DESC(xxBROADCOM, BCM5706C),
 	MII_PHY_DESC(xxBROADCOM, BCM5708C),
+	MII_PHY_DESC(xxBROADCOM, BCM5714),
+	MII_PHY_DESC(xxBROADCOM, BCM5750),
+	MII_PHY_DESC(xxBROADCOM, BCM5752),
+	MII_PHY_DESC(xxBROADCOM, BCM5780),
 	MII_PHY_END
 };
 
@@ -160,7 +159,6 @@ brgphy_attach(device_t dev)
 	brgphy_mii_model = MII_MODEL(ma->mii_id2);
 	brgphy_reset(sc);
 
-
 	sc->mii_capabilities = PHY_READ(sc, MII_BMSR) & ma->mii_capmask;
 	sc->mii_capabilities &= ~BMSR_ANEG;
 	device_printf(dev, " ");
@@ -197,7 +195,7 @@ brgphy_attach(device_t dev)
 #undef PRINT
 
 	MIIBUS_MEDIAINIT(sc->mii_dev);
-	return(0);
+	return (0);
 }
 
 static int
@@ -266,7 +264,7 @@ setit:
 			PHY_WRITE(sc, BRGPHY_MII_BMCR, speed);
 			PHY_WRITE(sc, BRGPHY_MII_ANAR, BRGPHY_SEL_TYPE);
 
-			if (IFM_SUBTYPE(ife->ifm_media) != IFM_1000_T) 
+			if (IFM_SUBTYPE(ife->ifm_media) != IFM_1000_T)
 				break;
 
 			PHY_WRITE(sc, BRGPHY_MII_1000CTL, gig);
@@ -277,7 +275,7 @@ setit:
 				break;
 
 			/*
-			 * When settning the link manually, one side must
+			 * When setting the link manually, one side must
 			 * be the master and the other the slave. However
 			 * ifmedia doesn't give us a good way to specify
 			 * this, so we fake it by using one of the LINK
@@ -334,9 +332,9 @@ setit:
 		/*
 		 * Only retry autonegotiation every 5 seconds.
 		 */
-		if (++sc->mii_ticks <= 5)
+		if (++sc->mii_ticks <= MII_ANEGTICKS)
 			break;
-		
+
 		sc->mii_ticks = 0;
 		brgphy_mii_phy_auto(sc);
 		break;
@@ -350,7 +348,7 @@ setit:
 	 * the DSP on the Broadcom PHYs if the media changes.
 	 *
 	 */
-	if (sc->mii_media_active != mii->mii_media_active || 
+	if (sc->mii_media_active != mii->mii_media_active ||
 	    sc->mii_media_status != mii->mii_media_status ||
 	    cmd == MII_MEDIACHG) {
 		switch (brgphy_mii_model) {
@@ -424,10 +422,7 @@ brgphy_status(struct mii_softc *sc)
 	}
 
 	mii->mii_media_active = ife->ifm_media;
-
-	return;
 }
-
 
 static int
 brgphy_mii_phy_auto(struct mii_softc *mii)
@@ -454,13 +449,11 @@ brgphy_mii_phy_auto(struct mii_softc *mii)
 static void
 brgphy_loop(struct mii_softc *sc)
 {
-	u_int32_t bmsr;
 	int i;
 
 	PHY_WRITE(sc, BRGPHY_MII_BMCR, BRGPHY_BMCR_LOOP);
 	for (i = 0; i < 15000; i++) {
-		bmsr = PHY_READ(sc, BRGPHY_MII_BMSR);
-		if (!(bmsr & BRGPHY_BMSR_LINK)) {
+		if (!(PHY_READ(sc, BRGPHY_MII_BMSR) & BRGPHY_BMSR_LINK)) {
 #if 0
 			device_printf(sc->mii_dev, "looped %d\n", i);
 #endif
@@ -637,31 +630,30 @@ brgphy_reset(struct mii_softc *sc)
 
 		/* Enable Link LED on Dell boxes */
 		if (bge_sc->bge_flags & BGE_FLAG_NO3LED) {
-			PHY_WRITE(sc, BRGPHY_MII_PHY_EXTCTL, 
-		    	PHY_READ(sc, BRGPHY_MII_PHY_EXTCTL)
-			    & ~BRGPHY_PHY_EXTCTL_3_LED);
+			PHY_WRITE(sc, BRGPHY_MII_PHY_EXTCTL,
+		    	    PHY_READ(sc, BRGPHY_MII_PHY_EXTCTL) &
+			    ~BRGPHY_PHY_EXTCTL_3_LED);
 		}
 	} else if (bce_sc) {
-
 		/* Set or clear jumbo frame settings in the PHY. */
 		if (ifp->if_mtu > ETHER_MAX_LEN) {
 			PHY_WRITE(sc, BRGPHY_MII_AUXCTL, 0x7);
 			val = PHY_READ(sc, BRGPHY_MII_AUXCTL);
-			PHY_WRITE(sc, BRGPHY_MII_AUXCTL, 
-				val | BRGPHY_AUXCTL_LONG_PKT);
+			PHY_WRITE(sc, BRGPHY_MII_AUXCTL,
+			    val | BRGPHY_AUXCTL_LONG_PKT);
 
 			val = PHY_READ(sc, BRGPHY_MII_PHY_EXTCTL);
-			PHY_WRITE(sc, BRGPHY_MII_PHY_EXTCTL, 
-				val | BRGPHY_PHY_EXTCTL_HIGH_LA);
+			PHY_WRITE(sc, BRGPHY_MII_PHY_EXTCTL,
+			    val | BRGPHY_PHY_EXTCTL_HIGH_LA);
 		} else {
 			PHY_WRITE(sc, BRGPHY_MII_AUXCTL, 0x7);
 			val = PHY_READ(sc, BRGPHY_MII_AUXCTL);
-			PHY_WRITE(sc, BRGPHY_MII_AUXCTL, 
-				val & ~(BRGPHY_AUXCTL_LONG_PKT | 0x7));
+			PHY_WRITE(sc, BRGPHY_MII_AUXCTL,
+			    val & ~(BRGPHY_AUXCTL_LONG_PKT | 0x7));
 
 			val = PHY_READ(sc, BRGPHY_MII_PHY_EXTCTL);
-			PHY_WRITE(sc, BRGPHY_MII_PHY_EXTCTL, 
-				val & ~BRGPHY_PHY_EXTCTL_HIGH_LA);
+			PHY_WRITE(sc, BRGPHY_MII_PHY_EXTCTL,
+			    val & ~BRGPHY_PHY_EXTCTL_HIGH_LA);
 		}
 
 		/* Enable Ethernet@Wirespeed */
