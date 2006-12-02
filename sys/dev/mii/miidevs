@@ -103,11 +103,12 @@ oui xxREALTEK			0x000732
 /* Altima Communications PHYs */
 model xxALTIMA AC101		0x0021 AC101 10/100 media interface
 model xxALTIMA AC101L		0x0012 AC101L 10/100 media interface
+model xxALTIMA ACXXX		0x0001 ACXXX 10/100 media interface
 
 /* Advanced Micro Devices PHYs */
-model xxAMD 79C873		0x0000 Am79C873 10/100 media interface
 model AMD 79c973phy		0x0036 Am79c973 internal PHY
 model AMD 79c978		0x0039 Am79c978 HomePNA PHY
+model xxAMD 79C873		0x0000 Am79C873/DM9101 10/100 media interface
 
 /* Broadcom Corp. PHYs. */
 model BROADCOM 3C905B		0x0012 3c905B 10/100 internal PHY
@@ -135,6 +136,7 @@ model CICADA CS8201A		0x0020 Cicada CS8201 10/100/1000TX PHY
 model CICADA CS8201B		0x0021 Cicada CS8201 10/100/1000TX PHY
 
 /* Davicom Semiconductor PHYs */
+model DAVICOM DM9102		0x0004 DM9102 10/100 media interface
 model xxDAVICOM DM9101		0x0000 DM9101 10/100 media interface
 
 /* Integrated Circuit Systems PHYs */
