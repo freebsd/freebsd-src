@@ -119,6 +119,8 @@ static void	acphy_status(struct mii_softc *);
 static const struct mii_phydesc acphys[] = {
 	MII_PHY_DESC(xxALTIMA, AC101),
 	MII_PHY_DESC(xxALTIMA, AC101L),
+	/* XXX This is reported to work, but it's not from any data sheet. */
+	MII_PHY_DESC(xxALTIMA, ACXXX),
 	MII_PHY_END
 };
 
@@ -146,16 +148,15 @@ acphy_attach(device_t dev)
 	sc->mii_phy = ma->mii_phyno;
 	sc->mii_service = acphy_service;
 	sc->mii_pdata = mii;
-	sc->mii_flags |= MIIF_NOISOLATE;
-
-	acphy_reset(sc);
 
 	mii->mii_instance++;
+
+	acphy_reset(sc);
 
 	sc->mii_capabilities =
 	    PHY_READ(sc, MII_BMSR) & ma->mii_capmask;
 	device_printf(dev, " ");
-	mii_add_media(sc);
+	mii_phy_add_media(sc);
 	printf("\n");
 
 	MIIBUS_MEDIAINIT(sc->mii_dev);
@@ -194,28 +195,10 @@ acphy_service(struct mii_softc *sc, struct mii_data *mii, int cmd)
 
 		/* Wake & deisolate up if necessary */
 		reg = PHY_READ(sc, MII_BMCR);
-		if (reg & (BMCR_ISO | BMCR_PDOWN)) 
+		if (reg & (BMCR_ISO | BMCR_PDOWN))
 			PHY_WRITE(sc, MII_BMCR, reg & ~(BMCR_ISO | BMCR_PDOWN));
 
-		switch (IFM_SUBTYPE(ife->ifm_media)) {
-		case IFM_AUTO:
-			/*
-			 * If we're already in auto mode, just return.
-			 */
-			if (PHY_READ(sc, MII_BMCR) & BMCR_AUTOEN)
-				return (0);
-
-			(void) mii_phy_auto(sc);
-			break;
-
-		default:
-			/*
-			 * BMCR data is stored in the ifmedia entry.
-			 */
-			PHY_WRITE(sc, MII_ANAR,
-			    mii_anar(ife->ifm_media));
-			PHY_WRITE(sc, MII_BMCR, ife->ifm_data);
-		}
+		mii_phy_setmedia(sc);
 		break;
 
 	case MII_TICK:
@@ -224,12 +207,6 @@ acphy_service(struct mii_softc *sc, struct mii_data *mii, int cmd)
 		 */
 		if ((mii->mii_ifp->if_flags & IFF_UP) == 0)
 			return (0);
-
-		/*
-		 * Only used for autonegotiation.
-		 */
-		if (IFM_SUBTYPE(ife->ifm_media) != IFM_AUTO)
-			break;
 
 		/*
 		 * This PHY's autonegotiation doesn't need to be kicked.
