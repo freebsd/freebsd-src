@@ -390,9 +390,10 @@ g_journal_orphan(struct g_consumer *cp)
 
 	g_topology_assert();
 	sc = cp->geom->softc;
-	GJ_DEBUG(0, "Lost provider %s (journal=%s).", cp->provider->name,
-	    sc->sc_name);
-	strlcpy(name, sc->sc_name, sizeof(name));
+	strlcpy(name, cp->provider->name, sizeof(name));
+	GJ_DEBUG(0, "Lost provider %s.", name);
+	if (sc == NULL)
+		return;
 	error = g_journal_destroy(sc);
 	if (error == 0)
 		GJ_DEBUG(0, "Journal %s destroyed.", name);
