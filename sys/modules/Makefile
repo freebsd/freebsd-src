@@ -473,6 +473,7 @@ _ipw=		ipw
 _ixgb=   	ixgb
 _linprocfs=	linprocfs
 _linsysfs=	linsysfs
+_linux=		linux
 _mly=		mly
 _mxge=		mxge
 _ndis=		ndis
