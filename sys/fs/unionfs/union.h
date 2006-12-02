@@ -1,6 +1,8 @@
 /*-
  * Copyright (c) 1994 The Regents of the University of California.
  * Copyright (c) 1994 Jan-Simon Pendry.
+ * Copyright (c) 2005, 2006 Masanori Ozawa <ozawa@ongs.co.jp>, ONGS Inc.
+ * Copyright (c) 2006 Daichi Goto <daichi@freebsd.org>
  * All rights reserved.
  *
  * This code is derived from software donated to Berkeley by
@@ -34,107 +36,100 @@
  * $FreeBSD$
  */
 
-#define UNMNT_ABOVE	0x0001		/* Target appears above mount point */
-#define UNMNT_BELOW	0x0002		/* Target appears below mount point */
-#define UNMNT_REPLACE	0x0003		/* Target replaces mount point */
-
-struct union_mount {
-	struct vnode	*um_uppervp;	/* UN_ULOCK holds locking state */
-	struct vnode	*um_lowervp;	/* Left unlocked */
-	struct ucred	*um_cred;	/* Credentials of user calling mount */
-	int		um_cmode;	/* cmask from mount process */
-	int		um_op;		/* Operation mode */
-	dev_t		um_upperdev;	/* Upper root node fsid[0]*/
-};
-
 #ifdef _KERNEL
 
-#ifndef DIAGNOSTIC
-#define DIAGNOSTIC
-#endif
+/* copy method of attr from lower to upper */
+typedef enum _unionfs_copymode {
+	UNIONFS_TRADITIONAL = 0,
+	UNIONFS_TRANSPARENT,
+	UNIONFS_MASQUERADE
+} unionfs_copymode;
 
-/*
- * DEFDIRMODE is the mode bits used to create a shadow directory.
- */
-#define VRWXMODE (VREAD|VWRITE|VEXEC)
-#define VRWMODE (VREAD|VWRITE)
-#define UN_DIRMODE ((VRWXMODE)|(VRWXMODE>>3)|(VRWXMODE>>6))
-#define UN_FILEMODE ((VRWMODE)|(VRWMODE>>3)|(VRWMODE>>6))
-
-/*
- * A cache of vnode references	(hangs off v_data)
- */
-struct union_node {
-	LIST_ENTRY(union_node)	un_cache;	/* Hash chain */
-	struct vnode		*un_vnode;	/* Back pointer */
-	struct vnode	        *un_uppervp;	/* overlaying object */
-	struct vnode	        *un_lowervp;	/* underlying object */
-	struct vnode		*un_dirvp;	/* Parent dir of uppervp */
-	struct vnode		*un_pvp;	/* Parent vnode */
-	char			*un_path;	/* saved component name */
-	int			un_openl;	/* # of opens on lowervp */
-	int			un_exclcnt;	/* exclusive count */
-	unsigned int		un_flags;
-	struct vnode		**un_dircache;	/* cached union stack */
-	off_t			un_uppersz;	/* size of upper object */
-	off_t			un_lowersz;	/* size of lower object */
-#ifdef DIAGNOSTIC
-	pid_t			un_pid;
-#endif
+struct unionfs_mount {
+	struct vnode   *um_lowervp;	/* VREFed once */
+	struct vnode   *um_uppervp;	/* VREFed once */
+	struct vnode   *um_rootvp;	/* ROOT vnode */
+	unionfs_copymode um_copymode;
+	uid_t		um_uid;
+	gid_t		um_gid;
+	u_short		um_udir;
+	u_short		um_ufile;
 };
 
-/*
- * XXX UN_ULOCK -	indicates that the uppervp is locked
- *
- * UN_CACHED -	node is in the union cache
- */
+/* unionfs status list */
+struct unionfs_node_status {
+	LIST_ENTRY(unionfs_node_status) uns_list;	/* Status list */
+	lwpid_t		uns_tid;		/* current thread id */
+	int		uns_node_flag;		/* uns flag */
+	int		uns_lower_opencnt;	/* open count of lower */
+	int		uns_upper_opencnt;	/* open count of upper */
+	int		uns_lower_openmode;	/* open mode of lower */
+	int		uns_lower_fdidx;	/* open fdidx of lower */
+	int		uns_readdir_status;	/* read status of readdir */
+};
 
-/*#define UN_ULOCK	0x04*/	/* Upper node is locked */
-#define UN_CACHED	0x10	/* In union cache */
+/* union node status flags */
+#define	UNS_OPENL_4_READDIR	0x01	/* open lower layer for readdir */
 
-/*
- * Hash table locking flags
- */
+/* A cache of vnode references */
+struct unionfs_node {
+	LIST_ENTRY(unionfs_node) un_hash;	/* Hash list */
+	struct vnode   *un_lowervp;		/* lower side vnode */
+	struct vnode   *un_uppervp;		/* upper side vnode */
+	struct vnode   *un_dvp;			/* parent unionfs vnode */
+	struct vnode   *un_vnode;		/* Back pointer */
+	LIST_HEAD(, unionfs_node_status) un_unshead;  /* unionfs status head */
+	char           *un_path;		/* path */
+	int		un_flag;		/* unionfs node flag */
+};
 
-#define UNVP_WANT	0x01
-#define UNVP_LOCKED	0x02
+/* unionfs node flags */
+#define UNIONFS_CACHED		0x01	/* is cached */
+#define UNIONFS_OPENEXTL	0x02	/* openextattr (lower) */
+#define UNIONFS_OPENEXTU	0x04	/* openextattr (upper) */
 
-extern int union_allocvp(struct vnode **, struct mount *,
-				struct vnode *, 
-				struct vnode *, 
-				struct componentname *, struct vnode *,
-				struct vnode *, int);
-extern int union_freevp(struct vnode *);
-extern struct vnode *union_dircache_get(struct vnode *, struct thread *);
-extern void union_dircache_free(struct union_node *);
-extern int union_copyup(struct union_node *, int, struct ucred *,
-				struct thread *);
-extern int union_dowhiteout(struct union_node *, struct ucred *,
-					struct thread *);
-extern int union_mkshadow(struct union_mount *, struct vnode *,
-				struct componentname *, struct vnode **);
-extern int union_mkwhiteout(struct union_mount *, struct vnode *,
-				struct componentname *, char *);
-extern int union_cn_close(struct vnode *, int, struct ucred *,
-				struct thread *);
-extern void union_removed_upper(struct union_node *un);
-extern struct vnode *union_lowervp(struct vnode *);
-extern void union_newsize(struct vnode *, off_t, off_t);
+#define	MOUNTTOUNIONFSMOUNT(mp) ((struct unionfs_mount *)((mp)->mnt_data))
+#define	VTOUNIONFS(vp) ((struct unionfs_node *)(vp)->v_data)
+#define	UNIONFSTOV(xp) ((xp)->un_vnode)
 
-extern int (*union_dircheckp)(struct thread *, struct vnode **,
-				 struct file *);
+int unionfs_init(struct vfsconf *vfsp);
+int unionfs_uninit(struct vfsconf *vfsp);
+int unionfs_nodeget(struct mount *mp, struct vnode *uppervp, struct vnode *lowervp, struct vnode *dvp, struct vnode **vpp, struct componentname *cnp, struct thread *td);
+void unionfs_hashrem(struct vnode *vp, struct thread *td);
+void unionfs_get_node_status(struct unionfs_node *unp, struct thread *td, struct unionfs_node_status **unspp);
+void unionfs_tryrem_node_status(struct unionfs_node *unp, struct thread *td, struct unionfs_node_status *unsp);
 
-#define	MOUNTTOUNIONMOUNT(mp) ((struct union_mount *)((mp)->mnt_data))
-#define	VTOUNION(vp) ((struct union_node *)(vp)->v_data)
-#define	UNIONTOV(un) ((un)->un_vnode)
-#define	LOWERVP(vp) (VTOUNION(vp)->un_lowervp)
-#define	UPPERVP(vp) (VTOUNION(vp)->un_uppervp)
-#define OTHERVP(vp) (UPPERVP(vp) ? UPPERVP(vp) : LOWERVP(vp))
+int unionfs_check_rmdir(struct vnode *vp, struct ucred *cred, struct thread *td);
+int unionfs_copyfile(struct unionfs_node *unp, int docopy, struct ucred *cred, struct thread *td);
+void unionfs_create_uppervattr_core(struct unionfs_mount *ump, struct vattr *lva, struct vattr *uva, struct thread *td);
+int unionfs_create_uppervattr(struct unionfs_mount *ump, struct vnode *lvp, struct vattr *uva, struct ucred *cred, struct thread *td);
+int unionfs_mkshadowdir(struct unionfs_mount *ump, struct vnode *duvp, struct unionfs_node *unp, struct componentname *cnp, struct thread *td);
+int unionfs_mkwhiteout(struct vnode *dvp, struct componentname *cnp, struct thread *td, char *path);
+int unionfs_relookup_for_create(struct vnode *dvp, struct componentname *cnp, struct thread *td);
+int unionfs_relookup_for_delete(struct vnode *dvp, struct componentname *cnp, struct thread *td);
+int unionfs_relookup_for_rename(struct vnode *dvp, struct componentname *cnp, struct thread *td);
 
-#define UDEBUG(x)	if (uniondebug) printf x
-#define UDEBUG_ENABLED	1
+#ifdef DIAGNOSTIC
+struct vnode   *unionfs_checklowervp(struct vnode *vp, char *fil, int lno);
+struct vnode   *unionfs_checkuppervp(struct vnode *vp, char *fil, int lno);
+#define	UNIONFSVPTOLOWERVP(vp) unionfs_checklowervp((vp), __FILE__, __LINE__)
+#define	UNIONFSVPTOUPPERVP(vp) unionfs_checkuppervp((vp), __FILE__, __LINE__)
+#else
+#define	UNIONFSVPTOLOWERVP(vp) (VTOUNIONFS(vp)->un_lowervp)
+#define	UNIONFSVPTOUPPERVP(vp) (VTOUNIONFS(vp)->un_uppervp)
+#endif
 
-extern struct vop_vector union_vnodeops;
-extern int uniondebug;
+extern struct vop_vector unionfs_vnodeops;
 
-#endif /* _KERNEL */
+#ifdef MALLOC_DECLARE
+MALLOC_DECLARE(M_UNIONFSNODE);
+MALLOC_DECLARE(M_UNIONFSPATH);
+#endif
+
+#ifdef UNIONFS_DEBUG
+#define UNIONFSDEBUG(format, args...) printf(format ,## args)
+#else
+#define UNIONFSDEBUG(format, args...)
+#endif				/* UNIONFS_DEBUG */
+
+#endif				/* _KERNEL */
