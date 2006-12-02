@@ -54,7 +54,6 @@ __FBSDID("$FreeBSD$");
 #include <net/if.h>
 #include <net/if_media.h>
 
-
 #include <dev/mii/mii.h>
 #include <dev/mii/miivar.h>
 #include "miidevs.h"
@@ -85,21 +84,16 @@ DRIVER_MODULE(pnaphy, miibus, pnaphy_driver, pnaphy_devclass, 0, 0);
 
 static int	pnaphy_service(struct mii_softc *, struct mii_data *,int);
 
+static const struct mii_phydesc pnaphys[] = {
+	MII_PHY_DESC(AMD, 79c978),
+	MII_PHY_END
+};
+
 static int
 pnaphy_probe(device_t dev)
 {
 
-	struct mii_attach_args	*ma;
-
-	ma = device_get_ivars(dev);
-
-	if (MII_OUI(ma->mii_id1, ma->mii_id2) == MII_OUI_AMD &&
-	    MII_MODEL(ma->mii_id2) == MII_MODEL_AMD_79c978) {
-		device_set_desc(dev, MII_STR_AMD_79c978);
-		return(BUS_PROBE_DEFAULT);
-	}
-
-	return(ENXIO);
+	return (mii_phy_dev_probe(dev, pnaphys, BUS_PROBE_DEFAULT));
 }
 
 static int
@@ -149,7 +143,7 @@ pnaphy_attach(device_t dev)
 
 	MIIBUS_MEDIAINIT(sc->mii_dev);
 
-	return(0);
+	return (0);
 }
 
 static int

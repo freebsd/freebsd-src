@@ -82,25 +82,17 @@ DRIVER_MODULE(amphy, miibus, amphy_driver, amphy_devclass, 0, 0);
 static int	amphy_service(struct mii_softc *, struct mii_data *, int);
 static void	amphy_status(struct mii_softc *);
 
+static const struct mii_phydesc amphys[] = {
+	MII_PHY_DESC(xxAMD, 79C873),
+	MII_PHY_DESC(xxDAVICOM, DM9101),
+	MII_PHY_END
+};
+
 static int
 amphy_probe(device_t dev)
 {
-	struct mii_attach_args *ma;
 
-	ma = device_get_ivars(dev);
-
-	if ((MII_OUI(ma->mii_id1, ma->mii_id2) != MII_OUI_xxAMD ||
-	    MII_MODEL(ma->mii_id2) != MII_MODEL_xxAMD_79C873) &&
-	    (MII_OUI(ma->mii_id1, ma->mii_id2) != MII_OUI_xxDAVICOM ||
-	    MII_MODEL(ma->mii_id2) != MII_MODEL_xxDAVICOM_DM9101))
-		return(ENXIO);
-
-	if (MII_OUI(ma->mii_id1, ma->mii_id2) == MII_OUI_xxAMD)
-		device_set_desc(dev, MII_STR_xxAMD_79C873);
-	else if (MII_OUI(ma->mii_id1, ma->mii_id2) == MII_OUI_xxDAVICOM)
-		device_set_desc(dev, MII_STR_xxDAVICOM_DM9101);
-
-	return(BUS_PROBE_DEFAULT);
+	return (mii_phy_dev_probe(dev, amphys, BUS_PROBE_DEFAULT));
 }
 
 static int
