@@ -52,7 +52,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/module.h>
 #include <sys/bus.h>
 
-
 #include <net/if.h>
 #include <net/if_media.h>
 
@@ -561,4 +560,17 @@ mii_phy_match(const struct mii_attach_args *ma, const struct mii_phydesc *mpd)
 {
 
 	return (mii_phy_match_gen(ma, mpd, sizeof(struct mii_phydesc)));
+}
+
+int
+mii_phy_dev_probe(device_t dev, const struct mii_phydesc *mpd, int mrv)
+{
+
+	mpd = mii_phy_match(device_get_ivars(dev), mpd);
+	if (mpd != NULL) {
+		device_set_desc(dev, mpd->mpd_name);
+		return (mrv);
+	}
+
+	return (ENXIO);
 }

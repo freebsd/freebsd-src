@@ -120,20 +120,16 @@ static int	qsphy_service(struct mii_softc *, struct mii_data *, int);
 static void	qsphy_reset(struct mii_softc *);
 static void	qsphy_status(struct mii_softc *);
 
+static const struct mii_phydesc qsphys[] = {
+	MII_PHY_DESC(QUALSEMI, QS6612),
+	MII_PHY_END
+};
+
 static int
 qsphy_probe(device_t dev)
 {
-	struct mii_attach_args *ma;
 
-	ma = device_get_ivars(dev);
-
-	if (MII_OUI(ma->mii_id1, ma->mii_id2) == MII_OUI_QUALSEMI &&
-	    MII_MODEL(ma->mii_id2) == MII_MODEL_QUALSEMI_QS6612) {
-		device_set_desc(dev, MII_STR_QUALSEMI_QS6612);
-	} else 
-		return (ENXIO);
-
-	return (BUS_PROBE_DEFAULT);
+	return (mii_phy_dev_probe(dev, qsphys, BUS_PROBE_DEFAULT));
 }
 
 static int
