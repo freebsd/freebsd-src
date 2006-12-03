@@ -1193,7 +1193,6 @@ mpt_write_cur_cfg_page(struct mpt_softc *mpt, uint32_t PageAddress,
 				   PageAddress, hdr, len, sleep_ok,
 				   timeout_ms));
 }
-
 /* mpt_debug.c functions */
 void mpt_print_reply(void *vmsg);
 void mpt_print_db(uint32_t mb);
