@@ -1879,12 +1879,14 @@ mpt_start(struct cam_sim *sim, union ccb *ccb)
 	 * Do a *short* print here if we're set to MPT_PRT_DEBUG
 	 */
 	if (mpt->verbose == MPT_PRT_DEBUG) {
+		U32 df;
 		mpt_prt(mpt, "mpt_start: %s op 0x%x ",
 		    (mpt_req->Function == MPI_FUNCTION_SCSI_IO_REQUEST)?
 		    "SCSI_IO_REQUEST" : "SCSI_IO_PASSTHRU", mpt_req->CDB[0]);
-		if (mpt_req->Control != MPI_SCSIIO_CONTROL_NODATATRANSFER) {
+		df = mpt_req->Control & MPI_SCSIIO_CONTROL_DATADIRECTION_MASK;
+		if (df != MPI_SCSIIO_CONTROL_NODATATRANSFER) {
 			mpt_prtc(mpt, "(%s %u byte%s ",
-			    (mpt_req->Control == MPI_SCSIIO_CONTROL_READ)?
+			    (df == MPI_SCSIIO_CONTROL_READ)?
 			    "read" : "write",  csio->dxfer_len,
 			    (csio->dxfer_len == 1)? ")" : "s)");
 		}
@@ -2151,10 +2153,6 @@ mpt_cam_event(struct mpt_softc *mpt, request_t *req,
 		mpt_prt(mpt, "FC Logout Port: %d N_PortID: %02x\n",
 		    (data1 >> 8) & 0xff, data0);
 		break;
-	case MPI_EVENT_EVENT_CHANGE:
-		mpt_lprt(mpt, MPT_PRT_DEBUG,
-		    "mpt_cam_event: MPI_EVENT_EVENT_CHANGE\n");
-		break;
 	case MPI_EVENT_QUEUE_FULL:
 	{
 		struct cam_sim *sim;
@@ -2193,18 +2191,11 @@ mpt_cam_event(struct mpt_softc *mpt, request_t *req,
 		CAMLOCK_2_MPTLOCK(mpt);
 		break;
 	}
+	case MPI_EVENT_EVENT_CHANGE:
+	case MPI_EVENT_INTEGRATED_RAID:
 	case MPI_EVENT_SAS_DEVICE_STATUS_CHANGE:
-	{
-		mpt_lprt(mpt, MPT_PRT_DEBUG,
-		    "mpt_cam_event: SAS_DEVICE_STATUS_CHANGE\n");
-		break;
-	}
 	case MPI_EVENT_SAS_SES:
-	{
-		mpt_lprt(mpt, MPT_PRT_DEBUG,
-		    "mpt_cam_event: MPI_EVENT_SAS_SES\n");
 		break;
-	}
 	default:
 		mpt_lprt(mpt, MPT_PRT_WARN, "mpt_cam_event: 0x%x\n",
 		    msg->Event & 0xFF);
@@ -2873,7 +2864,8 @@ mpt_action(struct cam_sim *sim, union ccb *ccb)
 
 	tgt = ccb->ccb_h.target_id;
 	lun = ccb->ccb_h.target_lun;
-	if (raid_passthru && ccb->ccb_h.func_code != XPT_PATH_INQ &&
+	if (raid_passthru &&
+	    ccb->ccb_h.func_code != XPT_PATH_INQ &&
 	    ccb->ccb_h.func_code != XPT_RESET_BUS &&
 	    ccb->ccb_h.func_code != XPT_RESET_DEV) {
 		CAMLOCK_2_MPTLOCK(mpt);
@@ -2913,11 +2905,15 @@ mpt_action(struct cam_sim *sim, union ccb *ccb)
 		return;
 
 	case XPT_RESET_BUS:
+		if (raid_passthru) {
+			ccb->ccb_h.status &= ~CAM_SIM_QUEUED;
+			mpt_set_ccb_status(ccb, CAM_REQ_CMP);
+			break;
+		}
 	case XPT_RESET_DEV:
-		mpt_lprt(mpt, MPT_PRT_DEBUG,
-			ccb->ccb_h.func_code == XPT_RESET_BUS ?
-			"XPT_RESET_BUS\n" : "XPT_RESET_DEV\n");
-
+		xpt_print_path(ccb->ccb_h.path);
+		printf("reset %s\n", ccb->ccb_h.func_code == XPT_RESET_BUS?
+		    "bus" : "device");
 		CAMLOCK_2_MPTLOCK(mpt);
 		(void) mpt_bus_reset(mpt, tgt, lun, FALSE);
 		MPTLOCK_2_CAMLOCK(mpt);
@@ -2986,6 +2982,17 @@ mpt_action(struct cam_sim *sim, union ccb *ccb)
 			break;
 		}
 
+		scsi = &cts->proto_specific.scsi;
+		spi = &cts->xport_specific.spi;
+
+		/*
+		 * We can be called just to valid transport and proto versions
+		 */
+		if (scsi->valid == 0 && spi->valid == 0) {
+			mpt_set_ccb_status(ccb, CAM_REQ_CMP);
+			break;
+		}
+
 		/*
 		 * Skip attempting settings on RAID volume disks.
 		 * Other devices on the bus get the normal treatment.
@@ -2993,7 +3000,7 @@ mpt_action(struct cam_sim *sim, union ccb *ccb)
 		if (mpt->phydisk_sim && raid_passthru == 0 &&
 		    mpt_is_raid_volume(mpt, tgt) != 0) {
 			mpt_lprt(mpt, MPT_PRT_NEGOTIATION,
-			    "skipping transfer settings for RAID volumes\n");
+			    "no transfer settings for RAID vols\n");
 			mpt_set_ccb_status(ccb, CAM_REQ_CMP);
 			break;
 		}
@@ -3013,9 +3020,6 @@ mpt_action(struct cam_sim *sim, union ccb *ccb)
 		dval = 0;
 		period = 0;
 		offset = 0;
-
-		scsi = &cts->proto_specific.scsi;
-		spi = &cts->xport_specific.spi;
 
 		if ((spi->valid & CTS_SPI_VALID_DISC) != 0) {
 			dval |= ((spi->flags & CTS_SPI_FLAGS_DISC_ENB) != 0) ?
@@ -3074,10 +3078,9 @@ mpt_action(struct cam_sim *sim, union ccb *ccb)
 			mpt_set_ccb_status(ccb, CAM_REQ_CMP);
 			break;
 		}
-			
 		mpt_lprt(mpt, MPT_PRT_NEGOTIATION,
-		    "Set Settings[%d]: 0x%x period 0x%x offset %d\n", tgt,
-		    dval, period , offset);
+		    "set [%d]: 0x%x period 0x%x offset %d\n",
+		    tgt, dval, period, offset);
 		if (mpt_update_spi_config(mpt, tgt)) {
 			mpt_set_ccb_status(ccb, CAM_REQ_CMP_ERR);
 		} else {
@@ -3088,29 +3091,24 @@ mpt_action(struct cam_sim *sim, union ccb *ccb)
 	}
 	case XPT_GET_TRAN_SETTINGS:
 		cts = &ccb->cts;
+		cts->protocol = PROTO_SCSI;
 		if (mpt->is_fc) {
 			struct ccb_trans_settings_fc *fc =
 			    &cts->xport_specific.fc;
-
-			cts->protocol = PROTO_SCSI;
 			cts->protocol_version = SCSI_REV_SPC;
 			cts->transport = XPORT_FC;
 			cts->transport_version = 0;
-
 			fc->valid = CTS_FC_VALID_SPEED;
-			fc->bitrate = 100000;	/* XXX: Need for 2Gb/s */
-			/* XXX: need a port database for each target */
+			fc->bitrate = 100000;
 		} else if (mpt->is_sas) {
 			struct ccb_trans_settings_sas *sas =
 			    &cts->xport_specific.sas;
 
-			cts->protocol = PROTO_SCSI;
 			cts->protocol_version = SCSI_REV_SPC2;
 			cts->transport = XPORT_SAS;
 			cts->transport_version = 0;
-
 			sas->valid = CTS_SAS_VALID_SPEED;
-			sas->bitrate = 300000;	/* XXX: Default 3Gbps */
+			sas->bitrate = 300000;
 		} else if (mpt_get_spi_settings(mpt, cts) != 0) {
 			mpt_set_ccb_status(ccb, CAM_REQ_CMP_ERR);
 			break;
@@ -3141,63 +3139,61 @@ mpt_action(struct cam_sim *sim, union ccb *ccb)
 		cpi->hba_eng_cnt = 0;
 		cpi->max_target = mpt->mpt_max_devices - 1;
 		/*
-		 * XXX: FC cards report MAX_DEVICES of 512- but we
-		 * XXX: seem to hang when going higher than 255.
+		 * FC cards report MAX_DEVICES of 512, but
+		 * the MSG_SCSI_IO_REQUEST target id field
+		 * is only 8 bits. Until we fix the driver
+		 * to support 'channels' for bus overflow,
+		 * just limit it.
 		 */
 		if (cpi->max_target > 255) {
 			cpi->max_target = 255;
 		}
+
 		/*
-		 * XXX: VMware ESX reports > 16 devices and then dies
-		 * XXX: when we probe.
+		 * VMware ESX reports > 16 devices and then dies when we probe.
 		 */
 		if (mpt->is_spi && cpi->max_target > 15) {
 			cpi->max_target = 15;
 		}
 		cpi->max_lun = 7;
 		cpi->initiator_id = mpt->mpt_ini_id;
-
 		cpi->bus_id = cam_sim_bus(sim);
+
 		/*
-		 * Actual speed for each device varies.
-		 *
 		 * The base speed is the speed of the underlying connection.
-		 * This is strictly determined for SPI (async, narrow). If
-		 * link is up for Fibre Channel, then speed can be gotten
-		 * from that.
 		 */
+		cpi->protocol = PROTO_SCSI;
 		if (mpt->is_fc) {
 			cpi->hba_misc = PIM_NOBUSRESET;
 			cpi->base_transfer_speed = 100000;
 			cpi->hba_inquiry = PI_TAG_ABLE;
-                        cpi->transport = XPORT_FC;
-                        cpi->transport_version = 0;
+			cpi->transport = XPORT_FC;
+			cpi->transport_version = 0;
+			cpi->protocol_version = SCSI_REV_SPC;
 		} else if (mpt->is_sas) {
 			cpi->hba_misc = PIM_NOBUSRESET;
 			cpi->base_transfer_speed = 300000;
 			cpi->hba_inquiry = PI_TAG_ABLE;
-                        cpi->transport = XPORT_SAS;
-                        cpi->transport_version = 0;
+			cpi->transport = XPORT_SAS;
+			cpi->transport_version = 0;
+			cpi->protocol_version = SCSI_REV_SPC2;
 		} else {
 			cpi->hba_misc = PIM_SEQSCAN;
 			cpi->base_transfer_speed = 3300;
 			cpi->hba_inquiry = PI_SDTR_ABLE|PI_TAG_ABLE|PI_WIDE_16;
-                        cpi->transport = XPORT_SPI;
-                        cpi->transport_version = 2;
+			cpi->transport = XPORT_SPI;
+			cpi->transport_version = 2;
+			cpi->protocol_version = SCSI_REV_2;
 		}
 
-                cpi->protocol = PROTO_SCSI;
-                cpi->protocol_version = SCSI_REV_2;
 		/*
 		 * We give our fake RAID passhtru bus a width that is MaxVolumes
-		 * wide, restrict it to one lun and have it *not* be a bus
-		 * that can have a SCSI bus reset.
+		 * wide and restrict it to one lun.
 		 */
 		if (raid_passthru) {
 			cpi->max_target = mpt->ioc_page2->MaxPhysDisks - 1;
 			cpi->initiator_id = cpi->max_target + 1;
 			cpi->max_lun = 0;
-			cpi->hba_misc |= PIM_NOBUSRESET;
 		}
 
 		if ((mpt->role & MPT_ROLE_INITIATOR) == 0) {
@@ -3297,7 +3293,14 @@ mpt_get_spi_settings(struct mpt_softc *mpt, struct ccb_trans_settings *cts)
 	uint8_t dval, pval, oval;
 	int rv;
 
-	if (xpt_path_sim(cts->ccb_h.path) == mpt->phydisk_sim) {
+	cts->protocol = PROTO_SCSI;
+	cts->protocol_version = SCSI_REV_2;
+	cts->transport = XPORT_SPI;
+	cts->transport_version = 2;
+
+	if (cts->type == CTS_TYPE_USER_SETTINGS) {
+		tgt = cts->ccb_h.target_id;
+	} else if (xpt_path_sim(cts->ccb_h.path) == mpt->phydisk_sim) {
 		if (mpt_map_physdisk(mpt, (union ccb *)cts, &tgt)) {
 			return (-1);
 		}
@@ -3306,8 +3309,10 @@ mpt_get_spi_settings(struct mpt_softc *mpt, struct ccb_trans_settings *cts)
 	}
 
 	/*
-	 * XXX: We aren't looking Port Page 2 BIOS settings here.
-	 * XXX: For goal settings, we pick the max from port page 0
+	 * We aren't looking at Port Page 2 BIOS settings here-
+	 * sometimes these have been known to be bogus XXX.
+	 *
+	 * For user settings, we pick the max from port page 0
 	 * 
 	 * For current settings we read the current settings out from
 	 * device page 0 for that target.
@@ -3326,40 +3331,43 @@ mpt_get_spi_settings(struct mpt_softc *mpt, struct ccb_trans_settings *cts)
 			return (rv);
 		}
 		MPTLOCK_2_CAMLOCK(mpt);
+		mpt_lprt(mpt, MPT_PRT_DEBUG,
+		    "mpt_get_spi_settings[%d]: current NP %x Info %x\n", tgt,
+		    tmp.NegotiatedParameters, tmp.Information);
 		dval |= (tmp.NegotiatedParameters & MPI_SCSIDEVPAGE0_NP_WIDE) ?
 		    DP_WIDE : DP_NARROW;
 		dval |= (mpt->mpt_disc_enable & (1 << tgt)) ?
 		    DP_DISC_ENABLE : DP_DISC_DISABL;
 		dval |= (mpt->mpt_tag_enable & (1 << tgt)) ?
 		    DP_TQING_ENABLE : DP_TQING_DISABL;
-		oval = (tmp.NegotiatedParameters >> 16) & 0xff;
-		pval = (tmp.NegotiatedParameters >>  8) & 0xff;
+		oval = tmp.NegotiatedParameters;
+		oval &= MPI_SCSIDEVPAGE0_NP_NEG_SYNC_OFFSET_MASK;
+		oval >>= MPI_SCSIDEVPAGE0_NP_SHIFT_SYNC_OFFSET;
+		pval = tmp.NegotiatedParameters;
+		pval &= MPI_SCSIDEVPAGE0_NP_NEG_SYNC_PERIOD_MASK;
+		pval >>= MPI_SCSIDEVPAGE0_NP_SHIFT_SYNC_PERIOD;
 		mpt->mpt_dev_page0[tgt] = tmp;
 	} else {
-		/*
-		 * XXX: Just make theoretical maximum.
-		 */
 		dval = DP_WIDE|DP_DISC_ENABLE|DP_TQING_ENABLE;
-		oval = (mpt->mpt_port_page0.Capabilities >> 16) & 0xff;
-		pval = (mpt->mpt_port_page0.Capabilities >>  8) & 0xff;
+		oval = mpt->mpt_port_page0.Capabilities;
+		oval = MPI_SCSIPORTPAGE0_CAP_GET_MAX_SYNC_OFFSET(oval);
+		pval = mpt->mpt_port_page0.Capabilities;
+		pval = MPI_SCSIPORTPAGE0_CAP_GET_MIN_SYNC_PERIOD(pval);
 	}
-	cts->protocol = PROTO_SCSI;
-	cts->protocol_version = SCSI_REV_2;
-	cts->transport = XPORT_SPI;
-	cts->transport_version = 2;
 
-	scsi->flags &= ~CTS_SCSI_FLAGS_TAG_ENB;
-	spi->flags &= ~CTS_SPI_FLAGS_DISC_ENB;
+	spi->valid = 0;
+	scsi->valid = 0;
+	spi->flags = 0;
+	scsi->flags = 0;
 	if (dval & DP_DISC_ENABLE) {
 		spi->flags |= CTS_SPI_FLAGS_DISC_ENB;
 	}
-	if (dval & DP_TQING_ENABLE) {
-		scsi->flags |= CTS_SCSI_FLAGS_TAG_ENB;
-	}
-	if (oval && pval) {
+	if (oval) {
 		spi->sync_offset = oval;
-		spi->sync_period = pval;
 		spi->valid |= CTS_SPI_VALID_SYNC_OFFSET;
+	}
+	if (pval) {
+		spi->sync_period = pval;
 		spi->valid |= CTS_SPI_VALID_SYNC_RATE;
 	}
 	spi->valid |= CTS_SPI_VALID_BUS_WIDTH;
@@ -3368,6 +3376,9 @@ mpt_get_spi_settings(struct mpt_softc *mpt, struct ccb_trans_settings *cts)
 	} else {
 		spi->bus_width = MSG_EXT_WDTR_BUS_8_BIT;
 	}
+	if (dval & DP_TQING_ENABLE) {
+		scsi->flags |= CTS_SCSI_FLAGS_TAG_ENB;
+	}
 	if (cts->ccb_h.target_lun != CAM_LUN_WILDCARD) {
 		scsi->valid = CTS_SCSI_VALID_TQ;
 		spi->valid |= CTS_SPI_VALID_DISC;
@@ -3375,8 +3386,10 @@ mpt_get_spi_settings(struct mpt_softc *mpt, struct ccb_trans_settings *cts)
 		scsi->valid = 0;
 	}
 	mpt_lprt(mpt, MPT_PRT_NEGOTIATION,
-	    "mpt_get_spi_settings[%d]: %s 0x%x period 0x%x offset %d\n", tgt,
-	    IS_CURRENT_SETTINGS(cts)? "ACTIVE" : "NVRAM ", dval, pval, oval);
+	    "mpt_get_spi_settings[%d]:%s per=%x off=%d SPF=%x SPV=%x SCF=%x SCV"
+	    "=%x bw=%x\n",
+	    tgt, IS_CURRENT_SETTINGS(cts)? "ACTIVE" : "NVRAM ", pval, oval,
+	    spi->flags, spi->valid, scsi->flags, scsi->valid, spi->bus_width);
 	return (0);
 }
 

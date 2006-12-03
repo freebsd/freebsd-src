@@ -894,7 +894,7 @@ static int
 mpt_wait_db_int(struct mpt_softc *mpt)
 {
 	int i;
-	for (i=0; i < MPT_MAX_WAIT; i++) {
+	for (i = 0; i < MPT_MAX_WAIT; i++) {
 		if (MPT_DB_INTR(mpt_rd_intr(mpt))) {
 			maxwait_int = i > maxwait_int ? i : maxwait_int;
 			return MPT_OK;
@@ -1365,7 +1365,7 @@ mpt_send_handshake_cmd(struct mpt_softc *mpt, size_t len, void *cmd)
 
 	/* Wait for the chip to notice */
 	if (mpt_wait_db_int(mpt) != MPT_OK) {
-		mpt_prt(mpt, "mpt_send_handshake_cmd timeout1\n");
+		mpt_prt(mpt, "mpt_send_handshake_cmd: db ignored\n");
 		return (ETIMEDOUT);
 	}
 
@@ -1373,7 +1373,7 @@ mpt_send_handshake_cmd(struct mpt_softc *mpt, size_t len, void *cmd)
 	mpt_write(mpt, MPT_OFFSET_INTR_STATUS, 0);
 
 	if (mpt_wait_db_ack(mpt) != MPT_OK) {
-		mpt_prt(mpt, "mpt_send_handshake_cmd timeout2\n");
+		mpt_prt(mpt, "mpt_send_handshake_cmd: db ack timed out\n");
 		return (ETIMEDOUT);
 	}
 
@@ -1382,8 +1382,7 @@ mpt_send_handshake_cmd(struct mpt_softc *mpt, size_t len, void *cmd)
 		mpt_write(mpt, MPT_OFFSET_DOORBELL, htole32(*data32++));
 		if (mpt_wait_db_ack(mpt) != MPT_OK) {
 			mpt_prt(mpt,
-				"mpt_send_handshake_cmd timeout! index = %d\n",
-				i);
+			    "mpt_send_handshake_cmd: timeout @ index %d\n", i);
 			return (ETIMEDOUT);
 		}
 	}
