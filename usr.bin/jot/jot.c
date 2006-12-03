@@ -480,7 +480,9 @@ fmt_broken:
 			else if (*p == '%' && *(p+1) == '%')
 				p++;
 			else if (*p == '%' && !*(p+1)) {
-				strcat(format, "%");
+				if (strlcat(format, "%", sizeof(format)) >=
+				    sizeof(format))
+					errx(1, "-w word too long");
 				break;
 			}
 	}
