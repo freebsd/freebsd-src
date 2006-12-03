@@ -719,7 +719,6 @@ struct ccb_trans_settings_spi
 #define CTS_SPI_VALID_PPR_OPTIONS	0x10
 	u_int	flags;
 #define	CTS_SPI_FLAGS_DISC_ENB		0x01
-#define	CTS_SPI_FLAGS_TAG_ENB		0x02
 	u_int	sync_period;
 	u_int	sync_offset;
 	u_int	bus_width;
