@@ -71,11 +71,6 @@ options 	WITNESS_SKIPSPIN	# Don't run witness on spinlocks for speed
 # Make an SMP-capable kernel by default
 options 	SMP			# Symmetric MultiProcessor Kernel
 
-# Linux 32-bit ABI support
-options 	COMPAT_LINUX32		# Compatible with i386 linux binaries 
-options 	LINPROCFS
-options		LINSYSFS
-
 # Bus support.
 device		acpi
 device		pci
