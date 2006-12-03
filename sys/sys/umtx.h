@@ -49,26 +49,36 @@ struct umtx {
 #define	UMUTEX_UNOWNED		0x0
 #define	UMUTEX_CONTESTED	0x80000000U
 
-#define UMUTEX_ERROR_CHECK	0x0002	/* Error-checking mutex */
-#define UMUTEX_PRIO_INHERIT	0x0004	/* Priority inherited mutex */
-#define UMUTEX_PRIO_PROTECT	0x0008	/* Priority protect mutex */
+#define	UMUTEX_ERROR_CHECK	0x0002	/* Error-checking mutex */
+#define	UMUTEX_PRIO_INHERIT	0x0004	/* Priority inherited mutex */
+#define	UMUTEX_PRIO_PROTECT	0x0008	/* Priority protect mutex */
+
 struct umutex {
 	volatile __lwpid_t	m_owner;	/* Owner of the mutex */
-	uint32_t	m_flags;	/* Flags of the mutex */
-	uint32_t	m_ceilings[2];	/* Priority protect ceiling */
-	uint32_t	m_spare[4];	/* Spare space */
+	uint32_t		m_flags;	/* Flags of the mutex */
+	uint32_t		m_ceilings[2];	/* Priority protect ceiling */
+	uint32_t		m_spare[4];	/* Spare space */
+};
+
+struct ucond {
+	volatile uint32_t	c_has_waiters;	/* Has waiters in kernel */
+	uint32_t		c_flags;	/* Flags of the condition variable */
+	uint32_t		c_spare[2];	/* Spare space */
 };
 
 /* op code for _umtx_op */
-#define UMTX_OP_LOCK		0
-#define UMTX_OP_UNLOCK		1
-#define UMTX_OP_WAIT		2
-#define UMTX_OP_WAKE		3
-#define UMTX_OP_MUTEX_TRYLOCK	4
-#define UMTX_OP_MUTEX_LOCK	5
-#define UMTX_OP_MUTEX_UNLOCK	6
-#define UMTX_OP_SET_CEILING	7
-#define UMTX_OP_MAX		8
+#define	UMTX_OP_LOCK		0
+#define	UMTX_OP_UNLOCK		1
+#define	UMTX_OP_WAIT		2
+#define	UMTX_OP_WAKE		3
+#define	UMTX_OP_MUTEX_TRYLOCK	4
+#define	UMTX_OP_MUTEX_LOCK	5
+#define	UMTX_OP_MUTEX_UNLOCK	6
+#define	UMTX_OP_SET_CEILING	7
+#define	UMTX_OP_CV_WAIT		8
+#define	UMTX_OP_CV_SIGNAL	9
+#define	UMTX_OP_CV_BROADCAST	10
+#define	UMTX_OP_MAX		11
 
 #ifndef _KERNEL
 
