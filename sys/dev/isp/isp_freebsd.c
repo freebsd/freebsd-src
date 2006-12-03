@@ -2686,6 +2686,13 @@ isp_action(struct cam_sim *sim, union ccb *ccb)
 			sdparam *sdp = isp->isp_param;
 			uint16_t *dptr;
 
+			if (spi->valid == 0 && scsi->valid == 0) {
+				ISPLOCK_2_CAMLOCK(isp);
+				ccb->ccb_h.status = CAM_REQ_CMP;
+				xpt_done(ccb);
+				break;
+			}
+				
 			bus = cam_sim_bus(xpt_path_sim(cts->ccb_h.path));
 			sdp += bus;
 			/*
@@ -2734,8 +2741,9 @@ isp_action(struct cam_sim *sim, union ccb *ccb)
 				*dptr &= ~DPARM_SYNC;
 			}
 			isp_prt(isp, ISP_LOGDEBUG0,
-			    "SET bus %d targ %d to flags %x off %x per %x",
-			    bus, tgt, sdp->isp_devparam[tgt].goal_flags,
+			    "SET (%d.%d.%d) to flags %x off %x per %x",
+			    bus, tgt, cts->ccb_h.target_lun,
+			    sdp->isp_devparam[tgt].goal_flags,
 			    sdp->isp_devparam[tgt].goal_offset,
 			    sdp->isp_devparam[tgt].goal_period);
 			sdp->isp_devparam[tgt].dev_update = 1;
@@ -2802,20 +2810,22 @@ isp_action(struct cam_sim *sim, union ccb *ccb)
 			cts->transport = XPORT_SPI;
 			cts->transport_version = 2;
 
-			scsi->flags &= ~CTS_SCSI_FLAGS_TAG_ENB;
-			spi->flags &= ~CTS_SPI_FLAGS_DISC_ENB;
+			spi->valid = 0;
+			scsi->valid = 0;
+			spi->flags = 0;
+			scsi->flags = 0;
 			if (dval & DPARM_DISC) {
 				spi->flags |= CTS_SPI_FLAGS_DISC_ENB;
-			}
-			if (dval & DPARM_TQING) {
-				scsi->flags |= CTS_SCSI_FLAGS_TAG_ENB;
 			}
 			if ((dval & DPARM_SYNC) && oval && pval) {
 				spi->sync_offset = oval;
 				spi->sync_period = pval;
-				spi->valid |= CTS_SPI_VALID_SYNC_OFFSET;
-				spi->valid |= CTS_SPI_VALID_SYNC_RATE;
+			} else {
+				spi->sync_offset = 0;
+				spi->sync_period = 0;
 			}
+			spi->valid |= CTS_SPI_VALID_SYNC_OFFSET;
+			spi->valid |= CTS_SPI_VALID_SYNC_RATE;
 			spi->valid |= CTS_SPI_VALID_BUS_WIDTH;
 			if (dval & DPARM_WIDE) {
 				spi->bus_width = MSG_EXT_WDTR_BUS_16_BIT;
@@ -2824,14 +2834,15 @@ isp_action(struct cam_sim *sim, union ccb *ccb)
 			}
 			if (cts->ccb_h.target_lun != CAM_LUN_WILDCARD) {
 				scsi->valid = CTS_SCSI_VALID_TQ;
+				if (dval & DPARM_TQING) {
+					scsi->flags |= CTS_SCSI_FLAGS_TAG_ENB;
+				}
 				spi->valid |= CTS_SPI_VALID_DISC;
-			} else {
-				scsi->valid = 0;
 			}
 			isp_prt(isp, ISP_LOGDEBUG0,
-			    "GET %s bus %d targ %d to flags %x off %x per %x",
+			    "GET %s (%d.%d.%d) to flags %x off %x per %x",
 			    IS_CURRENT_SETTINGS(cts)? "ACTIVE" : "NVRAM",
-			    bus, tgt, dval, oval, pval);
+			    bus, tgt, cts->ccb_h.target_lun, dval, oval, pval);
 		}
 		ISPLOCK_2_CAMLOCK(isp);
 		ccb->ccb_h.status = CAM_REQ_CMP;
