@@ -1490,8 +1490,13 @@ vge_rxeof(sc)
 		}
 
 		if (rxstat & VGE_RDSTS_VTAG) {
+			/*
+			 * The 32-bit rxctl register is stored in little-endian.
+			 * However, the 16-bit vlan tag is stored in big-endian,
+			 * so we have to byte swap it.
+			 */
 			VLAN_INPUT_TAG_NEW(ifp, m,
-			    ntohs((rxctl & VGE_RDCTL_VLANID)));
+			    bswap16(rxctl & VGE_RDCTL_VLANID));
 			if (m == NULL)
 				continue;
 		}
@@ -1819,7 +1824,7 @@ vge_encap(sc, m_head, idx)
 	mtag = VLAN_OUTPUT_TAG(sc->vge_ifp, m_head);
 	if (mtag != NULL)
 		sc->vge_ldata.vge_tx_list[idx].vge_ctl |=
-		    htole32(htons(VLAN_TAG_VALUE(mtag)) | VGE_TDCTL_VTAG);
+		    htole32((uint16_t)VLAN_TAG_VALUE(mtag) | VGE_TDCTL_VTAG);
 
 	sc->vge_ldata.vge_tx_list[idx].vge_sts |= htole32(VGE_TDSTS_OWN);
 
