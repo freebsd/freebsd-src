@@ -955,7 +955,7 @@ do_wait(struct thread *td, void *addr, u_long id,
 		umtxq_unlock(&uq->uq_key);
 	} else if (timeout == NULL) {
 		umtxq_lock(&uq->uq_key);
-		error = umtxq_sleep(uq, "ucond", 0);
+		error = umtxq_sleep(uq, "uwait", 0);
 		umtxq_remove(uq);
 		umtxq_unlock(&uq->uq_key);
 	} else {
@@ -964,7 +964,7 @@ do_wait(struct thread *td, void *addr, u_long id,
 		TIMESPEC_TO_TIMEVAL(&tv, timeout);
 		umtxq_lock(&uq->uq_key);
 		for (;;) {
-			error = umtxq_sleep(uq, "ucond", tvtohz(&tv));
+			error = umtxq_sleep(uq, "uwait", tvtohz(&tv));
 			if (!(uq->uq_flags & UQF_UMTXQ))
 				break;
 			if (error != ETIMEDOUT)
@@ -2168,6 +2168,140 @@ do_unlock_umutex(struct thread *td, struct umutex *m)
 	return (EINVAL);
 }
 
+static int
+do_cv_wait(struct thread *td, struct ucond *cv, struct umutex *m,
+	struct timespec *timeout)
+{
+	struct umtx_q *uq;
+	struct timeval tv;
+	struct timespec cts, ets, tts;
+	uint32_t flags;
+	int error;
+
+	uq = td->td_umtxq;
+	flags = fuword32(&cv->c_flags);
+	error = umtx_key_get(cv, TYPE_CV, GET_SHARE(flags), &uq->uq_key);
+	if (error != 0)
+		return (error);
+	umtxq_lock(&uq->uq_key);
+	umtxq_busy(&uq->uq_key);
+	umtxq_insert(uq);
+	umtxq_unlock(&uq->uq_key);
+
+	/*
+	 * The magic thing is we should set c_has_waiters to 1 before
+	 * releasing user mutex.
+	 */
+	suword32(__DEVOLATILE(uint32_t *, &cv->c_has_waiters), 1);
+
+	umtxq_lock(&uq->uq_key);
+	umtxq_unbusy(&uq->uq_key);
+	umtxq_unlock(&uq->uq_key);
+
+	error = do_unlock_umutex(td, m);
+	
+	umtxq_lock(&uq->uq_key);
+	if (error == 0) {
+		if (timeout == NULL) {
+			error = umtxq_sleep(uq, "ucond", 0);
+		} else {
+			getnanouptime(&ets);
+			timespecadd(&ets, timeout);
+			TIMESPEC_TO_TIMEVAL(&tv, timeout);
+			for (;;) {
+				error = umtxq_sleep(uq, "ucond", tvtohz(&tv));
+				if (error != ETIMEDOUT)
+					break;
+				getnanouptime(&cts);
+				if (timespeccmp(&cts, &ets, >=)) {
+					error = ETIMEDOUT;
+					break;
+				}
+				tts = ets;
+				timespecsub(&tts, &cts);
+				TIMESPEC_TO_TIMEVAL(&tv, &tts);
+			}
+		}
+	}
+
+	if (error != 0) {
+		if ((uq->uq_flags & UQF_UMTXQ) == 0) {
+			/*
+			 * If we concurrently got do_cv_signal()d
+			 * and we got an error or UNIX signals or a timeout,
+			 * then, perform another umtxq_signal to avoid
+			 * consuming the wakeup. This may cause supurious
+			 * wakeup for another thread which was just queued,
+			 * but SUSV3 explicitly allows supurious wakeup to
+			 * occur, and indeed a kernel based implementation
+			 * can not avoid it.
+			 */ 
+			umtxq_signal(&uq->uq_key, 1);
+		}
+		if (error == ERESTART)
+			error = EINTR;
+	}
+	umtxq_remove(uq);
+	umtxq_unlock(&uq->uq_key);
+	umtx_key_release(&uq->uq_key);
+	return (error);
+}
+
+/*
+ * Signal a userland condition variable.
+ */
+static int
+do_cv_signal(struct thread *td, struct ucond *cv)
+{
+	struct umtx_key key;
+	int error, cnt, nwake;
+	uint32_t flags;
+
+	flags = fuword32(&cv->c_flags);
+	if ((error = umtx_key_get(cv, TYPE_CV, GET_SHARE(flags), &key)) != 0)
+		return (error);	
+	umtxq_lock(&key);
+	umtxq_busy(&key);
+	cnt = umtxq_count(&key);
+	nwake = umtxq_signal(&key, 1);
+	if (cnt <= nwake) {
+		umtxq_unlock(&key);
+		error = suword32(
+		    __DEVOLATILE(uint32_t *, &cv->c_has_waiters), 0);
+		umtxq_lock(&key);
+	}
+	umtxq_unbusy(&key);
+	umtxq_unlock(&key);
+	umtx_key_release(&key);
+	return (error);
+}
+
+static int
+do_cv_broadcast(struct thread *td, struct ucond *cv)
+{
+	struct umtx_key key;
+	int error;
+	uint32_t flags;
+
+	flags = fuword32(&cv->c_flags);
+	if ((error = umtx_key_get(cv, TYPE_CV, GET_SHARE(flags), &key)) != 0)
+		return (error);	
+
+	umtxq_lock(&key);
+	umtxq_busy(&key);
+	umtxq_signal(&key, INT_MAX);
+	umtxq_unlock(&key);
+
+	error = suword32(__DEVOLATILE(uint32_t *, &cv->c_has_waiters), 0);
+
+	umtxq_lock(&key);
+	umtxq_unbusy(&key);
+	umtxq_unlock(&key);
+
+	umtx_key_release(&key);
+	return (error);
+}
+
 int
 _umtx_lock(struct thread *td, struct _umtx_lock_args *uap)
     /* struct umtx *umtx */
@@ -2277,6 +2411,41 @@ __umtx_op_set_ceiling(struct thread *td, struct _umtx_op_args *uap)
 	return do_set_ceiling(td, uap->obj, uap->val, uap->uaddr1);
 }
 
+static int
+__umtx_op_cv_wait(struct thread *td, struct _umtx_op_args *uap)
+{
+	struct timespec *ts, timeout;
+	int error;
+
+	/* Allow a null timespec (wait forever). */
+	if (uap->uaddr2 == NULL)
+		ts = NULL;
+	else {
+		error = copyin(uap->uaddr2, &timeout,
+		    sizeof(timeout));
+		if (error != 0)
+			return (error);
+		if (timeout.tv_nsec >= 1000000000 ||
+		    timeout.tv_nsec < 0) {
+			return (EINVAL);
+		}
+		ts = &timeout;
+	}
+	return (do_cv_wait(td, uap->obj, uap->uaddr1, ts));
+}
+
+static int
+__umtx_op_cv_signal(struct thread *td, struct _umtx_op_args *uap)
+{
+	return do_cv_signal(td, uap->obj);
+}
+
+static int
+__umtx_op_cv_broadcast(struct thread *td, struct _umtx_op_args *uap)
+{
+	return do_cv_broadcast(td, uap->obj);
+}
+
 typedef int (*_umtx_op_func)(struct thread *td, struct _umtx_op_args *uap);
 
 static _umtx_op_func op_table[] = {
@@ -2287,7 +2456,10 @@ static _umtx_op_func op_table[] = {
 	__umtx_op_trylock_umutex,	/* UMTX_OP_MUTEX_TRYLOCK */
 	__umtx_op_lock_umutex,		/* UMTX_OP_MUTEX_LOCK */
 	__umtx_op_unlock_umutex,	/* UMTX_OP_MUTEX_UNLOCK */
-	__umtx_op_set_ceiling		/* UMTX_OP_SET_CEILING */
+	__umtx_op_set_ceiling,		/* UMTX_OP_SET_CEILING */
+	__umtx_op_cv_wait,		/* UMTX_OP_CV_WAIT*/
+	__umtx_op_cv_signal,		/* UMTX_OP_CV_SIGNAL */
+	__umtx_op_cv_broadcast		/* UMTX_OP_CV_BROADCAST */
 };
 
 int
@@ -2402,6 +2574,27 @@ __umtx_op_lock_umutex_compat32(struct thread *td, struct _umtx_op_args *uap)
 	return do_lock_umutex(td, uap->obj, ts, 0);
 }
 
+static int
+__umtx_op_cv_wait_compat32(struct thread *td, struct _umtx_op_args *uap)
+{
+	struct timespec *ts, timeout;
+	int error;
+
+	/* Allow a null timespec (wait forever). */
+	if (uap->uaddr2 == NULL)
+		ts = NULL;
+	else {
+		error = copyin_timeout32(uap->uaddr2, &timeout);
+		if (error != 0)
+			return (error);
+		if (timeout.tv_nsec >= 1000000000 ||
+		    timeout.tv_nsec < 0)
+			return (EINVAL);
+		ts = &timeout;
+	}
+	return (do_cv_wait(td, uap->obj, uap->uaddr1, ts));
+}
+
 static _umtx_op_func op_table_compat32[] = {
 	__umtx_op_lock_umtx_compat32,	/* UMTX_OP_LOCK */
 	__umtx_op_unlock_umtx_compat32,	/* UMTX_OP_UNLOCK */
@@ -2410,7 +2603,10 @@ static _umtx_op_func op_table_compat32[] = {
 	__umtx_op_trylock_umutex,	/* UMTX_OP_MUTEX_LOCK */
 	__umtx_op_lock_umutex_compat32,	/* UMTX_OP_MUTEX_TRYLOCK */
 	__umtx_op_unlock_umutex,	/* UMTX_OP_MUTEX_UNLOCK	*/
-	__umtx_op_set_ceiling		/* UMTX_OP_SET_CEILING */
+	__umtx_op_set_ceiling,		/* UMTX_OP_SET_CEILING */
+	__umtx_op_cv_wait_compat32,	/* UMTX_OP_CV_WAIT*/
+	__umtx_op_cv_signal,		/* UMTX_OP_CV_SIGNAL */
+	__umtx_op_cv_broadcast		/* UMTX_OP_CV_BROADCAST */
 };
 
 int
