@@ -660,7 +660,7 @@ mpt_read_config_info_spi(struct mpt_softc *mpt)
 	if (rv) {
 		mpt_prt(mpt, "failed to read SPI Port Page 0\n");
 	} else {
-		mpt_lprt(mpt, MPT_PRT_DEBUG,
+		mpt_lprt(mpt, MPT_PRT_NEGOTIATION,
 		    "SPI Port Page 0: Capabilities %x PhysicalInterface %x\n",
 		    mpt->mpt_port_page0.Capabilities,
 		    mpt->mpt_port_page0.PhysicalInterface);
@@ -3290,7 +3290,7 @@ mpt_get_spi_settings(struct mpt_softc *mpt, struct ccb_trans_settings *cts)
 	struct ccb_trans_settings_scsi *scsi = &cts->proto_specific.scsi;
 	struct ccb_trans_settings_spi *spi = &cts->xport_specific.spi;
 	target_id_t tgt;
-	uint8_t dval, pval, oval;
+	uint32_t dval, pval, oval;
 	int rv;
 
 	cts->protocol = PROTO_SCSI;
@@ -3348,7 +3348,7 @@ mpt_get_spi_settings(struct mpt_softc *mpt, struct ccb_trans_settings *cts)
 		pval >>= MPI_SCSIDEVPAGE0_NP_SHIFT_SYNC_PERIOD;
 		mpt->mpt_dev_page0[tgt] = tmp;
 	} else {
-		dval = DP_WIDE|DP_DISC_ENABLE|DP_TQING_ENABLE;
+		dval = DP_WIDE|DP_DISC_ENABLE|DP_TQING_ENABLE|DP_SYNC;
 		oval = mpt->mpt_port_page0.Capabilities;
 		oval = MPI_SCSIPORTPAGE0_CAP_GET_MAX_SYNC_OFFSET(oval);
 		pval = mpt->mpt_port_page0.Capabilities;
@@ -3359,37 +3359,29 @@ mpt_get_spi_settings(struct mpt_softc *mpt, struct ccb_trans_settings *cts)
 	scsi->valid = 0;
 	spi->flags = 0;
 	scsi->flags = 0;
-	if (dval & DP_DISC_ENABLE) {
-		spi->flags |= CTS_SPI_FLAGS_DISC_ENB;
-	}
-	if (oval) {
-		spi->sync_offset = oval;
-		spi->valid |= CTS_SPI_VALID_SYNC_OFFSET;
-	}
-	if (pval) {
-		spi->sync_period = pval;
-		spi->valid |= CTS_SPI_VALID_SYNC_RATE;
-	}
+	spi->sync_offset = oval;
+	spi->sync_period = pval;
+	spi->valid |= CTS_SPI_VALID_SYNC_OFFSET;
+	spi->valid |= CTS_SPI_VALID_SYNC_RATE;
 	spi->valid |= CTS_SPI_VALID_BUS_WIDTH;
 	if (dval & DP_WIDE) {
 		spi->bus_width = MSG_EXT_WDTR_BUS_16_BIT;
 	} else {
 		spi->bus_width = MSG_EXT_WDTR_BUS_8_BIT;
 	}
-	if (dval & DP_TQING_ENABLE) {
-		scsi->flags |= CTS_SCSI_FLAGS_TAG_ENB;
-	}
 	if (cts->ccb_h.target_lun != CAM_LUN_WILDCARD) {
 		scsi->valid = CTS_SCSI_VALID_TQ;
+		if (dval & DP_TQING_ENABLE) {
+			scsi->flags |= CTS_SCSI_FLAGS_TAG_ENB;
+		}
 		spi->valid |= CTS_SPI_VALID_DISC;
-	} else {
-		scsi->valid = 0;
+		if (dval & DP_DISC_ENABLE) {
+			spi->flags |= CTS_SPI_FLAGS_DISC_ENB;
+		}
 	}
 	mpt_lprt(mpt, MPT_PRT_NEGOTIATION,
-	    "mpt_get_spi_settings[%d]:%s per=%x off=%d SPF=%x SPV=%x SCF=%x SCV"
-	    "=%x bw=%x\n",
-	    tgt, IS_CURRENT_SETTINGS(cts)? "ACTIVE" : "NVRAM ", pval, oval,
-	    spi->flags, spi->valid, scsi->flags, scsi->valid, spi->bus_width);
+	    "mpt_get_spi_settings[%d]: %s flags 0x%x per 0x%x off=%d\n", tgt,
+	    IS_CURRENT_SETTINGS(cts)? "ACTIVE" : "NVRAM ", dval, pval, oval);
 	return (0);
 }
 
