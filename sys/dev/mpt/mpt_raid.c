@@ -792,7 +792,6 @@ mpt_map_physdisk(struct mpt_softc *mpt, union ccb *ccb, u_int *tgt)
 	mpt_disk = mpt->raid_disks + ccb->ccb_h.target_id;
 	if (ccb->ccb_h.target_id < mpt->raid_max_disks
 	 && (mpt_disk->flags & MPT_RDF_ACTIVE) != 0) {
-
 		*tgt = mpt_disk->config_page.PhysDiskID;
 		return (0);
 	}
@@ -808,6 +807,9 @@ mpt_is_raid_volume(struct mpt_softc *mpt, int tgt)
 	CONFIG_PAGE_IOC_2_RAID_VOL *ioc_vol;
 	CONFIG_PAGE_IOC_2_RAID_VOL *ioc_last_vol;
 
+	if (mpt->ioc_page2 == NULL || mpt->ioc_page2->MaxPhysDisks == 0) {
+		return (0);
+	}
 	ioc_vol = mpt->ioc_page2->RaidVolume;
 	ioc_last_vol = ioc_vol + mpt->ioc_page2->NumActiveVolumes;
 	for (;ioc_vol != ioc_last_vol; ioc_vol++) {
@@ -1106,20 +1108,66 @@ mpt_announce_vol(struct mpt_softc *mpt, struct mpt_raid_volume *mpt_vol)
 	for (i = 0; i < vol_pg->NumPhysDisks; i++){
 		struct mpt_raid_disk *mpt_disk;
 		CONFIG_PAGE_RAID_PHYS_DISK_0 *disk_pg;
+		int pt_bus = cam_sim_bus(mpt->phydisk_sim);
+		U8 f, s;
 
-		mpt_disk = mpt->raid_disks 
-			 + vol_pg->PhysDisk[i].PhysDiskNum;
+		mpt_disk = mpt->raid_disks + vol_pg->PhysDisk[i].PhysDiskNum;
 		disk_pg = &mpt_disk->config_page;
 		mpt_prtc(mpt, "      ");
-		mpt_prtc(mpt, "(%s:%d:%d): ", device_get_nameunit(mpt->dev),
-			 disk_pg->PhysDiskBus, disk_pg->PhysDiskID);
-		if (vol_pg->VolumeType == MPI_RAID_VOL_TYPE_IM)
-			mpt_prtc(mpt, "%s\n",
-				 mpt_disk->member_number == 0
-			       ? "Primary" : "Secondary");
-		else
-			mpt_prtc(mpt, "Stripe Position %d\n",
+		mpt_prtc(mpt, "(%s:%d:%d:0): ", device_get_nameunit(mpt->dev),
+			 pt_bus, disk_pg->PhysDiskID);
+		if (vol_pg->VolumeType == MPI_RAID_VOL_TYPE_IM) {
+			mpt_prtc(mpt, "%s", mpt_disk->member_number == 0?
+			    "Primary" : "Secondary");
+		} else {
+			mpt_prtc(mpt, "Stripe Position %d",
 				 mpt_disk->member_number);
+		}
+		f = disk_pg->PhysDiskStatus.Flags;
+		s = disk_pg->PhysDiskStatus.State;
+		if (f & MPI_PHYSDISK0_STATUS_FLAG_OUT_OF_SYNC) {
+			mpt_prtc(mpt, " Out of Sync");
+		}
+		if (f & MPI_PHYSDISK0_STATUS_FLAG_QUIESCED) {
+			mpt_prtc(mpt, " Quiesced");
+		}
+		if (f & MPI_PHYSDISK0_STATUS_FLAG_INACTIVE_VOLUME) {
+			mpt_prtc(mpt, " Inactive");
+		}
+		if (f & MPI_PHYSDISK0_STATUS_FLAG_OPTIMAL_PREVIOUS) {
+			mpt_prtc(mpt, " Was Optimal");
+		}
+		if (f & MPI_PHYSDISK0_STATUS_FLAG_NOT_OPTIMAL_PREVIOUS) {
+			mpt_prtc(mpt, " Was Non-Optimal");
+		}
+		switch (s) {
+		case MPI_PHYSDISK0_STATUS_ONLINE:
+			mpt_prtc(mpt, " Online");
+			break;
+		case MPI_PHYSDISK0_STATUS_MISSING:
+			mpt_prtc(mpt, " Missing");
+			break;
+		case MPI_PHYSDISK0_STATUS_NOT_COMPATIBLE:
+			mpt_prtc(mpt, " Incompatible");
+			break;
+		case MPI_PHYSDISK0_STATUS_FAILED:
+			mpt_prtc(mpt, " Failed");
+			break;
+		case MPI_PHYSDISK0_STATUS_INITIALIZING:
+			mpt_prtc(mpt, " Initializing");
+			break;
+		case MPI_PHYSDISK0_STATUS_OFFLINE_REQUESTED:
+			mpt_prtc(mpt, " Requested Offline");
+			break;
+		case MPI_PHYSDISK0_STATUS_FAILED_REQUESTED:
+			mpt_prtc(mpt, " Requested Failed");
+			break;
+		case MPI_PHYSDISK0_STATUS_OTHER_OFFLINE:
+		default:
+			mpt_prtc(mpt, " Offline Other (%x)", s);
+			break;
+		}
+		mpt_prtc(mpt, "\n");
 	}
 }
 
@@ -1127,15 +1175,16 @@ static void
 mpt_announce_disk(struct mpt_softc *mpt, struct mpt_raid_disk *mpt_disk)
 {
 	CONFIG_PAGE_RAID_PHYS_DISK_0 *disk_pg;
+	int rd_bus = cam_sim_bus(mpt->sim);
+	int pt_bus = cam_sim_bus(mpt->phydisk_sim);
 	u_int i;
 
 	disk_pg = &mpt_disk->config_page;
 	mpt_disk_prt(mpt, mpt_disk,
-		     "Physical (%s:%d:%d), Pass-thru (%s:%d:%d)\n",
-		     device_get_nameunit(mpt->dev), disk_pg->PhysDiskBus, 
+		     "Physical (%s:%d:%d:0), Pass-thru (%s:%d:%d:0)\n",
+		     device_get_nameunit(mpt->dev), rd_bus,
 		     disk_pg->PhysDiskID, device_get_nameunit(mpt->dev),
-		     /*bus*/1, mpt_disk - mpt->raid_disks);
-
+		     pt_bus, mpt_disk - mpt->raid_disks);
 	if (disk_pg->PhysDiskSettings.HotSparePool == 0)
 		return;
 	mpt_disk_prt(mpt, mpt_disk, "Member of Hot Spare Pool%s",
@@ -1218,8 +1267,9 @@ mpt_refresh_raid_vol(struct mpt_softc *mpt, struct mpt_raid_volume *mpt_vol,
 		mpt_disk = mpt->raid_disks + vol_pg->PhysDisk[i].PhysDiskNum;
 		mpt_disk->volume = mpt_vol;
 		mpt_disk->member_number = vol_pg->PhysDisk[i].PhysDiskMap;
-		if (vol_pg->VolumeType == MPI_RAID_VOL_TYPE_IM)
+		if (vol_pg->VolumeType == MPI_RAID_VOL_TYPE_IM) {
 			mpt_disk->member_number--;
+		}
 	}
 
 	if ((vol_pg->VolumeStatus.Flags

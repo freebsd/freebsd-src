@@ -522,10 +522,9 @@ struct mpt_softc {
 	 */
 	uint16_t	mpt_global_credits;
 	uint16_t	request_frame_size;
-	uint8_t		mpt_max_devices;
+	uint16_t	mpt_max_devices;
 	uint8_t		mpt_max_buses;
 	uint8_t		ioc_facts_flags;
-	uint8_t		padding0;
 
 	/*
 	 * Port Facts
