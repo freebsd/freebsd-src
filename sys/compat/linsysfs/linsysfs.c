@@ -268,9 +268,10 @@ linsysfs_init(PFS_INIT_ARGS)
 static int
 linsysfs_uninit(PFS_INIT_ARGS)
 {
-	struct scsi_host_queue *scsi_host;
+	struct scsi_host_queue *scsi_host, *scsi_host_tmp;
 
-	TAILQ_FOREACH(scsi_host, &scsi_host_q, scsi_host_next) {
+	TAILQ_FOREACH_SAFE(scsi_host, &scsi_host_q, scsi_host_next,
+	    scsi_host_tmp) {
 		TAILQ_REMOVE(&scsi_host_q, scsi_host, scsi_host_next);
 		free(scsi_host->path, M_TEMP);
 		free(scsi_host, M_TEMP);
