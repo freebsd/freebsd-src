@@ -115,6 +115,7 @@ static	u_int32_t i8254_offset;
 static	int	(*i8254_pending)(struct intsrc *);
 static	int	i8254_ticked;
 static	int	using_lapic_timer;
+static	int	rtc_reg = -1;
 static	u_char	rtc_statusa = RTCSA_DIVIDER | RTCSA_NOPROF;
 static	u_char	rtc_statusb = RTCSB_24HR;
 
@@ -421,24 +422,30 @@ rtcin(reg)
 	u_char val;
 
 	RTC_LOCK;
-	outb(IO_RTC, reg);
-	inb(0x84);
+	if (rtc_reg != reg) {
+		inb(0x84);
+		outb(IO_RTC, reg);
+		rtc_reg = reg;
+		inb(0x84);
+	}
 	val = inb(IO_RTC + 1);
-	inb(0x84);
 	RTC_UNLOCK;
 	return (val);
 }
 
-static __inline void
-writertc(u_char reg, u_char val)
+static void
+writertc(int reg, u_char val)
 {
 
 	RTC_LOCK;
-	inb(0x84);
-	outb(IO_RTC, reg);
-	inb(0x84);
+	if (rtc_reg != reg) {
+		inb(0x84);
+		outb(IO_RTC, reg);
+		rtc_reg = reg;
+		inb(0x84);
+	}
 	outb(IO_RTC + 1, val);
-	inb(0x84);		/* XXX work around wrong order in rtcin() */
+	inb(0x84);
 	RTC_UNLOCK;
 }
 
