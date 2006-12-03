@@ -343,13 +343,15 @@ msdosfs_getattr(ap)
 	vap->va_rdev = 0;
 	vap->va_size = dep->de_FileSize;
 	fattime2timespec(dep->de_MDate, dep->de_MTime, 0, 0, &vap->va_mtime);
+	vap->va_ctime = vap->va_mtime;
 	if (pmp->pm_flags & MSDOSFSMNT_LONGNAME) {
 		fattime2timespec(dep->de_ADate, 0, 0, 0, &vap->va_atime);
 		fattime2timespec(dep->de_CDate, dep->de_CTime, dep->de_CHun,
-		    0, &vap->va_ctime);
+		    0, &vap->va_birthtime);
 	} else {
 		vap->va_atime = vap->va_mtime;
-		vap->va_ctime = vap->va_mtime;
+		vap->va_birthtime.tv_sec = -1;
+		vap->va_birthtime.tv_nsec = 0;
 	}
 	vap->va_flags = 0;
 	if ((dep->de_Attributes & ATTR_ARCHIVE) == 0)
