@@ -1,6 +1,6 @@
 # $FreeBSD$
 
-echo 1..36
+echo 1..56
 
 REGRESSION_START($1)
 
@@ -40,5 +40,25 @@ REGRESSION_TEST(`stutter', `jot - 9 0 -.5')
 REGRESSION_TEST(`block', `jot -b x 512')
 REGRESSION_TEST(`tabs', `jot -s, - 10 132 4')
 REGRESSION_TEST(`grep', `jot -s "" -b . 80')
+REGRESSION_TEST(`wf', `jot -w "a%.1fb" 10')
+REGRESSION_TEST(`we', `jot -w "a%eb" 10')
+REGRESSION_TEST(`wwe', `jot -w "a%-15eb" 10')
+REGRESSION_TEST(`wg', `jot -w "a%20gb" 10')
+REGRESSION_TEST(`wc', `jot -w "a%cb" 10 33 43')
+REGRESSION_TEST(`wgd', `jot -w "a%gb" 10 .2')
+REGRESSION_TEST(`wu', `jot -w "a%ub" 10')
+REGRESSION_TEST(`wo', `jot -w "a%ob" 10')
+REGRESSION_TEST(`wx', `jot -w "a%xb" 10')
+REGRESSION_TEST(`wX', `jot -w "a%Xb" 10')
+REGRESSION_TEST(`wXl', `jot -w "a%Xb" 10 2147483648')
+REGRESSION_TEST(`wdl', `jot -w "a%db" 10 2147483648')
+REGRESSION_TEST(`wxn', `jot -w "a%xb" 10 -5')
+REGRESSION_TEST(`wdn', `jot -w "a%db" 10 -5')
+REGRESSION_TEST(`wp1', `jot -w "%%%d%%%%" 10')
+REGRESSION_TEST(`wp2', `jot -w "%d%%d%%" 10')
+REGRESSION_TEST(`wp3', `jot -w "a%%A%%%d%%B%%b" 10')
+REGRESSION_TEST(`wp4', `jot -w "%%d%d%%d%%" 10')
+REGRESSION_TEST(`wp5', `jot -w ftp://www.example.com/pub/uploaded%%20files/disk%03d.iso 10')
+REGRESSION_TEST(`wp6', `jot -w "%d%" 10')
 
 REGRESSION_END()
