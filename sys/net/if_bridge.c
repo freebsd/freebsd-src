@@ -421,7 +421,7 @@ const struct bridge_control bridge_control_table[] = {
 	  BC_F_COPYOUT },
 
 	{ bridge_ioctl_gifsstp,		sizeof(struct ifbpstpconf),
-	  BC_F_COPYOUT },
+	  BC_F_COPYIN|BC_F_COPYOUT },
 
 	{ bridge_ioctl_sproto,		sizeof(struct ifbrparam),
 	  BC_F_COPYIN|BC_F_SUSER },
