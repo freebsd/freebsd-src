@@ -1637,7 +1637,10 @@ bstp_set_edge(struct bstp_port *bp, int set)
 	struct bstp_state *bs = bp->bp_bs;
 
 	BSTP_LOCK(bs);
-	bp->bp_operedge = set;
+	if ((bp->bp_operedge = set) == 0)
+		bp->bp_flags &= ~BSTP_PORT_ADMEDGE;
+	else
+		bp->bp_flags |= BSTP_PORT_ADMEDGE;
 	BSTP_UNLOCK(bs);
 	return (0);
 }
@@ -1809,8 +1812,12 @@ bstp_ifupdstatus(struct bstp_state *bs, struct bstp_port *bp)
 			if (bp->bp_role == BSTP_ROLE_DISABLED)
 				bstp_enable_port(bs, bp);
 		} else {
-			if (bp->bp_role != BSTP_ROLE_DISABLED)
+			if (bp->bp_role != BSTP_ROLE_DISABLED) {
 				bstp_disable_port(bs, bp);
+				if ((bp->bp_flags & BSTP_PORT_ADMEDGE) &&
+				    bp->bp_protover == BSTP_PROTO_RSTP)
+					bp->bp_operedge = 1;
+			}
 		}
 		return;
 	}
