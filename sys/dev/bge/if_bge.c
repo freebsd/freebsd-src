@@ -3661,7 +3661,7 @@ bge_watchdog(struct bge_softc *sc)
 	if_printf(ifp, "watchdog timeout -- resetting\n");
 
 	ifp->if_drv_flags &= ~IFF_DRV_RUNNING;
-	bge_init(sc);
+	bge_init_locked(sc);
 
 	ifp->if_oerrors++;
 }
