@@ -890,11 +890,34 @@ linux_mknod(struct thread *td, struct linux_mknod_args *args)
 		printf(ARGS(mknod, "%s, %d, %d"), path, args->mode, args->dev);
 #endif
 
-	if (S_ISFIFO(args->mode))
+	switch (args->mode & S_IFMT) {
+	case S_IFIFO:
+	case S_IFSOCK:
 		error = kern_mkfifo(td, path, UIO_SYSSPACE, args->mode);
-	else
+		break;
+
+	case S_IFCHR:
+	case S_IFBLK:
 		error = kern_mknod(td, path, UIO_SYSSPACE, args->mode,
 		    args->dev);
+		break;
+
+	case S_IFDIR:
+		error = EPERM;
+		break;
+
+	case 0:
+		args->mode |= S_IFREG;
+		/* fall through */
+	case S_IFREG:
+		error = kern_open(td, path, UIO_SYSSPACE,
+		    O_WRONLY | O_CREAT | O_TRUNC, args->mode);
+		break;
+
+	default:
+		error = EINVAL;
+		break;
+	}
 	LFREEPATH(path);
 	return (error);
 }
