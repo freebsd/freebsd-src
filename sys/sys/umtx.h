@@ -80,6 +80,9 @@ struct ucond {
 #define	UMTX_OP_CV_BROADCAST	10
 #define	UMTX_OP_MAX		11
 
+/* flags for UMTX_OP_CV_WAIT */
+#define UMTX_CHECK_UNPARKING	0x01
+
 #ifndef _KERNEL
 
 int _umtx_op(void *obj, int op, u_long val, void *uaddr, void *uaddr2);
