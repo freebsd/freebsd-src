@@ -599,6 +599,9 @@ struct scsi_inquiry_data
 #define SID_AENC	0x80
 #define SID_TrmIOP	0x40
 	u_int8_t additional_length;
+#define	SID_ADDITIONAL_LENGTH(iqd)					\
+	((iqd)->additional_length +					\
+	offsetof(struct scsi_inquiry_data, additional_length) + 1)
 	u_int8_t reserved;
 	u_int8_t spc2_flags;
 #define SPC2_SID_MChngr 	0x08
