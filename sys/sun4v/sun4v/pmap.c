@@ -443,11 +443,12 @@ pmap_bootstrap(vm_offset_t ekva)
 {
 	struct pmap *pm;
 	vm_offset_t off, va;
-	vm_paddr_t pa, kernel_hash_pa, phys_avail_start, nucleus_memory_start;
+	vm_paddr_t pa, kernel_hash_pa, nucleus_memory_start;
 	vm_size_t physsz, virtsz, kernel_hash_shift;
 	ihandle_t pmem, vmem;
 	int i, sz, j;
 	uint64_t tsb_8k_size, tsb_4m_size, error, physmem_tunable;
+	vm_paddr_t real_phys_avail[128];
 
 	if ((vmem = OF_finddevice("/virtual-memory")) == -1)
 		panic("pmap_bootstrap: finddevice /virtual-memory");
@@ -515,17 +516,19 @@ pmap_bootstrap(vm_offset_t ekva)
         if (TUNABLE_ULONG_FETCH("hw.physmem", &physmem_tunable)) {
                 physmem = atop(physmem_tunable);
 		KDPRINTF("desired physmem=0x%lx\n", physmem_tunable);
-	} 
-	for (i = 0, j = 0; i < sz; i++) {
-		vm_paddr_t start = mra[i].mr_start;
-		uint64_t size = mra[i].mr_size;
-		CTR2(KTR_PMAP, "start=%#lx size=%#lx\n", mra[i].mr_start, mra[i].mr_size);
-		KDPRINTF("start=%#lx size=%#lx\n", mra[i].mr_start, mra[i].mr_size);
+	}
 
+	for (i = 0; i < 128; i++)
+		real_phys_avail[i] = 0;
+
+	for (i = 0, j = 0; i < sz; i++) {
+		uint64_t size;
+		KDPRINTF("start=%#lx size=%#lx\n", mra[i].mr_start, mra[i].mr_size);
 		if (mra[i].mr_size < PAGE_SIZE_4M)
 			continue;
+
 		if ((mra[i].mr_start & PAGE_MASK_4M) || (mra[i].mr_size & PAGE_MASK_4M)) {
-			uint64_t newstart, roundup, size;
+			uint64_t newstart, roundup;
 			newstart = ((mra[i].mr_start + (PAGE_SIZE_4M-1)) & ~PAGE_MASK_4M);
 			roundup = newstart - mra[i].mr_start;
 			size = mra[i].mr_size - roundup;
@@ -535,6 +538,47 @@ pmap_bootstrap(vm_offset_t ekva)
 			mra[i].mr_size = size;
 			mra[i].mr_start = newstart;
 		}
+		real_phys_avail[j] = mra[i].mr_start;
+		if (physmem_tunable != 0 && ((physsz + mra[i].mr_size) >= physmem_tunable)) {
+			mra[i].mr_size = physmem_tunable - physsz;
+			physsz = physmem_tunable;
+			real_phys_avail[j + 1] = mra[i].mr_start + mra[i].mr_size;
+			break;
+		}
+		physsz += mra[i].mr_size;
+		real_phys_avail[j + 1] = mra[i].mr_start + mra[i].mr_size;
+		j += 2;
+	}
+	physmem = btoc(physsz);
+	for (i = 0; real_phys_avail[i] != 0; i += 2) {
+		if (real_phys_avail[i] == (nucleus_memory_start + nucleus_memory))
+			real_phys_avail[i] -= nucleus_memory;
+		if (real_phys_avail[i + 1] == nucleus_memory_start)
+			real_phys_avail[i + 1] += nucleus_memory;
+		
+		if (real_phys_avail[i + 1] == real_phys_avail[i + 2]) {
+			real_phys_avail[i + 1] = real_phys_avail[i + 3];
+			for (j = i + 2; real_phys_avail[j] != 0; j += 2) {
+				real_phys_avail[j] = real_phys_avail[j + 2];
+				real_phys_avail[j + 1] = real_phys_avail[j + 3];
+			}
+		}
+	}
+	
+
+	/*
+	 * This is for versions of OFW that would allocate us memory
+	 * and then forget to remove it from the available ranges ...
+	 */
+
+	for (i = 0, j = 0; i < sz; i++) {
+		vm_paddr_t start = mra[i].mr_start;
+		uint64_t size = mra[i].mr_size;
+		CTR2(KTR_PMAP, "start=%#lx size=%#lx\n", mra[i].mr_start, mra[i].mr_size);
+		KDPRINTF("start=%#lx size=%#lx\n", mra[i].mr_start, mra[i].mr_size);
+
+		if (mra[i].mr_size < PAGE_SIZE_4M)
+			continue;
 		/* 
 		 * Is kernel memory at the beginning of range?
 		 */
@@ -554,32 +598,22 @@ pmap_bootstrap(vm_offset_t ekva)
 		if ((nucleus_memory_start > start) && (nucleus_memory_start < (start + size))) {
 			uint64_t firstsize = (nucleus_memory_start - start);
 			phys_avail[j] = start;
-			if ((physmem_tunable != 0) && ((physsz + firstsize) > physmem_tunable)) {
-				phys_avail[j+1] = start + (physmem_tunable - physsz);
-				physsz = physmem_tunable;
-				break;
-			}
 			phys_avail[j+1] = nucleus_memory_start;
 			size = size - firstsize - nucleus_memory;
 			mra[i].mr_start =  nucleus_memory_start + nucleus_memory;
 			mra[i].mr_size = size;
-			physsz += firstsize + nucleus_memory;
 			j += 2;
 		}
 		phys_avail[j] = mra[i].mr_start;
-		if (physmem_tunable != 0 && ((physsz + mra[i].mr_size) >= physmem_tunable)) {
-			size = physmem_tunable - physsz;
-			phys_avail[j + 1] = mra[i].mr_start + size;
-			physsz = physmem_tunable;
-			break;
-		}
 		phys_avail[j + 1] = mra[i].mr_start + mra[i].mr_size;
-		physsz += mra[i].mr_size;
 		j += 2;
 	}
-	phys_avail_start = phys_avail[0];
-	physmem = btoc(physsz);
+
 	
+	for (i = 0; real_phys_avail[i] != 0; i += 2)
+		if (pmap_debug_range || pmap_debug)
+			printf("real_phys_avail[%d]=0x%lx real_phys_avail[%d]=0x%lx\n",
+			i, real_phys_avail[i], i+1, real_phys_avail[i+1]);
 
 	for (i = 0; phys_avail[i] != 0; i += 2)
 		if (pmap_debug_range || pmap_debug)
@@ -691,7 +725,7 @@ pmap_bootstrap(vm_offset_t ekva)
 	for (i = 0; i < KSTACK_PAGES; i++) {
 		pa = kstack0_phys + i * PAGE_SIZE;
 		va = kstack0 + i * PAGE_SIZE;
-		tsb_set_tte_real(&kernel_td[TSB8K_INDEX], va,
+		tsb_set_tte_real(&kernel_td[TSB8K_INDEX], va, va,
 			    pa | TTE_KERNEL | VTD_8K, 0);
 	}
 	/*
@@ -726,7 +760,7 @@ pmap_bootstrap(vm_offset_t ekva)
 			va = translations[i].om_start + off;
 			pa = TTE_GET_PA(translations[i].om_tte) + off;
 			tsb_assert_invalid(&kernel_td[TSB8K_INDEX], va);
-			tsb_set_tte_real(&kernel_td[TSB8K_INDEX], va, pa | 
+			tsb_set_tte_real(&kernel_td[TSB8K_INDEX], va, va, pa | 
 				    TTE_KERNEL | VTD_8K, 0);
 		}
 	}
@@ -742,25 +776,15 @@ pmap_bootstrap(vm_offset_t ekva)
 	 * setup direct mappings
 	 * 
 	 */
-	i = 0;
-	pa = phys_avail_start;
-	do {
-		for (; pa < phys_avail[i + 1]; pa += PAGE_SIZE_4M) {
+	for (i = 0, pa = real_phys_avail[i]; pa != 0; i += 2, pa = real_phys_avail[i]) {
+		while (pa < real_phys_avail[i + 1]) {
 			tsb_assert_invalid(&kernel_td[TSB4M_INDEX], TLB_PHYS_TO_DIRECT(pa));
 			tsb_set_tte_real(&kernel_td[TSB4M_INDEX], TLB_PHYS_TO_DIRECT(pa), 
-					 pa | TTE_KERNEL | VTD_4M, 0);
-				
+					 TLB_PHYS_TO_DIRECT(pa), pa | TTE_KERNEL | VTD_4M, 0);
+			pa += PAGE_SIZE_4M;
 		}
-		i += 2;
-		pa = phys_avail[i];
-	} while (pa != 0);
-
-	for (i = 0; i < permanent_mappings; i++) {
-                pa = nucleus_mappings[i];
-		tsb_assert_invalid(&kernel_td[TSB4M_INDEX], TLB_PHYS_TO_DIRECT(pa));
-                tsb_set_tte_real(&kernel_td[TSB4M_INDEX], TLB_PHYS_TO_DIRECT(pa),
-				 pa | TTE_KERNEL | VTD_4M, 0);
 	}
+
 	/*
 	 * Get the available physical memory ranges from /memory/reg. These
 	 * are only used for kernel dumps, but it may not be wise to do prom
@@ -1055,7 +1079,8 @@ pmap_enter(pmap_t pmap, vm_offset_t va, vm_page_t m, vm_prot_t prot,
 	} 
 
 	tte_hash_insert(pmap->pm_hash, va, tte_data|TTE_MINFLAGS|VTD_REF);
-	tsb_set_tte(&pmap->pm_tsb, va, tte_data|TTE_MINFLAGS|VTD_REF, pmap->pm_context);
+	tsb_set_tte(&pmap->pm_tsb, va, tte_data|TTE_MINFLAGS|VTD_REF, 
+		    pmap->pm_context);
 
 	if (tte_hash_needs_resize(pmap->pm_hash))
 		pmap_tte_hash_resize(pmap);
