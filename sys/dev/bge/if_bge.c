@@ -281,35 +281,10 @@ static const struct bge_revision bge_majorrevs[] = {
 	{ 0, NULL }
 };
 
-#define BGE_IS_5705_OR_BEYOND(sc)			   \
-	((sc)->bge_asicrev == BGE_ASICREV_BCM5705	|| \
-	 (sc)->bge_asicrev == BGE_ASICREV_BCM5750	|| \
-	 (sc)->bge_asicrev == BGE_ASICREV_BCM5714_A0	|| \
-	 (sc)->bge_asicrev == BGE_ASICREV_BCM5780	|| \
-	 (sc)->bge_asicrev == BGE_ASICREV_BCM5714	|| \
-	 (sc)->bge_asicrev == BGE_ASICREV_BCM5752	|| \
-	 (sc)->bge_asicrev == BGE_ASICREV_BCM5755	|| \
-	 (sc)->bge_asicrev == BGE_ASICREV_BCM5787)
-
-#define BGE_IS_575X_PLUS(sc)				   \
-	((sc)->bge_asicrev == BGE_ASICREV_BCM5750	|| \
-	 (sc)->bge_asicrev == BGE_ASICREV_BCM5714_A0	|| \
-	 (sc)->bge_asicrev == BGE_ASICREV_BCM5780	|| \
-	 (sc)->bge_asicrev == BGE_ASICREV_BCM5714	|| \
-	 (sc)->bge_asicrev == BGE_ASICREV_BCM5752	|| \
-	 (sc)->bge_asicrev == BGE_ASICREV_BCM5755	|| \
-	 (sc)->bge_asicrev == BGE_ASICREV_BCM5787)
-
-#define BGE_IS_5714_FAMILY(sc)				   \
-	((sc)->bge_asicrev == BGE_ASICREV_BCM5714_A0	|| \
-	 (sc)->bge_asicrev == BGE_ASICREV_BCM5780	|| \
-	 (sc)->bge_asicrev == BGE_ASICREV_BCM5714)
-
-#define BGE_IS_JUMBO_CAPABLE(sc) \
-	((sc)->bge_asicrev == BGE_ASICREV_BCM5700	|| \
-	 (sc)->bge_asicrev == BGE_ASICREV_BCM5701	|| \
-	 (sc)->bge_asicrev == BGE_ASICREV_BCM5703	|| \
-	 (sc)->bge_asicrev == BGE_ASICREV_BCM5704)
+#define BGE_IS_JUMBO_CAPABLE(sc)	((sc)->bge_flags & BGE_FLAG_5700_FAMILY)
+#define BGE_IS_5705_OR_BEYOND(sc)	((sc)->bge_flags & BGE_FLAG_5705_PLUS)
+#define BGE_IS_5714_FAMILY(sc)		((sc)->bge_flags & BGE_FLAG_5714_FAMILY)
+#define BGE_IS_575X_PLUS(sc)		((sc)->bge_flags & BGE_FLAG_575X_PLUS)
 
 const struct bge_revision * bge_lookup_rev(uint32_t);
 const struct bge_vendor * bge_lookup_vendor(uint16_t);
@@ -1231,21 +1206,11 @@ bge_blockinit(struct bge_softc *sc)
 
 	if (!(BGE_IS_5705_OR_BEYOND(sc))) {
 		/* Configure mbuf memory pool */
-		if (sc->bge_flags & BGE_FLAG_EXTRAM) {
-			CSR_WRITE_4(sc, BGE_BMAN_MBUFPOOL_BASEADDR,
-			    BGE_EXT_SSRAM);
-			if (sc->bge_asicrev == BGE_ASICREV_BCM5704)
-				CSR_WRITE_4(sc, BGE_BMAN_MBUFPOOL_LEN, 0x10000);
-			else
-				CSR_WRITE_4(sc, BGE_BMAN_MBUFPOOL_LEN, 0x18000);
-		} else {
-			CSR_WRITE_4(sc, BGE_BMAN_MBUFPOOL_BASEADDR,
-			    BGE_BUFFPOOL_1);
-			if (sc->bge_asicrev == BGE_ASICREV_BCM5704)
-				CSR_WRITE_4(sc, BGE_BMAN_MBUFPOOL_LEN, 0x10000);
-			else
-				CSR_WRITE_4(sc, BGE_BMAN_MBUFPOOL_LEN, 0x18000);
-		}
+		CSR_WRITE_4(sc, BGE_BMAN_MBUFPOOL_BASEADDR, BGE_BUFFPOOL_1);
+		if (sc->bge_asicrev == BGE_ASICREV_BCM5704)
+			CSR_WRITE_4(sc, BGE_BMAN_MBUFPOOL_LEN, 0x10000);
+		else
+			CSR_WRITE_4(sc, BGE_BMAN_MBUFPOOL_LEN, 0x18000);
 
 		/* Configure DMA resource pool */
 		CSR_WRITE_4(sc, BGE_BMAN_DMA_DESCPOOL_BASEADDR,
@@ -1315,10 +1280,7 @@ bge_blockinit(struct bge_softc *sc)
 	else
 		rcb->bge_maxlen_flags =
 		    BGE_RCB_MAXLEN_FLAGS(BGE_MAX_FRAMELEN, 0);
-	if (sc->bge_flags & BGE_FLAG_EXTRAM)
-		rcb->bge_nicaddr = BGE_EXT_STD_RX_RINGS;
-	else
-		rcb->bge_nicaddr = BGE_STD_RX_RINGS;
+	rcb->bge_nicaddr = BGE_STD_RX_RINGS;
 	CSR_WRITE_4(sc, BGE_RX_STD_RCB_HADDR_HI, rcb->bge_hostaddr.bge_addr_hi);
 	CSR_WRITE_4(sc, BGE_RX_STD_RCB_HADDR_LO, rcb->bge_hostaddr.bge_addr_lo);
 
@@ -1344,10 +1306,7 @@ bge_blockinit(struct bge_softc *sc)
 		    BUS_DMASYNC_PREREAD);
 		rcb->bge_maxlen_flags = BGE_RCB_MAXLEN_FLAGS(0,
 		    BGE_RCB_FLAG_USE_EXT_RX_BD|BGE_RCB_FLAG_RING_DISABLED);
-		if (sc->bge_flags & BGE_FLAG_EXTRAM)
-			rcb->bge_nicaddr = BGE_EXT_JUMBO_RX_RINGS;
-		else
-			rcb->bge_nicaddr = BGE_JUMBO_RX_RINGS;
+		rcb->bge_nicaddr = BGE_JUMBO_RX_RINGS;
 		CSR_WRITE_4(sc, BGE_RX_JUMBO_RCB_HADDR_HI,
 		    rcb->bge_hostaddr.bge_addr_hi);
 		CSR_WRITE_4(sc, BGE_RX_JUMBO_RCB_HADDR_LO,
@@ -2155,6 +2114,33 @@ bge_attach(device_t dev)
 	    BGE_PCIMISCCTL_ASICREV;
 	sc->bge_asicrev = BGE_ASICREV(sc->bge_chipid);
 	sc->bge_chiprev = BGE_CHIPREV(sc->bge_chipid);
+
+	/* Save chipset family. */
+	switch (sc->bge_asicrev) {
+	case BGE_ASICREV_BCM5700:
+	case BGE_ASICREV_BCM5701:
+	case BGE_ASICREV_BCM5703:
+	case BGE_ASICREV_BCM5704:
+		sc->bge_flags |= BGE_FLAG_5700_FAMILY;
+		break;
+
+	case BGE_ASICREV_BCM5714_A0:
+	case BGE_ASICREV_BCM5780:
+	case BGE_ASICREV_BCM5714:
+		sc->bge_flags |= BGE_FLAG_5714_FAMILY;
+		/* Fall through */
+
+	case BGE_ASICREV_BCM5750:
+	case BGE_ASICREV_BCM5752:
+	case BGE_ASICREV_BCM5755:
+	case BGE_ASICREV_BCM5787:
+		sc->bge_flags |= BGE_FLAG_575X_PLUS;
+		/* Fall through */
+
+	case BGE_ASICREV_BCM5705:
+		sc->bge_flags |= BGE_FLAG_5705_PLUS;
+		break;
+	}
 
 	/*
 	 * XXX: Broadcom Linux driver.  Not in specs or eratta.
