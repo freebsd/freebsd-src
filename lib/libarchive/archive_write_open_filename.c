@@ -118,6 +118,12 @@ file_open(struct archive *a, void *client_data)
 			archive_write_set_bytes_in_last_block(a, 0);
 	}
 
+	if (fstat(mine->fd, &st) != 0) {
+               archive_set_error(a, errno, "Couldn't stat '%s'",
+                   mine->filename);
+               return (ARCHIVE_FATAL);
+	}
+
 	/*
 	 * Set up default last block handling.
 	 */
