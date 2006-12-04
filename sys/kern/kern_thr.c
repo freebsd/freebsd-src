@@ -402,6 +402,12 @@ kern_thr_suspend(struct thread *td, struct timespec *tsp)
 		TIMESPEC_TO_TIMEVAL(&tv, tsp);
 		hz = tvtohz(&tv);
 	}
+
+	if (td->td_pflags & TDP_WAKEUP) {
+		td->td_pflags &= ~TDP_WAKEUP;
+		return (0);
+	}
+
 	PROC_LOCK(td->td_proc);
 	if ((td->td_flags & TDF_THRWAKEUP) == 0)
 		error = msleep((void *)td, &td->td_proc->p_mtx, PCATCH, "lthr",
@@ -429,6 +435,11 @@ thr_wake(struct thread *td, struct thr_wake_args *uap)
 {
 	struct proc *p;
 	struct thread *ttd;
+
+	if (uap->id == td->td_tid) {
+		td->td_pflags |= TDP_WAKEUP;
+		return (0);
+	} 
 
 	p = td->td_proc;
 	PROC_LOCK(p);
