@@ -55,8 +55,8 @@
 #
 # See src/UPDATING `COMMON ITEMS' for more complete information.
 #
-# If TARGET_ARCH=arch (e.g. ia64, sparc64, ...) is specified you can
-# cross build world for other architectures using the buildworld target,
+# If TARGET=machine (e.g. ia64, sparc64, ...) is specified you can
+# cross build world for other machine types using the buildworld target,
 # and once the world is built you can cross build a kernel using the
 # buildkernel target.
 #
@@ -265,36 +265,32 @@ universe_prologue:
 	@echo "--------------------------------------------------------------"
 	@echo ">>> make universe started on ${STARTTIME}"
 	@echo "--------------------------------------------------------------"
-.for target in i386 i386:pc98 sparc64 alpha ia64 amd64
-.for arch in ${target:C/:.*$//}
-.for mach in ${target:C/^.*://}
-KERNCONFS!=	cd ${.CURDIR}/sys/${mach}/conf && \
+.for target in alpha amd64 i386 ia64 pc98 sparc64
+KERNCONFS!=	cd ${.CURDIR}/sys/${target}/conf && \
 		find [A-Z]*[A-Z] -type f -maxdepth 0 \
 		! -name DEFAULTS ! -name LINT
 KERNCONFS:=	${KERNCONFS:S/^NOTES$/LINT/}
-universe: universe_${mach}
-.ORDER: universe_prologue universe_${mach} universe_epilogue
-universe_${mach}:
-	@echo ">> ${mach} started on `LC_ALL=C date`"
+universe: universe_${target}
+.ORDER: universe_prologue universe_${target} universe_epilogue
+universe_${target}:
+	@echo ">> ${target} started on `LC_ALL=C date`"
 	-cd ${.CURDIR} && ${MAKE} ${JFLAG} buildworld \
-	    TARGET_ARCH=${arch} TARGET=${mach} \
+	    TARGET=${target} \
 	    __MAKE_CONF=/dev/null \
-	    > _.${mach}.buildworld 2>&1
-	@echo ">> ${mach} buildworld completed on `LC_ALL=C date`"
-.if exists(${.CURDIR}/sys/${mach}/conf/NOTES)
-	-cd ${.CURDIR}/sys/${mach}/conf && ${MAKE} LINT \
-	    > ${.CURDIR}/_.${mach}.makeLINT 2>&1
+	    > _.${target}.buildworld 2>&1
+	@echo ">> ${target} buildworld completed on `LC_ALL=C date`"
+.if exists(${.CURDIR}/sys/${target}/conf/NOTES)
+	-cd ${.CURDIR}/sys/${target}/conf && ${MAKE} LINT \
+	    > ${.CURDIR}/_.${target}.makeLINT 2>&1
 .endif
 .for kernel in ${KERNCONFS}
 	-cd ${.CURDIR} && ${MAKE} ${JFLAG} buildkernel \
-	    TARGET_ARCH=${arch} TARGET=${mach} \
+	    TARGET=${target} \
 	    KERNCONF=${kernel} \
 	    __MAKE_CONF=/dev/null \
-	    > _.${mach}.${kernel} 2>&1
+	    > _.${target}.${kernel} 2>&1
 .endfor
-	@echo ">> ${mach} completed on `LC_ALL=C date`"
-.endfor
-.endfor
+	@echo ">> ${target} completed on `LC_ALL=C date`"
 .endfor
 universe: universe_epilogue
 universe_epilogue:
