@@ -150,6 +150,8 @@ struct cam_ed {
 #define CAM_DEV_RESIZE_QUEUE_NEEDED	0x10
 #define CAM_DEV_TAG_AFTER_COUNT		0x20
 #define CAM_DEV_INQUIRY_DATA_VALID	0x40
+#define	CAM_DEV_IN_DV			0x80
+#define	CAM_DEV_DV_HIT_BOTTOM		0x100
 	u_int32_t	 tag_delay_count;
 #define	CAM_TAG_DELAY_COUNT		5
 	u_int32_t	 tag_saved_openings;
@@ -871,6 +873,8 @@ static cam_status	proberegister(struct cam_periph *periph,
 static void	 probeschedule(struct cam_periph *probe_periph);
 static void	 probestart(struct cam_periph *periph, union ccb *start_ccb);
 static void	 proberequestdefaultnegotiation(struct cam_periph *periph);
+static int       proberequestbackoff(struct cam_periph *periph,
+				     struct cam_ed *device);
 static void	 probedone(struct cam_periph *periph, union ccb *done_ccb);
 static void	 probecleanup(struct cam_periph *periph);
 static void	 xpt_find_quirk(struct cam_ed *device);
@@ -5460,11 +5464,14 @@ xpt_scan_bus(struct cam_periph *periph, union ccb *request_ccb)
 
 typedef enum {
 	PROBE_TUR,
-	PROBE_INQUIRY,
+	PROBE_INQUIRY,	/* this counts as DV0 for Basic Domain Validation */
 	PROBE_FULL_INQUIRY,
 	PROBE_MODE_SENSE,
 	PROBE_SERIAL_NUM,
-	PROBE_TUR_FOR_NEGOTIATION
+	PROBE_TUR_FOR_NEGOTIATION,
+	PROBE_INQUIRY_BASIC_DV1,
+	PROBE_INQUIRY_BASIC_DV2,
+	PROBE_DV_EXIT
 } probe_action;
 
 typedef enum {
@@ -5695,6 +5702,7 @@ probestart(struct cam_periph *periph, union ccb *start_ccb)
 	switch (softc->action) {
 	case PROBE_TUR:
 	case PROBE_TUR_FOR_NEGOTIATION:
+	case PROBE_DV_EXIT:
 	{
 		scsi_test_unit_ready(csio,
 				     /*retries*/4,
@@ -5706,11 +5714,14 @@ probestart(struct cam_periph *periph, union ccb *start_ccb)
 	}
 	case PROBE_INQUIRY:
 	case PROBE_FULL_INQUIRY:
+	case PROBE_INQUIRY_BASIC_DV1:
+	case PROBE_INQUIRY_BASIC_DV2:
 	{
 		u_int inquiry_len;
 		struct scsi_inquiry_data *inq_buf;
 
 		inq_buf = &periph->path->device->inq_data;
+
 		/*
 		 * If the device is currently configured, we calculate an
 		 * MD5 checksum of the inquiry data, and if the serial number
@@ -5737,9 +5748,7 @@ probestart(struct cam_periph *periph, union ccb *start_ccb)
 		if (softc->action == PROBE_INQUIRY)
 			inquiry_len = SHORT_INQUIRY_LENGTH;
 		else
-			inquiry_len = inq_buf->additional_length
-				    + offsetof(struct scsi_inquiry_data,
-                                               additional_length) + 1;
+			inquiry_len = SID_ADDITIONAL_LENGTH(inq_buf);
 
 		/*
 		 * Some parallel SCSI devices fail to send an
@@ -5749,6 +5758,22 @@ probestart(struct cam_periph *periph, union ccb *start_ccb)
 		 */
 		inquiry_len = roundup2(inquiry_len, 2);
 	
+		if (softc->action == PROBE_INQUIRY_BASIC_DV1
+		 || softc->action == PROBE_INQUIRY_BASIC_DV2) {
+			inq_buf = malloc(inquiry_len, M_TEMP, M_NOWAIT);
+		}
+		if (inq_buf == NULL) {
+			xpt_print_path(periph->path);
+			printf("malloc failure- skipping Basic Domain Validation\n");
+			softc->action = PROBE_DV_EXIT;
+			scsi_test_unit_ready(csio,
+					     /*retries*/4,
+					     probedone,
+					     MSG_SIMPLE_Q_TAG,
+					     SSD_FULL_SIZE,
+					     /*timeout*/60000);
+			break;
+		}
 		scsi_inquiry(csio,
 			     /*retries*/4,
 			     probedone,
@@ -5844,6 +5869,114 @@ proberequestdefaultnegotiation(struct cam_periph *periph)
 	cts.ccb_h.func_code = XPT_SET_TRAN_SETTINGS;
 	cts.type = CTS_TYPE_CURRENT_SETTINGS;
 	xpt_action((union ccb *)&cts);
+}
+
+/*
+ * Backoff Negotiation Code- only pertinent for SPI devices.
+ */
+static int
+proberequestbackoff(struct cam_periph *periph, struct cam_ed *device)
+{
+	struct ccb_trans_settings cts;
+	struct ccb_trans_settings_spi *spi;
+
+	memset(&cts, 0, sizeof (cts));
+	xpt_setup_ccb(&cts.ccb_h, periph->path, /*priority*/1);
+	cts.ccb_h.func_code = XPT_GET_TRAN_SETTINGS;
+	cts.type = CTS_TYPE_CURRENT_SETTINGS;
+	xpt_action((union ccb *)&cts);
+	if ((cts.ccb_h.status & CAM_STATUS_MASK) != CAM_REQ_CMP) {
+		if (bootverbose) {
+			xpt_print_path(periph->path);
+			printf("failed to get current settings\n");
+		}
+		return (0);
+	}
+	if (cts.transport != XPORT_SPI) {
+		if (bootverbose) {
+			xpt_print_path(periph->path);
+			printf("not SPI transport\n");
+		}
+		return (0);
+	}
+	spi = &cts.xport_specific.spi;
+
+	/*
+	 * We cannot renegotiate sync rate if we don't have one.
+	 */
+	if ((spi->valid & CTS_SPI_VALID_SYNC_RATE) == 0) {
+		if (bootverbose) {
+			xpt_print_path(periph->path);
+			printf("no sync rate known\n");
+		}
+		return (0);
+	}
+
+	/*
+	 * We'll assert that we don't have to touch PPR options- the
+	 * SIM will see what we do with period and offset and adjust
+	 * the PPR options as appropriate.
+	 */
+
+	/*
+	 * A sync rate with unknown or zero offset is nonsensical.
+	 * A sync period of zero means Async.
+	 */
+	if ((spi->valid & CTS_SPI_VALID_SYNC_OFFSET) == 0
+	 || spi->sync_offset == 0 || spi->sync_period == 0) {
+		if (bootverbose) {
+			xpt_print_path(periph->path);
+			printf("no sync rate available\n");
+		}
+		return (0);
+	}
+
+	if (device->flags & CAM_DEV_DV_HIT_BOTTOM) {
+		CAM_DEBUG(periph->path, CAM_DEBUG_INFO,
+		    ("hit async: giving up on DV\n"));
+		return (0);
+	}
+
+
+	/*
+	 * Jump sync_period up by one, but stop at 5MHz and fall back to Async.
+	 * We don't try to remember 'last' settings to see if the SIM actually
+	 * gets into the speed we want to set. We check on the SIM telling
+	 * us that a requested speed is bad, but otherwise don't try and
+	 * check the speed due to the asynchronous and handshake nature
+	 * of speed setting.
+	 */
+	spi->valid = CTS_SPI_VALID_SYNC_RATE | CTS_SPI_VALID_SYNC_OFFSET;
+	for (;;) {
+		spi->sync_period++;
+		if (spi->sync_period >= 0xf) {
+			spi->sync_period = 0;
+			spi->sync_offset = 0;
+			CAM_DEBUG(periph->path, CAM_DEBUG_INFO,
+			    ("setting to async for DV\n"));
+			/*
+			 * Once we hit async, we don't want to try
+			 * any more settings.
+			 */
+			device->flags |= CAM_DEV_DV_HIT_BOTTOM;
+		} else if (bootverbose) {
+			CAM_DEBUG(periph->path, CAM_DEBUG_INFO,
+			    ("DV: period 0x%x\n", spi->sync_period));
+			printf("setting period to 0x%x\n", spi->sync_period);
+		}
+		cts.ccb_h.func_code = XPT_SET_TRAN_SETTINGS;
+		cts.type = CTS_TYPE_CURRENT_SETTINGS;
+		xpt_action((union ccb *)&cts);
+		if ((cts.ccb_h.status & CAM_STATUS_MASK) == CAM_REQ_CMP) {
+			break;
+		}
+		CAM_DEBUG(periph->path, CAM_DEBUG_INFO,
+		    ("DV: failed to set period 0x%x\n", spi->sync_period));
+		if (spi->sync_period == 0) {
+			return (0);
+		}
+	}
+	return (1);
 }
 
 static void
@@ -6082,7 +6215,7 @@ probedone(struct cam_periph *periph, union ccb *done_ccb)
 			 * negotiations... Controllers don't perform
 			 * any negotiation or tagged queuing until
 			 * after the first XPT_SET_TRAN_SETTINGS ccb is
-			 * received.  So, on a new device, just retreive
+			 * received.  So, on a new device, just retrieve
 			 * the user settings, and set them as the current
 			 * settings to set the device up.
 			 */
@@ -6101,24 +6234,95 @@ probedone(struct cam_periph *periph, union ccb *done_ccb)
 		break;
 	}
 	case PROBE_TUR_FOR_NEGOTIATION:
+	case PROBE_DV_EXIT:
 		if ((done_ccb->ccb_h.status & CAM_DEV_QFRZN) != 0) {
 			/* Don't wedge the queue */
 			xpt_release_devq(done_ccb->ccb_h.path, /*count*/1,
 					 /*run_queue*/TRUE);
 		}
-
-		path->device->flags &= ~CAM_DEV_UNCONFIGURED;
-
+		/*
+		 * Do Domain Validation for lun 0 on devices that claim
+		 * to support Synchronous Transfer modes.
+		 */
+	 	if (softc->action == PROBE_TUR_FOR_NEGOTIATION
+		 && done_ccb->ccb_h.target_lun == 0
+		 && (path->device->inq_data.flags & SID_Sync) != 0
+                 && (path->device->flags & CAM_DEV_IN_DV) == 0) {
+			CAM_DEBUG(periph->path, CAM_DEBUG_INFO,
+			    ("Begin Domain Validation\n"));
+			path->device->flags |= CAM_DEV_IN_DV;
+			xpt_release_ccb(done_ccb);
+			softc->action = PROBE_INQUIRY_BASIC_DV1;
+			xpt_schedule(periph, priority);
+			return;
+		}
+		if (softc->action == PROBE_DV_EXIT) {
+			CAM_DEBUG(periph->path, CAM_DEBUG_INFO,
+			    ("Leave Domain Validation\n"));
+		}
+		path->device->flags &=
+		    ~(CAM_DEV_UNCONFIGURED|CAM_DEV_IN_DV|CAM_DEV_DV_HIT_BOTTOM);
 		if ((softc->flags & PROBE_NO_ANNOUNCE) == 0) {
 			/* Inform the XPT that a new device has been found */
 			done_ccb->ccb_h.func_code = XPT_GDEV_TYPE;
 			xpt_action(done_ccb);
-
 			xpt_async(AC_FOUND_DEVICE, done_ccb->ccb_h.path,
 				  done_ccb);
 		}
 		xpt_release_ccb(done_ccb);
 		break;
+	case PROBE_INQUIRY_BASIC_DV1:
+	case PROBE_INQUIRY_BASIC_DV2:
+	{
+		struct scsi_inquiry_data *nbuf;
+		struct ccb_scsiio *csio;
+
+		if ((done_ccb->ccb_h.status & CAM_DEV_QFRZN) != 0) {
+			/* Don't wedge the queue */
+			xpt_release_devq(done_ccb->ccb_h.path, /*count*/1,
+					 /*run_queue*/TRUE);
+		}
+		csio = &done_ccb->csio;
+		nbuf = (struct scsi_inquiry_data *)csio->data_ptr;
+		if (bcmp(nbuf, &path->device->inq_data, SHORT_INQUIRY_LENGTH)) {
+			xpt_print_path(path);
+			printf("inquiry fails comparison at DV%d step\n",
+			    softc->action == PROBE_INQUIRY_BASIC_DV1? 1 : 2);
+			if (proberequestbackoff(periph, path->device)) {
+				path->device->flags &= ~CAM_DEV_IN_DV;
+				softc->action = PROBE_TUR_FOR_NEGOTIATION;
+			} else {
+				/* give up */
+				softc->action = PROBE_DV_EXIT;
+			}
+			free(nbuf, M_TEMP);
+			xpt_release_ccb(done_ccb);
+			xpt_schedule(periph, priority);
+			return;
+		}
+		free(nbuf, M_TEMP);
+		if (softc->action == PROBE_INQUIRY_BASIC_DV1) {
+			softc->action = PROBE_INQUIRY_BASIC_DV2;
+			xpt_release_ccb(done_ccb);
+			xpt_schedule(periph, priority);
+			return;
+		}
+		if (softc->action == PROBE_DV_EXIT) {
+			CAM_DEBUG(periph->path, CAM_DEBUG_INFO,
+			    ("Leave Domain Validation Successfully\n"));
+		}
+		path->device->flags &=
+		    ~(CAM_DEV_UNCONFIGURED|CAM_DEV_IN_DV|CAM_DEV_DV_HIT_BOTTOM);
+		if ((softc->flags & PROBE_NO_ANNOUNCE) == 0) {
+			/* Inform the XPT that a new device has been found */
+			done_ccb->ccb_h.func_code = XPT_GDEV_TYPE;
+			xpt_action(done_ccb);
+			xpt_async(AC_FOUND_DEVICE, done_ccb->ccb_h.path,
+				  done_ccb);
+		}
+		xpt_release_ccb(done_ccb);
+		break;
+	}
 	}
 	done_ccb = (union ccb *)TAILQ_FIRST(&softc->request_ccbs);
 	TAILQ_REMOVE(&softc->request_ccbs, &done_ccb->ccb_h, periph_links.tqe);
