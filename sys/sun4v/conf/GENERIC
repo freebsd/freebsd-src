@@ -65,8 +65,8 @@ options 	PRINTF_BUFR_SIZE=128	# Prevent printf output being interspersed.
 options 	KDB			# Enable kernel debugger support.
 options		KDB_TRACE
 options 	DDB			# Support DDB.
-options 	TRAP_TRACING		# Enable trap tracing.
-options 	TRAP_TRACE_ENTRIES=256	# Trap trace buffer entries.
+#options 	TRAP_TRACING		# Enable trap tracing.
+#options 	TRAP_TRACE_ENTRIES=256	# Trap trace buffer entries.
 #options 	GDB			# Support remote GDB.
 #options 	INVARIANTS		# Enable calls of extra sanity checking
 #options 	INVARIANT_SUPPORT	# Extra sanity checks of internal structures, required by INVARIANTS
