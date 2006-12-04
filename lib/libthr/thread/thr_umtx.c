@@ -115,7 +115,7 @@ _thr_ucond_wait(struct ucond *cv, struct umutex *m,
                 return (ETIMEDOUT);
 	}
 	if (_umtx_op(cv, UMTX_OP_CV_WAIT,
-		     check_unparking ? UMTX_CHECK_UNPAKING : 0, 
+		     check_unparking ? UMTX_CHECK_UNPARKING : 0, 
 		     m, __DECONST(void*, timeout)) == 0) {
 		return (0);
 	}
