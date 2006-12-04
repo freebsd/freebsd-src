@@ -260,10 +260,10 @@ st char *file, int line)
                 l->lpo_filename = file;
                 l->lpo_lineno = line;
                 l->lpo_acqtime = nanoseconds(); 
-                if (waittime) {
-                        if (l->lpo_acqtime > waittime)
-                                l->lpo_waittime = l->lpo_acqtime - waittime;
-                }
+                if (waittime && (l->lpo_acqtime > waittime))
+			l->lpo_waittime = l->lpo_acqtime - waittime;
+                else
+			l->lpo_waittime = 0;
         }
 }
 
