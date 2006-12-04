@@ -373,6 +373,7 @@ case ${NOTIFY} in
                         sysctl dev.acpi_${OEM}.0.bluetooth=1
                         MESSAGE="bluetooth enabled"
                 fi
+                ;;
         0x10|0x11)
                 LEVEL=`sysctl -n dev.acpi_${OEM}.0.lcd_brightness`
                 PERCENT=`${ECHO} "${BC_PRECOMMANDS} ; \\
