@@ -60,7 +60,8 @@ void tsb_assert_invalid(struct hv_tsb_info *tsb, vm_offset_t va);
 
 void tsb_set_tte(struct hv_tsb_info *tsb, vm_offset_t va, tte_t tte_data, uint64_t ctx);
 
-void tsb_set_tte_real(struct hv_tsb_info *tsb, vm_offset_t va, tte_t tte_data, uint64_t ctx);
+void tsb_set_tte_real(struct hv_tsb_info *tsb, vm_offset_t index_va, 
+		      vm_offset_t tag_va, tte_t tte_data, uint64_t ctx);
 
 tte_t tsb_get_tte(struct hv_tsb_info *tsb, vm_offset_t va);
 
