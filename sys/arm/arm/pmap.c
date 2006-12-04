@@ -2807,6 +2807,7 @@ pmap_remove_pages(pmap_t pmap)
 		if (TAILQ_EMPTY(&m->md.pv_list))
 			vm_page_flag_clear(m, PG_WRITEABLE);
 		pmap_free_pv_entry(pv);
+		pmap_free_l2_bucket(pmap, l2b, 1);
 	}
 	vm_page_unlock_queues();
 	cpu_idcache_wbinv_all();
