@@ -72,7 +72,7 @@ safe_write(struct cached_connection_ *connection, const void *data,
 	timeout.tv_nsec = 0;
 	result = 0;
 	do {
-		nevents = kevent(connection->write_queue, NULL, 0, &eventlist,
+		nevents = _kevent(connection->write_queue, NULL, 0, &eventlist,
 		    1, &timeout);
 		if ((nevents == 1) && (eventlist.filter == EVFILT_WRITE)) {
 			s_result = _write(connection->sockfd, data + result,
@@ -114,7 +114,7 @@ safe_read(struct cached_connection_ *connection, void *data, size_t data_size)
 	timeout.tv_nsec = 0;
 	result = 0;
 	do {
-		nevents = kevent(connection->read_queue, NULL, 0, &eventlist,
+		nevents = _kevent(connection->read_queue, NULL, 0, &eventlist,
 		    1, &timeout);
 		if (nevents == 1 && eventlist.filter == EVFILT_READ) {
 			s_result = _read(connection->sockfd, data + result,
@@ -170,16 +170,16 @@ send_credentials(struct cached_connection_ *connection, int type)
 
 	EV_SET(&eventlist, connection->sockfd, EVFILT_WRITE, EV_ADD,
 	    NOTE_LOWAT, sizeof(int), NULL);
-	res = kevent(connection->write_queue, &eventlist, 1, NULL, 0, NULL);
+	res = _kevent(connection->write_queue, &eventlist, 1, NULL, 0, NULL);
 
-	nevents = kevent(connection->write_queue, NULL, 0, &eventlist, 1,
+	nevents = _kevent(connection->write_queue, NULL, 0, &eventlist, 1,
 	    NULL);
 	if (nevents == 1 && eventlist.filter == EVFILT_WRITE) {
 		result = (_sendmsg(connection->sockfd, &cred_hdr, 0) == -1) ?
 		    -1 : 0;
 		EV_SET(&eventlist, connection->sockfd, EVFILT_WRITE, EV_ADD,
 		    0, 0, NULL);
-		kevent(connection->write_queue, &eventlist, 1, NULL, 0, NULL);
+		_kevent(connection->write_queue, &eventlist, 1, NULL, 0, NULL);
 		return (result);
 	} else
 		return (-1);
@@ -224,13 +224,13 @@ __open_cached_connection(struct cached_connection_params const *params)
 	assert(retval->write_queue != -1);
 
 	EV_SET(&eventlist, retval->sockfd, EVFILT_WRITE, EV_ADD, 0, 0, NULL);
-	res = kevent(retval->write_queue, &eventlist, 1, NULL, 0, NULL);
+	res = _kevent(retval->write_queue, &eventlist, 1, NULL, 0, NULL);
 
 	retval->read_queue = kqueue();
 	assert(retval->read_queue != -1);
 
 	EV_SET(&eventlist, retval->sockfd, EVFILT_READ, EV_ADD, 0, 0, NULL);
-	res = kevent(retval->read_queue, &eventlist, 1, NULL, 0, NULL);
+	res = _kevent(retval->read_queue, &eventlist, 1, NULL, 0, NULL);
 
 	return (retval);
 }
