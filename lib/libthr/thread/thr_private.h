@@ -143,13 +143,8 @@ struct pthread_mutex_attr {
 	{ PTHREAD_MUTEX_DEFAULT, PTHREAD_PRIO_NONE, 0, MUTEX_FLAGS_PRIVATE }
 
 struct pthread_cond {
-	/*
-	 * Lock for accesses to this structure.
-	 */
 	struct umutex	c_lock;
-	volatile umtx_t	c_seqno;
-	volatile int	c_waiters;
-	volatile int	c_wakeups;
+	struct ucond	c_kerncv;
 	int		c_pshared;
 	int		c_clockid;
 };
@@ -363,6 +358,9 @@ struct pthread {
 
 	/* Thread is at cancellation point */
 	int			cancel_point;
+
+	/* Cancellation should be synchoronized */
+	int			cancel_defer;
 
 	/* Asynchronouse cancellation is enabled */
 	int			cancel_async;
@@ -625,6 +623,8 @@ void	_thread_printf(int, const char *, ...) __hidden;
 void	_thr_spinlock_init(void) __hidden;
 void	_thr_cancel_enter(struct pthread *) __hidden;
 void	_thr_cancel_leave(struct pthread *) __hidden;
+void	_thr_cancel_enter_defer(struct pthread *) __hidden;
+void	_thr_cancel_leave_defer(struct pthread *, int) __hidden;
 void	_thr_testcancel(struct pthread *) __hidden;
 void	_thr_signal_block(struct pthread *) __hidden;
 void	_thr_signal_unblock(struct pthread *) __hidden;

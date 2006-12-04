@@ -42,7 +42,7 @@ static inline void
 testcancel(struct pthread *curthread)
 {
 	if (__predict_false(SHOULD_CANCEL(curthread) &&
-	    !THR_IN_CRITICAL(curthread)))
+	    !THR_IN_CRITICAL(curthread) && curthread->cancel_defer == 0))
 		_pthread_exit(PTHREAD_CANCELED);
 }
 
@@ -154,4 +154,25 @@ _thr_cancel_leave(struct pthread *curthread)
 {
 	if (curthread->cancel_enable)
 		curthread->cancel_point--;
+}
+
+void
+_thr_cancel_enter_defer(struct pthread *curthread)
+{
+	if (curthread->cancel_enable) {
+		curthread->cancel_point++;
+		testcancel(curthread);
+		curthread->cancel_defer++;
+	}
+}
+
+void
+_thr_cancel_leave_defer(struct pthread *curthread, int check)
+{
+	if (curthread->cancel_enable) {
+		curthread->cancel_defer--;
+		if (check)
+			testcancel(curthread);
+		curthread->cancel_point--;
+	}
 }
