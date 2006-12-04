@@ -36,23 +36,23 @@
  * Begin OS-specific defines -  rpreg.h - for RocketPort FreeBSD
  */
 
-typedef unsigned char Byte_t;
-typedef unsigned int ByteIO_t;
+typedef uint8_t Byte_t;
+typedef uint8_t ByteIO_t;
 
-typedef unsigned int Word_t;
-typedef unsigned int WordIO_t;
+typedef uint16_t Word_t;
+typedef uint16_t WordIO_t;
 
-typedef unsigned long DWord_t;
-typedef unsigned int DWordIO_t;
+typedef uint32_t DWord_t;
+typedef uint32_t DWordIO_t;
 
 #define rp_readio(size, ctlp, rid, offset) \
-	(bus_space_read_##size(rman_get_bustag(ctlp->io[rid]), rman_get_bushandle(ctlp->io[rid]), offset))
+	(bus_read_##size(ctlp->io[rid], offset))
 #define rp_readmultiio(size, ctlp, rid, offset, addr, count) \
-	(bus_space_read_multi_##size(rman_get_bustag(ctlp->io[rid]), rman_get_bushandle(ctlp->io[rid]), offset, addr, count))
+	(bus_read_multi_##size(ctlp->io[rid], offset, addr, count))
 #define rp_writeio(size, ctlp, rid, offset, data) \
-	(bus_space_write_##size(rman_get_bustag(ctlp->io[rid]), rman_get_bushandle(ctlp->io[rid]), offset, data))
+	(bus_write_##size(ctlp->io[rid], offset, data))
 #define rp_writemultiio(size, ctlp, rid, offset, addr, count) \
-	(bus_space_write_multi_##size(rman_get_bustag(ctlp->io[rid]), rman_get_bushandle(ctlp->io[rid]), offset, addr, count))
+	(bus_write_multi_##size(ctlp->io[rid], offset, addr, count))
 
 #define rp_readio1(ctlp, rid, offset)				rp_readio(1, ctlp, rid, offset)
 #define rp_readio2(ctlp, rid, offset)				rp_readio(2, ctlp, rid, offset)
@@ -428,7 +428,7 @@ Call:	  sClrBreak(ChP)
 #define sClrBreak(ChP) \
 { \
    (ChP)->TxControl[3] &= ~SETBREAK; \
-   rp_writech4(ChP,_INDX_ADDR,*(DWord_t *)&(ChP)->TxControl[0]); \
+   rp_writech4(ChP,_INDX_ADDR,le32dec((ChP)->TxControl)); \
 }
 
 /***************************************************************************
@@ -440,7 +440,7 @@ Call:	  sClrDTR(ChP)
 #define sClrDTR(ChP) \
 { \
    (ChP)->TxControl[3] &= ~SET_DTR; \
-   rp_writech4(ChP,_INDX_ADDR,*(DWord_t *)&(ChP)->TxControl[0]); \
+   rp_writech4(ChP,_INDX_ADDR,le32dec((ChP)->TxControl)); \
 }
 
 /***************************************************************************
@@ -452,7 +452,7 @@ Call:	  sClrRTS(ChP)
 #define sClrRTS(ChP) \
 { \
    (ChP)->TxControl[3] &= ~SET_RTS; \
-   rp_writech4(ChP,_INDX_ADDR,*(DWord_t *)&(ChP)->TxControl[0]); \
+   rp_writech4(ChP,_INDX_ADDR,le32dec((ChP)->TxControl)); \
 }
 
 /***************************************************************************
@@ -476,7 +476,7 @@ Call:	  sDisCTSFlowCtl(ChP)
 #define sDisCTSFlowCtl(ChP) \
 { \
    (ChP)->TxControl[2] &= ~CTSFC_EN; \
-   rp_writech4(ChP,_INDX_ADDR,*(DWord_t *)&(ChP)->TxControl[0]); \
+   rp_writech4(ChP,_INDX_ADDR,le32dec((ChP)->TxControl)); \
 }
 
 /***************************************************************************
@@ -490,7 +490,7 @@ Comments: Function sSetParity() can be used in place of functions sEnParity(),
 #define sDisParity(ChP) \
 { \
    (ChP)->TxControl[2] &= ~PARITY_EN; \
-   rp_writech4(ChP,_INDX_ADDR,*(DWord_t *)&(ChP)->TxControl[0]); \
+   rp_writech4(ChP,_INDX_ADDR,le32dec((ChP)->TxControl)); \
 }
 
 /***************************************************************************
@@ -502,7 +502,7 @@ Call:	  sDisRxFIFO(ChP)
 #define sDisRxFIFO(ChP) \
 { \
    (ChP)->R[0x32] = 0x0a; \
-   rp_writech4(ChP,_INDX_ADDR,*(DWord_t *)&(ChP)->R[0x30]); \
+   rp_writech4(ChP,_INDX_ADDR,le32dec((ChP)->R + 0x30)); \
 }
 
 /***************************************************************************
@@ -529,7 +529,7 @@ Call:	  sDisTransmit(ChP)
 #define sDisTransmit(ChP) \
 { \
    (ChP)->TxControl[3] &= ~TX_ENABLE; \
-   rp_writech4(ChP,_INDX_ADDR,*(DWord_t *)&(ChP)->TxControl[0]); \
+   rp_writech4(ChP,_INDX_ADDR,le32dec((ChP)->TxControl)); \
 }
 
 /***************************************************************************
@@ -541,7 +541,7 @@ Call:	  sDisTxSoftFlowCtl(ChP)
 #define sDisTxSoftFlowCtl(ChP) \
 { \
    (ChP)->R[0x06] = 0x8a; \
-   rp_writech4(ChP,_INDX_ADDR,*(DWord_t *)&(ChP)->R[0x04]); \
+   rp_writech4(ChP,_INDX_ADDR,le32dec((ChP)->R + 0x04)); \
 }
 
 /***************************************************************************
@@ -553,7 +553,7 @@ Call:	  sEnCTSFlowCtl(ChP)
 #define sEnCTSFlowCtl(ChP) \
 { \
    (ChP)->TxControl[2] |= CTSFC_EN; \
-   rp_writech4(ChP,_INDX_ADDR,*(DWord_t *)&(ChP)->TxControl[0]); \
+   rp_writech4(ChP,_INDX_ADDR,le32dec((ChP)->TxControl)); \
 }
 
 /***************************************************************************
@@ -570,7 +570,7 @@ Warnings: Before enabling parity odd or even parity should be chosen using
 #define sEnParity(ChP) \
 { \
    (ChP)->TxControl[2] |= PARITY_EN; \
-   rp_writech4(ChP,_INDX_ADDR,*(DWord_t *)&(ChP)->TxControl[0]); \
+   rp_writech4(ChP,_INDX_ADDR,le32dec((ChP)->TxControl)); \
 }
 
 /***************************************************************************
@@ -581,9 +581,9 @@ Return: void
 { \
 	(ChP)->TxControl[2] &= ~RTSTOG_EN; \
 	(ChP)->TxControl[3] &= ~SET_RTS; \
-   rp_writech4(ChP,_INDX_ADDR,*(DWord_t *)&(ChP)->TxControl[0]); \
+   rp_writech4(ChP,_INDX_ADDR,le32dec((ChP)->TxControl)); \
 	(ChP)->RxControl[2] |= RTSFC_EN; \
-   rp_writech4(ChP,_INDX_ADDR,*(DWord_t *)&(ChP)->RxControl[0]); \
+   rp_writech4(ChP,_INDX_ADDR,le32dec((ChP)->RxControl)); \
 }
 
 /***************************************************************************
@@ -593,7 +593,7 @@ Return: void
 #define sDisRTSFlowCtl(ChP) \
 { \
 	(ChP)->RxControl[2] &= ~RTSFC_EN; \
-   rp_writech4(ChP,_INDX_ADDR,*(DWord_t *)&(ChP)->RxControl[0]); \
+   rp_writech4(ChP,_INDX_ADDR,le32dec((ChP)->RxControl)); \
 }
 
 /***************************************************************************
@@ -605,7 +605,7 @@ Call:	  sEnRxFIFO(ChP)
 #define sEnRxFIFO(ChP) \
 { \
    (ChP)->R[0x32] = 0x08; \
-   rp_writech4(ChP,_INDX_ADDR,*(DWord_t *)&(ChP)->R[0x30]); \
+   rp_writech4(ChP,_INDX_ADDR,le32dec((ChP)->R + 0x30)); \
 }
 
 /***************************************************************************
@@ -626,7 +626,7 @@ Warnings: This function must be called after valid microcode has been
 #define sEnRxProcessor(ChP) \
 { \
    (ChP)->RxControl[2] |= RXPROC_EN; \
-   rp_writech2(ChP,_INDX_ADDR,*(DWord_t *)&(ChP)->RxControl[0]); \
+   rp_writech4(ChP,_INDX_ADDR,le32dec((ChP)->RxControl)); \
 }
 
 /***************************************************************************
@@ -650,7 +650,7 @@ Call:	  sEnTransmit(ChP)
 #define sEnTransmit(ChP) \
 { \
    (ChP)->TxControl[3] |= TX_ENABLE; \
-   rp_writech4(ChP,_INDX_ADDR,*(DWord_t *)&(ChP)->TxControl[0]); \
+   rp_writech4(ChP,_INDX_ADDR,le32dec((ChP)->TxControl)); \
 }
 
 /***************************************************************************
@@ -815,7 +815,7 @@ Call:	  sSendBreak(ChP)
 #define sSendBreak(ChP) \
 { \
    (ChP)->TxControl[3] |= SETBREAK; \
-   rp_writech4(ChP,_INDX_ADDR,*(DWord_t *)&(ChP)->TxControl[0]); \
+   rp_writech4(ChP,_INDX_ADDR,le32dec((ChP)->TxControl)); \
 }
 
 /***************************************************************************
@@ -829,7 +829,7 @@ Call:	  sSetBaud(ChP,Divisor)
 { \
    (ChP)->BaudDiv[2] = (Byte_t)(DIVISOR); \
    (ChP)->BaudDiv[3] = (Byte_t)((DIVISOR) >> 8); \
-   rp_writech4(ChP,_INDX_ADDR,*(DWord_t *)&(ChP)->BaudDiv[0]); \
+   rp_writech4(ChP,_INDX_ADDR,le32dec((ChP)->BaudDiv)); \
 }
 
 /***************************************************************************
@@ -841,7 +841,7 @@ Call:	  sSetData7(ChP)
 #define sSetData7(ChP) \
 { \
    (ChP)->TxControl[2] &= ~DATA8BIT; \
-   rp_writech4(ChP,_INDX_ADDR,*(DWord_t *)&(ChP)->TxControl[0]); \
+   rp_writech4(ChP,_INDX_ADDR,le32dec((ChP)->TxControl)); \
 }
 
 /***************************************************************************
@@ -853,7 +853,7 @@ Call:	  sSetData8(ChP)
 #define sSetData8(ChP) \
 { \
    (ChP)->TxControl[2] |= DATA8BIT; \
-   rp_writech4(ChP,_INDX_ADDR,*(DWord_t *)&(ChP)->TxControl[0]); \
+   rp_writech4(ChP,_INDX_ADDR,le32dec((ChP)->TxControl)); \
 }
 
 /***************************************************************************
@@ -865,7 +865,7 @@ Call:	  sSetDTR(ChP)
 #define sSetDTR(ChP) \
 { \
    (ChP)->TxControl[3] |= SET_DTR; \
-   rp_writech4(ChP,_INDX_ADDR,*(DWord_t *)&(ChP)->TxControl[0]); \
+   rp_writech4(ChP,_INDX_ADDR,le32dec((ChP)->TxControl)); \
 }
 
 /***************************************************************************
@@ -882,7 +882,7 @@ Warnings: This function has no effect unless parity is enabled with function
 #define sSetEvenParity(ChP) \
 { \
    (ChP)->TxControl[2] |= EVEN_PAR; \
-   rp_writech4(ChP,_INDX_ADDR,*(DWord_t *)&(ChP)->TxControl[0]); \
+   rp_writech4(ChP,_INDX_ADDR,le32dec((ChP)->TxControl)); \
 }
 
 /***************************************************************************
@@ -899,7 +899,7 @@ Warnings: This function has no effect unless parity is enabled with function
 #define sSetOddParity(ChP) \
 { \
    (ChP)->TxControl[2] &= ~EVEN_PAR; \
-   rp_writech4(ChP,_INDX_ADDR,*(DWord_t *)&(ChP)->TxControl[0]); \
+   rp_writech4(ChP,_INDX_ADDR,le32dec((ChP)->TxControl)); \
 }
 
 /***************************************************************************
@@ -911,7 +911,7 @@ Call:	  sSetRTS(ChP)
 #define sSetRTS(ChP) \
 { \
    (ChP)->TxControl[3] |= SET_RTS; \
-   rp_writech4(ChP,_INDX_ADDR,*(DWord_t *)&(ChP)->TxControl[0]); \
+   rp_writech4(ChP,_INDX_ADDR,le32dec((ChP)->TxControl)); \
 }
 
 /***************************************************************************
@@ -937,7 +937,7 @@ Comments: An interrupt will be generated when the trigger level is reached
 { \
    (ChP)->RxControl[2] &= ~TRIG_MASK; \
    (ChP)->RxControl[2] |= LEVEL; \
-   rp_writech4(ChP,_INDX_ADDR,*(DWord_t *)&(ChP)->RxControl[0]); \
+   rp_writech4(ChP,_INDX_ADDR,le32dec((ChP)->RxControl)); \
 }
 
 /***************************************************************************
@@ -949,7 +949,7 @@ Call:	  sSetStop1(ChP)
 #define sSetStop1(ChP) \
 { \
    (ChP)->TxControl[2] &= ~STOP2; \
-   rp_writech4(ChP,_INDX_ADDR,*(DWord_t *)&(ChP)->TxControl[0]); \
+   rp_writech4(ChP,_INDX_ADDR,le32dec((ChP)->TxControl)); \
 }
 
 /***************************************************************************
@@ -961,7 +961,7 @@ Call:	  sSetStop2(ChP)
 #define sSetStop2(ChP) \
 { \
    (ChP)->TxControl[2] |= STOP2; \
-   rp_writech4(ChP,_INDX_ADDR,*(DWord_t *)&(ChP)->TxControl[0]); \
+   rp_writech4(ChP,_INDX_ADDR,le32dec((ChP)->TxControl)); \
 }
 
 /***************************************************************************
@@ -974,7 +974,7 @@ Comments: This function is used to start a Rx processor after it was
 	  will restart both the Rx processor and software input flow control.
 
 */
-#define sStartRxProcessor(ChP) rp_writech4(ChP,_INDX_ADDR,*(DWord_t *)&(ChP)->R[0])
+#define sStartRxProcessor(ChP) rp_writech4(ChP,_INDX_ADDR,le32dec((ChP)->R))
 
 /***************************************************************************
 Function: sWriteTxByte
