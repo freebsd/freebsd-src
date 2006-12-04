@@ -2455,12 +2455,13 @@ struct bge_softc {
 	struct resource		*bge_res;
 	struct ifmedia		bge_ifmedia;	/* TBI media info */
 	uint32_t		bge_flags;
-#define BGE_FLAG_EXTRAM		0x00000001	/* Has external SSRAM (unused). */
+#define BGE_FLAG_EXTRAM		0x00000001	/* External SSRAM (unused) */
 #define BGE_FLAG_TBI		0x00000002
 #define BGE_FLAG_RX_ALIGNBUG	0x00000004
 #define BGE_FLAG_NO3LED		0x00000008
 #define BGE_FLAG_PCIX		0x00000010
 #define BGE_FLAG_PCIE		0x00000020
+#define BGE_FLAG_JUMBO		0x00000040
 #define BGE_FLAG_5700_FAMILY	0x00000100
 #define BGE_FLAG_5705_PLUS	0x00000200
 #define BGE_FLAG_5714_FAMILY	0x00000400
