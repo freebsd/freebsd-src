@@ -83,11 +83,11 @@ SYSCTL_STRUCT(_net_inet_igmp, IGMPCTL_STATS, stats, CTLFLAG_RW, &igmpstat,
     igmpstat, "");
 
 /*
- * igmp_mtx protects all mutable global variables in igmp.c, as well as
- * the data fields in struct router_info.  In general, a router_info
- * structure will be valid as long as the referencing struct in_multi is
- * valid, so no reference counting is used.  We allow unlocked reads of
- * router_info data when accessed via an in_multi read-only.
+ * igmp_mtx protects all mutable global variables in igmp.c, as well as the
+ * data fields in struct router_info.  In general, a router_info structure
+ * will be valid as long as the referencing struct in_multi is valid, so no
+ * reference counting is used.  We allow unlocked reads of router_info data
+ * when accessed via an in_multi read-only.
  */
 static struct mtx igmp_mtx;
 static SLIST_HEAD(, router_info) router_info_head;
@@ -124,7 +124,7 @@ igmp_init(void)
 	igmp_timers_are_running = 0;
 
 	/*
-	 * Construct a Router Alert option to use in outgoing packets
+	 * Construct a Router Alert option to use in outgoing packets.
 	 */
 	MGET(router_alert, M_DONTWAIT, MT_DATA);
 	ra = mtod(router_alert, struct ipoption *);
@@ -150,21 +150,20 @@ find_rti(struct ifnet *ifp)
 		if (rti->rti_ifp == ifp) {
 			IGMP_PRINTF(
 			    "[igmp.c, _find_rti] --> found old entry \n");
-			return rti;
+			return (rti);
 		}
 	}
 	MALLOC(rti, struct router_info *, sizeof *rti, M_IGMP, M_NOWAIT);
 	if (rti == NULL) {
-		IGMP_PRINTF( "[igmp.c, _find_rti] --> no memory for entry\n");
-		return NULL;
+		IGMP_PRINTF("[igmp.c, _find_rti] --> no memory for entry\n");
+		return (NULL);
 	}
 	rti->rti_ifp = ifp;
 	rti->rti_type = IGMP_V2_ROUTER;
 	rti->rti_time = 0;
 	SLIST_INSERT_HEAD(&router_info_head, rti, rti_list);
-
 	IGMP_PRINTF("[igmp.c, _find_rti] --> created an entry \n");
-	return rti;
+	return (rti);
 }
 
 void
@@ -188,7 +187,7 @@ igmp_input(register struct mbuf *m, int off)
 	igmplen = ip->ip_len;
 
 	/*
-	 * Validate lengths
+	 * Validate lengths.
 	 */
 	if (igmplen < IGMP_MINLEN) {
 		++igmpstat.igps_rcv_tooshort;
@@ -203,7 +202,7 @@ igmp_input(register struct mbuf *m, int off)
 	}
 
 	/*
-	 * Validate checksum
+	 * Validate checksum.
 	 */
 	m->m_data += iphlen;
 	m->m_len -= iphlen;
@@ -225,12 +224,12 @@ igmp_input(register struct mbuf *m, int off)
 	 * In the IGMPv2 specification, there are 3 states and a flag.
 	 *
 	 * In Non-Member state, we simply don't have a membership record.
-	 * In Delaying Member state, our timer is running (inm->inm_timer)
-	 * In Idle Member state, our timer is not running (inm->inm_timer==0)
+	 * In Delaying Member state, our timer is running (inm->inm_timer).
+	 * In Idle Member state, our timer is not running (inm->inm_timer==0).
 	 *
-	 * The flag is inm->inm_state, it is set to IGMP_OTHERMEMBER if
-	 * we have heard a report from another member, or IGMP_IREPORTEDLAST
-	 * if I sent the last report.
+	 * The flag is inm->inm_state, it is set to IGMP_OTHERMEMBER if we
+	 * have heard a report from another member, or IGMP_IREPORTEDLAST if
+	 * I sent the last report.
 	 */
 	switch (igmp->igmp_type) {
 	case IGMP_MEMBERSHIP_QUERY:
@@ -242,8 +241,8 @@ igmp_input(register struct mbuf *m, int off)
 		if (igmp->igmp_code == 0) {
 			/*
 			 * Old router.  Remember that the querier on this
-			 * interface is old, and set the timer to the
-			 * value in RFC 1112.
+			 * interface is old, and set the timer to the value
+			 * in RFC 1112.
 			 */
 
 			mtx_lock(&igmp_mtx);
@@ -279,14 +278,14 @@ igmp_input(register struct mbuf *m, int off)
 		}
 
 		/*
-		 * - Start the timers in all of our membership records
-		 *   that the query applies to for the interface on
-		 *   which the query arrived excl. those that belong
-		 *   to the "all-hosts" group (224.0.0.1).
-		 * - Restart any timer that is already running but has
-		 *   a value longer than the requested timeout.
-		 * - Use the value specified in the query message as
-		 *   the maximum timeout.
+		 * - Start the timers in all of our membership records that
+		 *   the query applies to for the interface on which the
+		 *   query arrived excl. those that belong to the "all-hosts"
+		 *   group (224.0.0.1).
+		 * - Restart any timer that is already running but has a
+		 *   value longer than the requested timeout.
+		 * - Use the value specified in the query message as the
+		 *   maximum timeout.
 		 */
 		IN_MULTI_LOCK();
 		IN_FIRST_MULTI(step, inm);
@@ -305,19 +304,19 @@ igmp_input(register struct mbuf *m, int off)
 			IN_NEXT_MULTI(step, inm);
 		}
 		IN_MULTI_UNLOCK();
-
 		break;
 
 	case IGMP_V1_MEMBERSHIP_REPORT:
 	case IGMP_V2_MEMBERSHIP_REPORT:
 		/*
 		 * For fast leave to work, we have to know that we are the
-		 * last person to send a report for this group.  Reports
-		 * can potentially get looped back if we are a multicast
-		 * router, so discard reports sourced by me.
+		 * last person to send a report for this group.  Reports can
+		 * potentially get looped back if we are a multicast router,
+		 * so discard reports sourced by me.
 		 */
 		IFP_TO_IA(ifp, ia);
-		if (ia && ip->ip_src.s_addr == IA_SIN(ia)->sin_addr.s_addr)
+		if (ia != NULL &&
+		    ip->ip_src.s_addr == IA_SIN(ia)->sin_addr.s_addr)
 			break;
 
 		++igmpstat.igps_rcv_reports;
@@ -340,29 +339,29 @@ igmp_input(register struct mbuf *m, int off)
 		 * to compensate for the lack of any way for a process to
 		 * determine the arrival interface of an incoming packet.
 		 */
-		if ((ntohl(ip->ip_src.s_addr) & IN_CLASSA_NET) == 0)
-			if (ia) ip->ip_src.s_addr = htonl(ia->ia_subnet);
+		if ((ntohl(ip->ip_src.s_addr) & IN_CLASSA_NET) == 0) {
+			if (ia != NULL)
+				ip->ip_src.s_addr = htonl(ia->ia_subnet);
+		}
 
 		/*
-		 * If we belong to the group being reported, stop
-		 * our timer for that group.
+		 * If we belong to the group being reported, stop our timer
+		 * for that group.
 		 */
 		IN_MULTI_LOCK();
 		IN_LOOKUP_MULTI(igmp->igmp_group, ifp, inm);
 		if (inm != NULL) {
 			inm->inm_timer = 0;
 			++igmpstat.igps_rcv_ourreports;
-
 			inm->inm_state = IGMP_OTHERMEMBER;
 		}
 		IN_MULTI_UNLOCK();
-
 		break;
 	}
 
 	/*
-	 * Pass all valid IGMP packets up to any process(es) listening
-	 * on a raw IGMP socket.
+	 * Pass all valid IGMP packets up to any process(es) listening on a
+	 * raw IGMP socket.
 	 */
 	rip_input(m, off);
 }
@@ -412,8 +411,8 @@ igmp_fasttimo(void)
 	struct in_multistep step;
 
 	/*
-	 * Quick check to see if any work needs to be done, in order
-	 * to minimize the overhead of fasttimo processing.
+	 * Quick check to see if any work needs to be done, in order to
+	 * minimize the overhead of fasttimo processing.
 	 */
 
 	if (!igmp_timers_are_running)
@@ -503,8 +502,7 @@ igmp_sendpkt(struct in_multi *inm, int type, unsigned long addr)
 	imo.imo_multicast_loop = (ip_mrouter != NULL);
 
 	/*
-	 * XXX
-	 * Do we have to worry about reentrancy here?  Don't think so.
+	 * XXX: Do we have to worry about reentrancy here?  Don't think so.
 	 */
 	ip_output(m, router_alert, &igmprt, 0, &imo, NULL);
 
