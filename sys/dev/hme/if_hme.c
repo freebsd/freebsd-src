@@ -34,7 +34,7 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
  *
- *	from: NetBSD: hme.c,v 1.29 2002/05/05 03:02:38 thorpej Exp
+ *	from: NetBSD: hme.c,v 1.35 2003/02/27 14:58:22 pk Exp
  */
 
 #include <sys/cdefs.h>
@@ -115,6 +115,7 @@ static void	hme_mifinit(struct hme_softc *);
 static void	hme_setladrf(struct hme_softc *, int);
 
 static int	hme_mediachange(struct ifnet *);
+static int	hme_mediachange_locked(struct hme_softc *);
 static void	hme_mediastatus(struct ifnet *, struct ifmediareq *);
 
 static int	hme_load_txmbuf(struct hme_softc *, struct mbuf **);
@@ -310,19 +311,21 @@ hme_config(struct hme_softc *sc)
 
 	/*
 	 * Walk along the list of attached MII devices and
-	 * establish an `MII instance' to `phy number'
-	 * mapping. We'll use this mapping in media change
-	 * requests to determine which phy to use to program
-	 * the MIF configuration register.
+	 * establish an `MII instance' to `PHY number'
+	 * mapping. We'll use this mapping to enable the MII
+	 * drivers of the external transceiver according to
+	 * the currently selected media.
 	 */
-	for (child = LIST_FIRST(&sc->sc_mii->mii_phys); child != NULL;
-	     child = LIST_NEXT(child, mii_list)) {
+	sc->sc_phys[0] = sc->sc_phys[1] = -1;
+	LIST_FOREACH(child, &sc->sc_mii->mii_phys, mii_list) {
 		/*
 		 * Note: we support just two PHYs: the built-in
 		 * internal device and an external on the MII
 		 * connector.
 		 */
-		if (child->mii_phy > 1 || child->mii_inst > 1) {
+		if ((child->mii_phy != HME_PHYAD_EXTERNAL &&
+		    child->mii_phy != HME_PHYAD_INTERNAL) ||
+		    child->mii_inst > 1) {
 			device_printf(sc->sc_dev, "cannot accommodate "
 			    "MII device %s at phy %d, instance %d\n",
 			    device_get_name(child->mii_dev),
@@ -475,6 +478,9 @@ hme_stop(struct hme_softc *sc)
 
 	callout_stop(&sc->sc_tick_ch);
 	sc->sc_ifp->if_drv_flags &= ~(IFF_DRV_RUNNING | IFF_DRV_OACTIVE);
+
+	/* Mask all interrupts */
+	HME_SEB_WRITE_4(sc, HME_SEBI_IMASK, 0xffffffff);
 
 	/* Reset transmitter and receiver */
 	HME_SEB_WRITE_4(sc, HME_SEBI_RESET, HME_SEB_RESET_ETX |
@@ -741,7 +747,6 @@ hme_init_locked(struct hme_softc *sc)
 	v = ((ea[4] << 8) | ea[5]) & 0x3fff;
 	HME_MAC_WRITE_4(sc, HME_MACI_RANDSEED, v);
 
-
 	/* Note: Accepting power-on default for other MAC registers here.. */
 
 	/* step 5. RX MAC registers & counters */
@@ -833,9 +838,6 @@ hme_init_locked(struct hme_softc *sc)
 	/* step 11. XIF Configuration */
 	v = HME_MAC_READ_4(sc, HME_MACI_XIF);
 	v |= HME_MAC_XIF_OE;
-	/* If an external transceiver is connected, enable its MII drivers */
-	if ((HME_MIF_READ_4(sc, HME_MIFI_CFG) & HME_MIF_CFG_MDI1) != 0)
-		v |= HME_MAC_XIF_MIIENABLE;
 	CTR1(KTR_HME, "hme_init: programming XIF to %x", (u_int)v);
 	HME_MAC_WRITE_4(sc, HME_MACI_XIF, v);
 
@@ -871,9 +873,7 @@ hme_init_locked(struct hme_softc *sc)
 #endif
 
 	/* Set the current media. */
-	/*
-	 * mii_mediachg(sc->sc_mii);
-	 */
+	hme_mediachange_locked(sc);
 
 	/* Start the one second timer. */
 	callout_reset(&sc->sc_tick_ch, hz, hme_tick, sc);
@@ -1290,7 +1290,11 @@ hme_eint(struct hme_softc *sc, u_int status)
 {
 
 	if ((status & HME_SEB_STAT_MIFIRQ) != 0) {
-		device_printf(sc->sc_dev, "XXXlink status changed\n");
+		device_printf(sc->sc_dev, "XXXlink status changed: "
+		    "cfg=%#x, stat=%#x, sm=%#x\n",
+		    HME_MIF_READ_4(sc, HME_MIFI_CFG),
+		    HME_MIF_READ_4(sc, HME_MIFI_STAT),
+		    HME_MIF_READ_4(sc, HME_MIFI_SM));
 		return;
 	}
 
@@ -1322,7 +1326,6 @@ hme_intr(void *v)
 	HME_UNLOCK(sc);
 }
 
-
 static void
 hme_watchdog(struct ifnet *ifp)
 {
@@ -1351,10 +1354,27 @@ hme_mifinit(struct hme_softc *sc)
 {
 	u_int32_t v;
 
-	/* Configure the MIF in frame mode */
-	v = HME_MIF_READ_4(sc, HME_MIFI_CFG);
-	v &= ~HME_MIF_CFG_BBMODE;
-	HME_MIF_WRITE_4(sc, HME_MIFI_CFG, v);
+	HME_LOCK_ASSERT(sc, MA_OWNED);
+	/*
+	 * Configure the MIF in frame mode, polling disabled, internal PHY
+	 * selected.
+	 */
+	HME_MIF_WRITE_4(sc, HME_MIFI_CFG, 0);
+
+	/*
+	 * If the currently selected media uses the external transceiver,
+	 * enable its MII drivers (which basically isolates the internal
+	 * one and vice versa). In case the current media hasn't been set,
+	 * yet, we default to the internal transceiver.
+	 */
+	v = HME_MAC_READ_4(sc, HME_MACI_XIF);
+	if (sc->sc_mii != NULL && sc->sc_mii->mii_media.ifm_cur != NULL &&
+	    sc->sc_phys[IFM_INST(sc->sc_mii->mii_media.ifm_cur->ifm_media)] ==
+	    HME_PHYAD_EXTERNAL)
+		v |= HME_MAC_XIF_MIIENABLE;
+	else
+		v &= ~HME_MAC_XIF_MIIENABLE;
+	HME_MAC_WRITE_4(sc, HME_MACI_XIF, v);
 }
 
 /*
@@ -1363,17 +1383,21 @@ hme_mifinit(struct hme_softc *sc)
 int
 hme_mii_readreg(device_t dev, int phy, int reg)
 {
-	struct hme_softc *sc = device_get_softc(dev);
+	struct hme_softc *sc;
 	int n;
 	u_int32_t v;
 
+	/* We can at most have two PHYs. */
+	if (phy != HME_PHYAD_EXTERNAL && phy != HME_PHYAD_INTERNAL)
+		return (0);
+
+	sc = device_get_softc(dev);
 	/* Select the desired PHY in the MIF configuration register */
 	v = HME_MIF_READ_4(sc, HME_MIFI_CFG);
-	/* Clear PHY select bit */
-	v &= ~HME_MIF_CFG_PHY;
 	if (phy == HME_PHYAD_EXTERNAL)
-		/* Set PHY select bit to get at external device */
 		v |= HME_MIF_CFG_PHY;
+	else
+		v &= ~HME_MIF_CFG_PHY;
 	HME_MIF_WRITE_4(sc, HME_MIFI_CFG, v);
 
 	/* Construct the frame command */
@@ -1387,9 +1411,8 @@ hme_mii_readreg(device_t dev, int phy, int reg)
 	for (n = 0; n < 100; n++) {
 		DELAY(1);
 		v = HME_MIF_READ_4(sc, HME_MIFI_FO);
-		if (v & HME_MIF_FO_TALSB) {
+		if (v & HME_MIF_FO_TALSB)
 			return (v & HME_MIF_FO_DATA);
-		}
 	}
 
 	device_printf(sc->sc_dev, "mii_read timeout\n");
@@ -1399,17 +1422,21 @@ hme_mii_readreg(device_t dev, int phy, int reg)
 int
 hme_mii_writereg(device_t dev, int phy, int reg, int val)
 {
-	struct hme_softc *sc = device_get_softc(dev);
+	struct hme_softc *sc;
 	int n;
 	u_int32_t v;
 
+	/* We can at most have two PHYs. */
+	if (phy != HME_PHYAD_EXTERNAL && phy != HME_PHYAD_INTERNAL)
+		return (0);
+
+	sc = device_get_softc(dev);
 	/* Select the desired PHY in the MIF configuration register */
 	v = HME_MIF_READ_4(sc, HME_MIFI_CFG);
-	/* Clear PHY select bit */
-	v &= ~HME_MIF_CFG_PHY;
 	if (phy == HME_PHYAD_EXTERNAL)
-		/* Set PHY select bit to get at external device */
 		v |= HME_MIF_CFG_PHY;
+	else
+		v &= ~HME_MIF_CFG_PHY;
 	HME_MIF_WRITE_4(sc, HME_MIFI_CFG, v);
 
 	/* Construct the frame command */
@@ -1435,24 +1462,15 @@ hme_mii_writereg(device_t dev, int phy, int reg, int val)
 void
 hme_mii_statchg(device_t dev)
 {
-	struct hme_softc *sc = device_get_softc(dev);
-	int instance;
-	int phy;
+	struct hme_softc *sc;
 	u_int32_t v;
 
-	instance = IFM_INST(sc->sc_mii->mii_media.ifm_cur->ifm_media);
-	phy = sc->sc_phys[instance];
+	sc = device_get_softc(dev);
+
 #ifdef HMEDEBUG
 	if (sc->sc_debug)
-		printf("hme_mii_statchg: status change: phy = %d\n", phy);
+		device_printf(sc->sc_dev, "hme_mii_statchg: status change\n");
 #endif
-
-	/* Select the current PHY in the MIF configuration register */
-	v = HME_MIF_READ_4(sc, HME_MIFI_CFG);
-	v &= ~HME_MIF_CFG_PHY;
-	if (phy == HME_PHYAD_EXTERNAL)
-		v |= HME_MIF_CFG_PHY;
-	HME_MIF_WRITE_4(sc, HME_MIFI_CFG, v);
 
 	/* Set the MAC Full Duplex bit appropriately */
 	v = HME_MAC_READ_4(sc, HME_MACI_TXCFG);
@@ -1474,9 +1492,37 @@ hme_mediachange(struct ifnet *ifp)
 	int error;
 
 	HME_LOCK(sc);
-	error = mii_mediachg(sc->sc_mii);
+	error = hme_mediachange_locked(sc);
 	HME_UNLOCK(sc);
 	return (error);
+}
+
+static int
+hme_mediachange_locked(struct hme_softc *sc)
+{
+	struct mii_softc *child;
+
+	HME_LOCK_ASSERT(sc, MA_OWNED);
+#ifdef HMEDEBUG
+	if (sc->sc_debug)
+		device_printf(sc->sc_dev, "hme_mediachange_locked");
+#endif
+
+	hme_mifinit(sc);
+
+	/*
+	 * If both PHYs are present reset them. This is required for
+	 * unisolating the previously isolated PHY when switching PHYs.
+	 * As the above hme_mifinit() call will set the MII drivers in
+	 * the XIF configuration register accoring to the currently
+	 * selected media, there should be no window during which the
+	 * data paths of both transceivers are open at the same time,
+	 * even if the PHY device drivers use MIIF_NOISOLATE.
+	 */
+	if (sc->sc_phys[0] != -1 && sc->sc_phys[1] != -1)
+		LIST_FOREACH(child, &sc->sc_mii->mii_phys, mii_list)
+			mii_phy_reset(child);
+	return (mii_mediachg(sc->sc_mii));
 }
 
 static void
