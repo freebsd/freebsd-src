@@ -234,6 +234,7 @@ MAN=	aac.4 \
 	ng_vjc.4 \
 	ng_vlan.4 \
 	nmdm.4 \
+	${_npe.4} \
 	nsp.4 \
 	null.4 \
 	${_nve.4} \
@@ -528,6 +529,10 @@ _nve.4=		nve.4
 _rr232x.4=	rr232x.4
 _spkr.4=	spkr.4
 _speaker.4=	speaker.4
+.endif
+
+.if ${MACHINE_ARCH} == "arm"
+_npe.4=		npe.4
 .endif
 
 .if exists(${.CURDIR}/man4.${MACHINE_ARCH})
