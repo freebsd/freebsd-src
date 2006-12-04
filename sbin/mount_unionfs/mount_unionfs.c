@@ -106,7 +106,7 @@ parse_gid(const char *s, char *buf, size_t bufsize)
 	}
 }
 
-static uid_t 
+static void
 parse_uid(const char *s, char *buf, size_t bufsize)
 {
 	struct passwd  *pw;
