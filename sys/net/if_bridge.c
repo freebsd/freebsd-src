@@ -1024,6 +1024,10 @@ bridge_ioctl_gifflags(struct bridge_softc *sc, void *arg)
 		req->ifbr_ifsflags |= IFBIF_BSTP_P2P;
 	if (bp->bp_flags & BSTP_PORT_AUTOP2P)
 		req->ifbr_ifsflags |= IFBIF_BSTP_AUTOP2P;
+	if (bp->bp_flags & BSTP_PORT_ADMEDGE)
+		req->ifbr_ifsflags |= IFBIF_BSTP_ADMEDGE;
+	if (bp->bp_flags & BSTP_PORT_ADMCOST)
+		req->ifbr_ifsflags |= IFBIF_BSTP_ADMCOST;
 	return (0);
 }
 
