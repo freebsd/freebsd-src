@@ -140,11 +140,14 @@ struct ifbreq {
 #define	IFBIF_BSTP_AUTOEDGE	0x0040	/* member stp autoedge enabled */
 #define	IFBIF_BSTP_P2P		0x0080	/* member stp p2p */
 #define	IFBIF_BSTP_AUTOP2P	0x0100	/* member stp autop2p enabled */
+#define	IFBIF_BSTP_ADMEDGE	0x0200	/* member stp admin edge enabled */
+#define	IFBIF_BSTP_ADMCOST	0x0400	/* member stp admin path cost */
 
 #define	IFBIFBITS	"\020\001LEARNING\002DISCOVER\003STP\004SPAN" \
 			"\005STICKY\006EDGE\007AUTOEDGE\010P2P\011AUTOP2P"
 #define	IFBIFMASK	~(IFBIF_BSTP_EDGE|IFBIF_BSTP_AUTOEDGE|IFBIF_BSTP_P2P| \
-			IFBIF_BSTP_AUTOP2P)	/* not saved */
+			IFBIF_BSTP_AUTOP2P|IFBIF_BSTP_ADMEDGE| \
+			IFBIF_BSTP_ADMCOST)	/* not saved */
 
 /* BRDGFLUSH */
 #define	IFBF_FLUSHDYN		0x00	/* flush learned addresses only */
