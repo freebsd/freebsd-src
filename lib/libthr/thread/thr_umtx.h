@@ -48,6 +48,10 @@ void _thr_umutex_init(struct umutex *mtx) __hidden;
 int _thr_umtx_wait(volatile umtx_t *mtx, umtx_t exp,
 	const struct timespec *timeout) __hidden;
 int _thr_umtx_wake(volatile umtx_t *mtx, int count) __hidden;
+int _thr_ucond_wait(struct ucond *cv, struct umutex *m,
+        const struct timespec *timeout, int check_unpaking);
+int _thr_ucond_signal(struct ucond *cv);
+int _thr_ucond_broadcast(struct ucond *cv);
 
 static inline int
 _thr_umutex_trylock(struct umutex *mtx, uint32_t id)
