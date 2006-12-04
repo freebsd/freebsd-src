@@ -1354,7 +1354,6 @@ hme_mifinit(struct hme_softc *sc)
 {
 	u_int32_t v;
 
-	HME_LOCK_ASSERT(sc, MA_OWNED);
 	/*
 	 * Configure the MIF in frame mode, polling disabled, internal PHY
 	 * selected.
