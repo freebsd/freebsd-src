@@ -281,8 +281,9 @@ static const struct bge_revision bge_majorrevs[] = {
 	{ 0, NULL }
 };
 
-#define BGE_IS_JUMBO_CAPABLE(sc)	((sc)->bge_flags & BGE_FLAG_5700_FAMILY)
-#define BGE_IS_5705_OR_BEYOND(sc)	((sc)->bge_flags & BGE_FLAG_5705_PLUS)
+#define BGE_IS_JUMBO_CAPABLE(sc)	((sc)->bge_flags & BGE_FLAG_JUMBO)
+#define BGE_IS_5700_FAMILY(sc)		((sc)->bge_flags & BGE_FLAG_5700_FAMILY)
+#define BGE_IS_5705_PLUS(sc)		((sc)->bge_flags & BGE_FLAG_5705_PLUS)
 #define BGE_IS_5714_FAMILY(sc)		((sc)->bge_flags & BGE_FLAG_5714_FAMILY)
 #define BGE_IS_575X_PLUS(sc)		((sc)->bge_flags & BGE_FLAG_575X_PLUS)
 
@@ -1204,7 +1205,7 @@ bge_blockinit(struct bge_softc *sc)
 
 	/* Note: the BCM5704 has a smaller mbuf space than other chips. */
 
-	if (!(BGE_IS_5705_OR_BEYOND(sc))) {
+	if (!(BGE_IS_5705_PLUS(sc))) {
 		/* Configure mbuf memory pool */
 		CSR_WRITE_4(sc, BGE_BMAN_MBUFPOOL_BASEADDR, BGE_BUFFPOOL_1);
 		if (sc->bge_asicrev == BGE_ASICREV_BCM5704)
@@ -1219,7 +1220,7 @@ bge_blockinit(struct bge_softc *sc)
 	}
 
 	/* Configure mbuf pool watermarks */
-	if (!(BGE_IS_5705_OR_BEYOND(sc))) {
+	if (!(BGE_IS_5705_PLUS(sc))) {
 		CSR_WRITE_4(sc, BGE_BMAN_MBUFPOOL_READDMA_LOWAT, 0x0);
 		CSR_WRITE_4(sc, BGE_BMAN_MBUFPOOL_MACRX_LOWAT, 0x10);
 	} else {
@@ -1233,7 +1234,7 @@ bge_blockinit(struct bge_softc *sc)
 	CSR_WRITE_4(sc, BGE_BMAN_DMA_DESCPOOL_HIWAT, 10);
 
 	/* Enable buffer manager */
-	if (!(BGE_IS_5705_OR_BEYOND(sc))) {
+	if (!(BGE_IS_5705_PLUS(sc))) {
 		CSR_WRITE_4(sc, BGE_BMAN_MODE,
 		    BGE_BMANMODE_ENABLE|BGE_BMANMODE_LOMBUF_ATTN);
 
@@ -1275,7 +1276,7 @@ bge_blockinit(struct bge_softc *sc)
 	    BGE_ADDR_HI(sc->bge_ldata.bge_rx_std_ring_paddr);
 	bus_dmamap_sync(sc->bge_cdata.bge_rx_std_ring_tag,
 	    sc->bge_cdata.bge_rx_std_ring_map, BUS_DMASYNC_PREREAD);
-	if (BGE_IS_5705_OR_BEYOND(sc))
+	if (BGE_IS_5705_PLUS(sc))
 		rcb->bge_maxlen_flags = BGE_RCB_MAXLEN_FLAGS(512, 0);
 	else
 		rcb->bge_maxlen_flags =
@@ -1352,7 +1353,7 @@ bge_blockinit(struct bge_softc *sc)
 	RCB_WRITE_4(sc, vrcb, bge_hostaddr.bge_addr_lo, taddr.bge_addr_lo);
 	RCB_WRITE_4(sc, vrcb, bge_nicaddr,
 	    BGE_NIC_TXRING_ADDR(0, BGE_TX_RING_CNT));
-	if (!(BGE_IS_5705_OR_BEYOND(sc)))
+	if (!(BGE_IS_5705_PLUS(sc)))
 		RCB_WRITE_4(sc, vrcb, bge_maxlen_flags,
 		    BGE_RCB_MAXLEN_FLAGS(BGE_TX_RING_CNT, 0));
 
@@ -1436,7 +1437,7 @@ bge_blockinit(struct bge_softc *sc)
 	CSR_WRITE_4(sc, BGE_HCC_TX_COAL_TICKS, sc->bge_tx_coal_ticks);
 	CSR_WRITE_4(sc, BGE_HCC_RX_MAX_COAL_BDS, sc->bge_rx_max_coal_bds);
 	CSR_WRITE_4(sc, BGE_HCC_TX_MAX_COAL_BDS, sc->bge_tx_max_coal_bds);
-	if (!(BGE_IS_5705_OR_BEYOND(sc))) {
+	if (!(BGE_IS_5705_PLUS(sc))) {
 		CSR_WRITE_4(sc, BGE_HCC_RX_COAL_TICKS_INT, 0);
 		CSR_WRITE_4(sc, BGE_HCC_TX_COAL_TICKS_INT, 0);
 	}
@@ -1444,7 +1445,7 @@ bge_blockinit(struct bge_softc *sc)
 	CSR_WRITE_4(sc, BGE_HCC_TX_MAX_COAL_BDS_INT, 0);
 
 	/* Set up address of statistics block */
-	if (!(BGE_IS_5705_OR_BEYOND(sc))) {
+	if (!(BGE_IS_5705_PLUS(sc))) {
 		CSR_WRITE_4(sc, BGE_HCC_STATS_ADDR_HI,
 		    BGE_ADDR_HI(sc->bge_ldata.bge_stats_paddr));
 		CSR_WRITE_4(sc, BGE_HCC_STATS_ADDR_LO,
@@ -1473,7 +1474,7 @@ bge_blockinit(struct bge_softc *sc)
 	CSR_WRITE_4(sc, BGE_RXLP_MODE, BGE_RXLPMODE_ENABLE);
 
 	/* Turn on RX list selector state machine. */
-	if (!(BGE_IS_5705_OR_BEYOND(sc)))
+	if (!(BGE_IS_5705_PLUS(sc)))
 		CSR_WRITE_4(sc, BGE_RXLS_MODE, BGE_RXLSMODE_ENABLE);
 
 	/* Turn on DMA, clear stats */
@@ -1496,7 +1497,7 @@ bge_blockinit(struct bge_softc *sc)
 #endif
 
 	/* Turn on DMA completion state machine */
-	if (!(BGE_IS_5705_OR_BEYOND(sc)))
+	if (!(BGE_IS_5705_PLUS(sc)))
 		CSR_WRITE_4(sc, BGE_DMAC_MODE, BGE_DMACMODE_ENABLE);
 
 	/* Turn on write DMA state machine */
@@ -1517,7 +1518,7 @@ bge_blockinit(struct bge_softc *sc)
 	CSR_WRITE_4(sc, BGE_RDBDI_MODE, BGE_RDBDIMODE_ENABLE);
 
 	/* Turn on Mbuf cluster free state machine */
-	if (!(BGE_IS_5705_OR_BEYOND(sc)))
+	if (!(BGE_IS_5705_PLUS(sc)))
 		CSR_WRITE_4(sc, BGE_MBCF_MODE, BGE_MBCFMODE_ENABLE);
 
 	/* Turn on send BD completion state machine */
@@ -2121,13 +2122,13 @@ bge_attach(device_t dev)
 	case BGE_ASICREV_BCM5701:
 	case BGE_ASICREV_BCM5703:
 	case BGE_ASICREV_BCM5704:
-		sc->bge_flags |= BGE_FLAG_5700_FAMILY;
+		sc->bge_flags |= BGE_FLAG_5700_FAMILY | BGE_FLAG_JUMBO;
 		break;
 
 	case BGE_ASICREV_BCM5714_A0:
 	case BGE_ASICREV_BCM5780:
 	case BGE_ASICREV_BCM5714:
-		sc->bge_flags |= BGE_FLAG_5714_FAMILY;
+		sc->bge_flags |= BGE_FLAG_5714_FAMILY /* | BGE_FLAG_JUMBO */;
 		/* Fall through */
 
 	case BGE_ASICREV_BCM5750:
@@ -2146,7 +2147,7 @@ bge_attach(device_t dev)
 	 * XXX: Broadcom Linux driver.  Not in specs or eratta.
 	 * PCI-Express?
 	 */
-	if (BGE_IS_5705_OR_BEYOND(sc)) {
+	if (BGE_IS_5705_PLUS(sc)) {
 		uint32_t v;
 
 		v = pci_read_config(dev, BGE_PCI_MSI_CAPID, 4);
@@ -2226,7 +2227,7 @@ bge_attach(device_t dev)
 	}
 
 	/* 5705 limits RX return ring to 512 entries. */
-	if (BGE_IS_5705_OR_BEYOND(sc))
+	if (BGE_IS_5705_PLUS(sc))
 		sc->bge_return_ring_cnt = BGE_RETURN_RING_CNT_5705;
 	else
 		sc->bge_return_ring_cnt = BGE_RETURN_RING_CNT;
@@ -2930,7 +2931,7 @@ bge_tick(void *xsc)
 
 	BGE_LOCK_ASSERT(sc);
 
-	if (BGE_IS_5705_OR_BEYOND(sc))
+	if (BGE_IS_5705_PLUS(sc))
 		bge_stats_update_regs(sc);
 	else
 		bge_stats_update(sc);
@@ -3679,7 +3680,7 @@ bge_stop(struct bge_softc *sc)
 	BGE_CLRBIT(sc, BGE_RX_MODE, BGE_RXMODE_ENABLE);
 	BGE_CLRBIT(sc, BGE_RBDI_MODE, BGE_RBDIMODE_ENABLE);
 	BGE_CLRBIT(sc, BGE_RXLP_MODE, BGE_RXLPMODE_ENABLE);
-	if (!(BGE_IS_5705_OR_BEYOND(sc)))
+	if (!(BGE_IS_5705_PLUS(sc)))
 		BGE_CLRBIT(sc, BGE_RXLS_MODE, BGE_RXLSMODE_ENABLE);
 	BGE_CLRBIT(sc, BGE_RDBDI_MODE, BGE_RBDIMODE_ENABLE);
 	BGE_CLRBIT(sc, BGE_RDC_MODE, BGE_RDCMODE_ENABLE);
@@ -3693,7 +3694,7 @@ bge_stop(struct bge_softc *sc)
 	BGE_CLRBIT(sc, BGE_SDI_MODE, BGE_SDIMODE_ENABLE);
 	BGE_CLRBIT(sc, BGE_RDMA_MODE, BGE_RDMAMODE_ENABLE);
 	BGE_CLRBIT(sc, BGE_SDC_MODE, BGE_SDCMODE_ENABLE);
-	if (!(BGE_IS_5705_OR_BEYOND(sc)))
+	if (!(BGE_IS_5705_PLUS(sc)))
 		BGE_CLRBIT(sc, BGE_DMAC_MODE, BGE_DMACMODE_ENABLE);
 	BGE_CLRBIT(sc, BGE_SBDC_MODE, BGE_SBDCMODE_ENABLE);
 
@@ -3703,11 +3704,11 @@ bge_stop(struct bge_softc *sc)
 	 */
 	BGE_CLRBIT(sc, BGE_HCC_MODE, BGE_HCCMODE_ENABLE);
 	BGE_CLRBIT(sc, BGE_WDMA_MODE, BGE_WDMAMODE_ENABLE);
-	if (!(BGE_IS_5705_OR_BEYOND(sc)))
+	if (!(BGE_IS_5705_PLUS(sc)))
 		BGE_CLRBIT(sc, BGE_MBCF_MODE, BGE_MBCFMODE_ENABLE);
 	CSR_WRITE_4(sc, BGE_FTQ_RESET, 0xFFFFFFFF);
 	CSR_WRITE_4(sc, BGE_FTQ_RESET, 0);
-	if (!(BGE_IS_5705_OR_BEYOND(sc))) {
+	if (!(BGE_IS_5705_PLUS(sc))) {
 		BGE_CLRBIT(sc, BGE_BMAN_MODE, BGE_BMANMODE_ENABLE);
 		BGE_CLRBIT(sc, BGE_MARB_MODE, BGE_MARBMODE_ENABLE);
 	}
