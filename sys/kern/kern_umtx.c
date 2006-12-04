@@ -2170,7 +2170,7 @@ do_unlock_umutex(struct thread *td, struct umutex *m)
 
 static int
 do_cv_wait(struct thread *td, struct ucond *cv, struct umutex *m,
-	struct timespec *timeout)
+	struct timespec *timeout, u_long wflags)
 {
 	struct umtx_q *uq;
 	struct timeval tv;
@@ -2202,7 +2202,11 @@ do_cv_wait(struct thread *td, struct ucond *cv, struct umutex *m,
 	
 	umtxq_lock(&uq->uq_key);
 	if (error == 0) {
-		if (timeout == NULL) {
+		if ((wflags & UMTX_CHECK_UNPARKING) &&
+		    (td->td_pflags & TDP_WAKEUP)) {
+			td->td_pflags &= ~TDP_WAKEUP;
+			error = EINTR;
+		} else if (timeout == NULL) {
 			error = umtxq_sleep(uq, "ucond", 0);
 		} else {
 			getnanouptime(&ets);
@@ -2236,7 +2240,8 @@ do_cv_wait(struct thread *td, struct ucond *cv, struct umutex *m,
 			 * occur, and indeed a kernel based implementation
 			 * can not avoid it.
 			 */ 
-			umtxq_signal(&uq->uq_key, 1);
+			if (!umtxq_signal(&uq->uq_key, 1))
+				error = 0;
 		}
 		if (error == ERESTART)
 			error = EINTR;
@@ -2431,7 +2436,7 @@ __umtx_op_cv_wait(struct thread *td, struct _umtx_op_args *uap)
 		}
 		ts = &timeout;
 	}
-	return (do_cv_wait(td, uap->obj, uap->uaddr1, ts));
+	return (do_cv_wait(td, uap->obj, uap->uaddr1, ts, uap->val));
 }
 
 static int
@@ -2592,7 +2597,7 @@ __umtx_op_cv_wait_compat32(struct thread *td, struct _umtx_op_args *uap)
 			return (EINVAL);
 		ts = &timeout;
 	}
-	return (do_cv_wait(td, uap->obj, uap->uaddr1, ts));
+	return (do_cv_wait(td, uap->obj, uap->uaddr1, ts, uap->val));
 }
 
 static _umtx_op_func op_table_compat32[] = {
