@@ -22,7 +22,7 @@
 #	-DNO_PORTSUPDATE do not update ports in ${MAKE} update
 #	-DNO_DOCUPDATE do not update doc in ${MAKE} update
 #	LOCAL_DIRS="list of dirs" to add additional dirs to the SUBDIR list
-#	TARGET_ARCH="arch" to crossbuild world to a different arch
+#	TARGET="machine" to crossbuild world for a different machine type
 
 #
 # The intended user-driven targets are:
@@ -103,14 +103,36 @@ OSRELDATE!=	awk '/^\#define[[:space:]]*__FreeBSD_version/ { print $$3 }' \
 OSRELDATE=	0
 .endif
 .endif
-TARGET_ARCH?=	${MACHINE_ARCH}
-.if ${TARGET_ARCH} == ${MACHINE_ARCH}
+
+# Guess machine architecture from machine type, and vice versa.
+.if !defined(TARGET_ARCH) && defined(TARGET)
+TARGET_ARCH=	${TARGET:S/pc98/i386/}
+.elif !defined(TARGET) && defined(TARGET_ARCH) && \
+    ${TARGET_ARCH} != ${MACHINE_ARCH}
+TARGET=		${TARGET_ARCH}
+.endif
+# Otherwise, default to current machine type and architecture.
 TARGET?=	${MACHINE}
+TARGET_ARCH?=	${MACHINE_ARCH}
+
+KNOWN_ARCHES?=	amd64 arm i386 i386/pc98 ia64 powerpc sparc64
+.if ${TARGET} == ${TARGET_ARCH}
+_t=		${TARGET}
+.else
+_t=		${TARGET_ARCH}/${TARGET}
+.endif
+.for _t in ${_t}
+.if empty(KNOWN_ARCHES:M${_t})
+.error Unknown target ${TARGET_ARCH}:${TARGET}.
+.endif
+.endfor
+
+.if ${TARGET} == ${MACHINE}
 TARGET_CPUTYPE?=${CPUTYPE}
 .else
-TARGET?=	${TARGET_ARCH}
 TARGET_CPUTYPE?=
 .endif
+
 .if !empty(TARGET_CPUTYPE)
 _TARGET_CPUTYPE=${TARGET_CPUTYPE}
 .else
@@ -192,11 +214,14 @@ BMAKE=		MAKEOBJDIRPREFIX=${WORLDTMP} \
 # build-tools stage
 TMAKE=		MAKEOBJDIRPREFIX=${OBJTREE} \
 		${BMAKEENV} ${MAKE} -f Makefile.inc1 \
+		TARGET=${TARGET} TARGET_ARCH=${TARGET_ARCH} \
 		DESTDIR= \
 		BOOTSTRAPPING=${OSRELDATE} -DNO_LINT -DNO_CPU_CFLAGS -DNO_WARNS
 
 # cross-tools stage
-XMAKE=		TOOLS_PREFIX=${WORLDTMP} ${BMAKE} -DNO_FORTRAN -DNO_GDB
+XMAKE=		TOOLS_PREFIX=${WORLDTMP} ${BMAKE} \
+		TARGET=${TARGET} TARGET_ARCH=${TARGET_ARCH} \
+		-DNO_FORTRAN -DNO_GDB
 
 # world stage
 WMAKEENV=	${CROSSENV} \
