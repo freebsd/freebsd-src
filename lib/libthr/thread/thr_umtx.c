@@ -104,3 +104,36 @@ _thr_umtx_wake(volatile umtx_t *mtx, int nr_wakeup)
 		return (0);
 	return (errno);
 }
+
+int
+_thr_ucond_wait(struct ucond *cv, struct umutex *m,
+	const struct timespec *timeout, int check_unparking)
+{
+	if (timeout && (timeout->tv_sec < 0 || (timeout->tv_sec == 0 &&
+	    timeout->tv_nsec <= 0))) {
+		__thr_umutex_unlock(m);
+                return (ETIMEDOUT);
+	}
+	if (_umtx_op(cv, UMTX_OP_CV_WAIT,
+		     check_unparking ? UMTX_CHECK_UNPAKING : 0, 
+		     m, __DECONST(void*, timeout)) == 0) {
+		return (0);
+	}
+	return (errno);
+}
+ 
+int
+_thr_ucond_signal(struct ucond *cv)
+{
+	if (_umtx_op(cv, UMTX_OP_CV_SIGNAL, 0, NULL, NULL) == 0)
+		return (0);
+	return (errno);
+}
+
+int
+_thr_ucond_broadcast(struct ucond *cv)
+{
+	if (_umtx_op(cv, UMTX_OP_CV_BROADCAST, 0, NULL, NULL) == 0)
+		return (0);
+	return (errno);
+}
