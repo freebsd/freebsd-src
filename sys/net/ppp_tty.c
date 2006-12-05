@@ -277,7 +277,7 @@ pppasyncrelinq(sc)
 	sc->sc_m = NULL;
     }
     if (sc->sc_flags & SC_TIMEOUT) {
-	untimeout(ppp_timeout, (void *) sc, sc->sc_ch);
+	callout_stop(&sc->sc_timo_ch);
 	sc->sc_flags &= ~SC_TIMEOUT;
     }
     splx(s);
@@ -698,7 +698,7 @@ pppasyncstart(sc)
      * drained the t_outq.
      */
     if (!idle && (sc->sc_flags & SC_TIMEOUT) == 0) {
-	sc->sc_ch = timeout(ppp_timeout, (void *) sc, 1);
+	callout_reset(&sc->sc_timo_ch, 1, ppp_timeout, sc);
 	sc->sc_flags |= SC_TIMEOUT;
     }
 
