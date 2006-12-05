@@ -2306,6 +2306,8 @@ nfs_readdirplusrpc(struct vnode *vp, struct uio *uiop, struct ucred *cred)
 				dp->d_type =
 				    IFTODT(VTTOIF(np->n_vattr.va_type));
 				ndp->ni_vp = newvp;
+				/* Update n_ctime, so subsequent lookup doesn't purge entry */
+				np->n_ctime = np->n_vattr.va_ctime.tv_sec;
 			        cache_enter(ndp->ni_dvp, ndp->ni_vp, cnp);
 			    }
 			} else {
