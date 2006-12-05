@@ -54,6 +54,7 @@ __FBSDID("$FreeBSD$");
 #include <limits.h>
 #include <paths.h>
 #include <setjmp.h>
+#include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -74,6 +75,7 @@ static int	blkcnt;
 static int	numtrec;
 static char	*tapebuf;
 static union	u_spcl endoftapemark;
+static long	byteslide = 0;
 static long	blksread;		/* blocks read since last header */
 static int64_t	tapeaddr = 0;		/* current TP_BSIZE tape record */
 static long	tapesread;
@@ -170,12 +172,13 @@ newtapebuf(long size)
 	if (size <= tapebufsize)
 		return;
 	if (tapebuf != NULL)
-		free(tapebuf);
-	tapebuf = malloc(size * TP_BSIZE);
+		free(tapebuf - TP_BSIZE);
+	tapebuf = malloc((size+1) * TP_BSIZE);
 	if (tapebuf == NULL) {
 		fprintf(stderr, "Cannot allocate space for tape buffer\n");
 		done(1);
 	}
+	tapebuf += TP_BSIZE;
 	tapebufsize = size;
 }
 
@@ -733,6 +736,15 @@ getfile(void (*fill)(char *, long), void (*skip)(char *, long))
 	gettingfile++;
 loop:
 	for (i = 0; i < spcl.c_count; i++) {
+		if (!readmapflag && i > TP_NINDIR) {
+			if (Dflag) {
+				fprintf(stderr, "spcl.c_count = %jd\n",
+				    (intmax_t)spcl.c_count);
+				break;
+			} else
+				panic("spcl.c_count = %jd\n",
+				    (intmax_t)spcl.c_count);
+		}
 		if (readmapflag || spcl.c_addr[i]) {
 			readtape(&buf[curblk++][0]);
 			if (curblk == fssize / TP_BSIZE) {
@@ -751,9 +763,20 @@ loop:
 				TP_BSIZE : size));
 		}
 		if ((size -= TP_BSIZE) <= 0) {
-			for (i++; i < spcl.c_count; i++)
+			for (i++; i < spcl.c_count; i++) {
+				if (!readmapflag && i > TP_NINDIR) {
+					if (Dflag) {
+						fprintf(stderr,
+						    "spcl.c_count = %jd\n",
+						    (intmax_t)spcl.c_count);
+						break;
+					} else 
+						panic("spcl.c_count = %jd\n",
+						    (intmax_t)spcl.c_count);
+				}
 				if (readmapflag || spcl.c_addr[i])
 					readtape(junk);
+			}
 			break;
 		}
 	}
@@ -872,15 +895,19 @@ xtrnull(char *buf, long size)
 static void
 readtape(char *buf)
 {
-	long rd, newvol, i;
+	long rd, newvol, i, oldnumtrec;
 	int cnt, seek_failed;
 
-	if (blkcnt < numtrec) {
-		memmove(buf, &tapebuf[(blkcnt++ * TP_BSIZE)], (long)TP_BSIZE);
+	if (blkcnt + (byteslide > 0) < numtrec) {
+		memmove(buf, &tapebuf[(blkcnt++ * TP_BSIZE) + byteslide], (long)TP_BSIZE);
 		blksread++;
 		tapeaddr++;
 		return;
 	}
+	if (numtrec > 0)
+		memmove(&tapebuf[-TP_BSIZE],
+		    &tapebuf[(numtrec-1) * TP_BSIZE], (long)TP_BSIZE);
+	oldnumtrec = numtrec;
 	for (i = 0; i < ntrec; i++)
 		((struct s_spcl *)&tapebuf[i * TP_BSIZE])->c_magic = 0;
 	if (numtrec == 0)
@@ -981,8 +1008,12 @@ getmore:
 		terminateinput();
 		memmove(&tapebuf[rd], &endoftapemark, (long)TP_BSIZE);
 	}
-	blkcnt = 0;
-	memmove(buf, &tapebuf[(blkcnt++ * TP_BSIZE)], (long)TP_BSIZE);
+	if (oldnumtrec == 0)
+		blkcnt = 0;
+	else
+		blkcnt -= oldnumtrec;
+	memmove(buf,
+	    &tapebuf[(blkcnt++ * TP_BSIZE) + byteslide], (long)TP_BSIZE);
 	blksread++;
 	tapeaddr++;
 }
@@ -1069,6 +1100,8 @@ gethead(struct s_spcl *buf)
 	}
 	if (checksum((int *)buf) == FAIL)
 		return (FAIL);
+	if (_time64_to_time(buf->c_date) != dumpdate)
+		fprintf(stderr, "Header with wrong dumpdate.\n");
 	if (Bcvt) {
 		swabst((u_char *)"8l4s1q8l2q17l", (u_char *)buf);
 		swabst((u_char *)"l",(u_char *) &buf->c_level);
@@ -1225,8 +1258,17 @@ findinode(struct s_spcl *header)
 				if (header->c_addr[i])
 					readtape(buf);
 			while (gethead(header) == FAIL ||
-			    _time64_to_time(header->c_date) != dumpdate)
+			    _time64_to_time(header->c_date) != dumpdate) {
 				skipcnt++;
+				if (Dflag) {
+					byteslide++;
+					if (byteslide < TP_BSIZE) {
+						blkcnt--;
+						blksread--;
+					} else 
+						byteslide = 0;
+				}
+			}
 			break;
 
 		case TS_INODE:
@@ -1263,18 +1305,36 @@ findinode(struct s_spcl *header)
 			break;
 
 		case TS_TAPE:
-			panic("unexpected tape header\n");
-			/* NOTREACHED */
+			if (Dflag)
+				fprintf(stderr, "unexpected tape header\n");
+			else
+				panic("unexpected tape header\n");
 
 		default:
-			panic("unknown tape header type %d\n", spcl.c_type);
-			/* NOTREACHED */
+			if (Dflag)
+				fprintf(stderr, "unknown tape header type %d\n",
+				    spcl.c_type);
+			else
+				panic("unknown tape header type %d\n",
+				    spcl.c_type);
+			while (gethead(header) == FAIL ||
+			    _time64_to_time(header->c_date) != dumpdate) {
+				skipcnt++;
+				if (Dflag) {
+					byteslide++;
+					if (byteslide < TP_BSIZE) {
+						blkcnt--;
+						blksread--;
+					} else 
+						byteslide = 0;
+				}
+			}
 
 		}
 	} while (htype == TS_ADDR);
 	if (skipcnt > 0)
-		fprintf(stderr, "resync restore, skipped %ld blocks\n",
-		    skipcnt);
+		fprintf(stderr, "resync restore, skipped %ld %s\n",
+		    skipcnt, Dflag ? "bytes" : "blocks");
 	skipcnt = 0;
 }
 

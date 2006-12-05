@@ -38,32 +38,32 @@
 .Sh SYNOPSIS
 .Nm
 .Fl i
-.Op Fl dhmNuvy
+.Op Fl dDhmNuvy
 .Op Fl b Ar blocksize
 .Op Fl f Ar file | Fl P Ar pipecommand
 .Op Fl s Ar fileno
 .Nm
 .Fl R
-.Op Fl dNuvy
+.Op Fl dDNuvy
 .Op Fl b Ar blocksize
 .Op Fl f Ar file | Fl P Ar pipecommand
 .Op Fl s Ar fileno
 .Nm
 .Fl r
-.Op Fl dNuvy
+.Op Fl dDNuvy
 .Op Fl b Ar blocksize
 .Op Fl f Ar file | Fl P Ar pipecommand
 .Op Fl s Ar fileno
 .Nm
 .Fl t
-.Op Fl dhNuvy
+.Op Fl dDhNuvy
 .Op Fl b Ar blocksize
 .Op Fl f Ar file | Fl P Ar pipecommand
 .Op Fl s Ar fileno
 .Op Ar
 .Nm
 .Fl x
-.Op Fl dhmNuvy
+.Op Fl dDhmNuvy
 .Op Fl b Ar blocksize
 .Op Fl f Ar file | Fl P Ar pipecommand
 .Op Fl s Ar fileno
@@ -278,6 +278,12 @@ option is not specified,
 tries to determine the media block size dynamically.
 .It Fl d
 Sends verbose debugging output to the standard error.
+.It Fl D
+This puts
+.Nm
+into degraded mode,
+causing restore to operate less efficiently
+but to try harder to read corrupted backups.
 .It Fl f Ar file
 Read the backup from
 .Ar file ;

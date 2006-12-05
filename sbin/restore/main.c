@@ -60,7 +60,7 @@ __FBSDID("$FreeBSD$");
 #include "restore.h"
 #include "extern.h"
 
-int	bflag = 0, cvtflag = 0, dflag = 0, vflag = 0, yflag = 0;
+int	bflag = 0, cvtflag = 0, dflag = 0, Dflag = 0, vflag = 0, yflag = 0;
 int	hflag = 1, mflag = 1, Nflag = 0;
 int	uflag = 0;
 int	pipecmd = 0;
@@ -97,7 +97,7 @@ main(int argc, char *argv[])
 
 	inputdev = NULL;
 	obsolete(&argc, &argv);
-	while ((ch = getopt(argc, argv, "b:df:himNP:Rrs:tuvxy")) != -1)
+	while ((ch = getopt(argc, argv, "b:dDf:himNP:Rrs:tuvxy")) != -1)
 		switch(ch) {
 		case 'b':
 			/* Change default tape blocksize. */
@@ -110,6 +110,9 @@ main(int argc, char *argv[])
 			break;
 		case 'd':
 			dflag = 1;
+			break;
+		case 'D':
+			Dflag = 1;
 			break;
 		case 'f':
 			if (pipecmd)
