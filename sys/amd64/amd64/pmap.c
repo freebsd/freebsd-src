@@ -947,9 +947,7 @@ pmap_extract(pmap_t pmap, vm_offset_t va)
 		pde = *pdep;
 		if (pde) {
 			if ((pde & PG_PS) != 0) {
-				KASSERT((pde & PG_FRAME & PDRMASK) == 0,
-				    ("pmap_extract: bad pde"));
-				rtval = (pde & PG_FRAME) | (va & PDRMASK);
+				rtval = (pde & PG_PS_FRAME) | (va & PDRMASK);
 				PMAP_UNLOCK(pmap);
 				return rtval;
 			}
@@ -982,9 +980,7 @@ pmap_extract_and_hold(pmap_t pmap, vm_offset_t va, vm_prot_t prot)
 	if (pdep != NULL && (pde = *pdep)) {
 		if (pde & PG_PS) {
 			if ((pde & PG_RW) || (prot & VM_PROT_WRITE) == 0) {
-				KASSERT((pde & PG_FRAME & PDRMASK) == 0,
-				    ("pmap_extract_and_hold: bad pde"));
-				m = PHYS_TO_VM_PAGE((pde & PG_FRAME) |
+				m = PHYS_TO_VM_PAGE((pde & PG_PS_FRAME) |
 				    (va & PDRMASK));
 				vm_page_hold(m);
 			}
@@ -1013,7 +1009,7 @@ pmap_kextract(vm_offset_t va)
 	} else {
 		pde = vtopde(va);
 		if (*pde & PG_PS) {
-			pa = (*pde & ~(NBPDR - 1)) | (va & (NBPDR - 1));
+			pa = (*pde & PG_PS_FRAME) | (va & PDRMASK);
 		} else {
 			pa = *vtopte(va);
 			pa = (pa & PG_FRAME) | (va & PAGE_MASK);
