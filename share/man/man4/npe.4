@@ -54,23 +54,21 @@ Otherwise the firmware may be obtained at no cost from the Intel web site.
 The
 .Nm
 driver supports the following media types:
-.Pp
-.Bl -tag -width xxxxxxxxxxxxxxxxxxxx
-.It autoselect
-Enable autoselection of the media type and options
-.It 10baseT/UTP
-Set 10Mbps operation
-.It 100baseTX
-Set 100Mbps (Fast Ethernet) operation
+.Bl -tag -width ".Cm full-duplex"
+.It Cm autoselect
+Enable autoselection of the media type and options.
+.It Cm 10baseT/UTP
+Set 10Mbps operation.
+.It Cm 100baseTX
+Set 100Mbps (Fast Ethernet) operation.
 .El
 .Pp
 The
 .Nm
 driver supports the following media options:
-.Pp
-.Bl -tag -width xxxxxxxxxxxxxxxxxxxx
-.It full-duplex
-Set full duplex operation
+.Bl -tag -width ".Cm full-duplex"
+.It Cm full-duplex
+Set full duplex operation.
 .El
 .Pp
 The
@@ -98,8 +96,9 @@ For further information on configuring this device, see
 .\"to
 .\".Xr ifconfig 8 .
 .Sh HARDWARE
+The adapters supported by the
 .Nm
-adapters exist only on boards that have an XScale processor.
+driver exist only on boards that have an XScale processor.
 .Sh DIAGNOSTICS
 .Bl -diag
 .It "npe%d: unit %d not supported"
@@ -108,14 +107,16 @@ This should not happen as
 .Nm
 devices are not really probed for; they are statically enumerated.
 .It "npe%d: Cannot find my PHY."
-The associated PHY didn't appear while probing the MII bus.
-The relationship between PHY's and NPE's is statically defined
+The associated PHY did not appear while probing the MII bus.
+The relationship between PHYs and NPEs is statically defined
 in the driver and may require alterations to the driver for new boards.
 .It "npe%d: unable to allocate memory for %s ... buffers"
 There is not enough memory available for allocation.
 The driver pre-allocated memory during attach so this should not happen.
 .It "npe%d: remember to fix rx q setup"
-See BUGS below.
+See
+.Sx BUGS
+below.
 .It "npe%d: free mbuf at entry %u"
 An mbuf was unexpectedly found on the device queue; the index of
 the queue entry is printed.
@@ -143,18 +144,19 @@ The
 .Nm
 device driver first appeared in
 .Fx 6.3 .
-.SH CAVEATS
+.Sh CAVEATS
 This driver has been tested only with dual-port boards using the IXP425
 such as the Gateworks Avila 2348.
 Some changes to the driver may be required for other configurations.
-.SH BUGS
+.Sh BUGS
 The hardware queues are not properly flushed when the interface
 is marked down.
 .Pp
 The assignment of receive traffic classes to hardware queues
 is presently incomplete.
 Only the first 4 classes are assigned while there are 8 total.
-The driver will print "remember to fix rx q setup" on startup as a
-reminder.
+The driver will print
+.Dq Li "remember to fix rx q setup"
+on startup as a reminder.
 For the moment it is not a problem as all traffic arrives classified
 with class 0.
