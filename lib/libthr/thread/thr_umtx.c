@@ -105,6 +105,12 @@ _thr_umtx_wake(volatile umtx_t *mtx, int nr_wakeup)
 	return (errno);
 }
 
+void
+_thr_ucond_init(struct ucond *cv)
+{
+	bzero(cv, sizeof(struct ucond));
+}
+
 int
 _thr_ucond_wait(struct ucond *cv, struct umutex *m,
 	const struct timespec *timeout, int check_unparking)
