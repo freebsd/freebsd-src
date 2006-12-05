@@ -334,12 +334,12 @@ camperiphnextunit(struct periph_driver *p_drv, u_int newunit, int wired,
 
 		if (periph != NULL && periph->unit_number == newunit) {
 			if (wired != 0) {
-				xpt_print_path(periph->path);
-				printf("Duplicate Wired Device entry!\n");
-				xpt_print_path(periph->path);
-				printf("Second device (%s device at scbus%d "
-				       "target %d lun %d) will not be wired\n",
-				       periph_name, pathid, target, lun);
+				xpt_print(periph->path, "Duplicate Wired "
+				    "Device entry!\n");
+				xpt_print(periph->path, "Second device (%s "
+				    "device at scbus%d target %d lun %d) will "
+				    "not be wired\n", periph_name, pathid,
+				    target, lun);
 				wired = 0;
 			}
 			continue;
@@ -995,8 +995,8 @@ camperiphdone(struct cam_periph *periph, union ccb *done_ccb)
 					saved_ccb->ccb_h.status |=
 					    CAM_AUTOSNS_VALID;
 #if 0
-					xpt_print_path(saved_ccb->ccb_h.path);
-					printf("Recovered Sense\n");
+					xpt_print(saved_ccb->ccb_h.path,
+					    "Recovered Sense\n");
 					scsi_sense_print(&saved_ccb->csio);
 					cam_error_print(saved_ccb, CAM_ESF_ALL,
 							CAM_EPF_ALL);
@@ -1287,8 +1287,7 @@ camperiphscsistatuserror(union ccb *ccb, cam_flags camflags,
 			*timeout = 0;
 			error = ERESTART;
 			if (bootverbose) {
-				xpt_print_path(ccb->ccb_h.path);
-				printf("Queue Full\n");
+				xpt_print(ccb->ccb_h.path, "Queue Full\n");
 			}
 			break;
 		}
@@ -1300,8 +1299,7 @@ camperiphscsistatuserror(union ccb *ccb, cam_flags camflags,
 		 * command completes or a 1 second timeout.
 		 */
 		if (bootverbose) {
-			xpt_print_path(ccb->ccb_h.path);
-			printf("Device Busy\n");
+			xpt_print(ccb->ccb_h.path, "Device Busy\n");
 		}
 	 	if (ccb->ccb_h.retry_count > 0) {
 	 		ccb->ccb_h.retry_count--;
@@ -1314,13 +1312,12 @@ camperiphscsistatuserror(union ccb *ccb, cam_flags camflags,
 		}
 		break;
 	case SCSI_STATUS_RESERV_CONFLICT:
-		xpt_print_path(ccb->ccb_h.path);
-		printf("Reservation Conflict\n");
+		xpt_print(ccb->ccb_h.path, "Reservation Conflict\n");
 		error = EIO;
 		break;
 	default:
-		xpt_print_path(ccb->ccb_h.path);
-		printf("SCSI Status 0x%x\n", ccb->csio.scsi_status);
+		xpt_print(ccb->ccb_h.path, "SCSI Status 0x%x\n",
+		    ccb->csio.scsi_status);
 		error = EIO;
 		break;
 	}
@@ -1574,42 +1571,38 @@ cam_periph_error(union ccb *ccb, cam_flags camflags,
 						 &timeout);
 		break;
 	case CAM_AUTOSENSE_FAIL:
-		xpt_print_path(ccb->ccb_h.path);
-		printf("AutoSense Failed\n");
+		xpt_print(ccb->ccb_h.path, "AutoSense Failed\n");
 		error = EIO;	/* we have to kill the command */
 		break;
 	case CAM_REQ_CMP_ERR:
 		if (bootverbose && printed == 0) {
-			xpt_print_path(ccb->ccb_h.path);
-			printf("Request completed with CAM_REQ_CMP_ERR\n");
+			xpt_print(ccb->ccb_h.path,
+			    "Request completed with CAM_REQ_CMP_ERR\n");
 			printed++;
 		}
 		/* FALLTHROUGH */
 	case CAM_CMD_TIMEOUT:
 		if (bootverbose && printed == 0) {
-			xpt_print_path(ccb->ccb_h.path);
-			printf("Command timed out\n");
+			xpt_print(ccb->ccb_h.path, "Command timed out\n");
 			printed++;
 		}
 		/* FALLTHROUGH */
 	case CAM_UNEXP_BUSFREE:
 		if (bootverbose && printed == 0) {
-			xpt_print_path(ccb->ccb_h.path);
-			printf("Unexpected Bus Free\n");
+			xpt_print(ccb->ccb_h.path, "Unexpected Bus Free\n");
 			printed++;
 		}
 		/* FALLTHROUGH */
 	case CAM_UNCOR_PARITY:
 		if (bootverbose && printed == 0) {
-			xpt_print_path(ccb->ccb_h.path);
-			printf("Uncorrected Parity Error\n");
+			xpt_print(ccb->ccb_h.path,
+			    "Uncorrected Parity Error\n");
 			printed++;
 		}
 		/* FALLTHROUGH */
 	case CAM_DATA_RUN_ERR:
 		if (bootverbose && printed == 0) {
-			xpt_print_path(ccb->ccb_h.path);
-			printf("Data Overrun\n");
+			xpt_print(ccb->ccb_h.path, "Data Overrun\n");
 			printed++;
 		}
 		error = EIO;	/* we have to kill the command */
@@ -1638,8 +1631,8 @@ cam_periph_error(union ccb *ccb, cam_flags camflags,
 				ccb->ccb_h.retry_count--;
 				error = ERESTART;
 				if (bootverbose && printed == 0) {
-					xpt_print_path(ccb->ccb_h.path);
-					printf("Selection Timeout\n");
+					xpt_print(ccb->ccb_h.path,
+					    "Selection Timeout\n");
 					printed++;
 				}
 
@@ -1701,8 +1694,7 @@ cam_periph_error(union ccb *ccb, cam_flags camflags,
 		/* Unconditional requeue */
 		error = ERESTART;
 		if (bootverbose && printed == 0) {
-			xpt_print_path(ccb->ccb_h.path);
-			printf("Request Requeued\n");
+			xpt_print(ccb->ccb_h.path, "Request Requeued\n");
 			printed++;
 		}
 		break;
@@ -1723,8 +1715,8 @@ cam_periph_error(union ccb *ccb, cam_flags camflags,
 			ccb->ccb_h.retry_count--;
 			error = ERESTART;
 			if (bootverbose && printed == 0) {
-				xpt_print_path(ccb->ccb_h.path);
-				printf("CAM Status 0x%x\n", status);
+				xpt_print(ccb->ccb_h.path, "CAM Status 0x%x\n",
+				    status);
 				printed++;
 			}
 		} else {
@@ -1763,11 +1755,9 @@ cam_periph_error(union ccb *ccb, cam_flags camflags,
 		if (action_string == NULL)
 			action_string = "Unretryable Error";
 		if (error != ERESTART) {
-			xpt_print_path(ccb->ccb_h.path);
-			printf("error %d\n", error);
+			xpt_print(ccb->ccb_h.path, "error %d\n", error);
 		}
-		xpt_print_path(ccb->ccb_h.path);
-		printf("%s\n", action_string);
+		xpt_print(ccb->ccb_h.path, "%s\n", action_string);
 	}
 
 	return (error);

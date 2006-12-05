@@ -357,9 +357,8 @@ targendislun(struct cam_path *path, int enable, int grp6_len, int grp7_len)
 	xpt_action((union ccb *)&en_ccb);
 	status = en_ccb.ccb_h.status & CAM_STATUS_MASK;
 	if (status != CAM_REQ_CMP) {
-		xpt_print_path(path);
-		printf("%sable lun CCB rejected, status %#x\n",
-		       enable ? "en" : "dis", status);
+		xpt_print(path, "%sable lun CCB rejected, status %#x\n",
+		    enable ? "en" : "dis", status);
 	}
 	return (status);
 }
@@ -611,8 +610,8 @@ targstart(struct cam_periph *periph, union ccb *start_ccb)
 		if (error == 0)
 			error = targsendccb(softc, start_ccb, descr);
 		if (error != 0) {
-			xpt_print_path(periph->path);
-			printf("targsendccb failed, err %d\n", error);
+			xpt_print(periph->path,
+			    "targsendccb failed, err %d\n", error);
 			xpt_release_ccb(start_ccb);
 			suword(&descr->user_ccb->ccb_h.status,
 			       CAM_REQ_CMP_ERR);
@@ -905,9 +904,8 @@ targreturnccb(struct targ_softc *softc, union ccb *ccb)
 		cam_periph_unmapmem(ccb, &descr->mapinfo);
 	error = copyout(&ccb->ccb_h + 1, u_ccbh + 1, ccb_len);
 	if (error != 0) {
-		xpt_print_path(softc->path);
-		printf("targreturnccb - CCB copyout failed (%d)\n",
-		       error);
+		xpt_print(softc->path,
+		    "targreturnccb - CCB copyout failed (%d)\n", error);
 	}
 	/* Free CCB or send back to devq. */
 	targfreeccb(softc, ccb);
@@ -1031,9 +1029,9 @@ abort_all_pending(struct targ_softc *softc)
 		cab.abort_ccb = (union ccb *)ccb_h;
 		xpt_action((union ccb *)&cab);
 		if (cab.ccb_h.status != CAM_REQ_CMP) {
-			xpt_print_path(cab.ccb_h.path);
-			printf("Unable to abort CCB, status %#x\n",
-			       cab.ccb_h.status);
+			xpt_print(cab.ccb_h.path,
+			    "Unable to abort CCB, status %#x\n",
+			    cab.ccb_h.status);
 		}
 	}
 

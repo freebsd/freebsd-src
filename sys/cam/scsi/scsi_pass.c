@@ -174,8 +174,7 @@ passoninvalidate(struct cam_periph *periph)
 	 */
 
 	if (bootverbose) {
-		xpt_print_path(periph->path);
-		printf("lost device\n");
+		xpt_print(periph->path, "lost device\n");
 	}
 
 }
@@ -192,8 +191,7 @@ passcleanup(struct cam_periph *periph)
 	destroy_dev(softc->dev);
 
 	if (bootverbose) {
-		xpt_print_path(periph->path);
-		printf("removing device entry\n");
+		xpt_print(periph->path, "removing device entry\n");
 	}
 	free(softc, M_DEVBUF);
 }
@@ -360,8 +358,7 @@ passopen(struct cdev *dev, int flags, int fmt, struct thread *td)
 	 * We don't allow nonblocking access.
 	 */
 	if ((flags & O_NONBLOCK) != 0) {
-		xpt_print_path(periph->path);
-		printf("can't do nonblocking access\n");
+		xpt_print(periph->path, "can't do nonblocking access\n");
 		splx(s);
 		return(EINVAL);
 	}
@@ -476,9 +473,9 @@ passioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flag, struct thread *t
 		 * through the transport layer device.
 		 */
 		if (inccb->ccb_h.func_code & XPT_FC_XPT_ONLY) {
-			xpt_print_path(periph->path);
-			printf("CCB function code %#x is restricted to the "
-			       "XPT device\n", inccb->ccb_h.func_code);
+			xpt_print(periph->path, "CCB function code %#x is "
+			    "restricted to the XPT device\n",
+			    inccb->ccb_h.func_code);
 			error = ENODEV;
 			break;
 		}
@@ -504,8 +501,7 @@ passioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flag, struct thread *t
 		}
 
 		if (ccb == NULL) {
-			xpt_print_path(periph->path);
-			printf("unable to allocate CCB\n");
+			xpt_print(periph->path, "unable to allocate CCB\n");
 			error = ENOMEM;
 			break;
 		}

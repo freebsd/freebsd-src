@@ -408,8 +408,7 @@ cdoninvalidate(struct cam_periph *periph)
 		camq_remove(&softc->changer->devq, softc->pinfo.index);
 
 	disk_gone(softc->disk);
-	xpt_print_path(periph->path);
-	printf("lost device\n");
+	xpt_print(periph->path, "lost device\n");
 }
 
 static void
@@ -420,13 +419,11 @@ cdcleanup(struct cam_periph *periph)
 
 	softc = (struct cd_softc *)periph->softc;
 
-	xpt_print_path(periph->path);
-	printf("removing device entry\n");
+	xpt_print(periph->path, "removing device entry\n");
 
 	if ((softc->flags & CD_FLAG_SCTX_INIT) != 0
 	    && sysctl_ctx_free(&softc->sysctl_ctx) != 0) {
-		xpt_print_path(periph->path);
-		printf("can't remove sysctl context\n");
+		xpt_print(periph->path, "can't remove sysctl context\n");
 	}
 
 	s = splsoftcam();
@@ -494,8 +491,7 @@ cdcleanup(struct cam_periph *periph)
 
 		STAILQ_REMOVE(&changerq, softc->changer, cdchanger,
 			      changer_links);
-		xpt_print_path(periph->path);
-		printf("removing changer entry\n");
+		xpt_print(periph->path, "removing changer entry\n");
 		free(softc->changer, M_DEVBUF);
 		num_changers--;
 	}
@@ -1568,8 +1564,8 @@ cdstart(struct cam_periph *periph, union ccb *start_ccb)
 								M_TEMP,
 								M_NOWAIT);
 		if (rcap == NULL) {
-			xpt_print_path(periph->path);
-			printf("cdstart: Couldn't malloc read_capacity data\n");
+			xpt_print(periph->path,
+			    "cdstart: Couldn't malloc read_capacity data\n");
 			/* cd_free_periph??? */
 			break;
 		}
@@ -1631,8 +1627,8 @@ cddone(struct cam_periph *periph, union ccb *done_ccb)
 		if (error != 0) {
 			int s;
 
-			xpt_print_path(periph->path);
-			printf("cddone: got error %#x back\n", error);
+			xpt_print(periph->path,
+			    "cddone: got error %#x back\n", error);
 			s = splbio();
 			bioq_flush(&softc->bio_queue, NULL, EIO);
 			splx(s);
@@ -1813,14 +1809,12 @@ cddone(struct cam_periph *periph, union ccb *done_ccb)
 						scsi_sense_print(
 							&done_ccb->csio);
 					else {
-						xpt_print_path(periph->path);
-						printf("got CAM status %#x\n",
-						       done_ccb->ccb_h.status);
+						xpt_print(periph->path,
+						    "got CAM status %#x\n",
+						    done_ccb->ccb_h.status);
 					}
-					xpt_print_path(periph->path);
-					printf("fatal error, failed" 
-					       " to attach to device\n");
-
+					xpt_print(periph->path, "fatal error, "
+					    "failed to attach to device\n");
 					/*
 					 * Invalidate this peripheral.
 					 */
@@ -2955,16 +2949,16 @@ cd6byteworkaround(union ccb *ccb)
 	 * cdsetmode()!
 	 */
 	if (found == 0) {
-		xpt_print_path(periph->path);
-		printf("mode buffer not found in mode queue!\n");
+		xpt_print(periph->path,
+		    "mode buffer not found in mode queue!\n");
 		return (0);
 	}
 
 	params->cdb_size = 10;
 	softc->minimum_command_size = 10;
-	xpt_print_path(ccb->ccb_h.path);
-	printf("%s(6) failed, increasing minimum CDB size to 10 bytes\n",
-	       (cdb[0] == MODE_SENSE_6) ? "MODE_SENSE" : "MODE_SELECT");
+	xpt_print(ccb->ccb_h.path,
+	    "%s(6) failed, increasing minimum CDB size to 10 bytes\n",
+	    (cdb[0] == MODE_SENSE_6) ? "MODE_SENSE" : "MODE_SELECT");
 
 	if (cdb[0] == MODE_SENSE_6) {
 		struct scsi_mode_sense_10 ms10;
@@ -3296,10 +3290,9 @@ cdgetmode(struct cam_periph *periph, struct cd_mode_params *data,
 		 * the data length incorrectly.
 		 */
 		if (data_len > data->alloc_len) {
-			xpt_print_path(periph->path);
-			printf("allocated modepage %d length %d < returned "
-			       "length %d\n", page, data->alloc_len, data_len);
-
+			xpt_print(periph->path, "allocated modepage %d length "
+			    "%d < returned length %d\n", page, data->alloc_len,
+			    data_len);
 			error = ENOSPC;
 		}
 	}
@@ -3757,9 +3750,8 @@ cdreportkey(struct cam_periph *periph, struct dvd_authinfo *authinfo)
 		goto bailout;
 
 	if (ccb->csio.resid != 0) {
-		xpt_print_path(periph->path);
-		printf("warning, residual for report key command is %d\n",
-		       ccb->csio.resid);
+		xpt_print(periph->path, "warning, residual for report key "
+		    "command is %d\n", ccb->csio.resid);
 	}
 
 	switch(authinfo->format) {
