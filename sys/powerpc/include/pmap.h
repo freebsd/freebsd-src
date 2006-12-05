@@ -95,7 +95,7 @@ void		pmap_unmapdev(vm_offset_t, vm_size_t);
 void		pmap_deactivate(struct thread *);
 vm_offset_t	pmap_kextract(vm_offset_t);
 int		pmap_dev_direct_mapped(vm_offset_t, vm_size_t);
-
+boolean_t	pmap_page_executable(vm_page_t);
 boolean_t	pmap_mmu_install(char *name, int prio);
 
 #define	vtophys(va)	pmap_kextract((vm_offset_t)(va))
