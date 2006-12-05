@@ -273,8 +273,7 @@ choninvalidate(struct cam_periph *periph)
 
 	softc->flags |= CH_FLAG_INVALID;
 
-	xpt_print_path(periph->path);
-	printf("lost device\n");
+	xpt_print(periph->path, "lost device\n");
 
 }
 
@@ -287,8 +286,7 @@ chcleanup(struct cam_periph *periph)
 
 	devstat_remove_entry(softc->device_stats);
 	destroy_dev(softc->dev);
-	xpt_print_path(periph->path);
-	printf("removing device entry\n");
+	xpt_print(periph->path, "removing device entry\n");
 	free(softc, M_DEVBUF);
 }
 
@@ -647,13 +645,12 @@ chdone(struct cam_periph *periph, union ccb *done_ccb)
 				    == CAM_SCSI_STATUS_ERROR) 
 					scsi_sense_print(&done_ccb->csio);
 				else {
-					xpt_print_path(periph->path);
-					printf("got CAM status %#x\n",
-					       done_ccb->ccb_h.status);
+					xpt_print(periph->path,
+					    "got CAM status %#x\n",
+					    done_ccb->ccb_h.status);
 				}
-				xpt_print_path(periph->path);
-				printf("fatal error, failed to attach to"
-				       " device\n");
+				xpt_print(periph->path, "fatal error, failed "
+				    "to attach to device\n");
 
 				cam_periph_invalidate(periph);
 
@@ -1162,8 +1159,8 @@ chgetelemstatus(struct cam_periph *periph,
 	avail = scsi_2btoul(st_hdr->count);
 
 	if (avail != cesr->cesr_element_count) {
-		xpt_print_path(periph->path);
-		printf("warning, READ ELEMENT STATUS avail != count\n");
+		xpt_print(periph->path,
+		    "warning, READ ELEMENT STATUS avail != count\n");
 	}
 
 	user_data = (struct changer_element_status *)
@@ -1403,9 +1400,9 @@ chgetparams(struct cam_periph *periph)
 		}
 
 		if (error) {
-			xpt_print_path(periph->path);
-			printf("chgetparams: error getting element "
-			       "address page\n");
+			xpt_print(periph->path,
+			    "chgetparams: error getting element "
+			    "address page\n");
 			xpt_release_ccb(ccb);
 			free(mode_buffer, M_TEMP);
 			return(error);
@@ -1466,9 +1463,9 @@ chgetparams(struct cam_periph *periph)
 		}
 
 		if (error) {
-			xpt_print_path(periph->path);
-			printf("chgetparams: error getting device "
-			       "capabilities page\n");
+			xpt_print(periph->path,
+			    "chgetparams: error getting device "
+			    "capabilities page\n");
 			xpt_release_ccb(ccb);
 			free(mode_buffer, M_TEMP);
 			return(error);
