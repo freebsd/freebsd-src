@@ -103,6 +103,7 @@ _pthread_barrier_wait(pthread_barrier_t *barrier)
 		cycle = bar->b_cycle;
 		do {
 			_thr_ucond_wait(&bar->b_cv, &bar->b_lock, NULL, 0);
+			THR_UMUTEX_LOCK(curthread, &bar->b_lock);
 			/* test cycle to avoid bogus wakeup */
 		} while (cycle == bar->b_cycle);
 		THR_UMUTEX_UNLOCK(curthread, &bar->b_lock);
