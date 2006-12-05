@@ -687,6 +687,17 @@ createfiles(void)
 		 */
 		if (first > last)
 			return;
+		if (Dflag) {
+			if (curfile.ino == maxino)
+				return;
+			if((ep = lookupino(curfile.ino)) != NULL &&
+			    (ep->e_flags & (NEW|EXTRACT))) {
+				goto justgetit;
+			} else {
+				skipfile();
+				continue;
+			}
+		}
 		/*
 		 * Reject any volumes with inodes greater than the last
 		 * one needed, so that we can quickly skip backwards to
@@ -749,6 +760,7 @@ createfiles(void)
 			ep = lookupino(next);
 			if (ep == NULL)
 				panic("corrupted symbol table\n");
+justgetit:
 			(void) extractfile(myname(ep));
 			ep->e_flags &= ~NEW;
 			if (volno != curvol)
