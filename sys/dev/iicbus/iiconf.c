@@ -234,7 +234,7 @@ iicbus_stop(device_t bus)
  * iicbus_start() call
  */
 int
-iicbus_write(device_t bus, char *buf, int len, int *sent, int timeout)
+iicbus_write(device_t bus, const char *buf, int len, int *sent, int timeout)
 {
 	struct iicbus_softc *sc = (struct iicbus_softc *)device_get_softc(bus);
 	

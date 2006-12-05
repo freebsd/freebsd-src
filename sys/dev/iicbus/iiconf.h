@@ -109,7 +109,7 @@ extern int iicbus_started(device_t);
 extern int iicbus_start(device_t, u_char, int);
 extern int iicbus_stop(device_t);
 extern int iicbus_repeated_start(device_t, u_char, int);
-extern int iicbus_write(device_t, char *, int, int *, int);
+extern int iicbus_write(device_t, const char *, int, int *, int);
 extern int iicbus_read(device_t, char *, int, int *, int, int);
 
 /* single byte read/write functions, start/stop not managed */
