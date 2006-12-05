@@ -124,11 +124,13 @@ _pthread_cond_destroy(pthread_cond_t *cond)
 	else {
 		cv = *cond;
 		THR_UMUTEX_LOCK(curthread, &cv->c_lock);
+#if 0
 		/* Lock the condition variable structure: */
 		if (cv->c_kerncv.c_has_waiters) {
 			THR_UMUTEX_UNLOCK(curthread, &cv->c_lock);
 			return (EBUSY);
 		}
+#endif
 		/*
 		 * NULL the caller's pointer now that the condition
 		 * variable has been destroyed:
