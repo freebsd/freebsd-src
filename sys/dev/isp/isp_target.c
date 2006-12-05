@@ -500,6 +500,7 @@ isp_lun_cmd(ispsoftc_t *isp, int cmd, int bus, int tgt, int lun,
 	} else if (FCPARAM(isp)->isp_sccfw == 0) {
 		el.le_lun = lun;
 	}
+	el.le_timeout = 30;
 
 	if (isp_getrqentry(isp, &nxti, &optr, &outp)) {
 		isp_prt(isp, ISP_LOGERR,
