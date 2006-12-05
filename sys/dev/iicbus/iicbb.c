@@ -63,10 +63,11 @@ struct iicbb_softc {
 	device_t iicbus;
 };
 
-static int iicbb_probe(device_t);
 static int iicbb_attach(device_t);
+static void iicbb_child_detached(device_t, device_t);
 static int iicbb_detach(device_t);
 static int iicbb_print_child(device_t, device_t);
+static int iicbb_probe(device_t);
 
 static int iicbb_callback(device_t, int, caddr_t);
 static int iicbb_start(device_t, u_char, int);
@@ -82,6 +83,7 @@ static device_method_t iicbb_methods[] = {
 	DEVMETHOD(device_detach,	iicbb_detach),
 
 	/* bus interface */
+	DEVMETHOD(bus_child_detached,	iicbb_child_detached),
 	DEVMETHOD(bus_print_child,	iicbb_print_child),
 
 	/* iicbus interface */
@@ -129,13 +131,32 @@ static int
 iicbb_detach(device_t dev)
 {
 	struct iicbb_softc *sc = (struct iicbb_softc *)device_get_softc(dev);
+	device_t child;
 
-	if (sc->iicbus) {
-		bus_generic_detach(dev);
-		device_delete_child(dev, sc->iicbus);
-	}
+	/*
+	 * We need to save child because the detach indirectly causes
+	 * sc->iicbus to be zeroed.  Since we added the device
+	 * unconditionally in iicbb_attach, we need to make sure we
+	 * delete it here.  See iicbb_child_detached.  We need that
+	 * callback in case newbus detached our children w/o detaching
+	 * us (say iicbus is a module and unloaded w/o iicbb being
+	 * unloaded).
+	 */
+	child = sc->iicbus;
+	bus_generic_detach(dev);
+	if (child)
+		device_delete_child(dev, child);
 
 	return (0);
+}
+
+static void
+iicbb_child_detached( device_t dev, device_t child )
+{
+	struct iicbb_softc *sc = (struct iicbb_softc *)device_get_softc(dev);
+
+	if (child == sc->iicbus)
+		sc->iicbus = NULL;
 }
 
 static int
