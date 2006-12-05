@@ -2911,9 +2911,8 @@ mpt_action(struct cam_sim *sim, union ccb *ccb)
 			break;
 		}
 	case XPT_RESET_DEV:
-		xpt_print_path(ccb->ccb_h.path);
-		printf("reset %s\n", ccb->ccb_h.func_code == XPT_RESET_BUS?
-		    "bus" : "device");
+		xpt_print(ccb->ccb_h.path, "reset %s\n",
+		    ccb->ccb_h.func_code == XPT_RESET_BUS? "bus" : "device");
 		CAMLOCK_2_MPTLOCK(mpt);
 		(void) mpt_bus_reset(mpt, tgt, lun, FALSE);
 		MPTLOCK_2_CAMLOCK(mpt);
