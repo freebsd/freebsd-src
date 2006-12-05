@@ -387,8 +387,7 @@ ptoninvalidate(struct cam_periph *periph)
 
 	splx(s);
 
-	xpt_print_path(periph->path);
-	printf("lost device\n");
+	xpt_print(periph->path, "lost device\n");
 }
 
 static void
@@ -402,8 +401,7 @@ ptdtor(struct cam_periph *periph)
 
 	destroy_dev(softc->dev);
 
-	xpt_print_path(periph->path);
-	printf("removing device entry\n");
+	xpt_print(periph->path, "removing device entry\n");
 	free(softc, M_DEVBUF);
 }
 
@@ -577,8 +575,8 @@ ptdone(struct cam_periph *periph, union ccb *done_ccb)
 					 * Catastrophic error.  Mark our device
 					 * as invalid.
 					 */
-					xpt_print_path(periph->path);
-					printf("Invalidating device\n");
+					xpt_print(periph->path,
+					    "Invalidating device\n");
 					softc->flags |= PT_FLAG_DEVICE_INVALID;
 				}
 

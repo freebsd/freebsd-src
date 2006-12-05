@@ -654,11 +654,10 @@ daclose(struct disk *dp)
 				if (sense_key != SSD_KEY_ILLEGAL_REQUEST)
 					scsi_sense_print(&ccb->csio);
 			} else {
-				xpt_print_path(periph->path);
-				printf("Synchronize cache failed, status "
-				       "== 0x%x, scsi status == 0x%x\n",
-				       ccb->csio.ccb_h.status,
-				       ccb->csio.scsi_status);
+				xpt_print(periph->path, "Synchronize cache "
+				    "failed, status == 0x%x, scsi status == "
+				    "0x%x\n", ccb->csio.ccb_h.status,
+				    ccb->csio.scsi_status);
 			}
 		}
 
@@ -826,10 +825,10 @@ dadump(void *arg, void *virtual, vm_offset_t physical, off_t offset, size_t leng
 				if (sense_key != SSD_KEY_ILLEGAL_REQUEST)
 					scsi_sense_print(&csio);
 			} else {
-				xpt_print_path(periph->path);
-				printf("Synchronize cache failed, status "
-				       "== 0x%x, scsi status == 0x%x\n",
-				       csio.ccb_h.status, csio.scsi_status);
+				xpt_print(periph->path, "Synchronize cache "
+				    "failed, status == 0x%x, scsi status == "
+				    "0x%x\n", csio.ccb_h.status,
+				    csio.scsi_status);
 			}
 		}
 	}
@@ -923,8 +922,7 @@ daoninvalidate(struct cam_periph *periph)
 	SLIST_REMOVE(&softc_list, softc, da_softc, links);
 
 	disk_gone(softc->disk);
-	xpt_print_path(periph->path);
-	printf("lost device\n");
+	xpt_print(periph->path, "lost device\n");
 }
 
 static void
@@ -934,15 +932,13 @@ dacleanup(struct cam_periph *periph)
 
 	softc = (struct da_softc *)periph->softc;
 
-	xpt_print_path(periph->path);
-	printf("removing device entry\n");
+	xpt_print(periph->path, "removing device entry\n");
 	/*
 	 * If we can't free the sysctl tree, oh well...
 	 */
 	if ((softc->flags & DA_FLAG_SCTX_INIT) != 0
 	    && sysctl_ctx_free(&softc->sysctl_ctx) != 0) {
-		xpt_print_path(periph->path);
-		printf("can't remove sysctl context\n");
+		xpt_print(periph->path, "can't remove sysctl context\n");
 	}
 	disk_destroy(softc->disk);
 	free(softc, M_DEVBUF);
@@ -1401,9 +1397,8 @@ cmd6workaround(union ccb *ccb)
 	    (*cdb != READ_6 && *cdb != WRITE_6))
 		return 0;
 
-	xpt_print_path(ccb->ccb_h.path);
- 	printf("READ(6)/WRITE(6) not supported, "
-	       "increasing minimum_cmd_size to 10.\n");
+	xpt_print(ccb->ccb_h.path, "READ(6)/WRITE(6) not supported, "
+	    "increasing minimum_cmd_size to 10.\n");
  	softc = (struct da_softc *)xpt_path_periph(ccb->ccb_h.path)->softc;
 	softc->minimum_cmd_size = 10;
 
@@ -1473,11 +1468,12 @@ dadone(struct cam_periph *periph, union ccb *done_ccb)
 					 * Catastrophic error.  Mark our pack as
 					 * invalid.
 					 */
-					/* XXX See if this is really a media
-					 *     change first.
+					/*
+					 * XXX See if this is really a media
+					 * XXX change first?
 					 */
-					xpt_print_path(periph->path);
-					printf("Invalidating pack\n");
+					xpt_print(periph->path,
+					    "Invalidating pack\n");
 					softc->flags |= DA_FLAG_PACK_INVALID;
 				}
 
@@ -1575,9 +1571,9 @@ dadone(struct cam_periph *periph, union ccb *done_ccb)
 			 * here.
 			 */
 			if (block_size >= MAXPHYS || block_size == 0) {
-				xpt_print_path(periph->path);
-				printf("unsupportable block size %ju\n",
-				      (uintmax_t) block_size);
+				xpt_print(periph->path,
+				    "unsupportable block size %ju\n",
+				    (uintmax_t) block_size);
 				announce_buf[0] = '\0';
 				cam_periph_invalidate(periph);
 			} else {
@@ -1672,14 +1668,13 @@ dadone(struct cam_periph *periph, union ccb *done_ccb)
 						scsi_sense_print(
 							&done_ccb->csio);
 					else {
-						xpt_print_path(periph->path);
-						printf("got CAM status %#x\n",
-						       done_ccb->ccb_h.status);
+						xpt_print(periph->path,
+						    "got CAM status %#x\n",
+						    done_ccb->ccb_h.status);
 					}
 
-					xpt_print_path(periph->path);
-					printf("fatal error, failed" 
-					       " to attach to device\n");
+					xpt_print(periph->path, "fatal error, "
+					    "failed to attach to device\n");
 
 					/*
 					 * Free up resources.
@@ -2024,10 +2019,10 @@ dashutdown(void * arg, int howto)
 				if (sense_key != SSD_KEY_ILLEGAL_REQUEST)
 					scsi_sense_print(&ccb.csio);
 			} else {
-				xpt_print_path(periph->path);
-				printf("Synchronize cache failed, status "
-				       "== 0x%x, scsi status == 0x%x\n",
-				       ccb.ccb_h.status, ccb.csio.scsi_status);
+				xpt_print(periph->path, "Synchronize "
+				    "cache failed, status == 0x%x, scsi status "
+				    "== 0x%x\n", ccb.ccb_h.status,
+				    ccb.csio.scsi_status);
 			}
 		}
 

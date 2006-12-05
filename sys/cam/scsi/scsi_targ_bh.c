@@ -263,9 +263,9 @@ targbhenlun(struct cam_periph *periph)
 	xpt_action(&immed_ccb);
 	status = immed_ccb.ccb_h.status;
 	if (status != CAM_REQ_CMP) {
-		xpt_print_path(periph->path);
-		printf("targbhenlun - Enable Lun Rejected with status 0x%x\n",
-		       status);
+		xpt_print(periph->path,
+		    "targbhenlun - Enable Lun Rejected with status 0x%x\n",
+		    status);
 		return (status);
 	}
 	
@@ -309,9 +309,9 @@ targbhenlun(struct cam_periph *periph)
 	}
 
 	if (i == 0) {
-		xpt_print_path(periph->path);
-		printf("targbhenlun - Could not allocate accept tio CCBs: "
-		       "status = 0x%x\n", status);
+		xpt_print(periph->path,
+		    "targbhenlun - Could not allocate accept tio CCBs: status "
+		    "= 0x%x\n", status);
 		targbhdislun(periph);
 		return (CAM_REQ_CMP_ERR);
 	}
@@ -345,9 +345,9 @@ targbhenlun(struct cam_periph *periph)
 	}
 
 	if (i == 0) {
-		xpt_print_path(periph->path);
-		printf("targbhenlun - Could not allocate immediate notify "
-		       "CCBs: status = 0x%x\n", status);
+		xpt_print(periph->path,
+		    "targbhenlun - Could not allocate immediate notify "
+		    "CCBs: status = 0x%x\n", status);
 		targbhdislun(periph);
 		return (CAM_REQ_CMP_ERR);
 	}

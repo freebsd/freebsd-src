@@ -63,6 +63,7 @@ __FBSDID("$FreeBSD$");
 #include <cam/scsi/scsi_all.h>
 #include <cam/scsi/scsi_message.h>
 #include <cam/scsi/scsi_pass.h>
+#include <machine/stdarg.h>	/* for xpt_print below */
 #include "opt_cam.h"
 
 /* Datastructures internal to the xpt layer */
@@ -3407,10 +3408,9 @@ xpt_action(union ccb *start_ccb)
 							    crs->openings);
 
 					if (bootverbose) {
-						xpt_print_path(crs->ccb_h.path);
-						printf("tagged openings "
-						       "now %d\n",
-						       crs->openings);
+						xpt_print(crs->ccb_h.path,
+						    "tagged openings now %d\n",
+						    crs->openings);
 					}
 				}
 			}
@@ -3513,8 +3513,8 @@ xpt_action(union ccb *start_ccb)
 				cam_dflags = CAM_DEBUG_NONE;
 			} else {
 				start_ccb->ccb_h.status = CAM_REQ_CMP;
-				xpt_print_path(cam_dpath);
-				printf("debugging flags now %x\n", cam_dflags);
+				xpt_print(cam_dpath, "debugging flags now %x\n",
+				    cam_dflags);
 			}
 		} else {
 			cam_dpath = NULL;
@@ -4158,6 +4158,16 @@ xpt_print_path(struct cam_path *path)
 		else
 			printf("X): ");
 	}
+}
+
+void
+xpt_print(struct cam_path *path, const char *fmt, ...)
+{
+	va_list ap;
+	xpt_print_path(path);
+	va_start(ap, fmt);
+	vprintf(fmt, ap);
+	va_end(ap);
 }
 
 int
@@ -5529,16 +5539,14 @@ xpt_scan_lun(struct cam_periph *periph, struct cam_path *path,
 	if (request_ccb == NULL) {
 		request_ccb = malloc(sizeof(union ccb), M_TEMP, M_NOWAIT);
 		if (request_ccb == NULL) {
-			xpt_print_path(path);
-			printf("xpt_scan_lun: can't allocate CCB, can't "
-			       "continue\n");
+			xpt_print(path, "xpt_scan_lun: can't allocate CCB, "
+			    "can't continue\n");
 			return;
 		}
 		new_path = malloc(sizeof(*new_path), M_TEMP, M_NOWAIT);
 		if (new_path == NULL) {
-			xpt_print_path(path);
-			printf("xpt_scan_lun: can't allocate path, can't "
-			       "continue\n");
+			xpt_print(path, "xpt_scan_lun: can't allocate path, "
+			    "can't continue\n");
 			free(request_ccb, M_TEMP);
 			return;
 		}
@@ -5548,9 +5556,8 @@ xpt_scan_lun(struct cam_periph *periph, struct cam_path *path,
 					  path->device->lun_id);
 
 		if (status != CAM_REQ_CMP) {
-			xpt_print_path(path);
-			printf("xpt_scan_lun: can't compile path, can't "
-			       "continue\n");
+			xpt_print(path, "xpt_scan_lun: can't compile path, "
+			    "can't continue\n");
 			free(request_ccb, M_TEMP);
 			free(new_path, M_TEMP);
 			return;
@@ -5576,9 +5583,8 @@ xpt_scan_lun(struct cam_periph *periph, struct cam_path *path,
 					  request_ccb);
 
 		if (status != CAM_REQ_CMP) {
-			xpt_print_path(path);
-			printf("xpt_scan_lun: cam_alloc_periph returned an "
-			       "error, can't continue probe\n");
+			xpt_print(path, "xpt_scan_lun: cam_alloc_periph "
+			    "returned an error, can't continue probe\n");
 			request_ccb->ccb_h.status = status;
 			xpt_done(request_ccb);
 		}
@@ -5763,8 +5769,8 @@ probestart(struct cam_periph *periph, union ccb *start_ccb)
 			inq_buf = malloc(inquiry_len, M_TEMP, M_NOWAIT);
 		}
 		if (inq_buf == NULL) {
-			xpt_print_path(periph->path);
-			printf("malloc failure- skipping Basic Domain Validation\n");
+			xpt_print(periph->path, "malloc failure- skipping Basic"
+			    "Domain Validation\n");
 			softc->action = PROBE_DV_EXIT;
 			scsi_test_unit_ready(csio,
 					     /*retries*/4,
@@ -5809,8 +5815,8 @@ probestart(struct cam_periph *periph, union ccb *start_ccb)
 					/*timeout*/60000);
 			break;
 		}
-		xpt_print_path(periph->path);
-		printf("Unable to mode sense control page - malloc failure\n");
+		xpt_print(periph->path, "Unable to mode sense control page - "
+		    "malloc failure\n");
 		softc->action = PROBE_SERIAL_NUM;
 	}
 	/* FALLTHROUGH */
@@ -5887,15 +5893,14 @@ proberequestbackoff(struct cam_periph *periph, struct cam_ed *device)
 	xpt_action((union ccb *)&cts);
 	if ((cts.ccb_h.status & CAM_STATUS_MASK) != CAM_REQ_CMP) {
 		if (bootverbose) {
-			xpt_print_path(periph->path);
-			printf("failed to get current settings\n");
+			xpt_print(periph->path,
+			    "failed to get current device settings\n");
 		}
 		return (0);
 	}
 	if (cts.transport != XPORT_SPI) {
 		if (bootverbose) {
-			xpt_print_path(periph->path);
-			printf("not SPI transport\n");
+			xpt_print(periph->path, "not SPI transport\n");
 		}
 		return (0);
 	}
@@ -5906,8 +5911,7 @@ proberequestbackoff(struct cam_periph *periph, struct cam_ed *device)
 	 */
 	if ((spi->valid & CTS_SPI_VALID_SYNC_RATE) == 0) {
 		if (bootverbose) {
-			xpt_print_path(periph->path);
-			printf("no sync rate known\n");
+			xpt_print(periph->path, "no sync rate known\n");
 		}
 		return (0);
 	}
@@ -5925,8 +5929,7 @@ proberequestbackoff(struct cam_periph *periph, struct cam_ed *device)
 	if ((spi->valid & CTS_SPI_VALID_SYNC_OFFSET) == 0
 	 || spi->sync_offset == 0 || spi->sync_period == 0) {
 		if (bootverbose) {
-			xpt_print_path(periph->path);
-			printf("no sync rate available\n");
+			xpt_print(periph->path, "no sync rate available\n");
 		}
 		return (0);
 	}
@@ -6285,8 +6288,8 @@ probedone(struct cam_periph *periph, union ccb *done_ccb)
 		csio = &done_ccb->csio;
 		nbuf = (struct scsi_inquiry_data *)csio->data_ptr;
 		if (bcmp(nbuf, &path->device->inq_data, SHORT_INQUIRY_LENGTH)) {
-			xpt_print_path(path);
-			printf("inquiry fails comparison at DV%d step\n",
+			xpt_print(path,
+			    "inquiry data fails comparison at DV%d step\n",
 			    softc->action == PROBE_INQUIRY_BASIC_DV1? 1 : 2);
 			if (proberequestbackoff(periph, path->device)) {
 				path->device->flags &= ~CAM_DEV_IN_DV;
@@ -6484,17 +6487,16 @@ xpt_set_transfer_settings(struct ccb_trans_settings *cts, struct cam_ed *device,
 		cts->protocol_version = device->protocol_version;
 
 	if (cts->protocol != device->protocol) {
-		xpt_print_path(cts->ccb_h.path);
-		printf("Uninitialized Protocol %x:%x?\n",
+		xpt_print(cts->ccb_h.path, "Uninitialized Protocol %x:%x?\n",
 		       cts->protocol, device->protocol);
 		cts->protocol = device->protocol;
 	}
 
 	if (cts->protocol_version > device->protocol_version) {
 		if (bootverbose) {
-			xpt_print_path(cts->ccb_h.path);
-			printf("Down reving Protocol Version from %d to %d?\n",
-			       cts->protocol_version, device->protocol_version);
+			xpt_print(cts->ccb_h.path, "Down reving Protocol "
+			    "Version from %d to %d?\n", cts->protocol_version,
+			    device->protocol_version);
 		}
 		cts->protocol_version = device->protocol_version;
 	}
@@ -6510,18 +6512,16 @@ xpt_set_transfer_settings(struct ccb_trans_settings *cts, struct cam_ed *device,
 		cts->transport_version = device->transport_version;
 
 	if (cts->transport != device->transport) {
-		xpt_print_path(cts->ccb_h.path);
-		printf("Uninitialized Transport %x:%x?\n",
-		       cts->transport, device->transport);
+		xpt_print(cts->ccb_h.path, "Uninitialized Transport %x:%x?\n",
+		    cts->transport, device->transport);
 		cts->transport = device->transport;
 	}
 
 	if (cts->transport_version > device->transport_version) {
 		if (bootverbose) {
-			xpt_print_path(cts->ccb_h.path);
-			printf("Down reving Transport Version from %d to %d?\n",
-			       cts->transport_version,
-			       device->transport_version);
+			xpt_print(cts->ccb_h.path, "Down reving Transport "
+			    "Version from %d to %d?\n", cts->transport_version,
+			    device->transport_version);
 		}
 		cts->transport_version = device->transport_version;
 	}
