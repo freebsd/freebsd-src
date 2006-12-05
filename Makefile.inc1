@@ -115,7 +115,7 @@ TARGET=		${TARGET_ARCH}
 TARGET?=	${MACHINE}
 TARGET_ARCH?=	${MACHINE_ARCH}
 
-KNOWN_ARCHES?=	amd64 arm i386 i386/pc98 ia64 powerpc sparc64
+KNOWN_ARCHES?=	alpha amd64 arm i386 i386/pc98 ia64 powerpc sparc64
 .if ${TARGET} == ${TARGET_ARCH}
 _t=		${TARGET}
 .else
