@@ -897,18 +897,17 @@ isp_en_lun(ispsoftc_t *isp, union ccb *ccb)
 
 	bus = XS_CHANNEL(ccb);
 	if (bus > 1) {
-		xpt_print_path(ccb->ccb_h.path);
-		printf("illegal bus %d\n", bus);
+		xpt_print(ccb->ccb_h.path, "illegal bus %d\n", bus);
 		ccb->ccb_h.status = CAM_PATH_INVALID;
 		return (-1);
 	}
 	tgt = ccb->ccb_h.target_id;
 	lun = ccb->ccb_h.target_lun;
 
-	isp_prt(isp, ISP_LOGTDEBUG0,
-	    "isp_en_lun: %sabling lun 0x%x on channel %d",
-	    cel->enable? "en" : "dis", lun, bus);
-
+	if (isp->isp_dblev & ISP_LOGTDEBUG0) {
+		xpt_print(ccb->ccb_h.path, "%sabling lun 0x%x on channel %d\n",
+	    	    cel->enable? "en" : "dis", lun, bus);
+	}
 
 	if ((lun != CAM_LUN_WILDCARD) &&
 	    (lun < 0 || lun >= (lun_id_t) isp->isp_maxluns)) {
@@ -940,17 +939,18 @@ isp_en_lun(ispsoftc_t *isp, union ccb *ccb)
 		 * This is as a good a place as any to check f/w capabilities.
 		 */
 		if (FCPARAM(isp)->isp_tmode == 0) {
-			isp_prt(isp, ISP_LOGERR,
-			    "firmware does not support target mode");
+			xpt_print(ccb->ccb_h.path,
+			    "firmware does not support target mode\n");
 			ccb->ccb_h.status = CAM_FUNC_NOTAVAIL;
 			return (-1);
 		}
 		/*
 		 * XXX: We *could* handle non-SCCLUN f/w, but we'd have to
-		 * XXX: dorks with our already fragile enable/disable code.
+		 * XXX: dork with our already fragile enable/disable code.
 		 */
 		if (FCPARAM(isp)->isp_sccfw == 0) {
-			isp_prt(isp, ISP_LOGERR, "firmware not SCCLUN capable");
+			xpt_print(ccb->ccb_h.path,
+			    "firmware not SCCLUN capable\n");
 			ccb->ccb_h.status = CAM_FUNC_NOTAVAIL;
 			return (-1);
 		}
@@ -1027,8 +1027,7 @@ isp_en_lun(ispsoftc_t *isp, union ccb *ccb)
 			return (-1);
 		}
 		isp->isp_osinfo.tmflags[bus] |= TM_TMODE_ENABLED;
-		isp_prt(isp, ISP_LOGINFO,
-		    "Target Mode enabled on channel %d", bus);
+		xpt_print(ccb->ccb_h.path, "Target Mode Enabled\n");
 	} else if (cel->enable == 0 && tm_on && wildcard) {
 		if (are_any_luns_enabled(isp, bus)) {
 			ccb->ccb_h.status = CAM_SCSI_BUSY;
@@ -1040,8 +1039,7 @@ isp_en_lun(ispsoftc_t *isp, union ccb *ccb)
 			return (-1);
 		}
 		isp->isp_osinfo.tmflags[bus] &= ~TM_TMODE_ENABLED;
-		isp_prt(isp, ISP_LOGINFO,
-		    "Target Mode disabled on channel %d", bus);
+		xpt_print(ccb->ccb_h.path, "Target Mode Disabled\n");
 	}
 
 	if (wildcard) {
@@ -1120,8 +1118,7 @@ isp_en_lun(ispsoftc_t *isp, union ccb *ccb)
 		}
 	}
 	rls_lun_statep(isp, tptr);
-	xpt_print_path(ccb->ccb_h.path);
-	printf("isp_lun_cmd failed\n");
+	xpt_print(ccb->ccb_h.path, "isp_lun_cmd failed\n");
 	isp->isp_osinfo.leact[seq] = 0;
 	ccb->ccb_h.status = CAM_REQ_CMP_ERR;
 	return (-1);
@@ -1130,7 +1127,7 @@ isp_en_lun(ispsoftc_t *isp, union ccb *ccb)
 static void
 isp_ledone(ispsoftc_t *isp, lun_entry_t *lep)
 {
-	const char lfmt[] = "lun %d now %sabled for target mode on channel %d";
+	const char lfmt[] = "now %sabled for target mode";
 	union ccb *ccb;
 	uint32_t seq;
 	tstate_t *tptr;
@@ -1152,18 +1149,16 @@ isp_ledone(ispsoftc_t *isp, lun_entry_t *lep)
 	cel = &ccb->cel;
 	tptr = get_lun_statep(isp, XS_CHANNEL(ccb), XS_LUN(ccb));
 	if (tptr == NULL) {
-		xpt_print_path(ccb->ccb_h.path);
-		printf("null tptr in isp_ledone\n");
+		xpt_print(ccb->ccb_h.path, "null tptr in isp_ledone\n");
 		isp->isp_osinfo.leact[seq] = 0;
 		return;
 	}
 
 	if (lep->le_status != LUN_OK) {
-		xpt_print_path(ccb->ccb_h.path);
-		printf("ENABLE/MODIFY LUN returned 0x%x\n", lep->le_status);
+		xpt_print(ccb->ccb_h.path,
+		    "ENABLE/MODIFY LUN returned 0x%x\n", lep->le_status);
 err:
 		ccb->ccb_h.status = CAM_REQ_CMP_ERR;
-		xpt_print_path(ccb->ccb_h.path);
 		rls_lun_statep(isp, tptr);
 		isp->isp_osinfo.leact[seq] = 0;
 		ISPLOCK_2_CAMLOCK(isp);
@@ -1178,8 +1173,7 @@ err:
 
 	if (cel->enable) {
 		ccb->ccb_h.status = CAM_REQ_CMP;
-		isp_prt(isp, ISP_LOGINFO, lfmt,
-		    XS_LUN(ccb), "en", XS_CHANNEL(ccb));
+		xpt_print(ccb->ccb_h.path, lfmt, "en");
 		rls_lun_statep(isp, tptr);
 		isp->isp_osinfo.leact[seq] = 0;
 		ISPLOCK_2_CAMLOCK(isp);
@@ -1191,15 +1185,15 @@ err:
 	if (lep->le_header.rqs_entry_type == RQSTYPE_MODIFY_LUN) {
 		if (isp_lun_cmd(isp, -RQSTYPE_ENABLE_LUN, XS_CHANNEL(ccb),
 		    XS_TGT(ccb), XS_LUN(ccb), 0, 0, seq+1)) {
-			xpt_print_path(ccb->ccb_h.path);
-			printf("isp_ledone: isp_lun_cmd failed\n");
+			xpt_print(ccb->ccb_h.path,
+			    "isp_ledone: isp_lun_cmd failed\n");
 			goto err;
 		}
 		rls_lun_statep(isp, tptr);
 		return;
 	}
 
-	isp_prt(isp, ISP_LOGINFO, lfmt, XS_LUN(ccb), "dis", XS_CHANNEL(ccb));
+	xpt_print(ccb->ccb_h.path, lfmt, "dis");
 	rls_lun_statep(isp, tptr);
 	destroy_lun_state(isp, tptr);
 	ccb->ccb_h.status = CAM_REQ_CMP;
@@ -1214,9 +1208,6 @@ err:
 		if (av) {
 			isp_prt(isp, ISP_LOGWARN,
 			    "disable target mode on channel %d failed", bus);
-		} else {
-			isp_prt(isp, ISP_LOGINFO,
-			    "Target Mode disabled on channel %d", bus);
 		}
 		isp->isp_osinfo.tmflags[bus] &= ~TM_TMODE_ENABLED;
 	}
@@ -1232,7 +1223,7 @@ isp_abort_tgt_ccb(ispsoftc_t *isp, union ccb *ccb)
 	int found, *ctr;
 	union ccb *accb = ccb->cab.abort_ccb;
 
-	isp_prt(isp, ISP_LOGTDEBUG0, "aborting ccb %p", accb);
+	xpt_print(ccb->ccb_h.path, "aborting ccb %p\n", accb);
 	if (accb->ccb_h.target_id != CAM_TARGET_WILDCARD) {
 		int badpath = 0;
 		if (IS_FC(isp) && (accb->ccb_h.target_id != 
@@ -1255,8 +1246,7 @@ isp_abort_tgt_ccb(ispsoftc_t *isp, union ccb *ccb)
 	}
 	tptr = get_lun_statep(isp, XS_CHANNEL(ccb), accb->ccb_h.target_lun);
 	if (tptr == NULL) {
-		isp_prt(isp, ISP_LOGTDEBUG0,
-		    "isp_abort_tgt_ccb: can't get statep");
+		xpt_print(ccb->ccb_h.path, "can't get statep\n");
 		return (CAM_PATH_INVALID);
 	}
 	if (accb->ccb_h.func_code == XPT_ACCEPT_TARGET_IO) {
@@ -1267,8 +1257,8 @@ isp_abort_tgt_ccb(ispsoftc_t *isp, union ccb *ccb)
 		ctr = &tptr->inot_count;
 	} else {
 		rls_lun_statep(isp, tptr);
-		isp_prt(isp, ISP_LOGTDEBUG0,
-		    "isp_abort_tgt_ccb: bad func %d\n", accb->ccb_h.func_code);
+		xpt_print(ccb->ccb_h.path, "bad function code %d\n",
+		    accb->ccb_h.func_code);
 		return (CAM_UA_ABORT);
 	}
 	curelm = SLIST_FIRST(lp);
@@ -1297,8 +1287,7 @@ isp_abort_tgt_ccb(ispsoftc_t *isp, union ccb *ccb)
 		xpt_done(accb);
 		return (CAM_REQ_CMP);
 	}
-	isp_prt(isp, ISP_LOGTDEBUG0,
-	    "isp_abort_tgt_ccb: CCB %p not found\n", ccb);
+	xpt_print(ccb->ccb_h.path, "ccb %p not found\n", accb);
 	return (CAM_PATH_INVALID);
 }
 
@@ -1312,8 +1301,8 @@ isp_target_start_ctio(ispsoftc_t *isp, union ccb *ccb)
 
 
 	if (isp_getrqentry(isp, &nxti, &optr, &qe)) {
-		xpt_print_path(ccb->ccb_h.path);
-		printf("Request Queue Overflow in isp_target_start_ctio\n");
+		xpt_print(ccb->ccb_h.path,
+		    "Request Queue Overflow in isp_target_start_ctio\n");
 		XS_SETERR(ccb, CAM_REQUEUE_REQ);
 		goto out;
 	}
@@ -1340,8 +1329,8 @@ isp_target_start_ctio(ispsoftc_t *isp, union ccb *ccb)
 
 		atp = isp_get_atpd(isp, cso->tag_id);
 		if (atp == NULL) {
-			isp_prt(isp, ISP_LOGERR,
-			    "cannot find private data adjunct for tag %x",
+			xpt_print(ccb->ccb_h.path,
+			    "cannot find private data adjunct for tag %x\n",
 			    cso->tag_id);
 			XS_SETERR(ccb, CAM_REQ_CMP_ERR);
 			goto out;
@@ -1450,8 +1439,8 @@ isp_target_start_ctio(ispsoftc_t *isp, union ccb *ccb)
 	}
 
 	if (isp_save_xs_tgt(isp, ccb, &handle)) {
-		xpt_print_path(ccb->ccb_h.path);
-		printf("No XFLIST pointers for isp_target_start_ctio\n");
+		xpt_print(ccb->ccb_h.path,
+		    "No XFLIST pointers for isp_target_start_ctio\n");
 		XS_SETERR(ccb, CAM_REQUEUE_REQ);
 		goto out;
 	}
@@ -1514,9 +1503,9 @@ isp_target_putback_atio(union ccb *ccb)
 	isp = XS_ISP(ccb);
 
 	if (isp_getrqentry(isp, &nxti, &optr, &qe)) {
+		xpt_print(ccb->ccb_h.path,
+		    "isp_target_putback_atio: Request Queue Overflow\n"); 
 		(void) timeout(isp_refire_putback_atio, ccb, 10);
-		isp_prt(isp, ISP_LOGWARN,
-		    "isp_target_putback_atio: Request Queue Overflow"); 
 		return;
 	}
 	memset(qe, 0, QENTRY_LEN);
@@ -1637,9 +1626,8 @@ isp_handle_platform_atio(ispsoftc_t *isp, at_entry_t *aep)
 		 * should, in fact, get this, is in the case that we've
 		 * run out of ATIOS.
 		 */
-		xpt_print_path(tptr->owner);
-		isp_prt(isp, ISP_LOGWARN,
-		    "no ATIOS for lun %d from initiator %d on channel %d",
+		xpt_print(tptr->owner,
+		    "no ATIOS for lun %d from initiator %d on channel %d\n",
 		    aep->at_lun, GET_IID_VAL(aep->at_iid), bus);
 		if (aep->at_flags & AT_TQAE)
 			isp_endcmd(isp, aep, SCSI_STATUS_QUEUE_FULL, 0);
@@ -1745,9 +1733,8 @@ isp_handle_platform_atio2(ispsoftc_t *isp, at2_entry_t *aep)
 		 * should, in fact, get this, is in the case that we've
 		 * run out of ATIOS.
 		 */
-		xpt_print_path(tptr->owner);
-		isp_prt(isp, ISP_LOGWARN,
-		    "no %s for lun %d from initiator %d",
+		xpt_print(tptr->owner,
+		    "no %s for lun %d from initiator %d\n",
 		    (atp == NULL && atiop == NULL)? "ATIO2s *or* ATPS" :
 		    ((atp == NULL)? "ATPs" : "ATIO2s"), lun, aep->at_iid);
 		rls_lun_statep(isp, tptr);
@@ -2100,9 +2087,8 @@ isp_watchdog_work(ispsoftc_t *isp, XS_T *xs)
 				ISP_DMAFREE(isp, xs, handle);
                 	} 
 			isp_destroy_handle(isp, handle);
-			xpt_print_path(xs->ccb_h.path);
-			isp_prt(isp, ISP_LOGWARN,
-			    "watchdog timeout for handle 0x%x", handle);
+			xpt_print(xs->ccb_h.path,
+			    "watchdog timeout for handle 0x%x\n", handle);
 			XS_SETERR(xs, CAM_CMD_TIMEOUT);
 			XS_CMD_C_WDOG(xs);
 			ISPLOCK_2_CAMLOCK(isp);
@@ -2459,14 +2445,13 @@ isp_action(struct cam_sim *sim, union ccb *ccb)
 		}
 #ifdef	DIAGNOSTIC
 		if (ccb->ccb_h.target_id > (ISP_MAX_TARGETS(isp) - 1)) {
+			xpt_print(ccb->ccb_h.path, "invalid target\n");
 			ccb->ccb_h.status = CAM_PATH_INVALID;
 		} else if (ccb->ccb_h.target_lun > (ISP_MAX_LUNS(isp) - 1)) {
+			xpt_print(ccb->ccb_h.path, "invalid lun\n");
 			ccb->ccb_h.status = CAM_PATH_INVALID;
 		}
 		if (ccb->ccb_h.status == CAM_PATH_INVALID) {
-			isp_prt(isp, ISP_LOGERR,
-			    "invalid tgt/lun (%d.%d) in XPT_SCSI_IO",
-			    ccb->ccb_h.target_id, ccb->ccb_h.target_lun);
 			xpt_done(ccb);
 			break;
 		}
@@ -3002,9 +2987,8 @@ isp_done(struct ccb_scsiio *sccb)
 
 	if ((CAM_DEBUGGED(sccb->ccb_h.path, ISPDDB)) &&
 	    (sccb->ccb_h.status & CAM_STATUS_MASK) != CAM_REQ_CMP) {
-		xpt_print_path(sccb->ccb_h.path);
-		isp_prt(isp, ISP_LOGINFO, 
-		    "cam completion status 0x%x", sccb->ccb_h.status);
+		xpt_print(sccb->ccb_h.path,
+		    "cam completion status 0x%x\n", sccb->ccb_h.status);
 	}
 
 	XS_CMD_S_DONE(sccb);

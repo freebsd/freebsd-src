@@ -3195,6 +3195,10 @@ isp_gid_ft_ct_passthru(ispsoftc_t *isp)
 	isp_put_ct_hdr(isp, ct, (ct_hdr_t *) &scp[XTXOFF]);
 	rp = (uint32_t *) &scp[XTXOFF+sizeof (*ct)];
 	ISP_IOZPUT_32(isp, FC4_SCSI, rp);
+	if (isp->isp_dblev & ISP_LOGDEBUG1) {
+		isp_print_bytes(isp, "CT HDR + payload after put",
+		    sizeof (*ct) + sizeof (uint32_t), &scp[XTXOFF]);
+	}
 	MEMZERO(&scp[ZTXOFF], QENTRY_LEN);
 	MEMZERO(&mbs, sizeof (mbs));
 	mbs.param[0] = MBOX_EXEC_COMMAND_IOCB_A64;
@@ -3222,6 +3226,9 @@ isp_gid_ft_ct_passthru(ispsoftc_t *isp)
 		return (-1);
 	}
 	MEMORYBARRIER(isp, SYNC_SFORCPU, IGPOFF, GIDLEN + 16);
+	if (isp->isp_dblev & ISP_LOGDEBUG1) {
+		isp_print_bytes(isp, "CT response", GIDLEN+16, &scp[IGPOFF]);
+	}
 	return (0);
 }
 
@@ -3301,7 +3308,7 @@ isp_scan_fabric(ispsoftc_t *isp)
 	/*
 	 * Prime the handle we will start using.
 	 */
-	oldhandle = 0xffff;
+	oldhandle = NIL_HANDLE;
 
 	/*
 	 * Okay, we now have a list of Port IDs for all FC4 SCSI devices
@@ -3698,8 +3705,8 @@ isp_login_device(ispsoftc_t *isp, uint32_t portid, isp_pdb_t *p, uint16_t *ohp)
 	int lim, i, r;
 	uint16_t handle;
 
-	if (IS_24XX(isp)) {
-		lim = NPH_MAX_24XX;
+	if (FCPARAM(isp)->isp_2klogin) {
+		lim = NPH_MAX_2K;
 	} else {
 		lim = NPH_MAX;
 	}
@@ -3713,7 +3720,7 @@ isp_login_device(ispsoftc_t *isp, uint32_t portid, isp_pdb_t *p, uint16_t *ohp)
 		 */
 		r = isp_getpdb(isp, handle, p, 0);
 		if (r == 0 && p->portid != portid) {
-			(void) isp_plogx(isp, handle,portid,
+			(void) isp_plogx(isp, handle, portid,
 			    PLOGX_FLG_CMD_LOGO | PLOGX_FLG_IMPLICIT, 1);
 		} else if (r == 0) {
 			break;
@@ -3919,7 +3926,7 @@ isp_register_fc4_type_24xx(ispsoftc_t *isp)
 static uint16_t
 isp_nxt_handle(ispsoftc_t *isp, uint16_t handle)
 {
-	if (handle == 0xffff) {
+	if (handle == NIL_HANDLE) {
 		if (FCPARAM(isp)->isp_topo == TOPO_F_PORT) {
 			handle = 0;
 		} else {
@@ -3927,17 +3934,18 @@ isp_nxt_handle(ispsoftc_t *isp, uint16_t handle)
 		}
 	} else {
 		handle += 1;
-		if (handle == NPH_MGT_ID) {
-			handle++;
-		}
 		if (handle >= FL_ID && handle <= SNS_ID) {
 			handle = SNS_ID+1;
-		} else if (IS_24XX(isp)) {
-			if (handle == 0xffff) {
+		}
+		if (handle >= NPH_RESERVED && handle <= NPH_FL_ID) {
+			handle = NPH_FL_ID+1;
+		}
+		if (FCPARAM(isp)->isp_2klogin) {
+			if (handle == NPH_MAX_2K) {
 				handle = 0;
 			}
 		} else {
-			if (handle == MAX_FC_TARG) {
+			if (handle == NPH_MAX) {
 				handle = 0;
 			}
 		}
@@ -4427,7 +4435,23 @@ isp_control(ispsoftc_t *isp, ispctl_t ctl, void *arg)
 	case ISPCTL_PLOGX:
 	{
 		isp_plcmd_t *p = arg;
-		return (isp_plogx(isp, p->handle, p->portid, p->flags, 0));
+		int r;
+
+		if ((p->flags & PLOGX_FLG_CMD_MASK) != PLOGX_FLG_CMD_PLOGI ||
+		    (p->handle != NIL_HANDLE)) {
+			return (isp_plogx(isp, p->handle, p->portid,
+			    p->flags, 0));
+		}
+		do {
+			p->handle = isp_nxt_handle(isp, p->handle);
+			r = isp_plogx(isp, p->handle, p->portid, p->flags, 0);
+			if ((r & 0xffff) == MBOX_PORT_ID_USED) {
+				p->handle = r >> 16;
+				r = 0;
+				break;
+			}
+		} while ((r & 0xffff) == MBOX_LOOP_ID_USED);
+		return (r);
 	}
 #ifdef	ISP_TARGET_MODE
 	case ISPCTL_TOGGLE_TMODE:
