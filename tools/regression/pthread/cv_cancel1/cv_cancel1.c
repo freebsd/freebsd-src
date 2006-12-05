@@ -73,7 +73,7 @@ int main(int argc, char **argv)
 		result = NULL;
 		pthread_join(td, &result);
 		if (result == PTHREAD_CANCELED) {
-			printf("the condition variable implemention does not\n"
+			printf("the condition variable implementation does not\n"
 			       "conform to SUSv3, a thread unblocked from\n"
 			       "condition variable still can be canceled.\n");
 			return (1);
