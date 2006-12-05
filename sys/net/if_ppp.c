@@ -220,6 +220,7 @@ ppp_clone_create(struct if_clone *ifc, int unit, caddr_t params)
 		return (ENOSPC);
 	}
 
+	callout_init(&sc->sc_timo_ch, 0);
 	ifp->if_softc = sc;
 	if_initname(ifp, ifc->ifc_name, unit);
 	ifp->if_mtu = PPP_MTU;
