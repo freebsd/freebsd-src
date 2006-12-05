@@ -566,8 +566,8 @@ saclose(struct cdev *dev, int flag, int fmt, struct thread *td)
 	 */
 	error = sacheckeod(periph);
 	if (error) {
-		xpt_print_path(periph->path);
-		printf("failed to write terminating filemark(s)\n");
+		xpt_print(periph->path,
+		    "failed to write terminating filemark(s)\n");
 		softc->flags |= SA_FLAG_TAPE_FROZEN;
 	}
 
@@ -622,19 +622,18 @@ saclose(struct cdev *dev, int flag, int fmt, struct thread *td)
 		if (error == 0 && writing && (softc->quirks & SA_QUIRK_2FM)) {
 			tmp = saspace(periph, -1, SS_FILEMARKS);
 			if (tmp) {
-				xpt_print_path(periph->path);
-				printf("unable to backspace over one of double"
-				   " filemarks at end of tape\n");
-				xpt_print_path(periph->path);
-				printf("it is possible that this device"
-				   " needs a SA_QUIRK_1FM quirk set for it\n");
+				xpt_print(periph->path, "unable to backspace "
+				    "over one of double filemarks at end of "
+				    "tape\n");
+				xpt_print(periph->path, "it is possible that "
+				    "this device needs a SA_QUIRK_1FM quirk set"
+				    "for it\n");
 				softc->flags |= SA_FLAG_TAPE_FROZEN;
 			}
 		}
 		break;
 	default:
-		xpt_print_path(periph->path);
-		panic("unknown mode 0x%x in saclose", mode);
+		xpt_print(periph->path, "unknown mode 0x%x in saclose\n", mode);
 		/* NOTREACHED */
 		break;
 	}
@@ -654,9 +653,8 @@ saclose(struct cdev *dev, int flag, int fmt, struct thread *td)
 	 * Inform users if tape state if frozen....
 	 */
 	if (softc->flags & SA_FLAG_TAPE_FROZEN) {
-		xpt_print_path(periph->path);
-		printf("tape is now frozen- use an OFFLINE, REWIND or MTEOM "
-		    "command to clear this state.\n");
+		xpt_print(periph->path, "tape is now frozen- use an OFFLINE, "
+		    "REWIND or MTEOM command to clear this state.\n");
 	}
 	
 	/* release the device if it is no longer mounted */
@@ -749,10 +747,9 @@ sastrategy(struct bio *bp)
 		    ((bp->bio_bcount & softc->blk_mask) != 0)) ||
 		    ((softc->blk_mask == ~0) &&
 		    ((bp->bio_bcount % softc->min_blk) != 0))) {
-			xpt_print_path(periph->path);
-			printf("Invalid request.  Fixed block device "
-			       "requests must be a multiple "
-			       "of %d bytes\n", softc->min_blk);
+			xpt_print(periph->path, "Invalid request.  Fixed block "
+			    "device requests must be a multiple of %d bytes\n",
+			    softc->min_blk);
 			biofinish(bp, NULL, EINVAL);
 			return;
 		}
@@ -761,8 +758,8 @@ sastrategy(struct bio *bp)
 		   (bp->bio_bcount & softc->blk_mask) != 0) {
 
 		xpt_print_path(periph->path);
-		printf("Invalid request.  Variable block device "
-		    "requests must be ");
+		printf("Invalid request.  Variable block "
+		    "device requests must be ");
 		if (softc->blk_mask != 0) {
 			printf("a multiple of %d ", (0x1 << softc->blk_gran));
 		}
@@ -1070,8 +1067,8 @@ saioctl(struct cdev *dev, u_long cmd, caddr_t arg, int flag, struct thread *td)
 			nmarks = softc->filemarks;
 			error = sacheckeod(periph);
 			if (error) {
-				xpt_print_path(periph->path);
-				printf("EOD check prior to spacing failed\n");
+				xpt_print(periph->path,
+				    "EOD check prior to spacing failed\n");
 				softc->flags |= SA_FLAG_EIO_PENDING;
 				break;
 			}
@@ -1322,8 +1319,8 @@ saioctl(struct cdev *dev, u_long cmd, caddr_t arg, int flag, struct thread *td)
 			softc->fileno = (daddr_t) -1;
 			softc->blkno = (daddr_t) -1;
 			softc->flags &= ~SA_FLAG_TAPE_FROZEN;
-			xpt_print_path(periph->path);
-			printf("tape state now unfrozen.\n");
+			xpt_print(periph->path,
+			    "tape state now unfrozen.\n");
 			break;
 		default:
 			break;
@@ -1407,8 +1404,7 @@ saoninvalidate(struct cam_periph *periph)
 	softc->queue_count = 0;
 	splx(s);
 
-	xpt_print_path(periph->path);
-	printf("lost device\n");
+	xpt_print(periph->path, "lost device\n");
 
 }
 
@@ -1430,8 +1426,7 @@ sacleanup(struct cam_periph *periph)
 		destroy_dev(softc->devs.mode_devs[i].er_dev);
 	}
 
-	xpt_print_path(periph->path);
-	printf("removing device entry\n");
+	xpt_print(periph->path, "removing device entry\n");
 	free(softc, M_SCSISA);
 }
 
@@ -1525,9 +1520,8 @@ saregister(struct cam_periph *periph, void *arg)
 		softc->last_media_blksize =
 		    ((struct sa_quirk_entry *)match)->prefblk;
 #ifdef	CAMDEBUG
-		xpt_print_path(periph->path);
-		printf("found quirk entry %d\n", (int)
-		    (((struct sa_quirk_entry *) match) - sa_quirk_table));
+		xpt_print(periph->path, "found quirk entry %d\n",
+		    (int) (((struct sa_quirk_entry *) match) - sa_quirk_table));
 #endif
 	} else
 		softc->quirks = SA_QUIRK_NONE;
@@ -1693,9 +1687,8 @@ again:
 					    softc->media_blksize;
 				} else {
 					bp->bio_error = EIO;
-					xpt_print_path(periph->path);
-					printf("zero blocksize for "
-					    "FIXED length writes?\n");
+					xpt_print(periph->path, "zero blocksize"
+					    " for FIXED length writes?\n");
 					splx(s);
 					biodone(bp);
 					break;
@@ -1920,8 +1913,8 @@ samount(struct cam_periph *periph, int oflags, struct cdev *dev)
 			 */
 			softc->flags &= ~SA_FLAG_TAPE_MOUNTED;
 			if (CAM_DEBUGGED(periph->path, CAM_DEBUG_INFO)) {
-				xpt_print_path(periph->path);
-				printf("error %d on TUR in samount\n", error);
+				xpt_print(periph->path,
+				    "error %d on TUR in samount\n", error);
 			}
 		}
 	} else {
@@ -1984,8 +1977,7 @@ samount(struct cam_periph *periph, int oflags, struct cdev *dev)
 		rblim = (struct  scsi_read_block_limits_data *)
 		    malloc(8192, M_TEMP, M_WAITOK);
 		if (rblim == NULL) {
-			xpt_print_path(periph->path);
-			printf("no memory for test read\n");
+			xpt_print(periph->path, "no memory for test read\n");
 			xpt_release_ccb(ccb);
 			error = ENOMEM;
 			goto exit;
@@ -2006,8 +1998,8 @@ samount(struct cam_periph *periph, int oflags, struct cdev *dev)
 			    softc->device_stats);
 			QFRLS(ccb);
 			if (error) {
-				xpt_print_path(periph->path);
-				printf("unable to rewind after test read\n");
+				xpt_print(periph->path,
+				    "unable to rewind after test read\n");
 				xpt_release_ccb(ccb);
 				goto exit;
 			}
@@ -2171,8 +2163,8 @@ samount(struct cam_periph *periph, int oflags, struct cdev *dev)
 		if ((softc->max_blk < softc->media_blksize) ||
 		    (softc->min_blk > softc->media_blksize &&
 		    softc->media_blksize)) {
-			xpt_print_path(periph->path);
-			printf("BLOCK LIMITS (%d..%d) could not match current "
+			xpt_print(periph->path,
+			    "BLOCK LIMITS (%d..%d) could not match current "
 			    "block settings (%d)- adjusting\n", softc->min_blk,
 			    softc->max_blk, softc->media_blksize);
 			softc->max_blk = softc->min_blk =
@@ -2206,9 +2198,9 @@ tryagain:
 			error = sasetparams(periph, SA_PARAM_BLOCKSIZE,
 			    softc->media_blksize, 0, 0, SF_NO_PRINT);
 			if (error) {
-				xpt_print_path(periph->path);
-				printf("unable to set fixed blocksize to %d\n",
-				     softc->media_blksize);
+				xpt_print(periph->path,
+				    "unable to set fixed blocksize to %d\n",
+				    softc->media_blksize);
 				goto exit;
 			}
 		}
@@ -2233,8 +2225,8 @@ tryagain:
 						softc->last_media_blksize = 512;
 					goto tryagain;
 				}
-				xpt_print_path(periph->path);
-				printf("unable to set variable blocksize\n");
+				xpt_print(periph->path,
+				    "unable to set variable blocksize\n");
 				goto exit;
 			}
 		}
@@ -2291,8 +2283,8 @@ tryagain:
 			if (error == 0) {
 				softc->buffer_mode = SMH_SA_BUF_MODE_SIBUF;
 			} else {
-				xpt_print_path(periph->path);
-				printf("unable to set buffered mode\n");
+				xpt_print(periph->path,
+				    "unable to set buffered mode\n");
 			}
 			error = 0;	/* not an error */
 		}
@@ -2534,8 +2526,8 @@ saerror(union ccb *ccb, u_int32_t cflgs, u_int32_t sflgs)
 	 */
 	if (error == 0 && (sense->flags & SSD_ILI)) {
 		if (info < 0) {
-			xpt_print_path(csio->ccb_h.path);
-			printf(toobig, csio->dxfer_len - info);
+			xpt_print(csio->ccb_h.path, toobig,
+			    csio->dxfer_len - info);
 			csio->resid = csio->dxfer_len;
 			error = EIO;
 		} else {
@@ -2956,8 +2948,8 @@ retry:
 			 * so turn off the set compression bit.
 			 */
 			params_to_set &= ~SA_PARAM_COMPRESSION;
-			xpt_print_path(periph->path);
-			printf("device does not seem to support compression\n");
+			xpt_print(periph->path,
+			    "device does not seem to support compression\n");
 
 			/*
 			 * If that was the only thing the user wanted us to set,

@@ -237,8 +237,7 @@ sesoninvalidate(struct cam_periph *periph)
 
 	softc->ses_flags |= SES_FLAG_INVALID;
 
-	xpt_print_path(periph->path);
-	printf("lost device\n");
+	xpt_print(periph->path, "lost device\n");
 }
 
 static void
@@ -250,8 +249,7 @@ sescleanup(struct cam_periph *periph)
 
 	destroy_dev(softc->ses_dev);
 
-	xpt_print_path(periph->path);
-	printf("removing device entry\n");
+	xpt_print(periph->path, "removing device entry\n");
 	free(softc, M_SCSISES);
 }
 
