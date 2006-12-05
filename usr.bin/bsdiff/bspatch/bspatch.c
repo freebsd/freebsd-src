@@ -35,6 +35,10 @@ __FBSDID("$FreeBSD$");
 #include <unistd.h>
 #include <fcntl.h>
 
+#ifndef O_BINARY
+#define O_BINARY 0
+#endif
+
 static off_t offtin(u_char *buf)
 {
 	off_t y;
@@ -71,7 +75,7 @@ int main(int argc,char * argv[])
 	if(argc!=4) errx(1,"usage: %s oldfile newfile patchfile\n",argv[0]);
 
 	/* Open patch file */
-	if ((f = fopen(argv[3], "r")) == NULL)
+	if ((f = fopen(argv[3], "rb")) == NULL)
 		err(1, "fopen(%s)", argv[3]);
 
 	/*
@@ -109,21 +113,21 @@ int main(int argc,char * argv[])
 	/* Close patch file and re-open it via libbzip2 at the right places */
 	if (fclose(f))
 		err(1, "fclose(%s)", argv[3]);
-	if ((cpf = fopen(argv[3], "r")) == NULL)
+	if ((cpf = fopen(argv[3], "rb")) == NULL)
 		err(1, "fopen(%s)", argv[3]);
 	if (fseeko(cpf, 32, SEEK_SET))
 		err(1, "fseeko(%s, %lld)", argv[3],
 		    (long long)32);
 	if ((cpfbz2 = BZ2_bzReadOpen(&cbz2err, cpf, 0, 0, NULL, 0)) == NULL)
 		errx(1, "BZ2_bzReadOpen, bz2err = %d", cbz2err);
-	if ((dpf = fopen(argv[3], "r")) == NULL)
+	if ((dpf = fopen(argv[3], "rb")) == NULL)
 		err(1, "fopen(%s)", argv[3]);
 	if (fseeko(dpf, 32 + bzctrllen, SEEK_SET))
 		err(1, "fseeko(%s, %lld)", argv[3],
 		    (long long)(32 + bzctrllen));
 	if ((dpfbz2 = BZ2_bzReadOpen(&dbz2err, dpf, 0, 0, NULL, 0)) == NULL)
 		errx(1, "BZ2_bzReadOpen, bz2err = %d", dbz2err);
-	if ((epf = fopen(argv[3], "r")) == NULL)
+	if ((epf = fopen(argv[3], "rb")) == NULL)
 		err(1, "fopen(%s)", argv[3]);
 	if (fseeko(epf, 32 + bzctrllen + bzdatalen, SEEK_SET))
 		err(1, "fseeko(%s, %lld)", argv[3],
@@ -131,7 +135,7 @@ int main(int argc,char * argv[])
 	if ((epfbz2 = BZ2_bzReadOpen(&ebz2err, epf, 0, 0, NULL, 0)) == NULL)
 		errx(1, "BZ2_bzReadOpen, bz2err = %d", ebz2err);
 
-	if(((fd=open(argv[1],O_RDONLY,0))<0) ||
+	if(((fd=open(argv[1],O_RDONLY|O_BINARY,0))<0) ||
 		((oldsize=lseek(fd,0,SEEK_END))==-1) ||
 		((old=malloc(oldsize+1))==NULL) ||
 		(lseek(fd,0,SEEK_SET)!=0) ||
@@ -192,7 +196,7 @@ int main(int argc,char * argv[])
 		err(1, "fclose(%s)", argv[3]);
 
 	/* Write the new file */
-	if(((fd=open(argv[2],O_CREAT|O_TRUNC|O_WRONLY,0666))<0) ||
+	if(((fd=open(argv[2],O_CREAT|O_TRUNC|O_WRONLY|O_BINARY,0666))<0) ||
 		(write(fd,new,newsize)!=newsize) || (close(fd)==-1))
 		err(1,"%s",argv[2]);
 
