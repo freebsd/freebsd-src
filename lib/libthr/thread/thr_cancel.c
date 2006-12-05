@@ -170,9 +170,13 @@ void
 _thr_cancel_leave_defer(struct pthread *curthread, int check)
 {
 	if (curthread->cancel_enable) {
-		curthread->cancel_defer--;
-		if (check)
+		if (!check) {
+			curthread->cancel_point--;
+			curthread->cancel_defer--;
+		} else {
+			curthread->cancel_defer--;
 			testcancel(curthread);
-		curthread->cancel_point--;
+			curthread->cancel_point--;
+		}
 	}
 }
