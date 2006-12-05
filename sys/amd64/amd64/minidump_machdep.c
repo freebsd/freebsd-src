@@ -215,7 +215,7 @@ minidumpsys(struct dumperinfo *di)
 		j = ((va >> PDRSHIFT) & ((1ul << NPDEPGSHIFT) - 1));
 		if ((pd[j] & (PG_PS | PG_V)) == (PG_PS | PG_V))  {
 			/* This is an entire 2M page. */
-			pa = pd[j] & PG_FRAME & ~PDRMASK;
+			pa = pd[j] & PG_PS_FRAME;
 			for (k = 0; k < NPTEPG; k++) {
 				if (is_dumpable(pa))
 					dump_add_page(pa);
@@ -326,7 +326,7 @@ minidumpsys(struct dumperinfo *di)
 		j = ((va >> PDRSHIFT) & ((1ul << NPDEPGSHIFT) - 1));
 		if ((pd[j] & (PG_PS | PG_V)) == (PG_PS | PG_V))  {
 			/* This is a single 2M block. Generate a fake PTP */
-			pa = pd[j] & PG_FRAME & ~PDRMASK;
+			pa = pd[j] & PG_PS_FRAME;
 			for (k = 0; k < NPTEPG; k++) {
 				fakept[k] = (pa + (k * PAGE_SIZE)) | PG_V | PG_RW | PG_A | PG_M;
 			}
