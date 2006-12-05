@@ -49,6 +49,7 @@ __FBSDID("$FreeBSD$");
 #include <vm/vm.h>
 #include <vm/vm_page.h>
 
+#include <machine/cpu.h>
 #include <machine/vmparam.h>
 
 /*
@@ -92,10 +93,13 @@ uiomove_fromphys(vm_page_t ma[], vm_offset_t offset, int n, struct uio *uio)
 				uio_yield();
 			if (uio->uio_rw == UIO_READ)
 				error = copyout(cp, iov->iov_base, cnt);
-			else
+			else 
 				error = copyin(iov->iov_base, cp, cnt);
 			if (error)
 				goto out;
+			if (uio->uio_rw == UIO_WRITE &&
+			    pmap_page_executable(ma[offset >> PAGE_SHIFT]))
+				__syncicache(cp, cnt);
 			break;
 		case UIO_SYSSPACE:
 			if (uio->uio_rw == UIO_READ)

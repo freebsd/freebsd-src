@@ -345,6 +345,11 @@ pmap_dev_direct_mapped(vm_offset_t pa, vm_size_t size)
 	return (MMU_DEV_DIRECT_MAPPED(mmu_obj, pa, size));
 }
 
+boolean_t
+pmap_page_executable(vm_page_t pg)
+{
+	return (MMU_PAGE_EXECUTABLE(mmu_obj, pg));
+}
 
 /*
  * MMU install routines. Highest priority wins, equal priority also

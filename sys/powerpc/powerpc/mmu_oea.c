@@ -342,6 +342,7 @@ void moea_unmapdev(mmu_t, vm_offset_t, vm_size_t);
 vm_offset_t moea_kextract(mmu_t, vm_offset_t);
 void moea_kenter(mmu_t, vm_offset_t, vm_offset_t);
 boolean_t moea_dev_direct_mapped(mmu_t, vm_offset_t, vm_size_t);
+boolean_t moea_page_executable(mmu_t, vm_page_t);
 
 static mmu_method_t moea_methods[] = {
 	MMUMETHOD(mmu_change_wiring,	moea_change_wiring),
@@ -380,6 +381,7 @@ static mmu_method_t moea_methods[] = {
 	MMUMETHOD(mmu_kextract,		moea_kextract),
 	MMUMETHOD(mmu_kenter,		moea_kenter),
 	MMUMETHOD(mmu_dev_direct_mapped,moea_dev_direct_mapped),
+	MMUMETHOD(mmu_page_executable,	moea_page_executable),
 
 	{ 0, 0 }
 };
@@ -2451,6 +2453,12 @@ moea_dev_direct_mapped(mmu_t mmu, vm_offset_t pa, vm_size_t size)
 			return (0);
 
 	return (EFAULT);
+}
+
+boolean_t
+moea_page_executable(mmu_t mmu, vm_page_t pg)
+{
+	return ((moea_attr_fetch(pg) & PTE_EXEC) == PTE_EXEC);
 }
 
 /*
