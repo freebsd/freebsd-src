@@ -752,3 +752,17 @@ METHOD boolean_t dev_direct_mapped {
 	vm_offset_t	_pa;
 	vm_size_t	_size;
 };
+
+
+/**
+ * @brief Evaluate if a physical page has an executable mapping
+ *
+ * @param _pg		physical page
+ *
+ * @retval bool		TRUE if a physical mapping exists for the given page.
+ */
+METHOD boolean_t page_executable {
+	mmu_t		_mmu;
+	vm_page_t	_pg;
+};
+
