@@ -91,7 +91,7 @@ METHOD int read {
 #
 METHOD int write {
 	device_t dev;
-	char *buf;
+	const char *buf;
 	int len;
 	int *bytes;
 	int timeout;
