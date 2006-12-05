@@ -228,17 +228,22 @@ typedef struct {
 /*
  * Fibre Channel Specifics
  */
-/* These are for 2100/2200/2300 cards */
+/* These are for non-2K Login Firmware cards */
 #define	FL_ID			0x7e	/* FL_Port Special ID */
 #define	SNS_ID			0x80	/* SNS Server Special ID */
 #define	NPH_MAX			0xfe
 
-/* These are for 24XX cards */
+/* These are for 2K Login Firmware cards */
 #define	NPH_RESERVED		0x7F0	/* begin of reserved N-port handles */
 #define	NPH_MGT_ID		0x7FA	/* Management Server Special ID */
 #define	NPH_SNS_ID		0x7FC	/* SNS Server Special ID */
 #define	NPH_FL_ID		0x7FE	/* FL Port Special ID */
-#define	NPH_MAX_24XX		0x800
+#define	NPH_MAX_2K		0x800
+
+/*
+ * "Unassigned" handle to be used internally
+ */
+#define	NIL_HANDLE		0xffff
 
 /*
  * Limit for devices on an arbitrated loop.
