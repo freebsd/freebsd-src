@@ -106,7 +106,7 @@ struct nve_tx_desc {
 	struct nve_map_buffer buf;
 	u_int16_t buflength;
 	u_int32_t numfrags;
-	bus_dma_segment_t frags[NV_MAX_FRAGS + 1];
+	bus_dma_segment_t frags[NV_MAX_FRAGS];
 };
 
 struct nve_softc {
