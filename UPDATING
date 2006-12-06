@@ -21,6 +21,13 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 7.x IS SLOW:
 	developers choose to disable these features on build machines
 	to maximize performance.
 
+20061205:
+	The removal of several facets of the experimental Threading 
+	system from the kernel means that the proc and thread structures 
+	have changed quite a bit. I suggest all kernel modules that might
+	reference these structures be recompiled.. Especially the
+	linux module.
+
 20061126:
 	Sound infrastructure has been updated with various fixes and
 	improvements. Most of the changes are pretty much transparent,
