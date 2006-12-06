@@ -682,9 +682,6 @@ loop:
 	ppri = INT_MIN;
 	sx_slock(&allproc_lock);
 	FOREACH_PROC_IN_SYSTEM(p) {
-#ifdef KSE
-		struct ksegrp *kg;
-#endif
 		if (p->p_sflag & (PS_INMEM | PS_SWAPPINGOUT | PS_SWAPPINGIN)) {
 			continue;
 		}
@@ -696,18 +693,13 @@ loop:
 			 * 
 			 */
 			if (td->td_inhibitors == TDI_SWAPPED) {
-#ifdef KSE
-				kg = td->td_ksegrp;
-				pri = p->p_swtime + kg->kg_slptime;
-#else
 				pri = p->p_swtime + td->td_slptime;
-#endif
 				if ((p->p_sflag & PS_SWAPINREQ) == 0) {
 					pri -= p->p_nice * 8;
 				}
 
 				/*
-				 * if this ksegrp/thread is higher priority
+				 * if this thread is higher priority
 				 * and there is enough space, then select
 				 * this process instead of the previous
 				 * selection.
@@ -816,9 +808,6 @@ int action;
 {
 	struct proc *p;
 	struct thread *td;
-#ifdef KSE
-	struct ksegrp *kg;
-#endif
 	int didswap = 0;
 
 retry:
@@ -892,24 +881,15 @@ retry:
 			 * do not swapout a realtime process
 			 * Check all the thread groups..
 			 */
-#ifdef KSE
-			FOREACH_KSEGRP_IN_PROC(p, kg) {
-				if (PRI_IS_REALTIME(kg->kg_pri_class))
-#else
 			FOREACH_THREAD_IN_PROC(p, td) {
 				if (PRI_IS_REALTIME(td->td_pri_class))
-#endif
 					goto nextproc;
 
 				/*
 				 * Guarantee swap_idle_threshold1
 				 * time in memory.
 				 */
-#ifdef KSE
-				if (kg->kg_slptime < swap_idle_threshold1)
-#else
 				if (td->td_slptime < swap_idle_threshold1)
-#endif
 					goto nextproc;
 
 				/*
@@ -921,16 +901,9 @@ retry:
 				 * This could be refined to support
 				 * swapping out a thread.
 				 */
-#ifdef KSE
-				FOREACH_THREAD_IN_GROUP(kg, td) {
-					if ((td->td_priority) < PSOCK ||
-					    !thread_safetoswapout(td))
-						goto nextproc;
-				}
-#else
-				if ((td->td_priority) < PSOCK || !thread_safetoswapout(td))
+				if ((td->td_priority) < PSOCK ||
+				    !thread_safetoswapout(td))
 					goto nextproc;
-#endif
 				/*
 				 * If the system is under memory stress,
 				 * or if we are swapping
@@ -939,20 +912,11 @@ retry:
 				 */
 				if (((action & VM_SWAP_NORMAL) == 0) &&
 				    (((action & VM_SWAP_IDLE) == 0) ||
-#ifdef KSE
-				    (kg->kg_slptime < swap_idle_threshold2)))
-#else
 				    (td->td_slptime < swap_idle_threshold2)))
-#endif
 					goto nextproc;
 
-#ifdef KSE
-				if (minslptime > kg->kg_slptime)
-					minslptime = kg->kg_slptime;
-#else
 				if (minslptime > td->td_slptime)
 					minslptime = td->td_slptime;
-#endif
 			}
 
 			/*

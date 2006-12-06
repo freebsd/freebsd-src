@@ -116,7 +116,9 @@ procfs_doprocstatus(PFS_FILL_ARGS)
 #ifdef KSE
 	if (p->p_flag & P_SA)
 		wmesg = "-kse- ";
-	else {
+	else
+#endif
+	{
 		tdfirst = FIRST_THREAD_IN_PROC(p);
 		if (tdfirst->td_wchan != NULL) {
 			KASSERT(tdfirst->td_wmesg != NULL,
@@ -125,15 +127,6 @@ procfs_doprocstatus(PFS_FILL_ARGS)
 		} else
 			wmesg = "nochan";
 	}
-#else
-	tdfirst = FIRST_THREAD_IN_PROC(p);
-	if (tdfirst->td_wchan != NULL) {
-		KASSERT(tdfirst->td_wmesg != NULL,
-		    ("wchan %p has no wmesg", tdfirst->td_wchan));
-		wmesg = tdfirst->td_wmesg;
-	} else
-		wmesg = "nochan";
-#endif
 	mtx_unlock_spin(&sched_lock);
 
 	if (p->p_sflag & PS_INMEM) {

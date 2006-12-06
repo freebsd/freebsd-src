@@ -50,16 +50,9 @@ __FBSDID("$FreeBSD$");
 #include <vm/vm_extern.h>
 #include <vm/uma.h>
 
-#ifdef KSE
-/*
- * KSEGRP related storage.
- */
-static uma_zone_t ksegrp_zone;
-#else
 /*
  * thread related storage.
  */
-#endif
 static uma_zone_t thread_zone;
 
 /* DEBUG ONLY */
@@ -85,9 +78,6 @@ int virtual_cpu;
 
 #endif
 TAILQ_HEAD(, thread) zombie_threads = TAILQ_HEAD_INITIALIZER(zombie_threads);
-#ifdef KSE
-TAILQ_HEAD(, ksegrp) zombie_ksegrps = TAILQ_HEAD_INITIALIZER(zombie_ksegrps);
-#endif
 struct mtx kse_zombie_lock;
 MTX_SYSINIT(kse_zombie_lock, &kse_zombie_lock, "kse zombie lock", MTX_SPIN);
 
@@ -228,59 +218,6 @@ thread_fini(void *mem, int size)
 	vm_thread_dispose(td);
 }
 
-#ifdef KSE
-/*
- * Initialize type-stable parts of a ksegrp (when newly created).
- */
-static int
-ksegrp_ctor(void *mem, int size, void *arg, int flags)
-{
-	struct ksegrp	*kg;
-
-	kg = (struct ksegrp *)mem;
-	bzero(mem, size);
-	kg->kg_sched = (struct kg_sched *)&kg[1];
-	return (0);
-}
-
-void
-ksegrp_link(struct ksegrp *kg, struct proc *p)
-{
-
-	TAILQ_INIT(&kg->kg_threads);
-	TAILQ_INIT(&kg->kg_runq);	/* links with td_runq */
-	TAILQ_INIT(&kg->kg_upcalls);	/* all upcall structure in ksegrp */
-	kg->kg_proc = p;
-	/*
-	 * the following counters are in the -zero- section
-	 * and may not need clearing
-	 */
-	kg->kg_numthreads = 0;
-	kg->kg_numupcalls = 0;
-	/* link it in now that it's consistent */
-	p->p_numksegrps++;
-	TAILQ_INSERT_HEAD(&p->p_ksegrps, kg, kg_ksegrp);
-}
-
-/*
- * Called from:
- *   thread-exit()
- */
-void
-ksegrp_unlink(struct ksegrp *kg)
-{
-	struct proc *p;
-
-	mtx_assert(&sched_lock, MA_OWNED);
-	KASSERT((kg->kg_numthreads == 0), ("ksegrp_unlink: residual threads"));
-	KASSERT((kg->kg_numupcalls == 0), ("ksegrp_unlink: residual upcalls"));
-
-	p = kg->kg_proc;
-	TAILQ_REMOVE(&p->p_ksegrps, kg, kg_ksegrp);
-	p->p_numksegrps--;
-}
-#endif
-
 /*
  * For a newly created process,
  * link up all the structures and its initial threads etc.
@@ -290,18 +227,10 @@ ksegrp_unlink(struct ksegrp *kg)
  * proc_init()
  */
 void
-#ifdef KSE
-proc_linkup(struct proc *p, struct ksegrp *kg, struct thread *td)
-#else
 proc_linkup(struct proc *p, struct thread *td)
-#endif
 {
-
-#ifdef KSE
-	TAILQ_INIT(&p->p_ksegrps);	     /* all ksegrps in proc */
-#endif
 	TAILQ_INIT(&p->p_threads);	     /* all threads in proc */
-	TAILQ_INIT(&p->p_suspended);	     /* Threads suspended */
+	TAILQ_INIT(&p->p_upcalls);	     /* upcall list */
 	sigqueue_init(&p->p_sigqueue, p);
 	p->p_ksi = ksiginfo_alloc(1);
 	if (p->p_ksi != NULL) {
@@ -309,17 +238,8 @@ proc_linkup(struct proc *p, struct thread *td)
 		p->p_ksi->ksi_flags = KSI_EXT | KSI_INS;
 	}
 	LIST_INIT(&p->p_mqnotifier);
-#ifdef KSE
-	p->p_numksegrps = 0;
-#endif
 	p->p_numthreads = 0;
-
-#ifdef KSE
-	ksegrp_link(kg, p);
-	thread_link(td, kg);
-#else
 	thread_link(td, p);
-#endif
 }
 
 /*
@@ -336,36 +256,21 @@ threadinit(void)
 	    thread_ctor, thread_dtor, thread_init, thread_fini,
 	    UMA_ALIGN_CACHE, 0);
 #ifdef KSE
-	ksegrp_zone = uma_zcreate("KSEGRP", sched_sizeof_ksegrp(),
-	    ksegrp_ctor, NULL, NULL, NULL,
-	    UMA_ALIGN_CACHE, 0);
 	kseinit();	/* set up kse specific stuff  e.g. upcall zone*/
 #endif
 }
 
 /*
  * Stash an embarasingly extra thread into the zombie thread queue.
+ * Use the slpq as that must be unused by now.
  */
 void
 thread_stash(struct thread *td)
 {
 	mtx_lock_spin(&kse_zombie_lock);
-	TAILQ_INSERT_HEAD(&zombie_threads, td, td_runq);
+	TAILQ_INSERT_HEAD(&zombie_threads, td, td_slpq);
 	mtx_unlock_spin(&kse_zombie_lock);
 }
-
-#ifdef KSE
-/*
- * Stash an embarasingly extra ksegrp into the zombie ksegrp queue.
- */
-void
-ksegrp_stash(struct ksegrp *kg)
-{
-	mtx_lock_spin(&kse_zombie_lock);
-	TAILQ_INSERT_HEAD(&zombie_ksegrps, kg, kg_ksegrp);
-	mtx_unlock_spin(&kse_zombie_lock);
-}
-#endif
 
 /*
  * Reap zombie kse resource.
@@ -374,64 +279,26 @@ void
 thread_reap(void)
 {
 	struct thread *td_first, *td_next;
-#ifdef KSE
-	struct ksegrp *kg_first, * kg_next;
-#endif
 
 	/*
 	 * Don't even bother to lock if none at this instant,
 	 * we really don't care about the next instant..
 	 */
-#ifdef KSE
-	if ((!TAILQ_EMPTY(&zombie_threads))
-	    || (!TAILQ_EMPTY(&zombie_ksegrps))) {
-#else
 	if (!TAILQ_EMPTY(&zombie_threads)) {
-#endif
 		mtx_lock_spin(&kse_zombie_lock);
 		td_first = TAILQ_FIRST(&zombie_threads);
-#ifdef KSE
-		kg_first = TAILQ_FIRST(&zombie_ksegrps);
-#endif
 		if (td_first)
 			TAILQ_INIT(&zombie_threads);
-#ifdef KSE
-		if (kg_first)
-			TAILQ_INIT(&zombie_ksegrps);
-#endif
 		mtx_unlock_spin(&kse_zombie_lock);
 		while (td_first) {
-			td_next = TAILQ_NEXT(td_first, td_runq);
+			td_next = TAILQ_NEXT(td_first, td_slpq);
 			if (td_first->td_ucred)
 				crfree(td_first->td_ucred);
 			thread_free(td_first);
 			td_first = td_next;
 		}
-#ifdef KSE
-		while (kg_first) {
-			kg_next = TAILQ_NEXT(kg_first, kg_ksegrp);
-			ksegrp_free(kg_first);
-			kg_first = kg_next;
-		}
-		/*
-		 * there will always be a thread on the list if one of these
-		 * is there.
-		 */
-		kse_GC();
-#endif
 	}
 }
-
-#ifdef KSE
-/*
- * Allocate a ksegrp.
- */
-struct ksegrp *
-ksegrp_alloc(void)
-{
-	return (uma_zalloc(ksegrp_zone, M_WAITOK));
-}
-#endif
 
 /*
  * Allocate a thread.
@@ -444,16 +311,6 @@ thread_alloc(void)
 	return (uma_zalloc(thread_zone, M_WAITOK));
 }
 
-#ifdef KSE
-/*
- * Deallocate a ksegrp.
- */
-void
-ksegrp_free(struct ksegrp *td)
-{
-	uma_zfree(ksegrp_zone, td);
-}
-#endif
 
 /*
  * Deallocate a thread.
@@ -503,23 +360,14 @@ thread_exit(void)
 	uint64_t new_switchtime;
 	struct thread *td;
 	struct proc *p;
-#ifdef KSE
-	struct ksegrp	*kg;
-#endif
 
 	td = curthread;
-#ifdef KSE
-	kg = td->td_ksegrp;
-#endif
 	p = td->td_proc;
 
 	mtx_assert(&sched_lock, MA_OWNED);
 	mtx_assert(&Giant, MA_NOTOWNED);
 	PROC_LOCK_ASSERT(p, MA_OWNED);
 	KASSERT(p != NULL, ("thread exiting without a process"));
-#ifdef KSE
-	KASSERT(kg != NULL, ("thread exiting without a kse group"));
-#endif
 	CTR3(KTR_PROC, "thread_exit: thread %p (pid %ld, %s)", td,
 	    (long)p->p_pid, p->p_comm);
 	KASSERT(TAILQ_EMPTY(&td->td_sigqueue.sq_list), ("signal pending"));
@@ -583,13 +431,8 @@ thread_exit(void)
 	if (p->p_flag & P_HADTHREADS) {
 		if (p->p_numthreads > 1) {
 			thread_unlink(td);
-#ifdef KSE
 
-			/* XXX first arg not used in 4BSD or ULE */
 			sched_exit_thread(FIRST_THREAD_IN_PROC(p), td);
-#else
-			sched_exit(p, td);
-#endif
 
 			/*
 			 * The test below is NOT true if we are the
@@ -614,38 +457,9 @@ thread_exit(void)
 			 * there somehow.
 			 */
 			upcall_remove(td);
+#endif
 
-			/*
-			 * If the thread we unlinked above was the last one,
-			 * then this ksegrp should go away too.
-			 */
-			if (kg->kg_numthreads == 0) {
-				/*
-				 * let the scheduler know about this in case
-				 * it needs to recover stats or resources.
-				 * Theoretically we could let
-				 * sched_exit_ksegrp()  do the equivalent of
-				 * setting the concurrency to 0
-				 * but don't do it yet to avoid changing
-				 * the existing scheduler code until we
-				 * are ready.
-				 * We supply a random other ksegrp
-				 * as the recipient of any built up
-				 * cpu usage etc. (If the scheduler wants it).
-				 * XXXKSE
-				 * This is probably not fair so think of
- 				 * a better answer.
-				 */
-				sched_exit_ksegrp(FIRST_KSEGRP_IN_PROC(p), td);
-				sched_set_concurrency(kg, 0); /* XXX TEMP */
-				ksegrp_unlink(kg);
-				ksegrp_stash(kg);
-			}
-#endif
 			PROC_UNLOCK(p);
-#ifdef KSE
-			td->td_ksegrp	= NULL;
-#endif
 			PCPU_SET(deadthread, td);
 		} else {
 			/*
@@ -689,9 +503,6 @@ thread_wait(struct proc *p)
 
 	mtx_assert(&Giant, MA_NOTOWNED);
 	KASSERT((p->p_numthreads == 1), ("Multiple threads in wait1()"));
-#ifdef KSE
-	KASSERT((p->p_numksegrps == 1), ("Multiple ksegrps in wait1()"));
-#endif
 	FOREACH_THREAD_IN_PROC(p, td) {
 #ifdef KSE
 		if (td->td_standin != NULL) {
@@ -718,46 +529,22 @@ thread_wait(struct proc *p)
  * The thread is linked as if running but no KSE assigned.
  * Called from:
  *  proc_linkup()
- * ifdef KSE
  *  thread_schedule_upcall()
- * endif
  *  thr_create()
  */
 void
-#ifdef KSE
-thread_link(struct thread *td, struct ksegrp *kg)
-#else
 thread_link(struct thread *td, struct proc *p)
-#endif
 {
-#ifdef KSE
-	struct proc *p;
-#endif
 
-#ifdef KSE
-	p = kg->kg_proc;
-#endif
 	td->td_state    = TDS_INACTIVE;
 	td->td_proc     = p;
-#ifdef KSE
-	td->td_ksegrp   = kg;
-#endif
 	td->td_flags    = 0;
-#ifdef KSE
-	td->td_kflags	= 0;
-#endif
 
 	LIST_INIT(&td->td_contested);
 	sigqueue_init(&td->td_sigqueue, p);
 	callout_init(&td->td_slpcallout, CALLOUT_MPSAFE);
 	TAILQ_INSERT_HEAD(&p->p_threads, td, td_plist);
-#ifdef KSE
-	TAILQ_INSERT_HEAD(&kg->kg_threads, td, td_kglist);
-#endif
 	p->p_numthreads++;
-#ifdef KSE
-	kg->kg_numthreads++;
-#endif
 }
 
 /*
@@ -781,7 +568,7 @@ thread_unthread(struct thread *td)
 		thread_stash(td->td_standin);
 		td->td_standin = NULL;
 	}
-	sched_set_concurrency(td->td_ksegrp, 1);
+	sched_set_concurrency(p, 1);
 #else
 	p->p_flag &= ~P_HADTHREADS;
 #endif
@@ -795,23 +582,12 @@ void
 thread_unlink(struct thread *td)
 {
 	struct proc *p = td->td_proc;
-#ifdef KSE
-	struct ksegrp *kg = td->td_ksegrp;
-#endif
 
 	mtx_assert(&sched_lock, MA_OWNED);
 	TAILQ_REMOVE(&p->p_threads, td, td_plist);
 	p->p_numthreads--;
-#ifdef KSE
-	TAILQ_REMOVE(&kg->kg_threads, td, td_kglist);
-	kg->kg_numthreads--;
-#endif
 	/* could clear a few other things here */
-#ifdef KSE
-	/* Must  NOT clear links to proc and ksegrp! */
-#else
 	/* Must  NOT clear links to proc! */
-#endif
 }
 
 /*
@@ -1040,8 +816,7 @@ thread_suspend_check(int return_instead)
 
 		/*
 		 * When a thread suspends, it just
-		 * moves to the processes's suspend queue
-		 * and stays there.
+		 * gets taken off all queues.
 		 */
 		thread_suspend_one(td);
 		if (return_instead == 0) {
@@ -1074,7 +849,6 @@ thread_suspend_one(struct thread *td)
 	KASSERT(!TD_IS_SUSPENDED(td), ("already suspended"));
 	p->p_suspcount++;
 	TD_SET_SUSPENDED(td);
-	TAILQ_INSERT_TAIL(&p->p_suspended, td, td_runq);
 }
 
 void
@@ -1084,7 +858,7 @@ thread_unsuspend_one(struct thread *td)
 
 	mtx_assert(&sched_lock, MA_OWNED);
 	PROC_LOCK_ASSERT(p, MA_OWNED);
-	TAILQ_REMOVE(&p->p_suspended, td, td_runq);
+	KASSERT(TD_IS_SUSPENDED(td), ("Thread not suspended"));
 	TD_CLR_SUSPENDED(td);
 	p->p_suspcount--;
 	setrunnable(td);
@@ -1101,8 +875,10 @@ thread_unsuspend(struct proc *p)
 	mtx_assert(&sched_lock, MA_OWNED);
 	PROC_LOCK_ASSERT(p, MA_OWNED);
 	if (!P_SHOULDSTOP(p)) {
-		while ((td = TAILQ_FIRST(&p->p_suspended))) {
-			thread_unsuspend_one(td);
+                FOREACH_THREAD_IN_PROC(p, td) {
+			if (TD_IS_SUSPENDED(td)) {
+				thread_unsuspend_one(td);
+			}
 		}
 	} else if ((P_SHOULDSTOP(p) == P_STOPPED_SINGLE) &&
 	    (p->p_numthreads == p->p_suspcount)) {
@@ -1137,8 +913,10 @@ thread_single_end(void)
 	 * to continue however as this is a bad place to stop.
 	 */
 	if ((p->p_numthreads != 1) && (!P_SHOULDSTOP(p))) {
-		while ((td = TAILQ_FIRST(&p->p_suspended))) {
-			thread_unsuspend_one(td);
+                FOREACH_THREAD_IN_PROC(p, td) {
+			if (TD_IS_SUSPENDED(td)) {
+				thread_unsuspend_one(td);
+			}
 		}
 	}
 	mtx_unlock_spin(&sched_lock);

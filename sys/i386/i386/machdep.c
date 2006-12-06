@@ -2058,11 +2058,7 @@ init386(first)
  	 * This may be done better later if it gets more high level
  	 * components in it. If so just link td->td_proc here.
 	 */
-#ifdef KSE
-	proc_linkup(&proc0, &ksegrp0, &thread0);
-#else
 	proc_linkup(&proc0, &thread0);
-#endif
 
 	metadata_missing = 0;
 	if (bootinfo.bi_modulep) {
@@ -2297,7 +2293,7 @@ init386(first)
 	_udatasel = GSEL(GUDATA_SEL, SEL_UPL);
 
 	/* setup proc 0's pcb */
-	thread0.td_pcb->pcb_flags = 0; /* XXXKSE */
+	thread0.td_pcb->pcb_flags = 0;
 #ifdef PAE
 	thread0.td_pcb->pcb_cr3 = (int)IdlePDPT;
 #else

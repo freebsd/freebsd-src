@@ -31,7 +31,7 @@
 
 #include <machine/runq.h>
 
-struct kse;
+struct td_sched;
 
 /*
  * Run queue parameters.
@@ -43,7 +43,7 @@ struct kse;
 /*
  * Head of run queues.
  */
-TAILQ_HEAD(rqhead, kse);
+TAILQ_HEAD(rqhead, td_sched);
 
 /*
  * Bit array which maintains the status of a run queue.  When a queue is
@@ -62,10 +62,10 @@ struct runq {
 	struct	rqhead rq_queues[RQ_NQS];
 };
 
-void	runq_add(struct runq *, struct kse *, int flags);
+void	runq_add(struct runq *, struct td_sched *, int flags);
 int	runq_check(struct runq *);
-struct	kse *runq_choose(struct runq *);
+struct	td_sched *runq_choose(struct runq *);
 void	runq_init(struct runq *);
-void	runq_remove(struct runq *, struct kse *);
+void	runq_remove(struct runq *, struct td_sched *);
 
 #endif
