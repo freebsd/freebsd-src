@@ -149,9 +149,6 @@ ast(struct trapframe *framep)
 {
 	struct thread *td;
 	struct proc *p;
-#ifdef KSE
-	struct ksegrp *kg;
-#endif
 	struct rlimit rlim;
 	int sflag;
 	int flags;
@@ -163,9 +160,6 @@ ast(struct trapframe *framep)
 
 	td = curthread;
 	p = td->td_proc;
-#ifdef KSE
-	kg = td->td_ksegrp;
-#endif
 
 	CTR3(KTR_SYSC, "ast: thread %p (pid %d, %s)", td, p->p_pid,
             p->p_comm);
@@ -204,7 +198,7 @@ ast(struct trapframe *framep)
 
 	/*
 	 * XXXKSE While the fact that we owe a user profiling
-	 * tick is stored per KSE in this code, the statistics
+	 * tick is stored per thread in this code, the statistics
 	 * themselves are still stored per process.
 	 * This should probably change, by which I mean that
 	 * possibly the location of both might change.
@@ -264,11 +258,7 @@ ast(struct trapframe *framep)
 			ktrcsw(1, 1);
 #endif
 		mtx_lock_spin(&sched_lock);
-#ifdef KSE
-		sched_prio(td, kg->kg_user_pri);
-#else
 		sched_prio(td, td->td_user_pri);
-#endif
 		mi_switch(SW_INVOL, NULL);
 		mtx_unlock_spin(&sched_lock);
 #ifdef KTRACE

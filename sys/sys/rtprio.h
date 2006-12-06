@@ -75,15 +75,9 @@ struct rtprio {
 };
 
 #ifdef _KERNEL
-#ifdef KSE
-struct ksegrp;
-int	rtp_to_pri(struct rtprio *, struct ksegrp *);
-void	pri_to_rtp(struct ksegrp *, struct rtprio *);
-#else
 struct thread;
 int	rtp_to_pri(struct rtprio *, struct thread *);
 void	pri_to_rtp(struct thread *, struct rtprio *);
-#endif
 #endif
 #endif
 

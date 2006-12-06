@@ -776,12 +776,10 @@ ia64_init(void)
 	msgbufp = (struct msgbuf *)pmap_steal_memory(MSGBUF_SIZE);
 	msgbufinit(msgbufp, MSGBUF_SIZE);
 
-#ifdef KSE
-	proc_linkup(&proc0, &ksegrp0, &thread0);
-#else
 	proc_linkup(&proc0, &thread0);
-#endif
-
+	/*
+	 * Init mapping for kernel stack for proc 0
+	 */
 	proc0kstack = (vm_offset_t)kstack;
 	thread0.td_kstack = proc0kstack;
 	thread0.td_kstack_pages = KSTACK_PAGES;
