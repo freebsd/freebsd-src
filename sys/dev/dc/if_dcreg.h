@@ -749,9 +749,8 @@ struct dc_softc {
 	struct dc_list_data	*dc_ldata;
 	struct dc_chain_data	dc_cdata;
 	struct callout		dc_stat_ch;
-#ifdef SRM_MEDIA
-	int			dc_srm_media;
-#endif
+	struct callout		dc_wdog_ch;
+	int			dc_wdog_timer;
 	struct mtx		dc_mtx;
 #ifdef DEVICE_POLLING
 	int			rxcycles;	/* ... when polling */
