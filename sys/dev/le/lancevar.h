@@ -48,6 +48,8 @@ struct lance_softc {
 	struct ifnet	*sc_ifp;
 	struct ifmedia	sc_media;
 	struct mtx	sc_mtx;
+	struct callout	sc_wdog_ch;
+	int		sc_wdog_timer;
 
 	/*
 	 * Memory functions:
