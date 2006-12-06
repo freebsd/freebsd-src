@@ -704,7 +704,7 @@ out:
 			else
 				len = fwdev->rommax - CSRROMOFF + 4;
 		}
-		if (crom_buf->len < len)
+		if (crom_buf->len < len && crom_buf->len >= 0)
 			len = crom_buf->len;
 		else
 			crom_buf->len = len;
