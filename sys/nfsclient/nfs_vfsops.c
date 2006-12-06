@@ -223,8 +223,13 @@ nfs_convert_diskless(void)
 	bcopy(&nfs_diskless.mygateway, &nfsv3_diskless.mygateway,
 		sizeof(struct sockaddr_in));
 	nfs_convert_oargs(&nfsv3_diskless.root_args,&nfs_diskless.root_args);
-	nfsv3_diskless.root_fhsize = NFSX_V2FH;
-	bcopy(nfs_diskless.root_fh, nfsv3_diskless.root_fh, NFSX_V2FH);
+	if (nfsv3_diskless.root_args.flags & NFSMNT_NFSV3) {
+		nfsv3_diskless.root_fhsize = NFSX_V3FH;
+		bcopy(nfs_diskless.root_fh, nfsv3_diskless.root_fh, NFSX_V3FH);
+	} else {
+		nfsv3_diskless.root_fhsize = NFSX_V2FH;
+		bcopy(nfs_diskless.root_fh, nfsv3_diskless.root_fh, NFSX_V2FH);
+	}
 	bcopy(&nfs_diskless.root_saddr,&nfsv3_diskless.root_saddr,
 		sizeof(struct sockaddr_in));
 	bcopy(nfs_diskless.root_hostnam, nfsv3_diskless.root_hostnam, MNAMELEN);
