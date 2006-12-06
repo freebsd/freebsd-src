@@ -220,7 +220,6 @@ static int	setfs(struct sockaddr_in *addr, char *path, char *p,
 		    const struct in_addr *siaddr);
 static int	getdec(char **ptr);
 static int	getip(char **ptr, struct in_addr *ip);
-static char	*substr(char *a, char *b);
 static void	mountopts(struct nfs_args *args, char *p);
 static int	xdr_opaque_decode(struct mbuf **ptr, u_char *buf, int len);
 static int	xdr_int_decode(struct mbuf **ptr, int *iptr);
@@ -1234,53 +1233,16 @@ getdec(char **ptr)
 	return ret;
 }
 
-static char *
-substr(char *a, char *b)
-{
-	char *loc1;
-	char *loc2;
-
-        while (*a != '\0') {
-                loc1 = a;
-                loc2 = b;
-                while (*loc1 == *loc2++) {
-                        if (*loc1 == '\0')
-				return 0;
-                        loc1++;
-                        if (*loc2 == '\0')
-				return loc1;
-                }
-		a++;
-        }
-        return 0;
-}
-
 static void
 mountopts(struct nfs_args *args, char *p)
 {
-	char *tmp;
-
 	args->version = NFS_ARGSVERSION;
 	args->rsize = 8192;
 	args->wsize = 8192;
 	args->flags = NFSMNT_RSIZE | NFSMNT_WSIZE | NFSMNT_RESVPORT;
 	args->sotype = SOCK_DGRAM;
-	if (p == NULL)
-		return;
-	if ((tmp = (char *)substr(p, "rsize=")))
-		args->rsize = getdec(&tmp);
-	if ((tmp = (char *)substr(p, "wsize=")))
-		args->wsize = getdec(&tmp);
-	if ((tmp = (char *)substr(p, "intr")))
-		args->flags |= NFSMNT_INT;
-	if ((tmp = (char *)substr(p, "soft")))
-		args->flags |= NFSMNT_SOFT;
-	if ((tmp = (char *)substr(p, "noconn")))
-		args->flags |= NFSMNT_NOCONN;
-	if ((tmp = (char *)substr(p, "nolockd")))
-		args->flags |= NFSMNT_NOLOCKD;
-	if ((tmp = (char *)substr(p, "tcp")))
-		args->sotype = SOCK_STREAM;
+	if (p != NULL)
+		nfs_parse_options(p, args);
 }
 
 static int
@@ -1816,6 +1778,7 @@ md_mount(struct sockaddr_in *mdsin, char *path, u_char *fhp, int *fhsizep,
 	int authcount;
 	int authver;
 
+	/* XXX honor v2/v3 flags in args->flags? */
 #ifdef BOOTP_NFSV3
 	/* First try NFS v3 */
 	/* Get port number for MOUNTD. */
