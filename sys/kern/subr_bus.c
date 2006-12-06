@@ -2345,6 +2345,43 @@ driver_module_handler(module_t mod, int what, void *arg)
 	return (error);
 }
 
+/* Emulate bus_dmamap_load_mbuf_sg() using bus_dmamap_load_mbuf(). */
+struct mbuf_sg_args {
+	bus_dma_segment_t *segs;
+	int nsegs;
+};
+
+static void
+mbuf_sg_cb(void *arg, bus_dma_segment_t *segs, int nsegs, bus_size_t length,
+    int error)
+{
+	struct mbuf_sg_args *sg;
+
+	if (error)
+		return;
+	sg = arg;
+	bcopy(segs, sg->segs, sizeof(bus_dma_segment_t) * nsegs);
+	sg->nsegs = nsegs;
+}
+
+
+int
+bus_dmamap_load_mbuf_sg(bus_dma_tag_t dmat, bus_dmamap_t map, struct mbuf *mbuf,
+    bus_dma_segment_t *segs, int *nsegs, int flags)
+{
+	struct mbuf_sg_args sg;
+	int error;
+
+	sg.segs = segs;
+	sg.nsegs = *nsegs;
+	error = bus_dmamap_load_mbuf(dmat, map, mbuf, mbuf_sg_cb, &sg,
+	    BUS_DMA_NOWAIT);
+	if (error)
+		return (error);
+	*nsegs = sg.nsegs;
+	return (0);
+}
+
 #ifdef BUS_DEBUG
 
 /* the _short versions avoid iteration by not calling anything that prints
