@@ -1219,7 +1219,13 @@ extract_archive (void)
       break;
 
     case GNUTYPE_NAMES:
-      extract_mangle ();
+      if (allow_name_mangling_option)
+	extract_mangle ();
+      else {
+	ERROR ((0, 0, _("GNUTYPE_NAMES mangling ignored")));
+	if (backup_option)
+	  undo_last_backup ();
+      }
       break;
 
     case GNUTYPE_MULTIVOL:
