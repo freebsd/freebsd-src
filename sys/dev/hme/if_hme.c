@@ -104,7 +104,7 @@ static void	hme_start_locked(struct ifnet *);
 static void	hme_stop(struct hme_softc *);
 static int	hme_ioctl(struct ifnet *, u_long, caddr_t);
 static void	hme_tick(void *);
-static void	hme_watchdog(struct ifnet *);
+static int	hme_watchdog(struct hme_softc *);
 static void	hme_init(void *);
 static void	hme_init_locked(struct hme_softc *);
 static int	hme_add_rxbuf(struct hme_softc *, unsigned int, int);
@@ -214,9 +214,10 @@ hme_config(struct hme_softc *sc)
 	 */
 	size =	4096;
 
-	error = bus_dma_tag_create(NULL, 1, 0, BUS_SPACE_MAXADDR_32BIT,
-	    BUS_SPACE_MAXADDR, NULL, NULL, size, HME_NTXDESC + HME_NRXDESC + 1,
-	    BUS_SPACE_MAXSIZE_32BIT, 0, NULL, NULL, &sc->sc_pdmatag);
+	error = bus_dma_tag_create(bus_get_dma_tag(sc->sc_dev), 1, 0,
+	    BUS_SPACE_MAXADDR_32BIT, BUS_SPACE_MAXADDR, NULL, NULL, size,
+	    HME_NTXDESC + HME_NRXDESC + 1, BUS_SPACE_MAXSIZE_32BIT, 0,
+	    NULL, NULL, &sc->sc_pdmatag);
 	if (error)
 		goto fail_ifnet;
 
@@ -290,12 +291,10 @@ hme_config(struct hme_softc *sc)
 	ifp->if_softc = sc;
 	if_initname(ifp, device_get_name(sc->sc_dev),
 	    device_get_unit(sc->sc_dev));
-	ifp->if_mtu = ETHERMTU;
 	ifp->if_flags = IFF_BROADCAST | IFF_SIMPLEX | IFF_MULTICAST;
 	ifp->if_start = hme_start;
 	ifp->if_ioctl = hme_ioctl;
 	ifp->if_init = hme_init;
-	ifp->if_watchdog = hme_watchdog;
 	IFQ_SET_MAXLEN(&ifp->if_snd, HME_NTXQ);
 	ifp->if_snd.ifq_drv_maxlen = HME_NTXQ;
 	IFQ_SET_READY(&ifp->if_snd);
@@ -467,6 +466,9 @@ hme_tick(void *arg)
 
 	mii_tick(sc->sc_mii);
 
+	if (hme_watchdog(sc) == EJUSTRETURN)
+		return;
+
 	callout_reset(&sc->sc_tick_ch, hz, hme_tick, sc);
 }
 
@@ -477,6 +479,7 @@ hme_stop(struct hme_softc *sc)
 	int n;
 
 	callout_stop(&sc->sc_tick_ch);
+	sc->sc_wdog_timer = 0;
 	sc->sc_ifp->if_drv_flags &= ~(IFF_DRV_RUNNING | IFF_DRV_OACTIVE);
 
 	/* Mask all interrupts */
@@ -876,11 +879,11 @@ hme_init_locked(struct hme_softc *sc)
 	hme_mediachange_locked(sc);
 
 	/* Start the one second timer. */
+	sc->sc_wdog_timer = 0;
 	callout_reset(&sc->sc_tick_ch, hz, hme_tick, sc);
 
 	ifp->if_drv_flags |= IFF_DRV_RUNNING;
 	ifp->if_drv_flags &= ~IFF_DRV_OACTIVE;
-	ifp->if_timer = 0;
 	hme_start_locked(ifp);
 }
 
@@ -1112,11 +1115,10 @@ hme_start_locked(struct ifnet *ifp)
 		BPF_MTAP(ifp, m);
 	}
 
-	/* Set watchdog timer if a packet was queued */
 	if (enq > 0) {
 		bus_dmamap_sync(sc->sc_cdmatag, sc->sc_cdmamap,
 		    BUS_DMASYNC_PREWRITE);
-		ifp->if_timer = 5;
+		sc->sc_wdog_timer = 5;
 	}
 }
 
@@ -1169,8 +1171,7 @@ hme_tint(struct hme_softc *sc)
 		STAILQ_INSERT_TAIL(&sc->sc_rb.rb_txfreeq, htx, htx_q);
 		htx = STAILQ_FIRST(&sc->sc_rb.rb_txbusyq);
 	}
-	/* Turn off watchdog if hme(4) transmitted queued packet */
-	ifp->if_timer = sc->sc_rb.rb_td_nbusy > 0 ? 5 : 0;
+	sc->sc_wdog_timer = sc->sc_rb.rb_td_nbusy > 0 ? 5 : 0;
 
 	/* Update ring */
 	sc->sc_rb.rb_tdtail = ri;
@@ -1326,24 +1327,27 @@ hme_intr(void *v)
 	HME_UNLOCK(sc);
 }
 
-static void
-hme_watchdog(struct ifnet *ifp)
+static int
+hme_watchdog(struct hme_softc *sc)
 {
-	struct hme_softc *sc = ifp->if_softc;
 #ifdef HMEDEBUG
 	u_int32_t status;
 #endif
 
-	HME_LOCK(sc);
+	HME_LOCK_ASSERT(sc, MA_OWNED);
 #ifdef HMEDEBUG
 	status = HME_SEB_READ_4(sc, HME_SEBI_STAT);
 	CTR1(KTR_HME, "hme_watchdog: status %x", (u_int)status);
 #endif
+
+	if (sc->sc_wdog_timer == 0 || --sc->sc_wdog_timer != 0)
+		return (0);
+
 	device_printf(sc->sc_dev, "device timeout\n");
-	++ifp->if_oerrors;
+	++sc->sc_ifp->if_oerrors;
 
 	hme_init_locked(sc);
-	HME_UNLOCK(sc);
+	return (EJUSTRETURN);
 }
 
 /*

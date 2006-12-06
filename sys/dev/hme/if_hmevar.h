@@ -116,6 +116,7 @@ struct hme_softc {
 	struct mii_data	*sc_mii;	/* MII media control */
 	u_char		sc_enaddr[6];
 	struct callout	sc_tick_ch;	/* tick callout */
+	int		sc_wdog_timer;	/* watchdog timer */
 
 	/* The following bus handles are to be provided by the bus front-end */
 	bus_dma_tag_t	sc_pdmatag;	/* bus dma parent tag */
