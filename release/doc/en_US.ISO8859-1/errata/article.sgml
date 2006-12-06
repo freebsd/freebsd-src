@@ -178,6 +178,20 @@
 	    <entry>28&nbsp;September&nbsp;2006</entry>
 	    <entry><para>Multiple problems in &man.crypto.3;</para></entry>
 	  </row>
+
+	  <row>
+	    <entry><ulink url="http://security.FreeBSD.org/advisories/FreeBSD-SA-06:25.kmem.asc"
+		>SA-06:25.kmem</ulink></entry>
+	    <entry>6&nbsp;December&nbsp;2006</entry>
+	    <entry><para>Kernel memory disclosure in &man.firewire.4;</para></entry>
+	  </row>
+
+	  <row>
+	    <entry><ulink url="http://security.FreeBSD.org/advisories/FreeBSD-SA-06:26.gtar.asc"
+		>SA-06:26.gtar</ulink></entry>
+	    <entry>6&nbsp;December&nbsp;2006</entry>
+	    <entry><para>&man.gtar.1; name mangling symlink vulnerability</para></entry>
+	  </row>
 	</tbody>
       </tgroup>
     </informaltable>
