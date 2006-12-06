@@ -291,7 +291,6 @@ static int  bce_nvram_write			(struct bce_softc *, u32, u8 *, int);
 /*                                                                          */
 /****************************************************************************/
 static void bce_dma_map_addr		(void *, bus_dma_segment_t *, int, int);
-static void bce_dma_map_rx_desc		(void *, bus_dma_segment_t *, int, bus_size_t, int);
 static void bce_dma_map_tx_desc		(void *, bus_dma_segment_t *, int, bus_size_t, int);
 static int  bce_dma_alloc			(device_t);
 static void bce_dma_free			(struct bce_softc *);
@@ -2184,85 +2183,6 @@ bce_dma_map_addr_exit:
 	return;
 }
 
-static void
-bce_dma_map_rx_desc(void *arg, bus_dma_segment_t *segs,
-	int nseg, bus_size_t mapsize, int error)
-{
-	struct bce_dmamap_arg *map_arg;
-	struct bce_softc *sc;
-	struct rx_bd *rxbd = NULL;
-	u16 prod, chain_prod;
-	u32	prod_bseq;
-#ifdef BCE_DEBUG
-	u16 debug_prod;
-#endif
-	int i;
-
-	map_arg = arg;
-	sc = map_arg->sc;
-
-	if (error) {
-		DBPRINT(sc, BCE_WARN, "%s(): Called with error = %d\n",
-			__FUNCTION__, error);
-		return;
-	}
-
-	/* Signal error to caller if there's too many segments */
-	if (nseg > map_arg->maxsegs) {
-		DBPRINT(sc, BCE_WARN,
-			"%s(): Mapped RX descriptors: max segs = %d, "
-			"actual segs = %d\n",
-			__FUNCTION__, map_arg->maxsegs, nseg);
-
-		map_arg->maxsegs = 0;
-		return;
-	}
-
-	/* prod points to an empty rx_bd at this point. */
-	prod       = map_arg->prod;
-	chain_prod = map_arg->chain_prod;
-	prod_bseq  = map_arg->prod_bseq;
-
-#ifdef BCE_DEBUG
-	debug_prod = chain_prod;
-#endif
-
-	/* Setup the rx_bd for the first segment. */
-	rxbd = &sc->rx_bd_chain[RX_PAGE(chain_prod)][RX_IDX(chain_prod)];
-
-	rxbd->rx_bd_haddr_lo  = htole32(BCE_ADDR_LO(segs[0].ds_addr));
-	rxbd->rx_bd_haddr_hi  = htole32(BCE_ADDR_HI(segs[0].ds_addr));
-	rxbd->rx_bd_len       = htole32(segs[0].ds_len);
-	rxbd->rx_bd_flags     = htole32(RX_BD_FLAGS_START);
-	prod_bseq += segs[0].ds_len;
-
-	for (i = 1; i < nseg; i++) {
-
-		prod = NEXT_RX_BD(prod);
-		chain_prod = RX_CHAIN_IDX(prod); 
-
-		rxbd = &sc->rx_bd_chain[RX_PAGE(chain_prod)][RX_IDX(chain_prod)];
-
-		rxbd->rx_bd_haddr_lo  = htole32(BCE_ADDR_LO(segs[i].ds_addr));
-		rxbd->rx_bd_haddr_hi  = htole32(BCE_ADDR_HI(segs[i].ds_addr));
-		rxbd->rx_bd_len       = htole32(segs[i].ds_len);
-		rxbd->rx_bd_flags     = 0;
-		prod_bseq += segs[i].ds_len;
-	}
-
-	rxbd->rx_bd_flags |= htole32(RX_BD_FLAGS_END);
-
-	DBRUN(BCE_VERBOSE_RECV, bce_dump_rx_mbuf_chain(sc, debug_prod, nseg));
-
-	DBPRINT(sc, BCE_VERBOSE_RECV, "%s(exit): prod = 0x%04X, chain_prod = 0x%04X, "
-		"prod_bseq = 0x%08X\n", __FUNCTION__, prod, chain_prod, prod_bseq);
-
-	/* prod points to the last rx_bd at this point. */
-	map_arg->maxsegs    = nseg;
-	map_arg->prod       = prod;
-	map_arg->chain_prod = chain_prod;
-	map_arg->prod_bseq  = prod_bseq;
-}
 
 /****************************************************************************/
 /* Map TX buffers into TX buffer descriptors.                               */
@@ -3639,9 +3559,13 @@ bce_get_buf(struct bce_softc *sc, struct mbuf *m, u16 *prod, u16 *chain_prod,
 	u32 *prod_bseq)
 {
 	bus_dmamap_t		map;
-	struct bce_dmamap_arg map_arg;
+	bus_dma_segment_t	segs[4];
 	struct mbuf *m_new = NULL;
-	int error, rc = 0;
+	struct rx_bd		*rxbd;
+	int i, nsegs, error, rc = 0;
+#ifdef BCE_DEBUG
+	u16 debug_chain_prod = *chain_prod;
+#endif
 
 	DBPRINT(sc, (BCE_VERBOSE_RESET | BCE_VERBOSE_RECV), "Entering %s()\n", 
 		__FUNCTION__);
@@ -3701,13 +3625,8 @@ bce_get_buf(struct bce_softc *sc, struct mbuf *m, u16 *prod, u16 *chain_prod,
 
 	/* Map the mbuf cluster into device memory. */
 	map = sc->rx_mbuf_map[*chain_prod];
-	map_arg.sc         = sc;
-	map_arg.prod       = *prod;
-	map_arg.chain_prod = *chain_prod;
-	map_arg.prod_bseq  = *prod_bseq;
-	map_arg.maxsegs    = sc->free_rx_bd; /* XXX: 4? */
-	error = bus_dmamap_load_mbuf(sc->rx_mbuf_tag, map, m_new,
-	    bce_dma_map_rx_desc, &map_arg, BUS_DMA_NOWAIT);
+	error = bus_dmamap_load_mbuf_sg(sc->rx_mbuf_tag, map, m_new,
+	    segs, &nsegs, BUS_DMA_NOWAIT);
 
 	if (error) {
 		BCE_PRINTF(sc, "%s(%d): Error mapping mbuf into RX chain!\n",
@@ -3729,14 +3648,40 @@ bce_get_buf(struct bce_softc *sc, struct mbuf *m, u16 *prod, u16 *chain_prod,
 	DBRUNIF((sc->free_rx_bd < sc->rx_low_watermark), 
 		sc->rx_low_watermark = sc->free_rx_bd);
 
-	/* Update indices from the callback */
-	*prod       = map_arg.prod;
-	*chain_prod = map_arg.chain_prod;
-	*prod_bseq  = map_arg.prod_bseq;
+	/* Setup the rx_bd for the first segment. */
+	rxbd = &sc->rx_bd_chain[RX_PAGE(*chain_prod)][RX_IDX(*chain_prod)];
+
+	rxbd->rx_bd_haddr_lo  = htole32(BCE_ADDR_LO(segs[0].ds_addr));
+	rxbd->rx_bd_haddr_hi  = htole32(BCE_ADDR_HI(segs[0].ds_addr));
+	rxbd->rx_bd_len       = htole32(segs[0].ds_len);
+	rxbd->rx_bd_flags     = htole32(RX_BD_FLAGS_START);
+	*prod_bseq += segs[0].ds_len;
+
+	for (i = 1; i < nsegs; i++) {
+
+		*prod = NEXT_RX_BD(*prod);
+		*chain_prod = RX_CHAIN_IDX(*prod); 
+
+		rxbd = &sc->rx_bd_chain[RX_PAGE(*chain_prod)][RX_IDX(*chain_prod)];
+
+		rxbd->rx_bd_haddr_lo  = htole32(BCE_ADDR_LO(segs[i].ds_addr));
+		rxbd->rx_bd_haddr_hi  = htole32(BCE_ADDR_HI(segs[i].ds_addr));
+		rxbd->rx_bd_len       = htole32(segs[i].ds_len);
+		rxbd->rx_bd_flags     = 0;
+		*prod_bseq += segs[i].ds_len;
+	}
+
+	rxbd->rx_bd_flags |= htole32(RX_BD_FLAGS_END);
 
 	/* Save the mbuf and update our counter. */
 	sc->rx_mbuf_ptr[*chain_prod] = m_new;
-	sc->free_rx_bd -= map_arg.maxsegs;
+	sc->free_rx_bd -= nsegs;
+
+	DBRUN(BCE_VERBOSE_RECV, bce_dump_rx_mbuf_chain(sc, debug_chain_prod, 
+		nsegs));
+
+	DBPRINT(sc, BCE_VERBOSE_RECV, "%s(exit): prod = 0x%04X, chain_prod = 0x%04X, "
+		"prod_bseq = 0x%08X\n", __FUNCTION__, *prod, *chain_prod, *prod_bseq);
 
 bce_get_buf_exit:
 	DBPRINT(sc, (BCE_VERBOSE_RESET | BCE_VERBOSE_RECV), "Exiting %s()\n", 
@@ -4519,9 +4464,9 @@ bce_init(void *xsc)
 	u32 ether_mtu;
 	int s;
 
-	s = splimp();
-
 	DBPRINT(sc, BCE_VERBOSE_RESET, "Entering %s()\n", __FUNCTION__);
+
+	s = splimp();
 
 	ifp = &sc->arpcom.ac_if;
 
@@ -4656,7 +4601,7 @@ bce_tx_encap(struct bce_softc *sc, struct mbuf *m_head, u16 *prod,
 	error = bus_dmamap_load_mbuf(sc->tx_mbuf_tag, map, m_head,
 	    bce_dma_map_tx_desc, &map_arg, BUS_DMA_NOWAIT);
 
-	if (error || map_arg.maxsegs == 0) {		
+	if (error || map_arg.maxsegs == 0) {
             
             /* Try to defrag the mbuf if there are too many segments. */
             if (error == EFBIG && map_arg.maxsegs != 0) {
