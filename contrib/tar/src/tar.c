@@ -129,6 +129,7 @@ confirm (const char *message_action, const char *message_name)
 enum
 {
   ANCHORED_OPTION = CHAR_MAX + 1,
+  ALLOW_NAME_MANGLING_OPTION,
   BACKUP_OPTION,
   DELETE_OPTION,
   EXCLUDE_OPTION,
@@ -178,6 +179,7 @@ static struct option long_options[] =
   {"absolute-names", no_argument, 0, 'P'},
   {"absolute-paths", no_argument, 0, OBSOLETE_ABSOLUTE_NAMES},
   {"after-date", required_argument, 0, 'N'},
+  {"allow-name-mangling", no_argument, 0, ALLOW_NAME_MANGLING_OPTION},
   {"anchored", no_argument, 0, ANCHORED_OPTION},
   {"append", no_argument, 0, 'r'},
   {"atime-preserve", no_argument, &atime_preserve_option, 1},
@@ -392,6 +394,8 @@ Archive format selection:\n\
               PATTERN                at list/extract time, a globbing PATTERN\n\
   -o, --old-archive, --portability   write a V7 format archive\n\
       --posix                        write a POSIX format archive\n\
+      --allow-name-mangling          allow GNUTYPE_NAMES mangling --\n\
+                                     considered dangerous\n\
   -j, -y, --bzip, --bzip2, --bunzip2 filter the archive through bzip2\n\
   -z, --gzip, --ungzip               filter the archive through gzip\n\
   -Z, --compress, --uncompress       filter the archive through compress\n\
@@ -899,6 +903,10 @@ decode_options (int argc, char **argv)
 
       case 'Z':
 	set_use_compress_program_option ("compress");
+	break;
+
+      case ALLOW_NAME_MANGLING_OPTION:
+	allow_name_mangling_option = true;
 	break;
 
       case OBSOLETE_VERSION_CONTROL:

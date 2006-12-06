@@ -124,6 +124,9 @@ GLOBAL size_t record_size;
 /* Boolean value.  */
 GLOBAL int absolute_names_option;
 
+/* Allow GNUTYPE_NAMES type? */
+GLOBAL bool allow_name_mangling_option;
+
 /* This variable tells how to interpret newer_mtime_option, below.  If zero,
    files get archived if their mtime is not less than newer_mtime_option.
    If nonzero, files get archived if *either* their ctime or mtime is not less
