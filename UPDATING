@@ -8,6 +8,10 @@ Items affecting the ports and packages system can be found in
 /usr/ports/UPDATING.  Please read that file before running
 portupgrade.
 
+20061206:	p16	FreeBSD-SA-06:25.kmem
+	Correct a signedness bug which allowed members of the operator
+	group to read kernel memory.
+
 20060930:	p15	FreeBSD-SA-06:22.openssh
 	Correct multiple vulnerabilities in sshd(8).
 
