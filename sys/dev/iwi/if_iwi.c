@@ -1230,6 +1230,7 @@ iwi_frame_intr(struct iwi_softc *sc, struct iwi_rx_data *data, int i,
 	struct mbuf *mnew, *m;
 	struct ieee80211_node *ni;
 	int type, error, framelen;
+	IWI_LOCK_DECL;
 
 	framelen = le16toh(frame->len);
 	if (framelen < IEEE80211_MIN_LEN || framelen > MCLBYTES) {
@@ -1310,6 +1311,7 @@ iwi_frame_intr(struct iwi_softc *sc, struct iwi_rx_data *data, int i,
 
 		bpf_mtap2(sc->sc_drvbpf, tap, sc->sc_rxtap_len, m);
 	}
+	IWI_UNLOCK(sc);
 
 	ni = ieee80211_find_rxnode(ic, mtod(m, struct ieee80211_frame_min *));
 
@@ -1319,6 +1321,7 @@ iwi_frame_intr(struct iwi_softc *sc, struct iwi_rx_data *data, int i,
 	/* node is no longer needed */
 	ieee80211_free_node(ni);
 
+	IWI_LOCK(sc);
 	if (sc->sc_softled) {
 		/*
 		 * Blink for any data frame.  Otherwise do a
