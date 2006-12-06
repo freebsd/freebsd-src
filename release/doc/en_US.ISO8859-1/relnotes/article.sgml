@@ -1,5 +1,32 @@
+<!DOCTYPE article PUBLIC "-//FreeBSD//DTD DocBook V4.1-Based Extension//EN" [
+<!ENTITY % articles.ent PUBLIC "-//FreeBSD//ENTITIES DocBook FreeBSD Articles Entity Set//EN">
+%articles.ent;
+
+<!ENTITY % release PUBLIC "-//FreeBSD//ENTITIES Release Specification//EN">
+%release;
+
+<!-- Text constants which probably don't need to be changed.-->
+
+<!-- The marker for MFCs. -->
+<!ENTITY merged "[MERGED]">
+
+<!-- Architecture names -->
+<!ENTITY arch.amd64 "amd64">
+<!ENTITY arch.arm "arm">
+<!ENTITY arch.i386 "i386">
+<!ENTITY arch.ia64 "ia64">
+<!ENTITY arch.pc98 "pc98">
+<!ENTITY arch.powerpc "powerpc">
+<!ENTITY arch.sparc64 "sparc64">
+<!ENTITY arch.sun4v "sun4v">
+
+<!ENTITY % include.historic "IGNORE">
+<!ENTITY % no.include.historic "IGNORE">
+]>
+
+<article>
 <articleinfo>
-  <title>&os;/&arch; &release.current; Release Notes</title>
+  <title>&os; &release.current; Release Notes</title>
 
   <corpauthor>The &os; Project</corpauthor>
 
@@ -40,7 +67,7 @@
   <title>Introduction</title>
 
   <para>This document contains the release notes for &os;
-    &release.current; on the &arch.print; hardware platform.  It
+    &release.current;.  It
     describes recently added, changed, or deleted features of &os;.
     It also provides some notes on upgrading
     from previous versions of &os;.</para>
@@ -175,7 +202,7 @@
       For more details see security advisory <ulink
       url="http://security.FreeBSD.org/advisories/FreeBSD-SA-06:13.sendmail.asc">FreeBSD-SA-06:13.sendmail</ulink>. &merged;</para>
 
-    <para arch="i386,amd64">An information disclosure issue found in the
+    <para>[&arch.amd64;, &arch.i386] An information disclosure issue found in the
       &os; kernel running on 7th- and 8th-generation AMD processors
       has been fixed.  For more details see security advisory <ulink
        url="http://security.FreeBSD.org/advisories/FreeBSD-SA-06:14.fpu.asc">FreeBSD-SA-06:14.fpu</ulink>. &merged;</para>
@@ -329,7 +356,7 @@
       which can control the behavior, setting it to zero disables the
       <literal>SIGCHLD</literal> queuing feature.</para>
 
-    <para arch="amd64,i386">Instead of including all of physical
+    <para>[&arch.amd64;, &arch.i386;] Instead of including all of physical
       memory in a kernel crash dump, the kernel now defaults to dumping only pages that are
       actively mapped into kernel virtual memory.  A new
       <varname>debug.minidump</varname> sysctl variable
@@ -343,11 +370,6 @@
       has been added.  This forces a process
       to sigexit if a trap signal is being held by the current thread or
       ignored by the current process.  It is enabled by default.</para>
-
-    <para arch="alpha">Support for Linux emulation on the Alpha
-      platform has been removed, due to the lack of a
-      <filename>linux_base</filename> port that both supports the
-      Alpha architecture and is in good working condition.</para>
 
     <para>The pcvt(4) driver, an alternative to &man.syscons.4;,
       has been removed, as it had fallen out of sync with the rest
@@ -381,7 +403,7 @@
       and <literal>3</literal> means power them all down unconditionally.
       The default is <literal>1</literal>.</para>
 
-    <para arch="ia64">The <filename>GENERIC</filename> kernel now enables
+    <para>[&arch.ia64;] The <filename>GENERIC</filename> kernel now enables
       SMP support by default.</para>
 
     <para>Sample kernel configuration files
@@ -407,7 +429,7 @@
 	file or on the <prompt>boot:</prompt> prompt line,
 	has been added.</para>
 
-      <para arch="i386,amd64">A new loader tunable
+      <para>[&arch.amd64;, &arch.i386;] A new loader tunable
 	<varname>comconsole_speed</varname> to change
 	the serial console speed has been added.
 	If the previous stage boot loader requested a serial console,
@@ -418,10 +440,10 @@
 
       <!-- Above this line, order boot loader changes by keyword-->
 
-      <para arch="pc98">A bootable CDROM loader has been implemented
+      <para>[&arch.pc98;] A bootable CDROM loader has been implemented
 	for the pc98 platform. &merged;</para>
 
-      <para arch="i386">A bug in the i386 boot loader, which could
+      <para>[&arch.i386;] A bug in the i386 boot loader, which could
 	cause filesystem corruption if
 	a <filename>nextboot.conf</filename> file was used and landed
 	after cylinder 1023, has been fixed. &merged;</para>
@@ -449,16 +471,13 @@
 	the <literal>_PSV</literal>, <literal>_HOT</literal>, and
 	<literal>_CRT</literal> temperature values.</para>
 
-<!-- The following note should remain MI (i.e. don't set arch="alpha") --
-  -- because the alpha docs will be disappearing at some point before --
-  -- 7.0-RELEASE. -->
     <para>Support for the alpha architecture has been removed.  Alpha
       support will remain on the RELENG_5 and RELENG_6 codelines.</para>
 
       <para>The &man.cardbus.4; driver now supports
 	<filename>/dev/cardbus<replaceable>%d</replaceable>.cis</filename>.</para>
 
-      <para arch="i386,pc98">The &man.ce.4; driver,
+      <para>[&arch.i386, &arch.pc98;] The &man.ce.4; driver,
 	which supports Cronyx Tau-PCI/32 adapters, has been added.
 	&merged;</para>
 
@@ -475,11 +494,11 @@
       <para>A bug which prevented the &man.ichsmb.4; kernel module
 	from unloading has been fixed.</para>
 
-      <para arch="i386,amd64">Dual-core processors (such as the Intel
+      <para>[&arch.amd64;, &arch.i386;] Dual-core processors (such as the Intel
 	Core Duo) now have both cores available for use by
 	default in SMP-enabled kernels. &merged;</para>
 
-      <para arch="i386,amd64">&man.ipmi.4;, an OpenIPMI compatible driver,
+      <para>[&arch.amd64;, &arch.i386;] &man.ipmi.4;, an OpenIPMI compatible driver,
 	has been added.
 	OpenIPMI (Intelligent Platform Management Interface) is an open
 	standard designed to enable remote monitoring and control of server,
@@ -494,7 +513,7 @@
 	or at runtime via &man.kldload.8; and releasing the active
 	keyboard.  &merged;</para>
 
-      <para arch="amd64,i386">The &man.kbdmux.4; driver is now included in the
+      <para>[&arch.amd64;, &arch.i386;] The &man.kbdmux.4; driver is now included in the
 	<filename>GENERIC</filename> kernel by default.
 	Also, the <quote>Boot FreeBSD with USB keyboard</quote>
 	menu item in the boot loader menu has been removed
@@ -504,7 +523,7 @@
       <para>The &man.nfsmb.4; driver, which supports the NVIDIA nForce
 	2/3/4 SMBus 2.0 controller, has been added.  &merged;</para>
 
-      <para arch="ia64">The loader tunable <varname>debug.mpsafevfs</varname>
+      <para>[&arch.ia64;] The loader tunable <varname>debug.mpsafevfs</varname>
 	is set to <literal>1</literal> by default.</para>
 
       <para>The &man.sab.4; driver has been removed (it has been
@@ -515,10 +534,10 @@
 	controllers and delegates the control over each channel
 	and mode to a subordinate driver such as &man.uart.4;.</para>
 
-      <para arch="amd64">The smbios(4) driver support for amd64 has been
+      <para>[&arch.amd64;] The smbios(4) driver support for amd64 has been
 	added.</para>
 
-      <para>&os; now has preliminary support for the Sun Microsystems
+      <para>[&arch.sun4v;] &os; now has preliminary support for the Sun Microsystems
 	UltraSPARC-T1 archicture.  &os;/sun4v has been demonstrated
 	to run on the Sun Fire T1000 and Sun Fire T2000 servers.
 	More information can be found on the
@@ -529,7 +548,7 @@
       <para>The tnt4882(4) driver, which supports the National Instruments
 	PCI-GPIB card, has been added.</para>
 
-      <para arch="alpha,amd64,i386,ia64,sparc64">The &man.uart.4; driver has been included in the
+      <para>[&arch.amd64;, &arch.i386;, &arch.ia64;, &arch.sparc64;] The &man.uart.4; driver has been included in the
 	<filename>GENERIC</filename> kernel by default.
 	When both &man.sio.4; and &man.uart.4; can handle a given serial port,
 	&man.sio.4; will claim it.</para>
@@ -537,14 +556,14 @@
       <para>The &man.uart.4; driver now supports LOM (Lights Out Management)
 	and RSC (Remote System Control) devices as consoles.</para>
 
-      <para arch="i386">A new loader tunable
+      <para>[&arch.i386;] A new loader tunable
 	<varname>hw.apic.enable_extint</varname> has been added.
 	This tunable can be used to disable masking of the ExtINT pin on the first
 	I/O APIC.  At least one chipset for the Intel Pentium III seems
 	to need this, even though all of the pins in the 8259As are masked.
 	The default is still to mask the ExtINT pin.</para>
 
-      <para arch="i386">Support has been improved for
+      <para>[&arch.i386;] Support has been improved for
 	so-called <quote>legacy-free</quote> hardware, in particular,
 	i386 systems without AT-style keyboard controllers such as the
 	Macbook Pro. &merged;</para>
@@ -590,7 +609,7 @@
 
 	<para>The &man.snd.via82c686.4; driver is now MPSAFE.  &merged;</para>
 
-	<para arch="amd64">The &man.speaker.4; driver now supports &os;/amd64.  &merged;</para>
+	<para>[&arch.amd64;] The &man.speaker.4; driver now supports &os;/amd64.  &merged;</para>
 
 	<para>The &man.uaudio.4; driver now supports 24/32 bit audio
 	  formats and conversion.</para>
@@ -602,12 +621,13 @@
 	<para>The &man.ath.4; driver has been updated to
 	  HAL version 0.9.17.2.  &merged;</para>
 
-	<para arch="amd64,i386,pc98,sparc64">The &man.ath.4;, &man.ath.hal.4;, and
+	<para>[&arch.amd64;, &arch.i386;, &arch.pc98;, &arch.sparc64;]
+	  The &man.ath.4;, &man.ath.hal.4;, and
 	  <literal>ath_rate_sample</literal> drivers have been
 	  included in the <filename>GENERIC</filename> kernel by
 	  default. &merged;</para>
 
-	<para arch="amd64,i386">The &man.bce.4; driver, which supports Broadcom
+	<para>[&arch.amd64;, &arch.i386;] The &man.bce.4; driver, which supports Broadcom
 	  NetXtreme II (BCM5706/BCM5708) PCI/PCIe Gigabit Ethernet controllers,
 	  has been added.  For more details, see &man.bce.4;. &merged;</para>
 
@@ -679,7 +699,7 @@
 
 	<para>The &man.my.4; driver now supports &man.altq.4;.  &merged;</para>
 
-	<para arch="i386,amd64">The &man.mxge.4; driver,
+	<para>[&arch.amd64;, &arch.i386;] The &man.mxge.4; driver,
 	  which supports Myricom Myri10GE 10 Gigabit Ethernet
 	  adapters, has been added.  For more details, see
 	  &man.mxge.4;.</para>
@@ -725,7 +745,7 @@
 	<para>The &man.wi.4; driver is now buildable as
 	  a kernel module.</para>
 
-	<para arch="amd64,i386,pc98">The &man.wlan.wep.4;,
+	<para>[&arch.amd64;, &arch.i386;, &arch.pc98;] The &man.wlan.wep.4;,
 	  &man.wlan.ccmp.4;, and &man.wlan.tkip.4; drivers
 	  have been included in the <filename>GENERIC</filename>
 	  kernel by default.</para>
@@ -754,7 +774,7 @@
 	to suppress logging of attempts to modify
 	permanent ARP entries.  &merged;</para>
 
-      <para arch="amd64,i386,pc98">An experimental BPF Just-In-Time compiler
+      <para>[&arch.amd64;, &arch.i386;, &arch.pc98;] An experimental BPF Just-In-Time compiler
 	has been implemented for both &man.bpf.4; and &man.ng.bpf.4;.
 	To enable this, the
 	<literal>options BPF_JITTER</literal> kernel option is needed.
@@ -1039,7 +1059,7 @@ pipe tablearg ip from table(1) to any</programlisting>
 	has been renamed to <filename>geom_md.ko</filename>
 	for consistency.</para>
 
-      <para arch="amd64,i386">The &man.hptmv.4; driver has been updated and now supports
+      <para>[&arch.amd64;, &arch.i386;] The &man.hptmv.4; driver has been updated and now supports
 	amd64 as well as PAE.</para>
 
       <para>The &man.mfi.4; driver, which supports
@@ -1103,7 +1123,7 @@ geli_da1s3a_keyfile0_name="/boot/keys/da1s3a.key"</programlisting>
     <sect3 id="fs">
       <title>File Systems</title>
 
-      <para arch="amd64,i386,pc98">The &man.linsysfs.5;
+      <para>[&arch.amd64;, &arch.i386;, &arch.pc98;] The &man.linsysfs.5;
 	pseudo-filesystem driver has been added.
 	It provides a subset of the
 	Linux <filename>sys</filename> filesystem, and is required for
@@ -1560,7 +1580,7 @@ geli_da1s3a_keyfile0_name="/boot/keys/da1s3a.key"</programlisting>
       flag for the same functionality as the strace utility
       (<filename role="package">devel/strace</filename>).</para>
 
-    <para arch="ppc">The &man.truss.1; utility now supports &os;/ppc.</para>
+    <para>[&arch.powerpc;] The &man.truss.1; utility now supports &os;/powerpc.</para>
 
     <para>The usbd(8) utility has been removed.
       The &man.devd.8; utility and its configuration
@@ -1935,7 +1955,7 @@ mdconfig_md1="-t vnode -f /var/foo.img"</programlisting>
       (<filename role="package">x11/kde3</filename>) has been
       updated from 3.4.2 to 3.5.4. &merged;</para>
 
-    <para arch="i386,amd64">The supported Linux emulation now uses the
+    <para>[&arch.amd64;, &arch.i386;] The supported Linux emulation now uses the
       libraries in the
       <filename role="package">emulators/linux_base-fc4</filename>
       package. &merged;</para>
@@ -1950,7 +1970,7 @@ mdconfig_md1="-t vnode -f /var/foo.img"</programlisting>
       (<filename role="package">x11/xorg</filename>) has been updated
       from 6.8.2 to 6.9.0. &merged;</para>
 
-    <para arch="pc98">&os;/pc98 release CDROMs are now
+    <para>[&arch.pc98;] &os;/pc98 release CDROMs are now
       bootable on systems with some supported SCSI adapters.
       &merged;</para>
   </sect2>
@@ -1990,3 +2010,4 @@ mdconfig_md1="-t vnode -f /var/foo.img"</programlisting>
       files.</para>
   </important>
 </sect1>
+</article>
