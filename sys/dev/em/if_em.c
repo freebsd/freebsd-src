@@ -1232,32 +1232,12 @@ em_media_change(struct ifnet *ifp)
  *
  *  return 0 on success, positive on failure
  **********************************************************************/
-
-struct em_encap_arg {
-	bus_dma_segment_t *segs;
-	int nsegs;
-};
-
-static void
-em_encap_cb(void *arg, bus_dma_segment_t *segs, int nsegs, bus_size_t length,
-    int error)
-{
-	struct em_encap_arg *ea;
-
-	if (error)
-		return;
-	ea = arg;
-	ea->nsegs = nsegs;
-	bcopy(segs, ea->segs, sizeof(bus_dma_segment_t) * nsegs);
-}
-
 static int
 em_encap(struct adapter *adapter, struct mbuf **m_headp)
 {
 	struct ifnet		*ifp = &adapter->interface_data.ac_if;
 	bus_dma_segment_t	segs[EM_MAX_SCATTER];
 	bus_dmamap_t		map;
-	struct em_encap_arg	ea;
 	struct em_buffer	*tx_buffer, *tx_buffer_last;
 	struct em_tx_desc	*current_tx_desc;
 	struct mbuf		*m_head;
@@ -1335,12 +1315,11 @@ tagged:
 	/*
 	 * Map the packet for DMA.
 	 */
-	ea.segs = segs;
 	tx_buffer = &adapter->tx_buffer_area[adapter->next_avail_tx_desc];
 	tx_buffer_last = tx_buffer;
 	map = tx_buffer->map;
-	error = bus_dmamap_load_mbuf(adapter->txtag, map, *m_headp, em_encap_cb,
-	    &ea, BUS_DMA_NOWAIT);
+	error = bus_dmamap_load_mbuf_sg(adapter->txtag, map, *m_headp, segs,
+	    &nsegs, BUS_DMA_NOWAIT);
 	if (error == EFBIG) {
 		struct mbuf *m;
 
@@ -1353,8 +1332,8 @@ tagged:
 			return (ENOBUFS);
 		}
 		*m_headp = m;
-		error = bus_dmamap_load_mbuf(adapter->txtag, map, *m_headp,
-		    em_encap_cb, &ea, BUS_DMA_NOWAIT);
+		error = bus_dmamap_load_mbuf_sg(adapter->txtag, map, *m_headp,
+		    segs, &nsegs, BUS_DMA_NOWAIT);
 		if (error != 0) {
 			adapter->no_tx_dma_setup++;
 			m_freem(*m_headp);
@@ -1365,7 +1344,6 @@ tagged:
 		adapter->no_tx_dma_setup++;
 		return (error);
 	}
-	nsegs = ea.nsegs;
 	if (nsegs == 0) {
 		m_freem(*m_headp);
 		*m_headp = NULL;
@@ -1833,8 +1811,8 @@ em_allocate_pci_resources(struct adapter *adapter)
 	int		val, rid;
 
 	rid = PCIR_BAR(0);
-	adapter->res_memory = bus_alloc_resource(dev, SYS_RES_MEMORY,
-	    &rid, 0, ~0, 1, RF_ACTIVE);
+	adapter->res_memory = bus_alloc_resource_any(dev, SYS_RES_MEMORY,
+	    &rid, RF_ACTIVE);
 	if (adapter->res_memory == NULL) {
 		device_printf(dev, "Unable to allocate bus resource: memory\n");
 		return (ENXIO);
@@ -1861,9 +1839,8 @@ em_allocate_pci_resources(struct adapter *adapter)
 			device_printf(dev, "Unable to locate IO BAR\n");
 			return (ENXIO);
 		}
-
-		adapter->res_ioport = bus_alloc_resource(dev, SYS_RES_IOPORT,
-		    &adapter->io_rid, 0, ~0, 1, RF_ACTIVE);
+		adapter->res_ioport = bus_alloc_resource_any(dev, SYS_RES_IOPORT,
+		    &adapter->io_rid, RF_ACTIVE);
 		if (adapter->res_ioport == NULL) {
 			device_printf(dev, "Unable to allocate bus resource: "
 			    "ioport\n");
@@ -1887,8 +1864,8 @@ em_allocate_pci_resources(struct adapter *adapter)
 	}
 
 	rid = 0x0;
-	adapter->res_interrupt = bus_alloc_resource(dev, SYS_RES_IRQ,
-	    &rid, 0, ~0, 1, RF_SHAREABLE | RF_ACTIVE);
+	adapter->res_interrupt = bus_alloc_resource_any(dev, SYS_RES_IRQ, &rid,
+	    RF_SHAREABLE | RF_ACTIVE);
 	if (adapter->res_interrupt == NULL) {
 		device_printf(dev, "Unable to allocate bus resource: "
 		    "interrupt\n");
@@ -2201,7 +2178,7 @@ em_dma_malloc(struct adapter *adapter, bus_size_t size, struct em_dma_alloc *dma
 	error = bus_dmamem_alloc(dma->dma_tag, (void**) &dma->dma_vaddr,
 	    BUS_DMA_NOWAIT, &dma->dma_map);
 	if (error) {
-		device_printf(adapter->dev, "%s: bus_dmammem_alloc(%llu) failed: %d\n",
+		device_printf(adapter->dev, "%s: bus_dmamem_alloc(%llu) failed: %d\n",
 		    __func__, (unsigned long long)size, error);
 		goto fail_2;
 	}
@@ -2633,7 +2610,6 @@ em_get_buf(struct adapter *adapter, int i)
 	struct mbuf		*m;
 	bus_dma_segment_t	segs[1];
 	bus_dmamap_t		map;
-	struct em_encap_arg	ea;
 	struct em_buffer	*rx_buffer;
 	int			error, nsegs;
 
@@ -2650,14 +2626,12 @@ em_get_buf(struct adapter *adapter, int i)
 	 * Using memory from the mbuf cluster pool, invoke the
 	 * bus_dma machinery to arrange the memory mapping.
 	 */
-	ea.segs = segs;
-	error = bus_dmamap_load_mbuf(adapter->rxtag, adapter->rx_sparemap,
-	    m, em_encap_cb, &ea, BUS_DMA_NOWAIT);
+	error = bus_dmamap_load_mbuf_sg(adapter->rxtag, adapter->rx_sparemap,
+	    m, segs, &nsegs, BUS_DMA_NOWAIT);
 	if (error != 0) {
 		m_free(m);
 		return (error);
 	}
-	nsegs = ea.nsegs;
 	/* If nsegs is wrong then the stack is corrupt. */
 	KASSERT(nsegs == 1, ("Too many segments returned!"));
 
@@ -2708,7 +2682,7 @@ em_allocate_receive_structures(struct adapter *adapter)
 				MCLBYTES,		/* maxsize */
 				1,			/* nsegments */
 				MCLBYTES,		/* maxsegsize */
-				BUS_DMA_ALLOCNOW,	/* flags */
+				0,			/* flags */
 				&adapter->rxtag);
 	if (error) {
 		device_printf(dev, "%s: bus_dma_tag_create failed %d\n",
