@@ -296,11 +296,7 @@ ithread_create(const char *name)
 		panic("kthread_create() failed with %d", error);
 	td = FIRST_THREAD_IN_PROC(p);	/* XXXKSE */
 	mtx_lock_spin(&sched_lock);
-#ifdef KSE
-	td->td_ksegrp->kg_pri_class = PRI_ITHD;
-#else
-	td->td_pri_class = PRI_ITHD;
-#endif
+	sched_class(td, PRI_ITHD);
 	TD_SET_IWAIT(td);
 	mtx_unlock_spin(&sched_lock);
 	td->td_pflags |= TDP_ITHREAD;

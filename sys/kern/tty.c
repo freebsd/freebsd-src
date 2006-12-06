@@ -2578,18 +2578,8 @@ ttyinfo(struct tty *tp)
 		if (proc_compare(pick, p))
 			pick = p;
 
-	td = FIRST_THREAD_IN_PROC(pick);	/* XXXKSE */
-#if 0
-	KASSERT(td != NULL, ("ttyinfo: no thread"));
-#else
-	if (td == NULL) {
-		mtx_unlock_spin(&sched_lock);
-		PGRP_UNLOCK(tp->t_pgrp);
-		ttyprintf(tp, "foreground process without thread\n");
-		tp->t_rocount = 0;
-		return;
-	}
-#endif
+	/*^T can only show state for 1 thread. just pick the first. */
+	td = FIRST_THREAD_IN_PROC(pick);
 	stateprefix = "";
 	if (TD_IS_RUNNING(td))
 		state = "running";
@@ -2669,11 +2659,7 @@ proc_compare(struct proc *p1, struct proc *p2)
 {
 
 	int esta, estb;
-#ifdef KSE
-	struct ksegrp *kg;
-#else
 	struct thread *td;
-#endif
 	mtx_assert(&sched_lock, MA_OWNED);
 	if (p1 == NULL)
 		return (1);
@@ -2694,19 +2680,10 @@ proc_compare(struct proc *p1, struct proc *p2)
 		 * tie - favor one with highest recent cpu utilization
 		 */
 		esta = estb = 0;
-#ifdef KSE
-		FOREACH_KSEGRP_IN_PROC(p1,kg) {
-			esta += kg->kg_estcpu;
-		}
-		FOREACH_KSEGRP_IN_PROC(p2,kg) {
-			estb += kg->kg_estcpu;
-		}
-#else
 		FOREACH_THREAD_IN_PROC(p1, td)
 			esta += td->td_estcpu;
 		FOREACH_THREAD_IN_PROC(p2, td)
 			estb += td->td_estcpu;
-#endif
 		if (estb > esta)
 			return (1);
 		if (esta > estb)

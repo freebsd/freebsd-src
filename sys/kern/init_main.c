@@ -95,9 +95,6 @@ static struct session session0;
 static struct pgrp pgrp0;
 struct	proc proc0;
 struct	thread thread0 __aligned(8);
-#ifdef KSE
-struct	ksegrp ksegrp0;
-#endif
 struct	vmspace vmspace0;
 struct	proc *initproc;
 
@@ -366,34 +363,16 @@ proc0_init(void *dummy __unused)
 	struct proc *p;
 	unsigned i;
 	struct thread *td;
-#ifdef KSE
-	struct ksegrp *kg;
-#endif
 
 	GIANT_REQUIRED;
 	p = &proc0;
 	td = &thread0;
-#ifdef KSE
-	kg = &ksegrp0;
-#endif
 
 	/*
 	 * Initialize magic number.
 	 */
 	p->p_magic = P_MAGIC;
 
-#ifdef KSE
-	/*
-	 * Initialize thread, process and ksegrp structures.
-	 */
-	procinit();	/* set up proc zone */
-	threadinit();	/* set up thead, upcall and KSEGRP zones */
-
-	/*
-	 * Initialise scheduler resources.
-	 * Add scheduler specific parts to proc, ksegrp, thread as needed.
-	 */
-#else
 	/*
 	 * Initialize thread and process structures.
 	 */
@@ -404,7 +383,6 @@ proc0_init(void *dummy __unused)
 	 * Initialise scheduler resources.
 	 * Add scheduler specific parts to proc, thread as needed.
 	 */
-#endif
 	schedinit();	/* scheduler gets its house in order */
 	/*
 	 * Initialize sleep queue hash table
@@ -440,15 +418,9 @@ proc0_init(void *dummy __unused)
 	STAILQ_INIT(&p->p_ktr);
 	p->p_nice = NZERO;
 	td->td_state = TDS_RUNNING;
-#ifdef KSE
-	kg->kg_pri_class = PRI_TIMESHARE;
-	kg->kg_user_pri = PUSER;
-	kg->kg_base_user_pri = PUSER;
-#else
 	td->td_pri_class = PRI_TIMESHARE;
 	td->td_user_pri = PUSER;
 	td->td_base_user_pri = PUSER;
-#endif
 	td->td_priority = PVM;
 	td->td_base_pri = PUSER;
 	td->td_oncpu = 0;
@@ -758,11 +730,7 @@ kick_init(const void *udata __unused)
 	td = FIRST_THREAD_IN_PROC(initproc);
 	mtx_lock_spin(&sched_lock);
 	TD_SET_CAN_RUN(td);
-#ifdef KSE
-	setrunqueue(td, SRQ_BORING);	/* XXXKSE */
-#else
 	setrunqueue(td, SRQ_BORING);
-#endif
 	mtx_unlock_spin(&sched_lock);
 }
 SYSINIT(kickinit, SI_SUB_KTHREAD_INIT, SI_ORDER_FIRST, kick_init, NULL)

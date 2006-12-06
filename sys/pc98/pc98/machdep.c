@@ -1906,11 +1906,7 @@ init386(first)
  	 * This may be done better later if it gets more high level
  	 * components in it. If so just link td->td_proc here.
 	 */
-#ifdef KSE
-	proc_linkup(&proc0, &ksegrp0, &thread0);
-#else
 	proc_linkup(&proc0, &thread0);
-#endif
 
 	/*
 	 * Initialize DMAC

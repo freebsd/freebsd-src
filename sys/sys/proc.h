@@ -152,41 +152,32 @@ struct pargs {
  */
 struct auditinfo;
 struct kaudit_record;
-#ifdef KSE
-struct kg_sched;
-#else
 struct td_sched;
-#endif
 struct nlminfo;
 struct kaioinfo;
 struct p_sched;
 struct proc;
 struct sleepqueue;
-#ifdef KSE
-struct td_sched;
-#else
 struct thread;
-#endif
 struct trapframe;
 struct turnstile;
 struct mqueue_notifier;
 
-#ifdef KSE
 /*
- * Here we define the three structures used for process information.
+ * Here we define the two structures used for process information.
  *
  * The first is the thread. It might be thought of as a "Kernel
  * Schedulable Entity Context".
  * This structure contains all the information as to where a thread of
  * execution is now, or was when it was suspended, why it was suspended,
  * and anything else that will be needed to restart it when it is
- * rescheduled. Always associated with a KSE when running, but can be
- * reassigned to an equivalent KSE when being restarted for
- * load balancing. Each of these is associated with a kernel stack
- * and a pcb.
+ * rescheduled. It includesa sscheduler specific substructure that is differnt
+ * for each scheduler.
  *
- * It is important to remember that a particular thread structure may only
- * exist as long as the system call or kernel entrance (e.g. by pagefault)
+ * M:N notes.
+ * It is important to remember that when using M:N threading, 
+ * a particular thread structure may only exist as long as
+ * the system call or kernel entrance (e.g. by pagefault)
  * which it is currently executing. It should therefore NEVER be referenced
  * by pointers in long lived structures that live longer than a single
  * request. If several threads complete their work at the same time,
@@ -198,87 +189,37 @@ struct mqueue_notifier;
  * get one when it needs a new one. There is also a system
  * cache of free threads. Threads have priority and partake in priority
  * inheritance schemes.
+ *
+ * The second is the proc (process) which owns all the resources of a process
+ * other than CPU cycles. which are pqarelled out to the threads.
  */
-struct thread;
-
-/*
- * The KSEGRP is allocated resources across a number of CPUs.
- * (Including a number of CPUxQUANTA. It parcels these QUANTA up among
- * its threads, each of which should be running in a different CPU.
- * BASE priority and total available quanta are properties of a KSEGRP.
- * Multiple KSEGRPs in a single process compete against each other
- * for total quanta in the same way that a forked child competes against
- * its parent process.
- */
-struct ksegrp;
-
-/*
- * A process is the owner of all system resources allocated to a task
- * except CPU quanta.
- * All KSEGs under one process see, and have the same access to, these
- * resources (e.g. files, memory, sockets, credential, kqueues).
- * A process may compete for CPU cycles on the same basis as a
- * forked process cluster by spawning several KSEGRPs.
- */
-struct proc;
 
 /***************
- * In pictures:
+ * Threads are the unit of execution
  With a single run queue used by all processors:
 
- RUNQ: --->KSE---KSE--...               SLEEPQ:[]---THREAD---THREAD---THREAD
-	     \      \                          []---THREAD
-      KSEG---THREAD--THREAD--THREAD            []
-					       []---THREAD---THREAD
+ RUNQ: --->THREAD---THREAD--...               SLEEPQ:[]---THREAD---THREAD---THREAD
+                                                     []---THREAD
+                                       	             []
+                                                     []---THREAD---THREAD
 
-  (processors run THREADs from the KSEG until they are exhausted or
-  the KSEG exhausts its quantum)
-
-With PER-CPU run queues:
-KSEs on the separate run queues directly
-They would be given priorities calculated from the KSEG.
-
+With PER-CPU run queues: 
+it gets more complicated.
  *
  *****************/
-#endif
 
-#ifdef KSE
 /*
  * Kernel runnable context (thread).
  * This is what is put to sleep and reactivated.
- * The first KSE available in the correct group will run this thread.
- * If several are available, use the one on the same CPU as last time.
- * When waiting to be run, threads are hung off the KSEGRP in priority order.
- * With N runnable and queued KSEs in the KSEGRP, the first N threads
- * are linked to them. Other threads are not yet assigned.
- */
-#else
-/*
  * Thread context.  Processes may have multiple threads.
  */
-#endif
 struct thread {
 	struct proc	*td_proc;	/* (*) Associated process. */
-#ifdef KSE
-	struct ksegrp	*td_ksegrp;	/* (*) Associated KSEG. */
-#else
-	void	*was_td_ksegrp;		/* Temporary padding. */
-#endif
 	TAILQ_ENTRY(thread) td_plist;	/* (*) All threads in this proc. */
-#ifdef KSE
-	TAILQ_ENTRY(thread) td_kglist;	/* (*) All threads in this ksegrp. */
-#else
-	TAILQ_ENTRY(thread) was_td_kglist;	/* Temporary padding. */
-#endif
 
 	/* The two queues below should someday be merged. */
 	TAILQ_ENTRY(thread) td_slpq;	/* (j) Sleep queue. */
 	TAILQ_ENTRY(thread) td_lockq;	/* (j) Lock queue. */
-#ifdef KSE
-	TAILQ_ENTRY(thread) td_runq;	/* (j/z) Run queue(s). XXXKSE */
-#else
-	TAILQ_ENTRY(thread) td_runq;	/* (j/z) Run queue(s). */
-#endif
 
 	TAILQ_HEAD(, selinfo) td_selq;	/* (p) List of selinfos. */
 	struct sleepqueue *td_sleepqueue; /* (k) Associated sleep queue. */
@@ -307,23 +248,12 @@ struct thread {
 	struct lock_list_entry *td_sleeplocks; /* (k) Held sleep locks. */
 	int		td_intr_nesting_level; /* (k) Interrupt recursion. */
 	int		td_pinned;	/* (k) Temporary cpu pin count. */
-#ifdef KSE
 	struct kse_thr_mailbox *td_mailbox; /* (*) Userland mailbox address. */
-#else
-	void	*was_td_mailbox;	/* Temporary padding. */
-#endif
 	struct ucred	*td_ucred;	/* (k) Reference to credentials. */
-#ifdef KSE
 	struct thread	*td_standin;	/* (k + a) Use this for an upcall. */
 	struct kse_upcall *td_upcall;	/* (k + j) Upcall structure. */
-	u_int		new_td_estcpu;	/*  Temporary padding. */
-	u_int		new_td_slptime;	/*  Temporary padding. */
-#else
-	void		*was_td_standin;	/* Temporary padding. */
-	void		*was_td_upcall;		/* Temporary padding. */
 	u_int		td_estcpu;	/* (j) Sum of the same field in KSEs. */
 	u_int		td_slptime;	/* (j) How long completely blocked. */
-#endif
 	u_int		td_pticks;	/* (k) Statclock hits for profiling */
 	u_int		td_sticks;	/* (k) Statclock hits in system mode. */
 	u_int		td_iticks;	/* (k) Statclock hits in intr mode. */
@@ -335,11 +265,7 @@ struct thread {
 	sigset_t	td_sigmask;	/* (c) Current signal mask. */
 	volatile u_int	td_generation;	/* (k) For detection of preemption */
 	stack_t		td_sigstk;	/* (k) Stack ptr and on-stack flag. */
-#ifdef KSE
 	int		td_kflags;	/* (c) Flags for KSE threading. */
-#else
-	int		was_td_kflags;	/* Temporary padding. */
-#endif
 	int		td_xsig;	/* (c) Signal for ptrace */
 	u_long		td_profil_addr;	/* (k) Temporary addr until AST. */
 	u_int		td_profil_ticks; /* (k) Temporary ticks until AST. */
@@ -350,15 +276,9 @@ struct thread {
 #define	td_startcopy td_endzero
 	u_char		td_base_pri;	/* (j) Thread base kernel priority. */
 	u_char		td_priority;	/* (j) Thread active priority. */
-#ifdef KSE
-	u_char		new_td_pri_class;	/* Temporary padding. */
-	u_char		new_td_user_pri;	/* Temporary padding. */
-	u_char		new_td_base_user_pri;	/* Temporary padding. */
-#else
 	u_char		td_pri_class;	/* (j) Scheduling class. */
 	u_char		td_user_pri;	/* (j) User pri from estcpu and nice. */
-	u_char		td_base_user_pri;	/* (j) Base user pri */
-#endif
+	u_char		td_base_user_pri; /* (j) Base user pri */
 #define	td_endcopy td_pcb
 
 /*
@@ -427,27 +347,15 @@ struct thread {
 #define	TDP_OLDMASK	0x00000001 /* Need to restore mask after suspend. */
 #define	TDP_INKTR	0x00000002 /* Thread is currently in KTR code. */
 #define	TDP_INKTRACE	0x00000004 /* Thread is currently in KTRACE code. */
-#ifdef KSE
 #define	TDP_UPCALLING	0x00000008 /* This thread is doing an upcall. */
-#else
-/*			0x00000008 */
-#endif
 #define	TDP_COWINPROGRESS 0x00000010 /* Snapshot copy-on-write in progress. */
 #define	TDP_ALTSTACK	0x00000020 /* Have alternate signal stack. */
 #define	TDP_DEADLKTREAT	0x00000040 /* Lock aquisition - deadlock treatment. */
-#ifdef KSE
 #define	TDP_SA		0x00000080 /* A scheduler activation based thread. */
-#else
-/*			0x00000080 */
-#endif
 #define	TDP_NOSLEEPING	0x00000100 /* Thread is not allowed to sleep on a sq. */
 #define	TDP_OWEUPC	0x00000200 /* Call addupc() at next AST. */
 #define	TDP_ITHREAD	0x00000400 /* Thread is an interrupt thread. */
-#ifdef KSE
 #define	TDP_CAN_UNBIND	0x00000800 /* Only temporarily bound. */
-#else
-/* 			0x00000800 */
-#endif
 #define	TDP_SCHED1	0x00001000 /* Reserved for scheduler private use */
 #define	TDP_SCHED2	0x00002000 /* Reserved for scheduler private use */
 #define	TDP_SCHED3	0x00004000 /* Reserved for scheduler private use */
@@ -467,18 +375,16 @@ struct thread {
 #define	TDI_LOCK	0x0008	/* Stopped on a lock. */
 #define	TDI_IWAIT	0x0010	/* Awaiting interrupt. */
 
-#ifdef KSE
 /*
  * flags (in kflags) related to M:N threading.
  */
-#define	TDK_KSEREL	0x0001	/* Blocked in msleep on kg->kg_completed. */
+#define	TDK_KSEREL	0x0001	/* Blocked in msleep on p->p_completed. */
 #define	TDK_KSERELSIG	0x0002	/* Blocked in msleep on p->p_siglist. */
 #define	TDK_WAKEUP	0x0004	/* Thread has been woken by kse_wakeup. */
 
 #define	TD_CAN_UNBIND(td)			\
     (((td)->td_pflags & TDP_CAN_UNBIND) &&	\
      ((td)->td_upcall != NULL))
-#endif
 
 #define	TD_IS_SLEEPING(td)	((td)->td_inhibitors & TDI_SLEEPING)
 #define	TD_ON_SLEEPQ(td)	((td)->td_wchan != NULL)
@@ -520,14 +426,13 @@ struct thread {
 #define	TD_SET_RUNQ(td)		(td)->td_state = TDS_RUNQ
 #define	TD_SET_CAN_RUN(td)	(td)->td_state = TDS_CAN_RUN
 
-#ifdef KSE
 /*
  * An upcall is used when returning to userland.  If a thread does not have
  * an upcall on return to userland the thread exports its context and exits.
  */
 struct kse_upcall {
-	TAILQ_ENTRY(kse_upcall) ku_link;	/* List of upcalls in KSEG. */
-	struct ksegrp		*ku_ksegrp;	/* Associated KSEG. */
+	TAILQ_ENTRY(kse_upcall) ku_link;	/* List of upcalls in proc. */
+	struct proc		*ku_proc;	/* Associated proc. */
 	struct thread		*ku_owner;	/* Owning thread. */
 	int			ku_flags;	/* KUF_* flags. */
 	struct kse_mailbox	*ku_mailbox;	/* Userland mailbox address. */
@@ -538,38 +443,6 @@ struct kse_upcall {
 
 #define	KUF_DOUPCALL	0x00001		/* Do upcall now; don't wait. */
 #define	KUF_EXITING	0x00002		/* Upcall structure is exiting. */
-
-/*
- * Kernel-scheduled entity group (KSEG).  The scheduler considers each KSEG to
- * be an indivisible unit from a time-sharing perspective, though each KSEG may
- * contain multiple KSEs.
- */
-struct ksegrp {
-	struct proc	*kg_proc;	/* (*) Proc that contains this KSEG. */
-	TAILQ_ENTRY(ksegrp) kg_ksegrp;	/* (*) Queue of KSEGs in kg_proc. */
-	TAILQ_HEAD(, thread) kg_threads;/* (td_kglist) All threads. */
-	TAILQ_HEAD(, thread) kg_runq;	/* (td_runq) waiting RUNNABLE threads */
-	TAILQ_HEAD(, kse_upcall) kg_upcalls;	/* All upcalls in the group. */
-
-#define	kg_startzero kg_estcpu
-	u_int		kg_estcpu;	/* (j) Sum of the same field in KSEs. */
-	u_int		kg_slptime;	/* (j) How long completely blocked. */
-	int		kg_numupcalls;	/* (j) Num upcalls. */
-	int		kg_upsleeps;	/* (c) Num threads in kse_release(). */
-	struct kse_thr_mailbox *kg_completed; /* (c) Completed thread mboxes. */
-	int		kg_nextupcall;	/* (n) Next upcall time. */
-	int		kg_upquantum;	/* (n) Quantum to schedule an upcall. */
-#define	kg_endzero kg_pri_class
-
-#define	kg_startcopy	kg_endzero
-	u_char		kg_pri_class;	/* (j) Scheduling class. */
-	u_char		kg_user_pri;	/* (j) User pri from estcpu and nice. */
-	u_char		kg_base_user_pri;	/* (j) Base user pri */
-#define	kg_endcopy kg_numthreads
-	int		kg_numthreads;	/* (j) Num threads in total. */
-	struct kg_sched	*kg_sched;	/* (*) Scheduler-specific data. */
-};
-#endif
 
 /*
  * XXX: Does this belong in resource.h or resourcevar.h instead?
@@ -592,18 +465,12 @@ struct rusage_ext {
 };
 
 /*
- * The old fashionned process. May have multiple threads, KSEGRPs
- * and KSEs. Starts off with a single embedded KSEGRP and THREAD.
+ * The old fashionned process. May have multiple threads.
+ *  Starts off with a single embedded THREAD.
  */
 struct proc {
 	LIST_ENTRY(proc) p_list;	/* (d) List of all processes. */
-#ifdef KSE
-	TAILQ_HEAD(, ksegrp) p_ksegrps;	/* (c)(kg_ksegrp) All KSEGs. */
-#else
-	TAILQ_HEAD(, thread) was_p_ksegrps;	/* Temporary padding. */
-#endif
 	TAILQ_HEAD(, thread) p_threads;	/* (j)(td_plist) Threads. (shortcut) */
-	TAILQ_HEAD(, thread) p_suspended; /* (td_runq) Suspended threads. */
 	struct ucred	*p_ucred;	/* (c) Process owner's identity. */
 	struct filedesc	*p_fd;		/* (b) Open files. */
 	struct filedesc_to_leader *p_fdtol; /* (b) Tracking node */
@@ -611,6 +478,7 @@ struct proc {
 	struct pstats	*p_stats;	/* (b) Accounting/statistics (CPU). */
 	struct plimit	*p_limit;	/* (c) Process limits. */
 	struct sigacts	*p_sigacts;	/* (x) Signal actions, state (CPU). */
+	TAILQ_HEAD(, kse_upcall) p_upcalls; /* All upcalls in the proc. */
 
 	/*
 	 * The following don't make too much sense.
@@ -666,6 +534,14 @@ struct proc {
 	int		p_boundary_count;/* (c) Num threads at user boundary */
 	int		p_pendingcnt;	/* how many signals are pending */
 	struct itimers	*p_itimers;	/* (c) POSIX interval timers. */
+/* from ksegrp */
+	u_int		p_estcpu;	/* (j) Sum of the field in threads. */
+	u_int		p_slptime;	/* (j) How long completely blocked. */
+	int		p_numupcalls;	/* (j) Num upcalls. */
+	int		p_upsleeps;	/* (c) Num threads in kse_release(). */
+	struct kse_thr_mailbox *p_completed; /* (c) Completed thread mboxes. */
+	int		p_nextupcall;	/* (n) Next upcall time. */
+	int		p_upquantum;	/* (n) Quantum to schedule an upcall. */
 /* End area that is zeroed on creation. */
 #define	p_endzero	p_magic
 
@@ -684,11 +560,6 @@ struct proc {
 	u_short		p_xstat;	/* (c) Exit status; also stop sig. */
 	struct knlist	p_klist;	/* (c) Knotes attached to this proc. */
 	int		p_numthreads;	/* (j) Number of threads. */
-#ifdef KSE
-	int		p_numksegrps;	/* (c) Number of ksegrps. */
-#else
-	int		was_p_numksegrps;	/* Temporary padding. */
-#endif
 	struct mdproc	p_md;		/* Any machine-dependent fields. */
 	struct callout	p_itcallout;	/* (h + c) Interval timer callout. */
 	u_short		p_acflag;	/* (c) Accounting flags. */
@@ -797,22 +668,13 @@ MALLOC_DECLARE(M_ZOMBIE);
 
 #define	FOREACH_PROC_IN_SYSTEM(p)					\
 	LIST_FOREACH((p), &allproc, p_list)
-#ifdef KSE
-#define	FOREACH_KSEGRP_IN_PROC(p, kg)					\
-	TAILQ_FOREACH((kg), &(p)->p_ksegrps, kg_ksegrp)
-#define	FOREACH_THREAD_IN_GROUP(kg, td)					\
-	TAILQ_FOREACH((td), &(kg)->kg_threads, td_kglist)
-#define	FOREACH_UPCALL_IN_GROUP(kg, ku)					\
-	TAILQ_FOREACH((ku), &(kg)->kg_upcalls, ku_link)
-#endif
 #define	FOREACH_THREAD_IN_PROC(p, td)					\
 	TAILQ_FOREACH((td), &(p)->p_threads, td_plist)
+#define	FOREACH_UPCALL_IN_PROC(p, ku)					\
+	TAILQ_FOREACH((ku), &(p)->p_upcalls, ku_link)
 
 /* XXXKSE the following lines should probably only be used in 1:1 code: */
 #define	FIRST_THREAD_IN_PROC(p)	TAILQ_FIRST(&(p)->p_threads)
-#ifdef KSE
-#define	FIRST_KSEGRP_IN_PROC(p)	TAILQ_FIRST(&(p)->p_ksegrps)
-#endif
 
 /*
  * We use process IDs <= PID_MAX; PID_MAX + 1 must also fit in a pid_t,
@@ -923,9 +785,6 @@ extern u_long pgrphash;
 extern struct sx allproc_lock;
 extern struct sx proctree_lock;
 extern struct mtx ppeers_lock;
-#ifdef KSE
-extern struct ksegrp ksegrp0;		/* Primary ksegrp in proc0. */
-#endif
 extern struct proc proc0;		/* Process slot for swapper. */
 extern struct thread thread0;		/* Primary thread in proc0. */
 extern struct vmspace vmspace0;		/* VM space for proc0. */
@@ -976,11 +835,7 @@ void	pargs_drop(struct pargs *pa);
 void	pargs_free(struct pargs *pa);
 void	pargs_hold(struct pargs *pa);
 void	procinit(void);
-#ifdef KSE
-void	proc_linkup(struct proc *p, struct ksegrp *kg, struct thread *td);
-#else
 void	proc_linkup(struct proc *p, struct thread *td);
-#endif
 void	proc_reparent(struct proc *child, struct proc *newparent);
 struct	pstats *pstats_alloc(void);
 void	pstats_fork(struct pstats *src, struct pstats *dst);
@@ -1008,11 +863,6 @@ void	cpu_fork(struct thread *, struct proc *, struct thread *, int);
 void	cpu_set_fork_handler(struct thread *, void (*)(void *), void *);
 
 /* New in KSE. */
-#ifdef KSE
-struct	ksegrp *ksegrp_alloc(void);
-void	ksegrp_free(struct ksegrp *kg);
-void	ksegrp_stash(struct ksegrp *kg);
-#endif
 void	kse_GC(void);
 void	kseinit(void);
 void	cpu_set_upcall(struct thread *td, struct thread *td0);
@@ -1023,24 +873,14 @@ void	cpu_thread_exit(struct thread *);
 void	cpu_thread_setup(struct thread *td);
 void	cpu_thread_swapin(struct thread *);
 void	cpu_thread_swapout(struct thread *);
-#ifdef KSE
-void	ksegrp_link(struct ksegrp *kg, struct proc *p);
-void	ksegrp_unlink(struct ksegrp *kg);
-#endif
 struct	thread *thread_alloc(void);
 void	thread_continued(struct proc *p);
 void	thread_exit(void) __dead2;
 int	thread_export_context(struct thread *td, int willexit);
 void	thread_free(struct thread *td);
-#ifdef KSE
-void	thread_link(struct thread *td, struct ksegrp *kg);
-#else
 void	thread_link(struct thread *td, struct proc *p);
-#endif
 void	thread_reap(void);
-#ifdef KSE
 struct thread *thread_schedule_upcall(struct thread *td, struct kse_upcall *ku);
-#endif
 void	thread_signal_add(struct thread *td, ksiginfo_t *);
 int	thread_single(int how);
 void	thread_single_end(void);
@@ -1058,21 +898,17 @@ void	thread_unlink(struct thread *td);
 void	thread_unsuspend(struct proc *p);
 void	thread_unsuspend_one(struct thread *td);
 void	thread_unthread(struct thread *td);
-#ifdef KSE
 int	thread_userret(struct thread *td, struct trapframe *frame);
 void	thread_user_enter(struct thread *td);
-#endif
 void	thread_wait(struct proc *p);
 struct thread	*thread_find(struct proc *p, lwpid_t tid);
 void	thr_exit1(void);
-#ifdef KSE
 struct kse_upcall *upcall_alloc(void);
 void	upcall_free(struct kse_upcall *ku);
-void	upcall_link(struct kse_upcall *ku, struct ksegrp *kg);
+void	upcall_link(struct kse_upcall *ku, struct proc *p);
 void	upcall_unlink(struct kse_upcall *ku);
 void	upcall_remove(struct thread *td);
 void	upcall_stash(struct kse_upcall *ke);
-#endif
 
 #endif	/* _KERNEL */
 

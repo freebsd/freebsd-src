@@ -455,11 +455,7 @@ initarm(void *arg, void *arg2)
 	undefined_handler_address = (u_int)undefinedinstruction_bounce;
 	undefined_init();
 				
-#ifdef KSE
-	proc_linkup(&proc0, &ksegrp0, &thread0);
-#else
 	proc_linkup(&proc0, &thread0);
-#endif
 	thread0.td_kstack = kernelstack.pv_va;
 	thread0.td_pcb = (struct pcb *)
 		(thread0.td_kstack + KSTACK_PAGES * PAGE_SIZE) - 1;

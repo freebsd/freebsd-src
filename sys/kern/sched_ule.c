@@ -30,8 +30,6 @@ __FBSDID("$FreeBSD$");
 #include "opt_hwpmc_hooks.h"
 #include "opt_sched.h"
 
-#define kse td_sched
-
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/kdb.h>
@@ -92,46 +90,45 @@ int tickincr = 1 << 10;
  * but are scheduler specific.
  */
 /*
- * The schedulable entity that can be given a context to run.  A process may
- * have several of these.
+ * Thread scheduler specific section.
+ * fields int he thread structure that are specific to this scheduler.
  */
-struct td_sched {	/* really kse */
-	TAILQ_ENTRY(kse) ke_procq;	/* (j/z) Run queue. */
-	int		ke_flags;	/* (j) KEF_* flags. */
-	struct thread	*ke_thread;	/* (*) Active associated thread. */
-	fixpt_t		ke_pctcpu;	/* (j) %cpu during p_swtime. */
-	u_char		ke_rqindex;	/* (j) Run queue index. */
+struct td_sched {	
+	TAILQ_ENTRY(td_sched) ts_procq;	/* (j/z) Run queue. */
+	int		ts_flags;	/* (j) TSF_* flags. */
+	struct thread	*ts_thread;	/* (*) Active associated thread. */
+	fixpt_t		ts_pctcpu;	/* (j) %cpu during p_swtime. */
+	u_char		ts_rqindex;	/* (j) Run queue index. */
 	enum {
-		KES_THREAD = 0x0,	/* slaved to thread state */
-		KES_ONRUNQ
-	} ke_state;			/* (j) thread sched specific status. */
-	int		ke_slptime;
-	int		ke_slice;
-	struct runq	*ke_runq;
-	u_char		ke_cpu;		/* CPU that we have affinity for. */
+		TSS_THREAD = 0x0,	/* slaved to thread state */
+		TSS_ONRUNQ
+	} ts_state;			/* (j) thread sched specific status. */
+	int		ts_slptime;
+	int		ts_slice;
+	struct runq	*ts_runq;
+	u_char		ts_cpu;		/* CPU that we have affinity for. */
 	/* The following variables are only used for pctcpu calculation */
-	int		ke_ltick;	/* Last tick that we were running on */
-	int		ke_ftick;	/* First tick that we were running on */
-	int		ke_ticks;	/* Tick count */
+	int		ts_ltick;	/* Last tick that we were running on */
+	int		ts_ftick;	/* First tick that we were running on */
+	int		ts_ticks;	/* Tick count */
 
 	/* originally from kg_sched */
 	int	skg_slptime;		/* Number of ticks we vol. slept */
 	int	skg_runtime;		/* Number of ticks we were running */
 };
-#define	td_kse			td_sched
-#define	ke_assign		ke_procq.tqe_next
-/* flags kept in ke_flags */
-#define	KEF_ASSIGNED	0x0001		/* Thread is being migrated. */
-#define	KEF_BOUND	0x0002		/* Thread can not migrate. */
-#define	KEF_XFERABLE	0x0004		/* Thread was added as transferable. */
-#define	KEF_HOLD	0x0008		/* Thread is temporarily bound. */
-#define	KEF_REMOVED	0x0010		/* Thread was removed while ASSIGNED */
-#define	KEF_INTERNAL	0x0020		/* Thread added due to migration. */
-#define	KEF_PREEMPTED	0x0040		/* Thread was preempted */
-#define	KEF_DIDRUN	0x02000		/* Thread actually ran. */
-#define	KEF_EXIT	0x04000		/* Thread is being killed. */
+#define	ts_assign		ts_procq.tqe_next
+/* flags kept in ts_flags */
+#define	TSF_ASSIGNED	0x0001		/* Thread is being migrated. */
+#define	TSF_BOUND	0x0002		/* Thread can not migrate. */
+#define	TSF_XFERABLE	0x0004		/* Thread was added as transferable. */
+#define	TSF_HOLD	0x0008		/* Thread is temporarily bound. */
+#define	TSF_REMOVED	0x0010		/* Thread was removed while ASSIGNED */
+#define	TSF_INTERNAL	0x0020		/* Thread added due to migration. */
+#define	TSF_PREEMPTED	0x0040		/* Thread was preempted */
+#define	TSF_DIDRUN	0x02000		/* Thread actually ran. */
+#define	TSF_EXIT	0x04000		/* Thread is being killed. */
 
-static struct kse kse0;
+static struct td_sched td_sched0;
 
 /*
  * The priority is primarily determined by the interactivity score.  Thus, we
@@ -191,9 +188,9 @@ static struct kse kse0;
  */
 #define	SCHED_INTERACTIVE(td)						\
     (sched_interact_score(td) < SCHED_INTERACT_THRESH)
-#define	SCHED_CURR(td, ke)						\
-    ((ke->ke_thread->td_flags & TDF_BORROWING) ||			\
-     (ke->ke_flags & KEF_PREEMPTED) || SCHED_INTERACTIVE(td))
+#define	SCHED_CURR(td, ts)						\
+    ((ts->ts_thread->td_flags & TDF_BORROWING) ||			\
+     (ts->ts_flags & TSF_PREEMPTED) || SCHED_INTERACTIVE(td))
 
 /*
  * Cpu percentage computation macros and defines.
@@ -206,22 +203,22 @@ static struct kse kse0;
 #define	SCHED_CPU_TICKS	(hz * SCHED_CPU_TIME)
 
 /*
- * kseq - per processor runqs and statistics.
+ * tdq - per processor runqs and statistics.
  */
-struct kseq {
+struct tdq {
 	struct runq	ksq_idle;		/* Queue of IDLE threads. */
 	struct runq	ksq_timeshare[2];	/* Run queues for !IDLE. */
 	struct runq	*ksq_next;		/* Next timeshare queue. */
 	struct runq	*ksq_curr;		/* Current queue. */
 	int		ksq_load_timeshare;	/* Load for timeshare. */
 	int		ksq_load;		/* Aggregate load. */
-	short		ksq_nice[SCHED_PRI_NRESV]; /* KSEs in each nice bin. */
+	short		ksq_nice[SCHED_PRI_NRESV]; /* threadss in each nice bin. */
 	short		ksq_nicemin;		/* Least nice. */
 #ifdef SMP
 	int			ksq_transferable;
-	LIST_ENTRY(kseq)	ksq_siblings;	/* Next in kseq group. */
-	struct kseq_group	*ksq_group;	/* Our processor group. */
-	volatile struct kse	*ksq_assigned;	/* assigned by another CPU. */
+	LIST_ENTRY(tdq)	ksq_siblings;	/* Next in tdq group. */
+	struct tdq_group	*ksq_group;	/* Our processor group. */
+	volatile struct td_sched *ksq_assigned;	/* assigned by another CPU. */
 #else
 	int		ksq_sysload;		/* For loadavg, !ITHD load. */
 #endif
@@ -229,21 +226,21 @@ struct kseq {
 
 #ifdef SMP
 /*
- * kseq groups are groups of processors which can cheaply share threads.  When
+ * tdq groups are groups of processors which can cheaply share threads.  When
  * one processor in the group goes idle it will check the runqs of the other
  * processors in its group prior to halting and waiting for an interrupt.
  * These groups are suitable for SMT (Symetric Multi-Threading) and not NUMA.
  * In a numa environment we'd want an idle bitmap per group and a two tiered
  * load balancer.
  */
-struct kseq_group {
-	int	ksg_cpus;		/* Count of CPUs in this kseq group. */
+struct tdq_group {
+	int	ksg_cpus;		/* Count of CPUs in this tdq group. */
 	cpumask_t ksg_cpumask;		/* Mask of cpus in this group. */
 	cpumask_t ksg_idlemask;		/* Idle cpus in this group. */
 	cpumask_t ksg_mask;		/* Bit mask for first cpu. */
 	int	ksg_load;		/* Total load of this group. */
 	int	ksg_transferable;	/* Transferable load of this group. */
-	LIST_HEAD(, kseq)	ksg_members; /* Linked list of all members. */
+	LIST_HEAD(, tdq)	ksg_members; /* Linked list of all members. */
 };
 #endif
 
@@ -251,185 +248,185 @@ struct kseq_group {
  * One kse queue per processor.
  */
 #ifdef SMP
-static cpumask_t kseq_idle;
+static cpumask_t tdq_idle;
 static int ksg_maxid;
-static struct kseq	kseq_cpu[MAXCPU];
-static struct kseq_group kseq_groups[MAXCPU];
+static struct tdq	tdq_cpu[MAXCPU];
+static struct tdq_group tdq_groups[MAXCPU];
 static int bal_tick;
 static int gbal_tick;
 static int balance_groups;
 
-#define	KSEQ_SELF()	(&kseq_cpu[PCPU_GET(cpuid)])
-#define	KSEQ_CPU(x)	(&kseq_cpu[(x)])
-#define	KSEQ_ID(x)	((x) - kseq_cpu)
-#define	KSEQ_GROUP(x)	(&kseq_groups[(x)])
+#define	TDQ_SELF()	(&tdq_cpu[PCPU_GET(cpuid)])
+#define	TDQ_CPU(x)	(&tdq_cpu[(x)])
+#define	TDQ_ID(x)	((x) - tdq_cpu)
+#define	TDQ_GROUP(x)	(&tdq_groups[(x)])
 #else	/* !SMP */
-static struct kseq	kseq_cpu;
+static struct tdq	tdq_cpu;
 
-#define	KSEQ_SELF()	(&kseq_cpu)
-#define	KSEQ_CPU(x)	(&kseq_cpu)
+#define	TDQ_SELF()	(&tdq_cpu)
+#define	TDQ_CPU(x)	(&tdq_cpu)
 #endif
 
-static struct kse *sched_choose(void);		/* XXX Should be thread * */
-static void sched_slice(struct kse *);
+static struct td_sched *sched_choose(void);		/* XXX Should be thread * */
+static void sched_slice(struct td_sched *);
 static void sched_priority(struct thread *);
 static void sched_thread_priority(struct thread *, u_char);
 static int sched_interact_score(struct thread *);
 static void sched_interact_update(struct thread *);
 static void sched_interact_fork(struct thread *);
-static void sched_pctcpu_update(struct kse *);
+static void sched_pctcpu_update(struct td_sched *);
 
 /* Operations on per processor queues */
-static struct kse * kseq_choose(struct kseq *);
-static void kseq_setup(struct kseq *);
-static void kseq_load_add(struct kseq *, struct kse *);
-static void kseq_load_rem(struct kseq *, struct kse *);
-static __inline void kseq_runq_add(struct kseq *, struct kse *, int);
-static __inline void kseq_runq_rem(struct kseq *, struct kse *);
-static void kseq_nice_add(struct kseq *, int);
-static void kseq_nice_rem(struct kseq *, int);
-void kseq_print(int cpu);
+static struct td_sched * tdq_choose(struct tdq *);
+static void tdq_setup(struct tdq *);
+static void tdq_load_add(struct tdq *, struct td_sched *);
+static void tdq_load_rem(struct tdq *, struct td_sched *);
+static __inline void tdq_runq_add(struct tdq *, struct td_sched *, int);
+static __inline void tdq_runq_rem(struct tdq *, struct td_sched *);
+static void tdq_nice_add(struct tdq *, int);
+static void tdq_nice_rem(struct tdq *, int);
+void tdq_print(int cpu);
 #ifdef SMP
-static int kseq_transfer(struct kseq *, struct kse *, int);
-static struct kse *runq_steal(struct runq *);
+static int tdq_transfer(struct tdq *, struct td_sched *, int);
+static struct td_sched *runq_steal(struct runq *);
 static void sched_balance(void);
 static void sched_balance_groups(void);
-static void sched_balance_group(struct kseq_group *);
-static void sched_balance_pair(struct kseq *, struct kseq *);
-static void kseq_move(struct kseq *, int);
-static int kseq_idled(struct kseq *);
-static void kseq_notify(struct kse *, int);
-static void kseq_assign(struct kseq *);
-static struct kse *kseq_steal(struct kseq *, int);
-#define	KSE_CAN_MIGRATE(ke)						\
-    ((ke)->ke_thread->td_pinned == 0 && ((ke)->ke_flags & KEF_BOUND) == 0)
+static void sched_balance_group(struct tdq_group *);
+static void sched_balance_pair(struct tdq *, struct tdq *);
+static void tdq_move(struct tdq *, int);
+static int tdq_idled(struct tdq *);
+static void tdq_notify(struct td_sched *, int);
+static void tdq_assign(struct tdq *);
+static struct td_sched *tdq_steal(struct tdq *, int);
+#define	THREAD_CAN_MIGRATE(ts)						\
+    ((ts)->ts_thread->td_pinned == 0 && ((ts)->ts_flags & TSF_BOUND) == 0)
 #endif
 
 void
-kseq_print(int cpu)
+tdq_print(int cpu)
 {
-	struct kseq *kseq;
+	struct tdq *tdq;
 	int i;
 
-	kseq = KSEQ_CPU(cpu);
+	tdq = TDQ_CPU(cpu);
 
-	printf("kseq:\n");
-	printf("\tload:           %d\n", kseq->ksq_load);
-	printf("\tload TIMESHARE: %d\n", kseq->ksq_load_timeshare);
+	printf("tdq:\n");
+	printf("\tload:           %d\n", tdq->ksq_load);
+	printf("\tload TIMESHARE: %d\n", tdq->ksq_load_timeshare);
 #ifdef SMP
-	printf("\tload transferable: %d\n", kseq->ksq_transferable);
+	printf("\tload transferable: %d\n", tdq->ksq_transferable);
 #endif
-	printf("\tnicemin:\t%d\n", kseq->ksq_nicemin);
+	printf("\tnicemin:\t%d\n", tdq->ksq_nicemin);
 	printf("\tnice counts:\n");
 	for (i = 0; i < SCHED_PRI_NRESV; i++)
-		if (kseq->ksq_nice[i])
+		if (tdq->ksq_nice[i])
 			printf("\t\t%d = %d\n",
-			    i - SCHED_PRI_NHALF, kseq->ksq_nice[i]);
+			    i - SCHED_PRI_NHALF, tdq->ksq_nice[i]);
 }
 
 static __inline void
-kseq_runq_add(struct kseq *kseq, struct kse *ke, int flags)
+tdq_runq_add(struct tdq *tdq, struct td_sched *ts, int flags)
 {
 #ifdef SMP
-	if (KSE_CAN_MIGRATE(ke)) {
-		kseq->ksq_transferable++;
-		kseq->ksq_group->ksg_transferable++;
-		ke->ke_flags |= KEF_XFERABLE;
+	if (THREAD_CAN_MIGRATE(ts)) {
+		tdq->ksq_transferable++;
+		tdq->ksq_group->ksg_transferable++;
+		ts->ts_flags |= TSF_XFERABLE;
 	}
 #endif
-	if (ke->ke_flags & KEF_PREEMPTED)
+	if (ts->ts_flags & TSF_PREEMPTED)
 		flags |= SRQ_PREEMPTED;
-	runq_add(ke->ke_runq, ke, flags);
+	runq_add(ts->ts_runq, ts, flags);
 }
 
 static __inline void
-kseq_runq_rem(struct kseq *kseq, struct kse *ke)
+tdq_runq_rem(struct tdq *tdq, struct td_sched *ts)
 {
 #ifdef SMP
-	if (ke->ke_flags & KEF_XFERABLE) {
-		kseq->ksq_transferable--;
-		kseq->ksq_group->ksg_transferable--;
-		ke->ke_flags &= ~KEF_XFERABLE;
+	if (ts->ts_flags & TSF_XFERABLE) {
+		tdq->ksq_transferable--;
+		tdq->ksq_group->ksg_transferable--;
+		ts->ts_flags &= ~TSF_XFERABLE;
 	}
 #endif
-	runq_remove(ke->ke_runq, ke);
+	runq_remove(ts->ts_runq, ts);
 }
 
 static void
-kseq_load_add(struct kseq *kseq, struct kse *ke)
+tdq_load_add(struct tdq *tdq, struct td_sched *ts)
 {
 	int class;
 	mtx_assert(&sched_lock, MA_OWNED);
-	class = PRI_BASE(ke->ke_thread->td_pri_class);
+	class = PRI_BASE(ts->ts_thread->td_pri_class);
 	if (class == PRI_TIMESHARE)
-		kseq->ksq_load_timeshare++;
-	kseq->ksq_load++;
-	CTR1(KTR_SCHED, "load: %d", kseq->ksq_load);
-	if (class != PRI_ITHD && (ke->ke_thread->td_proc->p_flag & P_NOLOAD) == 0)
+		tdq->ksq_load_timeshare++;
+	tdq->ksq_load++;
+	CTR1(KTR_SCHED, "load: %d", tdq->ksq_load);
+	if (class != PRI_ITHD && (ts->ts_thread->td_proc->p_flag & P_NOLOAD) == 0)
 #ifdef SMP
-		kseq->ksq_group->ksg_load++;
+		tdq->ksq_group->ksg_load++;
 #else
-		kseq->ksq_sysload++;
+		tdq->ksq_sysload++;
 #endif
-	if (ke->ke_thread->td_pri_class == PRI_TIMESHARE)
-		kseq_nice_add(kseq, ke->ke_thread->td_proc->p_nice);
+	if (ts->ts_thread->td_pri_class == PRI_TIMESHARE)
+		tdq_nice_add(tdq, ts->ts_thread->td_proc->p_nice);
 }
 
 static void
-kseq_load_rem(struct kseq *kseq, struct kse *ke)
+tdq_load_rem(struct tdq *tdq, struct td_sched *ts)
 {
 	int class;
 	mtx_assert(&sched_lock, MA_OWNED);
-	class = PRI_BASE(ke->ke_thread->td_pri_class);
+	class = PRI_BASE(ts->ts_thread->td_pri_class);
 	if (class == PRI_TIMESHARE)
-		kseq->ksq_load_timeshare--;
-	if (class != PRI_ITHD  && (ke->ke_thread->td_proc->p_flag & P_NOLOAD) == 0)
+		tdq->ksq_load_timeshare--;
+	if (class != PRI_ITHD  && (ts->ts_thread->td_proc->p_flag & P_NOLOAD) == 0)
 #ifdef SMP
-		kseq->ksq_group->ksg_load--;
+		tdq->ksq_group->ksg_load--;
 #else
-		kseq->ksq_sysload--;
+		tdq->ksq_sysload--;
 #endif
-	kseq->ksq_load--;
-	CTR1(KTR_SCHED, "load: %d", kseq->ksq_load);
-	ke->ke_runq = NULL;
-	if (ke->ke_thread->td_pri_class == PRI_TIMESHARE)
-		kseq_nice_rem(kseq, ke->ke_thread->td_proc->p_nice);
+	tdq->ksq_load--;
+	CTR1(KTR_SCHED, "load: %d", tdq->ksq_load);
+	ts->ts_runq = NULL;
+	if (ts->ts_thread->td_pri_class == PRI_TIMESHARE)
+		tdq_nice_rem(tdq, ts->ts_thread->td_proc->p_nice);
 }
 
 static void
-kseq_nice_add(struct kseq *kseq, int nice)
+tdq_nice_add(struct tdq *tdq, int nice)
 {
 	mtx_assert(&sched_lock, MA_OWNED);
 	/* Normalize to zero. */
-	kseq->ksq_nice[nice + SCHED_PRI_NHALF]++;
-	if (nice < kseq->ksq_nicemin || kseq->ksq_load_timeshare == 1)
-		kseq->ksq_nicemin = nice;
+	tdq->ksq_nice[nice + SCHED_PRI_NHALF]++;
+	if (nice < tdq->ksq_nicemin || tdq->ksq_load_timeshare == 1)
+		tdq->ksq_nicemin = nice;
 }
 
 static void
-kseq_nice_rem(struct kseq *kseq, int nice) 
+tdq_nice_rem(struct tdq *tdq, int nice) 
 {
 	int n;
 
 	mtx_assert(&sched_lock, MA_OWNED);
 	/* Normalize to zero. */
 	n = nice + SCHED_PRI_NHALF;
-	kseq->ksq_nice[n]--;
-	KASSERT(kseq->ksq_nice[n] >= 0, ("Negative nice count."));
+	tdq->ksq_nice[n]--;
+	KASSERT(tdq->ksq_nice[n] >= 0, ("Negative nice count."));
 
 	/*
 	 * If this wasn't the smallest nice value or there are more in
 	 * this bucket we can just return.  Otherwise we have to recalculate
 	 * the smallest nice.
 	 */
-	if (nice != kseq->ksq_nicemin ||
-	    kseq->ksq_nice[n] != 0 ||
-	    kseq->ksq_load_timeshare == 0)
+	if (nice != tdq->ksq_nicemin ||
+	    tdq->ksq_nice[n] != 0 ||
+	    tdq->ksq_load_timeshare == 0)
 		return;
 
 	for (; n < SCHED_PRI_NRESV; n++)
-		if (kseq->ksq_nice[n]) {
-			kseq->ksq_nicemin = n - SCHED_PRI_NHALF;
+		if (tdq->ksq_nice[n]) {
+			tdq->ksq_nicemin = n - SCHED_PRI_NHALF;
 			return;
 		}
 }
@@ -454,9 +451,9 @@ kseq_nice_rem(struct kseq *kseq, int nice)
 static void
 sched_balance(void)
 {
-	struct kseq_group *high;
-	struct kseq_group *low;
-	struct kseq_group *ksg;
+	struct tdq_group *high;
+	struct tdq_group *low;
+	struct tdq_group *ksg;
 	int cnt;
 	int i;
 
@@ -466,7 +463,7 @@ sched_balance(void)
 	low = high = NULL;
 	i = random() % (ksg_maxid + 1);
 	for (cnt = 0; cnt <= ksg_maxid; cnt++) {
-		ksg = KSEQ_GROUP(i);
+		ksg = TDQ_GROUP(i);
 		/*
 		 * Find the CPU with the highest load that has some
 		 * threads to transfer.
@@ -493,34 +490,34 @@ sched_balance_groups(void)
 	mtx_assert(&sched_lock, MA_OWNED);
 	if (smp_started)
 		for (i = 0; i <= ksg_maxid; i++)
-			sched_balance_group(KSEQ_GROUP(i));
+			sched_balance_group(TDQ_GROUP(i));
 }
 
 static void
-sched_balance_group(struct kseq_group *ksg)
+sched_balance_group(struct tdq_group *ksg)
 {
-	struct kseq *kseq;
-	struct kseq *high;
-	struct kseq *low;
+	struct tdq *tdq;
+	struct tdq *high;
+	struct tdq *low;
 	int load;
 
 	if (ksg->ksg_transferable == 0)
 		return;
 	low = NULL;
 	high = NULL;
-	LIST_FOREACH(kseq, &ksg->ksg_members, ksq_siblings) {
-		load = kseq->ksq_load;
+	LIST_FOREACH(tdq, &ksg->ksg_members, ksq_siblings) {
+		load = tdq->ksq_load;
 		if (high == NULL || load > high->ksq_load)
-			high = kseq;
+			high = tdq;
 		if (low == NULL || load < low->ksq_load)
-			low = kseq;
+			low = tdq;
 	}
 	if (high != NULL && low != NULL && high != low)
 		sched_balance_pair(high, low);
 }
 
 static void
-sched_balance_pair(struct kseq *high, struct kseq *low)
+sched_balance_pair(struct tdq *high, struct tdq *low)
 {
 	int transferable;
 	int high_load;
@@ -531,7 +528,7 @@ sched_balance_pair(struct kseq *high, struct kseq *low)
 
 	/*
 	 * If we're transfering within a group we have to use this specific
-	 * kseq's transferable count, otherwise we can steal from other members
+	 * tdq's transferable count, otherwise we can steal from other members
 	 * of the group.
 	 */
 	if (high->ksq_group == low->ksq_group) {
@@ -555,135 +552,135 @@ sched_balance_pair(struct kseq *high, struct kseq *low)
 		move++;
 	move = min(move, transferable);
 	for (i = 0; i < move; i++)
-		kseq_move(high, KSEQ_ID(low));
+		tdq_move(high, TDQ_ID(low));
 	return;
 }
 
 static void
-kseq_move(struct kseq *from, int cpu)
+tdq_move(struct tdq *from, int cpu)
 {
-	struct kseq *kseq;
-	struct kseq *to;
-	struct kse *ke;
+	struct tdq *tdq;
+	struct tdq *to;
+	struct td_sched *ts;
 
-	kseq = from;
-	to = KSEQ_CPU(cpu);
-	ke = kseq_steal(kseq, 1);
-	if (ke == NULL) {
-		struct kseq_group *ksg;
+	tdq = from;
+	to = TDQ_CPU(cpu);
+	ts = tdq_steal(tdq, 1);
+	if (ts == NULL) {
+		struct tdq_group *ksg;
 
-		ksg = kseq->ksq_group;
-		LIST_FOREACH(kseq, &ksg->ksg_members, ksq_siblings) {
-			if (kseq == from || kseq->ksq_transferable == 0)
+		ksg = tdq->ksq_group;
+		LIST_FOREACH(tdq, &ksg->ksg_members, ksq_siblings) {
+			if (tdq == from || tdq->ksq_transferable == 0)
 				continue;
-			ke = kseq_steal(kseq, 1);
+			ts = tdq_steal(tdq, 1);
 			break;
 		}
-		if (ke == NULL)
-			panic("kseq_move: No KSEs available with a "
+		if (ts == NULL)
+			panic("tdq_move: No threads available with a "
 			    "transferable count of %d\n", 
 			    ksg->ksg_transferable);
 	}
-	if (kseq == to)
+	if (tdq == to)
 		return;
-	ke->ke_state = KES_THREAD;
-	kseq_runq_rem(kseq, ke);
-	kseq_load_rem(kseq, ke);
-	kseq_notify(ke, cpu);
+	ts->ts_state = TSS_THREAD;
+	tdq_runq_rem(tdq, ts);
+	tdq_load_rem(tdq, ts);
+	tdq_notify(ts, cpu);
 }
 
 static int
-kseq_idled(struct kseq *kseq)
+tdq_idled(struct tdq *tdq)
 {
-	struct kseq_group *ksg;
-	struct kseq *steal;
-	struct kse *ke;
+	struct tdq_group *ksg;
+	struct tdq *steal;
+	struct td_sched *ts;
 
-	ksg = kseq->ksq_group;
+	ksg = tdq->ksq_group;
 	/*
 	 * If we're in a cpu group, try and steal kses from another cpu in
 	 * the group before idling.
 	 */
 	if (ksg->ksg_cpus > 1 && ksg->ksg_transferable) {
 		LIST_FOREACH(steal, &ksg->ksg_members, ksq_siblings) {
-			if (steal == kseq || steal->ksq_transferable == 0)
+			if (steal == tdq || steal->ksq_transferable == 0)
 				continue;
-			ke = kseq_steal(steal, 0);
-			if (ke == NULL)
+			ts = tdq_steal(steal, 0);
+			if (ts == NULL)
 				continue;
-			ke->ke_state = KES_THREAD;
-			kseq_runq_rem(steal, ke);
-			kseq_load_rem(steal, ke);
-			ke->ke_cpu = PCPU_GET(cpuid);
-			ke->ke_flags |= KEF_INTERNAL | KEF_HOLD;
-			sched_add(ke->ke_thread, SRQ_YIELDING);
+			ts->ts_state = TSS_THREAD;
+			tdq_runq_rem(steal, ts);
+			tdq_load_rem(steal, ts);
+			ts->ts_cpu = PCPU_GET(cpuid);
+			ts->ts_flags |= TSF_INTERNAL | TSF_HOLD;
+			sched_add(ts->ts_thread, SRQ_YIELDING);
 			return (0);
 		}
 	}
 	/*
 	 * We only set the idled bit when all of the cpus in the group are
-	 * idle.  Otherwise we could get into a situation where a KSE bounces
+	 * idle.  Otherwise we could get into a situation where a thread bounces
 	 * back and forth between two idle cores on seperate physical CPUs.
 	 */
 	ksg->ksg_idlemask |= PCPU_GET(cpumask);
 	if (ksg->ksg_idlemask != ksg->ksg_cpumask)
 		return (1);
-	atomic_set_int(&kseq_idle, ksg->ksg_mask);
+	atomic_set_int(&tdq_idle, ksg->ksg_mask);
 	return (1);
 }
 
 static void
-kseq_assign(struct kseq *kseq)
+tdq_assign(struct tdq *tdq)
 {
-	struct kse *nke;
-	struct kse *ke;
+	struct td_sched *nts;
+	struct td_sched *ts;
 
 	do {
-		*(volatile struct kse **)&ke = kseq->ksq_assigned;
-	} while(!atomic_cmpset_ptr((volatile uintptr_t *)&kseq->ksq_assigned,
-		(uintptr_t)ke, (uintptr_t)NULL));
-	for (; ke != NULL; ke = nke) {
-		nke = ke->ke_assign;
-		kseq->ksq_group->ksg_load--;
-		kseq->ksq_load--;
-		ke->ke_flags &= ~KEF_ASSIGNED;
-		if (ke->ke_flags & KEF_REMOVED) {
-			ke->ke_flags &= ~KEF_REMOVED;
+		*(volatile struct td_sched **)&ts = tdq->ksq_assigned;
+	} while(!atomic_cmpset_ptr((volatile uintptr_t *)&tdq->ksq_assigned,
+		(uintptr_t)ts, (uintptr_t)NULL));
+	for (; ts != NULL; ts = nts) {
+		nts = ts->ts_assign;
+		tdq->ksq_group->ksg_load--;
+		tdq->ksq_load--;
+		ts->ts_flags &= ~TSF_ASSIGNED;
+		if (ts->ts_flags & TSF_REMOVED) {
+			ts->ts_flags &= ~TSF_REMOVED;
 			continue;
 		}
-		ke->ke_flags |= KEF_INTERNAL | KEF_HOLD;
-		sched_add(ke->ke_thread, SRQ_YIELDING);
+		ts->ts_flags |= TSF_INTERNAL | TSF_HOLD;
+		sched_add(ts->ts_thread, SRQ_YIELDING);
 	}
 }
 
 static void
-kseq_notify(struct kse *ke, int cpu)
+tdq_notify(struct td_sched *ts, int cpu)
 {
-	struct kseq *kseq;
+	struct tdq *tdq;
 	struct thread *td;
 	struct pcpu *pcpu;
 	int class;
 	int prio;
 
-	kseq = KSEQ_CPU(cpu);
+	tdq = TDQ_CPU(cpu);
 	/* XXX */
-	class = PRI_BASE(ke->ke_thread->td_pri_class);
+	class = PRI_BASE(ts->ts_thread->td_pri_class);
 	if ((class == PRI_TIMESHARE || class == PRI_REALTIME) &&
-	    (kseq_idle & kseq->ksq_group->ksg_mask)) 
-		atomic_clear_int(&kseq_idle, kseq->ksq_group->ksg_mask);
-	kseq->ksq_group->ksg_load++;
-	kseq->ksq_load++;
-	ke->ke_cpu = cpu;
-	ke->ke_flags |= KEF_ASSIGNED;
-	prio = ke->ke_thread->td_priority;
+	    (tdq_idle & tdq->ksq_group->ksg_mask)) 
+		atomic_clear_int(&tdq_idle, tdq->ksq_group->ksg_mask);
+	tdq->ksq_group->ksg_load++;
+	tdq->ksq_load++;
+	ts->ts_cpu = cpu;
+	ts->ts_flags |= TSF_ASSIGNED;
+	prio = ts->ts_thread->td_priority;
 
 	/*
-	 * Place a KSE on another cpu's queue and force a resched.
+	 * Place a thread on another cpu's queue and force a resched.
 	 */
 	do {
-		*(volatile struct kse **)&ke->ke_assign = kseq->ksq_assigned;
-	} while(!atomic_cmpset_ptr((volatile uintptr_t *)&kseq->ksq_assigned,
-		(uintptr_t)ke->ke_assign, (uintptr_t)ke));
+		*(volatile struct td_sched **)&ts->ts_assign = tdq->ksq_assigned;
+	} while(!atomic_cmpset_ptr((volatile uintptr_t *)&tdq->ksq_assigned,
+		(uintptr_t)ts->ts_assign, (uintptr_t)ts));
 	/*
 	 * Without sched_lock we could lose a race where we set NEEDRESCHED
 	 * on a thread that is switched out before the IPI is delivered.  This
@@ -692,19 +689,19 @@ kseq_notify(struct kse *ke, int cpu)
 	 */
 	pcpu = pcpu_find(cpu);
 	td = pcpu->pc_curthread;
-	if (ke->ke_thread->td_priority < td->td_priority ||
+	if (ts->ts_thread->td_priority < td->td_priority ||
 	    td == pcpu->pc_idlethread) {
 		td->td_flags |= TDF_NEEDRESCHED;
 		ipi_selected(1 << cpu, IPI_AST);
 	}
 }
 
-static struct kse *
+static struct td_sched *
 runq_steal(struct runq *rq)
 {
 	struct rqhead *rqh;
 	struct rqbits *rqb;
-	struct kse *ke;
+	struct td_sched *ts;
 	int word;
 	int bit;
 
@@ -717,39 +714,39 @@ runq_steal(struct runq *rq)
 			if ((rqb->rqb_bits[word] & (1ul << bit)) == 0)
 				continue;
 			rqh = &rq->rq_queues[bit + (word << RQB_L2BPW)];
-			TAILQ_FOREACH(ke, rqh, ke_procq) {
-				if (KSE_CAN_MIGRATE(ke))
-					return (ke);
+			TAILQ_FOREACH(ts, rqh, ts_procq) {
+				if (THREAD_CAN_MIGRATE(ts))
+					return (ts);
 			}
 		}
 	}
 	return (NULL);
 }
 
-static struct kse *
-kseq_steal(struct kseq *kseq, int stealidle)
+static struct td_sched *
+tdq_steal(struct tdq *tdq, int stealidle)
 {
-	struct kse *ke;
+	struct td_sched *ts;
 
 	/*
 	 * Steal from next first to try to get a non-interactive task that
 	 * may not have run for a while.
 	 */
-	if ((ke = runq_steal(kseq->ksq_next)) != NULL)
-		return (ke);
-	if ((ke = runq_steal(kseq->ksq_curr)) != NULL)
-		return (ke);
+	if ((ts = runq_steal(tdq->ksq_next)) != NULL)
+		return (ts);
+	if ((ts = runq_steal(tdq->ksq_curr)) != NULL)
+		return (ts);
 	if (stealidle)
-		return (runq_steal(&kseq->ksq_idle));
+		return (runq_steal(&tdq->ksq_idle));
 	return (NULL);
 }
 
 int
-kseq_transfer(struct kseq *kseq, struct kse *ke, int class)
+tdq_transfer(struct tdq *tdq, struct td_sched *ts, int class)
 {
-	struct kseq_group *nksg;
-	struct kseq_group *ksg;
-	struct kseq *old;
+	struct tdq_group *nksg;
+	struct tdq_group *ksg;
+	struct tdq *old;
 	int cpu;
 	int idx;
 
@@ -767,16 +764,16 @@ kseq_transfer(struct kseq *kseq, struct kse *ke, int class)
 	 * some CPUs may idle.  Too low and there will be excess migration
 	 * and context switches.
 	 */
-	old = KSEQ_CPU(ke->ke_cpu);
+	old = TDQ_CPU(ts->ts_cpu);
 	nksg = old->ksq_group;
-	ksg = kseq->ksq_group;
-	if (kseq_idle) {
-		if (kseq_idle & nksg->ksg_mask) {
+	ksg = tdq->ksq_group;
+	if (tdq_idle) {
+		if (tdq_idle & nksg->ksg_mask) {
 			cpu = ffs(nksg->ksg_idlemask);
 			if (cpu) {
 				CTR2(KTR_SCHED,
-				    "kseq_transfer: %p found old cpu %X " 
-				    "in idlemask.", ke, cpu);
+				    "tdq_transfer: %p found old cpu %X " 
+				    "in idlemask.", ts, cpu);
 				goto migrate;
 			}
 		}
@@ -784,30 +781,30 @@ kseq_transfer(struct kseq *kseq, struct kse *ke, int class)
 		 * Multiple cpus could find this bit simultaneously
 		 * but the race shouldn't be terrible.
 		 */
-		cpu = ffs(kseq_idle);
+		cpu = ffs(tdq_idle);
 		if (cpu) {
-			CTR2(KTR_SCHED, "kseq_transfer: %p found %X " 
-			    "in idlemask.", ke, cpu);
+			CTR2(KTR_SCHED, "tdq_transfer: %p found %X " 
+			    "in idlemask.", ts, cpu);
 			goto migrate;
 		}
 	}
 	idx = 0;
 #if 0
-	if (old->ksq_load < kseq->ksq_load) {
-		cpu = ke->ke_cpu + 1;
-		CTR2(KTR_SCHED, "kseq_transfer: %p old cpu %X " 
-		    "load less than ours.", ke, cpu);
+	if (old->ksq_load < tdq->ksq_load) {
+		cpu = ts->ts_cpu + 1;
+		CTR2(KTR_SCHED, "tdq_transfer: %p old cpu %X " 
+		    "load less than ours.", ts, cpu);
 		goto migrate;
 	}
 	/*
 	 * No new CPU was found, look for one with less load.
 	 */
 	for (idx = 0; idx <= ksg_maxid; idx++) {
-		nksg = KSEQ_GROUP(idx);
+		nksg = TDQ_GROUP(idx);
 		if (nksg->ksg_load /*+ (nksg->ksg_cpus  * 2)*/ < ksg->ksg_load) {
 			cpu = ffs(nksg->ksg_cpumask);
-			CTR2(KTR_SCHED, "kseq_transfer: %p cpu %X load less " 
-			    "than ours.", ke, cpu);
+			CTR2(KTR_SCHED, "tdq_transfer: %p cpu %X load less " 
+			    "than ours.", ts, cpu);
 			goto migrate;
 		}
 	}
@@ -819,8 +816,8 @@ kseq_transfer(struct kseq *kseq, struct kse *ke, int class)
 	if (ksg->ksg_idlemask) {
 		cpu = ffs(ksg->ksg_idlemask);
 		if (cpu) {
-			CTR2(KTR_SCHED, "kseq_transfer: %p cpu %X idle in " 
-			    "group.", ke, cpu);
+			CTR2(KTR_SCHED, "tdq_transfer: %p cpu %X idle in " 
+			    "group.", ts, cpu);
 			goto migrate;
 		}
 	}
@@ -830,8 +827,8 @@ migrate:
 	 * Now that we've found an idle CPU, migrate the thread.
 	 */
 	cpu--;
-	ke->ke_runq = NULL;
-	kseq_notify(ke, cpu);
+	ts->ts_runq = NULL;
+	tdq_notify(ts, cpu);
 
 	return (1);
 }
@@ -842,61 +839,61 @@ migrate:
  * Pick the highest priority task we have and return it.
  */
 
-static struct kse *
-kseq_choose(struct kseq *kseq)
+static struct td_sched *
+tdq_choose(struct tdq *tdq)
 {
 	struct runq *swap;
-	struct kse *ke;
+	struct td_sched *ts;
 	int nice;
 
 	mtx_assert(&sched_lock, MA_OWNED);
 	swap = NULL;
 
 	for (;;) {
-		ke = runq_choose(kseq->ksq_curr);
-		if (ke == NULL) {
+		ts = runq_choose(tdq->ksq_curr);
+		if (ts == NULL) {
 			/*
 			 * We already swapped once and didn't get anywhere.
 			 */
 			if (swap)
 				break;
-			swap = kseq->ksq_curr;
-			kseq->ksq_curr = kseq->ksq_next;
-			kseq->ksq_next = swap;
+			swap = tdq->ksq_curr;
+			tdq->ksq_curr = tdq->ksq_next;
+			tdq->ksq_next = swap;
 			continue;
 		}
 		/*
-		 * If we encounter a slice of 0 the kse is in a
-		 * TIMESHARE kse group and its nice was too far out
+		 * If we encounter a slice of 0 the td_sched is in a
+		 * TIMESHARE td_sched group and its nice was too far out
 		 * of the range that receives slices. 
 		 */
-		nice = ke->ke_thread->td_proc->p_nice + (0 - kseq->ksq_nicemin);
+		nice = ts->ts_thread->td_proc->p_nice + (0 - tdq->ksq_nicemin);
 #if 0
-		if (ke->ke_slice == 0 || (nice > SCHED_SLICE_NTHRESH &&
-		    ke->ke_thread->td_proc->p_nice != 0)) {
-			runq_remove(ke->ke_runq, ke);
-			sched_slice(ke);
-			ke->ke_runq = kseq->ksq_next;
-			runq_add(ke->ke_runq, ke, 0);
+		if (ts->ts_slice == 0 || (nice > SCHED_SLICE_NTHRESH &&
+		    ts->ts_thread->td_proc->p_nice != 0)) {
+			runq_remove(ts->ts_runq, ts);
+			sched_slice(ts);
+			ts->ts_runq = tdq->ksq_next;
+			runq_add(ts->ts_runq, ts, 0);
 			continue;
 		}
 #endif
-		return (ke);
+		return (ts);
 	}
 
-	return (runq_choose(&kseq->ksq_idle));
+	return (runq_choose(&tdq->ksq_idle));
 }
 
 static void
-kseq_setup(struct kseq *kseq)
+tdq_setup(struct tdq *tdq)
 {
-	runq_init(&kseq->ksq_timeshare[0]);
-	runq_init(&kseq->ksq_timeshare[1]);
-	runq_init(&kseq->ksq_idle);
-	kseq->ksq_curr = &kseq->ksq_timeshare[0];
-	kseq->ksq_next = &kseq->ksq_timeshare[1];
-	kseq->ksq_load = 0;
-	kseq->ksq_load_timeshare = 0;
+	runq_init(&tdq->ksq_timeshare[0]);
+	runq_init(&tdq->ksq_timeshare[1]);
+	runq_init(&tdq->ksq_idle);
+	tdq->ksq_curr = &tdq->ksq_timeshare[0];
+	tdq->ksq_next = &tdq->ksq_timeshare[1];
+	tdq->ksq_load = 0;
+	tdq->ksq_load_timeshare = 0;
 }
 
 static void
@@ -917,27 +914,27 @@ sched_setup(void *dummy)
 #ifdef SMP
 	balance_groups = 0;
 	/*
-	 * Initialize the kseqs.
+	 * Initialize the tdqs.
 	 */
 	for (i = 0; i < MAXCPU; i++) {
-		struct kseq *ksq;
+		struct tdq *ksq;
 
-		ksq = &kseq_cpu[i];
+		ksq = &tdq_cpu[i];
 		ksq->ksq_assigned = NULL;
-		kseq_setup(&kseq_cpu[i]);
+		tdq_setup(&tdq_cpu[i]);
 	}
 	if (smp_topology == NULL) {
-		struct kseq_group *ksg;
-		struct kseq *ksq;
+		struct tdq_group *ksg;
+		struct tdq *ksq;
 		int cpus;
 
 		for (cpus = 0, i = 0; i < MAXCPU; i++) {
 			if (CPU_ABSENT(i))
 				continue;
-			ksq = &kseq_cpu[i];
-			ksg = &kseq_groups[cpus];
+			ksq = &tdq_cpu[i];
+			ksg = &tdq_groups[cpus];
 			/*
-			 * Setup a kseq group with one member.
+			 * Setup a tdq group with one member.
 			 */
 			ksq->ksq_transferable = 0;
 			ksq->ksq_group = ksg;
@@ -952,13 +949,13 @@ sched_setup(void *dummy)
 		}
 		ksg_maxid = cpus - 1;
 	} else {
-		struct kseq_group *ksg;
+		struct tdq_group *ksg;
 		struct cpu_group *cg;
 		int j;
 
 		for (i = 0; i < smp_topology->ct_count; i++) {
 			cg = &smp_topology->ct_group[i];
-			ksg = &kseq_groups[i];
+			ksg = &tdq_groups[i];
 			/*
 			 * Initialize the group.
 			 */
@@ -975,10 +972,10 @@ sched_setup(void *dummy)
 				if ((cg->cg_mask & (1 << j)) != 0) {
 					if (ksg->ksg_mask == 0)
 						ksg->ksg_mask = 1 << j;
-					kseq_cpu[j].ksq_transferable = 0;
-					kseq_cpu[j].ksq_group = ksg;
+					tdq_cpu[j].ksq_transferable = 0;
+					tdq_cpu[j].ksq_group = ksg;
 					LIST_INSERT_HEAD(&ksg->ksg_members,
-					    &kseq_cpu[j], ksq_siblings);
+					    &tdq_cpu[j], ksq_siblings);
 				}
 			}
 			if (ksg->ksg_cpus > 1)
@@ -994,10 +991,10 @@ sched_setup(void *dummy)
 	if (balance_groups)
 		gbal_tick = ticks + (hz / 2);
 #else
-	kseq_setup(KSEQ_SELF());
+	tdq_setup(TDQ_SELF());
 #endif
 	mtx_lock_spin(&sched_lock);
-	kseq_load_add(KSEQ_SELF(), &kse0);
+	tdq_load_add(TDQ_SELF(), &td_sched0);
 	mtx_unlock_spin(&sched_lock);
 }
 
@@ -1042,71 +1039,67 @@ sched_priority(struct thread *td)
 	else if (pri < PRI_MIN_TIMESHARE)
 		pri = PRI_MIN_TIMESHARE;
 
-#ifdef KSE
-	sched_user_prio(kg, pri);
-#else
 	sched_user_prio(td, pri);
-#endif
 
 	return;
 }
 
 /*
- * Calculate a time slice based on the properties of the kseg and the runq
- * that we're on.  This is only for PRI_TIMESHARE threads.
+ * Calculate a time slice based on the properties of the process
+ * and the runq that we're on.  This is only for PRI_TIMESHARE threads.
  */
 static void
-sched_slice(struct kse *ke)
+sched_slice(struct td_sched *ts)
 {
-	struct kseq *kseq;
+	struct tdq *tdq;
 	struct thread *td;
 
-	td = ke->ke_thread;
-	kseq = KSEQ_CPU(ke->ke_cpu);
+	td = ts->ts_thread;
+	tdq = TDQ_CPU(ts->ts_cpu);
 
 	if (td->td_flags & TDF_BORROWING) {
-		ke->ke_slice = SCHED_SLICE_MIN;
+		ts->ts_slice = SCHED_SLICE_MIN;
 		return;
 	}
 
 	/*
 	 * Rationale:
-	 * KSEs in interactive ksegs get a minimal slice so that we
+	 * Threads in interactive procs get a minimal slice so that we
 	 * quickly notice if it abuses its advantage.
 	 *
-	 * KSEs in non-interactive ksegs are assigned a slice that is
-	 * based on the ksegs nice value relative to the least nice kseg
+	 * Threads in non-interactive procs are assigned a slice that is
+	 * based on the procs nice value relative to the least nice procs
 	 * on the run queue for this cpu.
 	 *
-	 * If the KSE is less nice than all others it gets the maximum
-	 * slice and other KSEs will adjust their slice relative to
+	 * If the thread is less nice than all others it gets the maximum
+	 * slice and other threads will adjust their slice relative to
 	 * this when they first expire.
 	 *
 	 * There is 20 point window that starts relative to the least
-	 * nice kse on the run queue.  Slice size is determined by
-	 * the kse distance from the last nice thread.
+	 * nice td_sched on the run queue.  Slice size is determined by
+	 * the td_sched distance from the last nice thread.
 	 *
-	 * If the kse is outside of the window it will get no slice
+	 * If the td_sched is outside of the window it will get no slice
 	 * and will be reevaluated each time it is selected on the
-	 * run queue.  The exception to this is nice 0 ksegs when
+	 * run queue.  The exception to this is nice 0 procs when
 	 * a nice -20 is running.  They are always granted a minimum
 	 * slice.
 	 */
 	if (!SCHED_INTERACTIVE(td)) {
 		int nice;
 
-		nice = td->td_proc->p_nice + (0 - kseq->ksq_nicemin);
-		if (kseq->ksq_load_timeshare == 0 ||
-		    td->td_proc->p_nice < kseq->ksq_nicemin)
-			ke->ke_slice = SCHED_SLICE_MAX;
+		nice = td->td_proc->p_nice + (0 - tdq->ksq_nicemin);
+		if (tdq->ksq_load_timeshare == 0 ||
+		    td->td_proc->p_nice < tdq->ksq_nicemin)
+			ts->ts_slice = SCHED_SLICE_MAX;
 		else if (nice <= SCHED_SLICE_NTHRESH)
-			ke->ke_slice = SCHED_SLICE_NICE(nice);
+			ts->ts_slice = SCHED_SLICE_NICE(nice);
 		else if (td->td_proc->p_nice == 0)
-			ke->ke_slice = SCHED_SLICE_MIN;
+			ts->ts_slice = SCHED_SLICE_MIN;
 		else
-			ke->ke_slice = SCHED_SLICE_MIN; /* 0 */
+			ts->ts_slice = SCHED_SLICE_MIN; /* 0 */
 	} else
-		ke->ke_slice = SCHED_SLICE_INTERACTIVE;
+		ts->ts_slice = SCHED_SLICE_INTERACTIVE;
 
 	return;
 }
@@ -1187,9 +1180,9 @@ schedinit(void)
 	 * Set up the scheduler specific parts of proc0.
 	 */
 	proc0.p_sched = NULL; /* XXX */
-	thread0.td_sched = &kse0;
-	kse0.ke_thread = &thread0;
-	kse0.ke_state = KES_THREAD;
+	thread0.td_sched = &td_sched0;
+	td_sched0.ts_thread = &thread0;
+	td_sched0.ts_state = TSS_THREAD;
 }
 
 /*
@@ -1204,35 +1197,35 @@ sched_rr_interval(void)
 }
 
 static void
-sched_pctcpu_update(struct kse *ke)
+sched_pctcpu_update(struct td_sched *ts)
 {
 	/*
 	 * Adjust counters and watermark for pctcpu calc.
 	 */
-	if (ke->ke_ltick > ticks - SCHED_CPU_TICKS) {
+	if (ts->ts_ltick > ticks - SCHED_CPU_TICKS) {
 		/*
 		 * Shift the tick count out so that the divide doesn't
 		 * round away our results.
 		 */
-		ke->ke_ticks <<= 10;
-		ke->ke_ticks = (ke->ke_ticks / (ticks - ke->ke_ftick)) *
+		ts->ts_ticks <<= 10;
+		ts->ts_ticks = (ts->ts_ticks / (ticks - ts->ts_ftick)) *
 			    SCHED_CPU_TICKS;
-		ke->ke_ticks >>= 10;
+		ts->ts_ticks >>= 10;
 	} else
-		ke->ke_ticks = 0;
-	ke->ke_ltick = ticks;
-	ke->ke_ftick = ke->ke_ltick - SCHED_CPU_TICKS;
+		ts->ts_ticks = 0;
+	ts->ts_ltick = ticks;
+	ts->ts_ftick = ts->ts_ltick - SCHED_CPU_TICKS;
 }
 
 void
 sched_thread_priority(struct thread *td, u_char prio)
 {
-	struct kse *ke;
+	struct td_sched *ts;
 
 	CTR6(KTR_SCHED, "sched_prio: %p(%s) prio %d newprio %d by %p(%s)",
 	    td, td->td_proc->p_comm, td->td_priority, prio, curthread,
 	    curthread->td_proc->p_comm);
-	ke = td->td_kse;
+	ts = td->td_sched;
 	mtx_assert(&sched_lock, MA_OWNED);
 	if (td->td_priority == prio)
 		return;
@@ -1243,21 +1236,21 @@ sched_thread_priority(struct thread *td, u_char prio)
 		 * queue.  We still call adjustrunqueue below in case kse
 		 * needs to fix things up.
 		 */
-		if (prio < td->td_priority && ke->ke_runq != NULL &&
-		    (ke->ke_flags & KEF_ASSIGNED) == 0 &&
-		    ke->ke_runq != KSEQ_CPU(ke->ke_cpu)->ksq_curr) {
-			runq_remove(ke->ke_runq, ke);
-			ke->ke_runq = KSEQ_CPU(ke->ke_cpu)->ksq_curr;
-			runq_add(ke->ke_runq, ke, 0);
+		if (prio < td->td_priority && ts->ts_runq != NULL &&
+		    (ts->ts_flags & TSF_ASSIGNED) == 0 &&
+		    ts->ts_runq != TDQ_CPU(ts->ts_cpu)->ksq_curr) {
+			runq_remove(ts->ts_runq, ts);
+			ts->ts_runq = TDQ_CPU(ts->ts_cpu)->ksq_curr;
+			runq_add(ts->ts_runq, ts, 0);
 		}
 		/*
-		 * Hold this kse on this cpu so that sched_prio() doesn't
+		 * Hold this td_sched on this cpu so that sched_prio() doesn't
 		 * cause excessive migration.  We only want migration to
 		 * happen as the result of a wakeup.
 		 */
-		ke->ke_flags |= KEF_HOLD;
+		ts->ts_flags |= TSF_HOLD;
 		adjustrunqueue(td, prio);
-		ke->ke_flags &= ~KEF_HOLD;
+		ts->ts_flags &= ~TSF_HOLD;
 	} else
 		td->td_priority = prio;
 }
@@ -1327,39 +1320,14 @@ sched_prio(struct thread *td, u_char prio)
 }
 
 void
-#ifdef KSE
-sched_user_prio(struct ksegrp *kg, u_char prio)
-#else
 sched_user_prio(struct thread *td, u_char prio)
-#endif
 {
-#ifdef KSE
-	struct thread *td;
-#endif
 	u_char oldprio;
 
-#ifdef KSE
-	kg->kg_base_user_pri = prio;
-
-	/* XXXKSE only for 1:1 */
-
-	td = TAILQ_FIRST(&kg->kg_threads);
-	if (td == NULL) {
-		kg->kg_user_pri = prio;
-		return;
-	}
-
-	if (td->td_flags & TDF_UBORROWING && kg->kg_user_pri <= prio)
-		return;
-
-	oldprio = kg->kg_user_pri;
-	kg->kg_user_pri = prio;
-#else
 	td->td_base_user_pri = prio;
 
 	oldprio = td->td_user_pri;
 	td->td_user_pri = prio;
-#endif
 
 	if (TD_ON_UPILOCK(td) && oldprio != prio)
 		umtx_pi_adjust(td, oldprio);
@@ -1372,13 +1340,8 @@ sched_lend_user_prio(struct thread *td, u_char prio)
 
 	td->td_flags |= TDF_UBORROWING;
 
-#ifdef KSE
-	oldprio = td->td_ksegrp->kg_user_pri;
-	td->td_ksegrp->kg_user_pri = prio;
-#else
 	oldprio = td->td_user_pri;
 	td->td_user_pri = prio;
-#endif
 
 	if (TD_ON_UPILOCK(td) && oldprio != prio)
 		umtx_pi_adjust(td, oldprio);
@@ -1387,23 +1350,12 @@ sched_lend_user_prio(struct thread *td, u_char prio)
 void
 sched_unlend_user_prio(struct thread *td, u_char prio)
 {
-#ifdef KSE
-	struct ksegrp *kg = td->td_ksegrp;
-#endif
 	u_char base_pri;
 
-#ifdef KSE
-	base_pri = kg->kg_base_user_pri;
-#else
 	base_pri = td->td_base_user_pri;
-#endif
 	if (prio >= base_pri) {
 		td->td_flags &= ~TDF_UBORROWING;
-#ifdef KSE
-		sched_user_prio(kg, base_pri);
-#else
 		sched_user_prio(td, base_pri);
-#endif
 	} else
 		sched_lend_user_prio(td, prio);
 }
@@ -1411,13 +1363,13 @@ sched_unlend_user_prio(struct thread *td, u_char prio)
 void
 sched_switch(struct thread *td, struct thread *newtd, int flags)
 {
-	struct kseq *ksq;
-	struct kse *ke;
+	struct tdq *ksq;
+	struct td_sched *ts;
 
 	mtx_assert(&sched_lock, MA_OWNED);
 
-	ke = td->td_kse;
-	ksq = KSEQ_SELF();
+	ts = td->td_sched;
+	ksq = TDQ_SELF();
 
 	td->td_lastcpu = td->td_oncpu;
 	td->td_oncpu = NOCPU;
@@ -1425,24 +1377,24 @@ sched_switch(struct thread *td, struct thread *newtd, int flags)
 	td->td_owepreempt = 0;
 
 	/*
-	 * If the KSE has been assigned it may be in the process of switching
+	 * If the thread has been assigned it may be in the process of switching
 	 * to the new cpu.  This is the case in sched_bind().
 	 */
 	if (td == PCPU_GET(idlethread)) {
 		TD_SET_CAN_RUN(td);
-	} else if ((ke->ke_flags & KEF_ASSIGNED) == 0) {
+	} else if ((ts->ts_flags & TSF_ASSIGNED) == 0) {
 		/* We are ending our run so make our slot available again */
-		kseq_load_rem(ksq, ke);
+		tdq_load_rem(ksq, ts);
 		if (TD_IS_RUNNING(td)) {
 			/*
 			 * Don't allow the thread to migrate
 			 * from a preemption.
 			 */
-			ke->ke_flags |= KEF_HOLD;
+			ts->ts_flags |= TSF_HOLD;
 			setrunqueue(td, (flags & SW_PREEMPT) ?
 			    SRQ_OURSELF|SRQ_YIELDING|SRQ_PREEMPTED :
 			    SRQ_OURSELF|SRQ_YIELDING);
-			ke->ke_flags &= ~KEF_HOLD;
+			ts->ts_flags &= ~TSF_HOLD;
 		}
 	}
 	if (newtd != NULL) {
@@ -1450,10 +1402,10 @@ sched_switch(struct thread *td, struct thread *newtd, int flags)
 		 * If we bring in a thread account for it as if it had been
 		 * added to the run queue and then chosen.
 		 */
-		newtd->td_kse->ke_flags |= KEF_DIDRUN;
-		newtd->td_kse->ke_runq = ksq->ksq_curr;
+		newtd->td_sched->ts_flags |= TSF_DIDRUN;
+		newtd->td_sched->ts_runq = ksq->ksq_curr;
 		TD_SET_RUNNING(newtd);
-		kseq_load_add(KSEQ_SELF(), newtd->td_kse);
+		tdq_load_add(TDQ_SELF(), newtd->td_sched);
 	} else
 		newtd = choosethread();
 	if (td != newtd) {
@@ -1477,23 +1429,23 @@ sched_switch(struct thread *td, struct thread *newtd, int flags)
 void
 sched_nice(struct proc *p, int nice)
 {
-	struct kse *ke;
+	struct td_sched *ts;
 	struct thread *td;
-	struct kseq *kseq;
+	struct tdq *tdq;
 
 	PROC_LOCK_ASSERT(p, MA_OWNED);
 	mtx_assert(&sched_lock, MA_OWNED);
 	/*
-	 * We need to adjust the nice counts for running KSEs.
+	 * We need to adjust the nice counts for running threads.
 	 */
 	FOREACH_THREAD_IN_PROC(p, td) {
 		if (td->td_pri_class == PRI_TIMESHARE) {
-			ke = td->td_kse;
-			if (ke->ke_runq == NULL)
+			ts = td->td_sched;
+			if (ts->ts_runq == NULL)
 				continue;
-			kseq = KSEQ_CPU(ke->ke_cpu);
-			kseq_nice_rem(kseq, p->p_nice);
-			kseq_nice_add(kseq, nice);
+			tdq = TDQ_CPU(ts->ts_cpu);
+			tdq_nice_rem(tdq, p->p_nice);
+			tdq_nice_add(tdq, nice);
 		}
 	}
 	p->p_nice = nice;
@@ -1508,7 +1460,7 @@ sched_sleep(struct thread *td)
 {
 	mtx_assert(&sched_lock, MA_OWNED);
 
-	td->td_kse->ke_slptime = ticks;
+	td->td_sched->ts_slptime = ticks;
 }
 
 void
@@ -1517,13 +1469,13 @@ sched_wakeup(struct thread *td)
 	mtx_assert(&sched_lock, MA_OWNED);
 
 	/*
-	 * Let the kseg know how long we slept for.  This is because process
-	 * interactivity behavior is modeled in the kseg.
+	 * Let the procs know how long we slept for.  This is because process
+	 * interactivity behavior is modeled in the procs.
 	 */
-	if (td->td_kse->ke_slptime) {
+	if (td->td_sched->ts_slptime) {
 		int hzticks;
 
-		hzticks = (ticks - td->td_kse->ke_slptime) << 10;
+		hzticks = (ticks - td->td_sched->ts_slptime) << 10;
 		if (hzticks >= SCHED_SLP_RUN_MAX) {
 			td->td_sched->skg_slptime = SCHED_SLP_RUN_MAX;
 			td->td_sched->skg_runtime = 1;
@@ -1532,8 +1484,8 @@ sched_wakeup(struct thread *td)
 			sched_interact_update(td);
 		}
 		sched_priority(td);
-		sched_slice(td->td_kse);
-		td->td_kse->ke_slptime = 0;
+		sched_slice(td->td_sched);
+		td->td_sched->ts_slptime = 0;
 	}
 	setrunqueue(td, SRQ_BORING);
 }
@@ -1545,10 +1497,15 @@ sched_wakeup(struct thread *td)
 void
 sched_fork(struct thread *td, struct thread *child)
 {
-	struct kse *ke;
-	struct kse *ke2;
-
 	mtx_assert(&sched_lock, MA_OWNED);
+	sched_fork_thread(td, child);
+}
+
+void
+sched_fork_thread(struct thread *td, struct thread *child)
+{
+	struct td_sched *ts;
+	struct td_sched *ts2;
 
 	child->td_sched->skg_slptime = td->td_sched->skg_slptime;
 	child->td_sched->skg_runtime = td->td_sched->skg_runtime;
@@ -1560,23 +1517,23 @@ sched_fork(struct thread *td, struct thread *child)
 
 	sched_newthread(child);
 
-	ke = td->td_kse;
-	ke2 = child->td_kse;
-	ke2->ke_slice = 1;	/* Attempt to quickly learn interactivity. */
-	ke2->ke_cpu = ke->ke_cpu;
-	ke2->ke_runq = NULL;
+	ts = td->td_sched;
+	ts2 = child->td_sched;
+	ts2->ts_slice = 1;	/* Attempt to quickly learn interactivity. */
+	ts2->ts_cpu = ts->ts_cpu;
+	ts2->ts_runq = NULL;
 
 	/* Grab our parents cpu estimation information. */
-	ke2->ke_ticks = ke->ke_ticks;
-	ke2->ke_ltick = ke->ke_ltick;
-	ke2->ke_ftick = ke->ke_ftick;
+	ts2->ts_ticks = ts->ts_ticks;
+	ts2->ts_ltick = ts->ts_ltick;
+	ts2->ts_ftick = ts->ts_ftick;
 }
 
 void
 sched_class(struct thread *td, int class)
 {
-	struct kseq *kseq;
-	struct kse *ke;
+	struct tdq *tdq;
+	struct td_sched *ts;
 	int nclass;
 	int oclass;
 
@@ -1586,36 +1543,36 @@ sched_class(struct thread *td, int class)
 
 	nclass = PRI_BASE(class);
 	oclass = PRI_BASE(td->td_pri_class);
-	ke = td->td_kse;
-	if ((ke->ke_state != KES_ONRUNQ &&
-	    ke->ke_state != KES_THREAD) || ke->ke_runq == NULL)
-		continue;
-	kseq = KSEQ_CPU(ke->ke_cpu);
+	ts = td->td_sched;
+	if (!((ts->ts_state != TSS_ONRUNQ &&
+	    ts->ts_state != TSS_THREAD) || ts->ts_runq == NULL)) {
+		tdq = TDQ_CPU(ts->ts_cpu);
 
 #ifdef SMP
-	/*
-	 * On SMP if we're on the RUNQ we must adjust the transferable
-	 * count because could be changing to or from an interrupt
-	 * class.
-	 */
-	if (ke->ke_state == KES_ONRUNQ) {
-		if (KSE_CAN_MIGRATE(ke)) {
-			kseq->ksq_transferable--;
-			kseq->ksq_group->ksg_transferable--;
+		/*
+		 * On SMP if we're on the RUNQ we must adjust the transferable
+		 * count because could be changing to or from an interrupt
+		 * class.
+		 */
+		if (ts->ts_state == TSS_ONRUNQ) {
+			if (THREAD_CAN_MIGRATE(ts)) {
+				tdq->ksq_transferable--;
+				tdq->ksq_group->ksg_transferable--;
+			}
+			if (THREAD_CAN_MIGRATE(ts)) {
+				tdq->ksq_transferable++;
+				tdq->ksq_group->ksg_transferable++;
+			}
 		}
-		if (KSE_CAN_MIGRATE(ke)) {
-			kseq->ksq_transferable++;
-			kseq->ksq_group->ksg_transferable++;
-		}
-	}
 #endif
-	if (oclass == PRI_TIMESHARE) {
-		kseq->ksq_load_timeshare--;
-		kseq_nice_rem(kseq, td->td_proc->p_nice);
-	}
-	if (nclass == PRI_TIMESHARE) {
-		kseq->ksq_load_timeshare++;
-		kseq_nice_add(kseq, td->td_proc->p_nice);
+		if (oclass == PRI_TIMESHARE) {
+			tdq->ksq_load_timeshare--;
+			tdq_nice_rem(tdq, td->td_proc->p_nice);
+		}
+		if (nclass == PRI_TIMESHARE) {
+			tdq->ksq_load_timeshare++;
+			tdq_nice_add(tdq, td->td_proc->p_nice);
+		}
 	}
 
 	td->td_pri_class = class;
@@ -1637,17 +1594,44 @@ sched_exit(struct proc *p, struct thread *childtd)
 	parent->td_sched->skg_runtime += childtd->td_sched->skg_runtime;
 	sched_interact_update(parent);
 
-	kseq_load_rem(KSEQ_CPU(childtd->td_kse->ke_cpu), childtd->td_kse);
+	tdq_load_rem(TDQ_CPU(childtd->td_sched->ts_cpu), childtd->td_sched);
+}
+
+void
+sched_exit_thread(struct thread *td, struct thread *childtd)
+{
+}
+
+void
+sched_userret(struct thread *td)
+{
+	/*
+	 * XXX we cheat slightly on the locking here to avoid locking in  
+	 * the usual case.  Setting td_priority here is essentially an
+	 * incomplete workaround for not setting it properly elsewhere.
+	 * Now that some interrupt handlers are threads, not setting it
+	 * properly elsewhere can clobber it in the window between setting
+	 * it here and returning to user mode, so don't waste time setting
+	 * it perfectly here.
+	 */
+	KASSERT((td->td_flags & TDF_BORROWING) == 0,
+	    ("thread with borrowed priority returning to userland"));
+	if (td->td_priority != td->td_user_pri) {
+		mtx_lock_spin(&sched_lock);
+		td->td_priority = td->td_user_pri;
+		td->td_base_pri = td->td_user_pri;
+		mtx_unlock_spin(&sched_lock);
+        }
 }
 
 void
 sched_clock(struct thread *td)
 {
-	struct kseq *kseq;
-	struct kse *ke;
+	struct tdq *tdq;
+	struct td_sched *ts;
 
 	mtx_assert(&sched_lock, MA_OWNED);
-	kseq = KSEQ_SELF();
+	tdq = TDQ_SELF();
 #ifdef SMP
 	if (ticks >= bal_tick)
 		sched_balance();
@@ -1657,18 +1641,18 @@ sched_clock(struct thread *td)
 	 * We could have been assigned a non real-time thread without an
 	 * IPI.
 	 */
-	if (kseq->ksq_assigned)
-		kseq_assign(kseq);	/* Potentially sets NEEDRESCHED */
+	if (tdq->ksq_assigned)
+		tdq_assign(tdq);	/* Potentially sets NEEDRESCHED */
 #endif
-	ke = td->td_kse;
+	ts = td->td_sched;
 
 	/* Adjust ticks for pctcpu */
-	ke->ke_ticks++;
-	ke->ke_ltick = ticks;
+	ts->ts_ticks++;
+	ts->ts_ltick = ticks;
 
 	/* Go up to one second beyond our max and then trim back down */
-	if (ke->ke_ftick + SCHED_CPU_TICKS + hz < ke->ke_ltick)
-		sched_pctcpu_update(ke);
+	if (ts->ts_ftick + SCHED_CPU_TICKS + hz < ts->ts_ltick)
+		sched_pctcpu_update(ts);
 
 	if (td->td_flags & TDF_IDLETD)
 		return;
@@ -1687,76 +1671,76 @@ sched_clock(struct thread *td)
 	/*
 	 * We used up one time slice.
 	 */
-	if (--ke->ke_slice > 0)
+	if (--ts->ts_slice > 0)
 		return;
 	/*
 	 * We're out of time, recompute priorities and requeue.
 	 */
-	kseq_load_rem(kseq, ke);
+	tdq_load_rem(tdq, ts);
 	sched_priority(td);
-	sched_slice(ke);
-	if (SCHED_CURR(td, ke))
-		ke->ke_runq = kseq->ksq_curr;
+	sched_slice(ts);
+	if (SCHED_CURR(td, ts))
+		ts->ts_runq = tdq->ksq_curr;
 	else
-		ke->ke_runq = kseq->ksq_next;
-	kseq_load_add(kseq, ke);
+		ts->ts_runq = tdq->ksq_next;
+	tdq_load_add(tdq, ts);
 	td->td_flags |= TDF_NEEDRESCHED;
 }
 
 int
 sched_runnable(void)
 {
-	struct kseq *kseq;
+	struct tdq *tdq;
 	int load;
 
 	load = 1;
 
-	kseq = KSEQ_SELF();
+	tdq = TDQ_SELF();
 #ifdef SMP
-	if (kseq->ksq_assigned) {
+	if (tdq->ksq_assigned) {
 		mtx_lock_spin(&sched_lock);
-		kseq_assign(kseq);
+		tdq_assign(tdq);
 		mtx_unlock_spin(&sched_lock);
 	}
 #endif
 	if ((curthread->td_flags & TDF_IDLETD) != 0) {
-		if (kseq->ksq_load > 0)
+		if (tdq->ksq_load > 0)
 			goto out;
 	} else
-		if (kseq->ksq_load - 1 > 0)
+		if (tdq->ksq_load - 1 > 0)
 			goto out;
 	load = 0;
 out:
 	return (load);
 }
 
-struct kse *
+struct td_sched *
 sched_choose(void)
 {
-	struct kseq *kseq;
-	struct kse *ke;
+	struct tdq *tdq;
+	struct td_sched *ts;
 
 	mtx_assert(&sched_lock, MA_OWNED);
-	kseq = KSEQ_SELF();
+	tdq = TDQ_SELF();
 #ifdef SMP
 restart:
-	if (kseq->ksq_assigned)
-		kseq_assign(kseq);
+	if (tdq->ksq_assigned)
+		tdq_assign(tdq);
 #endif
-	ke = kseq_choose(kseq);
-	if (ke) {
+	ts = tdq_choose(tdq);
+	if (ts) {
 #ifdef SMP
-		if (ke->ke_thread->td_pri_class == PRI_IDLE)
-			if (kseq_idled(kseq) == 0)
+		if (ts->ts_thread->td_pri_class == PRI_IDLE)
+			if (tdq_idled(tdq) == 0)
 				goto restart;
 #endif
-		kseq_runq_rem(kseq, ke);
-		ke->ke_state = KES_THREAD;
-		ke->ke_flags &= ~KEF_PREEMPTED;
-		return (ke);
+		tdq_runq_rem(tdq, ts);
+		ts->ts_state = TSS_THREAD;
+		ts->ts_flags &= ~TSF_PREEMPTED;
+		return (ts);
 	}
 #ifdef SMP
-	if (kseq_idled(kseq) == 0)
+	if (tdq_idled(tdq) == 0)
 		goto restart;
 #endif
 	return (NULL);
@@ -1765,8 +1749,8 @@ restart:
 void
 sched_add(struct thread *td, int flags)
 {
-	struct kseq *kseq;
-	struct kse *ke;
+	struct tdq *tdq;
+	struct td_sched *ts;
 	int preemptive;
 	int canmigrate;
 	int class;
@@ -1775,60 +1759,60 @@ sched_add(struct thread *td, int flags)
 	    td, td->td_proc->p_comm, td->td_priority, curthread,
 	    curthread->td_proc->p_comm);
 	mtx_assert(&sched_lock, MA_OWNED);
-	ke = td->td_kse;
+	ts = td->td_sched;
 	canmigrate = 1;
 	preemptive = !(flags & SRQ_YIELDING);
 	class = PRI_BASE(td->td_pri_class);
-	kseq = KSEQ_SELF();
-	ke->ke_flags &= ~KEF_INTERNAL;
+	tdq = TDQ_SELF();
+	ts->ts_flags &= ~TSF_INTERNAL;
 #ifdef SMP
-	if (ke->ke_flags & KEF_ASSIGNED) {
-		if (ke->ke_flags & KEF_REMOVED)
-			ke->ke_flags &= ~KEF_REMOVED;
+	if (ts->ts_flags & TSF_ASSIGNED) {
+		if (ts->ts_flags & TSF_REMOVED)
+			ts->ts_flags &= ~TSF_REMOVED;
 		return;
 	}
-	canmigrate = KSE_CAN_MIGRATE(ke);
+	canmigrate = THREAD_CAN_MIGRATE(ts);
 	/*
 	 * Don't migrate running threads here.  Force the long term balancer
 	 * to do it.
 	 */
-	if (ke->ke_flags & KEF_HOLD) {
-		ke->ke_flags &= ~KEF_HOLD;
+	if (ts->ts_flags & TSF_HOLD) {
+		ts->ts_flags &= ~TSF_HOLD;
 		canmigrate = 0;
 	}
 #endif
-	KASSERT(ke->ke_state != KES_ONRUNQ,
-	    ("sched_add: kse %p (%s) already in run queue", ke,
+	KASSERT(ts->ts_state != TSS_ONRUNQ,
+	    ("sched_add: thread %p (%s) already in run queue", td,
 	    td->td_proc->p_comm));
 	KASSERT(td->td_proc->p_sflag & PS_INMEM,
 	    ("sched_add: process swapped out"));
-	KASSERT(ke->ke_runq == NULL,
-	    ("sched_add: KSE %p is still assigned to a run queue", ke));
+	KASSERT(ts->ts_runq == NULL,
+	    ("sched_add: thread %p is still assigned to a run queue", td));
 	if (flags & SRQ_PREEMPTED)
-		ke->ke_flags |= KEF_PREEMPTED;
+		ts->ts_flags |= TSF_PREEMPTED;
 	switch (class) {
 	case PRI_ITHD:
 	case PRI_REALTIME:
-		ke->ke_runq = kseq->ksq_curr;
-		ke->ke_slice = SCHED_SLICE_MAX;
+		ts->ts_runq = tdq->ksq_curr;
+		ts->ts_slice = SCHED_SLICE_MAX;
 		if (canmigrate)
-			ke->ke_cpu = PCPU_GET(cpuid);
+			ts->ts_cpu = PCPU_GET(cpuid);
 		break;
 	case PRI_TIMESHARE:
-		if (SCHED_CURR(td, ke))
-			ke->ke_runq = kseq->ksq_curr;
+		if (SCHED_CURR(td, ts))
+			ts->ts_runq = tdq->ksq_curr;
 		else
-			ke->ke_runq = kseq->ksq_next;
+			ts->ts_runq = tdq->ksq_next;
 		break;
 	case PRI_IDLE:
 		/*
 		 * This is for priority prop.
 		 */
-		if (ke->ke_thread->td_priority < PRI_MIN_IDLE)
-			ke->ke_runq = kseq->ksq_curr;
+		if (ts->ts_thread->td_priority < PRI_MIN_IDLE)
+			ts->ts_runq = tdq->ksq_curr;
 		else
-			ke->ke_runq = &kseq->ksq_idle;
-		ke->ke_slice = SCHED_SLICE_MIN;
+			ts->ts_runq = &tdq->ksq_idle;
+		ts->ts_slice = SCHED_SLICE_MIN;
 		break;
 	default:
 		panic("Unknown pri class.");
@@ -1838,9 +1822,9 @@ sched_add(struct thread *td, int flags)
 	/*
 	 * If this thread is pinned or bound, notify the target cpu.
 	 */
-	if (!canmigrate && ke->ke_cpu != PCPU_GET(cpuid) ) {
-		ke->ke_runq = NULL;
-		kseq_notify(ke, ke->ke_cpu);
+	if (!canmigrate && ts->ts_cpu != PCPU_GET(cpuid) ) {
+		ts->ts_runq = NULL;
+		tdq_notify(ts, ts->ts_cpu);
 		return;
 	}
 	/*
@@ -1848,72 +1832,72 @@ sched_add(struct thread *td, int flags)
 	 * the global bitmap.  If not, see if we should transfer this thread.
 	 */
 	if ((class == PRI_TIMESHARE || class == PRI_REALTIME) &&
-	    (kseq->ksq_group->ksg_idlemask & PCPU_GET(cpumask)) != 0) {
+	    (tdq->ksq_group->ksg_idlemask & PCPU_GET(cpumask)) != 0) {
 		/*
 		 * Check to see if our group is unidling, and if so, remove it
 		 * from the global idle mask.
 		 */
-		if (kseq->ksq_group->ksg_idlemask ==
-		    kseq->ksq_group->ksg_cpumask)
-			atomic_clear_int(&kseq_idle, kseq->ksq_group->ksg_mask);
+		if (tdq->ksq_group->ksg_idlemask ==
+		    tdq->ksq_group->ksg_cpumask)
+			atomic_clear_int(&tdq_idle, tdq->ksq_group->ksg_mask);
 		/*
 		 * Now remove ourselves from the group specific idle mask.
 		 */
-		kseq->ksq_group->ksg_idlemask &= ~PCPU_GET(cpumask);
-	} else if (canmigrate && kseq->ksq_load > 1 && class != PRI_ITHD)
-		if (kseq_transfer(kseq, ke, class))
+		tdq->ksq_group->ksg_idlemask &= ~PCPU_GET(cpumask);
+	} else if (canmigrate && tdq->ksq_load > 1 && class != PRI_ITHD)
+		if (tdq_transfer(tdq, ts, class))
 			return;
-	ke->ke_cpu = PCPU_GET(cpuid);
+	ts->ts_cpu = PCPU_GET(cpuid);
 #endif
 	if (td->td_priority < curthread->td_priority &&
-	    ke->ke_runq == kseq->ksq_curr)
+	    ts->ts_runq == tdq->ksq_curr)
 		curthread->td_flags |= TDF_NEEDRESCHED;
 	if (preemptive && maybe_preempt(td))
 		return;
-	ke->ke_state = KES_ONRUNQ;
+	ts->ts_state = TSS_ONRUNQ;
 
-	kseq_runq_add(kseq, ke, flags);
-	kseq_load_add(kseq, ke);
+	tdq_runq_add(tdq, ts, flags);
+	tdq_load_add(tdq, ts);
 }
 
 void
 sched_rem(struct thread *td)
 {
-	struct kseq *kseq;
-	struct kse *ke;
+	struct tdq *tdq;
+	struct td_sched *ts;
 
 	CTR5(KTR_SCHED, "sched_rem: %p(%s) prio %d by %p(%s)",
 	    td, td->td_proc->p_comm, td->td_priority, curthread,
 	    curthread->td_proc->p_comm);
 	mtx_assert(&sched_lock, MA_OWNED);
-	ke = td->td_kse;
-	ke->ke_flags &= ~KEF_PREEMPTED;
-	if (ke->ke_flags & KEF_ASSIGNED) {
-		ke->ke_flags |= KEF_REMOVED;
+	ts = td->td_sched;
+	ts->ts_flags &= ~TSF_PREEMPTED;
+	if (ts->ts_flags & TSF_ASSIGNED) {
+		ts->ts_flags |= TSF_REMOVED;
 		return;
 	}
-	KASSERT((ke->ke_state == KES_ONRUNQ),
-	    ("sched_rem: KSE not on run queue"));
+	KASSERT((ts->ts_state == TSS_ONRUNQ),
+	    ("sched_rem: thread not on run queue"));
 
-	ke->ke_state = KES_THREAD;
-	kseq = KSEQ_CPU(ke->ke_cpu);
-	kseq_runq_rem(kseq, ke);
-	kseq_load_rem(kseq, ke);
+	ts->ts_state = TSS_THREAD;
+	tdq = TDQ_CPU(ts->ts_cpu);
+	tdq_runq_rem(tdq, ts);
+	tdq_load_rem(tdq, ts);
 }
 
 fixpt_t
 sched_pctcpu(struct thread *td)
 {
 	fixpt_t pctcpu;
-	struct kse *ke;
+	struct td_sched *ts;
 
 	pctcpu = 0;
-	ke = td->td_kse;
-	if (ke == NULL)
+	ts = td->td_sched;
+	if (ts == NULL)
 		return (0);
 
 	mtx_lock_spin(&sched_lock);
-	if (ke->ke_ticks) {
+	if (ts->ts_ticks) {
 		int rtick;
 
 		/*
@@ -1921,15 +1905,15 @@ sched_pctcpu(struct thread *td)
 		 * this causes the cpu usage to decay away too quickly due to
 		 * rounding errors.
 		 */
-		if (ke->ke_ftick + SCHED_CPU_TICKS < ke->ke_ltick ||
-		    ke->ke_ltick < (ticks - (hz / 2)))
-			sched_pctcpu_update(ke);
+		if (ts->ts_ftick + SCHED_CPU_TICKS < ts->ts_ltick ||
+		    ts->ts_ltick < (ticks - (hz / 2)))
+			sched_pctcpu_update(ts);
 		/* How many rtick per second ? */
-		rtick = min(ke->ke_ticks / SCHED_CPU_TIME, SCHED_CPU_TICKS);
+		rtick = min(ts->ts_ticks / SCHED_CPU_TIME, SCHED_CPU_TICKS);
 		pctcpu = (FSCALE * ((FSCALE * rtick)/realstathz)) >> FSHIFT;
 	}
 
-	td->td_proc->p_swtime = ke->ke_ltick - ke->ke_ftick;
+	td->td_proc->p_swtime = ts->ts_ltick - ts->ts_ftick;
 	mtx_unlock_spin(&sched_lock);
 
 	return (pctcpu);
@@ -1938,18 +1922,18 @@ sched_pctcpu(struct thread *td)
 void
 sched_bind(struct thread *td, int cpu)
 {
-	struct kse *ke;
+	struct td_sched *ts;
 
 	mtx_assert(&sched_lock, MA_OWNED);
-	ke = td->td_kse;
-	ke->ke_flags |= KEF_BOUND;
+	ts = td->td_sched;
+	ts->ts_flags |= TSF_BOUND;
 #ifdef SMP
 	if (PCPU_GET(cpuid) == cpu)
 		return;
 	/* sched_rem without the runq_remove */
-	ke->ke_state = KES_THREAD;
-	kseq_load_rem(KSEQ_CPU(ke->ke_cpu), ke);
-	kseq_notify(ke, cpu);
+	ts->ts_state = TSS_THREAD;
+	tdq_load_rem(TDQ_CPU(ts->ts_cpu), ts);
+	tdq_notify(ts, cpu);
 	/* When we return from mi_switch we'll be on the correct cpu. */
 	mi_switch(SW_VOL, NULL);
 #endif
@@ -1959,30 +1943,21 @@ void
 sched_unbind(struct thread *td)
 {
 	mtx_assert(&sched_lock, MA_OWNED);
-	td->td_kse->ke_flags &= ~KEF_BOUND;
+	td->td_sched->ts_flags &= ~TSF_BOUND;
 }
 
 int
 sched_is_bound(struct thread *td)
 {
 	mtx_assert(&sched_lock, MA_OWNED);
-	return (td->td_kse->ke_flags & KEF_BOUND);
+	return (td->td_sched->ts_flags & TSF_BOUND);
 }
 
 void
 sched_relinquish(struct thread *td)
 {
-#ifdef KSE
-	struct ksegrp *kg;
-
-	kg = td->td_ksegrp;
-#endif
 	mtx_lock_spin(&sched_lock);
-#ifdef KSE
-	if (kg->kg_pri_class == PRI_TIMESHARE)
-#else
 	if (td->td_pri_class == PRI_TIMESHARE)
-#endif
 		sched_prio(td, PRI_MAX_TIMESHARE);
 	mi_switch(SW_VOL, NULL);
 	mtx_unlock_spin(&sched_lock);
@@ -1997,10 +1972,10 @@ sched_load(void)
 
 	total = 0;
 	for (i = 0; i <= ksg_maxid; i++)
-		total += KSEQ_GROUP(i)->ksg_load;
+		total += TDQ_GROUP(i)->ksg_load;
 	return (total);
 #else
-	return (KSEQ_SELF()->ksq_sysload);
+	return (TDQ_SELF()->ksq_sysload);
 #endif
 }
 

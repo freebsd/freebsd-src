@@ -319,11 +319,7 @@ rtprio_thread(struct thread *td, struct rtprio_thread_args *uap)
 		else
 			td1 = thread_find(p, uap->lwpid);
 		if (td1 != NULL)
-#ifdef KSE
-			pri_to_rtp(td1->td_ksegrp, &rtp);
-#else
 			pri_to_rtp(td1, &rtp);
-#endif
 		else
 			error = ESRCH;
 		mtx_unlock_spin(&sched_lock);
@@ -359,11 +355,7 @@ rtprio_thread(struct thread *td, struct rtprio_thread_args *uap)
 		else
 			td1 = thread_find(p, uap->lwpid);
 		if (td1 != NULL)
-#ifdef KSE
-			error = rtp_to_pri(&rtp, td1->td_ksegrp);
-#else
 			error = rtp_to_pri(&rtp, td1);
-#endif
 		else
 			error = ESRCH;
 		mtx_unlock_spin(&sched_lock);
@@ -396,11 +388,7 @@ rtprio(td, uap)
 {
 	struct proc *curp;
 	struct proc *p;
-#ifdef KSE
-	struct ksegrp *kg;
-#else
 	struct thread *tdp;
-#endif
 	struct rtprio rtp;
 	int cierror, error;
 
@@ -436,23 +424,14 @@ rtprio(td, uap)
 		 * as leaving it zero.
 		 */
 		if (uap->pid == 0) {
-#ifdef KSE
-			pri_to_rtp(td->td_ksegrp, &rtp);
-#else
 			pri_to_rtp(td, &rtp);
-#endif
 		} else {
 			struct rtprio rtp2;
 
 			rtp.type = RTP_PRIO_IDLE;
 			rtp.prio = RTP_PRIO_MAX;
-#ifdef KSE
-			FOREACH_KSEGRP_IN_PROC(p, kg) {
-				pri_to_rtp(kg, &rtp2);
-#else
 			FOREACH_THREAD_IN_PROC(p, tdp) {
 				pri_to_rtp(tdp, &rtp2);
-#endif
 				if (rtp2.type <  rtp.type ||
 				    (rtp2.type == rtp.type &&
 				    rtp2.prio < rtp.prio)) {
@@ -493,39 +472,19 @@ rtprio(td, uap)
 			}
 		}
 
-#ifdef KSE
-		/*
-		 * If we are setting our own priority, set just our
-		 * KSEGRP but if we are doing another process,
-		 * do all the groups on that process. If we
-		 * specify our own pid we do the latter.
-		 */
-#else
 		/*
 		 * If we are setting our own priority, set just our
 		 * thread but if we are doing another process,
 		 * do all the threads on that process. If we
 		 * specify our own pid we do the latter.
 		 */
-#endif
 		mtx_lock_spin(&sched_lock);
 		if (uap->pid == 0) {
-#ifdef KSE
-			error = rtp_to_pri(&rtp, td->td_ksegrp);
-#else
 			error = rtp_to_pri(&rtp, td);
-#endif
 		} else {
-#ifdef KSE
-			FOREACH_KSEGRP_IN_PROC(p, kg) {
-				if ((error = rtp_to_pri(&rtp, kg)) != 0) {
-					break;
-				}
-#else
 			FOREACH_THREAD_IN_PROC(p, td) {
 				if ((error = rtp_to_pri(&rtp, td)) != 0)
 					break;
-#endif
 			}
 		}
 		mtx_unlock_spin(&sched_lock);
@@ -539,11 +498,7 @@ rtprio(td, uap)
 }
 
 int
-#ifdef KSE
-rtp_to_pri(struct rtprio *rtp, struct ksegrp *kg)
-#else
 rtp_to_pri(struct rtprio *rtp, struct thread *td)
-#endif
 {
 	u_char	newpri;
 
@@ -552,87 +507,43 @@ rtp_to_pri(struct rtprio *rtp, struct thread *td)
 		return (EINVAL);
 	switch (RTP_PRIO_BASE(rtp->type)) {
 	case RTP_PRIO_REALTIME:
-#ifdef KSE
 		newpri = PRI_MIN_REALTIME + rtp->prio;
-#else
-		newpri = PRI_MIN_REALTIME + rtp->prio;
-#endif
 		break;
 	case RTP_PRIO_NORMAL:
-#ifdef KSE
 		newpri = PRI_MIN_TIMESHARE + rtp->prio;
-#else
-		newpri = PRI_MIN_TIMESHARE + rtp->prio;
-#endif
 		break;
 	case RTP_PRIO_IDLE:
-#ifdef KSE
 		newpri = PRI_MIN_IDLE + rtp->prio;
-#else
-		newpri = PRI_MIN_IDLE + rtp->prio;
-#endif
 		break;
 	default:
 		return (EINVAL);
 	}
-#ifdef KSE
-	sched_class(kg, rtp->type);
-	sched_user_prio(kg, newpri);
-	if (curthread->td_ksegrp == kg) {
-		sched_prio(curthread, kg->kg_user_pri); /* XXX dubious */
-	}
-#else
 	sched_class(td, rtp->type);	/* XXX fix */
 	sched_user_prio(td, newpri);
 	if (curthread == td)
 		sched_prio(curthread, td->td_user_pri); /* XXX dubious */
-#endif
 	return (0);
 }
 
 void
-#ifdef KSE
-pri_to_rtp(struct ksegrp *kg, struct rtprio *rtp)
-#else
 pri_to_rtp(struct thread *td, struct rtprio *rtp)
-#endif
 {
 
 	mtx_assert(&sched_lock, MA_OWNED);
-#ifdef KSE
-	switch (PRI_BASE(kg->kg_pri_class)) {
-#else
 	switch (PRI_BASE(td->td_pri_class)) {
-#endif
 	case PRI_REALTIME:
-#ifdef KSE
-		rtp->prio = kg->kg_base_user_pri - PRI_MIN_REALTIME;
-#else
 		rtp->prio = td->td_base_user_pri - PRI_MIN_REALTIME;
-#endif
 		break;
 	case PRI_TIMESHARE:
-#ifdef KSE
-		rtp->prio = kg->kg_base_user_pri - PRI_MIN_TIMESHARE;
-#else
 		rtp->prio = td->td_base_user_pri - PRI_MIN_TIMESHARE;
-#endif
 		break;
 	case PRI_IDLE:
-#ifdef KSE
-		rtp->prio = kg->kg_base_user_pri - PRI_MIN_IDLE;
-#else
 		rtp->prio = td->td_base_user_pri - PRI_MIN_IDLE;
-#endif
 		break;
 	default:
 		break;
 	}
-#ifdef KSE
-	rtp->type = kg->kg_pri_class;
-#else
 	rtp->type = td->td_pri_class;
-#endif
 }
 
 #if defined(COMPAT_43)
