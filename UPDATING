@@ -8,6 +8,10 @@ Items affecting the ports and packages system can be found in
 /usr/ports/UPDATING.  Please read that file before running
 portupgrade.
 
+20061206:		FreeBSD-SA-06:25.kmem
+	Correct a signedness bug which allowed members of the operator
+	group to read kernel memory.
+
 20060902:
 	The IEEE80211_IOC_STA_INFO ioctl was updated to take a mac
 	address parameter.  Binaries using the old ioctl number will
