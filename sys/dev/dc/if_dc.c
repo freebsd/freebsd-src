@@ -247,7 +247,7 @@ static int dc_ioctl(struct ifnet *, u_long, caddr_t);
 static void dc_init(void *);
 static void dc_init_locked(struct dc_softc *);
 static void dc_stop(struct dc_softc *);
-static void dc_watchdog(struct ifnet *);
+static void dc_watchdog(void *);
 static void dc_shutdown(device_t);
 static int dc_ifmedia_upd(struct ifnet *);
 static void dc_ifmedia_sts(struct ifnet *, struct ifmediareq *);
@@ -1138,7 +1138,7 @@ dc_setfilt_21143(struct dc_softc *sc)
 	 */
 	DELAY(10000);
 
-	ifp->if_timer = 5;
+	sc->dc_wdog_timer = 5;
 }
 
 static void
@@ -1340,7 +1340,7 @@ dc_setfilt_xircom(struct dc_softc *sc)
 	 */
 	DELAY(1000);
 
-	ifp->if_timer = 5;
+	sc->dc_wdog_timer = 5;
 }
 
 static void
@@ -2077,9 +2077,10 @@ dc_attach(device_t dev)
 	}
 
 	/* Allocate a busdma tag and DMA safe memory for TX/RX descriptors. */
-	error = bus_dma_tag_create(NULL, PAGE_SIZE, 0, BUS_SPACE_MAXADDR_32BIT,
-	    BUS_SPACE_MAXADDR, NULL, NULL, sizeof(struct dc_list_data), 1,
-	    sizeof(struct dc_list_data), 0, NULL, NULL, &sc->dc_ltag);
+	error = bus_dma_tag_create(bus_get_dma_tag(dev), PAGE_SIZE, 0,
+	    BUS_SPACE_MAXADDR_32BIT, BUS_SPACE_MAXADDR, NULL, NULL,
+	    sizeof(struct dc_list_data), 1, sizeof(struct dc_list_data),
+	    0, NULL, NULL, &sc->dc_ltag);
 	if (error) {
 		device_printf(dev, "failed to allocate busdma tag\n");
 		error = ENXIO;
@@ -2105,9 +2106,10 @@ dc_attach(device_t dev)
 	 * Allocate a busdma tag and DMA safe memory for the multicast
 	 * setup frame.
 	 */
-	error = bus_dma_tag_create(NULL, PAGE_SIZE, 0, BUS_SPACE_MAXADDR_32BIT,
-	    BUS_SPACE_MAXADDR, NULL, NULL, DC_SFRAME_LEN + DC_MIN_FRAMELEN, 1,
-	    DC_SFRAME_LEN + DC_MIN_FRAMELEN, 0, NULL, NULL, &sc->dc_stag);
+	error = bus_dma_tag_create(bus_get_dma_tag(dev), PAGE_SIZE, 0,
+	    BUS_SPACE_MAXADDR_32BIT, BUS_SPACE_MAXADDR, NULL, NULL,
+	    DC_SFRAME_LEN + DC_MIN_FRAMELEN, 1, DC_SFRAME_LEN + DC_MIN_FRAMELEN,
+	    0, NULL, NULL, &sc->dc_stag);
 	if (error) {
 		device_printf(dev, "failed to allocate busdma tag\n");
 		error = ENXIO;
@@ -2129,8 +2131,9 @@ dc_attach(device_t dev)
 	}
 
 	/* Allocate a busdma tag for mbufs. */
-	error = bus_dma_tag_create(NULL, 1, 0, BUS_SPACE_MAXADDR_32BIT,
-	    BUS_SPACE_MAXADDR, NULL, NULL, MCLBYTES, DC_TX_LIST_CNT, MCLBYTES,
+	error = bus_dma_tag_create(bus_get_dma_tag(dev), 1, 0,
+	    BUS_SPACE_MAXADDR_32BIT, BUS_SPACE_MAXADDR, NULL, NULL,
+	    MCLBYTES, DC_TX_LIST_CNT, MCLBYTES,
 	    0, NULL, NULL, &sc->dc_mtag);
 	if (error) {
 		device_printf(dev, "failed to allocate busdma tag\n");
@@ -2172,12 +2175,9 @@ dc_attach(device_t dev)
 	}
 	ifp->if_softc = sc;
 	if_initname(ifp, device_get_name(dev), device_get_unit(dev));
-	/* XXX: bleah, MTU gets overwritten in ether_ifattach() */
-	ifp->if_mtu = ETHERMTU;
 	ifp->if_flags = IFF_BROADCAST | IFF_SIMPLEX | IFF_MULTICAST;
 	ifp->if_ioctl = dc_ioctl;
 	ifp->if_start = dc_start;
-	ifp->if_watchdog = dc_watchdog;
 	ifp->if_init = dc_init;
 	IFQ_SET_MAXLEN(&ifp->if_snd, DC_TX_LIST_CNT - 1);
 	ifp->if_snd.ifq_drv_maxlen = DC_TX_LIST_CNT - 1;
@@ -2256,6 +2256,7 @@ dc_attach(device_t dev)
 #endif
 
 	callout_init_mtx(&sc->dc_stat_ch, &sc->dc_mtx, 0);
+	callout_init_mtx(&sc->dc_wdog_ch, &sc->dc_mtx, 0);
 
 	/*
 	 * Call MI attach routine.
@@ -2309,6 +2310,7 @@ dc_detach(device_t dev)
 		dc_stop(sc);
 		DC_UNLOCK(sc);
 		callout_drain(&sc->dc_stat_ch);
+		callout_drain(&sc->dc_wdog_ch);
 		ether_ifdetach(ifp);
 	}
 	if (sc->dc_miibus)
@@ -2869,7 +2871,7 @@ dc_txeof(struct dc_softc *sc)
 		sc->dc_cdata.dc_tx_cons = idx;
 		ifp->if_drv_flags &= ~IFF_DRV_OACTIVE;
 	}
-	ifp->if_timer = (sc->dc_cdata.dc_tx_cnt == 0) ? 0 : 5;
+	sc->dc_wdog_timer = (sc->dc_cdata.dc_tx_cnt == 0) ? 0 : 5;
 }
 
 static void
@@ -3338,7 +3340,7 @@ dc_start_locked(struct ifnet *ifp)
 		/*
 		 * Set a timeout in case the chip goes out to lunch.
 		 */
-		ifp->if_timer = 5;
+		sc->dc_wdog_timer = 5;
 	}
 }
 
@@ -3525,6 +3527,9 @@ dc_init_locked(struct dc_softc *sc)
 		else
 			callout_reset(&sc->dc_stat_ch, hz, dc_tick, sc);
 	}
+
+	sc->dc_wdog_timer = 0;
+	callout_reset(&sc->dc_wdog_ch, hz, dc_watchdog, sc);
 }
 
 /*
@@ -3659,16 +3664,21 @@ dc_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 }
 
 static void
-dc_watchdog(struct ifnet *ifp)
+dc_watchdog(void *xsc)
 {
-	struct dc_softc *sc;
+	struct dc_softc *sc = xsc;
+	struct ifnet *ifp;
 
-	sc = ifp->if_softc;
+	DC_LOCK_ASSERT(sc);
 
-	DC_LOCK(sc);
+	if (sc->dc_wdog_timer == 0 || --sc->dc_wdog_timer != 0) {
+		callout_reset(&sc->dc_wdog_ch, hz, dc_watchdog, sc);
+		return;
+	}
 
+	ifp = sc->dc_ifp;
 	ifp->if_oerrors++;
-	if_printf(ifp, "watchdog timeout\n");
+	device_printf(sc->dc_dev, "watchdog timeout\n");
 
 	dc_stop(sc);
 	dc_reset(sc);
@@ -3676,8 +3686,6 @@ dc_watchdog(struct ifnet *ifp)
 
 	if (!IFQ_DRV_IS_EMPTY(&ifp->if_snd))
 		dc_start_locked(ifp);
-
-	DC_UNLOCK(sc);
 }
 
 /*
@@ -3696,11 +3704,12 @@ dc_stop(struct dc_softc *sc)
 	DC_LOCK_ASSERT(sc);
 
 	ifp = sc->dc_ifp;
-	ifp->if_timer = 0;
 	ld = sc->dc_ldata;
 	cd = &sc->dc_cdata;
 
 	callout_stop(&sc->dc_stat_ch);
+	callout_stop(&sc->dc_wdog_ch);
+	sc->dc_wdog_timer = 0;
 
 	ifp->if_drv_flags &= ~(IFF_DRV_RUNNING | IFF_DRV_OACTIVE);
 
