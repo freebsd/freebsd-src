@@ -61,7 +61,7 @@ sigcancel_handler(int sig __unused,
 {
 	struct pthread *curthread = _get_curthread();
 
-	if (curthread->cancel_defer)
+	if (curthread->cancel_defer && curthread->cancel_pending)
 		thr_wake(curthread->tid);
 	_thr_ast(curthread);
 }
