@@ -113,8 +113,6 @@ kvm_proclist(kd, what, arg, p, bp, maxcnt)
 	struct ucred ucred;
 	struct prison pr;
 	struct thread mtd;
-	/*struct kse mke;*/
-	/*struct ksegrp mkg;*/
 	struct proc proc;
 	struct proc pproc;
 	struct timeval tv;
@@ -137,25 +135,6 @@ kvm_proclist(kd, what, arg, p, bp, maxcnt)
 				    TAILQ_FIRST(&proc.p_threads));
 				return (-1);
 			}
-#if 0
-			if ((proc.p_flag & P_SA) == 0) {
-				if (KREAD(kd,
-				    (u_long)TAILQ_FIRST(&proc.p_ksegrps),
-				    &mkg)) {
-					_kvm_err(kd, kd->program,
-					    "can't read ksegrp at %x",
-					    TAILQ_FIRST(&proc.p_ksegrps));
-					return (-1);
-				}
-				if (KREAD(kd,
-				    (u_long)TAILQ_FIRST(&mkg.kg_kseq), &mke)) {
-					_kvm_err(kd, kd->program,
-					    "can't read kse at %x",
-					    TAILQ_FIRST(&mkg.kg_kseq));
-					return (-1);
-				}
-			}
-#endif
 		}
 		if (KREAD(kd, (u_long)proc.p_ucred, &ucred) == 0) {
 			kp->ki_ruid = ucred.cr_ruid;
@@ -425,20 +404,8 @@ nopgrp:
 			kp->ki_oncpu = mtd.td_oncpu;
 
 			if (!(proc.p_flag & P_SA)) {
-#if 0
-				/* stuff from the ksegrp */
-				kp->ki_slptime = mkg.kg_slptime;
-				kp->ki_pri.pri_class = mkg.kg_pri_class;
-				kp->ki_pri.pri_user = mkg.kg_user_pri;
-				kp->ki_estcpu = mkg.kg_estcpu;
-
-				/* Stuff from the kse */
-				kp->ki_pctcpu = mke.ke_pctcpu;
-				kp->ki_rqindex = mke.ke_rqindex;
-#else
 				kp->ki_pctcpu = 0;
 				kp->ki_rqindex = 0;
-#endif
 			} else {
 				kp->ki_tdflags = -1;
 				/* All the rest are 0 for now */
