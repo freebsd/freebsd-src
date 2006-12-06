@@ -228,7 +228,7 @@ printcpuinfo(void)
 				"\014<b11>"
 				"\015<b12>"
 				"\016CX16"	/* CMPXCHG16B Instruction */
-				"\017<b14>"
+				"\017XTPR"	/* Send Task Priority Messages*/
 				"\020<b15>"
 				"\021<b16>"
 				"\022<b17>"
@@ -291,8 +291,8 @@ printcpuinfo(void)
 				"\034RDTSCP"	/* RDTSCP */
 				"\035<b28>"	/* Undefined */
 				"\036LM"	/* 64 bit long mode */
-				"\0373DNow+"	/* AMD 3DNow! Extensions */
-				"\0403DNow"	/* AMD 3DNow! */
+				"\0373DNow!+"	/* AMD 3DNow! Extensions */
+				"\0403DNow!"	/* AMD 3DNow! */
 				);
 			}
 
@@ -301,8 +301,8 @@ printcpuinfo(void)
 				"\020"
 				"\001LAHF"	/* LAHF/SAHF in long mode */
 				"\002CMP"	/* CMP legacy */
-				"\003<b2>"
-				"\004<b3>"
+				"\003SVM"	/* Secure Virtual Mode */
+				"\004ExtAPIC"	/* Extended APIC register */
 				"\005CR8"	/* CR8 in legacy mode */
 				"\006<b5>"
 				"\007<b6>"
@@ -338,7 +338,7 @@ printcpuinfo(void)
 			    "AuthenticAMD") == 0) {
 				cpu_feature &= ~CPUID_HTT;
 				if (bootverbose)
-	    				printf("\n    HTT bit cleared - FreeBSD"
+	    				printf("\nHTT bit cleared - FreeBSD"
 					    " does not have licensing issues"
 					    " requiring it.\n");
 			}
@@ -355,7 +355,8 @@ printcpuinfo(void)
 			else if (strcmp(cpu_vendor, "GenuineIntel") == 0 &&
 			    (cpu_high >= 4)) {
 				cpuid_count(4, 0, regs);
-				cmp = ((regs[0] & 0xfc000000) >> 26) + 1;
+				if ((regs[0] & 0x1f) != 0)
+					cmp = ((regs[0] >> 26) & 0x3f) + 1;
 			}
 			if (cmp > 1)
 				printf("\n  Cores per package: %d", cmp);
