@@ -295,11 +295,7 @@ powerpc_init(u_int startkernel, u_int endkernel, u_int basekernel, void *mdp)
 	/*
 	 * Start initializing proc0 and thread0.
 	 */
-#ifdef KSE
-	proc_linkup(&proc0, &ksegrp0, &thread0);
-#else
 	proc_linkup(&proc0, &thread0);
-#endif
 	thread0.td_frame = &frame0;
 
 	/*
