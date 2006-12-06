@@ -245,7 +245,7 @@ static int xl_ioctl(struct ifnet *, u_long, caddr_t);
 static void xl_init(void *);
 static void xl_init_locked(struct xl_softc *);
 static void xl_stop(struct xl_softc *);
-static void xl_watchdog(struct ifnet *);
+static int xl_watchdog(struct xl_softc *);
 static void xl_shutdown(device_t);
 static int xl_suspend(device_t);
 static int xl_resume(device_t);
@@ -1380,7 +1380,7 @@ xl_attach(device_t dev)
 	 * All of our lists are allocated as a contiguous block
 	 * of memory.
 	 */
-	error = bus_dma_tag_create(NULL, 8, 0,
+	error = bus_dma_tag_create(bus_get_dma_tag(dev), 8, 0,
 	    BUS_SPACE_MAXADDR_32BIT, BUS_SPACE_MAXADDR, NULL, NULL,
 	    XL_RX_LIST_SZ, 1, XL_RX_LIST_SZ, 0, NULL, NULL,
 	    &sc->xl_ldata.xl_rx_tag);
@@ -1412,7 +1412,7 @@ xl_attach(device_t dev)
 		goto fail;
 	}
 
-	error = bus_dma_tag_create(NULL, 8, 0,
+	error = bus_dma_tag_create(bus_get_dma_tag(dev), 8, 0,
 	    BUS_SPACE_MAXADDR_32BIT, BUS_SPACE_MAXADDR, NULL, NULL,
 	    XL_TX_LIST_SZ, 1, XL_TX_LIST_SZ, 0, NULL, NULL,
 	    &sc->xl_ldata.xl_tx_tag);
@@ -1447,7 +1447,7 @@ xl_attach(device_t dev)
 	/*
 	 * Allocate a DMA tag for the mapping of mbufs.
 	 */
-	error = bus_dma_tag_create(NULL, 1, 0,
+	error = bus_dma_tag_create(bus_get_dma_tag(dev), 1, 0,
 	    BUS_SPACE_MAXADDR_32BIT, BUS_SPACE_MAXADDR, NULL, NULL,
 	    MCLBYTES * XL_MAXFRAGS, XL_MAXFRAGS, MCLBYTES, 0, NULL,
 	    NULL, &sc->xl_mtag);
@@ -1481,7 +1481,6 @@ xl_attach(device_t dev)
 	/* Set the TX start threshold for best performance. */
 	sc->xl_tx_thresh = XL_MIN_FRAMELEN;
 
-	ifp->if_mtu = ETHERMTU;
 	ifp->if_flags = IFF_BROADCAST | IFF_SIMPLEX | IFF_MULTICAST;
 	ifp->if_ioctl = xl_ioctl;
 	ifp->if_capabilities = IFCAP_VLAN_MTU;
@@ -1498,7 +1497,6 @@ xl_attach(device_t dev)
 	ifp->if_capabilities |= IFCAP_POLLING;
 #endif
 	ifp->if_start = xl_start;
-	ifp->if_watchdog = xl_watchdog;
 	ifp->if_init = xl_init;
 	IFQ_SET_MAXLEN(&ifp->if_snd, XL_TX_LIST_CNT - 1);
 	ifp->if_snd.ifq_drv_maxlen = XL_TX_LIST_CNT - 1;
@@ -2154,7 +2152,7 @@ xl_txeof(struct xl_softc *sc)
 	if (sc->xl_cdata.xl_tx_head == NULL) {
 		ifp->if_drv_flags &= ~IFF_DRV_OACTIVE;
 		/* Clear the timeout timer. */
-		ifp->if_timer = 0;
+		sc->xl_wdog_timer = 0;
 		sc->xl_cdata.xl_tx_tail = NULL;
 	} else {
 		if (CSR_READ_4(sc, XL_DMACTL) & XL_DMACTL_DOWN_STALLED ||
@@ -2162,6 +2160,7 @@ xl_txeof(struct xl_softc *sc)
 			CSR_WRITE_4(sc, XL_DOWNLIST_PTR,
 				sc->xl_cdata.xl_tx_head->xl_phys);
 			CSR_WRITE_2(sc, XL_COMMAND, XL_CMD_DOWN_UNSTALL);
+			sc->xl_wdog_timer = 5;
 		}
 	}
 }
@@ -2200,8 +2199,7 @@ xl_txeof_90xB(struct xl_softc *sc)
 		XL_INC(idx, XL_TX_LIST_CNT);
 	}
 
-	if (sc->xl_cdata.xl_tx_cnt == 0)
-		ifp->if_timer = 0;
+	sc->xl_wdog_timer = sc->xl_cdata.xl_tx_cnt == 0 ? 0 : 5;
 	sc->xl_cdata.xl_tx_cons = idx;
 
 	if (cur_tx != NULL)
@@ -2411,6 +2409,10 @@ xl_stats_update(void *xsc)
 	struct xl_softc *sc = xsc;
 
 	XL_LOCK_ASSERT(sc);
+
+	if (xl_watchdog(sc) == EJUSTRETURN)
+		return;
+
 	xl_stats_update_locked(sc);
 }
 
@@ -2666,7 +2668,7 @@ xl_start_locked(struct ifnet *ifp)
 	/*
 	 * Set a timeout in case the chip goes out to lunch.
 	 */
-	ifp->if_timer = 5;
+	sc->xl_wdog_timer = 5;
 
 	/*
 	 * XXX Under certain conditions, usually on slower machines
@@ -2764,7 +2766,7 @@ xl_start_90xB_locked(struct ifnet *ifp)
 	/*
 	 * Set a timeout in case the chip goes out to lunch.
 	 */
-	ifp->if_timer = 5;
+	sc->xl_wdog_timer = 5;
 }
 
 static void
@@ -2999,6 +3001,7 @@ xl_init_locked(struct xl_softc *sc)
 	ifp->if_drv_flags |= IFF_DRV_RUNNING;
 	ifp->if_drv_flags &= ~IFF_DRV_OACTIVE;
 
+	sc->xl_wdog_timer = 0;
 	callout_reset(&sc->xl_stat_callout, hz, xl_stats_update, sc);
 }
 
@@ -3231,24 +3234,25 @@ xl_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 	return (error);
 }
 
-/*
- * XXX: Invoked from ifnet slow timer. Lock coverage needed.
- */
-static void
-xl_watchdog(struct ifnet *ifp)
+static int
+xl_watchdog(struct xl_softc *sc)
 {
-	struct xl_softc		*sc = ifp->if_softc;
+	struct ifnet		*ifp = sc->xl_ifp;
 	u_int16_t		status = 0;
 
-	XL_LOCK(sc);
+	XL_LOCK_ASSERT(sc);
+
+	if (sc->xl_wdog_timer == 0 || --sc->xl_wdog_timer != 0)
+		return (0);
 
 	ifp->if_oerrors++;
 	XL_SEL_WIN(4);
 	status = CSR_READ_2(sc, XL_W4_MEDIA_STATUS);
-	if_printf(ifp, "watchdog timeout\n");
+	device_printf(sc->xl_dev, "watchdog timeout\n");
 
 	if (status & XL_MEDIASTAT_CARRIER)
-		if_printf(ifp, "no carrier - transceiver cable problem?\n");
+		device_printf(sc->xl_dev,
+		    "no carrier - transceiver cable problem?\n");
 
 	xl_txeoc(sc);
 	xl_txeof(sc);
@@ -3263,7 +3267,7 @@ xl_watchdog(struct ifnet *ifp)
 			xl_start_locked(ifp);
 	}
 
-	XL_UNLOCK(sc);
+	return (EJUSTRETURN);
 }
 
 /*
@@ -3278,7 +3282,7 @@ xl_stop(struct xl_softc *sc)
 
 	XL_LOCK_ASSERT(sc);
 
-	ifp->if_timer = 0;
+	sc->xl_wdog_timer = 0;
 
 	CSR_WRITE_2(sc, XL_COMMAND, XL_CMD_RX_DISABLE);
 	CSR_WRITE_2(sc, XL_COMMAND, XL_CMD_STATS_DISABLE);
