@@ -514,6 +514,7 @@ cpu_halt(void)
  * help lock contention somewhat, and this is critical for HTT. -Peter
  */
 static int	cpu_idle_hlt = 1;
+TUNABLE_INT("machdep.cpu_idle_hlt", &cpu_idle_hlt);
 SYSCTL_INT(_machdep, OID_AUTO, cpu_idle_hlt, CTLFLAG_RW,
     &cpu_idle_hlt, 0, "Idle loop HLT enable");
 
