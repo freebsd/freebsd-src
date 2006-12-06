@@ -60,10 +60,34 @@ static int inaddr_to_sockaddr(char *ev, struct sockaddr_in *sa);
 static int hwaddr_to_sockaddr(char *ev, struct sockaddr_dl *sa);
 static int decode_nfshandle(char *ev, u_char *fh);
 
-static void
-nfs_parse_options(const char *envopts, struct nfs_diskless *nd)
+/*
+ * Validate/sanity check a rsize/wsize parameter.
+ */
+static int
+checkrwsize(unsigned long v, const char *name)
+{
+	/*
+	 * 32K is used as an upper bound because most servers
+	 * limit block size to satisfy IPv4's limit of
+	 * 64K/reassembled packet.  The lower bound is pretty
+	 * much arbitrary.
+	 */
+	if (!(4 <= v && v <= 32*1024)) {
+		printf("nfs_parse_options: invalid %s %lu ignored\n", name, v);
+		return 0;
+	} else
+		return 1;
+}
+
+/*
+ * Parse mount options and apply them to the supplied
+ * nfs_diskless state.  Used also by bootp/dhcp support.
+ */
+void
+nfs_parse_options(const char *envopts, struct nfs_args *nd)
 {
 	char *opts, *o, *otmp;
+	unsigned long v;
 
 	opts = strdup(envopts, M_TEMP);
 	otmp = opts;
@@ -71,15 +95,37 @@ nfs_parse_options(const char *envopts, struct nfs_diskless *nd)
 		if (*o == '\0')
 			; /* Skip empty options. */
 		else if (strcmp(o, "soft") == 0)
-			nd->root_args.flags |= NFSMNT_SOFT;
+			nd->flags |= NFSMNT_SOFT;
 		else if (strcmp(o, "intr") == 0)
-			nd->root_args.flags |= NFSMNT_INT;
+			nd->flags |= NFSMNT_INT;
 		else if (strcmp(o, "conn") == 0)
-			nd->root_args.flags |= NFSMNT_NOCONN;
+			nd->flags |= NFSMNT_NOCONN;
 		else if (strcmp(o, "nolockd") == 0)
-			nd->root_args.flags |= NFSMNT_NOLOCKD;
-		else
-			printf("nfs_diskless: unknown option: %s\n", o);
+			nd->flags |= NFSMNT_NOLOCKD;
+		else if (strcmp(o, "nfsv2") == 0)
+			nd->flags &= ~(NFSMNT_NFSV3 | NFSMNT_NFSV4);
+		else if (strcmp(o, "nfsv3") == 0) {
+			nd->flags &= ~NFSMNT_NFSV4;
+			nd->flags |= NFSMNT_NFSV3;
+		} else if (strcmp(o, "tcp") == 0)
+			nd->sotype = SOCK_STREAM;
+		else if (strcmp(o, "udp") == 0)
+			nd->sotype = SOCK_DGRAM;
+		else if (strncmp(o, "rsize=", 6) == 0) {
+			v = strtoul(o+6, NULL, 10);
+			if (checkrwsize(v, "rsize")) {
+				nd->rsize = (int) v;
+				nd->flags |= NFSMNT_RSIZE;
+			}
+		} else if (strncmp(o, "wsize=", 6) == 0) {
+			v = strtoul(o+6, NULL, 10);
+			if (checkrwsize(v, "wsize")) {
+				nd->wsize = (int) v;
+				nd->flags |= NFSMNT_WSIZE;
+			}
+		} else
+			printf("%s: skipping unknown option \"%s\"\n",
+			    __func__, o);
 	}
 	free(opts, M_TEMP);
 }
@@ -174,7 +220,18 @@ match_done:
 		freeenv(cp);
 	}
 	if ((cp = getenv("boot.nfsroot.options")) != NULL) {
-		nfs_parse_options(cp, nd);
+		struct nfs_args args;
+
+		/* XXX yech, convert between old and current arg format */
+		args.flags = nd->root_args.flags;
+		args.sotype = nd->root_args.sotype;
+		args.rsize = nd->root_args.rsize;
+		args.wsize = nd->root_args.wsize;
+		nfs_parse_options(cp, &args);
+		nd->root_args.flags = args.flags;
+		nd->root_args.sotype = args.sotype;
+		nd->root_args.rsize = args.rsize;
+		nd->root_args.wsize = args.wsize;
 		freeenv(cp);
 	}
 
