@@ -4566,7 +4566,7 @@ bce_tx_encap(struct bce_softc *sc, struct mbuf **m_head)
             
 		/* Try to defrag the mbuf if there are too many segments. */
 	        DBPRINT(sc, BCE_WARN, "%s(): fragmented mbuf (%d pieces)\n",
-                    __FUNCTION__, map_arg.maxsegs);
+                    __FUNCTION__, nsegs);
 
                 m0 = m_defrag(*m_head, M_DONTWAIT);
                 if (m0 == NULL) {
@@ -4619,7 +4619,7 @@ bce_tx_encap(struct bce_softc *sc, struct mbuf **m_head)
 	DBPRINT(sc, BCE_INFO_SEND,
 		"%s(): Start: prod = 0x%04X, chain_prod = %04X, "
 		"prod_bseq = 0x%08X\n",
-		__FUNCTION__, *prod, chain_prod, prod_bseq);
+		__FUNCTION__, prod, chain_prod, prod_bseq);
 
 	/*
 	 * Cycle through each mbuf segment that makes up
@@ -4646,7 +4646,7 @@ bce_tx_encap(struct bce_softc *sc, struct mbuf **m_head)
 	/* Set the END flag on the last TX buffer descriptor. */
 	txbd->tx_bd_flags |= htole16(TX_BD_FLAGS_END);
 
-	DBRUN(BCE_INFO_SEND, bce_dump_tx_chain(sc, debug_prod, nseg));
+	DBRUN(BCE_INFO_SEND, bce_dump_tx_chain(sc, debug_prod, nsegs));
 
 	DBPRINT(sc, BCE_INFO_SEND,
 		"%s(): End: prod = 0x%04X, chain_prod = %04X, "
@@ -6163,7 +6163,7 @@ bce_dump_txbd(struct bce_softc *sc, int idx, struct tx_bd *txbd)
 	else
 		/* Normal tx_bd entry. */
 		BCE_PRINTF(sc, "tx_bd[0x%04X]: haddr = 0x%08X:%08X, nbytes = 0x%08X, "
-			"vlan tag= 0x%4X, "flags = 0x%04X\n", idx, 
+			"vlan tag= 0x%4X, flags = 0x%04X\n", idx, 
 			txbd->tx_bd_haddr_hi, txbd->tx_bd_haddr_lo,
 			txbd->tx_bd_mss_nbytes, txbd->tx_bd_vlan_tag,
 			txbd->tx_bd_flags);
