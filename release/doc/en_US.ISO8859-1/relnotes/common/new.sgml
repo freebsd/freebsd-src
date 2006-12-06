@@ -164,6 +164,12 @@
       fixed.  More details are available in
       <ulink url="http://security.FreeBSD.org/advisories/FreeBSD-SA-06:24.libarchive.asc">FreeBSD-SA-06:24.libarchive</ulink>.</para>
 
+    <para>A bug that could allow users in
+      the <groupname>operator</groupname> group to read parts of kernel
+      memory has been corrected.  For more details, consult security
+      advisory
+      <ulink url="http://security.FreeBSD.org/advisories/FreeBSD-SA-06:25.kmem.asc">FreeBSD-SA-06:25.kmem</ulink>.</para>
+
   </sect2>
 
   <sect2 id="kernel">
