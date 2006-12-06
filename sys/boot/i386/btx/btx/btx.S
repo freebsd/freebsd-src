@@ -499,6 +499,8 @@ v86mon.4:	cmpb $0xfa,%al			# CLI?
 		je v86cli			# Yes
 		cmpb $0xfb,%al			# STI?
 		je v86sti			# Yes
+		cmpb $0xcc,%al			# INT3?
+		je v86mon.7			# Yes, ignore
 		movzwl 0x38(%ebp),%ebx		# Load V86 SS
 		shll $0x4,%ebx			# To offset
 		pushl %ebx			# Save
