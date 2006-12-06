@@ -385,7 +385,7 @@ am7990_tint(struct lance_softc *sc)
 
 	sc->sc_first_td = bix;
 
-	ifp->if_timer = sc->sc_no_td > 0 ? 5 : 0;
+	sc->sc_wdog_timer = sc->sc_no_td > 0 ? 5 : 0;
 }
 
 /*
@@ -575,7 +575,7 @@ am7990_start_locked(struct lance_softc *sc)
 	sc->sc_last_td = bix;
 
 	if (enq > 0)
-		ifp->if_timer = 5;
+		sc->sc_wdog_timer = 5;
 }
 
 #ifdef LEDEBUG
