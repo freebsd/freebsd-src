@@ -31,8 +31,8 @@
 
 #define NLOOPS	10
 
-pthread_mutex_t m;
-pthread_cond_t cv;
+pthread_mutex_t m = PTHREAD_MUTEX_INITIALIZER;
+pthread_cond_t cv = PTHREAD_COND_INITIALIZER;
 
 int wake;
 int stop;
