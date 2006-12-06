@@ -2,12 +2,17 @@
 
 RELN_ROOT?= ${.CURDIR}/../..
 
-SUBDIR= amd64
-SUBDIR+= ia64
-SUBDIR+= i386
-SUBDIR+= pc98
-SUBDIR+= powerpc
-SUBDIR+= sparc64
+DOC?= article
+FORMATS?= html
+INSTALL_COMPRESSED?= gz
+INSTALL_ONLY_COMPRESSED?=
+
+JADEFLAGS+=	-V %generate-article-toc%
+
+# SGML content
+SRCS+=	article.sgml
+
+URL_RELPREFIX?=	../../../..
 
 .include "${RELN_ROOT}/share/mk/doc.relnotes.mk"
 .include "${DOC_PREFIX}/share/mk/doc.project.mk"
