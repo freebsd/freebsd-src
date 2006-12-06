@@ -8,6 +8,13 @@ Items affecting the ports and packages system can be found in
 /usr/ports/UPDATING.  Please read that file before running
 portupgrade.
 
+20061206:	p9	FreeBSD-SA-06:25.kmem, FreeBSD-SA-06.26.gtar
+	Correct a signedness bug which allowed members of the operator
+	group to read kernel memory. [06:25]
+
+	Disable handling of GNUTYPE_NAMES tar file entries by default,
+	since they can be used to extract files outside of the cwd. [06:26]
+
 20060930:	p8	FreeBSD-SA-06:22.openssh
 	Correct multiple vulnerabilities in sshd(8).
 
