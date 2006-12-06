@@ -139,19 +139,23 @@ static void
 do_confstr(const char *name, int key)
 {
 	size_t len;
+	int savederr;
 
+	savederr = errno;
+	errno = 0;
 	len = confstr(key, 0, 0);
-	if (len == (size_t)-1)
-		err(EX_OSERR, "confstr: %s", name);
-	
-	if (len == 0)
-		printf("undefined\n");
-	else {
+	if (len == 0) {
+		if (errno)
+			err(EX_OSERR, "confstr: %s", name);
+		else
+			printf("undefined\n");
+	} else {
 		char buf[len + 1];
 
 		confstr(key, buf, len);
 		printf("%s\n", buf);
 	}
+	errno = savederr;
 }
 
 static void
