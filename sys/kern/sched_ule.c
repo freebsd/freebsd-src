@@ -1325,7 +1325,8 @@ sched_user_prio(struct thread *td, u_char prio)
 	u_char oldprio;
 
 	td->td_base_user_pri = prio;
-
+	if (td->td_flags & TDF_UBORROWING && td->td_user_pri <= prio)
+                return;
 	oldprio = td->td_user_pri;
 	td->td_user_pri = prio;
 
@@ -1582,24 +1583,24 @@ sched_class(struct thread *td, int class)
  * Return some of the child's priority and interactivity to the parent.
  */
 void
-sched_exit(struct proc *p, struct thread *childtd)
+sched_exit(struct proc *p, struct thread *child)
 {
-	struct thread *parent = FIRST_THREAD_IN_PROC(p);
-	mtx_assert(&sched_lock, MA_OWNED);
-
+	
 	CTR3(KTR_SCHED, "sched_exit: %p(%s) prio %d",
-	    childtd, childtd->td_proc->p_comm, childtd->td_priority);
+	    child, child->td_proc->p_comm, child->td_priority);
 
-	/* parent->td_sched->skg_slptime += childtd->td_sched->skg_slptime; */
-	parent->td_sched->skg_runtime += childtd->td_sched->skg_runtime;
-	sched_interact_update(parent);
-
-	tdq_load_rem(TDQ_CPU(childtd->td_sched->ts_cpu), childtd->td_sched);
+	sched_exit_thread(FIRST_THREAD_IN_PROC(p), child);
 }
 
 void
-sched_exit_thread(struct thread *td, struct thread *childtd)
+sched_exit_thread(struct thread *td, struct thread *child)
 {
+	CTR3(KTR_SCHED, "sched_exit_thread: %p(%s) prio %d",
+	    child, childproc->p_comm, child->td_priority);
+
+	td->td_sched->skg_runtime += child->td_sched->skg_runtime;
+	sched_interact_update(td);
+	tdq_load_rem(TDQ_CPU(child->td_sched->ts_cpu), child->td_sched);
 }
 
 void
