@@ -149,6 +149,19 @@
       more detail in security advisory
       <ulink url="http://security.FreeBSD.org/advisories/FreeBSD-SA-06:23.openssl.asc">FreeBSD-SA-06:23.openssl</ulink>.</para>
 
+    <para>A bug that could allow users in
+      the <groupname>operator</groupname> group to read parts of kernel
+      memory has been corrected.  For more details, consult security
+      advisory
+      <ulink url="http://security.FreeBSD.org/advisories/FreeBSD-SA-06:25.kmem.asc">FreeBSD-SA-06:25.kmem</ulink>.</para>
+
+    <para>A bug in &man.gtar.1; has been fixed.  Under certain
+      circumstances, this bug could allow an attacker to overwrite
+      files with the permissions of a user running &man.gtar.1;.  More
+      details on the exact impact of the bug, as well as workaround
+      and patch information, can be found in security advisory
+      <ulink url="http://security.FreeBSD.org/advisories/FreeBSD-SA-06:26.gtar.asc">FreeBSD-SA-06:26.gtar</ulink>.</para>
+
   </sect2>
 
   <sect2 id="kernel">
