@@ -363,13 +363,6 @@ dsp_close(struct cdev *i_dev, int flags, int mode, struct thread *td)
 
 			CHN_LOCK(wrch);
 			refs += pcm_chnref(wrch, -1);
-			/*
-			 * XXX: Maybe the right behaviour is to abort on non_block.
-			 * It seems that mplayer flushes the audio queue by quickly
-			 * closing and re-opening.  In FBSD, there's a long pause
-			 * while the audio queue flushes that I presume isn't there in
-			 * linux.
-			 */
 			chn_flush(wrch); /* may sleep */
 			wrch->flags &= ~(CHN_F_RUNNING | CHN_F_MAPPED | CHN_F_DEAD);
 			chn_reset(wrch, 0);
