@@ -41,11 +41,32 @@ typedef u_char	bridge_id[SNMP_BRIDGE_ID_LEN];
 #define	SNMP_BRIDGE_MIN_AGE_TIME	10
 #define	SNMP_BRIDGE_MAX_AGE_TIME	1000000
 
+#define	SNMP_BRIDGE_MIN_TXHC		1
+#define	SNMP_BRIDGE_MAX_TXHC		10
+
+#define	SNMP_BRIDGE_MIN_MAGE		600
+#define	SNMP_BRIDGE_MAX_MAGE		4000
+
+#define	SNMP_BRIDGE_MIN_HTIME		100
+#define	SNMP_BRIDGE_MAX_HTIME		1000
+
+#define	SNMP_BRIDGE_MIN_FDELAY		400
+#define	SNMP_BRIDGE_MAX_FDELAY		3000
+
 #define	SNMP_PORT_PATHCOST_OBSOLETE	65535
+#define	SNMP_PORT_MIN_PATHCOST		0
+#define	SNMP_PORT_MAX_PATHCOST		200000000
+#define	SNMP_PORT_PATHCOST_AUTO		0
 
 #define	SNMP_BRIDGE_DATA_MAXAGE		10
+#define	SNMP_BRIDGE_DATA_MAXAGE_MIN	1
+#define	SNMP_BRIDGE_DATA_MAXAGE_MAX	300
+
 /* By default poll kernel data every 5 minutes. */
 #define	SNMP_BRIDGE_POLL_INTERVAL	(5 * 60)
+#define	SNMP_BRIDGE_POLL_INTERVAL_MIN	1
+#define	SNMP_BRIDGE_POLL_INTERVAL_MAX	3600
+
 /* Poll for a topology change once every 30 seconds. */
 #define	SNMP_BRIDGE_TC_POLL_INTERVAL	30
 
@@ -98,6 +119,14 @@ struct bridge_port {
 	bridge_id	design_root;
 	bridge_id	design_bridge;
 
+	/* rstpMib extensions. */
+	int32_t		admin_path_cost;
+	enum TruthValue	proto_migr;
+	enum TruthValue	admin_edge;
+	enum TruthValue	oper_edge;
+	enum TruthValue	oper_p2p;
+	enum StpPortAdminPointToPointType	admin_p2p;
+
 	/* dot1dTp subtree objects. */
 	int32_t		max_info;
 	int32_t		in_frames;
@@ -135,7 +164,9 @@ struct bridge_if {
 	int32_t		bridge_max_age;	/* Configured max age. */
 	int32_t		bridge_hello_time; /* Configured hello time. */
 	int32_t		bridge_fwd_delay; /* Configured forward delay. */
+	int32_t		tx_hold_count;
 	uint32_t	top_changes;
+	enum dot1dStpVersion	stp_version;
 	enum dot1dStpProtocolSpecification prot_spec;
 	struct timeval	last_tc_time;
 	bridge_id	design_root;
@@ -268,6 +299,12 @@ int bridge_set_aging_time(struct bridge_if *bif, int32_t age_time);
 /* Set the max number of entries in the bridge address cache. */
 int bridge_set_max_cache(struct bridge_if *bif, int32_t max_cache);
 
+/* Set the bridge TX hold count. */
+int bridge_set_tx_hold_count(struct bridge_if *bif, int32_t tx_hc);
+
+/* Set the bridge STP protocol version. */
+int bridge_set_stp_version(struct bridge_if *bif, int32_t stp_proto);
+
 /* Set the bridge interface status to up/down. */
 int bridge_set_if_up(const char* b_name, int8_t up);
 
@@ -291,6 +328,14 @@ int bridge_port_set_stp_enable(const char *bif_name, struct bridge_port *bp,
 /* Set a bridge member STP path cost. */
 int bridge_port_set_path_cost(const char *bif_name, struct bridge_port *bp,
     int32_t path_cost);
+
+/* Set admin point-to-point link. */
+int bridge_port_set_admin_p2p(const char *bif_name, struct bridge_port *bp,
+    uint32_t admin_p2p);
+
+/* Set admin edge. */
+int bridge_port_set_admin_edge(const char *bif_name, struct bridge_port *bp,
+    uint32_t enable);
 
 /* Add a bridge member port. */
 int bridge_port_addm(struct bridge_port *bp, const char *b_name);

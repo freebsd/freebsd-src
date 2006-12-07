@@ -119,8 +119,10 @@ bridge_set_default_name(const char *bif_name, uint len)
 	bcopy(bif_name, bif_default_name, len);
 	bif_default_name[len] = '\0';
 
-	if ((bif = bridge_if_find_ifname(bif_default_name)) == NULL)
+	if ((bif = bridge_if_find_ifname(bif_default_name)) == NULL) {
+		bif_default = NULL;
 		return (0);
+	}
 
 	bif_default = bif;
 	return (1);
@@ -197,10 +199,16 @@ op_begemot_bridge_config(struct snmp_context *ctx, struct snmp_value *val,
 				return (SNMP_ERR_BADVALUE);
 			break;
 		    case LEAF_begemotBridgeDataUpdate:
+			if (val->v.integer < SNMP_BRIDGE_DATA_MAXAGE_MIN ||
+			    val->v.integer > SNMP_BRIDGE_DATA_MAXAGE_MAX)
+				return (SNMP_ERR_WRONG_VALUE);
 			ctx->scratch->int1 = bridge_data_maxage;
 			bridge_data_maxage = val->v.integer;
 			break;
 		    case LEAF_begemotBridgeDataPoll:
+			if (val->v.integer < SNMP_BRIDGE_POLL_INTERVAL_MIN ||
+			    val->v.integer > SNMP_BRIDGE_POLL_INTERVAL_MAX)
+				return (SNMP_ERR_WRONG_VALUE);
 			ctx->scratch->int1 = val->v.integer;
 			break;
 		}
