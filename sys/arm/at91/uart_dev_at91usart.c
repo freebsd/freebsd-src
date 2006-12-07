@@ -323,7 +323,10 @@ at91_getaddr(void *arg, bus_dma_segment_t *segs, int nsegs, int error)
 static int
 at91_usart_bus_attach(struct uart_softc *sc)
 {
-	int err, i;
+#ifndef SKYEYE_WORKAROUNDS
+	int err;
+	int i;
+#endif
 	uint32_t cr;
 	struct at91_usart_softc *atsc;
 
@@ -345,6 +348,7 @@ at91_usart_bus_attach(struct uart_softc *sc)
 	sc->sc_rxfifosz = USART_BUFFER_SIZE;
 	sc->sc_hwiflow = 0;
 
+#ifndef SKYEYE_WORKAROUNDS
 	/*
 	 * Allocate DMA tags and maps
 	 */
@@ -374,6 +378,7 @@ at91_usart_bus_attach(struct uart_softc *sc)
 		atsc->ping = &atsc->ping_pong[0];
 		atsc->pong = &atsc->ping_pong[1];
 	}
+#endif
 
 	/*
 	 * Prime the pump with the RX buffer.  We use two 64 byte bounce
@@ -407,9 +412,13 @@ at91_usart_bus_attach(struct uart_softc *sc)
 		WR4(&sc->sc_bas, USART_IER, USART_CSR_RXRDY);
 	}
 	WR4(&sc->sc_bas, USART_IER, USART_CSR_RXBRK);
+#ifndef SKYEYE_WORKAROUNDS
 errout:;
 	// XXX bad
 	return (err);
+#else
+	return (0);
+#endif
 }
 
 static int
