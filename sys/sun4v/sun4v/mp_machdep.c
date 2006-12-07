@@ -287,7 +287,7 @@ cpu_mp_start(void)
 
 	root = OF_peer(0);
 	csa = &cpu_start_args;
-	cpuid = bp_skipped = 0;
+	clock = cpuid = bp_skipped = 0;
 	for (child = OF_child(root); child != 0; child = OF_peer(child)) {
 		if (OF_getprop(child, "device_type", buf, sizeof(buf)) <= 0 ||
 		    strcmp(buf, "cpu") != 0)
