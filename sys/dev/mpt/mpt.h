@@ -155,6 +155,9 @@
 /* XXX For mpt_debug.c */
 #include <dev/mpt/mpilib/mpi_init.h>
 
+#define	MPT_S64_2_SCALAR(y)	((((int64_t)y.High) << 32) | (y.Low))
+#define	MPT_U64_2_SCALAR(y)	((((uint64_t)y.High) << 32) | (y.Low))
+
 /****************************** Misc Definitions ******************************/
 #define MPT_OK (0)
 #define MPT_FAIL (0x10000)
@@ -272,15 +275,29 @@ void mpt_map_rquest(void *, bus_dma_segment_t *, int, int);
 #endif
 
 /********************************** Endianess *********************************/
-static __inline uint64_t
-u64toh(U64 s)
-{
-	uint64_t result;
+#define	MPT_2_HOST64(ptr, tag)	ptr->tag = le64toh(ptr->tag)
+#define	MPT_2_HOST32(ptr, tag)	ptr->tag = le32toh(ptr->tag)
+#define	MPT_2_HOST16(ptr, tag)	ptr->tag = le16toh(ptr->tag)
 
-	result = le32toh(s.Low);
-	result |= ((uint64_t)le32toh(s.High)) << 32;
-	return (result);
-}
+#define	HOST_2_MPT64(ptr, tag)	ptr->tag = htole64(ptr->tag)
+#define	HOST_2_MPT32(ptr, tag)	ptr->tag = htole32(ptr->tag)
+#define	HOST_2_MPT16(ptr, tag)	ptr->tag = htole16(ptr->tag)
+
+#if	_BYTE_ORDER == _LITTLE_ENDIAN
+#define	mpt2host_sge_simple_union(x)		do { ; } while (0)
+#define	mpt2host_iocfacts_reply(x)		do { ; } while (0)
+#define	mpt2host_portfacts_reply(x)		do { ; } while (0)
+#define	mpt2host_config_page_ioc2(x)		do { ; } while (0)
+#define	mpt2host_config_page_raid_vol_0(x)	do { ; } while (0)
+#define	mpt2host_mpi_raid_vol_indicator(x)	do { ; } while (0)
+#else
+void mpt2host_sge_simple_union(SGE_SIMPLE_UNION *);
+void mpt2host_iocfacts_reply(MSG_IOC_FACTS_REPLY *);
+void mpt2host_portfacts_reply(MSG_PORT_FACTS_REPLY *);
+void mpt2host_config_page_ioc2(CONFIG_PAGE_IOC_2 *);
+void mpt2host_config_page_raid_vol_0(CONFIG_PAGE_RAID_VOL_0 *);
+void mpt2host_mpi_raid_vol_indicator(MPI_RAID_VOL_INDICATOR *);
+#endif
 
 /**************************** MPI Transaction State ***************************/
 typedef enum {
@@ -495,8 +512,10 @@ struct mpt_softc {
 #endif
 	uint32_t		mpt_pers_mask;
 	uint32_t
+				: 8,
 		unit		: 8,
-				: 2,
+				: 1,
+		fw_uploaded	: 1,
 		msi_enable	: 1,
 		twildcard	: 1,
 		tenabled	: 1,
@@ -520,20 +539,14 @@ struct mpt_softc {
 	/*
 	 * IOC Facts
 	 */
-	uint16_t	mpt_global_credits;
-	uint16_t	request_frame_size;
-	uint16_t	mpt_max_devices;
-	uint8_t		mpt_max_buses;
-	uint8_t		ioc_facts_flags;
+	MSG_IOC_FACTS_REPLY	ioc_facts;
 
 	/*
 	 * Port Facts
-	 * XXX - Add multi-port support!.
 	 */
-	uint16_t	mpt_ini_id;
-	uint16_t	mpt_port_type;
-	uint16_t	mpt_proto_flags;
-	uint16_t	mpt_max_tgtcmds;
+	MSG_PORT_FACTS_REPLY *	port_facts;
+#define	mpt_ini_id	port_facts[0].PortSCSIID
+#define	mpt_max_tgtcmds	port_facts[0].MaxPostedCmdBuffers
 
 	/*
 	 * Device Configuration Information
@@ -930,7 +943,7 @@ mpt_complete_request_chain(struct mpt_softc *, struct req_queue *, u_int);
 
 /************************** Scatter Gather Managment **************************/
 /* MPT_RQSL- size of request frame, in bytes */
-#define	MPT_RQSL(mpt)		(mpt->request_frame_size << 2)
+#define	MPT_RQSL(mpt)		(mpt->ioc_facts.RequestFrameSize << 2)
 
 /* MPT_NSGL- how many SG entries can fit in a request frame size */
 #define	MPT_NSGL(mpt)		(MPT_RQSL(mpt) / sizeof (SGE_IO_UNION))
