@@ -199,8 +199,9 @@ vnex_attach(device_t dev)
 		}
 		device_set_ivars(cdev, vndi);
 	}
-
 	bus_generic_attach(dev);
+	free(listp, M_DEVBUF);
+
 	return (0);
 }
 
