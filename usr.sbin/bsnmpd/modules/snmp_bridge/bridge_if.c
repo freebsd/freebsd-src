@@ -674,6 +674,7 @@ int
 op_dot1d_stp(struct snmp_context *ctx, struct snmp_value *value,
 	 uint sub, uint iidx __unused, enum snmp_op op)
 {
+	int ret;
 	struct bridge_if *bif;
 
 	if ((bif = bridge_get_default()) == NULL)
@@ -743,6 +744,11 @@ op_dot1d_stp(struct snmp_context *ctx, struct snmp_value *value,
 		    case LEAF_dot1dStpBridgeForwardDelay:
 			value->v.integer = bif->bridge_fwd_delay;
 			break;
+		    case LEAF_dot1dStpVersion:
+			value->v.integer = bif->stp_version;
+			break;
+		    case LEAF_dot1dStpTxHoldCount:
+			value->v.integer = bif->tx_hold_count;
 		}
 
 		return (SNMP_ERR_NOERROR);
@@ -754,26 +760,32 @@ op_dot1d_stp(struct snmp_context *ctx, struct snmp_value *value,
 		switch (value->var.subs[sub - 1]) {
 		    case LEAF_dot1dStpPriority:
 			ctx->scratch->int1 = bif->priority;
-			if (bridge_set_priority(bif, value->v.integer) < 0)
-			    return (SNMP_ERR_GENERR);
+			ret = bridge_set_priority(bif, value->v.integer);
 			break;
 
 		    case LEAF_dot1dStpBridgeMaxAge:
 			ctx->scratch->int1 = bif->bridge_max_age;
-			if (bridge_set_maxage(bif, value->v.integer) < 0)
-			    return (SNMP_ERR_GENERR);
+			ret = bridge_set_maxage(bif, value->v.integer);
 			break;
 
 		    case LEAF_dot1dStpBridgeHelloTime:
 			ctx->scratch->int1 = bif->bridge_hello_time;
-			if (bridge_set_hello_time(bif, value->v.integer) < 0)
-			    return (SNMP_ERR_GENERR);
+			ret = bridge_set_hello_time(bif, value->v.integer);
 			break;
 
 		    case LEAF_dot1dStpBridgeForwardDelay:
 			ctx->scratch->int1 = bif->bridge_fwd_delay;
-			if (bridge_set_forward_delay(bif, value->v.integer) < 0)
-			    return (SNMP_ERR_GENERR);
+			ret = bridge_set_forward_delay(bif, value->v.integer);
+			break;
+
+		    case LEAF_dot1dStpVersion:
+			ctx->scratch->int1 = bif->stp_version;
+			ret = bridge_set_stp_version(bif, value->v.integer);
+			break;
+
+		    case LEAF_dot1dStpTxHoldCount:
+			ctx->scratch->int1 = bif->tx_hold_count;
+			ret = bridge_set_tx_hold_count(bif, value->v.integer);
 			break;
 
 		    case LEAF_dot1dStpProtocolSpecification:
@@ -787,24 +799,35 @@ op_dot1d_stp(struct snmp_context *ctx, struct snmp_value *value,
 		    case LEAF_dot1dStpHoldTime:
 		    case LEAF_dot1dStpForwardDelay:
 			return (SNMP_ERR_NOT_WRITEABLE);
+		    default:
+			return (SNMP_ERR_NOSUCHNAME);
 		}
 
+		if (ret == -2)
+			return (SNMP_ERR_WRONG_VALUE);
+		else if (ret < 0)
+			return (SNMP_ERR_GENERR);
 		return (SNMP_ERR_NOERROR);
 
 	    case SNMP_OP_ROLLBACK:
 		switch (value->var.subs[sub - 1]) {
 		    case LEAF_dot1dStpPriority:
-			(void) bridge_set_priority(bif, ctx->scratch->int1);
+			bridge_set_priority(bif, ctx->scratch->int1);
 			break;
 		    case LEAF_dot1dStpBridgeMaxAge:
-			(void) bridge_set_maxage(bif, ctx->scratch->int1);
+			bridge_set_maxage(bif, ctx->scratch->int1);
 			break;
 		    case LEAF_dot1dStpBridgeHelloTime:
-			(void) bridge_set_hello_time(bif, ctx->scratch->int1);
+			bridge_set_hello_time(bif, ctx->scratch->int1);
 			break;
 		    case LEAF_dot1dStpBridgeForwardDelay:
-			(void) bridge_set_forward_delay(bif,
-			    ctx->scratch->int1);
+			bridge_set_forward_delay(bif, ctx->scratch->int1);
+			break;
+		    case LEAF_dot1dStpVersion:
+			bridge_set_stp_version(bif, ctx->scratch->int1);
+			break;
+		    case LEAF_dot1dStpTxHoldCount:
+			bridge_set_tx_hold_count(bif, ctx->scratch->int1);
 			break;
 		}
 		return (SNMP_ERR_NOERROR);
@@ -854,7 +877,7 @@ op_dot1d_tp(struct snmp_context *ctx, struct snmp_value *value,
 
 	    case SNMP_OP_ROLLBACK:
 		if (value->var.subs[sub - 1] == LEAF_dot1dTpAgingTime)
-		    (void) bridge_set_aging_time(bif, ctx->scratch->int1);
+		    bridge_set_aging_time(bif, ctx->scratch->int1);
 		return (SNMP_ERR_NOERROR);
 
 	    case SNMP_OP_COMMIT:
@@ -1181,6 +1204,16 @@ op_begemot_stp(struct snmp_context *ctx, struct snmp_value *val,
 			ret = bridge_set_forward_delay(bif, val->v.integer);
 			break;
 
+		    case LEAF_begemotBridgeStpVersion:
+			ctx->scratch->int1 = bif->stp_version;
+			ret = bridge_set_stp_version(bif, val->v.integer);
+			break;
+
+		    case LEAF_begemotBridgeStpTxHoldCount:
+			ctx->scratch->int1 = bif->tx_hold_count;
+			ret = bridge_set_tx_hold_count(bif, val->v.integer);
+			break;
+
 		    case LEAF_begemotBridgeStpProtocolSpecification:
 		    case LEAF_begemotBridgeStpTimeSinceTopologyChange:
 		    case LEAF_begemotBridgeStpTopChanges:
@@ -1219,6 +1252,14 @@ op_begemot_stp(struct snmp_context *ctx, struct snmp_value *val,
 
 		    case LEAF_begemotBridgeStpBridgeForwardDelay:
 			bridge_set_forward_delay(bif, ctx->scratch->int1);
+			break;
+
+		    case LEAF_begemotBridgeStpVersion:
+			bridge_set_stp_version(bif, ctx->scratch->int1);
+			break;
+
+		    case LEAF_begemotBridgeStpTxHoldCount:
+			bridge_set_tx_hold_count(bif, ctx->scratch->int1);
 			break;
 		}
 		return (SNMP_ERR_NOERROR);
@@ -1283,6 +1324,14 @@ op_begemot_stp(struct snmp_context *ctx, struct snmp_value *val,
 
 	    case LEAF_begemotBridgeStpBridgeForwardDelay:
 		val->v.integer = bif->bridge_fwd_delay;
+		break;
+
+	    case LEAF_begemotBridgeStpVersion:
+		val->v.integer = bif->stp_version;
+		break;
+
+	    case LEAF_begemotBridgeStpTxHoldCount:
+		val->v.integer = bif->tx_hold_count;
 		break;
 	}
 

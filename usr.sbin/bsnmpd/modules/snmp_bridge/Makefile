@@ -12,7 +12,7 @@ XSYM=	dot1dBridge newRoot topologyChange begemotBridgeNewRoot \
 
 MAN=	snmp_bridge.3
 
-BMIBS=	BRIDGE-MIB.txt BEGEMOT-BRIDGE-MIB.txt
+BMIBS=	BRIDGE-MIB.txt BEGEMOT-BRIDGE-MIB.txt RSTP-MIB.txt
 DEFS=	${MOD}_tree.def
 INCS=	${MOD}_snmp.h
 

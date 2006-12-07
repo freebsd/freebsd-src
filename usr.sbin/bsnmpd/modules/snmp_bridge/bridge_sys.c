@@ -238,6 +238,10 @@ bridge_get_op_param(struct bridge_if *bif)
 	bif->max_age = 100 * b_req.ifbop_maxage;
 	bif->hello_time = 100 * b_req.ifbop_hellotime;
 	bif->fwd_delay = 100 * b_req.ifbop_fwddelay;
+#if __FreeBSD_version > 700024
+	bif->stp_version = b_req.ifbop_protocol;
+	bif->tx_hold_count = b_req.ifbop_holdcount;
+#endif
 
 	if (b_req.ifbop_root_port == 0 &&
 	    bif->root_port != b_req.ifbop_root_port)
@@ -312,11 +316,14 @@ bridge_set_priority(struct bridge_if *bif, int32_t priority)
  * To convert a Timeout value into a value in units of
  * 1/256 seconds, the following algorithm should be used:
  *	b = floor( (n * 256) / 100)
+ * The conversion to 1/256 of a second happens in the kernel -
+ * just make sure we correctly convert the seconds to Timout
+ * and vice versa.
  */
 static uint32_t
-snmp_hundred_secs2_256(int32_t h_secs)
+snmp_timeout2_sec(int32_t secs)
 {
-	return ((h_secs * 256) / 100);
+	return (secs / 100);
 }
 
 int
@@ -325,10 +332,14 @@ bridge_set_maxage(struct bridge_if *bif, int32_t max_age)
 	struct ifdrv ifd;
 	struct ifbrparam b_param;
 
+	if (max_age < SNMP_BRIDGE_MIN_MAGE ||
+	    max_age > SNMP_BRIDGE_MAX_MAGE)
+		return (-2);
+
 	strlcpy(ifd.ifd_name, bif->bif_name, IFNAMSIZ);
 	ifd.ifd_len = sizeof(b_param);
 	ifd.ifd_data = &b_param;
-	b_param.ifbrp_maxage = (uint32_t) max_age;
+	b_param.ifbrp_maxage = snmp_timeout2_sec(max_age);
 	ifd.ifd_cmd = BRDGSMA;
 
 	if (ioctl(sock, SIOCSDRVSPEC, &ifd) < 0) {
@@ -347,10 +358,14 @@ bridge_set_hello_time(struct bridge_if *bif, int32_t hello_time)
 	struct ifdrv ifd;
 	struct ifbrparam b_param;
 
+	if (hello_time < SNMP_BRIDGE_MIN_HTIME ||
+	    hello_time > SNMP_BRIDGE_MAX_HTIME)
+		return (-2);
+
 	strlcpy(ifd.ifd_name, bif->bif_name, IFNAMSIZ);
 	ifd.ifd_len = sizeof(b_param);
 	ifd.ifd_data = &b_param;
-	b_param.ifbrp_hellotime = snmp_hundred_secs2_256(hello_time);
+	b_param.ifbrp_hellotime = snmp_timeout2_sec(hello_time);
 	ifd.ifd_cmd = BRDGSHT;
 
 	if (ioctl(sock, SIOCSDRVSPEC, &ifd) < 0) {
@@ -369,10 +384,14 @@ bridge_set_forward_delay(struct bridge_if *bif, int32_t fwd_delay)
 	struct ifdrv ifd;
 	struct ifbrparam b_param;
 
+	if (fwd_delay < SNMP_BRIDGE_MIN_FDELAY ||
+	    fwd_delay > SNMP_BRIDGE_MAX_FDELAY)
+		return (-2);
+
 	strlcpy(ifd.ifd_name, bif->bif_name, IFNAMSIZ);
 	ifd.ifd_len = sizeof(b_param);
 	ifd.ifd_data = &b_param;
-	b_param.ifbrp_fwddelay = snmp_hundred_secs2_256(fwd_delay);
+	b_param.ifbrp_fwddelay = snmp_timeout2_sec(fwd_delay);
 	ifd.ifd_cmd = BRDGSFD;
 
 	if (ioctl(sock, SIOCSDRVSPEC, &ifd) < 0) {
@@ -432,6 +451,67 @@ bridge_set_max_cache(struct bridge_if *bif, int32_t max_cache)
 
 	bif->max_addrs = b_param.ifbrp_csize;
 	return (0);
+}
+
+int
+bridge_set_tx_hold_count(struct bridge_if *bif __unused,
+    int32_t tx_hc __unused)
+{
+#if __FreeBSD_version > 700024
+	struct ifdrv ifd;
+	struct ifbrparam b_param;
+
+	if (tx_hc < SNMP_BRIDGE_MIN_TXHC || tx_hc > SNMP_BRIDGE_MAX_TXHC)
+		return (-1);
+
+	strlcpy(ifd.ifd_name, bif->bif_name, IFNAMSIZ);
+	ifd.ifd_len = sizeof(b_param);
+	ifd.ifd_data = &b_param;
+	b_param.ifbrp_txhc = tx_hc;
+	ifd.ifd_cmd = BRDGSTXHC;
+
+	if (ioctl(sock, SIOCSDRVSPEC, &ifd) < 0) {
+		syslog(LOG_ERR, "set bridge param: ioctl(BRDGSTXHC) "
+		    "failed: %s", strerror(errno));
+		return (-1);
+	}
+
+	bif->tx_hold_count = b_param.ifbrp_txhc;
+	return (0);
+#else
+	return (-1);
+#endif
+}
+
+int
+bridge_set_stp_version(struct bridge_if *bif __unused,
+    int32_t stp_proto __unused)
+{
+#if __FreeBSD_version > 700024
+	struct ifdrv ifd;
+	struct ifbrparam b_param;
+
+	if (stp_proto != dot1dStpVersion_stpCompatible &&
+	    stp_proto != dot1dStpVersion_rstp)
+		return (-2);
+
+	strlcpy(ifd.ifd_name, bif->bif_name, IFNAMSIZ);
+	ifd.ifd_len = sizeof(b_param);
+	ifd.ifd_data = &b_param;
+	b_param.ifbrp_proto = stp_proto;
+	ifd.ifd_cmd = BRDGSPROTO;
+
+	if (ioctl(sock, SIOCSDRVSPEC, &ifd) < 0) {
+		syslog(LOG_ERR, "set bridge param: ioctl(BRDGSPROTO) "
+		    "failed: %s", strerror(errno));
+		return (-1);
+	}
+
+	bif->stp_version = b_param.ifbrp_proto;
+	return (0);
+#else
+	return (-1);
+#endif
 }
 
 /*
@@ -580,6 +660,9 @@ state2snmp_st(uint8_t ifbr_state)
 		case BSTP_IFSTATE_FORWARDING:
 			return (StpPortState_forwarding);
 		case BSTP_IFSTATE_BLOCKING:
+#if __FreeBSD_version > 700024
+		case BSTP_IFSTATE_DISCARDING:
+#endif
 			return (StpPortState_blocking);
 	}
 
@@ -605,20 +688,12 @@ bridge_port_getinfo_conf(struct ifbreq *k_info, struct bridge_port *bp)
 	 * the maximum value."
 	 */
 
-#if 0
-	/*
-	 * Kernel variable is a 32-bit integer but the ioctl supports
-	 * only getting/setting a 8-bit value.
-	 */
-
-	if (k_info->ifbr_path_cost > SNMP_PORT_PATHCOST_OBSOLETE) {
-		bp->path_cost = SNMP_PORT_PATHCOST_OBSOLETE;
-		bp->path_cost32 = k_info->ifbr_path_cost;
-	} else
-
-		bp->path_cost = bp->path_cost32 = k_info->ifbr_path_cost;
+#if __FreeBSD_version > 700024
+	if (k_info->ifbr_ifsflags & IFBIF_BSTP_ADMCOST)
+		bp->admin_path_cost = k_info->ifbr_path_cost;
+	else
+		bp->admin_path_cost = 0;
 #endif
-
 	bp->path_cost = k_info->ifbr_path_cost;
 
 	if (k_info->ifbr_ifsflags & IFBIF_STP)
@@ -631,6 +706,32 @@ bridge_port_getinfo_conf(struct ifbreq *k_info, struct bridge_port *bp)
 		bp->span_enable = begemotBridgeBaseSpanEnabled_enabled;
 	else
 		bp->span_enable = begemotBridgeBaseSpanEnabled_disabled;
+
+#if __FreeBSD_version > 700024
+	if (k_info->ifbr_ifsflags & IFBIF_BSTP_ADMEDGE)
+		bp->admin_edge = TruthValue_true;
+	else
+		bp->admin_edge = TruthValue_false;
+
+	if (k_info->ifbr_ifsflags & IFBIF_BSTP_EDGE)
+		bp->oper_edge = TruthValue_true;
+	else
+		bp->oper_edge = TruthValue_false;
+
+	if (k_info->ifbr_ifsflags & IFBIF_BSTP_AUTOP2P) {
+		bp->admin_p2p = StpPortAdminPointToPointType_auto;
+		if (k_info->ifbr_ifsflags & IFBIF_BSTP_P2P)
+			bp->oper_p2p = TruthValue_true;
+		else
+			bp->oper_p2p = TruthValue_false;
+	} else if (k_info->ifbr_ifsflags & IFBIF_BSTP_P2P) {
+		bp->admin_p2p = StpPortAdminPointToPointType_forceTrue;
+		bp->oper_p2p = TruthValue_true;
+	} else {
+		bp->admin_p2p = StpPortAdminPointToPointType_forceFalse;
+		bp->oper_p2p = TruthValue_false;
+	}
+#endif
 }
 
 /*
@@ -753,15 +854,22 @@ bridge_port_set_path_cost(const char *bif_name, struct bridge_port *bp,
 	struct ifdrv ifd;
 	struct ifbreq b_req;
 
-	if (path_cost > SNMP_PORT_PATHCOST_OBSOLETE)
+#if __FreeBSD_version > 700024
+	if (path_cost < SNMP_PORT_MIN_PATHCOST ||
+	    path_cost > SNMP_PORT_MAX_PATHCOST)
 		return (-2);
+#else
+	if (path_cost < SNMP_PORT_MIN_PATHCOST ||
+	    path_cost > SNMP_PORT_PATHCOST_OBSOLETE)
+		return (-2);
+#endif
 
 	strlcpy(ifd.ifd_name, bif_name, sizeof(ifd.ifd_name));
 	ifd.ifd_len = sizeof(b_req);
 	ifd.ifd_data = &b_req;
 	strlcpy(b_req.ifbr_ifsname, bp->p_name, sizeof(b_req.ifbr_ifsname));
 
-	b_req.ifbr_path_cost = (uint16_t) path_cost;
+	b_req.ifbr_path_cost = path_cost;
 	ifd.ifd_cmd = BRDGSIFCOST;
 
 	if (ioctl(sock, SIOCSDRVSPEC, &ifd) < 0) {
@@ -770,8 +878,121 @@ bridge_port_set_path_cost(const char *bif_name, struct bridge_port *bp,
 		return (-1);
 	}
 
+#if __FreeBSD_version > 700024
+	bp->admin_path_cost = path_cost;
+#else
 	bp->path_cost = path_cost;
+#endif
+
 	return (0);
+}
+
+/*
+ * Set the PonitToPoint status of the link administratively.
+ */
+int
+bridge_port_set_admin_p2p(const char *bif_name __unused,
+    struct bridge_port *bp __unused, uint32_t admin_p2p __unused)
+{
+#if __FreeBSD_version > 700024
+	struct ifdrv ifd;
+	struct ifbreq b_req;
+
+	if (bp->admin_p2p == admin_p2p)
+		return (0);
+
+	if (admin_p2p > StpPortAdminPointToPointType_auto)
+		return (-2);
+
+	bzero(&b_req, sizeof(b_req));
+	strlcpy(ifd.ifd_name, bif_name, sizeof(ifd.ifd_name));
+	ifd.ifd_len = sizeof(b_req);
+	ifd.ifd_data = &b_req;
+	strlcpy(b_req.ifbr_ifsname, bp->p_name, sizeof(b_req.ifbr_ifsname));
+	ifd.ifd_cmd = BRDGGIFFLGS;
+
+	if (ioctl(sock, SIOCGDRVSPEC, &ifd) < 0) {
+		syslog(LOG_ERR, "get member %s param: ioctl(BRDGGIFFLGS) "
+		    "failed: %s", bp->p_name, strerror(errno));
+		return (-1);
+	}
+
+	switch (admin_p2p) {
+		case StpPortAdminPointToPointType_forceTrue:
+			b_req.ifbr_ifsflags &= ~IFBIF_BSTP_AUTOP2P;
+			b_req.ifbr_ifsflags |= IFBIF_BSTP_P2P;
+			break;
+		case StpPortAdminPointToPointType_forceFalse:
+			b_req.ifbr_ifsflags &= ~IFBIF_BSTP_AUTOP2P;
+			b_req.ifbr_ifsflags &= ~IFBIF_BSTP_P2P;
+			break;
+		case StpPortAdminPointToPointType_auto:
+			b_req.ifbr_ifsflags |= IFBIF_BSTP_AUTOP2P;
+			break;
+	}
+
+	ifd.ifd_cmd = BRDGSIFFLGS;
+	if (ioctl(sock, SIOCSDRVSPEC, &ifd) < 0) {
+		syslog(LOG_ERR, "set member %s param: ioctl(BRDGSIFFLGS) "
+		    "failed: %s", bp->p_name, strerror(errno));
+		return (-1);
+	}
+
+	bp->admin_p2p = admin_p2p;
+	return (0);
+#else
+	return (-1);
+#endif
+}
+
+/*
+ * Set admin edge.
+ */
+int
+bridge_port_set_admin_edge(const char *bif_name __unused,
+    struct bridge_port *bp __unused, uint32_t enable __unused)
+{
+#if __FreeBSD_version > 700024
+	struct ifdrv ifd;
+	struct ifbreq b_req;
+
+	if (bp->admin_edge == enable)
+		return (0);
+
+	if (enable != TruthValue_true && enable != TruthValue_false)
+		return (-2);
+
+	bzero(&b_req, sizeof(b_req));
+	strlcpy(ifd.ifd_name, bif_name, sizeof(ifd.ifd_name));
+	ifd.ifd_len = sizeof(b_req);
+	ifd.ifd_data = &b_req;
+	strlcpy(b_req.ifbr_ifsname, bp->p_name, sizeof(b_req.ifbr_ifsname));
+	ifd.ifd_cmd = BRDGGIFFLGS;
+
+	if (ioctl(sock, SIOCGDRVSPEC, &ifd) < 0) {
+		syslog(LOG_ERR, "get member %s param: ioctl(BRDGGIFFLGS) "
+		    "failed: %s", bp->p_name, strerror(errno));
+		return (-1);
+	}
+
+	if (enable == TruthValue_true) {
+		b_req.ifbr_ifsflags &= ~IFBIF_BSTP_AUTOEDGE;
+		b_req.ifbr_ifsflags |= IFBIF_BSTP_EDGE;
+	} else
+		b_req.ifbr_ifsflags &= ~IFBIF_BSTP_EDGE;
+
+	ifd.ifd_cmd = BRDGSIFFLGS;
+	if (ioctl(sock, SIOCSDRVSPEC, &ifd) < 0) {
+		syslog(LOG_ERR, "set member %s param: ioctl(BRDGSIFFLGS) "
+		    "failed: %s", bp->p_name, strerror(errno));
+		return (-1);
+	}
+
+	bp->admin_edge = enable;
+	return (0);
+#else
+	return (-1);
+#endif
 }
 
 /*
@@ -899,7 +1120,7 @@ bridge_port_get_ifstplist(struct bridge_if *bif, char **buf)
 	struct ifbpstpconf ifbstp;
 	struct ifdrv ifd;
 
-	*buf = NULL; 
+	*buf = NULL;
 	strlcpy(ifd.ifd_name, bif->bif_name, IFNAMSIZ);
 	ifd.ifd_cmd = BRDGGIFSSTP;
 	ifd.ifd_len = sizeof(ifbstp);
