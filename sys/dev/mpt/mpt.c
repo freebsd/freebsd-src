@@ -2611,8 +2611,9 @@ void
 mpt2host_sge_simple_union(SGE_SIMPLE_UNION *sge)
 {
 	MPT_2_HOST32(sge, FlagsLength);
-	MPT_2_HOST64(sge, u.Address64);
-};
+	MPT_2_HOST32(sge, u.Address64.Low);
+	MPT_2_HOST32(sge, u.Address64.High);
+}
 
 void
 mpt2host_iocfacts_reply(MSG_IOC_FACTS_REPLY *rp)
@@ -2664,7 +2665,7 @@ mpt2host_config_page_ioc2(CONFIG_PAGE_IOC_2 *ioc2)
 	int i;
 	ioc2->CapabilitiesFlags = htole32(ioc2->CapabilitiesFlags);
 	for (i = 0; i < MPI_IOC_PAGE_2_RAID_VOLUME_MAX; i++) {
-		MPT_2_HOST16(ioc2->RaidVolume[i].Reserved3);
+		MPT_2_HOST16(ioc2, RaidVolume[i].Reserved3);
 	}
 }
 
@@ -2680,14 +2681,16 @@ mpt2host_config_page_raid_vol_0(CONFIG_PAGE_RAID_VOL_0 *volp)
 	MPT_2_HOST32(volp, Reserved2);
 	MPT_2_HOST32(volp, Reserved3);
 	for (i = 0; i < MPI_RAID_VOL_PAGE_0_PHYSDISK_MAX; i++) {
-		MPT_2_HOST16(volpd, PhysDisk[i].Reserved);
+		MPT_2_HOST16(volp, PhysDisk[i].Reserved);
 	}
 }
 
 void
 mpt2host_mpi_raid_vol_indicator(MPI_RAID_VOL_INDICATOR *vi)
 {
-	MPT_2_HOST16(vi, TotalBlocks);
-	MPT_2_HOST16(vi, BlocksRemaining);
+	MPT_2_HOST16(vi, TotalBlocks.High);
+	MPT_2_HOST16(vi, TotalBlocks.Low);
+	MPT_2_HOST16(vi, BlocksRemaining.High);
+	MPT_2_HOST16(vi, BlocksRemaining.Low);
 }
 #endif
