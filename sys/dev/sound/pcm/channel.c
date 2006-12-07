@@ -353,27 +353,12 @@ chn_wrintr(struct pcm_channel *c)
 int
 chn_write(struct pcm_channel *c, struct uio *buf)
 {
-	int ret, newsize, count, sz;
+	int ret, count, sz;
 	struct snd_dbuf *bs = c->bufsoft;
 	void *off;
 	int t, x, togo, p;
 
 	CHN_LOCKASSERT(c);
-	/*
-	 * XXX Certain applications attempt to write larger size
-	 * of pcm data than c->blocksize2nd without blocking,
-	 * resulting partial write. Expand the block size so that
-	 * the write operation avoids blocking.
-	 */
-	if ((c->flags & CHN_F_NBIO) && buf->uio_resid > sndbuf_getblksz(bs)) {
-		DEB(device_printf(c->dev, "broken app, nbio and tried to write %d bytes with fragsz %d\n",
-			buf->uio_resid, sndbuf_getblksz(bs)));
-		newsize = 16;
-		while (newsize < min(buf->uio_resid, CHN_2NDBUFMAXSIZE / 2))
-			newsize <<= 1;
-		chn_setblocksize(c, sndbuf_getblkcnt(bs), newsize);
-		DEB(device_printf(c->dev, "frags reset to %d x %d\n", sndbuf_getblkcnt(bs), sndbuf_getblksz(bs)));
-	}
 
 	ret = 0;
 	count = hz;
