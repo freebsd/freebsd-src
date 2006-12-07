@@ -51,6 +51,12 @@ typedef StpPortState ENUM (
 	6 broken
 )
 
+typedef StpPortAdminPointToPointType ENUM (
+	0 forceTrue
+	1 forceFalse
+	2 auto
+)
+
 typedef BaseType ENUM (
 	1 unknown
 	2 transparent-only
@@ -115,6 +121,17 @@ typedef TpFdbStatus ENUM (
               (9 dot1dStpPortDesignatedPort OCTETSTRING | BridgePortId GET)
               (10 dot1dStpPortForwardTransitions COUNTER GET)
           ))
+          (16 dot1dStpVersion ENUM ( 0 stpCompatible 2 rstp ) op_dot1d_stp GET SET)
+          (17 dot1dStpTxHoldCount INTEGER op_dot1d_stp GET SET)
+          (19 dot1dStpExtPortTable
+            (1 dot1dStpExtPortEntry : INTEGER op_dot1d_stp_ext_port
+              (1 dot1dStpPortProtocolMigration TruthValue GET)	# SET
+              (2 dot1dStpPortAdminEdgePort TruthValue GET SET)
+              (3 dot1dStpPortOperEdgePort TruthValue GET)
+              (4 dot1dStpPortAdminPointToPoint StpPortAdminPointToPointType GET SET)
+              (5 dot1dStpPortOperPointToPoint TruthValue GET)
+              (6 dot1dStpPortAdminPathCost INTEGER GET SET)
+          ))
         )
         (3 dot1dSr
         )
@@ -142,6 +159,18 @@ typedef TpFdbStatus ENUM (
           (1 dot1dGroups
           )
           (2 dot1dCompliances
+          )
+        )
+      )
+      (134 rstpMIB
+        (0 rstpNotifications
+        )
+        (1 rstpObjects
+        )
+        (2 rstpConformance
+          (1 rstpGroups
+          )
+          (2 rstpCompliances
           )
         )
   )))
@@ -190,6 +219,8 @@ typedef TpFdbStatus ENUM (
                   (12 begemotBridgeStpBridgeMaxAge INTEGER GET SET)
                   (13 begemotBridgeStpBridgeHelloTime INTEGER GET SET)
                   (14 begemotBridgeStpBridgeForwardDelay INTEGER GET SET)
+                  (15 begemotBridgeStpVersion ENUM ( 0 stpCompatible 2 rstp ) GET SET)
+                  (16 begemotBridgeStpTxHoldCount INTEGER GET SET)
               ))
               (2 begemotBridgeStpPortTable
                 (1 begemotBridgeStpPortEntry : OCTETSTRING | BridgeIfName INTEGER op_begemot_stp_port
@@ -203,6 +234,15 @@ typedef TpFdbStatus ENUM (
                   (8 begemotBridgeStpPortDesignatedBridge OCTETSTRING | BridgeId GET)
                   (9 begemotBridgeStpPortDesignatedPort OCTETSTRING | BridgePortId GET)
                   (10 begemotBridgeStpPortForwardTransitions COUNTER GET)
+              ))
+              (3 begemotBridgeStpExtPortTable
+                (1 begemotBridgeStpExtPortEntry : OCTETSTRING | BridgeIfName INTEGER op_begemot_stp_ext_port
+                  (1 begemotBridgeStpPortProtocolMigration TruthValue GET)	# SET
+                  (2 begemotBridgeStpPortAdminEdgePort TruthValue GET SET)
+                  (3 begemotBridgeStpPortOperEdgePort TruthValue GET)
+                  (4 begemotBridgeStpPortAdminPointToPoint StpPortAdminPointToPointType GET SET)
+                  (5 begemotBridgeStpPortOperPointToPoint TruthValue GET)
+                  (6 begemotBridgeStpPortAdminPathCost INTEGER GET SET)
               ))
             )
             (3 begemotBridgeTp
