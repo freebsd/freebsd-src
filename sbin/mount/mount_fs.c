@@ -84,10 +84,12 @@ mount_fs(const char *vfstype, int argc, char *argv[])
 	int ch;
 	char *dev, *dir, mntpath[MAXPATHLEN];
 	char fstype[32];
+	char errmsg[255];
 	char *p, *val;
 	int ret;
 
 	strncpy(fstype, vfstype, sizeof(fstype));
+	memset(errmsg, 0, sizeof(errmsg));
 
 	getmnt_silent = 1;
 	iov = NULL;
@@ -126,10 +128,11 @@ mount_fs(const char *vfstype, int argc, char *argv[])
 	build_iovec(&iov, &iovlen, "fstype", fstype, (size_t)-1);
 	build_iovec(&iov, &iovlen, "fspath", mntpath, (size_t)-1);
 	build_iovec(&iov, &iovlen, "from", dev, (size_t)-1);
+	build_iovec(&iov, &iovlen, "errmsg", errmsg, sizeof(errmsg));
 	
 	ret = nmount(iov, iovlen, mntflags);
 	if (ret < 0)
-		err(1, "%s", dev);
+		err(1, "%s %s", dev, errmsg);
 
 	return (ret);
 }
