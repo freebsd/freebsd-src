@@ -61,7 +61,6 @@ __FBSDID("$FreeBSD$");
 int
 uiomove_fromphys(vm_page_t ma[], vm_offset_t offset, int n, struct uio *uio)
 {
-	struct sf_buf *sf;
 	struct thread *td = curthread;
 	struct iovec *iov;
 	void *cp;
@@ -92,7 +91,6 @@ uiomove_fromphys(vm_page_t ma[], vm_offset_t offset, int n, struct uio *uio)
 		cnt = ulmin(cnt, PAGE_SIZE - page_offset);
 		m = ma[offset >> PAGE_SHIFT];
 		pa = VM_PAGE_TO_PHYS(m);
-		sf = NULL;
 		cp = (char *)TLB_PHYS_TO_DIRECT(pa) + page_offset;
 		switch (uio->uio_segflg) {
 		case UIO_USERSPACE:
@@ -103,8 +101,6 @@ uiomove_fromphys(vm_page_t ma[], vm_offset_t offset, int n, struct uio *uio)
 			else
 				error = copyin(iov->iov_base, cp, cnt);
 			if (error) {
-				if (sf != NULL)
-					sf_buf_free(sf);
 				goto out;
 			}
 			break;
@@ -117,8 +113,6 @@ uiomove_fromphys(vm_page_t ma[], vm_offset_t offset, int n, struct uio *uio)
 		case UIO_NOCOPY:
 			break;
 		}
-		if (sf != NULL)
-			sf_buf_free(sf);
 		iov->iov_base = (char *)iov->iov_base + cnt;
 		iov->iov_len -= cnt;
 		uio->uio_resid -= cnt;
