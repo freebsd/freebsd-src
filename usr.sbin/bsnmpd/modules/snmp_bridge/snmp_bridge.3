@@ -25,7 +25,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd August 18, 2006
+.Dd December 8, 2006
 .Dt snmp_bridge 3
 .Os
 .Sh NAME
@@ -36,8 +36,9 @@
 .Sh DESCRIPTION
 The
 .Nm snmp_bridge
-module implements the BRIDGE-MIB as standardized in RFC 4188 and a private
-BEGEMOT-BRIDGE-MIB, which allows management of multiple bridge interfaces.
+module implements the BRIDGE-MIB as standardized in RFC 4188, the RSTP-MIB
+standardized in RFC4318 and a private BEGEMOT-BRIDGE-MIB, which allows
+management of multiple bridge interfaces.
 Most of the objects defined in the private BEGEMOT-BRIDGE-MIB are duplicates
 of the original objects defined by the standard BRIDGE-MIB, but the private
 MIB also defines additional objects which make the functionality of
@@ -100,6 +101,8 @@ The description of the MIB tree implemented by
 .Nm .
 .It Pa /usr/share/snmp/mibs/BRIDGE-MIB.txt
 This is the BRIDGE-MIB that is implemented by this module.
+.It Pa /usr/share/snmp/mibs/RSTP-MIB.txt
+This is the RSTP-MIB implemented by this module.
 .It Pa /usr/share/snmp/mibs/BEGEMOT-BRIDGE-MIB.txt
 This is the private BEGEMOT-BRIDGE-MIB that is implemented by this module.
 .El
