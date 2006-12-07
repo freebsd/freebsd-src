@@ -283,20 +283,20 @@ void mpt_map_rquest(void *, bus_dma_segment_t *, int, int);
 #define	HOST_2_MPT32(ptr, tag)	ptr->tag = htole32(ptr->tag)
 #define	HOST_2_MPT16(ptr, tag)	ptr->tag = htole16(ptr->tag)
 
-#if	_BYTE_ORDER == _LITTLE_ENDIAN
-#define	mpt2host_sge_simple_union(x)		do { ; } while (0)
-#define	mpt2host_iocfacts_reply(x)		do { ; } while (0)
-#define	mpt2host_portfacts_reply(x)		do { ; } while (0)
-#define	mpt2host_config_page_ioc2(x)		do { ; } while (0)
-#define	mpt2host_config_page_raid_vol_0(x)	do { ; } while (0)
-#define	mpt2host_mpi_raid_vol_indicator(x)	do { ; } while (0)
-#else
+#if	_BYTE_ORDER == _BIG_ENDIAN
 void mpt2host_sge_simple_union(SGE_SIMPLE_UNION *);
 void mpt2host_iocfacts_reply(MSG_IOC_FACTS_REPLY *);
 void mpt2host_portfacts_reply(MSG_PORT_FACTS_REPLY *);
 void mpt2host_config_page_ioc2(CONFIG_PAGE_IOC_2 *);
 void mpt2host_config_page_raid_vol_0(CONFIG_PAGE_RAID_VOL_0 *);
 void mpt2host_mpi_raid_vol_indicator(MPI_RAID_VOL_INDICATOR *);
+#else
+#define	mpt2host_sge_simple_union(x)		do { ; } while (0)
+#define	mpt2host_iocfacts_reply(x)		do { ; } while (0)
+#define	mpt2host_portfacts_reply(x)		do { ; } while (0)
+#define	mpt2host_config_page_ioc2(x)		do { ; } while (0)
+#define	mpt2host_config_page_raid_vol_0(x)	do { ; } while (0)
+#define	mpt2host_mpi_raid_vol_indicator(x)	do { ; } while (0)
 #endif
 
 /**************************** MPI Transaction State ***************************/
