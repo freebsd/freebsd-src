@@ -128,7 +128,7 @@ static void mpt_send_event_ack(struct mpt_softc *mpt, request_t *ack_req,
 static int mpt_send_event_request(struct mpt_softc *mpt, int onoff);
 static int mpt_soft_reset(struct mpt_softc *mpt);
 static void mpt_hard_reset(struct mpt_softc *mpt);
-static int mpt_configure_ioc(struct mpt_softc *mpt);
+static int mpt_configure_ioc(struct mpt_softc *mpt, int, int);
 static int mpt_enable_ioc(struct mpt_softc *mpt, int);
 
 /************************* Personality Module Support *************************/
@@ -1484,25 +1484,27 @@ mpt_get_iocfacts(struct mpt_softc *mpt, MSG_IOC_FACTS_REPLY *freplp)
 	f_req.Function = MPI_FUNCTION_IOC_FACTS;
 	f_req.MsgContext = htole32(MPT_REPLY_HANDLER_HANDSHAKE);
 	error = mpt_send_handshake_cmd(mpt, sizeof f_req, &f_req);
-	if (error)
+	if (error) {
 		return(error);
+	}
 	error = mpt_recv_handshake_reply(mpt, sizeof (*freplp), freplp);
 	return (error);
 }
 
 static int
-mpt_get_portfacts(struct mpt_softc *mpt, MSG_PORT_FACTS_REPLY *freplp)
+mpt_get_portfacts(struct mpt_softc *mpt, U8 port, MSG_PORT_FACTS_REPLY *freplp)
 {
 	MSG_PORT_FACTS f_req;
 	int error;
 	
-	/* XXX: Only getting PORT FACTS for Port 0 */
 	memset(&f_req, 0, sizeof f_req);
 	f_req.Function = MPI_FUNCTION_PORT_FACTS;
+	f_req.PortNumber = port;
 	f_req.MsgContext = htole32(MPT_REPLY_HANDLER_HANDSHAKE);
 	error = mpt_send_handshake_cmd(mpt, sizeof f_req, &f_req);
-	if (error)
+	if (error) {
 		return(error);
+	}
 	error = mpt_recv_handshake_reply(mpt, sizeof (*freplp), freplp);
 	return (error);
 }
@@ -1523,8 +1525,8 @@ mpt_send_ioc_init(struct mpt_softc *mpt, uint32_t who)
 	memset(&init, 0, sizeof init);
 	init.WhoInit = who;
 	init.Function = MPI_FUNCTION_IOC_INIT;
-	init.MaxDevices = mpt->mpt_max_devices;
-	init.MaxBuses = 1;
+	init.MaxDevices = 0;	/* at least 256 devices per bus */
+	init.MaxBuses = 16;	/* at least 16 busses */
 
 	init.MsgVersion = htole16(MPI_VERSION);
 	init.HeaderVersion = htole16(MPI_HEADER_VERSION);
@@ -1759,17 +1761,10 @@ mpt_read_config_info_ioc(struct mpt_softc *mpt)
 		return (rv);
 	}
 
-#if __FreeBSD_version >= 500000
-	mpt_lprt(mpt, MPT_PRT_DEBUG,  "IOC Page 2 Header: ver %x, len %zx, "
-		 "num %x, type %x\n", hdr.PageVersion,
-		 hdr.PageLength * sizeof(uint32_t),
-		 hdr.PageNumber, hdr.PageType);
-#else
-	mpt_lprt(mpt, MPT_PRT_DEBUG,  "IOC Page 2 Header: ver %x, len %z, "
-		 "num %x, type %x\n", hdr.PageVersion,
-		 hdr.PageLength * sizeof(uint32_t),
-		 hdr.PageNumber, hdr.PageType);
-#endif
+	mpt_lprt(mpt, MPT_PRT_DEBUG,
+	    "IOC Page 2 Header: Version %x len %x PageNumber %x PageType %x\n",
+	    hdr.PageVersion, hdr.PageLength << 2,
+	    hdr.PageNumber, hdr.PageType);
 
 	len = hdr.PageLength * sizeof(uint32_t);
 	mpt->ioc_page2 = malloc(len, M_DEVBUF, M_NOWAIT | M_ZERO);
@@ -1786,6 +1781,7 @@ mpt_read_config_info_ioc(struct mpt_softc *mpt)
 		mpt_raid_free_mem(mpt);
 		return (EIO);
 	}
+	mpt2host_config_page_ioc2(mpt->ioc_page2);
 
 	if (mpt->ioc_page2->CapabilitiesFlags != 0) {
 		uint32_t mask;
@@ -2107,11 +2103,8 @@ int
 mpt_core_attach(struct mpt_softc *mpt)
 {
         int val;
-	int error;
-
 
 	LIST_INIT(&mpt->ack_frames);
-
 	/* Put all request buffers on the free list */
 	TAILQ_INIT(&mpt->request_pending_list);
 	TAILQ_INIT(&mpt->request_free_list);
@@ -2121,24 +2114,17 @@ mpt_core_attach(struct mpt_softc *mpt)
 		req->state = REQ_STATE_ALLOCATED;
 		mpt_free_request(mpt, req);
 	}
-
 	for (val = 0; val < MPT_MAX_LUNS; val++) {
 		STAILQ_INIT(&mpt->trt[val].atios);
 		STAILQ_INIT(&mpt->trt[val].inots);
 	}
 	STAILQ_INIT(&mpt->trt_wildcard.atios);
 	STAILQ_INIT(&mpt->trt_wildcard.inots);
-
 	mpt->scsi_tgt_handler_id = MPT_HANDLER_ID_NONE;
-
 	mpt_sysctl_attach(mpt);
-
 	mpt_lprt(mpt, MPT_PRT_DEBUG, "doorbell req = %s\n",
 	    mpt_ioc_diag(mpt_read(mpt, MPT_OFFSET_DOORBELL)));
-
-	error = mpt_configure_ioc(mpt);
-
-	return (error);
+	return (mpt_configure_ioc(mpt, 0, 0));
 }
 
 int
@@ -2197,6 +2183,9 @@ mpt_core_shutdown(struct mpt_softc *mpt)
 void
 mpt_core_detach(struct mpt_softc *mpt)
 {
+	/*
+	 * XXX: FREE MEMORY 
+	 */
 	mpt_disable_ints(mpt);
 }
 
@@ -2337,225 +2326,228 @@ mpt_download_fw(struct mpt_softc *mpt)
  * once at instance startup.
  */
 static int
-mpt_configure_ioc(struct mpt_softc *mpt)
+mpt_configure_ioc(struct mpt_softc *mpt, int tn, int needreset)
 {
-        MSG_PORT_FACTS_REPLY pfp;
-        MSG_IOC_FACTS_REPLY facts;
-	int try;
-	int needreset;
-	uint32_t max_chain_depth;
+	PTR_MSG_PORT_FACTS_REPLY pfp;
+	int error,  port;
+	size_t len;
 
-	needreset = 0;
-	for (try = 0; try < MPT_MAX_TRYS; try++) {
+	if (tn == MPT_MAX_TRYS) {
+		return (-1);
+	}
 
-		/*
-		 * No need to reset if the IOC is already in the READY state.
-		 *
-		 * Force reset if initialization failed previously.
-		 * Note that a hard_reset of the second channel of a '929
-		 * will stop operation of the first channel.  Hopefully, if the
-		 * first channel is ok, the second will not require a hard
-		 * reset.
-		 */
-		if (needreset || MPT_STATE(mpt_rd_db(mpt)) !=
-		    MPT_DB_STATE_READY) {
-			if (mpt_reset(mpt, FALSE) != MPT_OK) {
-				continue;
-			}
+	/*
+	 * No need to reset if the IOC is already in the READY state.
+	 *
+	 * Force reset if initialization failed previously.
+	 * Note that a hard_reset of the second channel of a '929
+	 * will stop operation of the first channel.  Hopefully, if the
+	 * first channel is ok, the second will not require a hard
+	 * reset.
+	 */
+	if (needreset || MPT_STATE(mpt_rd_db(mpt)) != MPT_DB_STATE_READY) {
+		if (mpt_reset(mpt, FALSE) != MPT_OK) {
+			return (mpt_configure_ioc(mpt, tn++, 1));
 		}
 		needreset = 0;
+	}
 
-		if (mpt_get_iocfacts(mpt, &facts) != MPT_OK) {
-			mpt_prt(mpt, "mpt_get_iocfacts failed\n");
-			needreset = 1;
-			continue;
-		}
+	if (mpt_get_iocfacts(mpt, &mpt->ioc_facts) != MPT_OK) {
+		mpt_prt(mpt, "mpt_get_iocfacts failed\n");
+		return (mpt_configure_ioc(mpt, tn++, 1));
+	}
+	mpt2host_iocfacts_reply(&mpt->ioc_facts);
 
-		mpt->mpt_global_credits = le16toh(facts.GlobalCredits);
-		mpt->request_frame_size = le16toh(facts.RequestFrameSize);
-		mpt->ioc_facts_flags = facts.Flags;
-		mpt_prt(mpt, "MPI Version=%d.%d.%d.%d\n",
-			    le16toh(facts.MsgVersion) >> 8,
-			    le16toh(facts.MsgVersion) & 0xFF,
-			    le16toh(facts.HeaderVersion) >> 8,
-			    le16toh(facts.HeaderVersion) & 0xFF);
+	mpt_prt(mpt, "MPI Version=%d.%d.%d.%d\n",
+	    mpt->ioc_facts.MsgVersion >> 8,
+	    mpt->ioc_facts.MsgVersion & 0xFF,
+	    mpt->ioc_facts.HeaderVersion >> 8,
+	    mpt->ioc_facts.HeaderVersion & 0xFF);
+
+	/*
+	 * Now that we know request frame size, we can calculate
+	 * the actual (reasonable) segment limit for read/write I/O.
+	 *
+	 * This limit is constrained by:
+	 *
+	 *  + The size of each area we allocate per command (and how
+	 *    many chain segments we can fit into it).
+	 *  + The total number of areas we've set up.
+	 *  + The actual chain depth the card will allow.
+	 *
+	 * The first area's segment count is limited by the I/O request
+	 * at the head of it. We cannot allocate realistically more
+	 * than MPT_MAX_REQUESTS areas. Therefore, to account for both
+	 * conditions, we'll just start out with MPT_MAX_REQUESTS-2.
+	 *
+	 */
+	/* total number of request areas we (can) allocate */
+	mpt->max_seg_cnt = MPT_MAX_REQUESTS(mpt) - 2;
+
+	/* converted to the number of chain areas possible */
+	mpt->max_seg_cnt *= MPT_NRFM(mpt);
+
+	/* limited by the number of chain areas the card will support */
+	if (mpt->max_seg_cnt > mpt->ioc_facts.MaxChainDepth) {
+		mpt_lprt(mpt, MPT_PRT_DEBUG,
+		    "chain depth limited to %u (from %u)\n",
+		    mpt->ioc_facts.MaxChainDepth, mpt->max_seg_cnt);
+		mpt->max_seg_cnt = mpt->ioc_facts.MaxChainDepth;
+	}
+
+	/* converted to the number of simple sges in chain segments. */
+	mpt->max_seg_cnt *= (MPT_NSGL(mpt) - 1);
+
+	mpt_lprt(mpt, MPT_PRT_DEBUG, "Maximum Segment Count: %u\n",
+	    mpt->max_seg_cnt);
+	mpt_lprt(mpt, MPT_PRT_DEBUG, "MsgLength=%u IOCNumber = %d\n",
+	    mpt->ioc_facts.MsgLength, mpt->ioc_facts.IOCNumber);
+	mpt_lprt(mpt, MPT_PRT_DEBUG,
+	    "IOCFACTS: GlobalCredits=%d BlockSize=%u bytes "
+	    "Request Frame Size %u bytes Max Chain Depth %u\n",
+	    mpt->ioc_facts.GlobalCredits, mpt->ioc_facts.BlockSize,
+	    mpt->ioc_facts.RequestFrameSize << 2,
+	    mpt->ioc_facts.MaxChainDepth);
+	mpt_lprt(mpt, MPT_PRT_DEBUG, "IOCFACTS: Num Ports %d, FWImageSize %d, "
+	    "Flags=%#x\n", mpt->ioc_facts.NumberOfPorts,
+	    mpt->ioc_facts.FWImageSize, mpt->ioc_facts.Flags);
+
+	len = mpt->ioc_facts.NumberOfPorts * sizeof (MSG_PORT_FACTS_REPLY);
+	mpt->port_facts = malloc(len, M_DEVBUF, M_NOWAIT | M_ZERO);
+	if (mpt->port_facts == NULL) {
+		mpt_prt(mpt, "unable to allocate memory for port facts\n");
+		return (ENOMEM);
+	}
+
+
+	if ((mpt->ioc_facts.Flags & MPI_IOCFACTS_FLAGS_FW_DOWNLOAD_BOOT) &&
+	    (mpt->fw_uploaded == 0)) {
+		struct mpt_map_info mi;
 
 		/*
-		 * Now that we know request frame size, we can calculate
-		 * the actual (reasonable) segment limit for read/write I/O.
-		 *
-		 * This limit is constrained by:
-		 *
-		 *  + The size of each area we allocate per command (and how
-                 *    many chain segments we can fit into it).
-                 *  + The total number of areas we've set up.
-		 *  + The actual chain depth the card will allow.
-		 *
-		 * The first area's segment count is limited by the I/O request
-		 * at the head of it. We cannot allocate realistically more
-		 * than MPT_MAX_REQUESTS areas. Therefore, to account for both
-		 * conditions, we'll just start out with MPT_MAX_REQUESTS-2.
-		 *
+		 * In some configurations, the IOC's firmware is
+		 * stored in a shared piece of system NVRAM that
+		 * is only accessable via the BIOS.  In this
+		 * case, the firmware keeps a copy of firmware in
+		 * RAM until the OS driver retrieves it.  Once
+		 * retrieved, we are responsible for re-downloading
+		 * the firmware after any hard-reset.
 		 */
-		max_chain_depth = facts.MaxChainDepth;
-
-		/* total number of request areas we (can) allocate */
-		mpt->max_seg_cnt = MPT_MAX_REQUESTS(mpt) - 2;
-
-		/* converted to the number of chain areas possible */
-		mpt->max_seg_cnt *= MPT_NRFM(mpt);
-
-		/* limited by the number of chain areas the card will support */
-		if (mpt->max_seg_cnt > max_chain_depth) {
-			mpt_lprt(mpt, MPT_PRT_DEBUG,
-			    "chain depth limited to %u (from %u)\n",
-			    max_chain_depth, mpt->max_seg_cnt);
-			mpt->max_seg_cnt = max_chain_depth;
+		mpt->fw_image_size = mpt->ioc_facts.FWImageSize;
+		error = mpt_dma_tag_create(mpt, mpt->parent_dmat, 1, 0,
+		    BUS_SPACE_MAXADDR_32BIT, BUS_SPACE_MAXADDR, NULL, NULL,
+		    mpt->fw_image_size, 1, mpt->fw_image_size, 0,
+		    &mpt->fw_dmat);
+		if (error != 0) {
+			mpt_prt(mpt, "cannot create firmwarew dma tag\n");
+			return (ENOMEM);
 		}
-
-		/* converted to the number of simple sges in chain segments. */
-		mpt->max_seg_cnt *= (MPT_NSGL(mpt) - 1);
-
-		mpt_lprt(mpt, MPT_PRT_DEBUG,
-		    "Maximum Segment Count: %u\n", mpt->max_seg_cnt);
-		mpt_lprt(mpt, MPT_PRT_DEBUG,
-			 "MsgLength=%u IOCNumber = %d\n",
-			 facts.MsgLength, facts.IOCNumber);
-		mpt_lprt(mpt, MPT_PRT_DEBUG,
-			 "IOCFACTS: GlobalCredits=%d BlockSize=%u bytes "
-			 "Request Frame Size %u bytes Max Chain Depth %u\n",
-                         mpt->mpt_global_credits, facts.BlockSize,
-                         mpt->request_frame_size << 2, max_chain_depth);
-		mpt_lprt(mpt, MPT_PRT_DEBUG,
-			 "IOCFACTS: Num Ports %d, FWImageSize %d, "
-			 "Flags=%#x\n", facts.NumberOfPorts,
-			 le32toh(facts.FWImageSize), facts.Flags);
-
-
-		if ((facts.Flags & MPI_IOCFACTS_FLAGS_FW_DOWNLOAD_BOOT) != 0) {
-			struct mpt_map_info mi;
-			int error;
-
-			/*
-			 * In some configurations, the IOC's firmware is
-			 * stored in a shared piece of system NVRAM that
-			 * is only accessable via the BIOS.  In this
-			 * case, the firmware keeps a copy of firmware in
-			 * RAM until the OS driver retrieves it.  Once
-			 * retrieved, we are responsible for re-downloading
-			 * the firmware after any hard-reset.
-			 */
-			mpt->fw_image_size = le32toh(facts.FWImageSize);
-			error = mpt_dma_tag_create(mpt, mpt->parent_dmat,
-			    /*alignment*/1, /*boundary*/0,
-			    /*lowaddr*/BUS_SPACE_MAXADDR_32BIT,
-			    /*highaddr*/BUS_SPACE_MAXADDR, /*filter*/NULL,
-			    /*filterarg*/NULL, mpt->fw_image_size,
-			    /*nsegments*/1, /*maxsegsz*/mpt->fw_image_size,
-			    /*flags*/0, &mpt->fw_dmat);
-			if (error != 0) {
-				mpt_prt(mpt, "cannot create fw dma tag\n");
-				return (ENOMEM);
-			}
-			error = bus_dmamem_alloc(mpt->fw_dmat,
-			    (void **)&mpt->fw_image, BUS_DMA_NOWAIT,
-			    &mpt->fw_dmap);
-			if (error != 0) {
-				mpt_prt(mpt, "cannot allocate fw mem.\n");
-				bus_dma_tag_destroy(mpt->fw_dmat);
-				return (ENOMEM);
-			}
-			mi.mpt = mpt;
-			mi.error = 0;
-			bus_dmamap_load(mpt->fw_dmat, mpt->fw_dmap,
-			    mpt->fw_image, mpt->fw_image_size, mpt_map_rquest,
-			    &mi, 0);
-			mpt->fw_phys = mi.phys;
-
-			error = mpt_upload_fw(mpt);
-			if (error != 0) {
-				mpt_prt(mpt, "fw upload failed.\n");
-				bus_dmamap_unload(mpt->fw_dmat, mpt->fw_dmap);
-				bus_dmamem_free(mpt->fw_dmat, mpt->fw_image,
-				    mpt->fw_dmap);
-				bus_dma_tag_destroy(mpt->fw_dmat);
-				mpt->fw_image = NULL;
-				return (EIO);
-			}
+		error = bus_dmamem_alloc(mpt->fw_dmat,
+		    (void **)&mpt->fw_image, BUS_DMA_NOWAIT, &mpt->fw_dmap);
+		if (error != 0) {
+			mpt_prt(mpt, "cannot allocate firmware memory\n");
+			bus_dma_tag_destroy(mpt->fw_dmat);
+			return (ENOMEM);
 		}
+		mi.mpt = mpt;
+		mi.error = 0;
+		bus_dmamap_load(mpt->fw_dmat, mpt->fw_dmap,
+		    mpt->fw_image, mpt->fw_image_size, mpt_map_rquest, &mi, 0);
+		mpt->fw_phys = mi.phys;
 
-		if (mpt_get_portfacts(mpt, &pfp) != MPT_OK) {
-			mpt_prt(mpt, "mpt_get_portfacts failed\n");
-			needreset = 1;
-			continue;
+		error = mpt_upload_fw(mpt);
+		if (error != 0) {
+			mpt_prt(mpt, "firmware upload failed.\n");
+			bus_dmamap_unload(mpt->fw_dmat, mpt->fw_dmap);
+			bus_dmamem_free(mpt->fw_dmat, mpt->fw_image,
+			    mpt->fw_dmap);
+			bus_dma_tag_destroy(mpt->fw_dmat);
+			mpt->fw_image = NULL;
+			return (EIO);
 		}
+		mpt->fw_uploaded = 1;
+	}
 
-		mpt_lprt(mpt, MPT_PRT_DEBUG,
-			 "PORTFACTS: Type %x PFlags %x IID %d MaxDev %d\n",
-			 pfp.PortType, pfp.ProtocolFlags, pfp.PortSCSIID,
-			 pfp.MaxDevices);
-
-		mpt->mpt_port_type = pfp.PortType;
-		mpt->mpt_proto_flags = le16toh(pfp.ProtocolFlags);
-		if (pfp.PortType != MPI_PORTFACTS_PORTTYPE_SCSI &&
-		    pfp.PortType != MPI_PORTFACTS_PORTTYPE_SAS &&
-		    pfp.PortType != MPI_PORTFACTS_PORTTYPE_FC) {
-			mpt_prt(mpt, "Unsupported Port Type (%x)\n",
-			    pfp.PortType);
-			return (ENXIO);
+	for (port = 0; port < mpt->ioc_facts.NumberOfPorts; port++) {
+		pfp = &mpt->port_facts[port];
+		error = mpt_get_portfacts(mpt, 0, pfp);
+		if (error != MPT_OK) {
+			mpt_prt(mpt,
+			    "mpt_get_portfacts on port %d failed\n", port);
+			free(mpt->port_facts, M_DEVBUF);
+			mpt->port_facts = NULL;
+			return (mpt_configure_ioc(mpt, tn++, 1));
 		}
-		mpt->mpt_max_tgtcmds = le16toh(pfp.MaxPostedCmdBuffers);
+		mpt2host_portfacts_reply(pfp);
 
-		if (pfp.PortType == MPI_PORTFACTS_PORTTYPE_FC) {
-			mpt->is_fc = 1;
-			mpt->is_sas = 0;
-			mpt->is_spi = 0;
-		} else if (pfp.PortType == MPI_PORTFACTS_PORTTYPE_SAS) {
-			mpt->is_fc = 0;
-			mpt->is_sas = 1;
-			mpt->is_spi = 0;
+		if (port > 0) {
+			error = MPT_PRT_INFO;
 		} else {
-			mpt->is_fc = 0;
-			mpt->is_sas = 0;
-			mpt->is_spi = 1;
+			error = MPT_PRT_DEBUG;
 		}
-		mpt->mpt_ini_id = pfp.PortSCSIID;
-		mpt->mpt_max_devices = pfp.MaxDevices;
+		mpt_lprt(mpt, error,
+		    "PORTFACTS[%d]: Type %x PFlags %x IID %d MaxDev %d\n",
+		    port, pfp->PortType, pfp->ProtocolFlags, pfp->PortSCSIID,
+		    pfp->MaxDevices);
 
-		/*
-		 * Set our role with what this port supports.
-		 *
-		 * Note this might be changed later in different modules
-		 * if this is different from what is wanted.
-		 */
-		mpt->role = MPT_ROLE_NONE;
-		if (mpt->mpt_proto_flags & MPI_PORTFACTS_PROTOCOL_INITIATOR) {
-			mpt->role |= MPT_ROLE_INITIATOR;
-		}
-		if (mpt->mpt_proto_flags & MPI_PORTFACTS_PROTOCOL_TARGET) {
-			mpt->role |= MPT_ROLE_TARGET;
-		}
-		if (mpt_enable_ioc(mpt, 0) != MPT_OK) {
-			mpt_prt(mpt, "unable to initialize IOC\n");
-			return (ENXIO);
-		}
-
-		/*
-		 * Read IOC configuration information.
-		 *
-		 * We need this to determine whether or not we have certain
-		 * settings for Integrated Mirroring (e.g.).
-		 */
-		mpt_read_config_info_ioc(mpt);
-
-		/* Everything worked */
-		break;
 	}
 
-	if (try >= MPT_MAX_TRYS) {
-		mpt_prt(mpt, "failed to initialize IOC");
-		return (EIO);
+	/*
+	 * XXX: Not yet supporting more than port 0
+	 */
+	pfp = &mpt->port_facts[0];
+	if (pfp->PortType == MPI_PORTFACTS_PORTTYPE_FC) {
+		mpt->is_fc = 1;
+		mpt->is_sas = 0;
+		mpt->is_spi = 0;
+	} else if (pfp->PortType == MPI_PORTFACTS_PORTTYPE_SAS) {
+		mpt->is_fc = 0;
+		mpt->is_sas = 1;
+		mpt->is_spi = 0;
+	} else if (pfp->PortType == MPI_PORTFACTS_PORTTYPE_SCSI) {
+		mpt->is_fc = 0;
+		mpt->is_sas = 0;
+		mpt->is_spi = 1;
+	} else if (pfp->PortType == MPI_PORTFACTS_PORTTYPE_ISCSI) {
+		mpt_prt(mpt, "iSCSI not supported yet\n");
+		return (ENXIO);
+	} else if (pfp->PortType == MPI_PORTFACTS_PORTTYPE_INACTIVE) {
+		mpt_prt(mpt, "Inactive Port\n");
+		return (ENXIO);
+	} else {
+		mpt_prt(mpt, "unknown Port Type %#x\n", pfp->PortType);
+		return (ENXIO);
 	}
+
+	/*
+	 * Set our role with what this port supports.
+	 *
+	 * Note this might be changed later in different modules
+	 * if this is different from what is wanted.
+	 */
+	mpt->role = MPT_ROLE_NONE;
+	if (pfp->ProtocolFlags & MPI_PORTFACTS_PROTOCOL_INITIATOR) {
+		mpt->role |= MPT_ROLE_INITIATOR;
+	}
+	if (pfp->ProtocolFlags & MPI_PORTFACTS_PROTOCOL_TARGET) {
+		mpt->role |= MPT_ROLE_TARGET;
+	}
+
+	/*
+	 * Enable the IOC
+	 */
+	if (mpt_enable_ioc(mpt, 0) != MPT_OK) {
+		mpt_prt(mpt, "unable to initialize IOC\n");
+		return (ENXIO);
+	}
+
+	/*
+	 * Read IOC configuration information.
+	 *
+	 * We need this to determine whether or not we have certain
+	 * settings for Integrated Mirroring (e.g.).
+	 */
+	mpt_read_config_info_ioc(mpt);
 
 	return (0);
 }
@@ -2588,7 +2580,7 @@ mpt_enable_ioc(struct mpt_softc *mpt, int portenable)
 	    (pptr + MPT_REPLY_SIZE) < (mpt->reply_phys + PAGE_SIZE);
 	     pptr += MPT_REPLY_SIZE) {
 		mpt_free_reply(mpt, pptr);
-		if (++val == mpt->mpt_global_credits - 1)
+		if (++val == mpt->ioc_facts.GlobalCredits - 1)
 			break;
 	}
 
@@ -2610,3 +2602,92 @@ mpt_enable_ioc(struct mpt_softc *mpt, int portenable)
 	}
 	return (MPT_OK);
 }
+
+/*
+ * Endian Conversion Functions- only used on Big Endian machines
+ */
+#if	_BYTE_ORDER == _BIG_ENDIAN
+void
+mpt2host_sge_simple_union(SGE_SIMPLE_UNION *sge)
+{
+	MPT_2_HOST32(sge, FlagsLength);
+	MPT_2_HOST64(sge, u.Address64);
+};
+
+void
+mpt2host_iocfacts_reply(MSG_IOC_FACTS_REPLY *rp)
+{
+	MPT_2_HOST16(rp, MsgVersion);
+	MPT_2_HOST16(rp, HeaderVersion);
+	MPT_2_HOST32(rp, MsgContext);
+	MPT_2_HOST16(rp, IOCExceptions);
+	MPT_2_HOST16(rp, IOCStatus);
+	MPT_2_HOST32(rp, IOCLogInfo);
+	MPT_2_HOST16(rp, ReplyQueueDepth);
+	MPT_2_HOST16(rp, RequestFrameSize);
+	MPT_2_HOST16(rp, Reserved_0101_FWVersion);
+	MPT_2_HOST16(rp, ProductID);
+	MPT_2_HOST32(rp, CurrentHostMfaHighAddr);
+	MPT_2_HOST16(rp, GlobalCredits);
+	MPT_2_HOST32(rp, CurrentSenseBufferHighAddr);
+	MPT_2_HOST16(rp, CurReplyFrameSize);
+	MPT_2_HOST32(rp, FWImageSize);
+	MPT_2_HOST32(rp, IOCCapabilities);
+	MPT_2_HOST32(rp, FWVersion.Word);
+	MPT_2_HOST16(rp, HighPriorityQueueDepth);
+	MPT_2_HOST16(rp, Reserved2);
+	mpt2host_sge_simple_union(&rp->HostPageBufferSGE);
+	MPT_2_HOST32(rp, ReplyFifoHostSignalingAddr);
+}
+
+void
+mpt2host_portfacts_reply(MSG_PORT_FACTS_REPLY *pfp)
+{
+	MPT_2_HOST16(pfp, Reserved);
+	MPT_2_HOST16(pfp, Reserved1);
+	MPT_2_HOST32(pfp, MsgContext);
+	MPT_2_HOST16(pfp, Reserved2);
+	MPT_2_HOST16(pfp, IOCStatus);
+	MPT_2_HOST32(pfp, IOCLogInfo);
+	MPT_2_HOST16(pfp, MaxDevices);
+	MPT_2_HOST16(pfp, PortSCSIID);
+	MPT_2_HOST16(pfp, ProtocolFlags);
+	MPT_2_HOST16(pfp, MaxPostedCmdBuffers);
+	MPT_2_HOST16(pfp, MaxPersistentIDs);
+	MPT_2_HOST16(pfp, MaxLanBuckets);
+	MPT_2_HOST16(pfp, Reserved4);
+	MPT_2_HOST32(pfp, Reserved5);
+}
+void
+mpt2host_config_page_ioc2(CONFIG_PAGE_IOC_2 *ioc2)
+{
+	int i;
+	ioc2->CapabilitiesFlags = htole32(ioc2->CapabilitiesFlags);
+	for (i = 0; i < MPI_IOC_PAGE_2_RAID_VOLUME_MAX; i++) {
+		MPT_2_HOST16(ioc2->RaidVolume[i].Reserved3);
+	}
+}
+
+void
+mpt2host_config_page_raid_vol_0(CONFIG_PAGE_RAID_VOL_0 *volp)
+{
+	int i;
+	MPT_2_HOST16(volp, VolumeStatus.Reserved);
+	MPT_2_HOST16(volp, VolumeSettings.Settings);
+	MPT_2_HOST32(volp, MaxLBA);
+	MPT_2_HOST32(volp, Reserved1);
+	MPT_2_HOST32(volp, StripeSize);
+	MPT_2_HOST32(volp, Reserved2);
+	MPT_2_HOST32(volp, Reserved3);
+	for (i = 0; i < MPI_RAID_VOL_PAGE_0_PHYSDISK_MAX; i++) {
+		MPT_2_HOST16(volpd, PhysDisk[i].Reserved);
+	}
+}
+
+void
+mpt2host_mpi_raid_vol_indicator(MPI_RAID_VOL_INDICATOR *vi)
+{
+	MPT_2_HOST16(vi, TotalBlocks);
+	MPT_2_HOST16(vi, BlocksRemaining);
+}
+#endif

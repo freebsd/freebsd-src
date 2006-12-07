@@ -1229,7 +1229,7 @@ mpt_refresh_raid_disk(struct mpt_softc *mpt, struct mpt_raid_disk *mpt_disk,
 
 static void
 mpt_refresh_raid_vol(struct mpt_softc *mpt, struct mpt_raid_volume *mpt_vol,
-		     CONFIG_PAGE_IOC_2_RAID_VOL *ioc_vol)
+    CONFIG_PAGE_IOC_2_RAID_VOL *ioc_vol)
 {
 	CONFIG_PAGE_RAID_VOL_0 *vol_pg;
 	struct mpt_raid_action_result *ar;
@@ -1239,31 +1239,31 @@ mpt_refresh_raid_vol(struct mpt_softc *mpt, struct mpt_raid_volume *mpt_vol,
 
 	vol_pg = mpt_vol->config_page;
 	mpt_vol->flags &= ~MPT_RVF_UP2DATE;
-	rv = mpt_read_cfg_header(mpt, MPI_CONFIG_PAGETYPE_RAID_VOLUME,
-				 /*PageNumber*/0, ioc_vol->VolumePageNumber,
-				 &vol_pg->Header, /*sleep_ok*/TRUE,
-				 /*timeout_ms*/5000);
+
+	rv = mpt_read_cfg_header(mpt, MPI_CONFIG_PAGETYPE_RAID_VOLUME, 0,
+	    ioc_vol->VolumePageNumber, &vol_pg->Header, TRUE, 5000);
 	if (rv != 0) {
-		mpt_vol_prt(mpt, mpt_vol, "mpt_refresh_raid_vol: "
-			    "Failed to read RAID Vol Hdr(%d)\n",
-			    ioc_vol->VolumePageNumber);
+		mpt_vol_prt(mpt, mpt_vol,
+		    "mpt_refresh_raid_vol: Failed to read RAID Vol Hdr(%d)\n",
+		    ioc_vol->VolumePageNumber);
 		return;
 	}
+
 	rv = mpt_read_cur_cfg_page(mpt, ioc_vol->VolumePageNumber,
-				   &vol_pg->Header, mpt->raid_page0_len,
-				   /*sleep_ok*/TRUE, /*timeout_ms*/5000);
+	    &vol_pg->Header, mpt->raid_page0_len, TRUE, 5000);
 	if (rv != 0) {
-		mpt_vol_prt(mpt, mpt_vol, "mpt_refresh_raid_vol: "
-			    "Failed to read RAID Vol Page(%d)\n",
-			    ioc_vol->VolumePageNumber);
+		mpt_vol_prt(mpt, mpt_vol,
+		    "mpt_refresh_raid_vol: Failed to read RAID Vol Page(%d)\n",
+		    ioc_vol->VolumePageNumber);
 		return;
 	}
+	mpt2host_config_page_raid_vol_0(vol_pg);
+
 	mpt_vol->flags |= MPT_RVF_ACTIVE;
 
 	/* Update disk entry array data. */
 	for (i = 0; i < vol_pg->NumPhysDisks; i++) {
 		struct mpt_raid_disk *mpt_disk;
-
 		mpt_disk = mpt->raid_disks + vol_pg->PhysDisk[i].PhysDiskNum;
 		mpt_disk->volume = mpt_vol;
 		mpt_disk->member_number = vol_pg->PhysDisk[i].PhysDiskMap;
@@ -1276,19 +1276,18 @@ mpt_refresh_raid_vol(struct mpt_softc *mpt, struct mpt_raid_volume *mpt_vol,
 	   & MPI_RAIDVOL0_STATUS_FLAG_RESYNC_IN_PROGRESS) == 0)
 		return;
 
-	req = mpt_get_request(mpt, /*sleep_ok*/TRUE);
+	req = mpt_get_request(mpt, TRUE);
 	if (req == NULL) {
 		mpt_vol_prt(mpt, mpt_vol,
-			    "mpt_refresh_raid_vol: Get request failed!\n");
+		    "mpt_refresh_raid_vol: Get request failed!\n");
 		return;
 	}
-	rv = mpt_issue_raid_req(mpt, mpt_vol, /*disk*/NULL, req,
-				MPI_RAID_ACTION_INDICATOR_STRUCT,
-				/*ActionWord*/0, /*addr*/0, /*len*/0,
-				/*write*/FALSE, /*wait*/TRUE);
+	rv = mpt_issue_raid_req(mpt, mpt_vol, NULL, req,
+	    MPI_RAID_ACTION_INDICATOR_STRUCT, 0, 0, 0, FALSE, TRUE);
 	if (rv == ETIMEDOUT) {
-		mpt_vol_prt(mpt, mpt_vol, "mpt_refresh_raid_vol: "
-			    "Progress indicator fetch timedout!\n");
+		mpt_vol_prt(mpt, mpt_vol,
+		    "mpt_refresh_raid_vol: Progress Indicator fetch timeout\n");
+		mpt_free_request(mpt, req);
 		return;
 	}
 
@@ -1299,9 +1298,10 @@ mpt_refresh_raid_vol(struct mpt_softc *mpt, struct mpt_raid_volume *mpt_vol,
 		memcpy(&mpt_vol->sync_progress,
 		       &ar->action_data.indicator_struct,
 		       sizeof(mpt_vol->sync_progress));
+		mpt2host_mpi_raid_vol_indicator(&mpt_vol->sync_progress);
 	} else {
-		mpt_vol_prt(mpt, mpt_vol, "mpt_refresh_raid_vol: "
-			    "Progress indicator fetch failed!\n");
+		mpt_vol_prt(mpt, mpt_vol,
+		    "mpt_refresh_raid_vol: Progress indicator fetch failed!\n");
 	}
 	mpt_free_request(mpt, req);
 }
@@ -1414,8 +1414,9 @@ mpt_refresh_raid_data(struct mpt_softc *mpt)
 
 		mpt_vol = &mpt->raid_volumes[i];
 
-		if ((mpt_vol->flags & MPT_RVF_ACTIVE) == 0)
+		if ((mpt_vol->flags & MPT_RVF_ACTIVE) == 0) {
 			continue;
+		}
 
 		vol_pg = mpt_vol->config_page;
 		if ((mpt_vol->flags & (MPT_RVF_REFERENCED|MPT_RVF_ANNOUNCED))
@@ -1426,7 +1427,6 @@ mpt_refresh_raid_data(struct mpt_softc *mpt)
 		}
 
 		if ((mpt_vol->flags & MPT_RVF_ANNOUNCED) == 0) {
-
 			mpt_announce_vol(mpt, mpt_vol);
 			mpt_vol->flags |= MPT_RVF_ANNOUNCED;
 		}
@@ -1440,11 +1440,12 @@ mpt_refresh_raid_data(struct mpt_softc *mpt)
 
 		mpt_vol->flags |= MPT_RVF_UP2DATE;
 		mpt_vol_prt(mpt, mpt_vol, "%s - %s\n",
-			    mpt_vol_type(mpt_vol), mpt_vol_state(mpt_vol));
+		    mpt_vol_type(mpt_vol), mpt_vol_state(mpt_vol));
 		mpt_verify_mwce(mpt, mpt_vol);
 
-		if (vol_pg->VolumeStatus.Flags == 0)
+		if (vol_pg->VolumeStatus.Flags == 0) {
 			continue;
+		}
 
 		mpt_vol_prt(mpt, mpt_vol, "Status (");
 		for (m = 1; m <= 0x80; m <<= 1) {
@@ -1473,8 +1474,8 @@ mpt_refresh_raid_data(struct mpt_softc *mpt)
 
 		mpt_verify_resync_rate(mpt, mpt_vol);
 
-		left = u64toh(mpt_vol->sync_progress.BlocksRemaining);
-		total = u64toh(mpt_vol->sync_progress.TotalBlocks);
+		left = MPT_U64_2_SCALAR(mpt_vol->sync_progress.BlocksRemaining);
+		total = MPT_U64_2_SCALAR(mpt_vol->sync_progress.TotalBlocks);
 		if (vol_pg->ResyncRate != 0) {
 
 			prio = ((u_int)vol_pg->ResyncRate * 100000) / 0xFF;

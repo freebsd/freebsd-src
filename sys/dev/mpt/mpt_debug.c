@@ -819,7 +819,7 @@ void
 mpt_dump_request(struct mpt_softc *mpt, request_t *req)
 {
         uint32_t *pReq = req->req_vbuf;
-	int offset;
+	int o;
 #if __FreeBSD_version >= 500000
 	mpt_prt(mpt, "Send Request %d (%jx):",
 	    req->index, (uintmax_t) req->req_pbuf);
@@ -827,12 +827,12 @@ mpt_dump_request(struct mpt_softc *mpt, request_t *req)
 	mpt_prt(mpt, "Send Request %d (%llx):",
 	    req->index, (unsigned long long) req->req_pbuf);
 #endif
-	for (offset = 0; offset < mpt->request_frame_size; offset++) {
-		if ((offset & 0x7) == 0) {
+	for (o = 0; o < mpt->ioc_facts.RequestFrameSize; o++) {
+		if ((o & 0x7) == 0) {
 			mpt_prtc(mpt, "\n");
 			mpt_prt(mpt, " ");
 		}
-		mpt_prtc(mpt, " %08x", pReq[offset]);
+		mpt_prtc(mpt, " %08x", pReq[o]);
 	}
 	mpt_prtc(mpt, "\n");
 }
