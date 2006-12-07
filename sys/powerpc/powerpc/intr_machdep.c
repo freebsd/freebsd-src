@@ -66,6 +66,7 @@
 #include <sys/queue.h>
 #include <sys/bus.h>
 #include <sys/interrupt.h>
+#include <sys/ktr.h>
 #include <sys/lock.h>
 #include <sys/malloc.h>
 #include <sys/mutex.h>
@@ -82,25 +83,19 @@
 
 MALLOC_DEFINE(M_INTR, "intr", "interrupt handler data");
 
-static int	intr_initialized = 0;
+struct ppc_intr {
+	struct intr_event *event;
+	long	*cntp;
+	int	cntidx;
+};
 
-static u_int		intr_nirq;
-static struct		ppc_intr_handler *intr_handlers;
+static struct mtx ppc_intrs_lock;
+static struct ppc_intr **ppc_intrs;
+static u_int ppc_nintrs;
 
-static struct		mtx intr_table_lock;
+static int intrcnt_index;
 
-extern int	extint, extsize;
-extern u_long	extint_call;
-
-static int 		intrcnt_index;
-static ih_func_t	intr_stray_handler;
-static ih_func_t	sched_ithd;
-
-static void		(*irq_enable)(uintptr_t);
-static void		(*irq_disable)(uintptr_t);
-
-static void intrcnt_setname(const char *name, int index);
-static void intrcnt_updatename(struct ppc_intr_handler *ih);
+static void (*irq_enable)(uintptr_t);
 
 static void
 intrcnt_setname(const char *name, int index)
@@ -109,85 +104,31 @@ intrcnt_setname(const char *name, int index)
 	    MAXCOMLEN, name);
 }
 
-static void
-intrcnt_updatename(struct ppc_intr_handler *ih)
-{
-	intrcnt_setname(ih->ih_event->ie_fullname, ih->ih_index);
-}
-
-static void
-intrcnt_register(struct ppc_intr_handler *ih)
-{
-	char straystr[MAXCOMLEN + 1];
-
-	KASSERT(ih->ih_event != NULL,
-		("%s: ppc_intr_handler with no event", __func__));
-
-	ih->ih_index = intrcnt_index;
-	intrcnt_index += 2;
-	snprintf(straystr, MAXCOMLEN + 1, "stray irq%d", ih->ih_irq);
-	intrcnt_updatename(ih);
-	ih->ih_count = &intrcnt[ih->ih_index];
-	intrcnt_setname(straystr, ih->ih_index + 1);
-	ih->ih_straycount = &intrcnt[ih->ih_index + 1];
-}
-
 void
 intr_init(void (*handler)(void), int nirq, void (*irq_e)(uintptr_t),
     void (*irq_d)(uintptr_t))
 {
-	int		i;
-	u_int32_t	msr;
+	uint32_t msr;
 
-	if (intr_initialized != 0)
-		panic("intr_init: interrupts intialized twice\n");
+	if (ppc_intrs != NULL)
+		panic("intr_init: interrupts initialized twice\n");
 
-	intr_initialized++;
-
-	intr_nirq = nirq;
-	intr_handlers = malloc(nirq * sizeof(struct ppc_intr_handler), M_INTR,
+	ppc_nintrs = nirq;
+	ppc_intrs = malloc(nirq * sizeof(struct ppc_intr *), M_INTR,
 	    M_NOWAIT|M_ZERO);
-	if (intr_handlers == NULL)
+	if (ppc_intrs == NULL)
 		panic("intr_init: unable to allocate interrupt handler array");
 
-	for (i = 0; i < nirq; i++) {
-		intr_handlers[i].ih_func = intr_stray_handler;
-		intr_handlers[i].ih_arg = &intr_handlers[i];
-		intr_handlers[i].ih_irq = i;
-		intr_handlers[i].ih_flags = 0;
-		/* mux all initial stray irqs onto same count... */
-		intr_handlers[i].ih_straycount = &intrcnt[0];
-	}
+	mtx_init(&ppc_intrs_lock, "intr table", NULL, MTX_SPIN);
+
+	irq_enable = irq_e;
 
 	intrcnt_setname("???", 0);
 	intrcnt_index = 1;
 
 	msr = mfmsr();
 	mtmsr(msr & ~PSL_EE);
-
 	ext_intr_install(handler);
-
-	mtmsr(msr);
-
-	irq_enable = irq_e;
-	irq_disable = irq_d;
-
-	mtx_init(&intr_table_lock, "intr table", NULL, MTX_SPIN);
-}
-
-void
-intr_setup(u_int irq, ih_func_t *ihf, void *iha, u_int flags)
-{
-	u_int32_t	msr;
-
-	msr = mfmsr();
-	mtmsr(msr & ~PSL_EE);
-
-	intr_handlers[irq].ih_func = ihf;
-	intr_handlers[irq].ih_arg = iha;
-	intr_handlers[irq].ih_irq = irq;
-	intr_handlers[irq].ih_flags = flags;
-
 	mtmsr(msr);
 }
 
@@ -195,122 +136,114 @@ int
 inthand_add(const char *name, u_int irq, void (*handler)(void *), void *arg,
     int flags, void **cookiep)
 {
-	struct	ppc_intr_handler *ih;
-	struct	intr_event *event, *orphan;
-	int	error = 0;
-	int	created_event = 0;
+	struct ppc_intr *i, *orphan;
+	u_int idx;
+	int error;
 
 	/*
 	 * Work around a race where more than one CPU may be registering
 	 * handlers on the same IRQ at the same time.
 	 */
-	ih = &intr_handlers[irq];
-	mtx_lock_spin(&intr_table_lock);
-	event = ih->ih_event;
-	mtx_unlock_spin(&intr_table_lock);
-	if (event == NULL) {
-		error = intr_event_create(&event, (void *)irq, 0,
+	mtx_lock_spin(&ppc_intrs_lock);
+	i = ppc_intrs[irq];
+	mtx_unlock_spin(&ppc_intrs_lock);
+
+	if (i == NULL) {
+		i = malloc(sizeof(*i), M_INTR, M_NOWAIT);
+		if (i == NULL)
+			return (ENOMEM);
+		error = intr_event_create(&i->event, (void *)irq, 0,
 		    (void (*)(void *))irq_enable, "irq%d:", irq);
-		if (error)
+		if (error) {
+			free(i, M_INTR);
 			return (error);
+		}
 
-		mtx_lock_spin(&intr_table_lock);
+		mtx_lock_spin(&ppc_intrs_lock);
+		if (ppc_intrs[irq] != NULL) {
+			orphan = i;
+			i = ppc_intrs[irq];
+			mtx_unlock_spin(&ppc_intrs_lock);
 
-		if (ih->ih_event == NULL) {
-			ih->ih_event = event;
-			created_event++;
-			mtx_unlock_spin(&intr_table_lock);
+			intr_event_destroy(orphan->event);
+			free(orphan, M_INTR);
 		} else {
-			orphan = event;
-			event = ih->ih_event;
-			mtx_unlock_spin(&intr_table_lock);
-			intr_event_destroy(orphan);
+			ppc_intrs[irq] = i;
+			idx = intrcnt_index++;
+			mtx_unlock_spin(&ppc_intrs_lock);
+
+			i->cntidx = idx;
+			i->cntp = &intrcnt[idx];
+			intrcnt_setname(i->event->ie_fullname, idx);
 		}
 	}
 
-	/* XXX: Should probably fix support for multiple FAST. */
-	if (flags & INTR_FAST)
-		flags |= INTR_EXCL;
-	error = intr_event_add_handler(event, name, handler, arg,
+	error = intr_event_add_handler(i->event, name, handler, arg,
 	    intr_priority(flags), flags, cookiep);
-
-	if ((flags & INTR_FAST) == 0 || error)
-		intr_setup(irq, sched_ithd, ih, flags);
-
-	if (error)
-		return (error);
-
-	if (flags & INTR_FAST)
-		intr_setup(irq, handler, arg, flags);
-
-	intrcnt_register(ih);
-
-	return (0);
+	if (!error)
+		intrcnt_setname(i->event->ie_fullname, i->cntidx);
+	return (error);
 }
 
 int
 inthand_remove(u_int irq, void *cookie)
 {
-	struct	ppc_intr_handler *ih;
-	int	error;
 
-	error = intr_event_remove_handler(cookie);
-
-	if (error == 0) {
-		ih = &intr_handlers[irq];
-
-		mtx_lock_spin(&intr_table_lock);
-
-		if (ih->ih_event == NULL) {
-			intr_setup(irq, intr_stray_handler, ih, 0);
-		} else {
-			intr_setup(irq, sched_ithd, ih, 0);
-		}
-
-		mtx_unlock_spin(&intr_table_lock);
-	}
-
-	return (error);
+	return (intr_event_remove_handler(cookie));
 }
 
 void
 intr_handle(u_int irq)
 {
-	atomic_add_long(intr_handlers[irq].ih_count, 1);
-	intr_handlers[irq].ih_func(intr_handlers[irq].ih_arg);
+	struct ppc_intr *i;
+	struct intr_event *ie;
+	struct intr_handler *ih;
+	int error, sched;
 
-	/* XXX wrong thing when using pre-emption ? */
-	if ((intr_handlers[irq].ih_flags & INTR_FAST) != 0)
-		irq_enable(irq);
-}
+	i = ppc_intrs[irq];
+	if (i == NULL)
+		goto stray;
 
-static void
-intr_stray_handler(void *cookie)
-{
-	struct	ppc_intr_handler *ih;
+	atomic_add_long(i->cntp, 1);
 
-	ih = (struct ppc_intr_handler *)cookie;
+	ie = i->event;
+	KASSERT(ie != NULL, ("%s: interrupt without an event", __func__));
 
-	if (*intr_handlers[ih->ih_irq].ih_straycount < MAX_STRAY_LOG) {
-		printf("stray irq %d\n", ih->ih_irq);
+	if (TAILQ_EMPTY(&ie->ie_handlers))
+		goto stray;
 
-		atomic_add_long(intr_handlers[ih->ih_irq].ih_straycount, 1);
-		if (*intr_handlers[ih->ih_irq].ih_straycount >= MAX_STRAY_LOG)
-			printf("got %d stray irq %d's: not logging anymore\n",
-			       MAX_STRAY_LOG, ih->ih_irq);
+	/*
+	 * Execute all fast interrupt handlers directly without Giant.  Note
+	 * that this means that any fast interrupt handler must be MP safe.
+	 */
+	sched = 0;
+	critical_enter();
+	TAILQ_FOREACH(ih, &ie->ie_handlers, ih_next) {
+		if (!(ih->ih_flags & IH_FAST)) {
+			sched = 1;
+			continue;
+		}
+		CTR4(KTR_INTR, "%s: exec %p(%p) for %s", __func__,
+		    ih->ih_handler, ih->ih_argument, ih->ih_name);
+		ih->ih_handler(ih->ih_argument);
 	}
-}
+	critical_exit();
 
-static void
-sched_ithd(void *cookie)
-{
-	struct	ppc_intr_handler *ih;
-	int	error;
+	if (sched) {
+		error = intr_event_schedule_thread(ie);
+		KASSERT(error == 0, ("%s: impossible stray interrupt",
+		    __func__));
+	} else
+		irq_enable(irq);
+	return;
 
-	ih = (struct ppc_intr_handler *)cookie;
-
-	error = intr_event_schedule_thread(ih->ih_event);
-
-	if (error == EINVAL)
-		intr_stray_handler(ih);
+stray:
+	atomic_add_long(&intrcnt[0], 1);
+	if (intrcnt[0] <= MAX_STRAY_LOG) {
+		printf("stray irq %d\n", irq);
+		if (intrcnt[0] >= MAX_STRAY_LOG) {
+			printf("got %d stray interrupts, not logging anymore\n",
+			       MAX_STRAY_LOG);
+		}
+	}
 }
