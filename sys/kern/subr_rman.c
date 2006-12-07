@@ -62,6 +62,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/kernel.h>
+#include <sys/limits.h>
 #include <sys/lock.h>
 #include <sys/malloc.h>
 #include <sys/mutex.h>
@@ -135,10 +136,12 @@ rman_manage_region(struct rman *rm, u_long start, u_long end)
 	mtx_lock(rm->rm_mtx);
 
 	/* Skip entries before us. */
-	for (s = TAILQ_FIRST(&rm->rm_list);
-	     s && s->r_end + 1 < r->r_start;
-	     s = TAILQ_NEXT(s, r_link))
-		;
+	TAILQ_FOREACH(s, &rm->rm_list, r_link) {
+		if (s->r_end == ULONG_MAX)
+			break;
+		if (s->r_end + 1 >= r->r_start)
+			break;
+	}
 
 	/* If we ran off the end of the list, insert at the tail. */
 	if (s == NULL) {
