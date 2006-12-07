@@ -91,6 +91,7 @@ md_vdev_find_val(device_t dev, char *namep, uint64_t *valp)
 
 	md_get_prop_val(mdp, node, namep, valp);
 done:
+	free(listp, M_DEVBUF);
 	md_put(mdp);
 
 	return (error);
