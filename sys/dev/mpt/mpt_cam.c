@@ -211,8 +211,8 @@ mpt_cam_attach(struct mpt_softc *mpt)
 	int		 error;
 
 	TAILQ_INIT(&mpt->request_timeout_list);
-	maxq = (mpt->mpt_global_credits < MPT_MAX_REQUESTS(mpt))?
-	    mpt->mpt_global_credits : MPT_MAX_REQUESTS(mpt);
+	maxq = (mpt->ioc_facts.GlobalCredits < MPT_MAX_REQUESTS(mpt))?
+	    mpt->ioc_facts.GlobalCredits : MPT_MAX_REQUESTS(mpt);
 
 	handler.reply_handler = mpt_scsi_reply_handler;
 	error = mpt_register_handler(mpt, MPT_HANDLER_REPLY, handler,
@@ -3089,8 +3089,9 @@ mpt_action(struct cam_sim *sim, union ccb *ccb)
 		break;
 	}
 	case XPT_GET_TRAN_SETTINGS:
+	{
 		cts = &ccb->cts;
-		cts->protocol = PROTO_SCSI;
+		struct ccb_trans_settings_scsi *scsi;
 		if (mpt->is_fc) {
 			struct ccb_trans_settings_fc *fc =
 			    &cts->xport_specific.fc;
@@ -3108,13 +3109,21 @@ mpt_action(struct cam_sim *sim, union ccb *ccb)
 			cts->transport_version = 0;
 			sas->valid = CTS_SAS_VALID_SPEED;
 			sas->bitrate = 300000;
-		} else if (mpt_get_spi_settings(mpt, cts) != 0) {
-			mpt_set_ccb_status(ccb, CAM_REQ_CMP_ERR);
+		} else {
+			if (mpt_get_spi_settings(mpt, cts) != 0) {
+				mpt_set_ccb_status(ccb, CAM_REQ_CMP_ERR);
+			} else {
+				mpt_set_ccb_status(ccb, CAM_REQ_CMP);
+			}
 			break;
 		}
+		cts->protocol = PROTO_SCSI;
+		scsi = &cts->proto_specific.scsi;
+		scsi->valid = CTS_SCSI_VALID_TQ;
+		scsi->flags = CTS_SCSI_FLAGS_TAG_ENB;
 		mpt_set_ccb_status(ccb, CAM_REQ_CMP);
 		break;
-
+	}
 	case XPT_CALC_GEOMETRY:
 	{
 		struct ccb_calc_geometry *ccg;
@@ -3136,7 +3145,7 @@ mpt_action(struct cam_sim *sim, union ccb *ccb)
 		cpi->version_num = 1;
 		cpi->target_sprt = 0;
 		cpi->hba_eng_cnt = 0;
-		cpi->max_target = mpt->mpt_max_devices - 1;
+		cpi->max_target = mpt->port_facts[0].MaxDevices - 1;
 		/*
 		 * FC cards report MAX_DEVICES of 512, but
 		 * the MSG_SCSI_IO_REQUEST target id field
