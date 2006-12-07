@@ -1,4 +1,4 @@
-/*
+/*-
  * Copyright (c) 2000
  *	Bill Paul <wpaul@ee.columbia.edu>.  All rights reserved.
  *
@@ -28,9 +28,10 @@
  * CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF
  * THE POSSIBILITY OF SUCH DAMAGE.
- *
- * $FreeBSD$
  */
+
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 /*
  * Driver for the Broadcom BCR5400 1000baseTX PHY. Speed is always
@@ -59,12 +60,10 @@
 #include <dev/bge/if_bgereg.h>
 #include <dev/bce/if_bcereg.h>
 
-#include "miibus_if.h"
+#include <pci/pcireg.h>
+#include <pci/pcivar.h>
 
-#if !defined(lint)
-static const char rcsid[] =
-  "$FreeBSD$";
-#endif
+#include "miibus_if.h"
 
 static int brgphy_probe(device_t);
 static int brgphy_attach(device_t);
@@ -90,7 +89,7 @@ static driver_t brgphy_driver = {
 DRIVER_MODULE(brgphy, miibus, brgphy_driver, brgphy_devclass, 0, 0);
 
 static int	brgphy_service(struct mii_softc *, struct mii_data *, int);
-static void 	brgphy_status(struct mii_softc *);
+static void	brgphy_status(struct mii_softc *);
 static int	brgphy_mii_phy_auto(struct mii_softc *);
 static void	brgphy_reset(struct mii_softc *);
 static void	brgphy_loop(struct mii_softc *);
@@ -100,7 +99,8 @@ static void	bcm5703_load_dspcode(struct mii_softc *);
 static void	bcm5750_load_dspcode(struct mii_softc *);
 static int	brgphy_mii_model;
 
-static int brgphy_probe(dev)
+static int
+brgphy_probe(dev)
 	device_t		dev;
 {
 	struct mii_attach_args *ma;
@@ -122,6 +122,12 @@ static int brgphy_probe(dev)
 	if (MII_OUI(ma->mii_id1, ma->mii_id2) == MII_OUI_xxBROADCOM &&
 	    MII_MODEL(ma->mii_id2) == MII_MODEL_xxBROADCOM_BCM5411) {
 		device_set_desc(dev, MII_STR_xxBROADCOM_BCM5411);
+		return(0);
+	}
+
+	if (MII_OUI(ma->mii_id1, ma->mii_id2) == MII_OUI_xxBROADCOM &&
+	    MII_MODEL(ma->mii_id2) == MII_MODEL_xxBROADCOM_BCM5752) {
+		device_set_desc(dev, MII_STR_xxBROADCOM_BCM5752);
 		return(0);
 	}
 
@@ -162,6 +168,12 @@ static int brgphy_probe(dev)
 	}
 
 	if (MII_OUI(ma->mii_id1, ma->mii_id2) == MII_OUI_xxBROADCOM &&
+	    MII_MODEL(ma->mii_id2) == MII_MODEL_xxBROADCOM_BCM5780) {
+		device_set_desc(dev, MII_STR_xxBROADCOM_BCM5780);
+		return (0);
+	}
+
+	if (MII_OUI(ma->mii_id1, ma->mii_id2) == MII_OUI_xxBROADCOM &&
 	    MII_MODEL(ma->mii_id2) == MII_MODEL_xxBROADCOM_BCM5706C) {
 		device_set_desc(dev, MII_STR_xxBROADCOM_BCM5706C);
 		return(0);
@@ -171,7 +183,7 @@ static int brgphy_probe(dev)
 	    MII_MODEL(ma->mii_id2) == MII_MODEL_xxBROADCOM_BCM5708C) {
 		device_set_desc(dev, MII_STR_xxBROADCOM_BCM5708C);
   		return(0);
-  	}
+	}
 
 	return(ENXIO);
 }
@@ -184,6 +196,9 @@ brgphy_attach(dev)
 	struct mii_attach_args *ma;
 	struct mii_data *mii;
 	const char *sep = "";
+	struct bge_softc *bge_sc = NULL;
+	struct bce_softc *bce_sc = NULL;
+	int fast_ether_only = FALSE;
 
 	sc = device_get_softc(dev);
 	ma = device_get_ivars(dev);
@@ -212,17 +227,36 @@ brgphy_attach(dev)
 	brgphy_mii_model = MII_MODEL(ma->mii_id2);
 	brgphy_reset(sc);
 
-	sc->mii_capabilities =
-	    PHY_READ(sc, MII_BMSR) & ma->mii_capmask;
+
+	sc->mii_capabilities = PHY_READ(sc, MII_BMSR) & ma->mii_capmask;
+	sc->mii_capabilities &= ~BMSR_ANEG;
 	device_printf(dev, " ");
 	if (sc->mii_capabilities & BMSR_MEDIAMASK)
-		mii_add_media(mii, (sc->mii_capabilities & ~BMSR_ANEG),
-		    sc->mii_inst);
-	ADD(IFM_MAKEWORD(IFM_ETHER, IFM_1000_TX, 0, sc->mii_inst),
-	    BRGPHY_BMCR_FDX);
-	PRINT(", 1000baseTX");
-	ADD(IFM_MAKEWORD(IFM_ETHER, IFM_1000_TX, IFM_FDX, sc->mii_inst), 0);
-	PRINT("1000baseTX-FDX");
+		mii_add_media(mii, sc->mii_capabilities, sc->mii_inst);
+
+	/* Find the driver associated with this PHY. */
+	if (strcmp(mii->mii_ifp->if_name, "bge") == 0)	{
+ 		bge_sc = mii->mii_ifp->if_softc;
+	} else if (strcmp(mii->mii_ifp->if_name, "bce") == 0) {
+		bce_sc = mii->mii_ifp->if_softc;
+	}
+
+	/* The 590x chips are 10/100 only. */
+	if (strcmp(mii->mii_ifp->if_name, "bge") == 0 &&
+	    pci_get_vendor(bge_sc->bge_dev) == BCOM_VENDORID &&
+	    (pci_get_device(bge_sc->bge_dev) == BCOM_DEVICEID_BCM5901 ||
+	    pci_get_device(bge_sc->bge_dev) == BCOM_DEVICEID_BCM5901A2))
+		fast_ether_only = TRUE;
+
+	if (fast_ether_only == FALSE) {
+		ADD(IFM_MAKEWORD(IFM_ETHER, IFM_1000_TX, 0,
+		    sc->mii_inst), BRGPHY_BMCR_FDX);
+		PRINT(", 1000baseTX");
+		ADD(IFM_MAKEWORD(IFM_ETHER, IFM_1000_TX,
+		    IFM_FDX, sc->mii_inst), 0);
+		PRINT("1000baseTX-FDX");
+	}
+
 	ADD(IFM_MAKEWORD(IFM_ETHER, IFM_AUTO, 0, sc->mii_inst), 0);
 	PRINT("auto");
 
@@ -363,16 +397,16 @@ setit:
 			return (0);
 
 		/*
-		 * Only used for autonegotiation.
-		 */
-		if (IFM_SUBTYPE(ife->ifm_media) != IFM_AUTO)
-			return (0);
-
-		/*
 		 * Is the interface even up?
 		 */
 		if ((mii->mii_ifp->if_flags & IFF_UP) == 0)
 			return (0);
+
+		/*
+		 * Only used for autonegotiation.
+		 */
+		if (IFM_SUBTYPE(ife->ifm_media) != IFM_AUTO)
+			break;
 
 		/*
 		 * Check to see if we have link.  If we do, we don't
@@ -386,12 +420,12 @@ setit:
 		/*
 		 * Only retry autonegotiation every 5 seconds.
 		 */
-		if (++sc->mii_ticks != 5)
-			return (0);
+		if (++sc->mii_ticks <= 5)
+			break;
 		
 		sc->mii_ticks = 0;
 		brgphy_mii_phy_auto(sc);
-		return (0);
+		break;
 	}
 
 	/* Update the media status. */
@@ -400,11 +434,13 @@ setit:
 	/*
 	 * Callback if something changed. Note that we need to poke
 	 * the DSP on the Broadcom PHYs if the media changes.
+	 *
 	 */
 	if (sc->mii_active != mii->mii_media_active || cmd == MII_MEDIACHG) {
 		MIIBUS_STATCHG(sc->mii_dev);
 		sc->mii_active = mii->mii_media_active;
 		switch (brgphy_mii_model) {
+		case MII_MODEL_xxBROADCOM_BCM5400:
 		case MII_MODEL_xxBROADCOM_BCM5401:
 			bcm5401_load_dspcode(sc);
 			break;
@@ -416,7 +452,7 @@ setit:
 	return (0);
 }
 
-void
+static void
 brgphy_status(sc)
 	struct mii_softc *sc;
 {
@@ -636,6 +672,7 @@ brgphy_reset(struct mii_softc *sc)
 	mii_phy_reset(sc);
 
 	switch (brgphy_mii_model) {
+	case MII_MODEL_xxBROADCOM_BCM5400:
 	case MII_MODEL_xxBROADCOM_BCM5401:
 		bcm5401_load_dspcode(sc);
 		break;
@@ -649,7 +686,9 @@ brgphy_reset(struct mii_softc *sc)
 		bcm5704_load_dspcode(sc);
 		break;
 	case MII_MODEL_xxBROADCOM_BCM5750:
+	case MII_MODEL_xxBROADCOM_BCM5752:
 	case MII_MODEL_xxBROADCOM_BCM5714:
+	case MII_MODEL_xxBROADCOM_BCM5780:
 	case MII_MODEL_xxBROADCOM_BCM5706C:
 	case MII_MODEL_xxBROADCOM_BCM5708C:
 		bcm5750_load_dspcode(sc);
