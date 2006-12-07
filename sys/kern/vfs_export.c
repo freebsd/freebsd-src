@@ -124,8 +124,11 @@ vfs_hang_addrlist(mp, nep, argp)
 	}
 
 #if MSIZE <= 256
-	if (argp->ex_addrlen > MLEN)
+	if (argp->ex_addrlen > MLEN) {
+		vfs_mount_error(mp, "ex_addrlen %d is greater than %d",
+		    argp->ex_addrlen, MLEN);
 		return (EINVAL);
+	}
 #endif
 
 	i = sizeof(struct netcred) + argp->ex_addrlen + argp->ex_masklen;
@@ -161,6 +164,8 @@ vfs_hang_addrlist(mp, nep, argp)
 			}
 		if ((rnh = nep->ne_rtable[i]) == NULL) {
 			error = ENOBUFS;
+			vfs_mount_error(mp,
+			    "Unable to initialize radix node head");
 			goto out;
 		}
 	}
@@ -169,6 +174,8 @@ vfs_hang_addrlist(mp, nep, argp)
 	RADIX_NODE_HEAD_UNLOCK(rnh);
 	if (rn == NULL || np != (struct netcred *)rn) {	/* already exists */
 		error = EPERM;
+		vfs_mount_error(mp, "Invalid radix node head, rn: %p %p",
+		    rn, np);
 		goto out;
 	}
 	np->netc_exflags = argp->ex_flags;
