@@ -715,7 +715,8 @@ struct tx_bd {
 	u32 tx_bd_haddr_hi;
 	u32 tx_bd_haddr_lo;
 	u32 tx_bd_mss_nbytes;
-	u32 tx_bd_vlan_tag_flags;
+	u16 tx_bd_flags;
+	u16 tx_bd_vlan_tag;
 		#define TX_BD_FLAGS_CONN_FAULT		(1<<0)
 		#define TX_BD_FLAGS_TCP_UDP_CKSUM	(1<<1)
 		#define TX_BD_FLAGS_IP_CKSUM		(1<<2)
@@ -4591,7 +4592,16 @@ struct fw_info {
 #define BCE_BUS_SPACE_MAXADDR		0xFFFFFFFFFF
 #endif
 
+/*
+ * XXX Checksum offload involving IP fragments seems to cause problems on
+ * transmit.  Disable it for now, hopefully there will be a more elegant
+ * solution later.
+ */
+#ifdef BCE_IP_CSUM
 #define BCE_IF_HWASSIST	(CSUM_IP | CSUM_TCP | CSUM_UDP)
+#else
+#define BCE_IF_HWASSIST	(CSUM_TCP | CSUM_UDP)
+#endif
 
 #define	BCE_IF_CAPABILITIES (IFCAP_HWCSUM)
 
@@ -4618,23 +4628,6 @@ struct fw_info {
 #define BCE_STATS_BLK_SZ		sizeof(struct statistics_block)
 #define BCE_TX_CHAIN_PAGE_SZ	BCM_PAGE_SIZE
 #define BCE_RX_CHAIN_PAGE_SZ	BCM_PAGE_SIZE
-/*
- * Mbuf pointers. We need these to keep track of the virtual addresses
- * of our mbuf chains since we can only convert from physical to virtual,
- * not the other way around.
- */
-
-struct bce_dmamap_arg {
-	struct bce_softc	*sc;				/* Pointer back to device context */
-	bus_addr_t			busaddr;		/* Physical address of mapped memory */
-	u32					tx_flags;		/* Flags for frame transmit */
-	u16					prod;
-	u16					chain_prod;
-	int					maxsegs;		/* Max segments supported for this mapped memory */
-	u32					prod_bseq;
-	struct tx_bd		*tx_chain[TX_PAGES];
-};
-
 
 struct bce_softc
 {

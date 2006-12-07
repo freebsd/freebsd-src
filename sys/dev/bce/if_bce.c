@@ -291,7 +291,6 @@ static int  bce_nvram_write			(struct bce_softc *, u32, u8 *, int);
 /*                                                                          */
 /****************************************************************************/
 static void bce_dma_map_addr		(void *, bus_dma_segment_t *, int, int);
-static void bce_dma_map_tx_desc		(void *, bus_dma_segment_t *, int, bus_size_t, int);
 static int  bce_dma_alloc			(device_t);
 static void bce_dma_free			(struct bce_softc *);
 static void bce_release_resources	(struct bce_softc *);
@@ -315,13 +314,14 @@ static int  bce_init_rx_chain		(struct bce_softc *);
 static void bce_free_rx_chain		(struct bce_softc *);
 static void bce_free_tx_chain		(struct bce_softc *);
 
-static int  bce_tx_encap			(struct bce_softc *, struct mbuf *, u16 *, u16 *, u32 *);
+static int  bce_tx_encap		(struct bce_softc *, struct mbuf **);
 static void bce_start				(struct ifnet *);
 static int  bce_ioctl				(struct ifnet *, u_long, caddr_t);
 static void bce_watchdog			(struct ifnet *);
 static int  bce_ifmedia_upd			(struct ifnet *);
 static void bce_ifmedia_sts			(struct ifnet *, struct ifmediareq *);
 static void bce_init				(void *);
+static void bce_mgmt_init_locked(struct bce_softc *sc);
 
 static void bce_init_context		(struct bce_softc *);
 static void bce_get_mac_addr		(struct bce_softc *);
@@ -503,10 +503,10 @@ bce_attach(device_t dev)
 	/* Allocate PCI memory resources. */
 	rid = PCIR_BAR(0);
 	sc->bce_res = bus_alloc_resource_any(
-		dev, 							/* dev */
-		SYS_RES_MEMORY, 				/* type */
-		&rid,							/* rid */
-	    RF_ACTIVE | PCI_RF_DENSE);		/* flags */
+		dev,				/* dev */
+		SYS_RES_MEMORY,			/* type */
+		&rid,				/* rid */
+		RF_ACTIVE | PCI_RF_DENSE);	/* flags */
 
 	if (sc->bce_res == NULL) {
 		BCE_PRINTF(sc, "%s(%d): PCI memory allocation failed\n", 
@@ -806,6 +806,9 @@ bce_attach(device_t dev)
 	/* Add the supported sysctls to the kernel. */
 	bce_add_sysctls(sc);
 
+	/* Get the firmware running so IPMI still works */
+	bce_mgmt_init_locked(sc);
+
 	goto bce_attach_exit;
 
 bce_attach_fail:
@@ -838,13 +841,13 @@ bce_detach(device_t dev)
 
 	sc = device_get_softc(dev);
 
-	s = splimp();
-
-	bce_remove_sysctls(sc);
-
 	DBPRINT(sc, BCE_VERBOSE_RESET, "Entering %s()\n", __FUNCTION__);
 
 	ifp = &sc->arpcom.ac_if;
+
+	s = splimp();
+
+	bce_remove_sysctls(sc);
 
 	/* Stop and reset the controller. */
 	bce_stop(sc);
@@ -1385,7 +1388,6 @@ bce_nvram_erase_page(struct bce_softc *sc, u32 offset)
 	REG_WR(sc, BCE_NVM_COMMAND, cmd);
 
 	/* Wait for completion. */
-	 */
 	for (j = 0; j < NVRAM_TIMEOUT_COUNT; j++) {
 		u32 val;
 
@@ -2159,135 +2161,24 @@ bce_dma_free(struct bce_softc *sc)
 static void
 bce_dma_map_addr(void *arg, bus_dma_segment_t *segs, int nseg, int error)
 {
-	struct bce_dmamap_arg *map_arg = arg;
-	struct bce_softc *sc = map_arg->sc;
+	bus_addr_t *busaddr = arg;
 
 	/* Simulate a mapping failure. */
 	DBRUNIF(DB_RANDOMTRUE(bce_debug_dma_map_addr_failure),
-		BCE_PRINTF(sc, "%s(%d): Simulating DMA mapping error.\n",
+		printf("bce: %s(%d): Simulating DMA mapping error.\n",
 			__FILE__, __LINE__);
 		error = ENOMEM);
 		
 	/* Check for an error and signal the caller that an error occurred. */
-	if (error || (nseg > map_arg->maxsegs)) {
-		BCE_PRINTF(sc, "%s(%d): DMA mapping error! error = %d, "
-		"nseg = %d, maxsegs = %d\n",
-			__FILE__, __LINE__, error, nseg, map_arg->maxsegs);
-		map_arg->maxsegs = 0;
-		goto bce_dma_map_addr_exit;
-	}
-
-	map_arg->busaddr = segs->ds_addr;
-
-bce_dma_map_addr_exit:
-	return;
-}
-
-
-/****************************************************************************/
-/* Map TX buffers into TX buffer descriptors.                               */
-/*                                                                          */
-/* Given a series of DMA memory containting an outgoing frame, map the      */
-/* segments into the tx_bd structure used by the hardware.                  */
-/*                                                                          */
-/* Returns:                                                                 */
-/*   Nothing.                                                               */
-/****************************************************************************/
-static void
-bce_dma_map_tx_desc(void *arg, bus_dma_segment_t *segs,
-	int nseg, bus_size_t mapsize, int error)
-{
-	struct bce_dmamap_arg *map_arg;
-	struct bce_softc *sc;
-	struct tx_bd *txbd = NULL;
-	int i = 0;
-	u16 prod, chain_prod;
-	u32	prod_bseq;
-#ifdef BCE_DEBUG
-	u16 debug_prod;
-#endif
-
-	map_arg = arg;
-	sc = map_arg->sc;
-
 	if (error) {
-		DBPRINT(sc, BCE_WARN, "%s(): Called with error = %d\n",
-			__FUNCTION__, error);
+		printf("bce %s(%d): DMA mapping error! error = %d, "
+		    "nseg = %d\n", __FILE__, __LINE__, error, nseg);
+		*busaddr = 0;
 		return;
 	}
 
-	/* Signal error to caller if there's too many segments */
-	if (nseg > map_arg->maxsegs) {
-		DBPRINT(sc, BCE_WARN,
-			"%s(): Mapped TX descriptors: max segs = %d, "
-			"actual segs = %d\n",
-			__FUNCTION__, map_arg->maxsegs, nseg);
-
-		map_arg->maxsegs = 0;
-		return;
-	}
-
-	/* prod points to an empty tx_bd at this point. */
-	prod       = map_arg->prod;
-	chain_prod = map_arg->chain_prod;
-	prod_bseq  = map_arg->prod_bseq;
-
-#ifdef BCE_DEBUG
-	debug_prod = chain_prod;
-#endif
-
-	DBPRINT(sc, BCE_INFO_SEND,
-		"%s(): Start: prod = 0x%04X, chain_prod = %04X, "
-		"prod_bseq = 0x%08X\n",
-		__FUNCTION__, prod, chain_prod, prod_bseq);
-
-	/*
-	 * Cycle through each mbuf segment that makes up
-	 * the outgoing frame, gathering the mapping info
-	 * for that segment and creating a tx_bd to for
-	 * the mbuf.
-	 */
-
-	txbd = &map_arg->tx_chain[TX_PAGE(chain_prod)][TX_IDX(chain_prod)];
-
-	/* Setup the first tx_bd for the first segment. */
-	txbd->tx_bd_haddr_lo       = htole32(BCE_ADDR_LO(segs[i].ds_addr));
-	txbd->tx_bd_haddr_hi       = htole32(BCE_ADDR_HI(segs[i].ds_addr));
-	txbd->tx_bd_mss_nbytes     = htole16(segs[i].ds_len);
-	txbd->tx_bd_vlan_tag_flags = htole16(map_arg->tx_flags |
-			TX_BD_FLAGS_START);
-	prod_bseq += segs[i].ds_len;
-
-	/* Setup any remaing segments. */
-	for (i = 1; i < nseg; i++) {
-		prod       = NEXT_TX_BD(prod);
-		chain_prod = TX_CHAIN_IDX(prod);
-
-		txbd = &map_arg->tx_chain[TX_PAGE(chain_prod)][TX_IDX(chain_prod)];
-
-		txbd->tx_bd_haddr_lo       = htole32(BCE_ADDR_LO(segs[i].ds_addr));
-		txbd->tx_bd_haddr_hi       = htole32(BCE_ADDR_HI(segs[i].ds_addr));
-		txbd->tx_bd_mss_nbytes     = htole16(segs[i].ds_len);
-		txbd->tx_bd_vlan_tag_flags = htole16(map_arg->tx_flags);
-
-		prod_bseq += segs[i].ds_len;
-	}
-
-	/* Set the END flag on the last TX buffer descriptor. */
-	txbd->tx_bd_vlan_tag_flags |= htole16(TX_BD_FLAGS_END);
-
-	DBRUN(BCE_INFO_SEND, bce_dump_tx_chain(sc, debug_prod, nseg));
-
-	DBPRINT(sc, BCE_INFO_SEND,
-		"%s(): End: prod = 0x%04X, chain_prod = %04X, "
-		"prod_bseq = 0x%08X\n",
-		__FUNCTION__, prod, chain_prod, prod_bseq);
-
-	/* prod points to the last tx_bd at this point. */
-	map_arg->maxsegs    = nseg;
-	map_arg->prod       = prod;
-	map_arg->chain_prod = chain_prod;
-	map_arg->prod_bseq  = prod_bseq;
+	*busaddr = segs->ds_addr;
+	return;
 }
 
 
@@ -2305,26 +2196,26 @@ bce_dma_alloc(device_t dev)
 {
 	struct bce_softc *sc;
 	int i, error, rc = 0;
-	struct bce_dmamap_arg map_arg;
+	bus_addr_t busaddr;
 
 	sc = device_get_softc(dev);
-
+ 
 	DBPRINT(sc, BCE_VERBOSE_RESET, "Entering %s()\n", __FUNCTION__);
 
 	/*
 	 * Allocate the parent bus DMA tag appropriate for PCI.
 	 */
 	if (bus_dma_tag_create(NULL,		/* parent     */
-			BCE_DMA_ALIGN,				/* alignment  */
-			BCE_DMA_BOUNDARY,			/* boundary   */
-			sc->max_bus_addr,			/* lowaddr    */
-			BUS_SPACE_MAXADDR,			/* highaddr   */
-			NULL, 						/* filterfunc */
-			NULL,						/* filterarg  */
-			MAXBSIZE, 					/* maxsize    */
-			BUS_SPACE_UNRESTRICTED,		/* nsegments  */
-			BUS_SPACE_MAXSIZE_32BIT,	/* maxsegsize */
-			0,							/* flags      */
+			1,			/* alignment  */
+			BCE_DMA_BOUNDARY,	/* boundary   */
+			sc->max_bus_addr,	/* lowaddr    */
+			BUS_SPACE_MAXADDR,	/* highaddr   */
+			NULL, 			/* filterfunc */
+			NULL,			/* filterarg  */
+			MAXBSIZE, 		/* maxsize    */
+			BUS_SPACE_UNRESTRICTED,	/* nsegments  */
+			BUS_SPACE_MAXSIZE_32BIT,/* maxsegsize */
+			0,			/* flags      */
 			&sc->parent_tag)) {
 		BCE_PRINTF(sc, "%s(%d): Could not allocate parent DMA tag!\n",
 			__FILE__, __LINE__);
@@ -2338,17 +2229,17 @@ bce_dma_alloc(device_t dev)
 	 * address of the block.
 	 */
 	if (bus_dma_tag_create(
-			sc->parent_tag,			/* parent      */
+		sc->parent_tag,			/* parent      */
 	    	BCE_DMA_ALIGN,			/* alignment   */
 	    	BCE_DMA_BOUNDARY,		/* boundary    */
 	    	sc->max_bus_addr,		/* lowaddr     */
 	    	BUS_SPACE_MAXADDR,		/* highaddr    */
-	    	NULL, 					/* filterfunc  */
-	    	NULL, 					/* filterarg   */
+	    	NULL, 				/* filterfunc  */
+	    	NULL, 				/* filterarg   */
 	    	BCE_STATUS_BLK_SZ, 		/* maxsize     */
-	    	1,						/* nsegments   */
+	    	1,				/* nsegments   */
 	    	BCE_STATUS_BLK_SZ, 		/* maxsegsize  */
-	    	0,						/* flags       */
+	    	0,				/* flags       */
 	    	&sc->status_tag)) {
 		BCE_PRINTF(sc, "%s(%d): Could not allocate status block DMA tag!\n",
 			__FILE__, __LINE__);
@@ -2357,9 +2248,9 @@ bce_dma_alloc(device_t dev)
 	}
 
 	if(bus_dmamem_alloc(
-			sc->status_tag,				/* dmat        */
+		sc->status_tag,			/* dmat        */
 	    	(void **)&sc->status_block,	/* vaddr       */
-	    	BUS_DMA_NOWAIT,					/* flags       */
+	    	BUS_DMA_NOWAIT,			/* flags       */
 	    	&sc->status_map)) {
 		BCE_PRINTF(sc, "%s(%d): Could not allocate status block DMA memory!\n",
 			__FILE__, __LINE__);
@@ -2369,26 +2260,23 @@ bce_dma_alloc(device_t dev)
 
 	bzero((char *)sc->status_block, BCE_STATUS_BLK_SZ);
 
-	map_arg.sc = sc;
-	map_arg.maxsegs = 1;
-
 	error = bus_dmamap_load(
-			sc->status_tag,	   		/* dmat        */
+		sc->status_tag,	   		/* dmat        */
 	    	sc->status_map,	   		/* map         */
 	    	sc->status_block,	 	/* buf         */
 	    	BCE_STATUS_BLK_SZ,	 	/* buflen      */
 	    	bce_dma_map_addr, 	 	/* callback    */
-	    	&map_arg,			 	/* callbackarg */
+	    	&busaddr,		 	/* callbackarg */
 	    	BUS_DMA_NOWAIT);		/* flags       */
 	    	
-	if(error || (map_arg.maxsegs == 0)) {
+	if (error) {
 		BCE_PRINTF(sc, "%s(%d): Could not map status block DMA memory!\n",
 			__FILE__, __LINE__);
 		rc = ENOMEM;
 		goto bce_dma_alloc_exit;
 	}
 
-	sc->status_block_paddr = map_arg.busaddr;
+	sc->status_block_paddr = busaddr;
 	/* DRC - Fix for 64 bit addresses. */
 	DBPRINT(sc, BCE_INFO, "status_block_paddr = 0x%08X\n",
 		(u32) sc->status_block_paddr);
@@ -2399,17 +2287,17 @@ bce_dma_alloc(device_t dev)
 	 * address of the block.
 	 */
 	if (bus_dma_tag_create(
-			sc->parent_tag,			/* parent      */
+		sc->parent_tag,			/* parent      */
 	    	BCE_DMA_ALIGN,	 		/* alignment   */
 	    	BCE_DMA_BOUNDARY, 		/* boundary    */
 	    	sc->max_bus_addr,		/* lowaddr     */
 	    	BUS_SPACE_MAXADDR,		/* highaddr    */
-	    	NULL,		 	  		/* filterfunc  */
-	    	NULL, 			  		/* filterarg   */
+	    	NULL,		   		/* filterfunc  */
+	    	NULL, 		  		/* filterarg   */
 	    	BCE_STATS_BLK_SZ, 		/* maxsize     */
-	    	1,				  		/* nsegments   */
+	    	1,		  		/* nsegments   */
 	    	BCE_STATS_BLK_SZ, 		/* maxsegsize  */
-	    	0, 				  		/* flags       */
+	    	0, 		  		/* flags       */
 	    	&sc->stats_tag)) {
 		BCE_PRINTF(sc, "%s(%d): Could not allocate statistics block DMA tag!\n",
 			__FILE__, __LINE__);
@@ -2418,9 +2306,9 @@ bce_dma_alloc(device_t dev)
 	}
 
 	if (bus_dmamem_alloc(
-			sc->stats_tag,				/* dmat        */
+		sc->stats_tag,			/* dmat        */
 	    	(void **)&sc->stats_block,	/* vaddr       */
-	    	BUS_DMA_NOWAIT,	 			/* flags       */
+	    	BUS_DMA_NOWAIT,			/* flags       */
 	    	&sc->stats_map)) {
 		BCE_PRINTF(sc, "%s(%d): Could not allocate statistics block DMA memory!\n",
 			__FILE__, __LINE__);
@@ -2430,26 +2318,23 @@ bce_dma_alloc(device_t dev)
 
 	bzero((char *)sc->stats_block, BCE_STATS_BLK_SZ);
 
-	map_arg.sc = sc;
-	map_arg.maxsegs = 1;
-
 	error = bus_dmamap_load(
-			sc->stats_tag,	 	/* dmat        */
+		sc->stats_tag,	 	/* dmat        */
 	    	sc->stats_map,	 	/* map         */
 	    	sc->stats_block, 	/* buf         */
 	    	BCE_STATS_BLK_SZ,	/* buflen      */
 	    	bce_dma_map_addr,	/* callback    */
-	    	&map_arg, 		 	/* callbackarg */
+	    	&busaddr, 	 	/* callbackarg */
 	    	BUS_DMA_NOWAIT);	/* flags       */
 
-	if(error || (map_arg.maxsegs == 0)) {
+	if(error) {
 		BCE_PRINTF(sc, "%s(%d): Could not map statistics block DMA memory!\n",
 			__FILE__, __LINE__);
 		rc = ENOMEM;
 		goto bce_dma_alloc_exit;
 	}
 
-	sc->stats_block_paddr = map_arg.busaddr;
+	sc->stats_block_paddr = busaddr;
 	/* DRC - Fix for 64 bit address. */
 	DBPRINT(sc,BCE_INFO, "stats_block_paddr = 0x%08X\n", 
 		(u32) sc->stats_block_paddr);
@@ -2460,17 +2345,17 @@ bce_dma_alloc(device_t dev)
 	 * physical address of the block.
 	 */
 	if(bus_dma_tag_create(
-			sc->parent_tag,		  /* parent      */
-	    	BCM_PAGE_SIZE,		  /* alignment   */
-	    	BCE_DMA_BOUNDARY,	  /* boundary    */
-			sc->max_bus_addr,	  /* lowaddr     */
-			BUS_SPACE_MAXADDR, 	  /* highaddr    */
-			NULL, 				  /* filterfunc  */ 
-			NULL, 				  /* filterarg   */
-			BCE_TX_CHAIN_PAGE_SZ, /* maxsize     */
-			1,			  		  /* nsegments   */
-			BCE_TX_CHAIN_PAGE_SZ, /* maxsegsize  */
-			0,				 	  /* flags       */
+			sc->parent_tag,		/* parent      */
+			BCM_PAGE_SIZE,		/* alignment   */
+		    	BCE_DMA_BOUNDARY,	/* boundary    */
+			sc->max_bus_addr,	/* lowaddr     */
+			BUS_SPACE_MAXADDR, 	/* highaddr    */
+			NULL,			/* filterfunc  */ 
+			NULL,			/* filterarg   */
+			BCE_TX_CHAIN_PAGE_SZ,	/* maxsize     */
+			1,			/* nsegments   */
+			BCE_TX_CHAIN_PAGE_SZ,	/* maxsegsize  */
+			0,			/* flags       */
 			&sc->tx_bd_chain_tag)) {
 		BCE_PRINTF(sc, "%s(%d): Could not allocate TX descriptor chain DMA tag!\n",
 			__FILE__, __LINE__);
@@ -2481,9 +2366,9 @@ bce_dma_alloc(device_t dev)
 	for (i = 0; i < TX_PAGES; i++) {
 
 		if(bus_dmamem_alloc(
-				sc->tx_bd_chain_tag,			/* tag   */
+			sc->tx_bd_chain_tag,		/* tag   */
 	    		(void **)&sc->tx_bd_chain[i],	/* vaddr */
-	    		BUS_DMA_NOWAIT,					/* flags */
+	    		BUS_DMA_NOWAIT,			/* flags */
 		    	&sc->tx_bd_chain_map[i])) {
 			BCE_PRINTF(sc, "%s(%d): Could not allocate TX descriptor "
 				"chain DMA memory!\n", __FILE__, __LINE__);
@@ -2491,26 +2376,23 @@ bce_dma_alloc(device_t dev)
 			goto bce_dma_alloc_exit;
 		}
 
-		map_arg.maxsegs = 1;
-		map_arg.sc = sc;
-
 		error = bus_dmamap_load(
-				sc->tx_bd_chain_tag,	 /* dmat        */
-	    		sc->tx_bd_chain_map[i],	 /* map         */
-	    		sc->tx_bd_chain[i],		 /* buf         */
-		    	BCE_TX_CHAIN_PAGE_SZ,  	 /* buflen      */
-		    	bce_dma_map_addr, 	   	 /* callback    */
-	    		&map_arg, 			   	 /* callbackarg */
-	    		BUS_DMA_NOWAIT);	   	 /* flags       */
+			sc->tx_bd_chain_tag,		/* dmat        */
+	    		sc->tx_bd_chain_map[i],		/* map         */
+	    		sc->tx_bd_chain[i],		/* buf         */
+		    	BCE_TX_CHAIN_PAGE_SZ,		/* buflen      */
+		    	bce_dma_map_addr,		/* callback    */
+	    		&busaddr,			/* callbackarg */
+	    		BUS_DMA_NOWAIT);		/* flags       */
 
-		if(error || (map_arg.maxsegs == 0)) {
+		if (error) {
 			BCE_PRINTF(sc, "%s(%d): Could not map TX descriptor chain DMA memory!\n",
 				__FILE__, __LINE__);
 			rc = ENOMEM;
 			goto bce_dma_alloc_exit;
 		}
 
-		sc->tx_bd_chain_paddr[i] = map_arg.busaddr;
+		sc->tx_bd_chain_paddr[i] = busaddr;
 		/* DRC - Fix for 64 bit systems. */
 		DBPRINT(sc, BCE_INFO, "tx_bd_chain_paddr[%d] = 0x%08X\n", 
 			i, (u32) sc->tx_bd_chain_paddr[i]);
@@ -2519,17 +2401,17 @@ bce_dma_alloc(device_t dev)
 	/* Create a DMA tag for TX mbufs. */
 	if (bus_dma_tag_create(
 			sc->parent_tag,	 	 	/* parent      */
-	    	BCE_DMA_ALIGN,	 		/* alignment   */
-	    	BCE_DMA_BOUNDARY, 		/* boundary    */
+			1,		 		/* alignment   */
+			BCE_DMA_BOUNDARY, 		/* boundary    */
 			sc->max_bus_addr,		/* lowaddr     */
 			BUS_SPACE_MAXADDR,		/* highaddr    */
-			NULL, 			  		/* filterfunc  */
-			NULL, 			  		/* filterarg   */
+			NULL,				/* filterfunc  */
+			NULL,				/* filterarg   */
 			MCLBYTES * BCE_MAX_SEGMENTS,	/* maxsize     */
 			BCE_MAX_SEGMENTS,  		/* nsegments   */
-			MCLBYTES,				/* maxsegsize  */
-			0,				 		/* flags       */
-	    	&sc->tx_mbuf_tag)) {
+			MCLBYTES,			/* maxsegsize  */
+			0,				/* flags       */
+			&sc->tx_mbuf_tag)) {
 		BCE_PRINTF(sc, "%s(%d): Could not allocate TX mbuf DMA tag!\n",
 			__FILE__, __LINE__);
 		rc = ENOMEM;
@@ -2554,16 +2436,16 @@ bce_dma_alloc(device_t dev)
 	 */
 	if (bus_dma_tag_create(
 			sc->parent_tag,			/* parent      */
-	    	BCM_PAGE_SIZE,			/* alignment   */
-	    	BCE_DMA_BOUNDARY,		/* boundary    */
+			BCM_PAGE_SIZE,			/* alignment   */
+			BCE_DMA_BOUNDARY,		/* boundary    */
 			BUS_SPACE_MAXADDR,		/* lowaddr     */
 			sc->max_bus_addr,		/* lowaddr     */
-			NULL,					/* filter      */
-			NULL, 					/* filterarg   */
-			BCE_RX_CHAIN_PAGE_SZ,	/* maxsize     */
-			1, 						/* nsegments   */
-			BCE_RX_CHAIN_PAGE_SZ,	/* maxsegsize  */
-			0,				 		/* flags       */
+			NULL,				/* filter      */
+			NULL, 				/* filterarg   */
+			BCE_RX_CHAIN_PAGE_SZ,		/* maxsize     */
+			1, 				/* nsegments   */
+			BCE_RX_CHAIN_PAGE_SZ,		/* maxsegsize  */
+			0,		 		/* flags       */
 			&sc->rx_bd_chain_tag)) {
 		BCE_PRINTF(sc, "%s(%d): Could not allocate RX descriptor chain DMA tag!\n",
 			__FILE__, __LINE__);
@@ -2574,9 +2456,9 @@ bce_dma_alloc(device_t dev)
 	for (i = 0; i < RX_PAGES; i++) {
 
 		if (bus_dmamem_alloc(
-				sc->rx_bd_chain_tag,			/* tag   */
+			sc->rx_bd_chain_tag,		/* tag   */
 	    		(void **)&sc->rx_bd_chain[i], 	/* vaddr */
-	    		BUS_DMA_NOWAIT,				  	/* flags */
+	    		BUS_DMA_NOWAIT,		  	/* flags */
 		    	&sc->rx_bd_chain_map[i])) {
 			BCE_PRINTF(sc, "%s(%d): Could not allocate RX descriptor chain "
 				"DMA memory!\n", __FILE__, __LINE__);
@@ -2586,26 +2468,23 @@ bce_dma_alloc(device_t dev)
 
 		bzero((char *)sc->rx_bd_chain[i], BCE_RX_CHAIN_PAGE_SZ);
 
-		map_arg.maxsegs = 1;
-		map_arg.sc = sc;
-
 		error = bus_dmamap_load(
-				sc->rx_bd_chain_tag,	/* dmat        */
+			sc->rx_bd_chain_tag,	/* dmat        */
 	    		sc->rx_bd_chain_map[i],	/* map         */
-	    		sc->rx_bd_chain[i],		/* buf         */
+	    		sc->rx_bd_chain[i],	/* buf         */
 		    	BCE_RX_CHAIN_PAGE_SZ,  	/* buflen      */
-		    	bce_dma_map_addr,	   	/* callback    */
-	    		&map_arg,			   	/* callbackarg */
-	    		BUS_DMA_NOWAIT);		/* flags       */
+		    	bce_dma_map_addr,   	/* callback    */
+	    		&busaddr,	   	/* callbackarg */
+	    		BUS_DMA_NOWAIT);	/* flags       */
 
-		if(error || (map_arg.maxsegs == 0)) {
+		if (error) {
 			BCE_PRINTF(sc, "%s(%d): Could not map RX descriptor chain DMA memory!\n",
 				__FILE__, __LINE__);
 			rc = ENOMEM;
 			goto bce_dma_alloc_exit;
 		}
 
-		sc->rx_bd_chain_paddr[i] = map_arg.busaddr;
+		sc->rx_bd_chain_paddr[i] = busaddr;
 		/* DRC - Fix for 64 bit systems. */
 		DBPRINT(sc, BCE_INFO, "rx_bd_chain_paddr[%d] = 0x%08X\n",
 			i, (u32) sc->rx_bd_chain_paddr[i]);
@@ -2615,17 +2494,17 @@ bce_dma_alloc(device_t dev)
 	 * Create a DMA tag for RX mbufs.
 	 */
 	if (bus_dma_tag_create(
-			sc->parent_tag,			/* parent      */
-	    	BCE_DMA_ALIGN,		  	/* alignment   */
-	    	BCE_DMA_BOUNDARY,	  	/* boundary    */
-			sc->max_bus_addr,	  	/* lowaddr     */
-			BUS_SPACE_MAXADDR, 	  	/* highaddr    */
-			NULL, 				  	/* filterfunc  */
-			NULL, 				  	/* filterarg   */
-			MCLBYTES,				/* maxsize     */
-			BCE_MAX_SEGMENTS,  		/* nsegments   */
-			MCLBYTES,				/* maxsegsize  */
-			0,				 	  	/* flags       */
+			sc->parent_tag,		/* parent      */
+			1,			/* alignment   */
+			BCE_DMA_BOUNDARY,  	/* boundary    */
+			sc->max_bus_addr,  	/* lowaddr     */
+			BUS_SPACE_MAXADDR,	/* highaddr    */
+			NULL, 			/* filterfunc  */
+			NULL, 			/* filterarg   */
+			MCLBYTES,		/* maxsize     */
+			BCE_MAX_SEGMENTS, 	/* nsegments   */
+			MCLBYTES,		/* maxsegsize  */
+			0,			/* flags       */
 	    	&sc->rx_mbuf_tag)) {
 		BCE_PRINTF(sc, "%s(%d): Could not allocate RX mbuf DMA tag!\n",
 			__FILE__, __LINE__);
@@ -3255,6 +3134,7 @@ bce_stop(struct bce_softc *sc)
 
 	DBPRINT(sc, BCE_VERBOSE_RESET, "Exiting %s()\n", __FUNCTION__);
 
+	bce_mgmt_init_locked(sc);
 }
 
 
@@ -4361,7 +4241,7 @@ bce_tx_intr(struct bce_softc *sc)
 		if (sc->tx_mbuf_ptr[sw_tx_chain_cons] != NULL) {
 
 			/* Validate that this is the last tx_bd. */
-			DBRUNIF((!(txbd->tx_bd_vlan_tag_flags & TX_BD_FLAGS_END)),
+			DBRUNIF((!(txbd->tx_bd_flags & TX_BD_FLAGS_END)),
 				BCE_PRINTF(sc, "%s(%d): tx_bd END flag not set but "
 				"txmbuf == NULL!\n", __FILE__, __LINE__);
 				bce_breakpoint(sc));
@@ -4557,6 +4437,41 @@ bce_init_locked_exit:
 	return;
 }
 
+static void
+bce_mgmt_init_locked(struct bce_softc *sc)
+{
+	u32 val;
+	struct ifnet *ifp;
+
+	DBPRINT(sc, BCE_VERBOSE_RESET, "Entering %s()\n", __FUNCTION__);
+
+	ifp = &sc->arpcom.ac_if;
+
+	/* Check if the driver is still running and bail out if it is. */
+	if (ifp->if_flags & IFF_RUNNING)
+		goto bce_mgmt_init_locked_exit;
+
+	/* Initialize the on-boards CPUs */
+	bce_init_cpus(sc);
+
+	val = (BCM_PAGE_BITS - 8) << 24;
+	REG_WR(sc, BCE_RV2P_CONFIG, val);
+
+	/* Enable all critical blocks in the MAC. */
+	REG_WR(sc, BCE_MISC_ENABLE_SET_BITS,
+	       BCE_MISC_ENABLE_SET_BITS_RX_V2P_ENABLE |
+	       BCE_MISC_ENABLE_SET_BITS_RX_DMA_ENABLE |
+	       BCE_MISC_ENABLE_SET_BITS_COMPLETION_ENABLE);
+	REG_RD(sc, BCE_MISC_ENABLE_SET_BITS);
+	DELAY(20);
+
+	bce_ifmedia_upd(ifp);
+bce_mgmt_init_locked_exit:
+	DBPRINT(sc, BCE_VERBOSE_RESET, "Exiting %s()\n", __FUNCTION__);
+
+	return;
+}
+
 
 /****************************************************************************/
 /* Encapsultes an mbuf cluster into the tx_bd chain structure and makes the */
@@ -4566,99 +4481,152 @@ bce_init_locked_exit:
 /*   0 for success, positive value for failure.                             */
 /****************************************************************************/
 static int
-bce_tx_encap(struct bce_softc *sc, struct mbuf *m_head, u16 *prod,
-	u16 *chain_prod, u32 *prod_bseq)
+bce_tx_encap(struct bce_softc *sc, struct mbuf **m_head)
 {
-	u32 vlan_tag_flags = 0;
-	struct bce_dmamap_arg map_arg;
+	bus_dma_segment_t segs[BCE_MAX_SEGMENTS];
 	bus_dmamap_t map;
-	int i, error, rc = 0;
+	struct tx_bd *txbd = NULL;
+	struct mbuf *m0;
+	u16 vlan_tag = 0, flags = 0;
+	u16 chain_prod, prod;
+	u32 prod_bseq;
+
+#ifdef BCE_DEBUG
+	u16 debug_prod;
+#endif
+	int i, error, nsegs, rc = 0;
 
 	/* Transfer any checksum offload flags to the bd. */
-	if (m_head->m_pkthdr.csum_flags) {
-		if (m_head->m_pkthdr.csum_flags & CSUM_IP)
-			vlan_tag_flags |= TX_BD_FLAGS_IP_CKSUM;
-		if (m_head->m_pkthdr.csum_flags & (CSUM_TCP | CSUM_UDP))
-			vlan_tag_flags |= TX_BD_FLAGS_TCP_UDP_CKSUM;
+	m0 = *m_head;
+	if (m0->m_pkthdr.csum_flags) {
+		if (m0->m_pkthdr.csum_flags & CSUM_IP)
+			flags |= TX_BD_FLAGS_IP_CKSUM;
+		if (m0->m_pkthdr.csum_flags & (CSUM_TCP | CSUM_UDP))
+			flags |= TX_BD_FLAGS_TCP_UDP_CKSUM;
 	}
 
 	/* Map the mbuf into DMAable memory. */
-	map = sc->tx_mbuf_map[*chain_prod];
-	map_arg.sc         = sc;
-	map_arg.prod       = *prod;
-	map_arg.chain_prod = *chain_prod;
-	map_arg.prod_bseq  = *prod_bseq;
-	map_arg.tx_flags   = vlan_tag_flags;
-	map_arg.maxsegs    = USABLE_TX_BD - sc->used_tx_bd - 
-		BCE_TX_SLACK_SPACE;
-
-	KASSERT(map_arg.maxsegs > 0, ("Invalid TX maxsegs value!"));
-
-	for (i = 0; i < TX_PAGES; i++)
-		map_arg.tx_chain[i] = sc->tx_bd_chain[i];
+	prod = sc->tx_prod;
+	chain_prod = TX_CHAIN_IDX(prod);
+	map = sc->tx_mbuf_map[chain_prod];
 
 	/* Map the mbuf into our DMA address space. */
-	error = bus_dmamap_load_mbuf(sc->tx_mbuf_tag, map, m_head,
-	    bce_dma_map_tx_desc, &map_arg, BUS_DMA_NOWAIT);
+	error = bus_dmamap_load_mbuf_sg(sc->tx_mbuf_tag, map, m0,
+	    segs, &nsegs, BUS_DMA_NOWAIT);
 
-	if (error || map_arg.maxsegs == 0) {
+	if (error == EFBIG) {
             
-            /* Try to defrag the mbuf if there are too many segments. */
-            if (error == EFBIG && map_arg.maxsegs != 0) {
-                struct mbuf *m0;
-
+		/* Try to defrag the mbuf if there are too many segments. */
 	        DBPRINT(sc, BCE_WARN, "%s(): fragmented mbuf (%d pieces)\n",
                     __FUNCTION__, map_arg.maxsegs);
 
-                m0 = m_defrag(m_head, M_DONTWAIT);
-                if (m0 != NULL) {
-                    m_head = m0;
-                    error = bus_dmamap_load_mbuf(sc->tx_mbuf_tag,
-                        map, m_head, bce_dma_map_tx_desc, &map_arg,
-                        BUS_DMA_NOWAIT);
-                }
-            }
+                m0 = m_defrag(*m_head, M_DONTWAIT);
+                if (m0 == NULL) {
+			m_freem(*m_head);
+			*m_head = NULL;
+			return (ENOBUFS);
+		}
 
-            /* Still getting an error after a defrag. */
-            if (error) {
-                BCE_PRINTF(sc,
-                    "%s(%d): Error mapping mbuf into TX chain!\n",
-                    __FILE__, __LINE__);
-                rc = ENOBUFS;
-                goto bce_tx_encap_exit;
-            }
+		*m_head = m0;
+		error = bus_dmamap_load_mbuf_sg(sc->tx_mbuf_tag, map, m0,
+		    segs, &nsegs, BUS_DMA_NOWAIT);
 
+		/* Still getting an error after a defrag. */
+		if (error == ENOMEM) {
+			return (error);
+		} else if (error != 0) {
+			BCE_PRINTF(sc,
+			    "%s(%d): Error mapping mbuf into TX chain!\n",
+			    __FILE__, __LINE__);
+			m_freem(m0);
+			*m_head = NULL;
+			return (ENOBUFS);
+		}
+	} else if (error == ENOMEM) {
+		return (error);
+	} else if (error != 0) {
+		m_freem(m0);
+		*m_head = NULL;
+		return (error);
 	}
 
 	/*
-	 * Ensure that the map for this transmission
+	 * The chip seems to require that at least 16 descriptors be kept
+	 * empty at all times.  Make sure we honor that.
+	 * XXX Would it be faster to assume worst case scenario for nsegs
+	 * and do this calculation higher up?
+	 */
+	if (nsegs > (USABLE_TX_BD - sc->used_tx_bd - BCE_TX_SLACK_SPACE)) {
+		bus_dmamap_unload(sc->tx_mbuf_tag, map);
+		return (ENOBUFS);
+	}
+
+	/* prod points to an empty tx_bd at this point. */
+	prod_bseq  = sc->tx_prod_bseq;
+
+#ifdef BCE_DEBUG
+	debug_prod = chain_prod;
+#endif
+
+	DBPRINT(sc, BCE_INFO_SEND,
+		"%s(): Start: prod = 0x%04X, chain_prod = %04X, "
+		"prod_bseq = 0x%08X\n",
+		__FUNCTION__, *prod, chain_prod, prod_bseq);
+
+	/*
+	 * Cycle through each mbuf segment that makes up
+	 * the outgoing frame, gathering the mapping info
+	 * for that segment and creating a tx_bd to for
+	 * the mbuf.
+	 */
+	for (i = 0; i < nsegs ; i++) {
+
+		chain_prod = TX_CHAIN_IDX(prod);
+		txbd= &sc->tx_bd_chain[TX_PAGE(chain_prod)][TX_IDX(chain_prod)];
+
+		txbd->tx_bd_haddr_lo = htole32(BCE_ADDR_LO(segs[i].ds_addr));
+		txbd->tx_bd_haddr_hi = htole32(BCE_ADDR_HI(segs[i].ds_addr));
+		txbd->tx_bd_mss_nbytes = htole16(segs[i].ds_len);
+		txbd->tx_bd_vlan_tag = htole16(vlan_tag);
+		txbd->tx_bd_flags = htole16(flags);
+		prod_bseq += segs[i].ds_len;
+		if (i == 0)
+			txbd->tx_bd_flags |= htole16(TX_BD_FLAGS_START);
+		prod = NEXT_TX_BD(prod);
+	}
+
+	/* Set the END flag on the last TX buffer descriptor. */
+	txbd->tx_bd_flags |= htole16(TX_BD_FLAGS_END);
+
+	DBRUN(BCE_INFO_SEND, bce_dump_tx_chain(sc, debug_prod, nseg));
+
+	DBPRINT(sc, BCE_INFO_SEND,
+		"%s(): End: prod = 0x%04X, chain_prod = %04X, "
+		"prod_bseq = 0x%08X\n",
+		__FUNCTION__, prod, chain_prod, prod_bseq);
+
+	/*
+	 * Ensure that the mbuf pointer for this transmission
 	 * is placed at the array index of the last
 	 * descriptor in this chain.  This is done
 	 * because a single map is used for all 
 	 * segments of the mbuf and we don't want to
-	 * delete the map before all of the segments
+	 * unload the map before all of the segments
 	 * have been freed.
 	 */
-	sc->tx_mbuf_map[*chain_prod] = 
-		sc->tx_mbuf_map[map_arg.chain_prod];
-	sc->tx_mbuf_map[map_arg.chain_prod] = map;
-	sc->tx_mbuf_ptr[map_arg.chain_prod] = m_head;
-	sc->used_tx_bd += map_arg.maxsegs;
+	sc->tx_mbuf_ptr[chain_prod] = m0;
+	sc->used_tx_bd += nsegs;
 
 	DBRUNIF((sc->used_tx_bd > sc->tx_hi_watermark), 
 		sc->tx_hi_watermark = sc->used_tx_bd);
 
 	DBRUNIF(1, sc->tx_mbuf_alloc++);
 
-	DBRUN(BCE_VERBOSE_SEND, bce_dump_tx_mbuf_chain(sc, *chain_prod, 
-		map_arg.maxsegs));
+	DBRUN(BCE_VERBOSE_SEND, bce_dump_tx_mbuf_chain(sc, chain_prod, nsegs));
 
-	/* prod still points the last used tx_bd at this point. */
-	*prod       = map_arg.prod;
-	*chain_prod = map_arg.chain_prod;
-	*prod_bseq  = map_arg.prod_bseq;
-
-bce_tx_encap_exit:
+	/* prod points to the next free tx_bd at this point. */
+	sc->tx_prod = prod;
+	sc->tx_prod_bseq = prod_bseq;
 
 	return(rc);
 }
@@ -4677,7 +4645,6 @@ bce_start(struct ifnet *ifp)
 	struct mbuf *m_head = NULL;
 	int count = 0;
 	u16 tx_prod, tx_chain_prod;
-	u32	tx_prod_bseq;
 
 	/* If there's no link or the transmit queue is empty then just exit. */
 	if (!sc->bce_link || IFQ_DRV_IS_EMPTY(&ifp->if_snd)) {
@@ -4689,15 +4656,17 @@ bce_start(struct ifnet *ifp)
 	/* prod points to the next free tx_bd. */
 	tx_prod = sc->tx_prod;
 	tx_chain_prod = TX_CHAIN_IDX(tx_prod);
-	tx_prod_bseq = sc->tx_prod_bseq;
 
 	DBPRINT(sc, BCE_INFO_SEND,
 		"%s(): Start: tx_prod = 0x%04X, tx_chain_prod = %04X, "
 		"tx_prod_bseq = 0x%08X\n",
-		__FUNCTION__, tx_prod, tx_chain_prod, tx_prod_bseq);
+		__FUNCTION__, tx_prod, tx_chain_prod, sc->tx_prod_bseq);
 
-	/* Keep adding entries while there is space in the ring. */
-	while(sc->tx_mbuf_ptr[tx_chain_prod] == NULL) {
+	/*
+	 * Keep adding entries while there is space in the ring.  We keep
+	 * BCE_TX_SLACK_SPACE entries unused at all times.
+	 */
+	while (sc->used_tx_bd < USABLE_TX_BD - BCE_TX_SLACK_SPACE) {
 
 		/* Check for any frames to send. */
 		IF_DEQUEUE(&ifp->if_snd, m_head);
@@ -4710,7 +4679,7 @@ bce_start(struct ifnet *ifp)
 		 * head of the queue and set the OACTIVE flag
 		 * to wait for the NIC to drain the chain.
 		 */
-		if (bce_tx_encap(sc, m_head, &tx_prod, &tx_chain_prod, &tx_prod_bseq)) {
+		if (bce_tx_encap(sc, &m_head)) {
 			IF_PREPEND(&ifp->if_snd, m_head);
 			ifp->if_flags |= IFF_OACTIVE;
 			DBPRINT(sc, BCE_INFO_SEND,
@@ -4723,9 +4692,6 @@ bce_start(struct ifnet *ifp)
 
 		/* Send a copy of the frame to any BPF listeners. */
 		BPF_MTAP(ifp, m_head);
-
-		tx_prod = NEXT_TX_BD(tx_prod);
-		tx_chain_prod = TX_CHAIN_IDX(tx_prod);
 	}
 
 	if (count == 0) {
@@ -4736,13 +4702,12 @@ bce_start(struct ifnet *ifp)
 	}
 
 	/* Update the driver's counters. */
-	sc->tx_prod      = tx_prod;
-	sc->tx_prod_bseq = tx_prod_bseq;
+	tx_chain_prod = TX_CHAIN_IDX(sc->tx_prod);
 
 	DBPRINT(sc, BCE_INFO_SEND,
 		"%s(): End: tx_prod = 0x%04X, tx_chain_prod = 0x%04X, "
 		"tx_prod_bseq = 0x%08X\n",
-		__FUNCTION__, tx_prod, tx_chain_prod, tx_prod_bseq);
+		__FUNCTION__, tx_prod, tx_chain_prod, sc->tx_prod_bseq);
 
 	/* Start the transmit. */
 	REG_WR16(sc, MB_TX_CID_ADDR + BCE_L2CTX_TX_HOST_BIDX, sc->tx_prod);
@@ -6059,9 +6024,10 @@ bce_dump_txbd(struct bce_softc *sc, int idx, struct tx_bd *txbd)
 	else
 		/* Normal tx_bd entry. */
 		BCE_PRINTF(sc, "tx_bd[0x%04X]: haddr = 0x%08X:%08X, nbytes = 0x%08X, "
-			"flags = 0x%08X\n", idx, 
+			"vlan tag= 0x%4X, flags = 0x%04X\n", idx, 
 			txbd->tx_bd_haddr_hi, txbd->tx_bd_haddr_lo,
-			txbd->tx_bd_mss_nbytes, txbd->tx_bd_vlan_tag_flags);
+			txbd->tx_bd_mss_nbytes, txbd->tx_bd_vlan_tag,
+			txbd->tx_bd_flags);
 }
 
 
