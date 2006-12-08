@@ -8,6 +8,7 @@
 # BEFORE:  sysctl
 
 . /etc/rc.subr
+. /etc/network.subr
 
 name="auto_linklocal"
 start_cmd="auto_linklocal_start"
@@ -17,6 +18,10 @@ auto_linklocal_start()
 {
 	if ! checkyesno ipv6_enable && ${SYSCTL} net.inet6 > /dev/null 2>&1; then
 		${SYSCTL_W} net.inet6.ip6.auto_linklocal=0
+		laddr=`network6_getladdr lo0`
+		if [ -z "${laddr}" ]; then
+			ifconfig lo0 inet6 fe80::1 prefixlen 64
+		fi
 	fi
 }
 
