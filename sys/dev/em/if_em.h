@@ -30,7 +30,6 @@ ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 POSSIBILITY OF SUCH DAMAGE.
 
 ***************************************************************************/
-
 /*$FreeBSD$*/
 
 #ifndef _EM_H_DEFINED_
@@ -86,7 +85,8 @@ POSSIBILITY OF SUCH DAMAGE.
 #define EM_TIDV                         64
 
 /*
- * EM_TADV - Transmit Absolute Interrupt Delay Value (Not valid for 82542/82543/82544)
+ * EM_TADV - Transmit Absolute Interrupt Delay Value
+ * (Not valid for 82542/82543/82544)
  * Valid Range: 0-65535 (0=off)
  * Default Value: 64
  *   This value, in units of 1.024 microseconds, limits the delay in which a
@@ -112,10 +112,10 @@ POSSIBILITY OF SUCH DAMAGE.
  *
  *   CAUTION: When setting EM_RDTR to a value other than 0, adapters
  *            may hang (stop transmitting) under certain network conditions.
- *            If this occurs a WATCHDOG message is logged in the system event log.
- *            In addition, the controller is automatically reset, restoring the
- *            network connection. To eliminate the potential for the hang
- *            ensure that EM_RDTR is set to 0.
+ *            If this occurs a WATCHDOG message is logged in the system
+ *            event log. In addition, the controller is automatically reset,
+ *            restoring the network connection. To eliminate the potential
+ *            for the hang ensure that EM_RDTR is set to 0.
  */
 #define EM_RDTR                         0
 
@@ -143,10 +143,11 @@ POSSIBILITY OF SUCH DAMAGE.
 #define EM_TX_TIMEOUT                   5    /* set to 5 seconds */
 
 /*
- * This parameter controls when the driver calls the routine to reclaim
+ * These parameters controls when the driver calls the routine to reclaim
  * transmit descriptors.
  */
 #define EM_TX_CLEANUP_THRESHOLD		(adapter->num_tx_desc / 8)
+#define EM_TX_OP_THRESHOLD		(adapter->num_tx_desc / 32)
 
 /*
  * This parameter controls whether or not autonegotation is enabled.
@@ -164,9 +165,10 @@ POSSIBILITY OF SUCH DAMAGE.
 #define WAIT_FOR_AUTO_NEG_DEFAULT       0
 
 /*
- * EM_MASTER_SLAVE is only defined to enable a workaround for a known compatibility issue
- * with 82541/82547 devices and some switches.  See the "Known Limitations" section of
- * the README file for a complete description and a list of affected switches.
+ * EM_MASTER_SLAVE is only defined to enable a workaround for a known
+ * compatibility issue with 82541/82547 devices and some switches.
+ * See the "Known Limitations" section of the README file for a complete
+ * description and a list of affected switches.
  *
  *              0 = Hardware default
  *              1 = Master mode
@@ -177,12 +179,12 @@ POSSIBILITY OF SUCH DAMAGE.
 
 /* Tunables -- End */
 
-#define AUTONEG_ADV_DEFAULT             (ADVERTISE_10_HALF | ADVERTISE_10_FULL | \
-                                         ADVERTISE_100_HALF | ADVERTISE_100_FULL | \
-                                         ADVERTISE_1000_FULL)
+#define AUTONEG_ADV_DEFAULT	(ADVERTISE_10_HALF | ADVERTISE_10_FULL | \
+				ADVERTISE_100_HALF | ADVERTISE_100_FULL | \
+				ADVERTISE_1000_FULL)
 
 #define EM_VENDOR_ID                    0x8086
-#define EM_FLASH			0x0014	/* Flash memory on ICH8 */
+#define EM_FLASH                        0x0014 /* Flash memory on ICH8 */
 
 #define EM_JUMBO_PBA                    0x00000028
 #define EM_DEFAULT_PBA                  0x00000030
@@ -201,6 +203,22 @@ POSSIBILITY OF SUCH DAMAGE.
 #define EM_DBA_ALIGN			128
 
 #define SPEED_MODE_BIT (1<<21)		/* On PCI-E MACs only */
+
+/* PCI Config defines */
+#define EM_BAR_TYPE(v)			((v) & EM_BAR_TYPE_MASK)
+#define EM_BAR_TYPE_MASK		0x00000001
+#define EM_BAR_TYPE_MMEM		0x00000000
+#define EM_BAR_TYPE_IO			0x00000001
+#define EM_BAR_MEM_TYPE(v)		((v) & EM_BAR_MEM_TYPE_MASK)
+#define EM_BAR_MEM_TYPE_MASK		0x00000006
+#define EM_BAR_MEM_TYPE_32BIT		0x00000000
+#define EM_BAR_MEM_TYPE_64BIT		0x00000004
+/*
+ * Backward compatibility workaround
+ */
+#if !defined(PCIR_CIS)
+#define PCIR_CIS	PCIR_CARDBUSCIS
+#endif
 
 /* Defines for printing debug information */
 #define DEBUG_INIT  0
@@ -224,7 +242,43 @@ POSSIBILITY OF SUCH DAMAGE.
 #define EM_RXBUFFER_8192        8192
 #define EM_RXBUFFER_16384      16384
 
-#define EM_MAX_SCATTER            64
+#define EM_MAX_SCATTER		64
+#define EM_TSO_SIZE		65535	/* maxsize of a dma transfer */
+
+/* ******************************************************************************
+ * vendor_info_array
+ *
+ * This array contains the list of Subvendor/Subdevice IDs on which the driver
+ * should load.
+ *
+ * ******************************************************************************/
+typedef struct _em_vendor_info_t {
+	unsigned int vendor_id;
+	unsigned int device_id;
+	unsigned int subvendor_id;
+	unsigned int subdevice_id;
+	unsigned int index;
+} em_vendor_info_t;
+
+
+struct em_buffer {
+	int		next_eop;  /* Index of the desc to watch */
+        struct mbuf    *m_head;
+        bus_dmamap_t    map;         /* bus_dma map for packet */
+};
+
+/*
+ * Bus dma allocation structure used by
+ * em_dma_malloc and em_dma_free.
+ */
+struct em_dma_alloc {
+        bus_addr_t              dma_paddr;
+        caddr_t                 dma_vaddr;
+        bus_dma_tag_t           dma_tag;
+        bus_dmamap_t            dma_map;
+        bus_dma_segment_t       dma_seg;
+        int                     dma_nseg;
+};
 
 typedef enum _XSUM_CONTEXT_T {
 	OFFLOAD_NONE,
@@ -232,27 +286,27 @@ typedef enum _XSUM_CONTEXT_T {
 	OFFLOAD_UDP_IP
 } XSUM_CONTEXT_T;
 
-struct adapter;			/* XXX: ugly forward declaration */
+struct adapter;
 struct em_int_delay_info {
-	struct adapter *adapter;	/* XXX: ugly pointer */
-	int offset;		/* Register offset to read/write */
-	int value;		/* Current value in usecs */
+	struct adapter *adapter;	/* Back-pointer to the adapter struct */
+	int offset;			/* Register offset to read/write */
+	int value;			/* Current value in usecs */
 };
 
-/*
- * Bus dma allocation structure used by
- * em_dma_malloc() and em_dma_free().
- */
-struct em_dma_alloc {
-	bus_addr_t		dma_paddr;
-	caddr_t			dma_vaddr;
-	bus_dma_tag_t		dma_tag;
-	bus_dmamap_t		dma_map;
-	bus_dma_segment_t	dma_seg;
-	int			dma_nseg;
-};
+/* For 82544 PCIX  Workaround */
+typedef struct _ADDRESS_LENGTH_PAIR
+{
+	uint64_t   address;
+	uint32_t   length;
+} ADDRESS_LENGTH_PAIR, *PADDRESS_LENGTH_PAIR;
 
-/* Driver softc. */
+typedef struct _DESCRIPTOR_PAIR
+{
+	ADDRESS_LENGTH_PAIR descriptor[4];
+	uint32_t   elements;
+} DESC_ARRAY, *PDESC_ARRAY;
+
+/* Our adapter structure */
 struct adapter {
 	struct arpcom   interface_data;
 	struct em_hw	hw;
@@ -296,12 +350,13 @@ struct adapter {
 	struct em_dma_alloc	txdma;		/* bus_dma glue for tx desc */
 	struct em_tx_desc	*tx_desc_base;
 	uint32_t		next_avail_tx_desc;
-	uint32_t		oldest_used_tx_desc;
+	uint32_t		next_tx_to_clean;
 	volatile uint16_t	num_tx_desc_avail;
         uint16_t		num_tx_desc;
         uint32_t		txd_cmd;
 	struct em_buffer	*tx_buffer_area;
 	bus_dma_tag_t		txtag;		/* dma tag for tx */
+	uint32_t	   	tx_tso;		/* last tx was tso */
 
 	/* 
 	 * Receive definitions
@@ -316,11 +371,14 @@ struct adapter {
 	uint32_t		next_rx_desc_to_check;
 	uint32_t		rx_buffer_len;
 	uint16_t		num_rx_desc;
+	int			rx_process_limit;
 	struct em_buffer	*rx_buffer_area;
 	bus_dma_tag_t		rxtag;
-	bus_dmamap_t		rx_sparemap;
 
-	/* First/last mbuf pointers, for collecting multisegment RX packets. */
+	/*
+	 * First/last mbuf pointers, for
+	 * collecting multisegment RX packets.
+	 */
 	struct mbuf	       *fmp;
 	struct mbuf	       *lmp;
 
@@ -328,6 +386,7 @@ struct adapter {
 	struct sysctl_oid	*sysctl_tree;
 
 	/* Misc stats maintained by the driver */
+	unsigned long	dropped_pkts;
 	unsigned long	mbuf_alloc_failed;
 	unsigned long	mbuf_cluster_failed;
 	unsigned long	no_tx_desc_avail1;
@@ -358,39 +417,5 @@ struct adapter {
 
 	struct em_hw_stats stats;
 };
-
-/* ******************************************************************************
- * vendor_info_array
- *
- * This array contains the list of Subvendor/Subdevice IDs on which the driver
- * should load.
- *
- * ******************************************************************************/
-typedef struct _em_vendor_info_t {
-	unsigned int vendor_id;
-	unsigned int device_id;
-	unsigned int subvendor_id;
-	unsigned int subdevice_id;
-	unsigned int index;
-} em_vendor_info_t;
-
-
-struct em_buffer {
-        struct mbuf    *m_head;
-        bus_dmamap_t    map;         /* bus_dma map for packet */
-};
-
-/* For 82544 PCIX  Workaround */
-typedef struct _ADDRESS_LENGTH_PAIR
-{
-    u_int64_t   address;
-    u_int32_t   length;
-} ADDRESS_LENGTH_PAIR, *PADDRESS_LENGTH_PAIR;
-
-typedef struct _DESCRIPTOR_PAIR
-{
-    ADDRESS_LENGTH_PAIR descriptor[4];
-    u_int32_t   elements;
-} DESC_ARRAY, *PDESC_ARRAY;
 
 #endif /* _EM_H_DEFINED_ */
