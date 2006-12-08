@@ -1,8 +1,8 @@
 '\"
-'\" Copyright (c)1996-2002 by Hartmut Brandt
+'\" Copyright (c)1996-2006 by Hartmut Brandt
 '\"	All rights reserved.
 '\"
-'\" Author: Hartmut Brandt
+'\" Author: harti@freebsd.org <Hartmut Brandt>
 '\"
 '\" Redistribution of this software and documentation and use in source and
 '\" binary forms, with or without modification, are permitted provided that
@@ -28,27 +28,31 @@
 '\"
 '\" $Begemot: libbegemot/rpoll.man,v 1.4 2004/09/21 15:59:00 brandt Exp $
 '\"
-.TH rpoll 3 "21 Oct 1996" "BEGEMOT" "BEGEMOT Library"
+.TH rpoll 3 "8 Dec 2006" "BEGEMOT" "BEGEMOT Library"
 .SH NAME
 rpoll - callback functions for file descriptors and timers
 .SH SYNOPSIS
 .LP
 .B "# include <rpoll.h>"
 .LP
-.BR "typedef void (*poll_f)(int " "fd" ", int " "mask" ", void *" "arg);"
+.BR "typedef void (*poll_f)(int " "fd" ", int " "mask" ", void *" "arg" ");"
 .br
-.BR "typedef void (*timer_f)(int " "tid" ", void *" "arg);"
+.BR "typedef void (*timer_f)(int " "tid" ", void *" "arg" ");"
 .LP
 .BR "int poll_register(int " "fd" ", poll_f "
 .RB "func" ", void *" "arg" ", int " "mask" ");"
 .LP
 .BR "void poll_unregister(int " "handle" ");"
 .LP
-.BR "int poll_start_timer(u_int " "msecs" ", int " "repeat" ", timer_f " "func,"
+.BR "int poll_start_timer(u_int " "msecs" ", int " "repeat" ", timer_f " "func" ","
 .if n .ti +.5i
-.BR "void *" "arg);"
+.BR "void *" "arg" ");"
 .LP
 .BR "void poll_stop_timer(int " "handle" ");"
+.LP
+.BR "int poll_start_utimer(unsigned long long " "usecs" ", int " "repeat" ",
+.if n .ti +.5i
+.BR "timer_f " "func" ", void *" "arg" ");"
 .LP
 .BR "void poll_dispatch(int " "wait" ");"
 .SH DESCRIPTION
@@ -113,9 +117,24 @@ with the handle returned by
 .BR poll_register .
 .LP
 A timer is created with
-.BR poll_start_timer .
+.BR poll_start_timer
+or
+.BR poll_start_utimer .
 .I msecs
-is the number of milliseconds, after which the timer event will be generated.
+is the number of milliseconds in
+.BR poll_start_timer
+while
+.I usecs
+is the number of microseconds in
+.BR poll_start_utimer ,
+after which the timer event will be generated.
+If the functions use the
+.BR poll (2)
+system call, then
+.I usecs
+is rounded to milliseconds and
+.BR poll_start_timer
+is called.
 .I repeat
 selects one-short behavior (if 0) or a repeatable timer (if not 0). A one-short timer
 will automatically unregistered after expiry.
@@ -123,7 +142,9 @@ will automatically unregistered after expiry.
 is the user function which will be called with a timer id and the user supplied
 .IR arg .
 .B poll_start_timer
-returnes a timer id, which may be used to cancel the timer with
+and
+.B poll_start_utimer
+return a timer id, which may be used to cancel the timer with
 .BR poll_stop_timer .
 A one-short timer should be canceled only if it has not yet fired.
 .LP
@@ -151,10 +172,12 @@ while(1)
 .SH "SEE ALSO"
 .BR poll (2), select (3C)
 .SH "RETURN VALUES"
-.B poll_register
-and
+.B poll_register ,
 .B poll_start_timer
-return a handle which may be used to unregister the file descriptor or cancel the timer.
+and
+.B poll_start_utimer
+return a handle which may be used to unregister the file descriptor or
+cancel the timer.
 .LP
 Both functions and
 .B poll_dispatch
