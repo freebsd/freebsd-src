@@ -1,7 +1,7 @@
 <!--
      The FreeBSD Simplified Chinese Project
 
-     Original revision: 1.883.2.52.2.2
+     Original revision: 1.883.2.52.2.4
 -->
 <articleinfo>
   <title>&os;/&arch; &release.current; 发行说明</title>
@@ -146,6 +146,10 @@
     <para>修正了一处使受损的压缩包导致 &man.libarchive.3; 和 &man.tar.1;
       陷入死循环的问题。 要了解进一步详情， 请参阅安全公告
       <ulink url="http://security.FreeBSD.org/advisories/FreeBSD-SA-06:24.libarchive.asc">FreeBSD-SA-06:24.libarchive</ulink>。</para>
+
+    <para>发现并修正了一处使属于 <groupname>operator</groupname> 组的用户，
+      能够读取某些本应无权内核内存内容的问题。 要了解进一步详情， 请参阅安全公告
+      <ulink url="http://security.FreeBSD.org/advisories/FreeBSD-SA-06:25.kmem.asc">FreeBSD-SA-06:25.kmem</ulink>。</para>
 
   </sect2>
 
