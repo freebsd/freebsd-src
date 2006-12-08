@@ -43,6 +43,8 @@ int	poll_register(int fd, poll_f func, void *arg, int mask);
 void	poll_unregister(int);
 void	poll_dispatch(int wait);
 int	poll_start_timer(u_int msecs, int repeat, timer_f func, void *arg);
+int	poll_start_utimer(unsigned long long usecs, int repeat, timer_f func,
+    void *arg);
 void	poll_stop_timer(int);
 
 # if defined(POLL_IN)
