@@ -306,7 +306,15 @@ ether_output(struct ifnet *ifp, struct mbuf *m,
 		if (m->m_flags & M_BCAST) {
 			struct mbuf *n;
 
-			if ((n = m_copy(m, 0, (int)M_COPYALL)) != NULL) {
+			/*
+			 * Because if_simloop() modifies the packet, we need a
+			 * writable copy through m_dup() instead of a readonly
+			 * one as m_copy[m] would give us. The alternative would
+			 * be to modify if_simloop() to handle the readonly mbuf,
+			 * but performancewise it is mostly equivalent (trading
+			 * extra data copying vs. extra locking).
+			 */
+			if ((n = m_dup(m, M_DONTWAIT)) != NULL) {
 				n->m_pkthdr.csum_flags |= csum_flags;
 				if (csum_flags & CSUM_DATA_VALID)
 					n->m_pkthdr.csum_data = 0xffff;
