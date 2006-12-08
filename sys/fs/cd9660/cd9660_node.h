@@ -69,7 +69,7 @@ struct iso_node {
 	ino_t	i_ino;		/* inode number of found directory */
 
 	long iso_extent;	/* extent of file */
-	long i_size;
+	unsigned long i_size;
 	long iso_start;		/* actual start of data of file (may be different */
 				/* from iso_extent, if file has extended attributes) */
 	ISO_RRIP_INODE	inode;
