@@ -101,16 +101,16 @@
 # endif
 
 
-typedef signed long long tval_t;
+typedef int64_t tval_t;
 
-static inline tval_t GETMSECS(void);
+static inline tval_t GETUSECS(void);
 
 static inline tval_t
-GETMSECS(void) {
+GETUSECS(void) {
 	struct timeval tval;
 
 	(void)gettimeofday(&tval, NULL);
-	return (tval_t)tval.tv_sec*1000+tval.tv_usec/1000;
+	return (tval_t)tval.tv_sec * 1000000 + tval.tv_usec;
 }
 
 /*
@@ -170,11 +170,11 @@ typedef struct {
  * Now for timers
  */
 typedef struct {
-	u_int	msecs;		/* millisecond value of the timer */
+	uint64_t usecs;		/* microsecond value of the timer */
 	int	repeat;		/* one shot or repeat? */
 	void	*arg;		/* client arg */
 	timer_f	func;		/* handler, 0 means disfunct */
-	tval_t	when;		/* next time to trigger in msecs! */
+	tval_t	when;		/* next time to trigger in usecs! */
 } PollTim_t;
 
 /* how many records should our table grow at once? */
@@ -296,8 +296,8 @@ poll_register(int fd, poll_f func, void *arg, int mask)
 	poll_unblocksig();
 
 	if(rpoll_trace)
-		fprintf(stderr, "poll_register(%d, %#lx, %#lx, %#x)->%d",
-			fd, (u_long)func, (u_long)arg, mask, p - regs);
+		fprintf(stderr, "poll_register(%d, %p, %p, %#x)->%tu",
+			fd, (void *)func, (void *)arg, mask, p - regs);
 	return p - regs;
 }
 
@@ -373,6 +373,13 @@ poll_build(void)
 int
 poll_start_timer(u_int msecs, int repeat, timer_f func, void *arg)
 {
+	return (poll_start_utimer((unsigned long long)msecs * 1000,
+	    repeat, func, arg));
+}
+
+int
+poll_start_utimer(unsigned long long usecs, int repeat, timer_f func, void *arg)
+{
 	PollTim_t *p;
 
 	/* find unused entry */
@@ -392,19 +399,19 @@ poll_start_timer(u_int msecs, int repeat, timer_f func, void *arg)
 	}
 
 	/* create entry */
-	p->msecs = msecs;
+	p->usecs = usecs;
 	p->repeat = repeat;
 	p->arg = arg;
 	p->func = func;
-	p->when = GETMSECS() + msecs;
+	p->when = GETUSECS() + usecs;
 
 	tims_used++;
 
 	resort = 1;
 
 	if(rpoll_trace)
-		fprintf(stderr, "poll_start_timer(%u, %d, %#lx, %#lx)->%u",
-			msecs, repeat, (u_long)func, (u_long)arg, p - tims);
+		fprintf(stderr, "poll_start_utimer(%llu, %d, %p, %p)->%tu",
+			usecs, repeat, (void *)func, (void *)arg, p - tims);
 
 	return p - tims;
 }
@@ -497,7 +504,7 @@ poll_dispatch(int wait)
 	u_int i, idx;
 	int ret;
 	tval_t now;
-	int tout;
+	tval_t tout;
 	static u_int last_index;
 
 # ifdef USE_SELECT
@@ -519,12 +526,13 @@ poll_dispatch(int wait)
 	/* in wait mode - compute the timeout */
 	if(wait) {
 		if(tfd_used) {
-			now = GETMSECS();
+			now = GETUSECS();
 # ifdef DEBUG
 			{
-				fprintf(stderr, "now=%"QUADFMT"u", now);
+				fprintf(stderr, "now=%llu", now);
 				for(i = 0; i < tims_used; i++)
-					fprintf(stderr, "timers[%2d] = %"QUADFMT"d", i, tfd[i]->when - now);
+					fprintf(stderr, "timers[%2d] = %lld",
+					    i, tfd[i]->when - now);
 			}
 # endif
 			if((tout = tims[tfd[0]].when - now) < 0)
@@ -539,7 +547,7 @@ poll_dispatch(int wait)
 # endif
 
 # ifdef USE_POLL
-	ret = poll(pfd, regs_used, tout);
+	ret = poll(pfd, regs_used, tout == INFTIM ? INFTIM : (tout / 1000));
 # endif
 
 # ifdef USE_SELECT
@@ -547,13 +555,13 @@ poll_dispatch(int wait)
 	nwset = wset;
 	nxset = xset;
 	if(tout != INFTIM) {
-		tv.tv_sec = tout / 1000;
-		tv.tv_usec = (tout % 1000) * 1000;
+		tv.tv_sec = tout / 1000000;
+		tv.tv_usec = tout % 1000000;
 	}
 	ret = select(maxfd+1,
 		SELECT_CAST(&nrset),
 		SELECT_CAST(&nwset),
-		SELECT_CAST(&nxset), (tout==INFTIM) ? 0 : &tv);
+		SELECT_CAST(&nxset), (tout==INFTIM) ? NULL : &tv);
 # endif
 
 	if(ret == -1) {
@@ -574,20 +582,26 @@ poll_dispatch(int wait)
 
 # ifdef USE_POLL
 				if(regs[idx].pfd) {
-					if(regs[idx].pfd->revents & poll_in)
+					if ((regs[idx].mask & POLL_IN) &&
+					    (regs[idx].pfd->revents & poll_in))
 						mask |= POLL_IN;
-					if(regs[idx].pfd->revents & poll_out)
+					if ((regs[idx].mask & POLL_OUT) &&
+					    (regs[idx].pfd->revents & poll_out))
 						mask |= POLL_OUT;
-					if(regs[idx].pfd->revents & poll_except)
+					if((regs[idx].mask & POLL_EXCEPT) &&
+					    (regs[idx].pfd->revents & poll_except))
 						mask |= POLL_EXCEPT;
 				}
 # endif
 # ifdef USE_SELECT
-				if(FD_ISSET(regs[idx].fd, &nrset))
+				if ((regs[idx].mask & POLL_IN) &&
+				    FD_ISSET(regs[idx].fd, &nrset))
 					mask |= POLL_IN;
-				if(FD_ISSET(regs[idx].fd, &nwset))
+				if ((regs[idx].mask & POLL_OUT) &&
+				    FD_ISSET(regs[idx].fd, &nwset))
 					mask |= POLL_OUT;
-				if(FD_ISSET(regs[idx].fd, &nxset))
+				if ((regs[idx].mask & POLL_EXCEPT) &&
+				    FD_ISSET(regs[idx].fd, &nxset))
 					mask |= POLL_EXCEPT;
 # endif
 				assert(idx < regs_alloc);
@@ -595,8 +609,8 @@ poll_dispatch(int wait)
 				if(mask) {
 					if(rpoll_trace)
 						fprintf(stderr, "poll_dispatch() -- "
-							"file %d/%d",
-							regs[idx].fd, idx);
+						    "file %d/%d %x",
+						    regs[idx].fd, idx, mask);
 					(*regs[idx].func)(regs[idx].fd, mask, regs[idx].arg);
 				}
 			}
@@ -607,7 +621,7 @@ poll_dispatch(int wait)
 
 	/* dispatch timeouts */
 	if(tfd_used) {
-		now = GETMSECS();
+		now = GETUSECS();
 		for(i = 0; i < tfd_used; i++) {
 			if(tfd[i] < 0)
 				continue;
@@ -619,7 +633,7 @@ poll_dispatch(int wait)
 			if(tfd[i] < 0)
 				continue;
 			if(tims[tfd[i]].repeat)
-				tims[tfd[i]].when = now + tims[tfd[i]].msecs;
+				tims[tfd[i]].when = now + tims[tfd[i]].usecs;
 			else {
 				tims[tfd[i]].func = NULL;
 				tims_used--;
@@ -644,8 +658,8 @@ elaps(void)
 {
 	gettimeofday(&now, NULL);
 
-	return (double)(10 * now.tv_sec + now.tv_usec / 100000 - 10 * start.tv_sec - start.tv_usec / 100000)
-		/ 10;
+	return (double)(10 * now.tv_sec + now.tv_usec / 100000 -
+	    10 * start.tv_sec - start.tv_usec / 100000) / 10;
 }
 
 void
@@ -675,6 +689,14 @@ tfunc1(int tid, void *arg)
 {
 	printf("%4.1f -- %d: %s\n", elaps(), tid, (char *)arg);
 }
+void
+tfunc2(int tid, void *arg)
+{
+	static u_int count = 0;
+
+	if (++count % 10000 == 0)
+		printf("%4.1f -- %d\n", elaps(), tid);
+}
 
 void first(int tid, void *arg);
 void second(int tid, void *arg);
@@ -683,7 +705,7 @@ void
 second(int tid, void *arg)
 {
 	printf("%4.1f -- %d: %s\n", elaps(), tid, (char *)arg);
-	poll_start_timer(5500, 0, first, "first");
+	poll_start_utimer(5500000, 0, first, "first");
 	poll_stop_timer(t1);
 	t0 = poll_start_timer(1000, 1, tfunc0, "1 second");
 }
@@ -699,12 +721,16 @@ first(int tid, void *arg)
 int
 main(int argc, char *argv[])
 {
-	argc = argc;
 	argv = argv;
 	gettimeofday(&start, NULL);
 	poll_register(0, infunc, NULL, POLL_IN);
-	t0 = poll_start_timer(1000, 1, tfunc0, "1 second");
-	poll_start_timer(2500, 0, first, "first");
+
+	if (argc < 2) {
+		t0 = poll_start_timer(1000, 1, tfunc0, "1 second");
+		poll_start_timer(2500, 0, first, "first");
+	} else {
+		t0 = poll_start_utimer(300, 1, tfunc2, NULL);
+	}
 
 	while(1)
 		poll_dispatch(1);
