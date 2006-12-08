@@ -212,6 +212,7 @@ vm_page_startup(vm_offset_t vaddr)
 	/* the biggest memory array is the second group of pages */
 	vm_paddr_t end;
 	vm_paddr_t biggestsize;
+	vm_paddr_t low_water, high_water;
 	int biggestone;
 
 	vm_paddr_t total;
@@ -227,6 +228,9 @@ vm_page_startup(vm_offset_t vaddr)
 		phys_avail[i + 1] = trunc_page(phys_avail[i + 1]);
 	}
 
+	low_water = phys_avail[0];
+	high_water = phys_avail[1];
+
 	for (i = 0; phys_avail[i + 1]; i += 2) {
 		vm_paddr_t size = phys_avail[i + 1] - phys_avail[i];
 
@@ -234,6 +238,10 @@ vm_page_startup(vm_offset_t vaddr)
 			biggestone = i;
 			biggestsize = size;
 		}
+		if (phys_avail[i] < low_water)
+			low_water = phys_avail[i];
+		if (phys_avail[i + 1] > high_water)
+			high_water = phys_avail[i + 1];
 		++nblocks;
 		total += size;
 	}
@@ -289,8 +297,8 @@ vm_page_startup(vm_offset_t vaddr)
 	 * use (taking into account the overhead of a page structure per
 	 * page).
 	 */
-	first_page = phys_avail[0] / PAGE_SIZE;
-	page_range = phys_avail[(nblocks - 1) * 2 + 1] / PAGE_SIZE - first_page;
+	first_page = low_water / PAGE_SIZE;
+	page_range = high_water / PAGE_SIZE - first_page;
 	npages = (total - (page_range * sizeof(struct vm_page)) -
 	    (end - new_end)) / PAGE_SIZE;
 	end = new_end;
