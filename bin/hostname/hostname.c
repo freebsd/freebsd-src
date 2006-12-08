@@ -58,8 +58,13 @@ main(int argc, char *argv[])
 	char *p, hostname[MAXHOSTNAMELEN];
 
 	sflag = 0;
-	while ((ch = getopt(argc, argv, "s")) != -1)
+	while ((ch = getopt(argc, argv, "sf")) != -1)
 		switch (ch) {
+		case 'f':
+			/* On Linux, "hostname -f" prints FQDN. */
+			/* BSD "hostname" always print FQDN by
+			 * default, so we accept but ignore -f. */
+			break;
 		case 's':
 			sflag = 1;
 			break;

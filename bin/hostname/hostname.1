@@ -29,7 +29,7 @@
 .\"	@(#)hostname.1	8.2 (Berkeley) 4/28/95
 .\" $FreeBSD$
 .\"
-.Dd December 5, 2006
+.Dd December 7, 2006
 .Dt HOSTNAME 1
 .Os
 .Sh NAME
@@ -37,6 +37,7 @@
 .Nd set or print name of current host system
 .Sh SYNOPSIS
 .Nm
+.Op Fl f
 .Op Fl s
 .Op Ar name-of-host
 .Sh DESCRIPTION
@@ -56,6 +57,9 @@ variable in
 .Pp
 Options:
 .Bl -tag -width flag
+.It Fl f
+Include domain information in the printed name.
+This is the default behavior.
 .It Fl s
 Trim off any domain information from the printed
 name.
