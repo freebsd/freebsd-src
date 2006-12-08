@@ -643,6 +643,10 @@ are contiguous and lay in the data area of
 .Fa mbuf ,
 so they are accessible with
 .Fn mtod mbuf type .
+It is important to remember that this may involve
+reallocating some mbufs and moving data so all pointers
+referencing data within the old mbuf chain
+must be recalculated or made invalid.
 Return the new
 .Vt mbuf chain
 on success,
