@@ -10,7 +10,7 @@
 
 	The FreeBSD Simplified Chinese Project
 
-	Original Revision: 1.73.2.35
+	Original Revision: 1.73.2.36
 -->
 
 <!DOCTYPE article PUBLIC "-//FreeBSD//DTD DocBook V4.1-Based Extension//EN" [
@@ -177,6 +177,13 @@
 		>SA-06:23.openssl</ulink></entry>
 	    <entry>2006&nbsp;年&nbsp;9&nbsp;月&nbsp;28&nbsp;日</entry>
 	    <entry><para>&man.crypto.3; 中的多处问题</para></entry>
+	  </row>
+
+	  <row>
+	    <entry><ulink url="http://security.FreeBSD.org/advisories/FreeBSD-SA-06:25.kmem.asc"
+		>SA-06:25.kmem</ulink></entry>
+	    <entry>2006&nbsp;年&nbsp;12&nbsp;月&nbsp;6&nbsp;日</entry>
+	    <entry><para>在 &man.firewire.4; 中的内核内存内容不当泄露问题</para></entry>
 	  </row>
 	</tbody>
       </tgroup>
