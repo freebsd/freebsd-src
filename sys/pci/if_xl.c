@@ -2151,7 +2151,6 @@ xl_txeof(struct xl_softc *sc)
 
 	if (sc->xl_cdata.xl_tx_head == NULL) {
 		ifp->if_drv_flags &= ~IFF_DRV_OACTIVE;
-		/* Clear the timeout timer. */
 		sc->xl_wdog_timer = 0;
 		sc->xl_cdata.xl_tx_tail = NULL;
 	} else {
@@ -2160,7 +2159,6 @@ xl_txeof(struct xl_softc *sc)
 			CSR_WRITE_4(sc, XL_DOWNLIST_PTR,
 				sc->xl_cdata.xl_tx_head->xl_phys);
 			CSR_WRITE_2(sc, XL_COMMAND, XL_CMD_DOWN_UNSTALL);
-			sc->xl_wdog_timer = 5;
 		}
 	}
 }
@@ -2199,7 +2197,8 @@ xl_txeof_90xB(struct xl_softc *sc)
 		XL_INC(idx, XL_TX_LIST_CNT);
 	}
 
-	sc->xl_wdog_timer = sc->xl_cdata.xl_tx_cnt == 0 ? 0 : 5;
+	if (sc->xl_cdata.xl_tx_cnt == 0)
+		sc->xl_wdog_timer = 0;
 	sc->xl_cdata.xl_tx_cons = idx;
 
 	if (cur_tx != NULL)
