@@ -353,7 +353,6 @@ op_dot1d_base_port(struct snmp_context *c __unused, struct snmp_value *val,
 	    bridge_update_memif(bif) <= 0)
 		return (SNMP_ERR_NOSUCHNAME);
 
-	bp = NULL; /* Make the compiler happy. */
 	switch (op) {
 		case SNMP_OP_GET:
 		    if (val->var.len - sub != 1)
@@ -382,6 +381,7 @@ op_dot1d_base_port(struct snmp_context *c __unused, struct snmp_value *val,
 
 		case SNMP_OP_ROLLBACK:
 		case SNMP_OP_COMMIT:
+		default:
 		    abort();
 	}
 
@@ -420,8 +420,6 @@ op_dot1d_stp_port(struct snmp_context *ctx, struct snmp_value *val,
 	if (time(NULL) - bif->ports_age > bridge_get_data_maxage() &&
 	    bridge_update_memif(bif) <= 0)
 		return (SNMP_ERR_NOSUCHNAME);
-
-	bp = NULL; /* Make the compiler happy. */
 
 	switch (op) {
 		case SNMP_OP_GET:
@@ -508,6 +506,9 @@ op_dot1d_stp_port(struct snmp_context *ctx, struct snmp_value *val,
 
 		case SNMP_OP_COMMIT:
 		    return (SNMP_ERR_NOERROR);
+
+		default:
+		    abort();
 	}
 
 	ret = SNMP_ERR_NOERROR;
@@ -564,7 +565,6 @@ op_dot1d_stp_ext_port(struct snmp_context *ctx, struct snmp_value *val,
 	    bridge_update_memif(bif) <= 0)
 		return (SNMP_ERR_NOSUCHNAME);
 
-	bp = NULL; /* Make the compiler happy. */
 	switch (op) {
 		case SNMP_OP_GET:
 		    if (val->var.len - sub != 1)
@@ -648,6 +648,9 @@ op_dot1d_stp_ext_port(struct snmp_context *ctx, struct snmp_value *val,
 
 		case SNMP_OP_COMMIT:
 		    return (SNMP_ERR_NOERROR);
+
+		default:
+		    abort();
 	}
 
 	switch (val->var.subs[sub - 1]) {
@@ -688,7 +691,6 @@ op_dot1d_tp_port(struct snmp_context *c __unused, struct snmp_value *val,
 	    bridge_update_memif(bif) <= 0)
 		return (SNMP_ERR_NOSUCHNAME);
 
-	bp = NULL; /* Make the compiler happy. */
 	switch (op) {
 		case SNMP_OP_GET:
 		    if (val->var.len - sub != 1)
@@ -717,6 +719,7 @@ op_dot1d_tp_port(struct snmp_context *c __unused, struct snmp_value *val,
 
 		case SNMP_OP_ROLLBACK:
 		case SNMP_OP_COMMIT:
+		default:
 		    abort();
 	}
 
@@ -1122,7 +1125,7 @@ op_begemot_stp_port(struct snmp_context *ctx, struct snmp_value *val,
 	uint sub, uint iidx __unused, enum snmp_op op)
 {
 	int ret;
-	struct bridge_port *bp = NULL;
+	struct bridge_port *bp;
 	const char *b_name;
 
 	if (time(NULL) - ports_list_age > bridge_get_data_maxage())
@@ -1201,6 +1204,9 @@ op_begemot_stp_port(struct snmp_context *ctx, struct snmp_value *val,
 
 	    case SNMP_OP_COMMIT:
 		return (SNMP_ERR_NOERROR);
+
+	    default:
+		abort();
 	}
 
 	ret = SNMP_ERR_NOERROR;
@@ -1245,7 +1251,7 @@ op_begemot_stp_ext_port(struct snmp_context *ctx, struct snmp_value *val,
     uint sub, uint iidx __unused, enum snmp_op op)
 {
 	int ret;
-	struct bridge_port *bp = NULL;
+	struct bridge_port *bp;
 	const char *b_name;
 
 	if (time(NULL) - ports_list_age > bridge_get_data_maxage())
@@ -1322,6 +1328,9 @@ op_begemot_stp_ext_port(struct snmp_context *ctx, struct snmp_value *val,
 
 	    case SNMP_OP_COMMIT:
 		return (SNMP_ERR_NOERROR);
+
+	    default:
+		abort();
 	}
 
 	switch (val->var.subs[sub - 1]) {
@@ -1352,7 +1361,7 @@ int
 op_begemot_tp_port(struct snmp_context *c __unused, struct snmp_value *val,
 	uint sub, uint iidx __unused, enum snmp_op op)
 {
-	struct bridge_port *bp = NULL;
+	struct bridge_port *bp;
 
 	if (time(NULL) - ports_list_age > bridge_get_data_maxage())
 		bridge_update_all_ports();
@@ -1374,7 +1383,8 @@ op_begemot_tp_port(struct snmp_context *c __unused, struct snmp_value *val,
 
 	    case SNMP_OP_ROLLBACK:
 	    case SNMP_OP_COMMIT:
-		return (SNMP_ERR_NOERROR);
+	    default:
+		abort();
 	}
 
 	switch (val->var.subs[sub - 1]) {

@@ -1096,7 +1096,7 @@ op_begemot_base_bridge(struct snmp_context *ctx, struct snmp_value *val,
 	uint sub, uint iidx __unused, enum snmp_op op)
 {
 	int ret;
-	struct bridge_if *bif = NULL;
+	struct bridge_if *bif;
 
 	if (time(NULL) - bridge_list_age > bridge_get_data_maxage())
 		bridge_update_all_ifs();
@@ -1127,8 +1127,12 @@ op_begemot_base_bridge(struct snmp_context *ctx, struct snmp_value *val,
 
 	    case SNMP_OP_ROLLBACK:
 		return (bridge_rollback_if_status(ctx, val, sub));
+
 	    case SNMP_OP_COMMIT:
 		return (bridge_commit_if_status(val, sub));
+
+	    default:
+		abort();
 	}
 
 	ret = SNMP_ERR_NOERROR;
@@ -1161,8 +1165,8 @@ int
 op_begemot_stp(struct snmp_context *ctx, struct snmp_value *val,
 	uint sub, uint iidx __unused, enum snmp_op op)
 {
-	int ret = SNMP_ERR_NOERROR; /* Make the compiler happy. */
-	struct bridge_if *bif = NULL;
+	int ret;
+	struct bridge_if *bif;
 
 	if (time(NULL) - bridge_list_age > bridge_get_data_maxage())
 		bridge_update_all_ifs();
@@ -1225,6 +1229,9 @@ op_begemot_stp(struct snmp_context *ctx, struct snmp_value *val,
 		    case LEAF_begemotBridgeStpHoldTime:
 		    case LEAF_begemotBridgeStpForwardDelay:
 			return (SNMP_ERR_NOT_WRITEABLE);
+
+		    default:
+			return (SNMP_ERR_NOSUCHNAME);
 		}
 
 		if (ret == 0)
@@ -1266,7 +1273,12 @@ op_begemot_stp(struct snmp_context *ctx, struct snmp_value *val,
 
 	    case SNMP_OP_COMMIT:
 		return (SNMP_ERR_NOERROR);
+
+	    default:
+		abort();
 	}
+
+	ret = SNMP_ERR_NOERROR;
 
 	switch (val->var.subs[sub - 1]) {
 	    case LEAF_begemotBridgeStpProtocolSpecification:
@@ -1342,7 +1354,7 @@ int
 op_begemot_tp(struct snmp_context *ctx, struct snmp_value *val,
 	uint sub, uint iidx __unused, enum snmp_op op)
 {
-	struct bridge_if *bif = NULL;
+	struct bridge_if *bif;
 
 	if (time(NULL) - bridge_list_age > bridge_get_data_maxage())
 		bridge_update_all_ifs();
@@ -1398,6 +1410,9 @@ op_begemot_tp(struct snmp_context *ctx, struct snmp_value *val,
 
 	    case SNMP_OP_COMMIT:
 		return (SNMP_ERR_NOERROR);
+
+	    default:
+		abort();
 	}
 
 	switch (val->var.subs[sub - 1]) {
