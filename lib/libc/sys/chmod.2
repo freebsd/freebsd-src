@@ -32,7 +32,7 @@
 .\"     @(#)chmod.2	8.1 (Berkeley) 6/4/93
 .\" $FreeBSD$
 .\"
-.Dd December 29, 2004
+.Dd December 9, 2006
 .Dt CHMOD 2
 .Os
 .Sh NAME
@@ -178,6 +178,10 @@ Too many symbolic links were encountered in translating the pathname.
 .It Bq Er EPERM
 The effective user ID does not match the owner of the file and
 the effective user ID is not the super-user.
+.It Bq Er EPERM
+The named file has its immutable flag set, see the
+.Xr chflags 2
+manual page for more information.
 .It Bq Er EROFS
 The named file resides on a read-only file system.
 .It Bq Er EFAULT
@@ -209,6 +213,7 @@ An I/O error occurred while reading from or writing to the file system.
 .El
 .Sh SEE ALSO
 .Xr chmod 1 ,
+.Xr chflags 2 ,
 .Xr chown 2 ,
 .Xr open 2 ,
 .Xr stat 2 ,
