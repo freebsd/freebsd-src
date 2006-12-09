@@ -1462,6 +1462,10 @@ unionfs_readdir(struct vop_readdir_args *ap)
 		uio->uio_offset = 0;
 	}
 
+	if (lvp == NULLVP) {
+		error = EBADF;
+		goto unionfs_readdir_exit;
+	}
 	/* read lower */
 	error = VOP_READDIR(lvp, uio, ap->a_cred, ap->a_eofflag,
 			    ap->a_ncookies, ap->a_cookies);
