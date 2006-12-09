@@ -32,7 +32,7 @@
 .\"     @(#)link.2	8.3 (Berkeley) 1/12/94
 .\" $FreeBSD$
 .\"
-.Dd March 5, 1999
+.Dd December 9, 2006
 .Dt LINK 2
 .Os
 .Sh NAME
@@ -124,9 +124,17 @@ does exist.
 .It Bq Er EPERM
 The file named by
 .Fa name1
-is a directory or is flagged immutable or append-only
-(see
-.Xr chflags 2 ) .
+is a directory.
+.It Bq Er EPERM
+The file named by
+.Fa name1
+has its immutable or append-only flag set, see the
+.Xr chflags 2
+manual page for more information.
+.It Bq Er EPERM
+The parent directory of the file named by
+.Fa name2
+has its immutable flag set.
 .It Bq Er EXDEV
 The link named by
 .Fa name2
@@ -153,6 +161,7 @@ One of the pathnames specified
 is outside the process's allocated address space.
 .El
 .Sh SEE ALSO
+.Xr chflags 2 ,
 .Xr readlink 2 ,
 .Xr symlink 2 ,
 .Xr unlink 2
