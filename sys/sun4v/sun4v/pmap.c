@@ -134,7 +134,8 @@ static uma_zone_t pvzone;
 static struct vm_object pvzone_obj;
 static int pv_entry_count = 0, pv_entry_max = 0, pv_entry_high_water = 0;
 int pmap_debug = 0;
-int pmap_debug_range = 0;
+static int pmap_debug_range = 1;
+static int use_256M_pages = 1;
 
 static struct mtx pmap_ctx_lock;
 static uint16_t ctx_stack[PMAP_CONTEXT_MAX];
@@ -443,12 +444,12 @@ pmap_bootstrap(vm_offset_t ekva)
 {
 	struct pmap *pm;
 	vm_offset_t off, va;
-	vm_paddr_t pa, kernel_hash_pa, nucleus_memory_start;
+	vm_paddr_t pa, tsb_8k_pa, tsb_4m_pa, kernel_hash_pa, nucleus_memory_start;
 	vm_size_t physsz, virtsz, kernel_hash_shift;
 	ihandle_t pmem, vmem;
-	int i, sz, j;
+	int i, j, k, sz;
 	uint64_t tsb_8k_size, tsb_4m_size, error, physmem_tunable;
-	vm_paddr_t real_phys_avail[128];
+	vm_paddr_t real_phys_avail[128], tmp_phys_avail[128];
 
 	if ((vmem = OF_finddevice("/virtual-memory")) == -1)
 		panic("pmap_bootstrap: finddevice /virtual-memory");
@@ -469,24 +470,27 @@ pmap_bootstrap(vm_offset_t ekva)
 		KDPRINTF("om_size=%ld om_start=%lx om_tte=%lx\n", 
 			translations[i].om_size, translations[i].om_start, 
 			translations[i].om_tte);
-		if (translations[i].om_size == PAGE_SIZE_4M && 
-		    (translations[i].om_start >= KERNBASE && 
-		     translations[i].om_start <= KERNBASE + 3*PAGE_SIZE_4M)) {
-			KDPRINTF("mapping permanent translation\n");
-			pa = TTE_GET_PA(translations[i].om_tte);
-			error = hv_mmu_map_perm_addr(translations[i].om_start, 
-				KCONTEXT, pa | TTE_KERNEL | VTD_4M, MAP_ITLB | MAP_DTLB);
-			if (error != H_EOK)
-				panic("map_perm_addr returned error=%ld", error);
-			
-			if ((nucleus_memory_start == 0) || (pa < nucleus_memory_start))
-				nucleus_memory_start = pa;
-			nucleus_mappings[permanent_mappings++] = pa;
-			nucleus_memory += PAGE_SIZE_4M;
+		if ((translations[i].om_start >= KERNBASE) && 
+		    (translations[i].om_start <= KERNBASE + 3*PAGE_SIZE_4M)) {
+			for (j = 0; j < translations[i].om_size; j += PAGE_SIZE_4M) {
+				KDPRINTF("mapping permanent translation\n");
+				pa = TTE_GET_PA(translations[i].om_tte) + j;
+				va = translations[i].om_start + j;
+				error = hv_mmu_map_perm_addr(va, KCONTEXT, 
+							     pa | TTE_KERNEL | VTD_4M, MAP_ITLB | MAP_DTLB);
+				if (error != H_EOK)
+					panic("map_perm_addr returned error=%ld", error);
+				
+				if ((nucleus_memory_start == 0) || (pa < nucleus_memory_start))
+					nucleus_memory_start = pa;
+				printf("nucleus_mappings[%d] = 0x%lx\n", permanent_mappings, pa);
+				nucleus_mappings[permanent_mappings++] = pa;
+				nucleus_memory += PAGE_SIZE_4M;
 #ifdef SMP
-			mp_add_nucleus_mapping(translations[i].om_start, 
-					       pa | TTE_KERNEL | VTD_4M);
+				mp_add_nucleus_mapping(va, pa|TTE_KERNEL|VTD_4M);
 #endif
+
+			}
 		}  
 	}
 
@@ -518,8 +522,8 @@ pmap_bootstrap(vm_offset_t ekva)
 		KDPRINTF("desired physmem=0x%lx\n", physmem_tunable);
 	}
 
-	for (i = 0; i < 128; i++)
-		real_phys_avail[i] = 0;
+	bzero(real_phys_avail, sizeof(real_phys_avail));
+	bzero(tmp_phys_avail, sizeof(tmp_phys_avail));
 
 	for (i = 0, j = 0; i < sz; i++) {
 		uint64_t size;
@@ -531,12 +535,11 @@ pmap_bootstrap(vm_offset_t ekva)
 			uint64_t newstart, roundup;
 			newstart = ((mra[i].mr_start + (PAGE_SIZE_4M-1)) & ~PAGE_MASK_4M);
 			roundup = newstart - mra[i].mr_start;
-			size = mra[i].mr_size - roundup;
+			size = (mra[i].mr_size - roundup) & ~PAGE_MASK_4M;
+			mra[i].mr_start = newstart;
 			if (size < PAGE_SIZE_4M)
 				continue;
-			size = (size & ~PAGE_MASK_4M);
 			mra[i].mr_size = size;
-			mra[i].mr_start = newstart;
 		}
 		real_phys_avail[j] = mra[i].mr_start;
 		if (physmem_tunable != 0 && ((physsz + mra[i].mr_size) >= physmem_tunable)) {
@@ -550,25 +553,31 @@ pmap_bootstrap(vm_offset_t ekva)
 		j += 2;
 	}
 	physmem = btoc(physsz);
+	/*
+	 * Merge nucleus memory in to real_phys_avail
+	 *
+	 */
 	for (i = 0; real_phys_avail[i] != 0; i += 2) {
-		if (real_phys_avail[i] == (nucleus_memory_start + nucleus_memory))
+		if (real_phys_avail[i] == nucleus_memory_start + nucleus_memory)
 			real_phys_avail[i] -= nucleus_memory;
+		
 		if (real_phys_avail[i + 1] == nucleus_memory_start)
 			real_phys_avail[i + 1] += nucleus_memory;
 		
 		if (real_phys_avail[i + 1] == real_phys_avail[i + 2]) {
 			real_phys_avail[i + 1] = real_phys_avail[i + 3];
-			for (j = i + 2; real_phys_avail[j] != 0; j += 2) {
-				real_phys_avail[j] = real_phys_avail[j + 2];
-				real_phys_avail[j + 1] = real_phys_avail[j + 3];
+			for (k = i + 2; real_phys_avail[k] != 0; k += 2) {
+				real_phys_avail[k] = real_phys_avail[k + 2];
+				real_phys_avail[k + 1] = real_phys_avail[k + 3];
 			}
 		}
 	}
+		
 	
-
 	/*
-	 * This is for versions of OFW that would allocate us memory
+	 * This is needed for versions of OFW that would allocate us memory
 	 * and then forget to remove it from the available ranges ...
+	 * as well as for compensating for the above move of nucleus pages
 	 */
 
 	for (i = 0, j = 0; i < sz; i++) {
@@ -595,7 +604,8 @@ pmap_bootstrap(vm_offset_t ekva)
 		/* 
 		 * Is kernel memory in the middle somewhere?
 		 */
-		if ((nucleus_memory_start > start) && (nucleus_memory_start < (start + size))) {
+		if ((nucleus_memory_start > start) && 
+		    (nucleus_memory_start < (start + size))) {
 			uint64_t firstsize = (nucleus_memory_start - start);
 			phys_avail[j] = start;
 			phys_avail[j+1] = nucleus_memory_start;
@@ -608,8 +618,29 @@ pmap_bootstrap(vm_offset_t ekva)
 		phys_avail[j + 1] = mra[i].mr_start + mra[i].mr_size;
 		j += 2;
 	}
-
 	
+	for (i = 0; phys_avail[i] != 0; i += 2)
+		if (pmap_debug_range || pmap_debug)
+			printf("phys_avail[%d]=0x%lx phys_avail[%d]=0x%lx\n",
+			i, phys_avail[i], i+1, phys_avail[i+1]);
+
+	/*
+	 * Shuffle the memory range containing the 256MB page with 
+	 * nucleus_memory to the beginning of the phys_avail array
+	 * so that physical memory from that page is preferentially
+	 * allocated first
+	 */
+	for (j = 0; phys_avail[j] != 0; j += 2) 
+		if (nucleus_memory_start < phys_avail[j])
+			break;
+	for (i = j, k = 0; phys_avail[i] != 0; k++, i++)
+		tmp_phys_avail[k] = phys_avail[i];
+	for (i = 0; i < j; i++)
+		tmp_phys_avail[k + i] = phys_avail[i];
+	for (i = 0; i < 128; i++)
+		phys_avail[i] = tmp_phys_avail[i];
+	
+
 	for (i = 0; real_phys_avail[i] != 0; i += 2)
 		if (pmap_debug_range || pmap_debug)
 			printf("real_phys_avail[%d]=0x%lx real_phys_avail[%d]=0x%lx\n",
@@ -658,17 +689,21 @@ pmap_bootstrap(vm_offset_t ekva)
 	tsb_8k_size = PAGE_SIZE_4M;
 #endif
 
-	pa = pmap_bootstrap_alloc(tsb_8k_size);
-	if (pa & PAGE_MASK_4M)
+	tsb_8k_pa = pmap_bootstrap_alloc(tsb_8k_size);
+	if (tsb_8k_pa & PAGE_MASK_4M)
 		panic("pmap_bootstrap: tsb unaligned\n");
-	KDPRINTF("tsb_8k_size is 0x%lx, tsb_8k_pa is 0x%lx\n", tsb_8k_size, pa);
+	KDPRINTF("tsb_8k_size is 0x%lx, tsb_8k_pa is 0x%lx\n", tsb_8k_size, tsb_8k_pa);
+
+	tsb_4m_size = (virtsz >> (PAGE_SHIFT_4M - TTE_SHIFT)) << 3;
+	tsb_4m_pa = pmap_bootstrap_alloc(tsb_4m_size);
+
 	kernel_td[TSB8K_INDEX].hti_idxpgsz = TTE8K;
 	kernel_td[TSB8K_INDEX].hti_assoc = 1;
 	kernel_td[TSB8K_INDEX].hti_ntte = (tsb_8k_size >> TTE_SHIFT);
 	kernel_td[TSB8K_INDEX].hti_ctx_index = 0;
 	kernel_td[TSB8K_INDEX].hti_pgszs = TSB8K;
 	kernel_td[TSB8K_INDEX].hti_rsvd = 0;
-	kernel_td[TSB8K_INDEX].hti_ra = pa;
+	kernel_td[TSB8K_INDEX].hti_ra = tsb_8k_pa;
 
 	/*
 	 * Initialize kernel's private TSB from 8K page TSB
@@ -680,7 +715,7 @@ pmap_bootstrap(vm_offset_t ekva)
 	kernel_pmap->pm_tsb.hti_ctx_index = 0;
 	kernel_pmap->pm_tsb.hti_pgszs = TSB8K;
 	kernel_pmap->pm_tsb.hti_rsvd = 0;
-	kernel_pmap->pm_tsb.hti_ra = pa;
+	kernel_pmap->pm_tsb.hti_ra = tsb_8k_pa;
 	
 	kernel_pmap->pm_tsb_ra = vtophys((vm_offset_t)&kernel_pmap->pm_tsb);
 	tsb_set_scratchpad_kernel(&kernel_pmap->pm_tsb);
@@ -690,18 +725,15 @@ pmap_bootstrap(vm_offset_t ekva)
 	 * currently (not by design) used for permanent mappings
 	 */
 	
-	tsb_4m_size = (virtsz >> (PAGE_SHIFT_4M - TTE_SHIFT)) << 3;
-	pa = pmap_bootstrap_alloc(tsb_4m_size);
 
-	KDPRINTF("tsb_4m_pa is 0x%lx tsb_4m_size is 0x%lx\n", pa, tsb_4m_size);
+	KDPRINTF("tsb_4m_pa is 0x%lx tsb_4m_size is 0x%lx\n", tsb_4m_pa, tsb_4m_size);
 	kernel_td[TSB4M_INDEX].hti_idxpgsz = TTE4M;
 	kernel_td[TSB4M_INDEX].hti_assoc = 1;
 	kernel_td[TSB4M_INDEX].hti_ntte = (tsb_4m_size >> TTE_SHIFT);
 	kernel_td[TSB4M_INDEX].hti_ctx_index = 0;
-	kernel_td[TSB4M_INDEX].hti_pgszs = TSB4M; 
+	kernel_td[TSB4M_INDEX].hti_pgszs = TSB4M|TSB256M;
 	kernel_td[TSB4M_INDEX].hti_rsvd = 0;
-	kernel_td[TSB4M_INDEX].hti_ra = pa;
-
+	kernel_td[TSB4M_INDEX].hti_ra = tsb_4m_pa;
 	/*
 	 * allocate MMU fault status areas for all CPUS
 	 */
@@ -765,8 +797,8 @@ pmap_bootstrap(vm_offset_t ekva)
 		}
 	}
 
-	error = hv_mmu_tsb_ctx0(MAX_TSB_INFO, vtophys((vm_offset_t)&kernel_td));
-	if (error != H_EOK)
+	if ((error = hv_mmu_tsb_ctx0(MAX_TSB_INFO, 
+				     vtophys((vm_offset_t)kernel_td))) != H_EOK)
 		panic("failed to set ctx0 TSBs error: %ld", error);
 
 #ifdef SMP
@@ -777,10 +809,23 @@ pmap_bootstrap(vm_offset_t ekva)
 	 * 
 	 */
 	for (i = 0, pa = real_phys_avail[i]; pa != 0; i += 2, pa = real_phys_avail[i]) {
+		vm_paddr_t tag_pa = 0, next_pa = 0;
+		uint64_t size_bits = VTD_4M;
 		while (pa < real_phys_avail[i + 1]) {
+			if (use_256M_pages &&
+			    (pa & PAGE_MASK_256M) == 0 && 
+			    ((pa + PAGE_SIZE_256M) <= real_phys_avail[i + 1])) {
+				tag_pa = pa;
+				size_bits = VTD_256M;
+				next_pa = pa + PAGE_SIZE_256M;
+			} else if (next_pa <= pa) {
+				tag_pa = pa;
+				size_bits = VTD_4M;
+			}
 			tsb_assert_invalid(&kernel_td[TSB4M_INDEX], TLB_PHYS_TO_DIRECT(pa));
 			tsb_set_tte_real(&kernel_td[TSB4M_INDEX], TLB_PHYS_TO_DIRECT(pa), 
-					 TLB_PHYS_TO_DIRECT(pa), pa | TTE_KERNEL | VTD_4M, 0);
+					 TLB_PHYS_TO_DIRECT(pa), 
+					 tag_pa | TTE_KERNEL | size_bits, 0);
 			pa += PAGE_SIZE_4M;
 		}
 	}
@@ -848,11 +893,6 @@ pmap_bootstrap(vm_offset_t ekva)
 		tte_hash_insert(pm->pm_hash, TLB_PHYS_TO_DIRECT(pa), 
 				pa | TTE_KERNEL | VTD_4M);
 #endif
-        /* XXX relies on the fact that memory ranges only get smaller */
-        for (i = 0; phys_avail[i + 2] != 0; i += 2)
-                if (phys_avail[i + 1] - phys_avail[i] < PAGE_SIZE_4M)
-                        phys_avail[i] = phys_avail[i+1] = 0;
-
 }
 
 
@@ -1231,14 +1271,19 @@ pmap_alloc_zeroed_contig_pages(int npages, uint64_t alignment)
 	void *ptr;
 	
 	m = NULL;
-	while (m == NULL) {
-		m = vm_page_alloc_contig(npages, phys_avail[0], 
-					 phys_avail[1], alignment, (1UL<<34));
+	while (m == NULL) {	
+		for (i = 0; phys_avail[i + 1] != 0; i += 2) {
+			m = vm_page_alloc_contig(npages, phys_avail[i], 
+						 phys_avail[i + 1], alignment, (1UL<<34));
+			if (m)
+				goto found;
+		}
 		if (m == NULL) {
 			printf("vm_page_alloc_contig failed - waiting to retry\n");
 			VM_WAIT;
 		}
 	}
+found:
 	for (i = 0, tm = m; i < npages; i++, tm++) {
 		tm->wire_count++;
 		if ((tm->flags & PG_ZERO) == 0)
