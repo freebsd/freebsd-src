@@ -139,14 +139,18 @@ unionfs_domount(struct mount *mp, struct thread *td)
 	copymode = UNIONFS_TRADITIONAL;	/* default */
 	ndp = &nd;
 
-	if (mp->mnt_flag & MNT_ROOTFS)
+	if (mp->mnt_flag & MNT_ROOTFS) {
+		vfs_mount_error(mp, "Cannot union mount root filesystem");
 		return (EOPNOTSUPP);
+	}
 
 	/*
 	 * Update is a no operation.
 	 */
-	if (mp->mnt_flag & MNT_UPDATE)
+	if (mp->mnt_flag & MNT_UPDATE) {
+		vfs_mount_error(mp, "unionfs does not support mount update");
 		return (EOPNOTSUPP);
+	}
 
 	/*
 	 * Get argument
