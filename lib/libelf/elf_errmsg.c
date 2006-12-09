@@ -75,7 +75,7 @@ elf_errmsg(int error)
 	if (oserr) {
 		strlcpy(LIBELF_PRIVATE(msg), _libelf_errors[error],
 		    sizeof(LIBELF_PRIVATE(msg)));
-		strlcat(LIBELF_PRIVATE(msg), ":", sizeof(LIBELF_PRIVATE(msg)));
+		strlcat(LIBELF_PRIVATE(msg), ": ", sizeof(LIBELF_PRIVATE(msg)));
 		strlcat(LIBELF_PRIVATE(msg), strerror(oserr),
 		    sizeof(LIBELF_PRIVATE(msg)));
 		return (const char *)&LIBELF_PRIVATE(msg);
