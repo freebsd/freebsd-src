@@ -32,7 +32,7 @@
 .\"     @(#)rename.2	8.1 (Berkeley) 6/4/93
 .\" $FreeBSD$
 .\"
-.Dd June 4, 1993
+.Dd December 9, 2006
 .Dt RENAME 2
 .Os
 .Sh NAME
@@ -128,6 +128,12 @@ A component of either path prefix denies search permission.
 The requested link requires writing in a directory with a mode
 that denies write permission.
 .It Bq Er EPERM
+The file pointed at by the
+.Fa from
+argument has its immutable, undeletable or append-only flag set, see the
+.Xr chflags 2
+manual page for more information.
+.It Bq Er EPERM
 The directory containing
 .Fa from
 is marked sticky,
@@ -206,6 +212,7 @@ argument
 is a directory and is not empty.
 .El
 .Sh SEE ALSO
+.Xr chflags 2 ,
 .Xr open 2 ,
 .Xr symlink 7
 .Sh STANDARDS
