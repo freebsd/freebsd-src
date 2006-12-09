@@ -2744,6 +2744,8 @@ isp_action(struct cam_sim *sim, union ccb *ccb)
 		CAMLOCK_2_ISPLOCK(isp);
 		if (IS_FC(isp)) {
 			fcparam *fcp = isp->isp_param;
+			struct ccb_trans_settings_scsi *scsi =
+			    &cts->proto_specific.scsi;
 			struct ccb_trans_settings_fc *fc =
 			    &cts->xport_specific.fc;
 
@@ -2752,11 +2754,14 @@ isp_action(struct cam_sim *sim, union ccb *ccb)
 			cts->transport = XPORT_FC;
 			cts->transport_version = 0;
 
+			scsi->valid = CTS_SCSI_VALID_TQ;
+			scsi->flags = CTS_SCSI_FLAGS_TAG_ENB;
 			fc->valid = CTS_FC_VALID_SPEED;
-			if (fcp->isp_gbspeed == 2)
+			if (fcp->isp_gbspeed == 2) {
 				fc->bitrate = 200000;
-			else
+			} else {
 				fc->bitrate = 100000;
+			}
 			if (tgt > 0 && tgt < MAX_FC_TARG) {
 				fcportdb_t *lp = &fcp->portdb[tgt];
 				fc->wwnn = lp->node_wwn;
