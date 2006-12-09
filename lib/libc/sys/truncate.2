@@ -32,7 +32,7 @@
 .\"     @(#)truncate.2	8.1 (Berkeley) 6/4/93
 .\" $FreeBSD$
 .\"
-.Dd June 1, 2006
+.Dd December 9, 2006
 .Dt TRUNCATE 2
 .Os
 .Sh NAME
@@ -92,6 +92,10 @@ Search permission is denied for a component of the path prefix.
 The named file is not writable by the user.
 .It Bq Er ELOOP
 Too many symbolic links were encountered in translating the pathname.
+.It Bq Er EPERM
+The named file has its immutable or append-only flag set, see the
+.Xr chflags 2
+manual page for more information.
 .It Bq Er EISDIR
 The named file is a directory.
 .It Bq Er EROFS
@@ -129,6 +133,7 @@ descriptor
 is not open for writing.
 .El
 .Sh SEE ALSO
+.Xr chflags 2 ,
 .Xr open 2
 .Sh HISTORY
 The
