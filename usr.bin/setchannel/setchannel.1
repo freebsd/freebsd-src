@@ -1,0 +1,76 @@
+.\"
+.\" $Id: cxm.4,v 1.1 2004/10/16 00:12:35 mavetju Exp $
+.\" $FreeBSD$
+.\"
+.Dd November 30, 2006
+.Dt pvr250-setchannel 1
+.Os
+.Sh NAME
+.Nm pvr250-setchannel
+.Nd Hauppage PVR250/350 channel selector
+.Sh SYNOPSIS
+.Cd pvr250-setchannel [-a {on | off}] [-c | -r | -s | -t] [-g geom] [-m channel_set] [channel | freq]
+.Pp
+.Sh DESCRIPTION
+.Nm
+provides support for selecting channels on the PVR250 and PVR350 via
+.Pa /dev/cxm0
+(or
+.Pa /dev/bktr0
+on FreeBSD 4.x)
+.Pp
+The following options are available:
+.Bl -tag -width indent
+.It Fl a Cm on
+Enable AFC.
+.It Fl a Cm off
+Disable AFC.
+.It Fl c
+Select composite input.
+.It Fl r
+Select radio input.
+.It Fl s
+Select svideo input.
+.It Fl t
+Select tuner.
+.It Fl g Cm geom
+Select geometry.  The first resolution is for NTSC, the second for
+PAL.
+.Pp
+  VCD:           352x240 or 352x288
+  SVCD:          480x480 or 480x576
+  DVD (half D1): 352x480 or 352x576
+  DVD (full D1): 720x480 or 720x576
+.It Fl m Cm channel-set
+Select channel set and system.
+.Pp
+  0 = Tuner Default
+  1 = US Broadcast (NTSC)
+  2 = US Cable (NTSC)
+  4 = Western Europe (PAL)
+  5 = Japan Broadcast (NTSC)
+  6 = Japan Cable (NTSC)
+  8 = Australia (PAL)
+  9 = France (SECAM)
+.It Cm channel
+Channel number to set.
+.It Cm freq
+Frequency in MHz (must include decimal point).
+.El
+.Sh AUTHORS
+.An -nosplit
+This program is made by
+.An John Wehle <john@feith.com>
+.Pp
+This man page is made by
+.An Edwin Groothuis <edwin@FreeBSD.org>
+.Sh SEE ALSO
+.Xr cxm 4 ,
+.Xr bktr 4 ,
+.Xr meteor 4
+.Sh HISTORY
+The
+.Nm
+program first appeared in the -multimedia mailing-list in January 2004. The
+.Nm
+program first appeared in the FreeBSD Ports collection in October 2004.
