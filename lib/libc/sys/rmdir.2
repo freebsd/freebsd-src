@@ -32,7 +32,7 @@
 .\"     @(#)rmdir.2	8.1 (Berkeley) 6/4/93
 .\" $FreeBSD$
 .\"
-.Dd January 22, 2006
+.Dd December 9, 2006
 .Dt RMDIR 2
 .Os
 .Sh NAME
@@ -81,6 +81,14 @@ Search permission is denied for a component of the path prefix.
 .It Bq Er EACCES
 Write permission is denied on the directory containing the link
 to be removed.
+.It Bq Er EPERM
+The directory to be removed has its immutable, undeletable or append-only flag
+set, see the
+.Xr chflags 2
+manual page for more information.
+.It Bq Er EPERM
+The parent directory of the directory to be removed has its immutable or
+append-only flag set.
 .It Bq Er EPERM
 The directory containing the directory to be removed is marked sticky,
 and neither the containing directory nor the directory to be removed
