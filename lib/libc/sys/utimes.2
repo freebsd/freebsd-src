@@ -34,7 +34,7 @@
 .\"     @(#)utimes.2	8.1 (Berkeley) 6/4/93
 .\" $FreeBSD$
 .\"
-.Dd January 5, 2006
+.Dd December 9, 2006
 .Dt UTIMES 2
 .Os
 .Sh NAME
@@ -148,6 +148,10 @@ argument is not
 .Dv NULL
 and the calling process's effective user ID
 does not match the owner of the file and is not the super-user.
+.It Bq Er EPERM
+The named file has its immutable or append-only flag set, see the
+.Xr chflags 2
+manual page for more information.
 .It Bq Er EROFS
 The file system containing the file is mounted read-only.
 .El
@@ -198,6 +202,7 @@ does not match the owner of the file and is not the super-user.
 The file system containing the file is mounted read-only.
 .El
 .Sh SEE ALSO
+.Xr chflags 2 ,
 .Xr stat 2 ,
 .Xr utime 3
 .Sh HISTORY
