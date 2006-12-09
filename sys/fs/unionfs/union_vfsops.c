@@ -398,12 +398,10 @@ static int
 unionfs_root(struct mount *mp, int flags, struct vnode **vpp, struct thread *td)
 {
 	struct unionfs_mount *ump;
-	struct unionfs_node  *unp;
 	struct vnode   *vp;
 
 	ump = MOUNTTOUNIONFSMOUNT(mp);
 	vp = ump->um_rootvp;
-	unp = VTOUNIONFS(vp);
 
 	UNIONFSDEBUG("unionfs_root: rootvp=%p locked=%x\n",
 	    vp, VOP_ISLOCKED(vp, td));
