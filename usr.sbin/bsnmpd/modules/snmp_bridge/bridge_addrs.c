@@ -408,7 +408,6 @@ op_dot1d_tp_fdb(struct snmp_context *c __unused, struct snmp_value *val,
 	    bridge_update_addrs(bif) <= 0)
 		return (SNMP_ERR_NOSUCHNAME);
 
-	te = NULL; /* Make the compiler happy. */
 	switch (op) {
 	    case SNMP_OP_GET:
 		if ((te = bridge_addrs_get(&val->var, sub, bif)) == NULL)
@@ -426,6 +425,7 @@ op_dot1d_tp_fdb(struct snmp_context *c __unused, struct snmp_value *val,
 
 	    case SNMP_OP_ROLLBACK:
 	    case SNMP_OP_COMMIT:
+	    default:
 		abort();
 	}
 
@@ -548,7 +548,7 @@ op_begemot_tp_fdb(struct snmp_context *c __unused, struct snmp_value *val,
 	uint sub, uint iidx __unused, enum snmp_op op)
 {
 	int ret;
-	struct tp_entry *te = NULL;
+	struct tp_entry *te;
 
 	if (time(NULL) - address_list_age > bridge_get_data_maxage())
 		bridge_update_all_addrs();
@@ -572,7 +572,8 @@ op_begemot_tp_fdb(struct snmp_context *c __unused, struct snmp_value *val,
 
 	    case SNMP_OP_ROLLBACK:
 	    case SNMP_OP_COMMIT:
-		return (SNMP_ERR_NOERROR);
+	    default:
+		abort();
 	}
 
 	ret = SNMP_ERR_NOERROR;
