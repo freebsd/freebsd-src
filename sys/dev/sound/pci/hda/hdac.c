@@ -80,7 +80,7 @@
 
 #include "mixer_if.h"
 
-#define HDA_DRV_TEST_REV	"20061203_0035"
+#define HDA_DRV_TEST_REV	"20061210_0036"
 #define HDA_WIDGET_PARSER_REV	1
 
 SND_DECLARE_FILE("$FreeBSD$");
@@ -242,10 +242,11 @@ SND_DECLARE_FILE("$FreeBSD$");
 #define HDA_QUIRK_GPIO0		(1 << 0)
 #define HDA_QUIRK_GPIO1		(1 << 1)
 #define HDA_QUIRK_GPIO2		(1 << 2)
-#define HDA_QUIRK_SOFTPCMVOL	(1 << 15)
-#define HDA_QUIRK_FIXEDRATE	(1 << 16)
-#define HDA_QUIRK_FORCESTEREO	(1 << 17)
-#define HDA_QUIRK_EAPDINV	(1 << 18)
+#define HDA_QUIRK_GPIOFLUSH	(1 << 15)
+#define HDA_QUIRK_SOFTPCMVOL	(1 << 16)
+#define HDA_QUIRK_FIXEDRATE	(1 << 17)
+#define HDA_QUIRK_FORCESTEREO	(1 << 18)
+#define HDA_QUIRK_EAPDINV	(1 << 19)
 
 static const struct {
 	char *key;
@@ -254,6 +255,7 @@ static const struct {
 	{ "gpio0", HDA_QUIRK_GPIO0 },
 	{ "gpio1", HDA_QUIRK_GPIO1 },
 	{ "gpio2", HDA_QUIRK_GPIO2 },
+	{ "gpioflush", HDA_QUIRK_GPIOFLUSH },
 	{ "softpcmvol", HDA_QUIRK_SOFTPCMVOL },
 	{ "fixedrate", HDA_QUIRK_FIXEDRATE },
 	{ "forcestereo", HDA_QUIRK_FORCESTEREO },
@@ -448,33 +450,38 @@ static const struct {
 	uint32_t model;
 	uint32_t id;
 	int type;
+	int inverted;
 	nid_t hpnid;
 	nid_t spkrnid[8];
 	nid_t eapdnid;
 } hdac_hp_switch[] = {
 	/* Specific OEM models */
-	{ HP_V3000_SUBVENDOR,  HDA_CODEC_CXVENICE, HDAC_HP_SWITCH_CTL,
+	{ HP_V3000_SUBVENDOR,  HDA_CODEC_CXVENICE, HDAC_HP_SWITCH_CTL, 0,
 	    17, { 16, -1 }, 16 },
-	{ HP_NX7400_SUBVENDOR, HDA_CODEC_AD1981HD, HDAC_HP_SWITCH_CTL,
+	{ HP_NX7400_SUBVENDOR, HDA_CODEC_AD1981HD, HDAC_HP_SWITCH_CTL, 0,
 	     6, {  5, -1 },  5 },
-	{ HP_NX6310_SUBVENDOR, HDA_CODEC_AD1981HD, HDAC_HP_SWITCH_CTL,
+	{ HP_NX6310_SUBVENDOR, HDA_CODEC_AD1981HD, HDAC_HP_SWITCH_CTL, 0,
 	     6, {  5, -1 },  5 },
-	{ DELL_D820_SUBVENDOR, HDA_CODEC_STAC9220, HDAC_HP_SWITCH_CTRL,
+	{ DELL_D820_SUBVENDOR, HDA_CODEC_STAC9220, HDAC_HP_SWITCH_CTRL, 0,
 	    13, { 14, -1 }, -1 },
-	{ DELL_I1300_SUBVENDOR, HDA_CODEC_STAC9220, HDAC_HP_SWITCH_CTRL,
+	{ DELL_I1300_SUBVENDOR, HDA_CODEC_STAC9220, HDAC_HP_SWITCH_CTRL, 0,
 	    13, { 14, -1 }, -1 },
-	{ APPLE_INTEL_MAC, HDA_CODEC_STAC9221, HDAC_HP_SWITCH_CTRL,
+	{ APPLE_INTEL_MAC, HDA_CODEC_STAC9221, HDAC_HP_SWITCH_CTRL, 0,
 	    10, { 13, -1 }, -1 },
+	{ LENOVO_3KN100_SUBVENDOR, HDA_CODEC_AD1986A, HDAC_HP_SWITCH_CTL, 1,
+	    26, { 27, -1 }, -1 },
 	/*
 	 * All models that at least come from the same vendor with
 	 * simmilar codec.
 	 */
-	{ HP_ALL_SUBVENDOR,  HDA_CODEC_CXVENICE, HDAC_HP_SWITCH_CTL,
+	{ HP_ALL_SUBVENDOR,  HDA_CODEC_CXVENICE, HDAC_HP_SWITCH_CTL, 0,
 	    17, { 16, -1 }, 16 },
-	{ HP_ALL_SUBVENDOR, HDA_CODEC_AD1981HD, HDAC_HP_SWITCH_CTL,
+	{ HP_ALL_SUBVENDOR, HDA_CODEC_AD1981HD, HDAC_HP_SWITCH_CTL, 0,
 	     6, {  5, -1 },  5 },
-	{ DELL_ALL_SUBVENDOR, HDA_CODEC_STAC9220, HDAC_HP_SWITCH_CTRL,
+	{ DELL_ALL_SUBVENDOR, HDA_CODEC_STAC9220, HDAC_HP_SWITCH_CTRL, 0,
 	    13, { 14, -1 }, -1 },
+	{ LENOVO_ALL_SUBVENDOR, HDA_CODEC_AD1986A, HDAC_HP_SWITCH_CTL, 1,
+	    26, { 27, -1 }, -1 },
 };
 #define HDAC_HP_SWITCH_LEN	\
 		(sizeof(hdac_hp_switch) / sizeof(hdac_hp_switch[0]))
@@ -683,6 +690,7 @@ hdac_hp_switch_handler(struct hdac_devinfo *devinfo)
 		    hdac_hp_switch[i].hpnid, res);
 	);
 	res >>= 31;
+	res ^= hdac_hp_switch[i].inverted;
 
 	switch (hdac_hp_switch[i].type) {
 	case HDAC_HP_SWITCH_CTL:
@@ -3457,11 +3465,11 @@ static const struct {
 	{ HDA_MATCH_ALL, HDA_MATCH_ALL,
 	    HDA_QUIRK_FORCESTEREO, 0 },
 	{ ACER_ALL_SUBVENDOR, HDA_MATCH_ALL,
-	    HDA_QUIRK_GPIO1, 0 },
+	    HDA_QUIRK_GPIO0, 0 },
 	{ ASUS_M5200_SUBVENDOR, HDA_CODEC_ALC880,
-	    HDA_QUIRK_GPIO1, 0 },
+	    HDA_QUIRK_GPIO0, 0 },
 	{ MEDION_MD95257_SUBVENDOR, HDA_CODEC_ALC880,
-	    HDA_QUIRK_GPIO2, 0 },
+	    HDA_QUIRK_GPIO1, 0 },
 	{ ASUS_U5F_SUBVENDOR, HDA_CODEC_AD1986A,
 	    HDA_QUIRK_EAPDINV, 0 },
 	{ ASUS_A8JC_SUBVENDOR, HDA_CODEC_AD1986A,
@@ -3470,6 +3478,8 @@ static const struct {
 	    HDA_QUIRK_EAPDINV, 0 },
 	{ SAMSUNG_Q1_SUBVENDOR, HDA_CODEC_AD1986A,
 	    HDA_QUIRK_EAPDINV, 0 },
+	{ APPLE_INTEL_MAC, HDA_CODEC_STAC9221,
+	    HDA_QUIRK_GPIO0 | HDA_QUIRK_GPIO1, 0 },
 	{ HDA_MATCH_ALL, HDA_CODEC_CXVENICE,
 	    0, HDA_QUIRK_FORCESTEREO },
 	{ HDA_MATCH_ALL, HDA_CODEC_STACXXXX,
@@ -4096,23 +4106,55 @@ hdac_audio_commit(struct hdac_devinfo *devinfo, uint32_t cfl)
 	cad = devinfo->codec->cad;
 
 	if (cfl & HDA_COMMIT_GPIO) {
-		if (sc->pci_subvendor == APPLE_INTEL_MAC) {
-			uint32_t gdata, gmask, gdir;
+		uint32_t gdata, gmask, gdir;
+		int commitgpio = 0;
 
-			gdata = hdac_command(sc,
-			    HDA_CMD_GET_GPIO_DATA(cad, devinfo->nid),
-			    cad);
-			gmask = hdac_command(sc,
-			    HDA_CMD_GET_GPIO_ENABLE_MASK(cad, devinfo->nid),
-			    cad);
-			gdir = hdac_command(sc,
-			    HDA_CMD_GET_GPIO_DIRECTION(cad, devinfo->nid),
-			    cad);
-			gdata |= 0x03;
-			gmask |= 0x03;
-			gdir |= 0x03;
+		gdata = 0;
+		gmask = 0;
+		gdir = 0;
+  
+		if (sc->pci_subvendor == APPLE_INTEL_MAC)
 			hdac_command(sc, HDA_CMD_12BIT(cad, devinfo->nid,
 			    0x7e7, 0), cad);
+
+		if (devinfo->function.audio.quirks & HDA_QUIRK_GPIOFLUSH)
+			commitgpio = 1;
+		else {
+			for (i = 0; i < HDA_GPIO_MAX; i++) {
+				if (!(devinfo->function.audio.quirks &
+				    (1 << i)))
+					continue;
+				if (commitgpio == 0) {
+					commitgpio = 1;
+					gdata = hdac_command(sc,
+					    HDA_CMD_GET_GPIO_DATA(cad,
+					    devinfo->nid), cad);
+					gmask = hdac_command(sc,
+					    HDA_CMD_GET_GPIO_ENABLE_MASK(cad,
+					    devinfo->nid), cad);
+					gdir = hdac_command(sc,
+					    HDA_CMD_GET_GPIO_DIRECTION(cad,
+					    devinfo->nid), cad);
+					HDA_BOOTVERBOSE(
+						device_printf(sc->dev,
+						    "GPIO init: data=0x%08x "
+						    "mask=0x%08x dir=0x%08x\n",
+						    gdata, gmask, gdir);
+					);
+				}
+				gdata |= 1 << i;
+				gmask |= 1 << i;
+				gdir |= 1 << i;
+			}
+		}
+
+		if (commitgpio != 0) {
+			HDA_BOOTVERBOSE(
+				device_printf(sc->dev,
+				    "GPIO commit: data=0x%08x mask=0x%08x "
+				    "dir=0x%08x\n",
+				    gdata, gmask, gdir);
+			);
 			hdac_command(sc,
 			    HDA_CMD_SET_GPIO_ENABLE_MASK(cad, devinfo->nid,
 			    gmask), cad);
@@ -4122,21 +4164,6 @@ hdac_audio_commit(struct hdac_devinfo *devinfo, uint32_t cfl)
 			hdac_command(sc,
 			    HDA_CMD_SET_GPIO_DATA(cad, devinfo->nid,
 			    gdata), cad);
-		} else {
-			for (i = 0; i < HDA_GPIO_MAX; i++) {
-				if (!(devinfo->function.audio.quirks &
-				    (1 << i)))
-					continue;
-				hdac_command(sc,
-				    HDA_CMD_SET_GPIO_ENABLE_MASK(cad,
-				    devinfo->nid, i), cad);
-				hdac_command(sc,
-				    HDA_CMD_SET_GPIO_DIRECTION(cad,
-				    devinfo->nid, i), cad);
-				hdac_command(sc,
-				    HDA_CMD_SET_GPIO_DATA(cad, devinfo->nid,
-				    i), cad);
-			}
 		}
 	}
 
