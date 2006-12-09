@@ -317,7 +317,7 @@ unionfs_hashrem(struct vnode *vp, struct thread *td)
 {
 	int		vfslocked;
 	struct unionfs_node *unp;
-	struct unionfs_node_status *unsp;
+	struct unionfs_node_status *unsp, *unsp_tmp;
 	struct vnode   *lvp;
 	struct vnode   *uvp;
 
@@ -367,7 +367,8 @@ unionfs_hashrem(struct vnode *vp, struct thread *td)
 		free(unp->un_path, M_UNIONFSPATH);
 		unp->un_path = NULL;
 	}
-	while ((unsp = LIST_FIRST(&(unp->un_unshead))), NULL != unsp) {
+
+	LIST_FOREACH_SAFE(unsp, &(unp->un_unshead), uns_list, unsp_tmp) {
 		LIST_REMOVE(unsp, uns_list);
 		free(unsp, M_TEMP);
 	}
