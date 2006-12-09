@@ -872,9 +872,11 @@ unionfs_ioctl(struct vop_ioctl_args *ap)
 
 	UNIONFS_INTERNAL_DEBUG("unionfs_ioctl: enter\n");
 
+ 	vn_lock(ap->a_vp, LK_EXCLUSIVE | LK_RETRY, ap->a_td);
 	unp = VTOUNIONFS(ap->a_vp);
 	unionfs_get_node_status(unp, ap->a_td, &unsp);
 	ovp = (unsp->uns_upper_opencnt ? unp->un_uppervp : unp->un_lowervp);
+	VOP_UNLOCK(ap->a_vp, 0, ap->a_td);
 
 	if (ovp == NULLVP)
 		return (EBADF);
@@ -894,9 +896,11 @@ unionfs_poll(struct vop_poll_args *ap)
 	struct unionfs_node_status *unsp;
 	struct vnode   *ovp;
 
+ 	vn_lock(ap->a_vp, LK_EXCLUSIVE | LK_RETRY, ap->a_td);
 	unp = VTOUNIONFS(ap->a_vp);
 	unionfs_get_node_status(unp, ap->a_td, &unsp);
 	ovp = (unsp->uns_upper_opencnt ? unp->un_uppervp : unp->un_lowervp);
+	VOP_UNLOCK(ap->a_vp, 0, ap->a_td);
 
 	if (ovp == NULLVP)
 		return (EBADF);
