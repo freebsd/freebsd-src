@@ -205,8 +205,8 @@ main(int argc, char *argv[])
 	}
 	else {
 		id = getuid();
-		if ((pw = getpwuid(id)) != NULL)
-			id_print(pw, 0, 1, 1);
+		pw = getpwuid(id);
+		id_print(pw, 0, 1, 1);
 	}
 	exit(0);
 }
@@ -261,10 +261,16 @@ id_print(struct passwd *pw, int use_ggl, int p_euid, int p_egid)
 	gid_t groups[NGROUPS + 1];
 	const char *fmt;
 
-	uid = pw->pw_uid;
-	gid = pw->pw_gid;
+	if (pw != NULL) {
+		uid = pw->pw_uid;
+		gid = pw->pw_gid;
+	}
+	else {
+		uid = getuid();
+		gid = getgid();
+	}
 
-	if (use_ggl) {
+	if (use_ggl && pw != NULL) {
 		ngroups = NGROUPS + 1;
 		getgrouplist(pw->pw_name, gid, groups, &ngroups);
 	}
@@ -272,7 +278,10 @@ id_print(struct passwd *pw, int use_ggl, int p_euid, int p_egid)
 		ngroups = getgroups(NGROUPS + 1, groups);
 	}
 
-	printf("uid=%u(%s)", uid, pw->pw_name);
+	if (pw != NULL)
+		printf("uid=%u(%s)", uid, pw->pw_name);
+	else 
+		printf("uid=%u", getuid());
 	printf(" gid=%u", gid);
 	if ((gr = getgrgid(gid)))
 		(void)printf("(%s)", gr->gr_name);
