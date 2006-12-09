@@ -638,7 +638,7 @@ typedef struct {
 typedef struct {
 	isphdr_t	ms_header;
 	uint32_t	ms_handle;
-	uint16_t	ms_nphdl;	/* XXX: Note, this is for 2K Logins only */
+	uint16_t	ms_nphdl;	/* handle in high byte for !2k f/w */
 	uint16_t	ms_status;
 	uint16_t	ms_flags;
 	uint16_t	ms_reserved1;	/* low 8 bits */
