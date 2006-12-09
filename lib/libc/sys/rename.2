@@ -134,6 +134,14 @@ argument has its immutable, undeletable or append-only flag set, see the
 .Xr chflags 2
 manual page for more information.
 .It Bq Er EPERM
+The parent directory of the file pointed at by the
+.Fa from
+argument has its immutable or append-only flag set.
+.It Bq Er EPERM
+The parent directory of the file pointed at by the
+.Fa to
+argument has its immutable flag set.
+.It Bq Er EPERM
 The directory containing
 .Fa from
 is marked sticky,
