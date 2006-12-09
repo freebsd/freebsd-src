@@ -553,6 +553,48 @@ pmap_bootstrap(vm_offset_t ekva)
 		j += 2;
 	}
 	physmem = btoc(physsz);
+
+		
+	
+	/*
+	 * This is needed for versions of OFW that would allocate us memory
+	 * and then forget to remove it from the available ranges ...
+	 * as well as for compensating for the above move of nucleus pages
+	 */
+	for (i = 0; real_phys_avail[i] != 0; i += 2) {
+		vm_paddr_t start = real_phys_avail[i];
+		uint64_t size = real_phys_avail[i + 1] - real_phys_avail[i];
+		CTR2(KTR_PMAP, "start=%#lx size=%#lx\n", mra[i].mr_start, mra[i].mr_size);
+		KDPRINTF("start=%#lx size=%#lx\n", mra[i].mr_start, mra[i].mr_size);
+		/* 
+		 * Is kernel memory at the beginning of range?
+		 */
+		if (nucleus_memory_start == start) {
+			start = start + nucleus_memory;
+		}
+		/* 
+		 * Is kernel memory at the end of range?
+		 */
+		if (nucleus_memory_start == (start + size - nucleus_memory)) 
+			size -= nucleus_memory;
+
+		/* 
+		 * Is kernel memory in the middle somewhere?
+		 */
+		if ((nucleus_memory_start > start) && 
+		    (nucleus_memory_start < (start + size))) {
+			uint64_t firstsize = (nucleus_memory_start - start);
+			phys_avail[j] = start;
+			phys_avail[j+1] = nucleus_memory_start;
+			start =  nucleus_memory_start + nucleus_memory;
+			size = size - firstsize - nucleus_memory;
+			j += 2;
+		}
+		phys_avail[j] = start; 
+		phys_avail[j + 1] = start + size;
+		j += 2;
+	}
+	
 	/*
 	 * Merge nucleus memory in to real_phys_avail
 	 *
@@ -572,53 +614,6 @@ pmap_bootstrap(vm_offset_t ekva)
 			}
 		}
 	}
-		
-	
-	/*
-	 * This is needed for versions of OFW that would allocate us memory
-	 * and then forget to remove it from the available ranges ...
-	 * as well as for compensating for the above move of nucleus pages
-	 */
-
-	for (i = 0, j = 0; i < sz; i++) {
-		vm_paddr_t start = mra[i].mr_start;
-		uint64_t size = mra[i].mr_size;
-		CTR2(KTR_PMAP, "start=%#lx size=%#lx\n", mra[i].mr_start, mra[i].mr_size);
-		KDPRINTF("start=%#lx size=%#lx\n", mra[i].mr_start, mra[i].mr_size);
-
-		if (mra[i].mr_size < PAGE_SIZE_4M)
-			continue;
-		/* 
-		 * Is kernel memory at the beginning of range?
-		 */
-		if (nucleus_memory_start == mra[i].mr_start) {
-			mra[i].mr_start += nucleus_memory;
-			mra[i].mr_size -= nucleus_memory;
-		}
-		/* 
-		 * Is kernel memory at the end of range?
-		 */
-		if (nucleus_memory_start == (start + size - nucleus_memory)) 
-			mra[i].mr_size -= nucleus_memory;
-
-		/* 
-		 * Is kernel memory in the middle somewhere?
-		 */
-		if ((nucleus_memory_start > start) && 
-		    (nucleus_memory_start < (start + size))) {
-			uint64_t firstsize = (nucleus_memory_start - start);
-			phys_avail[j] = start;
-			phys_avail[j+1] = nucleus_memory_start;
-			size = size - firstsize - nucleus_memory;
-			mra[i].mr_start =  nucleus_memory_start + nucleus_memory;
-			mra[i].mr_size = size;
-			j += 2;
-		}
-		phys_avail[j] = mra[i].mr_start;
-		phys_avail[j + 1] = mra[i].mr_start + mra[i].mr_size;
-		j += 2;
-	}
-	
 	for (i = 0; phys_avail[i] != 0; i += 2)
 		if (pmap_debug_range || pmap_debug)
 			printf("phys_avail[%d]=0x%lx phys_avail[%d]=0x%lx\n",
