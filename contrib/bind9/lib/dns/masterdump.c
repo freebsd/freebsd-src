@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2004  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004, 2006  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 1999-2003  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and distribute this software for any
@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: masterdump.c,v 1.56.2.5.2.12 2004/08/28 06:25:19 marka Exp $ */
+/* $Id: masterdump.c,v 1.56.2.5.2.15 2006/03/10 00:17:21 marka Exp $ */
 
 #include <config.h>
 
@@ -1160,7 +1160,8 @@ dumptostreaminc(dns_dumpctx_t *dctx) {
 	}
 
 	if (dctx->nodes != 0 && result == ISC_R_SUCCESS) {
-		dns_dbiterator_pause(dctx->dbiter);
+		result = dns_dbiterator_pause(dctx->dbiter);
+		RUNTIME_CHECK(result == ISC_R_SUCCESS);
 		result = DNS_R_CONTINUE;
 	} else if (result == ISC_R_NOMORE)
 		result = ISC_R_SUCCESS;
@@ -1197,9 +1198,8 @@ dns_master_dumptostreaminc(isc_mem_t *mctx, dns_db_t *db,
 		dns_dumpctx_attach(dctx, dctxp);
 		return (DNS_R_CONTINUE);
 	}
-	if (dctx != NULL)
-		dns_dumpctx_detach(&dctx);
 
+	dns_dumpctx_detach(&dctx);
 	return (result);
 }
 

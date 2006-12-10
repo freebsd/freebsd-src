@@ -2,7 +2,7 @@
                "http://www.oasis-open.org/docbook/xml/4.0/docbookx.dtd"
 	       [<!ENTITY mdash "&#8212;">]>
 <!--
- - Copyright (C) 2004, 2005  Internet Systems Consortium, Inc. ("ISC")
+ - Copyright (C) 2004-2006  Internet Systems Consortium, Inc. ("ISC")
  -
  - Permission to use, copy, modify, and distribute this software for any
  - purpose with or without fee is hereby granted, provided that the above
@@ -17,7 +17,7 @@
  - PERFORMANCE OF THIS SOFTWARE.
 -->
 
-<!-- $Id: nslookup.docbook,v 1.3.6.5 2005/05/13 01:22:33 marka Exp $ -->
+<!-- $Id: nslookup.docbook,v 1.3.6.7 2006/01/06 00:01:42 marka Exp $ -->
 
 <!--
  - Copyright (c) 1985, 1989
@@ -68,6 +68,7 @@
     <copyright>
       <year>2004</year>
       <year>2005</year>
+      <year>2006</year>
       <holder>Internet Systems Consortium, Inc. ("ISC")</holder>
     </copyright>
   </docinfo>
@@ -263,7 +264,7 @@ the lookups.  Valid keywords are:
 
   <varlistentry><term><constant>type=</constant><replaceable>value</replaceable></term>
   <listitem><para>
-  Change the top of the information query.
+  Change the type of the information query.
   </para><para>
   (Default = A; abbreviations = q, ty)
   </para></listitem></varlistentry>

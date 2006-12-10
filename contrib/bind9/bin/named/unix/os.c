@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2004, 2005  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004-2006  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 1999-2002  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and distribute this software for any
@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: os.c,v 1.46.2.4.8.22 2005/05/20 01:37:19 marka Exp $ */
+/* $Id: os.c,v 1.46.2.4.8.24 2006/02/03 23:51:37 marka Exp $ */
 
 #include <config.h>
 #include <stdarg.h>
@@ -496,6 +496,13 @@ ns_os_changeuser(void) {
 
 #if defined(HAVE_LINUX_CAPABILITY_H) && !defined(HAVE_LINUXTHREADS)
 	linux_minprivs();
+#endif
+#if defined(HAVE_SYS_PRCTL_H) && defined(PR_SET_DUMPABLE)
+	/*
+	 * Restore the ability of named to drop core after the setuid()
+	 * call has disabled it.
+	 */
+	prctl(PR_SET_DUMPABLE,1,0,0,0);
 #endif
 }
 
