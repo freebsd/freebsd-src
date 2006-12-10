@@ -1697,7 +1697,7 @@ xpt_announce_periph(struct cam_periph *periph, char *announce_string)
 
 	if (path->device->inq_flags & SID_CmdQue
 	 || path->device->flags & CAM_DEV_TAG_AFTER_COUNT) {
-		printf("\n%s%d: Tagged Queueing Enabled",
+		printf("\n%s%d: Command Queueing Enabled",
 		       periph->periph_name, periph->unit_number);
 	}
 	printf("\n");
