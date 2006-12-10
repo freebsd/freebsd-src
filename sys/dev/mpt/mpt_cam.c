@@ -179,6 +179,7 @@ static struct mpt_personality mpt_cam_personality =
 };
 
 DECLARE_MPT_PERSONALITY(mpt_cam, SI_ORDER_SECOND);
+MODULE_DEPEND(mpt_cam, cam, 1, 1, 1);
 
 int
 mpt_cam_probe(struct mpt_softc *mpt)
