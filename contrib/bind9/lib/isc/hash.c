@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2004  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004, 2006  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 2003  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and distribute this software for any
@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: hash.c,v 1.2.2.4.2.1 2004/03/06 08:14:29 marka Exp $ */
+/* $Id: hash.c,v 1.2.2.4.2.3 2006/01/04 00:37:22 marka Exp $ */
 
 /*
  * Some portion of this code was derived from universal hash function
@@ -68,7 +68,6 @@ if advised of the possibility of such damage.
 #include <isc/once.h>
 #include <isc/random.h>
 #include <isc/refcount.h>
-#include <isc/rwlock.h>
 #include <isc/string.h>
 #include <isc/util.h>
 
@@ -99,7 +98,7 @@ struct isc_hash {
 	hash_random_t	*rndvector; /* random vector for universal hashing */
 };
 
-static isc_rwlock_t createlock;
+static isc_mutex_t createlock;
 static isc_once_t once = ISC_ONCE_INIT;
 static isc_hash_t *hash = NULL;
 
@@ -209,7 +208,7 @@ isc_hash_ctxcreate(isc_mem_t *mctx, isc_entropy_t *entropy,
 
 static void
 initialize_lock(void) {
-	RUNTIME_CHECK(isc_rwlock_init(&createlock, 0, 0) == ISC_R_SUCCESS);
+	RUNTIME_CHECK(isc_mutex_init(&createlock) == ISC_R_SUCCESS);
 }
 
 isc_result_t
@@ -221,12 +220,12 @@ isc_hash_create(isc_mem_t *mctx, isc_entropy_t *entropy, size_t limit) {
 
 	RUNTIME_CHECK(isc_once_do(&once, initialize_lock) == ISC_R_SUCCESS);
 
-	RWLOCK(&createlock, isc_rwlocktype_write);
+	LOCK(&createlock);
 
 	if (hash == NULL)
 		result = isc_hash_ctxcreate(mctx, entropy, limit, &hash);
 
-	RWUNLOCK(&createlock, isc_rwlocktype_write);
+	UNLOCK(&createlock);
 
 	return (result);
 }

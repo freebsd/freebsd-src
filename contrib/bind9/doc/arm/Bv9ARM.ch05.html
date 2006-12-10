@@ -1,5 +1,5 @@
 <!--
- - Copyright (C) 2004, 2005 Internet Systems Consortium, Inc. ("ISC")
+ - Copyright (C) 2004-2006 Internet Systems Consortium, Inc. ("ISC")
  - Copyright (C) 2000-2003 Internet Software Consortium.
  - 
  - Permission to use, copy, modify, and distribute this software for any
@@ -14,12 +14,12 @@
  - OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
  - PERFORMANCE OF THIS SOFTWARE.
 -->
-<!-- $Id: Bv9ARM.ch05.html,v 1.24.2.5.2.12 2005/10/13 02:34:00 marka Exp $ -->
+<!-- $Id: Bv9ARM.ch05.html,v 1.24.2.5.2.17 2006/06/29 13:02:31 marka Exp $ -->
 <html>
 <head>
 <meta http-equiv="Content-Type" content="text/html; charset=ISO-8859-1">
 <title>Chapter 5. The BIND 9 Lightweight Resolver</title>
-<meta name="generator" content="DocBook XSL Stylesheets V1.69.1">
+<meta name="generator" content="DocBook XSL Stylesheets V1.70.1">
 <link rel="start" href="Bv9ARM.html" title="BIND 9 Administrator Reference Manual">
 <link rel="up" href="Bv9ARM.html" title="BIND 9 Administrator Reference Manual">
 <link rel="prev" href="Bv9ARM.ch04.html" title="Chapter 4. Advanced DNS Features">
@@ -28,7 +28,7 @@
 <body bgcolor="white" text="black" link="#0000FF" vlink="#840084" alink="#0000FF">
 <div class="navheader">
 <table width="100%" summary="Navigation header">
-<tr><th colspan="3" align="center">Chapter 5. The <span class="acronym">BIND</span> 9 Lightweight Resolver</th></tr>
+<tr><th colspan="3" align="center">Chapter 5. The <acronym class="acronym">BIND</acronym> 9 Lightweight Resolver</th></tr>
 <tr>
 <td width="20%" align="left">
 <a accesskey="p" href="Bv9ARM.ch04.html">Prev</a> </td>
@@ -41,17 +41,17 @@
 </div>
 <div class="chapter" lang="en">
 <div class="titlepage"><div><div><h2 class="title">
-<a name="Bv9ARM.ch05"></a>Chapter 5. The <span class="acronym">BIND</span> 9 Lightweight Resolver</h2></div></div></div>
+<a name="Bv9ARM.ch05"></a>Chapter 5. The <acronym class="acronym">BIND</acronym> 9 Lightweight Resolver</h2></div></div></div>
 <div class="toc">
 <p><b>Table of Contents</b></p>
 <dl>
-<dt><span class="sect1"><a href="Bv9ARM.ch05.html#id2550652">The Lightweight Resolver Library</a></span></dt>
+<dt><span class="sect1"><a href="Bv9ARM.ch05.html#id2574507">The Lightweight Resolver Library</a></span></dt>
 <dt><span class="sect1"><a href="Bv9ARM.ch05.html#lwresd">Running a Resolver Daemon</a></span></dt>
 </dl>
 </div>
 <div class="sect1" lang="en">
 <div class="titlepage"><div><div><h2 class="title" style="clear: both">
-<a name="id2550652"></a>The Lightweight Resolver Library</h2></div></div></div>
+<a name="id2574507"></a>The Lightweight Resolver Library</h2></div></div></div>
 <p>Traditionally applications have been linked with a stub resolver
 library that sends recursive DNS queries to a local caching name
 server.</p>
@@ -60,7 +60,7 @@ such as following A6 chains and DNAME records, and simultaneous
 lookup of IPv4 and IPv6 addresses.  Though most of the complexity was
 then removed, these are hard or impossible
 to implement in a traditional stub resolver.</p>
-<p>Instead, <span class="acronym">BIND</span> 9 provides resolution services to local clients
+<p>Instead, <acronym class="acronym">BIND</acronym> 9 provides resolution services to local clients
 using a combination of a lightweight resolver library and a resolver
 daemon process running on the local host.  These communicate using
 a simple UDP-based protocol, the "lightweight resolver protocol"
@@ -107,7 +107,7 @@ be configured to act as a lightweight resolver daemon using the
 <tr>
 <td width="40%" align="left" valign="top">Chapter 4. Advanced DNS Features </td>
 <td width="20%" align="center"><a accesskey="h" href="Bv9ARM.html">Home</a></td>
-<td width="40%" align="right" valign="top"> Chapter 6. <span class="acronym">BIND</span> 9 Configuration Reference</td>
+<td width="40%" align="right" valign="top"> Chapter 6. <acronym class="acronym">BIND</acronym> 9 Configuration Reference</td>
 </tr>
 </table>
 </div>

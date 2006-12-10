@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2004  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004, 2006  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 2000-2003  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and distribute this software for any
@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: lwresd.c,v 1.37.2.2.2.5 2004/03/08 04:04:19 marka Exp $ */
+/* $Id: lwresd.c,v 1.37.2.2.2.8 2006/02/28 06:32:53 marka Exp $ */
 
 /*
  * Main program for the Lightweight Resolver Daemon.
@@ -285,14 +285,14 @@ ns_lwresd_parseeresolvconf(isc_mem_t *mctx, cfg_parser_t *pctx,
  * Handle lwresd manager objects
  */
 isc_result_t
-ns_lwdmanager_create(isc_mem_t *mctx, cfg_obj_t *lwres,
+ns_lwdmanager_create(isc_mem_t *mctx, const cfg_obj_t *lwres,
 		     ns_lwresd_t **lwresdp)
 {
 	ns_lwresd_t *lwresd;
 	const char *vname;
 	dns_rdataclass_t vclass;
-	cfg_obj_t *obj, *viewobj, *searchobj;
-	cfg_listelt_t *element;
+	const cfg_obj_t *obj, *viewobj, *searchobj;
+	const cfg_listelt_t *element;
 	isc_result_t result;
 
 	INSIST(lwresdp != NULL && *lwresdp == NULL);
@@ -356,8 +356,8 @@ ns_lwdmanager_create(isc_mem_t *mctx, cfg_obj_t *lwres,
 		     element != NULL;
 		     element = cfg_list_next(element))
 		{
-			cfg_obj_t *search;
-			char *searchstr;
+			const cfg_obj_t *search;
+			const char *searchstr;
 			isc_buffer_t namebuf;
 			dns_fixedname_t fname;
 			dns_name_t *name;
@@ -407,6 +407,7 @@ ns_lwdmanager_create(isc_mem_t *mctx, cfg_obj_t *lwres,
 		ns_lwsearchlist_detach(&lwresd->search);
 	if (lwresd->mctx != NULL)
 		isc_mem_detach(&lwresd->mctx);
+	isc_mem_put(mctx, lwresd, sizeof(ns_lwresd_t));
 	return (result);
 }
 
@@ -744,11 +745,11 @@ configure_listener(isc_sockaddr_t *address, ns_lwresd_t *lwresd,
 }
 
 isc_result_t
-ns_lwresd_configure(isc_mem_t *mctx, cfg_obj_t *config) {
-	cfg_obj_t *lwreslist = NULL;
-	cfg_obj_t *lwres = NULL;
-	cfg_obj_t *listenerslist = NULL;
-	cfg_listelt_t *element = NULL;
+ns_lwresd_configure(isc_mem_t *mctx, const cfg_obj_t *config) {
+	const cfg_obj_t *lwreslist = NULL;
+	const cfg_obj_t *lwres = NULL;
+	const cfg_obj_t *listenerslist = NULL;
+	const cfg_listelt_t *element = NULL;
 	ns_lwreslistener_t *listener;
 	ns_lwreslistenerlist_t newlisteners;
 	isc_result_t result;

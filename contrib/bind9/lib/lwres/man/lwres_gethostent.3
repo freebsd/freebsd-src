@@ -13,14 +13,17 @@
 .\" OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
 .\" PERFORMANCE OF THIS SOFTWARE.
 .\"
-.\" $Id: lwres_gethostent.3,v 1.16.2.1.8.5 2005/10/13 02:33:53 marka Exp $
+.\" $Id: lwres_gethostent.3,v 1.16.2.1.8.6 2006/06/29 13:02:31 marka Exp $
 .\"
 .hy 0
 .ad l
-.\" ** You probably do not want to edit this file directly **
-.\" It was generated using the DocBook XSL Stylesheets (version 1.69.1).
-.\" Instead of manually editing it, you probably should edit the DocBook XML
-.\" source for it and then use the DocBook XSL Stylesheets to regenerate it.
+.\"     Title: lwres_gethostent
+.\"    Author: 
+.\" Generator: DocBook XSL Stylesheets v1.70.1 <http://docbook.sf.net/>
+.\"      Date: Jun 30, 2000
+.\"    Manual: BIND9
+.\"    Source: BIND9
+.\"
 .TH "LWRES_GETHOSTENT" "3" "Jun 30, 2000" "BIND9" "BIND9"
 .\" disable hyphenation
 .nh
@@ -33,27 +36,27 @@ lwres_gethostbyname, lwres_gethostbyname2, lwres_gethostbyaddr, lwres_gethostent
 #include <lwres/netdb.h>
 .fi
 .HP 37
-\fBstruct\ hostent\ *\ \fBlwres_gethostbyname\fR\fR\fB(\fR\fBconst\ char\ *name\fR\fB);\fR
+.BI "struct hostent * lwres_gethostbyname(const\ char\ *name);"
 .HP 38
-\fBstruct\ hostent\ *\ \fBlwres_gethostbyname2\fR\fR\fB(\fR\fBconst\ char\ *name\fR\fB, \fR\fBint\ af\fR\fB);\fR
+.BI "struct hostent * lwres_gethostbyname2(const\ char\ *name, int\ af);"
 .HP 37
-\fBstruct\ hostent\ *\ \fBlwres_gethostbyaddr\fR\fR\fB(\fR\fBconst\ char\ *addr\fR\fB, \fR\fBint\ len\fR\fB, \fR\fBint\ type\fR\fB);\fR
+.BI "struct hostent * lwres_gethostbyaddr(const\ char\ *addr, int\ len, int\ type);"
 .HP 34
-\fBstruct\ hostent\ *\ \fBlwres_gethostent\fR\fR\fB(\fR\fBvoid\fR\fB);\fR
+.BI "struct hostent * lwres_gethostent(void);"
 .HP 22
-\fBvoid\ \fBlwres_sethostent\fR\fR\fB(\fR\fBint\ stayopen\fR\fB);\fR
+.BI "void lwres_sethostent(int\ stayopen);"
 .HP 22
-\fBvoid\ \fBlwres_endhostent\fR\fR\fB(\fR\fBvoid\fR\fB);\fR
+.BI "void lwres_endhostent(void);"
 .HP 39
-\fBstruct\ hostent\ *\ \fBlwres_gethostbyname_r\fR\fR\fB(\fR\fBconst\ char\ *name\fR\fB, \fR\fBstruct\ hostent\ *resbuf\fR\fB, \fR\fBchar\ *buf\fR\fB, \fR\fBint\ buflen\fR\fB, \fR\fBint\ *error\fR\fB);\fR
+.BI "struct hostent * lwres_gethostbyname_r(const\ char\ *name, struct\ hostent\ *resbuf, char\ *buf, int\ buflen, int\ *error);"
 .HP 39
-\fBstruct\ hostent\ *\ \fBlwres_gethostbyaddr_r\fR\fR\fB(\fR\fBconst\ char\ *addr\fR\fB, \fR\fBint\ len\fR\fB, \fR\fBint\ type\fR\fB, \fR\fBstruct\ hostent\ *resbuf\fR\fB, \fR\fBchar\ *buf\fR\fB, \fR\fBint\ buflen\fR\fB, \fR\fBint\ *error\fR\fB);\fR
+.BI "struct hostent * lwres_gethostbyaddr_r(const\ char\ *addr, int\ len, int\ type, struct\ hostent\ *resbuf, char\ *buf, int\ buflen, int\ *error);"
 .HP 36
-\fBstruct\ hostent\ *\ \fBlwres_gethostent_r\fR\fR\fB(\fR\fBstruct\ hostent\ *resbuf\fR\fB, \fR\fBchar\ *buf\fR\fB, \fR\fBint\ buflen\fR\fB, \fR\fBint\ *error\fR\fB);\fR
+.BI "struct hostent * lwres_gethostent_r(struct\ hostent\ *resbuf, char\ *buf, int\ buflen, int\ *error);"
 .HP 24
-\fBvoid\ \fBlwres_sethostent_r\fR\fR\fB(\fR\fBint\ stayopen\fR\fB);\fR
+.BI "void lwres_sethostent_r(int\ stayopen);"
 .HP 24
-\fBvoid\ \fBlwres_endhostent_r\fR\fR\fB(\fR\fBvoid\fR\fB);\fR
+.BI "void lwres_endhostent_r(void);"
 .SH "DESCRIPTION"
 .PP
 These functions provide hostname\-to\-address and address\-to\-hostname lookups by means of the lightweight resolver. They are similar to the standard
@@ -63,6 +66,7 @@ functions provided by most operating systems. They use a
 which is usually defined in
 \fI<namedb.h>\fR.
 .sp
+.RS 3n
 .nf
 struct  hostent {
         char    *h_name;        /* official name of host */
@@ -73,25 +77,26 @@ struct  hostent {
 };
 #define h_addr  h_addr_list[0]  /* address, for backward compatibility */
 .fi
+.RE
 .sp
 .PP
 The members of this structure are:
-.TP
+.TP 3n
 \fBh_name\fR
 The official (canonical) name of the host.
-.TP
+.TP 3n
 \fBh_aliases\fR
 A NULL\-terminated array of alternate names (nicknames) for the host.
-.TP
+.TP 3n
 \fBh_addrtype\fR
 The type of address being returned \(em
 \fBPF_INET\fR
 or
 \fBPF_INET6\fR.
-.TP
+.TP 3n
 \fBh_length\fR
 The length of the address in bytes.
-.TP
+.TP 3n
 \fBh_addr_list\fR
 A
 \fBNULL\fR
@@ -217,16 +222,16 @@ return NULL to indicate an error. In this case the global variable
 \fBlwres_h_errno\fR
 will contain one of the following error codes defined in
 \fI<lwres/netdb.h>\fR:
-.TP
+.TP 3n
 \fBHOST_NOT_FOUND\fR
 The host or address was not found.
-.TP
+.TP 3n
 \fBTRY_AGAIN\fR
 A recoverable error occurred, e.g., a timeout. Retrying the lookup may succeed.
-.TP
+.TP 3n
 \fBNO_RECOVERY\fR
 A non\-recoverable error occurred.
-.TP
+.TP 3n
 \fBNO_DATA\fR
 The name exists, but has no address information associated with it (or vice versa in the case of a reverse lookup). The code NO_ADDRESS is accepted as a synonym for NO_DATA for backwards compatibility.
 .PP
@@ -286,3 +291,5 @@ The resolver daemon does not currently support any non\-DNS name services such a
 \fI/etc/hosts\fR
 or
 \fBNIS\fR, consequently the above functions don't, either.
+.SH "COPYRIGHT"
+Copyright \(co 2004, 2005 Internet Systems Consortium, Inc. ("ISC")

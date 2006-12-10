@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2004  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004, 2006  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 1999-2001, 2003  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and distribute this software for any
@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: resolver.h,v 1.34.12.7 2004/04/15 23:56:31 marka Exp $ */
+/* $Id: resolver.h,v 1.34.12.9 2006/02/01 23:48:51 marka Exp $ */
 
 #ifndef DNS_RESOLVER_H
 #define DNS_RESOLVER_H 1
@@ -136,7 +136,7 @@ dns_resolver_create(dns_view_t *view,
  *
  *	'dispatchv6' is a valid dispatcher with an IPv6 UDP socket, or is NULL.
  *
- *	*resp != NULL && *resp == NULL.
+ *	resp != NULL && *resp == NULL.
  *
  * Returns:
  *
