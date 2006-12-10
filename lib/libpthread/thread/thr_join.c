@@ -77,7 +77,7 @@ _pthread_join(pthread_t pthread, void **thread_return)
 		THR_SCHED_UNLOCK(curthread, pthread);
 		/* Remove the reference and return an error: */
 		_thr_ref_delete(curthread, pthread);
-		ret = ESRCH;
+		ret = EINVAL;
 	} else {
 		/* Lock the target thread while checking its state. */
 		if (pthread->state == PS_DEAD) {
