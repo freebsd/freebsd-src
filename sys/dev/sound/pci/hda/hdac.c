@@ -80,7 +80,7 @@
 
 #include "mixer_if.h"
 
-#define HDA_DRV_TEST_REV	"20061210_0036"
+#define HDA_DRV_TEST_REV	"20061210_0037"
 #define HDA_WIDGET_PARSER_REV	1
 
 SND_DECLARE_FILE("$FreeBSD$");
@@ -247,6 +247,7 @@ SND_DECLARE_FILE("$FreeBSD$");
 #define HDA_QUIRK_FIXEDRATE	(1 << 17)
 #define HDA_QUIRK_FORCESTEREO	(1 << 18)
 #define HDA_QUIRK_EAPDINV	(1 << 19)
+#define HDA_QUIRK_VREF		(1 << 20)
 
 static const struct {
 	char *key;
@@ -260,6 +261,7 @@ static const struct {
 	{ "fixedrate", HDA_QUIRK_FIXEDRATE },
 	{ "forcestereo", HDA_QUIRK_FORCESTEREO },
 	{ "eapdinv", HDA_QUIRK_EAPDINV },
+	{ "vref", HDA_QUIRK_VREF },
 };
 #define HDAC_QUIRKS_TAB_LEN	\
 		(sizeof(hdac_quirks_tab) / sizeof(hdac_quirks_tab[0]))
@@ -3463,7 +3465,7 @@ static const struct {
 	 *     perhaps unsupported.
 	 */
 	{ HDA_MATCH_ALL, HDA_MATCH_ALL,
-	    HDA_QUIRK_FORCESTEREO, 0 },
+	    HDA_QUIRK_FORCESTEREO | HDA_QUIRK_VREF, 0 },
 	{ ACER_ALL_SUBVENDOR, HDA_MATCH_ALL,
 	    HDA_QUIRK_GPIO0, 0 },
 	{ ASUS_M5200_SUBVENDOR, HDA_CODEC_ALC880,
@@ -4195,11 +4197,30 @@ hdac_audio_commit(struct hdac_devinfo *devinfo, uint32_t cfl)
 				w->wclass.pin.ctrl &=
 				    ~(HDA_CMD_SET_PIN_WIDGET_CTRL_OUT_ENABLE |
 				    HDA_CMD_SET_PIN_WIDGET_CTRL_HPHN_ENABLE);
+				if (w->devinfo->function.audio.quirks & HDA_QUIRK_VREF) {
+					uint32_t pincap = w->wclass.pin.cap;
+					if (HDA_PARAM_PIN_CAP_VREF_CTRL_100(pincap))
+						w->wclass.pin.ctrl |=
+						    HDA_CMD_SET_PIN_WIDGET_CTRL_VREF_ENABLE(
+							HDA_CMD_PIN_WIDGET_CTRL_VREF_ENABLE_100
+						    );
+					else if (HDA_PARAM_PIN_CAP_VREF_CTRL_80(pincap))
+						w->wclass.pin.ctrl |=
+						    HDA_CMD_SET_PIN_WIDGET_CTRL_VREF_ENABLE(
+							HDA_CMD_PIN_WIDGET_CTRL_VREF_ENABLE_80
+						    );
+					else if (HDA_PARAM_PIN_CAP_VREF_CTRL_50(pincap))
+						w->wclass.pin.ctrl |=
+						    HDA_CMD_SET_PIN_WIDGET_CTRL_VREF_ENABLE(
+							HDA_CMD_PIN_WIDGET_CTRL_VREF_ENABLE_50
+						    );
+				}
 			} else
 				w->wclass.pin.ctrl &= ~(
 				    HDA_CMD_SET_PIN_WIDGET_CTRL_HPHN_ENABLE |
 				    HDA_CMD_SET_PIN_WIDGET_CTRL_OUT_ENABLE |
-				    HDA_CMD_SET_PIN_WIDGET_CTRL_IN_ENABLE);
+				    HDA_CMD_SET_PIN_WIDGET_CTRL_IN_ENABLE |
+				    HDA_CMD_SET_PIN_WIDGET_CTRL_VREF_ENABLE_MASK);
 			hdac_command(sc,
 			    HDA_CMD_SET_PIN_WIDGET_CTRL(cad, w->nid,
 			    w->wclass.pin.ctrl), cad);
@@ -4531,6 +4552,20 @@ hdac_dump_pin(struct hdac_softc *sc, struct hdac_widget *w)
 		printf(" IN");
 	if (HDA_PARAM_PIN_CAP_BALANCED_IO_PINS(pincap))
 		printf(" BAL");
+	if (HDA_PARAM_PIN_CAP_VREF_CTRL(pincap)) {
+		printf(" VREF[");
+		if (HDA_PARAM_PIN_CAP_VREF_CTRL_50(pincap))
+			printf(" 50");
+		if (HDA_PARAM_PIN_CAP_VREF_CTRL_80(pincap))
+			printf(" 80");
+		if (HDA_PARAM_PIN_CAP_VREF_CTRL_100(pincap))
+			printf(" 100");
+		if (HDA_PARAM_PIN_CAP_VREF_CTRL_GROUND(pincap))
+			printf(" GROUND");
+		if (HDA_PARAM_PIN_CAP_VREF_CTRL_HIZ(pincap))
+			printf(" HIZ");
+		printf(" ]");
+	}
 	if (HDA_PARAM_PIN_CAP_EAPD_CAP(pincap))
 		printf(" EAPD");
 	if (HDA_PARAM_AUDIO_WIDGET_CAP_UNSOL_CAP(wcap))
