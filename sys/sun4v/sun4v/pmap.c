@@ -523,7 +523,8 @@ pmap_bootstrap(vm_offset_t ekva)
                 physmem = atop(physmem_tunable);
 		KDPRINTF("desired physmem=0x%lx\n", physmem_tunable);
 	}
-	physmem_tunable += physmemstart_tunable;
+	if ((physmem_tunable != 0) && (physmemstart_tunable != 0))
+		physmem_tunable += physmemstart_tunable;
 	
 	bzero(real_phys_avail, sizeof(real_phys_avail));
 	bzero(tmp_phys_avail, sizeof(tmp_phys_avail));
