@@ -113,9 +113,7 @@ static driver_t isp_sbus_driver = {
 };
 static devclass_t isp_devclass;
 DRIVER_MODULE(isp, sbus, isp_sbus_driver, isp_devclass, 0, 0);
-#if __FreeBSD_version >= 700000
-MODULE_DEPEND(isp, firmware, 1, 1, 1);
-#else
+#if __FreeBSD_version < 700000
 extern ispfwfunc *isp_get_firmware_p;
 #endif
 
