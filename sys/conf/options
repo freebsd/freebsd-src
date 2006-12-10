@@ -535,6 +535,8 @@ ENABLE_ALART		opt_intpm.h
 
 # These cause changes all over the kernel
 BLKDEV_IOSIZE		opt_global.h
+MAXPHYS 		opt_global.h
+DFLTPHYS		opt_global.h
 BURN_BRIDGES		opt_global.h
 DEBUG			opt_global.h
 DEBUG_LOCKS		opt_global.h
