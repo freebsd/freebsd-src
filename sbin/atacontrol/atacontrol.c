@@ -158,8 +158,8 @@ cap_print(struct ata_params *parm)
 		parm->enabled.microcode ? "yes" : "no");	
 
 	printf("security                       %s	%s\n",
-		parm->support.smart ? "yes" : "no",
-		parm->enabled.smart ? "yes" : "no");	
+		parm->support.security ? "yes" : "no",
+		parm->enabled.security ? "yes" : "no");	
 
 	printf("power management               %s	%s\n",
 		parm->support.power_mngt ? "yes" : "no",
