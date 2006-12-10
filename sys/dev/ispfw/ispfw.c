@@ -52,7 +52,7 @@ __FBSDID("$FreeBSD$");
 #ifdef __sparc64__
 #define	ISP_1000	1
 #endif
-#define	MODULE_NAME	"isp"
+#define	MODULE_NAME	"ispfw"
 #endif
 
 #if	defined(ISP_1040) || defined(ISP_1040_IT)
