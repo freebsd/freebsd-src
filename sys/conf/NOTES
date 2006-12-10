@@ -110,6 +110,21 @@ options 	DFLDSIZ=(1024UL*1024*1024)
 #
 options 	BLKDEV_IOSIZE=8192
 
+#
+# MAXPHYS and DFLTPHYS
+#
+# These are the max and default 'raw' I/O block device access sizes.
+# Reads and writes will be split into DFLTPHYS chunks. Some applications
+# have better performance with larger raw I/O access sizes. Typically
+# MAXPHYS should be twice the size of DFLTPHYS. Note that certain VM
+# parameters are derived from these values and making them too large
+# can make an an unbootable kernel.
+#
+# The defaults are 64K and 128K respectively.
+options 	DFLTPHYS=(64*1024)
+options 	MAXPHYS=(128*1024)
+
+
 # Options for the VM subsystem
 # Deprecated options supported for backwards compatibility
 #options 	PQ_NOOPT		# No coloring
