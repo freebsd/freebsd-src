@@ -1,4 +1,4 @@
-.\" Copyright (C) 2004, 2005 Internet Systems Consortium, Inc. ("ISC")
+.\" Copyright (C) 2004-2006 Internet Systems Consortium, Inc. ("ISC")
 .\" Copyright (C) 2000-2002 Internet Software Consortium.
 .\" 
 .\" Permission to use, copy, modify, and distribute this software for any
@@ -13,14 +13,17 @@
 .\" OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
 .\" PERFORMANCE OF THIS SOFTWARE.
 .\"
-.\" $Id: named-checkzone.8,v 1.11.2.1.8.8 2005/10/13 02:33:41 marka Exp $
+.\" $Id: named-checkzone.8,v 1.11.2.1.8.11 2006/10/05 02:50:17 marka Exp $
 .\"
 .hy 0
 .ad l
-.\" ** You probably do not want to edit this file directly **
-.\" It was generated using the DocBook XSL Stylesheets (version 1.69.1).
-.\" Instead of manually editing it, you probably should edit the DocBook XML
-.\" source for it and then use the DocBook XSL Stylesheets to regenerate it.
+.\"     Title: named\-checkzone
+.\"    Author: 
+.\" Generator: DocBook XSL Stylesheets v1.70.1 <http://docbook.sf.net/>
+.\"      Date: June 13, 2000
+.\"    Manual: BIND9
+.\"    Source: BIND9
+.\"
 .TH "NAMED\-CHECKZONE" "8" "June 13, 2000" "BIND9" "BIND9"
 .\" disable hyphenation
 .nh
@@ -40,61 +43,61 @@ does when loading a zone. This makes
 \fBnamed\-checkzone\fR
 useful for checking zone files before configuring them into a name server.
 .SH "OPTIONS"
-.TP
+.TP 3n
 \-d
 Enable debugging.
-.TP
+.TP 3n
 \-q
 Quiet mode \- exit code only.
-.TP
+.TP 3n
 \-v
 Print the version of the
 \fBnamed\-checkzone\fR
 program and exit.
-.TP
+.TP 3n
 \-j
 When loading the zone file read the journal if it exists.
-.TP
+.TP 3n
 \-c \fIclass\fR
 Specify the class of the zone. If not specified "IN" is assumed.
-.TP
+.TP 3n
 \-k \fImode\fR
 Perform
-\fB"check\-name"\fR
+\fB"check\-names"\fR
 checks with the specified failure mode. Possible modes are
 \fB"fail"\fR,
 \fB"warn"\fR
 (default) and
 \fB"ignore"\fR.
-.TP
+.TP 3n
 \-n \fImode\fR
 Specify whether NS records should be checked to see if they are addresses. Possible modes are
 \fB"fail"\fR,
 \fB"warn"\fR
 (default) and
 \fB"ignore"\fR.
-.TP
+.TP 3n
 \-o \fIfilename\fR
 Write zone output to
 \fIfilename\fR.
-.TP
+.TP 3n
 \-t \fIdirectory\fR
 chroot to
 \fIdirectory\fR
 so that include directives in the configuration file are processed as if run by a similarly chrooted named.
-.TP
+.TP 3n
 \-w \fIdirectory\fR
 chdir to
 \fIdirectory\fR
 so that relative filenames in master file $INCLUDE directives work. This is similar to the directory clause in
 \fInamed.conf\fR.
-.TP
+.TP 3n
 \-D
 Dump zone file in canonical format.
-.TP
+.TP 3n
 zonename
 The domain name of the zone being checked.
-.TP
+.TP 3n
 filename
 The name of the zone file.
 .SH "RETURN VALUES"
@@ -109,3 +112,5 @@ BIND 9 Administrator Reference Manual.
 .SH "AUTHOR"
 .PP
 Internet Systems Consortium
+.SH "COPYRIGHT"
+Copyright \(co 2004\-2006 Internet Systems Consortium, Inc. ("ISC")

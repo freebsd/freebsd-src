@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2004  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004, 2006  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 2001-2003  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and distribute this software for any
@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: config.c,v 1.11.2.4.8.29 2004/10/05 02:52:26 marka Exp $ */
+/* $Id: config.c,v 1.11.2.4.8.32 2006/02/28 06:32:53 marka Exp $ */
 
 #include <config.h>
 
@@ -196,7 +196,7 @@ ns_config_parsedefaults(cfg_parser_t *parser, cfg_obj_t **conf) {
 }
 
 isc_result_t
-ns_config_get(cfg_obj_t **maps, const char *name, cfg_obj_t **obj) {
+ns_config_get(const cfg_obj_t **maps, const char *name, const cfg_obj_t **obj) {
 	int i;
 
 	for (i = 0;; i++) {
@@ -208,11 +208,13 @@ ns_config_get(cfg_obj_t **maps, const char *name, cfg_obj_t **obj) {
 }
 
 isc_result_t
-ns_checknames_get(cfg_obj_t **maps, const char *which, cfg_obj_t **obj) {
-	cfg_listelt_t *element;
-	cfg_obj_t *checknames;
-	cfg_obj_t *type;
-	cfg_obj_t *value;
+ns_checknames_get(const cfg_obj_t **maps, const char *which,
+		  const cfg_obj_t **obj)
+{
+	const cfg_listelt_t *element;
+	const cfg_obj_t *checknames;
+	const cfg_obj_t *type;
+	const cfg_obj_t *value;
 	int i;
 
 	for (i = 0;; i++) {
@@ -243,8 +245,8 @@ ns_checknames_get(cfg_obj_t **maps, const char *which, cfg_obj_t **obj) {
 }
 
 int
-ns_config_listcount(cfg_obj_t *list) {
-	cfg_listelt_t *e;
+ns_config_listcount(const cfg_obj_t *list) {
+	const cfg_listelt_t *e;
 	int i = 0;
 
 	for (e = cfg_list_first(list); e != NULL; e = cfg_list_next(e))
@@ -254,9 +256,9 @@ ns_config_listcount(cfg_obj_t *list) {
 }
 
 isc_result_t
-ns_config_getclass(cfg_obj_t *classobj, dns_rdataclass_t defclass,
+ns_config_getclass(const cfg_obj_t *classobj, dns_rdataclass_t defclass,
 		   dns_rdataclass_t *classp) {
-	char *str;
+	const char *str;
 	isc_textregion_t r;
 	isc_result_t result;
 
@@ -265,7 +267,7 @@ ns_config_getclass(cfg_obj_t *classobj, dns_rdataclass_t defclass,
 		return (ISC_R_SUCCESS);
 	}
 	str = cfg_obj_asstring(classobj);
-	r.base = str;
+	DE_CONST(str, r.base);
 	r.length = strlen(str);
 	result = dns_rdataclass_fromtext(classp, &r);
 	if (result != ISC_R_SUCCESS)
@@ -275,9 +277,9 @@ ns_config_getclass(cfg_obj_t *classobj, dns_rdataclass_t defclass,
 }
 
 isc_result_t
-ns_config_gettype(cfg_obj_t *typeobj, dns_rdatatype_t deftype,
+ns_config_gettype(const cfg_obj_t *typeobj, dns_rdatatype_t deftype,
 		   dns_rdatatype_t *typep) {
-	char *str;
+	const char *str;
 	isc_textregion_t r;
 	isc_result_t result;
 
@@ -286,7 +288,7 @@ ns_config_gettype(cfg_obj_t *typeobj, dns_rdatatype_t deftype,
 		return (ISC_R_SUCCESS);
 	}
 	str = cfg_obj_asstring(typeobj);
-	r.base = str;
+	DE_CONST(str, r.base);
 	r.length = strlen(str);
 	result = dns_rdatatype_fromtext(typep, &r);
 	if (result != ISC_R_SUCCESS)
@@ -296,9 +298,9 @@ ns_config_gettype(cfg_obj_t *typeobj, dns_rdatatype_t deftype,
 }
 
 dns_zonetype_t
-ns_config_getzonetype(cfg_obj_t *zonetypeobj) {
+ns_config_getzonetype(const cfg_obj_t *zonetypeobj) {
 	dns_zonetype_t ztype = dns_zone_none;
-	char *str;
+	const char *str;
 
 	str = cfg_obj_asstring(zonetypeobj);
 	if (strcasecmp(str, "master") == 0)
@@ -313,14 +315,14 @@ ns_config_getzonetype(cfg_obj_t *zonetypeobj) {
 }
 
 isc_result_t
-ns_config_getiplist(cfg_obj_t *config, cfg_obj_t *list,
+ns_config_getiplist(const cfg_obj_t *config, const cfg_obj_t *list,
 		    in_port_t defport, isc_mem_t *mctx,
 		    isc_sockaddr_t **addrsp, isc_uint32_t *countp)
 {
 	int count, i = 0;
-	cfg_obj_t *addrlist;
-	cfg_obj_t *portobj;
-	cfg_listelt_t *element;
+	const cfg_obj_t *addrlist;
+	const cfg_obj_t *portobj;
+	const cfg_listelt_t *element;
 	isc_sockaddr_t *addrs;
 	in_port_t port;
 	isc_result_t result;
@@ -380,10 +382,12 @@ ns_config_putiplist(isc_mem_t *mctx, isc_sockaddr_t **addrsp,
 }
 
 static isc_result_t
-get_masters_def(cfg_obj_t *cctx, char *name, cfg_obj_t **ret) {
+get_masters_def(const cfg_obj_t *cctx, const char *name,
+		const cfg_obj_t **ret)
+{
 	isc_result_t result;
-	cfg_obj_t *masters = NULL;
-	cfg_listelt_t *elt;
+	const cfg_obj_t *masters = NULL;
+	const cfg_listelt_t *elt;
 
 	result = cfg_map_get(cctx, "masters", &masters);
 	if (result != ISC_R_SUCCESS)
@@ -391,7 +395,7 @@ get_masters_def(cfg_obj_t *cctx, char *name, cfg_obj_t **ret) {
 	for (elt = cfg_list_first(masters);
 	     elt != NULL;
 	     elt = cfg_list_next(elt)) {
-		cfg_obj_t *list;
+		const cfg_obj_t *list;
 		const char *listname;
 
 		list = cfg_listelt_value(elt);
@@ -406,24 +410,24 @@ get_masters_def(cfg_obj_t *cctx, char *name, cfg_obj_t **ret) {
 }
 
 isc_result_t
-ns_config_getipandkeylist(cfg_obj_t *config, cfg_obj_t *list, isc_mem_t *mctx,
-			  isc_sockaddr_t **addrsp, dns_name_t ***keysp,
-			  isc_uint32_t *countp)
+ns_config_getipandkeylist(const cfg_obj_t *config, const cfg_obj_t *list,
+			  isc_mem_t *mctx, isc_sockaddr_t **addrsp,
+			  dns_name_t ***keysp, isc_uint32_t *countp)
 {
 	isc_uint32_t addrcount = 0, keycount = 0, i = 0;
 	isc_uint32_t listcount = 0, l = 0, j;
 	isc_uint32_t stackcount = 0, pushed = 0;
 	isc_result_t result;
-	cfg_listelt_t *element;
-	cfg_obj_t *addrlist;
-	cfg_obj_t *portobj;
+	const cfg_listelt_t *element;
+	const cfg_obj_t *addrlist;
+	const cfg_obj_t *portobj;
 	in_port_t port;
 	dns_fixedname_t fname;
 	isc_sockaddr_t *addrs = NULL;
 	dns_name_t **keys = NULL;
-	char **lists = NULL;
+	const char **lists = NULL;
 	struct {
-		cfg_listelt_t *element;
+		const cfg_listelt_t *element;
 		in_port_t port;
 	} *stack = NULL;
 
@@ -439,13 +443,14 @@ ns_config_getipandkeylist(cfg_obj_t *config, cfg_obj_t *list, isc_mem_t *mctx,
 		if (val > ISC_UINT16_MAX) {
 			cfg_obj_log(portobj, ns_g_lctx, ISC_LOG_ERROR,
 				    "port '%u' out of range", val);
-			return (ISC_R_RANGE);
+			result = ISC_R_RANGE;
+			goto cleanup;
 		}
 		port = (in_port_t) val;
 	} else {
 		result = ns_config_getport(config, &port);
 		if (result != ISC_R_SUCCESS)
-			return (result);
+			goto cleanup;
 	}
 
 	result = ISC_R_NOMEMORY;
@@ -456,9 +461,9 @@ ns_config_getipandkeylist(cfg_obj_t *config, cfg_obj_t *list, isc_mem_t *mctx,
 	     element != NULL;
 	     element = cfg_list_next(element))
 	{
-		cfg_obj_t *addr;
-		cfg_obj_t *key;
-		char *keystr;
+		const cfg_obj_t *addr;
+		const cfg_obj_t *key;
+		const char *keystr;
 		isc_buffer_t b;
 
 		addr = cfg_tuple_get(cfg_listelt_value(element),
@@ -466,7 +471,7 @@ ns_config_getipandkeylist(cfg_obj_t *config, cfg_obj_t *list, isc_mem_t *mctx,
 		key = cfg_tuple_get(cfg_listelt_value(element), "key");
 
 		if (!cfg_obj_issockaddr(addr)) {
-			char *listname = cfg_obj_asstring(addr);
+			const char *listname = cfg_obj_asstring(addr);
 			isc_result_t tresult;
 
 			/* Grow lists? */
@@ -606,9 +611,9 @@ ns_config_getipandkeylist(cfg_obj_t *config, cfg_obj_t *list, isc_mem_t *mctx,
 			if (new == NULL)
 				goto cleanup;
 			memcpy(new, addrs, newsize);
-			isc_mem_put(mctx, addrs, oldsize);
 		} else
 			new = NULL;
+		isc_mem_put(mctx, addrs, oldsize);
 		addrs = new;
 		addrcount = i;
 
@@ -619,9 +624,9 @@ ns_config_getipandkeylist(cfg_obj_t *config, cfg_obj_t *list, isc_mem_t *mctx,
 			if (new == NULL)
 				goto cleanup;
 			memcpy(new, keys,  newsize);
-			isc_mem_put(mctx, keys, oldsize);
 		} else
 			new = NULL;
+		isc_mem_put(mctx, keys, oldsize);
 		keys = new;
 		keycount = i;
 	}
@@ -682,10 +687,10 @@ ns_config_putipandkeylist(isc_mem_t *mctx, isc_sockaddr_t **addrsp,
 }
 
 isc_result_t
-ns_config_getport(cfg_obj_t *config, in_port_t *portp) {
-	cfg_obj_t *maps[3];
-	cfg_obj_t *options = NULL;
-	cfg_obj_t *portobj = NULL;
+ns_config_getport(const cfg_obj_t *config, in_port_t *portp) {
+	const cfg_obj_t *maps[3];
+	const cfg_obj_t *options = NULL;
+	const cfg_obj_t *portobj = NULL;
 	isc_result_t result;
 	int i;
 

@@ -13,14 +13,17 @@
 .\" OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
 .\" PERFORMANCE OF THIS SOFTWARE.
 .\"
-.\" $Id: rndc.8,v 1.24.206.5 2005/10/13 02:33:49 marka Exp $
+.\" $Id: rndc.8,v 1.24.206.6 2006/06/29 13:02:30 marka Exp $
 .\"
 .hy 0
 .ad l
-.\" ** You probably do not want to edit this file directly **
-.\" It was generated using the DocBook XSL Stylesheets (version 1.69.1).
-.\" Instead of manually editing it, you probably should edit the DocBook XML
-.\" source for it and then use the DocBook XSL Stylesheets to regenerate it.
+.\"     Title: rndc
+.\"    Author: 
+.\" Generator: DocBook XSL Stylesheets v1.70.1 <http://docbook.sf.net/>
+.\"      Date: June 30, 2000
+.\"    Manual: BIND9
+.\"    Source: BIND9
+.\"
 .TH "RNDC" "8" "June 30, 2000" "BIND9" "BIND9"
 .\" disable hyphenation
 .nh
@@ -50,13 +53,13 @@ named the only supported authentication algorithm is HMAC\-MD5, which uses a sha
 \fBrndc\fR
 reads a configuration file to determine how to contact the name server and decide what algorithm and key it should use.
 .SH "OPTIONS"
-.TP
+.TP 3n
 \-c \fIconfig\-file\fR
 Use
 \fIconfig\-file\fR
 as the configuration file instead of the default,
 \fI/etc/rndc.conf\fR.
-.TP
+.TP 3n
 \-k \fIkey\-file\fR
 Use
 \fIkey\-file\fR
@@ -66,20 +69,20 @@ as the key file instead of the default,
 will be used to authenticate commands sent to the server if the
 \fIconfig\-file\fR
 does not exist.
-.TP
+.TP 3n
 \-s \fIserver\fR
 \fIserver\fR
 is the name or address of the server which matches a server statement in the configuration file for
 \fBrndc\fR. If no server is supplied on the command line, the host named by the default\-server clause in the option statement of the configuration file will be used.
-.TP
+.TP 3n
 \-p \fIport\fR
 Send commands to TCP port
 \fIport\fR
 instead of BIND 9's default control channel port, 953.
-.TP
+.TP 3n
 \-V
 Enable verbose logging.
-.TP
+.TP 3n
 \-y \fIkeyid\fR
 Use the key
 \fIkeyid\fR
@@ -111,8 +114,11 @@ Several error messages could be clearer.
 .PP
 \fBrndc.conf\fR(5),
 \fBnamed\fR(8),
-\fBnamed.conf\fR(5)\fBndc\fR(8),
+\fBnamed.conf\fR(5)
+\fBndc\fR(8),
 BIND 9 Administrator Reference Manual.
 .SH "AUTHOR"
 .PP
 Internet Systems Consortium
+.SH "COPYRIGHT"
+Copyright \(co 2004, 2005 Internet Systems Consortium, Inc. ("ISC")

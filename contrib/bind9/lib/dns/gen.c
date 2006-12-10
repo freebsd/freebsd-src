@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2004  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004, 2006  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 1998-2003  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and distribute this software for any
@@ -15,9 +15,14 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: gen.c,v 1.65.2.5.2.6 2004/03/15 01:02:54 marka Exp $ */
+/* $Id: gen.c,v 1.65.2.5.2.9 2006/10/02 06:31:26 marka Exp $ */
 
-#include <config.h>
+#ifdef WIN32
+/*
+ * Silence compiler warnings about using strcpy and friends.
+ */
+#define _CRT_SECURE_NO_DEPRECATE 1
+#endif
 
 #include <sys/types.h>
 

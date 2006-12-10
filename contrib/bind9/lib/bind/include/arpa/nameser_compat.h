@@ -32,7 +32,7 @@
 
 /*
  *      from nameser.h	8.1 (Berkeley) 6/2/93
- *	$Id: nameser_compat.h,v 1.1.2.3.4.2 2004/07/01 04:43:41 marka Exp $
+ *	$Id: nameser_compat.h,v 1.1.2.3.4.3 2006/05/19 02:38:15 marka Exp $
  */
 
 #ifndef _ARPA_NAMESER_COMPAT_
@@ -52,8 +52,9 @@
 #define	PDP_ENDIAN	3412	/* LSB first in word, MSW first in long (pdp)*/
 
 #if defined(vax) || defined(ns32000) || defined(sun386) || defined(i386) || \
-    defined(MIPSEL) || defined(_MIPSEL) || defined(BIT_ZERO_ON_RIGHT) || \
-    defined(__alpha__) || defined(__alpha) || \
+    defined(__i386__) || defined(__i386) || defined(__amd64__) || \
+    defined(__x86_64__) || defined(MIPSEL) || defined(_MIPSEL) || \
+    defined(BIT_ZERO_ON_RIGHT) || defined(__alpha__) || defined(__alpha) || \
     (defined(__Lynx__) && defined(__x86__))
 #define BYTE_ORDER	LITTLE_ENDIAN
 #endif

@@ -1,5 +1,37 @@
 
-	--- 9.3.2-P2 released ---
+	--- 9.3.3 released ---
+
+2107.	[bug]		dighost.c: more cleanup of buffers. [RT #16499]
+
+2104.	[port]		Fix Solaris SMF error message.
+
+2103.	[port]		Add /usr/sfw to list of locations for OpenSSL
+			under Solaris.
+
+2102.	[port]		Silence solaris 10 warnings.
+
+2101.	[bug]		OpenSSL version checks were not quite right.
+			[RT #16476]
+
+2100.	[port]		win32: copy libeay32.dll to Build\Debug.
+
+2099.	[port]		win32: more manifiest issues.
+
+	--- 9.3.3rc3 released ---
+
+2096.	[bug]		libbind: handle applications that fail to detect
+			res_init() failures better.
+
+2095.	[port]		libbind: alway prototype inet_cidr_ntop_ipv6() and
+			net_cidr_ntop_ipv6(). [RT #16388]
+ 
+2094.	[contrib]	Update named-bootconf.  [RT# 16404]
+
+2092.	[bug]		win32: dig, host, nslookup.  Use registry config
+			if resolv.conf does not exist or no nameservers
+			listed. [RT #15877] 
+
+2091.	[port]		dighost.c: race condition on cleanup. [RT #16417]
 
 2090.	[port]		win32: Visual C++ 2005 command line manifest support.
 			[RT #16417]
@@ -12,14 +44,306 @@
 2088.	[security]	Change the default RSA exponent from 3 to 65537.
 			[RT #16391]
 
+2086.	[port]		libbind: FreeBSD now has get*by*_r() functions.
+			[RT #16403]
+
+2085.	[doc]		win32: added index.html and README to zip. [RT #16201]
+
+2084.	[contrib]	dbus update for 9.3.3rc2.
+
 2083.	[port]		win32: Visual C++ 2005 support.
 
-	--- 9.3.2-P1 released ---
+2082.	[doc]		Document 'cache-file' as a test only option.
+
+	--- 9.3.3rc2 released ---
+
+2081.	[port]		libbind: minor 64-bit portability fix in memcluster.c.
+			[RT #16360]
+
+2080.	[port]		libbind: res_init.c did not compile on older versions
+			of Solaris. [RT #16363]
+
+2076.	[bug]		Several files were missing #include <config.h>
+			causing build failures on OSF. [RT #16341]
+
+2074.	[bug]		dns_request_createvia2(), dns_request_createvia3(),
+			dns_request_createraw2() and dns_request_createraw3()
+			failed to send multiple UDP requests. [RT #16349]
 
 2066.	[security]	Handle SIG queries gracefully. [RT #16300]
 
+	--- 9.3.3rc1 released ---
+
+2071.	[port]		Test whether gcc accepts -fno-strict-aliasing.
+			[RT #16324]
+
+2070.	[bug]		The remote address was not always displayed when
+			reporting dispatch failures. [RT #16315]
+
+2069.	[bug]		Cross compiling was not working. [RT #16330]
+
+2067.	[bug]		'rndc' could close the socket too early triggering
+			a INSIST under Windows. [RT #16317]
+
+2065.	[bug]		libbind: probe for HPUX prototypes for
+			endprotoent_r() and endservent_r().  [RT 16313]
+
+2064.	[bug]		libbind: silence AIX compiler warnings. [RT #16218]
+
+2063.	[bug]		Change #1955 introduced a bug which caused the first
+			'rndc flush' call to not free memory. [RT #16244]
+
+2062.	[bug]		'dig +nssearch' was reusing a buffer before it had
+			been returned by the socket code. [RT #16307]
+
+2057.	[bug]		Make setting "ra" dependent on both allow-query and
+			allow-recursion. [RT #16290]
+
+2056.	[bug]		dig: ixfr= was not being treated case insensitively
+			at all times. [RT #15955]
+
+2055.	[bug]		Missing goto after dropping multicast query.
+			[RT #15944]
+
+2054.	[port]		freebsd: do not explicitly link against -lpthread.
+			[RT #16170]
+
+2053.	[port]		netbsd:libbind: silence compiler warnings. [RT #16220]
+
+2052.	[bug]		'rndc' improve connect failed message to report
+			the failing address. [RT #15978]
+
+2051.	[port]		More strtol() fixes. [RT #16249]
+
+2050.	[bug]		Parsing of NSAP records was not case insensitive.
+			[RT #16287]
+
+2049.	[bug]		Restore SOA before AXFR when falling back from
+			a attempted IXFR when transfering in a zone.
+			Allow a initial SOA query before attempting
+			a AXFR to be requested. [RT #16156]
+
+2048.	[bug]		It was possible to loop forever when using
+			avoid-v4-udp-ports / avoid-v6-udp-ports when
+			the OS always returned the same local port.
+			[RT #16182]
+
+2047.	[bug]		Failed to initialise the interface flags to zero.
+			[RT #16245]
+
+2043.	[port]		nsupdate/nslookup: Force the flushing of the prompt
+			for interactive sessions. [RT#16148]
+
+2038.	[bug]		dig/nslookup/host was unlinking from wrong list
+			when handling errors. [RT #16122]
+
+2037.	[func]		When unlinking the first or last element in a list
+			check that the list head points to the element to
+			be unlinked. [RT #15959]
+
+2036.	[bug]		'rndc recursing' could cause trigger a REQUIRE.
+			[RT #16075]
+
+2034.	[bug]		gcc: set -fno-strict-aliasing. [RT #16124]
+
+	--- 9.3.3b1 released ---
+
+2031.	[bug]		Emit a error message when "rndc refresh" is called on
+			a non slave/stub zone. [RT # 16073]
+
+2030.	[bug]		We were being overly conservative when disabling
+			openssl engine support. [RT #16030]
+
+2029.	[bug]		host printed out the server multiple times when
+			specified on the command line. [RT #15992]
+
+2028.	[port]		linux: socket.c compatability for old systems.
+			[RT #16015]
+
+2027.	[port]		libbind: Solaris x86 support. [RT #16020]
+
+2026.	[bug]		Rate limit the two recursive client exceeded messages.
+			[RT #16044]
+
+2024.	[bug]		named emited spurious "zone serial unchanged"
+			messages on reload. [RT #16027]
+
+2023.	[bug]		"make install" should create ${localstatedir}/run and
+			${sysconfdir} if they do not exist. [RT #16033]
+
+2016.	[bug]		Return a partial answer if recursion is not
+			allowed but requested and we had the answer
+			to the original qname. [RT #15945]
+
+2013.	[bug]		Handle unexpected TSIGs on unsigned AXFR/IXFR
+			responses more gracefully. [RT #15941]
+
+2009.	[bug]		libbind: coverity fixes. [RT #15808]
+
+2005.	[bug]		libbind: Retransmission timeouts should be
+			based on which attempt it is to the nameserver
+			and not the nameserver itself. [RT #13548]
+
+2004.	[bug]		dns_tsig_sign() could pass a NULL pointer to
+			dst_context_destroy() when cleaning up after a
+			error. [RT #15835]
+
+2003.	[bug]		libbind: The DNS name/address lookup functions could
+			occasionally follow a random pointer due to
+			structures not being completely zeroed. [RT #15806]
+
+2002.	[bug]		libbind: tighten the constraints on when
+			struct addrinfo._ai_pad exists.  [RT #15783]
+
+2000.	[bug]		memmove()/strtol() fix was incomplete. [RT #15812]
+
+1998.	[bug]		Restrict handling of fifos as sockets to just SunOS.
+			This allows named to connect to entropy gathering
+			daemons that use fifos instead of sockets. [RT #15840]
+
+1997.	[bug]		Named was failing to replace negative cache entries
+			when a positive one for the type was learnt.
+			[RT #15818]
+
+1995.	[bug]		'host' was reporting multiple "is an alias" messages.
+			[RT #15702]
+
+1994.	[port]		OpenSSL 0.9.8 support. [RT #15694]
+
+1993.	[bug]		Log messsage, via syslog, were missing the space
+			after the timestamp if "print-time yes" was specified.
+			[RT #15844]
+
+1991.	[cleanup]	The configuration data, once read, should be treated
+			as readonly.  Expand the use of const to enforce this
+			at compile time. [RT #15813]
+
+1990.	[bug]		libbind:  isc's override of broken gettimeofday()
+			implementions was not always effective.
+			[RT #15709]
+
+1989.	[bug]		win32: don't check the service password when
+			re-installing. [RT #15882]
+
+1985.	[protocol]	DLV has now been assigned a official type code of
+			32769. [RT #15807]
+
+			Note: care should be taken to ensure you upgrade
+			both named and dnssec-signzone at the same time for
+			zones with DLV records where named is the master
+			server for the zone.  Also any zones that contain
+			DLV records should be removed when upgrading a slave
+			zone.  You do not however have to upgrade all
+			servers for a zone with DLV records simultaniously.
+
+1982.	[bug]		DNSKEY was being accepted on the parent side of
+			a delegation.  KEY is still accepted there for
+			RFC 3007 validated updates. [RT #15620]
+
+1981.	[bug]		win32: condition.c:wait() could fail to reattain
+			the mutex lock.
+
+1979.	[port]		linux: allow named to drop core after changing
+			user ids. [RT #15753]
+
+1978.	[port]		Handle systems which have a broken recvmsg().
+			[RT #15742]
+
+1977.	[bug]		Silence noisy log message. [RT #15704]
+
+1976.	[bug]		Handle systems with no IPv4 addresses. [RT #15695]
+
+1975.	[bug]		libbind: isc_gethexstring() could misparse multi-line
+			hex strings with comments. [RT #15814]
+
+1974.	[doc]		List each of the zone types and associated zone
+			options seperately in the ARM.
+
+1972.	[contrib]	DBUS dynamic forwarders integation from
+			Jason Vas Dias <jvdias@redhat.com>.
+
+1971.	[port]		linux: make detection of missing IF_NAMESIZE more
+			robust. [RT #15443]
+
+1970.	[bug]		nsupdate: adjust UDP timeout when falling back to
+			unsigned SOA query. [RT #15775]
+
+1969.	[bug]		win32: the socket code was freeing the socket
+			structure too early. [RT #15776]
+
+1968.	[bug]		Missing lock in resolver.c:validated(). [RT #15739]
+
+1966.	[bug]		Don't set CD when we have fallen back to plain DNS.
+			[RT #15727]
+
+1963.	[port]		Tru64 4.0E doesn't support send() and recv(). 
+			[RT #15586]
+
+1962.	[bug]		Named failed to clear old update-policy when it
+			was removed. [RT #15491]
+
+1961.	[bug]		Check the port and address of responses forwarded
+			to dispatch. [RT #15474]
+
+1960.	[bug]		Update code should set NSEC ttls from SOA MINIMUM.
+			[RT #15465]
+
+1958.	[bug]		Named failed to update the zone's secure state
+			until the zone was reloaded. [RT #15412]
+
+1957.	[bug]		Dig mishandled responses to class ANY queries.
+			[RT #15402]
+
+1956.	[bug]		Improve cross compile support, 'gen' is now built
+			by native compiler.  See README for additional
+			cross compile support information. [RT #15148]
+
+1955.	[bug]		Pre-allocate the cache cleaning interator. [RT #14998]
+
+1952.	[port]		hpux: tell the linker to build a runtime link
+			path "-Wl,+b:". [RT #14816].
+
+1951.	[security]	Drop queries from particular well known ports.
+			Don't return FORMERR to queries from particular
+			well known ports.  [RT #15636]
+			
+1950.	[port]		Solaris 2.5.1 and earlier cannot bind() then connect()
+			a TCP socket. This prevents the source address being
+			set for TCP connections. [RT #15628]
+
+1948.	[bug]		If was possible to trigger a REQUIRE failure in
+			xfrin.c:maybe_free() if named ran out of memory.
+			[RT #15568]
+
+1946.	[bug]		resume_dslookup() could trigger a REQUIRE failure
+			when using forwarders. [RT #15549]
+
+1944.	[cleanup]	isc_hash_create() does not need a read/write lock.
+			[RT #15522]
+
+1943.	[bug]		Set the loadtime after rolling forward the journal.
+			[RT #15647]
+
+1942.	[bug]		If the name of a DNSKEY match that of one in
+			trusted-keys do not attempt to validate the DNSKEY
+			using the parents DS RRset. [RT #15649]
+
 1941.	[bug]		ncache_adderesult() should set eresult even if no
 			rdataset is passed to it. [RT #15642]
+
+1940.	[bug]		Fixed a number of error conditions reported by
+			Coverity.
+
+1939.	[bug]           The resolver could dereference a null pointer after
+			validation if all the queries have timed out.
+			[RT #15528]
+
+1938.	[bug]		The validator was not correctly handling unsecure
+			negative responses at or below a SEP. [RT #15528]
+
+1919.	[contrib]	queryperf: a set of new features: collecting/printing
+			response delays, printing intermediate results, and
+			adjusting query rate for the "target" qps.
 
 	--- 9.3.2 released ---
 
@@ -338,14 +662,14 @@
 
 1779.	[port]		OSF 5.1: libtool didn't handle -pthread correctly.
 
-1778.   [port]   	HUX 11.11: fix broken IN6ADDR_ANY_INIT and
+1778.	[port]		HUX 11.11: fix broken IN6ADDR_ANY_INIT and
 			IN6ADDR_LOOPBACK_INIT macros.
 
-1777.   [port]   	OSF 5.1: fix broken IN6ADDR_ANY_INIT and
+1777.	[port]		OSF 5.1: fix broken IN6ADDR_ANY_INIT and
 			IN6ADDR_LOOPBACK_INIT macros.
 
-1776.   [port]   	Solaris 2.9: fix broken IN6ADDR_ANY_INIT and
-                        IN6ADDR_LOOPBACK_INIT macros.
+1776.	[port]		Solaris 2.9: fix broken IN6ADDR_ANY_INIT and
+			IN6ADDR_LOOPBACK_INIT macros.
 
 1775.	[bug]		Only compile getnetent_r.c when threaded. [RT #13205]
 
@@ -1188,8 +1512,8 @@
 
 1414.	[func]		Support for KSK flag.
 
-1413.	[func]		Explictly request the (re-)generation of DS records from
-			keysets (dnssec-signzone -g).
+1413.	[func]		Explicitly request the (re-)generation of DS records
+			from keysets (dnssec-signzone -g).
 
 1412.	[func]		You can now specify servers to be tried if a nameserver
 			has IPv6 address and you only support IPv4 or the
@@ -5586,7 +5910,7 @@
 			<isc/bufferlist.h>, <isc/task.h>, <isc/mem.h> or
 			<isc/net.h>.
 
- 119.	[cleanup]	structure definitions for generic rdata stuctures do
+ 119.	[cleanup]	structure definitions for generic rdata structures do
 			not have _generic_ in their names.
 
  118.	[cleanup]	libdns.a is now namespace-clean, on NetBSD, excepting
