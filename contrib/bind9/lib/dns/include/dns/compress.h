@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2004  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004, 2006  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 1999-2002  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and distribute this software for any
@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: compress.h,v 1.29.2.2.8.1 2004/03/06 08:13:51 marka Exp $ */
+/* $Id: compress.h,v 1.29.2.2.8.3 2006/03/02 00:37:20 marka Exp $ */
 
 #ifndef DNS_COMPRESS_H
 #define DNS_COMPRESS_H 1
@@ -136,7 +136,7 @@ dns_compress_getedns(dns_compress_t *cctx);
  */
 
 isc_boolean_t
-dns_compress_findglobal(dns_compress_t *cctx, dns_name_t *name,
+dns_compress_findglobal(dns_compress_t *cctx, const dns_name_t *name,
 			dns_name_t *prefix, isc_uint16_t *offset);
 /*
  *	Finds longest possible match of 'name' in the global compression table.
@@ -155,8 +155,8 @@ dns_compress_findglobal(dns_compress_t *cctx, dns_name_t *name,
  */
 
 void
-dns_compress_add(dns_compress_t *cctx, dns_name_t *name, dns_name_t *prefix,
-		 isc_uint16_t offset);
+dns_compress_add(dns_compress_t *cctx, const dns_name_t *name,
+		 const dns_name_t *prefix, isc_uint16_t offset);
 /*
  *	Add compression pointers for 'name' to the compression table,
  *	not replacing existing pointers.

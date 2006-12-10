@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2004, 2005  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004-2006  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 2000-2003  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and distribute this software for any
@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: host.c,v 1.76.2.5.2.13 2005/07/04 03:29:45 marka Exp $ */
+/* $Id: host.c,v 1.76.2.5.2.16 2006/05/23 04:43:47 marka Exp $ */
 
 #include <config.h>
 #include <limits.h>
@@ -37,6 +37,7 @@
 #include <dns/rdataclass.h>
 #include <dns/rdataset.h>
 #include <dns/rdatatype.h>
+#include <dns/rdatastruct.h>
 
 #include <dig/dig.h>
 
@@ -45,6 +46,7 @@ static isc_boolean_t default_lookups = ISC_TRUE;
 static int seen_error = -1;
 static isc_boolean_t list_addresses = ISC_TRUE;
 static dns_rdatatype_t list_type = dns_rdatatype_a;
+static isc_boolean_t printed_server = ISC_FALSE;
 
 static const char *opcodetext[] = {
 	"QUERY",
@@ -351,6 +353,32 @@ printrdata(dns_message_t *msg, dns_rdataset_t *rdataset, dns_name_t *owner,
 	return (ISC_R_SUCCESS);
 }
 
+static void
+chase_cnamechain(dns_message_t *msg, dns_name_t *qname) {
+	isc_result_t result;
+	dns_rdataset_t *rdataset;
+	dns_rdata_cname_t cname;
+	dns_rdata_t rdata = DNS_RDATA_INIT;
+	unsigned int i = msg->counts[DNS_SECTION_ANSWER];
+
+ 	while (i-- > 0) {
+		rdataset = NULL;
+		result = dns_message_findname(msg, DNS_SECTION_ANSWER, qname,
+					      dns_rdatatype_cname, 0, NULL,
+					      &rdataset);
+		if (result != ISC_R_SUCCESS)
+			return;
+		result = dns_rdataset_first(rdataset);
+		check_result(result, "dns_rdataset_first");
+		dns_rdata_reset(&rdata);
+		dns_rdataset_current(rdataset, &rdata);
+		result = dns_rdata_tostruct(&rdata, &cname, NULL);
+		check_result(result, "dns_rdata_tostruct");
+		dns_name_copy(&cname.cname, qname, NULL);
+		dns_rdata_freestruct(&cname);
+	}
+}
+
 isc_result_t
 printmessage(dig_query_t *query, dns_message_t *msg, isc_boolean_t headers) {
 	isc_boolean_t did_flag = ISC_FALSE;
@@ -367,7 +395,7 @@ printmessage(dig_query_t *query, dns_message_t *msg, isc_boolean_t headers) {
 	 */
 	force_error = (seen_error == 1) ? 1 : 0;
 	seen_error = 1;
-	if (listed_server) {
+	if (listed_server && !printed_server) {
 		char sockstr[ISC_SOCKADDR_FORMATSIZE];
 
 		printf("Using domain server:\n");
@@ -376,6 +404,7 @@ printmessage(dig_query_t *query, dns_message_t *msg, isc_boolean_t headers) {
 				    sizeof(sockstr));
 		printf("Address: %s\n", sockstr);
 		printf("Aliases: \n\n");
+		printed_server = ISC_TRUE;
 	}
 
 	if (msg->rcode != 0) {
@@ -389,10 +418,15 @@ printmessage(dig_query_t *query, dns_message_t *msg, isc_boolean_t headers) {
 	if (default_lookups && query->lookup->rdtype == dns_rdatatype_a) {
 		char namestr[DNS_NAME_FORMATSIZE];
 		dig_lookup_t *lookup;
+		dns_fixedname_t fixed;
+		dns_name_t *name;
 
 		/* Add AAAA and MX lookups. */
-
-		dns_name_format(query->lookup->name, namestr, sizeof(namestr));
+		dns_fixedname_init(&fixed);
+		name = dns_fixedname_name(&fixed);
+		dns_name_copy(query->lookup->name, name, NULL);
+		chase_cnamechain(msg, name);
+		dns_name_format(name, namestr, sizeof(namestr));
 		lookup = clone_lookup(query->lookup, ISC_FALSE);
 		if (lookup != NULL) {
 			strncpy(lookup->textname, namestr,

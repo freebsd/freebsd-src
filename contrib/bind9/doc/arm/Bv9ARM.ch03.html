@@ -1,5 +1,5 @@
 <!--
- - Copyright (C) 2004, 2005 Internet Systems Consortium, Inc. ("ISC")
+ - Copyright (C) 2004-2006 Internet Systems Consortium, Inc. ("ISC")
  - Copyright (C) 2000-2003 Internet Software Consortium.
  - 
  - Permission to use, copy, modify, and distribute this software for any
@@ -14,12 +14,12 @@
  - OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
  - PERFORMANCE OF THIS SOFTWARE.
 -->
-<!-- $Id: Bv9ARM.ch03.html,v 1.26.2.5.4.11 2005/10/13 02:33:59 marka Exp $ -->
+<!-- $Id: Bv9ARM.ch03.html,v 1.26.2.5.4.17 2006/06/29 13:02:31 marka Exp $ -->
 <html>
 <head>
 <meta http-equiv="Content-Type" content="text/html; charset=ISO-8859-1">
 <title>Chapter 3. Name Server Configuration</title>
-<meta name="generator" content="DocBook XSL Stylesheets V1.69.1">
+<meta name="generator" content="DocBook XSL Stylesheets V1.70.1">
 <link rel="start" href="Bv9ARM.html" title="BIND 9 Administrator Reference Manual">
 <link rel="up" href="Bv9ARM.html" title="BIND 9 Administrator Reference Manual">
 <link rel="prev" href="Bv9ARM.ch02.html" title="Chapter 2. BIND Resource Requirements">
@@ -47,14 +47,14 @@
 <dl>
 <dt><span class="sect1"><a href="Bv9ARM.ch03.html#sample_configuration">Sample Configurations</a></span></dt>
 <dd><dl>
-<dt><span class="sect2"><a href="Bv9ARM.ch03.html#id2547334">A Caching-only Name Server</a></span></dt>
-<dt><span class="sect2"><a href="Bv9ARM.ch03.html#id2547350">An Authoritative-only Name Server</a></span></dt>
+<dt><span class="sect2"><a href="Bv9ARM.ch03.html#id2571026">A Caching-only Name Server</a></span></dt>
+<dt><span class="sect2"><a href="Bv9ARM.ch03.html#id2571042">An Authoritative-only Name Server</a></span></dt>
 </dl></dd>
-<dt><span class="sect1"><a href="Bv9ARM.ch03.html#id2547372">Load Balancing</a></span></dt>
-<dt><span class="sect1"><a href="Bv9ARM.ch03.html#id2547656">Name Server Operations</a></span></dt>
+<dt><span class="sect1"><a href="Bv9ARM.ch03.html#id2571064">Load Balancing</a></span></dt>
+<dt><span class="sect1"><a href="Bv9ARM.ch03.html#id2571484">Name Server Operations</a></span></dt>
 <dd><dl>
-<dt><span class="sect2"><a href="Bv9ARM.ch03.html#id2547661">Tools for Use With the Name Server Daemon</a></span></dt>
-<dt><span class="sect2"><a href="Bv9ARM.ch03.html#id2548915">Signals</a></span></dt>
+<dt><span class="sect2"><a href="Bv9ARM.ch03.html#id2571490">Tools for Use With the Name Server Daemon</a></span></dt>
+<dt><span class="sect2"><a href="Bv9ARM.ch03.html#id2572723">Signals</a></span></dt>
 </dl></dd>
 </dl>
 </div>
@@ -66,7 +66,7 @@ option setting.</p>
 <a name="sample_configuration"></a>Sample Configurations</h2></div></div></div>
 <div class="sect2" lang="en">
 <div class="titlepage"><div><div><h3 class="title">
-<a name="id2547334"></a>A Caching-only Name Server</h3></div></div></div>
+<a name="id2571026"></a>A Caching-only Name Server</h3></div></div></div>
 <p>The following sample configuration is appropriate for a caching-only
 name server for use by clients internal to a corporation.  All queries
 from outside clients are refused using the <span><strong class="command">allow-query</strong></span>
@@ -89,7 +89,7 @@ zone "0.0.127.in-addr.arpa" {
 </div>
 <div class="sect2" lang="en">
 <div class="titlepage"><div><div><h3 class="title">
-<a name="id2547350"></a>An Authoritative-only Name Server</h3></div></div></div>
+<a name="id2571042"></a>An Authoritative-only Name Server</h3></div></div></div>
 <p>This sample configuration is for an authoritative-only server
 that is the master server for "<code class="filename">example.com</code>"
 and a slave for the subdomain "<code class="filename">eng.example.com</code>".</p>
@@ -128,9 +128,9 @@ zone "eng.example.com" {
 </div>
 <div class="sect1" lang="en">
 <div class="titlepage"><div><div><h2 class="title" style="clear: both">
-<a name="id2547372"></a>Load Balancing</h2></div></div></div>
+<a name="id2571064"></a>Load Balancing</h2></div></div></div>
 <p>A primitive form of load balancing can be achieved in
-the <span class="acronym">DNS</span> by using multiple A records for one name.</p>
+the <acronym class="acronym">DNS</acronym> by using multiple A records for one name.</p>
 <p>For example, if you have three WWW servers with network addresses
 of 10.0.0.1, 10.0.0.2 and 10.0.0.3, a set of records such as the
 following means that clients will connect to each machine one third
@@ -174,7 +174,7 @@ of the time:</p>
 </tr>
 </tbody>
 </table></div>
-<p>When a resolver queries for these records, <span class="acronym">BIND</span> will rotate
+<p>When a resolver queries for these records, <acronym class="acronym">BIND</acronym> will rotate
     them and respond to the query with the records in a different
     order.  In the example above, clients will randomly receive
     records in the order 1, 2, 3; 2, 3, 1; and 3, 1, 2. Most clients
@@ -184,15 +184,15 @@ of the time:</p>
     <span><strong class="command">options</strong></span> statement, see
     <a href="Bv9ARM.ch06.html#rrset_ordering">RRset Ordering</a>.
     This substatement is not supported in
-    <span class="acronym">BIND</span> 9, and only the ordering scheme described above is
+    <acronym class="acronym">BIND</acronym> 9, and only the ordering scheme described above is
     available.</p>
 </div>
 <div class="sect1" lang="en">
 <div class="titlepage"><div><div><h2 class="title" style="clear: both">
-<a name="id2547656"></a>Name Server Operations</h2></div></div></div>
+<a name="id2571484"></a>Name Server Operations</h2></div></div></div>
 <div class="sect2" lang="en">
 <div class="titlepage"><div><div><h3 class="title">
-<a name="id2547661"></a>Tools for Use With the Name Server Daemon</h3></div></div></div>
+<a name="id2571490"></a>Tools for Use With the Name Server Daemon</h3></div></div></div>
 <p>There are several indispensable diagnostic, administrative
 and monitoring tools available to the system administrator for controlling
 and debugging the name server daemon. We describe several in this
@@ -237,7 +237,7 @@ and non-interactive. Interactive mode allows the user to query name servers
 for information about various hosts and domains or to print a list
 of hosts in a domain. Non-interactive mode is used to print just
 the name and requested information for a host or domain.</p>
-<div class="cmdsynopsis"><p><code class="command">nslookup</code>  [-option...] [[<em class="replaceable"><code>host-to-find</code></em>] |  [-  [server]]]</p></div>
+<div class="cmdsynopsis"><p><code class="command">nslookup</code>  [-option...] [[<em class="replaceable"><code>host-to-find</code></em>] |  [- [server]]]</p></div>
 <p>Interactive mode is entered when no arguments are given (the
 default name server will be used) or when the first argument is a
 hyphen (`-') and the second argument is the host name or Internet address
@@ -283,7 +283,7 @@ of a server.</p>
               If you run <span><strong class="command">rndc</strong></span> without any options
               it will display a usage message as follows:</p>
 <div class="cmdsynopsis"><p><code class="command">rndc</code>  [-c <em class="replaceable"><code>config</code></em>] [-s <em class="replaceable"><code>server</code></em>] [-p <em class="replaceable"><code>port</code></em>] [-y <em class="replaceable"><code>key</code></em>]  <em class="replaceable"><code>command</code></em>  [<em class="replaceable"><code>command</code></em>...]</p></div>
-<p><span><strong class="command">command</strong></span> is one of the following:</p>
+<p>The <span><strong class="command">command</strong></span> is one of the following:</p>
 <div class="variablelist"><dl>
 <dt><span class="term"><strong class="userinput"><code>reload</code></strong></span></dt>
 <dd><p>Reload configuration file and zones.</p></dd>
@@ -302,7 +302,7 @@ of a server.</p>
 <dt><span class="term"><strong class="userinput"><code>freeze [<span class="optional"><em class="replaceable"><code>zone</code></em>
        [<span class="optional"><em class="replaceable"><code>class</code></em>
            [<span class="optional"><em class="replaceable"><code>view</code></em></span>]</span>]</span>]</code></strong></span></dt>
-<dd><p>Suspend updates to a dynamic zone.  If no zone is specified
+<dd><p>Suspend updates to a dynamic zone.  If no zone is specified,
 	then all zones are suspended.  This allows manual
     edits to be made to a zone normally updated by dynamic update.  It
     also causes changes in the journal file to be synced into the master
@@ -312,14 +312,10 @@ of a server.</p>
        [<span class="optional"><em class="replaceable"><code>class</code></em>
            [<span class="optional"><em class="replaceable"><code>view</code></em></span>]</span>]</span>]</code></strong></span></dt>
 <dd><p>Enable updates to a frozen dynamic zone.  If no zone is
-    specified then all frozen zones are enabled.  This causes
+    specified, then all frozen zones are enabled.  This causes
     the server to reload the zone from disk, and re-enables dynamic updates
     after the load has completed.  After a zone is thawed, dynamic updates
     will no longer be refused.</p></dd>
-<dt><span class="term"><strong class="userinput"><code>notify <em class="replaceable"><code>zone</code></em>
-       [<span class="optional"><em class="replaceable"><code>class</code></em>
-           [<span class="optional"><em class="replaceable"><code>view</code></em></span>]</span>]</code></strong></span></dt>
-<dd><p>Resend NOTIFY messages for the zone</p></dd>
 <dt><span class="term"><strong class="userinput"><code>reconfig</code></strong></span></dt>
 <dd><p>Reload the configuration file and load new zones,
    but do not reload existing zone files even if they have changed.
@@ -337,17 +333,20 @@ of a server.</p>
    <code class="filename">named.conf</code>.</p></dd>
 <dt><span class="term"><strong class="userinput"><code>dumpdb [<span class="optional">-all|-cache|-zone</span>] [<span class="optional"><em class="replaceable"><code>view ...</code></em></span>]</code></strong></span></dt>
 <dd><p>Dump the server's caches (default) and / or zones to the
-	 dump file for the specified views.  If no view is specified all
+	 dump file for the specified views.  If no view is specified, all
 	 views are dumped.</p></dd>
 <dt><span class="term"><strong class="userinput"><code>stop [<span class="optional">-p</span>]</code></strong></span></dt>
 <dd><p>Stop the server, making sure any recent changes
    made through dynamic update or IXFR are first saved to the master files
-   of the updated zones.  If -p is specified named's process id is returned.</p></dd>
+   of the updated zones.  If -p is specified named's process id is returned.
+   This allows an external process to determine when named had completed stopping.</p></dd>
 <dt><span class="term"><strong class="userinput"><code>halt [<span class="optional">-p</span>]</code></strong></span></dt>
 <dd><p>Stop the server immediately.  Recent changes
    made through dynamic update or IXFR are not saved to the master files,
    but will be rolled forward from the journal files when the server
-   is restarted.  If -p is specified named's process id is returned.</p></dd>
+   is restarted.  If -p is specified named's process id is returned.
+   This allows an external process to determine when named had completed
+   stopping.</p></dd>
 <dt><span class="term"><strong class="userinput"><code>trace</code></strong></span></dt>
 <dd><p>Increment the servers debugging level by one. </p></dd>
 <dt><span class="term"><strong class="userinput"><code>trace <em class="replaceable"><code>level</code></em></code></strong></span></dt>
@@ -361,15 +360,15 @@ of a server.</p>
 <dd><p>Flushes the given name from the server's cache.</p></dd>
 <dt><span class="term"><strong class="userinput"><code>status</code></strong></span></dt>
 <dd><p>Display status of the server.
-Note the number of zones includes the internal <span><strong class="command">bind/CH</strong></span> zone
-and the default <span><strong class="command">./IN</strong></span> hint zone if there is not a
+Note that the number of zones includes the internal <span><strong class="command">bind/CH</strong></span> zone
+and the default <span><strong class="command">./IN</strong></span> hint zone if there is not an
 explicit root zone configured.</p></dd>
 <dt><span class="term"><strong class="userinput"><code>recursing</code></strong></span></dt>
 <dd><p>Dump the list of queries named is currently recursing
    on.
    </p></dd>
 </dl></div>
-<p>In <span class="acronym">BIND</span> 9.2, <span><strong class="command">rndc</strong></span>
+<p>In <acronym class="acronym">BIND</acronym> 9.2, <span><strong class="command">rndc</strong></span>
 supports all the commands of the BIND 8 <span><strong class="command">ndc</strong></span>
 utility except <span><strong class="command">ndc start</strong></span> and
 <span><strong class="command">ndc restart</strong></span>, which were also
@@ -386,7 +385,7 @@ option.  If the configuration file is not found,
 <span><strong class="command">rndc</strong></span> will also look in
 <code class="filename">/etc/rndc.key</code> (or whatever
 <code class="varname">sysconfdir</code> was defined when
-the <span class="acronym">BIND</span> build was configured).
+the <acronym class="acronym">BIND</acronym> build was configured).
 The <code class="filename">rndc.key</code> file is generated by
 running <span><strong class="command">rndc-confgen -a</strong></span> as described in
 <a href="Bv9ARM.ch06.html#controls_statement_definition_and_usage" title="controls Statement Definition and Usage">the section called &#8220;<span><strong class="command">controls</strong></span> Statement Definition and Usage&#8221;</a>.</p>
@@ -412,7 +411,7 @@ the name of a key as its argument, as defined by a <span><strong class="command"
 <span><strong class="command">rndc</strong></span> should connect if no
 port is given on the command line or in a
 <span><strong class="command">server</strong></span> statement.</p>
-<p>The <span><strong class="command">key</strong></span> statement defines an key to be used
+<p>The <span><strong class="command">key</strong></span> statement defines a key to be used
 by <span><strong class="command">rndc</strong></span> when authenticating with
 <span><strong class="command">named</strong></span>.  Its syntax is identical to the
 <span><strong class="command">key</strong></span> statement in named.conf.
@@ -474,7 +473,7 @@ a <code class="filename">rndc.key</code> file and not modify
 </div>
 <div class="sect2" lang="en">
 <div class="titlepage"><div><div><h3 class="title">
-<a name="id2548915"></a>Signals</h3></div></div></div>
+<a name="id2572723"></a>Signals</h3></div></div></div>
 <p>Certain UNIX signals cause the name server to take specific
 actions, as described in the following table.  These signals can
 be sent using the <span><strong class="command">kill</strong></span> command.</p>
@@ -515,7 +514,7 @@ reload the database. </p></td>
 </td>
 </tr>
 <tr>
-<td width="40%" align="left" valign="top">Chapter 2. <span class="acronym">BIND</span> Resource Requirements </td>
+<td width="40%" align="left" valign="top">Chapter 2. <acronym class="acronym">BIND</acronym> Resource Requirements </td>
 <td width="20%" align="center"><a accesskey="h" href="Bv9ARM.html">Home</a></td>
 <td width="40%" align="right" valign="top"> Chapter 4. Advanced DNS Features</td>
 </tr>

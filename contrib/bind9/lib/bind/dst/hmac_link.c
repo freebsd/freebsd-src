@@ -1,6 +1,6 @@
 #ifdef HMAC_MD5
 #ifndef LINT
-static const char rcsid[] = "$Header: /proj/cvs/prod/bind9/lib/bind/dst/hmac_link.c,v 1.2.2.1.4.1 2005/07/28 07:43:16 marka Exp $";
+static const char rcsid[] = "$Header: /proj/cvs/prod/bind9/lib/bind/dst/hmac_link.c,v 1.2.2.1.4.2 2006/03/10 00:17:21 marka Exp $";
 #endif
 /*
  * Portions Copyright (c) 1995-1998 by Trusted Information Systems, Inc.
@@ -93,6 +93,9 @@ dst_hmac_md5_sign(const int mode, DST_KEY *d_key, void **context,
 	int sign_len = 0;
 	MD5_CTX *ctx = NULL;
 
+	if (d_key == NULL || d_key->dk_KEY_struct == NULL)
+		return (-1);
+
 	if (mode & SIG_MODE_INIT) 
 		ctx = (MD5_CTX *) malloc(sizeof(*ctx));
 	else if (context)
@@ -100,8 +103,6 @@ dst_hmac_md5_sign(const int mode, DST_KEY *d_key, void **context,
 	if (ctx == NULL) 
 		return (-1);
 
-	if (d_key == NULL || d_key->dk_KEY_struct == NULL)
-		return (-1);
 	key = (HMAC_Key *) d_key->dk_KEY_struct;
 
 	if (mode & SIG_MODE_INIT) {
@@ -160,14 +161,14 @@ dst_hmac_md5_verify(const int mode, DST_KEY *d_key, void **context,
 	HMAC_Key *key;
 	MD5_CTX *ctx = NULL;
 
+	if (d_key == NULL || d_key->dk_KEY_struct == NULL)
+		return (-1);
+
 	if (mode & SIG_MODE_INIT) 
 		ctx = (MD5_CTX *) malloc(sizeof(*ctx));
 	else if (context)
 		ctx = (MD5_CTX *) *context;
 	if (ctx == NULL) 
-		return (-1);
-
-	if (d_key == NULL || d_key->dk_KEY_struct == NULL)
 		return (-1);
 
 	key = (HMAC_Key *) d_key->dk_KEY_struct;
@@ -272,7 +273,7 @@ dst_buffer_to_hmac_md5(DST_KEY *dkey, const u_char *key, const int keylen)
 
 static int
 dst_hmac_md5_key_to_file_format(const DST_KEY *dkey, char *buff,
-			    const int buff_len)
+			        const int buff_len)
 {
 	char *bp;
 	int len, b_len, i, key_len;
@@ -289,7 +290,7 @@ dst_hmac_md5_key_to_file_format(const DST_KEY *dkey, char *buff,
 	/* write file header */
 	sprintf(buff, key_file_fmt_str, KEY_FILE_FORMAT, KEY_HMAC_MD5, "HMAC");
 
-	bp = (char *) strchr(buff, '\0');
+	bp = buff + strlen(buff);
 	b_len = buff_len - (bp - buff);
 
 	memset(key, 0, HMAC_LEN);
@@ -334,9 +335,9 @@ dst_hmac_md5_key_from_file_format(DST_KEY *dkey, const char *buff,
 {
 	const char *p = buff, *eol;
 	u_char key[HMAC_LEN+1];	/* b64_pton needs more than 64 bytes do decode
-							 * it should probably be fixed rather than doing
-							 * this
-							 */
+				 * it should probably be fixed rather than doing
+				 * this
+				 */
 	u_char *tmp;
 	int key_len, len;
 
@@ -355,6 +356,8 @@ dst_hmac_md5_key_from_file_format(DST_KEY *dkey, const char *buff,
 		return (-4);
 	len = eol - p;
 	tmp = malloc(len + 2);
+	if (tmp == NULL)
+		return (-5);
 	memcpy(tmp, p, len);
 	*(tmp + len) = 0x0;
 	key_len = b64_pton((char *)tmp, key, HMAC_LEN+1);	/* see above */

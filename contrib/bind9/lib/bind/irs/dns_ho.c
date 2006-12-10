@@ -52,7 +52,7 @@
 /* BIND Id: gethnamaddr.c,v 8.15 1996/05/22 04:56:30 vixie Exp $ */
 
 #if defined(LIBC_SCCS) && !defined(lint)
-static const char rcsid[] = "$Id: dns_ho.c,v 1.5.2.7.4.6 2005/10/11 00:48:14 marka Exp $";
+static const char rcsid[] = "$Id: dns_ho.c,v 1.5.2.7.4.8 2006/03/10 00:17:21 marka Exp $";
 #endif /* LIBC_SCCS and not lint */
 
 /* Imports. */
@@ -218,8 +218,7 @@ ho_close(struct irs_ho *this) {
 	ho_minimize(this);
 	if (pvt->res && pvt->free_res)
 		(*pvt->free_res)(pvt->res);
-	if (pvt)
-		memput(pvt, sizeof *pvt);
+	memput(pvt, sizeof *pvt);
 	memput(this, sizeof *this);
 }
 
@@ -260,7 +259,7 @@ ho_byname2(struct irs_ho *this, const char *name, int af)
 		errno = ENOMEM;
 		goto cleanup;
 	}
-	memset(q, 0, sizeof(q));
+	memset(q, 0, sizeof(*q));
 
 	switch (af) {
 	case AF_INET:
@@ -352,8 +351,8 @@ ho_byaddr(struct irs_ho *this, const void *addr, int len, int af)
 		errno = ENOMEM;
 		goto cleanup;
 	}
-	memset(q, 0, sizeof(q));
-	memset(q2, 0, sizeof(q2));
+	memset(q, 0, sizeof(*q));
+	memset(q2, 0, sizeof(*q2));
 
 	if (af == AF_INET6 && len == IN6ADDRSZ &&
 	    (!memcmp(uaddr, mapped, sizeof mapped) ||
@@ -578,8 +577,8 @@ ho_addrinfo(struct irs_ho *this, const char *name, const struct addrinfo *pai)
 		errno = ENOMEM;
 		goto cleanup;
 	}
-	memset(q, 0, sizeof(q2));
-	memset(q2, 0, sizeof(q2));
+	memset(q, 0, sizeof(*q2));
+	memset(q2, 0, sizeof(*q2));
 
 	switch (pai->ai_family) {
 	case AF_UNSPEC:
@@ -649,10 +648,9 @@ ho_addrinfo(struct irs_ho *this, const char *name, const struct addrinfo *pai)
 		if (ai) {
 			querystate = RESQRY_SUCCESS;
 			cur->ai_next = ai;
-			while (cur && cur->ai_next)
+			while (cur->ai_next)
 				cur = cur->ai_next;
-		}
-		else
+		} else
 			querystate = RESQRY_FAIL;
 	}
 
@@ -948,7 +946,7 @@ gethostans(struct irs_ho *this,
 				continue;
 			}
 			if (ret_aip) { /* need addrinfo. keep it. */
-				while (cur && cur->ai_next)
+				while (cur->ai_next)
 					cur = cur->ai_next;
 			} else if (cur->ai_next) { /* need hostent */
 				struct addrinfo *aip = cur->ai_next;

@@ -49,7 +49,7 @@
  */
 
 #if defined(LIBC_SCCS) && !defined(lint)
-static const char rcsid[] = "$Id: lcl_pr.c,v 1.1.206.1 2004/03/09 08:33:38 marka Exp $";
+static const char rcsid[] = "$Id: lcl_pr.c,v 1.1.206.2 2006/03/10 00:17:21 marka Exp $";
 #endif /* LIBC_SCCS and not lint */
 
 /* extern */
@@ -85,6 +85,7 @@ static const char rcsid[] = "$Id: lcl_pr.c,v 1.1.206.1 2004/03/09 08:33:38 marka
 struct pvt {
 	FILE *		fp;
 	char		line[BUFSIZ+1];
+	char *		dbuf;
 	struct protoent	proto;
 	char *		proto_aliases[MAXALIASES];
 };
@@ -141,6 +142,8 @@ pr_close(struct irs_pr *this) {
 
 	if (pvt->fp)
 		(void) fclose(pvt->fp);
+	if (pvt->dbuf)
+		free(pvt->dbuf);
 	memput(pvt, sizeof *pvt);
 	memput(this, sizeof *this);
 }
@@ -202,6 +205,10 @@ pr_next(struct irs_pr *this) {
 		pr_rewind(this);
 	if (!pvt->fp)
 		return (NULL);
+	if (pvt->dbuf) {
+		free(pvt->dbuf);
+		pvt->dbuf = NULL;
+	}
 	bufp = pvt->line;
 	bufsiz = BUFSIZ;
 	offset = 0;
@@ -270,6 +277,7 @@ pr_next(struct irs_pr *this) {
 		}
 	}
 	*q = NULL;
+	pvt->dbuf = dbuf;
 	return (&pvt->proto);
 }
 

@@ -13,14 +13,17 @@
 .\" OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
 .\" PERFORMANCE OF THIS SOFTWARE.
 .\"
-.\" $Id: lwres_buffer.3,v 1.12.2.1.8.5 2005/10/13 02:33:58 marka Exp $
+.\" $Id: lwres_buffer.3,v 1.12.2.1.8.6 2006/06/29 13:02:31 marka Exp $
 .\"
 .hy 0
 .ad l
-.\" ** You probably do not want to edit this file directly **
-.\" It was generated using the DocBook XSL Stylesheets (version 1.69.1).
-.\" Instead of manually editing it, you probably should edit the DocBook XML
-.\" source for it and then use the DocBook XSL Stylesheets to regenerate it.
+.\"     Title: lwres_buffer
+.\"    Author: 
+.\" Generator: DocBook XSL Stylesheets v1.70.1 <http://docbook.sf.net/>
+.\"      Date: Jun 30, 2000
+.\"    Manual: BIND9
+.\"    Source: BIND9
+.\"
 .TH "LWRES_BUFFER" "3" "Jun 30, 2000" "BIND9" "BIND9"
 .\" disable hyphenation
 .nh
@@ -33,37 +36,37 @@ lwres_buffer_init, lwres_buffer_invalidate, lwres_buffer_add, lwres_buffer_subtr
 #include <lwres/lwbuffer.h>
 .fi
 .HP 23
-\fBvoid\ \fBlwres_buffer_init\fR\fR\fB(\fR\fBlwres_buffer_t\ *b\fR\fB, \fR\fBvoid\ *base\fR\fB, \fR\fBunsigned\ int\ length\fR\fB);\fR
+.BI "void lwres_buffer_init(lwres_buffer_t\ *b, void\ *base, unsigned\ int\ length);"
 .HP 29
-\fBvoid\ \fBlwres_buffer_invalidate\fR\fR\fB(\fR\fBlwres_buffer_t\ *b\fR\fB);\fR
+.BI "void lwres_buffer_invalidate(lwres_buffer_t\ *b);"
 .HP 22
-\fBvoid\ \fBlwres_buffer_add\fR\fR\fB(\fR\fBlwres_buffer_t\ *b\fR\fB, \fR\fBunsigned\ int\ n\fR\fB);\fR
+.BI "void lwres_buffer_add(lwres_buffer_t\ *b, unsigned\ int\ n);"
 .HP 27
-\fBvoid\ \fBlwres_buffer_subtract\fR\fR\fB(\fR\fBlwres_buffer_t\ *b\fR\fB, \fR\fBunsigned\ int\ n\fR\fB);\fR
+.BI "void lwres_buffer_subtract(lwres_buffer_t\ *b, unsigned\ int\ n);"
 .HP 24
-\fBvoid\ \fBlwres_buffer_clear\fR\fR\fB(\fR\fBlwres_buffer_t\ *b\fR\fB);\fR
+.BI "void lwres_buffer_clear(lwres_buffer_t\ *b);"
 .HP 24
-\fBvoid\ \fBlwres_buffer_first\fR\fR\fB(\fR\fBlwres_buffer_t\ *b\fR\fB);\fR
+.BI "void lwres_buffer_first(lwres_buffer_t\ *b);"
 .HP 26
-\fBvoid\ \fBlwres_buffer_forward\fR\fR\fB(\fR\fBlwres_buffer_t\ *b\fR\fB, \fR\fBunsigned\ int\ n\fR\fB);\fR
+.BI "void lwres_buffer_forward(lwres_buffer_t\ *b, unsigned\ int\ n);"
 .HP 23
-\fBvoid\ \fBlwres_buffer_back\fR\fR\fB(\fR\fBlwres_buffer_t\ *b\fR\fB, \fR\fBunsigned\ int\ n\fR\fB);\fR
+.BI "void lwres_buffer_back(lwres_buffer_t\ *b, unsigned\ int\ n);"
 .HP 36
-\fBlwres_uint8_t\ \fBlwres_buffer_getuint8\fR\fR\fB(\fR\fBlwres_buffer_t\ *b\fR\fB);\fR
+.BI "lwres_uint8_t lwres_buffer_getuint8(lwres_buffer_t\ *b);"
 .HP 27
-\fBvoid\ \fBlwres_buffer_putuint8\fR\fR\fB(\fR\fBlwres_buffer_t\ *b\fR\fB, \fR\fBlwres_uint8_t\ val\fR\fB);\fR
+.BI "void lwres_buffer_putuint8(lwres_buffer_t\ *b, lwres_uint8_t\ val);"
 .HP 38
-\fBlwres_uint16_t\ \fBlwres_buffer_getuint16\fR\fR\fB(\fR\fBlwres_buffer_t\ *b\fR\fB);\fR
+.BI "lwres_uint16_t lwres_buffer_getuint16(lwres_buffer_t\ *b);"
 .HP 28
-\fBvoid\ \fBlwres_buffer_putuint16\fR\fR\fB(\fR\fBlwres_buffer_t\ *b\fR\fB, \fR\fBlwres_uint16_t\ val\fR\fB);\fR
+.BI "void lwres_buffer_putuint16(lwres_buffer_t\ *b, lwres_uint16_t\ val);"
 .HP 38
-\fBlwres_uint32_t\ \fBlwres_buffer_getuint32\fR\fR\fB(\fR\fBlwres_buffer_t\ *b\fR\fB);\fR
+.BI "lwres_uint32_t lwres_buffer_getuint32(lwres_buffer_t\ *b);"
 .HP 28
-\fBvoid\ \fBlwres_buffer_putuint32\fR\fR\fB(\fR\fBlwres_buffer_t\ *b\fR\fB, \fR\fBlwres_uint32_t\ val\fR\fB);\fR
+.BI "void lwres_buffer_putuint32(lwres_buffer_t\ *b, lwres_uint32_t\ val);"
 .HP 25
-\fBvoid\ \fBlwres_buffer_putmem\fR\fR\fB(\fR\fBlwres_buffer_t\ *b\fR\fB, \fR\fBconst\ unsigned\ char\ *base\fR\fB, \fR\fBunsigned\ int\ length\fR\fB);\fR
+.BI "void lwres_buffer_putmem(lwres_buffer_t\ *b, const\ unsigned\ char\ *base, unsigned\ int\ length);"
 .HP 25
-\fBvoid\ \fBlwres_buffer_getmem\fR\fR\fB(\fR\fBlwres_buffer_t\ *b\fR\fB, \fR\fBunsigned\ char\ *base\fR\fB, \fR\fBunsigned\ int\ length\fR\fB);\fR
+.BI "void lwres_buffer_getmem(lwres_buffer_t\ *b, unsigned\ char\ *base, unsigned\ int\ length);"
 .SH "DESCRIPTION"
 .PP
 These functions provide bounds checked access to a region of memory where data is being read or written. They are based on, and similar to, the
@@ -89,6 +92,8 @@ The
 \fIactive region\fR
 is an (optional) subregion of the remaining region. It extends from the current offset to an offset in the remaining region. Initially, the active region is empty. If the current offset advances beyond the chosen offset, the active region will also be empty.
 .PP
+.sp
+.RS 3n
 .nf
    /\-\-\-\-\-\-\-\-\-\-\-\-entire length\-\-\-\-\-\-\-\-\-\-\-\-\-\-\-\\\\
    /\-\-\-\-\- used region \-\-\-\-\-\\\\/\-\- available \-\-\\\\
@@ -107,11 +112,13 @@ is an (optional) subregion of the remaining region. It extends from the current 
   b\-d == remaining region.
   b\-c == optional active region.
 .fi
+.RE
 .sp
 .PP
 \fBlwres_buffer_init()\fR
 initializes the
-\fBlwres_buffer_t\fR\fI*b\fR
+\fBlwres_buffer_t\fR
+\fI*b\fR
 and assocates it with the memory region of size
 \fIlength\fR
 bytes starting at location
@@ -209,3 +216,5 @@ bytes of memory from
 \fIb\fR
 to
 \fIbase\fR.
+.SH "COPYRIGHT"
+Copyright \(co 2004, 2005 Internet Systems Consortium, Inc. ("ISC")

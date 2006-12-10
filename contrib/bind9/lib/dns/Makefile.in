@@ -1,4 +1,4 @@
-# Copyright (C) 2004  Internet Systems Consortium, Inc. ("ISC")
+# Copyright (C) 2004, 2006  Internet Systems Consortium, Inc. ("ISC")
 # Copyright (C) 1998-2003  Internet Software Consortium.
 #
 # Permission to use, copy, modify, and distribute this software for any
@@ -13,7 +13,7 @@
 # OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
 # PERFORMANCE OF THIS SOFTWARE.
 
-# $Id: Makefile.in,v 1.126.2.3.2.17 2004/12/09 04:07:15 marka Exp $
+# $Id: Makefile.in,v 1.126.2.3.2.19 2006/01/06 00:01:42 marka Exp $
 
 srcdir =	@srcdir@
 VPATH =		@srcdir@
@@ -156,7 +156,8 @@ code.h:	gen
 	./gen -s ${srcdir} > code.h
 
 gen: gen.c
-	${CC} ${ALL_CFLAGS} ${LDFLAGS} -o $@ ${srcdir}/gen.c ${LIBS}
+	${BUILD_CC} ${BUILD_CFLAGS} -I${top_srcdir}/lib/isc/include \
+	${BUILD_CPPFLAGS} ${BUILD_LDFLAGS} -o $@ ${srcdir}/gen.c ${BUILD_LIBS}
 
 rbtdb64.@O@: rbtdb.c
 
