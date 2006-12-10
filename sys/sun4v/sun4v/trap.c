@@ -280,7 +280,7 @@ trap(struct trapframe *tf, int64_t type, uint64_t data)
 	td = PCPU_GET(curthread);
 
 	CTR4(KTR_TRAP, "trap: %p type=%s (%s) pil=%#lx", td,
-	    trap_msg[trap_conversion[trapno]],
+	    trap_msg[trapno],
 	    (TRAPF_USERMODE(tf) ? "user" : "kernel"), rdpr(pil));
 
 	PCPU_LAZY_INC(cnt.v_trap);
@@ -344,7 +344,7 @@ trap(struct trapframe *tf, int64_t type, uint64_t data)
 #ifdef VERBOSE
 			if (sig == 4 || sig == 10 || sig == 11)
 				printf("trap: %ld:%s: 0x%lx at 0x%lx on cpu=%d sig=%d\n", trapno, 
-				       trap_msg[trap_conversion[trapno]], data, tf->tf_tpc, curcpu, sig);
+				       trap_msg[trapno], data, tf->tf_tpc, curcpu, sig);
 #endif
 			/* XXX I've renumbered the traps to largely reflect what the hardware uses
 			 * so this will need to be re-visited
@@ -361,7 +361,8 @@ trap(struct trapframe *tf, int64_t type, uint64_t data)
 		mtx_assert(&Giant, MA_NOTOWNED);
  	} else {
 		KASSERT((type & T_KERNEL) != 0,
-		    ("trap: kernel trap isn't"));
+		    ("trap: kernel trap isn't - trap: %ld:%s: 0x%lx at 0x%lx on cpu=%d\n", 
+		     trapno, trap_msg[trapno], data, tf->tf_tpc, curcpu));
 
 #ifdef KDB
 		if (kdb_active) {
@@ -386,7 +387,7 @@ trap(struct trapframe *tf, int64_t type, uint64_t data)
 		case T_DATA_EXCEPTION:
 			printf("data exception on 0x%lx at 0x%lx\n", data, tf->tf_tpc);
 			printf("trap: %ld=%s: 0x%lx at 0x%lx:0x%lx\n", trapno, 
-			       trap_msg[trap_conversion[trapno]], data, tf->tf_tpc, tf->tf_tnpc);
+			       trap_msg[trapno], data, tf->tf_tpc, tf->tf_tnpc);
                case T_ILLEGAL_INSTRUCTION:
                        if (tf->tf_tpc > KERNBASE) {
                                printf("illinstr: 0x%lx\n", tf->tf_tpc);
@@ -423,7 +424,7 @@ trap(struct trapframe *tf, int64_t type, uint64_t data)
 
 		if (error != 0)
 			panic("trap: %ld=%s: 0x%lx at 0x%lx:0x%lx error=%d asi=0x%lx", 
-			      trapno, trap_msg[trap_conversion[trapno]], data, tf->tf_tpc, 
+			      trapno, trap_msg[trapno], data, tf->tf_tpc, 
 			      tf->tf_tnpc, error, tf->tf_asi);
 	}
 	CTR1(KTR_TRAP, "trap: td=%p return", td);
@@ -443,9 +444,6 @@ trap_pfault(struct thread *td, struct trapframe *tf, int64_t type, uint64_t data
 
 	if (td == NULL)
 		return (-1);
-	KASSERT(td->td_pcb != NULL, ("trap_pfault: pcb NULL"));
-	KASSERT(td->td_proc != NULL, ("trap_pfault: curproc NULL"));
-	KASSERT(td->td_proc->p_vmspace != NULL, ("trap_pfault: vmspace NULL"));
 
 	p = td->td_proc;
 
@@ -455,13 +453,18 @@ trap_pfault(struct thread *td, struct trapframe *tf, int64_t type, uint64_t data
 	type = type & ~T_KERNEL;
 	va = TLB_TAR_VA(data);
 
-#if 0
-	printf("trap_pfault(type=%ld, data=0x%lx, tpc=0x%lx, ctx=0x%lx)\n", 
-	       type, data, tf->tf_tpc, ctx);
+#if 1
+	if (data > VM_MIN_DIRECT_ADDRESS)
+		printf("trap_pfault(type=%ld, data=0x%lx, tpc=0x%lx, ctx=0x%lx)\n", 
+		       type, data, tf->tf_tpc, ctx);
 
 	CTR4(KTR_TRAP, "trap_pfault: td=%p pm_ctx=%#lx va=%#lx ctx=%#lx",
 	    td, p->p_vmspace->vm_pmap.pm_context[PCPU_GET(cpuid)], va, ctx);
 #endif
+	KASSERT(td->td_pcb != NULL, ("trap_pfault: pcb NULL"));
+	KASSERT(td->td_proc != NULL, ("trap_pfault: curproc NULL"));
+	KASSERT(td->td_proc->p_vmspace != NULL, ("trap_pfault: vmspace NULL"));
+
 
 	if (type == T_DATA_PROTECTION) {
 		prot = VM_PROT_WRITE;
