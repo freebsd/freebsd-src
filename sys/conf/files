@@ -739,7 +739,6 @@ dev/mii/nsphy.c			optional miibus | nsphy
 dev/mii/pnaphy.c		optional miibus | pnaphy
 dev/mii/qsphy.c			optional miibus | qsphy
 dev/mii/rgephy.c		optional miibus | rgephy
-# XXX rl and re only?
 dev/mii/rlphy.c			optional miibus | rlphy
 # XXX rue only?
 dev/mii/ruephy.c		optional miibus | ruephy
