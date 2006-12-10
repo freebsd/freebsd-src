@@ -1,5 +1,5 @@
 <!--
- - Copyright (C) 2004, 2005 Internet Systems Consortium, Inc. ("ISC")
+ - Copyright (C) 2004-2006 Internet Systems Consortium, Inc. ("ISC")
  - 
  - Permission to use, copy, modify, and distribute this software for any
  - purpose with or without fee is hereby granted, provided that the above
@@ -13,15 +13,15 @@
  - OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
  - PERFORMANCE OF THIS SOFTWARE.
 -->
-<!-- $Id: named.conf.html,v 1.1.4.10 2005/10/13 02:33:48 marka Exp $ -->
+<!-- $Id: named.conf.html,v 1.1.4.15 2006/09/13 02:56:21 marka Exp $ -->
 <html>
 <head>
 <meta http-equiv="Content-Type" content="text/html; charset=ISO-8859-1">
 <title>named.conf</title>
-<meta name="generator" content="DocBook XSL Stylesheets V1.69.1">
+<meta name="generator" content="DocBook XSL Stylesheets V1.70.1">
 </head>
 <body bgcolor="white" text="black" link="#0000FF" vlink="#840084" alink="#0000FF"><div class="refentry" lang="en">
-<a name="id2463721"></a><div class="titlepage"></div>
+<a name="id2482688"></a><div class="titlepage"></div>
 <div class="refnamediv">
 <h2>Name</h2>
 <p><code class="filename">named.conf</code> &#8212; configuration file for named</p>
@@ -31,7 +31,7 @@
 <div class="cmdsynopsis"><p><code class="command">named.conf</code> </p></div>
 </div>
 <div class="refsect1" lang="en">
-<a name="id2525889"></a><h2>DESCRIPTION</h2>
+<a name="id2549388"></a><h2>DESCRIPTION</h2>
 <p>
 	<code class="filename">named.conf</code> is the configuration file for
 	<span><strong class="command">named</strong></span>.  Statements are enclosed
@@ -50,14 +50,14 @@
     </p>
 </div>
 <div class="refsect1" lang="en">
-<a name="id2525917"></a><h2>ACL</h2>
+<a name="id2549417"></a><h2>ACL</h2>
 <div class="literallayout"><p><br>
 acl <em class="replaceable"><code>string</code></em> { <em class="replaceable"><code>address_match_element</code></em>; ... };<br>
 <br>
 </p></div>
 </div>
 <div class="refsect1" lang="en">
-<a name="id2525933"></a><h2>KEY</h2>
+<a name="id2549433"></a><h2>KEY</h2>
 <div class="literallayout"><p><br>
 key <em class="replaceable"><code>domain_name</code></em> {<br>
 	algorithm <em class="replaceable"><code>string</code></em>;<br>
@@ -66,7 +66,7 @@ key <em class="replaceable"><code>domain_name</code></em> {<br>
 </p></div>
 </div>
 <div class="refsect1" lang="en">
-<a name="id2525953"></a><h2>MASTERS</h2>
+<a name="id2549452"></a><h2>MASTERS</h2>
 <div class="literallayout"><p><br>
 masters <em class="replaceable"><code>string</code></em> [<span class="optional"> port <em class="replaceable"><code>integer</code></em> </span>] {<br>
 	( <em class="replaceable"><code>masters</code></em> | <em class="replaceable"><code>ipv4_address</code></em> [<span class="optional">port <em class="replaceable"><code>integer</code></em></span>] |<br>
@@ -75,7 +75,7 @@ masters <em class="replaceable"><code>string</code></em> [<span class="optional"
 </p></div>
 </div>
 <div class="refsect1" lang="en">
-<a name="id2525998"></a><h2>SERVER</h2>
+<a name="id2549498"></a><h2>SERVER</h2>
 <div class="literallayout"><p><br>
 server ( <em class="replaceable"><code>ipv4_address</code></em> | <em class="replaceable"><code>ipv6_address</code></em> ) {<br>
 	bogus <em class="replaceable"><code>boolean</code></em>;<br>
@@ -95,7 +95,7 @@ server ( <em class="replaceable"><code>ipv4_address</code></em> | <em class="rep
 </p></div>
 </div>
 <div class="refsect1" lang="en">
-<a name="id2526056"></a><h2>TRUSTED-KEYS</h2>
+<a name="id2549556"></a><h2>TRUSTED-KEYS</h2>
 <div class="literallayout"><p><br>
 trusted-keys {<br>
 	<em class="replaceable"><code>domain_name</code></em> <em class="replaceable"><code>flags</code></em> <em class="replaceable"><code>protocol</code></em> <em class="replaceable"><code>algorithm</code></em> <em class="replaceable"><code>key</code></em>; ... <br>
@@ -103,7 +103,7 @@ trusted-keys {<br>
 </p></div>
 </div>
 <div class="refsect1" lang="en">
-<a name="id2526082"></a><h2>CONTROLS</h2>
+<a name="id2549581"></a><h2>CONTROLS</h2>
 <div class="literallayout"><p><br>
 controls {<br>
 	inet ( <em class="replaceable"><code>ipv4_address</code></em> | <em class="replaceable"><code>ipv6_address</code></em> | * )<br>
@@ -115,7 +115,7 @@ controls {<br>
 </p></div>
 </div>
 <div class="refsect1" lang="en">
-<a name="id2526117"></a><h2>LOGGING</h2>
+<a name="id2549617"></a><h2>LOGGING</h2>
 <div class="literallayout"><p><br>
 logging {<br>
 	channel <em class="replaceable"><code>string</code></em> {<br>
@@ -133,7 +133,7 @@ logging {<br>
 </p></div>
 </div>
 <div class="refsect1" lang="en">
-<a name="id2526155"></a><h2>LWRES</h2>
+<a name="id2549655"></a><h2>LWRES</h2>
 <div class="literallayout"><p><br>
 lwres {<br>
 	listen-on [<span class="optional"> port <em class="replaceable"><code>integer</code></em> </span>] {<br>
@@ -146,7 +146,7 @@ lwres {<br>
 </p></div>
 </div>
 <div class="refsect1" lang="en">
-<a name="id2526197"></a><h2>OPTIONS</h2>
+<a name="id2549697"></a><h2>OPTIONS</h2>
 <div class="literallayout"><p><br>
 options {<br>
 	avoid-v4-udp-ports { <em class="replaceable"><code>port</code></em>; ... };<br>
@@ -155,6 +155,7 @@ options {<br>
 	coresize <em class="replaceable"><code>size</code></em>;<br>
 	datasize <em class="replaceable"><code>size</code></em>;<br>
 	directory <em class="replaceable"><code>quoted_string</code></em>;<br>
+	cache-file <em class="replaceable"><code>quoted_string</code></em>; // test option<br>
 	dump-file <em class="replaceable"><code>quoted_string</code></em>;<br>
 	files <em class="replaceable"><code>size</code></em>;<br>
 	heartbeat-interval <em class="replaceable"><code>integer</code></em>;<br>
@@ -202,8 +203,8 @@ options {<br>
 	rfc2308-type1 <em class="replaceable"><code>boolean</code></em>; // not yet implemented<br>
 	additional-from-auth <em class="replaceable"><code>boolean</code></em>;<br>
 	additional-from-cache <em class="replaceable"><code>boolean</code></em>;<br>
-	query-source <em class="replaceable"><code>querysource4</code></em>;<br>
-	query-source-v6 <em class="replaceable"><code>querysource6</code></em>;<br>
+	query-source [<span class="optional"> address ( <em class="replaceable"><code>ipv4_address</code></em> | * ) </span>] [<span class="optional"> port ( <em class="replaceable"><code>integer</code></em> | * ) </span>];<br>
+	query-source-v6 [<span class="optional"> address ( <em class="replaceable"><code>ipv6_address</code></em> | * ) </span>] [<span class="optional"> port ( <em class="replaceable"><code>integer</code></em> | * ) </span>];<br>
 	cleaning-interval <em class="replaceable"><code>integer</code></em>;<br>
 	min-roots <em class="replaceable"><code>integer</code></em>; // not implemented<br>
 	lame-ttl <em class="replaceable"><code>integer</code></em>;<br>
@@ -289,7 +290,7 @@ options {<br>
 </p></div>
 </div>
 <div class="refsect1" lang="en">
-<a name="id2526858"></a><h2>VIEW</h2>
+<a name="id2550312"></a><h2>VIEW</h2>
 <div class="literallayout"><p><br>
 view <em class="replaceable"><code>string</code></em> <em class="replaceable"><code>optional_class</code></em> {<br>
 	match-clients { <em class="replaceable"><code>address_match_element</code></em>; ... };<br>
@@ -328,8 +329,8 @@ view <em class="replaceable"><code>string</code></em> <em class="replaceable"><c
 	rfc2308-type1 <em class="replaceable"><code>boolean</code></em>; // not yet implemented<br>
 	additional-from-auth <em class="replaceable"><code>boolean</code></em>;<br>
 	additional-from-cache <em class="replaceable"><code>boolean</code></em>;<br>
-	query-source <em class="replaceable"><code>querysource4</code></em>;<br>
-	query-source-v6 <em class="replaceable"><code>querysource6</code></em>;<br>
+	query-source [<span class="optional"> address ( <em class="replaceable"><code>ipv4_address</code></em> | * ) </span>] [<span class="optional"> port ( <em class="replaceable"><code>integer</code></em> | * ) </span>];<br>
+	query-source-v6 [<span class="optional"> address ( <em class="replaceable"><code>ipv6_address</code></em> | * ) </span>] [<span class="optional"> port ( <em class="replaceable"><code>integer</code></em> | * ) </span>];<br>
 	cleaning-interval <em class="replaceable"><code>integer</code></em>;<br>
 	min-roots <em class="replaceable"><code>integer</code></em>; // not implemented<br>
 	lame-ttl <em class="replaceable"><code>integer</code></em>;<br>
@@ -407,7 +408,7 @@ view <em class="replaceable"><code>string</code></em> <em class="replaceable"><c
 </p></div>
 </div>
 <div class="refsect1" lang="en">
-<a name="id2527269"></a><h2>ZONE</h2>
+<a name="id2550878"></a><h2>ZONE</h2>
 <div class="literallayout"><p><br>
 zone <em class="replaceable"><code>string</code></em> <em class="replaceable"><code>optional_class</code></em> {<br>
 	type ( master | slave | stub | hint |<br>
@@ -483,17 +484,17 @@ zone <em class="replaceable"><code>string</code></em> <em class="replaceable"><c
 </p></div>
 </div>
 <div class="refsect1" lang="en">
-<a name="id2527606"></a><h2>FILES</h2>
+<a name="id2551216"></a><h2>FILES</h2>
 <p>
 <code class="filename">/etc/named.conf</code>
 </p>
 </div>
 <div class="refsect1" lang="en">
-<a name="id2527619"></a><h2>SEE ALSO</h2>
+<a name="id2551228"></a><h2>SEE ALSO</h2>
 <p>
 <span class="citerefentry"><span class="refentrytitle">named</span>(8)</span>,
 <span class="citerefentry"><span class="refentrytitle">rndc</span>(8)</span>,
-<span class="citerefentry"><span class="refentrytitle">BIND 9 Adminstrators Reference Manual</span></span>.
+<span class="citerefentry"><span class="refentrytitle">BIND 9 Administrator Reference Manual</span></span>.
 </p>
 </div>
 </div></body>

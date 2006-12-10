@@ -24,7 +24,7 @@
 
 
 #if !defined(LINT) && !defined(CODECENTER)
-static const char rcsid[] = "$Id: memcluster.c,v 1.3.206.7 2005/10/11 00:48:15 marka Exp $";
+static const char rcsid[] = "$Id: memcluster.c,v 1.3.206.8 2006/08/30 23:35:06 marka Exp $";
 #endif /* not lint */
 
 #include "port_before.h"
@@ -399,7 +399,7 @@ __memput_record(void *mem, size_t size, const char *file, int line) {
 	p = (char *)e + sizeof *e + size;
 	memcpy(&fp, p, sizeof fp);
 	INSIST(fp == BACK_FENCEPOST);
-	INSIST(((int)mem % 4) == 0);
+	INSIST(((u_long)mem % 4) == 0);
 #ifdef MEMCLUSTER_RECORD
 	prev = NULL;
 	if (size == max_size || new_size >= max_size)
@@ -523,10 +523,11 @@ memstats(FILE *out) {
 	for (i = 1; i <= max_size; i++) {
 		if ((e = activelists[i]) != NULL)
 			while (e != NULL) {
-				fprintf(out, "%s:%d %p:%d\n",
+				fprintf(out, "%s:%d %p:%lu\n",
 				        e->file != NULL ? e->file :
 						"<UNKNOWN>", e->line,
-					(char *)e + sizeof *e, e->size);
+					(char *)e + sizeof *e,
+					(u_long)e->size);
 				e = e->next;
 			}
 	}

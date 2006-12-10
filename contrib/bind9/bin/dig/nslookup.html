@@ -1,5 +1,5 @@
 <!--
- - Copyright (C) 2004, 2005 Internet Systems Consortium, Inc. ("ISC")
+ - Copyright (C) 2004-2006 Internet Systems Consortium, Inc. ("ISC")
  - 
  - Permission to use, copy, modify, and distribute this software for any
  - purpose with or without fee is hereby granted, provided that the above
@@ -13,15 +13,15 @@
  - OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
  - PERFORMANCE OF THIS SOFTWARE.
 -->
-<!-- $Id: nslookup.html,v 1.1.6.9 2005/10/13 02:33:44 marka Exp $ -->
+<!-- $Id: nslookup.html,v 1.1.6.12 2006/06/29 13:02:30 marka Exp $ -->
 <html>
 <head>
 <meta http-equiv="Content-Type" content="text/html; charset=ISO-8859-1">
 <title>nslookup</title>
-<meta name="generator" content="DocBook XSL Stylesheets V1.69.1">
+<meta name="generator" content="DocBook XSL Stylesheets V1.70.1">
 </head>
 <body bgcolor="white" text="black" link="#0000FF" vlink="#840084" alink="#0000FF"><div class="refentry" lang="en">
-<a name="id2463728"></a><div class="titlepage"></div>
+<a name="id2482694"></a><div class="titlepage"></div>
 <div class="refnamediv">
 <h2>Name</h2>
 <p>nslookup &#8212; query Internet name servers interactively</p>
@@ -31,7 +31,7 @@
 <div class="cmdsynopsis"><p><code class="command">nslookup</code>  [<code class="option">-option</code>] [name | -] [server]</p></div>
 </div>
 <div class="refsect1" lang="en">
-<a name="id2525973"></a><h2>DESCRIPTION</h2>
+<a name="id2549404"></a><h2>DESCRIPTION</h2>
 <p>
 <span><strong class="command">Nslookup</strong></span>
 is a program to query Internet domain name servers.  <span><strong class="command">Nslookup</strong></span>
@@ -43,7 +43,7 @@ domain.
 </p>
 </div>
 <div class="refsect1" lang="en">
-<a name="id2525990"></a><h2>ARGUMENTS</h2>
+<a name="id2549421"></a><h2>ARGUMENTS</h2>
 <p>
 Interactive mode is entered in the following cases:
 </p>
@@ -75,7 +75,7 @@ nslookup -query=hinfo  -timeout=10
 </p>
 </div>
 <div class="refsect1" lang="en">
-<a name="id2526033"></a><h2>INTERACTIVE COMMANDS</h2>
+<a name="id2549464"></a><h2>INTERACTIVE COMMANDS</h2>
 <div class="variablelist"><dl>
 <dt><span class="term">host [<span class="optional">server</span>]</span></dt>
 <dd>
@@ -200,7 +200,7 @@ the lookups.  Valid keywords are:
 <dt><span class="term"><code class="constant">type=</code><em class="replaceable"><code>value</code></em></span></dt>
 <dd>
 <p>
-  Change the top of the information query.
+  Change the type of the information query.
   </p>
 <p>
   (Default = A; abbreviations = q, ty)
@@ -241,13 +241,13 @@ the lookups.  Valid keywords are:
 </dl></div>
 </div>
 <div class="refsect1" lang="en">
-<a name="id2526490"></a><h2>FILES</h2>
+<a name="id2549990"></a><h2>FILES</h2>
 <p>
 <code class="filename">/etc/resolv.conf</code>
 </p>
 </div>
 <div class="refsect1" lang="en">
-<a name="id2526503"></a><h2>SEE ALSO</h2>
+<a name="id2550003"></a><h2>SEE ALSO</h2>
 <p>
 <span class="citerefentry"><span class="refentrytitle">dig</span>(1)</span>,
 <span class="citerefentry"><span class="refentrytitle">host</span>(1)</span>,
@@ -255,7 +255,7 @@ the lookups.  Valid keywords are:
 </p>
 </div>
 <div class="refsect1" lang="en">
-<a name="id2526538"></a><h2>Author</h2>
+<a name="id2550038"></a><h2>Author</h2>
 <p>
 Andrew Cherenson
 </p>

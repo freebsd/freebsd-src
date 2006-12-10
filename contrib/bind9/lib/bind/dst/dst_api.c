@@ -1,5 +1,5 @@
 #ifndef LINT
-static const char rcsid[] = "$Header: /proj/cvs/prod/bind9/lib/bind/dst/dst_api.c,v 1.4.2.6.8.3 2005/10/11 00:48:14 marka Exp $";
+static const char rcsid[] = "$Header: /proj/cvs/prod/bind9/lib/bind/dst/dst_api.c,v 1.4.2.6.8.4 2006/03/10 00:17:21 marka Exp $";
 #endif
 
 /*
@@ -170,6 +170,10 @@ dst_s_get_key_struct(const char *name, const int alg, const int flags,
 
 	memset(new_key, 0, sizeof(*new_key));
 	new_key->dk_key_name = strdup(name);
+	if (new_key->dk_key_name == NULL) {
+		free(new_key);
+		return (NULL);
+	}
 	new_key->dk_alg = alg;
 	new_key->dk_flags = flags;
 	new_key->dk_proto = protocol;
@@ -655,11 +659,13 @@ dst_dnskey_to_key(const char *in_name, const u_char *rdata, const int len)
 			 alg));
 		return (NULL);
 	}
-	if ((key_st = dst_s_get_key_struct(in_name, alg, 0, 0, 0)) == NULL)
-		return (NULL);
 
 	if (in_name == NULL)
 		return (NULL);
+
+	if ((key_st = dst_s_get_key_struct(in_name, alg, 0, 0, 0)) == NULL)
+		return (NULL);
+
 	key_st->dk_id = dst_s_dns_key_id(rdata, len);
 	key_st->dk_flags = dst_s_get_int16(rdata);
 	key_st->dk_proto = (u_int16_t) rdata[DST_KEY_PROT];
@@ -772,13 +778,11 @@ dst_buffer_to_key(const char *key_name,		/* name of the key */
 		return (NULL);
 	}
 
-	dkey = dst_s_get_key_struct(key_name, alg, flags, 
-					     protocol, -1);
+	dkey = dst_s_get_key_struct(key_name, alg, flags, protocol, -1);
 
-	if (dkey == NULL)
-		return (NULL);
-	if (dkey->dk_func == NULL || dkey->dk_func->from_dns_key == NULL)
-		return NULL;
+	if (dkey == NULL || dkey->dk_func == NULL ||
+	    dkey->dk_func->from_dns_key == NULL) 
+		return (dst_free_key(dkey));
 
 	if (dkey->dk_func->from_dns_key(dkey, key_buf, key_len) < 0) {
 		EREPORT(("dst_buffer_to_key(): dst_buffer_to_hmac failed\n"));
@@ -1013,7 +1017,6 @@ dst_free_key(DST_KEY *f_key)
 	else {
 		EREPORT(("dst_free_key(): Unknown key alg %d\n",
 			 f_key->dk_alg));
-		free(f_key->dk_KEY_struct);	/* SHOULD NOT happen */
 	}
 	if (f_key->dk_KEY_struct) {
 		free(f_key->dk_KEY_struct);

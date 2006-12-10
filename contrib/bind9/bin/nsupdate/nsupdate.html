@@ -14,15 +14,15 @@
  - OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
  - PERFORMANCE OF THIS SOFTWARE.
 -->
-<!-- $Id: nsupdate.html,v 1.9.2.3.2.12 2005/10/13 02:33:49 marka Exp $ -->
+<!-- $Id: nsupdate.html,v 1.9.2.3.2.15 2006/06/29 13:02:30 marka Exp $ -->
 <html>
 <head>
 <meta http-equiv="Content-Type" content="text/html; charset=ISO-8859-1">
 <title>nsupdate</title>
-<meta name="generator" content="DocBook XSL Stylesheets V1.69.1">
+<meta name="generator" content="DocBook XSL Stylesheets V1.70.1">
 </head>
 <body bgcolor="white" text="black" link="#0000FF" vlink="#840084" alink="#0000FF"><div class="refentry" lang="en">
-<a name="id2463721"></a><div class="titlepage"></div>
+<a name="id2482688"></a><div class="titlepage"></div>
 <div class="refnamediv">
 <h2>Name</h2>
 <p>nsupdate &#8212; Dynamic DNS update utility</p>
@@ -32,7 +32,7 @@
 <div class="cmdsynopsis"><p><code class="command">nsupdate</code>  [<code class="option">-d</code>] [[<code class="option">-y <em class="replaceable"><code>keyname:secret</code></em></code>] |  [<code class="option">-k <em class="replaceable"><code>keyfile</code></em></code>]] [<code class="option">-t <em class="replaceable"><code>timeout</code></em></code>] [<code class="option">-u <em class="replaceable"><code>udptimeout</code></em></code>] [<code class="option">-r <em class="replaceable"><code>udpretries</code></em></code>] [<code class="option">-v</code>] [filename]</p></div>
 </div>
 <div class="refsect1" lang="en">
-<a name="id2525896"></a><h2>DESCRIPTION</h2>
+<a name="id2549461"></a><h2>DESCRIPTION</h2>
 <p>
 <span><strong class="command">nsupdate</strong></span>
 is used to submit Dynamic DNS Update requests as defined in RFC2136
@@ -160,7 +160,7 @@ and number of UDP retries.
 </p>
 </div>
 <div class="refsect1" lang="en">
-<a name="id2526121"></a><h2>INPUT FORMAT</h2>
+<a name="id2549686"></a><h2>INPUT FORMAT</h2>
 <p>
 <span><strong class="command">nsupdate</strong></span>
 reads input from
@@ -317,7 +317,7 @@ are written in the standard text representation of the resource record's
 RDATA.
 </p></dd>
 <dt><span class="term">
-<div class="cmdsynopsis"><p><code class="command">update delete</code>  {domain-name} [ttl] [class] [type  [data...]]</p></div>
+<div class="cmdsynopsis"><p><code class="command">update delete</code>  {domain-name} [ttl] [class] [type [data...]]</p></div>
 </span></dt>
 <dd><p>
 Deletes any resource records named
@@ -370,7 +370,7 @@ Lines beginning with a semicolon are comments and are ignored.
 </p>
 </div>
 <div class="refsect1" lang="en">
-<a name="id2526749"></a><h2>EXAMPLES</h2>
+<a name="id2550382"></a><h2>EXAMPLES</h2>
 <p>
 The examples below show how
 <span><strong class="command">nsupdate</strong></span>
@@ -423,7 +423,7 @@ RRSIG, DNSKEY and NSEC records.)
 </p>
 </div>
 <div class="refsect1" lang="en">
-<a name="id2526793"></a><h2>FILES</h2>
+<a name="id2550426"></a><h2>FILES</h2>
 <div class="variablelist"><dl>
 <dt><span class="term"><code class="constant">/etc/resolv.conf</code></span></dt>
 <dd><p>
@@ -442,7 +442,7 @@ base-64 encoding of HMAC-MD5 key created by
 </dl></div>
 </div>
 <div class="refsect1" lang="en">
-<a name="id2525155"></a><h2>SEE ALSO</h2>
+<a name="id2549061"></a><h2>SEE ALSO</h2>
 <p>
 <span class="citerefentry"><span class="refentrytitle">RFC2136</span></span>,
 <span class="citerefentry"><span class="refentrytitle">RFC3007</span></span>,
@@ -456,7 +456,7 @@ base-64 encoding of HMAC-MD5 key created by
 </p>
 </div>
 <div class="refsect1" lang="en">
-<a name="id2525226"></a><h2>BUGS</h2>
+<a name="id2549132"></a><h2>BUGS</h2>
 <p>
 The TSIG key is redundantly stored in two separate files.
 This is a consequence of nsupdate using the DST library

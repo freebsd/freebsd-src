@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2004  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004, 2006  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 1999-2003  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and distribute this software for any
@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: zone.h,v 1.106.2.7.4.15 2004/10/26 02:08:43 marka Exp $ */
+/* $Id: zone.h,v 1.106.2.7.4.18 2006/08/01 03:44:00 marka Exp $ */
 
 #ifndef DNS_ZONE_H
 #define DNS_ZONE_H 1
@@ -163,7 +163,7 @@ dns_zone_getview(dns_zone_t *zone);
  */
 
 isc_result_t
-dns_zone_setorigin(dns_zone_t *zone, dns_name_t *origin);
+dns_zone_setorigin(dns_zone_t *zone, const dns_name_t *origin);
 /*
  *	Sets the zones origin to 'origin'.
  *
@@ -414,11 +414,13 @@ dns_zone_maintenance(dns_zone_t *zone);
  */
 
 isc_result_t
-dns_zone_setmasters(dns_zone_t *zone, isc_sockaddr_t *masters,
+dns_zone_setmasters(dns_zone_t *zone, const isc_sockaddr_t *masters,
 		    isc_uint32_t count);
 isc_result_t
-dns_zone_setmasterswithkeys(dns_zone_t *zone, isc_sockaddr_t *masters,
-			    dns_name_t **keynames, isc_uint32_t count);
+dns_zone_setmasterswithkeys(dns_zone_t *zone,
+			    const isc_sockaddr_t *masters,
+			    dns_name_t **keynames,
+			    isc_uint32_t count);
 /*
  *	Set the list of master servers for the zone.
  *
@@ -440,7 +442,7 @@ dns_zone_setmasterswithkeys(dns_zone_t *zone, isc_sockaddr_t *masters,
  */
 
 isc_result_t
-dns_zone_setalsonotify(dns_zone_t *zone, isc_sockaddr_t *notify,
+dns_zone_setalsonotify(dns_zone_t *zone, const isc_sockaddr_t *notify,
 		       isc_uint32_t count);
 /*
  *	Set the list of additional servers to be notified when
@@ -525,9 +527,10 @@ dns_zone_setmaxretrytime(dns_zone_t *zone, isc_uint32_t val);
  */
 
 isc_result_t
-dns_zone_setxfrsource4(dns_zone_t *zone, isc_sockaddr_t *xfrsource);
+dns_zone_setxfrsource4(dns_zone_t *zone, const isc_sockaddr_t *xfrsource);
 isc_result_t
-dns_zone_setaltxfrsource4(dns_zone_t *zone, isc_sockaddr_t *xfrsource);
+dns_zone_setaltxfrsource4(dns_zone_t *zone,
+			  const isc_sockaddr_t *xfrsource);
 /*
  * 	Set the source address to be used in IPv4 zone transfers.
  *
@@ -552,9 +555,10 @@ dns_zone_getaltxfrsource4(dns_zone_t *zone);
  */
 
 isc_result_t
-dns_zone_setxfrsource6(dns_zone_t *zone, isc_sockaddr_t *xfrsource);
+dns_zone_setxfrsource6(dns_zone_t *zone, const isc_sockaddr_t *xfrsource);
 isc_result_t
-dns_zone_setaltxfrsource6(dns_zone_t *zone, isc_sockaddr_t *xfrsource);
+dns_zone_setaltxfrsource6(dns_zone_t *zone,
+			 const isc_sockaddr_t *xfrsource);
 /*
  * 	Set the source address to be used in IPv6 zone transfers.
  *
@@ -579,7 +583,7 @@ dns_zone_getaltxfrsource6(dns_zone_t *zone);
  */
 
 isc_result_t
-dns_zone_setnotifysrc4(dns_zone_t *zone, isc_sockaddr_t *notifysrc);
+dns_zone_setnotifysrc4(dns_zone_t *zone, const isc_sockaddr_t *notifysrc);
 /*
  * 	Set the source address to be used with IPv4 NOTIFY messages.
  *
@@ -602,7 +606,7 @@ dns_zone_getnotifysrc4(dns_zone_t *zone);
  */
 
 isc_result_t
-dns_zone_setnotifysrc6(dns_zone_t *zone, isc_sockaddr_t *notifysrc);
+dns_zone_setnotifysrc6(dns_zone_t *zone, const isc_sockaddr_t *notifysrc);
 /*
  * 	Set the source address to be used with IPv6 NOTIFY messages.
  *
@@ -1252,7 +1256,7 @@ dns_zonemgr_releasezone(dns_zonemgr_t *zmgr, dns_zone_t *zone);
 void
 dns_zonemgr_settransfersin(dns_zonemgr_t *zmgr, isc_uint32_t value);
 /*
- *	Set the maximum number of simultanious transfers in allowed by
+ *	Set the maximum number of simultaneous transfers in allowed by
  *	the zone manager.
  *
  * Requires:
@@ -1262,7 +1266,7 @@ dns_zonemgr_settransfersin(dns_zonemgr_t *zmgr, isc_uint32_t value);
 isc_uint32_t
 dns_zonemgr_getttransfersin(dns_zonemgr_t *zmgr);
 /*
- *	Return the the maximum number of simultanious transfers in allowed.
+ *	Return the the maximum number of simultaneous transfers in allowed.
  *
  * Requires:
  *	'zmgr' to be a valid zone manager.

@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2004  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004, 2006  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 1999-2001  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and distribute this software for any
@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: tsigconf.c,v 1.21.208.4 2004/03/08 04:04:19 marka Exp $ */
+/* $Id: tsigconf.c,v 1.21.208.6 2006/03/02 00:37:20 marka Exp $ */
 
 #include <config.h>
 
@@ -35,10 +35,12 @@
 #include <named/tsigconf.h>
 
 static isc_result_t
-add_initial_keys(cfg_obj_t *list, dns_tsig_keyring_t *ring, isc_mem_t *mctx) {
-	cfg_listelt_t *element;
-	cfg_obj_t *key = NULL;
-	char *keyid = NULL;
+add_initial_keys(const cfg_obj_t *list, dns_tsig_keyring_t *ring,
+		 isc_mem_t *mctx)
+{
+	const cfg_listelt_t *element;
+	const cfg_obj_t *key = NULL;
+	const char *keyid = NULL;
 	unsigned char *secret = NULL;
 	int secretalloc = 0;
 	int secretlen = 0;
@@ -49,14 +51,14 @@ add_initial_keys(cfg_obj_t *list, dns_tsig_keyring_t *ring, isc_mem_t *mctx) {
 	     element != NULL;
 	     element = cfg_list_next(element))
 	{
-		cfg_obj_t *algobj = NULL;
-		cfg_obj_t *secretobj = NULL;
+		const cfg_obj_t *algobj = NULL;
+		const cfg_obj_t *secretobj = NULL;
 		dns_name_t keyname;
 		dns_name_t *alg;
-		char *algstr;
+		const char *algstr;
 		char keynamedata[1024];
 		isc_buffer_t keynamesrc, keynamebuf;
-		char *secretstr;
+		const char *secretstr;
 		isc_buffer_t secretbuf;
 
 		key = cfg_listelt_value(element);
@@ -129,11 +131,11 @@ add_initial_keys(cfg_obj_t *list, dns_tsig_keyring_t *ring, isc_mem_t *mctx) {
 }
 
 isc_result_t
-ns_tsigkeyring_fromconfig(cfg_obj_t *config, cfg_obj_t *vconfig,
+ns_tsigkeyring_fromconfig(const cfg_obj_t *config, const cfg_obj_t *vconfig,
 			  isc_mem_t *mctx, dns_tsig_keyring_t **ringp)
 {
-	cfg_obj_t *maps[3];
-	cfg_obj_t *keylist;
+	const cfg_obj_t *maps[3];
+	const cfg_obj_t *keylist;
 	dns_tsig_keyring_t *ring = NULL;
 	isc_result_t result;
 	int i;

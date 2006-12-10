@@ -14,15 +14,15 @@
  - OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
  - PERFORMANCE OF THIS SOFTWARE.
 -->
-<!-- $Id: rndc-confgen.html,v 1.3.2.5.2.11 2005/10/13 02:33:51 marka Exp $ -->
+<!-- $Id: rndc-confgen.html,v 1.3.2.5.2.13 2006/06/29 13:02:31 marka Exp $ -->
 <html>
 <head>
 <meta http-equiv="Content-Type" content="text/html; charset=ISO-8859-1">
 <title>rndc-confgen</title>
-<meta name="generator" content="DocBook XSL Stylesheets V1.69.1">
+<meta name="generator" content="DocBook XSL Stylesheets V1.70.1">
 </head>
 <body bgcolor="white" text="black" link="#0000FF" vlink="#840084" alink="#0000FF"><div class="refentry" lang="en">
-<a name="id2463721"></a><div class="titlepage"></div>
+<a name="id2482688"></a><div class="titlepage"></div>
 <div class="refnamediv">
 <h2>Name</h2>
 <p><span class="application">rndc-confgen</span> &#8212; rndc key generation tool</p>
@@ -32,7 +32,7 @@
 <div class="cmdsynopsis"><p><code class="command">rndc-confgen</code>  [<code class="option">-a</code>] [<code class="option">-b <em class="replaceable"><code>keysize</code></em></code>] [<code class="option">-c <em class="replaceable"><code>keyfile</code></em></code>] [<code class="option">-h</code>] [<code class="option">-k <em class="replaceable"><code>keyname</code></em></code>] [<code class="option">-p <em class="replaceable"><code>port</code></em></code>] [<code class="option">-r <em class="replaceable"><code>randomfile</code></em></code>] [<code class="option">-s <em class="replaceable"><code>address</code></em></code>] [<code class="option">-t <em class="replaceable"><code>chrootdir</code></em></code>] [<code class="option">-u <em class="replaceable"><code>user</code></em></code>]</p></div>
 </div>
 <div class="refsect1" lang="en">
-<a name="id2525911"></a><h2>DESCRIPTION</h2>
+<a name="id2549476"></a><h2>DESCRIPTION</h2>
 <p>
         <span><strong class="command">rndc-confgen</strong></span> generates configuration files
 	for <span><strong class="command">rndc</strong></span>.  It can be used as a
@@ -48,7 +48,7 @@
     </p>
 </div>
 <div class="refsect1" lang="en">
-<a name="id2525957"></a><h2>OPTIONS</h2>
+<a name="id2549522"></a><h2>OPTIONS</h2>
 <div class="variablelist"><dl>
 <dt><span class="term">-a</span></dt>
 <dd>
@@ -57,7 +57,7 @@
 	      This creates a file <code class="filename">rndc.key</code>
 	      in <code class="filename">/etc</code> (or whatever
               <code class="varname">sysconfdir</code>
-	      was specified as when <span class="acronym">BIND</span> was built)
+	      was specified as when <acronym class="acronym">BIND</acronym> was built)
               that is read by both <span><strong class="command">rndc</strong></span>
               and <span><strong class="command">named</strong></span> on startup.  The
 	      <code class="filename">rndc.key</code> file defines a default
@@ -148,7 +148,7 @@
 </dl></div>
 </div>
 <div class="refsect1" lang="en">
-<a name="id2526270"></a><h2>EXAMPLES</h2>
+<a name="id2549972"></a><h2>EXAMPLES</h2>
 <p>
         To allow <span><strong class="command">rndc</strong></span> to be used with
 	no manual configuration, run
@@ -167,7 +167,7 @@
     </p>
 </div>
 <div class="refsect1" lang="en">
-<a name="id2526314"></a><h2>SEE ALSO</h2>
+<a name="id2550016"></a><h2>SEE ALSO</h2>
 <p>
       <span class="citerefentry"><span class="refentrytitle">rndc</span>(8)</span>,
       <span class="citerefentry"><span class="refentrytitle">rndc.conf</span>(5)</span>,
@@ -176,7 +176,7 @@
     </p>
 </div>
 <div class="refsect1" lang="en">
-<a name="id2526357"></a><h2>AUTHOR</h2>
+<a name="id2550058"></a><h2>AUTHOR</h2>
 <p>
         <span class="corpauthor">Internet Systems Consortium</span>
     </p>
