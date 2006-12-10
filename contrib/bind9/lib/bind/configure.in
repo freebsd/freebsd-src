@@ -1,4 +1,4 @@
-# Copyright (C) 2004, 2005  Internet Systems Consortium, Inc. ("ISC")
+# Copyright (C) 2004-2006  Internet Systems Consortium, Inc. ("ISC")
 # Copyright (C) 2001  Internet Software Consortium.
 #
 # Permission to use, copy, modify, and distribute this software for any
@@ -13,7 +13,7 @@
 # OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
 # PERFORMANCE OF THIS SOFTWARE.
 
-AC_REVISION($Revision: 1.83.2.5.2.22 $)
+AC_REVISION($Revision: 1.83.2.5.2.31 $)
 
 AC_INIT(resolv/herror.c)
 AC_PREREQ(2.13)
@@ -319,16 +319,68 @@ sinclude(../../config.threads.in)dnl
 
 if $use_threads
 then
+	if test "X$GCC" = "Xyes"; then
+		case "$host" in
+		*-freebsd*)
+			CC="$CC -pthread"
+			CCOPT="$CCOPT -pthread"
+			STD_CDEFINES="$STD_CDEFINES -D_THREAD_SAFE"
+			;;
+		*-openbsd*)
+			CC="$CC -pthread"
+			CCOPT="$CCOPT -pthread"
+			;;
+		*-solaris*)
+			LIBS="$LIBS -lthread"
+			;;
+		*-ibm-aix*)
+			STD_CDEFINES="$STD_CDEFINES -D_THREAD_SAFE"
+			;;
+		esac
+	else
+		case $host in
+		*-dec-osf*)
+			CC="$CC -pthread"
+			CCOPT="$CCOPT -pthread"
+			;;
+		*-solaris*)
+			CC="$CC -mt"
+			CCOPT="$CCOPT -mt"
+			;;
+		*-ibm-aix*)
+			STD_CDEFINES="$STD_CDEFINES -D_THREAD_SAFE"
+			;;
+		*-UnixWare*)
+			CC="$CC -Kthread"
+			CCOPT="$CCOPT -Kthread"
+			;;
+		esac
+	fi
+	AC_DEFINE(_REENTRANT)
+	ALWAYS_DEFINES="-D_REENTRANT"
+	DO_PTHREADS="#define DO_PTHREADS 1"
+	WANT_IRS_THREADSGR_OBJS="\${WANT_IRS_THREADSGR_OBJS}"
+	WANT_IRS_THREADSPW_OBJS="\${WANT_IRS_THREADSPW_OBJS}"
+	case $host in
+	ia64-hp-hpux11.*)
+		WANT_IRS_THREADS_OBJS="";;
+	*)
+		WANT_IRS_THREADS_OBJS="\${WANT_IRS_THREADS_OBJS}";;
+	esac
+	WANT_THREADS_OBJS="\${WANT_THREADS_OBJS}"
+	thread_dir=pthreads
+
 	#
 	# We'd like to use sigwait() too
 	#
-	AC_CHECK_LIB(c, sigwait,
-		     AC_DEFINE(HAVE_SIGWAIT),
-		     AC_CHECK_LIB(pthread, sigwait,
-				  AC_DEFINE(HAVE_SIGWAIT),
-				  AC_CHECK_LIB(pthread, _Psigwait,
-					       AC_DEFINE(HAVE_SIGWAIT),))
-	)
+	AC_CHECK_FUNC(sigwait,
+		      AC_DEFINE(HAVE_SIGWAIT),
+		      AC_CHECK_LIB(c, sigwait,
+		      AC_DEFINE(HAVE_SIGWAIT),
+		      AC_CHECK_LIB(pthread, sigwait,
+				   AC_DEFINE(HAVE_SIGWAIT),
+				   AC_CHECK_LIB(pthread, _Psigwait,
+					        AC_DEFINE(HAVE_SIGWAIT),))))
 
 	AC_CHECK_FUNC(pthread_attr_getstacksize,
 		      AC_DEFINE(HAVE_PTHREAD_ATTR_GETSTACKSIZE),)
@@ -388,56 +440,6 @@ then
 	#
 	AC_CHECK_FUNC(sysconf, AC_DEFINE(HAVE_SYSCONF),)
 
-	if test "X$GCC" = "Xyes"; then
-		case "$host" in
-		*-freebsd*)
-			CC="$CC -pthread"
-			CCOPT="$CCOPT -pthread"
-			STD_CDEFINES="$STD_CDEFINES -D_THREAD_SAFE"
-			;;
-		*-openbsd*)
-			CC="$CC -pthread"
-			CCOPT="$CCOPT -pthread"
-			;;
-		*-solaris*)
-			LIBS="$LIBS -lthread"
-			;;
-		*-ibm-aix*)
-			STD_CDEFINES="$STD_CDEFINES -D_THREAD_SAFE"
-			;;
-		esac
-	else
-		case $host in
-		*-dec-osf*)
-			CC="$CC -pthread"
-			CCOPT="$CCOPT -pthread"
-			;;
-		*-solaris*)
-			CC="$CC -mt"
-			CCOPT="$CCOPT -mt"
-			;;
-		*-ibm-aix*)
-			STD_CDEFINES="$STD_CDEFINES -D_THREAD_SAFE"
-			;;
-		*-UnixWare*)
-			CC="$CC -Kthread"
-			CCOPT="$CCOPT -Kthread"
-			;;
-		esac
-	fi
-	AC_DEFINE(_REENTRANT)
-	ALWAYS_DEFINES="-D_REENTRANT"
-	DO_PTHREADS="#define DO_PTHREADS 1"
-	WANT_IRS_THREADSGR_OBJS="\${WANT_IRS_THREADSGR_OBJS}"
-	WANT_IRS_THREADSPW_OBJS="\${WANT_IRS_THREADSPW_OBJS}"
-	case $host in
-	ia64-hp-hpux11.*)
-		WANT_IRS_THREADS_OBJS="";;
-	*)
-		WANT_IRS_THREADS_OBJS="\${WANT_IRS_THREADS_OBJS}";;
-	esac
-	WANT_THREADS_OBJS="\${WANT_THREADS_OBJS}"
-	thread_dir=pthreads
 else
 	ALWAYS_DEFINES=""
 	DO_PTHREADS="#undef DO_PTHREADS"
@@ -513,7 +515,18 @@ MKDEPCFLAGS="-M"
 IRIX_DNSSEC_WARNINGS_HACK=""
 
 if test "X$GCC" = "Xyes"; then
-	STD_CWARNINGS="$STD_CWARNINGS -W -Wall -Wmissing-prototypes -Wcast-qual -Wwrite-strings"
+        AC_MSG_CHECKING(if "$CC" supports -fno-strict-aliasing)
+        SAVE_CFLAGS=$CFLAGS
+        CFLAGS=-fno-strict-aliasing
+        AC_TRY_COMPILE(,, [FNOSTRICTALIASING=yes],[FNOSTRICTALIASING=no])
+        CFLAGS=$SAVE_CFLAGS
+        if test "$FNOSTRICTALIASING" = "yes"; then
+                AC_MSG_RESULT(yes)
+		STD_CWARNINGS="$STD_CWARNINGS -W -Wall -Wmissing-prototypes -Wcast-qual -Wwrite-strings -Wformat -Wpointer-arith -fno-strict-aliasing"
+        else
+                AC_MSG_RESULT(no)
+		STD_CWARNINGS="$STD_CWARNINGS -W -Wall -Wmissing-prototypes -Wcast-qual -Wwrite-strings -Wformat -Wpointer-arith"
+        fi
 else
 	case $host in
 	*-dec-osf*)
@@ -1397,6 +1410,24 @@ AC_TRY_COMPILE(
 #undef __USE_MISC
 #define __USE_MISC
 [#include <netdb.h>
+int getnetbyaddr_r (in_addr_t, int, struct netent *, struct netent_data *);
+],
+[return (0)],
+[
+NET_R_ARGS="#define NET_R_ARGS struct netent_data *ndptr"
+NET_R_BAD="#define NET_R_BAD (-1)"
+NET_R_COPY="#define NET_R_COPY ndptr"
+NET_R_COPY_ARGS="#define NET_R_COPY_ARGS struct netent_data *ndptr"
+NET_R_OK="#define NET_R_OK 0"
+NET_R_SETANSWER="#undef NET_R_SETANSWER"
+NET_R_RETURN="#define NET_R_RETURN int"
+GETNETBYADDR_ADDR_T="#define GETNETBYADDR_ADDR_T long"
+NETENT_DATA="#define NETENT_DATA 1"
+],
+AC_TRY_COMPILE(
+#undef __USE_MISC
+#define __USE_MISC
+[#include <netdb.h>
 int getnetbyaddr_r (long, int, struct netent *, struct netent_data *);
 ],
 [return (0)],
@@ -1430,6 +1461,7 @@ NET_R_RETURN="#define NET_R_RETURN int"
 GETNETBYADDR_ADDR_T="#define GETNETBYADDR_ADDR_T unsigned long int"
 NETENT_DATA="#undef NETENT_DATA"
 ],
+)
 )
 )
 )
@@ -1901,9 +1933,28 @@ AC_SUBST(NGR_R_RETURN)
 AC_SUBST(NGR_R_PRIVATE)
 
 AC_CHECK_FUNC(endnetgrent_r,
+AC_TRY_COMPILE(
+[
+#undef __USE_MISC
+#define __USE_MISC
+#include <netdb.h>
+void endnetgrent_r(void **ptr);
+]
+,
+[return (0);]
+,
+[
+NGR_R_END_RESULT="#define NGR_R_END_RESULT(x)  /* empty */"
+NGR_R_END_RETURN="#define NGR_R_END_RETURN void"
+NGR_R_ENT_ARGS="#define NGR_R_ENT_ARGS NGR_R_ARGS"
+]
+,
+[
 NGR_R_END_RESULT="#define NGR_R_END_RESULT(x)  return (x)"
 NGR_R_END_RETURN="#define NGR_R_END_RETURN int"
 NGR_R_ENT_ARGS="#define NGR_R_ENT_ARGS NGR_R_ARGS"
+]
+)
 ,
 NGR_R_END_RESULT="#define NGR_R_END_RESULT(x)  /*empty*/"
 NGR_R_END_RETURN="#define NGR_R_END_RETURN void"
@@ -1960,6 +2011,7 @@ PROTO_R_COPY_ARGS="#define PROTO_R_COPY_ARGS PROTO_R_ARGS"
 PROTO_R_OK="#define PROTO_R_OK pptr"
 PROTO_R_SETANSWER="#undef PROTO_R_SETANSWER"
 PROTO_R_RETURN="#define PROTO_R_RETURN struct protoent *"
+PROTOENT_DATA="#undef PROTOENT_DATA"
 ]
 ,
 AC_TRY_COMPILE(
@@ -1981,8 +2033,32 @@ PROTO_R_COPY_ARGS="#define PROTO_R_COPY_ARGS char *buf, size_t buflen"
 PROTO_R_OK="#define PROTO_R_OK 0"
 PROTO_R_SETANSWER="#define PROTO_R_SETANSWER 1"
 PROTO_R_RETURN="#define PROTO_R_RETURN int"
+PROTOENT_DATA="#undef PROTOENT_DATA"
 ]
 ,
+AC_TRY_COMPILE(
+[
+#undef __USE_MISC
+#define __USE_MISC
+#include <netdb.h>
+int getprotoent_r (struct protoent *, struct protoent_data *prot_data);
+
+]
+,
+[return (0);]
+,
+[
+PROTO_R_ARGS="#define PROTO_R_ARGS struct protoent_data *prot_data"
+PROTO_R_BAD="#define PROTO_R_BAD (-1)"
+PROTO_R_COPY="#define PROTO_R_COPY prot_data"
+PROTO_R_COPY_ARGS="#define PROTO_R_COPY_ARGS struct protoent_data *pdptr"
+PROTO_R_OK="#define PROTO_R_OK 0"
+PROTO_R_SETANSWER="#undef PROTO_R_SETANSWER"
+PROTO_R_RETURN="#define PROTO_R_RETURN int"
+PROTOENT_DATA="#define PROTOENT_DATA 1"
+]
+,
+)
 )
 )
 ,
@@ -1993,7 +2069,9 @@ PROTO_R_COPY_ARGS="#define PROTO_R_COPY_ARGS PROTO_R_ARGS"
 PROTO_R_OK="#define PROTO_R_OK pptr"
 PROTO_R_SETANSWER="#undef PROTO_R_SETANSWER"
 PROTO_R_RETURN="#define PROTO_R_RETURN struct protoent *"
+PROTOENT_DATA="#undef PROTOENT_DATA"
 )
+;;
 esac
 AC_SUBST(PROTO_R_ARGS)
 AC_SUBST(PROTO_R_BAD)
@@ -2002,6 +2080,7 @@ AC_SUBST(PROTO_R_COPY_ARGS)
 AC_SUBST(PROTO_R_OK)
 AC_SUBST(PROTO_R_SETANSWER)
 AC_SUBST(PROTO_R_RETURN)
+AC_SUBST(PROTOENT_DATA)
 
 case $host in
 ia64-hp-hpux11.*)
@@ -2022,18 +2101,57 @@ void endprotoent_r(void);
 PROTO_R_END_RESULT="#define PROTO_R_END_RESULT(x) /*empty*/"
 PROTO_R_END_RETURN="#define PROTO_R_END_RETURN void"
 PROTO_R_ENT_ARGS="#undef PROTO_R_ENT_ARGS"
+PROTO_R_ENT_UNUSED="#undef PROTO_R_ENT_UNUSED"
 ]
 ,
+AC_TRY_COMPILE(
+[
+#undef _REENTRANT
+#define _REENTRANT
+#undef __USE_MISC
+#define __USE_MISC
+#include <netdb.h>
+void endprotoent_r(struct protoent_data *);
+]
+,,
+[
+PROTO_R_END_RESULT="#define PROTO_R_END_RESULT(x) /*empty*/"
+PROTO_R_END_RETURN="#define PROTO_R_END_RETURN void"
+PROTO_R_ENT_ARGS="#define PROTO_R_ENT_ARGS struct protoent_data *proto_data"
+PROTO_R_ENT_UNUSED="#define PROTO_R_ENT_UNUSED UNUSED(proto_data)"
+]
+,
+AC_TRY_COMPILE(
+[
+#undef _REENTRANT
+#define _REENTRANT
+#undef __USE_MISC
+#define __USE_MISC
+#include <netdb.h>
+int endprotoent_r(struct protoent_data *);
+]
+,,
+[
+PROTO_R_END_RESULT="#define PROTO_R_END_RESULT(x) return(0)"
+PROTO_R_END_RETURN="#define PROTO_R_END_RETURN int"
+PROTO_R_ENT_ARGS="#define PROTO_R_ENT_ARGS struct protoent_data *proto_data"
+PROTO_R_ENT_UNUSED="#define PROTO_R_ENT_UNUSED UNUSED(proto_data)"
+]
+,
+)
+)
 )
 ,
 PROTO_R_END_RESULT="#define PROTO_R_END_RESULT(x) /*empty*/"
 PROTO_R_END_RETURN="#define PROTO_R_END_RETURN void"
 PROTO_R_ENT_ARGS="#undef PROTO_R_ENT_ARGS /*empty*/"
+PROTO_R_ENT_UNUSED="#undef PROTO_R_ENT_UNUSED"
 )
 esac
 AC_SUBST(PROTO_R_END_RESULT)
 AC_SUBST(PROTO_R_END_RETURN)
 AC_SUBST(PROTO_R_ENT_ARGS)
+AC_SUBST(PROTO_R_ENT_UNUSED)
 
 case $host in
 ia64-hp-hpux11.*)
@@ -2052,6 +2170,19 @@ void               setprotoent_r __P((int));
 PROTO_R_SET_RESULT="#undef PROTO_R_SET_RESULT"
 PROTO_R_SET_RETURN="#define PROTO_R_SET_RETURN void"
 ,
+AC_TRY_COMPILE(
+[
+#undef _REENTRANT
+#define _REENTRANT
+#undef __USE_MISC
+#define __USE_MISC
+#include <netdb.h>
+int setprotoent_r (int, struct protoent_data *);
+],[],
+PROTO_R_SET_RESULT="#define PROTO_R_SET_RESULT (0)"
+PROTO_R_SET_RETURN="#define PROTO_R_SET_RETURN int"
+,
+)
 )
 ,
 PROTO_R_SET_RESULT="#undef PROTO_R_SET_RESULT"
@@ -2186,6 +2317,25 @@ SERV_R_SETANSWER="#define SERV_R_SETANSWER 1"
 SERV_R_RETURN="#define SERV_R_RETURN int"
 ]
 ,
+AC_TRY_COMPILE([
+#undef __USE_MISC
+#define __USE_MISC
+#include <netdb.h>
+int
+getservent_r (struct servent *, struct servent_data *serv_data);
+],[return (0);],
+[
+SERV_R_ARGS="#define SERV_R_ARGS struct servent_data *serv_data"
+SERV_R_BAD="#define SERV_R_BAD (-1)"
+SERV_R_COPY="#define SERV_R_COPY serv_data"
+SERV_R_COPY_ARGS="#define SERV_R_COPY_ARGS struct servent_data *sdptr"
+SERV_R_OK="#define SERV_R_OK (0)"
+SERV_R_SETANSWER="#undef SERV_R_SETANSWER"
+SERV_R_RETURN="#define SERV_R_RETURN int"
+SERVENT_DATA="#define SERVENT_DATA 1"
+]
+,
+)
 )
 )
 ,
@@ -2205,6 +2355,7 @@ AC_SUBST(SERV_R_COPY_ARGS)
 AC_SUBST(SERV_R_OK)
 AC_SUBST(SERV_R_SETANSWER)
 AC_SUBST(SERV_R_RETURN)
+AC_SUBST(SERVENT_DATA)
 
 case $host in
 ia64-hp-hpux11.*)
@@ -2226,18 +2377,59 @@ void endservent_r(void);
 SERV_R_END_RESULT="#define SERV_R_END_RESULT(x) /*empty*/"
 SERV_R_END_RETURN="#define SERV_R_END_RETURN void "
 SERV_R_ENT_ARGS="#undef SERV_R_ENT_ARGS /*empty*/"
+SERV_R_ENT_UNUSED="#undef SERV_R_ENT_UNUSED /*empty*/"
 ]
 ,
+AC_TRY_COMPILE(
+[
+#undef _REENTRANT
+#define _REENTRANT
+#undef __USE_MISC
+#define __USE_MISC
+#include <netdb.h>
+void endservent_r(struct servent_data *serv_data);
+]
+,
+,
+[
+SERV_R_END_RESULT="#define SERV_R_END_RESULT(x) /*empty*/"
+SERV_R_END_RETURN="#define SERV_R_END_RETURN void "
+SERV_R_ENT_ARGS="#define SERV_R_ENT_ARGS struct servent_data *serv_data"
+SERV_R_ENT_UNUSED="#define SERV_R_ENT_UNUSED UNUSED(serv_data)"
+]
+,
+AC_TRY_COMPILE(
+[
+#undef _REENTRANT
+#define _REENTRANT
+#undef __USE_MISC
+#define __USE_MISC
+#include <netdb.h>
+int endservent_r(struct servent_data *serv_data);
+]
+,
+,
+[
+SERV_R_END_RESULT="#define SERV_R_END_RESULT(x) return(x)"
+SERV_R_END_RETURN="#define SERV_R_END_RETURN int "
+SERV_R_ENT_ARGS="#define SERV_R_ENT_ARGS struct servent_data *serv_data"
+SERV_R_ENT_UNUSED="#define SERV_R_ENT_UNUSED UNUSED(serv_data)"
+]
+,
+)
+)
 )
 ,
 SERV_R_END_RESULT="#define SERV_R_END_RESULT(x) /*empty*/"
 SERV_R_END_RETURN="#define SERV_R_END_RETURN void "
 SERV_R_ENT_ARGS="#undef SERV_R_ENT_ARGS /*empty*/"
+SERV_R_ENT_UNUSED="#undef SERV_R_ENT_UNUSED /*empty*/"
 )
 esac
 AC_SUBST(SERV_R_END_RESULT)
 AC_SUBST(SERV_R_END_RETURN)
 AC_SUBST(SERV_R_ENT_ARGS)
+AC_SUBST(SERV_R_ENT_UNUSED)
 
 case $host in
 ia64-hp-hpux11.*)
@@ -2251,7 +2443,7 @@ AC_TRY_COMPILE(
 #undef __USE_MISC
 #define __USE_MISC
 #include <netdb.h>
-void            setservent_r(int);
+void setservent_r(int);
 ]
 ,,
 [
@@ -2259,6 +2451,22 @@ SERV_R_SET_RESULT="#undef SERV_R_SET_RESULT"
 SERV_R_SET_RETURN="#define SERV_R_SET_RETURN void"
 ]
 ,
+AC_TRY_COMPILE(
+[
+#undef _REENTRANT
+#define _REENTRANT
+#undef __USE_MISC
+#define __USE_MISC
+#include <netdb.h>
+int setservent_r(int, struct servent_data *);
+]
+,,
+[
+SERV_R_SET_RESULT="#define SERV_R_SET_RESULT (0)"
+SERV_R_SET_RETURN="#define SERV_R_SET_RETURN int"
+]
+,
+)
 )
 ,
 SERV_R_SET_RESULT="#undef SERV_R_SET_RESULT"
@@ -2345,6 +2553,9 @@ case "$host" in
 		hack_shutup_pthreadmutexinit=yes
 		hack_shutup_in6addr_init_macros=yes
 		;;
+	*-aix5.[[23]].*)
+		hack_shutup_in6addr_init_macros=yes
+		;;
 	*-bsdi3.1*)
 		hack_shutup_sputaux=yes
 		;;
@@ -2366,6 +2577,9 @@ case "$host" in
 		hack_shutup_in6addr_init_macros=yes
 		;;
 	*-solaris2.9)
+		hack_shutup_in6addr_init_macros=yes
+		;;
+	*-solaris2.10)
 		hack_shutup_in6addr_init_macros=yes
 		;;
 esac
@@ -2409,7 +2623,7 @@ esac
 
 case "$hack_shutup_in6addr_init_macros" in
 	yes)
-		AC_DEFINE(BROKEN_IN6ADDR_INIT_MACROS)
+		AC_DEFINE(BROKEN_IN6ADDR_INIT_MACROS, 1, [Defined if IN6ADDR_ANY_INIT and IN6ADDR_LOOPBACK_INIT need to be redefined.] )
 		;;
 esac
 

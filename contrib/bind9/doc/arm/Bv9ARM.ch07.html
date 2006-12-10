@@ -1,5 +1,5 @@
 <!--
- - Copyright (C) 2004, 2005 Internet Systems Consortium, Inc. ("ISC")
+ - Copyright (C) 2004-2006 Internet Systems Consortium, Inc. ("ISC")
  - Copyright (C) 2000-2003 Internet Software Consortium.
  - 
  - Permission to use, copy, modify, and distribute this software for any
@@ -14,12 +14,12 @@
  - OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
  - PERFORMANCE OF THIS SOFTWARE.
 -->
-<!-- $Id: Bv9ARM.ch07.html,v 1.50.2.9.2.24 2005/10/13 02:34:02 marka Exp $ -->
+<!-- $Id: Bv9ARM.ch07.html,v 1.50.2.9.2.33 2006/09/13 02:56:21 marka Exp $ -->
 <html>
 <head>
 <meta http-equiv="Content-Type" content="text/html; charset=ISO-8859-1">
 <title>Chapter 7. BIND 9 Security Considerations</title>
-<meta name="generator" content="DocBook XSL Stylesheets V1.69.1">
+<meta name="generator" content="DocBook XSL Stylesheets V1.70.1">
 <link rel="start" href="Bv9ARM.html" title="BIND 9 Administrator Reference Manual">
 <link rel="up" href="Bv9ARM.html" title="BIND 9 Administrator Reference Manual">
 <link rel="prev" href="Bv9ARM.ch06.html" title="Chapter 6. BIND 9 Configuration Reference">
@@ -28,7 +28,7 @@
 <body bgcolor="white" text="black" link="#0000FF" vlink="#840084" alink="#0000FF">
 <div class="navheader">
 <table width="100%" summary="Navigation header">
-<tr><th colspan="3" align="center">Chapter 7. <span class="acronym">BIND</span> 9 Security Considerations</th></tr>
+<tr><th colspan="3" align="center">Chapter 7. <acronym class="acronym">BIND</acronym> 9 Security Considerations</th></tr>
 <tr>
 <td width="20%" align="left">
 <a accesskey="p" href="Bv9ARM.ch06.html">Prev</a> </td>
@@ -41,16 +41,16 @@
 </div>
 <div class="chapter" lang="en">
 <div class="titlepage"><div><div><h2 class="title">
-<a name="Bv9ARM.ch07"></a>Chapter 7. <span class="acronym">BIND</span> 9 Security Considerations</h2></div></div></div>
+<a name="Bv9ARM.ch07"></a>Chapter 7. <acronym class="acronym">BIND</acronym> 9 Security Considerations</h2></div></div></div>
 <div class="toc">
 <p><b>Table of Contents</b></p>
 <dl>
 <dt><span class="sect1"><a href="Bv9ARM.ch07.html#Access_Control_Lists">Access Control Lists</a></span></dt>
-<dt><span class="sect1"><a href="Bv9ARM.ch07.html#id2567222"><span><strong class="command">chroot</strong></span> and <span><strong class="command">setuid</strong></span> (for
+<dt><span class="sect1"><a href="Bv9ARM.ch07.html#id2591971"><span><strong class="command">chroot</strong></span> and <span><strong class="command">setuid</strong></span> (for
 UNIX servers)</a></span></dt>
 <dd><dl>
-<dt><span class="sect2"><a href="Bv9ARM.ch07.html#id2567366">The <span><strong class="command">chroot</strong></span> Environment</a></span></dt>
-<dt><span class="sect2"><a href="Bv9ARM.ch07.html#id2567424">Using the <span><strong class="command">setuid</strong></span> Function</a></span></dt>
+<dt><span class="sect2"><a href="Bv9ARM.ch07.html#id2592046">The <span><strong class="command">chroot</strong></span> Environment</a></span></dt>
+<dt><span class="sect2"><a href="Bv9ARM.ch07.html#id2592172">Using the <span><strong class="command">setuid</strong></span> Function</a></span></dt>
 </dl></dd>
 <dt><span class="sect1"><a href="Bv9ARM.ch07.html#dynamic_update_security">Dynamic Update Security</a></span></dt>
 </dl>
@@ -68,13 +68,14 @@ your name server, without cluttering up your config files with huge
 lists of IP addresses.</p>
 <p>It is a <span class="emphasis"><em>good idea</em></span> to use ACLs, and to
 control access to your server. Limiting access to your server by
-outside parties can help prevent spoofing and DoS attacks against
-your server.</p>
+outside parties can help prevent spoofing and denial of service (DoS)
+attacks against your server.</p>
 <p>Here is an example of how to properly apply ACLs:</p>
 <pre class="programlisting">
 // Set up an ACL named "bogusnets" that will block RFC1918 space,
 // which is commonly used in spoofing attacks.
 acl bogusnets { 0.0.0.0/8; 1.0.0.0/8; 2.0.0.0/8; 192.0.2.0/24; 224.0.0.0/3; 10.0.0.0/8; 172.16.0.0/12; 192.168.0.0/16; };
+
 // Set up an ACL called our-nets. Replace this with the real IP numbers.
 acl our-nets { x.x.x.x/24; x.x.x.x/21; }; 
 options {
@@ -86,6 +87,7 @@ options {
   blackhole { bogusnets; };
   ...
 };
+
 zone "example.com" {
   type master;
   file "m/example.com";
@@ -100,28 +102,28 @@ see the <span class="emphasis"><em>AUSCERT</em></span> advisory at
 </div>
 <div class="sect1" lang="en">
 <div class="titlepage"><div><div><h2 class="title" style="clear: both">
-<a name="id2567222"></a><span><strong class="command">chroot</strong></span> and <span><strong class="command">setuid</strong></span> (for
+<a name="id2591971"></a><span><strong class="command">chroot</strong></span> and <span><strong class="command">setuid</strong></span> (for
 UNIX servers)</h2></div></div></div>
-<p>On UNIX servers, it is possible to run <span class="acronym">BIND</span> in a <span class="emphasis"><em>chrooted</em></span> environment
-(<span><strong class="command">chroot()</strong></span>) by specifying the "<code class="option">-t</code>"
-option. This can help improve system security by placing <span class="acronym">BIND</span> in
+<p>On UNIX servers, it is possible to run <acronym class="acronym">BIND</acronym> in a <span class="emphasis"><em>chrooted</em></span> environment
+(using the <span><strong class="command">chroot()</strong></span> function) by specifying the "<code class="option">-t</code>"
+option. This can help improve system security by placing <acronym class="acronym">BIND</acronym> in
 a "sandbox", which will limit the damage done if a server is compromised.</p>
-<p>Another useful feature in the UNIX version of <span class="acronym">BIND</span> is the
+<p>Another useful feature in the UNIX version of <acronym class="acronym">BIND</acronym> is the
 ability to run the daemon as an unprivileged user ( <code class="option">-u</code> <em class="replaceable"><code>user</code></em> ).
 We suggest running as an unprivileged user when using the <span><strong class="command">chroot</strong></span> feature.</p>
-<p>Here is an example command line to load <span class="acronym">BIND</span> in a <span><strong class="command">chroot()</strong></span> sandbox, 
+<p>Here is an example command line to load <acronym class="acronym">BIND</acronym> in a <span><strong class="command">chroot</strong></span> sandbox, 
 <span><strong class="command">/var/named</strong></span>, and to run <span><strong class="command">named</strong></span> <span><strong class="command">setuid</strong></span> to
 user 202:</p>
 <p><strong class="userinput"><code>/usr/local/bin/named -u 202 -t /var/named</code></strong></p>
 <div class="sect2" lang="en">
 <div class="titlepage"><div><div><h3 class="title">
-<a name="id2567366"></a>The <span><strong class="command">chroot</strong></span> Environment</h3></div></div></div>
-<p>In order for a <span><strong class="command">chroot()</strong></span> environment to
+<a name="id2592046"></a>The <span><strong class="command">chroot</strong></span> Environment</h3></div></div></div>
+<p>In order for a <span><strong class="command">chroot</strong></span> environment to
 work properly in a particular directory
 (for example, <code class="filename">/var/named</code>),
 you will need to set up an environment that includes everything
-<span class="acronym">BIND</span> needs to run.
-From <span class="acronym">BIND</span>'s point of view, <code class="filename">/var/named</code> is
+<acronym class="acronym">BIND</acronym> needs to run.
+From <acronym class="acronym">BIND</acronym>'s point of view, <code class="filename">/var/named</code> is
 the root of the filesystem.  You will need to adjust the values of options like
 like <span><strong class="command">directory</strong></span> and <span><strong class="command">pid-file</strong></span> to account
 for this.
@@ -134,18 +136,18 @@ However, depending on your operating system, you may need
 to set up things like
 <code class="filename">/dev/zero</code>,
 <code class="filename">/dev/random</code>,
-<code class="filename">/dev/log</code>, and/or
+<code class="filename">/dev/log</code>, and
 <code class="filename">/etc/localtime</code>.
 </p>
 </div>
 <div class="sect2" lang="en">
 <div class="titlepage"><div><div><h3 class="title">
-<a name="id2567424"></a>Using the <span><strong class="command">setuid</strong></span> Function</h3></div></div></div>
+<a name="id2592172"></a>Using the <span><strong class="command">setuid</strong></span> Function</h3></div></div></div>
 <p>Prior to running the <span><strong class="command">named</strong></span> daemon, use
 the <span><strong class="command">touch</strong></span> utility (to change file access and
 modification times) or the <span><strong class="command">chown</strong></span> utility (to
 set the user id and/or group id) on files
-to which you want <span class="acronym">BIND</span>
+to which you want <acronym class="acronym">BIND</acronym>
 to write.  Note that if the <span><strong class="command">named</strong></span> daemon is running as an
 unprivileged user, it will not be able to bind to new restricted ports if the
 server is reloaded.</p>
@@ -156,7 +158,7 @@ server is reloaded.</p>
 <a name="dynamic_update_security"></a>Dynamic Update Security</h2></div></div></div>
 <p>Access to the dynamic
 update facility should be strictly limited.  In earlier versions of
-<span class="acronym">BIND</span> the only way to do this was based on the IP
+<acronym class="acronym">BIND</acronym>, the only way to do this was based on the IP
 address of the host requesting the update, by listing an IP address or
 network prefix in the <span><strong class="command">allow-update</strong></span> zone option.
 This method is insecure since the source address of the update UDP packet
@@ -172,7 +174,7 @@ cryptographically authenticated by means of transaction signatures
 list only TSIG key names, not IP addresses or network
 prefixes. Alternatively, the new <span><strong class="command">update-policy</strong></span>
 option can be used.</p>
-<p>Some sites choose to keep all dynamically updated DNS data
+<p>Some sites choose to keep all dynamically-updated DNS data
 in a subdomain and delegate that subdomain to a separate zone. This
 way, the top-level zone containing critical data such as the IP addresses
 of public web and mail servers need not allow dynamic update at
@@ -190,7 +192,7 @@ all.</p>
 </td>
 </tr>
 <tr>
-<td width="40%" align="left" valign="top">Chapter 6. <span class="acronym">BIND</span> 9 Configuration Reference </td>
+<td width="40%" align="left" valign="top">Chapter 6. <acronym class="acronym">BIND</acronym> 9 Configuration Reference </td>
 <td width="20%" align="center"><a accesskey="h" href="Bv9ARM.html">Home</a></td>
 <td width="40%" align="right" valign="top"> Chapter 8. Troubleshooting</td>
 </tr>

@@ -14,15 +14,15 @@
  - OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
  - PERFORMANCE OF THIS SOFTWARE.
 -->
-<!-- $Id: lwres_buffer.html,v 1.4.2.1.4.8 2005/10/13 02:33:55 marka Exp $ -->
+<!-- $Id: lwres_buffer.html,v 1.4.2.1.4.10 2006/06/29 13:02:31 marka Exp $ -->
 <html>
 <head>
 <meta http-equiv="Content-Type" content="text/html; charset=ISO-8859-1">
 <title>lwres_buffer</title>
-<meta name="generator" content="DocBook XSL Stylesheets V1.69.1">
+<meta name="generator" content="DocBook XSL Stylesheets V1.70.1">
 </head>
 <body bgcolor="white" text="black" link="#0000FF" vlink="#840084" alink="#0000FF"><div class="refentry" lang="en">
-<a name="id2463721"></a><div class="titlepage"></div>
+<a name="id2482688"></a><div class="titlepage"></div>
 <div class="refnamediv">
 <h2>Name</h2>
 <p>lwres_buffer_init, lwres_buffer_invalidate, lwres_buffer_add, lwres_buffer_subtract, lwres_buffer_clear, lwres_buffer_first, lwres_buffer_forward, lwres_buffer_back, lwres_buffer_getuint8, lwres_buffer_putuint8, lwres_buffer_getuint16, lwres_buffer_putuint16, lwres_buffer_getuint32, lwres_buffer_putuint32, lwres_buffer_putmem, lwres_buffer_getmem &#8212; lightweight resolver buffer management</p>
@@ -49,23 +49,41 @@ void
 <tr>
 <td> </td>
 <td> </td>
+<td>, </td>
+</tr>
+<tr>
+<td> </td>
+<td> </td>
 <td>
 <code>)</code>;</td>
 </tr>
 </table>
-<table border="0" summary="Function synopsis" cellspacing="0" cellpadding="0" style="padding-bottom: 1em"><tr>
+<table border="0" summary="Function synopsis" cellspacing="0" cellpadding="0" style="padding-bottom: 1em">
+<tr>
 <td><code class="funcdef">
 void
 <b class="fsfunc">lwres_buffer_invalidate</b>(</code></td>
 <td> </td>
 <td>
 <code>)</code>;</td>
-</tr></table>
+</tr>
+<tr>
+<td> </td>
+<td> </td>
+<td>
+<code>)</code>;</td>
+</tr>
+</table>
 <table border="0" summary="Function synopsis" cellspacing="0" cellpadding="0" style="padding-bottom: 1em">
 <tr>
 <td><code class="funcdef">
 void
 <b class="fsfunc">lwres_buffer_add</b>(</code></td>
+<td> </td>
+<td>, </td>
+</tr>
+<tr>
+<td> </td>
 <td> </td>
 <td>, </td>
 </tr>
@@ -87,31 +105,57 @@ void
 <tr>
 <td> </td>
 <td> </td>
+<td>, </td>
+</tr>
+<tr>
+<td> </td>
+<td> </td>
 <td>
 <code>)</code>;</td>
 </tr>
 </table>
-<table border="0" summary="Function synopsis" cellspacing="0" cellpadding="0" style="padding-bottom: 1em"><tr>
+<table border="0" summary="Function synopsis" cellspacing="0" cellpadding="0" style="padding-bottom: 1em">
+<tr>
 <td><code class="funcdef">
 void
 <b class="fsfunc">lwres_buffer_clear</b>(</code></td>
 <td> </td>
 <td>
 <code>)</code>;</td>
-</tr></table>
-<table border="0" summary="Function synopsis" cellspacing="0" cellpadding="0" style="padding-bottom: 1em"><tr>
+</tr>
+<tr>
+<td> </td>
+<td> </td>
+<td>
+<code>)</code>;</td>
+</tr>
+</table>
+<table border="0" summary="Function synopsis" cellspacing="0" cellpadding="0" style="padding-bottom: 1em">
+<tr>
 <td><code class="funcdef">
 void
 <b class="fsfunc">lwres_buffer_first</b>(</code></td>
 <td> </td>
 <td>
 <code>)</code>;</td>
-</tr></table>
+</tr>
+<tr>
+<td> </td>
+<td> </td>
+<td>
+<code>)</code>;</td>
+</tr>
+</table>
 <table border="0" summary="Function synopsis" cellspacing="0" cellpadding="0" style="padding-bottom: 1em">
 <tr>
 <td><code class="funcdef">
 void
 <b class="fsfunc">lwres_buffer_forward</b>(</code></td>
+<td> </td>
+<td>, </td>
+</tr>
+<tr>
+<td> </td>
 <td> </td>
 <td>, </td>
 </tr>
@@ -133,18 +177,31 @@ void
 <tr>
 <td> </td>
 <td> </td>
+<td>, </td>
+</tr>
+<tr>
+<td> </td>
+<td> </td>
 <td>
 <code>)</code>;</td>
 </tr>
 </table>
-<table border="0" summary="Function synopsis" cellspacing="0" cellpadding="0" style="padding-bottom: 1em"><tr>
+<table border="0" summary="Function synopsis" cellspacing="0" cellpadding="0" style="padding-bottom: 1em">
+<tr>
 <td><code class="funcdef">
 lwres_uint8_t
 <b class="fsfunc">lwres_buffer_getuint8</b>(</code></td>
 <td> </td>
 <td>
 <code>)</code>;</td>
-</tr></table>
+</tr>
+<tr>
+<td> </td>
+<td> </td>
+<td>
+<code>)</code>;</td>
+</tr>
+</table>
 <table border="0" summary="Function synopsis" cellspacing="0" cellpadding="0" style="padding-bottom: 1em">
 <tr>
 <td><code class="funcdef">
@@ -156,18 +213,31 @@ void
 <tr>
 <td> </td>
 <td> </td>
+<td>, </td>
+</tr>
+<tr>
+<td> </td>
+<td> </td>
 <td>
 <code>)</code>;</td>
 </tr>
 </table>
-<table border="0" summary="Function synopsis" cellspacing="0" cellpadding="0" style="padding-bottom: 1em"><tr>
+<table border="0" summary="Function synopsis" cellspacing="0" cellpadding="0" style="padding-bottom: 1em">
+<tr>
 <td><code class="funcdef">
 lwres_uint16_t
 <b class="fsfunc">lwres_buffer_getuint16</b>(</code></td>
 <td> </td>
 <td>
 <code>)</code>;</td>
-</tr></table>
+</tr>
+<tr>
+<td> </td>
+<td> </td>
+<td>
+<code>)</code>;</td>
+</tr>
+</table>
 <table border="0" summary="Function synopsis" cellspacing="0" cellpadding="0" style="padding-bottom: 1em">
 <tr>
 <td><code class="funcdef">
@@ -179,23 +249,41 @@ void
 <tr>
 <td> </td>
 <td> </td>
+<td>, </td>
+</tr>
+<tr>
+<td> </td>
+<td> </td>
 <td>
 <code>)</code>;</td>
 </tr>
 </table>
-<table border="0" summary="Function synopsis" cellspacing="0" cellpadding="0" style="padding-bottom: 1em"><tr>
+<table border="0" summary="Function synopsis" cellspacing="0" cellpadding="0" style="padding-bottom: 1em">
+<tr>
 <td><code class="funcdef">
 lwres_uint32_t
 <b class="fsfunc">lwres_buffer_getuint32</b>(</code></td>
 <td> </td>
 <td>
 <code>)</code>;</td>
-</tr></table>
+</tr>
+<tr>
+<td> </td>
+<td> </td>
+<td>
+<code>)</code>;</td>
+</tr>
+</table>
 <table border="0" summary="Function synopsis" cellspacing="0" cellpadding="0" style="padding-bottom: 1em">
 <tr>
 <td><code class="funcdef">
 void
 <b class="fsfunc">lwres_buffer_putuint32</b>(</code></td>
+<td> </td>
+<td>, </td>
+</tr>
+<tr>
+<td> </td>
 <td> </td>
 <td>, </td>
 </tr>
@@ -211,6 +299,11 @@ void
 <td><code class="funcdef">
 void
 <b class="fsfunc">lwres_buffer_putmem</b>(</code></td>
+<td> </td>
+<td>, </td>
+</tr>
+<tr>
+<td> </td>
 <td> </td>
 <td>, </td>
 </tr>
@@ -242,6 +335,11 @@ void
 <tr>
 <td> </td>
 <td> </td>
+<td>, </td>
+</tr>
+<tr>
+<td> </td>
+<td> </td>
 <td>
 <code>)</code>;</td>
 </tr>
@@ -249,7 +347,7 @@ void
 </div>
 </div>
 <div class="refsect1" lang="en">
-<a name="id2526109"></a><h2>DESCRIPTION</h2>
+<a name="id2549674"></a><h2>DESCRIPTION</h2>
 <p>
 These functions provide bounds checked access to a region of memory
 where data is being read or written.

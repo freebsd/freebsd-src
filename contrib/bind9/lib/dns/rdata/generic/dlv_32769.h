@@ -1,6 +1,5 @@
 /*
  * Copyright (C) 2004, 2006  Internet Systems Consortium, Inc. ("ISC")
- * Copyright (C) 2001  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -15,41 +14,20 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: check.h,v 1.1.200.6 2006/03/02 00:37:20 marka Exp $ */
+/* $Id: dlv_32769.h,v 1.2.4.2 2006/02/19 06:50:46 marka Exp $ */
 
-#ifndef BIND9_CHECK_H
-#define BIND9_CHECK_H 1
+/* draft-ietf-dnsext-delegation-signer-05.txt */
+#ifndef GENERIC_DLV_32769_H
+#define GENERIC_DLV_32769_H 1
 
-#include <isc/lang.h>
-#include <isc/types.h>
+typedef struct dns_rdata_dlv {
+	dns_rdatacommon_t	common;
+	isc_mem_t		*mctx;
+	isc_uint16_t		key_tag;
+	isc_uint8_t		algorithm;
+	isc_uint8_t		digest_type;
+	isc_uint16_t		length;
+	unsigned char		*digest;
+} dns_rdata_dlv_t;
 
-#include <isccfg/cfg.h>
-
-ISC_LANG_BEGINDECLS
-
-isc_result_t
-bind9_check_namedconf(const cfg_obj_t *config, isc_log_t *logctx,
-		      isc_mem_t *mctx);
-/*
- * Check the syntactic validity of a configuration parse tree generated from
- * a named.conf file.
- *
- * Requires:
- *	config is a valid parse tree
- *
- *	logctx is a valid logging context.
- *
- * Returns:
- * 	ISC_R_SUCCESS
- * 	ISC_R_FAILURE
- */
-
-isc_result_t
-bind9_check_key(const cfg_obj_t *config, isc_log_t *logctx);
-/*
- * As above, but for a single 'key' statement.
- */
-
-ISC_LANG_ENDDECLS
-
-#endif /* BIND9_CHECK_H */
+#endif /* GENERIC_DLV_32769_H */

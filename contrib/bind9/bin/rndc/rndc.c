@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2004, 2005  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004-2006  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 2000-2003  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and distribute this software for any
@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: rndc.c,v 1.77.2.5.2.15 2005/03/17 03:58:27 marka Exp $ */
+/* $Id: rndc.c,v 1.77.2.5.2.19 2006/08/04 03:03:08 marka Exp $ */
 
 /*
  * Principal Author: DCL
@@ -154,6 +154,11 @@ rndc_senddone(isc_task_t *task, isc_event_t *event) {
 	if (sevent->result != ISC_R_SUCCESS)
 		fatal("send failed: %s", isc_result_totext(sevent->result));
 	isc_event_free(&event);
+	if (sends == 0 && recvs == 0) {
+		isc_socket_detach(&sock);
+		isc_task_shutdown(task);
+		RUNTIME_CHECK(isc_app_shutdown() == ISC_R_SUCCESS);
+	}
 }
 
 static void
@@ -204,9 +209,11 @@ rndc_recvdone(isc_task_t *task, isc_event_t *event) {
 
 	isc_event_free(&event);
 	isccc_sexpr_free(&response);
-	isc_socket_detach(&sock);
-	isc_task_shutdown(task);
-	RUNTIME_CHECK(isc_app_shutdown() == ISC_R_SUCCESS);
+	if (sends == 0 && recvs == 0) {
+		isc_socket_detach(&sock);
+		isc_task_shutdown(task);
+		RUNTIME_CHECK(isc_app_shutdown() == ISC_R_SUCCESS);
+	}
 }
 
 static void
@@ -288,6 +295,7 @@ rndc_recvnonce(isc_task_t *task, isc_event_t *event) {
 
 static void
 rndc_connected(isc_task_t *task, isc_event_t *event) {
+	char socktext[ISC_SOCKADDR_FORMATSIZE];
 	isc_socketevent_t *sevent = (isc_socketevent_t *)event;
 	isccc_sexpr_t *request = NULL;
 	isccc_sexpr_t *data;
@@ -301,17 +309,19 @@ rndc_connected(isc_task_t *task, isc_event_t *event) {
 	connects--;
 
 	if (sevent->result != ISC_R_SUCCESS) {
+		isc_sockaddr_format(&serveraddrs[currentaddr], socktext,
+				    sizeof(socktext));
 		if (sevent->result != ISC_R_CANCELED &&
-		    currentaddr < nserveraddrs)
+		    ++currentaddr < nserveraddrs)
 		{
-			notify("connection failed: %s",
+			notify("connection failed: %s: %s", socktext,
 			       isc_result_totext(sevent->result));
 			isc_socket_detach(&sock);
 			isc_event_free(&event);
-			rndc_startconnect(&serveraddrs[currentaddr++], task);
+			rndc_startconnect(&serveraddrs[currentaddr], task);
 			return;
 		} else
-			fatal("connect failed: %s",
+			fatal("connect failed: %s: %s", socktext,
 			      isc_result_totext(sevent->result));
 	}
 
@@ -369,7 +379,7 @@ rndc_start(isc_task_t *task, isc_event_t *event) {
 	get_addresses(servername, (in_port_t) remoteport);
 
 	currentaddr = 0;
-	rndc_startconnect(&serveraddrs[currentaddr++], task);
+	rndc_startconnect(&serveraddrs[currentaddr], task);
 }
 
 static void
@@ -378,17 +388,17 @@ parse_config(isc_mem_t *mctx, isc_log_t *log, const char *keyname,
 {
 	isc_result_t result;
 	const char *conffile = admin_conffile;
-	cfg_obj_t *defkey = NULL;
-	cfg_obj_t *options = NULL;
-	cfg_obj_t *servers = NULL;
-	cfg_obj_t *server = NULL;
-	cfg_obj_t *keys = NULL;
-	cfg_obj_t *key = NULL;
-	cfg_obj_t *defport = NULL;
-	cfg_obj_t *secretobj = NULL;
-	cfg_obj_t *algorithmobj = NULL;
+	const cfg_obj_t *defkey = NULL;
+	const cfg_obj_t *options = NULL;
+	const cfg_obj_t *servers = NULL;
+	const cfg_obj_t *server = NULL;
+	const cfg_obj_t *keys = NULL;
+	const cfg_obj_t *key = NULL;
+	const cfg_obj_t *defport = NULL;
+	const cfg_obj_t *secretobj = NULL;
+	const cfg_obj_t *algorithmobj = NULL;
 	cfg_obj_t *config = NULL;
-	cfg_listelt_t *elt;
+	const cfg_listelt_t *elt;
 	const char *secretstr;
 	const char *algorithm;
 	static char secretarray[1024];
@@ -420,7 +430,7 @@ parse_config(isc_mem_t *mctx, isc_log_t *log, const char *keyname,
 	if (key_only && servername == NULL)
 		servername = "127.0.0.1";
 	else if (servername == NULL && options != NULL) {
-		cfg_obj_t *defserverobj = NULL;
+		const cfg_obj_t *defserverobj = NULL;
 		(void)cfg_map_get(options, "default-server", &defserverobj);
 		if (defserverobj != NULL)
 			servername = cfg_obj_asstring(defserverobj);

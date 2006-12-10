@@ -16,7 +16,7 @@
  */
 
 #if defined(LIBC_SCCS) && !defined(lint)
-static const char rcsid[] = "$Id: inet_cidr_ntop.c,v 1.1.2.1.8.3 2005/11/03 23:08:40 marka Exp $";
+static const char rcsid[] = "$Id: inet_cidr_ntop.c,v 1.1.2.1.8.4 2006/10/11 02:32:50 marka Exp $";
 #endif
 
 #include "port_before.h"
@@ -40,10 +40,10 @@ static const char rcsid[] = "$Id: inet_cidr_ntop.c,v 1.1.2.1.8.3 2005/11/03 23:0
 # define SPRINTF(x) ((size_t)sprintf x)
 #endif
 
-static char *	inet_cidr_ntop_ipv4 __P((const u_char *src, int bits,
-					 char *dst, size_t size));
-static char *	inet_cidr_ntop_ipv6 __P((const u_char *src, int bits,
-					 char *dst, size_t size));
+static char *
+inet_cidr_ntop_ipv4(const u_char *src, int bits, char *dst, size_t size);
+static char *
+inet_cidr_ntop_ipv6(const u_char *src, int bits, char *dst, size_t size);
 
 /*
  * char *
