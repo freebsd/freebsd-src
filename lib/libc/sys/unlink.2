@@ -32,7 +32,7 @@
 .\"     @(#)unlink.2	8.1 (Berkeley) 6/4/93
 .\" $FreeBSD$
 .\"
-.Dd December 9, 2006
+.Dd December 10, 2006
 .Dt UNLINK 2
 .Os
 .Sh NAME
@@ -97,9 +97,6 @@ set.
 The directory containing the file is marked sticky,
 and neither the containing directory nor the file to be removed
 are owned by the effective user ID.
-.It Bq Er EBUSY
-The entry to be unlinked is the mount point for a
-mounted file system.
 .It Bq Er EIO
 An I/O error occurred while deleting the directory entry
 or deallocating the inode.
