@@ -557,6 +557,8 @@ DMenu MenuMediaFTP = {
 	VAR_FTP_PATH "=ftp://ftp2.jp.freebsd.org" },
       { " IPv6 USA", "ftp4.us.freebsd.org", NULL, dmenuSetVariable, NULL,
 	VAR_FTP_PATH "=ftp://ftp4.us.freebsd.org" },
+      { " IPv6 Turkey", "ftp2.tr.freebsd.org", NULL, dmenuSetVariable, NULL,
+	VAR_FTP_PATH "=ftp://ftp2.tr.freebsd.org" },
 
       { "Primary",	"ftp1.freebsd.org", NULL, dmenuSetVariable, NULL,
 	VAR_FTP_PATH "=ftp://ftp1.freebsd.org" },
@@ -817,6 +819,8 @@ DMenu MenuMediaFTP = {
 	VAR_FTP_PATH "=ftp://ftp11.tw.freebsd.org" },
 
       { "Turkey",	"ftp.tr.freebsd.org", NULL, dmenuSetVariable, NULL,
+	VAR_FTP_PATH "=ftp://ftp.tr.freebsd.org" },
+      { " Turkey #2",	"ftp2.tr.freebsd.org", NULL, dmenuSetVariable, NULL,
 	VAR_FTP_PATH "=ftp://ftp.tr.freebsd.org" },
 
       { "UK",		"ftp.uk.freebsd.org", NULL, dmenuSetVariable, NULL,
