@@ -310,7 +310,7 @@ elf_reloc(linker_file_t lf, Elf_Addr relocbase, const void *data, int type,
 		return (0);
 
 	if (rtype == R_SPARC_JMP_SLOT || rtype == R_SPARC_COPY ||
-	    rtype > R_SPARC_UA16)
+	    rtype >= (sizeof(reloc_target_bitmask)/sizeof(long)))
 		return (-1);
 
 	if (RELOC_UNALIGNED(rtype))
