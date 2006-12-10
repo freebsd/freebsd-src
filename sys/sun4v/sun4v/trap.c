@@ -453,11 +453,12 @@ trap_pfault(struct thread *td, struct trapframe *tf, int64_t type, uint64_t data
 	type = type & ~T_KERNEL;
 	va = TLB_TAR_VA(data);
 
-#if 1
+
 	if (data > VM_MIN_DIRECT_ADDRESS)
 		printf("trap_pfault(type=%ld, data=0x%lx, tpc=0x%lx, ctx=0x%lx)\n", 
 		       type, data, tf->tf_tpc, ctx);
 
+#if 0
 	CTR4(KTR_TRAP, "trap_pfault: td=%p pm_ctx=%#lx va=%#lx ctx=%#lx",
 	    td, p->p_vmspace->vm_pmap.pm_context[PCPU_GET(cpuid)], va, ctx);
 #endif
