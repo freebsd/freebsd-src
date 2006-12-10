@@ -448,7 +448,7 @@ pmap_bootstrap(vm_offset_t ekva)
 	vm_size_t physsz, virtsz, kernel_hash_shift;
 	ihandle_t pmem, vmem;
 	int i, j, k, sz;
-	uint64_t tsb_8k_size, tsb_4m_size, error, physmem_tunable;
+	uint64_t tsb_8k_size, tsb_4m_size, error, physmem_tunable, physmemstart_tunable;
 	vm_paddr_t real_phys_avail[128], tmp_phys_avail[128];
 
 	if ((vmem = OF_finddevice("/virtual-memory")) == -1)
@@ -489,7 +489,6 @@ pmap_bootstrap(vm_offset_t ekva)
 #ifdef SMP
 				mp_add_nucleus_mapping(va, pa|TTE_KERNEL|VTD_4M);
 #endif
-
 			}
 		}  
 	}
@@ -515,13 +514,17 @@ pmap_bootstrap(vm_offset_t ekva)
 	CTR0(KTR_PMAP, "pmap_bootstrap: physical memory");
 
 	qsort(mra, sz, sizeof (*mra), mr_cmp);
-	physmem_tunable = physmem = physsz = 0;
+	physmemstart_tunable = physmem_tunable = physmem = physsz = 0;
 	
+        if (TUNABLE_ULONG_FETCH("hw.physmemstart", &physmemstart_tunable)) {
+		KDPRINTF("desired physmemstart=0x%lx\n", physmemstart_tunable);
+	}
         if (TUNABLE_ULONG_FETCH("hw.physmem", &physmem_tunable)) {
                 physmem = atop(physmem_tunable);
 		KDPRINTF("desired physmem=0x%lx\n", physmem_tunable);
 	}
-
+	physmem_tunable += physmemstart_tunable;
+	
 	bzero(real_phys_avail, sizeof(real_phys_avail));
 	bzero(tmp_phys_avail, sizeof(tmp_phys_avail));
 
@@ -552,20 +555,17 @@ pmap_bootstrap(vm_offset_t ekva)
 		real_phys_avail[j + 1] = mra[i].mr_start + mra[i].mr_size;
 		j += 2;
 	}
-	physmem = btoc(physsz);
-
-		
-	
+	physmem = btoc(physsz - physmemstart_tunable);
 	/*
 	 * This is needed for versions of OFW that would allocate us memory
 	 * and then forget to remove it from the available ranges ...
 	 * as well as for compensating for the above move of nucleus pages
 	 */
-	for (i = 0; real_phys_avail[i] != 0; i += 2) {
+	for (i = 0, j = 0; real_phys_avail[i] != 0; i += 2) {
 		vm_paddr_t start = real_phys_avail[i];
 		uint64_t size = real_phys_avail[i + 1] - real_phys_avail[i];
-		CTR2(KTR_PMAP, "start=%#lx size=%#lx\n", mra[i].mr_start, mra[i].mr_size);
-		KDPRINTF("start=%#lx size=%#lx\n", mra[i].mr_start, mra[i].mr_size);
+		CTR2(KTR_PMAP, "start=%#lx size=%#lx\n", start,size);
+		KDPRINTF("real_phys start=%#lx size=%#lx\n", start, size);
 		/* 
 		 * Is kernel memory at the beginning of range?
 		 */
@@ -578,6 +578,15 @@ pmap_bootstrap(vm_offset_t ekva)
 		if (nucleus_memory_start == (start + size - nucleus_memory)) 
 			size -= nucleus_memory;
 
+		if (physmemstart_tunable != 0 && 
+		    ((mra[i].mr_start + mra[i].mr_size) < physmemstart_tunable)) 
+			continue;
+
+		if (physmemstart_tunable != 0 && 
+		    ((start < physmemstart_tunable))) {
+			size -= (physmemstart_tunable - start);
+			start = physmemstart_tunable;
+		}
 		/* 
 		 * Is kernel memory in the middle somewhere?
 		 */
