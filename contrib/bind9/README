@@ -194,6 +194,9 @@ BIND 9.2.0
 
 		--with-libtool does not work on AIX.
 
+		--with-libtool does not work on SunOS 4.  configure
+		requires "printf" which is not available.
+
 	A bug in the Windows 2000 DNS server can cause zone transfers
 	from a BIND 9 server to a W2K server to fail.  For details,
 	see the "Zone Transfers" section in doc/misc/migration.
@@ -226,7 +229,7 @@ Building
 	        Red Hat Linux 7.1
 		Debian GNU/Linux 2.2 and 3.0
 		Mandrake 8.1
-		OpenBSD 2.6, 2.8, 2.9
+		OpenBSD 2.6, 2.8, 2.9, 3.1, 3.6, 3.8
 		UnixWare 7.1.1
 		HP-UX 10.20
 		BSD/OS 4.2
@@ -265,9 +268,22 @@ Building
 		Enable DNSSEC signature chasing support in dig.
 		  -DDIG_SIGCHASE=1 (sets -DDIG_SIGCHASE_TD=1 and
 				    -DDIG_SIGCHASE_BU=1)
+		Disable dropping queries from particular well known ports.
+		  -DNS_CLIENT_DROPPORT=0
 
 	    LDFLAGS
 		Linker flags. Defaults to empty string.
+
+	The following need to be set when cross compiling.
+
+	    BUILD_CC
+		The native C compiler.
+	    BUILD_CFLAGS (optional)
+	    BUILD_CPPFLAGS (optional)
+		Possible Settings:
+		-DNEED_OPTARG=1		(optarg is not declared in <unistd.h>)
+	    BUILD_LDFLAGS (optional)
+	    BUILD_LIBS (optional)
 
 	To build shared libraries, specify "--with-libtool" on the
 	configure command line.

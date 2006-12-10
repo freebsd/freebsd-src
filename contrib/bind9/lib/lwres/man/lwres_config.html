@@ -14,15 +14,15 @@
  - OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
  - PERFORMANCE OF THIS SOFTWARE.
 -->
-<!-- $Id: lwres_config.html,v 1.4.2.1.4.9 2005/10/13 02:33:55 marka Exp $ -->
+<!-- $Id: lwres_config.html,v 1.4.2.1.4.11 2006/06/29 13:02:31 marka Exp $ -->
 <html>
 <head>
 <meta http-equiv="Content-Type" content="text/html; charset=ISO-8859-1">
 <title>lwres_config</title>
-<meta name="generator" content="DocBook XSL Stylesheets V1.69.1">
+<meta name="generator" content="DocBook XSL Stylesheets V1.70.1">
 </head>
 <body bgcolor="white" text="black" link="#0000FF" vlink="#840084" alink="#0000FF"><div class="refentry" lang="en">
-<a name="id2463721"></a><div class="titlepage"></div>
+<a name="id2482688"></a><div class="titlepage"></div>
 <div class="refnamediv">
 <h2>Name</h2>
 <p>lwres_conf_init, lwres_conf_clear, lwres_conf_parse, lwres_conf_print, lwres_conf_get &#8212; lightweight resolver configuration</p>
@@ -31,27 +31,48 @@
 <h2>Synopsis</h2>
 <div class="funcsynopsis">
 <pre class="funcsynopsisinfo">#include &lt;lwres/lwres.h&gt;</pre>
-<table border="0" summary="Function synopsis" cellspacing="0" cellpadding="0" style="padding-bottom: 1em"><tr>
+<table border="0" summary="Function synopsis" cellspacing="0" cellpadding="0" style="padding-bottom: 1em">
+<tr>
 <td><code class="funcdef">
 void
 <b class="fsfunc">lwres_conf_init</b>(</code></td>
 <td> </td>
 <td>
 <code>)</code>;</td>
-</tr></table>
-<table border="0" summary="Function synopsis" cellspacing="0" cellpadding="0" style="padding-bottom: 1em"><tr>
+</tr>
+<tr>
+<td> </td>
+<td> </td>
+<td>
+<code>)</code>;</td>
+</tr>
+</table>
+<table border="0" summary="Function synopsis" cellspacing="0" cellpadding="0" style="padding-bottom: 1em">
+<tr>
 <td><code class="funcdef">
 void
 <b class="fsfunc">lwres_conf_clear</b>(</code></td>
 <td> </td>
 <td>
 <code>)</code>;</td>
-</tr></table>
+</tr>
+<tr>
+<td> </td>
+<td> </td>
+<td>
+<code>)</code>;</td>
+</tr>
+</table>
 <table border="0" summary="Function synopsis" cellspacing="0" cellpadding="0" style="padding-bottom: 1em">
 <tr>
 <td><code class="funcdef">
 lwres_result_t
 <b class="fsfunc">lwres_conf_parse</b>(</code></td>
+<td> </td>
+<td>, </td>
+</tr>
+<tr>
+<td> </td>
 <td> </td>
 <td>, </td>
 </tr>
@@ -73,22 +94,35 @@ lwres_result_t
 <tr>
 <td> </td>
 <td> </td>
+<td>, </td>
+</tr>
+<tr>
+<td> </td>
+<td> </td>
 <td>
 <code>)</code>;</td>
 </tr>
 </table>
-<table border="0" summary="Function synopsis" cellspacing="0" cellpadding="0"><tr>
+<table border="0" summary="Function synopsis" cellspacing="0" cellpadding="0">
+<tr>
 <td><code class="funcdef">
 lwres_conf_t *
 <b class="fsfunc">lwres_conf_get</b>(</code></td>
 <td> </td>
 <td>
 <code>)</code>;</td>
-</tr></table>
+</tr>
+<tr>
+<td> </td>
+<td> </td>
+<td>
+<code>)</code>;</td>
+</tr>
+</table>
 </div>
 </div>
 <div class="refsect1" lang="en">
-<a name="id2525910"></a><h2>DESCRIPTION</h2>
+<a name="id2549475"></a><h2>DESCRIPTION</h2>
 <p>
 <code class="function">lwres_conf_init()</code>
 creates an empty
@@ -125,7 +159,7 @@ to the
 </p>
 </div>
 <div class="refsect1" lang="en">
-<a name="id2525981"></a><h2>RETURN VALUES</h2>
+<a name="id2549546"></a><h2>RETURN VALUES</h2>
 <p>
 <code class="function">lwres_conf_parse()</code>
 returns
@@ -150,14 +184,14 @@ If this happens, the function returns
 </p>
 </div>
 <div class="refsect1" lang="en">
-<a name="id2526021"></a><h2>SEE ALSO</h2>
+<a name="id2549586"></a><h2>SEE ALSO</h2>
 <p>
 <span class="citerefentry"><span class="refentrytitle">stdio</span>(3)</span>,
 <span class="citerefentry"><span class="refentrytitle">resolver</span>(5)</span>.
 </p>
 </div>
 <div class="refsect1" lang="en">
-<a name="id2526048"></a><h2>FILES</h2>
+<a name="id2549612"></a><h2>FILES</h2>
 <p>
 <code class="filename">/etc/resolv.conf</code>
 </p>

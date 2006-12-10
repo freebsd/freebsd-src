@@ -1,4 +1,4 @@
-.\" Copyright (C) 2004, 2005 Internet Systems Consortium, Inc. ("ISC")
+.\" Copyright (C) 2004-2006 Internet Systems Consortium, Inc. ("ISC")
 .\" Copyright (C) 2000, 2001, 2003 Internet Software Consortium.
 .\" 
 .\" Permission to use, copy, modify, and distribute this software for any
@@ -13,14 +13,17 @@
 .\" OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
 .\" PERFORMANCE OF THIS SOFTWARE.
 .\"
-.\" $Id: named.8,v 1.17.208.6 2005/10/13 02:33:46 marka Exp $
+.\" $Id: named.8,v 1.17.208.9 2006/06/29 13:02:30 marka Exp $
 .\"
 .hy 0
 .ad l
-.\" ** You probably do not want to edit this file directly **
-.\" It was generated using the DocBook XSL Stylesheets (version 1.69.1).
-.\" Instead of manually editing it, you probably should edit the DocBook XML
-.\" source for it and then use the DocBook XSL Stylesheets to regenerate it.
+.\"     Title: named
+.\"    Author: 
+.\" Generator: DocBook XSL Stylesheets v1.70.1 <http://docbook.sf.net/>
+.\"      Date: June 30, 2000
+.\"    Manual: BIND9
+.\"    Source: BIND9
+.\"
 .TH "NAMED" "8" "June 30, 2000" "BIND9" "BIND9"
 .\" disable hyphenation
 .nh
@@ -41,21 +44,21 @@ When invoked without arguments,
 will read the default configuration file
 \fI/etc/named.conf\fR, read any initial data, and listen for queries.
 .SH "OPTIONS"
-.TP
+.TP 3n
 \-4
 Use IPv4 only even if the host machine is capable of IPv6.
 \fB\-4\fR
 and
 \fB\-6\fR
 are mutually exclusive.
-.TP
+.TP 3n
 \-6
 Use IPv6 only even if the host machine is capable of IPv4.
 \fB\-4\fR
 and
 \fB\-6\fR
 are mutually exclusive.
-.TP
+.TP 3n
 \-c \fIconfig\-file\fR
 Use
 \fIconfig\-file\fR
@@ -65,31 +68,31 @@ as the configuration file instead of the default,
 option in the configuration file,
 \fIconfig\-file\fR
 should be an absolute pathname.
-.TP
+.TP 3n
 \-d \fIdebug\-level\fR
 Set the daemon's debug level to
 \fIdebug\-level\fR. Debugging traces from
 \fBnamed\fR
 become more verbose as the debug level increases.
-.TP
+.TP 3n
 \-f
 Run the server in the foreground (i.e. do not daemonize).
-.TP
+.TP 3n
 \-g
 Run the server in the foreground and force all logging to
 \fIstderr\fR.
-.TP
+.TP 3n
 \-n \fI#cpus\fR
 Create
 \fI#cpus\fR
 worker threads to take advantage of multiple CPUs. If not specified,
 \fBnamed\fR
 will try to determine the number of CPUs present and create one thread per CPU. If it is unable to determine the number of CPUs, a single worker thread will be created.
-.TP
+.TP 3n
 \-p \fIport\fR
 Listen for queries on port
 \fIport\fR. If not specified, the default is port 53.
-.TP
+.TP 3n
 \-s
 Write memory usage statistics to
 \fIstdout\fR
@@ -98,7 +101,7 @@ on exit.
 .B "Note:"
 This option is mainly of interest to BIND 9 developers and may be removed or changed in a future release.
 .RE
-.TP
+.TP 3n
 \-t \fIdirectory\fR
 \fBchroot()\fR
 to
@@ -112,7 +115,7 @@ option, as chrooting a process running as root doesn't enhance security on most 
 \fBchroot()\fR
 is defined allows a process with root privileges to escape a chroot jail.
 .RE
-.TP
+.TP 3n
 \-u \fIuser\fR
 \fBsetuid()\fR
 to
@@ -131,10 +134,10 @@ option only works when
 is run on kernel 2.2.18 or later, or kernel 2.3.99\-pre3 or later, since previous kernels did not allow privileges to be retained after
 \fBsetuid()\fR.
 .RE
-.TP
+.TP 3n
 \-v
 Report the version number and exit.
-.TP
+.TP 3n
 \-x \fIcache\-file\fR
 Load data from
 \fIcache\-file\fR
@@ -148,10 +151,10 @@ This option must not be used. It is only of interest to BIND 9 developers and ma
 In routine operation, signals should not be used to control the nameserver;
 \fBrndc\fR
 should be used instead.
-.TP
+.TP 3n
 SIGHUP
 Force a reload of the server.
-.TP
+.TP 3n
 SIGINT, SIGTERM
 Shut down the server.
 .PP
@@ -163,10 +166,10 @@ The
 configuration file is too complex to describe in detail here. A complete description is provided in the
 BIND 9 Administrator Reference Manual.
 .SH "FILES"
-.TP
+.TP 3n
 \fI/etc/named.conf\fR
 The default configuration file.
-.TP
+.TP 3n
 \fI/var/run/named.pid\fR
 The default process\-id file.
 .SH "SEE ALSO"
@@ -176,7 +179,10 @@ RFC 1034,
 RFC 1035,
 \fBrndc\fR(8),
 \fBlwresd\fR(8),
+\fBnamed.conf\fR(5),
 BIND 9 Administrator Reference Manual.
 .SH "AUTHOR"
 .PP
 Internet Systems Consortium
+.SH "COPYRIGHT"
+Copyright \(co 2004\-2006 Internet Systems Consortium, Inc. ("ISC")

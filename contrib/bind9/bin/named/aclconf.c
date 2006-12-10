@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2004, 2005  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004-2006  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 1999-2002  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and distribute this software for any
@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: aclconf.c,v 1.27.12.5 2005/03/17 03:58:25 marka Exp $ */
+/* $Id: aclconf.c,v 1.27.12.7 2006/03/02 00:37:20 marka Exp $ */
 
 #include <config.h>
 
@@ -54,10 +54,10 @@ ns_aclconfctx_destroy(ns_aclconfctx_t *ctx) {
  * Find the definition of the named acl whose name is "name".
  */
 static isc_result_t
-get_acl_def(cfg_obj_t *cctx, char *name, cfg_obj_t **ret) {
+get_acl_def(const cfg_obj_t *cctx, const char *name, const cfg_obj_t **ret) {
 	isc_result_t result;
-	cfg_obj_t *acls = NULL;
-	cfg_listelt_t *elt;
+	const cfg_obj_t *acls = NULL;
+	const cfg_listelt_t *elt;
 	
 	result = cfg_map_get(cctx, "acl", &acls);
 	if (result != ISC_R_SUCCESS)
@@ -65,7 +65,7 @@ get_acl_def(cfg_obj_t *cctx, char *name, cfg_obj_t **ret) {
 	for (elt = cfg_list_first(acls);
 	     elt != NULL;
 	     elt = cfg_list_next(elt)) {
-		cfg_obj_t *acl = cfg_listelt_value(elt);
+		const cfg_obj_t *acl = cfg_listelt_value(elt);
 		const char *aclname = cfg_obj_asstring(cfg_tuple_get(acl, "name"));
 		if (strcasecmp(aclname, name) == 0) {
 			*ret = cfg_tuple_get(acl, "value");
@@ -76,15 +76,15 @@ get_acl_def(cfg_obj_t *cctx, char *name, cfg_obj_t **ret) {
 }
 
 static isc_result_t
-convert_named_acl(cfg_obj_t *nameobj, cfg_obj_t *cctx,
+convert_named_acl(const cfg_obj_t *nameobj, const cfg_obj_t *cctx,
 		  ns_aclconfctx_t *ctx, isc_mem_t *mctx,
 		  dns_acl_t **target)
 {
 	isc_result_t result;
-	cfg_obj_t *cacl = NULL;
+	const cfg_obj_t *cacl = NULL;
 	dns_acl_t *dacl;
 	dns_acl_t loop;
-	char *aclname = cfg_obj_asstring(nameobj);
+	const char *aclname = cfg_obj_asstring(nameobj);
 
 	/* Look for an already-converted version. */
 	for (dacl = ISC_LIST_HEAD(ctx->named_acl_cache);
@@ -113,7 +113,7 @@ convert_named_acl(cfg_obj_t *nameobj, cfg_obj_t *cctx,
 	 */
 	memset(&loop, 0, sizeof(loop));
 	ISC_LINK_INIT(&loop, nextincache);
-	loop.name = aclname;
+	DE_CONST(aclname, loop.name);
 	loop.magic = LOOP_MAGIC;
 	ISC_LIST_APPEND(ctx->named_acl_cache, &loop, nextincache);
 	result = ns_acl_fromconfig(cacl, cctx, ctx, mctx, &dacl);
@@ -131,7 +131,7 @@ convert_named_acl(cfg_obj_t *nameobj, cfg_obj_t *cctx,
 }
 
 static isc_result_t
-convert_keyname(cfg_obj_t *keyobj, isc_mem_t *mctx, dns_name_t *dnsname) {
+convert_keyname(const cfg_obj_t *keyobj, isc_mem_t *mctx, dns_name_t *dnsname) {
 	isc_result_t result;
 	isc_buffer_t buf;
 	dns_fixedname_t fixname;
@@ -154,8 +154,8 @@ convert_keyname(cfg_obj_t *keyobj, isc_mem_t *mctx, dns_name_t *dnsname) {
 }
 
 isc_result_t
-ns_acl_fromconfig(cfg_obj_t *caml,
-		  cfg_obj_t *cctx,
+ns_acl_fromconfig(const cfg_obj_t *caml,
+		  const cfg_obj_t *cctx,
 		  ns_aclconfctx_t *ctx,
 		  isc_mem_t *mctx,
 		  dns_acl_t **target)
@@ -164,7 +164,7 @@ ns_acl_fromconfig(cfg_obj_t *caml,
 	unsigned int count;
 	dns_acl_t *dacl = NULL;
 	dns_aclelement_t *de;
-	cfg_listelt_t *elt;
+	const cfg_listelt_t *elt;
 
 	REQUIRE(target != NULL && *target == NULL);
 
@@ -183,7 +183,7 @@ ns_acl_fromconfig(cfg_obj_t *caml,
 	     elt != NULL;
 	     elt = cfg_list_next(elt))
 	{
-		cfg_obj_t *ce = cfg_listelt_value(elt);
+		const cfg_obj_t *ce = cfg_listelt_value(elt);
 		if (cfg_obj_istuple(ce)) {
 			/* This must be a negated element. */
 			ce = cfg_tuple_get(ce, "value");
@@ -215,7 +215,7 @@ ns_acl_fromconfig(cfg_obj_t *caml,
 				goto cleanup;
 		} else if (cfg_obj_isstring(ce)) {
 			/* ACL name */
-			char *name = cfg_obj_asstring(ce);
+			const char *name = cfg_obj_asstring(ce);
 			if (strcasecmp(name, "localhost") == 0) {
 				de->type = dns_aclelementtype_localhost;
 			} else if (strcasecmp(name, "localnets") == 0) {

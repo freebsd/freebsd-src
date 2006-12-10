@@ -13,14 +13,17 @@
 .\" OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
 .\" PERFORMANCE OF THIS SOFTWARE.
 .\"
-.\" $Id: dig.1,v 1.14.2.4.2.10 2005/10/13 02:33:42 marka Exp $
+.\" $Id: dig.1,v 1.14.2.4.2.11 2006/06/29 13:02:30 marka Exp $
 .\"
 .hy 0
 .ad l
-.\" ** You probably do not want to edit this file directly **
-.\" It was generated using the DocBook XSL Stylesheets (version 1.69.1).
-.\" Instead of manually editing it, you probably should edit the DocBook XML
-.\" source for it and then use the DocBook XSL Stylesheets to regenerate it.
+.\"     Title: dig
+.\"    Author: 
+.\" Generator: DocBook XSL Stylesheets v1.70.1 <http://docbook.sf.net/>
+.\"      Date: Jun 30, 2000
+.\"    Manual: BIND9
+.\"    Source: BIND9
+.\"
 .TH "DIG" "1" "Jun 30, 2000" "BIND9" "BIND9"
 .\" disable hyphenation
 .nh
@@ -68,12 +71,14 @@ A typical invocation of
 \fBdig\fR
 looks like:
 .sp
+.RS 3n
 .nf
  dig @server name type 
 .fi
+.RE
 .sp
 where:
-.TP
+.TP 3n
 \fBserver\fR
 is the name or IP address of the name server to query. This can be an IPv4 address in dotted\-decimal notation or an IPv6 address in colon\-delimited notation. When the supplied
 \fIserver\fR
@@ -86,10 +91,10 @@ argument is provided,
 consults
 \fI/etc/resolv.conf\fR
 and queries the name servers listed there. The reply from the name server that responds is displayed.
-.TP
+.TP 3n
 \fBname\fR
 is the name of the resource record that is to be looked up.
-.TP
+.TP 3n
 \fBtype\fR
 indicates what type of query is required \(em ANY, A, MX, SIG, etc.
 \fItype\fR
@@ -197,18 +202,18 @@ Each query option is identified by a keyword preceded by a plus sign (+). Some k
 no
 to negate the meaning of that keyword. Other keywords assign values to options like the timeout interval. They have the form
 \fB+keyword=value\fR. The query options are:
-.TP
+.TP 3n
 \fB+[no]tcp\fR
 Use [do not use] TCP when querying name servers. The default behaviour is to use UDP unless an AXFR or IXFR query is requested, in which case a TCP connection is used.
-.TP
+.TP 3n
 \fB+[no]vc\fR
 Use [do not use] TCP when querying name servers. This alternate syntax to
 \fI+[no]tcp\fR
 is provided for backwards compatibility. The "vc" stands for "virtual circuit".
-.TP
+.TP 3n
 \fB+[no]ignore\fR
 Ignore truncation in UDP responses instead of retrying with TCP. By default, TCP retries are performed.
-.TP
+.TP 3n
 \fB+domain=somename\fR
 Set the search list to contain the single domain
 \fIsomename\fR, as if specified in a
@@ -217,35 +222,35 @@ directive in
 \fI/etc/resolv.conf\fR, and enable search list processing as if the
 \fI+search\fR
 option were given.
-.TP
+.TP 3n
 \fB+[no]search\fR
 Use [do not use] the search list defined by the searchlist or domain directive in
 \fIresolv.conf\fR
 (if any). The search list is not used by default.
-.TP
+.TP 3n
 \fB+[no]defname\fR
 Deprecated, treated as a synonym for
 \fI+[no]search\fR
-.TP
+.TP 3n
 \fB+[no]aaonly\fR
 Sets the "aa" flag in the query.
-.TP
+.TP 3n
 \fB+[no]aaflag\fR
 A synonym for
 \fI+[no]aaonly\fR.
-.TP
+.TP 3n
 \fB+[no]adflag\fR
 Set [do not set] the AD (authentic data) bit in the query. The AD bit currently has a standard meaning only in responses, not in queries, but the ability to set the bit in the query is provided for completeness.
-.TP
+.TP 3n
 \fB+[no]cdflag\fR
 Set [do not set] the CD (checking disabled) bit in the query. This requests the server to not perform DNSSEC validation of responses.
-.TP
+.TP 3n
 \fB+[no]cl\fR
 Display [do not display] the CLASS when printing the record.
-.TP
+.TP 3n
 \fB+[no]ttlid\fR
 Display [do not display] the TTL when printing the record.
-.TP
+.TP 3n
 \fB+[no]recurse\fR
 Toggle the setting of the RD (recursion desired) bit in the query. This bit is set by default, which means
 \fBdig\fR
@@ -254,74 +259,74 @@ normally sends recursive queries. Recursion is automatically disabled when the
 or
 \fI+trace\fR
 query options are used.
-.TP
+.TP 3n
 \fB+[no]nssearch\fR
 When this option is set,
 \fBdig\fR
 attempts to find the authoritative name servers for the zone containing the name being looked up and display the SOA record that each name server has for the zone.
-.TP
+.TP 3n
 \fB+[no]trace\fR
 Toggle tracing of the delegation path from the root name servers for the name being looked up. Tracing is disabled by default. When tracing is enabled,
 \fBdig\fR
 makes iterative queries to resolve the name being looked up. It will follow referrals from the root servers, showing the answer from each server that was used to resolve the lookup.
-.TP
+.TP 3n
 \fB+[no]cmd\fR
 toggles the printing of the initial comment in the output identifying the version of
 \fBdig\fR
 and the query options that have been applied. This comment is printed by default.
-.TP
+.TP 3n
 \fB+[no]short\fR
 Provide a terse answer. The default is to print the answer in a verbose form.
-.TP
+.TP 3n
 \fB+[no]identify\fR
 Show [or do not show] the IP address and port number that supplied the answer when the
 \fI+short\fR
 option is enabled. If short form answers are requested, the default is not to show the source address and port number of the server that provided the answer.
-.TP
+.TP 3n
 \fB+[no]comments\fR
 Toggle the display of comment lines in the output. The default is to print comments.
-.TP
+.TP 3n
 \fB+[no]stats\fR
 This query option toggles the printing of statistics: when the query was made, the size of the reply and so on. The default behaviour is to print the query statistics.
-.TP
+.TP 3n
 \fB+[no]qr\fR
 Print [do not print] the query as it is sent. By default, the query is not printed.
-.TP
+.TP 3n
 \fB+[no]question\fR
 Print [do not print] the question section of a query when an answer is returned. The default is to print the question section as a comment.
-.TP
+.TP 3n
 \fB+[no]answer\fR
 Display [do not display] the answer section of a reply. The default is to display it.
-.TP
+.TP 3n
 \fB+[no]authority\fR
 Display [do not display] the authority section of a reply. The default is to display it.
-.TP
+.TP 3n
 \fB+[no]additional\fR
 Display [do not display] the additional section of a reply. The default is to display it.
-.TP
+.TP 3n
 \fB+[no]all\fR
 Set or clear all display flags.
-.TP
+.TP 3n
 \fB+time=T\fR
 Sets the timeout for a query to
 \fIT\fR
 seconds. The default time out is 5 seconds. An attempt to set
 \fIT\fR
 to less than 1 will result in a query timeout of 1 second being applied.
-.TP
+.TP 3n
 \fB+tries=T\fR
 Sets the number of times to try UDP queries to server to
 \fIT\fR
 instead of the default, 3. If
 \fIT\fR
 is less than or equal to zero, the number of tries is silently rounded up to 1.
-.TP
+.TP 3n
 \fB+retry=T\fR
 Sets the number of times to retry UDP queries to server to
 \fIT\fR
 instead of the default, 2. Unlike
 \fI+tries\fR, this does not include the initial query.
-.TP
+.TP 3n
 \fB+ndots=D\fR
 Set the number of dots that have to appear in
 \fIname\fR
@@ -334,29 +339,29 @@ or
 \fBdomain\fR
 directive in
 \fI/etc/resolv.conf\fR.
-.TP
+.TP 3n
 \fB+bufsize=B\fR
 Set the UDP message buffer size advertised using EDNS0 to
 \fIB\fR
 bytes. The maximum and minimum sizes of this buffer are 65535 and 0 respectively. Values outside this range are rounded up or down appropriately.
-.TP
+.TP 3n
 \fB+[no]multiline\fR
 Print records like the SOA records in a verbose multi\-line format with human\-readable comments. The default is to print each record on a single line, to facilitate machine parsing of the
 \fBdig\fR
 output.
-.TP
+.TP 3n
 \fB+[no]fail\fR
 Do not try the next server if you receive a SERVFAIL. The default is to not try the next server which is the reverse of normal stub resolver behaviour.
-.TP
+.TP 3n
 \fB+[no]besteffort\fR
 Attempt to display the contents of messages which are malformed. The default is to not display malformed answers.
-.TP
+.TP 3n
 \fB+[no]dnssec\fR
 Requests DNSSEC records be sent by setting the DNSSEC OK bit (DO) in the OPT record in the additional section of the query.
-.TP
+.TP 3n
 \fB+[no]sigchase\fR
 Chase DNSSEC signature chains. Requires dig be compiled with \-DDIG_SIGCHASE.
-.TP
+.TP 3n
 \fB+trusted\-key=####\fR
 Specifies a file containing trusted keys to be used with
 \fB+sigchase\fR. Each DNSKEY record must be on its own line.
@@ -370,7 +375,7 @@ then
 in the current directory.
 .sp
 Requires dig be compiled with \-DDIG_SIGCHASE.
-.TP
+.TP 3n
 \fB+[no]topdown\fR
 When chasing DNSSEC signature chains perform a top down validation. Requires dig be compiled with \-DDIG_SIGCHASE.
 .SH "MULTIPLE QUERIES"
@@ -389,9 +394,11 @@ A global set of query options, which should be applied to all queries, can also 
 \fB+[no]cmd\fR
 option) can be overridden by a query\-specific set of query options. For example:
 .sp
+.RS 3n
 .nf
 dig +qr www.isc.org any \-x 127.0.0.1 isc.org ns +noqr
 .fi
+.RE
 .sp
 shows how
 \fBdig\fR
@@ -421,3 +428,5 @@ RFC1035.
 .SH "BUGS "
 .PP
 There are probably too many query options.
+.SH "COPYRIGHT"
+Copyright \(co 2004, 2005 Internet Systems Consortium, Inc. ("ISC")

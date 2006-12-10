@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2004, 2005  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004-2006  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 2002, 2003  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and distribute this software for any
@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: namedconf.c,v 1.21.44.32 2005/10/26 05:06:40 marka Exp $ */
+/* $Id: namedconf.c,v 1.21.44.34 2006/03/02 00:37:20 marka Exp $ */
 
 #include <config.h>
 
@@ -58,7 +58,7 @@ static isc_result_t
 parse_optional_keyvalue(cfg_parser_t *pctx, const cfg_type_t *type, cfg_obj_t **ret);
 
 static void
-print_keyvalue(cfg_printer_t *pctx, cfg_obj_t *obj);
+print_keyvalue(cfg_printer_t *pctx, const cfg_obj_t *obj);
 
 static void
 doc_keyvalue(cfg_printer_t *pctx, const cfg_type_t *type);
@@ -428,7 +428,7 @@ static cfg_type_t cfg_type_transferformat = {
  */
 
 static void
-print_none(cfg_printer_t *pctx, cfg_obj_t *obj) {
+print_none(cfg_printer_t *pctx, const cfg_obj_t *obj) {
 	UNUSED(obj);
 	cfg_print_chars(pctx, "none", 4);
 }
@@ -469,7 +469,7 @@ static cfg_type_t cfg_type_qstringornone = {
  */
 
 static void
-print_hostname(cfg_printer_t *pctx, cfg_obj_t *obj) {
+print_hostname(cfg_printer_t *pctx, const cfg_obj_t *obj) {
 	UNUSED(obj);
 	cfg_print_chars(pctx, "hostname", 4);
 }
@@ -1127,7 +1127,7 @@ parse_optional_keyvalue(cfg_parser_t *pctx, const cfg_type_t *type, cfg_obj_t **
 }
 
 static void
-print_keyvalue(cfg_printer_t *pctx, cfg_obj_t *obj) {
+print_keyvalue(cfg_printer_t *pctx, const cfg_obj_t *obj) {
 	const keyword_type_t *kw = obj->type->of;
 	cfg_print_cstr(pctx, kw->name);
 	cfg_print_chars(pctx, " ", 1);
@@ -1332,7 +1332,7 @@ parse_querysource6(cfg_parser_t *pctx, const cfg_type_t *type, cfg_obj_t **ret) 
 }
 
 static void
-print_querysource(cfg_printer_t *pctx, cfg_obj_t *obj) {
+print_querysource(cfg_printer_t *pctx, const cfg_obj_t *obj) {
 	isc_netaddr_t na;
 	isc_netaddr_fromsockaddr(&na, &obj->value.sockaddr);
 	cfg_print_chars(pctx, "address ", 8);
@@ -1408,7 +1408,7 @@ static cfg_tuplefielddef_t negated_fields[] = {
 };
 
 static void
-print_negated(cfg_printer_t *pctx, cfg_obj_t *obj) {
+print_negated(cfg_printer_t *pctx, const cfg_obj_t *obj) {
 	cfg_print_chars(pctx, "!", 1);
 	cfg_print_tuple(pctx, obj);
 }
@@ -1625,7 +1625,7 @@ parse_logfile(cfg_parser_t *pctx, const cfg_type_t *type, cfg_obj_t **ret) {
 }
 
 static void
-print_logfile(cfg_printer_t *pctx, cfg_obj_t *obj) {
+print_logfile(cfg_printer_t *pctx, const cfg_obj_t *obj) {
 	cfg_print_obj(pctx, obj->value.tuple[0]); /* file */
 	if (obj->value.tuple[1]->type->print != cfg_print_void) {
 		cfg_print_chars(pctx, " versions ", 10);

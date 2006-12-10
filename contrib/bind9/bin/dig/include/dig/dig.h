@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2004, 2005  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004-2006  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 2000-2003  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and distribute this software for any
@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: dig.h,v 1.71.2.6.2.11 2005/07/04 03:29:45 marka Exp $ */
+/* $Id: dig.h,v 1.71.2.6.2.14 2006/12/07 01:26:33 marka Exp $ */
 
 #ifndef DIG_H
 #define DIG_H
@@ -146,7 +146,7 @@ isc_boolean_t	sigchase;
 	char onamespace[BUFSIZE];
 	isc_buffer_t namebuf;
 	isc_buffer_t onamebuf;
-	isc_buffer_t sendbuf;
+	isc_buffer_t renderbuf;
 	char *sendspace;
 	dns_name_t *name;
 	isc_timer_t *timer;
@@ -173,6 +173,8 @@ isc_boolean_t	sigchase;
 struct dig_query {
 	dig_lookup_t *lookup;
 	isc_boolean_t waiting_connect,
+		pending_free,
+		waiting_senddone,
 		first_pass,
 		first_soa_rcvd,
 		second_rr_rcvd,
@@ -198,6 +200,7 @@ struct dig_query {
 	ISC_LINK(dig_query_t) link;
 	isc_sockaddr_t sockaddr;
 	isc_time_t time_sent;
+	isc_buffer_t sendbuf;
 };
 
 struct dig_server {

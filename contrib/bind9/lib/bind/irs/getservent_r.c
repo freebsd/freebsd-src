@@ -16,7 +16,7 @@
  */
 
 #if defined(LIBC_SCCS) && !defined(lint)
-static const char rcsid[] = "$Id: getservent_r.c,v 1.3.206.1 2004/03/09 08:33:36 marka Exp $";
+static const char rcsid[] = "$Id: getservent_r.c,v 1.3.206.2 2006/08/01 01:19:28 marka Exp $";
 #endif /* LIBC_SCCS and not lint */
 
 #include <port_before.h>
@@ -112,7 +112,9 @@ setservent_r(int stay_open, SERV_R_ENT_ARGS)
 setservent_r(int stay_open)
 #endif
 {
-
+#ifdef SERV_R_ENT_UNUSED
+	SERV_R_ENT_UNUSED;
+#endif
 	setservent(stay_open);
 #ifdef SERV_R_SET_RESULT
 	return (SERV_R_SET_RESULT);
@@ -126,7 +128,9 @@ endservent_r(SERV_R_ENT_ARGS)
 endservent_r()
 #endif
 {
-
+#ifdef SERV_R_ENT_UNUSED
+	SERV_R_ENT_UNUSED;
+#endif
 	endservent();
 	SERV_R_END_RESULT(SERV_R_OK);
 }
@@ -194,8 +198,8 @@ copy_servent(struct servent *se, struct servent *sptr, SERV_R_COPY_ARGS) {
 	sptr->s_port = se->s_port;
 
 	/* copy official name */
-	cp = ndptr->line;
-	eob = ndptr->line + sizeof(ndptr->line);
+	cp = sdptr->line;
+	eob = sdptr->line + sizeof(sdptr->line);
 	if ((n = strlen(se->s_name) + 1) < (eob - cp)) {
 		strcpy(cp, se->s_name);
 		sptr->s_name = cp;
@@ -206,7 +210,7 @@ copy_servent(struct servent *se, struct servent *sptr, SERV_R_COPY_ARGS) {
 
 	/* copy aliases */
 	i = 0;
-	sptr->s_aliases = ndptr->serv_aliases;
+	sptr->s_aliases = sdptr->serv_aliases;
 	while (se->s_aliases[i] && i < (_MAXALIASES-1)) {
 		if ((n = strlen(se->s_aliases[i]) + 1) < (eob - cp)) {
 			strcpy(cp, se->s_aliases[i]);

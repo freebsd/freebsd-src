@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2004  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004, 2006  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 1997-2002  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and distribute this software for any
@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: list.h,v 1.18.2.2.8.1 2004/03/06 08:14:43 marka Exp $ */
+/* $Id: list.h,v 1.18.2.2.8.3 2006/06/06 00:11:40 marka Exp $ */
 
 #ifndef ISC_LIST_H
 #define ISC_LIST_H 1
@@ -90,12 +90,16 @@
 	do { \
 		if ((elt)->link.next != NULL) \
 			(elt)->link.next->link.prev = (elt)->link.prev; \
-		else \
+		else { \
+			ISC_INSIST((list).tail == (elt)); \
 			(list).tail = (elt)->link.prev; \
+		} \
 		if ((elt)->link.prev != NULL) \
 			(elt)->link.prev->link.next = (elt)->link.next; \
-		else \
+		else { \
+			ISC_INSIST((list).head == (elt)); \
 			(list).head = (elt)->link.next; \
+		} \
 		(elt)->link.prev = (type *)(-1); \
 		(elt)->link.next = (type *)(-1); \
 	} while (0)
