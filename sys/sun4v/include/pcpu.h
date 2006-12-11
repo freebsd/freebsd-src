@@ -77,7 +77,7 @@ struct pmap;
 	struct rwindow pc_tsbwbuf[2];                                   \
         uint64_t pc_caller;                                             \
         uint16_t pc_cpulist[MAXCPU];                                    \
-        uint64_t pad[0];
+        uint64_t pad[8];
 
 	/* XXX SUN4V_FIXME - as we access the *_ra and *_size fields in quick
 	 * succession we _really_ want them to be L1 cache line size aligned
