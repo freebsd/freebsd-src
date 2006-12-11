@@ -71,6 +71,7 @@ struct wi_softc	{
 					ieee80211_keyix *, ieee80211_keyix *);
 	device_t		sc_dev;
 	struct mtx		sc_mtx;
+	struct callout		sc_watchdog;
 	int			sc_unit;
 	int			wi_gone;
 	int			sc_enabled;
