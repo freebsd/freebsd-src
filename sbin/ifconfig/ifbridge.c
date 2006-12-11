@@ -413,27 +413,27 @@ unsetbridge_autoedge(const char *val, int d, int s, const struct afswtch *afp)
 }
 
 static void
-setbridge_p2p(const char *val, int d, int s, const struct afswtch *afp)
+setbridge_ptp(const char *val, int d, int s, const struct afswtch *afp)
 {
-	do_bridgeflag(s, val, IFBIF_BSTP_P2P, 1);
+	do_bridgeflag(s, val, IFBIF_BSTP_PTP, 1);
 }
 
 static void
-unsetbridge_p2p(const char *val, int d, int s, const struct afswtch *afp)
+unsetbridge_ptp(const char *val, int d, int s, const struct afswtch *afp)
 {
-	do_bridgeflag(s, val, IFBIF_BSTP_P2P, 0);
+	do_bridgeflag(s, val, IFBIF_BSTP_PTP, 0);
 }
 
 static void
-setbridge_autop2p(const char *val, int d, int s, const struct afswtch *afp)
+setbridge_autoptp(const char *val, int d, int s, const struct afswtch *afp)
 {
-	do_bridgeflag(s, val, IFBIF_BSTP_AUTOP2P, 1);
+	do_bridgeflag(s, val, IFBIF_BSTP_AUTOPTP, 1);
 }
 
 static void
-unsetbridge_autop2p(const char *val, int d, int s, const struct afswtch *afp)
+unsetbridge_autoptp(const char *val, int d, int s, const struct afswtch *afp)
 {
-	do_bridgeflag(s, val, IFBIF_BSTP_AUTOP2P, 0);
+	do_bridgeflag(s, val, IFBIF_BSTP_AUTOPTP, 0);
 }
 
 static void
@@ -681,10 +681,10 @@ static struct cmd bridge_cmds[] = {
 	DEF_CMD_ARG("-edge",		unsetbridge_edge),
 	DEF_CMD_ARG("autoedge",		setbridge_autoedge),
 	DEF_CMD_ARG("-autoedge",	unsetbridge_autoedge),
-	DEF_CMD_ARG("p2p",		setbridge_p2p),
-	DEF_CMD_ARG("-p2p",		unsetbridge_p2p),
-	DEF_CMD_ARG("autop2p",		setbridge_autop2p),
-	DEF_CMD_ARG("-autop2p",		unsetbridge_autop2p),
+	DEF_CMD_ARG("ptp",		setbridge_ptp),
+	DEF_CMD_ARG("-ptp",		unsetbridge_ptp),
+	DEF_CMD_ARG("autoptp",		setbridge_autoptp),
+	DEF_CMD_ARG("-autoptp",		unsetbridge_autoptp),
 	DEF_CMD("flush", 0,		setbridge_flush),
 	DEF_CMD("flushall", 0,		setbridge_flushall),
 	DEF_CMD_ARG2("static",		setbridge_static),
