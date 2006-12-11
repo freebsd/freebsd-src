@@ -157,7 +157,7 @@ static char *descrs[] = {
     "ukrainian", "Ported software for the Ukrainian market.",
     "vietnamese", "Ported software for the Vietnamese market.",
     "windowmaker", "Ports to support the WindowMaker window manager.",
-    "www", "Web utilities (browers, HTTP servers, etc).",
+    "www", "Web utilities (browsers, HTTP servers, etc).",
     "x11", "X Window System based utilities.",
     "x11-clocks", "X Window System based clocks.",
     "x11-fm", "X Window System based file managers.",
