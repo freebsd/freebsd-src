@@ -661,7 +661,7 @@ bstp_received_bpdu(struct bstp_state *bs, struct bstp_port *bp,
 			 * only point to point links are allowed fast
 			 * transitions to forwarding.
 			 */
-			if (cu->cu_agree && bp->bp_p2p_link) {
+			if (cu->cu_agree && bp->bp_ptp_link) {
 				bp->bp_agreed = 1;
 				bp->bp_proposing = 0;
 			} else
@@ -1036,7 +1036,7 @@ bstp_update_roles(struct bstp_state *bs, struct bstp_port *bp)
 			bp->bp_proposing = 1;
 			bp->bp_flags |= BSTP_PORT_NEWINFO;
 			bstp_timer_start(&bp->bp_edge_delay_timer,
-			    (bp->bp_p2p_link ? BSTP_DEFAULT_MIGRATE_DELAY :
+			    (bp->bp_ptp_link ? BSTP_DEFAULT_MIGRATE_DELAY :
 			     bp->bp_desg_max_age));
 			DPRINTF("%s -> DESIGNATED_PROPOSE\n",
 			    bp->bp_ifp->if_xname);
@@ -1663,27 +1663,27 @@ bstp_set_autoedge(struct bstp_port *bp, int set)
 }
 
 int
-bstp_set_p2p(struct bstp_port *bp, int set)
+bstp_set_ptp(struct bstp_port *bp, int set)
 {
 	struct bstp_state *bs = bp->bp_bs;
 
 	BSTP_LOCK(bs);
-	bp->bp_p2p_link = set;
+	bp->bp_ptp_link = set;
 	BSTP_UNLOCK(bs);
 	return (0);
 }
 
 int
-bstp_set_autop2p(struct bstp_port *bp, int set)
+bstp_set_autoptp(struct bstp_port *bp, int set)
 {
 	struct bstp_state *bs = bp->bp_bs;
 
 	BSTP_LOCK(bs);
 	if (set) {
-		bp->bp_flags |= BSTP_PORT_AUTOP2P;
+		bp->bp_flags |= BSTP_PORT_AUTOPTP;
 		bstp_ifupdstatus(bs, bp);
 	} else
-		bp->bp_flags &= ~BSTP_PORT_AUTOP2P;
+		bp->bp_flags &= ~BSTP_PORT_AUTOPTP;
 	BSTP_UNLOCK(bs);
 	return (0);
 }
@@ -1804,8 +1804,8 @@ bstp_ifupdstatus(struct bstp_state *bs, struct bstp_port *bp)
 	if ((error == 0) && (ifp->if_flags & IFF_UP)) {
 		if (ifmr.ifm_status & IFM_ACTIVE) {
 			/* A full-duplex link is assumed to be point to point */
-			if (bp->bp_flags & BSTP_PORT_AUTOP2P) {
-				bp->bp_p2p_link =
+			if (bp->bp_flags & BSTP_PORT_AUTOPTP) {
+				bp->bp_ptp_link =
 				    ifmr.ifm_active & IFM_FDX ? 1 : 0;
 			}
 
@@ -2163,7 +2163,7 @@ bstp_create(struct bstp_state *bs, struct bstp_port *bp, struct ifnet *ifp)
 
 	/* Init state */
 	bp->bp_infois = BSTP_INFO_DISABLED;
-	bp->bp_flags = BSTP_PORT_AUTOEDGE|BSTP_PORT_AUTOP2P;
+	bp->bp_flags = BSTP_PORT_AUTOEDGE|BSTP_PORT_AUTOPTP;
 	bstp_set_port_state(bp, BSTP_IFSTATE_DISCARDING);
 	bstp_set_port_proto(bp, bs->bs_protover);
 	bstp_set_port_role(bp, BSTP_ROLE_DISABLED);
