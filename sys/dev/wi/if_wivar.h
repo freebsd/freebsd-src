@@ -70,9 +70,7 @@ struct wi_softc	{
 					const struct ieee80211_key *,
 					ieee80211_keyix *, ieee80211_keyix *);
 	device_t		sc_dev;
-#if __FreeBSD_version >= 500000
 	struct mtx		sc_mtx;
-#endif
 	int			sc_unit;
 	int			wi_gone;
 	int			sc_enabled;
@@ -220,21 +218,8 @@ struct wi_card_ident {
 #define	WI_RSSI_TO_DBM(sc, rssi) (MIN((sc)->sc_max_rssi, \
     MAX((sc)->sc_min_rssi, (rssi))) - (sc)->sc_dbm_offset)
 
-#if __FreeBSD_version < 500000
-/*
- * Various compat hacks/kludges
- */
-#define le16toh(x) (x)
-#define htole16(x) (x)
-#define ifaddr_byindex(idx) ifnet_addrs[(idx) - 1];
-#define	WI_LOCK_DECL()		int s
-#define	WI_LOCK(_sc)		s = splimp()
-#define	WI_UNLOCK(_sc)		splx(s)
-#else
-#define	WI_LOCK_DECL()
 #define	WI_LOCK(_sc) 		mtx_lock(&(_sc)->sc_mtx)
 #define	WI_UNLOCK(_sc)		mtx_unlock(&(_sc)->sc_mtx)
-#endif
 
 int	wi_attach(device_t);
 int	wi_detach(device_t);
