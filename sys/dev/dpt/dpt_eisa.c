@@ -212,3 +212,5 @@ static driver_t dpt_eisa_driver = {
 };
 
 DRIVER_MODULE(dpt, eisa, dpt_eisa_driver, dpt_devclass, 0, 0);
+MODULE_DEPEND(dpt, eisa, 1, 1, 1);
+MODULE_DEPEND(dpt, cam, 1, 1, 1);

@@ -135,6 +135,7 @@ static driver_t esp_dma_driver = {
 };
 
 DRIVER_MODULE(esp, dma, esp_dma_driver, esp_devclass, 0, 0);
+MODULE_DEPEND(esp, dma, 1, 1, 1);
 
 static device_method_t esp_sbus_methods[] = {
 	DEVMETHOD(device_probe,		esp_probe),
@@ -152,6 +153,9 @@ static driver_t esp_sbus_driver = {
 };
 
 DRIVER_MODULE(esp, sbus, esp_sbus_driver, esp_devclass, 0, 0);
+MODULE_DEPEND(esp, sbus, 1, 1, 1);
+
+MODULE_DEPEND(esp, cam, 1, 1, 1);
 
 /*
  * Functions and the switch for the MI code.

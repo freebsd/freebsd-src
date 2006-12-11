@@ -146,6 +146,7 @@ static driver_t adw_pci_driver = {
 static devclass_t adw_devclass;
 
 DRIVER_MODULE(adw, pci, adw_pci_driver, adw_devclass, 0, 0);
+MODULE_DEPEND(adw, pci, 1, 1, 1);
 
 static __inline u_int64_t
 adw_compose_id(u_int device, u_int vendor, u_int subdevice, u_int subvendor)
