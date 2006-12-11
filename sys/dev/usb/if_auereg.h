@@ -2,6 +2,9 @@
  * Copyright (c) 1997, 1998, 1999
  *	Bill Paul <wpaul@ee.columbia.edu>.  All rights reserved.
  *
+ * Copyright (c) 2006
+ *      Alfred Perlstein <alfred@freebsd.org>. All rights reserved.
+ *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
  * are met:
@@ -45,6 +48,9 @@
  * transfer is denoted by having a length less that 64 bytes. For
  * the RX case, the data includes an optional RX status word.
  */
+
+#ifndef AUEREG_H
+#define AUEREG_H
 
 #define AUE_UR_READREG		0xF0
 #define AUE_UR_WRITEREG		0xF1
@@ -220,17 +226,35 @@ struct aue_softc {
 	int			aue_if_flags;
 	struct ue_cdata		aue_cdata;
 	struct callout_handle	aue_stat_ch;
-	struct task		aue_stat_task;
-#if __FreeBSD_version >= 500000
+	struct task		aue_task;
 	struct mtx		aue_mtx;
-#endif
+	struct sx		aue_sx;
 	u_int16_t		aue_flags;
 	char			aue_dying;
 	struct timeval		aue_rx_notice;
 	struct usb_qdat		aue_qdat;
+	int			aue_deferedtasks;
 };
 
-#if 0
+#if 1
+#include <sys/types.h>
+#include <sys/proc.h>
+#include <sys/kdb.h>
+
+#define AUE_DUMPSTATE(tag)	aue_dumpstate(__func__, tag)
+
+static inline void
+aue_dumpstate(const char *func, const char *tag)
+{
+	if ((curthread->td_pflags & TDP_NOSLEEPING) ||
+	    (curthread->td_pflags & TDP_ITHREAD)) {
+		kdb_backtrace();
+		printf("%s: %s sleep: %sok ithread: %s\n", func, tag,
+			curthread->td_pflags & TDP_NOSLEEPING ? "not" : "",
+			curthread->td_pflags & TDP_ITHREAD ?  "yes" : "no");
+	}
+}
+
 #define	AUE_LOCK(_sc)		mtx_lock(&(_sc)->aue_mtx)
 #define	AUE_UNLOCK(_sc)		mtx_unlock(&(_sc)->aue_mtx)
 #else
@@ -238,6 +262,23 @@ struct aue_softc {
 #define	AUE_UNLOCK(_sc)
 #endif
 
+#define AUE_SXLOCK(_sc)			do { AUE_DUMPSTATE("sxlock");sx_xlock(&(_sc)->aue_sx); }while(0)
+#define AUE_SXUNLOCK(_sc)		sx_xunlock(&(_sc)->aue_sx)
+#define AUE_SXASSERTLOCKED(_sc)		sx_assert(&(_sc)->aue_sx, SX_XLOCKED)
+#define AUE_SXASSERTUNLOCKED(_sc)	sx_assert(&(_sc)->aue_sx, SX_UNLOCKED)
+
 #define AUE_TIMEOUT		1000
 #define AUE_MIN_FRAMELEN	60
 #define AUE_INTR_INTERVAL	100 /* ms */
+
+#define	AUE_TASK_WATCHDOG	0x0001
+#define	AUE_TASK_TICK		0x0002
+#define	AUE_TASK_START		0x0004
+#define	AUE_TASK_RXSTART	0x0008
+#define	AUE_TASK_RXEOF		0x0010
+#define	AUE_TASK_TXEOF		0x0020
+
+#define AUE_GIANTLOCK()		mtx_lock(&Giant);
+#define AUE_GIANTUNLOCK()	mtx_unlock(&Giant);
+
+#endif /* !AUEREG_H */
