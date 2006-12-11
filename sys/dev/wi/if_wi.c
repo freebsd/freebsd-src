@@ -71,9 +71,7 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/systm.h>
-#if __FreeBSD_version >= 500033
 #include <sys/endian.h>
-#endif
 #include <sys/sockio.h>
 #include <sys/mbuf.h>
 #include <sys/priv.h>
@@ -160,12 +158,10 @@ static void wi_dump_pkt(struct wi_frame *, struct ieee80211_node *, int rssi);
 static int wi_get_debug(struct wi_softc *, struct wi_req *);
 static int wi_set_debug(struct wi_softc *, struct wi_req *);
 
-#if __FreeBSD_version >= 500000
 /* support to download firmware for symbol CF card */
 static int wi_symbol_write_firm(struct wi_softc *, const void *, int,
 		const void *, int);
 static int wi_symbol_set_hcr(struct wi_softc *, int);
-#endif
 
 static __inline int
 wi_write_val(struct wi_softc *sc, int rid, u_int16_t val)
@@ -275,10 +271,8 @@ wi_attach(device_t dev)
 		return (error);
 	}
 
-#if __FreeBSD_version >= 500000
 	mtx_init(&sc->sc_mtx, device_get_nameunit(dev), MTX_NETWORK_LOCK,
 	    MTX_DEF | MTX_RECURSE);
-#endif
 
 	sc->sc_firmware_type = WI_NOTYPE;
 	sc->wi_cmd_count = 500;
@@ -531,7 +525,6 @@ wi_detach(device_t dev)
 {
 	struct wi_softc	*sc = device_get_softc(dev);
 	struct ifnet *ifp = sc->sc_ifp;
-	WI_LOCK_DECL();
 
 	WI_LOCK(sc);
 
@@ -548,9 +541,7 @@ wi_detach(device_t dev)
 	bus_teardown_intr(dev, sc->irq, sc->wi_intrhand);
 	if_free(sc->sc_ifp);
 	wi_free(dev);
-#if __FreeBSD_version >= 500000
 	mtx_destroy(&sc->sc_mtx);
-#endif
 	return (0);
 }
 
@@ -616,7 +607,6 @@ wi_intr(void *arg)
 	struct wi_softc *sc = arg;
 	struct ifnet *ifp = sc->sc_ifp;
 	u_int16_t status;
-	WI_LOCK_DECL();
 
 	WI_LOCK(sc);
 
@@ -661,7 +651,6 @@ wi_init(void *arg)
 	struct wi_joinreq join;
 	int i;
 	int error = 0, wasenabled;
-	WI_LOCK_DECL();
 
 	WI_LOCK(sc);
 
@@ -858,7 +847,6 @@ wi_stop(struct ifnet *ifp, int disable)
 {
 	struct wi_softc *sc = ifp->if_softc;
 	struct ieee80211com *ic = &sc->sc_ic;
-	WI_LOCK_DECL();
 
 	WI_LOCK(sc);
 
@@ -899,7 +887,6 @@ wi_start(struct ifnet *ifp)
 	struct mbuf *m0;
 	struct wi_frame frmhdr;
 	int cur;
-	WI_LOCK_DECL();
 
 	WI_LOCK(sc);
 
@@ -1058,7 +1045,6 @@ wi_raw_xmit(struct ieee80211_node *ni, struct mbuf *m0,
 	struct wi_frame frmhdr;
 	int cur;
 	int rc = 0;
-	WI_LOCK_DECL();
 
 	WI_LOCK(sc);
 
@@ -1218,13 +1204,8 @@ wi_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 	struct ieee80211req *ireq;
 	u_int8_t nodename[IEEE80211_NWID_LEN];
 	int error = 0;
-#if __FreeBSD_version >= 500000
 	struct thread *td = curthread;
-#else
-	struct proc *td = curproc;		/* Little white lie */
-#endif
 	struct wi_req wreq;
-	WI_LOCK_DECL();
 
 	if (sc->wi_gone)
 		return (ENODEV);
@@ -1864,11 +1845,7 @@ allmulti:
 
 	n = 0;
 	IF_ADDR_LOCK(ifp);
-#if __FreeBSD_version < 500000
-	LIST_FOREACH(ifma, &ifp->if_multiaddrs, ifma_link) {
-#else
 	TAILQ_FOREACH(ifma, &ifp->if_multiaddrs, ifma_link) {
-#endif
 		if (ifma->ifma_addr->sa_family != AF_LINK)
 			continue;
 		if (n >= 16)
@@ -2204,7 +2181,6 @@ wi_set_cfg(struct ifnet *ifp, u_long cmd, caddr_t data)
 	struct mbuf *m;
 	int i, len, error, mif, val;
 	struct ieee80211_rateset *rs;
-	WI_LOCK_DECL();
 
 	error = copyin(ifr->ifr_data, &wreq, sizeof(wreq));
 	if (error)
@@ -3245,7 +3221,6 @@ wi_set_debug(struct wi_softc *sc, struct wi_req *wreq)
 	return (error);
 }
 
-#if __FreeBSD_version >= 500000
 /*
  * Special routines to download firmware for Symbol CF card.
  * XXX: This should be modified generic into any PRISM-2 based card.
@@ -3382,4 +3357,3 @@ wi_symbol_set_hcr(struct wi_softc *sc, int mode)
 	tsleep(sc, PWAIT, "wiinit", 1);
 	return 0;
 }
-#endif
