@@ -84,6 +84,7 @@ static int	nfs_realign_count;
 static int	nfs_bufpackets = 4;
 static int	nfs_reconnects;
 static int     nfs3_jukebox_delay = 10;
+static int     nfs_skip_wcc_data_onerr = 1;
 
 SYSCTL_DECL(_vfs_nfs);
 
@@ -94,6 +95,7 @@ SYSCTL_INT(_vfs_nfs, OID_AUTO, reconnects, CTLFLAG_RD, &nfs_reconnects, 0,
     "number of times the nfs client has had to reconnect");
 SYSCTL_INT(_vfs_nfs, OID_AUTO, nfs3_jukebox_delay, CTLFLAG_RW, &nfs3_jukebox_delay, 0,
 	   "number of seconds to delay a retry after receiving EJUKEBOX");
+SYSCTL_INT(_vfs_nfs, OID_AUTO, skip_wcc_data_onerr, CTLFLAG_RW, &nfs_skip_wcc_data_onerr, 0, "");
 
 /*
  * There is a congestion window for outstanding rpcs maintained per mount
@@ -1304,7 +1306,12 @@ tryagain:
 			 */
 			if (error == ESTALE)
 				cache_purge(vp);
-			if (nmp->nm_flag & NFSMNT_NFSV3) {
+			/*
+			 * Skip wcc data on NFS errors for now. NetApp filers return corrupt
+			 * postop attrs in the wcc data for NFS err EROFS. Not sure if they 
+			 * could return corrupt postop attrs for others errors.
+			 */
+			if ((nmp->nm_flag & NFSMNT_NFSV3) && !nfs_skip_wcc_data_onerr) {
 				*mrp = mrep;
 				*mdp = md;
 				*dposp = dpos;
