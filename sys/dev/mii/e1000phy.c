@@ -62,8 +62,8 @@ __FBSDID("$FreeBSD$");
 
 #include "miibus_if.h"
 
-static int e1000phy_probe(device_t);
-static int e1000phy_attach(device_t);
+static int	e1000phy_probe(device_t);
+static int	e1000phy_attach(device_t);
 
 static device_method_t e1000phy_methods[] = {
 	/* device interface */
@@ -173,7 +173,7 @@ e1000phy_attach(device_t dev)
 #undef ADD
 
 	MIIBUS_MEDIAINIT(sc->mii_dev);
-	return(0);
+	return (0);
 }
 
 static void
@@ -244,9 +244,8 @@ e1000phy_service(struct mii_softc *sc, struct mii_data *mii, int cmd)
 		/*
 		 * If the interface is not up, don't do anything.
 		 */
-		if ((mii->mii_ifp->if_flags & IFF_UP) == 0) {
+		if ((mii->mii_ifp->if_flags & IFF_UP) == 0)
 			break;
-		}
 
 		switch (IFM_SUBTYPE(ife->ifm_media)) {
 		case IFM_AUTO:
