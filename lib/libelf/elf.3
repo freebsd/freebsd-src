@@ -23,7 +23,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd September 1, 2006
+.Dd December 11, 2006
 .Os
 .Dt ELF 3
 .Sh NAME
@@ -287,6 +287,98 @@ The
 .Vt Elf_Scn
 descriptor is opaque and contains no application modifiable fields.
 .El
+.Ss Supported Elf Types
+The following ELF datatypes are supported by the library.
+.Pp
+.Bl -tag -width ".Dv ELF_T_SYMINFO" -compact
+.It Dv ELF_T_ADDR
+Machine addresses.
+.It Dv ELF_T_BYTE
+Byte data.
+The library will not attempt to translate byte data.
+.It Dv ELF_T_CAP
+Software and hardware capability records.
+.It Dv ELF_T_DYN
+Records used in a section of type
+.Dv SHT_DYNAMIC .
+.It Dv ELF_T_EHDR
+ELF executable header.
+.It Dv ELF_T_HALF
+16-bit unsigned words.
+.It Dv ELF_T_LWORD
+64 bit unsigned words.
+.It Dv ELF_T_MOVE
+ELF Move records.
+.\".It Dv ELF_T_MOVEP
+.\" As yet unsupported.
+.It Dv ELF_T_NOTE
+ELF Note structures.
+.It Dv ELF_T_OFF
+File offsets.
+.It Dv ELF_T_PHDR
+ELF program header table entries.
+.It Dv ELF_T_REL
+ELF relocation entries.
+.It Dv ELF_T_RELA
+ELF relocation entries with addends.
+.It Dv ELF_T_SHDR
+ELF section header entries.
+.It Dv ELF_T_SWORD
+Signed 32-bit words.
+.It Dv ELF_T_SXWORD
+Signed 64-bit words.
+.It Dv ELF_T_SYMINFO
+ELF symbol information.
+.It Dv ELF_T_SYM
+ELF symbol table entries.
+.It Dv ELF_T_VDEF
+Symbol version definition records.
+.It Dv ELF_T_VNEED
+Symbol version requirement records.
+.It Dv ELF_T_WORD
+Unsigned 32-bit words.
+.It Dv ELF_T_XWORD
+Unsigned 64-bit words.
+.El
+.Pp
+The symbol
+.Dv ELF_T_NUM
+denotes the number of Elf types known to the library.
+.Pp
+The following table shows the mapping between ELF section types
+defined in
+.Xr elf 5
+and the types supported by the library.
+.Bl -column ".Dv SHT_PREINIT_ARRAY" ".Dv ELF_T_SYMINFO"
+.It Em Section Type Ta Em "Library Type" Ta Em Description
+.It Dv SHT_DYNAMIC Ta Dv ELF_T_DYN Ta Xo
+.Sq .dynamic
+section entries.
+.Xc
+.It Dv SHT_DYNSYM Ta Dv ELF_T_SYM Ta Symbols for dynamic linking.
+.It Dv SHT_FINI_ARRAY Ta Dv ELF_T_ADDR Ta Termination function pointers.
+.It Dv SHT_GROUP Ta Dv ELF_T_WORD Ta Section group marker.
+.It Dv SHT_HASH Ta Dv ELF_T_HASH Ta Symbol hashes.
+.It Dv SHT_INIT_ARRAY Ta Dv ELF_T_ADDR Ta Initialization function pointers.
+.It Dv SHT_NOBITS Ta Dv ELF_T_BYTE Ta Xo
+Empty sections.
+See
+.Xr elf 5 .
+.Xc
+.It Dv SHT_NOTE Ta Dv ELF_T_NOTE Ta ELF note records.
+.It Dv SHT_PREINIT_ARRAY Ta Dv ELF_T_ADDR Ta Pre-initialization function pointers.
+.It Dv SHT_PROGBITS Ta Dv ELF_T_BYTE Ta Machine code.
+.It Dv SHT_REL Ta Dv ELF_T_REL Ta ELF relocation records.
+.It Dv SHT_RELA Ta Dv ELF_T_RELA Ta Relocation records with addends.
+.It Dv SHT_STRTAB Ta Dv ELF_T_BYTE Ta String tables.
+.It Dv SHT_SYMTAB Ta Dv ELF_T_SYM Ta Symbol tables.
+.It Dv SHT_SYMTAB_SHNDX Ta Dv ELF_T_WORD Ta Used with extended section numbering.
+.It Dv SHT_GNU_verdef Ta Dv ELF_T_VDEF Ta Symbol version definitions.
+.It Dv SHT_GNU_verneed Ta Dv ELF_T_VNEED Ta Symbol versioning requirements.
+.It Dv SHT_SUNW_move Ta Dv ELF_T_MOVE Ta ELF move records.
+.It Dv SHT_SUNW_syminfo Ta Dv ELF_T_SYMINFO Ta Additional symbol flags.
+.El
+.TE
 .Ss Functional Grouping
 This section contains a brief overview of the available functionality
 in the ELF library.
