@@ -119,7 +119,7 @@ static int  wi_start_tx(struct ifnet *ifp, struct wi_frame *frmhdr,
 static int  wi_raw_xmit(struct ieee80211_node *, struct mbuf *,
 		const struct ieee80211_bpf_params *);
 static int  wi_reset(struct wi_softc *);
-static void wi_watchdog(struct ifnet *);
+static void wi_watchdog(void *);
 static int  wi_ioctl(struct ifnet *, u_long, caddr_t);
 static int  wi_media_change(struct ifnet *);
 static void wi_media_status(struct ifnet *, struct ifmediareq *);
@@ -274,6 +274,7 @@ wi_attach(device_t dev)
 
 	mtx_init(&sc->sc_mtx, device_get_nameunit(dev), MTX_NETWORK_LOCK,
 	    MTX_DEF | MTX_RECURSE);
+	callout_init_mtx(&sc->sc_watchdog, &sc->sc_mtx, 0);
 
 	sc->sc_firmware_type = WI_NOTYPE;
 	sc->wi_cmd_count = 500;
@@ -312,7 +313,6 @@ wi_attach(device_t dev)
 	ifp->if_flags = IFF_BROADCAST | IFF_SIMPLEX | IFF_MULTICAST;
 	ifp->if_ioctl = wi_ioctl;
 	ifp->if_start = wi_start;
-	ifp->if_watchdog = wi_watchdog;
 	ifp->if_init = wi_init;
 	IFQ_SET_MAXLEN(&ifp->if_snd, IFQ_MAXLEN);
 	ifp->if_snd.ifq_drv_maxlen = IFQ_MAXLEN;
@@ -831,6 +831,8 @@ wi_init(void *arg)
 			wi_write_rid(sc, WI_RID_JOIN_REQ, &join, sizeof(join));
 	}
 
+	callout_reset(&sc->sc_watchdog, hz, wi_watchdog, sc);
+
 	WI_UNLOCK(sc);
 	return;
 out:
@@ -867,12 +869,12 @@ wi_stop(struct ifnet *ifp, int disable)
 	} else if (sc->wi_gone && disable)	/* gone --> not enabled */
 	    sc->sc_enabled = 0;
 
+	callout_stop(&sc->sc_watchdog);		/* XXX drain */
 	sc->sc_tx_timer = 0;
 	sc->sc_scan_timer = 0;
 	sc->sc_false_syns = 0;
 	sc->sc_naps = 0;
 	ifp->if_drv_flags &= ~(IFF_DRV_OACTIVE | IFF_DRV_RUNNING);
-	ifp->if_timer = 0;
 
 	WI_UNLOCK(sc);
 }
@@ -1034,7 +1036,6 @@ wi_start_tx(struct ifnet *ifp, struct wi_frame *frmhdr, struct mbuf *m0)
 			return -1;
 		}
 		sc->sc_tx_timer = 5;
-		ifp->if_timer = 1;
 	}
 	return 0;
 }
@@ -1168,11 +1169,11 @@ wi_reset(struct wi_softc *sc)
 }
 
 static void
-wi_watchdog(struct ifnet *ifp)
+wi_watchdog(void *arg)
 {
-	struct wi_softc	*sc = ifp->if_softc;
+	struct wi_softc	*sc = arg;
+	struct ifnet *ifp = sc->sc_ifp;
 
-	ifp->if_timer = 0;
 	if (!sc->sc_enabled)
 		return;
 
@@ -1183,7 +1184,6 @@ wi_watchdog(struct ifnet *ifp)
 			wi_init(ifp->if_softc);
 			return;
 		}
-		ifp->if_timer = 1;
 	}
 
 	if (sc->sc_scan_timer) {
@@ -1192,12 +1192,12 @@ wi_watchdog(struct ifnet *ifp)
 			DPRINTF(("wi_watchdog: inquire scan\n"));
 			wi_cmd(sc, WI_CMD_INQUIRE, WI_INFO_SCAN_RESULTS, 0, 0);
 		}
-		if (sc->sc_scan_timer)
-			ifp->if_timer = 1;
 	}
 
 	/* TODO: rate control */
 	ieee80211_watchdog(&sc->sc_ic);
+
+	callout_reset(&sc->sc_watchdog, hz, wi_watchdog, sc);
 }
 
 static int
@@ -1750,7 +1750,6 @@ wi_tx_intr(struct wi_softc *sc)
 			sc->sc_txd[cur].d_len = 0;
 		} else {
 			sc->sc_tx_timer = 5;
-			ifp->if_timer = 1;
 		}
 	}
 }
@@ -2930,7 +2929,6 @@ wi_scan_ap(struct wi_softc *sc, u_int16_t chanmask, u_int16_t txrate)
 	}
 	if (error == 0) {
 		sc->sc_scan_timer = WI_SCAN_WAIT;
-		sc->sc_ifp->if_timer = 1;
 		DPRINTF(("wi_scan_ap: start scanning, "
 			"chamask 0x%x txrate 0x%x\n", chanmask, txrate));
 	}
