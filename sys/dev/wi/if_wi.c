@@ -1655,6 +1655,7 @@ wi_rx_intr(struct wi_softc *sc)
 	if (ic->ic_opmode == IEEE80211_M_IBSS && dir == IEEE80211_FC1_DIR_NODS)
 		wi_sync_bssid(sc, wh->i_addr3);
 
+	WI_UNLOCK(sc);
 	/*
 	 * Locate the node for sender, track state, and
 	 * then pass this node (referenced) up to the 802.11
@@ -1671,6 +1672,8 @@ wi_rx_intr(struct wi_softc *sc)
 	 * so use free_node here instead of unref_node.
 	 */
 	ieee80211_free_node(ni);
+
+	WI_LOCK(sc);
 }
 
 static void
