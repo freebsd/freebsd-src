@@ -1020,10 +1020,10 @@ bridge_ioctl_gifflags(struct bridge_softc *sc, void *arg)
 		req->ifbr_ifsflags |= IFBIF_BSTP_EDGE;
 	if (bp->bp_flags & BSTP_PORT_AUTOEDGE)
 		req->ifbr_ifsflags |= IFBIF_BSTP_AUTOEDGE;
-	if (bp->bp_p2p_link)
-		req->ifbr_ifsflags |= IFBIF_BSTP_P2P;
-	if (bp->bp_flags & BSTP_PORT_AUTOP2P)
-		req->ifbr_ifsflags |= IFBIF_BSTP_AUTOP2P;
+	if (bp->bp_ptp_link)
+		req->ifbr_ifsflags |= IFBIF_BSTP_PTP;
+	if (bp->bp_flags & BSTP_PORT_AUTOPTP)
+		req->ifbr_ifsflags |= IFBIF_BSTP_AUTOPTP;
 	if (bp->bp_flags & BSTP_PORT_ADMEDGE)
 		req->ifbr_ifsflags |= IFBIF_BSTP_ADMEDGE;
 	if (bp->bp_flags & BSTP_PORT_ADMCOST)
@@ -1062,8 +1062,8 @@ bridge_ioctl_sifflags(struct bridge_softc *sc, void *arg)
 	/* Pass on STP flags */
 	bstp_set_edge(bp, req->ifbr_ifsflags & IFBIF_BSTP_EDGE ? 1 : 0);
 	bstp_set_autoedge(bp, req->ifbr_ifsflags & IFBIF_BSTP_AUTOEDGE ? 1 : 0);
-	bstp_set_p2p(bp, req->ifbr_ifsflags & IFBIF_BSTP_P2P ? 1 : 0);
-	bstp_set_autop2p(bp, req->ifbr_ifsflags & IFBIF_BSTP_AUTOP2P ? 1 : 0);
+	bstp_set_ptp(bp, req->ifbr_ifsflags & IFBIF_BSTP_PTP ? 1 : 0);
+	bstp_set_autoptp(bp, req->ifbr_ifsflags & IFBIF_BSTP_AUTOPTP ? 1 : 0);
 
 	/* Save the bits relating to the bridge */
 	bif->bif_flags = req->ifbr_ifsflags & IFBIFMASK;
