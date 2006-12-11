@@ -80,6 +80,7 @@ oui xxINTEL			0x00f800	Intel
 	(ie, ordered as on the wire) */
 oui xxALTIMA			0x000895	Altima Communications
 oui xxBROADCOM			0x000818	Broadcom Corporation
+oui xxBROADCOM_ALT1		0x0050ef	Broadcom Corporation
 oui xxICS			0x00057d	Integrated Circuit Systems
 oui xxSEEQ			0x0005be	Seeq
 oui xxSIS			0x000760	Silicon Integrated Systems
@@ -119,6 +120,7 @@ model BROADCOM BCM4401		0x0036 BCM4401 10/100baseTX PHY
 model xxBROADCOM BCM5400	0x0004 Broadcom 1000baseTX PHY
 model xxBROADCOM BCM5401	0x0005 BCM5401 10/100/1000baseTX PHY
 model xxBROADCOM BCM5411	0x0007 BCM5411 10/100/1000baseTX PHY
+model xxBROADCOM BCM5754	0x000e BCM5754 10/100/1000baseTX PHY
 model xxBROADCOM BCM5752	0x0010 BCM5752 10/100/1000baseTX PHY
 model xxBROADCOM BCM5701	0x0011 BCM5701 10/100/1000baseTX PHY
 model xxBROADCOM BCM5703	0x0016 BCM5703 10/100/1000baseTX PHY
