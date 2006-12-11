@@ -430,3 +430,4 @@ static driver_t adv_isa_driver = {
 
 static devclass_t adv_isa_devclass;
 DRIVER_MODULE(adv, isa, adv_isa_driver, adv_isa_devclass, 0, 0);
+MODULE_DEPEND(adv, isa, 1, 1, 1);

@@ -351,3 +351,4 @@ static driver_t adv_eisa_driver = {
 
 static devclass_t adv_eisa_devclass;
 DRIVER_MODULE(adv, eisa, adv_eisa_driver, adv_eisa_devclass, 0, 0);
+MODULE_DEPEND(adv, eisa, 1, 1, 1);

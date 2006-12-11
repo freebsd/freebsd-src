@@ -51,6 +51,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/kernel.h>
 #include <sys/malloc.h>
 #include <sys/lock.h>
+#include <sys/module.h>
 #include <sys/mutex.h>
 #include <sys/bus.h>
 
@@ -1580,3 +1581,5 @@ adw_handle_bus_reset(struct adw_softc *adw, int initiated)
 		xpt_async(AC_BUS_RESET, adw->path, NULL);
 	adw->last_reset = CAM_SCSI_BUS_RESET;
 }
+MODULE_DEPEND(adw, cam, 1, 1, 1);
+

@@ -465,3 +465,5 @@ static driver_t vpo_driver = {
 	sizeof(struct vpo_data),
 };
 DRIVER_MODULE(vpo, ppbus, vpo_driver, vpo_devclass, 0, 0);
+MODULE_DEPEND(vpo, ppbus, 1, 1, 1);
+MODULE_DEPEND(vpo, cam, 1, 1, 1);
