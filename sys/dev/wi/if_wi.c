@@ -112,6 +112,7 @@ __FBSDID("$FreeBSD$");
 #include <dev/wi/if_wireg.h>
 #include <dev/wi/if_wivar.h>
 
+static void wi_start_locked(struct ifnet *);
 static void wi_start(struct ifnet *);
 static int  wi_start_tx(struct ifnet *ifp, struct wi_frame *frmhdr,
 		struct mbuf *m0);
@@ -632,7 +633,7 @@ wi_intr(void *arg)
 	if ((ifp->if_drv_flags & IFF_DRV_OACTIVE) == 0 &&
 	    (sc->sc_flags & WI_FLAGS_OUTRANGE) == 0 &&
 	    !IFQ_DRV_IS_EMPTY(&ifp->if_snd))
-		wi_start(ifp);
+		wi_start_locked(ifp);
 
 	/* Re-enable interrupts. */
 	CSR_WRITE_2(sc, WI_INT_EN, WI_INTRS);
@@ -877,7 +878,7 @@ wi_stop(struct ifnet *ifp, int disable)
 }
 
 static void
-wi_start(struct ifnet *ifp)
+wi_start_locked(struct ifnet *ifp)
 {
 	struct wi_softc	*sc = ifp->if_softc;
 	struct ieee80211com *ic = &sc->sc_ic;
@@ -888,16 +889,12 @@ wi_start(struct ifnet *ifp)
 	struct wi_frame frmhdr;
 	int cur;
 
-	WI_LOCK(sc);
+	WI_LOCK_ASSERT(sc);
 
-	if (sc->wi_gone) {
-		WI_UNLOCK(sc);
+	if (sc->wi_gone)
 		return;
-	}
-	if (sc->sc_flags & WI_FLAGS_OUTRANGE) {
-		WI_UNLOCK(sc);
+	if (sc->sc_flags & WI_FLAGS_OUTRANGE)
 		return;
-	}
 
 	memset(&frmhdr, 0, sizeof(frmhdr));
 	cur = sc->sc_txnext;
@@ -1001,7 +998,15 @@ wi_start(struct ifnet *ifp)
 			continue;
 		sc->sc_txnext = cur = (cur + 1) % sc->sc_ntxbuf;
 	}
+}
 
+static void
+wi_start(struct ifnet *ifp)
+{
+	struct wi_softc	*sc = ifp->if_softc;
+
+	WI_LOCK(sc);
+	wi_start_locked(ifp);
 	WI_UNLOCK(sc);
 }
 

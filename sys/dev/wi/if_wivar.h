@@ -220,6 +220,7 @@ struct wi_card_ident {
 
 #define	WI_LOCK(_sc) 		mtx_lock(&(_sc)->sc_mtx)
 #define	WI_UNLOCK(_sc)		mtx_unlock(&(_sc)->sc_mtx)
+#define	WI_LOCK_ASSERT(_sc)	mtx_assert(&(_sc)->sc_mtx, MA_OWNED)
 
 int	wi_attach(device_t);
 int	wi_detach(device_t);
