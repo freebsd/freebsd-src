@@ -190,6 +190,7 @@ SND_DECLARE_FILE("$FreeBSD$");
 #define ASUS_M5200_SUBVENDOR	HDA_MODEL_CONSTRUCT(ASUS, 0x1993)
 #define ASUS_U5F_SUBVENDOR	HDA_MODEL_CONSTRUCT(ASUS, 0x1263)
 #define ASUS_A8JC_SUBVENDOR	HDA_MODEL_CONSTRUCT(ASUS, 0x1153)
+#define ASUS_P1AH2_SUBVENDOR	HDA_MODEL_CONSTRUCT(ASUS, 0x81cb)
 #define ASUS_ALL_SUBVENDOR	HDA_MODEL_CONSTRUCT(ASUS, 0xffff)
 
 /* IBM / Lenovo */
@@ -3525,6 +3526,15 @@ hdac_vendor_patch_parse(struct hdac_devinfo *devinfo)
 				continue;
 			if (w->nid != 5)
 				w->enable = 0;
+		}
+		break;
+	case HDA_CODEC_ALC861:
+		if (subvendor == ASUS_P1AH2_SUBVENDOR) {
+			struct hdac_audio_ctl *ctl;
+
+			ctl = hdac_audio_ctl_amp_get(devinfo, 28, 1, 1);
+			if (ctl != NULL)
+				ctl->muted = HDA_AMP_MUTE_ALL;
 		}
 		break;
 	case HDA_CODEC_ALC880:
