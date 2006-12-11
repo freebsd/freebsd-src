@@ -55,6 +55,7 @@ struct ue_chain {
 	char			*ue_buf;
 	struct mbuf		*ue_mbuf;
 	int			ue_idx;
+	usbd_status		ue_status;
 };
 
 struct ue_cdata {

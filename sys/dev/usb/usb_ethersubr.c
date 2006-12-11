@@ -74,7 +74,8 @@ static int mtx_inited = 0;
 
 static void usbintr		(void);
 
-static void usbintr(void)
+static void
+usbintr(void)
 {
 	struct mbuf		*m;
 	struct usb_qdat		*q;
@@ -110,7 +111,8 @@ static void usbintr(void)
 	return;
 }
 
-void usb_register_netisr()
+void
+usb_register_netisr(void)
 {
 	if (mtx_inited)
 		return;
@@ -125,7 +127,8 @@ void usb_register_netisr()
  * Must be called at splusb() (actually splbio()). This should be
  * the case when called from a transfer callback routine.
  */
-void usb_ether_input(m)
+void
+usb_ether_input(m)
 	struct mbuf		*m;
 {
 	IF_ENQUEUE(&usbq_rx, m);
@@ -134,7 +137,8 @@ void usb_ether_input(m)
 	return;
 }
 
-void usb_tx_done(m)
+void
+usb_tx_done(m)
 	struct mbuf		*m;
 {
 	IF_ENQUEUE(&usbq_tx, m);
