@@ -236,6 +236,14 @@
 #define E1000_SCR_TX_FIFO_DEPTH_10	0x8000
 #define E1000_SCR_TX_FIFO_DEPTH_12	0xC000
 
+#define E1000_SCR_EN_DETECT_MASK	0x0300
+
+/* 88E1112 page 2 */
+#define E1000_SCR_MODE_MASK		0x0380
+#define E1000_SCR_MODE_AUTO		0x0180
+#define E1000_SCR_MODE_COPPER		0x0280
+#define E1000_SCR_MODE_1000BX		0x0380
+
 #define E1000_SSR			0x11	/* special status register */
 #define E1000_SSR_JABBER		0x0001
 #define E1000_SSR_REV_POLARITY		0x0002
@@ -285,6 +293,8 @@
 #define E1000_ESCR_TX_CLK_0		0x0000
 
 #define E1000_RECR			0x15	/* RX error counter reg */
+
+#define E1000_EADR			0x16	/* extended address reg */
 
 #define E1000_LCR			0x18	/* LED control reg */
 #define E1000_LCR_LED_TX		0x0001
