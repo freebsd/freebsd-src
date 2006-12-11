@@ -82,6 +82,8 @@ static driver_t aac_pci_driver = {
 static devclass_t	aac_devclass;
 
 DRIVER_MODULE(aac, pci, aac_pci_driver, aac_devclass, 0, 0);
+MODULE_DEPEND(aac, pci, 1, 1, 1);
+
 
 struct aac_ident
 {

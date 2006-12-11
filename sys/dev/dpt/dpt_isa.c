@@ -268,3 +268,5 @@ static driver_t dpt_isa_driver = {
 };
 
 DRIVER_MODULE(dpt, isa, dpt_isa_driver, dpt_devclass, 0, 0);
+MODULE_DEPEND(dpt, isa, 1, 1, 1);
+MODULE_DEPEND(dpt, cam, 1, 1, 1);

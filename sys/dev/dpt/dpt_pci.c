@@ -195,3 +195,5 @@ static driver_t dpt_pci_driver = {
 };
 
 DRIVER_MODULE(dpt, pci, dpt_pci_driver, dpt_devclass, 0, 0);
+MODULE_DEPEND(dpt, pci, 1, 1, 1);
+MODULE_DEPEND(dpt, cam, 1, 1, 1);

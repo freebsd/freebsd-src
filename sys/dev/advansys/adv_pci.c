@@ -332,3 +332,4 @@ static driver_t adv_pci_driver = {
 
 static devclass_t adv_pci_devclass;
 DRIVER_MODULE(adv, pci, adv_pci_driver, adv_pci_devclass, 0, 0);
+MODULE_DEPEND(adv, pci, 1, 1, 1);
