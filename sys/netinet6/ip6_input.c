@@ -548,11 +548,13 @@ passin:
 			ia6->ia_ifa.if_ibytes += m->m_pkthdr.len;
 			goto hbhcheck;
 		} else {
+			char ip6bufs[INET6_ADDRSTRLEN];
+			char ip6bufd[INET6_ADDRSTRLEN];
 			/* address is not ready, so discard the packet. */
 			nd6log((LOG_INFO,
 			    "ip6_input: packet to an unready address %s->%s\n",
-			    ip6_sprintf(&ip6->ip6_src),
-			    ip6_sprintf(&ip6->ip6_dst)));
+			    ip6_sprintf(ip6bufs, &ip6->ip6_src),
+			    ip6_sprintf(ip6bufd, &ip6->ip6_dst)));
 
 			goto bad;
 		}

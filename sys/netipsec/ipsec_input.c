@@ -277,6 +277,11 @@ ipsec4_common_input_cb(struct mbuf *m, struct secasvar *sav,
 	struct tdb_ident *tdbi;
 	struct secasindex *saidx;
 	int error;
+#if INET6
+#ifdef notyet
+	char ip6buf[INET6_ADDRSTRLEN];
+#endif
+#endif
 
 	IPSEC_SPLASSERT_SOFTNET(__func__);
 
@@ -396,7 +401,7 @@ ipsec4_common_input_cb(struct mbuf *m, struct secasvar *sav,
 			DPRINTF(("%s: inner source address %s doesn't "
 			    "correspond to expected proxy source %s, "
 			    "SA %s/%08lx\n", __func__,
-			    ip6_sprintf(&ip6n.ip6_src),
+			    ip6_sprintf(ip6buf, &ip6n.ip6_src),
 			    ipsec_address(&saidx->proxy),
 			    ipsec_address(&saidx->dst),
 			    (u_long) ntohl(sav->spi)));
@@ -542,6 +547,9 @@ ipsec6_common_input_cb(struct mbuf *m, struct secasvar *sav, int skip, int proto
 	int nxt;
 	u_int8_t nxt8;
 	int error, nest;
+#ifdef notyet
+	char ip6buf[INET6_ADDRSTRLEN];
+#endif
 
 	IPSEC_ASSERT(m != NULL, ("null mbuf"));
 	IPSEC_ASSERT(sav != NULL, ("null SA"));
@@ -654,7 +662,7 @@ ipsec6_common_input_cb(struct mbuf *m, struct secasvar *sav, int skip, int proto
 			DPRINTF(("%s: inner source address %s doesn't "
 			    "correspond to expected proxy source %s, "
 			    "SA %s/%08lx\n", __func__,
-			    ip6_sprintf(&ip6n.ip6_src),
+			    ip6_sprintf(ip6buf, &ip6n.ip6_src),
 			    ipsec_address(&saidx->proxy),
 			    ipsec_address(&saidx->dst),
 			    (u_long) ntohl(sav->spi)));

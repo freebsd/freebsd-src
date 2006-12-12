@@ -140,6 +140,7 @@ in6_ifloop_request(int cmd, struct ifaddr *ifa)
 	struct sockaddr_in6 all1_sa;
 	struct rtentry *nrt = NULL;
 	int e;
+	char ip6buf[INET6_ADDRSTRLEN];
 
 	bzero(&all1_sa, sizeof(all1_sa));
 	all1_sa.sin6_family = AF_INET6;
@@ -158,11 +159,12 @@ in6_ifloop_request(int cmd, struct ifaddr *ifa)
 	    (struct sockaddr *)&all1_sa, RTF_UP|RTF_HOST|RTF_LLINFO, &nrt);
 	if (e != 0) {
 		/* XXX need more descriptive message */
+
 		log(LOG_ERR, "in6_ifloop_request: "
 		    "%s operation failed for %s (errno=%d)\n",
 		    cmd == RTM_ADD ? "ADD" : "DELETE",
-		    ip6_sprintf(&((struct in6_ifaddr *)ifa)->ia_addr.sin6_addr),
-		    e);
+		    ip6_sprintf(ip6buf,
+			    &((struct in6_ifaddr *)ifa)->ia_addr.sin6_addr), e);
 	}
 
 	/*
@@ -807,6 +809,7 @@ in6_update_ifa(ifp, ifra, ia, flags)
 	struct in6_multi *in6m_sol;
 	struct rtentry *rt;
 	int delay;
+	char ip6buf[INET6_ADDRSTRLEN];
 
 	/* Validate parameters */
 	if (ifp == NULL || ifra == NULL) /* this maybe redundant */
@@ -901,7 +904,7 @@ in6_update_ifa(ifp, ifra, ia, flags)
 		 */
 		nd6log((LOG_INFO,
 		    "in6_update_ifa: valid lifetime is 0 for %s\n",
-		    ip6_sprintf(&ifra->ifra_addr.sin6_addr)));
+		    ip6_sprintf(ip6buf, &ifra->ifra_addr.sin6_addr)));
 
 		if (ia == NULL)
 			return (0); /* there's nothing to do */
@@ -968,7 +971,7 @@ in6_update_ifa(ifp, ifra, ia, flags)
 		    in6_mask2len(&ia->ia_prefixmask.sin6_addr, NULL) != plen) {
 			nd6log((LOG_INFO, "in6_update_ifa: the prefix length of an"
 			    " existing (%s) address should not be changed\n",
-			    ip6_sprintf(&ia->ia_addr.sin6_addr)));
+			    ip6_sprintf(ip6buf, &ia->ia_addr.sin6_addr)));
 			error = EINVAL;
 			goto unlink;
 		}
@@ -988,7 +991,7 @@ in6_update_ifa(ifp, ifra, ia, flags)
 		    (e = rtinit(&(ia->ia_ifa), (int)RTM_DELETE, RTF_HOST)) != 0) {
 			nd6log((LOG_ERR, "in6_update_ifa: failed to remove "
 			    "a route to the old destination: %s\n",
-			    ip6_sprintf(&ia->ia_addr.sin6_addr)));
+			    ip6_sprintf(ip6buf, &ia->ia_addr.sin6_addr)));
 			/* proceed anyway... */
 		} else
 			ia->ia_flags &= ~IFA_ROUTE;
@@ -1084,7 +1087,7 @@ in6_update_ifa(ifp, ifra, ia, flags)
 			nd6log((LOG_WARNING,
 			    "in6_update_ifa: addmulti failed for "
 			    "%s on %s (errno=%d)\n",
-			    ip6_sprintf(&llsol), if_name(ifp),
+			    ip6_sprintf(ip6buf, &llsol), if_name(ifp),
 			    error));
 			in6_purgeaddr((struct ifaddr *)ia);
 			return (error);
@@ -1166,7 +1169,7 @@ in6_update_ifa(ifp, ifra, ia, flags)
 			nd6log((LOG_WARNING,
 			    "in6_update_ifa: addmulti failed for "
 			    "%s on %s (errno=%d)\n",
-			    ip6_sprintf(&mltaddr.sin6_addr),
+			    ip6_sprintf(ip6buf, &mltaddr.sin6_addr),
 			    if_name(ifp), error));
 			goto cleanup;
 		}
@@ -1192,7 +1195,7 @@ in6_update_ifa(ifp, ifra, ia, flags)
 				nd6log((LOG_WARNING, "in6_update_ifa: "
 				    "addmulti failed for %s on %s "
 				    "(errno=%d)\n",
-				    ip6_sprintf(&mltaddr.sin6_addr),
+				    ip6_sprintf(ip6buf, &mltaddr.sin6_addr),
 				    if_name(ifp), error));
 				/* XXX not very fatal, go on... */
 			}
@@ -1253,7 +1256,7 @@ in6_update_ifa(ifp, ifra, ia, flags)
 			nd6log((LOG_WARNING, "in6_update_ifa: "
 			    "addmulti failed for %s on %s "
 			    "(errno=%d)\n",
-			    ip6_sprintf(&mltaddr.sin6_addr),
+			    ip6_sprintf(ip6buf, &mltaddr.sin6_addr),
 			    if_name(ifp), error));
 			goto cleanup;
 		}
@@ -1320,6 +1323,7 @@ in6_purgeaddr(ifa)
 {
 	struct ifnet *ifp = ifa->ifa_ifp;
 	struct in6_ifaddr *ia = (struct in6_ifaddr *) ifa;
+	char ip6buf[INET6_ADDRSTRLEN];
 
 	/* stop DAD processing */
 	nd6_dad_stop(ifa);
@@ -1336,8 +1340,8 @@ in6_purgeaddr(ifa)
 			log(LOG_ERR, "in6_purgeaddr: failed to remove "
 			    "a route to the p2p destination: %s on %s, "
 			    "errno=%d\n",
-			    ip6_sprintf(&ia->ia_addr.sin6_addr), if_name(ifp),
-			    e);
+			    ip6_sprintf(ip6buf, &ia->ia_addr.sin6_addr),
+			    if_name(ifp), e);
 			/* proceed anyway... */
 		} else
 			ia->ia_flags &= ~IFA_ROUTE;
@@ -1889,23 +1893,20 @@ in6ifa_ifpwithaddr(ifp, addr)
 }
 
 /*
- * Convert IP6 address to printable (loggable) representation.
+ * Convert IP6 address to printable (loggable) representation. Caller
+ * has to make sure that ip6buf is at least INET6_ADDRSTRLEN long.
  */
 static char digits[] = "0123456789abcdef";
-static int ip6round = 0;
 char *
-ip6_sprintf(addr)
-	const struct in6_addr *addr;
+ip6_sprintf(char *ip6buf, const struct in6_addr *addr)
 {
-	static char ip6buf[8][48];
 	int i;
 	char *cp;
 	const u_int16_t *a = (const u_int16_t *)addr;
 	const u_int8_t *d;
 	int dcolon = 0;
 
-	ip6round = (ip6round + 1) & 7;
-	cp = ip6buf[ip6round];
+	cp = ip6buf;
 
 	for (i = 0; i < 8; i++) {
 		if (dcolon == 1) {
@@ -1938,8 +1939,8 @@ ip6_sprintf(addr)
 		*cp++ = ':';
 		a++;
 	}
-	*--cp = 0;
-	return (ip6buf[ip6round]);
+	*--cp = '\0';
+	return (ip6buf);
 }
 
 int

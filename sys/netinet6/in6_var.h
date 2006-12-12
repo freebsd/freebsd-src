@@ -608,7 +608,7 @@ void	in6_restoremkludge __P((struct in6_ifaddr *, struct ifnet *));
 void	in6_purgemkludge __P((struct ifnet *));
 struct in6_ifaddr *in6ifa_ifpforlinklocal __P((struct ifnet *, int));
 struct in6_ifaddr *in6ifa_ifpwithaddr __P((struct ifnet *, struct in6_addr *));
-char	*ip6_sprintf __P((const struct in6_addr *));
+char	*ip6_sprintf __P((char *, const struct in6_addr *));
 int	in6_addr2zoneid __P((struct ifnet *, struct in6_addr *, u_int32_t *));
 int	in6_matchlen __P((struct in6_addr *, struct in6_addr *));
 int	in6_are_prefix_equal __P((struct in6_addr *, struct in6_addr *, int));

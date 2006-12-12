@@ -114,6 +114,7 @@ ip6_forward(m, srcrt)
 	struct secpolicy *sp = NULL;
 	int ipsecrt = 0;
 #endif
+	char ip6bufs[INET6_ADDRSTRLEN], ip6bufd[INET6_ADDRSTRLEN];
 
 	GIANT_REQUIRED; /* XXX bz: ip6_forward_rt */
 
@@ -150,8 +151,8 @@ ip6_forward(m, srcrt)
 			log(LOG_DEBUG,
 			    "cannot forward "
 			    "from %s to %s nxt %d received on %s\n",
-			    ip6_sprintf(&ip6->ip6_src),
-			    ip6_sprintf(&ip6->ip6_dst),
+			    ip6_sprintf(ip6bufs, &ip6->ip6_src),
+			    ip6_sprintf(ip6bufd, &ip6->ip6_dst),
 			    ip6->ip6_nxt,
 			    if_name(m->m_pkthdr.rcvif));
 		}
@@ -443,8 +444,8 @@ ip6_forward(m, srcrt)
 			log(LOG_DEBUG,
 			    "cannot forward "
 			    "src %s, dst %s, nxt %d, rcvif %s, outif %s\n",
-			    ip6_sprintf(&ip6->ip6_src),
-			    ip6_sprintf(&ip6->ip6_dst),
+			    ip6_sprintf(ip6bufs, &ip6->ip6_src),
+			    ip6_sprintf(ip6bufd, &ip6->ip6_dst),
 			    ip6->ip6_nxt,
 			    if_name(m->m_pkthdr.rcvif), if_name(rt->rt_ifp));
 		}
@@ -575,8 +576,8 @@ ip6_forward(m, srcrt)
 		{
 			printf("ip6_forward: outgoing interface is loopback. "
 			       "src %s, dst %s, nxt %d, rcvif %s, outif %s\n",
-			       ip6_sprintf(&ip6->ip6_src),
-			       ip6_sprintf(&ip6->ip6_dst),
+			       ip6_sprintf(ip6bufs, &ip6->ip6_src),
+			       ip6_sprintf(ip6bufd, &ip6->ip6_dst),
 			       ip6->ip6_nxt, if_name(m->m_pkthdr.rcvif),
 			       if_name(rt->rt_ifp));
 		}

@@ -1832,6 +1832,7 @@ inet_ntoa4(struct in_addr ina)
 	unsigned char *ucp = (unsigned char *) &ina;
 	static int i = 3;
 
+	/* XXX-BZ returns static buffer. */
 	i = (i + 1) % 4;
 	sprintf(buf[i], "%d.%d.%d.%d", ucp[0] & 0xff, ucp[1] & 0xff,
 	    ucp[2] & 0xff, ucp[3] & 0xff);
@@ -1842,6 +1843,9 @@ inet_ntoa4(struct in_addr ina)
 char *
 ipsec_address(union sockaddr_union* sa)
 {
+#if INET6
+	char ip6buf[INET6_ADDRSTRLEN];
+#endif
 	switch (sa->sa.sa_family) {
 #ifdef INET
 	case AF_INET:
@@ -1850,7 +1854,7 @@ ipsec_address(union sockaddr_union* sa)
 
 #ifdef INET6
 	case AF_INET6:
-		return ip6_sprintf(&sa->sin6.sin6_addr);
+		return ip6_sprintf(ip6buf, &sa->sin6.sin6_addr);
 #endif /* INET6 */
 
 	default:
