@@ -446,16 +446,17 @@ selectroute(dstsock, opts, mopts, ro, retifp, retrt, clone, norouteok)
 	struct sockaddr_in6 *sin6_next;
 	struct in6_pktinfo *pi = NULL;
 	struct in6_addr *dst = &dstsock->sin6_addr;
-
 #if 0
+	char ip6buf[INET6_ADDRSTRLEN];
+
 	if (dstsock->sin6_addr.s6_addr32[0] == 0 &&
 	    dstsock->sin6_addr.s6_addr32[1] == 0 &&
 	    !IN6_IS_ADDR_LOOPBACK(&dstsock->sin6_addr)) {
 		printf("in6_selectroute: strange destination %s\n",
-		       ip6_sprintf(&dstsock->sin6_addr));
+		       ip6_sprintf(ip6buf, &dstsock->sin6_addr));
 	} else {
 		printf("in6_selectroute: destination = %s%%%d\n",
-		       ip6_sprintf(&dstsock->sin6_addr),
+		       ip6_sprintf(ip6buf, &dstsock->sin6_addr),
 		       dstsock->sin6_scope_id); /* for debug */
 	}
 #endif
