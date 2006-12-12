@@ -3605,10 +3605,12 @@ sctp_print_address(struct sockaddr *sa)
 
 	if (sa->sa_family == AF_INET6) {
 		struct sockaddr_in6 *sin6;
+		char ip6buf[INET6_ADDRSTRLEN];
 
 		sin6 = (struct sockaddr_in6 *)sa;
 		printf("IPv6 address: %s:%d scope:%u\n",
-		    ip6_sprintf(&sin6->sin6_addr), ntohs(sin6->sin6_port),
+		    ip6_sprintf(ip6buf, &sin6->sin6_addr),
+		    ntohs(sin6->sin6_port),
 		    sin6->sin6_scope_id);
 	} else if (sa->sa_family == AF_INET) {
 		struct sockaddr_in *sin;
