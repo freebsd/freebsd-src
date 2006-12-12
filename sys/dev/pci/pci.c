@@ -990,6 +990,10 @@ pci_alloc_msix(device_t dev, device_t child, int *count)
 	if (cfg->msix.msix_alloc != 0)
 		return (ENXIO);
 
+	if (bootverbose)
+		device_printf(child,
+		    "attempting to allocate %d MSI-X vectors (%d supported)\n",
+		    *count, cfg->msix.msix_msgnum);
 	max = min(*count, cfg->msix.msix_msgnum);
 	for (i = 0; i < max; i++) {
 		/* Allocate a message. */
@@ -1001,6 +1005,51 @@ pci_alloc_msix(device_t dev, device_t child, int *count)
 		    irq, 1);
 	}
 	actual = i;
+
+	if (bootverbose) {
+		rle = resource_list_find(&dinfo->resources, SYS_RES_IRQ, 1);
+		if (actual == 1)
+			device_printf(child, "using IRQ %lu for MSI-X\n",
+			    rle->start);
+		else {
+			int run;
+
+			/*
+			 * Be fancy and try to print contiguous runs of
+			 * IRQ values as ranges.  'irq' is the previous IRQ.
+			 * 'run' is true if we are in a range.
+			 */
+			device_printf(child, "using IRQs %lu", rle->start);
+			irq = rle->start;
+			run = 0;
+			for (i = 1; i < actual; i++) {
+				rle = resource_list_find(&dinfo->resources,
+				    SYS_RES_IRQ, i + 1);
+
+				/* Still in a run? */
+				if (rle->start == irq + 1) {
+					run = 1;
+					irq++;
+					continue;
+				}
+
+				/* Finish previous range. */
+				if (run) {
+					printf("-%d", irq);
+					run = 0;
+				}
+
+				/* Start new range. */
+				printf(",%lu", rle->start);
+				irq = rle->start;
+			}
+
+			/* Unfinished range? */
+			if (run)
+				printf("%d", irq);
+			printf(" for MSI-X\n");
+		}
+	}
 
 	/* Mask all vectors. */
 	for (i = 0; i < cfg->msix.msix_msgnum; i++)
@@ -1151,6 +1200,11 @@ pci_alloc_msi_method(device_t dev, device_t child, int *count)
 	if (cfg->msi.msi_alloc != 0)
 		return (ENXIO);
 
+	if (bootverbose)
+		device_printf(child,
+		    "attempting to allocate %d MSI vectors (%d supported)\n",
+		    *count, cfg->msi.msi_msgnum);
+
 	/* Don't ask for more than the device supports. */
 	actual = min(*count, cfg->msi.msi_msgnum);
 
@@ -1182,6 +1236,44 @@ pci_alloc_msi_method(device_t dev, device_t child, int *count)
 	for (i = 0; i < actual; i++)
 		resource_list_add(&dinfo->resources, SYS_RES_IRQ, i + 1,
 		    irqs[i], irqs[i], 1);
+
+	if (bootverbose) {
+		if (actual == 1)
+			device_printf(child, "using IRQ %d for MSI\n", irqs[0]);
+		else {
+			int run;
+
+			/*
+			 * Be fancy and try to print contiguous runs
+			 * of IRQ values as ranges.  'run' is true if
+			 * we are in a range.
+			 */
+			device_printf(child, "using IRQs %d", irqs[0]);
+			run = 0;
+			for (i = 1; i < actual; i++) {
+
+				/* Still in a run? */
+				if (irqs[i] == irqs[i - 1] + 1) {
+					run = 1;
+					continue;
+				}
+
+				/* Finish previous range. */
+				if (run) {
+					printf("-%d", irqs[i - 1]);
+					run = 0;
+				}
+
+				/* Start new range. */
+				printf(",%d", irqs[i]);
+			}
+
+			/* Unfinished range? */
+			if (run)
+				printf("%d", irqs[actual - 1]);
+			printf(" for MSI\n");
+		}
+	}
 
 	/* Update control register with actual count and enable MSI. */
 	ctrl = cfg->msi.msi_ctrl;
