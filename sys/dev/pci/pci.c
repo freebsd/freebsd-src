@@ -442,6 +442,7 @@ static void
 pci_read_extcap(device_t pcib, pcicfgregs *cfg)
 {
 #define REG(n, w)	PCIB_READ_CONFIG(pcib, cfg->bus, cfg->slot, cfg->func, n, w)
+#define WREG(n, v, w)	PCIB_WRITE_CONFIG(pcib, cfg->bus, cfg->slot, cfg->func, n, v, w)
 	uint32_t val;
 	int	ptr, nextptr, ptrptr;
 
@@ -511,7 +512,7 @@ pci_read_extcap(device_t pcib, pcicfgregs *cfg)
 			break;
 		}
 	}
-/* REG use carry through to next functions */
+/* REG and WREG use carry through to next functions */
 }
 
 /*
@@ -520,7 +521,6 @@ pci_read_extcap(device_t pcib, pcicfgregs *cfg)
 static uint32_t
 pci_read_vpd_reg(device_t pcib, pcicfgregs *cfg, int reg)
 {
-#define WREG(n, v, w)	PCIB_WRITE_CONFIG(pcib, cfg->bus, cfg->slot, cfg->func, n, v, w)
 
 	KASSERT((reg & 3) == 0, ("VPD register must by 4 byte aligned"));
 
@@ -545,7 +545,6 @@ pci_write_vpd_reg(device_t pcib, pcicfgregs *cfg, int reg, uint32_t data)
 	return;
 }
 #endif
-#undef WREG
 
 struct vpd_readstate {
 	device_t	pcib;
@@ -807,6 +806,7 @@ pci_read_vpd(device_t pcib, pcicfgregs *cfg)
 		cfg->vpd.vpd_ros = NULL;
 	}
 #undef REG
+#undef WREG
 }
 
 int
