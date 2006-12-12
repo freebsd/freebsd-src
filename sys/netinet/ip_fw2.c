@@ -886,10 +886,11 @@ ipfw_log(struct ip_fw *f, u_int hlen, struct ip_fw_args *args,
 		dst[0] = '\0';
 #ifdef INET6
 		if (IS_IP6_FLOW_ID(&(args->f_id))) {
+			char ip6buf[INET6_ADDRSTRLEN];
 			snprintf(src, sizeof(src), "[%s]",
-			    ip6_sprintf(&args->f_id.src_ip6));
+			    ip6_sprintf(ip6buf, &args->f_id.src_ip6));
 			snprintf(dst, sizeof(dst), "[%s]",
-			    ip6_sprintf(&args->f_id.dst_ip6));
+			    ip6_sprintf(ip6buf, &args->f_id.dst_ip6));
 
 			ip6 = (struct ip6_hdr *)mtod(m, struct ip6_hdr *);
 			tcp = (struct tcphdr *)(mtod(args->m, char *) + hlen);
@@ -1529,11 +1530,12 @@ install_state(struct ip_fw *rule, ipfw_insn_limit *cmd,
 					 * supported yet.
 					 */
 					if (IS_IP6_FLOW_ID(&(args->f_id))) {
+						char ip6buf[INET6_ADDRSTRLEN];
 						snprintf(src, sizeof(src),
-						    "[%s]", ip6_sprintf(
+						    "[%s]", ip6_sprintf(ip6buf,
 							&args->f_id.src_ip6));
 						snprintf(dst, sizeof(dst),
-						    "[%s]", ip6_sprintf(
+						    "[%s]", ip6_sprintf(ip6buf,
 							&args->f_id.dst_ip6));
 					} else
 #endif

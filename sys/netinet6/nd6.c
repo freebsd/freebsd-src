@@ -824,6 +824,7 @@ nd6_lookup(addr6, create, ifp)
 {
 	struct rtentry *rt;
 	struct sockaddr_in6 sin6;
+	char ip6buf[INET6_ADDRSTRLEN];
 
 	bzero(&sin6, sizeof(sin6));
 	sin6.sin6_len = sizeof(struct sockaddr_in6);
@@ -871,7 +872,7 @@ nd6_lookup(addr6, create, ifp)
 				log(LOG_ERR,
 				    "nd6_lookup: failed to add route for a "
 				    "neighbor(%s), errno=%d\n",
-				    ip6_sprintf(addr6), e);
+				    ip6_sprintf(ip6buf, addr6), e);
 			}
 			if (rt == NULL)
 				return (NULL);
@@ -908,7 +909,7 @@ nd6_lookup(addr6, create, ifp)
 		if (create) {
 			nd6log((LOG_DEBUG,
 			    "nd6_lookup: failed to lookup %s (if = %s)\n",
-			    ip6_sprintf(addr6),
+			    ip6_sprintf(ip6buf, addr6),
 			    ifp ? if_name(ifp) : "unspec"));
 		}
 		RT_UNLOCK(rt);
@@ -1387,9 +1388,11 @@ nd6_rtrequest(req, rt, info)
 					break;
 				if (in6_addmulti(&llsol, ifp,
 				    &error, 0) == NULL) {
+					char ip6buf[INET6_ADDRSTRLEN];
 					nd6log((LOG_ERR, "%s: failed to join "
 					    "%s (errno=%d)\n", if_name(ifp),
-					    ip6_sprintf(&llsol), error));
+					    ip6_sprintf(ip6buf, &llsol),
+					    error));
 				}
 			}
 		}
@@ -2054,10 +2057,11 @@ again:
 	if (ln == NULL || rt == NULL) {
 		if ((ifp->if_flags & IFF_POINTOPOINT) == 0 &&
 		    !(ND_IFINFO(ifp)->flags & ND6_IFF_PERFORMNUD)) {
+			char ip6buf[INET6_ADDRSTRLEN];
 			log(LOG_DEBUG,
 			    "nd6_output: can't allocate llinfo for %s "
 			    "(ln=%p, rt=%p)\n",
-			    ip6_sprintf(&dst->sin6_addr), ln, rt);
+			    ip6_sprintf(ip6buf, &dst->sin6_addr), ln, rt);
 			senderr(EIO);	/* XXX: good error? */
 		}
 
@@ -2347,6 +2351,7 @@ nd6_sysctl_prlist(SYSCTL_HANDLER_ARGS)
 	char buf[1024];
 	struct in6_prefix *p, *pe;
 	struct nd_prefix *pr;
+	char ip6buf[INET6_ADDRSTRLEN];
 
 	if (req->newptr)
 		return EPERM;
@@ -2369,7 +2374,7 @@ nd6_sysctl_prlist(SYSCTL_HANDLER_ARGS)
 			if (sa6_recoverscope(&p->prefix)) {
 				log(LOG_ERR,
 				    "scope error in prefix list (%s)\n",
-				    ip6_sprintf(&p->prefix.sin6_addr));
+				    ip6_sprintf(ip6buf, &p->prefix.sin6_addr));
 				/* XXX: press on... */
 			}
 			p->raflags = pr->ndpr_raf;
@@ -2412,7 +2417,8 @@ nd6_sysctl_prlist(SYSCTL_HANDLER_ARGS)
 					log(LOG_ERR,
 					    "scope error in "
 					    "prefix list (%s)\n",
-					    ip6_sprintf(&pfr->router->rtaddr));
+					    ip6_sprintf(ip6buf,
+						    &pfr->router->rtaddr));
 				}
 				advrtrs++;
 			}
