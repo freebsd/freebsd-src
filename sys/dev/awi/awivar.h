@@ -76,6 +76,7 @@ struct awi_chanset {
 struct awi_softc {
 #ifdef __NetBSD__
 	struct device		sc_dev;
+	void			(*sc_power)(struct awi_softc *, int);
 #endif
 #ifdef __FreeBSD__
 	struct arpcom		sc_arp;
@@ -86,7 +87,6 @@ struct awi_softc {
 	u_char			sc_banner[AWI_BANNER_LEN];
 	int			(*sc_enable)(struct awi_softc *);
 	void			(*sc_disable)(struct awi_softc *);
-	void			(*sc_power)(struct awi_softc *, int);
 
 	int			(*sc_newstate)(struct ieee80211com *,
 				    enum ieee80211_state, int);
