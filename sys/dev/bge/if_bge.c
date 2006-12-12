@@ -256,6 +256,10 @@ static const struct bge_revision {
 	{ BGE_CHIPID_BCM5714_B3,	"BCM5714 B3" },
 	{ BGE_CHIPID_BCM5715_A0,	"BCM5715 A0" },
 	{ BGE_CHIPID_BCM5715_A1,	"BCM5715 A1" },
+	/* 5784 and 5787 share the same ASIC ID */
+	{ BGE_CHIPID_BCM5787_A0,	"BCM5754/5787 A0" }, 
+	{ BGE_CHIPID_BCM5787_A1,	"BCM5754/5787 A1" },
+	{ BGE_CHIPID_BCM5787_A2,	"BCM5754/5787 A2" },
 
 	{ 0, NULL }
 };
@@ -276,7 +280,8 @@ static const struct bge_revision bge_majorrevs[] = {
 	{ BGE_ASICREV_BCM5780,		"unknown BCM5780" },
 	{ BGE_ASICREV_BCM5714,		"unknown BCM5714" },
 	{ BGE_ASICREV_BCM5755,		"unknown BCM5755" },
-	{ BGE_ASICREV_BCM5787,		"unknown BCM5787" },
+	/* 5784 and 5787 share the same ASIC ID */
+	{ BGE_ASICREV_BCM5787,		"unknown BCM5754/5787" },
 
 	{ 0, NULL }
 };
@@ -345,6 +350,7 @@ static void bge_writemem_ind(struct bge_softc *, int, int);
 static uint32_t bge_readreg_ind(struct bge_softc *, int);
 #endif
 static void bge_writereg_ind(struct bge_softc *, int, int);
+static void bge_writemem_direct(struct bge_softc *, int, int) __unused;
 
 static int bge_miibus_readreg(device_t, int, int);
 static int bge_miibus_writereg(device_t, int, int, int);
@@ -360,6 +366,18 @@ static void bge_sig_legacy(struct bge_softc *, int);
 static void bge_sig_pre_reset(struct bge_softc *, int);
 static int bge_reset(struct bge_softc *);
 static void bge_link_upd(struct bge_softc *);
+
+/*
+ * The BGE_REGISTER_DEBUG option is only for low-level debugging.  It may
+ * leak information to untrusted users.  It is also known to cause alignment
+ * traps on certain architectures.
+ */
+#ifdef BGE_REGISTER_DEBUG
+static int bge_sysctl_debug_info(SYSCTL_HANDLER_ARGS);
+static int bge_sysctl_reg_read(SYSCTL_HANDLER_ARGS);
+static int bge_sysctl_mem_read(SYSCTL_HANDLER_ARGS);
+#endif
+static void bge_add_sysctls(struct bge_softc *);
 
 static device_method_t bge_methods[] = {
 	/* Device interface */
@@ -409,11 +427,14 @@ static uint32_t
 bge_readmem_ind(struct bge_softc *sc, int off)
 {
 	device_t dev;
+	uint32_t val;
 
 	dev = sc->bge_dev;
 
 	pci_write_config(dev, BGE_PCI_MEMWIN_BASEADDR, off, 4);
-	return (pci_read_config(dev, BGE_PCI_MEMWIN_DATA, 4));
+	val = pci_read_config(dev, BGE_PCI_MEMWIN_DATA, 4);
+	pci_write_config(dev, BGE_PCI_MEMWIN_BASEADDR, 0, 4);
+	return (val);
 }
 
 static void
@@ -425,6 +446,7 @@ bge_writemem_ind(struct bge_softc *sc, int off, int val)
 
 	pci_write_config(dev, BGE_PCI_MEMWIN_BASEADDR, off, 4);
 	pci_write_config(dev, BGE_PCI_MEMWIN_DATA, val, 4);
+	pci_write_config(dev, BGE_PCI_MEMWIN_BASEADDR, 0, 4);
 }
 
 #ifdef notdef
@@ -449,6 +471,12 @@ bge_writereg_ind(struct bge_softc *sc, int off, int val)
 
 	pci_write_config(dev, BGE_PCI_REG_BASEADDR, off, 4);
 	pci_write_config(dev, BGE_PCI_REG_DATA, val, 4);
+}
+
+static void
+bge_writemem_direct(struct bge_softc *sc, int off, int val)
+{
+	CSR_WRITE_4(sc, off, val);
 }
 
 /*
@@ -1193,6 +1221,7 @@ bge_blockinit(struct bge_softc *sc)
 	struct bge_rcb *rcb;
 	bus_size_t vrcb;
 	bge_hostaddr taddr;
+	uint32_t val;
 	int i;
 
 	/*
@@ -1330,7 +1359,12 @@ bge_blockinit(struct bge_softc *sc)
 	 * values are 1/8th the number of descriptors allocated to
 	 * each ring.
 	 */
-	CSR_WRITE_4(sc, BGE_RBDI_STD_REPL_THRESH, BGE_STD_RX_RING_CNT/8);
+	if (sc->bge_flags & BGE_FLAG_5705_PLUS)
+		val = 8;
+	else
+		val = BGE_STD_RX_RING_CNT / 8;
+
+	CSR_WRITE_4(sc, BGE_RBDI_STD_REPL_THRESH, val);
 	CSR_WRITE_4(sc, BGE_RBDI_JUMBO_REPL_THRESH, BGE_JUMBO_RX_RING_CNT/8);
 
 	/*
@@ -1500,9 +1534,16 @@ bge_blockinit(struct bge_softc *sc)
 	if (!(BGE_IS_5705_PLUS(sc)))
 		CSR_WRITE_4(sc, BGE_DMAC_MODE, BGE_DMACMODE_ENABLE);
 
+
+	val = BGE_WDMAMODE_ENABLE|BGE_WDMAMODE_ALL_ATTNS;
+
+	/* Enable host coalescing bug fix. */
+	if (sc->bge_asicrev == BGE_ASICREV_BCM5755 ||
+	    sc->bge_asicrev == BGE_ASICREV_BCM5787)
+			val |= (1 << 29);
+
 	/* Turn on write DMA state machine */
-	CSR_WRITE_4(sc, BGE_WDMA_MODE,
-	    BGE_WDMAMODE_ENABLE|BGE_WDMAMODE_ALL_ATTNS);
+	CSR_WRITE_4(sc, BGE_WDMA_MODE, val);
 
 	/* Turn on read DMA state machine */
 	CSR_WRITE_4(sc, BGE_RDMA_MODE,
@@ -2071,7 +2112,7 @@ bge_attach(device_t dev)
 	uint32_t mac_tmp = 0;
 	u_char eaddr[6];
 	int error = 0, rid;
-	int trys;
+	int trys, reg;
 
 	sc = device_get_softc(dev);
 	sc->bge_dev = dev;
@@ -2143,27 +2184,37 @@ bge_attach(device_t dev)
 		break;
 	}
 
-	/*
-	 * XXX: Broadcom Linux driver.  Not in specs or eratta.
-	 * PCI-Express?
-	 */
-	if (BGE_IS_5705_PLUS(sc)) {
-		uint32_t v;
-
-		v = pci_read_config(dev, BGE_PCI_MSI_CAPID, 4);
-		if (((v >> 8) & 0xff) == BGE_PCIE_CAPID_REG) {
-			v = pci_read_config(dev, BGE_PCIE_CAPID_REG, 4);
-			if ((v & 0xff) == BGE_PCIE_CAPID)
-				sc->bge_flags |= BGE_FLAG_PCIE;
-		}
+  	/*
+	 * Check if this is a PCI-X or PCI Express device.
+  	 */
+#if __FreeBSD_version > 700010
+	if (pci_find_extcap(dev, PCIY_EXPRESS, &reg) == 0) {
+		/*
+		 * Found a PCI Express capabilities register, this
+		 * must be a PCI Express device.
+		 */
+		if (reg != 0)
+			sc->bge_flags |= BGE_FLAG_PCIE;
+	} else if (pci_find_extcap(dev, PCIY_PCIX, &reg) == 0) {
+		if (reg != 0)
+			sc->bge_flags |= BGE_FLAG_PCIX;
 	}
-
-	/*
-	 * PCI-X ?
-	 */
-	if ((pci_read_config(sc->bge_dev, BGE_PCI_PCISTATE, 4) &
-	    BGE_PCISTATE_PCI_BUSMODE) == 0)
-		sc->bge_flags |= BGE_FLAG_PCIX;
+			
+#else
+	if (sc->bge_flags & BGE_FLAG_5705_PLUS) {
+		reg = pci_read_config(dev, BGE_PCIE_CAPID_REG, 4);
+		if ((reg & 0xff) == BGE_PCIE_CAPID)
+			sc->bge_flags |= BGE_FLAG_PCIE;
+	} else {
+		/*
+		 * Check if the device is in PCI-X Mode.
+		 * (This bit is not valid on PCI Express controllers.)
+		 */
+		if ((pci_read_config(sc->bge_dev, BGE_PCI_PCISTATE, 4) &
+		    BGE_PCISTATE_PCI_BUSMODE) == 0)
+			sc->bge_flags |= BGE_FLAG_PCIX;
+	}
+#endif
 
 	/* Try to reset the chip. */
 	if (bge_reset(sc)) {
@@ -2244,8 +2295,8 @@ bge_attach(device_t dev)
 	sc->bge_stat_ticks = BGE_TICKS_PER_SEC;
 	sc->bge_rx_coal_ticks = 150;
 	sc->bge_tx_coal_ticks = 150;
-	sc->bge_rx_max_coal_bds = 64;
-	sc->bge_tx_max_coal_bds = 128;
+	sc->bge_rx_max_coal_bds = 10;
+	sc->bge_tx_max_coal_bds = 10;
 
 	/* Set up ifnet structure */
 	ifp = sc->bge_ifp = if_alloc(IFT_ETHER);
@@ -2384,6 +2435,8 @@ again:
 		device_printf(sc->bge_dev, "couldn't set up irq\n");
 	}
 
+	bge_add_sysctls(sc);
+
 fail:
 	return (error);
 }
@@ -2458,9 +2511,18 @@ bge_reset(struct bge_softc *sc)
 {
 	device_t dev;
 	uint32_t cachesize, command, pcistate, reset;
+	void (*write_op)(struct bge_softc *, int, int);
 	int i, val = 0;
 
 	dev = sc->bge_dev;
+
+	if (BGE_IS_5705_PLUS(sc) && !BGE_IS_5714_FAMILY(sc))
+		if (sc->bge_flags & BGE_FLAG_PCIE)
+			write_op = bge_writemem_direct;
+		else
+			write_op = bge_writemem_ind;
+	else
+		write_op = bge_writereg_ind;
 
 	/* Save some important PCI state. */
 	cachesize = pci_read_config(dev, BGE_PCI_CACHESZ, 4);
@@ -2470,6 +2532,23 @@ bge_reset(struct bge_softc *sc)
 	pci_write_config(dev, BGE_PCI_MISC_CTL,
 	    BGE_PCIMISCCTL_INDIRECT_ACCESS|BGE_PCIMISCCTL_MASK_PCI_INTR|
 	BGE_HIF_SWAP_OPTIONS|BGE_PCIMISCCTL_PCISTATE_RW, 4);
+
+	/* Disable fastboot on controllers that support it. */
+	if (sc->bge_asicrev == BGE_ASICREV_BCM5752 ||
+	    sc->bge_asicrev == BGE_ASICREV_BCM5755 ||
+	    sc->bge_asicrev == BGE_ASICREV_BCM5787) {
+		if (bootverbose)
+			device_printf(sc->bge_dev, "%s: Disabling fastboot\n",
+			    __FUNCTION__);
+		CSR_WRITE_4(sc, BGE_FASTBOOT_PC, 0x0);
+	}
+
+	/*
+	 * Write the magic number to SRAM at offset 0xB50.
+	 * When firmware finishes its initialization it will
+	 * write ~BGE_MAGIC_NUMBER to the same location.
+	 */
+	bge_writemem_ind(sc, BGE_SOFTWARE_GENCOMM, BGE_MAGIC_NUMBER);
 
 	reset = BGE_MISCCFG_RESET_CORE_CLOCKS|(65<<1);
 
@@ -2490,8 +2569,15 @@ bge_reset(struct bge_softc *sc)
 	 */
 	bge_writemem_ind(sc, BGE_SOFTWARE_GENCOMM, BGE_MAGIC_NUMBER);
 
+	/* 
+	 * Set GPHY Power Down Override to leave GPHY
+	 * powered up in D0 uninitialized.
+	 */
+	if (sc->bge_flags & BGE_FLAG_5705_PLUS)
+		reset |= 0x04000000;
+
 	/* Issue global reset */
-	bge_writereg_ind(sc, BGE_MISC_CFG, reset);
+	write_op(sc, BGE_MISC_CFG, reset);
 
 	DELAY(1000);
 
@@ -2504,7 +2590,7 @@ bge_reset(struct bge_softc *sc)
 			v = pci_read_config(dev, 0xc4, 4);
 			pci_write_config(dev, 0xc4, v | (1<<15), 4);
 		}
-		/* Set PCIE max payload size and clear error status. */
+		/* Set PCIE max payload size to 128 bytes and clear error status. */
 		pci_write_config(dev, 0xd8, 0xf5000, 4);
 	}
 
@@ -2514,7 +2600,7 @@ bge_reset(struct bge_softc *sc)
 	    BGE_HIF_SWAP_OPTIONS|BGE_PCIMISCCTL_PCISTATE_RW, 4);
 	pci_write_config(dev, BGE_PCI_CACHESZ, cachesize, 4);
 	pci_write_config(dev, BGE_PCI_CMD, command, 4);
-	bge_writereg_ind(sc, BGE_MISC_CFG, (65 << 1));
+	write_op(sc, BGE_MISC_CFG, (65 << 1));
 
 	/* Enable memory arbiter. */
 	if (BGE_IS_5714_FAMILY(sc)) {
@@ -2526,8 +2612,7 @@ bge_reset(struct bge_softc *sc)
 		CSR_WRITE_4(sc, BGE_MARB_MODE, BGE_MARBMODE_ENABLE);
 
 	/*
-	 * Poll the value location we just wrote until
-	 * we see the 1's complement of the magic number.
+	 * Poll until we see the 1's complement of the magic number.
 	 * This indicates that the firmware initialization
 	 * is complete.
 	 */
@@ -2539,8 +2624,8 @@ bge_reset(struct bge_softc *sc)
 	}
 
 	if (i == BGE_TIMEOUT) {
-		device_printf(sc->bge_dev, "firmware handshake timed out\n");
-		return(0);
+		device_printf(sc->bge_dev, "firmware handshake timed out! "
+		    "found 0x%08X\n", val);
 	}
 
 	/*
@@ -2555,6 +2640,11 @@ bge_reset(struct bge_softc *sc)
 		if (pci_read_config(dev, BGE_PCI_PCISTATE, 4) == pcistate)
 			break;
 		DELAY(10);
+	}
+
+	if (sc->bge_flags & BGE_FLAG_PCIE) {
+		reset = bge_readmem_ind(sc, 0x7c00);
+		bge_writemem_ind(sc, 0x7c00, reset | (1 << 25));
 	}
 
 	/* Fix up byte swapping. */
@@ -3947,3 +4037,141 @@ bge_link_upd(struct bge_softc *sc)
 	    BGE_MACSTAT_CFG_CHANGED|BGE_MACSTAT_MI_COMPLETE|
 	    BGE_MACSTAT_LINK_CHANGED);
 }
+
+static void
+bge_add_sysctls(struct bge_softc *sc)
+{
+	struct sysctl_ctx_list *ctx;
+	struct sysctl_oid_list *children;
+
+	ctx = device_get_sysctl_ctx(sc->bge_dev);
+	children = SYSCTL_CHILDREN(device_get_sysctl_tree(sc->bge_dev));
+
+#ifdef BGE_REGISTER_DEBUG
+	SYSCTL_ADD_PROC(ctx, children, OID_AUTO, "debug_info",
+	    CTLTYPE_INT | CTLFLAG_RW, sc, 0, bge_sysctl_debug_info, "I",
+	    "Debug Information");
+
+	SYSCTL_ADD_PROC(ctx, children, OID_AUTO, "reg_read",
+	    CTLTYPE_INT | CTLFLAG_RW, sc, 0, bge_sysctl_reg_read, "I",
+	    "Register Read");
+
+	SYSCTL_ADD_PROC(ctx, children, OID_AUTO, "mem_read",
+	    CTLTYPE_INT | CTLFLAG_RW, sc, 0, bge_sysctl_mem_read, "I",
+	    "Memory Read");
+
+	SYSCTL_ADD_ULONG(ctx, children, OID_AUTO, "stat_IfHcInOctets",
+	    CTLFLAG_RD,
+	    &sc->bge_ldata.bge_stats->rxstats.ifHCInOctets.bge_addr_lo,
+	    "Bytes received");
+
+	SYSCTL_ADD_ULONG(ctx, children, OID_AUTO, "stat_IfHcOutOctets",
+	    CTLFLAG_RD,
+	    &sc->bge_ldata.bge_stats->txstats.ifHCOutOctets.bge_addr_lo,
+	    "Bytes received");
+#endif
+}
+
+#ifdef BGE_REGISTER_DEBUG
+static int
+bge_sysctl_debug_info(SYSCTL_HANDLER_ARGS)
+{
+	struct bge_softc *sc;
+	uint16_t *sbdata;
+	int error;
+	int result;
+	int i, j;
+
+	result = -1;
+	error = sysctl_handle_int(oidp, &result, 0, req);
+	if (error || (req->newptr == NULL))
+		return (error);
+
+	if (result == 1) {
+		sc = (struct bge_softc *)arg1;
+
+		sbdata = (uint16_t *)sc->bge_ldata.bge_status_block;
+		printf("Status Block:\n");
+		for (i = 0x0; i < (BGE_STATUS_BLK_SZ / 4); ) {
+			printf("%06x:", i);
+			for (j = 0; j < 8; j++) {
+				printf(" %04x", sbdata[i]);
+				i += 4;
+			}
+			printf("\n");
+		}
+
+		printf("Registers:\n");
+		for (i = 0x800; i < 0xa00; ) {
+			printf("%06x:", i);
+			for (j = 0; j < 8; j++) {
+				printf(" %08x", CSR_READ_4(sc, i));
+				i += 4;
+			}
+			printf("\n");
+		}
+
+		printf("Hardware Flags:\n");
+		if (sc->bge_flags & BGE_FLAG_575X_PLUS)
+			printf(" - 575X Plus\n");
+		if (sc->bge_flags & BGE_FLAG_5705_PLUS)
+			printf(" - 5705 Plus\n");
+		if (sc->bge_flags & BGE_FLAG_JUMBO)
+			printf(" - Supports Jumbo Frames\n");
+		if (sc->bge_flags & BGE_FLAG_PCIX)
+			printf(" - PCI-X Bus\n");
+		if (sc->bge_flags & BGE_FLAG_PCIE)
+			printf(" - PCI Express Bus\n");
+		if (sc->bge_flags & BGE_FLAG_NO3LED)
+			printf(" - No 3 LEDs\n");
+		if (sc->bge_flags & BGE_FLAG_RX_ALIGNBUG)
+			printf(" - RX Alignment Bug\n");
+	}
+
+	return (error);
+}
+
+static int
+bge_sysctl_reg_read(SYSCTL_HANDLER_ARGS)
+{
+	struct bge_softc *sc;
+	int error;
+	uint16_t result;
+	uint32_t val;
+
+	result = -1;
+	error = sysctl_handle_int(oidp, &result, 0, req);
+	if (error || (req->newptr == NULL))
+		return (error);
+
+	if (result < 0x8000) {
+		sc = (struct bge_softc *)arg1;
+		val = CSR_READ_4(sc, result);
+		printf("reg 0x%06X = 0x%08X\n", result, val);
+	}
+
+	return (error);
+}
+
+static int
+bge_sysctl_mem_read(SYSCTL_HANDLER_ARGS)
+{
+	struct bge_softc *sc;
+	int error;
+	uint16_t result;
+	uint32_t val;
+
+	result = -1;
+	error = sysctl_handle_int(oidp, &result, 0, req);
+	if (error || (req->newptr == NULL))
+		return (error);
+
+	if (result < 0x8000) {
+		sc = (struct bge_softc *)arg1;
+		val = bge_readmem_ind(sc, result);
+		printf("mem 0x%06X = 0x%08X\n", result, val);
+	}
+
+	return (error);
+}
+#endif
