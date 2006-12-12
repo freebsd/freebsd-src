@@ -124,13 +124,6 @@ _pthread_cond_destroy(pthread_cond_t *cond)
 	else {
 		cv = *cond;
 		THR_UMUTEX_LOCK(curthread, &cv->c_lock);
-#if 0
-		/* Lock the condition variable structure: */
-		if (cv->c_kerncv.c_has_waiters) {
-			THR_UMUTEX_UNLOCK(curthread, &cv->c_lock);
-			return (EBUSY);
-		}
-#endif
 		/*
 		 * NULL the caller's pointer now that the condition
 		 * variable has been destroyed:
@@ -143,7 +136,6 @@ _pthread_cond_destroy(pthread_cond_t *cond)
 		 * variable structure:
 		 */
 		free(cv);
-
 	}
 	/* Return the completion status: */
 	return (rval);
@@ -163,9 +155,10 @@ cond_cancel_handler(void *arg)
 	struct cond_cancel_info *info = (struct cond_cancel_info *)arg;
 	pthread_cond_t  cv;
 
-	cv = *(info->cond);
-	if ((cv->c_lock.m_owner & ~UMUTEX_CONTESTED) == TID(curthread))
+	if (info->cond != NULL) {
+		cv = *(info->cond);
 		THR_UMUTEX_UNLOCK(curthread, &cv->c_lock);
+	}
 	_mutex_cv_lock(info->mutex, info->count);
 }
 
@@ -209,6 +202,7 @@ cond_wait_common(pthread_cond_t *cond, pthread_mutex_t *mutex,
 		THR_CLEANUP_PUSH(curthread, cond_cancel_handler, &info);
 		_thr_cancel_enter_defer(curthread);
 		ret = _thr_ucond_wait(&cv->c_kerncv, &cv->c_lock, tsp, 1);
+		info.cond = NULL;
 		_thr_cancel_leave_defer(curthread, ret);
 		THR_CLEANUP_POP(curthread, 0);
 	} else {
@@ -275,12 +269,10 @@ cond_signal_common(pthread_cond_t *cond, int broadcast)
 
 	cv = *cond;
 	THR_UMUTEX_LOCK(curthread, &cv->c_lock);
-	if (cv->c_kerncv.c_has_waiters) {
-		if (!broadcast)
-			ret = _thr_ucond_signal(&cv->c_kerncv);
-		else
-			ret = _thr_ucond_broadcast(&cv->c_kerncv);
-	}
+	if (!broadcast)
+		ret = _thr_ucond_signal(&cv->c_kerncv);
+	else
+		ret = _thr_ucond_broadcast(&cv->c_kerncv);
 	THR_UMUTEX_UNLOCK(curthread, &cv->c_lock);
 	return (ret);
 }
