@@ -190,13 +190,13 @@ intr_add_handler(const char *name, int vector, driver_intr_t handler,
 int
 intr_remove_handler(void *cookie)
 {
+	struct intsrc *isrc;
 	int error;
 
+	isrc = intr_handler_source(cookie);
 	error = intr_event_remove_handler(cookie);
-#ifdef XXX
 	if (error == 0)
-		intrcnt_updatename(/* XXX */);
-#endif
+		intrcnt_updatename(isrc);
 	return (error);
 }
 
