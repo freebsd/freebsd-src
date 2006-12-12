@@ -131,6 +131,8 @@ _thr_ucond_wait(struct ucond *cv, struct umutex *m,
 int
 _thr_ucond_signal(struct ucond *cv)
 {
+	if (!cv->c_has_waiters)
+		return (0);
 	if (_umtx_op(cv, UMTX_OP_CV_SIGNAL, 0, NULL, NULL) == 0)
 		return (0);
 	return (errno);
@@ -139,6 +141,8 @@ _thr_ucond_signal(struct ucond *cv)
 int
 _thr_ucond_broadcast(struct ucond *cv)
 {
+	if (!cv->c_has_waiters)
+		return (0);
 	if (_umtx_op(cv, UMTX_OP_CV_BROADCAST, 0, NULL, NULL) == 0)
 		return (0);
 	return (errno);
