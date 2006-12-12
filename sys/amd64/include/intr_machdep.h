@@ -147,9 +147,9 @@ int	intr_remove_handler(void *cookie);
 void	intr_resume(void);
 void	intr_suspend(void);
 void	intrcnt_add(const char *name, u_long **countp);
-void	msi_init(void);
 int	msi_alloc(device_t dev, int count, int maxcount, int *irqs, int *newirq,
     int *newcount);
+void	msi_init(void);
 int	msi_release(int *irqs, int count);
 int	msix_alloc(device_t dev, int index, int *irq, int *new);
 int	msix_release(int irq);
