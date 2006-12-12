@@ -99,6 +99,7 @@ static void	ithread_loop(void *);
 static void	ithread_update(struct intr_thread *ithd);
 static void	start_softintr(void *);
 
+/* Map an interrupt type to an ithread priority. */
 u_char
 intr_priority(enum intr_type flags)
 {
@@ -412,7 +413,7 @@ intr_event_remove_handler(void *cookie)
 	ie = handler->ih_event;
 	KASSERT(ie != NULL,
 	    ("interrupt handler \"%s\" has a NULL interrupt event",
-		handler->ih_name));
+	    handler->ih_name));
 	mtx_lock(&ie->ie_lock);
 	CTR3(KTR_INTR, "%s: removing %s from %s", __func__, handler->ih_name,
 	    ie->ie_name);
