@@ -197,19 +197,22 @@ mdesc_update(void)
 			(mdesc_memops->mm_buf_free)(buf, mdesc_buf_size);
 
 		mdesc_size = 0LL;
-		hv_mach_desc((uint64_t)0, &mdesc_size);
+		do {
+			rv = hv_mach_desc((uint64_t)0, &mdesc_size);
+			if (rv != H_EOK && rv != H_EINVAL)
+				printf("retrying to fetch mdesc size\n");
+		} while (rv != H_EOK && rv != H_EINVAL); 
 
 		mdesc_size = mdesc_buf_size = round_page(mdesc_size);
 		
 		if ((buf = (*mdesc_memops->mm_buf_alloc)(mdesc_buf_size, PAGE_SIZE)) == NULL) {
-			rv = -1;
+			rv = ENOMEM;
 			goto done;
 		}
 		
 		rv = hv_mach_desc(vtophys(buf), &mdesc_size);
 
 		if (rv != H_EOK && rv != H_EINVAL) {
-			rv = -1;
 			goto done;
 		}
 	} while (mdesc_size > mdesc_buf_size);
@@ -235,7 +238,7 @@ mdesc_update(void)
 	curr_mdesc->md_buf_size = mdesc_buf_size;
 	mtx_unlock(&curr_mdesc_lock);
 	
-	return (rv);
+	return (0);
 
  done:
 	if (buf != NULL)
@@ -247,16 +250,16 @@ md_t *
 md_get(void)
 {
 	md_t *mdp;
+	int rc;
 	
-
 	/*
 	 * XXX This should actually happen in init
 	 */
 	if (curr_mdesc == NULL) {
 		if ((curr_mdesc = mdesc_alloc()) == NULL)
 			panic("machine description allocation failed");
-		if (mdesc_update())
-			panic("machine description update failed");
+		if ((rc = mdesc_update()) != 0)
+			panic("machine description update failed: %d", rc);
 	}
 		
 	mtx_lock(&curr_mdesc_lock);
