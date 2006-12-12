@@ -81,6 +81,28 @@ legacy_pcib_route_interrupt(device_t pcib, device_t dev, int pin)
 	return (PCI_INVALID_IRQ);
 }
 
+/* Pass MSI alloc requests up to the nexus. */
+
+static int
+legacy_pcib_alloc_msi(device_t pcib, device_t dev, int count, int maxcount,
+    int *irqs)
+{
+	device_t bus;
+
+	bus = device_get_parent(pcib);
+	return (PCIB_ALLOC_MSI(device_get_parent(bus), dev, count, maxcount,
+	    irqs));
+}
+
+static int
+legacy_pcib_alloc_msix(device_t pcib, device_t dev, int index, int *irq)
+{
+	device_t bus;
+
+	bus = device_get_parent(pcib);
+	return (PCIB_ALLOC_MSIX(device_get_parent(bus), dev, index, irq));
+}
+
 static const char *
 legacy_pcib_is_host_bridge(int bus, int slot, int func,
 			  uint32_t id, uint8_t class, uint8_t subclass,
@@ -322,9 +344,9 @@ static device_method_t legacy_pcib_methods[] = {
 	DEVMETHOD(pcib_read_config,	legacy_pcib_read_config),
 	DEVMETHOD(pcib_write_config,	legacy_pcib_write_config),
 	DEVMETHOD(pcib_route_interrupt,	legacy_pcib_route_interrupt),
-	DEVMETHOD(pcib_alloc_msi,	pcib_alloc_msi),
+	DEVMETHOD(pcib_alloc_msi,	legacy_pcib_alloc_msi),
 	DEVMETHOD(pcib_release_msi,	pcib_release_msi),
-	DEVMETHOD(pcib_alloc_msix,	pcib_alloc_msix),
+	DEVMETHOD(pcib_alloc_msix,	legacy_pcib_alloc_msix),
 	DEVMETHOD(pcib_release_msix,	pcib_release_msix),
 
 	{ 0, 0 }
