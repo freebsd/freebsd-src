@@ -246,7 +246,8 @@ ng_nat_rcvdata(hook_p hook, item_p item )
 
 	if ((ip->ip_off & htons(IP_OFFMASK)) == 0 &&
 	    ip->ip_p == IPPROTO_TCP) {
-		struct tcphdr 	*th = (struct tcphdr *)(ip + 1);
+		struct tcphdr *th = (struct tcphdr *)((caddr_t)ip +
+		    (ip->ip_hl << 2));
 
 		/*
 		 * Here is our terrible HACK.
