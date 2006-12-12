@@ -431,6 +431,27 @@
 #define PCIXM_STATUS_MAXCRDS	0x1C00	/* Maximum Cumulative Read Size */
 #define PCIXM_STATUS_RCVDSCEM	0x2000	/* Received a Split Comp w/Error msg */
 
+/* HT (HyperTransport) Capability definitions */
+#define	PCIR_HT_COMMAND		0x2
+#define	PCIM_HTCMD_CAP_MASK		0xf800	/* Capability type. */
+#define	PCIM_HTCAP_SLAVE		0x0000	/* 000xx */
+#define	PCIM_HTCAP_HOST			0x2000	/* 001xx */
+#define	PCIM_HTCAP_SWITCH		0x4000	/* 01000 */
+#define	PCIM_HTCAP_INTERRUPT		0x8000	/* 10000 */
+#define	PCIM_HTCAP_REVISION_ID		0x8800	/* 10001 */
+#define	PCIM_HTCAP_UNITID_CLUMPING	0x9000	/* 10010 */
+#define	PCIM_HTCAP_EXT_CONFIG_SPACE	0x9800	/* 10011 */
+#define	PCIM_HTCAP_ADDRESS_MAPPING	0xa000	/* 10100 */
+#define	PCIM_HTCAP_MSI_MAPPING		0xa800	/* 10101 */
+#define	PCIM_HTCAP_DIRECT_ROUTE		0xb000	/* 10110 */
+#define	PCIM_HTCAP_VCSET		0xb800	/* 10111 */
+#define	PCIM_HTCAP_RETRY_MODE		0xc000	/* 11000 */
+
+/* HT MSI Mapping Capability definitions. */
+#define	PCIM_HTCMD_MSI_ENABLE		0x0001
+#define	PCIR_HTMSI_ADDRESS_LO	0x4
+#define	PCIR_HTMSI_ADDRESS_HI	0x8
+
 /* MSI-X definitions */
 #define	PCIR_MSIX_CTRL		0x2
 #define	PCIM_MSIXCTRL_MSIX_ENABLE	0x8000
