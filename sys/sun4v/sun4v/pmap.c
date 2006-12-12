@@ -654,14 +654,21 @@ pmap_bootstrap(vm_offset_t ekva)
 	for (j = 0; phys_avail[j] != 0; j += 2) 
 		if (nucleus_memory_start < phys_avail[j])
 			break;
+	/*
+	 * Don't shuffle unless we have a full 256M page in the range
+	 * our kernel malloc appears to be horribly brittle
+	 */
+	if ((phys_avail[j + 1] - phys_avail[j]) < PAGE_SIZE_4M*62)
+		goto skipshuffle;
+
 	for (i = j, k = 0; phys_avail[i] != 0; k++, i++)
 		tmp_phys_avail[k] = phys_avail[i];
 	for (i = 0; i < j; i++)
 		tmp_phys_avail[k + i] = phys_avail[i];
 	for (i = 0; i < 128; i++)
 		phys_avail[i] = tmp_phys_avail[i];
-	
 
+skipshuffle:
 	for (i = 0; real_phys_avail[i] != 0; i += 2)
 		if (pmap_debug_range || pmap_debug)
 			printf("real_phys_avail[%d]=0x%lx real_phys_avail[%d]=0x%lx\n",
