@@ -55,6 +55,7 @@ struct usbd_quirks {
 #define UQ_ASSUME_CM_OVER_DATA 0x1000 /* modem device breaks on cm over data */
 #define UQ_BROKEN_BIDIR	0x2000	/* printer has broken bidir mode */
 #define UQ_HID_IGNORE	0x8000	/* device should be ignored by hid class */
+#define UQ_KBD_IGNORE  0x18000	/* device should be ignored by both kbd and hid class */
 					
 };
 

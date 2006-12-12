@@ -804,6 +804,7 @@ product CURITEL PC5740		0x3701	Broadband wireless modem
 /* Cypress Semiconductor products */
 product CYPRESS MOUSE		0x0001	mouse
 product CYPRESS THERMO		0x0002	thermometer
+product CYPRESS WISPY		0x0bad	MetaGeek Wi-Spy
 product CYPRESS FMRADIO		0x1002	FM Radio
 product CYPRESS SLIM_HUB	0x6560	Slim Hub
 
