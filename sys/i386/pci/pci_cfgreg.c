@@ -160,8 +160,8 @@ pci_cfgregopen(void)
 	 */
 
 	/* Check for supported chipsets */
-	vid = pci_cfgregread(0, 0, 0, 0x0, 2);
-	did = pci_cfgregread(0, 0, 0, 0x2, 2);
+	vid = pci_cfgregread(0, 0, 0, PCIR_VENDOR, 2);
+	did = pci_cfgregread(0, 0, 0, PCIR_DEVICE, 2);
 	if (vid == 0x8086) {
 		if (did == 0x3590 || did == 0x3592) {
 			/* Intel 7520 or 7320 */
