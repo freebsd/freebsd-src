@@ -57,7 +57,7 @@
 struct ppp_softc {
 	struct	ifnet *sc_ifp;		/* network-visible interface */
 /*hi*/	u_int	sc_flags;		/* control/status bits; see if_ppp.h */
-	struct	callout_handle sc_ch;	/* Used for scheduling timeouts */
+	struct	callout sc_timo_ch;	/* Used for scheduling timeouts */
 	void	*sc_devp;		/* pointer to device-dep structure */
 	void	(*sc_start)(struct ppp_softc *);	/* start output proc */
 	void	(*sc_ctlp)(struct ppp_softc *); /* rcvd control pkt */
