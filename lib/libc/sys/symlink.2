@@ -65,14 +65,16 @@ The symbolic link succeeds unless:
 .It Bq Er ENOTDIR
 A component of the
 .Fa name2
-prefix is not a directory.
+path prefix is not a directory.
 .It Bq Er ENAMETOOLONG
 A component of the
 .Fa name2
 pathname exceeded 255 characters,
 or the entire length of either path name exceeded 1023 characters.
 .It Bq Er ENOENT
-The named file does not exist.
+A component of the
+.Fa name2
+path prefix does not exist.
 .It Bq Er EACCES
 A component of the
 .Fa name2
