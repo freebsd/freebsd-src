@@ -454,6 +454,7 @@ tcp_input(m, off0)
 	struct ip6_hdr *ip6 = NULL;
 #ifdef INET6
 	int isipv6;
+	char ip6buf[INET6_ADDRSTRLEN];
 #else
 	const int isipv6 = 0;
 #endif
@@ -712,8 +713,10 @@ findpcb:
 #ifdef INET6
 				strcpy(dbuf, "[");
 				strcpy(sbuf, "[");
-				strcat(dbuf, ip6_sprintf(&ip6->ip6_dst));
-				strcat(sbuf, ip6_sprintf(&ip6->ip6_src));
+				strcat(dbuf,
+				    ip6_sprintf(ip6buf, &ip6->ip6_dst));
+				strcat(sbuf,
+				    ip6_sprintf(ip6buf, &ip6->ip6_src));
 				strcat(dbuf, "]");
 				strcat(sbuf, "]");
 #endif
@@ -1069,7 +1072,8 @@ after_listen:
 					       "dropping connection\n",
 #ifdef INET6
 						isipv6 ?
-						ip6_sprintf(&inp->inp_inc.inc6_faddr) :
+						ip6_sprintf(ip6buf,
+						    &inp->inp_inc.inc6_faddr) :
 #endif
 						inet_ntoa(inp->inp_inc.inc_faddr),
 						inp->inp_inc.inc_fport,

@@ -157,6 +157,9 @@ frag6_input(mp, offp, proto)
 	int fragoff, frgpartlen;	/* must be larger than u_int16_t */
 	struct ifnet *dstifp;
 	u_int8_t ecn, ecn0;
+#if 0
+	char ip6buf[INET6_ADDRSTRLEN];
+#endif
 
 	ip6 = mtod(m, struct ip6_hdr *);
 #ifndef PULLDOWN_TEST
@@ -433,7 +436,7 @@ frag6_input(mp, offp, proto)
 #if 0				/* suppress the noisy log */
 			log(LOG_ERR, "%d bytes of a fragment from %s "
 			    "overlaps the previous fragment\n",
-			    i, ip6_sprintf(&q6->ip6q_src));
+			    i, ip6_sprintf(ip6buf, &q6->ip6q_src));
 #endif
 			free(ip6af, M_FTABLE);
 			goto dropfrag;
@@ -445,7 +448,7 @@ frag6_input(mp, offp, proto)
 #if 0				/* suppress the noisy log */
 			log(LOG_ERR, "%d bytes of a fragment from %s "
 			    "overlaps the succeeding fragment",
-			    i, ip6_sprintf(&q6->ip6q_src));
+			    i, ip6_sprintf(ip6buf, &q6->ip6q_src));
 #endif
 			free(ip6af, M_FTABLE);
 			goto dropfrag;

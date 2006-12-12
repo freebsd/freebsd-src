@@ -327,13 +327,15 @@ udp6_input(mp, offp, proto)
 				  m->m_pkthdr.rcvif);
 	if (in6p == NULL) {
 		if (log_in_vain) {
-			char buf[INET6_ADDRSTRLEN];
+			char ip6bufs[INET6_ADDRSTRLEN];
+			char ip6bufd[INET6_ADDRSTRLEN];
 
-			strcpy(buf, ip6_sprintf(&ip6->ip6_dst));
 			log(LOG_INFO,
 			    "Connection attempt to UDP [%s]:%d from [%s]:%d\n",
-			    buf, ntohs(uh->uh_dport),
-			    ip6_sprintf(&ip6->ip6_src), ntohs(uh->uh_sport));
+			    ip6_sprintf(ip6bufd, &ip6->ip6_dst),
+			    ntohs(uh->uh_dport),
+			    ip6_sprintf(ip6bufs, &ip6->ip6_src),
+			    ntohs(uh->uh_sport));
 		}
 		udpstat.udps_noport++;
 		if (m->m_flags & M_MCAST) {

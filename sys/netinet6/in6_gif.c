@@ -369,9 +369,10 @@ gif_validate6(ip6, sc, ifp)
 		rt = rtalloc1((struct sockaddr *)&sin6, 0, 0UL);
 		if (!rt || rt->rt_ifp != ifp) {
 #if 0
+			char ip6buf[INET6_ADDRSTRLEN];
 			log(LOG_WARNING, "%s: packet from %s dropped "
 			    "due to ingress filter\n", if_name(GIF2IFP(sc)),
-			    ip6_sprintf(&sin6.sin6_addr));
+			    ip6_sprintf(ip6buf, &sin6.sin6_addr));
 #endif
 			if (rt)
 				rtfree(rt);

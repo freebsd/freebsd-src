@@ -3502,6 +3502,7 @@ sppp_ipv6cp_RCR(struct sppp *sp, struct lcp_header *h, int len)
 	int ifidcount;
 	int type;
 	int collision, nohisaddr;
+	char ip6buf[INET6_ADDRSTRLEN];
 
 	len -= 4;
 	origlen = len;
@@ -3595,8 +3596,8 @@ sppp_ipv6cp_RCR(struct sppp *sp, struct lcp_header *h, int len)
 
 				if (debug) {
 					log(-1, " %s [%s]",
-					       ip6_sprintf(&desiredaddr),
-					       sppp_cp_type_name(type));
+					    ip6_sprintf(ip6buf, &desiredaddr),
+					    sppp_cp_type_name(type));
 				}
 				continue;
 			}
@@ -3617,8 +3618,9 @@ sppp_ipv6cp_RCR(struct sppp *sp, struct lcp_header *h, int len)
 				bcopy(&suggestaddr.s6_addr[8], &p[2], 8);
 			}
 			if (debug)
-				log(-1, " %s [%s]", ip6_sprintf(&desiredaddr),
-				       sppp_cp_type_name(type));
+				log(-1, " %s [%s]",
+				    ip6_sprintf(ip6buf, &desiredaddr),
+				    sppp_cp_type_name(type));
 			break;
 		}
 		/* Add the option to nak'ed list. */
@@ -3639,7 +3641,8 @@ sppp_ipv6cp_RCR(struct sppp *sp, struct lcp_header *h, int len)
 
 		if (debug) {
 			log(-1, " send %s suggest %s\n",
-			       sppp_cp_type_name(type), ip6_sprintf(&suggestaddr));
+			    sppp_cp_type_name(type),
+			    ip6_sprintf(ip6buf, &suggestaddr));
 		}
 		sppp_cp_send (sp, PPP_IPV6CP, type, h->ident, rlen, buf);
 	}
@@ -3706,6 +3709,7 @@ sppp_ipv6cp_RCN_nak(struct sppp *sp, struct lcp_header *h, int len)
 	struct ifnet *ifp = SP2IFP(sp);
 	int debug = ifp->if_flags & IFF_DEBUG;
 	struct in6_addr suggestaddr;
+	char ip6buf[INET6_ADDRSTRLEN];
 
 	len -= 4;
 	buf = malloc (len, M_TEMP, M_NOWAIT);
@@ -3738,7 +3742,7 @@ sppp_ipv6cp_RCN_nak(struct sppp *sp, struct lcp_header *h, int len)
 			sp->ipv6cp.opts |= (1 << IPV6CP_OPT_IFID);
 			if (debug)
 				log(-1, " [suggestaddr %s]",
-				       ip6_sprintf(&suggestaddr));
+				       ip6_sprintf(ip6buf, &suggestaddr));
 #ifdef IPV6CP_MYIFID_DYN
 			/*
 			 * When doing dynamic address assignment,
