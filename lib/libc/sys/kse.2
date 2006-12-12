@@ -264,13 +264,10 @@ causes the KSE assigned to the currently running thread to be destroyed.
 If this KSE is the last one in the KSE group, there must be no remaining
 threads associated with the KSE group blocked in the kernel.
 This system call does not return unless there is an error.
-.Pp
-As a special case, if the last remaining KSE in the last remaining KSE group
-invokes this system call, then the KSE is not destroyed;
-instead, the KSE just loses the association with its mailbox and
+Calling
 .Fn kse_exit
-returns normally.
-This returns the process to its original, unthreaded state.
+from the last thread is the same as calling
+.Fn exit .
 .Pp
 The
 .Fn kse_release
