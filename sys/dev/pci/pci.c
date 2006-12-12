@@ -52,6 +52,10 @@ __FBSDID("$FreeBSD$");
 #include <sys/rman.h>
 #include <machine/resource.h>
 
+#if defined(__i386__) || defined(__amd64__)
+#include <machine/intr_machdep.h>
+#endif
+
 #include <sys/pciio.h>
 #include <dev/pci/pcireg.h>
 #include <dev/pci/pcivar.h>
@@ -443,6 +447,9 @@ pci_read_extcap(device_t pcib, pcicfgregs *cfg)
 {
 #define REG(n, w)	PCIB_READ_CONFIG(pcib, cfg->bus, cfg->slot, cfg->func, n, w)
 #define WREG(n, v, w)	PCIB_WRITE_CONFIG(pcib, cfg->bus, cfg->slot, cfg->func, n, v, w)
+#if defined(__i386__) || defined(__amd64__)
+	uint64_t addr;
+#endif
 	uint32_t val;
 	int	ptr, nextptr, ptrptr;
 
@@ -484,6 +491,29 @@ pci_read_extcap(device_t pcib, pcicfgregs *cfg)
 					cfg->pp.pp_data = ptr + PCIR_POWER_DATA;
 			}
 			break;
+#if defined(__i386__) || defined(__amd64__)
+		case PCIY_HT:		/* HyperTransport */
+			/* Determine HT-specific capability type. */
+			val = REG(ptr + PCIR_HT_COMMAND, 2);
+			switch (val & PCIM_HTCMD_CAP_MASK) {
+			case PCIM_HTCAP_MSI_MAPPING:
+				/* Sanity check the mapping window. */
+				addr = REG(ptr + PCIR_HTMSI_ADDRESS_HI, 4);
+				addr <<= 32;
+				addr = REG(ptr + PCIR_HTMSI_ADDRESS_LO, 4);
+				if (addr != MSI_INTEL_ADDR_BASE)
+					device_printf(pcib,
+		    "HT Bridge at %d:%d:%d has non-default MSI window 0x%llx\n",
+					    cfg->bus, cfg->slot, cfg->func,
+					    (long long)addr);
+
+				/* Enable MSI -> HT mapping. */
+				val |= PCIM_HTCMD_MSI_ENABLE;
+				WREG(ptr + PCIR_HT_COMMAND, val, 2);
+				break;
+			}
+			break;
+#endif
 		case PCIY_MSI:		/* PCI MSI */
 			cfg->msi.msi_location = ptr;
 			cfg->msi.msi_ctrl = REG(ptr + PCIR_MSI_CTRL, 2);
