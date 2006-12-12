@@ -372,9 +372,10 @@ kse_exit(struct thread *td, struct kse_exit_args *uap)
 	thread_unthread(td);
 	mtx_unlock_spin(&sched_lock);
 	PROC_UNLOCK(p);
-#if 1
+#if 0
 	return (0);
 #else
+	printf("kse_exit: called on last thread. Calling exit1()");
 	exit1(td, 0);
 #endif
 #else /* !KSE */
@@ -403,8 +404,10 @@ kse_release(struct thread *td, struct kse_release_args *uap)
 	int error;
 
 	p = td->td_proc;
-	if ((ku = td->td_upcall) == NULL || TD_CAN_UNBIND(td))
-		return (EINVAL);
+	if ((ku = td->td_upcall) == NULL || TD_CAN_UNBIND(td)) {
+		printf("kse_release: called outside of threading. exiting");
+		exit1(td, 0);
+	}
 	if (uap->timeout != NULL) {
 		if ((error = copyin(uap->timeout, &timeout, sizeof(timeout))))
 			return (error);
