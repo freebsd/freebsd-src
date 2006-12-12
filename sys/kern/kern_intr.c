@@ -396,6 +396,26 @@ intr_event_add_handler(struct intr_event *ie, const char *name,
 	return (0);
 }
 
+/*
+ * Return the ie_source field from the intr_event an intr_handler is
+ * associated with.
+ */
+void *
+intr_handler_source(void *cookie)
+{
+	struct intr_handler *ih;
+	struct intr_event *ie;
+
+	ih = (struct intr_handler *)cookie;
+	if (ih == NULL)
+		return (NULL);
+	ie = ih->ih_event;
+	KASSERT(ie != NULL,
+	    ("interrupt handler \"%s\" has a NULL interrupt event",
+	    ih->ih_name));
+	return (ie->ie_source);
+}
+
 int
 intr_event_remove_handler(void *cookie)
 {
