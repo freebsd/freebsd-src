@@ -121,6 +121,7 @@ int	intr_event_create(struct intr_event **event, void *source,
 int	intr_event_destroy(struct intr_event *ie);
 int	intr_event_remove_handler(void *cookie);
 int	intr_event_schedule_thread(struct intr_event *ie);
+void	*intr_handler_source(void *cookie);
 int	swi_add(struct intr_event **eventp, const char *name,
 	    driver_intr_t handler, void *arg, int pri, enum intr_type flags,
 	    void **cookiep);
