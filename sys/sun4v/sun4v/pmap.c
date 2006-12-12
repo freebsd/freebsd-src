@@ -449,7 +449,8 @@ pmap_bootstrap(vm_offset_t ekva)
 	ihandle_t pmem, vmem;
 	int i, j, k, sz;
 	uint64_t tsb_8k_size, tsb_4m_size, error, physmem_tunable, physmemstart_tunable;
-	vm_paddr_t real_phys_avail[128], tmp_phys_avail[128];
+	vm_paddr_t real_phys_avail[128], tmp_phys_avail[128], bounds;
+	
 
 	if ((vmem = OF_finddevice("/virtual-memory")) == -1)
 		panic("pmap_bootstrap: finddevice /virtual-memory");
@@ -537,7 +538,7 @@ pmap_bootstrap(vm_offset_t ekva)
 
 		if ((mra[i].mr_start & PAGE_MASK_4M) || (mra[i].mr_size & PAGE_MASK_4M)) {
 			uint64_t newstart, roundup;
-			newstart = ((mra[i].mr_start + (PAGE_SIZE_4M-1)) & ~PAGE_MASK_4M);
+			newstart = ((mra[i].mr_start + (PAGE_MASK_4M)) & ~PAGE_MASK_4M);
 			roundup = newstart - mra[i].mr_start;
 			size = (mra[i].mr_size - roundup) & ~PAGE_MASK_4M;
 			mra[i].mr_start = newstart;
@@ -557,54 +558,69 @@ pmap_bootstrap(vm_offset_t ekva)
 		j += 2;
 	}
 	physmem = btoc(physsz - physmemstart_tunable);
+
 	/*
 	 * This is needed for versions of OFW that would allocate us memory
 	 * and then forget to remove it from the available ranges ...
 	 * as well as for compensating for the above move of nucleus pages
 	 */
-	for (i = 0, j = 0; real_phys_avail[i] != 0; i += 2) {
+	for (i = 0, j = 0, bounds = (1UL<<32); real_phys_avail[i] != 0; i += 2) {
 		vm_paddr_t start = real_phys_avail[i];
-		uint64_t size = real_phys_avail[i + 1] - real_phys_avail[i];
-		CTR2(KTR_PMAP, "start=%#lx size=%#lx\n", start,size);
-		KDPRINTF("real_phys start=%#lx size=%#lx\n", start, size);
+		uint64_t end = real_phys_avail[i + 1];
+		CTR2(KTR_PMAP, "start=%#lx size=%#lx\n", start, end);
+		KDPRINTF("real_phys start=%#lx end=%#lx\n", start, end);
 		/* 
 		 * Is kernel memory at the beginning of range?
 		 */
 		if (nucleus_memory_start == start) {
-			start = start + nucleus_memory;
+			start += nucleus_memory;
 		}
 		/* 
 		 * Is kernel memory at the end of range?
 		 */
-		if (nucleus_memory_start == (start + size - nucleus_memory)) 
-			size -= nucleus_memory;
+		if (nucleus_memory_start == (end - nucleus_memory)) 
+			end -= nucleus_memory;
 
 		if (physmemstart_tunable != 0 && 
-		    ((mra[i].mr_start + mra[i].mr_size) < physmemstart_tunable)) 
+		    (end < physmemstart_tunable))
 			continue;
 
 		if (physmemstart_tunable != 0 && 
 		    ((start < physmemstart_tunable))) {
-			size -= (physmemstart_tunable - start);
 			start = physmemstart_tunable;
 		}
+
 		/* 
-		 * Is kernel memory in the middle somewhere?
+		 * Is kernel memory in the middle somewhere?		 
 		 */
 		if ((nucleus_memory_start > start) && 
-		    (nucleus_memory_start < (start + size))) {
-			uint64_t firstsize = (nucleus_memory_start - start);
+		    (nucleus_memory_start < end)) {
 			phys_avail[j] = start;
 			phys_avail[j+1] = nucleus_memory_start;
 			start =  nucleus_memory_start + nucleus_memory;
-			size = size - firstsize - nucleus_memory;
+			j += 2;
+		}
+		/*
+		 * Break phys_avail up on 4GB boundaries to try
+		 * to work around PCI-e allocation bug
+		 * we rely on the fact that kernel memory is allocated 
+		 * from the first 4GB of physical memory
+		 */ 
+		while (bounds < start)
+			bounds += (1UL<<32);
+
+		while (bounds < end) {
+			phys_avail[j] = start;
+			phys_avail[j + 1] = bounds;
+			start = bounds;
+			bounds += (1UL<<32);
 			j += 2;
 		}
 		phys_avail[j] = start; 
-		phys_avail[j + 1] = start + size;
+		phys_avail[j + 1] = end;
 		j += 2;
 	}
-	
+
 	/*
 	 * Merge nucleus memory in to real_phys_avail
 	 *
