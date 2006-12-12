@@ -236,7 +236,7 @@ cvslog (argc, argv)
     prl = &log_data.revlist;
 
     optind = 0;
-    while ((c = getopt (argc, argv, "+bd:hlNSRr::s:tw::")) != -1)
+    while ((c = getopt (argc, argv, "+bd:hlNnSRr::s:tw::")) != -1)
     {
 	switch (c)
 	{
@@ -254,6 +254,9 @@ cvslog (argc, argv)
 		break;
 	    case 'N':
 		log_data.notags = 1;
+		break;
+	    case 'n':
+		log_data.notags = 0;
 		break;
 	    case 'S':
 		log_data.sup_header = 1;
