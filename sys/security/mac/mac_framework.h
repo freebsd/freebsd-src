@@ -210,6 +210,10 @@ void	mac_update_ipq(struct mbuf *fragment, struct ipq *ipq);
 void	mac_inpcb_sosetlabel(struct socket *so, struct inpcb *inp);
 
 void	mac_create_mbuf_from_firewall(struct mbuf *m);
+void	mac_destroy_syncache(struct label **label);
+int	mac_init_syncache(struct label **label);
+void	mac_init_syncache_from_inpcb(struct label *label, struct inpcb *inp);
+void	mac_create_mbuf_from_syncache(struct label *sc_label, struct mbuf *m);
 /*
  * Labeling event operations: processes.
  */
