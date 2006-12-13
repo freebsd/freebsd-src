@@ -140,6 +140,31 @@ then
 			fi
 		fi
 		;;
+		*-freebsd*)
+			# We don't want to set -lpthread as that break
+			# the ability to choose threads library at final
+			# link time and is not valid for all architectures.
+			
+			PTHREAD=
+			if test "X$GCC" = "Xyes"; then
+				saved_cc="$CC"
+				CC="$CC -pthread"
+				AC_MSG_CHECKING(for gcc -pthread support);
+				AC_TRY_LINK([#include <pthread.h>],
+					    [printf("%x\n", pthread_create);],
+					    PTHREAD="yes"
+					    AC_MSG_RESULT(yes),
+					    AC_MSG_RESULT(no))
+				CC="$saved_cc"
+			fi
+			if test "X$PTHREAD" != "Xyes"; then
+				AC_CHECK_LIB(pthread, pthread_create,,
+				AC_CHECK_LIB(thr, thread_create,,
+				AC_CHECK_LIB(c_r, pthread_create,,
+				AC_CHECK_LIB(c, pthread_create,,
+				AC_MSG_ERROR("could not find thread libraries")))))
+			fi
+			;;
 		*)
 			AC_CHECK_LIB(pthread, pthread_create,,
 				AC_CHECK_LIB(pthread, __pthread_create,,

@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2004, 2005  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004-2006  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 1999-2003  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and distribute this software for any
@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: update.c,v 1.88.2.5.2.27 2005/10/08 00:21:06 marka Exp $ */
+/* $Id: update.c,v 1.88.2.5.2.29 2006/01/06 00:01:42 marka Exp $ */
 
 #include <config.h>
 
@@ -36,6 +36,7 @@
 #include <dns/rdataclass.h>
 #include <dns/rdataset.h>
 #include <dns/rdatasetiter.h>
+#include <dns/rdatastruct.h>
 #include <dns/rdatatype.h>
 #include <dns/soa.h>
 #include <dns/ssu.h>
@@ -1517,7 +1518,8 @@ next_active(ns_client_t *client, dns_zone_t *zone, dns_db_t *db,
  */
 static isc_result_t
 add_nsec(ns_client_t *client, dns_zone_t *zone, dns_db_t *db,
-	dns_dbversion_t *ver, dns_name_t *name, dns_diff_t *diff)
+	 dns_dbversion_t *ver, dns_name_t *name, dns_ttl_t nsecttl,
+	 dns_diff_t *diff)
 {
 	isc_result_t result;
 	dns_dbnode_t *node = NULL;
@@ -1552,8 +1554,7 @@ add_nsec(ns_client_t *client, dns_zone_t *zone, dns_db_t *db,
 	 * Add the new NSEC and record the change.
 	 */
 	CHECK(dns_difftuple_create(diff->mctx, DNS_DIFFOP_ADD, name,
-				   3600,	/* XXXRTH */
-				   &rdata, &tuple));
+				   nsecttl, &rdata, &tuple));
 	CHECK(do_one_tuple(&tuple, db, ver, diff));
 	INSIST(tuple == NULL);
 
@@ -1678,6 +1679,11 @@ update_signatures(ns_client_t *client, dns_zone_t *zone, dns_db_t *db,
 	unsigned int nkeys = 0;
 	unsigned int i;
 	isc_stdtime_t now, inception, expire;
+	dns_ttl_t nsecttl;
+	dns_rdata_soa_t soa;
+	dns_rdata_t rdata = DNS_RDATA_INIT;
+	dns_rdataset_t rdataset;
+	dns_dbnode_t *node = NULL;
 
 	dns_diff_init(client->mctx, &diffnames);
 	dns_diff_init(client->mctx, &affected);
@@ -1697,6 +1703,20 @@ update_signatures(ns_client_t *client, dns_zone_t *zone, dns_db_t *db,
 	isc_stdtime_get(&now);
 	inception = now - 3600; /* Allow for some clock skew. */
 	expire = now + sigvalidityinterval;
+
+	/*
+	 * Get the NSEC's TTL from the SOA MINIMUM field.
+	 */
+	CHECK(dns_db_findnode(db, dns_db_origin(db), ISC_FALSE, &node));
+	dns_rdataset_init(&rdataset);
+	CHECK(dns_db_findrdataset(db, node, newver, dns_rdatatype_soa, 0,
+                                  (isc_stdtime_t) 0, &rdataset, NULL));
+	CHECK(dns_rdataset_first(&rdataset));
+	dns_rdataset_current(&rdataset, &rdata);
+	CHECK(dns_rdata_tostruct(&rdata, &soa, NULL));
+	nsecttl = soa.minimum;
+	dns_rdataset_disassociate(&rdataset);
+	dns_db_detachnode(db, &node);
 
 	/*
 	 * Find all RRsets directly affected by the update, and
@@ -1901,8 +1921,8 @@ update_signatures(ns_client_t *client, dns_zone_t *zone, dns_db_t *db,
 			 * there is other data, and if there is other data,
 			 * there are other RRSIGs.
 			 */
-			CHECK(add_nsec(client, zone, db, newver,
-				      &t->name, &nsec_diff));
+			CHECK(add_nsec(client, zone, db, newver, &t->name,
+				       nsecttl, &nsec_diff));
 		}
 	}
 

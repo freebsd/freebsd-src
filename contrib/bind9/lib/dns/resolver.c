@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: resolver.c,v 1.218.2.18.4.56.4.2 2006/10/04 07:06:02 marka Exp $ */
+/* $Id: resolver.c,v 1.218.2.18.4.64 2006/08/31 03:57:11 marka Exp $ */
 
 #include <config.h>
 
@@ -27,8 +27,10 @@
 
 #include <dns/acl.h>
 #include <dns/adb.h>
+#include <dns/cache.h>
 #include <dns/db.h>
 #include <dns/dispatch.h>
+#include <dns/ds.h>
 #include <dns/events.h>
 #include <dns/forward.h>
 #include <dns/keytable.h>
@@ -47,6 +49,7 @@
 #include <dns/rdatatype.h>
 #include <dns/resolver.h>
 #include <dns/result.h>
+#include <dns/rootns.h>
 #include <dns/tsig.h>
 #include <dns/validator.h>
 
@@ -461,8 +464,7 @@ fctx_starttimer(fetchctx_t *fctx) {
 	 * no further idle events are delivered.
 	 */
 	return (isc_timer_reset(fctx->timer, isc_timertype_once,
-				&fctx->expires, NULL,
-				ISC_TRUE));
+				&fctx->expires, NULL, ISC_TRUE));
 }
 
 static inline void
@@ -1028,9 +1030,11 @@ fctx_query(fetchctx_t *fctx, dns_adbaddrinfo_t *addrinfo,
 		if (result != ISC_R_SUCCESS)
 			goto cleanup_query;
 
+#ifndef BROKEN_TCP_BIND_BEFORE_CONNECT
 		result = isc_socket_bind(query->tcpsocket, &addr);
 		if (result != ISC_R_SUCCESS)
 			goto cleanup_socket;
+#endif
 
 		/*
 		 * A dispatch will be created once the connect succeeds.
@@ -1286,6 +1290,12 @@ resquery_send(resquery_t *query) {
 		result = DNS_R_SERVFAIL;
 		goto cleanup_message;
 	}
+
+	/*
+	 * Clear CD if EDNS is not in use.
+	 */
+	if ((query->options & DNS_FETCHOPT_NOEDNS0) != 0)
+		fctx->qmessage->flags &= ~DNS_MESSAGEFLAG_CD;
 
 	/*
 	 * Add TSIG record tailored to the current recipient.
@@ -3156,9 +3166,11 @@ validated(isc_task_t *task, isc_event_t *event) {
 	 * so, destroy the fctx.
 	 */
 	if (SHUTTINGDOWN(fctx) && !sentresponse) {
-		maybe_destroy(fctx);
+		maybe_destroy(fctx);	/* Locks bucket. */
 		goto cleanup_event;
 	}
+
+	LOCK(&fctx->res->buckets[fctx->bucketnum].lock);
 
 	/*
 	 * If chaining, we need to make sure that the right result code is
@@ -3219,10 +3231,11 @@ validated(isc_task_t *task, isc_event_t *event) {
 		result = vevent->result;
 		add_bad(fctx, &addrinfo->sockaddr, result);
 		isc_event_free(&event);
+		UNLOCK(&fctx->res->buckets[fctx->bucketnum].lock);
 		if (sentresponse)
-			fctx_done(fctx, result);
+			fctx_done(fctx, result);	/* Locks bucket. */
 		else
-			fctx_try(fctx);
+			fctx_try(fctx);			/* Locks bucket. */
 		return;
 	}
 
@@ -3267,6 +3280,7 @@ validated(isc_task_t *task, isc_event_t *event) {
 		result = dns_rdataset_addnoqname(vevent->rdataset,
 				   vevent->proofs[DNS_VALIDATOR_NOQNAMEPROOF]);
 		RUNTIME_CHECK(result == ISC_R_SUCCESS);
+		INSIST(vevent->sigrdataset != NULL);
 		vevent->sigrdataset->ttl = vevent->rdataset->ttl;
 	}
 
@@ -3299,9 +3313,9 @@ validated(isc_task_t *task, isc_event_t *event) {
 		 * If we only deferred the destroy because we wanted to cache
 		 * the data, destroy now.
 		 */
+		UNLOCK(&fctx->res->buckets[fctx->bucketnum].lock);
 		if (SHUTTINGDOWN(fctx))
-			maybe_destroy(fctx);
-
+			maybe_destroy(fctx);	/* Locks bucket. */
 		goto cleanup_event;
 	}
 
@@ -3315,6 +3329,7 @@ validated(isc_task_t *task, isc_event_t *event) {
 		 * more rdatasets that still need to
 		 * be validated.
 		 */
+		UNLOCK(&fctx->res->buckets[fctx->bucketnum].lock);
 		goto cleanup_event;
 	}
 
@@ -3387,7 +3402,9 @@ validated(isc_task_t *task, isc_event_t *event) {
 	if (node != NULL)
 		dns_db_detachnode(fctx->cache, &node);
 
-	fctx_done(fctx, result);
+	UNLOCK(&fctx->res->buckets[fctx->bucketnum].lock);
+
+	fctx_done(fctx, result);	/* Locks bucket. */
 
  cleanup_event:
 	isc_event_free(&event);
@@ -4921,6 +4938,7 @@ resume_dslookup(isc_task_t *task, isc_event_t *event) {
 		fctx_try(fctx);
 	} else {
 		unsigned int n;
+		dns_rdataset_t *nsrdataset = NULL;
 
 		/*
 		 * Retrieve state from fctx->nsfetch before we destroy it.
@@ -4928,13 +4946,20 @@ resume_dslookup(isc_task_t *task, isc_event_t *event) {
 		dns_fixedname_init(&fixed);
 		domain = dns_fixedname_name(&fixed);
 		dns_name_copy(&fctx->nsfetch->private->domain, domain, NULL);
-		dns_rdataset_clone(&fctx->nsfetch->private->nameservers,
-				   &nameservers);
-		dns_resolver_destroyfetch(&fctx->nsfetch);
 		if (dns_name_equal(&fctx->nsname, domain)) {
 			fctx_done(fctx, DNS_R_SERVFAIL);
+			dns_resolver_destroyfetch(&fctx->nsfetch);
 			goto cleanup;
 		}
+		if (dns_rdataset_isassociated(
+		    &fctx->nsfetch->private->nameservers)) {
+			dns_rdataset_clone(
+			    &fctx->nsfetch->private->nameservers,
+			    &nameservers);
+			nsrdataset = &nameservers;
+		} else
+			domain = NULL;
+		dns_resolver_destroyfetch(&fctx->nsfetch);
 		n = dns_name_countlabels(&fctx->nsname);
 		dns_name_getlabelsequence(&fctx->nsname, 1, n - 1,
 					  &fctx->nsname);
@@ -4944,7 +4969,7 @@ resume_dslookup(isc_task_t *task, isc_event_t *event) {
 		FCTXTRACE("continuing to look for parent's NS records");
 		result = dns_resolver_createfetch(fctx->res, &fctx->nsname,
 						  dns_rdatatype_ns, domain,
-						  &nameservers, NULL, 0, task,
+						  nsrdataset, NULL, 0, task,
 						  resume_dslookup, fctx,
 						  &fctx->nsrrset, NULL,
 						  &fctx->nsfetch);

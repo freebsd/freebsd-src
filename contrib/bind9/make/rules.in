@@ -1,4 +1,4 @@
-# Copyright (C) 2004, 2005  Internet Systems Consortium, Inc. ("ISC")
+# Copyright (C) 2004-2006  Internet Systems Consortium, Inc. ("ISC")
 # Copyright (C) 1998-2003  Internet Software Consortium.
 #
 # Permission to use, copy, modify, and distribute this software for any
@@ -13,7 +13,7 @@
 # OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
 # PERFORMANCE OF THIS SOFTWARE.
 
-# $Id: rules.in,v 1.40.2.5.4.8 2005/10/28 01:53:44 marka Exp $
+# $Id: rules.in,v 1.40.2.5.4.10 2006/01/06 00:01:42 marka Exp $
 
 ###
 ### Common Makefile rules for BIND 9.
@@ -100,6 +100,12 @@ LDFLAGS =	@LDFLAGS@
 STD_CINCLUDES =	@STD_CINCLUDES@
 STD_CDEFINES =	@STD_CDEFINES@
 STD_CWARNINGS =	@STD_CWARNINGS@
+
+BUILD_CC = @BUILD_CC@
+BUILD_CFLAGS = @BUILD_CFLAGS@
+BUILD_CPPFLAGS = @BUILD_CPPFLAGS@
+BUILD_LDFAGS = @BUILD_LDFAGS@
+BUILD_LIBS = @BUILD_LIBS@
 
 .SUFFIXES:
 .SUFFIXES: .c .@O@

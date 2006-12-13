@@ -245,7 +245,7 @@ do { \
 } while (/*CONSTCOND*/0)
 
 #ifndef SOLARIS2
-#define ERR(err) \
+#define SETERROR(err) \
 do { \
 	/* external reference: error, and label bad */ \
 	error = (err); \
@@ -253,7 +253,7 @@ do { \
 	/*NOTREACHED*/ \
 } while (/*CONSTCOND*/0)
 #else
-#define ERR(err) \
+#define SETERROR(err) \
 do { \
 	/* external reference: error, and label bad */ \
 	error = (err); \
@@ -352,16 +352,16 @@ getaddrinfo(hostname, servname, hints, res)
 		/* error check for hints */
 		if (hints->ai_addrlen || hints->ai_canonname ||
 		    hints->ai_addr || hints->ai_next)
-			ERR(EAI_BADHINTS); /* xxx */
+			SETERROR(EAI_BADHINTS); /* xxx */
 		if (hints->ai_flags & ~AI_MASK)
-			ERR(EAI_BADFLAGS);
+			SETERROR(EAI_BADFLAGS);
 		switch (hints->ai_family) {
 		case PF_UNSPEC:
 		case PF_INET:
 		case PF_INET6:
 			break;
 		default:
-			ERR(EAI_FAMILY);
+			SETERROR(EAI_FAMILY);
 		}
 		memcpy(pai, hints, sizeof(*pai));
 
@@ -386,7 +386,7 @@ getaddrinfo(hostname, servname, hints, res)
 					continue;
 				if (pai->ai_socktype == ex->e_socktype &&
 				    pai->ai_protocol != ex->e_protocol) {
-					ERR(EAI_BADHINTS);
+					SETERROR(EAI_BADHINTS);
 				}
 			}
 		}
@@ -406,7 +406,7 @@ getaddrinfo(hostname, servname, hints, res)
 	case AI_ALL:
 #if 1
 		/* illegal */
-		ERR(EAI_BADFLAGS);
+		SETERROR(EAI_BADFLAGS);
 #else
 		pai->ai_flags &= ~(AI_ALL | AI_V4MAPPED);
 		break;
@@ -434,7 +434,7 @@ getaddrinfo(hostname, servname, hints, res)
 		}
 		error = get_portmatch(pai, servname);
 		if (error)
-			ERR(error);
+			SETERROR(error);
 
 		*pai = ai0;
 	}
@@ -493,9 +493,9 @@ getaddrinfo(hostname, servname, hints, res)
 		goto good;
 
 	if (pai->ai_flags & AI_NUMERICHOST)
-		ERR(EAI_NONAME);
+		SETERROR(EAI_NONAME);
 	if (hostname == NULL)
-		ERR(EAI_NONAME);
+		SETERROR(EAI_NONAME);
 
 	/*
 	 * hostname as alphabetical name.
@@ -575,10 +575,6 @@ getaddrinfo(hostname, servname, hints, res)
 	}
 
 	freeaddrinfo(afai);	/* afai must not be NULL at this point. */
-
-	/* we must not have got any errors. */
-	if (error != 0) /* just for diagnosis */
-		abort();
 
 	if (sentinel.ai_next) {
 good:
@@ -804,10 +800,10 @@ explore_numeric(pai, hostname, servname, res)
 			    pai->ai_family == PF_UNSPEC /*?*/) {
 				GET_AI(cur->ai_next, afd, pton);
 				GET_PORT(cur->ai_next, servname);
-				while (cur && cur->ai_next)
+				while (cur->ai_next)
 					cur = cur->ai_next;
 			} else
-				ERR(EAI_FAMILY);	/*xxx*/
+				SETERROR(EAI_FAMILY);	/*xxx*/
 		}
 		break;
 #endif
@@ -817,10 +813,10 @@ explore_numeric(pai, hostname, servname, res)
 			    pai->ai_family == PF_UNSPEC /*?*/) {
 				GET_AI(cur->ai_next, afd, pton);
 				GET_PORT(cur->ai_next, servname);
-				while (cur && cur->ai_next)
+				while (cur->ai_next)
 					cur = cur->ai_next;
 			} else
-				ERR(EAI_FAMILY);	/*xxx*/
+				SETERROR(EAI_FAMILY);	/*xxx*/
 		}
 		break;
 	}
@@ -1202,7 +1198,7 @@ hostent2addrinfo(hp, pai)
 			 */
 			GET_CANONNAME(cur->ai_next, hp->h_name);
 		}
-		while (cur && cur->ai_next) /* no need to loop, actually. */
+		while (cur->ai_next) /* no need to loop, actually. */
 			cur = cur->ai_next;
 		continue;
 
