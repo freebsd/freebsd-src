@@ -761,6 +761,7 @@ dev/mpt/mpt_cam.c		optional mpt
 dev/mpt/mpt_debug.c		optional mpt
 dev/mpt/mpt_pci.c		optional mpt pci
 dev/mpt/mpt_raid.c		optional mpt
+dev/msk/if_msk.c		optional msk
 dev/my/if_my.c			optional my
 dev/ncv/ncr53c500.c		optional ncv
 dev/ncv/ncr53c500_pccard.c	optional ncv pccard
