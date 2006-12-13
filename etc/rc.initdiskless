@@ -70,12 +70,16 @@
 #		then /dev/ad0s3 will be be mounted on /conf/1.2.3.4/foo/
 #
 # /conf/T/M/diskless_remount
-#		The contents of the file points to an NFS filesystem. E.g. if
-#		/conf/base/etc/diskless_remount contains "foo.com:/etc",
-#		then foo.com:/etc will be be mounted on /conf/base/etc/
-#		If the file contains a pathname starting with "/", then
-#		the root path is prepended to it; this allows relocation of
-#		the root filesystem without changing configuration files.
+#		The contents of the file points to an NFS filesystem,
+#		possibly followed by mount_nfs options. If the server name
+#		is omitted, the script will prepend the root path used when
+#		booting. E.g. if you booted from foo.com:/path/to/root,
+#		an entry for /conf/base/etc/diskless_remount could be any of
+#			foo.com:/path/to/root/etc
+#			/etc -o ro
+#		Because mount_nfs understands ".." in paths, it is
+#		possible to mount from locations above the NFS root with
+#		paths such as "/../../etc".
 #
 # /conf/T/M/md_size
 #		The contents of the file specifies the size of the memory
@@ -96,6 +100,12 @@
 # /conf/T/SUBDIR.remove
 #		The list of paths contained in the file are rm -rf'd
 #		relative to /SUBDIR.
+#
+# /conf/diskless_remount
+#		Similar to /conf/T/M/diskless_remount above, but allows
+#		all of /conf to be remounted.  This can be used to allow
+#		multiple roots to share the same /conf.
+#		
 #
 # You will almost universally want to create the following files under /conf
 #
@@ -123,6 +133,14 @@
 
 dlv=`/sbin/sysctl -n vfs.nfs.diskless_valid 2> /dev/null`
 
+# DEBUGGING
+# log something on stdout if verbose.
+o_verbose=0     # set to 1 or 2 if you want more debugging
+log() {
+    [ ${o_verbose} -gt 0 ] && echo "*** $* ***"
+    [ ${o_verbose} -gt 1 ] && read -p "=== Press enter to continue" foo
+}
+
 # chkerr:
 #
 # Routine to check for error
@@ -142,6 +160,23 @@ chkerr() {
     esac
 }
 
+# The list of filesystems to umount after the copy
+to_umount=""
+
+handle_remount() { # $1 = mount point
+    local nfspt mountopts b
+    b=$1
+    log handle_remount $1
+    [ -d $b -a -f $b/diskless_remount ] || return
+    read nfspt mountopts < $b/diskless_remount
+    log "nfspt ${nfspt} mountopts ${mountopts}"
+    # prepend the nfs root if not present
+    [ `expr "$nfspt" : '\(.\)'` = "/" ] && nfspt="${nfsroot}${nfspt}"
+    mount_nfs $mountopts $nfspt $b
+    chkerr $? "mount_nfs $nfspt $b"
+    to_umount="$b ${to_umount}"
+}
+
 # Create a generic memory disk
 #
 mount_md() {
@@ -151,16 +186,16 @@ mount_md() {
 # Create the memory filesystem if it has not already been created
 #
 create_md() {
-    if [ "x`eval echo \\$md_created_$1`" = "x" ]; then
+	[ "x`eval echo \\$md_created_$1`" = "x" ] || return # only once
 	if [ "x`eval echo \\$md_size_$1`" = "x" ]; then
 	    md_size=10240
 	else
 	    md_size=`eval echo \\$md_size_$1`
 	fi
+	log create_md $1 with size $md_size
 	mount_md $md_size /$1
 	/bin/chmod 755 /$1
 	eval md_created_$1=created
-    fi
 }
 
 # DEBUGGING
@@ -196,7 +231,7 @@ if [ ${dlv:=0} -ne 0 ] ; then
 	echo "Interface ${bootp_ifc} IP-Address ${bootp_ipa} Broadcast ${bootp_ipbca} ${class}"
 fi
 
-# Figure out our NFS root path
+log Figure out our NFS root path
 #
 set -- `mount -t nfs`
 while [ $# -ge 1 ] ; do
@@ -219,20 +254,8 @@ if [ -n "${bootp_ipa}" ]; then
 	templates="${templates} ${bootp_ipa} ip/${bootp_ipa}"
 fi
 
-# The list of filesystems to umount after the copy
-to_umount=""
-
-# If /conf/diskless_remount exists, remount all of /conf.  This allows
-# multiple roots to share the same conf files.
-if [ -d /conf -a -f /conf/diskless_remount ]; then
-    nfspt=`/bin/cat /conf/diskless_remount`
-    if [ `expr "$nfspt" : '\(.\)'` = "/" ]; then
-	nfspt="${nfsroot}${nfspt}"
-    fi
-    mount_nfs $nfspt /conf
-    chkerr $? "mount_nfs $nfspt /conf"
-    to_umount="/conf"
-fi
+# If /conf/diskless_remount exists, remount all of /conf.
+handle_remount /conf
 
 # Resolve templates in /conf/base, /conf/default, /conf/${bootp_ipbca},
 # and /conf/${bootp_ipa}.  For each subdirectory found within these
@@ -254,18 +277,17 @@ fi
 #   it before attemping to the remount.  This allows the root to be
 #   relocated without needing to change the remount files.
 #
+log "templates are ${templates}"
 for i in ${templates} ; do
     for j in /conf/$i/* ; do
-	# memory filesystem size specification
-	#
-	subdir=${j##*/}
-	if [ -d $j -a -f $j/md_size ]; then
-	    eval md_size_$subdir=`cat $j/md_size`
-	fi
+	[ -d $j ] || continue
 
-	# remount
-	#
-	if [ -d $j -a -f $j/remount ]; then
+	# memory filesystem size specification
+	subdir=${j##*/}
+	[ -f $j/md_size ] && eval md_size_$subdir=`cat $j/md_size`
+
+	# remount. Beware, the command is in the file itself!
+	if [ -f $j/remount ]; then
 	    nfspt=`/bin/cat $j/remount`
 	    $nfspt $j
 	    chkerr $? "$nfspt $j"
@@ -273,16 +295,7 @@ for i in ${templates} ; do
 	fi
 
 	# NFS remount
-	#
-	if [ -d $j -a -f $j/diskless_remount ]; then
-	    nfspt=`/bin/cat $j/diskless_remount`
-	    if [ `expr "$nfspt" : '\(.\)'` = "/" ]; then
-		nfspt="${nfsroot}${nfspt}"
-	    fi
-	    mount_nfs $nfspt $j
-	    chkerr $? "mount_nfs $nfspt $j"
-	    to_umount="$j ${to_umount}"
-	fi
+	handle_remount $j
     done
 done
 
@@ -300,7 +313,7 @@ for i in ${templates} ; do
 	subdir=${j##*/}
 	if [ -d $j -a ! -f $j.cpio.gz  ]; then
 	    create_md $subdir
-	    cp -Rp $j/* /$subdir
+	    cp -Rp $j/ /$subdir
 	fi
     done
     for j in /conf/$i/*.cpio.gz ; do
