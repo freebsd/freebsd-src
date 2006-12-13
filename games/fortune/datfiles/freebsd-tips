@@ -318,7 +318,7 @@ to TCP or UDP connections, but also for proxying them. See inetd(8) for
 details.
 %
 If other operating systems have damaged your Master Boot Record, you can
-reinstall it either with /stand/sysinstall or with boot0cfg(8). See
+reinstall it either with /usr/sbin/sysinstall or with boot0cfg(8). See
 "man boot0cfg" for details.
 %
 Need to see the calendar for this month? Simply type "cal".  To see the
