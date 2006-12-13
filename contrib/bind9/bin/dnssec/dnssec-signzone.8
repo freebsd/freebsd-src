@@ -13,14 +13,17 @@
 .\" OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
 .\" PERFORMANCE OF THIS SOFTWARE.
 .\"
-.\" $Id: dnssec-signzone.8,v 1.23.2.1.4.10 2005/10/13 02:33:45 marka Exp $
+.\" $Id: dnssec-signzone.8,v 1.23.2.1.4.11 2006/06/29 13:02:30 marka Exp $
 .\"
 .hy 0
 .ad l
-.\" ** You probably do not want to edit this file directly **
-.\" It was generated using the DocBook XSL Stylesheets (version 1.69.1).
-.\" Instead of manually editing it, you probably should edit the DocBook XML
-.\" source for it and then use the DocBook XSL Stylesheets to regenerate it.
+.\"     Title: dnssec\-signzone
+.\"    Author: 
+.\" Generator: DocBook XSL Stylesheets v1.70.1 <http://docbook.sf.net/>
+.\"      Date: June 30, 2000
+.\"    Manual: BIND9
+.\"    Source: BIND9
+.\"
 .TH "DNSSEC\-SIGNZONE" "8" "June 30, 2000" "BIND9" "BIND9"
 .\" disable hyphenation
 .nh
@@ -38,49 +41,49 @@ signs a zone. It generates NSEC and RRSIG records and produces a signed version 
 \fIkeyset\fR
 file for each child zone.
 .SH "OPTIONS"
-.TP
+.TP 3n
 \-a
 Verify all generated signatures.
-.TP
+.TP 3n
 \-c \fIclass\fR
 Specifies the DNS class of the zone.
-.TP
+.TP 3n
 \-k \fIkey\fR
 Treat specified key as a key signing key ignoring any key flags. This option may be specified multiple times.
-.TP
+.TP 3n
 \-l \fIdomain\fR
 Generate a DLV set in addition to the key (DNSKEY) and DS sets. The domain is appended to the name of the records.
-.TP
+.TP 3n
 \-d \fIdirectory\fR
 Look for
 \fIkeyset\fR
 files in
 \fBdirectory\fR
 as the directory
-.TP
+.TP 3n
 \-g
 Generate DS records for child zones from keyset files. Existing DS records will be removed.
-.TP
+.TP 3n
 \-s \fIstart\-time\fR
 Specify the date and time when the generated RRSIG records become valid. This can be either an absolute or relative time. An absolute start time is indicated by a number in YYYYMMDDHHMMSS notation; 20000530144500 denotes 14:45:00 UTC on May 30th, 2000. A relative start time is indicated by +N, which is N seconds from the current time. If no
 \fBstart\-time\fR
 is specified, the current time minus 1 hour (to allow for clock skew) is used.
-.TP
+.TP 3n
 \-e \fIend\-time\fR
 Specify the date and time when the generated RRSIG records expire. As with
 \fBstart\-time\fR, an absolute time is indicated in YYYYMMDDHHMMSS notation. A time relative to the start time is indicated with +N, which is N seconds from the start time. A time relative to the current time is indicated with now+N. If no
 \fBend\-time\fR
 is specified, 30 days from the start time is used as a default.
-.TP
+.TP 3n
 \-f \fIoutput\-file\fR
 The name of the output file containing the signed zone. The default is to append
 \fI.signed\fR
 to the input file.
-.TP
+.TP 3n
 \-h
 Prints a short summary of the options and arguments to
 \fBdnssec\-signzone\fR.
-.TP
+.TP 3n
 \-i \fIinterval\fR
 When a previously signed zone is passed as input, records may be resigned. The
 \fBinterval\fR
@@ -93,16 +96,16 @@ or
 are specified,
 \fBdnssec\-signzone\fR
 generates signatures that are valid for 30 days, with a cycle interval of 7.5 days. Therefore, if any existing RRSIG records are due to expire in less than 7.5 days, they would be replaced.
-.TP
+.TP 3n
 \-n \fIncpus\fR
 Specifies the number of threads to use. By default, one thread is started for each detected CPU.
-.TP
+.TP 3n
 \-o \fIorigin\fR
 The zone origin. If not specified, the name of the zone file is assumed to be the origin.
-.TP
+.TP 3n
 \-p
 Use pseudo\-random data when signing the zone. This is faster, but less secure, than using real random data. This option may be useful when signing large zones or when the entropy source is limited.
-.TP
+.TP 3n
 \-r \fIrandomdev\fR
 Specifies the source of randomness. If the operating system does not provide a
 \fI/dev/random\fR
@@ -111,19 +114,19 @@ or equivalent device, the default source of randomness is keyboard input.
 specifies the name of a character device or file containing random data to be used instead of the default. The special value
 \fIkeyboard\fR
 indicates that keyboard input should be used.
-.TP
+.TP 3n
 \-t
 Print statistics at completion.
-.TP
+.TP 3n
 \-v \fIlevel\fR
 Sets the debugging level.
-.TP
+.TP 3n
 \-z
 Ignore KSK flag on key when determining what to sign.
-.TP
+.TP 3n
 zonefile
 The file containing the zone to be signed.
-.TP
+.TP 3n
 key
 The keys used to sign the zone. If no keys are specified, the default all zone keys that have private key files in the current directory.
 .SH "EXAMPLE"
@@ -155,3 +158,5 @@ RFC 2535.
 .SH "AUTHOR"
 .PP
 Internet Systems Consortium
+.SH "COPYRIGHT"
+Copyright \(co 2004, 2005 Internet Systems Consortium, Inc. ("ISC")

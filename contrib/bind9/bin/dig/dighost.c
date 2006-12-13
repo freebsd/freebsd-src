@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2004, 2005  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004-2006  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 2000-2003  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and distribute this software for any
@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: dighost.c,v 1.221.2.19.2.31 2005/10/14 01:38:40 marka Exp $ */
+/* $Id: dighost.c,v 1.221.2.19.2.36 2006/12/07 01:26:33 marka Exp $ */
 
 /*
  * Notice to programmers:  Do not use this code as an example of how to
@@ -313,6 +313,9 @@ cancel_lookup(dig_lookup_t *lookup);
 
 static void
 recv_done(isc_task_t *task, isc_event_t *event);
+
+static void
+send_udp(dig_query_t *query);
 
 static void
 connect_timeout(isc_task_t *task, isc_event_t *event);
@@ -945,9 +948,8 @@ setup_system(void) {
 	if (lwresult != LWRES_R_SUCCESS)
 		fatal("lwres_context_create failed");
 
-	if (isc_file_exists(RESOLV_CONF))
-		lwresult = lwres_conf_parse(lwctx, RESOLV_CONF);
-	if (lwresult != LWRES_R_SUCCESS)
+	lwresult = lwres_conf_parse(lwctx, RESOLV_CONF);
+	if (lwresult != LWRES_R_SUCCESS && lwresult != LWRES_R_NOTFOUND)
 		fatal("parse of %s failed", RESOLV_CONF);
 
 	lwconf = lwres_conf_get(lwctx);
@@ -1194,7 +1196,10 @@ clear_query(dig_query_t *query) {
 	isc_mempool_put(commctx, query->recvspace);
 	isc_buffer_invalidate(&query->recvbuf);
 	isc_buffer_invalidate(&query->lengthbuf);
-	isc_mem_free(mctx, query);
+	if (query->waiting_senddone)
+		query->pending_free = ISC_TRUE;
+	else
+		isc_mem_free(mctx, query);
 }
 
 /*
@@ -1219,9 +1224,10 @@ try_clear_lookup(dig_lookup_t *lookup) {
 				debug("query to %s still pending", q->servname);
 				q = ISC_LIST_NEXT(q, link);
 			}
-			return (ISC_FALSE);
 		}
+		return (ISC_FALSE);
 	}
+
 	/*
 	 * At this point, we know there are no queries on the lookup,
 	 * so can make it go away also.
@@ -1253,7 +1259,6 @@ try_clear_lookup(dig_lookup_t *lookup) {
 	isc_mem_free(mctx, lookup);
 	return (ISC_TRUE);
 }
-
 
 /*
  * If we can, start the next lookup in the queue running.
@@ -1784,9 +1789,9 @@ setup_lookup(dig_lookup_t *lookup) {
 	check_result(result, "dns_compress_init");
 
 	debug("starting to render the message");
-	isc_buffer_init(&lookup->sendbuf, lookup->sendspace, COMMSIZE);
+	isc_buffer_init(&lookup->renderbuf, lookup->sendspace, COMMSIZE);
 	result = dns_message_renderbegin(lookup->sendmsg, &cctx,
-					 &lookup->sendbuf);
+					 &lookup->renderbuf);
 	check_result(result, "dns_message_renderbegin");
 	if (lookup->udpsize > 0 || lookup->dnssec) {
 		if (lookup->udpsize == 0)
@@ -1809,7 +1814,7 @@ setup_lookup(dig_lookup_t *lookup) {
 	/*
 	 * Force TCP mode if the request is larger than 512 bytes.
 	 */
-	if (isc_buffer_usedlength(&lookup->sendbuf) > 512)
+	if (isc_buffer_usedlength(&lookup->renderbuf) > 512)
 		lookup->tcp_mode = ISC_TRUE;
 
 	lookup->pending = ISC_FALSE;
@@ -1825,6 +1830,8 @@ setup_lookup(dig_lookup_t *lookup) {
 		       query, lookup);
 		query->lookup = lookup;
 		query->waiting_connect = ISC_FALSE;
+		query->waiting_senddone = ISC_FALSE;
+		query->pending_free = ISC_FALSE;
 		query->recv_made = ISC_FALSE;
 		query->first_pass = ISC_TRUE;
 		query->first_soa_rcvd = ISC_FALSE;
@@ -1848,6 +1855,7 @@ setup_lookup(dig_lookup_t *lookup) {
 		isc_buffer_init(&query->recvbuf, query->recvspace, COMMSIZE);
 		isc_buffer_init(&query->lengthbuf, query->lengthspace, 2);
 		isc_buffer_init(&query->slbuf, query->slspace, 2);
+		query->sendbuf = lookup->renderbuf;
 
 		ISC_LINK_INIT(query, link);
 		ISC_LIST_ENQUEUE(lookup->q, query, link);
@@ -1865,18 +1873,43 @@ setup_lookup(dig_lookup_t *lookup) {
  */
 static void
 send_done(isc_task_t *_task, isc_event_t *event) {
+	isc_socketevent_t *sevent = (isc_socketevent_t *)event;
+	isc_buffer_t *b = NULL;
+	dig_query_t *query, *next;
+	dig_lookup_t *l;
+
 	REQUIRE(event->ev_type == ISC_SOCKEVENT_SENDDONE);
 
 	UNUSED(_task);
 
 	LOCK_LOOKUP;
 
-	isc_event_free(&event);
-
 	debug("send_done()");
 	sendcount--;
 	debug("sendcount=%d", sendcount);
 	INSIST(sendcount >= 0);
+
+	for  (b = ISC_LIST_HEAD(sevent->bufferlist);
+	      b != NULL;
+	      b = ISC_LIST_HEAD(sevent->bufferlist)) 
+		ISC_LIST_DEQUEUE(sevent->bufferlist, b, link);
+
+	query = event->ev_arg;
+	query->waiting_senddone = ISC_FALSE;
+	l = query->lookup;
+
+	if (l->ns_search_only && !l->trace_root) {
+		debug("sending next, since searching");
+		next = ISC_LIST_NEXT(query, link);
+		if (next != NULL)
+			send_udp(next);
+	}
+
+	isc_event_free(&event);
+
+	if (query->pending_free)
+		isc_mem_free(mctx, query);
+
 	check_if_done();
 	UNLOCK_LOOKUP;
 }
@@ -2020,7 +2053,6 @@ send_tcp_connect(dig_query_t *query) {
 static void
 send_udp(dig_query_t *query) {
 	dig_lookup_t *l = NULL;
-	dig_query_t *next;
 	isc_result_t result;
 
 	debug("send_udp(%p)", query);
@@ -2062,27 +2094,16 @@ send_udp(dig_query_t *query) {
 		debug("recvcount=%d", recvcount);
 	}
 	ISC_LIST_INIT(query->sendlist);
-	ISC_LINK_INIT(&l->sendbuf, link);
-	ISC_LIST_ENQUEUE(query->sendlist, &l->sendbuf,
-			 link);
+	ISC_LIST_ENQUEUE(query->sendlist, &query->sendbuf, link);
 	debug("sending a request");
 	TIME_NOW(&query->time_sent);
 	INSIST(query->sock != NULL);
+	query->waiting_senddone = ISC_TRUE;
 	result = isc_socket_sendtov(query->sock, &query->sendlist,
 				    global_task, send_done, query,
 				    &query->sockaddr, NULL);
 	check_result(result, "isc_socket_sendtov");
 	sendcount++;
-	/*
-	 * If we're at the endgame of a nameserver search, we need to
-	 * immediately bring up all the queries.  Do it here.
-	 */
-	if (l->ns_search_only && !l->trace_root) {
-		debug("sending next, since searching");
-		next = ISC_LIST_NEXT(query, link);
-		if (next != NULL)
-			send_udp(next);
-	}
 }
 
 /*
@@ -2171,6 +2192,10 @@ tcp_length_done(isc_task_t *task, isc_event_t *event) {
 	recvcount--;
 	INSIST(recvcount >= 0);
 
+	b = ISC_LIST_HEAD(sevent->bufferlist);
+	INSIST(b ==  &query->lengthbuf);
+	ISC_LIST_DEQUEUE(sevent->bufferlist, b, link);
+
 	if (sevent->result == ISC_R_CANCELED) {
 		isc_event_free(&event);
 		l = query->lookup;
@@ -2196,8 +2221,6 @@ tcp_length_done(isc_task_t *task, isc_event_t *event) {
 		UNLOCK_LOOKUP;
 		return;
 	}
-	b = ISC_LIST_HEAD(sevent->bufferlist);
-	ISC_LIST_DEQUEUE(sevent->bufferlist, &query->lengthbuf, link);
 	length = isc_buffer_getuint16(b);
 	if (length == 0) {
 		isc_event_free(&event);
@@ -2254,16 +2277,12 @@ launch_next_query(dig_query_t *query, isc_boolean_t include_question) {
 
 	isc_buffer_clear(&query->slbuf);
 	isc_buffer_clear(&query->lengthbuf);
-	isc_buffer_putuint16(&query->slbuf,
-			     (isc_uint16_t) query->lookup->sendbuf.used);
+	isc_buffer_putuint16(&query->slbuf, (isc_uint16_t) query->sendbuf.used);
 	ISC_LIST_INIT(query->sendlist);
 	ISC_LINK_INIT(&query->slbuf, link);
 	ISC_LIST_ENQUEUE(query->sendlist, &query->slbuf, link);
-	if (include_question) {
-		ISC_LINK_INIT(&query->lookup->sendbuf, link);
-		ISC_LIST_ENQUEUE(query->sendlist, &query->lookup->sendbuf,
-				 link);
-	}
+	if (include_question)
+		ISC_LIST_ENQUEUE(query->sendlist, &query->sendbuf, link);
 	ISC_LINK_INIT(&query->lengthbuf, link);
 	ISC_LIST_ENQUEUE(query->lengthlist, &query->lengthbuf, link);
 
@@ -2275,6 +2294,7 @@ launch_next_query(dig_query_t *query, isc_boolean_t include_question) {
 	if (!query->first_soa_rcvd) {
 		debug("sending a request in launch_next_query");
 		TIME_NOW(&query->time_sent);
+		query->waiting_senddone = ISC_TRUE;
 		result = isc_socket_sendv(query->sock, &query->sendlist,
 					  global_task, send_done, query);
 		check_result(result, "isc_socket_sendv");
@@ -2558,6 +2578,10 @@ recv_done(isc_task_t *task, isc_event_t *event) {
 	REQUIRE(event->ev_type == ISC_SOCKEVENT_RECVDONE);
 	sevent = (isc_socketevent_t *)event;
 
+	b = ISC_LIST_HEAD(sevent->bufferlist);
+	INSIST(b == &query->recvbuf);
+	ISC_LIST_DEQUEUE(sevent->bufferlist, &query->recvbuf, link);
+
 	if ((l->tcp_mode) && (l->timer != NULL))
 		isc_timer_touch(l->timer);
 	if ((!l->pending && !l->ns_search_only) || cancel_now) {
@@ -2590,9 +2614,6 @@ recv_done(isc_task_t *task, isc_event_t *event) {
 		UNLOCK_LOOKUP;
 		return;
 	}
-
-	b = ISC_LIST_HEAD(sevent->bufferlist);
-	ISC_LIST_DEQUEUE(sevent->bufferlist, &query->recvbuf, link);
 
 	if (!l->tcp_mode &&
 	    !isc_sockaddr_equal(&sevent->address, &query->sockaddr)) {
