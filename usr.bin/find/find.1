@@ -35,7 +35,7 @@
 .\"	@(#)find.1	8.7 (Berkeley) 5/9/95
 .\" $FreeBSD$
 .\"
-.Dd October 8, 2006
+.Dd December 13, 2006
 .Dt FIND 1
 .Os
 .Sh NAME
@@ -200,8 +200,8 @@ was started, rounded up to the next full 24-hour period, is
 24-hour periods.
 .Pp
 If units are specified, this primary evaluates to
-true if the difference between the time of last change of file status
-information and the time
+true if the difference between the time of a file's inode creation
+and the time
 .Nm
 was started is exactly
 .Ar n
