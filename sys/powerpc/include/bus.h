@@ -116,7 +116,8 @@ bus_space_map(bus_space_tag_t t __unused, bus_addr_t addr,
 	      bus_space_handle_t *bshp)
 {
 
-	return (ENXIO);
+	*bshp = addr;
+	return (0);
 }
 
 /*
