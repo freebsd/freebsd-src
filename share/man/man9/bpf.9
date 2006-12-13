@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd May 19, 2004
+.Dd December 13, 2006
 .Dt BPF 9
 .Os
 .\"
@@ -51,7 +51,7 @@
 .Fn bpf_mtap2 "struct bpf_if *bp" "void *data" "u_int dlen" "struct mbuf *m"
 .Ft u_int
 .Fo bpf_filter
-.Fa "const struct bpf_insn *pc " "u_char *pkt" "u_int *wirelen" "u_int *buflen"
+.Fa "const struct bpf_insn *pc " "u_char *pkt" "u_int wirelen" "u_int buflen"
 .Fc
 .Ft int
 .Fn bpf_validate "const struct bpf_insn *fcode" "int flen"
@@ -217,6 +217,12 @@ argument
 is the length of the original packet and
 .Fa buflen
 is the amount of data present.
+The
+.Fa buflen
+value of 0 is special; it indicates that the
+.Fa pkt
+is actually a pointer to an mbuf chain
+.Pq Vt "struct mbuf *" .
 .Pp
 The
 .Fn bpf_validate
