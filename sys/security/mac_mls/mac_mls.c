@@ -1315,6 +1315,27 @@ mac_mls_create_mbuf_from_firewall(struct mbuf *m, struct label *mbuflabel)
 	mac_mls_set_effective(dest, MAC_MLS_TYPE_EQUAL, 0, NULL);
 }
 
+static void
+mac_mls_init_syncache_from_inpcb(struct label *label, struct inpcb *inp)
+{
+	struct mac_mls *source, *dest;
+
+	source = SLOT(inp->inp_label);
+	dest = SLOT(label);
+	mac_mls_copy_effective(source, dest);
+}
+
+static void
+mac_mls_create_mbuf_from_syncache(struct label *sc_label, struct mbuf *m,
+    struct label *mbuf_label)
+{
+	struct mac_mls *source, *dest;
+
+	source = SLOT(sc_label);
+	dest = SLOT(mbuf_label);
+	mac_mls_copy_effective(source, dest);
+}
+
 /*
  * Labeling event operations: processes.
  */
@@ -2817,6 +2838,7 @@ static struct mac_policy_ops mac_mls_ops =
 	.mpo_init_devfsdirent_label = mac_mls_init_label,
 	.mpo_init_ifnet_label = mac_mls_init_label,
 	.mpo_init_inpcb_label = mac_mls_init_label_waitcheck,
+	.mpo_init_syncache_label = mac_mls_init_label_waitcheck,
 	.mpo_init_sysv_msgmsg_label = mac_mls_init_label,
 	.mpo_init_sysv_msgqueue_label = mac_mls_init_label,
 	.mpo_init_sysv_sem_label = mac_mls_init_label,
@@ -2835,6 +2857,7 @@ static struct mac_policy_ops mac_mls_ops =
 	.mpo_destroy_devfsdirent_label = mac_mls_destroy_label,
 	.mpo_destroy_ifnet_label = mac_mls_destroy_label,
 	.mpo_destroy_inpcb_label = mac_mls_destroy_label,
+	.mpo_destroy_syncache_label = mac_mls_destroy_label,
 	.mpo_destroy_sysv_msgmsg_label = mac_mls_destroy_label,
 	.mpo_destroy_sysv_msgqueue_label = mac_mls_destroy_label,
 	.mpo_destroy_sysv_sem_label = mac_mls_destroy_label,
@@ -2877,6 +2900,7 @@ static struct mac_policy_ops mac_mls_ops =
 	.mpo_create_vnode_extattr = mac_mls_create_vnode_extattr,
 	.mpo_setlabel_vnode_extattr = mac_mls_setlabel_vnode_extattr,
 	.mpo_create_mbuf_from_socket = mac_mls_create_mbuf_from_socket,
+	.mpo_create_mbuf_from_syncache = mac_mls_create_mbuf_from_syncache,
 	.mpo_create_pipe = mac_mls_create_pipe,
 	.mpo_create_posix_sem = mac_mls_create_posix_sem,
 	.mpo_create_socket = mac_mls_create_socket,
@@ -2890,6 +2914,7 @@ static struct mac_policy_ops mac_mls_ops =
 	.mpo_create_fragment = mac_mls_create_fragment,
 	.mpo_create_ifnet = mac_mls_create_ifnet,
 	.mpo_create_inpcb_from_socket = mac_mls_create_inpcb_from_socket,
+	.mpo_init_syncache_from_inpcb = mac_mls_init_syncache_from_inpcb,
 	.mpo_create_ipq = mac_mls_create_ipq,
 	.mpo_create_sysv_msgmsg = mac_mls_create_sysv_msgmsg,
 	.mpo_create_sysv_msgqueue = mac_mls_create_sysv_msgqueue,
