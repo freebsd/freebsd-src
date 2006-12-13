@@ -349,8 +349,8 @@ static void bge_writemem_ind(struct bge_softc *, int, int);
 #ifdef notdef
 static uint32_t bge_readreg_ind(struct bge_softc *, int);
 #endif
+static void bge_writemem_direct(struct bge_softc *, int, int);
 static void bge_writereg_ind(struct bge_softc *, int, int);
-static void bge_writemem_direct(struct bge_softc *, int, int) __unused;
 
 static int bge_miibus_readreg(device_t, int, int);
 static int bge_miibus_writereg(device_t, int, int, int);
@@ -1358,12 +1358,15 @@ bge_blockinit(struct bge_softc *sc)
 	 * Set the BD ring replentish thresholds. The recommended
 	 * values are 1/8th the number of descriptors allocated to
 	 * each ring.
+	 * XXX The 5754 requires a lower threshold, so it might be a
+	 * requirement of all 575x family chips.  The Linux driver sets
+	 * the lower threshold for all 5705 family chips as well, but there
+	 * are reports that it might not need to be so strict.
 	 */
 	if (BGE_IS_5705_PLUS(sc))
 		val = 8;
 	else
 		val = BGE_STD_RX_RING_CNT / 8;
-
 	CSR_WRITE_4(sc, BGE_RBDI_STD_REPL_THRESH, val);
 	CSR_WRITE_4(sc, BGE_RBDI_JUMBO_REPL_THRESH, BGE_JUMBO_RX_RING_CNT/8);
 
@@ -1533,7 +1536,6 @@ bge_blockinit(struct bge_softc *sc)
 	/* Turn on DMA completion state machine */
 	if (!(BGE_IS_5705_PLUS(sc)))
 		CSR_WRITE_4(sc, BGE_DMAC_MODE, BGE_DMACMODE_ENABLE);
-
 
 	val = BGE_WDMAMODE_ENABLE|BGE_WDMAMODE_ALL_ATTNS;
 
@@ -2111,8 +2113,7 @@ bge_attach(device_t dev)
 	uint32_t hwcfg = 0;
 	uint32_t mac_tmp = 0;
 	u_char eaddr[6];
-	int error = 0, rid;
-	int trys, reg;
+	int error = 0, rid, trys, reg;
 
 	sc = device_get_softc(dev);
 	sc->bge_dev = dev;
@@ -2516,12 +2517,12 @@ bge_reset(struct bge_softc *sc)
 
 	dev = sc->bge_dev;
 
-	if (BGE_IS_5705_PLUS(sc) && !BGE_IS_5714_FAMILY(sc))
+	if (BGE_IS_5705_PLUS(sc) && !BGE_IS_5714_FAMILY(sc)) {
 		if (sc->bge_flags & BGE_FLAG_PCIE)
 			write_op = bge_writemem_direct;
 		else
 			write_op = bge_writemem_ind;
-	else
+	} else
 		write_op = bge_writereg_ind;
 
 	/* Save some important PCI state. */
@@ -2538,8 +2539,7 @@ bge_reset(struct bge_softc *sc)
 	    sc->bge_asicrev == BGE_ASICREV_BCM5755 ||
 	    sc->bge_asicrev == BGE_ASICREV_BCM5787) {
 		if (bootverbose)
-			device_printf(sc->bge_dev, "%s: Disabling fastboot\n",
-			    __FUNCTION__);
+			device_printf(sc->bge_dev, "Disabling fastboot\n");
 		CSR_WRITE_4(sc, BGE_FASTBOOT_PC, 0x0);
 	}
 
@@ -2584,7 +2584,10 @@ bge_reset(struct bge_softc *sc)
 			v = pci_read_config(dev, 0xc4, 4);
 			pci_write_config(dev, 0xc4, v | (1<<15), 4);
 		}
-		/* Set PCIE max payload size to 128 bytes and clear error status. */
+		/*
+		 * Set PCIE max payload size to 128 bytes and clear error
+		 * status.
+		 */
 		pci_write_config(dev, 0xd8, 0xf5000, 4);
 	}
 
@@ -2618,8 +2621,8 @@ bge_reset(struct bge_softc *sc)
 	}
 
 	if (i == BGE_TIMEOUT) {
-		device_printf(sc->bge_dev, "firmware handshake timed out! "
-		    "found 0x%08X\n", val);
+		device_printf(sc->bge_dev, "firmware handshake timed out, "
+		    "found 0x%08x\n", val);
 	}
 
 	/*
