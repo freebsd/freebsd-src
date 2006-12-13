@@ -2563,12 +2563,6 @@ bge_reset(struct bge_softc *sc)
 		}
 	}
 
-	/*
-	 * Write the magic number to the firmware mailbox at 0xb50
-         * so that the driver can synchronize with the firmware.
-	 */
-	bge_writemem_ind(sc, BGE_SOFTWARE_GENCOMM, BGE_MAGIC_NUMBER);
-
 	/* 
 	 * Set GPHY Power Down Override to leave GPHY
 	 * powered up in D0 uninitialized.
