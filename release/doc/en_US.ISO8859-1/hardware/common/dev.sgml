@@ -248,6 +248,8 @@
 
     &hwlist.lge;
 
+    &hwlist.msk;
+
     &hwlist.mxge;
 
     &hwlist.my;
