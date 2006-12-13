@@ -120,6 +120,7 @@ static struct _devname {
     NETWORK("kue",	"Kawasaki LSI USB ethernet adapter"),
     NETWORK("le",	"AMD Am7900 LANCE or Am79C9xx PCnet ethernet adapter"),
     NETWORK("lge",	"Level 1 LXT1001 gigabit ethernet card"),
+    NETWORK("msk",	"Marvell/SysKonnect Yukon II gigabit Ethernet"),
     NETWORK("mxge",	"Myricom Myri10GE 10Gb Ethernet card"),
     NETWORK("nfe",	"NVIDIA nForce MCP Ethernet"),
     NETWORK("nge",	"NatSemi PCI gigabit ethernet card"),
