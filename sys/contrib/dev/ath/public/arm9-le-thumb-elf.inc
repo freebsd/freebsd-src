@@ -33,7 +33,7 @@
 # ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF
 # THE POSSIBILITY OF SUCH DAMAGES.
 #
-# $Id: //depot/sw/branches/sam_hal/public/arm9-le-thumb-elf.inc#2 $
+# $Id: //depot/sw/branches/sam_hal/public/arm9-le-thumb-elf.inc#3 $
 #
 
 #
@@ -74,5 +74,5 @@ NM=	${TOOLPREFIX}nm
 
 LDOPTS=	-EL
 COPTS+=	-DAH_BYTE_ORDER=AH_LITTLE_ENDIAN
-COPTS+=	-mthumb -mlittle-endian -mcpu=arm9 -msoft-float \
+COPTS+=	-mthumb -mlittle-endian -mcpu=arm9 \
 	-ffunction-sections -fdata-sections
