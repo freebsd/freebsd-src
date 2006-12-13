@@ -33,7 +33,7 @@
  * OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGES.
  *
- * $Id: //depot/sw/branches/sam_hal/ah.h#10 $
+ * $Id: //depot/sw/branches/sam_hal/ah.h#19 $
  */
 
 #ifndef _ATH_AH_H_
@@ -131,6 +131,8 @@ typedef enum {
 	HAL_CAP_TPC_CTS		= 27,	/* cts txpower with per-packet tpc */
 	HAL_CAP_11D		= 28,   /* 11d beacon support for changing cc */
 	HAL_CAP_INTMIT		= 29,	/* interference mitigation */
+	HAL_CAP_RXORN_FATAL	= 30,	/* HAL_INT_RXORN treated as fatal */
+	HAL_CAP_RXTSTAMP_PREC	= 34,	/* rx desc tstamp precision (bits) */
 } HAL_CAPABILITY_TYPE;
 
 /* 
@@ -286,8 +288,6 @@ typedef struct {
 /* compression definitions */
 #define HAL_COMP_BUF_MAX_SIZE           9216            /* 9K */
 #define HAL_COMP_BUF_ALIGN_SIZE         512
-#define HAL_DECOMP_MASK_SIZE		128
-
 
 /*
  * Transmit packet types.  This belongs in ah_desc.h, but
@@ -358,7 +358,7 @@ typedef enum {
 	HAL_INT_GPIO	= 0x01000000,
 	HAL_INT_CABEND	= 0x02000000,	/* Non-common mapping */
 	HAL_INT_FATAL	= 0x40000000,	/* Non-common mapping */
-	HAL_INT_GLOBAL	= 0x80000000,	/* Set/clear IER */
+#define	HAL_INT_GLOBAL	0x80000000	/* Set/clear IER */
 	HAL_INT_BMISC	= HAL_INT_TIM
 			| HAL_INT_DTIM
 			| HAL_INT_DTIMSYNC
@@ -377,7 +377,6 @@ typedef enum {
 			| HAL_INT_SWBA
 			| HAL_INT_BMISS
 			| HAL_INT_GPIO,
-	HAL_INT_NOCARD	= 0xffffffff	/* To signal the card was removed */
 } HAL_INT;
 
 typedef enum {
@@ -525,6 +524,7 @@ typedef struct {
 	u_int16_t	kv_len;			/* length in bits */
 	u_int8_t	kv_val[16];		/* enough for 128-bit keys */
 	u_int8_t	kv_mic[8];		/* TKIP MIC key */
+	u_int8_t	kv_txmic[8];		/* TKIP TX MIC key (optional) */
 } HAL_KEYVAL;
 
 typedef enum {
@@ -592,6 +592,8 @@ typedef struct {
 #define	HAL_RSSI_EP_MULTIPLIER	(1<<7)	/* pow2 to optimize out * and / */
 
 struct ath_desc;
+struct ath_tx_status;
+struct ath_rx_status;
 
 /*
  * Hardware Access Layer (HAL) API.
@@ -606,7 +608,7 @@ struct ath_desc;
 struct ath_hal {
 	u_int32_t	ah_magic;	/* consistency check magic number */
 	u_int32_t	ah_abi;		/* HAL ABI version */
-#define	HAL_ABI_VERSION	0x06052200	/* YYMMDDnn */
+#define	HAL_ABI_VERSION	0x06102600	/* YYMMDDnn */
 	u_int16_t	ah_devid;	/* PCI device ID */
 	u_int16_t	ah_subvendorid;	/* PCI subvendor ID */
 	HAL_SOFTC	ah_sc;		/* back pointer to driver/os state */
@@ -620,7 +622,7 @@ struct ath_hal {
 	/* NB: when only one radio is present the rev is in 5Ghz */
 	u_int16_t	ah_analog5GhzRev;/* 5GHz radio revision */
 	u_int16_t	ah_analog2GhzRev;/* 2GHz radio revision */
-	u_int8_t        ah_decompMask[HAL_DECOMP_MASK_SIZE]; /* decomp mask array */
+
 	const HAL_RATE_TABLE *__ahdecl(*ah_getRateTable)(struct ath_hal *,
 				u_int mode);
 	void	  __ahdecl(*ah_detach)(struct ath_hal*);
@@ -635,12 +637,7 @@ struct ath_hal {
 	HAL_BOOL  __ahdecl(*ah_perCalibration)(struct ath_hal*, HAL_CHANNEL *, HAL_BOOL *);
 	HAL_BOOL  __ahdecl(*ah_setTxPowerLimit)(struct ath_hal *, u_int32_t);
 
-	void	  __ahdecl(*ah_arEnable)(struct ath_hal *);
-	void	  __ahdecl(*ah_arDisable)(struct ath_hal *);
-	void	  __ahdecl(*ah_arReset)(struct ath_hal *);
-	HAL_BOOL  __ahdecl(*ah_radarHaveEvent)(struct ath_hal *);
-	HAL_BOOL  __ahdecl(*ah_processDfs)(struct ath_hal *, HAL_CHANNEL *);
-	u_int32_t __ahdecl(*ah_dfsNolCheck)(struct ath_hal *, HAL_CHANNEL *, u_int32_t);
+	/* DFS support */
 	HAL_BOOL  __ahdecl(*ah_radarWait)(struct ath_hal *, HAL_CHANNEL *);
 
 	/* Transmit functions */
@@ -674,7 +671,8 @@ struct ath_hal {
 	HAL_BOOL  __ahdecl(*ah_fillTxDesc)(struct ath_hal *, struct ath_desc *,
 				u_int segLen, HAL_BOOL firstSeg,
 				HAL_BOOL lastSeg, const struct ath_desc *);
-	HAL_STATUS __ahdecl(*ah_procTxDesc)(struct ath_hal *, struct ath_desc*);
+	HAL_STATUS __ahdecl(*ah_procTxDesc)(struct ath_hal *,
+				struct ath_desc *, struct ath_tx_status *);
 	void	   __ahdecl(*ah_getTxIntrQueue)(struct ath_hal *, u_int32_t *);
 	void	   __ahdecl(*ah_reqTxIntrDesc)(struct ath_hal *, struct ath_desc*);
 
@@ -695,9 +693,10 @@ struct ath_hal {
 	void	  __ahdecl(*ah_setRxFilter)(struct ath_hal*, u_int32_t);
 	HAL_BOOL  __ahdecl(*ah_setupRxDesc)(struct ath_hal *, struct ath_desc *,
 				u_int32_t size, u_int flags);
-	HAL_STATUS __ahdecl(*ah_procRxDesc)(struct ath_hal *, struct ath_desc *,
-				u_int32_t phyAddr, struct ath_desc *next,
-				u_int64_t tsf);
+	HAL_STATUS __ahdecl(*ah_procRxDesc)(struct ath_hal *,
+				struct ath_desc *, u_int32_t phyAddr,
+				struct ath_desc *next, u_int64_t tsf,
+				struct ath_rx_status *);
 	void	  __ahdecl(*ah_rxMonitor)(struct ath_hal *,
 				const HAL_NODE_STATS *, HAL_CHANNEL *);
 	void	  __ahdecl(*ah_procMibEvent)(struct ath_hal *,

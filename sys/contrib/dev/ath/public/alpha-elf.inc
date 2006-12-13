@@ -69,3 +69,8 @@ NM=	${TOOLPREFIX}nm
 AH_REGOPS_FUNC=1
 
 COPTS+=	-DAH_BYTE_ORDER=AH_LITTLE_ENDIAN
+#
+# NB: this should come from inttypes.h but can't until we cleanp
+#     the definition of va_list on linux
+#
+COPTS+=	-DAH_WORDSIZE=64
