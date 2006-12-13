@@ -35,7 +35,7 @@
 .Sh SYNOPSIS
 .In gelf.h
 .Ft "GElf_Sym *"
-.Fo gelf_getsyminfo
+.Fo gelf_getsymshndx
 .Fa "Elf_Data *symdata"
 .Fa "Elf_Data *xndxdata"
 .Fa "int ndx"
@@ -43,7 +43,7 @@
 .Fa "Elf32_Word *xndxptr"
 .Fc
 .Ft int
-.Fo gelf_update_syminfo
+.Fo gelf_update_symshndx
 .Fa "Elf_Data *symdata"
 .Fa "Elf_Data *xndxdata"
 .Fa "int ndx"
