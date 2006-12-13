@@ -1448,6 +1448,27 @@ mac_lomac_inpcb_sosetlabel(struct socket *so, struct label *solabel,
 }
 
 static void
+mac_lomac_init_syncache_from_inpcb(struct label *label, struct inpcb *inp)
+{
+	struct mac_lomac *source, *dest;
+
+	source = SLOT(inp->inp_label);
+	dest = SLOT(label);
+	mac_lomac_copy(source, dest);
+}
+
+static void
+mac_lomac_create_mbuf_from_syncache(struct label *sc_label, struct mbuf *m,
+    struct label *mbuf_label)
+{
+	struct mac_lomac *source, *dest;
+
+	source = SLOT(sc_label);
+	dest = SLOT(mbuf_label);
+	mac_lomac_copy(source, dest);
+}
+
+static void
 mac_lomac_create_mbuf_from_firewall(struct mbuf *m, struct label *label)
 {
 	struct mac_lomac *dest;
@@ -2574,6 +2595,7 @@ static struct mac_policy_ops mac_lomac_ops =
 	.mpo_init_cred_label = mac_lomac_init_label,
 	.mpo_init_devfsdirent_label = mac_lomac_init_label,
 	.mpo_init_ifnet_label = mac_lomac_init_label,
+	.mpo_init_syncache_label = mac_lomac_init_label_waitcheck,
 	.mpo_init_inpcb_label = mac_lomac_init_label_waitcheck,
 	.mpo_init_ipq_label = mac_lomac_init_label_waitcheck,
 	.mpo_init_mbuf_label = mac_lomac_init_label_waitcheck,
@@ -2584,6 +2606,7 @@ static struct mac_policy_ops mac_lomac_ops =
 	.mpo_init_socket_label = mac_lomac_init_label_waitcheck,
 	.mpo_init_socket_peer_label = mac_lomac_init_label_waitcheck,
 	.mpo_init_vnode_label = mac_lomac_init_label,
+	.mpo_init_syncache_from_inpcb = mac_lomac_init_syncache_from_inpcb,
 	.mpo_destroy_bpfdesc_label = mac_lomac_destroy_label,
 	.mpo_destroy_cred_label = mac_lomac_destroy_label,
 	.mpo_destroy_devfsdirent_label = mac_lomac_destroy_label,
@@ -2595,6 +2618,7 @@ static struct mac_policy_ops mac_lomac_ops =
 	.mpo_destroy_mount_fs_label = mac_lomac_destroy_label,
 	.mpo_destroy_pipe_label = mac_lomac_destroy_label,
 	.mpo_destroy_proc_label = mac_lomac_destroy_proc_label,
+	.mpo_destroy_syncache_label = mac_lomac_destroy_label,
 	.mpo_destroy_socket_label = mac_lomac_destroy_label,
 	.mpo_destroy_socket_peer_label = mac_lomac_destroy_label,
 	.mpo_destroy_vnode_label = mac_lomac_destroy_label,
@@ -2628,6 +2652,7 @@ static struct mac_policy_ops mac_lomac_ops =
 	.mpo_create_vnode_extattr = mac_lomac_create_vnode_extattr,
 	.mpo_setlabel_vnode_extattr = mac_lomac_setlabel_vnode_extattr,
 	.mpo_create_mbuf_from_socket = mac_lomac_create_mbuf_from_socket,
+	.mpo_create_mbuf_from_syncache = mac_lomac_create_mbuf_from_syncache,
 	.mpo_create_pipe = mac_lomac_create_pipe,
 	.mpo_create_socket = mac_lomac_create_socket,
 	.mpo_create_socket_from_socket = mac_lomac_create_socket_from_socket,
