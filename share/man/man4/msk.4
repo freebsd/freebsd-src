@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd Dec 13, 2006
+.Dd December 13, 2006
 .Dt MSK 4
 .Os
 .Sh NAME
@@ -54,14 +54,14 @@ Marvell/SysKonnect Yukon II Gigabit Ethernet controller chip.
 All NICs supported by the
 .Nm
 driver have TCP/UDP/IP checksum offload for transmit, TCP
-segmentation offload(TSO), hardware VLAN tag stripping/insertion
-features and interrupt moderation mechanism as well as a 64-bit
+segmentation offload (TSO), hardware VLAN tag stripping/insertion
+features and an interrupt moderation mechanism as well as a 64-bit
 multicast hash filter.
 The Yukon II supports TBI (ten bit interface) and GMII
 transceivers, which means it can be used with either copper or
 1000baseX fiber applications.
 .Pp
-The Yukon II also support jumbo frames(up to 9022 bytes), which can be
+The Yukon II also supports jumbo frames (up to 9022 bytes), which can be
 configured via the interface MTU setting.
 Selecting an MTU larger than 1500 bytes with the
 .Xr ifconfig 8
@@ -156,9 +156,9 @@ Yukon II based Gigabit Ethernet controller chips, including:
 .Pp
 .Bl -bullet -compact
 .It
-SysKonnect SK-9Sxx Gigabit Ethernet
+D-Link 550SX Gigabit Ethernet
 .It
-SysKonnect SK-9Exx Gigabit Ethernet
+D-Link 560T Gigabit Ethernet
 .It
 Marvell Yukon 88E8021CU Gigabit Ethernet
 .It
@@ -192,9 +192,9 @@ Marvell Yukon 88E8055 Gigabit Ethernet
 .It
 Marvell Yukon 88E8056 Gigabit Ethernet
 .It
-D-Link 550SX Gigabit Ethernet
+SysKonnect SK-9Sxx Gigabit Ethernet
 .It
-D-Link 560T Gigabit Ethernet
+SysKonnect SK-9Exx Gigabit Ethernet
 .El
 .Sh LOADER TUNABLES
 Tunables can be set at the
@@ -233,6 +233,10 @@ The
 driver was written by
 .An Pyun YongHyeon
 .Aq yongari@FreeBSD.org
-and it is based on the
+and it is based on
 .Xr sk 4
-and Marvell's FreeBSD driver.
+and Marvell's
+.Fx
+driver.
+It first appeared in
+.Fx 7.0 .
