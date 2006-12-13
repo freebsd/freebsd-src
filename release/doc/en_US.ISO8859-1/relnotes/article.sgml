@@ -701,6 +701,10 @@
 	  &man.pcn.4; drivers support all devices that were supported
 	  by lnc(4).</para>
 
+	<para>The &man.msk.4; driver has been added.  It supports
+	  network interfaces using the Marvell/SysKonnect Yukon II
+	  Gigabit Ethernet controller.</para>
+
 	<para>The &man.my.4; driver is now MPSAFE. &merged;</para>
 
 	<para>The &man.my.4; driver now supports &man.altq.4;.  &merged;</para>
@@ -989,6 +993,9 @@ pipe tablearg ip from table(1) to any</programlisting>
 	necessary for the Linux LSI MegaRaid tools in &os;'s Linux emulation
 	environment.
 	&merged;</para>
+
+      <para>The &man.arcmsr.4; driver has been updated to version
+	1.20.00.13.</para>
 
       <para>The &man.ata.4; driver now supports a workaround
 	for some controllers whose DMA does not work properly
@@ -1720,7 +1727,7 @@ mdconfig_md1="-t vnode -f /var/foo.img"</programlisting>
       has been updated to 20051021.</para>
 
     <para><application>BIND</application> has been updated from 9.3.1
-      to 9.3.2-P1. &merged;</para>
+      to 9.3.3. &merged;</para>
 
     <para><application>BSNMPD</application> has been updated from
       1.11 to 1.12.</para>
