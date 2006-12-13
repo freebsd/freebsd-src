@@ -46,6 +46,7 @@ __FBSDID("$FreeBSD$");
 #include <net/ethernet.h>
 
 #include <dev/ofw/openfirm.h>
+#include <dev/ofw/ofw_pci.h>
 
 #include <vm/vm.h>
 #include <vm/vm_param.h>
@@ -287,19 +288,138 @@ OF_getetheraddr(device_t dev, u_char *addr)
 }
 
 /*
- * Return the physical address and the bus space to use for a node
- * referenced by its package handle and the index of the register bank
- * to decode. Intended to be used by console drivers in early boot only.
- * Works by mapping the address of the node's bank given in the address
- * space of its parent upward in the device tree at each bridge along the
- * path.
+ * Return a bus handle and bus tag that corresponds to the register
+ * numbered regno for the device referenced by the package handle
+ * dev. This function is intended to be used by console drivers in
+ * early boot only. It works by mapping the address of the device's
+ * register in the address space of its parent and recursively walk
+ * the device tree upward this way.
  */
+static void
+OF_get_addr_props(phandle_t node, uint32_t *addrp, uint32_t *sizep, int *pcip)
+{
+	char name[16];
+	uint32_t addr, size;
+	int pci, res;
+
+	res = OF_getprop(node, "#address-cells", &addr, sizeof(addr));
+	if (res == -1)
+		addr = 2;
+	res = OF_getprop(node, "#size-cells", &size, sizeof(size));
+	if (res == -1)
+		size = 1;
+	pci = 0;
+	if (addr == 3 && size == 2) {
+		res = OF_getprop(node, "name", name, sizeof(name));
+		if (res != -1) {
+			name[sizeof(name) - 1] = '\0';
+			pci = (strcmp(name, "pci") == 0) ? 1 : 0;
+		}
+	}
+	if (addrp != NULL)
+		*addrp = addr;
+	if (sizep != NULL)
+		*sizep = size;
+	if (pcip != NULL)
+		*pcip = pci;
+}
+
 int
-OF_decode_addr(phandle_t node, int bank, bus_space_tag_t *tag,
+OF_decode_addr(phandle_t dev, int regno, bus_space_tag_t *tag,
     bus_space_handle_t *handle)
 {
+	uint32_t cell[32];
+	bus_addr_t addr, raddr, baddr;
+	bus_size_t size, rsize;
+	uint32_t c, nbridge, naddr, nsize;
+	phandle_t bridge, parent;
+	u_int spc, rspc;
+	int pci, pcib, res;
 
-	return (ENXIO);
+	/* Sanity checking. */
+	if (dev == 0)
+		return (EINVAL);
+	bridge = OF_parent(dev);
+	if (bridge == 0)
+		return (EINVAL);
+	if (regno < 0)
+		return (EINVAL);
+	if (tag == NULL || handle == NULL)
+		return (EINVAL);
+
+	/* Get the requested register. */
+	OF_get_addr_props(bridge, &naddr, &nsize, &pci);
+	res = OF_getprop(dev, (pci) ? "assigned-addresses" : "reg",
+	    cell, sizeof(cell));
+	if (res == -1)
+		return (ENXIO);
+	if (res % sizeof(cell[0]))
+		return (ENXIO);
+	res /= sizeof(cell[0]);
+	regno *= naddr + nsize;
+	if (regno + naddr + nsize > res)
+		return (EINVAL);
+	spc = (pci) ? cell[regno] & OFW_PCI_PHYS_HI_SPACEMASK : ~0;
+	addr = 0;
+	for (c = 0; c < naddr; c++)
+		addr = ((uint64_t)addr << 32) | cell[regno++];
+	size = 0;
+	for (c = 0; c < nsize; c++)
+		size = ((uint64_t)size << 32) | cell[regno++];
+
+	/*
+	 * Map the address range in the bridge's decoding window as given
+	 * by the "ranges" property. If a node doesn't have such property
+	 * then no mapping is done.
+	 */
+	parent = OF_parent(bridge);
+	while (parent != 0) {
+		OF_get_addr_props(parent, &nbridge, NULL, &pcib);
+		res = OF_getprop(bridge, "ranges", cell, sizeof(cell));
+		if (res == -1)
+			goto next;
+		if (res % sizeof(cell[0]))
+			return (ENXIO);
+		res /= sizeof(cell[0]);
+		regno = 0;
+		while (regno < res) {
+			rspc = (pci)
+			    ? cell[regno] & OFW_PCI_PHYS_HI_SPACEMASK
+			    : ~0;
+			if (rspc != spc) {
+				regno += naddr + nbridge + nsize;
+				continue;
+			}
+			raddr = 0;
+			for (c = 0; c < naddr; c++)
+				raddr = ((uint64_t)raddr << 32) | cell[regno++];
+			rspc = (pcib)
+			    ? cell[regno] & OFW_PCI_PHYS_HI_SPACEMASK
+			    : ~0;
+			baddr = 0;
+			for (c = 0; c < nbridge; c++)
+				baddr = ((uint64_t)baddr << 32) | cell[regno++];
+			rsize = 0;
+			for (c = 0; c < nsize; c++)
+				rsize = ((uint64_t)rsize << 32) | cell[regno++];
+			if (addr < raddr || addr >= raddr + rsize)
+				continue;
+			addr = addr - raddr + baddr;
+			if (rspc != ~0)
+				spc = rspc;
+		}
+
+	next:
+		bridge = parent;
+		parent = OF_parent(bridge);
+		OF_get_addr_props(bridge, &naddr, &nsize, &pci);
+	}
+
+	/* Default to memory mapped I/O. */
+	*tag = PPC_BUS_SPACE_MEM;
+	if (spc == OFW_PCI_PHYS_HI_SPACE_IO)
+		*tag = PPC_BUS_SPACE_IO;
+	return (bus_space_map(*tag, addr, size, 0, handle));
 }
 
 int
