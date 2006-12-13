@@ -139,6 +139,9 @@ struct syncache {
 #define SCF_UNREACH	0x10			/* icmp unreachable received */
 #define SCF_SIGNATURE	0x20			/* send MD5 digests */
 #define SCF_SACK	0x80			/* send SACK option */
+#ifdef MAC
+	struct label	*sc_label;		/* MAC label reference */
+#endif
 };
 
 struct syncache_head {
@@ -256,6 +259,9 @@ syncache_free(struct syncache *sc)
 {
 	if (sc->sc_ipopts)
 		(void) m_free(sc->sc_ipopts);
+#ifdef MAC
+	mac_destroy_syncache(&sc->sc_label);
+#endif
 
 	uma_zfree(tcp_syncache.zone, sc);
 }
@@ -850,6 +856,9 @@ syncache_add(struct in_conninfo *inc, struct tcpopt *to, struct tcphdr *th,
 #ifdef INET6
 	int autoflowlabel = 0;
 #endif
+#ifdef MAC
+	struct label *maclabel;
+#endif
 	struct syncache scs;
 
 	INP_INFO_WLOCK_ASSERT(&tcbinfo);
@@ -876,6 +885,15 @@ syncache_add(struct in_conninfo *inc, struct tcpopt *to, struct tcphdr *th,
 	so = NULL;
 	tp = NULL;
 
+#ifdef MAC
+	if (mac_init_syncache(&maclabel) != 0) {
+		*lsop = NULL;
+		INP_UNLOCK(inp);
+		INP_INFO_WUNLOCK(&tcbinfo);
+		return (1);
+	} else
+		mac_init_syncache_from_inpcb(maclabel, inp);
+#endif
 	INP_UNLOCK(inp);
 	INP_INFO_WUNLOCK(&tcbinfo);
 
@@ -912,6 +930,16 @@ syncache_add(struct in_conninfo *inc, struct tcpopt *to, struct tcphdr *th,
 		 */
 		if (sc->sc_flags & SCF_TIMESTAMP)
 			sc->sc_tsreflect = to->to_tsval;
+#ifdef MAC
+		/*
+		 * Since we have already unconditionally allocated label
+		 * storage, free it up.  The syncache entry will already
+		 * have an initialized label we can use.
+		 */
+		mac_destroy_syncache(&maclabel);
+		KASSERT(sc->sc_label != NULL,
+		    ("%s: label not initialized", __func__));
+#endif
 		if (syncache_respond(sc, m) == 0) {
 			SYNCACHE_TIMEOUT(sc, sch, 1);
 			tcpstat.tcps_sndacks++;
@@ -948,6 +976,9 @@ syncache_add(struct in_conninfo *inc, struct tcpopt *to, struct tcphdr *th,
 	/*
 	 * Fill in the syncache values.
 	 */
+#ifdef MAC
+	sc->sc_label = maclabel;
+#endif
 	sc->sc_ipopts = ipopts;
 	bcopy(inc, &sc->sc_inc, sizeof(struct in_conninfo));
 #ifdef INET6
@@ -1033,10 +1064,19 @@ syncache_add(struct in_conninfo *inc, struct tcpopt *to, struct tcphdr *th,
 			syncache_free(sc);
 		else if (sc != &scs)
 			syncache_insert(sc, sch);   /* locks and unlocks sch */
+#ifdef MAC
+		else
+			mac_destroy_syncache(&sc->sc_label);
+#endif
 		tcpstat.tcps_sndacks++;
 		tcpstat.tcps_sndtotal++;
 	} else {
-		syncache_free(sc);
+		if (sc != &scs)
+			syncache_free(sc);
+#ifdef MAC
+		else
+			mac_destroy_syncache(&sc->sc_label);
+#endif
 		tcpstat.tcps_sc_dropped++;
 	}
 
@@ -1055,9 +1095,6 @@ syncache_respond(struct syncache *sc, struct mbuf *m)
 	u_int8_t *optp;
 #ifdef INET6
 	struct ip6_hdr *ip6 = NULL;
-#endif
-#ifdef MAC
-	struct inpcb *inp = NULL;
 #endif
 
 	hlen =
@@ -1100,49 +1137,13 @@ syncache_respond(struct syncache *sc, struct mbuf *m)
 	m = m_gethdr(M_DONTWAIT, MT_DATA);
 	if (m == NULL)
 		return (ENOBUFS);
+#ifdef MAC
+	mac_create_mbuf_from_syncache(sc->sc_label, m);
+#endif
 	m->m_data += max_linkhdr;
 	m->m_len = tlen;
 	m->m_pkthdr.len = tlen;
 	m->m_pkthdr.rcvif = NULL;
-
-#ifdef MAC
-	/*
-	 * For MAC look up the inpcb to get access to the label information.
-	 * We don't store the inpcb pointer in struct syncache to make locking
-	 * less complicated and to save locking operations.  However for MAC
-	 * this gives a slight overhead as we have to do a full pcblookup here.
-	 */
-	INP_INFO_RLOCK(&tcbinfo);
-	if (inp == NULL) {
-#ifdef INET6 /* && MAC */
-		if (sc->sc_inc.inc_isipv6)
-			inp = in6_pcblookup_hash(&tcbinfo,
-				&sc->sc_inc.inc6_faddr, sc->sc_inc.inc_fport,
-				&sc->sc_inc.inc6_laddr, sc->sc_inc.inc_lport,
-				1, NULL);
-		else
-#endif /* INET6 */
-			inp = in_pcblookup_hash(&tcbinfo,
-				sc->sc_inc.inc_faddr, sc->sc_inc.inc_fport,
-				sc->sc_inc.inc_laddr, sc->sc_inc.inc_lport,
-				1, NULL);
-		if (inp == NULL) {
-			m_freem(m);
-			INP_INFO_RUNLOCK(&tcbinfo);
-			return (ESHUTDOWN);
-		}
-	}
-	INP_LOCK(inp);
-	if (!inp->inp_socket->so_options & SO_ACCEPTCONN) {
-		m_freem(m);
-		INP_UNLOCK(inp);
-		INP_INFO_RUNLOCK(&tcbinfo);
-		return (ESHUTDOWN);
-	}
-	mac_create_mbuf_from_inpcb(inp, m);
-	INP_UNLOCK(inp);
-	INP_INFO_RUNLOCK(&tcbinfo);
-#endif /* MAC */
 
 #ifdef INET6
 	if (sc->sc_inc.inc_isipv6) {

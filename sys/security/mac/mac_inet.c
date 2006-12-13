@@ -288,3 +288,57 @@ mac_create_mbuf_from_firewall(struct mbuf *m)
 	label = mac_mbuf_to_label(m);
 	MAC_PERFORM(create_mbuf_from_firewall, m, label);
 }
+
+/*
+ * These functions really should be referencing the syncache structure instead
+ * of the label.  However, due to some of the complexities associated with
+ * exposing this syncache structure we operate directly on it's label pointer.
+ * This should be OK since we aren't making any access control decisions within
+ * this code directly, we are merely allocating and copying label storage so
+ * we can properly initialize mbuf labels for any packets the syncache code
+ * might create.
+ */
+void
+mac_destroy_syncache(struct label **label)
+{
+
+	MAC_PERFORM(destroy_syncache_label, *label);
+	mac_labelzone_free(*label);
+	*label = NULL;
+}
+
+int
+mac_init_syncache(struct label **label)
+{
+	int error;
+
+	*label = mac_labelzone_alloc(M_NOWAIT);
+	if (*label == NULL)
+		return (ENOMEM);
+	/*
+	 * Since we are holding the inpcb locks the policy can not allocate
+	 * policy specific label storage using M_WAITOK.  So we need to do a
+	 * MAC_CHECK instead of the typical MAC_PERFORM so we can propagate
+	 * allocation failures back to the syncache code.
+	 */
+	MAC_CHECK(init_syncache_label, *label, M_NOWAIT);
+	return (error);
+}
+
+void
+mac_init_syncache_from_inpcb(struct label *label, struct inpcb *inp)
+{
+
+	INP_LOCK_ASSERT(inp);
+	MAC_PERFORM(init_syncache_from_inpcb, label, inp);
+}
+
+void
+mac_create_mbuf_from_syncache(struct label *sc_label, struct mbuf *m)
+{
+	struct label *mbuf_label;
+
+	M_ASSERTPKTHDR(m);
+	mbuf_label = mac_mbuf_to_label(m);
+	MAC_PERFORM(create_mbuf_from_syncache, sc_label, m, mbuf_label);
+}
