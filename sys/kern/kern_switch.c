@@ -342,40 +342,52 @@ adjustrunqueue( struct thread *td, int newpri)
 
 static void
 maybe_preempt_in_ksegrp(struct thread *td)
-#if  !defined(SMP)
+#if !defined(SMP)
 {
-	struct thread *running_thread;
+	struct thread *ctd;
+#ifdef PREEMPTION
+	int cpri, pri;
+#endif
 
 	mtx_assert(&sched_lock, MA_OWNED);
-	running_thread = curthread;
+	ctd = curthread;
 
-	if (running_thread->td_ksegrp != td->td_ksegrp)
-		return;
-
-	if (td->td_priority >= running_thread->td_priority)
-		return;
 #ifdef PREEMPTION
+	KASSERT ((ctd->td_kse != NULL && ctd->td_kse->ke_thread == ctd),
+	  ("thread has no (or wrong) sched-private part."));
+	KASSERT((td->td_inhibitors == 0),
+		("maybe_preempt: trying to run inhibitted thread"));
+	pri = td->td_priority;
+	cpri = ctd->td_priority;
+	if (panicstr != NULL || pri >= cpri || cold /* || dumping */ ||
+	    TD_IS_INHIBITED(ctd) || td->td_kse->ke_state != KES_THREAD)
+		return;
+	if (ctd->td_ksegrp != td->td_ksegrp)
+		return;
 #ifndef FULL_PREEMPTION
 	if (td->td_priority > PRI_MAX_ITHD) {
-		running_thread->td_flags |= TDF_NEEDRESCHED;
+		ctd->td_flags |= TDF_NEEDRESCHED;
 		return;
 	}
 #endif /* FULL_PREEMPTION */
 
-	if (running_thread->td_critnest > 1) 
-		running_thread->td_owepreempt = 1;
-	 else 		
-		 mi_switch(SW_INVOL, NULL);
+	if (ctd->td_critnest > 1) 
+		ctd->td_owepreempt = 1;
+	else 		
+		mi_switch(SW_INVOL, NULL);
 	
 #else /* PREEMPTION */
-	running_thread->td_flags |= TDF_NEEDRESCHED;
+	ctd->td_flags |= TDF_NEEDRESCHED;
 #endif /* PREEMPTION */
 	return;
 }
 
 #else /* SMP */
 {
-	struct thread *running_thread;
+	struct thread *ctd;
+#ifdef PREEMPTION
+	int cpri, pri;
+#endif
 	int worst_pri;
 	struct ksegrp *kg;
 	cpumask_t cpumask,dontuse;
@@ -384,11 +396,22 @@ maybe_preempt_in_ksegrp(struct thread *td)
 	struct thread *cputhread;
 
 	mtx_assert(&sched_lock, MA_OWNED);
+	ctd = curthread;
 
-	running_thread = curthread;
+#ifdef PREEMPTION
+	KASSERT((ctd->td_kse != NULL && ctd->td_kse->ke_thread == ctd),
+		("thread has no (or wrong) sched-private part."));
+	KASSERT((td->td_inhibitors == 0),
+		("maybe_preempt: trying to run inhibitted thread"));
+	pri = td->td_priority;
+	cpri = ctd->td_priority;
+	if (panicstr != NULL || pri >= cpri || cold /* || dumping */ ||
+	    TD_IS_INHIBITED(ctd) || td->td_kse->ke_state != KES_THREAD)
+		return;
+#endif
 
 #if !defined(KSEG_PEEMPT_BEST_CPU)
-	if (running_thread->td_ksegrp != td->td_ksegrp) {
+	if (ctd->td_ksegrp != td->td_ksegrp) {
 #endif
 		kg = td->td_ksegrp;
 
@@ -436,10 +459,10 @@ maybe_preempt_in_ksegrp(struct thread *td)
 #if !defined(FULL_PREEMPTION)
 		if (td->td_priority <= PRI_MAX_ITHD)
 #endif /* ! FULL_PREEMPTION */
-			{
-				ipi_selected(best_pcpu->pc_cpumask, IPI_PREEMPT);
-				return;
-			}
+		{
+			ipi_selected(best_pcpu->pc_cpumask, IPI_PREEMPT);
+			return;
+		}
 #endif /* defined(IPI_PREEMPTION) && defined(PREEMPTION) */
 
 		if (PCPU_GET(cpuid) != best_pcpu->pc_cpuid) {
@@ -448,26 +471,25 @@ maybe_preempt_in_ksegrp(struct thread *td)
 			return;
 		}
 #if !defined(KSEG_PEEMPT_BEST_CPU)
-	}	
+	}
 #endif
 
-	if (td->td_priority >= running_thread->td_priority)
+	if (td->td_priority >= ctd->td_priority)
 		return;
 #ifdef PREEMPTION
 
 #if !defined(FULL_PREEMPTION)
-	if (td->td_priority > PRI_MAX_ITHD) {
-		running_thread->td_flags |= TDF_NEEDRESCHED;
-	}
+	if (td->td_priority > PRI_MAX_ITHD)
+		ctd->td_flags |= TDF_NEEDRESCHED;
 #endif /* ! FULL_PREEMPTION */
 	
-	if (running_thread->td_critnest > 1) 
-		running_thread->td_owepreempt = 1;
-	 else 		
-		 mi_switch(SW_INVOL, NULL);
+	if (ctd->td_critnest > 1) 
+		ctd->td_owepreempt = 1;
+	else 		
+		mi_switch(SW_INVOL, NULL);
 	
 #else /* PREEMPTION */
-	running_thread->td_flags |= TDF_NEEDRESCHED;
+	ctd->td_flags |= TDF_NEEDRESCHED;
 #endif /* PREEMPTION */
 	return;
 }
