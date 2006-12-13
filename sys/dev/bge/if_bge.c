@@ -1359,7 +1359,7 @@ bge_blockinit(struct bge_softc *sc)
 	 * values are 1/8th the number of descriptors allocated to
 	 * each ring.
 	 */
-	if (sc->bge_flags & BGE_FLAG_5705_PLUS)
+	if (BGE_IS_5705_PLUS(sc))
 		val = 8;
 	else
 		val = BGE_STD_RX_RING_CNT / 8;
@@ -2201,7 +2201,7 @@ bge_attach(device_t dev)
 	}
 			
 #else
-	if (sc->bge_flags & BGE_FLAG_5705_PLUS) {
+	if (BGE_IS_5705_PLUS(sc)) {
 		reg = pci_read_config(dev, BGE_PCIE_CAPID_REG, 4);
 		if ((reg & 0xff) == BGE_PCIE_CAPID)
 			sc->bge_flags |= BGE_FLAG_PCIE;
@@ -2567,7 +2567,7 @@ bge_reset(struct bge_softc *sc)
 	 * Set GPHY Power Down Override to leave GPHY
 	 * powered up in D0 uninitialized.
 	 */
-	if (sc->bge_flags & BGE_FLAG_5705_PLUS)
+	if (BGE_IS_5705_PLUS(sc))
 		reset |= 0x04000000;
 
 	/* Issue global reset */
@@ -4099,10 +4099,14 @@ bge_sysctl_debug_info(SYSCTL_HANDLER_ARGS)
 		}
 
 		printf("Hardware Flags:\n");
-		if (sc->bge_flags & BGE_FLAG_575X_PLUS)
+		if (BGE_IS_575X_PLUS(sc))
 			printf(" - 575X Plus\n");
-		if (sc->bge_flags & BGE_FLAG_5705_PLUS)
+		if (BGE_IS_5705_PLUS(sc))
 			printf(" - 5705 Plus\n");
+		if (BGE_IS_5714_FAMILY(sc))
+			printf(" - 5714 Family\n");
+		if (BGE_IS_5700_FAMILY(sc))
+			printf(" - 5700 Family\n");
 		if (sc->bge_flags & BGE_FLAG_JUMBO)
 			printf(" - Supports Jumbo Frames\n");
 		if (sc->bge_flags & BGE_FLAG_PCIX)
