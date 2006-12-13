@@ -2557,7 +2557,7 @@ AC_LIBTOOL_PROG_LD_HARDCODE_LIBPATH($1)
 AC_LIBTOOL_SYS_LIB_STRIP
 AC_LIBTOOL_DLOPEN_SELF($1)
 
-# Report which librarie types wil actually be built
+# Report which libraries types will actually be built
 AC_MSG_CHECKING([if libtool supports shared libraries])
 AC_MSG_RESULT([$can_build_shared])
 

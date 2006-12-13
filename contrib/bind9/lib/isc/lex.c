@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2004  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004, 2006  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 1998-2003  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and distribute this software for any
@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: lex.c,v 1.66.2.6.2.8 2004/08/28 06:25:21 marka Exp $ */
+/* $Id: lex.c,v 1.66.2.6.2.10 2006/01/04 23:50:21 marka Exp $ */
 
 #include <config.h>
 
@@ -372,9 +372,6 @@ isc_lex_gettoken(isc_lex_t *lex, unsigned int options, isc_token_t *tokenp) {
 	source = HEAD(lex->sources);
 	REQUIRE(tokenp != NULL);
 
-	lex->saved_paren_count = lex->paren_count;
-	source->saved_line = source->line;
-
 	if (source == NULL) {
 		if ((options & ISC_LEXOPT_NOMORE) != 0) {
 			tokenp->type = isc_tokentype_nomore;
@@ -385,6 +382,9 @@ isc_lex_gettoken(isc_lex_t *lex, unsigned int options, isc_token_t *tokenp) {
 
 	if (source->result != ISC_R_SUCCESS)
 		return (source->result);
+
+	lex->saved_paren_count = lex->paren_count;
+	source->saved_line = source->line;
 
 	if (isc_buffer_remaininglength(source->pushback) == 0 &&
 	    source->at_eof)
@@ -633,9 +633,13 @@ isc_lex_gettoken(isc_lex_t *lex, unsigned int options, isc_token_t *tokenp) {
 			remaining--;
 			break;
 		case lexstate_string:
-			if ((!escaped &&
-			     (c == ' ' || c == '\t' || lex->specials[c])) ||
-			    c == '\r' || c == '\n' || c == EOF) {
+			/*
+			 * EOF needs to be checked before lex->specials[c]
+			 * as lex->specials[EOF] is not a good idea.
+			 */
+			if (c == '\r' || c == '\n' || c == EOF ||
+			    (!escaped &&
+			     (c == ' ' || c == '\t' || lex->specials[c]))) {
 				pushback(source, c);
 				if (source->result != ISC_R_SUCCESS) {
 					result = source->result;

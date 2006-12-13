@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2004, 2005  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004-2006  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 1999-2002  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and distribute this software for any
@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: named-checkconf.c,v 1.12.12.9 2005/03/03 06:33:38 marka Exp $ */
+/* $Id: named-checkconf.c,v 1.12.12.11 2006/03/02 00:37:20 marka Exp $ */
 
 #include <config.h>
 
@@ -60,9 +60,9 @@ usage(void) {
 }
 
 static isc_result_t
-directory_callback(const char *clausename, cfg_obj_t *obj, void *arg) {
+directory_callback(const char *clausename, const cfg_obj_t *obj, void *arg) {
 	isc_result_t result;
-	char *directory;
+	const char *directory;
 
 	REQUIRE(strcasecmp("directory", clausename) == 0);
 
@@ -85,18 +85,18 @@ directory_callback(const char *clausename, cfg_obj_t *obj, void *arg) {
 }
 
 static isc_result_t
-configure_zone(const char *vclass, const char *view, cfg_obj_t *zconfig,
-	       isc_mem_t *mctx)
+configure_zone(const char *vclass, const char *view,
+	       const cfg_obj_t *zconfig, isc_mem_t *mctx)
 {
 	isc_result_t result;
 	const char *zclass;
 	const char *zname;
 	const char *zfile;
-	cfg_obj_t *zoptions = NULL;
-	cfg_obj_t *classobj = NULL;
-	cfg_obj_t *typeobj = NULL;
-	cfg_obj_t *fileobj = NULL;
-	cfg_obj_t *dbobj = NULL;
+	const cfg_obj_t *zoptions = NULL;
+	const cfg_obj_t *classobj = NULL;
+	const cfg_obj_t *typeobj = NULL;
+	const cfg_obj_t *fileobj = NULL;
+	const cfg_obj_t *dbobj = NULL;
 
 	zname = cfg_obj_asstring(cfg_tuple_get(zconfig, "name"));
 	classobj = cfg_tuple_get(zconfig, "class");
@@ -125,12 +125,12 @@ configure_zone(const char *vclass, const char *view, cfg_obj_t *zconfig,
 }
 
 static isc_result_t
-configure_view(const char *vclass, const char *view, cfg_obj_t *config,
-	       cfg_obj_t *vconfig, isc_mem_t *mctx)
+configure_view(const char *vclass, const char *view, const cfg_obj_t *config,
+	       const cfg_obj_t *vconfig, isc_mem_t *mctx)
 {
-	cfg_listelt_t *element;
-	cfg_obj_t *voptions;
-	cfg_obj_t *zonelist;
+	const cfg_listelt_t *element;
+	const cfg_obj_t *voptions;
+	const cfg_obj_t *zonelist;
 	isc_result_t result = ISC_R_SUCCESS;
 	isc_result_t tresult;
 
@@ -148,7 +148,7 @@ configure_view(const char *vclass, const char *view, cfg_obj_t *config,
 	     element != NULL;
 	     element = cfg_list_next(element))
 	{
-		cfg_obj_t *zconfig = cfg_listelt_value(element);
+		const cfg_obj_t *zconfig = cfg_listelt_value(element);
 		tresult = configure_zone(vclass, view, zconfig, mctx);
 		if (tresult != ISC_R_SUCCESS)
 			result = tresult;
@@ -158,11 +158,11 @@ configure_view(const char *vclass, const char *view, cfg_obj_t *config,
 
 
 static isc_result_t
-load_zones_fromconfig(cfg_obj_t *config, isc_mem_t *mctx) {
-	cfg_listelt_t *element;
-	cfg_obj_t *classobj;
-	cfg_obj_t *views;
-	cfg_obj_t *vconfig;
+load_zones_fromconfig(const cfg_obj_t *config, isc_mem_t *mctx) {
+	const cfg_listelt_t *element;
+	const cfg_obj_t *classobj;
+	const cfg_obj_t *views;
+	const cfg_obj_t *vconfig;
 	const char *vclass;
 	isc_result_t result = ISC_R_SUCCESS;
 	isc_result_t tresult;

@@ -149,6 +149,19 @@ int sigwait(const unsigned int *set, int *sig);
 /* Define if threads need PTHREAD_SCOPE_SYSTEM */
 /* #undef NEED_PTHREAD_SCOPE_SYSTEM */
 
+/* Define if recvmsg() does not meet all of the BSD socket API specifications.
+   */
+/* #undef BROKEN_RECVMSG */
+
+/* Define if you cannot bind() before connect() for TCP sockets. */
+/* #undef BROKEN_TCP_BIND_BEFORE_CONNECT */
+
+/* Define if libcrypto has DH_generate_parameters */
+#define HAVE_DH_GENERATE_PARAMETERS 1
+
+/* Define if libcrypto has DSA_generate_parameters */
+#define HAVE_DSA_GENERATE_PARAMETERS 1
+
 /* Define to 1 if you have the <fcntl.h> header file. */
 #define HAVE_FCNTL_H 1
 
@@ -173,6 +186,9 @@ int sigwait(const unsigned int *set, int *sig);
 /* Define to 1 if you have the `socket' library (-lsocket). */
 /* #undef HAVE_LIBSOCKET */
 
+/* Define to 1 if you have the `thr' library (-lthr). */
+/* #undef HAVE_LIBTHR */
+
 /* Define to 1 if you have the <linux/capability.h> header file. */
 /* #undef HAVE_LINUX_CAPABILITY_H */
 
@@ -181,6 +197,9 @@ int sigwait(const unsigned int *set, int *sig);
 
 /* Define to 1 if you have the <net/if6.h> header file. */
 /* #undef HAVE_NET_IF6_H */
+
+/* Define if libcrypto has RSA_generate_key */
+#define HAVE_RSA_GENERATE_KEY 1
 
 /* Define to 1 if you have the <stdint.h> header file. */
 #define HAVE_STDINT_H 1
@@ -263,9 +282,11 @@ int sigwait(const unsigned int *set, int *sig);
 /* Define to empty if `const' does not conform to ANSI C. */
 /* #undef const */
 
-/* Define as `__inline' if that's what the C compiler calls it, or to nothing
-   if it is not supported. */
+/* Define to `__inline__' or `__inline' if that's what the C compiler
+   calls it, or to nothing if 'inline' is not supported under any name.  */
+#ifndef __cplusplus
 /* #undef inline */
+#endif
 
 /* Define to `unsigned' if <sys/types.h> does not define. */
 /* #undef size_t */

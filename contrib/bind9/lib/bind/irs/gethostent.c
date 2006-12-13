@@ -16,7 +16,7 @@
  */
 
 #if !defined(LINT) && !defined(CODECENTER)
-static const char rcsid[] = "$Id: gethostent.c,v 1.1.2.2.4.2 2004/03/17 01:49:40 marka Exp $";
+static const char rcsid[] = "$Id: gethostent.c,v 1.1.2.2.4.3 2006/01/10 05:09:16 marka Exp $";
 #endif
 
 /* Imports */
@@ -608,7 +608,7 @@ scan_interfaces6(int *have_v4, int *have_v6) {
 }
 #endif
 
-#ifdef __linux
+#if ( defined(__linux__) || defined(__linux) || defined(LINUX) )
 #ifndef IF_NAMESIZE
 # ifdef IFNAMSIZ
 #  define IF_NAMESIZE  IFNAMSIZ

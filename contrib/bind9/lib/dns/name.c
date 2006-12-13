@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2004, 2005  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004-2006  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 1998-2003  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and distribute this software for any
@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: name.c,v 1.127.2.7.2.14 2005/10/14 01:38:48 marka Exp $ */
+/* $Id: name.c,v 1.127.2.7.2.16 2006/03/02 00:37:20 marka Exp $ */
 
 #include <config.h>
 
@@ -856,7 +856,7 @@ dns_name_getlabelsequence(const dns_name_t *source,
 }
 
 void
-dns_name_clone(dns_name_t *source, dns_name_t *target) {
+dns_name_clone(const dns_name_t *source, dns_name_t *target) {
 
 	/*
 	 * Make 'target' refer to the same name as 'source'.
@@ -1748,7 +1748,9 @@ dns_name_fromwire(dns_name_t *name, isc_buffer_t *source,
 }
 
 isc_result_t
-dns_name_towire(dns_name_t *name, dns_compress_t *cctx, isc_buffer_t *target) {
+dns_name_towire(const dns_name_t *name, dns_compress_t *cctx,
+		isc_buffer_t *target)
+{
 	unsigned int methods;
 	isc_uint16_t offset;
 	dns_name_t gp;	/* Global compression prefix */
@@ -1962,7 +1964,9 @@ dns_name_split(dns_name_t *name, unsigned int suffixlabels,
 }
 
 isc_result_t
-dns_name_dup(dns_name_t *source, isc_mem_t *mctx, dns_name_t *target) {
+dns_name_dup(const dns_name_t *source, isc_mem_t *mctx,
+	     dns_name_t *target)
+{
 	/*
 	 * Make 'target' a dynamically allocated copy of 'source'.
 	 */

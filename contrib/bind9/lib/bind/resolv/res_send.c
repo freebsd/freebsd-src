@@ -70,7 +70,7 @@
 
 #if defined(LIBC_SCCS) && !defined(lint)
 static const char sccsid[] = "@(#)res_send.c	8.1 (Berkeley) 6/4/93";
-static const char rcsid[] = "$Id: res_send.c,v 1.5.2.2.4.7 2005/08/15 02:04:41 marka Exp $";
+static const char rcsid[] = "$Id: res_send.c,v 1.5.2.2.4.9 2006/10/16 23:00:50 marka Exp $";
 #endif /* LIBC_SCCS and not lint */
 
 /*
@@ -130,7 +130,7 @@ static struct sockaddr * get_nsaddr __P((res_state, size_t));
 static int		send_vc(res_state, const u_char *, int,
 				u_char *, int, int *, int);
 static int		send_dg(res_state, const u_char *, int,
-				u_char *, int, int *, int,
+				u_char *, int, int *, int, int,
 				int *, int *);
 static void		Aerror(const res_state, FILE *, const char *, int,
 			       const struct sockaddr *, int);
@@ -295,7 +295,8 @@ res_nsend(res_state statp,
 	highestFD = sysconf(_SC_OPEN_MAX) - 1;
 #endif
 
-	if (statp->nscount == 0) {
+	/* No name servers or res_init() failure */
+	if (statp->nscount == 0 || EXT(statp).ext == NULL) {
 		errno = ESRCH;
 		return (-1);
 	}
@@ -458,7 +459,7 @@ res_nsend(res_state statp,
 		} else {
 			/* Use datagrams. */
 			n = send_dg(statp, buf, buflen, ans, anssiz, &terrno,
-				    ns, &v_circuit, &gotsomewhere);
+				    ns, try, &v_circuit, &gotsomewhere);
 			if (n < 0)
 				goto fail;
 			if (n == 0)
@@ -766,9 +767,9 @@ send_vc(res_state statp,
 }
 
 static int
-send_dg(res_state statp,
-	const u_char *buf, int buflen, u_char *ans, int anssiz,
-	int *terrno, int ns, int *v_circuit, int *gotsomewhere)
+send_dg(res_state statp, const u_char *buf, int buflen, u_char *ans,
+	int anssiz, int *terrno, int ns, int try, int *v_circuit,
+	int *gotsomewhere)
 {
 	const HEADER *hp = (const HEADER *) buf;
 	HEADER *anhp = (HEADER *) ans;
@@ -849,7 +850,7 @@ send_dg(res_state statp,
 	/*
 	 * Wait for reply.
 	 */
-	seconds = (statp->retrans << ns);
+	seconds = (statp->retrans << try);
 	if (ns > 0)
 		seconds /= statp->nscount;
 	if (seconds <= 0)

@@ -13,14 +13,17 @@
 .\" OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
 .\" PERFORMANCE OF THIS SOFTWARE.
 .\"
-.\" $Id: lwres_getnameinfo.3,v 1.15.2.1.8.5 2005/10/13 02:33:53 marka Exp $
+.\" $Id: lwres_getnameinfo.3,v 1.15.2.1.8.6 2006/06/29 13:02:31 marka Exp $
 .\"
 .hy 0
 .ad l
-.\" ** You probably do not want to edit this file directly **
-.\" It was generated using the DocBook XSL Stylesheets (version 1.69.1).
-.\" Instead of manually editing it, you probably should edit the DocBook XML
-.\" source for it and then use the DocBook XSL Stylesheets to regenerate it.
+.\"     Title: lwres_getnameinfo
+.\"    Author: 
+.\" Generator: DocBook XSL Stylesheets v1.70.1 <http://docbook.sf.net/>
+.\"      Date: Jun 30, 2000
+.\"    Manual: BIND9
+.\"    Source: BIND9
+.\"
 .TH "LWRES_GETNAMEINFO" "3" "Jun 30, 2000" "BIND9" "BIND9"
 .\" disable hyphenation
 .nh
@@ -33,7 +36,7 @@ lwres_getnameinfo \- lightweight resolver socket address structure to hostname a
 #include <lwres/netdb.h>
 .fi
 .HP 22
-\fBint\ \fBlwres_getnameinfo\fR\fR\fB(\fR\fBconst\ struct\ sockaddr\ *sa\fR\fB, \fR\fBsize_t\ salen\fR\fB, \fR\fBchar\ *host\fR\fB, \fR\fBsize_t\ hostlen\fR\fB, \fR\fBchar\ *serv\fR\fB, \fR\fBsize_t\ servlen\fR\fB, \fR\fBint\ flags\fR\fB);\fR
+.BI "int lwres_getnameinfo(const\ struct\ sockaddr\ *sa, size_t\ salen, char\ *host, size_t\ hostlen, char\ *serv, size_t\ servlen, int\ flags);"
 .SH "DESCRIPTION"
 .PP
 This function is equivalent to the
@@ -41,7 +44,8 @@ This function is equivalent to the
 function defined in RFC2133.
 \fBlwres_getnameinfo()\fR
 returns the hostname for the
-\fBstruct sockaddr\fR\fIsa\fR
+\fBstruct sockaddr\fR
+\fIsa\fR
 which is
 \fIsalen\fR
 bytes long. The hostname is of length
@@ -64,19 +68,19 @@ bytes long. The maximum length of the service name is
 The
 \fIflags\fR
 argument sets the following bits:
-.TP
+.TP 3n
 \fBNI_NOFQDN\fR
 A fully qualified domain name is not required for local hosts. The local part of the fully qualified domain name is returned instead.
-.TP
+.TP 3n
 \fBNI_NUMERICHOST\fR
 Return the address in numeric form, as if calling inet_ntop(), instead of a host name.
-.TP
+.TP 3n
 \fBNI_NAMEREQD\fR
 A name is required. If the hostname cannot be found in the DNS and this flag is set, a non\-zero error code is returned. If the hostname is not found and the flag is not set, the address is returned in numeric form.
-.TP
+.TP 3n
 \fBNI_NUMERICSERV\fR
 The service name is returned as a digit string representing the port number.
-.TP
+.TP 3n
 \fBNI_DGRAM\fR
 Specifies that the service being looked up is a datagram service, and causes getservbyport() to be called with a second argument of "udp" instead of its default of "tcp". This is required for the few ports (512\-514) that have different services for UDP and TCP.
 .SH "RETURN VALUES"
@@ -96,3 +100,5 @@ returns 0 on success or a non\-zero error code if an error occurs.
 RFC2133 fails to define what the nonzero return values of
 \fBgetnameinfo\fR(3)
 are.
+.SH "COPYRIGHT"
+Copyright \(co 2004, 2005 Internet Systems Consortium, Inc. ("ISC")
