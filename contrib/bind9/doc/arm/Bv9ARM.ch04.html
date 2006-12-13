@@ -1,5 +1,5 @@
 <!--
- - Copyright (C) 2004, 2005 Internet Systems Consortium, Inc. ("ISC")
+ - Copyright (C) 2004-2006 Internet Systems Consortium, Inc. ("ISC")
  - Copyright (C) 2000-2003 Internet Software Consortium.
  - 
  - Permission to use, copy, modify, and distribute this software for any
@@ -14,12 +14,12 @@
  - OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
  - PERFORMANCE OF THIS SOFTWARE.
 -->
-<!-- $Id: Bv9ARM.ch04.html,v 1.30.2.6.2.14 2005/10/13 02:33:59 marka Exp $ -->
+<!-- $Id: Bv9ARM.ch04.html,v 1.30.2.6.2.24 2006/11/15 04:33:41 marka Exp $ -->
 <html>
 <head>
 <meta http-equiv="Content-Type" content="text/html; charset=ISO-8859-1">
 <title>Chapter 4. Advanced DNS Features</title>
-<meta name="generator" content="DocBook XSL Stylesheets V1.69.1">
+<meta name="generator" content="DocBook XSL Stylesheets V1.70.1">
 <link rel="start" href="Bv9ARM.html" title="BIND 9 Administrator Reference Manual">
 <link rel="up" href="Bv9ARM.html" title="BIND 9 Administrator Reference Manual">
 <link rel="prev" href="Bv9ARM.ch03.html" title="Chapter 3. Name Server Configuration">
@@ -49,40 +49,40 @@
 <dt><span class="sect1"><a href="Bv9ARM.ch04.html#dynamic_update">Dynamic Update</a></span></dt>
 <dd><dl><dt><span class="sect2"><a href="Bv9ARM.ch04.html#journal">The journal file</a></span></dt></dl></dd>
 <dt><span class="sect1"><a href="Bv9ARM.ch04.html#incremental_zone_transfers">Incremental Zone Transfers (IXFR)</a></span></dt>
-<dt><span class="sect1"><a href="Bv9ARM.ch04.html#id2549203">Split DNS</a></span></dt>
+<dt><span class="sect1"><a href="Bv9ARM.ch04.html#id2573147">Split DNS</a></span></dt>
 <dt><span class="sect1"><a href="Bv9ARM.ch04.html#tsig">TSIG</a></span></dt>
 <dd><dl>
-<dt><span class="sect2"><a href="Bv9ARM.ch04.html#id2549627">Generate Shared Keys for Each Pair of Hosts</a></span></dt>
-<dt><span class="sect2"><a href="Bv9ARM.ch04.html#id2549830">Copying the Shared Secret to Both Machines</a></span></dt>
-<dt><span class="sect2"><a href="Bv9ARM.ch04.html#id2549838">Informing the Servers of the Key's Existence</a></span></dt>
-<dt><span class="sect2"><a href="Bv9ARM.ch04.html#id2549878">Instructing the Server to Use the Key</a></span></dt>
-<dt><span class="sect2"><a href="Bv9ARM.ch04.html#id2549998">TSIG Key Based Access Control</a></span></dt>
-<dt><span class="sect2"><a href="Bv9ARM.ch04.html#id2550042">Errors</a></span></dt>
+<dt><span class="sect2"><a href="Bv9ARM.ch04.html#id2573709">Generate Shared Keys for Each Pair of Hosts</a></span></dt>
+<dt><span class="sect2"><a href="Bv9ARM.ch04.html#id2573776">Copying the Shared Secret to Both Machines</a></span></dt>
+<dt><span class="sect2"><a href="Bv9ARM.ch04.html#id2573784">Informing the Servers of the Key's Existence</a></span></dt>
+<dt><span class="sect2"><a href="Bv9ARM.ch04.html#id2573824">Instructing the Server to Use the Key</a></span></dt>
+<dt><span class="sect2"><a href="Bv9ARM.ch04.html#id2573876">TSIG Key Based Access Control</a></span></dt>
+<dt><span class="sect2"><a href="Bv9ARM.ch04.html#id2573920">Errors</a></span></dt>
 </dl></dd>
-<dt><span class="sect1"><a href="Bv9ARM.ch04.html#id2550056">TKEY</a></span></dt>
-<dt><span class="sect1"><a href="Bv9ARM.ch04.html#id2550173">SIG(0)</a></span></dt>
+<dt><span class="sect1"><a href="Bv9ARM.ch04.html#id2573933">TKEY</a></span></dt>
+<dt><span class="sect1"><a href="Bv9ARM.ch04.html#id2573982">SIG(0)</a></span></dt>
 <dt><span class="sect1"><a href="Bv9ARM.ch04.html#DNSSEC">DNSSEC</a></span></dt>
 <dd><dl>
-<dt><span class="sect2"><a href="Bv9ARM.ch04.html#id2550308">Generating Keys</a></span></dt>
-<dt><span class="sect2"><a href="Bv9ARM.ch04.html#id2550375">Signing the Zone</a></span></dt>
-<dt><span class="sect2"><a href="Bv9ARM.ch04.html#id2550450">Configuring Servers</a></span></dt>
+<dt><span class="sect2"><a href="Bv9ARM.ch04.html#id2574049">Generating Keys</a></span></dt>
+<dt><span class="sect2"><a href="Bv9ARM.ch04.html#id2574116">Signing the Zone</a></span></dt>
+<dt><span class="sect2"><a href="Bv9ARM.ch04.html#id2574259">Configuring Servers</a></span></dt>
 </dl></dd>
-<dt><span class="sect1"><a href="Bv9ARM.ch04.html#id2550473">IPv6 Support in <span class="acronym">BIND</span> 9</a></span></dt>
+<dt><span class="sect1"><a href="Bv9ARM.ch04.html#id2574396">IPv6 Support in <acronym class="acronym">BIND</acronym> 9</a></span></dt>
 <dd><dl>
-<dt><span class="sect2"><a href="Bv9ARM.ch04.html#id2550600">Address Lookups Using AAAA Records</a></span></dt>
-<dt><span class="sect2"><a href="Bv9ARM.ch04.html#id2550620">Address to Name Lookups Using Nibble Format</a></span></dt>
+<dt><span class="sect2"><a href="Bv9ARM.ch04.html#id2574455">Address Lookups Using AAAA Records</a></span></dt>
+<dt><span class="sect2"><a href="Bv9ARM.ch04.html#id2574475">Address to Name Lookups Using Nibble Format</a></span></dt>
 </dl></dd>
 </dl>
 </div>
 <div class="sect1" lang="en">
 <div class="titlepage"><div><div><h2 class="title" style="clear: both">
 <a name="notify"></a>Notify</h2></div></div></div>
-<p><span class="acronym">DNS</span> NOTIFY is a mechanism that allows master
+<p><acronym class="acronym">DNS</acronym> NOTIFY is a mechanism that allows master
 servers to notify their slave servers of changes to a zone's data. In
 response to a <span><strong class="command">NOTIFY</strong></span> from a master server, the
 slave will check to see that its version of the zone is the
 current version and, if not, initiate a zone transfer.</p>
-<p><span class="acronym">DNS</span>
+<p><acronym class="acronym">DNS</acronym>
 For more information about
 <span><strong class="command">NOTIFY</strong></span>, see the description of the
 <span><strong class="command">notify</strong></span> option in <a href="Bv9ARM.ch06.html#boolean_options" title="Boolean Options">the section called &#8220;Boolean Options&#8221;</a> and
@@ -130,7 +130,7 @@ protocol is specified in RFC 1996.
     journalled in a similar way.</p>
 <p>The zone files of dynamic zones cannot normally be edited by
     hand because they are not guaranteed to contain the most recent
-    dynamic changes - those are only in the journal file.
+    dynamic changes &#8212; those are only in the journal file.
     The only way to ensure that the zone file of a dynamic zone
     is up to date is to run <span><strong class="command">rndc stop</strong></span>.</p>
 <p>If you have to make changes to a dynamic zone
@@ -139,7 +139,7 @@ protocol is specified in RFC 1996.
     <span><strong class="command">rndc freeze <em class="replaceable"><code>zone</code></em></strong></span>.
     This will also remove the zone's <code class="filename">.jnl</code> file
     and update the master file.  Edit the zone file.  Run
-    <span><strong class="command">rndc unfreeze <em class="replaceable"><code>zone</code></em></strong></span>
+    <span><strong class="command">rndc thaw <em class="replaceable"><code>zone</code></em></strong></span>
     to reload the changed zone and re-enable dynamic updates.</p>
 </div>
 </div>
@@ -150,7 +150,7 @@ protocol is specified in RFC 1996.
 slave servers to transfer only changed data, instead of having to
 transfer the entire zone. The IXFR protocol is specified in RFC
 1995. See <a href="Bv9ARM.ch09.html#proposed_standards">Proposed Standards</a>.</p>
-<p>When acting as a master, <span class="acronym">BIND</span> 9
+<p>When acting as a master, <acronym class="acronym">BIND</acronym> 9
 supports IXFR for those zones
 where the necessary change history information is available. These
 include master zones maintained by dynamic update and slave zones
@@ -160,7 +160,7 @@ transfer (AXFR), IXFR is supported only if the option
 <span><strong class="command">ixfr-from-differences</strong></span> is set
 to <strong class="userinput"><code>yes</code></strong>.
 </p>
-<p>When acting as a slave, <span class="acronym">BIND</span> 9 will 
+<p>When acting as a slave, <acronym class="acronym">BIND</acronym> 9 will 
 attempt to use IXFR unless
 it is explicitly disabled. For more information about disabling
 IXFR, see the description of the <span><strong class="command">request-ixfr</strong></span> clause
@@ -168,7 +168,7 @@ of the <span><strong class="command">server</strong></span> statement.</p>
 </div>
 <div class="sect1" lang="en">
 <div class="titlepage"><div><div><h2 class="title" style="clear: both">
-<a name="id2549203"></a>Split DNS</h2></div></div></div>
+<a name="id2573147"></a>Split DNS</h2></div></div></div>
 <p>Setting up different views, or visibility, of the DNS space to
 internal and external resolvers is usually referred to as a <span class="emphasis"><em>Split
 DNS</em></span> setup. There are several reasons an organization
@@ -243,7 +243,7 @@ internal clients will now be able to:</p>
 <li>Look up any hostnames in the <code class="literal">site1.internal</code> and 
 <code class="literal">site2.internal</code> domains.</li>
 <li>Look up any hostnames on the Internet.</li>
-<li>Exchange mail with internal AND external people.</li>
+<li>Exchange mail with both internal AND external people.</li>
 </ul></div>
 <p>Hosts on the Internet will be able to:</p>
 <div class="itemizedlist"><ul type="disc">
@@ -254,7 +254,7 @@ internal clients will now be able to:</p>
 </ul></div>
 <p>Here is an example configuration for the setup we just
     described above. Note that this is only configuration information;
-    for information on how to configure your zone files, see <a href="Bv9ARM.ch03.html#sample_configuration" title="Sample Configurations">the section called &#8220;Sample Configurations&#8221;</a></p>
+    for information on how to configure your zone files, see <a href="Bv9ARM.ch03.html#sample_configuration" title="Sample Configurations">the section called &#8220;Sample Configurations&#8221;</a>.</p>
 <p>Internal DNS server config:</p>
 <pre class="programlisting">
 
@@ -355,13 +355,13 @@ nameserver 172.16.72.4
 <div class="titlepage"><div><div><h2 class="title" style="clear: both">
 <a name="tsig"></a>TSIG</h2></div></div></div>
 <p>This is a short guide to setting up Transaction SIGnatures
-(TSIG) based transaction security in <span class="acronym">BIND</span>. It describes changes
+(TSIG) based transaction security in <acronym class="acronym">BIND</acronym>. It describes changes
 to the configuration file as well as what changes are required for
 different features, including the process of creating transaction
-keys and using transaction signatures with <span class="acronym">BIND</span>.</p>
-<p><span class="acronym">BIND</span> primarily supports TSIG for server to server communication.
+keys and using transaction signatures with <acronym class="acronym">BIND</acronym>.</p>
+<p><acronym class="acronym">BIND</acronym> primarily supports TSIG for server to server communication.
 This includes zone transfer, notify, and recursive query messages.
-Resolvers based on newer versions of <span class="acronym">BIND</span> 8 have limited support
+Resolvers based on newer versions of <acronym class="acronym">BIND</acronym> 8 have limited support
 for TSIG.</p>
 <p>TSIG might be most useful for dynamic update. A primary
     server for a dynamic zone should use access control to control
@@ -372,18 +372,18 @@ for TSIG.</p>
     <code class="option">-y</code> command line options.</p>
 <div class="sect2" lang="en">
 <div class="titlepage"><div><div><h3 class="title">
-<a name="id2549627"></a>Generate Shared Keys for Each Pair of Hosts</h3></div></div></div>
+<a name="id2573709"></a>Generate Shared Keys for Each Pair of Hosts</h3></div></div></div>
 <p>A shared secret is generated to be shared between <span class="emphasis"><em>host1</em></span> and <span class="emphasis"><em>host2</em></span>.
 An arbitrary key name is chosen: "host1-host2.". The key name must
 be the same on both hosts.</p>
 <div class="sect3" lang="en">
 <div class="titlepage"><div><div><h4 class="title">
-<a name="id2549643"></a>Automatic Generation</h4></div></div></div>
-<p>The following command will generate a 128 bit (16 byte) HMAC-MD5
+<a name="id2573725"></a>Automatic Generation</h4></div></div></div>
+<p>The following command will generate a 128-bit (16 byte) HMAC-MD5
 key as described above. Longer keys are better, but shorter keys
 are easier to read. Note that the maximum key length is 512 bits;
-keys longer than that will be digested with MD5 to produce a 128
-bit key.</p>
+keys longer than that will be digested with MD5 to produce a
+128-bit key.</p>
 <p><strong class="userinput"><code>dnssec-keygen -a hmac-md5 -b 128 -n HOST host1-host2.</code></strong></p>
 <p>The key is in the file <code class="filename">Khost1-host2.+157+00000.private</code>.
 Nothing directly uses this file, but the base-64 encoded string
@@ -395,7 +395,7 @@ be used as the shared secret.</p>
 </div>
 <div class="sect3" lang="en">
 <div class="titlepage"><div><div><h4 class="title">
-<a name="id2549677"></a>Manual Generation</h4></div></div></div>
+<a name="id2573760"></a>Manual Generation</h4></div></div></div>
 <p>The shared secret is simply a random sequence of bits, encoded
 in base-64. Most ASCII strings are valid base-64 strings (assuming
 the length is a multiple of 4 and only valid characters are used),
@@ -406,13 +406,13 @@ a similar program to generate base-64 encoded data.</p>
 </div>
 <div class="sect2" lang="en">
 <div class="titlepage"><div><div><h3 class="title">
-<a name="id2549830"></a>Copying the Shared Secret to Both Machines</h3></div></div></div>
+<a name="id2573776"></a>Copying the Shared Secret to Both Machines</h3></div></div></div>
 <p>This is beyond the scope of DNS. A secure transport mechanism
 should be used. This could be secure FTP, ssh, telephone, etc.</p>
 </div>
 <div class="sect2" lang="en">
 <div class="titlepage"><div><div><h3 class="title">
-<a name="id2549838"></a>Informing the Servers of the Key's Existence</h3></div></div></div>
+<a name="id2573784"></a>Informing the Servers of the Key's Existence</h3></div></div></div>
 <p>Imagine <span class="emphasis"><em>host1</em></span> and <span class="emphasis"><em>host 2</em></span> are
 both servers. The following is added to each server's <code class="filename">named.conf</code> file:</p>
 <pre class="programlisting">
@@ -421,7 +421,7 @@ key host1-host2. {
   secret "La/E5CjG9O+os1jq0a2jdA==";
 };
 </pre>
-<p>The algorithm, hmac-md5, is the only one supported by <span class="acronym">BIND</span>.
+<p>The algorithm, hmac-md5, is the only one supported by <acronym class="acronym">BIND</acronym>.
 The secret is the one generated above. Since this is a secret, it
 is recommended that either <code class="filename">named.conf</code> be non-world
 readable, or the key directive be added to a non-world readable
@@ -433,7 +433,7 @@ response is signed by the same key.</p>
 </div>
 <div class="sect2" lang="en">
 <div class="titlepage"><div><div><h3 class="title">
-<a name="id2549878"></a>Instructing the Server to Use the Key</h3></div></div></div>
+<a name="id2573824"></a>Instructing the Server to Use the Key</h3></div></div></div>
 <p>Since keys are shared between two hosts only, the server must
 be told when keys are to be used. The following is added to the <code class="filename">named.conf</code> file
 for <span class="emphasis"><em>host1</em></span>, if the IP address of <span class="emphasis"><em>host2</em></span> is
@@ -456,8 +456,8 @@ sign request messages to <span class="emphasis"><em>host1</em></span>.</p>
 </div>
 <div class="sect2" lang="en">
 <div class="titlepage"><div><div><h3 class="title">
-<a name="id2549998"></a>TSIG Key Based Access Control</h3></div></div></div>
-<p><span class="acronym">BIND</span> allows IP addresses and ranges to be specified in ACL
+<a name="id2573876"></a>TSIG Key Based Access Control</h3></div></div></div>
+<p><acronym class="acronym">BIND</acronym> allows IP addresses and ranges to be specified in ACL
 definitions and
 <span><strong class="command">allow-{ query | transfer | update }</strong></span> directives.
 This has been extended to allow TSIG keys also. The above key would
@@ -474,13 +474,14 @@ allow-update { key host1-host2. ;};
 </div>
 <div class="sect2" lang="en">
 <div class="titlepage"><div><div><h3 class="title">
-<a name="id2550042"></a>Errors</h3></div></div></div>
+<a name="id2573920"></a>Errors</h3></div></div></div>
 <p>The processing of TSIG signed messages can result in
-      several errors. If a signed message is sent to a non-TSIG aware
-      server, a FORMERR will be returned, since the server will not
-      understand the record. This is a result of misconfiguration,
-      since the server must be explicitly configured to send a TSIG
-      signed message to a specific server.</p>
+      several errors. If a signed message is sent to a non-TSIG
+      aware server, a FORMERR (format error) will be returned, since
+      the server will not understand the record. This is a result
+      of misconfiguration, since the server must be explicitly
+      configured to send a TSIG signed message to a specific
+      server.</p>
 <p>If a TSIG aware server receives a message signed by an
       unknown key, the response will be unsigned with the TSIG
       extended error code set to BADKEY. If a TSIG aware server
@@ -491,16 +492,16 @@ allow-update { key host1-host2. ;};
       the TSIG extended error code set to BADTIME, and the time values
       will be adjusted so that the response can be successfully
       verified. In any of these cases, the message's rcode is set to
-      NOTAUTH.</p>
+      NOTAUTH (not authenticated).</p>
 </div>
 </div>
 <div class="sect1" lang="en">
 <div class="titlepage"><div><div><h2 class="title" style="clear: both">
-<a name="id2550056"></a>TKEY</h2></div></div></div>
+<a name="id2573933"></a>TKEY</h2></div></div></div>
 <p><span><strong class="command">TKEY</strong></span> is a mechanism for automatically
     generating a shared secret between two hosts.  There are several
     "modes" of <span><strong class="command">TKEY</strong></span> that specify how the key is
-    generated or assigned.  <span class="acronym">BIND</span> 9
+    generated or assigned.  <acronym class="acronym">BIND</acronym> 9
     implements only one of these modes,
     the Diffie-Hellman key exchange.  Both hosts are required to have
     a Diffie-Hellman KEY record (although this record is not required
@@ -523,29 +524,30 @@ allow-update { key host1-host2. ;};
 </div>
 <div class="sect1" lang="en">
 <div class="titlepage"><div><div><h2 class="title" style="clear: both">
-<a name="id2550173"></a>SIG(0)</h2></div></div></div>
-<p><span class="acronym">BIND</span> 9 partially supports DNSSEC SIG(0)
+<a name="id2573982"></a>SIG(0)</h2></div></div></div>
+<p><acronym class="acronym">BIND</acronym> 9 partially supports DNSSEC SIG(0)
     transaction signatures as specified in RFC 2535 and RFC2931.  SIG(0)
     uses public/private keys to authenticate messages.  Access control
     is performed in the same manner as TSIG keys; privileges can be
     granted or denied based on the key name.</p>
 <p>When a SIG(0) signed message is received, it will only be
     verified if the key is known and trusted by the server; the server
-    will not attempt to locate and/or validate the key.</p>
+    will not attempt to locate and / or validate the key.</p>
 <p>SIG(0) signing of multiple-message TCP streams is not
     supported.</p>
-<p>The only tool shipped with <span class="acronym">BIND</span> 9 that
+<p>The only tool shipped with <acronym class="acronym">BIND</acronym> 9 that
     generates SIG(0) signed messages is <span><strong class="command">nsupdate</strong></span>.</p>
 </div>
 <div class="sect1" lang="en">
 <div class="titlepage"><div><div><h2 class="title" style="clear: both">
 <a name="DNSSEC"></a>DNSSEC</h2></div></div></div>
 <p>Cryptographic authentication of DNS information is possible
-    through the DNS Security (<span class="emphasis"><em>DNSSEC-bis</em></span>) extensions,
-    defined in RFC &lt;TBA&gt;. This section describes the creation and use
-    of DNSSEC signed zones.</p>
+    through the DNS Security (<span class="emphasis"><em>DNSSEC-bis</em></span>)
+    extensions, defined in RFC 4033, RFC4034 and RFC4035.  This
+    section describes the creation and use of DNSSEC signed
+    zones.</p>
 <p>In order to set up a DNSSEC secure zone, there are a series
-    of steps which must be followed.  <span class="acronym">BIND</span> 9 ships
+    of steps which must be followed.  <acronym class="acronym">BIND</acronym> 9 ships
     with several tools
     that are used in this process, which are explained in more detail
     below.  In all cases, the <code class="option">-h</code> option prints a
@@ -557,7 +559,7 @@ allow-update { key host1-host2. ;};
 <p>There must also be communication with the administrators of
     the parent and/or child zone to transmit keys.  A zone's security
     status must be indicated by the parent zone for a DNSSEC capable 
-    resolver to trust its data.  This is done through the presense
+    resolver to trust its data.  This is done through the presence
     or absence of a <code class="literal">DS</code> record at the delegation
     point.</p>
 <p>For other servers to trust data in this zone, they must
@@ -565,7 +567,7 @@ allow-update { key host1-host2. ;};
     zone key of another zone above this one in the DNS tree.</p>
 <div class="sect2" lang="en">
 <div class="titlepage"><div><div><h3 class="title">
-<a name="id2550308"></a>Generating Keys</h3></div></div></div>
+<a name="id2574049"></a>Generating Keys</h3></div></div></div>
 <p>The <span><strong class="command">dnssec-keygen</strong></span> program is used to
       generate keys.</p>
 <p>A secure zone must contain one or more zone keys.  The
@@ -576,7 +578,7 @@ allow-update { key host1-host2. ;};
       It is recommended that zone keys use a cryptographic algorithm
       designated as "mandatory to implement" by the IETF; currently
       the only one is RSASHA1.</p>
-<p>The following command will generate a 768 bit RSASHA1 key for
+<p>The following command will generate a 768-bit RSASHA1 key for
       the <code class="filename">child.example</code> zone:</p>
 <p><strong class="userinput"><code>dnssec-keygen -a RSASHA1 -b 768 -n ZONE child.example.</code></strong></p>
 <p>Two output files will be produced:
@@ -598,7 +600,7 @@ allow-update { key host1-host2. ;};
 </div>
 <div class="sect2" lang="en">
 <div class="titlepage"><div><div><h3 class="title">
-<a name="id2550375"></a>Signing the Zone</h3></div></div></div>
+<a name="id2574116"></a>Signing the Zone</h3></div></div></div>
 <p>The <span><strong class="command">dnssec-signzone</strong></span> program is used to
       sign a zone.</p>
 <p>Any <code class="filename">keyset</code> files corresponding
@@ -606,7 +608,7 @@ allow-update { key host1-host2. ;};
       generate <code class="literal">NSEC</code> and <code class="literal">RRSIG</code>
       records for the zone, as well as <code class="literal">DS</code> for
       the child zones if <code class="literal">'-d'</code> is specified.
-      If <code class="literal">'-d'</code> is not specified then DS RRsets for
+      If <code class="literal">'-d'</code> is not specified, then DS RRsets for
       the secure child zones need to be added manually.</p>
 <p>The following command signs the zone, assuming it is in a
       file called <code class="filename">zone.child.example</code>.  By
@@ -625,48 +627,122 @@ allow-update { key host1-host2. ;};
 </div>
 <div class="sect2" lang="en">
 <div class="titlepage"><div><div><h3 class="title">
-<a name="id2550450"></a>Configuring Servers</h3></div></div></div>
-<p>Unlike <span class="acronym">BIND</span> 8, 
-<span class="acronym">BIND</span> 9 does not verify signatures on load,
-so zone keys for authoritative zones do not need to be specified
-in the configuration file.</p>
-<p>The public key for any security root must be present in
-the configuration file's <span><strong class="command">trusted-keys</strong></span>
-statement, as described later in this document. </p>
+<a name="id2574259"></a>Configuring Servers</h3></div></div></div>
+<p>
+	  To enable <span><strong class="command">named</strong></span> to respond appropriately
+	  to DNS requests from DNSSEC aware clients,
+	  <span><strong class="command">dnssec-enable</strong></span> must be set to yes.
+          </p>
+<p>
+	  To enable <span><strong class="command">named</strong></span> to validate answers from
+	  other servers <span><strong class="command">dnssec-enable</strong></span> and
+	  some <span><strong class="command">trusted-keys</strong></span> must be configured
+	  into <code class="filename">named.conf</code>.
+          </p>
+<p>
+	  <span><strong class="command">trusted-keys</strong></span> are copies of DNSKEY RRs
+	  for zones that are used to form the first link in the
+	  cryptographic chain of trust.  All keys listed in
+	  <span><strong class="command">trusted-keys</strong></span> (and corresponding zones)
+	  are deemed to exist and only the listed keys will be used
+	  to validated the DNSKEY RRset that they are from.
+	</p>
+<p>
+	  <span><strong class="command">trusted-keys</strong></span> are described in more detail
+	  later in this document.
+	</p>
+<p>
+	  Unlike <acronym class="acronym">BIND</acronym> 8, <acronym class="acronym">BIND</acronym>
+	  9 does not verify signatures on load, so zone keys for
+	  authoritative zones do not need to be specified in the
+	  configuration file.
+	</p>
+<p>
+	  After DNSSEC gets established, a typical DNSSEC configuration
+	  will look something like the following.  It has a one or
+	  more public keys for the root.  This allows answers from
+	  outside the organization to be validated.  It will also
+	  have several keys for parts of the namespace the organization
+	  controls.  These are here to ensure that named is immune
+	  to compromises in the DNSSEC components of the security
+	  of parent zones.
+	</p>
+<pre class="programlisting">
+trusted-keys {
+
+	/* Root Key */
+"." 257 3 3 "BNY4wrWM1nCfJ+CXd0rVXyYmobt7sEEfK3clRbGaTwSJxrGkxJWoZu6I7PzJu/
+	     E9gx4UC1zGAHlXKdE4zYIpRhaBKnvcC2U9mZhkdUpd1Vso/HAdjNe8LmMlnzY3
+	     zy2Xy4klWOADTPzSv9eamj8V18PHGjBLaVtYvk/ln5ZApjYghf+6fElrmLkdaz
+	     MQ2OCnACR817DF4BBa7UR/beDHyp5iWTXWSi6XmoJLbG9Scqc7l70KDqlvXR3M
+	     /lUUVRbkeg1IPJSidmK3ZyCllh4XSKbje/45SKucHgnwU5jefMtq66gKodQj+M
+	     iA21AfUVe7u99WzTLzY3qlxDhxYQQ20FQ97S+LKUTpQcq27R7AT3/V5hRQxScI
+	     Nqwcz4jYqZD2fQdgxbcDTClU0CRBdiieyLMNzXG3";
+
+/* Key for our organization's forward zone */
+example.com. 257 3 5 "AwEAAaxPMcR2x0HbQV4WeZB6oEDX+r0QM65KbhTjrW1ZaARmPhEZZe
+                      3Y9ifgEuq7vZ/zGZUdEGNWy+JZzus0lUptwgjGwhUS1558Hb4JKUbb
+	              OTcM8pwXlj0EiX3oDFVmjHO444gLkBO UKUf/mC7HvfwYH/Be22GnC
+		      lrinKJp1Og4ywzO9WglMk7jbfW33gUKvirTHr25GL7STQUzBb5Usxt
+		      8lgnyTUHs1t3JwCY5hKZ6CqFxmAVZP20igTixin/1LcrgX/KMEGd/b
+		      iuvF4qJCyduieHukuY3H4XMAcR+xia2 nIUPvm/oyWR8BW/hWdzOvn
+		      SCThlHf3xiYleDbt/o1OTQ09A0=";
+
+/* Key for our reverse zone. */
+2.0.192.IN-ADDRPA.NET. 257 3 5 "AQOnS4xn/IgOUpBPJ3bogzwcxOdNax071L18QqZnQQQA
+                                VVr+iLhGTnNGp3HoWQLUIzKrJVZ3zggy3WwNT6kZo6c0
+				tszYqbtvchmgQC8CzKojM/W16i6MG/ea fGU3siaOdS0
+				yOI6BgPsw+YZdzlYMaIJGf4M4dyoKIhzdZyQ2bYQrjyQ
+				4LB0lC7aOnsMyYKHHYeRv PxjIQXmdqgOJGq+vsevG06
+			        zW+1xgYJh9rCIfnm1GX/KMgxLPG2vXTD/RnLX+D3T3UL
+				7HJYHJhAZD5L59VvjSPsZJHeDCUyWYrvPZesZDIRvhDD
+				52SKvbheeTJUm6EhkzytNN2SN96QRk8j/iI8ib";
+};
+
+options {
+	...
+	dnssec-enable yes;
+};
+</pre>
+<div class="note" style="margin-left: 0.5in; margin-right: 0.5in;">
+<h3 class="title">Note</h3>
+	  None of the keys listed in this example are valid.  In particular,
+	  the root key is not valid.
+	</div>
 </div>
 </div>
 <div class="sect1" lang="en">
 <div class="titlepage"><div><div><h2 class="title" style="clear: both">
-<a name="id2550473"></a>IPv6 Support in <span class="acronym">BIND</span> 9</h2></div></div></div>
-<p><span class="acronym">BIND</span> 9 fully supports all currently defined forms of IPv6
+<a name="id2574396"></a>IPv6 Support in <acronym class="acronym">BIND</acronym> 9</h2></div></div></div>
+<p><acronym class="acronym">BIND</acronym> 9 fully supports all currently defined forms of IPv6
     name to address and address to name lookups.  It will also use
     IPv6 addresses to make queries when running on an IPv6 capable
     system.</p>
-<p>For forward lookups, <span class="acronym">BIND</span> 9 supports only AAAA
+<p>For forward lookups, <acronym class="acronym">BIND</acronym> 9 supports only AAAA
     records.  The use of A6 records is deprecated by RFC 3363, and the
-    support for forward lookups in <span class="acronym">BIND</span> 9 is
+    support for forward lookups in <acronym class="acronym">BIND</acronym> 9 is
     removed accordingly.
-    However, authoritative <span class="acronym">BIND</span> 9 name servers still
+    However, authoritative <acronym class="acronym">BIND</acronym> 9 name servers still
     load zone files containing A6 records correctly, answer queries
     for A6 records, and accept zone transfer for a zone containing A6
     records.</p>
-<p>For IPv6 reverse lookups, <span class="acronym">BIND</span> 9 supports
+<p>For IPv6 reverse lookups, <acronym class="acronym">BIND</acronym> 9 supports
     the traditional "nibble" format used in the
     <span class="emphasis"><em>ip6.arpa</em></span> domain, as well as the older, deprecated
     <span class="emphasis"><em>ip6.int</em></span> domain.
-    <span class="acronym">BIND</span> 9 formerly
+    <acronym class="acronym">BIND</acronym> 9 formerly
     supported the "binary label" (also known as "bitstring") format.
     The support of binary labels, however, is now completely removed
     according to the changes in RFC 3363.
-    Any applications in <span class="acronym">BIND</span> 9 do not understand
+    Any applications in <acronym class="acronym">BIND</acronym> 9 do not understand
     the format any more, and will return an error if given.
-    In particular, an authoritative <span class="acronym">BIND</span> 9 name
+    In particular, an authoritative <acronym class="acronym">BIND</acronym> 9 name
     server rejects to load a zone file containing binary labels.</p>
 <p>For an overview of the format and structure of IPv6 addresses,
     see <a href="Bv9ARM.ch09.html#ipv6addresses" title="IPv6 addresses (AAAA)">the section called &#8220;IPv6 addresses (AAAA)&#8221;</a>.</p>
 <div class="sect2" lang="en">
 <div class="titlepage"><div><div><h3 class="title">
-<a name="id2550600"></a>Address Lookups Using AAAA Records</h3></div></div></div>
+<a name="id2574455"></a>Address Lookups Using AAAA Records</h3></div></div></div>
 <p>The AAAA record is a parallel to the IPv4 A record.  It
       specifies the entire address in a single record.  For
       example,</p>
@@ -681,7 +757,7 @@ host            3600    IN      AAAA    2001:db8::1
 </div>
 <div class="sect2" lang="en">
 <div class="titlepage"><div><div><h3 class="title">
-<a name="id2550620"></a>Address to Name Lookups Using Nibble Format</h3></div></div></div>
+<a name="id2574475"></a>Address to Name Lookups Using Nibble Format</h3></div></div></div>
 <p>When looking up an address in nibble format, the address
       components are simply reversed, just as in IPv4, and
       <code class="literal">ip6.arpa.</code> is appended to the resulting name.
@@ -708,7 +784,7 @@ $ORIGIN 0.0.0.0.0.0.0.0.8.b.d.0.1.0.0.2.ip6.arpa.
 <tr>
 <td width="40%" align="left" valign="top">Chapter 3. Name Server Configuration </td>
 <td width="20%" align="center"><a accesskey="h" href="Bv9ARM.html">Home</a></td>
-<td width="40%" align="right" valign="top"> Chapter 5. The <span class="acronym">BIND</span> 9 Lightweight Resolver</td>
+<td width="40%" align="right" valign="top"> Chapter 5. The <acronym class="acronym">BIND</acronym> 9 Lightweight Resolver</td>
 </tr>
 </table>
 </div>

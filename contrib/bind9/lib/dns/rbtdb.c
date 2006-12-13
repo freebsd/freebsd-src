@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2004, 2005  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004-2006  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 1999-2003  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and distribute this software for any
@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: rbtdb.c,v 1.168.2.11.2.22 2005/10/14 01:38:48 marka Exp $ */
+/* $Id: rbtdb.c,v 1.168.2.11.2.26 2006/03/02 23:18:20 marka Exp $ */
 
 /*
  * Principal Author: Bob Halley
@@ -1011,6 +1011,47 @@ cleanup_nondirty(rbtdb_version_t *version, rbtdb_changedlist_t *cleanup_list) {
 	}
 }
 
+static isc_boolean_t
+iszonesecure(dns_db_t *db, dns_dbnode_t *origin) {
+	dns_rdataset_t keyset;
+	dns_rdataset_t nsecset, signsecset;
+	isc_boolean_t haszonekey = ISC_FALSE;
+	isc_boolean_t hasnsec = ISC_FALSE;
+	isc_result_t result;
+
+	dns_rdataset_init(&keyset);
+	result = dns_db_findrdataset(db, origin, NULL, dns_rdatatype_dnskey, 0,
+				     0, &keyset, NULL);
+	if (result == ISC_R_SUCCESS) {
+		dns_rdata_t keyrdata = DNS_RDATA_INIT;
+		result = dns_rdataset_first(&keyset);
+		while (result == ISC_R_SUCCESS) {
+			dns_rdataset_current(&keyset, &keyrdata);
+			if (dns_zonekey_iszonekey(&keyrdata)) {
+				haszonekey = ISC_TRUE;
+				break;
+			}
+			result = dns_rdataset_next(&keyset);
+		}
+		dns_rdataset_disassociate(&keyset);
+	}
+	if (!haszonekey)
+		return (ISC_FALSE);
+
+	dns_rdataset_init(&nsecset);
+	dns_rdataset_init(&signsecset);
+	result = dns_db_findrdataset(db, origin, NULL, dns_rdatatype_nsec, 0,
+				     0, &nsecset, &signsecset);
+	if (result == ISC_R_SUCCESS) {
+		if (dns_rdataset_isassociated(&signsecset)) {
+			hasnsec = ISC_TRUE;
+			dns_rdataset_disassociate(&signsecset);
+		}
+		dns_rdataset_disassociate(&nsecset);
+	}
+	return (hasnsec);
+}
+
 static void
 closeversion(dns_db_t *db, dns_dbversion_t **versionp, isc_boolean_t commit) {
 	dns_rbtdb_t *rbtdb = (dns_rbtdb_t *)db;
@@ -1135,6 +1176,12 @@ closeversion(dns_db_t *db, dns_dbversion_t **versionp, isc_boolean_t commit) {
 	}
 	least_serial = rbtdb->least_serial;
 	UNLOCK(&rbtdb->lock);
+
+	/*
+	 * Update the zone's secure status.
+	 */
+	if (version->writer && commit && !IS_CACHE(rbtdb))
+		rbtdb->secure = iszonesecure(db, rbtdb->origin_node);
 
 	if (cleanup_version != NULL) {
 		INSIST(EMPTY(cleanup_version->changed_list));
@@ -2184,12 +2231,12 @@ zone_find(dns_db_t *db, dns_name_t *name, dns_dbversion_t *version,
 
 	/*
 	 * Certain DNSSEC types are not subject to CNAME matching
-	 * (RFC 2535, section 2.3.5).
+	 * (RFC4035, section 2.5 and RFC3007).
 	 *
 	 * We don't check for RRSIG, because we don't store RRSIG records
 	 * directly.
 	 */
-	if (type == dns_rdatatype_dnskey || type == dns_rdatatype_nsec)
+	if (type == dns_rdatatype_key || type == dns_rdatatype_nsec)
 		cname_ok = ISC_FALSE;
 
 	/*
@@ -2247,9 +2294,15 @@ zone_find(dns_db_t *db, dns_name_t *name, dns_dbversion_t *version,
 				search.need_cleanup = ISC_TRUE;
 				maybe_zonecut = ISC_FALSE;
 				at_zonecut = ISC_TRUE;
+				/*
+				 * It is not clear if KEY should still be
+				 * allowed at the parent side of the zone
+				 * cut or not.  It is needed for RFC3007
+				 * validated updates.
+				 */
 				if ((search.options & DNS_DBFIND_GLUEOK) == 0
 				    && type != dns_rdatatype_nsec
-				    && type != dns_rdatatype_dnskey) {
+				    && type != dns_rdatatype_key) {
 					/*
 					 * Glue is not OK, but any answer we
 					 * could return would be glue.  Return
@@ -2430,8 +2483,14 @@ zone_find(dns_db_t *db, dns_name_t *name, dns_dbversion_t *version,
 		 * and the type is NSEC or KEY.
 		 */
 		if (search.zonecut == node) {
+			/*
+			 * It is not clear if KEY should still be
+			 * allowed at the parent side of the zone
+			 * cut or not.  It is needed for RFC3007
+			 * validated updates.
+			 */
 			if (type == dns_rdatatype_nsec ||
-			    type == dns_rdatatype_dnskey)
+			    type == dns_rdatatype_key)
 				result = ISC_R_SUCCESS;
 			else if (type == dns_rdatatype_any)
 				result = DNS_R_ZONECUT;
@@ -2860,7 +2919,7 @@ cache_find(dns_db_t *db, dns_name_t *name, dns_dbversion_t *version,
 	rdatasetheader_t *header, *header_prev, *header_next;
 	rdatasetheader_t *found, *nsheader;
 	rdatasetheader_t *foundsig, *nssig, *cnamesig;
-	rbtdb_rdatatype_t sigtype, nsectype;
+	rbtdb_rdatatype_t sigtype, negtype;
 
 	UNUSED(version);
 
@@ -2918,12 +2977,12 @@ cache_find(dns_db_t *db, dns_name_t *name, dns_dbversion_t *version,
 
 	/*
 	 * Certain DNSSEC types are not subject to CNAME matching
-	 * (RFC 2535, section 2.3.5).
+	 * (RFC4035, section 2.5 and RFC3007).
 	 *
 	 * We don't check for RRSIG, because we don't store RRSIG records
 	 * directly.
 	 */
-	if (type == dns_rdatatype_dnskey || type == dns_rdatatype_nsec)
+	if (type == dns_rdatatype_key || type == dns_rdatatype_nsec)
 		cname_ok = ISC_FALSE;
 
 	/*
@@ -2935,7 +2994,7 @@ cache_find(dns_db_t *db, dns_name_t *name, dns_dbversion_t *version,
 	found = NULL;
 	foundsig = NULL;
 	sigtype = RBTDB_RDATATYPE_VALUE(dns_rdatatype_rrsig, type);
-	nsectype = RBTDB_RDATATYPE_VALUE(0, type);
+	negtype = RBTDB_RDATATYPE_VALUE(0, type);
 	nsheader = NULL;
 	nssig = NULL;
 	cnamesig = NULL;
@@ -3007,7 +3066,7 @@ cache_find(dns_db_t *db, dns_name_t *name, dns_dbversion_t *version,
 				 */
 				foundsig = header;
 			} else if (header->type == RBTDB_RDATATYPE_NCACHEANY ||
-				   header->type == nsectype) {
+				   header->type == negtype) {
 				/*
 				 * We've found a negative cache entry.
 				 */
@@ -3618,7 +3677,7 @@ cache_findrdataset(dns_db_t *db, dns_dbnode_t *node, dns_dbversion_t *version,
 	dns_rbtdb_t *rbtdb = (dns_rbtdb_t *)db;
 	dns_rbtnode_t *rbtnode = (dns_rbtnode_t *)node;
 	rdatasetheader_t *header, *header_next, *found, *foundsig;
-	rbtdb_rdatatype_t matchtype, sigmatchtype, nsectype;
+	rbtdb_rdatatype_t matchtype, sigmatchtype, negtype;
 	isc_result_t result;
 
 	REQUIRE(VALID_RBTDB(rbtdb));
@@ -3636,7 +3695,7 @@ cache_findrdataset(dns_db_t *db, dns_dbnode_t *node, dns_dbversion_t *version,
 	found = NULL;
 	foundsig = NULL;
 	matchtype = RBTDB_RDATATYPE_VALUE(type, covers);
-	nsectype = RBTDB_RDATATYPE_VALUE(0, type);
+	negtype = RBTDB_RDATATYPE_VALUE(0, type);
 	if (covers == 0)
 		sigmatchtype = RBTDB_RDATATYPE_VALUE(dns_rdatatype_rrsig, type);
 	else
@@ -3659,7 +3718,7 @@ cache_findrdataset(dns_db_t *db, dns_dbnode_t *node, dns_dbversion_t *version,
 			if (header->type == matchtype)
 				found = header;
 			else if (header->type == RBTDB_RDATATYPE_NCACHEANY ||
-				 header->type == nsectype)
+				 header->type == negtype)
 				found = header;
 			else if (header->type == sigmatchtype)
 				foundsig = header;
@@ -3785,16 +3844,13 @@ cname_and_other_data(dns_rbtnode_t *node, rbtdb_serial_t serial) {
 			 * Look for active extant "other data".
 			 *
 			 * "Other data" is any rdataset whose type is not
-			 * DNSKEY, RRSIG DNSKEY, NSEC, RRSIG NSEC,
-			 * or RRSIG CNAME.
+			 * KEY, RRSIG KEY, NSEC, RRSIG NSEC or RRSIG CNAME.
 			 */
 			rdtype = RBTDB_RDATATYPE_BASE(header->type);
 			if (rdtype == dns_rdatatype_rrsig ||
 			    rdtype == dns_rdatatype_sig)
 				rdtype = RBTDB_RDATATYPE_EXT(header->type);
 			if (rdtype != dns_rdatatype_nsec &&
-			    rdtype != dns_rdatatype_dnskey &&
-			    rdtype != dns_rdatatype_nxt &&
 			    rdtype != dns_rdatatype_key &&
 			    rdtype != dns_rdatatype_cname) {
 				/*
@@ -3839,7 +3895,8 @@ add(dns_rbtdb_t *rbtdb, dns_rbtnode_t *rbtnode, rbtdb_version_t *rbtversion,
 	isc_boolean_t header_nx;
 	isc_boolean_t newheader_nx;
 	isc_boolean_t merge;
-	dns_rdatatype_t nsectype, rdtype, covers;
+	dns_rdatatype_t rdtype, covers;
+	rbtdb_rdatatype_t negtype;
 	dns_trust_t trust;
 
 	/*
@@ -3877,7 +3934,7 @@ add(dns_rbtdb_t *rbtdb, dns_rbtnode_t *rbtnode, rbtdb_version_t *rbtversion,
 	newheader_nx = NONEXISTENT(newheader) ? ISC_TRUE : ISC_FALSE;
 	topheader_prev = NULL;
 
-	nsectype = 0;
+	negtype = 0;
 	if (rbtversion == NULL && !newheader_nx) {
 		rdtype = RBTDB_RDATATYPE_BASE(newheader->type);
 		if (rdtype == 0) {
@@ -3887,12 +3944,13 @@ add(dns_rbtdb_t *rbtdb, dns_rbtnode_t *rbtnode, rbtdb_version_t *rbtversion,
 			covers = RBTDB_RDATATYPE_EXT(newheader->type);
 			if (covers == dns_rdatatype_any) {
 				/*
-				 * We're adding an NXDOMAIN negative cache
-				 * entry.
+				 * We're adding an negative cache entry
+				 * which covers all types (NXDOMAIN,
+				 * NODATA(QTYPE=ANY)).
 				 *
 				 * We make all other data stale so that the
 				 * only rdataset that can be found at this
-				 * node is the NXDOMAIN negative cache entry.
+				 * node is the negative cache entry.
 				 */
 				for (topheader = rbtnode->data;
 				     topheader != NULL;
@@ -3904,17 +3962,19 @@ add(dns_rbtdb_t *rbtdb, dns_rbtnode_t *rbtnode, rbtdb_version_t *rbtversion,
 				rbtnode->dirty = 1;
 				goto find_header;
 			}
-			nsectype = RBTDB_RDATATYPE_VALUE(covers, 0);
+			negtype = RBTDB_RDATATYPE_VALUE(covers, 0);
 		} else {
 			/*
 			 * We're adding something that isn't a
 			 * negative cache entry.  Look for an extant
-			 * non-stale NXDOMAIN negative cache entry.
+			 * non-stale NXDOMAIN/NODATA(QTYPE=ANY) negative
+			 * cache entry.
 			 */
 			for (topheader = rbtnode->data;
 			     topheader != NULL;
 			     topheader = topheader->next) {
-				if (NXDOMAIN(topheader))
+				if (topheader->type == 
+				    RBTDB_RDATATYPE_NCACHEANY)
 					break;
 			}
 			if (topheader != NULL && EXISTS(topheader) &&
@@ -3924,7 +3984,8 @@ add(dns_rbtdb_t *rbtdb, dns_rbtnode_t *rbtnode, rbtdb_version_t *rbtversion,
 				 */
 				if (trust < topheader->trust) {
 					/*
-					 * The NXDOMAIN is more trusted.
+					 * The NXDOMAIN/NODATA(QTYPE=ANY)
+					 * is more trusted.
 					 */
 					free_rdataset(rbtdb->common.mctx,
 						      newheader);
@@ -3936,7 +3997,7 @@ add(dns_rbtdb_t *rbtdb, dns_rbtnode_t *rbtnode, rbtdb_version_t *rbtversion,
 				}
 				/*
 				 * The new rdataset is better.  Expire the
-				 * NXDOMAIN.
+				 * NXDOMAIN/NODATA(QTYPE=ANY).
 				 */
 				topheader->ttl = 0;
 				topheader->attributes |= RDATASET_ATTR_STALE;
@@ -3944,7 +4005,7 @@ add(dns_rbtdb_t *rbtdb, dns_rbtnode_t *rbtnode, rbtdb_version_t *rbtversion,
 				topheader = NULL;
 				goto find_header;
 			}
-			nsectype = RBTDB_RDATATYPE_VALUE(0, rdtype);
+			negtype = RBTDB_RDATATYPE_VALUE(0, rdtype);
 		}
 	}
 
@@ -3952,7 +4013,7 @@ add(dns_rbtdb_t *rbtdb, dns_rbtnode_t *rbtnode, rbtdb_version_t *rbtversion,
 	     topheader != NULL;
 	     topheader = topheader->next) {
 		if (topheader->type == newheader->type ||
-		    topheader->type == nsectype)
+		    topheader->type == negtype)
 			break;
 		topheader_prev = topheader;
 	}
@@ -4118,6 +4179,10 @@ add(dns_rbtdb_t *rbtdb, dns_rbtnode_t *rbtnode, rbtdb_version_t *rbtversion,
 			rbtnode->dirty = 1;
 			if (changed != NULL)
 				changed->dirty = ISC_TRUE;
+			if (rbtversion == NULL) {
+				header->ttl = 0;
+				header->attributes |= RDATASET_ATTR_STALE;
+			}
 		}
 	} else {
 		/*
@@ -4318,6 +4383,13 @@ addrdataset(dns_db_t *db, dns_dbnode_t *node, dns_dbversion_t *version,
 	if (delegating)
 		RWUNLOCK(&rbtdb->tree_lock, isc_rwlocktype_write);
 
+	/*
+	 * Update the zone's secure status.  If version is non-NULL
+	 * this is defered until closeversion() is called.
+	 */
+	if (result == ISC_R_SUCCESS && version == NULL && !IS_CACHE(rbtdb))
+		rbtdb->secure = iszonesecure(db, rbtdb->origin_node);
+
 	return (result);
 }
 
@@ -4460,6 +4532,13 @@ subtractrdataset(dns_db_t *db, dns_dbnode_t *node, dns_dbversion_t *version,
  unlock:
 	UNLOCK(&rbtdb->node_locks[rbtnode->locknum].lock);
 
+	/*
+	 * Update the zone's secure status.  If version is non-NULL
+	 * this is defered until closeversion() is called.
+	 */
+	if (result == ISC_R_SUCCESS && version == NULL && !IS_CACHE(rbtdb))
+		rbtdb->secure = iszonesecure(db, rbtdb->origin_node);
+
 	return (result);
 }
 
@@ -4500,6 +4579,13 @@ deleterdataset(dns_db_t *db, dns_dbnode_t *node, dns_dbversion_t *version,
 		     ISC_FALSE, NULL, 0);
 
 	UNLOCK(&rbtdb->node_locks[rbtnode->locknum].lock);
+
+	/*
+	 * Update the zone's secure status.  If version is non-NULL
+	 * this is defered until closeversion() is called.
+	 */
+	if (result == ISC_R_SUCCESS && version == NULL && !IS_CACHE(rbtdb))
+		rbtdb->secure = iszonesecure(db, rbtdb->origin_node);
 
 	return (result);
 }
@@ -4613,48 +4699,6 @@ beginload(dns_db_t *db, dns_addrdatasetfunc_t *addp, dns_dbload_t **dbloadp) {
 	*dbloadp = loadctx;
 
 	return (ISC_R_SUCCESS);
-}
-
-static isc_boolean_t
-iszonesecure(dns_db_t *db, dns_dbnode_t *origin) {
-	dns_rdataset_t keyset;
-	dns_rdataset_t nsecset, signsecset;
-	isc_boolean_t haszonekey = ISC_FALSE;
-	isc_boolean_t hasnsec = ISC_FALSE;
-	isc_result_t result;
-
-	dns_rdataset_init(&keyset);
-	result = dns_db_findrdataset(db, origin, NULL, dns_rdatatype_dnskey, 0,
-				     0, &keyset, NULL);
-	if (result == ISC_R_SUCCESS) {
-		dns_rdata_t keyrdata = DNS_RDATA_INIT;
-		result = dns_rdataset_first(&keyset);
-		while (result == ISC_R_SUCCESS) {
-			dns_rdataset_current(&keyset, &keyrdata);
-			if (dns_zonekey_iszonekey(&keyrdata)) {
-				haszonekey = ISC_TRUE;
-				break;
-			}
-			result = dns_rdataset_next(&keyset);
-		}
-		dns_rdataset_disassociate(&keyset);
-	}
-	if (!haszonekey)
-		return (ISC_FALSE);
-
-	dns_rdataset_init(&nsecset);
-	dns_rdataset_init(&signsecset);
-	result = dns_db_findrdataset(db, origin, NULL, dns_rdatatype_nsec, 0,
-				     0, &nsecset, &signsecset);
-	if (result == ISC_R_SUCCESS) {
-		if (dns_rdataset_isassociated(&signsecset)) {
-			hasnsec = ISC_TRUE;
-			dns_rdataset_disassociate(&signsecset);
-		}
-		dns_rdataset_disassociate(&nsecset);
-	}
-	return (hasnsec);
-
 }
 
 static isc_result_t
@@ -5235,7 +5279,8 @@ rdatasetiter_next(dns_rdatasetiter_t *iterator) {
 	rdatasetheader_t *header, *top_next;
 	rbtdb_serial_t serial;
 	isc_stdtime_t now;
-	rbtdb_rdatatype_t type;
+	rbtdb_rdatatype_t type, negtype;
+	dns_rdatatype_t rdtype, covers;
 
 	header = rbtiterator->current;
 	if (header == NULL)
@@ -5252,9 +5297,18 @@ rdatasetiter_next(dns_rdatasetiter_t *iterator) {
 	LOCK(&rbtdb->node_locks[rbtnode->locknum].lock);
 
 	type = header->type;
+	rdtype = RBTDB_RDATATYPE_BASE(header->type);
+	if (rdtype == 0) {
+		covers = RBTDB_RDATATYPE_EXT(header->type);
+		negtype = RBTDB_RDATATYPE_VALUE(covers, 0);
+	} else 
+		negtype = RBTDB_RDATATYPE_VALUE(0, rdtype);
 	for (header = header->next; header != NULL; header = top_next) {
 		top_next = header->next;
-		if (header->type != type) {
+		/*
+		 * If not walking back up the down list.
+		 */
+		if (header->type != type && header->type != negtype) {
 			do {
 				if (header->serial <= serial &&
 				    !IGNORE(header)) {

@@ -13,14 +13,17 @@
 .\" OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
 .\" PERFORMANCE OF THIS SOFTWARE.
 .\"
-.\" $Id: lwres_gai_strerror.3,v 1.13.2.1.8.5 2005/10/13 02:33:52 marka Exp $
+.\" $Id: lwres_gai_strerror.3,v 1.13.2.1.8.6 2006/06/29 13:02:31 marka Exp $
 .\"
 .hy 0
 .ad l
-.\" ** You probably do not want to edit this file directly **
-.\" It was generated using the DocBook XSL Stylesheets (version 1.69.1).
-.\" Instead of manually editing it, you probably should edit the DocBook XML
-.\" source for it and then use the DocBook XSL Stylesheets to regenerate it.
+.\"     Title: lwres_gai_strerror
+.\"    Author: 
+.\" Generator: DocBook XSL Stylesheets v1.70.1 <http://docbook.sf.net/>
+.\"      Date: Jun 30, 2000
+.\"    Manual: BIND9
+.\"    Source: BIND9
+.\"
 .TH "LWRES_GAI_STRERROR" "3" "Jun 30, 2000" "BIND9" "BIND9"
 .\" disable hyphenation
 .nh
@@ -33,48 +36,48 @@ gai_strerror \- print suitable error string
 #include <lwres/netdb.h>
 .fi
 .HP 20
-\fBchar\ *\ \fBgai_strerror\fR\fR\fB(\fR\fBint\ ecode\fR\fB);\fR
+.BI "char * gai_strerror(int\ ecode);"
 .SH "DESCRIPTION"
 .PP
 \fBlwres_gai_strerror()\fR
 returns an error message corresponding to an error code returned by
 \fBgetaddrinfo()\fR. The following error codes and their meaning are defined in
 \fIinclude/lwres/netdb.h\fR.
-.TP
+.TP 3n
 \fBEAI_ADDRFAMILY\fR
 address family for hostname not supported
-.TP
+.TP 3n
 \fBEAI_AGAIN\fR
 temporary failure in name resolution
-.TP
+.TP 3n
 \fBEAI_BADFLAGS\fR
 invalid value for
 \fBai_flags\fR
-.TP
+.TP 3n
 \fBEAI_FAIL\fR
 non\-recoverable failure in name resolution
-.TP
+.TP 3n
 \fBEAI_FAMILY\fR
 \fBai_family\fR
 not supported
-.TP
+.TP 3n
 \fBEAI_MEMORY\fR
 memory allocation failure
-.TP
+.TP 3n
 \fBEAI_NODATA\fR
 no address associated with hostname
-.TP
+.TP 3n
 \fBEAI_NONAME\fR
 hostname or servname not provided, or not known
-.TP
+.TP 3n
 \fBEAI_SERVICE\fR
 servname not supported for
 \fBai_socktype\fR
-.TP
+.TP 3n
 \fBEAI_SOCKTYPE\fR
 \fBai_socktype\fR
 not supported
-.TP
+.TP 3n
 \fBEAI_SYSTEM\fR
 system error returned in errno
 The message
@@ -97,3 +100,5 @@ used by
 \fBlwres_getaddrinfo\fR(3),
 \fBgetaddrinfo\fR(3),
 \fBRFC2133\fR().
+.SH "COPYRIGHT"
+Copyright \(co 2004, 2005 Internet Systems Consortium, Inc. ("ISC")

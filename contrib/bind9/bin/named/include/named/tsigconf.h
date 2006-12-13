@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2004  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004, 2006  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 1999-2001  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and distribute this software for any
@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: tsigconf.h,v 1.9.208.1 2004/03/06 10:21:26 marka Exp $ */
+/* $Id: tsigconf.h,v 1.9.208.3 2006/03/02 00:37:20 marka Exp $ */
 
 #ifndef NS_TSIGCONF_H
 #define NS_TSIGCONF_H 1
@@ -26,7 +26,7 @@
 ISC_LANG_BEGINDECLS
 
 isc_result_t
-ns_tsigkeyring_fromconfig(cfg_obj_t *config, cfg_obj_t *vconfig,
+ns_tsigkeyring_fromconfig(const cfg_obj_t *config, const cfg_obj_t *vconfig,
 			  isc_mem_t *mctx, dns_tsig_keyring_t **ringp);
 /*
  * Create a TSIG key ring and configure it according to the 'key'

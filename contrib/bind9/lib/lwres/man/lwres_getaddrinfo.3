@@ -13,14 +13,17 @@
 .\" OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
 .\" PERFORMANCE OF THIS SOFTWARE.
 .\"
-.\" $Id: lwres_getaddrinfo.3,v 1.16.2.1.8.6 2005/10/13 02:33:53 marka Exp $
+.\" $Id: lwres_getaddrinfo.3,v 1.16.2.1.8.7 2006/06/29 13:02:31 marka Exp $
 .\"
 .hy 0
 .ad l
-.\" ** You probably do not want to edit this file directly **
-.\" It was generated using the DocBook XSL Stylesheets (version 1.69.1).
-.\" Instead of manually editing it, you probably should edit the DocBook XML
-.\" source for it and then use the DocBook XSL Stylesheets to regenerate it.
+.\"     Title: lwres_getaddrinfo
+.\"    Author: 
+.\" Generator: DocBook XSL Stylesheets v1.70.1 <http://docbook.sf.net/>
+.\"      Date: Jun 30, 2000
+.\"    Manual: BIND9
+.\"    Source: BIND9
+.\"
 .TH "LWRES_GETADDRINFO" "3" "Jun 30, 2000" "BIND9" "BIND9"
 .\" disable hyphenation
 .nh
@@ -33,13 +36,14 @@ lwres_getaddrinfo, lwres_freeaddrinfo \- socket address structure to host and se
 #include <lwres/netdb.h>
 .fi
 .HP 22
-\fBint\ \fBlwres_getaddrinfo\fR\fR\fB(\fR\fBconst\ char\ *hostname\fR\fB, \fR\fBconst\ char\ *servname\fR\fB, \fR\fBconst\ struct\ addrinfo\ *hints\fR\fB, \fR\fBstruct\ addrinfo\ **res\fR\fB);\fR
+.BI "int lwres_getaddrinfo(const\ char\ *hostname, const\ char\ *servname, const\ struct\ addrinfo\ *hints, struct\ addrinfo\ **res);"
 .HP 24
-\fBvoid\ \fBlwres_freeaddrinfo\fR\fR\fB(\fR\fBstruct\ addrinfo\ *ai\fR\fB);\fR
+.BI "void lwres_freeaddrinfo(struct\ addrinfo\ *ai);"
 .PP
 If the operating system does not provide a
 \fBstruct addrinfo\fR, the following structure is used:
 .sp
+.RS 3n
 .nf
 struct  addrinfo {
         int             ai_flags;       /* AI_PASSIVE, AI_CANONNAME */
@@ -52,6 +56,7 @@ struct  addrinfo {
         struct addrinfo *ai_next;       /* next structure in linked list */
 };
 .fi
+.RE
 .sp
 .SH "DESCRIPTION"
 .PP
@@ -77,13 +82,13 @@ is either a decimal port number or a service name as listed in
 is an optional pointer to a
 \fBstruct addrinfo\fR. This structure can be used to provide hints concerning the type of socket that the caller supports or wishes to use. The caller can supply the following structure elements in
 \fI*hints\fR:
-.TP
+.TP 3n
 \fBai_family\fR
 The protocol family that should be used. When
 \fBai_family\fR
 is set to
 \fBPF_UNSPEC\fR, it means the caller will accept any protocol family supported by the operating system.
-.TP
+.TP 3n
 \fBai_socktype\fR
 denotes the type of socket \(em
 \fBSOCK_STREAM\fR,
@@ -93,12 +98,12 @@ or
 \(em that is wanted. When
 \fBai_socktype\fR
 is zero the caller will accept any socket type.
-.TP
+.TP 3n
 \fBai_protocol\fR
 indicates which transport protocol is wanted: IPPROTO_UDP or IPPROTO_TCP. If
 \fBai_protocol\fR
 is zero the caller will accept any protocol.
-.TP
+.TP 3n
 \fBai_flags\fR
 Flag bits. If the
 \fBAI_CANONNAME\fR
@@ -209,7 +214,8 @@ if an error occurs. If both
 and
 \fIservname\fR
 are
-\fBNULL\fR\fBlwres_getaddrinfo()\fR
+\fBNULL\fR
+\fBlwres_getaddrinfo()\fR
 returns
 \fBEAI_NONAME\fR.
 .SH "SEE ALSO"
@@ -225,3 +231,5 @@ returns
 \fBsendto\fR(2),
 \fBsendmsg\fR(2),
 \fBsocket\fR(2).
+.SH "COPYRIGHT"
+Copyright \(co 2004, 2005 Internet Systems Consortium, Inc. ("ISC")
