@@ -4,10 +4,17 @@
 .include <bsd.own.mk>
 
 PROG=	login
-SRCS=	login.c login_audit.c login_fbtab.c
+SRCS=	login.c login_fbtab.c
 CFLAGS+=-DLOGALL
-DPADD=	${LIBUTIL} ${LIBPAM} ${LIBBSM}
-LDADD=	-lutil ${MINUSLPAM} -lbsm
+DPADD=	${LIBUTIL} ${LIBPAM}
+LDADD=	-lutil ${MINUSLPAM}
+
+.if ${MK_AUDIT} != "no"
+SRCS+=	login_audit.c
+CFLAGS+= -DUSE_BSM_AUDIT
+DPADD+=  ${LIBBSM}
+LDADD+=  -lbsm
+.endif
 
 .if ${MK_SETUID_LOGIN} != "no"
 BINOWN=	root

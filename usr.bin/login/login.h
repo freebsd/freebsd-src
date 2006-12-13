@@ -27,8 +27,10 @@
 
 void	login_fbtab(char *, uid_t, gid_t);
 
+#ifdef USE_BSM_AUDIT
 void	au_login_success(void);
 void	au_login_fail(char *errmsg, int na);
+#endif
 
 extern char		**environ;
 extern struct passwd	*pwd;
