@@ -1773,6 +1773,10 @@ device		miibus
 # lge:	Support for PCI gigabit ethernet adapters based on the Level 1
 #	LXT1001 NetCellerator chipset. This includes the D-Link DGE-500SX,
 #	SMC TigerCard 1000 (SMC9462SX), and some Addtron cards.
+# msk:	Support for gigabit ethernet adapters based on the Marvell/SysKonnect
+#	Yukon II Gigabit controllers, including 88E8021, 88E8022, 88E8061,
+#	88E8062, 88E8035, 88E8036, 88E8038, 88E8050, 88E8052, 88E8053,
+#	88E8055, 88E8056 and D-Link 560T/550SX.
 # lmc:	Support for the LMC/SBE wide-area network interface cards.
 # my:	Myson Fast Ethernet (MTD80X, MTD89X)
 # nge:	Support for PCI gigabit ethernet adapters based on the National

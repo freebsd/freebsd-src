@@ -163,6 +163,7 @@ SUBDIR=	${_3dfx} \
 	msdosfs \
 	msdosfs_iconv \
 	${_mse} \
+	msk \
 	${_mxge} \
 	my \
 	${_ncp} \
