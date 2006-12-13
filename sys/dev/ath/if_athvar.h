@@ -45,6 +45,7 @@
 #include <sys/taskqueue.h>
 
 #include <contrib/dev/ath/ah.h>
+#include <contrib/dev/ath/ah_desc.h>
 #include <net80211/ieee80211_radiotap.h>
 #include <dev/ath/if_athioctl.h>
 #include <dev/ath/if_athrate.h>
@@ -102,6 +103,7 @@ struct ath_buf {
 	int			bf_nseg;
 	int			bf_flags;	/* tx descriptor flags */
 	struct ath_desc		*bf_desc;	/* virtual addr of desc */
+	struct ath_desc_status	bf_status;	/* tx/rx status */
 	bus_addr_t		bf_daddr;	/* physical addr of desc */
 	bus_dmamap_t		bf_dmamap;	/* DMA map for mbuf chain */
 	struct mbuf		*bf_m;		/* mbuf for buf */
@@ -550,8 +552,8 @@ void	ath_intr(void *);
 
 #define	ath_hal_setuprxdesc(_ah, _ds, _size, _intreq) \
 	((*(_ah)->ah_setupRxDesc)((_ah), (_ds), (_size), (_intreq)))
-#define	ath_hal_rxprocdesc(_ah, _ds, _dspa, _dsnext) \
-	((*(_ah)->ah_procRxDesc)((_ah), (_ds), (_dspa), (_dsnext), 0))
+#define	ath_hal_rxprocdesc(_ah, _ds, _dspa, _dsnext, _rs) \
+	((*(_ah)->ah_procRxDesc)((_ah), (_ds), (_dspa), (_dsnext), 0, (_rs)))
 #define	ath_hal_setuptxdesc(_ah, _ds, _plen, _hlen, _atype, _txpow, \
 		_txr0, _txtr0, _keyix, _ant, _flags, \
 		_rtsrate, _rtsdura) \
@@ -564,8 +566,8 @@ void	ath_intr(void *);
 		(_txr1), (_txtr1), (_txr2), (_txtr2), (_txr3), (_txtr3)))
 #define	ath_hal_filltxdesc(_ah, _ds, _l, _first, _last, _ds0) \
 	((*(_ah)->ah_fillTxDesc)((_ah), (_ds), (_l), (_first), (_last), (_ds0)))
-#define	ath_hal_txprocdesc(_ah, _ds) \
-	((*(_ah)->ah_procTxDesc)((_ah), (_ds)))
+#define	ath_hal_txprocdesc(_ah, _ds, _ts) \
+	((*(_ah)->ah_procTxDesc)((_ah), (_ds), (_ts)))
 #define	ath_hal_gettxintrtxqs(_ah, _txqs) \
 	((*(_ah)->ah_getTxIntrQueue)((_ah), (_txqs)))
 

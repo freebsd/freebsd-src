@@ -159,16 +159,17 @@ ath_rate_setupxtxdesc(struct ath_softc *sc, struct ath_node *an,
 
 void
 ath_rate_tx_complete(struct ath_softc *sc, struct ath_node *an,
-	const struct ath_desc *ds, const struct ath_desc *ds0)
+	const struct ath_buf *bf)
 {
 	struct onoe_node *on = ATH_NODE_ONOE(an);
+	const struct ath_tx_status *ts = &bf->bf_status.ds_txstat;
 
-	if (ds->ds_txstat.ts_status == 0)
+	if (ts->ts_status == 0)
 		on->on_tx_ok++;
 	else
 		on->on_tx_err++;
-	on->on_tx_retr += ds->ds_txstat.ts_shortretry
-			+ ds->ds_txstat.ts_longretry;
+	on->on_tx_retr += ts->ts_shortretry
+			+ ts->ts_longretry;
 }
 
 void
