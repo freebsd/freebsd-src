@@ -1,5 +1,5 @@
 /*
- * Portions Copyright (C) 2004  Internet Systems Consortium, Inc. ("ISC")
+ * Portions Copyright (C) 2004, 2006  Internet Systems Consortium, Inc. ("ISC")
  * Portions Copyright (C) 1999-2003  Internet Software Consortium.
  * Portions Copyright (C) 1995-2000 by Network Associates, Inc.
  *
@@ -18,7 +18,7 @@
 
 /*
  * Principal Author: Brian Wellington
- * $Id: openssl_link.c,v 1.1.4.1 2004/12/09 04:07:18 marka Exp $
+ * $Id: openssl_link.c,v 1.1.4.3 2006/05/23 23:51:03 marka Exp $
  */
 #ifdef OPENSSL
 
@@ -39,7 +39,7 @@
 #include <openssl/rand.h>
 #include <openssl/crypto.h>
 
-#if defined(CRYPTO_LOCK_ENGINE) && (OPENSSL_VERSION_NUMBER < 0x00907000L)
+#if defined(CRYPTO_LOCK_ENGINE) && (OPENSSL_VERSION_NUMBER != 0x00907000L)
 #define USE_ENGINE 1
 #endif
 
@@ -160,7 +160,7 @@ dst__openssl_init() {
 		goto cleanup_rm;
 	}
 	ENGINE_set_RAND(e, rm);
-	RAND_set_rand_method(e);
+	RAND_set_rand_method(rm);
 #else
 	RAND_set_rand_method(rm);
 #endif

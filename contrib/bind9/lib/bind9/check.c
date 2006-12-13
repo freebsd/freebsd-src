@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2004, 2005  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004-2006  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 2001-2003  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and distribute this software for any
@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: check.c,v 1.37.6.32 2005/11/03 23:08:41 marka Exp $ */
+/* $Id: check.c,v 1.37.6.34 2006/03/02 00:37:20 marka Exp $ */
 
 #include <config.h>
 
@@ -50,12 +50,12 @@ freekey(char *key, unsigned int type, isc_symvalue_t value, void *userarg) {
 }
 
 static isc_result_t
-check_orderent(cfg_obj_t *ent, isc_log_t *logctx) {
+check_orderent(const cfg_obj_t *ent, isc_log_t *logctx) {
 	isc_result_t result = ISC_R_SUCCESS;
 	isc_result_t tresult;
 	isc_textregion_t r;
 	dns_fixedname_t fixed;
-	cfg_obj_t *obj;
+	const cfg_obj_t *obj;
 	dns_rdataclass_t rdclass;
 	dns_rdatatype_t rdtype;
 	isc_buffer_t b;
@@ -132,11 +132,11 @@ check_orderent(cfg_obj_t *ent, isc_log_t *logctx) {
 }
 
 static isc_result_t
-check_order(cfg_obj_t *options, isc_log_t *logctx) {
+check_order(const cfg_obj_t *options, isc_log_t *logctx) {
 	isc_result_t result = ISC_R_SUCCESS;
 	isc_result_t tresult;
-	cfg_listelt_t *element;
-	cfg_obj_t *obj = NULL;
+	const cfg_listelt_t *element;
+	const cfg_obj_t *obj = NULL;
 
 	if (cfg_map_get(options, "rrset-order", &obj) != ISC_R_SUCCESS)
 		return (result);
@@ -153,12 +153,12 @@ check_order(cfg_obj_t *options, isc_log_t *logctx) {
 }
 
 static isc_result_t
-check_dual_stack(cfg_obj_t *options, isc_log_t *logctx) {
-	cfg_listelt_t *element;
-	cfg_obj_t *alternates = NULL;
-	cfg_obj_t *value;
-	cfg_obj_t *obj;
-	char *str;
+check_dual_stack(const cfg_obj_t *options, isc_log_t *logctx) {
+	const cfg_listelt_t *element;
+	const cfg_obj_t *alternates = NULL;
+	const cfg_obj_t *value;
+	const cfg_obj_t *obj;
+	const char *str;
 	dns_fixedname_t fixed;
 	dns_name_t *name;
 	isc_buffer_t buffer;
@@ -213,9 +213,9 @@ check_dual_stack(cfg_obj_t *options, isc_log_t *logctx) {
 }
 
 static isc_result_t
-check_forward(cfg_obj_t *options, isc_log_t *logctx) {
-	cfg_obj_t *forward = NULL;
-	cfg_obj_t *forwarders = NULL;
+check_forward(const cfg_obj_t *options, isc_log_t *logctx) {
+	const cfg_obj_t *forward = NULL;
+	const cfg_obj_t *forwarders = NULL;
 
 	(void)cfg_map_get(options, "forward", &forward);
 	(void)cfg_map_get(options, "forwarders", &forwarders);
@@ -229,15 +229,15 @@ check_forward(cfg_obj_t *options, isc_log_t *logctx) {
 }
 
 static isc_result_t
-disabled_algorithms(cfg_obj_t *disabled, isc_log_t *logctx) {
+disabled_algorithms(const cfg_obj_t *disabled, isc_log_t *logctx) {
 	isc_result_t result = ISC_R_SUCCESS;
 	isc_result_t tresult;
-	cfg_listelt_t *element;
+	const cfg_listelt_t *element;
 	const char *str;
 	isc_buffer_t b;
 	dns_fixedname_t fixed;
 	dns_name_t *name;
-	cfg_obj_t *obj;
+	const cfg_obj_t *obj;
 
 	dns_fixedname_init(&fixed);
 	name = dns_fixedname_name(&fixed);
@@ -262,7 +262,7 @@ disabled_algorithms(cfg_obj_t *disabled, isc_log_t *logctx) {
 		dns_secalg_t alg;
 		isc_result_t tresult;
 
-		r.base = cfg_obj_asstring(cfg_listelt_value(element));
+		DE_CONST(cfg_obj_asstring(cfg_listelt_value(element)), r.base);
 		r.length = strlen(r.base);
 
 		tresult = dns_secalg_fromtext(&alg, &r);
@@ -280,8 +280,9 @@ disabled_algorithms(cfg_obj_t *disabled, isc_log_t *logctx) {
 }
 
 static isc_result_t
-nameexist(cfg_obj_t *obj, const char *name, int value, isc_symtab_t *symtab,
-	  const char *fmt, isc_log_t *logctx, isc_mem_t *mctx)
+nameexist(const cfg_obj_t *obj, const char *name, int value,
+	  isc_symtab_t *symtab, const char *fmt, isc_log_t *logctx,
+	  isc_mem_t *mctx)
 {
 	char *key;
 	const char *file;
@@ -292,14 +293,14 @@ nameexist(cfg_obj_t *obj, const char *name, int value, isc_symtab_t *symtab,
 	key = isc_mem_strdup(mctx, name);
 	if (key == NULL)
 		return (ISC_R_NOMEMORY);
-	symvalue.as_pointer = obj;
+	symvalue.as_cpointer = obj;
 	result = isc_symtab_define(symtab, key, value, symvalue,
 				   isc_symexists_reject);
 	if (result == ISC_R_EXISTS) {
 		RUNTIME_CHECK(isc_symtab_lookup(symtab, key, value,
 						&symvalue) == ISC_R_SUCCESS);
-		file = cfg_obj_file(symvalue.as_pointer);
-		line = cfg_obj_line(symvalue.as_pointer);
+		file = cfg_obj_file(symvalue.as_cpointer);
+		line = cfg_obj_line(symvalue.as_cpointer);
 
 		if (file == NULL)
 			file = "<unknown file>";
@@ -313,10 +314,10 @@ nameexist(cfg_obj_t *obj, const char *name, int value, isc_symtab_t *symtab,
 }
 
 static isc_result_t
-mustbesecure(cfg_obj_t *secure, isc_symtab_t *symtab, isc_log_t *logctx,
+mustbesecure(const cfg_obj_t *secure, isc_symtab_t *symtab, isc_log_t *logctx,
 	     isc_mem_t *mctx)
 {
-	cfg_obj_t *obj;
+	const cfg_obj_t *obj;
 	char namebuf[DNS_NAME_FORMATSIZE];
 	const char *str;
 	dns_fixedname_t fixed;
@@ -351,12 +352,12 @@ typedef struct {
 } intervaltable;
 
 static isc_result_t
-check_options(cfg_obj_t *options, isc_log_t *logctx, isc_mem_t *mctx) {
+check_options(const cfg_obj_t *options, isc_log_t *logctx, isc_mem_t *mctx) {
 	isc_result_t result = ISC_R_SUCCESS;
 	isc_result_t tresult;
 	unsigned int i;
-	cfg_obj_t *obj = NULL;
-	cfg_listelt_t *element;
+	const cfg_obj_t *obj = NULL;
+	const cfg_listelt_t *element;
 	isc_symtab_t *symtab = NULL;
 
 	static intervaltable intervals[] = {
@@ -411,9 +412,9 @@ check_options(cfg_obj_t *options, isc_log_t *logctx, isc_mem_t *mctx) {
 	(void)cfg_map_get(options, "root-delegation-only", &obj);
 	if (obj != NULL) {
 		if (!cfg_obj_isvoid(obj)) {
-			cfg_listelt_t *element;
-			cfg_obj_t *exclude;
-			char *str;
+			const cfg_listelt_t *element;
+			const cfg_obj_t *exclude;
+			const char *str;
 			dns_fixedname_t fixed;
 			dns_name_t *name;
 			isc_buffer_t b;
@@ -557,10 +558,10 @@ check_options(cfg_obj_t *options, isc_log_t *logctx, isc_mem_t *mctx) {
 }
 
 static isc_result_t
-get_masters_def(cfg_obj_t *cctx, char *name, cfg_obj_t **ret) {
+get_masters_def(const cfg_obj_t *cctx, const char *name, const cfg_obj_t **ret) {
 	isc_result_t result;
-	cfg_obj_t *masters = NULL;
-	cfg_listelt_t *elt;
+	const cfg_obj_t *masters = NULL;
+	const cfg_listelt_t *elt;
 
 	result = cfg_map_get(cctx, "masters", &masters);
 	if (result != ISC_R_SUCCESS)
@@ -568,7 +569,7 @@ get_masters_def(cfg_obj_t *cctx, char *name, cfg_obj_t **ret) {
 	for (elt = cfg_list_first(masters);
 	     elt != NULL;
 	     elt = cfg_list_next(elt)) {
-		cfg_obj_t *list;
+		const cfg_obj_t *list;
 		const char *listname;
 
 		list = cfg_listelt_value(elt);
@@ -583,18 +584,18 @@ get_masters_def(cfg_obj_t *cctx, char *name, cfg_obj_t **ret) {
 }
 
 static isc_result_t
-validate_masters(cfg_obj_t *obj, cfg_obj_t *config, isc_uint32_t *countp,
-		 isc_log_t *logctx, isc_mem_t *mctx)
+validate_masters(const cfg_obj_t *obj, const cfg_obj_t *config,
+	         isc_uint32_t *countp, isc_log_t *logctx, isc_mem_t *mctx)
 {
 	isc_result_t result = ISC_R_SUCCESS;
 	isc_result_t tresult;
 	isc_uint32_t count = 0;
 	isc_symtab_t *symtab = NULL;
 	isc_symvalue_t symvalue;
-	cfg_listelt_t *element;
-	cfg_listelt_t **stack = NULL;
+	const cfg_listelt_t *element;
+	const cfg_listelt_t **stack = NULL;
 	isc_uint32_t stackcount = 0, pushed = 0;
-	cfg_obj_t *list;
+	const cfg_obj_t *list;
 
 	REQUIRE(countp != NULL);
 	result = isc_symtab_create(mctx, 100, NULL, NULL, ISC_FALSE, &symtab);
@@ -611,9 +612,9 @@ validate_masters(cfg_obj_t *obj, cfg_obj_t *config, isc_uint32_t *countp,
 	     element != NULL;
 	     element = cfg_list_next(element))
 	{
-		char *listname;
-		cfg_obj_t *addr;
-		cfg_obj_t *key;
+		const char *listname;
+		const cfg_obj_t *addr;
+		const cfg_obj_t *key;
 
 		addr = cfg_tuple_get(cfg_listelt_value(element),
 				     "masterselement");
@@ -631,7 +632,7 @@ validate_masters(cfg_obj_t *obj, cfg_obj_t *config, isc_uint32_t *countp,
 				result = ISC_R_FAILURE;
 		}
 		listname = cfg_obj_asstring(addr);
-		symvalue.as_pointer = addr;
+		symvalue.as_cpointer = addr;
 		tresult = isc_symtab_define(symtab, listname, 1, symvalue,
 					    isc_symexists_reject);
 		if (tresult == ISC_R_EXISTS)
@@ -691,14 +692,15 @@ typedef struct {
 } optionstable;
 
 static isc_result_t
-check_zoneconf(cfg_obj_t *zconfig, cfg_obj_t *config, isc_symtab_t *symtab,
-	       dns_rdataclass_t defclass, isc_log_t *logctx, isc_mem_t *mctx)
+check_zoneconf(const cfg_obj_t *zconfig, const cfg_obj_t *config,
+	       isc_symtab_t *symtab, dns_rdataclass_t defclass,
+	       isc_log_t *logctx, isc_mem_t *mctx)
 {
 	const char *zname;
 	const char *typestr;
 	unsigned int ztype;
-	cfg_obj_t *zoptions;
-	cfg_obj_t *obj = NULL;
+	const cfg_obj_t *zoptions;
+	const cfg_obj_t *obj = NULL;
 	isc_result_t result = ISC_R_SUCCESS;
 	isc_result_t tresult;
 	unsigned int i;
@@ -902,10 +904,10 @@ check_zoneconf(cfg_obj_t *zconfig, cfg_obj_t *config, isc_symtab_t *symtab,
 	 * Check the excessively complicated "dialup" option.
 	 */
 	if (ztype == MASTERZONE || ztype == SLAVEZONE || ztype == STUBZONE) {
-		cfg_obj_t *dialup = NULL;
+		const cfg_obj_t *dialup = NULL;
 		(void)cfg_map_get(zoptions, "dialup", &dialup);
 		if (dialup != NULL && cfg_obj_isstring(dialup)) {
-			char *str = cfg_obj_asstring(dialup);
+			const char *str = cfg_obj_asstring(dialup);
 			for (i = 0;
 			     i < sizeof(dialups) / sizeof(dialups[0]);
 			     i++)
@@ -970,9 +972,9 @@ check_zoneconf(cfg_obj_t *zconfig, cfg_obj_t *config, isc_symtab_t *symtab,
 }
 
 isc_result_t
-bind9_check_key(cfg_obj_t *key, isc_log_t *logctx) {
-	cfg_obj_t *algobj = NULL;
-	cfg_obj_t *secretobj = NULL;
+bind9_check_key(const cfg_obj_t *key, isc_log_t *logctx) {
+	const cfg_obj_t *algobj = NULL;
+	const cfg_obj_t *secretobj = NULL;
 	const char *keyname = cfg_obj_asstring(cfg_map_getname(key));
 	
 	(void)cfg_map_get(key, "algorithm", &algobj);
@@ -988,20 +990,20 @@ bind9_check_key(cfg_obj_t *key, isc_log_t *logctx) {
 }
 
 static isc_result_t
-check_keylist(cfg_obj_t *keys, isc_symtab_t *symtab, isc_log_t *logctx) {
+check_keylist(const cfg_obj_t *keys, isc_symtab_t *symtab, isc_log_t *logctx) {
 	isc_result_t result = ISC_R_SUCCESS;
 	isc_result_t tresult;
-	cfg_listelt_t *element;
+	const cfg_listelt_t *element;
 
 	for (element = cfg_list_first(keys);
 	     element != NULL;
 	     element = cfg_list_next(element))
 	{
-		cfg_obj_t *key = cfg_listelt_value(element);
+		const cfg_obj_t *key = cfg_listelt_value(element);
 		const char *keyname = cfg_obj_asstring(cfg_map_getname(key));
 		isc_symvalue_t symvalue;
 
-		symvalue.as_pointer = key;
+		symvalue.as_cpointer = key;
 		tresult = isc_symtab_define(symtab, keyname, 1,
 					    symvalue, isc_symexists_reject);
 		if (tresult == ISC_R_EXISTS) {
@@ -1010,8 +1012,8 @@ check_keylist(cfg_obj_t *keys, isc_symtab_t *symtab, isc_log_t *logctx) {
 
 			RUNTIME_CHECK(isc_symtab_lookup(symtab, keyname,
 					    1, &symvalue) == ISC_R_SUCCESS);
-			file = cfg_obj_file(symvalue.as_pointer);
-			line = cfg_obj_line(symvalue.as_pointer);
+			file = cfg_obj_file(symvalue.as_cpointer);
+			line = cfg_obj_line(symvalue.as_cpointer);
 
 			if (file == NULL)
 				file = "<unknown file>";
@@ -1031,13 +1033,16 @@ check_keylist(cfg_obj_t *keys, isc_symtab_t *symtab, isc_log_t *logctx) {
 }
 
 static isc_result_t
-check_servers(cfg_obj_t *servers, isc_log_t *logctx) {
+check_servers(const cfg_obj_t *servers, isc_log_t *logctx) {
 	isc_result_t result = ISC_R_SUCCESS;
-	cfg_listelt_t *e1, *e2;
-	cfg_obj_t *v1, *v2;
-	isc_sockaddr_t *s1, *s2;
+	const cfg_listelt_t *e1;
+	const cfg_listelt_t *e2;
+	const cfg_obj_t *v1;
+	const cfg_obj_t *v2;
+	const isc_sockaddr_t *s1;
+	const isc_sockaddr_t *s2;
 	isc_netaddr_t na;
-	cfg_obj_t *ts;
+	const cfg_obj_t *ts;
 	char buf[128];
 	const char *xfr;
 	isc_buffer_t target;
@@ -1090,13 +1095,13 @@ check_servers(cfg_obj_t *servers, isc_log_t *logctx) {
 }
 		
 static isc_result_t
-check_viewconf(cfg_obj_t *config, cfg_obj_t *vconfig, dns_rdataclass_t vclass,
-	       isc_log_t *logctx, isc_mem_t *mctx)
+check_viewconf(const cfg_obj_t *config, const cfg_obj_t *vconfig,
+	       dns_rdataclass_t vclass, isc_log_t *logctx, isc_mem_t *mctx)
 {
-	cfg_obj_t *servers = NULL;
-	cfg_obj_t *zones = NULL;
-	cfg_obj_t *keys = NULL;
-	cfg_listelt_t *element;
+	const cfg_obj_t *servers = NULL;
+	const cfg_obj_t *zones = NULL;
+	const cfg_obj_t *keys = NULL;
+	const cfg_listelt_t *element;
 	isc_symtab_t *symtab = NULL;
 	isc_result_t result = ISC_R_SUCCESS;
 	isc_result_t tresult = ISC_R_SUCCESS;
@@ -1120,7 +1125,7 @@ check_viewconf(cfg_obj_t *config, cfg_obj_t *vconfig, dns_rdataclass_t vclass,
 	     element = cfg_list_next(element))
 	{
 		isc_result_t tresult;
-		cfg_obj_t *zone = cfg_listelt_value(element);
+		const cfg_obj_t *zone = cfg_listelt_value(element);
 
 		tresult = check_zoneconf(zone, config, symtab, vclass,
 					 logctx, mctx);
@@ -1165,7 +1170,7 @@ check_viewconf(cfg_obj_t *config, cfg_obj_t *vconfig, dns_rdataclass_t vclass,
 	 * Check that forwarding is reasonable.
 	 */
 	if (vconfig == NULL) {
-		cfg_obj_t *options = NULL;
+		const cfg_obj_t *options = NULL;
 		(void)cfg_map_get(config, "options", &options);
 		if (options != NULL)
 			if (check_forward(options, logctx) != ISC_R_SUCCESS)
@@ -1178,7 +1183,7 @@ check_viewconf(cfg_obj_t *config, cfg_obj_t *vconfig, dns_rdataclass_t vclass,
 	 * Check that dual-stack-servers is reasonable.
 	 */
 	if (vconfig == NULL) {
-		cfg_obj_t *options = NULL;
+		const cfg_obj_t *options = NULL;
 		(void)cfg_map_get(config, "options", &options);
 		if (options != NULL)
 			if (check_dual_stack(options, logctx) != ISC_R_SUCCESS)
@@ -1215,14 +1220,16 @@ check_viewconf(cfg_obj_t *config, cfg_obj_t *vconfig, dns_rdataclass_t vclass,
 
 
 isc_result_t
-bind9_check_namedconf(cfg_obj_t *config, isc_log_t *logctx, isc_mem_t *mctx) {
-	cfg_obj_t *options = NULL;
-	cfg_obj_t *servers = NULL;
-	cfg_obj_t *views = NULL;
-	cfg_obj_t *acls = NULL;
-	cfg_obj_t *kals = NULL;
-	cfg_obj_t *obj;
-	cfg_listelt_t *velement;
+bind9_check_namedconf(const cfg_obj_t *config, isc_log_t *logctx,
+		      isc_mem_t *mctx)
+{
+	const cfg_obj_t *options = NULL;
+	const cfg_obj_t *servers = NULL;
+	const cfg_obj_t *views = NULL;
+	const cfg_obj_t *acls = NULL;
+	const cfg_obj_t *kals = NULL;
+	const cfg_obj_t *obj;
+	const cfg_listelt_t *velement;
 	isc_result_t result = ISC_R_SUCCESS;
 	isc_result_t tresult;
 	isc_symtab_t *symtab = NULL;
@@ -1256,7 +1263,7 @@ bind9_check_namedconf(cfg_obj_t *config, isc_log_t *logctx, isc_mem_t *mctx) {
 				   logctx, mctx) != ISC_R_SUCCESS)
 			result = ISC_R_FAILURE;
 	} else {
-		cfg_obj_t *zones = NULL;
+		const cfg_obj_t *zones = NULL;
 
 		(void)cfg_map_get(config, "zone", &zones);
 		if (zones != NULL) {
@@ -1274,10 +1281,10 @@ bind9_check_namedconf(cfg_obj_t *config, isc_log_t *logctx, isc_mem_t *mctx) {
 	     velement != NULL;
 	     velement = cfg_list_next(velement))
 	{
-		cfg_obj_t *view = cfg_listelt_value(velement);
-		cfg_obj_t *vname = cfg_tuple_get(view, "name");
-		cfg_obj_t *voptions = cfg_tuple_get(view, "options");
-		cfg_obj_t *vclassobj = cfg_tuple_get(view, "class");
+		const cfg_obj_t *view = cfg_listelt_value(velement);
+		const cfg_obj_t *vname = cfg_tuple_get(view, "name");
+		const cfg_obj_t *voptions = cfg_tuple_get(view, "options");
+		const cfg_obj_t *vclassobj = cfg_tuple_get(view, "class");
 		dns_rdataclass_t vclass = dns_rdataclass_in;
 		isc_result_t tresult = ISC_R_SUCCESS;
 		const char *key = cfg_obj_asstring(vname);
@@ -1295,7 +1302,7 @@ bind9_check_namedconf(cfg_obj_t *config, isc_log_t *logctx, isc_mem_t *mctx) {
 					    cfg_obj_asstring(vname), r.base);
 		}
 		if (tresult == ISC_R_SUCCESS && symtab != NULL) {
-			symvalue.as_pointer = view;
+			symvalue.as_cpointer = view;
 			tresult = isc_symtab_define(symtab, key, vclass,
 						    symvalue,
 						    isc_symexists_reject);
@@ -1304,8 +1311,8 @@ bind9_check_namedconf(cfg_obj_t *config, isc_log_t *logctx, isc_mem_t *mctx) {
 				unsigned int line;
 				RUNTIME_CHECK(isc_symtab_lookup(symtab, key,
 				           vclass, &symvalue) == ISC_R_SUCCESS);
-				file = cfg_obj_file(symvalue.as_pointer);
-				line = cfg_obj_line(symvalue.as_pointer);
+				file = cfg_obj_file(symvalue.as_cpointer);
+				line = cfg_obj_line(symvalue.as_cpointer);
 				cfg_obj_log(view, logctx, ISC_LOG_ERROR,
 					    "view '%s': already exists "
 					    "previous definition: %s:%u",
@@ -1345,14 +1352,14 @@ bind9_check_namedconf(cfg_obj_t *config, isc_log_t *logctx, isc_mem_t *mctx) {
 
         tresult = cfg_map_get(config, "acl", &acls);
         if (tresult == ISC_R_SUCCESS) {
-		cfg_listelt_t *elt;
-		cfg_listelt_t *elt2;
+		const cfg_listelt_t *elt;
+		const cfg_listelt_t *elt2;
 		const char *aclname;
 
 		for (elt = cfg_list_first(acls);
 		     elt != NULL;
 		     elt = cfg_list_next(elt)) {
-			cfg_obj_t *acl = cfg_listelt_value(elt);
+			const cfg_obj_t *acl = cfg_listelt_value(elt);
 			unsigned int i;
 
 			aclname = cfg_obj_asstring(cfg_tuple_get(acl, "name"));
@@ -1371,7 +1378,7 @@ bind9_check_namedconf(cfg_obj_t *config, isc_log_t *logctx, isc_mem_t *mctx) {
 			for (elt2 = cfg_list_next(elt);
 			     elt2 != NULL;
 			     elt2 = cfg_list_next(elt2)) {
-				cfg_obj_t *acl2 = cfg_listelt_value(elt2);
+				const cfg_obj_t *acl2 = cfg_listelt_value(elt2);
 				const char *name;
 				name = cfg_obj_asstring(cfg_tuple_get(acl2,
 								      "name"));
@@ -1395,21 +1402,21 @@ bind9_check_namedconf(cfg_obj_t *config, isc_log_t *logctx, isc_mem_t *mctx) {
 
         tresult = cfg_map_get(config, "kal", &kals);
         if (tresult == ISC_R_SUCCESS) {
-		cfg_listelt_t *elt;
-		cfg_listelt_t *elt2;
+		const cfg_listelt_t *elt;
+		const cfg_listelt_t *elt2;
 		const char *aclname;
 
 		for (elt = cfg_list_first(kals);
 		     elt != NULL;
 		     elt = cfg_list_next(elt)) {
-			cfg_obj_t *acl = cfg_listelt_value(elt);
+			const cfg_obj_t *acl = cfg_listelt_value(elt);
 
 			aclname = cfg_obj_asstring(cfg_tuple_get(acl, "name"));
 
 			for (elt2 = cfg_list_next(elt);
 			     elt2 != NULL;
 			     elt2 = cfg_list_next(elt2)) {
-				cfg_obj_t *acl2 = cfg_listelt_value(elt2);
+				const cfg_obj_t *acl2 = cfg_listelt_value(elt2);
 				const char *name;
 				name = cfg_obj_asstring(cfg_tuple_get(acl2,
 								      "name"));

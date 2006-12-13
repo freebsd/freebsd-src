@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2004, 2005  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004-2006  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 1998-2003  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and distribute this software for any
@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: socket.c,v 1.207.2.19.2.22 2005/11/03 23:08:42 marka Exp $ */
+/* $Id: socket.c,v 1.207.2.19.2.26 2006/05/19 02:53:36 marka Exp $ */
 
 #include <config.h>
 
@@ -109,7 +109,7 @@ typedef isc_event_t intev_t;
  * to collect the destination address and interface so the client can
  * set them on outgoing packets.
  */
-#ifdef ISC_PLATFORM_HAVEIPV6
+#ifdef ISC_PLATFORM_HAVEIN6PKTINFO
 #ifndef USE_CMSG
 #define USE_CMSG	1
 #endif
@@ -747,8 +747,26 @@ build_msghdr_recv(isc_socket_t *sock, isc_socketevent_t *dev,
 
 	if (sock->type == isc_sockettype_udp) {
 		memset(&dev->address, 0, sizeof(dev->address));
+#ifdef BROKEN_RECVMSG
+		if (sock->pf == AF_INET) {
+			msg->msg_name = (void *)&dev->address.type.sin;
+			msg->msg_namelen = sizeof(dev->address.type.sin6);
+		} else if (sock->pf == AF_INET6) {
+			msg->msg_name = (void *)&dev->address.type.sin6;
+			msg->msg_namelen = sizeof(dev->address.type.sin6);
+#ifdef ISC_PLATFORM_HAVESYSUNH
+		} else if (sock->pf == AF_UNIX) {
+			msg->msg_name = (void *)&dev->address.type.sunix;
+			msg->msg_namelen = sizeof(dev->address.type.sunix);
+#endif
+		} else {
+			msg->msg_name = (void *)&dev->address.type.sa;
+			msg->msg_namelen = sizeof(dev->address.type);
+		}
+#else
 		msg->msg_name = (void *)&dev->address.type.sa;
 		msg->msg_namelen = sizeof(dev->address.type);
+#endif
 #ifdef ISC_NET_RECVOVERFLOW
 		/* If needed, steal one iovec for overflow detection. */
 		maxiov--;
@@ -920,6 +938,10 @@ doio_recv(isc_socket_t *sock, isc_socketevent_t *dev) {
 
 	cc = recvmsg(sock->fd, &msghdr, 0);
 	recv_errno = errno;
+
+#if defined(ISC_SOCKET_DEBUG)
+	dump_msg(&msghdr);
+#endif
 
 	if (cc < 0) {
 		if (SOFT_ERROR(recv_errno))
@@ -2681,8 +2703,8 @@ socket_send(isc_socket_t *sock, isc_socketevent_t *dev, isc_task_t *task,
 		dev->attributes |= ISC_SOCKEVENTATTR_PKTINFO;
 		dev->pktinfo = *pktinfo;
 
-		if (!isc_sockaddr_issitelocal(address) &&
-		    !isc_sockaddr_islinklocal(address)) {
+		if (!isc_sockaddr_issitelocal(&dev->address) &&
+		    !isc_sockaddr_islinklocal(&dev->address)) {
 			socket_log(sock, NULL, TRACE, isc_msgcat,
 				   ISC_MSGSET_SOCKET, ISC_MSG_PKTINFOPROVIDED,
 				   "pktinfo structure provided, ifindex %u "

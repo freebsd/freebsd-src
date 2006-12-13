@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2004  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004, 2006  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 1999-2001, 2003  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and distribute this software for any
@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: xfrin.h,v 1.18.136.2 2004/03/06 08:14:01 marka Exp $ */
+/* $Id: xfrin.h,v 1.18.136.4 2006/07/20 01:10:29 marka Exp $ */
 
 #ifndef DNS_XFRIN_H
 #define DNS_XFRIN_H 1
@@ -75,10 +75,12 @@ dns_xfrin_create2(dns_zone_t *zone, dns_rdatatype_t xfrtype,
  * code as arguments when the transfer finishes.
  *
  * Requires:
- *	'xfrtype' is dns_rdatatype_axfr or dns_rdatatype_ixfr.
+ *	'xfrtype' is dns_rdatatype_axfr, dns_rdatatype_ixfr
+ *	or dns_rdatatype_soa (soa query followed by axfr if
+ *	serial is greater than current serial).
  *
- *	If 'xfrtype' is dns_rdatatype_ixfr, the zone has a
- * 	database.
+ *	If 'xfrtype' is dns_rdatatype_ixfr or dns_rdatatype_soa,
+ *	the zone has a database.
  */
 
 void

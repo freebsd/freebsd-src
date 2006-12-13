@@ -2,7 +2,7 @@
                "http://www.oasis-open.org/docbook/xml/4.0/docbookx.dtd"
 	       [<!ENTITY mdash "&#8212;">]>
 <!--
- - Copyright (C) 2004, 2005  Internet Systems Consortium, Inc. ("ISC")
+ - Copyright (C) 2004-2006  Internet Systems Consortium, Inc. ("ISC")
  - Copyright (C) 2000-2002  Internet Software Consortium.
  -
  - Permission to use, copy, modify, and distribute this software for any
@@ -18,7 +18,7 @@
  - PERFORMANCE OF THIS SOFTWARE.
 -->
 
-<!-- $Id: named-checkzone.docbook,v 1.3.2.2.8.11 2005/05/12 21:35:57 sra Exp $ -->
+<!-- $Id: named-checkzone.docbook,v 1.3.2.2.8.13 2006/09/30 23:58:36 marka Exp $ -->
 
 <refentry>
   <refentryinfo>
@@ -35,6 +35,7 @@
     <copyright>
       <year>2004</year>
       <year>2005</year>
+      <year>2006</year>
       <holder>Internet Systems Consortium, Inc. ("ISC")</holder>
     </copyright>
     <copyright>
@@ -134,7 +135,7 @@
         <term>-k <replaceable class="parameter">mode</replaceable></term>
 	<listitem>
 	  <para>
-	      Perform <command>"check-name"</command> checks with the specified failure mode.
+	      Perform <command>"check-names"</command> checks with the specified failure mode.
 	      Possible modes are <command>"fail"</command>,
 	      <command>"warn"</command> (default) and
 	      <command>"ignore"</command>.
