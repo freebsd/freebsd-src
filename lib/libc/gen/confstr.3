@@ -32,7 +32,7 @@
 .\"	@(#)confstr.3	8.1 (Berkeley) 6/4/93
 .\" $FreeBSD$
 .\"
-.Dd June 18, 2001
+.Dd December 3, 2006
 .Dt CONFSTR 3
 .Os
 .Sh NAME
@@ -92,7 +92,7 @@ environment variable that finds all the standard utilities.
 .Sh RETURN VALUES
 If the call to
 .Fn confstr
-is not successful, \-1 is returned and
+is not successful, 0 is returned and
 .Va errno
 is set appropriately.
 Otherwise, if the variable does not have a configuration defined value,
