@@ -32,7 +32,7 @@
 .\"     @(#)truncate.2	8.1 (Berkeley) 6/4/93
 .\" $FreeBSD$
 .\"
-.Dd December 9, 2006
+.Dd December 13, 2006
 .Dt TRUNCATE 2
 .Os
 .Sh NAME
@@ -102,6 +102,14 @@ The named file is a directory.
 The named file resides on a read-only file system.
 .It Bq Er ETXTBSY
 The file is a pure procedure (shared text) file that is being executed.
+.It Bq Er EFBIG
+The
+.Fa length
+argument was greater than the maximum file size.
+.It Bq Er EINVAL
+The
+.Fa length
+argument was less than 0.
 .It Bq Er EIO
 An I/O error occurred updating the inode.
 .It Bq Er EFAULT
