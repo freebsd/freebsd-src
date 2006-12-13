@@ -761,7 +761,6 @@ USB_ATTACH(aue)
 	 * Call MI attach routine.
 	 */
 	ether_ifattach(ifp, eaddr);
-	callout_handle_init(&sc->aue_stat_ch);
 	usb_register_netisr();
 	sc->aue_dying = 0;
 
@@ -780,7 +779,7 @@ aue_detach(device_t dev)
 	ifp = sc->aue_ifp;
 
 	sc->aue_dying = 1;
-	untimeout(aue_tick, sc, sc->aue_stat_ch);
+	callout_drain(&sc->aue_tick_callout);
 	taskqueue_drain(taskqueue_thread, &sc->aue_task);
 	ether_ifdetach(ifp);
 	if_free(ifp);
@@ -989,6 +988,10 @@ aue_tick_thread(struct aue_softc *sc)
 
 	AUE_SXASSERTLOCKED(sc);
 	ifp = sc->aue_ifp;
+	if (ifp->if_drv_flags & IFF_DRV_RUNNING) {
+		return;
+	}
+
 	mii = GET_MII(sc);
 	if (mii == NULL) {
 		goto resched;
@@ -1002,7 +1005,7 @@ aue_tick_thread(struct aue_softc *sc)
 			aue_start_thread(sc);
 	}
 resched:
-	sc->aue_stat_ch = timeout(aue_tick, sc, hz);
+	(void) callout_reset(&sc->aue_tick_callout, hz, aue_tick, sc);
 	return;
 }
 
@@ -1188,8 +1191,8 @@ aue_init(void *xsc)
 	ifp->if_drv_flags &= ~IFF_DRV_OACTIVE;
 
 	TASK_INIT(&sc->aue_task, 0, aue_task, sc);
-	sc->aue_stat_ch = timeout(aue_tick, sc, hz);
-
+	callout_init(&sc->aue_tick_callout, 1);
+	(void) callout_reset(&sc->aue_tick_callout, hz, aue_tick, sc);
 	return;
 }
 
@@ -1326,7 +1329,7 @@ aue_stop(struct aue_softc *sc)
 	aue_csr_write_1(sc, AUE_CTL0, 0);
 	aue_csr_write_1(sc, AUE_CTL1, 0);
 	aue_reset(sc);
-	untimeout(aue_tick, sc, sc->aue_stat_ch);
+	callout_drain(&sc->aue_tick_callout);
 	taskqueue_drain(taskqueue_thread, &sc->aue_task);
 
 	/* Stop transfers. */
