@@ -5,12 +5,16 @@
 #include <sys/types.h>
 #include <sys/socket.h>
 #include <sys/param.h>
+#include <sys/time.h>
 #if (!defined(BSD)) || (BSD < 199306)
 #include <sys/bitypes.h>
 #endif
 #ifdef HAVE_INTTYPES_H
 #include <inttypes.h>
 #endif
+#ifdef HAVE_SYS_SELECT_H
+#include <sys/select.h>
+#endif /* HAVE_SYS_SELECT_H */
 
 @NEED_PSELECT@
 @HAVE_SA_LEN@

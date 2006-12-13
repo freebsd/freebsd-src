@@ -13,14 +13,17 @@
 .\" OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
 .\" PERFORMANCE OF THIS SOFTWARE.
 .\"
-.\" $Id: nsupdate.8,v 1.24.2.2.2.8 2005/10/13 02:33:48 marka Exp $
+.\" $Id: nsupdate.8,v 1.24.2.2.2.9 2006/06/29 13:02:30 marka Exp $
 .\"
 .hy 0
 .ad l
-.\" ** You probably do not want to edit this file directly **
-.\" It was generated using the DocBook XSL Stylesheets (version 1.69.1).
-.\" Instead of manually editing it, you probably should edit the DocBook XML
-.\" source for it and then use the DocBook XSL Stylesheets to regenerate it.
+.\"     Title: nsupdate
+.\"    Author: 
+.\" Generator: DocBook XSL Stylesheets v1.70.1 <http://docbook.sf.net/>
+.\"      Date: Jun 30, 2000
+.\"    Manual: BIND9
+.\"    Source: BIND9
+.\"
 .TH "NSUPDATE" "8" "Jun 30, 2000" "BIND9" "BIND9"
 .\" disable hyphenation
 .nh
@@ -30,7 +33,7 @@
 nsupdate \- Dynamic DNS update utility
 .SH "SYNOPSIS"
 .HP 9
-\fBnsupdate\fR [\fB\-d\fR] [[\fB\-y\ \fR\fB\fIkeyname:secret\fR\fR] [\fB\-k\ \fR\fB\fIkeyfile\fR\fR]] [\fB\-t\ \fR\fB\fItimeout\fR\fR] [\fB\-u\ \fR\fB\fIudptimeout\fR\fR] [\fB\-r\ \fR\fB\fIudpretries\fR\fR] [\fB\-v\fR] [filename]
+\fBnsupdate\fR [\fB\-d\fR] [[\fB\-y\ \fR\fB\fIkeyname:secret\fR\fR] | [\fB\-k\ \fR\fB\fIkeyfile\fR\fR]] [\fB\-t\ \fR\fB\fItimeout\fR\fR] [\fB\-u\ \fR\fB\fIudptimeout\fR\fR] [\fB\-r\ \fR\fB\fIudpretries\fR\fR] [\fB\-v\fR] [filename]
 .SH "DESCRIPTION"
 .PP
 \fBnsupdate\fR
@@ -79,7 +82,8 @@ reads the shared secret from the file
 must also be present. When the
 \fB\-y\fR
 option is used, a signature is generated from
-\fIkeyname:secret.\fR\fIkeyname\fR
+\fIkeyname:secret.\fR
+\fIkeyname\fR
 is the name of the key, and
 \fIsecret\fR
 is the base64 encoded shared secret. Use of the
@@ -123,7 +127,7 @@ Every update request consists of zero or more prerequisites and zero or more upd
 command) causes the accumulated commands to be sent as one Dynamic DNS update request to the name server.
 .PP
 The command formats and their meaning are as follows:
-.TP
+.TP 3n
 .HP 7 \fBserver\fR {servername} [port]
 Sends all dynamic update requests to the name server
 \fIservername\fR. When no server statement is provided,
@@ -133,7 +137,7 @@ will send updates to the master server of the correct zone. The MNAME field of t
 is the port number on
 \fIservername\fR
 where the dynamic update requests get sent. If no port number is specified, the default DNS port number of 53 is used.
-.TP
+.TP 3n
 .HP 6 \fBlocal\fR {address} [port]
 Sends all dynamic update requests using the local
 \fIaddress\fR. When no local statement is provided,
@@ -141,7 +145,7 @@ Sends all dynamic update requests using the local
 will send updates using an address and port chosen by the system.
 \fIport\fR
 can additionally be used to make requests come from a specific port. If no port number is specified, the system will assign one.
-.TP
+.TP 3n
 .HP 5 \fBzone\fR {zonename}
 Specifies that all updates are to be made to the zone
 \fIzonename\fR. If no
@@ -149,32 +153,33 @@ Specifies that all updates are to be made to the zone
 statement is provided,
 \fBnsupdate\fR
 will attempt determine the correct zone to update based on the rest of the input.
-.TP
+.TP 3n
 .HP 6 \fBclass\fR {classname}
 Specify the default class. If no
 \fIclass\fR
 is specified the default class is
 \fIIN\fR.
-.TP
+.TP 3n
 .HP 4 \fBkey\fR {name} {secret}
 Specifies that all updates are to be TSIG signed using the
-\fIkeyname\fR\fIkeysecret\fR
+\fIkeyname\fR
+\fIkeysecret\fR
 pair. The
 \fBkey\fR
 command overrides any key specified on the command line via
 \fB\-y\fR
 or
 \fB\-k\fR.
-.TP
+.TP 3n
 .HP 16 \fBprereq nxdomain\fR {domain\-name}
 Requires that no resource record of any type exists with name
 \fIdomain\-name\fR.
-.TP
+.TP 3n
 .HP 16 \fBprereq yxdomain\fR {domain\-name}
 Requires that
 \fIdomain\-name\fR
 exists (has as at least one resource record, of any type).
-.TP
+.TP 3n
 .HP 15 \fBprereq nxrrset\fR {domain\-name} [class] {type}
 Requires that no resource record exists of the specified
 \fItype\fR,
@@ -183,7 +188,7 @@ and
 \fIdomain\-name\fR. If
 \fIclass\fR
 is omitted, IN (internet) is assumed.
-.TP
+.TP 3n
 .HP 15 \fBprereq yxrrset\fR {domain\-name} [class] {type}
 This requires that a resource record of the specified
 \fItype\fR,
@@ -193,7 +198,7 @@ and
 must exist. If
 \fIclass\fR
 is omitted, IN (internet) is assumed.
-.TP
+.TP 3n
 .HP 15 \fBprereq yxrrset\fR {domain\-name} [class] {type} {data...}
 The
 \fIdata\fR
@@ -207,7 +212,7 @@ are combined to form a set of RRs. This set of RRs must exactly match the set of
 \fIdomain\-name\fR. The
 \fIdata\fR
 are written in the standard text representation of the resource record's RDATA.
-.TP
+.TP 3n
 .HP 14 \fBupdate delete\fR {domain\-name} [ttl] [class] [type\ [data...]]
 Deletes any resource records named
 \fIdomain\-name\fR. If
@@ -219,20 +224,20 @@ is provided, only matching resource records will be removed. The internet class 
 is not supplied. The
 \fIttl\fR
 is ignored, and is only allowed for compatibility.
-.TP
+.TP 3n
 .HP 11 \fBupdate add\fR {domain\-name} {ttl} [class] {type} {data...}
 Adds a new resource record with the specified
 \fIttl\fR,
 \fIclass\fR
 and
 \fIdata\fR.
-.TP
+.TP 3n
 .HP 5 \fBshow\fR
 Displays the current message, containing all of the prerequisites and updates specified since the last send.
-.TP
+.TP 3n
 .HP 5 \fBsend\fR
 Sends the current message. This is equivalent to entering a blank line.
-.TP
+.TP 3n
 .HP 7 \fBanswer\fR
 Displays the answer.
 .PP
@@ -246,12 +251,14 @@ could be used to insert and delete resource records from the
 zone. Notice that the input in each example contains a trailing blank line so that a group of commands are sent as one dynamic update request to the master name server for
 \fBexample.com\fR.
 .sp
+.RS 3n
 .nf
 # nsupdate
 > update delete oldhost.example.com A
 > update add newhost.example.com 86400 A 172.16.1.1
 > send
 .fi
+.RE
 .sp
 .PP
 Any A records for
@@ -260,25 +267,27 @@ are deleted. and an A record for
 \fBnewhost.example.com\fR
 it IP address 172.16.1.1 is added. The newly\-added record has a 1 day TTL (86400 seconds)
 .sp
+.RS 3n
 .nf
 # nsupdate
 > prereq nxdomain nickname.example.com
 > update add nickname.example.com 86400 CNAME somehost.example.com
 > send
 .fi
+.RE
 .sp
 .PP
 The prerequisite condition gets the name server to check that there are no resource records of any type for
 \fBnickname.example.com\fR. If there are, the update request fails. If this name does not exist, a CNAME for it is added. This ensures that when the CNAME is added, it cannot conflict with the long\-standing rule in RFC1034 that a name must not exist as any other record type if it exists as a CNAME. (The rule has been updated for DNSSEC in RFC2535 to allow CNAMEs to have RRSIG, DNSKEY and NSEC records.)
 .SH "FILES"
-.TP
+.TP 3n
 \fB/etc/resolv.conf\fR
 used to identify default name server
-.TP
+.TP 3n
 \fBK{name}.+157.+{random}.key\fR
 base\-64 encoding of HMAC\-MD5 key created by
 \fBdnssec\-keygen\fR(8).
-.TP
+.TP 3n
 \fBK{name}.+157.+{random}.private\fR
 base\-64 encoding of HMAC\-MD5 key created by
 \fBdnssec\-keygen\fR(8).
@@ -296,3 +305,5 @@ base\-64 encoding of HMAC\-MD5 key created by
 .SH "BUGS"
 .PP
 The TSIG key is redundantly stored in two separate files. This is a consequence of nsupdate using the DST library for its cryptographic operations, and may change in future releases.
+.SH "COPYRIGHT"
+Copyright \(co 2004, 2005 Internet Systems Consortium, Inc. ("ISC")

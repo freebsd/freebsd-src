@@ -1,7 +1,7 @@
 <!DOCTYPE article PUBLIC "-//OASIS//DTD DocBook XML V4.2//EN"
        "http://www.oasis-open.org/docbook/xml/4.2/docbookx.dtd" []>
 <!--
- - Copyright (C) 2004, 2005  Internet Systems Consortium, Inc. ("ISC")
+ - Copyright (C) 2004-2006  Internet Systems Consortium, Inc. ("ISC")
  - Copyright (C) 2000-2003  Internet Software Consortium.
  -
  - Permission to use, copy, modify, and distribute this software for any
@@ -17,7 +17,7 @@
  - PERFORMANCE OF THIS SOFTWARE.
 -->
 
-<!-- $Id: FAQ.xml,v 1.4.6.3 2005/11/02 22:53:51 marka Exp $ -->
+<!-- $Id: FAQ.xml,v 1.4.6.5 2006/02/27 21:11:40 marka Exp $ -->
 
 <article class="faq">
   <title>Frequently Asked Questions about BIND 9</title>
@@ -67,6 +67,26 @@
     <qandaentry>
       <question>
 	<para>
+	  Why do I get the following errors:
+<programlisting>general: errno2result.c:109: unexpected error:
+general: unable to convert errno to isc_result: 14: Bad address
+client: UDP client handler shutting down due to fatal receive error: unexpected error</programlisting>
+	</para>
+      </question>
+      <answer>
+	<para>
+	  This is the result of a Linux kernel bug.
+	</para>
+	<para>
+	  See:
+	  <ulink url="http://marc.theaimsgroup.com/?l=linux-netdev&amp;m=113081708031466&amp;w=2">http://marc.theaimsgroup.com/?l=linux-netdev&amp;m=113081708031466&amp;w=2</ulink>
+	</para>
+      </answer>
+    </qandaentry>
+
+    <qandaentry>
+      <question>
+	<para>
 	  Why does named log the warning message <quote>no TTL specified -
 	  using SOA MINTTL instead</quote>?
 	</para>
@@ -104,6 +124,10 @@ example.com. 86400 IN SOA ns hostmaster ( 1 3600 1800 1814400 3600 )</programlis
 	  the number of CPUs.  Note that the amount of memory used
 	  is not cumulative; if each process is using 10M of memory,
 	  only a total of 10M is used.
+	</para>
+	<para>
+	  Newer versions of Linux's ps command hide the individual threads
+	  and require -L to display them.
 	</para>
       </answer>
     </qandaentry>
@@ -516,7 +540,7 @@ Master 10.0.1.1:
 	};
 	view "external" {
 		match-clients { key external; any; };
-		server 10.0.0.2 { keys external; };
+		server 10.0.1.2 { keys external; };
 		recursion no;
 		...
 	};
@@ -532,7 +556,7 @@ Slave 10.0.1.2:
 	};
 	view "external" {
 		match-clients { key external; any; };
-		server 10.0.0.1 { keys external; };
+		server 10.0.1.1 { keys external; };
 		recursion no;
 		...
 	};</programlisting>
@@ -997,11 +1021,177 @@ empty:
 	       1 3600 1200 604800 10800 )
 @ 10800 IN NS &lt;name-of-server&gt;.</programlisting>
 	</informalexample>
+	<para>
 	<note>
 	  Future versions of named are likely to do this automatically.
 	</note>
+	</para>
       </answer>
     </qandaentry>
 
+    <qandaentry>
+      <question>
+	<para>
+	   I'm running BIND on Red Hat Enterprise Linux or Fedora Core -
+	</para>
+	<para>
+	  Why can't named update slave zone database files?
+	</para>
+	<para>
+	  Why can't named create DDNS journal files or update
+	  the master zones from journals?
+	</para>
+	<para>
+	  Why can't named create custom log files?
+	</para>
+      </question>
+
+      <answer>
+	<para>
+	  Red Hat Security Enhanced Linux (SELinux) policy security
+	  protections :
+	</para>
+
+	<para>
+	   Red Hat have adopted the National Security Agency's
+	   SELinux security policy ( see http://www.nsa.gov/selinux
+	   ) and recommendations for BIND security , which are more
+	   secure than running named in a chroot and make use of
+	   the bind-chroot environment unecessary .
+	</para>
+
+	<para>
+	  By default, named is not allowed by the SELinux policy
+	  to write, create or delete any files EXCEPT in these
+	  directories:
+	  <informalexample>
+	    <programlisting>
+$ROOTDIR/var/named/slaves
+$ROOTDIR/var/named/data
+$ROOTDIR/var/tmp
+	    </programlisting>
+	  </informalexample>
+	  where $ROOTDIR may be set in /etc/sysconfig/named if
+	  bind-chroot is installed.
+	</para>
+
+	<para>
+	  The SELinux policy particularly does NOT allow named to modify
+	  the $ROOTDIR/var/named directory, the default location for master
+	  zone database files.
+	</para>
+
+	<para>
+	  SELinux policy overrules file access permissions - so
+	  even if all the files under /var/named have ownership
+	  named:named and mode rw-rw-r--, named will still not be
+	  able to write or create files except in the directories
+	  above, with SELinux in Enforcing mode.
+	</para>
+  
+	<para>
+	  So, to allow named to update slave or DDNS zone files,
+	  it is best to locate them in $ROOTDIR/var/named/slaves,
+	  with named.conf zone statements such as:
+	  <informalexample>
+	    <programlisting>
+zone "slave.zone." IN {
+	type slave;
+	file "slaves/slave.zone.db";
+	...
+};   
+zone "ddns.zone." IN  {
+	type master;
+	allow-updates {...};
+	file "slaves/ddns.zone.db";
+};
+	    </programlisting>
+	  </informalexample>
+	</para>
+
+	<para>
+	  To allow named to create its cache dump and statistics
+	  files, for example, you could use named.conf options
+	  statements such as:
+	  <informalexample>
+	    <programlisting>
+options {
+	...
+	dump-file "/var/named/data/cache_dump.db";
+	statistics-file "/var/named/data/named_stats.txt";
+	...
+};
+	    </programlisting>
+	  </informalexample>
+	</para>
+
+	<para>
+	  You can also tell SELinux to allow named to update any
+	  zone database files, by setting the SELinux tunable boolean
+	  parameter 'named_write_master_zones=1', using the
+	  system-config-securitylevel GUI, using the 'setsebool'
+	  command, or in /etc/selinux/targeted/booleans.
+	</para>
+  
+	<para>
+	  You can disable SELinux protection for named entirely by
+	  setting the 'named_disable_trans=1' SELinux tunable boolean
+	  parameter.
+	</para>
+    
+	<para>
+	  The SELinux named policy defines these SELinux contexts for named:
+	  <informalexample>
+	    <programlisting>
+named_zone_t : for zone database files       - $ROOTDIR/var/named/*
+named_conf_t : for named configuration files - $ROOTDIR/etc/{named,rndc}.*
+named_cache_t: for files modifiable by named - $ROOTDIR/var/{tmp,named/{slaves,data}}
+	    </programlisting>
+	  </informalexample>
+	</para>
+   
+	<para>
+	  If you want to retain use of the SELinux policy for named,
+	  and put named files in different locations, you can do
+	  so by changing the context of the custom file locations
+	  .
+	</para>
+
+	<para>
+	  To create a custom configuration file location, eg.
+	  '/root/named.conf', to use with the 'named -c' option,
+	  do:
+	  <informalexample>
+	    <programlisting>
+# chcon system_u:object_r:named_conf_t /root/named.conf
+	    </programlisting>
+	  </informalexample>
+	</para>
+  
+	<para>
+	  To create a custom modifiable named data location, eg.
+	  '/var/log/named' for a log file, do:
+	  <informalexample>
+	    <programlisting>
+# chcon system_u:object_r:named_cache_t /var/log/named
+	    </programlisting>
+	  </informalexample>
+	</para>
+   
+	<para>
+   To create a custom zone file location, eg. /root/zones/, do:
+	  <informalexample>
+	    <programlisting>
+# chcon system_u:object_r:named_zone_t /root/zones/{.,*}
+	    </programlisting>
+	  </informalexample>
+	</para>
+  
+	<para>
+	  See these man-pages for more information : selinux(8),
+	  named_selinux(8), chcon(1), setsebool(8)
+	</para>
+      </answer>
+    </qandaentry>
   </qandaset>
 </article>

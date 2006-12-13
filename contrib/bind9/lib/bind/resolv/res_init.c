@@ -70,7 +70,7 @@
 
 #if defined(LIBC_SCCS) && !defined(lint)
 static const char sccsid[] = "@(#)res_init.c	8.1 (Berkeley) 6/7/93";
-static const char rcsid[] = "$Id: res_init.c,v 1.9.2.5.4.5 2005/11/03 00:00:52 marka Exp $";
+static const char rcsid[] = "$Id: res_init.c,v 1.9.2.5.4.6 2006/08/30 23:23:01 marka Exp $";
 #endif /* LIBC_SCCS and not lint */
 
 #include "port_before.h"
@@ -237,17 +237,10 @@ __res_vinit(res_state statp, int preinit) {
 			if (buf[0] == '+')
 				buf[0] = '.';
 			cp = strchr(buf, '.');
-			if (cp == NULL) {
-				if (strlcpy(statp->defdname, buf,
-					sizeof(statp->defdname))
-					>= sizeof(statp->defdname))
-					goto freedata;
-			} else {
-				if (strlcpy(statp->defdname, cp+1,
-					sizeof(statp->defdname))
-					 >= sizeof(statp->defdname))
-					goto freedata;
-			}
+			cp = (cp == NULL) ? buf : (cp + 1);
+			if (strlen(cp) >= sizeof(statp->defdname))
+				goto freedata; 
+			strcpy(statp->defdname, cp);
 		}
 	}
 #endif	/* SOLARIS2 */

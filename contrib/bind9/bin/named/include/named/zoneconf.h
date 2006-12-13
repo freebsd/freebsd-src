@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2004  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004, 2006  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 1999-2002  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and distribute this software for any
@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: zoneconf.h,v 1.16.2.2.8.1 2004/03/06 10:21:27 marka Exp $ */
+/* $Id: zoneconf.h,v 1.16.2.2.8.3 2006/03/02 00:37:20 marka Exp $ */
 
 #ifndef NS_ZONECONF_H
 #define NS_ZONECONF_H 1
@@ -30,8 +30,9 @@
 ISC_LANG_BEGINDECLS
 
 isc_result_t
-ns_zone_configure(cfg_obj_t *config, cfg_obj_t *vconfig, cfg_obj_t *zconfig,
-		  ns_aclconfctx_t *ac, dns_zone_t *zone);
+ns_zone_configure(const cfg_obj_t *config, const cfg_obj_t *vconfig,
+		  const cfg_obj_t *zconfig, ns_aclconfctx_t *ac,
+		  dns_zone_t *zone);
 /*
  * Configure or reconfigure a zone according to the named.conf
  * data in 'cctx' and 'czone'.
@@ -48,7 +49,7 @@ ns_zone_configure(cfg_obj_t *config, cfg_obj_t *vconfig, cfg_obj_t *zconfig,
  */
 
 isc_boolean_t
-ns_zone_reusable(dns_zone_t *zone, cfg_obj_t *zconfig);
+ns_zone_reusable(dns_zone_t *zone, const cfg_obj_t *zconfig);
 /*
  * If 'zone' can be safely reconfigured according to the configuration
  * data in 'zconfig', return ISC_TRUE.  If the configuration data is so

@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2004  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004, 2006  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 2000, 2001  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and distribute this software for any
@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: keytable.h,v 1.10.206.1 2004/03/06 08:13:56 marka Exp $ */
+/* $Id: keytable.h,v 1.10.206.3 2006/01/06 00:01:42 marka Exp $ */
 
 #ifndef DNS_KEYTABLE_H
 #define DNS_KEYTABLE_H 1
@@ -137,7 +137,8 @@ dns_keytable_findkeynode(dns_keytable_t *keytable, dns_name_t *name,
 			 dns_keynode_t **keynodep);
 /*
  * Search for a key named 'name', matching 'algorithm' and 'tag' in
- * 'keytable'.
+ * 'keytable'.  This finds the first instance which matches.  Use
+ * dns_keytable_findnextkeynode() to find other instances.
  *
  * Requires:
  *
@@ -150,6 +151,7 @@ dns_keytable_findkeynode(dns_keytable_t *keytable, dns_name_t *name,
  * Returns:
  *
  *	ISC_R_SUCCESS
+ *	DNS_R_PARTIALMATCH	the name existed in the keytable.
  *	ISC_R_NOTFOUND
  *
  *	Any other result indicates an error.
@@ -160,7 +162,7 @@ dns_keytable_findnextkeynode(dns_keytable_t *keytable, dns_keynode_t *keynode,
 		                             dns_keynode_t **nextnodep);
 /*
  * Search for the next key with the same properties as 'keynode' in
- * 'keytable'.
+ * 'keytable' as found by dns_keytable_findkeynode().
  *
  * Requires:
  *

@@ -3,6 +3,16 @@
  * - Thread safe-ness must be checked
  */
 
+#if ( defined(__linux__) || defined(__linux) || defined(LINUX) )
+#ifndef IF_NAMESIZE
+# ifdef IFNAMSIZ
+#  define IF_NAMESIZE  IFNAMSIZ
+# else
+#  define IF_NAMESIZE 16
+# endif
+#endif
+#endif
+
 /*
  * Copyright (C) 1995, 1996, 1997, and 1998 WIDE Project.
  * All rights reserved.
