@@ -51,10 +51,11 @@ utility writes the name of the terminal attached to standard input
 to standard output.
 The name that is written is the string returned by
 .Xr ttyname 3 .
-If the standard input is not a terminal, the message ``not a tty''
+If the standard input is not a terminal, the message
+.Dq Li "not a tty"
 is written.
 The options are as follows:
-.Bl -tag -width Ds
+.Bl -tag -width indent
 .It Fl s
 Do not write the terminal name; only the exit status is affected
 when this option is specified.
@@ -64,7 +65,7 @@ option is deprecated in favor of the
 .Dq Li "test -t 0"
 command.
 .El
-.Pp
+.Sh EXIT STATUS
 The
 .Nm
 utility
