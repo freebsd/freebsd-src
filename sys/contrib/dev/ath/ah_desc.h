@@ -33,7 +33,7 @@
  * OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGES.
  *
- * $Id: //depot/sw/branches/sam_hal/ah_desc.h#2 $
+ * $Id: //depot/sw/branches/sam_hal/ah_desc.h#5 $
  */
 
 #ifndef _DEV_ATH_DESC_H
@@ -59,6 +59,7 @@ struct ath_tx_status {
 	u_int8_t	ts_longretry;	/* # long retries */
 	u_int8_t	ts_virtcol;	/* virtual collision count */
 	u_int8_t	ts_antenna;	/* antenna information */
+	u_int8_t	ts_finaltsi;	/* final transmit series index */
 };
 
 #define	HAL_TXERR_XRETRY	0x01	/* excessive retries */
@@ -153,17 +154,14 @@ struct ath_desc {
 	u_int32_t	ds_ctl0;	/* opaque DMA control 0 */
 	u_int32_t	ds_ctl1;	/* opaque DMA control 1 */
 	u_int32_t	ds_hw[4];	/* opaque h/w region */
-	/*
-	 * The remaining definitions are managed by software;
-	 * these are valid only after the rx/tx process descriptor
-	 * methods return a non-EINPROGRESS  code.
-	 */
+};
+
+struct ath_desc_status {
 	union {
 		struct ath_tx_status tx;/* xmit status */
 		struct ath_rx_status rx;/* recv status */
 	} ds_us;
-	void		*ds_vdata;	/* virtual addr of data buffer */
-} __packed;
+};
 
 #define	ds_txstat	ds_us.tx
 #define	ds_rxstat	ds_us.rx
@@ -180,4 +178,4 @@ struct ath_desc {
 
 /* flags passed to rx descriptor setup methods */
 #define	HAL_RXDESC_INTREQ	0x0020	/* enable per-descriptor interrupt */
-#endif /* _DEV_ATH_AR521XDMA_H */
+#endif /* _DEV_ATH_DESC_H */
