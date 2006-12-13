@@ -225,7 +225,7 @@ struct aue_softc {
 	u_int8_t		aue_link;
 	int			aue_if_flags;
 	struct ue_cdata		aue_cdata;
-	struct callout_handle	aue_stat_ch;
+	struct callout		aue_tick_callout;
 	struct task		aue_task;
 	struct mtx		aue_mtx;
 	struct sx		aue_sx;
@@ -236,7 +236,11 @@ struct aue_softc {
 	int			aue_deferedtasks;
 };
 
-#if 1
+#if 0
+/*
+ * Some debug code to make sure we don't take a blocking lock in
+ * interrupt context.
+ */
 #include <sys/types.h>
 #include <sys/proc.h>
 #include <sys/kdb.h>
@@ -254,15 +258,14 @@ aue_dumpstate(const char *func, const char *tag)
 			curthread->td_pflags & TDP_ITHREAD ?  "yes" : "no");
 	}
 }
-
-#define	AUE_LOCK(_sc)		mtx_lock(&(_sc)->aue_mtx)
-#define	AUE_UNLOCK(_sc)		mtx_unlock(&(_sc)->aue_mtx)
 #else
-#define	AUE_LOCK(_sc)
-#define	AUE_UNLOCK(_sc)
+#define AUE_DUMPSTATE(tag)
 #endif
 
-#define AUE_SXLOCK(_sc)			do { AUE_DUMPSTATE("sxlock");sx_xlock(&(_sc)->aue_sx); }while(0)
+#define AUE_LOCK(_sc)			mtx_lock(&(_sc)->aue_mtx)
+#define AUE_UNLOCK(_sc)			mtx_unlock(&(_sc)->aue_mtx)
+#define AUE_SXLOCK(_sc)	\
+    do { AUE_DUMPSTATE("sxlock"); sx_xlock(&(_sc)->aue_sx); } while(0)
 #define AUE_SXUNLOCK(_sc)		sx_xunlock(&(_sc)->aue_sx)
 #define AUE_SXASSERTLOCKED(_sc)		sx_assert(&(_sc)->aue_sx, SX_XLOCKED)
 #define AUE_SXASSERTUNLOCKED(_sc)	sx_assert(&(_sc)->aue_sx, SX_UNLOCKED)
@@ -271,12 +274,17 @@ aue_dumpstate(const char *func, const char *tag)
 #define AUE_MIN_FRAMELEN	60
 #define AUE_INTR_INTERVAL	100 /* ms */
 
-#define	AUE_TASK_WATCHDOG	0x0001
-#define	AUE_TASK_TICK		0x0002
-#define	AUE_TASK_START		0x0004
-#define	AUE_TASK_RXSTART	0x0008
-#define	AUE_TASK_RXEOF		0x0010
-#define	AUE_TASK_TXEOF		0x0020
+/*
+ * These bits are used to notify the task about pending events.
+ * The names correspond to the interrupt context routines that would
+ * be normally called.  (example: AUE_TASK_WATCHDOG -> aue_watchdog())
+ */
+#define AUE_TASK_WATCHDOG	0x0001
+#define AUE_TASK_TICK		0x0002
+#define AUE_TASK_START		0x0004
+#define AUE_TASK_RXSTART	0x0008
+#define AUE_TASK_RXEOF		0x0010
+#define AUE_TASK_TXEOF		0x0020
 
 #define AUE_GIANTLOCK()		mtx_lock(&Giant);
 #define AUE_GIANTUNLOCK()	mtx_unlock(&Giant);
