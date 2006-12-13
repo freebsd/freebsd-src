@@ -3088,14 +3088,7 @@ bge_stats_update(struct bge_softc *sc)
 #define READ_STAT(sc, stats, stat) \
 	CSR_READ_4(sc, stats + offsetof(struct bge_stats, stat))
 
-	cnt = READ_STAT(sc, stats,
-	    txstats.dot3StatsSingleCollisionFrames.bge_addr_lo);
-	cnt += READ_STAT(sc, stats,
-	    txstats.dot3StatsMultipleCollisionFrames.bge_addr_lo);
-	cnt += READ_STAT(sc, stats,
-	    txstats.dot3StatsExcessiveCollisions.bge_addr_lo);
-	cnt += READ_STAT(sc, stats,
-		txstats.dot3StatsLateCollisions.bge_addr_lo);
+	cnt = READ_STAT(sc, stats, txstats.etherStatsCollisions.bge_addr_lo);
 	ifp->if_collisions += (uint32_t)(cnt - sc->bge_tx_collisions);
 	sc->bge_tx_collisions = cnt;
 
