@@ -107,77 +107,36 @@ struct sample_node {
 #define WIFI_CW_MIN 31
 #define WIFI_CW_MAX 1023
 
-struct ar5212_desc {
-	/*
-	 * tx_control_0
-	 */
-	u_int32_t	frame_len:12;
-	u_int32_t	reserved_12_15:4;
-	u_int32_t	xmit_power:6;
-	u_int32_t	rts_cts_enable:1;
-	u_int32_t	veol:1;
-	u_int32_t	clear_dest_mask:1;
-	u_int32_t	ant_mode_xmit:4;
-	u_int32_t	inter_req:1;
-	u_int32_t	encrypt_key_valid:1;
-	u_int32_t	cts_enable:1;
+/*
+ * Definitions for pulling the rate and trie counts from
+ * a 5212 h/w descriptor.  These Don't belong here; the
+ * driver should record this information so the rate control
+ * code doesn't go groveling around in the descriptor bits.
+ */
+#define	ds_ctl2		ds_hw[0]
+#define	ds_ctl3		ds_hw[1]
 
-	/*
-	 * tx_control_1
-	 */
-	u_int32_t	buf_len:12;
-	u_int32_t	more:1;
-	u_int32_t	encrypt_key_index:7;
-	u_int32_t	frame_type:4;
-	u_int32_t	no_ack:1;
-	u_int32_t	comp_proc:2;
-	u_int32_t	comp_iv_len:2;
-	u_int32_t	comp_icv_len:2;
-	u_int32_t	reserved_31:1;
+/* TX ds_ctl2 */
+#define	AR_XmitDataTries0	0x000f0000	/* series 0 max attempts */
+#define	AR_XmitDataTries0_S	16
+#define	AR_XmitDataTries1	0x00f00000	/* series 1 max attempts */
+#define	AR_XmitDataTries1_S	20
+#define	AR_XmitDataTries2	0x0f000000	/* series 2 max attempts */
+#define	AR_XmitDataTries2_S	24
+#define	AR_XmitDataTries3	0xf0000000	/* series 3 max attempts */
+#define	AR_XmitDataTries3_S	28
 
-	/*
-	 * tx_control_2
-	 */
-	u_int32_t	rts_duration:15;
-	u_int32_t	duration_update_enable:1;
-	u_int32_t	xmit_tries0:4;
-	u_int32_t	xmit_tries1:4;
-	u_int32_t	xmit_tries2:4;
-	u_int32_t	xmit_tries3:4;
+/* TX ds_ctl3 */
+#define	AR_XmitRate0		0x0000001f	/* series 0 tx rate */
+#define	AR_XmitRate0_S		0
+#define	AR_XmitRate1		0x000003e0	/* series 1 tx rate */
+#define	AR_XmitRate1_S		5
+#define	AR_XmitRate2		0x00007c00	/* series 2 tx rate */
+#define	AR_XmitRate2_S		10
+#define	AR_XmitRate3		0x000f8000	/* series 3 tx rate */
+#define	AR_XmitRate3_S		15
 
-	/*
-	 * tx_control_3
-	 */
-	u_int32_t	xmit_rate0:5;
-	u_int32_t	xmit_rate1:5;
-	u_int32_t	xmit_rate2:5;
-	u_int32_t	xmit_rate3:5;
-	u_int32_t	rts_cts_rate:5;
-	u_int32_t	reserved_25_31:7;
-
-	/*
-	 * tx_status_0
-	 */
-	u_int32_t	frame_xmit_ok:1;
-	u_int32_t	excessive_retries:1;
-	u_int32_t	fifo_underrun:1;
-	u_int32_t	filtered:1;
-	u_int32_t	rts_fail_count:4;
-	u_int32_t	data_fail_count:4;
-	u_int32_t	virt_coll_count:4;
-	u_int32_t	send_timestamp:16;
-
-	/*
-	 * tx_status_1
-	 */
-	u_int32_t	done:1;
-	u_int32_t	seq_num:12;
-	u_int32_t	ack_sig_strength:8;
-	u_int32_t	final_ts_index:2;
-	u_int32_t	comp_success:1;
-	u_int32_t	xmit_antenna:1;
-	u_int32_t	reserved_25_31_x:7;
-} __packed;
+#define MS(_v, _f)	(((_v) & (_f)) >> _f##_S)
 
 /*
  * Calculate the transmit duration of a frame.
@@ -195,18 +154,16 @@ static unsigned calc_usecs_unicast_packet(struct ath_softc *sc,
 	int tt = 0;
 	int x = 0;
 	int cw = WIFI_CW_MIN;
-	int cix = rt->info[rix].controlRate;
+	int cix;
 	
 	KASSERT(rt != NULL, ("no rate table, mode %u", sc->sc_curmode));
 
-	if (!rt->info[rix].rateKbps) {
-		printf("rix %d (%d) bad ratekbps %d mode %u\n",
-		       rix, rt->info[rix].dot11Rate,
-		       rt->info[rix].rateKbps,
-		       sc->sc_curmode);
-
+	if (rix >= rt->rateCount) {
+		printf("bogus rix %d, max %u, mode %u\n",
+		       rix, rt->rateCount, sc->sc_curmode);
 		return 0;
 	}
+	cix = rt->info[rix].controlRate;
 	/* 
 	 * XXX getting mac/phy level timings should be fixed for turbo
 	 * rates, and there is probably a way to get this from the
@@ -250,18 +207,15 @@ static unsigned calc_usecs_unicast_packet(struct ath_softc *sc,
 	}
 
 	if (rts || cts) {
-		int ctsrate = rt->info[cix].rateCode;
+		int ctsrate;
 		int ctsduration = 0;
 
-		if (!rt->info[cix].rateKbps) {
-			printf("cix %d (%d) bad ratekbps %d mode %u\n",
-			       cix, rt->info[cix].dot11Rate,
-			       rt->info[cix].rateKbps,
-			       sc->sc_curmode);
-			return 0;
-		}
+		/* NB: this is intentionally not a runtime check */
+		KASSERT(cix < rt->rateCount,
+		    ("bogus cix %d, max %u, mode %u\n", cix, rt->rateCount,
+		     sc->sc_curmode));
 
-		ctsrate |= rt->info[cix].shortPreamble;
+		ctsrate = rt->info[cix].rateCode | rt->info[cix].shortPreamble;
 		if (rts)		/* SIFS + CTS */
 			ctsduration += rt->info[cix].spAckDuration;
 
