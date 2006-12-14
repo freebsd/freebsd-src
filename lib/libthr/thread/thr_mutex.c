@@ -343,7 +343,7 @@ mutex_lock_common(struct pthread *curthread, pthread_mutex_t *mutex,
 
 	id = TID(curthread);
 	m = *mutex;
-	ret = _thr_umutex_trylock(&m->m_lock, id);
+	ret = _thr_umutex_trylock2(&m->m_lock, id);
 	if (ret == 0) {
 		m->m_owner = curthread;
 		/* Add to the list of owned mutexes: */
@@ -356,7 +356,7 @@ mutex_lock_common(struct pthread *curthread, pthread_mutex_t *mutex,
 		ret = mutex_self_lock(m, abstime);
 	} else {
 		if (abstime == NULL) {
-			ret = _thr_umutex_lock(&m->m_lock, id);
+			ret = __thr_umutex_lock(&m->m_lock);
 		} else if (__predict_false(
 			   abstime->tv_sec < 0 || abstime->tv_nsec < 0 ||
 			   abstime->tv_nsec >= 1000000000)) {
@@ -364,7 +364,7 @@ mutex_lock_common(struct pthread *curthread, pthread_mutex_t *mutex,
 		} else {
 			clock_gettime(CLOCK_REALTIME, &ts);
 			TIMESPEC_SUB(&ts2, abstime, &ts);
-			ret = _thr_umutex_timedlock(&m->m_lock, id, &ts2);
+			ret = __thr_umutex_timedlock(&m->m_lock, &ts2);
 			/*
 			 * Timed out wait is not restarted if
 			 * it was interrupted, not worth to do it.
