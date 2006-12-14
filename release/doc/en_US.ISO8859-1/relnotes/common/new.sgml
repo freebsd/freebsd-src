@@ -223,8 +223,7 @@
     <sect3>
       <title>Contributed Software</title>
 
-      <para><application>BIND</application> has been updated from 9.3.1
-	to 9.3.2-P1.</para>
+      <para></para>
 
     </sect3>
   </sect2>
@@ -243,6 +242,9 @@
 
   <sect2 id="contrib">
     <title>Contributed Software</title>
+
+    <para><application>BIND</application> has been updated from 9.3.1
+      to 9.3.3.</para>
 
     <para><application>netcat</application> has been updated from the
       version in a 4 February 2005 OpenBSD snapshot to the version
