@@ -71,6 +71,10 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+
+extern struct sctp_foo_stuff sctp_logoff[];
+extern int sctp_logoff_stuff;
+
 #define SCTP_IPI_COUNT_INIT()
 
 #define SCTP_STATLOG_INIT_LOCK()
@@ -86,6 +90,7 @@ __FBSDID("$FreeBSD$");
            global_sctp_cwnd_log_rolled = 1; \
         } \
 }
+
 
 #define SCTP_INP_INFO_LOCK_INIT() \
         mtx_init(&sctppcbinfo.ipi_ep_mtx, "sctp-info", "inp_info", MTX_DEF)
@@ -185,9 +190,36 @@ __FBSDID("$FreeBSD$");
 
 #define SCTP_TCB_SEND_UNLOCK(_tcb) mtx_unlock(&(_tcb)->tcb_send_mtx)
 
+#ifdef INVARIANTS
+
+#define SCTP_INP_INCR_REF(_inp) { int x; \
+                                  atomic_add_int(&((_inp)->refcount), 1); \
+                                  x = atomic_fetchadd_int(&sctp_logoff_stuff, 1); \
+                                  if(x == 30000) \
+                                      sctp_logoff_stuff = x = 0; \
+                                  sctp_logoff[x].inp = _inp; \
+                                  sctp_logoff[x].ticks = ticks; \
+                                  sctp_logoff[x].lineno = __LINE__; \
+                                  sctp_logoff[x].updown = 1; \
+}
+
+#define SCTP_INP_DECR_REF(_inp) { int x; \
+                                  if (atomic_fetchadd_int(&((_inp)->refcount), -1) == 0 ) panic("refcount goes negative"); \
+                                  x = atomic_fetchadd_int(&sctp_logoff_stuff, 1); \
+                                  if(x == 30000) \
+                                      sctp_logoff_stuff = x = 0; \
+                                  sctp_logoff[x].inp = _inp; \
+                                  sctp_logoff[x].ticks = ticks; \
+                                  sctp_logoff[x].lineno = __LINE__; \
+                                  sctp_logoff[x].updown = 0; \
+}
+
+#else
 
 #define SCTP_INP_INCR_REF(_inp) atomic_add_int(&((_inp)->refcount), 1)
 #define SCTP_INP_DECR_REF(_inp) atomic_add_int(&((_inp)->refcount), -1)
+
+#endif
 
 #ifdef SCTP_LOCK_LOGGING
 #define SCTP_ASOC_CREATE_LOCK(_inp) \

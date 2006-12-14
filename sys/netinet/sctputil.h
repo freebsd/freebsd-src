@@ -75,7 +75,7 @@ sctp_timer_start(int, struct sctp_inpcb *, struct sctp_tcb *,
 
 int
 sctp_timer_stop(int, struct sctp_inpcb *, struct sctp_tcb *,
-    struct sctp_nets *);
+    struct sctp_nets *, uint32_t);
 
 uint32_t sctp_calculate_sum(struct mbuf *, int32_t *, uint32_t);
 

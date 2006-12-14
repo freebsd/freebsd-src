@@ -316,7 +316,8 @@ sctp_notify_mbuf(struct sctp_inpcb *inp,
 	/* Stop any PMTU timer */
 	if (callout_pending(&net->pmtu_timer.timer)) {
 		tmr_stopped = 1;
-		sctp_timer_stop(SCTP_TIMER_TYPE_PATHMTURAISE, inp, stcb, net);
+		sctp_timer_stop(SCTP_TIMER_TYPE_PATHMTURAISE, inp, stcb, net,
+		    SCTP_FROM_SCTP_USRREQ + SCTP_LOC_1);
 	}
 	/* Adjust destination size limit */
 	if (net->mtu > nxtsz) {
@@ -386,7 +387,7 @@ sctp_notify(struct sctp_inpcb *inp,
 			 * TCB
 			 */
 			sctp_abort_notification(stcb, SCTP_PEER_FAULTY);
-			sctp_free_assoc(inp, stcb, 0);
+			sctp_free_assoc(inp, stcb, SCTP_NORMAL_PROC, SCTP_FROM_SCTP_USRREQ + SCTP_LOC_2);
 			/* no need to unlock here, since the TCB is gone */
 		}
 	} else {
@@ -541,6 +542,184 @@ out:
 SYSCTL_PROC(_net_inet_sctp, OID_AUTO, getcred, CTLTYPE_OPAQUE | CTLFLAG_RW,
     0, 0, sctp_getcred, "S,ucred", "Get the ucred of a SCTP connection");
 
+static int
+sctp_assoclist(SYSCTL_HANDLER_ARGS)
+{
+	unsigned int number_of_endpoints;
+	unsigned int number_of_local_addresses;
+	unsigned int number_of_associations;
+	unsigned int number_of_remote_addresses;
+	unsigned int n;
+	int error;
+	struct sctp_inpcb *inp;
+	struct sctp_tcb *stcb;
+	struct sctp_nets *net;
+	struct sctp_laddr *laddr;
+	struct xsctp_inpcb xinpcb;
+	struct xsctp_tcb xstcb;
+
+/*	struct xsctp_laddr xladdr; */
+	struct xsctp_raddr xraddr;
+
+	number_of_endpoints = 0;
+	number_of_local_addresses = 0;
+	number_of_associations = 0;
+	number_of_remote_addresses = 0;
+
+	SCTP_INP_INFO_RLOCK();
+	if (req->oldptr == USER_ADDR_NULL) {
+		LIST_FOREACH(inp, &sctppcbinfo.listhead, sctp_list) {
+			SCTP_INP_RLOCK(inp);
+			number_of_endpoints++;
+			/* FIXME MT */
+			LIST_FOREACH(laddr, &inp->sctp_addr_list, sctp_nxt_addr) {
+				number_of_local_addresses++;
+			}
+			LIST_FOREACH(stcb, &inp->sctp_asoc_list, sctp_tcblist) {
+				number_of_associations++;
+				/* FIXME MT */
+				LIST_FOREACH(laddr, &stcb->asoc.sctp_local_addr_list, sctp_nxt_addr) {
+					number_of_local_addresses++;
+				}
+				TAILQ_FOREACH(net, &stcb->asoc.nets, sctp_next) {
+					number_of_remote_addresses++;
+				}
+			}
+			SCTP_INP_RUNLOCK(inp);
+		}
+		SCTP_INP_INFO_RUNLOCK();
+		n = (number_of_endpoints + 1) * sizeof(struct xsctp_inpcb) +
+		    number_of_local_addresses * sizeof(struct xsctp_laddr) +
+		    number_of_associations * sizeof(struct xsctp_tcb) +
+		    number_of_remote_addresses * sizeof(struct xsctp_raddr);
+#ifdef SCTP_DEBUG
+		printf("inps = %u, stcbs = %u, laddrs = %u, raddrs = %u\n",
+		    number_of_endpoints, number_of_associations,
+		    number_of_local_addresses, number_of_remote_addresses);
+#endif
+		/* request some more memory than needed */
+		req->oldidx = (n + n / 8);
+		return 0;
+	}
+	if (req->newptr != USER_ADDR_NULL) {
+		SCTP_INP_INFO_RUNLOCK();
+		return EPERM;
+	}
+	LIST_FOREACH(inp, &sctppcbinfo.listhead, sctp_list) {
+		SCTP_INP_RLOCK(inp);
+		number_of_local_addresses = 0;
+		number_of_associations = 0;
+		/*
+		 * LIST_FOREACH(laddr, &inp->sctp_addr_list, sctp_nxt_addr)
+		 * { number_of_local_addresses++; }
+		 */
+		LIST_FOREACH(stcb, &inp->sctp_asoc_list, sctp_tcblist) {
+			number_of_associations++;
+		}
+		xinpcb.last = 0;
+		xinpcb.local_port = ntohs(inp->sctp_lport);
+		xinpcb.number_local_addresses = number_of_local_addresses;
+		xinpcb.number_associations = number_of_associations;
+		xinpcb.flags = inp->sctp_flags;
+		xinpcb.features = inp->sctp_features;
+		xinpcb.total_sends = inp->total_sends;
+		xinpcb.total_recvs = inp->total_recvs;
+		xinpcb.total_nospaces = inp->total_nospaces;
+		SCTP_INP_INCR_REF(inp);
+		SCTP_INP_RUNLOCK(inp);
+		SCTP_INP_INFO_RUNLOCK();
+		error = SYSCTL_OUT(req, &xinpcb, sizeof(struct xsctp_inpcb));
+		if (error) {
+			return error;
+		}
+		SCTP_INP_INFO_RLOCK();
+		SCTP_INP_RLOCK(inp);
+		/* FIXME MT */
+		/*
+		 * LIST_FOREACH(laddr, &inp->sctp_addr_list, sctp_nxt_addr)
+		 * { error = SYSCTL_OUT(req, &xladdr, sizeof(struct
+		 * xsctp_laddr)); if (error) { #if
+		 * defined(SCTP_APPLE_FINE_GRAINED_LOCKING)
+		 * socket_unlock(inp->ip_inp.inp.inp_socket, 1);
+		 * lck_rw_unlock_shared(sctppcbinfo.ipi_ep_mtx); #endif
+		 * SCTP_INP_RUNLOCK(inp); SCTP_INP_INFO_RUNLOCK(); return
+		 * error; }			}
+		 */
+		LIST_FOREACH(stcb, &inp->sctp_asoc_list, sctp_tcblist) {
+			SCTP_TCB_LOCK(stcb);
+			atomic_add_int(&stcb->asoc.refcnt, 1);
+			SCTP_TCB_UNLOCK(stcb);
+			number_of_local_addresses = 0;
+			number_of_remote_addresses = 0;
+			/* FIXME MT */
+			/*
+			 * LIST_FOREACH(laddr,
+			 * &stcb->asoc.sctp_local_addr_list, sctp_nxt_addr)
+			 * { number_of_local_addresses++; }
+			 */
+			TAILQ_FOREACH(net, &stcb->asoc.nets, sctp_next) {
+				number_of_remote_addresses++;
+			}
+			xstcb.remote_port = ntohs(stcb->rport);
+			xstcb.number_local_addresses = number_of_local_addresses;
+			xstcb.number_remote_addresses = number_of_remote_addresses;
+			xstcb.number_incomming_streams = 0;
+			xstcb.number_outgoing_streams = 0;
+			xstcb.state = stcb->asoc.state;
+			xstcb.total_sends = stcb->total_sends;
+			xstcb.total_recvs = stcb->total_recvs;
+			xstcb.local_tag = stcb->asoc.my_vtag;
+			xstcb.remote_tag = stcb->asoc.peer_vtag;
+			xstcb.initial_tsn = stcb->asoc.init_seq_number;
+			xstcb.highest_tsn = stcb->asoc.sending_seq - 1;
+			xstcb.cumulative_tsn = stcb->asoc.last_acked_seq;
+			xstcb.cumulative_tsn_ack = stcb->asoc.cumulative_tsn;
+			SCTP_INP_RUNLOCK(inp);
+			SCTP_INP_INFO_RUNLOCK();
+			error = SYSCTL_OUT(req, &xstcb, sizeof(struct xsctp_tcb));
+			if (error) {
+				atomic_add_int(&stcb->asoc.refcnt, -1);
+				return error;
+			}
+			/* FIXME MT */
+			/*
+			 * LIST_FOREACH(laddr,
+			 * &stcb->asoc.sctp_local_addr_list, sctp_nxt_addr)
+			 * { error = SYSCTL_OUT(req, &xladdr, sizeof(struct
+			 * xsctp_laddr)); if (error) { #if
+			 * defined(SCTP_APPLE_FINE_GRAINED_LOCKING)
+			 * socket_unlock(inp->ip_inp.inp.inp_socket, 1);
+			 * lck_rw_unlock_shared(sctppcbinfo.ipi_ep_mtx);
+			 * #endif SCTP_INP_RUNLOCK(inp);
+			 * SCTP_INP_INFO_RUNLOCK(); return error; }
+			 * */
+			TAILQ_FOREACH(net, &stcb->asoc.nets, sctp_next) {
+				xraddr.state = net->dest_state;
+				xraddr.address = net->ro._l_addr;
+				error = SYSCTL_OUT(req, &xraddr, sizeof(struct xsctp_raddr));
+				if (error) {
+					atomic_add_int(&stcb->asoc.refcnt, -1);
+					return error;
+				}
+			}
+			atomic_add_int(&stcb->asoc.refcnt, -1);
+			SCTP_INP_INFO_RLOCK();
+			SCTP_INP_RLOCK(inp);
+		}
+		SCTP_INP_DECR_REF(inp);
+		SCTP_INP_RUNLOCK(inp);
+	}
+	SCTP_INP_INFO_RUNLOCK();
+
+	xinpcb.last = 1;
+	xinpcb.local_port = 0;
+	xinpcb.number_local_addresses = 0;
+	xinpcb.number_associations = 0;
+	xinpcb.flags = 0;
+	xinpcb.features = 0;
+	error = SYSCTL_OUT(req, &xinpcb, sizeof(struct xsctp_inpcb));
+	return error;
+}
 
 /*
  * sysctl definitions
@@ -604,11 +783,9 @@ SYSCTL_INT(_net_inet_sctp, OID_AUTO, asoc_resource, CTLFLAG_RW,
     &sctp_asoc_free_resc_limit, 0,
     "Max number of cached resources in an asoc");
 
-
 SYSCTL_INT(_net_inet_sctp, OID_AUTO, chunkscale, CTLFLAG_RW,
     &sctp_chunkscale, 0,
     "Tuneable for Scaling of number of chunks and messages");
-
 
 SYSCTL_UINT(_net_inet_sctp, OID_AUTO, delayed_sack_time, CTLFLAG_RW,
     &sctp_delayed_sack_time_default, 0,
@@ -665,7 +842,6 @@ SYSCTL_UINT(_net_inet_sctp, OID_AUTO, path_rtx_max, CTLFLAG_RW,
 SYSCTL_UINT(_net_inet_sctp, OID_AUTO, add_more_on_output, CTLFLAG_RW,
     &sctp_add_more_threshold, 0,
     "When space wise is it worthwhile to try to add more to a socket send buffer");
-
 
 SYSCTL_UINT(_net_inet_sctp, OID_AUTO, nr_outgoing_streams, CTLFLAG_RW,
     &sctp_nr_outgoing_streams_default, 0,
@@ -742,6 +918,11 @@ SYSCTL_INT(_net_inet_sctp, OID_AUTO, strict_data_order, CTLFLAG_RW,
 SYSCTL_STRUCT(_net_inet_sctp, OID_AUTO, stats, CTLFLAG_RW,
     &sctpstat, sctpstat,
     "SCTP statistics (struct sctps_stat, netinet/sctp.h");
+
+SYSCTL_PROC(_net_inet_sctp, OID_AUTO, assoclist, CTLFLAG_RD,
+    0, 0, sctp_assoclist,
+    "S,xassoc", "List of active SCTP associations");
+
 #ifdef SCTP_DEBUG
 SYSCTL_INT(_net_inet_sctp, OID_AUTO, debug, CTLFLAG_RW,
     &sctp_debug_on, 0, "Configure debug output");
@@ -1106,7 +1287,7 @@ sctp_disconnect(struct socket *so)
 				    (SCTP_GET_STATE(&stcb->asoc) == SCTP_STATE_SHUTDOWN_RECEIVED)) {
 					SCTP_STAT_DECR_GAUGE32(sctps_currestab);
 				}
-				sctp_free_assoc(inp, stcb, 0);
+				sctp_free_assoc(inp, stcb, SCTP_NORMAL_PROC, SCTP_FROM_SCTP_USRREQ + SCTP_LOC_3);
 				/* No unlock tcb assoc is gone */
 				splx(s);
 				return (0);
@@ -1187,8 +1368,9 @@ sctp_disconnect(struct socket *so)
 						    SCTP_CAUSE_USER_INITIATED_ABT);
 						ph->param_length = htons(op_err->m_len);
 						ippp = (uint32_t *) (ph + 1);
-						*ippp = htonl(0x30000007);
+						*ippp = htonl(SCTP_FROM_SCTP_USRREQ + SCTP_LOC_4);
 					}
+					stcb->sctp_ep->last_abort_code = SCTP_FROM_SCTP_USRREQ + SCTP_LOC_4;
 					sctp_send_abort_tcb(stcb, op_err);
 					SCTP_STAT_INCR_COUNTER32(sctps_aborted);
 					if ((SCTP_GET_STATE(&stcb->asoc) == SCTP_STATE_OPEN) ||
@@ -1196,7 +1378,7 @@ sctp_disconnect(struct socket *so)
 						SCTP_STAT_DECR_GAUGE32(sctps_currestab);
 					}
 					SCTP_INP_RUNLOCK(inp);
-					sctp_free_assoc(inp, stcb, 0);
+					sctp_free_assoc(inp, stcb, SCTP_NORMAL_PROC, SCTP_FROM_SCTP_USRREQ + SCTP_LOC_5);
 					splx(s);
 					return (0);
 				}
@@ -1325,8 +1507,9 @@ sctp_shutdown(struct socket *so)
 					    SCTP_CAUSE_USER_INITIATED_ABT);
 					ph->param_length = htons(op_err->m_len);
 					ippp = (uint32_t *) (ph + 1);
-					*ippp = htonl(0x30000008);
+					*ippp = htonl(SCTP_FROM_SCTP_USRREQ + SCTP_LOC_6);
 				}
+				stcb->sctp_ep->last_abort_code = SCTP_FROM_SCTP_USRREQ + SCTP_LOC_6;
 				sctp_abort_an_association(stcb->sctp_ep, stcb,
 				    SCTP_RESPONSE_TO_USER_REQ,
 				    op_err);
@@ -1744,17 +1927,17 @@ sctp_do_connect_x(struct socket *so,
 	for (i = 1; i < totaddr; i++) {
 		if (sa->sa_family == AF_INET) {
 			incr = sizeof(struct sockaddr_in);
-			if (sctp_add_remote_addr(stcb, sa, 0, 8)) {
+			if (sctp_add_remote_addr(stcb, sa, SCTP_DONOT_SETSCOPE, SCTP_ADDR_IS_CONFIRMED)) {
 				/* assoc gone no un-lock */
-				sctp_free_assoc(inp, stcb, 0);
+				sctp_free_assoc(inp, stcb, SCTP_NORMAL_PROC, SCTP_FROM_SCTP_USRREQ + SCTP_LOC_7);
 				error = ENOBUFS;
 				goto out_now;
 			}
 		} else if (sa->sa_family == AF_INET6) {
 			incr = sizeof(struct sockaddr_in6);
-			if (sctp_add_remote_addr(stcb, sa, 0, 8)) {
+			if (sctp_add_remote_addr(stcb, sa, SCTP_DONOT_SETSCOPE, SCTP_ADDR_IS_CONFIRMED)) {
 				/* assoc gone no un-lock */
-				sctp_free_assoc(inp, stcb, 0);
+				sctp_free_assoc(inp, stcb, SCTP_NORMAL_PROC, SCTP_FROM_SCTP_USRREQ + SCTP_LOC_8);
 				error = ENOBUFS;
 				goto out_now;
 			}
@@ -3626,7 +3809,9 @@ sctp_optsset(struct socket *so,
 			if (stcb->asoc.delayed_connection == 1) {
 				stcb->asoc.delayed_connection = 0;
 				SCTP_GETTIME_TIMEVAL(&stcb->asoc.time_entered);
-				sctp_timer_stop(SCTP_TIMER_TYPE_INIT, inp, stcb, stcb->asoc.primary_destination);
+				sctp_timer_stop(SCTP_TIMER_TYPE_INIT, inp, stcb,
+				    stcb->asoc.primary_destination,
+				    SCTP_FROM_SCTP_USRREQ + SCTP_LOC_9);
 				sctp_send_initiate(inp, stcb);
 			} else {
 				/*
@@ -3928,7 +4113,8 @@ sctp_optsset(struct socket *so,
 					}
 					if (paddrp->spp_flags & SPP_PMTUD_DISABLE) {
 						if (callout_pending(&net->pmtu_timer.timer)) {
-							sctp_timer_stop(SCTP_TIMER_TYPE_PATHMTURAISE, inp, stcb, net);
+							sctp_timer_stop(SCTP_TIMER_TYPE_PATHMTURAISE, inp, stcb, net,
+							    SCTP_FROM_SCTP_USRREQ + SCTP_LOC_10);
 						}
 						if (paddrp->spp_pathmtu > SCTP_DEFAULT_MINSEGMENT) {
 							net->mtu = paddrp->spp_pathmtu;
@@ -3983,7 +4169,7 @@ sctp_optsset(struct socket *so,
 						 * addresses
 						 */
 						if (cnt_of_unconf == 0) {
-							sctp_timer_stop(SCTP_TIMER_TYPE_HEARTBEAT, inp, stcb, net);
+							sctp_timer_stop(SCTP_TIMER_TYPE_HEARTBEAT, inp, stcb, net, SCTP_FROM_SCTP_USRREQ + SCTP_LOC_11);
 						}
 					}
 					if (paddrp->spp_flags & SPP_HB_ENABLE) {
