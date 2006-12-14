@@ -338,3 +338,4 @@ static driver_t bt_mca_driver = {
 static devclass_t bt_devclass;
 
 DRIVER_MODULE(bt, mca, bt_mca_driver, bt_devclass, 0, 0);
+MODULE_DEPEND(bt, mca, 1, 1, 1);

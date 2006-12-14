@@ -210,6 +210,7 @@ static driver_t mpt_driver = {
 };
 static devclass_t mpt_devclass;
 DRIVER_MODULE(mpt, pci, mpt_driver, mpt_devclass, 0, 0);
+MODULE_DEPEND(mpt, pci, 1, 1, 1);
 MODULE_VERSION(mpt, 1);
 
 static int
