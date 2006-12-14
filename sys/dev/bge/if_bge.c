@@ -2113,7 +2113,7 @@ bge_attach(device_t dev)
 	uint32_t hwcfg = 0;
 	uint32_t mac_tmp = 0;
 	u_char eaddr[6];
-	int error = 0, rid, trys, reg;
+	int error = 0, msicount, rid, trys, reg;
 
 	sc = device_get_softc(dev);
 	sc->bge_dev = dev;
@@ -2136,8 +2136,18 @@ bge_attach(device_t dev)
 	sc->bge_btag = rman_get_bustag(sc->bge_res);
 	sc->bge_bhandle = rman_get_bushandle(sc->bge_res);
 
-	/* Allocate interrupt. */
-	rid = 0;
+	/*
+	 * Allocate the interrupt, using MSI if possible.  These devices
+	 * support 8 MSI messages, but only the first one is used in
+	 * normal operation.
+	 */
+	if ((msicount = pci_msi_count(dev)) > 1)
+		msicount = 1;
+	if (msicount == 1 && pci_alloc_msi(dev, &msicount) == 0) {
+		rid = 1;
+		sc->bge_flags |= BGE_FLAG_MSI;
+	} else
+		rid = 0;
 
 	sc->bge_irq = bus_alloc_resource_any(dev, SYS_RES_IRQ, &rid,
 	    RF_SHAREABLE | RF_ACTIVE);
@@ -2492,7 +2502,11 @@ bge_release_resources(struct bge_softc *sc)
 		bus_teardown_intr(dev, sc->bge_irq, sc->bge_intrhand);
 
 	if (sc->bge_irq != NULL)
-		bus_release_resource(dev, SYS_RES_IRQ, 0, sc->bge_irq);
+		bus_release_resource(dev, SYS_RES_IRQ,
+		    sc->bge_flags & BGE_FLAG_MSI ? 1 : 0, sc->bge_irq);
+
+	if (sc->bge_flags & BGE_FLAG_MSI)
+		pci_release_msi(dev);
 
 	if (sc->bge_res != NULL)
 		bus_release_resource(dev, SYS_RES_MEMORY,

@@ -2477,6 +2477,7 @@ struct bge_softc {
 #define BGE_FLAG_5705_PLUS	0x00000200
 #define BGE_FLAG_5714_FAMILY	0x00000400
 #define BGE_FLAG_575X_PLUS	0x00000800
+#define BGE_FLAG_MSI		0x00001000
 	uint32_t		bge_chipid;
 	uint8_t			bge_asicrev;
 	uint8_t			bge_chiprev;
