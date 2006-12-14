@@ -1586,7 +1586,7 @@ static int
 mfi_send_frame(struct mfi_softc *sc, struct mfi_command *cm)
 {
 	struct mfi_frame_header *hdr;
-	int tm = MFI_POLL_TIMEOUT_SECS * 1000000;
+	int tm = MFI_POLL_TIMEOUT_SECS * 1000;
 
 	hdr = &cm->cm_frame->header;
 
@@ -1622,13 +1622,14 @@ mfi_send_frame(struct mfi_softc *sc, struct mfi_command *cm)
 	/* This is a polled command, so busy-wait for it to complete. */
 	while (hdr->cmd_status == 0xff) {
 		DELAY(1000);
-		tm -= 1000;
+		tm -= 1;
 		if (tm <= 0)
 			break;
 	}
 
 	if (hdr->cmd_status == 0xff) {
-		device_printf(sc->mfi_dev, "Frame %p timed out\n", hdr);
+		device_printf(sc->mfi_dev, "Frame %p timed out "
+			      "command 0x%X\n", hdr, cm->cm_frame->dcmd.opcode);
 		return (ETIMEDOUT);
 	}
 
@@ -1663,6 +1664,7 @@ mfi_abort(struct mfi_softc *sc, struct mfi_command *cm_abort)
 {
 	struct mfi_command *cm;
 	struct mfi_abort_frame *abort;
+	int i = 0;
 
 	mtx_assert(&sc->mfi_io_lock, MA_OWNED);
 
@@ -1683,8 +1685,9 @@ mfi_abort(struct mfi_softc *sc, struct mfi_command *cm_abort)
 	mfi_mapcmd(sc, cm);
 	mfi_release_command(cm);
 
-	while (sc->mfi_aen_cm != NULL) {
+	while (i < 5 && sc->mfi_aen_cm != NULL) {
 		msleep(&sc->mfi_aen_cm, &sc->mfi_io_lock, 0, "mfiabort", 5 * hz);
+		i++;
 	}
 
 	return (0);
@@ -1770,9 +1773,8 @@ mfi_ioctl(struct cdev *dev, u_long cmd, caddr_t arg, int flag, d_thread_t *td)
 	struct mfi_ioc_packet *ioc;
 	struct mfi_ioc_aen *aen;
 	struct mfi_command *cm = NULL;
-	struct mfi_dcmd_frame *dcmd;
 	uint32_t context;
-	uint32_t *sense_ptr;
+	uint8_t *sense_ptr;
 	uint8_t *data = NULL, *temp;
 	int i;
 	int error;
@@ -1812,45 +1814,41 @@ mfi_ioctl(struct cdev *dev, u_long cmd, caddr_t arg, int flag, d_thread_t *td)
 		 */
 		context = cm->cm_frame->header.context;
 
-		bcopy(ioc->mi_frame.raw, cm->cm_frame,
-		      ioc->mi_sgl_off); /* Linux can do 2 frames ? */
-		cm->cm_total_frame_size = ioc->mi_sgl_off;
+		bcopy(ioc->mfi_frame.raw, cm->cm_frame,
+		      ioc->mfi_sgl_off); /* Linux can do 2 frames ? */
+		cm->cm_total_frame_size = ioc->mfi_sgl_off;
 		cm->cm_sg =
-		    (union mfi_sgl *)&cm->cm_frame->bytes[ioc->mi_sgl_off];
+		    (union mfi_sgl *)&cm->cm_frame->bytes[ioc->mfi_sgl_off];
 		cm->cm_flags = MFI_CMD_DATAIN | MFI_CMD_DATAOUT
 			| MFI_CMD_POLLED;
 		cm->cm_len = cm->cm_frame->header.data_len;
 		cm->cm_data = data = malloc(cm->cm_len, M_MFIBUF,
 					    M_WAITOK | M_ZERO);
+		if (cm->cm_data == NULL) {
+			device_printf(sc->mfi_dev, "Malloc failed\n");
+			goto out;
+		}
 
 		/* restore header context */
 		cm->cm_frame->header.context = context;
-		/* ioctl's are dcmd types */
-		dcmd =  &cm->cm_frame->dcmd;
 
 		temp = data;
-		for (i = 0; i < ioc->mi_sge_count; i++) {
-			error = copyin(ioc->mi_sgl[i].iov_base,
+		for (i = 0; i < ioc->mfi_sge_count; i++) {
+			error = copyin(ioc->mfi_sgl[i].iov_base,
 			       temp,
-			       ioc->mi_sgl[i].iov_len);
+			       ioc->mfi_sgl[i].iov_len);
 			if (error != 0) {
 				device_printf(sc->mfi_dev,
-				    "Copy in failed");
+				    "Copy in failed\n");
 				goto out;
 			}
-			temp = &temp[ioc->mi_sgl[i].iov_len];
-		}
-
-		if (ioc->mi_sense_len) {
-			sense_ptr =
-			    (void *)&cm->cm_frame->bytes[ioc->mi_sense_off];
-			*sense_ptr = cm->cm_sense_busaddr;
+			temp = &temp[ioc->mfi_sgl[i].iov_len];
 		}
 
 		mtx_lock(&sc->mfi_io_lock);
 		if ((error = mfi_mapcmd(sc, cm)) != 0) {
 			device_printf(sc->mfi_dev,
-			    "Controller polled failed");
+			    "Controller polled failed\n");
 			mtx_unlock(&sc->mfi_io_lock);
 			goto out;
 		}
@@ -1861,36 +1859,34 @@ mfi_ioctl(struct cdev *dev, u_long cmd, caddr_t arg, int flag, d_thread_t *td)
 		mtx_unlock(&sc->mfi_io_lock);
 
 		temp = data;
-		for (i = 0; i < ioc->mi_sge_count; i++) {
+		for (i = 0; i < ioc->mfi_sge_count; i++) {
 			error = copyout(temp,
-				ioc->mi_sgl[i].iov_base,
-				ioc->mi_sgl[i].iov_len);
+				ioc->mfi_sgl[i].iov_base,
+				ioc->mfi_sgl[i].iov_len);
 			if (error != 0) {
 				device_printf(sc->mfi_dev,
-				    "Copy out failed");
+				    "Copy out failed\n");
 				goto out;
 			}
-			temp = &temp[ioc->mi_sgl[i].iov_len];
+			temp = &temp[ioc->mfi_sgl[i].iov_len];
 		}
 
-		if (ioc->mi_sense_len) {
+		if (ioc->mfi_sense_len) {
 			/* copy out sense */
-			sense_ptr = (void *)
-			    &ioc->mi_frame.raw[ioc->mi_sense_off];
-			temp = 0;
-			temp += cm->cm_sense_busaddr;
-			error = copyout(temp, sense_ptr,
-			    ioc->mi_sense_len);
+			sense_ptr = &((struct mfi_ioc_packet*)arg)
+			    ->mfi_frame.raw[0];
+			error = copyout(cm->cm_sense, sense_ptr,
+			    ioc->mfi_sense_len);
 			if (error != 0) {
 				device_printf(sc->mfi_dev,
-				    "Copy out failed");
+				    "Copy out failed\n");
 				goto out;
 			}
 		}
 
-		ioc->mi_frame.hdr.cmd_status = cm->cm_frame->header.cmd_status;
+		ioc->mfi_frame.hdr.cmd_status = cm->cm_frame->header.cmd_status;
 		if (cm->cm_frame->header.cmd_status == MFI_STAT_OK) {
-			switch (dcmd->opcode) {
+			switch (cm->cm_frame->dcmd.opcode) {
 			case MFI_DCMD_CFG_CLEAR:
 			case MFI_DCMD_CFG_ADD:
 /*
@@ -1974,7 +1970,7 @@ mfi_linux_ioctl_int(struct cdev *dev, u_long cmd, caddr_t arg, int flag, d_threa
 	struct mfi_linux_ioc_aen l_aen;
 	struct mfi_command *cm = NULL;
 	struct mfi_aen *mfi_aen_entry;
-	uint32_t *sense_ptr;
+	uint8_t *sense_ptr;
 	uint32_t context;
 	uint8_t *data = NULL, *temp;
 	void *temp_convert;
@@ -2029,22 +2025,16 @@ mfi_linux_ioctl_int(struct cdev *dev, u_long cmd, caddr_t arg, int flag, d_threa
 			       l_ioc.lioc_sgl[i].iov_len);
 			if (error != 0) {
 				device_printf(sc->mfi_dev,
-				    "Copy in failed");
+				    "Copy in failed\n");
 				goto out;
 			}
 			temp = &temp[l_ioc.lioc_sgl[i].iov_len];
 		}
 
-		if (l_ioc.lioc_sense_len) {
-			sense_ptr =
-			    (void *)&cm->cm_frame->bytes[l_ioc.lioc_sense_off];
-			*sense_ptr = cm->cm_sense_busaddr;
-		}
-
 		mtx_lock(&sc->mfi_io_lock);
 		if ((error = mfi_mapcmd(sc, cm)) != 0) {
 			device_printf(sc->mfi_dev,
-			    "Controller polled failed");
+			    "Controller polled failed\n");
 			mtx_unlock(&sc->mfi_io_lock);
 			goto out;
 		}
@@ -2063,7 +2053,7 @@ mfi_linux_ioctl_int(struct cdev *dev, u_long cmd, caddr_t arg, int flag, d_threa
 				l_ioc.lioc_sgl[i].iov_len);
 			if (error != 0) {
 				device_printf(sc->mfi_dev,
-				    "Copy out failed");
+				    "Copy out failed\n");
 				goto out;
 			}
 			temp = &temp[l_ioc.lioc_sgl[i].iov_len];
@@ -2071,15 +2061,13 @@ mfi_linux_ioctl_int(struct cdev *dev, u_long cmd, caddr_t arg, int flag, d_threa
 
 		if (l_ioc.lioc_sense_len) {
 			/* copy out sense */
-			sense_ptr = (void *)
-			    &l_ioc.lioc_frame.raw[l_ioc.lioc_sense_off];
-			temp = 0;
-			temp += cm->cm_sense_busaddr;
-			error = copyout(temp, sense_ptr,
+			sense_ptr = &((struct mfi_linux_ioc_packet*)arg)
+			    ->lioc_frame.raw[0];
+			error = copyout(cm->cm_sense, sense_ptr,
 			    l_ioc.lioc_sense_len);
 			if (error != 0) {
 				device_printf(sc->mfi_dev,
-				    "Copy out failed");
+				    "Copy out failed\n");
 				goto out;
 			}
 		}
@@ -2090,7 +2078,7 @@ mfi_linux_ioctl_int(struct cdev *dev, u_long cmd, caddr_t arg, int flag, d_threa
 			1);
 		if (error != 0) {
 			device_printf(sc->mfi_dev,
-				      "Copy out failed");
+				      "Copy out failed\n");
 			goto out;
 		}
 
