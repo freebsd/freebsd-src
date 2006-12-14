@@ -79,9 +79,11 @@ sysconf(name)
 	int mib[2], sverrno, value;
 	long defaultresult;
 	const char *path;
+	const char *sname;
 
 	len = sizeof(value);
 	defaultresult = -1;
+	sname = NULL;
 
 	switch (name) {
 	case _SC_ARG_MAX:
@@ -574,9 +576,20 @@ yesno:		if (sysctl(mib, 2, &value, &len, NULL, 0) == -1)
 		mib[1] = HW_NCPU;
 		break;
 
+	case _SC_PHYS_PAGES:
+		sname = "hw.availpages";
+		break;
+
 	default:
 		errno = EINVAL;
 		return (-1);
 	}
-	return (sysctl(mib, 2, &value, &len, NULL, 0) == -1 ? -1 : value);
+	if (sname == NULL) {
+		if (sysctl(mib, 2, &value, &len, NULL, 0) == -1)
+			value = -1;
+	} else {
+		if (sysctlbyname(sname, &value, &len, NULL, 0) == -1)
+			value = -1;
+	}
+	return (value);
 }

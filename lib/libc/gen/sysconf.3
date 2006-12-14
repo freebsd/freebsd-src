@@ -167,6 +167,19 @@ otherwise \-1.
 Return 1 if the system supports the User Portability Utilities Option,
 otherwise \-1.
 .El
+.Pp
+These values also exist, but may not be standard:
+.Pp
+.Bl -tag -width 6n
+.Pp
+.It Li _SC_PHYS_PAGES
+The number of pages of physical memory.
+Note that it is possible that the product of this value and the value of
+.Li _SC_PAGESIZE
+will overflow a
+.Vt long
+in some configurations on a 32bit machine.
+.El
 .Sh RETURN VALUES
 If the call to
 .Fn sysconf
