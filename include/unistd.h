@@ -294,6 +294,9 @@ typedef	__useconds_t	useconds_t;
 #define	_SC_NPROCESSORS_ONLN	58
 #endif
 
+/* Extensions found in Solaris and Linux. */
+#define	_SC_PHYS_PAGES		121
+
 /* Keys for the confstr(3) function. */
 #if __POSIX_VISIBLE >= 199209
 #define	_CS_PATH		1	/* default value of PATH */
