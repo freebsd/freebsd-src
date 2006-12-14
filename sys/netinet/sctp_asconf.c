@@ -338,7 +338,8 @@ sctp_process_asconf_add_ip(struct mbuf *m, struct sctp_asconf_paramhdr *aph,
 #endif				/* SCTP_DEBUG */
 	}
 	/* add the address */
-	if (sctp_add_remote_addr(stcb, sa, 0, 6) != 0) {
+	if (sctp_add_remote_addr(stcb, sa, SCTP_DONOT_SETSCOPE,
+	    SCTP_ADDR_DYNAMIC_ADDED) != 0) {
 #ifdef SCTP_DEBUG
 		if (sctp_debug_on & SCTP_DEBUG_ASCONF1) {
 			printf("process_asconf_add_ip: error adding address\n");
@@ -354,7 +355,7 @@ sctp_process_asconf_add_ip(struct mbuf *m, struct sctp_asconf_paramhdr *aph,
 			m_reply =
 			    sctp_asconf_success_response(aph->correlation_id);
 		}
-		sctp_timer_stop(SCTP_TIMER_TYPE_HEARTBEAT, stcb->sctp_ep, stcb, NULL);
+		sctp_timer_stop(SCTP_TIMER_TYPE_HEARTBEAT, stcb->sctp_ep, stcb, NULL, SCTP_FROM_SCTP_ASCONF + SCTP_LOC_1);
 		sctp_timer_start(SCTP_TIMER_TYPE_HEARTBEAT, stcb->sctp_ep, stcb, NULL);
 
 	}
@@ -1024,7 +1025,7 @@ sctp_asconf_cleanup(struct sctp_tcb *stcb, struct sctp_nets *net)
 	/*
 	 * clear out any existing asconfs going out
 	 */
-	sctp_timer_stop(SCTP_TIMER_TYPE_ASCONF, stcb->sctp_ep, stcb, net);
+	sctp_timer_stop(SCTP_TIMER_TYPE_ASCONF, stcb->sctp_ep, stcb, net, SCTP_FROM_SCTP_ASCONF + SCTP_LOC_2);
 	stcb->asoc.asconf_seq_out++;
 	/* remove the old ASCONF on our outbound queue */
 	sctp_toss_old_asconf(stcb);
@@ -1500,7 +1501,7 @@ sctp_handle_asconf_ack(struct mbuf *m, int offset,
 		return;
 	}
 	/* stop our timer */
-	sctp_timer_stop(SCTP_TIMER_TYPE_ASCONF, stcb->sctp_ep, stcb, net);
+	sctp_timer_stop(SCTP_TIMER_TYPE_ASCONF, stcb->sctp_ep, stcb, net, SCTP_FROM_SCTP_ASCONF + SCTP_LOC_3);
 
 	/* process the ASCONF-ACK contents */
 	ack_length = ntohs(cp->ch.chunk_length) -

@@ -625,7 +625,7 @@ sctp_fill_stat_log(struct mbuf *m)
 		req->end_at = sctp_cwnd_log_at - 1;
 		req->num_ret = sctp_cwnd_log_at;
 	}
-#ifdef INVARIENTS
+#ifdef INVARIANTS
 	if (req->num_ret > num) {
 		panic("Bad statlog get?");
 	}
@@ -1269,6 +1269,7 @@ sctp_timeout_handler(void *t)
 		splx(s);
 		return;
 	}
+	tmr->stopped_from = 0xa001;
 	if (!SCTP_IS_TIMER_TYPE_VALID(tmr->type)) {
 		/*
 		 * printf("SCTP timer fired with invalid type: 0x%x\n",
@@ -1277,11 +1278,13 @@ sctp_timeout_handler(void *t)
 		splx(s);
 		return;
 	}
+	tmr->stopped_from = 0xa002;
 	if ((tmr->type != SCTP_TIMER_TYPE_ADDR_WQ) && (inp == NULL)) {
 		splx(s);
 		return;
 	}
 	/* if this is an iterator timeout, get the struct and clear inp */
+	tmr->stopped_from = 0xa003;
 	if (tmr->type == SCTP_TIMER_TYPE_ITERATOR) {
 		it = (struct sctp_iterator *)inp;
 		inp = NULL;
@@ -1300,6 +1303,7 @@ sctp_timeout_handler(void *t)
 			return;
 		}
 	}
+	tmr->stopped_from = 0xa004;
 	if (stcb) {
 		if (stcb->asoc.state == 0) {
 			splx(s);
@@ -1309,6 +1313,7 @@ sctp_timeout_handler(void *t)
 			return;
 		}
 	}
+	tmr->stopped_from = 0xa005;
 #ifdef SCTP_DEBUG
 	if (sctp_debug_on & SCTP_DEBUG_TIMER1) {
 		printf("Timer type %d goes off\n", tmr->type);
@@ -1321,6 +1326,10 @@ sctp_timeout_handler(void *t)
 		}
 		return;
 	}
+	tmr->stopped_from = 0xa006;
+	/* record in stopped what t-o occured */
+	tmr->stopped_from = tmr->type;
+
 	if (stcb) {
 		atomic_add_int(&stcb->asoc.refcnt, 1);
 		SCTP_TCB_LOCK(stcb);
@@ -1523,8 +1532,8 @@ sctp_timeout_handler(void *t)
 		SCTP_STAT_INCR(sctps_timoassockill);
 		/* Can we free it yet? */
 		SCTP_INP_DECR_REF(inp);
-		sctp_timer_stop(SCTP_TIMER_TYPE_ASOCKILL, inp, stcb, NULL);
-		sctp_free_assoc(inp, stcb, 0);
+		sctp_timer_stop(SCTP_TIMER_TYPE_ASOCKILL, inp, stcb, NULL, SCTP_FROM_SCTPUTIL + SCTP_LOC_1);
+		sctp_free_assoc(inp, stcb, SCTP_NORMAL_PROC, SCTP_FROM_SCTPUTIL + SCTP_LOC_2);
 		/*
 		 * free asoc, always unlocks (or destroy's) so prevent
 		 * duplicate unlock or unlock of a free mtx :-0
@@ -1539,7 +1548,7 @@ sctp_timeout_handler(void *t)
 		 * killer
 		 */
 		SCTP_INP_DECR_REF(inp);
-		sctp_timer_stop(SCTP_TIMER_TYPE_INPKILL, inp, NULL, NULL);
+		sctp_timer_stop(SCTP_TIMER_TYPE_INPKILL, inp, NULL, NULL, SCTP_FROM_SCTPUTIL + SCTP_LOC_3);
 		sctp_inpcb_free(inp, 1, 0);
 		goto out_no_decr;
 		break;
@@ -1931,6 +1940,7 @@ sctp_timer_start(int t_type, struct sctp_inpcb *inp, struct sctp_tcb *stcb,
 	if (t_type == SCTP_TIMER_TYPE_SEND) {
 		stcb->asoc.num_send_timers_up++;
 	}
+	tmr->stopped_from = 0;
 	tmr->type = t_type;
 	tmr->ep = (void *)inp;
 	tmr->tcb = (void *)stcb;
@@ -1943,7 +1953,7 @@ sctp_timer_start(int t_type, struct sctp_inpcb *inp, struct sctp_tcb *stcb,
 
 int
 sctp_timer_stop(int t_type, struct sctp_inpcb *inp, struct sctp_tcb *stcb,
-    struct sctp_nets *net)
+    struct sctp_nets *net, uint32_t from)
 {
 	struct sctp_timer *tmr;
 
@@ -2100,6 +2110,7 @@ sctp_timer_stop(int t_type, struct sctp_inpcb *inp, struct sctp_tcb *stcb,
 		}
 	}
 	tmr->self = NULL;
+	tmr->stopped_from = from;
 	callout_stop(&tmr->timer);
 	return (0);
 }
@@ -2367,6 +2378,12 @@ sctp_calculate_rto(struct sctp_tcb *stcb,
 		} else if ((u_long)now.tv_usec < (u_long)old->tv_usec) {
 			/* impossible .. garbage in nothing out */
 			return (((net->lastsa >> 2) + net->lastsv) >> 1);
+		} else if ((u_long)now.tv_usec == (u_long)old->tv_usec) {
+			/*
+			 * We have to have 1 usec :-D this must be the
+			 * loopback.
+			 */
+			calc_time = 1;
 		} else {
 			/* impossible .. garbage in nothing out */
 			return (((net->lastsa >> 2) + net->lastsv) >> 1);
@@ -2378,27 +2395,6 @@ sctp_calculate_rto(struct sctp_tcb *stcb,
 	/***************************/
 	/* 2. update RTTVAR & SRTT */
 	/***************************/
-#if 0
-	/* if (net->lastsv || net->lastsa) { */
-	/* per Section 5.3.1 C3 in SCTP */
-	/* net->lastsv = (int) 	 *//* RTTVAR */
-	/*
-	 * (((double)(1.0 - 0.25) * (double)net->lastsv) + (double)(0.25 *
-	 * (double)abs(net->lastsa - calc_time))); net->lastsa = (int)
-*//* SRTT */
-	/*
-	 * (((double)(1.0 - 0.125) * (double)net->lastsa) + (double)(0.125 *
-	 * (double)calc_time)); } else {
-*//* the first RTT calculation, per C2 Section 5.3.1 */
-	/* net->lastsa = calc_time;	 *//* SRTT */
-	/* net->lastsv = calc_time / 2;	 *//* RTTVAR */
-	/* } */
-	/* if RTTVAR goes to 0 you set to clock grainularity */
-	/*
-	 * if (net->lastsv == 0) { net->lastsv = SCTP_CLOCK_GRANULARITY; }
-	 * new_rto = net->lastsa + 4 * net->lastsv;
-	 */
-#endif
 	o_calctime = calc_time;
 	/* this is Van Jacobson's integer version */
 	if (net->RTO) {
@@ -3380,7 +3376,7 @@ sctp_abort_association(struct sctp_inpcb *inp, struct sctp_tcb *stcb,
 	sctp_send_abort(m, iphlen, sh, vtag, op_err);
 	if (stcb != NULL) {
 		/* Ok, now lets free it */
-		sctp_free_assoc(inp, stcb, 0);
+		sctp_free_assoc(inp, stcb, SCTP_NORMAL_PROC, SCTP_FROM_SCTPUTIL + SCTP_LOC_4);
 	} else {
 		if (inp->sctp_flags & SCTP_PCB_FLAGS_SOCKET_GONE) {
 			if (LIST_FIRST(&inp->sctp_asoc_list) == NULL) {
@@ -3417,7 +3413,7 @@ sctp_abort_an_association(struct sctp_inpcb *inp, struct sctp_tcb *stcb,
 		SCTP_STAT_DECR_GAUGE32(sctps_currestab);
 	}
 	/* now free the asoc */
-	sctp_free_assoc(inp, stcb, 0);
+	sctp_free_assoc(inp, stcb, SCTP_NORMAL_PROC, SCTP_FROM_SCTPUTIL + SCTP_LOC_5);
 }
 
 void
@@ -3787,12 +3783,14 @@ sctp_add_to_readq(struct sctp_inpcb *inp,
 
 	if (inp == NULL) {
 		/* Gak, TSNH!! */
-#ifdef INVARIENTS
+#ifdef INVARIANTS
 		panic("Gak, inp NULL on add_to_readq");
 #endif
 		return;
 	}
 	SCTP_INP_READ_LOCK(inp);
+	atomic_add_int(&inp->total_recvs, 1);
+	atomic_add_int(&stcb->total_recvs, 1);
 	m = control->data;
 	control->held_length = 0;
 	control->length = 0;
@@ -3914,7 +3912,7 @@ get_out:
 		/* Really there should always be a prev */
 		if (m == NULL) {
 			/* Huh nothing left? */
-#ifdef INVARIENTS
+#ifdef INVARIANTS
 			panic("Nothing left to add?");
 #else
 			goto get_out;
@@ -3938,7 +3936,7 @@ get_out:
 		control->tail_mbuf = tail;
 	} else {
 		/* nothing there */
-#ifdef INVARIENTS
+#ifdef INVARIANTS
 		if (control->data != NULL) {
 			panic("This should NOT happen");
 		}
@@ -4233,7 +4231,7 @@ sctp_user_rcvd(struct sctp_tcb *stcb, int *freed_so_far, int hold_rlock,
 		sctp_chunk_output(stcb->sctp_ep, stcb,
 		    SCTP_OUTPUT_FROM_USR_RCVD);
 		/* make sure no timer is running */
-		sctp_timer_stop(SCTP_TIMER_TYPE_RECV, stcb->sctp_ep, stcb, NULL);
+		sctp_timer_stop(SCTP_TIMER_TYPE_RECV, stcb->sctp_ep, stcb, NULL, SCTP_FROM_SCTPUTIL + SCTP_LOC_6);
 		SCTP_TCB_UNLOCK(stcb);
 	} else {
 		/* Update how much we have pending */
@@ -4248,7 +4246,6 @@ sctp_user_rcvd(struct sctp_tcb *stcb, int *freed_so_far, int hold_rlock,
 	}
 out:
 	if (so && r_unlocked && hold_rlock) {
-		SCTP_STAT_INCR(sctps_locks_in_rcv);
 		SCTP_INP_READ_LOCK(stcb->sctp_ep);
 	}
 	SCTP_INP_DECR_REF(stcb->sctp_ep);
@@ -4438,7 +4435,7 @@ restart_nosblocks:
 		}
 		control = TAILQ_FIRST(&inp->read_queue);
 		if ((control == NULL) && (so->so_rcv.sb_cc != 0)) {
-#ifdef INVARIENTS
+#ifdef INVARIANTS
 			panic("Huh, its non zero and nothing on control?");
 #endif
 			so->so_rcv.sb_cc = 0;
@@ -4454,7 +4451,6 @@ restart_nosblocks:
 		 * pdapi.. maybe a peer in EEOR that just closed after
 		 * sending and never indicated a EOR.
 		 */
-		SCTP_STAT_INCR(sctps_locks_in_rcva);
 		if (hold_rlock == 0) {
 			hold_rlock = 1;
 			SCTP_INP_READ_LOCK(inp);
@@ -4701,7 +4697,6 @@ get_more_data:
 				    m->m_len,
 				    control->length);
 #endif
-				SCTP_STAT_INCR(sctps_locks_in_rcvb);
 				SCTP_INP_READ_LOCK(inp);
 				hold_rlock = 1;
 			}
@@ -4756,7 +4751,7 @@ get_more_data:
 					 * lock ok to null tail
 					 */
 					if (control->data == NULL) {
-#ifdef INVARIENTS
+#ifdef INVARIANTS
 						if ((control->end_added == 0) ||
 						    (TAILQ_NEXT(control, next) == NULL)) {
 							/*
@@ -4772,7 +4767,7 @@ get_more_data:
 						}
 #endif
 						control->tail_mbuf = NULL;
-#ifdef INVARIENTS
+#ifdef INVARIANTS
 						if ((control->end_added) && ((out_flags & MSG_EOR) == 0)) {
 							panic("end_added, nothing left and no MSG_EOR");
 						}
@@ -4854,7 +4849,7 @@ get_more_data:
 			/* we are done with this control */
 			if (control->length == 0) {
 				if (control->data) {
-#ifdef INVARIENTS
+#ifdef INVARIANTS
 					panic("control->data not null at read eor?");
 #else
 					printf("Strange, data left in the control buffer .. invarients would panic?\n");
@@ -4880,7 +4875,6 @@ get_more_data:
 					 * queue).
 					 */
 					if (hold_rlock == 0) {
-						SCTP_STAT_INCR(sctps_locks_in_rcvc);
 						SCTP_INP_READ_LOCK(inp);
 						hold_rlock = 1;
 					}
@@ -4907,7 +4901,7 @@ get_more_data:
 				 * since we are leaving more behind on the
 				 * control to read.
 				 */
-#ifdef INVARIENTS
+#ifdef INVARIANTS
 				if (control->end_added && (control->data == NULL) &&
 				    (control->tail_mbuf == NULL)) {
 					panic("Gak, control->length is corrupt?");
@@ -5000,7 +4994,6 @@ wait_some_more:
 				goto done_with_control;
 			}
 			if (so->so_rcv.sb_cc > held_length) {
-				SCTP_STAT_INCR(sctps_locks_in_rcvf);
 				control->held_length = so->so_rcv.sb_cc;
 				held_length = 0;
 			}

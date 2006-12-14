@@ -28,7 +28,7 @@
  * THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-/* $kejKAME: sctp_indata.c,v 1.36 2005/03/06 16:04:17 itojun Exp $	 */
+/* $KAME: sctp_indata.c,v 1.36 2005/03/06 16:04:17 itojun Exp $	 */
 
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
@@ -623,12 +623,13 @@ sctp_queue_data_to_stream(struct sctp_tcb *stcb, struct sctp_association *asoc,
 			ph->param_type = htons(SCTP_CAUSE_PROTOCOL_VIOLATION);
 			ph->param_length = htons(oper->m_len);
 			ippp = (uint32_t *) (ph + 1);
-			*ippp = htonl(0x00000001);
+			*ippp = htonl(SCTP_FROM_SCTP_INDATA + SCTP_LOC_1);
 			ippp++;
 			*ippp = control->sinfo_tsn;
 			ippp++;
 			*ippp = ((control->sinfo_stream << 16) | control->sinfo_ssn);
 		}
+		stcb->sctp_ep->last_abort_code = SCTP_FROM_SCTP_INDATA + SCTP_LOC_1;
 		sctp_abort_an_association(stcb->sctp_ep, stcb,
 		    SCTP_PEER_FAULTY, oper);
 
@@ -884,13 +885,14 @@ sctp_queue_data_for_reasm(struct sctp_tcb *stcb, struct sctp_association *asoc,
 					    htons(SCTP_CAUSE_PROTOCOL_VIOLATION);
 					ph->param_length = htons(oper->m_len);
 					ippp = (uint32_t *) (ph + 1);
-					*ippp = htonl(0x10000001);
+					*ippp = htonl(SCTP_FROM_SCTP_INDATA + SCTP_LOC_2);
 					ippp++;
 					*ippp = chk->rec.data.TSN_seq;
 					ippp++;
 					*ippp = ((chk->rec.data.stream_number << 16) | chk->rec.data.stream_seq);
 
 				}
+				stcb->sctp_ep->last_abort_code = SCTP_FROM_SCTP_INDATA + SCTP_LOC_2;
 				sctp_abort_an_association(stcb->sctp_ep, stcb,
 				    SCTP_PEER_FAULTY, oper);
 				*abort_flag = 1;
@@ -920,12 +922,13 @@ sctp_queue_data_for_reasm(struct sctp_tcb *stcb, struct sctp_association *asoc,
 					    htons(SCTP_CAUSE_PROTOCOL_VIOLATION);
 					ph->param_length = htons(oper->m_len);
 					ippp = (uint32_t *) (ph + 1);
-					*ippp = htonl(0x10000002);
+					*ippp = htonl(SCTP_FROM_SCTP_INDATA + SCTP_LOC_3);
 					ippp++;
 					*ippp = chk->rec.data.TSN_seq;
 					ippp++;
 					*ippp = ((chk->rec.data.stream_number << 16) | chk->rec.data.stream_seq);
 				}
+				stcb->sctp_ep->last_abort_code = SCTP_FROM_SCTP_INDATA + SCTP_LOC_3;
 				sctp_abort_an_association(stcb->sctp_ep, stcb,
 				    SCTP_PEER_FAULTY, oper);
 				*abort_flag = 1;
@@ -960,12 +963,13 @@ sctp_queue_data_for_reasm(struct sctp_tcb *stcb, struct sctp_association *asoc,
 						ph->param_length =
 						    htons(oper->m_len);
 						ippp = (uint32_t *) (ph + 1);
-						*ippp = htonl(0x10000003);
+						*ippp = htonl(SCTP_FROM_SCTP_INDATA + SCTP_LOC_4);
 						ippp++;
 						*ippp = chk->rec.data.TSN_seq;
 						ippp++;
 						*ippp = ((chk->rec.data.stream_number << 16) | chk->rec.data.stream_seq);
 					}
+					stcb->sctp_ep->last_abort_code = SCTP_FROM_SCTP_INDATA + SCTP_LOC_4;
 					sctp_abort_an_association(stcb->sctp_ep,
 					    stcb, SCTP_PEER_FAULTY, oper);
 					*abort_flag = 1;
@@ -997,13 +1001,14 @@ sctp_queue_data_for_reasm(struct sctp_tcb *stcb, struct sctp_association *asoc,
 						ph->param_length =
 						    htons(oper->m_len);
 						ippp = (uint32_t *) (ph + 1);
-						*ippp = htonl(0x10000004);
+						*ippp = htonl(SCTP_FROM_SCTP_INDATA + SCTP_LOC_5);
 						ippp++;
 						*ippp = chk->rec.data.TSN_seq;
 						ippp++;
 						*ippp = ((chk->rec.data.stream_number << 16) | chk->rec.data.stream_seq);
 
 					}
+					stcb->sctp_ep->last_abort_code = SCTP_FROM_SCTP_INDATA + SCTP_LOC_5;
 					sctp_abort_an_association(stcb->sctp_ep,
 					    stcb, SCTP_PEER_FAULTY, oper);
 					*abort_flag = 1;
@@ -1099,13 +1104,14 @@ sctp_queue_data_for_reasm(struct sctp_tcb *stcb, struct sctp_association *asoc,
 						ph->param_length =
 						    htons(oper->m_len);
 						ippp = (uint32_t *) (ph + 1);
-						*ippp = htonl(0x10000005);
+						*ippp = htonl(SCTP_FROM_SCTP_INDATA + SCTP_LOC_6);
 						ippp++;
 						*ippp = chk->rec.data.TSN_seq;
 						ippp++;
 						*ippp = ((chk->rec.data.stream_number << 16) | chk->rec.data.stream_seq);
 
 					}
+					stcb->sctp_ep->last_abort_code = SCTP_FROM_SCTP_INDATA + SCTP_LOC_6;
 					sctp_abort_an_association(stcb->sctp_ep,
 					    stcb, SCTP_PEER_FAULTY, oper);
 					*abort_flag = 1;
@@ -1140,12 +1146,13 @@ sctp_queue_data_for_reasm(struct sctp_tcb *stcb, struct sctp_association *asoc,
 						ph->param_length =
 						    htons(oper->m_len);
 						ippp = (uint32_t *) (ph + 1);
-						*ippp = htonl(0x10000006);
+						*ippp = htonl(SCTP_FROM_SCTP_INDATA + SCTP_LOC_7);
 						ippp++;
 						*ippp = chk->rec.data.TSN_seq;
 						ippp++;
 						*ippp = ((chk->rec.data.stream_number << 16) | chk->rec.data.stream_seq);
 					}
+					stcb->sctp_ep->last_abort_code = SCTP_FROM_SCTP_INDATA + SCTP_LOC_7;
 					sctp_abort_an_association(stcb->sctp_ep,
 					    stcb, SCTP_PEER_FAULTY, oper);
 
@@ -1182,12 +1189,13 @@ sctp_queue_data_for_reasm(struct sctp_tcb *stcb, struct sctp_association *asoc,
 						ph->param_length =
 						    htons(oper->m_len);
 						ippp = (uint32_t *) (ph + 1);
-						*ippp = htonl(0x10000007);
+						*ippp = htonl(SCTP_FROM_SCTP_INDATA + SCTP_LOC_8);
 						ippp++;
 						*ippp = chk->rec.data.TSN_seq;
 						ippp++;
 						*ippp = ((chk->rec.data.stream_number << 16) | chk->rec.data.stream_seq);
 					}
+					stcb->sctp_ep->last_abort_code = SCTP_FROM_SCTP_INDATA + SCTP_LOC_8;
 					sctp_abort_an_association(stcb->sctp_ep,
 					    stcb, SCTP_PEER_FAULTY, oper);
 
@@ -1220,13 +1228,14 @@ sctp_queue_data_for_reasm(struct sctp_tcb *stcb, struct sctp_association *asoc,
 						ph->param_length =
 						    htons(oper->m_len);
 						ippp = (uint32_t *) (ph + 1);
-						*ippp = htonl(0x10000008);
+						*ippp = htonl(SCTP_FROM_SCTP_INDATA + SCTP_LOC_9);
 						ippp++;
 						*ippp = chk->rec.data.TSN_seq;
 						ippp++;
 						*ippp = ((chk->rec.data.stream_number << 16) | chk->rec.data.stream_seq);
 
 					}
+					stcb->sctp_ep->last_abort_code = SCTP_FROM_SCTP_INDATA + SCTP_LOC_9;
 					sctp_abort_an_association(stcb->sctp_ep,
 					    stcb, SCTP_PEER_FAULTY, oper);
 
@@ -1269,12 +1278,13 @@ sctp_queue_data_for_reasm(struct sctp_tcb *stcb, struct sctp_association *asoc,
 						ph->param_length =
 						    htons(oper->m_len);
 						ippp = (uint32_t *) (ph + 1);
-						*ippp = htonl(0x10000009);
+						*ippp = htonl(SCTP_FROM_SCTP_INDATA + SCTP_LOC_10);
 						ippp++;
 						*ippp = chk->rec.data.TSN_seq;
 						ippp++;
 						*ippp = ((chk->rec.data.stream_number << 16) | chk->rec.data.stream_seq);
 					}
+					stcb->sctp_ep->last_abort_code = SCTP_FROM_SCTP_INDATA + SCTP_LOC_10;
 					sctp_abort_an_association(stcb->sctp_ep,
 					    stcb, SCTP_PEER_FAULTY, oper);
 
@@ -1313,13 +1323,14 @@ sctp_queue_data_for_reasm(struct sctp_tcb *stcb, struct sctp_association *asoc,
 						ph->param_length =
 						    htons(oper->m_len);
 						ippp = (uint32_t *) (ph + 1);
-						*ippp = htonl(0x1000000a);
+						*ippp = htonl(SCTP_FROM_SCTP_INDATA + SCTP_LOC_11);
 						ippp++;
 						*ippp = chk->rec.data.TSN_seq;
 						ippp++;
 						*ippp = ((chk->rec.data.stream_number << 16) | chk->rec.data.stream_seq);
 
 					}
+					stcb->sctp_ep->last_abort_code = SCTP_FROM_SCTP_INDATA + SCTP_LOC_11;
 					sctp_abort_an_association(stcb->sctp_ep,
 					    stcb, SCTP_PEER_FAULTY, oper);
 
@@ -1355,13 +1366,14 @@ sctp_queue_data_for_reasm(struct sctp_tcb *stcb, struct sctp_association *asoc,
 						ph->param_length =
 						    htons(oper->m_len);
 						ippp = (uint32_t *) (ph + 1);
-						*ippp = htonl(0x1000000b);
+						*ippp = htonl(SCTP_FROM_SCTP_INDATA + SCTP_LOC_12);
 						ippp++;
 						*ippp = chk->rec.data.TSN_seq;
 						ippp++;
 						*ippp = ((chk->rec.data.stream_number << 16) | chk->rec.data.stream_seq);
 
 					}
+					stcb->sctp_ep->last_abort_code = SCTP_FROM_SCTP_INDATA + SCTP_LOC_12;
 					sctp_abort_an_association(stcb->sctp_ep,
 					    stcb, SCTP_PEER_FAULTY, oper);
 
@@ -1398,12 +1410,13 @@ sctp_queue_data_for_reasm(struct sctp_tcb *stcb, struct sctp_association *asoc,
 						ph->param_length =
 						    htons(oper->m_len);
 						ippp = (uint32_t *) (ph + 1);
-						*ippp = htonl(0x1000000c);
+						*ippp = htonl(SCTP_FROM_SCTP_INDATA + SCTP_LOC_13);
 						ippp++;
 						*ippp = chk->rec.data.TSN_seq;
 						ippp++;
 						*ippp = ((chk->rec.data.stream_number << 16) | chk->rec.data.stream_seq);
 					}
+					stcb->sctp_ep->last_abort_code = SCTP_FROM_SCTP_INDATA + SCTP_LOC_13;
 					sctp_abort_an_association(stcb->sctp_ep,
 					    stcb, SCTP_PEER_FAULTY, oper);
 
@@ -1683,13 +1696,14 @@ sctp_process_a_data_chunk(struct sctp_tcb *stcb, struct sctp_association *asoc,
 			ph->param_type = htons(SCTP_CAUSE_PROTOCOL_VIOLATION);
 			ph->param_length = htons(oper->m_len);
 			ippp = (uint32_t *) (ph + 1);
-			*ippp = htonl(0x20000001);
+			*ippp = htonl(SCTP_FROM_SCTP_INDATA + SCTP_LOC_14);
 			ippp++;
 			*ippp = tsn;
 			ippp++;
 			*ippp = ((strmno << 16) | strmseq);
 
 		}
+		stcb->sctp_ep->last_abort_code = SCTP_FROM_SCTP_INDATA + SCTP_LOC_14;
 		sctp_abort_an_association(stcb->sctp_ep, stcb,
 		    SCTP_PEER_FAULTY, oper);
 		*abort_flag = 1;
@@ -1807,12 +1821,13 @@ failed_express_del:
 			asoc->last_flags_delivered = ch->ch.chunk_flags;
 			asoc->last_strm_seq_delivered = strmseq;
 			asoc->last_strm_no_delivered = strmno;
-			asoc->tsn_last_delivered = tsn;
 
 			if (end) {
 				/* clean up the flags and such */
 				asoc->fragmented_delivery_inprogress = 0;
-				asoc->strmin[strmno].last_sequence_delivered++;
+				if ((ch->ch.chunk_flags & SCTP_DATA_UNORDERED) == 0) {
+					asoc->strmin[strmno].last_sequence_delivered++;
+				}
 				stcb->asoc.control_pdapi = NULL;
 			}
 			control = NULL;
@@ -1900,12 +1915,13 @@ failed_pdapi_express_del:
 					    htons(SCTP_CAUSE_PROTOCOL_VIOLATION);
 					ph->param_length = htons(oper->m_len);
 					ippp = (uint32_t *) (ph + 1);
-					*ippp = htonl(0x20000002);
+					*ippp = htonl(SCTP_FROM_SCTP_INDATA + SCTP_LOC_15);
 					ippp++;
 					*ippp = tsn;
 					ippp++;
 					*ippp = ((strmno << 16) | strmseq);
 				}
+				stcb->sctp_ep->last_abort_code = SCTP_FROM_SCTP_INDATA + SCTP_LOC_15;
 				sctp_abort_an_association(stcb->sctp_ep, stcb,
 				    SCTP_PEER_FAULTY, oper);
 
@@ -1934,12 +1950,13 @@ failed_pdapi_express_del:
 						ph->param_length =
 						    htons(oper->m_len);
 						ippp = (uint32_t *) (ph + 1);
-						*ippp = htonl(0x20000003);
+						*ippp = htonl(SCTP_FROM_SCTP_INDATA + SCTP_LOC_16);
 						ippp++;
 						*ippp = tsn;
 						ippp++;
 						*ippp = ((strmno << 16) | strmseq);
 					}
+					stcb->sctp_ep->last_abort_code = SCTP_FROM_SCTP_INDATA + SCTP_LOC_16;
 					sctp_abort_an_association(stcb->sctp_ep,
 					    stcb, SCTP_PEER_FAULTY, oper);
 
@@ -1977,12 +1994,13 @@ failed_pdapi_express_del:
 						ph->param_length =
 						    htons(oper->m_len);
 						ippp = (uint32_t *) (ph + 1);
-						*ippp = htonl(0x20000004);
+						*ippp = htonl(SCTP_FROM_SCTP_INDATA + SCTP_LOC_17);
 						ippp++;
 						*ippp = tsn;
 						ippp++;
 						*ippp = ((strmno << 16) | strmseq);
 					}
+					stcb->sctp_ep->last_abort_code = SCTP_FROM_SCTP_INDATA + SCTP_LOC_17;
 					sctp_abort_an_association(stcb->sctp_ep,
 					    stcb, SCTP_PEER_FAULTY, oper);
 
@@ -2062,6 +2080,11 @@ failed_pdapi_express_del:
 		/* Into the re-assembly queue */
 		sctp_queue_data_for_reasm(stcb, asoc, chk, abort_flag);
 		if (*abort_flag) {
+			/*
+			 * the assoc is now gone and chk was put onto the
+			 * reasm queue, which has all been freed.
+			 */
+			*m = NULL;
 			return (0);
 		}
 	}
@@ -2190,7 +2213,7 @@ sctp_sack_check(struct sctp_tcb *stcb, int ok_to_sack, int was_a_gap, int *abort
 	if (compare_with_wrap(asoc->cumulative_tsn,
 	    asoc->highest_tsn_inside_map,
 	    MAX_TSN)) {
-#ifdef INVARIENTS
+#ifdef INVARIANTS
 		panic("huh, cumack greater than high-tsn in map");
 #else
 		printf("huh, cumack greater than high-tsn in map - should panic?\n");
@@ -2346,7 +2369,7 @@ sctp_sack_check(struct sctp_tcb *stcb, int ok_to_sack, int was_a_gap, int *abort
 			 */
 			if (callout_pending(&stcb->asoc.dack_timer.timer)) {
 				sctp_timer_stop(SCTP_TIMER_TYPE_RECV,
-				    stcb->sctp_ep, stcb, NULL);
+				    stcb->sctp_ep, stcb, NULL, SCTP_FROM_SCTP_INDATA + SCTP_LOC_18);
 			}
 			sctp_send_shutdown(stcb, stcb->asoc.primary_destination);
 			sctp_send_sack(stcb);
@@ -2585,11 +2608,12 @@ sctp_process_data(struct mbuf **mm, int iphlen, int *offset, int length,
 					    htons(SCTP_CAUSE_PROTOCOL_VIOLATION);
 					ph->param_length = htons(op_err->m_len);
 					ippp = (uint32_t *) (ph + 1);
-					*ippp = htonl(0x30000001);
+					*ippp = htonl(SCTP_FROM_SCTP_INDATA + SCTP_LOC_19);
 					ippp++;
 					*ippp = asoc->cumulative_tsn;
 
 				}
+				stcb->sctp_ep->last_abort_code = SCTP_FROM_SCTP_INDATA + SCTP_LOC_19;
 				sctp_abort_association(inp, stcb, m, iphlen, sh,
 				    op_err);
 				return (2);
@@ -2988,73 +3012,47 @@ sctp_handle_segments(struct sctp_tcb *stcb, struct sctp_association *asoc,
 							    frag_end,
 							    SCTP_LOG_TSN_ACKED);
 #endif
+#ifdef SCTP_FLIGHT_LOGGING
+							sctp_misc_ints(SCTP_FLIGHT_LOG_DOWN,
+							    tp1->whoTo->flight_size,
+							    tp1->book_size,
+							    (uintptr_t) stcb,
+							    tp1->rec.data.TSN_seq);
+#endif
+							if (tp1->whoTo->flight_size >= tp1->book_size)
+								tp1->whoTo->flight_size -= tp1->book_size;
+							else
+								tp1->whoTo->flight_size = 0;
+							if (asoc->total_flight >= tp1->book_size) {
+								asoc->total_flight -= tp1->book_size;
+								if (asoc->total_flight_count > 0)
+									asoc->total_flight_count--;
+							} else {
+								asoc->total_flight = 0;
+								asoc->total_flight_count = 0;
+							}
 
-							if (tp1->rec.data.chunk_was_revoked == 0) {
+							tp1->whoTo->net_ack += tp1->send_size;
+
+							if (tp1->snd_count < 2) {
 								/*
-								 * Revoked
-								 * chunks
-								 * don't
-								 * count,
-								 * since we
-								 * previously
-								 * pulled
-								 * them from
-								 * the fs.
-								 */
-								if (tp1->whoTo->flight_size >= tp1->book_size)
-									tp1->whoTo->flight_size -= tp1->book_size;
-								else
-									tp1->whoTo->flight_size = 0;
-								if (asoc->total_flight >= tp1->book_size) {
-									asoc->total_flight -= tp1->book_size;
-									if (asoc->total_flight_count > 0)
-										asoc->total_flight_count--;
-								} else {
-									asoc->total_flight = 0;
-									asoc->total_flight_count = 0;
-								}
+								 * True
+								 * non-retran
+								 * smited
+								 * chunk */
+								tp1->whoTo->net_ack2 += tp1->send_size;
 
-								tp1->whoTo->net_ack += tp1->send_size;
-
-								if (tp1->snd_count < 2) {
-									/*
-									 * Tru
-									 * e
-									 * no
-									 * n
-									 * -r
-									 * e
-									 * tr
-									 * a
-									 * ns
-									 * m
-									 * it
-									 * e
-									 * d
-									 * ch
-									 * u
-									 * nk
-									 * */
-									tp1->whoTo->net_ack2 += tp1->send_size;
-
-									/*
-									 * upd
-									 * 
-									 * ate
-									 * 
-									 * RTO
-									 * 
-									 * too
-									 * ? */
-									if (tp1->do_rtt) {
-										tp1->whoTo->RTO =
-										    sctp_calculate_rto(stcb,
-										    asoc,
-										    tp1->whoTo,
-										    &tp1->sent_rcv_time);
-										tp1->whoTo->rto_pending = 0;
-										tp1->do_rtt = 0;
-									}
+								/*
+								 * update RTO
+								 * too ? */
+								if (tp1->do_rtt) {
+									tp1->whoTo->RTO =
+									    sctp_calculate_rto(stcb,
+									    asoc,
+									    tp1->whoTo,
+									    &tp1->sent_rcv_time);
+									tp1->whoTo->rto_pending = 0;
+									tp1->do_rtt = 0;
 								}
 							}
 						}
@@ -3117,14 +3115,15 @@ sctp_check_for_revoked(struct sctp_association *asoc, uint32_t cumack,
 			 */
 			if (tp1->sent == SCTP_DATAGRAM_ACKED) {
 				/* it has been revoked */
-				/*
-				 * We do NOT add back to flight size here
-				 * since it is really NOT in flight. Resend
-				 * (when/if it occurs will add to flight
-				 * size
-				 */
 				tp1->sent = SCTP_DATAGRAM_SENT;
 				tp1->rec.data.chunk_was_revoked = 1;
+				/*
+				 * We must add this stuff back in to assure
+				 * timers and such get started.
+				 */
+				tp1->whoTo->flight_size += tp1->book_size;
+				asoc->total_flight_count++;
+				asoc->total_flight += tp1->book_size;
 				tot_revoked++;
 #ifdef SCTP_SACK_LOGGING
 				sctp_log_sack(asoc->last_acked_seq,
@@ -3522,7 +3521,13 @@ sctp_strike_gap_ack_chunks(struct sctp_tcb *stcb, struct sctp_association *asoc,
 				tp1->do_rtt = 0;
 			}
 			/* fix counts and things */
-
+#ifdef SCTP_FLIGHT_LOGGING
+			sctp_misc_ints(SCTP_FLIGHT_LOG_DOWN,
+			    tp1->whoTo->flight_size,
+			    tp1->book_size,
+			    (uintptr_t) stcb,
+			    tp1->rec.data.TSN_seq);
+#endif
 			tp1->whoTo->net_ack++;
 			if (tp1->whoTo->flight_size >= tp1->book_size)
 				tp1->whoTo->flight_size -= tp1->book_size;
@@ -3895,7 +3900,8 @@ sctp_cwnd_update(struct sctp_tcb *stcb,
 				 */
 				if (callout_pending(&net->fr_timer.timer)) {
 					SCTP_STAT_INCR(sctps_earlyfrstpidsck2);
-					sctp_timer_stop(SCTP_TIMER_TYPE_EARLYFR, stcb->sctp_ep, stcb, net);
+					sctp_timer_stop(SCTP_TIMER_TYPE_EARLYFR, stcb->sctp_ep, stcb, net,
+					    SCTP_FROM_SCTP_INDATA + SCTP_LOC_20);
 				}
 				SCTP_STAT_INCR(sctps_earlyfrstrid);
 				sctp_timer_start(SCTP_TIMER_TYPE_EARLYFR, stcb->sctp_ep, stcb, net);
@@ -3903,7 +3909,8 @@ sctp_cwnd_update(struct sctp_tcb *stcb,
 				/* No, stop it if its running */
 				if (callout_pending(&net->fr_timer.timer)) {
 					SCTP_STAT_INCR(sctps_earlyfrstpidsck3);
-					sctp_timer_stop(SCTP_TIMER_TYPE_EARLYFR, stcb->sctp_ep, stcb, net);
+					sctp_timer_stop(SCTP_TIMER_TYPE_EARLYFR, stcb->sctp_ep, stcb, net,
+					    SCTP_FROM_SCTP_INDATA + SCTP_LOC_21);
 				}
 			}
 		}
@@ -4071,6 +4078,7 @@ sctp_express_handle_sack(struct sctp_tcb *stcb, uint32_t cumack,
 	struct sctp_nets *net;
 	struct sctp_association *asoc;
 	struct sctp_tmit_chunk *tp1, *tp2;
+	int j;
 
 	SCTP_TCB_LOCK_ASSERT(stcb);
 	asoc = &stcb->asoc;
@@ -4101,16 +4109,14 @@ sctp_express_handle_sack(struct sctp_tcb *stcb, uint32_t cumack,
 					 * now no-longer in flight. Higher
 					 * values may occur during marking
 					 */
-					if (tp1->rec.data.chunk_was_revoked == 1) {
-						/*
-						 * If its been revoked, and
-						 * now ack'd we do NOT take
-						 * away fs etc. since when
-						 * it is retransmitted we
-						 * clear this flag.
-						 */
-						goto skip_fs_update;
-					}
+#ifdef SCTP_FLIGHT_LOGGING
+					sctp_misc_ints(SCTP_FLIGHT_LOG_DOWN,
+					    tp1->whoTo->flight_size,
+					    tp1->book_size,
+					    (uintptr_t) stcb,
+					    tp1->rec.data.TSN_seq);
+#endif
+
 					if (tp1->whoTo->flight_size >= tp1->book_size) {
 						tp1->whoTo->flight_size -= tp1->book_size;
 					} else {
@@ -4147,7 +4153,6 @@ sctp_express_handle_sack(struct sctp_tcb *stcb, uint32_t cumack,
 					sctp_log_cwnd(stcb, tp1->whoTo, tp1->rec.data.TSN_seq, SCTP_CWND_LOG_FROM_SACK);
 #endif
 				}
-		skip_fs_update:
 				if (tp1->sent == SCTP_DATAGRAM_RESEND) {
 					sctp_ucount_decr(asoc->sent_queue_retran_cnt);
 				}
@@ -4259,6 +4264,8 @@ sctp_express_handle_sack(struct sctp_tcb *stcb, uint32_t cumack,
 		asoc->peers_rwnd = 0;
 	}
 	/* Now assure a timer where data is queued at */
+again:
+	j = 0;
 	TAILQ_FOREACH(net, &asoc->nets, sctp_next) {
 		if (net->flight_size) {
 			int to_ticks;
@@ -4268,22 +4275,48 @@ sctp_express_handle_sack(struct sctp_tcb *stcb, uint32_t cumack,
 			} else {
 				to_ticks = MSEC_TO_TICKS(net->RTO);
 			}
+			j++;
 			callout_reset(&net->rxt_timer.timer, to_ticks,
 			    sctp_timeout_handler, &net->rxt_timer);
 		} else {
 			if (callout_pending(&net->rxt_timer.timer)) {
 				sctp_timer_stop(SCTP_TIMER_TYPE_SEND, stcb->sctp_ep,
-				    stcb, net);
+				    stcb, net,
+				    SCTP_FROM_SCTP_INDATA + SCTP_LOC_22);
 			}
 			if (sctp_early_fr) {
 				if (callout_pending(&net->fr_timer.timer)) {
 					SCTP_STAT_INCR(sctps_earlyfrstpidsck4);
-					sctp_timer_stop(SCTP_TIMER_TYPE_EARLYFR, stcb->sctp_ep, stcb, net);
+					sctp_timer_stop(SCTP_TIMER_TYPE_EARLYFR, stcb->sctp_ep, stcb, net,
+					    SCTP_FROM_SCTP_INDATA + SCTP_LOC_23);
 				}
 			}
 		}
 	}
-
+	if ((j == 0) && (!TAILQ_EMPTY(&asoc->sent_queue)) && (asoc->sent_queue_retran_cnt == 0)) {
+		/* huh, this should not happen */
+#ifdef INVARIANTS
+		panic("Flight size incorrect? fixing??");
+#else
+		printf("Flight size incorrect?  fixing\n");
+		TAILQ_FOREACH(net, &asoc->nets, sctp_next) {
+			net->flight_size = 0;
+		}
+		asoc->total_flight = 0;
+		asoc->total_flight_count = 0;
+		asoc->sent_queue_retran_cnt = 0;
+		TAILQ_FOREACH(tp1, &asoc->sent_queue, sctp_next) {
+			if (tp1->sent < SCTP_DATAGRAM_RESEND) {
+				tp1->whoTo->flight_size += tp1->book_size;
+				asoc->total_flight += tp1->book_size;
+				asoc->total_flight_count++;
+			} else if (tp1->sent == SCTP_DATAGRAM_RESEND) {
+				asoc->sent_queue_retran_cnt++;
+			}
+		}
+#endif
+		goto again;
+	}
 	/**********************************/
 	/* Now what about shutdown issues */
 	/**********************************/
@@ -4332,8 +4365,9 @@ sctp_express_handle_sack(struct sctp_tcb *stcb, uint32_t cumack,
 					ph->param_type = htons(SCTP_CAUSE_USER_INITIATED_ABT);
 					ph->param_length = htons(oper->m_len);
 					ippp = (uint32_t *) (ph + 1);
-					*ippp = htonl(0x30000003);
+					*ippp = htonl(SCTP_FROM_SCTP_INDATA + SCTP_LOC_24);
 				}
+				stcb->sctp_ep->last_abort_code = SCTP_FROM_SCTP_INDATA + SCTP_LOC_24;
 				sctp_abort_an_association(stcb->sctp_ep, stcb, SCTP_RESPONSE_TO_USER_REQ, oper);
 			} else {
 				asoc->state = SCTP_STATE_SHUTDOWN_SENT;
@@ -4502,8 +4536,9 @@ sctp_handle_sack(struct sctp_sack_chunk *ch, struct sctp_tcb *stcb,
 				ph->param_type = htons(SCTP_CAUSE_PROTOCOL_VIOLATION);
 				ph->param_length = htons(oper->m_len);
 				ippp = (uint32_t *) (ph + 1);
-				*ippp = htonl(0x30000002);
+				*ippp = htonl(SCTP_FROM_SCTP_INDATA + SCTP_LOC_25);
 			}
+			stcb->sctp_ep->last_abort_code = SCTP_FROM_SCTP_INDATA + SCTP_LOC_25;
 			sctp_abort_an_association(stcb->sctp_ep, stcb, SCTP_PEER_FAULTY, oper);
 			return;
 		}
@@ -4536,11 +4571,12 @@ sctp_handle_sack(struct sctp_sack_chunk *ch, struct sctp_tcb *stcb,
 		/* stop any timers */
 		TAILQ_FOREACH(net, &asoc->nets, sctp_next) {
 			sctp_timer_stop(SCTP_TIMER_TYPE_SEND, stcb->sctp_ep,
-			    stcb, net);
+			    stcb, net, SCTP_FROM_SCTP_INDATA + SCTP_LOC_26);
 			if (sctp_early_fr) {
 				if (callout_pending(&net->fr_timer.timer)) {
 					SCTP_STAT_INCR(sctps_earlyfrstpidsck1);
-					sctp_timer_stop(SCTP_TIMER_TYPE_EARLYFR, stcb->sctp_ep, stcb, net);
+					sctp_timer_stop(SCTP_TIMER_TYPE_EARLYFR, stcb->sctp_ep, stcb, net,
+					    SCTP_FROM_SCTP_INDATA + SCTP_LOC_26);
 				}
 			}
 			net->partial_bytes_acked = 0;
@@ -4601,16 +4637,13 @@ sctp_handle_sack(struct sctp_sack_chunk *ch, struct sctp_tcb *stcb,
 						tp1->whoTo->dest_state &=
 						    ~SCTP_ADDR_UNCONFIRMED;
 					}
-					if (tp1->rec.data.chunk_was_revoked == 1) {
-						/*
-						 * If its been revoked, and
-						 * now ack'd we do NOT take
-						 * away fs etc. since when
-						 * it is retransmitted we
-						 * clear this flag.
-						 */
-						goto skip_fs_update;
-					}
+#ifdef SCTP_FLIGHT_LOGGING
+					sctp_misc_ints(SCTP_FLIGHT_LOG_DOWN,
+					    tp1->whoTo->flight_size,
+					    tp1->book_size,
+					    (uintptr_t) stcb,
+					    tp1->rec.data.TSN_seq);
+#endif
 					if (tp1->whoTo->flight_size >= tp1->book_size) {
 						tp1->whoTo->flight_size -= tp1->book_size;
 					} else {
@@ -4648,7 +4681,6 @@ sctp_handle_sack(struct sctp_sack_chunk *ch, struct sctp_tcb *stcb,
 							tp1->do_rtt = 0;
 						}
 					}
-			skip_fs_update:
 					/*
 					 * CMT: CUCv2 algorithm. From the
 					 * cumack'd TSNs, for each TSN being
@@ -4746,14 +4778,15 @@ skip_segments:
 		TAILQ_FOREACH(net, &asoc->nets, sctp_next) {
 			if (net->new_pseudo_cumack)
 				sctp_timer_stop(SCTP_TIMER_TYPE_SEND, stcb->sctp_ep,
-				    stcb, net);
+				    stcb, net,
+				    SCTP_FROM_SCTP_INDATA + SCTP_LOC_27);
 
 		}
 	} else {
 		if (accum_moved) {
 			TAILQ_FOREACH(net, &asoc->nets, sctp_next) {
 				sctp_timer_stop(SCTP_TIMER_TYPE_SEND, stcb->sctp_ep,
-				    stcb, net);
+				    stcb, net, SCTP_FROM_SCTP_INDATA + SCTP_LOC_28);
 			}
 		}
 	}
@@ -4868,6 +4901,10 @@ done_with_it:
 				if ((tp1->sent > SCTP_DATAGRAM_RESEND) &&
 				    (tp1->sent < SCTP_FORWARD_TSN_SKIP)) {
 					tp1->sent = SCTP_DATAGRAM_SENT;
+					tp1->rec.data.chunk_was_revoked = 1;
+					tp1->whoTo->flight_size += tp1->book_size;
+					asoc->total_flight_count++;
+					asoc->total_flight += tp1->book_size;
 					cnt_revoked++;
 				}
 			}
@@ -4892,11 +4929,12 @@ done_with_it:
 			if (sctp_early_fr) {
 				if (callout_pending(&net->fr_timer.timer)) {
 					SCTP_STAT_INCR(sctps_earlyfrstpidsck4);
-					sctp_timer_stop(SCTP_TIMER_TYPE_EARLYFR, stcb->sctp_ep, stcb, net);
+					sctp_timer_stop(SCTP_TIMER_TYPE_EARLYFR, stcb->sctp_ep, stcb, net,
+					    SCTP_FROM_SCTP_INDATA + SCTP_LOC_29);
 				}
 			}
 			sctp_timer_stop(SCTP_TIMER_TYPE_SEND, stcb->sctp_ep,
-			    stcb, net);
+			    stcb, net, SCTP_FROM_SCTP_INDATA + SCTP_LOC_30);
 			net->flight_size = 0;
 			net->partial_bytes_acked = 0;
 		}
@@ -4959,8 +4997,9 @@ done_with_it:
 					ph->param_type = htons(SCTP_CAUSE_USER_INITIATED_ABT);
 					ph->param_length = htons(oper->m_len);
 					ippp = (uint32_t *) (ph + 1);
-					*ippp = htonl(0x30000003);
+					*ippp = htonl(SCTP_FROM_SCTP_INDATA + SCTP_LOC_31);
 				}
+				stcb->sctp_ep->last_abort_code = SCTP_FROM_SCTP_INDATA + SCTP_LOC_31;
 				sctp_abort_an_association(stcb->sctp_ep, stcb, SCTP_RESPONSE_TO_USER_REQ, oper);
 				return;
 			} else {
@@ -5116,7 +5155,7 @@ done_with_it:
 				asoc->nonce_resync_tsn = asoc->fast_recovery_tsn + 1;
 
 				sctp_timer_stop(SCTP_TIMER_TYPE_SEND,
-				    stcb->sctp_ep, stcb, net);
+				    stcb->sctp_ep, stcb, net, SCTP_FROM_SCTP_INDATA + SCTP_LOC_32);
 				sctp_timer_start(SCTP_TIMER_TYPE_SEND,
 				    stcb->sctp_ep, stcb, net);
 			}
@@ -5220,11 +5259,38 @@ done_with_it:
 	 * Now we must setup so we have a timer up for anyone with
 	 * outstanding data.
 	 */
+again:
+	j = 0;
 	TAILQ_FOREACH(net, &asoc->nets, sctp_next) {
 		if (net->flight_size) {
+			j++;
 			sctp_timer_start(SCTP_TIMER_TYPE_SEND,
 			    stcb->sctp_ep, stcb, net);
 		}
+	}
+	if ((j == 0) && (!TAILQ_EMPTY(&asoc->sent_queue)) && (asoc->sent_queue_retran_cnt == 0)) {
+		/* huh, this should not happen */
+#ifdef INVARIANTS
+		panic("Flight size incorrect? fixing??");
+#else
+		printf("Flight size incorrect? fixing??\n");
+		TAILQ_FOREACH(net, &asoc->nets, sctp_next) {
+			net->flight_size = 0;
+		}
+		asoc->total_flight = 0;
+		asoc->total_flight_count = 0;
+		asoc->sent_queue_retran_cnt = 0;
+		TAILQ_FOREACH(tp1, &asoc->sent_queue, sctp_next) {
+			if (tp1->sent < SCTP_DATAGRAM_RESEND) {
+				tp1->whoTo->flight_size += tp1->book_size;
+				asoc->total_flight += tp1->book_size;
+				asoc->total_flight_count++;
+			} else if (tp1->sent == SCTP_DATAGRAM_RESEND) {
+				asoc->sent_queue_retran_cnt++;
+			}
+		}
+#endif
+		goto again;
 	}
 #ifdef SCTP_SACK_RWND_LOGGING
 	sctp_misc_ints(SCTP_SACK_RWND_UPDATE,
