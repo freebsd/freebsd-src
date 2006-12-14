@@ -198,6 +198,7 @@ struct sctp_epinfo {
 	struct mtx ipi_ep_mtx;
 	struct mtx it_mtx;
 	struct mtx ipi_addr_mtx;
+	struct mtx timer_mtx;
 	uint32_t ipi_count_ep;
 
 	/* assoc/tcb zone info */
@@ -342,6 +343,9 @@ struct sctp_inpcb {
 	u_long sctp_hashmark;
 	/* head of the list of all associations */
 	struct sctpasochead sctp_asoc_list;
+#ifdef SCTP_TRACK_FREED_ASOCS
+	struct sctpasochead sctp_asoc_free_list;
+#endif
 	struct sctp_iterator *inp_starting_point_for_iterator;
 	uint32_t sctp_frag_point;
 	uint32_t partial_delivery_point;
@@ -359,6 +363,10 @@ struct sctp_inpcb {
 	struct mtx inp_create_mtx;
 	struct mtx inp_rdata_mtx;
 	int32_t refcount;
+	uint32_t total_sends;
+	uint32_t total_recvs;
+	uint32_t last_abort_code;
+	uint32_t total_nospaces;
 };
 
 struct sctp_tcb {
@@ -380,6 +388,9 @@ struct sctp_tcb {
 	 * in the reading of data.
 	 */
 	uint32_t freed_by_sorcv_sincelast;
+	uint32_t total_sends;
+	uint32_t total_recvs;
+	int freed_from_where;
 	uint16_t rport;		/* remote port in network format */
 	uint16_t resv;
 	struct mtx tcb_mtx;
@@ -450,7 +461,7 @@ struct sctp_tcb *
 sctp_aloc_assoc(struct sctp_inpcb *, struct sockaddr *,
     int, int *, uint32_t);
 
-int sctp_free_assoc(struct sctp_inpcb *, struct sctp_tcb *, int);
+int sctp_free_assoc(struct sctp_inpcb *, struct sctp_tcb *, int, int);
 
 int sctp_add_local_addr_ep(struct sctp_inpcb *, struct ifaddr *);
 

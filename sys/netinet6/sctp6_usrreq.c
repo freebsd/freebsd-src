@@ -241,7 +241,15 @@ sctp_skip_csum:
 			    (u_int8_t *) & chunk_buf);
 			sh->v_tag = init_chk->init.initiate_tag;
 		}
-		sctp_send_abort(m, iphlen, sh, 0, NULL);
+		if (ch->chunk_type == SCTP_SHUTDOWN_ACK) {
+			sctp_send_shutdown_complete2(m, iphlen, sh);
+			goto bad;
+		}
+		if (ch->chunk_type == SCTP_SHUTDOWN_COMPLETE) {
+			goto bad;
+		}
+		if (ch->chunk_type != SCTP_ABORT_ASSOCIATION)
+			sctp_send_abort(m, iphlen, sh, 0, NULL);
 		goto bad;
 	} else if (stcb == NULL) {
 		refcount_up = 1;
@@ -326,7 +334,7 @@ sctp6_notify_mbuf(struct sctp_inpcb *inp,
 	 */
 	nxtsz = ntohl(icmp6->icmp6_mtu);
 	/* Stop any PMTU timer */
-	sctp_timer_stop(SCTP_TIMER_TYPE_PATHMTURAISE, inp, stcb, NULL);
+	sctp_timer_stop(SCTP_TIMER_TYPE_PATHMTURAISE, inp, stcb, NULL, SCTP_FROM_SCTP6_USRREQ + SCTP_LOC_1);
 
 	/* Adjust destination size limit */
 	if (net->mtu > nxtsz) {
@@ -822,7 +830,8 @@ sctp6_disconnect(struct socket *so)
 				    (SCTP_GET_STATE(&stcb->asoc) == SCTP_STATE_SHUTDOWN_RECEIVED)) {
 					SCTP_STAT_DECR_GAUGE32(sctps_currestab);
 				}
-				sctp_free_assoc(inp, stcb, 0);
+				sctp_free_assoc(inp, stcb, SCTP_DONOT_SETSCOPE,
+				    SCTP_FROM_SCTP6_USRREQ + SCTP_LOC_2);
 				/* No unlock tcb assoc is gone */
 				splx(s);
 				return (0);
