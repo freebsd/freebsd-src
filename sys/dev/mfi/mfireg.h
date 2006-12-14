@@ -279,7 +279,8 @@ typedef enum {
 #define MFI_FRAME_SIZE		64
 #define MFI_MBOX_SIZE		12
 
-#define MFI_POLL_TIMEOUT_SECS	10
+/* Firmware flashing can take 40s */
+#define MFI_POLL_TIMEOUT_SECS	50
 
 /* Allow for speedier math calculations */
 #define MFI_SECTOR_LEN		512

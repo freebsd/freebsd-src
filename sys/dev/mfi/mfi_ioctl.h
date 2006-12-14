@@ -53,18 +53,18 @@ union mfi_statrequest {
 #define MAX_IOCTL_SGE	16
 
 struct mfi_ioc_packet {
-	uint16_t	mi_adapter_no;
-	uint16_t	mi_pad1;
-	uint32_t	mi_sgl_off;
-	uint32_t	mi_sge_count;
-	uint32_t	mi_sense_off;
-	uint32_t	mi_sense_len;
+	uint16_t	mfi_adapter_no;
+	uint16_t	mfi_pad1;
+	uint32_t	mfi_sgl_off;
+	uint32_t	mfi_sge_count;
+	uint32_t	mfi_sense_off;
+	uint32_t	mfi_sense_len;
 	union {
 		uint8_t raw[128];
 		struct mfi_frame_header hdr;
-	} mi_frame;
+	} mfi_frame;
 
-	struct iovec mi_sgl[MAX_IOCTL_SGE];
+	struct iovec mfi_sgl[MAX_IOCTL_SGE];
 } __packed;
 
 struct mfi_ioc_aen {
