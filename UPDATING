@@ -21,6 +21,12 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 7.x IS SLOW:
 	developers choose to disable these features on build machines
 	to maximize performance.
 
+20061214:
+	Support for PCI Message Signalled Interrupts has been added
+	to the bge driver.  If there are any problems, MSI can be
+	disabled completely by setting the 'hw.pci.enable_msi' and
+	'hw.pci.enable_msix' tunables to 0 in the loader.
+
 20061205:
 	The removal of several facets of the experimental Threading 
 	system from the kernel means that the proc and thread structures 
