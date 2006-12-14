@@ -871,7 +871,8 @@ bufwrite(struct buf *bp)
 		 * or syncer daemon trying to clean up as that can lead
 		 * to deadlock.
 		 */
-		if ((curthread->td_pflags & TDP_NORUNNINGBUF) == 0)
+		if ((curthread->td_pflags & TDP_NORUNNINGBUF) == 0 &&
+		    (bp->b_vp->v_vflag & VV_MD) == 0)
 			waitrunningbufspace();
 	}
 
