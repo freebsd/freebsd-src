@@ -208,6 +208,8 @@ static driver_t	twa_pci_driver = {
 
 DRIVER_MODULE(twa, pci, twa_pci_driver, twa_devclass, 0, 0);
 
+MODULE_DEPEND(twa, pci, 1, 1, 1);
+MODULE_DEPEND(twa, cam, 1, 1, 1);
 
 
 /*

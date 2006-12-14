@@ -229,3 +229,4 @@ static driver_t aha_mca_driver = {
 static devclass_t aha_devclass;
 
 DRIVER_MODULE(aha, mca, aha_mca_driver, aha_devclass, 0, 0);
+MODULE_DEPEND(aha, mca, 1, 1, 1);

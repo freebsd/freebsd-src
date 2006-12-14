@@ -1349,3 +1349,5 @@ static driver_t ahb_eisa_driver = {
 static devclass_t ahb_devclass;
 
 DRIVER_MODULE(ahb, eisa, ahb_eisa_driver, ahb_devclass, 0, 0);
+MODULE_DEPEND(ahb, eisa, 1, 1, 1);
+MODULE_DEPEND(ahb, cam, 1, 1, 1);

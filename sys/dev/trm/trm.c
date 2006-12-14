@@ -3743,4 +3743,5 @@ static driver_t trm_driver = {
 
 static devclass_t trm_devclass;
 DRIVER_MODULE(trm, pci, trm_driver, trm_devclass, 0, 0);
+MODULE_DEPEND(trm, pci, 1, 1, 1);
 MODULE_DEPEND(trm, cam, 1, 1, 1);

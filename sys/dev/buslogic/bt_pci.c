@@ -235,3 +235,4 @@ static driver_t bt_pci_driver = {
 static devclass_t bt_devclass;
 
 DRIVER_MODULE(bt, pci, bt_pci_driver, bt_devclass, 0, 0);
+MODULE_DEPEND(bt, pci, 1, 1, 1);

@@ -159,6 +159,8 @@ static  driver_t iir_pci_driver =
 static devclass_t iir_devclass;
 
 DRIVER_MODULE(iir, pci, iir_pci_driver, iir_devclass, 0, 0);
+MODULE_DEPEND(iir, pci, 1, 1, 1);
+MODULE_DEPEND(iir, cam, 1, 1, 1);
 
 static int
 iir_pci_probe(device_t dev)

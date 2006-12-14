@@ -415,6 +415,8 @@ static driver_t asr_driver = {
 
 static devclass_t asr_devclass;
 DRIVER_MODULE(asr, pci, asr_driver, asr_devclass, 0, 0);
+MODULE_DEPEND(asr, pci, 1, 1, 1);
+MODULE_DEPEND(asr, cam, 1, 1, 1);
 
 /*
  * devsw for asr hba driver
