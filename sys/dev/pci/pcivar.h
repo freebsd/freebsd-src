@@ -28,20 +28,20 @@
  */
 
 #ifndef _PCIVAR_H_
-#define _PCIVAR_H_
+#define	_PCIVAR_H_
 
 #include <sys/queue.h>
 
 /* some PCI bus constants */
 
-#define PCI_BUSMAX	255	/* highest supported bus number */
-#define PCI_SLOTMAX	31	/* highest supported slot number */
-#define PCI_FUNCMAX	7	/* highest supported function number */
-#define PCI_REGMAX	255	/* highest supported config register addr. */
+#define	PCI_BUSMAX	255	/* highest supported bus number */
+#define	PCI_SLOTMAX	31	/* highest supported slot number */
+#define	PCI_FUNCMAX	7	/* highest supported function number */
+#define	PCI_REGMAX	255	/* highest supported config register addr. */
 
-#define PCI_MAXMAPS_0	6	/* max. no. of memory/port maps */
-#define PCI_MAXMAPS_1	2	/* max. no. of maps for PCI to PCI bridge */
-#define PCI_MAXMAPS_2	1	/* max. no. of maps for CardBus bridge */
+#define	PCI_MAXMAPS_0	6	/* max. no. of memory/port maps */
+#define	PCI_MAXMAPS_1	2	/* max. no. of maps for PCI to PCI bridge */
+#define	PCI_MAXMAPS_2	1	/* max. no. of maps for CardBus bridge */
 
 typedef uint64_t pci_addr_t;
 
@@ -142,10 +142,10 @@ typedef struct pcicfg {
 
 /* additional type 1 device config header information (PCI to PCI bridge) */
 
-#define PCI_PPBMEMBASE(h,l)  ((((pci_addr_t)(h) << 32) + ((l)<<16)) & ~0xfffff)
-#define PCI_PPBMEMLIMIT(h,l) ((((pci_addr_t)(h) << 32) + ((l)<<16)) | 0xfffff)
-#define PCI_PPBIOBASE(h,l)   ((((h)<<16) + ((l)<<8)) & ~0xfff)
-#define PCI_PPBIOLIMIT(h,l)  ((((h)<<16) + ((l)<<8)) | 0xfff)
+#define	PCI_PPBMEMBASE(h,l)  ((((pci_addr_t)(h) << 32) + ((l)<<16)) & ~0xfffff)
+#define	PCI_PPBMEMLIMIT(h,l) ((((pci_addr_t)(h) << 32) + ((l)<<16)) | 0xfffff)
+#define	PCI_PPBIOBASE(h,l)   ((((h)<<16) + ((l)<<8)) & ~0xfff)
+#define	PCI_PPBIOLIMIT(h,l)  ((((h)<<16) + ((l)<<8)) | 0xfff)
 
 typedef struct {
     pci_addr_t	pmembase;	/* base address of prefetchable memory */
@@ -196,8 +196,8 @@ struct pci_devinfo {
  * Define pci-specific resource flags for accessing memory via dense
  * or bwx memory spaces. These flags are ignored on i386.
  */
-#define PCI_RF_DENSE	0x10000
-#define PCI_RF_BWX	0x20000
+#define	PCI_RF_DENSE	0x10000
+#define	PCI_RF_BWX	0x20000
 
 enum pci_device_ivars {
     PCI_IVAR_SUBVENDOR,
@@ -225,7 +225,7 @@ enum pci_device_ivars {
 /*
  * Simplified accessors for pci devices
  */
-#define PCI_ACCESSOR(var, ivar, type)					\
+#define	PCI_ACCESSOR(var, ivar, type)					\
 	__BUS_ACCESSOR(pci, var, PCI, ivar, type)
 
 PCI_ACCESSOR(subvendor,		SUBVENDOR,	uint16_t)
@@ -275,7 +275,7 @@ enum pcib_device_ivars {
 	PCIB_IVAR_BUS
 };
 
-#define PCIB_ACCESSOR(var, ivar, type)					 \
+#define	PCIB_ACCESSOR(var, ivar, type)					 \
     __BUS_ACCESSOR(pcib, var, PCIB, ivar, type)
 
 PCIB_ACCESSOR(bus,		BUS,		uint32_t)
@@ -287,8 +287,8 @@ PCIB_ACCESSOR(bus,		BUS,		uint32_t)
  * on i386 or other platforms should be mapped out in the MD pcireadconf
  * code and not here, since the only MI invalid IRQ is 255.
  */
-#define PCI_INVALID_IRQ		255
-#define PCI_INTERRUPT_VALID(x)	((x) != PCI_INVALID_IRQ)
+#define	PCI_INVALID_IRQ		255
+#define	PCI_INTERRUPT_VALID(x)	((x) != PCI_INVALID_IRQ)
 
 /*
  * Convenience functions.
@@ -365,11 +365,11 @@ pci_is_vga_memory_range(u_long start, u_long end)
  * D3	State in which the device is off and not running.  Device context is
  *	lost.  Power can be removed from the device.
  */
-#define PCI_POWERSTATE_D0	0
-#define PCI_POWERSTATE_D1	1
-#define PCI_POWERSTATE_D2	2
-#define PCI_POWERSTATE_D3	3
-#define PCI_POWERSTATE_UNKNOWN	-1
+#define	PCI_POWERSTATE_D0	0
+#define	PCI_POWERSTATE_D1	1
+#define	PCI_POWERSTATE_D2	2
+#define	PCI_POWERSTATE_D3	3
+#define	PCI_POWERSTATE_UNKNOWN	-1
 
 static __inline int
 pci_set_powerstate(device_t dev, int state)

@@ -30,7 +30,7 @@
  */
 
 #ifndef _PCI_PRIVATE_H_
-#define _PCI_PRIVATE_H_
+#define	_PCI_PRIVATE_H_
 
 /*
  * Export definitions of the pci bus so that we can more easily share
