@@ -50,7 +50,9 @@ The
 utility evaluates the expression and, if it evaluates
 to true, returns a zero (true) exit status; otherwise
 it returns 1 (false).
-If there is no expression, test also
+If there is no expression,
+.Nm
+also
 returns 1 (false).
 .Pp
 All operators and flags are separate arguments to the
@@ -187,68 +189,68 @@ True if
 .Ar string
 is not the null
 string.
-.It Ar \&s\&1 Cm \&= Ar \&s\&2
+.It Ar s1 Cm = Ar s2
 True if the strings
-.Ar \&s\&1
+.Ar s1
 and
-.Ar \&s\&2
+.Ar s2
 are identical.
-.It Ar \&s\&1 Cm \&!= Ar \&s\&2
+.It Ar s1 Cm != Ar s2
 True if the strings
-.Ar \&s\&1
+.Ar s1
 and
-.Ar \&s\&2
+.Ar s2
 are not identical.
-.It Ar \&s\&1 Cm \&< Ar \&s\&2
+.It Ar s1 Cm < Ar s2
 True if string
-.Ar \&s\&1
+.Ar s1
 comes before
-.Ar \&s\&2
+.Ar s2
 based on the binary value of their characters.
-.It Ar \&s\&1 Cm \&> Ar \&s\&2
+.It Ar s1 Cm > Ar s2
 True if string
-.Ar \&s\&1
+.Ar s1
 comes after
-.Ar \&s\&2
+.Ar s2
 based on the binary value of their characters.
-.It Ar \&n\&1 Fl \&eq Ar \&n\&2
+.It Ar n1 Fl eq Ar n2
 True if the integers
-.Ar \&n\&1
+.Ar n1
 and
-.Ar \&n\&2
+.Ar n2
 are algebraically
 equal.
-.It Ar \&n\&1 Fl \&ne Ar \&n\&2
+.It Ar n1 Fl ne Ar n2
 True if the integers
-.Ar \&n\&1
+.Ar n1
 and
-.Ar \&n\&2
+.Ar n2
 are not
 algebraically equal.
-.It Ar \&n\&1 Fl \&gt Ar \&n\&2
+.It Ar n1 Fl gt Ar n2
 True if the integer
-.Ar \&n\&1
+.Ar n1
 is algebraically
 greater than the integer
-.Ar \&n\&2 .
-.It Ar \&n\&1 Fl \&ge Ar \&n\&2
+.Ar n2 .
+.It Ar n1 Fl ge Ar n2
 True if the integer
-.Ar \&n\&1
+.Ar n1
 is algebraically
 greater than or equal to the integer
-.Ar \&n\&2 .
-.It Ar \&n\&1 Fl \&lt Ar \&n\&2
+.Ar n2 .
+.It Ar n1 Fl lt Ar n2
 True if the integer
-.Ar \&n\&1
+.Ar n1
 is algebraically less
 than the integer
-.Ar \&n\&2 .
-.It Ar \&n\&1 Fl \&le Ar \&n\&2
+.Ar n2 .
+.It Ar n1 Fl le Ar n2
 True if the integer
-.Ar \&n\&1
+.Ar n1
 is algebraically less
 than or equal to the integer
-.Ar \&n\&2 .
+.Ar n2 .
 .El
 .Pp
 If
@@ -312,7 +314,7 @@ command semantics.
 The
 .Nm
 utility exits with one of the following values:
-.Bl -tag -width Ds
+.Bl -tag -width indent
 .It 0
 expression evaluated to true.
 .It 1
