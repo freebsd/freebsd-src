@@ -61,7 +61,7 @@ logged on, the time since the user last typed anything,
 and the name and arguments of the current process.
 .Pp
 The options are as follows:
-.Bl -tag -width Ds
+.Bl -tag -width indent
 .It Fl d
 dumps out the entire process list on a per controlling
 tty basis, instead of just the top level process.
@@ -72,11 +72,11 @@ Output is sorted by idle time.
 .It Fl M
 Extract values associated with the name list from the specified
 core instead of the default
-.Dq /dev/kmem .
+.Pa /dev/kmem .
 .It Fl N
 Extract the name list from the specified system instead of the
 default
-.Dq /boot/kernel/kernel .
+.Pa /boot/kernel/kernel .
 .It Fl n
 Do not attempt to resolve network addresses (normally
 .Nm
@@ -87,7 +87,7 @@ If one or more
 .Ar user
 names are specified, the output is restricted to those users.
 .Sh FILES
-.Bl -tag -width /var/run/utmp -compact
+.Bl -tag -width ".Pa /var/run/utmp" -compact
 .It Pa /var/run/utmp
 list of users on the system
 .El
@@ -113,16 +113,19 @@ command appeared in
 The notion of the
 .Dq current process
 is muddy.
-The current algorithm is ``the highest numbered process on the terminal
+The current algorithm is
+.Do
+the highest numbered process on the terminal
 that is not ignoring interrupts, or, if there is none, the highest numbered
-process on the terminal''.
+process on the terminal
+.Dc .
 This fails, for example, in critical sections of programs like the shell
 and editor, or when faulty programs running in the background fork and fail
 to ignore interrupts.
 (In cases where no process can be found,
 .Nm
 prints
-.Dq \- . )
+.Ql \- . )
 .Pp
 The
 .Tn CPU
