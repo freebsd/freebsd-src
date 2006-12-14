@@ -177,6 +177,12 @@ struct pci_quirk pci_quirks[] = {
 	/* As does the Serverworks OSB4 (the SMBus mapping register) */
 	{ 0x02001166, PCI_QUIRK_MAP_REG,	0x90,	 0 },
 
+	/*
+	 * MSI doesn't work with the Intel E7501 chipset, at least on
+	 * the Tyan 2721 motherboard.
+	 */
+	{ 0x254c8086, PCI_QUIRK_DISABLE_MSI,	0,	0 },
+
 	{ 0 }
 };
 
