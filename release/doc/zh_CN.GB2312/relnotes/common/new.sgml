@@ -1,7 +1,7 @@
 <!--
      The FreeBSD Simplified Chinese Project
 
-     Original revision: 1.883.2.52.2.4
+     Original revision: 1.883.2.52.2.5
 -->
 <articleinfo>
   <title>&os;/&arch; &release.current; 发行说明</title>
@@ -452,7 +452,7 @@
     <title>基本系统包含的第三方软件</title>
 
     <para><application>BIND</application> 从 9.3.1
-      更新到了 9.3.2-P1。</para>
+      更新到了 9.3.3。</para>
 
     <para><application>GCC</application> 从 3.4.4
       更新到了 3.4.6。</para>
