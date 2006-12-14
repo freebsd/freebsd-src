@@ -159,23 +159,6 @@ static struct sk_type sk_devs[] = {
 		DEVICEID_SK_V2,
 		"Marvell Gigabit Ethernet"
 	},
-#ifdef not_yet
-	{
-		VENDORID_MARVELL,
-		DEVICEID_MRVL_4360,
-		"Marvell 88E8052 Gigabit Ethernet Controller"
-	},
-	{
-		VENDORID_MARVELL,
-		DEVICEID_MRVL_4361,
-		"Marvell 88E8050 Gigabit Ethernet Controller"
-	},
-	{
-		VENDORID_MARVELL,
-		DEVICEID_MRVL_4362,
-		"Marvell 88E8053 Gigabit Ethernet Controller"
-	},
-#endif
 	{
 		VENDORID_MARVELL,
 		DEVICEID_BELKIN_5005,
@@ -487,7 +470,6 @@ sk_miibus_readreg(dev, phy, reg)
 	case SK_YUKON:
 	case SK_YUKON_LITE:
 	case SK_YUKON_LP:
-	case SK_YUKON_EC:
 		v = sk_marv_miibus_readreg(sc_if, phy, reg);
 		break;
 	default:
@@ -517,7 +499,6 @@ sk_miibus_writereg(dev, phy, reg, val)
 	case SK_YUKON:
 	case SK_YUKON_LITE:
 	case SK_YUKON_LP:
-	case SK_YUKON_EC:
 		v = sk_marv_miibus_writereg(sc_if, phy, reg, val);
 		break;
 	default:
@@ -545,7 +526,6 @@ sk_miibus_statchg(dev)
 	case SK_YUKON:
 	case SK_YUKON_LITE:
 	case SK_YUKON_LP:
-	case SK_YUKON_EC:
 		sk_marv_miibus_statchg(sc_if);
 		break;
 	}
@@ -769,7 +749,6 @@ sk_setmulti(sc_if)
 	case SK_YUKON:
 	case SK_YUKON_LITE:
 	case SK_YUKON_LP:
-	case SK_YUKON_EC:
 		SK_YU_WRITE_2(sc_if, YUKON_MCAH1, 0);
 		SK_YU_WRITE_2(sc_if, YUKON_MCAH2, 0);
 		SK_YU_WRITE_2(sc_if, YUKON_MCAH3, 0);
@@ -811,7 +790,6 @@ sk_setmulti(sc_if)
 			case SK_YUKON:
 			case SK_YUKON_LITE:
 			case SK_YUKON_LP:
-			case SK_YUKON_EC:
 				bcopy(LLADDR(
 				    (struct sockaddr_dl *)ifma->ifma_addr),
 				    maddr, ETHER_ADDR_LEN);
@@ -836,7 +814,6 @@ sk_setmulti(sc_if)
 	case SK_YUKON:
 	case SK_YUKON_LITE:
 	case SK_YUKON_LP:
-	case SK_YUKON_EC:
 		SK_YU_WRITE_2(sc_if, YUKON_MCAH1, hashes[0] & 0xffff);
 		SK_YU_WRITE_2(sc_if, YUKON_MCAH2, (hashes[0] >> 16) & 0xffff);
 		SK_YU_WRITE_2(sc_if, YUKON_MCAH3, hashes[1] & 0xffff);
@@ -867,7 +844,6 @@ sk_setpromisc(sc_if)
 	case SK_YUKON:
 	case SK_YUKON_LITE:
 	case SK_YUKON_LP:
-	case SK_YUKON_EC:
 		if (ifp->if_flags & IFF_PROMISC) {
 			SK_YU_CLRBIT_2(sc_if, YUKON_RCR,
 			    YU_RCR_UFLEN | YU_RCR_MUFLEN);
@@ -1316,9 +1292,6 @@ sk_reset(sc)
 	case SK_GENESIS:
 		sc->sk_int_ticks = SK_IMTIMER_TICKS_GENESIS;
 		break;
-	case SK_YUKON_EC:
-		sc->sk_int_ticks = SK_IMTIMER_TICKS_YUKON_EC;
-		break;
 	default:
 		sc->sk_int_ticks = SK_IMTIMER_TICKS_YUKON;
 		break;
@@ -1356,7 +1329,6 @@ sk_probe(dev)
 	case SK_YUKON:
 	case SK_YUKON_LITE:
 	case SK_YUKON_LP:
-	case SK_YUKON_EC:
 		device_set_desc(dev, "Marvell Semiconductor, Inc. Yukon");
 		break;
 	}
@@ -1456,8 +1428,7 @@ sk_attach(dev)
 	 * Just to be contrary, Yukon2 appears to have separate memory
 	 * for each MAC.
 	 */
-	if (SK_IS_YUKON2(sc) ||
-	    sk_win_read_1(sc, SK_CONFIG) & SK_CONFIG_SINGLEMAC) {
+	if (sk_win_read_1(sc, SK_CONFIG) & SK_CONFIG_SINGLEMAC) {
 		u_int32_t		chunk, val;
 
 		chunk = sc->sk_ramsize / 2;
@@ -1545,7 +1516,6 @@ sk_attach(dev)
 	case SK_YUKON:
 	case SK_YUKON_LITE:
 	case SK_YUKON_LP:
-	case SK_YUKON_EC:
 		sk_init_yukon(sc_if);
 		break;
 	}
@@ -1578,7 +1548,7 @@ skc_attach(dev)
 	device_t		dev;
 {
 	struct sk_softc		*sc;
-	int			error = 0, *port, sk_macs;
+	int			error = 0, *port;
 	uint8_t			skrs;
 	const char		*pname;
 	char			*revstr;
@@ -1703,9 +1673,6 @@ skc_attach(dev)
 			goto vpdfailed;
 		break;
 	case DEVICEID_SK_V2:
-	case DEVICEID_MRVL_4360:
-	case DEVICEID_MRVL_4361:
-	case DEVICEID_MRVL_4362:
 		/* YUKON VPD PN might bear no resemblance to reality. */
 		switch (sc->sk_type) {
 		case SK_GENESIS:
@@ -1721,9 +1688,6 @@ skc_attach(dev)
 			break;
 		case SK_YUKON_LP:
 			pname = "Marvell Yukon LP Gigabit Ethernet";
-			break;
-		case SK_YUKON_EC:
-			pname = "Marvell Yukon-2 EC Gigabit Ethernet";
 			break;
 		default:
 			pname = "Marvell Yukon (Unknown) Gigabit Ethernet";
@@ -1775,21 +1739,6 @@ vpdfailed:
 			revstr = "";
 			break;
 		}
-	} else if (sc->sk_type == SK_YUKON_EC) {
-		switch (sc->sk_rev) {
-		case SK_YUKON_EC_REV_A1:
-			revstr = "A1";
-			break;
-		case SK_YUKON_EC_REV_A2:
-			revstr = "A2";
-			break;
-		case SK_YUKON_EC_REV_A3:
-			revstr = "A3";
-			break;
-		default:
-			revstr = "";
-			break;
-		}
 	} else {
 		revstr = "";
 	}
@@ -1821,23 +1770,7 @@ vpdfailed:
 	*port = SK_PORT_A;
 	device_set_ivars(sc->sk_devs[SK_PORT_A], port);
 
-	sk_macs = 1;
-
-	if (SK_IS_YUKON2(sc)) {
-		u_int8_t hw;
-
-		hw = sk_win_read_1(sc, SK_Y2_HWRES);
-		if ((hw & SK_Y2_HWRES_LINK_MASK) == SK_Y2_HWRES_LINK_DUAL) {
-			if ((sk_win_read_1(sc, SK_Y2_CLKGATE) &
-			    SK_Y2_CLKGATE_LINK2_INACTIVE) == 0)
-				sk_macs++;
-		}
-	} else  {
-		if (!(sk_win_read_1(sc, SK_CONFIG) & SK_CONFIG_SINGLEMAC))
-			sk_macs++;
-	}
-
-	if (sk_macs > 1) {
+	if (!(sk_win_read_1(sc, SK_CONFIG) & SK_CONFIG_SINGLEMAC)) {
 		sc->sk_devs[SK_PORT_B] = device_add_child(dev, "sk", -1);
 		if (sc->sk_devs[SK_PORT_B] == NULL) {
 			device_printf(dev, "failed to add child for PORT_B\n");
@@ -3743,7 +3676,6 @@ sk_init_locked(sc_if)
 	case SK_YUKON:
 	case SK_YUKON_LITE:
 	case SK_YUKON_LP:
-	case SK_YUKON_EC:
 		sk_init_yukon(sc_if);
 		break;
 	}
@@ -3847,7 +3779,6 @@ sk_init_locked(sc_if)
 	case SK_YUKON:
 	case SK_YUKON_LITE:
 	case SK_YUKON_LP:
-	case SK_YUKON_EC:
 		reg = SK_YU_READ_2(sc_if, YUKON_GPCR);
 		reg |= YU_GPCR_TXEN | YU_GPCR_RXEN;
 #if 0
@@ -3869,7 +3800,6 @@ sk_init_locked(sc_if)
 	case SK_YUKON:
 	case SK_YUKON_LITE:
 	case SK_YUKON_LP:
-	case SK_YUKON_EC:
 		callout_reset(&sc_if->sk_tick_ch, hz, sk_yukon_tick, sc_if);
 		break;
 	}
@@ -3943,7 +3873,6 @@ sk_stop(sc_if)
 	case SK_YUKON:
 	case SK_YUKON_LITE:
 	case SK_YUKON_LP:
-	case SK_YUKON_EC:
 		SK_IF_WRITE_1(sc_if,0, SK_RXMF1_CTRL_TEST, SK_RFCTL_RESET_SET);
 		SK_IF_WRITE_1(sc_if,0, SK_TXMF1_CTRL_TEST, SK_TFCTL_RESET_SET);
 		break;
