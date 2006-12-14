@@ -353,3 +353,4 @@ static driver_t bt_isa_driver = {
 static devclass_t bt_devclass;
 
 DRIVER_MODULE(bt, isa, bt_isa_driver, bt_devclass, 0, 0);
+MODULE_DEPEND(bt, isa, 1, 1, 1);

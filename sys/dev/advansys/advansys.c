@@ -53,6 +53,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/malloc.h>
 #include <sys/kernel.h>
 #include <sys/lock.h>
+#include <sys/module.h>
 #include <sys/mutex.h>
 
 #include <machine/bus.h>
@@ -1428,3 +1429,4 @@ adv_attach(adv)
 	xpt_action((union ccb *)&csa);
 	return (0);
 }
+MODULE_DEPEND(adv, cam, 1, 1, 1);

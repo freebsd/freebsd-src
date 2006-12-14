@@ -119,6 +119,8 @@ static driver_t amr_pci_driver = {
 
 static devclass_t	amr_devclass;
 DRIVER_MODULE(amr, pci, amr_pci_driver, amr_devclass, 0, 0);
+MODULE_DEPEND(amr, pci, 1, 1, 1);
+MODULE_DEPEND(amr, cam, 1, 1, 1);
 
 static struct amr_ident
 {
