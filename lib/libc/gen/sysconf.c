@@ -576,9 +576,11 @@ yesno:		if (sysctl(mib, 2, &value, &len, NULL, 0) == -1)
 		mib[1] = HW_NCPU;
 		break;
 
+#ifdef _SC_PHYS_PAGES
 	case _SC_PHYS_PAGES:
 		sname = "hw.availpages";
 		break;
+#endif
 
 	default:
 		errno = EINVAL;
