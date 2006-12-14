@@ -192,6 +192,8 @@ struct aac_ident
 	 "ICP ICP9047MA SATA RAID"},
 	{0x9005, 0x0286, 0x9005, 0x02a1, AAC_HWIF_RKT, 0,
 	 "ICP ICP9087MA SATA RAID"},
+	{0x9005, 0x0286, 0x1014, 0x9580, AAC_HWIF_RKT, 0,
+	 "IBM ServeRAID-8k"},
 	{0, 0, 0, 0, 0, 0, 0}
 };
 
