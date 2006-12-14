@@ -43,6 +43,8 @@ __FBSDID("$FreeBSD$");
  */
 typedef struct mbuf *sctp_mbuf_t;
 
+#define USER_ADDR_NULL	(NULL)	/* FIX ME: temp */
+
 /*
  * general memory allocation
  */

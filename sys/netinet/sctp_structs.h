@@ -64,6 +64,7 @@ struct sctp_timer {
 	/* for sanity checking */
 	void *self;
 	uint32_t ticks;
+	uint32_t stopped_from;
 };
 
 struct sctp_nonpad_sndrcvinfo {
@@ -76,6 +77,13 @@ struct sctp_nonpad_sndrcvinfo {
 	uint32_t sinfo_tsn;
 	uint32_t sinfo_cumtsn;
 	sctp_assoc_t sinfo_assoc_id;
+};
+
+struct sctp_foo_stuff {
+	struct sctp_inpcb *inp;
+	uint32_t lineno;
+	uint32_t ticks;
+	int updown;
 };
 
 
@@ -284,7 +292,7 @@ struct sctp_data_chunkrec {
 	struct timeval timetodrop;	/* time we drop it from queue */
 	uint8_t doing_fast_retransmit;
 	uint8_t rcv_flags;	/* flags pulled from data chunk on inbound for
-				 * outbound holds sending flags. */
+				 * outbound holds sending flags for PR-SCTP. */
 	uint8_t state_flags;
 	uint8_t chunk_was_revoked;
 };
@@ -395,12 +403,11 @@ struct sctp_stream_queue_pending {
 	uint16_t sinfo_flags;
 	uint16_t stream;
 	uint16_t strseq;
+	uint16_t act_flags;
 	uint8_t msg_is_complete;
 	uint8_t some_taken;
 	uint8_t addr_over;
-	uint8_t act_flags;
 	uint8_t pr_sctp_on;
-	uint8_t resv;
 };
 
 /*
