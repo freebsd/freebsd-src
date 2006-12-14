@@ -165,6 +165,7 @@ struct pci_quirk {
 	uint32_t devid;	/* Vendor/device of the card */
 	int	type;
 #define	PCI_QUIRK_MAP_REG	1 /* PCI map register in weird place */
+#define	PCI_QUIRK_DISABLE_MSI	2 /* MSI/MSI-X doesn't work */
 	int	arg1;
 	int	arg2;
 };
@@ -223,6 +224,11 @@ static int pci_do_msix = 1;
 TUNABLE_INT("hw.pci.enable_msix", &pci_do_msix);
 SYSCTL_INT(_hw_pci, OID_AUTO, enable_msix, CTLFLAG_RW, &pci_do_msix, 1,
     "Enable support for MSI-X interrupts");
+
+static int pci_honor_msi_blacklist = 1;
+TUNABLE_INT("hw.pci.honor_msi_blacklist", &pci_honor_msi_blacklist);
+SYSCTL_INT(_hw_pci, OID_AUTO, honor_msi_blacklist, CTLFLAG_RD,
+    &pci_honor_msi_blacklist, 1, "Honor chipset blacklist for MSI");
 
 /* Find a device_t by bus/slot/function */
 
@@ -1195,6 +1201,47 @@ pci_resume_msi(device_t dev)
 }
 
 /*
+ * Returns true if the specified device is blacklisted because MSI
+ * doesn't work.
+ */
+int
+pci_msi_device_blacklisted(device_t dev)
+{
+	struct pci_quirk *q;
+
+	if (!pci_honor_msi_blacklist)
+		return (0);
+
+	for (q = &pci_quirks[0]; q->devid; q++) {
+		if (q->devid == pci_get_devid(dev) &&
+		    q->type == PCI_QUIRK_DISABLE_MSI)
+			return (1);
+	}
+	return (0);
+}
+
+/*
+ * Determine if MSI is blacklisted globally on this sytem.  Currently,
+ * we just check for blacklisted chipsets as represented by the
+ * host-PCI bridge at device 0:0:0.  In the future, it may become
+ * necessary to check other system attributes, such as the kenv values
+ * that give the motherboard manufacturer and model number.
+ */
+static int
+pci_msi_blacklisted(void)
+{
+	device_t dev;
+
+	if (!pci_honor_msi_blacklist)
+		return (0);
+
+	dev = pci_find_bsf(0, 0, 0);
+	if (dev != NULL)
+		return (pci_msi_device_blacklisted(dev));
+	return (0);
+}
+
+/*
  * Attempt to allocate *count MSI messages.  The actual number allocated is
  * returned in *count.  After this function returns, each message will be
  * available to the driver as SYS_RES_IRQ resources starting at a rid 1.
@@ -1215,6 +1262,10 @@ pci_alloc_msi_method(device_t dev, device_t child, int *count)
 	/* If rid 0 is allocated, then fail. */
 	rle = resource_list_find(&dinfo->resources, SYS_RES_IRQ, 0);
 	if (rle != NULL && rle->res != NULL)
+		return (ENXIO);
+
+	/* If MSI is blacklisted for this system, fail. */
+	if (pci_msi_blacklisted())
 		return (ENXIO);
 
 	/* Try MSI-X first. */

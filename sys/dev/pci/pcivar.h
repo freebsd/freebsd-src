@@ -417,6 +417,7 @@ void	pci_enable_msix(device_t dev, u_int index, uint64_t address,
 void	pci_mask_msix(device_t dev, u_int index);
 int	pci_pending_msix(device_t dev, u_int index);
 void	pci_unmask_msix(device_t dev, u_int index);
+int	pci_msi_device_blacklisted(device_t dev);
 
 #endif	/* _SYS_BUS_H_ */
 
