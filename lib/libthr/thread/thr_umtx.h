@@ -65,6 +65,14 @@ _thr_umutex_trylock(struct umutex *mtx, uint32_t id)
 }
 
 static inline int
+_thr_umutex_trylock2(struct umutex *mtx, uint32_t id)
+{
+    if (atomic_cmpset_acq_32(&mtx->m_owner, UMUTEX_UNOWNED, id))
+	return (0);
+    return (EBUSY);
+}
+
+static inline int
 _thr_umutex_lock(struct umutex *mtx, uint32_t id)
 {
     if (atomic_cmpset_acq_32(&mtx->m_owner, UMUTEX_UNOWNED, id))
