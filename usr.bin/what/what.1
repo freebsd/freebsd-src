@@ -33,7 +33,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd May 12, 2005
+.Dd December 14, 2006
 .Dt WHAT 1
 .Os
 .Sh NAME
@@ -49,16 +49,18 @@ The
 utility searches each specified
 .Ar file
 for sequences of the form
-.Dq \&@(#)
-as inserted by the source code control system.
+.Dq Li @(#)
+as inserted by the
+.Tn SCCS
+source code control system.
 It prints the remainder
 of the string following this marker, up to a NUL character, newline, double
 quote,
-.Dq \&>
+.Ql \&>
 character, or backslash.
 .Pp
-The following option is available:
-.Bl -tag -width Ds
+The following options are available:
+.Bl -tag -width indent
 .It Fl q
 Only output the match text, rather than formatting it.
 .It Fl s
