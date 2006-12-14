@@ -68,7 +68,7 @@ __FBSDID("$FreeBSD$");
 #include <contrib/dev/acpica/acpi.h>
 #include "acpi_if.h"
 #else
-#define ACPI_PWR_FOR_SLEEP(x, y, z)
+#define	ACPI_PWR_FOR_SLEEP(x, y, z)
 #endif
 
 static uint32_t		pci_mapbase(unsigned mapreg);
@@ -164,7 +164,7 @@ static size_t	pci_vendordata_size;
 struct pci_quirk {
 	uint32_t devid;	/* Vendor/device of the card */
 	int	type;
-#define PCI_QUIRK_MAP_REG	1 /* PCI map register in weird place */
+#define	PCI_QUIRK_MAP_REG	1 /* PCI map register in weird place */
 	int	arg1;
 	int	arg2;
 };
@@ -180,9 +180,9 @@ struct pci_quirk pci_quirks[] = {
 };
 
 /* map register information */
-#define PCI_MAPMEM	0x01	/* memory map */
-#define PCI_MAPMEMP	0x02	/* prefetchable memory map */
-#define PCI_MAPPORT	0x04	/* port map */
+#define	PCI_MAPMEM	0x01	/* memory map */
+#define	PCI_MAPMEMP	0x02	/* prefetchable memory map */
+#define	PCI_MAPPORT	0x04	/* port map */
 
 struct devlist pci_devq;
 uint32_t pci_generation;
@@ -348,7 +348,7 @@ pci_fixancient(pcicfgregs *cfg)
 static void
 pci_hdrtypedata(device_t pcib, int b, int s, int f, pcicfgregs *cfg)
 {
-#define REG(n, w)	PCIB_READ_CONFIG(pcib, b, s, f, n, w)
+#define	REG(n, w)	PCIB_READ_CONFIG(pcib, b, s, f, n, w)
 	switch (cfg->hdrtype) {
 	case 0:
 		cfg->subvendor      = REG(PCIR_SUBVEND_0, 2);
@@ -373,7 +373,7 @@ pci_hdrtypedata(device_t pcib, int b, int s, int f, pcicfgregs *cfg)
 struct pci_devinfo *
 pci_read_device(device_t pcib, int b, int s, int f, size_t size)
 {
-#define REG(n, w)	PCIB_READ_CONFIG(pcib, b, s, f, n, w)
+#define	REG(n, w)	PCIB_READ_CONFIG(pcib, b, s, f, n, w)
 	pcicfgregs *cfg = NULL;
 	struct pci_devinfo *devlist_entry;
 	struct devlist *devlist_head;
@@ -445,8 +445,8 @@ pci_read_device(device_t pcib, int b, int s, int f, size_t size)
 static void
 pci_read_extcap(device_t pcib, pcicfgregs *cfg)
 {
-#define REG(n, w)	PCIB_READ_CONFIG(pcib, cfg->bus, cfg->slot, cfg->func, n, w)
-#define WREG(n, v, w)	PCIB_WRITE_CONFIG(pcib, cfg->bus, cfg->slot, cfg->func, n, v, w)
+#define	REG(n, w)	PCIB_READ_CONFIG(pcib, cfg->bus, cfg->slot, cfg->func, n, w)
+#define	WREG(n, v, w)	PCIB_WRITE_CONFIG(pcib, cfg->bus, cfg->slot, cfg->func, n, v, w)
 #if defined(__i386__) || defined(__amd64__)
 	uint64_t addr;
 #endif
@@ -2027,7 +2027,7 @@ pci_add_resources(device_t bus, device_t dev, int force, uint32_t prefetchmask)
 void
 pci_add_children(device_t dev, int busno, size_t dinfo_size)
 {
-#define REG(n, w)	PCIB_READ_CONFIG(pcib, busno, s, f, n, w)
+#define	REG(n, w)	PCIB_READ_CONFIG(pcib, busno, s, f, n, w)
 	device_t pcib = device_get_parent(dev);
 	struct pci_devinfo *dinfo;
 	int maxslots;
