@@ -277,7 +277,7 @@ ipsec4_common_input_cb(struct mbuf *m, struct secasvar *sav,
 	struct tdb_ident *tdbi;
 	struct secasindex *saidx;
 	int error;
-#if INET6
+#ifdef INET6
 #ifdef notyet
 	char ip6buf[INET6_ADDRSTRLEN];
 #endif

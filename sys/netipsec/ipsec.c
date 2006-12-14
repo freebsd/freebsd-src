@@ -1843,7 +1843,7 @@ inet_ntoa4(struct in_addr ina)
 char *
 ipsec_address(union sockaddr_union* sa)
 {
-#if INET6
+#ifdef INET6
 	char ip6buf[INET6_ADDRSTRLEN];
 #endif
 	switch (sa->sa.sa_family) {
