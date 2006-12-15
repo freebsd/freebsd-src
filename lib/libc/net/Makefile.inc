@@ -13,7 +13,8 @@ SRCS+=	addr2ascii.c ascii2addr.c base64.c  ether_addr.c eui64.c \
 	if_indextoname.c if_nameindex.c if_nametoindex.c \
 	ip6opt.c linkaddr.c map_v4v6.c name6.c ntoh.c \
 	nsdispatch.c nslexer.c nsparser.c nss_compat.c \
-	rcmd.c rcmdsh.c recv.c rthdr.c send.c sockatmark.c vars.c
+	rcmd.c rcmdsh.c recv.c rthdr.c sctp_sys_calls.c send.c \
+        sockatmark.c vars.c
 
 .if ${MK_NS_CACHING} != "no"
 SRCS+=	nscache.c nscachedcli.c
