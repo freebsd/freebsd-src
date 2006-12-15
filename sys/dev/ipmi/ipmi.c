@@ -649,25 +649,16 @@ ipmi_wd_event(void *arg, unsigned int cmd, int *error)
 	struct ipmi_softc *sc = arg;
 	unsigned int timeout;
 
-	/* disable / enable */
-	if (!(cmd & WD_ACTIVE)) {
-		ipmi_set_watchdog(sc, 0);
-		*error = 0;
-		return;
-	}
-
 	cmd &= WD_INTERVAL;
-	/* convert from power-of-to-ns to WDT ticks */
-	if (cmd >= 64) {
-		*error = EINVAL;
-		return;
+	if (cmd > 0 && cmd <= 63) {
+		timeout = ((uint64_t)1 << cmd) / 1800000000;
+		ipmi_set_watchdog(sc, timeout);
+		*error = 0;
+	} else {
+		ipmi_set_watchdog(sc, 0);
+		if (cmd > 0)
+			*error = 0;
 	}
-	timeout = ((uint64_t)1 << cmd) / 1800000000;
-
-	/* reload */
-	ipmi_set_watchdog(sc, timeout);
-
-	*error = 0;
 }
 
 #ifdef CLONING

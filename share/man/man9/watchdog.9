@@ -35,6 +35,7 @@
 .Ft void
 .Fn watchdog_fn "void *private" "u_int cmd" "int *error"
 .Fn EVENTHANDLER_REGISTER watchdog_list watchdog_fn private 0
+.Fn EVENTHANDLER_DEREGISTER watchdog_list eventhandler_tag
 .Sh DESCRIPTION
 To implement a watchdog in software or hardware, only a single
 function needs to be written and registered on the global
@@ -60,7 +61,12 @@ argument be set to zero.
 If the watchdog cannot be configured to the proposed timeout, it
 must be disabled and the
 .Fa error
-argument left untouched.
+argument set to
+.Dv EINVAL .
+If the watchdog cannot be disabled, the
+.Fa error
+argument must be set to 
+.Dv EOPNOTSUPP .
 .Pp
 There is no specification of what the watchdog should do when it
 times out, but a hardware reset or similar
