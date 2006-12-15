@@ -171,7 +171,7 @@ struct mqueue_notifier;
  * This structure contains all the information as to where a thread of
  * execution is now, or was when it was suspended, why it was suspended,
  * and anything else that will be needed to restart it when it is
- * rescheduled. It includesa sscheduler specific substructure that is differnt
+ * rescheduled. It includes a scheduler specific substructure that is different
  * for each scheduler.
  *
  * M:N notes.
@@ -191,7 +191,7 @@ struct mqueue_notifier;
  * inheritance schemes.
  *
  * The second is the proc (process) which owns all the resources of a process
- * other than CPU cycles. which are pqarelled out to the threads.
+ * other than CPU cycles, which are paralleled out to the threads.
  */
 
 /***************
