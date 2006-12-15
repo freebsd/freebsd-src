@@ -312,6 +312,8 @@ RuleAdd(struct libalias *la, struct proxy_entry *entry)
 	struct proxy_entry *ptr;
 	struct proxy_entry *ptr_last;
 
+	LIBALIAS_LOCK_ASSERT(la);
+
 	if (la->proxyList == NULL) {
 		la->proxyList = entry;
 		entry->last = NULL;
@@ -353,6 +355,7 @@ RuleDelete(struct proxy_entry *entry)
 	struct libalias *la;
 
 	la = entry->la;
+	LIBALIAS_LOCK_ASSERT(la);
 	if (entry->last != NULL)
 		entry->last->next = entry->next;
 	else
@@ -370,6 +373,7 @@ RuleNumberDelete(struct libalias *la, int rule_index)
 	int err;
 	struct proxy_entry *ptr;
 
+	LIBALIAS_LOCK_ASSERT(la);
 	err = -1;
 	ptr = la->proxyList;
 	while (ptr != NULL) {
@@ -566,6 +570,7 @@ ProxyCheck(struct libalias *la, struct ip *pip,
 	struct in_addr dst_addr;
 	struct proxy_entry *ptr;
 
+	LIBALIAS_LOCK_ASSERT(la);
 	src_addr = pip->ip_src;
 	dst_addr = pip->ip_dst;
 	dst_port = ((struct tcphdr *)ip_next(pip))
@@ -606,6 +611,7 @@ ProxyModify(struct libalias *la, struct alias_link *lnk,
     int proxy_type)
 {
 
+	LIBALIAS_LOCK_ASSERT(la);
 	(void)la;
 
 	switch (proxy_type) {
@@ -648,7 +654,7 @@ LibAliasProxyRule(struct libalias *la, const char *cmd)
  * then 0 is used, and group 0 rules are always checked before any
  * others.
  */
-	int i, n, len;
+	int i, n, len, ret;
 	int cmd_len;
 	int token_count;
 	int state;
@@ -668,11 +674,15 @@ LibAliasProxyRule(struct libalias *la, const char *cmd)
 	struct in_addr dst_addr, dst_mask;
 	struct proxy_entry *proxy_entry;
 
+	LIBALIAS_LOCK(la);
+	ret = 0;
 /* Copy command line into a buffer */
 	cmd += strspn(cmd, " \t");
 	cmd_len = strlen(cmd);
-	if (cmd_len > (int)(sizeof(buffer) - 1))
-		return (-1);
+	if (cmd_len > (int)(sizeof(buffer) - 1)) {
+		ret = -1;
+		goto getout;
+	}
 	strcpy(buffer, cmd);
 
 /* Convert to lower case */
@@ -730,8 +740,10 @@ LibAliasProxyRule(struct libalias *la, const char *cmd)
 				state = STATE_READ_SRC;
 			else if (strcmp(token, "dst") == 0)
 				state = STATE_READ_DST;
-			else
-				return (-1);
+			else {
+				ret = -1;
+				goto getout;
+			}
 			break;
 
 		case STATE_READ_TYPE:
@@ -741,8 +753,10 @@ LibAliasProxyRule(struct libalias *la, const char *cmd)
 				proxy_type = PROXY_TYPE_ENCODE_TCPSTREAM;
 			else if (strcmp(token, "no_encode") == 0)
 				proxy_type = PROXY_TYPE_ENCODE_NONE;
-			else
-				return (-1);
+			else {
+				ret = -1;
+				goto getout;
+			}
 			state = STATE_READ_KEYWORD;
 			break;
 
@@ -763,18 +777,24 @@ LibAliasProxyRule(struct libalias *la, const char *cmd)
 
 				if (*p != ':') {
 					err = IpAddr(token, &server_addr);
-					if (err)
-						return (-1);
+					if (err) {
+						ret = -1;
+						goto getout;
+					}
 				} else {
 					*p = ' ';
 
 					n = sscanf(token, "%s %s", s, str_server_port);
-					if (n != 2)
-						return (-1);
+					if (n != 2) {
+						ret = -1;
+						goto getout;
+					}
 
 					err = IpAddr(s, &server_addr);
-					if (err)
-						return (-1);
+					if (err) {
+						ret = -1;
+						goto getout;
+					}
 				}
 			}
 			state = STATE_READ_KEYWORD;
@@ -782,8 +802,10 @@ LibAliasProxyRule(struct libalias *la, const char *cmd)
 
 		case STATE_READ_RULE:
 			n = sscanf(token, "%d", &rule_index);
-			if (n != 1 || rule_index < 0)
-				return (-1);
+			if (n != 1 || rule_index < 0) {
+				ret = -1;
+				goto getout;
+			}
 			state = STATE_READ_KEYWORD;
 			break;
 
@@ -792,16 +814,21 @@ LibAliasProxyRule(struct libalias *la, const char *cmd)
 				int err;
 				int rule_to_delete;
 
-				if (token_count != 2)
-					return (-1);
+				if (token_count != 2) {
+					ret = -1;
+					goto getout;
+				}
 
 				n = sscanf(token, "%d", &rule_to_delete);
-				if (n != 1)
-					return (-1);
+				if (n != 1) {
+					ret = -1;
+					goto getout;
+				}
 				err = RuleNumberDelete(la, rule_to_delete);
 				if (err)
-					return (-1);
-				return (0);
+					ret = -1;
+				ret = 0;
+				goto getout;
 			}
 
 		case STATE_READ_PROTO:
@@ -809,8 +836,10 @@ LibAliasProxyRule(struct libalias *la, const char *cmd)
 				proto = IPPROTO_TCP;
 			else if (strcmp(token, "udp") == 0)
 				proto = IPPROTO_UDP;
-			else
-				return (-1);
+			else {
+				ret = -1;
+				goto getout;
+			}
 			state = STATE_READ_KEYWORD;
 			break;
 
@@ -829,24 +858,32 @@ LibAliasProxyRule(struct libalias *la, const char *cmd)
 				if (*p != '/') {
 					IpMask(32, &mask);
 					err = IpAddr(token, &addr);
-					if (err)
-						return (-1);
+					if (err) {
+						ret = -1;
+						goto getout;
+					}
 				} else {
 					int nbits;
 					char s[sizeof(buffer)];
 
 					*p = ' ';
 					n = sscanf(token, "%s %d", s, &nbits);
-					if (n != 2)
-						return (-1);
+					if (n != 2) {
+						ret = -1;
+						goto getout;
+					}
 
 					err = IpAddr(s, &addr);
-					if (err)
-						return (-1);
+					if (err) {
+						ret = -1;
+						goto getout;
+					}
 
 					err = IpMask(nbits, &mask);
-					if (err)
-						return (-1);
+					if (err) {
+						ret = -1;
+						goto getout;
+					}
 				}
 
 				if (state == STATE_READ_SRC) {
@@ -861,7 +898,8 @@ LibAliasProxyRule(struct libalias *la, const char *cmd)
 			break;
 
 		default:
-			return (-1);
+			ret = -1;
+			goto getout;
 			break;
 		}
 
@@ -887,8 +925,10 @@ LibAliasProxyRule(struct libalias *la, const char *cmd)
 		int err;
 
 		err = IpPort(str_port, proto, &proxy_port);
-		if (err)
-			return (-1);
+		if (err) {
+			ret = -1;
+			goto getout;
+		}
 	} else {
 		proxy_port = 0;
 	}
@@ -897,20 +937,26 @@ LibAliasProxyRule(struct libalias *la, const char *cmd)
 		int err;
 
 		err = IpPort(str_server_port, proto, &server_port);
-		if (err)
-			return (-1);
+		if (err) {
+			ret = -1;
+			goto getout;
+		}
 	} else {
 		server_port = 0;
 	}
 
 /* Check that at least the server address has been defined */
-	if (server_addr.s_addr == 0)
-		return (-1);
+	if (server_addr.s_addr == 0) {
+		ret = -1;
+		goto getout;
+	}
 
 /* Add to linked list */
 	proxy_entry = malloc(sizeof(struct proxy_entry));
-	if (proxy_entry == NULL)
-		return (-1);
+	if (proxy_entry == NULL) {
+		ret = -1;
+		goto getout;
+	}
 
 	proxy_entry->proxy_type = proxy_type;
 	proxy_entry->rule_index = rule_index;
@@ -925,5 +971,7 @@ LibAliasProxyRule(struct libalias *la, const char *cmd)
 
 	RuleAdd(la, proxy_entry);
 
-	return (0);
+getout:
+	LIBALIAS_UNLOCK(la);
+	return (ret);
 }
