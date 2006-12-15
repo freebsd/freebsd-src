@@ -329,6 +329,14 @@ bus_alloc_resource_any(device_t dev, int type, int *rid, u_int flags)
 }
 
 /*
+ * Forward compatibility define.   bus_get_dma_tag is defined in current
+ * to get the parent's dma tag.  In RELENG_6 this is currently spelled NULL,
+ * so provide a stop-gap compatibilty hook until this functionality is
+ * merged from head (if ever)
+ */
+#define bus_get_dma_tag(a) NULL
+
+/*
  * Access functions for device.
  */
 device_t	device_add_child(device_t dev, const char *name, int unit);
