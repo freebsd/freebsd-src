@@ -22,6 +22,13 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 7.x IS SLOW:
 	to maximize performance.
 
 20061214:
+	Support for PCI Message Signalled Interrupts has been
+	disabled again in the bge driver.  Many revisions of the
+	hardware fail to support it properly.  Support can be
+	re-enabled by removing the #define of BGE_DISABLE_MSI in
+	"src/sys/dev/bge/if_bge.c".
+
+20061214:
 	Support for PCI Message Signalled Interrupts has been added
 	to the bge driver.  If there are any problems, MSI can be
 	disabled completely by setting the 'hw.pci.enable_msi' and
