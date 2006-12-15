@@ -362,12 +362,19 @@ table; all entries are the same size.
 .It Dv e_phnum
 This member holds the number of entries in the program header
 table.
-Thus the product of
-.Sy e_phentsize
-and
+If the file is using extended program header numbering, then the
 .Sy e_phnum
-gives the table's size
-in bytes.
+member will contain the value
+.Dv PN_XNUM
+and the actual number of program header table entries will be stored
+in the
+.Sy sh_info
+member of the section header at index
+.Dv SHN_UNDEF .
+The product of
+.Sy e_phentsize
+and the number of program header table entries gives the program
+header table's size in bytes.
 If a file has no program header,
 .Sy e_phnum
 holds the value zero.
@@ -379,7 +386,7 @@ entry in the section header table; all entries are the same size.
 This member holds the number of entries in the section header table.
 If the file is using extended section numbering, then the
 .Sy e_shnum
-field will be zero and the actual section number will be stored in the
+member will be zero and the actual section number will be stored in the
 .Sy sh_size
 member of the section header at index
 .Dv SHN_UNDEF .
