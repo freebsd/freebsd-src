@@ -367,11 +367,11 @@ init_AMD_Elan_sc520(void)
 static void
 elan_watchdog(void *foo __unused, u_int spec, int *error)
 {
-	u_int u, v;
+	u_int u, v, w;
 	static u_int cur;
 
 	u = spec & WD_INTERVAL;
-	if (spec && u <= 35) {
+	if (u > 0 && u <= 35) {
 		u = imax(u - 5, 24);
 		v = 2 << (u - 24);
 		v |= 0xc000;
@@ -383,7 +383,7 @@ elan_watchdog(void *foo __unused, u_int spec, int *error)
 		 * for other reasons.  Save and restore the GP echo mode
 		 * around our hardware tom-foolery.
 		 */
-		u = elan_mmcr->GPECHO;
+		w = elan_mmcr->GPECHO;
 		elan_mmcr->GPECHO = 0;
 		if (v != cur) {
 			/* Clear the ENB bit */
@@ -401,19 +401,19 @@ elan_watchdog(void *foo __unused, u_int spec, int *error)
 			elan_mmcr->WDTMRCTL = 0xaaaa;
 			elan_mmcr->WDTMRCTL = 0x5555;
 		}
-		elan_mmcr->GPECHO = u;
+		elan_mmcr->GPECHO = w;
 		*error = 0;
-		return;
 	} else {
-		u = elan_mmcr->GPECHO;
+		w = elan_mmcr->GPECHO;
 		elan_mmcr->GPECHO = 0;
 		elan_mmcr->WDTMRCTL = 0x3333;
 		elan_mmcr->WDTMRCTL = 0xcccc;
 		elan_mmcr->WDTMRCTL = 0x4080;
-		elan_mmcr->WDTMRCTL = u;
-		elan_mmcr->GPECHO = u;
+		elan_mmcr->WDTMRCTL = w;		/* XXX What does this statement do? */
+		elan_mmcr->GPECHO = w;
 		cur = 0;
-		return;
+		if (u > 0)
+			*error = 0;
 	}
 }
 

@@ -55,11 +55,14 @@ wd_ioctl(struct cdev *dev __unused, u_long cmd, caddr_t data,
 		return (EINVAL);
 	if ((u & (WD_ACTIVE | WD_PASSIVE)) == (WD_ACTIVE | WD_PASSIVE))
 		return (EINVAL);
-
+	if (u & WD_PASSIVE)
+		return (ENOSYS);	/* XXX Not implemented yet */
 	if ((u & WD_INTERVAL) == WD_TO_NEVER) {
 		u = 0;
+		/* Assume all is well; watchdog signals failure. */
 		error = 0;
 	} else {
+		/* Assume no watchdog available; watchdog flags success */
 		error = EOPNOTSUPP;
 	}
 	EVENTHANDLER_INVOKE(watchdog_list, u, &error);
