@@ -86,11 +86,6 @@ _pthread_create(pthread_t * thread, const pthread_attr_t * attr,
 		new_thread->attr.sched_policy = curthread->attr.sched_policy;
 	}
 
-	if (_thr_scope_system > 0)
-		new_thread->attr.flags |= PTHREAD_SCOPE_SYSTEM;
-	else if (_thr_scope_system < 0)
-		new_thread->attr.flags &= ~PTHREAD_SCOPE_SYSTEM;
-
 	new_thread->tid = TID_TERMINATED;
 
 	if (create_stack(&new_thread->attr) != 0) {
