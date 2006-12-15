@@ -57,22 +57,24 @@ Set the file permission bits of the created fifos to the
 specified mode, ignoring the
 .Xr umask 2
 of the calling process.
-The mode argument takes any format that can be specified to the
+The
+.Ar mode
+argument takes any format that can be specified to the
 .Xr chmod 1
 command.
 If a symbolic mode is specified, the op symbols
-.Dq +
+.Ql +
 (plus) and
-.Dq -
+.Ql -
 (hyphen) are interpreted relative to an assumed initial mode of
-.Dq a=rw
+.Dq Li a=rw
 (read and write permissions for all).
 .El
 .Pp
 If the
 .Fl m
 option is not specified, fifos are created with mode
-.Li \&0666
+.Li 0666
 modified by the
 .Xr umask 2
 of the calling process.
