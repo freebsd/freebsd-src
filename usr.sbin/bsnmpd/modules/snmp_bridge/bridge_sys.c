@@ -285,10 +285,6 @@ bridge_set_priority(struct bridge_if *bif, int32_t priority)
 	struct ifdrv ifd;
 	struct ifbrparam b_param;
 
-	/* Sanity check. */
-	if (priority > SNMP_BRIDGE_MAX_PRIORITY || priority % 4096 != 0)
-		return (-1);
-
 	strlcpy(ifd.ifd_name, bif->bif_name, IFNAMSIZ);
 	ifd.ifd_len = sizeof(b_param);
 	ifd.ifd_data = &b_param;
@@ -332,10 +328,6 @@ bridge_set_maxage(struct bridge_if *bif, int32_t max_age)
 	struct ifdrv ifd;
 	struct ifbrparam b_param;
 
-	if (max_age < SNMP_BRIDGE_MIN_MAGE ||
-	    max_age > SNMP_BRIDGE_MAX_MAGE)
-		return (-2);
-
 	strlcpy(ifd.ifd_name, bif->bif_name, IFNAMSIZ);
 	ifd.ifd_len = sizeof(b_param);
 	ifd.ifd_data = &b_param;
@@ -357,10 +349,6 @@ bridge_set_hello_time(struct bridge_if *bif, int32_t hello_time)
 {
 	struct ifdrv ifd;
 	struct ifbrparam b_param;
-
-	if (hello_time < SNMP_BRIDGE_MIN_HTIME ||
-	    hello_time > SNMP_BRIDGE_MAX_HTIME)
-		return (-2);
 
 	strlcpy(ifd.ifd_name, bif->bif_name, IFNAMSIZ);
 	ifd.ifd_len = sizeof(b_param);
@@ -384,10 +372,6 @@ bridge_set_forward_delay(struct bridge_if *bif, int32_t fwd_delay)
 	struct ifdrv ifd;
 	struct ifbrparam b_param;
 
-	if (fwd_delay < SNMP_BRIDGE_MIN_FDELAY ||
-	    fwd_delay > SNMP_BRIDGE_MAX_FDELAY)
-		return (-2);
-
 	strlcpy(ifd.ifd_name, bif->bif_name, IFNAMSIZ);
 	ifd.ifd_len = sizeof(b_param);
 	ifd.ifd_data = &b_param;
@@ -409,11 +393,6 @@ bridge_set_aging_time(struct bridge_if *bif, int32_t age_time)
 {
 	struct ifdrv ifd;
 	struct ifbrparam b_param;
-
-	/* Sanity check. */
-	if (age_time < SNMP_BRIDGE_MIN_AGE_TIME ||
-	    age_time > SNMP_BRIDGE_MAX_AGE_TIME)
-		return (-1);
 
 	strlcpy(ifd.ifd_name, bif->bif_name, IFNAMSIZ);
 	ifd.ifd_len = sizeof(b_param);
@@ -490,10 +469,6 @@ bridge_set_stp_version(struct bridge_if *bif __unused,
 #if __FreeBSD_version > 700024
 	struct ifdrv ifd;
 	struct ifbrparam b_param;
-
-	if (stp_proto != dot1dStpVersion_stpCompatible &&
-	    stp_proto != dot1dStpVersion_rstp)
-		return (-2);
 
 	strlcpy(ifd.ifd_name, bif->bif_name, IFNAMSIZ);
 	ifd.ifd_len = sizeof(b_param);
@@ -777,9 +752,6 @@ bridge_port_set_priority(const char *bif_name, struct bridge_port *bp,
 	struct ifdrv ifd;
 	struct ifbreq b_req;
 
-	if (priority < 0 || priority > 255)
-		return (-2);
-
 	strlcpy(ifd.ifd_name, bif_name, sizeof(ifd.ifd_name));
 	ifd.ifd_len = sizeof(b_req);
 	ifd.ifd_data = &b_req;
@@ -810,10 +782,6 @@ bridge_port_set_stp_enable(const char *bif_name, struct bridge_port *bp,
 
 	if (bp->enable == enable)
 		return (0);
-
-	if (enable != dot1dStpPortEnable_enabled &&
-	    enable != dot1dStpPortEnable_disabled)
-		return (-2);
 
 	bzero(&b_req, sizeof(b_req));
 	strlcpy(ifd.ifd_name, bif_name, sizeof(ifd.ifd_name));
@@ -854,11 +822,7 @@ bridge_port_set_path_cost(const char *bif_name, struct bridge_port *bp,
 	struct ifdrv ifd;
 	struct ifbreq b_req;
 
-#if __FreeBSD_version > 700024
-	if (path_cost < SNMP_PORT_MIN_PATHCOST ||
-	    path_cost > SNMP_PORT_MAX_PATHCOST)
-		return (-2);
-#else
+#if __FreeBSD_version < 700025
 	if (path_cost < SNMP_PORT_MIN_PATHCOST ||
 	    path_cost > SNMP_PORT_PATHCOST_OBSOLETE)
 		return (-2);
@@ -900,9 +864,6 @@ bridge_port_set_admin_p2p(const char *bif_name __unused,
 
 	if (bp->admin_p2p == admin_p2p)
 		return (0);
-
-	if (admin_p2p > StpPortAdminPointToPointType_auto)
-		return (-2);
 
 	bzero(&b_req, sizeof(b_req));
 	strlcpy(ifd.ifd_name, bif_name, sizeof(ifd.ifd_name));
@@ -958,9 +919,6 @@ bridge_port_set_admin_edge(const char *bif_name __unused,
 
 	if (bp->admin_edge == enable)
 		return (0);
-
-	if (enable != TruthValue_true && enable != TruthValue_false)
-		return (-2);
 
 	bzero(&b_req, sizeof(b_req));
 	strlcpy(ifd.ifd_name, bif_name, sizeof(ifd.ifd_name));
