@@ -58,7 +58,6 @@
 
 char		*_usrstack;
 struct pthread	*_thr_initial;
-int		_thr_scope_system;
 int		_libthr_debug;
 int		_thread_event_mask;
 struct pthread	*_thread_last_event;
@@ -99,7 +98,7 @@ struct pthread_cond_attr _pthread_condattr_default = {
 };
 
 pid_t		_thr_pid;
-int		_thr_smp_cpus = 1;
+int		_thr_is_smp = 0;
 size_t		_thr_guard_default;
 size_t		_thr_stack_default = THR_STACK_DEFAULT;
 size_t		_thr_stack_initial = THR_STACK_INITIAL;
@@ -446,22 +445,15 @@ init_private(void)
 		len = sizeof (_usrstack);
 		if (sysctl(mib, 2, &_usrstack, &len, NULL, 0) == -1)
 			PANIC("Cannot get kern.usrstack from sysctl");
-		len = sizeof(_thr_smp_cpus);
-		sysctlbyname("kern.smp.cpus", &_thr_smp_cpus, &len, NULL, 0);
+		len = sizeof(_thr_is_smp);
+		sysctlbyname("kern.smp.cpus", &_thr_is_smp, &len, NULL, 0);
+		_thr_is_smp = (_thr_is_smp > 1);
 		_thr_page_size = getpagesize();
 		_thr_guard_default = _thr_page_size;
 		_pthread_attr_default.guardsize_attr = _thr_guard_default;
 		_pthread_attr_default.stacksize_attr = _thr_stack_default;
 
 		TAILQ_INIT(&_thr_atfork_list);
-#ifdef SYSTEM_SCOPE_ONLY
-		_thr_scope_system = 1;
-#else
-		if (getenv("LIBPTHREAD_SYSTEM_SCOPE") != NULL)
-			_thr_scope_system = 1;
-		else if (getenv("LIBPTHREAD_PROCESS_SCOPE") != NULL)
-			_thr_scope_system = -1;
-#endif
 	}
 	init_once = 1;
 }
