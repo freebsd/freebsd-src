@@ -114,6 +114,12 @@ __FBSDID("$FreeBSD$");
 #define BGE_CSUM_FEATURES	(CSUM_IP | CSUM_TCP | CSUM_UDP)
 #define ETHER_MIN_NOPAD		(ETHER_MIN_LEN - ETHER_CRC_LEN) /* i.e., 60 */
 
+/*
+ * Disable the use of MSI until we sort out on which chip revisions support
+ * it properly.
+ */
+#define BGE_DISABLE_MSI		1
+
 MODULE_DEPEND(bge, pci, 1, 1, 1);
 MODULE_DEPEND(bge, ether, 1, 1, 1);
 MODULE_DEPEND(bge, miibus, 1, 1, 1);
@@ -2143,6 +2149,9 @@ bge_attach(device_t dev)
 	 */
 	if ((msicount = pci_msi_count(dev)) > 1)
 		msicount = 1;
+#ifdef BGE_DISABLE_MSI
+	msicount = 0;
+#endif
 	if (msicount == 1 && pci_alloc_msi(dev, &msicount) == 0) {
 		rid = 1;
 		sc->bge_flags |= BGE_FLAG_MSI;
