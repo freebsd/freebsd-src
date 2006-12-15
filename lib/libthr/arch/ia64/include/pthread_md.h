@@ -31,6 +31,8 @@
 
 #include <stddef.h>
 
+#define	CPU_SPINWAIT
+
 #define	DTV_OFFSET		offsetof(struct tcb, tcb_dtv)
 
 /*
