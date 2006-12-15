@@ -70,7 +70,7 @@
 
 #if defined(LIBC_SCCS) && !defined(lint)
 static const char sccsid[] = "@(#)res_send.c	8.1 (Berkeley) 6/4/93";
-static const char rcsid[] = "$Id: res_send.c,v 1.5.2.2.4.8 2006/03/08 04:13:31 marka Exp $";
+static const char rcsid[] = "$Id: res_send.c,v 1.5.2.2.4.9 2006/10/16 23:00:50 marka Exp $";
 #endif /* LIBC_SCCS and not lint */
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
@@ -313,7 +313,8 @@ res_nsend(res_state statp,
 	highestFD = sysconf(_SC_OPEN_MAX) - 1;
 #endif
 
-	if (statp->nscount == 0) {
+	/* No name servers or res_init() failure */
+	if (statp->nscount == 0 || EXT(statp).ext == NULL) {
 		errno = ESRCH;
 		return (-1);
 	}
