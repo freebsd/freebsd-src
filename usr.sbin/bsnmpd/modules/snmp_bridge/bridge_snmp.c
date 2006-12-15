@@ -168,16 +168,17 @@ op_begemot_bridge_config(struct snmp_context *ctx, struct snmp_value *val,
 	    case SNMP_OP_GET:
 		switch (val->var.subs[sub - 1]) {
 		    case LEAF_begemotBridgeDefaultBridgeIf:
-			string_get(val, bridge_get_default_name(), -1);
-			break;
+			return (string_get(val, bridge_get_default_name(), -1));
+
 		    case LEAF_begemotBridgeDataUpdate:
 			val->v.integer = bridge_data_maxage;
-			break;
+			return (SNMP_ERR_NOERROR);
+
 		    case LEAF_begemotBridgeDataPoll:
 			val->v.integer = bridge_poll_ticks / 100;
-			break;
+			return (SNMP_ERR_NOERROR);
 		}
-		return (SNMP_ERR_NOERROR);
+		abort();
 
 	    case SNMP_OP_GETNEXT:
 		abort();
@@ -197,22 +198,24 @@ op_begemot_bridge_config(struct snmp_context *ctx, struct snmp_value *val,
 			if (bridge_set_default_name(val->v.octetstring.octets,
 			    val->v.octetstring.len) < 0)
 				return (SNMP_ERR_BADVALUE);
-			break;
+			return (SNMP_ERR_NOERROR);
+
 		    case LEAF_begemotBridgeDataUpdate:
 			if (val->v.integer < SNMP_BRIDGE_DATA_MAXAGE_MIN ||
 			    val->v.integer > SNMP_BRIDGE_DATA_MAXAGE_MAX)
 				return (SNMP_ERR_WRONG_VALUE);
 			ctx->scratch->int1 = bridge_data_maxage;
 			bridge_data_maxage = val->v.integer;
-			break;
+			return (SNMP_ERR_NOERROR);
+
 		    case LEAF_begemotBridgeDataPoll:
 			if (val->v.integer < SNMP_BRIDGE_POLL_INTERVAL_MIN ||
 			    val->v.integer > SNMP_BRIDGE_POLL_INTERVAL_MAX)
 				return (SNMP_ERR_WRONG_VALUE);
 			ctx->scratch->int1 = val->v.integer;
-			break;
+			return (SNMP_ERR_NOERROR);
 		}
-		return (SNMP_ERR_NOERROR);
+		abort();
 
 	    case SNMP_OP_ROLLBACK:
 		switch (val->var.subs[sub - 1]) {
@@ -239,7 +242,7 @@ op_begemot_bridge_config(struct snmp_context *ctx, struct snmp_value *val,
 		return (SNMP_ERR_NOERROR);
 	}
 
-	return (SNMP_ERR_NOERROR);
+	abort();
 }
 
 /*

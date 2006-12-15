@@ -360,7 +360,7 @@ op_dot1d_base_port(struct snmp_context *c __unused, struct snmp_value *val,
 		    if ((bp = bridge_port_find(val->var.subs[sub],
 			bif)) == NULL)
 			    return (SNMP_ERR_NOSUCHNAME);
-		    break;
+		    goto get;
 
 		case SNMP_OP_GETNEXT:
 		    if (val->var.len - sub == 0) {
@@ -374,43 +374,47 @@ op_dot1d_base_port(struct snmp_context *c __unused, struct snmp_value *val,
 		    }
 		    val->var.len = sub + 1;
 		    val->var.subs[sub] = bp->port_no;
-		    break;
+		    goto get;
 
 		case SNMP_OP_SET:
 		    return (SNMP_ERR_NOT_WRITEABLE);
 
 		case SNMP_OP_ROLLBACK:
 		case SNMP_OP_COMMIT:
-		default:
-		    abort();
+		    break;
 	}
+	abort();
 
+get:
 	switch (val->var.subs[sub - 1]) {
 	    case LEAF_dot1dBasePort:
 		val->v.integer = bp->port_no;
-		break;
+		return (SNMP_ERR_NOERROR);
+
 	    case LEAF_dot1dBasePortIfIndex:
 		val->v.integer = bp->if_idx;
-		break;
+		return (SNMP_ERR_NOERROR);
+
 	    case LEAF_dot1dBasePortCircuit:
 		val->v.oid = bp->circuit;
-		break;
+		return (SNMP_ERR_NOERROR);
+
 	    case LEAF_dot1dBasePortDelayExceededDiscards:
 		val->v.uint32 = bp->dly_ex_drops;
-		break;
+		return (SNMP_ERR_NOERROR);
+
 	    case LEAF_dot1dBasePortMtuExceededDiscards:
 		val->v.uint32 = bp->dly_mtu_drops;
-		break;
+		return (SNMP_ERR_NOERROR);
 	}
 
-	return (SNMP_ERR_NOERROR);
+	abort();
 }
 
 int
 op_dot1d_stp_port(struct snmp_context *ctx, struct snmp_value *val,
 	 uint sub, uint iidx __unused, enum snmp_op op)
 {
-	int ret;
 	struct bridge_if *bif;
 	struct bridge_port *bp;
 
@@ -428,7 +432,7 @@ op_dot1d_stp_port(struct snmp_context *ctx, struct snmp_value *val,
 		    if ((bp = bridge_port_find(val->var.subs[sub],
 			bif)) == NULL)
 			    return (SNMP_ERR_NOSUCHNAME);
-		    break;
+		    goto get;
 
 		case SNMP_OP_GETNEXT:
 		    if (val->var.len - sub == 0) {
@@ -442,7 +446,7 @@ op_dot1d_stp_port(struct snmp_context *ctx, struct snmp_value *val,
 		    }
 		    val->var.len = sub + 1;
 		    val->var.subs[sub] = bp->port_no;
-		    break;
+		    goto get;
 
 		case SNMP_OP_SET:
 		    if (val->var.len - sub != 1)
@@ -453,20 +457,37 @@ op_dot1d_stp_port(struct snmp_context *ctx, struct snmp_value *val,
 
 		    switch (val->var.subs[sub - 1]) {
 			case LEAF_dot1dStpPortPriority:
+			    if (val->v.integer < 0 || val->v.integer > 255)
+				return (SNMP_ERR_WRONG_VALUE);
+
 			    ctx->scratch->int1 = bp->priority;
-			    ret = bridge_port_set_priority(bif->bif_name, bp,
-				val->v.integer);
-			    break;
+			    if (bridge_port_set_priority(bif->bif_name, bp,
+				val->v.integer) < 0)
+				return (SNMP_ERR_GENERR);
+			    return (SNMP_ERR_NOERROR);
+
 			case LEAF_dot1dStpPortEnable:
+			    if (val->v.integer != dot1dStpPortEnable_enabled &&
+				val->v.integer != dot1dStpPortEnable_disabled)
+				return (SNMP_ERR_WRONG_VALUE);
+
 			    ctx->scratch->int1 = bp->enable;
-			    ret = bridge_port_set_stp_enable(bif->bif_name,
-				bp, val->v.integer);
-			    break;
+			    if (bridge_port_set_stp_enable(bif->bif_name,
+				bp, val->v.integer) < 0)
+				return (SNMP_ERR_GENERR);
+			    return (SNMP_ERR_NOERROR);
+
 			case LEAF_dot1dStpPortPathCost:
+			    if (val->v.integer < SNMP_PORT_MIN_PATHCOST ||
+				val->v.integer > SNMP_PORT_MAX_PATHCOST)
+				return (SNMP_ERR_WRONG_VALUE);
+
 			    ctx->scratch->int1 = bp->path_cost;
-			    ret = bridge_port_set_path_cost(bif->bif_name, bp,
-				val->v.integer);
-			    break;
+			    if (bridge_port_set_path_cost(bif->bif_name, bp,
+				val->v.integer) < 0)
+				return (SNMP_ERR_GENERR);
+			    return (SNMP_ERR_NOERROR);
+
 			case LEAF_dot1dStpPort:
 			case LEAF_dot1dStpPortState:
 			case LEAF_dot1dStpPortDesignatedRoot:
@@ -475,14 +496,8 @@ op_dot1d_stp_port(struct snmp_context *ctx, struct snmp_value *val,
 			case LEAF_dot1dStpPortDesignatedPort:
 			case LEAF_dot1dStpPortForwardTransitions:
 			    return (SNMP_ERR_NOT_WRITEABLE);
-			default:
-			    return (SNMP_ERR_NOSUCHNAME);
 		    }
-		    if (ret == 0)
-		    	return (SNMP_ERR_NOERROR);
-		    else if (ret == -2)
-			return (SNMP_ERR_WRONG_VALUE);
-		    return (SNMP_ERR_GENERR);
+		    abort();
 
 		case SNMP_OP_ROLLBACK:
 		    if ((bp = bridge_port_find(val->var.subs[sub],
@@ -506,55 +521,58 @@ op_dot1d_stp_port(struct snmp_context *ctx, struct snmp_value *val,
 
 		case SNMP_OP_COMMIT:
 		    return (SNMP_ERR_NOERROR);
-
-		default:
-		    abort();
 	}
+	abort();
 
-	ret = SNMP_ERR_NOERROR;
+get:
 	switch (val->var.subs[sub - 1]) {
 		case LEAF_dot1dStpPort:
 			val->v.integer = bp->port_no;
-			break;
+			return (SNMP_ERR_NOERROR);
+
 		case LEAF_dot1dStpPortPriority:
 			val->v.integer = bp->priority;
-			break;
+			return (SNMP_ERR_NOERROR);
+
 		case LEAF_dot1dStpPortState:
 			val->v.integer = bp->state;
-			break;
+			return (SNMP_ERR_NOERROR);
+
 		case LEAF_dot1dStpPortEnable:
 			val->v.integer = bp->enable;
-			break;
+			return (SNMP_ERR_NOERROR);
+
 		case LEAF_dot1dStpPortPathCost:
 			val->v.integer = bp->path_cost;
-			break;
+			return (SNMP_ERR_NOERROR);
+
 		case LEAF_dot1dStpPortDesignatedRoot:
-			ret = string_get(val, bp->design_root,
-			    SNMP_BRIDGE_ID_LEN);
-			break;
+			return (string_get(val, bp->design_root,
+			    SNMP_BRIDGE_ID_LEN));
+
 		case LEAF_dot1dStpPortDesignatedCost:
 			val->v.integer = bp->design_cost;
-			break;
+			return (SNMP_ERR_NOERROR);
+
 		case LEAF_dot1dStpPortDesignatedBridge:
-			ret = string_get(val, bp->design_bridge,
-			    SNMP_BRIDGE_ID_LEN);
-			break;
+			return (string_get(val, bp->design_bridge,
+			    SNMP_BRIDGE_ID_LEN));
+
 		case LEAF_dot1dStpPortDesignatedPort:
-			ret = string_get(val, bp->design_port, 2);
-			break;
+			return (string_get(val, bp->design_port, 2));
+
 		case LEAF_dot1dStpPortForwardTransitions:
 			val->v.uint32 = bp->fwd_trans;
-			break;
+			return (SNMP_ERR_NOERROR);
 	}
 
-	return (ret);
+	abort();
 }
 
 int
 op_dot1d_stp_ext_port(struct snmp_context *ctx, struct snmp_value *val,
     uint sub, uint iidx __unused, enum snmp_op op)
 {
-	int ret;
 	struct bridge_if *bif;
 	struct bridge_port *bp;
 
@@ -572,7 +590,7 @@ op_dot1d_stp_ext_port(struct snmp_context *ctx, struct snmp_value *val,
 		    if ((bp = bridge_port_find(val->var.subs[sub],
 			bif)) == NULL)
 			    return (SNMP_ERR_NOSUCHNAME);
-		    break;
+		    goto get;
 
 		case SNMP_OP_GETNEXT:
 		    if (val->var.len - sub == 0) {
@@ -586,7 +604,7 @@ op_dot1d_stp_ext_port(struct snmp_context *ctx, struct snmp_value *val,
 		    }
 		    val->var.len = sub + 1;
 		    val->var.subs[sub] = bp->port_no;
-		    break;
+		    goto get;
 
 		case SNMP_OP_SET:
 		    if (val->var.len - sub != 1)
@@ -597,33 +615,44 @@ op_dot1d_stp_ext_port(struct snmp_context *ctx, struct snmp_value *val,
 
 		    switch (val->var.subs[sub - 1]) {
 			case LEAF_dot1dStpPortAdminEdgePort:
+			    if (val->v.integer != TruthValue_true &&
+				val->v.integer != TruthValue_false)
+				return (SNMP_ERR_WRONG_VALUE);
+
 			    ctx->scratch->int1 = bp->admin_edge;
-			    ret = bridge_port_set_admin_edge(bif->bif_name, bp,
-				val->v.integer);
-			    break;
+			    if (bridge_port_set_admin_edge(bif->bif_name, bp,
+				val->v.integer) < 0)
+				return (SNMP_ERR_GENERR);
+			    return (SNMP_ERR_NOERROR);
+
 			case LEAF_dot1dStpPortAdminPointToPoint:
+			    if (val->v.integer < 0 || val->v.integer > 
+				StpPortAdminPointToPointType_auto)
+				return (SNMP_ERR_WRONG_VALUE);
+
 			    ctx->scratch->int1 = bp->admin_p2p;
-			    ret = bridge_port_set_admin_p2p(bif->bif_name, bp,
-				val->v.integer);
-			    break;
+			    if (bridge_port_set_admin_p2p(bif->bif_name, bp,
+				val->v.integer) < 0)
+				return (SNMP_ERR_GENERR);
+			    return (SNMP_ERR_NOERROR);
+
 			case LEAF_dot1dStpPortAdminPathCost:
+			    if (val->v.integer < SNMP_PORT_MIN_PATHCOST ||
+				val->v.integer > SNMP_PORT_MAX_PATHCOST)
+				return (SNMP_ERR_WRONG_VALUE);
+
 			    ctx->scratch->int1 = bp->admin_path_cost;
-			    ret = bridge_port_set_path_cost(bif->bif_name, bp,
-				val->v.integer);
-			    break;
+			    if (bridge_port_set_path_cost(bif->bif_name, bp,
+				val->v.integer) < 0)
+				return (SNMP_ERR_GENERR);
+			    return (SNMP_ERR_NOERROR);
+
 			case LEAF_dot1dStpPortProtocolMigration:
 			case LEAF_dot1dStpPortOperEdgePort:
 			case LEAF_dot1dStpPortOperPointToPoint:
 			    return (SNMP_ERR_NOT_WRITEABLE);
-			default:
-			    return (SNMP_ERR_NOSUCHNAME);
 		    }
-
-		    if (ret == 0)
-		    	return (SNMP_ERR_NOERROR);
-		    else if (ret == -2)
-			return (SNMP_ERR_WRONG_VALUE);
-		    return (SNMP_ERR_GENERR);
+		    abort();
 
 		case SNMP_OP_ROLLBACK:
 		    if ((bp = bridge_port_find(val->var.subs[sub],
@@ -648,33 +677,37 @@ op_dot1d_stp_ext_port(struct snmp_context *ctx, struct snmp_value *val,
 
 		case SNMP_OP_COMMIT:
 		    return (SNMP_ERR_NOERROR);
-
-		default:
-		    abort();
 	}
+	abort();
 
+get:
 	switch (val->var.subs[sub - 1]) {
 		case LEAF_dot1dStpPortProtocolMigration:
 			val->v.integer = bp->proto_migr;
-			break;
+			return (SNMP_ERR_NOERROR);
+
 		case LEAF_dot1dStpPortAdminEdgePort:
 			val->v.integer = bp->admin_edge;
-			break;
+			return (SNMP_ERR_NOERROR);
+
 		case LEAF_dot1dStpPortOperEdgePort:
 			val->v.integer = bp->oper_edge;
-			break;
+			return (SNMP_ERR_NOERROR);
+
 		case LEAF_dot1dStpPortAdminPointToPoint:
 			val->v.integer = bp->admin_p2p;
-			break;
+			return (SNMP_ERR_NOERROR);
+
 		case LEAF_dot1dStpPortOperPointToPoint:
 			val->v.integer = bp->oper_p2p;
-			break;
+			return (SNMP_ERR_NOERROR);
+
 		case LEAF_dot1dStpPortAdminPathCost:
 			val->v.integer = bp->admin_path_cost;
-			break;
+			return (SNMP_ERR_NOERROR);
 	}
 
-	return (SNMP_ERR_NOERROR);
+	abort();
 }
 
 int
@@ -698,7 +731,7 @@ op_dot1d_tp_port(struct snmp_context *c __unused, struct snmp_value *val,
 		    if ((bp = bridge_port_find(val->var.subs[sub],
 			bif)) == NULL)
 			    return (SNMP_ERR_NOSUCHNAME);
-		    break;
+		    goto get;
 
 		case SNMP_OP_GETNEXT:
 		    if (val->var.len - sub == 0) {
@@ -712,36 +745,41 @@ op_dot1d_tp_port(struct snmp_context *c __unused, struct snmp_value *val,
 		    }
 		    val->var.len = sub + 1;
 		    val->var.subs[sub] = bp->port_no;
-		    break;
+		    goto get;
 
 		case SNMP_OP_SET:
 		    return (SNMP_ERR_NOT_WRITEABLE);
 
 		case SNMP_OP_ROLLBACK:
 		case SNMP_OP_COMMIT:
-		default:
-		    abort();
+		    break;
 	}
+	abort();
 
+get:
 	switch (val->var.subs[sub - 1]) {
 		case LEAF_dot1dTpPort:
 			val->v.integer = bp->port_no;
-			break;
+			return (SNMP_ERR_NOERROR);
+
 		case LEAF_dot1dTpPortMaxInfo:
 			val->v.integer = bp->max_info;
-			break;
+			return (SNMP_ERR_NOERROR);
+
 		case LEAF_dot1dTpPortInFrames:
 			val->v.uint32 = bp->in_frames;
-			break;
+			return (SNMP_ERR_NOERROR);
+
 		case LEAF_dot1dTpPortOutFrames:
 			val->v.uint32 = bp->out_frames;
-			break;
+			return (SNMP_ERR_NOERROR);
+
 		case LEAF_dot1dTpPortInDiscards:
 			val->v.uint32 = bp->in_drops;
-			break;
+			return (SNMP_ERR_NOERROR);
 	}
 
-	return (SNMP_ERR_NOERROR);
+	abort();
 }
 
 /*
@@ -1036,7 +1074,7 @@ op_begemot_base_port(struct snmp_context *ctx, struct snmp_value *val,
 	uint sub, uint iidx __unused, enum snmp_op op)
 {
 	int8_t status, which;
-	struct bridge_port *bp = NULL;
+	struct bridge_port *bp;
 
 	if (time(NULL) - ports_list_age > bridge_get_data_maxage())
 		bridge_update_all_ports();
@@ -1052,7 +1090,7 @@ op_begemot_base_port(struct snmp_context *ctx, struct snmp_value *val,
 		if ((bp = bridge_port_index_get(&val->var, sub,
 		    status)) == NULL)
 			return (SNMP_ERR_NOSUCHNAME);
-		break;
+		goto get;
 
 	    case SNMP_OP_GETNEXT:
 		if (which == LEAF_begemotBridgeBaseSpanEnabled ||
@@ -1062,7 +1100,7 @@ op_begemot_base_port(struct snmp_context *ctx, struct snmp_value *val,
 		    status)) == NULL ||
 		    bridge_port_index_append(&val->var, sub, bp) < 0)
 			return (SNMP_ERR_NOSUCHNAME);
-		break;
+		goto get;
 
 	    case SNMP_OP_SET:
 		switch (which) {
@@ -1095,36 +1133,42 @@ op_begemot_base_port(struct snmp_context *ctx, struct snmp_value *val,
 
 		return (SNMP_ERR_NOERROR);
 	}
+	abort();
 
+get:
 	switch (which) {
 	    case LEAF_begemotBridgeBasePort:
 		val->v.integer = bp->port_no;
-		break;
+		return (SNMP_ERR_NOERROR);
+
 	    case LEAF_begemotBridgeBasePortIfIndex:
 		val->v.integer = bp->if_idx;
-		break;
+		return (SNMP_ERR_NOERROR);
+
 	    case LEAF_begemotBridgeBaseSpanEnabled:
 		val->v.integer = bp->span_enable;
-		break;
+		return (SNMP_ERR_NOERROR);
+
 	    case LEAF_begemotBridgeBasePortDelayExceededDiscards:
 		val->v.uint32 = bp->dly_ex_drops;
-		break;
+		return (SNMP_ERR_NOERROR);
+
 	    case LEAF_begemotBridgeBasePortMtuExceededDiscards:
 		val->v.uint32 = bp->dly_mtu_drops;
-		break;
+		return (SNMP_ERR_NOERROR);
+
 	    case LEAF_begemotBridgeBasePortStatus:
 		val->v.integer = bp->status;
-		break;
+		return (SNMP_ERR_NOERROR);
 	}
 
-	return (SNMP_ERR_NOERROR);
+	abort();
 }
 
 int
 op_begemot_stp_port(struct snmp_context *ctx, struct snmp_value *val,
 	uint sub, uint iidx __unused, enum snmp_op op)
 {
-	int ret;
 	struct bridge_port *bp;
 	const char *b_name;
 
@@ -1135,13 +1179,13 @@ op_begemot_stp_port(struct snmp_context *ctx, struct snmp_value *val,
 	    case SNMP_OP_GET:
 		if ((bp = bridge_port_index_get(&val->var, sub, 0)) == NULL)
 		    return (SNMP_ERR_NOSUCHNAME);
-		break;
+		goto get;
 
 	    case SNMP_OP_GETNEXT:
 		if ((bp = bridge_port_index_getnext(&val->var, sub, 0)) ==
 		    NULL || bridge_port_index_append(&val->var, sub, bp) < 0)
 			return (SNMP_ERR_NOSUCHNAME);
-		break;
+		goto get;
 
 	    case SNMP_OP_SET:
 		if ((bp = bridge_port_index_get(&val->var, sub, 0)) == NULL)
@@ -1149,23 +1193,41 @@ op_begemot_stp_port(struct snmp_context *ctx, struct snmp_value *val,
 		if ((b_name = bridge_if_find_name(bp->sysindex)) == NULL)
 			return (SNMP_ERR_GENERR);
 
-		ret = SNMP_ERR_NOERROR;
 		switch (val->var.subs[sub - 1]) {
 		    case LEAF_begemotBridgeStpPortPriority:
+			if (val->v.integer < 0 || val->v.integer > 255)
+			    return (SNMP_ERR_WRONG_VALUE);
+
 			ctx->scratch->int1 = bp->priority;
-			ret = bridge_port_set_priority(b_name, bp,
-			    val->v.integer);
-			break;
+			if (bridge_port_set_priority(b_name, bp,
+			    val->v.integer) < 0)
+			    return (SNMP_ERR_GENERR);
+			return (SNMP_ERR_NOERROR);
+
 		    case LEAF_begemotBridgeStpPortEnable:
+			if (val->v.integer !=
+			    begemotBridgeStpPortEnable_enabled ||
+			    val->v.integer !=
+			    begemotBridgeStpPortEnable_disabled)
+			    return (SNMP_ERR_WRONG_VALUE);
+
 			ctx->scratch->int1 = bp->enable;
-			ret = bridge_port_set_stp_enable(b_name, bp,
-			    val->v.integer);
-			break;
+			if (bridge_port_set_stp_enable(b_name, bp,
+			    val->v.integer) < 0)
+			    return (SNMP_ERR_GENERR);
+			return (SNMP_ERR_NOERROR);
+
 		    case LEAF_begemotBridgeStpPortPathCost:
+			if (val->v.integer < SNMP_PORT_MIN_PATHCOST ||
+			    val->v.integer > SNMP_PORT_MAX_PATHCOST)
+			    return (SNMP_ERR_WRONG_VALUE);
+
 			ctx->scratch->int1 = bp->path_cost;
-			ret = bridge_port_set_path_cost(b_name, bp,
-			    val->v.integer);
-			break;
+			if (bridge_port_set_path_cost(b_name, bp,
+			    val->v.integer) < 0)
+			    return (SNMP_ERR_GENERR);
+			return (SNMP_ERR_NOERROR);
+
 		    case LEAF_begemotBridgeStpPort:
 		    case LEAF_begemotBridgeStpPortState:
 		    case LEAF_begemotBridgeStpPortDesignatedRoot:
@@ -1175,11 +1237,7 @@ op_begemot_stp_port(struct snmp_context *ctx, struct snmp_value *val,
 		    case LEAF_begemotBridgeStpPortForwardTransitions:
 			return (SNMP_ERR_NOT_WRITEABLE);
 		}
-		if (ret == 0)
-			return (SNMP_ERR_NOERROR);
-		else if (ret == -2)
-			return (SNMP_ERR_WRONG_VALUE);
-		return (SNMP_ERR_GENERR);
+		abort();
 
 	    case SNMP_OP_ROLLBACK:
 		if ((bp = bridge_port_index_get(&val->var, sub, 0)) == NULL ||
@@ -1204,53 +1262,56 @@ op_begemot_stp_port(struct snmp_context *ctx, struct snmp_value *val,
 
 	    case SNMP_OP_COMMIT:
 		return (SNMP_ERR_NOERROR);
-
-	    default:
-		abort();
 	}
+	abort();
 
-	ret = SNMP_ERR_NOERROR;
+get:
 	switch (val->var.subs[sub - 1]) {
 	    case LEAF_begemotBridgeStpPort:
 		val->v.integer = bp->port_no;
-		break;
+		return (SNMP_ERR_NOERROR);
+
 	    case LEAF_begemotBridgeStpPortPriority:
 		val->v.integer = bp->priority;
-		break;
+		return (SNMP_ERR_NOERROR);
+
 	    case LEAF_begemotBridgeStpPortState:
 		val->v.integer = bp->state;
-		break;
+		return (SNMP_ERR_NOERROR);
+
 	    case LEAF_begemotBridgeStpPortEnable:
 		val->v.integer = bp->enable;
-		break;
+		return (SNMP_ERR_NOERROR);
+
 	    case LEAF_begemotBridgeStpPortPathCost:
 		val->v.integer = bp->path_cost;
-		break;
+		return (SNMP_ERR_NOERROR);
+
 	    case LEAF_begemotBridgeStpPortDesignatedRoot:
-		ret = string_get(val, bp->design_root, SNMP_BRIDGE_ID_LEN);
-		break;
+		return (string_get(val, bp->design_root, SNMP_BRIDGE_ID_LEN));
+
 	    case LEAF_begemotBridgeStpPortDesignatedCost:
 		val->v.integer = bp->design_cost;
-		break;
+		return (SNMP_ERR_NOERROR);
+
 	    case LEAF_begemotBridgeStpPortDesignatedBridge:
-		ret = string_get(val, bp->design_bridge, SNMP_BRIDGE_ID_LEN);
-		break;
+		return (string_get(val, bp->design_bridge, SNMP_BRIDGE_ID_LEN));
+
 	    case LEAF_begemotBridgeStpPortDesignatedPort:
-		ret = string_get(val, bp->design_port, 2);
-		break;
+		return (string_get(val, bp->design_port, 2));
+
 	    case LEAF_begemotBridgeStpPortForwardTransitions:
 		val->v.uint32 = bp->fwd_trans;
-		break;
+		return (SNMP_ERR_NOERROR);
 	}
 
-	return (ret);
+	abort();
 }
 
 int
 op_begemot_stp_ext_port(struct snmp_context *ctx, struct snmp_value *val,
     uint sub, uint iidx __unused, enum snmp_op op)
 {
-	int ret;
 	struct bridge_port *bp;
 	const char *b_name;
 
@@ -1261,13 +1322,13 @@ op_begemot_stp_ext_port(struct snmp_context *ctx, struct snmp_value *val,
 	    case SNMP_OP_GET:
 		if ((bp = bridge_port_index_get(&val->var, sub, 0)) == NULL)
 		    return (SNMP_ERR_NOSUCHNAME);
-		break;
+		goto get;
 
 	    case SNMP_OP_GETNEXT:
 		if ((bp = bridge_port_index_getnext(&val->var, sub, 0)) ==
 		    NULL || bridge_port_index_append(&val->var, sub, bp) < 0)
 			return (SNMP_ERR_NOSUCHNAME);
-		break;
+		goto get;
 
 	    case SNMP_OP_SET:
 		if ((bp = bridge_port_index_get(&val->var, sub, 0)) == NULL)
@@ -1277,33 +1338,44 @@ op_begemot_stp_ext_port(struct snmp_context *ctx, struct snmp_value *val,
 
 		switch (val->var.subs[sub - 1]) {
 		    case LEAF_begemotBridgeStpPortAdminEdgePort:
+			if (val->v.integer != TruthValue_true &&
+			    val->v.integer != TruthValue_false)
+			    return (SNMP_ERR_WRONG_VALUE);
+
 			ctx->scratch->int1 = bp->admin_edge;
-			ret = bridge_port_set_admin_edge(b_name, bp,
-			    val->v.integer);
-			break;
+			if (bridge_port_set_admin_edge(b_name, bp,
+			    val->v.integer) < 0)
+			    return (SNMP_ERR_GENERR);
+			return (SNMP_ERR_NOERROR);
+
 		    case LEAF_begemotBridgeStpPortAdminPointToPoint:
+			if (val->v.integer < 0 || val->v.integer >
+			    StpPortAdminPointToPointType_auto)
+			    return (SNMP_ERR_WRONG_VALUE);
+
 			ctx->scratch->int1 = bp->admin_p2p;
-			ret = bridge_port_set_admin_p2p(b_name, bp,
-			    val->v.integer);
-			break;
+			if (bridge_port_set_admin_p2p(b_name, bp,
+			    val->v.integer) < 0)
+			    return (SNMP_ERR_GENERR);
+			return (SNMP_ERR_NOERROR);
+
 		    case LEAF_begemotBridgeStpPortAdminPathCost:
+			if (val->v.integer < SNMP_PORT_MIN_PATHCOST ||
+			    val->v.integer > SNMP_PORT_MAX_PATHCOST)
+			    return (SNMP_ERR_WRONG_VALUE);
+
 			ctx->scratch->int1 = bp->admin_path_cost;
-			ret = bridge_port_set_path_cost(b_name, bp,
-			    val->v.integer);
-			break;
+			if (bridge_port_set_path_cost(b_name, bp,
+			    val->v.integer) < 0)
+			    return (SNMP_ERR_GENERR);
+			return (SNMP_ERR_NOERROR);
+
 		    case LEAF_begemotBridgeStpPortProtocolMigration:
 		    case LEAF_begemotBridgeStpPortOperEdgePort:
 		    case LEAF_begemotBridgeStpPortOperPointToPoint:
 			return (SNMP_ERR_NOT_WRITEABLE);
-		    default:
-			return (SNMP_ERR_NOSUCHNAME);
 		}
-
-		if (ret == 0)
-		    return (SNMP_ERR_NOERROR);
-		else if (ret == -2)
-		    return (SNMP_ERR_WRONG_VALUE);
-		return (SNMP_ERR_GENERR);
+		abort();
 
 	    case SNMP_OP_ROLLBACK:
 		if ((bp = bridge_port_index_get(&val->var, sub, 0)) == NULL ||
@@ -1328,33 +1400,37 @@ op_begemot_stp_ext_port(struct snmp_context *ctx, struct snmp_value *val,
 
 	    case SNMP_OP_COMMIT:
 		return (SNMP_ERR_NOERROR);
-
-	    default:
-		abort();
 	}
+	abort();
 
+get:
 	switch (val->var.subs[sub - 1]) {
 		case LEAF_begemotBridgeStpPortProtocolMigration:
 			val->v.integer = bp->proto_migr;
-			break;
+			return (SNMP_ERR_NOERROR);
+
 		case LEAF_begemotBridgeStpPortAdminEdgePort:
 			val->v.integer = bp->admin_edge;
-			break;
+			return (SNMP_ERR_NOERROR);
+
 		case LEAF_begemotBridgeStpPortOperEdgePort:
 			val->v.integer = bp->oper_edge;
-			break;
+			return (SNMP_ERR_NOERROR);
+
 		case LEAF_begemotBridgeStpPortAdminPointToPoint:
 			val->v.integer = bp->admin_p2p;
-			break;
+			return (SNMP_ERR_NOERROR);
+
 		case LEAF_begemotBridgeStpPortOperPointToPoint:
 			val->v.integer = bp->oper_p2p;
-			break;
+			return (SNMP_ERR_NOERROR);
+
 		case LEAF_begemotBridgeStpPortAdminPathCost:
 			val->v.integer = bp->admin_path_cost;
-			break;
+			return (SNMP_ERR_NOERROR);
 	}
 
-	return (SNMP_ERR_NOERROR);
+	abort();
 }
 
 int
@@ -1370,40 +1446,45 @@ op_begemot_tp_port(struct snmp_context *c __unused, struct snmp_value *val,
 	    case SNMP_OP_GET:
 		if ((bp = bridge_port_index_get(&val->var, sub, 0)) == NULL)
 		    return (SNMP_ERR_NOSUCHNAME);
-		break;
+		goto get;
 
 	    case SNMP_OP_GETNEXT:
 		if ((bp = bridge_port_index_getnext(&val->var, sub, 0)) ==
 		    NULL || bridge_port_index_append(&val->var, sub, bp) < 0)
 		    return (SNMP_ERR_NOSUCHNAME);
-		break;
+		goto get;
 
 	    case SNMP_OP_SET:
 		return (SNMP_ERR_NOT_WRITEABLE);
 
 	    case SNMP_OP_ROLLBACK:
 	    case SNMP_OP_COMMIT:
-	    default:
-		abort();
+		break;
 	}
+	abort();
 
+get:
 	switch (val->var.subs[sub - 1]) {
 	    case LEAF_begemotBridgeTpPort:
 		val->v.integer = bp->port_no;
-		break;
+		return (SNMP_ERR_NOERROR);
+
 	    case LEAF_begemotBridgeTpPortMaxInfo:
 		val->v.integer = bp->max_info;
-		break;
+		return (SNMP_ERR_NOERROR);
+
 	    case LEAF_begemotBridgeTpPortInFrames:
 		val->v.uint32 = bp->in_frames;
-		break;
+		return (SNMP_ERR_NOERROR);
+
 	    case LEAF_begemotBridgeTpPortOutFrames:
 		val->v.uint32 = bp->out_frames;
-		break;
+		return (SNMP_ERR_NOERROR);
+
 	    case LEAF_begemotBridgeTpPortInDiscards:
 		val->v.uint32 = bp->in_drops;
-		break;
+		return (SNMP_ERR_NOERROR);
 	}
 
-	return (SNMP_ERR_NOERROR);
+	abort();
 }

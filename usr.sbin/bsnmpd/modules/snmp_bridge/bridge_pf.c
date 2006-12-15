@@ -95,23 +95,22 @@ op_begemot_bridge_pf(struct snmp_context *ctx, struct snmp_value *val,
 
 			if ((k_val = snmp_truth2val(val->v.integer)) < 0)
 				return (SNMP_ERR_BADVALUE);
+			return (SNMP_ERR_NOERROR);
 
 		case SNMP_OP_GET:
-			break;
+			switch (val->var.subs[sub - 1]) {
+			    case LEAF_begemotBridgePfilStatus:
+			    case LEAF_begemotBridgePfilMembers:
+			    case LEAF_begemotBridgePfilIpOnly:
+			    case LEAF_begemotBridgeLayer2PfStatus:
+				if (bridge_do_pfctl(val->var.subs[sub - 1] - 1,
+				    op, &k_val) < 0)
+					return (SNMP_ERR_GENERR);
+				val->v.integer = val2snmp_truth(k_val);
+				return (SNMP_ERR_NOERROR);
+			}
+			abort();
 	}
 
-	switch (val->var.subs[sub - 1]) {
-		case LEAF_begemotBridgePfilStatus:
-		case LEAF_begemotBridgePfilMembers:
-		case LEAF_begemotBridgePfilIpOnly:
-		case LEAF_begemotBridgeLayer2PfStatus:
-			if (bridge_do_pfctl(val->var.subs[sub - 1] - 1,
-			    op, &k_val) < 0)
-				return (SNMP_ERR_GENERR);
-			val->v.integer = val2snmp_truth(k_val);
-			break;
-		abort();
-	}
-
-	return (SNMP_ERR_NOERROR);
+	abort();
 }

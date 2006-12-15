@@ -397,7 +397,6 @@ int
 op_dot1d_tp_fdb(struct snmp_context *c __unused, struct snmp_value *val,
 	uint sub, uint iidx __unused, enum snmp_op op)
 {
-	int ret;
 	struct bridge_if *bif;
 	struct tp_entry *te;
 
@@ -412,37 +411,36 @@ op_dot1d_tp_fdb(struct snmp_context *c __unused, struct snmp_value *val,
 	    case SNMP_OP_GET:
 		if ((te = bridge_addrs_get(&val->var, sub, bif)) == NULL)
 			return (SNMP_ERR_NOSUCHNAME);
-		break;
+		goto get;
 
 	    case SNMP_OP_GETNEXT:
 		if ((te = bridge_addrs_getnext(&val->var, sub, bif)) == NULL)
 			return (SNMP_ERR_NOSUCHNAME);
 		bridge_addrs_index_append(&val->var, sub, te);
-		break;
+		goto get;
 
 	    case SNMP_OP_SET:
 		return (SNMP_ERR_NOT_WRITEABLE);
 
 	    case SNMP_OP_ROLLBACK:
 	    case SNMP_OP_COMMIT:
-	    default:
-		abort();
+		break;
 	}
+	abort();
 
-	ret = SNMP_ERR_NOERROR;
+get:
 	switch (val->var.subs[sub - 1]) {
 		case LEAF_dot1dTpFdbAddress:
-			ret = string_get(val, te->tp_addr, ETHER_ADDR_LEN);
-			break;
+			return (string_get(val, te->tp_addr, ETHER_ADDR_LEN));
 		case LEAF_dot1dTpFdbPort :
 			val->v.integer = te->port_no;
-			break;
+			return (SNMP_ERR_NOERROR);
 		case LEAF_dot1dTpFdbStatus:
 			val->v.integer = te->status;
-			break;
+			return (SNMP_ERR_NOERROR);
 	}
 
-	return (ret);
+	abort();
 }
 
 /*
@@ -547,7 +545,6 @@ int
 op_begemot_tp_fdb(struct snmp_context *c __unused, struct snmp_value *val,
 	uint sub, uint iidx __unused, enum snmp_op op)
 {
-	int ret;
 	struct tp_entry *te;
 
 	if (time(NULL) - address_list_age > bridge_get_data_maxage())
@@ -557,7 +554,7 @@ op_begemot_tp_fdb(struct snmp_context *c __unused, struct snmp_value *val,
 	    case SNMP_OP_GET:
 		if ((te = bridge_addrs_begemot_get(&val->var, sub)) == NULL)
 		    return (SNMP_ERR_NOSUCHNAME);
-		break;
+		goto get;
 
 	    case SNMP_OP_GETNEXT:
 		if ((te = bridge_addrs_begemot_getnext(&val->var,
@@ -565,29 +562,28 @@ op_begemot_tp_fdb(struct snmp_context *c __unused, struct snmp_value *val,
 		    bridge_addrs_begemot_index_append(&val->var,
 		    sub, te) < 0)
 			return (SNMP_ERR_NOSUCHNAME);
-		break;
+		goto get;
 
 	    case SNMP_OP_SET:
 		return (SNMP_ERR_NOT_WRITEABLE);
 
 	    case SNMP_OP_ROLLBACK:
 	    case SNMP_OP_COMMIT:
-	    default:
-		abort();
+		break;
 	}
+	abort();
 
-	ret = SNMP_ERR_NOERROR;
+get:
 	switch (val->var.subs[sub - 1]) {
 	    case LEAF_begemotBridgeTpFdbAddress:
-		ret = string_get(val, te->tp_addr, ETHER_ADDR_LEN);
-		break;
+		return (string_get(val, te->tp_addr, ETHER_ADDR_LEN));
 	    case LEAF_begemotBridgeTpFdbPort:
 		val->v.integer = te->port_no;
-		break;
+		return (SNMP_ERR_NOERROR);
 	    case LEAF_begemotBridgeTpFdbStatus:
 		val->v.integer = te->status;
-		break;
+		return (SNMP_ERR_NOERROR);
 	}
 
-	return (ret);
+	abort();
 }
