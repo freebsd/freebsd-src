@@ -162,6 +162,10 @@ A non-super-user tries to set one of
 .Dv SF_IMMUTABLE , SF_APPEND ,
 or
 .Dv SF_NOUNLINK .
+.It Bq Er EPERM
+User tries to set or remove the
+.Dv SF_SNAPSHOT
+flag.
 .It Bq Er EROFS
 The named file resides on a read-only file system.
 .It Bq Er EFAULT
