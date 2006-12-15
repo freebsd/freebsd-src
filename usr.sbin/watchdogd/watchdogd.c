@@ -55,7 +55,7 @@ static void	sighandler(int);
 static void	watchdog_loop(void);
 static int	watchdog_init(void);
 static int	watchdog_onoff(int onoff);
-static int	watchdog_patpat(void);
+static int	watchdog_patpat(u_int timeout);
 static void	usage(void);
 
 int debugging = 0;
@@ -121,7 +121,6 @@ main(int argc, char *argv[])
 		watchdog_loop();
 
 		/* exiting */
-		watchdog_onoff(0);
 		pidfile_remove(pfh);
 		return (EX_OK);
 	} else {
@@ -129,7 +128,7 @@ main(int argc, char *argv[])
 			timeout |= WD_PASSIVE;
 		else
 			timeout |= WD_ACTIVE;
-		if (watchdog_patpat() < 0)
+		if (watchdog_patpat(timeout) < 0)
 			err(EX_OSERR, "patting the dog");
 		return (EX_OK);
 	}
@@ -169,7 +168,7 @@ watchdog_loop(void)
 	struct stat sb;
 	int failed;
 
-	while (end_program == 0) {
+	while (end_program != 2) {
 		failed = 0;
 
 		if (test_cmd != NULL)
@@ -178,8 +177,17 @@ watchdog_loop(void)
 			failed = stat("/etc", &sb);
 
 		if (failed == 0)
-			watchdog_patpat();
+			watchdog_patpat(timeout|WD_ACTIVE);
 		sleep(nap);
+
+		if (end_program != 0) {
+			if (watchdog_onoff(0) == 0) {
+				end_program = 2;
+			} else {
+				warnx("Could not stop the watchdog, not exitting");
+				end_program = 0;
+			}
+		}
 	}
 }
 
@@ -188,10 +196,10 @@ watchdog_loop(void)
  * to keep the watchdog from firing.
  */
 int
-watchdog_patpat(void)
+watchdog_patpat(u_int t)
 {
 
-	return ioctl(fd, WDIOCPATPAT, &timeout);
+	return ioctl(fd, WDIOCPATPAT, &t);
 }
 
 /*
@@ -203,10 +211,9 @@ watchdog_onoff(int onoff)
 {
 
 	if (onoff)
-		timeout |= WD_ACTIVE;
+		return watchdog_patpat((timeout|WD_ACTIVE));
 	else
-		timeout &= ~WD_ACTIVE;
-	return watchdog_patpat();
+		return watchdog_patpat(0);
 }
 
 /*
@@ -216,7 +223,7 @@ static void
 usage()
 {
 	if (is_daemon)
-		fprintf(stderr, "usage: watchdogd [-d] [-e cmd] [-I file]\n");
+		fprintf(stderr, "usage: watchdogd [-d] [-e cmd] [-I file] [-s sleep] [-t timeout]\n");
 	else
 		fprintf(stderr, "usage: watchdog [-d] [-t timeout]\n");
 	exit(EX_USAGE);
