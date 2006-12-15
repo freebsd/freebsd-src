@@ -29,7 +29,7 @@
 .\"	@(#)hostname.1	8.2 (Berkeley) 4/28/95
 .\" $FreeBSD$
 .\"
-.Dd April 18, 2005
+.Dd December 7, 2006
 .Dt HOSTNAME 1
 .Os
 .Sh NAME
@@ -37,7 +37,7 @@
 .Nd set or print name of current host system
 .Sh SYNOPSIS
 .Nm
-.Op Fl s
+.Op Fl fs
 .Op Ar name-of-host
 .Sh DESCRIPTION
 The
@@ -45,7 +45,7 @@ The
 utility prints the name of the current host.
 The super-user can
 set the hostname by supplying an argument; this is usually done in the
-network initialization script
+initialization script
 .Pa /etc/rc.d/hostname ,
 normally run at boot
 time.
@@ -56,6 +56,9 @@ variable in
 .Pp
 Options:
 .Bl -tag -width flag
+.It Fl f
+Include domain information in the printed name.
+This is the default behavior.
 .It Fl s
 Trim off any domain information from the printed
 name.
