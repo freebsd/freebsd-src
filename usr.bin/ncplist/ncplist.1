@@ -4,7 +4,7 @@
 .Os
 .Sh NAME
 .Nm ncplist
-.Nd displays various information about ncplib and NetWare servers
+.Nd "display various information about ncplib and NetWare servers"
 .Sh SYNOPSIS
 .Nm
 .Ar command
@@ -12,16 +12,16 @@
 .Sh DESCRIPTION
 The
 .Nm
-command used to display state of ncplib and NetWare servers.
+utility displays the state of ncplib and NetWare servers.
 The first argument
 is a one letter
 .Ar command
-following by optional
+followed by optional
 .Ar args .
 .Pp
 The commands are:
 .Bl -tag -width indent
-.It b Ar server Ar type Op Ar pattern
+.It Ic b Ar server type Op Ar pattern
 Lists bindery objects of
 .Ar type
 on a specified
@@ -30,33 +30,39 @@ The
 .Ar type
 argument
 can be one of the following:
-.Bd -literal -offset indent
-Type	Meaning
-user	bindery users
-group	bindery groups
-pserver	bindery print servers
-tree	tree name hosted by given server
-.Ed
+.Pp
+.Bl -tag -width ".Cm pserver" -offset indent -compact
+.It Em Type
+.Em Meaning
+.It Cm user
+bindery users
+.It Cm group
+bindery groups
+.It Cm pserver
+bindery print servers
+.It Cm tree
+tree name hosted by given server
+.El
 .Pp
 Note that if you are not logged in to the specified server,
 the list may be incomplete or empty.
-.It c
+.It Ic c
 List active NCP connections on the local machine.
-.It s Op Ar server
+.It Ic s Op Ar server
 Display
 .Tn NetWare
 servers known to a given
 .Ar server .
 If no server is specified, the nearest server will be used.
-.It u Ar server
+.It Ic u Ar server
 Displays a list of users logged in on a given
 .Ar server .
 If you are not logged in to the specified server,
 the list will be empty.
-.It q Ar server Op Ar pattern
+.It Ic q Ar server Op Ar pattern
 Displays bindery queues on a given
 .Ar server .
-.It v Ar server
+.It Ic v Ar server
 Displays mounted volumes on a given
 .Ar server .
 .El
