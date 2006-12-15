@@ -51,7 +51,10 @@
 
 #ifdef _KERNEL
 #include <sys/malloc.h>
+#include <sys/param.h>
 #include <sys/lock.h>
+#include <sys/mutex.h>
+
 /* XXX: LibAliasSetTarget() uses this constant. */
 #define	INADDR_NONE	0xffffffff
 #endif
@@ -146,10 +149,30 @@ struct libalias {
 
 	struct in_addr	true_addr;	/* in network byte order. */
 	u_short		true_port;	/* in host byte order. */
-
+#ifdef  _KERNEL
+	/* 
+	 * avoid races in libalias: every public function has to use it.
+	 */
+	struct mtx mutex;
+#endif
 };
 
 /* Macros */
+
+#ifdef _KERNEL
+#define LIBALIAS_LOCK_INIT(l) \
+        mtx_init(&l->mutex, "per-instance libalias mutex", NULL, MTX_DEF)
+#define LIBALIAS_LOCK_ASSERT(l) mtx_assert(&l->mutex, MA_OWNED)
+#define LIBALIAS_LOCK(l) mtx_lock(&l->mutex)
+#define LIBALIAS_UNLOCK(l) mtx_unlock(&l->mutex)
+#define LIBALIAS_LOCK_DESTROY(l)	mtx_destroy(&l->mutex)
+#else
+#define LIBALIAS_LOCK_INIT(l)
+#define LIBALIAS_LOCK_ASSERT(l)
+#define LIBALIAS_LOCK(l)
+#define LIBALIAS_UNLOCK(l)
+#define LIBALIAS_LOCK_DESTROY(l)
+#endif
 
 /*
  * The following macro is used to update an
