@@ -16,7 +16,7 @@
  */
 
 #if defined(LIBC_SCCS) && !defined(lint)
-static const char rcsid[] = "$Id: inet_net_ntop.c,v 1.1.2.1.8.1 2004/03/09 08:33:32 marka Exp $";
+static const char rcsid[] = "$Id: inet_net_ntop.c,v 1.1.2.1.8.2 2006/06/20 02:53:07 marka Exp $";
 #endif
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
@@ -266,7 +266,7 @@ inet_net_ntop_ipv6(const u_char *src, int bits, char *dst, size_t size) {
 		}
 	}
 	/* Format CIDR /width. */
-	SPRINTF((cp, "/%u", bits));
+	sprintf(cp, "/%u", bits);
 	if (strlen(outbuf) + 1 > size)
 		goto emsgsize;
 	strcpy(dst, outbuf);
