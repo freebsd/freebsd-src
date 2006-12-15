@@ -191,7 +191,7 @@ struct mqueue_notifier;
  * inheritance schemes.
  *
  * The second is the proc (process) which owns all the resources of a process
- * other than CPU cycles, which are paralleled out to the threads.
+ * other than CPU cycles, which are parceled out to the threads.
  */
 
 /***************
