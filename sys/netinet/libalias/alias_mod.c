@@ -60,9 +60,9 @@ SLIST_HEAD(dll_chain, dll) dll_chain = SLIST_HEAD_INITIALIZER(foo);
 
 #ifdef _KERNEL
 
-#define	LIBALIAS_LOCK_INIT() \
+#define	LIBALIAS_RWLOCK_INIT() \
         rw_init(&handler_rw, "Libalias_modules_rwlock")
-#define	LIBALIAS_LOCK_DESTROY()	rw_destroy(&handler_rw)
+#define	LIBALIAS_RWLOCK_DESTROY()	rw_destroy(&handler_rw)
 #define	LIBALIAS_WLOCK_ASSERT() \
         rw_assert(&handler_rw, RA_WLOCKED)
 
@@ -95,7 +95,7 @@ _handler_chain_init(void)
 {
 
 	if (!rw_initialized(&handler_rw))
-		LIBALIAS_LOCK_INIT();
+		LIBALIAS_RWLOCK_INIT();
 }
 
 static void
@@ -103,12 +103,12 @@ _handler_chain_destroy(void)
 {
 
 	if (rw_initialized(&handler_rw))
-		LIBALIAS_LOCK_DESTROY();
+		LIBALIAS_RWLOCK_DESTROY();
 }
 
 #else
-#define	LIBALIAS_LOCK_INIT() ;
-#define	LIBALIAS_LOCK_DESTROY()	;
+#define	LIBALIAS_RWLOCK_INIT() ;
+#define	LIBALIAS_RWLOCK_DESTROY()	;
 #define	LIBALIAS_WLOCK_ASSERT()	;
 #define	LIBALIAS_RLOCK() ;
 #define	LIBALIAS_RUNLOCK() ;
