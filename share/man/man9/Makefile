@@ -211,6 +211,7 @@ MAN=	accept_filter.9 \
 	signal.9 \
 	sleep.9 \
 	sleepqueue.9 \
+	socket.9 \
 	spl.9 \
 	store.9 \
 	style.9 \
@@ -1009,6 +1010,15 @@ MLINKS+=sleepqueue.9 init_sleepqueues.9 \
 	sleepqueue.9 sleepq_timedwait_sig.9 \
 	sleepqueue.9 sleepq_wait.9 \
 	sleepqueue.9 sleepq_wait_sig.9
+MLINKS+=socket.9 sobind.9 \
+	socket.9 soclose.9 \
+	socket.9 soconnect.9 \
+	socket.9 socreate.9 \
+	socket.9 sogetopt.9 \
+	socket.9 soreceive.9 \
+	socket.9 sosetopt.9 \
+	socket.9 sosend.9 \
+	socket.9 soshutdown.9
 MLINKS+=spl.9 spl0.9 \
 	spl.9 splbio.9 \
 	spl.9 splclock.9 \
