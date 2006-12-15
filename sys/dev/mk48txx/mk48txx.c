@@ -297,7 +297,7 @@ mk48txx_watchdog(void *arg, u_int cmd, int *error)
 
 	wdog = 0;
 	t = cmd & WD_INTERVAL;
-	if (cmd != 0 && t >= 26 && t <= 37) {
+	if (cmd > 0 && t >= 26 && t <= 37) {
 		if (t <= WD_TO_2SEC) {
 			wdog |= MK48TXX_WDOG_RB_1_16;
 			t -= 26;
@@ -317,6 +317,8 @@ mk48txx_watchdog(void *arg, u_int cmd, int *error)
 		if (sc->sc_flag & MK48TXX_WDOG_ENABLE_WDS)
 			wdog |= MK48TXX_WDOG_WDS;
 		*error = 0;
+	} else if (cmd > 0) {
+		*error = EINVAL;
 	}
 	mtx_lock(&sc->sc_mtx);
 	(*sc->sc_nvwr)(dev, sc->sc_clkoffset + MK48TXX_WDOG, wdog);
