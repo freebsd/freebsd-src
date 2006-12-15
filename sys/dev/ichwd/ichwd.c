@@ -178,38 +178,22 @@ ichwd_event(void *arg, unsigned int cmd, int *error)
 	struct ichwd_softc *sc = arg;
 	unsigned int timeout;
 
+	/* convert from power-of-two-ns to WDT ticks */
+	cmd &= WD_INTERVAL;
+	timeout = ((uint64_t)1 << cmd) / ICHWD_TICK;
+	if (cmd > 0 && cmd <= 63
+	    && timeout >= ICHWD_MIN_TIMEOUT && timeout <= ICHWD_MAX_TIMEOUT) {
+		if (timeout != sc->timeout)
+			ichwd_tmr_set(sc, timeout);
 
-	/* disable / enable */
-	if (!(cmd & WD_ACTIVE)) {
+		ichwd_tmr_reload(sc);
+		*error = 0;
+	} else {
 		if (sc->active)
 			ichwd_tmr_disable(sc);
-		*error = 0;
-		return;
+		if (cmd > 0)
+			*error = EINVAL;
 	}
-	if (!sc->active)
-		ichwd_tmr_enable(sc);
-
-	cmd &= WD_INTERVAL;
-	/* convert from power-of-to-ns to WDT ticks */
-	if (cmd >= 64) {
-		*error = EINVAL;
-		return;
-	}
-	timeout = ((uint64_t)1 << cmd) / ICHWD_TICK;
-	if (timeout < ICHWD_MIN_TIMEOUT || timeout > ICHWD_MAX_TIMEOUT) {
-		*error = EINVAL;
-		return;
-	}
-
-	/* set new initial value */
-	if (timeout != sc->timeout)
-		ichwd_tmr_set(sc, timeout);
-
-	/* reload */
-	ichwd_tmr_reload(sc);
-
-	*error = 0;
-	return;
 }
 
 static unsigned int pmbase = 0;
@@ -331,8 +315,6 @@ static int
 ichwd_detach(device_t dev)
 {
 	struct ichwd_softc *sc;
-
-	device_printf(dev, "detaching\n");
 
 	sc = device_get_softc(dev);
 
