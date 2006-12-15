@@ -549,7 +549,6 @@ extern int __isthreaded;
 
 extern char		*_usrstack __hidden;
 extern struct pthread	*_thr_initial __hidden;
-extern int		_thr_scope_system __hidden;
 
 /* For debugger */
 extern int		_libthr_debug;
@@ -578,7 +577,7 @@ extern struct pthread_cond_attr _pthread_condattr_default __hidden;
 extern struct pthread_prio _thr_priorities[] __hidden;
 
 extern pid_t	_thr_pid __hidden;
-extern int	_thr_smp_cpus __hidden;
+extern int	_thr_is_smp __hidden;
 
 extern size_t	_thr_guard_default __hidden;
 extern size_t	_thr_stack_default __hidden;

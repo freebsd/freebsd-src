@@ -36,7 +36,8 @@
 #include <stddef.h>
 #include <sys/types.h>
 #include <machine/sysarch.h>
-#include <ucontext.h>
+
+#define	CPU_SPINWAIT		__asm __volatile("pause")
 
 #define	DTV_OFFSET		offsetof(struct tcb, tcb_dtv)
 
