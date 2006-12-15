@@ -279,7 +279,7 @@ static const struct {
 
 #define HDAC_UNSOLTAG_EVENT_HP	0x00
 
-static MALLOC_DEFINE(M_HDAC, "hdac", "High Definition Audio Controller");
+MALLOC_DEFINE(M_HDAC, "hdac", "High Definition Audio Controller");
 
 enum {
 	HDA_PARSE_MIXER,
