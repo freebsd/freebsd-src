@@ -2165,8 +2165,8 @@ pmap_tte_hash_resize(pmap_t pmap)
 {
 	tte_hash_t old_th = pmap->pm_hash;
 	
-	spinlock_enter();
 	pmap->pm_hash = tte_hash_resize(pmap->pm_hash);
+	spinlock_enter();
 	if (curthread->td_proc->p_numthreads != 1) 
 		pmap_ipi(pmap, tl_ttehashupdate, pmap->pm_context, pmap->pm_hashscratch);
 
