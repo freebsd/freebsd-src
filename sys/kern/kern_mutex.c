@@ -116,6 +116,20 @@ struct lock_class lock_class_mtx_spin = {
 struct mtx sched_lock;
 struct mtx Giant;
 
+#ifdef LOCK_PROFILING
+static inline void lock_profile_init(void)
+{
+        int i;
+        /* Initialize the mutex profiling locks */
+        for (i = 0; i < LPROF_LOCK_SIZE; i++) {
+                mtx_init(&lprof_locks[i], "mprof lock",
+                    NULL, MTX_SPIN|MTX_QUIET|MTX_NOPROFILE);
+        }
+}
+#else
+static inline void lock_profile_init(void) {;}
+#endif
+
 /*
  * Function versions of the inlined __mtx_* macros.  These are used by
  * modules and can also be called from assembly language if needed.
@@ -257,7 +271,7 @@ _mtx_lock_sleep(struct mtx *m, uintptr_t tid, int opts, const char *file,
 	int cont_logged = 0;
 #endif
 	uintptr_t v;
-	int contested;
+	int contested = 0;
 
 	if (mtx_owned(m)) {
 		KASSERT((m->mtx_object.lo_flags & LO_RECURSABLE) != 0,
@@ -325,10 +339,11 @@ _mtx_lock_sleep(struct mtx *m, uintptr_t tid, int opts, const char *file,
 		 */
 		owner = (struct thread *)(v & ~MTX_FLAGMASK);
 #ifdef ADAPTIVE_GIANT
-		if (TD_IS_RUNNING(owner)) {
+		if (TD_IS_RUNNING(owner)) 
 #else
-		if (m != &Giant && TD_IS_RUNNING(owner)) {
+		if (m != &Giant && TD_IS_RUNNING(owner)) 
 #endif
+		{
 			turnstile_release(&m->mtx_object);
 			while (mtx_owner(m) == owner && TD_IS_RUNNING(owner)) {
 				cpu_spinwait();
@@ -359,7 +374,6 @@ _mtx_lock_sleep(struct mtx *m, uintptr_t tid, int opts, const char *file,
 		turnstile_wait(&m->mtx_object, mtx_owner(m),
 		    TS_EXCLUSIVE_QUEUE);
 	}
-
 #ifdef KTR
 	if (cont_logged) {
 		CTR4(KTR_CONTENTION,
@@ -368,9 +382,9 @@ _mtx_lock_sleep(struct mtx *m, uintptr_t tid, int opts, const char *file,
 	}
 #endif
 #ifdef LOCK_PROFILING
+	m->mtx_object.lo_profile_obj.lpo_contest_holding = 0;
 	if (contested)
 		m->mtx_object.lo_profile_obj.lpo_contest_locking++;
-	m->mtx_object.lo_profile_obj.lpo_contest_holding = 0;
 #endif
 	return;
 }
@@ -387,7 +401,7 @@ _mtx_lock_spin(struct mtx *m, uintptr_t tid, int opts, const char *file,
     int line)
 {
 	struct thread *td;
-	int contested, i = 0;
+	int contested = 0, i = 0;
 
 	if (LOCK_LOG_TEST(&m->mtx_object, opts))
 		CTR1(KTR_LOCK, "_mtx_lock_spin: %p spinning", m);
