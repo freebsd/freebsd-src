@@ -35,6 +35,7 @@
 #include <sys/stdint.h>
 #include <sys/ktr.h>
 #include <sys/mutex.h>
+#include <machine/atomic.h>
 #include <machine/cpufunc.h>
 
 #ifndef LPROF_HASH_SIZE
@@ -61,7 +62,6 @@ struct lock_prof {
 };
 
 extern struct lock_prof lprof_buf[LPROF_HASH_SIZE];
-extern int allocated_lprof_buf;
 #define LPROF_SBUF_SIZE		256 * 400
 
 /* We keep a smaller pool of spin mutexes for protecting the lprof hash entries */
@@ -74,23 +74,10 @@ extern int allocated_lprof_buf;
 
 extern struct mtx lprof_locks[LPROF_LOCK_SIZE];
 extern int lock_prof_enable;
-extern int lock_prof_records;
-extern int lock_prof_rejected;
-extern int lock_prof_collisions;
 
 void _lock_profile_obtain_lock_success(struct lock_object *lo, uint64_t waittime, const char *file, int line); 
 void _lock_profile_update_wait(struct lock_object *lo, uint64_t waitstart);
 void _lock_profile_release_lock(struct lock_object *lo);
-
-static inline void lock_profile_init(void)
-{
-        int i;
-        /* Initialize the mutex profiling locks */
-        for (i = 0; i < LPROF_LOCK_SIZE; i++) {
-                mtx_init(&lprof_locks[i], "mprof lock",
-                    NULL, MTX_SPIN|MTX_QUIET|MTX_NOPROFILE);
-        }
-}
 
 static inline void lock_profile_object_init(struct lock_object *lo, struct lock_class *class, const char *name) {
 	const char *p;
@@ -138,8 +125,11 @@ static inline void lock_profile_obtain_lock_failed(struct lock_object *lo, int *
 {
 	struct lock_profile_object *l = &lo->lo_profile_obj;
 	if (lock_prof_enable) {
-		*contested = 1;
-		atomic_add_int(&l->lpo_contest_holding, 1);
+		if (*contested == 0) {
+			atomic_add_int(&l->lpo_contest_holding, 1);
+			*contested = 1;
+
+		}
 	}
 }
 
@@ -155,6 +145,15 @@ static inline void lock_profile_update_wait(struct lock_object *lo, uint64_t wai
 		_lock_profile_update_wait(lo, waitstart);
 }
 
+static inline void lock_profile_update_contest_locking(struct lock_object *lo, int contested) 
+{
+	if (lock_prof_enable) {
+		lo->lo_profile_obj.lpo_contest_holding = 0;
+		if (contested)
+			lo->lo_profile_obj.lpo_contest_locking++;
+	}
+}
+
 static inline void lock_profile_release_lock(struct lock_object *lo)
 {
 	struct lock_profile_object *l = &lo->lo_profile_obj;
@@ -163,9 +162,8 @@ static inline void lock_profile_release_lock(struct lock_object *lo)
 }
 
 #else /* !LOCK_PROFILING */
-
-static inline void lock_profile_init(void) {;}
 static inline void lock_profile_update_wait(struct lock_object *lo, uint64_t waitstart) {;}
+static inline void lock_profile_update_contest_locking(struct lock_object *lo, int contested) {;}
 static inline void lock_profile_waitstart(uint64_t *waittime) {;}
 static inline void lock_profile_release_lock(struct lock_object *lo) {;}
 static inline void lock_profile_obtain_lock_failed(struct lock_object *lo, int *contested) {;}
