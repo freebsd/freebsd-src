@@ -658,7 +658,8 @@ pmap_bootstrap(vm_offset_t ekva)
 	 * Don't shuffle unless we have a full 256M page in the range
 	 * our kernel malloc appears to be horribly brittle
 	 */
-	if ((phys_avail[j + 1] - phys_avail[j]) < PAGE_SIZE_4M*62)
+	if ((phys_avail[j + 1] - phys_avail[j]) < 
+	    (PAGE_SIZE_256M - nucleus_memory))
 		goto skipshuffle;
 
 	for (i = j, k = 0; phys_avail[i] != 0; k++, i++)
@@ -2163,13 +2164,14 @@ static void
 pmap_tte_hash_resize(pmap_t pmap)
 {
 	tte_hash_t old_th = pmap->pm_hash;
-
+	
 	pmap->pm_hash = tte_hash_resize(pmap->pm_hash);
-
+	spinlock_enter();
 	if (curthread->td_proc->p_numthreads != 1) 
 		pmap_ipi(pmap, tl_ttehashupdate, pmap->pm_context, pmap->pm_hashscratch);
 
 	pmap->pm_hashscratch = tte_hash_set_scratchpad_user(pmap->pm_hash, pmap->pm_context);	
+	spinlock_exit();
 	tte_hash_destroy(old_th);
 }
 
