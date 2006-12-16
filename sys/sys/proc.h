@@ -235,6 +235,7 @@ struct thread {
 	int		td_inhibitors;	/* (j) Why can not run. */
 	int		td_pflags;	/* (k) Private thread (TDP_*) flags. */
 	int		td_dupfd;	/* (k) Ret value from fdopen. XXX */
+	int		td_sqqueue;	/* (j) Sleepqueue queue blocked on. */
 	void		*td_wchan;	/* (j) Sleep address. */
 	const char	*td_wmesg;	/* (j) Reason for sleep. */
 	u_char		td_lastcpu;	/* (j) Last cpu we were on. */
