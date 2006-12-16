@@ -121,8 +121,8 @@ cpu_thread_setup(struct thread *td)
 	pcb->pcb_kstack = (uint64_t)(((char *)pcb) - (CCFSZ + SPOFF));
 	pcb->pcb_nsaved = 0;
 	td->td_frame = (struct trapframe *)pcb - 1;
-
 	pcb = (struct pcb *)TLB_PHYS_TO_DIRECT(vtophys((vm_offset_t)pcb));
+	KASSERT(pcb > VM_MIN_DIRECT_ADDRESS);
 	td->td_pcb = pcb;
 	
 }

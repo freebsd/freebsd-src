@@ -332,16 +332,16 @@ __FBSDID("$FreeBSD$")
 	mov	MMFSA_I_ADDR, %g3
 	mov	MMFSA_I_CTX, %g7 
 	ldxa	[%g1 + %g2]ASI_REAL, %g4
-	ldxa	[%g1 + %g3]ASI_REAL, %g5
-	ba,a,pt	%xcc, tsb_miss_handler
+	ba,pt	%xcc, tsb_miss_handler
+	  ldxa	[%g1 + %g3]ASI_REAL, %g5
 	.align	32
 	.endm
 	
 	.macro	data_excptn
 	GET_MMFSA_SCRATCH(%g1)			
 	mov	MMFSA_D_ADDR, %g2
+	ba,pt	%xcc, data_excptn_fault
 	ldxa	[%g1 + %g2]ASI_REAL, %g3
-	ba,a,pt %xcc, data_excptn_fault
 	.align	32
 	.endm
 
@@ -351,8 +351,8 @@ ENTRY(data_excptn_fault)
 	sllx	%g4, TRAP_CTX_SHIFT, %g4
 	or	%g4, T_DATA_EXCEPTION, %g2
 	set	trap, %g1
-	sub	%g0, 1, %g4
-	ba,a,pt	%xcc, tl0_trap 
+	ba,pt	%xcc, tl0_trap 
+	  sub	%g0, 1, %g4
 END(data_excptn_fault)
 
 	.macro	data_miss
@@ -361,8 +361,8 @@ END(data_excptn_fault)
 	mov	MMFSA_D_ADDR, %g3
 	mov	MMFSA_D_CTX, %g7 
 	ldxa	[%g1 + %g2]ASI_REAL, %g4
-	ldxa	[%g1 + %g3]ASI_REAL, %g5
-	ba,a,pt	%xcc, tsb_miss_handler
+	ba,pt	%xcc, tsb_miss_handler
+	  ldxa	[%g1 + %g3]ASI_REAL, %g5
 	.align	32
 	.endm
 
@@ -370,8 +370,8 @@ END(data_excptn_fault)
 	GET_MMFSA_SCRATCH(%g1)		
 	mov	MMFSA_D_ADDR, %g3
 	mov	MMFSA_D_CTX,  %g7
-	ldxa	[%g1 + %g3]ASI_REAL, %g5
-	ba,a,pt	%xcc, tsb_miss_handler
+	ba,pt	%xcc, tsb_miss_handler
+	  ldxa	[%g1 + %g3]ASI_REAL, %g5
 	.align	32
 	.endm
 
@@ -379,8 +379,8 @@ END(data_excptn_fault)
 	GET_MMFSA_SCRATCH(%g1)	
 	mov	MMFSA_D_ADDR, %g3
 	mov	MMFSA_D_CTX,  %g7
-	ldxa	[%g1 + %g3]ASI_REAL, %g3
-	ba,a,pt	%xcc, align_fault
+	ba,pt	%xcc, align_fault
+	  ldxa	[%g1 + %g3]ASI_REAL, %g3
 	.align	32
 	.endm
 
@@ -388,9 +388,9 @@ ENTRY(align_fault)
 	ldxa	[%g1 + %g7]ASI_REAL, %g4
 	sllx	%g4, TRAP_CTX_SHIFT, %g4
 	or	%g4, T_MEM_ADDRESS_NOT_ALIGNED, %g2
-	sub	%g0, 1, %g4
 	set	trap, %g1
-	ba,a,pt	%xcc, tl0_trap
+	ba,pt	%xcc, tl0_trap
+	  sub	%g0, 1, %g4
 END(align_fault)
 		
 	.macro	cpu_mondo
@@ -1137,7 +1137,6 @@ common_utrap:
 	sub	%g6, TF_SIZEOF, %sp
 	add	%sp, REGOFF + SPOFF, %l7
 ENTRY(user_rtt)
-	nop
 	! pil handling needs to be re-visited
 	wrpr	%g0, PIL_TICK, %pil
 	ldx	[PCPU(CURTHREAD)], %l4
@@ -1418,16 +1417,16 @@ ENTRY(tl0_utrap)
 
 	and	%g2, TRAP_MASK, %g4
 	cmp	%g4, UT_MAX
-	bge,a,pt %xcc, skip_utrap
+	bge,a,pt %xcc, tl0_skip_utrap
 	  nop
 	
 	ldx	[PCPU(CURTHREAD)], %g5
 	ldx	[%g5 + TD_PROC], %g5
 	ldx	[%g5 + P_MD + MD_UTRAP], %g5
-	brz,pn	%g5, skip_utrap
+	brz,pn	%g5, tl0_skip_utrap
 	  sllx	%g4, PTR_SHIFT, %g6
 	ldx	[%g5 + %g6], %g5
-	brz,pn	%g5, skip_utrap	
+	brz,pn	%g5, tl0_skip_utrap	
 	  nop
 
 	mov	%g4, %g2
@@ -1446,7 +1445,7 @@ ENTRY(tl0_utrap)
 	
 	wrpr	%g4, %tnpc
 	done
-skip_utrap:	
+tl0_skip_utrap:	
 
 #ifdef	notyet
 	/* we need to determine from the hardware the number of register windows */
@@ -1458,6 +1457,14 @@ skip_utrap:
 	ldx	[PCPU_REG + PC_CURPCB], %g6	
 	wrpr	%g0, %g5, %cleanwin
 	ldx	[%g6 + PCB_KSTACK], %g6
+	brnz,pt	%g6, 5f
+	  nop
+	set	PCPU_PAGES*PAGE_SIZE - PC_SIZEOF, %g6
+	add	%g7, %g6, %g6
+	sub	%g6, SPOFF + CCFSZ, %g6
+	mov	T_KSTACK_FAULT, %g2
+	set	trap, %g3
+5:	
 	sub	%g6, TF_SIZEOF, %g6
 
 	save	%g6, 0, %sp
@@ -1479,6 +1486,17 @@ skip_utrap:
 	set	utl0, %g6
 win_saved:
 	mov	%g1, %l3		! set trap/interrupt for tl0
+#ifdef TRAP_TRACING
+	GET_PCPU_SCRATCH
+	rdpr	%tl, %g1
+	dec	%g1	
+	sll	%g1, RW_SHIFT, %g1
+	add	%g1, PC_TSBWBUF, %g1
+	add	PCPU_REG, %g1, %g1
+	wr	%g0, ASI_N, %asi
+	TTRACE_ADD_SAFE(%g1, 0, 0, 0, 0, 0)
+	mov	%l3, %g1
+#endif	
 	mov	%g2, %o1		! trap type
 	mov	%g3, %o2		! fault info if set
 	mov	%g5, %l6		! %pil if priv trap
@@ -1632,7 +1650,6 @@ END(hash_bucket_unlock)
 ! %g7 temp
 ENTRY(tsb_miss_handler)
 	ldxa	[%g1 + %g7]ASI_REAL, %g6	! load in the context
-
 
 	GET_HASH_SCRATCH_USER(%g2)
 	GET_TSB_SCRATCH_USER(%g4)
@@ -1815,7 +1832,7 @@ tsb_miss_found:
 	andn	%g4, %l1, %l3			! TSB real address
 
 	mov	1, %l2	
-	add	%g3, (PAGE_SHIFT - TTE_SHIFT), %g3	! add shift value for number of ttes / page
+	add	%g3, (PAGE_SHIFT - TTE_SHIFT), %g3 ! add shift value for number of ttes / page
 	sllx	%l2, %g3, %g3			! nttes
 
 	subx	%g3, 1, %g3			! TSB_MASK
@@ -1863,11 +1880,10 @@ upgrade_demap:
 	rdpr	%tt, %g3
 	cmp	%g3, TT_DATA_PROTECTION
 	beq,pn	%xcc, demap_begin
-	  nop
+	  sethi	%hi(PAGE_SIZE), %g1  
 	retry
 demap_begin:
-	sethi	%hi(PAGE_SIZE), %g1
-	sub	%g1, 1, %g1		
+	dec	%g1
 	mov	%o0, %g1
 	mov	%o1, %g2
 	mov	%o2, %g3
@@ -1923,8 +1939,8 @@ ENTRY(fork_trampoline)
 	mov	%l1, %o1
 	call	fork_exit
 	  mov	%l2, %o2
-	add     %sp, CCFSZ + SPOFF, %l7
-	ba,a,pt	%xcc, user_rtt
+	ba,pt	%xcc, user_rtt
+	  add     %sp, CCFSZ + SPOFF, %l7
 END(fork_trampoline)
 
 
@@ -1959,8 +1975,9 @@ ENTRY(tl1_trap)
 	bgeu,pn %xcc, 1f
 	 nop
 	set	fault_rtt_fn1, %g7
-	ba,a	4f
+	ba,a,pt	%xcc, 4f
 1:
+#ifdef USING_OPTIMIZED_SPILL_FILL
 	set	fill_slow_start, %g6
 	cmp	%g7, %g6
 	bleu,a,pn %xcc, 2f
@@ -1969,6 +1986,7 @@ ENTRY(tl1_trap)
 	cmp	%g7, %g6
 	blu,a,pn %xcc, 3f
 	  nop
+#endif
 2:		
 	set	tl1_end, %g6
 	cmp	%g7, %g6
@@ -1982,7 +2000,7 @@ ENTRY(tl1_trap)
 	and	%g6, WTRAP_TTMASK, %g6
 	cmp	%g6, WTRAP_TYPE
 	bne,a,pn %xcc, ptl1_panic
-	  mov	PTL1_BAD_TRAP, %g1
+	  mov	PTL1_BAD_NOT_WTRAP, %g1
 3:		
 	andn	%g7, WTRAP_ALIGN, %g7
 	add	%g7, WTRAP_FAULTOFF, %g7
