@@ -239,7 +239,6 @@ SYSCTL_INT(_debug, OID_AUTO, debugger_on_signal, CTLFLAG_RW,
     &debugger_on_signal, 0, "");
 #endif
 
-
 void 
 trap_init(void)
 {
@@ -320,6 +319,21 @@ trap(struct trapframe *tf, int64_t type, uint64_t data)
 		case T_MEM_ADDRESS_NOT_ALIGNED:
 			printf("bad trap trapno=%ld data=0x%lx pc=0x%lx\n",
 			       trapno, data, tf->tf_tpc);
+			if (tf->tf_tpc >= (u_long)copy_nofault_begin &&
+			    tf->tf_tpc <= (u_long)copy_nofault_end) {
+				tf->tf_tpc = (u_long)copy_fault;
+				tf->tf_tnpc = tf->tf_tpc + 4;
+				sig = 0;
+				break;
+			}
+			if (tf->tf_tpc >= (u_long)fs_nofault_begin &&
+			    tf->tf_tpc <= (u_long)fs_nofault_end) {
+				tf->tf_tpc = (u_long)fs_fault;
+				tf->tf_tnpc = tf->tf_tpc + 4;
+				sig = 0;
+				break;
+			}
+
 			addr = data;
 			sig = trap_sig[trapno];
 			break;
@@ -343,8 +357,8 @@ trap(struct trapframe *tf, int64_t type, uint64_t data)
 				kdb_enter("trapsig");
 #ifdef VERBOSE
 			if (sig == 4 || sig == 10 || sig == 11)
-				printf("trap: %ld:%s: 0x%lx at 0x%lx on cpu=%d sig=%d\n", trapno, 
-				       trap_msg[trapno], data, tf->tf_tpc, curcpu, sig);
+				printf("trap: %ld:%s: 0x%lx at 0x%lx on cpu=%d sig=%d proc=%s\n", 
+				       trapno, trap_msg[trapno], data, tf->tf_tpc, curcpu, sig, curthread->td_proc->p_comm);
 #endif
 			/* XXX I've renumbered the traps to largely reflect what the hardware uses
 			 * so this will need to be re-visited
