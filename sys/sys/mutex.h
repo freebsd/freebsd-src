@@ -39,6 +39,7 @@
 
 #ifdef _KERNEL
 #include <sys/pcpu.h>
+#include <sys/lock_profile.h>
 #include <machine/atomic.h>
 #include <machine/cpufunc.h>
 #endif	/* _KERNEL_ */
@@ -172,14 +173,17 @@ void	_mtx_assert(struct mtx *m, int what, const char *file, int line);
 #ifdef SMP
 #define _get_spin_lock(mp, tid, opts, file, line) do {			\
 	uintptr_t _tid = (uintptr_t)(tid);				\
+	int contested = 0;                                            \
 									\
 	spinlock_enter();						\
 	if (!_obtain_lock((mp), _tid)) {				\
+		lock_profile_obtain_lock_failed(&mp->mtx_object, &contested);\
 		if ((mp)->mtx_lock == _tid)				\
 			(mp)->mtx_recurse++;				\
 		else							\
 			_mtx_lock_spin((mp), _tid, (opts), (file), (line)); \
 	}								\
+        lock_profile_update_contest_locking(&mp->mtx_object, contested);\
 } while (0)
 #else /* SMP */
 #define _get_spin_lock(mp, tid, opts, file, line) do {			\
