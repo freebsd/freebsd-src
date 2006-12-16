@@ -297,7 +297,7 @@ sleepq_add(void *wchan, struct lock_object *lock, const char *wmesg, int flags,
 	if (sq == NULL) {
 #ifdef INVARIANTS
 		int i;
-		for (i = 0; i < NR_SLEEP_QUEUEUS; i++)
+		for (i = 0; i < NR_SLEEPQS; i++)
 			KASSERT(TAILQ_EMPTY(&sq->sq_blocked[i]),
 				("thread's sleep queue %d is not empty", i));
 	
