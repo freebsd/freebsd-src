@@ -650,6 +650,7 @@ struct mntarg *mount_argsu(struct mntarg *ma, const char *name, const void *val,
 struct vfsconf *vfs_byname(const char *);
 struct vfsconf *vfs_byname_kld(const char *, struct thread *td, int *);
 void	vfs_event_signal(fsid_t *, u_int32_t, intptr_t);
+void	vfs_deleteopt(struct vfsoptlist *opts, const char *name);
 int	vfs_flagopt(struct vfsoptlist *opts, const char *name, u_int *w, u_int val);
 int	vfs_getopt(struct vfsoptlist *, const char *, void **, int *);
 char	*vfs_getopts(struct vfsoptlist *, const char *, int *error);
