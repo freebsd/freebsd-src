@@ -418,6 +418,7 @@ tte_hash_clear_bits(tte_hash_t th, vm_offset_t va, uint64_t flags)
 	tte_t otte_data, tte_tag;
 
 	/* XXX - only handle 8K pages for now */
+	critical_enter();
 	entry = find_entry(th, va, PAGE_SHIFT);
 
 	tte_tag = (((uint64_t)th->th_context << TTARGET_CTX_SHIFT)|(va >> TTARGET_VA_SHIFT));
@@ -429,7 +430,7 @@ tte_hash_clear_bits(tte_hash_t th, vm_offset_t va, uint64_t flags)
 				   ((tte_hash_field_t)PCPU_GET(lookup_field))->data & ~flags);
 
 	hash_bucket_unlock(entry->the_fields, s);
-
+	critical_exit();
 	return (otte_data);
 }
 
@@ -441,6 +442,7 @@ tte_hash_delete(tte_hash_t th, vm_offset_t va)
 	tte_t tte_data, tte_tag;
 
 	/* XXX - only handle 8K pages for now */
+	critical_enter();
 	entry = find_entry(th, va, PAGE_SHIFT);
 
 	tte_tag = (((uint64_t)th->th_context << TTARGET_CTX_SHIFT)|(va >> TTARGET_VA_SHIFT));
@@ -470,6 +472,7 @@ done:
 	if (tte_data) 
 		th->th_entries--;
 
+	critical_exit();
 	return (tte_data);
 }
 
@@ -508,11 +511,12 @@ tte_hash_insert(tte_hash_t th, vm_offset_t va, tte_t tte_data)
 	tte_t tte_tag;
 	uint64_t s;
 	int retval;
-
+	
 #ifdef DEBUG
 	if (tte_hash_lookup(th, va) != 0) 
 		panic("mapping for va=0x%lx already exists", va);
 #endif
+	critical_enter();
 	entry = find_entry(th, va, PAGE_SHIFT); /* should actually be a function of tte_data */
 	tte_tag = (((uint64_t)th->th_context << TTARGET_CTX_SHIFT)|(va >> TTARGET_VA_SHIFT));
 
@@ -525,7 +529,8 @@ tte_hash_insert(tte_hash_t th, vm_offset_t va, tte_t tte_data)
 		s = hash_bucket_lock(entry->the_fields);
 		tte_hash_extend_locked(th, entry, newentry, tte_tag, tte_data);
 		hash_bucket_unlock(entry->the_fields, s);
-	} 
+	}
+	critical_exit();
 
 #ifdef DEBUG
 	if (tte_hash_lookup(th, va) == 0) 
@@ -594,7 +599,7 @@ tte_hash_update(tte_hash_t th, vm_offset_t va, tte_t tte_data)
 	entry = find_entry(th, va, PAGE_SHIFT); /* should actualy be a function of tte_data */
 
 	tte_tag = (((uint64_t)th->th_context << TTARGET_CTX_SHIFT)|(va >> TTARGET_VA_SHIFT));
-
+	critical_enter();
 	s = hash_bucket_lock(entry->the_fields);
 	otte_data = _tte_hash_lookup(entry, tte_tag, TRUE);
 
@@ -606,6 +611,7 @@ tte_hash_update(tte_hash_t th, vm_offset_t va, tte_t tte_data)
 				   tte_tag, tte_data);
 		hash_bucket_unlock(entry->the_fields, s);
 	}
+	critical_exit();
 	return (otte_data);
 }
 
@@ -627,7 +633,7 @@ tte_hash_resize(tte_hash_t th)
 	tte_hash_entry_t src_entry, dst_entry, newentry;
 
 	KASSERT(th != &kernel_tte_hash,("tte_hash_resize not supported for this pmap"));
-
+	critical_enter();
 	if ((newth = tte_hash_cached_get((th->th_shift - HASH_ENTRY_SHIFT) + 1)) != NULL) {
 		newth->th_context = th->th_context;
 		_tte_hash_reset(newth);
@@ -653,7 +659,7 @@ tte_hash_resize(tte_hash_t th)
 			src_entry = src_entry->of.next;
 		} while (src_entry);
 	}
-
+	critical_exit();
 	KASSERT(th->th_entries == newth->th_entries, 
 		("not all entries copied old=%d new=%d", th->th_entries, newth->th_entries));
 	
