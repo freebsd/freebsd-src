@@ -524,6 +524,7 @@ isp_reset(ispsoftc_t *isp)
 			}
 		} 
 		if (val & BIU2400_DMA_ACTIVE) {
+			ISP_RESET0(isp);
 			isp_prt(isp, ISP_LOGERR, "DMA Failed to Stop on Reset");
 			return;
 		}
@@ -544,6 +545,7 @@ isp_reset(ispsoftc_t *isp)
 			}
 		}
 		if (val & BIU2400_SOFT_RESET) {
+			ISP_RESET0(isp);
 			isp_prt(isp, ISP_LOGERR, "Failed to come out of reset");
 			return;
 		}
@@ -585,6 +587,7 @@ isp_reset(ispsoftc_t *isp)
 		USEC_DELAY(100);
 		if (--loops < 0) {
 			ISP_DUMPREGS(isp, "chip reset timed out");
+			ISP_RESET0(isp);
 			return;
 		}
 	}
@@ -626,6 +629,7 @@ isp_reset(ispsoftc_t *isp)
 			}
 		}
 		if (val != 0) {
+			ISP_RESET0(isp);
 			isp_prt(isp, ISP_LOGERR, "reset didn't clear");
 			return;
 		}
@@ -691,6 +695,7 @@ isp_reset(ispsoftc_t *isp)
 		while (ISP_READ(isp, OUTMAILBOX0) == MBOX_BUSY) {
 			USEC_DELAY(100);
 			if (--loops < 0) {
+				ISP_RESET0(isp);
 				isp_prt(isp, ISP_LOGERR,
 				    "MBOX_BUSY never cleared on reset");
 				return;
@@ -712,6 +717,7 @@ isp_reset(ispsoftc_t *isp)
 	mbs.logval = MBLOGALL;
 	isp_mboxcmd(isp, &mbs);
 	if (mbs.param[0] != MBOX_COMMAND_COMPLETE) {
+		ISP_RESET0(isp);
 		return;
 	}
 
@@ -728,11 +734,13 @@ isp_reset(ispsoftc_t *isp)
 		mbs.logval = MBLOGALL;
 		isp_mboxcmd(isp, &mbs);
 		if (mbs.param[0] != MBOX_COMMAND_COMPLETE) {
+			ISP_RESET0(isp);
 			return;
 		}
 		if (mbs.param[1] != 0xdead || mbs.param[2] != 0xbeef ||
 		    mbs.param[3] != 0xffff || mbs.param[4] != 0x1111 ||
 		    mbs.param[5] != 0xa5a5) {
+			ISP_RESET0(isp);
 			isp_prt(isp, ISP_LOGERR,
 			    "Register Test Failed (0x%x 0x%x 0x%x 0x%x 0x%x)",
 			    mbs.param[1], mbs.param[2], mbs.param[3],
@@ -820,6 +828,7 @@ isp_reset(ispsoftc_t *isp)
 				if (mbs.param[0] != MBOX_COMMAND_COMPLETE) {
 					isp_prt(isp, ISP_LOGERR,
 					    "F/W Risc Ram Load Failed");
+					ISP_RESET0(isp);
 					return;
 				}
 				la += nw;
@@ -881,6 +890,7 @@ isp_reset(ispsoftc_t *isp)
 				if (mbs.param[0] != MBOX_COMMAND_COMPLETE) {
 					isp_prt(isp, ISP_LOGERR,
 					    "F/W Risc Ram Load Failed");
+					ISP_RESET0(isp);
 					return;
 				}
 				la += nw;
@@ -897,6 +907,7 @@ isp_reset(ispsoftc_t *isp)
 				isp_mboxcmd(isp, &mbs);
 				if (mbs.param[0] != MBOX_COMMAND_COMPLETE) {
 					isp_prt(isp, ISP_LOGERR, dcrc);
+					ISP_RESET0(isp);
 					return;
 				}
 				break;
@@ -935,6 +946,7 @@ isp_reset(ispsoftc_t *isp)
 			isp_prt(isp, ISP_LOGERR,
 			    "F/W download failed at word %d",
 			    isp->isp_mbxwrk1 - code_org);
+			ISP_RESET0(isp);
 			return;
 		}
 		/*
@@ -947,6 +959,7 @@ isp_reset(ispsoftc_t *isp)
 		isp_mboxcmd(isp, &mbs);
 		if (mbs.param[0] != MBOX_COMMAND_COMPLETE) {
 			isp_prt(isp, ISP_LOGERR, dcrc);
+			ISP_RESET0(isp);
 			return;
 		}
 		isp->isp_loaded_fw = 1;
@@ -989,6 +1002,7 @@ isp_reset(ispsoftc_t *isp)
 	isp_mboxcmd(isp, &mbs);
 	if (IS_2322(isp) || IS_24XX(isp)) {
 		if (mbs.param[0] != MBOX_COMMAND_COMPLETE) {
+			ISP_RESET0(isp);
 			return;
 		}
 	}
@@ -1016,11 +1030,13 @@ isp_reset(ispsoftc_t *isp)
 	mbs.logval = MBLOGALL;
 	isp_mboxcmd(isp, &mbs);
 	if (mbs.param[0] != MBOX_COMMAND_COMPLETE) {
+		ISP_RESET0(isp);
 		return;
 	}
 
 	if (IS_24XX(isp) && mbs.param[1] == 0xdead) {
 		isp_prt(isp, ISP_LOGERR, "f/w didn't *really* start");
+		ISP_RESET0(isp);
 		return;
 	}
 
@@ -1107,6 +1123,7 @@ isp_reset(ispsoftc_t *isp)
 		mbs.logval = MBLOGALL;
 		isp_mboxcmd(isp, &mbs);
 		if (mbs.param[0] != MBOX_COMMAND_COMPLETE) {
+			ISP_RESET0(isp);
 			return;
 		}
 		if (isp->isp_maxcmds >= mbs.param[2]) {
