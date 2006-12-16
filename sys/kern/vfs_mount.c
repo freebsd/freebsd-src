@@ -197,6 +197,17 @@ vfs_freeopts(struct vfsoptlist *opts)
 	free(opts, M_MOUNT);
 }
 
+void
+vfs_deleteopt(struct vfsoptlist *opts, const char *name)
+{
+	struct vfsopt *opt, *temp;
+  
+	TAILQ_FOREACH_SAFE(opt, opts, link, temp)  {
+		if (strcmp(opt->name, name) == 0)
+			vfs_freeopt(opts, opt);
+	}
+}
+
 /*
  * Check if options are equal (with or without the "no" prefix).
  */
