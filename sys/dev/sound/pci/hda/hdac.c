@@ -168,7 +168,10 @@ SND_DECLARE_FILE("$FreeBSD$");
 #define HP_V3000_SUBVENDOR	HDA_MODEL_CONSTRUCT(HP, 0x30b5)
 #define HP_NX7400_SUBVENDOR	HDA_MODEL_CONSTRUCT(HP, 0x30a2)
 #define HP_NX6310_SUBVENDOR	HDA_MODEL_CONSTRUCT(HP, 0x30aa)
+#define HP_NX6325_SUBVENDOR	HDA_MODEL_CONSTRUCT(HP, 0x30b0)
 #define HP_ALL_SUBVENDOR	HDA_MODEL_CONSTRUCT(HP, 0xffff)
+/* What is wrong with XN 2563 anyway? (Got the picture ?) */
+#define HP_NX6325_SUBVENDORX	0x103c30b0
 
 /* Dell */
 #define DELL_VENDORID		0x1028
@@ -191,6 +194,7 @@ SND_DECLARE_FILE("$FreeBSD$");
 #define ASUS_U5F_SUBVENDOR	HDA_MODEL_CONSTRUCT(ASUS, 0x1263)
 #define ASUS_A8JC_SUBVENDOR	HDA_MODEL_CONSTRUCT(ASUS, 0x1153)
 #define ASUS_P1AH2_SUBVENDOR	HDA_MODEL_CONSTRUCT(ASUS, 0x81cb)
+#define ASUS_A7M_SUBVENDOR	HDA_MODEL_CONSTRUCT(ASUS, 0x1323)
 #define ASUS_ALL_SUBVENDOR	HDA_MODEL_CONSTRUCT(ASUS, 0xffff)
 
 /* IBM / Lenovo */
@@ -219,6 +223,11 @@ SND_DECLARE_FILE("$FreeBSD$");
  * (see HDA_CODEC_STAC9221 below).
  */
 #define APPLE_INTEL_MAC		0x76808384
+
+/* LG Electronics */
+#define LG_VENDORID		0x1854
+#define LG_LW20_SUBVENDOR	HDA_MODEL_CONSTRUCT(LG, 0x0018)
+#define LG_ALL_SUBVENDOR	HDA_MODEL_CONSTRUCT(LG, 0xffff)
 
 /* Misc constants.. */
 #define HDA_AMP_MUTE_DEFAULT	(0xffffffff)
@@ -465,6 +474,8 @@ static const struct {
 	     6, {  5, -1 },  5 },
 	{ HP_NX6310_SUBVENDOR, HDA_CODEC_AD1981HD, HDAC_HP_SWITCH_CTL, 0,
 	     6, {  5, -1 },  5 },
+	{ HP_NX6325_SUBVENDOR, HDA_CODEC_AD1981HD, HDAC_HP_SWITCH_CTL, 0,
+	     6, {  5, -1 },  5 },
 	{ DELL_D820_SUBVENDOR, HDA_CODEC_STAC9220, HDAC_HP_SWITCH_CTRL, 0,
 	    13, { 14, -1 }, -1 },
 	{ DELL_I1300_SUBVENDOR, HDA_CODEC_STAC9220, HDAC_HP_SWITCH_CTRL, 0,
@@ -473,6 +484,8 @@ static const struct {
 	    10, { 13, -1 }, -1 },
 	{ LENOVO_3KN100_SUBVENDOR, HDA_CODEC_AD1986A, HDAC_HP_SWITCH_CTL, 1,
 	    26, { 27, -1 }, -1 },
+	{ LG_LW20_SUBVENDOR, HDA_CODEC_ALC880, HDAC_HP_SWITCH_CTL, 0,
+	    27, { 20, -1 }, -1 },
 	/*
 	 * All models that at least come from the same vendor with
 	 * simmilar codec.
@@ -1653,7 +1666,18 @@ hdac_widget_pin_getconfig(struct hdac_widget *w)
 	/*
 	 * XXX REWRITE!!!! Don't argue!
 	 */
-	if (id == HDA_CODEC_ALC880 &&
+	if (id == HDA_CODEC_ALC880 && sc->pci_subvendor == LG_LW20_SUBVENDOR) {
+		switch (nid) {
+		case 26:
+			config &= ~HDA_CONFIG_DEFAULTCONF_DEVICE_MASK;
+			config |= HDA_CONFIG_DEFAULTCONF_DEVICE_LINE_IN;
+			break;
+		case 27:
+			config &= ~HDA_CONFIG_DEFAULTCONF_DEVICE_MASK;
+			config |= HDA_CONFIG_DEFAULTCONF_DEVICE_HP_OUT;
+			break;
+		}
+	} else if (id == HDA_CODEC_ALC880 &&
 	    (sc->pci_subvendor == CLEVO_D900T_SUBVENDOR ||
 	    sc->pci_subvendor == ASUS_M5200_SUBVENDOR)) {
 		/*
@@ -3093,6 +3117,11 @@ hdac_attach(device_t dev)
 	sc->pci_subvendor = (uint32_t)pci_get_subdevice(sc->dev) << 16;
 	sc->pci_subvendor |= (uint32_t)pci_get_subvendor(sc->dev) & 0x0000ffff;
 
+	if (sc->pci_subvendor == HP_NX6325_SUBVENDORX) {
+		/* Screw nx6325 - subdevice/subvendor swapped */
+		sc->pci_subvendor = HP_NX6325_SUBVENDOR;
+	}
+
 	callout_init(&sc->poll_hda, CALLOUT_MPSAFE);
 	callout_init(&sc->poll_hdac, CALLOUT_MPSAFE);
 
@@ -3130,9 +3159,9 @@ hdac_attach(device_t dev)
 	    BUS_SPACE_MAXADDR,			/* highaddr */
 	    NULL,				/* filtfunc */
 	    NULL,				/* fistfuncarg */
-	    sc->chan_size, 				/* maxsize */
+	    sc->chan_size, 			/* maxsize */
 	    1,					/* nsegments */
-	    sc->chan_size, 				/* maxsegsz */
+	    sc->chan_size, 			/* maxsegsz */
 	    0,					/* flags */
 	    NULL,				/* lockfunc */
 	    NULL,				/* lockfuncarg */
@@ -3471,12 +3500,14 @@ static const struct {
 	    HDA_QUIRK_GPIO0, 0 },
 	{ ASUS_M5200_SUBVENDOR, HDA_CODEC_ALC880,
 	    HDA_QUIRK_GPIO0, 0 },
-	{ MEDION_MD95257_SUBVENDOR, HDA_CODEC_ALC880,
-	    HDA_QUIRK_GPIO1, 0 },
+	{ ASUS_A7M_SUBVENDOR, HDA_CODEC_ALC880,
+	    HDA_QUIRK_GPIO0, 0 },
 	{ ASUS_U5F_SUBVENDOR, HDA_CODEC_AD1986A,
 	    HDA_QUIRK_EAPDINV, 0 },
 	{ ASUS_A8JC_SUBVENDOR, HDA_CODEC_AD1986A,
 	    HDA_QUIRK_EAPDINV, 0 },
+	{ MEDION_MD95257_SUBVENDOR, HDA_CODEC_ALC880,
+	    HDA_QUIRK_GPIO1, 0 },
 	{ LENOVO_3KN100_SUBVENDOR, HDA_CODEC_AD1986A,
 	    HDA_QUIRK_EAPDINV, 0 },
 	{ SAMSUNG_Q1_SUBVENDOR, HDA_CODEC_AD1986A,
