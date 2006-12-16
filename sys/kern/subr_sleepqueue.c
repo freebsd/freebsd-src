@@ -297,11 +297,13 @@ sleepq_add(void *wchan, struct lock_object *lock, const char *wmesg, int flags,
 	if (sq == NULL) {
 		sq = td->td_sleepqueue;
 #ifdef INVARIANTS
-		int i;
-		for (i = 0; i < NR_SLEEPQS; i++)
-			KASSERT(TAILQ_EMPTY(&sq->sq_blocked[i]),
+		{
+			int i;
+
+			for (i = 0; i < NR_SLEEPQS; i++)
+				KASSERT(TAILQ_EMPTY(&sq->sq_blocked[i]),
 				("thread's sleep queue %d is not empty", i));
-	
+		}
 		KASSERT(LIST_EMPTY(&sq->sq_free),
 		    ("thread's sleep queue has a non-empty free list"));
 		KASSERT(sq->sq_wchan == NULL, ("stale sq_wchan pointer"));
