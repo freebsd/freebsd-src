@@ -129,7 +129,19 @@ ENTRY(fault_32bit_fn0)
 	MAGIC_TRAP_ON	
 	MAGIC_EXIT	
 fault_fn0_common:
-
+	mov	%g6, %g3
+	mov	T_DATA_MISS, %g2
+	cmp	%g5, T_ALIGNMENT
+	beq,a,pn %xcc, 1f
+	  mov	T_ALIGNMENT, %g2
+1:	
+	set	trap, %g1
+	sub	%g0, 1, %g4
+	rdpr	%tstate, %g5
+	and	%g5, TSTATE_CWP_MASK, %g5
+	GET_PCPU_SCRATCH
+	ba,pt	%xcc, tl0_skip_utrap
+	  wrpr	%g0, %g5, %cwp	
 END(fault_32bit_fn0)
 	MAGIC_TRAP_ON	
 	MAGIC_EXIT	
@@ -171,13 +183,14 @@ fault_fn1_common:
 	mov	MMU_CID_P, %g6
 	SET_MMU_CONTEXT(%g6, %g5)
 	membar	#Sync
-	b	tl0_ktrap
+
+	b	tl0_ktrap 
 	  nop
 END(fault_32bit_fn1)
 	
 ENTRY(fault_64bit_fn0)
-	MAGIC_TRAP_ON	
-	MAGIC_EXIT	
+	b	fault_fn0_common
+	  nop
 END(fault_64bit_fn0)
 
 ENTRY(fault_64bit_fn1)
@@ -202,7 +215,27 @@ END(fault_32bit_not)
 END(fault_64bit_not)
 
 ENTRY(ptl1_panic)
+	GET_PCB_PHYS(%g5, %g6)
+#ifdef TRAP_TRACING
+	wr	%g0, ASI_REAL, %asi
+	/* pcpu->pad[0] = %tpc */
+	rdpr	%tpc, %g4
+	stxa	%g4, [PCPU(PAD)]%asi
 
-/* XXX IMPLEMENT ME */
-	
+	/* pcpu->pad[1] = %l7 */
+	stxa    %l7, [PCPU(PAD) + 8]%asi
+	/* pcpu->pad[2] = pcb->pcb_kstack */
+	ldxa	[%g6 + PCB_KSTACK]%asi, %g6
+	stxa	%g6, [PCPU(PAD) + 16]%asi
+	rdpr	%tt, %g6
+	stxa	%g6, [PCPU(PAD) + 24]%asi
+	wrpr	%g0, 1, %tl
+	rdpr	%tt, %g6
+	stxa	%g6, [PCPU(PAD) + 32]%asi
+#endif
+
+
+2:	nop
+	ba,a,pt	%xcc, 2b
+		
 END(ptl1_panic)
