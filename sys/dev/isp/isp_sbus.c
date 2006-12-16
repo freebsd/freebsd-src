@@ -63,6 +63,7 @@ isp_sbus_dmasetup(ispsoftc_t *, XS_T *, ispreq_t *, uint32_t *, uint32_t);
 static void
 isp_sbus_dmateardown(ispsoftc_t *, XS_T *, uint32_t);
 
+static void isp_sbus_reset0(ispsoftc_t *);
 static void isp_sbus_reset1(ispsoftc_t *);
 static void isp_sbus_dumpregs(ispsoftc_t *, const char *);
 
@@ -73,7 +74,7 @@ static struct ispmdvec mdvec = {
 	isp_sbus_mbxdma,
 	isp_sbus_dmasetup,
 	isp_sbus_dmateardown,
-	NULL,
+	isp_sbus_reset0,
 	isp_sbus_reset1,
 	isp_sbus_dumpregs,
 	NULL,
@@ -823,6 +824,12 @@ isp_sbus_dmateardown(ispsoftc_t *isp, XS_T *xs, uint32_t handle)
 		bus_dmamap_sync(sbs->dmat, *dp, BUS_DMASYNC_POSTWRITE);
 	}
 	bus_dmamap_unload(sbs->dmat, *dp);
+}
+
+static void
+isp_sbus_reset0(ispsoftc_t *isp)
+{
+	ISP_DISABLE_INTS(isp);
 }
 
 static void
