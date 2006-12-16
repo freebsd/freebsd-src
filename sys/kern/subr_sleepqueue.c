@@ -295,6 +295,7 @@ sleepq_add(void *wchan, struct lock_object *lock, const char *wmesg, int flags,
 	 * into the sleep queue already in use by this wait channel.
 	 */
 	if (sq == NULL) {
+		sq = td->td_sleepqueue;
 #ifdef INVARIANTS
 		int i;
 		for (i = 0; i < NR_SLEEPQS; i++)
@@ -313,7 +314,6 @@ sleepq_add(void *wchan, struct lock_object *lock, const char *wmesg, int flags,
 				sleepq_max_depth = sc->sc_max_depth;
 		}
 #endif
-		sq = td->td_sleepqueue;
 		LIST_INSERT_HEAD(&sc->sc_queues, sq, sq_hash);
 		sq->sq_wchan = wchan;
 #ifdef INVARIANTS
