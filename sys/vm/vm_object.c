@@ -1289,7 +1289,7 @@ vm_object_split(vm_map_entry_t entry)
 {
 	vm_page_t m;
 	vm_object_t orig_object, new_object, source;
-	vm_pindex_t offidxstart, offidxend;
+	vm_pindex_t offidxstart;
 	vm_size_t idx, size;
 
 	orig_object = entry->object.vm_object;
@@ -1300,8 +1300,7 @@ vm_object_split(vm_map_entry_t entry)
 	VM_OBJECT_UNLOCK(orig_object);
 
 	offidxstart = OFF_TO_IDX(entry->offset);
-	offidxend = offidxstart + OFF_TO_IDX(entry->end - entry->start);
-	size = offidxend - offidxstart;
+	size = atop(entry->end - entry->start);
 
 	/*
 	 * If swap_pager_copy() is later called, it will convert new_object
