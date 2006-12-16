@@ -128,9 +128,13 @@
 #define PTL1_BAD_ISM            4
 #define PTL1_BAD_MMUTRAP        5
 #define PTL1_BAD_TRAP           6
+#define PTL1_BAD_NOT_WTRAP      7
+#if 0
 #define PTL1_BAD_FPTRAP         7
+#endif
 #define PTL1_BAD_INTR_REQ       8
 #define PTL1_BAD_TRACE_PTR      9
+
 #define PTL1_BAD_STACK          10
 #define PTL1_BAD_DTRACE_FLAGS   11
 #define PTL1_BAD_CTX_STEAL      12
