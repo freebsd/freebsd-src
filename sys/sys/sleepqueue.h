@@ -88,19 +88,20 @@ struct thread;
 
 void	init_sleepqueues(void);
 void	sleepq_abort(struct thread *td, int intrval);
-void	sleepq_add(void *, struct lock_object *, const char *, int);
+void	sleepq_add(void *wchan, struct lock_object *lock, const char *wmesg,
+	    int flags, int queue);
 struct sleepqueue *sleepq_alloc(void);
-void	sleepq_broadcast(void *, int, int);
-void	sleepq_free(struct sleepqueue *);
-void	sleepq_lock(void *);
-struct sleepqueue *sleepq_lookup(void *);
-void	sleepq_release(void *);
-void	sleepq_remove(struct thread *, void *);
-void	sleepq_signal(void *, int, int);
+void	sleepq_broadcast(void *wchan, int flags, int pri, int queue);
+void	sleepq_free(struct sleepqueue *sq);
+void	sleepq_lock(void *wchan);
+struct sleepqueue *sleepq_lookup(void *wchan);
+void	sleepq_release(void *wchan);
+void	sleepq_remove(struct thread *td, void *wchan);
+void	sleepq_signal(void *wchan, int flags, int pri, int queue);
 void	sleepq_set_timeout(void *wchan, int timo);
 int	sleepq_timedwait(void *wchan);
 int	sleepq_timedwait_sig(void *wchan);
-void	sleepq_wait(void *);
+void	sleepq_wait(void *wchan);
 int	sleepq_wait_sig(void *wchan);
 
 #endif	/* _KERNEL */
