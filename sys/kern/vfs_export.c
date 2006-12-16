@@ -234,8 +234,10 @@ vfs_export(struct mount *mp, struct export_args *argp)
 
 	nep = mp->mnt_export;
 	if (argp->ex_flags & MNT_DELEXPORT) {
-		if (nep == NULL)
+		if (nep == NULL) {
+			vfs_deleteopt(mp->mnt_optnew, "export");
 			return (ENOENT);
+		}
 		if (mp->mnt_flag & MNT_EXPUBLIC) {
 			vfs_setpublicfs(NULL, NULL, NULL);
 			MNT_ILOCK(mp);
@@ -249,6 +251,7 @@ vfs_export(struct mount *mp, struct export_args *argp)
 		MNT_ILOCK(mp);
 		mp->mnt_flag &= ~(MNT_EXPORTED | MNT_DEFEXPORTED);
 		MNT_IUNLOCK(mp);
+		vfs_deleteopt(mp->mnt_optnew, "export");
 	}
 	if (argp->ex_flags & MNT_EXPORTED) {
 		if (nep == NULL) {
