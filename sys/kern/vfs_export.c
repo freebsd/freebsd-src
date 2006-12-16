@@ -83,10 +83,8 @@ struct netexport {
  * Called by ufs_mount() to set up the lists of export addresses.
  */
 static int
-vfs_hang_addrlist(mp, nep, argp)
-	struct mount *mp;
-	struct netexport *nep;
-	struct export_args *argp;
+vfs_hang_addrlist(struct mount *mp, struct netexport *nep,
+    struct export_args *argp)
 {
 	register struct netcred *np;
 	register struct radix_node_head *rnh;
@@ -194,9 +192,7 @@ out:
 /* Helper for vfs_free_addrlist. */
 /* ARGSUSED */
 static int
-vfs_free_netcred(rn, w)
-	struct radix_node *rn;
-	void *w;
+vfs_free_netcred(struct radix_node *rn, void *w)
 {
 	register struct radix_node_head *rnh = (struct radix_node_head *) w;
 
@@ -209,8 +205,7 @@ vfs_free_netcred(rn, w)
  * Free the net address hash lists that are hanging off the mount points.
  */
 static void
-vfs_free_addrlist(nep)
-	struct netexport *nep;
+vfs_free_addrlist(struct netexport *nep)
 {
 	register int i;
 	register struct radix_node_head *rnh;
@@ -232,9 +227,7 @@ vfs_free_addrlist(nep)
  * the structure is described in sys/mount.h
  */
 int
-vfs_export(mp, argp)
-	struct mount *mp;
-	struct export_args *argp;
+vfs_export(struct mount *mp, struct export_args *argp)
 {
 	struct netexport *nep;
 	int error;
@@ -283,10 +276,8 @@ vfs_export(mp, argp)
  * one public filesystem is possible in the spec (RFC 2054 and 2055)
  */
 int
-vfs_setpublicfs(mp, nep, argp)
-	struct mount *mp;
-	struct netexport *nep;
-	struct export_args *argp;
+vfs_setpublicfs(struct mount *mp, struct netexport *nep,
+    struct export_args *argp)
 {
 	int error;
 	struct vnode *rvp;
@@ -411,11 +402,8 @@ vfs_export_lookup(struct mount *mp, struct sockaddr *nam)
  */
 
 int 
-vfs_stdcheckexp(mp, nam, extflagsp, credanonp)
-	struct mount *mp;
-	struct sockaddr *nam;
-	int *extflagsp;
-	struct ucred **credanonp;
+vfs_stdcheckexp(struct mount *mp, struct sockaddr *nam, int *extflagsp,
+    struct ucred **credanonp)
 {
 	struct netcred *np;
 
