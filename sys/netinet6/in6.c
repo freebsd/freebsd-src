@@ -1904,7 +1904,7 @@ ip6_sprintf(char *ip6buf, const struct in6_addr *addr)
 	char *cp;
 	const u_int16_t *a = (const u_int16_t *)addr;
 	const u_int8_t *d;
-	int dcolon = 0;
+	int dcolon = 0, zero = 0;
 
 	cp = ip6buf;
 
@@ -1932,9 +1932,23 @@ ip6_sprintf(char *ip6buf, const struct in6_addr *addr)
 			continue;
 		}
 		d = (const u_char *)a;
-		*cp++ = digits[*d >> 4];
-		*cp++ = digits[*d++ & 0xf];
-		*cp++ = digits[*d >> 4];
+		/* Try to eliminate leading zeros in printout like in :0001. */
+		zero = 1;
+		*cp = digits[*d >> 4];
+		if (*cp != '0') {
+			zero = 0;
+			cp++;
+		}
+		*cp = digits[*d++ & 0xf];
+		if (zero == 0 || (*cp != '0')) {
+			zero = 0;
+			cp++;
+		}
+		*cp = digits[*d >> 4];
+		if (zero == 0 || (*cp != '0')) {
+			zero = 0;
+			cp++;
+		}
 		*cp++ = digits[*d & 0xf];
 		*cp++ = ':';
 		a++;
