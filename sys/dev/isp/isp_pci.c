@@ -81,6 +81,7 @@ static void
 isp_pci_dmateardown(ispsoftc_t *, XS_T *, uint32_t);
 
 
+static void isp_pci_reset0(ispsoftc_t *);
 static void isp_pci_reset1(ispsoftc_t *);
 static void isp_pci_dumpregs(ispsoftc_t *, const char *);
 
@@ -91,7 +92,7 @@ static struct ispmdvec mdvec = {
 	isp_pci_mbxdma,
 	isp_pci_dmasetup,
 	isp_pci_dmateardown,
-	NULL,
+	isp_pci_reset0,
 	isp_pci_reset1,
 	isp_pci_dumpregs,
 	NULL,
@@ -105,7 +106,7 @@ static struct ispmdvec mdvec_1080 = {
 	isp_pci_mbxdma,
 	isp_pci_dmasetup,
 	isp_pci_dmateardown,
-	NULL,
+	isp_pci_reset0,
 	isp_pci_reset1,
 	isp_pci_dumpregs,
 	NULL,
@@ -119,7 +120,7 @@ static struct ispmdvec mdvec_12160 = {
 	isp_pci_mbxdma,
 	isp_pci_dmasetup,
 	isp_pci_dmateardown,
-	NULL,
+	isp_pci_reset0,
 	isp_pci_reset1,
 	isp_pci_dumpregs,
 	NULL,
@@ -133,7 +134,7 @@ static struct ispmdvec mdvec_2100 = {
 	isp_pci_mbxdma,
 	isp_pci_dmasetup,
 	isp_pci_dmateardown,
-	NULL,
+	isp_pci_reset0,
 	isp_pci_reset1,
 	isp_pci_dumpregs
 };
@@ -145,7 +146,7 @@ static struct ispmdvec mdvec_2200 = {
 	isp_pci_mbxdma,
 	isp_pci_dmasetup,
 	isp_pci_dmateardown,
-	NULL,
+	isp_pci_reset0,
 	isp_pci_reset1,
 	isp_pci_dumpregs
 };
@@ -157,7 +158,7 @@ static struct ispmdvec mdvec_2300 = {
 	isp_pci_mbxdma,
 	isp_pci_dmasetup,
 	isp_pci_dmateardown,
-	NULL,
+	isp_pci_reset0,
 	isp_pci_reset1,
 	isp_pci_dumpregs
 };
@@ -169,7 +170,7 @@ static struct ispmdvec mdvec_2400 = {
 	isp_pci_mbxdma,
 	isp_pci_dmasetup,
 	isp_pci_dmateardown,
-	NULL,
+	isp_pci_reset0,
 	isp_pci_reset1,
 	NULL
 };
@@ -2880,6 +2881,12 @@ isp_pci_dmateardown(ispsoftc_t *isp, XS_T *xs, uint32_t handle)
 	bus_dmamap_unload(pcs->dmat, *dp);
 }
 
+
+static void
+isp_pci_reset0(ispsoftc_t *isp)
+{
+	ISP_DISABLE_INTS(isp);
+}
 
 static void
 isp_pci_reset1(ispsoftc_t *isp)
