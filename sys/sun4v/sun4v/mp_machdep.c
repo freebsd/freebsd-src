@@ -395,8 +395,8 @@ cpu_mp_bootstrap(struct pcpu *pc)
 
 	smp_cpus++;
 	KASSERT(curthread != NULL, ("cpu_mp_bootstrap: curthread"));
-	PCPU_SET(other_cpus, all_cpus & ~(1 << PCPU_GET(cpuid)));
-	printf("AP: #%d\n", PCPU_GET(cpuid));
+	PCPU_SET(other_cpus, all_cpus & ~(1 << curcpu));
+	printf("AP: #%d\n", curcpu);
 	csa->csa_count--;
 	membar(StoreLoad);
 	csa->csa_state = CPU_BOOTSTRAP;
@@ -442,8 +442,8 @@ void
 cpu_ipi_stop(struct trapframe *tf)
 {
 
-	CTR1(KTR_SMP, "cpu_ipi_stop: stopped %d", PCPU_GET(cpuid));
-	savectx(&stoppcbs[PCPU_GET(cpuid)]);
+	CTR1(KTR_SMP, "cpu_ipi_stop: stopped %d", curcpu);
+	savectx(&stoppcbs[curcpu]);
 	atomic_set_acq_int(&stopped_cpus, PCPU_GET(cpumask));
 	while ((started_cpus & PCPU_GET(cpumask)) == 0) {
 		if ((shutdown_cpus & PCPU_GET(cpumask)) != 0) {
@@ -452,7 +452,7 @@ cpu_ipi_stop(struct trapframe *tf)
 	}
 	atomic_clear_rel_int(&started_cpus, PCPU_GET(cpumask));
 	atomic_clear_rel_int(&stopped_cpus, PCPU_GET(cpumask));
-	CTR1(KTR_SMP, "cpu_ipi_stop: restarted %d", PCPU_GET(cpuid));
+	CTR1(KTR_SMP, "cpu_ipi_stop: restarted %d", curcpu);
 }
 
 void
