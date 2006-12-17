@@ -175,13 +175,14 @@ static vm_paddr_t pmap_bootstrap_alloc(vm_size_t size);
 /*
  * Kernel MMU interface
  */
+#define curthread_pmap vmspace_pmap(curthread->td_proc->p_vmspace) 
 
 #ifdef PMAP_DEBUG
 #define KDPRINTF if (pmap_debug) printf
 #define DPRINTF \
-	if (PCPU_GET(curpmap) && (PCPU_GET(curpmap)->pm_context != 0) && ((PCPU_GET(cpumask) & PCPU_GET(curpmap)->pm_active)) == 0) \
+	if (curthread_pmap && (curthread_pmap->pm_context != 0) && ((PCPU_GET(cpumask) & curthread_pmap->pm_active) == 0)) \
    	panic("cpumask(0x%x) & active (0x%x) == 0 pid == %d\n",  \
-	      PCPU_GET(cpumask), PCPU_GET(curpmap)->pm_active, curthread->td_proc->p_pid); \
+	      PCPU_GET(cpumask), curthread_pmap->pm_active, curthread->td_proc->p_pid); \
 if (pmap_debug) printf
 
 
@@ -1722,7 +1723,9 @@ pmap_pinit0(pmap_t pmap)
 	pmap->pm_context = 0;
 	pmap->pm_tsb_ra = kernel_pmap->pm_tsb_ra;
 	pmap->pm_hash = kernel_pmap->pm_hash;
+	critical_enter();
 	PCPU_SET(curpmap, pmap);
+	critical_exit();
 	TAILQ_INIT(&pmap->pm_pvlist);
 	bzero(&pmap->pm_stats, sizeof pmap->pm_stats);
 }
@@ -2121,7 +2124,7 @@ pmap_tsb_resize(pmap_t pmap)
 	hv_tsb_info_t hvtsb;
 	uint64_t tsbscratch;
 
-	KASSERT(pmap == PCPU_GET(curpmap), ("operating on non-current pmap"));
+	KASSERT(pmap == curthread_pmap, ("operating on non-current pmap"));
 	miss_count = pmap->pm_tsb_miss_count;
 	cap_miss_count = pmap->pm_tsb_cap_miss_count;
 	int npages_shift = tsb_page_shift(pmap);
