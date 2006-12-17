@@ -128,9 +128,11 @@ ENTRY(vm86_bioscall)
 #endif
 	movl	%ecx,%cr3		/* new page tables */
 	movl	SCR_VMFRAME(%edx),%esp	/* switch to new stack */
-	
-	call	vm86_prepcall		/* finish setup */
 
+	pushl	%esp
+	call	vm86_prepcall		/* finish setup */
+	add	$4, %esp
+	
 	/*
 	 * Return via doreti
 	 */

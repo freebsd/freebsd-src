@@ -612,18 +612,18 @@ lapic_eoi(void)
 }
 
 void
-lapic_handle_intr(int vector, struct trapframe frame)
+lapic_handle_intr(int vector, struct trapframe *frame)
 {
 	struct intsrc *isrc;
 
 	if (vector == -1)
 		panic("Couldn't get vector from ISR!");
 	isrc = intr_lookup_source(apic_idt_to_irq(vector));
-	intr_execute_handlers(isrc, &frame);
+	intr_execute_handlers(isrc, frame);
 }
 
 void
-lapic_handle_timer(struct trapframe frame)
+lapic_handle_timer(struct trapframe *frame)
 {
 	struct lapic *la;
 
@@ -656,16 +656,16 @@ lapic_handle_timer(struct trapframe frame)
 	if (la->la_hard_ticks >= lapic_timer_hz) {
 		la->la_hard_ticks -= lapic_timer_hz;
 		if (PCPU_GET(cpuid) == 0)
-			hardclock(TRAPF_USERMODE(&frame), TRAPF_PC(&frame));
+			hardclock(TRAPF_USERMODE(frame), TRAPF_PC(frame));
 		else
-			hardclock_cpu(TRAPF_USERMODE(&frame));
+			hardclock_cpu(TRAPF_USERMODE(frame));
 	}
 
 	/* Fire statclock at stathz. */
 	la->la_stat_ticks += stathz;
 	if (la->la_stat_ticks >= lapic_timer_hz) {
 		la->la_stat_ticks -= lapic_timer_hz;
-		statclock(TRAPF_USERMODE(&frame));
+		statclock(TRAPF_USERMODE(frame));
 	}
 
 	/* Fire profclock at profhz, but only when needed. */
@@ -673,7 +673,7 @@ lapic_handle_timer(struct trapframe frame)
 	if (la->la_prof_ticks >= lapic_timer_hz) {
 		la->la_prof_ticks -= lapic_timer_hz;
 		if (profprocs != 0)
-			profclock(TRAPF_USERMODE(&frame), TRAPF_PC(&frame));
+			profclock(TRAPF_USERMODE(frame), TRAPF_PC(frame));
 	}
 	critical_exit();
 }
