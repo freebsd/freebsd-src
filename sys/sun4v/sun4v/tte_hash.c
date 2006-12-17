@@ -357,7 +357,7 @@ tte_hash_allocate_fragment_entry(tte_hash_t th)
  * 
  */
 static __inline tte_t 
-_tte_hash_lookup(tte_hash_entry_t entry, tte_t tte_tag, boolean_t insert)
+_tte_hash_lookup(tte_hash_entry_t entry, tte_t tte_tag, tte_hash_field_t *field)
 {
 	int i;
 	tte_t tte_data;
@@ -369,7 +369,7 @@ _tte_hash_lookup(tte_hash_entry_t entry, tte_t tte_tag, boolean_t insert)
 		for (i = 0; i < entry->of.count; i++) {
 			if (fields[i].tag == tte_tag) {
 				tte_data = (fields[i].data & ~VTD_LOCK);
-				PCPU_SET(lookup_field, (u_long)&fields[i]);
+				*field = &fields[i];
 				goto done;
 			}
 		}
@@ -387,7 +387,7 @@ done:
 
 
 static __inline void
-tte_hash_lookup_last_inline(tte_hash_entry_t entry)
+_tte_hash_lookup_last(tte_hash_entry_t entry, tte_hash_field_t *field)
 {
 
 	tte_hash_field_t fields;
@@ -398,7 +398,7 @@ tte_hash_lookup_last_inline(tte_hash_entry_t entry)
 		entry = entry->of.next;
 
 	if (entry->of.next && entry->of.next->of.count == 1) {
-		PCPU_SET(last_field, (u_long)&entry->of.next->the_fields[0]);
+		*field = &entry->of.next->the_fields[0];
 		entry->of.next = NULL;
 		entry->of.flags = 0;
 	} else {
@@ -406,7 +406,7 @@ tte_hash_lookup_last_inline(tte_hash_entry_t entry)
 		if (entry->of.count == 0)
 			panic("count zero");
 #endif
-		PCPU_SET(last_field, (u_long)&entry->the_fields[--entry->of.count]);
+		*field = &entry->the_fields[--entry->of.count];
 	}
 }
 
@@ -416,21 +416,17 @@ tte_hash_clear_bits(tte_hash_t th, vm_offset_t va, uint64_t flags)
 	uint64_t s;
 	tte_hash_entry_t entry;
 	tte_t otte_data, tte_tag;
+	tte_hash_field_t field = NULL;
 
 	/* XXX - only handle 8K pages for now */
-	critical_enter();
 	entry = find_entry(th, va, PAGE_SHIFT);
 
 	tte_tag = (((uint64_t)th->th_context << TTARGET_CTX_SHIFT)|(va >> TTARGET_VA_SHIFT));
 	
 	s = hash_bucket_lock(entry->the_fields);
-	if((otte_data = _tte_hash_lookup(entry, tte_tag, FALSE)) != 0)
-		tte_hash_set_field((tte_hash_field_t)PCPU_GET(lookup_field), 
-				   ((tte_hash_field_t)PCPU_GET(lookup_field))->tag, 
-				   ((tte_hash_field_t)PCPU_GET(lookup_field))->data & ~flags);
-
+	if((otte_data = _tte_hash_lookup(entry, tte_tag, &field)) != 0)
+		tte_hash_set_field(field, field->tag, field->data & ~flags);
 	hash_bucket_unlock(entry->the_fields, s);
-	critical_exit();
 	return (otte_data);
 }
 
@@ -440,43 +436,41 @@ tte_hash_delete(tte_hash_t th, vm_offset_t va)
 	uint64_t s;
 	tte_hash_entry_t entry;
 	tte_t tte_data, tte_tag;
+	tte_hash_field_t lookup_field = NULL; 
+	tte_hash_field_t last_field = NULL;
 
 	/* XXX - only handle 8K pages for now */
-	critical_enter();
 	entry = find_entry(th, va, PAGE_SHIFT);
 
 	tte_tag = (((uint64_t)th->th_context << TTARGET_CTX_SHIFT)|(va >> TTARGET_VA_SHIFT));
 
 	s  = hash_bucket_lock(entry->the_fields);
 	
-	if ((tte_data = _tte_hash_lookup(entry, tte_tag, FALSE)) == 0) 
+	if ((tte_data = _tte_hash_lookup(entry, tte_tag, &lookup_field)) == 0) 
 		goto done;
 
-	tte_hash_lookup_last_inline(entry);
+	_tte_hash_lookup_last(entry, &last_field);
 
 #ifdef DEBUG
-	if (((tte_hash_field_t)PCPU_GET(last_field))->tag == 0) {
+	if (last_field->tag == 0) {
 		hash_bucket_unlock(entry->the_fields, s);
 		panic("lookup_last failed for va=0x%lx\n", va);
 	}
 #endif
 	/* move last field's values in to the field we are deleting */
-	if (PCPU_GET(lookup_field) != PCPU_GET(last_field)) 
-		tte_hash_set_field((tte_hash_field_t)PCPU_GET(lookup_field), 
-				   ((tte_hash_field_t)PCPU_GET(last_field))->tag, 
-				   ((tte_hash_field_t)PCPU_GET(last_field))->data);
+	if (lookup_field != last_field) 
+		tte_hash_set_field(lookup_field, last_field->tag, last_field->data);
 	
-	tte_hash_set_field((tte_hash_field_t)PCPU_GET(last_field), 0, 0);
+	tte_hash_set_field(last_field, 0, 0);
 done:	
 	hash_bucket_unlock(entry->the_fields, s);
 	if (tte_data) 
 		th->th_entries--;
 
-	critical_exit();
 	return (tte_data);
 }
 
-static int 
+static __inline int 
 tte_hash_insert_locked(tte_hash_t th, tte_hash_entry_t entry, uint64_t tte_tag, tte_t tte_data)
 {
 	tte_hash_entry_t lentry;
@@ -491,7 +485,7 @@ tte_hash_insert_locked(tte_hash_t th, tte_hash_entry_t entry, uint64_t tte_tag, 
 	return (0);
 }
 
-static void
+static __inline void
 tte_hash_extend_locked(tte_hash_t th, tte_hash_entry_t entry, tte_hash_entry_t newentry, uint64_t tte_tag, tte_t tte_data)
 {
 	tte_hash_entry_t lentry;
@@ -516,7 +510,6 @@ tte_hash_insert(tte_hash_t th, vm_offset_t va, tte_t tte_data)
 	if (tte_hash_lookup(th, va) != 0) 
 		panic("mapping for va=0x%lx already exists", va);
 #endif
-	critical_enter();
 	entry = find_entry(th, va, PAGE_SHIFT); /* should actually be a function of tte_data */
 	tte_tag = (((uint64_t)th->th_context << TTARGET_CTX_SHIFT)|(va >> TTARGET_VA_SHIFT));
 
@@ -530,7 +523,6 @@ tte_hash_insert(tte_hash_t th, vm_offset_t va, tte_t tte_data)
 		tte_hash_extend_locked(th, entry, newentry, tte_tag, tte_data);
 		hash_bucket_unlock(entry->the_fields, s);
 	}
-	critical_exit();
 
 #ifdef DEBUG
 	if (tte_hash_lookup(th, va) == 0) 
@@ -548,14 +540,14 @@ tte_hash_lookup(tte_hash_t th, vm_offset_t va)
 	uint64_t s;
 	tte_hash_entry_t entry;
 	tte_t tte_data, tte_tag;
-
+	tte_hash_field_t field = NULL;
 	/* XXX - only handle 8K pages for now */
 	entry = find_entry(th, va, PAGE_SHIFT);
 
 	tte_tag = (((uint64_t)th->th_context << TTARGET_CTX_SHIFT)|(va >> TTARGET_VA_SHIFT));
 
 	s = hash_bucket_lock(entry->the_fields);
-	tte_data = _tte_hash_lookup(entry, tte_tag, FALSE);
+	tte_data = _tte_hash_lookup(entry, tte_tag, &field);
 	hash_bucket_unlock(entry->the_fields, s);
 	
 	return (tte_data);
@@ -595,23 +587,21 @@ tte_hash_update(tte_hash_t th, vm_offset_t va, tte_t tte_data)
 	uint64_t s;
 	tte_hash_entry_t entry;
 	tte_t otte_data, tte_tag;
+	tte_hash_field_t field = NULL;
 
 	entry = find_entry(th, va, PAGE_SHIFT); /* should actualy be a function of tte_data */
 
 	tte_tag = (((uint64_t)th->th_context << TTARGET_CTX_SHIFT)|(va >> TTARGET_VA_SHIFT));
-	critical_enter();
 	s = hash_bucket_lock(entry->the_fields);
-	otte_data = _tte_hash_lookup(entry, tte_tag, TRUE);
+	otte_data = _tte_hash_lookup(entry, tte_tag, &field);
 
 	if (otte_data == 0) {
 		hash_bucket_unlock(entry->the_fields, s);
 		tte_hash_insert(th, va, tte_data);
 	} else {
-		tte_hash_set_field((tte_hash_field_t)PCPU_GET(lookup_field), 
-				   tte_tag, tte_data);
+		tte_hash_set_field(field, tte_tag, tte_data);
 		hash_bucket_unlock(entry->the_fields, s);
 	}
-	critical_exit();
 	return (otte_data);
 }
 
@@ -633,7 +623,6 @@ tte_hash_resize(tte_hash_t th)
 	tte_hash_entry_t src_entry, dst_entry, newentry;
 
 	KASSERT(th != &kernel_tte_hash,("tte_hash_resize not supported for this pmap"));
-	critical_enter();
 	if ((newth = tte_hash_cached_get((th->th_shift - HASH_ENTRY_SHIFT) + 1)) != NULL) {
 		newth->th_context = th->th_context;
 		_tte_hash_reset(newth);
@@ -659,7 +648,7 @@ tte_hash_resize(tte_hash_t th)
 			src_entry = src_entry->of.next;
 		} while (src_entry);
 	}
-	critical_exit();
+
 	KASSERT(th->th_entries == newth->th_entries, 
 		("not all entries copied old=%d new=%d", th->th_entries, newth->th_entries));
 	
