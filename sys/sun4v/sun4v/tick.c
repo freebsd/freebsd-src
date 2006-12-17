@@ -88,7 +88,7 @@ static __inline void
 tick_process(struct trapframe *tf)
 {
 
-	if (PCPU_GET(cpuid) == 0)
+	if (curcpu == 0)
 		hardclock(TRAPF_USERMODE(tf), TRAPF_PC(tf));
 	else
 		hardclock_cpu(TRAPF_USERMODE(tf));
@@ -177,7 +177,7 @@ tick_start(void)
 {
 	u_long base, s;
 
-	if (PCPU_GET(cpuid) == 0)
+	if (curcpu == 0)
 		intr_setup(PIL_TICK, tick_hardclock, -1, NULL, NULL);
 
 	/*

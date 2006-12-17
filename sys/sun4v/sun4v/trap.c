@@ -245,7 +245,7 @@ trap_init(void)
 	vm_paddr_t mmfsa;
 	int i;
 
-	mmfsa = mmu_fault_status_area + (MMFSA_SIZE*PCPU_GET(cpuid));
+	mmfsa = mmu_fault_status_area + (MMFSA_SIZE*curcpu);
 	set_wstate(WSTATE_KERN);
 	set_mmfsa_scratchpad(mmfsa);
 
@@ -276,7 +276,7 @@ trap(struct trapframe *tf, int64_t type, uint64_t data)
 	register_t addr;
 	ksiginfo_t ksi;
 
-	td = PCPU_GET(curthread);
+	td = curthread;
 
 	CTR4(KTR_TRAP, "trap: %p type=%s (%s) pil=%#lx", td,
 	    trap_msg[trapno],
@@ -474,7 +474,7 @@ trap_pfault(struct thread *td, struct trapframe *tf, int64_t type, uint64_t data
 
 #if 0
 	CTR4(KTR_TRAP, "trap_pfault: td=%p pm_ctx=%#lx va=%#lx ctx=%#lx",
-	    td, p->p_vmspace->vm_pmap.pm_context[PCPU_GET(cpuid)], va, ctx);
+	    td, p->p_vmspace->vm_pmap.pm_context, va, ctx);
 #endif
 	KASSERT(td->td_pcb != NULL, ("trap_pfault: pcb NULL"));
 	KASSERT(td->td_proc != NULL, ("trap_pfault: curproc NULL"));
@@ -583,7 +583,7 @@ syscall(struct trapframe *tf)
 	int narg;
 	int error;
 
-	td = PCPU_GET(curthread);
+	td = curthread;
 	KASSERT(td != NULL, ("trap: curthread NULL"));
 	KASSERT(td->td_proc != NULL, ("trap: curproc NULL"));
 
