@@ -24,7 +24,6 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
  */
 
 #include <dev/sound/pcm/sound.h>
@@ -36,6 +35,8 @@
 #include <dev/pci/pcivar.h>
 
 #include "mixer_if.h"
+
+SND_DECLARE_FILE("$FreeBSD$");
 
 MALLOC_DEFINE(M_ENVY24HT, "envy24ht", "envy24ht audio");
 
@@ -307,7 +308,7 @@ static struct cfg_info cfg_table[] = {
                 &spi_codec,
         },
         {
-                "Envy24HT audio (Terratec PHASE 22)",
+                "Envy24HT-S audio (Terratec PHASE 22)",
                 0x153b, 0x1150,
                 0x10, 0x80, 0xf0, 0xc3,
                 0x7ffbc7, 0x7fffff, 0x438,
@@ -334,7 +335,7 @@ static struct cfg_info cfg_table[] = {
                 &spi_codec,
         },
         {
-                "Envy24HT audio (M-Audio Revolution 5.1)",
+                "Envy24GT audio (M-Audio Revolution 5.1)",
                 0x1412, 0x3631,
                 0x42, 0x80, 0xf8, 0xc1,
                 0x3fff85, 0x72, 0x4000fa,
@@ -1446,7 +1447,9 @@ envy24htchan_init(kobj_t obj, void *devinfo, struct snd_dbuf *b, struct pcm_chan
 		ch->dir = dir;
 		/* set channel map */
 		ch->num = envy24ht_chanmap[num];
+		snd_mtxunlock(sc->lock);
 		sndbuf_setup(ch->buffer, ch->data, ch->size);
+		snd_mtxlock(sc->lock);
 		/* these 2 values are dummy */
 		ch->unit = 4;
 		ch->blk = 10240;
@@ -1481,7 +1484,7 @@ envy24htchan_setformat(kobj_t obj, void *data, u_int32_t format)
 	struct sc_chinfo *ch = data;
 	struct sc_info *sc = ch->parent;
 	struct envy24ht_emldma *emltab;
-	unsigned int bcnt, bsize;
+	/* unsigned int bcnt, bsize; */
 	int i;
 
 #if(0)
@@ -1516,6 +1519,7 @@ envy24htchan_setformat(kobj_t obj, void *data, u_int32_t format)
 
 	/* set channel buffer information */
 	ch->size = ch->unit * ENVY24HT_SAMPLE_NUM;
+#if 0
 	if (ch->dir == PCMDIR_PLAY)
 		bsize = ch->blk * 4 / ENVY24HT_PLAY_BUFUNIT;
 	else
@@ -1523,6 +1527,7 @@ envy24htchan_setformat(kobj_t obj, void *data, u_int32_t format)
 	bsize *= ch->unit;
 	bcnt = ch->size / bsize;
 	sndbuf_resize(ch->buffer, bcnt, bsize);
+#endif
 	snd_mtxunlock(sc->lock);
 
 #if(0)
@@ -1568,14 +1573,15 @@ static int
 envy24htchan_setblocksize(kobj_t obj, void *data, u_int32_t blocksize)
 {
 	struct sc_chinfo *ch = data;
-	struct sc_info *sc = ch->parent;
+	/* struct sc_info *sc = ch->parent; */
 	u_int32_t size, prev;
+	unsigned int bcnt, bsize;
 
 #if(0)
 	device_printf(sc->dev, "envy24htchan_setblocksize(obj, data, %d)\n", blocksize);
 #endif
 	prev = 0x7fffffff;
-	snd_mtxlock(sc->lock);
+	/* snd_mtxlock(sc->lock); */
 	for (size = ch->size / 2; size > 0; size /= 2) {
 		if (abs(size - blocksize) < abs(prev - blocksize))
 			prev = size;
@@ -1588,7 +1594,16 @@ envy24htchan_setblocksize(kobj_t obj, void *data, u_int32_t blocksize)
 		ch->blk *= ENVY24HT_PLAY_BUFUNIT / 4;
 	else
 		ch->blk *= ENVY24HT_REC_BUFUNIT / 4;
-	snd_mtxunlock(sc->lock);
+        /* set channel buffer information */
+        /* ch->size = ch->unit * ENVY24HT_SAMPLE_NUM; */
+        if (ch->dir == PCMDIR_PLAY)
+                bsize = ch->blk * 4 / ENVY24HT_PLAY_BUFUNIT;
+        else
+                bsize = ch->blk * 4 / ENVY24HT_REC_BUFUNIT;
+        bsize *= ch->unit;
+        bcnt = ch->size / bsize;
+        sndbuf_resize(ch->buffer, bcnt, bsize);
+	/* snd_mtxunlock(sc->lock); */
 
 #if(0)
 	device_printf(sc->dev, "envy24htchan_setblocksize(): return %d\n", prev);
@@ -1919,8 +1934,11 @@ envy24ht_intr(void *p)
 			if (ch->run)
 				device_printf(sc->dev, "envy24ht_intr(): chan[%d].blk = %d\n", i, ch->blk);
 #endif
-			if (ch->run && ch->blk <= feed)
+			if (ch->run && ch->blk <= feed) {
+				snd_mtxunlock(sc->lock);
 				chn_intr(ch->channel);
+				snd_mtxlock(sc->lock);
+			}
 		}
 		sc->intr[0] = ptr;
 		envy24ht_updintr(sc, PCMDIR_PLAY);
@@ -1935,8 +1953,11 @@ envy24ht_intr(void *p)
 		feed = (ptr + dsize - sc->intr[1]) % dsize; 
 		for (i = ENVY24HT_CHAN_REC_ADC1; i <= ENVY24HT_CHAN_REC_SPDIF; i++) {
 			ch = &sc->chan[i];
-			if (ch->run && ch->blk <= feed)
+			if (ch->run && ch->blk <= feed) {
+				snd_mtxunlock(sc->lock);
 				chn_intr(ch->channel);
+				snd_mtxlock(sc->lock);
+			}
 		}
 		sc->intr[1] = ptr;
 		envy24ht_updintr(sc, PCMDIR_REC);
@@ -1986,33 +2007,33 @@ envy24ht_pci_probe(device_t dev)
 static void
 envy24ht_dmapsetmap(void *arg, bus_dma_segment_t *segs, int nseg, int error)
 {
-	struct sc_info *sc = (struct sc_info *)arg;
+	/* struct sc_info *sc = (struct sc_info *)arg; */
 
 #if(0)
 	device_printf(sc->dev, "envy24ht_dmapsetmap()\n");
-#endif
 	if (bootverbose) {
 		printf("envy24ht(play): setmap %lx, %lx; ",
 		    (unsigned long)segs->ds_addr,
 		    (unsigned long)segs->ds_len);
 		printf("%p -> %lx\n", sc->pmap, (unsigned long)vtophys(sc->pmap));
 	}
+#endif
 }
 
 static void
 envy24ht_dmarsetmap(void *arg, bus_dma_segment_t *segs, int nseg, int error)
 {
-	struct sc_info *sc = (struct sc_info *)arg;
+	/* struct sc_info *sc = (struct sc_info *)arg; */
 
 #if(0)
 	device_printf(sc->dev, "envy24ht_dmarsetmap()\n");
-#endif
 	if (bootverbose) {
 		printf("envy24ht(record): setmap %lx, %lx; ",
 		    (unsigned long)segs->ds_addr,
 		    (unsigned long)segs->ds_len);
 		printf("%p -> %lx\n", sc->rmap, (unsigned long)vtophys(sc->pmap));
 	}
+#endif
 }
 
 static void
@@ -2253,7 +2274,7 @@ envy24ht_init(struct sc_info *sc)
 		/* 2nd: read configuration from table */
 		sc->cfg = envy24ht_rom2cfg(sc);
 	}
-	sc->adcn = ((sc->cfg->scfg & ENVY24HT_CCSM_SCFG_ADC) >> 2) + 1; //need to be fixed
+	sc->adcn = ((sc->cfg->scfg & ENVY24HT_CCSM_SCFG_ADC) >> 2) + 1; /* need to be fixed */
 	sc->dacn = (sc->cfg->scfg & ENVY24HT_CCSM_SCFG_DAC) + 1;
 
 	if (1 /* bootverbose */) {
@@ -2409,14 +2430,15 @@ envy24ht_pci_attach(device_t dev)
 	mixer_init(dev, &envy24htmixer_class, sc);
 
 	/* set channel information */
-	err = pcm_register(dev, sc, 5, 2 + sc->adcn);
+	/* err = pcm_register(dev, sc, 5, 2 + sc->adcn); */
+	err = pcm_register(dev, sc, 1, 2 + sc->adcn);
 	if (err)
 		goto bad;
 	sc->chnum = 0;
-	for (i = 0; i < 5; i++) {
+	/* for (i = 0; i < 5; i++) { */
 		pcm_addchan(dev, PCMDIR_PLAY, &envy24htchan_class, sc);
 		sc->chnum++;
-	}
+	/* } */
 	for (i = 0; i < 2 + sc->adcn; i++) {
 		pcm_addchan(dev, PCMDIR_REC, &envy24htchan_class, sc);
 		sc->chnum++;
