@@ -558,7 +558,7 @@ atpic_init(void *dummy __unused)
 SYSINIT(atpic_init, SI_SUB_INTR, SI_ORDER_SECOND + 1, atpic_init, NULL)
 
 void
-atpic_handle_intr(u_int vector, struct trapframe frame)
+atpic_handle_intr(u_int vector, struct trapframe *frame)
 {
 	struct intsrc *isrc;
 
@@ -585,7 +585,7 @@ atpic_handle_intr(u_int vector, struct trapframe frame)
 		if ((isr & IRQ_MASK(7)) == 0)
 			return;
 	}
-	intr_execute_handlers(isrc, &frame);
+	intr_execute_handlers(isrc, frame);
 }
 
 #ifdef DEV_ISA
