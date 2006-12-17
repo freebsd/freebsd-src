@@ -295,18 +295,18 @@ sleepq_add(void *wchan, struct lock_object *lock, const char *wmesg, int flags,
 	 * into the sleep queue already in use by this wait channel.
 	 */
 	if (sq == NULL) {
-		sq = td->td_sleepqueue;
 #ifdef INVARIANTS
-		{
-			int i;
+		int i;
 
-			for (i = 0; i < NR_SLEEPQS; i++)
-				KASSERT(TAILQ_EMPTY(&sq->sq_blocked[i]),
+		sq = td->td_sleepqueue;
+		for (i = 0; i < NR_SLEEPQS; i++)
+			KASSERT(TAILQ_EMPTY(&sq->sq_blocked[i]),
 				("thread's sleep queue %d is not empty", i));
-		}
 		KASSERT(LIST_EMPTY(&sq->sq_free),
 		    ("thread's sleep queue has a non-empty free list"));
 		KASSERT(sq->sq_wchan == NULL, ("stale sq_wchan pointer"));
+		sq->sq_lock = lock;
+		sq->sq_type = flags & SLEEPQ_TYPE;
 #endif
 #ifdef SLEEPQUEUE_PROFILING
 		sc->sc_depth++;
@@ -316,12 +316,9 @@ sleepq_add(void *wchan, struct lock_object *lock, const char *wmesg, int flags,
 				sleepq_max_depth = sc->sc_max_depth;
 		}
 #endif
+		sq = td->td_sleepqueue;
 		LIST_INSERT_HEAD(&sc->sc_queues, sq, sq_hash);
 		sq->sq_wchan = wchan;
-#ifdef INVARIANTS
-		sq->sq_lock = lock;
-		sq->sq_type = flags & SLEEPQ_TYPE;
-#endif
 	} else {
 		MPASS(wchan == sq->sq_wchan);
 		MPASS(lock == sq->sq_lock);
