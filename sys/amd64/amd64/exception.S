@@ -165,6 +165,7 @@ alltraps_pushregs_no_rdi:
 	.globl	calltrap
 	.type	calltrap,@function
 calltrap:
+	movq	%rsp, %rdi
 	call	trap
 	MEXITCOUNT
 	jmp	doreti			/* Handle any pending ASTs */
@@ -267,6 +268,7 @@ IDTVEC(fast_syscall)
 	movq	%r14,TF_R14(%rsp)	/* C preserved */
 	movq	%r15,TF_R15(%rsp)	/* C preserved */
 	FAKE_MCOUNT(TF_RIP(%rsp))
+	movq	%rsp, %rdi
 	call	syscall
 	movq	PCPU(CURPCB),%rax
 	testq	$PCB_FULLCTX,PCB_FLAGS(%rax)
