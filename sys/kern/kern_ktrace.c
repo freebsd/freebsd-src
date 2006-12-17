@@ -124,7 +124,6 @@ SYSCTL_UINT(_kern_ktrace, OID_AUTO, genio_size, CTLFLAG_RW, &ktr_geniosize,
 
 static int print_message = 1;
 struct mtx ktrace_mtx;
-static struct cv ktrace_cv;
 static struct sx ktrace_sx;
 
 static void ktrace_init(void *dummy);
@@ -175,7 +174,6 @@ ktrace_init(void *dummy)
 
 	mtx_init(&ktrace_mtx, "ktrace", NULL, MTX_DEF | MTX_QUIET);
 	sx_init(&ktrace_sx, "ktrace_sx");
-	cv_init(&ktrace_cv, "ktrace");
 	STAILQ_INIT(&ktr_free);
 	for (i = 0; i < ktr_requestpool; i++) {
 		req = malloc(sizeof(struct ktr_request), M_KTRACE, M_WAITOK);
