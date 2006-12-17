@@ -1287,10 +1287,10 @@ vm_object_shadow(
 void
 vm_object_split(vm_map_entry_t entry)
 {
-	vm_page_t m;
+	vm_page_t m, m_next;
 	vm_object_t orig_object, new_object, source;
-	vm_pindex_t offidxstart;
-	vm_size_t idx, size;
+	vm_pindex_t idx, offidxstart;
+	vm_size_t size;
 
 	orig_object = entry->object.vm_object;
 	if (orig_object->type != OBJT_DEFAULT && orig_object->type != OBJT_SWAP)
@@ -1325,12 +1325,18 @@ vm_object_split(vm_map_entry_t entry)
 		new_object->backing_object = source;
 	}
 	new_object->flags |= orig_object->flags & OBJ_NEEDGIANT;
+retry:
+	if ((m = TAILQ_FIRST(&orig_object->memq)) != NULL) {
+		if (m->pindex < offidxstart) {
+			m = vm_page_splay(offidxstart, orig_object->root);
+			if ((orig_object->root = m)->pindex < offidxstart)
+				m = TAILQ_NEXT(m, listq);
+		}
+	}
 	vm_page_lock_queues();
-	for (idx = 0; idx < size; idx++) {
-	retry:
-		m = vm_page_lookup(orig_object, offidxstart + idx);
-		if (m == NULL)
-			continue;
+	for (; m != NULL && (idx = m->pindex - offidxstart) < size;
+	    m = m_next) {
+		m_next = TAILQ_NEXT(m, listq);
 
 		/*
 		 * We must wait for pending I/O to complete before we can
@@ -1347,7 +1353,6 @@ vm_object_split(vm_map_entry_t entry)
 			msleep(m, VM_OBJECT_MTX(orig_object), PDROP | PVM, "spltwt", 0);
 			VM_OBJECT_LOCK(new_object);
 			VM_OBJECT_LOCK(orig_object);
-			vm_page_lock_queues();
 			goto retry;
 		}
 		vm_page_rename(m, new_object, idx);
