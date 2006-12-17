@@ -163,7 +163,7 @@
 #define ENVY24HT_CHAN_REC_SPDIF  9
 #define ENVY24HT_CHAN_REC_MIX   10
 
-#define ENVY24HT_MIX_MASK     0x3ff
+#define ENVY24HT_MIX_MASK     0x3fd
 #define ENVY24HT_MIX_REC_MASK 0x3e0
 
 /* volume value constants */
