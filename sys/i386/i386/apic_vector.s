@@ -63,9 +63,10 @@ IDTVEC(vec_name) ;							\
 	jz	2f ;							\
 	addl	$(32 * index),%eax ;					\
 1: ;									\
+	pushl	%esp		;                                       \
 	pushl	%eax ;		/* pass the IRQ */			\
 	call	lapic_handle_intr ;					\
-	addl	$4, %esp ;	/* discard parameter */			\
+	addl	$8, %esp ;	/* discard parameter */			\
 	MEXITCOUNT ;							\
 	jmp	doreti ;						\
 2:	movl	$-1, %eax ;	/* send a vector of -1 */		\
@@ -103,8 +104,9 @@ IDTVEC(timerint)
 	PUSH_FRAME
 	SET_KERNEL_SREGS
 	FAKE_MCOUNT(TF_EIP(%esp))
-
+	pushl	%esp
 	call	lapic_handle_timer
+	add	$4, %esp
 	MEXITCOUNT
 	jmp	doreti
 

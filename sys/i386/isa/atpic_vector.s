@@ -51,9 +51,10 @@ IDTVEC(vec_name) ;							\
 	SET_KERNEL_SREGS ;						\
 ;									\
 	FAKE_MCOUNT(TF_EIP(%esp)) ;					\
+	pushl	%esp		;                                       \
 	pushl	$irq_num; 	/* pass the IRQ */			\
 	call	atpic_handle_intr ;					\
-	addl	$4, %esp ;	/* discard the parameter */		\
+	addl	$8, %esp ;	/* discard the parameters */		\
 ;									\
 	MEXITCOUNT ;							\
 	jmp	doreti

@@ -135,8 +135,10 @@ alltraps_with_regs_pushed:
 	SET_KERNEL_SREGS
 	FAKE_MCOUNT(TF_EIP(%esp))
 calltrap:
+	pushl	%esp
 	call	trap
-
+	add	$4, %esp
+	
 	/*
 	 * Return via doreti to handle ASTs.
 	 */
@@ -167,7 +169,9 @@ IDTVEC(lcall_syscall)
 	pushl	%fs
 	SET_KERNEL_SREGS
 	FAKE_MCOUNT(TF_EIP(%esp))
+	pushl	%esp
 	call	syscall
+	add	$4, %esp
 	MEXITCOUNT
 	jmp	doreti
 
@@ -188,7 +192,9 @@ IDTVEC(int0x80_syscall)
 	pushl	%fs
 	SET_KERNEL_SREGS
 	FAKE_MCOUNT(TF_EIP(%esp))
+	pushl	%esp
 	call	syscall
+	add	$4, %esp
 	MEXITCOUNT
 	jmp	doreti
 
