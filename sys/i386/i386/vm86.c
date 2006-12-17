@@ -509,18 +509,12 @@ full:
 static void
 vm86_initflags(struct vm86frame *vmf)
 {
-	int eflags = vmf->vmf_eflags;
 	struct vm86_kernel *vm86 = &PCPU_GET(curpcb)->pcb_ext->ext_vm86;
 
-	if (vm86->vm86_has_vme) {
-		eflags = (vmf->vmf_eflags & ~VME_USERCHANGE) |
-		    (eflags & VME_USERCHANGE) | PSL_VM;
-	} else {
-		vm86->vm86_eflags = eflags;     /* save VIF, VIP */
-		eflags = (vmf->vmf_eflags & ~VM_USERCHANGE) |             
-		    (eflags & VM_USERCHANGE) | PSL_VM;
-	}
-	vmf->vmf_eflags = eflags | PSL_VM;
+	if (!vm86->vm86_has_vme) 
+		vm86->vm86_eflags = vmf->vmf_eflags;  /* save VIF, VIP */
+
+	vmf->vmf_eflags |= PSL_VM;
 }
 
 /*
