@@ -209,7 +209,6 @@ ASSYM(PC_CNT, offsetof(struct pcpu, pc_cnt));
 ASSYM(PC_SIZEOF, sizeof(struct pcpu));
 
 #ifdef SUN4V
-ASSYM(PC_CALLER, offsetof(struct pcpu, pc_caller));
 ASSYM(PC_CPU_Q_RA, offsetof(struct pcpu, pc_cpu_q_ra));
 ASSYM(PC_CPU_Q_SIZE, offsetof(struct pcpu, pc_cpu_q_size));
 ASSYM(PC_DEV_Q_RA, offsetof(struct pcpu, pc_dev_q_ra));

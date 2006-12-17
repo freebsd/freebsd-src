@@ -68,16 +68,13 @@ struct pmap;
 	vm_paddr_t pc_nrq_ra;                                           \
 	uint64_t pc_nrq_size;                                           \
 	u_long	pc_tickref;						\
-	u_long  pc_lookup_field;                                        \
-	u_long  pc_last_field;                                          \
 	u_long	pc_tickadj;						\
 	struct rwindow pc_kwbuf;                                        \
 	u_long  pc_kwbuf_sp;                                            \
 	u_int   pc_kwbuf_full;                                          \
 	struct rwindow pc_tsbwbuf[2];                                   \
-        uint64_t pc_caller;                                             \
         uint16_t pc_cpulist[MAXCPU];                                    \
-        uint64_t pad[8];
+        uint64_t pad[11];
 
 	/* XXX SUN4V_FIXME - as we access the *_ra and *_size fields in quick
 	 * succession we _really_ want them to be L1 cache line size aligned
