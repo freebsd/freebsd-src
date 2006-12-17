@@ -49,6 +49,7 @@
 IDTVEC(vec_name) ;							\
 	PUSH_FRAME ;							\
 	FAKE_MCOUNT(TF_RIP(%rsp)) ;					\
+	movq	%rsp, %rsi	;                                       \
 	movl	$irq_num, %edi; 	/* pass the IRQ */		\
 	call	atpic_handle_intr ;					\
 	MEXITCOUNT ;							\
