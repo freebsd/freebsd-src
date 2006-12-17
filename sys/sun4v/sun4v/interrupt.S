@@ -404,18 +404,15 @@ ENTRY(tl_invlctx)
 	mov	MAP_ITLB|MAP_DTLB, %o3
 	mov	MMU_DEMAP_CTX, %o5
 	ta	FAST_TRAP
-	brz,pt	%o0, 1f
-	  nop
-	ba	interrupt_panic_bad_hcall
+	brnz,a,pn %o0, interrupt_panic_bad_hcall
 	  mov	MMU_DEMAP_CTX, %o1
-1:	
 	mov	%g2, %o0
 	mov	%g4, %o1
 	mov	%g5, %o2
 	mov	%g6, %o3
 	mov	%g7, %o5
-	ba,a,pt	%xcc, set_ackmask
-	  nop
+	ba,pt	%xcc, set_ackmask
+	  membar #Sync
 END(tl_invlctx)
 
 ENTRY(tl_invltlb)
@@ -423,24 +420,19 @@ ENTRY(tl_invltlb)
 	mov	%o1, %g2
 	mov	%o2, %g4
 	mov	%o5, %g5
-	
-	mov	%g0, %o0
-	mov	%g0, %o1
+	clr	%o0
+	clr	%o1
 	mov	MAP_ITLB | MAP_DTLB, %o2
 	mov	MMU_DEMAP_ALL, %o5
 	ta	FAST_TRAP
-	brz,pt	%o0, 1f
-	  nop
-	ba	interrupt_panic_bad_hcall
+	brnz,a,pn	%o0, interrupt_panic_bad_hcall
 	   mov	MMU_DEMAP_ALL, %o1
-1:
 	mov	%g1, %o0
 	mov	%g2, %o1
 	mov	%g4, %o2
 	mov	%g5, %o5
-	
-	ba,a,pt	%xcc, set_ackmask
-	  nop
+	ba,pt	%xcc, set_ackmask
+	  membar #Sync
 END(tl_invltlb)
 
 ENTRY(tl_invlpg)
@@ -449,18 +441,15 @@ ENTRY(tl_invlpg)
 	mov	%o2, %g7
 	mov	MAP_ITLB|MAP_DTLB, %o2
 	mov	%g1, %o0
-	mov	%g2, %o1							
+	mov	%g2, %o1
 	ta	MMU_UNMAP_ADDR
-	brz,pt	%o0, 1f
-	  nop
-	ba	interrupt_panic_bad_hcall
+	brnz,a,pn %o0, interrupt_panic_bad_hcall
 	   mov	MMU_UNMAP_ADDR, %o1
-1:
 	mov	%g5, %o0
 	mov	%g6, %o1
 	mov	%g7, %o2
-	ba,a,pt	%xcc, set_ackmask
-	  nop
+	ba,pt	%xcc, set_ackmask
+	  membar #Sync
 END(tl_invlpg)
 
 ENTRY(tl_tsbupdate)
@@ -470,16 +459,15 @@ ENTRY(tl_tsbupdate)
 	
 	cmp	%g1, %g4
 	bne,a,pt %xcc, set_ackmask			
-	  nop
+	  membar #Sync
 /*  update scratch pointer to tsbscratch */
 	wr	%g0, ASI_REAL, %asi	
 	ldxa	[%g2]%asi, %g4		! tsbscratch
 	ldxa	[%g2 + 8]%asi, %g2	! tsb_ra
 	mov	SCRATCH_REG_TSB_USER, %g5
 	SET_SCRATCH(%g5, %g4)
-/* reset tsb context with hypervisor */
 
-	
+/* reset tsb context with hypervisor */
 	mov	%o0, %g1
 	mov	%o1, %g2
 	mov	%o5, %g4
@@ -487,12 +475,13 @@ ENTRY(tl_tsbupdate)
 	mov	%g2, %o1
 	mov	MMU_TSB_CTXNON0, %o5
 	ta	FAST_TRAP
+	
 	/* XXX test %o0 */
-	mov	%g4, %o5
-	mov	%g2, %o1
 	mov	%g1, %o0	
-	ba,a,pt	%xcc, set_ackmask
-	  nop
+	mov	%g2, %o1
+	mov	%g4, %o5
+	ba,pt	%xcc, set_ackmask
+	  membar #Sync
 END(tl_tsbupdate)
 
 ENTRY(tl_ttehashupdate)
@@ -501,14 +490,13 @@ ENTRY(tl_ttehashupdate)
 	GET_MMU_CONTEXT(%g4, %g4)
 	cmp	%g1, %g4
 	bne,a,pt %xcc, set_ackmask
-	  nop
+	  membar #Sync
 /*  update scratch pointer to hashscratch */
 	mov	SCRATCH_REG_HASH_USER, %g4
 	SET_SCRATCH(%g4, %g2)
 END(tl_ttehashupdate)
 		
 ENTRY(set_ackmask)
-	membar	#Sync
 	GET_PCPU_PHYS_SCRATCH(%g6)
 	wr	%g0, ASI_REAL, %asi
 
@@ -535,7 +523,7 @@ ENTRY(set_ackmask)
 1:	or	%g1, %g4, %g2
 	casa	[%g3]%asi, %g1, %g2
 	cmp	%g1, %g2
-	bne,a,pn %icc, 1b
+	bne,a,pn %xcc, 1b
 	  lda	[%g3]%asi, %g1
 	retry
 END(set_ackmask)
