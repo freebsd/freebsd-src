@@ -86,10 +86,10 @@ __FBSDID("$FreeBSD$");
 extern inthand_t IDTVEC(int0x80_syscall), IDTVEC(rsvd);
 extern const char *freebsd32_syscallnames[];
 
-void ia32_syscall(struct trapframe frame);	/* Called from asm code */
+void ia32_syscall(struct trapframe *frame);	/* Called from asm code */
 
 void
-ia32_syscall(struct trapframe frame)
+ia32_syscall(struct trapframe *frame)
 {
 	caddr_t params;
 	int i;
@@ -111,18 +111,18 @@ ia32_syscall(struct trapframe frame)
 	PCPU_LAZY_INC(cnt.v_syscall);
 
 	td->td_pticks = 0;
-	td->td_frame = &frame;
+	td->td_frame = frame;
 	if (td->td_ucred != p->p_ucred) 
 		cred_update_thread(td);
-	params = (caddr_t)frame.tf_rsp + sizeof(u_int32_t);
-	code = frame.tf_rax;
-	orig_tf_rflags = frame.tf_rflags;
+	params = (caddr_t)frame->tf_rsp + sizeof(u_int32_t);
+	code = frame->tf_rax;
+	orig_tf_rflags = frame->tf_rflags;
 
 	if (p->p_sysent->sv_prepsyscall) {
 		/*
 		 * The prep code is MP aware.
 		 */
-		(*p->p_sysent->sv_prepsyscall)(&frame, args, &code, &params);
+		(*p->p_sysent->sv_prepsyscall)(frame, args, &code, &params);
 	} else {
 		/*
 		 * Need to check if this is a 32 bit or 64 bit syscall.
@@ -177,7 +177,7 @@ ia32_syscall(struct trapframe frame)
 
 	if (error == 0) {
 		td->td_retval[0] = 0;
-		td->td_retval[1] = frame.tf_rdx;
+		td->td_retval[1] = frame->tf_rdx;
 
 		STOPEVENT(p, S_SCE, narg);
 
@@ -190,9 +190,9 @@ ia32_syscall(struct trapframe frame)
 
 	switch (error) {
 	case 0:
-		frame.tf_rax = td->td_retval[0];
-		frame.tf_rdx = td->td_retval[1];
-		frame.tf_rflags &= ~PSL_C;
+		frame->tf_rax = td->td_retval[0];
+		frame->tf_rdx = td->td_retval[1];
+		frame->tf_rflags &= ~PSL_C;
 		break;
 
 	case ERESTART:
@@ -200,7 +200,7 @@ ia32_syscall(struct trapframe frame)
 		 * Reconstruct pc, assuming lcall $X,y is 7 bytes,
 		 * int 0x80 is 2 bytes. We saved this in tf_err.
 		 */
-		frame.tf_rip -= frame.tf_err;
+		frame->tf_rip -= frame->tf_err;
 		break;
 
 	case EJUSTRETURN:
@@ -213,8 +213,8 @@ ia32_syscall(struct trapframe frame)
    			else
   				error = p->p_sysent->sv_errtbl[error];
 		}
-		frame.tf_rax = error;
-		frame.tf_rflags |= PSL_C;
+		frame->tf_rax = error;
+		frame->tf_rflags |= PSL_C;
 		break;
 	}
 
@@ -222,11 +222,11 @@ ia32_syscall(struct trapframe frame)
 	 * Traced syscall.
 	 */
 	if (orig_tf_rflags & PSL_T) {
-		frame.tf_rflags &= ~PSL_T;
+		frame->tf_rflags &= ~PSL_T;
 		ksiginfo_init_trap(&ksi);
 		ksi.ksi_signo = SIGTRAP;
 		ksi.ksi_code = TRAP_TRACE;
-		ksi.ksi_addr = (void *)frame.tf_rip;
+		ksi.ksi_addr = (void *)frame->tf_rip;
 		trapsignal(td, &ksi);
 	}
 
@@ -246,7 +246,7 @@ ia32_syscall(struct trapframe frame)
 	/*
 	 * Handle reschedule and other end-of-syscall issues
 	 */
-	userret(td, &frame);
+	userret(td, frame);
 
 	CTR4(KTR_SYSC, "syscall exit thread %p pid %d proc %s code %d", td,
 	    td->td_proc->p_pid, td->td_proc->p_comm, code);

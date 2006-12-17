@@ -94,8 +94,8 @@ __FBSDID("$FreeBSD$");
 #endif
 #include <machine/tss.h>
 
-extern void trap(struct trapframe frame);
-extern void syscall(struct trapframe frame);
+extern void trap(struct trapframe *frame);
+extern void syscall(struct trapframe *frame);
 
 static int trap_pfault(struct trapframe *, int);
 static void trap_fatal(struct trapframe *, vm_offset_t);
@@ -155,8 +155,7 @@ extern char *syscallnames[];
  */
 
 void
-trap(frame)
-	struct trapframe frame;
+trap(struct trapframe *frame)
 {
 	struct thread *td = curthread;
 	struct proc *p = td->td_proc;
@@ -165,7 +164,7 @@ trap(frame)
 	ksiginfo_t ksi;
 
 	PCPU_LAZY_INC(cnt.v_trap);
-	type = frame.tf_trapno;
+	type = frame->tf_trapno;
 
 #ifdef SMP
 #ifdef STOP_NMI
@@ -192,12 +191,12 @@ trap(frame)
 	 * the NMI was handled by it and we can return immediately.
 	 */
 	if (type == T_NMI && pmc_intr &&
-	    (*pmc_intr)(PCPU_GET(cpuid), (uintptr_t) frame.tf_rip,
-		TRAPF_USERMODE(&frame)))
+	    (*pmc_intr)(PCPU_GET(cpuid), (uintptr_t) frame->tf_rip,
+		TRAPF_USERMODE(frame)))
 		goto out;
 #endif
 
-	if ((frame.tf_rflags & PSL_I) == 0) {
+	if ((frame->tf_rflags & PSL_I) == 0) {
 		/*
 		 * Buggy application or kernel code has disabled
 		 * interrupts and then trapped.  Enabling interrupts
@@ -205,7 +204,7 @@ trap(frame)
 		 * interrupts disabled until they are accidentally
 		 * enabled later.
 		 */
-		if (ISPL(frame.tf_cs) == SEL_UPL)
+		if (ISPL(frame->tf_cs) == SEL_UPL)
 			printf(
 			    "pid %ld (%s): trap %d with interrupts disabled\n",
 			    (long)curproc->p_pid, curproc->p_comm, type);
@@ -226,7 +225,7 @@ trap(frame)
 		}
 	}
 
-	code = frame.tf_err;
+	code = frame->tf_err;
 	if (type == T_PAGEFLT) {
 		/*
 		 * If we get a page fault while in a critical section, then
@@ -245,15 +244,15 @@ trap(frame)
 		if (td->td_critnest != 0 ||
 		    WITNESS_CHECK(WARN_SLEEPOK | WARN_GIANTOK, NULL,
 		    "Kernel page fault") != 0)
-			trap_fatal(&frame, frame.tf_addr);
+			trap_fatal(frame, frame->tf_addr);
 	}
 
-        if (ISPL(frame.tf_cs) == SEL_UPL) {
+        if (ISPL(frame->tf_cs) == SEL_UPL) {
 		/* user trap */
 
 		td->td_pticks = 0;
-		td->td_frame = &frame;
-		addr = frame.tf_rip;
+		td->td_frame = frame;
+		addr = frame->tf_rip;
 		if (td->td_ucred != p->p_ucred) 
 			cred_update_thread(td);
 
@@ -266,7 +265,7 @@ trap(frame)
 		case T_BPTFLT:		/* bpt instruction fault */
 		case T_TRCTRAP:		/* trace trap */
 			enable_intr();
-			frame.tf_rflags &= ~PSL_T;
+			frame->tf_rflags &= ~PSL_T;
 			i = SIGTRAP;
 			ucode = (type == T_TRCTRAP ? TRAP_TRACE : TRAP_BRKPT);
 			break;
@@ -298,12 +297,12 @@ trap(frame)
 			break;
 
 		case T_PAGEFLT:		/* page fault */
-			addr = frame.tf_addr;
+			addr = frame->tf_addr;
 #ifdef KSE
 			if (td->td_pflags & TDP_SA)
 				thread_user_enter(td);
 #endif
-			i = trap_pfault(&frame, TRUE);
+			i = trap_pfault(frame, TRUE);
 			if (i == -1)
 				goto userout;
 			if (i == 0)
@@ -334,7 +333,7 @@ trap(frame)
 				 */
 				if (kdb_on_nmi) {
 					printf ("NMI ... going to debugger\n");
-					kdb_trap(type, 0, &frame);
+					kdb_trap(type, 0, frame);
 				}
 #endif /* KDB */
 				goto userout;
@@ -380,7 +379,7 @@ trap(frame)
 		    ("kernel trap doesn't have ucred"));
 		switch (type) {
 		case T_PAGEFLT:			/* page fault */
-			(void) trap_pfault(&frame, FALSE);
+			(void) trap_pfault(frame, FALSE);
 			goto out;
 
 		case T_DNA:
@@ -413,12 +412,12 @@ trap(frame)
 			 * selectors and pointers when the user changes
 			 * them.
 			 */
-			if (frame.tf_rip == (long)doreti_iret) {
-				frame.tf_rip = (long)doreti_iret_fault;
+			if (frame->tf_rip == (long)doreti_iret) {
+				frame->tf_rip = (long)doreti_iret_fault;
 				goto out;
 			}
 			if (PCPU_GET(curpcb)->pcb_onfault != NULL) {
-				frame.tf_rip =
+				frame->tf_rip =
 				    (long)PCPU_GET(curpcb)->pcb_onfault;
 				goto out;
 			}
@@ -434,8 +433,8 @@ trap(frame)
 			 * problem here and not every time the kernel is
 			 * entered.
 			 */
-			if (frame.tf_rflags & PSL_NT) {
-				frame.tf_rflags &= ~PSL_NT;
+			if (frame->tf_rflags & PSL_NT) {
+				frame->tf_rflags &= ~PSL_NT;
 				goto out;
 			}
 			break;
@@ -470,7 +469,7 @@ trap(frame)
 			 */
 #ifdef KDB
 			/* XXX Giant */
-			if (kdb_trap(type, 0, &frame))
+			if (kdb_trap(type, 0, frame))
 				goto out;
 #endif
 			break;
@@ -487,7 +486,7 @@ trap(frame)
 				 */
 				if (kdb_on_nmi) {
 					printf ("NMI ... going to debugger\n");
-					kdb_trap(type, 0, &frame);
+					kdb_trap(type, 0, frame);
 				}
 #endif /* KDB */
 				goto out;
@@ -497,7 +496,7 @@ trap(frame)
 #endif /* DEV_ISA */
 		}
 
-		trap_fatal(&frame, 0);
+		trap_fatal(frame, 0);
 		goto out;
 	}
 
@@ -517,13 +516,13 @@ trap(frame)
 		uprintf("fatal process exception: %s",
 			trap_msg[type]);
 		if ((type == T_PAGEFLT) || (type == T_PROTFLT))
-			uprintf(", fault VA = 0x%lx", frame.tf_addr);
+			uprintf(", fault VA = 0x%lx", frame->tf_addr);
 		uprintf("\n");
 	}
 #endif
 
 user:
-	userret(td, &frame);
+	userret(td, frame);
 	mtx_assert(&Giant, MA_NOTOWNED);
 userout:
 out:
@@ -723,8 +722,7 @@ dblfault_handler()
  *	A system call is essentially treated as a trap.
  */
 void
-syscall(frame)
-	struct trapframe frame;
+syscall(struct trapframe *frame)
 {
 	caddr_t params;
 	struct sysent *callp;
@@ -746,7 +744,7 @@ syscall(frame)
 	PCPU_LAZY_INC(cnt.v_syscall);
 
 #ifdef DIAGNOSTIC
-	if (ISPL(frame.tf_cs) != SEL_UPL) {
+	if (ISPL(frame->tf_cs) != SEL_UPL) {
 		mtx_lock(&Giant);	/* try to stabilize the system XXX */
 		panic("syscall");
 		/* NOT REACHED */
@@ -757,25 +755,25 @@ syscall(frame)
 	reg = 0;
 	regcnt = 6;
 	td->td_pticks = 0;
-	td->td_frame = &frame;
+	td->td_frame = frame;
 	if (td->td_ucred != p->p_ucred) 
 		cred_update_thread(td);
 #ifdef KSE
 	if (p->p_flag & P_SA)
 		thread_user_enter(td);
 #endif
-	params = (caddr_t)frame.tf_rsp + sizeof(register_t);
-	code = frame.tf_rax;
-	orig_tf_rflags = frame.tf_rflags;
+	params = (caddr_t)frame->tf_rsp + sizeof(register_t);
+	code = frame->tf_rax;
+	orig_tf_rflags = frame->tf_rflags;
 
 	if (p->p_sysent->sv_prepsyscall) {
 		/*
 		 * The prep code is MP aware.
 		 */
-		(*p->p_sysent->sv_prepsyscall)(&frame, (int *)args, &code, &params);
+		(*p->p_sysent->sv_prepsyscall)(frame, (int *)args, &code, &params);
 	} else {
 		if (code == SYS_syscall || code == SYS___syscall) {
-			code = frame.tf_rdi;
+			code = frame->tf_rdi;
 			reg++;
 			regcnt--;
 		}
@@ -797,7 +795,7 @@ syscall(frame)
 	KASSERT(narg <= sizeof(args) / sizeof(args[0]),
 	    ("Too many syscall arguments!"));
 	error = 0;
-	argp = &frame.tf_rdi;
+	argp = &frame->tf_rdi;
 	argp += reg;
 	bcopy(argp, args, sizeof(args[0]) * regcnt);
 	if (narg > regcnt) {
@@ -817,7 +815,7 @@ syscall(frame)
 
 	if (error == 0) {
 		td->td_retval[0] = 0;
-		td->td_retval[1] = frame.tf_rdx;
+		td->td_retval[1] = frame->tf_rdx;
 
 		STOPEVENT(p, S_SCE, narg);
 
@@ -830,9 +828,9 @@ syscall(frame)
 
 	switch (error) {
 	case 0:
-		frame.tf_rax = td->td_retval[0];
-		frame.tf_rdx = td->td_retval[1];
-		frame.tf_rflags &= ~PSL_C;
+		frame->tf_rax = td->td_retval[0];
+		frame->tf_rdx = td->td_retval[1];
+		frame->tf_rflags &= ~PSL_C;
 		break;
 
 	case ERESTART:
@@ -842,8 +840,8 @@ syscall(frame)
 		 * (which was holding the value of %rcx) is restored for
 		 * the next iteration.
 		 */
-		frame.tf_rip -= frame.tf_err;
-		frame.tf_r10 = frame.tf_rcx;
+		frame->tf_rip -= frame->tf_err;
+		frame->tf_r10 = frame->tf_rcx;
 		td->td_pcb->pcb_flags |= PCB_FULLCTX;
 		break;
 
@@ -857,8 +855,8 @@ syscall(frame)
    			else
   				error = p->p_sysent->sv_errtbl[error];
 		}
-		frame.tf_rax = error;
-		frame.tf_rflags |= PSL_C;
+		frame->tf_rax = error;
+		frame->tf_rflags |= PSL_C;
 		break;
 	}
 
@@ -866,11 +864,11 @@ syscall(frame)
 	 * Traced syscall.
 	 */
 	if (orig_tf_rflags & PSL_T) {
-		frame.tf_rflags &= ~PSL_T;
+		frame->tf_rflags &= ~PSL_T;
 		ksiginfo_init_trap(&ksi);
 		ksi.ksi_signo = SIGTRAP;
 		ksi.ksi_code = TRAP_TRACE;
-		ksi.ksi_addr = (void *)frame.tf_rip;
+		ksi.ksi_addr = (void *)frame->tf_rip;
 		trapsignal(td, &ksi);
 	}
 
@@ -890,7 +888,7 @@ syscall(frame)
 	/*
 	 * Handle reschedule and other end-of-syscall issues
 	 */
-	userret(td, &frame);
+	userret(td, frame);
 
 	CTR4(KTR_SYSC, "syscall exit thread %p pid %d proc %s code %d", td,
 	    td->td_proc->p_pid, td->td_proc->p_comm, code);
