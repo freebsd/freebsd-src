@@ -509,6 +509,8 @@ END(hv_mmu_unmap_addr)
  * 
  */
 ENTRY(hv_mmu_unmap_perm_addr)
+	mov	%o1, %o2
+	clr	%o1
 	mov	MMU_UNMAP_PERM_ADDR, %o5
 	ta	FAST_TRAP
 	retl
