@@ -60,6 +60,7 @@ IDTVEC(vec_name) ;							\
 	jz	2f ;							\
 	addl	$(32 * index),%eax ;					\
 1: ;									\
+	movq	%rsp, %rsi	;                                       \
 	movl	%eax, %edi ;	/* pass the IRQ */			\
 	call	lapic_handle_intr ;					\
 	MEXITCOUNT ;							\
@@ -98,7 +99,7 @@ IDTVEC(spuriousint)
 IDTVEC(timerint)
 	PUSH_FRAME
 	FAKE_MCOUNT(TF_RIP(%rsp))
-
+	movq	%rsp, %rdi
 	call	lapic_handle_timer
 	MEXITCOUNT
 	jmp	doreti
