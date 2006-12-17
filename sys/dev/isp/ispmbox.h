@@ -42,7 +42,7 @@
 #define MBOX_MAILBOX_REG_TEST		0x0006
 #define MBOX_VERIFY_CHECKSUM		0x0007
 #define MBOX_ABOUT_FIRMWARE		0x0008
-					/*   9 */
+#define	MBOX_LOAD_RISC_RAM_2100		0x0009
 					/*   a */
 #define	MBOX_LOAD_RISC_RAM		0x000b
 					/*   c */

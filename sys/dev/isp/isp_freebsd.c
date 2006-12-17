@@ -3458,42 +3458,52 @@ isp_mbox_acquire(ispsoftc_t *isp)
 void
 isp_mbox_wait_complete(ispsoftc_t *isp, mbreg_t *mbp)
 {
-	int usecs = mbp->timeout;
-	int j;
+	unsigned int usecs = mbp->timeout;
+	unsigned int max, olim, ilim;
 
 	if (usecs == 0) {
 		usecs = MBCMD_DEFAULT_TIMEOUT;
 	}
-	if (isp->isp_mbxwrk0) {
-		usecs *= isp->isp_mbxwrk0;
-	}
+	max = isp->isp_mbxwrk0 + 1;
+
 	if (isp->isp_osinfo.mbox_sleep_ok) {
-		int ms = usecs / 1000;
+		unsigned int ms = (usecs + 999) / 1000;
+
 		isp->isp_osinfo.mbox_sleep_ok = 0;
 		isp->isp_osinfo.mbox_sleeping = 1;
+		for (olim = 0; olim < max; olim++) {
 #if __FreeBSD_version < 500000  || !defined(ISP_SMPLOCK)
-		tsleep(&isp->isp_mbxworkp, PRIBIO, "ispmbx_sleep",
-		    isp_mstohz(ms));
+			tsleep(&isp->isp_mbxworkp, PRIBIO, "ispmbx_sleep",
+			    isp_mstohz(ms));
 #else
-		msleep(&isp->isp_mbxworkp, &isp->isp_mtx, PRIBIO,
-		    "ispmbx_sleep", isp_mstohz(ms));
+			msleep(&isp->isp_mbxworkp, &isp->isp_mtx, PRIBIO,
+			    "ispmbx_sleep", isp_mstohz(ms));
 #endif
-		isp->isp_osinfo.mbox_sleep_ok = 1;
-		isp->isp_osinfo.mbox_sleeping = 0;
-	} else {
-		for (j = 0; j < usecs; j += 100) {
-			uint32_t isr;
-			uint16_t sema, mbox;
 			if (isp->isp_osinfo.mboxcmd_done) {
 				break;
 			}
-			if (ISP_READ_ISR(isp, &isr, &sema, &mbox)) {
-				isp_intr(isp, isr, sema, mbox);
+		}
+		isp->isp_osinfo.mbox_sleep_ok = 1;
+		isp->isp_osinfo.mbox_sleeping = 0;
+	} else {
+		for (olim = 0; olim < max; olim++) {
+			for (ilim = 0; ilim < usecs; ilim += 100) {
+				uint32_t isr;
+				uint16_t sema, mbox;
 				if (isp->isp_osinfo.mboxcmd_done) {
 					break;
 				}
+				if (ISP_READ_ISR(isp, &isr, &sema, &mbox)) {
+					isp_intr(isp, isr, sema, mbox);
+					if (isp->isp_osinfo.mboxcmd_done) {
+						break;
+					}
+				}
+				USEC_DELAY(100);
 			}
-			USEC_DELAY(100);
+			if (isp->isp_osinfo.mboxcmd_done) {
+				break;
+			}
 		}
 	}
 	if (isp->isp_osinfo.mboxcmd_done == 0) {
@@ -3524,12 +3534,16 @@ isp_mbox_release(ispsoftc_t *isp)
 int
 isp_mstohz(int ms)
 {
+	int hz;
 	struct timeval t;
 	t.tv_sec = ms / 1000;
 	t.tv_usec = (ms % 1000) * 1000;
-	ms = tvtohz(&t);
-	if (ms < 0) {
-		ms = 0x7fffffff;
+	hz = tvtohz(&t);
+	if (hz < 0) {
+		hz = 0x7fffffff;
 	}
-	return (ms);
+	if (hz == 0) {
+		hz = 1;
+	}
+	return (hz);
 }
