@@ -764,7 +764,6 @@ kse_sched_single(struct kse_mailbox *kmbx)
 		break;
 
 	case PS_DEAD:
-		curthread->check_pending = 0;
 		/* Unlock the scheduling queue and exit the KSE and thread. */
 		thr_cleanup(curkse, curthread);
 		KSE_SCHED_UNLOCK(curkse, curkse->k_kseg);
@@ -1149,6 +1148,11 @@ thr_cleanup(struct kse *curkse, struct pthread *thread)
 	struct pthread *joiner;
 	struct kse_mailbox *kmbx = NULL;
 	int sys_scope;
+
+	thread->active = 0;
+	thread->need_switchout = 0;
+	thread->lock_switch = 0;
+	thread->check_pending = 0;
 
 	if ((joiner = thread->joiner) != NULL) {
 		/* Joinee scheduler lock held; joiner won't leave. */
@@ -1717,9 +1721,6 @@ kse_switchout_thread(struct kse *kse, struct pthread *thread)
 			 * stack.  It is safe to do garbage collecting
 			 * here.
 			 */
-			thread->active = 0;
-			thread->need_switchout = 0;
-			thread->lock_switch = 0;
 			thr_cleanup(kse, thread);
 			return;
 			break;
