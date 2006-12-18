@@ -91,6 +91,7 @@ sun4v/sun4v/trap.c		standard
 sun4v/sun4v/uio_machdep.c	standard
 sun4v/sun4v/vm_machdep.c	standard
 sun4v/sun4v/vnex.c		standard
+sun4v/dev/vnet.c		optional	vnet
 
 
 sun4v/mdesc/mdesc_bus_if.m	standard
@@ -105,4 +106,5 @@ sun4v/cddl/mdesc/mdesc_nodecount.c	standard
 sun4v/cddl/mdesc/mdesc_findnodeprop.c	standard
 sun4v/cddl/mdesc/mdesc_rootnode.c	standard
 sun4v/cddl/mdesc/mdesc_scandag.c	standard
-sun4v/mdesc/mdesc_vdevfindval.c	standard
+sun4v/mdesc/mdesc_vdevfindnode.c	standard
+sun4v/mdesc/mdesc_vdevfindval.c		standard
