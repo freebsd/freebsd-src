@@ -33,6 +33,7 @@ __FBSDID("$FreeBSD$");
 
 #include <assert.h>
 #include <libelf.h>
+#include <osreldate.h>
 #include <string.h>
 
 #include "_libelf.h"
@@ -57,14 +58,6 @@ define(MOVEP_SIZE,	0)
 define(SXWORD_SIZE32,	0)
 define(XWORD_SIZE32,	0)
 
-ifelse(eval(OSRELDATE < 700009),1,
-  `define(`CAP_SIZE',	0)
-   define(`LWORD_SIZE',	0)
-   define(`MOVE_SIZE',	0)
-   define(`SYMINFO_SIZE', 0)
-   define(`VDEF_SIZE',	0)
-   define(`VNEED_SIZE',	0)',`')
-
 define(`DEFINE_ELF_MSIZE',
   `ifdef($1`_SIZE',
     `define($1_SIZE32,$1_SIZE)
@@ -81,7 +74,9 @@ define(`DEFINE_ELF_MSIZES',
 DEFINE_ELF_MSIZES(ELF_TYPE_LIST)
 
 define(`MSIZE',
-  `[ELF_T_$1] = { .msz32 = $1_SIZE32, .msz64 = $1_SIZE64 },')
+  `#if	__FreeBSD_version >= $3
+    [ELF_T_$1] = { .msz32 = $1_SIZE32, .msz64 = $1_SIZE64 },
+#endif')
 define(`MSIZES',
   `ifelse($#,1,`',
     `MSIZE($1)
