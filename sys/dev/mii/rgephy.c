@@ -131,11 +131,14 @@ rgephy_attach(device_t dev)
 
 	sc->mii_capabilities = PHY_READ(sc, MII_BMSR) & ma->mii_capmask;
 	sc->mii_capabilities &= ~BMSR_ANEG;
+	if (sc->mii_capabilities & BMSR_EXTSTAT)
+		sc->mii_extcapabilities = PHY_READ(sc, MII_EXTSR);
 
 	device_printf(dev, " ");
 	mii_phy_add_media(sc);
 	/* RTL8169S do not report auto-sense; add manually. */
 	ADD(IFM_MAKEWORD(IFM_ETHER, IFM_AUTO, 0, sc->mii_inst), MII_NMEDIA);
+	sep = ", ";
 	PRINT("auto");
 	printf("\n");
 #undef ADD
