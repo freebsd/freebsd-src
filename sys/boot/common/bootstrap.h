@@ -292,6 +292,8 @@ struct arch_switch
     /* Perform ISA byte port I/O (only for systems with ISA) */
     int		(*arch_isainb)(int port);
     void	(*arch_isaoutb)(int port, int value);
+    /* Pass in initial kernel memory size */
+    void        (*arch_maphint)(vm_offset_t va, size_t len);	
 };
 extern struct arch_switch archsw;
 
