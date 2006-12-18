@@ -149,10 +149,10 @@ g_gate_mediasize(int fd)
 	return (mediasize);
 }
 
-u_int
+unsigned
 g_gate_sectorsize(int fd)
 {
-	u_int secsize;
+	unsigned secsize;
 	struct stat sb;
 
 	if (fstat(fd, &sb) == -1)
