@@ -31,8 +31,11 @@ __FBSDID("$FreeBSD$");
 
 #include <assert.h>
 #include <gelf.h>
+#include <osreldate.h>
 
 #include "_libelf.h"
+
+#if	__FreeBSD_version >= 700025
 
 GElf_Move *
 gelf_getmove(Elf_Data *d, int ndx, GElf_Move *dst)
@@ -149,3 +152,5 @@ gelf_update_move(Elf_Data *d, int ndx, GElf_Move *gm)
 
 	return (1);
 }
+
+#endif	/* __FreeBSD_version >= 700025 */

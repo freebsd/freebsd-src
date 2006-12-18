@@ -31,8 +31,11 @@ __FBSDID("$FreeBSD$");
 
 #include <assert.h>
 #include <gelf.h>
+#include <osreldate.h>
 
 #include "_libelf.h"
+
+#if	__FreeBSD_version >= 700025
 
 GElf_Cap *
 gelf_getcap(Elf_Data *d, int ndx, GElf_Cap *dst)
@@ -143,3 +146,5 @@ gelf_update_cap(Elf_Data *d, int ndx, GElf_Cap *gc)
 
 	return (1);
 }
+
+#endif	/* __FreeBSD_version >= 700025 */
