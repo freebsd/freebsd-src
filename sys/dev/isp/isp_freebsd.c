@@ -43,6 +43,10 @@ __FBSDID("$FreeBSD$");
 #endif
 #include <cam/cam_periph.h>
 
+#if !defined(CAM_NEW_TRAN_CODE) && __FreeBSD_version >= 700025
+#define	CAM_NEW_TRAN_CODE	1
+#endif
+
 
 MODULE_VERSION(isp, 1);
 MODULE_DEPEND(isp, cam, 1, 1, 1);
@@ -2653,7 +2657,11 @@ isp_action(struct cam_sim *sim, union ccb *ccb)
 		xpt_done(ccb);
 		break;
 	}
+#ifdef	CAM_NEW_TRAN_CODE
 #define	IS_CURRENT_SETTINGS(c)	(c->type == CTS_TYPE_CURRENT_SETTINGS)
+#else
+#define	IS_CURRENT_SETTINGS(c)	(c->flags & CCB_TRANS_CURRENT_SETTINGS)
+#endif
 	case XPT_SET_TRAN_SETTINGS:	/* Nexus Settings */
 		cts = &ccb->cts;
 		if (!IS_CURRENT_SETTINGS(cts)) {
@@ -2664,6 +2672,66 @@ isp_action(struct cam_sim *sim, union ccb *ccb)
 		tgt = cts->ccb_h.target_id;
 		CAMLOCK_2_ISPLOCK(isp);
 		if (IS_SCSI(isp)) {
+#ifndef	CAM_NEW_TRAN_CODE
+			sdparam *sdp = isp->isp_param;
+			uint16_t *dptr;
+
+			bus = cam_sim_bus(xpt_path_sim(cts->ccb_h.path));
+
+			sdp += bus;
+			/*
+			 * We always update (internally) from goal_flags
+			 * so any request to change settings just gets
+			 * vectored to that location.
+			 */
+			dptr = &sdp->isp_devparam[tgt].goal_flags;
+
+			/*
+			 * Note that these operations affect the
+			 * the goal flags (goal_flags)- not
+			 * the current state flags. Then we mark
+			 * things so that the next operation to
+			 * this HBA will cause the update to occur.
+			 */
+			if (cts->valid & CCB_TRANS_DISC_VALID) {
+				if ((cts->flags & CCB_TRANS_DISC_ENB) != 0) {
+					*dptr |= DPARM_DISC;
+				} else {
+					*dptr &= ~DPARM_DISC;
+				}
+			}
+			if (cts->valid & CCB_TRANS_TQ_VALID) {
+				if ((cts->flags & CCB_TRANS_TAG_ENB) != 0) {
+					*dptr |= DPARM_TQING;
+				} else {
+					*dptr &= ~DPARM_TQING;
+				}
+			}
+			if (cts->valid & CCB_TRANS_BUS_WIDTH_VALID) {
+				switch (cts->bus_width) {
+				case MSG_EXT_WDTR_BUS_16_BIT:
+					*dptr |= DPARM_WIDE;
+					break;
+				default:
+					*dptr &= ~DPARM_WIDE;
+				}
+			}
+			/*
+			 * Any SYNC RATE of nonzero and SYNC_OFFSET
+			 * of nonzero will cause us to go to the
+			 * selected (from NVRAM) maximum value for
+			 * this device. At a later point, we'll
+			 * allow finer control.
+			 */
+			if ((cts->valid & CCB_TRANS_SYNC_RATE_VALID) &&
+			    (cts->valid & CCB_TRANS_SYNC_OFFSET_VALID) &&
+			    (cts->sync_offset > 0)) {
+				*dptr |= DPARM_SYNC;
+			} else {
+				*dptr &= ~DPARM_SYNC;
+			}
+			*dptr |= DPARM_SAFE_DFLT;
+#else
 			struct ccb_trans_settings_scsi *scsi =
 			    &cts->proto_specific.scsi;
 			struct ccb_trans_settings_spi *spi =
@@ -2725,6 +2793,7 @@ isp_action(struct cam_sim *sim, union ccb *ccb)
 			} else {
 				*dptr &= ~DPARM_SYNC;
 			}
+#endif
 			isp_prt(isp, ISP_LOGDEBUG0,
 			    "SET (%d.%d.%d) to flags %x off %x per %x",
 			    bus, tgt, cts->ccb_h.target_lun,
@@ -2743,6 +2812,21 @@ isp_action(struct cam_sim *sim, union ccb *ccb)
 		tgt = cts->ccb_h.target_id;
 		CAMLOCK_2_ISPLOCK(isp);
 		if (IS_FC(isp)) {
+#ifndef	CAM_NEW_TRAN_CODE
+			/*
+			 * a lot of normal SCSI things don't make sense.
+			 */
+			cts->flags = CCB_TRANS_TAG_ENB | CCB_TRANS_DISC_ENB;
+			cts->valid = CCB_TRANS_DISC_VALID | CCB_TRANS_TQ_VALID;
+			/*
+			 * How do you measure the width of a high
+			 * speed serial bus? Well, in bytes.
+			 *
+			 * Offset and period make no sense, though, so we set
+			 * (above) a 'base' transfer speed to be gigabit.
+			 */
+			cts->bus_width = MSG_EXT_WDTR_BUS_8_BIT;
+#else
 			fcparam *fcp = isp->isp_param;
 			struct ccb_trans_settings_scsi *scsi =
 			    &cts->proto_specific.scsi;
@@ -2770,11 +2854,14 @@ isp_action(struct cam_sim *sim, union ccb *ccb)
 				fc->valid |= CTS_FC_VALID_WWNN |
 				    CTS_FC_VALID_WWPN | CTS_FC_VALID_PORT;
 			}
+#endif
 		} else {
+#ifdef	CAM_NEW_TRAN_CODE
 			struct ccb_trans_settings_scsi *scsi =
 			    &cts->proto_specific.scsi;
 			struct ccb_trans_settings_spi *spi =
 			    &cts->xport_specific.spi;
+#endif
 			sdparam *sdp = isp->isp_param;
 			int bus = cam_sim_bus(xpt_path_sim(cts->ccb_h.path));
 			uint16_t dval, pval, oval;
@@ -2795,6 +2882,31 @@ isp_action(struct cam_sim *sim, union ccb *ccb)
 				pval = sdp->isp_devparam[tgt].nvrm_period;
 			}
 
+#ifndef	CAM_NEW_TRAN_CODE
+			cts->flags &= ~(CCB_TRANS_DISC_ENB|CCB_TRANS_TAG_ENB);
+
+			if (dval & DPARM_DISC) {
+				cts->flags |= CCB_TRANS_DISC_ENB;
+			}
+			if (dval & DPARM_TQING) {
+				cts->flags |= CCB_TRANS_TAG_ENB;
+			}
+			if (dval & DPARM_WIDE) {
+				cts->bus_width = MSG_EXT_WDTR_BUS_16_BIT;
+			} else {
+				cts->bus_width = MSG_EXT_WDTR_BUS_8_BIT;
+			}
+			cts->valid = CCB_TRANS_BUS_WIDTH_VALID |
+			    CCB_TRANS_DISC_VALID | CCB_TRANS_TQ_VALID;
+
+			if ((dval & DPARM_SYNC) && oval != 0) {
+				cts->sync_period = pval;
+				cts->sync_offset = oval;
+				cts->valid |=
+				    CCB_TRANS_SYNC_RATE_VALID |
+				    CCB_TRANS_SYNC_OFFSET_VALID;
+			}
+#else
 			cts->protocol = PROTO_SCSI;
 			cts->protocol_version = SCSI_REV_2;
 			cts->transport = XPORT_SPI;
@@ -2829,6 +2941,7 @@ isp_action(struct cam_sim *sim, union ccb *ccb)
 				}
 				spi->valid |= CTS_SPI_VALID_DISC;
 			}
+#endif
 			isp_prt(isp, ISP_LOGDEBUG0,
 			    "GET %s (%d.%d.%d) to flags %x off %x per %x",
 			    IS_CURRENT_SETTINGS(cts)? "ACTIVE" : "NVRAM",
@@ -2928,8 +3041,10 @@ isp_action(struct cam_sim *sim, union ccb *ccb)
 			else
 				cpi->base_transfer_speed = 100000;
 			cpi->hba_inquiry = PI_TAG_ABLE;
+#ifdef	CAM_NEW_TRAN_CODE
 			cpi->transport = XPORT_FC;
-			cpi->transport_version = 0;	/* WHAT'S THIS FOR? */
+			cpi->transport_version = 0;
+#endif
 		} else {
 			sdparam *sdp = isp->isp_param;
 			sdp += cam_sim_bus(xpt_path_sim(cpi->ccb_h.path));
@@ -2937,11 +3052,15 @@ isp_action(struct cam_sim *sim, union ccb *ccb)
 			cpi->hba_misc = 0;
 			cpi->initiator_id = sdp->isp_initiator_id;
 			cpi->base_transfer_speed = 3300;
+#ifdef	CAM_NEW_TRAN_CODE
 			cpi->transport = XPORT_SPI;
-			cpi->transport_version = 2;	/* WHAT'S THIS FOR? */
+			cpi->transport_version = 2;
+#endif
 		}
+#ifdef	CAM_NEW_TRAN_CODE
 		cpi->protocol = PROTO_SCSI;
 		cpi->protocol_version = SCSI_REV_2;
+#endif
 		strncpy(cpi->sim_vid, "FreeBSD", SIM_IDLEN);
 		strncpy(cpi->hba_vid, "Qlogic", HBA_IDLEN);
 		strncpy(cpi->dev_name, cam_sim_name(sim), DEV_IDLEN);
@@ -3028,8 +3147,10 @@ isp_async(ispsoftc_t *isp, ispasync_t cmd, void *arg)
 	switch (cmd) {
 	case ISPASYNC_NEW_TGT_PARAMS:
 	{
+#ifdef	CAM_NEW_TRAN_CODE
 		struct ccb_trans_settings_scsi *scsi;
 		struct ccb_trans_settings_spi *spi;
+#endif
 		int flags, tgt;
 		sdparam *sdp = isp->isp_param;
 		struct ccb_trans_settings cts;
@@ -3053,6 +3174,7 @@ isp_async(ispsoftc_t *isp, ispasync_t cmd, void *arg)
 		}
 		CAMLOCK_2_ISPLOCK(isp);
 		flags = sdp->isp_devparam[tgt].actv_flags;
+#ifdef	CAM_NEW_TRAN_CODE
 		cts.type = CTS_TYPE_CURRENT_SETTINGS;
 		cts.protocol = PROTO_SCSI;
 		cts.transport = XPORT_SPI;
@@ -3081,6 +3203,26 @@ isp_async(ispsoftc_t *isp, ispasync_t cmd, void *arg)
 			spi->sync_period = sdp->isp_devparam[tgt].actv_period;
 			spi->sync_offset = sdp->isp_devparam[tgt].actv_offset;
 		}
+#else
+		cts.flags = CCB_TRANS_CURRENT_SETTINGS;
+		cts.valid = CCB_TRANS_DISC_VALID | CCB_TRANS_TQ_VALID;
+		if (flags & DPARM_DISC) {
+			cts.flags |= CCB_TRANS_DISC_ENB;
+		}
+		if (flags & DPARM_TQING) {
+			cts.flags |= CCB_TRANS_TAG_ENB;
+		}
+		cts.valid |= CCB_TRANS_BUS_WIDTH_VALID;
+		cts.bus_width = (flags & DPARM_WIDE)?
+		    MSG_EXT_WDTR_BUS_8_BIT : MSG_EXT_WDTR_BUS_16_BIT;
+		cts.sync_period = sdp->isp_devparam[tgt].actv_period;
+		cts.sync_offset = sdp->isp_devparam[tgt].actv_offset;
+		if (flags & DPARM_SYNC) {
+			cts.valid |=
+			    CCB_TRANS_SYNC_RATE_VALID |
+			    CCB_TRANS_SYNC_OFFSET_VALID;
+		}
+#endif
 		isp_prt(isp, ISP_LOGDEBUG2,
 		    "NEW_TGT_PARAMS bus %d tgt %d period %x offset %x flags %x",
 		    bus, tgt, sdp->isp_devparam[tgt].actv_period,
