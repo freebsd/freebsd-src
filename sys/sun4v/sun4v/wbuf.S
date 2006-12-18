@@ -32,21 +32,19 @@ END(fault_32bit_so1)
 ENTRY(fault_64bit_sn0)
 	GET_PCB(%g4)
         stx	%sp, [%g4 + PCB_RWSP]
-        add     %g4, PCB_RW, %g3
-        SAVE_WINDOW(%g3)
-	mov	1, %g3
-	stx	%g3, [%g4 + PCB_NSAVED]
+        add     %g4, PCB_RW, %g5
+        SAVE_WINDOW(%g5)
+	mov	1, %g5
+	stx	%g5, [%g4 + PCB_NSAVED]
 
 	! convert hardware trap type to kernel trap type
 	set	trap_conversion, %g1
-	sllx	%g5, INT_SHIFT, %g5
-	ld	[%g1 + %g5], %g2
+	sllx	%g2, INT_SHIFT, %g2
+	ld	[%g1 + %g2], %g2
 	
 	set	trap, %g1
-	mov	%g6, %g3
 	sub	%g0, 1, %g4
 
-	
 	rdpr	%tstate, %g5
 	and	%g5, TSTATE_CWP_MASK, %g5
 	ba,pt	%xcc, tl0_utrap
@@ -129,12 +127,6 @@ ENTRY(fault_32bit_fn0)
 	MAGIC_TRAP_ON	
 	MAGIC_EXIT	
 fault_fn0_common:
-	mov	%g6, %g3
-	mov	T_DATA_MISS, %g2
-	cmp	%g5, T_ALIGNMENT
-	beq,a,pn %xcc, 1f
-	  mov	T_ALIGNMENT, %g2
-1:	
 	set	trap, %g1
 	sub	%g0, 1, %g4
 	rdpr	%tstate, %g5
@@ -166,14 +158,13 @@ fault_fn1_common:
 
 	! convert hardware trap type to kernel trap type
 	set	trap_conversion, %g1
-	sllx	%g5, INT_SHIFT, %g5
-	ld	[%g1 + %g5], %g5
+	sllx	%g2, INT_SHIFT, %g2
+	ld	[%g1 + %g2], %g2
 		
 	set	trap, %g1
-	mov	1, %g2
-	sllx	%g2, CTX_OTHER_SHIFT, %g2
+	mov	1, %g5
+	sllx	%g5, CTX_OTHER_SHIFT, %g5
 	or	%g5, %g2, %g2	
-	mov	%g6, %g3
 
 	sub	%g0, 1, %g4
 	rdpr	%wstate, %l1
