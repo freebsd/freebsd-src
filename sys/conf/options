@@ -16,7 +16,7 @@
 # <xxx>.[c|s] should be directed into "opt_<xxx>.h", while options
 # that affect multiple files should either go in "opt_global.h" if
 # this is a kernel-wide option (used just about everywhere), or in
-# "opt_<option-name-in-lower-case>.h" if it affect only some files.
+# "opt_<option-name-in-lower-case>.h" if it affects only some files.
 # Note that the effect of listing only an option without a
 # header-file-name in conf/options (and cousins) is that the last
 # convention is followed.
