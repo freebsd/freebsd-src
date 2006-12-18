@@ -1999,6 +1999,12 @@ ENTRY(tl1_trap)
 	wrpr	%g0, 1, %gl
 	rdpr	%tt, %g2
 	GET_MMFSA_SCRATCH(%g7)
+	
+	! convert hardware trap type to kernel trap type
+	set	trap_conversion, %g1
+	sllx	%g2, INT_SHIFT, %g2
+	ld	[%g1 + %g2], %g2
+	
 	wr	%g0, ASI_REAL, %asi
 	ldxa	[%g7 + MMFSA_D_ADDR]%asi, %g3
 	ldxa	[%g7 + MMFSA_D_CTX]%asi, %g7

@@ -37,17 +37,12 @@ ENTRY(fault_64bit_sn0)
 	mov	1, %g5
 	stx	%g5, [%g4 + PCB_NSAVED]
 
-	! convert hardware trap type to kernel trap type
-	set	trap_conversion, %g1
-	sllx	%g2, INT_SHIFT, %g2
-	ld	[%g1 + %g2], %g2
-	
 	set	trap, %g1
 	sub	%g0, 1, %g4
 
 	rdpr	%tstate, %g5
 	and	%g5, TSTATE_CWP_MASK, %g5
-	ba,pt	%xcc, tl0_utrap
+	ba,pt	%xcc, tl0_skip_utrap
 	  wrpr	%g0, %g5, %cwp	
 END(fault_64bit_sn0)
 
@@ -156,11 +151,6 @@ fault_fn1_common:
 	add	%g1, 4, %g1
 	wrpr	%g0, %g1, %tnpc
 
-	! convert hardware trap type to kernel trap type
-	set	trap_conversion, %g1
-	sllx	%g2, INT_SHIFT, %g2
-	ld	[%g1 + %g2], %g2
-		
 	set	trap, %g1
 	mov	1, %g5
 	sllx	%g5, CTX_OTHER_SHIFT, %g5
@@ -173,10 +163,10 @@ fault_fn1_common:
 	mov	KCONTEXT, %g5
 	mov	MMU_CID_P, %g6
 	SET_MMU_CONTEXT(%g6, %g5)
-	membar	#Sync
 
-	b	tl0_ktrap 
-	  nop
+
+	ba,pt	%xcc, tl0_ktrap 
+	  membar	#Sync
 END(fault_32bit_fn1)
 	
 ENTRY(fault_64bit_fn0)
