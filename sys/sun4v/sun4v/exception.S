@@ -1997,20 +1997,19 @@ ENTRY(tl1_trap)
 4:	
 	wrpr	%g0, %g7, %tnpc
 	wrpr	%g0, 1, %gl
-	rdpr	%tt, %g5
+	rdpr	%tt, %g2
 	GET_MMFSA_SCRATCH(%g7)
 	wr	%g0, ASI_REAL, %asi
-	ldxa	[%g7 + MMFSA_D_ADDR]%asi, %g6
+	ldxa	[%g7 + MMFSA_D_ADDR]%asi, %g3
 	ldxa	[%g7 + MMFSA_D_CTX]%asi, %g7
-	cmp	%g5, T_ALIGNMENT
-	be,pn	%xcc, 5f
-	  nop
-	srlx	%g6, PAGE_SHIFT, %g6 
-	sllx	%g6, PAGE_SHIFT, %g6	! mask off bottom
-	or	%g6, %g7, %g6
+	! XXX we're only handling page faults here 
+	srlx	%g3, PAGE_SHIFT, %g3 
+	sllx	%g3, PAGE_SHIFT, %g3	! mask off bottom
+	or	%g3, %g7, %g3
 	done
-5:
+#ifdef notyet
 	sllx	%g7, TRAP_CTX_SHIFT, %g7
 	or	%g7, %g5, %g5
 	done
+#endif	
 END(tl1_trap)
