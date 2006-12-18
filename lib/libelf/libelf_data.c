@@ -66,7 +66,7 @@ _libelf_xlate_shtype(uint32_t sht)
 		return (ELF_T_SYM);
 	case SHT_SYMTAB_SHNDX:
 		return (ELF_T_WORD);
-#if	__FreeBSD_version > 700009
+#if	__FreeBSD_version >= 700025
 	case SHT_GNU_verdef:	/* == SHT_SUNW_verdef */
 		return (ELF_T_VDEF);
 	case SHT_GNU_verneed:	/* == SHT_SUNW_verneed */
@@ -82,4 +82,3 @@ _libelf_xlate_shtype(uint32_t sht)
 		return (-1);
 	}
 }
-
