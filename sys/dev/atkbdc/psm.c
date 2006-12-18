@@ -361,7 +361,7 @@ static struct {
       0x08, MOUSE_PS2INTELLI_PACKETSIZE, enable_msintelli, },
     { MOUSE_MODEL_GLIDEPOINT,		/* ALPS GlidePoint */
       0xc0, MOUSE_PS2_PACKETSIZE, enable_aglide, },
-    { MOUSE_MODEL_THINK,		/* Kensignton ThinkingMouse */
+    { MOUSE_MODEL_THINK,		/* Kensington ThinkingMouse */
       0x80, MOUSE_PS2_PACKETSIZE, enable_kmouse, },
     { MOUSE_MODEL_VERSAPAD,		/* Interlink electronics VersaPad */
       0xe8, MOUSE_PS2VERSA_PACKETSIZE, enable_versapad, },
