@@ -62,18 +62,18 @@ struct align {
 static struct align malign[ELF_T_NUM] = {
 	[ELF_T_ADDR]	= MALIGN(Addr),
 	[ELF_T_BYTE]	= { .a32 = 1, .a64 = 1 },
-#if	__FreeBSD_version >= 700009
+#if	__FreeBSD_version >= 700025
 	[ELF_T_CAP]	= MALIGN(Cap),
 #endif
 	[ELF_T_DYN]	= MALIGN(Dyn),
 	[ELF_T_EHDR]	= MALIGN(Ehdr),
 	[ELF_T_HALF]	= MALIGN(Half),
-#if	__FreeBSD_version >= 700009
+#if	__FreeBSD_version >= 700025
 	[ELF_T_LWORD]	= MALIGN(Lword),
 	[ELF_T_MOVE]	= MALIGN(Move),
 #endif
 	[ELF_T_MOVEP] 	= UNSUPPORTED(),
-#if	__FreeBSD_version >= 700009
+#if	__FreeBSD_version >= 700025
 	[ELF_T_NOTE]	= MALIGN(Nhdr),
 #endif
 	[ELF_T_OFF]	= MALIGN(Off),
@@ -84,7 +84,7 @@ static struct align malign[ELF_T_NUM] = {
 	[ELF_T_SWORD]	= MALIGN(Sword),
 	[ELF_T_SXWORD]	= MALIGN64(Sxword),
 	[ELF_T_SYM]	= MALIGN(Sym),
-#if	__FreeBSD_version >= 700009
+#if	__FreeBSD_version >= 700025
 	[ELF_T_SYMINFO]	= MALIGN(Syminfo),
 #endif
 #if	__FreeBSD_version >= 700009
@@ -110,18 +110,18 @@ _libelf_malign(Elf_Type t, int elfclass)
 static struct align falign[ELF_T_NUM] = {
 	[ELF_T_ADDR]	= FALIGN(4,8),
 	[ELF_T_BYTE]	= FALIGN(1,1),
-#if	__FreeBSD_version >= 700009
+#if	__FreeBSD_version >= 700025
 	[ELF_T_CAP]	= FALIGN(4,8),
 #endif
 	[ELF_T_DYN]	= FALIGN(4,8),
 	[ELF_T_EHDR]	= FALIGN(4,8),
 	[ELF_T_HALF]	= FALIGN(2,2),
-#if	__FreeBSD_version >= 700009
+#if	__FreeBSD_version >= 700025
 	[ELF_T_LWORD]	= FALIGN(8,8),
 	[ELF_T_MOVE]	= FALIGN(8,8),
 #endif
 	[ELF_T_MOVEP] 	= UNSUPPORTED(),
-#if	__FreeBSD_version >= 700009
+#if	__FreeBSD_version >= 700025
 	[ELF_T_NOTE]	= FALIGN(4,4),
 #endif
 	[ELF_T_OFF]	= FALIGN(4,8),
@@ -132,7 +132,7 @@ static struct align falign[ELF_T_NUM] = {
 	[ELF_T_SWORD]	= FALIGN(4,4),
 	[ELF_T_SXWORD]	= FALIGN(0,8),
 	[ELF_T_SYM]	= FALIGN(4,8),
-#if	__FreeBSD_version >= 700009
+#if	__FreeBSD_version >= 700025
 	[ELF_T_SYMINFO]	= FALIGN(2,2),
 #endif
 #if	__FreeBSD_version >= 700009
