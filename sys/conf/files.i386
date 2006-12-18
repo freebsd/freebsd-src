@@ -57,7 +57,7 @@ hal.o				optional	ath_hal			\
 	no-implicit-rule
 opt_ah.h			optional	ath_hal			\
 	dependency	"$S/contrib/dev/ath/public/i386-elf.opt_ah.h"	\
-	compile-with	"cp $S/contrib/dev/ath/public/i386-elf.opt_ah.h opt_ah.h" \
+	compile-with	"rm -f opt_ah.h; cp $S/contrib/dev/ath/public/i386-elf.opt_ah.h opt_ah.h" \
 	no-obj no-implicit-rule before-depend				\
 	clean		"opt_ah.h"
 #
