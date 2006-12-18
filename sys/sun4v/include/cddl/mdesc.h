@@ -181,10 +181,12 @@ extern int              md_get_prop_alloc(md_t *, mde_cookie_t, char *,
 extern int              md_vdev_find_val(device_t dev, char *namep, 
 					 uint64_t *valp);
 
+extern int              md_vdev_find_node(device_t dev, mde_cookie_t *valp);
 
 MALLOC_DECLARE(M_MDPROP);
 extern void             mdesc_init(void);
 extern int              mdesc_update(void);
+
 
 extern md_t *           md_get(void);
 extern void             md_put(md_t *);
