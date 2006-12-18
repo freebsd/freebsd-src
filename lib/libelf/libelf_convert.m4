@@ -33,6 +33,7 @@ __FBSDID("$FreeBSD$");
 
 #include <assert.h>
 #include <libelf.h>
+#include <osreldate.h>
 #include <string.h>
 
 #include "_libelf.h"
@@ -233,15 +234,6 @@ define(`IGNORE',
 
 IGNORE(MOVEP)
 IGNORE(NOTE)
-
-ifelse(eval(OSRELDATE < 700009),1,
-  `IGNORE(CAP)
-   IGNORE(MOVE)
-   IGNORE(SYMINFO)
-   IGNORE(VDEF)
-   IGNORE(VNEED)
-   define(`IGNORE_LWORD',	1)',
-  `')
 
 define(IGNORE_BYTE,		1)	/* 'lator, leave 'em bytes alone */
 define(IGNORE_NOTE,		1)
@@ -455,7 +447,8 @@ libelf_cvt$3_$1_tom(char *dst, char *src, size_t count, int byteswap)
  */
 
 define(`MAKE_TYPE_CONVERTER',
-  `ifdef(`BASE'_$1,
+  `#if	__FreeBSD_version >= $3 /* $1 */
+ifdef(`BASE'_$1,
     `ifdef(`IGNORE_'$1,`',
       `MAKEPRIM_TO_F($1,$2,`',64)
        MAKEPRIM_TO_M($1,$2,`',64)')',
@@ -467,7 +460,9 @@ define(`MAKE_TYPE_CONVERTER',
       `MAKE_TO_F($1,$2,32)dnl
        MAKE_TO_F($1,$2,64)dnl
        MAKE_TO_M($1,$2,32)dnl
-       MAKE_TO_M($1,$2,64)')')')
+       MAKE_TO_M($1,$2,64)')')
+#endif /* $1 */
+')
 
 define(`MAKE_TYPE_CONVERTERS',
   `ifelse($#,1,`',
@@ -618,9 +613,11 @@ define(`CONV',
         `.$3$2 = libelf_cvt$2_$1_$3')')')')
 
 define(`CONVERTER_NAME',
-  `[ELF_T_$1] = {
+  `#if	__FreeBSD_version >= $3
+    [ELF_T_$1] = {
         CONV($1,32,tof), CONV($1,32,tom),
         CONV($1,64,tof), CONV($1,64,tom) },
+#endif
 ')')
 
 define(`CONVERTER_NAMES',

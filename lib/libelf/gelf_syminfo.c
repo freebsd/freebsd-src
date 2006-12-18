@@ -31,8 +31,11 @@ __FBSDID("$FreeBSD$");
 
 #include <assert.h>
 #include <gelf.h>
+#include <osreldate.h>
 
 #include "_libelf.h"
+
+#if	__FreeBSD_version >= 700025
 
 GElf_Syminfo *
 gelf_getsyminfo(Elf_Data *d, int ndx, GElf_Syminfo *dst)
@@ -144,3 +147,5 @@ gelf_update_syminfo(Elf_Data *d, int ndx, GElf_Syminfo *gs)
 
 	return (1);
 }
+
+#endif	/* __FreeBSD_version >= 700025 */

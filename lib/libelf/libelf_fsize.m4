@@ -27,6 +27,7 @@
  */
 
 #include <libelf.h>
+#include <osreldate.h>
 
 #include "_libelf.h"
 
@@ -53,14 +54,6 @@ define(`MOVEP_SIZE',	0)
 /* Overrides for 32 bit types that do not exist */
 define(`XWORD_SIZE32',	0)
 define(`SXWORD_SIZE32',	0)
-
-ifelse(eval(OSRELDATE < 700009),1,
-  `define(`CAP_SIZE',	0)
-   define(`LWORD_SIZE',	0)
-   define(`MOVE_SIZE',	0)
-   define(`SYMINFO_SIZE', 0)
-   define(`VDEF_SIZE',	0)
-   define(`VNEED_SIZE',	0)',`')
 
 /*
  * FSZ{32,64} define the sizes of 32 and 64 bit file structures respectively.
@@ -122,7 +115,9 @@ DEFINE_ELF_FSIZES(ELF_TYPE_LIST)
 DEFINE_ELF_FSIZE(`IDENT',`')	# `IDENT' is a pseudo type
 
 define(`FSIZE',
-    `[ELF_T_$1] = { .fsz32 = $1_SIZE32, .fsz64 = $1_SIZE64 },')
+  `#if	__FreeBSD_version >= $3
+    [ELF_T_$1] = { .fsz32 = $1_SIZE32, .fsz64 = $1_SIZE64 },
+#endif')
 define(`FSIZES',
   `ifelse($#,1,`',
     `FSIZE($1)
