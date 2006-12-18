@@ -175,7 +175,7 @@ typedef struct mousemode {
 #define MOUSE_PROTO_HITTAB	8	/* Hitachi Tablet 3 bytes */
 #define MOUSE_PROTO_GLIDEPOINT	9	/* ALPS GlidePoint, 3/4 bytes */
 #define MOUSE_PROTO_INTELLI	10	/* MS IntelliMouse, 4 bytes */
-#define MOUSE_PROTO_THINK	11	/* Kensignton Thinking Mouse, 3/4 bytes */
+#define MOUSE_PROTO_THINK	11	/* Kensington Thinking Mouse, 3/4 bytes */
 #define MOUSE_PROTO_SYSMOUSE	12	/* /dev/sysmouse */
 #define MOUSE_PROTO_X10MOUSEREM	13	/* X10 MouseRemote, 3 bytes */
 #define MOUSE_PROTO_KIDSPAD	14	/* Genius Kidspad */
