@@ -133,25 +133,21 @@ tsb_set_tte_real(hv_tsb_info_t *tsb, vm_offset_t index_va, vm_offset_t tag_va,
 {
 	vm_paddr_t tsb_store_pa;
 	uint64_t tsb_index, tsb_shift, tte_tag;
-	DPRINTF("tsb_set_tte va: 0x%lx idxpgsz: %x\n", tag_va, tsb->hti_idxpgsz);
+	DPRINTF("tsb_set_tte index_va: 0x%lx tag_va: 0x%lx idxpgsz: %x ", 
+		index_va, tag_va, tsb->hti_idxpgsz);
 
 	tsb_shift = TTE_PAGE_SHIFT(tsb->hti_idxpgsz);
 
-	DPRINTF("tsb_shift: 0x%lx\n", tsb_shift);
 	tsb_index = (index_va >> tsb_shift) & TSB_MASK(tsb);
 	DPRINTF("tsb_index_absolute: 0x%lx tsb_index: 0x%lx\n", (index_va >> tsb_shift), tsb_index);
 	tsb_store_pa = tsb->hti_ra + 2*tsb_index*sizeof(uint64_t);
 
-	tte_data &= ~VTD_V;
 	/* store new value with valid bit cleared 
 	 * to avoid invalid intermediate value;
 	 */
 	store_real(tsb_store_pa + sizeof(uint64_t), tte_data);
-	tte_data |= VTD_V;
-
 	tte_tag = (ctx << TTARGET_CTX_SHIFT) | (tag_va >> TTARGET_VA_SHIFT);
-	store_real(tsb_store_pa, tte_tag); 
-	store_real(tsb_store_pa + sizeof(uint64_t), tte_data);
+	store_real(tsb_store_pa, tte_tag);
 } 
 
 
