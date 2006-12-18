@@ -1,5 +1,10 @@
 # $FreeBSD$
 
+.if ${MACHINE} != "i386"
+.error "The ACPI module is only for i386"
+.endif
+
+
 .PATH: ${.CURDIR}/../../../contrib/dev/acpica \
        ${.CURDIR}/../../../pci \
        ${.CURDIR}/../../../dev/acpica \
