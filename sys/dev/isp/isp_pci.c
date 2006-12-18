@@ -1055,6 +1055,7 @@ isp_pci_attach(device_t dev)
 		cmd &= ~PCIM_CMD_INTX_DISABLE;
 	}
 
+#ifdef	WE_KNEW_WHAT_WE_WERE_DOING
 	if (IS_24XX(isp)) {
 		int reg;
 
@@ -1086,6 +1087,11 @@ isp_pci_attach(device_t dev)
 			pci_write_config(dev, reg, 2, pectl);
 		}
 	}
+#else
+	if (IS_24XX(isp)) {
+		cmd &= ~PCIM_CMD_INTX_DISABLE;
+	}
+#endif
 
 	pci_write_config(dev, PCIR_COMMAND, cmd, 2);
 
