@@ -87,6 +87,7 @@ int itlb_slot_max;
 
 /* sun4v */
 struct tlb_entry *tlb_store;
+int is_sun4v = 0;
 /* 
  * no direct TLB access on sun4v
  * we somewhat arbitrarily declare enough 
@@ -249,6 +250,52 @@ sparc64_copyin(const void *src, vm_offset_t dest, size_t len)
 	return len;
 }
 
+static void
+sparc64_maphint(vm_offset_t va, size_t len)
+{
+	vm_paddr_t pa;
+	vm_offset_t mva;
+	size_t size;
+	int i, ret, free_excess = 0;
+
+	if (!is_sun4v)
+		return;
+
+	if (tlb_store[va >> 22].te_pa != -1)
+		return;
+
+	/* round up to nearest 4MB page */
+	size = (len + PAGE_MASK_4M) & ~PAGE_MASK_4M;
+#if 0	
+	pa = (vm_offset_t)OF_alloc_phys(PAGE_SIZE_256M,	PAGE_SIZE_256M);
+
+	if (pa != -1)
+		free_excess = 1;
+	else
+#endif
+		pa = (vm_offset_t)OF_alloc_phys(size, PAGE_SIZE_256M);
+	if (pa == -1)
+		pa = (vm_offset_t)OF_alloc_phys(size, PAGE_SIZE_4M);
+	if (pa == -1)
+		panic("out of memory");
+
+	for (i = 0; i < size; i += PAGE_SIZE_4M) {
+		mva = (vm_offset_t)OF_claim_virt(va + i, PAGE_SIZE_4M, 0);
+		if (mva != (va + i)) {
+			panic("can't claim virtual page "
+			      "(wanted %#lx, got %#lx)",
+			      va, mva);
+		}
+
+		tlb_store[mva >> 22].te_pa = pa + i;
+		if ((ret = OF_map_phys(-1, PAGE_SIZE_4M, mva, pa + i)) != 0)
+			printf("OF_map_phys failed: %d\n", ret);
+	}
+	if (free_excess)
+		OF_release_phys((vm_offset_t)pa, PAGE_SIZE_256M);
+}
+
+
 /*
  * other MD functions
  */
@@ -277,7 +324,7 @@ __elfN(exec)(struct preloaded_file *fp)
 
 	entry = e->e_entry;
 
-	OF_release(heapva, HEAPSZ);
+	OF_release((void *)heapva, HEAPSZ);
 
 	((kernel_entry_t *)entry)(mdp, 0, 0, 0, openfirmware);
 
@@ -467,6 +514,7 @@ main(int (*openfirm)(void *))
 	archsw.arch_copyout = ofw_copyout;
 	archsw.arch_readin = sparc64_readin;
 	archsw.arch_autoload = sparc64_autoload;
+	archsw.arch_maphint = sparc64_maphint;
 
 	init_heap();
 	setheap((void *)heapva, (void *)(heapva + HEAPSZ));
@@ -480,6 +528,7 @@ main(int (*openfirm)(void *))
 	if (!strcmp(compatible, "sun4v")) {
 		printf("\nBooting with sun4v support.\n");
 		mmu_ops = &mmu_ops_sun4v;
+		is_sun4v = 1;
 	} else {
 		printf("\nBooting with sun4u support.\n");
 		mmu_ops = &mmu_ops_sun4u;
