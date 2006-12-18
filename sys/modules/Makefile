@@ -446,7 +446,7 @@ _snc=		snc
 
 .if ${MACHINE_ARCH} == "amd64"
 _aac=		aac
-_acpi=		acpi		# doesn't work on amd64 yet as module
+_acpi=		acpi		
 _agp=		agp
 _an=		an
 _arcmsr=	arcmsr
