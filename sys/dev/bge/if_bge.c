@@ -1659,40 +1659,42 @@ bge_lookup_vendor(uint16_t vid)
  * against our list and return its name if we find a match.
  *
  * Note that since the Broadcom controller contains VPD support, we
- * can get the device name string from the controller itself instead
- * of the compiled-in string. This is a little slow, but it guarantees
- * we'll always announce the right product name. Unfortunately, this
- * is possible only later in bge_attach(), when we have established
- * access to EEPROM.
+ * try to get the device name string from the controller itself instead
+ * of the compiled-in string. It guarantees we'll always announce the
+ * right product name. We fall back to the compiled-in string when
+ * VPD is unavailable or corrupt.
  */
 static int
 bge_probe(device_t dev)
 {
 	struct bge_type *t = bge_devs;
 	struct bge_softc *sc = device_get_softc(dev);
+	uint16_t vid, did;
 
-	bzero(sc, sizeof(struct bge_softc));
 	sc->bge_dev = dev;
-
+	vid = pci_get_vendor(dev);
+	did = pci_get_device(dev);
 	while(t->bge_vid != 0) {
-		if ((pci_get_vendor(dev) == t->bge_vid) &&
-		    (pci_get_device(dev) == t->bge_did)) {
-			char buf[64];
+		if ((vid == t->bge_vid) && (did == t->bge_did)) {
+			char model[64], buf[96];
 			const struct bge_revision *br;
 			const struct bge_vendor *v;
+			const char *pname;
 			uint32_t id;
 
 			id = pci_read_config(dev, BGE_PCI_MISC_CTL, 4) &
 			    BGE_PCIMISCCTL_ASICREV;
 			br = bge_lookup_rev(id);
-			id >>= 16;
-			v = bge_lookup_vendor(t->bge_vid);
-			if (br == NULL)
-				snprintf(buf, 64, "%s unknown ASIC (%#04x)",
-				    v->v_name, id);
+			v = bge_lookup_vendor(vid);
+			if (pci_get_vpd_ident(dev, &pname))
+				snprintf(model, 64, "%s %s",
+				    v->v_name,
+				    br != NULL ? br->br_name :
+					"NetXtreme Ethernet Controller");
 			else
-				snprintf(buf, 64, "%s %s, ASIC rev. %#04x",
-				    v->v_name, br->br_name, id);
+				snprintf(model, 64, "%s", pname);
+			snprintf(buf, 96, "%s, %sASIC rev. %#04x", model,
+			    br != NULL ? "" : "unknown ", id >> 16);
 			device_set_desc_copy(dev, buf);
 			if (pci_get_subvendor(dev) == DELL_VENDORID)
 				sc->bge_flags |= BGE_FLAG_NO3LED;
@@ -2500,12 +2502,6 @@ bge_release_resources(struct bge_softc *sc)
 	device_t dev;
 
 	dev = sc->bge_dev;
-
-	if (sc->bge_vpd_prodname != NULL)
-		free(sc->bge_vpd_prodname, M_DEVBUF);
-
-	if (sc->bge_vpd_readonly != NULL)
-		free(sc->bge_vpd_readonly, M_DEVBUF);
 
 	if (sc->bge_intrhand != NULL)
 		bus_teardown_intr(dev, sc->bge_irq, sc->bge_intrhand);
