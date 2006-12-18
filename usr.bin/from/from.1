@@ -55,7 +55,8 @@ The following options are available:
 .It Fl c
 Just print a count of messages and exit.
 .It Fl f Ar file
-The supplied file
+The supplied
+.Ar file
 is examined instead of the invoker's mailbox.
 If the
 .Fl f
@@ -63,7 +64,7 @@ option is used, the
 .Ar user
 argument should not be used.
 Read from standard input if file name
-.Ar -
+.Dq Fl
 is given.
 .It Fl s Ar sender
 Only mail from addresses containing
@@ -78,7 +79,7 @@ is given, the
 mailbox is examined instead of the invoker's own mailbox.
 (Privileges are required.)
 .Sh ENVIRONMENT
-.Bl -tag -width Fl
+.Bl -tag -width indent
 .It Ev MAIL
 If set, the location of the invoker's mailbox.
 Otherwise, the default in
@@ -86,7 +87,7 @@ Otherwise, the default in
 is used.
 .El
 .Sh FILES
-.Bl -tag -width /var/mail/* -compact
+.Bl -tag -width ".Pa /var/mail/*" -compact
 .It Pa /var/mail/*
 .El
 .Sh SEE ALSO
