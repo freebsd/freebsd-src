@@ -186,7 +186,9 @@ brgphy_attach(device_t dev)
 		ADD(IFM_MAKEWORD(IFM_ETHER, IFM_1000_T,
 		    IFM_FDX, sc->mii_inst), 0);
 		PRINT("1000baseTX-FDX");
-	}
+		sc->mii_anegticks = MII_ANEGTICKS_GIGE;
+	} else
+		sc->mii_anegticks = MII_ANEGTICKS;
 
 	ADD(IFM_MAKEWORD(IFM_ETHER, IFM_AUTO, 0, sc->mii_inst), 0);
 	PRINT("auto");
@@ -207,13 +209,10 @@ brgphy_service(struct mii_softc *sc, struct mii_data *mii, int cmd)
 
 	switch (cmd) {
 	case MII_POLLSTAT:
-		/*
-		 * If we're not polling our PHY instance, just return.
-		 */
+		/* If we're not polling our PHY instance, just return. */
 		if (IFM_INST(ife->ifm_media) != sc->mii_inst)
 			return (0);
 		break;
-
 	case MII_MEDIACHG:
 		/*
 		 * If the media indicates a different PHY instance,
@@ -225,9 +224,7 @@ brgphy_service(struct mii_softc *sc, struct mii_data *mii, int cmd)
 			return (0);
 		}
 
-		/*
-		 * If the interface is not up, don't do anything.
-		 */
+		/* If the interface is not up, don't do anything. */
 		if ((mii->mii_ifp->if_flags & IFF_UP) == 0)
 			break;
 
@@ -236,9 +233,7 @@ brgphy_service(struct mii_softc *sc, struct mii_data *mii, int cmd)
 		switch (IFM_SUBTYPE(ife->ifm_media)) {
 		case IFM_AUTO:
 #ifdef foo
-			/*
-			 * If we're already in auto mode, just return.
-			 */
+			/* If we're already in auto mode, just return. */
 			if (PHY_READ(sc, BRGPHY_MII_BMCR) & BRGPHY_BMCR_AUTOEN)
 				return (0);
 #endif
@@ -303,38 +298,36 @@ setit:
 		break;
 
 	case MII_TICK:
-		/*
-		 * If we're not currently selected, just return.
-		 */
+		/* If we're not currently selected, just return. */
 		if (IFM_INST(ife->ifm_media) != sc->mii_inst)
 			return (0);
 
-		/*
-		 * Is the interface even up?
-		 */
+		/* Is the interface even up? */
 		if ((mii->mii_ifp->if_flags & IFF_UP) == 0)
 			return (0);
 
-		/*
-		 * Only used for autonegotiation.
-		 */
-		if (IFM_SUBTYPE(ife->ifm_media) != IFM_AUTO)
+		/* Only used for autonegotiation. */
+		if (IFM_SUBTYPE(ife->ifm_media) != IFM_AUTO) {
+			sc->mii_ticks = 0;	/* Reset autoneg timer. */
 			break;
+		}
 
 		/*
 		 * Check to see if we have link.  If we do, we don't
-		 * need to restart the autonegotiation process.  Read
-		 * the BMSR twice in case it's latched.
+		 * need to restart the autonegotiation process.
 		 */
-		reg = PHY_READ(sc, BRGPHY_MII_AUXSTS);
-		if (reg & BRGPHY_AUXSTS_LINK)
+		if (PHY_READ(sc, BRGPHY_MII_AUXSTS) & BRGPHY_AUXSTS_LINK) {
+			sc->mii_ticks = 0;	/* Reset autoneg timer. */
+			break;
+		}
+
+		/* Announce link loss right after it happens. */
+		if (sc->mii_ticks++ == 0)
 			break;
 
-		/*
-		 * Only retry autonegotiation every 5 seconds.
-		 */
-		if (++sc->mii_ticks <= MII_ANEGTICKS)
-			break;
+		/* Only retry autonegotiation every mii_anegticks seconds. */
+		if (sc->mii_ticks <= sc->mii_anegticks)
+			return (0);
 
 		sc->mii_ticks = 0;
 		brgphy_mii_phy_auto(sc);
@@ -347,7 +340,6 @@ setit:
 	/*
 	 * Callback if something changed. Note that we need to poke
 	 * the DSP on the Broadcom PHYs if the media changes.
-	 *
 	 */
 	if (sc->mii_media_active != mii->mii_media_active ||
 	    sc->mii_media_status != mii->mii_media_status ||
