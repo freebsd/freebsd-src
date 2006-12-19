@@ -94,11 +94,7 @@ struct bpb710 {
 
 #include <machine/endian.h>
 
-#ifdef __i386__
-#define	UNLALIGNED_ACCESS
-#endif
-
-#if (BYTE_ORDER == LITTLE_ENDIAN) && defined(UNALIGNED_ACCESS)
+#if (BYTE_ORDER == LITTLE_ENDIAN)
 #define	getushort(x)	*((u_int16_t *)(x))
 #define	getulong(x)	*((u_int32_t *)(x))
 #define	putushort(p, v)	(*((u_int16_t *)(p)) = (v))
