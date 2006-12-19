@@ -55,19 +55,11 @@ __FBSDID("$FreeBSD$");
  */
 static uma_zone_t thread_zone;
 
-/* DEBUG ONLY */
 SYSCTL_NODE(_kern, OID_AUTO, threads, CTLFLAG_RW, 0, "thread allocation");
-static int thread_debug = 0;
-SYSCTL_INT(_kern_threads, OID_AUTO, debug, CTLFLAG_RW,
-	&thread_debug, 0, "thread debug");
 
 int max_threads_per_proc = 1500;
 SYSCTL_INT(_kern_threads, OID_AUTO, max_threads_per_proc, CTLFLAG_RW,
 	&max_threads_per_proc, 0, "Limit on threads per proc");
-
-int max_groups_per_proc = 1500;
-SYSCTL_INT(_kern_threads, OID_AUTO, max_groups_per_proc, CTLFLAG_RW,
-	&max_groups_per_proc, 0, "Limit on thread groups per proc");
 
 int max_threads_hits;
 SYSCTL_INT(_kern_threads, OID_AUTO, max_threads_hits, CTLFLAG_RD,
