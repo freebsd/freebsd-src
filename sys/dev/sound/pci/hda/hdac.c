@@ -229,6 +229,11 @@ SND_DECLARE_FILE("$FreeBSD$");
 #define LG_LW20_SUBVENDOR	HDA_MODEL_CONSTRUCT(LG, 0x0018)
 #define LG_ALL_SUBVENDOR	HDA_MODEL_CONSTRUCT(LG, 0xffff)
 
+/* Fujitsu Siemens */
+#define FS_VENDORID		0x1734
+#define FS_PA1510_SUBVENDOR	HDA_MODEL_CONSTRUCT(FS, 0x10b8)
+#define FS_ALL_SUBVENDOR	HDA_MODEL_CONSTRUCT(FS, 0xffff)
+
 /* Misc constants.. */
 #define HDA_AMP_MUTE_DEFAULT	(0xffffffff)
 #define HDA_AMP_MUTE_NONE	(0)
@@ -3564,7 +3569,8 @@ hdac_vendor_patch_parse(struct hdac_devinfo *devinfo)
 		}
 		break;
 	case HDA_CODEC_ALC861:
-		if (subvendor == ASUS_P1AH2_SUBVENDOR) {
+		if (subvendor == ASUS_P1AH2_SUBVENDOR ||
+		    subvendor == FS_PA1510_SUBVENDOR) {
 			struct hdac_audio_ctl *ctl;
 
 			ctl = hdac_audio_ctl_amp_get(devinfo, 28, 1, 1);
