@@ -2482,6 +2482,8 @@ bge_detach(device_t dev)
 	bge_reset(sc);
 	BGE_UNLOCK(sc);
 
+	callout_drain(&sc->bge_stat_ch);
+
 	ether_ifdetach(ifp);
 
 	if (sc->bge_flags & BGE_FLAG_TBI) {
@@ -3044,6 +3046,11 @@ bge_tick(void *xsc)
 	struct mii_data *mii = NULL;
 
 	BGE_LOCK_ASSERT(sc);
+
+	/* Synchronize with possible callout reset/stop. */
+	if (callout_pending(&sc->bge_stat_ch) ||
+	    !callout_active(&sc->bge_stat_ch))
+	    	return;
 
 	if (BGE_IS_5705_PLUS(sc))
 		bge_stats_update_regs(sc);
@@ -3870,12 +3877,7 @@ bge_stop(struct bge_softc *sc)
 
 	sc->bge_tx_saved_considx = BGE_TXCONS_UNSET;
 
-	/*
-	 * We can't just call bge_link_upd() cause chip is almost stopped so
-	 * bge_link_upd -> bge_tick_locked -> bge_stats_update sequence may
-	 * lead to hardware deadlock. So we just clearing MAC's link state
-	 * (PHY may still have link UP).
-	 */
+	/* Clear MAC's link state (PHY may still have link UP). */
 	if (bootverbose && sc->bge_link)
 		if_printf(sc->bge_ifp, "link DOWN\n");
 	sc->bge_link = 0;
@@ -3962,10 +3964,8 @@ bge_link_upd(struct bge_softc *sc)
 	    sc->bge_chipid != BGE_CHIPID_BCM5700_B2) {
 		status = CSR_READ_4(sc, BGE_MAC_STS);
 		if (status & BGE_MACSTAT_MI_INTERRUPT) {
-			callout_stop(&sc->bge_stat_ch);
-			bge_tick(sc);
-
 			mii = device_get_softc(sc->bge_miibus);
+			mii_pollstat(mii);
 			if (!sc->bge_link &&
 			    mii->mii_media_status & IFM_ACTIVE &&
 			    IFM_SUBTYPE(mii->mii_media_active) != IFM_NONE) {
@@ -4021,10 +4021,8 @@ bge_link_upd(struct bge_softc *sc)
 
 		if (link != sc->bge_link ||
 		    sc->bge_asicrev == BGE_ASICREV_BCM5700) {
-			callout_stop(&sc->bge_stat_ch);
-			bge_tick(sc);
-
 			mii = device_get_softc(sc->bge_miibus);
+			mii_pollstat(mii);
 			if (!sc->bge_link &&
 			    mii->mii_media_status & IFM_ACTIVE &&
 			    IFM_SUBTYPE(mii->mii_media_active) != IFM_NONE) {
