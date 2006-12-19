@@ -436,7 +436,8 @@ dos2unixfn(dn, un, lower, pmp)
 	 * Copy the name portion into the unix filename string.
 	 */
 	for (i = 8; i > 0 && *dn != ' ';) {
-		c = dos2unixchr((const u_char **)&dn, &i, lower, pmp);
+		c = dos2unixchr((const u_char **)&dn, &i, lower & LCASE_BASE,
+		    pmp);
 		if (c & 0xff00) {
 			*un++ = c >> 8;
 			thislong++;
@@ -454,7 +455,8 @@ dos2unixfn(dn, un, lower, pmp)
 		*un++ = '.';
 		thislong++;
 		for (i = 3; i > 0 && *dn != ' ';) {
-			c = dos2unixchr((const u_char **)&dn, &i, lower, pmp);
+			c = dos2unixchr((const u_char **)&dn, &i,
+			    lower & LCASE_EXT, pmp);
 			if (c & 0xff00) {
 				*un++ = c >> 8;
 				thislong++;
