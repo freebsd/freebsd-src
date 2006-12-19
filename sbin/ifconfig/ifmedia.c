@@ -303,9 +303,13 @@ domediaopt(const char *val, int clear, int s)
 	ifr.ifr_media = ifmr->ifm_current;
 	if (clear)
 		ifr.ifr_media &= ~options;
-	else
+	else {
+		if (options & IFM_HDX) {
+			ifr.ifr_media &= ~IFM_FDX;
+			options &= ~IFM_HDX;
+		}
 		ifr.ifr_media |= options;
-
+	}
 	ifmr->ifm_current = ifr.ifr_media;
 	callback_register(setifmediacallback, (void *)ifmr);
 }
