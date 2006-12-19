@@ -35,7 +35,7 @@
 .\"     @(#)cmp.1	8.1 (Berkeley) 6/6/93
 .\" $FreeBSD$
 .\"
-.Dd August 23, 2005
+.Dd December 19, 2006
 .Dt CMP 1
 .Os
 .Sh NAME
@@ -43,7 +43,7 @@
 .Nd compare two files
 .Sh SYNOPSIS
 .Nm
-.Op Fl l | Fl s | Fl x
+.Op Fl l | s | x
 .Op Fl hz
 .Ar file1 file2
 .Op Ar skip1 Op Ar skip2
@@ -60,7 +60,7 @@ and line number at which the first difference occurred is reported.
 Bytes and lines are numbered beginning with one.
 .Pp
 The following options are available:
-.Bl -tag -width flag
+.Bl -tag -width indent
 .It Fl h
 Do not follow symbolic links.
 .It Fl l
@@ -90,7 +90,7 @@ and
 respectively, where the comparison will begin.
 The offset is decimal by default, but may be expressed as a hexadecimal
 or octal value by preceding it with a leading ``0x'' or ``0''.
-.Pp
+.Sh EXIT STATUS
 The
 .Nm
 utility exits with one of the following values:
