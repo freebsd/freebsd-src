@@ -119,7 +119,7 @@ static struct		mbuf *rt2560_get_rts(struct rt2560_softc *,
 static int		rt2560_tx_data(struct rt2560_softc *, struct mbuf *,
 			    struct ieee80211_node *);
 static void		rt2560_start(struct ifnet *);
-static void		rt2560_watchdog(struct ifnet *);
+static void		rt2560_watchdog(void *);
 static int		rt2560_reset(struct ifnet *);
 static int		rt2560_ioctl(struct ifnet *, u_long, caddr_t);
 static void		rt2560_bbp_write(struct rt2560_softc *, uint8_t,
@@ -206,6 +206,7 @@ rt2560_attach(device_t dev, int id)
 	mtx_init(&sc->sc_mtx, device_get_nameunit(dev), MTX_NETWORK_LOCK,
 	    MTX_DEF | MTX_RECURSE);
 
+	callout_init_mtx(&sc->watchdog_ch, &sc->sc_mtx, 0);
 	callout_init(&sc->scan_ch, debug_mpsafenet ? CALLOUT_MPSAFE : 0);
 	callout_init(&sc->rssadapt_ch, CALLOUT_MPSAFE);
 
@@ -266,7 +267,6 @@ rt2560_attach(device_t dev, int id)
 	ifp->if_init = rt2560_init;
 	ifp->if_ioctl = rt2560_ioctl;
 	ifp->if_start = rt2560_start;
-	ifp->if_watchdog = rt2560_watchdog;
 	IFQ_SET_MAXLEN(&ifp->if_snd, IFQ_MAXLEN);
 	ifp->if_snd.ifq_drv_maxlen = IFQ_MAXLEN;
 	IFQ_SET_READY(&ifp->if_snd);
@@ -386,6 +386,7 @@ rt2560_detach(void *xsc)
 	struct ifnet *ifp = ic->ic_ifp;
 
 	rt2560_stop(sc);
+	callout_stop(&sc->watchdog_ch);
 	callout_stop(&sc->scan_ch);
 	callout_stop(&sc->rssadapt_ch);
 
@@ -2080,36 +2081,29 @@ rt2560_start(struct ifnet *ifp)
 		}
 
 		sc->sc_tx_timer = 5;
-		ifp->if_timer = 1;
+		callout_reset(&sc->watchdog_ch, hz, rt2560_watchdog, sc);
 	}
 
 	RAL_UNLOCK(sc);
 }
 
 static void
-rt2560_watchdog(struct ifnet *ifp)
+rt2560_watchdog(void *arg)
 {
-	struct rt2560_softc *sc = ifp->if_softc;
+	struct rt2560_softc *sc = (struct rt2560_softc *)arg;
 	struct ieee80211com *ic = &sc->sc_ic;
-
-	RAL_LOCK(sc);
-
-	ifp->if_timer = 0;
 
 	if (sc->sc_tx_timer > 0) {
 		if (--sc->sc_tx_timer == 0) {
 			device_printf(sc->sc_dev, "device timeout\n");
 			rt2560_init(sc);
-			ifp->if_oerrors++;
-			RAL_UNLOCK(sc);
+			sc->sc_ifp->if_oerrors++;
 			return;
 		}
-		ifp->if_timer = 1;
+		callout_reset(&sc->watchdog_ch, hz, rt2560_watchdog, sc);
 	}
 
 	ieee80211_watchdog(ic);
-
-	RAL_UNLOCK(sc);
 }
 
 /*
@@ -2769,7 +2763,6 @@ rt2560_stop(void *priv)
 	struct ifnet *ifp = ic->ic_ifp;
 
 	sc->sc_tx_timer = 0;
-	ifp->if_timer = 0;
 	ifp->if_drv_flags &= ~(IFF_DRV_RUNNING | IFF_DRV_OACTIVE);
 
 	ieee80211_new_state(ic, IEEE80211_S_INIT, -1);
@@ -2837,7 +2830,7 @@ rt2560_raw_xmit(struct ieee80211_node *ni, struct mbuf *m,
 			goto bad;
 	}
 	sc->sc_tx_timer = 5;
-	ifp->if_timer = 1;
+	callout_reset(&sc->watchdog_ch, hz, rt2560_watchdog, sc);
 
 	RAL_UNLOCK(sc);
 
