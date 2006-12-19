@@ -17,4 +17,6 @@ CFLAGS+=	-I${SRCDIR}/include
 DPADD+=		${BIND_DPADD} ${CRYPTO_DPADD}
 LDADD+=		${BIND_LDADD} ${CRYPTO_LDADD}
 
+MANFILTER=	sed -e "s@^host \[server\]@\\\fBhost\\\fR \\\fI[server]\\\fR@"
+
 .include <bsd.prog.mk>
