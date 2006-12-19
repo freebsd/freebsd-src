@@ -1074,8 +1074,9 @@ pipe_write(fp, uio, active_cred, flags, td)
 		 * The direct write mechanism will detect the reader going
 		 * away on us.
 		 */
-		if ((uio->uio_iov->iov_len >= PIPE_MINDIRECT) &&
-		    (wpipe->pipe_buffer.size >= PIPE_MINDIRECT) &&
+		if (uio->uio_segflg == UIO_USERSPACE &&
+		    uio->uio_iov->iov_len >= PIPE_MINDIRECT &&
+		    wpipe->pipe_buffer.size >= PIPE_MINDIRECT &&
 		    (fp->f_flag & FNONBLOCK) == 0) {
 			pipeunlock(wpipe);
 			error = pipe_direct_write(wpipe, uio);
