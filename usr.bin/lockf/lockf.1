@@ -67,7 +67,7 @@ the mere existence of the
 is not considered to constitute a lock.
 .Pp
 The following options are supported:
-.Bl -tag -width Fl
+.Bl -tag -width ".Fl t Ar seconds"
 .It Fl k
 Causes the lock file to be kept (not removed) after the command
 completes.
@@ -107,7 +107,7 @@ successfully acquires the lock, it returns the exit status produced by
 Otherwise, it returns one of the exit codes defined in
 .Xr sysexits 3 ,
 as follows:
-.Bl -tag -width F_CANTCREATX
+.Bl -tag -width ".Dv EX_CANTCREAT"
 .It Dv EX_TEMPFAIL
 The specified lock file was already locked by another process.
 .It Dv EX_CANTCREAT
@@ -121,7 +121,9 @@ There was an error on the
 .Nm
 command line.
 .It Dv EX_OSERR
-A system call (e.g., fork) failed unexpectedly.
+A system call (e.g.,
+.Xr fork 2 )
+failed unexpectedly.
 .El
 .Sh SEE ALSO
 .Xr flock 2 ,
@@ -132,4 +134,4 @@ A
 utility first appeared in
 .Fx 2.2 .
 .Sh AUTHORS
-.An John Polstra Aq jdp@polstra.com .
+.An John Polstra Aq jdp@polstra.com
