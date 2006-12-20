@@ -475,6 +475,10 @@ struct linux_sched_get_priority_max_args {
 struct linux_sched_get_priority_min_args {
 	char policy_l_[PADL_(l_int)]; l_int policy; char policy_r_[PADR_(l_int)];
 };
+struct linux_nanosleep_args {
+	char rqtp_l_[PADL_(const struct l_timespec *)]; const struct l_timespec * rqtp; char rqtp_r_[PADR_(const struct l_timespec *)];
+	char rmtp_l_[PADL_(struct l_timespec *)]; struct l_timespec * rmtp; char rmtp_r_[PADR_(struct l_timespec *)];
+};
 struct linux_mremap_args {
 	char addr_l_[PADL_(l_ulong)]; l_ulong addr; char addr_r_[PADR_(l_ulong)];
 	char old_len_l_[PADL_(l_ulong)]; l_ulong old_len; char old_len_r_[PADR_(l_ulong)];
@@ -1041,6 +1045,7 @@ int	linux_sched_setscheduler(struct thread *, struct linux_sched_setscheduler_ar
 int	linux_sched_getscheduler(struct thread *, struct linux_sched_getscheduler_args *);
 int	linux_sched_get_priority_max(struct thread *, struct linux_sched_get_priority_max_args *);
 int	linux_sched_get_priority_min(struct thread *, struct linux_sched_get_priority_min_args *);
+int	linux_nanosleep(struct thread *, struct linux_nanosleep_args *);
 int	linux_mremap(struct thread *, struct linux_mremap_args *);
 int	linux_setresuid16(struct thread *, struct linux_setresuid16_args *);
 int	linux_getresuid16(struct thread *, struct linux_getresuid16_args *);
@@ -1287,6 +1292,7 @@ int	linux_unshare(struct thread *, struct linux_unshare_args *);
 #define	LINUX_SYS_AUE_linux_sched_getscheduler	AUE_SCHED_GETSCHEDULER
 #define	LINUX_SYS_AUE_linux_sched_get_priority_max	AUE_SCHED_GET_PRIORITY_MAX
 #define	LINUX_SYS_AUE_linux_sched_get_priority_min	AUE_SCHED_GET_PRIORITY_MIN
+#define	LINUX_SYS_AUE_linux_nanosleep	AUE_NULL
 #define	LINUX_SYS_AUE_linux_mremap	AUE_NULL
 #define	LINUX_SYS_AUE_linux_setresuid16	AUE_SETRESUID
 #define	LINUX_SYS_AUE_linux_getresuid16	AUE_GETRESUID
