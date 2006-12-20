@@ -154,7 +154,7 @@ brgphy_attach(device_t dev)
 	    BMCR_ISO);
 #if 0
 	ADD(IFM_MAKEWORD(IFM_ETHER, IFM_100_TX, IFM_LOOP, sc->mii_inst),
-	    BMCR_LOOP|BMCR_S100);
+	    BMCR_LOOP | BMCR_S100);
 #endif
 
 	brgphy_mii_model = MII_MODEL(ma->mii_id2);
@@ -167,7 +167,7 @@ brgphy_attach(device_t dev)
 
 	/* Find the driver associated with this PHY. */
 	if (strcmp(mii->mii_ifp->if_dname, "bge") == 0)	{
- 		bge_sc = mii->mii_ifp->if_softc;
+		bge_sc = mii->mii_ifp->if_softc;
 	} else if (strcmp(mii->mii_ifp->if_dname, "bce") == 0) {
 		bce_sc = mii->mii_ifp->if_softc;
 	}
@@ -205,7 +205,6 @@ static int
 brgphy_service(struct mii_softc *sc, struct mii_data *mii, int cmd)
 {
 	struct ifmedia_entry *ife = mii->mii_media.ifm_cur;
-	int reg;
 
 	switch (cmd) {
 	case MII_POLLSTAT:
@@ -219,8 +218,8 @@ brgphy_service(struct mii_softc *sc, struct mii_data *mii, int cmd)
 		 * isolate ourselves.
 		 */
 		if (IFM_INST(ife->ifm_media) != sc->mii_inst) {
-			reg = PHY_READ(sc, MII_BMCR);
-			PHY_WRITE(sc, MII_BMCR, reg | BMCR_ISO);
+			PHY_WRITE(sc, MII_BMCR,
+			    PHY_READ(sc, MII_BMCR) | BMCR_ISO);
 			return (0);
 		}
 
@@ -274,7 +273,7 @@ brgphy_service(struct mii_softc *sc, struct mii_data *mii, int cmd)
 		 * Check to see if we have link.  If we do, we don't
 		 * need to restart the autonegotiation process.
 		 */
-		if (PHY_READ(sc, BRGPHY_MII_AUXSTS) & BRGPHY_AUXSTS_LINK) {
+		if (PHY_READ(sc, BRGPHY_MII_BMSR) & BRGPHY_BMSR_LINK) {
 			sc->mii_ticks = 0;	/* Reset autoneg timer. */
 			break;
 		}
@@ -439,7 +438,7 @@ brgphy_mii_phy_auto(struct mii_softc *sc)
 	brgphy_reset(sc);
 	ktcr = BRGPHY_1000CTL_AFD | BRGPHY_1000CTL_AHD;
 	if (brgphy_mii_model == MII_MODEL_xxBROADCOM_BCM5701)
-		ktcr |= BRGPHY_1000CTL_MSE|BRGPHY_1000CTL_MSC;
+		ktcr |= BRGPHY_1000CTL_MSE | BRGPHY_1000CTL_MSC;
 	PHY_WRITE(sc, BRGPHY_MII_1000CTL, ktcr);
 	ktcr = PHY_READ(sc, BRGPHY_MII_1000CTL);
 	DELAY(1000);
@@ -611,14 +610,14 @@ brgphy_reset(struct mii_softc *sc)
 
 	/* Find the driver associated with this PHY. */
 	if (strcmp(ifp->if_dname, "bge") == 0)	{
- 		bge_sc = ifp->if_softc;
+		bge_sc = ifp->if_softc;
 	} else if (strcmp(ifp->if_dname, "bce") == 0) {
 		bce_sc = ifp->if_softc;
 	}
 
 	/* Handle any NetXtreme/bge workarounds. */
 	if (bge_sc) {
-	 	/*
+		/*
 		 * Don't enable Ethernet@WireSpeed for the 5700 or the
 		 * 5705 A1 and A2 chips. Make sure we only do this test
 		 * on "bge" NICs, since other drivers may use this same
@@ -637,7 +636,7 @@ brgphy_reset(struct mii_softc *sc)
 		/* Enable Link LED on Dell boxes */
 		if (bge_sc->bge_flags & BGE_FLAG_NO3LED) {
 			PHY_WRITE(sc, BRGPHY_MII_PHY_EXTCTL,
-		    	    PHY_READ(sc, BRGPHY_MII_PHY_EXTCTL) &
+			    PHY_READ(sc, BRGPHY_MII_PHY_EXTCTL) &
 			    ~BRGPHY_PHY_EXTCTL_3_LED);
 		}
 	} else if (bce_sc) {
