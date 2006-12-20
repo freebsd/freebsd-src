@@ -1335,10 +1335,62 @@ freebsd32_semsys(struct thread *td, struct freebsd32_semsys_args *uap)
 int
 freebsd32_msgsys(struct thread *td, struct freebsd32_msgsys_args *uap)
 {
-	/*
-	 * Vector through to msgsys if it is loaded.
-	 */
-	return sysent[SYS_msgsys].sy_call(td, uap);
+	switch (uap->which) {
+	case 2:
+		return (freebsd32_msgsnd(td,
+		    (struct freebsd32_msgsnd_args *)&uap->a2));
+		break;
+	case 3:
+		return (freebsd32_msgrcv(td,
+		    (struct freebsd32_msgrcv_args *)&uap->a2));
+		break;
+	default:
+		/*
+		 * Vector through to msgsys if it is loaded.
+		 */
+		return (sysent[SYS_msgsys].sy_call(td, uap));
+		break;
+	}
+}
+
+int
+freebsd32_msgsnd(struct thread *td, struct freebsd32_msgsnd_args *uap)
+{
+	const void *msgp;
+	long mtype;
+	int32_t mtype32;
+	int error;
+
+	if (!SYSCALL_MODULE_PRESENT(msgsnd))
+		return (nosys(td, (struct nosys_args *)uap));
+
+	msgp = PTRIN(uap->msgp);
+	if ((error = copyin(msgp, &mtype32, sizeof(mtype32))) != 0)
+		return (error);
+	mtype = mtype32;
+	return (kern_msgsnd(td, uap->msqid,
+	    (const char *)msgp + sizeof(mtype32),
+	    uap->msgsz, uap->msgflg, mtype));
+}
+
+int
+freebsd32_msgrcv(struct thread *td, struct freebsd32_msgrcv_args *uap)
+{
+	void *msgp;
+	long mtype;
+	int32_t mtype32;
+	int error;
+
+	if (!SYSCALL_MODULE_PRESENT(msgrcv))
+		return (nosys(td, (struct nosys_args *)uap));
+
+	msgp = PTRIN(uap->msgp);
+	if ((error = kern_msgrcv(td, uap->msqid,
+	    (char *)msgp + sizeof(mtype32), uap->msgsz,
+	    uap->msgtyp, uap->msgflg, &mtype)) != 0)
+		return (error);
+	mtype32 = (int32_t)mtype;
+	return (copyout(&mtype32, msgp, sizeof(mtype32)));
 }
 
 int
