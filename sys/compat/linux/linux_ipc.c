@@ -575,37 +575,39 @@ linux_semctl(struct thread *td, struct linux_semctl_args *args)
 int
 linux_msgsnd(struct thread *td, struct linux_msgsnd_args *args)
 {
-    struct msgsnd_args /* {
-	int     msqid;
-	void    *msgp;
-	size_t  msgsz;
-	int     msgflg;
-    } */ bsd_args;
+	const void *msgp;
+	long mtype;
+	l_long lmtype;
+	int error;
 
-    bsd_args.msqid = args->msqid;
-    bsd_args.msgp = PTRIN(args->msgp);
-    bsd_args.msgsz = args->msgsz;
-    bsd_args.msgflg = args->msgflg;
-    return msgsnd(td, &bsd_args);
+	if ((l_long)args->msgsz < 0)
+		return (EINVAL);
+	msgp = PTRIN(args->msgp);
+	if ((error = copyin(msgp, &lmtype, sizeof(lmtype))) != 0)
+		return (error);
+	mtype = (long)lmtype;
+	return (kern_msgsnd(td, args->msqid,
+	    (const char *)msgp + sizeof(lmtype),
+	    args->msgsz, args->msgflg, mtype));
 }
 
 int
 linux_msgrcv(struct thread *td, struct linux_msgrcv_args *args)
 {
-    struct msgrcv_args /* {
-	int	msqid;
-	void	*msgp;
-	size_t	msgsz;
-	long	msgtyp;
-	int	msgflg;
-    } */ bsd_args;
+	void *msgp;
+	long mtype;
+	l_long lmtype;
+	int error;
 
-    bsd_args.msqid = args->msqid;
-    bsd_args.msgp = PTRIN(args->msgp);
-    bsd_args.msgsz = args->msgsz;
-    bsd_args.msgtyp = args->msgtyp;
-    bsd_args.msgflg = args->msgflg;
-    return msgrcv(td, &bsd_args);
+	if ((l_long)args->msgsz < 0)
+		return (EINVAL);
+	msgp = PTRIN(args->msgp);
+	if ((error = kern_msgrcv(td, args->msqid,
+	    (char *)msgp + sizeof(lmtype), args->msgsz,
+	    args->msgtyp, args->msgflg, &mtype)) != 0)
+		return (error);
+	lmtype = (l_long)mtype;
+	return (copyout(&lmtype, msgp, sizeof(lmtype)));
 }
 
 int
