@@ -38,8 +38,13 @@ __FBSDID("$FreeBSD$");
 #include <sys/module.h>
 #include <sys/file.h>
 #include <sys/proc.h>
+#ifdef __amd64__
+#include <machine/../linux32/linux.h>
+#include <machine/../linux32/linux32_proto.h>
+#else
 #include <machine/../linux/linux.h>
 #include <machine/../linux/linux_proto.h>
+#endif
 #include <compat/linux/linux_ioctl.h>
 
 /* There are multiple ioctl number ranges that need to be handled */
