@@ -206,6 +206,11 @@ sw1:
 	movq	%rbx, (%rax)
 	movq	%rbx, PCPU(RSP0)
 
+	movl	TD_TID(%rsi), %eax
+	movq	%r8, PCPU(CURPCB)
+	movl	%eax, PCPU(CURTID)
+	movq	%rsi, PCPU(CURTHREAD)		/* into next thread */
+
 	/* Restore context. */
 	movq	PCB_RBX(%r8),%rbx
 	movq	PCB_RSP(%r8),%rsp
@@ -216,9 +221,6 @@ sw1:
 	movq	PCB_R15(%r8),%r15
 	movq	PCB_RIP(%r8),%rax
 	movq	%rax,(%rsp)
-
-	movq	%r8, PCPU(CURPCB)
-	movq	%rsi, PCPU(CURTHREAD)		/* into next thread */
 
 	/* Test if debug registers should be restored. */
 	testl	$PCB_DBREGS,PCB_FLAGS(%r8)
