@@ -136,6 +136,7 @@ mutex_init(pthread_mutex_t *mutex,
 		pmutex->m_lock.m_owner = UMUTEX_UNOWNED;
 		pmutex->m_lock.m_flags = 0;
 	}
+	pmutex->m_lock.m_spincount = _thr_adaptive_spin;
 	*mutex = pmutex;
 	return (0);
 }
