@@ -16,17 +16,15 @@ start_cmd=":"
 sysv_start()
 {
 	echo -n ' sysvipc'
-	kldload sysvmsg >/dev/null 2>&1
-	kldload sysvsem >/dev/null 2>&1
-	kldload sysvshm >/dev/null 2>&1
+	load_kld sysvmsg
+	load_kld sysvsem
+	load_kld sysvshm
 }
 
 linux_start()
 {
 	echo -n ' linux'
-	if ! kldstat -v | grep -E 'linux(aout|elf)' > /dev/null; then
-		kldload linux > /dev/null 2>&1
-	fi
+	load_kld -e 'linux(aout|elf)' linux
 	if [ -x /compat/linux/sbin/ldconfig ]; then
 		/compat/linux/sbin/ldconfig
 	fi
@@ -35,7 +33,7 @@ linux_start()
 svr4_start()
 {
 	echo -n ' svr4'
-	kldload svr4 > /dev/null 2>&1
+	load_kld -m svr4elf svr4
 }
 
 abi_prestart()
