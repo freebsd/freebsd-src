@@ -119,6 +119,23 @@ SPI_ReadFlash(unsigned flash_addr, char *dest_addr, unsigned size)
 	byteAddress = flash_addr % FLASH_PAGE_SIZE;
 
 	p_memset(tx_commandBuffer, 0, 8);
+#ifdef BOOT_BWCT
+	tx_commandBuffer[0] = 0xd2;
+	tx_commandBuffer[1] = ((pageAddress >> 6) & 0xFF);
+	tx_commandBuffer[2] = ((pageAddress << 2) & 0xFC) |
+				((byteAddress >> 8) & 0x3);
+	tx_commandBuffer[3] = byteAddress & 0xFF;
+	spi_command.tx_cmd = tx_commandBuffer;
+	spi_command.tx_cmd_size = 8;
+	spi_command.tx_data_size = size;
+	spi_command.tx_data = dest_addr;
+
+	p_memset(rx_commandBuffer, 0, 8);
+	spi_command.rx_cmd = rx_commandBuffer;
+	spi_command.rx_cmd_size = 8;
+	spi_command.rx_data_size = size;
+	spi_command.rx_data = dest_addr;
+#else
 	tx_commandBuffer[0] = CONTINUOUS_ARRAY_READ_HF;
 	tx_commandBuffer[1] = ((pageAddress >> 5) & 0xFF);
 	tx_commandBuffer[2] = ((pageAddress << 3) & 0xF8) |
@@ -134,6 +151,7 @@ SPI_ReadFlash(unsigned flash_addr, char *dest_addr, unsigned size)
 	spi_command.rx_cmd_size = 5;
 	spi_command.rx_data_size = size;
 	spi_command.rx_data = dest_addr;
+#endif
 
 	SendCommand(&spi_command);
 }
@@ -159,11 +177,19 @@ SPI_WriteFlash(unsigned flash_addr, char *src_addr, unsigned size)
 	byteAddress = flash_addr % FLASH_PAGE_SIZE;
 
 	p_memset(tx_commandBuffer, 0, 8);
+#ifdef BOOT_BWCT
+	tx_commandBuffer[0] = 0x82;
+	tx_commandBuffer[1] = ((pageAddress >> 6) & 0xFF);
+	tx_commandBuffer[2] = ((pageAddress << 2) & 0xFC) |
+				((byteAddress >> 8) & 0x3);
+	tx_commandBuffer[3] = (byteAddress & 0xFF);
+#else
 	tx_commandBuffer[0] = PROGRAM_THROUGH_BUFFER;
 	tx_commandBuffer[1] = ((pageAddress >> 5) & 0xFF);
 	tx_commandBuffer[2] = ((pageAddress << 3) & 0xF8) |
 				((byteAddress >> 8) & 0x7);
 	tx_commandBuffer[3] = (byteAddress & 0xFF);
+#endif
 
 	p_memset(rx_commandBuffer, 0, 8);
 
@@ -233,6 +259,11 @@ SPI_InitFlash(void)
 	// Increment real time counter every SLCK
 	AT91C_BASE_ST->ST_RTMR = 1;
 
+#ifdef BOOT_BWCT
+	if (((value = GetFlashStatus()) & 0xFC) != 0xB4)
+		printf(" Bad SPI status: 0x%x\n", value);
+#else
 	if (((value = GetFlashStatus()) & 0xFC) != 0xBC)
 		printf(" Bad SPI status: 0x%x\n", value);
+#endif
 }
