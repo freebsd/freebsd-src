@@ -54,8 +54,9 @@ SYSCTL_N="${SYSCTL} -n"
 CMD_OSTYPE="${SYSCTL_N} kern.ostype"
 OSTYPE=`${CMD_OSTYPE}`
 ID="/usr/bin/id"
-JID=`ps -p $$ -o jid=`
 IDCMD="if [ -x $ID ]; then $ID -un; fi"
+PS="/bin/ps -ww"
+JID=`$PS -p $$ -o jid=`
 
 case ${OSTYPE} in
 FreeBSD)
@@ -278,13 +279,10 @@ _find_processes()
 		    $_procname|$_procnamebn|${_procnamebn}:|"(${_procnamebn})"|"[${_procnamebn}]")'
 	fi
 
-	_proccheck='
-		ps 2>/dev/null -o "pid,jid,command" '"$_psargs"' |
+	_proccheck="\
+		$PS 2>/dev/null -o pid= -o jid= -o command= $_psargs"' |
 		while read _npid _jid '"$_fp_args"'; do
-			case "$_npid" in
-			PID)
-				continue;;
-			esac; '"$_fp_match"'
+			'"$_fp_match"'
 				if [ "$JID" -eq "$_jid" ];
 				then echo -n "$_pref$_npid";
 				_pref=" ";
