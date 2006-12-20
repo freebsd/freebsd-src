@@ -282,8 +282,8 @@ bridge_new_port(struct mibif *mif, struct bridge_if *bif)
 	bp->proto_migr = TruthValue_false;
 	bp->admin_edge = TruthValue_false;
 	bp->oper_edge = TruthValue_false;
-	bp->oper_p2p = TruthValue_false;
-	bp->admin_p2p = StpPortAdminPointToPointType_auto;
+	bp->oper_ptp = TruthValue_false;
+	bp->admin_ptp = StpPortAdminPointToPointType_auto;
 
 	bridge_port_memif_insert(&bridge_ports, bp, &(bif->f_bp));
 
@@ -630,8 +630,8 @@ op_dot1d_stp_ext_port(struct snmp_context *ctx, struct snmp_value *val,
 				StpPortAdminPointToPointType_auto)
 				return (SNMP_ERR_WRONG_VALUE);
 
-			    ctx->scratch->int1 = bp->admin_p2p;
-			    if (bridge_port_set_admin_p2p(bif->bif_name, bp,
+			    ctx->scratch->int1 = bp->admin_ptp;
+			    if (bridge_port_set_admin_ptp(bif->bif_name, bp,
 				val->v.integer) < 0)
 				return (SNMP_ERR_GENERR);
 			    return (SNMP_ERR_NOERROR);
@@ -665,7 +665,7 @@ op_dot1d_stp_ext_port(struct snmp_context *ctx, struct snmp_value *val,
 				ctx->scratch->int1);
 			    break;
 			case LEAF_dot1dStpPortAdminPointToPoint:
-			    bridge_port_set_admin_p2p(bif->bif_name, bp,
+			    bridge_port_set_admin_ptp(bif->bif_name, bp,
 				ctx->scratch->int1);
 			    break;
 			case LEAF_dot1dStpPortAdminPathCost:
@@ -695,11 +695,11 @@ get:
 			return (SNMP_ERR_NOERROR);
 
 		case LEAF_dot1dStpPortAdminPointToPoint:
-			val->v.integer = bp->admin_p2p;
+			val->v.integer = bp->admin_ptp;
 			return (SNMP_ERR_NOERROR);
 
 		case LEAF_dot1dStpPortOperPointToPoint:
-			val->v.integer = bp->oper_p2p;
+			val->v.integer = bp->oper_ptp;
 			return (SNMP_ERR_NOERROR);
 
 		case LEAF_dot1dStpPortAdminPathCost:
@@ -1353,8 +1353,8 @@ op_begemot_stp_ext_port(struct snmp_context *ctx, struct snmp_value *val,
 			    StpPortAdminPointToPointType_auto)
 			    return (SNMP_ERR_WRONG_VALUE);
 
-			ctx->scratch->int1 = bp->admin_p2p;
-			if (bridge_port_set_admin_p2p(b_name, bp,
+			ctx->scratch->int1 = bp->admin_ptp;
+			if (bridge_port_set_admin_ptp(b_name, bp,
 			    val->v.integer) < 0)
 			    return (SNMP_ERR_GENERR);
 			return (SNMP_ERR_NOERROR);
@@ -1388,7 +1388,7 @@ op_begemot_stp_ext_port(struct snmp_context *ctx, struct snmp_value *val,
 			    ctx->scratch->int1);
 			break;
 		    case LEAF_begemotBridgeStpPortAdminPointToPoint:
-			bridge_port_set_admin_p2p(b_name, bp,
+			bridge_port_set_admin_ptp(b_name, bp,
 			    ctx->scratch->int1);
 			break;
 		    case LEAF_begemotBridgeStpPortAdminPathCost:
@@ -1418,11 +1418,11 @@ get:
 			return (SNMP_ERR_NOERROR);
 
 		case LEAF_begemotBridgeStpPortAdminPointToPoint:
-			val->v.integer = bp->admin_p2p;
+			val->v.integer = bp->admin_ptp;
 			return (SNMP_ERR_NOERROR);
 
 		case LEAF_begemotBridgeStpPortOperPointToPoint:
-			val->v.integer = bp->oper_p2p;
+			val->v.integer = bp->oper_ptp;
 			return (SNMP_ERR_NOERROR);
 
 		case LEAF_begemotBridgeStpPortAdminPathCost:
