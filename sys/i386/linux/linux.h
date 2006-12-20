@@ -146,8 +146,8 @@ struct l_rlimit {
  * stat family of syscalls
  */
 struct l_timespec {
-	l_ulong		tv_sec;
-	l_ulong		tv_nsec;
+	l_time_t	tv_sec;
+	l_long		tv_nsec;
 };
 
 struct l_newstat {
