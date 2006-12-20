@@ -89,7 +89,6 @@ struct vop_setlabel_args;
 /*
  * Kernel functions to manage and evaluate labels.
  */
-
 void	mac_init_bpfdesc(struct bpf_d *);
 void	mac_init_cred(struct ucred *);
 void	mac_init_devfsdirent(struct devfs_dirent *);
@@ -135,8 +134,8 @@ struct label	*mac_vnode_label_alloc(void);
 void		 mac_vnode_label_free(struct label *label);
 
 /*
- * Labeling event operations: file system objects, and things that
- * look a lot like file system objects.
+ * Labeling event operations: file system objects, and things that look a lot
+ * like file system objects.
  */
 void	mac_associate_vnode_devfs(struct mount *mp, struct devfs_dirent *de,
 	    struct vnode *vp);
@@ -186,7 +185,6 @@ void	mac_create_sysv_shm(struct ucred *cred,
  */
 void 	mac_create_posix_sem(struct ucred *cred, struct ksem *ksemptr);
 
-
 /*
  * Labeling event operations: network objects.
  */
@@ -208,12 +206,12 @@ void	mac_reflect_mbuf_icmp(struct mbuf *m);
 void	mac_reflect_mbuf_tcp(struct mbuf *m);
 void	mac_update_ipq(struct mbuf *fragment, struct ipq *ipq);
 void	mac_inpcb_sosetlabel(struct socket *so, struct inpcb *inp);
-
 void	mac_create_mbuf_from_firewall(struct mbuf *m);
 void	mac_destroy_syncache(struct label **label);
 int	mac_init_syncache(struct label **label);
 void	mac_init_syncache_from_inpcb(struct label *label, struct inpcb *inp);
 void	mac_create_mbuf_from_syncache(struct label *sc_label, struct mbuf *m);
+
 /*
  * Labeling event operations: processes.
  */
@@ -230,20 +228,24 @@ void	mac_create_proc1(struct ucred *cred);
 void	mac_thread_userret(struct thread *td);
 
 /*
- * Label cleanup operation: This is the inverse complement for the
- * mac_create and associate type of hooks. This hook lets the policy
- * module(s) perform a cleanup/flushing operation on the label
- * associated with the objects, without freeing up the space allocated.
- * This hook is useful in cases where it is desirable to remove any
- * labeling reference when recycling any object to a pool. This hook
- * does not replace the mac_destroy hooks.
+ * Label cleanup operation: This is the inverse complement for the mac_create
+ * and associate type of hooks. This hook lets the policy module(s) perform a
+ * cleanup/flushing operation on the label associated with the objects,
+ * without freeing up the space allocated.  This hook is useful in cases
+ * where it is desirable to remove any labeling reference when recycling any
+ * object to a pool. This hook does not replace the mac_destroy hooks.
+ *
+ * XXXRW: These object methods are inconsistent with the life cycles of other
+ * objects, and likely should be revised to be more consistent.
  */
 void	mac_cleanup_sysv_msgmsg(struct msg *msgptr);
 void	mac_cleanup_sysv_msgqueue(struct msqid_kernel *msqkptr);
 void	mac_cleanup_sysv_sem(struct semid_kernel *semakptr);
 void	mac_cleanup_sysv_shm(struct shmid_kernel *shmsegptr);
 
-/* Access control checks. */
+/*
+ * Access control checks.
+ */
 int	mac_check_bpfdesc_receive(struct bpf_d *bpf_d, struct ifnet *ifnet);
 int	mac_check_cred_visible(struct ucred *u1, struct ucred *u2);
 int	mac_check_ifnet_transmit(struct ifnet *ifnet, struct mbuf *m);
@@ -415,8 +417,8 @@ int	mac_priv_check(struct ucred *cred, int priv);
 int	mac_priv_grant(struct ucred *cred, int priv);
 
 /*
- * Calls to help various file systems implement labeling functionality
- * using their existing EA implementation.
+ * Calls to help various file systems implement labeling functionality using
+ * their existing EA implementation.
  */
 int	vop_stdsetlabel_ea(struct vop_setlabel_args *ap);
 
