@@ -406,9 +406,9 @@
 224	AUE_MSGCTL	NOPROTO	{ int msgctl(int msqid, int cmd, \
 				    struct msqid_ds *buf); }
 225	AUE_MSGGET	NOPROTO	{ int msgget(key_t key, int msgflg); }
-226	AUE_MSGSND	NOPROTO	{ int msgsnd(int msqid, void *msgp, \
+226	AUE_MSGSND	STD	{ int freebsd32_msgsnd(int msqid, void *msgp, \
 				    size_t msgsz, int msgflg); }
-227	AUE_MSGRCV	NOPROTO	{ int msgrcv(int msqid, void *msgp, \
+227	AUE_MSGRCV	STD	{ int freebsd32_msgrcv(int msqid, void *msgp, \
 				    size_t msgsz, long msgtyp, int msgflg); }
 228	AUE_SHMAT	NOPROTO	{ int shmat(int shmid, void *shmaddr, \
 				    int shmflg); }
