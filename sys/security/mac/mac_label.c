@@ -44,7 +44,13 @@ __FBSDID("$FreeBSD$");
 #include <security/mac/mac_framework.h>
 #include <security/mac/mac_internal.h>
 
-uma_zone_t	zone_label;
+/*
+ * zone_label is the UMA zone from which all labels are allocated.  Label
+ * structures are initialized to zero bytes so that policies see a NULL/0
+ * slot on first use, even if the policy is loaded after the label is
+ * allocated for an object.
+ */
+static uma_zone_t	zone_label;
 
 static int	mac_labelzone_ctor(void *mem, int size, void *arg, int flags);
 static void	mac_labelzone_dtor(void *mem, int size, void *arg);
