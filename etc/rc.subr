@@ -614,7 +614,7 @@ run_rc_command()
 			fi
 
 			if [ ! -x ${_chroot}${command} ]; then
-				info "run_rc_command: cannot run ($command)."
+				warn "run_rc_command: cannot run $command"
 				return 1
 			fi
 
@@ -657,7 +657,7 @@ run_rc_command()
 				    return 1
 			fi
 
-					# setup the command to run, and run it
+					# setup the full command to run
 					#
 			echo "Starting ${name}."
 			if [ -n "$_chroot" ]; then
@@ -680,6 +680,7 @@ $command $rc_flags $command_args"
 				fi
 			fi
 
+					# run the full command;
 					# if the cmd failed and force
 					# isn't set, exit
 					#
@@ -1007,7 +1008,7 @@ debug()
 	case ${rc_debug} in
 	[Yy][Ee][Ss]|[Tt][Rr][Uu][Ee]|[Oo][Nn]|1)
 		if [ -x /usr/bin/logger ]; then
-			logger "$0: INFO: $*"
+			logger "$0: DEBUG: $*"
 		fi
 		echo 1>&2 "$0: DEBUG: $*"
 		;;
@@ -1119,7 +1120,7 @@ make_symlink()
 		return 1
 	fi
 	if [ ! -d "$linkdir" ]; then
-		warn "$_me: the directory $linkdir does not exist"
+		warn "$_me: the directory $linkdir does not exist."
 		return 1
 	fi
 	if ! ln -sf $src $link; then
