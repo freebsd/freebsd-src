@@ -337,6 +337,7 @@ CheckForNewPacket(ip_header_t *pHeader)
  *  This private function reads the PHY device.
  * .KB_C_FN_DEFINITION_END
  */
+#ifndef BOOT_BWCT
 static unsigned short
 AT91F_MII_ReadPhy (AT91PS_EMAC pEmac, unsigned char addr)
 {
@@ -348,11 +349,12 @@ AT91F_MII_ReadPhy (AT91PS_EMAC pEmac, unsigned char addr)
 	pEmac->EMAC_CTL &= ~AT91C_EMAC_MPE;
 	return (pEmac->EMAC_MAN & 0x0000ffff);
 }
+#endif
 
 /*
  * .KB_C_FN_DEFINITION_START
- * unsigned short AT91F_MII_ReadPhy (AT91PS_EMAC pEmac, unsigned char addr)
- *  This private function reads the PHY device.
+ * unsigned short AT91F_MII_WritePhy (AT91PS_EMAC pEmac, unsigned char addr, unsigned short s)
+ *  This private function writes the PHY device.
  * .KB_C_FN_DEFINITION_END
  */
 #ifdef BOOT_TSC
@@ -378,11 +380,19 @@ AT91F_MII_WritePhy (AT91PS_EMAC pEmac, unsigned char addr, unsigned short s)
 static void
 MII_GetLinkSpeed(AT91PS_EMAC pEmac)
 {
+#if defined(BOOT_TSC) | defined(BOOT_KB920X)
 	unsigned short stat2; 
+#endif
 	unsigned update;
 #ifdef BOOT_TSC
 	unsigned sec;
 	int i;
+#endif
+#ifdef BOOT_BWCT
+	/* hardcoded link speed since we connect a switch via MII */
+	update = pEmac->EMAC_CFG & ~(AT91C_EMAC_SPD | AT91C_EMAC_FD);
+	update |= AT91C_EMAC_SPD;
+	update |= AT91C_EMAC_FD;
 #endif
 #ifdef BOOT_KB920X
 	stat2 = AT91F_MII_ReadPhy(pEmac, MII_STS2_REG);
