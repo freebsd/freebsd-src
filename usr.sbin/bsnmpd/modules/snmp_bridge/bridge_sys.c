@@ -693,18 +693,18 @@ bridge_port_getinfo_conf(struct ifbreq *k_info, struct bridge_port *bp)
 	else
 		bp->oper_edge = TruthValue_false;
 
-	if (k_info->ifbr_ifsflags & IFBIF_BSTP_AUTOP2P) {
-		bp->admin_p2p = StpPortAdminPointToPointType_auto;
-		if (k_info->ifbr_ifsflags & IFBIF_BSTP_P2P)
-			bp->oper_p2p = TruthValue_true;
+	if (k_info->ifbr_ifsflags & IFBIF_BSTP_AUTOPTP) {
+		bp->admin_ptp = StpPortAdminPointToPointType_auto;
+		if (k_info->ifbr_ifsflags & IFBIF_BSTP_PTP)
+			bp->oper_ptp = TruthValue_true;
 		else
-			bp->oper_p2p = TruthValue_false;
-	} else if (k_info->ifbr_ifsflags & IFBIF_BSTP_P2P) {
-		bp->admin_p2p = StpPortAdminPointToPointType_forceTrue;
-		bp->oper_p2p = TruthValue_true;
+			bp->oper_ptp = TruthValue_false;
+	} else if (k_info->ifbr_ifsflags & IFBIF_BSTP_PTP) {
+		bp->admin_ptp = StpPortAdminPointToPointType_forceTrue;
+		bp->oper_ptp = TruthValue_true;
 	} else {
-		bp->admin_p2p = StpPortAdminPointToPointType_forceFalse;
-		bp->oper_p2p = TruthValue_false;
+		bp->admin_ptp = StpPortAdminPointToPointType_forceFalse;
+		bp->oper_ptp = TruthValue_false;
 	}
 #endif
 }
@@ -855,14 +855,14 @@ bridge_port_set_path_cost(const char *bif_name, struct bridge_port *bp,
  * Set the PonitToPoint status of the link administratively.
  */
 int
-bridge_port_set_admin_p2p(const char *bif_name __unused,
-    struct bridge_port *bp __unused, uint32_t admin_p2p __unused)
+bridge_port_set_admin_ptp(const char *bif_name __unused,
+    struct bridge_port *bp __unused, uint32_t admin_ptp __unused)
 {
 #if __FreeBSD_version > 700024
 	struct ifdrv ifd;
 	struct ifbreq b_req;
 
-	if (bp->admin_p2p == admin_p2p)
+	if (bp->admin_ptp == admin_ptp)
 		return (0);
 
 	bzero(&b_req, sizeof(b_req));
@@ -878,17 +878,17 @@ bridge_port_set_admin_p2p(const char *bif_name __unused,
 		return (-1);
 	}
 
-	switch (admin_p2p) {
+	switch (admin_ptp) {
 		case StpPortAdminPointToPointType_forceTrue:
-			b_req.ifbr_ifsflags &= ~IFBIF_BSTP_AUTOP2P;
-			b_req.ifbr_ifsflags |= IFBIF_BSTP_P2P;
+			b_req.ifbr_ifsflags &= ~IFBIF_BSTP_AUTOPTP;
+			b_req.ifbr_ifsflags |= IFBIF_BSTP_PTP;
 			break;
 		case StpPortAdminPointToPointType_forceFalse:
-			b_req.ifbr_ifsflags &= ~IFBIF_BSTP_AUTOP2P;
-			b_req.ifbr_ifsflags &= ~IFBIF_BSTP_P2P;
+			b_req.ifbr_ifsflags &= ~IFBIF_BSTP_AUTOPTP;
+			b_req.ifbr_ifsflags &= ~IFBIF_BSTP_PTP;
 			break;
 		case StpPortAdminPointToPointType_auto:
-			b_req.ifbr_ifsflags |= IFBIF_BSTP_AUTOP2P;
+			b_req.ifbr_ifsflags |= IFBIF_BSTP_AUTOPTP;
 			break;
 	}
 
@@ -899,7 +899,7 @@ bridge_port_set_admin_p2p(const char *bif_name __unused,
 		return (-1);
 	}
 
-	bp->admin_p2p = admin_p2p;
+	bp->admin_ptp = admin_ptp;
 	return (0);
 #else
 	return (-1);
