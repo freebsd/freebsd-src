@@ -9,6 +9,7 @@ _snmp_atm= snmp_atm
 .endif
 
 SUBDIR=	${_snmp_atm} \
+	snmp_bridge \
 	snmp_hostres \
 	snmp_mibII \
 	snmp_netgraph \
