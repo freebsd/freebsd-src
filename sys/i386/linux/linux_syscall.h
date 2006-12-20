@@ -156,7 +156,7 @@
 #define	LINUX_SYS_linux_sched_get_priority_max	159
 #define	LINUX_SYS_linux_sched_get_priority_min	160
 #define	LINUX_SYS_sched_rr_get_interval	161
-#define	LINUX_SYS_nanosleep	162
+#define	LINUX_SYS_linux_nanosleep	162
 #define	LINUX_SYS_linux_mremap	163
 #define	LINUX_SYS_linux_setresuid16	164
 #define	LINUX_SYS_linux_getresuid16	165
