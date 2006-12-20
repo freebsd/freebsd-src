@@ -66,8 +66,8 @@ __FBSDID("$FreeBSD$");
 #include <security/mac/mac_internal.h>
 
 /*
- * mac_enforce_network is used by IPv4 and IPv6 checks, and so must
- * be non-static for now.
+ * mac_enforce_network is used by IPv4 and IPv6 checks, and so must be
+ * non-static for now.
  */
 int	mac_enforce_network = 1;
 SYSCTL_INT(_security_mac, OID_AUTO, enforce_network, CTLFLAG_RW,
@@ -75,15 +75,29 @@ SYSCTL_INT(_security_mac, OID_AUTO, enforce_network, CTLFLAG_RW,
 TUNABLE_INT("security.mac.enforce_network", &mac_enforce_network);
 
 /*
- * XXXRW: struct ifnet locking is incomplete in the network code, so we
- * use our own global mutex for struct ifnet.  Non-ideal, but should help
- * in the SMP environment.
+ * XXXRW: struct ifnet locking is incomplete in the network code, so we use
+ * our own global mutex for struct ifnet.  Non-ideal, but should help in the
+ * SMP environment.
  */
 static struct mtx mac_ifnet_mtx;
 MTX_SYSINIT(mac_ifnet_mtx, &mac_ifnet_mtx, "mac_ifnet", MTX_DEF);
 #define	MAC_IFNET_LOCK(ifp)	mtx_lock(&mac_ifnet_mtx)
 #define	MAC_IFNET_UNLOCK(ifp)	mtx_unlock(&mac_ifnet_mtx)
 
+/*
+ * XXXRW: In order to use the MAC label UMA zone for all label allocations,
+ * we simply store a pointer to a UMA-allocated label in the mbuf tag.  This
+ * is inefficient and should likely change to using a label embedded in the
+ * tag.
+ */
+
+/*
+ * Retrieve the label associated with an mbuf by searching for the tag.
+ * Depending on the value of mac_labelmbufs, it's possible that a label will
+ * not be present, in which case NULL is returned.  Policies must handle the
+ * possibility of an mbuf not having label storage if they do not enforce
+ * early loading.
+ */
 struct label *
 mac_mbuf_to_label(struct mbuf *mbuf)
 {
@@ -222,6 +236,10 @@ mac_destroy_mbuf_tag(struct m_tag *tag)
 	mac_destroy_label(label);
 }
 
+/*
+ * mac_copy_mbuf_tag is called when an mbuf header is duplicated, in which
+ * case the labels must also be duplicated.
+ */
 void
 mac_copy_mbuf_tag(struct m_tag *src, struct m_tag *dest)
 {
@@ -231,8 +249,8 @@ mac_copy_mbuf_tag(struct m_tag *src, struct m_tag *dest)
 	dest_label = (struct label *)(dest+1);
 
 	/*
-	 * mac_init_mbuf_tag() is called on the target tag in
-	 * m_tag_copy(), so we don't need to call it here.
+	 * mac_init_mbuf_tag() is called on the target tag in m_tag_copy(),
+	 * so we don't need to call it here.
 	 */
 	MAC_PERFORM(copy_mbuf_label, src_label, dest_label);
 }
@@ -472,7 +490,7 @@ mac_ioctl_ifnet_set(struct ucred *cred, struct ifreq *ifr,
 
 	/*
 	 * XXX: Note that this is a redundant privilege check, since policies
-	 * impose this check themselves if required by the policy.
+	 * impose this check themselves if required by the policy
 	 * Eventually, this should go away.
 	 */
 	error = priv_check_cred(cred, PRIV_NET_SETIFMAC, 0);
