@@ -82,11 +82,12 @@ InitEEPROM(void)
  * This function does not utilize the page read mode to simplify the code.
  * .KB_C_FN_DEFINITION_END
  */
-void
+int
 ReadEEPROM(unsigned ee_off, char *data_addr, unsigned size)
 {
 	const AT91PS_TWI 	twiPtr = AT91C_BASE_TWI;
 	unsigned int status;
+	unsigned int count;
 
 	status = twiPtr->TWI_SR;
 	status = twiPtr->TWI_RHR;
@@ -104,10 +105,12 @@ ReadEEPROM(unsigned ee_off, char *data_addr, unsigned size)
 	status = twiPtr->TWI_SR;
 
 	while (size-- > 1){
-
 		// Wait RHR Holding register is full
-		while (!(twiPtr->TWI_SR & AT91C_TWI_RXRDY))
+		count = 1000000;
+		while (!(twiPtr->TWI_SR & AT91C_TWI_RXRDY) && --count > 0)
 			continue;
+		if (count <= 0)
+			return -1;
 
 		// Read byte
 		*(data_addr++) = twiPtr->TWI_RHR;
@@ -123,6 +126,7 @@ ReadEEPROM(unsigned ee_off, char *data_addr, unsigned size)
 
 	// Read last byte
 	*data_addr = twiPtr->TWI_RHR;
+	return 0;
 }
 
 
