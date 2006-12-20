@@ -426,8 +426,8 @@ mac_ioctl_ifnet_get(struct ucred *cred, struct ifreq *ifr,
 	MAC_IFNET_LOCK(ifnet);
 	mac_copy_ifnet_label(ifnet->if_label, intlabel);
 	MAC_IFNET_UNLOCK(ifnet);
-	error = mac_externalize_ifnet_label(ifnet->if_label, elements,
-	    buffer, mac.m_buflen);
+	error = mac_externalize_ifnet_label(intlabel, elements, buffer,
+	    mac.m_buflen);
 	mac_ifnet_label_free(intlabel);
 	if (error == 0)
 		error = copyout(buffer, mac.m_string, strlen(buffer)+1);
