@@ -816,6 +816,8 @@ int
 bufwrite(struct buf *bp)
 {
 	int oldflags;
+	struct vnode *vp;
+	int vp_md;
 
 	CTR3(KTR_BUF, "bufwrite(%p) vp %p flags %X", bp, bp->b_vp, bp->b_flags);
 	if (bp->b_flags & B_INVAL) {
@@ -833,6 +835,12 @@ bufwrite(struct buf *bp)
 
 	KASSERT(!(bp->b_vflags & BV_BKGRDINPROG),
 	    ("FFS background buffer should not get here %p", bp));
+
+	vp = bp->b_vp;
+	if (vp)
+		vp_md = vp->v_vflag & VV_MD;
+	else
+		vp_md = 0;
 
 	/* Mark the buffer clean */
 	bundirty(bp);
@@ -871,8 +879,7 @@ bufwrite(struct buf *bp)
 		 * or syncer daemon trying to clean up as that can lead
 		 * to deadlock.
 		 */
-		if ((curthread->td_pflags & TDP_NORUNNINGBUF) == 0 &&
-		    (bp->b_vp->v_vflag & VV_MD) == 0)
+		if ((curthread->td_pflags & TDP_NORUNNINGBUF) == 0 && !vp_md)
 			waitrunningbufspace();
 	}
 
