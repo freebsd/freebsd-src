@@ -5,7 +5,7 @@
 
 __at91_boot_Makefile.inc__:
 
-# tsc, kb920x are the supported flavors
+# tsc, bwct, kb920x are the supported flavors
 BOOT_FLAVOR=kb920x
 
 CFLAGS=-Os -mcpu=arm9 -ffreestanding \
