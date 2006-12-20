@@ -79,6 +79,7 @@ ASSYM(P_SFLAG, offsetof(struct proc, p_sflag));
 ASSYM(TD_FLAGS, offsetof(struct thread, td_flags));
 ASSYM(TD_PCB, offsetof(struct thread, td_pcb));
 ASSYM(TD_PROC, offsetof(struct thread, td_proc));
+ASSYM(TD_TID, offsetof(struct thread, td_tid));
 
 ASSYM(TDF_ASTPENDING, TDF_ASTPENDING);
 ASSYM(TDF_NEEDRESCHED, TDF_NEEDRESCHED);
@@ -190,6 +191,7 @@ ASSYM(PC_SCRATCH_RSP, offsetof(struct pcpu, pc_scratch_rsp));
 ASSYM(PC_CURPMAP, offsetof(struct pcpu, pc_curpmap));
 ASSYM(PC_TSSP, offsetof(struct pcpu, pc_tssp));
 ASSYM(PC_RSP0, offsetof(struct pcpu, pc_rsp0));
+ASSYM(PC_CURTID, offsetof(struct pcpu, pc_curtid));
  
 ASSYM(LA_VER, offsetof(struct LAPIC, version));
 ASSYM(LA_TPR, offsetof(struct LAPIC, tpr));
