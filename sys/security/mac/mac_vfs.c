@@ -13,7 +13,7 @@
  * DARPA/SPAWAR contract N66001-01-C-8035 ("CBOSS"), as part of the DARPA
  * CHATS research program.
  *
- * This software was enhanced by SPARTA ISSO under SPAWAR contract 
+ * This software was enhanced by SPARTA ISSO under SPAWAR contract
  * N66001-04-C-6019 ("SEFOS").
  *
  * Redistribution and use in source and binary forms, with or without
@@ -74,8 +74,8 @@ __FBSDID("$FreeBSD$");
 #include <security/mac/mac_internal.h>
 
 /*
- * Warn about EA transactions only the first time they happen.
- * Weak coherency, no locking.
+ * Warn about EA transactions only the first time they happen.  No locking on
+ * this variable.
  */
 static int	ea_warn_once = 0;
 
@@ -978,9 +978,11 @@ vn_setlabel(struct vnode *vp, struct label *intlabel, struct ucred *cred)
 
 	/*
 	 * Multi-phase commit.  First check the policies to confirm the
-	 * change is OK.  Then commit via the filesystem.  Finally,
-	 * update the actual vnode label.  Question: maybe the filesystem
-	 * should update the vnode at the end as part of VOP_SETLABEL()?
+	 * change is OK.  Then commit via the filesystem.  Finally, update
+	 * the actual vnode label.
+	 *
+	 * Question: maybe the filesystem should update the vnode at the end
+	 * as part of VOP_SETLABEL()?
 	 */
 	error = mac_check_vnode_relabel(cred, vp, intlabel);
 	if (error)
@@ -988,10 +990,10 @@ vn_setlabel(struct vnode *vp, struct label *intlabel, struct ucred *cred)
 
 	/*
 	 * VADMIN provides the opportunity for the filesystem to make
-	 * decisions about who is and is not able to modify labels
-	 * and protections on files.  This might not be right.  We can't
-	 * assume VOP_SETLABEL() will do it, because we might implement
-	 * that as part of vop_stdsetlabel_ea().
+	 * decisions about who is and is not able to modify labels and
+	 * protections on files.  This might not be right.  We can't assume
+	 * VOP_SETLABEL() will do it, because we might implement that as
+	 * part of vop_stdsetlabel_ea().
 	 */
 	error = VOP_ACCESS(vp, VADMIN, cred, curthread);
 	if (error)
@@ -1004,6 +1006,15 @@ vn_setlabel(struct vnode *vp, struct label *intlabel, struct ucred *cred)
 	return (0);
 }
 
+/*
+ * When a thread becomes an NFS server daemon, its credential may need to be
+ * updated to reflect this so that policies can recognize when file system
+ * operations originate from the network.
+ *
+ * At some point, it would be desirable if the credential used for each NFS
+ * RPC could be set based on the RPC context (i.e., source system, etc) to
+ * provide more fine-grained access control.
+ */
 void
 mac_associate_nfsd_label(struct ucred *cred)
 {
