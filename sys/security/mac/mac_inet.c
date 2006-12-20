@@ -290,13 +290,13 @@ mac_create_mbuf_from_firewall(struct mbuf *m)
 }
 
 /*
- * These functions really should be referencing the syncache structure instead
- * of the label.  However, due to some of the complexities associated with
- * exposing this syncache structure we operate directly on it's label pointer.
- * This should be OK since we aren't making any access control decisions within
- * this code directly, we are merely allocating and copying label storage so
- * we can properly initialize mbuf labels for any packets the syncache code
- * might create.
+ * These functions really should be referencing the syncache structure
+ * instead of the label.  However, due to some of the complexities associated
+ * with exposing this syncache structure we operate directly on it's label
+ * pointer.  This should be OK since we aren't making any access control
+ * decisions within this code directly, we are merely allocating and copying
+ * label storage so we can properly initialize mbuf labels for any packets
+ * the syncache code might create.
  */
 void
 mac_destroy_syncache(struct label **label)
