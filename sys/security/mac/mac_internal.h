@@ -91,9 +91,8 @@ int	mac_check_structmac_consistent(struct mac *mac);
 int	mac_allocate_slot(void);
 
 /*
- * MAC Framework per-object type functions.  It's not yet clear how
- * the namespaces, etc, should work for these, so for now, sort by
- * object type.
+ * MAC Framework per-object type functions.  It's not yet clear how the
+ * namespaces, etc, should work for these, so for now, sort by object type.
  */
 struct label	*mac_pipe_label_alloc(void);
 void		 mac_pipe_label_free(struct label *label);
@@ -101,7 +100,7 @@ struct label	*mac_socket_label_alloc(int flag);
 void		 mac_socket_label_free(struct label *label);
 
 int	mac_check_cred_relabel(struct ucred *cred, struct label *newlabel);
-int	mac_externalize_cred_label(struct label *label, char *elements, 
+int	mac_externalize_cred_label(struct label *label, char *elements,
 	    char *outbuf, size_t outbuflen);
 int	mac_internalize_cred_label(struct label *label, char *string);
 void	mac_relabel_cred(struct ucred *cred, struct label *newlabel);
@@ -129,9 +128,9 @@ int	vn_setlabel(struct vnode *vp, struct label *intlabel,
 	    struct ucred *cred);
 
 /*
- * MAC_CHECK performs the designated check by walking the policy module
- * list and checking with each as to how it feels about the request.
- * Note that it returns its value via 'error' in the scope of the caller.
+ * MAC_CHECK performs the designated check by walking the policy module list
+ * and checking with each as to how it feels about the request.  Note that it
+ * returns its value via 'error' in the scope of the caller.
  */
 #define	MAC_CHECK(check, args...) do {					\
 	struct mac_policy_conf *mpc;					\
@@ -156,8 +155,8 @@ int	vn_setlabel(struct vnode *vp, struct label *intlabel,
 } while (0)
 
 /*
- * MAC_GRANT performs the designated check by walking the policy module
- * list and checking with each as to how it feels about the request.  Unlike
+ * MAC_GRANT performs the designated check by walking the policy module list
+ * and checking with each as to how it feels about the request.  Unlike
  * MAC_CHECK, it grants if any policies return '0', and otherwise returns
  * EPERM.  Note that it returns its value via 'error' in the scope of the
  * caller.
@@ -186,12 +185,11 @@ int	vn_setlabel(struct vnode *vp, struct label *intlabel,
 } while (0)
 
 /*
- * MAC_BOOLEAN performs the designated boolean composition by walking
- * the module list, invoking each instance of the operation, and
- * combining the results using the passed C operator.  Note that it
- * returns its value via 'result' in the scope of the caller, which
- * should be initialized by the caller in a meaningful way to get
- * a meaningful result.
+ * MAC_BOOLEAN performs the designated boolean composition by walking the
+ * module list, invoking each instance of the operation, and combining the
+ * results using the passed C operator.  Note that it returns its value via
+ * 'result' in the scope of the caller, which should be initialized by the
+ * caller in a meaningful way to get a meaningful result.
  */
 #define	MAC_BOOLEAN(operation, composition, args...) do {		\
 	struct mac_policy_conf *mpc;					\
@@ -213,6 +211,13 @@ int	vn_setlabel(struct vnode *vp, struct label *intlabel,
 	}								\
 } while (0)
 
+/*
+ * MAC_EXTERNALIZE queries each policy to see if it can generate an
+ * externalized version of a label element by name.  Policies declare whether
+ * they have matched a particular element name, parsed from the string by
+ * MAC_EXTERNALIZE, and an error is returned if any element is matched by no
+ * policy.
+ */
 #define	MAC_EXTERNALIZE(type, label, elementlist, outbuf, 		\
     outbuflen) do {							\
 	int claimed, first, ignorenotfound, savedlen;			\
@@ -256,6 +261,11 @@ int	vn_setlabel(struct vnode *vp, struct label *intlabel,
 	sbuf_finish(&sb);						\
 } while (0)
 
+/*
+ * MAC_INTERNALIZE presents parsed element names and data to each policy to
+ * see if any is willing to claim it and internalize the label data.  If no
+ * policies match, an error is returned.
+ */
 #define	MAC_INTERNALIZE(type, label, instring) do {			\
 	char *element, *element_name, *element_data;			\
 	int claimed;							\
@@ -283,8 +293,8 @@ int	vn_setlabel(struct vnode *vp, struct label *intlabel,
 } while (0)
 
 /*
- * MAC_PERFORM performs the designated operation by walking the policy
- * module list and invoking that operation for each policy.
+ * MAC_PERFORM performs the designated operation by walking the policy module
+ * list and invoking that operation for each policy.
  */
 #define	MAC_PERFORM(operation, args...) do {				\
 	struct mac_policy_conf *mpc;					\
