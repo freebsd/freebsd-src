@@ -31,12 +31,12 @@
 
 #define LOADER_OFFSET 0
 #define FPGA_OFFSET  (15 * FLASH_PAGE_SIZE)
-#define OFFSET LOADER_OFFSET
+#define OFFSET FPGA_OFFSET
 
 int
 main(void)
 {
-	int len, i, j, off;
+	int len, i, j, off, sec;
 	char *addr = (char *)SDRAM_BASE + (1 << 20); /* download at + 1MB */
 	char *addr2 = (char *)SDRAM_BASE + (2 << 20); /* readback to + 2MB */
 	char *addr3 = (char *)SDRAM_BASE + (3 << 20); /* extra copy at + 3MB */
@@ -59,6 +59,10 @@ main(void)
 		if (j >= 10)
 			printf("Bad Readback at %u\n", i);
 	}
+	sec = GetSeconds() + 2;
+	while (sec <= GetSeconds())
+	    continue;
 	printf("Done\n");
+	reset();
 	return (1);
 }
