@@ -124,8 +124,8 @@ struct bridge_port {
 	enum TruthValue	proto_migr;
 	enum TruthValue	admin_edge;
 	enum TruthValue	oper_edge;
-	enum TruthValue	oper_p2p;
-	enum StpPortAdminPointToPointType	admin_p2p;
+	enum TruthValue	oper_ptp;
+	enum StpPortAdminPointToPointType	admin_ptp;
 
 	/* dot1dTp subtree objects. */
 	int32_t		max_info;
@@ -330,8 +330,8 @@ int bridge_port_set_path_cost(const char *bif_name, struct bridge_port *bp,
     int32_t path_cost);
 
 /* Set admin point-to-point link. */
-int bridge_port_set_admin_p2p(const char *bif_name, struct bridge_port *bp,
-    uint32_t admin_p2p);
+int bridge_port_set_admin_ptp(const char *bif_name, struct bridge_port *bp,
+    uint32_t admin_ptp);
 
 /* Set admin edge. */
 int bridge_port_set_admin_edge(const char *bif_name, struct bridge_port *bp,
