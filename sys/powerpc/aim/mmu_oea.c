@@ -2280,7 +2280,7 @@ moea_pte_insert(u_int ptegidx, struct pte *pvo_pt)
 	 * Now try secondary hash.
 	 */
 	ptegidx ^= moea_pteg_mask;
-	ptegidx++;
+
 	for (pt = moea_pteg_table[ptegidx].pt, i = 0; i < 8; i++, pt++) {
 		if ((pt->pte_hi & PTE_VALID) == 0) {
 			pvo_pt->pte_hi |= PTE_HID;
