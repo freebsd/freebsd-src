@@ -106,6 +106,16 @@ MODULE_VERSION(kernel_mac_support, 3);
 SYSCTL_NODE(_security, OID_AUTO, mac, CTLFLAG_RW, 0,
     "TrustedBSD MAC policy controls");
 
+/*
+ * Labels consist of a indexed set of "slots", which are allocated policies
+ * as required.  The MAC Framework maintains a bitmask of slots allocated so
+ * far to prevent reuse.  Slots cannot be reused, as the MAC Framework
+ * guarantees that newly allocated slots in labels will be NULL unless
+ * otherwise initialized, and because we do not have a mechanism to garbage
+ * collect slots on policy unload.  As labeled policies tend to be statically
+ * loaded during boot, and not frequently unloaded and reloaded, this is not
+ * generally an issue.
+ */
 #if MAC_MAX_SLOTS > 32
 #error "MAC_MAX_SLOTS too large"
 #endif
@@ -123,15 +133,18 @@ SYSCTL_UINT(_security_mac, OID_AUTO, max_slots, CTLFLAG_RD,
 int	mac_late = 0;
 
 /*
- * Flag to indicate whether or not we should allocate label storage for
- * new mbufs.  Since most dynamic policies we currently work with don't
- * rely on mbuf labeling, try to avoid paying the cost of mtag allocation
- * unless specifically notified of interest.  One result of this is
- * that if a dynamically loaded policy requests mbuf labels, it must
- * be able to deal with a NULL label being returned on any mbufs that
- * were already in flight when the policy was loaded.  Since the policy
- * already has to deal with uninitialized labels, this probably won't
- * be a problem.  Note: currently no locking.  Will this be a problem?
+ * Flag to indicate whether or not we should allocate label storage for new
+ * mbufs.  Since most dynamic policies we currently work with don't rely on
+ * mbuf labeling, try to avoid paying the cost of mtag allocation unless
+ * specifically notified of interest.  One result of this is that if a
+ * dynamically loaded policy requests mbuf labels, it must be able to deal
+ * with a NULL label being returned on any mbufs that were already in flight
+ * when the policy was loaded.  Since the policy already has to deal with
+ * uninitialized labels, this probably won't be a problem.  Note: currently
+ * no locking.  Will this be a problem?
+ *
+ * In the future, we may want to allow objects to request labeling on a per-
+ * object type basis, rather than globally for all objects.
  */
 #ifndef MAC_ALWAYS_LABEL_MBUF
 int	mac_labelmbufs = 0;
@@ -143,22 +156,31 @@ static int	mac_policy_unregister(struct mac_policy_conf *mpc);
 MALLOC_DEFINE(M_MACTEMP, "mactemp", "MAC temporary label storage");
 
 /*
- * mac_static_policy_list holds a list of policy modules that are not
- * loaded while the system is "live", and cannot be unloaded.  These
- * policies can be invoked without holding the busy count.
+ * mac_static_policy_list holds a list of policy modules that are not loaded
+ * while the system is "live", and cannot be unloaded.  These policies can be
+ * invoked without holding the busy count.
  *
  * mac_policy_list stores the list of dynamic policies.  A busy count is
- * maintained for the list, stored in mac_policy_busy.  The busy count
- * is protected by mac_policy_mtx; the list may be modified only
- * while the busy count is 0, requiring that the lock be held to
- * prevent new references to the list from being acquired.  For almost
- * all operations, incrementing the busy count is sufficient to
- * guarantee consistency, as the list cannot be modified while the
- * busy count is elevated.  For a few special operations involving a
- * change to the list of active policies, the mtx itself must be held.
- * A condition variable, mac_policy_cv, is used to signal potential
- * exclusive consumers that they should try to acquire the lock if a
- * first attempt at exclusive access fails.
+ * maintained for the list, stored in mac_policy_busy.  The busy count is
+ * protected by mac_policy_mtx; the list may be modified only while the busy
+ * count is 0, requiring that the lock be held to prevent new references to
+ * the list from being acquired.  For almost all operations, incrementing the
+ * busy count is sufficient to guarantee consistency, as the list cannot be
+ * modified while the busy count is elevated.  For a few special operations
+ * involving a change to the list of active policies, the mtx itself must be
+ * held.  A condition variable, mac_policy_cv, is used to signal potential
+ * exclusive consumers that they should try to acquire the lock if a first
+ * attempt at exclusive access fails.
+ *
+ * This design intentionally avoids fairness, and may starve attempts to
+ * acquire an exclusive lock on a busy system.  This is required because we
+ * do not ever want acquiring a read reference to perform an unbounded length
+ * sleep.  Read references are acquired in ithreads, network isrs, etc, and
+ * any unbounded blocking could lead quickly to deadlock.
+ *
+ * Another reason for never blocking on read references is that the MAC
+ * Framework may recurse: if a policy calls a VOP, for example, this might
+ * lead to vnode life cycle operations (such as init/destroy).
  */
 #ifndef MAC_STATIC
 static struct mtx mac_policy_mtx;
@@ -169,13 +191,12 @@ struct mac_policy_list_head mac_policy_list;
 struct mac_policy_list_head mac_static_policy_list;
 
 /*
- * We manually invoke WITNESS_WARN() to allow Witness to generate
- * warnings even if we don't end up ever triggering the wait at
- * run-time.  The consumer of the exclusive interface must not hold
- * any locks (other than potentially Giant) since we may sleep for
- * long (potentially indefinite) periods of time waiting for the
- * framework to become quiescent so that a policy list change may
- * be made.
+ * We manually invoke WITNESS_WARN() to allow Witness to generate warnings
+ * even if we don't end up ever triggering the wait at run-time.  The
+ * consumer of the exclusive interface must not hold any locks (other than
+ * potentially Giant) since we may sleep for long (potentially indefinite)
+ * periods of time waiting for the framework to become quiescent so that a
+ * policy list change may be made.
  */
 void
 mac_policy_grab_exclusive(void)
@@ -296,9 +317,9 @@ mac_init(void)
 }
 
 /*
- * For the purposes of modules that want to know if they were loaded
- * "early", set the mac_late flag once we've processed modules either
- * linked into the kernel, or loaded before the kernel startup.
+ * For the purposes of modules that want to know if they were loaded "early",
+ * set the mac_late flag once we've processed modules either linked into the
+ * kernel, or loaded before the kernel startup.
  */
 static void
 mac_late_init(void)
@@ -310,8 +331,8 @@ mac_late_init(void)
 /*
  * After the policy list has changed, walk the list to update any global
  * flags.  Currently, we support only one flag, and it's conditionally
- * defined; as a result, the entire function is conditional.  Eventually,
- * the #else case might also iterate across the policies.
+ * defined; as a result, the entire function is conditional.  Eventually, the
+ * #else case might also iterate across the policies.
  */
 static void
 mac_policy_updateflags(void)
@@ -390,16 +411,16 @@ mac_policy_register(struct mac_policy_conf *mpc)
 	error = 0;
 
 	/*
-	 * We don't technically need exclusive access while !mac_late,
-	 * but hold it for assertion consistency.
+	 * We don't technically need exclusive access while !mac_late, but
+	 * hold it for assertion consistency.
 	 */
 	mac_policy_grab_exclusive();
 
 	/*
-	 * If the module can potentially be unloaded, or we're loading
-	 * late, we have to stick it in the non-static list and pay
-	 * an extra performance overhead.  Otherwise, we can pay a
-	 * light locking cost and stick it in the static list.
+	 * If the module can potentially be unloaded, or we're loading late,
+	 * we have to stick it in the non-static list and pay an extra
+	 * performance overhead.  Otherwise, we can pay a light locking cost
+	 * and stick it in the static list.
 	 */
 	static_entry = (!mac_late &&
 	    !(mpc->mpc_loadtime_flags & MPC_LOADTIME_FLAG_UNLOADOK));
@@ -432,18 +453,23 @@ mac_policy_register(struct mac_policy_conf *mpc)
 	mpc->mpc_runtime_flags |= MPC_RUNTIME_FLAG_REGISTERED;
 
 	/*
-	 * If we're loading a MAC module after the framework has
-	 * initialized, it has to go into the dynamic list.  If
-	 * we're loading it before we've finished initializing,
-	 * it can go into the static list with weaker locker
-	 * requirements.
+	 * If we're loading a MAC module after the framework has initialized,
+	 * it has to go into the dynamic list.  If we're loading it before
+	 * we've finished initializing, it can go into the static list with
+	 * weaker locker requirements.
 	 */
 	if (static_entry)
 		LIST_INSERT_HEAD(&mac_static_policy_list, mpc, mpc_list);
 	else
 		LIST_INSERT_HEAD(&mac_policy_list, mpc, mpc_list);
 
-	/* Per-policy initialization. */
+	/*
+	 * Per-policy initialization.  Currently, this takes place under the
+	 * exclusive lock, so policies must not sleep in their init method.
+	 * In the future, we may want to separate "init" from "start", with
+	 * "init" occuring without the lock held.  Likewise, on tear-down,
+	 * breaking out "stop" from "destroy".
+	 */
 	if (mpc->mpc_ops->mpo_init != NULL)
 		(*(mpc->mpc_ops->mpo_init))(mpc);
 	mac_policy_updateflags();
@@ -461,9 +487,8 @@ mac_policy_unregister(struct mac_policy_conf *mpc)
 {
 
 	/*
-	 * If we fail the load, we may get a request to unload.  Check
-	 * to see if we did the run-time registration, and if not,
-	 * silently succeed.
+	 * If we fail the load, we may get a request to unload.  Check to see
+	 * if we did the run-time registration, and if not, silently succeed.
 	 */
 	mac_policy_grab_exclusive();
 	if ((mpc->mpc_runtime_flags & MPC_RUNTIME_FLAG_REGISTERED) == 0) {
@@ -480,8 +505,8 @@ mac_policy_unregister(struct mac_policy_conf *mpc)
 	}
 #endif
 	/*
-	 * Only allow the unload to proceed if the module is unloadable
-	 * by its own definition.
+	 * Only allow the unload to proceed if the module is unloadable by
+	 * its own definition.
 	 */
 	if ((mpc->mpc_loadtime_flags & MPC_LOADTIME_FLAG_UNLOADOK) == 0) {
 		mac_policy_release_exclusive();
@@ -710,8 +735,8 @@ __mac_set_proc(struct thread *td, struct __mac_set_proc_args *uap)
 	p->p_ucred = newcred;
 
 	/*
-	 * Grab additional reference for use while revoking mmaps, prior
-	 * to releasing the proc lock and sharing the cred.
+	 * Grab additional reference for use while revoking mmaps, prior to
+	 * releasing the proc lock and sharing the cred.
 	 */
 	crhold(newcred);
 	PROC_UNLOCK(p);
