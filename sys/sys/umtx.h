@@ -57,7 +57,8 @@ struct umutex {
 	volatile __lwpid_t	m_owner;	/* Owner of the mutex */
 	uint32_t		m_flags;	/* Flags of the mutex */
 	uint32_t		m_ceilings[2];	/* Priority protect ceiling */
-	uint32_t		m_spare[4];	/* Spare space */
+	uint32_t		m_spincount;	/* Max spinning cycle */
+	uint32_t		m_spare[3];
 };
 
 struct ucond {
