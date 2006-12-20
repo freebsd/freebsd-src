@@ -2978,12 +2978,31 @@ bge_intr(void *xsc)
 #endif
 
 	/*
+	 * Ack the interrupt by writing something to BGE_MBX_IRQ0_LO.  Don't
+	 * disable interrupts by writing nonzero like we used to, since with
+	 * our current organization this just gives complications and
+	 * pessimizations for re-enabling interrupts.  We used to have races
+	 * instead of the necessary complications.  Disabling interrupts
+	 * would just reduce the chance of a status update while we are
+	 * running (by switching to the interrupt-mode coalescence
+	 * parameters), but this chance is already very low so it is more
+	 * efficient to get another interrupt than prevent it.
+	 *
+	 * We do the ack first to ensure another interrupt if there is a
+	 * status update after the ack.  We don't check for the status
+	 * changing later because it is more efficient to get another
+	 * interrupt than prevent it, not quite as above (not checking is
+	 * a smaller optimization than not toggling the interrupt enable,
+	 * since checking doesn't involve PCI accesses and toggling require
+	 * the status check).  So toggling would probably be a pessimization
+	 * even with MSI.  It would only be needed for using a task queue.
+	 */
+	CSR_WRITE_4(sc, BGE_MBX_IRQ0_LO, 0);
+
+	/*
 	 * Do the mandatory PCI flush as well as get the link status.
 	 */
 	statusword = CSR_READ_4(sc, BGE_MAC_STS) & BGE_MACSTAT_LINK_CHANGED;
-
-	/* Ack interrupt and stop others from occuring. */
-	CSR_WRITE_4(sc, BGE_MBX_IRQ0_LO, 1);
 
 	/* Make sure the descriptor ring indexes are coherent. */
 	bus_dmamap_sync(sc->bge_cdata.bge_status_tag,
@@ -3003,9 +3022,6 @@ bge_intr(void *xsc)
 		/* Check TX ring producer/consumer. */
 		bge_txeof(sc);
 	}
-
-	/* Re-enable interrupts. */
-	CSR_WRITE_4(sc, BGE_MBX_IRQ0_LO, 0);
 
 	if (ifp->if_drv_flags & IFF_DRV_RUNNING &&
 	    !IFQ_DRV_IS_EMPTY(&ifp->if_snd))
