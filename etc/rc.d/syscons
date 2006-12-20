@@ -38,6 +38,7 @@ extra_commands="setkeyboard"
 setkeyboard_cmd="syscons_setkeyboard"
 start_precmd="syscons_precmd"
 start_cmd="syscons_start"
+stop_cmd=":"
 
 # stdin must be redirected because it might be for a serial console
 #
