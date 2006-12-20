@@ -245,7 +245,9 @@ sw1:
 	popfl
 
 	movl	%edx, PCPU(CURPCB)
+	movl	TD_TID(%ecx),%eax
 	movl	%ecx, PCPU(CURTHREAD)		/* into next thread */
+	movl	%eax, PCPU(CURTID)
 
 	/*
 	 * Determine the LDT to use and load it if is the default one and

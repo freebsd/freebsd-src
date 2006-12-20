@@ -84,6 +84,7 @@ ASSYM(TD_FLAGS, offsetof(struct thread, td_flags));
 ASSYM(TD_PCB, offsetof(struct thread, td_pcb));
 ASSYM(TD_PROC, offsetof(struct thread, td_proc));
 ASSYM(TD_MD, offsetof(struct thread, td_md));
+ASSYM(TD_TID, offsetof(struct thread, td_tid));
 
 ASSYM(P_MD, offsetof(struct proc, p_md));
 ASSYM(MD_LDT, offsetof(struct mdproc, md_ldt));
@@ -198,6 +199,7 @@ ASSYM(PC_CURRENTLDT, offsetof(struct pcpu, pc_currentldt));
 ASSYM(PC_CPUID, offsetof(struct pcpu, pc_cpuid));
 ASSYM(PC_CURPMAP, offsetof(struct pcpu, pc_curpmap));
 ASSYM(PC_PRIVATE_TSS, offsetof(struct pcpu, pc_private_tss));
+ASSYM(PC_CURTID, offsetof(struct pcpu, pc_curtid));
 
 #ifdef DEV_APIC
 ASSYM(LA_VER, offsetof(struct LAPIC, version));
