@@ -262,11 +262,8 @@ msdosfs_mount(struct mount *mp, struct thread *td)
 			 * Forbid export requests if filesystem has
 			 * MSDOSFS_LARGEFS flag set.
 			 */
-			if ((pmp->pm_flags & MSDOSFS_LARGEFS) != 0) {
-				vfs_mount_error(mp,
-				    "MSDOSFS_LARGEFS flag set, cannot export");
+			if ((pmp->pm_flags & MSDOSFS_LARGEFS) != 0)
 				return (EOPNOTSUPP);
-			}
 		}
 		if (!(pmp->pm_flags & MSDOSFSMNT_RONLY) &&
 		    vfs_flagopt(mp->mnt_optnew, "ro", NULL, 0)) {
