@@ -10,8 +10,8 @@
 . /etc/rc.subr
 
 name="abi"
-start_precmd="${name}_prestart"
-start_cmd=":"
+start_cmd="${name}_start"
+stop_cmd=":"
 
 sysv_start()
 {
@@ -41,7 +41,7 @@ svr4_start()
 	load_kld -m svr4elf svr4
 }
 
-abi_prestart()
+abi_start()
 {
 	echo -n 'Additional ABI support:'
 
