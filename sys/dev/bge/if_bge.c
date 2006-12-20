@@ -964,16 +964,11 @@ bge_setpromisc(struct bge_softc *sc)
 
 	ifp = sc->bge_ifp;
 
-	/*
-	 * Enable or disable promiscuous mode as needed.
-	 * Do not strip VLAN tag when promiscuous mode is enabled.
-	 */
+	/* Enable or disable promiscuous mode as needed. */
 	if (ifp->if_flags & IFF_PROMISC)
-		BGE_SETBIT(sc, BGE_RX_MODE, BGE_RXMODE_RX_PROMISC |
-		    BGE_RXMODE_RX_KEEP_VLAN_DIAG);
+		BGE_SETBIT(sc, BGE_RX_MODE, BGE_RXMODE_RX_PROMISC);
 	else
-		BGE_CLRBIT(sc, BGE_RX_MODE, BGE_RXMODE_RX_PROMISC |
-		    BGE_RXMODE_RX_KEEP_VLAN_DIAG);
+		BGE_CLRBIT(sc, BGE_RX_MODE, BGE_RXMODE_RX_PROMISC);
 }
 
 static void
@@ -2756,8 +2751,7 @@ bge_rxeof(struct bge_softc *sc)
 		rxidx = cur_rx->bge_idx;
 		BGE_INC(sc->bge_rx_saved_considx, sc->bge_return_ring_cnt);
 
-		if (!(ifp->if_flags & IFF_PROMISC) &&
-		    (cur_rx->bge_flags & BGE_RXBDFLAG_VLAN_TAG)) {
+		if (cur_rx->bge_flags & BGE_RXBDFLAG_VLAN_TAG) {
 			have_tag = 1;
 			vlan_tag = cur_rx->bge_vlan_tag;
 		}
@@ -3340,7 +3334,7 @@ bge_start_locked(struct ifnet *ifp)
 		 * If there's a BPF listener, bounce a copy of this frame
 		 * to him.
 		 */
-		BPF_MTAP(ifp, m_head);
+		ETHER_BPF_MTAP(ifp, m_head);
 	}
 
 	if (count == 0)
