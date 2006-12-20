@@ -64,7 +64,7 @@ mac_posix_sem_label_alloc(void)
 	return (label);
 }
 
-void 
+void
 mac_init_posix_sem(struct ksem *ksemptr)
 {
 
@@ -86,7 +86,7 @@ mac_destroy_posix_sem(struct ksem *ksemptr)
 	ksemptr->ks_label = NULL;
 }
 
-void 
+void
 mac_create_posix_sem(struct ucred *cred, struct ksem *ksemptr)
 {
 
