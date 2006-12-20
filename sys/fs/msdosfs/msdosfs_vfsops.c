@@ -258,11 +258,15 @@ msdosfs_mount(struct mount *mp, struct thread *td)
 		pmp = VFSTOMSDOSFS(mp);
 
 		if (vfs_flagopt(mp->mnt_optnew, "export", NULL, 0)) {
-			/* Process export requests. */
-			if ((pmp->pm_flags & MSDOSFS_LARGEFS) != 0)
+			/*
+			 * Forbid export requests if filesystem has
+			 * MSDOSFS_LARGEFS flag set.
+			 */
+			if ((pmp->pm_flags & MSDOSFS_LARGEFS) != 0) {
+				vfs_mount_error(mp,
+				    "MSDOSFS_LARGEFS flag set, cannot export");
 				return (EOPNOTSUPP);
-			else
-				return (0);
+			}
 		}
 		if (!(pmp->pm_flags & MSDOSFSMNT_RONLY) &&
 		    vfs_flagopt(mp->mnt_optnew, "ro", NULL, 0)) {
