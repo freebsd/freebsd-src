@@ -61,7 +61,11 @@ rsvdvec:
 #ifdef BOOT_IIC
 		.long	(TWI_EEPROM_SIZE >> 9)
 #else
+#ifdef BOOT_BWCT
+		.long	((528 << 17) | (13 << 13) | (12 * 2))
+#else
 		.long	((1056 << 17) | (13 << 13) | (12 * 2))
+#endif
 #endif
 irqvec:
                 ldr         pc, [pc,#-0xF20]    @; IRQ : read the AIC
