@@ -948,6 +948,14 @@ struct mac_policy_conf {
 
 int	mac_policy_modevent(module_t mod, int type, void *data);
 
+/*
+ * Policy interface to map a struct label pointer to per-policy data.
+ * Typically, policies wrap this in their own accessor macro that casts a
+ * void pointer to a policy-specific data type.
+ *
+ * XXXRW: It might be preferable to provide get/set methods via functions to
+ * avoid encoding the struct label layout in compiled modules.
+ */
 #define	LABEL_TO_SLOT(l, s)	(l)->l_perpolicy[s]
 
 #endif /* !_SYS_MAC_POLICY_H_ */
