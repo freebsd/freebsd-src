@@ -396,7 +396,7 @@ msgctl(td, uap)
 	struct msqid_ds msqbuf;
 	int error;
 
-	DPRINTF(("call to msgctl(%d, %d, 0x%x)\n", msqid, cmd, uap->buf));
+	DPRINTF(("call to msgctl(%d, %d, %p)\n", msqid, cmd, uap->buf));
 	if (cmd == IPC_SET &&
 	    (error = copyin(uap->buf, &msqbuf, sizeof(msqbuf))) != 0)
 		return (error);
@@ -671,45 +671,40 @@ struct msgsnd_args {
 };
 #endif
 
-/*
- * MPSAFE
- */
 int
-msgsnd(td, uap)
+kern_msgsnd(td, msqid, msgp, msgsz, msgflg, mtype)
 	struct thread *td;
-	register struct msgsnd_args *uap;
+	int msqid;
+	const void *msgp;	/* XXX msgp is actually mtext. */
+	size_t msgsz;
+	int msgflg;
+	long mtype;
 {
-	int msqid = uap->msqid;
-	const void *user_msgp = uap->msgp;
-	size_t msgsz = uap->msgsz;
-	int msgflg = uap->msgflg;
-	int segs_needed, error = 0;
+	int msqix, segs_needed, error = 0;
 	register struct msqid_kernel *msqkptr;
 	register struct msg *msghdr;
 	short next;
 
-	DPRINTF(("call to msgsnd(%d, 0x%x, %d, %d)\n", msqid, user_msgp, msgsz,
-	    msgflg));
 	if (!jail_sysvipc_allowed && jailed(td->td_ucred))
 		return (ENOSYS);
 
 	mtx_lock(&msq_mtx);
-	msqid = IPCID_TO_IX(msqid);
+	msqix = IPCID_TO_IX(msqid);
 
-	if (msqid < 0 || msqid >= msginfo.msgmni) {
-		DPRINTF(("msqid (%d) out of range (0<=msqid<%d)\n", msqid,
+	if (msqix < 0 || msqix >= msginfo.msgmni) {
+		DPRINTF(("msqid (%d) out of range (0<=msqid<%d)\n", msqix,
 		    msginfo.msgmni));
 		error = EINVAL;
 		goto done2;
 	}
 
-	msqkptr = &msqids[msqid];
+	msqkptr = &msqids[msqix];
 	if (msqkptr->u.msg_qbytes == 0) {
 		DPRINTF(("no such message queue id\n"));
 		error = EINVAL;
 		goto done2;
 	}
-	if (msqkptr->u.msg_perm.seq != IPCID_TO_SEQ(uap->msqid)) {
+	if (msqkptr->u.msg_perm.seq != IPCID_TO_SEQ(msqid)) {
 		DPRINTF(("wrong sequence number\n"));
 		error = EINVAL;
 		goto done2;
@@ -727,8 +722,8 @@ msgsnd(td, uap)
 #endif
 
 	segs_needed = (msgsz + msginfo.msgssz - 1) / msginfo.msgssz;
-	DPRINTF(("msgsz=%d, msgssz=%d, segs_needed=%d\n", msgsz, msginfo.msgssz,
-	    segs_needed));
+	DPRINTF(("msgsz=%zu, msgssz=%d, segs_needed=%d\n", msgsz,
+	    msginfo.msgssz, segs_needed));
 	for (;;) {
 		int need_more_resources = 0;
 
@@ -843,6 +838,7 @@ msgsnd(td, uap)
 	free_msghdrs = msghdr->msg_next;
 	msghdr->msg_spot = -1;
 	msghdr->msg_ts = msgsz;
+	msghdr->msg_type = mtype;
 #ifdef MAC
 	/*
 	 * XXXMAC: Should the mac_check_sysv_msgmsq check follow here
@@ -875,23 +871,6 @@ msgsnd(td, uap)
 	}
 
 	/*
-	 * Copy in the message type
-	 */
-
-	mtx_unlock(&msq_mtx);
-	if ((error = copyin(user_msgp, &msghdr->msg_type,
-	    sizeof(msghdr->msg_type))) != 0) {
-		mtx_lock(&msq_mtx);
-		DPRINTF(("error %d copying the message type\n", error));
-		msg_freehdr(msghdr);
-		msqkptr->u.msg_perm.mode &= ~MSG_LOCKED;
-		wakeup(msqkptr);
-		goto done2;
-	}
-	mtx_lock(&msq_mtx);
-	user_msgp = (const char *)user_msgp + sizeof(msghdr->msg_type);
-
-	/*
 	 * Validate the message type
 	 */
 
@@ -899,7 +878,7 @@ msgsnd(td, uap)
 		msg_freehdr(msghdr);
 		msqkptr->u.msg_perm.mode &= ~MSG_LOCKED;
 		wakeup(msqkptr);
-		DPRINTF(("mtype (%d) < 1\n", msghdr->msg_type));
+		DPRINTF(("mtype (%ld) < 1\n", msghdr->msg_type));
 		error = EINVAL;
 		goto done2;
 	}
@@ -920,7 +899,7 @@ msgsnd(td, uap)
 		if (next >= msginfo.msgseg)
 			panic("next out of range #2");
 		mtx_unlock(&msq_mtx);
-		if ((error = copyin(user_msgp, &msgpool[next * msginfo.msgssz],
+		if ((error = copyin(msgp, &msgpool[next * msginfo.msgssz],
 		    tlen)) != 0) {
 			mtx_lock(&msq_mtx);
 			DPRINTF(("error %d copying in message segment\n",
@@ -932,7 +911,7 @@ msgsnd(td, uap)
 		}
 		mtx_lock(&msq_mtx);
 		msgsz -= tlen;
-		user_msgp = (const char *)user_msgp + tlen;
+		msgp = (const char *)msgp + tlen;
 		next = msgmaps[next].next;
 	}
 	if (next != -1)
@@ -999,6 +978,29 @@ done2:
 	return (error);
 }
 
+/*
+ * MPSAFE
+ */
+int
+msgsnd(td, uap)
+	struct thread *td;
+	register struct msgsnd_args *uap;
+{
+	int error;
+	long mtype;
+
+	DPRINTF(("call to msgsnd(%d, %p, %zu, %d)\n", uap->msqid, uap->msgp,
+	    uap->msgsz, uap->msgflg));
+
+	if ((error = copyin(uap->msgp, &mtype, sizeof(mtype))) != 0) {
+		DPRINTF(("error %d copying the message type\n", error));
+		return (error);
+	}
+	return (kern_msgsnd(td, uap->msqid,
+	    (const char *)uap->msgp + sizeof(mtype),
+	    uap->msgsz, uap->msgflg, mtype));
+}
+
 #ifndef _SYS_SYSPROTO_H_
 struct msgrcv_args {
 	int	msqid;
@@ -1009,47 +1011,41 @@ struct msgrcv_args {
 };
 #endif
 
-/*
- * MPSAFE
- */
 int
-msgrcv(td, uap)
+kern_msgrcv(td, msqid, msgp, msgsz, msgtyp, msgflg, mtype)
 	struct thread *td;
-	register struct msgrcv_args *uap;
+	int msqid;
+	void *msgp;	/* XXX msgp is actually mtext. */
+	size_t msgsz;
+	long msgtyp;
+	int msgflg;
+	long *mtype;
 {
-	int msqid = uap->msqid;
-	void *user_msgp = uap->msgp;
-	size_t msgsz = uap->msgsz;
-	long msgtyp = uap->msgtyp;
-	int msgflg = uap->msgflg;
 	size_t len;
 	register struct msqid_kernel *msqkptr;
 	register struct msg *msghdr;
-	int error = 0;
+	int msqix, error = 0;
 	short next;
-
-	DPRINTF(("call to msgrcv(%d, 0x%x, %d, %ld, %d)\n", msqid, user_msgp,
-	    msgsz, msgtyp, msgflg));
 
 	if (!jail_sysvipc_allowed && jailed(td->td_ucred))
 		return (ENOSYS);
 
-	msqid = IPCID_TO_IX(msqid);
+	msqix = IPCID_TO_IX(msqid);
 
-	if (msqid < 0 || msqid >= msginfo.msgmni) {
-		DPRINTF(("msqid (%d) out of range (0<=msqid<%d)\n", msqid,
+	if (msqix < 0 || msqix >= msginfo.msgmni) {
+		DPRINTF(("msqid (%d) out of range (0<=msqid<%d)\n", msqix,
 		    msginfo.msgmni));
 		return (EINVAL);
 	}
 
-	msqkptr = &msqids[msqid];
+	msqkptr = &msqids[msqix];
 	mtx_lock(&msq_mtx);
 	if (msqkptr->u.msg_qbytes == 0) {
 		DPRINTF(("no such message queue id\n"));
 		error = EINVAL;
 		goto done2;
 	}
-	if (msqkptr->u.msg_perm.seq != IPCID_TO_SEQ(uap->msqid)) {
+	if (msqkptr->u.msg_perm.seq != IPCID_TO_SEQ(msqid)) {
 		DPRINTF(("wrong sequence number\n"));
 		error = EINVAL;
 		goto done2;
@@ -1074,7 +1070,7 @@ msgrcv(td, uap)
 				if (msgsz < msghdr->msg_ts &&
 				    (msgflg & MSG_NOERROR) == 0) {
 					DPRINTF(("first message on the queue "
-					    "is too big (want %d, got %d)\n",
+					    "is too big (want %zu, got %d)\n",
 					    msgsz, msghdr->msg_ts));
 					error = E2BIG;
 					goto done2;
@@ -1112,14 +1108,14 @@ msgrcv(td, uap)
 
 				if (msgtyp == msghdr->msg_type ||
 				    msghdr->msg_type <= -msgtyp) {
-					DPRINTF(("found message type %d, "
-					    "requested %d\n",
+					DPRINTF(("found message type %ld, "
+					    "requested %ld\n",
 					    msghdr->msg_type, msgtyp));
 					if (msgsz < msghdr->msg_ts &&
 					    (msgflg & MSG_NOERROR) == 0) {
 						DPRINTF(("requested message "
 						    "on the queue is too big "
-						    "(want %d, got %d)\n",
+						    "(want %zu, got %hu)\n",
 						    msgsz, msghdr->msg_ts));
 						error = E2BIG;
 						goto done2;
@@ -1169,7 +1165,7 @@ msgrcv(td, uap)
 		 */
 
 		if ((msgflg & IPC_NOWAIT) != 0) {
-			DPRINTF(("no appropriate message found (msgtyp=%d)\n",
+			DPRINTF(("no appropriate message found (msgtyp=%ld)\n",
 			    msgtyp));
 			/* The SVID says to return ENOMSG. */
 			error = ENOMSG;
@@ -1196,7 +1192,7 @@ msgrcv(td, uap)
 		 */
 
 		if (msqkptr->u.msg_qbytes == 0 ||
-		    msqkptr->u.msg_perm.seq != IPCID_TO_SEQ(uap->msqid)) {
+		    msqkptr->u.msg_perm.seq != IPCID_TO_SEQ(msqid)) {
 			DPRINTF(("msqid deleted\n"));
 			error = EIDRM;
 			goto done2;
@@ -1220,26 +1216,11 @@ msgrcv(td, uap)
 	 * (since msgsz is never increased).
 	 */
 
-	DPRINTF(("found a message, msgsz=%d, msg_ts=%d\n", msgsz,
+	DPRINTF(("found a message, msgsz=%zu, msg_ts=%hu\n", msgsz,
 	    msghdr->msg_ts));
 	if (msgsz > msghdr->msg_ts)
 		msgsz = msghdr->msg_ts;
-
-	/*
-	 * Return the type to the user.
-	 */
-
-	mtx_unlock(&msq_mtx);
-	error = copyout(&(msghdr->msg_type), user_msgp,
-	    sizeof(msghdr->msg_type));
-	mtx_lock(&msq_mtx);
-	if (error != 0) {
-		DPRINTF(("error (%d) copying out message type\n", error));
-		msg_freehdr(msghdr);
-		wakeup(msqkptr);
-		goto done2;
-	}
-	user_msgp = (char *)user_msgp + sizeof(msghdr->msg_type);
+	*mtype = msghdr->msg_type;
 
 	/*
 	 * Return the segments to the user
@@ -1258,8 +1239,7 @@ msgrcv(td, uap)
 		if (next >= msginfo.msgseg)
 			panic("next out of range #3");
 		mtx_unlock(&msq_mtx);
-		error = copyout(&msgpool[next * msginfo.msgssz],
-		    user_msgp, tlen);
+		error = copyout(&msgpool[next * msginfo.msgssz], msgp, tlen);
 		mtx_lock(&msq_mtx);
 		if (error != 0) {
 			DPRINTF(("error (%d) copying out message segment\n",
@@ -1268,7 +1248,7 @@ msgrcv(td, uap)
 			wakeup(msqkptr);
 			goto done2;
 		}
-		user_msgp = (char *)user_msgp + tlen;
+		msgp = (char *)msgp + tlen;
 		next = msgmaps[next].next;
 	}
 
@@ -1281,6 +1261,29 @@ msgrcv(td, uap)
 	td->td_retval[0] = msgsz;
 done2:
 	mtx_unlock(&msq_mtx);
+	return (error);
+}
+
+/*
+ * MPSAFE
+ */
+int
+msgrcv(td, uap)
+	struct thread *td;
+	register struct msgrcv_args *uap;
+{
+	int error;
+	long mtype;
+
+	DPRINTF(("call to msgrcv(%d, %p, %zu, %ld, %d)\n", uap->msqid,
+	    uap->msgp, uap->msgsz, uap->msgtyp, uap->msgflg));
+
+	if ((error = kern_msgrcv(td, uap->msqid,
+	    (char *)uap->msgp + sizeof(mtype), uap->msgsz,
+	    uap->msgtyp, uap->msgflg, &mtype)) != 0)
+		return (error);
+	if ((error = copyout(&mtype, uap->msgp, sizeof(mtype))) != 0)
+		DPRINTF(("error %d copying the message type\n", error));
 	return (error);
 }
 
