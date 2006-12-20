@@ -40,7 +40,11 @@ void SPI_InitFlash(void);
 
 void SPI_GetId(unsigned *id);
 
+#ifdef BOOT_BWCT
+#define FLASH_PAGE_SIZE	528
+#else
 #define FLASH_PAGE_SIZE	1056
+#endif
 
 // Flash commands
 
