@@ -127,18 +127,18 @@ mac_destroy_sysv_msgqueue(struct msqid_kernel *msqkptr)
 }
 
 void
-mac_create_sysv_msgmsg(struct ucred *cred, struct msqid_kernel *msqkptr, 
+mac_create_sysv_msgmsg(struct ucred *cred, struct msqid_kernel *msqkptr,
     struct msg *msgptr)
 {
-				
-	MAC_PERFORM(create_sysv_msgmsg, cred, msqkptr, msqkptr->label, 
+
+	MAC_PERFORM(create_sysv_msgmsg, cred, msqkptr, msqkptr->label,
 		msgptr, msgptr->label);
 }
 
 void
 mac_create_sysv_msgqueue(struct ucred *cred, struct msqid_kernel *msqkptr)
 {
-				
+
 	MAC_PERFORM(create_sysv_msgqueue, cred, msqkptr, msqkptr->label);
 }
 
@@ -152,7 +152,7 @@ mac_cleanup_sysv_msgmsg(struct msg *msgptr)
 void
 mac_cleanup_sysv_msgqueue(struct msqid_kernel *msqkptr)
 {
-				
+
 	MAC_PERFORM(cleanup_sysv_msgqueue, msqkptr->label);
 }
 
