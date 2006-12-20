@@ -340,7 +340,7 @@ tty_close(struct tty *tp)
 	 * this method.  Only the thread clearing TS_ISOPEN should
 	 * release the reference to the tty.
 	 */
-	if (ISSET(ostate, TS_ISOPEN) && tp->t_refcnt > 1)
+	if (ISSET(ostate, TS_ISOPEN))
 		ttyrel(tp);
 	splx(s);
 	return (0);
