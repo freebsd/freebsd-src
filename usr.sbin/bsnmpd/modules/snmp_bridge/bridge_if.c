@@ -668,7 +668,6 @@ int
 op_dot1d_stp(struct snmp_context *ctx, struct snmp_value *val, uint sub,
     uint iidx __unused, enum snmp_op op)
 {
-	int ret;
 	struct bridge_if *bif;
 
 	if ((bif = bridge_get_default()) == NULL)
