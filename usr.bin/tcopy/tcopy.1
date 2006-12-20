@@ -32,7 +32,7 @@
 .\"     @(#)tcopy.1	8.2 (Berkeley) 4/17/94
 .\" $FreeBSD$
 .\"
-.Dd April 17, 1994
+.Dd December 20, 2006
 .Dt TCOPY 1
 .Os
 .Sh NAME
@@ -49,22 +49,27 @@ The
 .Nm
 utility is designed to copy magnetic tapes.
 The only assumption made
-about the tape is that there are two tape marks at the end.
-The
+about the tape layout is that there are two sequential EOF marks
+at the end.
+By default, the
 .Nm
-utility with only a source tape
-.Pf ( Ar /dev/sa0
-by default) specified will print
-information about the sizes of records and tape files.
-If a destination
-is specified a copy will be made of the source tape.
+utility will print
+information about the sizes of records and files found
+on the
+.Pa /dev/sa0
+tape, or on the tape specified by the
+.Ar src
+argument.
+If a destination tape is also specified by the
+.Ar dest
+argument, a copy of the source tape will be made.
 The blocking on the
 destination tape will be identical to that used on the source tape.
 Copying
-a tape will yield the same output as if just printing the sizes.
+a tape will yield the same program output as if just printing the sizes.
 .Pp
-Options:
-.Bl -tag -width s_maxblk
+The following options are available:
+.Bl -tag -width ".Fl s Ar maxblk"
 .It Fl c
 Copy
 .Ar src
@@ -75,19 +80,21 @@ and then verify that the two tapes are identical.
 Specify a maximum block size,
 .Ar maxblk .
 .It Fl v
-Given the two tapes,
+Given the two tapes
 .Ar src
 and
-.Ar dest
+.Ar dest ,
 verify that they are identical.
 .It Fl x
-Output all informational messages to the standard error.
+Output all informational messages to the standard error
+instead of the standard output.
 This option is useful when
 .Ar dest
-is
+is given as
 .Pa /dev/stdout .
 .El
 .Sh SEE ALSO
+.Xr mt 1 ,
 .Xr mtio 4
 .Sh HISTORY
 The
@@ -102,18 +109,21 @@ the raw data.
 Block size(s) and tape EOF marks are lost which would
 otherwise be preserved in a tape-to-tape copy.
 .It
-EOD is determined by two sequential EOF marks with no data between.
-There are old systems which typically wrote three EOF's between tape
+End of data (EOD) is determined by two sequential EOF marks
+with no data between them.
+There used to be old systems which typically wrote three EOF's between tape
 files.
 The
 .Nm
 utility will erroneously stop copying early in this case.
 .It
-When using the copy/verify option \-c
+When using the copy/verify option
+.Fl c ,
 .Nm
 does not rewind the tapes prior to start.
 A rewind is performed
-after writing prior to the verification stage.
+after writing, prior to the verification stage.
 If one does not start
-at BOT then the comparison may not be of the intended data.
+at the beginning-of-tape (BOT) then the comparison
+may not be of the intended data.
 .El
