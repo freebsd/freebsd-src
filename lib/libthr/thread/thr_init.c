@@ -66,6 +66,7 @@ pthreadlist 	_thread_gc_list = TAILQ_HEAD_INITIALIZER(_thread_gc_list);
 int		_thread_active_threads = 1;
 atfork_head	_thr_atfork_list = TAILQ_HEAD_INITIALIZER(_thr_atfork_list);
 struct umutex	_thr_atfork_lock = DEFAULT_UMUTEX;
+int		_thr_adaptive_spin = 0;
 
 struct pthread_prio	_thr_priorities[3] = {
 	{RTP_PRIO_MIN,  RTP_PRIO_MAX, 0}, /* FIFO */
@@ -423,6 +424,7 @@ init_private(void)
 {
 	size_t len;
 	int mib[2];
+	char *p;
 
 	_thr_umutex_init(&_mutex_static_lock);
 	_thr_umutex_init(&_cond_static_lock);
@@ -454,6 +456,8 @@ init_private(void)
 		_pthread_attr_default.stacksize_attr = _thr_stack_default;
 
 		TAILQ_INIT(&_thr_atfork_list);
+		if ((p = getenv("LIBPTHREAD_ADAPTIVE_SPIN")) != NULL)
+			_thr_adaptive_spin = atoi(p);
 	}
 	init_once = 1;
 }
