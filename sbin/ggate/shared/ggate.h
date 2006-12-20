@@ -98,7 +98,7 @@ void	g_gate_log(int priority, const char *message, ...);
 void	g_gate_xvlog(const char *message, va_list ap);
 void	g_gate_xlog(const char *message, ...);
 off_t	g_gate_mediasize(int fd);
-size_t	g_gate_sectorsize(int fd);
+unsigned g_gate_sectorsize(int fd);
 void	g_gate_open_device(void);
 void	g_gate_close_device(void);
 void	g_gate_ioctl(unsigned long req, void *data);

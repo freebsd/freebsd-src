@@ -60,7 +60,7 @@
 
 struct ggd_connection {
 	off_t		 c_mediasize;
-	off_t		 c_sectorsize;
+	unsigned	 c_sectorsize;
 	unsigned	 c_flags;	/* flags (RO/RW) */
 	int		 c_diskfd;
 	int		 c_sendfd;
