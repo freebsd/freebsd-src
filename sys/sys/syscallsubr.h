@@ -114,6 +114,8 @@ int	kern_mkfifo(struct thread *td, char *path, enum uio_seg pathseg,
 int	kern_mknod(struct thread *td, char *path, enum uio_seg pathseg,
 	    int mode, int dev);
 int	kern_msgctl(struct thread *, int, int, struct msqid_ds *);
+int	kern_msgsnd(struct thread *, int, const void *, size_t, int, long);
+int	kern_msgrcv(struct thread *, int, void *, size_t, long, int, long *);
 int     kern_nanosleep(struct thread *td, struct timespec *rqt,
 	    struct timespec *rmt);
 int	kern_open(struct thread *td, char *path, enum uio_seg pathseg,
