@@ -1049,27 +1049,6 @@ linux_gettimeofday(struct thread *td, struct linux_gettimeofday_args *uap)
 }
 
 int
-linux_nanosleep(struct thread *td, struct linux_nanosleep_args *uap)
-{
-	struct timespec rqt, rmt;
-	struct l_timespec ats32;
-	int error;
-
-	error = copyin(uap->rqtp, &ats32, sizeof(ats32));
-	if (error != 0)
-		return (error);
-	rqt.tv_sec = ats32.tv_sec;
-	rqt.tv_nsec = ats32.tv_nsec;
-	error = kern_nanosleep(td, &rqt, &rmt);
-	if (uap->rmtp != NULL) {
-		ats32.tv_sec = rmt.tv_sec;
-		ats32.tv_nsec = rmt.tv_nsec;
-		error = copyout(&ats32, uap->rmtp, sizeof(ats32));
-	}
-	return (error);
-}
-
-int
 linux_getrusage(struct thread *td, struct linux_getrusage_args *uap)
 {
 	struct l_rusage s32;
