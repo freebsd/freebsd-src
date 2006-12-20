@@ -83,6 +83,17 @@ struct l_shm_info {
 	l_ulong swap_successes;
 };
 
+struct l_msginfo {
+	l_int msgpool;
+	l_int msgmap;
+	l_int msgmax;
+	l_int msgmnb;
+	l_int msgmni;
+	l_int msgssz;
+	l_int msgtql;
+	l_ushort msgseg;
+};
+
 static void
 bsd_to_linux_shminfo( struct shminfo *bpp, struct l_shminfo *lpp)
 {
@@ -580,7 +591,7 @@ linux_msgsnd(struct thread *td, struct linux_msgsnd_args *args)
 	l_long lmtype;
 	int error;
 
-	if ((l_long)args->msgsz < 0)
+	if ((l_long)args->msgsz < 0 || args->msgsz > (l_long)msginfo.msgmax)
 		return (EINVAL);
 	msgp = PTRIN(args->msgp);
 	if ((error = copyin(msgp, &lmtype, sizeof(lmtype))) != 0)
@@ -599,7 +610,7 @@ linux_msgrcv(struct thread *td, struct linux_msgrcv_args *args)
 	l_long lmtype;
 	int error;
 
-	if ((l_long)args->msgsz < 0)
+	if ((l_long)args->msgsz < 0 || args->msgsz > (l_long)msginfo.msgmax)
 		return (EINVAL);
 	msgp = PTRIN(args->msgp);
 	if ((error = kern_msgrcv(td, args->msqid,
@@ -631,12 +642,39 @@ linux_msgctl(struct thread *td, struct linux_msgctl_args *args)
     struct msqid_ds bsd_msqid;
 
     bsd_cmd = args->cmd & ~LINUX_IPC_64;
-    if (bsd_cmd == LINUX_IPC_SET) {
+    switch (bsd_cmd) {
+    case LINUX_IPC_INFO:
+    case LINUX_MSG_INFO: {
+	struct l_msginfo linux_msginfo;
+
+	/*
+	 * XXX MSG_INFO uses the same data structure but returns different
+	 * dynamic counters in msgpool, msgmap, and msgtql fields.
+	 */
+	linux_msginfo.msgpool = (long)msginfo.msgmni *
+	    (long)msginfo.msgmnb / 1024L;	/* XXX MSG_INFO. */
+	linux_msginfo.msgmap = msginfo.msgmnb;	/* XXX MSG_INFO. */
+	linux_msginfo.msgmax = msginfo.msgmax;
+	linux_msginfo.msgmnb = msginfo.msgmnb;
+	linux_msginfo.msgmni = msginfo.msgmni;
+	linux_msginfo.msgssz = msginfo.msgssz;
+	linux_msginfo.msgtql = msginfo.msgtql;	/* XXX MSG_INFO. */
+	linux_msginfo.msgseg = msginfo.msgseg;
+	error = copyout(&linux_msginfo, PTRIN(args->buf),
+	    sizeof(linux_msginfo));
+	if (error == 0)
+	    td->td_retval[0] = msginfo.msgmni;	/* XXX */
+
+	return (error);
+    }
+
+    case LINUX_IPC_SET:
 	error = linux_msqid_pullup(args->cmd & LINUX_IPC_64,
 	    &linux_msqid, PTRIN(args->buf));
 	if (error)
 	    return (error);
 	linux_to_bsd_msqid_ds(&linux_msqid, &bsd_msqid);
+	break;
     }
 
     error = kern_msgctl(td, args->msqid, bsd_cmd, &bsd_msqid);
