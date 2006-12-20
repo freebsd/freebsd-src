@@ -183,8 +183,8 @@ mac_internalize_cred_label(struct label *label, char *string)
 }
 
 /*
- * Initialize MAC label for the first kernel process, from which other
- * kernel processes and threads are spawned.
+ * Initialize MAC label for the first kernel process, from which other kernel
+ * processes and threads are spawned.
  */
 void
 mac_create_proc0(struct ucred *cred)
@@ -213,8 +213,8 @@ mac_thread_userret(struct thread *td)
 
 /*
  * When a new process is created, its label must be initialized.  Generally,
- * this involves inheritence from the parent process, modulo possible
- * deltas.  This function allows that processing to take place.
+ * this involves inheritence from the parent process, modulo possible deltas.
+ * This function allows that processing to take place.
  */
 void
 mac_copy_cred(struct ucred *src, struct ucred *dest)
@@ -271,9 +271,9 @@ mac_execve_exit(struct image_params *imgp)
 
 /*
  * When relabeling a process, call out to the policies for the maximum
- * permission allowed for each object type we know about in its
- * memory space, and revoke access (in the least surprising ways we
- * know) when necessary.  The process lock is not held here.
+ * permission allowed for each object type we know about in its memory space,
+ * and revoke access (in the least surprising ways we know) when necessary.
+ * The process lock is not held here.
  */
 void
 mac_cred_mmapped_drop_perms(struct thread *td, struct ucred *cred)
@@ -353,9 +353,9 @@ mac_cred_mmapped_drop_perms_recurse(struct thread *td, struct ucred *cred,
 		}
 		VM_OBJECT_UNLOCK(object);
 		/*
-		 * At the moment, vm_maps and objects aren't considered
-		 * by the MAC system, so only things with backing by a
-		 * normal object (read: vnodes) are checked.
+		 * At the moment, vm_maps and objects aren't considered by
+		 * the MAC system, so only things with backing by a normal
+		 * object (read: vnodes) are checked.
 		 */
 		if (object->type != OBJT_VNODE)
 			continue;
@@ -366,8 +366,8 @@ mac_cred_mmapped_drop_perms_recurse(struct thread *td, struct ucred *cred,
 		mac_check_vnode_mmap_downgrade(cred, vp, &result);
 		VOP_UNLOCK(vp, 0, td);
 		/*
-		 * Find out what maximum protection we may be allowing
-		 * now but a policy needs to get removed.
+		 * Find out what maximum protection we may be allowing now
+		 * but a policy needs to get removed.
 		 */
 		revokeperms = vme->max_protection & ~result;
 		if (!revokeperms) {
@@ -383,9 +383,8 @@ mac_cred_mmapped_drop_perms_recurse(struct thread *td, struct ucred *cred,
 		/*
 		 * This is the really simple case: if a map has more
 		 * max_protection than is allowed, but it's not being
-		 * actually used (that is, the current protection is
-		 * still allowed), we can just wipe it out and do
-		 * nothing more.
+		 * actually used (that is, the current protection is still
+		 * allowed), we can just wipe it out and do nothing more.
 		 */
 		if ((vme->protection & revokeperms) == 0) {
 			vme->max_protection -= revokeperms;
