@@ -36,7 +36,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd June 6, 2006
+.Dd June 21, 2006
 .Dt RC.SUBR 8
 .Os
 .Sh NAME
@@ -63,6 +63,8 @@
 .Ic force_depend Ar name
 .It
 .Ic info Ar message
+.It
+.Ic load_kld Oo Fl e Ar regex Oc Oo Fl m Ar module Oc Ar file
 .It
 .Ic load_rc_config Ar name
 .It
@@ -312,6 +314,20 @@ turned on or off by the
 .Xr rc.conf 5
 variable
 .Va rc_info .
+.It Ic load_kld Oo Fl e Ar regex Oc Oo Fl m Ar module Oc Ar file
+Load
+.Ar file
+as a kernel module unless it is already loaded.
+For the purpose of checking the module status,
+either the exact module name can be specified using
+.Fl m ,
+or an
+.Xr egrep 1
+regular expression matching the module name can be supplied via
+.Fl e .
+By default, the module is assumed to have the same name as
+.Ar file ,
+which is not always the case.
 .It Ic load_rc_config Ar name
 Source in the configuration files for
 .Ar name .
