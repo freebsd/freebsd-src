@@ -12,7 +12,7 @@
  * Research, the Technology Research Division of Network Associates, Inc.
  * under DARPA/SPAWAR contract N66001-01-C-8035 ("CBOSS"), as part of the
  * DARPA CHATS research program.
- * 
+ *
  * This software was enhanced by SPARTA ISSO under SPAWAR contract
  * N66001-04-C-6019 ("SEFOS").
  *
@@ -80,6 +80,19 @@ int	mac_enforce_socket = 1;
 SYSCTL_INT(_security_mac, OID_AUTO, enforce_socket, CTLFLAG_RW,
     &mac_enforce_socket, 0, "Enforce MAC policy on socket operations");
 TUNABLE_INT("security.mac.enforce_socket", &mac_enforce_socket);
+
+/*
+ * Currently, sockets hold two labels: the label of the socket itself, and a
+ * peer label, which may be used by policies to hold a copy of the label of
+ * any remote endpoint.
+ *
+ * Possibly, this peer label should be maintained at the protocol layer
+ * (inpcb, unpcb, etc), as this would allow protocol-aware code to maintain
+ * the label consistently.  For example, it might be copied live from a
+ * remote socket for UNIX domain sockets rather than keeping a local copy on
+ * this endpoint, but be cached and updated based on packets received for
+ * TCP/IP.
+ */
 
 struct label *
 mac_socket_label_alloc(int flag)
@@ -245,10 +258,9 @@ mac_set_socket_peer_from_socket(struct socket *oldsocket,
 {
 
 	/*
-	 * XXXRW: only hold the socket lock on one at a time, as one
-	 * socket is the original, and one is the new.  However, it's
-	 * called in both directions, so we can't assert the lock
-	 * here currently.
+	 * XXXRW: only hold the socket lock on one at a time, as one socket
+	 * is the original, and one is the new.  However, it's called in both
+	 * directions, so we can't assert the lock here currently.
 	 */
 	MAC_PERFORM(set_socket_peer_from_socket, oldsocket,
 	    oldsocket->so_label, newsocket, newsocket->so_peerlabel);
@@ -457,13 +469,12 @@ mac_socket_label_set(struct ucred *cred, struct socket *so,
 	int error;
 
 	/*
-	 * We acquire the socket lock when we perform the test and set,
-	 * but have to release it as the pcb code needs to acquire the
-	 * pcb lock, which will precede the socket lock in the lock
-	 * order.  However, this is fine, as any race will simply
-	 * result in the inpcb being refreshed twice, but still
-	 * consistently, as the inpcb code will acquire the socket lock
-	 * before refreshing, holding both locks.
+	 * We acquire the socket lock when we perform the test and set, but
+	 * have to release it as the pcb code needs to acquire the pcb lock,
+	 * which will precede the socket lock in the lock order.  However,
+	 * this is fine, as any race will simply result in the inpcb being
+	 * refreshed twice, but still consistently, as the inpcb code will
+	 * acquire the socket lock before refreshing, holding both locks.
 	 */
 	SOCK_LOCK(so);
 	error = mac_check_socket_relabel(cred, so, label);
@@ -474,11 +485,12 @@ mac_socket_label_set(struct ucred *cred, struct socket *so,
 
 	mac_relabel_socket(cred, so, label);
 	SOCK_UNLOCK(so);
+
 	/*
 	 * If the protocol has expressed interest in socket layer changes,
-	 * such as if it needs to propagate changes to a cached pcb
-	 * label from the socket, notify it of the label change while
-	 * holding the socket lock.
+	 * such as if it needs to propagate changes to a cached pcb label
+	 * from the socket, notify it of the label change while holding the
+	 * socket lock.
 	 */
 	if (so->so_proto->pr_usrreqs->pru_sosetlabel != NULL)
 		(so->so_proto->pr_usrreqs->pru_sosetlabel)(so);
