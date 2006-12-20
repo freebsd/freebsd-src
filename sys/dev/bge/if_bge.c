@@ -2908,11 +2908,12 @@ bge_txeof(struct bge_softc *sc)
 		}
 		sc->bge_txcnt--;
 		BGE_INC(sc->bge_tx_saved_considx, BGE_TX_RING_CNT);
-		sc->bge_timer = 0;
 	}
 
 	if (cur_tx != NULL)
 		ifp->if_drv_flags &= ~IFF_DRV_OACTIVE;
+	if (sc->bge_txcnt == 0)
+		sc->bge_timer = 0;
 }
 
 #ifdef DEVICE_POLLING
