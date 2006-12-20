@@ -426,6 +426,11 @@ init_private(void)
 	int mib[2];
 	char *p;
 
+	if (init_once == 0) {
+		if ((p = getenv("LIBPTHREAD_ADAPTIVE_SPIN")) != NULL)
+			_thr_adaptive_spin = atoi(p);
+	}
+
 	_thr_umutex_init(&_mutex_static_lock);
 	_thr_umutex_init(&_cond_static_lock);
 	_thr_umutex_init(&_rwlock_static_lock);
@@ -456,8 +461,6 @@ init_private(void)
 		_pthread_attr_default.stacksize_attr = _thr_stack_default;
 
 		TAILQ_INIT(&_thr_atfork_list);
-		if ((p = getenv("LIBPTHREAD_ADAPTIVE_SPIN")) != NULL)
-			_thr_adaptive_spin = atoi(p);
 	}
 	init_once = 1;
 }
