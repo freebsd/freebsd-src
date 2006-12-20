@@ -250,7 +250,7 @@ static int re_ioctl		(struct ifnet *, u_long, caddr_t);
 static void re_init		(void *);
 static void re_init_locked	(struct rl_softc *);
 static void re_stop		(struct rl_softc *);
-static void re_watchdog		(struct ifnet *);
+static void re_watchdog		(struct rl_softc *);
 static int re_suspend		(device_t);
 static int re_resume		(device_t);
 static void re_shutdown		(device_t);
@@ -1050,7 +1050,7 @@ re_allocmem(dev, sc)
 	 */
 	error = bus_dma_tag_create(sc->rl_parent_tag, RL_RING_ALIGN,
 	    0, BUS_SPACE_MAXADDR_32BIT, BUS_SPACE_MAXADDR, NULL,
-	    NULL, RL_TX_LIST_SZ, 1, RL_TX_LIST_SZ, BUS_DMA_ALLOCNOW,
+	    NULL, RL_TX_LIST_SZ, 1, RL_TX_LIST_SZ, 0,
 	    NULL, NULL, &sc->rl_ldata.rl_tx_list_tag);
 	if (error) {
 		device_printf(dev, "could not allocate dma tag\n");
@@ -1088,7 +1088,7 @@ re_allocmem(dev, sc)
 	 */
 	error = bus_dma_tag_create(sc->rl_parent_tag, RL_RING_ALIGN,
 	    0, BUS_SPACE_MAXADDR_32BIT, BUS_SPACE_MAXADDR, NULL,
-	    NULL, RL_RX_LIST_SZ, 1, RL_RX_LIST_SZ, BUS_DMA_ALLOCNOW,
+	    NULL, RL_RX_LIST_SZ, 1, RL_RX_LIST_SZ, 0,
 	    NULL, NULL, &sc->rl_ldata.rl_rx_list_tag);
 	if (error) {
 		device_printf(dev, "could not allocate dma tag\n");
@@ -1219,16 +1219,10 @@ re_attach(dev)
 	 * Allocate the parent bus DMA tag appropriate for PCI.
 	 */
 #define RL_NSEG_NEW 32
-	error = bus_dma_tag_create(NULL,	/* parent */
-			1, 0,			/* alignment, boundary */
-			BUS_SPACE_MAXADDR_32BIT,/* lowaddr */
-			BUS_SPACE_MAXADDR,	/* highaddr */
-			NULL, NULL,		/* filter, filterarg */
-			MAXBSIZE, RL_NSEG_NEW,	/* maxsize, nsegments */
-			BUS_SPACE_MAXSIZE_32BIT,/* maxsegsize */
-			BUS_DMA_ALLOCNOW,	/* flags */
-			NULL, NULL,		/* lockfunc, lockarg */
-			&sc->rl_parent_tag);
+	error = bus_dma_tag_create(bus_get_dma_tag(dev), 1, 0,
+	    BUS_SPACE_MAXADDR_32BIT, BUS_SPACE_MAXADDR, NULL, NULL,
+	    MAXBSIZE, RL_NSEG_NEW, BUS_SPACE_MAXSIZE_32BIT, 0,
+	    NULL, NULL, &sc->rl_parent_tag);
 	if (error)
 		goto fail;
 
@@ -1254,14 +1248,12 @@ re_attach(dev)
 
 	ifp->if_softc = sc;
 	if_initname(ifp, device_get_name(dev), device_get_unit(dev));
-	ifp->if_mtu = ETHERMTU;
 	ifp->if_flags = IFF_BROADCAST | IFF_SIMPLEX | IFF_MULTICAST;
 	ifp->if_ioctl = re_ioctl;
 	ifp->if_start = re_start;
 	ifp->if_hwassist = RE_CSUM_FEATURES | CSUM_TSO;
 	ifp->if_capabilities = IFCAP_HWCSUM | IFCAP_TSO4;
 	ifp->if_capenable = ifp->if_capabilities;
-	ifp->if_watchdog = re_watchdog;
 	ifp->if_init = re_init;
 	IFQ_SET_MAXLEN(&ifp->if_snd, RL_IFQ_MAXLEN);
 	ifp->if_snd.ifq_drv_maxlen = RL_IFQ_MAXLEN;
@@ -1317,7 +1309,7 @@ re_attach(dev)
 	}
 
 fail:
-        
+
 	if (error)
 		re_detach(dev);
 
@@ -1814,7 +1806,7 @@ re_txeof(sc)
 	if (sc->rl_ldata.rl_tx_free) {
 		sc->rl_ldata.rl_tx_considx = idx;
 		ifp->if_drv_flags &= ~IFF_DRV_OACTIVE;
-		ifp->if_timer = 0;
+		sc->rl_watchdog_timer = 0;
 	}
 
 	/*
@@ -1854,8 +1846,9 @@ re_tick(xsc)
 
 	RL_LOCK_ASSERT(sc);
 
-	mii = device_get_softc(sc->rl_miibus);
+	re_watchdog(sc);
 
+	mii = device_get_softc(sc->rl_miibus);
 	mii_tick(mii);
 	if (sc->rl_link) {
 		if (!(mii->mii_media_status & IFM_ACTIVE))
@@ -1925,11 +1918,9 @@ re_intr(arg)
 	void			*arg;
 {
 	struct rl_softc		*sc;
-	struct ifnet		*ifp;
 	uint16_t		status;
 
 	sc = arg;
-	ifp = sc->rl_ifp;
 
 	status = CSR_READ_2(sc, RL_ISR);
 	if (status == 0xFFFF || (status & RL_INTRS_CPLUS) == 0)
@@ -2246,8 +2237,7 @@ re_start(ifp)
 	/*
 	 * Set a timeout in case the chip goes out to lunch.
 	 */
-
-	ifp->if_timer = 5;
+	sc->rl_watchdog_timer = 5;
 
 	RL_UNLOCK(sc);
 
@@ -2433,9 +2423,8 @@ re_init_locked(sc)
 	ifp->if_drv_flags |= IFF_DRV_RUNNING;
 	ifp->if_drv_flags &= ~IFF_DRV_OACTIVE;
 
-
 	sc->rl_link = 0;
-
+	sc->rl_watchdog_timer = 0;
 	callout_reset(&sc->rl_stat_callout, hz, re_tick, sc);
 }
 
@@ -2534,7 +2523,6 @@ re_ioctl(ifp, command, data)
 				CSR_WRITE_2(sc, RL_IMR, 0x0000);
 				ifp->if_capenable |= IFCAP_POLLING;
 				RL_UNLOCK(sc);
-				
 			} else {
 				error = ether_poll_deregister(ifp);
 				/* Enable interrupts. */
@@ -2579,21 +2567,21 @@ re_ioctl(ifp, command, data)
 }
 
 static void
-re_watchdog(ifp)
-	struct ifnet		*ifp;
-{
+re_watchdog(sc)
 	struct rl_softc		*sc;
+{
 
-	sc = ifp->if_softc;
-	RL_LOCK(sc);
-	if_printf(ifp, "watchdog timeout\n");
-	ifp->if_oerrors++;
+	RL_LOCK_ASSERT(sc);
+
+	if (sc->rl_watchdog_timer == 0 || --sc->rl_watchdog_timer != 0)
+		return;
+
+	device_printf(sc->rl_dev, "watchdog timeout\n");
+	sc->rl_ifp->if_oerrors++;
 
 	re_txeof(sc);
 	re_rxeof(sc);
 	re_init_locked(sc);
-
-	RL_UNLOCK(sc);
 }
 
 /*
@@ -2610,8 +2598,8 @@ re_stop(sc)
 	RL_LOCK_ASSERT(sc);
 
 	ifp = sc->rl_ifp;
-	ifp->if_timer = 0;
 
+	sc->rl_watchdog_timer = 0;
 	callout_stop(&sc->rl_stat_callout);
 	ifp->if_drv_flags &= ~(IFF_DRV_RUNNING | IFF_DRV_OACTIVE);
 
