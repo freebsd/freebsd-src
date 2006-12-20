@@ -171,8 +171,8 @@ struct l_rusage {
  * stat family of syscalls
  */
 struct l_timespec {
-	l_ulong		tv_sec;
-	l_ulong		tv_nsec;
+	l_time_t	tv_sec;
+	l_long		tv_nsec;
 } __packed;
 
 struct l_newstat {

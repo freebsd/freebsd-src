@@ -65,7 +65,7 @@ __KERNEL_RCSID(0, "$NetBSD: linux_time.c,v 1.14 2006/05/14 03:40:54 christos Exp
 
 static void native_to_linux_timespec(struct l_timespec *,
 				     struct timespec *);
-static void linux_to_native_timespec(struct timespec *,
+static int linux_to_native_timespec(struct timespec *,
 				     struct l_timespec *);
 static int linux_to_native_clockid(clockid_t *, clockid_t);
 
@@ -76,11 +76,15 @@ native_to_linux_timespec(struct l_timespec *ltp, struct timespec *ntp)
 	ltp->tv_nsec = ntp->tv_nsec;
 }
 
-static void
+static int
 linux_to_native_timespec(struct timespec *ntp, struct l_timespec *ltp)
 {
+	if (ltp->tv_sec < 0 || ltp->tv_nsec > (l_long)999999999L)
+		return (EINVAL);
 	ntp->tv_sec = ltp->tv_sec;
 	ntp->tv_nsec = ltp->tv_nsec;
+
+	return (0);
 }
 
 static int
@@ -97,10 +101,12 @@ linux_to_native_clockid(clockid_t *n, clockid_t l)
 	case LINUX_CLOCK_THREAD_CPUTIME_ID:
 	case LINUX_CLOCK_REALTIME_HR:
 	case LINUX_CLOCK_MONOTONIC_HR:
-		return EINVAL;
+	default:
+		return (EINVAL);
+		break;
 	}
 
-	return 0;
+	return (0);
 }
 
 int
@@ -113,15 +119,13 @@ linux_clock_gettime(struct thread *td, struct linux_clock_gettime_args *args)
 
 	error = linux_to_native_clockid(&nwhich, args->which);
 	if (error != 0)
-		return error;
-
+		return (error);
 	error = kern_clock_gettime(td, nwhich, &tp);
 	if (error != 0)
-		return error;
-
+		return (error);
 	native_to_linux_timespec(&lts, &tp);
 
-	return copyout(&lts, args->tp, sizeof lts);
+	return (copyout(&lts, args->tp, sizeof lts));
 }
 
 int
@@ -134,15 +138,15 @@ linux_clock_settime(struct thread *td, struct linux_clock_settime_args *args)
 
 	error = linux_to_native_clockid(&nwhich, args->which);
 	if (error != 0)
-		return error;
-
+		return (error);
 	error = copyin(args->tp, &lts, sizeof lts);
 	if (error != 0)
-		return error;
+		return (error);
+	error = linux_to_native_timespec(&ts, &lts);
+	if (error != 0)
+		return (error);
 
-	linux_to_native_timespec(&ts, &lts);
-
-	return kern_clock_settime(td, nwhich, &ts);
+	return (kern_clock_settime(td, nwhich, &ts));
 }
 
 int
@@ -154,19 +158,51 @@ linux_clock_getres(struct thread *td, struct linux_clock_getres_args *args)
 	clockid_t nwhich = 0;	/* XXX: GCC */
 
 	if (args->tp == NULL)
-	  	return (0); 
+	  	return (0);
 
 	error = linux_to_native_clockid(&nwhich, args->which);
 	if (error != 0)
-		return error;
-
+		return (error);
 	error = kern_clock_getres(td, nwhich, &ts);
 	if (error != 0)
-		return error;
-
+		return (error);
 	native_to_linux_timespec(&lts, &ts);
-	
-	return copyout(&lts, args->tp, sizeof lts);
+
+	return (copyout(&lts, args->tp, sizeof lts));
+}
+
+int
+linux_nanosleep(struct thread *td, struct linux_nanosleep_args *args)
+{
+	struct timespec *rmtp;
+	struct l_timespec lrqts, lrmts;
+	struct timespec rqts, rmts;
+	int error;
+
+	error = copyin(args->rqtp, &lrqts, sizeof lrqts);
+	if (error != 0)
+		return (error);
+
+	if (args->rmtp != NULL)
+	   	rmtp = &rmts;
+	else
+	   	rmtp = NULL;
+
+	error = linux_to_native_timespec(&rqts, &lrqts);
+	if (error != 0)
+		return (error);
+	error = kern_nanosleep(td, &rqts, rmtp);
+	if (error != 0)
+		return (error);
+
+	if (args->rmtp != NULL) {
+	   	native_to_linux_timespec(&lrmts, rmtp);
+	   	error = copyout(&lrmts, args->rmtp, sizeof(lrmts));
+		if (error != 0)
+		   	return (error);
+	}
+
+	return (0);
 }
 
 int
@@ -178,31 +214,33 @@ linux_clock_nanosleep(struct thread *td, struct linux_clock_nanosleep_args *args
 	int error;
 
 	if (args->flags != 0)
-		return EINVAL;		/* XXX deal with TIMER_ABSTIME */
+		return (EINVAL);	/* XXX deal with TIMER_ABSTIME */
 
 	if (args->which != LINUX_CLOCK_REALTIME)
-		return EINVAL;
+		return (EINVAL);
 
 	error = copyin(args->rqtp, &lrqts, sizeof lrqts);
 	if (error != 0)
-		return error;
+		return (error);
 
 	if (args->rmtp != NULL)
 	   	rmtp = &rmts;
 	else
 	   	rmtp = NULL;
 
-	linux_to_native_timespec(&rqts, &lrqts);
-
+	error = linux_to_native_timespec(&rqts, &lrqts);
+	if (error != 0)
+		return (error);
 	error = kern_nanosleep(td, &rqts, rmtp);
 	if (error != 0)
-		return error;
+		return (error);
+
 	if (args->rmtp != NULL) {
 	   	native_to_linux_timespec(&lrmts, rmtp);
 	   	error = copyout(&lrmts, args->rmtp, sizeof lrmts );
 		if (error != 0)
-		   	return error;
+		   	return (error);
 	}
 
-	return 0;
+	return (0);
 }
