@@ -2871,7 +2871,8 @@ dc_txeof(struct dc_softc *sc)
 		sc->dc_cdata.dc_tx_cons = idx;
 		ifp->if_drv_flags &= ~IFF_DRV_OACTIVE;
 	}
-	sc->dc_wdog_timer = (sc->dc_cdata.dc_tx_cnt == 0) ? 0 : 5;
+	if (sc->dc_cdata.dc_tx_cnt == 0)
+		sc->dc_wdog_timer = 0;
 }
 
 static void
