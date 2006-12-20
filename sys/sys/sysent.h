@@ -143,6 +143,12 @@ SYSCALL_MODULE(syscallname,                             \
     & syscallname##_syscall, & syscallname##_sysent,    \
     NULL, NULL);
 
+#define SYSCALL_MODULE_PRESENT(syscallname)		\
+	(sysent[SYS_##syscallname].sy_call !=		\
+			(sy_call_t *)lkmnosys &&	\
+	sysent[SYS_##syscallname].sy_call !=		\
+			(sy_call_t *)lkmressys)
+
 int    syscall_register(int *offset, struct sysent *new_sysent,
 	    struct sysent *old_sysent);
 int    syscall_deregister(int *offset, struct sysent *old_sysent);
