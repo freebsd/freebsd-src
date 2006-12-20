@@ -34,8 +34,7 @@
 __FBSDID("$FreeBSD$");
 
 /*
- * Driver for the Broadcom BCR5400 1000baseTX PHY. Speed is always
- * 1000mbps; all we need to negotiate here is full or half duplex.
+ * Driver for the Broadcom BCR5400 1000baseTX PHY.
  */
 
 #include <sys/param.h>
@@ -87,6 +86,7 @@ static driver_t brgphy_driver = {
 DRIVER_MODULE(brgphy, miibus, brgphy_driver, brgphy_devclass, 0, 0);
 
 static int	brgphy_service(struct mii_softc *, struct mii_data *, int);
+static void	brgphy_setmedia(struct mii_softc *, int, int);
 static void	brgphy_status(struct mii_softc *);
 static int	brgphy_mii_phy_auto(struct mii_softc *);
 static void	brgphy_reset(struct mii_softc *);
@@ -205,7 +205,7 @@ static int
 brgphy_service(struct mii_softc *sc, struct mii_data *mii, int cmd)
 {
 	struct ifmedia_entry *ife = mii->mii_media.ifm_cur;
-	int reg, speed, gig;
+	int reg;
 
 	switch (cmd) {
 	case MII_POLLSTAT:
@@ -237,58 +237,17 @@ brgphy_service(struct mii_softc *sc, struct mii_data *mii, int cmd)
 			if (PHY_READ(sc, BRGPHY_MII_BMCR) & BRGPHY_BMCR_AUTOEN)
 				return (0);
 #endif
-			(void) brgphy_mii_phy_auto(sc);
+			(void)brgphy_mii_phy_auto(sc);
 			break;
 		case IFM_1000_T:
-			speed = BRGPHY_S1000;
-			goto setit;
 		case IFM_100_TX:
-			speed = BRGPHY_S100;
-			goto setit;
 		case IFM_10_T:
-			speed = BRGPHY_S10;
-setit:
-			brgphy_loop(sc);
-			if ((ife->ifm_media & IFM_GMASK) == IFM_FDX) {
-				speed |= BRGPHY_BMCR_FDX;
-				gig = BRGPHY_1000CTL_AFD;
-			} else {
-				gig = BRGPHY_1000CTL_AHD;
-			}
-
-			PHY_WRITE(sc, BRGPHY_MII_1000CTL, 0);
-			PHY_WRITE(sc, BRGPHY_MII_BMCR, speed);
-			PHY_WRITE(sc, BRGPHY_MII_ANAR, BRGPHY_SEL_TYPE);
-
-			if (IFM_SUBTYPE(ife->ifm_media) != IFM_1000_T)
-				break;
-
-			PHY_WRITE(sc, BRGPHY_MII_1000CTL, gig);
-			PHY_WRITE(sc, BRGPHY_MII_BMCR,
-			    speed|BRGPHY_BMCR_AUTOEN|BRGPHY_BMCR_STARTNEG);
-
-			if (brgphy_mii_model != MII_MODEL_xxBROADCOM_BCM5701)
-				break;
-
-			/*
-			 * When setting the link manually, one side must
-			 * be the master and the other the slave. However
-			 * ifmedia doesn't give us a good way to specify
-			 * this, so we fake it by using one of the LINK
-			 * flags. If LINK0 is set, we program the PHY to
-			 * be a master, otherwise it's a slave.
-			 */
-			if ((mii->mii_ifp->if_flags & IFF_LINK0)) {
-				PHY_WRITE(sc, BRGPHY_MII_1000CTL,
-				    gig|BRGPHY_1000CTL_MSE|BRGPHY_1000CTL_MSC);
-			} else {
-				PHY_WRITE(sc, BRGPHY_MII_1000CTL,
-				    gig|BRGPHY_1000CTL_MSE);
-			}
+			brgphy_setmedia(sc, ife->ifm_media,
+			    mii->mii_ifp->if_flags & IFF_LINK0);
 			break;
 #ifdef foo
 		case IFM_NONE:
-			PHY_WRITE(sc, MII_BMCR, BMCR_ISO|BMCR_PDOWN);
+			PHY_WRITE(sc, MII_BMCR, BMCR_ISO | BMCR_PDOWN);
 			break;
 #endif
 		case IFM_100_T4:
@@ -296,7 +255,6 @@ setit:
 			return (EINVAL);
 		}
 		break;
-
 	case MII_TICK:
 		/* If we're not currently selected, just return. */
 		if (IFM_INST(ife->ifm_media) != sc->mii_inst)
@@ -330,7 +288,7 @@ setit:
 			return (0);
 
 		sc->mii_ticks = 0;
-		brgphy_mii_phy_auto(sc);
+		(void)brgphy_mii_phy_auto(sc);
 		break;
 	}
 
@@ -359,20 +317,75 @@ setit:
 }
 
 static void
+brgphy_setmedia(struct mii_softc *sc, int media, int master)
+{
+	int bmcr, gig;
+
+	switch (IFM_SUBTYPE(media)) {
+	case IFM_1000_T:
+		bmcr = BRGPHY_S1000;
+		break;
+	case IFM_100_TX:
+		bmcr = BRGPHY_S100;
+		break;
+	case IFM_10_T:
+	default:
+		bmcr = BRGPHY_S10;
+		break;
+	}
+	if ((media & IFM_GMASK) == IFM_FDX) {
+		bmcr |= BRGPHY_BMCR_FDX;
+		gig = BRGPHY_1000CTL_AFD;
+	} else {
+		gig = BRGPHY_1000CTL_AHD;
+	}
+
+	brgphy_loop(sc);
+	PHY_WRITE(sc, BRGPHY_MII_1000CTL, 0);
+	PHY_WRITE(sc, BRGPHY_MII_BMCR, bmcr);
+	PHY_WRITE(sc, BRGPHY_MII_ANAR, BRGPHY_SEL_TYPE);
+
+	if (IFM_SUBTYPE(media) != IFM_1000_T)
+		return;
+
+	PHY_WRITE(sc, BRGPHY_MII_1000CTL, gig);
+	PHY_WRITE(sc, BRGPHY_MII_BMCR,
+	    bmcr | BRGPHY_BMCR_AUTOEN | BRGPHY_BMCR_STARTNEG);
+
+	if (brgphy_mii_model != MII_MODEL_xxBROADCOM_BCM5701)
+		return;
+
+	/*
+	 * When setting the link manually, one side must be the master and
+	 * the other the slave. However ifmedia doesn't give us a good way
+	 * to specify this, so we fake it by using one of the LINK flags.
+	 * If LINK0 is set, we program the PHY to be a master, otherwise
+	 * it's a slave.
+	 */
+	if (master) {
+		PHY_WRITE(sc, BRGPHY_MII_1000CTL,
+		    gig | BRGPHY_1000CTL_MSE | BRGPHY_1000CTL_MSC);
+	} else {
+		PHY_WRITE(sc, BRGPHY_MII_1000CTL,
+		    gig | BRGPHY_1000CTL_MSE);
+	}
+}
+
+static void
 brgphy_status(struct mii_softc *sc)
 {
 	struct mii_data *mii = sc->mii_pdata;
 	struct ifmedia_entry *ife = mii->mii_media.ifm_cur;
-	int bmsr, bmcr;
+	int bmcr, bmsr;
 
 	mii->mii_media_status = IFM_AVALID;
 	mii->mii_media_active = IFM_ETHER;
 
-	bmsr = PHY_READ(sc, BRGPHY_MII_BMSR);
-	if (PHY_READ(sc, BRGPHY_MII_AUXSTS) & BRGPHY_AUXSTS_LINK)
-		mii->mii_media_status |= IFM_ACTIVE;
-
 	bmcr = PHY_READ(sc, BRGPHY_MII_BMCR);
+	bmsr = PHY_READ(sc, BRGPHY_MII_BMSR);
+
+	if (bmsr & BRGPHY_BMSR_LINK)
+		mii->mii_media_status |= IFM_ACTIVE;
 
 	if (bmcr & BRGPHY_BMCR_LOOP)
 		mii->mii_media_active |= IFM_LOOP;
@@ -383,7 +396,9 @@ brgphy_status(struct mii_softc *sc)
 			mii->mii_media_active |= IFM_NONE;
 			return;
 		}
+	}
 
+	if (bmsr & BRGPHY_BMSR_LINK) {
 		switch (PHY_READ(sc, BRGPHY_MII_AUXSTS) &
 		    BRGPHY_AUXSTS_AN_RES) {
 		case BRGPHY_RES_1000FD:
@@ -411,31 +426,29 @@ brgphy_status(struct mii_softc *sc)
 			mii->mii_media_active |= IFM_NONE;
 			break;
 		}
-		return;
-	}
-
-	mii->mii_media_active = ife->ifm_media;
+	} else
+		mii->mii_media_active = ife->ifm_media;
 }
 
 static int
-brgphy_mii_phy_auto(struct mii_softc *mii)
+brgphy_mii_phy_auto(struct mii_softc *sc)
 {
 	int ktcr = 0;
 
-	brgphy_loop(mii);
-	brgphy_reset(mii);
-	ktcr = BRGPHY_1000CTL_AFD|BRGPHY_1000CTL_AHD;
+	brgphy_loop(sc);
+	brgphy_reset(sc);
+	ktcr = BRGPHY_1000CTL_AFD | BRGPHY_1000CTL_AHD;
 	if (brgphy_mii_model == MII_MODEL_xxBROADCOM_BCM5701)
 		ktcr |= BRGPHY_1000CTL_MSE|BRGPHY_1000CTL_MSC;
-	PHY_WRITE(mii, BRGPHY_MII_1000CTL, ktcr);
-	ktcr = PHY_READ(mii, BRGPHY_MII_1000CTL);
+	PHY_WRITE(sc, BRGPHY_MII_1000CTL, ktcr);
+	ktcr = PHY_READ(sc, BRGPHY_MII_1000CTL);
 	DELAY(1000);
-	PHY_WRITE(mii, BRGPHY_MII_ANAR,
-	    BMSR_MEDIA_TO_ANAR(mii->mii_capabilities) | ANAR_CSMA);
+	PHY_WRITE(sc, BRGPHY_MII_ANAR,
+	    BMSR_MEDIA_TO_ANAR(sc->mii_capabilities) | ANAR_CSMA);
 	DELAY(1000);
-	PHY_WRITE(mii, BRGPHY_MII_BMCR,
+	PHY_WRITE(sc, BRGPHY_MII_BMCR,
 	    BRGPHY_BMCR_AUTOEN | BRGPHY_BMCR_STARTNEG);
-	PHY_WRITE(mii, BRGPHY_MII_IMR, 0xFF00);
+	PHY_WRITE(sc, BRGPHY_MII_IMR, 0xFF00);
 	return (EJUSTRETURN);
 }
 
