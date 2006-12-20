@@ -282,9 +282,9 @@
 				    l_int policy); }
 161	AUE_SCHED_RR_GET_INTERVAL	NOPROTO	{ int sched_rr_get_interval(l_pid_t pid, \
 				    struct l_timespec *interval); }
-162	AUE_NULL	NOPROTO	{ int nanosleep( \
-				    const struct timespec *rqtp, \
-				    struct timespec *rmtp); }
+162	AUE_NULL	STD	{ int linux_nanosleep( \
+				    const struct l_timespec *rqtp, \
+				    struct l_timespec *rmtp); }
 163	AUE_NULL	STD	{ int linux_mremap(l_ulong addr, \
 				    l_ulong old_len, l_ulong new_len, \
 				    l_ulong flags, l_ulong new_addr); }
