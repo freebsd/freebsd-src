@@ -36,6 +36,7 @@ _thr_umutex_init(struct umutex *mtx)
 	static struct umutex default_mtx = DEFAULT_UMUTEX;
 
 	*mtx = default_mtx;
+	mtx->m_spincount = _thr_adaptive_spin;
 }
 
 int

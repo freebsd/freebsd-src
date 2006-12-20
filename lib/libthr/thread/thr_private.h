@@ -583,6 +583,7 @@ extern size_t	_thr_guard_default __hidden;
 extern size_t	_thr_stack_default __hidden;
 extern size_t	_thr_stack_initial __hidden;
 extern int	_thr_page_size __hidden;
+extern int	_thr_adaptive_spin __hidden;
 /* Garbage thread count. */
 extern int	_gc_count __hidden;
 

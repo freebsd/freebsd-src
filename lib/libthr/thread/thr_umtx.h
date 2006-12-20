@@ -32,7 +32,7 @@
 #include <strings.h>
 #include <sys/umtx.h>
 
-#define DEFAULT_UMUTEX	{0, 0, {0, 0}, {0, 0, 0, 0}}
+#define DEFAULT_UMUTEX	{0}
 
 typedef long umtx_t;
 
