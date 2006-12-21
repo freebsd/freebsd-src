@@ -73,15 +73,6 @@ __FBSDID("$FreeBSD$");
 #include <security/mac/mac_internal.h>
 
 /*
- * mac_enforce_socket is used by the inet code when delivering to an inpcb
- * without hitting the socket layer, and has to be non-static for now.
- */
-int	mac_enforce_socket = 1;
-SYSCTL_INT(_security_mac, OID_AUTO, enforce_socket, CTLFLAG_RW,
-    &mac_enforce_socket, 0, "Enforce MAC policy on socket operations");
-TUNABLE_INT("security.mac.enforce_socket", &mac_enforce_socket);
-
-/*
  * Currently, sockets hold two labels: the label of the socket itself, and a
  * peer label, which may be used by policies to hold a copy of the label of
  * any remote endpoint.
@@ -285,9 +276,6 @@ mac_check_socket_accept(struct ucred *cred, struct socket *socket)
 
 	SOCK_LOCK_ASSERT(socket);
 
-	if (!mac_enforce_socket)
-		return (0);
-
 	MAC_CHECK(check_socket_accept, cred, socket, socket->so_label);
 
 	return (error);
@@ -300,9 +288,6 @@ mac_check_socket_bind(struct ucred *ucred, struct socket *socket,
 	int error;
 
 	SOCK_LOCK_ASSERT(socket);
-
-	if (!mac_enforce_socket)
-		return (0);
 
 	MAC_CHECK(check_socket_bind, ucred, socket, socket->so_label,
 	    sockaddr);
@@ -318,9 +303,6 @@ mac_check_socket_connect(struct ucred *cred, struct socket *socket,
 
 	SOCK_LOCK_ASSERT(socket);
 
-	if (!mac_enforce_socket)
-		return (0);
-
 	MAC_CHECK(check_socket_connect, cred, socket, socket->so_label,
 	    sockaddr);
 
@@ -332,9 +314,6 @@ mac_check_socket_create(struct ucred *cred, int domain, int type,
     int protocol)
 {
 	int error;
-
-	if (!mac_enforce_socket)
-		return (0);
 
 	MAC_CHECK(check_socket_create, cred, domain, type, protocol);
 
@@ -348,9 +327,6 @@ mac_check_socket_deliver(struct socket *socket, struct mbuf *mbuf)
 	int error;
 
 	SOCK_LOCK_ASSERT(socket);
-
-	if (!mac_enforce_socket)
-		return (0);
 
 	label = mac_mbuf_to_label(mbuf);
 
@@ -367,9 +343,6 @@ mac_check_socket_listen(struct ucred *cred, struct socket *socket)
 
 	SOCK_LOCK_ASSERT(socket);
 
-	if (!mac_enforce_socket)
-		return (0);
-
 	MAC_CHECK(check_socket_listen, cred, socket, socket->so_label);
 	return (error);
 }
@@ -381,9 +354,6 @@ mac_check_socket_poll(struct ucred *cred, struct socket *so)
 
 	SOCK_LOCK_ASSERT(so);
 
-	if (!mac_enforce_socket)
-		return (0);
-
 	MAC_CHECK(check_socket_poll, cred, so, so->so_label);
 	return (error);
 }
@@ -394,9 +364,6 @@ mac_check_socket_receive(struct ucred *cred, struct socket *so)
 	int error;
 
 	SOCK_LOCK_ASSERT(so);
-
-	if (!mac_enforce_socket)
-		return (0);
 
 	MAC_CHECK(check_socket_receive, cred, so, so->so_label);
 
@@ -424,9 +391,6 @@ mac_check_socket_send(struct ucred *cred, struct socket *so)
 
 	SOCK_LOCK_ASSERT(so);
 
-	if (!mac_enforce_socket)
-		return (0);
-
 	MAC_CHECK(check_socket_send, cred, so, so->so_label);
 
 	return (error);
@@ -439,9 +403,6 @@ mac_check_socket_stat(struct ucred *cred, struct socket *so)
 
 	SOCK_LOCK_ASSERT(so);
 
-	if (!mac_enforce_socket)
-		return (0);
-
 	MAC_CHECK(check_socket_stat, cred, so, so->so_label);
 
 	return (error);
@@ -453,9 +414,6 @@ mac_check_socket_visible(struct ucred *cred, struct socket *socket)
 	int error;
 
 	SOCK_LOCK_ASSERT(socket);
-
-	if (!mac_enforce_socket)
-		return (0);
 
 	MAC_CHECK(check_socket_visible, cred, socket, socket->so_label);
 

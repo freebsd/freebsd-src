@@ -54,12 +54,6 @@ __FBSDID("$FreeBSD$");
 #include <security/mac/mac_framework.h>
 #include <security/mac/mac_internal.h>
 
-static int	mac_enforce_sysv_shm = 1;
-SYSCTL_INT(_security_mac, OID_AUTO, enforce_sysv_shm, CTLFLAG_RW,
-    &mac_enforce_sysv_shm, 0,
-    "Enforce MAC policy on System V IPC shared memory");
-TUNABLE_INT("security.mac.enforce_sysv", &mac_enforce_sysv_shm);
-
 static struct label *
 mac_sysv_shm_label_alloc(void)
 {
@@ -113,9 +107,6 @@ mac_check_sysv_shmat(struct ucred *cred, struct shmid_kernel *shmsegptr,
 {
 	int error;
 
-	if (!mac_enforce_sysv_shm)
-		return (0);
-
 	MAC_CHECK(check_sysv_shmat, cred, shmsegptr, shmsegptr->label,
 	    shmflg);
 
@@ -128,9 +119,6 @@ mac_check_sysv_shmctl(struct ucred *cred, struct shmid_kernel *shmsegptr,
 {
 	int error;
 
-	if (!mac_enforce_sysv_shm)
-		return (0);
-
 	MAC_CHECK(check_sysv_shmctl, cred, shmsegptr, shmsegptr->label,
 	    cmd);
 
@@ -142,9 +130,6 @@ mac_check_sysv_shmdt(struct ucred *cred, struct shmid_kernel *shmsegptr)
 {
 	int error;
 
-	if (!mac_enforce_sysv_shm)
-		return (0);
-
 	MAC_CHECK(check_sysv_shmdt, cred, shmsegptr, shmsegptr->label);
 
 	return(error);
@@ -155,9 +140,6 @@ mac_check_sysv_shmget(struct ucred *cred, struct shmid_kernel *shmsegptr,
     int shmflg)
 {
 	int error;
-
-	if (!mac_enforce_sysv_shm)
-		return (0);
 
 	MAC_CHECK(check_sysv_shmget, cred, shmsegptr, shmsegptr->label,
 	    shmflg);
