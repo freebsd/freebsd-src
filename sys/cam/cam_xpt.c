@@ -1447,7 +1447,7 @@ xpt_init(dummy)
 	xpt_max_ccbs = 16;
 				
 	if ((status = xpt_bus_register(xpt_sim, /*bus #*/0)) != CAM_SUCCESS) {
-		printf("xpt_init: xpt_bus_register failed with status %#x,";
+		printf("xpt_init: xpt_bus_register failed with status %#x,"
 		       " failing attach\n", status);
 		return;
 	}
