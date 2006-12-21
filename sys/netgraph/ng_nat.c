@@ -229,7 +229,8 @@ ng_nat_rcvdata(hook_p hook, item_p item )
 
 	if (hook == priv->in) {
 		rval = LibAliasIn(priv->lib, c, MCLBYTES);
-		if (rval != PKT_ALIAS_OK) {
+		if (rval != PKT_ALIAS_OK &&
+		    rval != PKT_ALIAS_FOUND_HEADER_FRAGMENT) {
 			NG_FREE_ITEM(item);
 			return (EINVAL);
 		}
