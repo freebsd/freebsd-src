@@ -28,7 +28,7 @@
 .\"	from BSDI $Id: mutex.4,v 1.1.2.3 1998/04/27 22:53:13 ewv Exp $
 .\" $FreeBSD$
 .\"
-.Dd February 1, 2006
+.Dd December 21, 2006
 .Dt MUTEX 9
 .Os
 .Sh NAME
@@ -434,6 +434,8 @@ Instruct
 to ignore this lock.
 .It Dv MTX_DUPOK
 Witness should not log messages about duplicate locks being acquired.
+.It Dv MTX_NOPROFILE
+Do not profile this lock.
 .El
 .Ss Lock and Unlock Flags
 The flags passed to the
