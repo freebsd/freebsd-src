@@ -92,25 +92,12 @@ struct bpb710 {
  * use the macros for the big-endian case.
  */
 
-#include <machine/endian.h>
+#include <sys/endian.h>
 
-#if (BYTE_ORDER == LITTLE_ENDIAN)
-#define	getushort(x)	*((u_int16_t *)(x))
-#define	getulong(x)	*((u_int32_t *)(x))
-#define	putushort(p, v)	(*((u_int16_t *)(p)) = (v))
-#define	putulong(p, v)	(*((u_int32_t *)(p)) = (v))
-#else
-#define getushort(x)	(((u_int8_t *)(x))[0] + (((u_int8_t *)(x))[1] << 8))
-#define getulong(x)	(u_int32_t)(((u_int8_t *)(x))[0] + (((u_int8_t *)(x))[1] << 8) \
-			 + (((u_int8_t *)(x))[2] << 16)	\
-			 + (((u_int8_t *)(x))[3] << 24))
-#define putushort(p, v)	(((u_int8_t *)(p))[0] = (v),	\
-			 ((u_int8_t *)(p))[1] = (v) >> 8)
-#define putulong(p, v)	(((u_int8_t *)(p))[0] = (v),	\
-			 ((u_int8_t *)(p))[1] = (v) >> 8, \
-			 ((u_int8_t *)(p))[2] = (v) >> 16,\
-			 ((u_int8_t *)(p))[3] = (v) >> 24)
-#endif
+#define	getushort(x)	le16dec(x)
+#define	getulong(x)	le32dec(x)
+#define	putushort(p, v)	le16enc(p, v)
+#define	putulong(p, v)	le32enc(p, v)
 
 /*
  * BIOS Parameter Block (BPB) for DOS 3.3
