@@ -70,7 +70,7 @@ for all the files is displayed on a separate line after the output for
 the last file.
 .Pp
 The following options are available:
-.Bl -tag -width Ds
+.Bl -tag -width indent
 .It Fl c
 The number of bytes in each input file
 is written to the standard output.
@@ -132,8 +132,11 @@ as well as the totals for both:
 .Sh COMPATIBILITY
 Historically, the
 .Nm
-utility was documented to define a word as a ``maximal string of
-characters delimited by <space>, <tab> or <newline> characters''.
+utility was documented to define a word as a
+.Do
+maximal string of
+characters delimited by <space>, <tab> or <newline> characters
+.Dc .
 The implementation, however, did not handle non-printing characters
 correctly so that
 .Dq Li "  ^D^E  "
@@ -145,7 +148,9 @@ systems after
 .Bx 4.3
 modified the implementation to be consistent
 with the documentation.
-This implementation defines a ``word'' in terms of the
+This implementation defines a
+.Dq word
+in terms of the
 .Xr iswspace 3
 function, as required by
 .St -p1003.2 .
