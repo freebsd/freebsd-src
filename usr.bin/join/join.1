@@ -51,8 +51,8 @@
 .Bk -words
 .Ek
 .Op Fl t Ar char
-.Op Fl \&1 Ar field
-.Op Fl \&2 Ar field
+.Op Fl 1 Ar field
+.Op Fl 2 Ar field
 .Ar file1
 .Ar file2
 .Sh DESCRIPTION
@@ -100,8 +100,8 @@ option specifies the fields that will be output from each file for
 each line with matching join fields.
 Each element of
 .Ar list
-has the either the form
-.Ql file_number.field ,
+has either the form
+.Ar file_number . Ns Ar field ,
 where
 .Ar file_number
 is a file number and
@@ -129,18 +129,20 @@ Do not display the default output, but display a line for each unpairable
 line in file
 .Ar file_number .
 The options
-.Fl v Ar 1
+.Fl v Cm 1
 and
-.Fl v Ar 2
+.Fl v Cm 2
 may be specified at the same time.
 .It Fl 1 Ar field
 Join on the
 .Ar field Ns 'th
-field of file 1.
+field of
+.Ar file1 .
 .It Fl 2 Ar field
 Join on the
 .Ar field Ns 'th
-field of file 2.
+field of
+.Ar file2 .
 .El
 .Pp
 When the default field delimiter characters are used, the files to be joined
@@ -164,7 +166,7 @@ If one of the arguments
 or
 .Ar file2
 is
-.Dq - ,
+.Sq Fl ,
 the standard input is used.
 .Sh EXIT STATUS
 .Ex -std
@@ -175,19 +177,27 @@ the following options are available:
 .Bl -tag -width indent
 .It Fl a
 In addition to the default output, produce a line for each unpairable line
-in both file 1 and file 2.
+in both
+.Ar file1
+and
+.Ar file2 .
 .It Fl j1 Ar field
 Join on the
 .Ar field Ns 'th
-field of file 1.
+field of
+.Ar file1 .
 .It Fl j2 Ar field
 Join on the
 .Ar field Ns 'th
-field of file 2.
+field of
+.Ar file2 .
 .It Fl j Ar field
 Join on the
 .Ar field Ns 'th
-field of both file 1 and file 2.
+field of both
+.Ar file1
+and
+.Ar file2 .
 .It Fl o Ar list ...
 Historical implementations of
 .Nm
@@ -195,16 +205,16 @@ permitted multiple arguments to the
 .Fl o
 option.
 These arguments were of the form
-.Ql file_number.field_number
+.Ar file_number . Ns Ar field_number
 as described
 for the current
 .Fl o
 option.
 This has obvious difficulties in the presence of files named
-.Ql 1.2 .
+.Pa 1.2 .
 .El
 .Pp
-These options are available only so historic shellscripts do not require
+These options are available only so historic shell scripts do not require
 modification and should not be used.
 .Sh SEE ALSO
 .Xr awk 1 ,
