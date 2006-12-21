@@ -1,7 +1,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd May 17, 2006
+.Dd December 21, 2006
 .Dt NTP.CONF 5
 .Os
 .Sh NAME
@@ -305,7 +305,7 @@ default is to include no encryption field.
 .It Cm minpoll Ar minpoll
 .It Cm maxpoll Ar maxpoll
 These options specify the minimum and maximum poll intervals
-for NTP messages, in seconds to the power of two.
+for NTP messages, as a power of 2 in seconds
 The maximum poll
 interval defaults to 10 (1,024 s), but can be increased by the
 .Cm maxpoll
@@ -2178,7 +2178,7 @@ drivers.
 .It Cm minpoll Ar int
 .It Cm maxpoll Ar int
 These options specify the minimum and maximum polling interval
-for reference clock messages, in seconds to the power of two.
+for reference clock messages, as a power of 2 in seconds
 For
 most directly connected reference clocks, both
 .Cm minpoll
