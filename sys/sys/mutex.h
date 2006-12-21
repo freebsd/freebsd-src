@@ -57,7 +57,7 @@
 #define MTX_SPIN	0x00000001	/* Spin lock (disables interrupts) */
 #define MTX_RECURSE	0x00000004	/* Option: lock allowed to recurse */
 #define	MTX_NOWITNESS	0x00000008	/* Don't do any witness checking. */
-#define MTX_NOPROFILE   0x00000020
+#define MTX_NOPROFILE   0x00000020	/* Don't profile this lock */
 
 /*
  * Option flags passed to certain lock/unlock routines, through the use
