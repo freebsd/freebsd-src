@@ -1446,7 +1446,11 @@ xpt_init(dummy)
 				devq);
 	xpt_max_ccbs = 16;
 				
-	xpt_bus_register(xpt_sim, /*bus #*/0);
+	if ((status = xpt_bus_register(xpt_sim, /*bus #*/0)) != CAM_SUCCESS) {
+		printf("xpt_init: xpt_bus_register failed with status %#x,";
+		       " failing attach\n", status);
+		return;
+	}
 
 	/*
 	 * Looking at the XPT from the SIM layer, the XPT is
