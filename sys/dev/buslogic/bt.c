@@ -47,6 +47,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/malloc.h>
 #include <sys/kernel.h>
 #include <sys/lock.h>
+#include <sys/module.h>
 #include <sys/mutex.h>
 #include <sys/sysctl.h>
 #include <sys/bus.h>
@@ -2483,3 +2484,5 @@ bttimeout(void *arg)
 	splx(s);
 }
 
+MODULE_VERSION(bt, 1);
+MODULE_DEPEND(bt, cam, 1, 1, 1);

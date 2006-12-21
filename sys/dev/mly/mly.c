@@ -147,6 +147,8 @@ static driver_t mly_pci_driver = {
 
 static devclass_t	mly_devclass;
 DRIVER_MODULE(mly, pci, mly_pci_driver, mly_devclass, 0, 0);
+MODULE_DEPEND(mly, pci, 1, 1, 1);
+MODULE_DEPEND(mly, cam, 1, 1, 1);
 
 static struct cdevsw mly_cdevsw = {
 	.d_version =	D_VERSION,
