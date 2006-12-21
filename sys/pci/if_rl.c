@@ -1492,6 +1492,7 @@ rl_init_locked(struct rl_softc *sc)
 	struct ifnet		*ifp = sc->rl_ifp;
 	struct mii_data		*mii;
 	uint32_t		rxcfg = 0;
+	uint32_t		eaddr[2];
 
 	RL_LOCK_ASSERT(sc);
 
@@ -1508,10 +1509,10 @@ rl_init_locked(struct rl_softc *sc)
 	 * register write enable" mode to modify the ID registers.
 	 */
 	CSR_WRITE_1(sc, RL_EECMD, RL_EEMODE_WRITECFG);
-	CSR_WRITE_STREAM_4(sc, RL_IDR0,
-	    *(uint32_t *)(&IFP2ENADDR(sc->rl_ifp)[0]));
-	CSR_WRITE_STREAM_4(sc, RL_IDR4,
-	    *(uint32_t *)(&IFP2ENADDR(sc->rl_ifp)[4]));
+	bzero(eaddr, sizeof(eaddr));
+	bcopy(IF_LLADDR(sc->rl_ifp), eaddr, ETHER_ADDR_LEN);
+	CSR_WRITE_STREAM_4(sc, RL_IDR0, eaddr[0]);
+	CSR_WRITE_STREAM_4(sc, RL_IDR4, eaddr[1]);
 	CSR_WRITE_1(sc, RL_EECMD, RL_EEMODE_OFF);
 
 	/* Init the RX buffer pointer register. */
