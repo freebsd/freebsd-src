@@ -171,17 +171,10 @@ static struct bge_type {
 	{ BCOM_VENDORID,	BCOM_DEVICEID_BCM5753 },
 	{ BCOM_VENDORID,	BCOM_DEVICEID_BCM5753F },
 	{ BCOM_VENDORID,	BCOM_DEVICEID_BCM5753M },
-	{ BCOM_VENDORID,	BCOM_DEVICEID_BCM5754 },
-	{ BCOM_VENDORID,	BCOM_DEVICEID_BCM5754M },
-	{ BCOM_VENDORID,	BCOM_DEVICEID_BCM5755 },
-	{ BCOM_VENDORID,	BCOM_DEVICEID_BCM5755M },
 	{ BCOM_VENDORID,	BCOM_DEVICEID_BCM5780 },
 	{ BCOM_VENDORID,	BCOM_DEVICEID_BCM5780S },
 	{ BCOM_VENDORID,	BCOM_DEVICEID_BCM5781 },
 	{ BCOM_VENDORID,	BCOM_DEVICEID_BCM5782 },
-	{ BCOM_VENDORID,	BCOM_DEVICEID_BCM5786 },
-	{ BCOM_VENDORID,	BCOM_DEVICEID_BCM5787 },
-	{ BCOM_VENDORID,	BCOM_DEVICEID_BCM5787M },
 	{ BCOM_VENDORID,	BCOM_DEVICEID_BCM5788 },
 	{ BCOM_VENDORID,	BCOM_DEVICEID_BCM5789 },
 	{ BCOM_VENDORID,	BCOM_DEVICEID_BCM5901 },
@@ -274,8 +267,6 @@ static const struct bge_revision bge_majorrevs[] = {
 	{ BGE_ASICREV_BCM5752,		"unknown BCM5752" },
 	{ BGE_ASICREV_BCM5780,		"unknown BCM5780" },
 	{ BGE_ASICREV_BCM5714,		"unknown BCM5714" },
-	{ BGE_ASICREV_BCM5755,		"unknown BCM5755" },
-	{ BGE_ASICREV_BCM5787,		"unknown BCM5787" },
 
 	{ 0, NULL }
 };
@@ -286,18 +277,14 @@ static const struct bge_revision bge_majorrevs[] = {
 	 (sc)->bge_asicrev == BGE_ASICREV_BCM5714_A0	|| \
 	 (sc)->bge_asicrev == BGE_ASICREV_BCM5780	|| \
 	 (sc)->bge_asicrev == BGE_ASICREV_BCM5714	|| \
-	 (sc)->bge_asicrev == BGE_ASICREV_BCM5752	|| \
-	 (sc)->bge_asicrev == BGE_ASICREV_BCM5755	|| \
-	 (sc)->bge_asicrev == BGE_ASICREV_BCM5787)
+	 (sc)->bge_asicrev == BGE_ASICREV_BCM5752)
 
 #define BGE_IS_575X_PLUS(sc)				   \
 	((sc)->bge_asicrev == BGE_ASICREV_BCM5750	|| \
 	 (sc)->bge_asicrev == BGE_ASICREV_BCM5714_A0	|| \
 	 (sc)->bge_asicrev == BGE_ASICREV_BCM5780	|| \
 	 (sc)->bge_asicrev == BGE_ASICREV_BCM5714	|| \
-	 (sc)->bge_asicrev == BGE_ASICREV_BCM5752	|| \
-	 (sc)->bge_asicrev == BGE_ASICREV_BCM5755	|| \
-	 (sc)->bge_asicrev == BGE_ASICREV_BCM5787)
+	 (sc)->bge_asicrev == BGE_ASICREV_BCM5752)
 
 #define BGE_IS_5714_FAMILY(sc)				   \
 	((sc)->bge_asicrev == BGE_ASICREV_BCM5714_A0	|| \
