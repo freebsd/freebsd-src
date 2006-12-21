@@ -95,7 +95,7 @@ mac_check_posix_sem_destroy(struct ucred *cred, struct ksem *ksemptr)
 
 	MAC_CHECK(check_posix_sem_destroy, cred, ksemptr, ksemptr->ks_label);
 
-	return(error);
+	return (error);
 }
 
 int
@@ -105,7 +105,7 @@ mac_check_posix_sem_open(struct ucred *cred, struct ksem *ksemptr)
 
 	MAC_CHECK(check_posix_sem_open, cred, ksemptr, ksemptr->ks_label);
 
-	return(error);
+	return (error);
 }
 
 int
@@ -116,7 +116,7 @@ mac_check_posix_sem_getvalue(struct ucred *cred, struct ksem *ksemptr)
 	MAC_CHECK(check_posix_sem_getvalue, cred, ksemptr,
 	    ksemptr->ks_label);
 
-	return(error);
+	return (error);
 }
 
 int
@@ -126,7 +126,7 @@ mac_check_posix_sem_post(struct ucred *cred, struct ksem *ksemptr)
 
 	MAC_CHECK(check_posix_sem_post, cred, ksemptr, ksemptr->ks_label);
 
-	return(error);
+	return (error);
 }
 
 int
@@ -136,7 +136,7 @@ mac_check_posix_sem_unlink(struct ucred *cred, struct ksem *ksemptr)
 
 	MAC_CHECK(check_posix_sem_unlink, cred, ksemptr, ksemptr->ks_label);
 
-	return(error);
+	return (error);
 }
 
 int
@@ -146,5 +146,5 @@ mac_check_posix_sem_wait(struct ucred *cred, struct ksem *ksemptr)
 
 	MAC_CHECK(check_posix_sem_wait, cred, ksemptr, ksemptr->ks_label);
 
-	return(error);
+	return (error);
 }
