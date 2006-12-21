@@ -52,11 +52,6 @@ __FBSDID("$FreeBSD$");
 #include <security/mac/mac_framework.h>
 #include <security/mac/mac_internal.h>
 
-static int	mac_enforce_pipe = 1;
-SYSCTL_INT(_security_mac, OID_AUTO, enforce_pipe, CTLFLAG_RW,
-    &mac_enforce_pipe, 0, "Enforce MAC policy on pipe operations");
-TUNABLE_INT("security.mac.enforce_pipe", &mac_enforce_pipe);
-
 struct label *
 mac_pipe_label_alloc(void)
 {
@@ -141,9 +136,6 @@ mac_check_pipe_ioctl(struct ucred *cred, struct pipepair *pp,
 
 	mtx_assert(&pp->pp_mtx, MA_OWNED);
 
-	if (!mac_enforce_pipe)
-		return (0);
-
 	MAC_CHECK(check_pipe_ioctl, cred, pp, pp->pp_label, cmd, data);
 
 	return (error);
@@ -156,9 +148,6 @@ mac_check_pipe_poll(struct ucred *cred, struct pipepair *pp)
 
 	mtx_assert(&pp->pp_mtx, MA_OWNED);
 
-	if (!mac_enforce_pipe)
-		return (0);
-
 	MAC_CHECK(check_pipe_poll, cred, pp, pp->pp_label);
 
 	return (error);
@@ -170,9 +159,6 @@ mac_check_pipe_read(struct ucred *cred, struct pipepair *pp)
 	int error;
 
 	mtx_assert(&pp->pp_mtx, MA_OWNED);
-
-	if (!mac_enforce_pipe)
-		return (0);
 
 	MAC_CHECK(check_pipe_read, cred, pp, pp->pp_label);
 
@@ -187,9 +173,6 @@ mac_check_pipe_relabel(struct ucred *cred, struct pipepair *pp,
 
 	mtx_assert(&pp->pp_mtx, MA_OWNED);
 
-	if (!mac_enforce_pipe)
-		return (0);
-
 	MAC_CHECK(check_pipe_relabel, cred, pp, pp->pp_label, newlabel);
 
 	return (error);
@@ -202,9 +185,6 @@ mac_check_pipe_stat(struct ucred *cred, struct pipepair *pp)
 
 	mtx_assert(&pp->pp_mtx, MA_OWNED);
 
-	if (!mac_enforce_pipe)
-		return (0);
-
 	MAC_CHECK(check_pipe_stat, cred, pp, pp->pp_label);
 
 	return (error);
@@ -216,9 +196,6 @@ mac_check_pipe_write(struct ucred *cred, struct pipepair *pp)
 	int error;
 
 	mtx_assert(&pp->pp_mtx, MA_OWNED);
-
-	if (!mac_enforce_pipe)
-		return (0);
 
 	MAC_CHECK(check_pipe_write, cred, pp, pp->pp_label);
 
