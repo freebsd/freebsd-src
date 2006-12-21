@@ -66,6 +66,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/malloc.h>
 #include <sys/kernel.h>
 #include <sys/lock.h>
+#include <sys/module.h>
 #include <sys/mutex.h>
 
 #include <machine/bus.h>
@@ -1860,3 +1861,4 @@ aha_detach(struct aha_softc *aha)
 	cam_sim_free(aha->sim, /*free_devq*/TRUE);
 	return (0);
 }
+MODULE_DEPEND(aha, cam, 1, 1, 1);

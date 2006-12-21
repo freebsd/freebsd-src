@@ -93,7 +93,6 @@
 #include <cam/scsi/scsi_all.h>
 #include <cam/scsi/scsi_message.h>
 
-#include <machine/clock.h>
 #include <machine/bus.h>
 #include <machine/endian.h>
 #include <machine/resource.h>
@@ -220,6 +219,8 @@ static driver_t ciss_pci_driver = {
 
 static devclass_t	ciss_devclass;
 DRIVER_MODULE(ciss, pci, ciss_pci_driver, ciss_devclass, 0, 0);
+MODULE_DEPEND(ciss, cam, 1, 1, 1);
+MODULE_DEPEND(ciss, pci, 1, 1, 1);
 
 /*
  * Control device interface.
@@ -2262,8 +2263,8 @@ ciss_user_command(struct ciss_softc *sc, IOCTL_Command_struct *ioc)
     /*
      * Get a request.
      */
-    if ((error = ciss_get_request(sc, &cr)) != 0)
-	goto out;
+    while (ciss_get_request(sc, &cr) != 0)
+	tsleep(sc, PPAUSE, "cissREQ", hz);
     cc = CISS_FIND_COMMAND(cr);
 
     /*

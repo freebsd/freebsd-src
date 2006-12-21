@@ -401,6 +401,8 @@ static driver_t wds_isa_driver = {
 static devclass_t wds_devclass;
 
 DRIVER_MODULE(wds, isa, wds_isa_driver, wds_devclass, 0, 0);
+MODULE_DEPEND(wds, isa, 1, 1, 1);
+MODULE_DEPEND(wds, cam, 1, 1, 1);
 
 #if WDS_ENABLE_SMALLOG==1
 #define SMALLOGSIZ	512
