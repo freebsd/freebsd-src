@@ -109,7 +109,7 @@ mac_check_sysv_semctl(struct ucred *cred, struct semid_kernel *semakptr,
 
 	MAC_CHECK(check_sysv_semctl, cred, semakptr, semakptr->label, cmd);
 
-	return(error);
+	return (error);
 }
 
 int
@@ -119,7 +119,7 @@ mac_check_sysv_semget(struct ucred *cred, struct semid_kernel *semakptr)
 
 	MAC_CHECK(check_sysv_semget, cred, semakptr, semakptr->label);
 
-	return(error);
+	return (error);
 }
 
 int
@@ -131,5 +131,5 @@ mac_check_sysv_semop(struct ucred *cred, struct semid_kernel *semakptr,
 	MAC_CHECK(check_sysv_semop, cred, semakptr, semakptr->label,
 	    accesstype);
 
-	return(error);
+	return (error);
 }

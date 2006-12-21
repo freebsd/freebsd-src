@@ -159,7 +159,7 @@ mac_check_sysv_msgmsq(struct ucred *cred, struct msg *msgptr,
 	MAC_CHECK(check_sysv_msgmsq, cred,  msgptr, msgptr->label, msqkptr,
 	    msqkptr->label);
 
-	return(error);
+	return (error);
 }
 
 int
@@ -169,7 +169,7 @@ mac_check_sysv_msgrcv(struct ucred *cred, struct msg *msgptr)
 
 	MAC_CHECK(check_sysv_msgrcv, cred, msgptr, msgptr->label);
 
-	return(error);
+	return (error);
 }
 
 int
@@ -179,7 +179,7 @@ mac_check_sysv_msgrmid(struct ucred *cred, struct msg *msgptr)
 
 	MAC_CHECK(check_sysv_msgrmid, cred,  msgptr, msgptr->label);
 
-	return(error);
+	return (error);
 }
 
 int
@@ -189,7 +189,7 @@ mac_check_sysv_msqget(struct ucred *cred, struct msqid_kernel *msqkptr)
 
 	MAC_CHECK(check_sysv_msqget, cred, msqkptr, msqkptr->label);
 
-	return(error);
+	return (error);
 }
 
 int
@@ -199,7 +199,7 @@ mac_check_sysv_msqsnd(struct ucred *cred, struct msqid_kernel *msqkptr)
 
 	MAC_CHECK(check_sysv_msqsnd, cred, msqkptr, msqkptr->label);
 
-	return(error);
+	return (error);
 }
 
 int
@@ -209,7 +209,7 @@ mac_check_sysv_msqrcv(struct ucred *cred, struct msqid_kernel *msqkptr)
 
 	MAC_CHECK(check_sysv_msqrcv, cred, msqkptr, msqkptr->label);
 
-	return(error);
+	return (error);
 }
 
 int
@@ -220,5 +220,5 @@ mac_check_sysv_msqctl(struct ucred *cred, struct msqid_kernel *msqkptr,
 
 	MAC_CHECK(check_sysv_msqctl, cred, msqkptr, msqkptr->label, cmd);
 
-	return(error);
+	return (error);
 }
