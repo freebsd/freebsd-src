@@ -496,8 +496,13 @@ m_prepend(struct mbuf *m, int len, int how)
 		M_MOVE_PKTHDR(mn, m);
 	mn->m_next = m;
 	m = mn;
-	if (len < MHLEN)
-		MH_ALIGN(m, len);
+	if(m->m_flags & M_PKTHDR) {
+		if (len < MHLEN)
+			MH_ALIGN(m, len);
+	} else {
+		if (len < MLEN) 
+			M_ALIGN(m, len);
+	}
 	m->m_len = len;
 	return (m);
 }
