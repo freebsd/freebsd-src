@@ -10,6 +10,8 @@ SRCS=	opt_ddb.h opt_directio.h opt_ffs.h opt_ffs_broken_fixme.h opt_mac.h \
 	ufs_vnops.c ffs_alloc.c ffs_balloc.c ffs_inode.c ffs_snapshot.c \
 	ffs_softdep.c ffs_subr.c ffs_tables.c ffs_vfsops.c ffs_vnops.c
 
+.if !defined(KERNBUILDDIR)
 CFLAGS+= -DSOFTUPDATES -DUFS_DIRHASH
+.endif
 
 .include <bsd.kmod.mk>
