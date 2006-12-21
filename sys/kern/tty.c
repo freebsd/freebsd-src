@@ -1663,7 +1663,7 @@ ttymodem(struct tty *tp, int flag)
 			CLR(tp->t_state, TS_CONNECTED);
 			if (tp->t_session) {
 				sx_slock(&proctree_lock);
-				if (tp->t_session->s_leader) {
+				if (tp->t_session && tp->t_session->s_leader) {
 					struct proc *p;
 
 					p = tp->t_session->s_leader;
