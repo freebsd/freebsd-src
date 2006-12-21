@@ -110,7 +110,7 @@ mac_check_sysv_shmat(struct ucred *cred, struct shmid_kernel *shmsegptr,
 	MAC_CHECK(check_sysv_shmat, cred, shmsegptr, shmsegptr->label,
 	    shmflg);
 
-	return(error);
+	return (error);
 }
 
 int
@@ -122,7 +122,7 @@ mac_check_sysv_shmctl(struct ucred *cred, struct shmid_kernel *shmsegptr,
 	MAC_CHECK(check_sysv_shmctl, cred, shmsegptr, shmsegptr->label,
 	    cmd);
 
-	return(error);
+	return (error);
 }
 
 int
@@ -132,7 +132,7 @@ mac_check_sysv_shmdt(struct ucred *cred, struct shmid_kernel *shmsegptr)
 
 	MAC_CHECK(check_sysv_shmdt, cred, shmsegptr, shmsegptr->label);
 
-	return(error);
+	return (error);
 }
 
 int
@@ -144,5 +144,5 @@ mac_check_sysv_shmget(struct ucred *cred, struct shmid_kernel *shmsegptr,
 	MAC_CHECK(check_sysv_shmget, cred, shmsegptr, shmsegptr->label,
 	    shmflg);
 
-	return(error);
+	return (error);
 }
