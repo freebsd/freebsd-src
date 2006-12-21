@@ -373,7 +373,16 @@ cam_calc_geometry(struct ccb_calc_geometry *ccg, int extended)
 {
 	uint32_t size_mb, secs_per_cylinder;
 
-	size_mb = ccg->volume_size / ((1024L * 1024L) / ccg->block_size);
+	if (ccg->block_size == 0) {
+		ccg->ccb_h.status = CAM_REQ_CMP_ERR;
+		return;
+	}
+	size_mb = (1024L * 1024L) / ccg->block_size;
+	if (size_mb == 0) {
+		ccg->ccb_h.status = CAM_REQ_CMP_ERR;
+		return;
+	}
+	size_mb = ccg->volume_size / size_mb;
 	if (size_mb > 1024 && extended) {
 		ccg->heads = 255;
 		ccg->secs_per_track = 63;
@@ -382,6 +391,10 @@ cam_calc_geometry(struct ccb_calc_geometry *ccg, int extended)
 		ccg->secs_per_track = 32;
 	}
 	secs_per_cylinder = ccg->heads * ccg->secs_per_track;
+	if (secs_per_cylinder == 0) {
+		ccg->ccb_h.status = CAM_REQ_CMP_ERR;
+		return;
+	}
 	ccg->cylinders = ccg->volume_size / secs_per_cylinder;
 	ccg->ccb_h.status = CAM_REQ_CMP;
 }
