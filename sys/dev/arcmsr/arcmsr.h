@@ -4,10 +4,15 @@
 **   FILE NAME  : arcmsr.h
 **        BY    : Erich Chen   
 **   Description: SCSI RAID Device Driver for 
-**                ARECA (ARC1110/1120/1210/1220) SATA RAID HOST Adapter
-**                ARCMSR RAID Host adapter[RAID controller:INTEL 331(PCI-X) 341(PCI-EXPRESS) chip set]
+**                ARECA SATA RAID HOST Adapter
+**                [RAID controller:INTEL 331(PCI-X) 341(PCI-EXPRESS) chip set]
 ***********************************************************************************************
 ************************************************************************
+** Copyright (C) 2002 - 2005, Areca Technology Corporation All rights reserved.
+**
+**     Web site: www.areca.com.tw
+**       E-mail: erich@areca.com.tw
+**
 ** Redistribution and use in source and binary forms,with or without
 ** modification,are permitted provided that the following conditions
 ** are met:
@@ -30,13 +35,12 @@
 **(INCLUDING NEGLIGENCE OR OTHERWISE)ARISING IN ANY WAY OUT OF THE USE OF
 ** THIS SOFTWARE,EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 **************************************************************************
-** $FreeBSD$
+* $FreeBSD$
 */
-#define ARCMSR_DRIVER_VERSION                        "Driver Version 1.20.00.02"
-#define ARCMSR_SCSI_INITIATOR_ID                                               16
+#define ARCMSR_DRIVER_VERSION                        "Driver Version 1.20.00.13 2006-8-18"
+#define ARCMSR_SCSI_INITIATOR_ID                                              255
 #define ARCMSR_DEV_SECTOR_SIZE                                                512
-#define ARCMSR_MAX_XFER_SECTORS                                               256
-#define ARCMSR_MAX_XFER_LEN      ARCMSR_MAX_XFER_SECTORS * ARCMSR_DEV_SECTOR_SIZE /*128k*/
+#define ARCMSR_MAX_XFER_SECTORS                                              4096
 #define ARCMSR_MAX_TARGETID                                                    16 /*16 max target id + 1*/
 #define ARCMSR_MAX_TARGETLUN                                                    8 /*8*/
 #define ARCMSR_MAX_CHIPTYPE_NUM                                                 4
@@ -44,95 +48,67 @@
 #define ARCMSR_MAX_START_JOB                                                  257
 #define ARCMSR_MAX_CMD_PERLUN                          ARCMSR_MAX_OUTSTANDING_CMD
 #define ARCMSR_MAX_FREESRB_NUM                                                320
-#define ARCMSR_MAX_DPC                                                         16 /* defer procedure call */
 #define ARCMSR_MAX_QBUFFER                                                   4096 /* ioctl QBUFFER */
 #define ARCMSR_MAX_SG_ENTRIES                                                  38 /* max 38*/
 #define ARCMSR_MAX_ADAPTER                                                      4
 /*
 *********************************************************************
 */
-typedef  int8_t                                                 CHAR,*PCHAR;
-typedef  int16_t                                                SHORT,*PSHORT;
-typedef  int32_t                                                LONG,*PLONG;
-typedef  int64_t                                                LONG64,*PLONG64;
-typedef  u_int8_t                                               UCHAR,*PUCHAR;
-typedef  u_int16_t                                              USHORT,*PUSHORT;
-typedef  u_int32_t                                              ULONG,*PULONG;
-typedef  u_int64_t                                              ULONG64,*PULONG64;
-typedef  void                                                   VOID,*PVOID;
-typedef  void    (*DPCFUN)                                      (void*);
-typedef  struct  _MU                                            MU,*PMU;
-typedef  struct  _SRB	                                        SRB,*PSRB;
-typedef  struct  _ACB	                                        ACB,*PACB;
-typedef  struct  _HCB	                                        HCB,*PHCB;
-typedef  struct  _DPC                                           DPC,*PDPC;
-typedef  struct  _EVENT                                         EVENT,*PEVENT;
-typedef  struct  _QBUFFER                                       QBUFFER,*PQBUFFER;
-typedef  struct  _SG32ENTRY                                     SG32ENTRY,*PSG32ENTRY;
-typedef  struct  _SG64ENTRY                                     SG64ENTRY,*PSG64ENTRY;
-typedef  struct  _SGENTRY_UNION                                 SGENTRY_UNION,PSGENTRY_UNION;
-typedef  struct  _SYSTEMTIME                                    SYSTEMTIME,*PSYSTEMTIME; 
-typedef  struct  _TIMERECORD                                    TIMERECORD,*PTIMERECORD;
-typedef  struct  _SENSE_DATA                                    SENSE_DATA, *PSENSE_DATA;
-typedef  struct  _ARCMSR_PCIINFO                                ARCMSR_PCIINFO,*PARCMSR_PCIINFO;
-typedef  struct  _ARCMSR_CDB                                    ARCMSR_CDB,*PARCMSR_CDB;
-typedef  struct  _CMD_IO_CONTROL                                CMD_IO_CONTROL,*PCMD_IO_CONTROL;
-typedef  struct  _CMD_IOCTL_FIELD                               CMD_IOCTL_FIELD,*PCMD_IOCTL_FIELD;
-#if defined(__x86_64__) || defined(__amd64__) || defined(__ia64__)
-    typedef  uint64_t                                           CPT2INT,*PCPT2INT;  
-    typedef  uint64_t                                           CINT2P,*PCINT2P;
-	typedef  uint64_t                                           VIR2PHY_OFFSET,*PVIR2PHY_OFFSET;
-#else
-    typedef  uint32_t                                           CPT2INT,*PCPT2INT;
-	typedef  uint32_t                                           CINT2P,*PCINT2P;
-	typedef  uint32_t                                           VIR2PHY_OFFSET,*PVIR2PHY_OFFSET;
-#endif
-/*
-*********************************************************************
-*/
-#ifndef BOOLEAN
-    typedef u_int8_t                                            BOOLEAN;
-#endif
 #ifndef TRUE
     #define TRUE  1
 #endif
 #ifndef FALSE
     #define FALSE 0
 #endif
-/*
-**********************************************************************************
-**
-**********************************************************************************
-*/
-#define CHIP_REG_READ8(a)		                           (UCHAR)(readb((PUCHAR)(a)))
-#define CHIP_REG_READ16(a)		                           (USHORT)(readw((PUSHORT)(a)))
-#define CHIP_REG_READ32(a)		                           (ULONG)(readl((PULONG)(a)))
-#define CHIP_REG_WRITE8(a,d)		                       writeb((PUCHAR)(a),(UCHAR)(d)) 
-#define CHIP_REG_WRITE16(a,d)		                       writew((PUSHORT)(a),(USHORT)(d))
-#define CHIP_REG_WRITE32(a,d)	                           writel((PULONG)(a),(ULONG)(d))
-/*
-**********************************************************************************
-**
-**********************************************************************************
-*/
-#define PCIVendorIDARECA                                             0x17D3	/* Vendor ID	*/
-#define PCIDeviceIDARC1110                                           0x1110	/* Device ID	*/
-#define PCIDeviceIDARC1120                                           0x1120 /* Device ID	*/
-#define PCIDeviceIDARC1130                                           0x1130 /* Device ID	*/
-#define PCIDeviceIDARC1160                                           0x1160 /* Device ID	*/
-#define PCIDeviceIDARC1210                                           0x1210	/* Device ID	*/
-#define PCIDeviceIDARC1220                                           0x1220 /* Device ID	*/
-#define PCIDeviceIDARC1230                                           0x1230 /* Device ID	*/
-#define PCIDeviceIDARC1260                                           0x1260 /* Device ID	*/
+#ifndef INTR_ENTROPY
+    # define INTR_ENTROPY 0
+#endif
 
-#define PCIDevVenIDARC1110                                           0x111017D3	/* Vendor Device ID	*/
+#ifndef offsetof
+	#define offsetof(type, member)  ((size_t)(&((type *)0)->member))
+#endif
+/*
+**********************************************************************************
+**
+**********************************************************************************
+*/
+#define PCI_VENDOR_ID_ARECA                                                0x17D3 /* Vendor ID	*/
+#define PCI_DEVICE_ID_ARECA_1110                                           0x1110 /* Device ID	*/
+#define PCI_DEVICE_ID_ARECA_1120                                           0x1120 /* Device ID	*/
+#define PCI_DEVICE_ID_ARECA_1130                                           0x1130 /* Device ID	*/
+#define PCI_DEVICE_ID_ARECA_1160                                           0x1160 /* Device ID	*/
+#define PCI_DEVICE_ID_ARECA_1170                                           0x1170 /* Device ID	*/
+#define PCI_DEVICE_ID_ARECA_1210                                           0x1210 /* Device ID	*/
+#define PCI_DEVICE_ID_ARECA_1220                                           0x1220 /* Device ID	*/
+#define PCI_DEVICE_ID_ARECA_1230                                           0x1230 /* Device ID	*/
+#define PCI_DEVICE_ID_ARECA_1260                                           0x1260 /* Device ID	*/
+#define PCI_DEVICE_ID_ARECA_1270                                           0x1270 /* Device ID	*/
+#define PCI_DEVICE_ID_ARECA_1280                                           0x1280 /* Device ID	*/
+#define PCI_DEVICE_ID_ARECA_1380                                           0x1380 /* Device ID	*/
+#define PCI_DEVICE_ID_ARECA_1381                                           0x1381 /* Device ID	*/
+#define PCI_DEVICE_ID_ARECA_1680                                           0x1680 /* Device ID	*/
+#define PCI_DEVICE_ID_ARECA_1681                                           0x1681 /* Device ID	*/
+
+#define PCIDevVenIDARC1110                                           0x111017D3 /* Vendor Device ID	*/
 #define PCIDevVenIDARC1120                                           0x112017D3 /* Vendor Device ID	*/
 #define PCIDevVenIDARC1130                                           0x113017D3 /* Vendor Device ID	*/
 #define PCIDevVenIDARC1160                                           0x116017D3 /* Vendor Device ID	*/
-#define PCIDevVenIDARC1210                                           0x121017D3	/* Vendor Device ID	*/
+#define PCIDevVenIDARC1170                                           0x117017D3 /* Vendor Device ID	*/
+#define PCIDevVenIDARC1210                                           0x121017D3 /* Vendor Device ID	*/
 #define PCIDevVenIDARC1220                                           0x122017D3 /* Vendor Device ID	*/
 #define PCIDevVenIDARC1230                                           0x123017D3 /* Vendor Device ID	*/
 #define PCIDevVenIDARC1260                                           0x126017D3 /* Vendor Device ID	*/
+#define PCIDevVenIDARC1270                                           0x127017D3 /* Vendor Device ID	*/
+#define PCIDevVenIDARC1280                                           0x128017D3 /* Vendor Device ID	*/
+#define PCIDevVenIDARC1380                                           0x138017D3 /* Vendor Device ID	*/
+#define PCIDevVenIDARC1381                                           0x138117D3 /* Vendor Device ID	*/
+#define PCIDevVenIDARC1680                                           0x168017D3 /* Vendor Device ID	*/
+#define PCIDevVenIDARC1681                                           0x168117D3 /* Vendor Device ID	*/
+
+#ifndef PCIR_BARS
+	#define PCIR_BARS	0x10
+	#define	PCIR_BAR(x)	(PCIR_BARS + (x) * 4)
+#endif
 
 #define PCI_BASE_ADDR0                                               0x10
 #define PCI_BASE_ADDR1                                               0x14
@@ -147,138 +123,24 @@ typedef  struct  _CMD_IOCTL_FIELD                               CMD_IOCTL_FIELD,
 */
 #define ARCMSR_SCSICMD_IOCTL                                         0x77
 #define ARCMSR_CDEVSW_IOCTL                                          0x88
-#define	ARC_IOCTL_SUCCESS                                            0x00
+#define ARCMSR_MESSAGE_FAIL                                          0x0001
+#define	ARCMSR_MESSAGE_SUCCESS                                       0x0000
 /*
 **********************************************************************************
 **
 **********************************************************************************
 */
-#define get_min(x,y)                    ((x) < (y) ? (x) : (y))
-#define get_max(x,y)                    ((x) < (y) ? (y) : (x))
-/* CAM SIM entry points */
-#define arcmsr_ccbsrb_ptr               spriv_ptr0
-#define arcmsr_ccbacb_ptr               spriv_ptr1
-#define dma_addr_hi32(a)                ((ULONG) (0xffffffff & (((ULONG64)(a))>>32)))
-#define dma_addr_lo32(a)                ((ULONG) (0xffffffff & (((ULONG64)(a)))))
+#define arcmsr_ccbsrb_ptr                  							spriv_ptr0
+#define arcmsr_ccbacb_ptr                  							spriv_ptr1
+#define dma_addr_hi32(addr)                							(u_int32_t) ((addr>>16)>>16)
+#define dma_addr_lo32(addr)                							(u_int32_t) (addr & 0xffffffff)
+#define get_min(x,y)            ((x) < (y) ? (x) : (y))
+#define get_max(x,y)            ((x) < (y) ? (y) : (x))
 /*
-************************************************************************
-**        IOCTL CONTROL CODE
-** ===================
-** IOCtl definitions
-** ===================
-** Define the various device type values.  Note that values used by Microsoft
-** Corporation are in the range 0x0000 - 0x7FFF, and 0x8000 - 0xFFFF are
-** reserved for use by customers.
+**********************************************************************************
 **
-** #define IOCTL_SCSI_MINIPORT_IO_CONTROL  0x8001
-**
-** Macro definition for defining IOCTL and FSCTL function control codes.
-** Note that function codes 0x000 - 0x7FF are reserved for Microsoft
-** Corporation, and 0x800 - 0xFFF are reserved for customers.
-**
-** #define RETURNCODE0x0000003F   0x850
-** #define SMP_RETURN_3F          CTL_CODE(IOCTL_SCSI_MINIPORT_IO_CONTROL, RETURNCODE0x0000003F, METHOD_BUFFERED, FILE_ANY_ACCESS)
-** #define SMP_PRINT_STRING       0x80000001
-**---------------
-**  #define IOCTL_Device_Function      CTL_CODE(DeviceType, Function, Method, Access)
-**---------------
-**  _31_   _30..16_    ___15_14___    _13_    _12...2_      _1_0_
-** Common DeviceType Required Access Custom FunctionCode TransferType 
-**
-**---------------
-**DeviceType 
-**    Identifies the device type. 
-**	This value must match the value that is set in the DeviceType member of the driver's DEVICE_OBJECT structure. 
-**	(See Specifying Device Types).
-**	Values of less than 0x8000 are reserved for Microsoft. 
-**	Values of 0x8000 and higher can be used by vendors. 
-**	Note that the vendor-assigned values set the Common bit. 
-**---------------
-**FunctionCode 
-**    Identifies the function to be performed by the driver. 
-**    Values of less than 0x800 are reserved for Microsoft. 
-**	Values of 0x800 and higher can be used by vendors. 
-**	Note that the vendor-assigned values set the Custom bit. 
-**---------------
-**TransferType 
-**    Indicates how the system will pass data between the caller of DeviceIoControl
-**	(or IoBuildDeviceIoControlRequest) and the driver that handles the IRP. 
-**    Use one of the following system-defined constants: 
-**		METHOD_BUFFERED 
-**			Specifies the buffered I/O method, which is typically used for transferring small amounts of data per request. 
-**			Most I/O control codes for device and intermediate drivers use this TransferType value. 
-**			For information about how the system specifies data buffers for METHOD_BUFFERED I/O control codes, 
-**			see Buffer Descriptions for I/O Control Codes. 
-**			For more information about buffered I/O, see Using Buffered I/O. 
-**		METHOD_IN_DIRECT or METHOD_OUT_DIRECT 
-**			Specifies the direct I/O method, which is typically used for reading or writing large amounts of data, 
-**			using DMA or PIO, that must be transferred quickly. 
-**			Specify METHOD_IN_DIRECT if the caller of DeviceIoControl or IoBuildDeviceIoControlRequest will pass data to the driver. 
-**			Specify METHOD_OUT_DIRECT if the caller of DeviceIoControl or IoBuildDeviceIoControlRequest will receive data from the driver. 
-**			For information about how the system specifies data buffers for METHOD_IN_DIRECT and METHOD_OUT_DIRECT I/O control codes, 
-**			see Buffer Descriptions for I/O Control Codes. 
-**			For more information about direct I/O, see Using Direct I/O. 
-**		METHOD_NEITHER 
-**			Specifies neither buffered nor direct I/O.
-**			The I/O manager does not provide any system buffers or MDLs. 
-**			The IRP supplies the user-mode virtual addresses of the input and output buffers 
-**			that were specified to DeviceIoControl or IoBuildDeviceIoControlRequest,without validating or mapping them. 
-**			For information about how the system specifies data buffers for METHOD_NEITHER I/O control codes, 
-**			see Buffer Descriptions for I/O Control Codes. 
-**			This method can be used only if the driver can be guaranteed to be running in the context 
-**			of the thread that originated the I/O control request. 
-**			Only a highest-level kernel-mode driver is guaranteed to meet this condition, 
-**			so METHOD_NEITHER is seldom used for the I/O control codes that are passed to low-level device drivers. 
-**			With this method, the highest-level driver must determine whether to set up buffered 
-**			or direct access to user data on receipt of the request, 
-**			possibly must lock down the user buffer, 
-**			and must wrap its access to the user buffer in a structured exception handler (see Handling Exceptions). 
-**			Otherwise, the originating user-mode caller might change the buffered data before the driver can use it,
-**			or the caller could be swapped out just as the driver is accessing the user buffer. 
-**			For more information, see Using Neither Buffered Nor Direct I/O. 
-**-------------------
-**RequiredAccess 
-**    Indicates the type of access that a caller must request 
-**	when opening the file object that represents the device (see IRP_MJ_CREATE). 
-**	The I/O Manager will create IRPs and call the driver with a particular I/O control code 
-**	only if the caller has requested the specified access rights. 
-**	RequiredAccess is specified by using the following system-defined constants: 
-**	FILE_ANY_ACCESS 
-**	    The I/O Manager sends the IRP for any caller that has a handle to the file object 
-**		that represents the target device object. 
-**	FILE_READ_DATA 
-**	    The I/O Manager sends the IRP only for a caller with read access rights, 
-**		allowing the underlying device driver to transfer data from the device to system memory. 
-**	FILE_WRITE_DATA 
-**	    The I/O Manager sends the IRP only for a caller with write access rights, 
-**		allowing the underlying device driver to transfer data from system memory to its device. 
-**	FILE_READ_DATA and FILE_WRITE_DATA can be OR'ed together 
-**	    if the caller must have both read and write access rights.
-**        Some system-defined I/O control codes have a RequiredAccess value of FILE_ANY_ACCESS. 
-**		This is especially true for I/O control codes that are sent to drivers of exclusive devices,
-**		and for those that specify buffered I/O. 
-************************************************************************
+**********************************************************************************
 */
-struct _CMD_IO_CONTROL
-{
-      ULONG HeaderLength;
-      UCHAR Signature[8];
-      ULONG Timeout;
-      ULONG ControlCode;
-      ULONG ReturnCode;
-      ULONG Length;
-};
-/*
-************************************************************************************************************
-**
-************************************************************************************************************
-*/
-struct _CMD_IOCTL_FIELD 
-{
-    CMD_IO_CONTROL 					cmdioctl; /*ioctl header*/
-    UCHAR          					ioctldatabuffer[1032];/*areca gui program does not accept more than 1031 byte*/
-};
-/*error code for StorPortLogError,ScsiPortLogError*/
 #define ARCMSR_IOP_ERROR_ILLEGALPCI            	0x0001
 #define ARCMSR_IOP_ERROR_VENDORID              	0x0002
 #define ARCMSR_IOP_ERROR_DEVICEID              	0x0002
@@ -298,135 +160,48 @@ struct _CMD_IOCTL_FIELD
 #define FUNCTION_CLEAR_RQBUFFER              	0x0803
 #define FUNCTION_CLEAR_WQBUFFER              	0x0804
 #define FUNCTION_CLEAR_ALLQBUFFER            	0x0805
-#define FUNCTION_RETURN_CODE_3F              	0x0806
+#define FUNCTION_REQUEST_RETURNCODE_3F         	0x0806
 #define FUNCTION_SAY_HELLO                   	0x0807
-/* ARECA IO CONTROL CODE*/
-#define ARCMSR_IOCTL_READ_RQBUFFER           	_IOWR('F', FUNCTION_READ_RQBUFFER, CMD_IOCTL_FIELD)
-#define ARCMSR_IOCTL_WRITE_WQBUFFER          	_IOWR('F', FUNCTION_WRITE_WQBUFFER, CMD_IOCTL_FIELD)
-#define ARCMSR_IOCTL_CLEAR_RQBUFFER          	_IOWR('F', FUNCTION_CLEAR_RQBUFFER, CMD_IOCTL_FIELD)
-#define ARCMSR_IOCTL_CLEAR_WQBUFFER          	_IOWR('F', FUNCTION_CLEAR_WQBUFFER, CMD_IOCTL_FIELD)
-#define ARCMSR_IOCTL_CLEAR_ALLQBUFFER        	_IOWR('F', FUNCTION_CLEAR_ALLQBUFFER, CMD_IOCTL_FIELD)
-#define ARCMSR_IOCTL_RETURN_CODE_3F          	_IOWR('F', FUNCTION_RETURN_CODE_3F, CMD_IOCTL_FIELD)
-#define ARCMSR_IOCTL_SAY_HELLO               	_IOWR('F', FUNCTION_SAY_HELLO, CMD_IOCTL_FIELD) 
-/* ARECA IOCTL ReturnCode */
-#define ARCMSR_IOCTL_RETURNCODE_OK              0x01
-#define ARCMSR_IOCTL_RETURNCODE_ERROR           0x06
-#define ARCMSR_IOCTL_RETURNCODE_3F              0x3F
-/* 
-*************************************************************
-**   busmaster DMA related defines end
-*************************************************************
+#define FUNCTION_SAY_GOODBYE                    0x0808
+#define FUNCTION_FLUSH_ADAPTER_CACHE           	0x0809
+/*
+************************************************************************
+**        IOCTL CONTROL CODE
+************************************************************************
 */
-#define     get_min(x,y)            ((x) < (y) ? (x) : (y))
-#define     get_max(x,y)            ((x) < (y) ? (y) : (x))
+struct CMD_MESSAGE {
+      u_int32_t HeaderLength;
+      u_int8_t Signature[8];
+      u_int32_t Timeout;
+      u_int32_t ControlCode;
+      u_int32_t ReturnCode;
+      u_int32_t Length;
+};
+
+struct CMD_MESSAGE_FIELD {
+    struct CMD_MESSAGE cmdmessage; /* ioctl header */
+    u_int8_t           messagedatabuffer[1032]; /* areca gui program does not accept more than 1031 byte */
+};
+/* ARECA IO CONTROL CODE*/
+#define ARCMSR_MESSAGE_READ_RQBUFFER           	_IOWR('F', FUNCTION_READ_RQBUFFER, struct CMD_MESSAGE_FIELD)
+#define ARCMSR_MESSAGE_WRITE_WQBUFFER          	_IOWR('F', FUNCTION_WRITE_WQBUFFER, struct CMD_MESSAGE_FIELD)
+#define ARCMSR_MESSAGE_CLEAR_RQBUFFER          	_IOWR('F', FUNCTION_CLEAR_RQBUFFER, struct CMD_MESSAGE_FIELD)
+#define ARCMSR_MESSAGE_CLEAR_WQBUFFER          	_IOWR('F', FUNCTION_CLEAR_WQBUFFER, struct CMD_MESSAGE_FIELD)
+#define ARCMSR_MESSAGE_CLEAR_ALLQBUFFER        	_IOWR('F', FUNCTION_CLEAR_ALLQBUFFER, struct CMD_MESSAGE_FIELD)
+#define ARCMSR_MESSAGE_REQUEST_RETURNCODE_3F   	_IOWR('F', FUNCTION_REQUEST_RETURNCODE_3F, struct CMD_MESSAGE_FIELD)
+#define ARCMSR_MESSAGE_SAY_HELLO               	_IOWR('F', FUNCTION_SAY_HELLO, struct CMD_MESSAGE_FIELD) 
+#define ARCMSR_MESSAGE_SAY_GOODBYE              _IOWR('F', FUNCTION_SAY_GOODBYE, struct CMD_MESSAGE_FIELD)
+#define ARCMSR_MESSAGE_FLUSH_ADAPTER_CACHE      _IOWR('F', FUNCTION_FLUSH_ADAPTER_CACHE, struct CMD_MESSAGE_FIELD)
+/* ARECA IOCTL ReturnCode */
+#define ARCMSR_MESSAGE_RETURNCODE_OK              0x00000001
+#define ARCMSR_MESSAGE_RETURNCODE_ERROR           0x00000006
+#define ARCMSR_MESSAGE_RETURNCODE_3F              0x0000003F
 /* 
 *************************************************************
 **   structure for holding DMA address data 
 *************************************************************
 */
 #define IS_SG64_ADDR                0x01000000 /* bit24 */
-struct  _SG32ENTRY                             /* size 8 bytes */
-{                                              /* length bit 24 == 0                      */
-    ULONG							length;    /* high 8 bit == flag,low 24 bit == length */
-    ULONG							address;
-};
-struct  _SG64ENTRY                             /* size 12 bytes */
-{                                              /* length bit 24 == 1                      */
-  	ULONG       					length;    /* high 8 bit == flag,low 24 bit == length */
-   	ULONG       					address;
-   	ULONG       					addresshigh;
-};
-struct _SGENTRY_UNION
-{
-	union
-	{
-  		SG32ENTRY                   sg32entry;   /* 30h   Scatter gather address  */
-  		SG64ENTRY                   sg64entry;   /* 30h                           */
-	}u;
-};
-/*
-**struct scatterlist
-**{
-**    char *  address;     // Location data is to be transferred to
-**    char *  alt_address; // Location of actual if address is a dma indirect buffer.  NULL otherwise 
-**    unsigned int length;
-**};
-*/
-/* 
-*************************************************************
-**
-*************************************************************
-*/
-struct _ARCMSR_PCIINFO
-{
-	USHORT 							vendor_id;
-	USHORT 							device_id;
-    USHORT 							irq;
-    USHORT  						reserved;
-}; 
-/* 
-*************************************************************
-**           DPC
-**   defer procedure call
-*************************************************************
-*/
-struct _DPC 
-{
-	VOID 				 (*dpcfun) (VOID *);
-	VOID 						   *arg;
-};
-/*
-*************************************************************
-**      time represented in ULONG format
-*************************************************************
-*/
-struct _TIMERECORD 
-{
-	ULONG        					seconds:6;      /* bit 05,04,03,02,01,00: 0 - 59         */
-	ULONG        					minutes:6;      /* bit 11,10,09,08,07,06: 0 - 59         */
-	ULONG        					month:4;        /* bit       15,14,13,12: 1 - 12         */
-	ULONG        					hours:6;        /* bit 21,20,19,18,17,16: 0 - 59         */
-	ULONG        					day:5;          /* bit    26,25,24,23,22: 1 - 31         */
-	ULONG        					year:5;         /* bit    31,30,29,28,27: 0=2000,31=2031 */
-};
-/*
-**********************************
-**  Inquiry Data format
-** typedef struct _INQUIRYDATA
-** {
-**    UCHAR DeviceType : 5;
-**    UCHAR DeviceTypeQualifier : 3;
-**    UCHAR DeviceTypeModifier : 7;
-**    UCHAR RemovableMedia : 1;
-**    UCHAR Versions;
-**    UCHAR ResponseDataFormat : 4;
-**    UCHAR HiSupport : 1;
-**    UCHAR NormACA : 1;
-**    UCHAR ReservedBit : 1;
-**    UCHAR AERC : 1;
-**    UCHAR AdditionalLength;
-**    UCHAR Reserved[2];
-**    UCHAR SoftReset : 1;
-**    UCHAR CommandQueue : 1;
-**    UCHAR Reserved2 : 1;
-**    UCHAR LinkedCommands : 1;
-**    UCHAR Synchronous : 1;
-**    UCHAR Wide16Bit : 1;
-**    UCHAR Wide32Bit : 1;
-**    UCHAR RelativeAddressing : 1;
-**    UCHAR VendorId[8];
-**    UCHAR ProductId[16];
-**    UCHAR ProductRevisionLevel[4];
-**    UCHAR VendorSpecific[20];
-**    UCHAR Reserved3[40];
-** } INQUIRYDATA, *PINQUIRYDATA;
-**********************************
-*/
-struct _QBUFFER
-{
-	ULONG     data_len;
-    UCHAR     data[124];
-};
 /*
 ************************************************************************************************
 **                            ARECA FIRMWARE SPEC
@@ -442,16 +217,16 @@ struct _QBUFFER
 **		3. Index Memory Usage
 **			offset 0xf00 : for RS232 out (request buffer)
 **			offset 0xe00 : for RS232 in  (scratch buffer)
-**			offset 0xa00 : for inbound message code message_wbuffer (driver to IOP331)
-**			offset 0x800 : for outbound message code  message_rbuffer (IOP331 to driver)
+**			offset 0xa00 : for inbound message code message_rwbuffer (driver send to IOP331)
+**			offset 0xa00 : for outbound message code message_rwbuffer (IOP331 send to driver)
 **		4. RS-232 emulation
 **			Currently 128 byte buffer is used
-**			          1st ULONG : Data length (1--124)
+**			          1st u_int32_t : Data length (1--124)
 **			        Byte 4--127 : Max 124 bytes of data
 **		5. PostQ
 **		All SCSI Command must be sent through postQ:
 **		(inbound queue port)	Request frame must be 32 bytes aligned 
-**            #   bit27--bit31 => flag for post srb 
+**            #   bit27--bit31 => flag for post ccb 
 **			  #   bit0--bit26 => real address (bit27--bit31) of post arcmsr_cdb  
 **													bit31 : 0 : 256 bytes frame
 **															1 : 512 bytes frame
@@ -482,26 +257,27 @@ struct _QBUFFER
 **		8. Message1 Out - Diag Status Code (????)
 **		9. Message0 message code :
 **			0x00 : NOP
-**			0x01 : Get Config ->offset 0xa00 :for outbound message code  message_rbuffer (IOP331 to driver)
-**												Signature       0x87974060(4)
-**												Request len     0x00000200(4)
-**												# of queue      0x00000100(4)
-**												SDRAM Size      0x00000100(4)-->256 MB
-**												IDE Channels    0x00000008(4)
-**												vendor          40 bytes char
-**												model            8 bytes char
-**												FirmVer         16 bytes char
-**                          					Device Map      16 Bytes
+**			0x01 : Get Config ->offset 0xa00 :for outbound message code message_rwbuffer (IOP331 send to driver)
+**												Signature             0x87974060(4)
+**												Request len           0x00000200(4)
+**												numbers of queue      0x00000100(4)
+**												SDRAM Size            0x00000100(4)-->256 MB
+**												IDE Channels          0x00000008(4)
+**												vendor                40 bytes char
+**												model                  8 bytes char
+**												FirmVer               16 bytes char
+**                          					Device Map            16 bytes char
+**
 **                          					FirmwareVersion DWORD <== Added for checking of new firmware capability
-**			0x02 : Set Config ->offset 0xa00 : for inbound message code message_wbuffer (driver to IOP331)
-**												Signature       0x87974063(4)
+**			0x02 : Set Config ->offset 0xa00 : for inbound message code message_rwbuffer (driver send to IOP331)
+**												Signature             0x87974063(4)
 **												UPPER32 of Request Frame  (4)-->Driver Only
 **			0x03 : Reset (Abort all queued Command)
 **			0x04 : Stop Background Activity
 **			0x05 : Flush Cache
 **			0x06 : Start Background Activity (re-start if background is halted)
 **			0x07 : Check If Host Command Pending (Novell May Need This Function)
-**			0x08 : Set controller time ->offset 0xa00 : for inbound message code message_wbuffer (driver to IOP331)
+**			0x08 : Set controller time ->offset 0xa00 : for inbound message code message_rwbuffer (driver to IOP331)
 **			        							byte 0 : 0xaa <-- signature
 **                          					byte 1 : 0x55 <-- signature
 **			        							byte 2 : year (04)
@@ -512,6 +288,9 @@ struct _QBUFFER
 **			        							byte 7 : second (0..59)
 ************************************************************************************************
 */
+/* signature of set and get firmware config */
+#define ARCMSR_SIGNATURE_GET_CONFIG                   0x87974060
+#define ARCMSR_SIGNATURE_SET_CONFIG                   0x87974063
 /* message code of inbound message register */
 #define ARCMSR_INBOUND_MESG0_NOP                      0x00000000
 #define ARCMSR_INBOUND_MESG0_GET_CONFIG               0x00000001
@@ -535,39 +314,85 @@ struct _QBUFFER
 /* outbound firmware ok */
 #define ARCMSR_OUTBOUND_MESG1_FIRMWARE_OK             0x80000000
 /*
+**********************************
+**
+**********************************
+*/
+/* size 8 bytes */
+struct SG32ENTRY {                             /* length bit 24 == 0                      */
+    u_int32_t						length;    /* high 8 bit == flag,low 24 bit == length */
+    u_int32_t						address;
+};
+/* size 12 bytes */
+struct SG64ENTRY {                             /* length bit 24 == 1                      */
+  	u_int32_t       				length;    /* high 8 bit == flag,low 24 bit == length */
+   	u_int32_t       				address; 
+   	u_int32_t       				addresshigh;
+};
+struct SGENTRY_UNION {
+	union {
+  		struct SG32ENTRY            sg32entry;   /* 30h   Scatter gather address  */
+  		struct SG64ENTRY            sg64entry;   /* 30h                           */
+	}u;
+};
+/*
+**********************************
+**
+**********************************
+*/
+struct QBUFFER {
+	u_int32_t     data_len;
+    u_int8_t      data[124];
+};
+/*
+************************************************************************************************
+**      FIRMWARE INFO
+************************************************************************************************
+*/
+struct FIRMWARE_INFO {
+	u_int32_t      signature;                /*0,00-03*/
+	u_int32_t      request_len;              /*1,04-07*/
+	u_int32_t      numbers_queue;            /*2,08-11*/
+	u_int32_t      sdram_size;               /*3,12-15*/
+	u_int32_t      ide_channels;             /*4,16-19*/
+	char           vendor[40];               /*5,20-59*/
+	char           model[8];                 /*15,60-67*/
+	char           firmware_ver[16];         /*17,68-83*/
+	char           device_map[16];           /*21,84-99*/
+};
+/*
 ************************************************************************************************
 **    size 0x1F8 (504)
 ************************************************************************************************
 */
-struct _ARCMSR_CDB                          
-{
-	UCHAR     						Bus;              /* 00h   should be 0            */
-	UCHAR     						TargetID;         /* 01h   should be 0--15        */
-	UCHAR     						LUN;              /* 02h   should be 0--7         */
-	UCHAR     						Function;         /* 03h   should be 1            */
+struct ARCMSR_CDB {
+	u_int8_t     						Bus;              /* 00h   should be 0            */
+	u_int8_t     						TargetID;         /* 01h   should be 0--15        */
+	u_int8_t     						LUN;              /* 02h   should be 0--7         */
+	u_int8_t     						Function;         /* 03h   should be 1            */
 
-	UCHAR     						CdbLength;        /* 04h   not used now           */
-	UCHAR     						sgcount;          /* 05h                          */
-	UCHAR     						Flags;            /* 06h                          */
+	u_int8_t     						CdbLength;        /* 04h   not used now           */
+	u_int8_t     						sgcount;          /* 05h                          */
+	u_int8_t     						Flags;            /* 06h                          */
 #define ARCMSR_CDB_FLAG_SGL_BSIZE          0x01   /* bit 0: 0(256) / 1(512) bytes         */
 #define ARCMSR_CDB_FLAG_BIOS               0x02   /* bit 1: 0(from driver) / 1(from BIOS) */
 #define ARCMSR_CDB_FLAG_WRITE              0x04	  /* bit 2: 0(Data in) / 1(Data out)      */
 #define ARCMSR_CDB_FLAG_SIMPLEQ            0x00	  /* bit 4/3 ,00 : simple Q,01 : head of Q,10 : ordered Q */
 #define ARCMSR_CDB_FLAG_HEADQ              0x08
 #define ARCMSR_CDB_FLAG_ORDEREDQ           0x10
-	UCHAR     						Reserved1;        /* 07h                             */
+	u_int8_t     						Reserved1;        /* 07h                             */
 
-	ULONG     						Context;          /* 08h   Address of this request */
-	ULONG     						DataLength;       /* 0ch   not used now            */
+	u_int32_t    						Context;          /* 08h   Address of this request */
+	u_int32_t    						DataLength;       /* 0ch   not used now            */
 
-	UCHAR     						Cdb[16];          /* 10h   SCSI CDB                */
+	u_int8_t     						Cdb[16];          /* 10h   SCSI CDB                */
 	/*
 	********************************************************
 	**Device Status : the same from SCSI bus if error occur 
 	** SCSI bus status codes.
 	********************************************************
 	*/
-	UCHAR     						DeviceStatus;     /* 20h   if error                */
+	u_int8_t     						DeviceStatus;     /* 20h   if error                */
 #define SCSISTAT_GOOD                  		0x00
 #define SCSISTAT_CHECK_CONDITION       		0x02
 #define SCSISTAT_CONDITION_MET         		0x04
@@ -577,16 +402,15 @@ struct _ARCMSR_CDB
 #define SCSISTAT_RESERVATION_CONFLICT  		0x18
 #define SCSISTAT_COMMAND_TERMINATED    		0x22
 #define SCSISTAT_QUEUE_FULL            		0x28
-#define ARCMSR_DEV_SELECT_TIMEOUT           0xF0
-#define ARCMSR_DEV_ABORTED                  0xF1
-#define ARCMSR_DEV_INIT_FAIL                0xF2
+#define ARCMSR_DEV_SELECT_TIMEOUT               0xF0
+#define ARCMSR_DEV_ABORTED                      0xF1
+#define ARCMSR_DEV_INIT_FAIL                    0xF2
 
-	UCHAR     						SenseData[15];    /* 21h   output                  */        
+	u_int8_t     						SenseData[15];    /* 21h   output                  */        
 
-	union
-	{
-  		SG32ENTRY                   sg32entry[ARCMSR_MAX_SG_ENTRIES];        /* 30h   Scatter gather address  */
-  		SG64ENTRY                   sg64entry[ARCMSR_MAX_SG_ENTRIES];        /* 30h                           */
+	union {
+  		struct SG32ENTRY                sg32entry[ARCMSR_MAX_SG_ENTRIES];        /* 30h   Scatter gather address  */
+  		struct SG64ENTRY                sg64entry[ARCMSR_MAX_SG_ENTRIES];        /* 30h                           */
 	} u;
 };
 /*
@@ -597,142 +421,145 @@ struct _ARCMSR_CDB
 **             this SRB length must be 32 bytes boundary
 *********************************************************************
 */
-struct _SRB 
-{
-	ARCMSR_CDB          		    arcmsr_cdb;              /* 0-503 (size of CDB=504): arcmsr messenger scsi command descriptor size 504 bytes */
-	ULONG                           cdb_shifted_phyaddr;     /* 504-507 */
-    ULONG                           reserved1;               /* 508-511*/
-	/*  ======================512+32 bytes========================  */
-#if defined(__x86_64__) || defined(__amd64__) || defined(__ia64__)
-		union		 ccb               *pccb;                    /* 512-515 516-519 pointer of freebsd scsi command */
-		PACB                            pACB;                    /* 520-523 524-527 */
-		bus_dmamap_t	                dmamap;                  /* 528-531 532-535 */
-		USHORT   		        		srb_flags;               /* 536-537 */
+struct CommandControlBlock {
+	struct ARCMSR_CDB      			arcmsr_cdb;
+	/* 0-503 (size of CDB=504): arcmsr messenger scsi command descriptor size 504 bytes */
+	u_int32_t					cdb_shifted_phyaddr;     /* 504-507 */
+        u_int32_t					reserved1;               /* 508-511*/
+	/*  ======================512+32 bytes============================  */
+#if defined(__x86_64__) || defined(__amd64__) || defined(__ia64__) || defined(__sparc64__) || defined(__powerpc__)
+		union ccb *				pccb;                    /* 512-515 516-519 pointer of freebsd scsi command */
+		struct AdapterControlBlock *		acb;                     /* 520-523 524-527 */
+		bus_dmamap_t				dm_segs_dmamap;          /* 528-531 532-535 */
+		u_int16_t   				srb_flags;               /* 536-537 */
 	#define		SRB_FLAG_READ		        0x0000
 	#define		SRB_FLAG_WRITE		        0x0001
 	#define		SRB_FLAG_ERROR		        0x0002
 	#define		SRB_FLAG_FLUSHCACHE	        0x0004
-	#define		SRB_FLAG_MASTER_ABORTED     0x0008
-		USHORT                          startdone;               /* 538-539 */
+	#define		SRB_FLAG_MASTER_ABORTED         0x0008
+		u_int16_t				startdone;                /* 538-539 */
 	#define		ARCMSR_SRB_DONE   	        0x0000
 	#define		ARCMSR_SRB_START   	        0x55AA
 	#define		ARCMSR_SRB_ABORTED	        0xAA55
 	#define		ARCMSR_SRB_ILLEGAL	        0xFFFF
-	    ULONG                           reserved2;               /* 540-543 */
+	    u_int32_t					reserved2;                /* 540-543 */
 #else
-		union		 ccb               *pccb;                    /* 512-515 pointer of freebsd scsi command */
-		PACB                            pACB;                    /* 516-519 */
-		bus_dmamap_t	                dmamap;                  /* 520-523 */
-		USHORT   		        		srb_flags;               /* 524-525 */
+		union ccb *				pccb;                     /* 512-515 pointer of freebsd scsi command */
+		struct AdapterControlBlock *		acb;                      /* 516-519 */
+		bus_dmamap_t				dm_segs_dmamap;           /* 520-523 */
+		u_int16_t   				srb_flags;                /* 524-525 */
 	#define		SRB_FLAG_READ		        0x0000
 	#define		SRB_FLAG_WRITE		        0x0001
 	#define		SRB_FLAG_ERROR		        0x0002
 	#define		SRB_FLAG_FLUSHCACHE	        0x0004
-	#define		SRB_FLAG_MASTER_ABORTED     0x0008
-		USHORT                          startdone;               /* 526-527 */
+	#define		SRB_FLAG_MASTER_ABORTED         0x0008
+		u_int16_t				startdone;                /* 526-527 */
 	#define		ARCMSR_SRB_DONE   	        0x0000
 	#define		ARCMSR_SRB_START   	        0x55AA
 	#define		ARCMSR_SRB_ABORTED	        0xAA55
 	#define		ARCMSR_SRB_ILLEGAL	        0xFFFF
-		ULONG                           reserved2[4];            /* 528-531 532-535 536-539 540-543 */
+		u_int32_t				reserved2[4];             /* 528-531 532-535 536-539 540-543 */
 #endif
     /*  ==========================================================  */
 };
 /*
 *********************************************************************
 **                 Adapter Control Block
-** 
 *********************************************************************
 */
-struct _ACB
-{
-	bus_space_tag_t		  		    btag;
-	bus_space_handle_t	  		    bhandle;
-	bus_dma_tag_t		            parent_dmat;
-	bus_dma_tag_t		  		    buffer_dmat;                /* dmat for buffer I/O */  
-	bus_dma_tag_t		            srb_dmat;                   /* dmat for freesrb */
-	bus_dmamap_t		            srb_dmamap;
-	device_t		      		    pci_dev;
+struct AdapterControlBlock {
+	bus_space_tag_t					btag;
+	bus_space_handle_t				bhandle;
+	bus_dma_tag_t					parent_dmat;
+	bus_dma_tag_t					dm_segs_dmat;                         /* dmat for buffer I/O */  
+	bus_dma_tag_t					srb_dmat;                             /* dmat for freesrb */
+	bus_dmamap_t					srb_dmamap;
+	device_t					pci_dev;
 #if __FreeBSD_version < 503000
-	dev_t                           ioctl_dev;
+	dev_t						ioctl_dev;
 #else
-	struct cdev                    *ioctl_dev;
+	struct cdev *					ioctl_dev;
 #endif
-	int			          		    pci_unit;
+	int						pci_unit;
 
-	struct resource		           *sys_res_arcmsr;
-    struct resource		           *irqres;
-	void		        	       *ih;                         /*interrupt handle*/
+	struct resource *				sys_res_arcmsr;
+	struct resource *				irqres;
+	void *						ih;                                    /* interrupt handle */
 
 	/* Hooks into the CAM XPT */
-	struct	                        cam_sim *psim;
-	struct	                        cam_path *ppath;
-    PCHAR                           uncacheptr;
-    VIR2PHY_OFFSET                  vir2phy_offset;             /* Offset is used in making arc cdb physical to virtual calculations */
-    ULONG                           outbound_int_enable;
+	struct						cam_sim *psim;
+	struct						cam_path *ppath;
+	u_int8_t *					uncacheptr;
+	unsigned long					vir2phy_offset;
+	/* Offset is used in making arc cdb physical to virtual calculations */
+	u_int32_t					outbound_int_enable;
 
-	PMU                             pmu;                        /* message unit ATU inbound base address0 */
+	struct MessageUnit *				pmu;                                   /* message unit ATU inbound base address0 */
 
-	USHORT                          reserved;  
-	USHORT           				acb_flags;                   /*  */
-#define ACB_F_SCSISTOPADAPTER         0x0001
-#define ACB_F_MSG_STOP_BGRB           0x0002                    /* stop RAID background rebuild */
-#define ACB_F_MSG_START_BGRB          0x0004                    /* stop RAID background rebuild */
-#define ACB_F_IOPDATA_OVERFLOW        0x0008                    /* iop ioctl data rqbuffer overflow */
-#define ACB_F_IOCTL_WQBUFFER_CLEARED  0x0010                    /* ioctl clear wqbuffer */
-#define ACB_F_IOCTL_RQBUFFER_CLEARED  0x0020                    /* ioctl clear rqbuffer */
-#define ACB_F_IOCTL_OPEN              0x0040
-#define ACB_F_IOP_INITED              0x0080                    /* iop init */
-#define ACB_F_STOP_THREAD	  		  0x0100                    /* kernel thread flag */
-#define ACB_F_MAPFREESRB_FAILD		  0x0200                    /* arcmsr_map_freesrb faild */
+	u_int8_t					adapter_index;                         /*  */
+	u_int8_t					irq;
+	u_int16_t					acb_flags;                             /*  */
+#define ACB_F_SCSISTOPADAPTER           0x0001
+#define ACB_F_MSG_STOP_BGRB             0x0002                               /* stop RAID background rebuild */
+#define ACB_F_MSG_START_BGRB            0x0004                               /* stop RAID background rebuild */
+#define ACB_F_IOPDATA_OVERFLOW          0x0008                               /* iop ioctl data rqbuffer overflow */
+#define ACB_F_MESSAGE_WQBUFFER_CLEARED  0x0010                               /* ioctl clear wqbuffer */
+#define ACB_F_MESSAGE_RQBUFFER_CLEARED  0x0020                               /* ioctl clear rqbuffer */
+#define ACB_F_MESSAGE_WQBUFFER_READED   0x0040
+#define ACB_F_BUS_RESET                 0x0080
+#define ACB_F_IOP_INITED                0x0100                               /* iop init */
+#define ACB_F_MAPFREESRB_FAILD		0x0200                               /* arcmsr_map_freesrb faild */
 
-	PSRB                            pfreesrb;
+	struct CommandControlBlock *			psrb_pool[ARCMSR_MAX_FREESRB_NUM];     /* serial srb pointer array */
+	struct CommandControlBlock *			srbworkingQ[ARCMSR_MAX_FREESRB_NUM];   /* working srb pointer array */
+	int32_t						workingsrb_doneindex;                  /* done srb array index */
+	int32_t						workingsrb_startindex;                 /* start srb array index  */
+	int32_t						srboutstandingcount;
 
-    PSRB                            psrbwait2go[ARCMSR_MAX_OUTSTANDING_CMD];
-	LONG                            srbwait2gocount;
-    LONG                            srboutstandingcount;
+	u_int8_t					rqbuffer[ARCMSR_MAX_QBUFFER];          /* data collection buffer for read from 80331 */
+	u_int32_t					rqbuf_firstindex;                      /* first of read buffer  */
+	u_int32_t					rqbuf_lastindex;                       /* last of read buffer   */
 
- 	PSRB                            psrbringQ[ARCMSR_MAX_FREESRB_NUM]; /* srb pointer array */
-  	LONG                            srb_doneindex;              /* done srb array index */
-    LONG                            srb_startindex;             /* start srb array index  */
-  
-  	UCHAR                           rqbuffer[ARCMSR_MAX_QBUFFER];      /* data collection buffer for read from 80331 */
-	LONG                            rqbuf_firstindex;           /* first of read buffer  */
-    LONG                            rqbuf_lastindex;            /* last of read buffer   */
+	u_int8_t					wqbuffer[ARCMSR_MAX_QBUFFER];          /* data collection buffer for write to 80331  */
+	u_int32_t					wqbuf_firstindex;                      /* first of write buffer */
+	u_int32_t					wqbuf_lastindex;                       /* last of write buffer  */
 
-    UCHAR                           wqbuffer[ARCMSR_MAX_QBUFFER];      /* data collection buffer for write to 80331  */
-	LONG                            wqbuf_firstindex;           /* first of write buffer */
-    LONG                            wqbuf_lastindex;            /* last of write buffer  */
+	arcmsr_lock_t					workingQ_done_lock;
+	arcmsr_lock_t					workingQ_start_lock;
+	arcmsr_lock_t					qbuffer_lock;
 
-  	arcmsr_lock_t                   arcmsr_kthread_lock;
-    struct proc                    *kthread_proc;
-
-	DPC                       		dpcQ[ARCMSR_MAX_DPC]; /* normal dpc routines work on kernel thread */
-
-	LONG                     		dpcQ_head;  /*array index number*/
-	LONG                     		dpcQ_tail;  /*array index number*/
+	u_int8_t					devstate[ARCMSR_MAX_TARGETID][ARCMSR_MAX_TARGETLUN]; /* id0 ..... id15,lun0...lun7 */
+#define ARECA_RAID_GONE                 0x55
+#define ARECA_RAID_GOOD                 0xaa
+	u_int32_t					num_resets;
+	u_int32_t					num_aborts;
+	u_int32_t					firm_request_len;                      /*1,04-07*/
+	u_int32_t					firm_numbers_queue;                    /*2,08-11*/
+	u_int32_t					firm_sdram_size;                       /*3,12-15*/
+	u_int32_t					firm_ide_channels;                     /*4,16-19*/
+	char						firm_model[12];	                       /*15,60-67*/
+	char						firm_version[20];                      /*17,68-83*/
 };/* HW_DEVICE_EXTENSION */
 /*
 *************************************************************
 *************************************************************
 */
-struct _SENSE_DATA 
-{
-    UCHAR ErrorCode:7;
-    UCHAR Valid:1;
-    UCHAR SegmentNumber;
-    UCHAR SenseKey:4;
-    UCHAR Reserved:1;
-    UCHAR IncorrectLength:1;
-    UCHAR EndOfMedia:1;
-    UCHAR FileMark:1;
-    UCHAR Information[4];
-    UCHAR AdditionalSenseLength;
-    UCHAR CommandSpecificInformation[4];
-    UCHAR AdditionalSenseCode;
-    UCHAR AdditionalSenseCodeQualifier;
-    UCHAR FieldReplaceableUnitCode;
-    UCHAR SenseKeySpecific[3];
+struct SENSE_DATA {
+    u_int8_t 						ErrorCode:7;
+    u_int8_t 						Valid:1;
+    u_int8_t 						SegmentNumber;
+    u_int8_t 						SenseKey:4;
+    u_int8_t 						Reserved:1;
+    u_int8_t 						IncorrectLength:1;
+    u_int8_t 						EndOfMedia:1;
+    u_int8_t 						FileMark:1;
+    u_int8_t 						Information[4];
+    u_int8_t 						AdditionalSenseLength;
+    u_int8_t 						CommandSpecificInformation[4];
+    u_int8_t 						AdditionalSenseCode;
+    u_int8_t 						AdditionalSenseCodeQualifier;
+    u_int8_t 						FieldReplaceableUnitCode;
+    u_int8_t 						SenseKeySpecific[3];
 };
 /* 
 **********************************
@@ -740,16 +567,16 @@ struct _SENSE_DATA
 **********************************
 */
 #define SCSI_DASD		      0x00	   /* Direct-access Device	   */
-#define SCSI_SEQACESS		  0x01	   /* Sequential-access device */
-#define SCSI_PRINTER		  0x02	   /* Printer device		   */
-#define SCSI_PROCESSOR		  0x03	   /* Processor device		   */
-#define SCSI_WRITEONCE		  0x04	   /* Write-once device 	   */
-#define SCSI_CDROM		      0x05	   /* CD-ROM device		       */
-#define SCSI_SCANNER		  0x06	   /* Scanner device		   */
-#define SCSI_OPTICAL		  0x07	   /* Optical memory device	   */
-#define SCSI_MEDCHGR		  0x08	   /* Medium changer device	   */
+#define SCSI_SEQACESS		      0x01	   /* Sequential-access device     */
+#define SCSI_PRINTER		      0x02	   /* Printer device		   */
+#define SCSI_PROCESSOR		      0x03	   /* Processor device		   */
+#define SCSI_WRITEONCE		      0x04	   /* Write-once device 	   */
+#define SCSI_CDROM		      0x05	   /* CD-ROM device		   */
+#define SCSI_SCANNER		      0x06	   /* Scanner device		   */
+#define SCSI_OPTICAL		      0x07	   /* Optical memory device	   */
+#define SCSI_MEDCHGR		      0x08	   /* Medium changer device	   */
 #define SCSI_COMM		      0x09	   /* Communications device	   */
-#define SCSI_NODEV		      0x1F	   /* Unknown or no device type*/
+#define SCSI_NODEV		      0x1F	   /* Unknown or no device type    */
 /*
 ************************************************************************************************************
 **				         @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
@@ -826,25 +653,38 @@ struct _SENSE_DATA
 **15:11        00h		   		             Reserved
 ** 10          0		   		           Interrupt Disable: Disables/Enables the generation of Interrupts on the primary bus. 
 **                		   		                              The bridge does not support interrupts.
-** 09          0		   		                 FB2B Enable: Enables/Disables the generation of fast back to back transactions on the primary bus. 
-**                		   		                              The bridge does not generate fast back to back transactions on the primary bus.
+** 09          0		   		                 FB2B Enable: Enables/Disables the generation of fast back to back 
+**										transactions on the primary bus. 
+**                		   		                              The bridge does not generate fast back to back 
+**										transactions on the primary bus.
 ** 08          0		   		          SERR# Enable (SEE): Enables primary bus SERR# assertions.
 **                		   		                              0=The bridge does not assert P_SERR#.
 **                		   		                              1=The bridge may assert P_SERR#, subject to other programmable criteria.
-** 07          0		   		    Wait Cycle Control (WCC): Always returns 0bzero indicating that bridge does not perform address or data stepping,
+** 07          0		   		    Wait Cycle Control (WCC): Always returns 0bzero indicating 
+**										that bridge does not perform address or data stepping,
 ** 06          0		   		 Parity Error Response (PER): Controls bridge response to a detected primary bus parity error.
 **                		   		                              0=When a data parity error is detected bridge does not assert S_PERR#. 
-**                		   		                                  Also bridge does not assert P_SERR# in response to a detected address or attribute parity error.
+**                		   		                                  Also bridge does not assert P_SERR# in response to 
+**											a detected address or attribute parity error.
 **                		   		                              1=When a data parity error is detected bridge asserts S_PERR#. 
-**                		   		                                  The bridge also asserts P_SERR# (when enabled globally via bit(8) of this register) in response to a detected address or attribute parity error.
+**                		   		                                  The bridge also asserts P_SERR# 
+**											(when enabled globally via bit(8) of this register) 
+**											in response to a detected address or attribute parity error.
 ** 05          0		  VGA Palette Snoop Enable (VGA_PSE): Controls bridge response to VGA-compatible palette write transactions. 
-**                		                                      VGA palette write transactions are I/O transactions whose address bits are: P_AD[9:0] equal to 3C6h, 3C8h or 3C9h
-**                		                                      P_AD[15:10] are not decoded (i.e. aliases are claimed), or are fully decoding (i.e., must be all 0's depending upon the VGA aliasing bit in the Bridge Control Register, offset 3Eh.
+**                		                                      VGA palette write transactions are I/O transactions
+**										 whose address bits are: P_AD[9:0] equal to 3C6h, 3C8h or 3C9h
+**                		                                      P_AD[15:10] are not decoded (i.e. aliases are claimed), 
+**										or are fully decoding 
+**										(i.e., must be all 0's depending upon the VGA 
+**										aliasing bit in the Bridge Control Register, offset 3Eh.
 **                		                                      P_AD[31:16] equal to 0000h
-**                		                                      0=The bridge ignores VGA palette write transactions, unless decoded by the standard I/O address range window.
-**                		                                      1=The bridge responds to VGA palette write transactions with medium DEVSEL# timing and forwards them to the secondary bus.
+**                		                                      0=The bridge ignores VGA palette write transactions, 
+**										unless decoded by the standard I/O address range window.
+**                		                                      1=The bridge responds to VGA palette write transactions 
+**										with medium DEVSEL# timing and forwards them to the secondary bus.
 ** 04          0   Memory Write and Invalidate Enable (MWIE): The bridge does not promote MW transactions to MWI transactions. 
-**                                                            MWI transactions targeting resources on the opposite side of the bridge, however, are forwarded as MWI transactions.
+**                                                            MWI transactions targeting resources on the opposite side of the bridge, 
+**										however, are forwarded as MWI transactions.
 ** 03          0                  Special Cycle Enable (SCE): The bridge ignores special cycle transactions. 
 **                                                            This bit is read only and always returns 0 when read
 ** 02          0                     Bus Master Enable (BME): Enables bridge to initiate memory and I/O transactions on the primary interface.
@@ -860,36 +700,47 @@ struct _SENSE_DATA
 **==============================================================================
 */
 #define     ARCMSR_PCI2PCI_PRIMARY_COMMAND_REG		 0x04    /*word*/
-#define     PCI_DISABLE_INTERRUPT          0x0400
+#define     PCI_DISABLE_INTERRUPT                        0x0400
 /*
 **==============================================================================
 **  0x07-0x06 : status register 
 ** Bit       Default                       Description
-** 15          0                       Detected Parity Error: The bridge sets this bit to a 1b whenever it detects an address, attribute or data parity error. 
+** 15          0                       Detected Parity Error: The bridge sets this bit to a 1b whenever it detects an address, 
+**									attribute or data parity error. 
 **                                                            This bit is set regardless of the state of the PER bit in the command register.
 ** 14          0                       Signaled System Error: The bridge sets this bit to a 1b whenever it asserts SERR# on the primary bus.
-** 13          0                       Received Master Abort: The bridge sets this bit to a 1b when, acting as the initiator on the primary bus, its transaction (with the exception of special cycles) has been terminated with a Master Abort.
-** 12          0                       Received Target Abort: The bridge sets this bit to a 1b when, acting as the initiator on the primary bus, its transaction has been terminated with a Target Abort.
-** 11          0                       Signaled Target Abort: The bridge sets this bit to a 1b when it, as the target of a transaction, terminates it with a Target Abort. 
+** 13          0                       Received Master Abort: The bridge sets this bit to a 1b when, 
+**									acting as the initiator on the primary bus, 
+**									its transaction (with the exception of special cycles) 
+**									has been terminated with a Master Abort.
+** 12          0                       Received Target Abort: The bridge sets this bit to a 1b when, 
+**									acting as the initiator on the primary bus, 
+**									its transaction has been terminated with a Target Abort.
+** 11          0                       Signaled Target Abort: The bridge sets this bit to a 1b when it, 
+**									as the target of a transaction, terminates it with a Target Abort. 
 **                                                            In PCI-X mode this bit is also set when it forwards a SCM with a target abort error code.
 ** 10:09       01                             DEVSEL# Timing: Indicates slowest response to a non-configuration command on the primary interface. 
 **                                                            Returns ¡§01b¡¨ when read, indicating that bridge responds no slower than with medium timing.
-** 08          0                    Master Data Parity Error: The bridge sets this bit to a 1b when all of the following conditions are true: The bridge is the current master on the primary bus
+** 08          0                    Master Data Parity Error: The bridge sets this bit to a 1b when all of the following conditions are true: 
+**									The bridge is the current master on the primary bus
 **                                                            S_PERR# is detected asserted or is asserted by bridge
 **                                                            The Parity Error Response bit is set in the Command register
-** 07          1                   Fast Back to Back Capable: Returns a 1b when read indicating that bridge is able to respond to fast back to back transactions on its primary interface.
+** 07          1                   Fast Back to Back Capable: Returns a 1b when read indicating that bridge 
+**									is able to respond to fast back to back transactions on its primary interface.
 ** 06          0                             Reserved
 ** 05          1                   66 MHz Capable Indication: Returns a 1b when read indicating that bridge primary interface is 66 MHz capable.
 **                                                            1 =
 ** 04          1                    Capabilities List Enable: Returns 1b when read indicating that bridge supports PCI standard enhanced capabilities. 
-**                                                            Offset 34h (Capability Pointer register) provides the offset for the first entry in the linked list of enhanced capabilities.
+**                                                            Offset 34h (Capability Pointer register) 
+**										provides the offset for the first entry 
+**										in the linked list of enhanced capabilities.
 ** 03          0                            Interrupt Status: Reflects the state of the interrupt in the device/function.
 **                                                            The bridge does not support interrupts.
 ** 02:00       000                           Reserved
 **==============================================================================
 */
 #define     ARCMSR_PCI2PCI_PRIMARY_STATUS_REG	     0x06    /*word: 06,07 */
-#define          ARCMSR_ADAP_66MHZ         0x20
+#define          ARCMSR_ADAP_66MHZ                   0x20
 /*
 **==============================================================================
 **  0x08 : revision ID 
@@ -913,9 +764,12 @@ struct _SENSE_DATA
 **  0x0c : cache line size 
 ** Bit       Default                       Description
 ** 07:00       00h                     Cache Line Size (CLS): Designates the cache line size in 32-bit dword units.
-**                                                            The contents of this register are factored into internal policy decisions associated with memory read prefetching, and the promotion of Memory Write transactions to MWI transactions.
+**                                                            The contents of this register are factored into 
+**									internal policy decisions associated with memory read prefetching, 
+**									and the promotion of Memory Write transactions to MWI transactions.
 **                                                            Valid cache line sizes are 8 and 16 dwords. 
-**                                                            When the cache line size is set to an invalid value, bridge behaves as though the cache line size was set to 00h.
+**                                                            When the cache line size is set to an invalid value, 
+**									bridge behaves as though the cache line size was set to 00h.
 **==============================================================================
 */
 #define     ARCMSR_PCI2PCI_PRIMARY_CACHELINESIZE_REG 0x0C    /*byte*/
@@ -928,14 +782,18 @@ struct _SENSE_DATA
 **                                                            referenced from the assertion of FRAME# to the expiration of the timer, 
 **                                                            when bridge may continue as master of the current transaction. All bits are writable, 
 **                                                            resulting in a granularity of 1 PCI clock cycle. 
-**                                                            When the timer expires (i.e., equals 00h) bridge relinquishes the bus after the first data transfer when its PCI bus grant has been deasserted.
+**                                                            When the timer expires (i.e., equals 00h) 
+**									bridge relinquishes the bus after the first data transfer 
+**									when its PCI bus grant has been deasserted.
 **         or 40h (PCI-X)                         PCI-X Mode: Primary bus Master latency timer. 
 **                                                            Indicates the number of PCI clock cycles,
 **                                                            referenced from the assertion of FRAME# to the expiration of the timer, 
 **                                                            when bridge may continue as master of the current transaction. 
 **                                                            All bits are writable, resulting in a granularity of 1 PCI clock cycle. 
 **                                                            When the timer expires (i.e., equals 00h) bridge relinquishes the bus at the next ADB. 
-**                                                            (Except in the case where MLT expires within 3 data phases of an ADB.In this case bridge continues on until it reaches the next ADB before relinquishing the bus.)
+**                                                            (Except in the case where MLT expires within 3 data phases 
+**								of an ADB.In this case bridge continues on 
+**								until it reaches the next ADB before relinquishing the bus.)
 **==============================================================================
 */
 #define     ARCMSR_PCI2PCI_PRIMARY_LATENCYTIMER_REG	 0x0D    /*byte*/
@@ -945,7 +803,8 @@ struct _SENSE_DATA
 ** Bit       Default                       Description
 ** 07           0                Multi-function device (MVD): 80331 is a single-function device.
 ** 06:00       01h                       Header Type (HTYPE): Defines the layout of addresses 10h through 3Fh in configuration space. 
-**                                                            Returns ¡§01h¡¨ when read indicating that the register layout conforms to the standard PCI-to-PCI bridge layout.
+**                                                            Returns ¡§01h¡¨ when read indicating 
+**								that the register layout conforms to the standard PCI-to-PCI bridge layout.
 **==============================================================================
 */
 #define     ARCMSR_PCI2PCI_HEADERTYPE_REG	         0x0E    /*byte*/
@@ -973,52 +832,75 @@ struct _SENSE_DATA
 **-----------------0x1A,0x19,0x18--Bus Number Register - BNR
 ** Bit       Default                       Description
 ** 23:16       00h             Subordinate Bus Number (SBBN): Indicates the highest PCI bus number below this bridge. 
-**                                                            Any Type 1 configuration cycle on the primary bus whose bus number is greater than the secondary bus number,
-**                                                            and less than or equal to the subordinate bus number is forwarded unaltered as a Type 1 configuration cycle on the secondary PCI bus.
+**                                                            Any Type 1 configuration cycle 
+**									on the primary bus whose bus number is greater than the secondary bus number,
+**                                                            and less than or equal to the subordinate bus number 
+**									is forwarded unaltered as a Type 1 configuration cycle on the secondary PCI bus.
 ** 15:08       00h               Secondary Bus Number (SCBN): Indicates the bus number of PCI to which the secondary interface is connected. 
-**                                                            Any Type 1 configuration cycle matching this bus number is translated to a Type 0 configuration cycle (or a Special Cycle) before being executed on bridge's secondary PCI bus.
+**                                                            Any Type 1 configuration cycle matching this bus number 
+**									is translated to a Type 0 configuration cycle (or a Special Cycle) 
+**									before being executed on bridge's secondary PCI bus.
 ** 07:00       00h                  Primary Bus Number (PBN): Indicates bridge primary bus number. 
-**                                                            Any Type 1 configuration cycle on the primary interface with a bus number that is less than the contents of this register field does not be claimed by bridge.
+**                                                            Any Type 1 configuration cycle on the primary interface 
+**									with a bus number that is less than the contents 
+**									of this register field does not be claimed by bridge.
 **-----------------0x1B--Secondary Latency Timer Register - SLTR
 ** Bit       Default                       Description
 **                             Secondary Latency Timer (STV):
 ** 07:00       00h (Conventional PCI)  Conventional PCI Mode: Secondary bus Master latency timer. 
-**                                                            Indicates the number of PCI clock cycles,referenced from the assertion of FRAME# to the expiration of the timer, 
+**                                                            Indicates the number of PCI clock cycles,
+**									referenced from the assertion of FRAME# to the expiration of the timer, 
 **                                                            when bridge may continue as master of the current transaction. All bits are writable, 
 **                                                            resulting in a granularity of 1 PCI clock cycle.
-**                                                            When the timer expires (i.e., equals 00h) bridge relinquishes the bus after the first data transfer when its PCI bus grant has been deasserted.
+**                                                            When the timer expires (i.e., equals 00h) 
+**								bridge relinquishes the bus after the first data transfer 
+**								when its PCI bus grant has been deasserted.
 **          or 40h (PCI-X)                        PCI-X Mode: Secondary bus Master latency timer. 
-**                                                            Indicates the number of PCI clock cycles,referenced from the assertion of FRAME# to the expiration of the timer, 
+**                                                            Indicates the number of PCI clock cycles,referenced from the assertion of FRAME# 
+**								to the expiration of the timer, 
 **                                                            when bridge may continue as master of the current transaction. All bits are writable, 
 **                                                            resulting in a granularity of 1 PCI clock cycle.
 **                                                            When the timer expires (i.e., equals 00h) bridge relinquishes the bus at the next ADB. 
-**                                                            (Except in the case where MLT expires within 3 data phases of an ADB. In this case bridge continues on until it reaches the next ADB before relinquishing the bus)
+**                                                            (Except in the case where MLT expires within 3 data phases of an ADB. 
+**								In this case bridge continues on until it reaches the next ADB 
+**								before relinquishing the bus)
 **==============================================================================
 */
 #define     ARCMSR_PCI2PCI_PRIMARY_BUSNUMBER_REG	         0x18    /*3byte 0x1A,0x19,0x18*/
 #define     ARCMSR_PCI2PCI_SECONDARY_BUSNUMBER_REG	         0x19    /*byte*/
-#define     ARCMSR_PCI2PCI_SUBORDINATE_BUSNUMBER_REG         0x1A    /*byte*/
-#define     ARCMSR_PCI2PCI_SECONDARY_LATENCYTIMER_REG	     0x1B    /*byte*/
+#define     ARCMSR_PCI2PCI_SUBORDINATE_BUSNUMBER_REG             0x1A    /*byte*/
+#define     ARCMSR_PCI2PCI_SECONDARY_LATENCYTIMER_REG	         0x1B    /*byte*/
 /*
 **==============================================================================
 **  0x1f-0x1c : 
 **  PCI CFG Base Address #3 (0x1C) 
 **-----------------0x1D,0x1C--I/O Base and Limit Register - IOBL
 ** Bit       Default                       Description
-** 15:12        0h            I/O Limit Address Bits [15:12]: Defines the top address of an address range to determine when to forward I/O transactions from one interface to the other. 
+** 15:12        0h            I/O Limit Address Bits [15:12]: Defines the top address of an address range to 
+**								determine when to forward I/O transactions from one interface to the other. 
 **                                                            These bits correspond to address lines 15:12 for 4KB alignment. 
 **                                                            Bits 11:0 are assumed to be FFFh.
 ** 11:08        1h           I/O Limit Addressing Capability: This field is hard-wired to 1h, indicating support 32-bit I/O addressing.
-** 07:04        0h             I/O Base Address Bits [15:12]: Defines the bottom address of an address range to determine when to forward I/O transactions from one interface to the other. 
-**                                                            These bits correspond to address lines 15:12 for 4KB alignment. Bits 11:0 are assumed to be 000h.
+** 07:04        0h             I/O Base Address Bits [15:12]: Defines the bottom address of 
+**								an address range to determine when to forward I/O transactions 
+**								from one interface to the other. 
+**                                                            These bits correspond to address lines 15:12 for 4KB alignment. 
+**								Bits 11:0 are assumed to be 000h.
 ** 03:00        1h            I/O Base Addressing Capability: This is hard-wired to 1h, indicating support for 32-bit I/O addressing.
 **-----------------0x1F,0x1E--Secondary Status Register - SSR
 ** Bit       Default                       Description
-** 15           0b                     Detected Parity Error: The bridge sets this bit to a 1b whenever it detects an address, attribute or data parity error on its secondary interface.
+** 15           0b                     Detected Parity Error: The bridge sets this bit to a 1b whenever it detects an address, 
+**								attribute or data parity error on its secondary interface.
 ** 14           0b                     Received System Error: The bridge sets this bit when it samples SERR# asserted on its secondary bus interface.
-** 13           0b                     Received Master Abort: The bridge sets this bit to a 1b when, acting as the initiator on the secondary bus, it's transaction (with the exception of special cycles) has been terminated with a Master Abort.
-** 12           0b                     Received Target Abort: The bridge sets this bit to a 1b when, acting as the initiator on the secondary bus, it's transaction has been terminated with a Target Abort.
-** 11           0b                     Signaled Target Abort: The bridge sets this bit to a 1b when it, as the target of a transaction, terminates it with a Target Abort. 
+** 13           0b                     Received Master Abort: The bridge sets this bit to a 1b when, 
+**								acting as the initiator on the secondary bus, 
+**								it's transaction (with the exception of special cycles) 
+**								has been terminated with a Master Abort.
+** 12           0b                     Received Target Abort: The bridge sets this bit to a 1b when, 
+**								acting as the initiator on the secondary bus, 
+**								it's transaction has been terminated with a Target Abort.
+** 11           0b                     Signaled Target Abort: The bridge sets this bit to a 1b when it, 
+**								as the target of a transaction, terminates it with a Target Abort. 
 **                                                            In PCI-X mode this bit is also set when it forwards a SCM with a target abort error code.
 ** 10:09       01b                            DEVSEL# Timing: Indicates slowest response to a non-configuration command on the secondary interface. 
 **                                                            Returns ¡§01b¡¨ when read, indicating that bridge responds no slower than with medium timing.
@@ -1045,11 +927,15 @@ struct _SENSE_DATA
 ** 31:20      000h                              Memory Limit: These 12 bits are compared with P_AD[31:20] of the incoming address to determine
 **                                                            the upper 1MB aligned value (exclusive) of the range. 
 **                                                            The incoming address must be less than or equal to this value. 
-**                                                            For the purposes of address decoding the lower 20 address bits (P_AD[19:0] are assumed to be F FFFFh.
+**                                                            For the purposes of address decoding the lower 20 address bits (P_AD[19:0] 
+**									are assumed to be F FFFFh.
 ** 19:16        0h                            Reserved.
-** 15:04      000h                               Memory Base: These 12 bits are compared with bits P_AD[31:20] of the incoming address to determine the lower 1MB aligned value (inclusive) of the range. 
+** 15:04      000h                               Memory Base: These 12 bits are compared with bits P_AD[31:20] 
+**								of the incoming address to determine the lower 1MB 
+**								aligned value (inclusive) of the range. 
 **                                                            The incoming address must be greater than or equal to this value.
-**                                                            For the purposes of address decoding the lower 20 address bits (P_AD[19:0]) are assumed to be 0 0000h.
+**                                                            For the purposes of address decoding the lower 20 address bits (P_AD[19:0]) 
+**								are assumed to be 0 0000h.
 ** 03:00        0h                            Reserved.
 **==============================================================================
 */
@@ -1064,11 +950,15 @@ struct _SENSE_DATA
 ** 31:20      000h                 Prefetchable Memory Limit: These 12 bits are compared with P_AD[31:20] of the incoming address to determine
 **                                                            the upper 1MB aligned value (exclusive) of the range. 
 **                                                            The incoming address must be less than or equal to this value. 
-**                                                            For the purposes of address decoding the lower 20 address bits (P_AD[19:0] are assumed to be F FFFFh.
+**                                                            For the purposes of address decoding the lower 20 address bits (P_AD[19:0] 
+**									are assumed to be F FFFFh.
 ** 19:16        1h                          64-bit Indicator: Indicates that 64-bit addressing is supported.
-** 15:04      000h                  Prefetchable Memory Base: These 12 bits are compared with bits P_AD[31:20] of the incoming address to determine the lower 1MB aligned value (inclusive) of the range. 
+** 15:04      000h                  Prefetchable Memory Base: These 12 bits are compared with bits P_AD[31:20] 
+**								of the incoming address to determine the lower 1MB aligned value (inclusive) 
+**								of the range. 
 **                                                            The incoming address must be greater than or equal to this value. 
-**                                                            For the purposes of address decoding the lower 20 address bits (P_AD[19:0]) are assumed to be 0 0000h.
+**                                                            For the purposes of address decoding the lower 20 address bits (P_AD[19:0])
+**								 are assumed to be 0 0000h.
 ** 03:00        1h                          64-bit Indicator: Indicates that 64-bit addressing is supported.
 **==============================================================================
 */
@@ -1106,7 +996,7 @@ struct _SENSE_DATA
 **  0x3b-0x35 : reserved
 **==============================================================================
 */
-/*              
+/*
 **==============================================================================
 **  0x3d-0x3c : 
 **
@@ -1128,46 +1018,87 @@ struct _SENSE_DATA
 **                                                            1b=SERR# is asserted.
 ** 10           0b                Discard Timer Status (DTS): This bit is set to a '1b' when either the primary or secondary discard timer expires.
 **                                                            The delayed completion is then discarded.
-** 09           0b             Secondary Discard Timer (SDT): Sets the maximum number of PCI clock cycles that bridge waits for an initiator on the secondary bus to repeat a delayed transaction request. 
-**                                                            The counter starts when the delayed transaction completion is ready to be returned to the initiator. 
-**                                                            When the initiator has not repeated the transaction at least once before the counter expires,bridge discards the delayed transaction from its queues.
+** 09           0b             Secondary Discard Timer (SDT): Sets the maximum number of PCI clock cycles 
+**									that bridge waits for an initiator on the secondary bus 
+**									to repeat a delayed transaction request. 
+**                                                            The counter starts when the delayed transaction completion is ready 
+**									to be returned to the initiator. 
+**                                                            When the initiator has not repeated the transaction 
+**									at least once before the counter expires,bridge 
+**										discards the delayed transaction from its queues.
 **                                                            0b=The secondary master time-out counter is 2 15 PCI clock cycles.
 **                                                            1b=The secondary master time-out counter is 2 10 PCI clock cycles.
-** 08           0b               Primary Discard Timer (PDT): Sets the maximum number of PCI clock cycles that bridge waits for an initiator on the primary bus to repeat a delayed transaction request. 
-**                                                            The counter starts when the delayed transaction completion is ready to be returned to the initiator. 
-**                                                            When the initiator has not repeated the transaction at least once before the counter expires, bridge discards the delayed transaction from its queues.
+** 08           0b               Primary Discard Timer (PDT): Sets the maximum number of PCI clock cycles 
+**									that bridge waits for an initiator on the primary bus 
+**									to repeat a delayed transaction request. 
+**                                                            The counter starts when the delayed transaction completion 
+**									is ready to be returned to the initiator. 
+**                                                            When the initiator has not repeated the transaction 
+**									at least once before the counter expires, 
+**									bridge discards the delayed transaction from its queues.
 **                                                            0b=The primary master time-out counter is 2 15 PCI clock cycles.
 **                                                            1b=The primary master time-out counter is 2 10 PCI clock cycles.
 ** 07           0b            Fast Back-to-Back Enable (FBE): The bridge does not initiate back to back transactions.
 ** 06           0b                 Secondary Bus Reset (SBR): 
-**                                                            When cleared to 0b: The bridge deasserts S_RST#, when it had been asserted by writing this bit to a 1b.
+**                                                            When cleared to 0b: The bridge deasserts S_RST#, 
+**									when it had been asserted by writing this bit to a 1b.
 **                                                                When set to 1b: The bridge asserts S_RST#.
-** 05           0b                   Master Abort Mode (MAM): Dictates bridge behavior on the initiator bus when a master abort termination occurs in response to a delayed transaction initiated by bridge on the target bus.
-**                                                            0b=The bridge asserts TRDY# in response to a non-locked delayed transaction,and returns FFFF FFFFh when a read.
-**                                                            1b=When the transaction had not yet been completed on the initiator bus (e.g.,delayed reads, or non-posted writes), 
+** 05           0b                   Master Abort Mode (MAM): Dictates bridge behavior on the initiator bus 
+**									when a master abort termination occurs in response to 
+**										a delayed transaction initiated by bridge on the target bus.
+**                                                            0b=The bridge asserts TRDY# in response to a non-locked delayed transaction,
+**										and returns FFFF FFFFh when a read.
+**                                                            1b=When the transaction had not yet been completed on the initiator bus 
+**										(e.g.,delayed reads, or non-posted writes), 
 **                                                                 then bridge returns a Target Abort in response to the original requester 
 **                                                                 when it returns looking for its delayed completion on the initiator bus. 
-**                                                                 When the transaction had completed on the initiator bus (e.g., a PMW), then bridge asserts P_SERR# (when enabled).
-**                                   For PCI-X transactions this bit is an enable for the assertion of P_SERR# due to a master abort while attempting to deliver a posted memory write on the destination bus.
-** 04           0b                   VGA Alias Filter Enable: This bit dictates bridge behavior in conjunction with the VGA enable bit (also of this register), 
+**                                                                 When the transaction had completed on the initiator bus (e.g., a PMW), 
+**										then bridge asserts P_SERR# (when enabled).
+**                                   For PCI-X transactions this bit is an enable for the assertion of P_SERR# due to a master abort 
+**								while attempting to deliver a posted memory write on the destination bus.
+** 04           0b                   VGA Alias Filter Enable: This bit dictates bridge behavior in conjunction with the VGA enable bit 
+**								(also of this register), 
 **                                                            and the VGA Palette Snoop Enable bit (Command Register). 
-**                                                            When the VGA enable, or VGA Palette Snoop enable bits are on (i.e., 1b) the VGA Aliasing bit for the corresponding enabled functionality,:
+**                                                            When the VGA enable, or VGA Palette Snoop enable bits are on (i.e., 1b) 
+**									the VGA Aliasing bit for the corresponding enabled functionality,:
 **                                                            0b=Ignores address bits AD[15:10] when decoding VGA I/O addresses.
 **                                                            1b=Ensures that address bits AD[15:10] equal 000000b when decoding VGA I/O addresses.
-**                                   When all VGA cycle forwarding is disabled, (i.e., VGA Enable bit =0b and VGA Palette Snoop bit =0b), then this bit has no impact on bridge behavior.
-** 03           0b                                VGA Enable: Setting this bit enables address decoding and transaction forwarding of the following VGA transactions from the primary bus to the secondary bus:
-**                                                            frame buffer memory addresses 000A0000h:000BFFFFh, VGA I/O addresses 3B0:3BBh and 3C0h:3DFh, where AD[31:16]=¡§0000h¡¨ and AD[15:10] are either not decoded (i.e., don't cares), or must be ¡§000000b¡¨
+**                                   When all VGA cycle forwarding is disabled, (i.e., VGA Enable bit =0b and VGA Palette Snoop bit =0b), 
+**									then this bit has no impact on bridge behavior.
+** 03           0b                                VGA Enable: Setting this bit enables address decoding
+**								 and transaction forwarding of the following VGA transactions from the primary bus 
+**									to the secondary bus:
+**                                                            frame buffer memory addresses 000A0000h:000BFFFFh, 
+**									VGA I/O addresses 3B0:3BBh and 3C0h:3DFh, where AD[31:16]=¡§0000h¡
+**									¨ and AD[15:10] are either not decoded (i.e., don't cares),
+**										 or must be ¡§000000b¡¨
 **                                                            depending upon the state of the VGA Alias Filter Enable bit. (bit(4) of this register)
-**                                                            I/O and Memory Enable bits must be set in the Command register to enable forwarding of VGA cycles.
-** 02           0b                                ISA Enable: Setting this bit enables special handling for the forwarding of ISA I/O transactions that fall within the address range specified by the I/O Base and Limit registers, and are within the lowest 64Kbyte of the I/O address map (i.e., 0000 0000h - 0000 FFFFh).
-**                                                            0b=All I/O transactions that fall within the I/O Base and Limit registers' specified range are forwarded from primary to secondary unfiltered.
-**                                                            1b=Blocks the forwarding from primary to secondary of the top 768 bytes of each 1Kbyte alias. On the secondary the top 768 bytes of each 1K alias are inversely decoded and forwarded from secondary to primary.
+**                                                            I/O and Memory Enable bits must be set in the Command register 
+**										to enable forwarding of VGA cycles.
+** 02           0b                                ISA Enable: Setting this bit enables special handling 
+**								for the forwarding of ISA I/O transactions that fall within the address range 
+**									specified by the I/O Base and Limit registers, 
+**										and are within the lowest 64Kbyte of the I/O address map 
+**											(i.e., 0000 0000h - 0000 FFFFh).
+**                                                            0b=All I/O transactions that fall within the I/O Base 
+**										and Limit registers' specified range are forwarded 
+**											from primary to secondary unfiltered.
+**                                                            1b=Blocks the forwarding from primary to secondary 
+**											of the top 768 bytes of each 1Kbyte alias. 
+**												On the secondary the top 768 bytes of each 1K alias 
+**													are inversely decoded and forwarded 
+**														from secondary to primary.
 ** 01           0b                      SERR# Forward Enable: 0b=The bridge does not assert P_SERR# as a result of an S_SERR# assertion.
-**                                                            1b=The bridge asserts P_SERR# whenever S_SERR# is detected asserted provided the SERR# Enable bit is set (PCI Command Register bit(8)=1b).
-** 00           0b                     Parity Error Response: This bit controls bridge response to a parity error that is detected on its secondary interface.
+**                                                            1b=The bridge asserts P_SERR# whenever S_SERR# is detected 
+**									asserted provided the SERR# Enable bit is set (PCI Command Register bit(8)=1b).
+** 00           0b                     Parity Error Response: This bit controls bridge response to a parity error 
+**										that is detected on its secondary interface.
 **                                                            0b=When a data parity error is detected bridge does not assert S_PERR#. 
-**                                                            Also bridge does not assert P_SERR# in response to a detected address or attribute parity error.
-**                                                            1b=When a data parity error is detected bridge asserts S_PERR#. The bridge also asserts P_SERR# (when enabled globally via bit(8) of the Command register)
+**                                                            Also bridge does not assert P_SERR# in response to a detected address 
+**										or attribute parity error.
+**                                                            1b=When a data parity error is detected bridge asserts S_PERR#. 
+**										The bridge also asserts P_SERR# (when enabled globally via bit(8) 
+**											of the Command register)
 **                                                            in response to a detected address or attribute parity error.
 **==============================================================================
 */
@@ -1203,9 +1134,11 @@ struct _SENSE_DATA
 **==============================================================================
 **  0x42-0x41: Secondary Arbiter Control/Status Register - SACSR
 ** Bit       Default                       Description
-** 15:12      1111b                  Grant Time-out Violator: This field indicates the agent that violated the Grant Time-out rule (PCI=16 clocks,PCI-X=6 clocks). 
+** 15:12      1111b                  Grant Time-out Violator: This field indicates the agent that violated the Grant Time-out rule 
+**							(PCI=16 clocks,PCI-X=6 clocks). 
 **                                   Note that this field is only meaningful when:
-**                                                              # Bit[11] of this register is set to 1b, indicating that a Grant Time-out violation had occurred. 
+**                                                              # Bit[11] of this register is set to 1b, 
+**									indicating that a Grant Time-out violation had occurred. 
 **                                                              # bridge internal arbiter is enabled.
 **                                           Bits[15:12] Violating Agent (REQ#/GNT# pair number)
 **                                                 0000b REQ#/GNT#[0]
@@ -1219,34 +1152,53 @@ struct _SENSE_DATA
 **                                   this indicates that a Grant Time-out error had occurred involving one of the secondary bus agents.
 **                                   Software clears this bit by writing a 1b to it.
 ** 10            0b                      Bus Parking Control: 0=During bus idle, bridge parks the bus on the last master to use the bus.
-**                                                            1=During bus idle, bridge parks the bus on itself. The bus grant is removed from the last master and internally asserted to bridge.
+**                                                            1=During bus idle, bridge parks the bus on itself. 
+**									The bus grant is removed from the last master and internally asserted to bridge.
 ** 09:08        00b                          Reserved
 ** 07:00      0000 0000b  Secondary Bus Arbiter Priority Configuration: The bridge secondary arbiter provides two rings of arbitration priority. 
-**                                                                      Each bit of this field assigns its corresponding secondary bus master to either the high priority arbiter ring (1b) or to the low priority arbiter ring (0b). 
+**                                                                      Each bit of this field assigns its corresponding secondary 
+**										bus master to either the high priority arbiter ring (1b) 
+**											or to the low priority arbiter ring (0b). 
 **                                                                      Bits [3:0] correspond to request inputs S_REQ#[3:0], respectively. 
-**                                                                      Bit [6] corresponds to the bridge internal secondary bus request while Bit [7] corresponds to the SATU secondary bus request. 
+**                                                                      Bit [6] corresponds to the bridge internal secondary bus request 
+**										while Bit [7] corresponds to the SATU secondary bus request. 
 **                                                                      Bits [5:4] are unused.
 **                                                                      0b=Indicates that the master belongs to the low priority group.
 **                                                                      1b=Indicates that the master belongs to the high priority group
 **=================================================================================
 **  0x43: Bridge Control Register 0 - BCR0
 ** Bit       Default                       Description
-** 07           0b                  Fully Dynamic Queue Mode: 0=The number of Posted write transactions is limited to eight and the Posted Write data is limited to 4KB.
-**                                                            1=Operation in fully dynamic queue mode. The bridge enqueues up to 14 Posted Memory Write transactions and 8KB of posted write data.
+** 07           0b                  Fully Dynamic Queue Mode: 0=The number of Posted write transactions is limited to eight 
+**									and the Posted Write data is limited to 4KB.
+**                                                            1=Operation in fully dynamic queue mode. The bridge enqueues up to 
+**									14 Posted Memory Write transactions and 8KB of posted write data.
 ** 06:03        0H                          Reserved.
-** 02           0b                 Upstream Prefetch Disable: This bit disables bridge ability to perform upstream prefetch operations for Memory Read requests received on its secondary interface. 
-**                                 This bit also controls the bridge's ability to generate advanced read commands when forwarding a Memory Read Block transaction request upstream from a PCI-X bus to a Conventional PCI bus.
-**                                 0b=bridge treats all upstream Memory Read requests as though they target prefetchable memory. The use of Memory Read Line and Memory Read
-**                                      Multiple is enabled when forwarding a PCI-X Memory Read Block request to an upstream bus operating in Conventional PCI mode.
-**                                 1b=bridge treats upstream PCI Memory Read requests as though they target non-prefetchable memory and forwards upstream PCI-X Memory Read Block commands as Memory Read when the primary bus is operating in Conventional PCI mode.
-**                                 NOTE: This bit does not affect bridge ability to perform read prefetching when the received command is Memory Read Line or Memory Read Multiple.
+** 02           0b                 Upstream Prefetch Disable: This bit disables bridge ability 
+**									to perform upstream prefetch operations for Memory 
+**										Read requests received on its secondary interface. 
+**                                 This bit also controls the bridge's ability to generate advanced read commands 
+**								when forwarding a Memory Read Block transaction request upstream from a PCI-X bus 
+**										to a Conventional PCI bus.
+**                                 0b=bridge treats all upstream Memory Read requests as though they target prefetchable memory.
+**										The use of Memory Read Line and Memory Read
+**                                      Multiple is enabled when forwarding a PCI-X Memory Read Block request 
+**										to an upstream bus operating in Conventional PCI mode.
+**                                 1b=bridge treats upstream PCI Memory Read requests as though 
+**									they target non-prefetchable memory and forwards upstream PCI-X Memory 
+**											Read Block commands as Memory Read 
+**												when the primary bus is operating 
+**													in Conventional PCI mode.
+**                                 NOTE: This bit does not affect bridge ability to perform read prefetching 
+**									when the received command is Memory Read Line or Memory Read Multiple.
 **=================================================================================
 **  0x45-0x44: Bridge Control Register 1 - BCR1 (Sheet 2 of 2)
 ** Bit       Default                       Description
 ** 15:08    0000000b                         Reserved
-** 07:06         00b                   Alias Command Mapping: This two bit field determines how bridge handles PCI-X ¡§Alias¡¨ commands, specifically the Alias to Memory Read Block and Alias to Memory Write Block commands. 
-**                                                            The three options for handling these alias commands are to either pass it as is, re-map to the actual block memory read/write command encoding, or ignore
-**                                                            the transaction forcing a Master Abort to occur on the Origination Bus.
+** 07:06         00b                   Alias Command Mapping: This two bit field determines how bridge handles PCI-X ¡§Alias¡¨ commands, 
+**								specifically the Alias to Memory Read Block and Alias to Memory Write Block commands. 
+**                                                            The three options for handling these alias commands are to either pass it as is, 
+**									re-map to the actual block memory read/write command encoding, or ignore
+**                                                            			the transaction forcing a Master Abort to occur on the Origination Bus.
 **                                                   Bit (7:6) Handling of command
 **                                                        0 0 Re-map to Memory Read/Write Block before forwarding
 **                                                        0 1 Enqueue and forward the alias command code unaltered
@@ -1256,30 +1208,50 @@ struct _SENSE_DATA
 **                                                            The watchdog timers are used to detect prohibitively long latencies in the system. 
 **                                                            The watchdog timer expires when any Posted Memory Write (PMW), Delayed Request, 
 **                                                            or Split Requests (PCI-X mode) is not completed within 2 24 events 
-**                                                            (¡§events¡¨ are defined as PCI Clocks when operating in PCI-X mode, and as the number of times being retried when operating in Conventional PCI mode)
+**                                                            (¡§events¡¨ are defined as PCI Clocks when operating in PCI-X mode, 
+**								and as the number of times being retried when operating in Conventional PCI mode)
 **                                                            0b=All 2 24 watchdog timers are enabled.
-**                                                            1b=All 2 24 watchdog timers are disabled and there is no limits to the number of attempts bridge makes when initiating a PMW, 
-**                                                                 transacting a Delayed Transaction, or how long it waits for a split completion corresponding to one of its requests.
+**                                                            1b=All 2 24 watchdog timers are disabled and there is no limits to 
+**									the number of attempts bridge makes when initiating a PMW, 
+**                                                                 transacting a Delayed Transaction, or how long it waits for 
+**									a split completion corresponding to one of its requests.
 ** 04            0b                  GRANT# time-out disable: This bit enables/disables the GNT# time-out mechanism. 
 **                                                            Grant time-out is 16 clocks for conventional PCI, and 6 clocks for PCI-X.
-**                                                            0b=The Secondary bus arbiter times out an agent that does not assert FRAME# within 16/6 clocks of receiving its grant, once the bus has gone idle. 
+**                                                            0b=The Secondary bus arbiter times out an agent 
+**									that does not assert FRAME# within 16/6 clocks of receiving its grant, 
+**										once the bus has gone idle. 
 **                                                                 The time-out counter begins as soon as the bus goes idle with the new GNT# asserted. 
-**                                                                 An infringing agent does not receive a subsequent GNT# until it de-asserts its REQ# for at least one clock cycle.
+**                                                                 An infringing agent does not receive a subsequent GNT# 
+**									until it de-asserts its REQ# for at least one clock cycle.
 **                                                            1b=GNT# time-out mechanism is disabled.
 ** 03           00b                           Reserved.
 ** 02            0b          Secondary Discard Timer Disable: This bit enables/disables bridge secondary delayed transaction discard mechanism.
-**                                                            The time out mechanism is used to ensure that initiators of delayed transactions return for their delayed completion data/status within a reasonable amount of time after it is available from bridge.
-**                                                            0b=The secondary master time-out counter is enabled and uses the value specified by the Secondary Discard Timer bit (see Bridge Control Register).
-**                                                            1b=The secondary master time-out counter is disabled. The bridge waits indefinitely for a secondary bus master to repeat a delayed transaction.
-** 01            0b            Primary Discard Timer Disable: This bit enables/disables bridge primary delayed transaction discard mechanism. The time out mechanism is used to ensure that initiators of delayed transactions return for their delayed completion data/status within a reasonable amount of time after it is available from bridge.
-**                                                            0b=The primary master time-out counter is enabled and uses the value specified by the Primary Discard Timer bit (see Bridge Control Register).
-**                                                            1b=The secondary master time-out counter is disabled. The bridge waits indefinitely for a secondary bus master to repeat a delayed transaction.
+**                                                            The time out mechanism is used to ensure that initiators 
+**									of delayed transactions return for their delayed completion data/status 
+**										within a reasonable amount of time after it is available from bridge.
+**                                                            0b=The secondary master time-out counter is enabled 
+**										and uses the value specified by the Secondary Discard Timer bit 
+**											(see Bridge Control Register).
+**                                                            1b=The secondary master time-out counter is disabled. 
+**											The bridge waits indefinitely for a secondary bus master 
+**												to repeat a delayed transaction.
+** 01            0b            Primary Discard Timer Disable: This bit enables/disables bridge primary delayed transaction discard mechanism. 
+**								The time out mechanism is used to ensure that initiators 
+**									of delayed transactions return for their delayed completion data/status 
+**										within a reasonable amount of time after it is available from bridge.
+**                                                            0b=The primary master time-out counter is enabled and uses the value specified 
+**									by the Primary Discard Timer bit (see Bridge Control Register).
+**                                                            1b=The secondary master time-out counter is disabled. 
+**									The bridge waits indefinitely for a secondary bus master 
+**										to repeat a delayed transaction.
 ** 00            0b                           Reserved
 **=================================================================================
 **  0x47-0x46: Bridge Control Register 2 - BCR2
 ** Bit       Default                       Description
 ** 15:07      0000b                          Reserved.
-** 06            0b Global Clock Out Disable (External Secondary Bus Clock Source Enable): This bit disables all of the secondary PCI clock outputs including the feedback clock S_CLKOUT. 
+** 06            0b Global Clock Out Disable (External Secondary Bus Clock Source Enable): 
+**									This bit disables all of the secondary PCI clock outputs including 
+**										the feedback clock S_CLKOUT. 
 **                                                            This means that the user is required to provide an S_CLKIN input source.
 ** 05:04        11 (66 MHz)                  Preserved.
 **              01 (100 MHz)
@@ -1290,40 +1262,84 @@ struct _SENSE_DATA
 **                                        secondary PCI clock outputs. Some, or all secondary clock outputs (S_CLKO[3:0])
 **                                        default to being enabled following the rising edge of P_RST#, depending on the
 **                                        frequency of the secondary bus clock:
-**                                               ¡E Designs with 100 MHz (or lower) Secondary PCI clock power up with all four S_CLKOs enabled by default. (SCLKO[3:0])¡P
-**                                               ¡E Designs with 133 MHz Secondary PCI clock power up with the lower order 3 S_CLKOs enabled by default. (S_CLKO[2:0]) Only those SCLKs that power up enabled by can be connected to downstream device clock inputs.
+**                                               ¡E Designs with 100 MHz (or lower) Secondary PCI clock power up with 
+**								all four S_CLKOs enabled by default. (SCLKO[3:0])¡P
+**                                               ¡E Designs with 133 MHz Secondary PCI clock power up 
+**								with the lower order 3 S_CLKOs enabled by default. 
+**								(S_CLKO[2:0]) Only those SCLKs that power up enabled by can be connected 
+**								to downstream device clock inputs.
 **=================================================================================
 **  0x49-0x48: Bridge Status Register - BSR
 ** Bit       Default                       Description
-** 15           0b  Upstream Delayed Transaction Discard Timer Expired: This bit is set to a 1b and P_SERR# is conditionally asserted when the secondary discard timer expires.
+** 15           0b  Upstream Delayed Transaction Discard Timer Expired: This bit is set to a 1b and P_SERR# 
+**									is conditionally asserted when the secondary discard timer expires.
 ** 14           0b  Upstream Delayed/Split Read Watchdog Timer Expired: 
-**                                                     Conventional PCI Mode: This bit is set to a 1b and P_SERR# is conditionally asserted when bridge discards an upstream delayed read transaction request after 2 24 retries following the initial retry.
-**                                                                PCI-X Mode: This bit is set to a 1b and P_SERR# is conditionally asserted when bridge discards an upstream split read request after waiting in excess of 2 24 clocks for the corresponding Split Completion to arrive.
+**                                                     Conventional PCI Mode: This bit is set to a 1b and P_SERR#
+**									is conditionally asserted when bridge discards an upstream delayed read **	**									transaction request after 2 24 retries following the initial retry.
+**                                                                PCI-X Mode: This bit is set to a 1b and P_SERR# is conditionally asserted 
+**									when bridge discards an upstream split read request 
+**									after waiting in excess of 2 24 clocks for the corresponding 
+**									Split Completion to arrive.
 ** 13           0b Upstream Delayed/Split Write Watchdog Timer Expired: 
-**                                                     Conventional PCI Mode: This bit is set to a 1b and P_SERR# is conditionally asserted when bridge discards an upstream delayed write transaction request after 2 24 retries following the initial retry.
-**                                                                PCI-X Mode: This bit is set to a 1b and P_SERR# is conditionally asserted when bridge discards an upstream split write request after waiting in excess of 2 24 clocks for the corresponding Split Completion to arrive.
-** 12           0b           Master Abort during Upstream Posted Write: This bit is set to a 1b and P_SERR# is conditionally asserted when a Master Abort occurs as a result of an attempt, by bridge, to retire a PMW upstream.
-** 11           0b           Target Abort during Upstream Posted Write: This bit is set to a 1b and P_SERR# is conditionally asserted when a Target Abort occurs as a result of an attempt, by bridge, to retire a PMW upstream.
-** 10           0b                Upstream Posted Write Data Discarded: This bit is set to a 1b and P_SERR# is conditionally asserted when bridge discards an upstream PMW transaction after receiving 2 24 target retries from the primary bus target
-** 09           0b             Upstream Posted Write Data Parity Error: This bit is set to a 1b and P_SERR# is conditionally asserted when a data parity error is detected by bridge while attempting to retire a PMW upstream
-** 08           0b                  Secondary Bus Address Parity Error: This bit is set to a 1b and P_SERR# is conditionally asserted when bridge detects an address parity error on the secondary bus.
-** 07           0b Downstream Delayed Transaction Discard Timer Expired: This bit is set to a 1b and P_SERR# is conditionally asserted when the primary bus discard timer expires.
+**                                                     Conventional PCI Mode: This bit is set to a 1b and P_SERR# 
+**									is conditionally asserted when bridge discards an upstream delayed write **	**									transaction request after 2 24 retries following the initial retry.
+**                                                                PCI-X Mode: This bit is set to a 1b and P_SERR# 
+**									is conditionally asserted when bridge discards an upstream split write request **									after waiting in excess of 2 24 clocks for the corresponding 
+**									Split Completion to arrive.
+** 12           0b           Master Abort during Upstream Posted Write: This bit is set to a 1b and P_SERR# 
+**									is conditionally asserted when a Master Abort occurs as a result of an attempt, 
+**									by bridge, to retire a PMW upstream.
+** 11           0b           Target Abort during Upstream Posted Write: This bit is set to a 1b and P_SERR# 
+**									is conditionally asserted when a Target Abort occurs as a result of an attempt,
+**									by bridge, to retire a PMW upstream.
+** 10           0b                Upstream Posted Write Data Discarded: This bit is set to a 1b and P_SERR# 
+**									is conditionally asserted when bridge discards an upstream PMW transaction 
+**									after receiving 2 24 target retries from the primary bus target
+** 09           0b             Upstream Posted Write Data Parity Error: This bit is set to a 1b and P_SERR# 
+**									is conditionally asserted when a data parity error is detected by bridge 
+**									while attempting to retire a PMW upstream
+** 08           0b                  Secondary Bus Address Parity Error: This bit is set to a 1b and P_SERR# 
+**									is conditionally asserted when bridge detects an address parity error on 
+**									the secondary bus.
+** 07           0b Downstream Delayed Transaction Discard Timer Expired: This bit is set to a 1b and P_SERR# 
+**									is conditionally asserted when the primary bus discard timer expires.
 ** 06           0b Downstream Delayed/Split Read Watchdog Timer Expired:
-**                                                     Conventional PCI Mode: This bit is set to a 1b and P_SERR# is conditionally asserted when bridge discards a downstream delayed read transaction request after receiving 2 24 target retries from the secondary bus target.
-**                                                                PCI-X Mode: This bit is set to a 1b and P_SERR# is conditionally asserted when bridge discards a downstream split read request after waiting in excess of 2 24 clocks for the corresponding Split Completion to arrive.
+**                                                     Conventional PCI Mode: This bit is set to a 1b and P_SERR# 
+**									is conditionally asserted when bridge discards a downstream delayed read **	**										transaction request after receiving 2 24 target retries
+**											 from the secondary bus target.
+**                                                                PCI-X Mode: This bit is set to a 1b and P_SERR# is conditionally asserted 
+**										when bridge discards a downstream split read request 
+**											after waiting in excess of 2 24 clocks for the corresponding 
+**												Split Completion to arrive.
 ** 05           0b Downstream Delayed Write/Split Watchdog Timer Expired:
-**                                                     Conventional PCI Mode: This bit is set to a 1b and P_SERR# is conditionally asserted when bridge discards a downstream delayed write transaction request after receiving 2 24 target retries from the secondary bus target.
-**                                                                PCI-X Mode: This bit is set to a 1b and P_SERR# is conditionally asserted when bridge discards a downstream split write request after waiting in excess of 2 24 clocks for the corresponding Split Completion to arrive.
-** 04           0b          Master Abort during Downstream Posted Write: This bit is set to a 1b and P_SERR# is conditionally asserted when a Master Abort occurs as a result of an attempt, by bridge, to retire a PMW downstream.
-** 03           0b          Target Abort during Downstream Posted Write: This bit is set to a 1b and P_SERR# is conditionally asserted when a Target Abort occurs as a result of an attempt, by bridge, to retire a PMW downstream.
-** 02           0b               Downstream Posted Write Data Discarded: This bit is set to a 1b and P_SERR# is conditionally asserted when bridge discards a downstream PMW transaction after receiving 2 24 target retries from the secondary bus target
-** 01           0b            Downstream Posted Write Data Parity Error: This bit is set to a 1b and P_SERR# is conditionally asserted when a data parity error is detected by bridge while attempting to retire a PMW downstream.
-** 00           0b                     Primary Bus Address Parity Error: This bit is set to a 1b and P_SERR# is conditionally asserted when bridge detects an address parity error on the primary bus.
+**                                                     Conventional PCI Mode: This bit is set to a 1b and P_SERR# is conditionally asserted 
+**									when bridge discards a downstream delayed write transaction request 
+**										after receiving 2 24 target retries from the secondary bus target.
+**                                                                PCI-X Mode: This bit is set to a 1b and P_SERR# 
+**									is conditionally asserted when bridge discards a downstream 
+**										split write request after waiting in excess of 2 24 clocks 
+**											for the corresponding Split Completion to arrive.
+** 04           0b          Master Abort during Downstream Posted Write: This bit is set to a 1b and P_SERR# 
+**									is conditionally asserted when a Master Abort occurs as a result of an attempt, 
+**										by bridge, to retire a PMW downstream.
+** 03           0b          Target Abort during Downstream Posted Write: This bit is set to a 1b and P_SERR# is conditionally asserted 
+**										when a Target Abort occurs as a result of an attempt, by bridge, 
+**											to retire a PMW downstream.
+** 02           0b               Downstream Posted Write Data Discarded: This bit is set to a 1b and P_SERR#
+**									is conditionally asserted when bridge discards a downstream PMW transaction 
+**										after receiving 2 24 target retries from the secondary bus target
+** 01           0b            Downstream Posted Write Data Parity Error: This bit is set to a 1b and P_SERR# 
+**									is conditionally asserted when a data parity error is detected by bridge 
+**										while attempting to retire a PMW downstream.
+** 00           0b                     Primary Bus Address Parity Error: This bit is set to a 1b and P_SERR# is conditionally asserted 
+**										when bridge detects an address parity error on the primary bus.
 **==================================================================================
 **  0x51-0x50: Bridge Multi-Transaction Timer Register - BMTTR
 ** Bit       Default                       Description
 ** 15:13       000b                          Reserved
-** 12:10       000b                          GRANT# Duration: This field specifies the count (PCI clocks) that a secondary bus master has its grant maintained in order to enable multiple transactions to execute within the same arbitration cycle.
+** 12:10       000b                          GRANT# Duration: This field specifies the count (PCI clocks) 
+**							that a secondary bus master has its grant maintained in order to enable 
+**								multiple transactions to execute within the same arbitration cycle.
 **                                                    Bit[02:00] GNT# Extended Duration
 **                                                               000 MTT Disabled (Default=no GNT# extension)
 **                                                               001 16 clocks
@@ -1334,26 +1350,45 @@ struct _SENSE_DATA
 **                                                               110 Invalid (treated as 000)
 **                                                               111 Invalid (treated as 000)
 ** 09:08        00b                          Reserved
-** 07:00        FFh                                 MTT Mask: This field enables/disables MTT usage for each REQ#/GNT# pair supported by bridge secondary arbiter. 
+** 07:00        FFh                                 MTT Mask: This field enables/disables MTT usage for each REQ#/GNT# 
+**								pair supported by bridge secondary arbiter. 
 **                                                            Bit(7) corresponds to SATU internal REQ#/GNT# pair,
 **                                                            bit(6) corresponds to bridge internal REQ#/GNT# pair, 
 **                                                            bit(5) corresponds to REQ#/GNT#(5) pair, etc.
-**                                                  When a given bit is set to 1b, its corresponding REQ#/GNT# pair is enabled for MTT functionality as determined by bits(12:10) of this register.
+**                                                  When a given bit is set to 1b, its corresponding REQ#/GNT# 
+**								pair is enabled for MTT functionality as determined by bits(12:10) of this register.
 **                                                  When a given bit is cleared to 0b, its corresponding REQ#/GNT# pair is disabled from using the MTT.
 **==================================================================================
 **  0x53-0x52: Read Prefetch Policy Register - RPPR
 ** Bit       Default                       Description
-** 15:13       000b                    ReRead_Primary Bus: 3-bit field indicating the multiplication factor to be used in calculating the number of bytes to prefetch from the secondary bus interface on subsequent PreFetch operations given that the read demands were not satisfied using the FirstRead parameter.
-**                                           The default value of 000b correlates to: Command Type Hardwired pre-fetch amount Memory Read 4 DWORDs Memory Read Line 1 cache lines Memory Read Multiple 2 cache lines
-** 12:10       000b                 FirstRead_Primary Bus: 3-bit field indicating the multiplication factor to be used in calculating the number of bytes to prefetch from the secondary bus interface on the initial PreFetch operation.
-**                                           The default value of 000b correlates to: Command Type Hardwired pre-fetch amount Memory Read 4 DWORDs Memory Read Line 1 cache line Memory Read Multiple 2 cache lines
-** 09:07       010b                  ReRead_Secondary Bus: 3-bit field indicating the multiplication factor to be used in calculating the number of bytes to prefetch from the primary bus interface on subsequent PreFetch operations given that the read demands were not satisfied using the FirstRead parameter.
-**                                           The default value of 010b correlates to: Command Type Hardwired pre-fetch amount Memory Read 3 cache lines Memory Read Line 3 cache lines Memory Read Multiple 6 cache lines
-** 06:04       000b               FirstRead_Secondary Bus: 3-bit field indicating the multiplication factor to be used in calculating the number of bytes to prefetch from the primary bus interface on the initial PreFetch operation.
-**                                           The default value of 000b correlates to: Command Type Hardwired pre-fetch amount Memory Read 4 DWORDs Memory Read Line 1 cache line Memory Read Multiple 2 cache lines
-** 03:00      1111b                Staged Prefetch Enable: This field enables/disables the FirstRead/ReRead pre-fetch algorithm for the secondary and the primary bus interfaces.
+** 15:13       000b                    ReRead_Primary Bus: 3-bit field indicating the multiplication factor 
+**							to be used in calculating the number of bytes to prefetch from the secondary bus interface on **								subsequent PreFetch operations given that the read demands were not satisfied 
+**									using the FirstRead parameter.
+**                                           The default value of 000b correlates to: Command Type Hardwired pre-fetch amount Memory Read 4 DWORDs 
+**							Memory Read Line 1 cache lines Memory Read Multiple 2 cache lines
+** 12:10       000b                 FirstRead_Primary Bus: 3-bit field indicating the multiplication factor to be used in calculating 
+**							the number of bytes to prefetch from the secondary bus interface 
+**								on the initial PreFetch operation.
+**                                           The default value of 000b correlates to: Command Type Hardwired pre-fetch amount Memory Read 4 DWORDs 
+**								Memory Read Line 1 cache line Memory Read Multiple 2 cache lines
+** 09:07       010b                  ReRead_Secondary Bus: 3-bit field indicating the multiplication factor to be used 
+**								in calculating the number of bytes to prefetch from the primary 
+**									bus interface on subsequent PreFetch operations given 
+**										that the read demands were not satisfied using 
+**											the FirstRead parameter.
+**                                           The default value of 010b correlates to: Command Type Hardwired pre-fetch a
+**							mount Memory Read 3 cache lines Memory Read Line 3 cache lines 
+**								Memory Read Multiple 6 cache lines
+** 06:04       000b               FirstRead_Secondary Bus: 3-bit field indicating the multiplication factor to be used 
+**							in calculating the number of bytes to prefetch from 
+**								the primary bus interface on the initial PreFetch operation.
+**                                           The default value of 000b correlates to: Command Type Hardwired pre-fetch amount 
+**							Memory Read 4 DWORDs Memory Read Line 1 cache line Memory Read Multiple 2 cache lines
+** 03:00      1111b                Staged Prefetch Enable: This field enables/disables the FirstRead/ReRead pre-fetch 
+**							algorithm for the secondary and the primary bus interfaces.
 **                                                         Bit(3) is a ganged enable bit for REQ#/GNT#[7:3], and bits(2:0) provide individual
-**                                                                            enable bits for REQ#/GNT#[2:0]. (bit(2) is the enable bit for REQ#/GNT#[2], etc...)
+**                                                                            enable bits for REQ#/GNT#[2:0]. 
+**							  (bit(2) is the enable bit for REQ#/GNT#[2], etc...)
 **                                                                            1b: enables the staged pre-fetch feature
 **                                                                            0b: disables staged pre-fetch,
 **                                                         and hardwires read pre-fetch policy to the following for 
@@ -1364,11 +1399,14 @@ struct _SENSE_DATA
 **                                                                                      Memory Read 4 DWORDs
 **                                                                                      Memory Read Line 1 cache line
 **                                                                                      Memory Read Multiple 2 cache lines
-** NOTE: When the starting address is not cache line aligned, bridge pre-fetches Memory Read line commands only to the next higher cache line boundary.For non-cache line aligned Memory Read Multiple commands bridge pre-fetches only to the second cache line boundary encountered.
+** NOTE: When the starting address is not cache line aligned, bridge pre-fetches Memory Read line commands 
+** only to the next higher cache line boundary.For non-cache line aligned Memory Read 
+** Multiple commands bridge pre-fetches only to the second cache line boundary encountered.
 **==================================================================================
 **  0x55-0x54: P_SERR# Assertion Control - SERR_CTL
 ** Bit       Default                       Description
-**  15          0b   Upstream Delayed Transaction Discard Timer Expired: Dictates the bridge behavior in response to its discarding of a delayed transaction that was initiated from the primary bus.
+**  15          0b   Upstream Delayed Transaction Discard Timer Expired: Dictates the bridge behavior 
+** 						in response to its discarding of a delayed transaction that was initiated from the primary bus.
 **                                                                       0b=bridge asserts P_SERR#.
 **                                                                       1b=bridge does not assert P_SERR#
 **  14          0b   Upstream Delayed/Split Read Watchdog Timer Expired: Dictates bridge behavior following expiration of the subject watchdog timer.
@@ -1377,22 +1415,28 @@ struct _SENSE_DATA
 **  13          0b   Upstream Delayed/Split Write Watchdog Timer Expired: Dictates bridge behavior following expiration of the subject watchdog timer.
 **                                                                       0b=bridge asserts P_SERR#.
 **                                                                       1b=bridge does not assert P_SERR#
-**  12          0b             Master Abort during Upstream Posted Write: Dictates bridge behavior following its having detected a Master Abort while attempting to retire one of its PMWs upstream.
+**  12          0b             Master Abort during Upstream Posted Write: Dictates bridge behavior following 
+**						its having detected a Master Abort while attempting to retire one of its PMWs upstream.
 **                                                                       0b=bridge asserts P_SERR#.
 **                                                                       1b=bridge does not assert P_SERR#
-**  11          0b             Target Abort during Upstream Posted Write: Dictates bridge behavior following its having been terminated with Target Abort while attempting to retire one of its PMWs upstream.
+**  11          0b             Target Abort during Upstream Posted Write: Dictates bridge behavior following 
+**						its having been terminated with Target Abort while attempting to retire one of its PMWs upstream.
 **                                                                       0b=bridge asserts P_SERR#.
 **                                                                       1b=bridge does not assert P_SERR#
-**  10          0b                  Upstream Posted Write Data Discarded: Dictates bridge behavior in the event that it discards an upstream posted write transaction.
+**  10          0b                  Upstream Posted Write Data Discarded: Dictates bridge behavior in the event that 
+**						it discards an upstream posted write transaction.
 **                                                                       0b=bridge asserts P_SERR#.
 **                                                                       1b=bridge does not assert P_SERR#
-**  09          0b               Upstream Posted Write Data Parity Error: Dictates bridge behavior when a data parity error is detected while attempting to retire on of its PMWs upstream.
+**  09          0b               Upstream Posted Write Data Parity Error: Dictates bridge behavior 
+**						when a data parity error is detected while attempting to retire on of its PMWs upstream.
 **                                                                       0b=bridge asserts P_SERR#.
 **                                                                       1b=bridge does not assert P_SERR#
-**  08          0b                    Secondary Bus Address Parity Error: This bit dictates bridge behavior when it detects an address parity error on the secondary bus.
+**  08          0b                    Secondary Bus Address Parity Error: This bit dictates bridge behavior 
+**						when it detects an address parity error on the secondary bus.
 **                                                                       0b=bridge asserts P_SERR#.
 **                                                                       1b=bridge does not assert P_SERR#
-**  07          0b  Downstream Delayed Transaction Discard Timer Expired: Dictates bridge behavior in response to its discarding of a delayed transaction that was initiated on the secondary bus.
+**  07          0b  Downstream Delayed Transaction Discard Timer Expired: Dictates bridge behavior in response to 
+**						its discarding of a delayed transaction that was initiated on the secondary bus.
 **                                                                       0b=bridge asserts P_SERR#.
 **                                                                       1b=bridge does not assert P_SERR#
 **  06          0b  Downstream Delayed/Split Read Watchdog Timer Expired: Dictates bridge behavior following expiration of the subject watchdog timer.
@@ -1401,19 +1445,24 @@ struct _SENSE_DATA
 **  05          0b Downstream Delayed/Split Write Watchdog Timer Expired: Dictates bridge behavior following expiration of the subject watchdog timer.
 **                                                                       0b=bridge asserts P_SERR#.
 **                                                                       1b=bridge does not assert P_SERR#
-**  04          0b           Master Abort during Downstream Posted Write: Dictates bridge behavior following its having detected a Master Abort while attempting to retire one of its PMWs downstream.
+**  04          0b           Master Abort during Downstream Posted Write: Dictates bridge behavior following 
+**						its having detected a Master Abort while attempting to retire one of its PMWs downstream.
 **                                                                       0b=bridge asserts P_SERR#.
 **                                                                       1b=bridge does not assert P_SERR#
-**  03          0b           Target Abort during Downstream Posted Write: Dictates bridge behavior following its having been terminated with Target Abort while attempting to retire one of its PMWs downstream.
+**  03          0b           Target Abort during Downstream Posted Write: Dictates bridge behavior following 
+**						its having been terminated with Target Abort while attempting to retire one of its PMWs downstream.
 **                                                                       0b=bridge asserts P_SERR#.
 **                                                                       1b=bridge does not assert P_SERR#
-**  02          0b                Downstream Posted Write Data Discarded: Dictates bridge behavior in the event that it discards a downstream posted write transaction.
+**  02          0b                Downstream Posted Write Data Discarded: Dictates bridge behavior in the event 
+**						that it discards a downstream posted write transaction.
 **                                                                       0b=bridge asserts P_SERR#.
 **                                                                       1b=bridge does not assert P_SERR#
-**  01          0b             Downstream Posted Write Data Parity Error: Dictates bridge behavior when a data parity error is detected while attempting to retire on of its PMWs downstream.
+**  01          0b             Downstream Posted Write Data Parity Error: Dictates bridge behavior 
+**						when a data parity error is detected while attempting to retire on of its PMWs downstream.
 **                                                                       0b=bridge asserts P_SERR#.
 **                                                                       1b=bridge does not assert P_SERR#
-**  00          0b                      Primary Bus Address Parity Error: This bit dictates bridge behavior when it detects an address parity error on the primary bus.
+**  00          0b                      Primary Bus Address Parity Error: This bit dictates bridge behavior 
+**						when it detects an address parity error on the primary bus.
 **                                                                       0b=bridge asserts P_SERR#.
 **                                                                       1b=bridge does not assert P_SERR#
 **===============================================================================
@@ -1422,44 +1471,68 @@ struct _SENSE_DATA
 ** 07           1                          							 Reserved
 ** 06           -                          							 Reserved - value indeterminate
 ** 05:02        0                          							 Reserved
-** 01      Varies with External State of S_133EN at PCI Bus Reset    Secondary Bus Max Frequency Setting: This bit reflect captured S_133EN strap, indicating the maximum secondary bus clock frequency when in PCI-X mode.
+** 01      Varies with External State of S_133EN at PCI Bus Reset    Secondary Bus Max Frequency Setting:
+**									 This bit reflect captured S_133EN strap, 
+**										indicating the maximum secondary bus clock frequency when in PCI-X mode.
 **                                                                   Max Allowable Secondary Bus Frequency
-**																									S_133EN PCI-X Mode
-**																									0 100 MHz
-**																									1 133 MH
+**																			**						S_133EN PCI-X Mode
+**																			**						0 100 MHz
+**																			**						1 133 MH
 ** 00          0b                                                    Reserved
 **===============================================================================
 **  0x59-0x58: Secondary Decode Enable Register - SDER
 ** Bit       Default                       							Description
 ** 15:03      FFF1h                        							 Preserved.
-** 02     Varies with External State of PRIVMEM at PCI Bus Reset   Private Memory Space Enable - when set, bridge overrides its secondary inverse decode logic and not
+** 02     Varies with External State of PRIVMEM at PCI Bus Reset   Private Memory Space Enable - when set, 
+**									bridge overrides its secondary inverse decode logic and not
 **                                                                 forward upstream any secondary bus initiated DAC Memory transactions with AD(63)=1b.
-**                                                                 This creates a private memory space on the Secondary PCI bus that allows peer-to-peer transactions.
+**                                                                 This creates a private memory space on the Secondary PCI bus 
+**									that allows peer-to-peer transactions.
 ** 01:00      10 2                                                   Preserved.
 **===============================================================================
 **  0x5D-0x5C: Secondary IDSEL Select Register - SISR
 ** Bit       Default                       							Description
 ** 15:10     000000 2                      							 Reserved.
-** 09    Varies with External State of PRIVDEV at PCI Bus Reset     AD25- IDSEL Disable - When this bit is set, AD25 is deasserted for any possible Type 1 to Type 0 conversion.
-**                                                                                        When this bit is clear, AD25 is asserted when Primary addresses AD[15:11]=01001 2 during a Type 1 to Type 0 conversion.
-** 08    Varies with External State of PRIVDEV at PCI Bus Reset     AD24- IDSEL Disable - When this bit is set, AD24 is deasserted for any possible Type 1 to Type 0 conversion.
-**                                                                                        When this bit is clear, AD24 is asserted when Primary addresses AD[15:11]=01000 2 during a Type 1 to Type 0 conversion.
-** 07    Varies with External State of PRIVDEV at PCI Bus Reset     AD23- IDSEL Disable - When this bit is set, AD23 is deasserted for any possible Type 1 to Type 0 conversion. 
-**                                                                                        When this bit is clear, AD23 is asserted when Primary addresses AD[15:11]=00111 2 during a Type 1 to Type 0 conversion.
-** 06    Varies with External State of PRIVDEV at PCI Bus Reset     AD22- IDSEL Disable - When this bit is set, AD22 is deasserted for any possible Type 1 to Type 0 conversion.
-**                                                                                        When this bit is clear, AD22 is asserted when Primary addresses AD[15:11]=00110 2 during a Type 1 to Type 0 conversion.
-** 05    Varies with External State of PRIVDEV at PCI Bus Reset     AD21- IDSEL Disable - When this bit is set, AD21 is deasserted for any possible Type 1 to Type 0 conversion.
-**                                                                                        When this bit is clear, AD21 is asserted when Primary addresses AD[15:11]=00101 2 during a Type 1 to Type 0 conversion.
-** 04    Varies with External State of PRIVDEV at PCI Bus Reset     AD20- IDSEL Disable - When this bit is set, AD20 is deasserted for any possible Type 1 to Type 0 conversion.
-**                                                                                        When this bit is clear, AD20 is asserted when Primary addresses AD[15:11]=00100 2 during a Type 1 to Type 0 conversion.
-** 03    Varies with External State of PRIVDEV at PCI Bus Reset     AD19- IDSEL Disable - When this bit is set, AD19 is deasserted for any possible Type 1 to Type 0 conversion.
-**                                                                                        When this bit is clear, AD19 is asserted when Primary addresses AD[15:11]=00011 2 during a Type 1 to Type 0 conversion.
-** 02    Varies with External State of PRIVDEV at PCI Bus Reset     AD18- IDSEL Disable - When this bit is set, AD18 is deasserted for any possible Type 1 to Type 0 conversion.
-**                                                                                        When this bit is clear, AD18 is asserted when Primary addresses AD[15:11]=00010 2 during a Type 1 to Type 0 conversion.
-** 01    Varies with External State of PRIVDEV at PCI Bus Reset     AD17- IDSEL Disable - When this bit is set, AD17 is deasserted for any possible Type 1 to Type 0 conversion.
-**                                                                                        When this bit is clear, AD17 is asserted when Primary addresses AD[15:11]=00001 2 during a Type 1 to Type 0 conversion.
-** 00    Varies with External State of PRIVDEV at PCI Bus Reset     AD16- IDSEL Disable - When this bit is set, AD16 is deasserted for any possible Type 1 to Type 0 conversion.
-**                                                                                        When this bit is clear, AD16 is asserted when Primary addresses AD[15:11]=00000 2 during a Type 1 to Type 0 conversion.
+** 09    Varies with External State of PRIVDEV at PCI Bus Reset     AD25- IDSEL Disable - When this bit is set, 
+**							AD25 is deasserted for any possible Type 1 to Type 0 conversion.
+**                                                                                        When this bit is clear, 
+**							AD25 is asserted when Primary addresses AD[15:11]=01001 2 during a Type 1 to Type 0 conversion.
+** 08    Varies with External State of PRIVDEV at PCI Bus Reset     AD24- IDSEL Disable - When this bit is set, 
+**							AD24 is deasserted for any possible Type 1 to Type 0 conversion.
+**                                                                                        When this bit is clear, 
+**							AD24 is asserted when Primary addresses AD[15:11]=01000 2 during a Type 1 to Type 0 conversion.
+** 07    Varies with External State of PRIVDEV at PCI Bus Reset     AD23- IDSEL Disable - When this bit is set, 
+**							AD23 is deasserted for any possible Type 1 to Type 0 conversion. 
+**                                                                                        When this bit is clear, 
+**							AD23 is asserted when Primary addresses AD[15:11]=00111 2 during a Type 1 to Type 0 conversion.
+** 06    Varies with External State of PRIVDEV at PCI Bus Reset     AD22- IDSEL Disable - When this bit is set, 
+**							AD22 is deasserted for any possible Type 1 to Type 0 conversion.
+**                                                                                        When this bit is clear, 
+**							AD22 is asserted when Primary addresses AD[15:11]=00110 2 during a Type 1 to Type 0 conversion.
+** 05    Varies with External State of PRIVDEV at PCI Bus Reset     AD21- IDSEL Disable - When this bit is set, 
+**							AD21 is deasserted for any possible Type 1 to Type 0 conversion.
+**                                                                                        When this bit is clear, 
+**							AD21 is asserted when Primary addresses AD[15:11]=00101 2 during a Type 1 to Type 0 conversion.
+** 04    Varies with External State of PRIVDEV at PCI Bus Reset     AD20- IDSEL Disable - When this bit is set, 
+**							AD20 is deasserted for any possible Type 1 to Type 0 conversion.
+**                                                                                        When this bit is clear, 
+**							AD20 is asserted when Primary addresses AD[15:11]=00100 2 during a Type 1 to Type 0 conversion.
+** 03    Varies with External State of PRIVDEV at PCI Bus Reset     AD19- IDSEL Disable - When this bit is set, 
+**							AD19 is deasserted for any possible Type 1 to Type 0 conversion.
+**                                                                                        When this bit is clear,
+**							AD19 is asserted when Primary addresses AD[15:11]=00011 2 during a Type 1 to Type 0 conversion.
+** 02    Varies with External State of PRIVDEV at PCI Bus Reset     AD18- IDSEL Disable - When this bit is set, 
+**							AD18 is deasserted for any possible Type 1 to Type 0 conversion.
+**                                                                                        When this bit is clear,
+**							AD18 is asserted when Primary addresses AD[15:11]=00010 2 during a Type 1 to Type 0 conversion.
+** 01    Varies with External State of PRIVDEV at PCI Bus Reset     AD17- IDSEL Disable - When this bit is set, 
+**							AD17 is deasserted for any possible Type 1 to Type 0 conversion.
+**                                                                                        When this bit is clear, 
+**							AD17 is asserted when Primary addresses AD[15:11]=00001 2 during a Type 1 to Type 0 conversion.
+** 00    Varies with External State of PRIVDEV at PCI Bus Reset     AD16- IDSEL Disable - When this bit is set, 
+**							AD16 is deasserted for any possible Type 1 to Type 0 conversion.
+**                                                                                        When this bit is clear, 
+**							AD16 is asserted when Primary addresses AD[15:11]=00000 2 during a Type 1 to Type 0 conversion.
 **************************************************************************
 */
 /*
@@ -1515,9 +1588,11 @@ struct _SENSE_DATA
 **  0xE1-0xE0: Power Management Control / Status - Register - PMCSR
 ** Bit       Default                       Description
 ** 15:09       00h                          Reserved
-** 08          0b                          PME_Enable: This bit, when set to 1b enables bridge to assert PME#. Note that bridge never has occasion to assert PME# and implements this dummy R/W bit only for the purpose of working around an OS PCI-PM bug.
+** 08          0b                          PME_Enable: This bit, when set to 1b enables bridge to assert PME#. 
+**	Note that bridge never has occasion to assert PME# and implements this dummy R/W bit only for the purpose of working around an OS PCI-PM bug.
 ** 07:02       00h                          Reserved
-** 01:00       00                Power State (PSTATE): This 2-bit field is used both to determine the current power state of a function and to set the Function into a new power state.
+** 01:00       00                Power State (PSTATE): This 2-bit field is used both to determine the current power state of 
+**									a function and to set the Function into a new power state.
 **  													00 - D0 state
 **  													01 - D1 state
 **  													10 - D2 state
@@ -1526,7 +1601,8 @@ struct _SENSE_DATA
 **  0xE2: Power Management Control / Status PCI to PCI Bridge Support - PMCSR_BSE
 ** Bit       Default                       Description
 ** 07          0         Bus Power/Clock Control Enable (BPCC_En): Indicates that the bus power/clock control policies have been disabled.
-** 06          0                B2/B3 support for D3 Hot (B2_B3#): The state of this bit determines the action that is to occur as a direct result of programming the function to D3 hot.
+** 06          0                B2/B3 support for D3 Hot (B2_B3#): The state of this bit determines the action that 
+**									is to occur as a direct result of programming the function to D3 hot.
 **                                                                 This bit is only meaningful when bit 7 (BPCC_En) is a ¡§1¡¨.
 ** 05:00     00h                            Reserved
 **===============================================================================
@@ -1548,40 +1624,52 @@ struct _SENSE_DATA
 ** 15:09       00h                          Reserved
 ** 08:06       Xxx                Secondary Clock Frequency (SCF): This field is set with the frequency of the secondary bus. 
 **                                                                 The values are:
-** 																					BitsMax FrequencyClock Period
-** 																					000PCI ModeN/A
-** 																					00166 15
-** 																					01010010
-** 																					0111337.5
-** 																					1xxreservedreserved
-** 																					The default value for this register is the operating frequency of the secondary bus
+** 																			**		BitsMax FrequencyClock Period
+** 																			**		000PCI ModeN/A
+** 																			**		00166 15
+** 																			**		01010010
+** 																			**		0111337.5
+** 																			**		1xxreservedreserved
+** 																			**		The default value for this register is the operating frequency of the secondary bus
 ** 05           0b                   Split Request Delayed. (SRD):  This bit is supposed to be set by a bridge when it cannot forward a transaction on the
-** 																	secondary bus to the primary bus because there is not enough room within the limit
-** 																	specified in the Split Transaction Commitment Limit field in the Downstream Split
-** 																	Transaction Control register. The bridge does not set this bit.
-** 04           0b                 Split Completion Overrun (SCO): This bit is supposed to be set when a bridge terminates a Split Completion on the secondary bus with retry or Disconnect at next ADB because its buffers are full. The bridge does not set this bit.
-** 03           0b              Unexpected Split Completion (USC): This bit is set when an unexpected split completion with a requester ID equal to bridge secondary bus number, device number 00h, and function number 0 is received on the secondary interface. This bit is cleared by software writing a '1'.
-** 02           0b               Split Completion Discarded (SCD): This bit is set when bridge discards a split completion moving toward the secondary bus because the requester would not accept it. This bit cleared by software writing a '1'.
+** 						secondary bus to the primary bus because there is not enough room within the limit
+** 						specified in the Split Transaction Commitment Limit field in the Downstream Split
+** 						Transaction Control register. The bridge does not set this bit.
+** 04           0b                 Split Completion Overrun (SCO): This bit is supposed to be set when a bridge terminates a Split Completion on the **	**						secondary bus with retry or Disconnect at next ADB because its buffers are full. 
+**						The bridge does not set this bit.
+** 03           0b              Unexpected Split Completion (USC): This bit is set when an unexpected split completion with a requester ID 
+**						equal to bridge secondary bus number, device number 00h,
+**						and function number 0 is received on the secondary interface. 
+**						This bit is cleared by software writing a '1'.
+** 02           0b               Split Completion Discarded (SCD): This bit is set 
+**						when bridge discards a split completion moving toward the secondary bus 
+**						because the requester would not accept it. This bit cleared by software writing a '1'.
 ** 01           1b                                133 MHz Capable: Indicates that bridge is capable of running its secondary bus at 133 MHz
 ** 00           1b                            64-bit Device (D64): Indicates the width of the secondary bus as 64-bits.
 **===============================================================================
 **  0xF7-0xF6-0xf5-0xF4: PCI-X Bridge Status - PX_BSTS
 ** Bit       Default      								                 Description
 ** 31:22        0         								                  Reserved
-** 21           0         								        Split Request Delayed (SRD): This bit does not be set by bridge.
-** 20           0         								     Split Completion Overrun (SCO): This bit does not be set by bridge because bridge throttles traffic on the completion side.
-** 19           0         								  Unexpected Split Completion (USC): The bridge sets this bit to 1b when it encounters a corrupted Split Completion, possibly with an inconsistent remaining byte count.Software clears this bit by writing a 1b to it.
-** 18           0         								   Split Completion Discarded (SCD): The bridge sets this bit to 1b when it has discarded a Split Completion.Software clears this bit by writing a 1b to it.
-** 17           1         								                    133 MHz Capable: This bit indicates that the bridge primary interface is capable of 133 MHz operation in PCI-X mode.
-**                        								                                     0=The maximum operating frequency is 66 MHz.
-**                        								                                     1=The maximum operating frequency is 133 MHz.
+** 21           0         							Split Request Delayed (SRD): This bit does not be set by bridge.
+** 20           0         							Split Completion Overrun (SCO): This bit does not be set by bridge
+**										because bridge throttles traffic on the completion side.
+** 19           0         							Unexpected Split Completion (USC): The bridge sets this bit to 1b 
+**										when it encounters a corrupted Split Completion, possibly with an **	**										inconsistent remaining byte count.Software clears 
+**										this bit by writing a 1b to it.
+** 18           0         							Split Completion Discarded (SCD): The bridge sets this bit to 1b 
+**										when it has discarded a Split Completion.Software clears this bit by **	**										writing a 1b to it.
+** 17           1         							133 MHz Capable: This bit indicates that the bridge primary interface is **										capable of 133 MHz operation in PCI-X mode.
+**										0=The maximum operating frequency is 66 MHz.
+**										1=The maximum operating frequency is 133 MHz.
 ** 16 Varies with the external state of P_32BITPCI# at PCI Bus Reset    64-bit Device (D64): Indicates bus width of the Primary PCI bus interface.
-**																							 0=Primary Interface is connected as a 32-bit PCI bus.
-**																							 1=Primary Interface is connected as a 64-bit PCI bus.
-** 15:08       00h                                                        Bus Number (BNUM): This field is simply an alias to the PBN field of the BNUM register at offset 18h.
-**                                                                                           Apparently it was deemed necessary reflect it here for diagnostic purposes.
-** 07:03       1fh                                                     Device Number (DNUM): Indicates which IDSEL bridge consumes. May be updated whenever a PCI-X
-** 																							 configuration write cycle that targets bridge scores a hit.
+**										 0=Primary Interface is connected as a 32-bit PCI bus.
+**										 1=Primary Interface is connected as a 64-bit PCI bus.
+** 15:08       00h 								Bus Number (BNUM): This field is simply an alias to the PBN field 
+**											of the BNUM register at offset 18h.
+**								Apparently it was deemed necessary reflect it here for diagnostic purposes.
+** 07:03       1fh						Device Number (DNUM): Indicates which IDSEL bridge consumes. 
+**								May be updated whenever a PCI-X
+**								 configuration write cycle that targets bridge scores a hit.
 ** 02:00        0h                                                   Function Number (FNUM): The bridge Function #
 **===============================================================================
 **  0xFB-0xFA-0xF9-0xF8: PCI-X Upstream Split Transaction Control - PX_USTC
@@ -1593,22 +1681,23 @@ struct _SENSE_DATA
 **                                                                 A value of 003Eh or greater enables the bridge to forward all Split Requests of any
 **                                                                 size regardless of the amount of buffer space available.
 ** 15:00      003Eh              Split Transaction Capacity (STC): This read-only field indicates the size of the buffer (number of ADQs) for storing
-** 																   split completions. This register controls behavior of the bridge buffers for forwarding
-** 																   Split Transactions from a primary bus requester to a secondary bus completer.
-** 																   The default value of 003Eh indicates there is available buffer space for 62 ADQs (7936 bytes).
+** 				   split completions. This register controls behavior of the bridge buffers for forwarding
+** 				   Split Transactions from a primary bus requester to a secondary bus completer.
+** 				   The default value of 003Eh indicates there is available buffer space for 62 ADQs (7936 bytes).
 **===============================================================================
 **  0xFF-0xFE-0xFD-0xFC: PCI-X Downstream Split Transaction Control - PX_DSTC
 ** Bit       Default                       Description
 ** 31:16      003Eh                 Split Transaction Limit (STL):  This register indicates the size of the commitment limit in units of ADQs.
-**																	Software is permitted to program this register to any value greater than or equal to
-**																	the contents of the Split Transaction Capacity register. A value less than the contents
-**																	of the Split Transaction Capacity register causes unspecified results.
-**																	A value of 003Eh or greater enables the bridge to forward all Split Requests of any
-**																	size regardless of the amount of buffer space available.
+**							Software is permitted to program this register to any value greater than or equal to
+**							the contents of the Split Transaction Capacity register. A value less than the contents
+**							of the Split Transaction Capacity register causes unspecified results.
+**							A value of 003Eh or greater enables the bridge to forward all Split Requests of any
+**							size regardless of the amount of buffer space available.
 ** 15:00      003Eh              Split Transaction Capacity (STC): This read-only field indicates the size of the buffer (number of ADQs) for storing
 **                                                                 split completions. This register controls behavior of the bridge buffers for forwarding
 **                                                                 Split Transactions from a primary bus requester to a secondary bus completer.
-**                                                                 The default value of 003Eh indicates there is available buffer space for 62 ADQs (7936 bytes).
+**                                                                 The default value of 003Eh indicates there is available buffer space for 62 ADQs 
+**									(7936 bytes).
 **************************************************************************
 */
 
@@ -1662,8 +1751,10 @@ struct _SENSE_DATA
 **  ATU Vendor ID Register - ATUVID
 **  -----------------------------------------------------------------
 **  Bit       Default                       Description
-**  15:00      8086H (0x17D3)               ATU Vendor ID - This is a 16-bit value assigned to Intel. This register, combined with the DID, uniquely identify the PCI device. 
-**                                                          Access type is Read/Write to allow the 80331 to configure the register as a different vendor ID to simulate the interface of a standard mechanism currently used by existing application software.
+**  15:00      8086H (0x17D3)               ATU Vendor ID - This is a 16-bit value assigned to Intel. 
+**						This register, combined with the DID, uniquely identify the PCI device. 
+**      Access type is Read/Write to allow the 80331 to configure the register as a different vendor ID 
+**	to simulate the interface of a standard mechanism currently used by existing application software.
 ***********************************************************************************
 */
 #define     ARCMSR_ATU_VENDOR_ID_REG		         0x00    /*word*/
@@ -1672,7 +1763,8 @@ struct _SENSE_DATA
 **  ATU Device ID Register - ATUDID
 **  -----------------------------------------------------------------
 **  Bit       Default                       Description
-**  15:00      0336H (0x1110)               ATU Device ID - This is a 16-bit value assigned to the ATU. This ID, combined with the VID, uniquely identify any PCI device.
+**  15:00      0336H (0x1110)               ATU Device ID - This is a 16-bit value assigned to the ATU. 
+**	This ID, combined with the VID, uniquely identify any PCI device.
 ***********************************************************************************
 */
 #define     ARCMSR_ATU_DEVICE_ID_REG		         0x02    /*word*/
@@ -1685,18 +1777,30 @@ struct _SENSE_DATA
 **  10           0                          Interrupt Disable - This bit disables 80331 from asserting the ATU interrupt signal.
 **                                                              0=enables the assertion of interrupt signal.
 **                                                              1=disables the assertion of its interrupt signal.
-**  09          0 2                         Fast Back to Back Enable - When cleared, the ATU interface is not allowed to generate fast back-to-back cycles on its bus. Ignored when operating in the PCI-X mode.
+**  09          0 2                         Fast Back to Back Enable - When cleared, 
+**						the ATU interface is not allowed to generate fast back-to-back cycles on its bus.
+**						Ignored when operating in the PCI-X mode.
 **  08          0 2                         SERR# Enable - When cleared, the ATU interface is not allowed to assert SERR# on the PCI interface.
 **  07          1 2                         Address/Data Stepping Control - Address stepping is implemented for configuration transactions. The
-**                                          ATU inserts 2 clock cycles of address stepping for Conventional Mode and 4 clock cycles of address stepping for PCI-X mode.
-**  06          0 2                         Parity Error Response - When set, the ATU takes normal action when a parity error is detected. When cleared, parity checking is disabled.
-**  05          0 2                         VGA Palette Snoop Enable - The ATU interface does not support I/O writes and therefore, does not perform VGA palette snooping.
-**  04          0 2                         Memory Write and Invalidate Enable - When set, ATU may generate MWI commands. When clear, ATU use Memory Write commands instead of MWI. Ignored when operating in the PCI-X mode.
-**  03          0 2                         Special Cycle Enable - The ATU interface does not respond to special cycle commands in any way. Not implemented and a reserved bit field.
-**  02          0 2                         Bus Master Enable - The ATU interface can act as a master on the PCI bus. When cleared, disables the device from generating PCI accesses. When set, allows the device to behave as a PCI bus master.
-**                                          When operating in the PCI-X mode, ATU initiates a split completion transaction regardless of the state of this bit.
-**  01          0 2                         Memory Enable - Controls the ATU interface¡¦s response to PCI memory addresses. When cleared, the ATU interface does not respond to any memory access on the PCI bus.
-**  00          0 2                         I/O Space Enable - Controls the ATU interface response to I/O transactions. Not implemented and a reserved bit field.
+**                                          ATU inserts 2 clock cycles of address stepping for Conventional Mode and 4 clock cycles 
+**						of address stepping for PCI-X mode.
+**  06          0 2                         Parity Error Response - When set, the ATU takes normal action when a parity error 
+**						is detected. When cleared, parity checking is disabled.
+**  05          0 2                         VGA Palette Snoop Enable - The ATU interface does not support I/O writes and therefore, 
+**						does not perform VGA palette snooping.
+**  04          0 2                         Memory Write and Invalidate Enable - When set, ATU may generate MWI commands. 
+**						When clear, ATU use Memory Write commands instead of MWI. Ignored when operating in the PCI-X mode.
+**  03          0 2                         Special Cycle Enable - The ATU interface does not respond to special cycle commands in any way. 
+**						Not implemented and a reserved bit field.
+**  02          0 2                         Bus Master Enable - The ATU interface can act as a master on the PCI bus. 
+**						When cleared, disables the device from generating PCI accesses. 
+**						When set, allows the device to behave as a PCI bus master.
+**                                          When operating in the PCI-X mode, ATU initiates a split completion transaction regardless 
+**						of the state of this bit.
+**  01          0 2                         Memory Enable - Controls the ATU interface¡¦s response to PCI memory addresses. 
+**						When cleared, the ATU interface does not respond to any memory access on the PCI bus.
+**  00          0 2                         I/O Space Enable - Controls the ATU interface response to I/O transactions. 
+**						Not implemented and a reserved bit field.
 ***********************************************************************************
 */
 #define     ARCMSR_ATU_COMMAND_REG		         0x04    /*word*/
@@ -1706,17 +1810,20 @@ struct _SENSE_DATA
 **  -----------------------------------------------------------------
 **  Bit       Default                       Description
 **  15          0 2                         Detected Parity Error - set when a parity error is detected in data received by the ATU on the PCI bus even
-**  										when the ATUCMD register¡¦s Parity Error Response bit is cleared. Set under the following conditions:
+**  					when the ATUCMD register¡¦s Parity Error Response bit is cleared. Set under the following conditions:
 **  										¡E Write Data Parity Error when the ATU is a target (inbound write).
 **  										¡E Read Data Parity Error when the ATU is a requester (outbound read).
-**  										¡E Any Address or Attribute (PCI-X Only) Parity Error on the Bus (including one generated by the ATU).
+**  										¡E Any Address or Attribute (PCI-X Only) Parity Error on the Bus **	** **  								(including one generated by the ATU).
 **  14          0 2                         SERR# Asserted - set when SERR# is asserted on the PCI bus by the ATU.
 **  13          0 2                         Master Abort - set when a transaction initiated by the ATU PCI master interface, ends in a Master-Abort
 **                                          or when the ATU receives a Master Abort Split Completion Error Message in PCI-X mode.
 **  12          0 2                         Target Abort (master) - set when a transaction initiated by the ATU PCI master interface, ends in a target
 **                                          abort or when the ATU receives a Target Abort Split Completion Error Message in PCI-X mode.
-**  11          0 2                         Target Abort (target) - set when the ATU interface, acting as a target, terminates the transaction on the PCI bus with a target abort.
-**  10:09       01 2                        DEVSEL# Timing - These bits are read-only and define the slowest DEVSEL# timing for a target device in Conventional PCI Mode regardless of the operating mode (except configuration accesses).
+**  11          0 2                         Target Abort (target) - set when the ATU interface, acting as a target, 
+**						terminates the transaction on the PCI bus with a target abort.
+**  10:09       01 2                        DEVSEL# Timing - These bits are read-only and define the slowest DEVSEL# 
+**						timing for a target device in Conventional PCI Mode regardless of the operating mode 
+**							(except configuration accesses).
 **  										00 2=Fast
 **  										01 2=Medium
 **  										10 2=Slow
@@ -1724,23 +1831,25 @@ struct _SENSE_DATA
 **                                          The ATU interface uses Medium timing.
 **  08           0 2                        Master Parity Error - The ATU interface sets this bit under the following conditions:
 **  										¡E The ATU asserted PERR# itself or the ATU observed PERR# asserted.
-**  										¡E And the ATU acted as the requester for the operation in which the error occurred.
+**  										¡E And the ATU acted as the requester 
+**											for the operation in which the error occurred.
 **  										¡E And the ATUCMD register¡¦s Parity Error Response bit is set
 **  										¡E Or (PCI-X Mode Only) the ATU received a Write Data Parity Error Message
 **  										¡E And the ATUCMD register¡¦s Parity Error Response bit is set
 **  07           1 2  (Conventional mode)
 **               0 2  (PCI-X mode)
-**  										Fast Back-to-Back - The ATU/Messaging Unit interface is capable of accepting fast back-to-back
-**  										transactions in Conventional PCI mode when the transactions are not to the same target. Since fast
-**  										back-to-back transactions do not exist in PCI-X mode, this bit is forced to 0 in the PCI-X mode.
+**  							Fast Back-to-Back - The ATU/Messaging Unit interface is capable of accepting fast back-to-back
+**  							transactions in Conventional PCI mode when the transactions are not to the same target. Since fast
+**  							back-to-back transactions do not exist in PCI-X mode, this bit is forced to 0 in the PCI-X mode.
 **  06           0 2                        UDF Supported - User Definable Features are not supported
 **  05           1 2                        66 MHz. Capable - 66 MHz operation is supported.
 **  04           1 2                        Capabilities - When set, this function implements extended capabilities.
-**  03             0                        Interrupt Status - reflects the state of the ATU interrupt when the Interrupt Disable bit in the command register is a 0.
+**  03             0                        Interrupt Status - reflects the state of the ATU interrupt 
+**						when the Interrupt Disable bit in the command register is a 0.
 **  										0=ATU interrupt signal deasserted.
 **  										1=ATU interrupt signal asserted.
-**  										NOTE: Setting the Interrupt Disable bit to a 1 has no effect on the state of this bit. Refer to
-**  										Section 3.10.23, ¡§ATU Interrupt Pin Register - ATUIPR¡¨ on page 236 for details on the ATU
+**  		NOTE: Setting the Interrupt Disable bit to a 1 has no effect on the state of this bit. Refer to
+**  		Section 3.10.23, ¡§ATU Interrupt Pin Register - ATUIPR¡¨ on page 236 for details on the ATU
 **  										interrupt signal.
 **  02:00      00000 2                      Reserved.
 ***********************************************************************************
@@ -1780,11 +1889,11 @@ struct _SENSE_DATA
 **  ATU Latency Timer Register - ATULT
 **  -----------------------------------------------------------------
 **  Bit       Default                       Description
-**  07:03     00000 2 (for Conventional mode)
-**            01000 2 (for PCI-X mode)
-**  										Programmable Latency Timer - This field varies the latency timer for the interface from 0 to 248 clocks.
-**  										The default value is 0 clocks for Conventional PCI mode, and 64 clocks for PCI-X mode.
-**  02:00       000 2                       Latency Timer Granularity - These Bits are read only giving a programmable granularity of 8 clocks for the latency timer.
+**  07:03     00000 2   (for Conventional mode)
+**            01000 2   (for PCI-X mode)
+**  			Programmable Latency Timer - This field varies the latency timer for the interface from 0 to 248 clocks.
+**  			The default value is 0 clocks for Conventional PCI mode, and 64 clocks for PCI-X mode.
+**  02:00       000 2   Latency Timer Granularity - These Bits are read only giving a programmable granularity of 8 clocks for the latency timer.
 ***********************************************************************************
 */
 #define     ARCMSR_ATU_LATENCY_TIMER_REG		         0x0D    /*byte*/
@@ -1810,15 +1919,16 @@ struct _SENSE_DATA
 **  Bit       Default                       Description
 **  07           0 2                        BIST Capable - This bit value is always equal to the ATUCR ATU BIST Interrupt Enable bit. 
 **  06           0 2                        Start BIST - When the ATUCR BIST Interrupt Enable bit is set:
-**  													 Setting this bit generates an interrupt to the Intel XScale core to perform a software BIST function.
-**  													 The Intel XScale core clears this bit when the BIST software has completed with the BIST results
-**  													 found in ATUBISTR register bits [3:0].
-**  													 When the ATUCR BIST Interrupt Enable bit is clear:
-**  													 Setting this bit does not generate an interrupt to the Intel XScale core and no BIST functions is performed. 
+**  				 Setting this bit generates an interrupt to the Intel XScale core to perform a software BIST function.
+**  				 The Intel XScale core clears this bit when the BIST software has completed with the BIST results
+**  				 found in ATUBISTR register bits [3:0].
+**  				 When the ATUCR BIST Interrupt Enable bit is clear:
+**  				 Setting this bit does not generate an interrupt to the Intel XScale core and no BIST functions is performed. 
 **                                                       The Intel XScale core does not clear this bit.
-**  05:04       00 2                        Reserved
-**  03:00     0000 2                        BIST Completion Code - when the ATUCR BIST Interrupt Enable bit is set and the ATUBISTR Start BIST bit is set (bit 6):
-**                                          The Intel XScale  core places the results of the software BIST in these bits. A nonzero value indicates a device-specific error.
+**  05:04       00 2             Reserved
+**  03:00     0000 2             BIST Completion Code - when the ATUCR BIST Interrupt Enable bit is set and the ATUBISTR Start BIST bit is set (bit 6):
+**                               The Intel XScale  core places the results of the software BIST in these bits. 
+**				 A nonzero value indicates a device-specific error.
 ***********************************************************************************
 */
 #define     ARCMSR_ATU_BIST_REG		         0x0F    /*byte*/
@@ -1829,15 +1939,15 @@ struct _SENSE_DATA
 ***************************************************************************************
 **           Base Address                         Register Limit                          Register Description
 **  Inbound ATU Base Address Register 0           Inbound ATU Limit Register 0            Defines the inbound translation window 0 from the PCI bus.
-**  Inbound ATU Upper Base Address Register 0     N/A                                     Together with ATU Base Address Register 0 defines the inbound translation window 0 from the PCI bus for DACs.
+**  Inbound ATU Upper Base Address Register 0     N/A                                     Together with ATU Base Address Register 0 defines the inbound **								translation window 0 from the PCI bus for DACs.
 **  Inbound ATU Base Address Register 1           Inbound ATU Limit Register 1            Defines inbound window 1 from the PCI bus.
-**  Inbound ATU Upper Base Address Register 1     N/A                                     Together with ATU Base Address Register 1 defines inbound window 1 from the PCI bus for DACs.
+**  Inbound ATU Upper Base Address Register 1     N/A                                     Together with ATU Base Address Register 1 defines inbound window **  1 from the PCI bus for DACs.
 **  Inbound ATU Base Address Register 2           Inbound ATU Limit Register 2            Defines the inbound translation window 2 from the PCI bus.
-**  Inbound ATU Upper Base Address Register 2     N/A                                     Together with ATU Base Address Register 2 defines the inbound translation window 2 from the PCI bus for DACs.
+**  Inbound ATU Upper Base Address Register 2     N/A                                     Together with ATU Base Address Register 2 defines the inbound ** **  translation window 2 from the PCI bus for DACs.
 **  Inbound ATU Base Address Register 3           Inbound ATU Limit Register 3            Defines the inbound translation window 3 from the PCI bus.
-**  Inbound ATU Upper Base Address Register 3     N/A                                     Together with ATU Base Address Register 3 defines the inbound translation window 3 from the PCI bus for DACs.
-**                                                                                        NOTE: This is a private BAR that resides outside of the standard PCI configuration header space (offsets 00H-3FH).
-**  Expansion ROM Base Address Register           Expansion ROM Limit Register            Defines the window of addresses used by a bus master for reading from an Expansion ROM.
+**  Inbound ATU Upper Base Address Register 3     N/A                                     Together with ATU Base Address Register 3 defines the inbound ** **  translation window 3 from the PCI bus for DACs.
+**     NOTE: This is a private BAR that resides outside of the standard PCI configuration header space (offsets 00H-3FH).
+**  Expansion ROM Base Address Register           Expansion ROM Limit Register            Defines the window of addresses used by a bus master for reading **  from an Expansion ROM.
 **--------------------------------------------------------------------------------------
 **  ATU Inbound Window 1 is not a translate window. 
 **  The ATU does not claim any PCI accesses that fall within this range. 
@@ -1850,7 +1960,8 @@ struct _SENSE_DATA
 ***********************************************************************************
 **  Inbound ATU Base Address Register 0 - IABAR0
 **
-**  . The Inbound ATU Base Address Register 0 (IABAR0) together with the Inbound ATU Upper Base Address Register 0 (IAUBAR0) defines the block of memory addresses where the inbound translation window 0 begins. 
+**  . The Inbound ATU Base Address Register 0 (IABAR0) together with the Inbound ATU Upper Base Address Register 0 (IAUBAR0) 
+**    defines the block of memory addresses where the inbound translation window 0 begins. 
 **  . The inbound ATU decodes and forwards the bus request to the 80331 internal bus with a translated address to map into 80331 local memory. 
 **  . The IABAR0 and IAUBAR0 define the base address and describes the required memory block size.
 **  . Bits 31 through 12 of the IABAR0 is either read/write bits or read only with a value of 0 
@@ -1871,12 +1982,13 @@ struct _SENSE_DATA
 **                             This is the default for IABAR0.
 **  -----------------------------------------------------------------
 **  Bit       Default                       Description
-**  31:12     00000H                        Translation Base Address 0 - These bits define the actual location the translation function is to respond to when addressed from the PCI bus.
+**  31:12     00000H                        Translation Base Address 0 - These bits define the actual location 
+**						the translation function is to respond to when addressed from the PCI bus.
 **  11:04        00H                        Reserved.
 **  03           1 2                        Prefetchable Indicator - When set, defines the memory space as prefetchable.
 **  02:01       10 2                        Type Indicator - Defines the width of the addressability for this memory window:
-**  												00 - Memory Window is locatable anywhere in 32 bit address space
-**  												10 - Memory Window is locatable anywhere in 64 bit address space
+**  						00 - Memory Window is locatable anywhere in 32 bit address space
+**  						10 - Memory Window is locatable anywhere in 64 bit address space
 **  00           0 2                        Memory Space Indicator - This bit field describes memory or I/O space base address. 
 **                                                                   The ATU does not occupy I/O space, 
 **                                                                   thus this bit must be zero.
@@ -1899,7 +2011,7 @@ struct _SENSE_DATA
 **  -----------------------------------------------------------------
 **  Bit       Default                       Description
 **  31:0      00000H                        Translation Upper Base Address 0 - Together with the Translation Base Address 0 these bits define the
-**                                                                             actual location the translation function is to respond to when addressed from the PCI bus for addresses > 4GBytes.
+**                           actual location the translation function is to respond to when addressed from the PCI bus for addresses > 4GBytes.
 ***********************************************************************************
 */
 #define     ARCMSR_INBOUND_ATU_UPPER_BASE_ADDRESS0_REG		     0x14    /*dword 0x17,0x16,0x15,0x14*/
@@ -1907,11 +2019,12 @@ struct _SENSE_DATA
 ***********************************************************************************
 **  Inbound ATU Base Address Register 1 - IABAR1
 **
-**  . The Inbound ATU Base Address Register (IABAR1) together with the Inbound ATU Upper Base Address Register 1 (IAUBAR1) defines the block of memory addresses where the inbound translation window 1 begins. 
+**  . The Inbound ATU Base Address Register (IABAR1) together with the Inbound ATU Upper Base Address Register 1 (IAUBAR1) 
+**    defines the block of memory addresses where the inbound translation window 1 begins. 
 **  . This window is used merely to allocate memory on the PCI bus and, the ATU does not process any PCI bus transactions to this memory range.
 **  . The programmed value within the base address register must comply with the PCI programming requirements for address alignment. 
 **  . When enabled, the ATU interrupts the Intel XScale core when the IABAR1 register is written from the PCI bus. 
-**  Warning: 
+**    Warning: 
 **    When a non-zero value is not written to IALR1 prior to host configuration, 
 **                          the user should not set either the Prefetchable Indicator or the Type Indicator for 64 bit addressability. 
 **                          This is the default for IABAR1.
@@ -1930,8 +2043,8 @@ struct _SENSE_DATA
 **  11:04        00H                        Reserved.
 **  03           0 2                        Prefetchable Indicator - When set, defines the memory space as prefetchable.
 **  02:01       00 2                        Type Indicator - Defines the width of the addressability for this memory window:
-**  												00 - Memory Window is locatable anywhere in 32 bit address space
-**  												10 - Memory Window is locatable anywhere in 64 bit address space
+**  			00 - Memory Window is locatable anywhere in 32 bit address space
+**  			10 - Memory Window is locatable anywhere in 64 bit address space
 **  00           0 2                        Memory Space Indicator - This bit field describes memory or I/O space base address. 
 **                                                                   The ATU does not occupy I/O space, 
 **                                                                   thus this bit must be zero.
@@ -1955,7 +2068,8 @@ struct _SENSE_DATA
 **      This is the default for IABAR1.
 **  -----------------------------------------------------------------
 **  Bit       Default                       Description
-**  31:0      00000H                        Translation Upper Base Address 1 - Together with the Translation Base Address 1 these bits define the actual location for this memory window on the PCI bus for addresses > 4GBytes.
+**  31:0      00000H                        Translation Upper Base Address 1 - Together with the Translation Base Address 1 
+**						these bits define the actual location for this memory window on the PCI bus for addresses > 4GBytes.
 ***********************************************************************************
 */
 #define     ARCMSR_INBOUND_ATU_UPPER_BASE_ADDRESS1_REG		         0x1C    /*dword 0x1F,0x1E,0x1D,0x1C*/
@@ -1963,7 +2077,8 @@ struct _SENSE_DATA
 ***********************************************************************************
 **  Inbound ATU Base Address Register 2 - IABAR2
 **
-**  . The Inbound ATU Base Address Register 2 (IABAR2) together with the Inbound ATU Upper Base Address Register 2 (IAUBAR2) defines the block of memory addresses where the inbound translation window 2 begins. 
+**  . The Inbound ATU Base Address Register 2 (IABAR2) together with the Inbound ATU Upper Base Address Register 2 (IAUBAR2) 
+**           defines the block of memory addresses where the inbound translation window 2 begins. 
 **  . The inbound ATU decodes and forwards the bus request to the 80331 internal bus with a translated address to map into 80331 local memory. 
 **  . The IABAR2 and IAUBAR2 define the base address and describes the required memory block size
 **  . Bits 31 through 12 of the IABAR2 is either read/write bits or read only with a value of 0 depending on the value located within the IALR2.
@@ -1984,12 +2099,13 @@ struct _SENSE_DATA
 **                             the user should also set the Type Indicator for 64 bit addressability.
 **  -----------------------------------------------------------------
 **  Bit       Default                       Description
-**  31:12     00000H                        Translation Base Address 2 - These bits define the actual location the translation function is to respond to when addressed from the PCI bus.
+**  31:12     00000H                        Translation Base Address 2 - These bits define the actual location 
+**						the translation function is to respond to when addressed from the PCI bus.
 **  11:04        00H                        Reserved.
 **  03           0 2                        Prefetchable Indicator - When set, defines the memory space as prefetchable.
 **  02:01       00 2                        Type Indicator - Defines the width of the addressability for this memory window:
-**  												00 - Memory Window is locatable anywhere in 32 bit address space
-**  												10 - Memory Window is locatable anywhere in 64 bit address space
+**  			00 - Memory Window is locatable anywhere in 32 bit address space
+**  			10 - Memory Window is locatable anywhere in 64 bit address space
 **  00           0 2                        Memory Space Indicator - This bit field describes memory or I/O space base address. 
 **                                                                   The ATU does not occupy I/O space, 
 **                                                                   thus this bit must be zero.
@@ -1999,9 +2115,10 @@ struct _SENSE_DATA
 /*
 ***********************************************************************************
 **  Inbound ATU Upper Base Address Register 2 - IAUBAR2
-**  
+**
 **  This register contains the upper base address when decoding PCI addresses beyond 4 GBytes.
-**  Together with the Translation Base Address this register defines the actual location the translation function is to respond to when addressed from the PCI bus for addresses > 4GBytes (for DACs).
+**  Together with the Translation Base Address this register defines the actual location 
+**  the translation function is to respond to when addressed from the PCI bus for addresses > 4GBytes (for DACs).
 **  The programmed value within the base address register must comply with the PCI programming
 **  requirements for address alignment.
 **  Note: 
@@ -2010,7 +2127,9 @@ struct _SENSE_DATA
 **      This is the default for IABAR2.
 **  -----------------------------------------------------------------
 **  Bit       Default                       Description
-**  31:0      00000H                        Translation Upper Base Address 2 - Together with the Translation Base Address 2 these bits define the actual location the translation function is to respond to when addressed from the PCI bus for addresses > 4GBytes.
+**  31:0      00000H                        Translation Upper Base Address 2 - Together with the Translation Base Address 2 
+**                                          these bits define the actual location the translation function is to respond to 
+**                                          when addressed from the PCI bus for addresses > 4GBytes.
 ***********************************************************************************
 */
 #define     ARCMSR_INBOUND_ATU_UPPER_BASE_ADDRESS2_REG		         0x24    /*dword 0x27,0x26,0x25,0x24*/
@@ -2037,9 +2156,11 @@ struct _SENSE_DATA
 **  Expansion ROM Base Address Register -ERBAR
 **  -----------------------------------------------------------------
 **  Bit       Default                       Description
-**  31:12     00000H                        Expansion ROM Base Address - These bits define the actual location where the Expansion ROM address window resides when addressed from the PCI bus on any 4 Kbyte boundary.
+**  31:12     00000H                        Expansion ROM Base Address - These bits define the actual location 
+**						where the Expansion ROM address window resides when addressed from the PCI bus on any 4 Kbyte boundary.
 **  11:01     000H                          Reserved
-**  00        0 2                           Address Decode Enable - This bit field shows the ROM address decoder is enabled or disabled. When cleared, indicates the address decoder is disabled.
+**  00        0 2                           Address Decode Enable - This bit field shows the ROM address 
+**						decoder is enabled or disabled. When cleared, indicates the address decoder is disabled.
 ***********************************************************************************
 */
 #define     ARCMSR_EXPANSION_ROM_BASE_ADDRESS_REG		         0x30    /*dword 0x33,0x32,0v31,0x30*/
@@ -2049,7 +2170,8 @@ struct _SENSE_DATA
 **  ATU Capabilities Pointer Register - ATU_CAP_PTR
 **  -----------------------------------------------------------------
 **  Bit Default Description
-**  07:00     C0H                           Capability List Pointer - This provides an offset in this function¡¦s configuration space that points to the 80331 PCl Bus Power Management extended capability.
+**  07:00     C0H                           Capability List Pointer - This provides an offset in this function¡¦s configuration space 
+**						that points to the 80331 PCl Bus Power Management extended capability.
 ***********************************************************************************
 */
 #define     ARCMSR_ATU_CAPABILITY_PTR_REG		     0x34    /*byte*/
@@ -2103,7 +2225,7 @@ struct _SENSE_DATA
 **  FFFE0000H 128K
 **  FFFC0000H 256K
 **  FFF80000H 512K
-**  
+**
 ***************************************************************************************  
 */
 
@@ -2115,7 +2237,8 @@ struct _SENSE_DATA
 **  -----------------------------------------------------------------
 **  Bit       Default                       Description
 **  07:00       FFH                         Interrupt Assigned - system-assigned value identifies which system interrupt controller¡¦s interrupt
-**                                                               request line connects to the device's PCI interrupt request lines (as specified in the interrupt pin register).
+**                                                               request line connects to the device's PCI interrupt request lines 
+**								(as specified in the interrupt pin register).
 **                                                               A value of FFH signifies ¡§no connection¡¨ or ¡§unknown¡¨.
 ***********************************************************************************
 */
@@ -2143,7 +2266,8 @@ struct _SENSE_DATA
 **  ATU Maximum Latency Register - ATUMLAT
 **  -----------------------------------------------------------------
 **  Bit       Default                       Description
-**  07:00       00H                         Specifies frequency (how often) the device needs to access the PCI bus in increments of 8 PCI clocks. A zero value indicates the device has no stringent requirement.
+**  07:00       00H                         Specifies frequency (how often) the device needs to access the PCI bus 
+**						in increments of 8 PCI clocks. A zero value indicates the device has no stringent requirement.
 ***********************************************************************************
 */
 #define     ARCMSR_ATU_MAXIMUM_LATENCY_REG		     0x3F    /*byte*/
@@ -2239,7 +2363,7 @@ struct _SENSE_DATA
 /*
 ***********************************************************************************
 **  Inbound ATU Limit Register 0 - IALR0
-**  
+**
 **  Inbound address translation for memory window 0 occurs for data transfers occurring from the PCI
 **  bus (originated from the PCI bus) to the 80331 internal bus. The address translation block converts
 **  PCI addresses to internal bus addresses.
@@ -2256,7 +2380,7 @@ struct _SENSE_DATA
 **  -----------------------------------------------------------------
 **  Bit       Default                       Description
 **  31:12     FF000H                        Inbound Translation Limit 0 - This readback value determines the memory block size required for
-**                                                                        inbound memory window 0 of the address translation unit. This defaults to an inbound window of 16MB.
+**                                          inbound memory window 0 of the address translation unit. This defaults to an inbound window of 16MB.
 **  11:00       000H                        Reserved
 ***********************************************************************************
 */
@@ -2264,14 +2388,15 @@ struct _SENSE_DATA
 /*
 ***********************************************************************************
 **  Inbound ATU Translate Value Register 0 - IATVR0
-**  
+**
 **  The Inbound ATU Translate Value Register 0 (IATVR0) contains the internal bus address used to
 **  convert PCI bus addresses. The converted address is driven on the internal bus as a result of the
 **  inbound ATU address translation.
 **  -----------------------------------------------------------------
 **  Bit       Default                       Description
 **  31:12     FF000H                        Inbound ATU Translation Value 0 - This value is used to convert the PCI address to internal bus addresses. 
-**                                          This value must be 64-bit aligned on the internal bus. The default address allows the ATU to access the internal 80331 memory-mapped registers.
+**                                          This value must be 64-bit aligned on the internal bus. 
+**						The default address allows the ATU to access the internal 80331 memory-mapped registers.
 **  11:00       000H                        Reserved
 ***********************************************************************************
 */
@@ -2279,7 +2404,7 @@ struct _SENSE_DATA
 /*
 ***********************************************************************************
 **  Expansion ROM Limit Register - ERLR
-**  
+**
 **  The Expansion ROM Limit Register (ERLR) defines the block size of addresses the ATU defines
 **  as Expansion ROM address space. The block size is programmed by writing a value into the ERLR.
 **  Bits 31 to 12 within the ERLR have a direct effect on the ERBAR register, bits 31 to 12, with a one
@@ -2289,7 +2414,7 @@ struct _SENSE_DATA
 **  -----------------------------------------------------------------
 **  Bit       Default                       Description
 **  31:12     000000H                       Expansion ROM Limit - Block size of memory required for the Expansion ROM translation unit. Default
-**                                                                value is 0, which indicates no Expansion ROM address space and all bits within the ERBAR are read only with a value of 0.
+**                         value is 0, which indicates no Expansion ROM address space and all bits within the ERBAR are read only with a value of 0.
 **  11:00        000H                       Reserved.
 ***********************************************************************************
 */
@@ -2297,14 +2422,14 @@ struct _SENSE_DATA
 /*
 ***********************************************************************************
 **  Expansion ROM Translate Value Register - ERTVR
-**  
+**
 **  The Expansion ROM Translate Value Register contains the 80331 internal bus address which the
 **  ATU converts the PCI bus access. This address is driven on the internal bus as a result of the
 **  Expansion ROM address translation.
 **  -----------------------------------------------------------------
 **  Bit       Default                       Description
 **  31:12     00000H                        Expansion ROM Translation Value - Used to convert PCI addresses to 80331 internal bus addresses
-**                                                                            for Expansion ROM accesses. The Expansion ROM address translation value must be word aligned on the internal bus.
+**                          for Expansion ROM accesses. The Expansion ROM address translation value must be word aligned on the internal bus.
 **  11:00       000H                        Reserved
 ***********************************************************************************
 */
@@ -2312,7 +2437,7 @@ struct _SENSE_DATA
 /*
 ***********************************************************************************
 **  Inbound ATU Limit Register 1 - IALR1
-**  
+**
 **  Bits 31 to 12 within the IALR1 have a direct effect on the IABAR1 register, bits 31 to 12, with a
 **  one to one correspondence. A value of 0 in a bit within the IALR1 makes the corresponding bit
 **  within the IABAR1 a read only bit which always returns 0. A value of 1 in a bit within the IALR1
@@ -2326,7 +2451,8 @@ struct _SENSE_DATA
 **  IAUBAR1, and IALR1.
 **  -----------------------------------------------------------------
 **  Bit       Default                       Description
-**  31:12     00000H                        Inbound Translation Limit 1 - This readback value determines the memory block size required for the ATUs memory window 1.
+**  31:12     00000H                        Inbound Translation Limit 1 - This readback value determines the memory block size 
+**						required for the ATUs memory window 1.
 **  11:00 000H Reserved
 ***********************************************************************************
 */
@@ -2355,7 +2481,8 @@ struct _SENSE_DATA
 **  register.
 **  -----------------------------------------------------------------
 **  Bit       Default                       Description
-**  31:12     00000H                        Inbound Translation Limit 2 - This readback value determines the memory block size required for the ATUs memory window 2.
+**  31:12     00000H                        Inbound Translation Limit 2 - This readback value determines the memory block size 
+**						required for the ATUs memory window 2.
 **  11:00       000H                        Reserved
 ***********************************************************************************
 */
@@ -2363,14 +2490,15 @@ struct _SENSE_DATA
 /*
 ***********************************************************************************
 **  Inbound ATU Translate Value Register 2 - IATVR2
-**  
+**
 **  The Inbound ATU Translate Value Register 2 (IATVR2) contains the internal bus address used to
 **  convert PCI bus addresses. The converted address is driven on the internal bus as a result of the
 **  inbound ATU address translation.
 **  -----------------------------------------------------------------
 **  Bit       Default                       Description
 **  31:12     00000H                        Inbound ATU Translation Value 2 - This value is used to convert the PCI address to internal bus addresses. 
-**                                                                            This value must be 64-bit aligned on the internal bus. The default address allows the ATU to access the internal 80331 memory-mapped registers.
+**                                                                            This value must be 64-bit aligned on the internal bus. 
+**										The default address allows the ATU to access the internal 80331 **	**										memory-mapped registers.
 **  11:00       000H                        Reserved
 ***********************************************************************************
 */
@@ -2378,7 +2506,7 @@ struct _SENSE_DATA
 /*
 ***********************************************************************************
 **  Outbound I/O Window Translate Value Register - OIOWTVR
-**  
+**
 **  The Outbound I/O Window Translate Value Register (OIOWTVR) contains the PCI I/O address
 **  used to convert the internal bus access to a PCI address. This address is driven on the PCI bus as a
 **  result of the outbound ATU address translation. 
@@ -2394,7 +2522,7 @@ struct _SENSE_DATA
 /*
 ***********************************************************************************
 **  Outbound Memory Window Translate Value Register 0 -OMWTVR0
-**  
+**
 **  The Outbound Memory Window Translate Value Register 0 (OMWTVR0) contains the PCI
 **  address used to convert 80331 internal bus addresses for outbound transactions. This address is
 **  driven on the PCI bus as a result of the outbound ATU address translation. 
@@ -2404,14 +2532,15 @@ struct _SENSE_DATA
 **  Bit       Default                       Description
 **  31:26       00H                         Outbound MW Translate Value - Used to convert 80331 internal bus addresses to PCI addresses.
 **  25:02     00 0000H                      Reserved
-**  01:00      00 2                         Burst Order - This bit field shows the address sequence during a memory burst. Only linear incrementing mode is supported.
+**  01:00      00 2                         Burst Order - This bit field shows the address sequence during a memory burst. 
+**								Only linear incrementing mode is supported.
 ***********************************************************************************
 */
 #define     ARCMSR_OUTBOUND_MEMORY_WINDOW_TRANSLATE_VALUE0_REG		          0x60    /*dword 0x63,0x62,0x61,0x60*/
 /*
 ***********************************************************************************
 **  Outbound Upper 32-bit Memory Window Translate Value Register 0 - OUMWTVR0
-**  
+**
 **  The Outbound Upper 32-bit Memory Window Translate Value Register 0 (OUMWTVR0) defines
 **  the upper 32-bits of address used during a dual address cycle. This enables the outbound ATU to
 **  directly address anywhere within the 64-bit host address space. When this register is all-zero, then
@@ -2427,7 +2556,7 @@ struct _SENSE_DATA
 /*
 ***********************************************************************************
 **  Outbound Memory Window Translate Value Register 1 -OMWTVR1
-**  
+**
 **  The Outbound Memory Window Translate Value Register 1 (OMWTVR1) contains the PCI
 **  address used to convert 80331 internal bus addresses for outbound transactions. This address is
 **  driven on the PCI bus as a result of the outbound ATU address translation. 
@@ -2437,14 +2566,15 @@ struct _SENSE_DATA
 **  Bit       Default                       Description
 **  31:26       00H                         Outbound MW Translate Value - Used to convert 80331 internal bus addresses to PCI addresses.
 **  25:02     00 0000H                      Reserved
-**  01:00       00 2                        Burst Order - This bit field shows the address sequence during a memory burst. Only linear incrementing mode is supported.
+**  01:00       00 2                        Burst Order - This bit field shows the address sequence during a memory burst. 
+**						Only linear incrementing mode is supported.
 ***********************************************************************************
 */
 #define     ARCMSR_OUTBOUND_MEMORY_WINDOW_TRANSLATE_VALUE1_REG		          0x68    /*dword 0x6B,0x6A,0x69,0x68*/
 /*
 ***********************************************************************************
 **  Outbound Upper 32-bit Memory Window Translate Value Register 1 - OUMWTVR1
-**  
+**
 **  The Outbound Upper 32-bit Memory Window Translate Value Register 1 (OUMWTVR1) defines
 **  the upper 32-bits of address used during a dual address cycle. This enables the outbound ATU to
 **  directly address anywhere within the 64-bit host address space. When this register is all-zero, then
@@ -2460,7 +2590,7 @@ struct _SENSE_DATA
 /*
 ***********************************************************************************
 **  Outbound Upper 32-bit Direct Window Translate Value Register - OUDWTVR
-**  
+**
 **  The Outbound Upper 32-bit Direct Window Translate Value Register (OUDWTVR) defines the
 **  upper 32-bits of address used during a dual address cycle for the transactions via Direct Addressing
 **  Window. This enables the outbound ATU to directly address anywhere within the 64-bit host
@@ -2474,7 +2604,7 @@ struct _SENSE_DATA
 /*
 ***********************************************************************************
 **  ATU Configuration Register - ATUCR
-**  
+**
 **  The ATU Configuration Register controls the outbound address translation for address translation
 **  unit. It also contains bits for Conventional PCI Delayed Read Command (DRC) aliasing, discard
 **  timer status, SERR# manual assertion, SERR# detection interrupt masking, and ATU BIST
@@ -2483,27 +2613,34 @@ struct _SENSE_DATA
 **  Bit       Default                       Description
 **  31:20       00H                         Reserved
 **  19          0 2                         ATU DRC Alias - when set, the ATU does not distinguish read commands when attempting to match a
-**  														current PCI read transaction with read data enqueued within the DRC buffer. When clear, a current read
-**  														transaction must have the exact same read command as the DRR for the ATU to deliver DRC data. Not
-**  														applicable in the PCI-X mode.
-**  18          0 2                         Direct Addressing Upper 2Gbytes Translation Enable - When set, with Direct Addressing enabled (bit 7 of the ATUCR set), the ATU forwards internal bus cycles with an address between 0000.0040H and
-**                                                          7FFF.FFFFH to the PCI bus with bit 31 of the address set (8000.0000H - FFFF.FFFFH). When clear, no translation occurs.
+**  			current PCI read transaction with read data enqueued within the DRC buffer. When clear, a current read
+**  			transaction must have the exact same read command as the DRR for the ATU to deliver DRC data. Not
+**  			applicable in the PCI-X mode.
+**  18          0 2                         Direct Addressing Upper 2Gbytes Translation Enable - When set, 
+**						with Direct Addressing enabled (bit 7 of the ATUCR set), 
+**							the ATU forwards internal bus cycles with an address between 0000.0040H and
+**								7FFF.FFFFH to the PCI bus with bit 31 of the address set (8000.0000H - FFFF.FFFFH).
+**									 When clear, no translation occurs.
 **  17          0 2                         Reserved
 **  16          0 2                         SERR# Manual Assertion - when set, the ATU asserts SERR# for one clock on the PCI interface. Until
-**                                                          cleared, SERR# may not be manually asserted again. Once cleared, operation proceeds as specified.
+**						cleared, SERR# may not be manually asserted again. Once cleared, operation proceeds as specified.
 **  15          0 2                         ATU Discard Timer Status - when set, one of the 4 discard timers within the ATU has expired and
-**                                                          discarded the delayed completion transaction within the queue. When clear, no timer has expired.
+** 						discarded the delayed completion transaction within the queue. When clear, no timer has expired.
 **  14:10    00000 2                        Reserved
 **  09          0 2                         SERR# Detected Interrupt Enable - When set, the Intel XScale core is signalled an HPI# interrupt
-**                                                          when the ATU detects that SERR# was asserted. When clear, the Intel XScale core is not interrupted when SERR# is detected.
+**						when the ATU detects that SERR# was asserted. When clear, 
+**							the Intel XScale core is not interrupted when SERR# is detected.
 **  08          0 2                         Direct Addressing Enable - Setting this bit enables direct outbound addressing through the ATU.
-**  														Internal bus cycles with an address between 0000.0040H and 7FFF.FFFFH automatically forwards to
-**  														the PCI bus with or without translation of address bit 31 based on the setting of bit 18 of the ATUCR.
+**  						Internal bus cycles with an address between 0000.0040H and 7FFF.FFFFH automatically forwards to
+**  						the PCI bus with or without translation of address bit 31 based on the setting of bit 18 of 
+**							the ATUCR.
 **  07:04    0000 2                         Reserved
 **  03          0 2                         ATU BIST Interrupt Enable - When set, enables an interrupt to the Intel XScale core when the start
-**                                                          BIST bit is set in the ATUBISTR register. This bit is also reflected as the BIST Capable bit 7 in the ATUBISTR register.
+**						BIST bit is set in the ATUBISTR register. This bit is also reflected as the BIST Capable bit 7 
+**							in the ATUBISTR register.
 **  02          0 2                         Reserved
-**  01          0 2                         Outbound ATU Enable - When set, enables the outbound address translation unit. When cleared, disables the outbound ATU.
+**  01          0 2                         Outbound ATU Enable - When set, enables the outbound address translation unit.
+**						When cleared, disables the outbound ATU.
 **  00          0 2                         Reserved
 ***********************************************************************************
 */
@@ -2518,9 +2655,9 @@ struct _SENSE_DATA
 **  Bit       Default                       Description
 **  31:19      0000H                        Reserved
 **  18          0 2                         Detected Address or Attribute Parity Error - set when a parity error is detected during either the address
-**  														or attribute phase of a transaction on the PCI bus even when the ATUCMD register Parity Error
-**  														Response bit is cleared. Set under the following conditions:
-**  														¡E Any Address or Attribute (PCI-X Only) Parity Error on the Bus (including one generated by the ATU).
+**  					or attribute phase of a transaction on the PCI bus even when the ATUCMD register Parity Error
+**  					Response bit is cleared. Set under the following conditions:
+**  					¡E Any Address or Attribute (PCI-X Only) Parity Error on the Bus (including one generated by the ATU).
 **  17:16  Varies with
 **  										external state
 **  										of DEVSEL#,
@@ -2528,14 +2665,17 @@ struct _SENSE_DATA
 **  										TRDY#,
 **  										during
 **  										P_RST#
-**  										PCI-X capability - These two bits define the mode of the PCI bus (conventional or PCI-X) as well as the
+**  										PCI-X capability - These two bits define the mode of 
+**  										the PCI bus (conventional or PCI-X) as well as the
 **  										operating frequency in the case of PCI-X mode.
 **  										00 - Conventional PCI mode
 **  										01 - PCI-X 66
 **  										10 - PCI-X 100
 **  										11 - PCI-X 133
-**  										As defined by the PCI-X Addendum to the PCI Local Bus Specification, Revision 1.0a, the operating
-**  										mode is determined by an initialization pattern on the PCI bus during P_RST# assertion:
+**  										As defined by the PCI-X Addendum to the PCI Local Bus Specification,
+**  										Revision 1.0a, the operating
+**  										mode is determined by an initialization pattern on the PCI bus during
+**  										P_RST# assertion:
 **  										DEVSEL# STOP# TRDY# Mode
 **  										Deasserted Deasserted Deasserted Conventional
 **  										Deasserted Deasserted Asserted PCI-X 66
@@ -2551,8 +2691,8 @@ struct _SENSE_DATA
 **  										    0=Inbound Transaction Queue Empty
 **  										    1=Inbound Transaction Queue Busy
 **  13          0 2                         Reserved.
-**  12          0 2
-**  										Discard Timer Value - This bit controls the time-out value for the four discard timers attached to the queues holding read data. 
+**  12          0 2								Discard Timer Value - This bit controls the time-out value 
+**  										for the four discard timers attached to the queues holding read data. 
 **                                                         A value of 0 indicates the time-out value is 2 15 clocks. 
 **                                                         A value of 1 indicates the time-out value is 2 10 clocks.
 **  11          0 2                         Reserved.
@@ -2561,98 +2701,94 @@ struct _SENSE_DATA
 **  										of M66EN
 **  										during
 **  										P_RST#
-**  										Bus Operating at 66 MHz - When set, the interface has been initialized to function at 66 MHz in
-**  										Conventional PCI mode by the assertion of M66EN during bus initialization. When clear, the interface
+**  							Bus Operating at 66 MHz - When set, the interface has been initialized to function at 66 MHz in
+**  										Conventional PCI mode by the assertion of M66EN during bus initialization.
+**  										When clear, the interface
 **  										has been initialized as a 33 MHz bus.
-**  										NOTE: When PCSR bits 17:16 are not equal to zero, then this bit is meaningless since the 80331 is
-**  										operating in PCI-X mode.
+**  		NOTE: When PCSR bits 17:16 are not equal to zero, then this bit is meaningless since the 80331 is operating in PCI-X mode.
 **  09          0 2                         Reserved
 **  08      Varies with
 **  										external state
 **  										of REQ64#
 **  										during
 **  										P_RST#
-**  										PCI Bus 64-Bit Capable - When clear, the PCI bus interface has been configured as 64-bit capable by
-**  										the assertion of REQ64# on the rising edge of P_RST#. When set, the PCI interface is configured as
+**  										PCI Bus 64-Bit Capable - When clear, the PCI bus interface has been
+**  										configured as 64-bit capable by
+**  										the assertion of REQ64# on the rising edge of P_RST#. When set, 
+**  										the PCI interface is configured as
 **  										32-bit only.
 **  07:06      00 2                         Reserved.
-**  05         0 2   						Reset Internal Bus - This bit controls the reset of the Intel XScale core and all units on the internal
-**  													bus. In addition to the internal bus initialization, this bit triggers the assertion of the M_RST# pin for
-**  													initialization of registered DIMMs. When set:
-**  													When operating in the conventional PCI mode:
-**  													¡E All current PCI transactions being mastered by the ATU completes, and the ATU master interfaces
-**  													proceeds to an idle state. No additional transactions is mastered by these units until the internal bus
-**  													reset is complete.
-**  													¡E All current transactions being slaved by the ATU on either the PCI bus or the internal bus
-**  													completes, and the ATU target interfaces proceeds to an idle state. All future slave transactions
-**  													master aborts, with the exception of the completion cycle for the transaction that set the Reset
-**  													Internal Bus bit in the PCSR.
-**  													¡E When the value of the Core Processor Reset bit in the PCSR (upon P_RST# assertion) is set, the
-**  													Intel XScale core is held in reset when the internal bus reset is complete.
-**  													¡E The ATU ignores configuration cycles, and they appears as master aborts for: 32 Internal Bus clocks.
-**  													¡E The 80331 hardware clears this bit after the reset operation completes.
-**  													When operating in the PCI-X mode:
-**  													The ATU hardware responds the same as in Conventional PCI-X mode. However, this may create a
-**  													problem in PCI-X mode for split requests in that there may still be an outstanding split completion that the
-**  													ATU is either waiting to receive (Outbound Request) or initiate (Inbound Read Request). For a cleaner
-**  													internal bus reset, host software can take the following steps prior to asserting Reset Internal bus:
-**  													1. Clear the Bus Master (bit 2 of the ATUCMD) and the Memory Enable (bit 1 of the ATUCMD) bits in
-**  													the ATUCMD. This ensures that no new transactions, either outbound or inbound are enqueued.
-**  													2. Wait for both the Outbound (bit 15 of the PCSR) and Inbound Read (bit 14 of the PCSR) Transaction
-**  													queue busy bits to be clear.
-**  													3. Set the Reset Internal Bus bit
-**  													As a result, the ATU hardware resets the internal bus using the same logic as in conventional mode,
-**  													however the user is now assured that the ATU no longer has any pending inbound or outbound split
-**  													completion transactions.
-**  													NOTE: Since the Reset Internal Bus bit is set using an inbound configuration cycle, the user is
-**  													guaranteed that any prior configuration cycles have properly completed since there is only a one
-**  													deep transaction queue for configuration transaction requests. The ATU sends the appropriate
-**    												    Split Write Completion Message to the Requester prior to the onset of Internal Bus Reset.
-**  04      0 2						        Bus Master Indicator Enable: Provides software control for the Bus Master Indicator signal P_BMI used
-**  													for external RAIDIOS logic control of private devices. Only valid when operating with the bridge and
-**  													central resource/arbiter disabled (BRG_EN =low, ARB_EN=low).
-**  03		Varies with
-**  													external state
-**  													of PRIVDEV
-**  													during
-**  													P_RST#
-**  													Private Device Enable - This bit indicates the state of the reset strap which enables the private device
-**  													control mechanism within the PCI-to-PCI Bridge SISR configuration register.
-**  													0=Private Device control Disabled - SISR register bits default to zero
-**  													1=Private Device control Enabled - SISR register bits default to one
-**	02		Varies with
-**  													external state
-**  													of RETRY
-**  													during
-**  													P_RST#
-**  													Configuration Cycle Retry - When this bit is set, the PCI interface of the 80331 responds to all
-**  													configuration cycles with a Retry condition. When clear, the 80331 responds to the appropriate
-**  													configuration cycles.
-**  													The default condition for this bit is based on the external state of the RETRY pin at the rising edge of
-**  													P_RST#. When the external state of the pin is high, the bit is set. When the external state of the pin is
-**  													low, the bit is cleared.
-**  01		Varies with
-**  													external state
-**  													of
-**  													CORE_RST#
-**  													during
-**  													P_RST#
-**  													Core Processor Reset - This bit is set to its default value by the hardware when either P_RST# is
-**  													asserted or the Reset Internal Bus bit in PCSR is set. When this bit is set, the Intel XScale core is
-**  													being held in reset. Software cannot set this bit. Software is required to clear this bit to deassert Intel 
-**  													XScale  core reset.
-**  													The default condition for this bit is based on the external state of the CORE_RST# pin at the rising edge
-**  													of P_RST#. When the external state of the pin is low, the bit is set. When the external state of the pin is
-**  													high, the bit is clear.
-**  00		Varies with
-**  													external state
-**  													of PRIVMEM
-**  													during
-**  													P_RST#
-**  													Private Memory Enable - This bit indicates the state of the reset strap which enables the private device
-**  													control mechanism within the PCI-to-PCI Bridge SDER configuration register.
-**  													0=Private Memory control Disabled - SDER register bit 2 default to zero
-**  													1=Private Memory control Enabled - SDER register bits 2 default to one
+**  05         0 2   						Reset Internal Bus - This bit controls the reset of the Intel XScale core 
+**  								and all units on the internal
+**  								bus. In addition to the internal bus initialization, 
+**  								this bit triggers the assertion of the M_RST# pin for
+**  								initialization of registered DIMMs. When set:
+**  								When operating in the conventional PCI mode:
+**  								¡E All current PCI transactions being mastered by the ATU completes, 
+**  								and the ATU master interfaces
+**  								proceeds to an idle state. No additional transactions is mastered by these units
+**  								until the internal bus reset is complete.
+**  								¡E All current transactions being slaved by the ATU on either the PCI bus 
+**  								or the internal bus
+**  								completes, and the ATU target interfaces proceeds to an idle state. 
+**  								All future slave transactions master aborts, 
+**  								with the exception of the completion cycle for the transaction that set the Reset
+**  								Internal Bus bit in the PCSR.
+**  								¡E When the value of the Core Processor Reset bit in the PCSR (upon P_RST# assertion) 
+**  								is set, the Intel XScale core is held in reset when the internal bus reset is complete.
+**  								¡E The ATU ignores configuration cycles, and they appears as master aborts for: 32 
+**  								Internal Bus clocks.
+**  								¡E The 80331 hardware clears this bit after the reset operation completes.
+**  								When operating in the PCI-X mode:
+**  								The ATU hardware responds the same as in Conventional PCI-X mode. 
+**  								However, this may create a problem in PCI-X mode for split requests in 
+**  								that there may still be an outstanding split completion that the
+**  								ATU is either waiting to receive (Outbound Request) or initiate 
+**  								(Inbound Read Request). For a cleaner
+**  								internal bus reset, host software can take the following steps prior 
+**  								to asserting Reset Internal bus:
+**  					1. Clear the Bus Master (bit 2 of the ATUCMD) and the Memory Enable (bit 1 of the ATUCMD) bits in
+**  						the ATUCMD. This ensures that no new transactions, either outbound or inbound are enqueued.
+**  					2. Wait for both the Outbound (bit 15 of the PCSR) and Inbound Read (bit 14 of the PCSR) Transaction
+**  						queue busy bits to be clear.
+**  					3. Set the Reset Internal Bus bit
+**  	As a result, the ATU hardware resets the internal bus using the same logic as in conventional mode,
+**  	however the user is now assured that the ATU no longer has any pending inbound or outbound split
+**  	completion transactions.
+**  	NOTE: Since the Reset Internal Bus bit is set using an inbound configuration cycle, the user is
+**  	guaranteed that any prior configuration cycles have properly completed since there is only a one
+**  	deep transaction queue for configuration transaction requests. The ATU sends the appropriate
+**  	Split Write Completion Message to the Requester prior to the onset of Internal Bus Reset.
+**  04      0 2						        Bus Master Indicator Enable: Provides software control for the
+**  								Bus Master Indicator signal P_BMI used
+**  		for external RAIDIOS logic control of private devices. Only valid when operating with the bridge and
+**  		central resource/arbiter disabled (BRG_EN =low, ARB_EN=low).
+**  03		Varies with external state of PRIVDEV during
+**  							P_RST#
+**  			Private Device Enable - This bit indicates the state of the reset strap which enables the private device
+**  			control mechanism within the PCI-to-PCI Bridge SISR configuration register.
+**  			0=Private Device control Disabled - SISR register bits default to zero
+**  			1=Private Device control Enabled - SISR register bits default to one
+**  	02	Varies with external state of RETRY during P_RST#
+**  			Configuration Cycle Retry - When this bit is set, the PCI interface of the 80331 responds to all
+**  			configuration cycles with a Retry condition. When clear, the 80331 responds to the appropriate
+**  			configuration cycles.
+**  		The default condition for this bit is based on the external state of the RETRY pin at the rising edge of
+**  			P_RST#. When the external state of the pin is high, the bit is set. When the external state of the pin is
+**  			low, the bit is cleared.
+**  01		Varies with external state of CORE_RST# during P_RST#
+**  			Core Processor Reset - This bit is set to its default value by the hardware when either P_RST# is
+**  			asserted or the Reset Internal Bus bit in PCSR is set. When this bit is set, the Intel XScale core is
+**  			being held in reset. Software cannot set this bit. Software is required to clear this bit to deassert Intel 
+**  			XScale  core reset.
+**  			The default condition for this bit is based on the external state of the CORE_RST# pin at the rising edge
+**  			of P_RST#. When the external state of the pin is low, the bit is set. When the external state of the pin is
+**  			high, the bit is clear.
+**  00		Varies with external state of PRIVMEM during P_RST#
+**  			Private Memory Enable - This bit indicates the state of the reset strap which enables the private device
+**  			control mechanism within the PCI-to-PCI Bridge SDER configuration register.
+**  			0=Private Memory control Disabled - SDER register bit 2 default to zero
+**  			1=Private Memory control Enabled - SDER register bits 2 default to one
 ***********************************************************************************
 */
 #define     ARCMSR_PCI_CONFIGURATION_STATUS_REG		          0x84    /*dword 0x87,0x86,0x85,0x84*/
@@ -2720,88 +2856,90 @@ struct _SENSE_DATA
 /*
 ***********************************************************************************
 **  ATU Interrupt Mask Register - ATUIMR
-**  
+**
 **  The ATU Interrupt Mask Register contains the control bit to enable and disable interrupts
 **  generated by the ATU.
 **  -----------------------------------------------------------------
 **  Bit       Default                       Description
 **  31:15     0 0000H                       Reserved
 **  14        0 2                           VPD Address Register Updated Mask - Controls the setting of bit 17 of the ATUISR and generation of the
-**  										ATU Configuration Register Write interrupt when a PCI bus write occurs to the VPDAR register.
-**  										0=Not Masked
-**  										1=Masked
+**  					ATU Configuration Register Write interrupt when a PCI bus write occurs to the VPDAR register.
+**  					0=Not Masked
+**  					1=Masked
 **  13        0 2                           Reserved
 **  12        0 2                           Configuration Register Write Mask - Controls the setting of bit 15 of the ATUISR and generation of the
-**  										ATU Configuration Register Write interrupt when a PCI bus write occurs to any ATU configuration register
-**  										except those covered by mask bit 11 and bit 14 of this register, and ATU BIST enable bit 3 of the ATUCR.
+**  					ATU Configuration Register Write interrupt when a PCI bus write occurs to any ATU configuration register
+**  					except those covered by mask bit 11 and bit 14 of this register, and ATU BIST enable bit 3 of the ATUCR.
 **  										0=Not Masked
 **  										1=Masked
 **  11        1 2                           ATU Inbound Memory Window 1 Base Updated Mask - Controls the setting of bit 14 of the ATUISR and
-**  														generation of the ATU Configuration Register Write interrupt when a PCI bus write occurs to either the
+**  					generation of the ATU Configuration Register Write interrupt when a PCI bus write occurs to either the
 **  														IABAR1 register or the IAUBAR1 register.
 **  														0=Not Masked
 **  														1=Masked
 **  10        0 2                           Initiated Split Completion Error Message Interrupt Mask - Controls the setting of bit 13 of the ATUISR and
-**  														generation of the ATU Error interrupt when the ATU initiates a Split Completion Error Message.
+**  					generation of the ATU Error interrupt when the ATU initiates a Split Completion Error Message.
 **  														0=Not Masked
 **  														1=Masked
 **  09        0 2                           Received Split Completion Error Message Interrupt Mask- Controls the setting of bit 12 of the ATUISR
-**  														and generation of the ATU Error interrupt when a Split Completion Error Message results in bit 29 of the
-**  														PCIXSR being set.
-**  														0=Not Masked
-**  														1=Masked
+**  					and generation of the ATU Error interrupt when a Split Completion Error Message results in bit 29 of the
+**  					PCIXSR being set.
+**  					0=Not Masked
+**  					1=Masked
 **  08        1 2                           Power State Transition Interrupt Mask - Controls the setting of bit 12 of the ATUISR and generation of the
-**  														ATU Error interrupt when ATU Power Management Control/Status Register is written to transition the
-**  														ATU Function Power State from D0 to D3, D0 to D1, D1 to D3 or D3 to D0.
+**  					ATU Error interrupt when ATU Power Management Control/Status Register is written to transition the
+**  					ATU Function Power State from D0 to D3, D0 to D1, D1 to D3 or D3 to D0.
 **  														0=Not Masked
 **  														1=Masked
 **  07        0 2                           ATU Detected Parity Error Interrupt Mask - Controls the setting of bit 9 of the ATUISR and generation of
-**  														the ATU Error interrupt when a parity error detected on the PCI bus that sets bit 15 of the ATUSR.
+**  					the ATU Error interrupt when a parity error detected on the PCI bus that sets bit 15 of the ATUSR.
 **  														0=Not Masked
 **  														1=Masked
 **  06        0 2                           ATU SERR# Asserted Interrupt Mask - Controls the setting of bit 10 of the ATUISR and generation of the
-**  														ATU Error interrupt when SERR# is asserted on the PCI interface resulting in bit 14 of the ATUSR being set.
+**  					ATU Error interrupt when SERR# is asserted on the PCI interface resulting in bit 14 of the ATUSR being set.
 **  														0=Not Masked
 **  														1=Masked
-**  														NOTE: This bit is specific to the ATU asserting SERR# and not detecting SERR# from another master.
+**  		NOTE: This bit is specific to the ATU asserting SERR# and not detecting SERR# from another master.
 **  05        0 2                           ATU PCI Master Abort Interrupt Mask - Controls the setting of bit 3 of the ATUISR and generation of the
-**  														ATU Error interrupt when a master abort error resulting in bit 13 of the ATUSR being set.
+**  					ATU Error interrupt when a master abort error resulting in bit 13 of the ATUSR being set.
 **  														0=Not Masked
 **  														1=Masked
 **  04        0 2                           ATU PCI Target Abort (Master) Interrupt Mask- Controls the setting of bit 12 of the ATUISR and ATU Error
-**  														generation of the interrupt when a target abort error resulting in bit 12 of the ATUSR being set
+**  					generation of the interrupt when a target abort error resulting in bit 12 of the ATUSR being set
 **  														0=Not Masked
 **  														1=Masked
 **  03        0 2                           ATU PCI Target Abort (Target) Interrupt Mask- Controls the setting of bit 1 of the ATUISR and generation
-**  														of the ATU Error interrupt when a target abort error resulting in bit 11 of the ATUSR being set.
+**  					of the ATU Error interrupt when a target abort error resulting in bit 11 of the ATUSR being set.
 **  														0=Not Masked
 **  														1=Masked
 **  02        0 2                           ATU PCI Master Parity Error Interrupt Mask - Controls the setting of bit 0 of the ATUISR and generation
-**  														of the ATU Error interrupt when a parity error resulting in bit 8 of the ATUSR being set.
+**  					of the ATU Error interrupt when a parity error resulting in bit 8 of the ATUSR being set.
 **  														0=Not Masked
 **  														1=Masked
 **  01        0 2                           ATU Inbound Error SERR# Enable - Controls when the ATU asserts (when enabled through the
-**  														ATUCMD) SERR# on the PCI interface in response to a master abort on the internal bus during an
+**  					ATUCMD) SERR# on the PCI interface in response to a master abort on the internal bus during an
 **  														inbound write transaction.
 **  														0=SERR# Not Asserted due to error
 **  														1=SERR# Asserted due to error
 **  00        0 2                           ATU ECC Target Abort Enable - Controls the ATU response on the PCI interface to a target abort (ECC
-**  														error) from the memory controller on the internal bus. In conventional mode, this action only occurs
-**  														during an inbound read transaction where the data phase that was target aborted on the internal bus is
-**  														actually requested from the inbound read queue.
-**  														0=Disconnect with data (the data being up to 64 bits of 1¡¦s)
+**  					error) from the memory controller on the internal bus. In conventional mode, this action only occurs
+**  					during an inbound read transaction where the data phase that was target aborted on the internal bus is
+**  					actually requested from the inbound read queue.
+**  														0=Disconnect with data 
+**  														(the data being up to 64 bits of 1¡¦s)
 **  														1=Target Abort
-**  														NOTE: In PCI-X Mode, The ATU initiates a Split Completion Error Message (with message class=2h -
-**  														completer error and message index=81h - 80331 internal bus target abort) on the PCI bus,
-**  														independent of the setting of this bit.
+**  		NOTE: In PCI-X Mode, The ATU initiates a Split Completion Error Message (with message class=2h -
+**  			completer error and message index=81h - 80331 internal bus target abort) on the PCI bus,
+**  			independent of the setting of this bit.
 *********************************************************************************** 
 */
 #define     ARCMSR_ATU_INTERRUPT_MASK_REG		          0x8C    /*dword 0x8F,0x8E,0x8D,0x8C*/
 /*
 ***********************************************************************************
 **  Inbound ATU Base Address Register 3 - IABAR3
-**  
-**  . The Inbound ATU Base Address Register 3 (IABAR3) together with the Inbound ATU Upper Base Address Register 3 (IAUBAR3) defines the block of memory addresses where the inbound translation window 3 begins. 
+**
+**  . The Inbound ATU Base Address Register 3 (IABAR3) together with the Inbound ATU Upper Base Address Register 3 (IAUBAR3) defines the block 
+**    of memory addresses where the inbound translation window 3 begins. 
 **  . The inbound ATU decodes and forwards the bus request to the 80331 internal bus with a translated address to map into 80331 local memory. 
 **  . The IABAR3 and IAUBAR3 define the base address and describes the required memory block size.
 **  . Bits 31 through 12 of the IABAR3 is either read/write bits or read only with a value of 0 depending on the value located within the IALR3. 
@@ -2825,12 +2963,13 @@ struct _SENSE_DATA
 **                             the user should also set the Type Indicator for 64 bit addressability.
 **  -----------------------------------------------------------------
 **  Bit       Default                       Description
-**  31:12     00000H                        Translation Base Address 3 - These bits define the actual location the translation function is to respond to when addressed from the PCI bus.
+**  31:12     00000H                        Translation Base Address 3 - These bits define the actual location 
+**                                          the translation function is to respond to when addressed from the PCI bus.
 **  11:04        00H                        Reserved.
 **  03           0 2                        Prefetchable Indicator - When set, defines the memory space as prefetchable.
 **  02:01       00 2                        Type Indicator - Defines the width of the addressability for this memory window:
-**  												00 - Memory Window is locatable anywhere in 32 bit address space
-**  												10 - Memory Window is locatable anywhere in 64 bit address space
+**  						00 - Memory Window is locatable anywhere in 32 bit address space
+**  						10 - Memory Window is locatable anywhere in 64 bit address space
 **  00           0 2                        Memory Space Indicator - This bit field describes memory or I/O space base address.
 **                                                                   The ATU does not occupy I/O space, 
 **                                                                   thus this bit must be zero.
@@ -2840,9 +2979,10 @@ struct _SENSE_DATA
 /*
 ***********************************************************************************
 **  Inbound ATU Upper Base Address Register 3 - IAUBAR3
-**  
+**
 **  This register contains the upper base address when decoding PCI addresses beyond 4 GBytes.
-**  Together with the Translation Base Address this register defines the actual location the translation function is to respond to when addressed from the PCI bus for addresses > 4GBytes (for DACs).
+**  Together with the Translation Base Address this register defines the actual location
+**  the translation function is to respond to when addressed from the PCI bus for addresses > 4GBytes (for DACs).
 **  The programmed value within the base address register must comply with the PCI programming
 **  requirements for address alignment.
 **  Note: 
@@ -2851,14 +2991,15 @@ struct _SENSE_DATA
 **      This is the default for IABAR3.
 **  -----------------------------------------------------------------
 **  Bit       Default                       Description
-**  31:0      00000H                        Translation Upper Base Address 3 - Together with the Translation Base Address 3 these bits define the actual location the translation function is to respond to when addressed from the PCI bus for addresses > 4GBytes.
+**  31:0      00000H                        Translation Upper Base Address 3 - Together with the Translation Base Address 3 these bits define 
+**                        the actual location the translation function is to respond to when addressed from the PCI bus for addresses > 4GBytes.
 ***********************************************************************************
 */
 #define     ARCMSR_INBOUND_ATU_UPPER_BASE_ADDRESS3_REG		          0x94    /*dword 0x97,0x96,0x95,0x94*/
 /*
 ***********************************************************************************
 **  Inbound ATU Limit Register 3 - IALR3
-**  
+**
 **  Inbound address translation for memory window 3 occurs for data transfers occurring from the PCI
 **  bus (originated from the PCI bus) to the 80331 internal bus. The address translation block converts
 **  PCI addresses to internal bus addresses.
@@ -2879,7 +3020,8 @@ struct _SENSE_DATA
 **  register.
 **  -----------------------------------------------------------------
 **  Bit       Default                       Description
-**  31:12     00000H                        Inbound Translation Limit 3 - This readback value determines the memory block size required for the ATUs memory window 3.
+**  31:12     00000H                        Inbound Translation Limit 3 - This readback value determines the memory block size required 
+**                                          for the ATUs memory window 3.
 **  11:00       000H                        Reserved
 ***********************************************************************************
 */
@@ -2887,7 +3029,7 @@ struct _SENSE_DATA
 /*
 ***********************************************************************************
 **  Inbound ATU Translate Value Register 3 - IATVR3
-**  
+**
 **  The Inbound ATU Translate Value Register 3 (IATVR3) contains the internal bus address used to
 **  convert PCI bus addresses. The converted address is driven on the internal bus as a result of the
 **  inbound ATU address translation.
@@ -2917,14 +3059,15 @@ struct _SENSE_DATA
 **  Addendum to the PCI Local Bus Specification, Revision 1.0a for details on the two formats.
 **  -----------------------------------------------------------------
 **  Bit       Default                       Description
-**  31:00    0000 0000H                     Configuration Cycle Address - These bits define the 32-bit PCI address used during an outbound configuration read or write cycle.
+**  31:00    0000 0000H                     Configuration Cycle Address - These bits define the 32-bit PCI address used during an outbound 
+**                                          configuration read or write cycle.
 ***********************************************************************************
 */
 #define     ARCMSR_OUTBOUND_CONFIGURATION_CYCLE_ADDRESS_REG		          0xA4    /*dword 0xA7,0xA6,0xA5,0xA4*/
 /*
 ***********************************************************************************
 **  Outbound Configuration Cycle Data Register - OCCDR
-**  
+**
 **  The Outbound Configuration Cycle Data Register is used to initiate a configuration read or write
 **  on the PCI bus. The register is logical rather than physical meaning that it is an address not a
 **  register. The Intel XScale core reads or writes the data registers memory-mapped address to
@@ -2936,7 +3079,8 @@ struct _SENSE_DATA
 **  within the ATU configuration space.
 **  -----------------------------------------------------------------
 **  Bit       Default                       Description
-**  31:00    0000 0000H                     Configuration Cycle Data - These bits define the data used during an outbound configuration read or write cycle.
+**  31:00    0000 0000H                     Configuration Cycle Data - These bits define the data used during an outbound configuration read 
+**                                          or write cycle.
 ***********************************************************************************
 */
 #define     ARCMSR_OUTBOUND_CONFIGURATION_CYCLE_DATA_REG		          0xAC    /*dword 0xAF,0xAE,0xAD,0xAC*/
@@ -2950,7 +3094,8 @@ struct _SENSE_DATA
 **  with an ID of 03H as defined by the PCI Local Bus Specification, Revision 2.3.
 **  -----------------------------------------------------------------
 **  Bit       Default                       Description
-**  07:00       03H                         Cap_Id - This field with its¡¦ 03H value identifies this item in the linked list of Extended Capability Headers as being the VPD capability registers.
+**  07:00       03H               Cap_Id - This field with its¡¦ 03H value identifies this item in the linked list of Extended Capability
+**                                Headers as being the VPD capability registers.
 ***********************************************************************************
 */
 #define     ARCMSR_VPD_CAPABILITY_IDENTIFIER_REG		      0xB8    /*byte*/
@@ -2963,16 +3108,16 @@ struct _SENSE_DATA
 **  For the 80331, this the final capability list, and hence, this register is set to 00H.
 **  -----------------------------------------------------------------
 **  Bit       Default                       Description
-**  07:00       00H                         Next_ Item_ Pointer - This field provides an offset into the function¡¦s configuration space pointing to the
-**                                                          next item in the function¡¦s capability list. Since the VPD capabilities are the last in the linked list of
-**                                                          extended capabilities in the 80331, the register is set to 00H.
+**  07:00       00H               Next_ Item_ Pointer - This field provides an offset into the function¡¦s configuration space pointing to the
+**                                next item in the function¡¦s capability list. Since the VPD capabilities are the last in the linked list of
+**                                extended capabilities in the 80331, the register is set to 00H.
 ***********************************************************************************
 */
 #define     ARCMSR_VPD_NEXT_ITEM_PTR_REG		          0xB9    /*byte*/
 /*
 ***********************************************************************************
 **  VPD Address Register - VPD_AR
-**  
+**
 **  The VPD Address register (VPDAR) contains the DWORD-aligned byte address of the VPD to be
 **  accessed. The register is read/write and the initial value at power-up is indeterminate.
 **  A PCI Configuration Write to the VPDAR interrupts the Intel XScale core. Software can use
@@ -2980,18 +3125,18 @@ struct _SENSE_DATA
 **  write of the VPD through the VPD Data Register.
 **  -----------------------------------------------------------------
 **  Bit       Default                       Description
-**  15          0 2                         Flag - A flag is used to indicate when a transfer of data between the VPD Data Register and the storage
-**                                                          component has completed. Please see Section 3.9, ¡§Vital Product Data¡¨ on page 201 for more details on
-**                                                          how the 80331 handles the data transfer.
-**  14:0       0000H                        VPD Address - This register is written to set the DWORD-aligned byte address used to read or write
-**                                                          Vital Product Data from the VPD storage component.
+**  15          0 2          Flag - A flag is used to indicate when a transfer of data between the VPD Data Register and the storage
+**                           component has completed. Please see Section 3.9, ¡§Vital Product Data¡¨ on page 201 for more details on
+**                           how the 80331 handles the data transfer.
+**  14:0       0000H         VPD Address - This register is written to set the DWORD-aligned byte address used to read or write
+**                           Vital Product Data from the VPD storage component.
 ***********************************************************************************
 */
 #define     ARCMSR_VPD_ADDRESS_REG		          0xBA    /*word 0xBB,0xBA*/
 /*
 ***********************************************************************************
 **  VPD Data Register - VPD_DR
-**  
+**
 **  This register is used to transfer data between the 80331 and the VPD storage component.
 **  -----------------------------------------------------------------
 **  Bit       Default                       Description
@@ -3002,7 +3147,7 @@ struct _SENSE_DATA
 /*
 ***********************************************************************************
 **  Power Management Capability Identifier Register -PM_CAPID
-**  
+**
 **  The Capability Identifier Register bits adhere to the definitions in the PCI Local Bus Specification,
 **  Revision 2.3. This register in the PCI Extended Capability header identifies the type of Extended
 **  Capability contained in that header. In the case of the 80331, this is the PCI Bus Power
@@ -3010,21 +3155,22 @@ struct _SENSE_DATA
 **  Interface Specification, Revision 1.1.
 **  -----------------------------------------------------------------
 **  Bit       Default                       Description
-**  07:00       01H                         Cap_Id - This field with its¡¦ 01H value identifies this item in the linked list of Extended Capability Headers as being the PCI Power Management Registers.
+**  07:00       01H                         Cap_Id - This field with its¡¦ 01H value identifies this item in the linked list of Extended Capability
+**                                          Headers as being the PCI Power Management Registers.
 ***********************************************************************************
 */
 #define     ARCMSR_POWER_MANAGEMENT_CAPABILITY_IDENTIFIER_REG		          0xC0    /*byte*/
 /*
 ***********************************************************************************
 **  Power Management Next Item Pointer Register - PM_NXTP
-**  
+**
 **  The Next Item Pointer Register bits adhere to the definitions in the PCI Local Bus Specification,
 **  Revision 2.3. This register describes the location of the next item in the function¡¦s capability list.
 **  For the 80331, the next capability (MSI capability list) is located at off-set D0H.
 **  -----------------------------------------------------------------
 **  Bit       Default                       Description
 **  07:00       D0H                         Next_ Item_ Pointer - This field provides an offset into the function¡¦s configuration space pointing to the
-**                                                          next item in the function¡¦s capability list which in the 80331 is the MSI extended capabilities header.
+**                          next item in the function¡¦s capability list which in the 80331 is the MSI extended capabilities header.
 ***********************************************************************************
 */
 #define     ARCMSR_POWER_NEXT_ITEM_PTR_REG		          0xC1    /*byte*/
@@ -3037,7 +3183,8 @@ struct _SENSE_DATA
 **  information on the capabilities of the ATU function related to power management.
 **  -----------------------------------------------------------------
 **  Bit       Default                       Description
-**  15:11   00000 2                         PME_Support - This function is not capable of asserting the PME# signal in any state, since PME# is not supported by the 80331.
+**  15:11   00000 2                         PME_Support - This function is not capable of asserting the PME# signal in any state, since PME# 
+**                                          is not supported by the 80331.
 **  10          0 2                         D2_Support - This bit is set to 0 2 indicating that the 80331 does not support the D2 Power Management State
 **  9           1 2                         D1_Support - This bit is set to 1 2 indicating that the 80331 supports the D1 Power Management State
 **  8:6       000 2                         Aux_Current - This field is set to 000 2 indicating that the 80331 has no current requirements for the
@@ -3046,30 +3193,34 @@ struct _SENSE_DATA
 **                                                          following the transition to the D0 uninitialized state.
 **  4           0 2                         Reserved.
 **  3           0 2                         PME Clock - Since the 80331 does not support PME# signal generation this bit is cleared to 0 2 .
-**  2:0       010 2                         Version - Setting these bits to 010 2 means that this function complies with PCI Bus Power Management Interface Specification, Revision 1.1
+**  2:0       010 2                         Version - Setting these bits to 010 2 means that this function complies with PCI Bus Power Management 
+**                                          Interface Specification, Revision 1.1
 ***********************************************************************************
 */
 #define     ARCMSR_POWER_MANAGEMENT_CAPABILITY_REG		          0xC2    /*word 0xC3,0xC2*/
 /*
 ***********************************************************************************
 **  Power Management Control/Status Register - PM_CSR
-**  
+**
 **  Power Management Control/Status bits adhere to the definitions in the PCI Bus Power
 **  Management Interface Specification, Revision 1.1. This 16-bit register is the control and status
 **  interface for the power management extended capability.
 **  -----------------------------------------------------------------
 **  Bit       Default                       Description
-**  15          0 2                         PME_Status - This function is not capable of asserting the PME# signal in any state, since PME## is not supported by the 80331.
+**  15          0 2                         PME_Status - This function is not capable of asserting the PME# signal in any state, since PME## is not
+**                                          supported by the 80331.
 **  14:9        00H                         Reserved
-**  8           0 2                         PME_En - This bit is hardwired to read-only 0 2 since this function does not support PME# generation from any power state.
+**  8           0 2                         PME_En - This bit is hardwired to read-only 0 2 since this function does not support PME# 
+**                                          generation from any power state.
 **  7:2    000000 2                         Reserved
-**  1:0        00 2                         Power State - This 2-bit field is used both to determine the current power state of a function and to set the function into a new power state. The definition of the values is:
-**  														00 2 - D0
-**  														01 2 - D1
-**  														10 2 - D2 (Unsupported)
-**  														11 2 - D3 hot
-**  														The 80331 supports only the D0 and D3 hot states.
-**  
+**  1:0        00 2                         Power State - This 2-bit field is used both to determine the current power state 
+**                                          of a function and to set the function into a new power state. The definition of the values is:
+**  							00 2 - D0
+**  							01 2 - D1
+**  							10 2 - D2 (Unsupported)
+**  							11 2 - D3 hot
+**  							The 80331 supports only the D0 and D3 hot states.
+**
 ***********************************************************************************
 */
 #define     ARCMSR_POWER_MANAGEMENT_CONTROL_STATUS_REG		          0xC4    /*word 0xC5,0xC4*/
@@ -3083,7 +3234,8 @@ struct _SENSE_DATA
 **  an ID of 07H as defined by the PCI-X Addendum to the PCI Local Bus Specification, Revision 1.0a.
 **  -----------------------------------------------------------------
 **  Bit       Default                       Description
-**  07:00       07H                         Cap_Id - This field with its¡¦ 07H value identifies this item in the linked list of Extended Capability Headers as being the PCI-X capability registers.
+**  07:00       07H                         Cap_Id - This field with its¡¦ 07H value identifies this item in the linked list of Extended Capability
+**                                          Headers as being the PCI-X capability registers.
 ***********************************************************************************
 */
 #define     ARCMSR_PCIX_CAPABILITY_IDENTIFIER_REG		          0xE0    /*byte*/
@@ -3107,10 +3259,10 @@ struct _SENSE_DATA
 **  -----------------------------------------------------------------
 **  Bit       Default                       Description
 **  07:00       00H                         Next_ Item_ Pointer - This field provides an offset into the function¡¦s configuration space pointing to the
-**  														next item in the function¡¦s capability list. Since the PCI-X capabilities are the last in the linked list of
-**  														extended capabilities in the 80331, the register is set to 00H.
-**  														However, this field may be written prior to host configuration with B8H to extend the list to include the
-**  														VPD extended capabilities header.
+**  			next item in the function¡¦s capability list. Since the PCI-X capabilities are the last in the linked list of
+**  			extended capabilities in the 80331, the register is set to 00H.
+**  			However, this field may be written prior to host configuration with B8H to extend the list to include the
+**  			VPD extended capabilities header.
 ***********************************************************************************
 */
 #define     ARCMSR_PCIX_NEXT_ITEM_PTR_REG		          0xE1    /*byte*/
@@ -3124,29 +3276,29 @@ struct _SENSE_DATA
 **  Bit       Default                       Description
 **  15:7     000000000 2                    Reserved.
 **  6:4        011 2                        Maximum Outstanding Split Transactions - This register sets the maximum number of Split Transactions
-**  														the device is permitted to have outstanding at one time.
-**  														Register Maximum Outstanding
-**  														0 1
-**  														1 2
-**  														2 3
-**  														3 4
-**  														4 8
-**  														5 12
-**  														6 16
-**  														7 32
+**  			the device is permitted to have outstanding at one time.
+**  			Register Maximum Outstanding
+**  					0 1
+**  					1 2
+**  					2 3
+**  					3 4
+**  					4 8
+**  					5 12
+**  					6 16
+**  					7 32
 **  3:2        00 2                         Maximum Memory Read Byte Count - This register sets the maximum byte count the device uses when
-**                                                          initiating a Sequence with one of the burst memory read commands.
-**  														Register Maximum Byte Count
-**  														0 512
-**  														1 1024
-**  														2 2048
-**  														3 4096
-**  														1 0 2
-**  														Enable Relaxed Ordering - The 80331 does not set the relaxed ordering bit in the Requester Attributes
-**  														of Transactions.
+**  			initiating a Sequence with one of the burst memory read commands.
+**  			Register Maximum Byte Count
+**  					0 512
+**  					1 1024
+**  					2 2048
+**  					3 4096
+**  					1 0 2
+**  			Enable Relaxed Ordering - The 80331 does not set the relaxed ordering bit in the Requester Attributes
+**  			of Transactions.
 **  0          0 2                          Data Parity Error Recovery Enable - The device driver sets this bit to enable the device to attempt to
-**                                                          recover from data parity errors. When this bit is 0 and the device is in PCI-X mode, the device asserts
-**                                                          SERR# (when enabled) whenever the Master Data Parity Error bit (Status register, bit 8) is set.
+**  			recover from data parity errors. When this bit is 0 and the device is in PCI-X mode, the device asserts
+**  			SERR# (when enabled) whenever the Master Data Parity Error bit (Status register, bit 8) is set.
 ***********************************************************************************
 */
 #define     ARCMSR_PCIX_COMMAND_REG		          0xE2    /*word 0xE3,0xE2*/
@@ -3160,67 +3312,71 @@ struct _SENSE_DATA
 **  Bit       Default                       Description
 **  31:30       00 2                        Reserved
 **  29           0 2                        Received Split Completion Error Message - This bit is set when the device receives a Split Completion
-**  														Message with the Split Completion Error attribute bit set. Once set, this bit remains set until software
-**  														writes a 1 to this location.
-**  														0=no Split Completion error message received.
-**  														1=a Split Completion error message has been received.
+**  					Message with the Split Completion Error attribute bit set. Once set, this bit remains set until software
+**  					writes a 1 to this location.
+**  					0=no Split Completion error message received.
+**  					1=a Split Completion error message has been received.
 **  28:26      001 2                        Designed Maximum Cumulative Read Size (DMCRS) - The value of this register depends on the setting
-**  														of the Maximum Memory Read Byte Count field of the PCIXCMD register:
-**  														DMCRS Max ADQs Maximum Memory Read Byte Count Register Setting
-**  														1 16 512 (Default)
-**  														2 32 1024
-**  														2 32 2048
-**  														2 32 4096
+**  					of the Maximum Memory Read Byte Count field of the PCIXCMD register:
+**  					DMCRS Max ADQs Maximum Memory Read Byte Count Register Setting
+**  					1 16 512 (Default)
+**  					2 32 1024
+**  					2 32 2048
+**  					2 32 4096
 **  25:23      011 2                        Designed Maximum Outstanding Split Transactions - The 80331 can have up to four outstanding split transactions.
-**  22:21       01 2                        Designed Maximum Memory Read Byte Count - The 80331 can generate memory reads with byte counts up to 1024 bytes.
+**  22:21       01 2                        Designed Maximum Memory Read Byte Count - The 80331 can generate memory reads with byte counts up 
+**                                          to 1024 bytes.
 **  20           1 2                        80331 is a complex device.
 **  19           0 2                        Unexpected Split Completion - This bit is set when an unexpected Split Completion with this device¡¦s
-**  														Requester ID is received. Once set, this bit remains set until software writes a 1 to this location.
-**  														0=no unexpected Split Completion has been received.
-**  														1=an unexpected Split Completion has been received.
+**  					Requester ID is received. Once set, this bit remains set until software writes a 1 to this location.
+**  					0=no unexpected Split Completion has been received.
+**  					1=an unexpected Split Completion has been received.
 **  18           0 2                        Split Completion Discarded - This bit is set when the device discards a Split Completion because the
-**  														requester would not accept it. See Section 5.4.4 of the PCI-X Addendum to the PCI Local Bus
-**  														Specification, Revision 1.0a for details. Once set, this bit remains set until software writes a 1 to this
-**  														location.
-**  														0=no Split Completion has been discarded.
-**  														1=a Split Completion has been discarded.
-**  														NOTE: The 80331 does not set this bit since there is no Inbound address responding to Inbound Read
-**  														Requests with Split Responses (Memory or Register) that has ¡§read side effects.¡¨
+**  					requester would not accept it. See Section 5.4.4 of the PCI-X Addendum to the PCI Local Bus
+**  					Specification, Revision 1.0a for details. Once set, this bit remains set until software writes a 1 to this
+**  					location.
+**  					0=no Split Completion has been discarded.
+**  					1=a Split Completion has been discarded.
+**  		NOTE: The 80331 does not set this bit since there is no Inbound address responding to Inbound Read
+**  			Requests with Split Responses (Memory or Register) that has ¡§read side effects.¡¨
 **  17           1 2                        80331 is a 133 MHz capable device.
-**  16           1 2 or P_32BITPCI#			80331 with bridge enabled (BRG_EN=1) implements the ATU with a 64-bit interface on the secondary PCI bus, therefore this bit is always set.
-**                              			80331 with no bridge and central resource disabled (BRG_EN=0, ARB_EN=0), use this bit to identify the add-in card to the system as 64-bit or 32-bit wide via a user-configurable strap (P_32BITPCI#). 
-**                              			This strap, by default, identifies the add in card based on 80331 with bridge disabled as 64-bit unless the user attaches the appropriate pull-down resistor to the strap.
-**  														0=The bus is 32 bits wide.
-**  														1=The bus is 64 bits wide.
+**  16           1 2 or P_32BITPCI#	80331 with bridge enabled (BRG_EN=1) implements the ATU with a 64-bit interface on the secondary PCI bus, 
+**  					therefore this bit is always set.
+**  			80331 with no bridge and central resource disabled (BRG_EN=0, ARB_EN=0), 
+**  			use this bit to identify the add-in card to the system as 64-bit or 32-bit wide via a user-configurable strap (P_32BITPCI#). 
+**  			This strap, by default, identifies the add in card based on 80331 with bridge disabled 
+**  			as 64-bit unless the user attaches the appropriate pull-down resistor to the strap.
+**  			0=The bus is 32 bits wide.
+**  			1=The bus is 64 bits wide.
 **  15:8         FFH                        Bus Number - This register is read for diagnostic purposes only. It indicates the number of the bus
-**  														segment for the device containing this function. The function uses this number as part of its Requester
-**  														ID and Completer ID. For all devices other than the source bridge, each time the function is addressed
-**  														by a Configuration Write transaction, the function must update this register with the contents of AD[7::0]
-**  														of the attribute phase of the Configuration Write, regardless of which register in the function is
-**  														addressed by the transaction. The function is addressed by a Configuration Write transaction when all of
-**  														the following are true:
-**  														1. The transaction uses a Configuration Write command.
-**  														2. IDSEL is asserted during the address phase.
-**  														3. AD[1::0] are 00b (Type 0 configuration transaction).
-**  														4. AD[10::08] of the configuration address contain the appropriate function number.
+**  			segment for the device containing this function. The function uses this number as part of its Requester
+**  			ID and Completer ID. For all devices other than the source bridge, each time the function is addressed
+**  			by a Configuration Write transaction, the function must update this register with the contents of AD[7::0]
+**  			of the attribute phase of the Configuration Write, regardless of which register in the function is
+**  			addressed by the transaction. The function is addressed by a Configuration Write transaction when all of
+**  			the following are true:
+**  			1. The transaction uses a Configuration Write command.
+**  			2. IDSEL is asserted during the address phase.
+**  			3. AD[1::0] are 00b (Type 0 configuration transaction).
+**  			4. AD[10::08] of the configuration address contain the appropriate function number.
 **  7:3          1FH                        Device Number - This register is read for diagnostic purposes only. It indicates the number of the device
-**  														containing this function, i.e., the number in the Device Number field (AD[15::11]) of the address of a
-**  														Type 0 configuration transaction that is assigned to the device containing this function by the connection
-**  														of the system hardware. The system must assign a device number other than 00h (00h is reserved for
-**  														the source bridge). The function uses this number as part of its Requester ID and Completer ID. Each
-**  														time the function is addressed by a Configuration Write transaction, the device must update this register
-**  														with the contents of AD[15::11] of the address phase of the Configuration Write, regardless of which
-**  														register in the function is addressed by the transaction. The function is addressed by a Configuration
-**  														Write transaction when all of the following are true:
-**  														1. The transaction uses a Configuration Write command.
-**  														2. IDSEL is asserted during the address phase.
-**  														3. AD[1::0] are 00b (Type 0 configuration transaction).
-**  														4. AD[10::08] of the configuration address contain the appropriate function number.
+**  			containing this function, i.e., the number in the Device Number field (AD[15::11]) of the address of a
+**  			Type 0 configuration transaction that is assigned to the device containing this function by the connection
+**  			of the system hardware. The system must assign a device number other than 00h (00h is reserved for
+**  			the source bridge). The function uses this number as part of its Requester ID and Completer ID. Each
+**  			time the function is addressed by a Configuration Write transaction, the device must update this register
+**  			with the contents of AD[15::11] of the address phase of the Configuration Write, regardless of which
+**  			register in the function is addressed by the transaction. The function is addressed by a Configuration
+**  			Write transaction when all of the following are true:
+**  			1. The transaction uses a Configuration Write command.
+**  			2. IDSEL is asserted during the address phase.
+**  			3. AD[1::0] are 00b (Type 0 configuration transaction).
+**  			4. AD[10::08] of the configuration address contain the appropriate function number.
 **  2:0        000 2                        Function Number - This register is read for diagnostic purposes only. It indicates the number of this
-**  														function; i.e., the number in the Function Number field (AD[10::08]) of the address of a Type 0
-**  														configuration transaction to which this function responds. The function uses this number as part of its
-**  														Requester ID and Completer ID.
-**  
+**  			function; i.e., the number in the Function Number field (AD[10::08]) of the address of a Type 0
+**  			configuration transaction to which this function responds. The function uses this number as part of its
+**  			Requester ID and Completer ID.
+**
 **************************************************************************
 */
 #define     ARCMSR_PCIX_STATUS_REG		          0xE4    /*dword 0xE7,0xE6,0xE5,0xE4*/
@@ -3661,30 +3817,30 @@ struct _SENSE_DATA
 **  0FFCH                                                   ]   1004 Index Registers
 *******************************************************************************
 */
-struct _MU
+struct MessageUnit
 {
-	ULONG								resrved0[4];	            /*0000 000F*/
-	ULONG								inbound_msgaddr0;	        /*0010 0013*/
-	ULONG								inbound_msgaddr1;	        /*0014 0017*/
-	ULONG								outbound_msgaddr0;	        /*0018 001B*/
-	ULONG								outbound_msgaddr1;	        /*001C 001F*/
-	ULONG								inbound_doorbell;	        /*0020 0023*/
-	ULONG								inbound_intstatus;	        /*0024 0027*/
-	ULONG								inbound_intmask;	        /*0028 002B*/
-	ULONG								outbound_doorbell;	        /*002C 002F*/
-	ULONG								outbound_intstatus;	        /*0030 0033*/
-	ULONG								outbound_intmask;	        /*0034 0037*/
-	ULONG								reserved1[2];	            /*0038 003F*/
-	ULONG								inbound_queueport;	        /*0040 0043*/
-	ULONG								outbound_queueport;     	/*0044 0047*/
-	ULONG								reserved2[2];	            /*0048 004F*/
-	ULONG                               reserved3[492];             /*0050 07FF ......local_buffer 492*/
-	ULONG                               message_rbuffer[128];       /*0800 09FF                    128*/
-	ULONG                               message_wbuffer[256];       /*0a00 0DFF                    256*/
-	ULONG                               ioctl_wbuffer[32];          /*0E00 0E7F                     32*/
-    ULONG                               reserved4[32];              /*0E80 0EFF                     32*/
-	ULONG                               ioctl_rbuffer[32];          /*0F00 0F7F                     32*/
-	ULONG                               reserved5[32];              /*0F80 0FFF                     32*/
+	u_int32_t				resrved0[4];	            /*0000 000F*/
+	u_int32_t				inbound_msgaddr0;	    /*0010 0013*/
+	u_int32_t				inbound_msgaddr1;	    /*0014 0017*/
+	u_int32_t				outbound_msgaddr0;	    /*0018 001B*/
+	u_int32_t				outbound_msgaddr1;	    /*001C 001F*/
+	u_int32_t				inbound_doorbell;	    /*0020 0023*/
+	u_int32_t				inbound_intstatus;	    /*0024 0027*/
+	u_int32_t				inbound_intmask;	    /*0028 002B*/
+	u_int32_t				outbound_doorbell;	    /*002C 002F*/
+	u_int32_t				outbound_intstatus;	    /*0030 0033*/
+	u_int32_t				outbound_intmask;	    /*0034 0037*/
+	u_int32_t				reserved1[2];	            /*0038 003F*/
+	u_int32_t				inbound_queueport;	    /*0040 0043*/
+	u_int32_t				outbound_queueport;         /*0044 0047*/
+	u_int32_t				reserved2[2];	            /*0048 004F*/
+	u_int32_t				reserved3[492];             /*0050 07FF ......local_buffer 492*/
+	u_int32_t				reserved4[128];             /*0800 09FF                    128*/
+	u_int32_t				message_rwbuffer[256];      /*0a00 0DFF                    256*/
+	u_int32_t				message_wbuffer[32];        /*0E00 0E7F                     32*/
+	u_int32_t				reserved5[32];              /*0E80 0EFF                     32*/
+	u_int32_t				message_rbuffer[32];        /*0F00 0F7F                     32*/
+	u_int32_t				reserved6[32];              /*0F80 0FFF                     32*/
 };
 /*
 *****************************************************************************
@@ -3721,10 +3877,14 @@ struct _MU
 **--------------------
 **  .  Multi-DWORD PCI burst accesses are not supported by the Messaging Unit, 
 **     with the exception of Multi-DWORD reads to the index registers. 
-**     In Conventional mode: the MU terminates   Multi-DWORD PCI transactions (other than index register reads) with a disconnect at the next Qword boundary, with the exception of queue ports. 
-**     In PCI-X mode       : the MU terminates a Multi-DWORD PCI read transaction with a Split Response and the data is returned through split completion transaction(s).
-**     however, when the burst request crosses into or through the range of  offsets 40h to 4Ch (e.g., this includes the queue ports) the transaction is signaled target-abort immediately on the PCI bus. 
-**	   In PCI-X mode, Multi-DWORD PCI writes is signaled a Single-Data-Phase Disconnect which means that no data beyond the first Qword (Dword when the MU does not assert P_ACK64#) is written.
+**     In Conventional mode: the MU terminates   Multi-DWORD PCI transactions 
+**     (other than index register reads) with a disconnect at the next Qword boundary, with the exception of queue ports. 
+**     In PCI-X mode       : the MU terminates a Multi-DWORD PCI read transaction with a Split Response 
+**     and the data is returned through split completion transaction(s).
+**     however, when the burst request crosses into or through the range of  offsets 40h to 4Ch 
+**     (e.g., this includes the queue ports) the transaction is signaled target-abort immediately on the PCI bus. 
+**     In PCI-X mode, Multi-DWORD PCI writes is signaled a Single-Data-Phase Disconnect 
+**     which means that no data beyond the first Qword (Dword when the MU does not assert P_ACK64#) is written.
 **--------------------
 **  .  All registers needed to configure and control the Messaging Unit are memory-mapped registers.
 **     The MU uses the first 4 Kbytes of the inbound translation window in the Address Translation Unit (ATU).
@@ -3737,7 +3897,8 @@ struct _MU
 **     The Messaging Unit reports all PCI errors in the ATU Status Register.
 **--------------------
 **  .  Parts of the Messaging Unit can be accessed as a 64-bit PCI device. 
-**     The register interface, message registers, doorbell registers, and index registers returns a P_ACK64# in response to a P_REQ64# on the PCI interface. 
+**     The register interface, message registers, doorbell registers, 
+**     and index registers returns a P_ACK64# in response to a P_REQ64# on the PCI interface. 
 **     Up to 1 Qword of data can be read or written per transaction (except Index Register reads). 
 **     The Inbound and Outbound Queue Ports are always 32-bit addresses and the MU does not assert P_ACK64# to offsets 40H and 44H.
 **************************************************************************
@@ -3752,7 +3913,7 @@ struct _MU
 **    Outbound messages are sent by the 80331 and received by the host processor.
 **  . The interrupt status for outbound messages is recorded in the Outbound Interrupt Status Register.
 **    Interrupt status for inbound messages is recorded in the Inbound Interrupt Status Register.
-**  
+**
 **  Inbound Messages:
 **  -----------------
 **  . When an inbound message register is written by an external PCI agent, an interrupt may be generated to the Intel XScale core. 
@@ -3760,13 +3921,15 @@ struct _MU
 **  . The Intel XScale core interrupt is recorded in the Inbound Interrupt Status Register. 
 **    The interrupt causes the Inbound Message Interrupt bit to be set in the Inbound Interrupt Status Register. 
 **    This is a Read/Clear bit that is set by the MU hardware and cleared by software.
-**    The interrupt is cleared when the Intel XScale core writes a value of 1 to the Inbound Message Interrupt bit in the Inbound Interrupt Status Register.
+**    The interrupt is cleared when the Intel XScale core writes a value of 
+**    1 to the Inbound Message Interrupt bit in the Inbound Interrupt Status Register.
 **  ------------------------------------------------------------------------
 **  Inbound Message Register - IMRx
 **
 **  . There are two Inbound Message Registers: IMR0 and IMR1. 
 **  . When the IMR register is written, an interrupt to the Intel XScale core may be generated.
-**    The interrupt is recorded in the Inbound Interrupt Status Register and may be masked by the Inbound Message Interrupt Mask bit in the Inbound Interrupt Mask Register.
+**    The interrupt is recorded in the Inbound Interrupt Status Register and may be masked 
+**    by the Inbound Message Interrupt Mask bit in the Inbound Interrupt Mask Register.
 **  -----------------------------------------------------------------
 **  Bit       Default                       Description
 **  31:00    0000 0000H                     Inbound Message - This is a 32-bit message written by an external PCI agent. 
@@ -3783,7 +3946,7 @@ struct _MU
 **  written, a PCI interrupt may be generated. The interrupt is recorded in the Outbound Interrupt
 **  Status Register and may be masked by the Outbound Message Interrupt Mask bit in the Outbound
 **  Interrupt Mask Register.
-**  
+**
 **  Bit       Default                       Description
 **  31:00    00000000H                      Outbound Message - This is 32-bit message written by the Intel  XScale  core. When written, an
 **                                                             interrupt may be generated on the PCI Interrupt pin determined by the ATU Interrupt Pin Register.
@@ -3801,7 +3964,7 @@ struct _MU
 **  The Inbound Doorbell Register allows external PCI agents to generate interrupts to the Intel R XScale core. 
 **  The Outbound Doorbell Register allows the Intel R XScale core to generate a PCI interrupt. 
 **  Both Doorbell Registers may generate interrupts whenever a bit in the register is set.
-**  
+**
 **  Inbound Doorbells:
 **  ------------------
 **  . When the Inbound Doorbell Register is written by an external PCI agent, an interrupt may be generated to the Intel R XScale  core.
@@ -3811,7 +3974,8 @@ struct _MU
 **    The interrupt is recorded in the Inbound Interrupt Status Register.
 **  . The interrupt may be masked by the Inbound Doorbell Interrupt mask bit in the Inbound Interrupt Mask Register.
 **    When the mask bit is set for a particular bit, no interrupt is generated for that bit.
-**    The Inbound Interrupt Mask Register affects only the generation of the normal messaging unit interrupt and not the values written to the Inbound Doorbell Register. 
+**    The Inbound Interrupt Mask Register affects only the generation of the normal messaging unit interrupt
+**    and not the values written to the Inbound Doorbell Register. 
 **    One bit in the Inbound Doorbell Register is reserved for an Error Doorbell interrupt.
 **  . The interrupt is cleared when the Intel R XScale core writes a value of 1 to the bits in the Inbound Doorbell Register that are set. 
 **    Writing a value of 0 to any bit does not change the value of that bit and does not clear the interrupt.
@@ -3841,27 +4005,31 @@ struct _MU
 **    All interrupts are routed to the Normal Messaging Unit interrupt input of the Intel XScale core, 
 **    except for the Error Doorbell Interrupt and the Outbound Free Queue Full interrupt; 
 **    these two are routed to the Messaging Unit Error interrupt input. 
-**    The generation of interrupts recorded in the Inbound Interrupt Status Register may be masked by setting the corresponding bit in the Inbound Interrupt Mask Register. 
+**    The generation of interrupts recorded in the Inbound Interrupt Status Register 
+**    may be masked by setting the corresponding bit in the Inbound Interrupt Mask Register. 
 **    Some of the bits in this register are Read Only. 
 **    For those bits, the interrupt must be cleared through another register.
 **
 **  Bit       Default                       Description
 **  31:07    0000000H 0 2                   Reserved
-**  06          0 2                         Index Register Interrupt - This bit is set by the MU hardware when an Index Register has been written after a PCI transaction.
-**  05          0 2                         Outbound Free Queue Full Interrupt - This bit is set when the Outbound Free Head Pointer becomes equal to the Tail Pointer and the queue is full. 
-**                                                                               An Error interrupt is generated for this condition.
-**  04          0 2                         Inbound Post Queue Interrupt - This bit is set by the MU hardware when the Inbound Post Queue has been written. 
-**                                                                         Once cleared, an interrupt does NOT be generated when the head and tail pointers remain unequal (i.e. queue status is Not Empty).
-**                                                                         Therefore, when software leaves any unprocessed messages in the post queue when the interrupt is cleared, 
-**                                                                         software must retain the information that the Inbound Post queue status is not empty.
-**                                                                         NOTE: 
-**                                                                         This interrupt is provided with dedicated support in the 80331 Interrupt Controller.
-**  03          0 2                         Error Doorbell Interrupt - This bit is set when the Error Interrupt of the Inbound Doorbell Register is set.
-**                                                                     To clear this bit (and the interrupt), the Error Interrupt bit of the Inbound Doorbell Register must be clear.
-**  02          0 2                         Inbound Doorbell Interrupt - This bit is set when at least one Normal Interrupt bit in the Inbound Doorbell Register is set.
-**                                                                       To clear this bit (and the interrupt), the Normal Interrupt bits in the Inbound Doorbell Register must all be clear.
-**  01          0 2                         Inbound Message 1 Interrupt - This bit is set by the MU hardware when the Inbound Message 1 Register has been written.
-**  00          0 2                         Inbound Message 0 Interrupt - This bit is set by the MU hardware when the Inbound Message 0 Register has been written.
+**  06          0 2              Index Register Interrupt - This bit is set by the MU hardware 
+**                               when an Index Register has been written after a PCI transaction.
+**  05          0 2              Outbound Free Queue Full Interrupt - This bit is set 
+**                               when the Outbound Free Head Pointer becomes equal to the Tail Pointer and the queue is full. 
+**                               An Error interrupt is generated for this condition.
+**  04          0 2              Inbound Post Queue Interrupt - This bit is set by the MU hardware when the Inbound Post Queue has been written. 
+**                               Once cleared, an interrupt does NOT be generated 
+**                               when the head and tail pointers remain unequal (i.e. queue status is Not Empty).
+**                               Therefore, when software leaves any unprocessed messages in the post queue when the interrupt is cleared, 
+**                               software must retain the information that the Inbound Post queue status is not empty.
+**          NOTE: This interrupt is provided with dedicated support in the 80331 Interrupt Controller.
+**  03          0 2              Error Doorbell Interrupt - This bit is set when the Error Interrupt of the Inbound Doorbell Register is set.
+**                               To clear this bit (and the interrupt), the Error Interrupt bit of the Inbound Doorbell Register must be clear.
+**  02          0 2              Inbound Doorbell Interrupt - This bit is set when at least one 
+**                               Normal Interrupt bit in the Inbound Doorbell Register is set.
+**                               To clear this bit (and the interrupt), the Normal Interrupt bits in the Inbound Doorbell Register must all be clear.
+**  01          0 2              Inbound Message 1 Interrupt - This bit is set by the MU hardware when the Inbound Message 1 Register has been written.
+**  00          0 2              Inbound Message 0 Interrupt - This bit is set by the MU hardware when the Inbound Message 0 Register has been written.
 **************************************************************************
 */
 #define     ARCMSR_MU_INBOUND_INTERRUPT_STATUS_REG	      0x24    /*dword 0x27,0x26,0x25,0x24*/
@@ -3883,13 +4051,20 @@ struct _MU
 **  ------------------------------------------------------------------------
 **  Bit       Default                       Description
 **  31:07     000000H 0 2                   Reserved
-**  06        0 2                           Index Register Interrupt Mask - When set, this bit masks the interrupt generated by the MU hardware when an Index Register has been written after a PCI transaction.
-**  05        0 2                           Outbound Free Queue Full Interrupt Mask - When set, this bit masks the Error interrupt generated when the Outbound Free Head Pointer becomes equal to the Tail Pointer and the queue is full.
-**  04        0 2                           Inbound Post Queue Interrupt Mask - When set, this bit masks the interrupt generated by the MU hardware when the Inbound Post Queue has been written.
-**  03        0 2                           Error Doorbell Interrupt Mask - When set, this bit masks the Error Interrupt when the Error Interrupt bit of the Inbound Doorbell Register is set.
-**  02        0 2                           Inbound Doorbell Interrupt Mask - When set, this bit masks the interrupt generated when at least one Normal Interrupt bit in the Inbound Doorbell Register is set.
-**  01        0 2                           Inbound Message 1 Interrupt Mask - When set, this bit masks the Inbound Message 1 Interrupt generated by a write to the Inbound Message 1 Register.
-**  00        0 2                           Inbound Message 0 Interrupt Mask - When set, this bit masks the Inbound Message 0 Interrupt generated by a write to the Inbound Message 0 Register.
+**  06        0 2               Index Register Interrupt Mask - When set, this bit masks the interrupt generated by the MU hardware 
+**				when an Index Register has been written after a PCI transaction.
+**  05        0 2               Outbound Free Queue Full Interrupt Mask - When set, this bit masks the Error interrupt generated 
+**				when the Outbound Free Head Pointer becomes equal to the Tail Pointer and the queue is full.
+**  04        0 2               Inbound Post Queue Interrupt Mask - When set, this bit masks the interrupt generated 
+**				by the MU hardware when the Inbound Post Queue has been written.
+**  03        0 2               Error Doorbell Interrupt Mask - When set, this bit masks the Error Interrupt 
+**				when the Error Interrupt bit of the Inbound Doorbell Register is set.
+**  02        0 2               Inbound Doorbell Interrupt Mask - When set, this bit masks the interrupt generated 
+**				when at least one Normal Interrupt bit in the Inbound Doorbell Register is set.
+**  01        0 2               Inbound Message 1 Interrupt Mask - When set, this bit masks the Inbound Message 1 
+**				Interrupt generated by a write to the Inbound Message 1 Register.
+**  00        0 2               Inbound Message 0 Interrupt Mask - When set, 
+**                              this bit masks the Inbound Message 0 Interrupt generated by a write to the Inbound Message 0 Register.
 **************************************************************************
 */
 #define     ARCMSR_MU_INBOUND_INTERRUPT_MASK_REG	      0x28    /*dword 0x2B,0x2A,0x29,0x28*/
@@ -3915,14 +4090,17 @@ struct _MU
 **  31          0 2                          Reserved
 **  30          0 2                          Reserved.
 **  29          0 2                          Reserved
-**  28       0000 0000H                      PCI Interrupt - When set, this bit causes the P_INTC# interrupt output (P_INTA# with BRG_EN and ARB_EN straps low)
+**  28       0000 0000H                      PCI Interrupt - When set, this bit causes the P_INTC# interrupt output 
+**                                                           (P_INTA# with BRG_EN and ARB_EN straps low)
 **                                                           signal to be asserted or a Message-signaled Interrupt is generated (when enabled). 
-**                                                           When this bit is cleared, the P_INTC# interrupt output (P_INTA# with BRG_EN and ARB_EN straps low) 
+**                                                           When this bit is cleared, the P_INTC# interrupt output 
+**                                                           (P_INTA# with BRG_EN and ARB_EN straps low) 
 **                                                           signal is deasserted.
-**  27:00     000 0000H                      Software Interrupts - When any bit is set the P_INTC# interrupt output (P_INTA# with BRG_EN and ARB_EN straps low) 
-**                                                           signal is asserted or a Message-signaled Interrupt is generated (when enabled).
-**                                                           When all bits are cleared, the P_INTC# interrupt output (P_INTA# with BRG_EN and ARB_EN straps low)
-**                                                           signal is deasserted.
+**  27:00     000 0000H                      Software Interrupts - When any bit is set the P_INTC# interrupt output 
+**                                           (P_INTA# with BRG_EN and ARB_EN straps low) 
+**                                           signal is asserted or a Message-signaled Interrupt is generated (when enabled).
+**                                           When all bits are cleared, the P_INTC# interrupt output (P_INTA# with BRG_EN and ARB_EN straps low)
+**                                           signal is deasserted.
 **************************************************************************
 */
 #define     ARCMSR_MU_OUTBOUND_DOORBELL_REG		          0x2C    /*dword 0x2F,0x2E,0x2D,0x2C*/
@@ -3944,8 +4122,8 @@ struct _MU
 **  03        0 2                           Outbound Post Queue Interrupt - This bit is set when data in the prefetch buffer is valid. This bit is
 **                                                          cleared when any prefetch data has been read from the Outbound Queue Port.
 **  02        0 2                           Outbound Doorbell Interrupt - This bit is set when at least one Software Interrupt bit in the Outbound
-**                                                          Doorbell Register is set. To clear this bit (and the interrupt), the Software Interrupt bits in the Outbound
-**                                                          Doorbell Register must all be clear.
+**                                          Doorbell Register is set. To clear this bit (and the interrupt), the Software Interrupt bits in the Outbound
+**                                          Doorbell Register must all be clear.
 **  01        0 2                           Outbound Message 1 Interrupt - This bit is set by the MU when the Outbound Message 1 Register is
 **                                                          written. Clearing this bit clears the interrupt.
 **  00        0 2                           Outbound Message 0 Interrupt - This bit is set by the MU when the Outbound Message 0 Register is
@@ -4015,7 +4193,7 @@ struct _MU
 **  	. One of the inbound queues is designated the Free queue and it contains inbound free messages. 
 **  	  The other inbound queue is designated the Post queue and it contains inbound posted messages.
 **  	  Similarly, one of the outbound queues is designated the Free queue and the other outbound queue is designated the Post queue. 
-**  
+**
 **  =============================================================================================================
 **  Circular Queue Summary
 **   _____________________________________________________________________________________________________________
@@ -4036,7 +4214,7 @@ struct _MU
 **    The host processor posts inbound messages, 
 **    the Intel XScale core receives the posted message and when it is finished with the message,
 **    places it back on the inbound free queue for reuse by the host processor.
-**  
+**
 **  The circular queues are accessed by external PCI agents through two port locations in the PCI
 **  address space: 
 **              Inbound Queue Port 
@@ -4064,7 +4242,7 @@ struct _MU
 **    More details about the pointers are given in the queue descriptions below. 
 **    The pointers are incremented after the queue access.
 **    Both pointers wrap around to the first address of the circular queue when they reach the circular queue size.
-**  
+**
 **  Messaging Unit...
 **
 **  The Messaging Unit generates an interrupt to the Intel XScale core or generate a PCI interrupt under certain conditions.
@@ -4079,7 +4257,7 @@ struct _MU
 **    here shows an example of how the circular queues should be set up based on the
 **    Intelligent I/O (I 2 O) Architecture Specification. 
 **    Other ordering of the circular queues is possible.
-**  
+**
 **  				Queue                           Starting Address
 **  				Inbound Free Queue              QBAR
 **  				Inbound Post Queue              QBAR + Queue Size
@@ -4091,21 +4269,29 @@ struct _MU
 **  The Inbound Post Queue holds posted messages placed there by other processors for the Intel XScale core to process.
 **  This queue is read from the queue tail by the Intel XScale core. It is written to the queue head by external PCI agents. 
 **  The tail pointer is maintained by the Intel XScale core. The head pointer is maintained by the MU hardware.
-**  For a PCI write transaction that accesses the Inbound Queue Port, the MU writes the data to the local memory location address in the Inbound Post Head Pointer Register.
+**  For a PCI write transaction that accesses the Inbound Queue Port, 
+**  the MU writes the data to the local memory location address in the Inbound Post Head Pointer Register.
 **  When the data written to the Inbound Queue Port is written to local memory, the MU hardware increments the Inbound Post Head Pointer Register.
 **  An Intel XScale core interrupt may be generated when the Inbound Post Queue is written. 
 **  The Inbound Post Queue Interrupt bit in the Inbound Interrupt Status Register indicates the interrupt status.
 **  The interrupt is cleared when the Inbound Post Queue Interrupt bit is cleared. 
 **  The interrupt can be masked by the Inbound Interrupt Mask Register. 
-**  Software must be aware of the state of the Inbound Post Queue Interrupt Mask bit to guarantee that the full condition is recognized by the core processor.
-**  In addition, to guarantee that the queue does not get overwritten, software must process messages from the tail of the queue before incrementing the tail pointer and clearing this interrupt.
+**  Software must be aware of the state of the Inbound Post Queue Interrupt Mask bit to guarantee 
+**  that the full condition is recognized by the core processor.
+**  In addition, to guarantee that the queue does not get overwritten, 
+**  software must process messages from the tail of the queue before incrementing the tail pointer and clearing this interrupt.
 **  Once cleared, an interrupt is NOT generated when the head and tail pointers remain unequal (i.e. queue status is Not Empty). 
 **  Only a new message posting the in the inbound queue generates a new interrupt. 
-**  Therefore, when software leaves any unprocessed messages in the post queue when the interrupt is cleared, software must retain the information that the Inbound Post queue status.
-**  From the time that the PCI write transaction is received until the data is written in local memory and the Inbound Post Head Pointer Register is incremented, any PCI transaction that attempts to access the Inbound Post Queue Port is signalled a Retry.
-**  The Intel XScale core may read messages from the Inbound Post Queue by reading the data from the local memory location pointed to by the Inbound Post Tail Pointer Register. 
+**  Therefore, when software leaves any unprocessed messages in the post queue when the interrupt is cleared, 
+**  software must retain the information that the Inbound Post queue status.
+**  From the time that the PCI write transaction is received until the data is written 
+**  in local memory and the Inbound Post Head Pointer Register is incremented, 
+**  any PCI transaction that attempts to access the Inbound Post Queue Port is signalled a Retry.
+**  The Intel XScale core may read messages from the Inbound Post Queue 
+**  by reading the data from the local memory location pointed to by the Inbound Post Tail Pointer Register. 
 **  The Intel XScale core must then increment the Inbound Post Tail Pointer Register. 
-**  When the Inbound Post Queue is full (head and tail pointers are equal and the head pointer was last updated by hardware), the hardware retries any PCI writes until a slot in the queue becomes available. 
+**  When the Inbound Post Queue is full (head and tail pointers are equal and the head pointer was last updated by hardware), 
+**  the hardware retries any PCI writes until a slot in the queue becomes available. 
 **  A slot in the post queue becomes available by the Intel XScale core incrementing the tail pointer.
 **  ===================================================================================
 **  Inbound Free Queue
@@ -4117,8 +4303,10 @@ struct _MU
 **  The head pointer is maintained by the Intel XScale core.
 **  For a PCI read transaction that accesses the Inbound Queue Port,
 **  the MU attempts to read the data at the local memory address in the Inbound Free Tail Pointer. 
-**  When the queue is not empty (head and tail pointers are not equal) or full (head and tail pointers are equal but the head pointer was last written by software), the data is returned.
-**  When the queue is empty (head and tail pointers are equal and the head pointer was last updated by hardware), the value of -1 (FFFF.FFFFH) is  returned.
+**  When the queue is not empty (head and tail pointers are not equal) 
+**  or full (head and tail pointers are equal but the head pointer was last written by software), the data is returned.
+**  When the queue is empty (head and tail pointers are equal and the head pointer was last updated by hardware), 
+**  the value of -1 (FFFF.FFFFH) is  returned.
 **  When the queue was not empty and the MU succeeded in returning the data at the tail, 
 **  the MU hardware must increment the value in the Inbound Free Tail Pointer Register.
 **  To reduce latency for the PCI read access, the MU implements a prefetch mechanism to anticipate accesses to the Inbound Free Queue. 
@@ -4127,7 +4315,8 @@ struct _MU
 **  The prefetch mechanism loads a value of -1 (FFFF.FFFFH) into the prefetch register 
 **  when the head and tail pointers are equal and the queue is empty. 
 **  In order to update the prefetch register when messages are added to the queue and it becomes non-empty, 
-**  the prefetch mechanism automatically starts a prefetch when the prefetch register contains FFFF.FFFFH and the Inbound Free Head Pointer Register is written.
+**  the prefetch mechanism automatically starts a prefetch when the prefetch register contains FFFF.FFFFH 
+**  and the Inbound Free Head Pointer Register is written.
 **  The Intel XScale core needs to update the Inbound Free Head Pointer Register when it adds messages to the queue.
 **  A prefetch must appear atomic from the perspective of the external PCI agent.
 **  When a prefetch is started, any PCI transaction that attempts to access the Inbound Free Queue is signalled a Retry until the prefetch is completed.
@@ -4195,7 +4384,7 @@ struct _MU
 **  from the local memory address in the Outbound Free Tail Pointer Register. The processor must
 **  then increment the Outbound Free Tail Pointer Register. When the Outbound Free Queue is full,
 **  the hardware must retry any PCI writes until a slot in the queue becomes available.
-**  
+**
 **  ==================================================================================
 **  Circular Queue Summary
 **  ----------------------
@@ -4235,9 +4424,11 @@ struct _MU
 **                                                           to Inbound ATU Translate Value Register + FFFH.
 **  . The address of the first write access is stored in the Index Address Register. 
 **    This register is written during the earliest write access and provides a means to determine which Index Register was written. 
-**    Once updated by the MU, the Index Address Register is not updated until the Index Register Interrupt bit in the Inbound Interrupt Status Register is cleared. 
+**    Once updated by the MU, the Index Address Register is not updated until the Index Register 
+**    Interrupt bit in the Inbound Interrupt Status Register is cleared. 
 **  . When the interrupt is cleared, the Index Address Register is re-enabled and stores the address of the next Index Register write access.
-**    Writes by the Intel XScale core to the local memory used by the Index Registers does not cause an interrupt and does not update the Index Address Register.
+**    Writes by the Intel XScale core to the local memory used by the Index Registers 
+**    does not cause an interrupt and does not update the Index Address Register.
 **  . The index registers can be accessed with Multi-DWORD reads and single QWORD aligned writes.
 **************************************************************************
 */
@@ -4248,13 +4439,13 @@ struct _MU
 **  Internal Bus Address___Register Description (Name)____________________|_PCI Configuration Space Register Number_
 **  FFFF E300H             reserved                                       |
 **    ..                     ..                                           |
-**  FFFF E30CH             reserved                                       | 
+**  FFFF E30CH             reserved                                       |
 **  FFFF E310H             Inbound Message Register 0                     | Available through
 **  FFFF E314H             Inbound Message Register 1                     | ATU Inbound Translation Window
-**  FFFF E318H             Outbound Message Register 0                    | 
-**  FFFF E31CH             Outbound Message Register 1                    | or  
-**  FFFF E320H             Inbound Doorbell Register                      |  
-**  FFFF E324H             Inbound Interrupt Status Register              | must translate PCI address to 
+**  FFFF E318H             Outbound Message Register 0                    |
+**  FFFF E31CH             Outbound Message Register 1                    | or
+**  FFFF E320H             Inbound Doorbell Register                      |
+**  FFFF E324H             Inbound Interrupt Status Register              | must translate PCI address to
 **  FFFF E328H             Inbound Interrupt Mask Register                | the Intel Xscale Core
 **  FFFF E32CH             Outbound Doorbell Register                     | Memory-Mapped Address
 **  FFFF E330H             Outbound Interrupt Status Register             |
@@ -4269,12 +4460,12 @@ struct _MU
 **  FFFF E350H             MU Configuration Register                      |
 **  FFFF E354H             Queue Base Address Register                    |
 **  FFFF E358H             reserved                                       |
-**  FFFF E35CH             reserved                                       | must translate PCI address to 
-**  FFFF E360H             Inbound Free Head Pointer Register             | the Intel Xscale Core 
+**  FFFF E35CH             reserved                                       | must translate PCI address to
+**  FFFF E360H             Inbound Free Head Pointer Register             | the Intel Xscale Core
 **  FFFF E364H             Inbound Free Tail Pointer Register             | Memory-Mapped Address
 **  FFFF E368H             Inbound Post Head pointer Register             |
 **  FFFF E36CH             Inbound Post Tail Pointer Register             |
-**  FFFF E370H             Outbound Free Head Pointer Register            | 
+**  FFFF E370H             Outbound Free Head Pointer Register            |
 **  FFFF E374H             Outbound Free Tail Pointer Register            |
 **  FFFF E378H             Outbound Post Head pointer Register            |
 **  FFFF E37CH             Outbound Post Tail Pointer Register            |
@@ -4291,22 +4482,23 @@ struct _MU
 **
 **  . The MU Configuration Register (MUCR) contains the Circular Queue Enable bit and the size of one Circular Queue.
 **  . The Circular Queue Enable bit enables or disables the Circular Queues. 
-**    The Circular Queues are disabled at reset to allow the software to initialize the head and tail pointer registers before any PCI accesses to the Queue Ports. 
+**    The Circular Queues are disabled at reset to allow the software to initialize the head 
+**    and tail pointer registers before any PCI accesses to the Queue Ports. 
 **  . Each Circular Queue may range from 4 K entries (16 Kbytes) to 64 K entries (256 Kbytes) and there are four Circular Queues.
 **  ------------------------------------------------------------------------
 **  Bit       Default                       Description
 **  31:06     000000H 00 2                  Reserved
 **  05:01     00001 2                       Circular Queue Size - This field determines the size of each Circular Queue. 
-**                                                                All four queues are the same size.
-**  																¡E 00001 2 - 4K Entries (16 Kbytes)
-**  																¡E 00010 2 - 8K Entries (32 Kbytes)
-**  																¡E 00100 2 - 16K Entries (64 Kbytes)
-**  																¡E 01000 2 - 32K Entries (128 Kbytes)
-**  																¡E 10000 2 - 64K Entries (256 Kbytes)
-**  00        0 2                           Circular Queue Enable - This bit enables or disables the Circular Queues. When clear the Circular
-**  																Queues are disabled, however the MU accepts PCI accesses to the Circular Queue Ports but ignores
-**  																the data for Writes and return FFFF.FFFFH for Reads. Interrupts are not generated to the core when
-**  																disabled. When set, the Circular Queues are fully enabled.
+**  					All four queues are the same size.
+**  					¡E 00001 2 - 4K Entries (16 Kbytes)
+**  					¡E 00010 2 - 8K Entries (32 Kbytes)
+**  					¡E 00100 2 - 16K Entries (64 Kbytes)
+**  					¡E 01000 2 - 32K Entries (128 Kbytes)
+**  					¡E 10000 2 - 64K Entries (256 Kbytes)
+**  00        0 2                       Circular Queue Enable - This bit enables or disables the Circular Queues. When clear the Circular
+**  					Queues are disabled, however the MU accepts PCI accesses to the Circular Queue Ports but ignores
+** 					the data for Writes and return FFFF.FFFFH for Reads. Interrupts are not generated to the core when
+** 					disabled. When set, the Circular Queues are fully enabled.
 **************************************************************************
 */
 #define     ARCMSR_MU_CONFIGURATION_REG  	          0xFFFFE350        
@@ -4338,7 +4530,8 @@ struct _MU
 **************************************************************************
 **  Inbound Free Head Pointer Register - IFHPR
 **
-**  . The Inbound Free Head Pointer Register (IFHPR) contains the local memory offset from the Queue Base Address of the head pointer for the Inbound Free Queue. 
+**  . The Inbound Free Head Pointer Register (IFHPR) contains the local memory offset from 
+**    the Queue Base Address of the head pointer for the Inbound Free Queue. 
 **    The Head Pointer must be aligned on a DWORD address boundary.
 **    When read, the Queue Base Address is provided in the upper 12 bits of the register. 
 **    Writes to the upper 12 bits of the register are ignored. 
@@ -4406,7 +4599,8 @@ struct _MU
 **  . The Index Address Register (IAR) contains the offset of the least recently accessed Index Register.
 **    It is written by the MU when the Index Registers are written by a PCI agent.
 **    The register is not updated until the Index Interrupt bit in the Inbound Interrupt Status Register is cleared.
-**  . The local memory address of the Index Register least recently accessed is computed by adding the Index Address Register to the Inbound ATU Translate Value Register.
+**  . The local memory address of the Index Register least recently accessed is computed 
+**    by adding the Index Address Register to the Inbound ATU Translate Value Register.
 **  ------------------------------------------------------------------------
 **  Bit       Default                       Description
 **  31:12     000000H                       Reserved
@@ -4437,7 +4631,8 @@ struct _MU
 **  --------------------------------------------------------------------  
 **    3. Command code and associated data
 **  --------------------------------------------------------------------
-**    	The following are command code defined in raid controller Command code 0x10--0x1? are used for system level management, no password checking is needed and should be implemented in separate well controlled utility and not for end user access.
+**    	The following are command code defined in raid controller Command code 0x10--0x1? are used for system level management,
+**    	no password checking is needed and should be implemented in separate well controlled utility and not for end user access.
 **    	Command code 0x20--0x?? always check the password, password must be entered to enable these command.
 **    	enum
 **    	{
@@ -4453,14 +4648,14 @@ struct _MU
 **    		GUI_POLL_EVENT,
 **    		GUI_GET_EVENT,
 **    		GUI_GET_HW_MONITOR,
-**    
+**
 **    		//    GUI_QUICK_CREATE=0x20, (function removed)
 **    		GUI_GET_INFO_R=0x20,
 **    		GUI_GET_INFO_V,
 **    		GUI_GET_INFO_P,
 **    		GUI_GET_INFO_S,
 **    		GUI_CLEAR_EVENT,
-**    
+**
 **    		GUI_MUTE_BEEPER=0x30,
 **    		GUI_BEEPER_SETTING,
 **    		GUI_SET_PASSWORD,
@@ -4471,28 +4666,28 @@ struct _MU
 **    		GUI_COM_PORT_SETTING,
 **    		GUI_NO_OPERATION,
 **    		GUI_DHCP_IP,
-**    
+**
 **    		GUI_CREATE_PASS_THROUGH=0x40,
 **    		GUI_MODIFY_PASS_THROUGH,
 **    		GUI_DELETE_PASS_THROUGH,
 **    		GUI_IDENTIFY_DEVICE,
-**    
+**
 **    		GUI_CREATE_RAIDSET=0x50,
 **    		GUI_DELETE_RAIDSET,
 **    		GUI_EXPAND_RAIDSET,
 **    		GUI_ACTIVATE_RAIDSET,
 **    		GUI_CREATE_HOT_SPARE,
 **    		GUI_DELETE_HOT_SPARE,
-**    
+**
 **    		GUI_CREATE_VOLUME=0x60,
 **    		GUI_MODIFY_VOLUME,
 **    		GUI_DELETE_VOLUME,
 **    		GUI_START_CHECK_VOLUME,
 **    		GUI_STOP_CHECK_VOLUME
 **    	};
-**    
+**
 **    Command description :
-**    
+**
 **    	GUI_SET_SERIAL : Set the controller serial#
 **    		byte 0,1        : length
 **    		byte 2          : command code 0x10
@@ -4578,7 +4773,7 @@ struct _MU
 **    		byte 0,1        : length
 **    		byte 2          : command code 0x20
 **    		byte 3          : raidset#
-**    
+**
 **    	typedef struct sGUI_RAIDSET
 **    	{
 **    		BYTE grsRaidSetName[16];
@@ -4604,7 +4799,7 @@ struct _MU
 **    		byte 0,1        : length
 **    		byte 2          : command code 0x21
 **    		byte 3          : volumeset#
-**    
+**
 **    	typedef struct sGUI_VOLUMESET
 **    	{
 **    		BYTE gvsVolumeName[16]; //     16
@@ -4619,19 +4814,19 @@ struct _MU
 **    		sSCSI_ATTR gvsScsi; 
 **    		BYTE gvsMemberDisks;
 **    		BYTE gvsRaidLevel; //     8
-**    
+**
 **    		BYTE gvsNewMemberDisks;
 **    		BYTE gvsNewRaidLevel;
 **    		BYTE gvsRaidSetNumber;
 **    		BYTE gvsRes0; //     4
 **    		BYTE gvsRes1[4]; //     64 bytes
 **    	} sGUI_VOLUMESET, *pGUI_VOLUMESET;
-**    
+**
 **      GUI_GET_INFO_P : Get Physical Drive Information
 **    		byte 0,1        : length
 **    		byte 2          : command code 0x22
 **    		byte 3          : drive # (from 0 to max-channels - 1)
-**    
+**
 **    	typedef struct sGUI_PHY_DRV
 **    	{
 **    		BYTE gpdModelName[40];
@@ -4648,11 +4843,11 @@ struct _MU
 **    		sSCSI_ATTR gpdScsi;
 **    		BYTE gpdReserved[40]; //     Total to 128 bytes
 **    	} sGUI_PHY_DRV, *pGUI_PHY_DRV;
-**    
+**
 **    	GUI_GET_INFO_S : Get System Information
 **      	byte 0,1        : length
 **      	byte 2          : command code 0x23
-**    
+**
 **    	typedef struct sCOM_ATTR
 **    	{
 **    		BYTE comBaudRate;
@@ -4661,7 +4856,7 @@ struct _MU
 **    		BYTE comParity;
 **    		BYTE comFlowControl;
 **    	} sCOM_ATTR, *pCOM_ATTR;
-**    
+**
 **    	typedef struct sSYSTEM_INFO
 **    	{
 **    		BYTE gsiVendorName[40];
@@ -4698,46 +4893,46 @@ struct _MU
 **    		BYTE gsiRaid6Engine; //     1:Raid6 engine supported
 **    		BYTE gsiRes[75];
 **    	} sSYSTEM_INFO, *pSYSTEM_INFO;
-**    
+**
 **    	GUI_CLEAR_EVENT : Clear System Event
 **    		byte 0,1        : length
 **    		byte 2          : command code 0x24
-**    
+**
 **      GUI_MUTE_BEEPER : Mute current beeper
 **    		byte 0,1        : length
 **    		byte 2          : command code 0x30
-**    
+**
 **      GUI_BEEPER_SETTING : Disable beeper
 **    		byte 0,1        : length
 **    		byte 2          : command code 0x31
 **    		byte 3          : 0->disable, 1->enable
-**    
+**
 **      GUI_SET_PASSWORD : Change password
 **    		byte 0,1        : length
 **    		byte 2 			: command code 0x32
 **    		byte 3 			: pass word length ( must <= 15 )
 **    		byte 4 			: password (must be alpha-numerical)
-**    
+**
 **    	GUI_HOST_INTERFACE_MODE : Set host interface mode
 **    		byte 0,1        : length
 **    		byte 2 			: command code 0x33
 **    		byte 3 			: 0->Independent, 1->cluster
-**    
+**
 **      GUI_REBUILD_PRIORITY : Set rebuild priority
 **    		byte 0,1        : length
 **    		byte 2 			: command code 0x34
 **    		byte 3 			: 0/1/2/3 (low->high)
-**    
+**
 **      GUI_MAX_ATA_MODE : Set maximum ATA mode to be used
 **    		byte 0,1        : length
 **    		byte 2 			: command code 0x35
 **    		byte 3 			: 0/1/2/3 (133/100/66/33)
-**    
+**
 **      GUI_RESET_CONTROLLER : Reset Controller
 **    		byte 0,1        : length
 **    		byte 2          : command code 0x36
 **                            *Response with VT100 screen (discard it)
-**    
+**
 **      GUI_COM_PORT_SETTING : COM port setting
 **    		byte 0,1        : length
 **    		byte 2 			: command code 0x37
@@ -4747,17 +4942,17 @@ struct _MU
 **    		byte 6 			: stop bit (0:1, 1:2 stop bits)
 **    		byte 7 			: parity (0:none, 1:off, 2:even)
 **    		byte 8 			: flow control (0:none, 1:xon/xoff, 2:hardware => must use none)
-**    
+**
 **      GUI_NO_OPERATION : No operation
 **    		byte 0,1        : length
 **    		byte 2          : command code 0x38
-**    
+**
 **      GUI_DHCP_IP : Set DHCP option and local IP address
 **    		byte 0,1        : length
 **    		byte 2          : command code 0x39
 **    		byte 3          : 0:dhcp disabled, 1:dhcp enabled
 **    		byte 4/5/6/7    : IP address
-**    
+**
 **      GUI_CREATE_PASS_THROUGH : Create pass through disk
 **    		byte 0,1        : length
 **    		byte 2 			: command code 0x40
@@ -4769,7 +4964,7 @@ struct _MU
 **    		byte 8 			: cache mode (1 : enabled)
 **    		byte 9 			: max speed (0/1/2/3/4, async/20/40/80/160 for scsi)
 **    								    (0/1/2/3/4, 33/66/100/133/150 for ide  )
-**    
+**
 **      GUI_MODIFY_PASS_THROUGH : Modify pass through disk
 **    		byte 0,1        : length
 **    		byte 2 			: command code 0x41
@@ -4781,30 +4976,30 @@ struct _MU
 **    		byte 8 			: cache mode (1 : enabled)
 **    		byte 9 			: max speed (0/1/2/3/4, async/20/40/80/160 for scsi)
 **    							        (0/1/2/3/4, 33/66/100/133/150 for ide  )
-**    
+**
 **      GUI_DELETE_PASS_THROUGH : Delete pass through disk
 **    		byte 0,1        : length
 **    		byte 2          : command code 0x42
 **    		byte 3          : device# to be deleted
-**    
+**
 **      GUI_IDENTIFY_DEVICE : Identify Device
 **    		byte 0,1        : length
 **    		byte 2          : command code 0x43
 **    		byte 3          : Flash Method(0:flash selected, 1:flash not selected)
 **    		byte 4/5/6/7    : IDE device mask to be flashed
 **                           note .... no response data available
-**    
+**
 **    	GUI_CREATE_RAIDSET : Create Raid Set
 **    		byte 0,1        : length
 **    		byte 2          : command code 0x50
 **    		byte 3/4/5/6    : device mask
 **    		byte 7-22       : raidset name (if byte 7 == 0:use default)
-**    
+**
 **      GUI_DELETE_RAIDSET : Delete Raid Set
 **    		byte 0,1        : length
 **    		byte 2          : command code 0x51
 **    		byte 3          : raidset#
-**    
+**
 **    	GUI_EXPAND_RAIDSET : Expand Raid Set 
 **    		byte 0,1        : length
 **    		byte 2          : command code 0x52
@@ -4812,22 +5007,22 @@ struct _MU
 **    		byte 4/5/6/7    : device mask for expansion
 **    		byte 8/9/10     : (8:0 no change, 1 change, 0xff:terminate, 9:new raid level,10:new stripe size 0/1/2/3/4/5->4/8/16/32/64/128K )
 **    		byte 11/12/13   : repeat for each volume in the raidset ....
-**    
+**
 **      GUI_ACTIVATE_RAIDSET : Activate incomplete raid set 
 **    		byte 0,1        : length
 **    		byte 2          : command code 0x53
 **    		byte 3          : raidset#
-**    
+**
 **      GUI_CREATE_HOT_SPARE : Create hot spare disk 
 **    		byte 0,1        : length
 **    		byte 2          : command code 0x54
 **    		byte 3/4/5/6    : device mask for hot spare creation
-**    
+**
 **    	GUI_DELETE_HOT_SPARE : Delete hot spare disk 
 **    		byte 0,1        : length
 **    		byte 2          : command code 0x55
 **    		byte 3/4/5/6    : device mask for hot spare deletion
-**    
+**
 **    	GUI_CREATE_VOLUME : Create volume set 
 **    		byte 0,1        : length
 **    		byte 2          : command code 0x60
@@ -4844,7 +5039,7 @@ struct _MU
 **    		byte 35 		: speed (0/1/2/3/4->async/20/40/80/160 for scsi)
 **    								(0/1/2/3/4->33/66/100/133/150 for IDE  )
 **    		byte 36 		: 1 to select quick init
-**    
+**
 **    	GUI_MODIFY_VOLUME : Modify volume Set
 **    		byte 0,1        : length
 **    		byte 2          : command code 0x61
@@ -4860,17 +5055,17 @@ struct _MU
 **    		byte 34 		: 1 enable cache
 **    		byte 35 		: speed (0/1/2/3/4->async/20/40/80/160 for scsi)
 **    								(0/1/2/3/4->33/66/100/133/150 for IDE  )
-**    
+**
 **    	GUI_DELETE_VOLUME : Delete volume set
 **    		byte 0,1        : length
 **    		byte 2          : command code 0x62
 **    		byte 3          : volumeset#
-**    
+**
 **    	GUI_START_CHECK_VOLUME : Start volume consistency check
 **    		byte 0,1        : length
 **    		byte 2          : command code 0x63
 **    		byte 3          : volumeset#
-**    
+**
 **    	GUI_STOP_CHECK_VOLUME : Stop volume consistency check
 **    		byte 0,1        : length
 **    		byte 2          : command code 0x64
