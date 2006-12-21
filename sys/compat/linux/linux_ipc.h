@@ -135,6 +135,8 @@ int linux_shmctl(struct thread *, struct linux_shmctl_args *);
 int linux_shmdt(struct thread *, struct linux_shmdt_args *);
 int linux_shmget(struct thread *, struct linux_shmget_args *);
 
+#define	LINUX_MSG_INFO	12
+
 #endif	/* __i386__ || __amd64__ */
 
 #endif /* _LINUX_IPC_H_ */
