@@ -741,9 +741,7 @@ __mac_set_proc(struct thread *td, struct __mac_set_proc_args *uap)
 	crhold(newcred);
 	PROC_UNLOCK(p);
 
-	if (mac_enforce_vm) {
-		mac_cred_mmapped_drop_perms(td, newcred);
-	}
+	mac_cred_mmapped_drop_perms(td, newcred);
 
 	crfree(newcred);	/* Free revocation reference. */
 	crfree(oldcred);

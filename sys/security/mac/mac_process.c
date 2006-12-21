@@ -67,16 +67,6 @@ __FBSDID("$FreeBSD$");
 #include <security/mac/mac_framework.h>
 #include <security/mac/mac_internal.h>
 
-int	mac_enforce_process = 1;
-SYSCTL_INT(_security_mac, OID_AUTO, enforce_process, CTLFLAG_RW,
-    &mac_enforce_process, 0, "Enforce MAC policy on inter-process operations");
-TUNABLE_INT("security.mac.enforce_process", &mac_enforce_process);
-
-int	mac_enforce_vm = 1;
-SYSCTL_INT(_security_mac, OID_AUTO, enforce_vm, CTLFLAG_RW,
-    &mac_enforce_vm, 0, "Enforce MAC policy on vm operations");
-TUNABLE_INT("security.mac.enforce_vm", &mac_enforce_vm);
-
 static int	mac_mmap_revocation = 1;
 SYSCTL_INT(_security_mac, OID_AUTO, mmap_revocation, CTLFLAG_RW,
     &mac_mmap_revocation, 0, "Revoke mmap access to files on subject "
@@ -86,11 +76,6 @@ static int	mac_mmap_revocation_via_cow = 0;
 SYSCTL_INT(_security_mac, OID_AUTO, mmap_revocation_via_cow, CTLFLAG_RW,
     &mac_mmap_revocation_via_cow, 0, "Revoke mmap access to files via "
     "copy-on-write semantics, or by removing all write access");
-
-static int	mac_enforce_suid = 1;
-SYSCTL_INT(_security_mac, OID_AUTO, enforce_suid, CTLFLAG_RW,
-    &mac_enforce_suid, 0, "Enforce MAC policy on suid/sgid operations");
-TUNABLE_INT("security.mac.enforce_suid", &mac_enforce_suid);
 
 static void	mac_cred_mmapped_drop_perms_recurse(struct thread *td,
 		    struct ucred *cred, struct vm_map *map);
@@ -466,9 +451,6 @@ mac_check_cred_visible(struct ucred *u1, struct ucred *u2)
 {
 	int error;
 
-	if (!mac_enforce_process)
-		return (0);
-
 	MAC_CHECK(check_cred_visible, u1, u2);
 
 	return (error);
@@ -480,9 +462,6 @@ mac_check_proc_debug(struct ucred *cred, struct proc *proc)
 	int error;
 
 	PROC_LOCK_ASSERT(proc, MA_OWNED);
-
-	if (!mac_enforce_process)
-		return (0);
 
 	MAC_CHECK(check_proc_debug, cred, proc);
 
@@ -496,9 +475,6 @@ mac_check_proc_sched(struct ucred *cred, struct proc *proc)
 
 	PROC_LOCK_ASSERT(proc, MA_OWNED);
 
-	if (!mac_enforce_process)
-		return (0);
-
 	MAC_CHECK(check_proc_sched, cred, proc);
 
 	return (error);
@@ -510,9 +486,6 @@ mac_check_proc_signal(struct ucred *cred, struct proc *proc, int signum)
 	int error;
 
 	PROC_LOCK_ASSERT(proc, MA_OWNED);
-
-	if (!mac_enforce_process)
-		return (0);
 
 	MAC_CHECK(check_proc_signal, cred, proc, signum);
 
@@ -526,9 +499,6 @@ mac_check_proc_setuid(struct proc *proc, struct ucred *cred, uid_t uid)
 
 	PROC_LOCK_ASSERT(proc, MA_OWNED);
 
-	if (!mac_enforce_suid)
-		return (0);
-
 	MAC_CHECK(check_proc_setuid, cred, uid);
 	return (error);
 }
@@ -539,9 +509,6 @@ mac_check_proc_seteuid(struct proc *proc, struct ucred *cred, uid_t euid)
 	int error;
 
 	PROC_LOCK_ASSERT(proc, MA_OWNED);
-
-	if (!mac_enforce_suid)
-		return (0);
 
 	MAC_CHECK(check_proc_seteuid, cred, euid);
 	return (error);
@@ -554,9 +521,6 @@ mac_check_proc_setgid(struct proc *proc, struct ucred *cred, gid_t gid)
 
 	PROC_LOCK_ASSERT(proc, MA_OWNED);
 
-	if (!mac_enforce_suid)
-		return (0);
-
 	MAC_CHECK(check_proc_setgid, cred, gid);
 	return (error);
 }
@@ -567,9 +531,6 @@ mac_check_proc_setegid(struct proc *proc, struct ucred *cred, gid_t egid)
 	int error;
 
 	PROC_LOCK_ASSERT(proc, MA_OWNED);
-
-	if (!mac_enforce_suid)
-		return (0);
 
 	MAC_CHECK(check_proc_setegid, cred, egid);
 	return (error);
@@ -583,9 +544,6 @@ mac_check_proc_setgroups(struct proc *proc, struct ucred *cred,
 
 	PROC_LOCK_ASSERT(proc, MA_OWNED);
 
-	if (!mac_enforce_suid)
-		return (0);
-
 	MAC_CHECK(check_proc_setgroups, cred, ngroups, gidset);
 	return (error);
 }
@@ -597,9 +555,6 @@ mac_check_proc_setreuid(struct proc *proc, struct ucred *cred, uid_t ruid,
 	int error;
 
 	PROC_LOCK_ASSERT(proc, MA_OWNED);
-
-	if (!mac_enforce_suid)
-		return (0);
 
 	MAC_CHECK(check_proc_setreuid, cred, ruid, euid);
 	return (error);
@@ -613,9 +568,6 @@ mac_check_proc_setregid(struct proc *proc, struct ucred *cred, gid_t rgid,
 
 	PROC_LOCK_ASSERT(proc, MA_OWNED);
 
-	if (!mac_enforce_suid)
-		return (0);
-
 	MAC_CHECK(check_proc_setregid, cred, rgid, egid);
 	return (error);
 }
@@ -627,9 +579,6 @@ mac_check_proc_setresuid(struct proc *proc, struct ucred *cred, uid_t ruid,
 	int error;
 
 	PROC_LOCK_ASSERT(proc, MA_OWNED);
-
-	if (!mac_enforce_suid)
-		return (0);
 
 	MAC_CHECK(check_proc_setresuid, cred, ruid, euid, suid);
 	return (error);
@@ -643,9 +592,6 @@ mac_check_proc_setresgid(struct proc *proc, struct ucred *cred, gid_t rgid,
 
 	PROC_LOCK_ASSERT(proc, MA_OWNED);
 
-	if (!mac_enforce_suid)
-		return (0);
-
 	MAC_CHECK(check_proc_setresgid, cred, rgid, egid, sgid);
 	return (error);
 }
@@ -656,9 +602,6 @@ mac_check_proc_wait(struct ucred *cred, struct proc *proc)
 	int error;
 
 	PROC_LOCK_ASSERT(proc, MA_OWNED);
-
-	if (!mac_enforce_process)
-		return (0);
 
 	MAC_CHECK(check_proc_wait, cred, proc);
 

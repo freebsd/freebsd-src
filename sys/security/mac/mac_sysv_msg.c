@@ -54,12 +54,6 @@ __FBSDID("$FreeBSD$");
 #include <security/mac/mac_framework.h>
 #include <security/mac/mac_internal.h>
 
-static int	mac_enforce_sysv_msg = 1;
-SYSCTL_INT(_security_mac, OID_AUTO, enforce_sysv_msg, CTLFLAG_RW,
-    &mac_enforce_sysv_msg, 0,
-    "Enforce MAC policy on System V IPC Message Queues");
-TUNABLE_INT("security.mac.enforce_sysv_msg", &mac_enforce_sysv_msg);
-
 static struct label *
 mac_sysv_msgmsg_label_alloc(void)
 {
@@ -162,9 +156,6 @@ mac_check_sysv_msgmsq(struct ucred *cred, struct msg *msgptr,
 {
 	int error;
 
-	if (!mac_enforce_sysv_msg)
-		return (0);
-
 	MAC_CHECK(check_sysv_msgmsq, cred,  msgptr, msgptr->label, msqkptr,
 	    msqkptr->label);
 
@@ -176,9 +167,6 @@ mac_check_sysv_msgrcv(struct ucred *cred, struct msg *msgptr)
 {
 	int error;
 
-	if (!mac_enforce_sysv_msg)
-		return (0);
-
 	MAC_CHECK(check_sysv_msgrcv, cred, msgptr, msgptr->label);
 
 	return(error);
@@ -188,9 +176,6 @@ int
 mac_check_sysv_msgrmid(struct ucred *cred, struct msg *msgptr)
 {
 	int error;
-
-	if (!mac_enforce_sysv_msg)
-		return (0);
 
 	MAC_CHECK(check_sysv_msgrmid, cred,  msgptr, msgptr->label);
 
@@ -202,9 +187,6 @@ mac_check_sysv_msqget(struct ucred *cred, struct msqid_kernel *msqkptr)
 {
 	int error;
 
-	if (!mac_enforce_sysv_msg)
-		return (0);
-
 	MAC_CHECK(check_sysv_msqget, cred, msqkptr, msqkptr->label);
 
 	return(error);
@@ -214,9 +196,6 @@ int
 mac_check_sysv_msqsnd(struct ucred *cred, struct msqid_kernel *msqkptr)
 {
 	int error;
-
-	if (!mac_enforce_sysv_msg)
-		return (0);
 
 	MAC_CHECK(check_sysv_msqsnd, cred, msqkptr, msqkptr->label);
 
@@ -228,9 +207,6 @@ mac_check_sysv_msqrcv(struct ucred *cred, struct msqid_kernel *msqkptr)
 {
 	int error;
 
-	if (!mac_enforce_sysv_msg)
-		return (0);
-
 	MAC_CHECK(check_sysv_msqrcv, cred, msqkptr, msqkptr->label);
 
 	return(error);
@@ -241,9 +217,6 @@ mac_check_sysv_msqctl(struct ucred *cred, struct msqid_kernel *msqkptr,
     int cmd)
 {
 	int error;
-
-	if (!mac_enforce_sysv_msg)
-		return (0);
 
 	MAC_CHECK(check_sysv_msqctl, cred, msqkptr, msqkptr->label, cmd);
 
