@@ -260,9 +260,6 @@ mac_check_inpcb_deliver(struct inpcb *inp, struct mbuf *m)
 
 	M_ASSERTPKTHDR(m);
 
-	if (!mac_enforce_socket)
-		return (0);
-
 	label = mac_mbuf_to_label(m);
 
 	MAC_CHECK(check_inpcb_deliver, inp, inp->inp_label, m, label);

@@ -49,11 +49,6 @@ __FBSDID("$FreeBSD$");
 #include <security/mac/mac_framework.h>
 #include <security/mac/mac_internal.h>
 
-static int	mac_enforce_posix_sem = 1;
-SYSCTL_INT(_security_mac, OID_AUTO, enforce_posix_sem, CTLFLAG_RW,
-    &mac_enforce_posix_sem, 0, "Enforce MAC policy on global POSIX semaphores");
-TUNABLE_INT("security.mac.enforce_posix_sem", &mac_enforce_posix_sem);
-
 static struct label *
 mac_posix_sem_label_alloc(void)
 {
@@ -98,9 +93,6 @@ mac_check_posix_sem_destroy(struct ucred *cred, struct ksem *ksemptr)
 {
 	int error;
 
-	if (!mac_enforce_posix_sem)
-		return (0);
-
 	MAC_CHECK(check_posix_sem_destroy, cred, ksemptr, ksemptr->ks_label);
 
 	return(error);
@@ -111,9 +103,6 @@ mac_check_posix_sem_open(struct ucred *cred, struct ksem *ksemptr)
 {
 	int error;
 
-	if (!mac_enforce_posix_sem)
-		return (0);
-
 	MAC_CHECK(check_posix_sem_open, cred, ksemptr, ksemptr->ks_label);
 
 	return(error);
@@ -123,9 +112,6 @@ int
 mac_check_posix_sem_getvalue(struct ucred *cred, struct ksem *ksemptr)
 {
 	int error;
-
-	if (!mac_enforce_posix_sem)
-		return (0);
 
 	MAC_CHECK(check_posix_sem_getvalue, cred, ksemptr,
 	    ksemptr->ks_label);
@@ -138,9 +124,6 @@ mac_check_posix_sem_post(struct ucred *cred, struct ksem *ksemptr)
 {
 	int error;
 
-	if (!mac_enforce_posix_sem)
-		return (0);
-
 	MAC_CHECK(check_posix_sem_post, cred, ksemptr, ksemptr->ks_label);
 
 	return(error);
@@ -151,9 +134,6 @@ mac_check_posix_sem_unlink(struct ucred *cred, struct ksem *ksemptr)
 {
 	int error;
 
-	if (!mac_enforce_posix_sem)
-		return (0);
-
 	MAC_CHECK(check_posix_sem_unlink, cred, ksemptr, ksemptr->ks_label);
 
 	return(error);
@@ -163,9 +143,6 @@ int
 mac_check_posix_sem_wait(struct ucred *cred, struct ksem *ksemptr)
 {
 	int error;
-
-	if (!mac_enforce_posix_sem)
-		return (0);
 
 	MAC_CHECK(check_posix_sem_wait, cred, ksemptr, ksemptr->ks_label);
 

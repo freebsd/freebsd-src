@@ -66,15 +66,6 @@ __FBSDID("$FreeBSD$");
 #include <security/mac/mac_internal.h>
 
 /*
- * mac_enforce_network is used by IPv4 and IPv6 checks, and so must be
- * non-static for now.
- */
-int	mac_enforce_network = 1;
-SYSCTL_INT(_security_mac, OID_AUTO, enforce_network, CTLFLAG_RW,
-    &mac_enforce_network, 0, "Enforce MAC policy on network packets");
-TUNABLE_INT("security.mac.enforce_network", &mac_enforce_network);
-
-/*
  * XXXRW: struct ifnet locking is incomplete in the network code, so we use
  * our own global mutex for struct ifnet.  Non-ideal, but should help in the
  * SMP environment.
@@ -383,9 +374,6 @@ mac_check_bpfdesc_receive(struct bpf_d *bpf_d, struct ifnet *ifnet)
 
 	BPFD_LOCK_ASSERT(bpf_d);
 
-	if (!mac_enforce_network)
-		return (0);
-
 	MAC_IFNET_LOCK(ifnet);
 	MAC_CHECK(check_bpfdesc_receive, bpf_d, bpf_d->bd_label, ifnet,
 	    ifnet->if_label);
@@ -401,9 +389,6 @@ mac_check_ifnet_transmit(struct ifnet *ifnet, struct mbuf *mbuf)
 	int error;
 
 	M_ASSERTPKTHDR(mbuf);
-
-	if (!mac_enforce_network)
-		return (0);
 
 	label = mac_mbuf_to_label(mbuf);
 

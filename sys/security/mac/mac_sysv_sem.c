@@ -54,11 +54,6 @@ __FBSDID("$FreeBSD$");
 #include <security/mac/mac_framework.h>
 #include <security/mac/mac_internal.h>
 
-static int	mac_enforce_sysv_sem = 1;
-SYSCTL_INT(_security_mac, OID_AUTO, enforce_sysv_sem, CTLFLAG_RW,
-    &mac_enforce_sysv_sem, 0, "Enforce MAC policy on System V IPC Semaphores");
-TUNABLE_INT("security.mac.enforce_sysv", &mac_enforce_sysv_sem);
-
 static struct label *
 mac_sysv_sem_label_alloc(void)
 {
@@ -112,9 +107,6 @@ mac_check_sysv_semctl(struct ucred *cred, struct semid_kernel *semakptr,
 {
 	int error;
 
-	if (!mac_enforce_sysv_sem)
-		return (0);
-
 	MAC_CHECK(check_sysv_semctl, cred, semakptr, semakptr->label, cmd);
 
 	return(error);
@@ -124,9 +116,6 @@ int
 mac_check_sysv_semget(struct ucred *cred, struct semid_kernel *semakptr)
 {
 	int error;
-
-	if (!mac_enforce_sysv_sem)
-		return (0);
 
 	MAC_CHECK(check_sysv_semget, cred, semakptr, semakptr->label);
 
@@ -138,9 +127,6 @@ mac_check_sysv_semop(struct ucred *cred, struct semid_kernel *semakptr,
     size_t accesstype)
 {
 	int error;
-
-	if (!mac_enforce_sysv_sem)
-		return (0);
 
 	MAC_CHECK(check_sysv_semop, cred, semakptr, semakptr->label,
 	    accesstype);
