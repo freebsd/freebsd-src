@@ -163,6 +163,9 @@ SND_DECLARE_FILE("$FreeBSD$");
 
 /* OEM/subvendors */
 
+/* Intel */
+#define INTEL_D101GGC_SUBVENDOR	HDA_MODEL_CONSTRUCT(INTEL, 0xd600)
+
 /* HP/Compaq */
 #define HP_VENDORID		0x103c
 #define HP_V3000_SUBVENDOR	HDA_MODEL_CONSTRUCT(HP, 0x30b5)
@@ -3534,6 +3537,7 @@ static void
 hdac_vendor_patch_parse(struct hdac_devinfo *devinfo)
 {
 	struct hdac_widget *w;
+	struct hdac_audio_ctl *ctl;
 	uint32_t id, subvendor;
 	int i;
 
@@ -3569,14 +3573,9 @@ hdac_vendor_patch_parse(struct hdac_devinfo *devinfo)
 		}
 		break;
 	case HDA_CODEC_ALC861:
-		if (subvendor == ASUS_P1AH2_SUBVENDOR ||
-		    subvendor == FS_PA1510_SUBVENDOR) {
-			struct hdac_audio_ctl *ctl;
-
-			ctl = hdac_audio_ctl_amp_get(devinfo, 28, 1, 1);
-			if (ctl != NULL)
-				ctl->muted = HDA_AMP_MUTE_ALL;
-		}
+		ctl = hdac_audio_ctl_amp_get(devinfo, 28, 1, 1);
+		if (ctl != NULL)
+			ctl->muted = HDA_AMP_MUTE_ALL;
 		break;
 	case HDA_CODEC_ALC880:
 		for (i = devinfo->startnode; i < devinfo->endnode; i++) {
@@ -3606,8 +3605,6 @@ hdac_vendor_patch_parse(struct hdac_devinfo *devinfo)
 		if (w != NULL && w->enable != 0 && w->nconns > 3)
 			w->selconn = 3;
 		if (subvendor == IBM_M52_SUBVENDOR) {
-			struct hdac_audio_ctl *ctl;
-
 			ctl = hdac_audio_ctl_amp_get(devinfo, 7, 0, 1);
 			if (ctl != NULL)
 				ctl->ossmask = SOUND_MASK_SPEAKER;
