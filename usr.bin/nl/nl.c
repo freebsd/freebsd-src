@@ -296,14 +296,11 @@ filter()
 	int section;		/* logical page section */
 	unsigned int adjblank;	/* adjacent blank lines */
 	int consumed;		/* intbuffer measurement */
-	int donumber, idx;
+	int donumber = 0, idx;
 
 	adjblank = 0;
 	line = startnum;
 	section = BODY;
-#ifdef __GNUC__
-	(void)&donumber;	/* avoid bogus `uninitialized' warning */
-#endif
 
 	while (fgets(buffer, (int)buffersize, stdin) != NULL) {
 		for (idx = FOOTER; idx <= NP_LAST; idx++) {
