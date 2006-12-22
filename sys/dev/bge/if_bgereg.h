@@ -303,6 +303,8 @@
 #define BGE_CHIPREV_5700_BX		0x71
 #define BGE_CHIPREV_5700_CX		0x72
 #define BGE_CHIPREV_5701_AX		0x00
+#define BGE_CHIPREV_5750_AX		0x40
+#define BGE_CHIPREV_5750_BX		0x41
 
 /* PCI DMA Read/Write Control register */
 #define BGE_PCIDMARWCTL_MINDMA		0x000000FF

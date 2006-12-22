@@ -114,12 +114,6 @@ __FBSDID("$FreeBSD$");
 #define BGE_CSUM_FEATURES	(CSUM_IP | CSUM_TCP | CSUM_UDP)
 #define ETHER_MIN_NOPAD		(ETHER_MIN_LEN - ETHER_CRC_LEN) /* i.e., 60 */
 
-/*
- * Disable the use of MSI until we sort out on which chip revisions support
- * it properly.
- */
-#define BGE_DISABLE_MSI		1
-
 MODULE_DEPEND(bge, pci, 1, 1, 1);
 MODULE_DEPEND(bge, ether, 1, 1, 1);
 MODULE_DEPEND(bge, miibus, 1, 1, 1);
@@ -2108,6 +2102,54 @@ bge_dma_alloc(device_t dev)
 	return (0);
 }
 
+/*
+ * Return true if this device has more than one port.
+ */
+static int
+bge_has_multiple_ports(struct bge_softc *sc)
+{
+	device_t dev = sc->bge_dev;
+	u_int b, s, f, fscan;
+
+	b = pci_get_bus(dev);
+	s = pci_get_slot(dev);
+	f = pci_get_function(dev);
+	for (fscan = 0; fscan <= PCI_FUNCMAX; fscan++)
+		if (fscan != f && pci_find_bsf(b, s, fscan) != NULL)
+			return (1);
+	return (0);
+}
+
+/*
+ * Return true if MSI can be used with this device.
+ */
+static int
+bge_can_use_msi(struct bge_softc *sc)
+{
+	int can_use_msi = 0;
+
+	switch (sc->bge_asicrev) {
+	case BGE_ASICREV_BCM5714:
+		/*
+		 * Apparently, MSI doesn't work when this chip is configured
+		 * in single-port mode.
+		 */
+		if (bge_has_multiple_ports(sc))
+			can_use_msi = 1;
+		break;
+	case BGE_ASICREV_BCM5750:
+		if (sc->bge_chiprev != BGE_CHIPREV_5750_AX &&
+		    sc->bge_chiprev != BGE_CHIPREV_5750_BX)
+			can_use_msi = 1;
+		break;
+	case BGE_ASICREV_BCM5752:
+	case BGE_ASICREV_BCM5780:
+		can_use_msi = 1;
+		break;
+	}
+	return (can_use_msi);
+}
+
 static int
 bge_attach(device_t dev)
 {
@@ -2138,33 +2180,6 @@ bge_attach(device_t dev)
 
 	sc->bge_btag = rman_get_bustag(sc->bge_res);
 	sc->bge_bhandle = rman_get_bushandle(sc->bge_res);
-
-	/*
-	 * Allocate the interrupt, using MSI if possible.  These devices
-	 * support 8 MSI messages, but only the first one is used in
-	 * normal operation.
-	 */
-	if ((msicount = pci_msi_count(dev)) > 1)
-		msicount = 1;
-#ifdef BGE_DISABLE_MSI
-	msicount = 0;
-#endif
-	if (msicount == 1 && pci_alloc_msi(dev, &msicount) == 0) {
-		rid = 1;
-		sc->bge_flags |= BGE_FLAG_MSI;
-	} else
-		rid = 0;
-
-	sc->bge_irq = bus_alloc_resource_any(dev, SYS_RES_IRQ, &rid,
-	    RF_SHAREABLE | RF_ACTIVE);
-
-	if (sc->bge_irq == NULL) {
-		device_printf(sc->bge_dev, "couldn't map interrupt\n");
-		error = ENXIO;
-		goto fail;
-	}
-
-	BGE_LOCK_INIT(sc, device_get_nameunit(dev));
 
 	/* Save ASIC rev. */
 
@@ -2232,6 +2247,34 @@ bge_attach(device_t dev)
 			sc->bge_flags |= BGE_FLAG_PCIX;
 	}
 #endif
+
+	/*
+	 * Allocate the interrupt, using MSI if possible.  These devices
+	 * support 8 MSI messages, but only the first one is used in
+	 * normal operation.
+	 */
+	if (bge_can_use_msi(sc)) {
+		msicount = pci_msi_count(dev);
+		if (msicount > 1)
+			msicount = 1;
+	} else
+		msicount = 0;
+	if (msicount == 1 && pci_alloc_msi(dev, &msicount) == 0) {
+		rid = 1;
+		sc->bge_flags |= BGE_FLAG_MSI;
+	} else
+		rid = 0;
+
+	sc->bge_irq = bus_alloc_resource_any(dev, SYS_RES_IRQ, &rid,
+	    RF_SHAREABLE | RF_ACTIVE);
+
+	if (sc->bge_irq == NULL) {
+		device_printf(sc->bge_dev, "couldn't map interrupt\n");
+		error = ENXIO;
+		goto fail;
+	}
+
+	BGE_LOCK_INIT(sc, device_get_nameunit(dev));
 
 	/* Try to reset the chip. */
 	if (bge_reset(sc)) {
@@ -2615,10 +2658,19 @@ bge_reset(struct bge_softc *sc)
 	pci_write_config(dev, BGE_PCI_CMD, command, 4);
 	write_op(sc, BGE_MISC_CFG, (65 << 1));
 
-	/* Enable memory arbiter. */
+	/* Re-enable MSI, if neccesary, and enable the memory arbiter. */
 	if (BGE_IS_5714_FAMILY(sc)) {
 		uint32_t val;
 
+		/* This chip disables MSI on reset. */
+		if (sc->bge_flags & BGE_FLAG_MSI) {
+			val = pci_read_config(dev, BGE_PCI_MSI_CTL, 2);
+			pci_write_config(dev, BGE_PCI_MSI_CTL,
+			    val | PCIM_MSICTRL_MSI_ENABLE, 2);
+			val = CSR_READ_4(sc, BGE_MSI_MODE);
+			CSR_WRITE_4(sc, BGE_MSI_MODE,
+			    val | BGE_MSIMODE_ENABLE);
+		}
 		val = CSR_READ_4(sc, BGE_MARB_MODE);
 		CSR_WRITE_4(sc, BGE_MARB_MODE, BGE_MARBMODE_ENABLE | val);
 	} else
