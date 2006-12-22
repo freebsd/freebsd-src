@@ -81,8 +81,7 @@
 #include <vm/uma.h>
 #include <vm/vm.h>
 
-#include <sys/mac_policy.h>
-
+#include <security/mac/mac_policy.h>
 #include <security/mac_mls/mac_mls.h>
 
 SYSCTL_DECL(_security_mac);

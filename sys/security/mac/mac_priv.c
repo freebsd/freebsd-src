@@ -38,10 +38,10 @@
 #include <sys/param.h>
 #include <sys/priv.h>
 #include <sys/module.h>
-#include <sys/mac_policy.h>
 
 #include <security/mac/mac_framework.h>
 #include <security/mac/mac_internal.h>
+#include <security/mac/mac_policy.h>
 
 /*
  * The MAC Framework interacts with kernel privilege checks in two ways: it

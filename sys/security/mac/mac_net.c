@@ -56,14 +56,13 @@ __FBSDID("$FreeBSD$");
 #include <sys/socketvar.h>
 #include <sys/sysctl.h>
 
-#include <sys/mac_policy.h>
-
 #include <net/bpfdesc.h>
 #include <net/if.h>
 #include <net/if_var.h>
 
 #include <security/mac/mac_framework.h>
 #include <security/mac/mac_internal.h>
+#include <security/mac/mac_policy.h>
 
 /*
  * XXXRW: struct ifnet locking is incomplete in the network code, so we use

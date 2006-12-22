@@ -49,10 +49,9 @@ __FBSDID("$FreeBSD$");
 #include <sys/sysctl.h>
 #include <sys/msg.h>
 
-#include <sys/mac_policy.h>
-
 #include <security/mac/mac_framework.h>
 #include <security/mac/mac_internal.h>
+#include <security/mac/mac_policy.h>
 
 static struct label *
 mac_sysv_msgmsg_label_alloc(void)

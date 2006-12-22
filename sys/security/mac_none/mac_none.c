@@ -74,7 +74,7 @@
 
 #include <vm/vm.h>
 
-#include <sys/mac_policy.h>
+#include <security/mac/mac_policy.h>
 
 SYSCTL_DECL(_security_mac);
 

@@ -44,10 +44,9 @@ __FBSDID("$FreeBSD$");
 #include <sys/systm.h>
 #include <sys/sysctl.h>
 
-#include <sys/mac_policy.h>
-
 #include <security/mac/mac_framework.h>
 #include <security/mac/mac_internal.h>
+#include <security/mac/mac_policy.h>
 
 static struct label *
 mac_posix_sem_label_alloc(void)
