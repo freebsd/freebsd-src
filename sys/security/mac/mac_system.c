@@ -45,10 +45,9 @@ __FBSDID("$FreeBSD$");
 #include <sys/vnode.h>
 #include <sys/sysctl.h>
 
-#include <sys/mac_policy.h>
-
 #include <security/mac/mac_framework.h>
 #include <security/mac/mac_internal.h>
+#include <security/mac/mac_policy.h>
 
 /*
  * XXXRW: Some of these checks now duplicate privilege checks.  However,

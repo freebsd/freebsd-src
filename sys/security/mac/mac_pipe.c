@@ -47,10 +47,9 @@ __FBSDID("$FreeBSD$");
 #include <sys/pipe.h>
 #include <sys/sysctl.h>
 
-#include <sys/mac_policy.h>
-
 #include <security/mac/mac_framework.h>
 #include <security/mac/mac_internal.h>
+#include <security/mac/mac_policy.h>
 
 struct label *
 mac_pipe_label_alloc(void)

@@ -80,8 +80,6 @@ __FBSDID("$FreeBSD$");
 #include <vm/vm_map.h>
 #include <vm/vm_object.h>
 
-#include <sys/mac_policy.h>
-
 #include <fs/devfs/devfs.h>
 
 #include <net/bpfdesc.h>
@@ -93,6 +91,7 @@ __FBSDID("$FreeBSD$");
 
 #include <security/mac/mac_framework.h>
 #include <security/mac/mac_internal.h>
+#include <security/mac/mac_policy.h>
 
 #ifdef MAC
 

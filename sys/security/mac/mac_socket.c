@@ -59,8 +59,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/socketvar.h>
 #include <sys/sysctl.h>
 
-#include <sys/mac_policy.h>
-
 #include <net/bpfdesc.h>
 #include <net/if.h>
 #include <net/if_var.h>
@@ -71,6 +69,7 @@ __FBSDID("$FreeBSD$");
 
 #include <security/mac/mac_framework.h>
 #include <security/mac/mac_internal.h>
+#include <security/mac/mac_policy.h>
 
 /*
  * Currently, sockets hold two labels: the label of the socket itself, and a

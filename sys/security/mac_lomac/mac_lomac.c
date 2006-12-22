@@ -77,8 +77,7 @@
 
 #include <vm/vm.h>
 
-#include <sys/mac_policy.h>
-
+#include <security/mac/mac_policy.h>
 #include <security/mac/mac_framework.h>
 #include <security/mac_lomac/mac_lomac.h>
 

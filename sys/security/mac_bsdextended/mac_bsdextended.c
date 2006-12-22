@@ -72,8 +72,7 @@
 
 #include <vm/vm.h>
 
-#include <sys/mac_policy.h>
-
+#include <security/mac/mac_policy.h>
 #include <security/mac_bsdextended/mac_bsdextended.h>
 
 static struct mtx mac_bsdextended_mtx;
