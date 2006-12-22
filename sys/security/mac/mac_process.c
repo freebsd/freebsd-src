@@ -62,10 +62,9 @@ __FBSDID("$FreeBSD$");
 #include <vm/vm_map.h>
 #include <vm/vm_object.h>
 
-#include <sys/mac_policy.h>
-
 #include <security/mac/mac_framework.h>
 #include <security/mac/mac_internal.h>
+#include <security/mac/mac_policy.h>
 
 static int	mac_mmap_revocation = 1;
 SYSCTL_INT(_security_mac, OID_AUTO, mmap_revocation, CTLFLAG_RW,

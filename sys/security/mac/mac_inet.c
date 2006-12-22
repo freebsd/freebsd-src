@@ -55,8 +55,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/socketvar.h>
 #include <sys/sysctl.h>
 
-#include <sys/mac_policy.h>
-
 #include <net/if.h>
 #include <net/if_var.h>
 
@@ -66,6 +64,7 @@ __FBSDID("$FreeBSD$");
 
 #include <security/mac/mac_framework.h>
 #include <security/mac/mac_internal.h>
+#include <security/mac/mac_policy.h>
 
 static struct label *
 mac_inpcb_label_alloc(int flag)

@@ -66,12 +66,11 @@ __FBSDID("$FreeBSD$");
 #include <vm/vm_map.h>
 #include <vm/vm_object.h>
 
-#include <sys/mac_policy.h>
-
 #include <fs/devfs/devfs.h>
 
 #include <security/mac/mac_framework.h>
 #include <security/mac/mac_internal.h>
+#include <security/mac/mac_policy.h>
 
 /*
  * Warn about EA transactions only the first time they happen.  No locking on

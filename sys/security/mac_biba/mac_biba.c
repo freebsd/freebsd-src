@@ -81,8 +81,7 @@
 #include <vm/uma.h>
 #include <vm/vm.h>
 
-#include <sys/mac_policy.h>
-
+#include <security/mac/mac_policy.h>
 #include <security/mac_biba/mac_biba.h>
 
 SYSCTL_DECL(_security_mac);
