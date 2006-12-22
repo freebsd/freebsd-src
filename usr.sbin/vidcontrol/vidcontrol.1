@@ -13,7 +13,7 @@
 .\"     @(#)vidcontrol.1
 .\" $FreeBSD$
 .\"
-.Dd May 29, 2005
+.Dd December 23, 2006
 .Dt VIDCONTROL 1
 .Os
 .Sh NAME
@@ -45,7 +45,7 @@
 .Sh DESCRIPTION
 The
 .Nm
-command is used to set various options for the
+utility is used to set various options for the
 .Xr syscons 4
 console driver,
 such as video mode, colors, cursor shape, screen output map, font and screen
@@ -280,11 +280,11 @@ will fail if the user attempts to set a new video mode.
 .Pp
 .Bl -column "25 line modes" "8x16 (VGA), 8x14 (EGA)" -compact
 .Sy Modes Ta Sy Font size
-.Li 25 line modes Ta 8x16 (VGA), 8x14 (EGA)
-.Li 30 line modes Ta 8x16
-.Li 43 line modes Ta 8x8
-.Li 50 line modes Ta 8x8
-.Li 60 line modes Ta 8x8
+.No 25 line modes Ta 8x16 (VGA), 8x14 (EGA)
+.No 30 line modes Ta 8x16
+.No 43 line modes Ta 8x8
+.No 50 line modes Ta 8x8
+.No 60 line modes Ta 8x8
 .El
 .Pp
 It is better to always load all three sizes (8x8, 8x14 and 8x16)
@@ -316,7 +316,7 @@ to capture the current contents of the video buffer.
 The
 .Nm
 utility writes version and additional information to the standard
-output, followed by the contents of the terminal device.
+output, followed by the contents of the video buffer.
 .Pp
 VGA video memory is typically arranged in two byte tuples,
 one per character position.
@@ -501,13 +501,14 @@ some LCD models):
 .Dl vidcontrol -g 100x37 VESA_800x600
 .Pp
 The following command will capture the contents of the first virtual
-terminal, and redirect the output to the
+terminal video buffer, and redirect the output to the
 .Pa shot.scr
 file:
 .Pp
 .Dl vidcontrol -p < /dev/ttyv0 > shot.scr
 .Pp
 The following command will dump contents of the fourth virtual terminal
+video buffer
 to the standard output in the human readable format:
 .Pp
 .Dl vidcontrol -P < /dev/ttyv3
@@ -524,11 +525,11 @@ to the standard output in the human readable format:
 .Xr watch 8
 .Pp
 The various
-.Li scr2*
+.Pa scr2*
 utilities in the
-.Li graphics
+.Pa graphics
 and
-.Li textproc
+.Pa textproc
 categories of the
 .Em "Ports Collection" .
 .Sh AUTHORS
