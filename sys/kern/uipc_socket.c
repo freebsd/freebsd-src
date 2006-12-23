@@ -1439,7 +1439,6 @@ soreceive_generic(so, psa, uio, mp0, controlp, flagsp)
 	struct protosw *pr = so->so_proto;
 	struct mbuf *nextrecord;
 	int moff, type = 0;
-	int mbuf_removed = 0;
 	int orig_resid = uio->uio_resid;
 
 	mp = mp0;
@@ -1560,7 +1559,6 @@ dontblock:
 			m = m->m_next;
 		} else {
 			sbfree(&so->so_rcv, m);
-			mbuf_removed = 1;
 			so->so_rcv.sb_mb = m_free(m);
 			m = so->so_rcv.sb_mb;
 			sockbuf_pushsync(&so->so_rcv, nextrecord);
@@ -1586,7 +1584,6 @@ dontblock:
 				m = m->m_next;
 			} else {
 				sbfree(&so->so_rcv, m);
-				mbuf_removed = 1;
 				so->so_rcv.sb_mb = m->m_next;
 				m->m_next = NULL;
 				*cme = m;
@@ -1710,16 +1707,17 @@ dontblock:
 			SOCKBUF_LOCK(&so->so_rcv);
 			if (error) {
 				/*
-				 * If any part of the record has been removed
-				 * (such as the MT_SONAME mbuf, which will
-				 * happen when PR_ADDR, and thus also
-				 * PR_ATOMIC, is set), then drop the entire
-				 * record to maintain the atomicity of the
-				 * receive operation.
+				 * The MT_SONAME mbuf has already been removed
+				 * from the record, so it is necessary to
+				 * remove the data mbufs, if any, to preserve
+				 * the invariant in the case of PR_ADDR that
+				 * requires MT_SONAME mbufs at the head of
+				 * each record.
 				 */
-				if (m && mbuf_removed &&
-				    (pr->pr_flags & PR_ATOMIC))
+				if (m && pr->pr_flags & PR_ATOMIC
+				    && ((flags & MSG_PEEK) == 0)) {
 					(void)sbdroprecord_locked(&so->so_rcv);
+				}
 				goto release;
 			}
 		} else
