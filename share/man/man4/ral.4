@@ -1,4 +1,4 @@
-.\" Copyright (c) 2005
+.\" Copyright (c) 2005, 2006
 .\"     Damien Bergamini <damien.bergamini@free.fr>
 .\"
 .\" Permission to use, copy, modify, and distribute this software for any
@@ -15,12 +15,12 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd July 16, 2005
+.Dd March 5, 2006
 .Os
 .Dt RAL 4
 .Sh NAME
 .Nm ral
-.Nd "Ralink Technology RT2500 IEEE 802.11 driver"
+.Nd "Ralink Technology IEEE 802.11 wireless network driver"
 .Sh SYNOPSIS
 To compile this driver into the kernel,
 place the following lines in your
@@ -39,104 +39,122 @@ if_ral_load="YES"
 .Sh DESCRIPTION
 The
 .Nm
-driver supports PCI/CardBus wireless adapters based on the Ralink RT2500
-chipset.
+driver supports PCI/CardBus wireless adapters based on the Ralink Technology
+RT2500, RT2501, and RT2600 chipsets.
 .Pp
-The RT2500 chipset consists of two integrated chips, a RT2560 MAC/BBP and a
-radio transceiver (the model of which depends on the card revision).
+The RT2500 chipset is the first generation of 802.11b/g adapters from Ralink.
+It consists of two integrated chips, a RT2560 MAC/BBP and a RT2525 radio
+transceiver.
 .Pp
-The RT2522, RT2523, RT2524, RT2525, RT2525e and RT2526 radio transceivers
-operate in the 2.4GHz band (802.11b/g) whereas the RT5222 is a dual-band radio
-transceiver that can operate in the 2.4GHz and 5.2GHz bands (802.11a).
+The RT2501 chipset is the second generation of 802.11b/g adapters from Ralink.
+It consists of two integrated chips, a RT2561 MAC/BBP and a RT2527 radio
+transceiver.
+This chipset provides support for the IEEE 802.11e standard with multiple
+hardware transmission queues and allows scatter/gather for efficient DMA
+operations.
+.Pp
+The RT2600 chipset consists of two integrated chips, a RT2661 MAC/BBP and a
+RT2529 radio transceiver.
+This chipset uses the MIMO (multiple-input multiple-output) technology with
+multiple antennas to extend the operating range of the adapter and to achieve
+higher throughput.
+MIMO is the basis of the forthcoming IEEE 802.11n standard.
 .Pp
 The transmit speed is user-selectable or can be adapted automatically by the
-driver depending on the received-signal strength.
+driver depending on the received signal strength and on the number of hardware
+transmission retries.
 .Sh HARDWARE
 The
 .Nm
 driver supports the following adapters:
 .Pp
-.Bl -column -compact ".Li Atlantis Land A02-PCM-W54" "Bus"
-.It Em Card Ta Em Bus
-.It Li "A-Link WL54H" Ta PCI
-.It Li "A-Link WL54PC" Ta CardBus
-.It Li "Amigo AWI-914W" Ta CardBus
-.It Li "Amigo AWI-922W" Ta mini-PCI
-.It Li "Amigo AWI-926W" Ta PCI
-.It Li "AMIT WL531C" Ta CardBus
-.It Li "AMIT WL531P" Ta PCI
-.It Li "AOpen AOI-831" Ta PCI
-.It Li "ASUS WL-107G" Ta CardBus
-.It Li "ASUS WL-130g" Ta PCI
-.It Li "Atlantis Land A02-PCI-W54" Ta PCI
-.It Li "Atlantis Land A02-PCM-W54" Ta CardBus
-.It Li "Belkin F5D7000 v3" Ta PCI
-.It Li "Belkin F5D7010 v2" Ta CardBus
-.It Li "Billionton MIWLGRL" Ta mini-PCI
-.It Li "Canyon CN-WF511" Ta PCI
-.It Li "Canyon CN-WF513" Ta CardBus
-.It Li "CC&C WL-2102" Ta CardBus
-.It Li "CNet CWC-854" Ta CardBus
-.It Li "CNet CWP-854" Ta PCI
-.It Li "Compex WL54G" Ta CardBus
-.It Li "Compex WLP54G" Ta PCI
-.It Li "Conceptronic C54RC" Ta CardBus
-.It Li "Conceptronic C54Ri" Ta PCI
-.It Li "Digitus DN-7001G-RA" Ta CardBus
-.It Li "Digitus DN-7006G-RA" Ta PCI
-.It Li "E-Tech WGPC02" Ta CardBus
-.It Li "E-Tech WGPI02" Ta PCI
-.It Li "Edimax EW-7108PCg" Ta CardBus
-.It Li "Edimax EW-7128g" Ta PCI
-.It Li "Eminent EM3036" Ta CardBus
-.It Li "Eminent EM3037" Ta PCI
-.It Li "Encore ENLWI-G-RLAM" Ta PCI
-.It Li "Encore ENPWI-G-RLAM" Ta CardBus
-.It Li "Fiberline WL-400P" Ta PCI
-.It Li "Fibreline WL-400X" Ta CardBus
-.It Li "Gigabyte GN-WIKG" Ta mini-PCI
-.It Li "Gigabyte GN-WMKG" Ta CardBus
-.It Li "Gigabyte GN-WPKG" Ta PCI
-.It Li "Hawking HWC54GR" Ta CardBus
-.It Li "Hawking HWP54GR" Ta PCI
-.It Li "iNexQ CR054g-009 (R03)" Ta PCI
-.It Li "JAHT WN-4054P" Ta CardBus
-.It Li "JAHT WN-4054PCI" Ta PCI
-.It Li "LevelOne WNC-0301 v2" Ta PCI
-.It Li "LevelOne WPC-0301 v2" Ta CardBus
-.It Li "Linksys WMP54G v4" Ta PCI
-.It Li "Micronet SP906GK" Ta PCI
-.It Li "Micronet SP908GK V3" Ta CardBus
-.It Li "Minitar MN54GCB-R" Ta CardBus
-.It Li "Minitar MN54GPC-R" Ta PCI
-.It Li "MSI CB54G2" Ta CardBus
-.It Li "MSI MP54G2" Ta mini-PCI
-.It Li "MSI PC54G2" Ta PCI
-.It Li "OvisLink EVO-W54PCI" Ta PCI
-.It Li "PheeNet HWL-PCIG/RA" Ta PCI
-.It Li "Pro-Nets CB80211G" Ta CardBus
-.It Li "Pro-Nets PC80211G" Ta PCI
-.It Li "Repotec RP-WB7108" Ta CardBus
-.It Li "Repotec RP-WP0854" Ta PCI
-.It Li "SATech SN-54C" Ta CardBus
-.It Li "SATech SN-54P" Ta PCI
-.It Li "Sitecom WL-112" Ta CardBus
-.It Li "Sitecom WL-115" Ta PCI
-.It Li "SparkLAN WL-685R" Ta CardBus
-.It Li "Surecom EP-9321-g" Ta PCI
-.It Li "Surecom EP-9321-g1" Ta PCI
-.It Li "Surecom EP-9428-g" Ta CardBus
-.It Li "Sweex LC500050" Ta CardBus
-.It Li "Sweex LC700030" Ta PCI
-.It Li "TekComm NE-9321-g" Ta PCI
-.It Li "TekComm NE-9428-g" Ta CardBus
-.It Li "Unex CR054g-R02" Ta PCI
-.It Li "Unex MR054g-R02" Ta CardBus
-.It Li "Zinwell ZWX-G160" Ta CardBus
-.It Li "Zinwell ZWX-G360" Ta mini-PCI
-.It Li "Zinwell ZWX-G361" Ta PCI
-.It Li "Zonet ZEW1500" Ta CardBus
-.It Li "Zonet ZEW1600" Ta PCI
+.Bl -column -compact ".Li Atlantis Land A02-PCM-W54" "RT2561S" "CardBus"
+.It Em Card Ta Em MAC/BBP Ta Em Bus
+.It Li "A-Link WL54H" Ta RT2560 Ta PCI
+.It Li "A-Link WL54PC" Ta RT2560 Ta CardBus
+.It Li "AirLink101 AWLC5025" Ta RT2661 Ta CardBus
+.It Li "AirLink101 AWLH5025" Ta RT2661 Ta PCI
+.It Li "Amigo AWI-914W" Ta RT2560 Ta CardBus
+.It Li "Amigo AWI-922W" Ta RT2560 Ta mini-PCI
+.It Li "Amigo AWI-926W" Ta RT2560 Ta PCI
+.It Li "AMIT WL531C" Ta RT2560 Ta CardBus
+.It Li "AMIT WL531P" Ta RT2560 Ta PCI
+.It Li "AOpen AOI-831" Ta RT2560 Ta PCI
+.It Li "ASUS WL-107G" Ta RT2560 Ta CardBus
+.It Li "ASUS WL-130g" Ta RT2560 Ta PCI
+.It Li "Atlantis Land A02-PCI-W54" Ta RT2560 Ta PCI
+.It Li "Atlantis Land A02-PCM-W54" Ta RT2560 Ta CardBus
+.It Li "Belkin F5D7000 v3" Ta RT2560 Ta PCI
+.It Li "Belkin F5D7010 v2" Ta RT2560 Ta CardBus
+.It Li "Billionton MIWLGRL" Ta RT2560 Ta mini-PCI
+.It Li "Canyon CN-WF511" Ta RT2560 Ta PCI
+.It Li "Canyon CN-WF513" Ta RT2560 Ta CardBus
+.It Li "CC&C WL-2102" Ta RT2560 Ta CardBus
+.It Li "CNet CWC-854" Ta RT2560 Ta CardBus
+.It Li "CNet CWP-854" Ta RT2560 Ta PCI
+.It Li "Compex WL54G" Ta RT2560 Ta CardBus
+.It Li "Compex WLP54G" Ta RT2560 Ta PCI
+.It Li "Conceptronic C54RC" Ta RT2560 Ta CardBus
+.It Li "Conceptronic C54Ri" Ta RT2560 Ta PCI
+.It Li "Digitus DN-7001G-RA" Ta RT2560 Ta CardBus
+.It Li "Digitus DN-7006G-RA" Ta RT2560 Ta PCI
+.It Li "E-Tech WGPC02" Ta RT2560 Ta CardBus
+.It Li "E-Tech WGPI02" Ta RT2560 Ta PCI
+.It Li "Edimax EW-7108PCg" Ta RT2560 Ta CardBus
+.It Li "Edimax EW-7128g" Ta RT2560 Ta PCI
+.It Li "Eminent EM3036" Ta RT2560 Ta CardBus
+.It Li "Eminent EM3037" Ta RT2560 Ta PCI
+.It Li "Encore ENLWI-G-RLAM" Ta RT2560 Ta PCI
+.It Li "Encore ENPWI-G-RLAM" Ta RT2560 Ta CardBus
+.It Li "Fiberline WL-400P" Ta RT2560 Ta PCI
+.It Li "Fibreline WL-400X" Ta RT2560 Ta CardBus
+.It Li "Gigabyte GN-WI01GS" Ta RT2561S Ta mini-PCI
+.It Li "Gigabyte GN-WIKG" Ta RT2560 Ta mini-PCI
+.It Li "Gigabyte GN-WMKG" Ta RT2560 Ta CardBus
+.It Li "Gigabyte GN-WP01GS" Ta RT2561S Ta PCI
+.It Li "Gigabyte GN-WPKG" Ta RT2560 Ta PCI
+.It Li "Hawking HWC54GR" Ta RT2560 Ta CardBus
+.It Li "Hawking HWP54GR" Ta RT2560 Ta PCI
+.It Li "iNexQ CR054g-009 (R03)" Ta RT2560 Ta PCI
+.It Li "JAHT WN-4054P" Ta RT2560 Ta CardBus
+.It Li "JAHT WN-4054PCI" Ta RT2560 Ta PCI
+.It Li "LevelOne WNC-0301 v2" Ta RT2560 Ta PCI
+.It Li "LevelOne WPC-0301 v2" Ta RT2560 Ta CardBus
+.It Li "Linksys WMP54G v4" Ta RT2560 Ta PCI
+.It Li "Micronet SP906GK" Ta RT2560 Ta PCI
+.It Li "Micronet SP908GK V3" Ta RT2560 Ta CardBus
+.It Li "Minitar MN54GCB-R" Ta RT2560 Ta CardBus
+.It Li "Minitar MN54GPC-R" Ta RT2560 Ta PCI
+.It Li "MSI CB54G2" Ta RT2560 Ta CardBus
+.It Li "MSI MP54G2" Ta RT2560 Ta mini-PCI
+.It Li "MSI PC54G2" Ta RT2560 Ta PCI
+.It Li "OvisLink EVO-W54PCI" Ta RT2560 Ta PCI
+.It Li "PheeNet HWL-PCIG/RA" Ta RT2560 Ta PCI
+.It Li "Pro-Nets CB80211G" Ta RT2560 Ta CardBus
+.It Li "Pro-Nets PC80211G" Ta RT2560 Ta PCI
+.It Li "Repotec RP-WB7108" Ta RT2560 Ta CardBus
+.It Li "Repotec RP-WP0854" Ta RT2560 Ta PCI
+.It Li "SATech SN-54C" Ta RT2560 Ta CardBus
+.It Li "SATech SN-54P" Ta RT2560 Ta PCI
+.It Li "Sitecom WL-112" Ta RT2560 Ta CardBus
+.It Li "Sitecom WL-115" Ta RT2560 Ta PCI
+.It Li "SMC SMCWCB-GM" Ta RT2661 Ta CardBus
+.It Li "SMC SMCWPCI-GM" Ta RT2661 Ta PCI
+.It Li "SparkLAN WL-685R" Ta RT2560 Ta CardBus
+.It Li "Surecom EP-9321-g" Ta RT2560 Ta PCI
+.It Li "Surecom EP-9321-g1" Ta RT2560 Ta PCI
+.It Li "Surecom EP-9428-g" Ta RT2560 Ta CardBus
+.It Li "Sweex LC500050" Ta RT2560 Ta CardBus
+.It Li "Sweex LC700030" Ta RT2560 Ta PCI
+.It Li "TekComm NE-9321-g" Ta RT2560 Ta PCI
+.It Li "TekComm NE-9428-g" Ta RT2560 Ta CardBus
+.It Li "Unex CR054g-R02" Ta RT2560 Ta PCI
+.It Li "Unex MR054g-R02" Ta RT2560 Ta CardBus
+.It Li "Zinwell ZWX-G160" Ta RT2560 Ta CardBus
+.It Li "Zinwell ZWX-G360" Ta RT2560 Ta mini-PCI
+.It Li "Zinwell ZWX-G361" Ta RT2560 Ta PCI
+.It Li "Zonet ZEW1500" Ta RT2560 Ta CardBus
+.It Li "Zonet ZEW1600" Ta RT2560 Ta PCI
 .El
 .Pp
 An up to date list can be found at
@@ -154,17 +172,23 @@ Join a specific BSS network with network name
 Join a specific BSS network with 40-bit WEP encryption:
 .Bd -literal -offset indent
 ifconfig ral0 inet 192.168.0.20 netmask 0xffffff00 ssid my_net \e
-    wepmode on wepkey 0x1234567890
+    wepmode on wepkey 0x1234567890 weptxkey 1
 .Ed
 .Pp
 Join a specific BSS network with 104-bit WEP encryption:
 .Bd -literal -offset indent
 ifconfig ral0 inet 192.168.0.20 netmask 0xffffff00 ssid my_net \e
-    wepmode on wepkey 0x01020304050607080910111213
+    wepmode on wepkey 0x01020304050607080910111213 weptxkey 1
 .Ed
 .Sh DIAGNOSTICS
 .Bl -diag
+.It "ral%d: could not load 8051 microcode"
+An error occurred while attempting to upload the microcode to the onboard 8051
+microcontroller unit.
+.It "ral%d: timeout waiting for MCU to initialize"
+The onboard 8051 microcontroller unit failed to initialize in time.
 .It "ral%d: device timeout"
+A frame dispatched to the hardware for transmission did not complete in time.
 The driver will reset the hardware.
 This should not happen.
 .El
@@ -189,6 +213,10 @@ PCI
 .Nm
 adapters seem to require a PCI 2.2 compliant motherboard and will likely not
 work with PCI 2.1 only motherboard.
+.Pp
+The
+.Nm
+driver does not implement frame aggregation.
 .Sh AUTHORS
 The
 .Nm

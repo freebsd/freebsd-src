@@ -33,8 +33,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/socket.h>
 #include <sys/systm.h>
 #include <sys/malloc.h>
-#include <sys/lock.h>
-#include <sys/mutex.h>
 #include <sys/module.h>
 #include <sys/bus.h>
 #include <sys/endian.h>
@@ -117,7 +115,7 @@ static int		rt2661_tx_data(struct rt2661_softc *, struct mbuf *,
 static int		rt2661_tx_mgt(struct rt2661_softc *, struct mbuf *,
 			    struct ieee80211_node *);
 static void		rt2661_start(struct ifnet *);
-static void		rt2661_watchdog(void *);
+static void		rt2661_watchdog(struct ifnet *);
 static int		rt2661_reset(struct ifnet *);
 static int		rt2661_ioctl(struct ifnet *, u_long, caddr_t);
 static void		rt2661_bbp_write(struct rt2661_softc *, uint8_t,
@@ -209,7 +207,6 @@ rt2661_attach(device_t dev, int id)
 	mtx_init(&sc->sc_mtx, device_get_nameunit(dev), MTX_NETWORK_LOCK,
 	    MTX_DEF | MTX_RECURSE);
 
-	callout_init_mtx(&sc->watchdog_ch, &sc->sc_mtx, 0);
 	callout_init(&sc->scan_ch, debug_mpsafenet ? CALLOUT_MPSAFE : 0);
 	callout_init(&sc->rssadapt_ch, CALLOUT_MPSAFE);
 
@@ -294,6 +291,7 @@ rt2661_attach(device_t dev, int id)
 	ifp->if_init = rt2661_init;
 	ifp->if_ioctl = rt2661_ioctl;
 	ifp->if_start = rt2661_start;
+	ifp->if_watchdog = rt2661_watchdog;
 	IFQ_SET_MAXLEN(&ifp->if_snd, IFQ_MAXLEN);
 	ifp->if_snd.ifq_drv_maxlen = IFQ_MAXLEN;
 	IFQ_SET_READY(&ifp->if_snd);
@@ -407,7 +405,6 @@ rt2661_detach(void *xsc)
 	struct ifnet *ifp = ic->ic_ifp;
 
 	rt2661_stop(sc);
-	callout_stop(&sc->watchdog_ch);
 	callout_stop(&sc->scan_ch);
 	callout_stop(&sc->rssadapt_ch);
 
@@ -1139,7 +1136,7 @@ rt2661_rx_intr(struct rt2661_softc *sc)
 		m->m_pkthdr.len = m->m_len =
 		    (le32toh(desc->flags) >> 16) & 0xfff;
 
-		if (bpf_peers_present(sc->sc_drvbpf)) {
+		if (sc->sc_drvbpf != NULL) {
 			struct rt2661_rx_radiotap_header *tap = &sc->sc_rxtap;
 			uint32_t tsf_lo, tsf_hi;
 
@@ -1487,7 +1484,7 @@ rt2661_tx_mgt(struct rt2661_softc *sc, struct mbuf *m0,
 		return error;
 	}
 
-	if (bpf_peers_present(sc->sc_drvbpf)) {
+	if (sc->sc_drvbpf != NULL) {
 		struct rt2661_tx_radiotap_header *tap = &sc->sc_txtap;
 
 		tap->wt_flags = 0;
@@ -1711,7 +1708,7 @@ rt2661_tx_data(struct rt2661_softc *sc, struct mbuf *m0,
 		wh = mtod(m0, struct ieee80211_frame *);
 	}
 
-	if (bpf_peers_present(sc->sc_drvbpf)) {
+	if (sc->sc_drvbpf != NULL) {
 		struct rt2661_tx_radiotap_header *tap = &sc->sc_txtap;
 
 		tap->wt_flags = 0;
@@ -1789,7 +1786,7 @@ rt2661_start(struct ifnet *ifp)
 			ni = (struct ieee80211_node *)m0->m_pkthdr.rcvif;
 			m0->m_pkthdr.rcvif = NULL;
 
-			if (bpf_peers_present(ic->ic_rawbpf))
+			if (ic->ic_rawbpf != NULL)
 				bpf_mtap(ic->ic_rawbpf, m0);
 
 			if (rt2661_tx_mgt(sc, m0, ni) != 0)
@@ -1843,7 +1840,7 @@ rt2661_start(struct ifnet *ifp)
 				continue;
 			}
 
-			if (bpf_peers_present(ic->ic_rawbpf))
+			if (ic->ic_rawbpf != NULL)
 				bpf_mtap(ic->ic_rawbpf, m0);
 
 			if (rt2661_tx_data(sc, m0, ni, ac) != 0) {
@@ -1854,29 +1851,36 @@ rt2661_start(struct ifnet *ifp)
 		}
 
 		sc->sc_tx_timer = 5;
-		callout_reset(&sc->watchdog_ch, hz, rt2661_watchdog, sc);
+		ifp->if_timer = 1;
 	}
 
 	RAL_UNLOCK(sc);
 }
 
 static void
-rt2661_watchdog(void *arg)
+rt2661_watchdog(struct ifnet *ifp)
 {
-	struct rt2661_softc *sc = (struct rt2661_softc *)arg;
+	struct rt2661_softc *sc = ifp->if_softc;
 	struct ieee80211com *ic = &sc->sc_ic;
+
+	RAL_LOCK(sc);
+
+	ifp->if_timer = 0;
 
 	if (sc->sc_tx_timer > 0) {
 		if (--sc->sc_tx_timer == 0) {
 			device_printf(sc->sc_dev, "device timeout\n");
 			rt2661_init(sc);
-			sc->sc_ifp->if_oerrors++;
+			ifp->if_oerrors++;
+			RAL_UNLOCK(sc);
 			return;
 		}
-		callout_reset(&sc->watchdog_ch, hz, rt2661_watchdog, sc);
+		ifp->if_timer = 1;
 	}
 
 	ieee80211_watchdog(ic);
+
+	RAL_UNLOCK(sc);
 }
 
 /*
@@ -2613,6 +2617,7 @@ rt2661_stop(void *priv)
 	uint32_t tmp;
 
 	sc->sc_tx_timer = 0;
+	ifp->if_timer = 0;
 	ifp->if_drv_flags &= ~(IFF_DRV_RUNNING | IFF_DRV_OACTIVE);
 
 	ieee80211_new_state(ic, IEEE80211_S_INIT, -1);

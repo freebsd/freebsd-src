@@ -809,9 +809,9 @@ dev/puc/puc_pci.c		optional puc pci
 dev/puc/puc_sbus.c		optional puc fhc
 dev/puc/puc_sbus.c		optional puc sbus
 dev/puc/pucdata.c		optional puc pci
-dev/ral/if_ral.c		optional ral
+dev/ral/rt2560.c		optional ral
+dev/ral/rt2661.c		optional ral
 dev/ral/if_ralrate.c		optional ral
-dev/ral/if_ral_pccard.c		optional ral pccard
 dev/ral/if_ral_pci.c		optional ral pci
 dev/random/harvest.c		standard
 dev/random/hash.c		optional random
