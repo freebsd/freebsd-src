@@ -159,14 +159,13 @@ labelswap()
 void
 showswap()
 {
+	int count;
 	int i;
 
 	if (kvnsw != okvnsw || ulen != oulen)
 		labelswap();
 
 	for (i = 0; i <= kvnsw; ++i) {
-		int count;
-
 		if (i == kvnsw) {
 			if (kvnsw == 1)
 				break;
@@ -184,26 +183,13 @@ showswap()
 
 		wmove(wnd, i + 1, 5);
 
-		wprintw(
-		    wnd,
-		    "%*d",
-		    hlen,
-		    CONVERT(kvmsw[i].ksw_total)
-		);
+		wprintw(wnd, "%*d", hlen, CONVERT(kvmsw[i].ksw_total));
+		wprintw(wnd, "%*d", ulen, CONVERT(kvmsw[i].ksw_used));
 
-		wprintw(
-		    wnd,
-		    "%*d ",
-		    ulen,
-		    CONVERT(kvmsw[i].ksw_used)
-		);
+		count = (double)kvmsw[i].ksw_used * 49.999 / kvmsw[i].ksw_total;
 
-		count = (int)((double)kvmsw[i].ksw_used * 49.999 /
-		    (double)kvmsw[i].ksw_total);
-
-		while (count >= 0) {
+		waddch(wnd, ' ');
+		while (count--)
 			waddch(wnd, 'X');
-			--count;
-		}
 	}
 }
