@@ -532,6 +532,8 @@ main(int argc, char **argv)
 		only_mode(bsdtar, "-n", "cru");
 	if (bsdtar->option_stdout)
 		only_mode(bsdtar, "-O", "xt");
+	if (bsdtar->option_unlink_first)
+		only_mode(bsdtar, "-U" "x");
 	if (bsdtar->option_warn_links)
 		only_mode(bsdtar, "--check-links", "cr");
 
@@ -552,6 +554,8 @@ main(int argc, char **argv)
 		buff[1] = bsdtar->symlink_mode;
 		only_mode(bsdtar, buff, "cru");
 	}
+	if (bsdtar->strip_components != 0)
+		only_mode(bsdtar, "--strip-components", "xt");
 
 	bsdtar->argc -= optind;
 	bsdtar->argv += optind;
