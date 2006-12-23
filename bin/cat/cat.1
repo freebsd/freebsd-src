@@ -111,7 +111,7 @@ The command:
 .Dl "cat file1"
 .Pp
 will print the contents of
-.Ar file1
+.Pa file1
 to the standard output.
 .Pp
 The command:
@@ -119,13 +119,13 @@ The command:
 .Dl "cat file1 file2 > file3"
 .Pp
 will sequentially print the contents of
-.Ar file1
+.Pa file1
 and
-.Ar file2
+.Pa file2
 to the file
-.Ar file3 ,
+.Pa file3 ,
 truncating
-.Ar file3
+.Pa file3
 if it already exists.
 See the manual page for your shell (i.e.,
 .Xr sh 1 )
@@ -136,21 +136,21 @@ The command:
 .Dl "cat file1 - file2 - file3"
 .Pp
 will print the contents of
-.Ar file1 ,
+.Pa file1 ,
 print data it receives from the standard input until it receives an
 .Dv EOF
 .Pq Sq ^D
 character, print the contents of
-.Ar file2 ,
+.Pa file2 ,
 read and output contents of the standard input again, then finally output
 the contents of
-.Ar file3 .
+.Pa file3 .
 Note that if the standard input referred to a file, the second dash
 on the command-line would have no effect, since the entire contents of the file
 would have already been read and printed by
 .Nm
 when it encountered the first
-.Ql \&-
+.Sq Fl
 operand.
 .Sh SEE ALSO
 .Xr head 1 ,
@@ -190,7 +190,9 @@ It appears to have been
 Because of the shell language mechanism used to perform output
 redirection, the command
 .Dq Li cat file1 file2 > file1
-will cause the original data in file1 to be destroyed!
+will cause the original data in
+.Pa file1
+to be destroyed!
 .Pp
 The
 .Nm
