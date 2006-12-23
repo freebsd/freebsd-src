@@ -101,7 +101,7 @@ ata_queue_request(struct ata_request *request)
 
     /* if this is not a callback wait until request is completed */
     if (!request->callback) {
-	ATA_DEBUG_RQ(request, "wait for completition");
+	ATA_DEBUG_RQ(request, "wait for completion");
 	if (!dumping &&
 	    sema_timedwait(&request->done, request->timeout * hz * 4)) {
 	    device_printf(request->dev,
@@ -240,7 +240,7 @@ ata_finish(struct ata_request *request)
 	ata_completed(request, 0);
     }
     else {
-	/* put request on the proper taskqueue for completition */
+	/* put request on the proper taskqueue for completion */
 	if (request->bio && !(request->flags & (ATA_R_THREAD | ATA_R_TIMEOUT))){
 	    ATA_DEBUG_RQ(request, "finish bio_taskqueue");
 	    bio_taskqueue(request->bio, (bio_task_t *)ata_completed, request);
