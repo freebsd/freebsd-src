@@ -84,7 +84,7 @@ join_common(pthread_t pthread, void **thread_return,
 	if ((ret = _thr_find_thread(curthread, pthread, 1)) != 0) {
 		ret = ESRCH;
 	} else if ((pthread->tlflags & TLFLAGS_DETACHED) != 0) {
-		ret = ESRCH;
+		ret = EINVAL;
 	} else if (pthread->joiner != NULL) {
 		/* Multiple joiners are not supported. */
 		ret = ENOTSUP;
