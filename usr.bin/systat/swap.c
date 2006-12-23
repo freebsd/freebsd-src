@@ -140,7 +140,9 @@ labelswap()
 	fetchswap();
 
 	row = 0;
-	wmove(wnd, row, 0); wclrtobot(wnd);
+	wmove(wnd, row, 0);
+	wclrtobot(wnd);
+
 	mvwprintw(wnd, row++, 0, "%-5s%*s%*s %s",
 	    "Disk", hlen, header, ulen, "Used",
 	    "/0%  /10  /20  /30  /40  /50  /60  /70  /80  /90  /100");
@@ -172,6 +174,7 @@ showswap()
 			if (kvnsw == 1)
 				break;
 		}
+
 		if (kvmsw[i].ksw_total == 0) {
 			mvwprintw(
 			    wnd,
