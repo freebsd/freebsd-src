@@ -176,7 +176,7 @@ showswap()
 			mvwprintw(
 			    wnd,
 			    i + 1,
-			    5 + 5,
+			    5 + hlen + ulen + 1,
 			    "(swap not configured)"
 			);
 			continue;
