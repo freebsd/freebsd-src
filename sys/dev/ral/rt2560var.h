@@ -108,7 +108,6 @@ struct rt2560_softc {
 
 	struct mtx		sc_mtx;
 
-	struct callout		watchdog_ch;
 	struct callout		scan_ch;
 	struct callout		rssadapt_ch;
 

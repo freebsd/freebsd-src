@@ -33,8 +33,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/socket.h>
 #include <sys/systm.h>
 #include <sys/malloc.h>
-#include <sys/lock.h>
-#include <sys/mutex.h>
 #include <sys/module.h>
 #include <sys/bus.h>
 #include <sys/endian.h>
@@ -119,7 +117,7 @@ static struct		mbuf *rt2560_get_rts(struct rt2560_softc *,
 static int		rt2560_tx_data(struct rt2560_softc *, struct mbuf *,
 			    struct ieee80211_node *);
 static void		rt2560_start(struct ifnet *);
-static void		rt2560_watchdog(void *);
+static void		rt2560_watchdog(struct ifnet *);
 static int		rt2560_reset(struct ifnet *);
 static int		rt2560_ioctl(struct ifnet *, u_long, caddr_t);
 static void		rt2560_bbp_write(struct rt2560_softc *, uint8_t,
@@ -148,8 +146,6 @@ static void		rt2560_set_txantenna(struct rt2560_softc *, int);
 static void		rt2560_set_rxantenna(struct rt2560_softc *, int);
 static void		rt2560_init(void *);
 static void		rt2560_stop(void *);
-static int		rt2560_raw_xmit(struct ieee80211_node *, struct mbuf *,
-				const struct ieee80211_bpf_params *);
 
 /*
  * Supported rates for 802.11a/b/g modes (in 500Kbps unit).
@@ -206,7 +202,6 @@ rt2560_attach(device_t dev, int id)
 	mtx_init(&sc->sc_mtx, device_get_nameunit(dev), MTX_NETWORK_LOCK,
 	    MTX_DEF | MTX_RECURSE);
 
-	callout_init_mtx(&sc->watchdog_ch, &sc->sc_mtx, 0);
 	callout_init(&sc->scan_ch, debug_mpsafenet ? CALLOUT_MPSAFE : 0);
 	callout_init(&sc->rssadapt_ch, CALLOUT_MPSAFE);
 
@@ -267,6 +262,7 @@ rt2560_attach(device_t dev, int id)
 	ifp->if_init = rt2560_init;
 	ifp->if_ioctl = rt2560_ioctl;
 	ifp->if_start = rt2560_start;
+	ifp->if_watchdog = rt2560_watchdog;
 	IFQ_SET_MAXLEN(&ifp->if_snd, IFQ_MAXLEN);
 	ifp->if_snd.ifq_drv_maxlen = IFQ_MAXLEN;
 	IFQ_SET_READY(&ifp->if_snd);
@@ -331,7 +327,6 @@ rt2560_attach(device_t dev, int id)
 	/* override state transition machine */
 	sc->sc_newstate = ic->ic_newstate;
 	ic->ic_newstate = rt2560_newstate;
-	ic->ic_raw_xmit = rt2560_raw_xmit;
 	ieee80211_media_init(ic, rt2560_media_change, ieee80211_media_status);
 
 	bpfattach2(ifp, DLT_IEEE802_11_RADIO,
@@ -386,7 +381,6 @@ rt2560_detach(void *xsc)
 	struct ifnet *ifp = ic->ic_ifp;
 
 	rt2560_stop(sc);
-	callout_stop(&sc->watchdog_ch);
 	callout_stop(&sc->scan_ch);
 	callout_stop(&sc->rssadapt_ch);
 
@@ -1231,7 +1225,7 @@ rt2560_decryption_intr(struct rt2560_softc *sc)
 		m->m_pkthdr.len = m->m_len =
 		    (le32toh(desc->flags) >> 16) & 0xfff;
 
-		if (bpf_peers_present(sc->sc_drvbpf)) {
+		if (sc->sc_drvbpf != NULL) {
 			struct rt2560_rx_radiotap_header *tap = &sc->sc_rxtap;
 			uint32_t tsf_lo, tsf_hi;
 
@@ -1352,7 +1346,7 @@ rt2560_beacon_expire(struct rt2560_softc *sc)
 
 	ieee80211_beacon_update(ic, data->ni, &sc->sc_bo, data->m, 1);
 
-	if (bpf_peers_present(ic->ic_rawbpf))
+	if (ic->ic_rawbpf != NULL)
 		bpf_mtap(ic->ic_rawbpf, data->m);
 
 	rt2560_tx_bcn(sc, data->m, data->ni);
@@ -1612,7 +1606,7 @@ rt2560_tx_bcn(struct rt2560_softc *sc, struct mbuf *m0,
 		return error;
 	}
 
-	if (bpf_peers_present(sc->sc_drvbpf)) {
+	if (sc->sc_drvbpf != NULL) {
 		struct rt2560_tx_radiotap_header *tap = &sc->sc_txtap;
 
 		tap->wt_flags = 0;
@@ -1669,7 +1663,7 @@ rt2560_tx_mgt(struct rt2560_softc *sc, struct mbuf *m0,
 		return error;
 	}
 
-	if (bpf_peers_present(sc->sc_drvbpf)) {
+	if (sc->sc_drvbpf != NULL) {
 		struct rt2560_tx_radiotap_header *tap = &sc->sc_txtap;
 
 		tap->wt_flags = 0;
@@ -1709,73 +1703,6 @@ rt2560_tx_mgt(struct rt2560_softc *sc, struct mbuf *m0,
 	    BUS_DMASYNC_PREWRITE);
 
 	DPRINTFN(10, ("sending mgt frame len=%u idx=%u rate=%u\n",
-	    m0->m_pkthdr.len, sc->prioq.cur, rate));
-
-	/* kick prio */
-	sc->prioq.queued++;
-	sc->prioq.cur = (sc->prioq.cur + 1) % RT2560_PRIO_RING_COUNT;
-	RAL_WRITE(sc, RT2560_TXCSR0, RT2560_KICK_PRIO);
-
-	return 0;
-}
-
-static int
-rt2560_tx_raw(struct rt2560_softc *sc, struct mbuf *m0,
-    struct ieee80211_node *ni, const struct ieee80211_bpf_params *params)
-{
-	struct ieee80211com *ic = &sc->sc_ic;
-	struct rt2560_tx_desc *desc;
-	struct rt2560_tx_data *data;
-	bus_dma_segment_t segs[RT2560_MAX_SCATTER];
-	uint32_t flags;
-	int nsegs, rate, error;
-
-	desc = &sc->prioq.desc[sc->prioq.cur];
-	data = &sc->prioq.data[sc->prioq.cur];
-
-	rate = params->ibp_rate0 & IEEE80211_RATE_VAL;
-	/* XXX validate */
-	if (rate == 0)
-		return EINVAL;
-
-	error = bus_dmamap_load_mbuf_sg(sc->prioq.data_dmat, data->map, m0,
-	    segs, &nsegs, 0);
-	if (error != 0) {
-		device_printf(sc->sc_dev, "could not map mbuf (error %d)\n",
-		    error);
-		m_freem(m0);
-		return error;
-	}
-
-	if (bpf_peers_present(sc->sc_drvbpf)) {
-		struct rt2560_tx_radiotap_header *tap = &sc->sc_txtap;
-
-		tap->wt_flags = 0;
-		tap->wt_rate = rate;
-		tap->wt_chan_freq = htole16(ic->ic_curchan->ic_freq);
-		tap->wt_chan_flags = htole16(ic->ic_curchan->ic_flags);
-		tap->wt_antenna = sc->tx_ant;
-
-		bpf_mtap2(sc->sc_drvbpf, tap, sc->sc_txtap_len, m0);
-	}
-
-	data->m = m0;
-	data->ni = ni;
-
-	flags = 0;
-	if ((params->ibp_flags & IEEE80211_BPF_NOACK) == 0)
-		flags |= RT2560_TX_ACK;
-
-	/* XXX need to setup descriptor ourself */
-	rt2560_setup_tx_desc(sc, desc, flags, m0->m_pkthdr.len,
-	    rate, (params->ibp_flags & IEEE80211_BPF_CRYPTO) != 0,
-	    segs->ds_addr);
-
-	bus_dmamap_sync(sc->prioq.data_dmat, data->map, BUS_DMASYNC_PREWRITE);
-	bus_dmamap_sync(sc->prioq.desc_dmat, sc->prioq.desc_map,
-	    BUS_DMASYNC_PREWRITE);
-
-	DPRINTFN(10, ("sending raw frame len=%u idx=%u rate=%u\n",
 	    m0->m_pkthdr.len, sc->prioq.cur, rate));
 
 	/* kick prio */
@@ -1955,7 +1882,7 @@ rt2560_tx_data(struct rt2560_softc *sc, struct mbuf *m0,
 		wh = mtod(m0, struct ieee80211_frame *);
 	}
 
-	if (bpf_peers_present(sc->sc_drvbpf)) {
+	if (sc->sc_drvbpf != NULL) {
 		struct rt2560_tx_radiotap_header *tap = &sc->sc_txtap;
 
 		tap->wt_flags = 0;
@@ -2034,7 +1961,7 @@ rt2560_start(struct ifnet *ifp)
 			ni = (struct ieee80211_node *)m0->m_pkthdr.rcvif;
 			m0->m_pkthdr.rcvif = NULL;
 
-			if (bpf_peers_present(ic->ic_rawbpf))
+			if (ic->ic_rawbpf != NULL)
 				bpf_mtap(ic->ic_rawbpf, m0);
 
 			if (rt2560_tx_mgt(sc, m0, ni) != 0)
@@ -2070,7 +1997,7 @@ rt2560_start(struct ifnet *ifp)
 				continue;
 			}
 
-			if (bpf_peers_present(ic->ic_rawbpf))
+			if (ic->ic_rawbpf != NULL)
 				bpf_mtap(ic->ic_rawbpf, m0);
 
 			if (rt2560_tx_data(sc, m0, ni) != 0) {
@@ -2081,29 +2008,36 @@ rt2560_start(struct ifnet *ifp)
 		}
 
 		sc->sc_tx_timer = 5;
-		callout_reset(&sc->watchdog_ch, hz, rt2560_watchdog, sc);
+		ifp->if_timer = 1;
 	}
 
 	RAL_UNLOCK(sc);
 }
 
 static void
-rt2560_watchdog(void *arg)
+rt2560_watchdog(struct ifnet *ifp)
 {
-	struct rt2560_softc *sc = (struct rt2560_softc *)arg;
+	struct rt2560_softc *sc = ifp->if_softc;
 	struct ieee80211com *ic = &sc->sc_ic;
+
+	RAL_LOCK(sc);
+
+	ifp->if_timer = 0;
 
 	if (sc->sc_tx_timer > 0) {
 		if (--sc->sc_tx_timer == 0) {
 			device_printf(sc->sc_dev, "device timeout\n");
 			rt2560_init(sc);
-			sc->sc_ifp->if_oerrors++;
+			ifp->if_oerrors++;
+			RAL_UNLOCK(sc);
 			return;
 		}
-		callout_reset(&sc->watchdog_ch, hz, rt2560_watchdog, sc);
+		ifp->if_timer = 1;
 	}
 
 	ieee80211_watchdog(ic);
+
+	RAL_UNLOCK(sc);
 }
 
 /*
@@ -2763,6 +2697,7 @@ rt2560_stop(void *priv)
 	struct ifnet *ifp = ic->ic_ifp;
 
 	sc->sc_tx_timer = 0;
+	ifp->if_timer = 0;
 	ifp->if_drv_flags &= ~(IFF_DRV_RUNNING | IFF_DRV_OACTIVE);
 
 	ieee80211_new_state(ic, IEEE80211_S_INIT, -1);
@@ -2786,58 +2721,4 @@ rt2560_stop(void *priv)
 	rt2560_reset_tx_ring(sc, &sc->prioq);
 	rt2560_reset_tx_ring(sc, &sc->bcnq);
 	rt2560_reset_rx_ring(sc, &sc->rxq);
-}
-
-static int
-rt2560_raw_xmit(struct ieee80211_node *ni, struct mbuf *m,
-	const struct ieee80211_bpf_params *params)
-{
-	struct ieee80211com *ic = ni->ni_ic;
-	struct ifnet *ifp = ic->ic_ifp;
-	struct rt2560_softc *sc = ifp->if_softc;
-
-	RAL_LOCK(sc);
-
-	/* prevent management frames from being sent if we're not ready */
-	if (!(ifp->if_drv_flags & IFF_DRV_RUNNING)) {
-		RAL_UNLOCK(sc);
-		return ENETDOWN;
-	}
-	if (sc->prioq.queued >= RT2560_PRIO_RING_COUNT) {
-		ifp->if_drv_flags |= IFF_DRV_OACTIVE;
-		RAL_UNLOCK(sc);
-		return ENOBUFS;		/* XXX */
-	}
-
-	if (bpf_peers_present(ic->ic_rawbpf))
-		bpf_mtap(ic->ic_rawbpf, m);
-
-	ifp->if_opackets++;
-
-	if (params == NULL) {
-		/*
-		 * Legacy path; interpret frame contents to decide
-		 * precisely how to send the frame.
-		 */
-		if (rt2560_tx_mgt(sc, m, ni) != 0)
-			goto bad;
-	} else {
-		/*
-		 * Caller supplied explicit parameters to use in
-		 * sending the frame.
-		 */
-		if (rt2560_tx_raw(sc, m, ni, params))
-			goto bad;
-	}
-	sc->sc_tx_timer = 5;
-	callout_reset(&sc->watchdog_ch, hz, rt2560_watchdog, sc);
-
-	RAL_UNLOCK(sc);
-
-	return 0;
-bad:
-	ifp->if_oerrors++;
-	ieee80211_free_node(ni);
-	RAL_UNLOCK(sc);
-	return EIO;		/* XXX */
 }
