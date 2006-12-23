@@ -502,7 +502,7 @@ main(int argc, char **argv)
 
 	/* Check boolean options only permitted in certain modes. */
 	if (bsdtar->option_dont_traverse_mounts)
-		only_mode(bsdtar, "-X", "cru");
+		only_mode(bsdtar, "--one-file-system", "cru");
 	if (bsdtar->option_fast_read)
 		only_mode(bsdtar, "--fast-read", "xt");
 	if (bsdtar->option_honor_nodump)
