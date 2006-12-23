@@ -343,6 +343,7 @@ main(argc, argv)
 	}
 	signal(SIGHUP, huphandler);
 	signal(SIGTERM, terminate);
+	signal(SIGPIPE, SIG_IGN);
 
 	pidfile_write(pfh);
 
