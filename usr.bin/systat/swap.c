@@ -126,7 +126,7 @@ labelswap()
 	row = 0;
 	wmove(wnd, row, 0); wclrtobot(wnd);
 	header = getbsize(&hlen, &blocksize);
-	mvwprintw(wnd, row++, 0, "%-5s%*s%9s %55s",
+	mvwprintw(wnd, row++, 0, "%-5s%*s%9s %s",
 	    "Disk", hlen, header, "Used",
 	    "/0%  /10  /20  /30  /40  /50  /60  /70  /80  /90  /100");
 
@@ -183,7 +183,7 @@ showswap()
 		    wnd,
 		    i + 1,
 		    lcol,
-		    "%9d  ",
+		    "%9d ",
 		    CONVERT(kvmsw[i].ksw_used)
 		);
 
