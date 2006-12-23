@@ -533,7 +533,7 @@ main(int argc, char **argv)
 	if (bsdtar->option_stdout)
 		only_mode(bsdtar, "-O", "xt");
 	if (bsdtar->option_unlink_first)
-		only_mode(bsdtar, "-U" "x");
+		only_mode(bsdtar, "-U", "x");
 	if (bsdtar->option_warn_links)
 		only_mode(bsdtar, "--check-links", "cr");
 
