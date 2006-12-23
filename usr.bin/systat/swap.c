@@ -60,8 +60,11 @@ static const char sccsid[] = "@(#)swap.c	8.3 (Berkeley) 4/29/95";
 
 kvm_t	*kd;
 
+static char *header;
 static long blocksize;
 static int hlen;
+static int ulen, oulen;
+static int pagesize;
 
 WINDOW *
 openswap()
@@ -96,6 +99,9 @@ initswap()
 	if (once)
 		return (1);
 
+	header = getbsize(&hlen, &blocksize);
+	pagesize = getpagesize();
+
 	if (kvm_getswapinfo(kd, &dummy, 1, 0) < 0) {
 		snprintf(msgbuf, sizeof(msgbuf), "systat: kvm_getswapinfo failed");
 		error("%s", msgbuf);
@@ -107,27 +113,36 @@ initswap()
 }
 
 static struct kvm_swap	kvmsw[16];
-static int kvnsw;
+static int kvnsw, okvnsw;
+
+#define CONVERT(v)	((int)((int64_t)(v) * pagesize / blocksize))
 
 void
 fetchswap()
 {
+	int n;
+
+	okvnsw = kvnsw;
 	kvnsw = kvm_getswapinfo(kd, kvmsw, 16, 0);
+
+	oulen = ulen;
+	for (n = CONVERT(kvmsw[kvnsw].ksw_used), ulen = 2; n /= 10; ++ulen);
+	if (ulen < sizeof("Used"))
+		ulen = sizeof("Used");
 }
 
 void
 labelswap()
 {
-	char *header, *name;
+	char *name;
 	int row, i;
 
 	fetchswap();
 
 	row = 0;
 	wmove(wnd, row, 0); wclrtobot(wnd);
-	header = getbsize(&hlen, &blocksize);
-	mvwprintw(wnd, row++, 0, "%-5s%*s%9s %s",
-	    "Disk", hlen, header, "Used",
+	mvwprintw(wnd, row++, 0, "%-5s%*s%*s %s",
+	    "Disk", hlen, header, ulen, "Used",
 	    "/0%  /10  /20  /30  /40  /50  /60  /70  /80  /90  /100");
 
 	for (i = 0; i <= kvnsw; ++i) {
@@ -145,9 +160,9 @@ void
 showswap()
 {
 	int i;
-	int pagesize = getpagesize();
 
-#define CONVERT(v)      ((int)((quad_t)(v) * pagesize / blocksize))
+	if (kvnsw != okvnsw || ulen != oulen)
+		labelswap();
 
 	for (i = 0; i <= kvnsw; ++i) {
 		int lcol = 5;
@@ -181,7 +196,8 @@ showswap()
 		    wnd,
 		    i + 1,
 		    lcol,
-		    "%9d ",
+		    "%*d ",
+		    ulen,
 		    CONVERT(kvmsw[i].ksw_used)
 		);
 
