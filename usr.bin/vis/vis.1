@@ -59,7 +59,7 @@ various visual formats is given in
 .Xr vis 3 .
 .Pp
 The options are as follows:
-.Bl -tag -width Ds
+.Bl -tag -width indent
 .It Fl b
 Turns off prepending of backslash before up-arrow control sequences
 and meta characters, and disables the doubling of backslashes.
@@ -74,10 +74,12 @@ non-printable characters using C-style backslash sequences.
 .It Fl F
 Causes
 .Nm
-to fold output lines to foldwidth columns (default 80), like
+to fold output lines to
+.Ar foldwidth
+columns (default 80), like
 .Xr fold 1 ,
 except
-that a hidden newline sequence is used, (which is removed
+that a hidden newline sequence is used (which is removed
 when inverting the file back to its original form with
 .Xr unvis 1 ) .
 If the last character in the encoded file does not end in a newline,
