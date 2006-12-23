@@ -186,7 +186,7 @@ showswap()
 		wprintw(wnd, "%*d", hlen, CONVERT(kvmsw[i].ksw_total));
 		wprintw(wnd, "%*d", ulen, CONVERT(kvmsw[i].ksw_used));
 
-		count = (double)kvmsw[i].ksw_used * 49.999 / kvmsw[i].ksw_total;
+		count = 50.0 * kvmsw[i].ksw_used / kvmsw[i].ksw_total + 1;
 
 		waddch(wnd, ' ');
 		while (count--)
