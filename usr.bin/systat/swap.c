@@ -191,5 +191,6 @@ showswap()
 		waddch(wnd, ' ');
 		while (count--)
 			waddch(wnd, 'X');
+		wclrtoeol(wnd);
 	}
 }
