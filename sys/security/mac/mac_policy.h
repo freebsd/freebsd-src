@@ -46,11 +46,11 @@
 /*-
  * Pluggable access control policy definition structure.
  *
- * List of operations that are performed as part of the implementation
- * of a MAC policy.  Policy implementors declare operations with a
- * mac_policy_ops structure, and using the MAC_POLICY_SET() macro.
- * If an entry point is not declared, then then the policy will be ignored
- * during evaluation of that event or check.
+ * List of operations that are performed as part of the implementation of a
+ * MAC policy.  Policy implementors declare operations with a mac_policy_ops
+ * structure, and using the MAC_POLICY_SET() macro.  If an entry point is not
+ * declared, then then the policy will be ignored during evaluation of that
+ * event or check.
  *
  * Operations are sorted first by general class of operation, then
  * alphabetically.
@@ -96,8 +96,7 @@ typedef void	(*mpo_init_t)(struct mac_policy_conf *mpc);
 
 /*
  * General policy-directed security system call so that policies may
- * implement new services without reserving explicit system call
- * numbers.
+ * implement new services without reserving explicit system call numbers.
  */
 typedef int	(*mpo_syscall_t)(struct thread *td, int call, void *arg);
 
@@ -107,10 +106,9 @@ typedef int	(*mpo_syscall_t)(struct thread *td, int call, void *arg);
 typedef void	(*mpo_placeholder_t)(void);
 
 /*
- * Label operations.  Initialize label storage, destroy label
- * storage, recycle for re-use without init/destroy, copy a label to
- * initialized storage, and externalize/internalize from/to
- * initialized storage.
+ * Label operations.  Initialize label storage, destroy label storage,
+ * recycle for re-use without init/destroy, copy a label to initialized
+ * storage, and externalize/internalize from/to initialized storage.
  */
 typedef void	(*mpo_init_bpfdesc_label_t)(struct label *label);
 typedef void	(*mpo_init_cred_label_t)(struct label *label);
@@ -191,8 +189,8 @@ typedef int	(*mpo_internalize_vnode_label_t)(struct label *label,
 		    char *element_name, char *element_data, int *claimed);
 
 /*
- * Labeling event operations: file system objects, and things that
- * look a lot like file system objects.
+ * Labeling event operations: file system objects, and things that look a lot
+ * like file system objects.
  */
 typedef void	(*mpo_associate_vnode_devfs_t)(struct mount *mp,
 		    struct label *fslabel, struct devfs_dirent *de,
