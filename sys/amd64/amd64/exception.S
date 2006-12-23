@@ -365,6 +365,7 @@ nmi_needswapgs:
 /* Note: this label is also used by ddb and gdb: */
 nmi_calltrap:
 	FAKE_MCOUNT(TF_RIP(%rsp))
+	movq	%rsp, %rdi
 	call	trap
 	MEXITCOUNT
 	testl	%ebx,%ebx
