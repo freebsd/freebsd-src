@@ -135,15 +135,13 @@ void
 labelswap()
 {
 	char *name;
-	int row, i;
+	int i;
 
 	fetchswap();
 
-	row = 0;
-	wmove(wnd, row, 0);
-	wclrtobot(wnd);
+	werase(wnd);
 
-	mvwprintw(wnd, row++, 0, "%-5s%*s%*s %s",
+	mvwprintw(wnd, 0, 0, "%-5s%*s%*s %s",
 	    "Disk", hlen, header, ulen, "Used",
 	    "/0%  /10  /20  /30  /40  /50  /60  /70  /80  /90  /100");
 
@@ -167,7 +165,6 @@ showswap()
 		labelswap();
 
 	for (i = 0; i <= kvnsw; ++i) {
-		int lcol = 5;
 		int count;
 
 		if (i == kvnsw) {
@@ -179,26 +176,23 @@ showswap()
 			mvwprintw(
 			    wnd,
 			    i + 1,
-			    lcol + 5,
+			    5 + 5,
 			    "(swap not configured)"
 			);
 			continue;
 		}
 
-		mvwprintw(
+		wmove(wnd, i + 1, 5);
+
+		wprintw(
 		    wnd,
-		    i + 1,
-		    lcol,
 		    "%*d",
 		    hlen,
 		    CONVERT(kvmsw[i].ksw_total)
 		);
-		lcol += hlen;
 
-		mvwprintw(
+		wprintw(
 		    wnd,
-		    i + 1,
-		    lcol,
 		    "%*d ",
 		    ulen,
 		    CONVERT(kvmsw[i].ksw_used)
