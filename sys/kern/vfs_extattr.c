@@ -48,15 +48,11 @@ __FBSDID("$FreeBSD$");
 #include <security/mac/mac_framework.h>
 
 /*
- * Syscall to push extended attribute configuration information into the
- * VFS.  Accepts a path, which it converts to a mountpoint, as well as
- * a command (int cmd), and attribute name and misc data.  For now, the
- * attribute name is left in userspace for consumption by the VFS_op.
- * It will probably be changed to be copied into sysspace by the
- * syscall in the future, once issues with various consumers of the
- * attribute code have raised their hands.
+ * Syscall to push extended attribute configuration information into the VFS.
+ * Accepts a path, which it converts to a mountpoint, as well as a command
+ * (int cmd), and attribute name and misc data.
  *
- * Currently this is used only by UFS Extended Attributes.
+ * Currently this is used only by UFS1 extended attributes.
  */
 int
 extattrctl(td, uap)
@@ -130,8 +126,8 @@ extattrctl(td, uap)
 
 	vn_finished_write(mp_writable);
 	/*
-	 * VFS_EXTATTRCTL will have unlocked, but not de-ref'd,
-	 * filename_vp, so vrele it if it is defined.
+	 * VFS_EXTATTRCTL will have unlocked, but not de-ref'd, filename_vp,
+	 * so vrele it if it is defined.
 	 */
 	if (filename_vp != NULL)
 		vrele(filename_vp);
@@ -336,8 +332,8 @@ extattr_get_vp(struct vnode *vp, int attrnamespace, const char *attrname,
 
 	/*
 	 * Slightly unusual semantics: if the user provides a NULL data
-	 * pointer, they don't want to receive the data, just the
-	 * maximum read length.
+	 * pointer, they don't want to receive the data, just the maximum
+	 * read length.
 	 */
 	auiop = NULL;
 	sizep = NULL;
