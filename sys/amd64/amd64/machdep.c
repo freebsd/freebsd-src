@@ -305,6 +305,7 @@ sendsig(catcher, sig, mask, code)
 		/* Fill in POSIX parts */
 		sf.sf_si.si_signo = sig;
 		sf.sf_si.si_code = code;
+		sf.sf_si.si_addr = (void *)regs->tf_addr;
 		regs->tf_rcx = regs->tf_addr;	/* arg 4 in %rcx */
 	} else {
 		/* Old FreeBSD-style arguments. */
