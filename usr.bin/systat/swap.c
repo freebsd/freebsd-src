@@ -118,7 +118,7 @@ fetchswap()
 void
 labelswap()
 {
-	char *header;
+	char *header, *name;
 	int row, i;
 
 	fetchswap();
@@ -130,8 +130,14 @@ labelswap()
 	    "Disk", hlen, header, "Used",
 	    "/0%  /10  /20  /30  /40  /50  /60  /70  /80  /90  /100");
 
-	for (i = 0; i < kvnsw; ++i) {
-		mvwprintw(wnd, i + 1, 0, "%-5s", kvmsw[i].ksw_devname);
+	for (i = 0; i <= kvnsw; ++i) {
+		if (i == kvnsw) {
+			if (kvnsw == 1)
+				break;
+			name = "Total";
+		} else
+			name = kvmsw[i].ksw_devname;
+		mvwprintw(wnd, i + 1, 0, "%-5s", name);
 	}
 }
 
@@ -150,14 +156,6 @@ showswap()
 		if (i == kvnsw) {
 			if (kvnsw == 1)
 				break;
-			mvwprintw(
-			    wnd,
-			    i + 1,
-			    lcol,
-			    "%-5s",
-			    "Total"
-			);
-			lcol += 5;
 		}
 		if (kvmsw[i].ksw_total == 0) {
 			mvwprintw(
