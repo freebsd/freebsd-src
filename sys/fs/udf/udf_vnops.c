@@ -57,6 +57,7 @@ extern struct iconv_functions *udf_iconv;
 
 static vop_access_t	udf_access;
 static vop_getattr_t	udf_getattr;
+static vop_open_t	udf_open;
 static vop_ioctl_t	udf_ioctl;
 static vop_pathconf_t	udf_pathconf;
 static vop_read_t	udf_read;
@@ -80,6 +81,7 @@ static struct vop_vector udf_vnodeops = {
 	.vop_getattr =		udf_getattr,
 	.vop_ioctl =		udf_ioctl,
 	.vop_lookup =		vfs_cache_lookup,
+	.vop_open =		udf_open,
 	.vop_pathconf =		udf_pathconf,
 	.vop_read =		udf_read,
 	.vop_readdir =		udf_readdir,
@@ -157,6 +159,16 @@ udf_access(struct vop_access_args *a)
 
 	return (vaccess(vp->v_type, mode, node->fentry->uid, node->fentry->gid,
 	    a_mode, a->a_cred, NULL));
+}
+
+static int
+udf_open(struct vop_open_args *ap) {
+	struct udf_node *np = VTON(ap->a_vp);
+	off_t fsize;
+
+	fsize = le64toh(np->fentry->inf_len);
+	vnode_create_vobject(ap->a_vp, fsize, ap->a_td);
+	return 0;
 }
 
 static int mon_lens[2][12] = {
