@@ -218,7 +218,12 @@ an 8-63 character
 .Tn ASCII
 passphrase.
 .Tn ASCII
-passphrases are converted to a 256-bit key using the network SSID.
+passphrases are dynamically converted to a 256-bit key at runtime
+using the network SSID, or they can be statically converted at
+configuration time using
+the
+.Xr wpa_passphrase 8
+utility.
 .It Va eapol_flags
 Dynamic WEP key usage for non-WPA mode, specified as a bit field.
 Bit 0 (1) forces dynamically generated unicast WEP keys to be used.
@@ -511,6 +516,7 @@ network={
 .Ed
 .Sh SEE ALSO
 .Xr wpa_cli 8 ,
+.Xr wpa_passphrase 8 ,
 .Xr wpa_supplicant 8
 .Sh HISTORY
 The
