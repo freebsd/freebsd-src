@@ -74,9 +74,10 @@ __FBSDID("$FreeBSD$");
 #include <sys/mbuf.h>
 #include <sys/malloc.h>
 #include <sys/kernel.h>
+#include <sys/kdb.h>
 #include <sys/module.h>
 #include <sys/socket.h>
-#include <sys/sx.h>
+#include <sys/condvar.h>
 #include <sys/taskqueue.h>
 
 #include <net/if.h>
@@ -205,6 +206,7 @@ static void aue_start(struct ifnet *);
 static void aue_start_thread(struct aue_softc *);
 static int aue_ioctl(struct ifnet *, u_long, caddr_t);
 static void aue_init(void *);
+static void aue_init_body(struct aue_softc *);
 static void aue_stop(struct aue_softc *);
 static void aue_watchdog(struct ifnet *);
 static void aue_shutdown(device_t);
@@ -224,6 +226,14 @@ static int aue_csr_read_1(struct aue_softc *, int);
 static int aue_csr_write_1(struct aue_softc *, int, int);
 static int aue_csr_read_2(struct aue_softc *, int);
 static int aue_csr_write_2(struct aue_softc *, int, int);
+
+static int aue_xlock(struct aue_softc *, int);
+static void aue_xunlock(struct aue_softc *);
+static void aue_xlockkill(struct aue_softc *);
+static void aue_xlockrevive(struct aue_softc *);
+static void aue_xlockassert(struct aue_softc *, int,
+    const char *, const char *, int);
+static void aue_stopasynctasks(struct aue_softc *);
 
 static device_method_t aue_methods[] = {
 	/* Device interface */
@@ -530,6 +540,7 @@ aue_setmulti(struct aue_softc *sc)
 	u_int32_t		h = 0, i;
 	u_int8_t		hashtbl[8] = { 0, 0, 0, 0, 0, 0, 0, 0 };
 
+	AUE_SXASSERTLOCKED(sc);
 	ifp = sc->aue_ifp;
 
 	if (ifp->if_flags & IFF_ALLMULTI || ifp->if_flags & IFF_PROMISC) {
@@ -702,7 +713,7 @@ USB_ATTACH(aue)
 
 	mtx_init(&sc->aue_mtx, device_get_nameunit(self), MTX_NETWORK_LOCK,
 	    MTX_DEF | MTX_RECURSE);
-	sx_init(&sc->aue_sx, device_get_nameunit(self));
+	cv_init(&sc->aue_cv, device_get_nameunit(self));
 	AUE_SXLOCK(sc);
 
 	/* Reset the adapter. */
@@ -718,7 +729,7 @@ USB_ATTACH(aue)
 		printf("aue%d: can not if_alloc()\n", sc->aue_unit);
 		AUE_SXUNLOCK(sc);
 		mtx_destroy(&sc->aue_mtx);
-		sx_destroy(&sc->aue_sx);
+		cv_destroy(&sc->aue_cv);
 		USB_ATTACH_ERROR_RETURN;
 	}
 	ifp->if_softc = sc;
@@ -750,7 +761,7 @@ USB_ATTACH(aue)
 		if_free(ifp);
 		AUE_SXUNLOCK(sc);
 		mtx_destroy(&sc->aue_mtx);
-		sx_destroy(&sc->aue_sx);
+		cv_destroy(&sc->aue_cv);
 		USB_ATTACH_ERROR_RETURN;
 	}
 
@@ -763,6 +774,7 @@ USB_ATTACH(aue)
 	ether_ifattach(ifp, eaddr);
 	usb_register_netisr();
 	sc->aue_dying = 0;
+	sc->aue_link = 1;
 
 	AUE_SXUNLOCK(sc);
 	USB_ATTACH_SUCCESS_RETURN;
@@ -779,8 +791,7 @@ aue_detach(device_t dev)
 	ifp = sc->aue_ifp;
 
 	sc->aue_dying = 1;
-	callout_drain(&sc->aue_tick_callout);
-	taskqueue_drain(taskqueue_thread, &sc->aue_task);
+	aue_stopasynctasks(sc);
 	ether_ifdetach(ifp);
 	if_free(ifp);
 
@@ -795,7 +806,7 @@ aue_detach(device_t dev)
 
 	AUE_SXUNLOCK(sc);
 	mtx_destroy(&sc->aue_mtx);
-	sx_destroy(&sc->aue_sx);
+	cv_destroy(&sc->aue_cv);
 
 	return (0);
 }
@@ -860,6 +871,7 @@ aue_rxeof_thread(struct aue_softc *sc)
 	usbd_status		status = c->ue_status;
 
 
+	AUE_SXASSERTLOCKED(sc);
 	if (sc->aue_dying)
 		return;
 	ifp = sc->aue_ifp;
@@ -1109,6 +1121,15 @@ static void
 aue_init(void *xsc)
 {
 	struct aue_softc	*sc = xsc;
+
+	AUE_SXLOCK(sc);
+	aue_init_body(sc);
+	AUE_SXUNLOCK(sc);
+}
+
+static void
+aue_init_body(struct aue_softc *sc)
+{
 	struct ifnet		*ifp = sc->aue_ifp;
 	struct mii_data		*mii = GET_MII(sc);
 	struct ue_chain	*c;
@@ -1212,6 +1233,7 @@ aue_ifmedia_upd(struct ifnet *ifp)
 			 mii_phy_reset(miisc);
 	}
 	mii_mediachg(mii);
+	sc->aue_link = 1;
 
 	return (0);
 }
@@ -1240,11 +1262,14 @@ aue_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 	struct mii_data		*mii;
 	int			error = 0;
 
+	if (sc->aue_dying)
+		return(0);
+
 	AUE_GIANTLOCK();
-	AUE_SXLOCK(sc);
 
 	switch(command) {
 	case SIOCSIFFLAGS:
+		AUE_SXLOCK(sc);
 		if (ifp->if_flags & IFF_UP) {
 			if (ifp->if_drv_flags & IFF_DRV_RUNNING &&
 			    ifp->if_flags & IFF_PROMISC &&
@@ -1255,30 +1280,32 @@ aue_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 			    sc->aue_if_flags & IFF_PROMISC) {
 				AUE_CLRBIT(sc, AUE_CTL2, AUE_CTL2_RX_PROMISC);
 			} else if (!(ifp->if_drv_flags & IFF_DRV_RUNNING))
-				aue_init(sc);
+				aue_init_body(sc);
 		} else {
 			if (ifp->if_drv_flags & IFF_DRV_RUNNING)
 				aue_stop(sc);
 		}
 		sc->aue_if_flags = ifp->if_flags;
-		error = 0;
+		AUE_SXUNLOCK(sc);
 		break;
 	case SIOCADDMULTI:
 	case SIOCDELMULTI:
+		AUE_SXLOCK(sc);
 		aue_setmulti(sc);
-		error = 0;
+		AUE_SXUNLOCK(sc);
 		break;
 	case SIOCGIFMEDIA:
 	case SIOCSIFMEDIA:
+		AUE_SXLOCK(sc);
 		mii = GET_MII(sc);
 		error = ifmedia_ioctl(ifp, ifr, &mii->mii_media, command);
+		AUE_SXUNLOCK(sc);
 		break;
 	default:
 		error = ether_ioctl(ifp, command, data);
 		break;
 	}
 
-	AUE_SXUNLOCK(sc);
 	AUE_GIANTUNLOCK();
 
 	return (error);
@@ -1329,8 +1356,7 @@ aue_stop(struct aue_softc *sc)
 	aue_csr_write_1(sc, AUE_CTL0, 0);
 	aue_csr_write_1(sc, AUE_CTL1, 0);
 	aue_reset(sc);
-	callout_drain(&sc->aue_tick_callout);
-	taskqueue_drain(taskqueue_thread, &sc->aue_task);
+	aue_stopasynctasks(sc);
 
 	/* Stop transfers. */
 	if (sc->aue_ep[AUE_ENDPT_RX] != NULL) {
@@ -1423,6 +1449,111 @@ aue_task_sched(struct aue_softc *sc, int task)
 	AUE_UNLOCK(sc);
 }
 
+static int
+aue_xlock(struct aue_softc *sc, int interruptable)
+{
+	AUE_LOCK(sc);
+	while ((sc->aue_lockflags & AUE_LOCKED) != 0) {
+		if (sc->aue_locker == curthread) {
+#if 1
+			panic("aue: locking against myself");
+#else
+			kdb_backtrace();
+			printf("aue: locking against myself\n");
+#endif
+		}
+		if (interruptable) {
+			if ((sc->aue_lockflags & AUE_LOCKDEAD) != 0) {
+				AUE_UNLOCK(sc);
+				return (ENOLCK);
+			}
+		}
+		cv_wait(&sc->aue_cv, &sc->aue_mtx);
+	}
+	sc->aue_lockflags |= AUE_LOCKED;
+	sc->aue_locker = curthread;
+	AUE_UNLOCK(sc);
+	return (0);
+}
+
+static void
+aue_xunlock(struct aue_softc *sc)
+{
+
+	AUE_LOCK(sc);
+	if (sc->aue_locker != curthread) {
+#if 1
+		panic("unlocking lock not owned by me");
+#else
+		kdb_backtrace();
+		printf("unlocking lock not owned by me\n");
+#endif
+	}
+	sc->aue_lockflags &= ~AUE_LOCKED;
+	sc->aue_locker = NULL;
+	cv_signal(&sc->aue_cv);
+	AUE_UNLOCK(sc);
+}
+
+static void
+aue_xlockkill(struct aue_softc *sc)
+{
+
+	AUE_LOCK(sc);
+	sc->aue_lockflags |= AUE_LOCKDEAD;
+	cv_broadcast(&sc->aue_cv);
+	AUE_UNLOCK(sc);
+}
+
+static void
+aue_xlockrevive(struct aue_softc *sc)
+{
+
+	AUE_LOCK(sc);
+	sc->aue_lockflags &= ~AUE_LOCKDEAD;
+	cv_broadcast(&sc->aue_cv);
+	AUE_UNLOCK(sc);
+}
+
+static void
+aue_xlockassert(
+    struct aue_softc *sc,
+    int locked,
+    const char *file,
+    const char *fun,
+    int line)
+{
+	struct thread *td;
+	int flags;
+
+	AUE_LOCK(sc);
+	flags = sc->aue_lockflags;
+	td = sc->aue_locker;
+	AUE_UNLOCK(sc);
+	if (locked == 1) {
+		if ((flags & AUE_LOCKED) == 0 || td != curthread) {
+			panic("aue assert: lock not owned @%s:%s:%d",
+			    file, fun, line);
+		}
+	} else {
+		if ((flags & AUE_LOCKED) != 0 && td == curthread) {
+			panic("aue assert: lock owned @%s:%s:%d",
+			    file, fun, line);
+		}
+	}
+}
+
+static void
+aue_stopasynctasks(struct aue_softc *sc)
+{
+
+	AUE_SXASSERTLOCKED(sc);
+	callout_drain(&sc->aue_tick_callout);
+	aue_xlockkill(sc);
+	taskqueue_drain(taskqueue_thread, &sc->aue_task);
+	aue_xlockrevive(sc);
+}
+
 /*
  * We defer all interrupt operations to this function.
  *
@@ -1440,7 +1571,16 @@ aue_task(void *arg, int pending)
 		sc->aue_deferedtasks = 0;
 		AUE_UNLOCK(sc);
 		AUE_GIANTLOCK();	// XXX: usb not giant safe
-		AUE_SXLOCK(sc);
+		/*
+		 * Try to lock the exclusive lock, if we fail
+		 * then we are probably draining the taskqueue.
+		 * If we did an unconditional lock here we would
+		 * deadlock.
+		 */
+		if (aue_xlock(sc, 1)) {
+			AUE_GIANTUNLOCK();	// XXX: usb not giant safe
+			break;
+		}
 		if ((tasks & AUE_TASK_WATCHDOG) != 0) {
 			aue_watchdog_thread(sc);
 		}
