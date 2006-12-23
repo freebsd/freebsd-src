@@ -26,13 +26,18 @@
 .Nm whatis
 .Ar keyword ...
 .Sh DESCRIPTION
+The
 .Nm
+utility
 searches a set of database files containing short descriptions
 of system commands for keywords and displays the result on the
 standard output.
+The
 .Nm whatis
+utility
 displays only complete word matches.
 .Pp
+The
 .Ar keyword
 really is an extended regular expression, please read
 .Xr grep 1
