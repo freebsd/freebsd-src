@@ -628,6 +628,17 @@ struct arena_s {
 	arena_chunk_tree_t	chunks;
 
 	/*
+	 * In order to avoid rapid chunk allocation/deallocation when an arena
+	 * oscillates right on the cusp of needing a new chunk, cache the most
+	 * recently freed chunk.  This caching is disabled by opt_hint.
+	 *
+	 * There is one spare chunk per arena, rather than one spare total, in
+	 * order to avoid interactions between multiple threads that could make
+	 * a single spare inadequate.
+	 */
+	arena_chunk_t *spare;
+
+	/*
 	 * bins is used to store rings of free regions of the following sizes,
 	 * assuming a 16-byte quantum, 4kB pagesize, and default MALLOC_OPTIONS.
 	 *
@@ -839,7 +850,7 @@ static arena_t	*choose_arena_hard(void);
 static void	arena_run_split(arena_t *arena, arena_run_t *run, bool large,
     size_t size);
 static arena_chunk_t *arena_chunk_alloc(arena_t *arena);
-static void	arena_chunk_dealloc(arena_chunk_t *chunk);
+static void	arena_chunk_dealloc(arena_t *arena, arena_chunk_t *chunk);
 static void	arena_bin_run_promote(arena_t *arena, arena_bin_t *bin,
     arena_run_t *run);
 static void	arena_bin_run_demote(arena_t *arena, arena_bin_t *bin,
@@ -1776,78 +1787,101 @@ arena_chunk_alloc(arena_t *arena)
 	unsigned log2_run_pages, run_pages;
 	size_t header_size;
 
-	chunk = (arena_chunk_t *)chunk_alloc(chunk_size);
-	if (chunk == NULL)
-		return (NULL);
+	if (arena->spare != NULL) {
+		chunk = arena->spare;
+		arena->spare = NULL;
 
-	chunk->arena = arena;
+		RB_INSERT(arena_chunk_tree_s, &arena->chunks, chunk);
+	} else {
+		chunk = (arena_chunk_t *)chunk_alloc(chunk_size);
+		if (chunk == NULL)
+			return (NULL);
 
-	RB_INSERT(arena_chunk_tree_s, &arena->chunks, chunk);
+		chunk->arena = arena;
 
-	/*
-	 * Claim that no pages are in use, since the header is merely overhead.
-	 */
-	chunk->pages_used = 0;
+		RB_INSERT(arena_chunk_tree_s, &arena->chunks, chunk);
 
-	memset(&chunk->nfree_runs, 0, sizeof(chunk->nfree_runs));
+		/*
+		 * Claim that no pages are in use, since the header is merely
+		 * overhead.
+		 */
+		chunk->pages_used = 0;
 
-	header_size = (size_t)((uintptr_t)&chunk->map[arena_chunk_maplen]
-	    - (uintptr_t)chunk);
-	if (header_size % pagesize != 0) {
-		/* Round up to the nearest page boundary. */
-		header_size += pagesize - (header_size % pagesize);
-	}
+		memset(&chunk->nfree_runs, 0, sizeof(chunk->nfree_runs));
 
-	header_npages = header_size >> pagesize_2pow;
-	pow2_header_npages = pow2_ceil(header_npages);
-
-	/*
-	 * Iteratively mark runs as in use, until we've spoken for the entire
-	 * header.
-	 */
-	map_offset = 0;
-	for (i = 0; header_npages > 0; i++) {
-		if ((pow2_header_npages >> i) <= header_npages) {
-			for (j = 0; j < (pow2_header_npages >> i); j++) {
-				chunk->map[map_offset + j].free = false;
-				chunk->map[map_offset + j].large = false;
-				chunk->map[map_offset + j].npages =
-				    (pow2_header_npages >> i);
-				chunk->map[map_offset + j].pos = j;
-			}
-			header_npages -= (pow2_header_npages >> i);
-			map_offset += (pow2_header_npages >> i);
+		header_size =
+		    (size_t)((uintptr_t)&chunk->map[arena_chunk_maplen] -
+		    (uintptr_t)chunk);
+		if (header_size % pagesize != 0) {
+			/* Round up to the nearest page boundary. */
+			header_size += pagesize - (header_size % pagesize);
 		}
-	}
 
-	/*
-	 * Finish initializing map.  The chunk header takes up some space at
-	 * the beginning of the chunk, which we just took care of by
-	 * "allocating" the leading pages.
-	 */
-	while (map_offset < (chunk_size >> pagesize_2pow)) {
-		log2_run_pages = ffs(map_offset) - 1;
-		run_pages = (1 << log2_run_pages);
+		header_npages = header_size >> pagesize_2pow;
+		pow2_header_npages = pow2_ceil(header_npages);
 
-		chunk->map[map_offset].free = true;
-		chunk->map[map_offset].large = false;
-		chunk->map[map_offset].npages = run_pages;
+		/*
+		 * Iteratively mark runs as in use, until we've spoken for the
+		 * entire header.
+		 */
+		map_offset = 0;
+		for (i = 0; header_npages > 0; i++) {
+			if ((pow2_header_npages >> i) <= header_npages) {
+				for (j = 0; j < (pow2_header_npages >> i);
+				    j++) {
+					chunk->map[map_offset + j].free =
+					    false;
+					chunk->map[map_offset + j].large =
+					    false;
+					chunk->map[map_offset + j].npages =
+					    (pow2_header_npages >> i);
+					chunk->map[map_offset + j].pos = j;
+				}
+				header_npages -= (pow2_header_npages >> i);
+				map_offset += (pow2_header_npages >> i);
+			}
+		}
 
-		chunk->nfree_runs[log2_run_pages]++;
+		/*
+		 * Finish initializing map.  The chunk header takes up some
+		 * space at the beginning of the chunk, which we just took care
+		 * of by "allocating" the leading pages.
+		 */
+		while (map_offset < (chunk_size >> pagesize_2pow)) {
+			log2_run_pages = ffs(map_offset) - 1;
+			run_pages = (1 << log2_run_pages);
 
-		map_offset += run_pages;
+			chunk->map[map_offset].free = true;
+			chunk->map[map_offset].large = false;
+			chunk->map[map_offset].npages = run_pages;
+
+			chunk->nfree_runs[log2_run_pages]++;
+
+			map_offset += run_pages;
+		}
 	}
 
 	return (chunk);
 }
 
 static void
-arena_chunk_dealloc(arena_chunk_t *chunk)
+arena_chunk_dealloc(arena_t *arena, arena_chunk_t *chunk)
 {
 
+	/*
+	 * Remove chunk from the chunk tree, regardless of whether this chunk
+	 * will be cached, so that the arena does not use it.
+	 */
 	RB_REMOVE(arena_chunk_tree_s, &chunk->arena->chunks, chunk);
 
-	chunk_dealloc((void *)chunk, chunk_size);
+	if (opt_hint == false) {
+		if (arena->spare != NULL)
+			chunk_dealloc((void *)arena->spare, chunk_size);
+		arena->spare = chunk;
+	} else {
+		assert(arena->spare == NULL);
+		chunk_dealloc((void *)chunk, chunk_size);
+	}
 }
 
 static void
@@ -2123,7 +2157,7 @@ arena_run_dalloc(arena_t *arena, arena_run_t *run, size_t size)
 	/* Free pages, to the extent possible. */
 	if (chunk->pages_used == 0) {
 		/* This chunk is completely unused now, so deallocate it. */
-		arena_chunk_dealloc(chunk);
+		arena_chunk_dealloc(arena, chunk);
 	}
 }
 
@@ -2451,6 +2485,7 @@ arena_new(arena_t *arena)
 
 	/* Initialize chunks. */
 	RB_INIT(&arena->chunks);
+	arena->spare = NULL;
 
 	/* Initialize bins. */
 
