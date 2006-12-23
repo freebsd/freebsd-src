@@ -95,6 +95,8 @@ closeswap(w)
 static struct kvm_swap kvmsw[NSWAP];
 static int kvnsw, okvnsw;
 
+static void calclens(void);
+
 #define CONVERT(v)	((int)((int64_t)(v) * pagesize / blocksize))
 
 static void
@@ -159,7 +161,7 @@ fetchswap()
 void
 labelswap()
 {
-	char *name;
+	const char *name;
 	int i;
 
 	fetchswap();
