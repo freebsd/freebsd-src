@@ -1358,21 +1358,16 @@ ipstate_t *is;
 		if (flags == (TH_SYN|TH_ACK)) {
 			is->is_s0[source] = ntohl(tcp->th_ack);
 			is->is_s0[!source] = ntohl(tcp->th_seq) + 1;
-			if ((TCP_OFF(tcp) > (sizeof(tcphdr_t) >> 2)) &&
-			    (tdata->td_winflags & TCP_WSCALE_SEEN)) {
+			if ((TCP_OFF(tcp) > (sizeof(tcphdr_t) >> 2))) {
 				if (fr_tcpoptions(fin, tcp, fdata) == -1)
 					fin->fin_flx |= FI_BAD;
-				if (!(fdata->td_winflags & TCP_WSCALE_SEEN)) {
-					fdata->td_winscale = 0;
-					tdata->td_winscale = 0;
-				}
 			}
 			if ((fin->fin_out != 0) && (is->is_pass & FR_NEWISN))
 				fr_checknewisn(fin, is);
 		} else if (flags == TH_SYN) {
 			is->is_s0[source] = ntohl(tcp->th_seq) + 1;
 			if ((TCP_OFF(tcp) > (sizeof(tcphdr_t) >> 2))) {
-				if (fr_tcpoptions(fin, tcp, tdata) == -1)
+				if (fr_tcpoptions(fin, tcp, fdata) == -1)
 					fin->fin_flx |= FI_BAD;
 			}
 
@@ -1479,17 +1474,8 @@ int flags;
 	 * the receiver also does window scaling)
 	 */
 	if (!(tcpflags & TH_SYN) && (fdata->td_winflags & TCP_WSCALE_FIRST)) {
-		if (tdata->td_winflags & TCP_WSCALE_SEEN) {
-			fdata->td_winflags &= ~TCP_WSCALE_FIRST;
-			fdata->td_maxwin = win;
-		} else {
-			fdata->td_winscale = 0;
-			fdata->td_winflags &= ~(TCP_WSCALE_FIRST|
-						TCP_WSCALE_SEEN);
-			tdata->td_winscale = 0;
-			tdata->td_winflags &= ~(TCP_WSCALE_FIRST|
-						TCP_WSCALE_SEEN);
-		  }
+		fdata->td_winflags &= ~TCP_WSCALE_FIRST;
+		fdata->td_maxwin = win;
 	}
 
 	end = seq + dsize;
@@ -1532,7 +1518,7 @@ int flags;
 	    (SEQ_GE(seq, fdata->td_end - maxwin)) &&
 /* XXX what about big packets */
 #define MAXACKWINDOW 66000
-	    (-ackskew <= (MAXACKWINDOW << fdata->td_winscale)) &&
+	    (-ackskew <= (MAXACKWINDOW)) &&
 	    ( ackskew <= (MAXACKWINDOW << fdata->td_winscale))) {
 		inseq = 1;
 	/*
@@ -1577,6 +1563,8 @@ int flags;
 				inseq = 1;
 		}
 	}
+
+	/* TRACE(inseq, fdata, tdata, seq, end, ack, ackskew, win, maxwin) */
 
 	if (inseq) {
 		/* if ackskew < 0 then this should be due to fragmented
