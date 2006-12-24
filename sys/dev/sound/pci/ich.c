@@ -64,6 +64,7 @@ SND_DECLARE_FILE("$FreeBSD$");
 #define NVIDIA_NFORCE3_250	0x00ea
 #define NVIDIA_NFORCE4	0x0059
 #define NVIDIA_NFORCE_410_MCP	0x026b
+#define NVIDIA_NFORCE4_MCP	0x003a
 #define AMD_768		0x7445
 #define AMD_8111	0x746d
 
@@ -114,6 +115,8 @@ static const struct ich_type {
 		"nVidia nForce4" },
 	{ NVIDIA_VENDORID,	NVIDIA_NFORCE_410_MCP,	0,
 		"nVidia nForce 410 MCP" },
+	{ NVIDIA_VENDORID,	NVIDIA_NFORCE4_MCP,	0,
+		"nVidia nForce 4 MCP" },
 	{ AMD_VENDORID,		AMD_768,	0,
 		"AMD-768" },
 	{ AMD_VENDORID,		AMD_8111,	0,
@@ -851,6 +854,9 @@ ich_pci_attach(device_t dev)
 	case 0x81c0104d:	/* Sony VAIO type T */
 	case 0x81c5104d:	/* Sony VAIO VGN B1VP/B1XP */
 	case 0x3089103c:	/* Compaq Presario B3800 */
+	case 0x309a103c:	/* HP Compaq nx4300 */
+	case 0x82131033:	/* NEC VersaPro VJ10F/BH */
+	case 0x82be1033:	/* NEC VersaPro VJ12F/CH */
 		ac97_setflags(sc->codec, ac97_getflags(sc->codec) | AC97_F_EAPD_INV);
 		break;
 	default:
