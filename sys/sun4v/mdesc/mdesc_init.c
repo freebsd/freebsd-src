@@ -132,8 +132,7 @@ mdesc_boot_meta_free(void *buf, size_t size)
 static void *
 mdesc_buf_alloc(size_t size, size_t align)
 {
-	return contigmalloc(size, M_MDPROP, M_WAITOK, phys_avail[0],
-			    phys_avail[1], align, (1UL<<34));
+	return pmap_alloc_zeroed_contig_pages(size/PAGE_SIZE, align);
 }
 
 static void 
