@@ -313,6 +313,10 @@ ether_output(struct ifnet *ifp, struct mbuf *m,
 			 * be to modify if_simloop() to handle the readonly mbuf,
 			 * but performancewise it is mostly equivalent (trading
 			 * extra data copying vs. extra locking).
+			 *
+			 * XXX This is a local workaround.  A number of less
+			 * often used kernel parts suffer from the same bug.
+			 * See PR kern/105943 for a proposed general solution.
 			 */
 			if ((n = m_dup(m, M_DONTWAIT)) != NULL) {
 				n->m_pkthdr.csum_flags |= csum_flags;
