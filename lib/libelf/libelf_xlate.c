@@ -92,8 +92,18 @@ _libelf_xlate(Elf_Data *dst, const Elf_Data *src, unsigned int encoding,
 		return (NULL);
 	}
 
-	cnt = src->d_size / msz;
-	dsz = cnt * fsz;
+	/*
+	 * Determine the number of objects that need to be converted, and
+	 * the space required for the converted objects in the destination
+	 * buffer.
+	 */
+	if (direction == ELF_TOMEMORY) {
+		cnt = src->d_size / fsz;
+		dsz = cnt * msz;
+	} else {
+		cnt = src->d_size / msz;
+		dsz = cnt * fsz;
+	}
 
 	if (dst->d_size  <  dsz) {
 		LIBELF_SET_ERROR(DATA, 0);
@@ -107,12 +117,9 @@ _libelf_xlate(Elf_Data *dst, const Elf_Data *src, unsigned int encoding,
 
 	/*
 	 * Check for overlapping buffers.  Note that db == sb is
-	 * allowed, in which case the source buffer must also be large
-	 * enough for `n' target objects.  For file to native
-	 * conversions, an in-place conversion is not always possible.
+	 * allowed.
 	 */
-	if ((db == sb && dsz < src->d_size) ||
-	    (db != sb && de > sb && se > db)) {
+	if (db != sb && de > sb && se > db) {
 		LIBELF_SET_ERROR(DATA, 0);
 		return (NULL);
 	}
@@ -124,7 +131,7 @@ _libelf_xlate(Elf_Data *dst, const Elf_Data *src, unsigned int encoding,
 	}
 
 	dst->d_type = src->d_type;
-	dst->d_size = cnt * fsz;
+	dst->d_size = dsz;
 
 	if (db == sb && encoding == LIBELF_PRIVATE(byteorder) &&
 	    fsz == msz)
