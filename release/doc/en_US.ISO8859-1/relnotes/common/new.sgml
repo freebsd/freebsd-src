@@ -353,6 +353,9 @@
     <sect3 id="disks">
       <title>Disks and Storage</title>
 
+      <para>The &man.arcmsr.4; driver has been updated to version
+	1.20.00.13.</para>
+
       <para>The &man.ata.4; driver now supports USB mass storage class
 	devices.  To enable it, a line <literal>device atausb</literal>
 	in the kernel configuration file or loading the
@@ -501,7 +504,7 @@
       </para>
 
     <para>The DNS resolver library in &os;'s <application>libc</application>
-      has been updated to BIND9's one.</para>
+      has been updated to that from BIND 9.3.3.</para>
 
     <para>The &man.tail.1; utility now supports a <option>-q</option>
       flag to suppress header lines when multiple files are
