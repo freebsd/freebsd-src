@@ -317,7 +317,6 @@ get_pv_entry(pmap_t locked_pmap)
 
 	vpq = &vm_page_queues[PQ_INACTIVE];
 retry:
-	sched_pin();
 	TAILQ_FOREACH(m, &vpq->pl, pageq) {
 		if (m->hold_count || m->busy)
 			continue;
@@ -359,7 +358,6 @@ retry:
 				free_pv_entry(pv);
 		}
 	}
-	sched_unpin();
 	if (allocated_pv == NULL) {
 		if (vpq == &vm_page_queues[PQ_INACTIVE]) {
 			vpq = &vm_page_queues[PQ_ACTIVE];
@@ -990,7 +988,6 @@ pmap_copy(pmap_t dst_pmap, pmap_t src_pmap, vm_offset_t dst_addr,
 		PMAP_LOCK(src_pmap);
 		PMAP_LOCK(dst_pmap);
 	}
-	sched_pin();
 	for (addr = src_addr; addr < end_addr; addr += PAGE_SIZE) {
 		tte_t tte_data;
 		vm_page_t m;
@@ -1001,20 +998,15 @@ pmap_copy(pmap_t dst_pmap, pmap_t src_pmap, vm_offset_t dst_addr,
 			if (tte_hash_lookup(dst_pmap->pm_hash, addr) == 0) {
 				m = PHYS_TO_VM_PAGE(TTE_GET_PA(tte_data));
 
-				tte_hash_insert(dst_pmap->pm_hash, addr, tte_data & ~(VTD_W|VTD_REF));
+				tte_hash_insert(dst_pmap->pm_hash, addr, tte_data & ~(VTD_W|VTD_REF|VTD_WIRED));
 				dst_pmap->pm_stats.resident_count++;
 				pmap_insert_entry(dst_pmap, addr, m);
 			} 
 		}		
 	}
-	sched_unpin();
 	vm_page_unlock_queues();
 	PMAP_UNLOCK(src_pmap);
 	PMAP_UNLOCK(dst_pmap);
-
-
-
-
 }
 
 void
@@ -1064,24 +1056,22 @@ pmap_enter(pmap_t pmap, vm_offset_t va, vm_page_t m, vm_prot_t prot,
 	
 	vm_page_lock_queues();
 	PMAP_LOCK(pmap);
-	sched_pin();
 
 	tte_data = pa = VM_PAGE_TO_PHYS(m);
 	otte_data = tte_hash_delete(pmap->pm_hash, va);
 	opa = TTE_GET_PA(otte_data);
 
-	/*
-	 * Mapping has not changed, must be protection or wiring change.
-	 */
-
 	if (opa == 0) {
+		/*
+		 * This is a new mapping
+		 */
 		pmap->pm_stats.resident_count++;
 		pmap_add_tte(pmap, va, m, &tte_data, wired);
 
 	} else if (pa != opa) {
 		/*
-		 * Mapping has changed, invalidate old range and fall through to
-		 * handle validating new mapping.
+		 * Mapping has changed, handle validating new mapping.
+		 * 
 		 */
 		if (otte_data & VTD_WIRED)
 			pmap->pm_stats.wired_count--;
@@ -1094,6 +1084,10 @@ pmap_enter(pmap_t pmap, vm_offset_t va, vm_page_t m, vm_prot_t prot,
 		pmap_add_tte(pmap, va, m, &tte_data, wired);
 
 	} else /* (pa == opa) */ {
+		/*
+		 * Mapping has not changed, must be protection or wiring change.
+		 */
+
 		/*
 		 * Wiring change, just update stats. We don't worry about
 		 * wiring PT pages as they remain resident as long as there
@@ -1127,7 +1121,7 @@ pmap_enter(pmap_t pmap, vm_offset_t va, vm_page_t m, vm_prot_t prot,
 	if (wired)
 		tte_data |= VTD_WIRED;
 	if (pmap == kernel_pmap)
-		tte_data |= TTE_KERNEL_MINFLAGS;
+		tte_data |= VTD_P;
 	
 	invlva = FALSE;
 	if ((otte_data & ~(VTD_W|VTD_REF)) != tte_data) {
@@ -1135,19 +1129,25 @@ pmap_enter(pmap_t pmap, vm_offset_t va, vm_page_t m, vm_prot_t prot,
 			if (otte_data & VTD_REF) {
 				if (otte_data & VTD_MANAGED) 
 					vm_page_flag_set(om, PG_REFERENCED);
-				if (opa != pa)
+				if ((opa != pa) || ((opa & VTD_X) != (pa & VTD_X)))
 					invlva = TRUE;
 			}
 			if (otte_data & VTD_W) {
 				if (otte_data & VTD_MANAGED) 
 					vm_page_dirty(om);
-				if ((prot & VM_PROT_WRITE) == 0) 
+				if ((pa & VTD_SW_W) != 0) 
 					invlva = TRUE;
 			}
+			if (invlva)
+				pmap_invalidate_page(pmap, va, TRUE);
 		}
 	} 
 
+
 	tte_hash_insert(pmap->pm_hash, va, tte_data|TTE_MINFLAGS|VTD_REF);
+	/*
+	 * XXX this needs to be locked for the threaded / kernel case 
+	 */
 	tsb_set_tte(&pmap->pm_tsb, va, tte_data|TTE_MINFLAGS|VTD_REF, 
 		    pmap->pm_context);
 
@@ -1160,13 +1160,8 @@ pmap_enter(pmap_t pmap, vm_offset_t va, vm_page_t m, vm_prot_t prot,
 	if (0 && pmap->pm_context != 0 && pmap->pm_tsb_miss_count > 512)
 		pmap_tsb_resize(pmap);
 
-
 	vm_page_unlock_queues();
 
-
-	if (invlva)
-		pmap_invalidate_page(pmap, va, TRUE);
-	sched_unpin();
 	PMAP_UNLOCK(pmap);
 }
 
@@ -1186,17 +1181,15 @@ void
 pmap_enter_object(pmap_t pmap, vm_offset_t start, vm_offset_t end, 
 		  vm_page_t m_start, vm_prot_t prot)
 {
-	vm_page_t m, mpte;
+	vm_page_t m;
         vm_pindex_t diff, psize;
 
         VM_OBJECT_LOCK_ASSERT(m_start->object, MA_OWNED);
         psize = atop(end - start);
-        mpte = NULL;
         m = m_start;
         PMAP_LOCK(pmap);
         while (m != NULL && (diff = m->pindex - m_start->pindex) < psize) {
-		pmap_enter_quick_locked(pmap, start + ptoa(diff), m,
-					       prot);
+		pmap_enter_quick_locked(pmap, start + ptoa(diff), m, prot);
                 m = TAILQ_NEXT(m, listq);
         }
         PMAP_UNLOCK(pmap);
@@ -1208,7 +1201,6 @@ pmap_enter_quick(pmap_t pmap, vm_offset_t va, vm_page_t m, vm_prot_t prot)
 	PMAP_LOCK(pmap);
 	pmap_enter_quick_locked(pmap, va, m, prot);
 	PMAP_UNLOCK(pmap);
-
 }
 
 static void
@@ -1241,11 +1233,7 @@ pmap_enter_quick_locked(pmap_t pmap, vm_offset_t va, vm_page_t m, vm_prot_t prot
 	if ((prot & VM_PROT_EXECUTE) != 0)
 		tte_data |= VTD_X;
 
-	if (pmap == kernel_pmap)
-		tte_data |= TTE_KERNEL_MINFLAGS;
-
 	tte_hash_insert(pmap->pm_hash, va, tte_data | TTE_MINFLAGS);
-
 }
 
 /*
@@ -1278,14 +1266,12 @@ pmap_extract_and_hold(pmap_t pmap, vm_offset_t va, vm_prot_t prot)
 	m = NULL;
 	vm_page_lock_queues();
 	PMAP_LOCK(pmap);
-	sched_pin();
 	tte_data = tte_hash_lookup(pmap->pm_hash, va);
 	if (tte_data != 0 && 
 	    ((tte_data & VTD_SW_W) || (prot & VM_PROT_WRITE) == 0)) {
 		m = PHYS_TO_VM_PAGE(TTE_GET_PA(tte_data));
 		vm_page_hold(m);
 	}
-	sched_unpin();
 	vm_page_unlock_queues();
 	PMAP_UNLOCK(pmap);
 
@@ -1595,16 +1581,6 @@ pmap_is_prefaultable(pmap_t pmap, vm_offset_t va)
 }
 
 /*
- * Map a wired page into kernel virtual address space.
- */
-static void
-pmap_kenter(vm_offset_t va, vm_paddr_t pa)
-{
-	tte_hash_update(kernel_pmap->pm_hash, va, pa | TTE_KERNEL | VTD_8K);
-	tsb_set_tte(&kernel_td[TSB8K_INDEX], va, pa | TTE_KERNEL | VTD_8K, 0);
-}
-
-/*
  * Extract the physical page address associated with the given kernel virtual
  * address.
  */
@@ -1628,12 +1604,6 @@ pmap_kextract(vm_offset_t va)
 		pa = TTE_GET_PA(tte_data) | (va & TTE_GET_PAGE_MASK(tte_data));
 
 	return pa;
-}
-
-static void
-pmap_kremove(vm_offset_t va)
-{ 
-	tte_hash_delete(kernel_pmap->pm_hash, va);
 }
 
 /*
@@ -1689,7 +1659,6 @@ pmap_page_exists_quick(pmap_t pmap, vm_page_t m)
 		if (loops >= 16)
 			break;
 	}	
-
 	return (FALSE);
 }
 
@@ -1709,8 +1678,11 @@ pmap_page_init(vm_page_t m)
 void
 pmap_remove_write(vm_page_t m)
 {
-
-	tte_clear_phys_bit(m, VTD_SW_W);
+	if ((m->flags & PG_WRITEABLE) == 0)
+		return;
+	mtx_assert(&vm_page_queue_mtx, MA_OWNED);
+	tte_clear_phys_bit(m, VTD_SW_W|VTD_W);
+	vm_page_flag_clear(m, PG_WRITEABLE);
 }
 /*
  * Initialize the pmap associated with process 0.
@@ -1765,6 +1737,7 @@ pmap_protect(pmap_t pmap, vm_offset_t sva, vm_offset_t eva, vm_prot_t prot)
 
 	int anychanged;
 	vm_offset_t tva;
+	uint64_t clearbits;
 
 	DPRINTF("pmap_protect(0x%lx, 0x%lx, %d)\n", sva, eva, prot);
 	
@@ -1773,23 +1746,30 @@ pmap_protect(pmap_t pmap, vm_offset_t sva, vm_offset_t eva, vm_prot_t prot)
 		return;
 	}
 	
-	if (prot & VM_PROT_WRITE)
+	if ((prot & (VM_PROT_WRITE|VM_PROT_EXECUTE)) == 
+	    (VM_PROT_WRITE|VM_PROT_EXECUTE))
 		return;
 
-	anychanged = 0;
+	clearbits = anychanged = 0;
+	
+	if ((prot & VM_PROT_WRITE) == 0)
+		clearbits |= (VTD_W|VTD_SW_W);
+	if ((prot & VM_PROT_EXECUTE) == 0)
+		clearbits |= VTD_X;
 
 	vm_page_lock_queues();
 	PMAP_LOCK(pmap);
-	sched_pin();
-
 	for (tva = sva; tva < eva; tva += PAGE_SIZE) {
 		uint64_t otte_data;
 		vm_page_t m;
 
 		if ((otte_data = tte_hash_clear_bits(pmap->pm_hash, tva, 
-						     (VTD_SW_W|VTD_W))) == 0)
+						     clearbits)) == 0)
 			continue;
-
+		/*
+		 * XXX technically we should do a shootdown if it 
+		 * was referenced and was executable - but is not now
+		 */
 		if (!anychanged && (otte_data & VTD_W))
 			anychanged = 1;
 		
@@ -1808,10 +1788,8 @@ pmap_protect(pmap_t pmap, vm_offset_t sva, vm_offset_t eva, vm_prot_t prot)
 	}
 
 	vm_page_unlock_queues();
-
 	if (anychanged)
 		pmap_invalidate_range(pmap, sva, eva, TRUE);
-	sched_unpin();
 	PMAP_UNLOCK(pmap);
 }
 
@@ -1824,19 +1802,19 @@ void
 pmap_qenter(vm_offset_t sva, vm_page_t *m, int count)
 {
 	vm_offset_t va;
-
+	tte_t otte_data;
+	
+	otte_data = 0;
 	va = sva;
 	while (count-- > 0) {
-		/*
-		 * If we make explicit calls to tte_hash_update
-		 * we can determine if any of the pages have been mapped
-		 * before - this can save us a pmap_invalidate_range
-		 */
-		pmap_kenter(va, VM_PAGE_TO_PHYS(*m));
+		otte |= tte_hash_update(kernel_pmap->pm_hash, va,  
+					VM_PAGE_TO_PHYS(*m), 
+					pa | TTE_KERNEL | VTD_8K);
 		va += PAGE_SIZE;
 		m++;
 	}
-	pmap_invalidate_range(kernel_pmap, sva, va, FALSE);
+	if ((otte & VTD_REF) != 0)
+		pmap_invalidate_range(kernel_pmap, sva, va, FALSE);
 }
 
 /*
@@ -1847,18 +1825,17 @@ void
 pmap_qremove(vm_offset_t sva, int count)
 {
 	vm_offset_t va;
+	tte_t otte;
 
 	va = sva;
 
-#ifndef NFS_NOT_BROKEN
-	if (count == 0)
-		count = 1;
-#endif
+	otte = 0;
 	while (count-- > 0) {
-		pmap_kremove(va);
+		otte |= tte_hash_delete(kernel_pmap->pm_hash, va);
 		va += PAGE_SIZE;
 	}
-	pmap_invalidate_range(kernel_pmap, sva, va, TRUE);
+	if ((otte & VTD_REF) != 0)
+		pmap_invalidate_range(kernel_pmap, sva, va, TRUE);
 }
 
 /*
@@ -1898,23 +1875,18 @@ pmap_remove(pmap_t pmap, vm_offset_t start, vm_offset_t end)
 		start, end);
 	invlva = 0;
 	vm_page_lock_queues();
-	sched_pin();
 	PMAP_LOCK(pmap);
 	for (tva = start; tva < end; tva += PAGE_SIZE) {
 		if ((tte_data = tte_hash_delete(pmap->pm_hash, tva)) == 0)
 			continue;
 		pmap_remove_tte(pmap, tte_data, tva);
-		if (!invlva && (tte_data & (VTD_REF|VTD_W)))
+		if (tte_data & (VTD_REF|VTD_W))
 			invlva = 1;
 	}
 	vm_page_unlock_queues();
-
 	if (invlva)
 		pmap_invalidate_range(pmap, start, end, TRUE);
-
-	sched_unpin();
 	PMAP_UNLOCK(pmap);
-
 }
 
 /*
@@ -1938,7 +1910,6 @@ pmap_remove_all(vm_page_t m)
 	DPRINTF("pmap_remove_all 0x%lx\n", VM_PAGE_TO_PHYS(m));
 
 	mtx_assert(&vm_page_queue_mtx, MA_OWNED);
-	sched_pin();
 	while ((pv = TAILQ_FIRST(&m->md.pv_list)) != NULL) {
 		PMAP_LOCK(pv->pv_pmap);
 		pv->pv_pmap->pm_stats.resident_count--;
@@ -1968,7 +1939,6 @@ pmap_remove_all(vm_page_t m)
 		free_pv_entry(pv);
 	}
 	vm_page_flag_clear(m, PG_WRITEABLE);
-	sched_unpin();
 }
 
 static void
@@ -2011,24 +1981,17 @@ pmap_remove_pages(pmap_t pmap)
 	DPRINTF("pmap_remove_pages(ctx=0x%lx)\n", pmap->pm_context);
 	vm_page_lock_queues();
 	PMAP_LOCK(pmap);
-	sched_pin();
 	for (pv = TAILQ_FIRST(&pmap->pm_pvlist); pv; pv = npv) {
 		tte_data = tte_hash_delete(pmap->pm_hash, pv->pv_va);
-		
-		if (tte_data == 0) {
-			membar(Sync);
-			DELAY(100);
-			membar(Sync);
-			tte_data = tte_hash_delete(pmap->pm_hash, pv->pv_va);
-			if (tte_data == 0) {
-				printf("TTE IS ZERO @ VA %016lx\n", pv->pv_va);
-				panic("bad tte");
-			}
-		}
-		
-		if (tte_data & VTD_WIRED) 
-			pmap->pm_stats.wired_count--;
 
+		if (tte_data == 0) {
+			printf("TTE IS ZERO @ VA %016lx\n", pv->pv_va);
+			panic("bad tte");
+		}
+		if (tte_data & VTD_WIRED) {
+			panic("wired page in process not handled correctly");
+			pmap->pm_stats.wired_count--;
+		}
 		m = PHYS_TO_VM_PAGE(TTE_GET_PA(tte_data));
 
 		pmap->pm_stats.resident_count--;
@@ -2052,9 +2015,7 @@ pmap_remove_pages(pmap_t pmap)
 		pmap_tsb_reset(pmap);
 
 	vm_page_unlock_queues();
-
 	pmap_invalidate_all(pmap);
-	sched_unpin();
 	PMAP_UNLOCK(pmap);
 }
 
@@ -2209,7 +2170,6 @@ pmap_ts_referenced(vm_page_t m)
 	if (m->flags & PG_FICTITIOUS)
 		return (rv);
 
-        sched_pin();
         mtx_assert(&vm_page_queue_mtx, MA_OWNED);
         if ((pv = TAILQ_FIRST(&m->md.pv_list)) != NULL) {
 		
@@ -2238,8 +2198,6 @@ pmap_ts_referenced(vm_page_t m)
 			PMAP_UNLOCK(pmap);
 		} while ((pv = pvn) != NULL && pv != pvf);
 	}
-	sched_unpin();
-
 	return (rv);
 }
 
@@ -2257,8 +2215,10 @@ pmap_zero_page_area(vm_page_t m, int off, int size)
 		
 	pa = VM_PAGE_TO_PHYS(m);
 	va = TLB_PHYS_TO_DIRECT(pa);
-	
-	bzero((char *)(va + off), size);
+	if (off == 0 && size == PAGE_SIZE)
+		hwblkclr((void *)TLB_PHYS_TO_DIRECT(VM_PAGE_TO_PHYS(m)), PAGE_SIZE);
+	else
+		bzero((char *)(va + off), size);
 
 }
 

@@ -56,36 +56,30 @@ void
 tte_clear_phys_bit(vm_page_t m, uint64_t flags)
 {
 	pv_entry_t pv;
+	tte_t active_flags = (flags & ~VTD_SW_W);
 
-	if ((m->flags & PG_FICTITIOUS) ||
-	    (flags == VTD_SW_W && (m->flags & PG_WRITEABLE) == 0))
+	if (m->flags & PG_FICTITIOUS) 
 		return;
-	sched_pin();
+
 	mtx_assert(&vm_page_queue_mtx, MA_OWNED);
 	/*
 	 * Loop over all current mappings setting/clearing as appropos If
 	 * setting RO do we need to clear the VAC?
 	 */
 	TAILQ_FOREACH(pv, &m->md.pv_list, pv_list) {
-		tte_t otte_data;
+		tte_t otte_data, matchbits;
+		pmap_t pmap;
 
-		if (flags == VTD_SW_W) 
-			flags = (VTD_SW_W|VTD_W);
-
-		otte_data = tte_hash_clear_bits(pv->pv_pmap->pm_hash, pv->pv_va, flags);
-
-		if (otte_data & flags) {
-			if (otte_data & VTD_W) 
+		pmap = pv->pv_pmap;
+		PMAP_LOCK(pmap);
+		otte_data = tte_hash_clear_bits(pmap->pm_hash, pv->pv_va, flags);
+		if ((matchbits = (otte_data & active_flags)) != 0) {
+			if (matchbits == VTD_W) 
 				vm_page_dirty(m);
-
-			pmap_invalidate_page(pv->pv_pmap, pv->pv_va, TRUE);
+			pmap_invalidate_page(pmap, pv->pv_va, TRUE);
 		}
-		    
-		
+		PMAP_UNLOCK(pmap);
 	}
-	if (flags & VTD_SW_W)
-		vm_page_flag_clear(m, PG_WRITEABLE);
-	sched_unpin();
 }
 
 boolean_t 
@@ -106,8 +100,7 @@ tte_get_phys_bit(vm_page_t m, uint64_t flags)
 
 		pmap = pv->pv_pmap;
 		otte_data = tte_hash_lookup(pmap->pm_hash, pv->pv_va);
-		rv = ((otte_data & flags) != 0);
-		if (rv)
+		if ((rv = ((otte_data & flags) != 0)))
 			break;
 	}
 
@@ -117,15 +110,7 @@ tte_get_phys_bit(vm_page_t m, uint64_t flags)
 void 
 tte_clear_virt_bit(struct pmap *pmap, vm_offset_t va, uint64_t flags)
 {
-	tte_t otte_data;
-	
-	if (flags == VTD_SW_W) 
-		flags = (VTD_SW_W|VTD_W);
-
-	otte_data = tte_hash_clear_bits(pmap->pm_hash, va, flags);
-
-	if (otte_data & flags) 
-		pmap_invalidate_page(pmap, va, TRUE);
+	(void)tte_hash_clear_bits(pmap->pm_hash, va, flags);
 }
 
 void 
