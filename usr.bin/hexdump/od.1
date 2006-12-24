@@ -45,14 +45,7 @@
 .Op Fl j Ar skip
 .Op Fl N Ar length
 .Op Fl t Ar type
-.Sm off
-.Oo
-.Op Cm \&+
-.Li offset
-.Op Cm \&.
-.Op Cm Bb
-.Oc
-.Sm on
+.Op Oo Cm + Oc Ns Ar offset Ns Oo Cm \&. Oc Ns Op Cm Bb
 .Op Ar
 .Sh DESCRIPTION
 The
@@ -64,6 +57,7 @@ The options are as follows:
 .Bl -tag -width ".Fl I , L , l"
 .It Fl A Ar base
 Specify the input address base.
+The argument
 .Ar base
 may be one of
 .Cm d ,
@@ -76,47 +70,47 @@ addresses or no address, respectively.
 .It Fl a
 Output named characters.
 Equivalent to
-.Fl t Ar a .
+.Fl t Cm a .
 .It Fl B , o
 Output octal shorts.
 Equivalent to
-.Fl t Ar o2 .
+.Fl t Cm o2 .
 .It Fl b
 Output octal bytes.
 Equivalent to
-.Fl t Ar o1 .
+.Fl t Cm o1 .
 .It Fl c
 Output C-style escaped characters.
 Equivalent to
-.Fl t Ar c .
+.Fl t Cm c .
 .It Fl D
 Output unsigned decimal ints.
 Equivalent to
-.Fl t Ar u4 .
+.Fl t Cm u4 .
 .It Fl e , F
 Output double-precision floating point numbers.
 Equivalent to
-.Fl t Ar fD .
+.Fl t Cm fD .
 .It Fl f
 Output single-precision floating point numbers.
 Equivalent to
-.Fl t Ar fF .
+.Fl t Cm fF .
 .It Fl H , X
 Output hexadecimal ints.
 Equivalent to
-.Fl t Ar x4 .
+.Fl t Cm x4 .
 .It Fl h , x
 Output hexadecimal shorts.
 Equivalent to
-.Fl t Ar x2 .
+.Fl t Cm x2 .
 .It Fl I , L , l
 Output signed decimal longs.
 Equivalent to
-.Fl t Ar dL .
+.Fl t Cm dL .
 .It Fl i
 Output signed decimal ints.
 Equivalent to
-.Fl t Ar dI .
+.Fl t Cm dI .
 .It Fl j Ar skip
 Skip
 .Ar skip
@@ -135,14 +129,16 @@ bytes of input.
 .It Fl O
 Output octal ints.
 Equivalent to
-.Fl t Ar o4 .
+.Fl t Cm o4 .
 .It Fl s
 Output signed decimal shorts.
 Equivalent to
-.Fl t Ar d2 .
+.Fl t Cm d2 .
 .It Fl t Ar type
 Specify the output format.
+The
 .Ar type
+argument
 is a string containing one or more of the following kinds of type specifiers:
 .Bl -tag -width indent
 .It Cm a
@@ -234,7 +230,7 @@ Multiple options that specify output format may be used; the output will
 contain one line for each format.
 .Pp
 If no output format is specified,
-.Fl t Ar oS
+.Fl t Cm oS
 is assumed.
 .Sh ENVIRONMENT
 The
