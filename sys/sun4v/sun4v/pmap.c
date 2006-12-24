@@ -972,7 +972,6 @@ pmap_copy(pmap_t dst_pmap, pmap_t src_pmap, vm_offset_t dst_addr,
 	vm_offset_t addr, end_addr;
 
 	end_addr = src_addr + len;
-	
 	/*
 	 * Don't let optional prefaulting of pages make us go
 	 * way below the low water mark of free pages or way
@@ -1008,13 +1007,13 @@ pmap_copy(pmap_t dst_pmap, pmap_t src_pmap, vm_offset_t dst_addr,
 			} 
 		}		
 	}
-	PMAP_UNLOCK(src_pmap);
-
-	if (tte_hash_needs_resize(dst_pmap->pm_hash))
-		pmap_tte_hash_resize(dst_pmap);
 	sched_unpin();
 	vm_page_unlock_queues();
+	PMAP_UNLOCK(src_pmap);
 	PMAP_UNLOCK(dst_pmap);
+
+
+
 
 }
 
@@ -1584,6 +1583,7 @@ pmap_invalidate_all(pmap_t pmap)
 boolean_t
 pmap_is_modified(vm_page_t m)
 {
+
 	return (tte_get_phys_bit(m, VTD_W));
 }
 
@@ -1827,6 +1827,11 @@ pmap_qenter(vm_offset_t sva, vm_page_t *m, int count)
 
 	va = sva;
 	while (count-- > 0) {
+		/*
+		 * If we make explicit calls to tte_hash_update
+		 * we can determine if any of the pages have been mapped
+		 * before - this can save us a pmap_invalidate_range
+		 */
 		pmap_kenter(va, VM_PAGE_TO_PHYS(*m));
 		va += PAGE_SIZE;
 		m++;
