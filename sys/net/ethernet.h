@@ -61,14 +61,19 @@ struct	ether_header {
 	u_char	ether_dhost[ETHER_ADDR_LEN];
 	u_char	ether_shost[ETHER_ADDR_LEN];
 	u_short	ether_type;
-};
+} __packed;
 
 /*
  * Structure of a 48-bit Ethernet address.
  */
 struct	ether_addr {
 	u_char octet[ETHER_ADDR_LEN];
-};
+} __packed;
+
+#ifdef CTASSERT
+CTASSERT(sizeof (struct ether_header) == ETHER_ADDR_LEN * 2 + 2);
+CTASSERT(sizeof (struct ether_addr) == ETHER_ADDR_LEN);
+#endif
 
 #define	ETHER_IS_MULTICAST(addr) (*(addr) & 0x01) /* is address mcast/bcast? */
 
