@@ -448,7 +448,7 @@ XXX  this is broken
 
 			 */
 			if (awake) {
-				if (p->p_slptime > 1) {
+				if (td->td_slptime > 1) {
 					/*
 					 * In an ideal world, this should not
 					 * happen, because whoever woke us
