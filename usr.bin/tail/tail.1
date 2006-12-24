@@ -43,16 +43,10 @@
 .Nd display the last part of a file
 .Sh SYNOPSIS
 .Nm
-.Oo
-.Fl F |
-.Fl f |
-.Fl r
-.Oc
+.Op Fl F | f | r
 .Op Fl q
 .Oo
-.Fl b Ar number |
-.Fl c Ar number |
-.Fl n Ar number
+.Fl b Ar number | Fl c Ar number | Fl n Ar number
 .Oc
 .Op Ar
 .Sh DESCRIPTION
@@ -64,21 +58,25 @@ or, by default, its standard input, to the standard output.
 .Pp
 The display begins at a byte, line or 512-byte block location in the
 input.
-Numbers having a leading plus (``+'') sign are relative to the beginning
+Numbers having a leading plus
+.Pq Ql +
+sign are relative to the beginning
 of the input, for example,
-.Dq -c +2
+.Dq Li "-c +2"
 starts the display at the second
 byte of the input.
-Numbers having a leading minus (``-'') sign or no explicit sign are
+Numbers having a leading minus
+.Pq Ql -
+sign or no explicit sign are
 relative to the end of the input, for example,
-.Dq -n 2
+.Dq Li "-n 2"
 displays the last two lines of the input.
 The default starting location is
-.Dq -n 10 ,
+.Dq Li "-n 10" ,
 or the last 10 lines of the input.
 .Pp
 The options are as follows:
-.Bl -tag -width Ds
+.Bl -tag -width indent
 .It Fl b Ar number
 The location is
 .Ar number
@@ -122,8 +120,7 @@ The
 .Fl r
 option causes the input to be displayed in reverse order, by line.
 Additionally, this option changes the meaning of the
-.Fl b ,
-.Fl c
+.Fl b , c
 and
 .Fl n
 options.
@@ -139,9 +136,9 @@ option is to display all of the input.
 .Pp
 If more than a single file is specified, each file is preceded by a
 header consisting of the string
-.Dq ==> XXX <==
+.Dq Li "==> " Ns Ar XXX Ns Li " <=="
 where
-.Dq XXX
+.Ar XXX
 is the name of the file unless
 .Fl q
 flag is specified.
@@ -177,8 +174,11 @@ and
 .Fl n
 options modify the
 .Fl r
-option, i.e., ``-r -c 4'' displays the last 4 characters of the last line
-of the input, while the historic tail (using the historic syntax ``-4cr'')
+option, i.e.,
+.Dq Li "-r -c 4"
+displays the last 4 characters of the last line
+of the input, while the historic tail (using the historic syntax
+.Dq Li -4cr )
 would ignore the
 .Fl c
 option and display the last 4 lines of the input.
