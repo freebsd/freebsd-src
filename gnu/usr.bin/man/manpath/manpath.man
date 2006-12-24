@@ -23,7 +23,9 @@
 .Nm
 .Op Fl dLq
 .Sh DESCRIPTION
-.Nm Manpath
+The
+.Nm
+utility
 tries to determine the user's manpath from a set of system
 defaults and the user's
 .Ev PATH ,
@@ -48,25 +50,26 @@ with
 and checks if that directory exists.
 If it exists, it is added to the search path.
 .Pp
-.Nm Manpath
-is used by
+The
+.Nm
+utility is used by
 .Xr man 1
 to determine the search path, so users normally do not need to set the
 .Ev MANPATH
 environment variable directly.
 .Pp
 The options are as follows:
-.Bl -tag -width Fl
+.Bl -tag -width indent
 .It Fl d
 Output additional debug information.
 .It Fl L
-Output man locales list (if exist).
+Output man locales list (if it exists).
 .It Fl q
 Operate quietly.
 Only echo the final result.
 .El
 .Sh ENVIRONMENT
-.Bl -tag -width MANLOCALES -compact
+.Bl -tag -width ".Ev MANLOCALES" -compact
 .It Ev MANPATH
 If
 .Ev MANPATH
@@ -85,7 +88,7 @@ echoes its value on the standard output and issues a warning on the
 standard error.
 .El
 .Sh FILES
-.Bl -tag -width %manpath_config_file% -compact
+.Bl -tag -width ".Pa %manpath_config_file%" -compact
 .It Pa %manpath_config_file%
 System configuration file.
 .El
@@ -93,5 +96,3 @@ System configuration file.
 .Xr apropos 1 ,
 .Xr man 1 ,
 .Xr whatis 1
-.Sh BUGS
-None known.
