@@ -98,7 +98,7 @@ _libelf_ar_get_number(char *s, size_t sz, int base, size_t *ret)
 		if (c < '0' || c > '9')
 			return (0);
 		v = c - '0';
-		if (v >= base)		/* illegal digit */
+		if (v >= base)		/* Illegal digit. */
 			break;
 		r *= base;
 		r += v;
@@ -117,10 +117,9 @@ static char *
 _libelf_ar_get_string(char *buf, size_t bufsize, int rawname)
 {
 	char *q, *r;
+	size_t sz;
 
-	q = buf + bufsize;
-
-	/* Skip trailing blanks. */
+	/* Skip back over trailing blanks. */
 	for (q = buf + bufsize - 1; q > buf && *q == ' '; --q)
 		;
 
@@ -130,12 +129,14 @@ _libelf_ar_get_string(char *buf, size_t bufsize, int rawname)
 	if (q <= buf)
 		return (NULL);
 
-	if ((r = malloc(q - buf + 2)) == NULL) {
+	sz = q - buf + 2; /* Space for a trailing NUL. */
+	if ((r = malloc(sz)) == NULL) {
 		LIBELF_SET_ERROR(RESOURCE, 0);
 		return (NULL);
 	}
 
-	(void) strlcpy(r, buf, q - buf + 2);
+	(void) strncpy(r, buf, sz);
+	r[sz - 1] = '\0';
 
 	return (r);
 }
@@ -158,7 +159,8 @@ _libelf_ar_get_name(char *buf, size_t bufsize, Elf *e)
 		 * the archive string table where the actual name
 		 * resides.
 		 */
-		if (_libelf_ar_get_number(buf + 1, bufsize - 1, 10, &offset) == 0) {
+		if (_libelf_ar_get_number(buf + 1, bufsize - 1, 10,
+		    &offset) == 0) {
 			LIBELF_SET_ERROR(ARCHIVE, 0);
 			return (NULL);
 		}
@@ -180,7 +182,8 @@ _libelf_ar_get_name(char *buf, size_t bufsize, Elf *e)
 			return (NULL);
 		}
 
-		(void) strlcpy(s, q, len);
+		(void) strncpy(s, q, len);
+		s[len - 1] = '\0';
 
 		return (s);
 	}
