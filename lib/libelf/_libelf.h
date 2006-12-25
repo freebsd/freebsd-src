@@ -71,6 +71,7 @@ extern struct _libelf_globals _libelf;
  */
 #define	LIBELF_F_MALLOCED	0x010000 /* whether data was malloc'ed */
 #define	LIBELF_F_MMAP		0x020000 /* whether e_rawfile was mmap'ed */
+#define	LIBELF_F_SHDRS_LOADED	0x040000 /* whether all shdrs were read in */
 
 struct _Elf {
 	int		e_activations;	/* activation count */
@@ -107,6 +108,9 @@ struct _Elf {
 				Elf64_Phdr *e_phdr64;
 			} e_phdr;
 			STAILQ_HEAD(, _Elf_Scn)	e_scn;	/* section list */
+			size_t	e_nphdr;	/* number of Phdr entries */
+			size_t	e_nscn;		/* number of sections */
+			size_t	e_strndx;	/* string table section index */
 		} e_elf;
 	} e_u;
 };
@@ -171,9 +175,6 @@ void	(*_libelf_get_translator(Elf_Type _t, int _direction, int _elfclass))
 	    (char *_dst, char *_src, size_t _cnt, int _byteswap);
 void	*_libelf_getphdr(Elf *_e, int _elfclass);
 void	*_libelf_getshdr(Elf_Scn *_scn, int _elfclass);
-int	_libelf_getshnum(Elf *_e, void *_eh, int _elfclass, size_t *_shnum);
-int	_libelf_getshstrndx(Elf *_e, void *_eh, int _elfclass,
-    size_t *_shstrndx);
 void	_libelf_init_elf(Elf *_e, Elf_Kind _kind);
 int	_libelf_malign(Elf_Type _t, int _elfclass);
 size_t	_libelf_msize(Elf_Type _t, int _elfclass, unsigned int _version);
@@ -181,6 +182,7 @@ void	*_libelf_newphdr(Elf *_e, int _elfclass, size_t _count);
 Elf_Data *_libelf_release_data(Elf_Data *_d);
 Elf	*_libelf_release_elf(Elf *_e);
 Elf_Scn	*_libelf_release_scn(Elf_Scn *_s);
+int	_libelf_setphnum(Elf *_e, void *_eh, int _elfclass, size_t _phnum);
 int	_libelf_setshnum(Elf *_e, void *_eh, int _elfclass, size_t _shnum);
 int	_libelf_setshstrndx(Elf *_e, void *_eh, int _elfclass,
     size_t _shstrndx);
