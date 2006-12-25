@@ -44,7 +44,6 @@ _libelf_load_scn(Elf *e, void *ehdr)
 	int ec, swapbytes;
 	size_t fsz, i, shnum;
 	uint64_t shoff;
-	uint32_t shtype;
 	char *src;
 	Elf32_Ehdr *eh32;
 	Elf64_Ehdr *eh64;
@@ -53,6 +52,7 @@ _libelf_load_scn(Elf *e, void *ehdr)
 
 	assert(e != NULL);
 	assert(ehdr != NULL);
+	assert((e->e_flags & LIBELF_F_SHDRS_LOADED) == 0);
 
 #define	CHECK_EHDR(E,EH)	do {				\
 		if (fsz != (EH)->e_shentsize ||			\
@@ -62,18 +62,18 @@ _libelf_load_scn(Elf *e, void *ehdr)
 		}						\
 	} while (0)
 
-	fsz = gelf_fsize(e, ELF_T_SHDR, (size_t) 1, e->e_version);
+	ec = e->e_class;
+	fsz = _libelf_fsize(ELF_T_SHDR, ec, e->e_version, (size_t) 1);
 	assert(fsz > 0);
 
-	ec = e->e_class;
+	shnum = e->e_u.e_elf.e_nscn;
+
 	if (ec == ELFCLASS32) {
 		eh32 = (Elf32_Ehdr *) ehdr;
-		shnum = eh32->e_shnum;
 		shoff = (uint64_t) eh32->e_shoff;
 		CHECK_EHDR(e, eh32);
 	} else {
 		eh64 = (Elf64_Ehdr *) ehdr;
-		shnum = eh64->e_shnum;
 		shoff = eh64->e_shoff;
 		CHECK_EHDR(e, eh64);
 	}
@@ -82,32 +82,18 @@ _libelf_load_scn(Elf *e, void *ehdr)
 
 	swapbytes = e->e_byteorder != LIBELF_PRIVATE(byteorder);
 	src = e->e_rawfile + shoff;
+
+	/*
+	 * If the file is using extended numbering then section #0
+	 * would have already been read in.
+	 */
+
 	i = 0;
+	if (!STAILQ_EMPTY(&e->e_u.e_elf.e_scn)) {
+		assert(STAILQ_FIRST(&e->e_u.e_elf.e_scn) ==
+		    STAILQ_LAST(&e->e_u.e_elf.e_scn, _Elf_Scn, s_next));
 
-	if (shnum == (size_t) 0 && shoff != 0LL) {
-		/* Extended section numbering */
-		if ((scn = _libelf_allocate_scn(e, (size_t) 0)) == NULL)
-			return (0);
-
-		(*xlator)((char *) &scn->s_shdr, src, (size_t) 1, swapbytes);
-
-		if (ec == ELFCLASS32) {
-			shtype = scn->s_shdr.s_shdr32.sh_type;
-			shnum = scn->s_shdr.s_shdr32.sh_size;
-		} else {
-			shtype = scn->s_shdr.s_shdr64.sh_type;
-			shnum = scn->s_shdr.s_shdr64.sh_size;
-		}
-
-		if (shtype != SHT_NULL) {
-			LIBELF_SET_ERROR(SECTION, 0);
-			return (0);
-		}
-
-		scn->s_size = 0LL;
-		scn->s_offset = scn->s_rawoff = 0LL;
-
-		i++;
+		i = 1;
 		src += fsz;
 	}
 
@@ -127,6 +113,9 @@ _libelf_load_scn(Elf *e, void *ehdr)
 			scn->s_size = scn->s_shdr.s_shdr64.sh_size;
 		}
 	}
+
+	e->e_flags |= LIBELF_F_SHDRS_LOADED;
+
 	return (1);
 }
 
@@ -147,7 +136,8 @@ elf_getscn(Elf *e, size_t index)
 	if ((ehdr = _libelf_ehdr(e, ec, 0)) == NULL)
 		return (NULL);
 
-	if (e->e_cmd != ELF_C_WRITE && STAILQ_EMPTY(&e->e_u.e_elf.e_scn) &&
+	if (e->e_cmd != ELF_C_WRITE &&
+	    (e->e_flags & LIBELF_F_SHDRS_LOADED) == 0 &&
 	    _libelf_load_scn(e, ehdr) == 0)
 		return (NULL);
 
@@ -174,7 +164,6 @@ elf_newscn(Elf *e)
 {
 	int ec;
 	void *ehdr;
-	size_t shnum;
 	Elf_Scn *scn;
 
 	if (e == NULL || e->e_kind != ELF_K_ELF) {
@@ -200,30 +189,25 @@ elf_newscn(Elf *e)
 	 * file using ELF_C_READ, mess with its internal structure and
 	 * use elf_update(...,ELF_C_NULL) to compute its new layout.
 	 */
-	if (e->e_cmd != ELF_C_WRITE && STAILQ_EMPTY(&e->e_u.e_elf.e_scn) &&
+	if (e->e_cmd != ELF_C_WRITE &&
+	    (e->e_flags & LIBELF_F_SHDRS_LOADED) == 0 &&
 	    _libelf_load_scn(e, ehdr) == 0)
 		return (NULL);
 
-	if (_libelf_getshnum(e, ehdr, ec, &shnum) == 0)
-		return (NULL);
-
 	if (STAILQ_EMPTY(&e->e_u.e_elf.e_scn)) {
-		assert(shnum == 0);
+		assert(e->e_u.e_elf.e_nscn == 0);
 		if ((scn = _libelf_allocate_scn(e, (size_t) SHN_UNDEF)) ==
 		    NULL)
 			return (NULL);
-		shnum++;
+		e->e_u.e_elf.e_nscn++;
 	}
 
-	assert(shnum > 0);
+	assert(e->e_u.e_elf.e_nscn > 0);
 
-	if ((scn = _libelf_allocate_scn(e, shnum)) == NULL)
+	if ((scn = _libelf_allocate_scn(e, e->e_u.e_elf.e_nscn)) == NULL)
 		return (NULL);
 
-	shnum++;
-
-	if (_libelf_setshnum(e, ehdr, ec, shnum) == 0)
-		return (NULL);
+	e->e_u.e_elf.e_nscn++;
 
 	(void) elf_flagscn(scn, ELF_C_SET, ELF_F_DIRTY);
 

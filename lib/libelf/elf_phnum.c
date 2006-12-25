@@ -27,73 +27,27 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-#include <gelf.h>
+#include <ar.h>
+#include <libelf.h>
 
 #include "_libelf.h"
 
-static unsigned long
-_libelf_sum(unsigned long c, const unsigned char *s, size_t size)
+int
+elf_getphnum(Elf *e, size_t *phnum)
 {
-	if (s == NULL || size == 0)
-		return (c);
+	void *eh;
+	int ec;
 
-	while (size--)
-		c += *s++;
-
-	return (c);
-}
-
-unsigned long
-_libelf_checksum(Elf *e, int elfclass)
-{
-	size_t shn;
-	Elf_Scn *scn;
-	Elf_Data *d;
-	unsigned long checksum;
-	GElf_Ehdr eh;
-	GElf_Shdr shdr;
-
-	if (e == NULL) {
+	if (e == NULL || e->e_kind != ELF_K_ELF ||
+	    ((ec = e->e_class) != ELFCLASS32 && ec != ELFCLASS64)) {
 		LIBELF_SET_ERROR(ARGUMENT, 0);
-		return (0L);
+		return (0);
 	}
 
-	if (e->e_class != elfclass) {
-		LIBELF_SET_ERROR(CLASS, 0);
-		return (0L);
-	}
-
-	if (gelf_getehdr(e, &eh) == NULL)
+	if ((eh = _libelf_ehdr(e, ec, 0)) == NULL)
 		return (0);
 
-	/*
-	 * Iterate over all sections in the ELF file, computing the
-	 * checksum along the way.
-	 *
-	 * The first section is always SHN_UNDEF and can be skipped.
-	 * Non-allocatable sections are skipped, as are sections that
-	 * could be affected by utilities such as strip(1).
-	 */
+	*phnum = e->e_u.e_elf.e_nphdr;
 
-	checksum = 0;
-	for (shn = 1; shn < e->e_u.e_elf.e_nscn; shn++) {
-		if ((scn = elf_getscn(e, shn)) == NULL)
-			return (0);
-		if (gelf_getshdr(scn, &shdr) == NULL)
-			return (0);
-		if ((shdr.sh_flags & SHF_ALLOC) == 0 ||
-		    shdr.sh_type == SHT_DYNAMIC ||
-		    shdr.sh_type == SHT_DYNSYM)
-			continue;
-
-		d = NULL;
-		while ((d = elf_rawdata(scn, d)) != NULL)
-			checksum = _libelf_sum(checksum,
-			    (unsigned char *) d->d_buf, d->d_size);
-	}
-
-	/*
-	 * Return a 16-bit checksum compatible with Solaris.
-	 */
-	return (((checksum >> 16) & 0xFFFFUL) + (checksum & 0xFFFFUL));
+	return (1);
 }

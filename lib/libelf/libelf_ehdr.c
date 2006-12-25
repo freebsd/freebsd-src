@@ -36,6 +36,54 @@ __FBSDID("$FreeBSD$");
 
 #include "_libelf.h"
 
+/*
+ * Retrieve counts for sections, phdrs and the section string table index
+ * from section header #0 of the ELF object.
+ */
+static int
+_libelf_load_extended(Elf *e, int ec, uint64_t shoff, uint16_t phnum,
+    uint16_t strndx)
+{
+	Elf_Scn *scn;
+	size_t fsz;
+	void (*xlator)(char *_d, char *_s, size_t _c, int _swap);
+	uint32_t shtype;
+
+	assert(STAILQ_EMPTY(&e->e_u.e_elf.e_scn));
+
+	fsz = _libelf_fsize(ELF_T_SHDR, ec, e->e_version, 1);
+	assert(fsz > 0);
+
+	if (e->e_rawsize < shoff + fsz) { /* raw file too small */
+		LIBELF_SET_ERROR(HEADER, 0);
+		return (0);
+	}
+
+	if ((scn = _libelf_allocate_scn(e, (size_t) 0)) == NULL)
+		return (0);
+
+	xlator = _libelf_get_translator(ELF_T_SHDR, ELF_TOMEMORY, ec);
+	(*xlator)((char *) &scn->s_shdr, e->e_rawfile + shoff, (size_t) 1,
+	    e->e_byteorder != LIBELF_PRIVATE(byteorder));
+
+#define	GET_SHDR_MEMBER(M) ((ec == ELFCLASS32) ? scn->s_shdr.s_shdr32.M : \
+		scn->s_shdr.s_shdr64.M)
+
+	if ((shtype = GET_SHDR_MEMBER(sh_type)) != SHT_NULL) {
+		LIBELF_SET_ERROR(SECTION, 0);
+		return (0);
+	}
+
+	e->e_u.e_elf.e_nscn = GET_SHDR_MEMBER(sh_size);
+	e->e_u.e_elf.e_nphdr = (phnum != PN_XNUM) ? phnum :
+	    GET_SHDR_MEMBER(sh_info);
+	e->e_u.e_elf.e_strndx = (strndx != SHN_XINDEX) ? strndx :
+	    GET_SHDR_MEMBER(sh_link);
+#undef	GET_SHDR_MEMBER
+
+	return (1);
+}
+
 #define	EHDR_INIT(E,SZ)	 do {						\
 		Elf##SZ##_Ehdr *eh = (E);				\
 		eh->e_ident[EI_MAG0] = ELFMAG0;				\
@@ -53,8 +101,10 @@ __FBSDID("$FreeBSD$");
 void *
 _libelf_ehdr(Elf *e, int ec, int allocate)
 {
-	size_t fsz, msz;
 	void *ehdr;
+	size_t fsz, msz;
+	uint16_t phnum, shnum, strndx;
+	uint64_t shoff;
 	void (*xlator)(char *_d, char *_s, size_t _c, int _swap);
 
 	assert(ec == ELFCLASS32 || ec == ELFCLASS64);
@@ -85,8 +135,7 @@ _libelf_ehdr(Elf *e, int ec, int allocate)
 	if (ehdr != NULL)	/* already have a translated ehdr */
 		return (ehdr);
 
-	fsz = gelf_fsize(e, ELF_T_EHDR, (size_t) 1, e->e_version);
-
+	fsz = _libelf_fsize(ELF_T_EHDR, ec, e->e_version, (size_t) 1);
 	assert(fsz > 0);
 
 	if (e->e_cmd != ELF_C_WRITE && e->e_rawsize < fsz) {
@@ -120,6 +169,36 @@ _libelf_ehdr(Elf *e, int ec, int allocate)
 	xlator = _libelf_get_translator(ELF_T_EHDR, ELF_TOMEMORY, ec);
 	(*xlator)(ehdr, e->e_rawfile, (size_t) 1,
 	    e->e_byteorder != LIBELF_PRIVATE(byteorder));
+
+	/*
+	 * If extended numbering is being used, read the correct
+	 * number of sections and program header entries.
+	 */
+	if (ec == ELFCLASS32) {
+		phnum = ((Elf32_Ehdr *) ehdr)->e_phnum;
+		shnum = ((Elf32_Ehdr *) ehdr)->e_shnum;
+		shoff = ((Elf32_Ehdr *) ehdr)->e_shoff;
+		strndx = ((Elf32_Ehdr *) ehdr)->e_shstrndx;
+	} else {
+		phnum = ((Elf64_Ehdr *) ehdr)->e_phnum;
+		shnum = ((Elf64_Ehdr *) ehdr)->e_shnum;
+		shoff = ((Elf64_Ehdr *) ehdr)->e_shoff;
+		strndx = ((Elf64_Ehdr *) ehdr)->e_shstrndx;
+	}
+
+	if (shnum >= SHN_LORESERVE ||
+	    (shoff == 0LL && (shnum != 0 || phnum == PN_XNUM ||
+		strndx == SHN_XINDEX))) {
+		LIBELF_SET_ERROR(HEADER, 0);
+		return (NULL);
+	}
+
+	if (shnum != 0 || shoff == 0LL) { /* not using extended numbering */
+		e->e_u.e_elf.e_nphdr = phnum;
+		e->e_u.e_elf.e_nscn = shnum;
+		e->e_u.e_elf.e_strndx = strndx;
+	} else if (_libelf_load_extended(e, ec, shoff, phnum, strndx) == 0)
+		return (NULL);
 
 	return (ehdr);
 }
