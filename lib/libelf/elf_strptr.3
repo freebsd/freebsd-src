@@ -23,7 +23,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd August 29, 2006
+.Dd December 16, 2006
 .Os
 .Dt ELF_STRPTR 3
 .Sh NAME
@@ -101,6 +101,10 @@ An out of memory condition was detected.
 Section
 .Ar scndx
 contained a malformed section header.
+.It Bq Er ELF_E_SECTION
+The ELF descriptor in argument
+.Ar elf
+did not adhere to the conventions used for extended numbering.
 .El
 .Sh SEE ALSO
 .Xr elf 3 ,

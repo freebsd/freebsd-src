@@ -23,7 +23,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd July 6, 2006
+.Dd December 16, 2006
 .Os
 .Dt GELF_NEWEHDR 3
 .Sh NAME
@@ -163,6 +163,10 @@ did not match that of the API function being called.
 A malformed ELF header was detected.
 .It Bq Er ELF_E_RESOURCE
 An out of memory condition was detected during execution.
+.It Bq Er ELF_E_SECTION
+The ELF descriptor in argument
+.Ar elf
+did not adhere to the conventions used for extended numbering.
 .It Bq Er ELF_E_VERSION
 The ELF descriptor
 .Ar elf
