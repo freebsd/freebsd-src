@@ -39,6 +39,7 @@ global:
 	elf_getdata;
 	elf_getident;
 	elf_getscn;
+	elf_getphnum;
 	elf_getshnum;
 	elf_getshstrndx;
 	elf_hash;

@@ -32,68 +32,6 @@ __FBSDID("$FreeBSD$");
 
 #include "_libelf.h"
 
-/*
- * Helpers to get/set the e_shstrndx field of the ELF header.
- */
-
-int
-_libelf_getshstrndx(Elf *e, void *eh, int ec, size_t *strndx)
-{
-	Elf_Scn *scn;
-	void *sh;
-	size_t n;
-
-	n = (ec == ELFCLASS32) ? ((Elf32_Ehdr *) eh)->e_shstrndx :
-	    ((Elf64_Ehdr *) eh)->e_shstrndx;
-
-	if (n < SHN_LORESERVE) {
-		*strndx = n;
-		return (1);
-	}
-
-	if ((scn = elf_getscn(e, (size_t) SHN_UNDEF)) == NULL)
-		return (0);
-	if ((sh = _libelf_getshdr(scn, ec)) == NULL)
-		return (0);
-
-	if (ec == ELFCLASS32)
-		*strndx = ((Elf32_Shdr *) sh)->sh_link;
-	else
-		*strndx = ((Elf64_Shdr *) sh)->sh_link;
-
-	return (1);
-}
-
-int
-_libelf_setshstrndx(Elf *e, void *eh, int ec, size_t strndx)
-{
-	Elf_Scn *scn;
-	void *sh;
-
-	if (strndx < SHN_LORESERVE) {
-		if (ec == ELFCLASS32)
-			((Elf32_Ehdr *) eh)->e_shstrndx = strndx;
-		else
-			((Elf64_Ehdr *) eh)->e_shstrndx = strndx;
-		return (1);
-	}
-
-	if ((scn = elf_getscn(e, (size_t) SHN_UNDEF)) == NULL)
-		return (0);
-	if ((sh = _libelf_getshdr(scn, ec)) == NULL)
-		return (0);
-
-	if (ec == ELFCLASS32) {
-		((Elf32_Ehdr *) eh)->e_shstrndx = SHN_XINDEX;
-		((Elf32_Shdr *) sh)->sh_link = strndx;
-	} else {
-		((Elf64_Ehdr *) eh)->e_shstrndx = SHN_XINDEX;
-		((Elf64_Shdr *) sh)->sh_link = strndx;
-	}
-
-	return (1);
-}
-
 int
 elf_getshstrndx(Elf *e, size_t *strndx)
 {
@@ -101,13 +39,17 @@ elf_getshstrndx(Elf *e, size_t *strndx)
 	int ec;
 
 	if (e == NULL || e->e_kind != ELF_K_ELF ||
-	    ((ec = e->e_class) != ELFCLASS32 && ec != ELFCLASS64) ||
-	    ((eh = _libelf_ehdr(e, ec, 0)) == NULL)) {
+	    ((ec = e->e_class) != ELFCLASS32 && ec != ELFCLASS64)) {
 		LIBELF_SET_ERROR(ARGUMENT, 0);
 		return (0);
 	}
 
-	return (_libelf_getshstrndx(e, eh, ec, strndx));
+	if ((eh = _libelf_ehdr(e, ec, 0)) == NULL)
+		return (0);
+
+	*strndx = e->e_u.e_elf.e_strndx;
+
+	return (1);
 }
 
 int
