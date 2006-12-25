@@ -54,9 +54,9 @@ command displays statistics kept about
 client and server activity.
 .Pp
 The options are as follows:
-.Bl -tag -width Ds
+.Bl -tag -width indent
 .It Fl c
-Only display client side statistics
+Only display client side statistics.
 .It Fl M
 Extract values associated with the name list from the specified core
 instead of the default
@@ -65,11 +65,15 @@ instead of the default
 Extract the name list from the specified system instead of the default
 .Pa /boot/kernel/kernel .
 .It Fl s
-Only display server side statistics
+Only display server side statistics.
 .It Fl W
 Use wide format with interval short summary.
 This option is especially
-useful when combined with -c or -s and a time delay.
+useful when combined with
+.Fl c
+or
+.Fl s
+and a time delay.
 .It Fl w
 Display a shorter summary of
 .Tn NFS
@@ -78,7 +82,7 @@ activity for both the client and server at
 second intervals.
 .El
 .Sh FILES
-.Bl -tag -width /boot/kernel/kernel -compact
+.Bl -tag -width ".Pa /boot/kernel/kernel" -compact
 .It Pa /boot/kernel/kernel
 default kernel namelist
 .It Pa /dev/kmem
