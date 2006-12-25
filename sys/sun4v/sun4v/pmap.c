@@ -1509,9 +1509,9 @@ pmap_invalidate_page(pmap_t pmap, vm_offset_t va, int cleartsb)
 void
 pmap_invalidate_range(pmap_t pmap, vm_offset_t sva, vm_offset_t eva, int cleartsb)
 {
-	vm_offset_t tva;
-#ifdef SMP
+	vm_offset_t tva, invlrngva;
 	char *func;
+#ifdef SMP
 	cpumask_t active;
 #endif
 	if ((eva - sva) == PAGE_SIZE) {
@@ -1520,8 +1520,7 @@ pmap_invalidate_range(pmap_t pmap, vm_offset_t sva, vm_offset_t eva, int clearts
 	}
 	
 
-	if (sva >= eva) 
-		panic("invalidating negative or zero range sva=0x%lx eva=0x%lx", sva, eva);
+	KASSERT(sva >= eva, ("invalidating negative or zero range sva=0x%lx eva=0x%lx", sva, eva))
 
 	if (cleartsb == TRUE) 
 		tsb_clear_range(&pmap->pm_tsb, sva, eva);
@@ -1530,18 +1529,18 @@ pmap_invalidate_range(pmap_t pmap, vm_offset_t sva, vm_offset_t eva, int clearts
 	if ((sva - eva) < PAGE_SIZE*64) {
 		for (tva = sva; tva < eva; tva += PAGE_SIZE_8K)
 			invlpg(tva, pmap->pm_context);
-	} else if (pmap->pm_context) 
-		invlctx(pmap->pm_context);
-	else 
-		invltlb();
-	
-#ifdef SMP
-	if (pmap == kernel_pmap)
-		func = tl_invltlb;
-	else
+		func = tl_invlrng;
+	} else if (pmap->pm_context) {
 		func = tl_invlctx;
+		invlctx(pmap->pm_context);
 
-	active = pmap_ipi(pmap, (void *)func, pmap->pm_context, 0);
+	} else {
+		func = tl_invltlb;
+		invltlb();
+	}
+#ifdef SMP
+	invlrngva = sva | ((eva - sva) >> PAGE_SHIFT);
+	active = pmap_ipi(pmap, (void *)func, pmap->pm_context, invlrngva);
 	active &= ~pmap->pm_active;
 	atomic_clear_int(&pmap->pm_tlbactive, active);
 #endif
@@ -1552,8 +1551,8 @@ void
 pmap_invalidate_all(pmap_t pmap)
 {
 
-	if (pmap == kernel_pmap)
-		panic("invalidate_all called on kernel_pmap");
+	KASSERT(pmap == kernel_pmap, 
+		("invalidate_all called on kernel_pmap"));
 
 	tsb_clear(&pmap->pm_tsb);
 
@@ -1802,14 +1801,13 @@ void
 pmap_qenter(vm_offset_t sva, vm_page_t *m, int count)
 {
 	vm_offset_t va;
-	tte_t otte_data;
+	tte_t otte;
 	
-	otte_data = 0;
+	otte = 0;
 	va = sva;
 	while (count-- > 0) {
 		otte |= tte_hash_update(kernel_pmap->pm_hash, va,  
-					VM_PAGE_TO_PHYS(*m), 
-					pa | TTE_KERNEL | VTD_8K);
+					VM_PAGE_TO_PHYS(*m) | TTE_KERNEL | VTD_8K);
 		va += PAGE_SIZE;
 		m++;
 	}

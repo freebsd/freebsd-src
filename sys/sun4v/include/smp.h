@@ -104,7 +104,7 @@ extern	char tl_ipi_level[];
 extern	char tl_invltlb[];
 extern	char tl_invlctx[];
 extern	char tl_invlpg[];
-extern	char tl_ipi_tlb_range_demap[];
+extern	char tl_invlrng[];
 extern  char tl_tsbupdate[];
 extern  char tl_ttehashupdate[];
 
