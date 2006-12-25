@@ -197,6 +197,11 @@ static slist_entry
 static uint32_t InterlockedIncrement(volatile uint32_t *);
 static uint32_t InterlockedDecrement(volatile uint32_t *);
 static void ExInterlockedAddLargeStatistic(uint64_t *, uint32_t);
+static void *MmAllocateContiguousMemory(uint32_t, uint64_t);
+static void *MmAllocateContiguousMemorySpecifyCache(uint32_t,
+	uint64_t, uint64_t, uint64_t, uint32_t);
+static void MmFreeContiguousMemory(void *);
+static void MmFreeContiguousMemorySpecifyCache(void *, uint32_t, uint32_t);
 static uint32_t MmSizeOfMdl(void *, size_t);
 static void *MmMapLockedPages(mdl *, uint8_t);
 static void *MmMapLockedPagesSpecifyCache(mdl *,
@@ -234,6 +239,7 @@ static uint32_t WmiTraceMessage(uint64_t, uint32_t, void *, uint16_t, ...);
 static uint32_t IoWMIRegistrationControl(device_object *, uint32_t);
 static void *ntoskrnl_memset(void *, int, size_t);
 static void *ntoskrnl_memmove(void *, void *, size_t);
+static void *ntoskrnl_memchr(void *, unsigned char, size_t);
 static char *ntoskrnl_strstr(char *, char *);
 static int ntoskrnl_toupper(int);
 static int ntoskrnl_tolower(int);
@@ -431,6 +437,23 @@ ntoskrnl_memmove(dst, src, size)
 {
 	bcopy(src, dst, size);
 	return(dst);
+}
+
+static void *
+ntoskrnl_memchr(buf, ch, len)
+	void			*buf;
+	unsigned char		ch;
+	size_t			len;
+{
+	if (len != 0) {
+		unsigned char *p = buf;
+
+		do {
+			if (*p++ == ch)
+				return (p - 1);
+		} while (--len != 0);
+	}
+	return (NULL);
 }
 
 static char *
@@ -2471,6 +2494,52 @@ IoFreeMdl(m)
         return;
 }
 
+static void *
+MmAllocateContiguousMemory(size, highest)
+	uint32_t		size;
+	uint64_t		highest;
+{
+	void *addr;
+	size_t pagelength = roundup(size, PAGE_SIZE);
+
+	addr = ExAllocatePoolWithTag(NonPagedPool, pagelength, 0);
+
+	return(addr);
+}
+
+static void *
+MmAllocateContiguousMemorySpecifyCache(size, lowest, highest,
+    boundary, cachetype)
+	uint32_t		size;
+	uint64_t		lowest;
+	uint64_t		highest;
+	uint64_t		boundary;
+	uint32_t		cachetype;
+{
+	void *addr;
+	size_t pagelength = roundup(size, PAGE_SIZE);
+
+	addr = ExAllocatePoolWithTag(NonPagedPool, pagelength, 0);
+
+	return(addr);
+}
+
+static void
+MmFreeContiguousMemory(base)
+	void			*base;
+{
+	ExFreePool(base);
+}
+
+static void
+MmFreeContiguousMemorySpecifyCache(base, size, cachetype)
+	void			*base;
+	uint32_t		size;
+	uint32_t		cachetype;
+{
+	ExFreePool(base);
+}
+
 static uint32_t
 MmSizeOfMdl(vaddr, len)
 	void			*vaddr;
@@ -4144,6 +4213,7 @@ image_patch_table ntoskrnl_functbl[] = {
 	IMPORT_SFUNC(DbgBreakPoint, 0),
 	IMPORT_CFUNC(strncmp, 0),
 	IMPORT_CFUNC(strcmp, 0),
+	IMPORT_CFUNC_MAP(stricmp, strcasecmp, 0),
 	IMPORT_CFUNC(strncpy, 0),
 	IMPORT_CFUNC(strcpy, 0),
 	IMPORT_CFUNC(strlen, 0),
@@ -4151,9 +4221,11 @@ image_patch_table ntoskrnl_functbl[] = {
 	IMPORT_CFUNC_MAP(tolower, ntoskrnl_tolower, 0),
 	IMPORT_CFUNC_MAP(strstr, ntoskrnl_strstr, 0),
 	IMPORT_CFUNC_MAP(strchr, index, 0),
+	IMPORT_CFUNC_MAP(strrchr, rindex, 0),
 	IMPORT_CFUNC(memcpy, 0),
 	IMPORT_CFUNC_MAP(memmove, ntoskrnl_memmove, 0),
 	IMPORT_CFUNC_MAP(memset, ntoskrnl_memset, 0),
+	IMPORT_CFUNC_MAP(memchr, ntoskrnl_memchr, 0),
 	IMPORT_SFUNC(IoAllocateDriverObjectExtension, 4),
 	IMPORT_SFUNC(IoGetDriverObjectExtension, 2),
 	IMPORT_FFUNC(IofCallDriver, 2),
@@ -4239,6 +4311,11 @@ image_patch_table ntoskrnl_functbl[] = {
 	IMPORT_FFUNC(ExInterlockedAddLargeStatistic, 2),
 	IMPORT_SFUNC(IoAllocateMdl, 5),
 	IMPORT_SFUNC(IoFreeMdl, 1),
+	IMPORT_SFUNC(MmAllocateContiguousMemory, 2),
+	IMPORT_SFUNC(MmAllocateContiguousMemorySpecifyCache, 5),
+	IMPORT_SFUNC(MmFreeContiguousMemory, 1),
+	IMPORT_SFUNC(MmFreeContiguousMemorySpecifyCache, 3),
+	IMPORT_SFUNC_MAP(MmGetPhysicalAddress, pmap_kextract, 1),
 	IMPORT_SFUNC(MmSizeOfMdl, 1),
 	IMPORT_SFUNC(MmMapLockedPages, 2),
 	IMPORT_SFUNC(MmMapLockedPagesSpecifyCache, 6),
