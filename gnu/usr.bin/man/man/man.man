@@ -31,7 +31,9 @@
 .Op Ar section
 .Ar name ...
 .Sh DESCRIPTION
-.Nm Man
+The
+.Nm
+utility
 formats and displays the on-line manual pages.
 This version knows
 about the
@@ -41,7 +43,9 @@ and
 environment variables, so you can have
 your own set(s) of personal man pages and choose whatever program you
 like to display the formatted pages.
-If section is specified,
+If
+.Ar section
+is specified,
 .Nm
 only looks in that section of the manual.
 You may also specify the
@@ -49,11 +53,12 @@ order to search the sections for entries and which preprocessors to
 run on the source files via command line options or environment
 variables.
 If enabled by the system administrator, formatted man
-pages will also be compressed with the `%compress%' command to save
-space.
+pages will also be compressed with the
+.Dq Li "%compress%"
+command to save space.
 .Pp
 The options are as follows:
-.Bl -tag -width Fl
+.Bl -tag -width ".Fl P Ar pager"
 .It Fl M Ar path
 Specify an alternate manpath.
 By default,
@@ -72,7 +77,7 @@ Specify which pager to use.
 By default,
 .Nm
 uses
-.Nm %pager% .
+.Dq Li "%pager%" .
 This option overrides the
 .Ev PAGER
 environment variable.
@@ -172,8 +177,8 @@ will search in the following subdirectories, in the order of precedence:
 .Sm on
 .El
 .Pp
-For example, for
-.Dq de_DE.ISO8859-1
+For example, for the
+.Dq Li de_DE.ISO8859-1
 locale,
 .Nm
 will search in the following subdirectories of the
@@ -195,10 +200,18 @@ it will be looked up in the default
 .Pa /usr/share/man
 directory.
 .It Fl p Ar string
-Specify the sequence of preprocessors to run before nroff or troff.
+Specify the sequence of preprocessors to run before
+.Xr nroff 1
+or
+.Xr troff 1 .
 Not all installations will have a full set of preprocessors.
 Some of the preprocessors and the letters used to designate them are:
-eqn (e), grap (g), pic (p), tbl (t), vgrind (v), refer (r).
+.Nm eqn Pq e ,
+.Nm grap Pq g ,
+.Nm pic Pq p ,
+.Nm tbl Pq t ,
+.Nm vgrind Pq v ,
+.Nm refer Pq r .
 This option overrides the
 .Ev MANROFFSEQ
 environment variable.
@@ -245,9 +258,15 @@ is set, its value is used as the path to search for manual pages.
 If
 .Ev MANROFFSEQ
 is set, its value is used to determine the set of preprocessors run
-before running nroff or troff.
+before running
+.Xr nroff 1
+or
+.Xr troff 1 .
 By default, pages are passed through
-the table preprocessor before nroff.
+the table preprocessor
+.Pq Xr tbl 1
+before
+.Xr nroff 1 .
 .It Ev MANSECT
 If
 .Ev MANSECT
@@ -258,22 +277,23 @@ If
 is set, its value is used as the name of the program to use to display
 the man page.
 By default,
-.Nm %pager%
+.Dq Li "%pager%"
 is used.
 .El
 .Sh EXAMPLES
 .Pp
-Normally, to look at the relevant manpage information for getopt,
+Normally, to look at the relevant manpage information for
+.Dq Li getopt ,
 one would use:
 .Pp
-.Dl man getopt
+.Dl "man getopt"
 .Pp
 However, when referring to a specific section of the manual,
 such as
 .Xr getopt 3 ,
 one would use:
 .Pp
-.Dl man 3 getopt
+.Dl "man 3 getopt"
 .Sh SEE ALSO
 .Xr apropos 1 ,
 .Xr groff 1 ,
