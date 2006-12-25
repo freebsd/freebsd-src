@@ -23,7 +23,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd August 29, 2006
+.Dd December 16, 2006
 .Os
 .Dt ELF_UPDATE 3
 .Sh NAME
@@ -237,6 +237,10 @@ writing or updating.
 Argument
 .Ar elf
 contained a section with an unrecognized type.
+.It Bq Er ELF_E_SECTION
+The section header at index
+.Dv SHN_UNDEF
+had an illegal section type.
 .It Bq Er ELF_E_SEQUENCE
 An
 .Dv ELF_C_WRITE
