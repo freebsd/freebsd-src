@@ -286,7 +286,8 @@ sigqueue_get(sigqueue_t *sq, int signo, ksiginfo_t *si)
 				if (ksiginfo_tryfree(ksi) && p != NULL)
 					p->p_pendingcnt--;
 			}
-			count++;
+			if (++count > 1)
+				break;
 		}
 	}
 
