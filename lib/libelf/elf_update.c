@@ -346,7 +346,6 @@ _libelf_resync_elf(Elf *e)
 	if (ec == ELFCLASS32) {
 		eh_byteorder = eh32->e_ident[EI_DATA];
 		eh_class     = eh32->e_ident[EI_CLASS];
-		phnum        = eh32->e_phnum;
 		phoff        = (uint64_t) eh32->e_phoff;
 		shoff        = (uint64_t) eh32->e_shoff;
 		eh_type      = eh32->e_type;
@@ -354,7 +353,6 @@ _libelf_resync_elf(Elf *e)
 	} else {
 		eh_byteorder = eh64->e_ident[EI_DATA];
 		eh_class     = eh64->e_ident[EI_CLASS];
-		phnum        = eh64->e_phnum;
 		phoff        = eh64->e_phoff;
 		shoff        = eh64->e_shoff;
 		eh_type      = eh64->e_type;
@@ -379,8 +377,8 @@ _libelf_resync_elf(Elf *e)
 		return ((off_t) -1);
 	}
 
-	if (_libelf_getshnum(e, ehdr, ec, &shnum) == 0)
-		return ((off_t) -1);
+	shnum = e->e_u.e_elf.e_nscn;
+	phnum = e->e_u.e_elf.e_nphdr;
 
 	e->e_byteorder = eh_byteorder;
 
@@ -470,6 +468,13 @@ _libelf_resync_elf(Elf *e)
 		rc = shoff + fsz * shnum;
 	} else
 		shoff = 0;
+
+	/*
+	 * Set the fields of the Executable Header that could potentially use
+	 * extended numbering.
+	 */
+	_libelf_setphnum(e, ehdr, ec, phnum);
+	_libelf_setshnum(e, ehdr, ec, shnum);
 
 	/*
 	 * Update the `e_phoff' and `e_shoff' fields if the library is
@@ -638,18 +643,17 @@ _libelf_write_elf(Elf *e, off_t newsize)
 	ehdr = _libelf_ehdr(e, ec, 0);
 	assert(ehdr != NULL);
 
+	phnum = e->e_u.e_elf.e_nphdr;
+
 	if (ec == ELFCLASS32) {
 		eh32 = (Elf32_Ehdr *) ehdr;
 
-		phnum = eh32->e_phnum;
 		phoff = (uint64_t) eh32->e_phoff;
 		shnum = eh32->e_shnum;
 		shoff = (uint64_t) eh32->e_shoff;
-
 	} else {
 		eh64 = (Elf64_Ehdr *) ehdr;
 
-		phnum = eh64->e_phnum;
 		phoff = eh64->e_phoff;
 		shnum = eh64->e_shnum;
 		shoff = eh64->e_shoff;

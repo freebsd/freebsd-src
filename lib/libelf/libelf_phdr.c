@@ -66,14 +66,14 @@ _libelf_getphdr(Elf *e, int ec)
 	if ((ehdr = _libelf_ehdr(e, ec, 0)) == NULL)
 		return (NULL);
 
+	phnum = e->e_u.e_elf.e_nphdr;
+
 	if (ec == ELFCLASS32) {
 		eh32      = (Elf32_Ehdr *) ehdr;
-		phnum     = eh32->e_phnum;
 		phentsize = eh32->e_phentsize;
 		phoff     = (uint64_t) eh32->e_phoff;
 	} else {
 		eh64      = (Elf64_Ehdr *) ehdr;
-		phnum     = eh64->e_phnum;
 		phentsize = eh64->e_phentsize;
 		phoff     = (uint64_t) eh64->e_phoff;
 	}
@@ -112,9 +112,7 @@ _libelf_getphdr(Elf *e, int ec)
 void *
 _libelf_newphdr(Elf *e, int ec, size_t count)
 {
-	void *ehdr, *nphdr, *ophdr;
-	Elf32_Ehdr *eh32;
-	Elf64_Ehdr *eh64;
+	void *ehdr, *newphdr, *oldphdr;
 	size_t msz;
 
 	if (e == NULL) {
@@ -135,31 +133,25 @@ _libelf_newphdr(Elf *e, int ec, size_t count)
 
 	assert(msz > 0);
 
-	nphdr = NULL;
-	if (count > 0 && (nphdr = calloc(count, msz)) == NULL) {
+	newphdr = NULL;
+	if (count > 0 && (newphdr = calloc(count, msz)) == NULL) {
 		LIBELF_SET_ERROR(RESOURCE, 0);
 		return (NULL);
 	}
 
 	if (ec == ELFCLASS32) {
-		if ((ophdr = (void *) e->e_u.e_elf.e_phdr.e_phdr32) != NULL)
-			free(ophdr);
-		e->e_u.e_elf.e_phdr.e_phdr32 = (Elf32_Phdr *) nphdr;
+		if ((oldphdr = (void *) e->e_u.e_elf.e_phdr.e_phdr32) != NULL)
+			free(oldphdr);
+		e->e_u.e_elf.e_phdr.e_phdr32 = (Elf32_Phdr *) newphdr;
 	} else {
-		if ((ophdr = (void *) e->e_u.e_elf.e_phdr.e_phdr64) != NULL)
-			free(ophdr);
-		e->e_u.e_elf.e_phdr.e_phdr64 = (Elf64_Phdr *) nphdr;
+		if ((oldphdr = (void *) e->e_u.e_elf.e_phdr.e_phdr64) != NULL)
+			free(oldphdr);
+		e->e_u.e_elf.e_phdr.e_phdr64 = (Elf64_Phdr *) newphdr;
 	}
 
-	if (ec == ELFCLASS32) {
-		eh32 = (Elf32_Ehdr *) ehdr;
-		eh32->e_phnum = count;
-	} else {
-		eh64 = (Elf64_Ehdr *) ehdr;
-		eh64->e_phnum = count;
-	}
+	e->e_u.e_elf.e_nphdr = count;
 
 	elf_flagphdr(e, ELF_C_SET, ELF_F_DIRTY);
 
-	return (nphdr);
+	return (newphdr);
 }

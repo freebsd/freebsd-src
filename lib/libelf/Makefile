@@ -18,6 +18,7 @@ SRCS=	elf_begin.c						\
 	elf_next.c						\
 	elf_rand.c						\
 	elf_rawfile.c						\
+	elf_phnum.c						\
 	elf_shnum.c						\
 	elf_shstrndx.c						\
 	elf_scn.c						\
@@ -46,6 +47,7 @@ SRCS=	elf_begin.c						\
 	libelf_checksum.c					\
 	libelf_data.c						\
 	libelf_ehdr.c						\
+	libelf_extended.c					\
 	libelf_phdr.c						\
 	libelf_shdr.c						\
 	libelf_xlate.c						\
@@ -72,6 +74,7 @@ MAN=	elf.3							\
 	elf_getdata.3						\
 	elf_getident.3						\
 	elf_getscn.3						\
+	elf_getphnum.3						\
 	elf_getshnum.3						\
 	elf_getshstrndx.3					\
 	elf_hash.3						\
