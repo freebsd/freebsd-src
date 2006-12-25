@@ -452,6 +452,35 @@ ENTRY(tl_invlpg)
 	  membar #Sync
 END(tl_invlpg)
 
+ENTRY(tl_invlrng)
+	sethi	%hi(PAGE_SIZE), %g5
+	dec	%g5
+	and	%g1, %g5, %g4
+	andn	%g1, %g5, %g1
+	dec	%g4
+		
+1:	mov	%o0, %g5
+	mov	%o1, %g6
+	mov	%o2, %g7
+	mov	MAP_ITLB|MAP_DTLB, %o2
+	mov	%g1, %o0
+	mov	%g2, %o1
+	ta	MMU_UNMAP_ADDR
+	brnz,a,pn %o0, interrupt_panic_bad_hcall
+	   mov	MMU_UNMAP_ADDR, %o1
+
+	brnz,pt	%g4, 1b
+	  dec	%g4
+	
+	mov	%g5, %o0
+	mov	%g6, %o1
+	mov	%g7, %o2
+	ba,pt	%xcc, set_ackmask
+	  membar #Sync
+END(tl_invlrng)
+
+
+
 ENTRY(tl_tsbupdate)
 /* compare current context with one to be updated */
 	mov	MMU_CID_S, %g4
