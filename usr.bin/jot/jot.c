@@ -393,8 +393,12 @@ getformat(void)
 	if (boring)				/* no need to bother */
 		return;
 	for (p = format; *p; p++)		/* look for '%' */
-		if (*p == '%' && *(p+1) != '%')	/* leave %% alone */
-			break;
+		if (*p == '%') {
+			if (p[1] == '%')
+				p++;		/* leave %% alone */
+			else
+				break;
+		}
 	sz = sizeof(format) - strlen(format) - 1;
 	if (!*p && !chardata) {
 		if (snprintf(p, sz, "%%.%df", prec) >= (int)sz)
@@ -477,7 +481,9 @@ fmt_broken:
 			else if (*p == '%' && *(p+1) == '%')
 				p++;
 			else if (*p == '%' && !*(p+1)) {
-				strcat(format, "%");
+				if (strlcat(format, "%", sizeof(format)) >=
+				    sizeof(format))
+					errx(1, "-w word too long");
 				break;
 			}
 	}
