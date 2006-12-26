@@ -56,7 +56,7 @@ input device is a terminal, the user is prompted (on the standard error
 output) for confirmation.
 .Pp
 The options are as follows:
-.Bl -tag -width Fl
+.Bl -tag -width indent
 .It Fl d
 Attempt to remove directories as well as other types of files.
 .It Fl f
@@ -97,7 +97,9 @@ Specifying this flag for a read only file will cause
 to generate an error message and exit.
 The file will not be removed or overwritten.
 .It Fl R
-Attempt to remove the file hierarchy rooted in each file argument.
+Attempt to remove the file hierarchy rooted in each
+.Ar file
+argument.
 The
 .Fl R
 option implies the
@@ -141,7 +143,7 @@ No options may be supplied in this simple mode of operation,
 which performs an
 .Xr unlink 2
 operation on the passed argument.
-.Pp
+.Sh EXIT STATUS
 The
 .Nm
 utility exits 0 if all of the named files or file hierarchies were removed,
@@ -152,7 +154,7 @@ removed.
 If an error occurs,
 .Nm
 exits with a value >0.
-.Sh NOTE
+.Sh NOTES
 The
 .Nm
 command uses
@@ -166,12 +168,15 @@ This will allow the removal of file names that begin
 with a dash
 .Pq Sq - .
 For example:
-.Dl rm -- -filename
+.Pp
+.Dl "rm -- -filename"
+.Pp
 The same behavior can be obtained by using an absolute or relative
 path reference.
 For example:
-.Dl rm /home/user/-filename
-.Dl rm ./-filename
+.Pp
+.Dl "rm /home/user/-filename"
+.Dl "rm ./-filename"
 .Pp
 When
 .Fl P
