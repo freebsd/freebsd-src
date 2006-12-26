@@ -89,7 +89,7 @@ static void		 version(void);
  * non-option.  Otherwise, GNU getopt() permutes the arguments and
  * screws up -C processing.
  */
-static const char *tar_opts = "+Bb:C:cF:f:HhI:jkLlmnOoPprtT:UuvW:wX:xyZz";
+static const char *tar_opts = "+Bb:C:cf:HhI:jkLlmnOoPprtT:UuvW:wX:xyZz";
 
 /*
  * Most of these long options are deliberately not documented.  They
@@ -502,7 +502,7 @@ main(int argc, char **argv)
 
 	/* Check boolean options only permitted in certain modes. */
 	if (bsdtar->option_dont_traverse_mounts)
-		only_mode(bsdtar, "-X", "cru");
+		only_mode(bsdtar, "--one-file-system", "cru");
 	if (bsdtar->option_fast_read)
 		only_mode(bsdtar, "--fast-read", "xt");
 	if (bsdtar->option_honor_nodump)
@@ -532,6 +532,8 @@ main(int argc, char **argv)
 		only_mode(bsdtar, "-n", "cru");
 	if (bsdtar->option_stdout)
 		only_mode(bsdtar, "-O", "xt");
+	if (bsdtar->option_unlink_first)
+		only_mode(bsdtar, "-U", "x");
 	if (bsdtar->option_warn_links)
 		only_mode(bsdtar, "--check-links", "cr");
 
@@ -552,6 +554,8 @@ main(int argc, char **argv)
 		buff[1] = bsdtar->symlink_mode;
 		only_mode(bsdtar, buff, "cru");
 	}
+	if (bsdtar->strip_components != 0)
+		only_mode(bsdtar, "--strip-components", "xt");
 
 	bsdtar->argc -= optind;
 	bsdtar->argv += optind;
