@@ -1473,8 +1473,8 @@ bge_blockinit(struct bge_softc *sc)
 		CSR_WRITE_4(sc, BGE_HCC_RX_COAL_TICKS_INT, 0);
 		CSR_WRITE_4(sc, BGE_HCC_TX_COAL_TICKS_INT, 0);
 	}
-	CSR_WRITE_4(sc, BGE_HCC_RX_MAX_COAL_BDS_INT, 0);
-	CSR_WRITE_4(sc, BGE_HCC_TX_MAX_COAL_BDS_INT, 0);
+	CSR_WRITE_4(sc, BGE_HCC_RX_MAX_COAL_BDS_INT, 1);
+	CSR_WRITE_4(sc, BGE_HCC_TX_MAX_COAL_BDS_INT, 1);
 
 	/* Set up address of statistics block */
 	if (!(BGE_IS_5705_PLUS(sc))) {
@@ -3538,8 +3538,6 @@ bge_init_locked(struct bge_softc *sc)
 		BGE_SETBIT(sc, BGE_PCI_MISC_CTL,
 		    BGE_PCIMISCCTL_MASK_PCI_INTR);
 		CSR_WRITE_4(sc, BGE_MBX_IRQ0_LO, 1);
-		CSR_WRITE_4(sc, BGE_HCC_RX_MAX_COAL_BDS_INT, 1);
-		CSR_WRITE_4(sc, BGE_HCC_TX_MAX_COAL_BDS_INT, 1);
 	} else
 #endif
 
@@ -3769,16 +3767,12 @@ bge_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 				BGE_SETBIT(sc, BGE_PCI_MISC_CTL,
 				    BGE_PCIMISCCTL_MASK_PCI_INTR);
 				CSR_WRITE_4(sc, BGE_MBX_IRQ0_LO, 1);
-				CSR_WRITE_4(sc, BGE_HCC_RX_MAX_COAL_BDS_INT, 1);
-				CSR_WRITE_4(sc, BGE_HCC_TX_MAX_COAL_BDS_INT, 1);
 				ifp->if_capenable |= IFCAP_POLLING;
 				BGE_UNLOCK(sc);
 			} else {
 				error = ether_poll_deregister(ifp);
 				/* Enable interrupt even in error case */
 				BGE_LOCK(sc);
-				CSR_WRITE_4(sc, BGE_HCC_RX_MAX_COAL_BDS_INT, 0);
-				CSR_WRITE_4(sc, BGE_HCC_TX_MAX_COAL_BDS_INT, 0);
 				BGE_CLRBIT(sc, BGE_PCI_MISC_CTL,
 				    BGE_PCIMISCCTL_MASK_PCI_INTR);
 				CSR_WRITE_4(sc, BGE_MBX_IRQ0_LO, 0);
