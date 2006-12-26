@@ -60,17 +60,17 @@ struct bsdtar {
 	char		  symlink_mode; /* H or L, per BSD conventions */
 	char		  create_compression; /* j, y, or z */
 	char		  option_absolute_paths; /* -P */
-	char		  option_dont_traverse_mounts; /* -X */
+	char		  option_dont_traverse_mounts; /* --one-file-system */
 	char		  option_fast_read; /* --fast-read */
 	char		  option_honor_nodump; /* --nodump */
 	char		  option_interactive; /* -w */
 	char		  option_no_owner; /* -o */
-	char		  option_no_subdirs; /* -d */
+	char		  option_no_subdirs; /* -n */
 	char		  option_null; /* --null */
-	char		  option_stdout; /* -p */
+	char		  option_stdout; /* -O */
 	char		  option_totals; /* --totals */
 	char		  option_unlink_first; /* -U */
-	char		  option_warn_links; /* -l */
+	char		  option_warn_links; /* --check-links */
 	char		  day_first; /* show day before month in -tv output */
 
 	/* If >= 0, then close this when done. */
