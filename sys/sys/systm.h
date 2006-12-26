@@ -83,8 +83,11 @@ extern int maxusers;		/* system tune hint */
 	}								\
 } while (0)
 #else
-#define	KASSERT(exp,msg)
-#define	VNASSERT(exp, vp, msg)
+#define	KASSERT(exp,msg) do { \
+} while (0)
+
+#define	VNASSERT(exp, vp, msg) do { \
+} while (0)
 #endif
 
 #ifndef CTASSERT		/* Allow lint to override */
