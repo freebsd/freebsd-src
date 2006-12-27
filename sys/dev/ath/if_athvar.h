@@ -173,8 +173,9 @@ struct ath_softc {
 	struct ifnet		*sc_ifp;	/* interface common */
 	struct ath_stats	sc_stats;	/* interface statistics */
 	struct ieee80211com	sc_ic;		/* IEEE 802.11 common */
-	int			sc_countrycode;
 	int			sc_debug;
+	u_int32_t		sc_countrycode;
+	u_int32_t		sc_regdomain;
 	void			(*sc_recv_mgmt)(struct ieee80211com *,
 					struct mbuf *,
 					struct ieee80211_node *,
@@ -203,9 +204,13 @@ struct ath_softc {
 				sc_blinking: 1,	/* LED blink operation active */
 				sc_mcastkey: 1,	/* mcast key cache search */
 				sc_syncbeacon:1,/* sync/resync beacon timers */
-				sc_hasclrkey:1;	/* CLR key supported */
+				sc_hasclrkey:1,	/* CLR key supported */
+				sc_xchanmode: 1,/* extended channel mode */
+				sc_outdoor  : 1;/* outdoor operation */
 						/* rate tables */
-	const HAL_RATE_TABLE	*sc_rates[IEEE80211_MODE_MAX];
+#define	IEEE80211_MODE_11A_HALF		(IEEE80211_MODE_MAX+0)
+#define	IEEE80211_MODE_11A_QUARTER	(IEEE80211_MODE_MAX+1)
+	const HAL_RATE_TABLE	*sc_rates[IEEE80211_MODE_MAX+2];
 	const HAL_RATE_TABLE	*sc_currates;	/* current rate table */
 	enum ieee80211_phymode	sc_curmode;	/* current phy mode */
 	HAL_OPMODE		sc_opmode;	/* current operating mode */
@@ -548,6 +553,11 @@ void	ath_intr(void *);
 #define	HAL_TXQ_TXDESCINT_ENABLE TXQ_FLAG_TXDESCINT_ENABLE
 #define	HAL_TXQ_TXEOLINT_ENABLE	TXQ_FLAG_TXEOLINT_ENABLE
 #define	HAL_TXQ_TXURNINT_ENABLE	TXQ_FLAG_TXURNINT_ENABLE
+#endif
+#if HAL_ABI_VERSION < 0x06102501
+#define	ath_hal_ispublicsafetysku(ah) \
+	(((ah)->ah_regdomain == 0 && (ah)->ah_countryCode == 842) || \
+	 (ah)->ah_regdomain == 0x12)
 #endif
 
 #define	ath_hal_setuprxdesc(_ah, _ds, _size, _intreq) \
