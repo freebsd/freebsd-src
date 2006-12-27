@@ -285,6 +285,8 @@ struct ieee80211com {
 
 void	ieee80211_ifattach(struct ieee80211com *);
 void	ieee80211_ifdetach(struct ieee80211com *);
+const struct ieee80211_rateset *ieee80211_get_suprates(struct ieee80211com *,
+		const struct ieee80211_channel *);
 void	ieee80211_announce(struct ieee80211com *);
 void	ieee80211_media_init(struct ieee80211com *,
 		ifm_change_cb_t, ifm_stat_cb_t);
@@ -303,7 +305,7 @@ int	ieee80211_chan2ieee(struct ieee80211com *, struct ieee80211_channel *);
 u_int	ieee80211_ieee2mhz(u_int, u_int);
 int	ieee80211_setmode(struct ieee80211com *, enum ieee80211_phymode);
 enum ieee80211_phymode ieee80211_chan2mode(struct ieee80211com *,
-		struct ieee80211_channel *);
+		const struct ieee80211_channel *);
 
 /* 
  * Key update synchronization methods.  XXX should not be visible.
