@@ -186,9 +186,8 @@ doobj(const char *path, caddr_t addr, FILE *out)
 }
 
 static void
-findmodules(const char *modules_path, const char *sfx[], FILE *out)
+findmodules(char *path_argv[], const char *sfx[], FILE *out)
 {
-    char	       *path_argv[2];
     char	       *p;
     FTS		       *fts;
     FTSENT	       *ftsent;
@@ -196,17 +195,12 @@ findmodules(const char *modules_path, const char *sfx[], FILE *out)
     int			i;
     int			sl;
 
-    /* Have to copy modules_path here because it's const */
-    if ((path_argv[0] = strdup(modules_path)) == NULL)
-	errx(2, "out of memory");
-    path_argv[1] = NULL;
-
     /* Have to fts once per suffix to find preferred suffixes first */
     do {
 	sl = *sfx ? strlen(*sfx) : 0;	/* current suffix length */
 	fts = fts_open(path_argv, FTS_PHYSICAL | FTS_NOCHDIR, NULL);
 	if (fts == NULL)
-	    err(2, "can't begin traversing path %s", modules_path);
+	    err(2, "can't begin traversing module path");
 	while ((ftsent = fts_read(fts)) != NULL) {
 	    if (ftsent->fts_info == FTS_DNR ||
 		ftsent->fts_info == FTS_ERR ||
@@ -236,16 +230,14 @@ findmodules(const char *modules_path, const char *sfx[], FILE *out)
 		/* Optimization: stop fts as soon as seen all loaded modules */
 		if (kfile_allseen()) {
 		    fts_close(fts);
-		    goto done;
+		    return;
 		}
 	    }
 	}
 	if (ftsent == NULL && errno != 0)
-	    err(2, "couldn't complete traversing path %s", modules_path);
+	    err(2, "couldn't complete traversing module path");
 	fts_close(fts);
     } while (*sfx++);
-done:
-    free(path_argv[0]);
 }
 
 static void
@@ -270,6 +262,7 @@ usage(const char *myname)
     exit(2);
 }
 
+#define	MAXPATHS	15
 #define	MAXSUFFIXES	15
 
 /* KLD file names end in this */
@@ -285,6 +278,9 @@ main(int argc, char *argv[])
 {
     char basename[PATH_MAX];
     char path[PATH_MAX];
+    char *modules_argv[MAXPATHS + 1];
+    char *copy, *p;
+    char **ap;
     const char *filemode = "w";		/* mode for outfile */
     const char *modules_path = "modules"; /* path to kernel build directory */
     const char *outfile = ".asf";	/* and where to write the output */
@@ -382,32 +378,50 @@ main(int argc, char *argv[])
 	return (0);
     }
 
+    if ((copy = strdup(modules_path)) == NULL)
+	errx(2, "out of memory");
+    for (
+	ap = modules_argv, p = copy;
+	(*ap = strsep(&p, ";")) != NULL && ap < &modules_argv[MAXPATHS];
+	ap++
+    );
+    if (*ap)
+	errx(2, "only %d module path elements can be specified", MAXPATHS);
+
     if (!dofind)
 	STAILQ_FOREACH(kfp, &kfile_head, link) {
-	    if (!nosubdir) {
-		/* prepare basename of KLD, w/o suffix */
-		strlcpy(basename, kfp->name, sizeof(basename) - 1);
-		i = strlen(basename);
-		if (i > sl && strcmp(basename + i - sl, KLDSUFFIX) == 0)
-		    i -= sl;
-		basename[i] = '/';
-		basename[i + 1] = '\0';
-	    }
-	    for (sfx = suffixes;; sfx++) {
-		snprintf(path, sizeof(path),
-			 "%s/%s%s%s",
-			 modules_path,
-			 nosubdir ? "" : basename,
-			 kfp->name,
-			 *sfx ? *sfx : "");
-		if (*sfx == NULL || stat(path, &st) == 0) {
-		    doobj(path, kfp->addr, out);
-		    break;
+	    for (ap = modules_argv; *ap; ap++) {
+		if (!nosubdir) {
+		    /* prepare basename of KLD, w/o suffix */
+		    strlcpy(basename, kfp->name, sizeof(basename) - 1);
+		    i = strlen(basename);
+		    if (i > sl && strcmp(basename + i - sl, KLDSUFFIX) == 0)
+			i -= sl;
+		    basename[i] = '/';
+		    basename[i + 1] = '\0';
+		}
+		for (sfx = suffixes;; sfx++) {
+		    snprintf(path, sizeof(path),
+			     "%s/%s%s%s",
+			     *ap,
+			     nosubdir ? "" : basename,
+			     kfp->name,
+			     *sfx ? *sfx : "");
+		    if (stat(path, &st) == 0) {
+			doobj(path, kfp->addr, out);
+			goto found;
+		    }
+		    if (*sfx == NULL)
+			break;
 		}
 	    }
+	    warnx("module %s not found in search path", kfp->name);
+found:
+	    ;
 	}
     else
-    	findmodules(modules_path, suffixes, out);
+    	findmodules(modules_argv, suffixes, out);
 
+    free(copy);
     return (0);
 }
