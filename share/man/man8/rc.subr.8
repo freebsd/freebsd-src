@@ -36,7 +36,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd June 21, 2006
+.Dd December 27, 2006
 .Dt RC.SUBR 8
 .Os
 .Sh NAME
@@ -523,19 +523,47 @@ Defaults to the value of
 .Va command .
 .It Va required_dirs
 Check for the existence of the listed directories
-before running the default
+before running the
 .Cm start
 method.
 .It Va required_files
 Check for the readability of the listed files
-before running the default
+before running the
 .Cm start
 method.
+.It Va required_modules
+Ensure that the listed kernel modules are loaded
+before running the
+.Cm start
+method.
+This is done after invoking the commands from
+.Va start_precmd
+so that the missing modules are not loaded in vain
+if the preliminary commands indicate a error condition.
+A word in the list can have an optional
+.Dq Li : Ns Ar modname
+or
+.Dq Li ~ Ns Ar pattern
+suffix.
+The
+.Ar modname
+or
+.Ar pattern
+parameter is passed to
+.Ic load_kld
+through a
+.Fl m
+or
+.Fl e
+option, respectively.
+See the description of
+.Ic load_kld
+in this document for details.
 .It Va required_vars
 Perform
 .Ic checkyesno
 on each of the list variables
-before running the default
+before running the
 .Cm start
 method.
 .It Va ${name}_chdir
