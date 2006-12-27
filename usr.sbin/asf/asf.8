@@ -43,7 +43,7 @@ By default,
 reads
 .Xr kldstat 8
 output from standard input and writes to the
-.Pa \&.asf
+.Pa .asf
 file a list of
 .Xr gdb 1
 commands to add symbol files from KLDs in subdirectories of the subdirectory
@@ -73,8 +73,8 @@ writes to it instead of
 If
 .Ar outfile
 is a single dash
-.Pq Sq \&- ,
-the standard output is used.
+.Pq Sq Fl ,
+standard output is used.
 .Sh OPTIONS
 The following options modify the function of
 .Nm :
@@ -100,7 +100,7 @@ and read the information from it.
 .It Fl M
 Specify the core file for
 .Xr kvm 3 .
-Impiles
+Implies
 .Fl V .
 .It Fl N
 Specify the system file for
@@ -114,8 +114,8 @@ to write or append its output to.
 If
 .Ar outfile
 is a single dash
-.Pq Sq \&- ,
-the standard output is used.
+.Pq Sq Fl ,
+standard output is used.
 .It Fl s
 Do not prepend a (guessed) subdirectory of the module path.
 .It Fl V
