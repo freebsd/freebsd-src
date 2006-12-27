@@ -35,7 +35,7 @@
 .\"     @(#)tsort.1	8.3 (Berkeley) 4/1/94
 .\" $FreeBSD$
 .\"
-.Dd July 3, 2004
+.Dd December 27, 2006
 .Dt TSORT 1
 .Os
 .Sh NAME
@@ -55,8 +55,8 @@ Input is taken from the named
 or from standard input if no file
 is given.
 .Pp
-Node names in the input are separated by white space and there must
-be an even number of nodes.
+There must be an even number of nodes in the input.
+Node names specified on the same line should be white space separated.
 .Pp
 Presence of a node in a graph can be represented by an arc from the node
 to itself.
@@ -67,7 +67,7 @@ one of the arcs in the cycle is ignored and the sort continues.
 Cycles are reported on standard error.
 .Pp
 The options are as follows:
-.Bl -tag -width Ds
+.Bl -tag -width indent
 .It Fl d
 Turn on debugging.
 .It Fl l
@@ -82,14 +82,15 @@ and cycles occur often.
 .Sh SEE ALSO
 .Xr ar 1
 .Sh HISTORY
-A
+The
 .Nm
 command appeared in
 .At v7 .
 This
 .Nm
 command and manual page are derived from sources contributed to Berkeley by
-Michael Rendell of Memorial University of Newfoundland.
+.An Michael Rendell
+of Memorial University of Newfoundland.
 .Sh BUGS
 The
 .Nm
