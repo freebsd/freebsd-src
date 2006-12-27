@@ -160,14 +160,19 @@ ieee80211_ieee2mhz(u_int chan)
  * Convert MHz frequency to IEEE channel number.
  */
 static u_int
-ieee80211_mhz2ieee(u_int freq)
+ieee80211_mhz2ieee(u_int freq, u_int flags)
 {
 	if (freq == 2484)
 		return 14;
 	if (freq < 2484)
 		return (freq - 2407) / 5;
-	if (freq < 5000)
-		return 15 + ((freq - 2512) / 20);
+	if (freq < 5000) {
+		if (freq > 4900)	/* XXX hack mapping of PSB */
+			return 37 + ((freq * 10) +
+				(((freq % 5) == 2) ? 5 : 0) - 49400) / 5;
+		else
+			return 15 + ((freq - 2512) / 20);
+	}
 	return (freq - 5000) / 5;
 }
 
@@ -177,7 +182,7 @@ set80211channel(const char *val, int d, int s, const struct afswtch *rafp)
 	if (!isanyarg(val)) {
 		int v = atoi(val);
 		if (v > 255)		/* treat as frequency */
-			v = ieee80211_mhz2ieee(v);
+			v = ieee80211_mhz2ieee(v, 0);
 		set80211(s, IEEE80211_IOC_CHANNEL, v, 0, NULL);
 	} else
 		set80211(s, IEEE80211_IOC_CHANNEL, IEEE80211_CHAN_ANY, 0, NULL);
@@ -918,7 +923,7 @@ list_scan(int s)
 			  , copy_essid(ssid, ssidmax, vp, sr->isr_ssid_len)
 			  , ssid
 			, ether_ntoa((const struct ether_addr *) sr->isr_bssid)
-			, ieee80211_mhz2ieee(sr->isr_freq)
+			, ieee80211_mhz2ieee(sr->isr_freq, sr->isr_flags)
 			, getmaxrate(sr->isr_rates, sr->isr_nrates)
 			, sr->isr_rssi, sr->isr_noise
 			, sr->isr_intval
@@ -1034,7 +1039,7 @@ list_stations(int s)
 		printf("%s %4u %4d %3dM %4d %4d %6d %6d %-4.4s %-4.4s"
 			, ether_ntoa((const struct ether_addr*) si->isi_macaddr)
 			, IEEE80211_AID(si->isi_associd)
-			, ieee80211_mhz2ieee(si->isi_freq)
+			, ieee80211_mhz2ieee(si->isi_freq, si->isi_freq)
 			, (si->isi_rates[si->isi_txrate] & IEEE80211_RATE_VAL)/2
 			, si->isi_rssi
 			, si->isi_inact
@@ -1059,18 +1064,22 @@ print_chaninfo(const struct ieee80211_channel *c)
 	buf[0] = '\0';
 	if (IEEE80211_IS_CHAN_FHSS(c))
 		strlcat(buf, " FHSS", sizeof(buf));
-	if (IEEE80211_IS_CHAN_A(c))
-		strlcat(buf, " 11a", sizeof(buf));
-	/* XXX 11g schizophrenia */
-	if (IEEE80211_IS_CHAN_G(c) ||
-	    IEEE80211_IS_CHAN_PUREG(c))
+	if (IEEE80211_IS_CHAN_A(c)) {
+		if (IEEE80211_IS_CHAN_HALF(c))
+			strlcat(buf, " 11a/10Mhz", sizeof(buf));
+		else if (IEEE80211_IS_CHAN_QUARTER(c))
+			strlcat(buf, " 11a/5Mhz", sizeof(buf));
+		else
+			strlcat(buf, " 11a", sizeof(buf));
+	}
+	if (IEEE80211_IS_CHAN_ANYG(c))
 		strlcat(buf, " 11g", sizeof(buf));
 	else if (IEEE80211_IS_CHAN_B(c))
 		strlcat(buf, " 11b", sizeof(buf));
 	if (IEEE80211_IS_CHAN_T(c))
 		strlcat(buf, " Turbo", sizeof(buf));
 	printf("Channel %3u : %u%c Mhz%-14.14s",
-		ieee80211_mhz2ieee(c->ic_freq), c->ic_freq,
+		ieee80211_mhz2ieee(c->ic_freq, c->ic_flags), c->ic_freq,
 		IEEE80211_IS_CHAN_PASSIVE(c) ? '*' : ' ', buf);
 #undef IEEE80211_IS_CHAN_PASSIVE
 }
@@ -1082,7 +1091,7 @@ list_channels(int s, int allchans)
 	struct ieee80211req_chaninfo chans;
 	struct ieee80211req_chaninfo achans;
 	const struct ieee80211_channel *c;
-	int i, half;
+	int i, half, ieee;
 
 	(void) memset(&ireq, 0, sizeof(ireq));
 	(void) strncpy(ireq.i_name, name, sizeof(ireq.i_name));
@@ -1102,7 +1111,8 @@ list_channels(int s, int allchans)
 		memset(&achans, 0, sizeof(achans));
 		for (i = 0; i < chans.ic_nchans; i++) {
 			c = &chans.ic_chans[i];
-			if (isset(active.ic_channels, ieee80211_mhz2ieee(c->ic_freq)) || allchans)
+			ieee = ieee80211_mhz2ieee(c->ic_freq, c->ic_flags);
+			if (isset(active.ic_channels, ieee) || allchans)
 				achans.ic_chans[achans.ic_nchans++] = *c;
 		}
 	} else
@@ -1703,7 +1713,7 @@ ieee80211_status(int s)
 			LINE_CHECK("bmiss %d", ireq.i_val);
 	}
 
-	if (IEEE80211_IS_CHAN_G(c) || IEEE80211_IS_CHAN_PUREG(c) || verbose) {
+	if (IEEE80211_IS_CHAN_ANYG(c) || verbose) {
 		ireq.i_type = IEEE80211_IOC_PUREG;
 		if (ioctl(s, SIOCG80211, &ireq) != -1) {
 			if (ireq.i_val)
