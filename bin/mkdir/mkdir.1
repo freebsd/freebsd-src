@@ -48,13 +48,13 @@ The
 .Nm
 utility creates the directories named as operands, in the order specified,
 using mode
-.Li rwxrwxrwx
+.Dq Li rwxrwxrwx
 (0777)
 as modified by the current
 .Xr umask 2 .
 .Pp
 The options are as follows:
-.Bl -tag -width indent
+.Bl -tag -width ".Fl m Ar mode"
 .It Fl m Ar mode
 Set the file permission bits of the final created directory to
 the specified mode.
@@ -76,7 +76,7 @@ operand must already exist.
 On the other hand, with this option specified, no error will
 be reported if a directory given as an operand already exists.
 Intermediate directories are created with permission bits of
-.Li rwxrwxrwx
+.Dq Li rwxrwxrwx
 (0777)
 as modified by the current umask, plus write and search
 permission for the owner.
