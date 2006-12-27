@@ -230,7 +230,7 @@ ieee80211_set_chan(struct ieee80211com *ic,
 	if (chan == IEEE80211_CHAN_ANYC)	/* XXX while scanning */
 		chan = ic->ic_curchan;
 	ni->ni_chan = chan;
-	ni->ni_rates = ic->ic_sup_rates[ieee80211_chan2mode(ic, chan)];
+	ni->ni_rates = *ieee80211_get_suprates(ic, chan);
 }
 
 /*
@@ -344,8 +344,7 @@ ieee80211_next_scan(struct ieee80211com *ic)
 			 * XXX drivers should do this as needed,
 			 * XXX for now maintain compatibility
 			 */
-			ic->ic_bss->ni_rates =
-				ic->ic_sup_rates[ieee80211_chan2mode(ic, chan)];
+			ic->ic_bss->ni_rates = *ieee80211_get_suprates(ic, chan);
 			ieee80211_new_state(ic, IEEE80211_S_SCAN, -1);
 			return 1;
 		}
