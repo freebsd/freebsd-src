@@ -48,12 +48,12 @@ The
 .Nm
 utility creates the directories named as operands, in the order specified,
 using mode
-.Li rwxrwxrwx (\&0777)
+.Li rwxrwxrwx
+(0777)
 as modified by the current
 .Xr umask 2 .
 .Pp
 The options are as follows:
-.Pp
 .Bl -tag -width indent
 .It Fl m Ar mode
 Set the file permission bits of the final created directory to
@@ -64,11 +64,11 @@ argument can be in any of the formats specified to the
 .Xr chmod 1
 command.
 If a symbolic mode is specified, the operation characters
-.Dq +
+.Ql +
 and
-.Dq -
+.Ql -
 are interpreted relative to an initial mode of
-.Dq a=rwx .
+.Dq Li a=rwx .
 .It Fl p
 Create intermediate directories as required.
 If this option is not specified, the full path prefix of each
@@ -76,7 +76,8 @@ operand must already exist.
 On the other hand, with this option specified, no error will
 be reported if a directory given as an operand already exists.
 Intermediate directories are created with permission bits of
-.Li rwxrwxrwx (\&0777)
+.Li rwxrwxrwx
+(0777)
 as modified by the current umask, plus write and search
 permission for the owner.
 .It Fl v
