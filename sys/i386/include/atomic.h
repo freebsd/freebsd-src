@@ -117,23 +117,23 @@ struct __hack
 static __inline int
 atomic_cmpset_int(volatile u_int *dst, u_int exp, u_int src)
 {
-	int res = exp;
+	u_char res;
 
 	__asm __volatile(
 	"	pushfl ;		"
 	"	cli ;			"
-	"	cmpl	%0,%3 ;		"
+	"	cmpl	%3,%4 ;		"
 	"	jne	1f ;		"
 	"	movl	%2,%1 ;		"
 	"1:				"
-	"       sete	%%al;		"
-	"	movzbl	%%al,%0 ;	"
+	"       sete	%0 ;		"
 	"	popfl ;			"
 	"# atomic_cmpset_int"
-	: "+a" (res),			/* 0 (result) */
+	: "=q" (res),			/* 0 */
 	  "=m" (*dst)			/* 1 */
 	: "r" (src),			/* 2 */
-	  "m" (*dst)			/* 3 */
+	  "r" (exp),			/* 3 */
+	  "m" (*dst)			/* 4 */
 	: "memory");
 
 	return (res);
@@ -144,19 +144,19 @@ atomic_cmpset_int(volatile u_int *dst, u_int exp, u_int src)
 static __inline int
 atomic_cmpset_int(volatile u_int *dst, u_int exp, u_int src)
 {
-	int res = exp;
+	u_char res;
 
 	__asm __volatile (
 	"	" __XSTRING(MPLOCKED) "	"
 	"	cmpxchgl %2,%1 ;	"
-	"       setz	%%al ;		"
-	"	movzbl	%%al,%0 ;	"
+	"       sete	%0 ;		"
 	"1:				"
 	"# atomic_cmpset_int"
-	: "+a" (res),			/* 0 (result) */
+	: "=a" (res),			/* 0 */
 	  "=m" (*dst)			/* 1 */
 	: "r" (src),			/* 2 */
-	  "m" (*dst)			/* 3 */
+	  "a" (exp),			/* 3 */
+	  "m" (*dst)			/* 4 */
 	: "memory");
 
 	return (res);
