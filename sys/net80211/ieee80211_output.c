@@ -1110,8 +1110,8 @@ ieee80211_send_probereq(struct ieee80211_node *ni,
 	const void *optie, size_t optielen)
 {
 	struct ieee80211com *ic = ni->ni_ic;
-	enum ieee80211_phymode mode;
 	struct ieee80211_frame *wh;
+	const struct ieee80211_rateset *rs;
 	struct mbuf *m;
 	u_int8_t *frm;
 
@@ -1147,9 +1147,9 @@ ieee80211_send_probereq(struct ieee80211_node *ni,
 	}
 
 	frm = ieee80211_add_ssid(frm, ssid, ssidlen);
-	mode = ieee80211_chan2mode(ic, ic->ic_curchan);
-	frm = ieee80211_add_rates(frm, &ic->ic_sup_rates[mode]);
-	frm = ieee80211_add_xrates(frm, &ic->ic_sup_rates[mode]);
+	rs = ieee80211_get_suprates(ic, ic->ic_curchan);
+	frm = ieee80211_add_rates(frm, rs);
+	frm = ieee80211_add_xrates(frm, rs);
 
 	if (optie != NULL) {
 		memcpy(frm, optie, optielen);

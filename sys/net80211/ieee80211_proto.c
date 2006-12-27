@@ -329,7 +329,8 @@ ieee80211_fix_rate(struct ieee80211_node *ni, int flags)
 	struct ieee80211com *ic = ni->ni_ic;
 	int i, j, ignore, error;
 	int okrate, badrate, fixedrate;
-	struct ieee80211_rateset *srs, *nrs;
+	const struct ieee80211_rateset *srs;
+	struct ieee80211_rateset *nrs;
 	u_int8_t r;
 
 	/*
@@ -341,7 +342,7 @@ ieee80211_fix_rate(struct ieee80211_node *ni, int flags)
 		flags &= ~IEEE80211_F_DOFRATE;
 	error = 0;
 	okrate = badrate = fixedrate = 0;
-	srs = &ic->ic_sup_rates[ieee80211_chan2mode(ic, ni->ni_chan)];
+	srs = ieee80211_get_suprates(ic, ni->ni_chan);
 	nrs = &ni->ni_rates;
 	for (i = 0; i < nrs->rs_nrates; ) {
 		ignore = 0;

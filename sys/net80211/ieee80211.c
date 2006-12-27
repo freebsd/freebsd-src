@@ -67,6 +67,10 @@ const char *ieee80211_phymode_name[] = {
 #define	B(r)	((r) | IEEE80211_RATE_BASIC)
 static const struct ieee80211_rateset ieee80211_rateset_11a =
 	{ 8, { B(12), 18, B(24), 36, B(48), 72, 96, 108 } };
+static const struct ieee80211_rateset ieee80211_rateset_half =
+	{ 8, { B(6), 9, B(12), 18, B(24), 36, 48, 54 } };
+static const struct ieee80211_rateset ieee80211_rateset_quarter =
+	{ 8, { B(3), 4, B(6), 9, B(12), 18, 24, 27 } };
 static const struct ieee80211_rateset ieee80211_rateset_11b =
 	{ 4, { B(2), B(4), B(11), B(22) } };
 /* NB: OFDM rates are handled specially based on mode */
@@ -131,30 +135,25 @@ ieee80211_default_reset(struct ifnet *ifp)
 	return ENETRESET;
 }
 
-void
-ieee80211_ifattach(struct ieee80211com *ic)
+/*
+ * Fill in 802.11 available channel set, mark
+ * all available channels as active, and pick
+ * a default channel if not already specified.
+ */
+static void
+ieee80211_chan_init(struct ieee80211com *ic)
 {
 #define	RATESDEFINED(m) \
 	((ic->ic_modecaps & (1<<m)) && ic->ic_sup_rates[m].rs_nrates != 0)
+#define	DEFAULTRATES(m, def) do { \
+	if (!RATESDEFINED(m)) ic->ic_sup_rates[m] = def; \
+} while (0)
 	struct ifnet *ifp = ic->ic_ifp;
 	struct ieee80211_channel *c;
 	int i;
 
-	ether_ifattach(ifp, ic->ic_myaddr);
-	ifp->if_output = ieee80211_output;
-
-	bpfattach2(ifp, DLT_IEEE802_11,
-	    sizeof(struct ieee80211_frame_addr4), &ic->ic_rawbpf);
-
-	ieee80211_crypto_attach(ic);
-
-	/*
-	 * Fill in 802.11 available channel set, mark
-	 * all available channels as active, and pick
-	 * a default channel if not already specified.
-	 */
 	memset(ic->ic_chan_avail, 0, sizeof(ic->ic_chan_avail));
-	ic->ic_modecaps |= 1<<IEEE80211_MODE_AUTO;
+	ic->ic_modecaps = 1<<IEEE80211_MODE_AUTO;
 	for (i = 0; i <= IEEE80211_CHAN_MAX; i++) {
 		c = &ic->ic_channels[i];
 		if (c->ic_flags) {
@@ -190,22 +189,42 @@ ieee80211_ifattach(struct ieee80211com *ic)
 			}
 		}
 	}
-	/* validate ic->ic_curmode */
-	if ((ic->ic_modecaps & (1<<ic->ic_curmode)) == 0)
-		ic->ic_curmode = IEEE80211_MODE_AUTO;
-	ic->ic_des_chan = IEEE80211_CHAN_ANYC;	/* any channel is ok */
 
 	/* fillin well-known rate sets if driver has not specified */
-	if (!RATESDEFINED(IEEE80211_MODE_11B))
-		ic->ic_sup_rates[IEEE80211_MODE_11B] = ieee80211_rateset_11b;
-	if (!RATESDEFINED(IEEE80211_MODE_11G))
-		ic->ic_sup_rates[IEEE80211_MODE_11G] = ieee80211_rateset_11g;
-	if (!RATESDEFINED(IEEE80211_MODE_11A))
-		ic->ic_sup_rates[IEEE80211_MODE_11A] = ieee80211_rateset_11a;
-	if (!RATESDEFINED(IEEE80211_MODE_TURBO_A))
-		ic->ic_sup_rates[IEEE80211_MODE_TURBO_A] = ieee80211_rateset_11a;
-	if (!RATESDEFINED(IEEE80211_MODE_TURBO_G))
-		ic->ic_sup_rates[IEEE80211_MODE_TURBO_G] = ieee80211_rateset_11g;
+	DEFAULTRATES(IEEE80211_MODE_11B,	 ieee80211_rateset_11b);
+	DEFAULTRATES(IEEE80211_MODE_11G,	 ieee80211_rateset_11g);
+	DEFAULTRATES(IEEE80211_MODE_11A,	 ieee80211_rateset_11a);
+	DEFAULTRATES(IEEE80211_MODE_TURBO_A,	 ieee80211_rateset_11a);
+	DEFAULTRATES(IEEE80211_MODE_TURBO_G,	 ieee80211_rateset_11g);
+
+	/*
+	 * Set auto mode to reset active channel state and any desired channel.
+	 */
+	(void) ieee80211_setmode(ic, IEEE80211_MODE_AUTO);
+#undef DEFAULTRATES
+#undef RATESDEFINED
+}
+
+void
+ieee80211_ifattach(struct ieee80211com *ic)
+{
+	struct ifnet *ifp = ic->ic_ifp;
+
+	ether_ifattach(ifp, ic->ic_myaddr);
+	ifp->if_output = ieee80211_output;
+
+	bpfattach2(ifp, DLT_IEEE802_11,
+	    sizeof(struct ieee80211_frame_addr4), &ic->ic_rawbpf);
+
+	ieee80211_crypto_attach(ic);
+
+	ic->ic_des_chan = IEEE80211_CHAN_ANYC;
+	/*
+	 * Fill in 802.11 available channel set, mark all
+	 * available channels as active, and pick a default
+	 * channel if not already specified.
+	 */
+	ieee80211_chan_init(ic);
 #if 0
 	/*
 	 * Enable WME by default if we're capable.
@@ -215,7 +234,6 @@ ieee80211_ifattach(struct ieee80211com *ic)
 #endif
 	if (ic->ic_caps & IEEE80211_C_BURST)
 		ic->ic_flags |= IEEE80211_F_BURST;
-	(void) ieee80211_setmode(ic, ic->ic_curmode);
 
 	ic->ic_bintval = IEEE80211_BINTVAL_DEFAULT;
 	ic->ic_bmissthreshold = IEEE80211_HWBMISS_DEFAULT;
@@ -241,7 +259,6 @@ ieee80211_ifattach(struct ieee80211com *ic)
 
 	KASSERT(ifp->if_spare2 == NULL, ("oops, hosed"));
 	ifp->if_spare2 = ic;			/* XXX temp backpointer */
-#undef RATESDEFINED
 }
 
 void
@@ -277,9 +294,12 @@ ieee80211_mhz2ieee(u_int freq, u_int flags)
 		else
 			return 15 + ((freq - 2512) / 20);
 	} else if (flags & IEEE80211_CHAN_5GHZ) {	/* 5Ghz band */
-		if (freq <= 5000)
+		if (freq <= 5000) {
+			if (flags &(IEEE80211_CHAN_HALF|IEEE80211_CHAN_QUARTER))
+				return 37 + ((freq * 10) +
+				    ((freq % 5) == 2 ? 5 : 0) - 49400) / 5;
 			return (freq - 4000) / 5;
-		else
+		} else
 			return (freq - 5000) / 5;
 	} else {				/* either, guess */
 		if (freq == 2484)
@@ -287,7 +307,10 @@ ieee80211_mhz2ieee(u_int freq, u_int flags)
 		if (freq < 2484)
 			return ((int) freq - 2407) / 5;
 		if (freq < 5000) {
-			if (freq > 4900)
+			if (flags &(IEEE80211_CHAN_HALF|IEEE80211_CHAN_QUARTER))
+				return 37 + ((freq * 10) +
+				    ((freq % 5) == 2 ? 5 : 0) - 49400) / 5;
+			else if (freq > 4900)
 				return (freq - 4000) / 5;
 			else
 				return 15 + ((freq - 2512) / 20);
@@ -330,6 +353,10 @@ ieee80211_ieee2mhz(u_int chan, u_int flags)
 		else
 			return 2512 + ((chan-15)*20);
 	} else if (flags & IEEE80211_CHAN_5GHZ) {/* 5Ghz band */
+		if (flags & (IEEE80211_CHAN_HALF|IEEE80211_CHAN_QUARTER)) {
+			chan -= 37;
+			return 4940 + chan*5 + (chan % 5 ? 2 : 0);
+		}
 		return 5000 + (chan*5);
 	} else {				/* either, guess */
 		if (chan == 14)
@@ -338,6 +365,7 @@ ieee80211_ieee2mhz(u_int chan, u_int flags)
 			return 2407 + chan*5;
 		if (chan < 27)			/* 15-26 */
 			return 2512 + ((chan-15)*20);
+		/* XXX can't distinguish PSB channels */
 		return 5000 + (chan*5);
 	}
 }
@@ -360,11 +388,22 @@ ieee80211_media_init(struct ieee80211com *ic,
 	struct ieee80211_rateset *rs;
 	struct ieee80211_rateset allrates;
 
-	/*
-	 * Do late attach work that must wait for any subclass
-	 * (i.e. driver) work such as overriding methods.
-	 */
-	ieee80211_node_lateattach(ic);
+	/* NB: this works because the structure is initialized to zero */
+	if (LIST_EMPTY(&ic->ic_media.ifm_list)) {
+		/*
+		 * Do late attach work that must wait for any subclass
+		 * (i.e. driver) work such as overriding methods.
+		 */
+		ieee80211_node_lateattach(ic);
+	} else {
+		/*
+		 * We are re-initializing the channel list; clear
+		 * the existing media state as the media routines
+		 * don't suppress duplicates.
+		 */
+		ifmedia_removeall(&ic->ic_media);
+		ieee80211_chan_init(ic);
+	}
 
 	/*
 	 * Fill in media characteristics.
@@ -450,6 +489,20 @@ ieee80211_media_init(struct ieee80211com *ic,
 	if (maxrate)
 		ifp->if_baudrate = IF_Mbps(maxrate);
 #undef ADD
+}
+
+const struct ieee80211_rateset *
+ieee80211_get_suprates(struct ieee80211com *ic, const struct ieee80211_channel *c)
+{
+	enum ieee80211_phymode mode = ieee80211_chan2mode(ic, c);
+
+	if (mode == IEEE80211_MODE_11A) {
+		if (IEEE80211_IS_CHAN_HALF(c))
+			return &ieee80211_rateset_half;
+		if (IEEE80211_IS_CHAN_QUARTER(c))
+			return &ieee80211_rateset_quarter;
+	}
+	return &ic->ic_sup_rates[mode];
 }
 
 void
@@ -697,7 +750,7 @@ void
 ieee80211_media_status(struct ifnet *ifp, struct ifmediareq *imr)
 {
 	struct ieee80211com *ic;
-	struct ieee80211_rateset *rs;
+	const struct ieee80211_rateset *rs;
 
 	ic = ieee80211_find_instance(ifp);
 	if (!ic) {
@@ -932,7 +985,7 @@ ieee80211_setmode(struct ieee80211com *ic, enum ieee80211_phymode mode)
  * In those cases we defer to the current operating mode when set.
  */
 enum ieee80211_phymode
-ieee80211_chan2mode(struct ieee80211com *ic, struct ieee80211_channel *chan)
+ieee80211_chan2mode(struct ieee80211com *ic, const struct ieee80211_channel *chan)
 {
 	if (IEEE80211_IS_CHAN_T(chan)) {
 		return IEEE80211_MODE_TURBO_A;
@@ -993,6 +1046,9 @@ ieee80211_rate2media(struct ieee80211com *ic, int rate, enum ieee80211_phymode m
 		{  72 | IFM_IEEE80211_11G, IFM_IEEE80211_OFDM36 },
 		{  96 | IFM_IEEE80211_11G, IFM_IEEE80211_OFDM48 },
 		{ 108 | IFM_IEEE80211_11G, IFM_IEEE80211_OFDM54 },
+		{   6 | IFM_IEEE80211_11A, IFM_IEEE80211_OFDM3 },
+		{   9 | IFM_IEEE80211_11A, IFM_IEEE80211_OFDM4 },
+		{  54 | IFM_IEEE80211_11A, IFM_IEEE80211_OFDM27 },
 		/* NB: OFDM72 doesn't realy exist so we don't handle it */
 	};
 	u_int mask, i;
@@ -1053,6 +1109,11 @@ ieee80211_media2rate(int mword)
 		96,		/* IFM_IEEE80211_OFDM48 */
 		108,		/* IFM_IEEE80211_OFDM54 */
 		144,		/* IFM_IEEE80211_OFDM72 */
+		0,		/* IFM_IEEE80211_DS354k */
+		0,		/* IFM_IEEE80211_DS512k */
+		6,		/* IFM_IEEE80211_OFDM3 */
+		9,		/* IFM_IEEE80211_OFDM4 */
+		54,		/* IFM_IEEE80211_OFDM27 */
 	};
 	return IFM_SUBTYPE(mword) < N(ieeerates) ?
 		ieeerates[IFM_SUBTYPE(mword)] : 0;
