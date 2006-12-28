@@ -67,7 +67,7 @@
  * Kernel modules call real functions which are built into the kernel.
  * This allows kernel modules to be portable between UP and SMP systems.
  */
-#if defined(KLD_MODULE) || !(defined(__GNUCLIKE_ASM) && defined(__CC_SUPPORTS___INLINE))
+#if defined(KLD_MODULE) || !defined(__GNUCLIKE_ASM)
 #define	ATOMIC_ASM(NAME, TYPE, OP, CONS, V)			\
 void atomic_##NAME##_##TYPE(volatile u_##TYPE *p, u_##TYPE v)
 
@@ -79,7 +79,7 @@ u_int atomic_fetchadd_int(volatile u_int *p, u_int v);
 u_##TYPE	atomic_load_acq_##TYPE(volatile u_##TYPE *p);	\
 void		atomic_store_rel_##TYPE(volatile u_##TYPE *p, u_##TYPE v)
 
-#else /* !KLD_MODULE && __GNUCLIKE_ASM && __CC_SUPPORTS___INLINE */
+#else /* !KLD_MODULE && __GNUCLIKE_ASM */
 
 /*
  * For userland, assume the SMP case and use lock prefixes so that
@@ -209,7 +209,7 @@ atomic_load_acq_##TYPE(volatile u_##TYPE *p)		\
 	: "=a" (res),			/* 0 (result) */\
 	  "=m" (*p)			/* 1 */		\
 	: "m" (*p)			/* 2 */		\
-	: "memory");				 	\
+	: "memory");					\
 							\
 	return (res);					\
 }							\
@@ -229,7 +229,7 @@ struct __hack
 
 #endif /* SMP */
 
-#endif /* KLD_MODULE || !(__GNUCLIKE_ASM && __CC_SUPPORTS___INLINE) */
+#endif /* KLD_MODULE || !__GNUCLIKE_ASM */
 
 ATOMIC_ASM(set,	     char,  "orb %b1,%0",  "iq",  v);
 ATOMIC_ASM(clear,    char,  "andb %b1,%0", "iq", ~v);
@@ -262,7 +262,7 @@ ATOMIC_STORE_LOAD(long,	"cmpxchgq %0,%1",  "xchgq %1,%0");
 #if !defined(WANT_FUNCTIONS)
 
 /* Read the current value and store a zero in the destination. */
-#if defined(__GNUCLIKE_ASM) && defined(__CC_SUPPORTS___INLINE)
+#ifdef __GNUCLIKE_ASM
 
 static __inline u_int
 atomic_readandclear_int(volatile u_int *addr)
@@ -296,12 +296,12 @@ atomic_readandclear_long(volatile u_long *addr)
 	return (result);
 }
 
-#else /* !(__GNUCLIKE_ASM && __CC_SUPPORTS___INLINE) */
+#else /* !__GNUCLIKE_ASM */
 
 u_int	atomic_readandclear_int(volatile u_int *);
 u_long	atomic_readandclear_long(volatile u_long *);
 
-#endif /* __GNUCLIKE_ASM && __CC_SUPPORTS___INLINE */
+#endif /* __GNUCLIKE_ASM */
 
 /* Acquire and release variants are identical to the normal ones. */
 #define	atomic_set_acq_char		atomic_set_char
