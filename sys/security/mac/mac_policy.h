@@ -40,8 +40,8 @@
 /*
  * Kernel interface for MAC policy modules.
  */
-#ifndef _SYS_MAC_POLICY_H_
-#define _SYS_MAC_POLICY_H_
+#ifndef _SYS_SECURITY_MAC_MAC_POLICY_H_
+#define	_SYS_SECURITY_MAC_MAC_POLICY_H_
 
 /*-
  * Pluggable access control policy definition structure.
@@ -971,4 +971,4 @@ int	mac_policy_modevent(module_t mod, int type, void *data);
  */
 #define	LABEL_TO_SLOT(l, s)	(l)->l_perpolicy[s]
 
-#endif /* !_SYS_MAC_POLICY_H_ */
+#endif /* !_SYS_SECURITY_MAC_MAC_POLICY_H_ */
