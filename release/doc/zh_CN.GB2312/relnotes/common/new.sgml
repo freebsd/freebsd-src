@@ -1,7 +1,7 @@
 <!--
      The FreeBSD Simplified Chinese Project
 
-     Original revision: 1.883.2.52.2.5
+     Original revision: 1.883.2.52.2.6
 -->
 <articleinfo>
   <title>&os;/&arch; &release.current; 发行说明</title>
@@ -305,6 +305,8 @@
     <sect3 id="disks">
       <title>磁盘及存储</title>
 
+      <para>&man.arcmsr.4; 驱动已升级至 1.20.00.13 版本。</para>
+
       <para>&man.ata.4; 驱动能够支持 USB 大容量存储 (mass storage) 类的设备了。
 	您可以通过在内核编译配置文件中加入一行 <literal>device atausb</literal>
 	或加载内核模块
@@ -421,7 +423,7 @@
       </para>
 
     <para>在 &os; 的 <application>libc</application> 中的 DNS 解析库，
-      已更新为 BIND9 的版本。</para>
+      已更新为 BIND 9.3.3 的版本。</para>
 
     <para>&man.tail.1; 工具新增了用于禁止在追踪多个文件时显示标题的 <option>-q</option>
       选项。</para>
