@@ -75,6 +75,20 @@
 
 #define NG_PPP_HOOK_LINK_PREFIX	"link"		/* append decimal link number */
 
+/* Compress hook operation modes */
+enum {
+	NG_PPP_COMPRESS_NONE = 0,	/* compression disabled */
+	NG_PPP_COMPRESS_SIMPLE,		/* original operation mode */
+	NG_PPP_COMPRESS_FULL,		/* compressor returns proto */
+};
+
+/* Decompress hook operation modes */
+enum {
+	NG_PPP_DECOMPRESS_NONE = 0,	/* decompression disabled */
+	NG_PPP_DECOMPRESS_SIMPLE,	/* original operation mode */
+	NG_PPP_DECOMPRESS_FULL,		/* forward any packet to decompressor */
+};
+
 /* Netgraph commands */
 enum {
 	NGM_PPP_SET_CONFIG = 1,		/* takes struct ng_ppp_node_conf */
