@@ -1343,7 +1343,6 @@ kern/kern_ktrace.c		standard
 kern/kern_linker.c		standard
 kern/kern_lock.c		standard
 kern/kern_lockf.c		standard
-kern/kern_mac.c			standard
 kern/kern_malloc.c		standard
 kern/kern_mbuf.c		standard
 kern/kern_mib.c			standard
@@ -1937,6 +1936,7 @@ security/audit/audit_pipe.c	optional audit
 security/audit/audit_syscalls.c	standard
 security/audit/audit_trigger.c	optional audit
 security/audit/audit_worker.c	optional audit
+security/mac/mac_framework.c	optional mac
 security/mac/mac_inet.c		optional mac inet
 security/mac/mac_label.c	optional mac
 security/mac/mac_net.c		optional mac
@@ -1945,6 +1945,7 @@ security/mac/mac_posix_sem.c	optional mac
 security/mac/mac_priv.c		optional mac
 security/mac/mac_process.c	optional mac
 security/mac/mac_socket.c	optional mac
+security/mac/mac_syscalls.c	standard
 security/mac/mac_system.c	optional mac
 security/mac/mac_sysv_msg.c	optional mac
 security/mac/mac_sysv_sem.c	optional mac
