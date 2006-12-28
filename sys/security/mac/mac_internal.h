@@ -40,6 +40,9 @@
  * $FreeBSD$
  */
 
+#ifndef _SYS_SECURITY_MAC_MAC_INTERNAL_H_
+#define	_SYS_SECURITY_MAC_MAC_INTERNAL_H_
+
 /*
  * MAC Framework sysctl namespace.
  */
@@ -307,3 +310,5 @@ int	vn_setlabel(struct vnode *vp, struct label *intlabel,
 		mac_policy_list_unbusy();				\
 	}								\
 } while (0)
+
+#endif /* !_SYS_SECURITY_MAC_MAC_INTERNAL_H_ */
