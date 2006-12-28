@@ -75,13 +75,6 @@ MTX_SYSINIT(mac_ifnet_mtx, &mac_ifnet_mtx, "mac_ifnet", MTX_DEF);
 #define	MAC_IFNET_UNLOCK(ifp)	mtx_unlock(&mac_ifnet_mtx)
 
 /*
- * XXXRW: In order to use the MAC label UMA zone for all label allocations,
- * we simply store a pointer to a UMA-allocated label in the mbuf tag.  This
- * is inefficient and should likely change to using a label embedded in the
- * tag.
- */
-
-/*
  * Retrieve the label associated with an mbuf by searching for the tag.
  * Depending on the value of mac_labelmbufs, it's possible that a label will
  * not be present, in which case NULL is returned.  Policies must handle the
