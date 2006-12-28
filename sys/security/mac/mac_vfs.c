@@ -268,6 +268,15 @@ mac_associate_vnode_singlelabel(struct mount *mp, struct vnode *vp)
 	    vp->v_label);
 }
 
+/*
+ * Functions implementing extended-attribute backed labels for file systems
+ * that support it.
+ *
+ * Where possible, we use EA transactions to make writes to multiple
+ * attributes across difference policies mutually atomic.  We allow work to
+ * continue on file systems not supporting EA transactions, but generate a
+ * printf warning.
+ */
 int
 mac_create_vnode_extattr(struct ucred *cred, struct mount *mp,
     struct vnode *dvp, struct vnode *vp, struct componentname *cnp)
@@ -279,7 +288,6 @@ mac_create_vnode_extattr(struct ucred *cred, struct mount *mp,
 
 	error = VOP_OPENEXTATTR(vp, cred, curthread);
 	if (error == EOPNOTSUPP) {
-		/* XXX: Optionally abort if transactions not supported. */
 		if (ea_warn_once == 0) {
 			printf("Warning: transactions not supported "
 			    "in EA write.\n");
@@ -297,9 +305,8 @@ mac_create_vnode_extattr(struct ucred *cred, struct mount *mp,
 	}
 
 	error = VOP_CLOSEEXTATTR(vp, 1, NOCRED, curthread);
-
 	if (error == EOPNOTSUPP)
-		error = 0;				/* XXX */
+		error = 0;
 
 	return (error);
 }
@@ -314,7 +321,6 @@ mac_setlabel_vnode_extattr(struct ucred *cred, struct vnode *vp,
 
 	error = VOP_OPENEXTATTR(vp, cred, curthread);
 	if (error == EOPNOTSUPP) {
-		/* XXX: Optionally abort if transactions not supported. */
 		if (ea_warn_once == 0) {
 			printf("Warning: transactions not supported "
 			    "in EA write.\n");
@@ -331,9 +337,8 @@ mac_setlabel_vnode_extattr(struct ucred *cred, struct vnode *vp,
 	}
 
 	error = VOP_CLOSEEXTATTR(vp, 1, NOCRED, curthread);
-
 	if (error == EOPNOTSUPP)
-		error = 0;				/* XXX */
+		error = 0;
 
 	return (error);
 }
