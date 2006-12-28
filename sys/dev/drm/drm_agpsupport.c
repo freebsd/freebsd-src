@@ -46,7 +46,7 @@ static int
 drm_device_find_capability(drm_device_t *dev, int cap)
 {
 #ifdef __FreeBSD__
-#if __FreeBSD_version >= 700010
+#if __FreeBSD_version >= 602102
 
 	return (pci_find_extcap(dev->device, cap, NULL) == 0);
 #else
