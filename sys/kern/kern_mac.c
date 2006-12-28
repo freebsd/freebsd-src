@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 1999-2002 Robert N. M. Watson
+ * Copyright (c) 1999-2002, 2006 Robert N. M. Watson
  * Copyright (c) 2001 Ilmar S. Habibulin
  * Copyright (c) 2001-2005 Networks Associates Technology, Inc.
  * Copyright (c) 2005-2006 SPARTA, Inc.
@@ -39,10 +39,26 @@
  */
 
 /*-
- * Framework for extensible kernel access control.  This file contains
- * Kernel and userland interface to the framework, policy registration
- * and composition.  Per-object interfaces, controls, and labeling may be
- * found in src/sys/security/mac/.  Sample policies may be found in
+ * Framework for extensible kernel access control.  This file contains core
+ * kernel infrastructure for the TrustedBSD MAC Framework, including policy
+ * registration, versioning, locking, error composition operator, and system
+ * calls.
+ *
+ * The MAC Framework implements three programming interfaces:
+ *
+ * - The kernel MAC interface, defined in mac_framework.h, and invoked
+ *   throughout the kernel to request security decisions, notify of security
+ *   related events, etc.
+ *
+ * - The MAC policy module interface, defined in mac_policy.h, which is
+ *   implemented by MAC policy modules and invoked by the MAC Framework to
+ *   forward kernel security requests and notifications to policy modules.
+ *
+ * - The user MAC API, defined in mac.h, which allows user programs to query
+ *   and set label state on objects.
+ *
+ * The majority of the MAC Framework implementation may be found in
+ * src/sys/security/mac.  Sample policy modules may be found in
  * src/sys/security/mac_*.
  */
 
@@ -96,14 +112,22 @@ __FBSDID("$FreeBSD$");
 #ifdef MAC
 
 /*
- * Declare that the kernel provides MAC support, version 1.  This permits
- * modules to refuse to be loaded if the necessary support isn't present,
- * even if it's pre-boot.
+ * Root sysctl node for all MAC and MAC policy controls.
  */
-MODULE_VERSION(kernel_mac_support, 3);
-
 SYSCTL_NODE(_security, OID_AUTO, mac, CTLFLAG_RW, 0,
     "TrustedBSD MAC policy controls");
+
+/*
+ * Declare that the kernel provides MAC support, version 3 (FreeBSD 7.x).
+ * This permits modules to refuse to be loaded if the necessary support isn't
+ * present, even if it's pre-boot.
+ */
+#define	MAC_VERSION	3
+static unsigned int	mac_version = MAC_VERSION;
+
+MODULE_VERSION(kernel_mac_support, MAC_VERSION);
+SYSCTL_UINT(_security_mac, OID_AUTO, version, CTLFLAG_RD, &mac_version, 0,
+    "");
 
 /*
  * Labels consist of a indexed set of "slots", which are allocated policies
@@ -121,8 +145,8 @@ SYSCTL_NODE(_security, OID_AUTO, mac, CTLFLAG_RW, 0,
 
 static unsigned int mac_max_slots = MAC_MAX_SLOTS;
 static unsigned int mac_slot_offsets_free = (1 << MAC_MAX_SLOTS) - 1;
-SYSCTL_UINT(_security_mac, OID_AUTO, max_slots, CTLFLAG_RD,
-    &mac_max_slots, 0, "");
+SYSCTL_UINT(_security_mac, OID_AUTO, max_slots, CTLFLAG_RD, &mac_max_slots,
+    0, "");
 
 /*
  * Has the kernel started generating labeled objects yet?  All read/write
@@ -180,6 +204,10 @@ MALLOC_DEFINE(M_MACTEMP, "mactemp", "MAC temporary label storage");
  * Another reason for never blocking on read references is that the MAC
  * Framework may recurse: if a policy calls a VOP, for example, this might
  * lead to vnode life cycle operations (such as init/destroy).
+ *
+ * If the kernel option MAC_STATIC has been compiled in, all locking becomes
+ * a no-op, and the global list of policies is not allowed to change after
+ * early boot.
  */
 #ifndef MAC_STATIC
 static struct mtx mac_policy_mtx;
