@@ -188,6 +188,20 @@ will remove the note from the list, the
 function will not be called and the
 .Vt knote
 will not be returned as an event.
+.Pp
+Locks
+.Em must not
+be aquired in
+.Va f_event .
+If a lock is required in
+.Va f_event ,
+it must be obtained in the
+.Fa kl_lock
+function of the
+.Vt knlist
+that the
+.Va knote
+was added to.
 .El
 .Pp
 The function
