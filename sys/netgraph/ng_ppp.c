@@ -222,7 +222,7 @@ static ng_disconnect_t	ng_ppp_disconnect;
 
 /* Helper functions */
 static int	ng_ppp_input(node_p node, int bypass,
-			int linkNum, item_p item);
+			int linkNum, item_p item, int index);
 static int	ng_ppp_output(node_p node, int bypass, int proto,
 			int linkNum, item_p item);
 static int	ng_ppp_mp_input(node_p node, int linkNum, item_p item);
@@ -622,7 +622,7 @@ ng_ppp_rcvdata(hook_p hook, item_p item)
 		/* Dispatch incoming frame (if not enabled, to bypass) */
 		NGI_M(item) = m; 	/* put changed m back in item */
 		return ng_ppp_input(node,
-		    !link->conf.enableLink, linkNum, item);
+		    !link->conf.enableLink, linkNum, item, index);
 	}
 
 	/* Get protocol & check if data allowed from this hook */
@@ -674,11 +674,35 @@ ng_ppp_rcvdata(hook_p hook, item_p item)
 		proto = PROT_VJUNCOMP;
 		break;
 	case HOOK_INDEX_COMPRESS:
-		if (!priv->conf.enableCompression) {
+		switch (priv->conf.enableCompression) {
+		case NG_PPP_COMPRESS_FULL:
+			/* 
+			 * In full compression mode sending of uncompressed
+			 * frames is permitted, so compressor must prepend
+			 * actual protocol number.
+	    		 */
+			if (m->m_pkthdr.len < 2) {
+				NG_FREE_ITEM(item);
+				return (EINVAL);
+			}
+			if (m->m_len < 2 && (m = m_pullup(m, 2)) == NULL) {
+				NGI_M(item) = NULL; /* don't free twice */
+				NG_FREE_ITEM(item);
+				return (ENOBUFS);
+			}
+			NGI_M(item) = m; /* m may have changed */
+			proto = ntohs(mtod(m, uint16_t *)[0]);
+			m_adj(m, 2);
+			break;
+
+		case NG_PPP_COMPRESS_SIMPLE:
+			proto = PROT_COMPD;
+			break;
+
+		case NG_PPP_COMPRESS_NONE:
 			NG_FREE_ITEM(item);
 			return (ENXIO);
 		}
-		proto = PROT_COMPD;
 		break;
 	case HOOK_INDEX_ENCRYPT:
 		if (!priv->conf.enableEncryption) {
@@ -781,7 +805,7 @@ ng_ppp_rcvdata(hook_p hook, item_p item)
 	/* Incoming data */
 	case HOOK_INDEX_DECRYPT:
 	case HOOK_INDEX_DECOMPRESS:
-		return ng_ppp_input(node, 0, NG_PPP_BUNDLE_LINKNUM, item);
+		return ng_ppp_input(node, 0, NG_PPP_BUNDLE_LINKNUM, item, index);
 
 	case HOOK_INDEX_VJC_IP:
 		outHook = priv->hooks[HOOK_INDEX_INET];
@@ -849,7 +873,7 @@ ng_ppp_disconnect(hook_p hook)
  * and dispatch accordingly.
  */
 static int
-ng_ppp_input(node_p node, int bypass, int linkNum, item_p item)
+ng_ppp_input(node_p node, int bypass, int linkNum, item_p item, int index)
 {
 	const priv_p priv = NG_NODE_PRIVATE(node);
 	hook_p outHook = NULL;
@@ -881,47 +905,86 @@ ng_ppp_input(node_p node, int bypass, int linkNum, item_p item)
 	if (bypass)
 		goto bypass;
 
-	/* Check protocol */
-	switch (proto) {
-	case PROT_COMPD:
-		if (priv->conf.enableDecompression)
+	/* 
+	 * In full decompression mode we should pass any packet
+	 * to decompressor for dictionary update.
+	 */
+	if ((priv->conf.enableDecompression == NG_PPP_DECOMPRESS_FULL) &&
+	    (index < 0 || index == HOOK_INDEX_DECRYPT)) {
+	    
+		/* Check protocol */
+		switch (proto) {
+		case PROT_CRYPTD:
+			if (priv->conf.enableDecryption)
+				outHook = priv->hooks[HOOK_INDEX_DECRYPT];
+			break;
+		case PROT_MP:
+			if (priv->conf.enableMultilink &&
+			    linkNum != NG_PPP_BUNDLE_LINKNUM) {
+				NGI_M(item) = m;
+				return ng_ppp_mp_input(node, linkNum, item);
+			}
+			break;
+		case PROT_COMPD:
+		case PROT_VJCOMP:
+		case PROT_VJUNCOMP:
+		case PROT_APPLETALK:
+		case PROT_IPX:
+		case PROT_IP:
+		case PROT_IPV6: 
+			if ((m = ng_ppp_addproto(m, proto, 0)) == NULL) {
+				NG_FREE_ITEM(item);
+				return (ENOBUFS);
+			}
 			outHook = priv->hooks[HOOK_INDEX_DECOMPRESS];
-		break;
-	case PROT_CRYPTD:
-		if (priv->conf.enableDecryption)
-			outHook = priv->hooks[HOOK_INDEX_DECRYPT];
-		break;
-	case PROT_VJCOMP:
-		if (priv->conf.enableVJDecompression && priv->vjCompHooked)
-			outHook = priv->hooks[HOOK_INDEX_VJC_COMP];
-		break;
-	case PROT_VJUNCOMP:
-		if (priv->conf.enableVJDecompression && priv->vjCompHooked)
-			outHook = priv->hooks[HOOK_INDEX_VJC_UNCOMP];
-		break;
-	case PROT_MP:
-		if (priv->conf.enableMultilink
-		    && linkNum != NG_PPP_BUNDLE_LINKNUM) {
-			NGI_M(item) = m;
-			return ng_ppp_mp_input(node, linkNum, item);
+			break;
 		}
-		break;
-	case PROT_APPLETALK:
-		if (priv->conf.enableAtalk)
-			outHook = priv->hooks[HOOK_INDEX_ATALK];
-		break;
-	case PROT_IPX:
-		if (priv->conf.enableIPX)
-			outHook = priv->hooks[HOOK_INDEX_IPX];
-		break;
-	case PROT_IP:
-		if (priv->conf.enableIP)
-			outHook = priv->hooks[HOOK_INDEX_INET];
-		break;
-	case PROT_IPV6:
-		if (priv->conf.enableIPv6)
-			outHook = priv->hooks[HOOK_INDEX_IPV6];
-		break;
+	} else {
+
+		/* Check protocol */
+		switch (proto) {
+		case PROT_COMPD:
+			if (priv->conf.enableDecompression)
+				outHook = priv->hooks[HOOK_INDEX_DECOMPRESS];
+			break;
+		case PROT_CRYPTD:
+			if (priv->conf.enableDecryption)
+				outHook = priv->hooks[HOOK_INDEX_DECRYPT];
+			break;
+		case PROT_VJCOMP:
+			if (priv->conf.enableVJDecompression &&
+			    priv->vjCompHooked)
+				outHook = priv->hooks[HOOK_INDEX_VJC_COMP];
+			break;
+		case PROT_VJUNCOMP:
+			if (priv->conf.enableVJDecompression &&
+			    priv->vjCompHooked)
+				outHook = priv->hooks[HOOK_INDEX_VJC_UNCOMP];
+			break;
+		case PROT_MP:
+			if (priv->conf.enableMultilink &&
+			    linkNum != NG_PPP_BUNDLE_LINKNUM) {
+				NGI_M(item) = m;
+				return ng_ppp_mp_input(node, linkNum, item);
+			}
+			break;
+		case PROT_APPLETALK:
+			if (priv->conf.enableAtalk)
+				outHook = priv->hooks[HOOK_INDEX_ATALK];
+			break;
+		case PROT_IPX:
+			if (priv->conf.enableIPX)
+				outHook = priv->hooks[HOOK_INDEX_IPX];
+			break;
+		case PROT_IP:
+			if (priv->conf.enableIP)
+				outHook = priv->hooks[HOOK_INDEX_INET];
+			break;
+		case PROT_IPV6:
+			if (priv->conf.enableIPv6)
+				outHook = priv->hooks[HOOK_INDEX_IPV6];
+			break;
+		}
 	}
 
 bypass:
@@ -1320,7 +1383,8 @@ ng_ppp_frag_process(node_p node)
 	while (ng_ppp_check_packet(node)) {
 		ng_ppp_get_packet(node, &m);
 		if ((item = ng_package_data(m, NG_NOFLAGS)) != NULL)
-			ng_ppp_input(node, 0, NG_PPP_BUNDLE_LINKNUM, item);
+			ng_ppp_input(node, 0, NG_PPP_BUNDLE_LINKNUM, item,
+			    ~((int)NG_PPP_BUNDLE_LINKNUM));
 	}
 
 	/* Delete dead fragments and try again */
@@ -1329,7 +1393,7 @@ ng_ppp_frag_process(node_p node)
 			ng_ppp_get_packet(node, &m);
 			if ((item = ng_package_data(m, NG_NOFLAGS)) != NULL)
 				ng_ppp_input(node, 0, NG_PPP_BUNDLE_LINKNUM,
-				   item);
+				    item, ~((int)NG_PPP_BUNDLE_LINKNUM));
 		}
 	}
 
@@ -1463,7 +1527,8 @@ ng_ppp_frag_checkstale(node_p node)
 
 		/* Deliver packet */
 		if ((item = ng_package_data(m, NG_NOFLAGS)) != NULL)
-			ng_ppp_input(node, 0, NG_PPP_BUNDLE_LINKNUM, item);
+			ng_ppp_input(node, 0, NG_PPP_BUNDLE_LINKNUM, item,
+			    ~((int)NG_PPP_BUNDLE_LINKNUM));
 	}
 }
 
