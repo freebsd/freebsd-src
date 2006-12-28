@@ -226,7 +226,7 @@ audit_record_write(struct vnode *vp, struct ucred *cred, struct thread *td,
 			audit_in_failure = 1;
 		} else if (audit_in_failure) {
 			/*
-			 * XXXRW: If we want to handle recovery, this is the
+			 * Note: if we want to handle recovery, this is the
 			 * spot to do it: unset audit_in_failure, and issue a
 			 * wakeup on the cv.
 			 */
@@ -246,8 +246,8 @@ audit_record_write(struct vnode *vp, struct ucred *cred, struct thread *td,
 	 * true, since audit_in_failure can only be set of audit_fail_stop is
 	 * set.
 	 *
-	 * XXXRW: If we handle recovery from audit_in_failure, then we need
-	 * to make panic here conditional.
+	 * Note: if we handle recovery from audit_in_failure, then we need to
+	 * make panic here conditional.
 	 */
 	if (audit_in_failure) {
 		if (audit_q_len == 0 && audit_pre_q_len == 0) {
@@ -297,9 +297,9 @@ fail:
  * the global replacement variables.  Signal consumers as needed that the
  * rotation has taken place.
  *
- * XXXRW: The global variables and CVs used to signal the audit_worker to
- * perform a rotation are essentially a message queue of depth 1.  It would
- * be much nicer to actually use a message queue.
+ * The global variables and CVs used to signal the audit_worker to perform a
+ * rotation are essentially a message queue of depth 1.  It would be much
+ * nicer to actually use a message queue.
  */
 static void
 audit_worker_rotate(struct ucred **audit_credp, struct vnode **audit_vpp,
@@ -323,9 +323,6 @@ audit_worker_rotate(struct ucred **audit_credp, struct vnode **audit_vpp,
 
 		audit_enabled = (*audit_vpp != NULL);
 
-		/*
-		 * XXX: What to do about write failures here?
-		 */
 		if (old_vp != NULL) {
 			AUDIT_PRINTF(("Closing old audit file\n"));
 			mtx_unlock(&audit_mtx);
@@ -520,11 +517,9 @@ audit_worker(void *arg)
  * this call, so the caller should not release either.
  *
  * XXXAUDIT: Review synchronize communication logic.  Really, this is a
- * message queue of depth 1.
- *
- * XXXAUDIT: Enhance the comments below to indicate that we are basically
- * acquiring ownership of the communications queue, inserting our message,
- * and waiting for an acknowledgement.
+ * message queue of depth 1.  We are essentially acquiring ownership of the
+ * communications queue, inserting our message, and waiting for an
+ * acknowledgement.
  */
 void
 audit_rotate_vnode(struct ucred *cred, struct vnode *vp)

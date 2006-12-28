@@ -42,12 +42,17 @@
 
 /*
  * Structures and operations to support the basic character special device
- * used to communicate with userland.
+ * used to communicate with userland.  /dev/audit reliably delivers one-byte
+ * messages to a listening application (or discards them if there is no
+ * listening application).
+ *
+ * Currently, select/poll are not supported on the trigger device.
  */
 struct trigger_info {
 	unsigned int			trigger;
 	TAILQ_ENTRY(trigger_info)	list;
 };
+
 static MALLOC_DEFINE(M_AUDITTRIGGER, "audit_trigger", "Audit trigger events");
 static struct cdev *audit_dev;
 static int audit_isopen = 0;
@@ -132,7 +137,7 @@ send_trigger(unsigned int trigger)
 		return (ENODEV);
 
 	/*
-	 * XXXAUDIT: Use a condition variable instead of msleep/wakeup?
+	 * Note: Use a condition variable instead of msleep/wakeup?
 	 */
 	ti = malloc(sizeof *ti, M_AUDITTRIGGER, M_WAITOK);
 	mtx_lock(&audit_trigger_mtx);
