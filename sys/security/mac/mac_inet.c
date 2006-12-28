@@ -270,8 +270,8 @@ void
 mac_inpcb_sosetlabel(struct socket *so, struct inpcb *inp)
 {
 
-	/* XXX: assert socket lock. */
 	INP_LOCK_ASSERT(inp);
+	SOCK_LOCK_ASSERT(so);
 	MAC_PERFORM(inpcb_sosetlabel, so, so->so_label, inp, inp->inp_label);
 }
 
