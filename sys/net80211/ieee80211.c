@@ -143,10 +143,9 @@ ieee80211_default_reset(struct ifnet *ifp)
 static void
 ieee80211_chan_init(struct ieee80211com *ic)
 {
-#define	RATESDEFINED(m) \
-	((ic->ic_modecaps & (1<<m)) && ic->ic_sup_rates[m].rs_nrates != 0)
 #define	DEFAULTRATES(m, def) do { \
-	if (!RATESDEFINED(m)) ic->ic_sup_rates[m] = def; \
+	if ((ic->ic_modecaps & (1<<m)) && ic->ic_sup_rates[m].rs_nrates == 0) \
+		ic->ic_sup_rates[m] = def; \
 } while (0)
 	struct ifnet *ifp = ic->ic_ifp;
 	struct ieee80211_channel *c;
@@ -175,7 +174,7 @@ ieee80211_chan_init(struct ieee80211com *ic)
 				ic->ic_modecaps |= 1<<IEEE80211_MODE_11A;
 			if (IEEE80211_IS_CHAN_B(c))
 				ic->ic_modecaps |= 1<<IEEE80211_MODE_11B;
-			if (IEEE80211_IS_CHAN_PUREG(c))
+			if (IEEE80211_IS_CHAN_ANYG(c))
 				ic->ic_modecaps |= 1<<IEEE80211_MODE_11G;
 			if (IEEE80211_IS_CHAN_FHSS(c))
 				ic->ic_modecaps |= 1<<IEEE80211_MODE_FH;
@@ -202,7 +201,6 @@ ieee80211_chan_init(struct ieee80211com *ic)
 	 */
 	(void) ieee80211_setmode(ic, IEEE80211_MODE_AUTO);
 #undef DEFAULTRATES
-#undef RATESDEFINED
 }
 
 void
