@@ -926,6 +926,20 @@ struct mac_policy_conf {
 /* Flags for the mpc_runtime_flags field. */
 #define	MPC_RUNTIME_FLAG_REGISTERED	0x00000001
 
+/*-
+ * The TrustedBSD MAC Framework has a major version number, MAC_VERSION,
+ * which defines the ABI of the Framework present in the kernel (and depended
+ * on by policy modules compiled against that kernel).  Currently,
+ * MAC_POLICY_SET() requires that the kernel and module ABI version numbers
+ * exactly match.  The following major versions have been defined to date:
+ *
+ *   MAC version             FreeBSD versions
+ *   1                       5.x
+ *   2                       6.x
+ *   3                       7.x
+ */
+#define	MAC_VERSION	3
+
 #define	MAC_POLICY_SET(mpops, mpname, mpfullname, mpflags, privdata_wanted) \
 	static struct mac_policy_conf mpname##_mac_policy_conf = {	\
 		#mpname,						\
@@ -940,7 +954,8 @@ struct mac_policy_conf {
 		mac_policy_modevent,					\
 		&mpname##_mac_policy_conf				\
 	};								\
-	MODULE_DEPEND(mpname, kernel_mac_support, 3, 3, 3);		\
+	MODULE_DEPEND(mpname, kernel_mac_support, MAC_VERSION,		\
+	    MAC_VERSION, MAC_VERSION);					\
 	DECLARE_MODULE(mpname, mpname##_mod, SI_SUB_MAC_POLICY,		\
 	    SI_ORDER_MIDDLE)
 
