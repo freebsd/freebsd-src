@@ -34,10 +34,9 @@
 
 /*
  * Export definitions of the pci bus so that we can more easily share
- * it with "subclass" busses.  A more generic subclassing mechanism would
- * be nice, but is not present in the tree at this time.
+ * it with "subclass" busses.
  */
-extern devclass_t pci_devclass;
+DECLARE_CLASS(pci_driver);
 
 void		pci_add_children(device_t dev, int busno, size_t dinfo_size);
 void		pci_add_child(device_t bus, struct pci_devinfo *dinfo);
