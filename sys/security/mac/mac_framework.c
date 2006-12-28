@@ -90,10 +90,9 @@ SYSCTL_NODE(_security, OID_AUTO, mac, CTLFLAG_RW, 0,
  * This permits modules to refuse to be loaded if the necessary support isn't
  * present, even if it's pre-boot.
  */
-#define	MAC_VERSION	3
-static unsigned int	mac_version = MAC_VERSION;
-
 MODULE_VERSION(kernel_mac_support, MAC_VERSION);
+
+static unsigned int	mac_version = MAC_VERSION;
 SYSCTL_UINT(_security_mac, OID_AUTO, version, CTLFLAG_RD, &mac_version, 0,
     "");
 
@@ -121,7 +120,7 @@ SYSCTL_UINT(_security_mac, OID_AUTO, max_slots, CTLFLAG_RD, &mac_max_slots,
  * access to this variable is serialized during the boot process.  Following
  * the end of serialization, we don't update this flag; no locking.
  */
-int	mac_late = 0;
+static int	mac_late = 0;
 
 /*
  * Flag to indicate whether or not we should allocate label storage for new
