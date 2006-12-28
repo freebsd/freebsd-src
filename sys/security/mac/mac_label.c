@@ -45,7 +45,7 @@ __FBSDID("$FreeBSD$");
 #include <security/mac/mac_internal.h>
 
 /*
- * zone_label is the UMA zone from which all labels are allocated.  Label
+ * zone_label is the UMA zone from which most labels are allocated.  Label
  * structures are initialized to zero bytes so that policies see a NULL/0
  * slot on first use, even if the policy is loaded after the label is
  * allocated for an object.
@@ -64,6 +64,34 @@ mac_labelzone_init(void)
 	    UMA_ALIGN_PTR, 0);
 }
 
+/*
+ * mac_init_label() and mac_destroy_label() are exported so that they can be
+ * used in mbuf tag initialization, where labels are not slab allocated from
+ * the zone_label zone.
+ */
+void
+mac_init_label(struct label *label)
+{
+
+	bzero(label, sizeof(*label));
+	label->l_flags = MAC_FLAG_INITIALIZED;
+}
+
+void
+mac_destroy_label(struct label *label)
+{
+
+	KASSERT(label->l_flags & MAC_FLAG_INITIALIZED,
+	    ("destroying uninitialized label"));
+
+#ifdef DIAGNOSTIC
+	bzero(label, sizeof(*label));
+#else
+	label->l_flags &= ~MAC_FLAG_INITIALIZED;
+#endif
+}
+
+
 static int
 mac_labelzone_ctor(void *mem, int size, void *arg, int flags)
 {
@@ -71,8 +99,7 @@ mac_labelzone_ctor(void *mem, int size, void *arg, int flags)
 
 	KASSERT(size == sizeof(*label), ("mac_labelzone_ctor: wrong size\n"));
 	label = mem;
-	bzero(label, sizeof(*label));
-	label->l_flags = MAC_FLAG_INITIALIZED;
+	mac_init_label(label);
 	return (0);
 }
 
@@ -83,13 +110,7 @@ mac_labelzone_dtor(void *mem, int size, void *arg)
 
 	KASSERT(size == sizeof(*label), ("mac_labelzone_dtor: wrong size\n"));
 	label = mem;
-	KASSERT(label->l_flags & MAC_FLAG_INITIALIZED,
-	    ("mac_labelzone_dtor: label not initialized"));
-#ifdef DIAGNOSTIC
-	bzero(label, sizeof(*label));
-#else
-	label->l_flags &= ~MAC_FLAG_INITIALIZED;
-#endif
+	mac_destroy_label(label);
 }
 
 struct label *

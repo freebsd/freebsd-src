@@ -559,25 +559,6 @@ mac_error_select(int error1, int error2)
 	return (error2);
 }
 
-void
-mac_init_label(struct label *label)
-{
-
-	bzero(label, sizeof(*label));
-	label->l_flags = MAC_FLAG_INITIALIZED;
-}
-
-void
-mac_destroy_label(struct label *label)
-{
-
-	KASSERT(label->l_flags & MAC_FLAG_INITIALIZED,
-	    ("destroying uninitialized label"));
-
-	bzero(label, sizeof(*label));
-	/* implicit: label->l_flags &= ~MAC_FLAG_INITIALIZED; */
-}
-
 int
 mac_check_structmac_consistent(struct mac *mac)
 {
