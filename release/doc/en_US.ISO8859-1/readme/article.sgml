@@ -21,6 +21,7 @@
       <year>2003</year>
       <year>2004</year>
       <year>2005</year>
+      <year>2006</year>
       <holder role="mailto:doc@FreeBSD.org">The &os; Documentation Project</holder>
     </copyright>
 
@@ -340,11 +341,10 @@
 
 	<note>
 	  <para>Several of these documents (in particular,
-	    <filename>RELNOTES.TXT</filename>,
-	    <filename>HARDWARE.TXT</filename>, and
+	    <filename>HARDWARE.TXT</filename> and
 	    <filename>INSTALL.TXT</filename>) contain information that
 	    is specific to a particular hardware architecture.  For
-	    example, the alpha release notes contain information not
+	    example, the alpha hardware notes contain information not
 	    applicable to the &i386;, and vice versa.  The architecture
 	    for which each document applies will be listed in that
 	    document's title.</para>
