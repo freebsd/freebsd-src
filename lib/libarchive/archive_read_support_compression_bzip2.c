@@ -120,7 +120,7 @@ bid(const void *buff, size_t len)
 	 * thorough check.  It's especially troubling that the BZip2
 	 * signature begins with all ASCII characters; a tar archive
 	 * whose first filename begins with 'BZh3' would potentially
-	 * fool this logic.  (It may also be possible to gaurd against
+	 * fool this logic.  (It may also be possible to guard against
 	 * such anomalies in archive_read_support_compression_none.)
 	 */
 

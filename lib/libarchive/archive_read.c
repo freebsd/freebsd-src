@@ -298,7 +298,7 @@ archive_read_next_header(struct archive *a, struct archive_entry **entryp)
 
 	/*
 	 * EOF and FATAL are persistent at this layer.  By
-	 * modifying the state, we gaurantee that future calls to
+	 * modifying the state, we guarantee that future calls to
 	 * read a header or read data will fail.
 	 */
 	switch (ret) {
