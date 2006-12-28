@@ -39,7 +39,7 @@ struct archive {
 	/*
 	 * The magic/state values are used to sanity-check the
 	 * client's usage.  If an API function is called at a
-	 * rediculous time, or the client passes us an invalid
+	 * ridiculous time, or the client passes us an invalid
 	 * pointer, these values allow me to catch that.
 	 */
 	unsigned	  magic;
@@ -167,7 +167,7 @@ struct archive {
 	 * multiple format readers active at one time, so we need to
 	 * allow for multiple format readers to have their data
 	 * available.  The pformat_data slot here is the solution: on
-	 * read, it is gauranteed to always point to a void* variable
+	 * read, it is guaranteed to always point to a void* variable
 	 * that the format can use.
 	 */
 	void	**pformat_data;		/* Pointer to current format_data. */
