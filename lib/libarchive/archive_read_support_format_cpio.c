@@ -367,7 +367,7 @@ header_newc(struct archive *a, struct cpio *cpio, struct stat *st,
 
 	/*
 	 * Note: entry_bytes_remaining is at least 64 bits and
-	 * therefore gauranteed to be big enough for a 33-bit file
+	 * therefore guaranteed to be big enough for a 33-bit file
 	 * size.  struct stat.st_size may only be 32 bits, so
 	 * assigning there first could lose information.
 	 */
@@ -412,7 +412,7 @@ header_odc(struct archive *a, struct cpio *cpio, struct stat *st,
 
 	/*
 	 * Note: entry_bytes_remaining is at least 64 bits and
-	 * therefore gauranteed to be big enough for a 33-bit file
+	 * therefore guaranteed to be big enough for a 33-bit file
 	 * size.  struct stat.st_size may only be 32 bits, so
 	 * assigning there first could lose information.
 	 */

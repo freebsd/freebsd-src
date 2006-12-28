@@ -267,7 +267,7 @@ archive_decompressor_none_read_consume(struct archive *a, size_t request)
 /*
  * Skip forward by exactly the requested bytes or else return
  * ARCHIVE_FATAL.  Note that this differs from the contract for
- * read_ahead, which does not gaurantee a minimum count.
+ * read_ahead, which does not guarantee a minimum count.
  */
 static ssize_t
 archive_decompressor_none_skip(struct archive *a, size_t request)
