@@ -183,6 +183,12 @@ struct pci_quirk pci_quirks[] = {
 	 */
 	{ 0x254c8086, PCI_QUIRK_DISABLE_MSI,	0,	0 },
 
+	/*
+	 * MSI doesn't work with the Intel E7505 chipset, at least on
+	 * the Tyan S2665ANF motherboard.
+	 */
+	{ 0x25508086, PCI_QUIRK_DISABLE_MSI,	0,	0 },
+
 	{ 0 }
 };
 
