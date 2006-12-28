@@ -2267,6 +2267,14 @@ ndis_setstate_80211(sc)
 #endif
 		int			keys_set = 0;
 
+#if __FreeBSD_version >= 600007
+		if (ic->ic_bss->ni_authmode == IEEE80211_AUTH_SHARED) {
+			len = sizeof(arg);
+			arg = NDIS_80211_AUTHMODE_SHARED;
+			ndis_set_info(sc, OID_802_11_AUTHENTICATION_MODE,
+			    &arg, &len);
+		}
+#endif
 		for (i = 0; i < IEEE80211_WEP_NKID; i++) {
 			if (ic->ic_nw_keys[i].wk_keylen) {
 #if __FreeBSD_version >= 600007
