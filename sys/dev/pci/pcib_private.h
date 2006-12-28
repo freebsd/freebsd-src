@@ -75,6 +75,4 @@ uint32_t	pcib_read_config(device_t dev, int b, int s, int f, int reg, int width)
 void		pcib_write_config(device_t dev, int b, int s, int f, int reg, uint32_t val, int width);
 int		pcib_route_interrupt(device_t pcib, device_t dev, int pin);
 
-extern devclass_t pcib_devclass;
-
 #endif
