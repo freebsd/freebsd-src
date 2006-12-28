@@ -60,7 +60,6 @@ MALLOC_DECLARE(M_MACTEMP);
  */
 extern struct mac_policy_list_head	mac_policy_list;
 extern struct mac_policy_list_head	mac_static_policy_list;
-extern int				mac_late;
 #ifndef MAC_ALWAYS_LABEL_MBUF
 extern int				mac_labelmbufs;
 #endif
