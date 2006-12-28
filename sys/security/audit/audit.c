@@ -312,9 +312,9 @@ audit_new(int event, struct thread *td)
 		return (NULL);
 
 	/*
-	 * XXX: The number of outstanding uncommitted audit records is
-	 * limited to the number of concurrent threads servicing system
-	 * calls in the kernel.
+	 * Note: the number of outstanding uncommitted audit records is
+	 * limited to the number of concurrent threads servicing system calls
+	 * in the kernel.
 	 */
 	ar = uma_zalloc_arg(audit_record_zone, td, M_WAITOK);
 	ar->k_ar.ar_event = event;
@@ -503,7 +503,7 @@ audit_syscall_enter(unsigned short code, struct thread *td)
 		 * processes, do that here rather than trying to allocate
 		 * another audit record.
 		 *
-		 * XXXRW: We might wish to be able to continue here in the
+		 * Note: we might wish to be able to continue here in the
 		 * future, if the system recovers.  That should be possible
 		 * by means of checking the condition in a loop around
 		 * cv_wait().  It might be desirable to reevaluate whether an
