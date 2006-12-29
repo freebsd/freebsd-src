@@ -3032,6 +3032,12 @@ pf_test_tcp(struct pf_rule **rm, struct pf_state **sm, int direction,
 		return (PF_DROP);
 	}
 
+#if defined(__FreeBSD__) && defined(PF_MPSAFE_UGID)
+	PF_UNLOCK();
+	lookup = pf_socket_lookup(&uid, &gid, direction, pd, inp);
+	PF_LOCK();
+#endif
+
 	r = TAILQ_FIRST(pf_main_ruleset.rules[PF_RULESET_FILTER].active.ptr);
 
 	if (direction == PF_OUT) {
@@ -3427,6 +3433,12 @@ pf_test_udp(struct pf_rule **rm, struct pf_state **sm, int direction,
 		REASON_SET(&reason, PFRES_CONGEST);
 		return (PF_DROP);
 	}
+
+#if defined(__FreeBSD__) && defined(PF_MPSAFE_UGID)
+	PF_UNLOCK();
+	lookup = pf_socket_lookup(&uid, &gid, direction, pd, inp);
+	PF_LOCK();
+#endif
 
 	r = TAILQ_FIRST(pf_main_ruleset.rules[PF_RULESET_FILTER].active.ptr);
 
