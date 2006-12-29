@@ -136,6 +136,15 @@ udp_zone_change(void *tag)
 	uma_zone_set_max(udbinfo.ipi_zone, maxsockets);
 }
 
+static int
+udp_inpcb_init(void *mem, int size, int flags)
+{
+	struct inpcb *inp = mem;
+
+	INP_LOCK_INIT(inp, "inp", "udpinp");
+	return (0);
+}
+
 void
 udp_init()
 {
@@ -146,7 +155,7 @@ udp_init()
 	udbinfo.porthashbase = hashinit(UDBHASHSIZE, M_PCB,
 					&udbinfo.porthashmask);
 	udbinfo.ipi_zone = uma_zcreate("udpcb", sizeof(struct inpcb), NULL,
-	    NULL, NULL, NULL, UMA_ALIGN_PTR, UMA_ZONE_NOFREE);
+	    NULL, udp_inpcb_init, NULL, UMA_ALIGN_PTR, UMA_ZONE_NOFREE);
 	uma_zone_set_max(udbinfo.ipi_zone, maxsockets);
 	EVENTHANDLER_REGISTER(maxsockets_change, udp_zone_change, NULL,
 		EVENTHANDLER_PRI_ANY);
@@ -632,6 +641,7 @@ udp_pcblist(SYSCTL_HANDLER_ARGS)
 	error = 0;
 	for (i = 0; i < n; i++) {
 		inp = inp_list[i];
+		INP_LOCK(inp);
 		if (inp->inp_gencnt <= gencnt) {
 			struct xinpcb xi;
 			bzero(&xi, sizeof(xi));
@@ -641,8 +651,10 @@ udp_pcblist(SYSCTL_HANDLER_ARGS)
 			if (inp->inp_socket)
 				sotoxsocket(inp->inp_socket, &xi.xi_socket);
 			xi.xi_inp.inp_gencnt = inp->inp_gencnt;
+			INP_UNLOCK(inp);
 			error = SYSCTL_OUT(req, &xi, sizeof xi);
-		}
+		} else
+			INP_UNLOCK(inp);	
 	}
 	if (!error) {
 		/*
@@ -973,14 +985,13 @@ udp_attach(struct socket *so, int proto, struct thread *td)
 		INP_INFO_WUNLOCK(&udbinfo);
 		return error;
 	}
-	error = in_pcballoc(so, &udbinfo, "udpinp");
+	error = in_pcballoc(so, &udbinfo);
 	if (error) {
 		INP_INFO_WUNLOCK(&udbinfo);
 		return error;
 	}
 
 	inp = (struct inpcb *)so->so_pcb;
-	INP_LOCK(inp);
 	INP_INFO_WUNLOCK(&udbinfo);
 	inp->inp_vflag |= INP_IPV4;
 	inp->inp_ip_ttl = ip_defttl;
