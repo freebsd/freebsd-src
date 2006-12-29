@@ -33,8 +33,8 @@
 #endif
 
 /*
- * Various simple arithmetic on memory which is atomic in the presence
- * of interrupts and multiple processors.
+ * Various simple operations on memory, each of which is atomic in the
+ * presence of interrupts and multiple processors.
  *
  * atomic_set_char(P, V)	(*(u_char *)(P) |= (V))
  * atomic_clear_char(P, V)	(*(u_char *)(P) &= ~(V))
@@ -50,13 +50,13 @@
  * atomic_clear_int(P, V)	(*(u_int *)(P) &= ~(V))
  * atomic_add_int(P, V)		(*(u_int *)(P) += (V))
  * atomic_subtract_int(P, V)	(*(u_int *)(P) -= (V))
- * atomic_readandclear_int(P)	(return *(u_int *)P; *(u_int *)P = 0;)
+ * atomic_readandclear_int(P)	(return (*(u_int *)(P)); *(u_int *)(P) = 0;)
  *
  * atomic_set_long(P, V)	(*(u_long *)(P) |= (V))
  * atomic_clear_long(P, V)	(*(u_long *)(P) &= ~(V))
  * atomic_add_long(P, V)	(*(u_long *)(P) += (V))
  * atomic_subtract_long(P, V)	(*(u_long *)(P) -= (V))
- * atomic_readandclear_long(P)	(return *(u_long *)P; *(u_long *)P = 0;)
+ * atomic_readandclear_long(P)	(return (*(u_long *)(P)); *(u_long *)(P) = 0;)
  */
 
 /*
@@ -82,8 +82,8 @@ void		atomic_store_rel_##TYPE(volatile u_##TYPE *p, u_##TYPE v)
 #else /* !KLD_MODULE && __GNUCLIKE_ASM */
 
 /*
- * For userland, assume the SMP case and use lock prefixes so that
- * the binaries will run on both types of systems.
+ * For userland, always use lock prefixes so that the binaries will run
+ * on both SMP and !SMP systems.
  */
 #if defined(SMP) || !defined(_KERNEL)
 #define	MPLOCKED	"lock ; "
@@ -197,7 +197,7 @@ atomic_store_rel_##TYPE(volatile u_##TYPE *p, u_##TYPE v)\
 }							\
 struct __hack
 
-#else /* defined(SMP) */
+#else /* !(_KERNEL && !SMP) */
 
 #define	ATOMIC_STORE_LOAD(TYPE, LOP, SOP)		\
 static __inline u_##TYPE				\
@@ -206,7 +206,7 @@ atomic_load_acq_##TYPE(volatile u_##TYPE *p)		\
 	u_##TYPE res;					\
 							\
 	__asm __volatile(MPLOCKED LOP			\
-	: "=a" (res),			/* 0 (result) */\
+	: "=a" (res),			/* 0 */		\
 	  "=m" (*p)			/* 1 */		\
 	: "m" (*p)			/* 2 */		\
 	: "memory");					\
@@ -227,7 +227,7 @@ atomic_store_rel_##TYPE(volatile u_##TYPE *p, u_##TYPE v)\
 }							\
 struct __hack
 
-#endif /* SMP */
+#endif /* _KERNEL && !SMP */
 
 #endif /* KLD_MODULE || !__GNUCLIKE_ASM */
 
@@ -259,7 +259,7 @@ ATOMIC_STORE_LOAD(long,	"cmpxchgq %0,%1",  "xchgq %1,%0");
 #undef ATOMIC_ASM
 #undef ATOMIC_STORE_LOAD
 
-#if !defined(WANT_FUNCTIONS)
+#ifndef WANT_FUNCTIONS
 
 /* Read the current value and store a zero in the destination. */
 #ifdef __GNUCLIKE_ASM
@@ -267,39 +267,39 @@ ATOMIC_STORE_LOAD(long,	"cmpxchgq %0,%1",  "xchgq %1,%0");
 static __inline u_int
 atomic_readandclear_int(volatile u_int *addr)
 {
-	u_int result;
+	u_int res;
 
-	result = 0;
+	res = 0;
 	__asm __volatile(
 	"	xchgl	%1,%0 ;		"
 	"# atomic_readandclear_int"
-	: "+r" (result),		/* 0 (result) */
-	  "=m" (*addr)			/* 1 (addr) */
+	: "+r" (res),			/* 0 */
+	  "=m" (*addr)			/* 1 */
 	: "m" (*addr));
 
-	return (result);
+	return (res);
 }
 
 static __inline u_long
 atomic_readandclear_long(volatile u_long *addr)
 {
-	u_long result;
+	u_long res;
 
-	result = 0;
+	res = 0;
 	__asm __volatile(
 	"	xchgq	%1,%0 ;		"
 	"# atomic_readandclear_long"
-	: "+r" (result),		/* 0 (result) */
-	  "=m" (*addr)			/* 1 (addr) */
+	: "+r" (res),			/* 0 */
+	  "=m" (*addr)			/* 1 */
 	: "m" (*addr));
 
-	return (result);
+	return (res);
 }
 
 #else /* !__GNUCLIKE_ASM */
 
-u_int	atomic_readandclear_int(volatile u_int *);
-u_long	atomic_readandclear_long(volatile u_long *);
+u_int	atomic_readandclear_int(volatile u_int *addr);
+u_long	atomic_readandclear_long(volatile u_long *addr);
 
 #endif /* __GNUCLIKE_ASM */
 
@@ -437,6 +437,6 @@ u_long	atomic_readandclear_long(volatile u_long *);
 #define	atomic_cmpset_rel_ptr	atomic_cmpset_rel_long
 #define	atomic_readandclear_ptr	atomic_readandclear_long
 
-#endif /* !defined(WANT_FUNCTIONS) */
+#endif /* !WANT_FUNCTIONS */
 
 #endif /* !_MACHINE_ATOMIC_H_ */
