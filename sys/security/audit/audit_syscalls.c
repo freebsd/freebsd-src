@@ -193,9 +193,6 @@ auditon(struct thread *td, struct auditon_args *uap)
 	}
 
 	/*
-	 * XXX Need to implement these commands by accessing the global
-	 * values associated with the commands.
-	 *
 	 * XXXAUDIT: Locking?
 	 */
 	switch (uap->cmd) {
@@ -549,8 +546,6 @@ setaudit_addr(struct thread *td, struct setaudit_addr_args *uap)
 /*
  * MPSAFE
  * Syscall to manage audit files.
- *
- * XXX: Should generate an audit event.
  */
 /* ARGSUSED */
 int
