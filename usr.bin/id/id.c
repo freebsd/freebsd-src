@@ -300,7 +300,7 @@ id_print(struct passwd *pw, int use_ggl, int p_euid, int p_egid)
 		if (lastgid == (gid = groups[cnt]))
 			continue;
 		printf(fmt, gid);
-		fmt = ", %u";
+		fmt = ",%u";
 		if ((gr = getgrgid(gid)))
 			printf("(%s)", gr->gr_name);
 		lastgid = gid;
