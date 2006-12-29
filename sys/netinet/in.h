@@ -410,6 +410,11 @@ __END_DECLS
 #define	IP_FW_GET		54   /* get entire firewall rule chain */
 #define	IP_FW_RESETLOG		55   /* reset logging counters */
 
+#define IP_FW_NAT_CFG           56   /* add/config a nat rule */
+#define IP_FW_NAT_DEL           57   /* delete a nat rule */
+#define IP_FW_NAT_GET_CONFIG    58   /* get configuration of a nat rule */
+#define IP_FW_NAT_GET_LOG       59   /* get log of a nat rule */
+
 #define	IP_DUMMYNET_CONFIGURE	60   /* add/configure a dummynet pipe */
 #define	IP_DUMMYNET_DEL		61   /* delete a dummynet pipe from chain */
 #define	IP_DUMMYNET_FLUSH	62   /* flush dummynet */

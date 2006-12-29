@@ -129,6 +129,14 @@ case ${firewall_type} in
 		fi
 		;;
 	esac
+	case ${firewall_nat_enable} in
+	[Yy][Ee][Ss])
+		if [ -n "${firewall_nat_interface}" ]; then
+			${fwcmd} nat 123 config if ${firewall_nat_interface} log
+			${fwcmd} add 50 nat 123 ip4 from any to any via ${firewall_nat_interface}
+		fi
+		;;
+	esac
 esac
 
 ############
