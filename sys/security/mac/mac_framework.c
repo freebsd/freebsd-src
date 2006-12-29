@@ -62,6 +62,8 @@
  * src/sys/security/mac_*.
  */
 
+#include "opt_mac.h"
+
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
