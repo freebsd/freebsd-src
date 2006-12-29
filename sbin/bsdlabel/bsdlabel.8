@@ -31,7 +31,7 @@
 .\"	@(#)disklabel.8	8.2 (Berkeley) 4/19/94
 .\" $FreeBSD$
 .\"
-.Dd October 13, 2006
+.Dd December 29, 2006
 .Dt BSDLABEL 8
 .Os
 .Sh NAME
@@ -116,9 +116,7 @@ If this option is omitted,
 .Nm
 will use a layout suitable for the current machine.
 .Ss Reading the Disk Label
-To examine the label on a disk drive, use
-.Nm
-without options:
+To examine the label on a disk drive, use the form
 .Pp
 .Nm
 .Op Fl A
@@ -141,7 +139,9 @@ To write a standard label, use the form
 .Ar disk
 .Op Ar type
 .Pp
-If the drive type is specified, the entry of that name in the
+If the drive
+.Ar type
+is specified, the entry of that name in the
 .Xr disktab 5
 file is used; otherwise a default layout is used.
 .Ss Editing an Existing Disk Label
@@ -164,7 +164,9 @@ To restore a disk label from a file, use the form
 .Op Fl m Ar machine
 .Ar disk protofile
 .Pp
+The
 .Nm
+utility
 is capable of restoring a disk label that was previously saved in a file in
 .Tn ASCII
 format.
@@ -176,12 +178,12 @@ and newline.
 .Ss Installing Bootstraps
 If the
 .Fl B
-argument is specified, bootstrap code will be read from the file
+option is specified, bootstrap code will be read from the file
 .Pa /boot/boot
 and written to the disk.
 The
 .Fl b Ar boot
-argument allows a different file to be used.
+option allows a different file to be used.
 .Sh FILES
 .Bl -tag -width ".Pa /etc/disktab" -compact
 .It Pa /boot/boot
@@ -275,12 +277,12 @@ For partition
 a size of
 .Cm *
 indicates the entire disk.
-Lowercase versions of
+Lowercase versions of suffixes
 .Cm K , M ,
 and
 .Cm G
 are allowed.
-Size and type should be specified without any spaces between them.
+Size and suffix should be specified without any spaces between them.
 .Pp
 Example: 2097152, 1G, 1024M and 1048576K are all the same size
 (assuming 512-byte sectors).
@@ -292,7 +294,7 @@ to have
 .Nm
 calculate the correct offset to use (the end of the previous partition plus
 one, ignoring partition
-.Ql c .
+.Ql c ) .
 For partition
 .Ql c ,
 .Cm *
@@ -301,7 +303,7 @@ The first partition should start at offset 16, because the first 16 sectors are
 reserved for metadata.
 .It Ar fstype
 Describes the purpose of the partition.
-The example shows all currently used partition types.
+The above example shows all currently used partition types.
 For
 .Tn UFS
 file systems and
@@ -348,14 +350,12 @@ file systems, the number of cylinders in a cylinder group; see
 .Xr newfs 8 .
 .El
 .Sh EXAMPLES
-.Dl "bsdlabel da0s1"
-.Pp
 Display the label for the first slice of the
 .Pa da0
 disk, as obtained via
-.Pa /dev/da0s1 .
+.Pa /dev/da0s1 :
 .Pp
-.Dl "bsdlabel da0s1 > savedlabel"
+.Dl "bsdlabel da0s1"
 .Pp
 Save the in-core label for
 .Pa da0s1
@@ -363,45 +363,45 @@ into the file
 .Pa savedlabel .
 This file can be used with the
 .Fl R
-option to restore the label at a later date.
+option to restore the label at a later date:
+.Pp
+.Dl "bsdlabel da0s1 > savedlabel"
+.Pp
+Create a label for
+.Pa da0s1 :
 .Pp
 .Dl "bsdlabel -w /dev/da0s1"
 .Pp
-Create a label for
-.Pa da0s1 .
-.Pp
-.Dl "bsdlabel -e da0s1"
-.Pp
 Read the label for
 .Pa da0s1 ,
-edit it, and install the result.
+edit it, and install the result:
 .Pp
-.Dl "bsdlabel -e -n da0s1"
+.Dl "bsdlabel -e da0s1"
 .Pp
 Read the on-disk label for
 .Pa da0s1 ,
 edit it, and display what the new label would be (in sectors).
 It does
 .Em not
-install the new label either in-core or on-disk.
+install the new label either in-core or on-disk:
 .Pp
-.Dl "bsdlabel -w da0s1"
+.Dl "bsdlabel -e -n da0s1"
 .Pp
 Write a default label on
 .Pa da0s1 .
 Use another
 .Nm Fl e
 command to edit the
-partitioning and file system information.
+partitioning and file system information:
 .Pp
-.Dl "bsdlabel -R da0s1 savedlabel"
+.Dl "bsdlabel -w da0s1"
 .Pp
 Restore the on-disk and in-core label for
 .Pa da0s1
 from information in
-.Pa savedlabel .
+.Pa savedlabel :
 .Pp
-.Dl "bsdlabel -R -n da0s1 label_layout"
+.Dl "bsdlabel -R da0s1 savedlabel"
 .Pp
 Display what the label would be for
 .Pa da0s1
@@ -412,28 +412,23 @@ partitions with a labeling scheme using
 .Cm % Ns -based
 or
 .Cm *
-partition sizes.
+partition sizes:
 .Pp
-.Dl "bsdlabel -B da0s1"
+.Dl "bsdlabel -R -n da0s1 label_layout"
 .Pp
 Install a new bootstrap on
 .Pa da0s1 .
 The boot code comes from
-.Pa /boot/boot .
+.Pa /boot/boot :
 .Pp
-.Dl "bsdlabel -w -B -b newboot /dev/da0s1"
+.Dl "bsdlabel -B da0s1"
 .Pp
 Install a new label and bootstrap.
 The bootstrap code comes from the file
 .Pa newboot
-in the current working directory.
-.Bd -literal -offset indent
-dd if=/dev/zero of=/dev/da0 bs=512 count=32
-fdisk -BI da0
-dd if=/dev/zero of=/dev/da0s1 bs=512 count=32
-bsdlabel -w -B da0s1
-bsdlabel -e da0s1
-.Ed
+in the current working directory:
+.Pp
+.Dl "bsdlabel -w -B -b newboot /dev/da0s1"
 .Pp
 Completely wipe any prior information on the disk, creating a new bootable
 disk with a
@@ -446,7 +441,14 @@ The
 commands are optional, but may be necessary for some
 .Tn BIOS Ns es
 to properly
-recognize the disk.
+recognize the disk:
+.Bd -literal -offset indent
+dd if=/dev/zero of=/dev/da0 bs=512 count=32
+fdisk -BI da0
+dd if=/dev/zero of=/dev/da0s1 bs=512 count=32
+bsdlabel -w -B da0s1
+bsdlabel -e da0s1
+.Ed
 .Pp
 This is an example disk label that uses some of the new partition size types
 such as
@@ -454,9 +456,9 @@ such as
 and
 .Cm * ,
 which could be used as a source file for
-.Dq Li "bsdlabel -R ad0s1c new_label_file" :
+.Dq Li "bsdlabel -R ad0s1 new_label_file" :
 .Bd -literal -offset 4n
-# /dev/ad0s1c:
+# /dev/ad0s1:
 
 8 partitions:
 #        size   offset    fstype   [fsize bsize bps/cpg]
