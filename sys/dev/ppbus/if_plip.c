@@ -455,7 +455,7 @@ static void
 lptap(struct ifnet *ifp, struct mbuf *m)
 {
 	u_int32_t af = AF_INET;
-	bpf_mtap2(ifp, &af, sizeof(af), m);
+	bpf_mtap2(ifp->if_bpf, &af, sizeof(af), m);
 }
 
 static void
