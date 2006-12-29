@@ -2373,7 +2373,7 @@ struct msk_if_softc {
 	int			msk_phyaddr;
 	int			msk_link;
 	struct callout		msk_tick_ch;
-	struct callout		msk_watchdog_ch;
+	int			msk_watchdog_timer;
 	uint32_t		msk_txq;	/* Tx. Async Queue offset */
 	uint32_t		msk_txsq;	/* Tx. Syn Queue offset */
 	uint32_t		msk_rxq;	/* Rx. Qeueue offset */
