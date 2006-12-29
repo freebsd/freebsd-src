@@ -306,7 +306,7 @@ atomic_readandclear_long(volatile u_long *addr)
 	__asm __volatile(
 	"	xchgl	%1,%0 ;		"
 	"# atomic_readandclear_long"
-	: "+r" (result),		/* 0 */
+	: "+r" (res),			/* 0 */
 	  "=m" (*addr)			/* 1 */
 	: "m" (*addr));
 
