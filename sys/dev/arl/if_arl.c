@@ -980,7 +980,7 @@ arl_read(sc, buf, len)
 	 * Check if there's a bpf filter listening on this interface.
 	 * If so, hand off the raw packet to bpf.
 	 */
-	if (ifp->if_bpf) {
+	if (bpf_peers_present(ifp->if_bpf)) {
 		/*
 		 * Note that the interface cannot be in promiscuous mode if
 		 * there are no bpf listeners.  And if el are in promiscuous

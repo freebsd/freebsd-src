@@ -776,7 +776,7 @@ en_txdma(struct en_softc *sc, struct en_txslot *slot)
 	sc->vccs[tx.vci]->obytes += tx.datalen;
 
 #ifdef ENABLE_BPF
-	if (sc->ifp->if_bpf != NULL) {
+	if (bpf_peers_present(sc->ifp->if_bpf)) {
 		/*
 		 * adjust the top of the mbuf to skip the TBD if present
 		 * before passing the packet to bpf.
@@ -794,7 +794,7 @@ en_txdma(struct en_softc *sc, struct en_txslot *slot)
 			tx.m->m_pkthdr.len = tx.datalen;
 		}
 
-		BPF_MTAP(sc->ifp, tx.m);
+		bpf_mtap(sc->ifp, tx.m);
 	}
 #endif
 

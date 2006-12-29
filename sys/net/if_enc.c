@@ -280,7 +280,7 @@ ipsec_bpf(struct mbuf *m, struct secasvar *sav, int af)
 	if ((encif->if_drv_flags & IFF_DRV_RUNNING) == 0)
 		return;
 
-	if (encif->if_bpf) {
+	if (bpf_peers_present(encif->if_bpf)) {
 		flags = 0;
 		if (sav->alg_enc != SADB_EALG_NONE)
 			flags |= M_CONF;
