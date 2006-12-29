@@ -6,6 +6,7 @@
 # PROVIDE: auto_linklocal
 # REQUIRE: root
 # BEFORE:  sysctl
+# KEYWORD: nojail
 
 . /etc/rc.subr
 . /etc/network.subr
