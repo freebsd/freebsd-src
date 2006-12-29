@@ -218,7 +218,7 @@ outint(i)
 
 /*
  * write the name of a symbol to the output buffer
- * the name is preceeded by its length
+ * the name is preceded by its length
  */
 void
 outname(name)
