@@ -86,7 +86,7 @@ void		atomic_store_rel_##TYPE(volatile u_##TYPE *p, u_##TYPE v)
  * the binaries will run on both types of systems.
  */
 #if defined(SMP) || !defined(_KERNEL)
-#define	MPLOCKED	lock ;
+#define	MPLOCKED	"lock ; "
 #else
 #define	MPLOCKED
 #endif
@@ -99,7 +99,7 @@ void		atomic_store_rel_##TYPE(volatile u_##TYPE *p, u_##TYPE v)
 static __inline void					\
 atomic_##NAME##_##TYPE(volatile u_##TYPE *p, u_##TYPE v)\
 {							\
-	__asm __volatile(__XSTRING(MPLOCKED) OP		\
+	__asm __volatile(MPLOCKED OP			\
 			 : "=m" (*p)			\
 			 : CONS (V), "m" (*p));		\
 }							\
@@ -119,7 +119,7 @@ atomic_cmpset_int(volatile u_int *dst, u_int exp, u_int src)
 	u_char res;
 
 	__asm __volatile (
-	"	" __XSTRING(MPLOCKED) "	"
+	"	" MPLOCKED "		"
 	"	cmpxchgl %2,%1 ;	"
 	"       sete	%0 ;		"
 	"1:				"
@@ -140,7 +140,7 @@ atomic_cmpset_long(volatile u_long *dst, u_long exp, u_long src)
 	u_char res;
 
 	__asm __volatile (
-	"	" __XSTRING(MPLOCKED) "	"
+	"	" MPLOCKED "		"
 	"	cmpxchgq %2,%1 ;	"
 	"       sete	%0 ;		"
 	"1:				"
@@ -164,7 +164,7 @@ atomic_fetchadd_int(volatile u_int *p, u_int v)
 {
 
 	__asm __volatile (
-	"	" __XSTRING(MPLOCKED) "	"
+	"	" MPLOCKED "		"
 	"	xaddl	%0, %1 ;	"
 	"# atomic_fetchadd_int"
 	: "+r" (v),			/* 0 (result) */
@@ -205,7 +205,7 @@ atomic_load_acq_##TYPE(volatile u_##TYPE *p)		\
 {							\
 	u_##TYPE res;					\
 							\
-	__asm __volatile(__XSTRING(MPLOCKED) LOP	\
+	__asm __volatile(MPLOCKED LOP			\
 	: "=a" (res),			/* 0 (result) */\
 	  "=m" (*p)			/* 1 */		\
 	: "m" (*p)			/* 2 */		\
