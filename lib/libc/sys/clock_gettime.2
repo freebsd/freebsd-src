@@ -33,7 +33,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd June 17, 2004
+.Dd November 4, 2006
 .Dt CLOCK_GETTIME 2
 .Os
 .Sh NAME
@@ -44,7 +44,7 @@
 .Sh LIBRARY
 .Lb libc
 .Sh SYNOPSIS
-.In sys/time.h
+.In time.h
 .Ft int
 .Fn clock_gettime "clockid_t clock_id" "struct timespec *tp"
 .Ft int
@@ -63,17 +63,23 @@ which is specified by
 The
 .Fa clock_id
 argument
-can be one of four values: CLOCK_REALTIME for time that increments as
-a wall clock should, CLOCK_MONOTONIC which increments in SI seconds,
-CLOCK_VIRTUAL for time that increments only when
+can be one of four values:
+.Dv CLOCK_REALTIME
+for time that increments as
+a wall clock should,
+.Dv CLOCK_MONOTONIC
+which increments in SI seconds,
+.Dv CLOCK_VIRTUAL
+for time that increments only when
 the CPU is running in user mode on behalf of the calling process, or
-CLOCK_PROF for time that increments when the CPU is running in user or
+.Dv CLOCK_PROF
+for time that increments when the CPU is running in user or
 kernel mode.
 .Pp
 The structure pointed to by
 .Fa tp
 is defined in
-.In sys/time.h
+.In sys/timespec.h
 as:
 .Pp
 .Bd -literal
