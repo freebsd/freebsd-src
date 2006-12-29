@@ -321,9 +321,9 @@ retry:
 			next += nextifm->ifm_msglen;
 		}
 		memcpy(name, sdl->sdl_data,
-		    sizeof(name) < sdl->sdl_nlen ?
+		    sizeof(name) <= sdl->sdl_nlen ?
 		    sizeof(name)-1 : sdl->sdl_nlen);
-		name[sizeof(name) < sdl->sdl_nlen ?
+		name[sizeof(name) <= sdl->sdl_nlen ?
 		    sizeof(name)-1 : sdl->sdl_nlen] = '\0';
 
 		if (all || namesonly) {
