@@ -389,6 +389,8 @@ rip_ctloutput(struct socket *so, struct sockopt *sopt)
 		case IP_FW_GET:
 		case IP_FW_TABLE_GETSIZE:
 		case IP_FW_TABLE_LIST:
+		case IP_FW_NAT_GET_CONFIG:
+		case IP_FW_NAT_GET_LOG:
 			/*
 			 * XXXRW: Isn't this checked one layer down?  Yes, it
 			 * is.
@@ -458,6 +460,8 @@ rip_ctloutput(struct socket *so, struct sockopt *sopt)
 		case IP_FW_TABLE_ADD:
 		case IP_FW_TABLE_DEL:
 		case IP_FW_TABLE_FLUSH:
+		case IP_FW_NAT_CFG:
+		case IP_FW_NAT_DEL:
 			/*
 			 * XXXRW: Isn't this checked one layer down?
 			 */
