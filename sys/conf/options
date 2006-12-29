@@ -349,6 +349,7 @@ DEV_ENC			opt_enc.h
 DEV_PF			opt_pf.h
 DEV_PFLOG		opt_pf.h
 DEV_PFSYNC		opt_pf.h
+PF_MPSAFE_UGID		opt_pf.h
 ETHER_II		opt_ef.h
 ETHER_8023		opt_ef.h
 ETHER_8022		opt_ef.h
