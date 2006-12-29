@@ -1191,7 +1191,7 @@ tcp_attach(so)
 		if (error)
 			return (error);
 	}
-	error = in_pcballoc(so, &tcbinfo, "tcpinp");
+	error = in_pcballoc(so, &tcbinfo);
 	if (error)
 		return (error);
 	inp = sotoinpcb(so);
@@ -1209,7 +1209,6 @@ tcp_attach(so)
 
 		so->so_state &= ~SS_NOFDREF;	/* don't free the socket yet */
 
-		INP_LOCK(inp);
 #ifdef INET6
 		if (isipv6)
 			in6_pcbdetach(inp);
@@ -1220,6 +1219,7 @@ tcp_attach(so)
 		return (ENOBUFS);
 	}
 	tp->t_state = TCPS_CLOSED;
+	INP_UNLOCK(inp);
 	return (0);
 }
 
