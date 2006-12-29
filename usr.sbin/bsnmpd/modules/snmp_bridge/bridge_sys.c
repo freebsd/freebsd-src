@@ -576,35 +576,43 @@ bridge_destroy(const char *b_name)
 
 /*
  * Fetch the bridge base MAC address. Return pointer to the
- * buffer containing the mac address, NULL on failure.
+ * buffer containing the MAC address, NULL on failure.
  */
 u_char *
-bridge_get_basemac(const char *bif_name, u_char *mac)
+bridge_get_basemac(const char *bif_name, u_char *mac, size_t mlen)
 {
 	int len;
 	char if_name[IFNAMSIZ];
-	struct ifaddrs *ifap, *tmp;
-	struct sockaddr_dl *sdl;
+	struct ifaddrs *ifap, *ifa;
+	struct sockaddr_dl sdl;
 
-	if (getifaddrs(&ifap) < 0) {
+	if (getifaddrs(&ifap) != 0) {
 		syslog(LOG_ERR, "bridge get mac: getifaddrs() failed - %s",
 		    strerror(errno));
 		return (NULL);
 	}
 
-	for (tmp = ifap; tmp != NULL; tmp = tmp->ifa_next) {
-		sdl = (struct sockaddr_dl *) tmp->ifa_addr;
+	for (ifa = ifap; ifa != NULL; ifa = ifa->ifa_next) {
+		if (ifa->ifa_addr->sa_family != AF_LINK)
+			continue;
 
-		if ((len = sdl->sdl_nlen) >= IFNAMSIZ)
+		/*
+		 * Not just casting because of alignment constraints
+		 * on sparc64 and ia64.
+		 */
+		bcopy(ifa->ifa_addr, &sdl, sizeof(struct sockaddr_dl));
+
+		if (sdl.sdl_alen > mlen)
+			continue;
+
+		if ((len = sdl.sdl_nlen) >= IFNAMSIZ)
 			len = IFNAMSIZ - 1;
 
-		bcopy(sdl->sdl_data, if_name, len);
+		bcopy(sdl.sdl_data, if_name, len);
 		if_name[len] = '\0';
 
-		if (sdl->sdl_family == AF_LINK && !strncmp(bif_name,
-		    if_name, strlen(bif_name))) {
-			bcopy(sdl->sdl_data + sdl->sdl_nlen, mac,
-			     ETHER_ADDR_LEN);
+		if (strcmp(bif_name, if_name) == 0) {
+			bcopy(sdl.sdl_data + sdl.sdl_nlen, mac, sdl.sdl_alen);
 			freeifaddrs(ifap);
 			return (mac);
 		}
@@ -1024,10 +1032,11 @@ bridge_port_delm(struct bridge_port *bp, const char *b_name)
  * Return -1 on error, or buffer len if successful.
  */
 static int32_t
-bridge_port_get_iflist(struct bridge_if *bif, char **buf)
+bridge_port_get_iflist(struct bridge_if *bif, struct ifbreq **buf)
 {
-	uint32_t len = 8192; /* ??? */
-	char *ninbuf;
+	int n = 128;
+	uint32_t len;
+	struct ifbreq *ninbuf;
 	struct ifbifconf ifbc;
 	struct ifdrv ifd;
 
@@ -1038,7 +1047,8 @@ bridge_port_get_iflist(struct bridge_if *bif, char **buf)
 	ifd.ifd_data = &ifbc;
 
 	for ( ; ; ) {
-		if ((ninbuf = realloc(*buf, len) /* ??? */) == NULL) {
+		len = n * sizeof(struct ifbreq);
+		if ((ninbuf = (struct ifbreq *)realloc(*buf, len)) == NULL) {
 			syslog(LOG_ERR, "get bridge member list: "
 			    "realloc failed: %s", strerror(errno));
 			free(*buf);
@@ -1047,7 +1057,7 @@ bridge_port_get_iflist(struct bridge_if *bif, char **buf)
 		}
 
 		ifbc.ifbic_len = len;
-		ifbc.ifbic_buf = *buf = ninbuf;
+		ifbc.ifbic_req = *buf = ninbuf;
 
 		if (ioctl(sock, SIOCGDRVSPEC, &ifd) < 0) {
 			syslog(LOG_ERR, "get bridge member list: ioctl "
@@ -1060,7 +1070,7 @@ bridge_port_get_iflist(struct bridge_if *bif, char **buf)
 		if ((ifbc.ifbic_len + sizeof(struct ifbreq)) < len)
 			break;
 
-		len += 8192;
+		n += 64;
 	}
 
 	return (ifbc.ifbic_len);
@@ -1071,10 +1081,11 @@ bridge_port_get_iflist(struct bridge_if *bif, char **buf)
  * Return -1 on error, or buffer len if successful.
  */
 static int32_t
-bridge_port_get_ifstplist(struct bridge_if *bif, char **buf)
+bridge_port_get_ifstplist(struct bridge_if *bif, struct ifbpstpreq **buf)
 {
-	uint32_t len = 8192; /* ??? */
-	char *ninbuf;
+	int n = 128;
+	uint32_t len;
+	struct ifbpstpreq *ninbuf;
 	struct ifbpstpconf ifbstp;
 	struct ifdrv ifd;
 
@@ -1085,7 +1096,9 @@ bridge_port_get_ifstplist(struct bridge_if *bif, char **buf)
 	ifd.ifd_data = &ifbstp;
 
 	for ( ; ; ) {
-		if ((ninbuf = realloc(*buf, len) /* ??? */) == NULL) {
+		len = n * sizeof(struct ifbpstpreq);
+		if ((ninbuf = (struct ifbpstpreq *)
+		    realloc(*buf, len)) == NULL) {
 			syslog(LOG_ERR, "get bridge STP ports list: "
 			    "realloc failed: %s", strerror(errno));
 			free(*buf);
@@ -1094,7 +1107,7 @@ bridge_port_get_ifstplist(struct bridge_if *bif, char **buf)
 		}
 
 		ifbstp.ifbpstp_len = len;
-		ifbstp.ifbpstp_buf = *buf = ninbuf;
+		ifbstp.ifbpstp_req = *buf = ninbuf;
 
 		if (ioctl(sock, SIOCGDRVSPEC, &ifd) < 0) {
 			syslog(LOG_ERR, "get bridge STP ports list: ioctl "
@@ -1107,7 +1120,7 @@ bridge_port_get_ifstplist(struct bridge_if *bif, char **buf)
 		if ((ifbstp.ifbpstp_len + sizeof(struct ifbpstpreq)) < len)
 			break;
 
-		len += 8192;
+		n += 64;
 	}
 
 	return (ifbstp.ifbpstp_len);
@@ -1117,13 +1130,14 @@ bridge_port_get_ifstplist(struct bridge_if *bif, char **buf)
  * Locate a bridge if STP params structure in a buffer.
  */
 static struct ifbpstpreq *
-bridge_port_find_ifstplist(uint8_t port_no, char *buf, uint32_t buf_len)
+bridge_port_find_ifstplist(uint8_t port_no, struct ifbpstpreq *buf,
+    uint32_t buf_len)
 {
 	uint32_t i;
 	struct ifbpstpreq *bstp;
 
-	for (i = 0; i < buf_len / sizeof(*bstp); i++) {
-		bstp =  (struct ifbpstpreq *) buf + i;
+	for (i = 0; i < buf_len / sizeof(struct ifbpstpreq); i++) {
+		bstp = buf + i;
 		if (bstp->ifbp_portno == port_no)
 			return (bstp);
 	}
@@ -1141,17 +1155,16 @@ bridge_getinfo_bif_ports(struct bridge_if *bif)
 {
 	uint32_t i;
 	int32_t buf_len;
-	char *mem_buf;
-	struct ifbreq *b_req;
-	struct ifbpstpreq *bs_req;
+	struct ifbreq *b_req_buf, *b_req;
+	struct ifbpstpreq *bs_req_buf, *bs_req;
 	struct bridge_port *bp;
 	struct mibif *m_if;
 
-	if ((buf_len = bridge_port_get_iflist(bif, &mem_buf)) < 0)
+	if ((buf_len = bridge_port_get_iflist(bif, &b_req_buf)) < 0)
 		return (-1);
 
 	for (i = 0; i < buf_len / sizeof(struct ifbreq); i++) {
-		b_req = (struct ifbreq *) mem_buf + i;
+		b_req = b_req_buf + i;
 
 		if ((m_if = mib_find_if_sys(b_req->ifbr_portno)) != NULL) {
 			/* Hopefully we will not fail here. */
@@ -1165,20 +1178,20 @@ bridge_getinfo_bif_ports(struct bridge_if *bif)
 			    "in mibII ifTable", b_req->ifbr_ifsname);
 		}
 	}
-	free(mem_buf);
+	free(b_req_buf);
 
-	if ((buf_len = bridge_port_get_ifstplist(bif, &mem_buf)) < 0)
+	if ((buf_len = bridge_port_get_ifstplist(bif, &bs_req_buf)) < 0)
 		return (-1);
 
 	for (bp = bridge_port_bif_first(bif); bp != NULL;
 	    bp = bridge_port_bif_next(bp)) {
 		if ((bs_req = bridge_port_find_ifstplist(bp->port_no,
-		    mem_buf, buf_len)) == NULL)
+		    bs_req_buf, buf_len)) == NULL)
 			bridge_port_clearinfo_opstp(bp);
 		else
 			bridge_port_getinfo_opstp(bs_req, bp);
 	}
-	free(mem_buf);
+	free(bs_req_buf);
 
 	return (i);
 }
@@ -1192,20 +1205,19 @@ bridge_update_memif(struct bridge_if *bif)
 	int added, updated;
 	uint32_t i;
 	int32_t buf_len;
-	char *if_buf;
-	struct ifbreq *b_req;
-	struct ifbpstpreq *bs_req;
+	struct ifbreq *b_req_buf, *b_req;
+	struct ifbpstpreq *bs_req_buf, *bs_req;
 	struct bridge_port *bp, *bp_next;
 	struct mibif *m_if;
 
-	if ((buf_len = bridge_port_get_iflist(bif, &if_buf)) < 0)
+	if ((buf_len = bridge_port_get_iflist(bif, &b_req_buf)) < 0)
 		return (-1);
 
 	added = updated = 0;
 
 #define	BP_FOUND	0x01
 	for (i = 0; i < buf_len / sizeof(struct ifbreq); i++) {
-		b_req = (struct ifbreq *) if_buf + i;
+		b_req = b_req_buf + i;
 
 		if ((m_if = mib_find_if_sys(b_req->ifbr_portno)) == NULL) {
 			syslog(LOG_ERR, "bridge member %s not present "
@@ -1226,7 +1238,7 @@ bridge_update_memif(struct bridge_if *bif)
 			bp->flags |= BP_FOUND;
 		}
 	}
-	free(if_buf);
+	free(b_req_buf);
 
 	/* Clean up list. */
 	for (bp = bridge_port_bif_first(bif); bp != NULL; bp = bp_next) {
@@ -1240,18 +1252,18 @@ bridge_update_memif(struct bridge_if *bif)
 	}
 #undef	BP_FOUND
 
-	if ((buf_len = bridge_port_get_ifstplist(bif, &if_buf)) < 0)
+	if ((buf_len = bridge_port_get_ifstplist(bif, &bs_req_buf)) < 0)
 		return (-1);
 
 	for (bp = bridge_port_bif_first(bif); bp != NULL;
 	    bp = bridge_port_bif_next(bp)) {
 		if ((bs_req = bridge_port_find_ifstplist(bp->port_no,
-		    if_buf, buf_len)) == NULL)
+		    bs_req_buf, buf_len)) == NULL)
 			bridge_port_clearinfo_opstp(bp);
 		else
 			bridge_port_getinfo_opstp(bs_req, bp);
 	}
-	free(if_buf);
+	free(bs_req_buf);
 	bif->ports_age = time(NULL);
 
 	return (updated);
@@ -1280,10 +1292,11 @@ bridge_addrs_info_ifaddrlist(struct ifbareq *ifba, struct tp_entry *tpe)
  * Return -1 on error, or buffer len if successful.
  */
 static int32_t
-bridge_addrs_getinfo_ifalist(struct bridge_if *bif, char **buf)
+bridge_addrs_getinfo_ifalist(struct bridge_if *bif, struct ifbareq **buf)
 {
-	uint32_t len = 8192; /* ??? */
-	char *ninbuf;
+	int n = 128;
+	uint32_t len;
+	struct ifbareq *ninbuf;
 	struct ifbaconf bac;
 	struct ifdrv ifd;
 
@@ -1294,7 +1307,8 @@ bridge_addrs_getinfo_ifalist(struct bridge_if *bif, char **buf)
 	ifd.ifd_data = &bac;
 
 	for ( ; ; ) {
-		if ((ninbuf = realloc(*buf, len) /* ??? */) == NULL) {
+		len = n * sizeof(struct ifbareq);
+		if ((ninbuf = (struct ifbareq *)realloc(*buf, len)) == NULL) {
 			syslog(LOG_ERR, "get bridge address list: "
 			    " realloc failed: %s", strerror(errno));
 			free(*buf);
@@ -1303,7 +1317,7 @@ bridge_addrs_getinfo_ifalist(struct bridge_if *bif, char **buf)
 		}
 
 		bac.ifbac_len = len;
-		bac.ifbac_buf = *buf = ninbuf;
+		bac.ifbac_req = *buf = ninbuf;
 
 		if (ioctl(sock, SIOCGDRVSPEC, &ifd) < 0) {
 			syslog(LOG_ERR, "get bridge address list: "
@@ -1316,7 +1330,7 @@ bridge_addrs_getinfo_ifalist(struct bridge_if *bif, char **buf)
 		if ((bac.ifbac_len + sizeof(struct ifbareq)) < len)
 			break;
 
-		len += 8192;
+		n += 64;
 	}
 
 	return (bac.ifbac_len);
@@ -1332,21 +1346,20 @@ bridge_getinfo_bif_addrs(struct bridge_if *bif)
 {
 	uint32_t i;
 	int32_t buf_len;
-	char *addr_buf;
-	struct ifbareq *addr_req;
+	struct ifbareq *addr_req_buf, *addr_req;
 	struct tp_entry *te;
 
-	if ((buf_len = bridge_addrs_getinfo_ifalist(bif, &addr_buf)) < 0)
+	if ((buf_len = bridge_addrs_getinfo_ifalist(bif, &addr_req_buf)) < 0)
 		return (-1);
 
 	for (i = 0; i < buf_len / sizeof(struct ifbareq); i++) {
-		addr_req = (struct ifbareq *) addr_buf + i;
+		addr_req = addr_req_buf + i;
 
 		if ((te = bridge_new_addrs(addr_req->ifba_dst, bif)) != NULL)
 			bridge_addrs_info_ifaddrlist(addr_req, te);
 	}
 
-	free(addr_buf);
+	free(addr_req_buf);
 	return (i);
 }
 
@@ -1359,32 +1372,31 @@ bridge_update_addrs(struct bridge_if *bif)
 	int added, updated;
 	uint32_t i;
 	int32_t buf_len;
-	char *ifbad_buf;
 	struct tp_entry *te, *te_next;
-	struct ifbareq *a_req;
+	struct ifbareq *addr_req_buf, *addr_req;
 
-	if ((buf_len = bridge_addrs_getinfo_ifalist(bif, &ifbad_buf)) < 0)
+	if ((buf_len = bridge_addrs_getinfo_ifalist(bif, &addr_req_buf)) < 0)
 		return (-1);
 
 	added = updated = 0;
 
 #define	BA_FOUND	0x01
 	for (i = 0; i < buf_len / sizeof(struct ifbareq); i++) {
-		a_req = (struct ifbareq *) ifbad_buf + i;
+		addr_req = addr_req_buf + i;
 
-		if ((te = bridge_addrs_find(a_req->ifba_dst, bif)) == NULL) {
+		if ((te = bridge_addrs_find(addr_req->ifba_dst, bif)) == NULL) {
 			added++;
 
-			if ((te = bridge_new_addrs(a_req->ifba_dst, bif))
+			if ((te = bridge_new_addrs(addr_req->ifba_dst, bif))
 			    == NULL)
 				continue;
 		} else
 			updated++;
 
-		bridge_addrs_info_ifaddrlist(a_req, te);
+		bridge_addrs_info_ifaddrlist(addr_req, te);
 		te-> flags |= BA_FOUND;
 	}
-	free(ifbad_buf);
+	free(addr_req_buf);
 
 	for (te = bridge_addrs_bif_first(bif); te != NULL; te = te_next) {
 		te_next = bridge_addrs_bif_next(te);
