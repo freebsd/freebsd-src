@@ -142,7 +142,8 @@ udp_zone_change(void *tag)
 static int
 udp_inpcb_init(void *mem, int size, int flags)
 {
-	struct inpcb *inp = (struct inpcb *) mem;
+	struct inpcb *inp = mem;
+
 	INP_LOCK_INIT(inp, "inp", "udpinp");
 	return (0);
 }
