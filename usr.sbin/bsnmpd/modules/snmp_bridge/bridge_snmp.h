@@ -315,7 +315,7 @@ int bridge_create(const char *b_name);
 int bridge_destroy(const char *b_name);
 
 /* Fetch the bridge mac address. */
-u_char *bridge_get_basemac(const char *bif_name, u_char *mac);
+u_char *bridge_get_basemac(const char *bif_name, u_char *mac, size_t mlen);
 
 /* Set a bridge member priority. */
 int bridge_port_set_priority(const char *bif_name, struct bridge_port *bp,
