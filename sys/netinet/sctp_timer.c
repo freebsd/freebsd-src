@@ -318,11 +318,11 @@ sctp_threshold_management(struct sctp_inpcb *inp, struct sctp_tcb *stcb,
 			struct sctp_paramhdr *ph;
 			uint32_t *ippp;
 
-			oper->m_len = sizeof(struct sctp_paramhdr) +
+			SCTP_BUF_LEN(oper) = sizeof(struct sctp_paramhdr) +
 			    sizeof(uint32_t);
 			ph = mtod(oper, struct sctp_paramhdr *);
 			ph->param_type = htons(SCTP_CAUSE_PROTOCOL_VIOLATION);
-			ph->param_length = htons(oper->m_len);
+			ph->param_length = htons(SCTP_BUF_LEN(oper));
 			ippp = (uint32_t *) (ph + 1);
 			*ippp = htonl(SCTP_FROM_SCTP_TIMER + SCTP_LOC_1);
 		}
@@ -544,8 +544,8 @@ sctp_mark_all_for_resend(struct sctp_tcb *stcb,
 	    window_probe,
 	    SCTP_FR_T3_MARK_TIME);
 	sctp_log_fr(net->flight_size,
-	    callout_pending(&net->fr_timer.timer),
-	    callout_active(&net->fr_timer.timer),
+	    SCTP_OS_TIMER_PENDING(&net->fr_timer.timer),
+	    SCTP_OS_TIMER_ACTIVE(&net->fr_timer.timer),
 	    SCTP_FR_CWND_REPORT);
 	sctp_log_fr(net->flight_size, net->cwnd, stcb->asoc.total_flight, SCTP_FR_CWND_REPORT);
 #endif
@@ -1091,11 +1091,11 @@ sctp_cookie_timer(struct sctp_inpcb *inp,
 				struct sctp_paramhdr *ph;
 				uint32_t *ippp;
 
-				oper->m_len = sizeof(struct sctp_paramhdr) +
+				SCTP_BUF_LEN(oper) = sizeof(struct sctp_paramhdr) +
 				    sizeof(uint32_t);
 				ph = mtod(oper, struct sctp_paramhdr *);
 				ph->param_type = htons(SCTP_CAUSE_PROTOCOL_VIOLATION);
-				ph->param_length = htons(oper->m_len);
+				ph->param_length = htons(SCTP_BUF_LEN(oper));
 				ippp = (uint32_t *) (ph + 1);
 				*ippp = htonl(SCTP_FROM_SCTP_TIMER + SCTP_LOC_2);
 			}
@@ -1472,7 +1472,7 @@ sctp_heartbeat_timer(struct sctp_inpcb *inp, struct sctp_tcb *stcb,
 int
 sctp_is_hb_timer_running(struct sctp_tcb *stcb)
 {
-	if (callout_pending(&stcb->asoc.hb_timer.timer)) {
+	if (SCTP_OS_TIMER_PENDING(&stcb->asoc.hb_timer.timer)) {
 		/* its running */
 		return (1);
 	} else {
@@ -1484,7 +1484,7 @@ sctp_is_hb_timer_running(struct sctp_tcb *stcb)
 int
 sctp_is_sack_timer_running(struct sctp_tcb *stcb)
 {
-	if (callout_pending(&stcb->asoc.dack_timer.timer)) {
+	if (SCTP_OS_TIMER_PENDING(&stcb->asoc.dack_timer.timer)) {
 		/* its running */
 		return (1);
 	} else {
@@ -1492,7 +1492,6 @@ sctp_is_sack_timer_running(struct sctp_tcb *stcb)
 		return (0);
 	}
 }
-
 
 #define SCTP_NUMBER_OF_MTU_SIZES 18
 static uint32_t mtu_sizes[] = {
@@ -1656,7 +1655,7 @@ done_with_iterator:
 		LIST_REMOVE(it, sctp_nxt_itr);
 		/* stopping the callout is not needed, in theory */
 		SCTP_INP_INFO_WUNLOCK();
-		callout_stop(&it->tmr.timer);
+		SCTP_OS_TIMER_STOP(&it->tmr.timer);
 		if (it->function_atend != NULL) {
 			(*it->function_atend) (it->pointer, it->val);
 		}

@@ -372,7 +372,7 @@ sctp_generate_random_key(uint32_t keylen)
 		/* out of memory */
 		return (NULL);
 	}
-	sctp_read_random(new_key->key, keylen);
+	SCTP_READ_RANDOM(new_key->key, keylen);
 	new_key->keylen = keylen;
 	return (new_key);
 }
@@ -1110,17 +1110,18 @@ sctp_hmac_m(uint16_t hmac_algo, uint8_t * key, uint32_t keylen,
 	sctp_hmac_update(hmac_algo, &ctx, ipad, blocklen);
 	/* find the correct starting mbuf and offset (get start of text) */
 	m_tmp = m;
-	while ((m_tmp != NULL) && (m_offset >= (uint32_t) m_tmp->m_len)) {
-		m_offset -= m_tmp->m_len;
-		m_tmp = m_tmp->m_next;
+	while ((m_tmp != NULL) && (m_offset >= (uint32_t) SCTP_BUF_LEN(m_tmp))) {
+		m_offset -= SCTP_BUF_LEN(m_tmp);
+		m_tmp = SCTP_BUF_NEXT(m_tmp);
 	}
 	/* now use the rest of the mbuf chain for the text */
 	while (m_tmp != NULL) {
 		sctp_hmac_update(hmac_algo, &ctx, mtod(m_tmp, uint8_t *) + m_offset,
-		    m_tmp->m_len - m_offset);
+		    SCTP_BUF_LEN(m_tmp) - m_offset);
+
 		/* clear the offset since it's only for the first mbuf */
 		m_offset = 0;
-		m_tmp = m_tmp->m_next;
+		m_tmp = SCTP_BUF_NEXT(m_tmp);
 	}
 	sctp_hmac_final(hmac_algo, &ctx, temp);
 
@@ -1618,23 +1619,23 @@ sctp_bzero_m(struct mbuf *m, uint32_t m_offset, uint32_t size)
 
 	/* find the correct starting mbuf and offset (get start position) */
 	m_tmp = m;
-	while ((m_tmp != NULL) && (m_offset >= (uint32_t) m_tmp->m_len)) {
-		m_offset -= m_tmp->m_len;
-		m_tmp = m_tmp->m_next;
+	while ((m_tmp != NULL) && (m_offset >= (uint32_t) SCTP_BUF_LEN(m_tmp))) {
+		m_offset -= SCTP_BUF_LEN(m_tmp);
+		m_tmp = SCTP_BUF_NEXT(m_tmp);
 	}
 	/* now use the rest of the mbuf chain */
 	while ((m_tmp != NULL) && (size > 0)) {
 		data = mtod(m_tmp, uint8_t *) + m_offset;
-		if (size > (uint32_t) m_tmp->m_len) {
-			bzero(data, m_tmp->m_len);
-			size -= m_tmp->m_len;
+		if (size > (uint32_t) SCTP_BUF_LEN(m_tmp)) {
+			bzero(data, SCTP_BUF_LEN(m_tmp));
+			size -= SCTP_BUF_LEN(m_tmp);
 		} else {
 			bzero(data, size);
 			size = 0;
 		}
 		/* clear the offset since it's only for the first mbuf */
 		m_offset = 0;
-		m_tmp = m_tmp->m_next;
+		m_tmp = SCTP_BUF_NEXT(m_tmp);
 	}
 }
 
@@ -1685,17 +1686,17 @@ sctp_handle_auth(struct sctp_tcb *stcb, struct sctp_auth_chunk *auth,
 		 * report this in an Error Chunk: Unsupported HMAC
 		 * Identifier
 		 */
-		m_err = sctp_get_mbuf_for_msg(sizeof(*err), 1, M_DONTWAIT, 1, MT_HEADER);
+		m_err = sctp_get_mbuf_for_msg(sizeof(*err), 0, M_DONTWAIT, 1, MT_HEADER);
 		if (m_err != NULL) {
 			/* pre-reserve some space */
-			m_err->m_data += sizeof(struct sctp_chunkhdr);
+			SCTP_BUF_RESV_UF(m_err, sizeof(struct sctp_chunkhdr));
 			/* fill in the error */
 			err = mtod(m_err, struct sctp_auth_invalid_hmac *);
 			bzero(err, sizeof(*err));
 			err->ph.param_type = htons(SCTP_CAUSE_UNSUPPORTED_HMACID);
 			err->ph.param_length = htons(sizeof(*err));
 			err->hmac_id = ntohs(hmac_id);
-			m_err->m_pkthdr.len = m_err->m_len = sizeof(*err);
+			SCTP_BUF_LEN(m_err) = sizeof(*err);
 			/* queue it */
 			sctp_queue_op_err(stcb, m_err);
 		}
@@ -1787,11 +1788,12 @@ sctp_notify_authentication(struct sctp_tcb *stcb, uint32_t indication,
 		return;
 
 	m_notify = sctp_get_mbuf_for_msg(sizeof(struct sctp_authkey_event),
-	    1, M_DONTWAIT, 1, MT_HEADER);
+	    0, M_DONTWAIT, 1, MT_HEADER);
 	if (m_notify == NULL)
 		/* no space left */
 		return;
-	m_notify->m_len = 0;
+
+	SCTP_BUF_LEN(m_notify) = 0;
 	auth = mtod(m_notify, struct sctp_authkey_event *);
 	auth->auth_type = SCTP_AUTHENTICATION_EVENT;
 	auth->auth_flags = 0;
@@ -1801,11 +1803,8 @@ sctp_notify_authentication(struct sctp_tcb *stcb, uint32_t indication,
 	auth->auth_indication = indication;
 	auth->auth_assoc_id = sctp_get_associd(stcb);
 
-	m_notify->m_flags |= M_EOR | M_NOTIFICATION;
-	m_notify->m_pkthdr.len = sizeof(*auth);
-	m_notify->m_pkthdr.rcvif = 0;
-	m_notify->m_len = sizeof(*auth);
-	m_notify->m_next = NULL;
+	SCTP_BUF_LEN(m_notify) = sizeof(*auth);
+	SCTP_BUF_NEXT(m_notify) = NULL;
 
 	/* append to socket */
 	control = sctp_build_readq_entry(stcb, stcb->asoc.primary_destination,
@@ -1815,7 +1814,8 @@ sctp_notify_authentication(struct sctp_tcb *stcb, uint32_t indication,
 		sctp_m_freem(m_notify);
 		return;
 	}
-	control->length = m_notify->m_len;
+	control->spec_flags = M_NOTIFICATION;
+	control->length = SCTP_BUF_LEN(m_notify);
 	/* not that we need this */
 	control->tail_mbuf = m_notify;
 	sctp_add_to_readq(stcb->sctp_ep, stcb, control,
@@ -1969,7 +1969,7 @@ sctp_initialize_auth_params(struct sctp_inpcb *inp, struct sctp_tcb *stcb)
 	new_key = sctp_alloc_key(keylen);
 	if (new_key != NULL) {
 		/* generate and copy in the RANDOM */
-		sctp_read_random(new_key->key, random_len);
+		SCTP_READ_RANDOM(new_key->key, random_len);
 		keylen = random_len;
 		/* append in the AUTH chunks */
 		if (stcb->asoc.local_auth_chunks) {

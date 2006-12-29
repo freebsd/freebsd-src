@@ -37,8 +37,6 @@ __FBSDID("$FreeBSD$");
 #define __sctp_structs_h__
 
 #include <sys/queue.h>
-
-#include <sys/callout.h>
 #include <sys/socket.h>
 
 #ifdef IPSEC
@@ -46,12 +44,14 @@ __FBSDID("$FreeBSD$");
 #include <netkey/key.h>
 #endif
 
+#include <netinet/sctp_os.h>
 #include <netinet/sctp_header.h>
 #include <netinet/sctp_uio.h>
 #include <netinet/sctp_auth.h>
 
 struct sctp_timer {
-	struct callout timer;
+	sctp_os_timer_t timer;
+
 	int type;
 	/*
 	 * Depending on the timer type these will be setup and cast with the
@@ -367,9 +367,11 @@ struct sctp_queued_to_read {	/* sinfo structure Pluse more */
 	struct sctp_tcb *stcb;	/* assoc, used for window update */
 	         TAILQ_ENTRY(sctp_queued_to_read) next;
 	uint16_t port_from;
+	uint16_t spec_flags;	/* Flags to hold the notification field */
 	uint8_t do_not_ref_stcb;
 	uint8_t end_added;
 	uint8_t pdapi_aborted;
+	uint8_t resv;
 };
 
 /* This data structure will be on the outbound
