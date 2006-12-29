@@ -52,8 +52,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/kernel.h>
 #include <sys/sysctl.h>
 
-#include <sys/callout.h>
-
 #include <sys/limits.h>
 #include <machine/cpu.h>
 
@@ -1461,7 +1459,7 @@ sctp_inpcb_alloc(struct socket *so)
 	LIST_INIT(&inp->sctp_asoc_free_list);
 #endif
 	/* Init the timer structure for signature change */
-	callout_init(&inp->sctp_ep.signature_change.timer, 1);
+	SCTP_OS_TIMER_INIT(&inp->sctp_ep.signature_change.timer);
 	inp->sctp_ep.signature_change.type = SCTP_TIMER_TYPE_NEWCOOKIE;
 
 	/* now init the actual endpoint default data */
@@ -1498,7 +1496,7 @@ sctp_inpcb_alloc(struct socket *so)
 	/* seed random number generator */
 	m->random_counter = 1;
 	m->store_at = SCTP_SIGNATURE_SIZE;
-	sctp_read_random(m->random_numbers, sizeof(m->random_numbers));
+	SCTP_READ_RANDOM(m->random_numbers, sizeof(m->random_numbers));
 	sctp_fill_random_store(m);
 
 	/* Minimum cookie size */
@@ -2162,13 +2160,13 @@ sctp_inpcb_free(struct sctp_inpcb *inp, int immediate, int from)
 					struct sctp_paramhdr *ph;
 					uint32_t *ippp;
 
-					op_err->m_len =
+					SCTP_BUF_LEN(op_err) =
 					    sizeof(struct sctp_paramhdr) + sizeof(uint32_t);
 					ph = mtod(op_err,
 					    struct sctp_paramhdr *);
 					ph->param_type = htons(
 					    SCTP_CAUSE_USER_INITIATED_ABT);
-					ph->param_length = htons(op_err->m_len);
+					ph->param_length = htons(SCTP_BUF_LEN(op_err));
 					ippp = (uint32_t *) (ph + 1);
 					*ippp = htonl(SCTP_FROM_SCTP_PCB + SCTP_LOC_3);
 				}
@@ -2238,14 +2236,14 @@ sctp_inpcb_free(struct sctp_inpcb *inp, int immediate, int from)
 						struct sctp_paramhdr *ph;
 						uint32_t *ippp;
 
-						op_err->m_len =
+						SCTP_BUF_LEN(op_err) =
 						    (sizeof(struct sctp_paramhdr) +
 						    sizeof(uint32_t));
 						ph = mtod(op_err,
 						    struct sctp_paramhdr *);
 						ph->param_type = htons(
 						    SCTP_CAUSE_USER_INITIATED_ABT);
-						ph->param_length = htons(op_err->m_len);
+						ph->param_length = htons(SCTP_BUF_LEN(op_err));
 						ippp = (uint32_t *) (ph + 1);
 						*ippp = htonl(SCTP_FROM_SCTP_PCB + SCTP_LOC_5);
 					}
@@ -2312,12 +2310,12 @@ sctp_inpcb_free(struct sctp_inpcb *inp, int immediate, int from)
 				/* Fill in the user initiated abort */
 				struct sctp_paramhdr *ph;
 
-				op_err->m_len = (sizeof(struct sctp_paramhdr) +
+				SCTP_BUF_LEN(op_err) = (sizeof(struct sctp_paramhdr) +
 				    sizeof(uint32_t));
 				ph = mtod(op_err, struct sctp_paramhdr *);
 				ph->param_type = htons(
 				    SCTP_CAUSE_USER_INITIATED_ABT);
-				ph->param_length = htons(op_err->m_len);
+				ph->param_length = htons(SCTP_BUF_LEN(op_err));
 				ippp = (uint32_t *) (ph + 1);
 				*ippp = htonl(SCTP_FROM_SCTP_PCB + SCTP_LOC_7);
 
@@ -2338,7 +2336,7 @@ sctp_inpcb_free(struct sctp_inpcb *inp, int immediate, int from)
 	}
 	if (cnt) {
 		/* Ok we have someone out there that will kill us */
-		callout_stop(&inp->sctp_ep.signature_change.timer);
+		SCTP_OS_TIMER_STOP(&inp->sctp_ep.signature_change.timer);
 		SCTP_INP_WUNLOCK(inp);
 		SCTP_ASOC_CREATE_UNLOCK(inp);
 		SCTP_INP_INFO_WUNLOCK();
@@ -2349,7 +2347,7 @@ sctp_inpcb_free(struct sctp_inpcb *inp, int immediate, int from)
 		return;
 	}
 	if ((inp->refcount) || (inp->sctp_flags & SCTP_PCB_FLAGS_CLOSE_IP)) {
-		callout_stop(&inp->sctp_ep.signature_change.timer);
+		SCTP_OS_TIMER_STOP(&inp->sctp_ep.signature_change.timer);
 		sctp_timer_start(SCTP_TIMER_TYPE_INPKILL, inp, NULL, NULL);
 		SCTP_INP_WUNLOCK(inp);
 		SCTP_ASOC_CREATE_UNLOCK(inp);
@@ -2360,7 +2358,7 @@ sctp_inpcb_free(struct sctp_inpcb *inp, int immediate, int from)
 #endif
 		return;
 	}
-	callout_stop(&inp->sctp_ep.signature_change.timer);
+	SCTP_OS_TIMER_STOP(&inp->sctp_ep.signature_change.timer);
 	inp->sctp_ep.signature_change.type = 0;
 	inp->sctp_flags |= SCTP_PCB_FLAGS_SOCKET_ALLGONE;
 
@@ -2368,7 +2366,7 @@ sctp_inpcb_free(struct sctp_inpcb *inp, int immediate, int from)
 	sctp_log_closing(inp, NULL, 5);
 #endif
 
-	callout_stop(&inp->sctp_ep.signature_change.timer);
+	SCTP_OS_TIMER_STOP(&inp->sctp_ep.signature_change.timer);
 	inp->sctp_ep.signature_change.type = SCTP_TIMER_TYPE_NONE;
 	/* Clear the read queue */
 	while ((sq = TAILQ_FIRST(&inp->read_queue)) != NULL) {
@@ -2727,9 +2725,9 @@ sctp_add_remote_addr(struct sctp_tcb *stcb, struct sockaddr *newaddr,
 		net->tos_flowlabel = stcb->asoc.default_flowlabel;
 #endif
 	/* Init the timer structure */
-	callout_init(&net->rxt_timer.timer, 1);
-	callout_init(&net->fr_timer.timer, 1);
-	callout_init(&net->pmtu_timer.timer, 1);
+	SCTP_OS_TIMER_INIT(&net->rxt_timer.timer);
+	SCTP_OS_TIMER_INIT(&net->fr_timer.timer);
+	SCTP_OS_TIMER_INIT(&net->pmtu_timer.timer);
 
 	/* Now generate a route for this guy */
 	/* KAME hack: embed scopeid */
@@ -3019,13 +3017,14 @@ sctp_aloc_assoc(struct sctp_inpcb *inp, struct sockaddr *firstaddr,
 		return (NULL);
 	}
 	/* Init all the timers */
-	callout_init(&asoc->hb_timer.timer, 1);
-	callout_init(&asoc->dack_timer.timer, 1);
-	callout_init(&asoc->asconf_timer.timer, 1);
-	callout_init(&asoc->strreset_timer.timer, 1);
-	callout_init(&asoc->shut_guard_timer.timer, 1);
-	callout_init(&asoc->autoclose_timer.timer, 1);
-	callout_init(&asoc->delayed_event_timer.timer, 1);
+	SCTP_OS_TIMER_INIT(&asoc->hb_timer.timer);
+	SCTP_OS_TIMER_INIT(&asoc->dack_timer.timer);
+	SCTP_OS_TIMER_INIT(&asoc->strreset_timer.timer);
+	SCTP_OS_TIMER_INIT(&asoc->asconf_timer.timer);
+	SCTP_OS_TIMER_INIT(&asoc->shut_guard_timer.timer);
+	SCTP_OS_TIMER_INIT(&asoc->autoclose_timer.timer);
+	SCTP_OS_TIMER_INIT(&asoc->delayed_event_timer.timer);
+
 	LIST_INSERT_HEAD(&inp->sctp_asoc_list, stcb, sctp_tcblist);
 	/* now file the port under the hash as well */
 	if (inp->sctp_tcbhash != NULL) {
@@ -3282,18 +3281,18 @@ sctp_free_assoc(struct sctp_inpcb *inp, struct sctp_tcb *stcb, int from_inpcbfre
 		}
 	}
 	/* now clean up any other timers */
-	callout_stop(&asoc->hb_timer.timer);
-	callout_stop(&asoc->dack_timer.timer);
-	callout_stop(&asoc->strreset_timer.timer);
-	callout_stop(&asoc->asconf_timer.timer);
-	callout_stop(&asoc->autoclose_timer.timer);
-	callout_stop(&asoc->shut_guard_timer.timer);
-	callout_stop(&asoc->delayed_event_timer.timer);
+	SCTP_OS_TIMER_STOP(&asoc->hb_timer.timer);
+	SCTP_OS_TIMER_STOP(&asoc->dack_timer.timer);
+	SCTP_OS_TIMER_STOP(&asoc->strreset_timer.timer);
+	SCTP_OS_TIMER_STOP(&asoc->asconf_timer.timer);
+	SCTP_OS_TIMER_STOP(&asoc->autoclose_timer.timer);
+	SCTP_OS_TIMER_STOP(&asoc->shut_guard_timer.timer);
+	SCTP_OS_TIMER_STOP(&asoc->delayed_event_timer.timer);
 
 	TAILQ_FOREACH(net, &asoc->nets, sctp_next) {
-		callout_stop(&net->fr_timer.timer);
-		callout_stop(&net->rxt_timer.timer);
-		callout_stop(&net->pmtu_timer.timer);
+		SCTP_OS_TIMER_STOP(&net->fr_timer.timer);
+		SCTP_OS_TIMER_STOP(&net->rxt_timer.timer);
+		SCTP_OS_TIMER_STOP(&net->pmtu_timer.timer);
 	}
 	/* Now the read queue needs to be cleaned up (only once) */
 	cnt = 0;
@@ -3421,7 +3420,7 @@ sctp_free_assoc(struct sctp_inpcb *inp, struct sctp_tcb *stcb, int from_inpcbfre
 		}
 	}
 	/* Stop any timer someone may have started */
-	callout_stop(&asoc->strreset_timer.timer);
+	SCTP_OS_TIMER_STOP(&asoc->strreset_timer.timer);
 	/*
 	 * Make it invalid too, that way if its about to run it will abort
 	 * and return.
@@ -3433,18 +3432,18 @@ sctp_free_assoc(struct sctp_inpcb *inp, struct sctp_tcb *stcb, int from_inpcbfre
 		atomic_add_int(&stcb->asoc.refcnt, -1);
 	}
 	/* now restop the timers to be sure - this is paranoia at is finest! */
-	callout_stop(&asoc->hb_timer.timer);
-	callout_stop(&asoc->dack_timer.timer);
-	callout_stop(&asoc->strreset_timer.timer);
-	callout_stop(&asoc->asconf_timer.timer);
-	callout_stop(&asoc->shut_guard_timer.timer);
-	callout_stop(&asoc->autoclose_timer.timer);
-	callout_stop(&asoc->delayed_event_timer.timer);
+	SCTP_OS_TIMER_STOP(&asoc->hb_timer.timer);
+	SCTP_OS_TIMER_STOP(&asoc->dack_timer.timer);
+	SCTP_OS_TIMER_STOP(&asoc->strreset_timer.timer);
+	SCTP_OS_TIMER_STOP(&asoc->asconf_timer.timer);
+	SCTP_OS_TIMER_STOP(&asoc->shut_guard_timer.timer);
+	SCTP_OS_TIMER_STOP(&asoc->autoclose_timer.timer);
+	SCTP_OS_TIMER_STOP(&asoc->delayed_event_timer.timer);
 
 	TAILQ_FOREACH(net, &asoc->nets, sctp_next) {
-		callout_stop(&net->fr_timer.timer);
-		callout_stop(&net->rxt_timer.timer);
-		callout_stop(&net->pmtu_timer.timer);
+		SCTP_OS_TIMER_STOP(&net->fr_timer.timer);
+		SCTP_OS_TIMER_STOP(&net->rxt_timer.timer);
+		SCTP_OS_TIMER_STOP(&net->pmtu_timer.timer);
 	}
 	asoc->state = 0;
 	if (inp->sctp_tcbhash) {
@@ -4198,7 +4197,6 @@ static char sctp_pcb_initialized = 0;
 static int sctp_max_number_of_assoc = SCTP_MAX_NUM_OF_ASOC;
 static int sctp_scale_up_for_address = SCTP_SCALE_FOR_ADDR;
 
-
 void
 sctp_pcb_init()
 {
@@ -4308,8 +4306,7 @@ sctp_pcb_init()
 	sctppcbinfo.ipi_free_strmoq = 0;
 	sctppcbinfo.ipi_free_chunks = 0;
 
-
-	callout_init(&sctppcbinfo.addr_wq_timer.timer, 1);
+	SCTP_OS_TIMER_INIT(&sctppcbinfo.addr_wq_timer.timer);
 
 	/* port stuff */
 	sctppcbinfo.lastlow = ipport_firstauto;
@@ -5213,7 +5210,7 @@ sctp_drain_mbufs(struct sctp_inpcb *inp, struct sctp_tcb *stcb)
 			asoc->highest_tsn_inside_map = asoc->cumulative_tsn;
 		}
 		asoc->last_revoke_count = cnt;
-		callout_stop(&stcb->asoc.dack_timer.timer);
+		SCTP_OS_TIMER_STOP(&stcb->asoc.dack_timer.timer);
 		sctp_send_sack(stcb);
 		reneged_asoc_ids[reneged_at] = sctp_get_associd(stcb);
 		reneged_at++;
@@ -5300,7 +5297,7 @@ sctp_initiate_iterator(inp_func inpf, asoc_func af, uint32_t pcb_state,
 
 	}
 	/* Init the timer */
-	callout_init(&it->tmr.timer, 1);
+	SCTP_OS_TIMER_INIT(&it->tmr.timer);
 	/* add to the list of all iterators */
 	SCTP_INP_INFO_WLOCK();
 	LIST_INSERT_HEAD(&sctppcbinfo.iteratorhead, it, sctp_nxt_itr);
@@ -5311,8 +5308,3 @@ sctp_initiate_iterator(inp_func inpf, asoc_func af, uint32_t pcb_state,
 	splx(s);
 	return (0);
 }
-
-
-/*
- * Callout/Timer routines for OS that doesn't have them
- */

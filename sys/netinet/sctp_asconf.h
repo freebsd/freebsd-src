@@ -36,16 +36,17 @@ __FBSDID("$FreeBSD$");
 #ifndef _NETINET_SCTP_ASCONF_H_
 #define _NETINET_SCTP_ASCONF_H_
 
-
 #include <sys/malloc.h>
-
 
 
 #if defined(_KERNEL)
 
+/*
+ * function prototypes
+ */
 extern void sctp_asconf_cleanup(struct sctp_tcb *, struct sctp_nets *);
 
-extern struct mbuf *sctp_compose_asconf(struct sctp_tcb *);
+extern struct mbuf *sctp_compose_asconf(struct sctp_tcb *, int *);
 
 extern void
 sctp_handle_asconf(struct mbuf *, unsigned int, struct sctp_asconf_chunk *,

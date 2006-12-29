@@ -96,11 +96,12 @@ __FBSDID("$FreeBSD$");
 #define SCTPCTL_ADD_MORE            47
 #define SCTPCTL_SYS_RESC            48
 #define SCTPCTL_ASOC_RESC           49
+#define SCTPCTL_NAT_FRIENDLY	    50
 #ifdef SCTP_DEBUG
-#define SCTPCTL_DEBUG               50
-#define SCTPCTL_MAXID		    50
+#define SCTPCTL_DEBUG               51
+#define SCTPCTL_MAXID		    51
 #else
-#define SCTPCTL_MAXID		    49
+#define SCTPCTL_MAXID		    50
 #endif
 
 #ifdef SCTP_DEBUG
@@ -155,6 +156,7 @@ __FBSDID("$FreeBSD$");
 	{ "add_more_on_output", CTLTYPE_INT }, \
 	{ "sys_resource", CTLTYPE_INT }, \
 	{ "asoc_resource", CTLTYPE_INT }, \
+	{ "nat_friendly", CTLTYPE_INT }, \
 	{ "debug", CTLTYPE_INT }, \
 }
 #else
@@ -209,9 +211,9 @@ __FBSDID("$FreeBSD$");
 	{ "add_more_on_output", CTLTYPE_INT }, \
 	{ "sys_resource", CTLTYPE_INT }, \
 	{ "asoc_resource", CTLTYPE_INT }, \
+	{ "nat_friendly", CTLTYPE_INT }, \
 }
 #endif
-
 
 
 
@@ -317,14 +319,12 @@ extern uint32_t sctp_system_free_resc_limit;
 
 
 
-
-
 #define sctp_free_remote_addr(__net) { \
 	if ((__net)) { \
                 if (atomic_fetchadd_int(&(__net)->ref_count, -1) == 1) { \
-			callout_stop(&(__net)->rxt_timer.timer); \
-			callout_stop(&(__net)->pmtu_timer.timer); \
-			callout_stop(&(__net)->fr_timer.timer); \
+			SCTP_OS_TIMER_STOP(&(__net)->rxt_timer.timer); \
+			SCTP_OS_TIMER_STOP(&(__net)->pmtu_timer.timer); \
+			SCTP_OS_TIMER_STOP(&(__net)->fr_timer.timer); \
 			(__net)->dest_state = SCTP_ADDR_NOT_REACHABLE; \
 			SCTP_ZONE_FREE(sctppcbinfo.ipi_zone_net, (__net)); \
 			SCTP_DECR_RADDR_COUNT(); \
@@ -332,59 +332,58 @@ extern uint32_t sctp_system_free_resc_limit;
 	} \
 }
 
-
 #define sctp_sbfree(ctl, stcb, sb, m) { \
         uint32_t val; \
-        val = atomic_fetchadd_int(&(sb)->sb_cc,-((m)->m_len)); \
-        if(val < (m)->m_len) { \
+        val = atomic_fetchadd_int(&(sb)->sb_cc,-(SCTP_BUF_LEN((m)))); \
+        if(val < SCTP_BUF_LEN((m))) { \
            panic("sb_cc goes negative"); \
         } \
         val = atomic_fetchadd_int(&(sb)->sb_mbcnt,-(MSIZE)); \
         if(val < MSIZE) { \
             panic("sb_mbcnt goes negative"); \
         } \
-        if ((m)->m_flags & M_EXT) { \
-                val = atomic_fetchadd_int(&(sb)->sb_mbcnt,-((m)->m_ext.ext_size)); \
-		if(val < (m)->m_ext.ext_size) { \
+        if (SCTP_BUF_IS_EXTENDED(m)) { \
+                val = atomic_fetchadd_int(&(sb)->sb_mbcnt,-(SCTP_BUF_EXTEND_SIZE(m))); \
+		if(val < SCTP_BUF_EXTEND_SIZE(m)) { \
                     panic("sb_mbcnt goes negative2"); \
                 } \
         } \
         if (((ctl)->do_not_ref_stcb == 0) && stcb) {\
-          val = atomic_fetchadd_int(&(stcb)->asoc.sb_cc,-((m)->m_len)); \
-          if(val < (m)->m_len) {\
+          val = atomic_fetchadd_int(&(stcb)->asoc.sb_cc,-(SCTP_BUF_LEN((m)))); \
+          if(val < SCTP_BUF_LEN((m))) {\
              panic("stcb->sb_cc goes negative"); \
           } \
           val = atomic_fetchadd_int(&(stcb)->asoc.sb_mbcnt,-(MSIZE)); \
           if(val < MSIZE) { \
              panic("asoc->mbcnt goes negative"); \
           } \
-	  if ((m)->m_flags & M_EXT) { \
-                val = atomic_fetchadd_int(&(stcb)->asoc.sb_mbcnt,-((m)->m_ext.ext_size)); \
-		if(val < (m)->m_ext.ext_size) { \
+	  if (SCTP_BUF_IS_EXTENDED(m)) { \
+                val = atomic_fetchadd_int(&(stcb)->asoc.sb_mbcnt,-(SCTP_BUF_EXTEND_SIZE(m))); \
+		if(val < SCTP_BUF_EXTEND_SIZE(m)) { \
 		   panic("assoc stcb->mbcnt would go negative"); \
                 } \
           } \
         } \
-	if ((m)->m_type != MT_DATA && (m)->m_type != MT_HEADER && \
-	    (m)->m_type != MT_OOBDATA) \
-		atomic_subtract_int(&(sb)->sb_ctl,(m)->m_len); \
+	if (SCTP_BUF_TYPE(m) != MT_DATA && SCTP_BUF_TYPE(m) != MT_HEADER && \
+	    SCTP_BUF_TYPE(m) != MT_OOBDATA) \
+		atomic_subtract_int(&(sb)->sb_ctl,SCTP_BUF_LEN((m))); \
 }
 
 
 #define sctp_sballoc(stcb, sb, m) { \
-	atomic_add_int(&(sb)->sb_cc,(m)->m_len); \
+	atomic_add_int(&(sb)->sb_cc,SCTP_BUF_LEN((m))); \
 	atomic_add_int(&(sb)->sb_mbcnt, MSIZE); \
-	if ((m)->m_flags & M_EXT) \
-		atomic_add_int(&(sb)->sb_mbcnt,(m)->m_ext.ext_size); \
+	if (SCTP_BUF_IS_EXTENDED(m)) \
+		atomic_add_int(&(sb)->sb_mbcnt,SCTP_BUF_EXTEND_SIZE(m)); \
         if(stcb) { \
-  	  atomic_add_int(&(stcb)->asoc.sb_cc,(m)->m_len); \
+  	  atomic_add_int(&(stcb)->asoc.sb_cc,SCTP_BUF_LEN((m))); \
           atomic_add_int(&(stcb)->asoc.sb_mbcnt, MSIZE); \
-	  if ((m)->m_flags & M_EXT) \
-		atomic_add_int(&(stcb)->asoc.sb_mbcnt,(m)->m_ext.ext_size); \
+	  if (SCTP_BUF_IS_EXTENDED(m)) \
+		atomic_add_int(&(stcb)->asoc.sb_mbcnt,SCTP_BUF_EXTEND_SIZE(m)); \
         } \
-	if ((m)->m_type != MT_DATA && (m)->m_type != MT_HEADER && \
-	    (m)->m_type != MT_OOBDATA) \
-		atomic_add_int(&(sb)->sb_ctl,(m)->m_len); \
+	if (SCTP_BUF_TYPE(m) != MT_DATA && SCTP_BUF_TYPE(m) != MT_HEADER && \
+	    SCTP_BUF_TYPE(m) != MT_OOBDATA) \
+		atomic_add_int(&(sb)->sb_ctl,SCTP_BUF_LEN((m))); \
 }
 
 
@@ -403,15 +402,18 @@ extern uint32_t sctp_system_free_resc_limit;
 #define sctp_mbuf_crush(data) do { \
                 struct mbuf *_m; \
 		_m = (data); \
-		while(_m && (_m->m_len == 0)) { \
-			(data)  = _m->m_next; \
-			_m->m_next = NULL; \
+		while(_m && (SCTP_BUF_LEN(_m) == 0)) { \
+			(data)  = SCTP_BUF_NEXT(_m); \
+			SCTP_BUF_NEXT(_m) = NULL; \
 			sctp_m_free(_m); \
 			_m = (data); \
 		} \
 } while (0)
 
 
+/*
+ * some sysctls
+ */
 extern int sctp_sendspace;
 extern int sctp_recvspace;
 extern int sctp_ecn_enable;
@@ -420,11 +422,12 @@ extern int sctp_use_cwnd_based_maxburst;
 extern unsigned int sctp_cmt_on_off;
 extern unsigned int sctp_cmt_use_dac;
 extern unsigned int sctp_cmt_sockopt_on_off;
+extern uint32_t sctp_nat_friendly;
+
 struct sctp_nets;
 struct sctp_inpcb;
 struct sctp_tcb;
 struct sctphdr;
-
 
 void sctp_ctlinput __P((int, struct sockaddr *, void *));
 int sctp_ctloutput __P((struct socket *, struct sockopt *));
@@ -450,9 +453,7 @@ __P((struct sctp_inpcb *, int, struct sctphdr *,
 /* can't use sctp_assoc_t here */
 	int sctp_peeloff(struct socket *, struct socket *, int, caddr_t, int *);
 
-
 	sctp_assoc_t sctp_getassocid(struct sockaddr *);
-
 
 
 	int sctp_ingetaddr(struct socket *,
@@ -465,10 +466,7 @@ __P((struct sctp_inpcb *, int, struct sctphdr *,
 
 	int sctp_listen(struct socket *, int, struct thread *);
 
-
 	int sctp_accept(struct socket *, struct sockaddr **);
-
-
 
 
 #endif				/* _KERNEL */
