@@ -189,6 +189,9 @@ again:
 		if (!NG_IPFW_LOADED)
 			goto drop;
 		return ng_ipfw_input_p(m0, NG_IPFW_IN, &args, 0);
+		
+	case IP_FW_NAT:
+		goto again;		/* continue with packet */
 
 	default:
 		KASSERT(0, ("%s: unknown retval", __func__));
@@ -315,6 +318,9 @@ again:
 			goto drop;
 		return ng_ipfw_input_p(m0, NG_IPFW_OUT, &args, 0);
 
+	case IP_FW_NAT:
+		goto again;		/* continue with packet */
+		
 	default:
 		KASSERT(0, ("%s: unknown retval", __func__));
 	}

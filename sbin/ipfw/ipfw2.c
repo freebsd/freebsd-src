@@ -48,6 +48,7 @@
 #include <fcntl.h>
 
 #include <net/if.h>
+#include <net/if_dl.h>
 #include <net/pfvar.h>
 #include <net/route.h> /* def. of struct route */
 #include <netinet/in.h>
@@ -59,12 +60,14 @@
 #include <netinet/ip_dummynet.h>
 #include <netinet/tcp.h>
 #include <arpa/inet.h>
+#include <alias.h>
 
 int
 		do_resolv,		/* Would try to resolve all */
 		do_time,		/* Show time stamps */
 		do_quiet,		/* Be quiet in add and flush */
 		do_pipe,		/* this cmd refers to a pipe */
+	        do_nat, 		/* Nat configuration. */
 		do_sort,		/* field to sort results (0 = no) */
 		do_dynamic,		/* display dynamic rules */
 		do_expired,		/* display expired dynamic rules */
@@ -247,6 +250,7 @@ enum tokens {
 	TOK_RESET,
 	TOK_UNREACH,
 	TOK_CHECKSTATE,
+	TOK_NAT,
 
 	TOK_ALTQ,
 	TOK_LOG,
@@ -309,6 +313,18 @@ enum tokens {
 	TOK_DROPTAIL,
 	TOK_PROTO,
 	TOK_WEIGHT,
+	TOK_IP,
+	TOK_IF,
+ 	TOK_ALOG,
+ 	TOK_DENY_INC,
+ 	TOK_SAME_PORTS,
+ 	TOK_UNREG_ONLY,
+ 	TOK_RESET_ADDR,
+ 	TOK_ALIAS_REV,
+ 	TOK_PROXY_ONLY,
+	TOK_REDIR_ADDR,
+	TOK_REDIR_PORT,
+	TOK_REDIR_PROTO,	
 
 	TOK_IPV6,
 	TOK_FLOWID,
@@ -351,6 +367,22 @@ struct _s_x dummynet_params[] = {
 	{ NULL, 0 }	/* terminator */
 };
 
+struct _s_x nat_params[] = {
+	{ "ip",	                TOK_IP },
+	{ "if",	                TOK_IF },
+ 	{ "log",                TOK_ALOG },
+ 	{ "deny_in",	        TOK_DENY_INC },
+ 	{ "same_ports",	        TOK_SAME_PORTS },
+ 	{ "unreg_only",	        TOK_UNREG_ONLY },
+ 	{ "reset",	        TOK_RESET_ADDR },
+ 	{ "reverse",	        TOK_ALIAS_REV },	
+ 	{ "proxy_only",	        TOK_PROXY_ONLY },
+	{ "redirect_addr",	TOK_REDIR_ADDR },
+	{ "redirect_port",	TOK_REDIR_PORT },
+	{ "redirect_proto",	TOK_REDIR_PROTO },
+ 	{ NULL, 0 }	/* terminator */
+};
+
 struct _s_x rule_actions[] = {
 	{ "accept",		TOK_ACCEPT },
 	{ "pass",		TOK_ACCEPT },
@@ -375,6 +407,7 @@ struct _s_x rule_actions[] = {
 	{ "unreach",		TOK_UNREACH },
 	{ "check-state",	TOK_CHECKSTATE },
 	{ "//",			TOK_COMMENT },
+	{ "nat",                TOK_NAT },
 	{ NULL, 0 }	/* terminator */
 };
 
@@ -493,7 +526,9 @@ do_cmd(int optname, void *optval, uintptr_t optlen)
 
 	if (optname == IP_FW_GET || optname == IP_DUMMYNET_GET ||
 	    optname == IP_FW_ADD || optname == IP_FW_TABLE_LIST ||
-	    optname == IP_FW_TABLE_GETSIZE)
+	    optname == IP_FW_TABLE_GETSIZE || 
+	    optname == IP_FW_NAT_GET_CONFIG || 
+	    optname == IP_FW_NAT_GET_LOG)
 		i = getsockopt(s, IPPROTO_IP, optname, optval,
 			(socklen_t *)optlen);
 	else
@@ -1567,6 +1602,10 @@ show_ipfw(struct ip_fw *rule, int pcwidth, int bcwidth)
 			tagptr = cmd;
 			break;
 
+		case O_NAT:
+ 			printf("nat %u", cmd->arg1);
+ 			break;
+			
 		default:
 			printf("** unrecognized action %d len %d ",
 				cmd->opcode, cmd->len);
@@ -2629,13 +2668,16 @@ help(void)
 "add [num] [set N] [prob x] RULE-BODY\n"
 "{pipe|queue} N config PIPE-BODY\n"
 "[pipe|queue] {zero|delete|show} [N{,N}]\n"
+"nat N config {ip IPADDR|if IFNAME|log|deny_in|same_ports|unreg_only|reset|\n"
+"		reverse|proxy_only|redirect_addr linkspec|\n"
+"		redirect_port linkspec|redirect_proto linkspec}\n"
 "set [disable N... enable N...] | move [rule] X to Y | swap X Y | show\n"
 "table N {add ip[/bits] [value] | delete ip[/bits] | flush | list}\n"
 "\n"
 "RULE-BODY:	check-state [PARAMS] | ACTION [PARAMS] ADDR [OPTION_LIST]\n"
 "ACTION:	check-state | allow | count | deny | unreach{,6} CODE |\n"
 "               skipto N | {divert|tee} PORT | forward ADDR |\n"
-"               pipe N | queue N\n"
+"               pipe N | queue N | nat N\n"
 "PARAMS: 	[log [logamount LOGLIMIT]] [altq QUEUE_NAME]\n"
 "ADDR:		[ MAC dst src ether_type ] \n"
 "		[ ip from IPADDR [ PORT ] to IPADDR [ PORTLIST ] ]\n"
@@ -3148,7 +3190,13 @@ delete(int ac, char *av[])
 	/* Rule number */
 	while (ac && isdigit(**av)) {
 		i = atoi(*av); av++; ac--;
-		if (do_pipe) {
+		if (do_nat) {
+			exitval = do_cmd(IP_FW_NAT_DEL, &i, sizeof i);
+			if (exitval) {
+				exitval = EX_UNAVAILABLE;
+				warn("rule %u not available", i);
+			}
+ 		} else if (do_pipe) {
 			if (do_pipe == 1)
 				p.pipe_nr = i;
 			else
@@ -3195,6 +3243,769 @@ fill_iface(ipfw_insn_if *cmd, char *arg)
 		cmd->p.glob = strpbrk(arg, "*?[") != NULL ? 1 : 0;
 	} else if (!inet_aton(arg, &cmd->p.ip))
 		errx(EX_DATAERR, "bad ip address ``%s''", arg);
+}
+
+/* 
+ * Search for interface with name "ifn", and fill n accordingly:
+ *
+ * n->ip        ip address of interface "ifn"
+ * n->if_name   copy of interface name "ifn"
+ */
+static void
+set_addr_dynamic(const char *ifn, struct cfg_nat *n)
+{
+	size_t needed;
+	int mib[6];
+	char *buf, *lim, *next;
+	struct if_msghdr *ifm;
+	struct ifa_msghdr *ifam;
+	struct sockaddr_dl *sdl;
+	struct sockaddr_in *sin;
+	int ifIndex, ifMTU;
+
+	mib[0] = CTL_NET;
+	mib[1] = PF_ROUTE;
+	mib[2] = 0;
+	mib[3] = AF_INET;	
+	mib[4] = NET_RT_IFLIST;
+	mib[5] = 0;		
+/*
+ * Get interface data.
+ */
+	if (sysctl(mib, 6, NULL, &needed, NULL, 0) == -1)
+		err(1, "iflist-sysctl-estimate");
+	if ((buf = malloc(needed)) == NULL)
+		errx(1, "malloc failed");
+	if (sysctl(mib, 6, buf, &needed, NULL, 0) == -1)
+		err(1, "iflist-sysctl-get");
+	lim = buf + needed;
+/*
+ * Loop through interfaces until one with
+ * given name is found. This is done to
+ * find correct interface index for routing
+ * message processing.
+ */
+	ifIndex	= 0;
+	next = buf;
+	while (next < lim) {
+		ifm = (struct if_msghdr *)next;
+		next += ifm->ifm_msglen;
+		if (ifm->ifm_version != RTM_VERSION) {
+			if (verbose)
+				warnx("routing message version %d "
+				    "not understood", ifm->ifm_version);
+			continue;
+		}
+		if (ifm->ifm_type == RTM_IFINFO) {
+			sdl = (struct sockaddr_dl *)(ifm + 1);
+			if (strlen(ifn) == sdl->sdl_nlen &&
+			    strncmp(ifn, sdl->sdl_data, sdl->sdl_nlen) == 0) {
+				ifIndex = ifm->ifm_index;
+				ifMTU = ifm->ifm_data.ifi_mtu;
+				break;
+			}
+		}
+	}
+	if (!ifIndex)
+		errx(1, "unknown interface name %s", ifn);
+/*
+ * Get interface address.
+ */
+	sin = NULL;
+	while (next < lim) {
+		ifam = (struct ifa_msghdr *)next;
+		next += ifam->ifam_msglen;
+		if (ifam->ifam_version != RTM_VERSION) {
+			if (verbose)
+				warnx("routing message version %d "
+				    "not understood", ifam->ifam_version);
+			continue;
+		}
+		if (ifam->ifam_type != RTM_NEWADDR)
+			break;
+		if (ifam->ifam_addrs & RTA_IFA) {
+			int i;
+			char *cp = (char *)(ifam + 1);
+
+			for (i = 1; i < RTA_IFA; i <<= 1) {
+				if (ifam->ifam_addrs & i)
+					cp += SA_SIZE((struct sockaddr *)cp);
+			}
+			if (((struct sockaddr *)cp)->sa_family == AF_INET) {
+				sin = (struct sockaddr_in *)cp;
+				break;
+			}
+		}
+	}
+	if (sin == NULL)
+		errx(1, "%s: cannot get interface address", ifn);
+
+	n->ip = sin->sin_addr;
+	strncpy(n->if_name, ifn, IF_NAMESIZE);
+
+	free(buf);
+}
+
+/* 
+ * XXX - The following functions, macros and definitions come from natd.c:
+ * it would be better to move them outside natd.c, in a file 
+ * (redirect_support.[ch]?) shared by ipfw and natd, but for now i can live 
+ * with it.
+ */
+
+/*
+ * Definition of a port range, and macros to deal with values.
+ * FORMAT:  HI 16-bits == first port in range, 0 == all ports.
+ *          LO 16-bits == number of ports in range
+ * NOTES:   - Port values are not stored in network byte order.
+ */
+
+#define port_range u_long
+
+#define GETLOPORT(x)     ((x) >> 0x10)
+#define GETNUMPORTS(x)   ((x) & 0x0000ffff)
+#define GETHIPORT(x)     (GETLOPORT((x)) + GETNUMPORTS((x)))
+
+/* Set y to be the low-port value in port_range variable x. */
+#define SETLOPORT(x,y)   ((x) = ((x) & 0x0000ffff) | ((y) << 0x10))
+
+/* Set y to be the number of ports in port_range variable x. */
+#define SETNUMPORTS(x,y) ((x) = ((x) & 0xffff0000) | (y))
+
+static void 
+StrToAddr (const char* str, struct in_addr* addr)
+{
+	struct hostent* hp;
+
+	if (inet_aton (str, addr))
+		return;
+
+	hp = gethostbyname (str);
+	if (!hp)
+		errx (1, "unknown host %s", str);
+
+	memcpy (addr, hp->h_addr, sizeof (struct in_addr));
+}
+
+static int 
+StrToPortRange (const char* str, const char* proto, port_range *portRange)
+{
+	char*           sep;
+	struct servent*	sp;
+	char*		end;
+	u_short         loPort;
+	u_short         hiPort;
+	
+	/* First see if this is a service, return corresponding port if so. */
+	sp = getservbyname (str,proto);
+	if (sp) {
+	        SETLOPORT(*portRange, ntohs(sp->s_port));
+		SETNUMPORTS(*portRange, 1);
+		return 0;
+	}
+	        
+	/* Not a service, see if it's a single port or port range. */
+	sep = strchr (str, '-');
+	if (sep == NULL) {
+	        SETLOPORT(*portRange, strtol(str, &end, 10));
+		if (end != str) {
+		        /* Single port. */
+		        SETNUMPORTS(*portRange, 1);
+			return 0;
+		}
+
+		/* Error in port range field. */
+		errx (EX_DATAERR, "%s/%s: unknown service", str, proto);
+	}
+
+	/* Port range, get the values and sanity check. */
+	sscanf (str, "%hu-%hu", &loPort, &hiPort);
+	SETLOPORT(*portRange, loPort);
+	SETNUMPORTS(*portRange, 0);	/* Error by default */
+	if (loPort <= hiPort)
+	        SETNUMPORTS(*portRange, hiPort - loPort + 1);
+
+	if (GETNUMPORTS(*portRange) == 0)
+	        errx (EX_DATAERR, "invalid port range %s", str);
+
+	return 0;
+}
+
+static int 
+StrToProto (const char* str)
+{
+	if (!strcmp (str, "tcp"))
+		return IPPROTO_TCP;
+
+	if (!strcmp (str, "udp"))
+		return IPPROTO_UDP;
+
+	errx (EX_DATAERR, "unknown protocol %s. Expected tcp or udp", str);
+}
+
+static int 
+StrToAddrAndPortRange (const char* str, struct in_addr* addr, char* proto, 
+		       port_range *portRange)
+{
+	char*	ptr;
+
+	ptr = strchr (str, ':');
+	if (!ptr)
+		errx (EX_DATAERR, "%s is missing port number", str);
+
+	*ptr = '\0';
+	++ptr;
+
+	StrToAddr (str, addr);
+	return StrToPortRange (ptr, proto, portRange);
+}
+
+/* End of stuff taken from natd.c. */
+
+#define INC_ARGCV() do {        \
+	(*_av)++;               \
+	(*_ac)--;               \
+	av = *_av;              \
+	ac = *_ac;              \
+} while(0)
+
+/* 
+ * The next 3 functions add support for the addr, port and proto redirect and 
+ * their logic is loosely based on SetupAddressRedirect(), SetupPortRedirect() 
+ * and SetupProtoRedirect() from natd.c.
+ *
+ * Every setup_* function fills at least one redirect entry 
+ * (struct cfg_redir) and zero or more server pool entry (struct cfg_spool) 
+ * in buf.
+ * 
+ * The format of data in buf is:
+ * 
+ *
+ *     cfg_nat    cfg_redir    cfg_spool    ......  cfg_spool 
+ *
+ *    -------------------------------------        ------------
+ *   |          | .....X ... |          |         |           |  .....
+ *    ------------------------------------- ...... ------------
+ *                     ^          
+ *                spool_cnt       n=0       ......   n=(X-1)
+ *
+ * len points to the amount of available space in buf
+ * space counts the memory consumed by every function
+ *
+ * XXX - Every function get all the argv params so it 
+ * has to check, in optional parameters, that the next
+ * args is a valid option for the redir entry and not 
+ * another token. Only redir_port and redir_proto are 
+ * affected by this.
+ */
+
+static int
+setup_redir_addr(char *spool_buf, int len,
+		 int *_ac, char ***_av) 
+{
+	char **av, *sep; /* Token separator. */
+	/* Temporary buffer used to hold server pool ip's. */
+	char tmp_spool_buf[NAT_BUF_LEN]; 
+	int ac, i, space, lsnat;
+	struct cfg_redir *r;	
+	struct cfg_spool *tmp;		
+
+	av = *_av;
+	ac = *_ac;
+	space = 0;
+	lsnat = 0;
+	if (len >= SOF_REDIR) {
+		r = (struct cfg_redir *)spool_buf;
+		/* Skip cfg_redir at beginning of buf. */
+		spool_buf = &spool_buf[SOF_REDIR];
+		space = SOF_REDIR;
+		len -= SOF_REDIR;
+	} else 
+		goto nospace; 
+	r->mode = REDIR_ADDR;
+	/* Extract local address. */
+	if (ac == 0) 
+		errx(EX_DATAERR, "redirect_addr: missing local address");
+	sep = strchr(*av, ',');
+	if (sep) {		/* LSNAT redirection syntax. */
+		r->laddr.s_addr = INADDR_NONE;
+		/* Preserve av, copy spool servers to tmp_spool_buf. */
+		strncpy(tmp_spool_buf, *av, strlen(*av)+1);
+		lsnat = 1;
+	} else 
+		StrToAddr(*av, &r->laddr);		
+	INC_ARGCV();
+
+	/* Extract public address. */
+	if (ac == 0) 
+		errx(EX_DATAERR, "redirect_addr: missing public address");
+	StrToAddr(*av, &r->paddr);
+	INC_ARGCV();
+
+	/* Setup LSNAT server pool. */
+	if (sep) {
+		sep = strtok(tmp_spool_buf, ",");		
+		while (sep != NULL) {
+			tmp = (struct cfg_spool *)spool_buf;		
+			if (len < SOF_SPOOL)
+				goto nospace;
+			len -= SOF_SPOOL;
+			space += SOF_SPOOL;			
+			StrToAddr(sep, &tmp->addr);
+			tmp->port = ~0;
+			r->spool_cnt++;
+			/* Point to the next possible cfg_spool. */
+			spool_buf = &spool_buf[SOF_SPOOL];
+			sep = strtok(NULL, ",");
+		}
+	}
+	return(space);
+nospace:
+	errx(EX_DATAERR, "redirect_addr: buf is too small\n");
+}
+
+static int
+setup_redir_port(char *spool_buf, int len,
+		 int *_ac, char ***_av) 
+{
+	char **av, *sep, *protoName;
+	char tmp_spool_buf[NAT_BUF_LEN];
+	int ac, space, lsnat;
+	struct cfg_redir *r;
+	struct cfg_spool *tmp;
+	u_short numLocalPorts;
+	port_range portRange;	
+
+	av = *_av;
+	ac = *_ac;
+	space = 0;
+	lsnat = 0;
+	numLocalPorts = 0;	
+
+	if (len >= SOF_REDIR) {
+		r = (struct cfg_redir *)spool_buf;
+		/* Skip cfg_redir at beginning of buf. */
+		spool_buf = &spool_buf[SOF_REDIR];
+		space = SOF_REDIR;
+		len -= SOF_REDIR;
+	} else 
+		goto nospace; 
+	r->mode = REDIR_PORT;
+	/*
+	 * Extract protocol.
+	 */
+	if (ac == 0)
+		errx (EX_DATAERR, "redirect_port: missing protocol");
+	r->proto = StrToProto(*av);
+	protoName = *av;	
+	INC_ARGCV();
+
+	/*
+	 * Extract local address.
+	 */
+	if (ac == 0)
+		errx (EX_DATAERR, "redirect_port: missing local address");
+
+	sep = strchr(*av, ',');
+	/* LSNAT redirection syntax. */
+	if (sep) {
+		r->laddr.s_addr = INADDR_NONE;
+		r->lport = ~0;
+		numLocalPorts = 1;
+		/* Preserve av, copy spool servers to tmp_spool_buf. */
+		strncpy(tmp_spool_buf, *av, strlen(*av)+1);
+		lsnat = 1;
+	} else {
+		if (StrToAddrAndPortRange (*av, &r->laddr, protoName, 
+		    &portRange) != 0)
+			errx(EX_DATAERR, "redirect_port:"
+			    "invalid local port range");
+
+		r->lport = GETLOPORT(portRange);
+		numLocalPorts = GETNUMPORTS(portRange);
+	}
+	INC_ARGCV();	
+
+	/*
+	 * Extract public port and optionally address.
+	 */
+	if (ac == 0)
+		errx (EX_DATAERR, "redirect_port: missing public port");
+
+	sep = strchr (*av, ':');
+	if (sep) {
+	        if (StrToAddrAndPortRange (*av, &r->paddr, protoName, 
+		    &portRange) != 0)
+		        errx(EX_DATAERR, "redirect_port:" 
+			    "invalid public port range");
+	} else {
+		r->paddr.s_addr = INADDR_ANY;
+		if (StrToPortRange (*av, protoName, &portRange) != 0)
+		        errx(EX_DATAERR, "redirect_port:"
+			    "invalid public port range");
+	}
+
+	r->pport = GETLOPORT(portRange);
+	r->pport_cnt = GETNUMPORTS(portRange);
+	INC_ARGCV();
+
+	/*
+	 * Extract remote address and optionally port.
+	 */	
+	/* 
+	 * NB: isalpha(**av) => we've to check that next parameter is really an
+	 * option for this redirect entry, else stop here processing arg[cv].
+	 */
+	if (ac != 0 && !isalpha(**av)) { 
+		sep = strchr (*av, ':');
+		if (sep) {
+		        if (StrToAddrAndPortRange (*av, &r->raddr, protoName, 
+			    &portRange) != 0)
+				errx(EX_DATAERR, "redirect_port:"
+				    "invalid remote port range");
+		} else {
+		        SETLOPORT(portRange, 0);
+			SETNUMPORTS(portRange, 1);
+			StrToAddr (*av, &r->raddr);
+		}
+		INC_ARGCV();
+	} else {
+		SETLOPORT(portRange, 0);
+		SETNUMPORTS(portRange, 1);
+		r->raddr.s_addr = INADDR_ANY;
+	}
+	r->rport = GETLOPORT(portRange);
+	r->rport_cnt = GETNUMPORTS(portRange);
+
+	/* 
+	 * Make sure port ranges match up, then add the redirect ports.
+	 */
+	if (numLocalPorts != r->pport_cnt)
+	        errx(EX_DATAERR, "redirect_port:"
+		    "port ranges must be equal in size");
+
+	/* Remote port range is allowed to be '0' which means all ports. */
+	if (r->rport_cnt != numLocalPorts && 
+	    (r->rport_cnt != 1 || r->rport != 0))
+	        errx(EX_DATAERR, "redirect_port: remote port must"
+		    "be 0 or equal to local port range in size");
+
+	/*
+	 * Setup LSNAT server pool.
+	 */
+	if (lsnat) {
+		sep = strtok(tmp_spool_buf, ",");
+		while (sep != NULL) {
+			tmp = (struct cfg_spool *)spool_buf;
+			if (len < SOF_SPOOL)
+				goto nospace;
+			len -= SOF_SPOOL;
+			space += SOF_SPOOL;
+			if (StrToAddrAndPortRange(sep, &tmp->addr, protoName, 
+			    &portRange) != 0)
+				errx(EX_DATAERR, "redirect_port:"
+				    "invalid local port range");
+			if (GETNUMPORTS(portRange) != 1)
+				errx(EX_DATAERR, "redirect_port: local port"
+				    "must be single in this context");
+			tmp->port = GETLOPORT(portRange);
+			r->spool_cnt++;	
+			/* Point to the next possible cfg_spool. */
+			spool_buf = &spool_buf[SOF_SPOOL];
+			sep = strtok(NULL, ",");
+		}
+	}
+	return (space);
+nospace:
+	errx(EX_DATAERR, "redirect_port: buf is too small\n");
+}
+
+static int
+setup_redir_proto(char *spool_buf, int len,
+		 int *_ac, char ***_av) 
+{
+	char **av;
+	int ac, i, space;
+	struct protoent *protoent;
+	struct cfg_redir *r;
+	
+	av = *_av;
+	ac = *_ac;
+	if (len >= SOF_REDIR) {
+		r = (struct cfg_redir *)spool_buf;
+		/* Skip cfg_redir at beginning of buf. */
+		spool_buf = &spool_buf[SOF_REDIR];
+		space = SOF_REDIR;
+		len -= SOF_REDIR;
+	} else 
+		goto nospace;
+	r->mode = REDIR_PROTO;
+	/*
+	 * Extract protocol.
+	 */	
+	if (ac == 0)
+		errx(EX_DATAERR, "redirect_proto: missing protocol");
+
+	protoent = getprotobyname(*av);
+	if (protoent == NULL)
+		errx(EX_DATAERR, "redirect_proto: unknown protocol %s", *av);
+	else
+		r->proto = protoent->p_proto;
+
+	INC_ARGCV();
+	
+	/*
+	 * Extract local address.
+	 */
+	if (ac == 0)
+		errx(EX_DATAERR, "redirect_proto: missing local address");
+	else
+		StrToAddr(*av, &r->laddr);
+
+	INC_ARGCV();
+	
+	/*
+	 * Extract optional public address.
+	 */
+	if (ac == 0) {
+		r->paddr.s_addr = INADDR_ANY;		
+		r->raddr.s_addr = INADDR_ANY;	
+	} else {
+		/* see above in setup_redir_port() */
+		if (!isalpha(**av)) {
+			StrToAddr(*av, &r->paddr);			
+			INC_ARGCV();
+		
+			/*
+			 * Extract optional remote address.
+			 */	
+			/* see above in setup_redir_port() */
+			if (ac!=0 && !isalpha(**av)) {
+				StrToAddr(*av, &r->raddr);
+				INC_ARGCV();
+			}
+		}		
+	}
+	return (space);
+nospace:
+	errx(EX_DATAERR, "redirect_proto: buf is too small\n");
+}
+
+static void
+show_nat(int ac, char **av);
+
+static void
+print_nat_config(char *buf) {
+	struct cfg_nat *n;
+	int i, cnt, flag, off;
+	struct cfg_redir *t;
+	struct cfg_spool *s;
+	struct protoent *p;
+
+	n = (struct cfg_nat *)buf;
+	flag = 1;
+	off  = sizeof(*n);
+	printf("ipfw nat %u config", n->id);
+	if (strlen(n->if_name) != 0)
+		printf(" if %s", n->if_name);
+	else if (n->ip.s_addr != 0)
+		printf(" ip %s", inet_ntoa(n->ip));
+	while (n->mode != 0) {
+		if (n->mode & PKT_ALIAS_LOG) {
+			printf(" log");
+			n->mode &= ~PKT_ALIAS_LOG;
+		} else if (n->mode & PKT_ALIAS_DENY_INCOMING) {
+			printf(" deny_in");
+			n->mode &= ~PKT_ALIAS_DENY_INCOMING;
+		} else if (n->mode & PKT_ALIAS_SAME_PORTS) {
+			printf(" same_ports");
+			n->mode &= ~PKT_ALIAS_SAME_PORTS;
+		} else if (n->mode & PKT_ALIAS_UNREGISTERED_ONLY) {
+			printf(" unreg_only");
+			n->mode &= ~PKT_ALIAS_UNREGISTERED_ONLY;
+		} else if (n->mode & PKT_ALIAS_RESET_ON_ADDR_CHANGE) {
+			printf(" reset");
+			n->mode &= ~PKT_ALIAS_RESET_ON_ADDR_CHANGE;
+		} else if (n->mode & PKT_ALIAS_REVERSE) {
+			printf(" reverse");
+			n->mode &= ~PKT_ALIAS_REVERSE;
+		} else if (n->mode & PKT_ALIAS_PROXY_ONLY) {
+			printf(" proxy_only");
+			n->mode &= ~PKT_ALIAS_PROXY_ONLY;
+		}
+	}
+	/* Print all the redirect's data configuration. */
+	for (cnt = 0; cnt < n->redir_cnt; cnt++) {
+		t = (struct cfg_redir *)&buf[off];
+		off += SOF_REDIR;
+		switch (t->mode) {
+		case REDIR_ADDR:
+			printf(" redirect_addr");
+			if (t->spool_cnt == 0)
+				printf(" %s", inet_ntoa(t->laddr));
+			else
+				for (i = 0; i < t->spool_cnt; i++) {
+					s = (struct cfg_spool *)&buf[off];
+					if (i)
+						printf(",");
+					else 
+						printf(" ");
+					printf("%s", inet_ntoa(s->addr));
+					off += SOF_SPOOL;
+				}
+			printf(" %s", inet_ntoa(t->paddr));
+			break;
+		case REDIR_PORT:
+			p = getprotobynumber(t->proto);
+			printf(" redirect_port %s ", p->p_name);
+			if (!t->spool_cnt) {
+				printf("%s:%u", inet_ntoa(t->laddr), t->lport);
+				if (t->pport_cnt > 1)
+					printf("-%u", t->lport + 
+					    t->pport_cnt - 1);
+			} else
+				for (i=0; i < t->spool_cnt; i++) {
+					s = (struct cfg_spool *)&buf[off];
+					if (i)
+						printf(",");
+					printf("%s:%u", inet_ntoa(s->addr), 
+					    s->port);
+					off += SOF_SPOOL;
+				}
+
+			printf(" ");
+			if (t->paddr.s_addr)
+				printf("%s:", inet_ntoa(t->paddr)); 
+			printf("%u", t->pport);
+			if (!t->spool_cnt && t->pport_cnt > 1)
+				printf("-%u", t->pport + t->pport_cnt - 1);
+
+			if (t->raddr.s_addr) {
+				printf(" %s", inet_ntoa(t->raddr));
+				if (t->rport) {
+					printf(":%u", t->rport);
+					if (!t->spool_cnt && t->rport_cnt > 1)
+						printf("-%u", t->rport + 
+						    t->rport_cnt - 1);
+				}
+			}
+			break;
+		case REDIR_PROTO:
+			p = getprotobynumber(t->proto);
+			printf(" redirect_proto %s %s", p->p_name, 
+			    inet_ntoa(t->laddr));
+			if (t->paddr.s_addr != 0) {
+				printf(" %s", inet_ntoa(t->paddr));
+				if (t->raddr.s_addr)
+					printf(" %s", inet_ntoa(t->raddr));
+			}
+			break;
+		default:
+			errx(EX_DATAERR, "unknown redir mode");
+			break;
+		}
+	}
+	printf("\n");
+}
+
+static void
+config_nat(int ac, char **av)
+{
+	struct cfg_nat *n;              /* Nat instance configuration. */
+	struct in_addr ip;
+	int i, len, off, tok;
+	char *id, buf[NAT_BUF_LEN]; 	/* Buffer for serialized data. */
+	
+	len = NAT_BUF_LEN;
+	/* Offset in buf: save space for n at the beginning. */
+	off = sizeof(*n);
+	memset(buf, 0, sizeof(buf));
+	n = (struct cfg_nat *)buf;
+
+	av++; ac--;
+	/* Nat id. */
+	if (ac && isdigit(**av)) {
+		id = *av;
+		i = atoi(*av); 
+		ac--; av++;		
+		n->id = i;
+	} else 
+		errx(EX_DATAERR, "missing nat id");
+	if (ac == 0) 
+		errx(EX_DATAERR, "missing option");
+
+	while (ac > 0) {
+		tok = match_token(nat_params, *av);
+		ac--; av++;
+		switch (tok) {
+		case TOK_IP:
+			if (ac == 0) 
+				errx(EX_DATAERR, "missing option");
+			if (!inet_aton(av[0], &(n->ip)))
+				errx(EX_DATAERR, "bad ip address ``%s''", 
+				    av[0]);
+			ac--; av++;
+			break;	    
+		case TOK_IF:
+			set_addr_dynamic(av[0], n);
+			ac--; av++;
+			break;
+		case TOK_ALOG:
+			n->mode |= PKT_ALIAS_LOG;
+			break;
+		case TOK_DENY_INC:
+			n->mode |= PKT_ALIAS_DENY_INCOMING;
+			break;
+		case TOK_SAME_PORTS:
+			n->mode |= PKT_ALIAS_SAME_PORTS;
+			break;
+		case TOK_UNREG_ONLY:
+			n->mode |= PKT_ALIAS_UNREGISTERED_ONLY;
+			break;
+		case TOK_RESET_ADDR:
+			n->mode |= PKT_ALIAS_RESET_ON_ADDR_CHANGE;
+			break;
+		case TOK_ALIAS_REV:
+			n->mode |= PKT_ALIAS_REVERSE;
+			break;
+		case TOK_PROXY_ONLY:
+			n->mode |= PKT_ALIAS_PROXY_ONLY;
+			break;
+			/* 
+			 * All the setup_redir_* functions work directly in the final 
+			 * buffer, see above for details.
+			 */
+		case TOK_REDIR_ADDR:
+		case TOK_REDIR_PORT:
+		case TOK_REDIR_PROTO:
+			switch (tok) {
+			case TOK_REDIR_ADDR:
+				i = setup_redir_addr(&buf[off], len, &ac, &av);
+				break;			  
+			case TOK_REDIR_PORT:
+				i = setup_redir_port(&buf[off], len, &ac, &av);
+				break;			  
+			case TOK_REDIR_PROTO:
+				i = setup_redir_proto(&buf[off], len, &ac, &av);
+				break;
+			}
+			n->redir_cnt++;
+			off += i;
+			len -= i;
+			break;
+		default:
+			errx(EX_DATAERR, "unrecognised option ``%s''", av[-1]);
+		}
+	}
+
+	i = do_cmd(IP_FW_NAT_CFG, buf, off);
+	if (i)
+		err(1, "setsockopt(%s)", "IP_FW_NAT_CFG");
+
+	/* After every modification, we show the resultant rule. */
+	int _ac = 3;
+	char *_av[] = {"show", "config", id};
+	show_nat(_ac, _av);
 }
 
 static void
@@ -4052,6 +4863,14 @@ chkarg:
 		ac++; av--;	/* go back... */
 		break;
 
+	case TOK_NAT:
+ 		action->opcode = O_NAT;
+ 		action->len = F_INSN_SIZE(ipfw_insn_nat);
+ 		NEED1("missing nat number");
+ 	        action->arg1 = strtoul(*av, NULL, 10);
+ 		ac--; av++;
+ 		break;
+		
 	default:
 		errx(EX_DATAERR, "invalid action %s\n", av[-1]);
 	}
@@ -5023,6 +5842,79 @@ table_handler(int ac, char *av[])
 		errx(EX_USAGE, "invalid table command %s", *av);
 }
 
+static void
+show_nat(int ac, char **av) {
+	struct cfg_nat *n;
+	struct cfg_redir *e;
+	int cmd, i, nbytes, do_cfg, do_rule, frule, lrule, nalloc, size;
+	int nat_cnt, r;
+	uint8_t *data, *p;
+	char **lav, *endptr;
+
+	do_rule = 0;
+	nalloc = 1024;
+	size = 0;
+	data = NULL;
+	ac--; av++;
+
+	/* Parse parameters. */
+	for (cmd = IP_FW_NAT_GET_LOG, do_cfg = 0; ac != 0; ac--, av++) {
+		if (!strncmp(av[0], "config", strlen(av[0]))) {
+			cmd = IP_FW_NAT_GET_CONFIG, do_cfg = 1; 
+			continue;
+		}
+		/* Convert command line rule #. */
+		frule = lrule = strtoul(av[0], &endptr, 10);
+		if (*endptr == '-')
+			lrule = strtoul(endptr+1, &endptr, 10);
+		if (lrule == 0)			
+			err(EX_USAGE, "invalid rule number: %s", av[0]);
+		do_rule = 1;
+	}
+
+	nbytes = nalloc;
+	while (nbytes >= nalloc) {
+		nalloc = nalloc * 2;
+		nbytes = nalloc;
+		if ((data = realloc(data, nbytes)) == NULL)
+			err(EX_OSERR, "realloc");
+		if (do_cmd(cmd, data, (uintptr_t)&nbytes) < 0)
+			err(EX_OSERR, "getsockopt(IP_FW_GET_%s)",
+			    (cmd == IP_FW_NAT_GET_LOG) ? "LOG" : "CONFIG");
+	}
+	if (nbytes == 0)
+		exit(0); 
+	if (do_cfg) {
+		nat_cnt = *((int *)data);
+		for (i = sizeof(nat_cnt); nat_cnt; nat_cnt--) {
+			n = (struct cfg_nat *)&data[i];
+			if (do_rule) {
+				if (!(frule <= n->id && lrule >= n->id))
+					continue;
+			}
+			print_nat_config(&data[i]);
+			i += sizeof(struct cfg_nat);
+			e = (struct cfg_redir *)&data[i];
+			if (e->mode == REDIR_ADDR || e->mode == REDIR_PORT ||
+			    e->mode == REDIR_PROTO)
+				i += sizeof(struct cfg_redir) + e->spool_cnt * 
+				    sizeof(struct cfg_spool);
+		}
+	} else {
+		for (i = 0; 1; i += LIBALIAS_BUF_SIZE + sizeof(int)) {
+			p = &data[i];
+			if (p == data + nbytes)
+				break;
+			bcopy(p, &r, sizeof(int));
+			if (do_rule) {
+				if (!(frule <= r && lrule >= r))
+					continue;
+			}
+			printf("nat %u: %s\n", r, p+sizeof(int));
+		}
+	}
+}
+
 /*
  * Called with the arguments (excluding program name).
  * Returns 0 if successful, 1 if empty command, errx() in case of errors.
@@ -5211,25 +6103,28 @@ ipfw_main(int oldac, char **oldav)
 	}
 
 	/*
-	 * optional: pipe or queue
+	 * Optional: pipe, queue or nat.
 	 */
+	do_nat = 0;
 	do_pipe = 0;
-	if (_substrcmp(*av, "pipe") == 0)
+	if (!strncmp(*av, "nat", strlen(*av)))
+ 	        do_nat = 1;
+ 	else if (!strncmp(*av, "pipe", strlen(*av)))
 		do_pipe = 1;
 	else if (_substrcmp(*av, "queue") == 0)
 		do_pipe = 2;
-	if (do_pipe) {
+	if (do_pipe || do_nat) {
 		ac--;
 		av++;
 	}
 	NEED1("missing command");
 
 	/*
-	 * For pipes and queues we normally say 'pipe NN config'
-	 * but the code is easier to parse as 'pipe config NN'
+	 * For pipes, queues and nats we normally say 'nat|pipe NN config'
+	 * but the code is easier to parse as 'nat|pipe config NN'
 	 * so we swap the two arguments.
 	 */
-	if (do_pipe > 0 && ac > 1 && isdigit(*av[0])) {
+	if ((do_pipe || do_nat) && ac > 1 && isdigit(*av[0])) {
 		char *p = av[0];
 
 		av[0] = av[1];
@@ -5238,8 +6133,12 @@ ipfw_main(int oldac, char **oldav)
 
 	if (_substrcmp(*av, "add") == 0)
 		add(ac, av);
+	else if (do_nat && _substrcmp(*av, "show") == 0)
+ 		show_nat(ac, av);
 	else if (do_pipe && _substrcmp(*av, "config") == 0)
 		config_pipe(ac, av);
+	else if (do_nat && _substrcmp(*av, "config") == 0) 
+ 		config_nat(ac, av);
 	else if (_substrcmp(*av, "delete") == 0)
 		delete(ac, av);
 	else if (_substrcmp(*av, "flush") == 0)

@@ -124,6 +124,7 @@ enum ipfw_opcodes {		/* arguments (4 byte each)	*/
 	O_TEE,			/* arg1=port number		*/
 	O_FORWARD_IP,		/* fwd sockaddr			*/
 	O_FORWARD_MAC,		/* fwd mac			*/
+	O_NAT,                  /* nope                         */
 
 	/*
 	 * More opcodes.
@@ -307,6 +308,64 @@ typedef struct  _ipfw_insn_log {
 	u_int32_t log_left;	/* how many left to log 	*/
 } ipfw_insn_log;
 
+/* Server pool support (LSNAT). */
+struct cfg_spool {
+	LIST_ENTRY(cfg_spool)   _next;          /* chain of spool instances */
+	struct in_addr          addr;
+	u_short                 port;
+};
+
+/* Redirect modes id. */
+#define REDIR_ADDR      0x01
+#define REDIR_PORT      0x02
+#define REDIR_PROTO     0x04
+
+/* Nat redirect configuration. */
+struct cfg_redir {
+	LIST_ENTRY(cfg_redir)   _next;          /* chain of redir instances */
+	u_int16_t               mode;           /* type of redirect mode */
+	struct in_addr	        laddr;          /* local ip address */
+	struct in_addr	        paddr;          /* public ip address */
+	struct in_addr	        raddr;          /* remote ip address */
+	u_short                 lport;          /* local port */
+	u_short                 pport;          /* public port */
+	u_short                 rport;          /* remote port  */
+	u_short                 pport_cnt;      /* number of public ports */
+	u_short                 rport_cnt;      /* number of remote ports */
+	int                     proto;          /* protocol: tcp/udp */
+	struct alias_link       **alink;	
+	/* num of entry in spool chain */
+	u_int16_t               spool_cnt;      
+	/* chain of spool instances */
+	LIST_HEAD(spool_chain, cfg_spool) spool_chain;
+};
+
+#define NAT_BUF_LEN     1024
+/* Nat configuration data struct. */
+struct cfg_nat {
+	/* chain of nat instances */
+	LIST_ENTRY(cfg_nat)     _next;
+	int                     id;                     /* nat id */
+	struct in_addr          ip;                     /* nat ip address */
+	char                    if_name[IF_NAMESIZE];   /* interface name */
+	int                     mode;                   /* aliasing mode */
+	struct libalias	        *lib;                   /* libalias instance */
+	/* number of entry in spool chain */
+	int                     redir_cnt;              
+	/* chain of redir instances */
+	LIST_HEAD(redir_chain, cfg_redir) redir_chain;  
+};
+
+#define SOF_NAT         sizeof(struct cfg_nat)
+#define SOF_REDIR       sizeof(struct cfg_redir)
+#define SOF_SPOOL       sizeof(struct cfg_spool)
+
+/* Nat command. */
+typedef struct	_ipfw_insn_nat {
+ 	ipfw_insn	o;
+ 	struct cfg_nat *nat;	
+} ipfw_insn_nat;
+
 /* Apply ipv6 mask on ipv6 addr */
 #define APPLY_MASK(addr,mask)                          \
     (addr)->__u6_addr.__u6_addr32[0] &= (mask)->__u6_addr.__u6_addr32[0]; \
@@ -483,6 +542,7 @@ enum {
 	IP_FW_DUMMYNET,
 	IP_FW_NETGRAPH,
 	IP_FW_NGTEE,
+	IP_FW_NAT,
 };
 
 /* flags for divert mtag */

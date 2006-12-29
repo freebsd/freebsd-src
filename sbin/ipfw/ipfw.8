@@ -2035,6 +2035,59 @@ diverted to that port.
 If no socket is bound to the destination port, or if the divert module is
 not loaded, or if the kernel was not compiled with divert socket support,
 the packets are dropped.
+.Sh NETWORK ADDRESS TRANSLATION (NAT)
+The nat configuration command is the following:
+.Bd -ragged -offset indent
+.Bk -words
+.Cm nat 
+.Ar nat_number 
+.Cm config 
+.Ar nat-configuration
+.Ek
+.Ed
+.Pp
+.
+The following parameters can be configured:
+.Bl -tag -width indent
+.It Cm ip Ar ip_address
+Define an ip address to use for aliasing.
+.It Cm if Ar nic
+Use ip addres of NIC for aliasing, dynamically changing
+it if NIC's ip address change.
+.It Cm log
+Enable logging on this nat instance.
+.It Cm deny_in
+Deny any incoming connection from outside world.
+.It Cm same_ports
+Try to leave the alias port numbers unchanged from
+the actual local port numbers.
+.It Cm unreg_only
+Traffic on the local network not originating from an
+unregistered address spaces will be ignored.
+.It Cm reset
+Reset table of the packet aliasing engine on address change.
+.It Cm reverse
+Reverse the way libalias handles aliasing.
+.It Cm proxy_only
+Obey transparent proxy rules only, packet aliasing is not performed.
+.El
+.Pp
+To let the packet continue after being (de)aliased, set the sysctl variable
+.Em net.inet.ip.fw.one_pass 
+to 0.
+For more information about aliasing modes, refer to
+.Xr libalias 3
+.
+See Section
+.Sx EXAMPLES
+for some examples about nat usage.
+.Sh REDIRECT AND LSNAT SUPPORT IN IPFW
+Redirect and LSNAT support follow closely the syntax used in
+.Xr natd 8
+. 
+See Section
+.Sx EXAMPLES
+for some examples on how to do redirect and lsnat.
 .Sh SYSCTL VARIABLES
 A set of
 .Xr sysctl 8
@@ -2423,6 +2476,55 @@ terminates, and your ruleset will be left active.
 Otherwise, e.g.\& if
 you cannot access your box, the ruleset will be disabled after
 the sleep terminates thus restoring the previous situation.
+.Ss NAT, REDIRECT AND LSNAT
+First redirect all the traffic to nat instance 123:
+.Pp
+.Dl "ipfw add nat 123 all from any to any"
+.Pp
+Then to configure nat instance 123 to alias all the outgoing traffic with ip
+192.168.0.123, blocking all incoming connections, trying to keep
+same ports on both sides, clearing aliasing table on address change 
+and keeping a log of traffic/link statistics:
+.Pp
+.Dl "ipfw nat 123 config ip 192.168.0.123 log deny_in reset same_ports"
+.Pp
+Or to change address of instance 123, aliasing table will be cleared (see
+reset option):
+.Pp
+.Dl "ipfw nat 123 config ip 10.0.0.1"
+.Pp
+To see configuration of nat instance 123:
+.Pp
+.Dl "ipfw nat 123 show config"
+.Pp
+To show logs of all the instances in range 111-999:
+.Pp
+.Dl "ipfw nat 111-999 show"
+.Pp
+To see configurations of all instances:
+.Pp
+.Dl "ipfw nat show config"
+.Pp
+Or a redirect rule with mixed modes could looks like:
+.Pp
+.Dl "ipfw nat 123 config redirect_addr 10.0.0.1 10.0.0.66"
+.Dl "			 redirect_port tcp 192.168.0.1:80 500"
+.Dl "			 redirect_proto udp 192.168.1.43 192.168.1.1"
+.Dl "			 redirect_addr 192.168.0.10,192.168.0.11"
+.Dl "			 	    10.0.0.100	# LSNAT"
+.Dl "			 redirect_port tcp 192.168.0.1:80,192.168.0.10:22" 
+.Dl "			 	    500		# LSNAT"
+.Pp
+or it could be splitted in:
+.Pp
+.Dl "ipfw nat 1 config redirect_addr 10.0.0.1 10.0.0.66"
+.Dl "ipfw nat 2 config redirect_port tcp 192.168.0.1:80 500"
+.Dl "ipfw nat 3 config redirect_proto udp 192.168.1.43 192.168.1.1"
+.Dl "ipfw nat 4 config redirect_addr 192.168.0.10,192.168.0.11,192.168.0.12" 
+.Dl "				         10.0.0.100"
+.Dl "ipfw nat 5 config redirect_port tcp"
+.Dl "			192.168.0.1:80,192.168.0.10:22,192.168.0.20:25 500"
+.Pp
 .Sh SEE ALSO
 .Xr cpp 1 ,
 .Xr m4 1 ,
@@ -2463,6 +2565,11 @@ was introduced in Summer 2002.
 API based upon code written by
 .An Daniel Boulet
 for BSDI.
+.Pp
+.An -nosplit
+In-kernel NAT support written by
+.An Paolo Pisati Aq piso@FreeBSD.org
+as part of a Summer of Code 2005 project.
 .Pp
 Work on
 .Xr dummynet 4
@@ -2520,3 +2627,10 @@ violations in its implementation.
 Rule syntax is subject to the command line environment and some patterns
 may need to be escaped with the backslash character
 or quoted appropriately.
+.Pp
+Due to the architecture of 
+.Xr libalias 3 , 
+ipfw nat is not compatible with the tcp segmentation offloading
+(TSO). Thus, to reliably nat your network traffic, please disable TSO
+on your NICs using
+.Xr ifconfig 8 .
