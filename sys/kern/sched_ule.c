@@ -912,34 +912,34 @@ sched_setup(void *dummy)
 	 * Initialize the tdqs.
 	 */
 	for (i = 0; i < MAXCPU; i++) {
-		struct tdq *ksq;
+		struct tdq *tdq;
 
-		ksq = &tdq_cpu[i];
-		ksq->tdq_assigned = NULL;
+		tdq = &tdq_cpu[i];
+		tdq->tdq_assigned = NULL;
 		tdq_setup(&tdq_cpu[i]);
 	}
 	if (smp_topology == NULL) {
 		struct tdq_group *tdg;
-		struct tdq *ksq;
+		struct tdq *tdq;
 		int cpus;
 
 		for (cpus = 0, i = 0; i < MAXCPU; i++) {
 			if (CPU_ABSENT(i))
 				continue;
-			ksq = &tdq_cpu[i];
+			tdq = &tdq_cpu[i];
 			tdg = &tdq_groups[cpus];
 			/*
 			 * Setup a tdq group with one member.
 			 */
-			ksq->tdq_transferable = 0;
-			ksq->tdq_group = tdg;
+			tdq->tdq_transferable = 0;
+			tdq->tdq_group = tdg;
 			tdg->tdg_cpus = 1;
 			tdg->tdg_idlemask = 0;
 			tdg->tdg_cpumask = tdg->tdg_mask = 1 << i;
 			tdg->tdg_load = 0;
 			tdg->tdg_transferable = 0;
 			LIST_INIT(&tdg->tdg_members);
-			LIST_INSERT_HEAD(&tdg->tdg_members, ksq, tdq_siblings);
+			LIST_INSERT_HEAD(&tdg->tdg_members, tdq, tdq_siblings);
 			cpus++;
 		}
 		tdg_maxid = cpus - 1;
@@ -1359,13 +1359,13 @@ sched_unlend_user_prio(struct thread *td, u_char prio)
 void
 sched_switch(struct thread *td, struct thread *newtd, int flags)
 {
-	struct tdq *ksq;
+	struct tdq *tdq;
 	struct td_sched *ts;
 
 	mtx_assert(&sched_lock, MA_OWNED);
 
 	ts = td->td_sched;
-	ksq = TDQ_SELF();
+	tdq = TDQ_SELF();
 
 	td->td_lastcpu = td->td_oncpu;
 	td->td_oncpu = NOCPU;
@@ -1380,7 +1380,7 @@ sched_switch(struct thread *td, struct thread *newtd, int flags)
 		TD_SET_CAN_RUN(td);
 	} else if ((ts->ts_flags & TSF_ASSIGNED) == 0) {
 		/* We are ending our run so make our slot available again */
-		tdq_load_rem(ksq, ts);
+		tdq_load_rem(tdq, ts);
 		if (TD_IS_RUNNING(td)) {
 			/*
 			 * Don't allow the thread to migrate
@@ -1399,7 +1399,7 @@ sched_switch(struct thread *td, struct thread *newtd, int flags)
 		 * added to the run queue and then chosen.
 		 */
 		newtd->td_sched->ts_flags |= TSF_DIDRUN;
-		newtd->td_sched->ts_runq = ksq->tdq_curr;
+		newtd->td_sched->ts_runq = tdq->tdq_curr;
 		TD_SET_RUNNING(newtd);
 		tdq_load_add(TDQ_SELF(), newtd->td_sched);
 	} else
