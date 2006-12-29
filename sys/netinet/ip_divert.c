@@ -128,7 +128,8 @@ div_zone_change(void *tag)
 static int
 div_inpcb_init(void *mem, int size, int flags)
 {
-	struct inpcb *inp = (struct inpcb *) mem;
+	struct inpcb *inp = mem;
+
 	INP_LOCK_INIT(inp, "inp", "divinp");
 	return (0);
 }
@@ -136,10 +137,10 @@ div_inpcb_init(void *mem, int size, int flags)
 static void
 div_inpcb_fini(void *mem, int size)
 {
-	struct inpcb *inp = (struct inpcb *) mem;
+	struct inpcb *inp = mem;
+
 	INP_LOCK_DESTROY(inp);
 }
-
 
 void
 div_init(void)
@@ -155,7 +156,8 @@ div_init(void)
 	divcbinfo.hashbase = hashinit(1, M_PCB, &divcbinfo.hashmask);
 	divcbinfo.porthashbase = hashinit(1, M_PCB, &divcbinfo.porthashmask);
 	divcbinfo.ipi_zone = uma_zcreate("divcb", sizeof(struct inpcb),
-	    NULL, NULL, div_inpcb_init, div_inpcb_fini, UMA_ALIGN_PTR, UMA_ZONE_NOFREE);
+	    NULL, NULL, div_inpcb_init, div_inpcb_fini, UMA_ALIGN_PTR,
+	    UMA_ZONE_NOFREE);
 	uma_zone_set_max(divcbinfo.ipi_zone, maxsockets);
 	EVENTHANDLER_REGISTER(maxsockets_change, div_zone_change,
 		NULL, EVENTHANDLER_PRI_ANY);

@@ -182,7 +182,7 @@ in_pcballoc(struct socket *so, struct inpcbinfo *pcbinfo)
 	inp = uma_zalloc(pcbinfo->ipi_zone, M_NOWAIT);
 	if (inp == NULL)
 		return (ENOBUFS);
-	bzero(inp,inp_zero_size);
+	bzero(inp, inp_zero_size);
 	inp->inp_pcbinfo = pcbinfo;
 	inp->inp_socket = so;
 #ifdef MAC
