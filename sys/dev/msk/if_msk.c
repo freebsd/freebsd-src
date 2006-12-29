@@ -3529,16 +3529,10 @@ msk_int_task(void *arg, int pending)
 	sc_if0 = sc->msk_if[MSK_PORT_A];
 	sc_if1 = sc->msk_if[MSK_PORT_B];
 	ifp0 = ifp1 = NULL;
-	if (sc_if0 != NULL) {
+	if (sc_if0 != NULL)
 		ifp0 = sc_if0->msk_ifp;
-		if ((ifp0->if_drv_flags & IFF_DRV_RUNNING) == 0)
-			goto done;
-	}
-	if (sc_if1 != NULL) {
+	if (sc_if1 != NULL)
 		ifp1 = sc_if1->msk_ifp;
-		if ((ifp1->if_drv_flags & IFF_DRV_RUNNING) == 0)
-			goto done;
-	}
 
 	if ((status & Y2_IS_IRQ_PHY1) != 0 && sc_if0 != NULL)
 		msk_intr_phy(sc_if0);
@@ -3567,9 +3561,11 @@ msk_int_task(void *arg, int pending)
 	if ((status & Y2_IS_STAT_BMU) != 0)
 		CSR_WRITE_4(sc, STAT_CTRL, SC_STAT_CLR_IRQ);
 
-	if (ifp0 != NULL && !IFQ_DRV_IS_EMPTY(&ifp0->if_snd))
+	if (ifp0 != NULL && (ifp0->if_drv_flags & IFF_DRV_RUNNING) != 0 &&
+	    !IFQ_DRV_IS_EMPTY(&ifp0->if_snd))
 		taskqueue_enqueue(taskqueue_fast, &sc_if0->msk_tx_task);
-	if (ifp1 != NULL && !IFQ_DRV_IS_EMPTY(&ifp1->if_snd))
+	if (ifp1 != NULL && (ifp1->if_drv_flags & IFF_DRV_RUNNING) != 0 &&
+	    !IFQ_DRV_IS_EMPTY(&ifp1->if_snd))
 		taskqueue_enqueue(taskqueue_fast, &sc_if1->msk_tx_task);
 
 	if (domore > 0) {
