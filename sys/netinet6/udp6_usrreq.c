@@ -539,14 +539,13 @@ udp6_attach(struct socket *so, int proto, struct thread *td)
 		}
 	}
 	s = splnet();
-	error = in_pcballoc(so, &udbinfo, "udp6inp");
+	error = in_pcballoc(so, &udbinfo);
 	splx(s);
 	if (error) {
 		INP_INFO_WUNLOCK(&udbinfo);
 		return error;
 	}
 	inp = (struct inpcb *)so->so_pcb;
-	INP_LOCK(inp);
 	INP_INFO_WUNLOCK(&udbinfo);
 	inp->inp_vflag |= INP_IPV6;
 	if ((inp->inp_flags & IN6P_IPV6_V6ONLY) == 0)
