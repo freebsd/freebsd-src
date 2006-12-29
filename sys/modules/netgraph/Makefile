@@ -10,6 +10,7 @@ SUBDIR=	async \
 	bpf \
 	bridge \
 	cisco \
+	deflate \
 	device \
 	echo \
 	eiface \
@@ -35,6 +36,7 @@ SUBDIR=	async \
 	ppp \
 	pppoe \
 	pptpgre \
+	pred1 \
 	rfc1490 \
 	socket \
 	source \
