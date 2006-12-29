@@ -142,9 +142,6 @@ static int	mac_late = 0;
 int	mac_labelmbufs = 0;
 #endif
 
-static int	mac_policy_register(struct mac_policy_conf *mpc);
-static int	mac_policy_unregister(struct mac_policy_conf *mpc);
-
 MALLOC_DEFINE(M_MACTEMP, "mactemp", "MAC temporary label storage");
 
 /*
@@ -352,52 +349,6 @@ mac_policy_updateflags(void)
 #endif
 }
 
-/*
- * Allow MAC policy modules to register during boot, etc.
- */
-int
-mac_policy_modevent(module_t mod, int type, void *data)
-{
-	struct mac_policy_conf *mpc;
-	int error;
-
-	error = 0;
-	mpc = (struct mac_policy_conf *) data;
-
-#ifdef MAC_STATIC
-	if (mac_late) {
-		printf("mac_policy_modevent: MAC_STATIC and late\n");
-		return (EBUSY);
-	}
-#endif
-
-	switch (type) {
-	case MOD_LOAD:
-		if (mpc->mpc_loadtime_flags & MPC_LOADTIME_FLAG_NOTLATE &&
-		    mac_late) {
-			printf("mac_policy_modevent: can't load %s policy "
-			    "after booting\n", mpc->mpc_name);
-			error = EBUSY;
-			break;
-		}
-		error = mac_policy_register(mpc);
-		break;
-	case MOD_UNLOAD:
-		/* Don't unregister the module if it was never registered. */
-		if ((mpc->mpc_runtime_flags & MPC_RUNTIME_FLAG_REGISTERED)
-		    != 0)
-			error = mac_policy_unregister(mpc);
-		else
-			error = 0;
-		break;
-	default:
-		error = EOPNOTSUPP;
-		break;
-	}
-
-	return (error);
-}
-
 static int
 mac_policy_register(struct mac_policy_conf *mpc)
 {
@@ -521,6 +472,52 @@ mac_policy_unregister(struct mac_policy_conf *mpc)
 	    mpc->mpc_name);
 
 	return (0);
+}
+
+/*
+ * Allow MAC policy modules to register during boot, etc.
+ */
+int
+mac_policy_modevent(module_t mod, int type, void *data)
+{
+	struct mac_policy_conf *mpc;
+	int error;
+
+	error = 0;
+	mpc = (struct mac_policy_conf *) data;
+
+#ifdef MAC_STATIC
+	if (mac_late) {
+		printf("mac_policy_modevent: MAC_STATIC and late\n");
+		return (EBUSY);
+	}
+#endif
+
+	switch (type) {
+	case MOD_LOAD:
+		if (mpc->mpc_loadtime_flags & MPC_LOADTIME_FLAG_NOTLATE &&
+		    mac_late) {
+			printf("mac_policy_modevent: can't load %s policy "
+			    "after booting\n", mpc->mpc_name);
+			error = EBUSY;
+			break;
+		}
+		error = mac_policy_register(mpc);
+		break;
+	case MOD_UNLOAD:
+		/* Don't unregister the module if it was never registered. */
+		if ((mpc->mpc_runtime_flags & MPC_RUNTIME_FLAG_REGISTERED)
+		    != 0)
+			error = mac_policy_unregister(mpc);
+		else
+			error = 0;
+		break;
+	default:
+		error = EOPNOTSUPP;
+		break;
+	}
+
+	return (error);
 }
 
 /*
