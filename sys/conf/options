@@ -442,6 +442,7 @@ NETGRAPH_BLUETOOTH_UBTBCMFW	opt_netgraph.h
 NETGRAPH_BPF		opt_netgraph.h
 NETGRAPH_BRIDGE		opt_netgraph.h
 NETGRAPH_CISCO		opt_netgraph.h
+NETGRAPH_DEFLATE	opt_netgraph.h
 NETGRAPH_DEVICE		opt_netgraph.h
 NETGRAPH_ECHO		opt_netgraph.h
 NETGRAPH_EIFACE		opt_netgraph.h
@@ -466,6 +467,7 @@ NETGRAPH_ONE2MANY	opt_netgraph.h
 NETGRAPH_PPP		opt_netgraph.h
 NETGRAPH_PPPOE		opt_netgraph.h
 NETGRAPH_PPTPGRE	opt_netgraph.h
+NETGRAPH_PRED1		opt_netgraph.h
 NETGRAPH_RFC1490	opt_netgraph.h
 NETGRAPH_SOCKET		opt_netgraph.h
 NETGRAPH_SPLIT		opt_netgraph.h

@@ -1696,6 +1696,7 @@ netgraph/ng_base.c		optional netgraph
 netgraph/ng_bpf.c		optional netgraph_bpf
 netgraph/ng_bridge.c		optional netgraph_bridge
 netgraph/ng_cisco.c		optional netgraph_cisco
+netgraph/ng_deflate.c		optional netgraph_deflate
 netgraph/ng_device.c		optional netgraph_device
 netgraph/ng_echo.c		optional netgraph_echo
 netgraph/ng_eiface.c		optional netgraph_eiface
@@ -1719,6 +1720,7 @@ netgraph/ng_parse.c		optional netgraph
 netgraph/ng_ppp.c		optional netgraph_ppp
 netgraph/ng_pppoe.c		optional netgraph_pppoe
 netgraph/ng_pptpgre.c		optional netgraph_pptpgre
+netgraph/ng_pred1.c		optional netgraph_pred1
 netgraph/ng_rfc1490.c		optional netgraph_rfc1490
 netgraph/ng_socket.c		optional netgraph_socket
 netgraph/ng_split.c		optional netgraph_split
