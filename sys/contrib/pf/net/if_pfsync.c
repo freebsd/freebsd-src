@@ -1793,8 +1793,12 @@ pfsync_sendout(sc)
 	KASSERT(m != NULL, ("pfsync_sendout: null mbuf"));
 #endif
 #if NBPFILTER > 0
+#ifdef __FreeBSD__
+	BPF_MTAP(ifp, m);
+#else
 	if (ifp->if_bpf)
 		bpf_mtap(ifp->if_bpf, m);
+#endif
 #endif
 
 	if (sc->sc_mbuf_net) {

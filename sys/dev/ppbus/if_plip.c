@@ -455,7 +455,7 @@ static void
 lptap(struct ifnet *ifp, struct mbuf *m)
 {
 	u_int32_t af = AF_INET;
-	BPF_MTAP2(ifp, &af, sizeof(af), m);
+	bpf_mtap2(ifp, &af, sizeof(af), m);
 }
 
 static void
@@ -514,7 +514,7 @@ lp_intr (void *arg)
 	    sc->sc_ifp->if_ibytes += len;
 	    top = m_devget(sc->sc_ifbuf + CLPIPHDRLEN, len, 0, sc->sc_ifp, 0);
 	    if (top) {
-		if (sc->sc_ifp->if_bpf)
+		if (bpf_peers_present(sc->sc_ifp->if_bpf))
 		    lptap(sc->sc_ifp, top);
 		netisr_queue(NETISR_IP, top);	/* mbuf is free'd on failure. */
 	    }
@@ -559,7 +559,7 @@ lp_intr (void *arg)
 	    sc->sc_ifp->if_ibytes += len;
 	    top = m_devget(sc->sc_ifbuf + LPIPHDRLEN, len, 0, sc->sc_ifp, 0);
 	    if (top) {
-		if (sc->sc_ifp->if_bpf)
+		if (bpf_peers_present(sc->sc_ifp->if_bpf))
 		    lptap(sc->sc_ifp, top);
 		netisr_queue(NETISR_IP, top);	/* mbuf is free'd on failure. */
 	    }
@@ -694,7 +694,7 @@ lpoutput (struct ifnet *ifp, struct mbuf *m,
 	} else {
 		ifp->if_opackets++;
 		ifp->if_obytes += m->m_pkthdr.len;
-		if (ifp->if_bpf)
+		if (bpf_peers_present(ifp->if_bpf))
 		    lptap(ifp, m);
 	}
 
@@ -739,7 +739,7 @@ lpoutput (struct ifnet *ifp, struct mbuf *m,
     } else {
 	ifp->if_opackets++;
 	ifp->if_obytes += m->m_pkthdr.len;
-	if (ifp->if_bpf)
+	if (bpf_peers_present(ifp->if_bpf))
 	    lptap(ifp, m);
     }
 

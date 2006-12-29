@@ -883,7 +883,7 @@ error:
 	}
 #endif
 
-	if(sc->sc_ifp->if_bpf)
+	if(bpf_peers_present(sc->sc_ifp->if_bpf))
 	{
 		/* prepend the address family as a four byte field */		
 		struct mbuf mm;
@@ -891,7 +891,7 @@ error:
 		mm.m_next = m;
 		mm.m_len = 4;
 		mm.m_data = (char *)&af;
-		BPF_MTAP(sc->sc_ifp, &mm);
+		bpf_mtap(sc->sc_ifp, &mm);
 	}
 
 	if(netisr_queue(NETISR_IP, m))	/* (0) on success. */
@@ -936,7 +936,7 @@ ipr_tx_queue_empty(int unit)
 
 		microtime(&sc->sc_ifp->if_lastchange);
 		
-		if(sc->sc_ifp->if_bpf)
+		if(bpf_peers_present(sc->sc_ifp->if_bpf))
 		{
 			/* prepend the address family as a four byte field */
 	
@@ -945,7 +945,7 @@ ipr_tx_queue_empty(int unit)
 			mm.m_next = m;
 			mm.m_len = 4;
 			mm.m_data = (char *)&af;
-			BPF_MTAP(sc->sc_ifp, &mm);
+			bpf_mtap(sc->sc_ifp, &mm);
 		}
 	
 #if I4BIPRACCT
