@@ -339,13 +339,22 @@ DRIVER_MODULE(miibus, msk, miibus_driver, miibus_devclass, 0, 0);
 
 static struct resource_spec msk_res_spec_io[] = {
 	{ SYS_RES_IOPORT,	PCIR_BAR(1),	RF_ACTIVE },
-	{ SYS_RES_IRQ,		0,		RF_ACTIVE | RF_SHAREABLE },
 	{ -1,			0,		0 }
 };
 
 static struct resource_spec msk_res_spec_mem[] = {
 	{ SYS_RES_MEMORY,	PCIR_BAR(0),	RF_ACTIVE },
+	{ -1,			0,		0 }
+};
+
+static struct resource_spec msk_irq_spec_legacy[] = {
 	{ SYS_RES_IRQ,		0,		RF_ACTIVE | RF_SHAREABLE },
+	{ -1,			0,		0 }
+};
+
+static struct resource_spec msk_irq_spec_msi[] = {
+	{ SYS_RES_IRQ,		1,		RF_ACTIVE },
+	{ SYS_RES_IRQ,		2,		RF_ACTIVE },
 	{ -1,			0,		0 }
 };
 
@@ -1546,25 +1555,7 @@ mskc_attach(device_t dev)
 	 */
 	pci_enable_busmaster(dev);
 
-	/* Allocate resources */
-	sc->msk_msi = 0;
-	msic = pci_msi_count(dev);
-	if (bootverbose)
-		device_printf(dev, "MSI count : %d\n", msic);
-	/*
-	 * Due to a unknown reason Yukon II reports it can handle two
-	 * messages even if it can handle just one message. Forcing
-	 * to allocate 1 message seems to work but reloading kernel
-	 * module after unloading the driver fails. Only use MSI when
-	 * it reports 1 message until we have better understanding
-	 * for the hardware.
-	 */
-	if (msic == 1 && msi_disable == 0 && pci_alloc_msi(dev, &msic) == 0) {
-		sc->msk_msi = 1;
-		/* Set rid to 1 for SYS_RES_IRQ to use MSI. */
-		msk_res_spec_io[1].rid = 1;
-		msk_res_spec_mem[1].rid = 1;
-	}
+	/* Allocate I/O resource */
 #ifdef MSK_USEIOSPACE
 	sc->msk_res_spec = msk_res_spec_io;
 #else
@@ -1710,6 +1701,36 @@ mskc_attach(device_t dev)
 		sc->msk_hw_feature = 0;
 	}
 
+	/* Allocate IRQ resources. */
+	msic = pci_msi_count(dev);
+	if (bootverbose)
+		device_printf(dev, "MSI count : %d\n", msic);
+	/*
+	 * The Yukon II reports it can handle two messages, one for each
+	 * possible port.  We go ahead and allocate two messages and only
+	 * setup a handler for both if we have a dual port card.
+	 *
+	 * XXX: I haven't untangled the interrupt handler to handle dual
+	 * port cards with separate MSI messages, so for now I disable MSI
+	 * on dual port cards.
+	 */
+	if (msic == 2 && msi_disable == 0 && sc->msk_num_port == 1 &&
+	    pci_alloc_msi(dev, &msic) == 0) {
+		if (msic == 2) {
+			sc->msk_msi = 1;
+			sc->msk_irq_spec = msk_irq_spec_msi;
+		} else {
+			pci_release_msi(dev);
+			sc->msk_irq_spec = msk_irq_spec_legacy;
+		}
+	}
+
+	error = bus_alloc_resources(dev, sc->msk_irq_spec, sc->msk_irq);
+	if (error) {
+		device_printf(dev, "couldn't allocate IRQ resources\n");
+		goto fail;
+	}
+
 	if ((error = msk_status_dma_alloc(sc)) != 0)
 		goto fail;
 
@@ -1770,8 +1791,8 @@ mskc_attach(device_t dev)
 	taskqueue_start_threads(&sc->msk_tq, 1, PI_NET, "%s taskq",
 	    device_get_nameunit(sc->msk_dev));
 	/* Hook interrupt last to avoid having to lock softc. */
-	error = bus_setup_intr(dev, sc->msk_res[1], INTR_TYPE_NET |
-	    INTR_MPSAFE | INTR_FAST, msk_intr, sc, &sc->msk_intrhand);
+	error = bus_setup_intr(dev, sc->msk_irq[0], INTR_TYPE_NET |
+	    INTR_MPSAFE | INTR_FAST, msk_intr, sc, &sc->msk_intrhand[0]);
 
 	if (error != 0) {
 		device_printf(dev, "couldn't set up interrupt handler\n");
@@ -1884,10 +1905,15 @@ mskc_detach(device_t dev)
 		taskqueue_free(sc->msk_tq);
 		sc->msk_tq = NULL;
 	}
-	if (sc->msk_intrhand) {
-		bus_teardown_intr(dev, sc->msk_res[1], sc->msk_intrhand);
-		sc->msk_intrhand = NULL;
+	if (sc->msk_intrhand[0]) {
+		bus_teardown_intr(dev, sc->msk_irq[0], sc->msk_intrhand[0]);
+		sc->msk_intrhand[0] = NULL;
 	}
+	if (sc->msk_intrhand[1]) {
+		bus_teardown_intr(dev, sc->msk_irq[0], sc->msk_intrhand[0]);
+		sc->msk_intrhand[1] = NULL;
+	}
+	bus_release_resources(dev, sc->msk_irq_spec, sc->msk_irq);
 	if (sc->msk_msi)
 		pci_release_msi(dev);
 	bus_release_resources(dev, sc->msk_res_spec, sc->msk_res);
