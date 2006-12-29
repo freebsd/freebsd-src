@@ -55,12 +55,8 @@ __FBSDID("$FreeBSD$");
  * SCTP_ZONE_DESTROY(zone)
  */
 
-/*
- * Functions:
- * sctp_read_random(void *buffer, uint32_t bytes)
- */
-
 #include <netinet/sctp_os_bsd.h>
+
 
 
 

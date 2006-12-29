@@ -1873,23 +1873,22 @@ sctp_add_addr_to_mbuf(struct mbuf *m, struct ifaddr *ifa)
 		/* unknown type */
 		return (m);
 	}
-
 	if (M_TRAILINGSPACE(m) >= len) {
 		/* easy side we just drop it on the end */
-		parmh = (struct sctp_paramhdr *)(m->m_data + m->m_len);
+		parmh = (struct sctp_paramhdr *)(SCTP_BUF_AT(m, SCTP_BUF_LEN(m)));
 		mret = m;
 	} else {
 		/* Need more space */
 		mret = m;
-		while (mret->m_next != NULL) {
-			mret = mret->m_next;
+		while (SCTP_BUF_NEXT(mret) != NULL) {
+			mret = SCTP_BUF_NEXT(mret);
 		}
-		mret->m_next = sctp_get_mbuf_for_msg(len, 0, M_DONTWAIT, 1, MT_DATA);
-		if (mret->m_next == NULL) {
+		SCTP_BUF_NEXT(mret) = sctp_get_mbuf_for_msg(len, 0, M_DONTWAIT, 1, MT_DATA);
+		if (SCTP_BUF_NEXT(mret) == NULL) {
 			/* We are hosed, can't add more addresses */
 			return (m);
 		}
-		mret = mret->m_next;
+		mret = SCTP_BUF_NEXT(mret);
 		parmh = mtod(mret, struct sctp_paramhdr *);
 	}
 	/* now add the parameter */
@@ -1902,7 +1901,7 @@ sctp_add_addr_to_mbuf(struct mbuf *m, struct ifaddr *ifa)
 		parmh->param_type = htons(SCTP_IPV4_ADDRESS);
 		parmh->param_length = htons(len);
 		ipv4p->addr = sin->sin_addr.s_addr;
-		mret->m_len += len;
+		SCTP_BUF_LEN(mret) += len;
 	} else if (ifa->ifa_addr->sa_family == AF_INET6) {
 		struct sctp_ipv6addr_param *ipv6p;
 		struct sockaddr_in6 *sin6;
@@ -1915,7 +1914,7 @@ sctp_add_addr_to_mbuf(struct mbuf *m, struct ifaddr *ifa)
 		    sizeof(ipv6p->addr));
 		/* clear embedded scope in the address */
 		in6_clearscope((struct in6_addr *)ipv6p->addr);
-		mret->m_len += len;
+		SCTP_BUF_LEN(mret) += len;
 	} else {
 		return (m);
 	}
