@@ -118,7 +118,7 @@ sctp6_input(mp, offp, proto)
 	int proto;
 
 {
-	struct mbuf *m = *mp;
+	struct mbuf *m;
 	struct ip6_hdr *ip6;
 	struct sctphdr *sh;
 	struct sctp_inpcb *in6p = NULL;
@@ -132,6 +132,8 @@ sctp6_input(mp, offp, proto)
 	struct sctp_tcb *stcb = NULL;
 	int off = *offp;
 	int s;
+
+	m = SCTP_HEADER_TO_CHAIN(*mp);
 
 	ip6 = mtod(m, struct ip6_hdr *);
 #ifndef PULLDOWN_TEST
@@ -163,7 +165,7 @@ sctp6_input(mp, offp, proto)
 	SCTP_STAT_INCR_COUNTER64(sctps_inpackets);
 #ifdef SCTP_DEBUG
 	if (sctp_debug_on & SCTP_DEBUG_INPUT1) {
-		printf("V6 input gets a packet iphlen:%d pktlen:%d\n", iphlen, m->m_pkthdr.len);
+		printf("V6 input gets a packet iphlen:%d pktlen:%d\n", iphlen, SCTP_HEADER_LEN((*mp)));
 	}
 #endif
 	if (IN6_IS_ADDR_MULTICAST(&ip6->ip6_dst)) {
@@ -174,8 +176,7 @@ sctp6_input(mp, offp, proto)
 	if (sh->dest_port == 0)
 		goto bad;
 	if ((sctp_no_csum_on_loopback == 0) ||
-	    (m->m_pkthdr.rcvif == NULL) ||
-	    (m->m_pkthdr.rcvif->if_type != IFT_LOOP)) {
+	    (!SCTP_IS_IT_LOOPBACK(m))) {
 		/*
 		 * we do NOT validate things from the loopback if the sysctl
 		 * is set to 1.
@@ -214,10 +215,8 @@ sctp6_input(mp, offp, proto)
 			goto bad;
 		}
 		sh->checksum = calc_check;
-	} else {
-sctp_skip_csum:
-		mlen = m->m_pkthdr.len;
 	}
+sctp_skip_csum:
 	net = NULL;
 	/*
 	 * Locate pcb and tcb for datagram sctp_findassociation_addr() wants
@@ -270,9 +269,12 @@ sctp_skip_csum:
 	/*
 	 * CONTROL chunk processing
 	 */
-	length = ntohs(ip6->ip6_plen) + iphlen;
 	offset -= sizeof(*ch);
 	ecn_bits = ((ntohl(ip6->ip6_flow) >> 20) & 0x000000ff);
+
+	/* Length now holds the total packet length payload + iphlen */
+	length = ntohs(ip6->ip6_plen) + iphlen;
+
 	s = splnet();
 	(void)sctp_common_input_processing(&m, iphlen, offset, length, sh, ch,
 	    in6p, stcb, net, ecn_bits);
@@ -420,8 +422,7 @@ sctp6_ctlinput(cmd, pktdst, d)
 		struct sctp_nets *net = NULL;
 		struct sockaddr_in6 final;
 
-		if (ip6cp->ip6c_m == NULL ||
-		    (size_t)ip6cp->ip6c_m->m_pkthdr.len < (ip6cp->ip6c_off + sizeof(sh)))
+		if (ip6cp->ip6c_m == NULL)
 			return;
 
 		bzero(&sh, sizeof(sh));
@@ -818,9 +819,9 @@ sctp6_disconnect(struct socket *so)
 						struct sctp_paramhdr *ph;
 
 						ph = mtod(err, struct sctp_paramhdr *);
-						err->m_len = sizeof(struct sctp_paramhdr);
+						SCTP_BUF_LEN(err) = sizeof(struct sctp_paramhdr);
 						ph->param_type = htons(SCTP_CAUSE_USER_INITIATED_ABT);
-						ph->param_length = htons(err->m_len);
+						ph->param_length = htons(SCTP_BUF_LEN(err));
 					}
 					sctp_send_abort_tcb(stcb, err);
 					SCTP_STAT_INCR_COUNTER32(sctps_aborted);
@@ -982,22 +983,9 @@ connected_type:
 		}
 		inp->control = control;
 	}
-	/* add it in possibly */
-	if ((inp->pkt) &&
-	    (inp->pkt->m_flags & M_PKTHDR)) {
-		struct mbuf *x;
-		int c_len;
-
-		c_len = 0;
-		/* How big is it */
-		for (x = m; x; x = x->m_next) {
-			c_len += x->m_len;
-		}
-		inp->pkt->m_pkthdr.len += c_len;
-	}
 	/* Place the data */
 	if (inp->pkt) {
-		inp->pkt_last->m_next = m;
+		SCTP_BUF_NEXT(inp->pkt_last) = m;
 		inp->pkt_last = m;
 	} else {
 		inp->pkt_last = inp->pkt = m;
