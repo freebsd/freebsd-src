@@ -891,7 +891,7 @@ error:
 		mm.m_next = m;
 		mm.m_len = 4;
 		mm.m_data = (char *)&af;
-		bpf_mtap(sc->sc_ifp, &mm);
+		bpf_mtap(sc->sc_ifp->if_bpf, &mm);
 	}
 
 	if(netisr_queue(NETISR_IP, m))	/* (0) on success. */
@@ -945,7 +945,7 @@ ipr_tx_queue_empty(int unit)
 			mm.m_next = m;
 			mm.m_len = 4;
 			mm.m_data = (char *)&af;
-			bpf_mtap(sc->sc_ifp, &mm);
+			bpf_mtap(sc->sc_ifp->if_bpf, &mm);
 		}
 	
 #if I4BIPRACCT

@@ -794,7 +794,7 @@ en_txdma(struct en_softc *sc, struct en_txslot *slot)
 			tx.m->m_pkthdr.len = tx.datalen;
 		}
 
-		bpf_mtap(sc->ifp, tx.m);
+		bpf_mtap(sc->ifp->if_bpf, tx.m);
 	}
 #endif
 

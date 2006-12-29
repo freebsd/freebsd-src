@@ -1162,7 +1162,7 @@ my_rxeof(struct my_softc * sc)
 		 * address or the interface is in promiscuous mode.
 		 */
 		if (bpf_peers_present(ifp->if_bpf)) {
-			bpf_mtap(ifp, m);
+			bpf_mtap(ifp->if_bpf, m);
 			if (ifp->if_flags & IFF_PROMISC &&
 			    (bcmp(eh->ether_dhost, IF_LLADDR(sc->my_ifp),
 				ETHER_ADDR_LEN) &&
