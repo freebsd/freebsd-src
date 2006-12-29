@@ -249,7 +249,7 @@ static void msk_set_rambuffer(struct msk_if_softc *);
 static void msk_init(void *);
 static void msk_init_locked(struct msk_if_softc *);
 static void msk_stop(struct msk_if_softc *);
-static void msk_watchdog(void *);
+static void msk_watchdog(struct msk_if_softc *);
 static int msk_mediachange(struct ifnet *);
 static void msk_mediastatus(struct ifnet *, struct ifmediareq *);
 static void msk_phy_power(struct msk_softc *, int);
@@ -1427,8 +1427,6 @@ msk_attach(device_t dev)
 	}
 
 	callout_init_mtx(&sc_if->msk_tick_ch, &sc_if->msk_softc->msk_mtx, 0);
-	callout_init_mtx(&sc_if->msk_watchdog_ch, &sc_if->msk_softc->msk_mtx,
-	    0);
 	TASK_INIT(&sc_if->msk_link_task, 0, msk_link_task, sc_if);
 
 	if ((error = msk_txrx_dma_alloc(sc_if) != 0))
@@ -1834,7 +1832,6 @@ msk_detach(device_t dev)
 		/* Can't hold locks while calling detach. */
 		MSK_IF_UNLOCK(sc_if);
 		callout_drain(&sc_if->msk_tick_ch);
-		callout_drain(&sc_if->msk_watchdog_ch);
 		taskqueue_drain(taskqueue_fast, &sc_if->msk_tx_task);
 		taskqueue_drain(taskqueue_swi, &sc_if->msk_link_task);
 		ether_ifdetach(ifp);
@@ -2889,25 +2886,23 @@ msk_start(struct ifnet *ifp)
 		    sc_if->msk_cdata.msk_tx_prod);
 
 		/* Set a timeout in case the chip goes out to lunch. */
-		callout_reset(&sc_if->msk_watchdog_ch, MSK_TX_TIMEOUT * hz,
-		    msk_watchdog, sc_if);
+		sc_if->msk_watchdog_timer = MSK_TX_TIMEOUT;
 	}
 
 	MSK_IF_UNLOCK(sc_if);
 }
 
 static void
-msk_watchdog(void *arg)
+msk_watchdog(struct msk_if_softc *sc_if)
 {
-	struct msk_if_softc *sc_if;
 	struct ifnet *ifp;
 	uint32_t ridx;
 	int idx;
 
-	sc_if = arg;
-
 	MSK_IF_LOCK_ASSERT(sc_if);
 
+	if (sc_if->msk_watchdog_timer == 0 || --sc_if->msk_watchdog_timer)
+		return;
 	ifp = sc_if->msk_ifp;
 	if (sc_if->msk_link == 0) {
 		if (bootverbose)
@@ -3176,7 +3171,7 @@ msk_txeof(struct msk_if_softc *sc_if, int idx)
 	if (prog > 0) {
 		sc_if->msk_cdata.msk_tx_cons = cons;
 		if (sc_if->msk_cdata.msk_tx_cnt == 0)
-			callout_stop(&sc_if->msk_watchdog_ch);
+			sc_if->msk_watchdog_timer = 0;
 		/* No need to sync LEs as we didn't update LEs. */
 	}
 }
@@ -3194,6 +3189,7 @@ msk_tick(void *xsc_if)
 	mii = device_get_softc(sc_if->msk_miibus);
 
 	mii_tick(mii);
+	msk_watchdog(sc_if);
 	callout_reset(&sc_if->msk_tick_ch, hz, msk_tick, sc_if);
 }
 
@@ -3906,7 +3902,7 @@ msk_stop(struct msk_if_softc *sc_if)
 	ifp = sc_if->msk_ifp;
 
 	callout_stop(&sc_if->msk_tick_ch);
-	callout_stop(&sc_if->msk_watchdog_ch);
+	sc_if->msk_watchdog_timer = 0;
 
 	/* Disable interrupts. */
 	if (sc_if->msk_port == MSK_PORT_A) {
