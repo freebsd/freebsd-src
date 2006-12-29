@@ -399,7 +399,8 @@ bridge_update_bif(struct bridge_if *bif)
 	if (ifp->physaddr != NULL )
 		bcopy(ifp->physaddr, bif->br_addr.octet, ETHER_ADDR_LEN);
 	else
-		bridge_get_basemac(bif->bif_name, bif->br_addr.octet);
+		bridge_get_basemac(bif->bif_name, bif->br_addr.octet,
+		    ETHER_ADDR_LEN);
 
 	if (ifp->mib.ifmd_flags & IFF_RUNNING)
 		bif->if_status = RowStatus_active;
@@ -563,7 +564,7 @@ bridge_update_tc_time(void *arg __unused)
 int
 bridge_attach_newif(struct mibif *ifp)
 {
-	u_char *p_mac, mac[ETHER_ADDR_LEN];
+	u_char mac[ETHER_ADDR_LEN];
 	struct bridge_if *bif;
 
 	if (ifp->mib.ifmd_data.ifi_type != IFT_BRIDGE)
@@ -577,14 +578,16 @@ bridge_attach_newif(struct mibif *ifp)
 			return (-1);
 		}
 
-	if ((p_mac = ifp->physaddr) == NULL &&
-	    (p_mac = bridge_get_basemac(ifp->name, mac)) == NULL) {
-		syslog(LOG_ERR, "bridge attach new %s failed - "
-		    "no bridge mac address", ifp->name);
-		return (-1);
-	}
+	if (ifp->physaddr == NULL) {
+		if (bridge_get_basemac(ifp->name, mac, sizeof(mac)) == NULL) {
+			syslog(LOG_ERR, "bridge attach new %s failed - "
+			    "no bridge mac address", ifp->name);
+			return (-1);
+		}
+	} else
+		bcopy(ifp->physaddr, &mac, sizeof(mac));
 
-	if ((bif = bridge_new_bif(ifp->name, ifp->sysindex, p_mac)) == NULL)
+	if ((bif = bridge_new_bif(ifp->name, ifp->sysindex, mac)) == NULL)
 		return (-1);
 
 	if (ifp->mib.ifmd_flags & IFF_RUNNING)
