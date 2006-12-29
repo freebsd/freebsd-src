@@ -304,9 +304,12 @@ auditon(struct thread *td, struct auditon_args *uap)
 		if (udata.au_aupinfo.ap_pid < 1)
 			return (EINVAL);
 
-		/* XXXAUDIT: p_cansee()? */
 		if ((tp = pfind(udata.au_aupinfo.ap_pid)) == NULL)
 			return (EINVAL);
+		if (p_cansee(td, tp) != 0) {
+			PROC_UNLOCK(tp);
+			return (EINVAL);
+		}
 
 		udata.au_aupinfo.ap_auid = tp->p_au->ai_auid;
 		udata.au_aupinfo.ap_mask.am_success =
@@ -324,9 +327,12 @@ auditon(struct thread *td, struct auditon_args *uap)
 		if (udata.au_aupinfo.ap_pid < 1)
 			return (EINVAL);
 
-		/* XXXAUDIT: p_cansee()? */
 		if ((tp = pfind(udata.au_aupinfo.ap_pid)) == NULL)
 			return (EINVAL);
+		if (p_cansee(td, tp) != 0) {
+			PROC_UNLOCK(tp);
+			return (EINVAL);
+		}
 
 		tp->p_au->ai_mask.am_success =
 		    udata.au_aupinfo.ap_mask.am_success;
@@ -570,7 +576,7 @@ auditctl(struct thread *td, struct auditctl_args *uap)
 	 * validity checks, and grab another reference to the current
 	 * credential.
 	 *
-	 * XXXAUDIT: On Darwin, a NULL path is used to disable audit.
+	 * On Darwin, a NULL path argument is also used to disable audit.
 	 */
 	if (uap->path == NULL)
 		return (EINVAL);
