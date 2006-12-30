@@ -75,6 +75,9 @@
 #define	VLAN_DEF_HWIDTH	4
 #define	VLAN_IFFLAGS	(IFF_BROADCAST | IFF_MULTICAST)
 
+#define	UP_AND_RUNNING(ifp) \
+    ((ifp)->if_flags & IFF_UP && (ifp)->if_drv_flags & IFF_DRV_RUNNING)
+
 LIST_HEAD(ifvlanhead, ifvlan);
 
 struct ifvlantrunk {
@@ -798,7 +801,7 @@ vlan_start(struct ifnet *ifp)
 
 	for (;;) {
 		IF_DEQUEUE(&ifp->if_snd, m);
-		if (m == 0)
+		if (m == NULL)
 			break;
 		BPF_MTAP(ifp, m);
 
@@ -806,8 +809,7 @@ vlan_start(struct ifnet *ifp)
 		 * Do not run parent's if_start() if the parent is not up,
 		 * or parent's driver will cause a system crash.
 		 */
-		if (!((p->if_flags & IFF_UP) &&
-		    (p->if_drv_flags & IFF_DRV_RUNNING))) {
+		if (!UP_AND_RUNNING(p)) {
 			m_freem(m);
 			ifp->if_collisions++;
 			continue;
@@ -878,10 +880,9 @@ vlan_start(struct ifnet *ifp)
 			 * Transform the Ethernet header into an Ethernet header
 			 * with 802.1Q encapsulation.
 			 */
-			bcopy(mtod(m, char *) + ifv->ifv_encaplen,
-			      mtod(m, char *), ETHER_HDR_LEN);
 			evl = mtod(m, struct ether_vlan_header *);
-			evl->evl_proto = evl->evl_encap_proto;
+			bcopy((char *)evl + ifv->ifv_encaplen,
+			      (char *)evl, ETHER_HDR_LEN - ETHER_TYPE_LEN);
 			evl->evl_encap_proto = htons(ifv->ifv_proto);
 			evl->evl_tag = htons(ifv->ifv_tag);
 #ifdef DEBUG
@@ -907,7 +908,6 @@ vlan_input(struct ifnet *ifp, struct mbuf *m)
 {
 	struct ifvlantrunk *trunk = ifp->if_vlantrunk;
 	struct ifvlan *ifv;
-	int inenc = 0;
 	uint16_t tag;
 
 	KASSERT(trunk != NULL, ("%s: no trunk", __func__));
@@ -925,7 +925,6 @@ vlan_input(struct ifnet *ifp, struct mbuf *m)
 		/*
 		 * Packet is tagged in-band as specified by 802.1q.
 		 */
-		inenc = 1;
 		switch (ifp->if_type) {
 		case IFT_ETHER:
 			if (m->m_len < sizeof(*evl) &&
@@ -937,12 +936,16 @@ vlan_input(struct ifnet *ifp, struct mbuf *m)
 			tag = EVL_VLANOFTAG(ntohs(evl->evl_tag));
 
 			/*
-			 * Restore the original ethertype.  We'll remove
-			 * the encapsulation after we've found the vlan
-			 * interface corresponding to the tag.
+			 * Remove the 802.1q header by copying the Ethernet
+			 * addresses over it and adjusting the beginning of
+			 * the data in the mbuf.  The encapsulated Ethernet
+			 * type field is already in place.
 			 */
-			evl->evl_encap_proto = evl->evl_proto;
+			bcopy((char *)evl, (char *)evl + ETHER_VLAN_ENCAP_LEN,
+			      ETHER_HDR_LEN - ETHER_TYPE_LEN);
+			m_adj(m, ETHER_VLAN_ENCAP_LEN);
 			break;
+
 		default:
 #ifdef INVARIANTS
 			panic("%s: %s has unsupported if_type %u",
@@ -960,25 +963,13 @@ vlan_input(struct ifnet *ifp, struct mbuf *m)
 #else
 	ifv = vlan_gethash(trunk, tag);
 #endif
-	if (ifv == NULL || (ifv->ifv_ifp->if_flags & IFF_UP) == 0) {
+	if (ifv == NULL || !UP_AND_RUNNING(ifv->ifv_ifp)) {
 		TRUNK_RUNLOCK(trunk);
 		m_freem(m);
 		ifp->if_noproto++;
 		return;
 	}
 	TRUNK_RUNLOCK(trunk);
-
-	if (inenc) {
-		/*
-		 * Packet had an in-line encapsulation header;
-		 * remove it.  The original header has already
-		 * been fixed up above.
-		 */
-		bcopy(mtod(m, caddr_t),
-		      mtod(m, caddr_t) + ETHER_VLAN_ENCAP_LEN,
-		      ETHER_HDR_LEN);
-		m_adj(m, ETHER_VLAN_ENCAP_LEN);
-	}
 
 	m->m_pkthdr.rcvif = ifv->ifv_ifp;
 	ifv->ifv_ifp->if_ipackets++;
