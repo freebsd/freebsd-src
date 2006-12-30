@@ -341,6 +341,7 @@ MAN=	aac.4 \
 	twe.4 \
 	tx.4 \
 	txp.4 \
+	uark.4 \
 	uart.4 \
 	ubsa.4 \
 	ubsec.4 \

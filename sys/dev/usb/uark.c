@@ -138,7 +138,6 @@ USB_ATTACH(uark)
 
 	devinfo = malloc(1024, M_USBDEV, M_WAITOK);
 
-	bzero(ucom, sizeof(struct ucom_softc));
 	ucom->sc_dev = self;
 	ucom->sc_udev = dev;
 
@@ -202,7 +201,7 @@ USB_ATTACH(uark)
 	USB_ATTACH_SUCCESS_RETURN;
 
 bad:
-	DPRINTF(("uftdi_attach: ATTACH ERROR\n"));
+	DPRINTF(("uark_attach: ATTACH ERROR\n"));
 	ucom->sc_dying = 1;
 	free(devinfo, M_USBDEV);
 
