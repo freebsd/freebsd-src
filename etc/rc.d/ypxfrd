@@ -17,6 +17,8 @@ command_args="${nis_ypxfrd_flags}"
 
 ypxfrd_precmd()
 {
+	local _domain
+
 	if ! checkyesno rpcbind_enable  && \
 	    ! /etc/rc.d/rpcbind forcestatus 1>/dev/null 2>&1
 	then

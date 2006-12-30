@@ -34,6 +34,8 @@ ibcs2_compat()
 
 archdep_start()
 {
+	local _arch
+
 	_arch=`${SYSCTL_N} hw.machine_arch`
 	echo -n "Initial $_arch initialization:"
 	case $_arch in
