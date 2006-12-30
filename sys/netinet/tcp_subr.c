@@ -300,6 +300,14 @@ tcp_zone_change(void *tag)
 		uma_zone_set_max(tcptw_zone, tcptw_auto_size());
 }
 
+static int
+tcp_inpcb_init(void *mem, int size, int flags)
+{
+	struct inpcb *inp = (struct inpcb *) mem;
+	INP_LOCK_INIT(inp, "inp", "tcpinp");
+	return (0);
+}
+
 void
 tcp_init()
 {
@@ -328,7 +336,7 @@ tcp_init()
 	tcbinfo.porthashbase = hashinit(hashsize, M_PCB,
 					&tcbinfo.porthashmask);
 	tcbinfo.ipi_zone = uma_zcreate("inpcb", sizeof(struct inpcb),
-	    NULL, NULL, NULL, NULL, UMA_ALIGN_PTR, UMA_ZONE_NOFREE);
+	    NULL, NULL, tcp_inpcb_init, NULL, UMA_ALIGN_PTR, UMA_ZONE_NOFREE);
 	uma_zone_set_max(tcbinfo.ipi_zone, maxsockets);
 #ifdef INET6
 #define TCP_MINPROTOHDR (sizeof(struct ip6_hdr) + sizeof(struct tcphdr))
@@ -1005,6 +1013,7 @@ tcp_pcblist(SYSCTL_HANDLER_ARGS)
 	error = 0;
 	for (i = 0; i < n; i++) {
 		inp = inp_list[i];
+		INP_LOCK(inp);
 		if (inp->inp_gencnt <= gencnt) {
 			struct xtcpcb xt;
 			caddr_t inp_ppcb;
@@ -1028,8 +1037,11 @@ tcp_pcblist(SYSCTL_HANDLER_ARGS)
 				xt.xt_socket.xso_protocol = IPPROTO_TCP;
 			}
 			xt.xt_inp.inp_gencnt = inp->inp_gencnt;
+			INP_UNLOCK(inp);
 			error = SYSCTL_OUT(req, &xt, sizeof xt);
-		}
+		} else
+			INP_UNLOCK(inp);
+	
 	}
 	if (!error) {
 		/*
