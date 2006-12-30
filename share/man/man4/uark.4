@@ -16,35 +16,23 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd November 15, 2006
+.Dd November 9, 2006
 .Dt UARK 4
 .Os
 .Sh NAME
 .Nm uark
 .Nd Arkmicro Technologies ARK3116 based USB serial adapter
 .Sh SYNOPSIS
-To compile this driver into the kernel,
-place the following lines in your
-kernel configuration file:
-.Bd -ragged -offset indent
 .Cd "device uark"
 .Cd "device ucom"
-.Ed
-.Pp
-Alternatively, to load the driver as a
-module at boot time, place the following line in
-.Xr loader.conf 5 :
-.Bd -literal -offset indent
-uark_load="YES"
-.Ed
 .Sh DESCRIPTION
 The
 .Nm
 driver supports Arkmicro Technologies ARK3116 based serial adapters.
-.Sh HARDWARE
-The 
+.Pp
+The following devices should work with the
 .Nm
-driver supports the following adapters:
+driver:
 .Pp
 .Bl -bullet -compact
 .It
@@ -66,10 +54,6 @@ The
 .Nm
 device driver first appeared in
 .Ox 4.0 .
-The first
-.Fx
-release to include it was
-.Fx 7.0 .
 .Sh AUTHORS
 .An -nosplit
 The

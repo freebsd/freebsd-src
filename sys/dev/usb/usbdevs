@@ -544,6 +544,7 @@ vendor AVERATEC		0x50c2	Averatec
 vendor ONSPEC2		0x55aa	OnSpec
 vendor ZINWELL		0x5a57	Zinwell
 vendor SITECOM		0x6189	Sitecom
+vendor ARKMICRO		0x6547	Arkmicro Technologies
 vendor INTEL		0x8086	Intel
 vendor HP2		0xf003	Hewlett Packard
 
@@ -674,6 +675,9 @@ product APPLE IPOD_07		0x1207	iPod '07'
 product APPLE IPOD_08		0x1208	iPod '08'
 product APPLE IPODVIDEO		0x1209	iPod Video
 product APPLE IPODNANO		0x120a	iPod Nano
+
+/* Arkmicro Technologies */
+product ARKMICRO ARK3116	0x0232	ARK3116 Serial
 
 /* Asahi Optical products */
 product ASAHIOPTICAL OPTIO230	0x0004	Digital camera
