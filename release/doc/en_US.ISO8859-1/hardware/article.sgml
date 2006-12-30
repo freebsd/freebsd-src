@@ -55,7 +55,7 @@
   <sect2 id="disk">
     <title>Disk Controllers</title>
 
-    <para arch="i386,alpha,sparc64,ia64,pc98,amd64">IDE/ATA controllers (&man.ata.4; driver)</para>
+    <para arch="i386,sparc64,ia64,pc98,amd64">IDE/ATA controllers (&man.ata.4; driver)</para>
     <para arch="pc98">IDE/ATA controllers (wdc driver)
       <itemizedlist>
         <listitem>
@@ -98,9 +98,6 @@
       <note>
 	<para arch="i386,amd64">Booting from these controllers is supported.  EISA
 	adapters are not supported.</para>
-
-	<para arch="alpha">Booting from these controllers is not
-	supported due to SRM limitations.</para>
       </note>
 
     &hwlist.esp;
@@ -122,13 +119,6 @@
       <note>
 	<para arch="i386,amd64">Booting from these controllers is supported. EISA adapters
 	are not supported.</para>
-
-	<para arch="alpha">Booting from these controllers is not
-	supported due to SRM limitations.  
-        DAC960 controllers sold by Digital/Compaq for Alpha systems as part
-        of the StorageWorks family, e.g. KZPSC or KZPAC are bootable from SRM.
-        Note that these cards used 2.x firmware. SRM bootability of newer
-        firmware is unknown.</para>
       </note>
 
     &hwlist.mly;
@@ -314,7 +304,7 @@
 
   <sect2 id="fddi">
     <title>FDDI Interfaces</title>
-    <para arch="i386,pc98,alpha">DEC DEFPA PCI (&man.fpa.4; driver)</para>
+    <para arch="i386,pc98">DEC DEFPA PCI (&man.fpa.4; driver)</para>
     <para arch="i386">DEC DEFEA EISA (&man.fpa.4; driver)</para>
   </sect2>
 
@@ -482,13 +472,13 @@
   <sect2 id="serial">
     <title>Serial Interfaces</title>
 
-    <para arch="i386,alpha,amd64"><quote>PC standard</quote> 8250, 16450, and 16550-based serial ports (&man.sio.4; driver)</para>
+    <para arch="i386,amd64"><quote>PC standard</quote> 8250, 16450, and 16550-based serial ports (&man.sio.4; driver)</para>
 
     &hwlist.uart;
 
     &hwlist.scc;
 
-    <para arch="i386,alpha,amd64">AST 4 port serial card using shared IRQ</para>
+    <para arch="i386,amd64">AST 4 port serial card using shared IRQ</para>
 
     <para arch="i386">ARNET serial cards (&man.ar.4; driver)
       <itemizedlist>
@@ -520,7 +510,7 @@
       </itemizedlist>
     </para>
 
-    <para arch="i386,alpha">Comtrol Rocketport card (&man.rp.4; driver)</para>
+    <para arch="i386">Comtrol Rocketport card (&man.rp.4; driver)</para>
 
     <para arch="i386">Cyclades Cyclom-Y serial board (&man.cy.4; driver)</para>
 
@@ -766,18 +756,18 @@
   <sect2 id="usb">
     <title>USB Devices</title>
 
-    <para arch="alpha,i386,ia64,pc98,amd64">A range of USB peripherals are supported; devices known to
+    <para arch="i386,ia64,pc98,amd64">A range of USB peripherals are supported; devices known to
     work are listed in this section.  Owing to the
     generic nature of most USB devices, with some exceptions any
     device of a given class will be supported, even if not explicitly
     listed here.</para>
 
-    <note arch="alpha,i386,ia64,pc98,amd64">
+    <note arch="i386,ia64,pc98,amd64">
       <para>USB Ethernet adapters can be found in the section listing <link
       linkend="ethernet">Ethernet interfaces</link>.</para>
     </note>
 
-    <note arch="alpha,i386,ia64,pc98,amd64">
+    <note arch="i386,ia64,pc98,amd64">
       <para>USB Bluetooth adapters can be found in <link
       linkend="bluetooth">Bluetooth</link> section.</para>
     </note>
@@ -789,9 +779,9 @@
     <para arch="i386,ia64,pc98,amd64">USB 2.0 controllers using the EHCI
       interface (&man.ehci.4; driver)</para>
 
-    <para arch="i386,ia64,pc98,alpha,amd64">Hubs
+    <para arch="i386,ia64,pc98,amd64">Hubs
     </para>
-    <para arch="i386,ia64,pc98,alpha,amd64">Keyboards (&man.ukbd.4; driver)
+    <para arch="i386,ia64,pc98,amd64">Keyboards (&man.ukbd.4; driver)
     </para>
     <para arch="i386,pc98,amd64">Miscellaneous
       <itemizedlist>
@@ -817,7 +807,7 @@
 
     &hwlist.umodem;
 
-    <para arch="i386,ia64,pc98,alpha,amd64">Mice (&man.ums.4; driver)
+    <para arch="i386,ia64,pc98,amd64">Mice (&man.ums.4; driver)
     </para>
 
     &hwlist.ulpt;
@@ -886,9 +876,9 @@
       </itemizedlist>
     </para>
 
-    <para arch="i386,pc98,alpha,amd64">Floppy drives (&man.fdc.4; driver)</para>
+    <para arch="i386,pc98,amd64">Floppy drives (&man.fdc.4; driver)</para>
 
-    <para arch="i386,alpha,amd64">VGA-compatible video cards
+    <para arch="i386,amd64">VGA-compatible video cards
       (&man.vga.4; driver)
 
       <note>
@@ -900,36 +890,36 @@
 
       </para>
 
-    <para arch="i386,pc98,alpha,ia64,amd64">Keyboards including:
+    <para arch="i386,pc98,ia64,amd64">Keyboards including:
       <itemizedlist>
-        <listitem arch="i386,alpha">
+        <listitem arch="i386">
 	  <para>AT-style keyboards (&man.atkbd.4; driver)</para>
 	</listitem>
-        <listitem arch="i386,alpha,amd64">
+        <listitem arch="i386,amd64">
 	  <para>PS/2 keyboards (&man.atkbd.4; driver)</para>
 	</listitem>
         <listitem arch="pc98">
 	  <para>Standard keyboards</para>
 	</listitem>
-        <listitem arch="i386,pc98,alpha,ia64,amd64">
+        <listitem arch="i386,pc98,ia64,amd64">
 	  <para>USB keyboards (&man.ukbd.4; driver)</para>
 	</listitem>
       </itemizedlist>
     </para>
 
-    <para arch="i386,pc98,alpha,ia64,amd64">Pointing devices including:
+    <para arch="i386,pc98,ia64,amd64">Pointing devices including:
       <itemizedlist>
         <listitem arch="i386,pc98,amd64">
 	  <para>Bus mice and compatible devices (&man.mse.4; driver)</para>
 	</listitem>
-        <listitem arch="i386,alpha,amd64">
+        <listitem arch="i386,amd64">
 	  <para>PS/2 mice and compatible devices, including many laptop
 	    pointing devices (&man.psm.4; driver)</para>
 	</listitem>
         <listitem>
 	  <para>Serial mice and compatible devices</para>
 	</listitem>
-        <listitem arch="i386,pc98,alpha,ia64,amd64">
+        <listitem arch="i386,pc98,ia64,amd64">
 	  <para>USB mice (&man.ums.4; driver)</para>
 	</listitem>
       </itemizedlist>
@@ -942,7 +932,7 @@
       </note>
     </para>
 
-    <para arch="i386,alpha,amd64"><quote>PC standard</quote> parallel ports (&man.ppc.4; driver)</para>
+    <para arch="i386,amd64"><quote>PC standard</quote> parallel ports (&man.ppc.4; driver)</para>
     <para arch="pc98"><quote>PC-9821 standard</quote> parallel ports (&man.ppc.4; driver)</para>
 
     <para arch="i386,amd64">PC-compatible joysticks (&man.joy.4; driver)</para>
