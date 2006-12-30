@@ -43,6 +43,8 @@ stop_cmd="bluetooth_stop"
 
 bluetooth_read_conf()
 {
+	local _err _file _line _namespace
+
 	_file=$1
 	_namespace=$2
 	_err=0
@@ -225,6 +227,8 @@ bluetooth_shutdown_stack()
 
 bluetooth_start()
 {
+	local _file
+
 	dev=$1
 
 	# Automatically load modules

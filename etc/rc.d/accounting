@@ -20,6 +20,8 @@ stop_cmd="accounting_stop"
 
 accounting_start()
 {
+	local _dir
+
 	_dir=`dirname "$accounting_file"`
 	if [ ! -d `dirname "$_dir"` ]; then
 		if ! mkdir -p "$_dir"; then
