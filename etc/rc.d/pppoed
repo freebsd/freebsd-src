@@ -18,6 +18,8 @@ stop_cmd=":"
 
 pppoed_start()
 {
+	local _opts
+
 	if [ -n "${pppoed_provider}" ]; then
 			pppoed_flags="${pppoed_flags} -p ${pppoed_provider}"
 	fi

@@ -14,9 +14,9 @@ name="lpd"
 rcvar=`set_rcvar`
 command="/usr/sbin/${name}"
 required_files="/etc/printcap"
-start_precmd="_chkprintcap"
+start_precmd="chkprintcap"
 
-_chkprintcap()
+chkprintcap()
 {
 	if checkyesno chkprintcap_enable ; then
 		/usr/sbin/chkprintcap ${chkprintcap_flags}
