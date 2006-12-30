@@ -972,6 +972,7 @@ dev/usb/if_rue.c		optional rue
 dev/usb/if_udav.c		optional udav
 dev/usb/ohci.c			optional ohci
 dev/usb/ohci_pci.c		optional ohci pci
+dev/usb/uark.c			optional uark ucom
 dev/usb/ubsa.c			optional ubsa ucom
 dev/usb/ubser.c			optional ubser
 dev/usb/ucom.c			optional ucom
