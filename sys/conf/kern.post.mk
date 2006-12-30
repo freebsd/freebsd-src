@@ -91,13 +91,13 @@ ${FULLKERNEL}: ${SYSTEM_DEP} vers.o
 .endif
 	${SYSTEM_LD_TAIL}
 .if defined(MFS_IMAGE)
-	@dd if="${MFS_IMAGE}" ibs=8192 of="${KERNEL_KO}"		\
-	   obs=`strings -at d "${KERNEL_KO}" |				\
+	@dd if="${MFS_IMAGE}" ibs=8192 of="${FULLKERNEL}"		\
+	   obs=`strings -at d "${FULLKERNEL}" |				\
 	         grep "MFS Filesystem goes here" | awk '{print $$1}'`	\
 	   oseek=1 conv=notrunc 2>/dev/null &&				\
-	 strings ${KERNEL_KO} |						\
+	 strings ${FULLKERNEL} |					\
 	 grep 'MFS Filesystem had better STOP here' > /dev/null ||	\
-	 (rm ${KERNEL_KO} && echo 'MFS image too large' && false)
+	 (rm ${FULLKERNEL} && echo 'MFS image too large' && false)
 .endif
 
 .if !exists(${.OBJDIR}/.depend)
