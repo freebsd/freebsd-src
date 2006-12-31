@@ -933,7 +933,6 @@ rltty_set_default_bindings (kmap)
 #if !defined (NO_TTY_DRIVER)
   TIOTYPE ttybuff;
   int tty;
-  static int called = 0;
 
   tty = fileno (rl_instream);
 
