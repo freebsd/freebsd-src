@@ -867,7 +867,7 @@ installFixupBase(dialogMenuItem *self)
 	Mkdir("/usr/compat");
 	vsystem("ln -s usr/compat /compat");
 
-	/* BOGON #5: aliases database not build for bin */
+	/* BOGON #5: aliases database not built for bin */
 	vsystem("newaliases");
 
 	/* BOGON #6: Remove /stand (finally) */
@@ -1031,8 +1031,7 @@ installFilesystems(dialogMenuItem *self)
 	}
 	else {
 	    if (!upgrade) {
-		msgConfirm("Warning:  Using existing root partition.  It will be assumed\n"
-			   "that you have the appropriate device entries already in /dev.");
+		msgConfirm("Warning:  Using existing root partition.");
 	    }
 	    dialog_clear_norefresh();
 	    msgNotify("Checking integrity of existing %s filesystem.", dname);
