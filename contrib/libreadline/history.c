@@ -209,6 +209,22 @@ history_get (offset)
 		: the_history[local_index];
 }
 
+HIST_ENTRY *
+alloc_history_entry (string, ts)
+     char *string;
+     char *ts;
+{
+  HIST_ENTRY *temp;
+
+  temp = (HIST_ENTRY *)xmalloc (sizeof (HIST_ENTRY));
+
+  temp->line = string ? savestring (string) : string;
+  temp->data = (char *)NULL;
+  temp->timestamp = ts;
+
+  return temp;
+}
+
 time_t
 history_get_time (hist)
      HIST_ENTRY *hist;
@@ -290,11 +306,7 @@ add_history (string)
 	}
     }
 
-  temp = (HIST_ENTRY *)xmalloc (sizeof (HIST_ENTRY));
-  temp->line = savestring (string);
-  temp->data = (char *)NULL;
-
-  temp->timestamp = hist_inittime ();
+  temp = alloc_history_entry (string, hist_inittime ());
 
   the_history[history_length] = (HIST_ENTRY *)NULL;
   the_history[history_length - 1] = temp;
@@ -328,6 +340,26 @@ free_history_entry (hist)
   free (hist);
   return (x);
 }
+
+HIST_ENTRY *
+copy_history_entry (hist)
+     HIST_ENTRY *hist;
+{
+  HIST_ENTRY *ret;
+  char *ts;
+
+  if (hist == 0)
+    return hist;
+
+  ret = alloc_history_entry (hist->line, (char *)NULL);
+
+  ts = hist->timestamp ? savestring (hist->timestamp) : hist->timestamp;
+  ret->timestamp = ts;
+
+  ret->data = hist->data;
+
+  return ret;
+}
   
 /* Make the history entry at WHICH have LINE and DATA.  This returns
    the old entry so you can dispose of the data.  In the case of an
@@ -354,6 +386,51 @@ replace_history_entry (which, line, data)
   return (old_value);
 }
 
+/* Replace the DATA in the specified history entries, replacing OLD with
+   NEW.  WHICH says which one(s) to replace:  WHICH == -1 means to replace
+   all of the history entries where entry->data == OLD; WHICH == -2 means
+   to replace the `newest' history entry where entry->data == OLD; and
+   WHICH >= 0 means to replace that particular history entry's data, as
+   long as it matches OLD. */
+void
+replace_history_data (which,old, new)
+     int which;
+     histdata_t *old, *new;
+{
+  HIST_ENTRY *entry;
+  register int i, last;
+
+  if (which < -2 || which >= history_length || history_length == 0 || the_history == 0)
+    return;
+
+  if (which >= 0)
+    {
+      entry = the_history[which];
+      if (entry && entry->data == old)
+	entry->data = new;
+      return;
+    }
+
+  last = -1;
+  for (i = 0; i < history_length; i++)
+    {
+      entry = the_history[i];
+      if (entry == 0)
+	continue;
+      if (entry->data == old)
+	{
+	  last = i;
+	  if (which == -1)
+	    entry->data = new;
+	}
+    }
+  if (which == -2 && last >= 0)
+    {
+      entry = the_history[last];
+      entry->data = new;	/* XXX - we don't check entry->old */
+    }
+}      
+  
 /* Remove history element WHICH from the history.  The removed
    element is returned to you so you can free the line, data,
    and containing structure. */

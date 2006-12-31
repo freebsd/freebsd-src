@@ -65,10 +65,11 @@ fi
 # post-install/uninstall
 
 # HP-UX and Darwin/MacOS X require that a shared library have execute permission
+# Linux does, too, and ldd warns about it
 # Cygwin installs both a dll (which must go in $BINDIR) and an implicit
 # link library (in $libdir)
 case "$host_os" in
-hpux*|darwin*|macosx*)
+hpux*|darwin*|macosx*|linux*)
 	if [ -z "$uninstall" ]; then
 		chmod 555 ${INSTALLDIR}/${LIBNAME}
 	fi ;;
