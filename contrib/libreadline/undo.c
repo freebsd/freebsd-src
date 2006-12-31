@@ -1,7 +1,7 @@
 /* readline.c -- a general facility for reading lines of input
    with emacs style editing and completion. */
 
-/* Copyright (C) 1987, 1989, 1992 Free Software Foundation, Inc.
+/* Copyright (C) 1987, 1989, 1992, 2006 Free Software Foundation, Inc.
 
    This file is part of the GNU Readline Library, a library for
    reading lines of text with interactive input and history editing.
@@ -50,6 +50,8 @@
 #include "rlprivate.h"
 #include "xmalloc.h"
 
+extern void replace_history_data PARAMS((int, histdata_t *, histdata_t *));
+
 /* Non-zero tells rl_delete_text and rl_insert_text to not add to
    the undo list. */
 int _rl_doing_an_undo = 0;
@@ -66,6 +68,24 @@ UNDO_LIST *rl_undo_list = (UNDO_LIST *)NULL;
 /*								    */
 /* **************************************************************** */
 
+static UNDO_LIST *
+alloc_undo_entry (what, start, end, text)
+     enum undo_code what;
+     int start, end;
+     char *text;
+{
+  UNDO_LIST *temp;
+
+  temp = (UNDO_LIST *)xmalloc (sizeof (UNDO_LIST));
+  temp->what = what;
+  temp->start = start;
+  temp->end = end;
+  temp->text = text;
+
+  temp->next = (UNDO_LIST *)NULL;
+  return temp;
+}
+
 /* Remember how to undo something.  Concatenate some undos if that
    seems right. */
 void
@@ -74,11 +94,9 @@ rl_add_undo (what, start, end, text)
      int start, end;
      char *text;
 {
-  UNDO_LIST *temp = (UNDO_LIST *)xmalloc (sizeof (UNDO_LIST));
-  temp->what = what;
-  temp->start = start;
-  temp->end = end;
-  temp->text = text;
+  UNDO_LIST *temp;
+
+  temp = alloc_undo_entry (what, start, end, text);
   temp->next = rl_undo_list;
   rl_undo_list = temp;
 }
@@ -87,9 +105,12 @@ rl_add_undo (what, start, end, text)
 void
 rl_free_undo_list ()
 {
+  UNDO_LIST *release, *orig_list;
+
+  orig_list = rl_undo_list;
   while (rl_undo_list)
     {
-      UNDO_LIST *release = rl_undo_list;
+      release = rl_undo_list;
       rl_undo_list = rl_undo_list->next;
 
       if (release->what == UNDO_DELETE)
@@ -98,6 +119,43 @@ rl_free_undo_list ()
       free (release);
     }
   rl_undo_list = (UNDO_LIST *)NULL;
+  replace_history_data (-1, (histdata_t *)orig_list, (histdata_t *)NULL);
+}
+
+UNDO_LIST *
+_rl_copy_undo_entry (entry)
+     UNDO_LIST *entry;
+{
+  UNDO_LIST *new;
+
+  new = alloc_undo_entry (entry->what, entry->start, entry->end, (char *)NULL);
+  new->text = entry->text ? savestring (entry->text) : 0;
+  return new;
+}
+
+UNDO_LIST *
+_rl_copy_undo_list (head)
+     UNDO_LIST *head;
+{
+  UNDO_LIST *list, *new, *roving, *c;
+
+  list = head;
+  new = 0;
+  while (list)
+    {
+      c = _rl_copy_undo_entry (list);
+      if (new == 0)
+	roving = new = c;
+      else
+	{
+	  roving->next = c;
+	  roving = roving->next;
+	}
+      list = list->next;
+    }
+
+  roving->next = 0;
+  return new;
 }
 
 /* Undo the next thing in the list.  Return 0 if there
@@ -161,6 +219,8 @@ rl_do_undo ()
 
       release = rl_undo_list;
       rl_undo_list = rl_undo_list->next;
+      replace_history_data (-1, (histdata_t *)release, (histdata_t *)rl_undo_list);
+
       free (release);
     }
   while (waiting_for_begin);

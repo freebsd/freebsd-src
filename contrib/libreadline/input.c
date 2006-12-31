@@ -179,6 +179,7 @@ rl_gather_tyi ()
   struct timeval timeout;
 #endif
 
+  chars_avail = 0;
   tty = fileno (rl_instream);
 
 #if defined (HAVE_SELECT)
@@ -219,6 +220,13 @@ rl_gather_tyi ()
 	}
     }
 #endif /* O_NDELAY */
+
+#if defined (__MINGW32__)
+  /* Use getch/_kbhit to check for available console input, in the same way
+     that we read it normally. */
+   chars_avail = isatty (tty) ? _kbhit () : 0;
+   result = 0;
+#endif
 
   /* If there's nothing available, don't waste time trying to read
      something. */
@@ -263,7 +271,7 @@ rl_set_keyboard_input_timeout (u)
   int o;
 
   o = _keyboard_input_timeout;
-  if (u > 0)
+  if (u >= 0)
     _keyboard_input_timeout = u;
   return (o);
 }
@@ -303,6 +311,11 @@ _rl_input_available ()
     return (chars_avail);
 #endif
 
+#endif
+
+#if defined (__MINGW32__)
+  if (isatty (tty))
+    return (_kbhit ());
 #endif
 
   return 0;
@@ -489,7 +502,7 @@ rl_getc (stream)
 	 this is simply an interrupted system call to read ().
 	 Otherwise, some error ocurred, also signifying EOF. */
       if (errno != EINTR)
-	return (EOF);
+	return (RL_ISSTATE (RL_STATE_READCMD) ? READERR : EOF);
     }
 }
 
@@ -537,21 +550,21 @@ _rl_read_mbchar (mbchar, size)
 }
 
 /* Read a multibyte-character string whose first character is FIRST into
-   the buffer MB of length MBLEN.  Returns the last character read, which
+   the buffer MB of length MLEN.  Returns the last character read, which
    may be FIRST.  Used by the search functions, among others.  Very similar
    to _rl_read_mbchar. */
 int
-_rl_read_mbstring (first, mb, mblen)
+_rl_read_mbstring (first, mb, mlen)
      int first;
      char *mb;
-     int mblen;
+     int mlen;
 {
   int i, c;
   mbstate_t ps;
 
   c = first;
-  memset (mb, 0, mblen);
-  for (i = 0; i < mblen; i++)
+  memset (mb, 0, mlen);
+  for (i = 0; i < mlen; i++)
     {
       mb[i] = (char)c;
       memset (&ps, 0, sizeof (mbstate_t));

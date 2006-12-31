@@ -10,7 +10,7 @@ use these features.  There is a document entitled "readline.texinfo"
 which contains both end-user and programmer documentation for the
 GNU Readline Library.
 
-Copyright (C) 1988-2005 Free Software Foundation, Inc.
+Copyright (C) 1988-2006 Free Software Foundation, Inc.
 
 Authored by Brian Fox and Chet Ramey.
 
@@ -336,7 +336,9 @@ file is taken from the value of the shell variable @env{INPUTRC}.  If
 @ifclear BashFeatures
 file is taken from the value of the environment variable @env{INPUTRC}.  If
 @end ifclear
-that variable is unset, the default is @file{~/.inputrc}.
+that variable is unset, the default is @file{~/.inputrc}.  If that
+file does not exist or cannot be read, the ultimate default is
+@file{/etc/inputrc}.
 
 When a program which uses the Readline library starts up, the
 init file is read, and the key bindings are set.
@@ -593,9 +595,11 @@ the command does.
 Once you know the name of the command, simply place on a line
 in the init file the name of the key
 you wish to bind the command to, a colon, and then the name of the
-command.  The name of the key
-can be expressed in different ways, depending on what you find most
-comfortable.
+command.
+There can be no space between the key name and the colon -- that will be
+interpreted as part of the key name.
+The name of the key can be expressed in different ways, depending on
+what you find most comfortable.
 
 In addition to command names, readline allows keys to be bound
 to a string that is inserted when the key is pressed (a @var{macro}).

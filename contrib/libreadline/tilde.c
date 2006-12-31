@@ -404,17 +404,17 @@ tilde_expand_word (filename)
 	      free (expansion);
 	    }
 	}
-      free (username);
       /* If we don't have a failure hook, or if the failure hook did not
 	 expand the tilde, return a copy of what we were passed. */
       if (dirname == 0)
 	dirname = savestring (filename);
     }
+#if defined (HAVE_GETPWENT)
   else
-    {
-      free (username);
-      dirname = glue_prefix_and_suffix (user_entry->pw_dir, filename, user_len);
-    }
+    dirname = glue_prefix_and_suffix (user_entry->pw_dir, filename, user_len);
+#endif
+
+  free (username);
 #if defined (HAVE_GETPWENT)
   endpwent ();
 #endif

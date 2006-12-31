@@ -1071,6 +1071,8 @@ int
 rl_delete (count, key)
      int count, key;
 {
+  int xpoint;
+
   if (count < 0)
     return (_rl_rubout_char (-count, key));
 
@@ -1082,21 +1084,19 @@ rl_delete (count, key)
 
   if (count > 1 || rl_explicit_arg)
     {
-      int orig_point = rl_point;
+      xpoint = rl_point;
       if (MB_CUR_MAX > 1 && rl_byte_oriented == 0)
 	rl_forward_char (count, key);
       else
 	rl_forward_byte (count, key);
 
-      rl_kill_text (orig_point, rl_point);
-      rl_point = orig_point;
+      rl_kill_text (xpoint, rl_point);
+      rl_point = xpoint;
     }
   else
     {
-      int new_point;
-
-      new_point = MB_NEXTCHAR (rl_line_buffer, rl_point, 1, MB_FIND_NONZERO);
-      rl_delete_text (rl_point, new_point);
+      xpoint = MB_NEXTCHAR (rl_line_buffer, rl_point, 1, MB_FIND_NONZERO);
+      rl_delete_text (rl_point, xpoint);
     }
   return 0;
 }
@@ -1237,8 +1237,8 @@ rl_change_case (count, op)
 #if defined (HANDLE_MULTIBYTE)
   wchar_t wc, nwc;
   char mb[MB_LEN_MAX+1];
-  int mblen, p;
-  mbstate_t ps;
+  int mlen;
+  mbstate_t mps;
 #endif
 
   start = rl_point;
@@ -1255,7 +1255,7 @@ rl_change_case (count, op)
     SWAP (start, end);
 
 #if defined (HANDLE_MULTIBYTE)
-  memset (&ps, 0, sizeof (mbstate_t));
+  memset (&mps, 0, sizeof (mbstate_t));
 #endif
 
   /* We are going to modify some text, so let's prepare to undo it. */
@@ -1290,15 +1290,15 @@ rl_change_case (count, op)
 #if defined (HANDLE_MULTIBYTE)
       else
 	{
-	  mbrtowc (&wc, rl_line_buffer + start, end - start, &ps);
+	  mbrtowc (&wc, rl_line_buffer + start, end - start, &mps);
 	  nwc = (nop == UpCase) ? _rl_to_wupper (wc) : _rl_to_wlower (wc);
 	  if  (nwc != wc)	/*  just skip unchanged characters */
 	    {
-	      mblen = wcrtomb (mb, nwc, &ps);
-	      if (mblen > 0)
-		mb[mblen] = '\0';
+	      mlen = wcrtomb (mb, nwc, &mps);
+	      if (mlen > 0)
+		mb[mlen] = '\0';
 	      /* Assume the same width */
-	      strncpy (rl_line_buffer + start, mb, mblen);
+	      strncpy (rl_line_buffer + start, mb, mlen);
 	    }
 	}
 #endif
