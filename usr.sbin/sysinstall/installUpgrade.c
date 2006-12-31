@@ -297,7 +297,7 @@ installUpgrade(dialogMenuItem *self)
 	}
 
 	msgNotify("chflags'ing old binaries - please wait.");
-	(void)vsystem("chflags -R noschg /bin /sbin /usr/sbin /usr/bin /usr/lib /usr/libexec /var/empty /boot/kernel*");
+	(void)vsystem("chflags -R noschg /bin /sbin /lib /libexec /usr/bin /usr/sbin /usr/lib /usr/libexec /var/empty /boot/kernel*");
 
 	if (directory_exists("/boot/kernel")) {
 	    msgNotify("Moving old kernel to /boot/kernel.prev");
@@ -330,7 +330,7 @@ media:
 	    return DITEM_FAILURE | DITEM_REDRAW | DITEM_RESTORE;
     }
     
-    msgNotify("Beginning extraction of distributions..");
+    msgNotify("Beginning extraction of distributions.");
     if (DITEM_STATUS(distExtractAll(self)) == DITEM_FAILURE) {
 	msgConfirm("Hmmmm.  We couldn't even extract the base distribution.  This upgrade\n"
 		   "should be considered a failure and started from the beginning, sorry!\n"
@@ -408,7 +408,7 @@ installUpgradeNonInteractive(dialogMenuItem *self)
 	    return DITEM_FAILURE;
 	}
 	else {
-	    /* Enable all the drives befor we start */
+	    /* Enable all the drives before we start */
 	    for (i = 0; i < cnt; i++)
 		devs[i]->enabled = TRUE;
 	}
@@ -475,7 +475,7 @@ installUpgradeNonInteractive(dialogMenuItem *self)
 	}
     }
 
-    msgNotify("Beginning extraction of distributions..");
+    msgNotify("Beginning extraction of distributions.");
     if (DITEM_STATUS(distExtractAll(self)) == DITEM_FAILURE) {
 	msgConfirm("Hmmmm.  We couldn't even extract the base distribution.  This upgrade\n"
 		   "should be considered a failure and started from the beginning, sorry!\n"
