@@ -34,7 +34,7 @@ pflog_prestart()
 
 	# set pflog0 interface to up state
 	if ! ifconfig pflog0 up; then
-		warn 'could not not bring up pflog0.'
+		warn 'could not bring up pflog0.'
 		return 1
 	fi
 
