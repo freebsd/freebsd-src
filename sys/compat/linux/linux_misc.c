@@ -1400,15 +1400,13 @@ int
 linux_getpid(struct thread *td, struct linux_getpid_args *args)
 {
 	struct linux_emuldata *em;
-	char osrel[LINUX_MAX_UTSNAME];
 
 #ifdef DEBUG
 	if (ldebug(getpid))
 		printf(ARGS(getpid, ""));
 #endif
 
-	linux_get_osrelease(td, osrel);
-	if (strlen(osrel) >= 3 && osrel[2] == '6') {
+	if (linux_use26(td)) {
 		em = em_find(td->td_proc, EMUL_UNLOCKED);
 		KASSERT(em != NULL, ("getpid: emuldata not found.\n"));
 		td->td_retval[0] = em->shared->group_pid;
@@ -1438,15 +1436,13 @@ linux_getppid(struct thread *td, struct linux_getppid_args *args)
 {
 	struct linux_emuldata *em;
 	struct proc *p, *pp;
-	char osrel[LINUX_MAX_UTSNAME];
 
 #ifdef DEBUG
 	if (ldebug(getppid))
 		printf(ARGS(getppid, ""));
 #endif
 
-	linux_get_osrelease(td, osrel);
-	if (strlen(osrel) >= 3 && osrel[2] != '6') {
+	if (!linux_use26(td)) {
 		PROC_LOCK(td->td_proc);
 		td->td_retval[0] = td->td_proc->p_pptr->p_pid;
 		PROC_UNLOCK(td->td_proc);
@@ -1573,15 +1569,13 @@ linux_exit_group(struct thread *td, struct linux_exit_group_args *args)
 {
 	struct linux_emuldata *em, *td_em, *tmp_em;
 	struct proc *sp;
-	char osrel[LINUX_MAX_UTSNAME];
 
 #ifdef DEBUG
 	if (ldebug(exit_group))
 		printf(ARGS(exit_group, "%i"), args->error_code);
 #endif
 
-	linux_get_osrelease(td, osrel);
-	if (strlen(osrel) >= 3 && osrel[2] == '6') {
+	if (linux_use26(td)) {
 		td_em = em_find(td->td_proc, EMUL_UNLOCKED);
 
 		KASSERT(td_em != NULL, ("exit_group: emuldata not found.\n"));
