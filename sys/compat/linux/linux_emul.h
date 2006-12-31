@@ -32,25 +32,25 @@
 #define _LINUX_EMUL_H_
 
 struct linux_emuldata_shared {
-   	int	refs;
+	int	refs;
 	pid_t	group_pid;
 
-	LIST_HEAD(, linux_emuldata) threads;	/* head of list of linux threads */
+	LIST_HEAD(, linux_emuldata) threads; /* head of list of linux threads */
 };
 
-/* 
- * modeled after similar structure in NetBSD 
+/*
+ * modeled after similar structure in NetBSD
  * this will be extended as we need more functionality
  */
 struct linux_emuldata {
-   	pid_t	pid;
+	pid_t	pid;
 
-	int *child_set_tid;     /* in clone(): Child's TID to set on clone */
-	int *child_clear_tid;   /* in clone(): Child's TID to clear on exit */
+	int    *child_set_tid;	/* in clone(): Child's TID to set on clone */
+	int    *child_clear_tid;/* in clone(): Child's TID to clear on exit */
 
 	struct linux_emuldata_shared *shared;
 
-	int pdeath_signal;	/* parent death signal */
+	int	pdeath_signal;		/* parent death signal */
 
 	LIST_ENTRY(linux_emuldata) threads;	/* list of linux threads */
 };
@@ -69,12 +69,12 @@ struct linux_emuldata *em_find(struct proc *, int locked);
 #define EMUL_LOCKED		1
 #define EMUL_UNLOCKED		0
 
-int linux_proc_init(struct thread *, pid_t, int);
-void linux_proc_exit(void *, struct proc *);
-void linux_schedtail(void *, struct proc *);
-void linux_proc_exec(void *, struct proc *, struct image_params *);
+int	linux_proc_init(struct thread *, pid_t, int);
+void	linux_proc_exit(void *, struct proc *);
+void	linux_schedtail(void *, struct proc *);
+void	linux_proc_exec(void *, struct proc *, struct image_params *);
 
 extern struct sx emul_shared_lock;
 extern struct sx emul_lock;
 
-#endif /* !_LINUX_EMUL_H_ */
+#endif	/* !_LINUX_EMUL_H_ */
