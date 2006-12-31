@@ -110,11 +110,15 @@ static int vi_mark_chars['z' - 'a' + 1];
 static void _rl_vi_stuff_insert PARAMS((int));
 static void _rl_vi_save_insert PARAMS((UNDO_LIST *));
 
+static void _rl_vi_backup PARAMS((void));
+
 static int _rl_vi_arg_dispatch PARAMS((int));
 static int rl_digit_loop1 PARAMS((void));
 
 static int _rl_vi_set_mark PARAMS((void));
 static int _rl_vi_goto_mark PARAMS((void));
+
+static void _rl_vi_append_forward PARAMS((int));
 
 static int _rl_vi_callback_getchar PARAMS((char *, int));
 
@@ -206,7 +210,16 @@ rl_vi_redo (count, c)
       _rl_vi_stuff_insert (count);
       /* And back up point over the last character inserted. */
       if (rl_point > 0)
-	rl_point--;
+	_rl_vi_backup ();
+    }
+  /* Ditto for redoing an insert with `a', but move forward a character first
+     like the `a' command does. */
+  else if (_rl_vi_last_command == 'a' && vi_insert_buffer && *vi_insert_buffer)
+    {
+      _rl_vi_append_forward ('a');
+      _rl_vi_stuff_insert (count);
+      if (rl_point > 0)
+	_rl_vi_backup ();
     }
   else
     r = _rl_dispatch (_rl_vi_last_command, _rl_keymap);
@@ -576,23 +589,32 @@ rl_vi_insert_beg (count, key)
   return (0);
 }
 
-int
-rl_vi_append_mode (count, key)
-     int count, key;
+static void
+_rl_vi_append_forward (key)
+     int key;
 {
+  int point;
+
   if (rl_point < rl_end)
     {
       if (MB_CUR_MAX == 1 || rl_byte_oriented)
 	rl_point++;
       else
         {
-          int point = rl_point;
+          point = rl_point;
           rl_forward_char (1, key);
           if (point == rl_point)
             rl_point = rl_end;
         }
     }
-  rl_vi_insertion_mode (1, key);
+}
+
+int
+rl_vi_append_mode (count, key)
+     int count, key;
+{
+  _rl_vi_append_forward (key);
+  rl_vi_start_inserting (key, 1, rl_arg_sign);
   return (0);
 }
 
@@ -632,7 +654,7 @@ _rl_vi_save_insert (up)
 {
   int len, start, end;
 
-  if (up == 0)
+  if (up == 0 || up->what != UNDO_INSERT)
     {
       if (vi_insert_buffer_size >= 1)
 	vi_insert_buffer[0] = '\0';
@@ -717,7 +739,7 @@ _rl_vi_change_mbchar_case (count)
 {
   wchar_t wc;
   char mb[MB_LEN_MAX+1];
-  int mblen, p;
+  int mlen, p;
   mbstate_t ps;
 
   memset (&ps, 0, sizeof (mbstate_t));
@@ -741,9 +763,9 @@ _rl_vi_change_mbchar_case (count)
       if (wc)
 	{
 	  p = rl_point;
-	  mblen = wcrtomb (mb, wc, &ps);
-	  if (mblen >= 0)
-	    mb[mblen] = '\0';
+	  mlen = wcrtomb (mb, wc, &ps);
+	  if (mlen >= 0)
+	    mb[mlen] = '\0';
 	  rl_begin_undo_group ();
 	  rl_vi_delete (1, 0);
 	  if (rl_point < p)	/* Did we retreat at EOL? */
@@ -819,6 +841,15 @@ rl_vi_put (count, key)
 
   rl_backward_char (1, key);
   return (0);
+}
+
+static void
+_rl_vi_backup ()
+{
+  if (MB_CUR_MAX > 1 && rl_byte_oriented == 0)
+    rl_point = _rl_find_prev_mbchar (rl_line_buffer, rl_point, MB_FIND_NONZERO);
+  else
+    rl_point--;
 }
 
 int
@@ -1112,7 +1143,7 @@ int
 rl_vi_rubout (count, key)
      int count, key;
 {
-  int p, opoint;
+  int opoint;
 
   if (count < 0)
     return (rl_vi_delete (-count, key));
@@ -1427,9 +1458,9 @@ _rl_vi_change_char (count, c, mb)
 }
 
 static int
-_rl_vi_callback_getchar (mb, mblen)
+_rl_vi_callback_getchar (mb, mlen)
      char *mb;
-     int mblen;
+     int mlen;
 {
   int c;
 
@@ -1439,7 +1470,7 @@ _rl_vi_callback_getchar (mb, mblen)
 
 #if defined (HANDLE_MULTIBYTE)
   if (MB_CUR_MAX > 1 && rl_byte_oriented == 0)
-    c = _rl_read_mbstring (c, mb, mblen);
+    c = _rl_read_mbstring (c, mb, mlen);
 #endif
 
   return c;
