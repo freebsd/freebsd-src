@@ -27,13 +27,14 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd November 11, 2003
+.Dd November 18, 2006
 .Os
 .Dt P_CANDEBUG 9
 .Sh NAME
 .Nm p_candebug
 .Nd determine debuggability of a process
 .Sh SYNOPSIS
+.In sys/param.h
 .In sys/proc.h
 .Ft int
 .Fn p_candebug "struct thread *td" "struct proc *p"
@@ -128,10 +129,10 @@ does not belong to the same jail as
 The MAC subsystem denied debuggability.
 .El
 .Sh SEE ALSO
-.Xr intro 2 ,
 .Xr jail 2 ,
 .Xr sysctl 8 ,
 .Xr cr_seeothergids 9 ,
 .Xr cr_seeotheruids 9 ,
 .Xr mac 9 ,
+.Xr p_cansee 9 ,
 .Xr prison_check 9
