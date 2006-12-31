@@ -1,7 +1,7 @@
 /* $FreeBSD$ */
 /* terminal.c -- controlling the terminal with termcap. */
 
-/* Copyright (C) 1996-2005 Free Software Foundation, Inc.
+/* Copyright (C) 1996-2006 Free Software Foundation, Inc.
 
    This file is part of the GNU Readline Library, a library for
    reading lines of text with interactive input and history editing.
@@ -67,10 +67,24 @@
 #include "rlshell.h"
 #include "xmalloc.h"
 
+#if defined (__MINGW32__)
+#  include <windows.h>
+#  include <wincon.h>
+
+static void _win_get_screensize PARAMS((int *, int *));
+#endif
+
+#if defined (__EMX__)
+static void _emx_get_screensize PARAMS((int *, int *));
+#endif
+
 #define CUSTOM_REDISPLAY_FUNC() (rl_redisplay_function != rl_redisplay)
 #define CUSTOM_INPUT_FUNC() (rl_getc_function != rl_getc)
 
-int rl_prefer_env_winsize;
+/*  If the calling application sets this to a non-zero value, readline will
+    use the $LINES and $COLUMNS environment variables to set its idea of the
+    window size before interrogating the kernel. */
+int rl_prefer_env_winsize = 0;
 
 /* **************************************************************** */
 /*								    */
@@ -112,9 +126,7 @@ char *_rl_term_IC;
 char *_rl_term_dc;
 char *_rl_term_DC;
 
-#if defined (HACK_TERMCAP_MOTION)
 char *_rl_term_forward_char;
-#endif  /* HACK_TERMCAP_MOTION */
 
 /* How to go up a line. */
 char *_rl_term_up;
@@ -185,6 +197,26 @@ _emx_get_screensize (swp, shp)
 }
 #endif
 
+#if defined (__MINGW32__)
+static void
+_win_get_screensize (swp, shp)
+     int *swp, *shp;
+{
+  HANDLE hConOut;
+  CONSOLE_SCREEN_BUFFER_INFO scr;
+
+  hConOut = GetStdHandle (STD_OUTPUT_HANDLE);
+  if (hConOut != INVALID_HANDLE_VALUE)
+    {
+      if (GetConsoleScreenBufferInfo (hConOut, &scr))
+	{
+	  *swp = scr.dwSize.X;
+	  *shp = scr.srWindow.Bottom - scr.srWindow.Top + 1;
+	}
+    }
+}
+#endif
+
 /* Get readline's idea of the screen size.  TTY is a file descriptor open
    to the terminal.  If IGNORE_ENV is true, we do not pay attention to the
    values of $LINES and $COLUMNS.  The tests for TERM_STRING_BUFFER being
@@ -209,7 +241,9 @@ _rl_get_screen_size (tty, ignore_env)
 #endif /* TIOCGWINSZ */
 
 #if defined (__EMX__)
-  _emx_get_screensize (&_rl_screenwidth, &_rl_screenheight);
+  _emx_get_screensize (&wc, &wr);
+#elif defined (__MINGW32__)
+  _win_get_screensize (&wc, &wr);
 #endif
 
   if (ignore_env || rl_prefer_env_winsize == 0)
@@ -359,9 +393,7 @@ static struct _tc_string tc_strings[] =
   { "le", &_rl_term_backspace },
   { "mm", &_rl_term_mm },
   { "mo", &_rl_term_mo },
-#if defined (HACK_TERMCAP_MOTION)
   { "nd", &_rl_term_forward_char },
-#endif
   { "pc", &_rl_term_pc },
   { "up", &_rl_term_up },
   { "vb", &_rl_visible_bell },
@@ -458,9 +490,7 @@ _rl_init_terminal_io (terminal_name)
       _rl_term_ks = _rl_term_ke = _rl_term_at7 = (char *)NULL;
       _rl_term_mm = _rl_term_mo = (char *)NULL;
       _rl_term_ve = _rl_term_vs = (char *)NULL;
-#if defined (HACK_TERMCAP_MOTION)
-      term_forward_char = (char *)NULL;
-#endif
+      _rl_term_forward_char = (char *)NULL;
       _rl_terminal_can_insert = term_has_meta = 0;
 
       /* Reasonable defaults for tgoto().  Readline currently only uses
