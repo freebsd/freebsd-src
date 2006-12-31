@@ -64,18 +64,18 @@ layer.
 The options are as follows:
 .Bl -tag -width indent
 .It Fl b
-Deprecated.  Use
-.Fl o
-.Ar below
+Deprecated.
+Use
+.Fl o Cm below
 instead.
 .It Fl o
-Options are specified with a
+Options are specified with the
 .Fl o
 flag followed by an option.
 The following options are available:
 .Bl -tag -width indent
 .It Cm below
-Invert the default position, so that
+Inverts the default position, so that
 .Ar directory
 becomes the lower layer and
 .Ar uniondir
@@ -83,39 +83,41 @@ becomes the upper layer.
 However,
 .Ar uniondir
 remains the mount point.
-.It Cm copymode=traditional | transparent | masquerade
+.It Sm Cm copymode No = Cm traditional | transparent | masquerade Sm
 Specifies the way to create a file or a directory in the upper layer
 automatically when needed.
-.Ar traditional
+The
+.Cm traditional
+mode
 uses the same way as the old unionfs for backward compatibility, and
-.Ar transparent
+.Cm transparent
 duplicates the file and directory mode bits and the ownership in the
 lower layer to the created file in the upper layer.
 For behavior of the
-.Ar masquerade
+.Cm masquerade
 mode, see
-.Sx MASQUERADE MODE .
-.It Cm udir=mode
+.Sx MASQUERADE MODE
+below.
+.It Cm udir Ns = Ns Ar mode
 Specifies directory mode bits in octal for
-.Ar masquerade
+.Cm masquerade
 mode.
-.It Cm ufile=mode
+.It Cm ufile Ns = Ns Ar mode
 Specifies file mode bits in octal for
-.Ar masquerade
+.Cm masquerade
 mode.
-.It Cm gid=gid
+.It Cm gid Ns = Ns Ar gid
 Specifies group for
-.Ar masquerade
+.Cm masquerade
 mode.
-.It Cm uid=uid
-.uid
+.It Cm uid Ns = Ns Ar uid
 Specifies user for
-.Ar masquerade
+.Cm masquerade
 mode.
 .El
 .El
 .Pp
-To enforce file system security, the user mounting the file system
+To enforce file system security, the user mounting a file system
 must be superuser or else have write permission on the mounted-on
 directory.
 In addition, the
@@ -123,12 +125,12 @@ In addition, the
 .Xr sysctl 8
 variable must be set to 1 to permit file system mounting by ordinary users.
 However, note that
-.Ar transparent
+.Cm transparent
 and
-.Ar masquerade
-mode require
+.Cm masquerade
+modes require
 .Va vfs.usermount
-be set to 0 because this functionality can only be used by superusers.
+to be set to 0 because this functionality can only be used by superusers.
 .Pp
 Filenames are looked up in the upper layer and then in the
 lower layer.
@@ -137,12 +139,13 @@ in the upper layer, then a
 .Em shadow
 directory will be created in the upper layer.
 The ownership and the mode bits are set depending on the
-.Ar copymode
-option.  In
-.Ar traditional
+.Cm copymode
+option.
+In
+.Cm traditional
 mode, it will be owned by the user who originally did the
-union mount, with mode 0777 
-.Dq rwxrwxrwx 
+union mount, with mode 0777
+.Pq Dq Li rwxrwxrwx
 modified by the umask in effect at that time.
 .Pp
 If a file exists in the upper layer then there is no way to access
@@ -179,69 +182,72 @@ Thus any file systems which are mounted under
 .Ar uniondir
 will take part in the union operation.
 This differs from the
-.Em union
+.Cm union
 option to
 .Xr mount 8
 which only applies the union operation to the mount point itself,
 and then only for lookups.
 .Sh MASQUERADE MODE
 When a file
-.Pq or a directory
+(or a directory)
 is created in the upper layer, the
-.Ar masquerade
+.Cm masquerade
 mode sets it the fixed access mode bits given in
-.Ar ufile Pq for files
+.Cm ufile
+(for files)
 or
-.Ar udir Pq for directories
+.Cm udir
+(for directories)
 option and the owner given in
-.Ar udir
+.Cm udir
 and
-.Ar gid
-options, instead of ones in the lower layer.  Note that in the
-.Ar masquerade
+.Cm gid
+options, instead of ones in the lower layer.
+Note that in the
+.Cm masquerade
 mode and when owner of the file or directory matches
 one specified in
-.Ar uid
+.Cm uid
 option, only mode bits for the owner will be modified.
 More specifically, the file mode bits in the upper layer will
 be
-.Pq mode in the lower layer
+(mode in the lower layer)
 OR
-.Pq Po mode given in .Ar ufile
-AND 0700
-.Pc , and the ownership will be the same as one in the lower layer.
+(mode given in
+.Cm ufile
+AND 0700), and the ownership will be the same as one in the lower layer.
 .Pp
 The default values for
-.Ar ufile , udir , uid ,
+.Cm ufile , udir , uid ,
 and
-.Ar gid
+.Cm gid
 are as follow:
 .Pp
 .Bl -bullet -compact
 .It
-If both
-.Ar ufile
+If none of
+.Cm ufile
 and
-.Ar udir
-are not specified, access mode bits in the mount point will be used.
+.Cm udir
+were specified, access mode bits in the mount point will be used.
 .It
-If both
-.Ar uid
+If none of
+.Cm uid
 and
-.Ar gid
-are not specified, ownership in the mount point will be used.
+.Cm gid
+were specified, ownership in the mount point will be used.
 .It
-If either
-.Ar udir
+If one of
+.Cm udir
 or
-.Ar ufile
-is not specified, the other will be the same as the specified one.
+.Cm ufile
+is not specified, the value of the other option will be used.
 .It
-If either
-.Ar uid
+If one of
+.Cm uid
 or
-.Ar gid
-is not specified, the other will be the same as the specified one.
+.Cm gid
+is not specified, the value of the other option will be used.
 .El
 .Sh EXAMPLES
 The commands
@@ -259,8 +265,9 @@ and then attaches
 on top.
 For most purposes the effect of this is to make the
 source tree appear writable
-even though it is stored on a CD-ROM.  The
-.Fl o Ar noatime
+even though it is stored on a CD-ROM.
+The
+.Fl o Cm noatime
 option is useful to avoid unnecessary copying from the lower to the
 upper layer.
 .Pp
@@ -278,18 +285,20 @@ on
 .Pa /usr/src
 and then attaches
 .Pa /var/obj
-on top.  Furthermore, the owner of all files and directories in /usr/src
-is a regular user with uid
-.Pq 2020
-when seen from the upper layer.  Note that for the access mode bits,
+on top.
+Furthermore, the owner of all files and directories in
+.Pa /usr/src
+is a regular user with UID 2020
+when seen from the upper layer.
+Note that for the access mode bits,
 ones in the lower layer
-.Pq on the CD-ROM, in this example
+(on the CD-ROM, in this example)
 are still used without change.
 Thus, write privilege to the upper layer can be controlled
 independently from access mode bits and ownership in the lower layer.
 If a user does not have read privilege from the lower layer,
 one cannot still read even when the upper layer is mounted by using
-.Ar masquerade
+.Cm masquerade
 mode.
 .Pp
 The command
@@ -326,6 +335,7 @@ option for hiding the lower layer completely was removed in
 because this is identical to using
 .Xr mount_nullfs 8 .
 .Sh AUTHORS
+.An -nosplit
 In
 .Fx 7.0 ,
 .An Masanori OZAWA Aq ozawa@ongs.co.jp
@@ -363,15 +373,17 @@ The current implementation does not support copying extended attributes
 for
 .Xr acl 9 ,
 .Xr mac 9 ,
-or so on to the upper layer.  Note that this may be a security issue.
+or so on to the upper layer.
+Note that this may be a security issue.
 .Pp
 A shadow directory, which is one automatically created in the upper
 layer when it exists in the lower layer and does not exist in the
 upper layer, is always created with the superuser privilege.
 However, a file copied from the lower layer in the same way
-is created by the user who accessed it.  Because of this,
+is created by the user who accessed it.
+Because of this,
 if the user is not the superuser, even in
-.Ar transparent
+.Cm transparent
 mode the access mode bits in the copied file in the upper layer
 will not always be the same as ones in the lower layer.
 This behavior should be fixed.
