@@ -22,15 +22,7 @@ resync_cmd="pflog_resync"
 
 pflog_prestart()
 {
-	# load pflog kernel module if needed
-	if ! kldstat -q -m pflog; then
-		if kldload pflog; then
-			info 'pflog module loaded.'
-		else
-			warn 'pflog module failed to load.'
-			return 1
-		fi
-	fi
+	load_kld pflog || return 1
 
 	# set pflog0 interface to up state
 	if ! ifconfig pflog0 up; then

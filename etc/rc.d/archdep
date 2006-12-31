@@ -19,13 +19,13 @@ ibcs2_compat()
 {
 	if checkyesno ibcs2_enable; then
 		echo -n ' ibcs2'
-		kldload ibcs2 > /dev/null 2>&1
+		load_kld ibcs2
 		case ${ibcs2_loaders} in
 		[Nn][Oo])
 			;;
 		*)
 			for i in ${ibcs2_loaders}; do
-				kldload ibcs2_$i > /dev/null 2>&1
+				load_kld ibcs2_$i
 			done
 			;;
 		esac

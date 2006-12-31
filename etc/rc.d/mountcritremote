@@ -27,11 +27,7 @@ mountcritremote_precmd()
 	case "`mount -d -a -t nfs 2> /dev/null`" in
 	*mount_nfs*)
 		# Handle absent nfs client support
-		if ! sysctl vfs.nfs >/dev/null 2>&1; then
-			kldload nfsclient || { warn 'nfs mount ' \
-			    'requested, but no nfs client in kernel'; \
-			    return 1; }
-		fi
+		load_kld -m nfs nfsclient || return 1
 		;;
 	esac
 	return 0

@@ -36,6 +36,8 @@
 name="mdconfig"
 stop_cmd="mdconfig_stop"
 start_cmd="mdconfig_start"
+start_precmd='[ -n "${_mdconfig_list}" ]'
+required_modules="geom_md:g_md"
 
 is_readonly()
 {
@@ -83,8 +85,6 @@ init_variables()
 			err 2 "You need to specify \"-f <file>\" in mdconfig_${_md} for vnode devices"
 		fi
 		if [ "${_file}" != "${_file%.uzip}" ]; then
-			# Load geom_uzip kernel module if needed
-			kldstat -q -m g_uzip || kldload geom_uzip || err 1 "geom_uzip failed to load."
 			_dev="/dev/${_md}.uzip"
 		fi
 		for _i in `df ${_file} 2>/dev/null`; do _fs=${_i}; done
@@ -103,13 +103,6 @@ mdconfig_start()
 {
 	local _md _mp _config _type _dev _file _fs _newfs _fsck_cmd
 
-	# If there are no devices return before loading geom_md.ko.
-	if [ -z "${_mdconfig_list}" ]; then
-		return
-	fi
-
-	kldstat -q -m g_md || kldload geom_md || err 1 "geom_md failed to load."
-
 	for _md in ${_mdconfig_list}; do
 		init_variables ${_md}
 		# Create md(4) devices of types swap, malloc and vnode if the
@@ -119,6 +112,9 @@ mdconfig_start()
 				if is_readonly ${_fs}; then
 					warn "${_fs} is mounted read-only, skipping ${_md}."
 					continue
+				fi
+				if [ "${_file}" != "${_file%.uzip}" ]; then
+					load_kld -m g_uzip geom_uzip || return 3
 				fi
 			fi
 			if mdconfig -l -u ${_md} >/dev/null 2>&1; then

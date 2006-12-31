@@ -13,21 +13,8 @@
 name="ip6fw"
 rcvar=`set_rcvar ipv6_firewall`
 start_cmd="ip6fw_start"
-start_precmd="ip6fw_prestart"
 stop_cmd="${SYSCTL_W} net.inet6.ip6.fw.enable=0"
-
-ip6fw_prestart()
-{
-	# Load IPv6 firewall module, if not already loaded
-	if ! ${SYSCTL} net.inet6.ip6.fw.enable > /dev/null 2>&1; then
-		kldload ipfw && {
-			debug 'Kernel IPv6 firewall module loaded.'
-			return 0
-		}
-		warn 'IPv6 firewall kernel module failed to load.'
-		return 1
-	fi
-}
+required_modules="ipfw"
 
 ip6fw_start()
 {
