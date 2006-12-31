@@ -16,7 +16,7 @@ rcvar=`set_rcvar`
 load_rc_config $name
 stop_precmd="test -f ${ipfilter_rules} -o -f ${ipv6_ipfilter_rules}"
 
-start_precmd="ipfilter_prestart"
+start_precmd="$stop_precmd"
 start_cmd="ipfilter_start"
 stop_cmd="ipfilter_stop"
 reload_precmd="$stop_precmd"
@@ -26,35 +26,7 @@ resync_cmd="ipfilter_resync"
 status_precmd="$stop_precmd"
 status_cmd="ipfilter_status"
 extra_commands="reload resync status"
-
-ipfilter_loaded()
-{
-	if ! kldstat -v | grep "ipfilter$" > /dev/null 2>&1; then
-		return 1
-	else
-		return 0
-	fi
-}
-
-ipfilter_prestart()
-{
-	# load ipfilter kernel module if needed
-	if ! ipfilter_loaded; then
-		if kldload ipl; then
-			info 'IP-filter module loaded.'
-		else
-			err 1 'IP-filter module failed to load.'
-		fi
-	fi
-
-	# check for ipfilter rules
-	if [ ! -r "${ipfilter_rules}" ] && [ ! -r "${ipv6_ipfilter_rules}" ]
-	then
-		warn 'IP-filter: NO IPF RULES'
-		return 1
-	fi
-	return 0
-}
+required_modules="ipl:ipfilter"
 
 ipfilter_start()
 {
@@ -111,10 +83,6 @@ ipfilter_reload()
 
 ipfilter_resync()
 {
-	# Don't resync if ipfilter is not loaded
-	if ! ipfilter_loaded; then
-		 return
-	fi
 	${ipfilter_program:-/sbin/ipf} -y ${ipfilter_flags}
 }
 

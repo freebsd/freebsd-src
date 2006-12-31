@@ -34,19 +34,14 @@
 . /etc/rc.subr
 
 name="geli"
+start_precmd='[ -n "$(geli_make_list)" ]'
 start_cmd="geli_start"
 stop_cmd="geli_stop"
+required_modules="geom_eli:g_eli"
 
 geli_start()
 {
 	devices=`geli_make_list`
-
-	# If there are no devices return before loading geom_eli.ko.
-	if [ -z "${devices}" ]; then
-		return
-	fi
-
-	kldstat -q -m g_eli || geli load || err 1 'geom_eli module failed to load.'
 
 	if [ -z "${geli_tries}" ]; then
 		if [ -n "${geli_attach_attempts}" ]; then

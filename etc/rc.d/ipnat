@@ -14,31 +14,15 @@
 name="ipnat"
 rcvar=`set_rcvar`
 load_rc_config $name
-start_precmd="ipnat_precmd"
 start_cmd="ipnat_start"
 stop_cmd="${ipnat_program} -F -C"
 reload_cmd="${ipnat_program} -F -C -f ${ipnat_rules}"
 extra_commands="reload"
-
-ipnat_precmd()
-{
-	# Make sure ipfilter is loaded before continuing
-	if ! ${SYSCTL} net.inet.ipf.fr_pass >/dev/null 2>&1; then
-		if kldload ipl; then
-			info 'IP-filter module loaded.'
-		else
-			err 1 'IP-filter module failed to load.'
-		fi
-	fi
-	return 0
-}
+required_files="${ipnat_rules}"
+required_modules="ipl:ipfilter"
 
 ipnat_start()
 {
-	if [ ! -f ${ipnat_rules} ]; then
-		warn 'NO IPNAT RULES'
-		return 0
-	fi
 	echo "Installing NAT rules."
 	${ipnat_program} -CF -f ${ipnat_rules} ${ipnat_flags}
 }

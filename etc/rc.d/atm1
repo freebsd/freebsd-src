@@ -48,7 +48,7 @@ atm_start()
 {
 	if [ -n "${natm_interfaces}" ] ; then
 		# Load the HARP pseudo interface
-		kldstat -v | grep -q if_harp || kldload if_harp
+		load_kld if_harp || return 1
 
 		# Load all the NATM drivers that we need
 		for natm in ${natm_interfaces} ; do
@@ -58,7 +58,7 @@ atm_start()
 
 	# Load loadable HARP drivers
 	for dev in ${atm_load} ; do
-		kldstat -v | grep -q ${dev} || kldload ${dev}
+		load_kld ${dev} || return 1
 	done
 
 	# Locate all probed ATM adapters

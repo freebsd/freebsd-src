@@ -12,28 +12,14 @@
 name="ugidfw"
 rcvar="ugidfw_enable"
 start_cmd="ugidfw_start"
-start_precmd="ugidfw_precmd"
 stop_cmd="ugidfw_stop"
+required_modules="mac_bsdextended"
 
 ugidfw_load()
 {
 	if [ -r "${bsdextended_script}" ]; then
 		. "${bsdextended_script}"
 	fi
-}
-
-ugidfw_precmd()
-{
-	if ! sysctl security.mac.bsdextended
-          then kldload mac_bsdextended
-	    if [ "$?" -ne "0" ]
-	      then warn Unable to load the mac_bsdextended module.
-	      return 1
-	else
-	  return 0
-	  fi
-	fi
-	return 0
 }
 
 ugidfw_start()

@@ -12,20 +12,8 @@
 name="nfsclient"
 rcvar="nfs_client_enable"
 start_cmd="nfsclient_start"
-start_precmd="nfsclient_precmd"
 stop_cmd="unmount_all"
-
-# Load nfs module if it was not compiled into the kernel
-nfsclient_precmd()
-{
-	if ! sysctl vfs.nfs >/dev/null 2>&1; then
-		if ! kldload nfsclient; then
-			warn 'Could not load nfs client module'
-			return 1
-		fi
-	fi
-	return 0
-}
+required_modules="nfsclient:nfs"
 
 nfsclient_start()
 {
