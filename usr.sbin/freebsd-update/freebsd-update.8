@@ -45,6 +45,21 @@ The
 .Nm
 tool is used to fetch, install, and rollback binary
 updates to the FreeBSD base system.
+Note that updates are only available if they are being built for the
+FreeBSD release and architecture being used; in particular, the
+.Fx
+Security Team only builds updates for releases shipped in binary form 
+by the
+.Fx
+Release Engineering Team, e.g.,
+.Fx
+6.1-RELEASE and
+.Fx
+6.2-RC1, but not
+.Fx
+6.2-STABLE or
+.Fx
+7.0-CURRENT.
 .Sh OPTIONS
 The following options are supported
 .Bl -tag -width "-f conffile"
