@@ -879,7 +879,13 @@ diskPartitionWrite(dialogMenuItem *self)
 
 	msgNotify("Writing partition information to drive %s", d->name);
 	if (!Fake && Write_Disk(d)) {
-	    msgConfirm("ERROR: Unable to write data to disk %s!", d->name);
+	    if (RunningAsInit) {
+		msgConfirm("ERROR: Unable to write data to disk %s!", d->name);
+	    } else {
+		msgConfirm("ERROR: Unable to write data to disk %s!\n\n"
+		    "To edit the labels on a running system set\n"
+		    "sysctl kern.geom.debugflags=16 and try again.", d->name);
+	    }
 	    return DITEM_FAILURE;
 	}
     }
