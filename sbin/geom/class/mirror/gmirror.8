@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd March 8, 2006
+.Dd December 31, 2006
 .Dt GMIRROR 8
 .Os
 .Sh NAME
@@ -83,10 +83,6 @@
 .Op Fl fv
 .Ar name ...
 .Nm
-.Cm clear
-.Op Fl v
-.Ar prov ...
-.Nm
 .Cm dump
 .Ar prov ...
 .Nm
@@ -120,7 +116,9 @@ indicates an action to be performed:
 Create a mirror.
 The order of components is important, because a component's priority is based on its position
 (starting from 0).
-The component with the biggest priority is used by the prefer balance algorithm
+The component with the biggest priority is used by the
+.Cm prefer
+balance algorithm
 and is also used as a master component when resynchronization is needed,
 e.g.\& after a power failure when the device was open for writing.
 .Pp
@@ -291,7 +289,8 @@ This is possible, but some conditions have to be met.
 First of all, a kernel dump will go only to one component and
 .Nm
 always chooses the component with the highest priority.
-Reading a dump from the mirror on boot will only work if the prefer
+Reading a dump from the mirror on boot will only work if the
+.Cm prefer
 balance algorithm is used (that way
 .Nm
 will read only from the component with the highest priority).
@@ -320,7 +319,6 @@ will find nothing.
 If on the next boot a component with the highest priority will be synchronized,
 the prefer balance algorithm will read from the next one, thus will find nothing
 there.
-.Ed
 .Sh SEE ALSO
 .Xr geom 4 ,
 .Xr dumpon 8 ,
