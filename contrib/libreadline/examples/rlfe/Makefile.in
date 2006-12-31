@@ -25,7 +25,7 @@ CFLAGS = @CFLAGS@
 CPPFLAGS = @CPPFLAGS@
 #LDFLAGS = -L$(READLINE_DIR)
 LDFLAGS = @LDFLAGS@
-LIBS = -lreadline -lhistory -lncurses
+LIBS = -lreadline -lhistory -lncurses @LIBS@
 
 CPP=@CPP@
 CPP_DEPEND=$(CC) -MM

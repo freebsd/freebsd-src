@@ -56,8 +56,6 @@
 
 typedef int _hist_search_func_t PARAMS((const char *, int));
 
-extern int rl_byte_oriented;	/* declared in mbutil.c */
-
 static char error_pointer;
 
 static char *subst_lhs;
@@ -564,12 +562,12 @@ history_expand_internal (string, start, end_index_ptr, ret_string, current_line)
 #if defined (HANDLE_MULTIBYTE)
       if (MB_CUR_MAX > 1 && rl_byte_oriented == 0)
 	{
-	  int c, l;
+	  int ch, l;
 	  l = _rl_find_prev_mbchar (string, i, MB_FIND_ANY);
-	  c = string[l];
+	  ch = string[l];
 	  /* XXX - original patch had i - 1 ???  If i == 0 it would fail. */
-	  if (i && (c == '\'' || c == '"'))
-	    quoted_search_delimiter = c;
+	  if (i && (ch == '\'' || ch == '"'))
+	    quoted_search_delimiter = ch;
 	}
       else
 #endif /* HANDLE_MULTIBYTE */	  
@@ -1429,6 +1427,8 @@ history_tokenize_word (string, ind)
       if (peek == string[i] && peek != '$')
 	{
 	  if (peek == '<' && string[i + 2] == '-')
+	    i++;
+	  else if (peek == '<' && string[i + 2] == '<')
 	    i++;
 	  i += 2;
 	  return i;

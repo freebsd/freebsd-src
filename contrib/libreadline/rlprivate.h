@@ -309,6 +309,10 @@ extern int _rl_char_search_internal PARAMS((int, int, int));
 #endif
 extern int _rl_set_mark_at_pos PARAMS((int));
 
+/* undo.c */
+extern UNDO_LIST *_rl_copy_undo_entry PARAMS((UNDO_LIST *));
+extern UNDO_LIST *_rl_copy_undo_list PARAMS((UNDO_LIST *));
+
 /* util.c */
 extern int _rl_abort_internal PARAMS((void));
 extern char *_rl_strindex PARAMS((const char *, const char *));
@@ -404,6 +408,7 @@ extern char *_rl_term_up;
 extern char *_rl_term_dc;
 extern char *_rl_term_cr;
 extern char *_rl_term_IC;
+extern char *_rl_term_forward_char;
 extern int _rl_screenheight;
 extern int _rl_screenwidth;
 extern int _rl_screenchars;
