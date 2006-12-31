@@ -8,7 +8,7 @@ This document describes the GNU Readline Library, a utility for aiding
 in the consistency of user interface across discrete programs that need
 to provide a command line interface.
 
-Copyright (C) 1988-2005 Free Software Foundation, Inc.
+Copyright (C) 1988-2006 Free Software Foundation, Inc.
 
 Permission is granted to make and distribute verbatim copies of
 this manual provided the copyright notice and this permission notice
@@ -1033,8 +1033,10 @@ pending input has not already been read with @code{rl_read_key()}.
 @deftypefun int rl_set_keyboard_input_timeout (int u)
 While waiting for keyboard input in @code{rl_read_key()}, Readline will
 wait for @var{u} microseconds for input before calling any function
-assigned to @code{rl_event_hook}.  The default waiting period is
-one-tenth of a second.  Returns the old timeout value.
+assigned to @code{rl_event_hook}.  @var{u} must be greater than or equal
+to zero (a zero-length timeout is equivalent to a poll).
+The default waiting period is one-tenth of a second.
+Returns the old timeout value.
 @end deftypefun
 
 @node Terminal Management
@@ -1668,6 +1670,9 @@ the directory portion of the pathname the user typed.
 It returns an integer that should be non-zero if the function modifies
 its directory argument.
 It could be used to expand symbolic links or shell variables in pathnames.
+At the least, even if no other expansion is performed, this function should
+remove any quote characters from the directory name, because its result will
+be passed directly to @code{opendir()}.
 @end deftypevar
 
 @deftypevar {rl_compdisp_func_t *} rl_completion_display_matches_hook

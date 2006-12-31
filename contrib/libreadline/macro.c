@@ -113,7 +113,7 @@ _rl_next_macro_key ()
 
 #if defined (READLINE_CALLBACKS)
   c = rl_executing_macro[executing_macro_index++];
-  if (RL_ISSTATE (RL_STATE_CALLBACK) && RL_ISSTATE (RL_STATE_READCMD) && rl_executing_macro[executing_macro_index] == 0)
+  if (RL_ISSTATE (RL_STATE_CALLBACK) && RL_ISSTATE (RL_STATE_READCMD|RL_STATE_MOREINPUT) && rl_executing_macro[executing_macro_index] == 0)
       _rl_pop_executing_macro ();
   return c;
 #else

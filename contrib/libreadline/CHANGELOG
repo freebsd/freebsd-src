@@ -918,3 +918,43 @@ configure.in
 	- changed release status to `release'
 
 [readline-5.1 frozen]
+
+				   12/9
+				   ----
+[readline-5.1 released]
+
+				   12/14
+				   -----
+examples/rlfe/Makefile.in
+	- add @LIBS@ to LIBS assignment to pick up extra libraries from
+	  configure
+
+				 1/3/2006
+				 --------
+support/shlib-install
+	- Install shared libraries with execute bit set on Linux
+
+				    6/9
+				    ---
+[readline-5.2-alpha frozen]
+
+				   6/26
+				   ----
+configure.in
+	- set CROSS_COMPILE to the empty string by default, so we don't inherit
+	  a random value from the environment
+
+				    7/8
+				    ---
+[readline-5.2-alpha released]
+
+
+[readline-5.2-beta released]
+
+				   9/12
+				   ----
+config.h.in
+        - add defines for wcscoll, iswctype, iswupper, iswlower, towupper,
+          towlower functions
+        - replace define for wctomb with one for wcrtomb
+        - add defines for wchar_t, wint_t, wctype_t types

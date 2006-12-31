@@ -43,6 +43,7 @@
 #include "rldefs.h"
 #include "readline.h"
 #include "rlprivate.h"
+#include "xmalloc.h"
 
 /* Private data for callback registration functions.  See comments in
    rl_callback_read_char for more details. */
@@ -124,73 +125,73 @@ rl_callback_read_char ()
       return;
     }
 
-  if  (RL_ISSTATE (RL_STATE_ISEARCH))
+  do
     {
-      eof = _rl_isearch_callback (_rl_iscxt);
-      if (eof == 0 && (RL_ISSTATE (RL_STATE_ISEARCH) == 0) && RL_ISSTATE (RL_STATE_INPUTPENDING))
-	rl_callback_read_char ();
-
-      return;
-    }
-  else if  (RL_ISSTATE (RL_STATE_NSEARCH))
-    {
-      eof = _rl_nsearch_callback (_rl_nscxt);
-      return;
-    }
-  else if (RL_ISSTATE (RL_STATE_NUMERICARG))
-    {
-      eof = _rl_arg_callback (_rl_argcxt);
-      if (eof == 0 && (RL_ISSTATE (RL_STATE_NUMERICARG) == 0) && RL_ISSTATE (RL_STATE_INPUTPENDING))
-	rl_callback_read_char ();
-      /* XXX - this should handle _rl_last_command_was_kill better */
-      else if (RL_ISSTATE (RL_STATE_NUMERICARG) == 0)
-	_rl_internal_char_cleanup ();
-
-      return;
-    }
-  else if (RL_ISSTATE (RL_STATE_MULTIKEY))
-    {
-      eof = _rl_dispatch_callback (_rl_kscxt);	/* For now */
-      while ((eof == -1 || eof == -2) && RL_ISSTATE (RL_STATE_MULTIKEY) && _rl_kscxt && (_rl_kscxt->flags & KSEQ_DISPATCHED))
-	eof = _rl_dispatch_callback (_rl_kscxt);
-      if (RL_ISSTATE (RL_STATE_MULTIKEY) == 0)
+      if  (RL_ISSTATE (RL_STATE_ISEARCH))
 	{
-	  _rl_internal_char_cleanup ();
-	  _rl_want_redisplay = 1;
+	  eof = _rl_isearch_callback (_rl_iscxt);
+	  if (eof == 0 && (RL_ISSTATE (RL_STATE_ISEARCH) == 0) && RL_ISSTATE (RL_STATE_INPUTPENDING))
+	    rl_callback_read_char ();
+
+	  return;
 	}
-    }
-  else if (_rl_callback_func)
-    {
-      /* This allows functions that simply need to read an additional character
-	 (like quoted-insert) to register a function to be called when input is
-	 available.  _rl_callback_data is simply a pointer to a struct that has
-	 the argument count originally passed to the registering function and
-	 space for any additional parameters.  */
-      eof = (*_rl_callback_func) (_rl_callback_data);
-      /* If the function `deregisters' itself, make sure the data is cleaned
-	 up. */
-      if (_rl_callback_func == 0)
+      else if  (RL_ISSTATE (RL_STATE_NSEARCH))
 	{
-	  if (_rl_callback_data) 	
+	  eof = _rl_nsearch_callback (_rl_nscxt);
+	  return;
+	}
+      else if (RL_ISSTATE (RL_STATE_NUMERICARG))
+	{
+	  eof = _rl_arg_callback (_rl_argcxt);
+	  if (eof == 0 && (RL_ISSTATE (RL_STATE_NUMERICARG) == 0) && RL_ISSTATE (RL_STATE_INPUTPENDING))
+	    rl_callback_read_char ();
+	  /* XXX - this should handle _rl_last_command_was_kill better */
+	  else if (RL_ISSTATE (RL_STATE_NUMERICARG) == 0)
+	    _rl_internal_char_cleanup ();
+
+	  return;
+	}
+      else if (RL_ISSTATE (RL_STATE_MULTIKEY))
+	{
+	  eof = _rl_dispatch_callback (_rl_kscxt);	/* For now */
+	  while ((eof == -1 || eof == -2) && RL_ISSTATE (RL_STATE_MULTIKEY) && _rl_kscxt && (_rl_kscxt->flags & KSEQ_DISPATCHED))
+	    eof = _rl_dispatch_callback (_rl_kscxt);
+	  if (RL_ISSTATE (RL_STATE_MULTIKEY) == 0)
 	    {
-	      _rl_callback_data_dispose (_rl_callback_data);
-	      _rl_callback_data = 0;
+	      _rl_internal_char_cleanup ();
+	      _rl_want_redisplay = 1;
 	    }
-	  _rl_internal_char_cleanup ();
 	}
-    }
-  else
-    eof = readline_internal_char ();
+      else if (_rl_callback_func)
+	{
+	  /* This allows functions that simply need to read an additional
+	     character (like quoted-insert) to register a function to be
+	     called when input is available.  _rl_callback_data is simply a
+	     pointer to a struct that has the argument count originally
+	     passed to the registering function and space for any additional
+	     parameters.  */
+	  eof = (*_rl_callback_func) (_rl_callback_data);
+	  /* If the function `deregisters' itself, make sure the data is
+	     cleaned up. */
+	  if (_rl_callback_func == 0)
+	    {
+	      if (_rl_callback_data) 	
+		{
+		  _rl_callback_data_dispose (_rl_callback_data);
+		  _rl_callback_data = 0;
+		}
+	      _rl_internal_char_cleanup ();
+	    }
+	}
+      else
+	eof = readline_internal_char ();
 
-  if (rl_done == 0 && _rl_want_redisplay)
-    {
-      (*rl_redisplay_function) ();
-      _rl_want_redisplay = 0;
-    }
+      if (rl_done == 0 && _rl_want_redisplay)
+	{
+	  (*rl_redisplay_function) ();
+	  _rl_want_redisplay = 0;
+	}
 
-  /* We loop in case some function has pushed input back with rl_execute_next. */
-  for (;;)
-    {
       if (rl_done)
 	{
 	  line = readline_internal_teardown (eof);
@@ -212,11 +213,8 @@ rl_callback_read_char ()
 	  if (in_handler == 0 && rl_linefunc)
 	    _rl_callback_newline ();
 	}
-      if (rl_pending_input || _rl_pushed_input_available () || RL_ISSTATE (RL_STATE_MACROINPUT))
-	eof = readline_internal_char ();
-      else
-	break;
     }
+  while (rl_pending_input || _rl_pushed_input_available () || RL_ISSTATE (RL_STATE_MACROINPUT));
 }
 
 /* Remove the handler, and make sure the terminal is in its normal state. */
