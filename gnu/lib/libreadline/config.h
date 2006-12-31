@@ -43,6 +43,15 @@
 /* Define if you have the isascii function. */
 #define HAVE_ISASCII 1
 
+/* Define if you have the iswctype function.  */
+#define HAVE_ISWCTYPE 1
+
+/* Define if you have the iswlower function.  */
+#define HAVE_ISWLOWER 1
+
+/* Define if you have the iswupper function.  */
+#define HAVE_ISWUPPER 1
+
 /* Define if you have the isxdigit function. */
 #define HAVE_ISXDIGIT 1
 
@@ -90,11 +99,23 @@
 /* Define if you have the tcgetattr function.  */
 #define HAVE_TCGETATTR 1
 
+/* Define if you have the towlower function.  */
+#define HAVE_TOWLOWER 1
+
+/* Define if you have the towupper function.  */
+#define HAVE_TOWUPPER 1
+
 /* Define if you have the vsnprintf function.  */
 #define HAVE_VSNPRINTF 1
 
-/* Define if you have the wctomb function.  */
-#define HAVE_WCTOMB 1
+/* Define if you have the wcrtomb function.  */
+#define HAVE_WCRTOMB 1
+
+/* Define if you have the wcscoll function.  */
+#define HAVE_WCSCOLL 1
+
+/* Define if you have the wctype function.  */
+#define HAVE_WCTYPE 1
 
 /* Define if you have the wcwidth function.  */
 #define HAVE_WCWIDTH 1
@@ -176,10 +197,19 @@
 /* Define if you have the <wchar.h> header file.  */
 #define HAVE_WCHAR_H 1
 
-/* Define if you have the <varargs.h> header file.  */
+/* Define if you have the <wctype.h> header file.  */
 #define HAVE_WCTYPE_H 1
 
 #define HAVE_MBSTATE_T 1
+
+/* Define if you have wchar_t in <wctype.h>. */
+#define HAVE_WCHAR_T 1
+
+/* Define if you have wctype_t in <wctype.h>. */
+#define HAVE_WCTYPE_T 1
+
+/* Define if you have wint_t in <wctype.h>. */
+#define HAVE_WINT_T 1
 
 /* Define if you have <langinfo.h> and nl_langinfo(CODESET). */
 #define HAVE_LANGINFO_CODESET 1
