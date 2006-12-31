@@ -1,9 +1,0 @@
-# $FreeBSD$
-#
-
-rm doc/*.dvi doc/*.html doc/*.ps doc/*.0 doc/*.info doc/*.tex doc/texi2* doc/*.pdf
-rm savestring.c support/wcwidth.c
-
-cvs import \
-	-m "Virgin import of GNU Readline 5.2" \
-	 src/contrib/libreadline FSF v5_2
