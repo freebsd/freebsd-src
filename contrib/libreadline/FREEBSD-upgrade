@@ -1,11 +1,9 @@
 # $FreeBSD$
 #
-# Official patches 001-004 imported as v5_1_p1_p4
-#
 
 rm doc/*.dvi doc/*.html doc/*.ps doc/*.0 doc/*.info doc/*.tex doc/texi2* doc/*.pdf
 rm savestring.c support/wcwidth.c
 
 cvs import \
-	-m "Virgin import of GNU Readline 5.1" \
-	 src/contrib/libreadline FSF v5_1
+	-m "Virgin import of GNU Readline 5.2" \
+	 src/contrib/libreadline FSF v5_2
