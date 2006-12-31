@@ -1,5 +1,7 @@
 # $FreeBSD$
 #
+# Official patch 001 imported as v5_2_p1
+#
 
 rm doc/*.dvi doc/*.html doc/*.ps doc/*.0 doc/*.info doc/*.tex doc/texi2* doc/*.pdf
 rm savestring.c support/wcwidth.c
