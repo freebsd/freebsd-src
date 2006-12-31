@@ -142,6 +142,23 @@ freebsd[3-9]*|freebsdelf[3-9]*|freebsdaout[3-9]*|dragonfly*)
 	;;
 
 # Darwin/MacOS X
+darwin8*)
+	SHOBJ_STATUS=supported
+	SHLIB_STATUS=supported
+	
+	SHOBJ_CFLAGS='-fno-common'
+
+	SHOBJ_LD='MACOSX_DEPLOYMENT_TARGET=10.3 ${CC}'
+
+	SHLIB_LIBVERSION='$(SHLIB_MAJOR)$(SHLIB_MINOR).$(SHLIB_LIBSUFF)'
+	SHLIB_LIBSUFF='dylib'
+
+	SHOBJ_LDFLAGS='-undefined dynamic_lookup'
+	SHLIB_XLDFLAGS='-dynamiclib -arch_only `/usr/bin/arch` -install_name $(libdir)/$@ -current_version $(SHLIB_MAJOR)$(SHLIB_MINOR) -compatibility_version $(SHLIB_MAJOR) -v'
+
+	SHLIB_LIBS='-lncurses'	# see if -lcurses works on MacOS X 10.1 
+	;;
+
 darwin*|macosx*)
 	SHOBJ_STATUS=unsupported
 	SHLIB_STATUS=supported

@@ -212,6 +212,8 @@ rl_digit_loop ()
       if (r <= 0 || (RL_ISSTATE (RL_STATE_NUMERICARG) == 0))
         break;
     }
+
+  return r;
 }
 
 /* Create a default argument. */

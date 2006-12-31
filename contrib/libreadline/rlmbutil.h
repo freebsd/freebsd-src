@@ -32,10 +32,19 @@
 /* For platforms which support the ISO C amendement 1 functionality we
    support user defined character classes.  */
    /* Solaris 2.5 has a bug: <wchar.h> must be included before <wctype.h>.  */
-#if defined (HAVE_WCTYPE_H) && defined (HAVE_WCHAR_H)
+#if defined (HAVE_WCTYPE_H) && defined (HAVE_WCHAR_H) && defined (HAVE_LOCALE_H)
 #  include <wchar.h>
 #  include <wctype.h>
-#  if defined (HAVE_MBSRTOWCS) && defined (HAVE_MBRTOWC) && defined (HAVE_MBRLEN) && defined (HAVE_WCWIDTH)
+#  if defined (HAVE_ISWCTYPE) && \
+      defined (HAVE_ISWLOWER) && \
+      defined (HAVE_ISWUPPER) && \
+      defined (HAVE_MBSRTOWCS) && \
+      defined (HAVE_MBRTOWC) && \
+      defined (HAVE_MBRLEN) && \
+      defined (HAVE_TOWLOWER) && \
+      defined (HAVE_TOWUPPER) && \
+      defined (HAVE_WCHAR_T) && \
+      defined (HAVE_WCWIDTH)
      /* system is supposed to support XPG5 */
 #    define HANDLE_MULTIBYTE      1
 #  endif

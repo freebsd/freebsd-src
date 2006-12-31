@@ -70,7 +70,6 @@ static int rl_history_search_pos;
 static char *history_search_string;
 static int history_string_size;
 
-static UNDO_LIST *noninc_saved_undo_list;
 static void make_history_line_current PARAMS((HIST_ENTRY *));
 static int noninc_search_from_pos PARAMS((char *, int, int));
 static int noninc_dosearch PARAMS((char *, int));
@@ -212,7 +211,7 @@ _rl_nsearch_init (dir, pchar)
   rl_end = rl_point = 0;
 
   p = _rl_make_prompt_for_search (pchar ? pchar : ':');
-  rl_message (p, 0, 0);
+  rl_message ("%s", p, 0);
   free (p);
 
   RL_SETSTATE(RL_STATE_NSEARCH);

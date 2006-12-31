@@ -68,8 +68,8 @@ static void _rl_isearch_fini PARAMS((_rl_search_cxt *));
 static int _rl_isearch_cleanup PARAMS((_rl_search_cxt *, int));
 
 /* Last line found by the current incremental search, so we don't `find'
-   identical lines many times in a row. */
-static char *prev_line_found;
+   identical lines many times in a row.  Now part of isearch context. */
+/* static char *prev_line_found; */
 
 /* Last search string and its length. */
 static char *last_isearch_string;

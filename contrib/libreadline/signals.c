@@ -160,6 +160,7 @@ rl_signal_handler (sig)
       rl_cleanup_after_signal ();
 
 #if defined (HAVE_POSIX_SIGNALS)
+      sigemptyset (&set);
       sigprocmask (SIG_BLOCK, (sigset_t *)NULL, &set);
       sigdelset (&set, sig);
 #else /* !HAVE_POSIX_SIGNALS */
@@ -288,9 +289,44 @@ rl_set_signals ()
 {
   sighandler_cxt dummy;
   SigHandler *oh;
+#if defined (HAVE_POSIX_SIGNALS)
+  static int sigmask_set = 0;
+  static sigset_t bset, oset;
+#endif
+
+#if defined (HAVE_POSIX_SIGNALS)
+  if (rl_catch_signals && sigmask_set == 0)
+    {
+      sigemptyset (&bset);
+
+      sigaddset (&bset, SIGINT);
+      sigaddset (&bset, SIGINT);
+#if defined (SIGQUIT)
+      sigaddset (&bset, SIGQUIT);
+#endif
+#if defined (SIGALRM)
+      sigaddset (&bset, SIGALRM);
+#endif
+#if defined (SIGTSTP)
+      sigaddset (&bset, SIGTSTP);
+#endif
+#if defined (SIGTTIN)
+      sigaddset (&bset, SIGTTIN);
+#endif
+#if defined (SIGTTOU)
+      sigaddset (&bset, SIGTTOU);
+#endif
+      sigmask_set = 1;
+    }      
+#endif /* HAVE_POSIX_SIGNALS */
 
   if (rl_catch_signals && signals_set_flag == 0)
     {
+#if defined (HAVE_POSIX_SIGNALS)
+      sigemptyset (&oset);
+      sigprocmask (SIG_BLOCK, &bset, &oset);
+#endif
+
       rl_maybe_set_sighandler (SIGINT, rl_signal_handler, &old_int);
       rl_maybe_set_sighandler (SIGTERM, rl_signal_handler, &old_term);
 #if defined (SIGQUIT)
@@ -324,6 +360,10 @@ rl_set_signals ()
 #endif /* SIGTTIN */
 
       signals_set_flag = 1;
+
+#if defined (HAVE_POSIX_SIGNALS)
+      sigprocmask (SIG_SETMASK, &oset, (sigset_t *)NULL);
+#endif
     }
 
 #if defined (SIGWINCH)
@@ -390,8 +430,8 @@ rl_cleanup_after_signal ()
   _rl_clean_up_for_exit ();
   if (rl_deprep_term_function)
     (*rl_deprep_term_function) ();
-  rl_clear_signals ();
   rl_clear_pending_input ();
+  rl_clear_signals ();
 }
 
 /* Reset the terminal and readline state after a signal handler returns. */
