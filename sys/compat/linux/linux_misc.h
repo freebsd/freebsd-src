@@ -29,15 +29,17 @@
  */
 
 #ifndef _LINUX_MISC_H_
-#define _LINUX_MISC_H_
+#define	_LINUX_MISC_H_
 
 /* defines for prctl */
-#define LINUX_PR_SET_PDEATHSIG  1  /* Second arg is a signal */
-#define LINUX_PR_GET_PDEATHSIG  2  /* Second arg is a ptr to return the signal */
-#define LINUX_PR_SET_NAME	15 /* Set process name */
-#define LINUX_PR_GET_NAME	16 /* Get process name */
+#define	LINUX_PR_SET_PDEATHSIG  1	/* Second arg is a signal. */
+#define	LINUX_PR_GET_PDEATHSIG  2	/*
+					 * Second arg is a ptr to return the
+					 * signal.
+					 */
+#define	LINUX_PR_SET_NAME	15	/* Set process name. */
+#define	LINUX_PR_GET_NAME	16	/* Get process name. */
 
-#define LINUX_MAX_COMM_LEN	16 /* max length of the proc name */
+#define	LINUX_MAX_COMM_LEN	16	/* Maximum length of the process name. */
 
-#endif /* _LINUX_MISC_H_ */
-
+#endif	/* _LINUX_MISC_H_ */
