@@ -665,7 +665,7 @@ thread_single(int mode)
 					if (TD_IS_SUSPENDED(td2))
 						continue;
 					/*
-					 * maybe other inhibitted states too?
+					 * maybe other inhibited states too?
 					 */
 					if ((td2->td_flags & TDF_SINTR) &&
 					    (td2->td_inhibitors &
