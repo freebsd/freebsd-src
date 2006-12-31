@@ -64,12 +64,12 @@ em_find(struct proc *p, int locked)
 	struct linux_emuldata *em;
 
 	if (locked == EMUL_UNLOCKED)
-   		EMUL_LOCK(&emul_lock);
+		EMUL_LOCK(&emul_lock);
 
-	em = p->p_emuldata;	   	
+	em = p->p_emuldata;
 
 	if (em == NULL && locked == EMUL_UNLOCKED)
-	   	EMUL_UNLOCK(&emul_lock);
+		EMUL_UNLOCK(&emul_lock);
 
 	return (em);
 }
@@ -81,14 +81,14 @@ linux_proc_init(struct thread *td, pid_t child, int flags)
 	struct proc *p;
 
 	if (child != 0) {
-	   	/* non-exec call */
+		/* non-exec call */
 		em = malloc(sizeof *em, M_LINUX, M_WAITOK | M_ZERO);
 		em->pid = child;
 		em->pdeath_signal = 0;
 		if (flags & CLONE_THREAD) {
-		   	/* handled later in the code */
+			/* handled later in the code */
 		} else {
-		   	struct linux_emuldata_shared *s;
+			struct linux_emuldata_shared *s;
 
 			s = malloc(sizeof *s, M_LINUX, M_WAITOK | M_ZERO);
 			em->shared = s;
@@ -111,51 +111,52 @@ linux_proc_init(struct thread *td, pid_t child, int flags)
 	em->child_clear_tid = NULL;
 	em->child_set_tid = NULL;
 
-	/* 
-	 * allocate the shared struct only in clone()/fork cases 
-	 * in the case of clone() td = calling proc and child = pid of 
-	 * the newly created proc
+	/*
+	 * allocate the shared struct only in clone()/fork cases in the case
+	 * of clone() td = calling proc and child = pid of the newly created
+	 * proc
 	 */
 	if (child != 0) {
-   	   	if (flags & CLONE_THREAD) {
-   		   	/* lookup the parent */
-		   	p_em = em_find(td->td_proc, EMUL_LOCKED);
+		if (flags & CLONE_THREAD) {
+			/* lookup the parent */
+			p_em = em_find(td->td_proc, EMUL_LOCKED);
 			KASSERT(p_em != NULL, ("proc_init: parent emuldata not found for CLONE_THREAD\n"));
 			em->shared = p_em->shared;
 			em->shared->refs++;
 		} else {
-		   	/* handled earlier to avoid malloc(M_WAITOK) with rwlock held */
+			/*
+			 * handled earlier to avoid malloc(M_WAITOK) with
+			 * rwlock held
+			 */
 		}
 	}
-
-
 	if (child != 0) {
 		EMUL_UNLOCK(&emul_lock);
-	   	EMUL_SHARED_WLOCK(&emul_shared_lock);
-   	   	LIST_INSERT_HEAD(&em->shared->threads, em, threads);
-	   	EMUL_SHARED_WUNLOCK(&emul_shared_lock);
+		EMUL_SHARED_WLOCK(&emul_shared_lock);
+		LIST_INSERT_HEAD(&em->shared->threads, em, threads);
+		EMUL_SHARED_WUNLOCK(&emul_shared_lock);
 
 		p = pfind(child);
 		/* we might have a sleeping linux_schedtail */
 		wakeup(&p->p_emuldata);
 		PROC_UNLOCK(p);
 	} else
-	   	EMUL_UNLOCK(&emul_lock);
+		EMUL_UNLOCK(&emul_lock);
 
-   	return (0);
+	return (0);
 }
 
 void
 linux_proc_exit(void *arg __unused, struct proc *p)
 {
-   	struct linux_emuldata *em;
+	struct linux_emuldata *em;
 	int error;
 	struct thread *td = FIRST_THREAD_IN_PROC(p);
 	int *child_clear_tid;
 	struct proc *q, *nq;
 
 	if (__predict_true(p->p_sysent != &elf_linux_sysvec))
-	   	return;
+		return;
 
 	/* find the emuldata */
 	em = em_find(p, EMUL_UNLOCKED);
@@ -163,7 +164,7 @@ linux_proc_exit(void *arg __unused, struct proc *p)
 	KASSERT(em != NULL, ("proc_exit: emuldata not found.\n"));
 
 	child_clear_tid = em->child_clear_tid;
-	
+
 	EMUL_UNLOCK(&emul_lock);
 
 	EMUL_SHARED_WLOCK(&emul_shared_lock);
@@ -179,29 +180,29 @@ linux_proc_exit(void *arg __unused, struct proc *p)
 	EMUL_SHARED_WUNLOCK(&emul_shared_lock);
 
 	if (child_clear_tid != NULL) {
-	   	struct linux_sys_futex_args cup;
+		struct linux_sys_futex_args cup;
 		int null = 0;
 
 		error = copyout(&null, child_clear_tid, sizeof(null));
 		if (error) {
-		   	free(em, M_LINUX);
-		   	return;
+			free(em, M_LINUX);
+			return;
 		}
 
 		/* futexes stuff */
 		cup.uaddr = child_clear_tid;
 		cup.op = LINUX_FUTEX_WAKE;
-		cup.val = 0x7fffffff; /* Awake everyone */
+		cup.val = 0x7fffffff;	/* Awake everyone */
 		cup.timeout = NULL;
 		cup.uaddr2 = NULL;
 		cup.val3 = 0;
 		error = linux_sys_futex(FIRST_THREAD_IN_PROC(p), &cup);
-		/* 
-		 * this cannot happen at the moment and if this happens
-		 * it probably mean there is a userspace bug
+		/*
+		 * this cannot happen at the moment and if this happens it
+		 * probably mean there is a userspace bug
 		 */
 		if (error)
-		   	printf(LMSG("futex stuff in proc_exit failed.\n"));
+			printf(LMSG("futex stuff in proc_exit failed.\n"));
 	}
 
 	/* clean the stuff up */
@@ -211,16 +212,16 @@ linux_proc_exit(void *arg __unused, struct proc *p)
 	sx_xlock(&proctree_lock);
 	q = LIST_FIRST(&p->p_children);
 	for (; q != NULL; q = nq) {
-	   	nq = LIST_NEXT(q, p_sibling);
-	   	if (q->p_flag & P_WEXIT)
-		   	continue;
+		nq = LIST_NEXT(q, p_sibling);
+		if (q->p_flag & P_WEXIT)
+			continue;
 		if (__predict_false(q->p_sysent != &elf_linux_sysvec))
-   		   	continue;
-   	   	em = em_find(q, EMUL_UNLOCKED);
+			continue;
+		em = em_find(q, EMUL_UNLOCKED);
 		KASSERT(em != NULL, ("linux_reparent: emuldata not found: %i\n", q->p_pid));
 		if (em->pdeath_signal != 0) {
-   		   	PROC_LOCK(q);
-   		   	psignal(q, em->pdeath_signal);
+			PROC_LOCK(q);
+			psignal(q, em->pdeath_signal);
 			PROC_UNLOCK(q);
 		}
 		EMUL_UNLOCK(&emul_lock);
@@ -228,24 +229,25 @@ linux_proc_exit(void *arg __unused, struct proc *p)
 	sx_xunlock(&proctree_lock);
 }
 
-/* 
+/*
  * This is used in a case of transition from FreeBSD binary execing to linux binary
  * in this case we create linux emuldata proc entry with the pid of the currently running
  * process.
  */
-void linux_proc_exec(void *arg __unused, struct proc *p, struct image_params *imgp)
+void 
+linux_proc_exec(void *arg __unused, struct proc *p, struct image_params *imgp)
 {
-   	if (__predict_false(imgp->sysent == &elf_linux_sysvec 
-		 && p->p_sysent != &elf_linux_sysvec))
-	   	linux_proc_init(FIRST_THREAD_IN_PROC(p), p->p_pid, 0);
+	if (__predict_false(imgp->sysent == &elf_linux_sysvec
+	    && p->p_sysent != &elf_linux_sysvec))
+		linux_proc_init(FIRST_THREAD_IN_PROC(p), p->p_pid, 0);
 	if (__predict_false(imgp->sysent != &elf_linux_sysvec
-		 && p->p_sysent == &elf_linux_sysvec)) {
-	   	struct linux_emuldata *em;
+	    && p->p_sysent == &elf_linux_sysvec)) {
+		struct linux_emuldata *em;
 
 		em = em_find(p, EMUL_UNLOCKED);
 
 		KASSERT(em != NULL, ("proc_exec: emuldata not found.\n"));
-		
+
 		EMUL_UNLOCK(&emul_lock);
 
 		EMUL_SHARED_WLOCK(&emul_shared_lock);
@@ -257,14 +259,14 @@ void linux_proc_exec(void *arg __unused, struct proc *p, struct image_params *im
 
 		em->shared->refs--;
 		if (em->shared->refs == 0)
-		   	free(em->shared, M_LINUX);
+			free(em->shared, M_LINUX);
 		EMUL_SHARED_WUNLOCK(&emul_shared_lock);
 
 		free(em, M_LINUX);
 	}
 }
 
-extern int hz;		/* in subr_param.c */
+extern int hz;				/* in subr_param.c */
 
 void
 linux_schedtail(void *arg __unused, struct proc *p)
@@ -274,28 +276,30 @@ linux_schedtail(void *arg __unused, struct proc *p)
 	int *child_set_tid;
 
 	if (__predict_true(p->p_sysent != &elf_linux_sysvec))
-	   	return;
+		return;
 
-retry:	
+retry:
 	/* find the emuldata */
 	em = em_find(p, EMUL_UNLOCKED);
 
 	if (em == NULL) {
-	   	/* 
-		 * We might have been called before proc_init for this process so
-		 * tsleep and be woken up by it. We use p->p_emuldata for this
+		/*
+		 * We might have been called before proc_init for this
+		 * process so tsleep and be woken up by it. We use
+		 * p->p_emuldata for this
 		 */
 
-	   	error = tsleep(&p->p_emuldata, PLOCK, "linux_schedtail", hz);
+		error = tsleep(&p->p_emuldata, PLOCK, "linux_schedtail", hz);
 		if (error == 0)
-		   	goto retry;
-	   	panic("no emuldata found for userreting process.\n");
+			goto retry;
+		panic("no emuldata found for userreting process.\n");
 	}
 	child_set_tid = em->child_set_tid;
 	EMUL_UNLOCK(&emul_lock);
 
 	if (child_set_tid != NULL)
-	   	error = copyout(&p->p_pid, (int *) child_set_tid, sizeof(p->p_pid));
+		error = copyout(&p->p_pid, (int *)child_set_tid,
+		    sizeof(p->p_pid));
 
 	return;
 }
@@ -303,14 +307,14 @@ retry:
 int
 linux_set_tid_address(struct thread *td, struct linux_set_tid_address_args *args)
 {
-   	struct linux_emuldata *em;
+	struct linux_emuldata *em;
 
 #ifdef DEBUG
 	if (ldebug(set_tid_address))
 		printf(ARGS(set_tid_address, "%p"), args->tidptr);
 #endif
 
-	 /* find the emuldata */
+	/* find the emuldata */
 	em = em_find(td->td_proc, EMUL_UNLOCKED);
 
 	KASSERT(em != NULL, ("set_tid_address: emuldata not found.\n"));
