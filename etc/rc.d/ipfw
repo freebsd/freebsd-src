@@ -14,20 +14,8 @@
 name="ipfw"
 rcvar="firewall_enable"
 start_cmd="ipfw_start"
-start_precmd="ipfw_precmd"
 stop_cmd="ipfw_stop"
-
-ipfw_precmd()
-{
-	if ! ${SYSCTL} net.inet.ip.fw.enable > /dev/null 2>&1; then
-		if ! kldload ipfw; then
-			warn unable to load firewall module.
-			return 1
-		fi
-	fi
-
-	return 0
-}
+required_modules="ipfw"
 
 ipfw_start()
 {
