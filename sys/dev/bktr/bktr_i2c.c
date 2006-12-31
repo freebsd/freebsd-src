@@ -50,7 +50,6 @@ __FBSDID("$FreeBSD$");
 #endif
 
 #if (__FreeBSD_version < 500000)
-#include <machine/clock.h>              /* for DELAY */
 #include <pci/pcivar.h>
 #include <pci/pcireg.h>
 #else
@@ -68,8 +67,6 @@ __FBSDID("$FreeBSD$");
 
 #include <dev/smbus/smbconf.h>
 #include <dev/iicbus/iiconf.h>
-
-#define I2C_DELAY	40
 
 /* Compilation is void if BKTR_USE_FREEBSD_SMBUS is not
  * defined. This allows bktr owners to have smbus active for there
@@ -205,8 +202,6 @@ void bti2c_iic_setsda(device_t dev, int val)
 	else
 		OUTL(sc, BKTR_I2C_DATA_CTL, clock);
 
-	DELAY(I2C_DELAY);
-
 	return;
 }
 
@@ -221,8 +216,6 @@ void bti2c_iic_setscl(device_t dev, int val)
 		OUTL(sc, BKTR_I2C_DATA_CTL, 0x2 | data);
 	else
 		OUTL(sc, BKTR_I2C_DATA_CTL, data);
-
-	DELAY(I2C_DELAY);
 
 	return;
 }
