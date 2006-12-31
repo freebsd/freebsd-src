@@ -260,7 +260,7 @@ installUpgrade(dialogMenuItem *self)
 
     saved_etc[0] = '\0';
 
-    /* Don't allow sources to be upgraded unless if we have src already */
+    /* Don't allow sources to be upgraded if we have src already */
     if (directory_exists("/usr/src/") && (Dists & DIST_SRC)) {
 	Dists &= ~DIST_SRC;
 	SrcDists = 0;
