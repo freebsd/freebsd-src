@@ -311,7 +311,10 @@
 				    l_size_t sigsetsize); }
 176	AUE_NULL	STD	{ int linux_rt_sigpending(l_sigset_t *set, \
 				    l_size_t sigsetsize); }
-177	AUE_NULL	STD	{ int linux_rt_sigtimedwait(void); }
+177	AUE_NULL	STD	{ int linux_rt_sigtimedwait(l_sigset_t *mask, \
+				    l_siginfo_t *ptr, \
+				    struct l_timeval *timeout, \
+				    l_size_t sigsetsize); }
 178	AUE_NULL	STD	{ int linux_rt_sigqueueinfo(void); }
 179	AUE_NULL	STD	{ int linux_rt_sigsuspend( \
 				    l_sigset_t *newset, \
@@ -435,7 +438,8 @@
 268	AUE_STATFS	STD	{ int linux_statfs64(char *path, struct l_statfs64_buf *buf); }
 269	AUE_FSTATFS	STD	{ int linux_fstatfs64(void); }
 270	AUE_NULL	STD	{ int linux_tgkill(int tgid, int pid, int sig); }
-271	AUE_UTIMES	STD	{ int linux_utimes(void); }
+271	AUE_UTIMES	STD	{ int linux_utimes(char *fname, \
+					struct l_timeval *tptr); }
 272	AUE_NULL	STD	{ int linux_fadvise64_64(void); }
 273	AUE_NULL	UNIMPL
 274	AUE_NULL	STD	{ int linux_mbind(void); }
