@@ -1520,7 +1520,7 @@ pmap_invalidate_range(pmap_t pmap, vm_offset_t sva, vm_offset_t eva, int clearts
 	}
 	
 
-	KASSERT(sva >= eva, ("invalidating negative or zero range sva=0x%lx eva=0x%lx", sva, eva));
+	KASSERT(sva < eva, ("invalidating negative or zero range sva=0x%lx eva=0x%lx", sva, eva));
 
 	if (cleartsb == TRUE) 
 		tsb_clear_range(&pmap->pm_tsb, sva, eva);
@@ -1551,8 +1551,7 @@ void
 pmap_invalidate_all(pmap_t pmap)
 {
 
-	KASSERT(pmap == kernel_pmap, 
-		("invalidate_all called on kernel_pmap"));
+	KASSERT(pmap != kernel_pmap, ("invalidate_all called on kernel_pmap"));
 
 	tsb_clear(&pmap->pm_tsb);
 
