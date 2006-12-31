@@ -422,6 +422,91 @@ linux_rt_sigpending(struct thread *td, struct linux_rt_sigpending_args *args)
 	return (copyout(&lset, args->set, args->sigsetsize));
 }
 
+/*
+ * MPSAFE
+ */
+int
+linux_rt_sigtimedwait(struct thread *td,
+	struct linux_rt_sigtimedwait_args *args)
+{
+	int error;
+	l_timeval ltv;
+	struct timeval tv;
+	struct timespec ts, *tsa;
+	l_sigset_t lset;
+	sigset_t bset;
+	l_siginfo_t linfo;
+	ksiginfo_t info;
+
+#ifdef DEBUG
+	if (ldebug(rt_sigtimedwait))
+		printf(ARGS(rt_sigtimedwait, "*"));
+#endif
+	if (args->sigsetsize != sizeof(l_sigset_t))
+		return (EINVAL);
+
+	if ((error = copyin(args->mask, &lset, sizeof(lset))))
+		return (error);
+	linux_to_bsd_sigset(&lset, &bset);
+
+	tsa = NULL;
+	if (args->timeout) {
+		if ((error = copyin(args->timeout, &ltv, sizeof(ltv))))
+			return (error);
+#ifdef DEBUG
+		if (ldebug(rt_sigtimedwait))
+			printf(LMSG("linux_rt_sigtimedwait: incoming timeout (%d/%d)\n"),
+				ltv.tv_sec, ltv.tv_usec);
+#endif
+		tv.tv_sec = (long)ltv.tv_sec;
+		tv.tv_usec = (suseconds_t)ltv.tv_usec;
+		if (itimerfix(&tv)) {
+			/* 
+			 * The timeout was invalid. Convert it to something
+			 * valid that will act as it does under Linux.
+			 */
+			tv.tv_sec += tv.tv_usec / 1000000;
+			tv.tv_usec %= 1000000;
+			if (tv.tv_usec < 0) {
+				tv.tv_sec -= 1;
+				tv.tv_usec += 1000000;
+			}
+			if (tv.tv_sec < 0)
+				timevalclear(&tv);
+#ifdef DEBUG
+			if (ldebug(rt_sigtimedwait))
+				printf(LMSG("linux_rt_sigtimedwait: converted timeout (%d/%ld)\n"),
+					tv.tv_sec, tv.tv_usec);
+#endif
+		}
+		TIMEVAL_TO_TIMESPEC(&tv, &ts);
+		tsa = &ts;
+	}
+	error = kern_sigtimedwait(td, bset, &info, tsa);
+#ifdef DEBUG
+	if (ldebug(rt_sigtimedwait))
+		printf(LMSG("linux_rt_sigtimedwait: sigtimedwait returning (%d)\n"), error);
+#endif
+	if (error)
+		return (error);
+
+	if (args->ptr) {
+		memset(&linfo, 0, sizeof(linfo));
+		linfo.lsi_signo = info.ksi_signo;
+		error = copyout(&linfo, args->ptr, sizeof(linfo));
+	}
+
+	/* Repost if we got an error. */
+	if (error && info.ksi_signo) {
+		PROC_LOCK(td->td_proc);
+		tdsignal(td->td_proc, td, info.ksi_signo, &info);
+		PROC_UNLOCK(td->td_proc);
+	} else
+		td->td_retval[0] = info.ksi_signo; 
+
+	return (error);
+}
+
 int
 linux_kill(struct thread *td, struct linux_kill_args *args)
 {
