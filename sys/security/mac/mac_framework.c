@@ -174,11 +174,19 @@ MALLOC_DEFINE(M_MACTEMP, "mactemp", "MAC temporary label storage");
  * If the kernel option MAC_STATIC has been compiled in, all locking becomes
  * a no-op, and the global list of policies is not allowed to change after
  * early boot.
+ *
+ * XXXRW: Currently, we signal mac_policy_cv every time the framework becomes
+ * unbusy and there is a thread waiting to enter it exclusively.  Since it 
+ * may take some time before the thread runs, we may issue a lot of signals.
+ * We should instead keep track of the fact that we've signalled, taking into 
+ * account that the framework may be busy again by the time the thread runs, 
+ * requiring us to re-signal. 
  */
 #ifndef MAC_STATIC
 static struct mtx mac_policy_mtx;
 static struct cv mac_policy_cv;
 static int mac_policy_count;
+static int mac_policy_wait;
 #endif
 struct mac_policy_list_head mac_policy_list;
 struct mac_policy_list_head mac_static_policy_list;
@@ -202,8 +210,11 @@ mac_policy_grab_exclusive(void)
 	WITNESS_WARN(WARN_GIANTOK | WARN_SLEEPOK, NULL,
  	    "mac_policy_grab_exclusive() at %s:%d", __FILE__, __LINE__);
 	mtx_lock(&mac_policy_mtx);
-	while (mac_policy_count != 0)
+	while (mac_policy_count != 0) {
+		mac_policy_wait++;
 		cv_wait(&mac_policy_cv, &mac_policy_mtx);
+		mac_policy_wait--;
+	}
 #endif
 }
 
@@ -224,15 +235,18 @@ mac_policy_assert_exclusive(void)
 void
 mac_policy_release_exclusive(void)
 {
-
 #ifndef MAC_STATIC
+	int dowakeup;
+
 	if (!mac_late)
 		return;
 
 	KASSERT(mac_policy_count == 0,
 	    ("mac_policy_release_exclusive(): not exclusive"));
+	dowakeup = (mac_policy_wait != 0);
 	mtx_unlock(&mac_policy_mtx);
-	cv_signal(&mac_policy_cv);
+	if (dowakeup)
+		cv_signal(&mac_policy_cv);
 #endif
 }
 
@@ -278,17 +292,20 @@ mac_policy_list_conditional_busy(void)
 void
 mac_policy_list_unbusy(void)
 {
-
 #ifndef MAC_STATIC
+	int dowakeup;
+
 	if (!mac_late)
 		return;
 
 	mtx_lock(&mac_policy_mtx);
 	mac_policy_count--;
 	KASSERT(mac_policy_count >= 0, ("MAC_POLICY_LIST_LOCK"));
-	if (mac_policy_count == 0)
-		cv_signal(&mac_policy_cv);
+	dowakeup = (mac_policy_count == 0 && mac_policy_wait != 0);
 	mtx_unlock(&mac_policy_mtx);
+
+	if (dowakeup)
+		cv_signal(&mac_policy_cv);
 #endif
 }
 
