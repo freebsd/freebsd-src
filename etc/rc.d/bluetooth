@@ -36,6 +36,7 @@ name="bluetooth"
 rcvar=
 start_cmd="bluetooth_start"
 stop_cmd="bluetooth_stop"
+required_modules="ng_bluetooth ng_hci ng_l2cap ng_btsocket"
 
 ##############################################################################
 # Read and parse Bluetooth device configuration file
@@ -231,17 +232,11 @@ bluetooth_start()
 
 	dev=$1
 
-	# Automatically load modules
-	kldload ng_bluetooth > /dev/null 2>&1
-	kldload ng_hci > /dev/null 2>&1
-	kldload ng_l2cap > /dev/null 2>&1
-	kldload ng_btsocket > /dev/null 2>&1
-
 	# Try to figure out device type by looking at device name
 	case "${dev}" in
 	# sioX - serial/UART Bluetooth device
 	sio*)
-		kldload ng_h4 > /dev/null 2>&1
+		load_kld ng_h4 || return 1
 
 		hook="hook"
 

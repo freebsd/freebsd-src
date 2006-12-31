@@ -36,6 +36,8 @@
 name="mdconfig2"
 stop_cmd="mdconfig2_stop"
 start_cmd="mdconfig2_start"
+start_precmd='[ -n "${_mdconfig2_list}" ]'
+required_modules="geom_md:g_md"
 
 is_readonly()
 {
@@ -88,8 +90,6 @@ init_variables()
 		fi
 
 		if [ "${_file}" != "${_file%.uzip}" ]; then
-			# Load geom_uzip kernel module if needed
-			kldstat -q -m g_uzip || kldload geom_uzip || err 1 "geom_uzip failed to load."
 			_dev="/dev/${_md}.uzip"
 		fi
 		for _i in `df ${_file} 2>/dev/null`; do _fs=${_i}; done
@@ -111,13 +111,6 @@ mdconfig2_start()
 {
 	local _md _fs _mp _mounted _dev _config _type _file _owner _perms _files _populate _fsck_cmd _i
 
-	# If there are no devices return before loading geom_md.ko.
-	if [ -z "${_mdconfig2_list}" ]; then
-		return
-	fi
-
-	kldstat -q -m g_md || kldload geom_md || err 1 "geom_md failed to load."
-
 	for _md in ${_mdconfig2_list}; do
 		init_variables ${_md}
 		if [ ! -r ${_file} ]; then
@@ -128,6 +121,9 @@ mdconfig2_start()
 		# non-root partition. Swap and malloc md(4) devices have already
 		# been created.
 		if [ "${_type}" = "vnode" -a "${_fs}" != "/" ]; then
+			if [ "${_file}" != "${_file%.uzip}" ]; then
+				load_kld -m g_uzip geom_uzip || return 3
+			fi
 			if is_readonly ${_fs}; then
 				warn "${_fs} is mounted read-only, skipping ${_md}."
 				continue

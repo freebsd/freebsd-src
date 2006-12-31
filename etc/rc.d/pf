@@ -13,7 +13,6 @@
 name="pf"
 rcvar=`set_rcvar`
 load_rc_config $name
-start_precmd="pf_prestart"
 start_cmd="pf_start"
 stop_cmd="pf_stop"
 check_cmd="pf_check"
@@ -22,20 +21,7 @@ resync_cmd="pf_resync"
 status_cmd="pf_status"
 extra_commands="check reload resync status"
 required_files="$pf_rules"
-
-pf_prestart()
-{
-	# load pf kernel module if needed
-	if ! kldstat -q -m pf ; then
-		if kldload pf ; then
-			info 'pf module loaded.'
-		else
-			warn 'pf module failed to load.'
-			return 1
-		fi
-	fi
-	return 0
-}
+required_modules="pf"
 
 pf_start()
 {

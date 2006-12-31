@@ -14,16 +14,10 @@ rcvar=`set_rcvar`
 command="/sbin/${name}"
 pidfile="/var/run/${name}.pid"
 start_precmd="natd_precmd"
+required_modules="ipdivert"
 
 natd_precmd()
 {
-	if ! ${SYSCTL} net.inet.divert > /dev/null 2>&1; then
-		if ! kldload ipdivert; then
-			warn unable to load IPDIVERT module.
-			return 1
-		fi
-	fi
-
 	if [ -n "${natd_interface}" ]; then
 		dhcp_list="`list_net_interfaces dhcp`"
 		for ifn in ${dhcp_list}; do
