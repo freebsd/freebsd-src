@@ -1,3 +1,77 @@
+This document details the changes between this version, readline-5.2,
+and the previous version, readline-5.1.
+
+1.  Changes to Readline
+
+a.  Fixed a problem that caused segmentation faults when using readline in
+    callback mode and typing consecutive DEL characters on an empty line.
+
+b.  Fixed several redisplay problems with multibyte characters, all having to
+    do with the different code paths and variable meanings between single-byte
+    and multibyte character redisplay.
+
+c.  Fixed a problem with key sequence translation when presented with the
+    sequence \M-\C-x.
+
+d.  Fixed a problem that prevented the `a' command in vi mode from being
+    undone and redone properly.
+
+e.  Fixed a problem that prevented empty inserts in vi mode from being undone
+    properly.
+
+f.  Fixed a problem that caused readline to initialize with an incorrect idea
+    of whether or not the terminal can autowrap.
+
+g.  Fixed output of key bindings (like bash `bind -p') to honor the setting of
+    convert-meta and use \e where appropriate.
+
+h.  Changed the default filename completion function to call the filename
+    dequoting function if the directory completion hook isn't set.  This means
+    that any directory completion hooks need to dequote the directory name,
+    since application-specific hooks need to know how the word was quoted,
+    even if no other changes are made.
+
+i.  Fixed a bug with creating the prompt for a non-interactive search string
+    when there are non-printing characters in the primary prompt.
+
+j.  Fixed a bug that caused prompts with invisible characters to be redrawn
+    multiple times in a multibyte locale.
+
+k.  Fixed a bug that could cause the key sequence scanning code to return the
+    wrong function.
+
+l.  Fixed a problem with the callback interface that caused it to fail when
+    using multi-character keyboard macros.
+
+m.  Fixed a bug that could cause a core dump when an edited history entry was
+    re-executed under certain conditions.
+
+n.  Fixed a bug that caused readline to reference freed memory when attmpting
+    to display a portion of the prompt.
+
+o.  Fixed a bug with prompt redisplay in a multi-byte locale to avoid redrawing
+    the prompt and input line multiple times.
+
+p.  Fixed history expansion to not be confused by here-string redirection.
+
+q.  Readline no longer treats read errors by converting them to newlines, as
+    it does with EOF.  This caused partial lines to be returned from readline().
+
+r.  Fixed a redisplay bug that occurred in multibyte-capable locales when the
+    prompt was one character longer than the screen width.
+
+2.  New Features in Readline
+
+a.  Calling applications can now set the keyboard timeout to 0, allowing
+    poll-like behavior.
+
+b.  The value of SYS_INPUTRC (configurable at compilation time) is now used as
+    the default last-ditch startup file.
+
+c.  The history file reading functions now allow windows-like \r\n line
+    terminators.
+
+-------------------------------------------------------------------------------
 This document details the changes between this version, readline-5.1,
 and the previous version, readline-5.0.
 

@@ -6,9 +6,9 @@
 .\"	Case Western Reserve University
 .\"	chet@ins.CWRU.Edu
 .\"
-.\"	Last Change: Tue Sep 13 12:07:26 EDT 2005
+.\"	Last Change: Thu Feb  9 09:49:51 EST 2006
 .\"
-.TH READLINE 3 "2005 Sep 13" "GNU Readline 5.1-beta1"
+.TH READLINE 3 "2006 Apr 26" "GNU Readline 5.2"
 .\"
 .\" File Name macro.  This used to be `.PN', for Path Name,
 .\" but Sun doesn't seem to like that very much.
@@ -116,6 +116,8 @@ The name of this file is taken from the value of the
 .B INPUTRC
 environment variable.  If that variable is unset, the default is
 .IR ~/.inputrc .
+If that file  does not exist or cannot be read, the ultimate default is
+.IR /etc/inputrc .
 When a program which uses the readline library starts up, the
 init file is read, and the key bindings and variables are set.
 There are only a few basic constructs allowed in the
@@ -168,6 +170,8 @@ command or the text of a macro and a key sequence to which
 it should be bound. The name may be specified in one of two ways:
 as a symbolic key name, possibly with \fIMeta\-\fP or \fIControl\-\fP
 prefixes, or as a key sequence.
+The name and key sequence are separated by a colon.  There can be no
+whitespace between the name and the colon.
 .PP
 When using the form \fBkeyname\fP:\^\fIfunction-name\fP or \fImacro\fP,
 .I keyname

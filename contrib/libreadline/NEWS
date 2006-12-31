@@ -1,32 +1,13 @@
-This is a terse description of the new features added to readline-5.1 since
-the release of readline-5.0.
+This is a terse description of the new features added to readline-5.2 since
+the release of readline-5.1.
 
 1.  New Features in Readline
 
-a.  The key sequence sent by the keypad `delete' key is now automatically   
-    bound to delete-char.
+a.  Calling applications can now set the keyboard timeout to 0, allowing
+    poll-like behavior.
 
-b.  A negative argument to menu-complete now cycles backward through the
-    completion list.
+b.  The value of SYS_INPUTRC (configurable at compilation time) is now used as
+    the default last-ditch startup file.
 
-c.  A new bindable readline variable:  bind-tty-special-chars.  If non-zero,
-    readline will bind the terminal special characters to their readline
-    equivalents when it's called (on by default).
-
-d.  New bindable command: vi-rubout.  Saves deleted text for possible  
-    reinsertion, as with any vi-mode `text modification' command; `X' is bound
-    to this in vi command mode.
-
-e.  If the rl_completion_query_items is set to a value < 0, readline never
-    asks the user whether or not to view the possible completions.
-
-f.  New application-callable auxiliary function, rl_variable_value, returns
-    a string corresponding to a readline variable's value.
-
-g.  When parsing inputrc files and variable binding commands, the parser
-    strips trailing whitespace from values assigned to boolean variables
-    before checking them.
-
-h.  A new external application-controllable variable that allows the LINES
-    and COLUMNS environment variables to set the window size regardless of
-    what the kernel returns.
+c.  The history file reading functions now allow windows-like \r\n line
+    terminators.
