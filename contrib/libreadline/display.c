@@ -2381,6 +2381,8 @@ _rl_col_width (str, start, end)
 
   if (end <= start)
     return 0;
+  if (MB_CUR_MAX == 1 || rl_byte_oriented)
+    return (end - start);
 
   memset (&ps, 0, sizeof (mbstate_t));
 
