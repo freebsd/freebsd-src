@@ -93,10 +93,17 @@
  * UDP protocol implementation.
  * Per RFC 768, August, 1980.
  */
+
+/*
+ * BSD 4.2 defaulted the udp checksum to be off.  Turning off udp
+ * checksums removes the only data integrety mechanism for packets and
+ * malformed packets that would otherwise be discarded by bad checksums
+ * may cause problems (espeically for NFS data blocks).
+ */
 #ifndef	COMPAT_42
 static int	udpcksum = 1;
 #else
-static int	udpcksum = 0;		/* XXX */
+static int	udpcksum = 0;
 #endif
 SYSCTL_INT(_net_inet_udp, UDPCTL_CHECKSUM, checksum, CTLFLAG_RW,
 		&udpcksum, 0, "");
