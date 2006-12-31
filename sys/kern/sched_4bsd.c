@@ -893,7 +893,7 @@ sched_switch(struct thread *td, struct thread *newtd, int flags)
 		 * * A followon
 		 */
 		KASSERT((newtd->td_inhibitors == 0),
-			("trying to run inhibitted thread"));
+			("trying to run inhibited thread"));
 		newtd->td_sched->ts_flags |= TSF_DIDRUN;
         	TD_SET_RUNNING(newtd);
 		if ((newtd->td_proc->p_flag & P_NOLOAD) == 0)

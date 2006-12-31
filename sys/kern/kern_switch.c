@@ -186,7 +186,7 @@ setrunqueue(struct thread *td, int flags)
             curthread->td_proc->p_comm);
 	mtx_assert(&sched_lock, MA_OWNED);
 	KASSERT((td->td_inhibitors == 0),
-			("setrunqueue: trying to run inhibitted thread"));
+			("setrunqueue: trying to run inhibited thread"));
 	KASSERT((TD_CAN_RUN(td) || TD_IS_RUNNING(td)),
 	    ("setrunqueue: bad thread state"));
 	TD_SET_RUNQ(td);
@@ -279,7 +279,7 @@ maybe_preempt(struct thread *td)
 	KASSERT ((ctd->td_sched != NULL && ctd->td_sched->ts_thread == ctd),
 	  ("thread has no (or wrong) sched-private part."));
 	KASSERT((td->td_inhibitors == 0),
-			("maybe_preempt: trying to run inhibitted thread"));
+			("maybe_preempt: trying to run inhibited thread"));
 	pri = td->td_priority;
 	cpri = ctd->td_priority;
 	if (panicstr != NULL || pri >= cpri || cold /* || dumping */ ||
