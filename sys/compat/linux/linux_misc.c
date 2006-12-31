@@ -152,7 +152,7 @@ linux_sysinfo(struct thread *td, struct linux_sysinfo_args *args)
 	sysinfo.bufferram = 0;
 
 	swap_pager_status(&i, &j);
-	sysinfo.totalswap= i * PAGE_SIZE;
+	sysinfo.totalswap = i * PAGE_SIZE;
 	sysinfo.freeswap = (i - j) * PAGE_SIZE;
 
 	sysinfo.procs = nprocs;
@@ -186,7 +186,7 @@ linux_alarm(struct thread *td, struct linux_alarm_args *args)
 	error = kern_setitimer(td, ITIMER_REAL, &it, &old_it);
 	if (error)
 		return (error);
-	if (timevalisset(&old_it.it_value)) {		
+	if (timevalisset(&old_it.it_value)) {
 		if (old_it.it_value.tv_usec != 0)
 			old_it.it_value.tv_sec++;
 		td->td_retval[0] = old_it.it_value.tv_sec;
@@ -209,7 +209,7 @@ linux_brk(struct thread *td, struct linux_brk_args *args)
 #endif
 	old = (vm_offset_t)vm->vm_daddr + ctob(vm->vm_dsize);
 	new = (vm_offset_t)args->dsend;
-	tmp.nsize = (char *) new;
+	tmp.nsize = (char *)new;
 	if (((caddr_t)new > vm->vm_daddr) && !obreak(td, &tmp))
 		td->td_retval[0] = (long)new;
 	else
@@ -327,10 +327,10 @@ linux_uselib(struct thread *td, struct linux_uselib_args *args)
 
 	/* Set file/virtual offset based on a.out variant. */
 	switch ((int)(a_out->a_magic & 0xffff)) {
-	case 0413:	/* ZMAGIC */
+	case 0413:			/* ZMAGIC */
 		file_offset = 1024;
 		break;
-	case 0314:	/* QMAGIC */
+	case 0314:			/* QMAGIC */
 		file_offset = 0;
 		break;
 	default:
@@ -440,8 +440,8 @@ linux_uselib(struct thread *td, struct linux_uselib_args *args)
 			goto cleanup;
 	}
 #ifdef DEBUG
-	printf("mem=%08lx = %08lx %08lx\n", (long)vmaddr, ((long*)vmaddr)[0],
-	    ((long*)vmaddr)[1]);
+	printf("mem=%08lx = %08lx %08lx\n", (long)vmaddr, ((long *)vmaddr)[0],
+	    ((long *)vmaddr)[1]);
 #endif
 	if (bss_size != 0) {
 		/* Calculate BSS start address */
@@ -644,13 +644,13 @@ linux_time(struct thread *td, struct linux_time_args *args)
 }
 
 struct l_times_argv {
-	l_long		tms_utime;
-	l_long		tms_stime;
-	l_long		tms_cutime;
-	l_long		tms_cstime;
+	l_long	tms_utime;
+	l_long	tms_stime;
+	l_long	tms_cutime;
+	l_long	tms_cstime;
 };
 
-#define CLK_TCK 100	/* Linux uses 100 */
+#define CLK_TCK 100			/* Linux uses 100 */
 
 #define CONVTCK(r)	(r.tv_sec * CLK_TCK + r.tv_usec / (1000000 / CLK_TCK))
 
@@ -718,6 +718,7 @@ linux_newuname(struct thread *td, struct linux_newuname_args *args)
 #ifdef __i386__
 	{
 		const char *class;
+
 		switch (cpu_class) {
 		case CPUCLASS_686:
 			class = "i686";
@@ -799,12 +800,12 @@ linux_waitpid(struct thread *td, struct linux_waitpid_args *args)
 		printf(ARGS(waitpid, "%d, %p, %d"),
 		    args->pid, (void *)args->status, args->options);
 #endif
-	/* 
-	 * this is necessary because the test in kern_wait doesnt
-	 * work because we mess with the options here
+	/*
+	 * this is necessary because the test in kern_wait doesnt work
+	 * because we mess with the options here
 	 */
-	if (args->options &~ (WUNTRACED|WNOHANG|WCONTINUED|__WCLONE))
-	   	return (EINVAL);
+	if (args->options & ~(WUNTRACED | WNOHANG | WCONTINUED | __WCLONE))
+		return (EINVAL);
 
 	options = (args->options & (WNOHANG | WUNTRACED));
 	/* WLINUXCLONE should be equal to __WCLONE, but we make sure */
@@ -908,7 +909,7 @@ linux_mknod(struct thread *td, struct linux_mknod_args *args)
 
 	case 0:
 		args->mode |= S_IFREG;
-		/* fall through */
+		/* FALLTHROUGH */
 	case S_IFREG:
 		error = kern_open(td, path, UIO_SYSSPACE,
 		    O_WRONLY | O_CREAT | O_TRUNC, args->mode);
@@ -1010,10 +1011,10 @@ linux_getitimer(struct thread *td, struct linux_getitimer_args *uap)
 int
 linux_nice(struct thread *td, struct linux_nice_args *args)
 {
-	struct setpriority_args	bsd_args;
+	struct setpriority_args bsd_args;
 
 	bsd_args.which = PRIO_PROCESS;
-	bsd_args.who = 0;	/* current process */
+	bsd_args.who = 0;		/* current process */
 	bsd_args.prio = args->inc;
 	return setpriority(td, &bsd_args);
 }
@@ -1061,8 +1062,7 @@ linux_setgroups(struct thread *td, struct linux_setgroups_args *args)
 			bsd_gidset[ngrp + 1] = linux_gidset[ngrp];
 			ngrp--;
 		}
-	}
-	else
+	} else
 		newcred->cr_ngroups = 1;
 
 	setsugid(p);
@@ -1399,7 +1399,7 @@ linux_reboot(struct thread *td, struct linux_reboot_args *args)
 int
 linux_getpid(struct thread *td, struct linux_getpid_args *args)
 {
-   	struct linux_emuldata *em;
+	struct linux_emuldata *em;
 	char osrel[LINUX_MAX_UTSNAME];
 
 #ifdef DEBUG
@@ -1409,12 +1409,12 @@ linux_getpid(struct thread *td, struct linux_getpid_args *args)
 
 	linux_get_osrelease(td, osrel);
 	if (strlen(osrel) >= 3 && osrel[2] == '6') {
-   	   	em = em_find(td->td_proc, EMUL_UNLOCKED);
+		em = em_find(td->td_proc, EMUL_UNLOCKED);
 		KASSERT(em != NULL, ("getpid: emuldata not found.\n"));
-   		td->td_retval[0] = em->shared->group_pid;
+		td->td_retval[0] = em->shared->group_pid;
 		EMUL_UNLOCK(&emul_lock);
 	} else {
-   	   	td->td_retval[0] = td->td_proc->p_pid;
+		td->td_retval[0] = td->td_proc->p_pid;
 	}
 
 	return (0);
@@ -1436,7 +1436,7 @@ linux_gettid(struct thread *td, struct linux_gettid_args *args)
 int
 linux_getppid(struct thread *td, struct linux_getppid_args *args)
 {
-   	struct linux_emuldata *em;
+	struct linux_emuldata *em;
 	struct proc *p, *pp;
 	char osrel[LINUX_MAX_UTSNAME];
 
@@ -1447,9 +1447,9 @@ linux_getppid(struct thread *td, struct linux_getppid_args *args)
 
 	linux_get_osrelease(td, osrel);
 	if (strlen(osrel) >= 3 && osrel[2] != '6') {
-	   	PROC_LOCK(td->td_proc);
-	   	td->td_retval[0] = td->td_proc->p_pptr->p_pid;
-	   	PROC_UNLOCK(td->td_proc);
+		PROC_LOCK(td->td_proc);
+		td->td_retval[0] = td->td_proc->p_pptr->p_pid;
+		PROC_UNLOCK(td->td_proc);
 		return (0);
 	}
 
@@ -1473,12 +1473,12 @@ linux_getppid(struct thread *td, struct linux_getppid_args *args)
 
 	/* if its also linux process */
 	if (pp->p_sysent == &elf_linux_sysvec) {
-   	   	em = em_find(pp, EMUL_LOCKED);
+		em = em_find(pp, EMUL_LOCKED);
 		KASSERT(em != NULL, ("getppid: parent emuldata not found.\n"));
 
 		td->td_retval[0] = em->shared->group_pid;
 	} else
-	   	td->td_retval[0] = pp->p_pid;
+		td->td_retval[0] = pp->p_pid;
 
 	EMUL_UNLOCK(&emul_lock);
 	PROC_UNLOCK(pp);
@@ -1537,7 +1537,7 @@ linux_nosys(struct thread *td, struct nosys_args *ignore)
 int
 linux_getpriority(struct thread *td, struct linux_getpriority_args *args)
 {
-	struct getpriority_args	bsd_args;
+	struct getpriority_args bsd_args;
 	int error;
 
 #ifdef DEBUG
@@ -1564,14 +1564,14 @@ linux_sethostname(struct thread *td, struct linux_sethostname_args *args)
 
 	name[0] = CTL_KERN;
 	name[1] = KERN_HOSTNAME;
-	return (userland_sysctl(td, name, 2, 0, 0, 0, args->hostname, 
-		 args->len, 0, 0));
+	return (userland_sysctl(td, name, 2, 0, 0, 0, args->hostname,
+	    args->len, 0, 0));
 }
 
 int
 linux_exit_group(struct thread *td, struct linux_exit_group_args *args)
 {
-   	struct linux_emuldata *em, *td_em, *tmp_em;
+	struct linux_emuldata *em, *td_em, *tmp_em;
 	struct proc *sp;
 	char osrel[LINUX_MAX_UTSNAME];
 
@@ -1582,14 +1582,14 @@ linux_exit_group(struct thread *td, struct linux_exit_group_args *args)
 
 	linux_get_osrelease(td, osrel);
 	if (strlen(osrel) >= 3 && osrel[2] == '6') {
-   	   	td_em = em_find(td->td_proc, EMUL_UNLOCKED);
+		td_em = em_find(td->td_proc, EMUL_UNLOCKED);
 
 		KASSERT(td_em != NULL, ("exit_group: emuldata not found.\n"));
 
-   		EMUL_SHARED_RLOCK(&emul_shared_lock);
-     		LIST_FOREACH_SAFE(em, &td_em->shared->threads, threads, tmp_em) {
-	   		if (em->pid == td_em->pid)
-		   		continue;
+		EMUL_SHARED_RLOCK(&emul_shared_lock);
+		LIST_FOREACH_SAFE(em, &td_em->shared->threads, threads, tmp_em) {
+			if (em->pid == td_em->pid)
+				continue;
 
 			sp = pfind(em->pid);
 			psignal(sp, SIGKILL);
@@ -1597,44 +1597,50 @@ linux_exit_group(struct thread *td, struct linux_exit_group_args *args)
 #ifdef DEBUG
 			printf(LMSG("linux_sys_exit_group: kill PID %d\n"), em->pid);
 #endif
-		}	
+		}
 
 		EMUL_SHARED_RUNLOCK(&emul_shared_lock);
 		EMUL_UNLOCK(&emul_lock);
 	}
+	/*
+	 * XXX: we should send a signal to the parent if
+	 * SIGNAL_EXIT_GROUP is set. We ignore that (temporrarily?)
+	 * as it doesnt occur often.
+	 */
+	exit1(td, W_EXITCODE(args->error_code, 0));
 
-	exit1(td, W_EXITCODE(args->error_code,0));
-
-   	return (0);
+	return (0);
 }
 
 int
 linux_prctl(struct thread *td, struct linux_prctl_args *args)
 {
-   	int error = 0, max_size;
+	int error = 0, max_size;
 	struct proc *p = td->td_proc;
 	char comm[LINUX_MAX_COMM_LEN];
 	struct linux_emuldata *em;
 
 #ifdef DEBUG
 	if (ldebug(prctl))
-	   	printf(ARGS(prctl, "%d, %d, %d, %d, %d"), args->option, args->arg2,
-		      args->arg3, args->arg4, args->arg5);
+		printf(ARGS(prctl, "%d, %d, %d, %d, %d"), args->option,
+		    args->arg2, args->arg3, args->arg4, args->arg5);
 #endif
-   	
-   	switch (args->option) {
-   	case LINUX_PR_SET_PDEATHSIG:
-	   	if (!LINUX_SIG_VALID(args->arg2))
-		   	return (EINVAL);
+
+	switch (args->option) {
+	case LINUX_PR_SET_PDEATHSIG:
+		if (!LINUX_SIG_VALID(args->arg2))
+			return (EINVAL);
 		em = em_find(p, EMUL_UNLOCKED);
 		KASSERT(em != NULL, ("prctl: emuldata not found.\n"));
 		em->pdeath_signal = args->arg2;
 		EMUL_UNLOCK(&emul_lock);
-	   	break;
+		break;
 	case LINUX_PR_GET_PDEATHSIG:
 		em = em_find(p, EMUL_UNLOCKED);
 		KASSERT(em != NULL, ("prctl: emuldata not found.\n"));
-		error = copyout(&em->pdeath_signal, (void *)(register_t) args->arg2, sizeof(em->pdeath_signal));
+		error = copyout(&em->pdeath_signal,
+		    (void *)(register_t)args->arg2,
+		    sizeof(em->pdeath_signal));
 		EMUL_UNLOCK(&emul_lock);
 		break;
 	case LINUX_PR_SET_NAME:
@@ -1645,7 +1651,7 @@ linux_prctl(struct thread *td, struct linux_prctl_args *args)
 		 * check on copyout.
 		 */
 		max_size = MIN(sizeof(comm), sizeof(p->p_comm));
-		error = copyinstr((void *)(register_t) args->arg2, comm,
+		error = copyinstr((void *)(register_t)args->arg2, comm,
 		    max_size, NULL);
 
 		/* Linux silently truncates the name if it is too long. */
@@ -1661,7 +1667,7 @@ linux_prctl(struct thread *td, struct linux_prctl_args *args)
 			comm[max_size - 1] = '\0';
 		}
 		if (error)
-		   	return (error);
+			return (error);
 
 		PROC_LOCK(p);
 		strlcpy(p->p_comm, comm, sizeof(p->p_comm));
@@ -1671,8 +1677,8 @@ linux_prctl(struct thread *td, struct linux_prctl_args *args)
 		PROC_LOCK(p);
 		strlcpy(comm, p->p_comm, sizeof(comm));
 		PROC_UNLOCK(p);
-		error = copyout(comm, (void *)(register_t) args->arg2,
-		    strlen(comm)+1);
+		error = copyout(comm, (void *)(register_t)args->arg2,
+		    strlen(comm) + 1);
 		break;
 	default:
 		error = EINVAL;
