@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd February 15, 2001
+.Dd December 27, 2005
 .Dt KTR 9
 .Os
 .Sh NAME
@@ -51,6 +51,8 @@
 .Fn CTR4 "u_int mask" "char *format" "arg1" "arg2" "arg3" "arg4"
 .Ft void
 .Fn CTR5 "u_int mask" "char *format" "arg1" "arg2" "arg3" "arg4" "arg5"
+.Ft void
+.Fn CTR6 "u_int mask" "char *format" "arg1" "arg2" "arg3" "arg4" "arg5" "arg6"
 .Sh DESCRIPTION
 KTR provides a circular buffer of events that can be logged in a
 .Xr printf 9
@@ -143,3 +145,13 @@ It might be profitable at some point in time to use per-CPU buffers instead
 so that if one CPU halts or starts spinning, then the log messages it
 emitted just prior to halting or spinning will not be drowned out by events
 from the other CPUs.
+.Pp
+The arguments given in
+.Fn CTRx
+macros are stored as
+.Vt u_long ,
+so do not pass arguments larger than size of an
+.Vt u_long
+type.
+For example passing 64bit arguments on 32bit architectures will give incorrect
+results.
