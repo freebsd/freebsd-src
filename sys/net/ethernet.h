@@ -57,7 +57,7 @@
 /*
  * Structure of a 10Mb/s Ethernet header.
  */
-struct	ether_header {
+struct ether_header {
 	u_char	ether_dhost[ETHER_ADDR_LEN];
 	u_char	ether_shost[ETHER_ADDR_LEN];
 	u_short	ether_type;
@@ -66,7 +66,7 @@ struct	ether_header {
 /*
  * Structure of a 48-bit Ethernet address.
  */
-struct	ether_addr {
+struct ether_addr {
 	u_char octet[ETHER_ADDR_LEN];
 } __packed;
 
