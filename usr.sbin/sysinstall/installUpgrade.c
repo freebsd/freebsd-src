@@ -300,6 +300,15 @@ installUpgrade(dialogMenuItem *self)
 	(void)vsystem("chflags -R noschg /bin /sbin /lib /libexec /usr/bin /usr/sbin /usr/lib /usr/libexec /var/empty /boot/kernel*");
 
 	if (directory_exists("/boot/kernel")) {
+	    if (directory_exists("/boot/kernel.prev")) {
+		msgNotify("Removing /boot/kernel.prev");
+		if (system("rm -fr /boot/kernel.prev")) {
+		    msgConfirm("NOTICE: I'm trying to back up /boot/kernel to\n"
+			       "/boot/kernel.prev, but /boot/kernel.prev exists and I\n"
+			       "can't remove it.  This means that the backup will, in\n"
+			       "all probability, fail.");
+		}
+	    }
 	    msgNotify("Moving old kernel to /boot/kernel.prev");
 	    if (system("mv /boot/kernel /boot/kernel.prev")) {
 		if (!msgYesNo("Hmmm!  I couldn't move the old kernel over!  Do you want to\n"
@@ -472,6 +481,15 @@ installUpgradeNonInteractive(dialogMenuItem *self)
      *  crash and reboot.
      */
     if (directory_exists("/boot/kernel")) {
+	if (directory_exists("/boot/kernel.prev")) {
+	    msgNotify("Removing /boot/kernel.prev");
+	    if (system("rm -fr /boot/kernel.prev")) {
+		msgConfirm("NOTICE: I'm trying to back up /boot/kernel to\n"
+		    "/boot/kernel.prev, but /boot/kernel.prev exists and I\n"
+		    "can't remove it.  This means that the backup will, in\n"
+		    "all probability, fail.");
+	    }
+	}
 	msgNotify("Copying old kernel to /boot/kernel.prev");
 	vsystem("cp -Rp /boot/kernel /boot/kernel.prev");
     }   
