@@ -187,6 +187,12 @@ stub_associate_vnode_singlelabel(struct mount *mp,
 }
 
 static void
+stub_associate_nfsd_label(struct ucred *cred)
+{
+
+}
+
+static void
 stub_create_devfs_device(struct ucred *cred, struct mount *mp,
     struct cdev *dev, struct devfs_dirent *devfs_dirent, struct label *label)
 {
@@ -353,6 +359,12 @@ stub_create_inpcb_from_socket(struct socket *so, struct label *solabel,
 }
 
 static void
+stub_init_syncache_from_inpcb(struct label *label, struct inpcb *inp)
+{
+
+}
+
+static void
 stub_create_sysv_msgmsg(struct ucred *cred, struct msqid_kernel *msqkptr,
     struct label *msqlabel, struct msg *msgptr, struct label *msglabel)
 {
@@ -395,6 +407,14 @@ stub_create_mbuf_from_inpcb(struct inpcb *inp, struct label *inplabel,
 }
 
 static void
+stub_create_mbuf_from_syncache(struct label *sc_label, struct mbuf *m,
+
+    struct label *mbuf_label)
+{
+
+}
+
+static void
 stub_create_mbuf_linklayer(struct ifnet *ifnet, struct label *ifnetlabel,
     struct mbuf *mbuf, struct label *mbuflabel)
 {
@@ -426,6 +446,12 @@ stub_create_mbuf_multicast_encap(struct mbuf *oldmbuf,
 static void
 stub_create_mbuf_netlayer(struct mbuf *oldmbuf,
     struct label *oldmbuflabel, struct mbuf *newmbuf, struct label *newmbuflabel)
+{
+
+}
+
+static void
+stub_create_mbuf_from_firewall(struct mbuf *m, struct label *label)
 {
 
 }
@@ -1071,6 +1097,13 @@ stub_check_system_acct(struct ucred *cred, struct vnode *vp,
 }
 
 static int
+stub_check_system_nfsd(struct ucred *cred)
+{
+
+	return (0);
+}
+
+static int
 stub_check_system_reboot(struct ucred *cred, int how)
 {
 
@@ -1218,6 +1251,21 @@ stub_check_vnode_lookup(struct ucred *cred, struct vnode *dvp,
 static int
 stub_check_vnode_mmap(struct ucred *cred, struct vnode *vp,
     struct label *label, int prot, int flags)
+{
+
+	return (0);
+}
+
+static void
+stub_check_vnode_mmap_downgrade(struct ucred *cred,
+    struct vnode *vp, struct label *label, int *prot)
+{
+
+}
+
+static int
+stub_check_vnode_mprotect(struct ucred *cred,
+    struct vnode *vp, struct label *label, int prot)
 {
 
 	return (0);
@@ -1435,6 +1483,7 @@ static struct mac_policy_ops mac_stub_ops =
 	.mpo_internalize_vnode_label = stub_internalize_label,
 	.mpo_associate_vnode_devfs = stub_associate_vnode_devfs,
 	.mpo_associate_vnode_extattr = stub_associate_vnode_extattr,
+	.mpo_associate_nfsd_label = stub_associate_nfsd_label,
 	.mpo_associate_vnode_singlelabel = stub_associate_vnode_singlelabel,
 	.mpo_create_devfs_device = stub_create_devfs_device,
 	.mpo_create_devfs_directory = stub_create_devfs_directory,
@@ -1469,6 +1518,7 @@ static struct mac_policy_ops mac_stub_ops =
 	.mpo_create_mbuf_from_ifnet = stub_create_mbuf_from_ifnet,
 	.mpo_create_mbuf_multicast_encap = stub_create_mbuf_multicast_encap,
 	.mpo_create_mbuf_netlayer = stub_create_mbuf_netlayer,
+	.mpo_create_mbuf_from_firewall = stub_create_mbuf_from_firewall,
 	.mpo_fragment_match = stub_fragment_match,
 	.mpo_reflect_mbuf_icmp = stub_reflect_mbuf_icmp,
 	.mpo_reflect_mbuf_tcp = stub_reflect_mbuf_tcp,
@@ -1552,6 +1602,7 @@ static struct mac_policy_ops mac_stub_ops =
 	.mpo_check_socket_visible = stub_check_socket_visible,
 	.mpo_check_sysarch_ioperm = stub_check_sysarch_ioperm,
 	.mpo_check_system_acct = stub_check_system_acct,
+	.mpo_check_system_nfsd = stub_check_system_nfsd,
 	.mpo_check_system_reboot = stub_check_system_reboot,
 	.mpo_check_system_settime = stub_check_system_settime,
 	.mpo_check_system_swapon = stub_check_system_swapon,
@@ -1571,6 +1622,8 @@ static struct mac_policy_ops mac_stub_ops =
 	.mpo_check_vnode_listextattr = stub_check_vnode_listextattr,
 	.mpo_check_vnode_lookup = stub_check_vnode_lookup,
 	.mpo_check_vnode_mmap = stub_check_vnode_mmap,
+	.mpo_check_vnode_mmap_downgrade = stub_check_vnode_mmap_downgrade,
+	.mpo_check_vnode_mprotect = stub_check_vnode_mprotect,
 	.mpo_check_vnode_open = stub_check_vnode_open,
 	.mpo_check_vnode_poll = stub_check_vnode_poll,
 	.mpo_check_vnode_read = stub_check_vnode_read,
@@ -1590,6 +1643,10 @@ static struct mac_policy_ops mac_stub_ops =
 	.mpo_check_vnode_write = stub_check_vnode_write,
 	.mpo_priv_check = stub_priv_check,
 	.mpo_priv_grant = stub_priv_grant,
+	.mpo_init_syncache_label = stub_init_label_waitcheck,
+	.mpo_destroy_syncache_label = stub_destroy_label,
+	.mpo_init_syncache_from_inpcb = stub_init_syncache_from_inpcb,
+	.mpo_create_mbuf_from_syncache = stub_create_mbuf_from_syncache,
 };
 
 MAC_POLICY_SET(&mac_stub_ops, mac_stub, "TrustedBSD MAC/Stub",
