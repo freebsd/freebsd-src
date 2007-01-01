@@ -132,7 +132,6 @@ static void atestart_locked(struct ifnet *);
 static void ateinit(void *);
 static void atestart(struct ifnet *);
 static void atestop(struct ate_softc *);
-static void atewatchdog(struct ifnet *);
 static int ateioctl(struct ifnet * ifp, u_long, caddr_t);
 
 /* bus entry points */
@@ -208,7 +207,6 @@ ate_attach(device_t dev)
 	ifp->if_flags = IFF_BROADCAST | IFF_SIMPLEX | IFF_MULTICAST;
 	ifp->if_start = atestart;
 	ifp->if_ioctl = ateioctl;
-	ifp->if_watchdog = atewatchdog;
 	ifp->if_init = ateinit;
 	ifp->if_baudrate = 10000000;
 	IFQ_SET_MAXLEN(&ifp->if_snd, IFQ_MAXLEN);
@@ -908,18 +906,6 @@ atestop(struct ate_softc *sc)
 	 * putting it into loopback mode.  This saves about 400uA according
 	 * to the datasheet.
 	 */
-}
-
-static void
-atewatchdog(struct ifnet *ifp)
-{
-	struct ate_softc *sc = ifp->if_softc;
-
-	ATE_LOCK(sc);
-	device_printf(sc->dev, "Device timeout\n");
-	ifp->if_oerrors++;
-	ateinit_locked(sc);
-	ATE_UNLOCK(sc);
 }
 
 static int
