@@ -272,6 +272,7 @@ cleanup_pf_zone(void)
 	UMA_DESTROY(pf_cache_pl);
 	UMA_DESTROY(pf_cent_pl);
 	UMA_DESTROY(pfr_ktable_pl);
+	UMA_DESTROY(pfr_kentry_pl2);
 	UMA_DESTROY(pfr_kentry_pl);
 	UMA_DESTROY(pf_state_scrub_pl);
 	UMA_DESTROY(pfi_addr_pl);
