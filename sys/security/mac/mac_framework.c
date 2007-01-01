@@ -282,9 +282,6 @@ mac_policy_list_conditional_busy(void)
 	mtx_unlock(&mac_policy_mtx);
 	return (ret);
 #else
-	if (!mac_late)
-		return (1);
-
 	return (1);
 #endif
 }
