@@ -12,7 +12,7 @@
 .\"
 .\"
 .\" $FreeBSD$
-.Dd August 17, 1999
+.Dd January 1, 2007
 .Dt BLACKHOLE 4
 .Os
 .Sh NAME
@@ -58,12 +58,11 @@ It could potentially also slow down someone who is attempting a denial
 of service attack.
 .Sh WARNING
 The TCP and UDP blackhole features should not be regarded as a replacement
-for
-.Xr ipfw 8
-as a tool for firewalling a system.
-In order to create a highly secure system,
-.Xr ipfw 8
-should be used for protection, not the blackhole feature.
+for firewall solutions.
+Better security would consist of the
+.Nm
+.Xr sysctl 8
+MIB used in conjuction with one of the available firewall packages.
 .Pp
 This mechanism is not a substitute for securing a system.
 It should be used together with other security mechanisms.
@@ -71,7 +70,9 @@ It should be used together with other security mechanisms.
 .Xr ip 4 ,
 .Xr tcp 4 ,
 .Xr udp 4 ,
+.Xr ipf 8 ,
 .Xr ipfw 8 ,
+.Xr pfctl 8 ,
 .Xr sysctl 8
 .Sh HISTORY
 The TCP and UDP
