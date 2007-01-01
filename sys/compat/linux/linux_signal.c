@@ -475,8 +475,8 @@ linux_rt_sigtimedwait(struct thread *td,
 				timevalclear(&tv);
 #ifdef DEBUG
 			if (ldebug(rt_sigtimedwait))
-				printf(LMSG("linux_rt_sigtimedwait: converted timeout (%d/%ld)\n"),
-					tv.tv_sec, tv.tv_usec);
+				printf(LMSG("linux_rt_sigtimedwait: converted timeout (%jd/%ld)\n"),
+					(intmax_t)tv.tv_sec, tv.tv_usec);
 #endif
 		}
 		TIMEVAL_TO_TIMESPEC(&tv, &ts);
