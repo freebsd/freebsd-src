@@ -98,7 +98,7 @@
  * BSD 4.2 defaulted the udp checksum to be off.  Turning off udp
  * checksums removes the only data integrety mechanism for packets and
  * malformed packets that would otherwise be discarded by bad checksums
- * may cause problems (espeically for NFS data blocks).
+ * may cause problems (especially for NFS data blocks).
  */
 #ifndef	COMPAT_42
 static int	udpcksum = 1;
