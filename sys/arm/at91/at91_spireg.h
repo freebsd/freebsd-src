@@ -51,7 +51,7 @@
 #define	  SPI_SR_OVRES		0x00008
 #define	  SPI_SR_ENDRX		0x00010
 #define	  SPI_SR_ENDTX		0x00020
-#define	  SPI_SR_RXBUFE		0x00040
+#define	  SPI_SR_RXBUFF		0x00040
 #define	  SPI_SR_TXBUFE		0x00080
 #define	  SPI_SR_SPIENS		0x10000
 #define	SPI_IER		0x14		/* IER: Interrupt Enable Regsiter */
