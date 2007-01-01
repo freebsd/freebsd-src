@@ -52,8 +52,8 @@
 #define PIO_MDDR	0x54		/* PIO Multi-Driver Disable Register */
 #define PIO_MDSR	0x58		/* PIO Multi-Driver Status Register */
 		/*	0x5c		   reserved */
-#define PIO_PUER	0x60		/* PIO Pull-up Enable Register */
-#define PIO_PUDR	0x64		/* PIO Pull-up Disable Register */
+#define PIO_PUDR	0x60		/* PIO Pull-up Disable Register */
+#define PIO_PUER	0x64		/* PIO Pull-up Enable Register */
 #define PIO_PUSR	0x68		/* PIO Pull-up Status Register */
 		/*	0x6c		   reserved */
 #define PIO_ASR		0x70		/* PIO Peripheral A Select Register */
