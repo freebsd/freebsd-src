@@ -109,28 +109,29 @@ pfs_vncache_alloc(struct mount *mp, struct vnode **vpp,
 		  struct pfs_node *pn, pid_t pid)
 {
 	struct pfs_vdata *pvd;
+	struct vnode *vp;
 	int error;
 
 	/*
 	 * See if the vnode is in the cache.
 	 * XXX linear search is not very efficient.
 	 */
+retry:
 	mtx_lock(&pfs_vncache_mutex);
 	for (pvd = pfs_vncache; pvd; pvd = pvd->pvd_next) {
 		if (pvd->pvd_pn == pn && pvd->pvd_pid == pid &&
 		    pvd->pvd_vnode->v_mount == mp) {
-			if (vget(pvd->pvd_vnode, 0, curthread) == 0) {
+			vp = pvd->pvd_vnode;
+			VI_LOCK(vp);
+			mtx_unlock(&pfs_vncache_mutex);
+			if (vget(vp, LK_EXCLUSIVE | LK_INTERLOCK, curthread) == 0) {
 				++pfs_vncache_hits;
-				*vpp = pvd->pvd_vnode;
-				mtx_unlock(&pfs_vncache_mutex);
+				*vpp = vp;
 				/* XXX see comment at top of pfs_lookup() */
-				cache_purge(*vpp);
-				vn_lock(*vpp, LK_RETRY | LK_EXCLUSIVE,
-				    curthread);
+				cache_purge(vp);	
 				return (0);
 			}
-			/* XXX if this can happen, we're in trouble */
-			break;
+			goto retry;
 		}
 	}
 	mtx_unlock(&pfs_vncache_mutex);
