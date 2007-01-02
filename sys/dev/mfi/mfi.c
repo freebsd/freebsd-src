@@ -446,17 +446,21 @@ mfi_release_command(struct mfi_command *cm)
 
 	/*
 	 * Zero out the important fields of the frame, but make sure the
-	 * context field is preserved
+	 * context field is preserved.  For efficiency, handle the fields
+	 * as 32 bit words.  Clear out the first S/G entry too for safety.
 	 */
-	hdr_data = (uint32_t *)cm->cm_frame;
-	hdr_data[0] = 0;
-	hdr_data[1] = 0;
-
 	hdr = &cm->cm_frame->header;
 	if (hdr->sg_count) {
 		cm->cm_sg->sg32[0].len = 0;
 		cm->cm_sg->sg32[0].addr = 0;
 	}
+
+	hdr_data = (uint32_t *)cm->cm_frame;
+	hdr_data[0] = 0;	/* cmd, sense_len, cmd_status, scsi_status */
+	hdr_data[1] = 0;	/* target_id, lun_id, cdb_len, sg_count */
+	hdr_data[4] = 0;	/* flags, timeout */
+	hdr_data[5] = 0;	/* data_len */
+
 	cm->cm_extra_frames = 0;
 	cm->cm_flags = 0;
 	cm->cm_complete = NULL;
