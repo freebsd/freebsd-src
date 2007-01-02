@@ -32,6 +32,8 @@ OLD_FILES+=lib/libalias_nbt.so.4
 OLD_FILES+=lib/libalias_pptp.so.4
 OLD_FILES+=lib/libalias_skinny.so.4
 OLD_FILES+=lib/libalias_smedia.so.4
+# 20061126: remove old man page
+OLD_FILES+=usr/share/man/man3/archive_read_set_bytes_per_block.3.gz
 # 20061125: remove old man page
 OLD_FILES+=usr/share/man/man9/devsw.9.gz
 # 20061122: remove obsolete mount programs
