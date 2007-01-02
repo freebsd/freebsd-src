@@ -513,6 +513,7 @@ append_archive(struct bsdtar *bsdtar, struct archive *a, const char *filename)
 		    filename, archive_error_string(ina));
 		bsdtar->return_value = 1;
 	}
+	archive_read_finish(ina);
 
 	/* Note: If we got here, we saw no write errors, so return success. */
 	return (0);
