@@ -82,7 +82,7 @@ struct archive_entry;
 #define	ARCHIVE_EOF	  1	/* Found end of archive. */
 #define	ARCHIVE_OK	  0	/* Operation was successful. */
 #define	ARCHIVE_RETRY	(-10)	/* Retry might succeed. */
-#define	ARCHIVE_WARN	(-20)	/* Partial sucess. */
+#define	ARCHIVE_WARN	(-20)	/* Partial success. */
 #define	ARCHIVE_FATAL	(-30)	/* No more operations are possible. */
 
 /*
@@ -220,7 +220,7 @@ ssize_t		 archive_read_data(struct archive *, void *, size_t);
 /*
  * A zero-copy version of archive_read_data that also exposes the file offset
  * of each returned block.  Note that the client has no way to specify
- * the desired size of the block.  The API does gaurantee that offsets will
+ * the desired size of the block.  The API does guarantee that offsets will
  * be strictly increasing and that returned blocks will not overlap.
  */
 int		 archive_read_data_block(struct archive *a,
