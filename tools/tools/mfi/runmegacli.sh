@@ -5,8 +5,9 @@
 # that the MegaCLI binary has been installed in /compat/linux/usr/sbin/MegaCli.
 # The binary must also have been branded appropriately, and the COMPAT_LINUX,
 # LINPROCFS, and LINSYSFS options must be enabled.  It is best to enable the
-# COMPAT_LINUX option and compile the mfi driver into the kernel to ensure that
-# all of the required driver bits are enabled.
+# COMPAT_LINUX option and compile the mfi driver into the kernel, instead of
+# loading it as a module, to ensure that all of the required driver bits are
+# enabled.
 #
 
 megacli=/usr/sbin/MegaCli
@@ -33,4 +34,4 @@ if [ "X$linuxver" != "X2.6" ]; then
 	sysctl compat.linux.osrelease=$osrelease
 fi
 
-chroot /compat/linux /usr/sbin/MegaCli $@
+chroot $linuxdir $megacli $@
