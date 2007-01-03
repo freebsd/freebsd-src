@@ -430,7 +430,28 @@ archive_read_data(struct archive *a, void *buff, size_t s)
 			archive_set_error(a, ARCHIVE_ERRNO_FILE_FORMAT,
 			    "Encountered out-of-order sparse blocks");
 			return (ARCHIVE_RETRY);
-		} else {
+		}
+
+		/* Compute the amount of zero padding needed. */
+		if (a->read_data_output_offset + s <
+		    a->read_data_offset) {
+			len = s;
+		} else if (a->read_data_output_offset <
+		    a->read_data_offset) {
+			len = a->read_data_offset -
+			    a->read_data_output_offset;
+		} else
+			len = 0;
+
+		/* Add zeroes. */
+		memset(dest, 0, len);
+		s -= len;
+		a->read_data_output_offset += len;
+		dest += len;
+		bytes_read += len;
+
+		/* Copy data if there is any space left. */
+		if (s > 0) {
 			len = a->read_data_remaining;
 			if (len > s)
 				len = s;
