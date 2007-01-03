@@ -163,16 +163,6 @@ nfs_nget(struct mount *mntp, nfsfh_t *fhp, int fhsize, struct nfsnode **npp)
 	 */
 	vp->v_vnlock->lk_flags |= LK_CANRECURSE;
 	vp->v_vnlock->lk_flags &= ~LK_NOSHARE;
-	error = vfs_hash_insert(vp, hash, LK_EXCLUSIVE,
-	    td, &nvp, nfs_vncmpf, &ncmp);
-	if (error)
-		return (error);
-	if (nvp != NULL) {
-		*npp = VTONFS(nvp);
-		/* vrele() the duplicate allocated here, to get it recycled */
-		vrele(vp);
-		return (0);
-	}
 	if (fhsize > NFS_SMALLFH) {
 		MALLOC(np->n_fhp, nfsfh_t *, fhsize, M_NFSBIGFH, M_WAITOK);
 	} else
@@ -180,6 +170,15 @@ nfs_nget(struct mount *mntp, nfsfh_t *fhp, int fhsize, struct nfsnode **npp)
 	bcopy((caddr_t)fhp, (caddr_t)np->n_fhp, fhsize);
 	np->n_fhsize = fhsize;
 	lockinit(&np->n_rslock, PVFS | rsflags, "nfrslk", 0, 0);
+	error = vfs_hash_insert(vp, hash, LK_EXCLUSIVE,
+	    td, &nvp, nfs_vncmpf, &ncmp);
+	if (error)
+		return (error);
+	if (nvp != NULL) {
+		*npp = VTONFS(nvp);
+		/* vfs_hash_insert() vput()'s the losing vnode */
+		return (0);
+	}
 	*npp = np;
 
 	return (0);
