@@ -26,14 +26,8 @@ THIS SOFTWARE.
 
 ****************************************************************/
 
-/* Please send bug reports to
-	David M. Gay
-	Bell Laboratories, Room 2C-463
-	600 Mountain Avenue
-	Murray Hill, NJ 07974-0636
-	U.S.A.
-	dmg@bell-labs.com
- */
+/* Please send bug reports to David M. Gay (dmg at acm dot org,
+ * with " at " changed at "@" and " dot " changed to ".").	*/
 
 /* Test program for g_xfmt, strtoIx, strtopx, and strtorx.
  *
@@ -108,12 +102,12 @@ main(Void)
 				}
 			break; /* nan? */
 		  case '#':
-			sscanf(s+1, "%hx %hx %hx %hx hx", &u.bits[_0],
+			sscanf(s+1, "%hx %hx %hx %hx %hx", &u.bits[_0],
 				&u.bits[_1], &u.bits[_2], &u.bits[_3],
 				&u.bits[_4]);
 			printf("\nInput: %s", ibuf);
 			printf(" --> f = #%x %x %x %x %x\n", u.bits[_0],
-				u.bits[_1], u.bits[_2], u.bits[_3], u.bits[4]);
+				u.bits[_1], u.bits[_2], u.bits[_3], u.bits[_4]);
 			goto fmt_test;
 			}
 		dItry = 1;
@@ -159,8 +153,8 @@ main(Void)
 				printf("= %.21Lg\n", v[0].d);
 			printf("fI[1] = #%x %x %x %x %x\n",
 					v[1].bits[_0], v[1].bits[_1],
-					v[1].bits[_2], v[0].bits[_3],
-					v[0].bits[_4]);
+					v[1].bits[_2], v[1].bits[_3],
+					v[1].bits[_4]);
 			if (sizeof(long double) == 12)
 				printf("= %.21Lg\n", v[1].d);
 			if (!memcmp(v[0].bits, u.bits, 10))

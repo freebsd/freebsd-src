@@ -26,14 +26,8 @@ THIS SOFTWARE.
 
 ****************************************************************/
 
-/* Please send bug reports to
-	David M. Gay
-	Bell Laboratories, Room 2C-463
-	600 Mountain Avenue
-	Murray Hill, NJ 07974-0636
-	U.S.A.
-	dmg@bell-labs.com
- */
+/* Please send bug reports to David M. Gay (dmg at acm dot org,
+ * with " at " changed at "@" and " dot " changed to ".").	*/
 
 #include "gdtoaimp.h"
 
@@ -80,8 +74,9 @@ ULtoxL(ULong *L, ULong *bits, Long exp, int k)
 		break;
 
 	  case STRTOG_NaN:
-		L[_0] = 0x7fff << 16;
-		L[_1] = L[_2] = (ULong)-1;
+		L[0] = ld_QNAN0;
+		L[1] = ld_QNAN1;
+		L[2] = ld_QNAN2;
 	  }
 	if (k & STRTOG_Neg)
 		L[_0] |= 0x80000000L;

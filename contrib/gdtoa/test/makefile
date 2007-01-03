@@ -27,6 +27,8 @@
 CC = cc
 CFLAGS = -g -I..
 A = ../gdtoa.a
+L = -lm
+INFFIX = | sed 's/[Ii][Nn][Ff][intyINTY]*/Infinity/g'
 
 .c.o:
 	$(CC) -c $(CFLAGS) $*.c
@@ -35,7 +37,7 @@ all: dt dItest ddtest dtest ftest Qtest xLtest xtest ddtestsi dItestsi tests
 
 dt = dt.o $A
 dt: $(dt)
-	$(CC) -o dt $(dt)
+	$(CC) -o dt $(dt) $L
 
 dItest = dItest.o getround.o $A
 dItest: $(dItest)
@@ -43,11 +45,11 @@ dItest: $(dItest)
 
 ddtest = ddtest.o getround.o $A
 ddtest: $(ddtest)
-	$(CC) -o ddtest $(ddtest)
+	$(CC) -o ddtest $(ddtest) $L
 
 dtest = dtest.o getround.o $A
 dtest: $(dtest)
-	$(CC) -o dtest $(dtest)
+	$(CC) -o dtest $(dtest) $L
 
 ftest = ftest.o getround.o $A
 ftest: $(ftest)
@@ -77,7 +79,7 @@ strtoIdSI.o: strtoIdSI.c ../strtoId.c
 
 ddtestsi = ddtest.o strtopddSI.o strtorddSI.o strtoIddSI.o getround.o $A
 ddtestsi: $(ddtestsi)
-	$(CC) -o ddtestsi $(ddtestsi)
+	$(CC) -o ddtestsi $(ddtestsi) $L
 
 dItestsi = dItest.o strtodISI.o strtoIdSI.o getround.o $A
 dItestsi: $(dItestsi)
@@ -85,7 +87,18 @@ dItestsi: $(dItestsi)
 
 strtodt = strtodt.o $A
 strtodt: $(strtodt)
-	$(CC) -o strtodt $(strtodt)
+	$(CC) -o strtodt $(strtodt) $L
+
+## On Intel (and Intel-like) systems using extended-precision registers
+## for double-precision (C type double) computations that sometimes suffer
+## double rounding errors, the test below involving strtodt generally shows
+## five lines of unexpected results.  Variant strtodtnrp uses ../strtodrnp.c
+## (which does all computations in integer arithmetic) and should show no
+## unexpected results.
+
+strtodtnrp = strtodt.o ../strtodnrp.c $A
+strtodtnrp: $(strtodtnrp)
+	$(CC) -o strtodtnrp $(strtodtnrp)
 
 # xQtest generates cp commands that depend on sizeof(long double).
 # See the source for details.  If you know better, create Q.out,
@@ -102,21 +115,23 @@ Q.out x.out xL.out:
 
 ## The rmdir below will fail if any test results differ.
 
-tests: Q.out x.out xL.out dt dItest ddtest dtest ftest Qtest xLtest xtest ddtestsi dItestsi strtodt
+tests: Q.out x.out xL.out dt dItest ddtest dtest ftest Qtest xLtest xtest ddtestsi dItestsi strtodt strtodtnrp
 	mkdir bad
-	cat testnos testnos1 | ./dt >zap 2>&1
+	cat testnos testnos1 | ./dt $(INFFIX) >zap 2>&1
 	cmp dtst.out zap || mv zap bad/dtst.out
-	./dItest <testnos >zap 2>&1
+	./dItest <testnos $(INFFIX) >zap 2>&1
 	cmp dI.out zap || mv zap bad/dI.out
-	./dItestsi <testnos >zap 2>&1
+	./dItestsi <testnos $(INFFIX) >zap 2>&1
 	cmp dIsi.out zap || mv zap bad/dIsi.out
-	./ddtestsi <testnos >zap 2>&1
+	./ddtestsi <testnos $(INFFIX) >zap 2>&1
 	cmp ddsi.out zap || mv zap bad/ddsi.out
 	for i in dd d f x xL Q; do cat testnos rtestnos | \
-	 ./"$$i"test >zap 2>&1;\
+	 ./"$$i"test $(INFFIX) >zap 2>&1;\
 	cmp $$i.out zap || mv zap bad/$$i.out; done
 	./strtodt testnos3 >bad/strtodt.out && rm bad/strtodt.out || \
 		cat bad/strtodt.out
+	./strtodtnrp testnos3 >bad/strtodtnrp.out && rm bad/strtodtnrp.out || \
+		cat bad/strtodtnrp.out
 	rmdir bad
 	touch tests
 
@@ -131,5 +146,5 @@ xsum.out: xsum0.out $(xs0)
 	cmp xsum0.out xsum1.out && mv xsum1.out xsum.out || diff xsum[01].out
 
 clean:
-	rm -f *.[ao] dt *test *testsi strtodt xsum.out xsum1.out tests zap x.out xL.out Q.out
+	rm -f *.[ao] dt *test *testsi strtodt strtodtnrp xsum.out xsum1.out tests zap x.out xL.out Q.out
 	rm -rf bad

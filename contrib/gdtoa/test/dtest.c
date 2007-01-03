@@ -26,14 +26,8 @@ THIS SOFTWARE.
 
 ****************************************************************/
 
-/* Please send bug reports to
-	David M. Gay
-	Bell Laboratories, Room 2C-463
-	600 Mountain Avenue
-	Murray Hill, NJ 07974-0636
-	U.S.A.
-	dmg@bell-labs.com
- */
+/* Please send bug reports to David M. Gay (dmg at acm dot org,
+ * with " at " changed at "@" and " dot " changed to ".").	*/
 
 /* Test program for g_dfmt, strtoId, strtod, strtopd, and strtord.
  *
@@ -68,13 +62,12 @@ THIS SOFTWARE.
  int
 main(Void)
 {
-	ULong *L;
 	char *s, *se, *se1;
-	double f, f1, fI[2];
+	double f1, fI[2];
 	int i, i1, ndig = 0, r = 1;
 	long LL[2];
+	union { double f; ULong L[2]; } u;
 
-	L = (ULong*)&f;
 	while( (s = fgets(ibuf, sizeof(ibuf), stdin)) !=0) {
 		while(*s <= ' ')
 			if (!*s++)
@@ -91,28 +84,28 @@ main(Void)
 				}
 			break; /* nan? */
 		  case '#':
-			LL[0] = L[_0];
-			LL[1] = L[_1];
+			LL[0] = u.L[_0];
+			LL[1] = u.L[_1];
 			sscanf(s+1, "%lx %lx", &LL[0], &LL[1]);
-			L[_0] = LL[0];
-			L[_1] = LL[1];
+			u.L[_0] = LL[0];
+			u.L[_1] = LL[1];
 			printf("\nInput: %s", ibuf);
-			printf("--> f = #%lx %lx\n", (long)L[_0], (long)L[_1]);
+			printf("--> f = #%lx %lx\n", (long)u.L[_0], (long)u.L[_1]);
 			goto fmt_test;
 			}
 		printf("\nInput: %s", ibuf);
-		i = strtord(ibuf, &se, r, &f);
+		i = strtord(ibuf, &se, r, &u.f);
 		if (r == 1) {
-			if ((f != strtod(ibuf, &se1) || se1 != se))
+			if ((u.f != strtod(ibuf, &se1) || se1 != se))
 				printf("***strtod and strtord disagree!!\n");
 			i1 = strtopd(ibuf, &se, &f1);
-			if (i != i1 || f != f1 || se != se1)
+			if (i != i1 || u.f != f1 || se != se1)
 				printf("***strtord and strtopd disagree!!\n");
 			}
 		printf("strtod consumes %d bytes and returns %d with f = %.17g = #%lx %lx\n",
-				(int)(se-ibuf), i, f, U L[_0], U L[_1]);
+				(int)(se-ibuf), i, u.f, U u.L[_0], U u.L[_1]);
  fmt_test:
-		se = g_dfmt(obuf, &f, ndig, sizeof(obuf));
+		se = g_dfmt(obuf, &u.f, ndig, sizeof(obuf));
 		printf("g_dfmt(%d) gives %d bytes: \"%s\"\n\n",
 			ndig, (int)(se-obuf), se ? obuf : "<null>");
 		if (*s == '#')
@@ -120,7 +113,7 @@ main(Void)
 		printf("strtoId returns %d,", strtoId(ibuf, &se, fI, &fI[1]));
 		printf(" consuming %d bytes.\n", (int)(se-ibuf));
 		if (fI[0] == fI[1]) {
-			if (fI[0] == f)
+			if (fI[0] == u.f)
 				printf("fI[0] == fI[1] == strtod\n");
 			else
 				printf("fI[0] == fI[1] = #%lx %lx = %.17g\n",
@@ -133,9 +126,9 @@ main(Void)
 			printf("fI[1] = #%lx %lx = %.17g\n",
 				U ((ULong*)&fI[1])[_0], U ((ULong*)&fI[1])[_1],
 				fI[1]);
-			if (fI[0] == f)
+			if (fI[0] == u.f)
 				printf("fI[0] == strtod\n");
-			else if (fI[1] == f)
+			else if (fI[1] == u.f)
 				printf("fI[1] == strtod\n");
 			else
 				printf("**** Both differ from strtod ****\n");

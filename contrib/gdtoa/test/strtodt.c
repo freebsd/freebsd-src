@@ -26,14 +26,8 @@ THIS SOFTWARE.
 
 ****************************************************************/
 
-/* Please send bug reports to
-	David M. Gay
-	Bell Laboratories, Room 2C-463
-	600 Mountain Avenue
-	Murray Hill, NJ 07974-0636
-	U.S.A.
-	dmg@bell-labs.com
- */
+/* Please send bug reports to David M. Gay (dmg at acm dot org,
+ * with " at " changed at "@" and " dot " changed to ".").	*/
 
 /* Test strtod.  */
 
@@ -44,6 +38,7 @@ THIS SOFTWARE.
  * Complain about errors.
  */
 
+#include "gdtoa.h"	/* for ULong */
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -51,7 +46,7 @@ THIS SOFTWARE.
  static int W0, W1;
  typedef union {
 		double d;
-		long L[2];
+		ULong L[2];
 		} U;
 
  static int
@@ -59,8 +54,7 @@ process(char *fname, FILE *f)
 {
 	U a, b;
 	char buf[2048];
-	double d;
-	char *s;
+	char *s, *s1, *se;
 	int line, n;
 
 	line = n = 0;
@@ -75,7 +69,9 @@ process(char *fname, FILE *f)
 			continue;
 		while(*s > ' ')
 			s++;
-		if (sscanf(s,"\t%lx\t%lx", &a.L[0], &a.L[1]) != 2) {
+		/* if (sscanf(s,"\t%lx\t%lx", &a.L[0], &a.L[1]) != 2) */
+		if ((a.L[0] = (ULong)strtoul(s, &s1,16), s1 <= s)
+		 || (a.L[1] = (ULong)strtoul(s1,&se,16), se <= s1)) {
 			printf("Badly formatted line %d of %s\n",
 				line, fname);
 			n++;

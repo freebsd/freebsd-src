@@ -26,14 +26,8 @@ THIS SOFTWARE.
 
 ****************************************************************/
 
-/* Please send bug reports to
-	David M. Gay
-	Bell Laboratories, Room 2C-463
-	600 Mountain Avenue
-	Murray Hill, NJ 07974-0636
-	U.S.A.
-	dmg@bell-labs.com
- */
+/* Please send bug reports to David M. Gay (dmg at acm dot org,
+ * with " at " changed at "@" and " dot " changed to ".").	*/
 
 /* Test program for g_ffmt, strtof, strtoIf, strtopf, and strtorf.
  *
@@ -67,12 +61,11 @@ THIS SOFTWARE.
  int
 main(Void)
 {
-	ULong *L;
 	char *s, *se, *se1;
 	int dItry, i, i1, ndig = 0, r = 1;
-	float f, f1, fI[2];
+	float f1, fI[2];
+	union { float f; ULong L[1]; } u;
 
-	L = (ULong*)&f;
 	while( (s = fgets(ibuf, sizeof(ibuf), stdin)) !=0) {
 		while(*s <= ' ')
 			if (!*s++)
@@ -90,32 +83,33 @@ main(Void)
 				}
 			break; /* nan? */
 		  case '#':
-			sscanf(s+1, "%lx", &L[0]);
+			/* sscanf(s+1, "%lx", &u.L[0]); */
+			u.L[0] = (ULong)strtoul(s+1, &se, 16);
 			printf("\nInput: %s", ibuf);
-			printf(" --> f = #%lx\n", L[0]);
+			printf(" --> f = #%lx\n", U u.L[0]);
 			goto fmt_test;
 			}
 		dItry = 1;
 		printf("\nInput: %s", ibuf);
-		i = strtorf(ibuf, &se, r, &f);
+		i = strtorf(ibuf, &se, r, &u.f);
 		if (r == 1) {
-		    if (f != (i1 = strtopf(ibuf, &se1, &f1), f1)
+		    if (u.f != (i1 = strtopf(ibuf, &se1, &f1), f1)
 				 || se != se1 || i != i1) {
 			printf("***strtopf and strtorf disagree!!\n");
-			if (f != f1)
+			if (u.f != f1)
 				printf("\tf1 = %g\n", (double)f1);
 			if (i != i1)
 				printf("\ti = %d but i1 = %d\n", i, i1);
 			if (se != se1)
 				printf("se - se1 = %d\n", (int)(se-se1));
 			}
-		    if (f != strtof(ibuf, &se1) || se != se1)
+		    if (u.f != strtof(ibuf, &se1) || se != se1)
 			printf("***strtof and strtorf disagree!\n");
 		    }
 		printf("strtof consumes %d bytes and returns %.8g = #%lx\n",
-				(int)(se-ibuf), f, U *(ULong*)&f);
+				(int)(se-ibuf), u.f, U u.L[0]);
  fmt_test:
-		se = g_ffmt(obuf, &f, ndig, sizeof(obuf));
+		se = g_ffmt(obuf, &u.f, ndig, sizeof(obuf));
 		printf("g_ffmt(%d) gives %d bytes: \"%s\"\n\n",
 			ndig, (int)(se-obuf), se ? obuf : "<null>");
 		if (!dItry)
@@ -123,7 +117,7 @@ main(Void)
 		printf("strtoIf returns %d,", strtoIf(ibuf, &se, fI, &fI[1]));
 		printf(" consuming %d bytes.\n", (int)(se-ibuf));
 		if (fI[0] == fI[1]) {
-			if (fI[0] == f)
+			if (fI[0] == u.f)
 				printf("fI[0] == fI[1] == strtof\n");
 			else
 				printf("fI[0] == fI[1] = #%lx = %.8g\n",
@@ -133,9 +127,9 @@ main(Void)
 			printf("fI[0] = #%lx = %.8g\nfI[1] = #%lx = %.8g\n",
 				U *(ULong*)fI, fI[0],
 				U *(ULong*)&fI[1], fI[1]);
-			if (fI[0] == f)
+			if (fI[0] == u.f)
 				printf("fI[0] == strtof\n");
-			else if (fI[1] == f)
+			else if (fI[1] == u.f)
 				printf("fI[1] == strtof\n");
 			else
 				printf("**** Both differ from strtof ****\n");
