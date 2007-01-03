@@ -841,6 +841,10 @@ device		stf			#6to4 IPv6 over IPv4 encapsulation
 # packets too.  Because of this great care is required when
 # crafting the ruleset.
 #
+# IPFIREWALL_NAT adds support for in kernel nat in ipfw, and it requires
+# LIBALIAS. To build an ipfw kld with nat support enabled, add 
+# "CFLAGS+= -DIPFIREWALL_NAT" to your make.conf.
+#
 # IPSTEALTH enables code to support stealth forwarding (i.e., forwarding
 # packets without touching the TTL).  This can be useful to hide firewalls
 # from traceroute and similar tools.
@@ -856,6 +860,7 @@ options 	IPFIREWALL_VERBOSE	#enable logging to syslogd(8)
 options 	IPFIREWALL_VERBOSE_LIMIT=100	#limit verbosity
 options 	IPFIREWALL_DEFAULT_TO_ACCEPT	#allow everything by default
 options 	IPFIREWALL_FORWARD	#packet destination changes
+options 	IPFIREWALL_NAT		#ipfw kernel nat support
 options 	IPDIVERT		#divert sockets
 options 	IPFILTER		#ipfilter support
 options 	IPFILTER_LOG		#ipfilter logging
