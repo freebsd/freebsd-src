@@ -26,14 +26,8 @@ THIS SOFTWARE.
 
 ****************************************************************/
 
-/* Please send bug reports to
-	David M. Gay
-	Bell Laboratories, Room 2C-463
-	600 Mountain Avenue
-	Murray Hill, NJ 07974-0636
-	U.S.A.
-	dmg@bell-labs.com
- */
+/* Please send bug reports to David M. Gay (dmg at acm dot org,
+ * with " at " changed at "@" and " dot " changed to ".").	*/
 
 /* Test program for g_Qfmt, strtoIQ, strtopQ, and strtorQ.
  *
@@ -86,7 +80,7 @@ THIS SOFTWARE.
  int
 main(Void)
 {
-	char *s, *se, *se1;
+	char *s, *s1, *se, *se1;
 	int i, dItry, ndig = 0, r = 1;
 	union { long double d; ULong bits[4]; } u, v[2];
 
@@ -107,8 +101,17 @@ main(Void)
 				}
 			break; /* nan? */
 		  case '#':
-			sscanf(s+1, "%lx %lx %lx %lx", &u.bits[_0],
-				&u.bits[_1], &u.bits[_2], &u.bits[_3]);
+			/* sscanf(s+1, "%lx %lx %lx %lx", &u.bits[_0],	*/
+			/*	&u.bits[_1], &u.bits[_2], &u.bits[_3]);	*/
+			u.bits[_0] = (ULong)strtoul(s1 = s+1, &se, 16);
+			if (se > s1) {
+			  u.bits[_1] = (ULong)strtoul(s1 = se, &se, 16);
+			  if (se > s1) {
+			    u.bits[_2] = (ULong)strtoul(s1 = se, &se, 16);
+			    if (se > s1)
+				u.bits[_3] = (ULong)strtoul(s1 = se, &se, 16);
+			    }
+			  }
 			printf("\nInput: %s", ibuf);
 			printf(" --> f = #%lx %lx %lx %lx\n", u.bits[_0],
 				u.bits[_1], u.bits[_2], u.bits[_3]);

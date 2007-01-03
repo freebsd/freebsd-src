@@ -136,6 +136,7 @@ fzcheck()
 	return b == 0.;
 	}
 
+ int
 main()
 {
 	Akind *a = 0;
