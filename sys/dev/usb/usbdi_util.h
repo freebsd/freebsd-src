@@ -38,6 +38,8 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 
+#ifndef _USBI_UTIL_H_
+#define _USBI_UTIL_H_
 usbd_status	usbd_get_desc(usbd_device_handle dev, int type,
 			      int index, int len, void *desc);
 usbd_status	usbd_get_config_desc(usbd_device_handle, int,
@@ -93,3 +95,4 @@ const usb_descriptor_t *usb_find_desc(usbd_device_handle dev, int type,
 				      int subtype);
 #define USBD_SUBTYPE_ANY (~0)
 
+#endif	/* _USBI_UTIL_H_ */
