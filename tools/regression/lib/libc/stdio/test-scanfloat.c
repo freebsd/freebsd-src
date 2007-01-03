@@ -218,7 +218,7 @@ main(int argc, char *argv[])
 	assert(d == 0.0);
 
 	sscanf("0x1.2345678p-1050", "%le", &d);
-	assert(d == 0x1.234568p-1050);
+	assert(d == 0x1.234567p-1050);
 
 	fesetround(FE_UPWARD);
 
@@ -248,7 +248,7 @@ main(int argc, char *argv[])
 	assert(d == 0.0);
 
 	sscanf("0x1.2345678p-1050", "%le", &d);
-	assert(d == 0x1.234568p-1050);
+	assert(d == 0x1.234567p-1050);
 
 	fesetround(FE_TONEAREST);
 
