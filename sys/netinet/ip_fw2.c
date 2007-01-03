@@ -84,9 +84,10 @@
 #include <netinet/udp.h>
 #include <netinet/udp_var.h>
 #include <netinet/sctp.h>
-
+#ifdef IPFIREWALL_NAT
 #include <netinet/libalias/alias.h>
 #include <netinet/libalias/alias_local.h>
+#endif
 #include <netgraph/ng_ipfw.h>
 
 #include <altq/if_altq.h>
@@ -307,7 +308,9 @@ static struct sysctl_oid *ip6_fw_sysctl_tree;
 #endif /* INET6 */
 #endif /* SYSCTL_NODE */
 
+#ifdef IPFIREWALL_NAT
 MODULE_DEPEND(ipfw, libalias, 1, 1, 1);
+#endif
 static int fw_deny_unknown_exthdrs = 1;
 
 
@@ -2060,6 +2063,7 @@ check_uidgid(ipfw_insn_u32 *insn,
 	return match;
 }
 
+#ifdef IPFIREWALL_NAT
 static eventhandler_tag ifaddr_event_tag;
 
 static void 
@@ -2231,6 +2235,7 @@ bad:
 	/* something really bad happened: panic! */
 	panic("%s\n", panic_err);
 }
+#endif
 
 /*
  * The main check routine for the firewall.
@@ -3474,6 +3479,7 @@ check_body:
 				    IP_FW_NETGRAPH : IP_FW_NGTEE;
 				goto done;
 
+#ifdef IPFIREWALL_NAT
 			case O_NAT: {
 				struct cfg_nat *t;
 				struct mbuf *mcl;
@@ -3644,6 +3650,7 @@ check_body:
 				retval = IP_FW_NAT; 
 				goto done;
 			}
+#endif
 
 			default:
 				panic("-- unknown opcode %d\n", cmd->opcode);
@@ -4593,6 +4600,7 @@ ipfw_ctl(struct sockopt *sopt)
 		}
 		break;
 
+#ifdef IPFIREWALL_NAT
 	case IP_FW_NAT_CFG:
 	{
 		struct cfg_nat *ptr, *ser_n;
@@ -4771,6 +4779,7 @@ ipfw_ctl(struct sockopt *sopt)
 		free(data, M_IPFW);
 	}
 	break;
+#endif
 
 	default:
 		printf("ipfw: ipfw_ctl invalid option %d\n", sopt->sopt_name);
@@ -4944,9 +4953,11 @@ ipfw_init(void)
 	ip_fw_ctl_ptr = ipfw_ctl;
 	ip_fw_chk_ptr = ipfw_chk;
 	callout_reset(&ipfw_timeout, hz, ipfw_tick, NULL);	
+#ifdef IPFIREWALL_NAT
 	LIST_INIT(&layer3_chain.nat);
 	ifaddr_event_tag = EVENTHANDLER_REGISTER(ifaddr_event, ifaddr_change, 
 	    NULL, EVENTHANDLER_PRI_ANY);
+#endif
 	return (0);
 }
 
@@ -4954,13 +4965,16 @@ void
 ipfw_destroy(void)
 {
 	struct ip_fw *reap;
+#ifdef IPFIREWALL_NAT
 	struct cfg_nat *ptr, *ptr_temp;
+#endif
 
 	ip_fw_chk_ptr = NULL;
 	ip_fw_ctl_ptr = NULL;
 	callout_drain(&ipfw_timeout);
 	IPFW_WLOCK(&layer3_chain);
 	flush_tables(&layer3_chain);
+#ifdef IPFIREWALL_NAT
 	LIST_FOREACH_SAFE(ptr, &layer3_chain.nat, _next, ptr_temp) {
 		LIST_REMOVE(ptr, _next);
 		del_redir_spool_cfg(ptr, &ptr->redir_chain);
@@ -4968,6 +4982,7 @@ ipfw_destroy(void)
 		free(ptr, M_IPFW);
 	}
 	EVENTHANDLER_DEREGISTER(ifaddr_event, ifaddr_event_tag);
+#endif
 	layer3_chain.reap = NULL;
 	free_chain(&layer3_chain, 1 /* kill default rule */);
 	reap = layer3_chain.reap, layer3_chain.reap = NULL;
