@@ -2,8 +2,10 @@
 
 The author of this software is David M. Gay.
 
-Copyright (C) 1998 by Lucent Technologies
+Copyright (C) 2004 by David M. Gay.
 All Rights Reserved
+Based on material in the rest of /netlib/fp/gdota.tar.gz,
+which is copyright (C) 1998, 2000 by Lucent Technologies.
 
 Permission to use, copy, modify, and distribute this software and
 its documentation for any purpose and without fee is hereby
@@ -26,74 +28,60 @@ THIS SOFTWARE.
 
 ****************************************************************/
 
+/* This is a variant of strtod that works on Intel ia32 systems */
+/* with the default extended-precision arithmetic -- it does not */
+/* require setting the precision control to 53 bits.  */
+
 /* Please send bug reports to David M. Gay (dmg at acm dot org,
  * with " at " changed at "@" and " dot " changed to ".").	*/
 
 #include "gdtoaimp.h"
 
-#ifdef USE_LOCALE
-#include "locale.h"
-#endif
-
- char *
+ double
 #ifdef KR_headers
-g__fmt(b, s, se, decpt, sign) char *b; char *s; char *se; int decpt; ULong sign;
+strtod(s, sp) CONST char *s; char **sp;
 #else
-g__fmt(char *b, char *s, char *se, int decpt, ULong sign)
+strtod(CONST char *s, char **sp)
 #endif
 {
-	int i, j, k;
-	char *s0 = s;
-#ifdef USE_LOCALE
-	char decimalpoint = *localeconv()->decimal_point;
-#else
-#define decimalpoint '.'
-#endif
-	if (sign)
-		*b++ = '-';
-	if (decpt <= -4 || decpt > se - s + 5) {
-		*b++ = *s++;
-		if (*s) {
-			*b++ = decimalpoint;
-			while((*b = *s++) !=0)
-				b++;
-			}
-		*b++ = 'e';
-		/* sprintf(b, "%+.2d", decpt - 1); */
-		if (--decpt < 0) {
-			*b++ = '-';
-			decpt = -decpt;
-			}
-		else
-			*b++ = '+';
-		for(j = 2, k = 10; 10*k <= decpt; j++, k *= 10){}
-		for(;;) {
-			i = decpt / k;
-			*b++ = i + '0';
-			if (--j <= 0)
-				break;
-			decpt -= i*k;
-			decpt *= 10;
-			}
-		*b = 0;
-		}
-	else if (decpt <= 0) {
-		*b++ = decimalpoint;
-		for(; decpt < 0; decpt++)
-			*b++ = '0';
-		while((*b = *s++) !=0)
-			b++;
-		}
-	else {
-		while((*b = *s++) !=0) {
-			b++;
-			if (--decpt == 0 && *s)
-				*b++ = decimalpoint;
-			}
-		for(; decpt > 0; decpt--)
-			*b++ = '0';
-		*b = 0;
-		}
-	freedtoa(s0);
-	return b;
- 	}
+	static FPI fpi = { 53, 1-1023-53+1, 2046-1023-53+1, 1, SI };
+	ULong bits[2];
+	Long exp;
+	int k;
+	union { ULong L[2]; double d; } u;
+
+	k = strtodg(s, sp, &fpi, &exp, bits);
+	switch(k & STRTOG_Retmask) {
+	  case STRTOG_NoNumber:
+	  case STRTOG_Zero:
+		u.L[0] = u.L[1] = 0;
+		break;
+
+	  case STRTOG_Normal:
+		u.L[_1] = bits[0];
+		u.L[_0] = (bits[1] & ~0x100000) | ((exp + 0x3ff + 52) << 20);
+		break;
+
+	  case STRTOG_Denormal:
+		u.L[_1] = bits[0];
+		u.L[_0] = bits[1];
+		break;
+
+	  case STRTOG_Infinite:
+		u.L[_0] = 0x7ff00000;
+		u.L[_1] = 0;
+		break;
+
+	  case STRTOG_NaN:
+		u.L[0] = d_QNAN0;
+		u.L[1] = d_QNAN1;
+		break;
+
+	  case STRTOG_NaNbits:
+		u.L[_0] = 0x7ff00000 | bits[1];
+		u.L[_1] = bits[0];
+	  }
+	if (k & STRTOG_Neg)
+		u.L[_0] |= 0x80000000L;
+	return u.d;
+	}

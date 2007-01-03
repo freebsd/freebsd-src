@@ -33,13 +33,8 @@ THIS SOFTWARE.
    double-precision arithmetic (any of IEEE, VAX D_floating,
    or IBM mainframe arithmetic).
 
-   Please send bug reports to
-	David M. Gay
-	Bell Laboratories, Room 2C-463
-	600 Mountain Avenue
-	Murray Hill, NJ 07974-0636
-	U.S.A.
-	dmg@bell-labs.com
+   Please send bug reports to David M. Gay (dmg at acm dot org,
+   with " at " changed at "@" and " dot " changed to ".").
  */
 
 /* On a machine with IEEE extended-precision registers, it is
@@ -61,7 +56,7 @@ THIS SOFTWARE.
  * biased rounding (add half and chop).
  *
  * Inspired loosely by William D. Clinger's paper "How to Read Floating
- * Point Numbers Accurately" [Proc. ACM SIGPLAN '90, pp. 92-101].
+ * Point Numbers Accurately" [Proc. ACM SIGPLAN '90, pp. 112-126].
  *
  * Modifications:
  *
@@ -132,10 +127,7 @@ THIS SOFTWARE.
  *	8-byte pointers, PRIVATE_MEM >= 7400 appears to suffice; with
  *	4-byte pointers, PRIVATE_MEM >= 7112 appears adequate.
  * #define INFNAN_CHECK on IEEE systems to cause strtod to check for
- *	Infinity and NaN (case insensitively).  On some systems (e.g.,
- *	some HP systems), it may be necessary to #define NAN_WORD0
- *	appropriately -- to the most significant word of a quiet NaN.
- *	(On HP Series 700/800 machines, -DNAN_WORD0=0x7ff40000 works.)
+ *	Infinity and NaN (case insensitively).
  *	When INFNAN_CHECK is #defined and No_Hex_NaN is not #defined,
  *	strtodg also accepts (case insensitively) strings of the form
  *	NaN(x), where x is a string of hexadecimal digits and spaces;
@@ -176,6 +168,7 @@ THIS SOFTWARE.
 #ifndef GDTOAIMP_H_INCLUDED
 #define GDTOAIMP_H_INCLUDED
 #include "gdtoa.h"
+#include "gd_qnan.h"
 
 #ifdef DEBUG
 #include "stdio.h"
@@ -503,7 +496,7 @@ extern void memcpy_D2A ANSI((void*, const void*, size_t));
 #define gethex gethex_D2A
 #define hexdig hexdig_D2A
 #define hexnan hexnan_D2A
-#define hi0bits hi0bits_D2A
+#define hi0bits(x) hi0bits_D2A((ULong)(x))
 #define i2b i2b_D2A
 #define increment increment_D2A
 #define lo0bits lo0bits_D2A
@@ -553,7 +546,7 @@ extern void memcpy_D2A ANSI((void*, const void*, size_t));
  extern int gethex ANSI((CONST char**, FPI*, Long*, Bigint**, int));
  extern void hexdig_init_D2A(Void);
  extern int hexnan ANSI((CONST char**, FPI*, ULong*));
- extern int hi0bits ANSI((ULong));
+ extern int hi0bits_D2A ANSI((ULong));
  extern Bigint *i2b ANSI((int));
  extern Bigint *increment ANSI((Bigint*));
  extern int lo0bits ANSI((ULong*));
@@ -579,30 +572,38 @@ extern void memcpy_D2A ANSI((void*, const void*, size_t));
 #ifdef __cplusplus
 }
 #endif
-
-
+/*
+ * NAN_WORD0 and NAN_WORD1 are only referenced in strtod.c.  Prior to
+ * 20050115, they used to be hard-wired here (to 0x7ff80000 and 0,
+ * respectively), but now are determined by compiling and running
+ * qnan.c to generate gd_qnan.h, which specifies d_QNAN0 and d_QNAN1.
+ * Formerly gdtoaimp.h recommended supplying suitable -DNAN_WORD0=...
+ * and -DNAN_WORD1=...  values if necessary.  This should still work.
+ * (On HP Series 700/800 machines, -DNAN_WORD0=0x7ff40000 works.)
+ */
 #ifdef IEEE_Arith
 #ifdef IEEE_MC68k
 #define _0 0
 #define _1 1
+#ifndef NAN_WORD0
+#define NAN_WORD0 d_QNAN0
+#endif
+#ifndef NAN_WORD1
+#define NAN_WORD1 d_QNAN1
+#endif
 #else
 #define _0 1
 #define _1 0
+#ifndef NAN_WORD0
+#define NAN_WORD0 d_QNAN1
+#endif
+#ifndef NAN_WORD1
+#define NAN_WORD1 d_QNAN0
+#endif
 #endif
 #else
 #undef INFNAN_CHECK
 #endif
-
-#ifdef INFNAN_CHECK
-
-#ifndef NAN_WORD0
-#define NAN_WORD0 0x7ff80000
-#endif
-
-#ifndef NAN_WORD1
-#define NAN_WORD1 0
-#endif
-#endif	/* INFNAN_CHECK */
 
 #undef SI
 #ifdef Sudden_Underflow

@@ -26,14 +26,8 @@ THIS SOFTWARE.
 
 ****************************************************************/
 
-/* Please send bug reports to
-	David M. Gay
-	Bell Laboratories, Room 2C-463
-	600 Mountain Avenue
-	Murray Hill, NJ 07974-0636
-	U.S.A.
-	dmg@bell-labs.com
- */
+/* Please send bug reports to David M. Gay (dmg at acm dot org,
+ * with " at " changed at "@" and " dot " changed to ".").	*/
 
 #include "gdtoaimp.h"
 
@@ -62,11 +56,7 @@ strtopQ(s, sp, V) CONST char *s; char **sp; void *V;
 strtopQ(CONST char *s, char **sp, void *V)
 #endif
 {
-#ifdef Sudden_Underflow
-	static FPI fpi = { 113, 1-16383-113+1, 32766 - 16383 - 113 + 1, 1, 1 };
-#else
-	static FPI fpi = { 113, 1-16383-113+1, 32766 - 16383 - 113 + 1, 1, 0 };
-#endif
+	static FPI fpi = { 113, 1-16383-113+1, 32766 - 16383 - 113 + 1, 1, SI };
 	ULong bits[4];
 	Long exp;
 	int k;
@@ -100,8 +90,10 @@ strtopQ(CONST char *s, char **sp, void *V)
 		break;
 
 	  case STRTOG_NaN:
-		L[_0] = 0x7fffffff;
-		L[_1] = L[_2] = L[_3] = (ULong)-1;
+		L[0] = ld_QNAN0;
+		L[1] = ld_QNAN1;
+		L[2] = ld_QNAN2;
+		L[3] = ld_QNAN3;
 	  }
 	if (k & STRTOG_Neg)
 		L[_0] |= 0x80000000L;
