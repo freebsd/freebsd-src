@@ -26,14 +26,8 @@ THIS SOFTWARE.
 
 ****************************************************************/
 
-/* Please send bug reports to
-	David M. Gay
-	Bell Laboratories, Room 2C-463
-	600 Mountain Avenue
-	Murray Hill, NJ 07974-0636
-	U.S.A.
-	dmg@bell-labs.com
- */
+/* Please send bug reports to David M. Gay (dmg at acm dot org,
+ * with " at " changed at "@" and " dot " changed to ".").	*/
 
 #include "gdtoaimp.h"
 
@@ -64,11 +58,7 @@ strtopx(s, sp, V) CONST char *s; char **sp; void *V;
 strtopx(CONST char *s, char **sp, void *V)
 #endif
 {
-#ifdef Sudden_Underflow
-	static FPI fpi = { 64, 1-16383-64+1, 32766 - 16383 - 64 + 1, 1, 1 };
-#else
-	static FPI fpi = { 64, 1-16383-64+1, 32766 - 16383 - 64 + 1, 1, 0 };
-#endif
+	static FPI fpi = { 64, 1-16383-64+1, 32766 - 16383 - 64 + 1, 1, SI };
 	ULong bits[2];
 	Long exp;
 	int k;
@@ -81,14 +71,18 @@ strtopx(CONST char *s, char **sp, void *V)
 		L[0] = L[1] = L[2] = L[3] = L[4] = 0;
 		break;
 
-	  case STRTOG_Normal:
 	  case STRTOG_Denormal:
+		L[_0] = 0;
+		goto normal_bits;
+
+	  case STRTOG_Normal:
 	  case STRTOG_NaNbits:
+		L[_0] = exp + 0x3fff + 63;
+ normal_bits:
 		L[_4] = (UShort)bits[0];
 		L[_3] = (UShort)(bits[0] >> 16);
 		L[_2] = (UShort)bits[1];
 		L[_1] = (UShort)(bits[1] >> 16);
-		L[_0] = exp + 0x3fff + 63;
 		break;
 
 	  case STRTOG_Infinite:
@@ -97,8 +91,11 @@ strtopx(CONST char *s, char **sp, void *V)
 		break;
 
 	  case STRTOG_NaN:
-		L[_0] = 0x7fff;
-		L[_1] = L[_2] = L[_3] = L[_4] = (UShort)-1;
+		L[0] = ldus_QNAN0;
+		L[1] = ldus_QNAN1;
+		L[2] = ldus_QNAN2;
+		L[3] = ldus_QNAN3;
+		L[4] = ldus_QNAN4;
 	  }
 	if (k & STRTOG_Neg)
 		L[_0] |= 0x8000;
