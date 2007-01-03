@@ -190,7 +190,15 @@ main(int argc, char *argv[])
 	assert(f != f);
 	assert(d != d);
 	assert(ld != ld);
+#if 0
+	/*
+	 * POSIX says we should only generate quiet NaNs, but the gdtoa
+	 * author convincingly argues that if you ask for a NaN format
+	 * based on some implementation-defined string, you should get
+	 * what you asked for, even if it's a signaling NaN.
+	 */
 	assert(fetestexcept(FE_INVALID) == 0);
+#endif
 
 	printf("ok 2 - scanfloat\n");
 
