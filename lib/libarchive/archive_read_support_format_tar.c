@@ -556,30 +556,28 @@ archive_read_format_tar_skip(struct archive *a)
 			r = archive_read_format_tar_read_data(a, &b, &s, &o);
 		return (r);
 	}
-	bytes_skipped = (a->compression_skip)(a, tar->entry_bytes_remaining);
+
+	/*
+	 * Compression layer skip functions are required to either skip the
+	 * length requested or fail, so we can rely upon the entire entry
+	 * plus padding being skipped.
+	 */
+	bytes_skipped = (a->compression_skip)(a, tar->entry_bytes_remaining +
+	    tar->entry_padding);
 	if (bytes_skipped < 0)
 		return (ARCHIVE_FATAL);
-	/* same code as above in _tar_read_data() */
-	tar->entry_bytes_remaining -= bytes_skipped;
-	while (tar->sparse_list != NULL &&
-	    tar->sparse_list->remaining == 0) {
+
+	tar->entry_bytes_remaining = 0;
+	tar->entry_padding = 0;
+
+	/* Free the sparse list. */
+	while (tar->sparse_list != NULL) {
 		p = tar->sparse_list;
 		tar->sparse_list = p->next;
 		free(p);
-		if (tar->sparse_list != NULL)
-			tar->entry_offset = tar->sparse_list->offset;
 	}
-	if (tar->sparse_list != NULL) {
-		if (tar->sparse_list->remaining < bytes_skipped)
-			bytes_skipped = tar->sparse_list->remaining;
-		tar->sparse_list->remaining -= bytes_skipped;
-	}
-	tar->entry_offset += bytes_skipped;
-	tar->entry_bytes_remaining -= bytes_skipped;
-	/* Reuse padding code above. */
-	while (r == ARCHIVE_OK)
-		r = archive_read_format_tar_read_data(a, &b, &s, &o);
-	return (r);
+
+	return (ARCHIVE_OK);
 }
 
 /*
