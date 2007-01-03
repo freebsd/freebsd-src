@@ -26,14 +26,7 @@ THIS SOFTWARE.
 
 ****************************************************************/
 
-/* Please send bug reports to
-	David M. Gay
-	Bell Laboratories, Room 2C-463
-	600 Mountain Avenue
-	Murray Hill, NJ 07974-0636
-	U.S.A.
-	dmg@bell-labs.com
- */
+/* Please send bug reports to David M. Gay (dmg@acm.org). */
 
 #include "gdtoaimp.h"
 #include <string.h>

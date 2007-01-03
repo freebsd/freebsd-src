@@ -26,14 +26,8 @@ THIS SOFTWARE.
 
 ****************************************************************/
 
-/* Please send bug reports to
-	David M. Gay
-	Bell Laboratories, Room 2C-463
-	600 Mountain Avenue
-	Murray Hill, NJ 07974-0636
-	U.S.A.
-	dmg@bell-labs.com
- */
+/* Please send bug reports to David M. Gay (dmg at acm dot org,
+ * with " at " changed at "@" and " dot " changed to ".").	*/
 
 /* Test program for strtod and dtoa.
  *
@@ -169,7 +163,8 @@ check(double d)
 	double d1;
 
 	s = dtoa(d, 0, 0, &decpt, &sign, &se);
-	sprintf(buf, "%s.%se%d", sign ? "-" : "", s, decpt);
+	sprintf(buf, "%s%s%se%d", sign ? "-" : "",
+		decpt == 9999 ? "" : ".", s, decpt);
 	errno = 0;
 	d1 = strtod(buf, (char **)0);
 	if (errno)
@@ -182,9 +177,10 @@ check(double d)
 		}
 	}
 
+ int
 main(Void){
 	char buf[2048], buf1[32];
-	char *fmt, *s, *se;
+	char *fmt, *s, *s1, *se;
 	double d, d1;
 	int decpt, sign;
 	int mode = 0, ndigits = 17;
@@ -202,7 +198,13 @@ main(Void){
 		if (*buf == '#') {
 			x = word0(d);
 			y = word1(d);
-			sscanf(buf+1, "%lx %lx:%d %d", &x, &y, &mode, &ndigits);
+			/* sscanf(buf+1, "%lx %lx:%d %d", &x, &y, &mode, &ndigits); */
+			x = (ULong)strtoul(s1 = buf+1, &se, 16);
+			if (se > s1) {
+				y = (ULong)strtoul(s1 = se, &se, 16);
+				if (se > s1)
+					sscanf(se, ":%d %d", &mode, &ndigits);
+				}
 			word0(d) = x;
 			word1(d) = y;
 			fmt = "Output: d =\n%.17g = 0x%lx %lx\n";

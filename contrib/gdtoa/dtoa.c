@@ -26,21 +26,15 @@ THIS SOFTWARE.
 
 ****************************************************************/
 
-/* Please send bug reports to
-	David M. Gay
-	Bell Laboratories, Room 2C-463
-	600 Mountain Avenue
-	Murray Hill, NJ 07974-0636
-	U.S.A.
-	dmg@bell-labs.com
- */
+/* Please send bug reports to David M. Gay (dmg at acm dot org,
+ * with " at " changed at "@" and " dot " changed to ".").	*/
 
 #include "gdtoaimp.h"
 
 /* dtoa for IEEE arithmetic (dmg): convert double to ASCII string.
  *
  * Inspired by "How to Print Floating-Point Numbers Accurately" by
- * Guy L. Steele, Jr. and Jon L. White [Proc. ACM SIGPLAN '90, pp. 92-101].
+ * Guy L. Steele, Jr. and Jon L. White [Proc. ACM SIGPLAN '90, pp. 112-126].
  *
  * Modifications:
  *	1. Rather than iterating, we use a simple numeric overestimate

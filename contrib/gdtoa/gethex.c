@@ -26,10 +26,8 @@ THIS SOFTWARE.
 
 ****************************************************************/
 
-/* Please send bug reports to
-	David M. Gay
-	dmg@acm.org
- */
+/* Please send bug reports to David M. Gay (dmg at acm dot org,
+ * with " at " changed at "@" and " dot " changed to ".").	*/
 
 #include "gdtoaimp.h"
 
@@ -47,7 +45,7 @@ gethex( CONST char **sp, FPI *fpi, Long *exp, Bigint **bp, int sign)
 {
 	Bigint *b;
 	CONST unsigned char *decpt, *s0, *s, *s1;
-	int esign, havedig, irv, k, n, nbits, up;
+	int esign, havedig, irv, k, n, nbits, up, zret;
 	ULong L, lostbits, *x;
 	Long e, e1;
 #ifdef USE_LOCALE
@@ -65,22 +63,20 @@ gethex( CONST char **sp, FPI *fpi, Long *exp, Bigint **bp, int sign)
 	s0 += havedig;
 	s = s0;
 	decpt = 0;
+	zret = 0;
+	e = 0;
 	if (!hexdig[*s]) {
-		if (*s == decimalpoint) {
-			decpt = ++s;
-			if (!hexdig[*s])
-				goto ret0;
-			}
-		else {
- ret0:
-			*sp = (char*)s;
-			return havedig ? STRTOG_Zero : STRTOG_NoNumber;
-			}
+		zret = 1;
+		if (*s != decimalpoint)
+			goto pcheck;
+		decpt = ++s;
+		if (!hexdig[*s])
+			goto pcheck;
 		while(*s == '0')
 			s++;
+		if (hexdig[*s])
+			zret = 0;
 		havedig = 1;
-		if (!hexdig[*s])
-			goto ret0;
 		s0 = s;
 		}
 	while(hexdig[*s])
@@ -90,9 +86,9 @@ gethex( CONST char **sp, FPI *fpi, Long *exp, Bigint **bp, int sign)
 		while(hexdig[*s])
 			s++;
 		}
-	e = 0;
 	if (decpt)
 		e = -(((Long)(s-decpt)) << 2);
+ pcheck:
 	s1 = s;
 	switch(*s) {
 	  case 'p':
@@ -117,6 +113,8 @@ gethex( CONST char **sp, FPI *fpi, Long *exp, Bigint **bp, int sign)
 		e += e1;
 	  }
 	*sp = (char*)s;
+	if (zret)
+		return havedig ? STRTOG_Zero : STRTOG_NoNumber;
 	n = s1 - s0 - 1;
 	for(k = 0; n > 7; n >>= 1)
 		k++;
