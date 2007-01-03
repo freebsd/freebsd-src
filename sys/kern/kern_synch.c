@@ -407,10 +407,6 @@ mi_switch(int flags, struct thread *newtd)
 	PCPU_SET(switchticks, ticks);
 	CTR4(KTR_PROC, "mi_switch: old thread %p (kse %p, pid %ld, %s)",
 	    (void *)td, td->td_sched, (long)p->p_pid, p->p_comm);
-#ifdef KSE
-	if ((flags & SW_VOL) && (td->td_proc->p_flag & P_SA))
-		newtd = thread_switchout(td, flags, newtd);
-#endif
 #if (KTR_COMPILE & KTR_SCHED) != 0
 	if (td == PCPU_GET(idlethread))
 		CTR3(KTR_SCHED, "mi_switch: %p(%s) prio %d idle",
@@ -425,6 +421,14 @@ mi_switch(int flags, struct thread *newtd)
 		    "mi_switch: %p(%s) prio %d inhibit %d wmesg %s lock %s",
 		    td, td->td_proc->p_comm, td->td_priority,
 		    td->td_inhibitors, td->td_wmesg, td->td_lockname);
+#endif
+	/*
+	 * We call thread_switchout after the KTR_SCHED prints above so kse
+	 * selecting a new thread to run does not show up as a preemption.
+	 */
+#ifdef KSE
+	if ((flags & SW_VOL) && (td->td_proc->p_flag & P_SA))
+		newtd = thread_switchout(td, flags, newtd);
 #endif
 	sched_switch(td, newtd, flags);
 	CTR3(KTR_SCHED, "mi_switch: running %p(%s) prio %d",
