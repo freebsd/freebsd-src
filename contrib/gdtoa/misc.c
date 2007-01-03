@@ -26,14 +26,8 @@ THIS SOFTWARE.
 
 ****************************************************************/
 
-/* Please send bug reports to
-	David M. Gay
-	Bell Laboratories, Room 2C-463
-	600 Mountain Avenue
-	Murray Hill, NJ 07974-0636
-	U.S.A.
-	dmg@bell-labs.com
- */
+/* Please send bug reports to David M. Gay (dmg at acm dot org,
+ * with " at " changed at "@" and " dot " changed to ".").	*/
 
 #include "gdtoaimp.h"
 
@@ -143,7 +137,7 @@ lo0bits
 	if (!(x & 1)) {
 		k++;
 		x >>= 1;
-		if (!x & 1)
+		if (!x)
 			return 32;
 		}
 	*y = x;
@@ -208,7 +202,7 @@ multadd
 	}
 
  int
-hi0bits
+hi0bits_D2A
 #ifdef KR_headers
 	(x) register ULong x;
 #else
@@ -686,7 +680,10 @@ d2b
 #endif
 {
 	Bigint *b;
-	int de, i, k;
+#ifndef Sudden_Underflow
+	int i;
+#endif
+	int de, k;
 	ULong *x, y, z;
 #ifdef VAX
 	ULong d0, d1;
@@ -723,7 +720,10 @@ d2b
 			}
 		else
 			x[0] = y;
-		i = b->wds = (x[1] = z) !=0 ? 2 : 1;
+#ifndef Sudden_Underflow
+		i =
+#endif
+		     b->wds = (x[1] = z) !=0 ? 2 : 1;
 		}
 	else {
 #ifdef DEBUG
@@ -732,7 +732,10 @@ d2b
 #endif
 		k = lo0bits(&z);
 		x[0] = z;
-		i = b->wds = 1;
+#ifndef Sudden_Underflow
+		i =
+#endif
+		    b->wds = 1;
 		k += 32;
 		}
 #else

@@ -26,14 +26,8 @@ THIS SOFTWARE.
 
 ****************************************************************/
 
-/* Please send bug reports to
-	David M. Gay
-	Bell Laboratories, Room 2C-463
-	600 Mountain Avenue
-	Murray Hill, NJ 07974-0636
-	U.S.A.
-	dmg@bell-labs.com
- */
+/* Please send bug reports to David M. Gay (dmg at acm dot org,
+ * with " at " changed at "@" and " dot " changed to ".").	*/
 
 /* Test program for g_ddfmt, strtoIdd, strtopdd, and strtordd.
  *
@@ -73,22 +67,22 @@ dprint(char *what, double d)
 #endif
 {
 	char buf[32];
-	ULong *L = (ULong*)&d;
+	union { double d; ULong L[2]; } u;
 
+	u.d = d;
 	g_dfmt(buf,&d,0,sizeof(buf));
-	printf("%s = %s = #%lx %lx\n", what, buf, U L[_0], U L[_1]);
+	printf("%s = %s = #%lx %lx\n", what, buf, U u.L[_0], U u.L[_1]);
 	}
 
  int
 main(Void)
 {
-	ULong *L;
 	char *s, *s1, *se, *se1;
 	int dItry, i, j, r = 1, ndig = 0;
-	double dd[2], ddI[4];
+	double ddI[4];
 	long LL[4];
+	union { double dd[2]; ULong L[4]; } u;
 
-	L = (ULong*)&dd[0];
 	while( (s = fgets(ibuf, sizeof(ibuf), stdin)) !=0) {
 		while(*s <= ' ')
 			if (!*s++)
@@ -106,16 +100,16 @@ main(Void)
 				}
 			break; /* nan? */
 		  case '#':
-			LL[0] = L[_0];
-			LL[1] = L[_1];
-			LL[2] = L[2+_0];
-			LL[3] = L[2+_1];
+			LL[0] = u.L[_0];
+			LL[1] = u.L[_1];
+			LL[2] = u.L[2+_0];
+			LL[3] = u.L[2+_1];
 			sscanf(s+1, "%lx %lx %lx %lx", &LL[0], &LL[1],
 				&LL[2], &LL[3]);
-			L[_0] = LL[0];
-			L[_1] = LL[1];
-			L[2+_0] = LL[2];
-			L[2+_1] = LL[3];
+			u.L[_0] = LL[0];
+			u.L[_1] = LL[1];
+			u.L[2+_0] = LL[2];
+			u.L[2+_1] = LL[3];
 			printf("\nInput: %s", ibuf);
 			printf(" --> f = #%lx %lx %lx %lx\n",
 				LL[0],LL[1],LL[2],LL[3]);
@@ -126,24 +120,24 @@ main(Void)
 		while(*s1 <= ' ' && *s1) s1++;
 		if (!*s1) {
 			dItry = 1;
-			i = strtordd(ibuf, &se, r, dd);
+			i = strtordd(ibuf, &se, r, u.dd);
 			if (r == 1) {
 				j = strtopdd(ibuf, &se1, ddI);
-				if (i != j || dd[0] != ddI[0]
-				 || dd[1] != ddI[1] || se != se1)
+				if (i != j || u.dd[0] != ddI[0]
+				 || u.dd[1] != ddI[1] || se != se1)
 					printf("***strtopdd and strtordd disagree!!\n:");
 				}
 			printf("strtopdd consumes %d bytes and returns %d\n",
 				(int)(se-ibuf), i);
 			}
 		else {
-			dd[0] = strtod(s, &se);
-			dd[1] = strtod(se, &se);
+			u.dd[0] = strtod(s, &se);
+			u.dd[1] = strtod(se, &se);
 			}
  fmt_test:
-		dprint("dd[0]", dd[0]);
-		dprint("dd[1]", dd[1]);
-		se = g_ddfmt(obuf, dd, ndig, sizeof(obuf));
+		dprint("dd[0]", u.dd[0]);
+		dprint("dd[1]", u.dd[1]);
+		se = g_ddfmt(obuf, u.dd, ndig, sizeof(obuf));
 		printf("g_ddfmt(%d) gives %d bytes: \"%s\"\n\n",
 			ndig, (int)(se-obuf), se ? obuf : "<null>");
 		if (!dItry)
@@ -151,7 +145,7 @@ main(Void)
 		printf("strtoIdd returns %d,", strtoIdd(ibuf, &se, ddI,&ddI[2]));
 		printf(" consuming %d bytes.\n", (int)(se-ibuf));
 		if (ddI[0] == ddI[2] && ddI[1] == ddI[3]) {
-			if (ddI[0] == dd[0] && ddI[1] == dd[1])
+			if (ddI[0] == u.dd[0] && ddI[1] == u.dd[1])
 				printf("ddI[0] == ddI[1] == strtopdd\n");
 			else
 				printf("ddI[0] == ddI[1] = #%lx %lx + %lx %lx\n= %.17g + %17.g\n",
@@ -170,9 +164,9 @@ main(Void)
 				U ((ULong*)ddI)[4+_0], U ((ULong*)ddI)[4+_1],
 				U ((ULong*)ddI)[6+_0], U ((ULong*)ddI)[6+_1],
 				ddI[2], ddI[3]);
-			if (ddI[0] == dd[0] && ddI[1] == dd[1])
+			if (ddI[0] == u.dd[0] && ddI[1] == u.dd[1])
 				printf("ddI[0] == strtod\n");
-			else if (ddI[2] == dd[0] && ddI[3] == dd[1])
+			else if (ddI[2] == u.dd[0] && ddI[3] == u.dd[1])
 				printf("ddI[1] == strtod\n");
 			else
 				printf("**** Both differ from strtopdd ****\n");
