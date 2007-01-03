@@ -55,7 +55,7 @@ roundup(char *s0, int ndigits)
 			*s = 1;
 			return (1);
 		}
-		++*s;
+		*s = 0;
 	}
 	++*s;
 	return (0);
