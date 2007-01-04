@@ -188,6 +188,8 @@ struct ata_connect_task {
 #define ATA_M88SX5081           0x508111ab
 #define ATA_M88SX6041           0x604111ab
 #define ATA_M88SX6081           0x608111ab
+#define ATA_M88SX6101           0x610111ab
+#define ATA_M88SX6145           0x614511ab
 
 #define ATA_MICRON_ID           0x1042
 #define ATA_MICRON_RZ1000       0x10001042
@@ -365,8 +367,9 @@ struct ata_connect_task {
 #define HPT374          3
 #define HPTOLD          0x01
 
-#define MV5XXX          5
-#define MV6XXX          6
+#define MV50XX          50
+#define MV60XX          60
+#define MV61XX          61
 
 #define PROLD           0
 #define PRNEW           1
