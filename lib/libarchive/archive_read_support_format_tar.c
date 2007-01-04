@@ -541,7 +541,7 @@ archive_read_format_tar_read_data(struct archive *a,
 static int
 archive_read_format_tar_skip(struct archive *a)
 {
-	ssize_t bytes_skipped;
+	off_t bytes_skipped;
 	struct tar* tar;
 	struct sparse_block *p;
 	int r = ARCHIVE_OK;
