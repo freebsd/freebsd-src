@@ -919,8 +919,8 @@ fprintf(stderr, " *** Discarding CE data.\n");
 		/* Use fast compression_skip if it's available. */
 		if (iso9660->current_position < offset
 		    && a->compression_skip != NULL) {
-			ssize_t step = offset - iso9660->current_position;
-			ssize_t bytes_read;
+			off_t step = offset - iso9660->current_position;
+			off_t bytes_read;
 			bytes_read = (a->compression_skip)(a, step);
 			iso9660->current_position += bytes_read;
 		}
