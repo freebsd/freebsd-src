@@ -105,14 +105,17 @@ static int ata_jmicron_allocate(device_t dev);
 static void ata_jmicron_reset(device_t dev);
 static void ata_jmicron_dmainit(device_t dev);
 static void ata_jmicron_setmode(device_t dev, int mode);
-static int ata_marvell_chipinit(device_t dev);
-static int ata_marvell_allocate(device_t dev);
-static int ata_marvell_status(device_t dev);
-static int ata_marvell_begin_transaction(struct ata_request *request);
-static int ata_marvell_end_transaction(struct ata_request *request);
-static void ata_marvell_reset(device_t dev);
-static void ata_marvell_dmasetprd(void *xsc, bus_dma_segment_t *segs, int nsegs, int error);
-static void ata_marvell_dmainit(device_t dev);
+static int ata_marvell_pata_chipinit(device_t dev);
+static int ata_marvell_pata_allocate(device_t dev);
+static void ata_marvell_pata_setmode(device_t dev, int mode);
+static int ata_marvell_edma_chipinit(device_t dev);
+static int ata_marvell_edma_allocate(device_t dev);
+static int ata_marvell_edma_status(device_t dev);
+static int ata_marvell_edma_begin_transaction(struct ata_request *request);
+static int ata_marvell_edma_end_transaction(struct ata_request *request);
+static void ata_marvell_edma_reset(device_t dev);
+static void ata_marvell_edma_dmasetprd(void *xsc, bus_dma_segment_t *segs, int nsegs, int error);
+static void ata_marvell_edma_dmainit(device_t dev);
 static int ata_national_chipinit(device_t dev);
 static void ata_national_setmode(device_t dev, int mode);
 static int ata_nvidia_chipinit(device_t dev);
@@ -2310,12 +2313,14 @@ ata_marvell_ident(device_t dev)
     struct ata_pci_controller *ctlr = device_get_softc(dev);
     struct ata_chip_id *idx;
     static struct ata_chip_id ids[] =
-    {{ ATA_M88SX5040, 0, 4, MV5XXX, ATA_SA150, "88SX5040" },
-     { ATA_M88SX5041, 0, 4, MV5XXX, ATA_SA150, "88SX5041" },
-     { ATA_M88SX5080, 0, 8, MV5XXX, ATA_SA150, "88SX5080" },
-     { ATA_M88SX5081, 0, 8, MV5XXX, ATA_SA150, "88SX5081" },
-     { ATA_M88SX6041, 0, 4, MV6XXX, ATA_SA300, "88SX6041" },
-     { ATA_M88SX6081, 0, 8, MV6XXX, ATA_SA300, "88SX6081" },
+    {{ ATA_M88SX5040, 0, 4, MV50XX, ATA_SA150, "88SX5040" },
+     { ATA_M88SX5041, 0, 4, MV50XX, ATA_SA150, "88SX5041" },
+     { ATA_M88SX5080, 0, 8, MV50XX, ATA_SA150, "88SX5080" },
+     { ATA_M88SX5081, 0, 8, MV50XX, ATA_SA150, "88SX5081" },
+     { ATA_M88SX6041, 0, 4, MV60XX, ATA_SA300, "88SX6041" },
+     { ATA_M88SX6081, 0, 8, MV60XX, ATA_SA300, "88SX6081" },
+     { ATA_M88SX6101, 0, 1, MV61XX, ATA_UDMA6, "88SX6101" },
+     { ATA_M88SX6145, 0, 2, MV61XX, ATA_UDMA6, "88SX6145" },
      { 0, 0, 0, 0, 0, 0}};
     char buffer[64];
 
@@ -2326,12 +2331,62 @@ ata_marvell_ident(device_t dev)
 	    idx->text, ata_mode2str(idx->max_dma));
     device_set_desc_copy(dev, buffer);
     ctlr->chip = idx;
-    ctlr->chipinit = ata_marvell_chipinit;
+    switch (ctlr->chip->cfg2) {
+    case MV50XX:
+    case MV60XX:
+	ctlr->chipinit = ata_marvell_edma_chipinit;
+	break;
+    case MV61XX:
+	ctlr->chipinit = ata_marvell_pata_chipinit;
+	break;
+    }
     return 0;
 }
 
 static int
-ata_marvell_chipinit(device_t dev)
+ata_marvell_pata_chipinit(device_t dev)
+{
+    struct ata_pci_controller *ctlr = device_get_softc(dev);
+
+    if (ata_setup_interrupt(dev))
+	return ENXIO;
+
+    ctlr->allocate = ata_marvell_pata_allocate;
+    ctlr->setmode = ata_marvell_pata_setmode;
+    ctlr->channels = ctlr->chip->cfg1;
+    return 0;
+}
+
+static int
+ata_marvell_pata_allocate(device_t dev)
+{
+    struct ata_channel *ch = device_get_softc(dev);
+ 
+    /* setup the usual register normal pci style */
+    if (ata_pci_allocate(dev))
+	return ENXIO;
+ 
+    /* dont use 32 bit PIO transfers */
+	ch->flags |= ATA_USE_16BIT;
+
+    return 0;
+}
+
+static void
+ata_marvell_pata_setmode(device_t dev, int mode)
+{
+    device_t gparent = GRANDPARENT(dev);
+    struct ata_pci_controller *ctlr = device_get_softc(gparent);
+    struct ata_device *atadev = device_get_softc(dev);
+
+    mode = ata_limit_mode(dev, mode, ctlr->chip->max_dma);
+    mode = ata_check_80pin(dev, mode);
+    if (!ata_controlcmd(dev, ATA_SETFEATURES, ATA_SF_SETXFER, 0, mode))
+	atadev->mode = mode;
+}
+
+static int
+ata_marvell_edma_chipinit(device_t dev)
 {
     struct ata_pci_controller *ctlr = device_get_softc(dev);
 
@@ -2350,9 +2405,9 @@ ata_marvell_chipinit(device_t dev)
     /* mask all PCI interrupts */
     ATA_OUTL(ctlr->r_res1, 0x01d5c, 0x00000000);
 
-    ctlr->allocate = ata_marvell_allocate;
-    ctlr->reset = ata_marvell_reset;
-    ctlr->dmainit = ata_marvell_dmainit;
+    ctlr->allocate = ata_marvell_edma_allocate;
+    ctlr->reset = ata_marvell_edma_reset;
+    ctlr->dmainit = ata_marvell_edma_dmainit;
     ctlr->setmode = ata_sata_setmode;
     ctlr->channels = ctlr->chip->cfg1;
 
@@ -2378,7 +2433,7 @@ ata_marvell_chipinit(device_t dev)
 }
 
 static int
-ata_marvell_allocate(device_t dev)
+ata_marvell_edma_allocate(device_t dev)
 {
     struct ata_pci_controller *ctlr = device_get_softc(device_get_parent(dev));
     struct ata_channel *ch = device_get_softc(dev);
@@ -2400,7 +2455,7 @@ ata_marvell_allocate(device_t dev)
 
     /* set SATA resources */
     switch (ctlr->chip->cfg2) {
-    case MV5XXX:
+    case MV50XX:
 	ch->r_io[ATA_SSTATUS].res = ctlr->r_res1;
 	ch->r_io[ATA_SSTATUS].offset =  0x00100 + ATA_MV_HOST_BASE(ch);
 	ch->r_io[ATA_SERROR].res = ctlr->r_res1;
@@ -2408,7 +2463,7 @@ ata_marvell_allocate(device_t dev)
 	ch->r_io[ATA_SCONTROL].res = ctlr->r_res1;
 	ch->r_io[ATA_SCONTROL].offset = 0x00108 + ATA_MV_HOST_BASE(ch);
 	break;
-    case MV6XXX:
+    case MV60XX:
 	ch->r_io[ATA_SSTATUS].res = ctlr->r_res1;
 	ch->r_io[ATA_SSTATUS].offset =  0x02300 + ATA_MV_EDMA_BASE(ch);
 	ch->r_io[ATA_SERROR].res = ctlr->r_res1;
@@ -2423,9 +2478,9 @@ ata_marvell_allocate(device_t dev)
     ch->flags |= ATA_NO_SLAVE;
     ch->flags |= ATA_USE_16BIT; /* XXX SOS needed ? */
     ata_generic_hw(dev);
-    ch->hw.begin_transaction = ata_marvell_begin_transaction;
-    ch->hw.end_transaction = ata_marvell_end_transaction;
-    ch->hw.status = ata_marvell_status;
+    ch->hw.begin_transaction = ata_marvell_edma_begin_transaction;
+    ch->hw.end_transaction = ata_marvell_edma_end_transaction;
+    ch->hw.status = ata_marvell_edma_status;
 
     /* disable the EDMA machinery */
     ATA_OUTL(ctlr->r_res1, 0x02028 + ATA_MV_EDMA_BASE(ch), 0x00000002);
@@ -2468,7 +2523,7 @@ ata_marvell_allocate(device_t dev)
 }
 
 static int
-ata_marvell_status(device_t dev)
+ata_marvell_edma_status(device_t dev)
 {
     struct ata_pci_controller *ctlr = device_get_softc(device_get_parent(dev));
     struct ata_channel *ch = device_get_softc(dev);
@@ -2522,7 +2577,7 @@ ata_marvell_status(device_t dev)
 
 /* must be called with ATA channel locked and state_mtx held */
 static int
-ata_marvell_begin_transaction(struct ata_request *request)
+ata_marvell_edma_begin_transaction(struct ata_request *request)
 {
     struct ata_pci_controller *ctlr=device_get_softc(GRANDPARENT(request->dev));
     struct ata_channel *ch = device_get_softc(device_get_parent(request->dev));
@@ -2614,7 +2669,7 @@ ata_marvell_begin_transaction(struct ata_request *request)
 
 /* must be called with ATA channel locked and state_mtx held */
 static int
-ata_marvell_end_transaction(struct ata_request *request)
+ata_marvell_edma_end_transaction(struct ata_request *request)
 {
     struct ata_pci_controller *ctlr=device_get_softc(GRANDPARENT(request->dev));
     struct ata_channel *ch = device_get_softc(device_get_parent(request->dev));
@@ -2668,7 +2723,7 @@ ata_marvell_end_transaction(struct ata_request *request)
 }
 
 static void
-ata_marvell_reset(device_t dev)
+ata_marvell_edma_reset(device_t dev)
 {
     struct ata_pci_controller *ctlr = device_get_softc(device_get_parent(dev));
     struct ata_channel *ch = device_get_softc(dev);
@@ -2695,7 +2750,8 @@ ata_marvell_reset(device_t dev)
 }
 
 static void
-ata_marvell_dmasetprd(void *xsc, bus_dma_segment_t *segs, int nsegs, int error)
+ata_marvell_edma_dmasetprd(void *xsc, bus_dma_segment_t *segs, int nsegs,
+			   int error)
 {
     struct ata_dmasetprd_args *args = xsc;
     struct ata_marvell_dma_prdentry *prd = args->dmatab;
@@ -2713,14 +2769,14 @@ ata_marvell_dmasetprd(void *xsc, bus_dma_segment_t *segs, int nsegs, int error)
 }
 
 static void
-ata_marvell_dmainit(device_t dev)
+ata_marvell_edma_dmainit(device_t dev)
 {
     struct ata_channel *ch = device_get_softc(dev);
 
     ata_dmainit(dev);
     if (ch->dma) {
 	/* note start and stop are not used here */
-	ch->dma->setprd = ata_marvell_dmasetprd;
+	ch->dma->setprd = ata_marvell_edma_dmasetprd;
     }
 }
 
