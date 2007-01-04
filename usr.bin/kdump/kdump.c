@@ -58,6 +58,7 @@ extern int errno;
 #include <sys/ktrace.h>
 #include <sys/ioctl.h>
 #include <sys/ptrace.h>
+#include <sys/socket.h>
 #include <err.h>
 #include <locale.h>
 #include <stdio.h>
@@ -528,14 +529,23 @@ ktrsyscall(struct ktr_syscall *ktr)
 				ip++;
 				narg-=2;
 			} else if (ktr->ktr_code == SYS_socket) {
+				int sockdomain;
 				(void)putchar('(');
-				sockdomainname((int)*ip);
+				sockdomain=(int)*ip;
+				sockdomainname(sockdomain);
 				ip++;
 				narg--;
 				(void)putchar(',');
 				socktypename((int)*ip);
 				ip++;
 				narg--;
+				if (sockdomain == PF_INET ||
+				    sockdomain == PF_INET6) {
+					(void)putchar(',');
+					sockipprotoname((int)*ip);
+					ip++;
+					narg--;
+				}
 				c = ',';
 			} else if (ktr->ktr_code == SYS_setsockopt ||
 				   ktr->ktr_code == SYS_getsockopt) {

@@ -21,6 +21,7 @@ void flockname (int);
 void sockoptname (int);
 void sockoptlevelname (int, int);
 void sockdomainname (int);
+void sockipprotoname (int);
 void socktypename (int);
 void thrcreateflagsname (int);
 void mlockallname (int);
