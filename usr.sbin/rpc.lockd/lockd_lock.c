@@ -78,7 +78,7 @@ struct file_lock {
 	fhandle_t filehandle; /* NFS filehandle */
 	struct sockaddr *addr;
 	struct nlm4_holder client; /* lock holder */
-	/* XXX: client_cookie used *only* in send_granted */ 
+	/* XXX: client_cookie used *only* in send_granted */
 	netobj client_cookie; /* cookie sent by the client */
 	int nsm_status; /* status from the remote lock manager */
 	int status; /* lock status, see below */
@@ -139,11 +139,11 @@ enum nfslock_status { NFS_GRANTED = 0, NFS_GRANTED_DUPLICATE,
 		      NFS_RESERR };
 
 enum hwlock_status { HW_GRANTED = 0, HW_GRANTED_DUPLICATE,
-		     HW_DENIED, HW_DENIED_NOLOCK, 
+		     HW_DENIED, HW_DENIED_NOLOCK,
 		     HW_STALEFH, HW_READONLY, HW_RESERR };
 
 enum partialfilelock_status { PFL_GRANTED=0, PFL_GRANTED_DUPLICATE, PFL_DENIED,
-			      PFL_NFSDENIED, PFL_NFSBLOCKED, PFL_NFSDENIED_NOLOCK, PFL_NFSRESERR, 
+			      PFL_NFSDENIED, PFL_NFSBLOCKED, PFL_NFSDENIED_NOLOCK, PFL_NFSRESERR,
 			      PFL_HWDENIED,  PFL_HWBLOCKED,  PFL_HWDENIED_NOLOCK, PFL_HWRESERR};
 
 enum LFLAGS {LEDGE_LEFT, LEDGE_LBOUNDARY, LEDGE_INSIDE, LEDGE_RBOUNDARY, LEDGE_RIGHT};
@@ -200,7 +200,7 @@ enum split_status split_nfslock(const struct file_lock *exist_lock,
 void	add_blockingfilelock(struct file_lock *fl);
 enum hwlock_status	unlock_hwlock(const struct file_lock *fl);
 enum hwlock_status	test_hwlock(const struct file_lock *fl,
-    struct file_lock **conflicting_fl); 
+    struct file_lock **conflicting_fl);
 void	remove_blockingfilelock(struct file_lock *fl);
 void	clear_blockingfilelock(const char *hostname);
 void	retry_blockingfilelocklist(void);
@@ -240,7 +240,7 @@ dump_static_object(object, size_object, hbuff, size_hbuff, cbuff, size_cbuff)
 	const int size_hbuff;
 	unsigned char *cbuff;
 	const int size_cbuff;
-{ 
+{
 	int i, objectsize;
 
 	if (debug_level < 2) {
@@ -257,7 +257,7 @@ dump_static_object(object, size_object, hbuff, size_hbuff, cbuff, size_cbuff)
 			    "to size %d\n", objectsize, MAXOBJECTSIZE);
 			objectsize = MAXOBJECTSIZE;
 		}
-		
+
 		if (hbuff != NULL) {
 			if (size_hbuff < objectsize*2+1) {
 				debuglog("Hbuff not large enough."
@@ -269,13 +269,13 @@ dump_static_object(object, size_object, hbuff, size_hbuff, cbuff, size_cbuff)
 				*(hbuff+i*2) = '\0';
 			}
 		}
-		
+
 		if (cbuff != NULL) {
 			if (size_cbuff < objectsize+1) {
 				debuglog("Cbuff not large enough."
 				    "  Increase Size\n");
 			}
-			
+
 			for(i=0;i<objectsize;i++) {
 				if (*(object+i) >= 32 && *(object+i) <= 127) {
 					*(cbuff+i) = *(object+i);
@@ -333,7 +333,7 @@ dump_filelock(const struct file_lock *fl)
 		    cbuff, sizeof(cbuff));
 		debuglog("Filehandle: %8s  :::  %8s\n", hbuff, cbuff);
 #endif
-		
+
 		debuglog("Dumping nlm4_holder:\n"
 		    "exc: %x  svid: %x  offset:len %llx:%llx\n",
 		    fl->client.exclusive, fl->client.svid,
@@ -342,10 +342,10 @@ dump_filelock(const struct file_lock *fl)
 #ifdef DUMP_FILELOCK_VERBOSE
 		debuglog("Dumping client identity:\n");
 		dump_netobj(&fl->client.oh);
-		
+
 		debuglog("Dumping client cookie:\n");
 		dump_netobj(&fl->client_cookie);
-		
+
 		debuglog("nsm: %d  status: %d  flags: %d  locker: %d"
 		    "  fd:  %d\n", fl->nsm_status, fl->status,
 		    fl->flags, fl->locker, fl->fd);
@@ -501,7 +501,7 @@ regions_overlap(start1, len1, start2, len2)
  * region_compare(): Examine lock regions and split appropriately
  *
  * XXX: Fix 64 bit overflow problems
- * XXX: Check to make sure I got *ALL* the cases. 
+ * XXX: Check to make sure I got *ALL* the cases.
  * XXX: This DESPERATELY needs a regression test.
  */
 enum split_status
@@ -683,7 +683,7 @@ same_netobj(const netobj *n0, const netobj *n1)
 		retval = !bcmp(n0->n_bytes, n1->n_bytes, n0->n_len);
 		debuglog("netobj %smatch\n", retval ? "" : "mis");
 	}
-	
+
 	return (retval);
 }
 
@@ -753,7 +753,7 @@ get_lock_matching_unlock(const struct file_lock *fl)
 		if (!regions_overlap(fl->client.l_offset, fl->client.l_len,
 			ifl->client.l_offset, ifl->client.l_len))
 			continue;
-	       
+
 		debuglog("matching_unlock: Region overlap"
 		    " found %llu : %llu -- %llu : %llu\n",
 		    fl->client.l_offset,fl->client.l_len,
@@ -810,7 +810,7 @@ test_nfslock(const struct file_lock *fl, struct file_lock **conflicting_fl)
 
 		debuglog("Top of lock loop\n");
 		debuglog("Pointer to file lock: %p\n",ifl);
-		
+
 		debuglog("***********************************\n");
 		debuglog("Dumping test filelock\n");
 		debuglog("***********************************\n");
@@ -841,7 +841,7 @@ test_nfslock(const struct file_lock *fl, struct file_lock **conflicting_fl)
 		/* Regions overlap, check the exclusivity */
 		if (!(fl->client.exclusive || ifl->client.exclusive))
 			continue;
-	       
+
 		debuglog("test_nfslock: Exclusivity failure: %d %d\n",
 		    fl->client.exclusive,
 		    ifl->client.exclusive);
@@ -861,10 +861,10 @@ test_nfslock(const struct file_lock *fl, struct file_lock **conflicting_fl)
 			retval = NFS_DENIED;
 		}
 	}
-	
+
 	debuglog("Dumping file locks\n");
 	debuglog("Exiting test_nfslock\n");
-	
+
 	return (retval);
 }
 
@@ -873,7 +873,7 @@ test_nfslock(const struct file_lock *fl, struct file_lock **conflicting_fl)
  *
  * This routine tests whether the lock will be granted and then adds
  * the entry to the lock list if so.
- * 
+ *
  * Argument fl gets modified as its list housekeeping entries get modified
  * upon insertion into the NFS lock list
  *
@@ -1132,7 +1132,7 @@ lock_hwlock(struct file_lock *fl)
 	debuglog("flock succeeded (from %16s)\n", fl->client_name);
 	return (HW_GRANTED);
 }
-		
+
 enum hwlock_status
 unlock_hwlock(const struct file_lock *fl)
 {
@@ -1312,7 +1312,7 @@ retry_blockingfilelocklist(void)
 
 		LIST_REMOVE(ifl, nfslocklist);
 		pflstatus = lock_partialfilelock(ifl);
-		
+
 		if (pflstatus == PFL_GRANTED || pflstatus == PFL_GRANTED_DUPLICATE) {
 			debuglog("Granted blocked lock\n");
 			/* lock granted and is now being used */
@@ -1393,7 +1393,7 @@ lock_partialfilelock(struct file_lock *fl)
 			/*
 			 * XXX: Fixme: Check hwstatus for duplicate when
 			 * true partial file locking and accounting is
-			 * done on the hardware 
+			 * done on the hardware.
 			 */
 			if (lnlstatus == NFS_GRANTED_DUPLICATE) {
 				retval = PFL_GRANTED_DUPLICATE;
@@ -1546,7 +1546,7 @@ unlock_partialfilelock(const struct file_lock *fl)
 			/* This call *MUST NOT* unlock the two newly allocated locks */
 			unlhwstatus = unlock_hwlock(fl);
 			debuglog("HW unlock returned with code %d\n",unlhwstatus);
-			
+
 			switch (unlhwstatus) {
 			case HW_GRANTED:
 				debuglog("HW unlock granted\n");
@@ -1567,9 +1567,9 @@ unlock_partialfilelock(const struct file_lock *fl)
 				unlstatus = NFS_RESERR;
 				break;
 			}
-			
+
 			debuglog("Exiting with status retval: %d\n",retval);
-			
+
 			retry_blockingfilelocklist();
 			break;
 		case NFS_DENIED_NOLOCK:
@@ -1599,7 +1599,7 @@ unlock_partialfilelock(const struct file_lock *fl)
 				 * code needs to migrate down (violation of "When you write
 				 * malloc you must write free")
 				 */
-			
+
 				deallocate_file_lock(releasedfl);
 			}
 		}
@@ -1629,7 +1629,7 @@ unlock_partialfilelock(const struct file_lock *fl)
  * unmonitor the host.
  */
 
-void 
+void
 clear_partialfilelock(const char *hostname)
 {
 	struct file_lock *ifl, *nfl;
@@ -1902,7 +1902,7 @@ testlock(struct nlm4_lock *lock, bool_t exclusive, int flags __unused)
 
 	siglock();
 	do_test(&test_fl, &conflicting_fl);
-	
+
 	if (conflicting_fl == NULL) {
 		debuglog("No conflicting lock found\n");
 		sigunlock();
@@ -1916,7 +1916,7 @@ testlock(struct nlm4_lock *lock, bool_t exclusive, int flags __unused)
 }
 
 /*
- * getlock: try to aquire the lock. 
+ * getlock: try to aquire the lock.
  * If file is already locked and we can sleep, put the lock in the list with
  * status LKST_WAITING; it'll be processed later.
  * Otherwise try to lock. If we're allowed to block, fork a child which
@@ -1954,12 +1954,12 @@ getlock(nlm4_lockargs *lckarg, struct svc_req *rqstp, const int flags)
 	    lckarg->exclusive, lckarg->alock.svid, lckarg->alock.l_offset,
 	    lckarg->alock.l_len,
 	    lckarg->state, 0, flags, lckarg->block);
-	
+
 	/*
 	 * newfl is now fully constructed and deallocate_file_lock
 	 * can now be used to delete it
 	 */
-	
+
 	siglock();
 	debuglog("Pointer to new lock is %p\n",newfl);
 
@@ -1967,7 +1967,7 @@ getlock(nlm4_lockargs *lckarg, struct svc_req *rqstp, const int flags)
 
 	debuglog("Pointer to new lock is %p\n",newfl);
 	sigunlock();
-	
+
 	switch (retval)
 		{
 		case nlm4_granted:
@@ -1995,27 +1995,27 @@ unlock(nlm4_lock *lock, const int flags __unused)
 {
 	struct file_lock fl;
 	enum nlm_stats err;
-	
+
 	siglock();
-	
+
 	debuglog("Entering unlock...\n");
-	
+
 	bzero(&fl,sizeof(struct file_lock));
 	bcopy(lock->fh.n_bytes, &fl.filehandle, sizeof(fhandle_t));
-	
+
 	copy_nlm4_lock_to_nlm4_holder(lock, 0, &fl.client);
-	
+
 	err = do_unlock(&fl);
-	
+
 	sigunlock();
-	
+
 	debuglog("Exiting unlock...\n");
-	
+
 	return err;
 }
 
 /*
- * XXX: The following monitor/unmonitor routines 
+ * XXX: The following monitor/unmonitor routines
  * have not been extensively tested (ie. no regression
  * script exists like for the locking sections
  */
@@ -2032,7 +2032,7 @@ monitor_lock_host(const char *hostname)
 	struct sm_stat_res sres;
 	int rpcret, statflag;
 	size_t n;
-	
+
 	rpcret = 0;
 	statflag = 0;
 
@@ -2061,21 +2061,21 @@ monitor_lock_host(const char *hostname)
 	nhp->name[n] = 0;
 	nhp->refcnt = 1;
 	debuglog("Locally Monitoring host %16s\n",hostname);
-			
+
 	debuglog("Attempting to tell statd\n");
-			
+
 	bzero(&smon,sizeof(smon));
-	  
+
 	smon.mon_id.mon_name = nhp->name;
 	smon.mon_id.my_id.my_name = "localhost";
 	smon.mon_id.my_id.my_prog = NLM_PROG;
 	smon.mon_id.my_id.my_vers = NLM_SM;
 	smon.mon_id.my_id.my_proc = NLM_SM_NOTIFY;
-			  
+
 	rpcret = callrpc("localhost", SM_PROG, SM_VERS, SM_MON,
 	    (xdrproc_t)xdr_mon, &smon,
 	    (xdrproc_t)xdr_sm_stat_res, &sres);
-			  
+
 	if (rpcret == 0) {
 		if (sres.res_stat == stat_fail) {
 			debuglog("Statd call failed\n");
@@ -2088,7 +2088,7 @@ monitor_lock_host(const char *hostname)
 		    rpcret);
 		statflag = 0;
 	}
-			
+
 	if (statflag == 1) {
 		LIST_INSERT_HEAD(&hostlst_head, nhp, hostlst);
 	} else {
@@ -2107,7 +2107,7 @@ unmonitor_lock_host(char *hostname)
 	struct mon_id smon_id;
 	struct sm_stat smstat;
 	int rpcret;
-	
+
 	rpcret = 0;
 
 	for( ihp=LIST_FIRST(&hostlst_head); ihp != NULL;
@@ -2142,11 +2142,11 @@ unmonitor_lock_host(char *hostname)
 	smon_id.my_id.my_prog = NLM_PROG;
 	smon_id.my_id.my_vers = NLM_SM;
 	smon_id.my_id.my_proc = NLM_SM_NOTIFY;
-			  
+
 	rpcret = callrpc("localhost", SM_PROG, SM_VERS, SM_UNMON,
 	    (xdrproc_t)xdr_mon_id, &smon_id,
 	    (xdrproc_t)xdr_sm_stat, &smstat);
-			  
+
 	if (rpcret != 0) {
 		debuglog("Rpc call to unmonitor statd failed with "
 		   " return value: %d\n", rpcret);
@@ -2176,7 +2176,7 @@ void
 notify(const char *hostname, const int state)
 {
 	debuglog("notify from %s, new state %d", hostname, state);
-	
+
 	siglock();
 	do_clear(hostname);
 	sigunlock();
@@ -2280,7 +2280,7 @@ void
 siglock(void)
 {
   sigset_t block;
-	
+
   sigemptyset(&block);
   sigaddset(&block, SIGCHLD);
 
@@ -2293,13 +2293,11 @@ void
 sigunlock(void)
 {
   sigset_t block;
-	
+
   sigemptyset(&block);
   sigaddset(&block, SIGCHLD);
-  
+
   if (sigprocmask(SIG_UNBLOCK, &block, NULL) < 0) {
     syslog(LOG_WARNING, "sigunlock failed: %s", strerror(errno));
   }
 }
-
-
