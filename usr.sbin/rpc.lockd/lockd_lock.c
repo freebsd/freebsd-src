@@ -1195,11 +1195,52 @@ test_hwlock(fl, conflicting_fl)
  * if at all possible
  */
 
+int
+duplicate_block(struct file_lock *fl)
+{
+	struct file_lock *ifl,*nfl;
+	int retval = 0;
+
+	debuglog("Entering duplicate_block");
+
+	/*
+	 * Is this lock request already on the blocking list?
+	 * Condider it a dupe if the file handles, offset, length,
+	 * exclusivity and client match.
+	 */
+	LIST_FOREACH(ifl, &blockedlocklist_head, nfslocklist) {
+		if (!bcmp(&fl->filehandle, &ifl->filehandle,
+			sizeof(fhandle_t)) &&
+		    fl->client.exclusive == ifl->client.exclusive &&
+		    fl->client.l_offset == ifl->client.l_offset &&
+		    fl->client.l_len == ifl->client.l_len &&
+		    same_filelock_identity(fl, ifl)) {
+			retval = 1;
+			break;
+		}
+	}
+
+	debuglog("Exiting duplicate_block: %s\n", retval ? "already blocked"
+	    : "not already blocked");
+	return retval;
+}
+
 void
 add_blockingfilelock(struct file_lock *fl)
 {
-
 	debuglog("Entering add_blockingfilelock\n");
+
+	/*
+	 * A blocking lock request _should_ never be duplicated as a client
+	 * that is already blocked shouldn't be able to request another
+	 * lock. Alas, there are some buggy clients that do request the same
+	 * lock repeatedly. Make sure only unique locks are on the blocked
+	 * lock list.
+	 */
+	if (duplicate_block(fl)) {
+		debuglog("Exiting add_blockingfilelock: already blocked\n");
+		return;
+	}
 
 	/*
 	 * Clear the blocking flag so that it can be reused without
@@ -1209,7 +1250,7 @@ add_blockingfilelock(struct file_lock *fl)
 	fl->blocking = 0;
 	LIST_INSERT_HEAD(&blockedlocklist_head, fl, nfslocklist);
 
-	debuglog("Exiting add_blockingfilelock\n");
+	debuglog("Exiting add_blockingfilelock: added blocked lock\n");
 }
 
 void
