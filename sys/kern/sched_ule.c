@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2002-2006, Jeffrey Roberson <jeff@freebsd.org>
+ * Copyright (c) 2002-2007, Jeffrey Roberson <jeff@freebsd.org>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -60,31 +60,6 @@ __FBSDID("$FreeBSD$");
 #include <machine/cpu.h>
 #include <machine/smp.h>
 
-/* decay 95% of `p_pctcpu' in 60 seconds; see CCPU_SHIFT before changing */
-/* XXX This is bogus compatability crap for ps */
-static fixpt_t  ccpu = 0.95122942450071400909 * FSCALE; /* exp(-1/20) */
-SYSCTL_INT(_kern, OID_AUTO, ccpu, CTLFLAG_RD, &ccpu, 0, "");
-
-static void sched_setup(void *dummy);
-SYSINIT(sched_setup, SI_SUB_RUN_QUEUE, SI_ORDER_FIRST, sched_setup, NULL)
-
-static void sched_initticks(void *dummy);
-SYSINIT(sched_initticks, SI_SUB_CLOCKS, SI_ORDER_THIRD, sched_initticks, NULL)
-
-static SYSCTL_NODE(_kern, OID_AUTO, sched, CTLFLAG_RW, 0, "Scheduler");
-
-SYSCTL_STRING(_kern_sched, OID_AUTO, name, CTLFLAG_RD, "ule", 0,
-    "Scheduler name");
-
-static int slice_min = 1;
-SYSCTL_INT(_kern_sched, OID_AUTO, slice_min, CTLFLAG_RW, &slice_min, 0, "");
-
-static int slice_max = 10;
-SYSCTL_INT(_kern_sched, OID_AUTO, slice_max, CTLFLAG_RW, &slice_max, 0, "");
-
-int realstathz;
-int tickincr = 1 << 10;
-
 /*
  * Thread scheduler specific section.
  */
@@ -95,7 +70,7 @@ struct td_sched {
 	fixpt_t		ts_pctcpu;	/* (j) %cpu during p_swtime. */
 	u_char		ts_rqindex;	/* (j) Run queue index. */
 	enum {
-		TSS_THREAD = 0x0,	/* slaved to thread state */
+		TSS_THREAD,
 		TSS_ONRUNQ
 	} ts_state;			/* (j) thread sched specific status. */
 	int		ts_slptime;
@@ -119,31 +94,53 @@ struct td_sched {
 #define	TSF_HOLD	0x0008		/* Thread is temporarily bound. */
 #define	TSF_REMOVED	0x0010		/* Thread was removed while ASSIGNED */
 #define	TSF_INTERNAL	0x0020		/* Thread added due to migration. */
-#define	TSF_PREEMPTED	0x0040		/* Thread was preempted */
 #define	TSF_DIDRUN	0x2000		/* Thread actually ran. */
 #define	TSF_EXIT	0x4000		/* Thread is being killed. */
 
 static struct td_sched td_sched0;
 
 /*
- * The priority is primarily determined by the interactivity score.  Thus, we
- * give lower(better) priorities to threads that use less CPU.  The nice
- * value is then directly added to this to allow nice to have some effect
- * on latency.
+ * Cpu percentage computation macros and defines.
  *
- * PRI_RANGE:	Total priority range for timeshare threads.
- * PRI_NRESV:	Number of nice values.
- * PRI_BASE:	The start of the dynamic range.
+ * SCHED_TICK_SECS:	Number of seconds to average the cpu usage across.
+ * SCHED_TICK_TARG:	Number of hz ticks to average the cpu usage across.
+ * SCHED_TICK_SHIFT:	Shift factor to avoid rounding away results.
+ * SCHED_TICK_HZ:	Compute the number of hz ticks for a given ticks count.
+ * SCHED_TICK_TOTAL:	Gives the amount of time we've been recording ticks.
  */
-#define	SCHED_PRI_RANGE		(PRI_MAX_TIMESHARE - PRI_MIN_TIMESHARE + 1)
-#define	SCHED_PRI_NRESV		((PRIO_MAX - PRIO_MIN) + 1)
-#define	SCHED_PRI_NHALF		(SCHED_PRI_NRESV / 2)
-#define	SCHED_PRI_BASE		(PRI_MIN_TIMESHARE)
-#define	SCHED_PRI_INTERACT(score)					\
-    ((score) * SCHED_PRI_RANGE / SCHED_INTERACT_MAX)
+#define	SCHED_TICK_SECS		10
+#define	SCHED_TICK_TARG		(hz * SCHED_TICK_SECS)
+#define	SCHED_TICK_SHIFT	10
+#define	SCHED_TICK_HZ(ts)	((ts)->ts_ticks >> SCHED_TICK_SHIFT)
+#define	SCHED_TICK_TOTAL(ts)	((ts)->ts_ltick - (ts)->ts_ftick)
 
 /*
- * These determine the interactivity of a process.
+ * These macros determine priorities for non-interactive threads.  They are
+ * assigned a priority based on their recent cpu utilization as expressed
+ * by the ratio of ticks to the tick total.  NHALF priorities at the start
+ * and end of the MIN to MAX timeshare range are only reachable with negative
+ * or positive nice respectively.
+ *
+ * PRI_RANGE:	Priority range for utilization dependent priorities.
+ * PRI_NRESV:	Number of nice values.
+ * PRI_TICKS:	Compute a priority in PRI_RANGE from the ticks count and total.
+ * PRI_NICE:	Determines the part of the priority inherited from nice.
+ */
+#define	SCHED_PRI_NRESV		(PRIO_MAX - PRIO_MIN)
+#define	SCHED_PRI_NHALF		(SCHED_PRI_NRESV / 2)
+#define	SCHED_PRI_MIN		(PRI_MIN_TIMESHARE + SCHED_PRI_NHALF)
+#define	SCHED_PRI_MAX		(PRI_MAX_TIMESHARE - SCHED_PRI_NHALF)
+#define	SCHED_PRI_RANGE		(SCHED_PRI_MAX - SCHED_PRI_MIN + 1)
+#define	SCHED_PRI_TICKS(ts)						\
+    (SCHED_TICK_HZ((ts)) /						\
+    (max(SCHED_TICK_TOTAL((ts)), SCHED_PRI_RANGE) / SCHED_PRI_RANGE))
+#define	SCHED_PRI_NICE(nice)	(nice)
+
+/*
+ * These determine the interactivity of a process.  Interactivity differs from
+ * cpu utilization in that it expresses the voluntary time slept vs time ran
+ * while cpu utilization includes all time not running.  This more accurately
+ * models the intent of the thread.
  *
  * SLP_RUN_MAX:	Maximum amount of sleep time + run time we'll accumulate
  *		before throttling back.
@@ -151,64 +148,34 @@ static struct td_sched td_sched0;
  * INTERACT_MAX:	Maximum interactivity value.  Smaller is better.
  * INTERACT_THRESH:	Threshhold for placement on the current runq.
  */
-#define	SCHED_SLP_RUN_MAX	((hz * 5) << 10)
-#define	SCHED_SLP_RUN_FORK	((hz / 2) << 10)
+#define	SCHED_SLP_RUN_MAX	((hz * 5) << SCHED_TICK_SHIFT)
+#define	SCHED_SLP_RUN_FORK	((hz / 2) << SCHED_TICK_SHIFT)
 #define	SCHED_INTERACT_MAX	(100)
 #define	SCHED_INTERACT_HALF	(SCHED_INTERACT_MAX / 2)
 #define	SCHED_INTERACT_THRESH	(30)
 
 /*
- * These parameters and macros determine the size of the time slice that is
- * granted to each thread.
- *
- * SLICE_MIN:	Minimum time slice granted, in units of ticks.
- * SLICE_MAX:	Maximum time slice granted.
- * SLICE_RANGE:	Range of available time slices scaled by hz.
- * SLICE_SCALE:	The number slices granted per val in the range of [0, max].
- * SLICE_NICE:  Determine the amount of slice granted to a scaled nice.
- * SLICE_NTHRESH:	The nice cutoff point for slice assignment.
+ * tickincr:		Converts a stathz tick into a hz domain scaled by
+ *			the shift factor.  Without the shift the error rate
+ *			due to rounding would be unacceptably high.
+ * realstathz:		stathz is sometimes 0 and run off of hz.
+ * sched_slice:		Runtime of each thread before rescheduling.
  */
-#define	SCHED_SLICE_MIN			(slice_min)
-#define	SCHED_SLICE_MAX			(slice_max)
-#define	SCHED_SLICE_INTERACTIVE		(slice_max)
-#define	SCHED_SLICE_NTHRESH	(SCHED_PRI_NHALF - 1)
-#define	SCHED_SLICE_RANGE		(SCHED_SLICE_MAX - SCHED_SLICE_MIN + 1)
-#define	SCHED_SLICE_SCALE(val, max)	(((val) * SCHED_SLICE_RANGE) / (max))
-#define	SCHED_SLICE_NICE(nice)						\
-    (SCHED_SLICE_MAX - SCHED_SLICE_SCALE((nice), SCHED_SLICE_NTHRESH))
-
-/*
- * This macro determines whether or not the thread belongs on the current or
- * next run queue.
- */
-#define	SCHED_INTERACTIVE(td)						\
-    (sched_interact_score(td) < SCHED_INTERACT_THRESH)
-#define	SCHED_CURR(td, ts)						\
-    ((ts->ts_thread->td_flags & TDF_BORROWING) ||			\
-     (ts->ts_flags & TSF_PREEMPTED) || SCHED_INTERACTIVE(td))
-
-/*
- * Cpu percentage computation macros and defines.
- *
- * SCHED_CPU_TIME:	Number of seconds to average the cpu usage across.
- * SCHED_CPU_TICKS:	Number of hz ticks to average the cpu usage across.
- */
-
-#define	SCHED_CPU_TIME	10
-#define	SCHED_CPU_TICKS	(hz * SCHED_CPU_TIME)
+static int sched_interact = SCHED_INTERACT_THRESH;
+static int realstathz;
+static int tickincr;
+static int sched_slice;
 
 /*
  * tdq - per processor runqs and statistics.
  */
 struct tdq {
 	struct runq	tdq_idle;		/* Queue of IDLE threads. */
-	struct runq	tdq_timeshare[2];	/* Run queues for !IDLE. */
-	struct runq	*tdq_next;		/* Next timeshare queue. */
-	struct runq	*tdq_curr;		/* Current queue. */
+	struct runq	tdq_timeshare;		/* timeshare run queue. */
+	struct runq	tdq_realtime;		/* real-time run queue. */
+	int		tdq_idx;		/* Current removal index. */
 	int		tdq_load_timeshare;	/* Load for timeshare. */
 	int		tdq_load;		/* Aggregate load. */
-	short		tdq_nice[SCHED_PRI_NRESV]; /* threadss in each nice bin. */
-	short		tdq_nicemin;		/* Least nice. */
 #ifdef SMP
 	int		tdq_transferable;
 	LIST_ENTRY(tdq)	tdq_siblings;		/* Next in tdq group. */
@@ -262,8 +229,7 @@ static struct tdq	tdq_cpu;
 #define	TDQ_CPU(x)	(&tdq_cpu)
 #endif
 
-static struct td_sched *sched_choose(void);		/* XXX Should be thread * */
-static void sched_slice(struct td_sched *);
+static struct td_sched *sched_choose(void);	/* XXX Should be thread * */
 static void sched_priority(struct thread *);
 static void sched_thread_priority(struct thread *, u_char);
 static int sched_interact_score(struct thread *);
@@ -278,9 +244,8 @@ static void tdq_load_add(struct tdq *, struct td_sched *);
 static void tdq_load_rem(struct tdq *, struct td_sched *);
 static __inline void tdq_runq_add(struct tdq *, struct td_sched *, int);
 static __inline void tdq_runq_rem(struct tdq *, struct td_sched *);
-static void tdq_nice_add(struct tdq *, int);
-static void tdq_nice_rem(struct tdq *, int);
 void tdq_print(int cpu);
+static void runq_print(struct runq *rq);
 #ifdef SMP
 static int tdq_transfer(struct tdq *, struct td_sched *, int);
 static struct td_sched *runq_steal(struct runq *);
@@ -293,45 +258,91 @@ static int tdq_idled(struct tdq *);
 static void tdq_notify(struct td_sched *, int);
 static void tdq_assign(struct tdq *);
 static struct td_sched *tdq_steal(struct tdq *, int);
-#define	THREAD_CAN_MIGRATE(ts)						\
-    ((ts)->ts_thread->td_pinned == 0 && ((ts)->ts_flags & TSF_BOUND) == 0)
+#define	THREAD_CAN_MIGRATE(td)						\
+    ((td)->td_pinned == 0 && (td)->td_pri_class != PRI_ITHD)
 #endif
+
+static void sched_setup(void *dummy);
+SYSINIT(sched_setup, SI_SUB_RUN_QUEUE, SI_ORDER_FIRST, sched_setup, NULL)
+
+static void sched_initticks(void *dummy);
+SYSINIT(sched_initticks, SI_SUB_CLOCKS, SI_ORDER_THIRD, sched_initticks, NULL)
+
+static void
+runq_print(struct runq *rq)
+{
+	struct rqhead *rqh;
+	struct td_sched *ts;
+	int pri;
+	int j;
+	int i;
+
+	for (i = 0; i < RQB_LEN; i++) {
+		printf("\t\trunq bits %d 0x%zx\n",
+		    i, rq->rq_status.rqb_bits[i]);
+		for (j = 0; j < RQB_BPW; j++)
+			if (rq->rq_status.rqb_bits[i] & (1ul << j)) {
+				pri = j + (i << RQB_L2BPW);
+				rqh = &rq->rq_queues[pri];
+				TAILQ_FOREACH(ts, rqh, ts_procq) {
+					printf("\t\t\ttd %p(%s) priority %d rqindex %d pri %d\n",
+					    ts->ts_thread, ts->ts_thread->td_proc->p_comm, ts->ts_thread->td_priority, ts->ts_rqindex, pri);
+				}
+			}
+	}
+}
 
 void
 tdq_print(int cpu)
 {
 	struct tdq *tdq;
-	int i;
 
 	tdq = TDQ_CPU(cpu);
 
 	printf("tdq:\n");
 	printf("\tload:           %d\n", tdq->tdq_load);
 	printf("\tload TIMESHARE: %d\n", tdq->tdq_load_timeshare);
+	printf("\ttimeshare idx: %d\n", tdq->tdq_idx);
+	printf("\trealtime runq:\n");
+	runq_print(&tdq->tdq_realtime);
+	printf("\ttimeshare runq:\n");
+	runq_print(&tdq->tdq_timeshare);
+	printf("\tidle runq:\n");
+	runq_print(&tdq->tdq_idle);
 #ifdef SMP
 	printf("\tload transferable: %d\n", tdq->tdq_transferable);
 #endif
-	printf("\tnicemin:\t%d\n", tdq->tdq_nicemin);
-	printf("\tnice counts:\n");
-	for (i = 0; i < SCHED_PRI_NRESV; i++)
-		if (tdq->tdq_nice[i])
-			printf("\t\t%d = %d\n",
-			    i - SCHED_PRI_NHALF, tdq->tdq_nice[i]);
 }
 
 static __inline void
 tdq_runq_add(struct tdq *tdq, struct td_sched *ts, int flags)
 {
 #ifdef SMP
-	if (THREAD_CAN_MIGRATE(ts)) {
+	if (THREAD_CAN_MIGRATE(ts->ts_thread)) {
 		tdq->tdq_transferable++;
 		tdq->tdq_group->tdg_transferable++;
 		ts->ts_flags |= TSF_XFERABLE;
 	}
 #endif
-	if (ts->ts_flags & TSF_PREEMPTED)
-		flags |= SRQ_PREEMPTED;
-	runq_add(ts->ts_runq, ts, flags);
+	if (ts->ts_runq == &tdq->tdq_timeshare) {
+		int pri;
+
+		pri = ts->ts_thread->td_priority;
+		KASSERT(pri <= PRI_MAX_TIMESHARE && pri >= PRI_MIN_TIMESHARE,
+			("Invalid priority %d on timeshare runq", pri));
+		/*
+		 * This queue contains only priorities between MIN and MAX
+		 * realtime.  Use the whole queue to represent these values.
+		 */
+#define	TS_RQ_PPQ	(((PRI_MAX_TIMESHARE - PRI_MIN_TIMESHARE) + 1) / RQ_NQS)
+		if ((flags & SRQ_BORROWING) == 0) {
+			pri = (pri - PRI_MIN_TIMESHARE) / TS_RQ_PPQ;
+			pri = (pri + tdq->tdq_idx) % RQ_NQS;
+		} else
+			pri = tdq->tdq_idx;
+		runq_add_pri(ts->ts_runq, ts, pri, flags);
+	} else
+		runq_add(ts->ts_runq, ts, flags);
 }
 
 static __inline void
@@ -344,7 +355,10 @@ tdq_runq_rem(struct tdq *tdq, struct td_sched *ts)
 		ts->ts_flags &= ~TSF_XFERABLE;
 	}
 #endif
-	runq_remove(ts->ts_runq, ts);
+	if (ts->ts_runq == &tdq->tdq_timeshare)
+		runq_remove_idx(ts->ts_runq, ts, &tdq->tdq_idx);
+	else
+		runq_remove(ts->ts_runq, ts);
 }
 
 static void
@@ -363,8 +377,6 @@ tdq_load_add(struct tdq *tdq, struct td_sched *ts)
 #else
 		tdq->tdq_sysload++;
 #endif
-	if (ts->ts_thread->td_pri_class == PRI_TIMESHARE)
-		tdq_nice_add(tdq, ts->ts_thread->td_proc->p_nice);
 }
 
 static void
@@ -384,46 +396,6 @@ tdq_load_rem(struct tdq *tdq, struct td_sched *ts)
 	tdq->tdq_load--;
 	CTR1(KTR_SCHED, "load: %d", tdq->tdq_load);
 	ts->ts_runq = NULL;
-	if (ts->ts_thread->td_pri_class == PRI_TIMESHARE)
-		tdq_nice_rem(tdq, ts->ts_thread->td_proc->p_nice);
-}
-
-static void
-tdq_nice_add(struct tdq *tdq, int nice)
-{
-	mtx_assert(&sched_lock, MA_OWNED);
-	/* Normalize to zero. */
-	tdq->tdq_nice[nice + SCHED_PRI_NHALF]++;
-	if (nice < tdq->tdq_nicemin || tdq->tdq_load_timeshare == 1)
-		tdq->tdq_nicemin = nice;
-}
-
-static void
-tdq_nice_rem(struct tdq *tdq, int nice) 
-{
-	int n;
-
-	mtx_assert(&sched_lock, MA_OWNED);
-	/* Normalize to zero. */
-	n = nice + SCHED_PRI_NHALF;
-	tdq->tdq_nice[n]--;
-	KASSERT(tdq->tdq_nice[n] >= 0, ("Negative nice count."));
-
-	/*
-	 * If this wasn't the smallest nice value or there are more in
-	 * this bucket we can just return.  Otherwise we have to recalculate
-	 * the smallest nice.
-	 */
-	if (nice != tdq->tdq_nicemin ||
-	    tdq->tdq_nice[n] != 0 ||
-	    tdq->tdq_load_timeshare == 0)
-		return;
-
-	for (; n < SCHED_PRI_NRESV; n++)
-		if (tdq->tdq_nice[n]) {
-			tdq->tdq_nicemin = n - SCHED_PRI_NHALF;
-			return;
-		}
 }
 
 #ifdef SMP
@@ -658,10 +630,9 @@ tdq_notify(struct td_sched *ts, int cpu)
 	int prio;
 
 	tdq = TDQ_CPU(cpu);
-	/* XXX */
 	class = PRI_BASE(ts->ts_thread->td_pri_class);
-	if ((class == PRI_TIMESHARE || class == PRI_REALTIME) &&
-	    (tdq_idle & tdq->tdq_group->tdg_mask)) 
+	if ((class != PRI_IDLE && class != PRI_ITHD)
+	    && (tdq_idle & tdq->tdq_group->tdg_mask)) 
 		atomic_clear_int(&tdq_idle, tdq->tdq_group->tdg_mask);
 	tdq->tdq_group->tdg_load++;
 	tdq->tdq_load++;
@@ -710,7 +681,7 @@ runq_steal(struct runq *rq)
 				continue;
 			rqh = &rq->rq_queues[bit + (word << RQB_L2BPW)];
 			TAILQ_FOREACH(ts, rqh, ts_procq) {
-				if (THREAD_CAN_MIGRATE(ts))
+				if (THREAD_CAN_MIGRATE(ts->ts_thread))
 					return (ts);
 			}
 		}
@@ -726,10 +697,11 @@ tdq_steal(struct tdq *tdq, int stealidle)
 	/*
 	 * Steal from next first to try to get a non-interactive task that
 	 * may not have run for a while.
+	 * XXX Need to effect steal order for timeshare threads.
 	 */
-	if ((ts = runq_steal(tdq->tdq_next)) != NULL)
+	if ((ts = runq_steal(&tdq->tdq_realtime)) != NULL)
 		return (ts);
-	if ((ts = runq_steal(tdq->tdq_curr)) != NULL)
+	if ((ts = runq_steal(&tdq->tdq_timeshare)) != NULL)
 		return (ts);
 	if (stealidle)
 		return (runq_steal(&tdq->tdq_idle));
@@ -837,56 +809,43 @@ migrate:
 static struct td_sched *
 tdq_choose(struct tdq *tdq)
 {
-	struct runq *swap;
 	struct td_sched *ts;
-	int nice;
 
 	mtx_assert(&sched_lock, MA_OWNED);
-	swap = NULL;
 
-	for (;;) {
-		ts = runq_choose(tdq->tdq_curr);
-		if (ts == NULL) {
-			/*
-			 * We already swapped once and didn't get anywhere.
-			 */
-			if (swap)
-				break;
-			swap = tdq->tdq_curr;
-			tdq->tdq_curr = tdq->tdq_next;
-			tdq->tdq_next = swap;
-			continue;
-		}
-		/*
-		 * If we encounter a slice of 0 the td_sched is in a
-		 * TIMESHARE td_sched group and its nice was too far out
-		 * of the range that receives slices. 
-		 */
-		nice = ts->ts_thread->td_proc->p_nice + (0 - tdq->tdq_nicemin);
-#if 0
-		if (ts->ts_slice == 0 || (nice > SCHED_SLICE_NTHRESH &&
-		    ts->ts_thread->td_proc->p_nice != 0)) {
-			runq_remove(ts->ts_runq, ts);
-			sched_slice(ts);
-			ts->ts_runq = tdq->tdq_next;
-			runq_add(ts->ts_runq, ts, 0);
-			continue;
-		}
-#endif
+	ts = runq_choose(&tdq->tdq_realtime);
+	if (ts != NULL) {
+		KASSERT(ts->ts_thread->td_priority <= PRI_MAX_REALTIME,
+		    ("tdq_choose: Invalid priority on realtime queue %d",
+		    ts->ts_thread->td_priority));
+		return (ts);
+	}
+	ts = runq_choose_from(&tdq->tdq_timeshare, &tdq->tdq_idx);
+	if (ts != NULL) {
+		KASSERT(ts->ts_thread->td_priority <= PRI_MAX_TIMESHARE &&
+		    ts->ts_thread->td_priority >= PRI_MIN_TIMESHARE,
+		    ("tdq_choose: Invalid priority on timeshare queue %d",
+		    ts->ts_thread->td_priority));
 		return (ts);
 	}
 
-	return (runq_choose(&tdq->tdq_idle));
+	ts = runq_choose(&tdq->tdq_idle);
+	if (ts != NULL) {
+		KASSERT(ts->ts_thread->td_priority >= PRI_MIN_IDLE,
+		    ("tdq_choose: Invalid priority on idle queue %d",
+		    ts->ts_thread->td_priority));
+		return (ts);
+	}
+
+	return (NULL);
 }
 
 static void
 tdq_setup(struct tdq *tdq)
 {
-	runq_init(&tdq->tdq_timeshare[0]);
-	runq_init(&tdq->tdq_timeshare[1]);
+	runq_init(&tdq->tdq_realtime);
+	runq_init(&tdq->tdq_timeshare);
 	runq_init(&tdq->tdq_idle);
-	tdq->tdq_curr = &tdq->tdq_timeshare[0];
-	tdq->tdq_next = &tdq->tdq_timeshare[1];
 	tdq->tdq_load = 0;
 	tdq->tdq_load_timeshare = 0;
 }
@@ -903,8 +862,8 @@ sched_setup(void *dummy)
 	 * in case which sched_clock() called before sched_initticks().
 	 */
 	realstathz = hz;
-	slice_min = (hz/100);	/* 10ms */
-	slice_max = (hz/7);	/* ~140ms */
+	sched_slice = (realstathz/7);	/* 140ms */
+	tickincr = 1 << SCHED_TICK_SHIFT;
 
 #ifdef SMP
 	balance_groups = 0;
@@ -999,13 +958,16 @@ sched_initticks(void *dummy)
 {
 	mtx_lock_spin(&sched_lock);
 	realstathz = stathz ? stathz : hz;
-	slice_min = (realstathz/100);	/* 10ms */
-	slice_max = (realstathz/7);	/* ~140ms */
+	sched_slice = (realstathz/7);	/* ~140ms */
 
-	tickincr = (hz << 10) / realstathz;
 	/*
-	 * XXX This does not work for values of stathz that are much
-	 * larger than hz.
+	 * tickincr is shifted out by 10 to avoid rounding errors due to
+	 * hz not being evenly divisible by stathz.
+	 */
+	tickincr = (hz << SCHED_TICK_SHIFT) / realstathz;
+	/*
+	 * This does not work for values of stathz that are more than
+	 * 1 << SCHED_TICK_SHIFT * hz.  In practice this does not happen.
 	 */
 	if (tickincr == 0)
 		tickincr = 1;
@@ -1020,81 +982,36 @@ sched_initticks(void *dummy)
 static void
 sched_priority(struct thread *td)
 {
+	int score;
 	int pri;
 
 	if (td->td_pri_class != PRI_TIMESHARE)
 		return;
-
-	pri = SCHED_PRI_INTERACT(sched_interact_score(td));
-	pri += SCHED_PRI_BASE;
-	pri += td->td_proc->p_nice;
-
-	if (pri > PRI_MAX_TIMESHARE)
-		pri = PRI_MAX_TIMESHARE;
-	else if (pri < PRI_MIN_TIMESHARE)
-		pri = PRI_MIN_TIMESHARE;
-
-	sched_user_prio(td, pri);
-
-	return;
-}
-
-/*
- * Calculate a time slice based on the properties of the process
- * and the runq that we're on.  This is only for PRI_TIMESHARE threads.
- */
-static void
-sched_slice(struct td_sched *ts)
-{
-	struct tdq *tdq;
-	struct thread *td;
-
-	td = ts->ts_thread;
-	tdq = TDQ_CPU(ts->ts_cpu);
-
-	if (td->td_flags & TDF_BORROWING) {
-		ts->ts_slice = SCHED_SLICE_MIN;
-		return;
-	}
-
 	/*
-	 * Rationale:
-	 * Threads in interactive procs get a minimal slice so that we
-	 * quickly notice if it abuses its advantage.
+	 * If the score is interactive we place the thread in the realtime
+	 * queue with a priority that is less than kernel and interrupt
+	 * priorities.  These threads are not subject to nice restrictions.
 	 *
-	 * Threads in non-interactive procs are assigned a slice that is
-	 * based on the procs nice value relative to the least nice procs
-	 * on the run queue for this cpu.
-	 *
-	 * If the thread is less nice than all others it gets the maximum
-	 * slice and other threads will adjust their slice relative to
-	 * this when they first expire.
-	 *
-	 * There is 20 point window that starts relative to the least
-	 * nice td_sched on the run queue.  Slice size is determined by
-	 * the td_sched distance from the last nice thread.
-	 *
-	 * If the td_sched is outside of the window it will get no slice
-	 * and will be reevaluated each time it is selected on the
-	 * run queue.  The exception to this is nice 0 procs when
-	 * a nice -20 is running.  They are always granted a minimum
-	 * slice.
+	 * Scores greater than this are placed on the normal realtime queue
+	 * where the priority is partially decided by the most recent cpu
+	 * utilization and the rest is decided by nice value.
 	 */
-	if (!SCHED_INTERACTIVE(td)) {
-		int nice;
-
-		nice = td->td_proc->p_nice + (0 - tdq->tdq_nicemin);
-		if (tdq->tdq_load_timeshare == 0 ||
-		    td->td_proc->p_nice < tdq->tdq_nicemin)
-			ts->ts_slice = SCHED_SLICE_MAX;
-		else if (nice <= SCHED_SLICE_NTHRESH)
-			ts->ts_slice = SCHED_SLICE_NICE(nice);
-		else if (td->td_proc->p_nice == 0)
-			ts->ts_slice = SCHED_SLICE_MIN;
-		else
-			ts->ts_slice = SCHED_SLICE_MIN; /* 0 */
-	} else
-		ts->ts_slice = SCHED_SLICE_INTERACTIVE;
+	score = sched_interact_score(td);
+	if (score < sched_interact) {
+		pri = PRI_MIN_REALTIME;
+		pri += ((PRI_MAX_REALTIME - PRI_MIN_REALTIME) / sched_interact)
+		    * score;
+		KASSERT(pri >= PRI_MIN_REALTIME && pri <= PRI_MAX_REALTIME,
+		    ("sched_priority: invalid interactive priority %d", pri));
+	} else {
+		pri = SCHED_PRI_MIN;
+		if (td->td_sched->ts_ticks)
+			pri += SCHED_PRI_TICKS(td->td_sched);
+		pri += SCHED_PRI_NICE(td->td_proc->p_nice);
+		KASSERT(pri >= PRI_MIN_TIMESHARE && pri <= PRI_MAX_TIMESHARE,
+		    ("sched_priority: invalid priority %d", pri));
+	}
+	sched_user_prio(td, pri);
 
 	return;
 }
@@ -1163,19 +1080,19 @@ sched_interact_score(struct thread *td)
 }
 
 /*
- * Very early in the boot some setup of scheduler-specific
- * parts of proc0 and of soem scheduler resources needs to be done.
- * Called from:
- *  proc0_init()
+ * Called from proc0_init() to bootstrap the scheduler.
  */
 void
 schedinit(void)
 {
+
 	/*
 	 * Set up the scheduler specific parts of proc0.
 	 */
 	proc0.p_sched = NULL; /* XXX */
 	thread0.td_sched = &td_sched0;
+	td_sched0.ts_ltick = ticks;
+	td_sched0.ts_ftick = ticks - 1;
 	td_sched0.ts_thread = &thread0;
 	td_sched0.ts_state = TSS_THREAD;
 }
@@ -1183,36 +1100,35 @@ schedinit(void)
 /*
  * This is only somewhat accurate since given many processes of the same
  * priority they will switch when their slices run out, which will be
- * at most SCHED_SLICE_MAX.
+ * at most sched_slice stathz ticks.
  */
 int
 sched_rr_interval(void)
 {
-	return (SCHED_SLICE_MAX);
+
+	/* Convert sched_slice to hz */
+	return (hz/(realstathz/sched_slice));
 }
 
 static void
 sched_pctcpu_update(struct td_sched *ts)
 {
+
+	if (ts->ts_ticks == 0)
+		return;
 	/*
 	 * Adjust counters and watermark for pctcpu calc.
 	 */
-	if (ts->ts_ltick > ticks - SCHED_CPU_TICKS) {
-		/*
-		 * Shift the tick count out so that the divide doesn't
-		 * round away our results.
-		 */
-		ts->ts_ticks <<= 10;
+	if (ts->ts_ltick > ticks - SCHED_TICK_TARG)
 		ts->ts_ticks = (ts->ts_ticks / (ticks - ts->ts_ftick)) *
-			    SCHED_CPU_TICKS;
-		ts->ts_ticks >>= 10;
-	} else
+			    SCHED_TICK_TARG;
+	else
 		ts->ts_ticks = 0;
 	ts->ts_ltick = ticks;
-	ts->ts_ftick = ts->ts_ltick - SCHED_CPU_TICKS;
+	ts->ts_ftick = ts->ts_ltick - SCHED_TICK_TARG;
 }
 
-void
+static void
 sched_thread_priority(struct thread *td, u_char prio)
 {
 	struct td_sched *ts;
@@ -1224,27 +1140,22 @@ sched_thread_priority(struct thread *td, u_char prio)
 	mtx_assert(&sched_lock, MA_OWNED);
 	if (td->td_priority == prio)
 		return;
+
 	if (TD_ON_RUNQ(td)) {
 		/*
 		 * If the priority has been elevated due to priority
 		 * propagation, we may have to move ourselves to a new
-		 * queue.  We still call adjustrunqueue below in case kse
-		 * needs to fix things up.
-		 */
-		if (prio < td->td_priority && ts->ts_runq != NULL &&
-		    (ts->ts_flags & TSF_ASSIGNED) == 0 &&
-		    ts->ts_runq != TDQ_CPU(ts->ts_cpu)->tdq_curr) {
-			runq_remove(ts->ts_runq, ts);
-			ts->ts_runq = TDQ_CPU(ts->ts_cpu)->tdq_curr;
-			runq_add(ts->ts_runq, ts, 0);
-		}
-		/*
+		 * queue.  This could be optimized to not re-add in some
+		 * cases.
+		 *
 		 * Hold this td_sched on this cpu so that sched_prio() doesn't
 		 * cause excessive migration.  We only want migration to
 		 * happen as the result of a wakeup.
 		 */
 		ts->ts_flags |= TSF_HOLD;
-		adjustrunqueue(td, prio);
+		sched_rem(td);
+		td->td_priority = prio;
+		sched_add(td, SRQ_BORROWING);
 		ts->ts_flags &= ~TSF_HOLD;
 	} else
 		td->td_priority = prio;
@@ -1364,14 +1275,12 @@ sched_switch(struct thread *td, struct thread *newtd, int flags)
 
 	mtx_assert(&sched_lock, MA_OWNED);
 
-	ts = td->td_sched;
 	tdq = TDQ_SELF();
-
+	ts = td->td_sched;
 	td->td_lastcpu = td->td_oncpu;
 	td->td_oncpu = NOCPU;
 	td->td_flags &= ~TDF_NEEDRESCHED;
 	td->td_owepreempt = 0;
-
 	/*
 	 * If the thread has been assigned it may be in the process of switching
 	 * to the new cpu.  This is the case in sched_bind().
@@ -1399,7 +1308,6 @@ sched_switch(struct thread *td, struct thread *newtd, int flags)
 		 * added to the run queue and then chosen.
 		 */
 		newtd->td_sched->ts_flags |= TSF_DIDRUN;
-		newtd->td_sched->ts_runq = tdq->tdq_curr;
 		TD_SET_RUNNING(newtd);
 		tdq_load_add(TDQ_SELF(), newtd->td_sched);
 	} else
@@ -1416,44 +1324,29 @@ sched_switch(struct thread *td, struct thread *newtd, int flags)
 			PMC_SWITCH_CONTEXT(td, PMC_FN_CSW_IN);
 #endif
 	}
-
 	sched_lock.mtx_lock = (uintptr_t)td;
-
 	td->td_oncpu = PCPU_GET(cpuid);
 }
 
 void
 sched_nice(struct proc *p, int nice)
 {
-	struct td_sched *ts;
 	struct thread *td;
-	struct tdq *tdq;
 
 	PROC_LOCK_ASSERT(p, MA_OWNED);
 	mtx_assert(&sched_lock, MA_OWNED);
-	/*
-	 * We need to adjust the nice counts for running threads.
-	 */
-	FOREACH_THREAD_IN_PROC(p, td) {
-		if (td->td_pri_class == PRI_TIMESHARE) {
-			ts = td->td_sched;
-			if (ts->ts_runq == NULL)
-				continue;
-			tdq = TDQ_CPU(ts->ts_cpu);
-			tdq_nice_rem(tdq, p->p_nice);
-			tdq_nice_add(tdq, nice);
-		}
-	}
+
 	p->p_nice = nice;
 	FOREACH_THREAD_IN_PROC(p, td) {
 		sched_priority(td);
-		td->td_flags |= TDF_NEEDRESCHED;
+		sched_prio(td, td->td_base_user_pri);
 	}
 }
 
 void
 sched_sleep(struct thread *td)
 {
+
 	mtx_assert(&sched_lock, MA_OWNED);
 
 	td->td_sched->ts_slptime = ticks;
@@ -1462,16 +1355,20 @@ sched_sleep(struct thread *td)
 void
 sched_wakeup(struct thread *td)
 {
+	int slptime;
+
 	mtx_assert(&sched_lock, MA_OWNED);
 
 	/*
-	 * Let the procs know how long we slept for.  This is because process
-	 * interactivity behavior is modeled in the procs.
+	 * If we slept for more than a tick update our interactivity and
+	 * priority.
 	 */
-	if (td->td_sched->ts_slptime) {
+	slptime = td->td_sched->ts_slptime;
+	td->td_sched->ts_slptime = 0;
+	if (slptime && slptime != ticks) {
 		int hzticks;
 
-		hzticks = (ticks - td->td_sched->ts_slptime) << 10;
+		hzticks = (ticks - slptime) << SCHED_TICK_SHIFT;
 		if (hzticks >= SCHED_SLP_RUN_MAX) {
 			td->td_sched->skg_slptime = SCHED_SLP_RUN_MAX;
 			td->td_sched->skg_runtime = 1;
@@ -1479,9 +1376,9 @@ sched_wakeup(struct thread *td)
 			td->td_sched->skg_slptime += hzticks;
 			sched_interact_update(td);
 		}
+		if (ticks - (hz / 10) > td->td_sched->ts_ltick)
+			sched_pctcpu_update(td->td_sched);
 		sched_priority(td);
-		sched_slice(td->td_sched);
-		td->td_sched->ts_slptime = 0;
 	}
 	setrunqueue(td, SRQ_BORING);
 }
@@ -1495,6 +1392,14 @@ sched_fork(struct thread *td, struct thread *child)
 {
 	mtx_assert(&sched_lock, MA_OWNED);
 	sched_fork_thread(td, child);
+	/*
+	 * Penalize the parent and child for forking.
+	 */
+	sched_interact_fork(child);
+	sched_priority(child);
+	td->td_sched->skg_runtime += tickincr;
+	sched_interact_update(td);
+	sched_priority(td);
 }
 
 void
@@ -1503,26 +1408,28 @@ sched_fork_thread(struct thread *td, struct thread *child)
 	struct td_sched *ts;
 	struct td_sched *ts2;
 
-	child->td_sched->skg_slptime = td->td_sched->skg_slptime;
-	child->td_sched->skg_runtime = td->td_sched->skg_runtime;
-	child->td_user_pri = td->td_user_pri;
-	child->td_base_user_pri = td->td_base_user_pri;
-	sched_interact_fork(child);
-	td->td_sched->skg_runtime += tickincr;
-	sched_interact_update(td);
-
+	/*
+	 * Initialize child.
+	 */
 	sched_newthread(child);
-
 	ts = td->td_sched;
 	ts2 = child->td_sched;
-	ts2->ts_slice = 1;	/* Attempt to quickly learn interactivity. */
 	ts2->ts_cpu = ts->ts_cpu;
 	ts2->ts_runq = NULL;
-
-	/* Grab our parents cpu estimation information. */
+	/*
+	 * Grab our parents cpu estimation information and priority.
+	 */
 	ts2->ts_ticks = ts->ts_ticks;
 	ts2->ts_ltick = ts->ts_ltick;
 	ts2->ts_ftick = ts->ts_ftick;
+	child->td_user_pri = td->td_user_pri;
+	child->td_base_user_pri = td->td_base_user_pri;
+	/*
+	 * And update interactivity score.
+	 */
+	ts2->skg_slptime = ts->skg_slptime;
+	ts2->skg_runtime = ts->skg_runtime;
+	ts2->ts_slice = 1;	/* Attempt to quickly learn interactivity. */
 }
 
 void
@@ -1540,10 +1447,8 @@ sched_class(struct thread *td, int class)
 	nclass = PRI_BASE(class);
 	oclass = PRI_BASE(td->td_pri_class);
 	ts = td->td_sched;
-	if (!((ts->ts_state != TSS_ONRUNQ &&
-	    ts->ts_state != TSS_THREAD) || ts->ts_runq == NULL)) {
+	if (ts->ts_state == TSS_ONRUNQ || td->td_state == TDS_RUNNING) {
 		tdq = TDQ_CPU(ts->ts_cpu);
-
 #ifdef SMP
 		/*
 		 * On SMP if we're on the RUNQ we must adjust the transferable
@@ -1551,24 +1456,20 @@ sched_class(struct thread *td, int class)
 		 * class.
 		 */
 		if (ts->ts_state == TSS_ONRUNQ) {
-			if (THREAD_CAN_MIGRATE(ts)) {
+			if (THREAD_CAN_MIGRATE(ts->ts_thread)) {
 				tdq->tdq_transferable--;
 				tdq->tdq_group->tdg_transferable--;
 			}
-			if (THREAD_CAN_MIGRATE(ts)) {
+			if (THREAD_CAN_MIGRATE(ts->ts_thread)) {
 				tdq->tdq_transferable++;
 				tdq->tdq_group->tdg_transferable++;
 			}
 		}
 #endif
-		if (oclass == PRI_TIMESHARE) {
+		if (oclass == PRI_TIMESHARE)
 			tdq->tdq_load_timeshare--;
-			tdq_nice_rem(tdq, td->td_proc->p_nice);
-		}
-		if (nclass == PRI_TIMESHARE) {
+		if (nclass == PRI_TIMESHARE)
 			tdq->tdq_load_timeshare++;
-			tdq_nice_add(tdq, td->td_proc->p_nice);
-		}
 	}
 
 	td->td_pri_class = class;
@@ -1580,22 +1481,40 @@ sched_class(struct thread *td, int class)
 void
 sched_exit(struct proc *p, struct thread *child)
 {
+	struct thread *td;
 	
 	CTR3(KTR_SCHED, "sched_exit: %p(%s) prio %d",
 	    child, child->td_proc->p_comm, child->td_priority);
 
-	sched_exit_thread(FIRST_THREAD_IN_PROC(p), child);
+	td = FIRST_THREAD_IN_PROC(p);
+	sched_exit_thread(td, child);
 }
 
 void
 sched_exit_thread(struct thread *td, struct thread *child)
 {
-	CTR3(KTR_SCHED, "sched_exit_thread: %p(%s) prio %d",
-	    child, childproc->p_comm, child->td_priority);
 
+	CTR3(KTR_SCHED, "sched_exit_thread: %p(%s) prio %d",
+	    child, child->td_proc->p_comm, child->td_priority);
+
+	tdq_load_rem(TDQ_CPU(child->td_sched->ts_cpu), child->td_sched);
+#ifdef KSE
+	/*
+	 * KSE forks and exits so often that this penalty causes short-lived
+	 * threads to always be non-interactive.  This causes mozilla to
+	 * crawl under load.
+	 */
+	if ((td->td_pflags & TDP_SA) && td->td_proc == child->td_proc)
+		return;
+#endif
+	/*
+	 * Give the child's runtime to the parent without returning the
+	 * sleep time as a penalty to the parent.  This causes shells that
+	 * launch expensive things to mark their children as expensive.
+	 */
 	td->td_sched->skg_runtime += child->td_sched->skg_runtime;
 	sched_interact_update(td);
-	tdq_load_rem(TDQ_CPU(child->td_sched->ts_cpu), child->td_sched);
+	sched_priority(td);
 }
 
 void
@@ -1627,7 +1546,9 @@ sched_clock(struct thread *td)
 	struct td_sched *ts;
 
 	mtx_assert(&sched_lock, MA_OWNED);
+
 	tdq = TDQ_SELF();
+	ts = td->td_sched;
 #ifdef SMP
 	if (ticks >= bal_tick)
 		sched_balance();
@@ -1640,18 +1561,15 @@ sched_clock(struct thread *td)
 	if (tdq->tdq_assigned)
 		tdq_assign(tdq);	/* Potentially sets NEEDRESCHED */
 #endif
-	ts = td->td_sched;
-
 	/* Adjust ticks for pctcpu */
-	ts->ts_ticks++;
+	ts->ts_ticks += tickincr;
 	ts->ts_ltick = ticks;
-
-	/* Go up to one second beyond our max and then trim back down */
-	if (ts->ts_ftick + SCHED_CPU_TICKS + hz < ts->ts_ltick)
+	/*
+	 * Update if we've exceeded our desired tick threshhold by over one
+	 * second.
+	 */
+	if (ts->ts_ftick + SCHED_TICK_TARG + hz < ts->ts_ltick)
 		sched_pctcpu_update(ts);
-
-	if (td->td_flags & TDF_IDLETD)
-		return;
 	/*
 	 * We only do slicing code for TIMESHARE threads.
 	 */
@@ -1674,11 +1592,7 @@ sched_clock(struct thread *td)
 	 */
 	tdq_load_rem(tdq, ts);
 	sched_priority(td);
-	sched_slice(ts);
-	if (SCHED_CURR(td, ts))
-		ts->ts_runq = tdq->tdq_curr;
-	else
-		ts->ts_runq = tdq->tdq_next;
+	ts->ts_slice = sched_slice;
 	tdq_load_add(tdq, ts);
 	td->td_flags |= TDF_NEEDRESCHED;
 }
@@ -1726,13 +1640,12 @@ restart:
 	ts = tdq_choose(tdq);
 	if (ts) {
 #ifdef SMP
-		if (ts->ts_thread->td_pri_class == PRI_IDLE)
+		if (ts->ts_thread->td_priority <= PRI_MIN_IDLE)
 			if (tdq_idled(tdq) == 0)
 				goto restart;
 #endif
 		tdq_runq_rem(tdq, ts);
 		ts->ts_state = TSS_THREAD;
-		ts->ts_flags &= ~TSF_PREEMPTED;
 		return (ts);
 	}
 #ifdef SMP
@@ -1755,19 +1668,19 @@ sched_add(struct thread *td, int flags)
 	    td, td->td_proc->p_comm, td->td_priority, curthread,
 	    curthread->td_proc->p_comm);
 	mtx_assert(&sched_lock, MA_OWNED);
-	ts = td->td_sched;
-	canmigrate = 1;
-	preemptive = !(flags & SRQ_YIELDING);
-	class = PRI_BASE(td->td_pri_class);
 	tdq = TDQ_SELF();
+	ts = td->td_sched;
 	ts->ts_flags &= ~TSF_INTERNAL;
+	class = PRI_BASE(td->td_pri_class);
+	preemptive = !(flags & SRQ_YIELDING);
+	canmigrate = 1;
 #ifdef SMP
 	if (ts->ts_flags & TSF_ASSIGNED) {
 		if (ts->ts_flags & TSF_REMOVED)
 			ts->ts_flags &= ~TSF_REMOVED;
 		return;
 	}
-	canmigrate = THREAD_CAN_MIGRATE(ts);
+	canmigrate = THREAD_CAN_MIGRATE(td);
 	/*
 	 * Don't migrate running threads here.  Force the long term balancer
 	 * to do it.
@@ -1784,36 +1697,26 @@ sched_add(struct thread *td, int flags)
 	    ("sched_add: process swapped out"));
 	KASSERT(ts->ts_runq == NULL,
 	    ("sched_add: thread %p is still assigned to a run queue", td));
-	if (flags & SRQ_PREEMPTED)
-		ts->ts_flags |= TSF_PREEMPTED;
-	switch (class) {
-	case PRI_ITHD:
-	case PRI_REALTIME:
-		ts->ts_runq = tdq->tdq_curr;
-		ts->ts_slice = SCHED_SLICE_MAX;
-		if (canmigrate)
-			ts->ts_cpu = PCPU_GET(cpuid);
-		break;
-	case PRI_TIMESHARE:
-		if (SCHED_CURR(td, ts))
-			ts->ts_runq = tdq->tdq_curr;
-		else
-			ts->ts_runq = tdq->tdq_next;
-		break;
-	case PRI_IDLE:
+	/*
+	 * Set the slice and pick the run queue.
+	 */
+	if (ts->ts_slice == 0)
+		ts->ts_slice = sched_slice;
+	if (td->td_priority <= PRI_MAX_REALTIME) {
+		ts->ts_runq = &tdq->tdq_realtime;
 		/*
-		 * This is for priority prop.
+		 * If the thread is not artificially pinned and it's in
+		 * the realtime queue we directly dispatch it on this cpu
+		 * for minimum latency.  Interrupt handlers may also have
+		 * to complete on the cpu that dispatched them.
 		 */
-		if (ts->ts_thread->td_priority < PRI_MIN_IDLE)
-			ts->ts_runq = tdq->tdq_curr;
-		else
-			ts->ts_runq = &tdq->tdq_idle;
-		ts->ts_slice = SCHED_SLICE_MIN;
-		break;
-	default:
-		panic("Unknown pri class.");
-		break;
-	}
+		if (td->td_pinned == 0)
+			ts->ts_cpu = PCPU_GET(cpuid);
+	} else if (td->td_priority <= PRI_MAX_TIMESHARE)
+		ts->ts_runq = &tdq->tdq_timeshare;
+	else
+		ts->ts_runq = &tdq->tdq_idle;
+
 #ifdef SMP
 	/*
 	 * If this thread is pinned or bound, notify the target cpu.
@@ -1827,7 +1730,7 @@ sched_add(struct thread *td, int flags)
 	 * If we had been idle, clear our bit in the group and potentially
 	 * the global bitmap.  If not, see if we should transfer this thread.
 	 */
-	if ((class == PRI_TIMESHARE || class == PRI_REALTIME) &&
+	if ((class != PRI_IDLE && class != PRI_ITHD) &&
 	    (tdq->tdq_group->tdg_idlemask & PCPU_GET(cpumask)) != 0) {
 		/*
 		 * Check to see if our group is unidling, and if so, remove it
@@ -1840,13 +1743,12 @@ sched_add(struct thread *td, int flags)
 		 * Now remove ourselves from the group specific idle mask.
 		 */
 		tdq->tdq_group->tdg_idlemask &= ~PCPU_GET(cpumask);
-	} else if (canmigrate && tdq->tdq_load > 1 && class != PRI_ITHD)
+	} else if (canmigrate && tdq->tdq_load > 1)
 		if (tdq_transfer(tdq, ts, class))
 			return;
 	ts->ts_cpu = PCPU_GET(cpuid);
 #endif
-	if (td->td_priority < curthread->td_priority &&
-	    ts->ts_runq == tdq->tdq_curr)
+	if (td->td_priority < curthread->td_priority)
 		curthread->td_flags |= TDF_NEEDRESCHED;
 	if (preemptive && maybe_preempt(td))
 		return;
@@ -1867,7 +1769,6 @@ sched_rem(struct thread *td)
 	    curthread->td_proc->p_comm);
 	mtx_assert(&sched_lock, MA_OWNED);
 	ts = td->td_sched;
-	ts->ts_flags &= ~TSF_PREEMPTED;
 	if (ts->ts_flags & TSF_ASSIGNED) {
 		ts->ts_flags |= TSF_REMOVED;
 		return;
@@ -1896,19 +1797,12 @@ sched_pctcpu(struct thread *td)
 	if (ts->ts_ticks) {
 		int rtick;
 
-		/*
-		 * Don't update more frequently than twice a second.  Allowing
-		 * this causes the cpu usage to decay away too quickly due to
-		 * rounding errors.
-		 */
-		if (ts->ts_ftick + SCHED_CPU_TICKS < ts->ts_ltick ||
-		    ts->ts_ltick < (ticks - (hz / 2)))
+		if (ticks - (hz / 10) > td->td_sched->ts_ltick)
 			sched_pctcpu_update(ts);
 		/* How many rtick per second ? */
-		rtick = min(ts->ts_ticks / SCHED_CPU_TIME, SCHED_CPU_TICKS);
-		pctcpu = (FSCALE * ((FSCALE * rtick)/realstathz)) >> FSHIFT;
+		rtick = min(SCHED_TICK_HZ(ts) / SCHED_TICK_SECS, hz);
+		pctcpu = (FSCALE * ((FSCALE * rtick)/hz)) >> FSHIFT;
 	}
-
 	td->td_proc->p_swtime = ts->ts_ltick - ts->ts_ftick;
 	mtx_unlock_spin(&sched_lock);
 
@@ -1922,6 +1816,8 @@ sched_bind(struct thread *td, int cpu)
 
 	mtx_assert(&sched_lock, MA_OWNED);
 	ts = td->td_sched;
+	KASSERT((ts->ts_flags & TSF_BOUND) == 0,
+	    ("sched_bind: thread %p already bound.", td));
 	ts->ts_flags |= TSF_BOUND;
 #ifdef SMP
 	if (PCPU_GET(cpuid) == cpu)
@@ -1932,14 +1828,24 @@ sched_bind(struct thread *td, int cpu)
 	tdq_notify(ts, cpu);
 	/* When we return from mi_switch we'll be on the correct cpu. */
 	mi_switch(SW_VOL, NULL);
+	sched_pin();
 #endif
 }
 
 void
 sched_unbind(struct thread *td)
 {
+	struct td_sched *ts;
+
 	mtx_assert(&sched_lock, MA_OWNED);
-	td->td_sched->ts_flags &= ~TSF_BOUND;
+	ts = td->td_sched;
+	KASSERT(ts->ts_flags & TSF_BOUND,
+	    ("sched_unbind: thread %p not bound.", td));
+	mtx_assert(&sched_lock, MA_OWNED);
+	ts->ts_flags &= ~TSF_BOUND;
+#ifdef SMP
+	sched_unpin();
+#endif
 }
 
 int
@@ -1991,5 +1897,19 @@ void
 sched_tick(void)
 {
 }
+
+static SYSCTL_NODE(_kern, OID_AUTO, sched, CTLFLAG_RW, 0, "Scheduler");
+SYSCTL_STRING(_kern_sched, OID_AUTO, name, CTLFLAG_RD, "ule", 0,
+    "Scheduler name");
+SYSCTL_INT(_kern_sched, OID_AUTO, slice, CTLFLAG_RW, &sched_slice, 0, "");
+SYSCTL_INT(_kern_sched, OID_AUTO, interact, CTLFLAG_RW, &sched_interact, 0, "");
+SYSCTL_INT(_kern_sched, OID_AUTO, tickincr, CTLFLAG_RD, &tickincr, 0, "");
+SYSCTL_INT(_kern_sched, OID_AUTO, realstathz, CTLFLAG_RD, &realstathz, 0, "");
+
+/* ps compat */
+static fixpt_t  ccpu = 0.95122942450071400909 * FSCALE; /* exp(-1/20) */
+SYSCTL_INT(_kern, OID_AUTO, ccpu, CTLFLAG_RD, &ccpu, 0, "");
+
+
 #define KERN_SWITCH_INCLUDE 1
 #include "kern/kern_switch.c"
