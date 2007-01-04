@@ -173,7 +173,8 @@ struct tdq {
 	struct runq	tdq_idle;		/* Queue of IDLE threads. */
 	struct runq	tdq_timeshare;		/* timeshare run queue. */
 	struct runq	tdq_realtime;		/* real-time run queue. */
-	int		tdq_idx;		/* Current removal index. */
+	int		tdq_idx;		/* Current insert index. */
+	int		tdq_ridx;		/* Current removal index. */
 	int		tdq_load_timeshare;	/* Load for timeshare. */
 	int		tdq_load;		/* Aggregate load. */
 #ifdef SMP
@@ -253,6 +254,7 @@ static void sched_balance(void);
 static void sched_balance_groups(void);
 static void sched_balance_group(struct tdq_group *);
 static void sched_balance_pair(struct tdq *, struct tdq *);
+static void sched_smp_tick(void);
 static void tdq_move(struct tdq *, int);
 static int tdq_idled(struct tdq *);
 static void tdq_notify(struct td_sched *, int);
@@ -303,6 +305,7 @@ tdq_print(int cpu)
 	printf("\tload:           %d\n", tdq->tdq_load);
 	printf("\tload TIMESHARE: %d\n", tdq->tdq_load_timeshare);
 	printf("\ttimeshare idx: %d\n", tdq->tdq_idx);
+	printf("\ttimeshare ridx: %d\n", tdq->tdq_ridx);
 	printf("\trealtime runq:\n");
 	runq_print(&tdq->tdq_realtime);
 	printf("\ttimeshare runq:\n");
@@ -338,8 +341,16 @@ tdq_runq_add(struct tdq *tdq, struct td_sched *ts, int flags)
 		if ((flags & SRQ_BORROWING) == 0) {
 			pri = (pri - PRI_MIN_TIMESHARE) / TS_RQ_PPQ;
 			pri = (pri + tdq->tdq_idx) % RQ_NQS;
+			/*
+			 * This effectively shortens the queue by one so we
+			 * can have a one slot difference between idx and
+			 * ridx while we wait for threads to drain.
+			 */
+			if (tdq->tdq_ridx != tdq->tdq_idx &&
+			    pri == tdq->tdq_ridx)
+				pri = (pri - 1) % RQ_NQS;
 		} else
-			pri = tdq->tdq_idx;
+			pri = tdq->tdq_ridx;
 		runq_add_pri(ts->ts_runq, ts, pri, flags);
 	} else
 		runq_add(ts->ts_runq, ts, flags);
@@ -355,9 +366,12 @@ tdq_runq_rem(struct tdq *tdq, struct td_sched *ts)
 		ts->ts_flags &= ~TSF_XFERABLE;
 	}
 #endif
-	if (ts->ts_runq == &tdq->tdq_timeshare)
-		runq_remove_idx(ts->ts_runq, ts, &tdq->tdq_idx);
-	else
+	if (ts->ts_runq == &tdq->tdq_timeshare) {
+		if (tdq->tdq_idx != tdq->tdq_ridx)
+			runq_remove_idx(ts->ts_runq, ts, &tdq->tdq_ridx);
+		else
+			runq_remove_idx(ts->ts_runq, ts, NULL);
+	} else
 		runq_remove(ts->ts_runq, ts);
 }
 
@@ -399,6 +413,24 @@ tdq_load_rem(struct tdq *tdq, struct td_sched *ts)
 }
 
 #ifdef SMP
+static void
+sched_smp_tick(void)
+{
+	struct tdq *tdq;
+
+	tdq = TDQ_SELF();
+	if (ticks >= bal_tick)
+		sched_balance();
+	if (ticks >= gbal_tick && balance_groups)
+		sched_balance_groups();
+	/*
+	 * We could have been assigned a non real-time thread without an
+	 * IPI.
+	 */
+	if (tdq->tdq_assigned)
+		tdq_assign(tdq);	/* Potentially sets NEEDRESCHED */
+}
+
 /*
  * sched_balance is a simple CPU load balancing algorithm.  It operates by
  * finding the least loaded and most loaded cpu and equalizing their load
@@ -820,7 +852,7 @@ tdq_choose(struct tdq *tdq)
 		    ts->ts_thread->td_priority));
 		return (ts);
 	}
-	ts = runq_choose_from(&tdq->tdq_timeshare, &tdq->tdq_idx);
+	ts = runq_choose_from(&tdq->tdq_timeshare, tdq->tdq_ridx);
 	if (ts != NULL) {
 		KASSERT(ts->ts_thread->td_priority <= PRI_MAX_TIMESHARE &&
 		    ts->ts_thread->td_priority >= PRI_MIN_TIMESHARE,
@@ -962,7 +994,7 @@ sched_initticks(void *dummy)
 
 	/*
 	 * tickincr is shifted out by 10 to avoid rounding errors due to
-	 * hz not being evenly divisible by stathz.
+	 * hz not being evenly divisible by stathz on all platforms.
 	 */
 	tickincr = (hz << SCHED_TICK_SHIFT) / realstathz;
 	/*
@@ -1141,7 +1173,7 @@ sched_thread_priority(struct thread *td, u_char prio)
 	if (td->td_priority == prio)
 		return;
 
-	if (TD_ON_RUNQ(td)) {
+	if (TD_ON_RUNQ(td) && prio < td->td_priority) {
 		/*
 		 * If the priority has been elevated due to priority
 		 * propagation, we may have to move ourselves to a new
@@ -1546,22 +1578,21 @@ sched_clock(struct thread *td)
 	struct td_sched *ts;
 
 	mtx_assert(&sched_lock, MA_OWNED);
-
-	tdq = TDQ_SELF();
-	ts = td->td_sched;
 #ifdef SMP
-	if (ticks >= bal_tick)
-		sched_balance();
-	if (ticks >= gbal_tick && balance_groups)
-		sched_balance_groups();
-	/*
-	 * We could have been assigned a non real-time thread without an
-	 * IPI.
-	 */
-	if (tdq->tdq_assigned)
-		tdq_assign(tdq);	/* Potentially sets NEEDRESCHED */
+	sched_smp_tick();
 #endif
+	tdq = TDQ_SELF();
+	/*
+	 * Advance the insert index once for each tick to ensure that all
+	 * threads get a chance to run.
+	 */
+	if (tdq->tdq_idx == tdq->tdq_ridx) {
+		tdq->tdq_idx = (tdq->tdq_idx + 1) % RQ_NQS;
+		if (TAILQ_EMPTY(&tdq->tdq_timeshare.rq_queues[tdq->tdq_ridx]))
+			tdq->tdq_ridx = tdq->tdq_idx;
+	}
 	/* Adjust ticks for pctcpu */
+	ts = td->td_sched;
 	ts->ts_ticks += tickincr;
 	ts->ts_ltick = ticks;
 	/*
@@ -1576,12 +1607,11 @@ sched_clock(struct thread *td)
 	if (td->td_pri_class != PRI_TIMESHARE)
 		return;
 	/*
-	 * We used a tick charge it to the thread so that we can compute our
+	 * We used a tick; charge it to the thread so that we can compute our
 	 * interactivity.
 	 */
 	td->td_sched->skg_runtime += tickincr;
 	sched_interact_update(td);
-
 	/*
 	 * We used up one time slice.
 	 */
