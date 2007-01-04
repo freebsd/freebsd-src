@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2003 - 2006 Søren Schmidt <sos@FreeBSD.org>
+ * Copyright (c) 2003 - 2007 Søren Schmidt <sos@FreeBSD.org>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -179,6 +179,7 @@ struct ata_connect_task {
 #define ATA_JMB363              0x2363197b
 #define ATA_JMB365              0x2365197b
 #define ATA_JMB366              0x2366197b
+#define ATA_JMB368              0x2368197b
 
 #define ATA_MARVELL_ID          0x11ab
 #define ATA_M88SX5040           0x504011ab
