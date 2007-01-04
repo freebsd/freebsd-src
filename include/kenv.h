@@ -33,7 +33,7 @@
 #include <sys/kenv.h>
 
 __BEGIN_DECLS
-int kenv(int, char *, char *, int);
+int kenv(int, const char *, char *, int);
 __END_DECLS
 
 #endif /* !_KENV_H_ */
