@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 1998 - 2006 Søren Schmidt <sos@FreeBSD.org>
+ * Copyright (c) 1998 - 2007 Søren Schmidt <sos@FreeBSD.org>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -2149,6 +2149,7 @@ ata_jmicron_ident(device_t dev)
      { ATA_JMB363, 0, 2, 1, ATA_SA300, "JMB363" },
      { ATA_JMB365, 0, 1, 2, ATA_SA300, "JMB365" },
      { ATA_JMB366, 0, 2, 2, ATA_SA300, "JMB366" },
+     { ATA_JMB368, 0, 0, 1, ATA_UDMA6, "JMB368" },
      { 0, 0, 0, 0, 0, 0}};
     char buffer[64];
 
