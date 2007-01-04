@@ -96,6 +96,36 @@ cat <<_EOF_
 _EOF_
 }
 
+#
+# Automatically generates a C function used when the argument
+# maps to a #definition
+#
+auto_if_type () {
+	local name grep file
+	name=$1
+	grep=$2
+	file=$3
+
+	cat <<_EOF_
+/* AUTO */
+void
+$name (int arg)
+{
+_EOF_
+	egrep "^#[[:space:]]*define[[:space:]]+"${grep}"[[:space:]]*" \
+		$include_dir/$file | \
+	awk '{ printf "\t"; \
+		if (NR > 1) \
+			printf "else " ; \
+		printf "if (arg == %s) \n\t\tprintf(\"%s\");\n", $2, $2 }'
+cat <<_EOF_
+	else /* Should not reach */
+		(void)printf("<invalid=%ld>", (long)arg);
+}
+
+_EOF_
+}
+
 # C start
 
 cat <<_EOF_
