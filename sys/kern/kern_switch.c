@@ -556,21 +556,20 @@ runq_choose(struct runq *rq)
 }
 
 struct td_sched *
-runq_choose_from(struct runq *rq, int *idx)
+runq_choose_from(struct runq *rq, int idx)
 {
 	struct rqhead *rqh;
 	struct td_sched *ts;
 	int pri;
 
 	mtx_assert(&sched_lock, MA_OWNED);
-	if ((pri = runq_findbit_from(rq, *idx)) != -1) {
+	if ((pri = runq_findbit_from(rq, idx)) != -1) {
 		rqh = &rq->rq_queues[pri];
 		ts = TAILQ_FIRST(rqh);
 		KASSERT(ts != NULL, ("runq_choose: no proc on busy queue"));
 		CTR4(KTR_RUNQ,
 		    "runq_choose_from: pri=%d kse=%p idx=%d rqh=%p",
 		    pri, ts, ts->ts_rqindex, rqh);
-		*idx = ts->ts_rqindex;
 		return (ts);
 	}
 	CTR1(KTR_RUNQ, "runq_choose_from: idleproc pri=%d", pri);
