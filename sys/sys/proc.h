@@ -651,6 +651,7 @@ struct proc {
 #define SRQ_OURSELF	0x0002		/* It is ourself (from mi_switch). */
 #define SRQ_INTR	0x0004		/* It is probably urgent. */
 #define SRQ_PREEMPTED	0x0008		/* has been preempted.. be kind */
+#define	SRQ_BORROWING	0x0010		/* Priority updated due to prio_lend */
 
 /* How values for thread_single(). */
 #define	SINGLE_NO_EXIT	0
