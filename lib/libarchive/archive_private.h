@@ -133,7 +133,7 @@ struct archive {
 	ssize_t	(*compression_read_ahead)(struct archive *,
 		    const void **, size_t request);
 	ssize_t	(*compression_read_consume)(struct archive *, size_t);
-	ssize_t (*compression_skip)(struct archive *, size_t);
+	off_t (*compression_skip)(struct archive *, off_t);
 
 	/*
 	 * Format detection is mostly the same as compression

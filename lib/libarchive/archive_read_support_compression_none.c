@@ -31,6 +31,9 @@ __FBSDID("$FreeBSD$");
 #ifdef HAVE_ERRNO_H
 #include <errno.h>
 #endif
+#ifdef HAVE_LIMITS_H
+#include <limits.h>
+#endif
 #ifdef HAVE_STDLIB_H
 #include <stdlib.h>
 #endif
@@ -80,7 +83,7 @@ static ssize_t	archive_decompressor_none_read_ahead(struct archive *,
 		    const void **, size_t);
 static ssize_t	archive_decompressor_none_read_consume(struct archive *,
 		    size_t);
-static ssize_t	archive_decompressor_none_skip(struct archive *, size_t);
+static off_t	archive_decompressor_none_skip(struct archive *, off_t);
 
 int
 archive_read_support_compression_none(struct archive *a)
@@ -269,11 +272,11 @@ archive_decompressor_none_read_consume(struct archive *a, size_t request)
  * ARCHIVE_FATAL.  Note that this differs from the contract for
  * read_ahead, which does not guarantee a minimum count.
  */
-static ssize_t
-archive_decompressor_none_skip(struct archive *a, size_t request)
+static off_t
+archive_decompressor_none_skip(struct archive *a, off_t request)
 {
 	struct archive_decompress_none *state;
-	ssize_t bytes_skipped, total_bytes_skipped = 0;
+	off_t bytes_skipped, total_bytes_skipped = 0;
 	size_t min;
 
 	state = (struct archive_decompress_none *)a->compression_data;
@@ -283,13 +286,13 @@ archive_decompressor_none_skip(struct archive *a, size_t request)
 	 * If there is data in the buffers already, use that first.
 	 */
 	if (state->avail > 0) {
-		min = minimum(request, state->avail);
+		min = minimum(request, (off_t)state->avail);
 		bytes_skipped = archive_decompressor_none_read_consume(a, min);
 		request -= bytes_skipped;
 		total_bytes_skipped += bytes_skipped;
 	}
 	if (state->client_avail > 0) {
-		min = minimum(request, state->client_avail);
+		min = minimum(request, (off_t)state->client_avail);
 		bytes_skipped = archive_decompressor_none_read_consume(a, min);
 		request -= bytes_skipped;
 		total_bytes_skipped += bytes_skipped;
@@ -299,7 +302,7 @@ archive_decompressor_none_skip(struct archive *a, size_t request)
 	/*
 	 * If a client_skipper was provided, try that first.
 	 */
-	if (a->client_skipper != NULL) {
+	if ((a->client_skipper != NULL) && (request < SSIZE_MAX)) {
 		bytes_skipped = (a->client_skipper)(a, a->client_data,
 		    request);
 		if (bytes_skipped < 0) {	/* error */
@@ -335,7 +338,7 @@ archive_decompressor_none_skip(struct archive *a, size_t request)
 			return (ARCHIVE_FATAL);
 		}
 		assert(bytes_read >= 0); /* precondition for cast below */
-		min = minimum((size_t)bytes_read, request);
+		min = (size_t)(minimum(bytes_read, request));
 		bytes_read = archive_decompressor_none_read_consume(a, min);
 		total_bytes_skipped += bytes_read;
 		request -= bytes_read;
