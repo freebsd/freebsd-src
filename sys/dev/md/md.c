@@ -67,6 +67,7 @@
 #include <sys/lock.h>
 #include <sys/malloc.h>
 #include <sys/mdioctl.h>
+#include <sys/mount.h>
 #include <sys/mutex.h>
 #include <sys/sx.h>
 #include <sys/namei.h>
@@ -88,7 +89,8 @@
 
 #define MD_MODVER 1
 
-#define MD_SHUTDOWN 0x10000	/* Tell worker thread to terminate. */
+#define MD_SHUTDOWN	0x10000		/* Tell worker thread to terminate. */
+#define	MD_EXITING	0x20000		/* Worker thread is exiting. */
 
 #ifndef MD_NSECT
 #define MD_NSECT (10000 * 2)
@@ -482,12 +484,11 @@ mdstart_preload(struct md_s *sc, struct bio *bp)
 static int
 mdstart_vnode(struct md_s *sc, struct bio *bp)
 {
-	int error;
+	int error, vfslocked;
 	struct uio auio;
 	struct iovec aiov;
 	struct mount *mp;
 
-	mtx_assert(&Giant, MA_OWNED);
 	/*
 	 * VNODE I/O
 	 *
@@ -516,6 +517,7 @@ mdstart_vnode(struct md_s *sc, struct bio *bp)
 	 * When reading set IO_DIRECT to try to avoid double-caching
 	 * the data.  When writing IO_DIRECT is not optimal.
 	 */
+	vfslocked = VFS_LOCK_GIANT(sc->vnode->v_mount);
 	if (bp->bio_cmd == BIO_READ) {
 		vn_lock(sc->vnode, LK_EXCLUSIVE | LK_RETRY, curthread);
 		error = VOP_READ(sc->vnode, &auio, IO_DIRECT, sc->cred);
@@ -528,6 +530,7 @@ mdstart_vnode(struct md_s *sc, struct bio *bp)
 		VOP_UNLOCK(sc->vnode, 0, curthread);
 		vn_finished_write(mp);
 	}
+	VFS_UNLOCK_GIANT(vfslocked);
 	bp->bio_resid = auio.uio_resid;
 	return (error);
 }
@@ -638,35 +641,20 @@ md_kthread(void *arg)
 {
 	struct md_s *sc;
 	struct bio *bp;
-	int error, hasgiant;
+	int error;
 
 	sc = arg;
 	mtx_lock_spin(&sched_lock);
 	sched_prio(curthread, PRIBIO);
 	mtx_unlock_spin(&sched_lock);
 
-	switch (sc->type) {
-	case MD_VNODE:
-		mtx_lock(&Giant);
-		hasgiant = 1;
-		break;
-	case MD_MALLOC:
-	case MD_PRELOAD:
-	case MD_SWAP:
-	default:
-		hasgiant = 0;
-		break;
-	}
-	
 	for (;;) {
+		mtx_lock(&sc->queue_mtx);
 		if (sc->flags & MD_SHUTDOWN) {
-			sc->procp = NULL;
-			wakeup(&sc->procp);
-			if (hasgiant)
-				mtx_unlock(&Giant);
+			sc->flags |= MD_EXITING;
+			mtx_unlock(&sc->queue_mtx);
 			kthread_exit(0);
 		}
-		mtx_lock(&sc->queue_mtx);
 		bp = bioq_takefirst(&sc->bio_queue);
 		if (!bp) {
 			msleep(sc, &sc->queue_mtx, PRIBIO | PDROP, "mdwait", 0);
@@ -864,7 +852,7 @@ mdcreate_vnode(struct md_s *sc, struct md_ioctl *mdio, struct thread *td)
 {
 	struct vattr vattr;
 	struct nameidata nd;
-	int error, flags;
+	int error, flags, vfslocked;
 
 	error = copyinstr(mdio->md_file, sc->file, sizeof(sc->file), NULL);
 	if (error != 0)
@@ -881,10 +869,12 @@ mdcreate_vnode(struct md_s *sc, struct md_ioctl *mdio, struct thread *td)
 	if (error != 0)
 		return (error);
 	NDFREE(&nd, NDF_ONLY_PNBUF);
+	vfslocked = VFS_LOCK_GIANT(nd.ni_vp->v_mount);
 	if (nd.ni_vp->v_type != VREG ||
 	    (error = VOP_GETATTR(nd.ni_vp, &vattr, td->td_ucred, td))) {
 		VOP_UNLOCK(nd.ni_vp, 0, td);
 		(void)vn_close(nd.ni_vp, flags, td->td_ucred, td);
+		VFS_UNLOCK_GIANT(vfslocked);
 		return (error ? error : EINVAL);
 	}
 	VOP_UNLOCK(nd.ni_vp, 0, td);
@@ -901,15 +891,17 @@ mdcreate_vnode(struct md_s *sc, struct md_ioctl *mdio, struct thread *td)
 	error = mdsetcred(sc, td->td_ucred);
 	if (error != 0) {
 		(void)vn_close(nd.ni_vp, flags, td->td_ucred, td);
+		VFS_UNLOCK_GIANT(vfslocked);
 		return (error);
 	}
+	VFS_UNLOCK_GIANT(vfslocked);
 	return (0);
 }
 
 static int
 mddestroy(struct md_s *sc, struct thread *td)
 {
-
+	int vfslocked;
 
 	if (sc->gp) {
 		sc->gp->softc = NULL;
@@ -919,16 +911,18 @@ mddestroy(struct md_s *sc, struct thread *td)
 		sc->gp = NULL;
 		sc->pp = NULL;
 	}
+	mtx_lock(&sc->queue_mtx);
 	sc->flags |= MD_SHUTDOWN;
 	wakeup(sc);
-	while (sc->procp != NULL)
-		tsleep(&sc->procp, PRIBIO, "mddestroy", hz / 10);
+	while (!(sc->flags & MD_EXITING))
+		msleep(sc->procp, &sc->queue_mtx, PRIBIO, "mddestroy", hz / 10);
+	mtx_unlock(&sc->queue_mtx);
 	mtx_destroy(&sc->queue_mtx);
 	if (sc->vnode != NULL) {
-		mtx_lock(&Giant);
+		vfslocked = VFS_LOCK_GIANT(sc->vnode->v_mount);
 		(void)vn_close(sc->vnode, sc->flags & MD_READONLY ?
 		    FREAD : (FREAD|FWRITE), sc->cred, td);
-		mtx_unlock(&Giant);
+		VFS_UNLOCK_GIANT(vfslocked);
 	}
 	if (sc->cred != NULL)
 		crfree(sc->cred);
