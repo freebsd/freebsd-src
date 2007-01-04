@@ -138,6 +138,7 @@ cat <<_EOF_
 #define _KERNEL
 #include <sys/socket.h>
 #undef _KERNEL
+#include <netinet/in.h>
 #include <sys/param.h>
 #include <sys/mount.h>
 #include <sys/resource.h>
@@ -335,6 +336,7 @@ auto_switch_type "lio_listioname" "LIO_(NO)?WAIT[[:space:]]+[0-9]+" "aio.h"
 auto_switch_type "minheritname" "INHERIT_[A-Z]+[[:space:]]+[0-9]+" "sys/mman.h"
 auto_switch_type "quotactlname" "Q_[A-Z]+[[:space:]]+0x[0-9]+" "ufs/ufs/quota.h"
 auto_if_type "sockdomainname" "PF_[[:alnum:]]+[[:space:]]+" "sys/socket.h"
+auto_if_type "sockipprotoname" "IPPROTO_[[:alnum:]]+[[:space:]]+" "netinet/in.h"
 auto_switch_type "sockoptname" "SO_[A-Z]+[[:space:]]+0x[0-9]+" "sys/socket.h"
 auto_switch_type "socktypename" "SOCK_[A-Z]+[[:space:]]+[1-9]+[0-9]*" "sys/socket.h"
 
