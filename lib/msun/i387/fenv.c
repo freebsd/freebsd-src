@@ -117,19 +117,18 @@ feraiseexcept(int excepts)
 int
 fegetenv(fenv_t *envp)
 {
-	int control, mxcsr;
+	int mxcsr;
 
-	/*
-	 * fnstenv masks all exceptions, so we need to save and
-	 * restore the control word to avoid this side effect.
-	 */
-	__fnstcw(&control);
 	__fnstenv(envp);
+	/*
+	 * fnstenv masks all exceptions, so we need to restore
+	 * the old control word to avoid this side effect.
+	 */
+	__fldcw(envp->__control);
 	if (__HAS_SSE()) {
 		__stmxcsr(&mxcsr);
 		__set_mxcsr(*envp, mxcsr);
 	}
-	__fldcw(control);
 	return (0);
 }
 
