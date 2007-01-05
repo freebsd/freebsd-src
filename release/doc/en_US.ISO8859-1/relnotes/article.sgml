@@ -40,6 +40,7 @@
     <year>2004</year>
     <year>2005</year>
     <year>2006</year>
+    <year>2007</year>
     <holder role="mailto:doc@FreeBSD.org">The &os; Documentation Project</holder>
   </copyright>
 
@@ -544,7 +545,7 @@
 	added.</para>
 
       <para>[&arch.sun4v;] &os; now has preliminary support for the Sun Microsystems
-	UltraSPARC-T1 archicture.  &os;/sun4v has been demonstrated
+	UltraSPARC-T1 architecture.  &os;/sun4v has been demonstrated
 	to run on the Sun Fire T1000 and Sun Fire T2000 servers.
 	More information can be found on the
 	<ulink url="http://www.FreeBSD.org/platforms/sun4v.html">sun4v
@@ -1503,7 +1504,7 @@ geli_da1s3a_keyfile0_name="/boot/keys/da1s3a.key"</programlisting>
       been moved from <filename>/usr/bin</filename>
       to <filename>/bin</filename> so that it can be used by startup
       scripts.  Symbolic links from its former location have been
-      created for backward compatibliity. &merged;</para>
+      created for backward compatibility. &merged;</para>
 
     <para>The &man.powerd.8; program now supports a
       <option>-P</option> option, which specifies a pidfile to use.</para>
