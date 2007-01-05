@@ -685,14 +685,33 @@ int
 _pthread_mutex_setprioceiling(pthread_mutex_t *mutex,
 			      int ceiling, int *old_ceiling)
 {
-	int ret = 0;
+	struct pthread *curthread = _get_curthread();
+	struct pthread_mutex *m, *m1, *m2;
+	int ret;
 
-	if (*mutex == NULL)
-		ret = EINVAL;
-	else if (((*mutex)->m_lock.m_flags & UMUTEX_PRIO_PROTECT) == 0)
-		ret = EINVAL;
-	else
-		ret = __thr_umutex_set_ceiling(&(*mutex)->m_lock,
-			ceiling, old_ceiling);
-	return (ret);
+	m = *mutex;
+	if (m == NULL || (m->m_lock.m_flags & UMUTEX_PRIO_PROTECT) == 0)
+		return (EINVAL);
+
+	ret = __thr_umutex_set_ceiling(&m->m_lock, ceiling, old_ceiling);
+	if (ret != 0)
+		return (ret);
+
+	if (m->m_owner == curthread) {
+		MUTEX_ASSERT_IS_OWNED(m);
+		m1 = TAILQ_PREV(m, mutex_queue, m_qe);
+		m2 = TAILQ_NEXT(m, m_qe);
+		if ((m1 != NULL && m1->m_lock.m_ceilings[0] > ceiling) ||
+		    (m2 != NULL && m2->m_lock.m_ceilings[0] < ceiling)) {
+			TAILQ_REMOVE(&curthread->pp_mutexq, m, m_qe);
+			TAILQ_FOREACH(m2, &curthread->pp_mutexq, m_qe) {
+				if (m2->m_lock.m_ceilings[0] > ceiling) {
+					TAILQ_INSERT_BEFORE(m2, m, m_qe);
+					return (0);
+				}
+			}
+		}
+		TAILQ_INSERT_HEAD(&curthread->pp_mutexq, m, m_qe);
+	}
+	return (0);
 }
