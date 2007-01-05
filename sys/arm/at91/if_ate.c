@@ -72,7 +72,7 @@ __FBSDID("$FreeBSD$");
 
 #include "miibus_if.h"
 
-#define ATE_MAX_TX_BUFFERS 64		/* We have ping-pong tx buffers */
+#define ATE_MAX_TX_BUFFERS 2		/* We have ping-pong tx buffers */
 #define ATE_MAX_RX_BUFFERS 64
 
 struct ate_softc
