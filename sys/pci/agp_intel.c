@@ -50,6 +50,8 @@ __FBSDID("$FreeBSD$");
 
 #define	MAX_APSIZE	0x3f		/* 256 MB */
 
+static void agp_intel_commit_gatt(device_t dev);
+
 struct agp_intel_softc {
 	struct agp_softc agp;
 	u_int32_t	initial_aperture; /* aperture size at startup */
@@ -144,42 +146,12 @@ agp_intel_probe(device_t dev)
 	return ENXIO;
 }
 
-static int
-agp_intel_attach(device_t dev)
+static void agp_intel_commit_gatt(device_t dev)
 {
 	struct agp_intel_softc *sc = device_get_softc(dev);
-	struct agp_gatt *gatt;
+	struct agp_gatt *gatt = sc->gatt;
 	u_int32_t type = pci_get_devid(dev);
 	u_int32_t value;
-	int error;
-
-	error = agp_generic_attach(dev);
-	if (error)
-		return error;
-
-	/* Determine maximum supported aperture size. */
-	value = pci_read_config(dev, AGP_INTEL_APSIZE, 1);
-	pci_write_config(dev, AGP_INTEL_APSIZE, MAX_APSIZE, 1);
-	sc->aperture_mask = pci_read_config(dev, AGP_INTEL_APSIZE, 1) &
-	    MAX_APSIZE;
-	pci_write_config(dev, AGP_INTEL_APSIZE, value, 1);
-	sc->initial_aperture = AGP_GET_APERTURE(dev);
-
-	for (;;) {
-		gatt = agp_alloc_gatt(dev);
-		if (gatt)
-			break;
-
-		/*
-		 * Probably contigmalloc failure. Try reducing the
-		 * aperture so that the gatt size reduces.
-		 */
-		if (AGP_SET_APERTURE(dev, AGP_GET_APERTURE(dev) / 2)) {
-			agp_generic_detach(dev);
-			return ENOMEM;
-		}
-	}
-	sc->gatt = gatt;
 
 	/* Install the gatt. */
 	pci_write_config(dev, AGP_INTEL_ATTBASE, gatt->ag_physical, 4);
@@ -259,7 +231,46 @@ agp_intel_attach(device_t dev)
 	default: /* Intel Generic (maybe) */
 		pci_write_config(dev, AGP_INTEL_ERRSTS + 1, 7, 1);
 	}
+}
 
+static int
+agp_intel_attach(device_t dev)
+{
+	struct agp_intel_softc *sc = device_get_softc(dev);
+	struct agp_gatt *gatt;
+	u_int32_t value;
+	int error;
+
+	error = agp_generic_attach(dev);
+	if (error)
+		return error;
+
+	/* Determine maximum supported aperture size. */
+	value = pci_read_config(dev, AGP_INTEL_APSIZE, 1);
+	pci_write_config(dev, AGP_INTEL_APSIZE, MAX_APSIZE, 1);
+	sc->aperture_mask = pci_read_config(dev, AGP_INTEL_APSIZE, 1) &
+	    MAX_APSIZE;
+	pci_write_config(dev, AGP_INTEL_APSIZE, value, 1);
+	sc->initial_aperture = AGP_GET_APERTURE(dev);
+
+	for (;;) {
+		gatt = agp_alloc_gatt(dev);
+		if (gatt)
+			break;
+
+		/*
+		 * Probably contigmalloc failure. Try reducing the
+		 * aperture so that the gatt size reduces.
+		 */
+		if (AGP_SET_APERTURE(dev, AGP_GET_APERTURE(dev) / 2)) {
+			agp_generic_detach(dev);
+			return ENOMEM;
+		}
+	}
+	sc->gatt = gatt;
+	
+	agp_intel_commit_gatt(dev);
+	
 	return 0;
 }
 
@@ -322,6 +333,12 @@ agp_intel_detach(device_t dev)
 	agp_free_gatt(sc->gatt);
 
 	return 0;
+}
+
+static int agp_intel_resume(device_t dev)
+{
+	agp_intel_commit_gatt(dev);
+	return bus_generic_resume(dev);
 }
 
 static u_int32_t
@@ -405,7 +422,7 @@ static device_method_t agp_intel_methods[] = {
 	DEVMETHOD(device_detach,	agp_intel_detach),
 	DEVMETHOD(device_shutdown,	bus_generic_shutdown),
 	DEVMETHOD(device_suspend,	bus_generic_suspend),
-	DEVMETHOD(device_resume,	bus_generic_resume),
+	DEVMETHOD(device_resume,	agp_intel_resume),
 
 	/* AGP interface */
 	DEVMETHOD(agp_get_aperture,	agp_intel_get_aperture),
