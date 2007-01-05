@@ -67,25 +67,26 @@ static struct ip6stat curstat, initstat, oldstat;
 /*-
 --0         1         2         3         4         5         6         7
 --0123456789012345678901234567890123456789012345678901234567890123456789012345
-01        IPv6 Input                         IPv6 Output
-029999999 total packets received   999999999 total packets sent
-039999999 - too short for header   999999999 - generated locally
-049999999 - too short for data     999999999 - output drops
-059999999 - with invalid version   999999999 output fragments generated
-069999999 total fragments received 999999999 - fragmentation failed
-079999999 - fragments dropped      999999999 destinations unreachable
-089999999 - fragments timed out    999999999 packets output via raw IP
-099999999 - fragments overflown              Input next-header histogram
-109999999 - packets reassembled ok 999999999  - destination options
-119999999 packets forwarded        999999999  - hop-by-hop options
-129999999 - unreachable dests      999999999  - IPv4
-139999999 - redirects generated    999999999  - TCP
-149999999 option errors            999999999  - UDP
-159999999 unwanted multicasts      999999999  - IPv6
-169999999 delivered to upper layer 999999999  - routing header
-17                                 999999999  - fragmentation header
-189999999 bad scope packets        999999999  - ICMP6
-199999999 address selection failed 999999999  - none
+00        IPv6 Input                         IPv6 Output
+019999999 total packets received   999999999 total packets sent
+029999999 - too short for header   999999999 - generated locally
+039999999 - too short for data     999999999 - output drops
+049999999 - with invalid version   999999999 output fragments generated
+059999999 total fragments received 999999999 - fragmentation failed
+069999999 - fragments dropped      999999999 destinations unreachable
+079999999 - fragments timed out    999999999 packets output via raw IP
+089999999 - fragments overflown
+099999999 - packets reassembled ok           Input next-header histogram
+109999999 packets forwarded        999999999  - destination options
+119999999 - unreachable dests      999999999  - hop-by-hop options
+129999999 - redirects generated    999999999  - IPv4
+139999999 option errors            999999999  - TCP
+149999999 unwanted multicasts      999999999  - UDP
+159999999 delivered to upper layer 999999999  - IPv6
+169999999 bad scope packets        999999999  - routing header
+179999999 address selection failed 999999999  - fragmentation header
+18                                 999999999  - ICMP6
+19                                 999999999  - none
 --0123456789012345678901234567890123456789012345678901234567890123456789012345
 --0         1         2         3         4         5         6         7
 */
@@ -93,7 +94,7 @@ static struct ip6stat curstat, initstat, oldstat;
 WINDOW *
 openip6(void)
 {
-	return (subwin(stdscr, LINES-4-1, 0, 4, 0));
+	return (subwin(stdscr, LINES-3-1, 0, MAINWIN_ROW, 0));
 }
 
 void
@@ -113,25 +114,26 @@ labelip6(void)
 	wmove(wnd, 0, 0); wclrtoeol(wnd);
 #define L(row, str) mvwprintw(wnd, row, 10, str)
 #define R(row, str) mvwprintw(wnd, row, 45, str);
-	L(1, "IPv6 Input");		R(1, "IPv6 Output");
-	L(2, "total packets received");	R(2, "total packets sent");
-	L(3, "- too short for header");	R(3, "- generated locally");
-	L(4, "- too short for data");	R(4, "- output drops");
-	L(5, "- with invalid version");	R(5, "output fragments generated");
-	L(6, "total fragments received"); R(6, "- fragmentation failed");
-	L(7, "- fragments dropped");	R(7, "destinations unreachable");
-	L(8, "- fragments timed out");	R(8, "packets output via raw IP");
-	L(9, "- fragments overflown");	R(9, "Input next-header histogram");
-	L(10, "- packets reassembled ok"); R(10, " - destination options");
-	L(11, "packets forwarded");	R(11, " - hop-by-hop options");
-	L(12, "- unreachable dests");	R(12, " - IPv4");
-	L(13, "- redirects generated");	R(13, " - TCP");
-	L(14, "option errors");		R(14, " - UDP");
-	L(15, "unwanted multicasts");	R(15, " - IPv6");
-	L(16, "delivered to upper layer"); R(16, " - routing header");
-					R(17, " - fragmentation header");
-	L(18, "bad scope packets");	R(18, " - ICMP6");
-	L(19, "address selection failed"); R(19, " - none");
+	L(0, "IPv6 Input");		R(0, "IPv6 Output");
+	L(1, "total packets received");	R(1, "total packets sent");
+	L(2, "- too short for header");	R(2, "- generated locally");
+	L(3, "- too short for data");	R(3, "- output drops");
+	L(4, "- with invalid version");	R(4, "output fragments generated");
+	L(5, "total fragments received"); R(5, "- fragmentation failed");
+	L(6, "- fragments dropped");	R(6, "destinations unreachable");
+	L(7, "- fragments timed out");	R(7, "packets output via raw IP");
+	L(8, "- fragments overflown");
+	L(9, "- packets reassembled ok"); R(9, "Input next-header histogram");
+	L(10, "packets forwarded");	R(10, " - destination options");
+	L(11, "- unreachable dests");	R(11, " - hop-by-hop options");
+	L(12, "- redirects generated");	R(12, " - IPv4");
+	L(13, "option errors");		R(13, " - TCP");
+	L(14, "unwanted multicasts");	R(14, " - UDP");
+	L(15, "delivered to upper layer"); R(15, " - IPv6");
+	L(16, "bad scope packets");	R(16, " - routing header");
+	L(17, "address selection failed"); R(17, " - fragmentation header");
+					R(18, " - ICMP6");
+					R(19, " - none");
 #undef L
 #undef R
 }
@@ -186,7 +188,7 @@ domode(struct ip6stat *ret)
 	DO(ip6s_sources_none);
 #undef DO
 }
-	
+
 void
 showip6(void)
 {
@@ -199,40 +201,40 @@ showip6(void)
 #define DO(stat, row, col) \
 	mvwprintw(wnd, row, col, "%9lu", stats.stat)
 
-	DO(ip6s_total, 2, 0);
-	mvwprintw(wnd, 2, 35, "%9lu", totalout);
-	DO(ip6s_localout, 3, 35);
-	DO(ip6s_tooshort, 3, 0);
-	DO(ip6s_odropped, 4, 35);
-	DO(ip6s_toosmall, 4, 0);
-	DO(ip6s_ofragments, 5, 35);
-	DO(ip6s_badvers, 5, 0);
-	DO(ip6s_cantfrag, 6, 35);
-	DO(ip6s_fragments, 6, 0);
-	DO(ip6s_noroute, 7, 35);
-	DO(ip6s_fragdropped, 7, 0);
-	DO(ip6s_rawout, 8, 35);
-	DO(ip6s_fragtimeout, 8, 0);
-	DO(ip6s_fragoverflow, 9, 0);
+	DO(ip6s_total, 1, 0);
+	mvwprintw(wnd, 1, 35, "%9lu", totalout);
+	DO(ip6s_tooshort, 2, 0);
+	DO(ip6s_localout, 2, 35);
+	DO(ip6s_toosmall, 3, 0);
+	DO(ip6s_odropped, 3, 35);
+	DO(ip6s_badvers, 4, 0);
+	DO(ip6s_ofragments, 4, 35);
+	DO(ip6s_fragments, 5, 0);
+	DO(ip6s_cantfrag, 5, 35);
+	DO(ip6s_fragdropped, 6, 0);
+	DO(ip6s_noroute, 6, 35);
+	DO(ip6s_fragtimeout, 7, 0);
+	DO(ip6s_rawout, 7, 35);
+	DO(ip6s_fragoverflow, 8, 0);
+	DO(ip6s_reassembled, 9, 0);
+	DO(ip6s_forward, 10, 0);
 	DO(ip6s_nxthist[IPPROTO_DSTOPTS], 10, 35);
-	DO(ip6s_reassembled, 10, 0);
+	DO(ip6s_cantforward, 11, 0);
 	DO(ip6s_nxthist[IPPROTO_HOPOPTS], 11, 35);
-	DO(ip6s_forward, 11, 0);
+	DO(ip6s_redirectsent, 12, 0);
 	DO(ip6s_nxthist[IPPROTO_IPV4], 12, 35);
-	DO(ip6s_cantforward, 12, 0);
+	DO(ip6s_badoptions, 13, 0);
 	DO(ip6s_nxthist[IPPROTO_TCP], 13, 35);
-	DO(ip6s_redirectsent, 13, 0);
+	DO(ip6s_notmember, 14, 0);
 	DO(ip6s_nxthist[IPPROTO_UDP], 14, 35);
-	DO(ip6s_badoptions, 14, 0);
+	DO(ip6s_delivered, 15, 0);
 	DO(ip6s_nxthist[IPPROTO_IPV6], 15, 35);
-	DO(ip6s_notmember, 15, 0);
+	DO(ip6s_badscope, 16, 0);
 	DO(ip6s_nxthist[IPPROTO_ROUTING], 16, 35);
-	DO(ip6s_delivered, 16, 0);
+	DO(ip6s_sources_none, 17, 0);
 	DO(ip6s_nxthist[IPPROTO_FRAGMENT], 17, 35);
 	DO(ip6s_nxthist[IPPROTO_ICMPV6], 18, 35);
-	DO(ip6s_badscope, 18, 0);
 	DO(ip6s_nxthist[IPPROTO_NONE], 19, 35);
-	DO(ip6s_sources_none, 19, 0);
 #undef DO
 }
 

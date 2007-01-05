@@ -97,7 +97,7 @@ static void stat1(int, int);
 WINDOW *
 openiostat()
 {
-	return (subwin(stdscr, LINES-1-5, 0, 5, 0));
+	return (subwin(stdscr, LINES-3-1, 0, MAINWIN_ROW, 0));
 }
 
 void
@@ -121,7 +121,7 @@ initiostat()
 	last.dinfo = (struct devinfo *)malloc(sizeof(struct devinfo));
 	bzero(cur.dinfo, sizeof(struct devinfo));
 	bzero(last.dinfo, sizeof(struct devinfo));
-	
+
 	/*
 	 * This value for maxshowdevs (100) is bogus.  I'm not sure exactly
 	 * how to calculate it, though.
@@ -149,7 +149,7 @@ fetchiostat()
 	cur.dinfo = tmp_dinfo;
 
 	last.snap_time = cur.snap_time;
-         
+
 	/*
 	 * Here what we want to do is refresh our device stats.
 	 * getdevs() returns 1 when the device list has changed.
@@ -182,7 +182,7 @@ labeliostat()
 	row = 0;
 	wmove(wnd, row, 0); wclrtobot(wnd);
 	mvwaddstr(wnd, row++, INSET,
-	    "/0   /10  /20  /30  /40  /50  /60  /70  /80  /90  /100");
+	    "/0%  /10  /20  /30  /40  /50  /60  /70  /80  /90  /100");
 	mvwaddstr(wnd, row++, 0, "cpu  user|");
 	mvwaddstr(wnd, row++, 0, "     nice|");
 	mvwaddstr(wnd, row++, 0, "   system|");
@@ -244,7 +244,7 @@ barlabels(row)
 	char tmpstr[10];
 
 	mvwaddstr(wnd, row++, INSET,
-	    "/0   /10  /20  /30  /40  /50  /60  /70  /80  /90  /100");
+	    "/0%  /10  /20  /30  /40  /50  /60  /70  /80  /90  /100");
 	linesperregion = 2 + kbpt;
 	for (i = 0; i < num_devices; i++)
 		if (dev_select[i].selected) {
@@ -252,7 +252,7 @@ barlabels(row)
 				break;
 			sprintf(tmpstr, "%s%d", dev_select[i].device_name,
 				dev_select[i].unit_number);
-			mvwprintw(wnd, row++, 0, "%-5.5s MB/s|", 
+			mvwprintw(wnd, row++, 0, "%-5.5s MB/s|",
 				  tmpstr);
 			mvwaddstr(wnd, row++, 0, "      tps|");
 			if (kbpt)
@@ -319,7 +319,7 @@ devstats(row, _col, dn)
 	long double kb_per_transfer, mb_per_second;
 	long double busy_seconds;
 	int di;
-	
+
 	di = dev_select[dn].position;
 
 	busy_seconds = cur.snap_time - last.snap_time;

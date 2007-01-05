@@ -29,37 +29,53 @@
  */
 
 #include <sys/types.h>
-#include <unistd.h>
+#include <stdlib.h>
+#include <string.h>
 #include "convtbl.h"
 
-struct	convtbl convtbl[] = {
-	/* mul, scale, str */
-	{ BYTE, BYTES, "bytes" },	/* SC_BYTE	(0) */
-	{ BYTE, KILO, "KB" },		/* SC_KILOBYTE	(1) */
-	{ BYTE, MEGA, "MB" },		/* SC_MEGABYTE	(2) */
-	{ BYTE, GIGA, "GB" },		/* SC_GIGABYTE	(3) */
+#define BIT	(8)
+#define BYTE	(1)
 
-	{ BIT, BITS, "b" },		/* SC_BITS	(4) */
-	{ BIT, KILO, "Kb" },		/* SC_KILOBITS	(5) */
-	{ BIT, MEGA, "Mb" },		/* SC_MEGABITS	(6) */
-	{ BIT, GIGA, "Gb" },		/* SC_GIGABITS	(7) */
+#define BITS	(1)
+#define BYTES	(1)
+#define KILO	(1024LL)
+#define MEGA	(KILO * 1024)
+#define GIGA	(MEGA * 1024)
+#define TERA	(GIGA * 1024)
 
-	{ 0, 0, "" }			/* SC_AUTO	(8) */
-
+struct convtbl {
+	uintmax_t	 mul;
+	uintmax_t	 scale;
+	const char	*str;
+	const char	*name;
 };
 
+static struct convtbl convtbl[] = {
+	/* mul, scale, str, name */
+	[SC_BYTE] =	{ BYTE, BYTES, "B",  "byte"  },
+	[SC_KILOBYTE] =	{ BYTE, KILO,  "KB", "kbyte" },
+	[SC_MEGABYTE] =	{ BYTE, MEGA,  "MB", "mbyte" },
+	[SC_GIGABYTE] =	{ BYTE, GIGA,  "GB", "gbyte" },
+	[SC_TERABYTE] =	{ BYTE, TERA,  "TB", "tbyte" },
 
-static __inline
+	[SC_BIT] =	{ BIT, BITS, "b",  "bit"  },
+	[SC_KILOBIT] =	{ BIT, KILO, "Kb", "kbit" },
+	[SC_MEGABIT] =	{ BIT, MEGA, "Mb", "mbit" },
+	[SC_GIGABIT] =	{ BIT, GIGA, "Gb", "gbit" },
+	[SC_TERABIT] =	{ BIT, TERA, "Tb", "tbit" },
+
+	[SC_AUTO] =	{ 0, 0, "", "auto" }
+};
+
+static
 struct convtbl *
-get_tbl_ptr(const u_long size, const u_int scale)
+get_tbl_ptr(const uintmax_t size, const int scale)
 {
-	struct	convtbl *tbl_ptr = NULL;
-	u_long	tmp = 0;
-	u_int	idx = scale;
+	uintmax_t	 tmp;
+	int		 idx;
 
 	/* If our index is out of range, default to auto-scaling. */
-	if (idx > SC_AUTO)
-		idx = SC_AUTO;
+	idx = scale < SC_AUTO ? scale : SC_AUTO;
 
 	if (idx == SC_AUTO)
 		/*
@@ -69,30 +85,62 @@ get_tbl_ptr(const u_long size, const u_int scale)
 		 * index as the array index into the conversion table.
 		 */
 		for (tmp = size, idx = SC_KILOBYTE;
-		     tmp >= MEGA && idx < SC_GIGABYTE;
+		     tmp >= MEGA && idx < SC_BIT - 1;
 		     tmp >>= 10, idx++);
 
-	tbl_ptr = &convtbl[idx];
-	return tbl_ptr;
+	return (&convtbl[idx]);
 }
 
 double
-convert(const u_long size, const u_int scale)
+convert(const uintmax_t size, const int scale)
 {
-	struct	convtbl	*tp = NULL;
+	struct convtbl	*tp;
 
 	tp = get_tbl_ptr(size, scale);
-
 	return ((double)size * tp->mul / tp->scale);
 
 }
 
 const char *
-get_string(const u_long size, const u_int scale)
+get_string(const uintmax_t size, const int scale)
 {
-	struct	convtbl *tp = NULL;
+	struct convtbl	*tp;
 
 	tp = get_tbl_ptr(size, scale);
+	return (tp->str);
+}
 
-	return tp->str;
+int
+get_scale(const char *name)
+{
+	int i;
+
+	for (i = 0; i <= SC_AUTO; i++)
+		if (strcmp(convtbl[i].name, name) == 0)
+			return (i);
+	return (-1);
+}
+
+const char *
+get_helplist()
+{
+	int i;
+	size_t len;
+	static char *buf;
+
+	if (buf == NULL) {
+		len = 0;
+		for (i = 0; i <= SC_AUTO; i++)
+			len += strlen(convtbl[i].name) + 2;
+		if ((buf = malloc(len)) != NULL) {
+			buf[0] = '\0';
+			for (i = 0; i <= SC_AUTO; i++) {
+				strcat(buf, convtbl[i].name);
+				if (i < SC_AUTO)
+					strcat(buf, ", ");
+			}
+		} else
+			return ("");
+	}
+	return (buf);
 }
