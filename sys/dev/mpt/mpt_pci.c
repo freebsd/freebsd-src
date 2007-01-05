@@ -105,6 +105,12 @@ __FBSDID("$FreeBSD$");
 #include <dev/mpt/mpt_cam.h>
 #include <dev/mpt/mpt_raid.h>
 
+#if __FreeBSD_version < 700000
+#define	pci_msi_count(x)	0
+#define	pci_msi_enable(x)	0
+#define	pci_alloc_msi(x, y)	1
+#define	pci_release_msi(x)	do { ; } while (0)
+#endif
 
 #ifndef	PCI_VENDOR_LSI
 #define	PCI_VENDOR_LSI			0x1000
@@ -327,7 +333,6 @@ mpt_set_options(struct mpt_softc *mpt)
 		}
 		mpt->do_cfg_role = 1;
 	}
-
 	mpt->msi_enable = 0;
 }
 #else

@@ -842,6 +842,7 @@ mpt_cam_ready(struct mpt_softc *mpt)
 		}
 		MPT_UNLOCK(mpt);
 	}
+	mpt->ready = 1;
 }
 
 void
@@ -849,6 +850,7 @@ mpt_cam_detach(struct mpt_softc *mpt)
 {
 	mpt_handler_t handler;
 
+	mpt->ready = 0;
 	mpt_terminate_recovery_thread(mpt); 
 
 	handler.reply_handler = mpt_scsi_reply_handler;
