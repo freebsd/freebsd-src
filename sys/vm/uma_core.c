@@ -2681,6 +2681,18 @@ uma_reclaim(void)
 	bucket_zone_drain();
 }
 
+/* See uma.h */
+int
+uma_zone_exhausted(uma_zone_t zone)
+{
+	int full;
+
+	ZONE_LOCK(zone);
+	full = (zone->uz_keg->uk_flags & UMA_ZFLAG_FULL);
+	ZONE_UNLOCK(zone);
+	return (full);	
+}
+
 void *
 uma_large_malloc(int size, int wait)
 {
