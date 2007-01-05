@@ -4222,9 +4222,13 @@ check_ipfw_struct(struct ip_fw *rule, int size)
 			else
 				goto check_size;
 		case O_NAT:
+#ifdef IPFIREWALL_NAT
 			if (cmdlen != F_INSN_SIZE(ipfw_insn_nat))
  				goto bad_size;		
  			goto check_action;
+#else
+			return EINVAL;
+#endif
 		case O_FORWARD_MAC: /* XXX not implemented yet */
 		case O_CHECK_STATE:
 		case O_COUNT:
