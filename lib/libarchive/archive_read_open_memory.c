@@ -48,7 +48,11 @@ struct read_memory_data {
 
 static int	memory_read_close(struct archive *, void *);
 static int	memory_read_open(struct archive *, void *);
+#if ARCHIVE_API_VERSION < 2
 static ssize_t	memory_read_skip(struct archive *, void *, size_t request);
+#else
+static off_t	memory_read_skip(struct archive *, void *, off_t request);
+#endif
 static ssize_t	memory_read(struct archive *, void *, const void **buff);
 
 int
@@ -119,8 +123,13 @@ memory_read(struct archive *a, void *client_data, const void **buff)
  * necessary in order to better exercise internal code when used
  * as a test harness.
  */
+#if ARCHIVE_API_VERSION < 2
 static ssize_t
 memory_read_skip(struct archive *a, void *client_data, size_t skip)
+#else
+static off_t
+memory_read_skip(struct archive *a, void *client_data, off_t skip)
+#endif
 {
 	struct read_memory_data *mine = (struct read_memory_data *)client_data;
 
