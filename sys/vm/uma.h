@@ -509,6 +509,17 @@ void uma_prealloc(uma_zone_t zone, int itemcnt);
 u_int32_t *uma_find_refcnt(uma_zone_t zone, void *item);
 
 /*
+ * Used to determine if a fixed-size zone is exhausted.
+ *
+ * Arguments:
+ *	zone    The zone to check
+ *
+ * Returns:
+ * 	Non-zero if zone is exhausted.
+ */
+int uma_zone_exhausted(uma_zone_t zone);
+
+/*
  * Exported statistics structures to be used by user space monitoring tools.
  * Statistics stream consusts of a uma_stream_header, followed by a series of
  * alternative uma_type_header and uma_type_stat structures.  Statistics
