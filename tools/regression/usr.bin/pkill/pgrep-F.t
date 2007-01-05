@@ -19,6 +19,6 @@ if [ "$pid" = "$chpid" ]; then
 else
 	echo "not ok - $name"
 fi
-kill $chpid
+kill "$chpid"
 rm -f $pidfile
 rm -f $sleep
