@@ -167,6 +167,7 @@ static int sched_interact = SCHED_INTERACT_THRESH;
 static int realstathz;
 static int tickincr;
 static int sched_slice;
+static int sched_rebalance;
 
 /*
  * tdq - per processor runqs and statistics.
@@ -428,10 +429,12 @@ sched_smp_tick(void)
 	struct tdq *tdq;
 
 	tdq = TDQ_SELF();
-	if (ticks >= bal_tick)
-		sched_balance();
-	if (ticks >= gbal_tick && balance_groups)
-		sched_balance_groups();
+	if (sched_rebalance) {
+		if (ticks >= bal_tick)
+			sched_balance();
+		if (ticks >= gbal_tick && balance_groups)
+			sched_balance_groups();
+	}
 	/*
 	 * We could have been assigned a non real-time thread without an
 	 * IPI.
@@ -688,6 +691,9 @@ tdq_notify(struct td_sched *ts, int cpu)
 		*(volatile struct td_sched **)&ts->ts_assign = tdq->tdq_assigned;
 	} while(!atomic_cmpset_ptr((volatile uintptr_t *)&tdq->tdq_assigned,
 		(uintptr_t)ts->ts_assign, (uintptr_t)ts));
+	/* Only ipi for realtime/ithd priorities */
+	if (ts->ts_thread->td_priority >= PRI_MIN_TIMESHARE)
+		return;
 	/*
 	 * Without sched_lock we could lose a race where we set NEEDRESCHED
 	 * on a thread that is switched out before the IPI is delivered.  This
@@ -696,8 +702,7 @@ tdq_notify(struct td_sched *ts, int cpu)
 	 */
 	pcpu = pcpu_find(cpu);
 	td = pcpu->pc_curthread;
-	if (ts->ts_thread->td_priority < td->td_priority ||
-	    td == pcpu->pc_idlethread) {
+	if (ts->ts_thread->td_priority < td->td_priority) {
 		td->td_flags |= TDF_NEEDRESCHED;
 		ipi_selected(1 << cpu, IPI_AST);
 	}
@@ -1074,29 +1079,44 @@ sched_priority(struct thread *td)
 /*
  * This routine enforces a maximum limit on the amount of scheduling history
  * kept.  It is called after either the slptime or runtime is adjusted.
- * This routine will not operate correctly when slp or run times have been
- * adjusted to more than double their maximum.
  */
 static void
 sched_interact_update(struct thread *td)
 {
+	struct td_sched *ts;
 	int sum;
 
-	sum = td->td_sched->skg_runtime + td->td_sched->skg_slptime;
+	ts = td->td_sched;
+	sum = ts->skg_runtime + ts->skg_slptime;
 	if (sum < SCHED_SLP_RUN_MAX)
 		return;
+	/*
+	 * This only happens from two places:
+	 * 1) We have added an unusual amount of run time from fork_exit.
+	 * 2) We have added an unusual amount of sleep time from sched_sleep().
+	 */
+	if (sum > SCHED_SLP_RUN_MAX * 2) {
+		if (ts->skg_runtime > ts->skg_slptime) {
+			ts->skg_runtime = SCHED_SLP_RUN_MAX;
+			ts->skg_slptime = 1;
+		} else {
+			ts->skg_slptime = SCHED_SLP_RUN_MAX;
+			ts->skg_runtime = 1;
+		}
+		return;
+	}
 	/*
 	 * If we have exceeded by more than 1/5th then the algorithm below
 	 * will not bring us back into range.  Dividing by two here forces
 	 * us into the range of [4/5 * SCHED_INTERACT_MAX, SCHED_INTERACT_MAX]
 	 */
 	if (sum > (SCHED_SLP_RUN_MAX / 5) * 6) {
-		td->td_sched->skg_runtime /= 2;
-		td->td_sched->skg_slptime /= 2;
+		ts->skg_runtime /= 2;
+		ts->skg_slptime /= 2;
 		return;
 	}
-	td->td_sched->skg_runtime = (td->td_sched->skg_runtime / 5) * 4;
-	td->td_sched->skg_slptime = (td->td_sched->skg_slptime / 5) * 4;
+	ts->skg_runtime = (ts->skg_runtime / 5) * 4;
+	ts->skg_slptime = (ts->skg_slptime / 5) * 4;
 }
 
 static void
@@ -1427,13 +1447,8 @@ sched_wakeup(struct thread *td)
 		int hzticks;
 
 		hzticks = (ticks - slptime) << SCHED_TICK_SHIFT;
-		if (hzticks >= SCHED_SLP_RUN_MAX) {
-			td->td_sched->skg_slptime = SCHED_SLP_RUN_MAX;
-			td->td_sched->skg_runtime = 1;
-		} else {
-			td->td_sched->skg_slptime += hzticks;
-			sched_interact_update(td);
-		}
+		td->td_sched->skg_slptime += hzticks;
+		sched_interact_update(td);
 		sched_pctcpu_update(td->td_sched);
 		sched_priority(td);
 	}
@@ -1695,7 +1710,7 @@ restart:
 	ts = tdq_choose(tdq);
 	if (ts) {
 #ifdef SMP
-		if (ts->ts_thread->td_priority <= PRI_MIN_IDLE)
+		if (ts->ts_thread->td_priority > PRI_MIN_IDLE)
 			if (tdq_idled(tdq) == 0)
 				goto restart;
 #endif
@@ -1767,7 +1782,7 @@ sched_add(struct thread *td, int flags)
 		 * for minimum latency.  Interrupt handlers may also have
 		 * to complete on the cpu that dispatched them.
 		 */
-		if (td->td_pinned == 0)
+		if (td->td_pinned == 0 && class == PRI_ITHD)
 			ts->ts_cpu = PCPU_GET(cpuid);
 	} else if (td->td_priority <= PRI_MAX_TIMESHARE)
 		ts->ts_runq = &tdq->tdq_timeshare;
@@ -1961,6 +1976,7 @@ SYSCTL_INT(_kern_sched, OID_AUTO, slice, CTLFLAG_RW, &sched_slice, 0, "");
 SYSCTL_INT(_kern_sched, OID_AUTO, interact, CTLFLAG_RW, &sched_interact, 0, "");
 SYSCTL_INT(_kern_sched, OID_AUTO, tickincr, CTLFLAG_RD, &tickincr, 0, "");
 SYSCTL_INT(_kern_sched, OID_AUTO, realstathz, CTLFLAG_RD, &realstathz, 0, "");
+SYSCTL_INT(_kern_sched, OID_AUTO, balance, CTLFLAG_RD, &sched_rebalance, 0, "");
 
 /* ps compat */
 static fixpt_t  ccpu = 0.95122942450071400909 * FSCALE; /* exp(-1/20) */
