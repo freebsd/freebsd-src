@@ -2000,6 +2000,11 @@ mpt_sysctl_attach(struct mpt_softc *mpt)
 	SYSCTL_ADD_INT(ctx, SYSCTL_CHILDREN(tree), OID_AUTO,
 		       "role", CTLFLAG_RD, &mpt->role, 0,
 		       "HBA role");
+#ifdef	MPT_TEST_MULTIPATH
+	SYSCTL_ADD_INT(ctx, SYSCTL_CHILDREN(tree), OID_AUTO,
+		       "failure_id", CTLFLAG_RW, &mpt->failure_id, -1,
+		       "Next Target to Fail");
+#endif
 #endif
 }
 
@@ -2120,6 +2125,9 @@ mpt_core_attach(struct mpt_softc *mpt)
 	}
 	STAILQ_INIT(&mpt->trt_wildcard.atios);
 	STAILQ_INIT(&mpt->trt_wildcard.inots);
+#ifdef	MPT_TEST_MULTIPATH
+	mpt->failure_id = -1;
+#endif
 	mpt->scsi_tgt_handler_id = MPT_HANDLER_ID_NONE;
 	mpt_sysctl_attach(mpt);
 	mpt_lprt(mpt, MPT_PRT_DEBUG, "doorbell req = %s\n",
