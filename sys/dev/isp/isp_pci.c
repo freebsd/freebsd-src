@@ -1378,8 +1378,9 @@ isp_pci_rd_isr_2300(ispsoftc_t *isp, uint32_t *isrp,
 		if (hccr & HCCR_PAUSE) {
 			ISP_WRITE(isp, HCCR, HCCR_RESET);
 			isp_prt(isp, ISP_LOGERR,
-			    "RISC paused at interrupt (%x->%x\n", hccr,
+			    "RISC paused at interrupt (%x->%x)", hccr,
 			    ISP_READ(isp, HCCR));
+			ISP_WRITE(isp, BIU_ICR, 0);
 		} else {
 			isp_prt(isp, ISP_LOGERR, "unknown interrupt 0x%x\n",
 			    r2hisr);
