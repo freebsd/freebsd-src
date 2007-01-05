@@ -710,8 +710,8 @@ _pthread_mutex_setprioceiling(pthread_mutex_t *mutex,
 					return (0);
 				}
 			}
+			TAILQ_INSERT_HEAD(&curthread->pp_mutexq, m, m_qe);
 		}
-		TAILQ_INSERT_HEAD(&curthread->pp_mutexq, m, m_qe);
 	}
 	return (0);
 }
