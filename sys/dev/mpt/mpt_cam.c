@@ -110,7 +110,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/callout.h>
 #include <sys/kthread.h>
 
-#if __FreeBSD_version >= 700000
+#if __FreeBSD_version >= 700025
 #ifndef	CAM_NEW_TRAN_CODE
 #define	CAM_NEW_TRAN_CODE	1
 #endif
@@ -3224,6 +3224,7 @@ mpt_action(struct cam_sim *sim, union ccb *ccb)
 		/*
 		 * The base speed is the speed of the underlying connection.
 		 */
+#ifdef	CAM_NEW_TRAN
 		cpi->protocol = PROTO_SCSI;
 		if (mpt->is_fc) {
 			cpi->hba_misc = PIM_NOBUSRESET;
@@ -3247,6 +3248,21 @@ mpt_action(struct cam_sim *sim, union ccb *ccb)
 			cpi->transport_version = 2;
 			cpi->protocol_version = SCSI_REV_2;
 		}
+#else
+		if (mpt->is_fc) {
+			cpi->hba_misc = PIM_NOBUSRESET;
+			cpi->base_transfer_speed = 100000;
+			cpi->hba_inquiry = PI_TAG_ABLE;
+		} else if (mpt->is_sas) {
+			cpi->hba_misc = PIM_NOBUSRESET;
+			cpi->base_transfer_speed = 300000;
+			cpi->hba_inquiry = PI_TAG_ABLE;
+		} else {
+			cpi->hba_misc = PIM_SEQSCAN;
+			cpi->base_transfer_speed = 3300;
+			cpi->hba_inquiry = PI_SDTR_ABLE|PI_TAG_ABLE|PI_WIDE_16;
+		}
+#endif
 
 		/*
 		 * We give our fake RAID passhtru bus a width that is MaxVolumes
