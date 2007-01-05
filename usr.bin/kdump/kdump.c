@@ -975,9 +975,39 @@ ktrcsw(struct ktr_csw *cs)
 		cs->user ? "user" : "kernel");
 }
 
+struct utrace_malloc {
+	void *p;
+	size_t s;
+	void *r;
+};
+
+void
+ktruser_malloc(int len, unsigned char *p)
+{
+	struct utrace_malloc *ut = (struct utrace_malloc *)p;
+
+	if (ut->p == NULL) {
+		if (ut->s == 0 && ut->r == NULL)
+			printf("malloc_init()\n");
+		else
+			printf("%p = malloc(%zu)\n", ut->r, ut->s);
+	} else {
+		if (ut->s == 0)
+			printf("free(%p)\n", ut->p);
+		else
+			printf("%p = realloc(%p, %zu)\n", ut->r, ut->p, ut->s);
+	}
+}
+
 void
 ktruser(int len, unsigned char *p)
 {
+
+	if (len == sizeof(struct utrace_malloc)) {
+		ktruser_malloc(len, p);
+		return;
+	}
+
 	(void)printf("%d ", len);
 	while (len--)
 		if (decimal)
@@ -985,7 +1015,6 @@ ktruser(int len, unsigned char *p)
 		else
 			(void)printf(" %02x", *p++);
 	(void)printf("\n");
-		
 }
 
 void
