@@ -19,5 +19,6 @@ STARTUP_PAGETABLE_ADDR	opt_global.h
 XSCALE_CACHE_READ_WRITE_ALLOCATE	opt_global.h
 XSACLE_DISABLE_CCNT	opt_timer.h
 VERBOSE_INIT_ARM	opt_global.h
+AT91_BWCT		opt_at91.h
 AT91_TSC		opt_at91.h
 AT91_KWIKBYTE		opt_at91.h
