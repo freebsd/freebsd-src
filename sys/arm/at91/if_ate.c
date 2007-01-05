@@ -205,6 +205,8 @@ ate_attach(device_t dev)
 	if_initname(ifp, device_get_name(dev), device_get_unit(dev));
 	ifp->if_mtu = ETHERMTU;
 	ifp->if_flags = IFF_BROADCAST | IFF_SIMPLEX | IFF_MULTICAST;
+	ifp->if_capabilities |= IFCAP_VLAN_MTU;
+	ifp->if_capenable |= IFCAP_VLAN_MTU; /* the hw bits already set */
 	ifp->if_start = atestart;
 	ifp->if_ioctl = ateioctl;
 	ifp->if_init = ateinit;
@@ -752,6 +754,9 @@ ateinit_locked(void *xsc)
 	 */
 	ate_setmcast(sc);
 
+	/* enable big packets */
+	WR4(sc, ETH_CFG, RD4(sc, ETH_CFG) | ETH_CFG_BIG);
+
 	/*
 	 * Set 'running' flag, and clear output active flag
 	 * and attempt to start the output
@@ -914,7 +919,7 @@ ateioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 	struct ate_softc *sc = ifp->if_softc;
  	struct mii_data *mii;
  	struct ifreq *ifr = (struct ifreq *)data;	
-	int             error = 0;
+	int mask, error = 0;
 
 	switch (cmd) {
 	case SIOCSIFFLAGS:
@@ -944,6 +949,19 @@ ateioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
  		mii = device_get_softc(sc->miibus);
  		error = ifmedia_ioctl(ifp, ifr, &mii->mii_media, cmd);
   		break;
+	case SIOCSIFCAP:
+		mask = ifp->if_capenable ^ ifr->ifr_reqcap;
+		if (mask & IFCAP_VLAN_MTU) {
+			ATE_LOCK(sc);
+			if (ifr->ifr_reqcap & IFCAP_VLAN_MTU) {
+				WR4(sc, ETH_CFG, RD4(sc, ETH_CFG) | ETH_CFG_BIG);
+				ifp->if_capenable |= IFCAP_VLAN_MTU;
+			} else {
+				WR4(sc, ETH_CFG, RD4(sc, ETH_CFG) & ~ETH_CFG_BIG);
+				ifp->if_capenable &= ~IFCAP_VLAN_MTU;
+			}
+			ATE_UNLOCK(sc);
+		}
 	default:
 		error = ether_ioctl(ifp, cmd, data);
 		break;
