@@ -104,12 +104,14 @@ static struct td_sched td_sched0;
  *
  * SCHED_TICK_SECS:	Number of seconds to average the cpu usage across.
  * SCHED_TICK_TARG:	Number of hz ticks to average the cpu usage across.
+ * SCHED_TICK_MAX:	Maximum number of ticks before scaling back.
  * SCHED_TICK_SHIFT:	Shift factor to avoid rounding away results.
  * SCHED_TICK_HZ:	Compute the number of hz ticks for a given ticks count.
  * SCHED_TICK_TOTAL:	Gives the amount of time we've been recording ticks.
  */
 #define	SCHED_TICK_SECS		10
 #define	SCHED_TICK_TARG		(hz * SCHED_TICK_SECS)
+#define	SCHED_TICK_MAX		(SCHED_TICK_TARG + hz)
 #define	SCHED_TICK_SHIFT	10
 #define	SCHED_TICK_HZ(ts)	((ts)->ts_ticks >> SCHED_TICK_SHIFT)
 #define	SCHED_TICK_TOTAL(ts)	((ts)->ts_ltick - (ts)->ts_ftick)
@@ -371,6 +373,13 @@ tdq_runq_rem(struct tdq *tdq, struct td_sched *ts)
 			runq_remove_idx(ts->ts_runq, ts, &tdq->tdq_ridx);
 		else
 			runq_remove_idx(ts->ts_runq, ts, NULL);
+		/*
+		 * For timeshare threads we update the priority here so
+		 * the priority reflects the time we've been sleeping.
+		 */
+		ts->ts_ltick = ticks;
+		sched_pctcpu_update(ts);
+		sched_priority(ts->ts_thread);
 	} else
 		runq_remove(ts->ts_runq, ts);
 }
@@ -1040,8 +1049,22 @@ sched_priority(struct thread *td)
 		if (td->td_sched->ts_ticks)
 			pri += SCHED_PRI_TICKS(td->td_sched);
 		pri += SCHED_PRI_NICE(td->td_proc->p_nice);
-		KASSERT(pri >= PRI_MIN_TIMESHARE && pri <= PRI_MAX_TIMESHARE,
-		    ("sched_priority: invalid priority %d", pri));
+		if (!(pri >= PRI_MIN_TIMESHARE && pri <= PRI_MAX_TIMESHARE)) {
+			static int once = 1;
+			if (once) {
+				printf("sched_priority: invalid priority %d",
+				    pri);
+				printf("nice %d, ticks %d ftick %d ltick %d tick pri %d\n",
+				    td->td_proc->p_nice,
+				    td->td_sched->ts_ticks,
+				    td->td_sched->ts_ftick,
+				    td->td_sched->ts_ltick,
+				    SCHED_PRI_TICKS(td->td_sched));
+				once = 0;
+			}
+			pri = min(max(pri, PRI_MIN_TIMESHARE),
+			    PRI_MAX_TIMESHARE);
+		}
 	}
 	sched_user_prio(td, pri);
 
@@ -1124,7 +1147,7 @@ schedinit(void)
 	proc0.p_sched = NULL; /* XXX */
 	thread0.td_sched = &td_sched0;
 	td_sched0.ts_ltick = ticks;
-	td_sched0.ts_ftick = ticks - 1;
+	td_sched0.ts_ftick = ticks;
 	td_sched0.ts_thread = &thread0;
 	td_sched0.ts_state = TSS_THREAD;
 }
@@ -1147,6 +1170,9 @@ sched_pctcpu_update(struct td_sched *ts)
 {
 
 	if (ts->ts_ticks == 0)
+		return;
+	if (ticks - (hz / 10) < ts->ts_ltick &&
+	    SCHED_TICK_TOTAL(ts) < SCHED_TICK_MAX)
 		return;
 	/*
 	 * Adjust counters and watermark for pctcpu calc.
@@ -1408,8 +1434,7 @@ sched_wakeup(struct thread *td)
 			td->td_sched->skg_slptime += hzticks;
 			sched_interact_update(td);
 		}
-		if (ticks - (hz / 10) > td->td_sched->ts_ltick)
-			sched_pctcpu_update(td->td_sched);
+		sched_pctcpu_update(td->td_sched);
 		sched_priority(td);
 	}
 	setrunqueue(td, SRQ_BORING);
@@ -1599,7 +1624,7 @@ sched_clock(struct thread *td)
 	 * Update if we've exceeded our desired tick threshhold by over one
 	 * second.
 	 */
-	if (ts->ts_ftick + SCHED_TICK_TARG + hz < ts->ts_ltick)
+	if (ts->ts_ftick + SCHED_TICK_MAX < ts->ts_ltick)
 		sched_pctcpu_update(ts);
 	/*
 	 * We only do slicing code for TIMESHARE threads.
@@ -1620,8 +1645,8 @@ sched_clock(struct thread *td)
 	/*
 	 * We're out of time, recompute priorities and requeue.
 	 */
-	tdq_load_rem(tdq, ts);
 	sched_priority(td);
+	tdq_load_rem(tdq, ts);
 	ts->ts_slice = sched_slice;
 	tdq_load_add(tdq, ts);
 	td->td_flags |= TDF_NEEDRESCHED;
@@ -1732,6 +1757,8 @@ sched_add(struct thread *td, int flags)
 	 */
 	if (ts->ts_slice == 0)
 		ts->ts_slice = sched_slice;
+	if (class == PRI_TIMESHARE)
+		sched_priority(td);
 	if (td->td_priority <= PRI_MAX_REALTIME) {
 		ts->ts_runq = &tdq->tdq_realtime;
 		/*
@@ -1827,8 +1854,7 @@ sched_pctcpu(struct thread *td)
 	if (ts->ts_ticks) {
 		int rtick;
 
-		if (ticks - (hz / 10) > td->td_sched->ts_ltick)
-			sched_pctcpu_update(ts);
+		sched_pctcpu_update(ts);
 		/* How many rtick per second ? */
 		rtick = min(SCHED_TICK_HZ(ts) / SCHED_TICK_SECS, hz);
 		pctcpu = (FSCALE * ((FSCALE * rtick)/hz)) >> FSHIFT;
