@@ -206,11 +206,14 @@ cpu_initclocks(void)
 	void *ih;
 	device_t dev = timer_softc->sc_dev;
 
-	if (32768 % hz) {
-		printf("Cannot get %d Hz clock; using 128Hz\n", hz);
-		hz = 128;
-	}
 	rel_value = 32768 / hz;
+	if (rel_value < 1)
+		rel_value = 1;
+	if (32768 % hz) {
+		printf("Cannot get %d Hz clock; using %dHz\n", hz, 32768 / rel_value);
+		hz = 32768 / rel_value;
+		tick = 1000000 / hz;
+	}
 	/* Disable all interrupts. */
 	WR4(ST_IDR, 0xffffffff);
 	/* The system timer shares the system irq (1) */
