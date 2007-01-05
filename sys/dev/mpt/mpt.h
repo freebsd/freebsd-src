@@ -159,6 +159,7 @@
 #define	MPT_U64_2_SCALAR(y)	((((uint64_t)y.High) << 32) | (y.Low))
 
 /****************************** Misc Definitions ******************************/
+/* #define MPT_TEST_MULTIPATH	1 */
 #define MPT_OK (0)
 #define MPT_FAIL (0x10000)
 
@@ -514,7 +515,7 @@ struct mpt_softc {
 	uint32_t
 				: 8,
 		unit		: 8,
-				: 1,
+		ready		: 1,
 		fw_uploaded	: 1,
 		msi_enable	: 1,
 		twildcard	: 1,
@@ -535,6 +536,9 @@ struct mpt_softc {
 	u_int			role;	/* role: none, ini, target, both */
 
 	u_int			verbose;
+#ifdef	MPT_TEST_MULTIPATH
+	int			failure_id;
+#endif
 
 	/*
 	 * IOC Facts
