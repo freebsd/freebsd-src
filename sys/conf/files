@@ -740,6 +740,7 @@ dev/mii/pnaphy.c		optional miibus | pnaphy
 dev/mii/qsphy.c			optional miibus | qsphy
 dev/mii/rgephy.c		optional miibus | rgephy
 dev/mii/rlphy.c			optional miibus | rlphy
+dev/mii/rlswitch.c		optional rlswitch
 # XXX rue only?
 dev/mii/ruephy.c		optional miibus | ruephy
 dev/mii/tdkphy.c		optional miibus | tdkphy
