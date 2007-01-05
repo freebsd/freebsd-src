@@ -164,7 +164,7 @@ struct fsmheader {
 struct fsm_opt_hdr {
   u_char id;
   u_char len;
-};
+} __packed;
 
 #define MAX_FSM_OPT_LEN 52
 struct fsm_opt {
