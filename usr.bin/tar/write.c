@@ -488,7 +488,7 @@ append_archive(struct bsdtar *bsdtar, struct archive *a, const char *filename)
 		/* XXX handle/report errors XXX */
 		if (archive_write_header(a, in_entry)) {
 			bsdtar_warnc(bsdtar, 0, "%s",
-			    archive_error_string(ina));
+			    archive_error_string(a));
 			bsdtar->return_value = 1;
 			return (-1);
 		}
