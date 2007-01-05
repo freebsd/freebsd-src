@@ -516,19 +516,17 @@ unionfs_close(struct vop_close_args *ap)
 	struct unionfs_node_status *unsp;
 	struct ucred   *cred;
 	struct thread  *td;
-	struct vnode   *vp;
 	struct vnode   *ovp;
 
 	UNIONFS_INTERNAL_DEBUG("unionfs_close: enter\n");
 
 	locked = 0;
-	vp = ap->a_vp;
-	unp = VTOUNIONFS(vp);
+	unp = VTOUNIONFS(ap->a_vp);
 	cred = ap->a_cred;
 	td = ap->a_td;
 
-	if (VOP_ISLOCKED(vp, td) != LK_EXCLUSIVE) {
-		vn_lock(vp, LK_EXCLUSIVE | LK_RETRY, td);
+	if (VOP_ISLOCKED(ap->a_vp, td) != LK_EXCLUSIVE) {
+		vn_lock(ap->a_vp, LK_EXCLUSIVE | LK_RETRY, td);
 		locked = 1;
 	}
 	unionfs_get_node_status(unp, td, &unsp);
@@ -571,7 +569,7 @@ unionfs_close_abort:
 	unionfs_tryrem_node_status(unp, td, unsp);
 
 	if (locked != 0)
-		VOP_UNLOCK(vp, 0, td);
+		VOP_UNLOCK(ap->a_vp, 0, td);
 
 	UNIONFS_INTERNAL_DEBUG("unionfs_close: leave (%d)\n", error);
 
@@ -1227,6 +1225,7 @@ static int
 unionfs_mkdir(struct vop_mkdir_args *ap)
 {
 	int		error;
+	int		lkflags;
 	struct unionfs_node *dunp;
 	struct componentname *cnp;
 	struct thread  *td;
@@ -1239,6 +1238,7 @@ unionfs_mkdir(struct vop_mkdir_args *ap)
 	error = EROFS;
 	dunp = VTOUNIONFS(ap->a_dvp);
 	cnp = ap->a_cnp;
+	lkflags = cnp->cn_lkflags;
 	td = curthread;
 	udvp = dunp->un_uppervp;
 
@@ -1254,8 +1254,10 @@ unionfs_mkdir(struct vop_mkdir_args *ap)
 
 		if ((error = VOP_MKDIR(udvp, &uvp, cnp, ap->a_vap)) == 0) {
 			VOP_UNLOCK(uvp, 0, td);
+			cnp->cn_lkflags = LK_EXCLUSIVE;
 			error = unionfs_nodeget(ap->a_dvp->v_mount, uvp, NULLVP,
 			    ap->a_dvp, ap->a_vpp, cnp, td);
+			cnp->cn_lkflags = lkflags;
 			vrele(uvp);
 		}
 	}
@@ -1315,6 +1317,7 @@ static int
 unionfs_symlink(struct vop_symlink_args *ap)
 {
 	int		error;
+	int		lkflags;
 	struct unionfs_node *dunp;
 	struct componentname *cnp;
 	struct thread  *td;
@@ -1326,6 +1329,7 @@ unionfs_symlink(struct vop_symlink_args *ap)
 	error = EROFS;
 	dunp = VTOUNIONFS(ap->a_dvp);
 	cnp = ap->a_cnp;
+	lkflags = cnp->cn_lkflags;
 	td = curthread;
 	udvp = dunp->un_uppervp;
 
@@ -1333,8 +1337,10 @@ unionfs_symlink(struct vop_symlink_args *ap)
 		error = VOP_SYMLINK(udvp, &uvp, cnp, ap->a_vap, ap->a_target);
 		if (error == 0) {
 			VOP_UNLOCK(uvp, 0, td);
+			cnp->cn_lkflags = LK_EXCLUSIVE;
 			error = unionfs_nodeget(ap->a_dvp->v_mount, uvp, NULLVP,
 			    ap->a_dvp, ap->a_vpp, cnp, td);
+			cnp->cn_lkflags = lkflags;
 			vrele(uvp);
 		}
 	}
@@ -1349,6 +1355,7 @@ unionfs_readdir(struct vop_readdir_args *ap)
 {
 	int		error;
 	int		eofflag;
+	int		locked;
 	struct unionfs_node *unp;
 	struct unionfs_node_status *unsp;
 	struct uio     *uio;
@@ -1360,12 +1367,11 @@ unionfs_readdir(struct vop_readdir_args *ap)
 	int		ncookies_bk;
 	u_long         *cookies_bk;
 
-	ASSERT_VOP_ELOCKED(ap->a_vp, "unionfs_readdir");
-
 	UNIONFS_INTERNAL_DEBUG("unionfs_readdir: enter\n");
 
 	error = 0;
 	eofflag = 0;
+	locked = 0;
 	unp = VTOUNIONFS(ap->a_vp);
 	uio = ap->a_uio;
 	uvp = unp->un_uppervp;
@@ -1385,7 +1391,13 @@ unionfs_readdir(struct vop_readdir_args *ap)
 			lvp = NULLVP;
 	}
 
+	if (VOP_ISLOCKED(ap->a_vp, td) != LK_EXCLUSIVE) {
+		vn_lock(ap->a_vp, LK_UPGRADE | LK_RETRY, td);
+		locked = 1;
+	}
 	unionfs_get_node_status(unp, curthread, &unsp);
+	if (locked == 1)
+		vn_lock(ap->a_vp, LK_DOWNGRADE | LK_RETRY, td);
 
 	/* upper only */
 	if (uvp != NULLVP && lvp == NULLVP) {
