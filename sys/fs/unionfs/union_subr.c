@@ -108,12 +108,12 @@ unionfs_hashget(struct mount *mp, struct vnode *uppervp,
 	struct unionfs_node_hashhead *hd;
 	struct unionfs_node *unp;
 	struct vnode   *vp;
+	int error;
 
 	if (lkflags & LK_TYPE_MASK)
 		lkflags |= LK_RETRY;
 	hd = UNIONFS_NHASH(uppervp, lowervp);
 
-loop:
 	mtx_lock(&unionfs_hashmtx);
 	LIST_FOREACH(unp, hd, un_hash) {
 		if (unp->un_uppervp == uppervp &&
@@ -123,26 +123,18 @@ loop:
 		    (!path || !(unp->un_path) || !strcmp(unp->un_path, path))) {
 			vp = UNIONFSTOV(unp);
 			VI_LOCK(vp);
-
-			/*
-			 * If the unionfs node is being recycled we have to
-			 * wait until it finishes prior to scanning again.
-			 */
 			mtx_unlock(&unionfs_hashmtx);
-			if (vp->v_iflag & VI_DOOMED) {
-				/* Wait for recycling to finish. */
-				vn_lock(vp, LK_EXCLUSIVE | LK_INTERLOCK, td);
-				VOP_UNLOCK(vp, 0, td);
-				goto loop;
-			}
 			/*
 			 * We need to clear the OWEINACT flag here as this
 			 * may lead vget() to try to lock our vnode which is
 			 * already locked via vp.
 			 */
 			vp->v_iflag &= ~VI_OWEINACT;
-			vget(vp, lkflags | LK_INTERLOCK, td);
-
+			error = vget(vp, LK_INTERLOCK, td);
+			if (error != 0)
+				panic("unionfs_hashget: vget error %d", error);
+			if (lkflags & LK_TYPE_MASK)
+				vn_lock(vp, lkflags, td);
 			return (vp);
 		}
 	}
@@ -163,12 +155,12 @@ unionfs_hashins(struct mount *mp, struct unionfs_node *uncp,
 	struct unionfs_node_hashhead *hd;
 	struct unionfs_node *unp;
 	struct vnode   *vp;
+	int error;
 
 	if (lkflags & LK_TYPE_MASK)
 		lkflags |= LK_RETRY;
 	hd = UNIONFS_NHASH(uncp->un_uppervp, uncp->un_lowervp);
 
-loop:
 	mtx_lock(&unionfs_hashmtx);
 	LIST_FOREACH(unp, hd, un_hash) {
 		if (unp->un_uppervp == uncp->un_uppervp &&
@@ -178,17 +170,13 @@ loop:
 		    (!path || !(unp->un_path) || !strcmp(unp->un_path, path))) {
 			vp = UNIONFSTOV(unp);
 			VI_LOCK(vp);
-
 			mtx_unlock(&unionfs_hashmtx);
-			if (vp->v_iflag & VI_DOOMED) {
-				/* Wait for recycling to finish. */
-				vn_lock(vp, LK_EXCLUSIVE | LK_INTERLOCK, td);
-				VOP_UNLOCK(vp, 0, td);
-				goto loop;
-			}
 			vp->v_iflag &= ~VI_OWEINACT;
-			vget(vp, lkflags | LK_INTERLOCK, td);
-
+			error = vget(vp, LK_INTERLOCK, td);
+			if (error)
+				panic("unionfs_hashins: vget error %d", error);
+			if (lkflags & LK_TYPE_MASK)
+				vn_lock(vp, lkflags, td);
 			return (vp);
 		}
 	}
