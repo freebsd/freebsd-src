@@ -54,7 +54,11 @@ struct read_fd_data {
 static int	file_close(struct archive *, void *);
 static int	file_open(struct archive *, void *);
 static ssize_t	file_read(struct archive *, void *, const void **buff);
+#if ARCHIVE_API_VERSION < 2
 static ssize_t	file_skip(struct archive *, void *, size_t request);
+#else
+static off_t	file_skip(struct archive *, void *, off_t request);
+#endif
 
 int
 archive_read_open_fd(struct archive *a, int fd, size_t block_size)
@@ -107,8 +111,13 @@ file_read(struct archive *a, void *client_data, const void **buff)
 	return (bytes_read);
 }
 
+#if ARCHIVE_API_VERSION < 2
 static ssize_t
 file_skip(struct archive *a, void *client_data, size_t request)
+#else
+static off_t
+file_skip(struct archive *a, void *client_data, off_t request)
+#endif
 {
 	struct read_fd_data *mine = (struct read_fd_data *)client_data;
 	off_t old_offset, new_offset;
