@@ -2181,6 +2181,17 @@ fdrop_locked(struct file *fp, struct thread *td)
 		FILE_UNLOCK(fp);
 		return (0);
 	}
+
+	/*
+	 * We might have just dropped the last reference to a file
+	 * object that is for a UNIX domain socket whose message
+	 * buffers are being examined in unp_gc().  If that is the
+	 * case, FWAIT will be set in f_gcflag and we need to wait for
+	 * unp_gc() to finish its scan.
+	 */
+	while (fp->f_gcflag & FWAIT)
+		msleep(&fp->f_gcflag, fp->f_mtxp, 0, "fpdrop", 0);
+
 	/* We have the last ref so we can proceed without the file lock. */
 	FILE_UNLOCK(fp);
 	if (fp->f_count < 0)
