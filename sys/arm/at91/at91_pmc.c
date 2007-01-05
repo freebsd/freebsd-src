@@ -399,7 +399,7 @@ at91_pmc_attach(device_t dev)
 	pmc_softc->dev = dev;
 	if ((err = at91_pmc_activate(dev)) != 0)
 		return err;
-#ifdef AT91_TSC
+#if defined(AT91_TSC) | defined (AT91_BWCT)
 	at91_pmc_init_clock(pmc_softc, 16000000);
 #else
 	at91_pmc_init_clock(pmc_softc, 10000000);
