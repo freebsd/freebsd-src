@@ -73,25 +73,25 @@ static struct stat curstat, initstat, oldstat;
 /*-
 --0         1         2         3         4         5         6         7
 --0123456789012345678901234567890123456789012345678901234567890123456789012345
-01          IP Input                           IP Output
-02999999999 total packets received   999999999 total packets sent
-03999999999 - with bad checksums     999999999 - generated locally
-04999999999 - too short for header   999999999 - output drops
-05999999999 - too short for data     999999999 output fragments generated
-06999999999 - with invalid hlen      999999999 - fragmentation failed
-07999999999 - with invalid length    999999999 destinations unreachable
-08999999999 - with invalid version   999999999 packets output via raw IP
-09999999999 - jumbograms
-10999999999 total fragments received           UDP Statistics
-11999999999 - fragments dropped      999999999 total input packets
-12999999999 - fragments timed out    999999999 - too short for header
-13999999999 - packets reassembled ok 999999999 - invalid checksum
-14999999999 packets forwarded        999999999 - no checksum
-15999999999 - unreachable dests      999999999 - invalid length
-16999999999 - redirects generated    999999999 - no socket for dest port
-17999999999 option errors            999999999 - no socket for broadcast
-18999999999 unwanted multicasts      999999999 - socket buffer full
-19999999999 delivered to upper layer 999999999 total output packets
+00          IP Input                           IP Output
+01999999999 total packets received   999999999 total packets sent
+02999999999 - with bad checksums     999999999 - generated locally
+03999999999 - too short for header   999999999 - output drops
+04999999999 - too short for data     999999999 output fragments generated
+05999999999 - with invalid hlen      999999999 - fragmentation failed
+06999999999 - with invalid length    999999999 destinations unreachable
+07999999999 - with invalid version   999999999 packets output via raw IP
+08999999999 - jumbograms
+09999999999 total fragments received           UDP Statistics
+10999999999 - fragments dropped      999999999 total input packets
+11999999999 - fragments timed out    999999999 - too short for header
+12999999999 - packets reassembled ok 999999999 - invalid checksum
+13999999999 packets forwarded        999999999 - no checksum
+14999999999 - unreachable dests      999999999 - invalid length
+15999999999 - redirects generated    999999999 - no socket for dest port
+16999999999 option errors            999999999 - no socket for broadcast
+17999999999 unwanted multicasts      999999999 - socket buffer full
+18999999999 delivered to upper layer 999999999 total output packets
 --0123456789012345678901234567890123456789012345678901234567890123456789012345
 --0         1         2         3         4         5         6         7
 */
@@ -99,7 +99,7 @@ static struct stat curstat, initstat, oldstat;
 WINDOW *
 openip(void)
 {
-	return (subwin(stdscr, LINES-4-1, 0, 4, 0));
+	return (subwin(stdscr, LINES-3-1, 0, MAINWIN_ROW, 0));
 }
 
 void
@@ -119,25 +119,25 @@ labelip(void)
 	wmove(wnd, 0, 0); wclrtoeol(wnd);
 #define L(row, str) mvwprintw(wnd, row, 10, str)
 #define R(row, str) mvwprintw(wnd, row, 45, str);
-	L(1, "IP Input");			R(1, "IP Output");
-	L(2, "total packets received");		R(2, "total packets sent");
-	L(3, "- with bad checksums");		R(3, "- generated locally");
-	L(4, "- too short for header");		R(4, "- output drops");
-	L(5, "- too short for data");	R(5, "output fragments generated");
-	L(6, "- with invalid hlen");	R(6, "- fragmentation failed");
-	L(7, "- with invalid length");	R(7, "destinations unreachable");
-	L(8, "- with invalid version");	R(8, "packets output via raw IP");
-	L(9, "- jumbograms");
-	L(10, "total fragments received");	R(10, "UDP Statistics");
-	L(11, "- fragments dropped");	R(11, "total input packets");
-	L(12, "- fragments timed out");	R(12, "- too short for header");
-	L(13, "- packets reassembled ok");	R(13, "- invalid checksum");
-	L(14, "packets forwarded");	R(14, "- no checksum");
-	L(15, "- unreachable dests");	R(15, "- invalid length");
-	L(16, "- redirects generated");	R(16, "- no socket for dest port");
-	L(17, "option errors");		R(17, "- no socket for broadcast");
-	L(18, "unwanted multicasts");	R(18, "- socket buffer full");
-	L(19, "delivered to upper layer");	R(19, "total output packets");
+	L(0, "IP Input");		R(0, "IP Output");
+	L(1, "total packets received");	R(1, "total packets sent");
+	L(2, "- with bad checksums");	R(2, "- generated locally");
+	L(3, "- too short for header");	R(3, "- output drops");
+	L(4, "- too short for data");	R(4, "output fragments generated");
+	L(5, "- with invalid hlen");	R(5, "- fragmentation failed");
+	L(6, "- with invalid length");	R(6, "destinations unreachable");
+	L(7, "- with invalid version");	R(7, "packets output via raw IP");
+	L(8, "- jumbograms");
+	L(9, "total fragments received");	R(9, "UDP Statistics");
+	L(10, "- fragments dropped");	R(10, "total input packets");
+	L(11, "- fragments timed out");	R(11, "- too short for header");
+	L(12, "- packets reassembled ok");	R(12, "- invalid checksum");
+	L(13, "packets forwarded");	R(13, "- no checksum");
+	L(14, "- unreachable dests");	R(14, "- invalid length");
+	L(15, "- redirects generated");	R(15, "- no socket for dest port");
+	L(16, "option errors");		R(16, "- no socket for broadcast");
+	L(17, "unwanted multicasts");	R(17, "- socket buffer full");
+	L(18, "delivered to upper layer");	R(18, "total output packets");
 #undef L
 #undef R
 }
@@ -201,7 +201,7 @@ domode(struct stat *ret)
 	DO(u.udps_opackets);
 #undef DO
 }
-	
+
 void
 showip(void)
 {
@@ -214,40 +214,40 @@ showip(void)
 #define DO(stat, row, col) \
 	mvwprintw(wnd, row, col, "%9lu", stats.stat)
 
-	DO(i.ips_total, 2, 0);
-	mvwprintw(wnd, 2, 35, "%9lu", totalout);
-	DO(i.ips_badsum, 3, 0);
-	DO(i.ips_localout, 3, 35);
-	DO(i.ips_tooshort, 4, 0);
-	DO(i.ips_odropped, 4, 35);
-	DO(i.ips_toosmall, 5, 0);
-	DO(i.ips_ofragments, 5, 35);
-	DO(i.ips_badhlen, 6, 0);
-	DO(i.ips_cantfrag, 6, 35);
-	DO(i.ips_badlen, 7, 0);
-	DO(i.ips_noroute, 7, 35);
-	DO(i.ips_badvers, 8, 0);
-	DO(i.ips_rawout, 8, 35);
-	DO(i.ips_toolong, 9, 0);
-	DO(i.ips_fragments, 10, 0);
-	DO(i.ips_fragdropped, 11, 0);
-	DO(u.udps_ipackets, 11, 35);
-	DO(i.ips_fragtimeout, 12, 0);
-	DO(u.udps_hdrops, 12, 35);
-	DO(i.ips_reassembled, 13, 0);
-	DO(u.udps_badsum, 13, 35);
-	DO(i.ips_forward, 14, 0);
-	DO(u.udps_nosum, 14, 35);
-	DO(i.ips_cantforward, 15, 0);
-	DO(u.udps_badlen, 15, 35);
-	DO(i.ips_redirectsent, 16, 0);
-	DO(u.udps_noport, 16, 35);
-	DO(i.ips_badoptions, 17, 0);
-	DO(u.udps_noportbcast, 17, 35);
-	DO(i.ips_notmember, 18, 0);
-	DO(u.udps_fullsock, 18, 35);
-	DO(i.ips_delivered, 19, 0);
-	DO(u.udps_opackets, 19, 35);
+	DO(i.ips_total, 1, 0);
+	mvwprintw(wnd, 1, 35, "%9lu", totalout);
+	DO(i.ips_badsum, 2, 0);
+	DO(i.ips_localout, 2, 35);
+	DO(i.ips_tooshort, 3, 0);
+	DO(i.ips_odropped, 3, 35);
+	DO(i.ips_toosmall, 4, 0);
+	DO(i.ips_ofragments, 4, 35);
+	DO(i.ips_badhlen, 5, 0);
+	DO(i.ips_cantfrag, 5, 35);
+	DO(i.ips_badlen, 6, 0);
+	DO(i.ips_noroute, 6, 35);
+	DO(i.ips_badvers, 7, 0);
+	DO(i.ips_rawout, 7, 35);
+	DO(i.ips_toolong, 8, 0);
+	DO(i.ips_fragments, 9, 0);
+	DO(i.ips_fragdropped, 10, 0);
+	DO(u.udps_ipackets, 10, 35);
+	DO(i.ips_fragtimeout, 11, 0);
+	DO(u.udps_hdrops, 11, 35);
+	DO(i.ips_reassembled, 12, 0);
+	DO(u.udps_badsum, 12, 35);
+	DO(i.ips_forward, 13, 0);
+	DO(u.udps_nosum, 13, 35);
+	DO(i.ips_cantforward, 14, 0);
+	DO(u.udps_badlen, 14, 35);
+	DO(i.ips_redirectsent, 15, 0);
+	DO(u.udps_noport, 15, 35);
+	DO(i.ips_badoptions, 16, 0);
+	DO(u.udps_noportbcast, 16, 35);
+	DO(i.ips_notmember, 17, 0);
+	DO(u.udps_fullsock, 17, 35);
+	DO(i.ips_delivered, 18, 0);
+	DO(u.udps_opackets, 18, 35);
 #undef DO
 }
 

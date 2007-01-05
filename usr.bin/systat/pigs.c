@@ -73,7 +73,7 @@ static double  lccpu;
 WINDOW *
 openpigs()
 {
-	return (subwin(stdscr, LINES-5-1, 0, 5, 0));
+	return (subwin(stdscr, LINES-3-1, 0, MAINWIN_ROW, 0));
 }
 
 void
@@ -236,7 +236,7 @@ labelpigs()
 	wmove(wnd, 0, 0);
 	wclrtoeol(wnd);
 	mvwaddstr(wnd, 0, 20,
-	    "/0   /10  /20  /30  /40  /50  /60  /70  /80  /90  /100");
+	    "/0%  /10  /20  /30  /40  /50  /60  /70  /80  /90  /100");
 }
 
 int

@@ -72,7 +72,7 @@ static struct mtnames {
 WINDOW *
 openmbufs()
 {
-	return (subwin(stdscr, LINES-5-1, 0, 5, 0));
+	return (subwin(stdscr, LINES-3-1, 0, MAINWIN_ROW, 0));
 }
 
 void

@@ -32,12 +32,12 @@
 .\"	@(#)systat.1	8.2 (Berkeley) 12/30/93
 .\" $FreeBSD$
 .\"
-.Dd September 9, 1997
+.Dd October 12, 2006
 .Dt SYSTAT 1
 .Os
 .Sh NAME
 .Nm systat
-.Nd display system statistics on a crt
+.Nd display system statistics
 .Sh SYNOPSIS
 .Nm
 .Op Fl display
@@ -301,14 +301,14 @@ The first row of the table reports memory usage only among
 active processes, that is processes that have run in the previous
 twenty seconds.
 The second row reports on memory usage of all processes.
-The first column reports on the number of physical pages
+The first column reports on the number of kilobytes in physical pages
 claimed by processes.
-The second column reports the number of physical pages that
+The second column reports the number of kilobytes in physical pages that
 are devoted to read only text pages.
 The third and fourth columns report the same two figures for
-virtual pages, that is the number of pages that would be
+virtual pages, that is the number of kilobytes in pages that would be
 needed if all processes had all of their pages.
-Finally the last column shows the number of physical pages
+Finally the last column shows the number of kilobytes in physical pages
 on the free list.
 .Pp
 Below the memory display is a list of the
@@ -332,6 +332,13 @@ the number and percentage of the translations that were
 handled by the system wide name translation cache, and
 the number and percentage of the translations that were
 handled by the per process name translation cache.
+.Pp
+To the right of the name translations display are lines showing
+the number of dirty buffers in the buffer cache (`dtbuf'),
+desired maximum size of vnode cache (`desvn'),
+number of vnodes actually allocated (`numvn'),
+and
+number of allocated vnodes that are free (`frevn').
 .Pp
 At the bottom left is the disk usage display.
 It reports the number of
@@ -363,33 +370,43 @@ the second row of the display shows the average
 number of pages transferred per second over the last refresh interval.
 .Pp
 Below the paging statistics is a column of lines regarding the virtual
-memory system which list the average number of
+memory system.
+The first few lines describe,
+in units (except as noted below)
+of pages per second averaged over the sampling interval,
 pages copied on write (`cow'),
 pages zero filled on demand (`zfod'),
-pages optimize zero filled on demand (`ozfod'),
-slow (on-the-fly) zero fills percentage (`%slo-z'),
+pages optimally zero filled on demand (`ozfod'),
+the ratio of the (average) ozfod / zfod as a percentage (`%ozfod'),
+pages freed by the page daemon (`daefr'),
+pages freed by exiting processes (`prcfr'),
+total pages freed (`totfr'),
+pages reactivated from the free list (`react'),
+the average number of
+times per second that the page daemon was awakened (`pdwak'),
+pages analyzed by the page daemon (`pdpgs'),
+and
+in-transit blocking page faults (`intrn').
+Note that the units are special for `%ozfod' and `pdwak'.
+The next few lines describe,
+as amounts of memory in kilobytes,
 pages wired down (`wire'),
 active pages (`act'),
 inactive pages (`inact'),
-pages on the buffer cache queue (`cache'),
-number of free pages (`free'),
-pages freed by the page daemon (`daefr'),
-pages freed by exiting processes (`prcfr'),
-pages reactivated from the free list (`react'),
-times the page daemon was awakened (`pdwak'),
-pages analyzed by the page daemon (`pdpgs'),
+pages on the cache queue (`cache'),
 and
-intransit blocking page faults (`intrn')
-per second over the refresh interval.
+free pages (`free').
+Note that the values displayed are the current transient ones;
+they are not averages.
 .Pp
-At the bottom of this column are lines showing the
-amount of memory, in kilobytes, used for the buffer cache (`buf'),
-the number of dirty buffers in the buffer cache (`dirtybuf'),
-desired maximum size of vnode cache (`desiredvnodes') (mostly unused,
-except to size the name cache),
-number of vnodes actually allocated (`numvnodes'),
-and
-number of allocated vnodes that are free (`freevnodes').
+At the bottom of this column is a line showing the
+amount of virtual memory, in kilobytes, mapped into the buffer cache (`buf').
+This statistic is not useful.
+It exists only as a placeholder for the corresponding useful statistic
+(the amount of real memory used to cache disks).
+The most important component of the latter (the amount of real memory
+used by the vm system to cache disks) is not available,
+but can be guessed from the `inact' amount under some system loads.
 .Pp
 Running down the right hand side of the display is a breakdown
 of the interrupts being handled by the system.
@@ -411,8 +428,6 @@ Display statistics as a running total from the point this
 command is given.
 .It Cm time
 Display statistics averaged over the refresh interval (the default).
-.It Cm want_fd
-Toggle the display of fd devices in the disk usage display.
 .It Cm zero
 Reset running statistics to zero.
 .El
