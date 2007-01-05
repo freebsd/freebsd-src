@@ -112,8 +112,13 @@ struct archive_entry;
 typedef ssize_t	archive_read_callback(struct archive *, void *_client_data,
 		    const void **_buffer);
 /* Skips at most request bytes from archive and returns the skipped amount */
+#if ARCHIVE_API_VERSION < 2
 typedef ssize_t	archive_skip_callback(struct archive *, void *_client_data,
 		    size_t request);
+#else
+typedef off_t	archive_skip_callback(struct archive *, void *_client_data,
+		    off_t request);
+#endif
 /* Returns size actually written, zero on EOF, -1 on error. */
 typedef ssize_t	archive_write_callback(struct archive *, void *_client_data,
 		    const void *_buffer, size_t _length);

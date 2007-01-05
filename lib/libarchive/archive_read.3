@@ -321,8 +321,13 @@ The callback functions must match the following prototypes:
 .Ft typedef ssize_t
 .Fn archive_read_callback "struct archive *" "void *client_data" "const void **buffer"
 .It
+.\" #if ARCHIVE_API_VERSION < 2
 .Ft typedef int
 .Fn archive_skip_callback "struct archive *" "void *client_data" "size_t request"
+.\" #else
+.\" .Ft typedef off_t
+.\" .Fn archive_skip_callback "struct archive *" "void *client_data" "off_t request"
+.\" #endif
 .It
 .Ft typedef int
 .Fn archive_open_callback "struct archive *" "void *client_data"
