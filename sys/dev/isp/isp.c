@@ -1634,12 +1634,14 @@ isp_fibre_init(ispsoftc_t *isp)
 		/*
 		 * We end up with these Loop IDs for F-Port topologies
 		 */
-		if (icbp->icb_hardaddr != 0xff && icbp->icb_hardaddr != 0x800) {
-		    isp_prt(isp, ISP_LOGERR,
-			"bad hard address %u- resetting to zero",
-			icbp->icb_hardaddr); 
+		if (icbp->icb_hardaddr != 0xff &&
+		    icbp->icb_hardaddr != 0x800 &&
+		    icbp->icb_hardaddr != 0xffff) {
+			isp_prt(isp, ISP_LOGERR,
+			    "bad hard address %u- resetting to zero",
+			    icbp->icb_hardaddr); 
+			icbp->icb_hardaddr = 0;
 		}
-		icbp->icb_hardaddr = 0;
 	}
 
 	/*
@@ -1888,7 +1890,9 @@ isp_fibre_init_2400(ispsoftc_t *isp)
 		/*
 		 * We end up with these Loop IDs for F-Port topologies
 		 */
-		if (icbp->icb_hardaddr != 0xff && icbp->icb_hardaddr != 0x800) {
+		if (icbp->icb_hardaddr != 0xff &&
+		    icbp->icb_hardaddr != 0x800 &&
+		    icbp->icb_hardaddr != 0xffff) {
 			isp_prt(isp, ISP_LOGERR,
 			    "bad hard address %u- resetting to zero",
 			    icbp->icb_hardaddr); 
@@ -2151,8 +2155,8 @@ isp_plogx(ispsoftc_t *isp, uint16_t handle, uint32_t portid, int flags, int gs)
 	mbs.param[3] = DMA_WD0(FCPARAM(isp)->isp_scdma);
 	mbs.param[6] = DMA_WD3(FCPARAM(isp)->isp_scdma);
 	mbs.param[7] = DMA_WD2(FCPARAM(isp)->isp_scdma);
+	mbs.timeout = 500000;
 	mbs.logval = MBLOGALL;
-	mbs.timeout = 250000;
 	MEMORYBARRIER(isp, SYNC_SFORDEV, 0, QENTRY_LEN);
 	isp_mboxcmd(isp, &mbs);
 	if (mbs.param[0] != MBOX_COMMAND_COMPLETE) {
@@ -2585,6 +2589,7 @@ isp_fclink_test(ispsoftc_t *isp, int usdelay)
 	}
 
 	if (check_for_fabric && isp_getpdb(isp, loopid, &pdb, 1) == 0) {
+		int r;
 		if (IS_2100(isp)) {
 			fcp->isp_topo = TOPO_FL_PORT;
 		}
@@ -2609,9 +2614,14 @@ isp_fclink_test(ispsoftc_t *isp, int usdelay)
 		lp->new_portid = lp->portid;
 		lp->new_roles = lp->roles;
 		if (IS_24XX(isp)) {
-			(void) isp_register_fc4_type_24xx(isp);
+			r = isp_register_fc4_type_24xx(isp);
 		} else {
-			(void) isp_register_fc4_type(isp);
+			r = isp_register_fc4_type(isp);
+		}
+		if (r) {
+			isp_prt(isp, ISP_LOGSANCFG,
+			    "isp_fclink_test: register fc4 type failed");
+			return (-1);
 		}
 	} else {
 not_on_fabric:
@@ -2625,6 +2635,7 @@ not_on_fabric:
 		mbs.param[1] = MBGSD_GET_RATE;
 		/* mbs.param[2] undefined if we're just getting rate */
 		mbs.logval = MBLOGALL;
+		mbs.timeout = 3000000;
 		isp_mboxcmd(isp, &mbs);
 		if (mbs.param[0] == MBOX_COMMAND_COMPLETE) {
 			if (mbs.param[1] == MBGSD_FOURGB) {
@@ -3138,7 +3149,7 @@ isp_gid_ft_sns(ispsoftc_t *isp)
 	mbs.param[6] = DMA_WD3(fcp->isp_scdma);
 	mbs.param[7] = DMA_WD2(fcp->isp_scdma);
 	mbs.logval = MBLOGALL;
-	mbs.timeout = 1000000;
+	mbs.timeout = 10000000;
 	isp_mboxcmd(isp, &mbs);
 	if (mbs.param[0] != MBOX_COMMAND_COMPLETE) {
 		if (mbs.param[0] == MBOX_INVALID_COMMAND) {
@@ -3224,6 +3235,7 @@ isp_gid_ft_ct_passthru(ispsoftc_t *isp)
 	mbs.param[3] = DMA_WD0(fcp->isp_scdma + CTXOFF);
 	mbs.param[6] = DMA_WD3(fcp->isp_scdma + CTXOFF);
 	mbs.param[7] = DMA_WD2(fcp->isp_scdma + CTXOFF);
+	mbs.timeout = 500000;
 	mbs.logval = MBLOGALL;
 	MEMORYBARRIER(isp, SYNC_SFORDEV, XTXOFF, 2 * QENTRY_LEN);
 	isp_mboxcmd(isp, &mbs);
@@ -3825,7 +3837,7 @@ isp_register_fc4_type(ispsoftc_t *isp)
 	mbs.param[6] = DMA_WD3(fcp->isp_scdma);
 	mbs.param[7] = DMA_WD2(fcp->isp_scdma);
 	mbs.logval = MBLOGALL;
-	mbs.timeout = 1000000;
+	mbs.timeout = 10000000;
 	MEMORYBARRIER(isp, SYNC_SFORDEV, 0, SNS_RFT_ID_REQ_SIZE);
 	isp_mboxcmd(isp, &mbs);
 	FC_SCRATCH_RELEASE(isp);
@@ -3902,6 +3914,7 @@ isp_register_fc4_type_24xx(ispsoftc_t *isp)
 	mbs.param[3] = DMA_WD0(fcp->isp_scdma + CTXOFF);
 	mbs.param[6] = DMA_WD3(fcp->isp_scdma + CTXOFF);
 	mbs.param[7] = DMA_WD2(fcp->isp_scdma + CTXOFF);
+	mbs.timeout = 500000;
 	mbs.logval = MBLOGALL;
 	MEMORYBARRIER(isp, SYNC_SFORDEV, XTXOFF, 2 * QENTRY_LEN);
 	isp_mboxcmd(isp, &mbs);
