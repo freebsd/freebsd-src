@@ -98,7 +98,7 @@
 #endif
 
 #if __FreeBSD_version < 700000
-typedef void ispfwfunc(int, int, int, uint16_t **);
+typedef void ispfwfunc(int, int, int, void **);
 #endif
 
 #ifdef	ISP_TARGET_MODE
