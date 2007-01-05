@@ -26,7 +26,7 @@ options		AT91_BWCT
 include		"../at91/std.kb920x"
 
 #To statically compile in device wiring instead of /boot/device.hints
-hints		"hints.at91rm9200"
+#hints		"hints.at91rm9200"
 hints		"BWCT.hints"
 
 #makeoptions	DEBUG=-g		#Build kernel with gdb(1) debug symbols
