@@ -151,11 +151,11 @@ main(int argc, char *argv[])
                         if (p != NULL) {
                                 *p = '\0';
                                 val = p + 1;
-				if (strncmp(optarg, "gid", 3) == 0) {
+				if (strcmp(optarg, "gid") == 0) {
 					parse_gid(val, gid_str, sizeof(gid_str));
 					val = gid_str;
 				}
-				else if (strncmp(optarg, "uid", 3) == 0) {
+				else if (strcmp(optarg, "uid") == 0) {
 					parse_uid(val, uid_str, sizeof(uid_str));
 					val = uid_str;
 				}
