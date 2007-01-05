@@ -128,6 +128,7 @@ struct file {
 	short	f_gcflag;	/* used by thread doing fd garbage collection */
 #define	FMARK		0x1	/* mark during gc() */
 #define	FDEFER		0x2	/* defer for next gc pass */
+#define	FWAIT		0x4	/* gc is scanning message buffers */
 	int	f_msgcount;	/* (f) references from message queue */
 
 	/* DTYPE_VNODE specific fields */

@@ -285,6 +285,7 @@ uipc_attach(struct socket *so, int proto, struct thread *td)
 	unp->unp_socket = so;
 	so->so_pcb = unp;
 
+	unp->unp_refcount = 1;
 	UNP_LOCK();
 	unp->unp_gencnt = ++unp_gencnt;
 	unp_count++;
@@ -451,9 +452,10 @@ uipc_connect2(struct socket *so1, struct socket *so2)
 static void
 uipc_detach(struct socket *so)
 {
-	int local_unp_rights;
+	struct sockaddr_un *saved_unp_addr;
 	struct unpcb *unp;
 	struct vnode *vp;
+	int freeunp, local_unp_rights;
 
 	unp = sotounpcb(so);
 	KASSERT(unp != NULL, ("uipc_detach: unp == NULL"));
@@ -477,10 +479,15 @@ uipc_detach(struct socket *so)
 	}
 	unp->unp_socket->so_pcb = NULL;
 	local_unp_rights = unp_rights;
+	saved_unp_addr = unp->unp_addr;
+	unp->unp_addr = NULL;
+	unp->unp_refcount--;
+	freeunp = (unp->unp_refcount == 0);
 	UNP_UNLOCK();
-	if (unp->unp_addr != NULL)
-		FREE(unp->unp_addr, M_SONAME);
-	uma_zfree(unp_zone, unp);
+	if (saved_unp_addr != NULL)
+		FREE(saved_unp_addr, M_SONAME);
+	if (freeunp)
+		uma_zfree(unp_zone, unp);
 	if (vp) {
 		int vfslocked;
 
@@ -1120,6 +1127,7 @@ static int
 unp_pcblist(SYSCTL_HANDLER_ARGS)
 {
 	int error, i, n;
+	int freeunp;
 	struct unpcb *unp, **unp_list;
 	unp_gen_t gencnt;
 	struct xunpgen *xug;
@@ -1171,6 +1179,7 @@ unp_pcblist(SYSCTL_HANDLER_ARGS)
 			    unp->unp_socket->so_cred))
 				continue;
 			unp_list[i++] = unp;
+			unp->unp_refcount++;
 		}
 	}
 	UNP_UNLOCK();
@@ -1180,7 +1189,9 @@ unp_pcblist(SYSCTL_HANDLER_ARGS)
 	xu = malloc(sizeof(*xu), M_TEMP, M_WAITOK | M_ZERO);
 	for (i = 0; i < n; i++) {
 		unp = unp_list[i];
-		if (unp->unp_gencnt <= gencnt) {
+		UNP_LOCK();
+		unp->unp_refcount--;
+	        if (unp->unp_refcount != 0 && unp->unp_gencnt <= gencnt) {
 			xu->xu_len = sizeof *xu;
 			xu->xu_unpp = unp;
 			/*
@@ -1197,7 +1208,13 @@ unp_pcblist(SYSCTL_HANDLER_ARGS)
 				      unp->unp_conn->unp_addr->sun_len);
 			bcopy(unp, &xu->xu_unp, sizeof *unp);
 			sotoxsocket(unp->unp_socket, &xu->xu_socket);
+			UNP_UNLOCK();
 			error = SYSCTL_OUT(req, xu, sizeof *xu);
+		} else {
+			freeunp = (unp->unp_refcount == 0);
+			UNP_UNLOCK();
+			if (freeunp) 
+				uma_zfree(unp_zone, unp);
 		}
 	}
 	free(xu, M_TEMP);
@@ -1390,7 +1407,7 @@ unp_init(void)
 {
 
 	unp_zone = uma_zcreate("unpcb", sizeof(struct unpcb), NULL, NULL,
-	    NULL, NULL, UMA_ALIGN_PTR, UMA_ZONE_NOFREE);
+	    NULL, NULL, UMA_ALIGN_PTR, 0);
 	if (unp_zone == NULL)
 		panic("unp_init");
 	uma_zone_set_max(unp_zone, maxsockets);
@@ -1623,7 +1640,7 @@ unp_gc(__unused void *arg, int pending)
 	unp_taskcount++;
 	unp_defer = 0;
 	/*
-	 * Before going through all this, set all FDs to be NOT defered and
+	 * Before going through all this, set all FDs to be NOT deferred and
 	 * NOT externally accessible.
 	 */
 	sx_slock(&filelist_lock);
@@ -1648,16 +1665,16 @@ unp_gc(__unused void *arg, int pending)
 				continue;
 			}
 			/*
-			 * If we already marked it as 'defer' in a previous
-			 * pass, then try process it this time and un-mark
-			 * it.
+			 * If we already marked it as 'defer' in a
+			 * previous pass, then try to process it this
+			 * time and un-mark it.
 			 */
 			if (fp->f_gcflag & FDEFER) {
 				fp->f_gcflag &= ~FDEFER;
 				unp_defer--;
 			} else {
 				/*
-				 * if it's not defered, then check if it's
+				 * if it's not deferred, then check if it's
 				 * already marked.. if so skip it
 				 */
 				if (fp->f_gcflag & FMARK) {
@@ -1680,7 +1697,7 @@ unp_gc(__unused void *arg, int pending)
 				fp->f_gcflag |= FMARK;
 			}
 			/*
-			 * Either it was defered, or it is externally
+			 * Either it was deferred, or it is externally
 			 * accessible and not already marked so.  Now check
 			 * if it is possibly one of OUR sockets.
 			 */
@@ -1689,13 +1706,23 @@ unp_gc(__unused void *arg, int pending)
 				FILE_UNLOCK(fp);
 				continue;
 			}
-			FILE_UNLOCK(fp);
 			if (so->so_proto->pr_domain != &localdomain ||
-			    (so->so_proto->pr_flags&PR_RIGHTS) == 0)
+			    (so->so_proto->pr_flags & PR_RIGHTS) == 0) {
+				FILE_UNLOCK(fp);				
 				continue;
+			}
+
+			/*
+			 * Tell any other threads that do a subsequent
+			 * fdrop() that we are scanning the message
+			 * buffers.
+			 */
+			fp->f_gcflag |= FWAIT;
+			FILE_UNLOCK(fp);
+
 			/*
 			 * So, Ok, it's one of our sockets and it IS
-			 * externally accessible (or was defered).  Now we
+			 * externally accessible (or was deferred).  Now we
 			 * look to see if we hold any file descriptors in its
 			 * message buffers. Follow those links and mark them
 			 * as accessible too.
@@ -1703,6 +1730,14 @@ unp_gc(__unused void *arg, int pending)
 			SOCKBUF_LOCK(&so->so_rcv);
 			unp_scan(so->so_rcv.sb_mb, unp_mark);
 			SOCKBUF_UNLOCK(&so->so_rcv);
+
+			/*
+			 * Wake up any threads waiting in fdrop().
+			 */
+			FILE_LOCK(fp);
+			fp->f_gcflag &= ~FWAIT;
+			wakeup(&fp->f_gcflag);
+			FILE_UNLOCK(fp);
 		}
 	} while (unp_defer);
 	sx_sunlock(&filelist_lock);

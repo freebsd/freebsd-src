@@ -78,6 +78,7 @@ struct unpcb {
 	unp_gen_t unp_gencnt;		/* generation count of this instance */
 	int	unp_flags;		/* flags */
 	struct	xucred unp_peercred;	/* peer credentials, if applicable */
+	u_int	unp_refcount;
 };
 
 /*
