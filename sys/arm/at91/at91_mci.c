@@ -403,12 +403,14 @@ at91_mci_start_cmd(struct at91_mci_softc *sc, struct mmc_command *cmd)
 	}
 //	printf("CMDR %x ARGR %x with data\n", cmdr, cmd->arg);
 	WR4(sc, MCI_ARGR, cmd->arg);
-	WR4(sc, MCI_CMDR, cmdr);
 	if (cmdr & MCI_CMDR_TRCMD_START) {
-		if (cmdr & MCI_CMDR_TRDIR)
+		if (cmdr & MCI_CMDR_TRDIR) {
 			WR4(sc, PDC_PTCR, PDC_PTCR_RXTEN);
-		else
+			WR4(sc, MCI_CMDR, cmdr);
+		} else {
+			WR4(sc, MCI_CMDR, cmdr);
 			WR4(sc, PDC_PTCR, PDC_PTCR_TXTEN);
+		}
 	}
 	WR4(sc, MCI_IER, MCI_SR_ERROR | ier);
 }
