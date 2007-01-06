@@ -53,6 +53,12 @@ __FBSDID("$FreeBSD$");
 ENTRY(modf)
 	pushl %ebp
 	movl %esp,%ebp
+	/* Check for Inf/NaN */
+	movl 12(%ebp),%eax
+	andl $0x7fffffff,%eax
+	cmpl $0x7ff00000,%eax
+	jae 1f
+	/* Finite value */
 	subl $16,%esp
 	fnstcw -12(%ebp)
 	movw -12(%ebp),%dx
@@ -70,7 +76,13 @@ ENTRY(modf)
 	movl %ecx,4(%eax)
 	fldl 8(%ebp)
 	fsubl -8(%ebp)
-	jmp L1
-L1:
+	leave
+	ret
+	/* Inf/NaN handling */
+1:	fldl 8(%ebp)
+	movl 16(%ebp),%edx
+	fstl (%edx)
+	fldz
+	fdivp	/* return +/- 0 for +/- Inf, NaN for NaN */
 	leave
 	ret
