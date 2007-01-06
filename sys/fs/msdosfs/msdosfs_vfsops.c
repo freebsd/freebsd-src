@@ -259,6 +259,7 @@ msdosfs_mount(struct mount *mp, struct thread *td)
 	 * read/write; if there is no device name, that's all we do.
 	 */
 	if (mp->mnt_flag & MNT_UPDATE) {
+		int ro_to_rw = 0;
 		pmp = VFSTOMSDOSFS(mp);
 
 		if (vfs_flagopt(mp->mnt_optnew, "export", NULL, 0)) {
@@ -317,15 +318,20 @@ msdosfs_mount(struct mount *mp, struct thread *td)
 			if (error)
 				return (error);
 
-			/* Now that the volume is modifiable, mark it dirty. */
-			error = markvoldirty(pmp, 1);
-			if (error)
-				return (error);
+			ro_to_rw = 1;
 		}
 		vfs_flagopt(mp->mnt_optnew, "ro",
 		    &pmp->pm_flags, MSDOSFSMNT_RONLY);
 		vfs_flagopt(mp->mnt_optnew, "ro",
 		    &mp->mnt_flag, MNT_RDONLY);
+
+		if (ro_to_rw) {
+			/* Now that the volume is modifiable, mark it dirty. */
+			error = markvoldirty(pmp, 1);
+			if (error)
+				return (error);
+		}
+
 		if (vfs_getopt(mp->mnt_optnew, "from", NULL, NULL)) {
 #ifdef	__notyet__	/* doesn't work correctly with current mountd	XXX */
 			if (args.flags & MSDOSFSMNT_MNTOPT) {
