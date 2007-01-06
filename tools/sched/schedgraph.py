@@ -739,6 +739,14 @@ class EventSource:
 			color = 'light blue'
 		elif (cpu == 3):
 			color = 'light green'
+		elif (cpu == 4):
+			color = 'blanched almond'
+		elif (cpu == 5):
+			color = 'slate grey'
+		elif (cpu == 6):
+			color = 'light slate blue'
+		elif (cpu == 7):
+			color = 'thistle'
 		else:
 			color = "white"
 		l = canvas.create_rectangle(self.cpux,
