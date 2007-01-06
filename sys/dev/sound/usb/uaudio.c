@@ -55,6 +55,9 @@ __KERNEL_RCSID(0, "$NetBSD: uaudio.c,v 1.91 2004/11/05 17:46:14 kent Exp $");
  *  $NetBSD: uaudio.c,v 1.95 2005/01/16 06:02:19 dsainty Exp $
  *  $NetBSD: uaudio.c,v 1.96 2005/01/16 12:46:00 kent Exp $
  *  $NetBSD: uaudio.c,v 1.97 2005/02/24 08:19:38 martin Exp $
+ *  $NetBSD: uaudio.c,v 1.102 2006/04/14 17:00:55 christos Exp $
+ *  $NetBSD: uaudio.c,v 1.103 2006/05/11 19:09:25 mrg Exp $
+ *  $NetBSD: uaudio.c,v 1.105 2006/10/04 16:00:15 christos Exp $
  */
 
 #include <sys/param.h>
@@ -2001,11 +2004,13 @@ uaudio_process_as(struct uaudio_softc *sc, const char *buf, int *offsp,
 	if (offs > size)
 		return USBD_INVAL;
 
+#ifdef UAUDIO_MULTIPLE_ENDPOINTS
 	if (sync && id->bNumEndpoints <= 1) {
 		printf("%s: a sync-pipe endpoint but no other endpoint\n",
 		       device_get_nameunit(sc->sc_dev));
 		return USBD_INVAL;
 	}
+#endif
 	if (!sync && id->bNumEndpoints > 1) {
 		printf("%s: non sync-pipe endpoint but multiple endpoints\n",
 		       device_get_nameunit(sc->sc_dev));
@@ -2135,6 +2140,7 @@ uaudio_process_as(struct uaudio_softc *sc, const char *buf, int *offsp,
 	ai.edesc1 = epdesc1;
 	ai.asf1desc = asf1d;
 	ai.sc_busy = 0;
+	ai.ifaceh = NULL;
 	uaudio_add_alt(sc, &ai);
 #ifdef USB_DEBUG
 	if (ai.attributes & UA_SED_FREQ_CONTROL)
@@ -3029,9 +3035,10 @@ uaudio_chan_open(struct uaudio_softc *sc, struct chan *ch)
 	 */
 	if (as->asf1desc->bSamFreqType != 1) {
 		err = uaudio_set_speed(sc, endpt, ch->sample_rate);
-		if (err)
+		if (err) {
 			DPRINTF(("uaudio_chan_open: set_speed failed err=%s\n",
 				 usbd_errstr(err)));
+		}
 	}
 
 	ch->pipe = 0;
