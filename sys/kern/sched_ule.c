@@ -67,7 +67,6 @@ struct td_sched {
 	TAILQ_ENTRY(td_sched) ts_procq;	/* (j/z) Run queue. */
 	int		ts_flags;	/* (j) TSF_* flags. */
 	struct thread	*ts_thread;	/* (*) Active associated thread. */
-	fixpt_t		ts_pctcpu;	/* (j) %cpu during p_swtime. */
 	u_char		ts_rqindex;	/* (j) Run queue index. */
 	enum {
 		TSS_THREAD,
@@ -91,11 +90,8 @@ struct td_sched {
 #define	TSF_ASSIGNED	0x0001		/* Thread is being migrated. */
 #define	TSF_BOUND	0x0002		/* Thread can not migrate. */
 #define	TSF_XFERABLE	0x0004		/* Thread was added as transferable. */
-#define	TSF_HOLD	0x0008		/* Thread is temporarily bound. */
-#define	TSF_REMOVED	0x0010		/* Thread was removed while ASSIGNED */
-#define	TSF_INTERNAL	0x0020		/* Thread added due to migration. */
+#define	TSF_REMOVED	0x0008		/* Thread was removed while ASSIGNED */
 #define	TSF_DIDRUN	0x2000		/* Thread actually ran. */
-#define	TSF_EXIT	0x4000		/* Thread is being killed. */
 
 static struct td_sched td_sched0;
 
@@ -135,7 +131,7 @@ static struct td_sched td_sched0;
 #define	SCHED_PRI_RANGE		(SCHED_PRI_MAX - SCHED_PRI_MIN + 1)
 #define	SCHED_PRI_TICKS(ts)						\
     (SCHED_TICK_HZ((ts)) /						\
-    (max(SCHED_TICK_TOTAL((ts)), SCHED_PRI_RANGE) / SCHED_PRI_RANGE))
+    (roundup(SCHED_TICK_TOTAL((ts)), SCHED_PRI_RANGE) / SCHED_PRI_RANGE))
 #define	SCHED_PRI_NICE(nice)	(nice)
 
 /*
@@ -167,7 +163,7 @@ static int sched_interact = SCHED_INTERACT_THRESH;
 static int realstathz;
 static int tickincr;
 static int sched_slice;
-static int sched_rebalance;
+static int sched_rebalance = 1;
 
 /*
  * tdq - per processor runqs and statistics.
@@ -178,7 +174,6 @@ struct tdq {
 	struct runq	tdq_realtime;		/* real-time run queue. */
 	int		tdq_idx;		/* Current insert index. */
 	int		tdq_ridx;		/* Current removal index. */
-	int		tdq_load_timeshare;	/* Load for timeshare. */
 	int		tdq_load;		/* Aggregate load. */
 #ifdef SMP
 	int		tdq_transferable;
@@ -240,6 +235,8 @@ static int sched_interact_score(struct thread *);
 static void sched_interact_update(struct thread *);
 static void sched_interact_fork(struct thread *);
 static void sched_pctcpu_update(struct td_sched *);
+static inline void sched_pin_td(struct thread *td);
+static inline void sched_unpin_td(struct thread *td);
 
 /* Operations on per processor queues */
 static struct td_sched * tdq_choose(struct tdq *);
@@ -263,6 +260,7 @@ static int tdq_idled(struct tdq *);
 static void tdq_notify(struct td_sched *, int);
 static void tdq_assign(struct tdq *);
 static struct td_sched *tdq_steal(struct tdq *, int);
+
 #define	THREAD_CAN_MIGRATE(td)						\
     ((td)->td_pinned == 0 && (td)->td_pri_class != PRI_ITHD)
 #endif
@@ -272,6 +270,18 @@ SYSINIT(sched_setup, SI_SUB_RUN_QUEUE, SI_ORDER_FIRST, sched_setup, NULL)
 
 static void sched_initticks(void *dummy);
 SYSINIT(sched_initticks, SI_SUB_CLOCKS, SI_ORDER_THIRD, sched_initticks, NULL)
+
+static inline void
+sched_pin_td(struct thread *td)
+{
+	td->td_pinned++;
+}
+
+static inline void
+sched_unpin_td(struct thread *td)
+{
+	td->td_pinned--;
+}
 
 static void
 runq_print(struct runq *rq)
@@ -306,7 +316,6 @@ tdq_print(int cpu)
 
 	printf("tdq:\n");
 	printf("\tload:           %d\n", tdq->tdq_load);
-	printf("\tload TIMESHARE: %d\n", tdq->tdq_load_timeshare);
 	printf("\ttimeshare idx: %d\n", tdq->tdq_idx);
 	printf("\ttimeshare ridx: %d\n", tdq->tdq_ridx);
 	printf("\trealtime runq:\n");
@@ -391,8 +400,6 @@ tdq_load_add(struct tdq *tdq, struct td_sched *ts)
 	int class;
 	mtx_assert(&sched_lock, MA_OWNED);
 	class = PRI_BASE(ts->ts_thread->td_pri_class);
-	if (class == PRI_TIMESHARE)
-		tdq->tdq_load_timeshare++;
 	tdq->tdq_load++;
 	CTR1(KTR_SCHED, "load: %d", tdq->tdq_load);
 	if (class != PRI_ITHD && (ts->ts_thread->td_proc->p_flag & P_NOLOAD) == 0)
@@ -409,8 +416,6 @@ tdq_load_rem(struct tdq *tdq, struct td_sched *ts)
 	int class;
 	mtx_assert(&sched_lock, MA_OWNED);
 	class = PRI_BASE(ts->ts_thread->td_pri_class);
-	if (class == PRI_TIMESHARE)
-		tdq->tdq_load_timeshare--;
 	if (class != PRI_ITHD  && (ts->ts_thread->td_proc->p_flag & P_NOLOAD) == 0)
 #ifdef SMP
 		tdq->tdq_group->tdg_load--;
@@ -623,8 +628,9 @@ tdq_idled(struct tdq *tdq)
 			tdq_runq_rem(steal, ts);
 			tdq_load_rem(steal, ts);
 			ts->ts_cpu = PCPU_GET(cpuid);
-			ts->ts_flags |= TSF_INTERNAL | TSF_HOLD;
+			sched_pin_td(ts->ts_thread);
 			sched_add(ts->ts_thread, SRQ_YIELDING);
+			sched_unpin_td(ts->ts_thread);
 			return (0);
 		}
 	}
@@ -659,8 +665,9 @@ tdq_assign(struct tdq *tdq)
 			ts->ts_flags &= ~TSF_REMOVED;
 			continue;
 		}
-		ts->ts_flags |= TSF_INTERNAL | TSF_HOLD;
+		sched_pin_td(ts->ts_thread);
 		sched_add(ts->ts_thread, SRQ_YIELDING);
+		sched_unpin_td(ts->ts_thread);
 	}
 }
 
@@ -893,7 +900,6 @@ tdq_setup(struct tdq *tdq)
 	runq_init(&tdq->tdq_timeshare);
 	runq_init(&tdq->tdq_idle);
 	tdq->tdq_load = 0;
-	tdq->tdq_load_timeshare = 0;
 }
 
 static void
@@ -1230,11 +1236,11 @@ sched_thread_priority(struct thread *td, u_char prio)
 		 * cause excessive migration.  We only want migration to
 		 * happen as the result of a wakeup.
 		 */
-		ts->ts_flags |= TSF_HOLD;
+		sched_pin_td(td);
 		sched_rem(td);
 		td->td_priority = prio;
 		sched_add(td, SRQ_BORROWING);
-		ts->ts_flags &= ~TSF_HOLD;
+		sched_unpin_td(td);
 	} else
 		td->td_priority = prio;
 }
@@ -1373,11 +1379,11 @@ sched_switch(struct thread *td, struct thread *newtd, int flags)
 			 * Don't allow the thread to migrate
 			 * from a preemption.
 			 */
-			ts->ts_flags |= TSF_HOLD;
+			sched_pin_td(td);
 			setrunqueue(td, (flags & SW_PREEMPT) ?
 			    SRQ_OURSELF|SRQ_YIELDING|SRQ_PREEMPTED :
 			    SRQ_OURSELF|SRQ_YIELDING);
-			ts->ts_flags &= ~TSF_HOLD;
+			sched_unpin_td(td);
 		}
 	}
 	if (newtd != NULL) {
@@ -1507,43 +1513,32 @@ sched_fork_thread(struct thread *td, struct thread *child)
 void
 sched_class(struct thread *td, int class)
 {
-	struct tdq *tdq;
-	struct td_sched *ts;
-	int nclass;
-	int oclass;
 
 	mtx_assert(&sched_lock, MA_OWNED);
 	if (td->td_pri_class == class)
 		return;
 
-	nclass = PRI_BASE(class);
-	oclass = PRI_BASE(td->td_pri_class);
-	ts = td->td_sched;
-	if (ts->ts_state == TSS_ONRUNQ || td->td_state == TDS_RUNNING) {
-		tdq = TDQ_CPU(ts->ts_cpu);
 #ifdef SMP
-		/*
-		 * On SMP if we're on the RUNQ we must adjust the transferable
-		 * count because could be changing to or from an interrupt
-		 * class.
-		 */
-		if (ts->ts_state == TSS_ONRUNQ) {
-			if (THREAD_CAN_MIGRATE(ts->ts_thread)) {
-				tdq->tdq_transferable--;
-				tdq->tdq_group->tdg_transferable--;
-			}
-			if (THREAD_CAN_MIGRATE(ts->ts_thread)) {
-				tdq->tdq_transferable++;
-				tdq->tdq_group->tdg_transferable++;
-			}
-		}
-#endif
-		if (oclass == PRI_TIMESHARE)
-			tdq->tdq_load_timeshare--;
-		if (nclass == PRI_TIMESHARE)
-			tdq->tdq_load_timeshare++;
-	}
+	/*
+	 * On SMP if we're on the RUNQ we must adjust the transferable
+	 * count because could be changing to or from an interrupt
+	 * class.
+	 */
+	if (td->td_sched->ts_state == TSS_ONRUNQ) {
+		struct tdq *tdq;
 
+		tdq = TDQ_CPU(td->td_sched->ts_cpu);
+		if (THREAD_CAN_MIGRATE(td)) {
+			tdq->tdq_transferable--;
+			tdq->tdq_group->tdg_transferable--;
+		}
+		td->td_pri_class = class;
+		if (THREAD_CAN_MIGRATE(td)) {
+			tdq->tdq_transferable++;
+			tdq->tdq_group->tdg_transferable++;
+		}
+	}
+#endif
 	td->td_pri_class = class;
 }
 
@@ -1740,7 +1735,6 @@ sched_add(struct thread *td, int flags)
 	mtx_assert(&sched_lock, MA_OWNED);
 	tdq = TDQ_SELF();
 	ts = td->td_sched;
-	ts->ts_flags &= ~TSF_INTERNAL;
 	class = PRI_BASE(td->td_pri_class);
 	preemptive = !(flags & SRQ_YIELDING);
 	canmigrate = 1;
@@ -1751,14 +1745,6 @@ sched_add(struct thread *td, int flags)
 		return;
 	}
 	canmigrate = THREAD_CAN_MIGRATE(td);
-	/*
-	 * Don't migrate running threads here.  Force the long term balancer
-	 * to do it.
-	 */
-	if (ts->ts_flags & TSF_HOLD) {
-		ts->ts_flags &= ~TSF_HOLD;
-		canmigrate = 0;
-	}
 #endif
 	KASSERT(ts->ts_state != TSS_ONRUNQ,
 	    ("sched_add: thread %p (%s) already in run queue", td,
@@ -1976,7 +1962,7 @@ SYSCTL_INT(_kern_sched, OID_AUTO, slice, CTLFLAG_RW, &sched_slice, 0, "");
 SYSCTL_INT(_kern_sched, OID_AUTO, interact, CTLFLAG_RW, &sched_interact, 0, "");
 SYSCTL_INT(_kern_sched, OID_AUTO, tickincr, CTLFLAG_RD, &tickincr, 0, "");
 SYSCTL_INT(_kern_sched, OID_AUTO, realstathz, CTLFLAG_RD, &realstathz, 0, "");
-SYSCTL_INT(_kern_sched, OID_AUTO, balance, CTLFLAG_RD, &sched_rebalance, 0, "");
+SYSCTL_INT(_kern_sched, OID_AUTO, balance, CTLFLAG_RW, &sched_rebalance, 0, "");
 
 /* ps compat */
 static fixpt_t  ccpu = 0.95122942450071400909 * FSCALE; /* exp(-1/20) */
