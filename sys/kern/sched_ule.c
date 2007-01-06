@@ -110,7 +110,7 @@ static struct td_sched td_sched0;
 #define	SCHED_TICK_MAX		(SCHED_TICK_TARG + hz)
 #define	SCHED_TICK_SHIFT	10
 #define	SCHED_TICK_HZ(ts)	((ts)->ts_ticks >> SCHED_TICK_SHIFT)
-#define	SCHED_TICK_TOTAL(ts)	((ts)->ts_ltick - (ts)->ts_ftick)
+#define	SCHED_TICK_TOTAL(ts)	(max((ts)->ts_ltick - (ts)->ts_ftick, hz))
 
 /*
  * These macros determine priorities for non-interactive threads.  They are
