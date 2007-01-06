@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd December 14, 2004
+.Dd October 24, 2006
 .Dt FWCONTROL 8
 .Os
 .Sh NAME
@@ -41,6 +41,7 @@
 .Op Fl l Ar file
 .Op Fl g Ar gap_count
 .Op Fl b Ar pri_req
+.Op Fl M Ar mode
 .Op Fl R Ar filename
 .Op Fl S Ar filename
 .Op Fl m Ar EUI64 | hostname
@@ -84,8 +85,18 @@ by phy_config packet.
 Set the
 .Dv PRIORITY_BUDGET
 register on all supported nodes.
+.It Fl M Ar mode
+Explicitly specify either
+.Ar dv
+or
+.Ar mpeg
+mode for the incoming stream.
+Only meaningful in case of and must precede the
+.Fl R
+option. If not specified, the program will try to guess. If you get
+an error complaining about "format 0x20", try to force the "mpeg" mode.
 .It Fl R Ar filename
-Receive DV stream and dump it to a file.
+Receive DV or MPEG TS stream and dump it to a file.
 Use Ctrl-C to stop the receiving.
 Some DV cameras seem not to send the stream if a bus manager exits.
 If you cannot get the stream, try the following commands:
@@ -100,7 +111,14 @@ It can be handled by
 .Nm libdv
 in the
 .Fx
-Ports Collection.
+Ports Collection. Resulting MPEG TS stream can be played and sent over a
+network using the VideoLAN
+.Nm vlc
+tool in the 
+.Fx
+Ports Collection. The stream can be piped directly to
+.Nm vlc,
+see EXAMPLES.
 .It Fl S Ar filename
 Send a DV file as isochronous stream.
 .It Fl m Ar EUI64 | hostname
@@ -117,7 +135,7 @@ Each DV frame has a fixed size and it is easy to edit the frame order.
 .Pp
 .Dl "fwcontrol -R original.dv"
 .Pp
-Receive stream.
+Receive a DV stream with DV camera attached.
 .Pp
 .Dl "dd if=original.dv of=first.dv bs=120000 count=30"
 .Pp
@@ -135,12 +153,42 @@ For PAL, replace
 .Dq Li bs=120000
 with
 .Dq Li bs=144000 .
+.Pp
+.Dl "fwcontrol -R file.m2t
+.Pp
+Receive an MPEG TS stream from a camera producing MPEG transport stream.  This
+has been tested with SONY HDR-FX1E camera that produces HD MPEG-2 stream at
+25 Mbps bandwidth.
+.Pp
+To send the stream from the camera over the network using TCP (which supprisingly works better with vlc), you can use
+.Dl "fwcontrol -R - | nc 192.168.10.11 9000
+with
+.Nm netcat
+from ports and to receive the stream, use
+.Dl nc -l -p 9000 | vlc -
+.Pp
+To netcast via UDP, you need to use 
+.Nm buffer 
+program from ports, since vlc is not fast enough to read UDP packets from
+buffers and thus it experiences dropouts when run directly. The sending side
+can use
+.Dl "fwcontrol -R - | nc 192.168.10.11 9000
+and to receive the stream, use
+.Dl nc -l -u -p 9000 | buffer -s 10k -b 1000 -m 20m -p 5 | vlc -
+.Pp
+
+.Pp
+For more information on how to work with
+.Nm vlc
+see its docs.
 .Sh SEE ALSO
 .Xr firewire 4 ,
 .Xr fwe 4 ,
 .Xr fwip 4 ,
 .Xr fwohci 4 ,
-.Xr sbp 4
+.Xr sbp 4 ,
+.Xr mplayer 1 ,
+.Xr vlc 1
 .Sh HISTORY
 The
 .Nm
@@ -148,5 +196,9 @@ utility first appeared in
 .Fx 5.0 .
 .Sh AUTHORS
 .An Hidetoshi Shimokawa Aq simokawa@FreeBSD.org
+.An Petr Holub Aq hopet@ics.muni.cz
+- MPEG TS mode.
 .Sh BUGS
 This utility is still under development and provided for debugging purposes.
+Especially MPEG TS reception support is very rudimental and supports only
+high-bandwidth MPEG-2 streams (fn field in CIP header equals 3).
