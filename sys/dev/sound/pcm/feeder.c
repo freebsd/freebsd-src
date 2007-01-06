@@ -704,7 +704,7 @@ chn_fmtchain(struct pcm_channel *c, u_int32_t *to)
 			try = feeder_fmtchain(to, c->feeder, stop, max);
 			DEB(if (try != NULL) {
 				printf("%s: 0x%08x -> 0x%08x (maxdepth: %d)\n",
-					__func__, from[0], to[0], max)
+					__func__, from[0], to[0], max);
 			});
 		} while (try == NULL && max++ < FEEDER_FMTCHAIN_MAXDEPTH);
 	} else {
