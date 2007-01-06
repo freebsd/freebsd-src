@@ -18,14 +18,15 @@ void alarmhandler(int sig)
 int main()
 {
 	struct mq_attr attr;
-	int mq, status, pid;
+	mqd_t mq;
+	int status, pid;
 	
 	mq_unlink(MQNAME);
 
 	attr.mq_maxmsg  = 5;
 	attr.mq_msgsize = 128;
 	mq = mq_open(MQNAME, O_CREAT | O_RDWR | O_EXCL, 0666, &attr);
-	if (mq == -1)
+	if (mq == (mqd_t)-1)
 		err(1, "mq_open");
 	status = mq_getattr(mq, &attr);
 	if (status)
@@ -40,7 +41,7 @@ int main()
 		signal(SIGALRM, alarmhandler);
 
 		mq = mq_open(MQNAME, O_RDWR);
-		if (mq == -1)
+		if (mq == (mqd_t)-1)
 			err(1, "child: mq_open");
 		buf = malloc(attr.mq_msgsize);
 		for (j = 0; j < LOOPS; ++j) {

@@ -12,13 +12,13 @@ int main()
 {
 	struct mq_attr attr, attr2;
 	struct sigevent sigev;
-	int mq;
+	mqd_t mq;
 	int status;
 
 	attr.mq_maxmsg  = 2;
 	attr.mq_msgsize = 100;
 	mq = mq_open(MQNAME, O_CREAT | O_RDWR | O_EXCL, 0666, &attr);
-	if (mq == -1)
+	if (mq == (mqd_t)-1)
 		err(1, "mq_open");
 	status = mq_unlink(MQNAME);
 	if (status)
