@@ -301,7 +301,7 @@ int	ieee80211_rate2media(struct ieee80211com *, int,
 		enum ieee80211_phymode);
 int	ieee80211_media2rate(int);
 int	ieee80211_mhz2ieee(u_int, u_int);
-int	ieee80211_chan2ieee(struct ieee80211com *, struct ieee80211_channel *);
+int	ieee80211_chan2ieee(struct ieee80211com *, const struct ieee80211_channel *);
 u_int	ieee80211_ieee2mhz(u_int, u_int);
 int	ieee80211_setmode(struct ieee80211com *, enum ieee80211_phymode);
 enum ieee80211_phymode ieee80211_chan2mode(struct ieee80211com *,
