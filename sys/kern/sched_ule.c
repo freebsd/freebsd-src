@@ -692,7 +692,7 @@ tdq_notify(struct td_sched *ts, int cpu)
 	} while(!atomic_cmpset_ptr((volatile uintptr_t *)&tdq->tdq_assigned,
 		(uintptr_t)ts->ts_assign, (uintptr_t)ts));
 	/* Only ipi for realtime/ithd priorities */
-	if (ts->ts_thread->td_priority >= PRI_MIN_TIMESHARE)
+	if (ts->ts_thread->td_priority > PRI_MIN_KERN)
 		return;
 	/*
 	 * Without sched_lock we could lose a race where we set NEEDRESCHED
