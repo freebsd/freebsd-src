@@ -50,5 +50,7 @@ ssize_t	mq_timedreceive(mqd_t, char *__restrict, size_t,
 int	mq_timedsend(mqd_t, const char *, size_t, unsigned,
 		const struct timespec *);
 int	mq_unlink(const char *);
+int	__mq_oshandle(mqd_t mqd);
+
 __END_DECLS
 #endif
