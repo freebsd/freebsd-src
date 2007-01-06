@@ -18,7 +18,8 @@ void sighandler(int sig)
 
 int main()
 {
-	int mq, status;
+	mqd_t mq;
+	int status;
 	struct mq_attr attr;
 	int pid;
 	fd_set set;
@@ -28,7 +29,7 @@ int main()
 	attr.mq_maxmsg  = 5;
 	attr.mq_msgsize = 128;
 	mq = mq_open(MQNAME, O_CREAT | O_RDWR | O_EXCL, 0666, &attr);
-	if (mq == -1)
+	if (mq == (mqd_t)-1)
 		err(1, "mq_open()");
 	status = mq_getattr(mq, &attr);
 	if (status)
@@ -44,14 +45,14 @@ int main()
 		signal(SIGALRM, sighandler);
 
 		mq = mq_open(MQNAME, O_RDWR);
-		if (mq == -1)
+		if (mq == (mqd_t)-1)
 			err(1, "child process: mq_open");
 		buf = malloc(attr.mq_msgsize);
 		for (j = 0; j < LOOPS; ++j) {
 			FD_ZERO(&set);
-			FD_SET(mq, &set);
+			FD_SET(__mq_oshandle(mq), &set);
 			alarm(3);
-			status = select(mq+1, &set, NULL, NULL, NULL);
+			status = select(__mq_oshandle(mq)+1, &set, NULL, NULL, NULL);
 			if (status != 1)
 				err(1, "child process: select()");
 			status = mq_receive(mq, buf, attr.mq_msgsize, &prio);
@@ -81,8 +82,8 @@ int main()
 			}
 			alarm(3);
 			FD_ZERO(&set);
-			FD_SET(mq, &set);
-			status = select(mq+1, NULL, &set, NULL, NULL);
+			FD_SET(__mq_oshandle(mq), &set);
+			status = select(__mq_oshandle(mq)+1, NULL, &set, NULL, NULL);
 			if (status != 1)
 				err(1, "select()");
 			status = mq_send(mq, buf, attr.mq_msgsize, PRIO);
