@@ -19,7 +19,8 @@ void sighandler(int sig)
 
 int main()
 {
-	int mq, status;
+	mqd_t mq;
+	int status;
 	struct mq_attr attr;
 	int pid;
 	fd_set set;
@@ -31,7 +32,7 @@ int main()
 	attr.mq_maxmsg  = 5;
 	attr.mq_msgsize = 128;
 	mq = mq_open(MQNAME, O_CREAT | O_RDWR | O_EXCL, 0666, &attr);
-	if (mq == -1)
+	if (mq == (mqd_t) -1)
 		err(1, "mq_open()");
 	status = mq_getattr(mq, &attr);
 	if (status)
@@ -44,9 +45,9 @@ int main()
 		mq_close(mq);
 		kq = kqueue();
 		mq = mq_open(MQNAME, O_RDWR);
-		if (mq == -1)
+		if (mq == (mqd_t)-1)
 			err(1, "child: mq_open");
-		EV_SET(&kev, mq, EVFILT_READ, EV_ADD, 0, 0, 0);
+		EV_SET(&kev, __mq_oshandle(mq), EVFILT_READ, EV_ADD, 0, 0, 0);
 		status = kevent(kq, &kev, 1, NULL, 0, NULL);
 		if (status == -1)
 			err(1, "child: kevent");
@@ -78,7 +79,7 @@ int main()
 
 		signal(SIGALRM, sighandler);
 		kq = kqueue();
-		EV_SET(&kev, mq, EVFILT_WRITE, EV_ADD, 0, 0, 0);
+		EV_SET(&kev, __mq_oshandle(mq), EVFILT_WRITE, EV_ADD, 0, 0, 0);
 		status = kevent(kq, &kev, 1, NULL, 0, NULL);
 		if (status == -1)
 			err(1, "kevent");

@@ -20,7 +20,8 @@ void sighandler(int sig)
 
 int main()
 {
-	int mq, status;
+	mqd_t mq;
+	int status;
 	struct mq_attr attr;
 	int pid;
 	sigset_t set;
@@ -40,7 +41,7 @@ int main()
 	attr.mq_maxmsg  = 5;
 	attr.mq_msgsize = 128;
 	mq = mq_open(MQNAME, O_CREAT | O_RDWR | O_EXCL, 0666, &attr);
-	if (mq == -1)
+	if (mq == (mqd_t)-1)
 		err(1, "mq_open()");
 	status = mq_getattr(mq, &attr);
 	if (status)
@@ -59,7 +60,7 @@ int main()
 
 		mq_close(mq);
 		mq = mq_open(MQNAME, O_RDWR | O_NONBLOCK);
-		if (mq == -1)
+		if (mq == (mqd_t)-1)
 			err(1, "child: mq_open");
 		buf = malloc(attr.mq_msgsize);
 		for (j = 0; j < LOOPS; ++j) {
