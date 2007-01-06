@@ -133,7 +133,6 @@ FBSD_1.0 {
 	lround;
 	lroundf;
 	lroundl;
-	modf;
 	modff;
 	nearbyint;
 	nearbyintf;
