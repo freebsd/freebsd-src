@@ -321,7 +321,7 @@ ieee80211_mhz2ieee(u_int freq, u_int flags)
  * Convert channel to IEEE channel number.
  */
 int
-ieee80211_chan2ieee(struct ieee80211com *ic, struct ieee80211_channel *c)
+ieee80211_chan2ieee(struct ieee80211com *ic, const struct ieee80211_channel *c)
 {
 	if (ic->ic_channels <= c && c <= &ic->ic_channels[IEEE80211_CHAN_MAX])
 		return c - ic->ic_channels;
