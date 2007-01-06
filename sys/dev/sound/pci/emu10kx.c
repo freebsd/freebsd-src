@@ -149,6 +149,8 @@
 #define	OUT_ADC_REC_R	0x0b
 #define	OUT_ADC_REC	OUT_ADC_REC_L
 #define	OUT_MIC_CAP	0x0c
+
+/* Live! 5.1 Digital, non-standart 5.1 (center & sub) outputs */
 #define	OUT_A_CENTER	0x11
 #define	OUT_A_SUB	0x12
 
@@ -224,6 +226,8 @@
 #define	C_SIDE_R	9
 #define	NUM_CACHES	10
 
+#define	NUM_DUMMIES	64
+
 #define	EMU_MAX_GPR	512
 #define	EMU_MAX_IRQ_CONSUMERS 32
 
@@ -282,7 +286,7 @@ struct emu_sc_info {
 
 	/* Hardware and subdevices */
 	device_t	dev;
-	device_t	pcm[5];
+	device_t	pcm[RT_COUNT];
 	device_t	midi[2];
 	uint32_t	type;
 	uint32_t	rev;
@@ -341,6 +345,7 @@ struct emu_sc_info {
 	int		mixer_gpr[NUM_MIXERS];
 	int		mixer_volcache[NUM_MIXERS];
 	int		cache_gpr[NUM_CACHES];
+	int		dummy_gpr[NUM_DUMMIES];
 	struct sysctl_ctx_list	*ctx;
 	struct sysctl_oid	*root;
 };
@@ -367,7 +372,7 @@ static int	emu_rm_init(struct emu_sc_info *sc);
 static int	emu_rm_uninit(struct emu_sc_info *sc);
 static int	emu_rm_gpr_alloc(struct emu_rm *rm, int count);
 
-static int	emu_getcard(device_t dev);
+static unsigned int emu_getcard(device_t dev);
 static uint32_t	emu_rd_nolock(struct emu_sc_info *sc, unsigned int regno, unsigned int size);
 static void	emu_wr_nolock(struct emu_sc_info *sc, unsigned int regno, uint32_t data, unsigned int size);
 static void	emu_wr_cbptr(struct emu_sc_info *sc, uint32_t data);
@@ -404,6 +409,7 @@ struct emu_hwinfo {
 };
 
 static struct emu_hwinfo emu_cards[] = {
+	{0xffff, 0xffff, 0xffff, 0xffff, "BADCRD", "Not a compatible card", 0},
 	/* 0x0020..0x002f 4.0 EMU10K1 cards */
 	{0x1102, 0x0002, 0x1102, 0x0020, "CT4850", "SBLive! Value", HAS_AC97 | IS_EMU10K1},
 	{0x1102, 0x0002, 0x1102, 0x0021, "CT4620", "SBLive!", HAS_AC97 | IS_EMU10K1},
@@ -452,6 +458,10 @@ static struct emu_hwinfo emu_cards[] = {
 	/* 0x2001..0x2003 7.1 CA0102-ICT cards */
 	{0x1102, 0x0004, 0x1102, 0x2001, "SB0350", "Audigy 2 ZS", HAS_AC97 | HAS_71 | IS_CA0102},
 	{0x1102, 0x0004, 0x1102, 0x2002, "SB0350", "Audigy 2 ZS", HAS_AC97 | HAS_71 | IS_CA0102},
+	/* XXX No reports about 0x2003 & 0x2004 cards */
+	{0x1102, 0x0004, 0x1102, 0x2003, "SB0350", "Audigy 2 ZS", HAS_AC97 | HAS_71 | IS_CA0102},
+	{0x1102, 0x0004, 0x1102, 0x2004, "SB0350", "Audigy 2 ZS", HAS_AC97 | HAS_71 | IS_CA0102},
+	{0x1102, 0x0004, 0x1102, 0x2005, "SB0350", "Audigy 2 ZS", HAS_AC97 | HAS_71 | IS_CA0102},
 
 	/* (range unknown) 7.1 CA0102-xxx Audigy 4 cards */
 	{0x1102, 0x0004, 0x1102, 0x2007, "SB0380", "Audigy 4 Pro", HAS_AC97 | HAS_71 | IS_CA0102},
@@ -490,21 +500,21 @@ static struct emu_hwinfo emu_bad_cards[] = {
 /*
  * Get best known information about device.
  */
-static int
+static unsigned int
 emu_getcard(device_t dev)
 {
 	uint16_t device;
 	uint16_t subdevice;
 	int n_cards;
-	int thiscard;
+	unsigned int thiscard;
 	int i;
 
 	device = pci_read_config(dev, PCIR_DEVICE, /* bytes */ 2);
 	subdevice = pci_read_config(dev, PCIR_SUBDEV_0, /* bytes */ 2);
 
 	n_cards = sizeof(emu_cards) / sizeof(struct emu_hwinfo);
-	thiscard = (-1);
-	for (i = 0; i < n_cards; i++) {
+	thiscard = 0;
+	for (i = 1; i < n_cards; i++) {
 		if (device == emu_cards[i].device) {
 			if (subdevice == emu_cards[i].subdevice) {
 				thiscard = i;
@@ -522,11 +532,11 @@ emu_getcard(device_t dev)
 	for (i = 0; i < n_cards; i++) {
 		if (device == emu_bad_cards[i].device) {
 			if (subdevice == emu_bad_cards[i].subdevice) {
-				thiscard = (-1);
+				thiscard = 0;
 				break;
 			}
 			if (0x0000 == emu_bad_cards[i].subdevice) {
-				thiscard = (-1);
+				thiscard = 0;
 				break;	/* we avoid all this cards */
 			}
 		}
@@ -752,8 +762,11 @@ emu_timer_set(struct emu_sc_info *sc, int timer, int delay)
 {
 	int i;
 
+	if(timer < 0)
+		return (-1);
+
 	RANGE(delay, 16, 1024);
-	RANGE(timer, 0, EMU_MAX_IRQ_CONSUMERS);
+	RANGE(timer, 0, EMU_MAX_IRQ_CONSUMERS-1);
 
 	sc->timer[timer] = delay;
 	for (i = 0; i < EMU_MAX_IRQ_CONSUMERS; i++)
@@ -770,6 +783,11 @@ emu_timer_enable(struct emu_sc_info *sc, int timer, int go)
 	uint32_t x;
 	int ena_int;
 	int i;
+
+	if(timer < 0)
+		return (-1);
+
+	RANGE(timer, 0, EMU_MAX_IRQ_CONSUMERS-1);
 
 	mtx_lock(&sc->lock);
 
@@ -804,6 +822,11 @@ emu_timer_enable(struct emu_sc_info *sc, int timer, int go)
 int
 emu_timer_clear(struct emu_sc_info *sc, int timer)
 {
+	if(timer < 0)
+		return (-1);
+
+	RANGE(timer, 0, EMU_MAX_IRQ_CONSUMERS-1);
+
 	emu_timer_enable(sc, timer, 0);
 
 	mtx_lock(&sc->lock);
@@ -834,9 +857,15 @@ emu_intr_register(struct emu_sc_info *sc, uint32_t inte_mask, uint32_t intr_mask
 			x |= inte_mask;
 			emu_wr(sc, INTE, x, 4);
 			mtx_unlock(&sc->lock);
+#ifdef SND_EMU10KX_DEBUG
+			device_printf(sc->dev, "ihandle %d registered\n", i);
+#endif
 			return (i);
 		}
 	mtx_unlock(&sc->lock);
+#ifdef SND_EMU10KX_DEBUG
+	device_printf(sc->dev, "ihandle not registered\n");
+#endif
 	return (-1);
 }
 
@@ -892,6 +921,10 @@ emu_intr(void *p)
 				    (sc->ihandler[i].intr_mask) & stat);
 			}
 		}
+#ifdef SND_EMU10KX_DEBUG
+	if(stat & (~ack))
+		device_printf(sc->dev, "Unhandled interrupt: %08x\n", stat & (~ack));
+#endif
 	}
 
 	if ((sc->is_ca0102) || (sc->is_ca0108))
@@ -1499,10 +1532,28 @@ emu_addefxmixer(struct emu_sc_info *sc, const char *mix_name, const int mix_id, 
 		&pc);						\
 } while(0)
 
+/* mute, if FLAG != 0 */
+/* XXX */
+#define EFX_MUTEIF(GPR_IDX, FLAG) do {				\
+} while(0)
+
+/* allocate dummy GPR. It's content will be used somewhere */
+#define	EFX_DUMMY(DUMMY_IDX, DUMMY_VALUE) do {			\
+	sc->dummy_gpr[DUMMY_IDX] = emu_rm_gpr_alloc(sc->rm, 1); \
+	emumix_set_gpr(sc, sc->dummy_gpr[DUMMY_IDX], DUMMY_VALUE);	\
+	emu_addefxop(sc, ACC3, 					\
+		FX2(DUMMY_IDX),					\
+		GPR(sc->dummy_gpr[DUMMY_IDX]),			\
+		DSP_CONST(0),					\
+		DSP_CONST(0),					\
+		&pc);						\
+} while (0)
+
+
 static void
 emu_initefx(struct emu_sc_info *sc)
 {
-	unsigned int c;
+	unsigned int i;
 	uint32_t pc;
 
 	/* stop DSP */
@@ -1514,7 +1565,7 @@ emu_initefx(struct emu_sc_info *sc)
 
 	/* code size is in instructions */
 	pc = 0;
-	for (c = 0; c < sc->code_size; c++) {
+	for (i = 0; i < sc->code_size; i++) {
 		if (sc->is_emu10k1) {
 			emu_addefxop(sc, ACC3, DSP_CONST(0x0), DSP_CONST(0x0), DSP_CONST(0x0), DSP_CONST(0x0), &pc);
 		} else {
@@ -1533,8 +1584,8 @@ emu_initefx(struct emu_sc_info *sc)
 	 */
 
 	/* clean outputs */
-	for (c = 0; c < 16 ; c++) {
-		emu_addefxop(sc, ACC3, OUTP(c), DSP_CONST(0), DSP_CONST(0), DSP_CONST(0), &pc);
+	for (i = 0; i < 16 ; i++) {
+		emu_addefxop(sc, ACC3, OUTP(i), DSP_CONST(0), DSP_CONST(0), DSP_CONST(0), &pc);
 	}
 
 
@@ -1558,17 +1609,21 @@ emu_initefx(struct emu_sc_info *sc)
 
 		/* in1, from CD S/PDIF */
 		EFX_ROUTE("cdspdif_front_l", INP(IN_SPDIF_CD_L), M_IN1_FRONT_L, C_FRONT_L, 0);
+		EFX_MUTEIF(M_IN1_FRONT_L, CDSPDIFMUTE);
 		EFX_ROUTE("cdspdif_front_r", INP(IN_SPDIF_CD_R), M_IN1_FRONT_R, C_FRONT_R, 0);
+		EFX_MUTEIF(M_IN1_FRONT_R, CDSPDIFMUTE);
 		EFX_ROUTE("cdspdif_rec_l", INP(IN_SPDIF_CD_L), M_IN1_REC_L, C_REC_L, 0);
+		EFX_MUTEIF(M_IN1_REC_L, CDSPDIFMUTE);
 		EFX_ROUTE("cdspdif_rec_r", INP(IN_SPDIF_CD_R), M_IN1_REC_R, C_REC_R, 0);
-#if 0
+		EFX_MUTEIF(M_IN1_REC_L, CDSPDIFMUTE);
+#ifdef SND_EMU10KX_DEBUG_OUTPUTS
 		/* in2, ZoomVide (???) */
 		EFX_ROUTE("zoom_front_l", INP(IN_ZOOM_L), M_IN2_FRONT_L, C_FRONT_L, 0);
 		EFX_ROUTE("zoom_front_r", INP(IN_ZOOM_R), M_IN2_FRONT_R, C_FRONT_R, 0);
 		EFX_ROUTE("zoom_rec_l", INP(IN_ZOOM_L), M_IN2_REC_L, C_REC_L, 0);
 		EFX_ROUTE("zoom_rec_r", INP(IN_ZOOM_R), M_IN2_REC_R, C_REC_R, 0);
 #endif
-#if 0
+#ifdef SND_EMU10KX_DEBUG_OUTPUTS
 		/* in3, TOSLink (???) */
 		EFX_ROUTE("toslink_front_l", INP(IN_TOSLINK_L), M_IN3_FRONT_L, C_FRONT_L, 0);
 		EFX_ROUTE("toslink_front_r", INP(IN_TOSLINK_R), M_IN3_FRONT_R, C_FRONT_R, 0);
@@ -1592,16 +1647,18 @@ emu_initefx(struct emu_sc_info *sc)
 		EFX_ROUTE("line2_front_r", INP(IN_LINE2_R), M_IN6_FRONT_R, C_FRONT_R, 0);
 		EFX_ROUTE("line2_rec_l", INP(IN_LINE2_L), M_IN6_REC_L, C_REC_L, 0);
 		EFX_ROUTE("line2_rec_r", INP(IN_LINE2_R), M_IN6_REC_R, C_REC_R, 0);
-#if 0
+#ifdef SND_EMU10KX_DEBUG_OUTPUTS
 		/* in7, unknown */
 		EFX_ROUTE("in7_front_l", INP(0xE), M_IN7_FRONT_L, C_FRONT_L, 0);
 		EFX_ROUTE("in7_front_r", INP(0xF), M_IN7_FRONT_R, C_FRONT_R, 0);
 		EFX_ROUTE("in7_rec_l", INP(0xE), M_IN7_REC_L, C_REC_L, 0);
 		EFX_ROUTE("in7_rec_r", INP(0xF), M_IN7_REC_R, C_REC_R, 0);
 #endif
-		/* front output to both analog and digital */
+		/* front output to hedaphones and both analog and digital */
 		EFX_OUTPUT("master_front_l", C_FRONT_L, M_MASTER_FRONT_L, OUT_AC97_L, 100);
 		EFX_OUTPUT("master_front_r", C_FRONT_R, M_MASTER_FRONT_R, OUT_AC97_R, 100);
+		EFX_OUTPUTD(C_FRONT_L, M_MASTER_FRONT_L, OUT_HEADPHONE_L);
+		EFX_OUTPUTD(C_FRONT_R, M_MASTER_FRONT_R, OUT_HEADPHONE_R);
 
 		/* rec output to "ADC" */
 		EFX_OUTPUT("master_rec_l", C_REC_L, M_MASTER_REC_L, OUT_ADC_REC_L, 100);
@@ -1620,6 +1677,41 @@ emu_initefx(struct emu_sc_info *sc)
 
 		EFX_OUTPUT(NULL, C_REAR_L, M_MASTER_REAR_L, OUT_REAR_L, 100);
 		EFX_OUTPUT(NULL, C_REAR_R, M_MASTER_REAR_R, OUT_REAR_R, 100);
+		if (sc->has_51) {
+			/* fx4 (pcm2) to center */
+			EFX_CACHE(C_CENTER);
+			EFX_ROUTE(NULL, FX(4), M_FX4_CENTER, C_CENTER, 100);
+			EFX_OUTPUT(NULL, C_CENTER, M_MASTER_CENTER, OUT_D_CENTER, 100);
+#if 0
+			/* XXX in digital mode (default) this should be muted because
+			this output is shared with digital out */
+			EFX_OUTPUTD(C_CENTER, M_MASTER_CENTER, OUT_A_CENTER);
+#endif
+			/* fx5 (pcm3) to sub */
+			EFX_CACHE(C_SUB);
+			EFX_ROUTE(NULL, FX(5), M_FX5_SUBWOOFER, C_SUB, 100);
+			EFX_OUTPUT(NULL, C_SUB, M_MASTER_SUBWOOFER, OUT_D_SUB, 100);
+#if 0
+			/* XXX in digital mode (default) this should be muted because
+			this output is shared with digital out */
+			EFX_OUTPUTD(C_SUB, M_MASTER_SUBWOOFER, OUT_A_SUB);
+#endif
+		}
+#ifdef	SND_EMU10KX_MCH_RECORDING
+	/* MCH RECORDING , hight 16 slots. On 5.1 cards first 4 slots are used 
+	as outputs and already filled with data */
+	for(i = (sc->has_51 ? 4 : 0); i < 16; i++) {
+		/* XXX fill with dummy data */
+		EFX_DUMMY(i,i*0x10000);
+		emu_addefxop(sc, ACC3,
+				FX2(i),
+				DSP_CONST(0),
+				DSP_CONST(0),
+				GPR(sc->dummy_gpr[i]),
+				&pc);
+
+		}
+#endif
 #else	/* !SND_EMU10KX_MULTICHANNEL */
 		EFX_OUTPUTD(C_FRONT_L, M_MASTER_FRONT_L, OUT_REAR_L);
 		EFX_OUTPUTD(C_FRONT_R, M_MASTER_FRONT_R, OUT_REAR_R);
@@ -1653,11 +1745,12 @@ emu_initefx(struct emu_sc_info *sc)
 		EFX_ROUTE("cdspdif_rec_r", INP(A_IN_SPDIF_CD_R), M_IN1_REC_R, C_REC_R, 0);
 
 		/* in2, optical & coax S/PDIF on AudigyDrive*/
+		/* XXX Should be muted when GPRSCS valid stream == 0 */
 		EFX_ROUTE("ospdif_front_l", INP(A_IN_O_SPDIF_L), M_IN2_FRONT_L, C_FRONT_L, 0);
 		EFX_ROUTE("ospdif_front_r", INP(A_IN_O_SPDIF_R), M_IN2_FRONT_R, C_FRONT_R, 0);
 		EFX_ROUTE("ospdif_rec_l", INP(A_IN_O_SPDIF_L), M_IN2_REC_L, C_REC_L, 0);
 		EFX_ROUTE("ospdif_rec_r", INP(A_IN_O_SPDIF_R), M_IN2_REC_R, C_REC_R, 0);
-#if 0
+#ifdef SND_EMU10KX_DEBUG_OUTPUTS
 		/* in3, unknown */
 		EFX_ROUTE("in3_front_l", INP(0x6), M_IN3_FRONT_L, C_FRONT_L, 0);
 		EFX_ROUTE("in3_front_r", INP(0x7), M_IN3_FRONT_R, C_FRONT_R, 0);
@@ -1681,7 +1774,7 @@ emu_initefx(struct emu_sc_info *sc)
 		EFX_ROUTE("aux2_front_r", INP(A_IN_AUX2_R), M_IN6_FRONT_R, C_FRONT_R, 0);
 		EFX_ROUTE("aux2_rec_l", INP(A_IN_AUX2_L), M_IN6_REC_L, C_REC_L, 0);
 		EFX_ROUTE("aux2_rec_r", INP(A_IN_AUX2_R), M_IN6_REC_R, C_REC_R, 0);
-#if 0
+#ifdef SND_EMU10KX_DEBUG_OUTPUTS
 		/* in7, unknown */
 		EFX_ROUTE("in7_front_l", INP(0xE), M_IN7_FRONT_L, C_FRONT_L, 0);
 		EFX_ROUTE("in7_front_r", INP(0xF), M_IN7_FRONT_R, C_FRONT_R, 0);
@@ -1748,6 +1841,19 @@ emu_initefx(struct emu_sc_info *sc)
 			EFX_OUTPUTD(C_SIDE_L, M_MASTER_SIDE_L, A_OUT_D_SIDE_L);
 			EFX_OUTPUTD(C_SIDE_R, M_MASTER_SIDE_R, A_OUT_D_SIDE_R);
 		}
+#ifdef	SND_EMU10KX_MCH_RECORDING
+	/* MCH RECORDING, high 32 slots */
+	for(i = 0; i < 32; i++) {
+		/* XXX fill with dummy data */
+		EFX_DUMMY(i,i*0x10000);
+		emu_addefxop(sc, ACC3,
+				FX2(i),
+				DSP_CONST(0),
+				DSP_CONST(0),
+				GPR(sc->dummy_gpr[i]),
+				&pc);
+		}
+#endif
 #else	/* !SND_EMU10KX_MULTICHANNEL */
 		EFX_OUTPUTD(C_FRONT_L, M_MASTER_FRONT_L, A_OUT_A_REAR_L);
 		EFX_OUTPUTD(C_FRONT_R, M_MASTER_FRONT_R, A_OUT_A_REAR_R);
@@ -1883,7 +1989,7 @@ emu10kx_prepare(struct emu_sc_info *sc, struct sbuf *s)
 	if (sc->broken_digital)
 		sbuf_printf(s, "Digital mode unsupported\n");
 	sbuf_printf(s, "\nInstalled devices:\n");
-	for (i = 0; i < 5; i++)
+	for (i = 0; i < RT_COUNT; i++)
 		if (sc->pcm[i] != NULL)
 			if (device_is_attached(sc->pcm[i])) {
 				sbuf_printf(s, "%s on %s\n", device_get_desc(sc->pcm[i]), device_get_nameunit(sc->pcm[i]));
@@ -2564,7 +2670,7 @@ static int
 emu_pci_probe(device_t dev)
 {
 	struct sbuf *s;
-	int thiscard = 0;
+	unsigned int thiscard = 0;
 	uint16_t vendor;
 
 	vendor = pci_read_config(dev, PCIR_DEVVENDOR, /* bytes */ 2);
@@ -2572,7 +2678,7 @@ emu_pci_probe(device_t dev)
 		return (ENXIO);	/* Not Creative */
 
 	thiscard = emu_getcard(dev);
-	if (thiscard < 0)
+	if (thiscard == 0)
 		return (ENXIO);
 
 	s = sbuf_new(NULL, NULL, 4096, 0);
@@ -2655,18 +2761,25 @@ emu_pci_attach(device_t dev)
 	if ((sc->is_emu10k2) || (sc->is_ca0102) || (sc->is_ca0108)) {
 		sc->opcode_shift = 24;
 		sc->high_operand_shift = 12;
+	
+	/*	DSP map				*/	
+	/*	sc->fx_base = 0x0		*/
+		sc->input_base = 0x40;
+	/*	sc->p16vinput_base = 0x50;	*/
+		sc->output_base = 0x60;
+		sc->efxc_base = 0x80;
+	/*	sc->output32h_base = 0xa0;	*/
+	/*	sc->output32l_base = 0xb0;	*/
+		sc->dsp_zero = 0xc0;
+	/*	0xe0...0x100 are unknown	*/
+	/*	sc->tram_base = 0x200		*/
+	/*	sc->tram_addr_base = 0x300	*/
+		sc->gpr_base = A_FXGPREGBASE;
+		sc->num_gprs = 0x200;
 		sc->code_base = A_MICROCODEBASE;
 		sc->code_size = 0x800 / 2;	/* 0x600-0xdff,  2048 words,
 						 * 1024 instructions */
-		sc->gpr_base = A_FXGPREGBASE;
-		sc->num_gprs = 0x200;
-		sc->input_base = 0x40;
-/*		sc->p16vinput_base = 0x50;	*/
-		sc->output_base = 0x60;
-		sc->efxc_base = 0x80;
-/*		sc->output32h_base = 0xa0;	*/
-/*		sc->output32l_base = 0xb0;	*/
-		sc->dsp_zero = 0xc0;
+
 		sc->mchannel_fx = 8;
 		sc->num_fxbuses = 16;
 		sc->num_inputs = 8;
@@ -2684,6 +2797,11 @@ emu_pci_attach(device_t dev)
 		sc->num_gprs = 0x100;
 		sc->input_base = 0x10;
 		sc->output_base = 0x20;
+		/* 
+		 * XXX 5.1 Analog outputs are inside efxc address space! 
+		 * They use ouput+0x11/+0x12 (=efxc+1/+2).
+		 * Don't use this efx registers for recording on SB Live! 5.1!
+		 */
 		sc->efxc_base = 0x30;
 		sc->dsp_zero = 0x40;
 		sc->mchannel_fx = 0;
@@ -2778,6 +2896,8 @@ emu_pci_attach(device_t dev)
 	func->varinfo = pcminfo;
 	sc->pcm[RT_FRONT] = device_add_child(dev, "pcm", -1);
 	device_set_ivars(sc->pcm[RT_FRONT], func);
+
+#ifdef SND_EMU10KX_MULTICHANNEL
 	/* REAR */
 	func = malloc(sizeof(struct sndcard_func), M_DEVBUF, M_NOWAIT | M_ZERO);
 	if (func == NULL) {
@@ -2789,7 +2909,6 @@ emu_pci_attach(device_t dev)
 		error = ENOMEM;
 		goto bad;
 	}
-#ifdef SND_EMU10KX_MULTICHANNEL
 	pcminfo->card = sc;
 	pcminfo->route = RT_REAR;
 
@@ -2855,6 +2974,27 @@ emu_pci_attach(device_t dev)
 		sc->pcm[RT_SIDE] = device_add_child(dev, "pcm", -1);
 		device_set_ivars(sc->pcm[RT_SIDE], func);
 	};
+#ifdef	SND_EMU10KX_MCH_RECORDING
+	/* MULTICHANNEL RECORDING */
+	func = malloc(sizeof(struct sndcard_func), M_DEVBUF, M_NOWAIT | M_ZERO);
+	if (func == NULL) {
+		error = ENOMEM;
+		goto bad;
+	}
+	pcminfo = malloc(sizeof(struct emu_pcminfo), M_DEVBUF, M_NOWAIT | M_ZERO);
+	if (pcminfo == NULL) {
+		error = ENOMEM;
+		goto bad;
+	}
+	pcminfo->card = sc;
+	pcminfo->route = RT_MCHRECORD;
+
+	func->func = SCF_PCM;
+	func->varinfo = pcminfo;
+	sc->pcm[RT_MCHRECORD] = device_add_child(dev, "pcm", -1);
+	device_set_ivars(sc->pcm[RT_MCHRECORD], func);
+
+#endif	/* SMD_EMU10KX_MCH_RECORDING */
 #endif	/* SND_EMU10KX_MULTICHANNEL */
 
 	/* Midi Interface 1: Live!, Audigy, Audigy 2 */
@@ -2935,7 +3075,7 @@ emu_pci_detach(device_t dev)
 
 	sc = device_get_softc(dev);
 
-	for (i = 0; i < 5; i++) {
+	for (i = 0; i < RT_COUNT; i++) {
 		if (sc->pcm[i] != NULL)
 			r = device_delete_child(dev, sc->pcm[i]);
 		if (r)

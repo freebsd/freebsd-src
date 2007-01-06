@@ -79,12 +79,13 @@ struct emu_pcm_rchinfo {
 	struct emu_pcm_info *pcm;
 };
 
-/* Hardware channels for front output */
+/* XXX Hardware playback channels */
 #define	MAX_CHANNELS	4
 
 #if MAX_CHANNELS > 13
 #error	Too many hardware channels defined. 13 is the maximum
 #endif
+
 struct emu_pcm_info {
 	struct mtx		*lock;
 	device_t		dev;		/* device information */
@@ -92,7 +93,8 @@ struct emu_pcm_info {
 	struct emu_sc_info 	*card;
 	struct emu_pcm_pchinfo	pch[MAX_CHANNELS];	/* hardware channels */
 	int			pnum;		/* next free channel number */
-	struct emu_pcm_rchinfo	rch;
+	struct emu_pcm_rchinfo	rch_adc;
+	struct emu_pcm_rchinfo	rch_efx;
 	struct emu_route	rt;
 	struct emu_route	rt_mono;
 	int			route;
@@ -104,14 +106,26 @@ struct emu_pcm_info {
 };
 
 
-static uint32_t emu_rfmt[] = {
+static uint32_t emu_rfmt_adc[] = {
 	AFMT_S16_LE,
 	AFMT_STEREO | AFMT_S16_LE,
 	0
 };
-static struct pcmchan_caps emu_reccaps = {
-	/* XXX should be "8000, 48000, emu_rfmt, 0", but 8000/8bit/mono is broken */
-	11025, 48000, emu_rfmt, 0
+static struct pcmchan_caps emu_reccaps_adc = {
+	8000, 48000, emu_rfmt_adc, 0
+};
+
+static uint32_t emu_rfmt_efx[] = {
+	AFMT_S16_LE,
+	0
+};
+
+static struct pcmchan_caps emu_reccaps_efx_live = {
+	48000*32, 48000*32, emu_rfmt_efx, 0
+};
+
+static struct pcmchan_caps emu_reccaps_efx_audigy = {
+	48000*64, 48000*64, emu_rfmt_efx, 0
 };
 
 static uint32_t emu_pfmt[] = {
@@ -433,8 +447,7 @@ emupchan_init(kobj_t obj __unused, void *devinfo, struct snd_dbuf *b, struct pcm
 	ch->buffer = b;
 	ch->pcm = sc;
 	ch->channel = c;
-	/* XXX blksz should not be modified, see emu10kx.h for reasons */
-	ch->blksz = EMU_PLAY_BUFSZ; 
+	ch->blksz = sc->bufsz;
 	ch->fmt = AFMT_U8;
 	ch->spd = 8000;
 	ch->master = emu_valloc(sc->card);
@@ -575,13 +588,13 @@ emurchan_init(kobj_t obj __unused, void *devinfo, struct snd_dbuf *b, struct pcm
 	struct emu_pcm_rchinfo *ch;
 
 	KASSERT(dir == PCMDIR_REC, ("emurchan_init: bad direction"));
-	ch = &sc->rch;
+	ch = &sc->rch_adc;
 	ch->buffer = b;
 	ch->pcm = sc;
 	ch->channel = c;
-	ch->blksz = sc->bufsz;
+	ch->blksz = sc->bufsz / 2; /* We rise interrupt for half-full buffer */
 	ch->fmt = AFMT_U8;
-	ch->spd = 11025;	/* XXX 8000 Hz does not work */
+	ch->spd = 8000;
 	ch->idxreg = sc->is_emu10k1 ? ADCIDX : A_ADCIDX;
 	ch->basereg = ADCBA;
 	ch->sizereg = ADCBS;
@@ -627,7 +640,11 @@ emurchan_setblocksize(kobj_t obj __unused, void *c_devinfo, uint32_t blocksize)
 	struct emu_pcm_rchinfo *ch = c_devinfo;
 
 	ch->blksz = blocksize;
-	return (blocksize);
+	/* If blocksize is less than half of buffer size we will not get
+	interrupt in time and channel will die due to interrupt timeout */
+	if(ch->blksz < (ch->pcm->bufsz / 2))
+		ch->blksz = ch->pcm->bufsz / 2;
+	return (ch->blksz);
 }
 
 static int
@@ -706,7 +723,7 @@ emurchan_getptr(kobj_t obj __unused, void *c_devinfo)
 static struct pcmchan_caps *
 emurchan_getcaps(kobj_t obj __unused, void *c_devinfo __unused)
 {
-	return (&emu_reccaps);
+	return (&emu_reccaps_adc);
 }
 
 static kobj_method_t emurchan_methods[] = {
@@ -720,6 +737,174 @@ static kobj_method_t emurchan_methods[] = {
 	{0, 0}
 };
 CHANNEL_DECLARE(emurchan);
+
+static void *
+emufxrchan_init(kobj_t obj __unused, void *devinfo, struct snd_dbuf *b, struct pcm_channel *c, int dir __unused)
+{
+	struct emu_pcm_info *sc = devinfo;
+	struct emu_pcm_rchinfo *ch;
+
+	KASSERT(dir == PCMDIR_REC, ("emurchan_init: bad direction"));
+
+	if (sc == NULL) return (NULL);
+
+	ch = &(sc->rch_efx);
+	ch->fmt = AFMT_S16_LE;
+	ch->spd = sc->is_emu10k1 ? 48000*32 : 48000 * 64;
+	ch->idxreg = FXIDX;
+	ch->basereg = FXBA;
+	ch->sizereg = FXBS;
+	ch->irqmask = INTE_EFXBUFENABLE;
+	ch->iprmask = IPR_EFXBUFFULL | IPR_EFXBUFHALFFULL;
+	ch->buffer = b;
+	ch->pcm = sc;
+	ch->channel = c;
+	ch->blksz = sc->bufsz;
+
+	if (sndbuf_alloc(ch->buffer, emu_gettag(sc->card), sc->bufsz) != 0)
+		return (NULL);
+	else {
+		emu_wrptr(sc->card, 0, ch->basereg, sndbuf_getbufaddr(ch->buffer));
+		emu_wrptr(sc->card, 0, ch->sizereg, 0);	/* off */
+		return (ch);
+	}
+}
+
+static int
+emufxrchan_setformat(kobj_t obj __unused, void *c_devinfo __unused, uint32_t format)
+{
+	if (format == AFMT_S16_LE) return (0);
+	return (-1);
+}
+
+static int
+emufxrchan_setspeed(kobj_t obj __unused, void *c_devinfo, uint32_t speed)
+{
+	struct emu_pcm_rchinfo *ch = c_devinfo;
+
+	/* FIXED RATE CHANNEL */
+	return (ch->spd);
+}
+
+static int
+emufxrchan_setblocksize(kobj_t obj __unused, void *c_devinfo, uint32_t blocksize)
+{
+	struct emu_pcm_rchinfo *ch = c_devinfo;
+
+	ch->blksz = blocksize;
+	/* If blocksize is less than half of buffer size we will not get
+	interrupt in time and channel will die due to interrupt timeout */
+	if(ch->blksz < (ch->pcm->bufsz / 2))
+		ch->blksz = ch->pcm->bufsz / 2;
+	return (ch->blksz);
+}
+
+static int
+emufxrchan_trigger(kobj_t obj __unused, void *c_devinfo, int go)
+{
+	struct emu_pcm_rchinfo *ch = c_devinfo;
+	struct emu_pcm_info *sc = ch->pcm;
+	uint32_t sz;
+
+	switch (sc->bufsz) {
+	case 4096:
+		sz = ADCBS_BUFSIZE_4096;
+		break;
+	case 8192:
+		sz = ADCBS_BUFSIZE_8192;
+		break;
+	case 16384:
+		sz = ADCBS_BUFSIZE_16384;
+		break;
+	case 32768:
+		sz = ADCBS_BUFSIZE_32768;
+		break;
+	case 65536:
+		sz = ADCBS_BUFSIZE_65536;
+		break;
+	default:
+		sz = ADCBS_BUFSIZE_4096;
+	}
+
+	snd_mtxlock(sc->lock);
+	switch (go) {
+	case PCMTRIG_START:
+		ch->run = 1;
+		emu_wrptr(sc->card, 0, ch->sizereg, sz);
+		ch->ihandle = emu_intr_register(sc->card, ch->irqmask, ch->iprmask, &emu_pcm_intr, sc);
+		/* 
+		 SB Live! is limited to 32 mono channels. Audigy
+		 has 64 mono channels, each of them is selected from
+		 one of two A_FXWC[1|2] registers.
+		 */
+		/* XXX there is no way to demultiplex this streams for now */
+		if(sc->is_emu10k1) {
+			emu_wrptr(sc->card, 0, FXWC, 0xffffffff);
+		} else {
+			emu_wrptr(sc->card, 0, A_FXWC1, 0xffffffff);
+			emu_wrptr(sc->card, 0, A_FXWC2, 0xffffffff);
+		}
+		break;
+	case PCMTRIG_STOP:
+		/* FALLTHROUGH */
+	case PCMTRIG_ABORT:
+		ch->run = 0;
+		if(sc->is_emu10k1) {
+			emu_wrptr(sc->card, 0, FXWC, 0x0);
+		} else {
+			emu_wrptr(sc->card, 0, A_FXWC1, 0x0);
+			emu_wrptr(sc->card, 0, A_FXWC2, 0x0);
+		}
+		emu_wrptr(sc->card, 0, ch->sizereg, 0);
+		(void)emu_intr_unregister(sc->card, ch->ihandle);
+		break;
+	case PCMTRIG_EMLDMAWR:
+		/* FALLTHROUGH */
+	case PCMTRIG_EMLDMARD:
+		/* FALLTHROUGH */
+	default:
+		break;
+	}
+	snd_mtxunlock(sc->lock);
+
+	return (0);
+}
+
+static int
+emufxrchan_getptr(kobj_t obj __unused, void *c_devinfo)
+{
+	struct emu_pcm_rchinfo *ch = c_devinfo;
+	struct emu_pcm_info *sc = ch->pcm;
+	int r;
+
+	r = emu_rdptr(sc->card, 0, ch->idxreg) & 0x0000ffff;
+
+	return (r);
+}
+
+static struct pcmchan_caps *
+emufxrchan_getcaps(kobj_t obj __unused, void *c_devinfo)
+{
+	struct emu_pcm_rchinfo *ch = c_devinfo;
+	struct emu_pcm_info *sc = ch->pcm;
+
+	if(sc->is_emu10k1)
+		return (&emu_reccaps_efx_live);
+	return (&emu_reccaps_efx_audigy);
+
+}
+
+static kobj_method_t emufxrchan_methods[] = {
+	KOBJMETHOD(channel_init, emufxrchan_init),
+	KOBJMETHOD(channel_setformat, emufxrchan_setformat),
+	KOBJMETHOD(channel_setspeed, emufxrchan_setspeed),
+	KOBJMETHOD(channel_setblocksize, emufxrchan_setblocksize),
+	KOBJMETHOD(channel_trigger, emufxrchan_trigger),
+	KOBJMETHOD(channel_getptr, emufxrchan_getptr),
+	KOBJMETHOD(channel_getcaps, emufxrchan_getcaps),
+	{0, 0}
+};
+CHANNEL_DECLARE(emufxrchan);
 
 
 static uint32_t
@@ -745,8 +930,14 @@ emu_pcm_intr(void *pcm, uint32_t stat)
 
 	if (stat & (IPR_ADCBUFFULL | IPR_ADCBUFHALFFULL)) {
 		ack |= stat & (IPR_ADCBUFFULL | IPR_ADCBUFHALFFULL);
-		if (sc->rch.channel)
-			chn_intr(sc->rch.channel);
+		if (sc->rch_adc.channel)
+			chn_intr(sc->rch_adc.channel);
+	}
+
+	if (stat & (IPR_EFXBUFFULL | IPR_EFXBUFHALFFULL)) {
+		ack |= stat & (IPR_EFXBUFFULL | IPR_EFXBUFHALFFULL);
+		if (sc->rch_efx.channel)
+			chn_intr(sc->rch_efx.channel);
 	}
 	return (ack);
 }
@@ -780,23 +971,26 @@ emu_pcm_probe(device_t dev)
 	r = BUS_READ_IVAR(device_get_parent(dev), dev, EMU_VAR_ROUTE, &route);
 	switch (route) {
 	case RT_FRONT:
-		rt = "FRONT";
+		rt = "front";
 		break;
 	case RT_REAR:
-		rt = "REAR";
+		rt = "rear";
 		break;
 	case RT_CENTER:
-		rt = "CENTER";
+		rt = "center";
 		break;
 	case RT_SUB:
-		rt = "SUBWOOFER";
+		rt = "subwoofer";
 		break;
 	case RT_SIDE:
-		rt = "SIDE";
+		rt = "side";
+		break;
+	case RT_MCHRECORD:
+		rt = "multichannel recording";
 		break;
 	}
 
-	snprintf(buffer, 255, "EMU10Kx DSP %s PCM Interface", rt);
+	snprintf(buffer, 255, "EMU10Kx DSP %s PCM interface", rt);
 	device_set_desc_copy(dev, buffer);
 	return (0);
 }
@@ -903,6 +1097,9 @@ emu_pcm_attach(device_t dev)
 			goto bad;
 		}
 		break;
+	case RT_MCHRECORD:
+			/* XXX add mixer here */
+		break;
 	default:
 		device_printf(dev, "invalid default route\n");
 		goto bad;
@@ -923,12 +1120,16 @@ emu_pcm_attach(device_t dev)
 		goto bad;
 	}
 	sc->pnum = 0;
-	pcm_addchan(dev, PCMDIR_PLAY, &emupchan_class, sc);
+	if (route != RT_MCHRECORD)
+		pcm_addchan(dev, PCMDIR_PLAY, &emupchan_class, sc);
 	if (route == RT_FRONT) {
 		for (i = 1; i < MAX_CHANNELS; i++)
 			pcm_addchan(dev, PCMDIR_PLAY, &emupchan_class, sc);
 		pcm_addchan(dev, PCMDIR_REC, &emurchan_class, sc);
 	}
+	if (route == RT_MCHRECORD)
+		pcm_addchan(dev, PCMDIR_REC, &emufxrchan_class, sc);
+
 	snprintf(status, SND_STATUSLEN, "on %s", device_get_nameunit(device_get_parent(dev)));
 	pcm_setstatus(dev, status);
 
