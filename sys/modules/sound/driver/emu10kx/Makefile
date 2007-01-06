@@ -43,6 +43,9 @@ CLEANFILES+=	p17v-alsa%diked.h
 .if !defined(KERNBUILDDIR)
 opt_emu10kx.h:
 	echo "#define	SND_EMU10KX_MULTICHANNEL" > opt_emu10kx.h
+	echo "#define	SND_EMU10KX_MCH_RECORDING" >> opt_emu10kx.h
+	echo "#undef	SND_EMU10KX_DEBUG_OUTPUTS" >> opt_emu10kx.h
+	echo "#undef	SND_EMU10KX_DEBUG" >> opt_emu10kx.h
 .endif
 
 .include <bsd.kmod.mk>

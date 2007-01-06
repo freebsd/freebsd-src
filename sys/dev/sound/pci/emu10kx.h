@@ -38,15 +38,8 @@
 
 #define	EMUPAGESIZE	4096
 #define	NUM_G		64
-/* XXX */
- /* 
-  * There are some problems when EMU_PLAY_BUFSZ is larger then EMU_PAGESIZE
-  *  1) there is a sound lag, because first round of playback is silence
-  *  2) the end of large file (equal to the lag duration) is lost
-  *  3) as a result of 1) and 2) no sound at all, when file size is less than 
-  *    EMU_PLAY_BUFSZ (it plays silence and then stops)
-  */ 
-#define	EMU_PLAY_BUFSZ	EMUPAGESIZE
+#define	EMU_PLAY_BUFSZ	EMUPAGESIZE*16
+/* Recording is limited by EMUPAGESIZE*16=64K buffer */
 #define	EMU_REC_BUFSZ	EMUPAGESIZE*16
 #define	EMU_MAX_BUFSZ	EMUPAGESIZE*16
 #define	EMU_MAXPAGES	8192
@@ -61,6 +54,8 @@
 #define	RT_CENTER		2
 #define	RT_SUB			3
 #define	RT_SIDE			4
+#define	RT_MCHRECORD		5
+#define	RT_COUNT		6
 
 /* mixer controls */
 /* fx play */
