@@ -561,7 +561,7 @@ linux_tgkill(struct thread *td, struct linux_tgkill_args *args)
 
 	PROC_UNLOCK(p);
 
-	em = em_find(p, EMUL_DOLOCK);
+	em = em_find(p, EMUL_DONTLOCK);
 
 	if (em == NULL) {
 #ifdef DEBUG
@@ -572,8 +572,6 @@ linux_tgkill(struct thread *td, struct linux_tgkill_args *args)
 
 	if (em->shared->group_pid != args->tgid)
 	   	return ESRCH;
-
-	EMUL_UNLOCK(&emul_lock);
 
 	return linux_kill(td, &ka);
 }
