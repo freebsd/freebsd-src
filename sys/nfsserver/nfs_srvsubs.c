@@ -1338,6 +1338,24 @@ nfsm_srvnamesiz_xx(int *s, int m, struct mbuf **md, caddr_t *dpos)
 	return 0;
 }
 
+int
+nfsm_srvnamesiz0_xx(int *s, int m, struct mbuf **md, caddr_t *dpos)
+{
+	u_int32_t *tl;
+
+	NFSD_LOCK_DONTCARE();
+
+	tl = nfsm_dissect_xx_nonblock(NFSX_UNSIGNED, md, dpos);
+	if (tl == NULL)
+		return EBADRPC;
+	*s = fxdr_unsigned(int32_t, *tl);
+	if (*s > m)
+		return NFSERR_NAMETOL;
+	if (*s < 0)
+		return EBADRPC;
+	return 0;
+}
+
 void
 nfsm_clget_xx(u_int32_t **tl, struct mbuf *mb, struct mbuf **mp,
     char **bp, char **be, caddr_t bpos, int droplock)
