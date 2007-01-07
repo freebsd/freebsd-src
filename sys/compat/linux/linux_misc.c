@@ -1439,10 +1439,9 @@ linux_getpid(struct thread *td, struct linux_getpid_args *args)
 #endif
 
 	if (linux_use26(td)) {
-		em = em_find(td->td_proc, EMUL_DOLOCK);
+		em = em_find(td->td_proc, EMUL_DONTLOCK);
 		KASSERT(em != NULL, ("getpid: emuldata not found.\n"));
 		td->td_retval[0] = em->shared->group_pid;
-		EMUL_UNLOCK(&emul_lock);
 	} else {
 		td->td_retval[0] = td->td_proc->p_pid;
 	}
@@ -1481,7 +1480,7 @@ linux_getppid(struct thread *td, struct linux_getppid_args *args)
 		return (0);
 	}
 
-	em = em_find(td->td_proc, EMUL_DOLOCK);
+	em = em_find(td->td_proc, EMUL_DONTLOCK);
 
 	KASSERT(em != NULL, ("getppid: process emuldata not found.\n"));
 
@@ -1508,7 +1507,6 @@ linux_getppid(struct thread *td, struct linux_getppid_args *args)
 	} else
 		td->td_retval[0] = pp->p_pid;
 
-	EMUL_UNLOCK(&emul_lock);
 	PROC_UNLOCK(pp);
 
 	return (0);
