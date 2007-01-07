@@ -191,7 +191,7 @@ acpi_perf_probe(device_t dev)
 	pkg = (ACPI_OBJECT *)buf.Pointer;
 	if (ACPI_PKG_VALID(pkg, 2)) {
 		rid = 0;
-		error = acpi_PkgGas(dev, pkg, 0, &type, &rid, &res);
+		error = acpi_PkgGas(dev, pkg, 0, &type, &rid, &res, 0);
 		switch (error) {
 		case 0:
 			bus_release_resource(dev, type, rid, res);
@@ -329,7 +329,7 @@ acpi_perf_evaluate(device_t dev)
 	}
 
 	error = acpi_PkgGas(sc->dev, pkg, 0, &sc->perf_ctrl_type, &sc->px_rid,
-	    &sc->perf_ctrl);
+	    &sc->perf_ctrl, 0);
 	if (error) {
 		/*
 		 * If the register is of type FFixedHW, we can only return
@@ -345,7 +345,7 @@ acpi_perf_evaluate(device_t dev)
 	sc->px_rid++;
 
 	error = acpi_PkgGas(sc->dev, pkg, 1, &sc->perf_sts_type, &sc->px_rid,
-	    &sc->perf_status);
+	    &sc->perf_status, 0);
 	if (error) {
 		if (error == EOPNOTSUPP) {
 			sc->info_only = TRUE;
