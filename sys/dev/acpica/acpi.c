@@ -1110,7 +1110,7 @@ acpi_delete_resource(device_t bus, device_t child, int type, int rid)
 /* Allocate an IO port or memory resource, given its GAS. */
 int
 acpi_bus_alloc_gas(device_t dev, int *type, int *rid, ACPI_GENERIC_ADDRESS *gas,
-    struct resource **res)
+    struct resource **res, u_int flags)
 {
     int error, res_type;
 
@@ -1143,7 +1143,7 @@ acpi_bus_alloc_gas(device_t dev, int *type, int *rid, ACPI_GENERIC_ADDRESS *gas,
 
     bus_set_resource(dev, res_type, *rid, gas->Address,
 	gas->RegisterBitWidth / 8);
-    *res = bus_alloc_resource_any(dev, res_type, rid, RF_ACTIVE);
+    *res = bus_alloc_resource_any(dev, res_type, rid, RF_ACTIVE | flags);
     if (*res != NULL) {
 	*type = res_type;
 	error = 0;

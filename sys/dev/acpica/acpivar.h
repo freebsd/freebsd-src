@@ -312,7 +312,8 @@ ACPI_STATUS	acpi_Startup(void);
 void		acpi_UserNotify(const char *subsystem, ACPI_HANDLE h,
 		    uint8_t notify);
 int		acpi_bus_alloc_gas(device_t dev, int *type, int *rid,
-		    ACPI_GENERIC_ADDRESS *gas, struct resource **res);
+		    ACPI_GENERIC_ADDRESS *gas, struct resource **res,
+		    u_int flags);
 
 struct acpi_parse_resource_set {
     void	(*set_init)(device_t dev, void *arg, void **context);
@@ -418,7 +419,7 @@ int		acpi_PkgInt(ACPI_OBJECT *res, int idx, ACPI_INTEGER *dst);
 int		acpi_PkgInt32(ACPI_OBJECT *res, int idx, uint32_t *dst);
 int		acpi_PkgStr(ACPI_OBJECT *res, int idx, void *dst, size_t size);
 int		acpi_PkgGas(device_t dev, ACPI_OBJECT *res, int idx, int *type,
-		    int *rid, struct resource **dst);
+		    int *rid, struct resource **dst, u_int flags);
 ACPI_HANDLE	acpi_GetReference(ACPI_HANDLE scope, ACPI_OBJECT *obj);
 
 /* Default number of task queue threads to start. */
