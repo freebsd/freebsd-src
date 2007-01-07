@@ -119,10 +119,12 @@ linux_proc_init(struct thread *td, pid_t child, int flags)
 	if (child != 0) {
 		if (flags & CLONE_THREAD) {
 			/* lookup the parent */
+		   	EMUL_SHARED_WLOCK(&emul_shared_lock);
 			p_em = em_find(td->td_proc, EMUL_DONTLOCK);
 			KASSERT(p_em != NULL, ("proc_init: parent emuldata not found for CLONE_THREAD\n"));
 			em->shared = p_em->shared;
 			em->shared->refs++;
+		   	EMUL_SHARED_WUNLOCK(&emul_shared_lock);
 		} else {
 			/*
 			 * handled earlier to avoid malloc(M_WAITOK) with
