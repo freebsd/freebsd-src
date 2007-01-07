@@ -74,6 +74,7 @@
 
 int	nfsm_srvstrsiz_xx(int *s, int m, struct mbuf **md, caddr_t *dpos);
 int	nfsm_srvnamesiz_xx(int *s, int m, struct mbuf **md, caddr_t *dpos);
+int	nfsm_srvnamesiz0_xx(int *s, int m, struct mbuf **md, caddr_t *dpos);
 int	nfsm_srvmtofh_xx(fhandle_t *f, struct nfsrv_descript *nfsd,
 	    struct mbuf **md, caddr_t *dpos);
 int	nfsm_srvsattr_xx(struct vattr *a, struct mbuf **md, caddr_t *dpos);
@@ -101,7 +102,7 @@ do { \
 #define	nfsm_srvpathsiz(s) \
 do { \
 	int t1; \
-	t1 = nfsm_srvnamesiz_xx(&(s), NFS_MAXPATHLEN, &md, &dpos); \
+	t1 = nfsm_srvnamesiz0_xx(&(s), NFS_MAXPATHLEN, &md, &dpos); \
 	if (t1) { \
 		error = t1; \
 		nfsm_reply(0); \
