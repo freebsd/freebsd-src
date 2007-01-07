@@ -237,12 +237,10 @@ linux_use26(struct thread *td)
 
 	pr = td->td_ucred->cr_prison;
 	if (pr != NULL) {
-		mtx_lock(&pr->pr_mtx);
 		if (pr->pr_linux != NULL) {
 			lpr = (struct linux_prison *)pr->pr_linux;
 			use26 = lpr->pr_use_linux26;
 		}
-		mtx_unlock(&pr->pr_mtx);
 	} else
 		use26 = linux_use_linux26;
 	
