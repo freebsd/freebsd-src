@@ -69,7 +69,7 @@ SYMBOL_MAPS=	${SYM_MAPS}
 .endif
 
 # C99 long double functions
-COMMON_SRCS+=	s_copysignl.c s_fabsl.c
+COMMON_SRCS+=	s_copysignl.c s_fabsl.c s_modfl.c
 .if ${LDBL_PREC} != 53
 # If long double != double use these; otherwise, we alias the double versions.
 COMMON_SRCS+=	s_fmal.c s_frexpl.c s_nextafterl.c s_nexttoward.c s_scalbnl.c

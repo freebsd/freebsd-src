@@ -439,8 +439,8 @@ long double	logl(long double);
 long		lrintl(long double);
 #endif
 long		lroundl(long double);
-#if 0
 long double	modfl(long double, long double *); /* fundamentally !__pure2 */
+#if 0
 long double	nanl(const char *) __pure2;
 long double	nearbyintl(long double);
 #endif
