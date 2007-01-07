@@ -274,9 +274,10 @@ The named file is a character special or block
 special file, and the device associated with this special file
 does not exist.
 .It Bq Er ENXIO
-The named file is a fifo, no process has
-it open for reading, and the arguments specify it is
-to be opened for writing.
+.Dv O_NONBLOCK
+is set, the named file is a fifo,
+.Dv O_WRONLY
+is set, and no process has the file open for reading.
 .It Bq Er EINTR
 The
 .Fn open
