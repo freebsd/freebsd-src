@@ -699,6 +699,8 @@ udf_fhtovp(struct mount *mp, struct fid *fhp, struct vnode **vpp)
 {
 	struct ifid *ifhp;
 	struct vnode *nvp;
+	struct udf_node *np;
+	off_t fsize;
 	int error;
 
 	ifhp = (struct ifid *)fhp;
@@ -708,8 +710,11 @@ udf_fhtovp(struct mount *mp, struct fid *fhp, struct vnode **vpp)
 		return (error);
 	}
 
+	np = VTON(nvp);
+	fsize = le64toh(np->fentry->inf_len);
+
 	*vpp = nvp;
-	vnode_create_vobject(*vpp, 0, curthread);
+	vnode_create_vobject(*vpp, fsize, curthread);
 	return (0);
 }
 
