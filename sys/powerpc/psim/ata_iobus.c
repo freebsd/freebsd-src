@@ -242,7 +242,7 @@ ata_iobus_sub_probe(device_t dev)
 	/* Only a single unit per controller thus far */
 	ch->unit = 0;
 	ch->flags = (ATA_USE_16BIT|ATA_NO_SLAVE);
-	ata_generic_hw(ch);
+	ata_generic_hw(dev);
 
 	return ata_probe(dev);
 }
