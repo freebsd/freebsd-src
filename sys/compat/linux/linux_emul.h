@@ -66,8 +66,8 @@ struct linux_emuldata *em_find(struct proc *, int locked);
 #define EMUL_SHARED_WUNLOCK(l) sx_xunlock(l)
 
 /* for em_find use */
-#define EMUL_LOCKED		1
-#define EMUL_UNLOCKED		0
+#define EMUL_DOLOCK		1
+#define EMUL_DONTLOCK		0
 
 int	linux_proc_init(struct thread *, pid_t, int);
 void	linux_proc_exit(void *, struct proc *);
