@@ -1439,7 +1439,7 @@ linux_getpid(struct thread *td, struct linux_getpid_args *args)
 #endif
 
 	if (linux_use26(td)) {
-		em = em_find(td->td_proc, EMUL_UNLOCKED);
+		em = em_find(td->td_proc, EMUL_DOLOCK);
 		KASSERT(em != NULL, ("getpid: emuldata not found.\n"));
 		td->td_retval[0] = em->shared->group_pid;
 		EMUL_UNLOCK(&emul_lock);
@@ -1481,7 +1481,7 @@ linux_getppid(struct thread *td, struct linux_getppid_args *args)
 		return (0);
 	}
 
-	em = em_find(td->td_proc, EMUL_UNLOCKED);
+	em = em_find(td->td_proc, EMUL_DOLOCK);
 
 	KASSERT(em != NULL, ("getppid: process emuldata not found.\n"));
 
@@ -1501,7 +1501,7 @@ linux_getppid(struct thread *td, struct linux_getppid_args *args)
 
 	/* if its also linux process */
 	if (pp->p_sysent == &elf_linux_sysvec) {
-		em = em_find(pp, EMUL_LOCKED);
+		em = em_find(pp, EMUL_DONTLOCK);
 		KASSERT(em != NULL, ("getppid: parent emuldata not found.\n"));
 
 		td->td_retval[0] = em->shared->group_pid;
@@ -1608,7 +1608,7 @@ linux_exit_group(struct thread *td, struct linux_exit_group_args *args)
 #endif
 
 	if (linux_use26(td)) {
-		td_em = em_find(td->td_proc, EMUL_UNLOCKED);
+		td_em = em_find(td->td_proc, EMUL_DOLOCK);
 
 		KASSERT(td_em != NULL, ("exit_group: emuldata not found.\n"));
 
@@ -1656,13 +1656,13 @@ linux_prctl(struct thread *td, struct linux_prctl_args *args)
 	case LINUX_PR_SET_PDEATHSIG:
 		if (!LINUX_SIG_VALID(args->arg2))
 			return (EINVAL);
-		em = em_find(p, EMUL_UNLOCKED);
+		em = em_find(p, EMUL_DOLOCK);
 		KASSERT(em != NULL, ("prctl: emuldata not found.\n"));
 		em->pdeath_signal = args->arg2;
 		EMUL_UNLOCK(&emul_lock);
 		break;
 	case LINUX_PR_GET_PDEATHSIG:
-		em = em_find(p, EMUL_UNLOCKED);
+		em = em_find(p, EMUL_DOLOCK);
 		KASSERT(em != NULL, ("prctl: emuldata not found.\n"));
 		error = copyout(&em->pdeath_signal,
 		    (void *)(register_t)args->arg2,
