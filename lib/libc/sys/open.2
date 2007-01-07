@@ -259,6 +259,9 @@ it is to be modified.
 .It Bq Er EROFS
 The named file resides on a read-only file system,
 and the file is to be modified.
+.It Bq Er EROFS
+.Dv O_CREAT
+is specified and the named file would reside on a read-only file system.
 .It Bq Er EMFILE
 The process has already reached its limit for open file descriptors.
 .It Bq Er ENFILE
