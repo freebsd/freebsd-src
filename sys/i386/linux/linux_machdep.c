@@ -408,7 +408,7 @@ linux_clone(struct thread *td, struct linux_clone_args *args)
 	/* create the emuldata */
 	error = linux_proc_init(td, p2->p_pid, args->flags);
 	/* reference it - no need to check this */
-	em = em_find(p2, EMUL_UNLOCKED);
+	em = em_find(p2, EMUL_DOLOCK);
 	KASSERT(em != NULL, ("clone: emuldata not found.\n"));
 	/* and adjust it */
 	if (args->flags & CLONE_PARENT_SETTID) {
