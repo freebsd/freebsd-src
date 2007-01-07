@@ -11,8 +11,8 @@
 <!ENTITY sect.proc.amd64 SYSTEM "../amd64/proc-amd64.sgml">
 <!ENTITY sect.proc.i386 SYSTEM "../i386/proc-i386.sgml">
 <!ENTITY sect.proc.ia64 SYSTEM "../ia64/proc-ia64.sgml">
-<!ENTITY sect.proc.powerpc SYSTEM "../powerpc/proc-powerpc.sgml">
 <!ENTITY sect.proc.pc98 SYSTEM "../pc98/proc-pc98.sgml">
+<!ENTITY sect.proc.powerpc SYSTEM "../powerpc/proc-powerpc.sgml">
 <!ENTITY sect.proc.sparc64 SYSTEM "../sparc64/proc-sparc64.sgml">
 <!ENTITY sect.dev SYSTEM "../common/dev.sgml">
 
