@@ -561,7 +561,7 @@ linux_tgkill(struct thread *td, struct linux_tgkill_args *args)
 
 	PROC_UNLOCK(p);
 
-	em = em_find(p, EMUL_UNLOCKED);
+	em = em_find(p, EMUL_DOLOCK);
 
 	if (em == NULL) {
 #ifdef DEBUG

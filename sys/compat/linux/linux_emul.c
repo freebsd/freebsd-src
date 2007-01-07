@@ -63,12 +63,12 @@ em_find(struct proc *p, int locked)
 {
 	struct linux_emuldata *em;
 
-	if (locked == EMUL_UNLOCKED)
+	if (locked == EMUL_DOLOCK)
 		EMUL_LOCK(&emul_lock);
 
 	em = p->p_emuldata;
 
-	if (em == NULL && locked == EMUL_UNLOCKED)
+	if (em == NULL && locked == EMUL_DOLOCK)
 		EMUL_UNLOCK(&emul_lock);
 
 	return (em);
@@ -104,7 +104,7 @@ linux_proc_init(struct thread *td, pid_t child, int flags)
 		EMUL_LOCK(&emul_lock);
 	} else {
 		/* lookup the old one */
-		em = em_find(td->td_proc, EMUL_UNLOCKED);
+		em = em_find(td->td_proc, EMUL_DOLOCK);
 		KASSERT(em != NULL, ("proc_init: emuldata not found in exec case.\n"));
 	}
 
@@ -119,7 +119,7 @@ linux_proc_init(struct thread *td, pid_t child, int flags)
 	if (child != 0) {
 		if (flags & CLONE_THREAD) {
 			/* lookup the parent */
-			p_em = em_find(td->td_proc, EMUL_LOCKED);
+			p_em = em_find(td->td_proc, EMUL_DONTLOCK);
 			KASSERT(p_em != NULL, ("proc_init: parent emuldata not found for CLONE_THREAD\n"));
 			em->shared = p_em->shared;
 			em->shared->refs++;
@@ -159,7 +159,7 @@ linux_proc_exit(void *arg __unused, struct proc *p)
 		return;
 
 	/* find the emuldata */
-	em = em_find(p, EMUL_UNLOCKED);
+	em = em_find(p, EMUL_DOLOCK);
 
 	KASSERT(em != NULL, ("proc_exit: emuldata not found.\n"));
 
@@ -217,7 +217,7 @@ linux_proc_exit(void *arg __unused, struct proc *p)
 			continue;
 		if (__predict_false(q->p_sysent != &elf_linux_sysvec))
 			continue;
-		em = em_find(q, EMUL_UNLOCKED);
+		em = em_find(q, EMUL_DOLOCK);
 		KASSERT(em != NULL, ("linux_reparent: emuldata not found: %i\n", q->p_pid));
 		if (em->pdeath_signal != 0) {
 			PROC_LOCK(q);
@@ -244,7 +244,7 @@ linux_proc_exec(void *arg __unused, struct proc *p, struct image_params *imgp)
 	    && p->p_sysent == &elf_linux_sysvec)) {
 		struct linux_emuldata *em;
 
-		em = em_find(p, EMUL_UNLOCKED);
+		em = em_find(p, EMUL_DOLOCK);
 
 		KASSERT(em != NULL, ("proc_exec: emuldata not found.\n"));
 
@@ -280,7 +280,7 @@ linux_schedtail(void *arg __unused, struct proc *p)
 
 retry:
 	/* find the emuldata */
-	em = em_find(p, EMUL_UNLOCKED);
+	em = em_find(p, EMUL_DOLOCK);
 
 	if (em == NULL) {
 		/*
@@ -315,7 +315,7 @@ linux_set_tid_address(struct thread *td, struct linux_set_tid_address_args *args
 #endif
 
 	/* find the emuldata */
-	em = em_find(td->td_proc, EMUL_UNLOCKED);
+	em = em_find(td->td_proc, EMUL_DOLOCK);
 
 	KASSERT(em != NULL, ("set_tid_address: emuldata not found.\n"));
 
