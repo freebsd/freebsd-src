@@ -583,6 +583,31 @@ OLD_FILES+=usr/sbin/mcon
 OLD_FILES+=usr/sbin/stlstty
 OLD_FILES+=usr/sbin/ispppcontrol
 OLD_FILES+=usr/sbin/rndcontrol
+# 20011001: UUCP migration to ports
+OLD_FILES+=usr/bin/uucp
+OLD_FILES+=usr/bin/uulog
+OLD_FILES+=usr/bin/uuname
+OLD_FILES+=usr/bin/uupick
+OLD_FILES+=usr/bin/uusched
+OLD_FILES+=usr/bin/uustat
+OLD_FILES+=usr/bin/uuto
+OLD_FILES+=usr/bin/uux
+OLD_FILES+=usr/libexec/uucp/uucico
+OLD_FILES+=usr/libexec/uucp/uuxqt
+OLD_FILES+=usr/libexec/uucpd
+OLD_FILES+=usr/share/man/man1/uuconv.1.gz
+OLD_FILES+=usr/share/man/man1/uucp.1.gz
+OLD_FILES+=usr/share/man/man1/uulog.1.gz
+OLD_FILES+=usr/share/man/man1/uuname.1.gz
+OLD_FILES+=usr/share/man/man1/uupick.1.gz
+OLD_FILES+=usr/share/man/man1/uustat.1.gz
+OLD_FILES+=usr/share/man/man1/uuto.1.gz
+OLD_FILES+=usr/share/man/man1/uux.1.gz
+OLD_FILES+=usr/share/man/man8/uuchk.8.gz
+OLD_FILES+=usr/share/man/man8/uucico.8.gz
+OLD_FILES+=usr/share/man/man8/uucpd.8.gz
+OLD_FILES+=usr/share/man/man8/uusched.8.gz
+OLD_FILES+=usr/share/man/man8/uuxqt.8.gz
 # 20010523 mount_portal -> mount_portalfs
 OLD_FILES+=sbin/mount_portal
 OLD_FILES+=usr/share/man/man8/mount_portal.8.gz
@@ -2880,4 +2905,5 @@ OLD_LIBS+=usr/lib/libgssapi.so.6
 OLD_DIRS+=usr/share/doc/bind/html
 OLD_DIRS+=usr/share/doc/bind/misc
 OLD_DIRS+=usr/share/doc/bind/
-
+# 20011001: UUCP migration to ports
+OLD_DIRS+=usr/libexec/uucp
