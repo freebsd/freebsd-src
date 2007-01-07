@@ -90,7 +90,7 @@ TUNABLE_INT("hw.mfi.event_locale", &mfi_event_locale);
 SYSCTL_INT(_hw_mfi, OID_AUTO, event_locale, CTLFLAG_RW, &mfi_event_locale,
             0, "event message locale");
 
-static int	mfi_event_class = 10;
+static int	mfi_event_class = MFI_EVT_CLASS_INFO;
 TUNABLE_INT("hw.mfi.event_class", &mfi_event_class);
 SYSCTL_INT(_hw_mfi, OID_AUTO, event_class, CTLFLAG_RW, &mfi_event_class,
           0, "event message class");
