@@ -2763,13 +2763,17 @@ fill_ip(ipfw_insn_ip *cmd, char *av)
 	 * ',' indicating another address follows, '{' indicating a
 	 * set of addresses of unspecified size.
 	 */
-	char *p = strpbrk(av, "/:,{");
+	char *t = NULL, *p = strpbrk(av, "/:,{");
 	int masklen;
-	char md;
+	char md, nd;
 
 	if (p) {
 		md = *p;
 		*p++ = '\0';
+		if ((t = strpbrk(p, ",{")) != NULL) {
+			nd = *t;
+			*t = '\0';
+		}
 	} else
 		md = '\0';
 
@@ -2803,6 +2807,8 @@ fill_ip(ipfw_insn_ip *cmd, char *av)
 		break;
 	}
 	d[0] &= d[1];		/* mask base address with mask */
+	if (t)
+		*t = nd;
 	/* find next separator */
 	if (p)
 		p = strpbrk(p, ",{");
