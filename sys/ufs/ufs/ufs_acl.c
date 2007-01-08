@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 1999-2001, 2003 Robert N. M. Watson
+ * Copyright (c) 1999-2003 Robert N. M. Watson
  * All rights reserved.
  *
  * This software was developed by Robert Watson for the TrustedBSD Project.
