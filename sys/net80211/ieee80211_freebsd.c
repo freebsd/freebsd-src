@@ -150,6 +150,26 @@ ieee80211_node_dectestref(struct ieee80211_node *ni)
 	return atomic_cmpset_int(&ni->ni_refcnt, 0, 1);
 }
 
+void
+ieee80211_drain_ifq(struct ifqueue *ifq)
+{
+	struct ieee80211_node *ni;
+	struct mbuf *m;
+
+	for (;;) {
+		IF_DEQUEUE(ifq, m);
+		if (m == NULL)
+			break;
+
+		ni = (struct ieee80211_node *)m->m_pkthdr.rcvif;
+		KASSERT(ni != NULL, ("frame w/o node"));
+		ieee80211_free_node(ni);
+		m->m_pkthdr.rcvif = NULL;
+
+		m_freem(m);
+	}
+}
+
 /*
  * Allocate and setup a management frame of the specified
  * size.  We return the mbuf and a pointer to the start

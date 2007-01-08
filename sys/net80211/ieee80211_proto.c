@@ -129,7 +129,7 @@ ieee80211_proto_detach(struct ieee80211com *ic)
 	if (ic->ic_auth->ia_detach)
 		ic->ic_auth->ia_detach(ic);
 
-	IF_DRAIN(&ic->ic_mgtq);
+	ieee80211_drain_ifq(&ic->ic_mgtq);
 	mtx_destroy(&ic->ic_mgtq.ifq_mtx);
 
 	/*
@@ -932,7 +932,7 @@ ieee80211_newstate(struct ieee80211com *ic, enum ieee80211_state nstate, int arg
 			default:
 				break;
 			}
-			goto reset;
+			break;
 		case IEEE80211_S_ASSOC:
 			switch (ic->ic_opmode) {
 			case IEEE80211_M_STA:
@@ -947,16 +947,18 @@ ieee80211_newstate(struct ieee80211com *ic, enum ieee80211_state nstate, int arg
 			default:
 				break;
 			}
-			goto reset;
+			break;
 		case IEEE80211_S_SCAN:
 			ieee80211_cancel_scan(ic);
-			goto reset;
-		case IEEE80211_S_AUTH:
-		reset:
-			ic->ic_mgt_timer = 0;
-			IF_DRAIN(&ic->ic_mgtq);
-			ieee80211_reset_bss(ic);
 			break;
+		case IEEE80211_S_AUTH:
+			break;
+		}
+		if (ostate != IEEE80211_S_INIT) {
+			/* NB: optimize INIT -> INIT case */
+			ic->ic_mgt_timer = 0;
+			ieee80211_drain_ifq(&ic->ic_mgtq);
+			ieee80211_reset_bss(ic);
 		}
 		if (ic->ic_auth->ia_detach != NULL)
 			ic->ic_auth->ia_detach(ic);
