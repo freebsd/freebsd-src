@@ -1559,6 +1559,7 @@ mskc_attach(device_t dev)
 #else
 	sc->msk_res_spec = msk_res_spec_mem;
 #endif
+	sc->msk_irq_spec = msk_irq_spec_legacy;
 	error = bus_alloc_resources(dev, sc->msk_res_spec, sc->msk_res);
 	if (error) {
 		if (sc->msk_res_spec == msk_res_spec_mem)
