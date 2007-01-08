@@ -57,6 +57,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/mbuf.h>
 #include <sys/malloc.h>
 #include <sys/socket.h>
+#include <sys/taskqueue.h>
 
 #include <net/if.h>
 #include <net/if_types.h>
@@ -245,4 +246,33 @@ usb_ether_tx_list_free(struct ue_cdata *cd)
 			cd->ue_tx_chain[i].ue_xfer = NULL;
 		}
 	}
+}
+
+void
+usb_ether_task_init(device_t dev, int flags, struct usb_taskqueue *tq)
+{
+
+	/* nothing for now. */
+}
+
+void
+usb_ether_task_enqueue(struct usb_taskqueue *tq, struct task *task)
+{
+
+	taskqueue_enqueue(taskqueue_thread, task);
+}
+
+void
+usb_ether_task_drain(struct usb_taskqueue *tq, struct task *task)
+{
+
+	taskqueue_drain(taskqueue_thread, task);
+}
+
+void
+usb_ether_task_destroy(struct usb_taskqueue *tq)
+{
+
+	/* nothing for now */
+
 }
