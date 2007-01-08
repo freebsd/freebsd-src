@@ -517,7 +517,8 @@ ieee80211_match_bss(struct ieee80211com *ic, struct ieee80211_node *ni)
 		if (ni->ni_capinfo & IEEE80211_CAPINFO_PRIVACY)
 			fail |= 0x04;
 	}
-	rate = ieee80211_fix_rate(ni, IEEE80211_F_DONEGO | IEEE80211_F_DOFRATE);
+	rate = ieee80211_fix_rate(ni,
+	     IEEE80211_F_JOIN | IEEE80211_F_DONEGO | IEEE80211_F_DOFRATE);
 	if (rate & IEEE80211_RATE_BASIC)
 		fail |= 0x08;
 	if (ic->ic_des_esslen != 0 &&
@@ -803,11 +804,6 @@ ieee80211_sta_join(struct ieee80211com *ic, struct ieee80211_node *selbs)
 	if (ic->ic_opmode == IEEE80211_M_IBSS) {
 		struct ieee80211_node_table *nt;
 		/*
-		 * Delete unusable rates; we've already checked
-		 * that the negotiated rate set is acceptable.
-		 */
-		ieee80211_fix_rate(selbs, IEEE80211_F_DODEL);
-		/*
 		 * Fillin the neighbor table; it will already
 		 * exist if we are simply switching mastership.
 		 * XXX ic_sta always setup so this is unnecessary?
@@ -828,6 +824,13 @@ ieee80211_sta_join(struct ieee80211com *ic, struct ieee80211_node *selbs)
 		copy_bss(selbs, obss);
 		ieee80211_free_node(obss);
 	}
+
+	/*
+	 * Delete unusable rates; we've already checked
+	 * that the negotiated rate set is acceptable.
+	 */
+	ieee80211_fix_rate(ic->ic_bss, IEEE80211_F_DODEL | IEEE80211_F_JOIN);
+
 	/*
 	 * Set the erp state (mostly the slot time) to deal with
 	 * the auto-select case; this should be redundant if the
@@ -1295,7 +1298,9 @@ ieee80211_init_neighbor(struct ieee80211_node *ni,
 		ieee80211_saveie(&ni->ni_wpa_ie, sp->wpa);
 
 	/* NB: must be after ni_chan is setup */
-	ieee80211_setup_rates(ni, sp->rates, sp->xrates, IEEE80211_F_DOSORT);
+	ieee80211_setup_rates(ni, sp->rates, sp->xrates,
+		IEEE80211_F_DOSORT | IEEE80211_F_DOFRATE |
+		IEEE80211_F_DONEGO | IEEE80211_F_DODEL);
 }
 
 /*
