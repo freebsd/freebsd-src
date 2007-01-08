@@ -79,4 +79,13 @@ int usb_ether_tx_list_init	(void *, struct ue_cdata *,
 void usb_ether_rx_list_free	(struct ue_cdata *);
 void usb_ether_tx_list_free	(struct ue_cdata *);
 
+struct usb_taskqueue {
+	int dummy;
+};
+
+void usb_ether_task_init(device_t, int, struct usb_taskqueue *);
+void usb_ether_task_enqueue(struct usb_taskqueue *, struct task *);
+void usb_ether_task_drain(struct usb_taskqueue *, struct task *);
+void usb_ether_task_destroy(struct usb_taskqueue *);
+
 #endif /* _USB_ETHERSUBR_H_ */
