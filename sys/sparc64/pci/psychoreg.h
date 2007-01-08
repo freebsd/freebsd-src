@@ -227,17 +227,22 @@
  * Note that the Hummingbird/Sabre only has one set of PCI control/status
  * registers.
  */
-#define	PCICTL_MRLM	0x0000001000000000	/* Memory Read Line/Multiple */
+#define	PCICTL_SBHERR	0x0000000800000000	/* strm. byte hole error; W1C */
 #define	PCICTL_SERR	0x0000000400000000	/* SERR asserted; W1C */
+#define	PCICTL_PCISPEED	0x0000000200000000	/* 0:half 1:full bus speed */
 #define	PCICTL_ARB_PARK	0x0000000000200000	/* PCI arbitration parking */
-#define	PCICTL_CPU_PRIO	0x0000000000100000	/* PCI arbitration parking */
-#define	PCICTL_ARB_PRIO	0x00000000000f0000	/* PCI arbitration parking */
+#define	PCICTL_SBHINTEN	0x0000000000000400	/* strm. byte hole int. en. */
+#define	PCICTL_WAKEUPEN	0x0000000000000200	/* power mgmt. wakeup enable */
 #define	PCICTL_ERRINTEN	0x0000000000000100	/* PCI error interrupt enable */
-#define	PCICTL_RTRYWAIT 0x0000000000000080	/* PCI error interrupt enable */
-#define	PCICTL_4ENABLE	0x000000000000000f	/* enable 4 PCI slots */
-#define	PCICTL_6ENABLE	0x000000000000003f	/* enable 6 PCI slots */
+#define	PCICTL_ARB_4	0x000000000000000f	/* DVMA arb. 4 PCI slots mask */
+#define	PCICTL_ARB_6	0x000000000000003f	/* DVMA arb. 6 PCI slots mask */
+/* The following are Hummingbird/Sabre only. */
+#define	PCICTL_MRLM	0x0000001000000000	/* Memory Read Line/Multiple */
+#define	PCICTL_CPU_PRIO	0x0000000000100000	/* CPU extra arb. prio. en. */
+#define	PCICTL_ARB_PRIO	0x00000000000f0000	/* PCI extra arb. prio. en. */
+#define	PCICTL_RTRYWAIT 0x0000000000000080	/* 0:wait 1:retry DMA write */
 
-/* Uncorrectable error asynchronous fault status registers */
+/* Uncorrectable error asynchronous fault status register */
 #define	UEAFSR_BLK	(1UL << 23)	/* Error caused by block transaction */
 #define	UEAFSR_P_DTE	(1UL << 56)	/* Pri. DVMA translation error */
 #define	UEAFSR_S_DTE	(1UL << 57)	/* Sec. DVMA translation error */
@@ -248,7 +253,7 @@
 #define	UEAFSR_P_DRD	(1UL << 62)	/* Pri. error during DVMA read */
 #define	UEAFSR_P_PIO	(1UL << 63)	/* Pri. error during PIO access */
 
-/* Correctable error asynchronous fault status registers */
+/* Correctable error asynchronous fault status register */
 #define	CEAFSR_BLK	(1UL << 23)	/* Error caused by block transaction */
 #define	CEAFSR_S_DWR	(1UL << 58)	/* Sec. error caused by DVMA write */
 #define	CEAFSR_S_DRD	(1UL << 59)	/* Sec. error caused by DVMA read */
@@ -259,7 +264,29 @@
 
 #define	CEAFSR_ERRMASK							\
 	(CEAFSR_P_PIO | CEAFSR_P_DRD | CEAFSR_P_DWR |			\
-	 CEAFSR_S_PIO | CEAFSR_S_DRD | CEAFSR_S_DWR)
+	CEAFSR_S_PIO | CEAFSR_S_DRD | CEAFSR_S_DWR)
+
+/* PCI asynchronous fault status register */
+#define	PCIAFSR_P_MA	(1UL << 63)	/* Pri. master abort */
+#define	PCIAFSR_P_TA	(1UL << 62)	/* Pri. target abort */
+#define	PCIAFSR_P_RTRY	(1UL << 61)	/* Pri. excessive retries */
+#define	PCIAFSR_P_RERR	(1UL << 60)	/* Pri. parity error */
+#define	PCIAFSR_S_MA	(1UL << 59)	/* Sec. master abort */
+#define	PCIAFSR_S_TA	(1UL << 58)	/* Sec. target abort */
+#define	PCIAFSR_S_RTRY	(1UL << 57)	/* Sec. excessive retries */
+#define	PCIAFSR_S_RERR	(1UL << 56)	/* Sec. parity error */
+#define	PCIAFSR_BMASK	(0xffffUL << 32)/* Bytemask of failed pri. transfer */
+#define	PCIAFSR_BLK	(1UL << 31)	/* failed pri. transfer was block r/w */
+#define	PCIAFSR_MID	(0x3eUL << 25)	/* UPA MID causing error transaction */
+
+#define	PCIAFSR_ERRMASK							\
+	(PCIAFSR_P_MA | PCIAFSR_P_TA | PCIAFSR_P_RTRY |	PCIAFSR_P_RERR |\
+	PCIAFSR_S_MA | PCIAFSR_S_TA | PCIAFSR_S_RTRY | PCIAFSR_S_RERR)
+
+/* PCI diagnostic register */
+#define	DIAG_RTRY_DIS	0x0000000000000040	/* dis. retry limit */
+#define	DIAG_ISYNC_DIS	0x0000000000000020	/* dis. DMA write / int sync */
+#define	DIAG_DWSYNC_DIS	0x0000000000000010	/* dis. DMA write / PIO sync */
 
 /* Definitions for the target address space register */
 #define	PCITAS_ADDR_SHIFT	29
