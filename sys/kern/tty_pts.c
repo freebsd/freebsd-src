@@ -1,7 +1,7 @@
 /*
+ * Copyright (c) 2003 Networks Associates Technology, Inc.
  * Copyright (c) 2006 Robert N. M. Watson
  * Copyright (c) 2006 Olivier Houchard
- * Copyright (c) 2003 Networks Associates Technology, Inc.
  * All rights reserved.
  *
  * This software was developed for the FreeBSD Project in part by Network
