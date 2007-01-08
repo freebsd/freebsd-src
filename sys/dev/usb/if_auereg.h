@@ -223,16 +223,14 @@ struct aue_softc {
 	usbd_pipe_handle	aue_ep[AUE_ENDPT_MAX];
 	int			aue_unit;
 	u_int8_t		aue_link;
+	int			aue_timer;
 	int			aue_if_flags;
 	struct ue_cdata		aue_cdata;
 	struct callout		aue_tick_callout;
+	struct usb_taskqueue	aue_taskqueue;
 	struct task		aue_task;
 	struct mtx		aue_mtx;
-	struct cv		aue_cv;
-	struct thread *		aue_locker;	/* lock owner */
-	int			aue_lockflags;
-#define AUE_LOCKED	0x01	/* locked */
-#define AUE_LOCKDEAD	0x02	/* lock draining */
+	struct sx		aue_sx;
 	u_int16_t		aue_flags;
 	char			aue_dying;
 	struct timeval		aue_rx_notice;
@@ -269,10 +267,10 @@ aue_dumpstate(const char *func, const char *tag)
 #define AUE_LOCK(_sc)			mtx_lock(&(_sc)->aue_mtx)
 #define AUE_UNLOCK(_sc)			mtx_unlock(&(_sc)->aue_mtx)
 #define AUE_SXLOCK(_sc)	\
-    do { AUE_DUMPSTATE("sxlock"); aue_xlock((_sc), 0); } while(0)
-#define AUE_SXUNLOCK(_sc)		aue_xunlock(_sc)
-#define AUE_SXASSERTLOCKED(_sc)		aue_xlockassert((_sc), 1, __FILE__, __func__, __LINE__)
-#define AUE_SXASSERTUNLOCKED(_sc)	aue_xlockassert((_sc), 0, __FILE__, __func__, __LINE__)
+    do { AUE_DUMPSTATE("sxlock"); sx_xlock(&(_sc)->aue_sx); } while(0)
+#define AUE_SXUNLOCK(_sc)		sx_xunlock(&(_sc)->aue_sx)
+#define AUE_SXASSERTLOCKED(_sc)		sx_assert(&(_sc)->aue_sx, SX_XLOCKED)
+#define AUE_SXASSERTUNLOCKED(_sc)	sx_assert(&(_sc)->aue_sx, SX_UNLOCKED)
 
 #define AUE_TIMEOUT		1000
 #define AUE_MIN_FRAMELEN	60
