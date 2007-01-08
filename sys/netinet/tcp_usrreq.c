@@ -178,7 +178,7 @@ tcp_usr_detach(struct socket *so)
 #define INI_READ	1
 #define INI_WRITE	2
 
-#define	COMMON_START()						\
+#define	COMMON_START(_errno)					\
 	TCPDEBUG0;						\
 	do {							\
 		if (inirw == INI_READ)				\
@@ -191,7 +191,7 @@ tcp_usr_detach(struct socket *so)
 				INP_INFO_RUNLOCK(&tcbinfo);	\
 			else if (inirw == INI_WRITE)		\
 				INP_INFO_WUNLOCK(&tcbinfo);	\
-			return EINVAL;				\
+			return _errno;				\
 		}						\
 		INP_LOCK(inp);					\
 		if (inirw == INI_READ)				\
@@ -234,7 +234,7 @@ tcp_usr_bind(struct socket *so, struct sockaddr *nam, struct thread *td)
 	    IN_MULTICAST(ntohl(sinp->sin_addr.s_addr)))
 		return (EAFNOSUPPORT);
 
-	COMMON_START();
+	COMMON_START(EINVAL);
 	error = in_pcbbind(inp, nam, td->td_ucred);
 	if (error)
 		goto out;
@@ -262,7 +262,7 @@ tcp6_usr_bind(struct socket *so, struct sockaddr *nam, struct thread *td)
 	    IN6_IS_ADDR_MULTICAST(&sin6p->sin6_addr))
 		return (EAFNOSUPPORT);
 
-	COMMON_START();
+	COMMON_START(EINVAL);
 	inp->inp_vflag &= ~INP_IPV4;
 	inp->inp_vflag |= INP_IPV6;
 	if ((inp->inp_flags & IN6P_IPV6_V6ONLY) == 0) {
@@ -297,7 +297,7 @@ tcp_usr_listen(struct socket *so, struct thread *td)
 	struct tcpcb *tp;
 	const int inirw = INI_WRITE;
 
-	COMMON_START();
+	COMMON_START(EINVAL);
 	SOCK_LOCK(so);
 	error = solisten_proto_check(so);
 	if (error == 0 && inp->inp_lport == 0)
@@ -319,7 +319,7 @@ tcp6_usr_listen(struct socket *so, struct thread *td)
 	struct tcpcb *tp;
 	const int inirw = INI_WRITE;
 
-	COMMON_START();
+	COMMON_START(EINVAL);
 	SOCK_LOCK(so);
 	error = solisten_proto_check(so);
 	if (error == 0 && inp->inp_lport == 0) {
@@ -365,7 +365,7 @@ tcp_usr_connect(struct socket *so, struct sockaddr *nam, struct thread *td)
 	if (jailed(td->td_ucred))
 		prison_remote_ip(td->td_ucred, 0, &sinp->sin_addr.s_addr);
 
-	COMMON_START();
+	COMMON_START(EINVAL);
 	if ((error = tcp_connect(tp, nam, td)) != 0)
 		goto out;
 	error = tcp_output(tp);
@@ -392,7 +392,7 @@ tcp6_usr_connect(struct socket *so, struct sockaddr *nam, struct thread *td)
 	    && IN6_IS_ADDR_MULTICAST(&sin6p->sin6_addr))
 		return (EAFNOSUPPORT);
 
-	COMMON_START();
+	COMMON_START(EINVAL);
 	if (IN6_IS_ADDR_V4MAPPED(&sin6p->sin6_addr)) {
 		struct sockaddr_in sin;
 
@@ -438,7 +438,7 @@ tcp_usr_disconnect(struct socket *so)
 	struct tcpcb *tp;
 	const int inirw = INI_WRITE;
 
-	COMMON_START();
+	COMMON_START(ECONNRESET);
 	tp = tcp_disconnect(tp);
 	COMMON_END(PRU_DISCONNECT);
 }
@@ -467,7 +467,7 @@ tcp_usr_accept(struct socket *so, struct sockaddr **nam)
 	inp = sotoinpcb(so);
 	if (!inp) {
 		INP_INFO_RUNLOCK(&tcbinfo);
-		return (EINVAL);
+		return (ECONNABORTED);
 	}
 	INP_LOCK(inp);
 	INP_INFO_RUNLOCK(&tcbinfo);
@@ -512,7 +512,7 @@ tcp6_usr_accept(struct socket *so, struct sockaddr **nam)
 	inp = sotoinpcb(so);
 	if (inp == 0) {
 		INP_INFO_RUNLOCK(&tcbinfo);
-		return (EINVAL);
+		return (ECONNABORTED);
 	}
 	INP_LOCK(inp);
 	INP_INFO_RUNLOCK(&tcbinfo);
@@ -577,7 +577,7 @@ tcp_usr_shutdown(struct socket *so)
 	struct tcpcb *tp;
 	const int inirw = INI_WRITE;
 
-	COMMON_START();
+	COMMON_START(ECONNRESET);
 	socantsendmore(so);
 	tp = tcp_usrclosed(tp);
 	if (tp)
@@ -596,7 +596,7 @@ tcp_usr_rcvd(struct socket *so, int flags)
 	struct tcpcb *tp;
 	const int inirw = INI_READ;
 
-	COMMON_START();
+	COMMON_START(ECONNRESET);
 	tcp_output(tp);
 	COMMON_END(PRU_RCVD);
 }
@@ -763,7 +763,7 @@ tcp_usr_abort(struct socket *so)
 	struct tcpcb *tp;
 	const int inirw = INI_WRITE;
 
-	COMMON_START();
+	COMMON_START(EINVAL);
 	tp = tcp_drop(tp, ECONNABORTED);
 	COMMON_END(PRU_ABORT);
 }
@@ -779,7 +779,7 @@ tcp_usr_rcvoob(struct socket *so, struct mbuf *m, int flags)
 	struct tcpcb *tp;
 	const int inirw = INI_READ;
 
-	COMMON_START();
+	COMMON_START(ECONNRESET);
 	if ((so->so_oobmark == 0 &&
 	     (so->so_rcv.sb_state & SBS_RCVATMARK) == 0) ||
 	    so->so_options & SO_OOBINLINE ||
