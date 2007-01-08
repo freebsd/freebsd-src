@@ -322,12 +322,23 @@ ieee80211_dump_pkt(const u_int8_t *buf, int len, int rate, int rssi)
 	}
 }
 
+static __inline int
+findrix(const struct ieee80211_rateset *rs, int r)
+{
+	int i;
+
+	for (i = 0; i < rs->rs_nrates; i++)
+		if ((rs->rs_rates[i] & IEEE80211_RATE_VAL) == r)
+			return i;
+	return -1;
+}
+
 int
 ieee80211_fix_rate(struct ieee80211_node *ni, int flags)
 {
 #define	RV(v)	((v) & IEEE80211_RATE_VAL)
 	struct ieee80211com *ic = ni->ni_ic;
-	int i, j, ignore, error;
+	int i, j, rix, error;
 	int okrate, badrate, fixedrate;
 	const struct ieee80211_rateset *srs;
 	struct ieee80211_rateset *nrs;
@@ -345,7 +356,6 @@ ieee80211_fix_rate(struct ieee80211_node *ni, int flags)
 	srs = ieee80211_get_suprates(ic, ni->ni_chan);
 	nrs = &ni->ni_rates;
 	for (i = 0; i < nrs->rs_nrates; ) {
-		ignore = 0;
 		if (flags & IEEE80211_F_DOSORT) {
 			/*
 			 * Sort rates.
@@ -367,51 +377,40 @@ ieee80211_fix_rate(struct ieee80211_node *ni, int flags)
 			if (r == RV(srs->rs_rates[ic->ic_fixed_rate]))
 				fixedrate = r;
 		}
+		/*
+		 * Check against supported rates.
+		 */
+		rix = findrix(srs, r);
 		if (flags & IEEE80211_F_DONEGO) {
-			/*
-			 * Check against supported rates.
-			 */
-			for (j = 0; j < srs->rs_nrates; j++) {
-				if (r == RV(srs->rs_rates[j])) {
-					/*
-					 * Overwrite with the supported rate
-					 * value so any basic rate bit is set.
-					 * This insures that response we send
-					 * to stations have the necessary basic
-					 * rate bit set.
-					 */
-					nrs->rs_rates[i] = srs->rs_rates[j];
-					break;
-				}
-			}
-			if (j == srs->rs_nrates) {
+			if (rix < 0) {
 				/*
 				 * A rate in the node's rate set is not
 				 * supported.  If this is a basic rate and we
-				 * are operating as an AP then this is an error.
+				 * are operating as a STA then this is an error.
 				 * Otherwise we just discard/ignore the rate.
-				 * Note that this is important for 11b stations
-				 * when they want to associate with an 11g AP.
 				 */
-				if (ic->ic_opmode == IEEE80211_M_HOSTAP &&
+				if ((flags & IEEE80211_F_JOIN) &&
 				    (nrs->rs_rates[i] & IEEE80211_RATE_BASIC))
 					error++;
-				ignore++;
+			} else if ((flags & IEEE80211_F_JOIN) == 0) {
+				/*
+				 * Overwrite with the supported rate
+				 * value so any basic rate bit is set.
+				 */
+				nrs->rs_rates[i] = srs->rs_rates[rix];
 			}
 		}
-		if (flags & IEEE80211_F_DODEL) {
+		if ((flags & IEEE80211_F_DODEL) && rix < 0) {
 			/*
 			 * Delete unacceptable rates.
 			 */
-			if (ignore) {
-				nrs->rs_nrates--;
-				for (j = i; j < nrs->rs_nrates; j++)
-					nrs->rs_rates[j] = nrs->rs_rates[j + 1];
-				nrs->rs_rates[j] = 0;
-				continue;
-			}
+			nrs->rs_nrates--;
+			for (j = i; j < nrs->rs_nrates; j++)
+				nrs->rs_rates[j] = nrs->rs_rates[j + 1];
+			nrs->rs_rates[j] = 0;
+			continue;
 		}
-		if (!ignore)
+		if (rix >= 0)
 			okrate = nrs->rs_rates[i];
 		i++;
 	}
