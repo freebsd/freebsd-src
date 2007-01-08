@@ -965,13 +965,11 @@ acpi_cpu_quirks(void)
 	if (AcpiGbl_FADT->WbInvd && AcpiGbl_FADT->WbInvdFlush == 0) {
 	    cpu_quirks |= CPU_QUIRK_NO_BM_CTRL;
 	    ACPI_DEBUG_PRINT((ACPI_DB_INFO,
-		"acpi_cpu%d: no BM control, using flush cache method\n",
-		device_get_unit(sc->cpu_dev)));
+		"acpi_cpu: no BM control, using flush cache method\n"));
 	} else {
 	    cpu_quirks |= CPU_QUIRK_NO_C3;
 	    ACPI_DEBUG_PRINT((ACPI_DB_INFO,
-		"acpi_cpu%d: no BM control, C3 not available\n",
-		device_get_unit(sc->cpu_dev)));
+		"acpi_cpu: no BM control, C3 not available\n"));
 	}
     }
 
@@ -979,8 +977,11 @@ acpi_cpu_quirks(void)
      * If we are using generic Cx mode, C3 on multiple CPUs requires using
      * the expensive flush cache instruction.
      */
-    if (cpu_cx_generic && mp_ncpus > 1)
+    if (cpu_cx_generic && mp_ncpus > 1) {
 	cpu_quirks |= CPU_QUIRK_NO_BM_CTRL;
+	ACPI_DEBUG_PRINT((ACPI_DB_INFO,
+	    "acpi_cpu: SMP, using flush cache mode for C3\n"));
+    }
 
     /* Look for various quirks of the PIIX4 part. */
     acpi_dev = pci_find_device(PCI_VENDOR_INTEL, PCI_DEVICE_82371AB_3);
@@ -1001,6 +1002,8 @@ acpi_cpu_quirks(void)
 	case PCI_REVISION_4E:
 	case PCI_REVISION_4M:
 	    cpu_quirks |= CPU_QUIRK_NO_C3;
+	    ACPI_DEBUG_PRINT((ACPI_DB_INFO,
+		"acpi_cpu: working around PIIX4 bug, disabling C3\n"));
 	    break;
 	default:
 	    break;
