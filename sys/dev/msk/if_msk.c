@@ -1450,7 +1450,7 @@ msk_attach(device_t dev)
 	 * make Rx checksum offload work on Yukon II hardware.
 	 */
 	ifp->if_capabilities = IFCAP_TXCSUM;
-	ifp->if_hwassist = MSK_CSUM_FEATURES | CSUM_TSO;
+	ifp->if_hwassist = MSK_CSUM_FEATURES;
 	if (sc->msk_hw_id != CHIP_ID_YUKON_EC_U) {
 		/* It seems Yukon EC Ultra doesn't support TSO. */
 		ifp->if_capabilities |= IFCAP_TSO4;
