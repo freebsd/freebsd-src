@@ -445,7 +445,7 @@ msk_link_task(void *arg, int pending)
 	struct msk_if_softc *sc_if;
 	struct mii_data *mii;
 	struct ifnet *ifp;
-	uint32_t gmac, ane;
+	uint32_t gmac;
 
 	sc_if = (struct msk_if_softc *)arg;
 	sc = sc_if->msk_softc;
@@ -465,42 +465,36 @@ msk_link_task(void *arg, int pending)
 	} else
 		sc_if->msk_link = 0;
 
-	gmac = GMAC_READ_2(sc, sc_if->msk_port, GM_GP_CTRL);
-	ane = 0;
 	if (sc_if->msk_link != 0) {
 		/* Enable Tx FIFO Underrun. */
 		CSR_WRITE_1(sc, MR_ADDR(sc_if->msk_port, GMAC_IRQ_MSK),
 		    GM_IS_TX_FF_UR | GM_IS_RX_FF_OR);
+		/*
+		 * Because mii(4) notify msk(4) that it detected link status
+		 * change, there is no need to enable automatic
+		 * speed/flow-control/duplex updates.
+		 */
+		gmac = GM_GPCR_AU_ALL_DIS;
 		switch (IFM_SUBTYPE(mii->mii_media_active)) {
-		case IFM_AUTO:
-			ane = 1;
-			break;
 		case IFM_1000_SX:
 		case IFM_1000_T:
-			gmac &= ~GM_GPCR_SPEED_100;
 			gmac |= GM_GPCR_SPEED_1000;
 			break;
 		case IFM_100_TX:
 			gmac |= GM_GPCR_SPEED_100;
-			gmac &= ~GM_GPCR_SPEED_1000;
 			break;
 		case IFM_10_T:
-			gmac &= ~(GM_GPCR_SPEED_100 | GM_GPCR_SPEED_1000);
 			break;
 		}
 
-		if (ane == 0)
-			gmac |= GM_GPCR_AU_ALL_DIS;
-		else
-			gmac &= ~GM_GPCR_AU_ALL_DIS;
 		if (((mii->mii_media_active & IFM_GMASK) & IFM_FDX) != 0)
 			gmac |= GM_GPCR_DUP_FULL;
-		/* Enable Rx flow control. */
-		if (((mii->mii_media_active & IFM_GMASK) & IFM_FLAG0) != 0)
-			gmac &= ~GM_GPCR_FC_RX_DIS;
-		/* Enable Tx flow control. */
-		if (((mii->mii_media_active & IFM_GMASK) & IFM_FLAG1) != 0)
-			gmac &= ~GM_GPCR_FC_TX_DIS;
+		/* Disable Rx flow control. */
+		if (((mii->mii_media_active & IFM_GMASK) & IFM_FLAG0) == 0)
+			gmac |= GM_GPCR_FC_RX_DIS;
+		/* Disable Tx flow control. */
+		if (((mii->mii_media_active & IFM_GMASK) & IFM_FLAG1) == 0)
+			gmac |= GM_GPCR_FC_TX_DIS;
 		gmac |= GM_GPCR_RX_ENA | GM_GPCR_TX_ENA;
 		GMAC_WRITE_2(sc, sc_if->msk_port, GM_GP_CTRL, gmac);
 		/* Read again to ensure writing. */
@@ -530,6 +524,7 @@ msk_link_task(void *arg, int pending)
 			msk_phy_writereg(sc_if, PHY_ADDR_MARV,
 			    PHY_MARV_INT_MASK, 0);
 		/* Disable Rx/Tx MAC. */
+		gmac = GMAC_READ_2(sc, sc_if->msk_port, GM_GP_CTRL);
 		gmac &= ~(GM_GPCR_RX_ENA | GM_GPCR_TX_ENA);
 		GMAC_WRITE_2(sc, sc_if->msk_port, GM_GP_CTRL, gmac);
 		/* Read again to ensure writing. */
