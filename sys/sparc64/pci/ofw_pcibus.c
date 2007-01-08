@@ -197,6 +197,8 @@ ofw_pcibus_attach(device_t dev)
 			continue;
 		slot = OFW_PCI_PHYS_HI_DEVICE(pcir.phys_hi);
 		func = OFW_PCI_PHYS_HI_FUNCTION(pcir.phys_hi);
+		if (pci_find_bsf(busno, slot, func) != NULL)
+			continue;
 		ofw_pcibus_setup_device(pcib, busno, slot, func);
 		dinfo = (struct ofw_pcibus_devinfo *)pci_read_device(pcib,
 		    busno, slot, func, sizeof(*dinfo));
