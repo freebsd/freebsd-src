@@ -32,7 +32,7 @@
 .\"     @(#)close.2	8.2 (Berkeley) 4/19/94
 .\" $FreeBSD$
 .\"
-.Dd April 19, 1994
+.Dd December 4, 2006
 .Dt CLOSE 2
 .Os
 .Sh NAME
@@ -118,6 +118,9 @@ is not an active descriptor.
 An interrupt was received.
 .It Bq Er ENOSPC
 The underlying object did not fit, cached data was lost.
+.It Bq Er ECONNRESET
+The underlying object was a stream socket that was shutdown by the peer
+before all pending data was delivered.
 .El
 .Sh SEE ALSO
 .Xr accept 2 ,
