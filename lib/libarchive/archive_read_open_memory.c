@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2003-2006 Tim Kientzle
+ * Copyright (c) 2003-2007 Tim Kientzle
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
