@@ -148,6 +148,7 @@ struct ieee80211_node;
 int	ieee80211_node_dectestref(struct ieee80211_node *ni);
 #define	ieee80211_node_refcnt(_ni)	(_ni)->ni_refcnt
 
+struct ifqueue;
 void	ieee80211_drain_ifq(struct ifqueue *);
 
 struct mbuf *ieee80211_getmgtframe(u_int8_t **frm, u_int pktlen);
