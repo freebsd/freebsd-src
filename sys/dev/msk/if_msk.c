@@ -1713,10 +1713,8 @@ mskc_attach(device_t dev)
 		if (msic == 2) {
 			sc->msk_msi = 1;
 			sc->msk_irq_spec = msk_irq_spec_msi;
-		} else {
+		} else
 			pci_release_msi(dev);
-			sc->msk_irq_spec = msk_irq_spec_legacy;
-		}
 	}
 
 	error = bus_alloc_resources(dev, sc->msk_irq_spec, sc->msk_irq);
