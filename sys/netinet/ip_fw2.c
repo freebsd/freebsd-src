@@ -903,8 +903,6 @@ ipfw_log(struct ip_fw *f, u_int hlen, struct ip_fw_args *args,
 		struct icmphdr *icmp;
 		struct tcphdr *tcp;
 		struct udphdr *udp;
-		/* Initialize to make compiler happy. */
-		struct ip *ip = NULL;
 #ifdef INET6
 		struct ip6_hdr *ip6 = NULL;
 		struct icmp6_hdr *icmp6;
