@@ -228,8 +228,8 @@ printcpuinfo(void)
 				"\007<b6>"
 				"\010EST"	/* Enhanced SpeedStep */
 				"\011TM2"	/* Thermal Monitor 2 */
-				"\012<b9>"
-				"\013CNTX-ID"	/* L1 context ID available */
+				"\012SSSE3"	/* SSSE3 */
+				"\013CNXT-ID"	/* L1 context ID available */
 				"\014<b11>"
 				"\015<b12>"
 				"\016CX16"	/* CMPXCHG16B Instruction */
