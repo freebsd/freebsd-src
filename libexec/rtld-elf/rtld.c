@@ -40,6 +40,8 @@
 #include <sys/mount.h>
 #include <sys/mman.h>
 #include <sys/stat.h>
+#include <sys/uio.h>
+#include <sys/ktrace.h>
 
 #include <dlfcn.h>
 #include <err.h>
@@ -136,6 +138,7 @@ static int  rtld_verify_versions(const Objlist *);
 static int  rtld_verify_object_versions(Obj_Entry *);
 static void object_add_name(Obj_Entry *, const char *);
 static int  object_match_name(const Obj_Entry *, const char *);
+static void ld_utrace_log(int, void *, void *, size_t, int, const char *);
 
 void r_debug_state(struct r_debug *, struct link_map *);
 
@@ -155,6 +158,7 @@ static char *ld_library_path;	/* Environment variable for search path */
 static char *ld_preload;	/* Environment variable for libraries to
 				   load first */
 static char *ld_tracing;	/* Called from ldd to print libs */
+static char *ld_utrace;		/* Use utrace() to log events. */
 static Obj_Entry *obj_list;	/* Head of linked list of shared objects */
 static Obj_Entry **obj_tail;	/* Link field of last object in list */
 static Obj_Entry *obj_main;	/* The main program shared object */
@@ -229,6 +233,53 @@ int tls_max_index = 1;		/* Largest module index allocated */
     assert((dlp)->objs != NULL),				\
     (dlp)->num_alloc = obj_count,				\
     (dlp)->num_used = 0)
+
+#define	UTRACE_DLOPEN_START		1
+#define	UTRACE_DLOPEN_STOP		2
+#define	UTRACE_DLCLOSE_START		3
+#define	UTRACE_DLCLOSE_STOP		4
+#define	UTRACE_LOAD_OBJECT		5
+#define	UTRACE_UNLOAD_OBJECT		6
+#define	UTRACE_ADD_RUNDEP		7
+#define	UTRACE_PRELOAD_FINISHED		8
+#define	UTRACE_INIT_CALL		9
+#define	UTRACE_FINI_CALL		10
+
+struct utrace_rtld {
+	char sig[4];			/* 'RTLD' */
+	int event;
+	void *handle;
+	void *mapbase;			/* Used for 'parent' and 'init/fini' */
+	size_t mapsize;
+	int refcnt;			/* Used for 'mode' */
+	char name[MAXPATHLEN];
+};
+
+#define	LD_UTRACE(e, h, mb, ms, r, n) do {			\
+	if (ld_utrace != NULL)					\
+		ld_utrace_log(e, h, mb, ms, r, n);		\
+} while (0)
+
+static void
+ld_utrace_log(int event, void *handle, void *mapbase, size_t mapsize,
+    int refcnt, const char *name)
+{
+	struct utrace_rtld ut;
+
+	ut.sig[0] = 'R';
+	ut.sig[1] = 'T';
+	ut.sig[2] = 'L';
+	ut.sig[3] = 'D';
+	ut.event = event;
+	ut.handle = handle;
+	ut.mapbase = mapbase;
+	ut.mapsize = mapsize;
+	ut.refcnt = refcnt;
+	bzero(ut.name, sizeof(ut.name));
+	if (name)
+		strlcpy(ut.name, name, sizeof(ut.name));
+	utrace(&ut, sizeof(ut));
+}
 
 /*
  * Main entry point for dynamic linking.  The first argument is the
@@ -309,6 +360,7 @@ _rtld(Elf_Addr *sp, func_ptr_type *exit_proc, Obj_Entry **objp)
     } else
 	dangerous_ld_env = 0;
     ld_tracing = getenv(LD_ "TRACE_LOADED_OBJECTS");
+    ld_utrace = getenv(LD_ "UTRACE");
 
     if (ld_debug != NULL && *ld_debug != '\0')
 	debug = 1;
@@ -1236,6 +1288,7 @@ load_preload_objects(void)
 	p += len;
 	p += strspn(p, delim);
     }
+    LD_UTRACE(UTRACE_PRELOAD_FINISHED, NULL, NULL, 0, 0, NULL);
     return 0;
 }
 
@@ -1340,6 +1393,8 @@ do_load_object(int fd, const char *name, char *path, struct stat *sbp)
          obj->mapbase + obj->mapsize - 1, obj->path);
     if (obj->textrel)
 	dbg("  WARNING: %s has impure text", obj->path);
+    LD_UTRACE(UTRACE_LOAD_OBJECT, obj, obj->mapbase, obj->mapsize, 0,
+	obj->path);    
 
     return obj;
 }
@@ -1378,6 +1433,8 @@ objlist_call_fini(Objlist *list)
 	if (elm->obj->refcount == 0) {
 	    dbg("calling fini function for %s at %p", elm->obj->path,
 	        (void *)elm->obj->fini);
+	    LD_UTRACE(UTRACE_FINI_CALL, elm->obj, (void *)elm->obj->fini, 0, 0,
+		elm->obj->path);
 	    call_initfini_pointer(elm->obj, elm->obj->fini);
 	}
     }
@@ -1403,6 +1460,8 @@ objlist_call_init(Objlist *list)
     STAILQ_FOREACH(elm, list, link) {
 	dbg("calling init function for %s at %p", elm->obj->path,
 	    (void *)elm->obj->init);
+	LD_UTRACE(UTRACE_INIT_CALL, elm->obj, (void *)elm->obj->init, 0, 0,
+	    elm->obj->path);
 	call_initfini_pointer(elm->obj, elm->obj->init);
     }
     errmsg_restore(saved_msg);
@@ -1676,6 +1735,8 @@ dlclose(void *handle)
 	wlock_release(rtld_bind_lock, lockstate);
 	return -1;
     }
+    LD_UTRACE(UTRACE_DLCLOSE_START, handle, NULL, 0, root->dl_refcount,
+	root->path);
 
     /* Unreference the object and its dependencies. */
     root->dl_refcount--;
@@ -1697,6 +1758,7 @@ dlclose(void *handle)
 	unload_object(root);
 	GDB_STATE(RT_CONSISTENT,NULL);
     }
+    LD_UTRACE(UTRACE_DLCLOSE_STOP, handle, NULL, 0, 0, NULL);
     wlock_release(rtld_bind_lock, lockstate);
     return 0;
 }
@@ -1739,6 +1801,7 @@ dlopen(const char *name, int mode)
     Objlist initlist;
     int result, lockstate;
 
+    LD_UTRACE(UTRACE_DLOPEN_START, NULL, NULL, 0, mode, name);
     ld_tracing = (mode & RTLD_TRACE) == 0 ? NULL : "1";
     if (ld_tracing != NULL)
 	environ = (char **)*get_program_var_addr("environ");
@@ -1791,6 +1854,8 @@ dlopen(const char *name, int mode)
 	}
     }
 
+    LD_UTRACE(UTRACE_DLOPEN_STOP, obj, NULL, 0, obj ? obj->dl_refcount : 0,
+	name);
     GDB_STATE(RT_CONSISTENT,obj ? &obj->linkmap : NULL);
 
     /* Call the init functions with no locks held. */
@@ -2655,6 +2720,8 @@ unload_object(Obj_Entry *root)
     linkp = &obj_list->next;
     while ((obj = *linkp) != NULL) {
 	if (obj->refcount == 0) {
+	    LD_UTRACE(UTRACE_UNLOAD_OBJECT, obj, obj->mapbase, obj->mapsize, 0,
+		obj->path);
 	    dbg("unloading \"%s\"", obj->path);
 	    munmap(obj->mapbase, obj->mapsize);
 	    linkmap_delete(obj);
