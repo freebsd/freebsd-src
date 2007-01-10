@@ -60,4 +60,5 @@ nooption 	SMP
 nooption 	GDB
 nooption	PPC_DEBUG
 nooption	PPC_PROBE_CHIPSET
+nooption 	SC_NO_MODE_CHANGE
 nooption 	UKBD_DFLT_KEYMAP
