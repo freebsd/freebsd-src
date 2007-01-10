@@ -148,4 +148,4 @@ vesa_unload_ioctl(void)
 	return 0;
 }
 
-#endif	/* SC_NO_MODE_CHANGE */
+#endif /* VGA_NO_MODE_CHANGE */
