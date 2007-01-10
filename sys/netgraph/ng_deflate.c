@@ -558,10 +558,11 @@ ng_deflate_decompress(node_p node, struct mbuf *m, struct mbuf **resultp)
 		offset = 2;
 	}
 
+	priv->stats.InOctets += inlen;
+
 	/* Packet is compressed, so decompress. */
 	if (proto == PROT_COMPD) {
 		priv->stats.FramesComp++;
-		priv->stats.InOctets+=inlen;
     	
 		/* Check sequence number. */
 		rseqnum = ntohs(((uint16_t *)(priv->inbuf + offset))[0]);
