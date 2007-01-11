@@ -49,6 +49,7 @@ __FBSDID("$FreeBSD$");
 
 #include <ctype.h>
 #include <err.h>
+#include <inttypes.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -61,7 +62,7 @@ __FBSDID("$FreeBSD$");
  */
 
 static void head(FILE *, int);
-static void head_bytes(FILE *, size_t);
+static void head_bytes(FILE *, off_t);
 static void obsolete(char *[]);
 static void usage(void);
 
@@ -70,14 +71,15 @@ main(int argc, char *argv[])
 {
 	int ch;
 	FILE *fp;
-	int first, linecnt = -1, bytecnt = -1, eval = 0;
+	int first, linecnt = -1, eval = 0;
+	off_t bytecnt = -1;
 	char *ep;
 
 	obsolete(argv);
 	while ((ch = getopt(argc, argv, "n:c:")) != -1)
 		switch(ch) {
 		case 'c':
-			bytecnt = strtol(optarg, &ep, 10);
+			bytecnt = strtoimax(optarg, &ep, 10);
 			if (*ep || bytecnt <= 0)
 				errx(1, "illegal byte count -- %s", optarg);
 			break;
@@ -138,7 +140,7 @@ head(FILE *fp, int cnt)
 }
 
 static void
-head_bytes(FILE *fp, size_t cnt)
+head_bytes(FILE *fp, off_t cnt)
 {
 	char buf[4096];
 	size_t readlen;
