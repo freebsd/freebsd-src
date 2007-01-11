@@ -167,12 +167,12 @@ intrmask_t lock_driver()
 {
 
 	intrmask_t spl = 0;
-	mtx_lock_spin(&driver_lock);
+	mtx_lock(&driver_lock);
 	return spl;
 }
 void unlock_driver(intrmask_t spl)
 {
-	mtx_unlock_spin(&driver_lock);
+	mtx_unlock(&driver_lock);
 }
 #else 
 static int driver_locked = 0;
@@ -1169,7 +1169,7 @@ dmamap_put(PBUS_DMAMAP p)
 #if __FreeBSD_version >= 500000
 static void hpt_init(void *dummy)
 {
-	mtx_init(&driver_lock, "hptlock", NULL, MTX_SPIN);
+	mtx_init(&driver_lock, "hptlock", NULL, MTX_DEF);
 }
 SYSINIT(hptinit, SI_SUB_CONFIGURE, SI_ORDER_FIRST, hpt_init, NULL);
 #endif
@@ -1183,8 +1183,6 @@ init_adapter(IAL_ADAPTER_T *pAdapter)
 	int i, channel, rid;
 
 	PVDevice pVDev;
-
-	intrmask_t oldspl = lock_driver();
 
 	pAdapter->next = 0;
 
@@ -1226,7 +1224,6 @@ init_adapter(IAL_ADAPTER_T *pAdapter)
 	if (hptmv_allocate_edma_queues(pAdapter))
 	{
 		MV_ERROR("RR182x: Failed to allocate memory for EDMA queues\n");
-		unlock_driver(oldspl);
 		return ENOMEM;
 	}
 
@@ -1239,7 +1236,6 @@ init_adapter(IAL_ADAPTER_T *pAdapter)
 	{
 		MV_ERROR("RR182x: Failed to remap memory space\n");
 		hptmv_free_edma_queues(pAdapter);
-		unlock_driver(oldspl);
 		return ENXIO;
 	}
 	else
@@ -1269,7 +1265,6 @@ init_adapter(IAL_ADAPTER_T *pAdapter)
 unregister:
 		bus_release_resource(pAdapter->hpt_dev, SYS_RES_MEMORY, rid, pAdapter->mem_res);
 		hptmv_free_edma_queues(pAdapter);
-		unlock_driver(oldspl);
 		return ENXIO;
 	}
 	pAdapter->ver_601 = pMvSataAdapter->pcbVersion;
@@ -1412,7 +1407,6 @@ unregister:
 #endif
 
 	mvSataUnmaskAdapterInterrupt(pMvSataAdapter);
-	unlock_driver(oldspl);
 	return 0;
 }
 
