@@ -152,8 +152,8 @@
       能够读取某些本应无权内核内存内容的问题。 要了解进一步详情， 请参阅安全公告
       <ulink url="http://security.FreeBSD.org/advisories/FreeBSD-SA-06:25.kmem.asc">FreeBSD-SA-06:25.kmem</ulink>。</para>
 
-    <para>发现并修正了一个可以经由对 /var/log/console.log 和挂接点的符号链接导致的
-	jail rc.d 脚本特权提升问题。 要了解进一步详情， 请参阅安全公告
+    <para>发现并修正了一个可以经由针对符号链接进行攻击， 并通过
+      <filename>jail</filename> 启动脚本完成特权提升的问题。 要了解进一步详情， 请参阅安全公告
       <ulink url="http://security.FreeBSD.org/advisories/FreeBSD-SA-07:01.jail.asc">FreeBSD-SA-07:01.jail</ulink>。</para>
 
   </sect2>
