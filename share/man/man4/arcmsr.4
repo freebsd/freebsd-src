@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd March 31, 2005
+.Dd January 10, 2007
 .Dt ARCMSR 4
 .Os
 .Sh NAME
@@ -80,9 +80,15 @@ ARC-1130
 .It
 ARC-1160
 .It
-ARC-1130-ML
+ARC-1170
 .It
-ARC-1160-ML
+ARC-1110ML
+.It
+ARC-1120ML
+.It
+ARC-1130ML
+.It
+ARC-1160ML
 .It
 ARC-1210
 .It
@@ -92,18 +98,24 @@ ARC-1230
 .It
 ARC-1260
 .It
-ARC-1230-ML
+ARC-1280
 .It
-ARC-1260-ML
+ARC-1210ML
+.It
+ARC-1220ML
+.It
+ARC-1231ML
+.It
+ARC-1261ML
+.It
+ARC-1280ML
 .El
 .Sh FILES
-.Bl -tag -width ".Pa /boot/kernel/arcmsr.ko" -compact
+.Bl -tag -width ".Pa /dev/arcmsr?" -compact
 .It Pa /dev/da?
 Array block device
 .It Pa /dev/arcmsr?
 Management interface
-.It Pa /boot/kernel/arcmsr.ko
-Loadable module
 .El
 .Sh SEE ALSO
 .Xr da 4 ,
