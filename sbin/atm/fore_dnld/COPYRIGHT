@@ -1,4 +1,4 @@
-$FreeBSD$
+$FreeBSD: src/sbin/atm/fore_dnld/COPYRIGHT,v 1.1 2000/02/15 13:20:57 phk Exp $
 
 This copyright applies to the microcode image in the file pca200e.c.
 

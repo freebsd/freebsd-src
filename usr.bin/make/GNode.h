@@ -35,7 +35,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/usr.bin/make/GNode.h,v 1.4 2005/05/13 08:53:00 harti Exp $
  */
 
 #ifndef GNode_h_39503bf2

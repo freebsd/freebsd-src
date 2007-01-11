@@ -44,7 +44,7 @@ static char sccsid[] = "@(#)ktrace.c	8.1 (Berkeley) 6/6/93";
 #endif
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/usr.bin/ktrace/ktrace.c,v 1.20.12.1 2006/03/20 14:25:19 rwatson Exp $");
 
 #include <sys/param.h>
 #include <sys/stat.h>

@@ -37,7 +37,7 @@
  */
 
 #include <machine/asm.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/lib/libc/arm/net/htons.S,v 1.1 2004/05/14 12:04:30 cognet Exp $");
 
 _ENTRY(_C_LABEL(htons))
 _PROF_PROLOGUE

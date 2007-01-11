@@ -25,7 +25,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/security/audit/audit_pipe.c,v 1.9.2.1 2006/09/02 11:50:51 rwatson Exp $
  */
 
 #include <sys/param.h>

@@ -28,7 +28,7 @@
 #include <dev/sound/pcm/vchan.h>
 #include "feeder_if.h"
 
-SND_DECLARE_FILE("$FreeBSD$");
+SND_DECLARE_FILE("$FreeBSD: src/sys/dev/sound/pcm/vchan.c,v 1.17.2.4 2006/04/04 17:43:49 ariff Exp $");
 
 /*
  * Default speed

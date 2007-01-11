@@ -53,7 +53,7 @@
 **                                                       add new device id of sas raid adapters 
 **                                                       code fit for SPARC64 & PPC 
 ******************************************************************************************
-* $FreeBSD$
+* $FreeBSD: src/sys/dev/arcmsr/arcmsr.c,v 1.8.8.1 2006/12/21 21:59:19 scottl Exp $
 */
 #include <sys/param.h>
 #include <sys/systm.h>

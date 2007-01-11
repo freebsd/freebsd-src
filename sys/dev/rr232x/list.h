@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/dev/rr232x/list.h,v 1.1.2.1 2006/04/30 17:11:35 scottl Exp $
  */
 #ifndef _HPT_LIST_H_
 #define _HPT_LIST_H_

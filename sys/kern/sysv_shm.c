@@ -60,7 +60,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/kern/sysv_shm.c,v 1.102.2.2 2006/07/24 23:41:38 rwatson Exp $");
 
 #include "opt_compat.h"
 #include "opt_sysvipc.h"

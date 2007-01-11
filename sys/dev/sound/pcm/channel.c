@@ -31,7 +31,7 @@
 
 #include "feeder_if.h"
 
-SND_DECLARE_FILE("$FreeBSD$");
+SND_DECLARE_FILE("$FreeBSD: src/sys/dev/sound/pcm/channel.c,v 1.99.2.4 2006/04/04 17:37:51 ariff Exp $");
 
 #define MIN_CHUNK_SIZE 		256	/* for uiomove etc. */
 #if 0

@@ -39,7 +39,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/usr.bin/make/arch.c,v 1.66 2005/05/24 15:58:34 harti Exp $");
 
 /*-
  * arch.c --

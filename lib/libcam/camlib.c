@@ -24,7 +24,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/lib/libcam/camlib.c,v 1.12.8.2 2006/05/01 00:19:02 marcus Exp $");
 
 #include <sys/types.h>
 #include <sys/param.h>

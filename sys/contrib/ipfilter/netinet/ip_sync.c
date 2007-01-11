@@ -1,4 +1,4 @@
-/*	$FreeBSD$	*/
+/*	$FreeBSD: src/sys/contrib/ipfilter/netinet/ip_sync.c,v 1.2.2.1 2006/08/24 07:37:12 guido Exp $	*/
 
 /*
  * Copyright (C) 1995-1998 by Darren Reed.

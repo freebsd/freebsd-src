@@ -24,7 +24,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$FreeBSD$
+ *	$FreeBSD: src/sys/dev/aac/aac_tables.h,v 1.5.2.1 2005/10/09 06:39:21 scottl Exp $
  */
 
 /*

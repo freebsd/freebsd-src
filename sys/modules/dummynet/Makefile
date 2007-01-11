@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/sys/modules/dummynet/Makefile,v 1.3.14.1 2006/02/23 08:28:15 ume Exp $
 
 .PATH:  ${.CURDIR}/../../netinet
 KMOD=   dummynet

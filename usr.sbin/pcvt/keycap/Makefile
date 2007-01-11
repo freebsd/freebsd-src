@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/usr.sbin/pcvt/keycap/Makefile,v 1.16 2005/01/28 16:22:46 ru Exp $
 
 LIB=	keycap
 MAN=	keycap.3

@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/share/zoneinfo/Makefile,v 1.20.2.1 2006/05/11 04:57:28 wollman Exp $
 
 CLEANFILES+=	yearistype
 

@@ -27,7 +27,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/compat/svr4/svr4_signal.c,v 1.33 2005/02/25 19:34:10 sam Exp $");
 
 #include <sys/param.h>
 #include <sys/systm.h>

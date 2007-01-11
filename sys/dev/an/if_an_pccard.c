@@ -38,7 +38,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/dev/an/if_an_pccard.c,v 1.28 2005/06/24 14:36:51 imp Exp $");
 
 #include "opt_inet.h"
 

@@ -29,7 +29,7 @@
  * This software includes fragments of the following programs:
  *	tcpmssd		Ruslan Ermilov <ru@FreeBSD.org>
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/netgraph/ng_tcpmss.c,v 1.2.2.1 2006/03/18 22:00:37 glebius Exp $
  */
 
 /*

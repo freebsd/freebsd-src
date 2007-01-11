@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/lib/libmemstat/memstat_uma.c,v 1.7.2.10 2006/02/14 03:38:31 rwatson Exp $
  */
 
 #include <sys/param.h>

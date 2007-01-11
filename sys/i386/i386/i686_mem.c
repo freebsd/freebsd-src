@@ -25,7 +25,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/i386/i386/i686_mem.c,v 1.24 2004/07/01 07:46:28 jhb Exp $");
 
 #include <sys/param.h>
 #include <sys/kernel.h>

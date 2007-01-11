@@ -1,4 +1,4 @@
-/*	$FreeBSD$	*/
+/*	$FreeBSD: src/sys/netinet6/esp6.h,v 1.5 2005/01/07 02:30:34 imp Exp $	*/
 /*	$KAME: esp.h,v 1.16 2000/10/18 21:28:00 itojun Exp $	*/
 
 /*-

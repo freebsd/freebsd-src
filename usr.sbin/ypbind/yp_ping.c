@@ -66,7 +66,7 @@ static char *sccsid = "@(#)from: clnt_udp.c	2.2 88/08/01 4.0 RPCSRC";
 #endif
 #endif
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/usr.sbin/ypbind/yp_ping.c,v 1.16 2003/05/03 21:06:41 obrien Exp $");
 
 /*
  * clnt_udp.c, Implements a UDP/IP based, client side RPC.

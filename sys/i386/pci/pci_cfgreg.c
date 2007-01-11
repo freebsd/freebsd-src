@@ -28,7 +28,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/i386/pci/pci_cfgreg.c,v 1.116.2.1 2006/08/22 16:52:42 rink Exp $");
 
 #include "opt_xbox.h"
 

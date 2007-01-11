@@ -27,7 +27,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/compat/linux/linux_stats.c,v 1.72.2.3 2006/06/15 19:08:03 ambrisko Exp $");
 
 #include "opt_compat.h"
 #include "opt_mac.h"

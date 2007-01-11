@@ -31,7 +31,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/contrib/pf/pfctl/pf_print_state.c,v 1.3 2005/05/03 16:55:20 mlaier Exp $");
 
 #include <sys/types.h>
 #include <sys/socket.h>

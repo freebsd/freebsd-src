@@ -11,7 +11,7 @@
  *
  * See README and COPYING for more details.
  *
- * $FreeBSD$
+ * $FreeBSD: src/contrib/hostapd/eap.c,v 1.2.2.1 2006/03/24 01:42:33 sam Exp $
  */
 
 #include <stdlib.h>

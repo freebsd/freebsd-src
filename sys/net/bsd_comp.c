@@ -37,7 +37,7 @@
 /*
  * This version is for use with mbufs on BSD-derived systems.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/net/bsd_comp.c,v 1.23 2005/07/05 23:39:49 rwatson Exp $
  */
 
 #include "opt_mac.h"

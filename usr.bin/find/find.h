@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)find.h	8.1 (Berkeley) 6/6/93
- *	$FreeBSD$
+ *	$FreeBSD: src/usr.bin/find/find.h,v 1.17.8.2 2006/05/21 07:34:58 krion Exp $
  */
 
 #include <regex.h>

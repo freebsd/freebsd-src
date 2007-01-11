@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/secure/usr.bin/ssh-keygen/Makefile,v 1.15.2.1 2006/07/08 14:37:19 des Exp $
 
 PROG=	ssh-keygen
 CFLAGS+=-I${SSHDIR} -include ssh_namespace.h

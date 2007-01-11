@@ -41,7 +41,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/dev/fb/boot_font.c,v 1.5.2.1 2006/08/22 16:52:41 rink Exp $");
 
 #include <sys/param.h>
 #include <sys/systm.h>

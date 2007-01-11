@@ -37,7 +37,7 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 
-/* $FreeBSD$ */
+/* $FreeBSD: src/sys/dev/le/lancevar.h,v 1.1.2.2 2006/06/18 15:43:18 marius Exp $ */
 
 #ifndef _DEV_LE_LANCEVAR_H_
 #define	_DEV_LE_LANCEVAR_H_

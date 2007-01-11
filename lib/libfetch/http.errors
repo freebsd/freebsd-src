@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/lib/libfetch/http.errors,v 1.5 2001/05/23 18:52:02 des Exp $
 #
 # This list is taken from RFC 2068.
 #

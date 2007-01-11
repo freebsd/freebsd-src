@@ -24,7 +24,7 @@
 # OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 # SUCH DAMAGE.
 #
-# $FreeBSD$
+# $FreeBSD: src/etc/rc.d/geli,v 1.2.2.2 2005/12/15 23:32:35 pjd Exp $
 #
 
 # PROVIDE: disks

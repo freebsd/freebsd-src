@@ -37,7 +37,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/powerpc/powerpc/mem.c,v 1.1 2004/08/16 13:07:40 ssouhlal Exp $");
 
 /*
  * Memory special file

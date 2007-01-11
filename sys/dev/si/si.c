@@ -33,7 +33,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/dev/si/si.c,v 1.135.2.2 2006/01/15 00:20:31 glebius Exp $");
 
 #ifndef lint
 static const char si_copyright1[] =  "@(#) Copyright (C) Specialix International, 1990,1992,1998",

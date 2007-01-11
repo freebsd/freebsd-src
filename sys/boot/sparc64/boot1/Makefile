@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/sys/boot/sparc64/boot1/Makefile,v 1.11 2004/12/21 08:47:18 ru Exp $
 
 PROG=	boot1.elf
 INTERNALPROG=

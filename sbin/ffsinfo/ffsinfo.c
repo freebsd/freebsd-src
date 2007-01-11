@@ -48,7 +48,7 @@ All rights reserved.\n";
 
 #ifndef lint
 static const char rcsid[] =
-  "$FreeBSD$";
+  "$FreeBSD: src/sbin/ffsinfo/ffsinfo.c,v 1.10 2005/03/31 04:05:17 rwatson Exp $";
 #endif /* not lint */
 
 /* ********************************************************** INCLUDES ***** */

@@ -41,7 +41,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/arm/arm/vm_machdep.c,v 1.17.2.1 2006/06/23 17:41:02 cognet Exp $");
 
 #include <sys/param.h>
 #include <sys/systm.h>

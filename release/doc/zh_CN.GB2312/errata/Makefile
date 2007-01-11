@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/release/doc/zh_CN.GB2312/errata/Makefile,v 1.1.8.1 2006/10/11 17:50:03 delphij Exp $
 #
 # Original Revision: 1.5
 

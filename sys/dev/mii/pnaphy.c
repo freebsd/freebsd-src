@@ -32,7 +32,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/dev/mii/pnaphy.c,v 1.15.2.1 2006/08/08 04:37:18 yongari Exp $");
 
 /*
  * driver for homePNA PHYs

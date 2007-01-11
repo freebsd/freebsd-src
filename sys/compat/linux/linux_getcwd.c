@@ -37,7 +37,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/compat/linux/linux_getcwd.c,v 1.19.2.1 2006/03/13 03:04:04 jeff Exp $");
 
 #include "opt_compat.h"
 #include "opt_mac.h"

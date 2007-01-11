@@ -36,7 +36,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/lib/libkvm/kvm_i386.c,v 1.17.2.2 2006/07/24 23:29:06 peter Exp $");
 
 #if defined(LIBC_SCCS) && !defined(lint)
 #if 0

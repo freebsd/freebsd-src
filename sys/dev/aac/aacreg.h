@@ -26,7 +26,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$FreeBSD$
+ *	$FreeBSD: src/sys/dev/aac/aacreg.h,v 1.21.2.2 2005/10/28 15:48:09 scottl Exp $
  */
 
 /*

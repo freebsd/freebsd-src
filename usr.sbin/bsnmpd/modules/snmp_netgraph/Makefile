@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/usr.sbin/bsnmpd/modules/snmp_netgraph/Makefile,v 1.6.6.1 2006/01/25 13:22:59 harti Exp $
 #
 # Author: Harti Brandt <harti@freebsd.org>
 

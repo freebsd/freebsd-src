@@ -16,7 +16,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/dev/ce/ceddk.c,v 1.1.6.1 2006/03/10 22:57:36 rik Exp $");
 
 #include <dev/cx/machdep.h>
 #include <dev/ce/ceddk.h>

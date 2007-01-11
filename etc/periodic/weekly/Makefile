@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/etc/periodic/weekly/Makefile,v 1.8.14.1 2006/09/28 01:59:30 delphij Exp $
 
 FILES=	310.locate \
 	320.whatis \

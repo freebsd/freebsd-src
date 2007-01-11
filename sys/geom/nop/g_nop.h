@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/geom/nop/g_nop.h,v 1.4.8.1 2006/01/17 09:11:30 pjd Exp $
  */
 
 #ifndef	_G_NOP_H_

@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/alpha/include/pc/bios.h,v 1.6 2004/06/10 20:30:54 jhb Exp $
  *      from: i386/include/pc bios.h,v 1.2
  */
 

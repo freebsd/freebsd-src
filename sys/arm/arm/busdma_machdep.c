@@ -29,7 +29,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/arm/arm/busdma_machdep.c,v 1.22.2.2 2006/06/23 17:42:33 cognet Exp $");
 
 /*
  * MacPPC bus dma support routines

@@ -1,7 +1,7 @@
 <?xml version="1.0"?>
 <DISKIMAGE>
   <comment>
-    $FreeBSD$
+    $FreeBSD: src/tools/regression/geom/Data/disk.msdos.ext.xml,v 1.2 2002/09/06 08:41:48 phk Exp $
     A MSDOS 6.22 disk with maximal number of extended partitions.
   </comment>
   <sectorsize>512</sectorsize>

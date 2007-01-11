@@ -22,7 +22,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/netinet/ip_fw2.c,v 1.106.2.21 2006/10/10 18:39:38 bz Exp $
  */
 
 #define        DEB(x)

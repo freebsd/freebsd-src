@@ -5,7 +5,7 @@
 #
 # Please see src/share/examples/etc/bsd-style-copyright.
 #
-# $FreeBSD$
+# $FreeBSD: src/usr.sbin/mtree/test/test01.sh,v 1.1 2003/10/30 12:01:32 phk Exp $
 #
 
 set -e

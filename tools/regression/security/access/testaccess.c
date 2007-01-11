@@ -29,7 +29,7 @@
  * Work sponsored by Defense Advanced Research Projects Agency under the
  * CHATS research program, CBOSS project.
  *
- * $FreeBSD$
+ * $FreeBSD: src/tools/regression/security/access/testaccess.c,v 1.4 2002/05/16 05:03:56 trhodes Exp $
  */
 
 #include <sys/types.h>

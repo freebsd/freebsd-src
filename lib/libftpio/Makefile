@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/lib/libftpio/Makefile,v 1.13.14.1 2005/07/22 17:29:05 kensmith Exp $
 
 LIB=		ftpio
 SHLIB_MAJOR=	6

@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/usr.bin/lex/lib/Makefile,v 1.9 2004/12/21 09:33:47 ru Exp $
 
 LIB=    ln
 SRCS=   libmain.c libyywrap.c

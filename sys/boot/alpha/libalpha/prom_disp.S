@@ -1,5 +1,5 @@
 /* 
- * $FreeBSD$ 
+ * $FreeBSD: src/sys/boot/alpha/libalpha/prom_disp.S,v 1.2 1999/08/28 00:39:28 peter Exp $ 
  * From: $NetBSD: prom_disp.S,v 1.2 1997/04/06 08:41:00 cgd Exp $ 
  */
 

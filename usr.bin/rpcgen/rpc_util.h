@@ -1,5 +1,5 @@
 /*
- * $FreeBSD$
+ * $FreeBSD: src/usr.bin/rpcgen/rpc_util.h,v 1.6 2002/07/21 12:55:04 charnier Exp $
  */
 /*
  * Sun RPC is a product of Sun Microsystems, Inc. and is provided for

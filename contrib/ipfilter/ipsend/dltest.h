@@ -1,4 +1,4 @@
-/*	$FreeBSD$	*/
+/*	$FreeBSD: src/contrib/ipfilter/ipsend/dltest.h,v 1.2 2005/04/25 18:20:10 darrenr Exp $	*/
 
 /*
  * Common DLPI Test Suite header file

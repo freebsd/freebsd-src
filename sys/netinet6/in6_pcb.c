@@ -1,4 +1,4 @@
-/*	$FreeBSD$	*/
+/*	$FreeBSD: src/sys/netinet6/in6_pcb.c,v 1.62.2.4 2006/09/04 10:33:44 pjd Exp $	*/
 /*	$KAME: in6_pcb.c,v 1.31 2001/05/21 05:45:10 jinmei Exp $	*/
   
 /*-

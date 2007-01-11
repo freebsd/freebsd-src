@@ -38,7 +38,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/dev/an/if_an.c,v 1.67.2.2 2005/08/25 05:01:03 rwatson Exp $");
 
 /*
  * The Aironet 4500/4800 series cards come in PCMCIA, ISA and PCI form.

@@ -1,6 +1,6 @@
 #!/bin/sh
 #
-# $FreeBSD$
+# $FreeBSD: src/release/scripts/src-install.sh,v 1.10 2004/08/06 08:42:05 cperciva Exp $
 #
 
 if [ "`id -u`" != "0" ]; then

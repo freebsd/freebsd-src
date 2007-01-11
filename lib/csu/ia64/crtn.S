@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/lib/csu/ia64/crtn.S,v 1.2 2001/10/29 10:18:58 peter Exp $
  */
 
 	.file	"crtn.S"

@@ -38,7 +38,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/arm/sa11x0/sa11x0_ost.c,v 1.3 2005/01/05 21:58:48 imp Exp $");
 
 #include <sys/types.h>
 #include <sys/param.h>

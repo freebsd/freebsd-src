@@ -29,7 +29,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/dev/pci/fixup_pci.c,v 1.6.8.1 2006/05/31 21:37:11 jhb Exp $");
 
 #include <sys/param.h>
 #include <sys/kernel.h>

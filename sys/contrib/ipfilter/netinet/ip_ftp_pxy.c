@@ -1,4 +1,4 @@
-/*	$FreeBSD$	*/
+/*	$FreeBSD: src/sys/contrib/ipfilter/netinet/ip_ftp_pxy.c,v 1.25.2.1 2006/08/24 07:37:11 guido Exp $	*/
 
 /*
  * Copyright (C) 1997-2003 by Darren Reed
@@ -8,7 +8,7 @@
  * Simple FTP transparent proxy for in-kernel use.  For use with the NAT
  * code.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/contrib/ipfilter/netinet/ip_ftp_pxy.c,v 1.25.2.1 2006/08/24 07:37:11 guido Exp $
  * Id: ip_ftp_pxy.c,v 2.88.2.19 2006/04/01 10:14:53 darrenr Exp $
  */
 

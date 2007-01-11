@@ -55,7 +55,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/powerpc/powerpc/machdep.c,v 1.89.2.2 2006/08/17 01:23:21 sobomax Exp $");
 
 #include "opt_compat.h"
 #include "opt_ddb.h"

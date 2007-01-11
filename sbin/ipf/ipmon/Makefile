@@ -1,4 +1,4 @@
-#	$FreeBSD$
+#	$FreeBSD: src/sbin/ipf/ipmon/Makefile,v 1.2 2005/04/28 16:26:34 darrenr Exp $
 
 PROG=		ipmon
 SRCS=		ipmon.c ipmon_y.c ipmon_l.c

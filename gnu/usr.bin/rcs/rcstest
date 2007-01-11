@@ -15,7 +15,7 @@
 
 # The current directory and ./RCS must be readable, writable, and searchable.
 
-# $FreeBSD$
+# $FreeBSD: src/gnu/usr.bin/rcs/rcstest,v 1.5 1999/08/27 23:36:37 peter Exp $
 
 
 #    Copyright 1990, 1991, 1992, 1993, 1994, 1995 Paul Eggert

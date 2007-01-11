@@ -24,7 +24,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$FreeBSD$
+ *	$FreeBSD: src/tools/tools/ncpus/acpidump.h,v 1.1.2.1 2006/03/01 06:03:55 sam Exp $
  */
 
 #ifndef _ACPIDUMP_H_

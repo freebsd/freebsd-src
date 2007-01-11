@@ -57,7 +57,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/arm/sa11x0/sa11x0.c,v 1.4 2004/09/23 22:33:38 cognet Exp $");
 
 #define __RMAN_RESOURCE_VISIBLE
 #include <sys/param.h>

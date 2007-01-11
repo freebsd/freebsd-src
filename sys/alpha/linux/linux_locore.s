@@ -1,4 +1,4 @@
-/* $FreeBSD$ */
+/* $FreeBSD: src/sys/alpha/linux/linux_locore.s,v 1.3 2000/12/03 01:30:30 marcel Exp $ */
 
 #include <machine/asm.h>
 #include <alpha/linux/linux_syscall.h>

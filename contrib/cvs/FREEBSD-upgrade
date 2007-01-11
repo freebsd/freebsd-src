@@ -1,4 +1,4 @@
-$FreeBSD$
+$FreeBSD: src/contrib/cvs/FREEBSD-upgrade,v 1.11 2004/06/09 20:51:26 des Exp $
 
 MAINTAINER=	peter@FreeBSD.org
 

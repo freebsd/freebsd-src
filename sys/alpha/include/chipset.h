@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/alpha/include/chipset.h,v 1.11 2000/08/28 21:48:01 dfr Exp $
  */
 
 #ifndef _MACHINE_CHIPSET_H_

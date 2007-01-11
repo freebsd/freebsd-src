@@ -25,7 +25,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/lib/libthread_db/arch/ia64/libpthread_md.c,v 1.3 2004/07/18 19:29:38 marcel Exp $");
 
 #include <sys/procfs.h>
 #include <ucontext.h>

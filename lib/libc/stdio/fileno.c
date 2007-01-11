@@ -38,7 +38,7 @@
 static char sccsid[] = "@(#)fileno.c	8.1 (Berkeley) 6/4/93";
 #endif /* LIBC_SCCS and not lint */
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/lib/libc/stdio/fileno.c,v 1.10 2004/03/17 01:43:07 tjr Exp $");
 
 #include "namespace.h"
 #include <stdio.h>

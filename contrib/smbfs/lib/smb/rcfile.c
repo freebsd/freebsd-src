@@ -33,7 +33,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/contrib/smbfs/lib/smb/rcfile.c,v 1.2 2004/10/19 17:44:31 obrien Exp $");
 
 #include <sys/types.h>
 #include <sys/queue.h>

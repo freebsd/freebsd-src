@@ -2,7 +2,7 @@
  * This program, created 2002-10-03 by Garrett A. Wollman
  * <wollman@FreeBSD.org>, is in the public domain.  Use at your own risk.
  *
- * $FreeBSD$
+ * $FreeBSD: src/tools/tools/find-sb/find-sb.c,v 1.1.14.2 2006/09/29 08:07:19 ru Exp $
  */
 
 #include <sys/param.h>

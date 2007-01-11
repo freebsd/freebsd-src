@@ -1,4 +1,4 @@
-/*	$FreeBSD$	*/
+/*	$FreeBSD: src/sys/dev/usb/if_uralreg.h,v 1.1.2.1 2006/01/29 14:16:36 damien Exp $	*/
 
 /*-
  * Copyright (c) 2005, 2006

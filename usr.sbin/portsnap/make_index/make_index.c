@@ -25,7 +25,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/usr.sbin/portsnap/make_index/make_index.c,v 1.2.2.5 2005/12/05 05:07:13 cperciva Exp $");
 
 #include <err.h>
 #include <stdio.h>

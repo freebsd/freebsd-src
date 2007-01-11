@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/sys/boot/i386/boot2/Makefile,v 1.58 2005/03/15 18:43:36 obrien Exp $
 
 FILES=		boot boot1 boot2
 

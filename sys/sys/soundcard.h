@@ -29,7 +29,7 @@
  * ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/sys/soundcard.h,v 1.44.2.1 2005/12/30 19:55:52 netchild Exp $
  */
 
 #ifndef _SYS_SOUNDCARD_H_

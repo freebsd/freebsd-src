@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/sys/eventhandler.h,v 1.33.2.1 2006/05/16 07:27:49 ps Exp $
  */
 
 #ifndef SYS_EVENTHANDLER_H

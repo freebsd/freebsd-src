@@ -31,7 +31,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/dev/usb/if_kue.c,v 1.64.2.4 2006/11/14 12:54:38 flz Exp $");
 
 /*
  * Kawasaki LSI KL5KUSB101B USB to ethernet adapter driver.

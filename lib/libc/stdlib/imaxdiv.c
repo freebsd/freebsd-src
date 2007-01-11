@@ -25,7 +25,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/lib/libc/stdlib/imaxdiv.c,v 1.1 2001/11/15 02:05:03 mike Exp $");
 
 #include <inttypes.h>
 

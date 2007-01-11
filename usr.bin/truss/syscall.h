@@ -32,7 +32,7 @@
  * IN (meaning that the data is passed *into* the system call).
  */
 /*
- * $FreeBSD$
+ * $FreeBSD: src/usr.bin/truss/syscall.h,v 1.15.8.2 2006/06/09 21:08:51 pav Exp $
  */
 
 enum Argtype { None = 1, Hex, Octal, Int, Name, Ptr, Stat, Ioctl, Quad,

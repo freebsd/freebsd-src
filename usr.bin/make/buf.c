@@ -41,7 +41,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/usr.bin/make/buf.c,v 1.36 2005/05/13 08:53:00 harti Exp $");
 
 /*
  * buf.c

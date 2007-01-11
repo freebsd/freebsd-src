@@ -25,7 +25,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sbin/gpt/create.c,v 1.10.2.1 2005/09/06 23:59:01 marcel Exp $");
 
 #include <sys/types.h>
 

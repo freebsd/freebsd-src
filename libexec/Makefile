@@ -1,5 +1,5 @@
 #	@(#)Makefile	8.1 (Berkeley) 6/4/93
-# $FreeBSD$
+# $FreeBSD: src/libexec/Makefile,v 1.75 2005/06/10 20:52:35 nectar Exp $
 
 SUBDIR=	atrun \
 	bootpd \

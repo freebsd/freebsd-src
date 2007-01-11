@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/tools/tools/crypto/ubsecstats.c,v 1.3.14.1 2006/09/03 16:02:37 pjd Exp $
  */
 #include <stdio.h>
 #include <sys/types.h>

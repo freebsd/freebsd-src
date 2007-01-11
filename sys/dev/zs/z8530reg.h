@@ -39,7 +39,7 @@
  *
  *	@(#)zsreg.h	8.1 (Berkeley) 6/11/93
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/dev/zs/z8530reg.h,v 1.4 2005/01/06 01:43:34 imp Exp $
  */
 
 /*

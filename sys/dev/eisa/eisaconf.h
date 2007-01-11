@@ -28,7 +28,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/dev/eisa/eisaconf.h,v 1.24 2005/01/06 01:42:38 imp Exp $
  */
 
 #ifndef _DEV_EISA_EISACONF_H_

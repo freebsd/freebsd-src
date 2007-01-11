@@ -34,7 +34,7 @@
 __RCSID("$NetBSD: exec_elf32.c,v 1.4 1997/08/12 06:07:24 mikel Exp $");
 #endif
 #endif
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/usr.sbin/crunch/crunchide/exec_elf32.c,v 1.14.8.1 2005/12/30 22:13:59 marcel Exp $");
  
 #ifndef ELFSIZE
 #define ELFSIZE         32

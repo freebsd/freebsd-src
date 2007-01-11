@@ -1,4 +1,4 @@
-/* $FreeBSD$ */
+/* $FreeBSD: src/contrib/less/main.c,v 1.4.8.1 2006/08/29 18:36:49 delphij Exp $ */
 /*
  * Copyright (C) 1984-2004  Mark Nudelman
  *

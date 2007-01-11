@@ -25,7 +25,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/dev/mfi/mfi_ioctl.h,v 1.1.2.2 2006/06/15 16:07:56 ambrisko Exp $");
 
 #define MFIQ_FREE	0
 #define MFIQ_BIO	1

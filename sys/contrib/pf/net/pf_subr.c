@@ -1,4 +1,4 @@
-/*	$FreeBSD$ */
+/*	$FreeBSD: src/sys/contrib/pf/net/pf_subr.c,v 1.2 2005/05/03 16:43:32 mlaier Exp $ */
 /*	from $OpenBSD: kern_subr.c,v 1.26 2003/10/31 11:10:41 markus Exp $	*/
 /*	$NetBSD: kern_subr.c,v 1.15 1996/04/09 17:21:56 ragge Exp $	*/
 

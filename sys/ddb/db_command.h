@@ -23,7 +23,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/ddb/db_command.h,v 1.13 2005/01/06 01:34:41 imp Exp $
  */
 
 #ifndef _DDB_DB_COMMAND_H_

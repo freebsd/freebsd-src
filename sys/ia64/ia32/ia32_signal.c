@@ -25,7 +25,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/ia64/ia32/ia32_signal.c,v 1.7.8.1 2006/06/25 19:09:51 marcel Exp $");
 
 #include "opt_compat.h"
 

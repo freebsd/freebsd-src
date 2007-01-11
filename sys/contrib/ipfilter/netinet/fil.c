@@ -1,4 +1,4 @@
-/*	$FreeBSD$	*/
+/*	$FreeBSD: src/sys/contrib/ipfilter/netinet/fil.c,v 1.46.2.1 2006/08/24 07:37:10 guido Exp $	*/
 
 /*
  * Copyright (C) 1993-2003 by Darren Reed.
@@ -141,7 +141,7 @@ struct file;
 
 #if !defined(lint)
 static const char sccsid[] = "@(#)fil.c	1.36 6/5/96 (C) 1993-2000 Darren Reed";
-static const char rcsid[] = "@(#)$FreeBSD$";
+static const char rcsid[] = "@(#)$FreeBSD: src/sys/contrib/ipfilter/netinet/fil.c,v 1.46.2.1 2006/08/24 07:37:10 guido Exp $";
 /* static const char rcsid[] = "@(#)$Id: fil.c,v 2.243.2.78 2006/03/29 11:19:54 darrenr Exp $"; */
 #endif
 

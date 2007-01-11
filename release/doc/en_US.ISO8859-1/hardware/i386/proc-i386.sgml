@@ -1,5 +1,5 @@
 <!--
-	$FreeBSD$
+	$FreeBSD: src/release/doc/en_US.ISO8859-1/hardware/i386/proc-i386.sgml,v 1.14 2004/11/17 23:03:17 jhb Exp $
 -->
 <sect1 id="proc">
   <title>Supported Processors and Motherboards</title>

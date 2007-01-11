@@ -29,7 +29,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/netsmb/netbios.h,v 1.5.2.1 2005/11/22 02:01:01 bp Exp $
  */
 #ifndef _NETSMB_NETBIOS_H_
 #define	_NETSMB_NETBIOS_H_

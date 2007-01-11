@@ -1,4 +1,4 @@
-/* $FreeBSD$ */
+/* $FreeBSD: src/sys/powerpc/powerpc/sigcode.S,v 1.4 2005/01/07 02:29:20 imp Exp $ */
 /* $NetBSD: sigcode.S,v 1.1 1999/11/17 14:56:11 kleink Exp $	*/
 
 /*-

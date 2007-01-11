@@ -24,7 +24,7 @@
  * This software is derived from software provide by Kwikbyte who specifically
  * disclaimed copyright on the code.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/boot/arm/at91/libat91/sd-card.c,v 1.1.2.1 2006/08/17 22:57:08 imp Exp $
  */
 
 //*----------------------------------------------------------------------------

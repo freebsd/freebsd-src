@@ -31,7 +31,7 @@
  * @APPLE_BSD_LICENSE_HEADER_END@
  *
  * $P4: //depot/projects/trustedbsd/audit3/sys/bsm/audit_kevents.h#29 $
- * $FreeBSD$
+ * $FreeBSD: src/sys/bsm/audit_kevents.h,v 1.2.2.2 2006/09/29 22:43:30 rwatson Exp $
  */
 
 #ifndef _BSM_AUDIT_KEVENTS_H_

@@ -33,7 +33,7 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF
  * THE POSSIBILITY OF SUCH DAMAGES.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/dev/ath/if_athvar.h,v 1.27.2.11 2006/10/19 23:34:00 sam Exp $
  */
 
 /*

@@ -26,7 +26,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/dev/twe/twe_freebsd.c,v 1.42 2005/03/06 20:57:54 scottl Exp $
  */
 
 /*

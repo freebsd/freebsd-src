@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/sys/modules/ata/Makefile,v 1.2 2005/04/05 02:05:01 scottl Exp $
 
 SUBDIR = ata
 SUBDIR += atacard

@@ -35,7 +35,7 @@
 
 #include <machine/asm.h>
 
-RCSID("$FreeBSD$")
+RCSID("$FreeBSD: src/lib/msun/i387/e_log.S,v 1.7 2005/02/04 14:08:32 das Exp $")
 
 ENTRY(log)
 	fldln2

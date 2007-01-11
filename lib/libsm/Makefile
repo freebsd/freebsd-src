@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/lib/libsm/Makefile,v 1.9.2.1 2006/03/29 07:34:59 gshapiro Exp $
 
 SENDMAIL_DIR=${.CURDIR}/../../contrib/sendmail
 .PATH:	${SENDMAIL_DIR}/libsm

@@ -1,6 +1,6 @@
 #!/bin/sh
 #
-# $FreeBSD$
+# $FreeBSD: src/etc/rc.d/powerd,v 1.2.2.2 2006/08/30 10:20:44 cperciva Exp $
 #
 
 # PROVIDE: powerd

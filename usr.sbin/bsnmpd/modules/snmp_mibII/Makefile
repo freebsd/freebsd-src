@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/usr.sbin/bsnmpd/modules/snmp_mibII/Makefile,v 1.5.6.3 2006/03/31 12:43:39 glebius Exp $
 #
 # Author: Harti Brandt <harti@freebsd.org>
 

@@ -43,7 +43,7 @@ char copyright[] =
 #ifndef lint
 static char sccsid[] = "@(#)main.c	8.2 (Berkeley) 4/2/94";
 static char rcsid[] =
-  "$FreeBSD$";
+  "$FreeBSD: src/usr.bin/window/main.c,v 1.8 2003/09/17 03:58:52 marcel Exp $";
 #endif /* not lint */
 
 #include "defs.h"

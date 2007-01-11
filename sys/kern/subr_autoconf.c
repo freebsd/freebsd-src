@@ -35,7 +35,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/kern/subr_autoconf.c,v 1.22.2.1 2006/07/31 18:53:55 jhb Exp $");
 
 #include <sys/param.h>
 #include <sys/kernel.h>

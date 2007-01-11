@@ -1,5 +1,5 @@
 #
-# $FreeBSD$
+# $FreeBSD: src/usr.sbin/auditreduce/Makefile,v 1.1.2.2 2006/09/29 22:46:53 rwatson Exp $
 #
 
 OPENBSMDIR=${.CURDIR}/../../contrib/openbsm

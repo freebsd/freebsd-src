@@ -13,7 +13,7 @@
   * 
   * Author: Wietse Venema, Eindhoven University of Technology, The Netherlands.
   *
-  * $FreeBSD$
+  * $FreeBSD: src/contrib/tcp_wrappers/tli.c,v 1.2 2000/02/03 10:27:00 shin Exp $
   */
 
 #ifndef lint

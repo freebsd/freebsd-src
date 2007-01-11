@@ -48,7 +48,7 @@
 #include "opt_at91.h"
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/arm/at91/kb920x_machdep.c,v 1.8.2.3 2006/10/04 11:44:12 cognet Exp $");
 
 #define _ARM32_BUS_DMA_PRIVATE
 #include <sys/param.h>

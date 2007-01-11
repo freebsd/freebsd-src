@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/include/dlfcn.h,v 1.19 2003/02/13 17:47:43 kan Exp $
  */
 
 #ifndef _DLFCN_H_

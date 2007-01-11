@@ -1,5 +1,5 @@
 /*	$NetBSD: if_arc.h,v 1.13 1999/11/19 20:41:19 thorpej Exp $	*/
-/* $FreeBSD$ */
+/* $FreeBSD: src/sys/net/if_arc.h,v 1.8.2.1 2006/06/11 16:31:19 rwatson Exp $ */
 
 /*-
  * Copyright (c) 1982, 1986, 1993

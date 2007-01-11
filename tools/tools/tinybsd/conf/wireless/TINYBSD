@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/tools/tools/tinybsd/conf/wireless/TINYBSD,v 1.2.2.1 2006/09/28 21:09:09 julian Exp $
 machine		i386
 cpu		I486_CPU
 cpu		I586_CPU

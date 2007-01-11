@@ -25,7 +25,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/usr.sbin/boot0cfg/boot0cfg.c,v 1.19.2.1 2005/08/16 22:45:33 phk Exp $");
 
 #include <sys/param.h>
 #include <sys/disklabel.h>

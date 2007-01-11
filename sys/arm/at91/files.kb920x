@@ -1,2 +1,2 @@
-#$FreeBSD$
+#$FreeBSD: src/sys/arm/at91/files.kb920x,v 1.1.2.1 2006/06/23 23:35:36 cognet Exp $
 arm/at91/kb920x_machdep.c	standard

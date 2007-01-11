@@ -1,5 +1,5 @@
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/alpha/linux/linux_genassym.c,v 1.19 2003/08/22 07:20:26 imp Exp $");
 
 #include <sys/param.h>
 #include <sys/assym.h>

@@ -1,4 +1,4 @@
-/* $FreeBSD$ */
+/* $FreeBSD: src/libexec/lukemftpd/nbsd2fbsd.h,v 1.4.10.1 2006/09/07 20:02:23 obrien Exp $ */
 
 /* XXX: Depend on our system headers protecting against multiple includes. */
 #include <paths.h>

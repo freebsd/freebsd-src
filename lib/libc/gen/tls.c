@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$FreeBSD$
+ *	$FreeBSD: src/lib/libc/gen/tls.c,v 1.8.2.1 2006/09/02 20:38:13 marcel Exp $
  */
 
 /*

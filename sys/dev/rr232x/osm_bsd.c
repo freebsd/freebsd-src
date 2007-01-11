@@ -24,7 +24,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/dev/rr232x/osm_bsd.c,v 1.1.2.2 2006/05/06 06:31:50 scottl Exp $
 
  */
 #include <dev/rr232x/os_bsd.h>

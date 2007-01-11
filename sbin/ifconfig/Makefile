@@ -1,5 +1,5 @@
 #	From: @(#)Makefile	8.1 (Berkeley) 6/5/93
-# $FreeBSD$
+# $FreeBSD: src/sbin/ifconfig/Makefile,v 1.29 2005/06/05 03:32:51 thompsa Exp $
 
 PROG=	ifconfig
 

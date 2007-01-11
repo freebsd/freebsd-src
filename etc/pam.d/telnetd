@@ -1,5 +1,5 @@
 #
-# $FreeBSD$
+# $FreeBSD: src/etc/pam.d/telnetd,v 1.7 2003/04/30 21:57:54 markm Exp $
 #
 # PAM configuration for the "telnetd" service
 #

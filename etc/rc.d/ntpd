@@ -1,6 +1,6 @@
 #!/bin/sh
 #
-# $FreeBSD$
+# $FreeBSD: src/etc/rc.d/ntpd,v 1.11.2.2 2006/06/06 11:17:08 flz Exp $
 #
 
 # PROVIDE: ntpd

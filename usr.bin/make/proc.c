@@ -25,7 +25,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/usr.bin/make/proc.c,v 1.1 2005/05/24 15:41:34 harti Exp $");
 
 #include <unistd.h>
 #include <errno.h>

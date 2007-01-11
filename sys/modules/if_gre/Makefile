@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/sys/modules/if_gre/Makefile,v 1.5.10.1 2006/02/10 00:38:02 yar Exp $
 
 .PATH: ${.CURDIR}/../../net ${.CURDIR}/../../netinet ${.CURDIR}/../../netinet6
 

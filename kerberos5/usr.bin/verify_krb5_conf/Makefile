@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/kerberos5/usr.bin/verify_krb5_conf/Makefile,v 1.3 2004/02/05 18:51:52 ru Exp $
 
 PROG=	verify_krb5_conf
 MAN=	verify_krb5_conf.8

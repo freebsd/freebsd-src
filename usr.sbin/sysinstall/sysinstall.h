@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/usr.sbin/sysinstall/sysinstall.h,v 1.264.2.6 2006/10/29 14:38:17 erwin Exp $
  */
 
 #ifndef _SYSINSTALL_H_INCLUDE

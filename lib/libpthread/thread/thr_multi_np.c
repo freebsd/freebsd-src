@@ -29,7 +29,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/lib/libpthread/thread/thr_multi_np.c,v 1.7 2002/05/24 04:32:28 deischen Exp $
  */
 #include <pthread.h>
 #include <pthread_np.h>

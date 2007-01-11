@@ -33,7 +33,7 @@
 
 #include <sys/cdefs.h>
 
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/usr.bin/systat/keyboard.c,v 1.2 2001/12/12 00:13:37 markm Exp $");
 
 #ifdef lint
 static const char sccsid[] = "@(#)keyboard.c	8.1 (Berkeley) 6/6/93";

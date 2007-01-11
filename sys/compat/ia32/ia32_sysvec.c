@@ -26,7 +26,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/compat/ia32/ia32_sysvec.c,v 1.20 2005/01/29 23:11:58 sobomax Exp $");
 
 #include "opt_compat.h"
 

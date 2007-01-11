@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)union_vfsops.c	8.20 (Berkeley) 5/20/95
- * $FreeBSD$
+ * $FreeBSD: src/sys/fs/unionfs/union_vfsops.c,v 1.76.2.1 2006/10/09 19:47:15 tegge Exp $
  */
 
 /*

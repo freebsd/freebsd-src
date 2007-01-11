@@ -6,7 +6,7 @@
  * As long as the above copyright statement and this notice remain
  * unchanged, you can do what ever you want with this file. 
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/boot/sparc64/loader/locore.S,v 1.7 2005/01/05 22:16:58 imp Exp $
  */
 
 #define	LOCORE

@@ -30,7 +30,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/kern/uipc_proto.c,v 1.24.8.1 2005/11/16 10:31:21 ru Exp $");
 
 #include <sys/param.h>
 #include <sys/kernel.h>

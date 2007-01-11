@@ -34,7 +34,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/arm/sa11x0/sa11x0_dmacreg.h,v 1.1 2004/05/14 11:46:45 cognet Exp $
  *
  */
 

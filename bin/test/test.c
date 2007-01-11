@@ -11,7 +11,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/bin/test/test.c,v 1.53 2005/01/10 08:39:26 imp Exp $");
 
 #include <sys/types.h>
 #include <sys/stat.h>

@@ -1,6 +1,6 @@
 #!/bin/sh
 #
-# $FreeBSD$
+# $FreeBSD: src/etc/rc.d/abi,v 1.4.2.2 2006/03/15 00:09:43 dougb Exp $
 #
 
 # PROVIDE: abi

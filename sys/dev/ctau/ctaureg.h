@@ -12,7 +12,7 @@
  * all derivative works or modified versions.
  *
  * Cronyx Id: ctaureg.h,v 1.1.2.1 2003/11/12 17:16:10 rik Exp $
- * $FreeBSD$
+ * $FreeBSD: src/sys/dev/ctau/ctaureg.h,v 1.2 2005/01/06 01:42:33 imp Exp $
  */
 
 /*

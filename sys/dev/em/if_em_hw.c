@@ -31,7 +31,7 @@
 
 *******************************************************************************/
 
-/*$FreeBSD$*/
+/*$FreeBSD: src/sys/dev/em/if_em_hw.c,v 1.16.2.4 2006/10/28 01:37:14 jfv Exp $*/
 
 /* if_em_hw.c
  * Shared functions for accessing and configuring the MAC

@@ -26,7 +26,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/netinet/ip_divert.c,v 1.113.2.2 2006/05/16 07:27:48 ps Exp $
  */
 
 #if !defined(KLD_MODULE)

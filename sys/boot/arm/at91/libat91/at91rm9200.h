@@ -7,7 +7,7 @@
 //  fitness for any particular purpose, or against the infringements of
 //  intellectual property rights of others.
 // ----------------------------------------------------------------------------
-// $FreeBSD$
+// $FreeBSD: src/sys/boot/arm/at91/libat91/at91rm9200.h,v 1.2.2.1 2006/08/17 22:57:08 imp Exp $
 //
 // File Name           : AT91RM9200.h
 // Object              : AT91RM9200 definitions

@@ -32,7 +32,7 @@
  */
 
 #include <machine/asm.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/lib/libc/arm/sys/pipe.S,v 1.2 2004/11/09 16:49:14 cognet Exp $");
 #include "SYS.h"
 
 #ifdef WEAK_ALIAS

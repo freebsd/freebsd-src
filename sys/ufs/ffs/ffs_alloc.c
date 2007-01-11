@@ -60,7 +60,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/ufs/ffs/ffs_alloc.c,v 1.132.2.4 2006/03/13 03:07:32 jeff Exp $");
 
 #include "opt_quota.h"
 

@@ -25,7 +25,7 @@
  */
 
 #include <machine/asm.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/sparc64/sparc64/interrupt.S,v 1.8.2.1 2006/04/25 19:36:14 marius Exp $");
 
 #include <machine/asi.h>
 #include <machine/asmacros.h>

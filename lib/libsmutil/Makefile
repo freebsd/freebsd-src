@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/lib/libsmutil/Makefile,v 1.7 2004/10/24 15:32:33 ru Exp $
 
 SENDMAIL_DIR=${.CURDIR}/../../contrib/sendmail
 .PATH:	${SENDMAIL_DIR}/libsmutil

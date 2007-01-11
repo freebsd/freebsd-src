@@ -40,7 +40,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/lib/libc/string/wcswidth.c,v 1.6 2002/08/20 02:06:28 ache Exp $");
 
 #include <wchar.h>
 

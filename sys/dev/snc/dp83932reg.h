@@ -1,4 +1,4 @@
-/*	$FreeBSD$	*/
+/*	$FreeBSD: src/sys/dev/snc/dp83932reg.h,v 1.2 2005/01/06 01:43:15 imp Exp $	*/
 /*	$NecBSD: dp83932reg.h,v 1.2 1999/02/12 05:50:13 kmatsuda Exp $	*/
 /*      $NetBSD: if_snreg.h,v 1.4 1997/06/15 20:20:12 scottr Exp $	*/
 

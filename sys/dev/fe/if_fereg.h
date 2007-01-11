@@ -24,7 +24,7 @@
  * SUCH DAMAGE.
  */
 
-/* $FreeBSD$ */
+/* $FreeBSD: src/sys/dev/fe/if_fereg.h,v 1.10 2005/02/20 19:33:13 imp Exp $ */
 
 /*
  * Registers on FMV-180 series' ISA bus interface ASIC.

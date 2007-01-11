@@ -32,7 +32,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/lib/libutil/logwtmp.c,v 1.20 2005/05/13 16:31:09 ume Exp $");
 
 #if defined(LIBC_SCCS) && !defined(lint)
 #if 0

@@ -22,7 +22,7 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-/* $FreeBSD$ */
+/* $FreeBSD: src/sys/arm/at91/at91_pmcvar.h,v 1.1.2.1 2006/06/23 23:35:36 cognet Exp $ */
 
 #ifndef ARM_AT91_AT91_PMCVAR_H
 #define ARM_AT91_AT91_PMCVAR_H

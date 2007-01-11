@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/sys/modules/cpufreq/Makefile,v 1.8 2005/04/19 16:38:24 njl Exp $
 
 .PATH:	${.CURDIR}/../../dev/cpufreq		\
 	${.CURDIR}/../../${MACHINE_ARCH}/cpufreq

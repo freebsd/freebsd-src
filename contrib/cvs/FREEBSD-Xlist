@@ -1,4 +1,4 @@
-$FreeBSD$
+$FreeBSD: src/contrib/cvs/FREEBSD-Xlist,v 1.1 2004/06/09 20:14:53 des Exp $
 
 */*.com
 */*.dep

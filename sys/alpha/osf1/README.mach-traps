@@ -1,5 +1,5 @@
 $NetBSD: README.mach-traps,v 1.2 1999/03/23 09:19:25 itohy Exp $
-$FreeBSD$
+$FreeBSD: src/sys/alpha/osf1/README.mach-traps,v 1.1 1999/12/14 22:39:27 gallatin Exp $
 
 Some Alpha AXP OSF/1 binaries directly use the facilities provided by
 the Mach kernel that is the basis for OSF/1.  These include (but are

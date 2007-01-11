@@ -31,7 +31,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/dev/mii/brgphy.c,v 1.34.2.7 2006/10/21 00:26:41 yongari Exp $");
 
 /*
  * Driver for the Broadcom BCR5400 1000baseTX PHY. Speed is always

@@ -25,7 +25,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/dev/ppbus/pcfclock.c,v 1.20 2005/01/06 01:43:06 imp Exp $");
 
 #include "opt_pcfclock.h"
 

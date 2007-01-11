@@ -22,7 +22,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/usr.bin/login/login.h,v 1.4.14.1 2006/09/05 23:53:21 csjp Exp $
  */
 
 void	login_fbtab(char *, uid_t, gid_t);

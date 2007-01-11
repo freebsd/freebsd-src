@@ -27,7 +27,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/usr.sbin/apmd/apmdlex.l,v 1.3 2001/05/15 05:13:45 nsayer Exp $
  */
 
 #include <string.h>

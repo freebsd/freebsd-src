@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/sys/boot/i386/loader/Makefile,v 1.81.2.1 2005/10/30 14:37:02 scottl Exp $
 
 PROG=		loader.sym
 INTERNALPROG=

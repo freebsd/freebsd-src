@@ -1,4 +1,4 @@
-$FreeBSD$
+$FreeBSD: src/contrib/hostapd/FREEBSD-Xlist,v 1.1.2.1 2006/03/24 01:42:33 sam Exp $
 .cvsignore
 driver.c
 driver_bsd.c

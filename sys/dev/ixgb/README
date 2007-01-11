@@ -1,4 +1,4 @@
-/*$FreeBSD$*/
+/*$FreeBSD: src/sys/dev/ixgb/README,v 1.1.10.1 2005/10/07 14:00:04 glebius Exp $*/
 FreeBSD Driver for Intel(R) PRO/10GbE Server Adapters
 =====================================================
 

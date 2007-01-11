@@ -28,7 +28,7 @@
  *
  *	@(#)limits.h	8.3 (Berkeley) 1/4/94
  *	From: NetBSD: limits.h,v 1.3 1997/04/06 08:47:31 cgd Exp
- * $FreeBSD$
+ * $FreeBSD: src/sys/alpha/include/_limits.h,v 1.16 2005/01/05 20:05:50 imp Exp $
  */
 
 #ifndef _MACHINE__LIMITS_H_

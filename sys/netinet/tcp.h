@@ -27,7 +27,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)tcp.h	8.1 (Berkeley) 6/10/93
- * $FreeBSD$
+ * $FreeBSD: src/sys/netinet/tcp.h,v 1.31.2.1 2005/10/09 03:22:51 delphij Exp $
  */
 
 #ifndef _NETINET_TCP_H_

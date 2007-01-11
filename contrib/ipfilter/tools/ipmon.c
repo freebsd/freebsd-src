@@ -1,4 +1,4 @@
-/*	$FreeBSD$	*/
+/*	$FreeBSD: src/contrib/ipfilter/tools/ipmon.c,v 1.4.2.1 2006/08/24 07:37:10 guido Exp $	*/
 
 /*
  * Copyright (C) 1993-2001, 2003 by Darren Reed.

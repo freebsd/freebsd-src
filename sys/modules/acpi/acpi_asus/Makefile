@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/sys/modules/acpi/acpi_asus/Makefile,v 1.7 2004/12/13 03:23:08 scottl Exp $
 
 .PATH:	${.CURDIR}/../../../dev/acpi_support
 

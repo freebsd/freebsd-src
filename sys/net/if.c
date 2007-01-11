@@ -27,7 +27,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)if.c	8.5 (Berkeley) 1/9/95
- * $FreeBSD$
+ * $FreeBSD: src/sys/net/if.c,v 1.234.2.17 2006/10/06 20:26:05 andre Exp $
  */
 
 #include "opt_compat.h"

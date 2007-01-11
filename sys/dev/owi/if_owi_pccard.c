@@ -71,7 +71,7 @@
 
 #if !defined(lint)
 static const char rcsid[] =
-  "$FreeBSD$";
+  "$FreeBSD: src/sys/dev/owi/if_owi_pccard.c,v 1.6.2.1 2005/08/09 01:25:32 avatar Exp $";
 #endif
 
 static int wi_pccard_probe(device_t);

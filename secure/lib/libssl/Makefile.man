@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/secure/lib/libssl/Makefile.man,v 1.1 2003/02/10 19:57:53 nectar Exp $
 # DO NOT EDIT: generated from man-makefile-update target
 MAN+= SSL_CIPHER_get_name.3
 MAN+= SSL_COMP_add_compression_method.3

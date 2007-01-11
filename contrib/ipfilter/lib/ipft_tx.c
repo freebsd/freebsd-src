@@ -1,4 +1,4 @@
-/*	$FreeBSD$	*/
+/*	$FreeBSD: src/contrib/ipfilter/lib/ipft_tx.c,v 1.3.2.1 2006/08/24 07:37:05 guido Exp $	*/
 
 /*
  * Copyright (C) 1995-2001 by Darren Reed.

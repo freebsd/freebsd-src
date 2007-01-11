@@ -4,7 +4,7 @@
 # point-to-point use at a specific distance.  Based on a
 # program by Gunter Burchardt.
 #
-# $FreeBSD$
+# $FreeBSD: src/tools/tools/ath/athctrl.sh,v 1.1.2.1 2005/12/13 21:34:55 sam Exp $
 #
 DEV=ath0
 d=0

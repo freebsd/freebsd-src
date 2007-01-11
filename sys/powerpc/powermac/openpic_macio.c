@@ -36,7 +36,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/powerpc/powermac/openpic_macio.c,v 1.9 2005/01/07 02:29:20 imp Exp $");
 
 #include <sys/param.h>
 #include <sys/systm.h>

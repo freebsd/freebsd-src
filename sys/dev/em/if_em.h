@@ -30,7 +30,7 @@ ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 POSSIBILITY OF SUCH DAMAGE.
 
 ***************************************************************************/
-/*$FreeBSD$*/
+/*$FreeBSD: src/sys/dev/em/if_em.h,v 1.32.2.6 2006/11/10 09:30:27 jfv Exp $*/
 
 #ifndef _EM_H_DEFINED_
 #define _EM_H_DEFINED_

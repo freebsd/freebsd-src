@@ -1,4 +1,4 @@
-/*	$FreeBSD$	*/
+/*	$FreeBSD: src/contrib/ipfilter/tools/lexer.h,v 1.2 2005/04/25 18:20:15 darrenr Exp $	*/
 
 
 typedef	struct	wordtab	{

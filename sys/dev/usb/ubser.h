@@ -27,7 +27,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/dev/usb/ubser.h,v 1.3 2005/03/17 22:47:18 ticso Exp $
  */
 
 #ifndef UBSER_H

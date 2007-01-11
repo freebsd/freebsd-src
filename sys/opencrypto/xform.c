@@ -37,7 +37,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/opencrypto/xform.c,v 1.5.2.2 2006/09/04 15:16:13 pjd Exp $");
 
 #include <sys/param.h>
 #include <sys/systm.h>

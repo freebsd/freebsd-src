@@ -30,7 +30,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/dev/sr/if_sr.c,v 1.69.2.1 2005/08/25 05:01:16 rwatson Exp $");
 
 /*
  * Programming assumptions and other issues.

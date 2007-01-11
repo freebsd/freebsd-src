@@ -32,7 +32,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/sparc64/sparc64/nexus.c,v 1.17 2005/05/21 20:19:27 marius Exp $");
 
 #include <sys/param.h>
 #include <sys/systm.h>

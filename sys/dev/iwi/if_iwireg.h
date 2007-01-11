@@ -1,4 +1,4 @@
-/*	$FreeBSD$	*/
+/*	$FreeBSD: src/sys/dev/iwi/if_iwireg.h,v 1.2.2.4 2006/10/29 08:29:31 mlaier Exp $	*/
 
 /*-
  * Copyright (c) 2004, 2005

@@ -2,7 +2,7 @@
 	The FreeBSD Simplified Chinese Project
 
 	Original Revision: 1.5.2.1
-	$FreeBSD$
+	$FreeBSD: src/release/doc/zh_CN.GB2312/hardware/amd64/proc-amd64.sgml,v 1.1.8.1 2005/10/13 17:30:58 delphij Exp $
 -->
 <sect1 id="proc">
   <title>支持的处理器和主板</title>

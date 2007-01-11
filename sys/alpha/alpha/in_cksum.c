@@ -37,7 +37,7 @@
  */
 
 #include <sys/cdefs.h>			/* RCS ID & Copyright macro defns */
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/alpha/alpha/in_cksum.c,v 1.9 2005/01/05 20:05:49 imp Exp $");
 
 #include <sys/param.h>
 #include <sys/mbuf.h>

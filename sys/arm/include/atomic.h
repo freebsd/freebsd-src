@@ -33,7 +33,7 @@
  * OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF
  * ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/arm/include/atomic.h,v 1.8.2.3 2005/10/06 18:12:05 jhb Exp $
  */
 
 #ifndef	_MACHINE_ATOMIC_H_

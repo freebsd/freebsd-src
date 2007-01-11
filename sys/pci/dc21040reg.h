@@ -1,6 +1,6 @@
 /*	$NetBSD: dc21040reg.h,v 1.15 1998/05/22 18:50:59 matt Exp $	*/
 
-/* $FreeBSD$ */
+/* $FreeBSD: src/sys/pci/dc21040reg.h,v 1.7 2002/06/02 20:05:55 schweikh Exp $ */
 
 /*-
  * Copyright (c) 1994, 1995, 1996 Matt Thomas <matt@3am-software.com>

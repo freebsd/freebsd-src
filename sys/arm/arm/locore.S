@@ -37,7 +37,7 @@
 #include <machine/asm.h>
 #include <machine/armreg.h>
 #include <machine/pte.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/arm/arm/locore.S,v 1.10.2.1 2006/06/23 23:31:40 cognet Exp $");
 
 /* What size should this really be ? It is only used by init_arm() */
 #define INIT_ARM_STACK_SIZE	2048

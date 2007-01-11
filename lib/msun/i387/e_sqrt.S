@@ -35,7 +35,7 @@
 
 #include <machine/asm.h>
 
-RCSID("$FreeBSD$")
+RCSID("$FreeBSD: src/lib/msun/i387/e_sqrt.S,v 1.7 2005/02/04 14:08:32 das Exp $")
 
 ENTRY(sqrt)
 	fldl	4(%esp)

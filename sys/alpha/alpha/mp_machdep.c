@@ -25,7 +25,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/alpha/alpha/mp_machdep.c,v 1.56 2005/04/04 21:53:51 jhb Exp $");
 
 #include "opt_kstack_pages.h"
 

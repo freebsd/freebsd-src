@@ -1,4 +1,4 @@
-/* $FreeBSD$ */
+/* $FreeBSD: src/sys/conf/ldscript.alpha,v 1.8 2004/08/27 19:13:35 marcel Exp $ */
 OUTPUT_FORMAT("elf64-alpha-freebsd", "elf64-alpha-freebsd", "elf64-alpha-freebsd")
 OUTPUT_ARCH(alpha)
 ENTRY(locorestart)

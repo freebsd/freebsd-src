@@ -40,7 +40,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/arm/xscale/i80321/i80321_pci.c,v 1.4.2.1 2006/02/27 01:12:16 cognet Exp $");
 
 #include <sys/param.h>
 #include <sys/systm.h>

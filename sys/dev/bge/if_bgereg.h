@@ -30,7 +30,7 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF
  * THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/dev/bge/if_bgereg.h,v 1.36.2.8.2.1 2006/12/21 21:53:54 scottl Exp $
  */
 
 /*

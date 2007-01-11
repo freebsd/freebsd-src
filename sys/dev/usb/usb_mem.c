@@ -1,5 +1,5 @@
 /*	$NetBSD: usb_mem.c,v 1.26 2003/02/01 06:23:40 thorpej Exp $	*/
-/*	$FreeBSD$	*/
+/*	$FreeBSD: src/sys/dev/usb/usb_mem.c,v 1.7 2005/01/06 01:43:29 imp Exp $	*/
 
 /*-
  * Copyright (c) 1998 The NetBSD Foundation, Inc.
@@ -46,7 +46,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/dev/usb/usb_mem.c,v 1.7 2005/01/06 01:43:29 imp Exp $");
 
 #include <sys/param.h>
 #include <sys/systm.h>

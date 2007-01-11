@@ -29,7 +29,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/lib/libc/posix1e/acl_to_text.c,v 1.11 2003/07/24 23:33:25 rwatson Exp $");
 
 #include <sys/types.h>
 #include "namespace.h"

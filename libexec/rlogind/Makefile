@@ -1,5 +1,5 @@
 #	@(#)Makefile	8.1 (Berkeley) 6/4/93
-# $FreeBSD$
+# $FreeBSD: src/libexec/rlogind/Makefile,v 1.20 2005/01/28 16:08:05 ru Exp $
 
 PROG=	rlogind
 MAN=	rlogind.8

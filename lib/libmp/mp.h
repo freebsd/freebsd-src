@@ -1,4 +1,4 @@
-/* $FreeBSD$ */
+/* $FreeBSD: src/lib/libmp/mp.h,v 1.2 2003/01/28 23:03:15 markm Exp $ */
 
 #ifndef _MP_H_
 #define _MP_H_

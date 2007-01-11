@@ -1,4 +1,4 @@
-/* $FreeBSD$ */
+/* $FreeBSD: src/lib/libc/net/res_config.h,v 1.8.14.1 2006/07/17 10:09:57 ume Exp $ */
 
 #define	DEBUG	1	/* enable debugging code (needed for dig) */
 #define	RESOLVSORT	/* allow sorting of addresses in gethostbyname */

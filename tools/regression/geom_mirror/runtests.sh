@@ -1,5 +1,5 @@
 #!/bin/sh
-# $FreeBSD$
+# $FreeBSD: src/tools/regression/geom_mirror/runtests.sh,v 1.1 2004/07/30 23:13:45 pjd Exp $
 
 dir=`dirname $0`
 

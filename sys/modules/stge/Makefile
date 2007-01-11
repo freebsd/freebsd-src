@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/sys/modules/stge/Makefile,v 1.1.2.1 2006/08/08 09:09:18 yongari Exp $
 
 .PATH: ${.CURDIR}/../../dev/stge
 

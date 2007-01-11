@@ -59,7 +59,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/dev/usb/ehci.c,v 1.36.2.3 2006/09/24 13:39:04 iedowse Exp $");
 
 #include <sys/param.h>
 #include <sys/systm.h>

@@ -30,7 +30,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/lib/libutil/fparseln.c,v 1.6 2003/10/18 10:04:16 markm Exp $");
 
 #include <sys/types.h>
 #include <assert.h>

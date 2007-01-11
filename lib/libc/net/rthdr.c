@@ -30,7 +30,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/lib/libc/net/rthdr.c,v 1.6.10.2 2005/10/08 20:58:29 delphij Exp $");
 
 #include <sys/param.h>
 #include <sys/types.h>

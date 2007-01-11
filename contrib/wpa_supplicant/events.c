@@ -11,7 +11,7 @@
  *
  * See README and COPYING for more details.
  *
- * $FreeBSD$
+ * $FreeBSD: src/contrib/wpa_supplicant/events.c,v 1.2.2.1 2006/03/24 01:41:06 sam Exp $
  */
 
 #include <stdlib.h>

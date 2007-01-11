@@ -37,7 +37,7 @@
  */
 
 #include <machine/asm.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/lib/libc/arm/string/memcpy_arm.S,v 1.1 2004/05/14 12:04:31 cognet Exp $");
 /*
  * This is one fun bit of code ...
  * Some easy listening music is suggested while trying to understand this

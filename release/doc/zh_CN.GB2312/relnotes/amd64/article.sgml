@@ -1,5 +1,5 @@
 <!-- Original Revision: 1.4 -->
-<!-- $FreeBSD$ -->
+<!-- $FreeBSD: src/release/doc/zh_CN.GB2312/relnotes/amd64/article.sgml,v 1.1.8.1 2006/10/11 17:50:03 delphij Exp $ -->
 
 <!DOCTYPE article PUBLIC "-//FreeBSD//DTD DocBook V4.1-Based Extension//EN" [
 <!ENTITY % articles.ent PUBLIC "-//FreeBSD//ENTITIES DocBook FreeBSD Articles Entity Set//EN">

@@ -3,7 +3,7 @@
  */
 
 /*
- * $FreeBSD$
+ * $FreeBSD: src/contrib/ntp/ntpd/ntp_control.c,v 1.9 2004/07/20 15:51:00 roberto Exp $
  */
 
 #ifdef HAVE_CONFIG_H

@@ -1,5 +1,5 @@
 #include <machine/asm.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/i386/bios/smapi_bios.S,v 1.4 2003/06/13 00:36:03 mdodd Exp $");
 
 #include <machine/asmacros.h>
 

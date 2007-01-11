@@ -9,7 +9,7 @@
  * forth in the LICENSE file which can be found at the top level of
  * the sendmail distribution.
  *
- *	$FreeBSD$
+ *	$FreeBSD: src/contrib/sendmail/src/savemail.c,v 1.17.2.3 2006/08/23 03:29:53 gshapiro Exp $
  *
  */
 

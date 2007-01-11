@@ -1,4 +1,4 @@
-/* $FreeBSD$ */
+/* $FreeBSD: src/usr.sbin/pkg_install/create/create.h,v 1.25.2.1 2005/11/11 08:07:24 krion Exp $ */
 
 /*
  * FreeBSD install - a package for the installation and maintainance

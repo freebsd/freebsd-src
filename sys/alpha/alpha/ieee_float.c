@@ -37,7 +37,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/alpha/alpha/ieee_float.c,v 1.10 2004/05/06 09:36:11 das Exp $");
 
 #include <sys/types.h>
 #ifdef TEST

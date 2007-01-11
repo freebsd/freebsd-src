@@ -29,7 +29,7 @@
  *
  *      $Id: files.c,v 1.8 1999/12/13 21:25:26 hm Exp $ 
  *
- * $FreeBSD$
+ * $FreeBSD: src/usr.sbin/i4b/isdntel/files.c,v 1.8 2003/06/07 18:44:04 imp Exp $
  *
  *      last edit-date: [Mon Dec 13 21:54:06 1999]
  *

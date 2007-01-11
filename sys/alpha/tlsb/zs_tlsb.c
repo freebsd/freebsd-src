@@ -31,7 +31,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/alpha/tlsb/zs_tlsb.c,v 1.49 2004/10/18 21:51:24 phk Exp $");
 
 #include <sys/param.h>
 #include <sys/kernel.h>

@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $FreeBSD$
+ * $FreeBSD: src/usr.sbin/sysinstall/devices.c,v 1.160.2.6 2006/09/02 20:41:46 marius Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.

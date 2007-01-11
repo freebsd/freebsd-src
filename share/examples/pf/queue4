@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/share/examples/pf/queue4,v 1.1 2004/09/14 01:07:18 mlaier Exp $
 # $OpenBSD: queue4,v 1.2 2003/08/22 21:50:34 david Exp $
 #
 # Hierarchical queueing for a university.

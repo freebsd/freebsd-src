@@ -1,4 +1,4 @@
-/*	$FreeBSD$	*/
+/*	$FreeBSD: src/sys/dev/sound/sbus/cs4231.h,v 1.2 2005/01/06 01:43:22 imp Exp $	*/
 /*-
  * Copyright (c) 1996 The NetBSD Foundation, Inc.
  * All rights reserved.

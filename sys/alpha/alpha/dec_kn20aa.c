@@ -30,7 +30,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/alpha/alpha/dec_kn20aa.c,v 1.21 2005/02/10 00:35:31 ticso Exp $");
 
 #include <sys/param.h>
 #include <sys/reboot.h>

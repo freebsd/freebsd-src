@@ -31,7 +31,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/dev/mii/dcphy.c,v 1.28.2.2 2006/08/08 04:37:18 yongari Exp $");
 
 /*
  * Pseudo-driver for internal NWAY support on DEC 21143 and workalike

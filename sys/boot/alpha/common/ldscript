@@ -1,4 +1,4 @@
-/* $FreeBSD$ */
+/* $FreeBSD: src/sys/boot/alpha/common/ldscript,v 1.1 2004/08/22 00:26:01 marcel Exp $ */
 /* Script for -N: mix text and data on same page; don't align data */
 OUTPUT_FORMAT("elf64-alpha-freebsd", "elf64-alpha-freebsd",
               "elf64-alpha-freebsd")

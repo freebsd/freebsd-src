@@ -8,7 +8,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/usr.sbin/jail/jail.c,v 1.20.2.3 2006/05/26 10:30:59 matteo Exp $");
 
 #include <sys/param.h>
 #include <sys/jail.h>

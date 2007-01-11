@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/sys/modules/de/Makefile,v 1.3.8.1 2005/12/27 02:39:44 delphij Exp $
 
 .PATH: ${.CURDIR}/../../pci
 

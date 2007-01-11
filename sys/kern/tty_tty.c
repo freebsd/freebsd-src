@@ -24,7 +24,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/kern/tty_tty.c,v 1.56.2.2 2006/09/29 07:33:56 mbr Exp $");
 
 #include <sys/param.h>
 #include <sys/systm.h>

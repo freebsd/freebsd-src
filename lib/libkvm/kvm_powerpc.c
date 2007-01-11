@@ -36,7 +36,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/lib/libkvm/kvm_powerpc.c,v 1.3 2005/06/29 22:39:41 peter Exp $");
 
 #include <sys/param.h>
 

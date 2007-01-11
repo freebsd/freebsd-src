@@ -25,7 +25,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/boot/i386/libi386/biospnp.c,v 1.9.10.1 2006/10/01 12:07:07 ru Exp $");
 
 /*
  * PnP BIOS enumerator.

@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/contrib/diff/FREEBSD-upgrade,v 1.2 2004/02/16 22:54:45 ache Exp $
 Import of GNU diff 2.7
 
 Original source available as ftp://prep.ai.mit.edu/pub/gnu/diffutils-2.7.tar.gz

@@ -30,7 +30,7 @@
 
 #ifndef lint
 static const char rcsid[] =
-  "$FreeBSD$";
+  "$FreeBSD: src/usr.sbin/elf2exe/elf2exe.c,v 1.7 2000/07/12 00:31:50 kris Exp $";
 #endif /* not lint */
 
 #include <sys/types.h>

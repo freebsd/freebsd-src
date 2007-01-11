@@ -25,7 +25,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/i386/i386/minidump_machdep.c,v 1.2.2.1 2006/07/24 23:28:09 peter Exp $");
 
 #include <sys/param.h>
 #include <sys/systm.h>

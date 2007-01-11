@@ -35,7 +35,7 @@ static char sccsid[] = "@(#)rpc_hout.c 1.12 89/02/22 (C) 1987 SMI";
 #endif
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/usr.bin/rpcgen/rpc_hout.c,v 1.10.2.1 2006/06/24 09:31:29 stefanf Exp $");
 
 /*
  * rpc_hout.c, Header file outputter for the RPC protocol compiler

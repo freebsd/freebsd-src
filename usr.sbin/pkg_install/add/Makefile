@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/usr.sbin/pkg_install/add/Makefile,v 1.21 2004/08/12 20:06:00 ru Exp $
 
 PROG=	pkg_add
 SRCS=	main.c perform.c futil.c extract.c

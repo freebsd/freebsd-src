@@ -25,7 +25,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/usr.sbin/asf/asf_kld.c,v 1.1.2.1 2006/07/22 11:58:11 yar Exp $");
 
 #include <sys/param.h>
 #include <sys/linker.h>

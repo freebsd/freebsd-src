@@ -26,7 +26,7 @@
  * SUCH DAMAGE.
  *
  *	from BSDI $Id: mutex.h,v 2.7.2.35 2000/04/27 03:10:26 cp Exp $
- * $FreeBSD$
+ * $FreeBSD: src/sys/i386/include/mutex.h,v 1.36 2002/03/28 15:14:23 jhb Exp $
  */
 
 #ifndef _MACHINE_MUTEX_H_

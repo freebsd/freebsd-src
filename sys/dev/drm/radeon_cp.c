@@ -29,7 +29,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/dev/drm/radeon_cp.c,v 1.15.2.3 2006/05/17 07:40:11 anholt Exp $");
 
 #include "dev/drm/drmP.h"
 #include "dev/drm/drm.h"

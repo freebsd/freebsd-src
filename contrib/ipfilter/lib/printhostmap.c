@@ -1,4 +1,4 @@
-/*	$FreeBSD$	*/
+/*	$FreeBSD: src/contrib/ipfilter/lib/printhostmap.c,v 1.2.2.1 2006/08/24 07:37:05 guido Exp $	*/
 
 #include "ipf.h"
 

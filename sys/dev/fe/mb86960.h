@@ -19,7 +19,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/dev/fe/mb86960.h,v 1.5 2005/02/20 19:33:13 imp Exp $
  */
 
 /*

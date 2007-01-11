@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/crypto/via/padlock.h,v 1.4.2.1 2006/09/04 15:21:10 pjd Exp $
  */
 
 #ifndef _PADLOCK_H_

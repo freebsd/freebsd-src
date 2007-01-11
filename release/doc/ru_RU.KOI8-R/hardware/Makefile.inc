@@ -1,6 +1,6 @@
 # The FreeBSD Russian Documentation Project
 #
-# $FreeBSD$
+# $FreeBSD: src/release/doc/ru_RU.KOI8-R/hardware/Makefile.inc,v 1.2 2004/08/11 10:25:20 den Exp $
 # $FreeBSDru: frdp/release/doc/ru_RU.KOI8-R/hardware/Makefile.inc,v 1.2 2004/08/11 10:04:26 den Exp $
 #
 # Original revision: 1.3

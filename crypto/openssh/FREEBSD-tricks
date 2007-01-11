@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/crypto/openssh/FREEBSD-tricks,v 1.5.2.2 2006/10/06 14:07:11 des Exp $
 
 # Shell code to remove FreeBSD tags before merging
 grep -rl '\$Fre[e]BSD:' . | grep -v FREEBSD >tags

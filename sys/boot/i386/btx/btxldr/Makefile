@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/sys/boot/i386/btx/btxldr/Makefile,v 1.18 2004/12/21 08:47:13 ru Exp $
 
 PROG=	btxldr
 INTERNALPROG=

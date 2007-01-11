@@ -31,7 +31,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/netsmb/smb_trantcp.c,v 1.22.2.1 2006/08/11 19:41:51 jhb Exp $");
 
 #include <sys/param.h>
 #include <sys/condvar.h>

@@ -4,7 +4,7 @@
  * See the IPFILTER.LICENCE file for details on licencing.
  *
  * @(#)ip_fil.h	1.35 6/5/96
- * $FreeBSD$
+ * $FreeBSD: src/sys/contrib/ipfilter/netinet/ip_fil.h,v 1.31.2.1 2006/08/24 07:37:11 guido Exp $
  * Id: ip_fil.h,v 2.170.2.29 2006/03/29 11:19:55 darrenr Exp $
  */
 

@@ -22,7 +22,7 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-/* $FreeBSD$ */
+/* $FreeBSD: src/sys/arm/at91/at91_piovar.h,v 1.2.2.1 2006/07/18 21:00:57 imp Exp $ */
 
 #ifndef ARM_AT91_AT91_PIOVAR_H
 #define ARM_AT91_AT91_PIOVAR_H

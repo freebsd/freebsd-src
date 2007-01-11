@@ -28,7 +28,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/i386/i386/legacy.c,v 1.61 2005/02/15 07:21:20 njl Exp $");
 
 /*
  * This code implements a system driver for legacy systems that do not

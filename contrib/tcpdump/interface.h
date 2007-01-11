@@ -20,7 +20,7 @@
  *
  *
  * @(#) $Header: /tcpdump/master/tcpdump/interface.h,v 1.244.2.18 2005/09/29 07:46:45 hannes Exp $ (LBL)
- * $FreeBSD$
+ * $FreeBSD: src/contrib/tcpdump/interface.h,v 1.11.2.1 2006/10/16 00:47:38 sam Exp $
  */
 
 #ifndef tcpdump_interface_h

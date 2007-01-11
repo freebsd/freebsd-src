@@ -44,7 +44,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/lib/libc/sparc64/fpu/fpu_mul.c,v 1.3 2002/03/22 21:52:58 obrien Exp $");
 
 /*
  * Perform an FPU multiply (return x * y).

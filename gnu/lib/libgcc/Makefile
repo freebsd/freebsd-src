@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/gnu/lib/libgcc/Makefile,v 1.54.2.1 2006/10/05 19:46:06 obrien Exp $
 
 .include "${.CURDIR}/../../usr.bin/cc/Makefile.tgt"
 

@@ -25,7 +25,7 @@
  */
 
 #include "archive_platform.h"
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/lib/libarchive/archive_write_set_format_by_name.c,v 1.3 2004/07/25 23:10:38 kientzle Exp $");
 
 #include <sys/types.h>
 

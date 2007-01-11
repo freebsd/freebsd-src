@@ -28,7 +28,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/usr.sbin/faithd/tcp.c,v 1.5 2003/11/14 17:34:08 ume Exp $
  */
 
 #include <sys/param.h>

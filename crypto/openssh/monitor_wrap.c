@@ -26,7 +26,7 @@
  */
 
 #include "includes.h"
-__RCSID("$FreeBSD$");
+__RCSID("$FreeBSD: src/crypto/openssh/monitor_wrap.c,v 1.10.2.2 2006/10/06 14:07:14 des Exp $");
 
 #include <sys/types.h>
 #include <sys/uio.h>

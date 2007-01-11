@@ -25,7 +25,7 @@
  */
 
 #include <machine/asm.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/lib/libc/ia64/string/bcopy.S,v 1.3 2004/02/10 20:45:28 cperciva Exp $");
 
 /*
  * Not the fastest bcopy in the world.

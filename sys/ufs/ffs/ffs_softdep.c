@@ -39,7 +39,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/ufs/ffs/ffs_softdep.c,v 1.181.2.14 2006/11/04 01:45:50 trhodes Exp $");
 
 /*
  * For now we want the safety net that the DIAGNOSTIC and DEBUG flags provide.

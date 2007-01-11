@@ -24,7 +24,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/sys/device_port.h,v 1.2 2005/01/19 01:31:33 imp Exp $
  */
 
 #if defined(__NetBSD__)

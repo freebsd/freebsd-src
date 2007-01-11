@@ -26,7 +26,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sbin/routed/table.c,v 1.21 2005/05/31 20:28:49 stefanf Exp $
  */
 
 #include "defs.h"
@@ -34,7 +34,7 @@
 #ifdef __NetBSD__
 __RCSID("$NetBSD$");
 #elif defined(__FreeBSD__)
-__RCSID("$FreeBSD$");
+__RCSID("$FreeBSD: src/sbin/routed/table.c,v 1.21 2005/05/31 20:28:49 stefanf Exp $");
 #else
 __RCSID("$Revision: 2.27 $");
 #ident "$Revision: 2.27 $"

@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/libexec/rtld-elf/arm/rtld_machdep.h,v 1.5 2005/04/07 22:04:49 cognet Exp $
  */
 
 #ifndef RTLD_MACHDEP_H

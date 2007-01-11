@@ -33,7 +33,7 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF
  * THE POSSIBILITY OF SUCH DAMAGES.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/dev/ath/ah_osdep.h,v 1.1.2.1 2006/10/16 01:26:14 sam Exp $
  */
 #ifndef _ATH_AH_OSDEP_H_
 #define _ATH_AH_OSDEP_H_

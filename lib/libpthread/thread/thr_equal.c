@@ -29,7 +29,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/lib/libpthread/thread/thr_equal.c,v 1.6 2002/09/16 08:45:34 mini Exp $
  */
 #include <pthread.h>
 #include "thr_private.h"

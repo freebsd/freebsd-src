@@ -30,7 +30,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/arm/arm/db_trace.c,v 1.10.2.1 2006/03/13 03:03:55 jeff Exp $");
 #include <sys/param.h>
 #include <sys/systm.h>
 

@@ -35,7 +35,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/usr.bin/make/cond.h,v 1.3 2005/04/11 07:20:09 harti Exp $
  */
 
 #ifndef cond_h_6e96ad7c

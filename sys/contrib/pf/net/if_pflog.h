@@ -1,4 +1,4 @@
-/*	$FreeBSD$	*/
+/*	$FreeBSD: src/sys/contrib/pf/net/if_pflog.h,v 1.6.2.2 2006/03/22 15:18:04 yar Exp $	*/
 /* $OpenBSD: if_pflog.h,v 1.11 2004/05/19 17:50:51 dhartmei Exp $ */
 
 /*

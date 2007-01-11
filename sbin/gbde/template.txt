@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/sbin/gbde/template.txt,v 1.1 2002/10/20 11:16:13 phk Exp $
 #
 # Sector size is the smallest unit of data which can be read or written.
 # Making it too small decreases performance and decreases available space.

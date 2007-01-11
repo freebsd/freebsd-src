@@ -31,7 +31,7 @@ POSSIBILITY OF SUCH DAMAGE.
 
 ***************************************************************************/
 
-/*$FreeBSD$*/
+/*$FreeBSD: src/sys/dev/em/if_em_osdep.h,v 1.14.2.3 2006/10/28 01:37:14 jfv Exp $*/
 
 #ifndef _FREEBSD_OS_H_
 #define _FREEBSD_OS_H_

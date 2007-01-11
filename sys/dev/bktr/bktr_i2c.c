@@ -25,7 +25,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/dev/bktr/bktr_i2c.c,v 1.27.2.1 2006/09/22 19:19:15 jhb Exp $");
 
 /*
  * I2C support for the bti2c chipset.

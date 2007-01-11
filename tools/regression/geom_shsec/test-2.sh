@@ -1,5 +1,5 @@
 #!/bin/sh
-# $FreeBSD$
+# $FreeBSD: src/tools/regression/geom_shsec/test-2.sh,v 1.1 2005/01/11 18:06:44 pjd Exp $
 
 name="test"
 base=`basename $0`

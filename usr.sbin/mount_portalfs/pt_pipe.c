@@ -25,7 +25,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/usr.sbin/mount_portalfs/pt_pipe.c,v 1.2 2005/03/11 08:39:58 dds Exp $");
 
 #include <ctype.h>
 #include <errno.h>

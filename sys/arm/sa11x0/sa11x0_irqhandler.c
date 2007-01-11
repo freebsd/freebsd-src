@@ -76,7 +76,7 @@
 
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/arm/sa11x0/sa11x0_irqhandler.c,v 1.4 2005/06/09 12:26:20 cognet Exp $");
 
 #include <sys/param.h>
 #include <sys/kernel.h>

@@ -26,7 +26,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $FreeBSD$
+ * $FreeBSD: src/lib/libc/ia64/SYS.h,v 1.4 2002/03/22 23:41:46 obrien Exp $
  */
 
 #include <machine/asm.h>

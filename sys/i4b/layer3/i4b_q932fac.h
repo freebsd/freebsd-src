@@ -28,7 +28,7 @@
  *	i4b_q932fac.h - Q932 facility handling header file
  *	--------------------------------------------------
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/i4b/layer3/i4b_q932fac.h,v 1.9 2005/01/06 22:18:21 imp Exp $
  *
  *      last edit-date: [Sat Mar  9 19:37:46 2002]
  *

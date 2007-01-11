@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/libexec/rtld-elf/Makefile,v 1.36 2004/11/14 22:18:31 ru Exp $
 
 PROG?=		ld-elf.so.1
 SRCS=		rtld_start.S \

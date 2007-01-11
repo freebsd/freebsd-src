@@ -22,7 +22,7 @@
 # (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 # THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #
-# $FreeBSD$
+# $FreeBSD: src/sys/dev/ata/ata_if.m,v 1.5.2.1 2006/01/25 08:13:45 sos Exp $
 
 #include <sys/bus.h>
 #include <sys/kernel.h>

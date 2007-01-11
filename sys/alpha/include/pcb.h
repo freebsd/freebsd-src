@@ -1,4 +1,4 @@
-/* $FreeBSD$ */
+/* $FreeBSD: src/sys/alpha/include/pcb.h,v 1.11 2005/01/05 20:05:50 imp Exp $ */
 /* From: NetBSD: pcb.h,v 1.6 1997/04/06 08:47:33 cgd Exp */
 
 /*-

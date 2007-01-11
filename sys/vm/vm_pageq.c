@@ -26,7 +26,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/vm/vm_pageq.c,v 1.18.2.1 2006/07/05 19:08:49 jhb Exp $");
 
 #include <sys/param.h>
 #include <sys/systm.h>

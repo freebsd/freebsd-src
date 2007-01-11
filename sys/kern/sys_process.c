@@ -30,7 +30,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/kern/sys_process.c,v 1.131.2.7 2006/11/14 19:28:37 trhodes Exp $");
 
 #include "opt_compat.h"
 

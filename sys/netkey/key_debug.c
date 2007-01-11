@@ -30,7 +30,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/netkey/key_debug.c,v 1.25 2005/01/07 01:45:48 imp Exp $");
 
 #ifdef _KERNEL
 #include "opt_inet.h"

@@ -25,7 +25,7 @@
  */
 
 #include "archive_platform.h"
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/lib/libarchive/archive_write_set_compression_none.c,v 1.8 2005/06/01 15:52:39 kientzle Exp $");
 
 #include <errno.h>
 #include <stdlib.h>

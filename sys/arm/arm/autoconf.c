@@ -47,7 +47,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/arm/arm/autoconf.c,v 1.3 2005/05/29 23:44:22 marcel Exp $");
 
 #include <sys/param.h>
 #include <sys/systm.h>

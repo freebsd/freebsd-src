@@ -65,7 +65,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/dev/mii/acphy.c,v 1.16.2.1 2006/08/08 04:37:18 yongari Exp $");
 
 /*
  * Driver for Altima AC101 10/100 PHY

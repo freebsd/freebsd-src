@@ -26,7 +26,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/libkern/gets.c,v 1.3.8.1 2006/11/23 08:41:08 marck Exp $");
 
 #include <sys/param.h>
 #include <sys/cons.h>

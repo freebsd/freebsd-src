@@ -66,7 +66,7 @@
  * SUCH DAMAGE.
  *
  *
- * $FreeBSD$
+ * $FreeBSD: src/share/examples/kld/cdev/module/cdev.h,v 1.4 2000/10/02 14:14:06 sobomax Exp $
  */
 
 #ifndef __CDEV_H_

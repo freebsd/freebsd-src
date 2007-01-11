@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/lib/libc/sparc64/sys/__sparc_utrap_private.h,v 1.4 2002/05/13 04:35:08 jake Exp $
  */
 
 #ifndef	___SPARC_UTRAP_PRIVATE_H_

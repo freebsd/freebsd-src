@@ -29,7 +29,7 @@
  *
  *	$Id: layer3_subr.c,v 1.8 2000/02/21 15:17:17 hm Exp $
  *
- * $FreeBSD$
+ * $FreeBSD: src/usr.sbin/i4b/isdndecode/layer3_subr.c,v 1.8 2001/04/26 08:40:35 kris Exp $
  *
  *      last edit-date: [Mon Feb 21 15:45:16 2000]
  *

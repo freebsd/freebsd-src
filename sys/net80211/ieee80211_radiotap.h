@@ -1,4 +1,4 @@
-/* $FreeBSD$ */
+/* $FreeBSD: src/sys/net80211/ieee80211_radiotap.h,v 1.5.2.1 2006/01/29 07:13:58 sam Exp $ */
 /* $NetBSD: ieee80211_radiotap.h,v 1.10 2005/01/04 00:34:58 dyoung Exp $ */
 
 /*-

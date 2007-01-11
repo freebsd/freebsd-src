@@ -24,7 +24,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$FreeBSD$
+ *	$FreeBSD: src/lib/libc_r/uthread/uthread_main_np.c,v 1.4 2002/10/15 16:40:57 fjoe Exp $
  */
 
 #include <pthread.h>

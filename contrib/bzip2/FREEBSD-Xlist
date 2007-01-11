@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/contrib/bzip2/FREEBSD-Xlist,v 1.1 2005/05/16 18:56:30 obrien Exp $
 *README.XML.STUFF
 *bz-common.xsl
 *bz-fo.xsl

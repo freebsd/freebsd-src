@@ -25,7 +25,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/alpha/alpha/api_up1000.c,v 1.11 2004/07/10 22:29:40 marcel Exp $");
 
 #include <sys/param.h>
 #include <sys/reboot.h>

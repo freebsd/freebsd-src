@@ -1,4 +1,4 @@
-/* $FreeBSD$ */
+/* $FreeBSD: src/lib/bind/lwres/lwres/platform.h,v 1.1.4.1.4.1 2006/12/13 09:52:30 dougb Exp $ */
 
 /*
  * Copyright (C) 2004, 2005  Internet Systems Consortium, Inc. ("ISC")

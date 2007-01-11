@@ -1,4 +1,4 @@
-/*	$FreeBSD$	*/
+/*	$FreeBSD: src/contrib/ipfilter/radix.c,v 1.2.2.1 2006/08/24 07:37:02 guido Exp $	*/
 
 /*
  * Copyright (c) 1988, 1989, 1993

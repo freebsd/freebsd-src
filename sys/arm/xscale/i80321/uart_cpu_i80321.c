@@ -25,7 +25,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/arm/xscale/i80321/uart_cpu_i80321.c,v 1.4 2005/01/20 22:23:26 cognet Exp $");
 
 #include <sys/param.h>
 #include <sys/systm.h>

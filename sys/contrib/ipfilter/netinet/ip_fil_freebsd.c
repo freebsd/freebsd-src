@@ -1,4 +1,4 @@
-/*	$FreeBSD$	*/
+/*	$FreeBSD: src/sys/contrib/ipfilter/netinet/ip_fil_freebsd.c,v 1.1.1.1.2.2 2006/10/26 11:22:04 oleg Exp $	*/
 
 /*
  * Copyright (C) 1993-2003 by Darren Reed.

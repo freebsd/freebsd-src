@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)pathnames.h	8.1 (Berkeley) 6/9/93
- * $FreeBSD$
+ * $FreeBSD: src/release/picobsd/tinyware/login/pathnames.h,v 1.1 2001/10/01 16:58:28 luigi Exp $
  */
 
 #include <paths.h>

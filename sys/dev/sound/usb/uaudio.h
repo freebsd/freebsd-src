@@ -1,4 +1,4 @@
-/* $FreeBSD$ */
+/* $FreeBSD: src/sys/dev/sound/usb/uaudio.h,v 1.6.2.1 2005/12/30 19:55:54 netchild Exp $ */
 
 /*-
  * Copyright (c) 2000-2002 Hiroyuki Aizu <aizu@navi.org>

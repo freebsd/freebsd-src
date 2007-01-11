@@ -31,7 +31,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  * 
- * $FreeBSD$
+ * $FreeBSD: src/sys/dev/firewire/if_fwevar.h,v 1.5 2005/06/10 16:49:08 brooks Exp $
  */
 
 #ifndef _NET_IF_FWEVAR_H_

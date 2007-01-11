@@ -10,7 +10,7 @@
  */
 
 #ifndef lint
-static char rcsid[] = "$FreeBSD$";
+static char rcsid[] = "$FreeBSD: src/lib/msun/src/s_nexttowardf.c,v 1.1 2005/03/07 04:57:38 das Exp $";
 #endif
 
 #include <float.h>

@@ -25,7 +25,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/usr.bin/systat/convtbl.c,v 1.3.16.1 2006/12/18 12:16:17 yar Exp $
  */
 
 #include <sys/types.h>

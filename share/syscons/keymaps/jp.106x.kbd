@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/share/syscons/keymaps/jp.106x.kbd,v 1.8 2001/03/11 23:41:18 ache Exp $
 #
 # (this one has capslock and control swapped)
 #                                                         alt

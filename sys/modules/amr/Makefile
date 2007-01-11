@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/sys/modules/amr/Makefile,v 1.9.14.1 2006/01/26 22:12:31 ambrisko Exp $
 
 .PATH: ${.CURDIR}/../../dev/amr
 

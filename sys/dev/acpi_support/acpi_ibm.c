@@ -26,7 +26,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/dev/acpi_support/acpi_ibm.c,v 1.7.2.3 2006/08/17 03:38:41 takawata Exp $");
 
 /*
  * Driver for extra ACPI-controlled gadgets found on IBM ThinkPad laptops.

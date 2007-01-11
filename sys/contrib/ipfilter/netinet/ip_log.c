@@ -1,11 +1,11 @@
-/*	$FreeBSD$	*/
+/*	$FreeBSD: src/sys/contrib/ipfilter/netinet/ip_log.c,v 1.29.2.1 2006/08/24 07:37:11 guido Exp $	*/
 
 /*
  * Copyright (C) 1997-2003 by Darren Reed.
  *
  * See the IPFILTER.LICENCE file for details on licencing.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/contrib/ipfilter/netinet/ip_log.c,v 1.29.2.1 2006/08/24 07:37:11 guido Exp $
  * Id: ip_log.c,v 2.75.2.11 2006/03/26 13:50:47 darrenr Exp $
  */
 #include <sys/param.h>

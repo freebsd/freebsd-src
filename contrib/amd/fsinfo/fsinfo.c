@@ -38,7 +38,7 @@
  *
  *
  * $Id: fsinfo.c,v 1.5.2.7 2004/05/12 15:54:31 ezk Exp $
- * $FreeBSD$
+ * $FreeBSD: src/contrib/amd/fsinfo/fsinfo.c,v 1.6 2004/07/06 13:16:46 mbr Exp $
  *
  */
 

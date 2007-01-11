@@ -1,4 +1,4 @@
-/* $FreeBSD$ */
+/* $FreeBSD: src/contrib/less/line.c,v 1.1.1.4.8.2 2006/08/29 18:36:49 delphij Exp $ */
 /*
  * Copyright (C) 1984-2005  Mark Nudelman
  *

@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/tools/regression/lib/msun/Makefile,v 1.5 2005/03/25 06:24:46 das Exp $
 
 TESTS=	test-fenv test-ilogb test-lrint test-lround test-next test-rem
 CFLAGS+= -O0 -lm

@@ -74,7 +74,7 @@
 --*/
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/contrib/bzip2/bzlib.c,v 1.2 2005/05/29 21:56:37 sobomax Exp $");
 
 #include "bzlib_private.h"
 

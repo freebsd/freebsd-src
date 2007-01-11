@@ -1,4 +1,4 @@
-/* $FreeBSD$ */
+/* $FreeBSD: src/contrib/hostapd/ieee802_1x.h,v 1.2.2.1 2006/03/24 01:42:34 sam Exp $ */
 
 #ifndef IEEE802_1X_H
 #define IEEE802_1X_H

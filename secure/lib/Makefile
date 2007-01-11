@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/secure/lib/Makefile,v 1.33 2003/07/16 20:59:14 markm Exp $
 
 SUBDIR= 
 .if !defined(NO_OPENSSL)

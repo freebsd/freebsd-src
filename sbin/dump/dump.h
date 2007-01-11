@@ -28,7 +28,7 @@
  *
  *	@(#)dump.h	8.2 (Berkeley) 4/28/95
  *
- * $FreeBSD$
+ * $FreeBSD: src/sbin/dump/dump.h,v 1.27 2004/12/02 13:56:53 maxim Exp $
  */
 
 /*

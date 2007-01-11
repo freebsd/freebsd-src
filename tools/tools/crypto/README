@@ -1,4 +1,4 @@
-$FreeBSD$
+$FreeBSD: src/tools/tools/crypto/README,v 1.1 2002/12/14 06:23:58 sam Exp $
 
 The cryptotest program repeatedly encrypts and decrypts a buffer
 with the built-in iv and key, using hardware crypto.  At the end,

@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/sys/modules/sound/driver/Makefile,v 1.16.2.1 2005/12/30 19:55:54 netchild Exp $
 
 .if ${MACHINE_ARCH} == "sparc64"
 SUBDIR  = audiocs es137x

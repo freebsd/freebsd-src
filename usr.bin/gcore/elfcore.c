@@ -25,7 +25,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/usr.bin/gcore/elfcore.c,v 1.17 2004/07/12 20:19:40 rwatson Exp $");
 
 #include <sys/param.h>
 #include <sys/procfs.h>

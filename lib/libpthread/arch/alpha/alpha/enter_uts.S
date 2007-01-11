@@ -25,7 +25,7 @@
  */
 
 #include <machine/asm.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/lib/libpthread/arch/alpha/alpha/enter_uts.S,v 1.3 2005/05/31 19:58:23 jhb Exp $");
 
 /*
  * _alpha_enter_uts(struct kse_mailbox *km, kse_func_t uts, void *stack,

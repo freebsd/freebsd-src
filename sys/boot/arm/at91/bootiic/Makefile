@@ -1,4 +1,4 @@
-#  $FreeBSD$
+#  $FreeBSD: src/sys/boot/arm/at91/bootiic/Makefile,v 1.3.2.1 2006/08/17 22:57:07 imp Exp $
 
 P=bootiic
 FILES=${P}

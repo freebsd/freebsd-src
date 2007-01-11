@@ -1,5 +1,5 @@
 /* $OpenBSD: servconf.h,v 1.79 2006/08/14 12:40:25 dtucker Exp $ */
-/* $FreeBSD$	*/
+/* $FreeBSD: src/crypto/openssh/servconf.h,v 1.17.2.1 2006/10/06 14:07:15 des Exp $	*/
 
 /*
  * Author: Tatu Ylonen <ylo@cs.hut.fi>

@@ -35,7 +35,7 @@
 /* #pragma ident	"@(#)bsmaudit.c	1.1	01/09/17 SMI" */
 
 #include "includes.h"
-__RCSID("$FreeBSD$");
+__RCSID("$FreeBSD: src/crypto/openssh/audit-bsm.c,v 1.1.1.1.2.2 2006/11/11 00:51:27 des Exp $");
 #if defined(USE_BSM_AUDIT)
 
 #include <sys/types.h>

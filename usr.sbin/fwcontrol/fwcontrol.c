@@ -33,7 +33,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/usr.sbin/fwcontrol/fwcontrol.c,v 1.22 2005/05/20 12:50:47 charnier Exp $");
 
 #include <sys/param.h>
 #include <sys/malloc.h>

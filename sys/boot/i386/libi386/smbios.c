@@ -25,7 +25,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/boot/i386/libi386/smbios.c,v 1.6.2.1 2006/05/22 23:31:30 jkim Exp $");
 
 #include <stand.h>
 #include <bootstrap.h>

@@ -26,7 +26,7 @@
  * SUCH DAMAGE.
  *
  * $Id: server.c,v 1.6 2004/01/13 01:54:39 max Exp $
- * $FreeBSD$
+ * $FreeBSD: src/usr.sbin/bluetooth/sdpd/server.c,v 1.1.8.3 2006/10/07 23:41:22 emax Exp $
  */
 
 #include <sys/param.h>

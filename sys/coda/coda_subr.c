@@ -52,7 +52,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/coda/coda_subr.c,v 1.31 2005/03/13 12:10:15 jeff Exp $");
 
 #include <sys/param.h>
 #include <sys/systm.h>

@@ -24,7 +24,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/lib/csu/common/crtbrand.c,v 1.4 2003/10/17 15:43:13 peter Exp $");
 
 #include <sys/param.h>
 

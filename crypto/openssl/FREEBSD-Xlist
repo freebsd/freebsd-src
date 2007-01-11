@@ -1,4 +1,4 @@
-$FreeBSD$
+$FreeBSD: src/crypto/openssl/FREEBSD-Xlist,v 1.6 2005/02/25 05:31:23 nectar Exp $
 INSTALL.DJGPP
 INSTALL.MacOS
 INSTALL.OS2

@@ -1,4 +1,4 @@
-/* $FreeBSD$ */
+/* $FreeBSD: src/contrib/libreadline/terminal.c,v 1.7 2004/10/21 23:45:57 ache Exp $ */
 
 /* terminal.c -- controlling the terminal with termcap. */
 

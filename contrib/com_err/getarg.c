@@ -35,7 +35,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF 
  * SUCH DAMAGE. 
  *
- * $FreeBSD$
+ * $FreeBSD: src/contrib/com_err/getarg.c,v 1.2 2003/01/08 17:05:52 peter Exp $
  */
 
 #if 0

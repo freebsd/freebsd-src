@@ -27,7 +27,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sbin/camcontrol/camcontrol.c,v 1.53.2.1 2006/09/09 07:21:18 ken Exp $");
 
 #include <sys/ioctl.h>
 #include <sys/stdint.h>

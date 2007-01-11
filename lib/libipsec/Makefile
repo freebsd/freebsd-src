@@ -25,7 +25,7 @@
 # OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 # SUCH DAMAGE.
 #
-# $FreeBSD$
+# $FreeBSD: src/lib/libipsec/Makefile,v 1.16.2.1 2005/07/22 17:29:05 kensmith Exp $
 
 LIB=	ipsec
 SHLIBDIR?= /lib

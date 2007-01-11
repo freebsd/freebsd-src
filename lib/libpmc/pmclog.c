@@ -25,7 +25,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/lib/libpmc/pmclog.c,v 1.3 2005/07/09 17:12:30 jkoshy Exp $");
 
 #include <sys/param.h>
 #include <sys/pmc.h>

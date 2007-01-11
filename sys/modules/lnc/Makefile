@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/sys/modules/lnc/Makefile,v 1.7 2004/02/13 10:11:00 ru Exp $
 
 .PATH: ${.CURDIR}/../../dev/lnc
 

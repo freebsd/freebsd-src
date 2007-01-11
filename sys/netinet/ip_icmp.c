@@ -27,7 +27,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ip_icmp.c	8.2 (Berkeley) 1/4/94
- * $FreeBSD$
+ * $FreeBSD: src/sys/netinet/ip_icmp.c,v 1.101.2.2 2006/02/16 17:50:57 andre Exp $
  */
 
 #include "opt_ipsec.h"

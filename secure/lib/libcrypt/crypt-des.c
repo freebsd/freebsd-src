@@ -57,7 +57,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/secure/lib/libcrypt/crypt-des.c,v 1.16 2002/03/06 17:18:09 markm Exp $");
 
 #include <sys/types.h>
 #include <sys/param.h>

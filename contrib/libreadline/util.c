@@ -1,4 +1,4 @@
-/* $FreeBSD$ */
+/* $FreeBSD: src/contrib/libreadline/util.c,v 1.10 2004/10/21 23:45:57 ache Exp $ */
 
 /* util.c -- readline utility functions */
 

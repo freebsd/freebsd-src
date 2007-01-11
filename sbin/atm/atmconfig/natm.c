@@ -27,7 +27,7 @@
  * Author: Hartmut Brandt <harti@freebsd.org>
  */
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sbin/atm/atmconfig/natm.c,v 1.2 2004/07/28 16:32:17 harti Exp $");
 
 #include <sys/types.h>
 #include <sys/socket.h>

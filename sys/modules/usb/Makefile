@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/sys/modules/usb/Makefile,v 1.18 2005/06/04 10:58:39 schweikh Exp $
 
 S=	${.CURDIR}/../..
 

@@ -18,7 +18,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/gnu/lib/libdialog/notify.c,v 1.9 2003/05/03 21:31:08 obrien Exp $");
 
 #include <dialog.h>
 #include <stdio.h>

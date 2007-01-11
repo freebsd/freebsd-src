@@ -11,7 +11,7 @@
  * argument, prints the log information for all the files in the directory
  * (recursive by default).
  *
- * $FreeBSD$
+ * $FreeBSD: src/contrib/cvs/src/log.c,v 1.2 2004/07/06 08:10:38 des Exp $
  */
 
 #include "cvs.h"

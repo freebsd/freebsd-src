@@ -20,7 +20,7 @@
  * works or modified versions.
  *
  * $Cronyx Id: if_spppfr.c,v 1.1.2.10 2004/06/29 09:02:30 rik Exp $
- * $FreeBSD$
+ * $FreeBSD: src/sys/net/if_spppfr.c,v 1.3 2005/06/10 16:49:18 brooks Exp $
  */
 
 #include <sys/param.h>

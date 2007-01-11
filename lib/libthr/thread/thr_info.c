@@ -29,7 +29,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/lib/libthr/thread/thr_info.c,v 1.4.2.2 2006/01/24 02:04:21 davidxu Exp $
  */
 
 #include <stdio.h>

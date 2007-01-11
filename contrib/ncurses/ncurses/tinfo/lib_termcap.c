@@ -34,7 +34,7 @@
  * Magnus Bengtsson, d6mbeng@dtek.chalmers.se (Nov'93)                      *
  ****************************************************************************/
 
-/* $FreeBSD$ */
+/* $FreeBSD: src/contrib/ncurses/ncurses/tinfo/lib_termcap.c,v 1.11 2002/06/20 19:44:40 peter Exp $ */
 
 #define __INTERNAL_CAPS_VISIBLE
 #include <curses.priv.h>

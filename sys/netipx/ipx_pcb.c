@@ -37,7 +37,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/netipx/ipx_pcb.c,v 1.43.2.2 2006/06/08 23:31:16 rwatson Exp $");
 
 #include <sys/param.h>
 #include <sys/systm.h>

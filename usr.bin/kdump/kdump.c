@@ -43,7 +43,7 @@ static char sccsid[] = "@(#)kdump.c	8.1 (Berkeley) 6/6/93";
 #endif
 #endif /* not lint */
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/usr.bin/kdump/kdump.c,v 1.26.2.3 2006/07/19 14:49:20 kib Exp $");
 
 #define _KERNEL
 extern int errno;

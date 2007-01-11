@@ -11,7 +11,7 @@
  *
  * See README and COPYING for more details.
  *
- * $FreeBSD$
+ * $FreeBSD: src/contrib/wpa_supplicant/wpa_ctrl.c,v 1.3.2.1 2006/03/24 01:41:07 sam Exp $
  */
 
 #include <stdlib.h>

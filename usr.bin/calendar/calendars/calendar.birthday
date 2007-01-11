@@ -1,7 +1,7 @@
 /*
  * Birthday
  *
- * $FreeBSD$
+ * $FreeBSD: src/usr.bin/calendar/calendars/calendar.birthday,v 1.31.2.2 2005/11/16 07:47:43 ru Exp $
  */
 
 #ifndef _calendar_birthday_

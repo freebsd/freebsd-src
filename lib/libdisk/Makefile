@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/lib/libdisk/Makefile,v 1.44 2004/12/21 09:33:46 ru Exp $
 
 .if ${MACHINE_ARCH} == "ia64"
 _open_disk=	open_ia64_disk.c

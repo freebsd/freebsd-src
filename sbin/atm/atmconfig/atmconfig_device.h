@@ -29,7 +29,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sbin/atm/atmconfig/atmconfig_device.h,v 1.2 2005/05/02 10:31:27 delphij Exp $
  */
 #ifndef ATMCONFIG_DEVICE_H_
 #define ATMCONFIG_DEVICE_H_

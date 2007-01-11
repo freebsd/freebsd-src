@@ -23,7 +23,7 @@
  * OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE,
  * EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/usr.sbin/btxld/elfh.c,v 1.5 2004/06/22 17:05:37 obrien Exp $
  */
 
 #include <sys/types.h>

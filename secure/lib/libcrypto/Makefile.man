@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/secure/lib/libcrypto/Makefile.man,v 1.3 2005/02/25 06:04:09 nectar Exp $
 # DO NOT EDIT: generated from man-makefile-update target
 MAN+= ASN1_OBJECT_new.3
 MAN+= ASN1_STRING_length.3

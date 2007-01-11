@@ -33,7 +33,7 @@
 
 /* 
  * $Id: headers.h,v 1.15 2002/09/10 20:04:46 joda Exp $ 
- * $FreeBSD$ 
+ * $FreeBSD: src/crypto/heimdal/kdc/headers.h,v 1.7 2002/09/16 21:07:11 nectar Exp $ 
  */
 
 #ifndef __HEADERS_H__

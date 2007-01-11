@@ -25,7 +25,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/dev/aic/aic_pccard.c,v 1.16 2005/06/24 14:36:51 imp Exp $");
 
 #include <sys/param.h>
 #include <sys/kernel.h>

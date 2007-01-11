@@ -25,7 +25,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/i386/i386/db_trace.c,v 1.66.2.2 2006/08/15 15:59:25 yar Exp $");
 
 #include <sys/param.h>
 #include <sys/systm.h>

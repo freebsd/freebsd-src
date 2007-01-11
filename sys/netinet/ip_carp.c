@@ -1,4 +1,4 @@
-/* 	$FreeBSD$ */
+/* 	$FreeBSD: src/sys/netinet/ip_carp.c,v 1.27.2.9 2006/10/10 18:39:38 bz Exp $ */
 
 /*
  * Copyright (c) 2002 Michael Shalayeff. All rights reserved.

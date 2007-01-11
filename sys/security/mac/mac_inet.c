@@ -35,7 +35,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/security/mac/mac_inet.c,v 1.1.8.1 2006/09/19 15:45:21 csjp Exp $");
 
 #include "opt_mac.h"
 

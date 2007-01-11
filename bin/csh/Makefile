@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/bin/csh/Makefile,v 1.36.2.1 2006/02/26 06:17:59 ume Exp $
 #	@(#)Makefile	8.1 (Berkeley) 5/31/93
 #
 # C Shell with process control; VM/UNIX VAX Makefile

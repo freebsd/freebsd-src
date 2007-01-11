@@ -25,7 +25,7 @@
  */
 
 #include "archive_platform.h"
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/lib/libarchive/archive_check_magic.c,v 1.5 2004/10/18 04:34:30 kientzle Exp $");
 
 #include <sys/types.h>
 

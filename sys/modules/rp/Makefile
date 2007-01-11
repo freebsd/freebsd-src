@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/sys/modules/rp/Makefile,v 1.3.16.1 2006/02/10 00:38:06 yar Exp $
 
 .PATH: ${.CURDIR}/../../dev/rp
 

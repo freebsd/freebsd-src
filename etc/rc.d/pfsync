@@ -1,6 +1,6 @@
 #!/bin/sh
 #
-# $FreeBSD$
+# $FreeBSD: src/etc/rc.d/pfsync,v 1.1.2.1 2005/10/08 03:32:54 yar Exp $
 #
 
 # PROVIDE: pfsync

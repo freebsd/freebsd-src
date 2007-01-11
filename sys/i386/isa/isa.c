@@ -25,7 +25,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/i386/isa/isa.c,v 1.148 2005/01/06 22:18:16 imp Exp $");
 
 /*-
  * Modifications for Intel architecture by Garrett A. Wollman.

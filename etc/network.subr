@@ -22,7 +22,7 @@
 # OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 # SUCH DAMAGE.
 #
-# $FreeBSD$
+# $FreeBSD: src/etc/network.subr,v 1.164.2.7 2006/11/06 16:46:06 mlaier Exp $
 #
 
 #

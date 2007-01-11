@@ -1,4 +1,4 @@
-/* $FreeBSD$ */
+/* $FreeBSD: src/secure/lib/libcrypto/opensslconf-alpha.h,v 1.5 2003/01/29 01:06:15 nectar Exp $ */
 /* opensslconf.h */
 
 /* WARNING: Generated automatically from opensslconf.h.in by Configure. */

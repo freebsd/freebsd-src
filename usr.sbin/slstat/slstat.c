@@ -22,7 +22,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/usr.sbin/slstat/slstat.c,v 1.19 2005/06/10 16:49:24 brooks Exp $");
 
 #include <sys/param.h>
 #include <sys/socket.h>

@@ -25,7 +25,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/alpha/pci/tsunami.c,v 1.24 2004/07/01 15:07:27 gallatin Exp $");
 
 #include "opt_cpu.h"
 

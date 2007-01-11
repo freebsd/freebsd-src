@@ -20,7 +20,7 @@
  */
 #if !defined(lint) && !defined(__GNUC__)
 static char rcsid[] =
-    "@(#)$FreeBSD$ (LBL)";
+    "@(#)$FreeBSD: src/usr.sbin/tcpdump/tcpslice/gwtm2secs.c,v 1.4.34.1 2006/10/18 03:21:36 delphij Exp $ (LBL)";
 #endif
 
 /*

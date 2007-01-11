@@ -31,7 +31,7 @@
  *
  *	@(#)search.h	8.1 (Berkeley) 6/4/93
  *	$NetBSD: search.h,v 1.8 2003/10/18 23:27:36 christos Exp $
- * $FreeBSD$
+ * $FreeBSD: src/lib/libedit/search.h,v 1.3.14.1 2005/10/09 03:44:01 delphij Exp $
  */
 
 /*

@@ -31,7 +31,7 @@
  * POSSIBILITY OF SUCH DAMAGE.
  *
  * $P4: //depot/projects/trustedbsd/audit3/sys/security/audit/audit_bsm_token.c#23 $
- * $FreeBSD$
+ * $FreeBSD: src/sys/security/audit/audit_bsm_token.c,v 1.7.2.2 2006/09/23 16:26:02 rwatson Exp $
  */
 
 #include <sys/types.h>

@@ -45,7 +45,7 @@
 #endif
 #endif /* SYSLIBC_SCCS and not lint */
 #include <machine/asm.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/lib/libc/sparc64/sys/ptrace.S,v 1.4 2002/07/11 15:48:02 tmm Exp $");
 
 #include "SYS.h"
 

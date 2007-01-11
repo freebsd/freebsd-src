@@ -1,4 +1,4 @@
-$FreeBSD$
+$FreeBSD: src/contrib/hostapd/FREEBSD-upgrade,v 1.1.2.1 2006/03/24 01:42:33 sam Exp $
 
 WPA/802.1x Authenticator
 	originals can be found at: http://hostap.epitest.fi/releases/

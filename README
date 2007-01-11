@@ -1,6 +1,6 @@
 This is the top level of the FreeBSD source directory.  This file
 was last revised on:
-$FreeBSD$
+$FreeBSD: src/README,v 1.22.12.2 2006/03/04 17:27:08 ceri Exp $
 
 For copyright information, please see the file COPYRIGHT in this
 directory (additional copyright information also exists for some

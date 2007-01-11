@@ -63,7 +63,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/vm/vm_init.c,v 1.46 2005/04/25 19:22:05 kris Exp $");
 
 #include <sys/param.h>
 #include <sys/kernel.h>

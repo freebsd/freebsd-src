@@ -1,7 +1,7 @@
 <!--
      The FreeBSD Russian Documentation Project
 
-     $FreeBSD$
+     $FreeBSD: src/release/doc/ru_RU.KOI8-R/hardware/common/dev.sgml,v 1.14.2.1 2006/01/31 18:30:41 joel Exp $
      $FreeBSDru: frdp/release/doc/ru_RU.KOI8-R/hardware/common/dev.sgml,v 1.18 2005/06/30 11:12:31 den Exp $
 
      Original revision: 1.282
@@ -37,7 +37,7 @@
 
 <sect1 id="support">
   <sect1info>
-    <pubdate>$FreeBSD$</pubdate>
+    <pubdate>$FreeBSD: src/release/doc/ru_RU.KOI8-R/hardware/common/dev.sgml,v 1.14.2.1 2006/01/31 18:30:41 joel Exp $</pubdate>
   </sect1info>
 
   <title>Поддерживаемые устройства</title>

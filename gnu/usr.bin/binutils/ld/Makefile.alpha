@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/gnu/usr.bin/binutils/ld/Makefile.alpha,v 1.22 2004/07/08 17:05:32 obrien Exp $
 
 NATIVE_EMULATION= elf64alpha_fbsd
 

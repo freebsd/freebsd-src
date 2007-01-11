@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/sys/modules/owi/Makefile,v 1.3 2004/09/04 06:37:58 ru Exp $
 
 .PATH: ${.CURDIR}/../../dev/owi
 

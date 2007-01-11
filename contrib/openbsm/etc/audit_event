@@ -1,6 +1,6 @@
 #
 # $P4: //depot/projects/trustedbsd/openbsm/etc/audit_event#16 $
-# $FreeBSD$
+# $FreeBSD: src/contrib/openbsm/etc/audit_event,v 1.4.2.2 2006/09/29 22:41:54 rwatson Exp $
 #
 0:AUE_NULL:indir system call:no
 1:AUE_EXIT:exit(2):pc

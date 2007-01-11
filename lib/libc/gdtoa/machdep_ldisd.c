@@ -31,7 +31,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/lib/libc/gdtoa/machdep_ldisd.c,v 1.1 2003/03/12 20:29:58 das Exp $");
 
 #include "gdtoaimp.h"
 

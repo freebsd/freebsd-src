@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/dev/hwpmc/hwpmc_amd.h,v 1.1 2005/06/09 19:45:07 jkoshy Exp $
  */
 
 /* Machine dependent interfaces */

@@ -1,6 +1,6 @@
 #!/bin/sh
 #
-# $FreeBSD$
+# $FreeBSD: src/etc/rc.d/ppp,v 1.11.2.2 2006/10/31 03:29:27 avatar Exp $
 #
 
 # PROVIDE: ppp

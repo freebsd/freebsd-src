@@ -29,7 +29,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/sys/kern/imgact_elf.c,v 1.162.2.3 2006/03/16 00:25:31 alc Exp $");
 
 #include "opt_compat.h"
 

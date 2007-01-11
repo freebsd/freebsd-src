@@ -26,7 +26,7 @@
                 Western Washington University
                 Bellingham, WA 98226-9062
 
-$FreeBSD$
+$FreeBSD: src/contrib/bc/bc/main.c,v 1.6.8.1 2006/09/27 09:28:54 delphij Exp $
        
 *************************************************************************/
 
