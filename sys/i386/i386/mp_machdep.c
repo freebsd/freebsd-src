@@ -163,9 +163,7 @@ static void	ipi_nmi_selected(u_int32_t cpus);
 
 #ifdef COUNT_IPIS
 /* Interrupt counts. */
-#ifdef IPI_PREEMPTION
 static u_long *ipi_preempt_counts[MAXCPU];
-#endif
 static u_long *ipi_ast_counts[MAXCPU];
 u_long *ipi_invltlb_counts[MAXCPU];
 u_long *ipi_invlrng_counts[MAXCPU];
@@ -1143,14 +1141,13 @@ ipi_bitmap_handler(struct trapframe frame)
 
 	ipi_bitmap = atomic_readandclear_int(&cpu_ipi_pending[cpu]);
 
-#ifdef IPI_PREEMPTION
-	if (ipi_bitmap & IPI_PREEMPT) {
+	if (ipi_bitmap & (1 << IPI_PREEMPT)) {
 #ifdef COUNT_IPIS
 		*ipi_preempt_counts[cpu]++;
 #endif
 		mtx_lock_spin(&sched_lock);
 		/* Don't preempt the idle thread */
-		if (curthread->td_priority <  PRI_MIN_IDLE) {
+		if (curthread != PCPU_GET(idlethread)) {
 			struct thread *running_thread = curthread;
 			if (running_thread->td_critnest > 1) 
 				running_thread->td_owepreempt = 1;
@@ -1159,9 +1156,8 @@ ipi_bitmap_handler(struct trapframe frame)
 		}
 		mtx_unlock_spin(&sched_lock);
 	}
-#endif
 
-	if (ipi_bitmap & IPI_AST) {
+	if (ipi_bitmap & (1 << IPI_AST)) {
 #ifdef COUNT_IPIS
 		*ipi_ast_counts[cpu]++;
 #endif
@@ -1514,10 +1510,8 @@ mp_ipi_intrcnt(void *dummy)
 		intrcnt_add(buf, &ipi_invlrng_counts[i]);
 		snprintf(buf, sizeof(buf), "cpu%d: invlpg", i);
 		intrcnt_add(buf, &ipi_invlpg_counts[i]);
-#ifdef IPI_PREEMPTION
 		snprintf(buf, sizeof(buf), "cpu%d: preempt", i);
 		intrcnt_add(buf, &ipi_preempt_counts[i]);
-#endif
 		snprintf(buf, sizeof(buf), "cpu%d: ast", i);
 		intrcnt_add(buf, &ipi_ast_counts[i]);
 		snprintf(buf, sizeof(buf), "cpu%d: rendezvous", i);
