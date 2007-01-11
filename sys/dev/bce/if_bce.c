@@ -5547,7 +5547,7 @@ bce_tick(void *xsc)
 
 	/* Schedule the next tick. */
 	callout_reset(
-		&sc->bce_stat_ch,		/* callout */
+		&sc->bce_stat_ch,			/* callout */
 		hz, 					/* ticks */
 		bce_tick, 				/* function */
 		sc);					/* function argument */
