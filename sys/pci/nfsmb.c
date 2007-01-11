@@ -2,11 +2,12 @@
 __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
-#include <sys/kernel.h>
-#include <sys/systm.h>
-#include <sys/module.h>
 #include <sys/bus.h>
-#include <sys/uio.h>
+#include <sys/kernel.h>
+#include <sys/lock.h>
+#include <sys/module.h>
+#include <sys/mutex.h>
+#include <sys/systm.h>
 
 #include <machine/bus.h>
 #include <machine/resource.h>
@@ -15,7 +16,6 @@ __FBSDID("$FreeBSD$");
 #include <dev/pci/pcivar.h>
 #include <dev/pci/pcireg.h>
 
-#include <dev/iicbus/iiconf.h>
 #include <dev/smbus/smbconf.h>
 #include "smbus_if.h"
 
@@ -86,15 +86,22 @@ struct nfsmb_softc {
 	struct resource *res;
 	bus_space_tag_t smbst;
 	bus_space_handle_t smbsh;
-
 	device_t smbus;
 	device_t subdev;
+	struct mtx lock;
 };
 
-#define	NFSMB_SMBINB(nfsmb, register) \
+#define	NFSMB_LOCK(nfsmb)		mtx_lock(&(nfsmb)->lock)
+#define	NFSMB_UNLOCK(nfsmb)		mtx_unlock(&(nfsmb)->lock)
+#define	NFSMB_LOCK_ASSERT(nfsmb)	mtx_assert(&(nfsmb)->lock, MA_OWNED)
+
+#define	NFSMB_SMBINB(nfsmb, register)					\
 	(bus_space_read_1(nfsmb->smbst, nfsmb->smbsh, register))
 #define	NFSMB_SMBOUTB(nfsmb, register, value) \
 	(bus_space_write_1(nfsmb->smbst, nfsmb->smbsh, register, value))
+
+static int	nfsmb_detach(device_t dev);
+static int	nfsmbsub_detach(device_t dev);
 
 static int
 nfsmbsub_probe(device_t dev)
@@ -155,10 +162,14 @@ nfsmbsub_attach(device_t dev)
 	}
 	nfsmbsub_sc->smbst = rman_get_bustag(nfsmbsub_sc->res);
 	nfsmbsub_sc->smbsh = rman_get_bushandle(nfsmbsub_sc->res);
+	mtx_init(&nfsmbsub_sc->lock, device_get_nameunit(dev), "nfsmb",
+	    MTX_DEF);
 
 	nfsmbsub_sc->smbus = device_add_child(dev, "smbus", -1);
-	if (nfsmbsub_sc->smbus == NULL)
+	if (nfsmbsub_sc->smbus == NULL) {
+		nfsmbsub_detach(dev);
 		return (EINVAL);
+	}
 
 	bus_generic_attach(dev);
 
@@ -189,11 +200,14 @@ nfsmb_attach(device_t dev)
 
 	nfsmb_sc->smbst = rman_get_bustag(nfsmb_sc->res);
 	nfsmb_sc->smbsh = rman_get_bushandle(nfsmb_sc->res);
+	mtx_init(&nfsmb_sc->lock, device_get_nameunit(dev), "nfsmb", MTX_DEF);
 
 	/* Allocate a new smbus device */
 	nfsmb_sc->smbus = device_add_child(dev, "smbus", -1);
-	if (!nfsmb_sc->smbus)
+	if (!nfsmb_sc->smbus) {
+		nfsmb_detach(dev);
 		return (EINVAL);
+	}
 
 	nfsmb_sc->subdev = NULL;
 	switch (pci_get_device(dev)) {
@@ -207,8 +221,10 @@ nfsmb_attach(device_t dev)
 	case NFSMB_DEVICEID_NF4_55_SMB:
 		/* Trying to add secondary device as slave */
 		nfsmb_sc->subdev = device_add_child(dev, "nfsmb", -1);
-		if (!nfsmb_sc->subdev)
+		if (!nfsmb_sc->subdev) {
+			nfsmb_detach(dev);
 			return (EINVAL);
+		}
 		break;
 	default:
 		break;
@@ -231,6 +247,7 @@ nfsmbsub_detach(device_t dev)
 		device_delete_child(dev, nfsmbsub_sc->smbus);
 		nfsmbsub_sc->smbus = NULL;
 	}
+	mtx_destroy(&nfsmbsub_sc->lock);
 	if (nfsmbsub_sc->res) {
 		bus_release_resource(parent, SYS_RES_IOPORT, nfsmbsub_sc->rid,
 		    nfsmbsub_sc->res);
@@ -254,6 +271,7 @@ nfsmb_detach(device_t dev)
 		nfsmb_sc->smbus = NULL;
 	}
 
+	mtx_destroy(&nfsmb_sc->lock);
 	if (nfsmb_sc->res) {
 		bus_release_resource(dev, SYS_RES_IOPORT, nfsmb_sc->rid,
 		    nfsmb_sc->res);
@@ -285,6 +303,7 @@ nfsmb_wait(struct nfsmb_softc *sc)
 	u_char sts;
 	int error, count;
 
+	NFSMB_LOCK_ASSERT(sc);
 	if (NFSMB_SMBINB(sc, SMB_PRTCL) != 0)
 	{
 		count = 10000;
@@ -346,12 +365,14 @@ nfsmb_quick(device_t dev, u_char slave, int how)
 		panic("%s: unknown QUICK command (%x)!", __func__, how);
 	}
 
+	NFSMB_LOCK(sc);
 	NFSMB_SMBOUTB(sc, SMB_ADDR, slave);
 	NFSMB_SMBOUTB(sc, SMB_PRTCL, protocol);
 
 	error = nfsmb_wait(sc);
 
 	NFSMB_DEBUG(printf(", error=0x%x\n", error));
+	NFSMB_UNLOCK(sc);
 
 	return (error);
 }
@@ -362,6 +383,7 @@ nfsmb_sendb(device_t dev, u_char slave, char byte)
 	struct nfsmb_softc *sc = (struct nfsmb_softc *)device_get_softc(dev);
 	int error;
 
+	NFSMB_LOCK(sc);
 	NFSMB_SMBOUTB(sc, SMB_CMD, byte);
 	NFSMB_SMBOUTB(sc, SMB_ADDR, slave);
 	NFSMB_SMBOUTB(sc, SMB_PRTCL, SMB_PRTCL_WRITE | SMB_PRTCL_BYTE);
@@ -369,6 +391,7 @@ nfsmb_sendb(device_t dev, u_char slave, char byte)
 	error = nfsmb_wait(sc);
 
 	NFSMB_DEBUG(printf("nfsmb: SENDB to 0x%x, byte=0x%x, error=0x%x\n", slave, byte, error));
+	NFSMB_UNLOCK(sc);
 
 	return (error);
 }
@@ -379,6 +402,7 @@ nfsmb_recvb(device_t dev, u_char slave, char *byte)
 	struct nfsmb_softc *sc = (struct nfsmb_softc *)device_get_softc(dev);
 	int error;
 
+	NFSMB_LOCK(sc);
 	NFSMB_SMBOUTB(sc, SMB_ADDR, slave);
 	NFSMB_SMBOUTB(sc, SMB_PRTCL, SMB_PRTCL_READ | SMB_PRTCL_BYTE);
 
@@ -386,6 +410,7 @@ nfsmb_recvb(device_t dev, u_char slave, char *byte)
 		*byte = NFSMB_SMBINB(sc, SMB_DATA);
 
 	NFSMB_DEBUG(printf("nfsmb: RECVB from 0x%x, byte=0x%x, error=0x%x\n", slave, *byte, error));
+	NFSMB_UNLOCK(sc);
 
 	return (error);
 }
@@ -396,6 +421,7 @@ nfsmb_writeb(device_t dev, u_char slave, char cmd, char byte)
 	struct nfsmb_softc *sc = (struct nfsmb_softc *)device_get_softc(dev);
 	int error;
 
+	NFSMB_LOCK(sc);
 	NFSMB_SMBOUTB(sc, SMB_CMD, cmd);
 	NFSMB_SMBOUTB(sc, SMB_DATA, byte);
 	NFSMB_SMBOUTB(sc, SMB_ADDR, slave);
@@ -404,6 +430,7 @@ nfsmb_writeb(device_t dev, u_char slave, char cmd, char byte)
 	error = nfsmb_wait(sc);
 
 	NFSMB_DEBUG(printf("nfsmb: WRITEB to 0x%x, cmd=0x%x, byte=0x%x, error=0x%x\n", slave, cmd, byte, error));
+	NFSMB_UNLOCK(sc);
 
 	return (error);
 }
@@ -414,6 +441,7 @@ nfsmb_readb(device_t dev, u_char slave, char cmd, char *byte)
 	struct nfsmb_softc *sc = (struct nfsmb_softc *)device_get_softc(dev);
 	int error;
 
+	NFSMB_LOCK(sc);
 	NFSMB_SMBOUTB(sc, SMB_CMD, cmd);
 	NFSMB_SMBOUTB(sc, SMB_ADDR, slave);
 	NFSMB_SMBOUTB(sc, SMB_PRTCL, SMB_PRTCL_READ | SMB_PRTCL_BYTE_DATA);
@@ -422,6 +450,7 @@ nfsmb_readb(device_t dev, u_char slave, char cmd, char *byte)
 		*byte = NFSMB_SMBINB(sc, SMB_DATA);
 
 	NFSMB_DEBUG(printf("nfsmb: READB from 0x%x, cmd=0x%x, byte=0x%x, error=0x%x\n", slave, cmd, (unsigned char)*byte, error));
+	NFSMB_UNLOCK(sc);
 
 	return (error);
 }
@@ -432,6 +461,7 @@ nfsmb_writew(device_t dev, u_char slave, char cmd, short word)
 	struct nfsmb_softc *sc = (struct nfsmb_softc *)device_get_softc(dev);
 	int error;
 
+	NFSMB_LOCK(sc);
 	NFSMB_SMBOUTB(sc, SMB_CMD, cmd);
 	NFSMB_SMBOUTB(sc, SMB_DATA, word);
 	NFSMB_SMBOUTB(sc, SMB_DATA + 1, word >> 8);
@@ -441,6 +471,7 @@ nfsmb_writew(device_t dev, u_char slave, char cmd, short word)
 	error = nfsmb_wait(sc);
 
 	NFSMB_DEBUG(printf("nfsmb: WRITEW to 0x%x, cmd=0x%x, word=0x%x, error=0x%x\n", slave, cmd, word, error));
+	NFSMB_UNLOCK(sc);
 
 	return (error);
 }
@@ -451,6 +482,7 @@ nfsmb_readw(device_t dev, u_char slave, char cmd, short *word)
 	struct nfsmb_softc *sc = (struct nfsmb_softc *)device_get_softc(dev);
 	int error;
 
+	NFSMB_LOCK(sc);
 	NFSMB_SMBOUTB(sc, SMB_CMD, cmd);
 	NFSMB_SMBOUTB(sc, SMB_ADDR, slave);
 	NFSMB_SMBOUTB(sc, SMB_PRTCL, SMB_PRTCL_READ | SMB_PRTCL_WORD_DATA);
@@ -460,6 +492,7 @@ nfsmb_readw(device_t dev, u_char slave, char cmd, short *word)
 		    (NFSMB_SMBINB(sc, SMB_DATA + 1) << 8);
 
 	NFSMB_DEBUG(printf("nfsmb: READW from 0x%x, cmd=0x%x, word=0x%x, error=0x%x\n", slave, cmd, (unsigned short)*word, error));
+	NFSMB_UNLOCK(sc);
 
 	return (error);
 }
@@ -473,6 +506,8 @@ nfsmb_bwrite(device_t dev, u_char slave, char cmd, u_char count, char *buf)
 
 	if (count < 1 || count > 32)
 		return (SMB_EINVAL);
+
+	NFSMB_LOCK(sc);
 	NFSMB_SMBOUTB(sc, SMB_CMD, cmd);
 	NFSMB_SMBOUTB(sc, SMB_BCNT, count);
 	for (i = 0; i < count; i++)
@@ -483,6 +518,7 @@ nfsmb_bwrite(device_t dev, u_char slave, char cmd, u_char count, char *buf)
 	error = nfsmb_wait(sc);
 
 	NFSMB_DEBUG(printf("nfsmb: WRITEBLK to 0x%x, count=0x%x, cmd=0x%x, error=0x%x", slave, count, cmd, error));
+	NFSMB_UNLOCK(sc);
 
 	return (error);
 }
@@ -496,6 +532,8 @@ nfsmb_bread(device_t dev, u_char slave, char cmd, u_char *count, char *buf)
 
 	if (*count < 1 || *count > 32)
 		return (SMB_EINVAL);
+
+	NFSMB_LOCK(sc);
 	NFSMB_SMBOUTB(sc, SMB_CMD, cmd);
 	NFSMB_SMBOUTB(sc, SMB_ADDR, slave);
 	NFSMB_SMBOUTB(sc, SMB_PRTCL, SMB_PRTCL_READ | SMB_PRTCL_BLOCK_DATA);
@@ -511,6 +549,7 @@ nfsmb_bread(device_t dev, u_char slave, char cmd, u_char *count, char *buf)
 	}
 
 	NFSMB_DEBUG(printf("nfsmb: READBLK to 0x%x, count=0x%x, cmd=0x%x, error=0x%x", slave, *count, cmd, error));
+	NFSMB_UNLOCK(sc);
 
 	return (error);
 }
