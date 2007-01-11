@@ -164,7 +164,6 @@ static int
 ichsmb_pci_attach(device_t dev)
 {
 	const sc_p sc = device_get_softc(dev);
-	u_int32_t cmd;
 	int error;
 
 	/* Initialize private state */
@@ -180,7 +179,7 @@ ichsmb_pci_attach(device_t dev)
 		sc->io_res = bus_alloc_resource(dev, SYS_RES_IOPORT,
 		    &sc->io_rid, 0, ~0, 32, RF_ACTIVE);
 	if (sc->io_res == NULL) {
-		log(LOG_ERR, "%s: can't map I/O\n", device_get_nameunit(dev));
+		device_printf(dev, "can't map I/O\n");
 		error = ENXIO;
 		goto fail;
 	}
@@ -192,27 +191,7 @@ ichsmb_pci_attach(device_t dev)
 	sc->irq_res = bus_alloc_resource_any(dev, SYS_RES_IRQ,
 	    &sc->irq_rid, RF_ACTIVE | RF_SHAREABLE);
 	if (sc->irq_res == NULL) {
-		log(LOG_ERR, "%s: can't get IRQ\n", device_get_nameunit(dev));
-		error = ENXIO;
-		goto fail;
-	}
-
-	/* Set up interrupt handler */
-	error = bus_setup_intr(dev, sc->irq_res, INTR_TYPE_MISC,
-	    ichsmb_device_intr, sc, &sc->irq_handle);
-	if (error != 0) {
-		log(LOG_ERR, "%s: can't setup irq\n", device_get_nameunit(dev));
-		goto fail;
-	}
-
-	/* Enable I/O mapping */
-	cmd = pci_read_config(dev, PCIR_COMMAND, 4);
-	cmd |= PCIM_CMD_PORTEN;
-	pci_write_config(dev, PCIR_COMMAND, cmd, 4);
-	cmd = pci_read_config(dev, PCIR_COMMAND, 4);
-	if ((cmd & PCIM_CMD_PORTEN) == 0) {
-		log(LOG_ERR, "%s: can't enable memory map\n",
-		    device_get_nameunit(dev));
+		device_printf(dev, "can't get IRQ\n");
 		error = ENXIO;
 		goto fail;
 	}
@@ -221,7 +200,10 @@ ichsmb_pci_attach(device_t dev)
 	pci_write_config(dev, ICH_HOSTC, ICH_HOSTC_HST_EN, 1);
 
 	/* Done */
-	return (ichsmb_attach(dev));
+	error = ichsmb_attach(dev);
+	if (error)
+		goto fail;
+	return (0);
 
 fail:
 	/* Attach failed, release resources */

@@ -2,11 +2,12 @@
 __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
-#include <sys/kernel.h>
-#include <sys/systm.h>
-#include <sys/module.h>
 #include <sys/bus.h>
-#include <sys/uio.h>
+#include <sys/kernel.h>
+#include <sys/lock.h>
+#include <sys/module.h>
+#include <sys/mutex.h>
+#include <sys/systm.h>
 
 #include <machine/bus.h>
 #include <machine/resource.h>
@@ -15,7 +16,6 @@ __FBSDID("$FreeBSD$");
 #include <dev/pci/pcivar.h>
 #include <dev/pci/pcireg.h>
 
-#include <dev/iicbus/iiconf.h>
 #include <dev/smbus/smbconf.h>
 #include "smbus_if.h"
 
@@ -86,14 +86,20 @@ struct amdsmb_softc {
 	struct resource *res;
 	bus_space_tag_t smbst;
 	bus_space_handle_t smbsh;
-
 	device_t smbus;
+	struct mtx lock;
 };
 
-#define	AMDSMB_ECINB(amdsmb, register) \
+#define	AMDSMB_LOCK(amdsmb)		mtx_lock(&(amdsmb)->lock)
+#define	AMDSMB_UNLOCK(amdsmb)		mtx_unlock(&(amdsmb)->lock)
+#define	AMDSMB_LOCK_ASSERT(amdsmb)	mtx_assert(&(amdsmb)->lock, MA_OWNED)
+
+#define	AMDSMB_ECINB(amdsmb, register)					\
 	(bus_space_read_1(amdsmb->smbst, amdsmb->smbsh, register))
 #define	AMDSMB_ECOUTB(amdsmb, register, value) \
 	(bus_space_write_1(amdsmb->smbst, amdsmb->smbsh, register, value))
+
+static int	amdsmb_detach(device_t dev);
 
 static int
 amdsmb_probe(device_t dev)
@@ -133,11 +139,14 @@ amdsmb_attach(device_t dev)
 
 	amdsmb_sc->smbst = rman_get_bustag(amdsmb_sc->res);
 	amdsmb_sc->smbsh = rman_get_bushandle(amdsmb_sc->res);
+	mtx_init(&amdsmb_sc->lock, device_get_nameunit(dev), "amdsmb", MTX_DEF);
 
 	/* Allocate a new smbus device */
 	amdsmb_sc->smbus = device_add_child(dev, "smbus", -1);
-	if (!amdsmb_sc->smbus)
+	if (!amdsmb_sc->smbus) {
+		amdsmb_detach(dev);
 		return (EINVAL);
+	}
 
 	bus_generic_attach(dev);
 
@@ -154,6 +163,7 @@ amdsmb_detach(device_t dev)
 		amdsmb_sc->smbus = NULL;
 	}
 
+	mtx_destroy(&amdsmb_sc->lock);
 	if (amdsmb_sc->res)
 		bus_release_resource(dev, SYS_RES_IOPORT, amdsmb_sc->rid,
 		    amdsmb_sc->res);
@@ -209,6 +219,7 @@ static int
 amdsmb_ec_read(struct amdsmb_softc *sc, u_char addr, u_char *data)
 {
 
+	AMDSMB_LOCK_ASSERT(sc);
 	if (amdsmb_ec_wait_write(sc))
 		return (1);
 	AMDSMB_ECOUTB(sc, EC_CMD, EC_CMD_RD);
@@ -228,6 +239,7 @@ static int
 amdsmb_ec_write(struct amdsmb_softc *sc, u_char addr, u_char data)
 {
 
+	AMDSMB_LOCK_ASSERT(sc);
 	if (amdsmb_ec_wait_write(sc))
 		return (1);
 	AMDSMB_ECOUTB(sc, EC_CMD, EC_CMD_WR);
@@ -249,6 +261,7 @@ amdsmb_wait(struct amdsmb_softc *sc)
 	u_char sts, temp;
 	int error, count;
 
+	AMDSMB_LOCK_ASSERT(sc);
 	amdsmb_ec_read(sc, SMB_PRTCL, &temp);
 	if (temp != 0)
 	{
@@ -313,12 +326,14 @@ amdsmb_quick(device_t dev, u_char slave, int how)
 		panic("%s: unknown QUICK command (%x)!", __func__, how);
 	}
 
+	AMDSMB_LOCK(sc);
 	amdsmb_ec_write(sc, SMB_ADDR, slave);
 	amdsmb_ec_write(sc, SMB_PRTCL, protocol);
 
 	error = amdsmb_wait(sc);
 
 	AMDSMB_DEBUG(printf(", error=0x%x\n", error));
+	AMDSMB_UNLOCK(sc);
 
 	return (error);
 }
@@ -329,6 +344,7 @@ amdsmb_sendb(device_t dev, u_char slave, char byte)
 	struct amdsmb_softc *sc = (struct amdsmb_softc *)device_get_softc(dev);
 	int error;
 
+	AMDSMB_LOCK(sc);
 	amdsmb_ec_write(sc, SMB_CMD, byte);
 	amdsmb_ec_write(sc, SMB_ADDR, slave);
 	amdsmb_ec_write(sc, SMB_PRTCL, SMB_PRTCL_WRITE | SMB_PRTCL_BYTE);
@@ -337,6 +353,7 @@ amdsmb_sendb(device_t dev, u_char slave, char byte)
 
 	AMDSMB_DEBUG(printf("amdsmb: SENDB to 0x%x, byte=0x%x, error=0x%x\n",
 	   slave, byte, error));
+	AMDSMB_UNLOCK(sc);
 
 	return (error);
 }
@@ -347,6 +364,7 @@ amdsmb_recvb(device_t dev, u_char slave, char *byte)
 	struct amdsmb_softc *sc = (struct amdsmb_softc *)device_get_softc(dev);
 	int error;
 
+	AMDSMB_LOCK(sc);
 	amdsmb_ec_write(sc, SMB_ADDR, slave);
 	amdsmb_ec_write(sc, SMB_PRTCL, SMB_PRTCL_READ | SMB_PRTCL_BYTE);
 
@@ -355,6 +373,7 @@ amdsmb_recvb(device_t dev, u_char slave, char *byte)
 
 	AMDSMB_DEBUG(printf("amdsmb: RECVB from 0x%x, byte=0x%x, error=0x%x\n",
 	    slave, *byte, error));
+	AMDSMB_UNLOCK(sc);
 
 	return (error);
 }
@@ -365,6 +384,7 @@ amdsmb_writeb(device_t dev, u_char slave, char cmd, char byte)
 	struct amdsmb_softc *sc = (struct amdsmb_softc *)device_get_softc(dev);
 	int error;
 
+	AMDSMB_LOCK(sc);
 	amdsmb_ec_write(sc, SMB_CMD, cmd);
 	amdsmb_ec_write(sc, SMB_DATA, byte);
 	amdsmb_ec_write(sc, SMB_ADDR, slave);
@@ -374,6 +394,7 @@ amdsmb_writeb(device_t dev, u_char slave, char cmd, char byte)
 
 	AMDSMB_DEBUG(printf("amdsmb: WRITEB to 0x%x, cmd=0x%x, byte=0x%x, "
 	    "error=0x%x\n", slave, cmd, byte, error));
+	AMDSMB_UNLOCK(sc);
 
 	return (error);
 }
@@ -384,6 +405,7 @@ amdsmb_readb(device_t dev, u_char slave, char cmd, char *byte)
 	struct amdsmb_softc *sc = (struct amdsmb_softc *)device_get_softc(dev);
 	int error;
 
+	AMDSMB_LOCK(sc);
 	amdsmb_ec_write(sc, SMB_CMD, cmd);
 	amdsmb_ec_write(sc, SMB_ADDR, slave);
 	amdsmb_ec_write(sc, SMB_PRTCL, SMB_PRTCL_READ | SMB_PRTCL_BYTE_DATA);
@@ -393,6 +415,7 @@ amdsmb_readb(device_t dev, u_char slave, char cmd, char *byte)
 
 	AMDSMB_DEBUG(printf("amdsmb: READB from 0x%x, cmd=0x%x, byte=0x%x, "
 	    "error=0x%x\n", slave, cmd, (unsigned char)*byte, error));
+	AMDSMB_UNLOCK(sc);
 
 	return (error);
 }
@@ -403,6 +426,7 @@ amdsmb_writew(device_t dev, u_char slave, char cmd, short word)
 	struct amdsmb_softc *sc = (struct amdsmb_softc *)device_get_softc(dev);
 	int error;
 
+	AMDSMB_LOCK(sc);
 	amdsmb_ec_write(sc, SMB_CMD, cmd);
 	amdsmb_ec_write(sc, SMB_DATA, word);
 	amdsmb_ec_write(sc, SMB_DATA + 1, word >> 8);
@@ -413,6 +437,7 @@ amdsmb_writew(device_t dev, u_char slave, char cmd, short word)
 
 	AMDSMB_DEBUG(printf("amdsmb: WRITEW to 0x%x, cmd=0x%x, word=0x%x, "
 	    "error=0x%x\n", slave, cmd, word, error));
+	AMDSMB_UNLOCK(sc);
 
 	return (error);
 }
@@ -424,6 +449,7 @@ amdsmb_readw(device_t dev, u_char slave, char cmd, short *word)
 	u_char temp[2];
 	int error;
 
+	AMDSMB_LOCK(sc);
 	amdsmb_ec_write(sc, SMB_CMD, cmd);
 	amdsmb_ec_write(sc, SMB_ADDR, slave);
 	amdsmb_ec_write(sc, SMB_PRTCL, SMB_PRTCL_READ | SMB_PRTCL_WORD_DATA);
@@ -436,6 +462,7 @@ amdsmb_readw(device_t dev, u_char slave, char cmd, short *word)
 
 	AMDSMB_DEBUG(printf("amdsmb: READW from 0x%x, cmd=0x%x, word=0x%x, "
 	    "error=0x%x\n", slave, cmd, (unsigned short)*word, error));
+	AMDSMB_UNLOCK(sc);
 
 	return (error);
 }
@@ -449,6 +476,8 @@ amdsmb_bwrite(device_t dev, u_char slave, char cmd, u_char count, char *buf)
 
 	if (count < 1 || count > 32)
 		return (SMB_EINVAL);
+
+	AMDSMB_LOCK(sc);
 	amdsmb_ec_write(sc, SMB_CMD, cmd);
 	amdsmb_ec_write(sc, SMB_BCNT, count);
 	for (i = 0; i < count; i++)
@@ -460,6 +489,7 @@ amdsmb_bwrite(device_t dev, u_char slave, char cmd, u_char count, char *buf)
 
 	AMDSMB_DEBUG(printf("amdsmb: WRITEBLK to 0x%x, count=0x%x, cmd=0x%x, "
 	    "error=0x%x", slave, count, cmd, error));
+	AMDSMB_UNLOCK(sc);
 
 	return (error);
 }
@@ -473,6 +503,8 @@ amdsmb_bread(device_t dev, u_char slave, char cmd, u_char *count, char *buf)
 
 	if (*count < 1 || *count > 32)
 		return (SMB_EINVAL);
+
+	AMDSMB_LOCK(sc);
 	amdsmb_ec_write(sc, SMB_CMD, cmd);
 	amdsmb_ec_write(sc, SMB_ADDR, slave);
 	amdsmb_ec_write(sc, SMB_PRTCL, SMB_PRTCL_READ | SMB_PRTCL_BLOCK_DATA);
@@ -489,6 +521,7 @@ amdsmb_bread(device_t dev, u_char slave, char cmd, u_char *count, char *buf)
 
 	AMDSMB_DEBUG(printf("amdsmb: READBLK to 0x%x, count=0x%x, cmd=0x%x, "
 	    "error=0x%x", slave, *count, cmd, error));
+	AMDSMB_UNLOCK(sc);
 
 	return (error);
 }
