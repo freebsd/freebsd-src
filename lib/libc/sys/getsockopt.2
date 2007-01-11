@@ -28,7 +28,7 @@
 .\"     @(#)getsockopt.2	8.4 (Berkeley) 5/2/95
 .\" $FreeBSD$
 .\"
-.Dd April 15, 2006
+.Dd January 11, 2007
 .Dt GETSOCKOPT 2
 .Os
 .Sh NAME
@@ -163,6 +163,8 @@ and set with
 controls generation of
 .Dv SIGPIPE
 for the socket
+.It Dv SO_TIMESTAMP Ta "enables reception of a timestamp with datagrams"
+.It Dv SO_BINTIME Ta "enables reception of a timestamp with datagrams"
 .It Dv SO_TYPE Ta "get the type of the socket (get only)"
 .It Dv SO_ERROR Ta "get and clear error on the socket (get only)"
 .El
@@ -365,6 +367,46 @@ when writing to a connected socket where the other end has been
 closed returns with the error
 .Er EPIPE .
 .Pp
+If the
+.Dv SO_TIMESTAMP
+or
+.Dv SO_BINTIME
+option is enabled on a
+.Dv SOCK_DGRAM
+socket, the
+.Xr recvmsg 2
+call will return a timestamp corresponding to when the datagram was received.
+The
+.Va msg_control
+field in the
+.Vt msghdr
+structure points to a buffer that contains a
+.Vt cmsghdr
+structure followed by a
+.Vt "struct timeval"
+for
+.Dv SO_TIMESTAMP
+and
+.Vt "struct bintime"
+for
+.Dv SO_BINTIME .
+The
+.Vt cmsghdr
+fields have the following values for TIMESTAMP:
+.Bd -literal
+     cmsg_len = sizeof(struct timeval);
+     cmsg_level = SOL_SOCKET;
+     cmsg_type = SCM_TIMESTAMP;
+.Ed
+.Pp
+and for
+.Dv SO_BINTIME :
+.Bd -literal
+     cmsg_len = sizeof(struct bintime);
+     cmsg_level = SOL_SOCKET;
+     cmsg_type = SCM_BINTIME;
+.Ed
+.Pp
 Finally,
 .Dv SO_TYPE
 and
@@ -411,12 +453,14 @@ on a non-listening socket was attempted.
 .El
 .Sh SEE ALSO
 .Xr ioctl 2 ,
+.Xr recvmsg 2 ,
 .Xr socket 2 ,
 .Xr getprotoent 3 ,
 .Xr sysctl 3 ,
 .Xr protocols 5 ,
 .Xr sysctl 8 ,
-.Xr accept_filter 9
+.Xr accept_filter 9 ,
+.Xr bintime 9
 .Sh HISTORY
 The
 .Fn getsockopt
