@@ -303,7 +303,7 @@ static int  bce_tx_encap		(struct bce_softc *, struct mbuf **);
 static void bce_start_locked		(struct ifnet *);
 static void bce_start				(struct ifnet *);
 static int  bce_ioctl				(struct ifnet *, u_long, caddr_t);
-static void bce_watchdog			(struct ifnet *);
+static void bce_watchdog			(struct bce_softc *);
 static int  bce_ifmedia_upd			(struct ifnet *);
 static void bce_ifmedia_sts			(struct ifnet *, struct ifmediareq *);
 static void bce_init_locked			(struct bce_softc *);
@@ -326,7 +326,6 @@ static void bce_poll				(struct ifnet *, enum poll_cmd, int);
 static void bce_intr				(void *);
 static void bce_set_rx_mode			(struct bce_softc *);
 static void bce_stats_update		(struct bce_softc *);
-static void bce_tick_locked			(struct bce_softc *);
 static void bce_tick				(void *);
 static void bce_add_sysctls			(struct bce_softc *);
 
@@ -721,8 +720,6 @@ bce_attach(device_t dev)
 	ifp->if_flags        = IFF_BROADCAST | IFF_SIMPLEX | IFF_MULTICAST;
 	ifp->if_ioctl        = bce_ioctl;
 	ifp->if_start        = bce_start;
-	ifp->if_timer        = 0;
-	ifp->if_watchdog     = bce_watchdog;
 	ifp->if_init         = bce_init;
 	ifp->if_mtu          = ETHERMTU;
 	ifp->if_hwassist     = BCE_IF_HWASSIST;
@@ -766,7 +763,7 @@ bce_attach(device_t dev)
 #if __FreeBSD_version < 500000
 	callout_init(&sc->bce_stat_ch);
 #else
-	callout_init(&sc->bce_stat_ch, CALLOUT_MPSAFE);
+	callout_init_mtx(&sc->bce_stat_ch, &sc->bce_mtx, 0);
 #endif
 
 	/* Hookup IRQ last. */
@@ -3123,7 +3120,7 @@ bce_stop(struct bce_softc *sc)
 	}
 
 	ifp->if_flags = itmp;
-	ifp->if_timer = 0;
+	sc->watchdog_timer = 0;
 
 	sc->bce_link = 0;
 
@@ -3889,7 +3886,7 @@ bce_phy_intr(struct bce_softc *sc)
 
 		sc->bce_link = 0;
 		callout_stop(&sc->bce_stat_ch);
-		bce_tick_locked(sc);
+		bce_tick(sc);
 
 		/* Update the status_attn_bits_ack field in the status block. */
 		if (new_link_state) {
@@ -4296,7 +4293,7 @@ bce_tx_intr(struct bce_softc *sc)
 	}
 
 	/* Clear the TX timeout timer. */
-	ifp->if_timer = 0;
+	sc->watchdog_timer = 0;
 
 	/* Clear the tx hardware queue full flag. */
 	if ((sc->used_tx_bd + BCE_TX_SLACK_SPACE) < USABLE_TX_BD) {
@@ -4762,7 +4759,7 @@ bce_start_locked(struct ifnet *ifp)
 	REG_WR(sc, MB_TX_CID_ADDR + BCE_L2CTX_TX_HOST_BSEQ, sc->tx_prod_bseq);
 
 	/* Set the tx timeout. */
-	ifp->if_timer = BCE_TX_TIMEOUT;
+	sc->watchdog_timer = BCE_TX_TIMEOUT;
 
 bce_start_locked_exit:
 	return;
@@ -4995,25 +4992,34 @@ bce_ioctl_exit:
 /*   Nothing.                                                               */
 /****************************************************************************/
 static void
-bce_watchdog(struct ifnet *ifp)
+bce_watchdog(struct bce_softc *sc)
 {
-	struct bce_softc *sc = ifp->if_softc;
 
 	DBRUN(BCE_WARN_SEND, 
 		bce_dump_driver_state(sc);
 		bce_dump_status_block(sc));
+
+	BCE_LOCK_ASSERT(sc);
+
+	if (sc->watchdog_timer == 0 || --sc->watchdog_timer)
+		return;
+
+	/*
+	 * If we are in this routine because of pause frames, then
+	 * don't reset the hardware.
+	 */
+	if (REG_RD(sc, BCE_EMAC_TX_STATUS) & BCE_EMAC_TX_STATUS_XOFFED)	
+		return;
 
 	BCE_PRINTF(sc, "%s(%d): Watchdog timeout occurred, resetting!\n", 
 		__FILE__, __LINE__);
 
 	/* DBRUN(BCE_FATAL, bce_breakpoint(sc)); */
 
-	BCE_LOCK(sc);
-	ifp->if_drv_flags &= ~IFF_DRV_RUNNING;
+	sc->bce_ifp->if_drv_flags &= ~IFF_DRV_RUNNING;
 
 	bce_init_locked(sc);
-	ifp->if_oerrors++;
-	BCE_UNLOCK(sc);
+	sc->bce_ifp->if_oerrors++;
 
 }
 
@@ -5514,8 +5520,9 @@ bce_stats_update(struct bce_softc *sc)
 
 
 static void
-bce_tick_locked(struct bce_softc *sc)
+bce_tick(void *xsc)
 {
+	struct bce_softc *sc = xsc;
 	struct mii_data *mii = NULL;
 	struct ifnet *ifp;
 	u32 msg;
@@ -5534,6 +5541,9 @@ bce_tick_locked(struct bce_softc *sc)
 
 	/* Update the statistics from the hardware statistics block. */
 	bce_stats_update(sc);
+
+	/* Check that chip hasn't hang. */
+	bce_watchdog(sc);
 
 	/* Schedule the next tick. */
 	callout_reset(
@@ -5566,19 +5576,6 @@ bce_tick_locked(struct bce_softc *sc)
 
 bce_tick_locked_exit:
 	return;
-}
-
-
-static void
-bce_tick(void *xsc)
-{
-	struct bce_softc *sc;
-
-	sc = xsc;
-
-	BCE_LOCK(sc);
-	bce_tick_locked(sc);
-	BCE_UNLOCK(sc);
 }
 
 
