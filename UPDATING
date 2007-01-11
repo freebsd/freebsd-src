@@ -8,6 +8,9 @@ Items affecting the ports and packages system can be found in
 /usr/ports/UPDATING.  Please read that file before running
 portupgrade.
 
+20070114:
+	FreeBSD 6.2-RELEASE.
+
 20070111:		FreeBSD-SA-07:01.jail
 	Correct jail rc.d script privilege escalation.
 
