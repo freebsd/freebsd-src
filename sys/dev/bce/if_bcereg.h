@@ -4755,6 +4755,8 @@ struct bce_softc
 	int					bce_link;
 	struct callout		bce_stat_ch;
 
+	int watchdog_timer;			/* ticks until chip reset */
+
 	/* Frame size and mbuf allocation size for RX frames. */
 	u32					max_frame_size;
 	int					mbuf_alloc_size;
