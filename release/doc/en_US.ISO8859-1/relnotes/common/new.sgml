@@ -13,6 +13,7 @@
     <year>2004</year>
     <year>2005</year>
     <year>2006</year>
+    <year>2007</year>
     <holder role="mailto:doc@FreeBSD.org">The &os; Documentation Project</holder>
   </copyright>
 
@@ -169,6 +170,11 @@
       memory has been corrected.  For more details, consult security
       advisory
       <ulink url="http://security.FreeBSD.org/advisories/FreeBSD-SA-06:25.kmem.asc">FreeBSD-SA-06:25.kmem</ulink>.</para>
+
+    <para>A bug in the <filename>jail</filename> startup script that
+      could permit privilege escalation via a symlink attack has been
+      fixed.  More information is available in
+      <ulink url="http://security.FreeBSD.org/advisories/FreeBSD-SA-07:01.jail.asc">FreeBSD-SA-07:01.jail</ulink>.</para>
 
   </sect2>
 
