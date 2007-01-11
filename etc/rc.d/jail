@@ -66,6 +66,8 @@ init_variables()
 	[ -z "${jail_fstab}" ] && jail_fstab="/etc/fstab.${_j}"
 	eval jail_flags=\"\$jail_${_j}_flags\"
 	[ -z "${jail_flags}" ] && jail_flags="-l -U root"
+	eval _consolelog=\"\${jail_${_j}_consolelog:-${jail_consolelog}}\"
+	[ -z "${_consolelog}" ] && _consolelog="/var/log/jail_${_j}_console.log"
 
 	# Debugging aid
 	#
@@ -84,6 +86,7 @@ init_variables()
 	debug "$_j exec start: $jail_exec_start"
 	debug "$_j exec stop: $jail_exec_stop"
 	debug "$_j flags: $jail_flags"
+	debug "$_j consolelog: $_consolelog"
 }
 
 # set_sysctl rc_knob mib msg
@@ -113,6 +116,56 @@ set_sysctl()
 	fi
 }
 
+# is_current_mountpoint()
+#	Is the directory mount point for a currently mounted file
+#	system?
+#
+is_current_mountpoint()
+{
+	local _dir _dir2
+
+	_dir=$1
+
+	_dir=`echo $_dir | sed -Ee 's#//+#/#g' -e 's#/$##'`
+	[ ! -d "${_dir}" ] && return 1
+	_dir2=`df ${_dir} | tail +2 | awk '{ print $6 }'`
+	[ "${_dir}" = "${_dir2}" ]
+	return $?
+}
+
+# is_symlinked_mountpoint()
+#	Is a mount point, or any of its parent directories, a symlink?
+#
+is_symlinked_mountpoint()
+{
+	local _dir
+
+	_dir=$1
+
+	[ -L "$_dir" ] && return 0
+	[ "$_dir" = "/" ] && return 1
+	is_symlinked_mountpoint `dirname $_dir`
+	return $?
+}
+
+# secure_umount
+#	Try to unmount a mount point without being vulnerable to
+#	symlink attacks.
+#
+secure_umount()
+{
+	local _dir
+
+	_dir=$1
+
+	if is_current_mountpoint ${_dir}; then
+		umount -f ${_dir} >/dev/null 2>&1
+	else
+		debug "Nothing mounted on ${_dir} - not unmounting"
+	fi
+}
+
+
 # jail_umount_fs
 #	This function unmounts certain special filesystems in the
 #	currently selected jail. The caller must call the init_variables()
@@ -120,25 +173,63 @@ set_sysctl()
 #
 jail_umount_fs()
 {
+	local _device _mountpt _rest
+
 	if checkyesno jail_fdescfs; then
 		if [ -d "${jail_fdescdir}" ] ; then
-			umount -f ${jail_fdescdir} >/dev/null 2>&1
+			secure_umount ${jail_fdescdir}
 		fi
 	fi
 	if checkyesno jail_devfs; then
 		if [ -d "${jail_devdir}" ] ; then
-			umount -f ${jail_devdir} >/dev/null 2>&1
+			secure_umount ${jail_devdir}
 		fi
 	fi
 	if checkyesno jail_procfs; then
 		if [ -d "${jail_procdir}" ] ; then
-			umount -f ${jail_procdir} >/dev/null 2>&1
+			secure_umount ${jail_procdir}
 		fi
 	fi
 	if checkyesno jail_mount; then
 		[ -f "${jail_fstab}" ] || warn "${jail_fstab} does not exist"
-		umount -a -F "${jail_fstab}" >/dev/null 2>&1
+		tail -r ${jail_fstab} | while read _device _mountpt _rest; do
+			case ":${_device}" in
+			:#* | :)
+				continue
+				;;
+			esac
+			secure_umount ${_mountpt}
+		done
 	fi
+}
+
+# jail_mount_fstab()
+#	Mount file systems from a per jail fstab while trying to
+#	secure against symlink attacks at the mount points.
+#
+#	If we are certain we cannot secure against symlink attacks we
+#	do not mount all of the file systems (since we cannot just not
+#	mount the file system with the problematic mount point).
+#
+#	The caller must call the init_variables() routine before
+#	calling this one.
+#
+jail_mount_fstab()
+{
+	local _device _mountpt _rest
+
+	while read _device _mountpt _rest; do
+		case ":${_device}" in
+		:#* | :)
+			continue
+			;;
+		esac
+		if is_symlinked_mountpoint ${_mountpt}; then
+			warn "${_mountpt} has symlink as parent - not mounting from ${jail_fstab}"
+			return
+		fi
+	done <${_fstab}
+	mount -a -F "${jail_fstab}"
 }
 
 jail_start()
@@ -167,12 +258,16 @@ jail_start()
 			if [ ! -f "${jail_fstab}" ]; then
 				err 3 "$name: ${jail_fstab} does not exist"
 			fi
-			mount -a -F "${jail_fstab}"
+			jail_mount_fstab
 		fi
 		if checkyesno jail_devfs; then
 			# If devfs is already mounted here, skip it.
 			df -t devfs "${jail_devdir}" >/dev/null
 			if [ $? -ne 0 ]; then
+				if is_symlinked_mountpoint ${jail_devdir}; then
+					warn "${jail_devdir} has symlink as parent - not starting jail ${_jail}"
+					continue
+				fi
 				info "Mounting devfs on ${jail_devdir}"
 				devfs_mount_jail "${jail_devdir}" ${jail_ruleset}
 				# Transitional symlink for old binaries
@@ -193,13 +288,21 @@ jail_start()
 			#	cd "$__pwd"
 		fi
 		if checkyesno jail_fdescfs; then
-			info "Mounting fdescfs on ${jail_fdescdir}"
-			mount -t fdescfs fdesc "${jail_fdescdir}"
+ 			if is_symlinked_mountpoint ${jail_fdescdir}; then
+ 				warn "${jail_fdescdir} has symlink as parent, not mounting"
+ 			else
+				info "Mounting fdescfs on ${jail_fdescdir}"
+				mount -t fdescfs fdesc "${jail_fdescdir}"
+			fi
 		fi
 		if checkyesno jail_procfs; then
-			info "Mounting procfs onto ${jail_procdir}"
-			if [ -d "${jail_procdir}" ] ; then
-				mount -t procfs proc "${jail_procdir}"
+			if is_symlinked_mountpoint ${jail_procdir}; then
+				warn "${jail_procdir} has symlink as parent, not mounting"
+			else
+				info "Mounting procfs onto ${jail_procdir}"
+				if [ -d "${jail_procdir}" ] ; then
+					mount -t procfs proc "${jail_procdir}"
+				fi
 			fi
 		fi
 		_tmp_jail=${_tmp_dir}/jail.$$
@@ -207,7 +310,7 @@ jail_start()
 			${jail_ip} ${jail_exec_start} > ${_tmp_jail} 2>&1
 		[ "$?" -eq 0 ] && echo -n " $jail_hostname"
 		_jail_id=$(head -1 ${_tmp_jail})
-		tail +2 ${_tmp_jail} >${jail_rootdir}/var/log/console.log
+		tail +2 ${_tmp_jail} >${_consolelog}
 		rm -f ${_tmp_jail}
 		echo ${_jail_id} > /var/run/jail_${_jail}.id
 	done
@@ -226,7 +329,7 @@ jail_stop()
 				init_variables $_jail
 				if [ -n "${jail_exec_stop}" ]; then
 					eval env -i /usr/sbin/jexec ${_jail_id} ${jail_exec_stop} \
-						>> ${jail_rootdir}/var/log/console.log 2>&1
+						>> ${_consolelog} 2>&1
 				fi
 				killall -j ${_jail_id} -TERM > /dev/null 2>&1
 				sleep 1
