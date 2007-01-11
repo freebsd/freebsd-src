@@ -266,6 +266,11 @@
       advisory
       <ulink url="http://security.FreeBSD.org/advisories/FreeBSD-SA-06:25.kmem.asc">FreeBSD-SA-06:25.kmem</ulink>. &merged;</para>
 
+    <para>A bug in the <filename>jail</filename> startup script that
+      could permit privilege escalation via a symlink attack has been
+      fixed.  More information is available in
+      <ulink url="http://security.FreeBSD.org/advisories/FreeBSD-SA-07:01.jail.asc">FreeBSD-SA-07:01.jail</ulink>. &merged;</para>
+
   </sect2>
 
   <sect2 id="kernel">
