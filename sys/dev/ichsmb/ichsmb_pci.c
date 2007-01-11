@@ -74,6 +74,7 @@ __FBSDID("$FreeBSD$");
 #define ID_82801DC			0x24C38086
 #define ID_82801EB			0x24D38086
 #define ID_6300ESB			0x25a48086
+#define	ID_631xESB			0x269b8086
 
 #define PCIS_SERIALBUS_SMBUS_PROGIF	0x00
 
@@ -145,6 +146,9 @@ ichsmb_pci_probe(device_t dev)
 		break;
 	case ID_6300ESB:
 		device_set_desc(dev, "Intel 6300ESB (ICH) SMBus controller");
+		break;
+	case ID_631xESB:
+		device_set_desc(dev, "Intel 631xESB/6321ESB (ESB2) SMBus controller");
 		break;
 	default:
 		if (pci_get_class(dev) == PCIC_SERIALBUS
