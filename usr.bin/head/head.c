@@ -146,7 +146,7 @@ head_bytes(FILE *fp, off_t cnt)
 	size_t readlen;
 
 	while (cnt) {
-		if (cnt < sizeof(buf))
+		if ((uintmax_t)cnt < sizeof(buf))
 			readlen = cnt;
 		else
 			readlen = sizeof(buf);
