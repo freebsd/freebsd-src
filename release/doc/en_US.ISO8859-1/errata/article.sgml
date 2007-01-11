@@ -37,6 +37,7 @@
       <year>2004</year>
       <year>2005</year>
       <year>2006</year>
+      <year>2007</year>
       <holder role="mailto:doc@FreeBSD.org">The &os; Documentation Project</holder>
     </copyright>
 
@@ -186,6 +187,13 @@
 		>SA-06:25.kmem</ulink></entry>
 	    <entry>6&nbsp;December&nbsp;2006</entry>
 	    <entry><para>Kernel memory disclosure in &man.firewire.4;</para></entry>
+	  </row>
+
+	  <row>
+	    <entry><ulink url="http://security.FreeBSD.org/advisories/FreeBSD-SA-07:01.jail.asc"
+		>SA-07:01.jail</ulink></entry>
+	    <entry>11&nbsp;January&nbsp;2007</entry>
+	    <entry><para>Jail rc.d script privilege escalation</para></entry>
 	  </row>
 	</tbody>
       </tgroup>
