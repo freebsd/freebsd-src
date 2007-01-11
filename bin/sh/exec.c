@@ -785,9 +785,12 @@ typecmd_impl(int argc, char **argv, int cmd)
 						out1fmt("%s\n", argv[i]);
 					else
 						out1fmt(" is %s\n", argv[i]);
+				} else {
+					if (cmd != TYPECMD_SMALLV)
+						out1fmt(": %s\n",
+						    strerror(errno));
+					error |= 127;
 				}
-				else
-					out1fmt(": %s\n", strerror(errno));
 			}
 			break;
 		}
