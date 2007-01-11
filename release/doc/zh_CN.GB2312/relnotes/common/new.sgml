@@ -1,7 +1,7 @@
 <!--
      The FreeBSD Simplified Chinese Project
 
-     Original revision: 1.883.2.52.2.6
+     Original revision: 1.883.2.52.2.7
 -->
 <articleinfo>
   <title>&os;/&arch; &release.current; 发行说明</title>
@@ -18,6 +18,7 @@
     <year>2004</year>
     <year>2005</year>
     <year>2006</year>
+    <year>2007</year>
     <holder role="mailto:doc@FreeBSD.org">The &os; Documentation Project</holder>
   </copyright>
 
@@ -150,6 +151,10 @@
     <para>发现并修正了一处使属于 <groupname>operator</groupname> 组的用户，
       能够读取某些本应无权内核内存内容的问题。 要了解进一步详情， 请参阅安全公告
       <ulink url="http://security.FreeBSD.org/advisories/FreeBSD-SA-06:25.kmem.asc">FreeBSD-SA-06:25.kmem</ulink>。</para>
+
+    <para>发现并修正了一个可以经由对 /var/log/console.log 和挂接点的符号链接导致的
+	jail rc.d 脚本特权提升问题。 要了解进一步详情， 请参阅安全公告
+      <ulink url="http://security.FreeBSD.org/advisories/FreeBSD-SA-07:01.jail.asc">FreeBSD-SA-07:01.jail</ulink>。</para>
 
   </sect2>
 
