@@ -30,11 +30,12 @@ __FBSDID("$FreeBSD$");
 #include "opt_isa.h"
 
 #include <sys/param.h>
-#include <sys/kernel.h>
-#include <sys/systm.h>
-#include <sys/module.h>
 #include <sys/bus.h>
-#include <sys/uio.h>
+#include <sys/kernel.h>
+#include <sys/lock.h>
+#include <sys/module.h>
+#include <sys/mutex.h>
+#include <sys/systm.h>
 
 #include <machine/bus.h>
 #include <machine/resource.h>
@@ -82,6 +83,10 @@ static int viapm_debug = 0;
 #define VIAPM_TYP_686A		4
 #define VIAPM_TYP_8233		5
 
+#define	VIAPM_LOCK(sc)		mtx_lock(&(sc)->lock)
+#define	VIAPM_UNLOCK(sc)	mtx_unlock(&(sc)->lock)
+#define	VIAPM_LOCK_ASSERT(sc)	mtx_assert(&(sc)->lock, MA_OWNED)
+
 struct viapm_softc {
 	int type;
 	u_int32_t base;
@@ -92,9 +97,9 @@ struct viapm_softc {
 	struct resource *iores;
 	struct resource *irqres;
 	void *irqih;
-
 	device_t iicbb;
 	device_t smbus;
+	struct mtx lock;
 };
 
 static devclass_t viapm_devclass;
@@ -329,6 +334,7 @@ viapm_pro_attach(device_t dev)
 	struct viapm_softc *viapm = (struct viapm_softc *)device_get_softc(dev);
 	u_int32_t l;
 
+	mtx_init(&viapm->lock, device_get_nameunit(dev), "viapm", MTX_DEF);
 	if (!(viapm->iores = bus_alloc_resource_any(dev, SYS_RES_IOPORT,
 		&viapm->iorid, RF_ACTIVE))) {
 		device_printf(dev, "could not allocate bus space\n");
@@ -394,6 +400,7 @@ error:
 	if (viapm->irqres)
 		bus_release_resource(dev, SYS_RES_IRQ, viapm->irqrid, viapm->irqres);
 #endif
+	mtx_destroy(&viapm->lock);
 
 	return ENXIO;
 }
@@ -402,11 +409,12 @@ static int
 viapm_586b_attach(device_t dev)
 {
 	struct viapm_softc *viapm = (struct viapm_softc *)device_get_softc(dev);
-	
+
+	mtx_init(&viapm->lock, device_get_nameunit(dev), "viapm", MTX_DEF);
 	if (!(viapm->iores = bus_alloc_resource_any(dev, SYS_RES_IOPORT,
 		&viapm->iorid, RF_ACTIVE | RF_SHAREABLE))) {
 		device_printf(dev, "could not allocate bus resource\n");
-		return ENXIO;
+		goto error;
 	}
 	viapm->st = rman_get_bustag(viapm->iores);
 	viapm->sh = rman_get_bushandle(viapm->iores);
@@ -425,6 +433,7 @@ error:
 	if (viapm->iores)
 		bus_release_resource(dev, SYS_RES_IOPORT,
 					viapm->iorid, viapm->iores);
+	mtx_destroy(&viapm->lock);
 	return ENXIO;
 }
 
@@ -432,16 +441,16 @@ static int
 viapm_586b_detach(device_t dev)
 {
 	struct viapm_softc *viapm = (struct viapm_softc *)device_get_softc(dev);
-	int error;
 
 	bus_generic_detach(dev);
 	if (viapm->iicbb) {
 		device_delete_child(dev, viapm->iicbb);
 	}
 
-	if (viapm->iores && (error = bus_release_resource(dev, SYS_RES_IOPORT,
-						viapm->iorid, viapm->iores)))
-		return (error);
+	if (viapm->iores)
+		bus_release_resource(dev, SYS_RES_IOPORT, viapm->iorid,
+		    viapm->iores);
+	mtx_destroy(&viapm->lock);
 
 	return 0;
 }
@@ -450,22 +459,18 @@ static int
 viapm_pro_detach(device_t dev)
 {
 	struct viapm_softc *viapm = (struct viapm_softc *)device_get_softc(dev);
-	int error;
 
 	bus_generic_detach(dev);
 	if (viapm->smbus) {
 		device_delete_child(dev, viapm->smbus);
 	}
 
-	if ((error = bus_release_resource(dev, SYS_RES_IOPORT,
-				viapm->iorid, viapm->iores)))
-		return (error);
+	bus_release_resource(dev, SYS_RES_IOPORT, viapm->iorid, viapm->iores);
 
 #ifdef notyet
-	if ((error = bus_release_resource(dev, SYS_RES_IRQ,
-					viapm->irqrid, viapm->irqres))
-		return (error);
+	bus_release_resource(dev, SYS_RES_IRQ, viapm->irqrid, viapm->irqres);
 #endif
+	mtx_destroy(&viapm->lock);
 
 	return 0;
 }
@@ -482,6 +487,7 @@ viabb_setscl(device_t dev, int ctrl)
 	struct viapm_softc *viapm = device_get_softc(dev);
 	u_char val;
 
+	VIAPM_LOCK(viapm);
 	val = VIAPM_INB(GPIO_VAL);
 
 	if (ctrl)
@@ -490,6 +496,7 @@ viabb_setscl(device_t dev, int ctrl)
 		val &= ~VIAPM_SCL;
 
 	VIAPM_OUTB(GPIO_VAL, val);
+	VIAPM_UNLOCK(viapm);
 
 	return;
 }
@@ -500,6 +507,7 @@ viabb_setsda(device_t dev, int data)
 	struct viapm_softc *viapm = device_get_softc(dev);
 	u_char val;
 
+	VIAPM_LOCK(viapm);
 	val = VIAPM_INB(GPIO_VAL);
 
 	if (data)
@@ -508,6 +516,7 @@ viabb_setsda(device_t dev, int data)
 		val &= ~VIAPM_SDA;
 
 	VIAPM_OUTB(GPIO_VAL, val);
+	VIAPM_UNLOCK(viapm);
 
 	return;
 }
@@ -526,16 +535,24 @@ static int
 viabb_getscl(device_t dev)
 {
 	struct viapm_softc *viapm = device_get_softc(dev);
+	u_char val;
 
-	return ((VIAPM_INB(EXTSMI_VAL) & VIAPM_SCL) != 0);
+	VIAPM_LOCK(viapm);
+	val = VIAPM_INB(EXTSMI_VAL);
+	VIAPM_UNLOCK(viapm);
+	return ((val & VIAPM_SCL) != 0);
 }
 
 static int
 viabb_getsda(device_t dev)
 {
 	struct viapm_softc *viapm = device_get_softc(dev);
+	u_char val;
 
-	return ((VIAPM_INB(EXTSMI_VAL) & VIAPM_SDA) != 0);
+	VIAPM_LOCK(viapm);
+	val = VIAPM_INB(EXTSMI_VAL);
+	VIAPM_UNLOCK(viapm);
+	return ((val & VIAPM_SDA) != 0);
 }
 
 static int
@@ -578,6 +595,8 @@ viapm_wait(struct viapm_softc *viapm)
 	int count = 10000;
 	u_char sts = 0;
 	int error;
+
+	VIAPM_LOCK_ASSERT(viapm);
 
 	/* wait for command to complete and SMBus controller is idle */
 	while(count--) {
@@ -636,9 +655,12 @@ viasmb_quick(device_t dev, u_char slave, int how)
 	struct viapm_softc *viapm = (struct viapm_softc *)device_get_softc(dev);
 	int error;
 
+	VIAPM_LOCK(viapm);
 	viapm_clear(viapm);
-	if (viapm_busy(viapm))
+	if (viapm_busy(viapm)) {
+		VIAPM_UNLOCK(viapm);
 		return (SMB_EBUSY);
+	}
 
 	switch (how) {
 	case SMB_QWRITE:
@@ -656,6 +678,7 @@ viasmb_quick(device_t dev, u_char slave, int how)
 	VIAPM_OUTB(SMBHCTRL, SMBHCTRL_START | SMBHCTRL_QUICK);
 
 	error = viapm_wait(viapm);
+	VIAPM_UNLOCK(viapm);
 
 	return (error);
 }
@@ -666,9 +689,12 @@ viasmb_sendb(device_t dev, u_char slave, char byte)
 	struct viapm_softc *viapm = (struct viapm_softc *)device_get_softc(dev);
 	int error;
 
+	VIAPM_LOCK(viapm);
 	viapm_clear(viapm);
-	if (viapm_busy(viapm))
+	if (viapm_busy(viapm)) {
+		VIAPM_UNLOCK(viapm);
 		return (SMB_EBUSY);
+	}
 
 	VIAPM_OUTB(SMBHADDR, slave & ~ LSB);
 	VIAPM_OUTB(SMBHCMD, byte);
@@ -678,6 +704,7 @@ viasmb_sendb(device_t dev, u_char slave, char byte)
 	error = viapm_wait(viapm);
 
 	VIAPM_DEBUG(printf("viapm: SENDB to 0x%x, byte=0x%x, error=0x%x\n", slave, byte, error));
+	VIAPM_UNLOCK(viapm);
 
 	return (error);
 }
@@ -688,9 +715,12 @@ viasmb_recvb(device_t dev, u_char slave, char *byte)
 	struct viapm_softc *viapm = (struct viapm_softc *)device_get_softc(dev);
 	int error;
 
+	VIAPM_LOCK(viapm);
 	viapm_clear(viapm);
-	if (viapm_busy(viapm))
+	if (viapm_busy(viapm)) {
+		VIAPM_UNLOCK(viapm);
 		return (SMB_EBUSY);
+	}
 
 	VIAPM_OUTB(SMBHADDR, slave | LSB);
 
@@ -700,6 +730,7 @@ viasmb_recvb(device_t dev, u_char slave, char *byte)
 		*byte = VIAPM_INB(SMBHDATA0);
 
 	VIAPM_DEBUG(printf("viapm: RECVB from 0x%x, byte=0x%x, error=0x%x\n", slave, *byte, error));
+	VIAPM_UNLOCK(viapm);
 
 	return (error);
 }
@@ -710,9 +741,12 @@ viasmb_writeb(device_t dev, u_char slave, char cmd, char byte)
 	struct viapm_softc *viapm = (struct viapm_softc *)device_get_softc(dev);
 	int error;
 
+	VIAPM_LOCK(viapm);
 	viapm_clear(viapm);
-	if (viapm_busy(viapm))
+	if (viapm_busy(viapm)) {
+		VIAPM_UNLOCK(viapm);
 		return (SMB_EBUSY);
+	}
 
 	VIAPM_OUTB(SMBHADDR, slave & ~ LSB);
 	VIAPM_OUTB(SMBHCMD, cmd);
@@ -723,6 +757,7 @@ viasmb_writeb(device_t dev, u_char slave, char cmd, char byte)
 	error = viapm_wait(viapm);
 
 	VIAPM_DEBUG(printf("viapm: WRITEB to 0x%x, cmd=0x%x, byte=0x%x, error=0x%x\n", slave, cmd, byte, error));
+	VIAPM_UNLOCK(viapm);
 
 	return (error);
 }
@@ -733,9 +768,12 @@ viasmb_readb(device_t dev, u_char slave, char cmd, char *byte)
 	struct viapm_softc *viapm = (struct viapm_softc *)device_get_softc(dev);
 	int error;
 
+	VIAPM_LOCK(viapm);
 	viapm_clear(viapm);
-	if (viapm_busy(viapm))
+	if (viapm_busy(viapm)) {
+		VIAPM_UNLOCK(viapm);
 		return (SMB_EBUSY);
+	}
 
 	VIAPM_OUTB(SMBHADDR, slave | LSB);
 	VIAPM_OUTB(SMBHCMD, cmd);
@@ -746,6 +784,7 @@ viasmb_readb(device_t dev, u_char slave, char cmd, char *byte)
 		*byte = VIAPM_INB(SMBHDATA0);
 
 	VIAPM_DEBUG(printf("viapm: READB from 0x%x, cmd=0x%x, byte=0x%x, error=0x%x\n", slave, cmd, *byte, error));
+	VIAPM_UNLOCK(viapm);
 
 	return (error);
 }
@@ -756,9 +795,12 @@ viasmb_writew(device_t dev, u_char slave, char cmd, short word)
 	struct viapm_softc *viapm = (struct viapm_softc *)device_get_softc(dev);
 	int error;
 
+	VIAPM_LOCK(viapm);
 	viapm_clear(viapm);
-	if (viapm_busy(viapm))
+	if (viapm_busy(viapm)) {
+		VIAPM_UNLOCK(viapm);
 		return (SMB_EBUSY);
+	}
 
 	VIAPM_OUTB(SMBHADDR, slave & ~ LSB);
 	VIAPM_OUTB(SMBHCMD, cmd);
@@ -770,6 +812,7 @@ viasmb_writew(device_t dev, u_char slave, char cmd, short word)
 	error = viapm_wait(viapm);
 
 	VIAPM_DEBUG(printf("viapm: WRITEW to 0x%x, cmd=0x%x, word=0x%x, error=0x%x\n", slave, cmd, word, error));
+	VIAPM_UNLOCK(viapm);
 
 	return (error);
 }
@@ -781,9 +824,12 @@ viasmb_readw(device_t dev, u_char slave, char cmd, short *word)
 	int error;
 	u_char high, low;
 
+	VIAPM_LOCK(viapm);
 	viapm_clear(viapm);
-	if (viapm_busy(viapm))
+	if (viapm_busy(viapm)) {
+		VIAPM_UNLOCK(viapm);
 		return (SMB_EBUSY);
+	}
 
 	VIAPM_OUTB(SMBHADDR, slave | LSB);
 	VIAPM_OUTB(SMBHCMD, cmd);
@@ -798,6 +844,7 @@ viasmb_readw(device_t dev, u_char slave, char cmd, short *word)
 	}
 
 	VIAPM_DEBUG(printf("viapm: READW from 0x%x, cmd=0x%x, word=0x%x, error=0x%x\n", slave, cmd, *word, error));
+	VIAPM_UNLOCK(viapm);
 
 	return (error);
 }
@@ -812,9 +859,12 @@ viasmb_bwrite(device_t dev, u_char slave, char cmd, u_char count, char *buf)
 	if (count < 1 || count > 32)
 		return (SMB_EINVAL);
 
+	VIAPM_LOCK(viapm);
 	viapm_clear(viapm);
-	if (viapm_busy(viapm))
+	if (viapm_busy(viapm)) {
+		VIAPM_UNLOCK(viapm);
 		return (SMB_EBUSY);
+	}
 
 	VIAPM_OUTB(SMBHADDR, slave & ~LSB);
 	VIAPM_OUTB(SMBHCMD, cmd);
@@ -832,6 +882,7 @@ viasmb_bwrite(device_t dev, u_char slave, char cmd, u_char count, char *buf)
 	error = viapm_wait(viapm);
 
 	VIAPM_DEBUG(printf("viapm: WRITEBLK to 0x%x, count=0x%x, cmd=0x%x, error=0x%x", slave, count, cmd, error));
+	VIAPM_UNLOCK(viapm);
 
 	return (error);
 
@@ -847,9 +898,12 @@ viasmb_bread(device_t dev, u_char slave, char cmd, u_char *count, char *buf)
 	if (*count < 1 || *count > 32)
 		return (SMB_EINVAL);
 
+	VIAPM_LOCK(viapm);
 	viapm_clear(viapm);
-	if (viapm_busy(viapm))
+	if (viapm_busy(viapm)) {
+		VIAPM_UNLOCK(viapm);
 		return (SMB_EBUSY);
+	}
 
 	VIAPM_OUTB(SMBHADDR, slave | LSB);
 	VIAPM_OUTB(SMBHCMD, cmd);
@@ -872,6 +926,7 @@ viasmb_bread(device_t dev, u_char slave, char cmd, u_char *count, char *buf)
 
 error:
 	VIAPM_DEBUG(printf("viapm: READBLK to 0x%x, count=0x%x, cmd=0x%x, error=0x%x", slave, *count, cmd, error));
+	VIAPM_UNLOCK(viapm);
 
 	return (error);
 }
