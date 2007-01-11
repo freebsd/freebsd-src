@@ -371,24 +371,9 @@ nexus_activate_resource(device_t bus, device_t child, int type, int rid,
 	 * If this is a memory resource, map it into the kernel.
 	 */
 	if (rman_get_bustag(r) == AMD64_BUS_SPACE_MEM) {
-		caddr_t vaddr = 0;
+		void *vaddr;
 
-		if (rman_get_end(r) < 1024 * 1024) {
-			/*
-			 * The first 1Mb is mapped at KERNBASE.
-			 */
-			vaddr = (caddr_t)(uintptr_t)(KERNBASE + rman_get_start(r));
-		} else {
-			u_int64_t paddr;
-			u_int64_t psize;
-			u_int32_t poffs;
-
-			paddr = rman_get_start(r);
-			psize = rman_get_size(r);
-
-			poffs = paddr - trunc_page(paddr);
-			vaddr = (caddr_t) pmap_mapdev(paddr-poffs, psize+poffs) + poffs;
-		}
+		vaddr = pmap_mapdev(rman_get_start(r), rman_get_size(r));
 		rman_set_virtual(r, vaddr);
 		rman_set_bushandle(r, (bus_space_handle_t) vaddr);
 	}
@@ -402,12 +387,9 @@ nexus_deactivate_resource(device_t bus, device_t child, int type, int rid,
 	/*
 	 * If this is a memory resource, unmap it.
 	 */
-	if ((rman_get_bustag(r) == AMD64_BUS_SPACE_MEM) &&
-	    (rman_get_end(r) >= 1024 * 1024)) {
-		u_int32_t psize;
-
-		psize = rman_get_size(r);
-		pmap_unmapdev((vm_offset_t)rman_get_virtual(r), psize);
+	if (rman_get_bustag(r) == AMD64_BUS_SPACE_MEM) {
+		pmap_unmapdev((vm_offset_t)rman_get_virtual(r),
+		    rman_get_size(r));
 	}
 		
 	return (rman_deactivate_resource(r));
