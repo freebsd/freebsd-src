@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * Copyright (c) 1990,1994 Regents of The University of Michigan.
+ * Copyright (c) 1990, 1994 Regents of The University of Michigan.
  * All Rights Reserved.
  *
  * Permission to use, copy, modify, and distribute this software and
@@ -81,4 +81,4 @@ void	at_sockaddr(struct ddpcb *ddp, struct sockaddr **addr);
 #define	DDP_LIST_SUNLOCK()	mtx_unlock(&ddp_list_mtx)
 #define	DDP_LIST_SLOCK_ASSERT()	mtx_assert(&ddp_list_mtx, MA_OWNED)
 
-#endif
+#endif /* !_NETATALK_DDP_PCB_H_ */

@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * Copyright (c) 1990,1994 Regents of The University of Michigan.
+ * Copyright (c) 1990, 1994 Regents of The University of Michigan.
  * All Rights Reserved.
  *
  * Permission to use, copy, modify, and distribute this software and
@@ -75,8 +75,8 @@ static struct ifqueue atintrq1, atintrq2, aarpintrq;
 static int
 ddp_attach(struct socket *so, int proto, struct thread *td)
 {
-	struct ddpcb	*ddp;
-	int		error = 0;
+	struct ddpcb *ddp;
+	int error = 0;
 	
 	ddp = sotoddpcb(so);
 	KASSERT(ddp == NULL, ("ddp_attach: ddp != NULL"));
@@ -98,7 +98,7 @@ ddp_attach(struct socket *so, int proto, struct thread *td)
 static void
 ddp_detach(struct socket *so)
 {
-	struct ddpcb	*ddp;
+	struct ddpcb *ddp;
 	
 	ddp = sotoddpcb(so);
 	KASSERT(ddp != NULL, ("ddp_detach: ddp == NULL"));
@@ -112,8 +112,8 @@ ddp_detach(struct socket *so)
 static int      
 ddp_bind(struct socket *so, struct sockaddr *nam, struct thread *td)
 {
-	struct ddpcb	*ddp;
-	int		error = 0;
+	struct ddpcb *ddp;
+	int error = 0;
 	
 	ddp = sotoddpcb(so);
 	KASSERT(ddp != NULL, ("ddp_bind: ddp == NULL"));
@@ -129,8 +129,8 @@ ddp_bind(struct socket *so, struct sockaddr *nam, struct thread *td)
 static int
 ddp_connect(struct socket *so, struct sockaddr *nam, struct thread *td)
 {
-	struct ddpcb	*ddp;
-	int		error = 0;
+	struct ddpcb *ddp;
+	int error = 0;
 	
 	ddp = sotoddpcb(so);
 	KASSERT(ddp != NULL, ("ddp_connect: ddp == NULL"));
@@ -138,32 +138,31 @@ ddp_connect(struct socket *so, struct sockaddr *nam, struct thread *td)
 	DDP_LIST_XLOCK();
 	DDP_LOCK(ddp);
 	if (ddp->ddp_fsat.sat_port != ATADDR_ANYPORT) {
-	    DDP_UNLOCK(ddp);
-	    DDP_LIST_XUNLOCK();
-	    return (EISCONN);
+		DDP_UNLOCK(ddp);
+		DDP_LIST_XUNLOCK();
+		return (EISCONN);
 	}
 
 	error = at_pcbconnect( ddp, nam, td );
 	DDP_UNLOCK(ddp);
 	DDP_LIST_XUNLOCK();
 	if (error == 0)
-	    soisconnected(so);
+		soisconnected(so);
 	return (error);
 }
 
 static int
 ddp_disconnect(struct socket *so)
 {
-
-	struct ddpcb	*ddp;
+	struct ddpcb *ddp;
 	
 	ddp = sotoddpcb(so);
 	KASSERT(ddp != NULL, ("ddp_disconnect: ddp == NULL"));
 
 	DDP_LOCK(ddp);
 	if (ddp->ddp_fsat.sat_addr.s_node == ATADDR_ANYNODE) {
-	    DDP_UNLOCK(ddp);
-	    return (ENOTCONN);
+		DDP_UNLOCK(ddp);
+		return (ENOTCONN);
 	}
 
 	at_pcbdisconnect(ddp);
@@ -187,10 +186,10 @@ ddp_shutdown(struct socket *so)
 
 static int
 ddp_send(struct socket *so, int flags, struct mbuf *m, struct sockaddr *addr,
-            struct mbuf *control, struct thread *td)
+    struct mbuf *control, struct thread *td)
 {
-	struct ddpcb	*ddp;
-	int		error = 0;
+	struct ddpcb *ddp;
+	int error = 0;
 	
 	ddp = sotoddpcb(so);
 	KASSERT(ddp != NULL, ("ddp_send: ddp == NULL"));
@@ -260,6 +259,7 @@ ddp_close(struct socket *so)
 void 
 ddp_init(void)
 {
+
 	atintrq1.ifq_maxlen = IFQ_MAXLEN;
 	atintrq2.ifq_maxlen = IFQ_MAXLEN;
 	aarpintrq.ifq_maxlen = IFQ_MAXLEN;
@@ -276,18 +276,18 @@ ddp_init(void)
 static void 
 ddp_clean(void)
 {
-    struct ddpcb	*ddp;
+	struct ddpcp	*ddp;
 
-    for (ddp = ddpcb_list; ddp != NULL; ddp = ddp->ddp_next) {
-	at_pcbdetach(ddp->ddp_socket, ddp);
-    }
-    DDP_LIST_LOCK_DESTROY();
+	for (ddp = ddpcb_list; ddp != NULL; ddp = ddp->ddp_next)
+		at_pcbdetach(ddp->ddp_socket, ddp);
+	DDP_LIST_LOCK_DESTROY();
 }
 #endif
 
 static int
 at_setpeeraddr(struct socket *so, struct sockaddr **nam)
 {
+
 	return (EOPNOTSUPP);
 }
 
