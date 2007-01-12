@@ -178,7 +178,7 @@ nsphy_attach(device_t dev)
 	if (strcmp(nic, "pcn") != 0)
 #if 1
 		ADD(IFM_MAKEWORD(IFM_ETHER, IFM_100_TX, IFM_LOOP,
-		    sc->mii_inst), BMCR_LOOP|BMCR_S100);
+		    sc->mii_inst), MII_MEDIA_100_TX);
 #else
 	if (strcmp(nic, "pcn") == 0)
 		sc->mii_flags |= MIIF_NOLOOP;

@@ -161,10 +161,10 @@ lxtphy_attach(device_t dev)
 
 #define	ADD(m, c)	ifmedia_add(&mii->mii_media, (m), (c), NULL)
 	ADD(IFM_MAKEWORD(IFM_ETHER, IFM_100_FX, 0, sc->mii_inst),
-	    BMCR_S100);
+	    MII_MEDIA_100_TX);
 	printf("100baseFX, ");
 	ADD(IFM_MAKEWORD(IFM_ETHER, IFM_100_FX, IFM_FDX, sc->mii_inst),
-	    BMCR_S100|BMCR_FDX);
+	    MII_MEDIA_100_TX_FDX);
 	printf("100baseFX-FDX, ");
 #undef ADD
 
