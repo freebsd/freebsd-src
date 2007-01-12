@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 1990,1991 Regents of The University of Michigan.
+ * Copyright (c) 1990, 1991 Regents of The University of Michigan.
  * All Rights Reserved.
  *
  * Permission to use, copy, modify, and distribute this software and
@@ -39,16 +39,16 @@
 static struct domain	atalkdomain;
 
 static struct protosw	atalksw[] = {
-    {
-	/* Identifiers */
-	.pr_type =		SOCK_DGRAM,
-	.pr_domain =		&atalkdomain,
-	.pr_protocol =		ATPROTO_DDP,
-	.pr_flags =		PR_ATOMIC|PR_ADDR,
-	.pr_output =		ddp_output,
-	.pr_init =		ddp_init,
-	.pr_usrreqs =		&ddp_usrreqs
-    },
+	{
+		/* Identifiers */
+		.pr_type =		SOCK_DGRAM,
+		.pr_domain =		&atalkdomain,
+		.pr_protocol =		ATPROTO_DDP,
+		.pr_flags =		PR_ATOMIC|PR_ADDR,
+		.pr_output =		ddp_output,
+		.pr_init =		ddp_init,
+		.pr_usrreqs =		&ddp_usrreqs,
+	},
 };
 
 static struct domain	atalkdomain = {
@@ -58,8 +58,7 @@ static struct domain	atalkdomain = {
 	.dom_protoswNPROTOSW =	&atalksw[sizeof(atalksw)/sizeof(atalksw[0])],
 	.dom_rtattach =		rn_inithead,
 	.dom_rtoffset =		offsetof(struct sockaddr_at, sat_addr) << 3,
-	.dom_maxrtkey =		sizeof(struct sockaddr_at)
+	.dom_maxrtkey =		sizeof(struct sockaddr_at),
 };
 
 DOMAIN_SET(atalk);
-
