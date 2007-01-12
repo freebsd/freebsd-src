@@ -66,12 +66,11 @@ static int	vacl_aclcheck(struct thread *td, struct vnode *vp,
 		    acl_type_t type, struct acl *aclp);
 
 /*
- * These calls wrap the real vnode operations, and are called by the 
- * syscall code once the syscall has converted the path or file
- * descriptor to a vnode (unlocked).  The aclp pointer is assumed
- * still to point to userland, so this should not be consumed within
- * the kernel except by syscall code.  Other code should directly
- * invoke VOP_{SET,GET}ACL.
+ * These calls wrap the real vnode operations, and are called by the syscall
+ * code once the syscall has converted the path or file descriptor to a vnode
+ * (unlocked).  The aclp pointer is assumed still to point to userland, so
+ * this should not be consumed within the kernel except by syscall code.
+ * Other code should directly invoke VOP_{SET,GET}ACL.
  */
 
 /*
@@ -180,9 +179,8 @@ vacl_aclcheck(struct thread *td, struct vnode *vp, acl_type_t type,
 }
 
 /*
- * syscalls -- convert the path/fd to a vnode, and call vacl_whatever.
- * Don't need to lock, as the vacl_ code will get/release any locks
- * required.
+ * syscalls -- convert the path/fd to a vnode, and call vacl_whatever.  Don't
+ * need to lock, as the vacl_ code will get/release any locks required.
  */
 
 /*
