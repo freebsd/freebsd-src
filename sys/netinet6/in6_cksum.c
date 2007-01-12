@@ -100,7 +100,7 @@ in6_cksum(struct mbuf *m, u_int8_t nxt, u_int32_t off, u_int32_t len)
 			u_int32_t	ph_len;
 			u_int8_t	ph_zero[3];
 			u_int8_t	ph_nxt;
-		} ph __packed;
+		} __packed ph;
 	} uph;
 	union {
 		u_int8_t	c[2];
