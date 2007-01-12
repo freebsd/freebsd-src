@@ -185,7 +185,7 @@ exphy_attach(device_t dev)
 #endif
 
 	ADD(IFM_MAKEWORD(IFM_ETHER, IFM_100_TX, IFM_LOOP, sc->mii_inst),
-	    BMCR_LOOP|BMCR_S100);
+	    MII_MEDIA_100_TX);
 
 	exphy_reset(sc);
 
