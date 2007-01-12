@@ -156,6 +156,19 @@ acphy_attach(device_t dev)
 	sc->mii_capabilities =
 	    PHY_READ(sc, MII_BMSR) & ma->mii_capmask;
 	device_printf(dev, " ");
+
+#define	ADD(m, c)	ifmedia_add(&mii->mii_media, (m), (c), NULL)
+	if ((PHY_READ(sc, MII_ACPHY_MCTL) & AC_MCTL_FX_SEL) != 0) {
+		sc->mii_flags |= MIIF_HAVEFIBER;
+		ADD(IFM_MAKEWORD(IFM_ETHER, IFM_100_FX, 0, sc->mii_inst),
+		    MII_MEDIA_100_TX);
+		printf("100baseFX, ");
+		ADD(IFM_MAKEWORD(IFM_ETHER, IFM_100_FX, IFM_FDX, sc->mii_inst),
+		    MII_MEDIA_100_TX_FDX);
+		printf("100baseFX-FDX, ");
+	}
+#undef ADD
+
 	mii_phy_add_media(sc);
 	printf("\n");
 
