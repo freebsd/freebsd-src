@@ -2,6 +2,6 @@
 
 PROG=	wlandebug
 BINDIR=	/usr/local/bin
-NO_MAN=
+MAN=	wlandebug.8
 
 .include <bsd.prog.mk>
