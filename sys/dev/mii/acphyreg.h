@@ -57,20 +57,20 @@
 
 #define	MII_ACPHY_MCTL		0x15	/* Mode control */
 #define	AC_MCTL_FX_SEL		0x0001	/* FX mode */
-#define	AC_MCTL_BYP_PCS		0x0001	/* Bypass PCS */
-#define AC_MCTL_SCRMBL		0x0004	/* Data scrambling */	
-#define AC_MCTL_REM_LOOP	0x0008	/* Remote loopback */	
-#define AC_MCTL_DIS_WDT		0x0010	/* Disable watchdog timer */	
-#define AC_MCTL_DIS_REC		0x0020	/* Disable recv error counter */	
-#define AC_MCTL_REC_FULL	0x0040	/* Recv error counter full */	
-#define AC_MCTL_FRC_FEF		0x0080	/* Force Far End Fault Insert. */	
-#define AC_MCTL_DIS_FEF		0x0100	/* Disable FEF Insertion */	
-#define AC_MCTL_LED_SEL		0x0200	/* Compat LED config */	
-#define AC_MCTL_ALED_SEL	0x0400	/* ActLED RX&TX - RX only */	
-#define AC_MCTL_10BT_SEL	0x0800	/* Enable 7-wire interface */	
-#define AC_MCTL_DIS_JAB		0x1000	/* Disable jabber */	
-#define AC_MCTL_FRC_LINK	0x2000	/* Force TX link up */	
-#define AC_MCTL_DIS_NLP		0x4000	/* Disable NLP check */	
+#define	AC_MCTL_BYP_PCS		0x0002	/* Bypass PCS */
+#define	AC_MCTL_SCRMBL		0x0004	/* Data scrambling */
+#define	AC_MCTL_REM_LOOP	0x0008	/* Remote loopback */
+#define	AC_MCTL_DIS_WDT		0x0010	/* Disable watchdog timer */
+#define	AC_MCTL_DIS_REC		0x0020	/* Disable recv error counter */
+#define	AC_MCTL_REC_FULL	0x0040	/* Recv error counter full */
+#define	AC_MCTL_FRC_FEF		0x0080	/* Force Far End Fault Insert. */
+#define	AC_MCTL_DIS_FEF		0x0100	/* Disable FEF Insertion */
+#define	AC_MCTL_LED_SEL		0x0200	/* Compat LED config */
+#define	AC_MCTL_ALED_SEL	0x0400	/* ActLED RX&TX - RX only */
+#define	AC_MCTL_10BT_SEL	0x0800	/* Enable 7-wire interface */
+#define	AC_MCTL_DIS_JAB		0x1000	/* Disable jabber */
+#define	AC_MCTL_FRC_LINK	0x2000	/* Force TX link up */
+#define	AC_MCTL_DIS_NLP		0x4000	/* Disable NLP check */
 
 #define	MII_ACPHY_REC		0x18	/* Recv error counter */
 
