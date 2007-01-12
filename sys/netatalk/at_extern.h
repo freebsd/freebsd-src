@@ -44,10 +44,6 @@ extern struct mtx aarptab_mtx;
 #define	AARPTAB_UNLOCK_ASSERT()	mtx_assert(&aarptab_mtx, MA_NOTOWNED)
 #endif
 
-#ifdef _NETATALK_AARP_H_
-extern void	aarptfree	(struct aarptab *);
-#endif
-
 struct ifnet;
 struct thread;
 struct socket;
