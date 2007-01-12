@@ -68,6 +68,17 @@ __FBSDID("$FreeBSD$");
 
 #include <vm/uma.h>
 
+/*
+ * We allocate wrapper objects that add the reference count to an existing
+ * unpcb in 6.x to preserve the ABI layout of unpcb.
+ */
+struct unpcb_wrapper {
+	struct 	unpcb unpw_unpcb;
+	u_int	unpw_refcount;
+};
+
+#define	UNP_REFCOUNT(unp)	(((struct unpcb_wrapper *)(unp))->unpw_refcount)
+
 static uma_zone_t unp_zone;
 static	unp_gen_t unp_gencnt;
 static	u_int unp_count;
@@ -769,6 +780,7 @@ unp_attach(struct socket *so)
 	unp->unp_socket = so;
 	so->so_pcb = unp;
 
+	UNP_REFCOUNT(unp) = 1;
 	UNP_LOCK();
 	unp->unp_gencnt = ++unp_gencnt;
 	unp_count++;
@@ -782,8 +794,10 @@ unp_attach(struct socket *so)
 static void
 unp_detach(struct unpcb *unp)
 {
+	struct sockaddr_un *saved_unp_addr;	
 	struct vnode *vp;
 	int local_unp_rights;
+	int freeunp;
 
 	UNP_LOCK_ASSERT();
 
@@ -807,10 +821,15 @@ unp_detach(struct unpcb *unp)
 	soisdisconnected(unp->unp_socket);
 	unp->unp_socket->so_pcb = NULL;
 	local_unp_rights = unp_rights;
+	saved_unp_addr = unp->unp_addr;
+	unp->unp_addr = NULL;
+	UNP_REFCOUNT(unp)--;
+	freeunp = (UNP_REFCOUNT(unp) == 0);
 	UNP_UNLOCK();
-	if (unp->unp_addr != NULL)
-		FREE(unp->unp_addr, M_SONAME);
-	uma_zfree(unp_zone, unp);
+	if (saved_unp_addr != NULL)
+		FREE(saved_unp_addr, M_SONAME);
+	if (freeunp)
+		uma_zfree(unp_zone, unp);
 	if (vp) {
 		int vfslocked;
 
@@ -1126,6 +1145,7 @@ static int
 unp_pcblist(SYSCTL_HANDLER_ARGS)
 {
 	int error, i, n;
+	int freeunp;
 	struct unpcb *unp, **unp_list;
 	unp_gen_t gencnt;
 	struct xunpgen *xug;
@@ -1177,6 +1197,7 @@ unp_pcblist(SYSCTL_HANDLER_ARGS)
 			    unp->unp_socket->so_cred))
 				continue;
 			unp_list[i++] = unp;
+			UNP_REFCOUNT(unp)++;
 		}
 	}
 	UNP_UNLOCK();
@@ -1186,7 +1207,9 @@ unp_pcblist(SYSCTL_HANDLER_ARGS)
 	xu = malloc(sizeof(*xu), M_TEMP, M_WAITOK | M_ZERO);
 	for (i = 0; i < n; i++) {
 		unp = unp_list[i];
-		if (unp->unp_gencnt <= gencnt) {
+		UNP_LOCK();
+		UNP_REFCOUNT(unp)--;
+	        if (UNP_REFCOUNT(unp) != 0 && unp->unp_gencnt <= gencnt) {
 			xu->xu_len = sizeof *xu;
 			xu->xu_unpp = unp;
 			/*
@@ -1203,7 +1226,13 @@ unp_pcblist(SYSCTL_HANDLER_ARGS)
 				      unp->unp_conn->unp_addr->sun_len);
 			bcopy(unp, &xu->xu_unp, sizeof *unp);
 			sotoxsocket(unp->unp_socket, &xu->xu_socket);
+			UNP_UNLOCK();
 			error = SYSCTL_OUT(req, xu, sizeof *xu);
+		} else {
+			freeunp = (UNP_REFCOUNT(unp) == 0);
+			UNP_UNLOCK();
+			if (freeunp) 
+				uma_zfree(unp_zone, unp);
 		}
 	}
 	free(xu, M_TEMP);
@@ -1401,8 +1430,8 @@ unp_zone_change(void *tag)
 void
 unp_init(void)
 {
-	unp_zone = uma_zcreate("unpcb", sizeof(struct unpcb), NULL, NULL,
-	    NULL, NULL, UMA_ALIGN_PTR, UMA_ZONE_NOFREE);
+	unp_zone = uma_zcreate("unpcb", sizeof(struct unpcb_wrapper), NULL,
+	    NULL, NULL, NULL, UMA_ALIGN_PTR, 0);
 	if (unp_zone == NULL)
 		panic("unp_init");
 	uma_zone_set_max(unp_zone, maxsockets);
