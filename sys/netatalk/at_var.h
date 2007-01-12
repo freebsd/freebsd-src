@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 1990,1991 Regents of The University of Michigan.
+ * Copyright (c) 1990, 1991 Regents of The University of Michigan.
  * All Rights Reserved.
  *
  * Permission to use, copy, modify, and distribute this software and
@@ -24,40 +24,41 @@
  */
 
 #ifndef _NETATALK_AT_VAR_H_
-#define _NETATALK_AT_VAR_H_ 1
+#define	_NETATALK_AT_VAR_H_
+
 /*
- * For phase2, we need to keep not only our address on an interface,
- * but also the legal networks on the interface.
+ * For phase2, we need to keep not only our address on an interface, but also
+ * the legal networks on the interface.
  */
 struct at_ifaddr {
-    struct ifaddr	  aa_ifa;
-# define aa_ifp			aa_ifa.ifa_ifp
-    struct sockaddr_at	  aa_addr;
-    struct sockaddr_at	  aa_broadaddr;
-# define aa_dstaddr		aa_broadaddr;
-    struct sockaddr_at	  aa_netmask;
-    int			  aa_flags;
-    u_short		  aa_firstnet, aa_lastnet;
-    int			  aa_probcnt;
-    struct callout	  aa_callout;
-    struct at_ifaddr	  *aa_next;
+	struct ifaddr		 aa_ifa;
+	struct sockaddr_at	 aa_addr;
+	struct sockaddr_at	 aa_broadaddr;
+	struct sockaddr_at	 aa_netmask;
+	int			 aa_flags;
+	u_short			 aa_firstnet;
+	u_short			 aa_lastnet;
+	int			 aa_probcnt;
+	struct callout		 aa_callout;
+	struct at_ifaddr	*aa_next;
 };
+#define	aa_ifp		aa_ifa.ifa_ifp
+#define	aa_dstaddr	aa_broadaddr;
 
 struct at_aliasreq {
-	char	ifra_name[IFNAMSIZ];		/* if name, e.g. "en0" */
-	struct	sockaddr_at ifra_addr;
-	struct	sockaddr_at ifra_broadaddr;
-#define ifra_dstaddr ifra_broadaddr
-	struct	sockaddr_at ifra_mask;
+	char			ifra_name[IFNAMSIZ];
+	struct sockaddr_at	ifra_addr;
+	struct sockaddr_at	ifra_broadaddr;
+	struct sockaddr_at	ifra_mask;
 };
+#define	ifra_dstaddr	ifra_broadaddr
 
-#define AA_SAT(aa) \
-    (&(aa->aa_addr))
-#define satosat(sa)	((struct sockaddr_at *)(sa))
+#define	AA_SAT(aa)	(&(aa->aa_addr))
+#define	satosat(sa)	((struct sockaddr_at *)(sa))
 
-#define AFA_ROUTE	0x0001
-#define AFA_PROBING	0x0002
-#define AFA_PHASE2	0x0004
+#define	AFA_ROUTE	0x0001
+#define	AFA_PROBING	0x0002
+#define	AFA_PHASE2	0x0004
 
 #ifdef _KERNEL
 extern struct at_ifaddr	*at_ifaddr_list;

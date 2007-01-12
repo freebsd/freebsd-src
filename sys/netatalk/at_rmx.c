@@ -30,7 +30,7 @@
  * $FreeBSD$
  */
 
-/* This code generates debugging traces to the radix code */
+/* This code generates debugging traces to the radix code. */
 
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -38,7 +38,7 @@
 
 #include <net/route.h>
 
-int at_inithead(void **head, int off);
+int	at_inithead(void **head, int off);
 
 #define	HEXBUF_LEN	256
 
@@ -55,13 +55,13 @@ prsockaddr(void *v, char *hexbuf)
 		/* return: "(len) hexdump" */
 
 		bp += sprintf(bp, "(%d)", len);
-		for (cp++; cp < cplim && bp < hexbuf + (HEXBUF_LEN - 4); cp++) {
+		for (cp++; cp < cplim && bp < hexbuf + (HEXBUF_LEN - 4);
+		    cp++) {
 			*bp++ = "0123456789abcdef"[*cp / 16];
 			*bp++ = "0123456789abcdef"[*cp % 16];
 		}
-	} else {
+	} else
 		bp+= sprintf(bp, "null");
-	}
 	*bp = '\0';
 	return (hexbuf);
 }
@@ -75,14 +75,14 @@ at_addroute(void *v_arg, void *n_arg, struct radix_node_head *head,
 
 	printf("at_addroute: v=%s\n", prsockaddr(v_arg, hexbuf));
 	printf("at_addroute: n=%s\n", prsockaddr(n_arg, hexbuf));
-	printf("at_addroute: head=%p treenodes=%p\n",
-	    (void *)head, (void *)treenodes);
+	printf("at_addroute: head=%p treenodes=%p\n", (void *)head,
+	    (void *)treenodes);
 
 	rn = rn_addroute(v_arg, n_arg, head, treenodes);
 
 	printf("at_addroute: returns rn=%p\n", (void *)rn);
 
-	return rn;
+	return (rn);
 }
 
 static struct radix_node *
@@ -98,7 +98,7 @@ at_matroute(void *v_arg, struct radix_node_head *head)
 
 	printf("at_matroute: returnr rn=%p\n", (void *)rn);
 
-	return rn;
+	return (rn);
 }
 
 static struct radix_node *
@@ -115,10 +115,10 @@ at_lookup(void *v_arg, void *m_arg, struct radix_node_head *head)
 
 	printf("at_lookup: returns rn=%p\n", (void *)rn);
 
-	return rn;
+	return (rn);
 }
 
-static struct radix_node *  
+static struct radix_node *
 at_delroute(void *v_arg, void *netmask_arg, struct radix_node_head *head)
 {
 	struct radix_node *rn;
@@ -132,7 +132,7 @@ at_delroute(void *v_arg, void *netmask_arg, struct radix_node_head *head)
 
 	printf("at_delroute: returns rn=%p\n", (void *)rn);
 
-	return rn;
+	return (rn);
 }
 
 /*
@@ -143,13 +143,13 @@ at_inithead(void **head, int off)
 {
 	struct radix_node_head *rnh;
 
-	if(!rn_inithead(head, off))
-		return 0;
+	if (!rn_inithead(head, off))
+		return (0);
 
 	rnh = *head;
 	rnh->rnh_addaddr = at_addroute;
 	rnh->rnh_deladdr = at_delroute;
 	rnh->rnh_matchaddr = at_matroute;
 	rnh->rnh_lookup = at_lookup;
-	return 1;
+	return (1);
 }

@@ -25,52 +25,40 @@
  *
  * $FreeBSD$
  */
-struct mbuf;
-struct sockaddr_at;
 
-#ifdef _NET_IF_ARP_H_
-extern timeout_t	aarpprobe;
-extern int	aarpresolve	(struct ifnet *,
-					struct mbuf *,
-					struct sockaddr_at *,
-					u_char *);
-extern int	at_broadcast	(struct sockaddr_at  *);
+#ifndef _NETATALK_AT_EXTERN_H_
+#define	_NETATALK_AT_EXTERN_H_
 
-extern struct mtx aarptab_mtx;
+extern struct mtx	aarptab_mtx;
 
 #define	AARPTAB_LOCK()		mtx_lock(&aarptab_mtx)
 #define	AARPTAB_UNLOCK()	mtx_unlock(&aarptab_mtx)
 #define	AARPTAB_LOCK_ASSERT()	mtx_assert(&aarptab_mtx, MA_OWNED)
 #define	AARPTAB_UNLOCK_ASSERT()	mtx_assert(&aarptab_mtx, MA_NOTOWNED)
-#endif
 
+struct at_ifaddr;
 struct ifnet;
+struct mbuf;
+struct route;
 struct thread;
+struct sockaddr_at;
 struct socket;
+void		 aarpintr(struct mbuf *);
+void		 aarpprobe(void *arg);
+int		 aarpresolve(struct ifnet *, struct mbuf *,
+		    struct sockaddr_at *, u_char *);
+void		 aarp_clean(void);
+void		 at1intr(struct mbuf *);
+void		 at2intr(struct mbuf *);
+int		 at_broadcast(struct sockaddr_at  *);
+u_short		 at_cksum(struct mbuf *m, int skip);
+int		 at_control(struct socket *so, u_long cmd, caddr_t data,
+		    struct ifnet *ifp, struct thread *td);
+struct at_ifaddr	*at_ifawithnet(struct sockaddr_at *);
+void		 ddp_init(void);
+int		 ddp_output(struct mbuf *m, struct socket *so); 
+int		 ddp_route(struct mbuf *m, struct route *ro);
+struct ddpcb	*ddp_search(struct sockaddr_at *, struct sockaddr_at *,
+		    struct at_ifaddr *);
 
-extern void	aarpintr	(struct mbuf *);
-extern void	at1intr		(struct mbuf *);
-extern void	at2intr		(struct mbuf *);
-extern void	aarp_clean	(void);
-extern int	at_control	(struct socket *so,
-					u_long cmd,
-					caddr_t data,
-					struct ifnet *ifp,
-					struct thread *td);
-extern u_short	at_cksum	(struct mbuf *m, int skip);
-extern void	ddp_init	(void);
-extern struct at_ifaddr *at_ifawithnet	(struct sockaddr_at *);
-#ifdef	_NETATALK_DDP_VAR_H_
-extern int	ddp_output	(struct mbuf *m, struct socket *so); 
-
-#endif
-#if	defined (_NETATALK_DDP_VAR_H_) && defined(_NETATALK_AT_VAR_H_)
-extern struct ddpcb  *ddp_search(struct sockaddr_at *,
-                                		struct sockaddr_at *,
-						struct at_ifaddr *);
-#endif
-#ifdef _NET_ROUTE_H_
-int     ddp_route(struct mbuf *m, struct route *ro);
-#endif
-
-
+#endif /* !_NETATALK_AT_EXTERN_H_ */
