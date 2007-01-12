@@ -268,6 +268,7 @@ ntp_gettime(struct thread *td, struct ntp_gettime_args *uap)
 	ntp_gettime1(&ntv);
 	mtx_unlock(&Giant);
 
+	td->td_retval[0] = ntv.time_state;
 	return (copyout(&ntv, uap->ntvp, sizeof(ntv)));
 }
 
