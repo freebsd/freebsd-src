@@ -178,6 +178,13 @@ struct pci_quirk pci_quirks[] = {
 	{ 0x02001166, PCI_QUIRK_MAP_REG,	0x90,	 0 },
 
 	/*
+	 * MSI doesn't work with the ServerWorks CNB20-HE Host Bridge
+	 * or the CMIC-SL (AKA ServerWorks GC_LE).
+	 */
+	{ 0x00141166, PCI_QUIRK_DISABLE_MSI,	0,	0 },
+	{ 0x00171166, PCI_QUIRK_DISABLE_MSI,	0,	0 },
+
+	/*
 	 * MSI doesn't work on earlier Intel chipsets including
 	 * E7500, E7501, E7505, E7210, and 855.
 	 */
