@@ -115,7 +115,7 @@ inphy_attach(device_t dev)
 
 	ifmedia_add(&mii->mii_media,
 	    IFM_MAKEWORD(IFM_ETHER, IFM_100_TX, IFM_LOOP, sc->mii_inst),
-	    BMCR_LOOP|BMCR_S100, NULL);
+	    MII_MEDIA_100_TX, NULL);
 
 	mii_phy_reset(sc);
 
