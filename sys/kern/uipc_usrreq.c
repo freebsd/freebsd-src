@@ -1636,7 +1636,7 @@ unp_gc(__unused void *arg, int pending)
 	unp_defer = 0;
 	/*
 	 * before going through all this, set all FDs to
-	 * be NOT defered and NOT externally accessible
+	 * be NOT deferred and NOT externally accessible
 	 */
 	sx_slock(&filelist_lock);
 	LIST_FOREACH(fp, &filehead, f_list)
@@ -1659,16 +1659,16 @@ unp_gc(__unused void *arg, int pending)
 				continue;
 			}
 			/*
-			 * If we already marked it as 'defer'  in a
-			 * previous pass, then try process it this time
-			 * and un-mark it
+			 * If we already marked it as 'defer' in a
+			 * previous pass, then try to process it this
+			 * time and un-mark it
 			 */
 			if (fp->f_gcflag & FDEFER) {
 				fp->f_gcflag &= ~FDEFER;
 				unp_defer--;
 			} else {
 				/*
-				 * if it's not defered, then check if it's
+				 * if it's not deferred, then check if it's
 				 * already marked.. if so skip it
 				 */
 				if (fp->f_gcflag & FMARK) {
@@ -1691,7 +1691,7 @@ unp_gc(__unused void *arg, int pending)
 				fp->f_gcflag |= FMARK;
 			}
 			/*
-			 * either it was defered, or it is externally
+			 * either it was deferred, or it is externally
 			 * accessible and not already marked so.
 			 * Now check if it is possibly one of OUR sockets.
 			 */
@@ -1700,13 +1700,23 @@ unp_gc(__unused void *arg, int pending)
 				FILE_UNLOCK(fp);
 				continue;
 			}
-			FILE_UNLOCK(fp);
 			if (so->so_proto->pr_domain != &localdomain ||
-			    (so->so_proto->pr_flags&PR_RIGHTS) == 0)
+			    (so->so_proto->pr_flags & PR_RIGHTS) == 0) {
+				FILE_UNLOCK(fp);
 				continue;
+			}
+
+			/*
+			 * Tell any other threads that do a subsequent
+			 * fdrop() that we are scanning the message
+			 * buffers.
+			 */
+			fp->f_gcflag |= FWAIT;
+			FILE_UNLOCK(fp);
+
 			/*
 			 * So, Ok, it's one of our sockets and it IS externally
-			 * accessible (or was defered). Now we look
+			 * accessible (or was deferred). Now we look
 			 * to see if we hold any file descriptors in its
 			 * message buffers. Follow those links and mark them
 			 * as accessible too.
@@ -1714,6 +1724,14 @@ unp_gc(__unused void *arg, int pending)
 			SOCKBUF_LOCK(&so->so_rcv);
 			unp_scan(so->so_rcv.sb_mb, unp_mark);
 			SOCKBUF_UNLOCK(&so->so_rcv);
+
+			/*
+			 * Wake up any threads waiting in fdrop().
+			 */
+			FILE_LOCK(fp);
+			fp->f_gcflag &= ~FWAIT;
+			wakeup(&fp->f_gcflag);
+			FILE_UNLOCK(fp);
 		}
 	} while (unp_defer);
 	sx_sunlock(&filelist_lock);
