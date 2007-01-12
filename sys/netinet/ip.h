@@ -65,7 +65,7 @@ struct ip {
 	u_char	ip_p;			/* protocol */
 	u_short	ip_sum;			/* checksum */
 	struct	in_addr ip_src,ip_dst;	/* source and dest address */
-} __packed;
+} __packed __aligned(4);
 
 #ifdef CTASSERT
 CTASSERT(sizeof (struct ip) == 20);
