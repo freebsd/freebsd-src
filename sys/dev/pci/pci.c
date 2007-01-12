@@ -178,16 +178,12 @@ struct pci_quirk pci_quirks[] = {
 	{ 0x02001166, PCI_QUIRK_MAP_REG,	0x90,	 0 },
 
 	/*
-	 * MSI doesn't work with the Intel E7501 chipset, at least on
-	 * the Tyan 2721 motherboard.
+	 * MSI doesn't work on earlier Intel chipsets including the
+	 * E7501, E7505, and the E7210.
 	 */
 	{ 0x254c8086, PCI_QUIRK_DISABLE_MSI,	0,	0 },
-
-	/*
-	 * MSI doesn't work with the Intel E7505 chipset, at least on
-	 * the Tyan S2665ANF motherboard.
-	 */
 	{ 0x25508086, PCI_QUIRK_DISABLE_MSI,	0,	0 },
+	{ 0x25788086, PCI_QUIRK_DISABLE_MSI,	0,	0 },
 
 	{ 0 }
 };
