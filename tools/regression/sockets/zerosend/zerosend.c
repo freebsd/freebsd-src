@@ -26,6 +26,7 @@
  * $FreeBSD$
  */
 
+#include <sys/select.h>
 #include <sys/socket.h>
 #include <sys/stat.h>
 
@@ -34,6 +35,7 @@
 #include <arpa/inet.h>
 
 #include <err.h>
+#include <errno.h>
 #include <fcntl.h>
 #include <limits.h>
 #include <stdio.h>
@@ -91,7 +93,7 @@ setup_udp(const char *test, int *fdp)
 		    inet_ntoa(sin.sin_addr), PORT1);
 	sin.sin_port = htons(PORT2);
 	if (connect(sock1, (struct sockaddr *)&sin, sizeof(sin)) < 0)
-		err(-1, "%s: setup_udp: bind(%s, %d)", test,
+		err(-1, "%s: setup_udp: connect(%s, %d)", test,
 		    inet_ntoa(sin.sin_addr), PORT2);
 
 	sock2 = socket(PF_INET, SOCK_DGRAM, 0);
@@ -102,7 +104,7 @@ setup_udp(const char *test, int *fdp)
 		    inet_ntoa(sin.sin_addr), PORT2);
 	sin.sin_port = htons(PORT1);
 	if (connect(sock2, (struct sockaddr *)&sin, sizeof(sin)) < 0)
-		err(-1, "%s: setup_udp: bind(%s, %d)", test,
+		err(-1, "%s: setup_udp: connect(%s, %d)", test,
 		    inet_ntoa(sin.sin_addr), PORT1);
 
 	fdp[0] = sock1;
@@ -112,8 +114,10 @@ setup_udp(const char *test, int *fdp)
 static void
 setup_tcp(const char *test, int *fdp)
 {
+	fd_set writefds, exceptfds;
 	struct sockaddr_in sin;
-	int sock1, sock2, sock3;
+	int ret, sock1, sock2, sock3;
+	struct timeval tv;
 
 	bzero(&sin, sizeof(sin));
 	sin.sin_len = sizeof(sin);
@@ -142,7 +146,8 @@ setup_tcp(const char *test, int *fdp)
 		err(-1, "%s: setup_tcp: socket", test);
 	if (fcntl(sock2, F_SETFL, O_NONBLOCK) < 0)
 		err(-1, "%s: setup_tcp: fcntl(O_NONBLOCK)", test);
-	if (connect(sock2, (struct sockaddr *)&sin, sizeof(sin)) < 0)
+	if (connect(sock2, (struct sockaddr *)&sin, sizeof(sin)) < 0 &&
+	    errno != EINPROGRESS)
 		err(-1, "%s: setup_tcp: connect(%s, %d)", test,
 		    inet_ntoa(sin.sin_addr), PORT1);
 
@@ -157,6 +162,20 @@ setup_tcp(const char *test, int *fdp)
 		err(-1, "%s: accept", test);
 	if (sleep(1) < 0)
 		err(-1, "%s: sleep(1)", test);
+
+	FD_ZERO(&writefds);
+	FD_SET(sock2, &writefds);
+	FD_ZERO(&exceptfds);
+	FD_SET(sock2, &exceptfds);
+	tv.tv_sec = 1;
+	tv.tv_usec = 0;
+	ret = select(sock2 + 1, NULL, &writefds, &exceptfds, &tv);
+	if (ret < 0)
+		err(-1, "%s: setup_tcp: select", test);
+	if (FD_ISSET(sock2, &exceptfds))
+		errx(-1, "%s: setup_tcp: select: exception", test);
+	if (!FD_ISSET(sock2, &writefds))
+		errx(-1, "%s: setup_tcp: select: not writable", test);
 
 	close(sock1);
 	fdp[0] = sock2;
