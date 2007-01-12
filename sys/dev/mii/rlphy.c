@@ -153,7 +153,7 @@ rlphy_attach(device_t dev)
 #define	ADD(m, c)	ifmedia_add(&mii->mii_media, (m), (c), NULL)
 
 	ADD(IFM_MAKEWORD(IFM_ETHER, IFM_100_TX, IFM_LOOP, sc->mii_inst),
-	    BMCR_LOOP|BMCR_S100);
+	    MII_MEDIA_100_TX);
 
 	mii_phy_reset(sc);
 
