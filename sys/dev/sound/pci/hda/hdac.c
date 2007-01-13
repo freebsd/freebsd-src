@@ -189,6 +189,7 @@ SND_DECLARE_FILE("$FreeBSD$");
 
 /* Acer */
 #define ACER_VENDORID		0x1025
+#define ACER_A5050_SUBVENDOR	HDA_MODEL_CONSTRUCT(ACER, 0x010f)
 #define ACER_ALL_SUBVENDOR	HDA_MODEL_CONSTRUCT(ACER, 0xffff)
 
 /* Asus */
@@ -241,6 +242,11 @@ SND_DECLARE_FILE("$FreeBSD$");
 #define TOSHIBA_VENDORID	0x1179
 #define TOSHIBA_U200_SUBVENDOR	HDA_MODEL_CONSTRUCT(TOSHIBA, 0x0001)
 #define TOSHIBA_ALL_SUBVENDOR	HDA_MODEL_CONSTRUCT(TOSHIBA, 0xffff)
+
+/* Micro-Star International (MSI) */
+#define MSI_VENDORID		0x1462
+#define MSI_MS1034_SUBVENDOR	HDA_MODEL_CONSTRUCT(MSI, 0x0349)
+#define MSI_ALL_SUBVENDOR	HDA_MODEL_CONSTRUCT(MSI, 0xffff)
 
 /* Misc constants.. */
 #define HDA_AMP_MUTE_DEFAULT	(0xffffffff)
@@ -505,6 +511,10 @@ static const struct {
 	    26, { 27, -1 }, -1 },
 	{ LG_LW20_SUBVENDOR, HDA_CODEC_ALC880, HDAC_HP_SWITCH_CTL, 0,
 	    27, { 20, -1 }, -1 },
+	{ ACER_A5050_SUBVENDOR, HDA_CODEC_ALC883, HDAC_HP_SWITCH_CTL, 0,
+	    20, { 21, -1 }, -1 },
+	{ MSI_MS1034_SUBVENDOR, HDA_CODEC_ALC883, HDAC_HP_SWITCH_CTL, 0,
+	    20, { 27, -1 }, -1 },
 	/*
 	 * All models that at least come from the same vendor with
 	 * simmilar codec.
@@ -519,6 +529,8 @@ static const struct {
 	    13, { 14, -1 }, -1 },
 	{ LENOVO_ALL_SUBVENDOR, HDA_CODEC_AD1986A, HDAC_HP_SWITCH_CTL, 1,
 	    26, { 27, -1 }, -1 },
+	{ ACER_ALL_SUBVENDOR, HDA_CODEC_ALC883, HDAC_HP_SWITCH_CTL, 0,
+	    20, { 21, -1 }, -1 },
 };
 #define HDAC_HP_SWITCH_LEN	\
 		(sizeof(hdac_hp_switch) / sizeof(hdac_hp_switch[0]))
@@ -2910,6 +2922,21 @@ hdac_audio_ctl_ossmixer_init(struct snd_mixer *m)
 					ctl->ossmask = SOUND_MASK_VOLUME;
 					ctl->ossval = 100 | (100 << 8);
 				} else
+					ctl->ossmask &= ~SOUND_MASK_VOLUME;
+			}
+		} else if (id == HDA_CODEC_STAC9221) {
+			mask |= SOUND_MASK_VOLUME;
+			while ((ctl = hdac_audio_ctl_each(devinfo, &i)) !=
+			    NULL) {
+				if (ctl->widget == NULL)
+					continue;
+				if (ctl->widget->nid == 2 && ctl->index == 0) {
+					ctl->enable = 1;
+					ctl->ossmask = SOUND_MASK_VOLUME;
+					ctl->ossval = 100 | (100 << 8);
+				} else if (ctl->enable == 0)
+					continue;
+				else
 					ctl->ossmask &= ~SOUND_MASK_VOLUME;
 			}
 		} else {
