@@ -215,8 +215,6 @@ int	mii_phy_probe(device_t, device_t *, ifm_change_cb_t, ifm_stat_cb_t);
 void	mii_add_media(struct mii_softc *);
 void	mii_phy_add_media(struct mii_softc *);
 
-int	mii_media_from_bmcr(int);
-
 int	mii_phy_auto(struct mii_softc *);
 int	mii_phy_detach(device_t dev);
 void	mii_phy_down(struct mii_softc *);
