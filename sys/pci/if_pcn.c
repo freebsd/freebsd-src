@@ -279,14 +279,23 @@ pcn_miibus_readreg(dev, phy, reg)
 	/*
 	 * At least Am79C971 with DP83840A wedge when isolating the
 	 * external PHY so we can't allow multiple external PHYs.
-	 * This needs refinement as there are some Allied Telesyn
-	 * card models which use multiple external PHYs.
+	 * There are cards that use Am79C971 with both the internal
+	 * and an external PHY though.
 	 * For internal PHYs it doesn't really matter whether we can
 	 * isolate the remaining internal and the external ones in
 	 * the PHY drivers as the internal PHYs have to be enabled
 	 * individually in PCN_BCR_PHYSEL, PCN_CSR_MODE, etc.
+	 * With Am79C97{3,5,8} we don't support switching beetween
+	 * the internal and external PHYs, yet, so we can't allow
+	 * multiple PHYs with these either.
+	 * Am79C97{2,6} actually only support external PHYs (not
+	 * connectable internal ones respond at the usual addresses,
+	 * which don't hurt if we let them show up on the bus) and
+	 * isolating them works.
 	 */
-	if (phy != PCN_PHYAD_10BT && sc->pcn_extphyaddr != -1 &&
+	if (((sc->pcn_type == Am79C971 && phy != PCN_PHYAD_10BT) ||
+	    sc->pcn_type == Am79C973 || sc->pcn_type == Am79C975 ||
+	    sc->pcn_type == Am79C978) && sc->pcn_extphyaddr != -1 &&
 	    phy != sc->pcn_extphyaddr)
 		return(0);
 
@@ -295,7 +304,9 @@ pcn_miibus_readreg(dev, phy, reg)
 	if (val == 0xFFFF)
 		return(0);
 
-	if (phy != PCN_PHYAD_10BT && sc->pcn_extphyaddr != -1)
+	if (((sc->pcn_type == Am79C971 && phy != PCN_PHYAD_10BT) ||
+	    sc->pcn_type == Am79C973 || sc->pcn_type == Am79C975 ||
+	    sc->pcn_type == Am79C978) && sc->pcn_extphyaddr == -1)
 		sc->pcn_extphyaddr = phy;
 
 	return(val);
@@ -616,7 +627,6 @@ pcn_attach(dev)
 	}
 	ifp->if_softc = sc;
 	if_initname(ifp, device_get_name(dev), device_get_unit(dev));
-	ifp->if_mtu = ETHERMTU;
 	ifp->if_flags = IFF_BROADCAST | IFF_SIMPLEX | IFF_MULTICAST;
 	ifp->if_ioctl = pcn_ioctl;
 	ifp->if_start = pcn_start;
