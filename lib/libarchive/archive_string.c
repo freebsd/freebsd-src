@@ -103,7 +103,7 @@ __archive_strappend_char(struct archive_string *as, char c)
 struct archive_string *
 __archive_strappend_int(struct archive_string *as, int d, int base)
 {
-	static const char *digits = "0123457890abcdef";
+	static const char *digits = "0123456789abcdef";
 
 	if (d < 0) {
 		__archive_strappend_char(as, '-');
