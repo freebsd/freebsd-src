@@ -305,6 +305,7 @@ static void bce_start				(struct ifnet *);
 static int  bce_ioctl				(struct ifnet *, u_long, caddr_t);
 static void bce_watchdog			(struct bce_softc *);
 static int  bce_ifmedia_upd			(struct ifnet *);
+static void bce_ifmedia_upd_locked		(struct ifnet *);
 static void bce_ifmedia_sts			(struct ifnet *, struct ifmediareq *);
 static void bce_init_locked			(struct bce_softc *);
 static void bce_init				(void *);
@@ -3812,12 +3813,24 @@ static int
 bce_ifmedia_upd(struct ifnet *ifp)
 {
 	struct bce_softc *sc;
+
+	sc = ifp->if_softc;
+	BCE_LOCK(sc);
+	bce_ifmedia_upd_locked(ifp);
+	BCE_UNLOCK(sc);
+	return (0);
+}
+
+static void
+bce_ifmedia_upd_locked(struct ifnet *ifp)
+{
+	struct bce_softc *sc;
 	struct mii_data *mii;
 	struct ifmedia *ifm;
-	int rc = 0;
 
 	sc = ifp->if_softc;
 	ifm = &sc->bce_ifmedia;
+	BCE_LOCK_ASSERT(sc);
 
 	/* DRC - ToDo: Add SerDes support. */
 
@@ -3825,13 +3838,11 @@ bce_ifmedia_upd(struct ifnet *ifp)
 	sc->bce_link = 0;
 	if (mii->mii_instance) {
 		struct mii_softc *miisc;
-		for (miisc = LIST_FIRST(&mii->mii_phys); miisc != NULL;
-		    miisc = LIST_NEXT(miisc, mii_list))
+
+		LIST_FOREACH(miisc, &mii->mii_phys, mii_list)
 			mii_phy_reset(miisc);
 	}
 	mii_mediachg(mii);
-
-	return(rc);
 }
 
 
@@ -4444,7 +4455,7 @@ bce_init_locked(struct bce_softc *sc)
 	/* Enable host interrupts. */
 	bce_enable_intr(sc);
 
-	bce_ifmedia_upd(ifp);
+	bce_ifmedia_upd_locked(ifp);
 
 	ifp->if_drv_flags |= IFF_DRV_RUNNING;
 	ifp->if_drv_flags &= ~IFF_DRV_OACTIVE;
@@ -4487,7 +4498,7 @@ bce_mgmt_init_locked(struct bce_softc *sc)
 	REG_RD(sc, BCE_MISC_ENABLE_SET_BITS);
 	DELAY(20);
 
-	bce_ifmedia_upd(ifp);
+	bce_ifmedia_upd_locked(ifp);
 bce_mgmt_init_locked_exit:
 	DBPRINT(sc, BCE_VERBOSE_RESET, "Exiting %s()\n", __FUNCTION__);
 
