@@ -326,24 +326,6 @@ mii_anar(int media)
 }
 
 /*
- * Given a BMCR value, return the corresponding ifmedia word.
- */
-int
-mii_media_from_bmcr(int bmcr)
-{
-	int rv = IFM_ETHER;
-
-	if (bmcr & BMCR_S100)
-		rv |= IFM_100_TX;
-	else
-		rv |= IFM_10_T;
-	if (bmcr & BMCR_FDX)
-		rv |= IFM_FDX;
-
-	return (rv);
-}
-
-/*
  * Initialize generic PHY media based on BMSR, called when a PHY is
  * attached.  We expect to be set up to print a comma-separated list
  * of media names.  Does not print a newline.
