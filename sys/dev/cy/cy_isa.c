@@ -74,7 +74,7 @@ cy_isa_probe(device_t dev)
 {
 	struct resource *mem_res;
 	cy_addr iobase;
-	int mem_rid;
+	int error, mem_rid;
 
 	if (isa_get_logicalid(dev) != 0)	/* skip PnP probes */
 		return (ENXIO);
@@ -96,8 +96,9 @@ cy_isa_probe(device_t dev)
 	cy_outb(iobase, CY_CLEAR_INTR, 0, 0);
 	DELAY(500);
 
+	error = (cy_units(iobase, 0) == 0 ? ENXIO : 0);
 	bus_release_resource(dev, SYS_RES_MEMORY, mem_rid, mem_res);
-	return (cy_units(iobase, 0) == 0 ? ENXIO : 0);
+	return (error);
 }
 
 static int
