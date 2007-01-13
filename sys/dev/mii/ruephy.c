@@ -79,32 +79,23 @@ static int ruephy_service(struct mii_softc *, struct mii_data *, int);
 static void ruephy_reset(struct mii_softc *);
 static void ruephy_status(struct mii_softc *);
 
+/*
+ * The RealTek RTL8150 internal PHY doesn't have vendor/device ID
+ * registers; rue(4) fakes up a return value of all zeros.
+ */
+static const struct mii_phydesc ruephys[] = {
+	{ 0, 0, "RealTek RTL8150 internal media interface" },
+	MII_PHY_END
+};
+
 static int
 ruephy_probe(device_t dev)
 {
-	struct mii_attach_args *ma;
-	device_t		parent;
 
-	ma = device_get_ivars(dev);
-	parent = device_get_parent(device_get_parent(dev));
-
-	/*
-	 * RealTek RTL8150 PHY doesn't have vendor/device ID registers:
-	 * the rue driver fakes up a return value of all zeros.
-	 */
-	if (MII_OUI(ma->mii_id1, ma->mii_id2) != 0 ||
-	    MII_MODEL(ma->mii_id2) != 0)
-		return (ENXIO);
-
-	/*
-	 * Make sure the parent is an 'rue'.
-	 */
-	if (strcmp(device_get_name(parent), "rue") != 0)
-		return (ENXIO);
-
-	device_set_desc(dev, "RealTek RTL8150 internal media interface");
-
-	return (BUS_PROBE_DEFAULT);
+	if (strcmp(device_get_name(device_get_parent(device_get_parent(dev))),
+	    "rue") == 0)
+		return (mii_phy_dev_probe(dev, ruephys, BUS_PROBE_DEFAULT));
+	return (ENXIO);
 }
 
 static int
@@ -136,9 +127,10 @@ ruephy_attach(device_t dev)
 	sc->mii_pdata = mii;
 	mii->mii_instance++;
 
-	sc->mii_flags |= MIIF_NOISOLATE;
-
-#define	ADD(m, c)	ifmedia_add(&mii->mii_media, (m), (c), NULL)
+	/*
+	 * Apparently, we can't neither isolate nor do loopback on this PHY.
+	 */
+	sc->mii_flags |= MIIF_NOISOLATE | MIIF_NOLOOP;
 
 	ruephy_reset(sc);
 
@@ -147,7 +139,6 @@ ruephy_attach(device_t dev)
 	device_printf(dev, " ");
 	mii_phy_add_media(sc);
 	printf("\n");
-#undef ADD
 
 	MIIBUS_MEDIAINIT(sc->mii_dev);
 	return (0);
@@ -177,28 +168,7 @@ ruephy_service(struct mii_softc *sc, struct mii_data *mii, int cmd)
 		if ((mii->mii_ifp->if_flags & IFF_UP) == 0)
 			break;
 
-		switch (IFM_SUBTYPE(ife->ifm_media)) {
-		case IFM_AUTO:
-			/*
-			 * If we're already in auto mode, just return.
-			 */
-			if (PHY_READ(sc, MII_BMCR) & BMCR_AUTOEN)
-				return (0);
-			(void) mii_phy_auto(sc);
-			break;
-		case IFM_100_T4:
-			/*
-			 * XXX Not supported as a manual setting right now.
-			 */
-			return (EINVAL);
-		default:
-			/*
-			 * BMCR data is stored in the ifmedia entry.
-			 */
-			PHY_WRITE(sc, MII_ANAR,
-			    mii_anar(ife->ifm_media));
-			PHY_WRITE(sc, MII_BMCR, ife->ifm_data);
-		}
+		mii_phy_setmedia(sc);
 		break;
 
 	case MII_TICK:
@@ -220,14 +190,14 @@ ruephy_service(struct mii_softc *sc, struct mii_data *mii, int cmd)
 		 * the MSR twice in case it's latched.
 		 */
 		reg = PHY_READ(sc, RUEPHY_MII_MSR) |
-		      PHY_READ(sc, RUEPHY_MII_MSR);
+		    PHY_READ(sc, RUEPHY_MII_MSR);
 		if (reg & RUEPHY_MSR_LINK)
 			break;
 
 		/*
 		 * Only retry autonegotiation every 5 seconds.
 		 */
-		if (++sc->mii_ticks <= 5)
+		if (++sc->mii_ticks <= MII_ANEGTICKS)
 			break;
 
 		sc->mii_ticks = 0;
@@ -263,6 +233,7 @@ static void
 ruephy_status(struct mii_softc *phy)
 {
 	struct mii_data *mii = phy->mii_pdata;
+	struct ifmedia_entry *ife = mii->mii_media.ifm_cur;
 	int bmsr, bmcr, msr;
 
 	mii->mii_media_status = IFM_AVALID;
@@ -280,7 +251,6 @@ ruephy_status(struct mii_softc *phy)
 	}
 
 	bmsr = PHY_READ(phy, MII_BMSR) | PHY_READ(phy, MII_BMSR);
-
 	if (bmcr & BMCR_AUTOEN) {
 		if ((bmsr & BMSR_ACOMP) == 0) {
 			/* Erg, still trying, I guess... */
@@ -296,5 +266,5 @@ ruephy_status(struct mii_softc *phy)
 		if (msr & RUEPHY_MSR_DUPLEX)
 			mii->mii_media_active |= IFM_FDX;
 	} else
-		mii->mii_media_active = mii_media_from_bmcr(bmcr);
+		mii->mii_media_active = ife->ifm_media;
 }
