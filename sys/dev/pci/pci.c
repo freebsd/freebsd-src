@@ -194,6 +194,12 @@ struct pci_quirk pci_quirks[] = {
 	{ 0x25788086, PCI_QUIRK_DISABLE_MSI,	0,	0 },
 	{ 0x35808086, PCI_QUIRK_DISABLE_MSI,	0,	0 },
 
+	/*
+	 * MSI doesn't work with devices behind the AMD 8131 HT-PCIX
+	 * bridge.
+	 */
+	{ 0x74501022, PCI_QUIRK_DISABLE_MSI,	0,	0 },
+
 	{ 0 }
 };
 

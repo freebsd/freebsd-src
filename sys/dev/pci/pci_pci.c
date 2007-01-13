@@ -240,6 +240,9 @@ pcib_attach_common(device_t dev)
 	}
     }
 
+    if (pci_msi_device_blacklisted(dev))
+	sc->flags |= PCIB_DISABLE_MSI;
+
     /*
      * Intel 815, 845 and other chipsets say they are PCI-PCI bridges,
      * but have a ProgIF of 0x80.  The 82801 family (AA, AB, BAM/CAM,
@@ -547,8 +550,11 @@ pcib_route_interrupt(device_t pcib, device_t dev, int pin)
 int
 pcib_alloc_msi(device_t pcib, device_t dev, int count, int maxcount, int *irqs)
 {
+	struct pcib_softc *sc = device_get_softc(dev);
 	device_t bus;
 
+	if (sc->flags & PCIB_DISABLE_MSI)
+		return (ENXIO);
 	bus = device_get_parent(pcib);
 	return (PCIB_ALLOC_MSI(device_get_parent(bus), dev, count, maxcount,
 	    irqs));
@@ -568,8 +574,11 @@ pcib_release_msi(device_t pcib, device_t dev, int count, int *irqs)
 int
 pcib_alloc_msix(device_t pcib, device_t dev, int index, int *irq)
 {
+	struct pcib_softc *sc = device_get_softc(dev);
 	device_t bus;
 
+	if (sc->flags & PCIB_DISABLE_MSI)
+		return (ENXIO);
 	bus = device_get_parent(pcib);
 	return (PCIB_ALLOC_MSIX(device_get_parent(bus), dev, index, irq));
 }
