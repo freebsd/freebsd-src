@@ -136,9 +136,6 @@ vm_offset_t	kstack0_phys;
 char		machine[] = "powerpc";
 SYSCTL_STRING(_hw, HW_MACHINE, machine, CTLFLAG_RD, machine, 0, "");
 
-static char	model[128];
-SYSCTL_STRING(_hw, HW_MODEL, model, CTLFLAG_RD, model, 0, "");
-
 static int cacheline_size = CACHELINESIZE;
 SYSCTL_INT(_machdep, CPU_CACHELINE, cacheline_size,
 	   CTLFLAG_RD, &cacheline_size, 0, "");
