@@ -63,6 +63,7 @@
 #include <sys/bus.h>
 #include <sys/conf.h>
 #include <sys/kernel.h>
+#include <sys/sysctl.h>
 
 #include <machine/bus.h>
 #include <machine/hid.h>
@@ -98,6 +99,9 @@ static const struct cputab models[] = {
         { "Motorola PowerPC 8240",	MPC8240,	REVFMT_MAJMIN },
         { "Unknown PowerPC CPU",	0,		REVFMT_HEX }
 };
+
+static char model[64];
+SYSCTL_STRING(_hw, HW_MODEL, model, CTLFLAG_RD, model, 0, "");
 
 static register_t	l2cr_config = 0;
 
@@ -137,6 +141,7 @@ cpu_setup(u_int cpuid)
 		name = "Motorola MPC755";
 		revfmt = REVFMT_HEX;
 	}
+	strncpy(model, name, sizeof(model) - 1);
 
 	printf("cpu%d: %s revision ", cpuid, name);
 
