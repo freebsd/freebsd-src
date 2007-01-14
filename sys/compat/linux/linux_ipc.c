@@ -571,9 +571,13 @@ linux_semctl(struct thread *td, struct linux_semctl_args *args)
 		td->td_retval[0] = seminfo.semmni;
 		return 0;			/* No need for __semctl call */
 	case LINUX_GETALL:
-		/* FALLTHROUGH */
+		cmd = GETALL;
+		semun.val = args->arg.val;
+		break;
 	case LINUX_SETALL:
-		/* FALLTHROUGH */
+		cmd = SETALL;
+		semun.val = args->arg.val;
+		break;
 	default:
 		linux_msg(td, "ipc type %d is not implemented",
 		  args->cmd & ~LINUX_IPC_64);
