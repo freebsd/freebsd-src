@@ -233,7 +233,7 @@ linux_use26(struct thread *td)
 {
 	struct prison *pr;
 	struct linux_prison *lpr;
-	int use26 = 0;		/* defaults to off */
+	int use26 = linux_use_linux26;
 
 	pr = td->td_ucred->cr_prison;
 	if (pr != NULL) {
@@ -241,8 +241,7 @@ linux_use26(struct thread *td)
 			lpr = (struct linux_prison *)pr->pr_linux;
 			use26 = lpr->pr_use_linux26;
 		}
-	} else
-		use26 = linux_use_linux26;
+	}
 	
 	return (use26);
 }
