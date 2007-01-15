@@ -203,6 +203,25 @@ sctp_init(void)
 }
 
 
+
+/*
+ * cleanup of the sctppcbinfo structure.
+ * Assumes that the sctppcbinfo lock is held.
+ */
+void
+sctp_pcbinfo_cleanup(void)
+{
+	/* free the hash tables */
+	if (sctppcbinfo.sctp_asochash != NULL)
+		SCTP_HASH_FREE(sctppcbinfo.sctp_asochash, sctppcbinfo.hashasocmark);
+	if (sctppcbinfo.sctp_ephash != NULL)
+		SCTP_HASH_FREE(sctppcbinfo.sctp_ephash, sctppcbinfo.hashmark);
+	if (sctppcbinfo.sctp_tcpephash != NULL)
+		SCTP_HASH_FREE(sctppcbinfo.sctp_tcpephash, sctppcbinfo.hashtcpmark);
+	if (sctppcbinfo.sctp_restarthash != NULL)
+		SCTP_HASH_FREE(sctppcbinfo.sctp_restarthash, sctppcbinfo.hashrestartmark);
+}
+
 #ifdef INET6
 void
 ip_2_ip6_hdr(struct ip6_hdr *ip6, struct ip *ip)
@@ -1563,9 +1582,7 @@ sctp_fill_up_addresses(struct sctp_inpcb *inp,
 	ipv4_addr_legal = ipv6_addr_legal = 0;
 	if (inp->sctp_flags & SCTP_PCB_FLAGS_BOUND_V6) {
 		ipv6_addr_legal = 1;
-		if (
-		    (((struct in6pcb *)inp)->inp_flags & IN6P_IPV6_V6ONLY)
-		    == 0) {
+		if (SCTP_IPV6_V6ONLY(inp) == 0) {
 			ipv4_addr_legal = 1;
 		}
 	} else {
@@ -1881,9 +1898,7 @@ sctp_do_connect_x(struct socket *so,
 		struct in6pcb *inp6;
 
 		inp6 = (struct in6pcb *)inp;
-		if (
-		    (inp6->inp_flags & IN6P_IPV6_V6ONLY)
-		    ) {
+		if (SCTP_IPV6_V6ONLY(inp6)) {
 			/*
 			 * if IPV6_V6ONLY flag, ignore connections destined
 			 * to a v4 addr or v4-mapped addr
@@ -3845,9 +3860,6 @@ sctp_optsset(struct socket *so,
 			}
 			SCTP_INP_WLOCK(inp);
 			inp->sctp_frag_point = (*segsize + ovh);
-			if (inp->sctp_frag_point < MHLEN) {
-				inp->sctp_frag_point = MHLEN;
-			}
 			SCTP_INP_WUNLOCK(inp);
 		}
 		break;

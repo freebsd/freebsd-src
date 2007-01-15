@@ -881,6 +881,7 @@ struct sctp_association {
 	uint8_t cmt_dac_pkts_rcvd;
 	uint8_t sctp_cmt_on_off;
 	uint8_t iam_blocking;
+	uint8_t cookie_how[8];
 	/*
 	 * The mapping array is used to track out of order sequences above
 	 * last_acked_seq. 0 indicates packet missing 1 indicates packet
