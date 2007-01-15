@@ -235,7 +235,7 @@ ng_pred1_rcvmsg(node_p node, item_p item, hook_p lasthook)
 
 	if (msg->header.typecookie != NGM_PRED1_COOKIE)
 		ERROUT(EINVAL);
-	
+
 	switch (msg->header.cmd) {
 	case NGM_PRED1_CONFIG:
 	    {
@@ -272,7 +272,7 @@ ng_pred1_rcvmsg(node_p node, item_p item, hook_p lasthook)
 			if (resp == NULL)
 				ERROUT(ENOMEM);
 			bcopy(&priv->stats, resp->data,
-			    sizeof(struct ng_pred1_stats));	
+			    sizeof(struct ng_pred1_stats));
 		}
 
 		if (msg->header.cmd != NGM_PRED1_GET_STATS)
@@ -305,7 +305,7 @@ ng_pred1_rcvdata(hook_p hook, item_p item)
 		NG_FREE_ITEM(item);
 		return (ENXIO);
 	}
-	
+
 	NGI_GET_M(item, m);
 	/* Compress. */
 	if (priv->compress) {
@@ -399,7 +399,7 @@ ng_pred1_compress(node_p node, struct mbuf *m, struct mbuf **resultp)
 		NG_FREE_M(m);
 		return (ENOMEM);
 	}
-	
+
 	/* Work with contiguous regions of memory. */
 	m_copydata(m, 0, inlen, (caddr_t)(priv->inbuf + 2));
 
@@ -464,7 +464,7 @@ ng_pred1_decompress(node_p node, struct mbuf *m, struct mbuf **resultp)
 	*resultp = NULL;
 
 	inlen = m->m_pkthdr.len;
-		
+
 	if (inlen > PRED1_BUF_SIZE) {
 		priv->stats.Errors++;
 		NG_FREE_M(m);
@@ -475,7 +475,7 @@ ng_pred1_decompress(node_p node, struct mbuf *m, struct mbuf **resultp)
 	m_copydata(m, 0, inlen, (caddr_t)priv->inbuf);
 
 	priv->stats.InOctets += inlen;
-    	
+
 	/* Get initial length value. */
 	len = priv->inbuf[0] << 8;
 	len += priv->inbuf[1];
@@ -486,7 +486,7 @@ ng_pred1_decompress(node_p node, struct mbuf *m, struct mbuf **resultp)
 	/* Is data compressed or not really? */
 	if (cf) {
 		NG_FREE_M(m);
-		
+
 		priv->stats.FramesComp++;
 		len1 = Pred1Decompress(node, priv->inbuf + 2, priv->outbuf,
 		    inlen - 4, PRED1_BUF_SIZE);
