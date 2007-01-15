@@ -436,6 +436,9 @@ void sctp_input __P((struct mbuf *, int));
 void sctp_drain __P((void));
 void sctp_init __P((void));
 
+
+void sctp_pcbinfo_cleanup(void);
+
 int sctp_shutdown __P((struct socket *));
 void sctp_notify 
 __P((struct sctp_inpcb *, int, struct sctphdr *,

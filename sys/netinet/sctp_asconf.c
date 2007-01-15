@@ -1786,8 +1786,7 @@ sctp_addr_mgmt_assoc(struct sctp_inpcb *inp, struct sctp_tcb *stcb,
 		inp6 = (struct in6pcb *)&inp->ip_inp.inp;
 		/* invalid if we are a v6 only endpoint */
 		if ((inp->sctp_flags & SCTP_PCB_FLAGS_BOUND_V6) &&
-		    (inp6->inp_flags & IN6P_IPV6_V6ONLY)
-		    )
+		    SCTP_IPV6_V6ONLY(inp6))
 			return;
 
 		sin = (struct sockaddr_in *)ifa->ifa_addr;
@@ -1877,8 +1876,7 @@ sctp_addr_mgmt_ep(struct sctp_inpcb *inp, struct ifaddr *ifa, uint16_t type)
 		inp6 = (struct in6pcb *)&inp->ip_inp.inp;
 
 		if ((inp->sctp_flags & SCTP_PCB_FLAGS_BOUND_V6) &&
-		    (inp6->inp_flags & IN6P_IPV6_V6ONLY)
-		    ) {
+		    SCTP_IPV6_V6ONLY(inp6)) {
 			SCTP_INP_WUNLOCK(inp);
 			return;
 		}

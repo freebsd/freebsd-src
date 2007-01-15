@@ -891,6 +891,12 @@ __FBSDID("$FreeBSD$");
  */
 #define SCTP_TIME_WAIT 480
 
+/* This time wait is the same as the default cookie life
+ * since we now enter a tag in every time we send a cookie.
+ * We want this shorter to avoid vtag depletion.
+ */
+#define SCTP_TIME_WAIT_SHORT 60
+
 /* The system retains a cache of free chunks such to
  * cut down on calls the memory allocation system. There
  * is a per association limit of free items and a overall

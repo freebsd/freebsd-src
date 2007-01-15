@@ -656,9 +656,7 @@ sctp6_bind(struct socket *so, struct sockaddr *addr, struct thread *p)
 	inp6 = (struct in6pcb *)inp;
 	inp6->inp_vflag &= ~INP_IPV4;
 	inp6->inp_vflag |= INP_IPV6;
-	if (addr != NULL &&
-	    (inp6->inp_flags & IN6P_IPV6_V6ONLY)
-	    == 0) {
+	if ((addr != NULL) && (SCTP_IPV6_V6ONLY(inp6) == 0)) {
 		if (addr->sa_family == AF_INET) {
 			/* binding v4 addr to v6 socket, so reset flags */
 			inp6->inp_vflag |= INP_IPV4;
@@ -944,10 +942,7 @@ sctp6_send(struct socket *so, int flags, struct mbuf *m, struct sockaddr *addr,
 	}
 #ifdef INET
 	sin6 = (struct sockaddr_in6 *)addr;
-	if (
-
-	    (inp6->inp_flags & IN6P_IPV6_V6ONLY)
-	    ) {
+	if (SCTP_IPV6_V6ONLY(inp6)) {
 		/*
 		 * if IPV6_V6ONLY flag, we discard datagrams destined to a
 		 * v4 addr or v4-mapped addr
@@ -1060,9 +1055,7 @@ sctp6_connect(struct socket *so, struct sockaddr *addr, struct thread *p)
 	}
 #ifdef INET
 	sin6 = (struct sockaddr_in6 *)addr;
-	if (
-	    (inp6->inp_flags & IN6P_IPV6_V6ONLY)
-	    ) {
+	if (SCTP_IPV6_V6ONLY(inp6)) {
 		/*
 		 * if IPV6_V6ONLY flag, ignore connections destined to a v4
 		 * addr or v4-mapped addr
@@ -1325,9 +1318,7 @@ sctp6_in6getaddr(struct socket *so, struct sockaddr **nam)
 		}
 		addr = *nam;
 		/* if I'm V6ONLY, convert it to v4-mapped */
-		if (
-		    (inp6->inp_flags & IN6P_IPV6_V6ONLY)
-		    ) {
+		if (SCTP_IPV6_V6ONLY(inp6)) {
 			struct sockaddr_in6 sin6;
 
 			in6_sin_2_v4mapsin6((struct sockaddr_in *)addr, &sin6);
@@ -1361,9 +1352,7 @@ sctp6_getpeeraddr(struct socket *so, struct sockaddr **nam)
 			return (error);
 		}
 		/* if I'm V6ONLY, convert it to v4-mapped */
-		if (
-		    (inp6->inp_flags & IN6P_IPV6_V6ONLY)
-		    ) {
+		if (SCTP_IPV6_V6ONLY(inp6)) {
 			struct sockaddr_in6 sin6;
 
 			in6_sin_2_v4mapsin6((struct sockaddr_in *)addr, &sin6);
