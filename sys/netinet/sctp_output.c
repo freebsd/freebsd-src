@@ -2041,7 +2041,6 @@ try_again:
 }
 
 
-
 static struct mbuf *
 sctp_add_cookie(struct sctp_inpcb *inp, struct mbuf *init, int init_offset,
     struct mbuf *initack, int initack_offset, struct sctp_state_cookie *stc_in)
@@ -2061,12 +2060,12 @@ sctp_add_cookie(struct sctp_inpcb *inp, struct mbuf *init, int init_offset,
 	if (mret == NULL) {
 		return (NULL);
 	}
-	copy_init = sctp_m_copym(init, init_offset, M_COPYALL, M_DONTWAIT);
+	copy_init = SCTP_M_COPYM(init, init_offset, M_COPYALL, M_DONTWAIT);
 	if (copy_init == NULL) {
 		sctp_m_freem(mret);
 		return (NULL);
 	}
-	copy_initack = sctp_m_copym(initack, initack_offset, M_COPYALL,
+	copy_initack = SCTP_M_COPYM(initack, initack_offset, M_COPYALL,
 	    M_DONTWAIT);
 	if (copy_initack == NULL) {
 		sctp_m_freem(mret);
@@ -3390,9 +3389,7 @@ sctp_send_initiate_ack(struct sctp_inpcb *inp, struct sctp_tcb *stcb,
 		in_inp = (struct inpcb *)inp;
 		stc.ipv6_addr_legal = 1;
 		/* Now look at the binding flag to see if V4 will be legal */
-		if (
-		    (in_inp->inp_flags & IN6P_IPV6_V6ONLY)
-		    == 0) {
+		if (SCTP_IPV6_V6ONLY(in_inp) == 0) {
 			stc.ipv4_addr_legal = 1;
 		} else {
 			/* V4 addresses are NOT legal on the association */
@@ -3616,16 +3613,20 @@ sctp_send_initiate_ack(struct sctp_inpcb *inp, struct sctp_tcb *stcb,
 		initackm_out->msg.init.initiate_tag = htonl(asoc->my_vtag);
 		initackm_out->msg.init.initial_tsn = htonl(asoc->init_seq_number);
 	} else {
+		uint32_t vtag;
+
 		if (asoc) {
 			atomic_add_int(&asoc->refcnt, 1);
 			SCTP_TCB_UNLOCK(stcb);
-			initackm_out->msg.init.initiate_tag = htonl(sctp_select_a_tag(inp));
+			vtag = sctp_select_a_tag(inp);
+			initackm_out->msg.init.initiate_tag = htonl(vtag);
 			/* get a TSN to use too */
 			initackm_out->msg.init.initial_tsn = htonl(sctp_select_initial_TSN(&inp->sctp_ep));
 			SCTP_TCB_LOCK(stcb);
 			atomic_add_int(&asoc->refcnt, -1);
 		} else {
-			initackm_out->msg.init.initiate_tag = htonl(sctp_select_a_tag(inp));
+			vtag = sctp_select_a_tag(inp);
+			initackm_out->msg.init.initiate_tag = htonl(vtag);
 			/* get a TSN to use too */
 			initackm_out->msg.init.initial_tsn = htonl(sctp_select_initial_TSN(&inp->sctp_ep));
 		}
@@ -4321,7 +4322,7 @@ error_out:
 			return (outchain);
 		} else {
 			/* copy the old fashion way */
-			appendchain = m_copy(clonechain, 0, M_COPYALL);
+			appendchain = SCTP_M_COPYM(clonechain, 0, M_COPYALL, M_DONTWAIT);
 		}
 	}
 	if (appendchain == NULL) {
@@ -4399,7 +4400,7 @@ sctp_sendall_iterator(struct sctp_inpcb *inp, struct sctp_tcb *stcb, void *ptr,
 		return;
 	}
 	if ((ca->m) && ca->sndlen) {
-		m = m_copym(ca->m, 0, M_COPYALL, M_DONTWAIT);
+		m = SCTP_M_COPYM(ca->m, 0, M_COPYALL, M_DONTWAIT);
 		if (m == NULL) {
 			/* can't copy so we are done */
 			ca->cnt_failed++;
@@ -5030,7 +5031,7 @@ out_gu:
 	} else {
 		struct mbuf *m;
 
-		chk->data = m_copym(sp->data, 0, to_move, M_DONTWAIT);
+		chk->data = SCTP_M_COPYM(sp->data, 0, to_move, M_DONTWAIT);
 		chk->last_mbuf = NULL;
 		if (chk->data == NULL) {
 			sp->some_taken = some_taken;
@@ -5104,6 +5105,7 @@ out_gu:
 	sctp_snd_sb_alloc(stcb, sizeof(struct sctp_data_chunk));
 	chk->book_size = chk->send_size = (to_move +
 	    sizeof(struct sctp_data_chunk));
+	chk->book_size_scale = 0;
 	chk->sent = SCTP_DATAGRAM_UNSENT;
 
 	/*
@@ -6208,7 +6210,7 @@ sctp_send_cookie_echo(struct mbuf *m,
 			if ((pad = (plen % 4))) {
 				plen += 4 - pad;
 			}
-			cookie = sctp_m_copym(m, at, plen, M_DONTWAIT);
+			cookie = SCTP_M_COPYM(m, at, plen, M_DONTWAIT);
 			if (cookie == NULL) {
 				/* No memory */
 				return (-2);
@@ -6269,7 +6271,7 @@ sctp_send_heartbeat_ack(struct sctp_tcb *stcb,
 		/* must have a net pointer */
 		return;
 
-	outchain = sctp_m_copym(m, offset, chk_length, M_DONTWAIT);
+	outchain = SCTP_M_COPYM(m, offset, chk_length, M_DONTWAIT);
 	if (outchain == NULL) {
 		/* gak out of memory */
 		return;
@@ -6499,8 +6501,7 @@ sctp_send_asconf_ack(struct sctp_tcb *stcb, uint32_t retrans)
 		return (-1);
 	}
 	/* copy the asconf_ack */
-	/* We no longer have pak headers here so m_copy is it */
-	m_ack = m_copy(stcb->asoc.last_asconf_ack_sent, 0, M_COPYALL);
+	m_ack = SCTP_M_COPYM(stcb->asoc.last_asconf_ack_sent, 0, M_COPYALL, M_DONTWAIT);
 	if (m_ack == NULL) {
 		/* couldn't copy it */
 
@@ -6566,7 +6567,7 @@ static int
 sctp_chunk_retransmission(struct sctp_inpcb *inp,
     struct sctp_tcb *stcb,
     struct sctp_association *asoc,
-    int *cnt_out, struct timeval *now, int *now_filled)
+    int *cnt_out, struct timeval *now, int *now_filled, int *fr_done)
 {
 	/*
 	 * send out one MTU of retransmission. If fast_retransmit is
@@ -6769,6 +6770,7 @@ one_chunk_around:
 			 * Mark the destination net to have FR recovery
 			 * limits put on it.
 			 */
+			*fr_done = 1;
 			net->fast_retran_ip = 1;
 		}
 
@@ -6947,22 +6949,22 @@ one_chunk_around:
 				if (asoc->sent_queue_retran_cnt < 0) {
 					asoc->sent_queue_retran_cnt = 0;
 				}
-#ifdef SCTP_FLIGHT_LOGGING
-				sctp_misc_ints(SCTP_FLIGHT_LOG_UP,
-				    data_list[i]->whoTo->flight_size,
-				    data_list[i]->book_size,
-				    (uintptr_t) stcb,
-				    data_list[i]->rec.data.TSN_seq);
-#endif
-				net->flight_size += data_list[i]->book_size;
-				asoc->total_flight += data_list[i]->book_size;
 				if (data_list[i]->book_size_scale) {
 					/*
 					 * need to double the book size on
 					 * this one
 					 */
 					data_list[i]->book_size_scale = 0;
+					/*
+					 * Since we double the booksize, we
+					 * must also double the output queue
+					 * size, since this get shrunk when
+					 * we free by this amount.
+					 */
+					atomic_add_int(&((asoc)->total_output_queue_size), data_list[i]->book_size);
 					data_list[i]->book_size *= 2;
+
+
 				} else {
 					sctp_ucount_incr(asoc->total_flight_count);
 #ifdef SCTP_LOG_RWND
@@ -6973,6 +6975,15 @@ one_chunk_around:
 					    (uint32_t) (data_list[i]->send_size +
 					    sctp_peer_chunk_oh));
 				}
+#ifdef SCTP_FLIGHT_LOGGING
+				sctp_misc_ints(SCTP_FLIGHT_LOG_UP,
+				    data_list[i]->whoTo->flight_size,
+				    data_list[i]->book_size,
+				    (uintptr_t) stcb,
+				    data_list[i]->rec.data.TSN_seq);
+#endif
+				net->flight_size += data_list[i]->book_size;
+				asoc->total_flight += data_list[i]->book_size;
 				if (asoc->peers_rwnd < stcb->sctp_ep->sctp_ep.sctp_sws_sender) {
 					/* SWS sender side engages */
 					asoc->peers_rwnd = 0;
@@ -7074,6 +7085,7 @@ sctp_chunk_output(struct sctp_inpcb *inp,
 	int nagle_on = 0;
 	int frag_point = sctp_get_frag_point(stcb, &stcb->asoc);
 	int un_sent = 0;
+	int fr_done, tot_frs = 0;
 
 	asoc = &stcb->asoc;
 	if (from_where == SCTP_OUTPUT_FROM_USR_SEND) {
@@ -7118,7 +7130,11 @@ sctp_chunk_output(struct sctp_inpcb *inp,
 			return (0);
 		} else if (from_where != SCTP_OUTPUT_FROM_HB_TMR) {
 			/* if its not from a HB then do it */
-			ret = sctp_chunk_retransmission(inp, stcb, asoc, &num_out, &now, &now_filled);
+			fr_done = 0;
+			ret = sctp_chunk_retransmission(inp, stcb, asoc, &num_out, &now, &now_filled, &fr_done);
+			if (fr_done) {
+				tot_frs++;
+			}
 		} else {
 			/*
 			 * its from any other place, we don't allow retran
@@ -7161,7 +7177,12 @@ sctp_chunk_output(struct sctp_inpcb *inp,
 			    &now, &now_filled, frag_point);
 			return (ret);
 		}
+		if (tot_frs > asoc->max_burst) {
+			/* Hit FR burst limit */
+			return (0);
+		}
 		if ((num_out == 0) && (ret == 0)) {
+
 			/* No more retrans to send */
 			break;
 		}
@@ -8300,6 +8321,7 @@ jump_out:
 	}
 	chk->book_size = SCTP_SIZE32((chk->send_size + sizeof(struct sctp_pktdrop_chunk) +
 	    sizeof(struct sctphdr) + SCTP_MED_OVERHEAD));
+	chk->book_size_scale = 0;
 	if (chk->book_size > small_one) {
 		drp->ch.chunk_flags = SCTP_PACKET_TRUNCATED;
 		drp->trunc_len = htons(chk->send_size);
@@ -8443,6 +8465,7 @@ sctp_add_stream_reset_out(struct sctp_tmit_chunk *chk,
 	/* now fix the chunk length */
 	ch->chunk_length = htons(len + old_len);
 	chk->book_size = len + old_len;
+	chk->book_size_scale = 0;
 	chk->send_size = SCTP_SIZE32(chk->book_size);
 	SCTP_BUF_LEN(chk->data) = chk->send_size;
 	return;
@@ -8486,6 +8509,7 @@ sctp_add_stream_reset_in(struct sctp_tmit_chunk *chk,
 	/* now fix the chunk length */
 	ch->chunk_length = htons(len + old_len);
 	chk->book_size = len + old_len;
+	chk->book_size_scale = 0;
 	chk->send_size = SCTP_SIZE32(chk->book_size);
 	SCTP_BUF_LEN(chk->data) = chk->send_size;
 	return;
@@ -8517,6 +8541,7 @@ sctp_add_stream_reset_tsn(struct sctp_tmit_chunk *chk,
 	ch->chunk_length = htons(len + old_len);
 	chk->send_size = len + old_len;
 	chk->book_size = SCTP_SIZE32(chk->send_size);
+	chk->book_size_scale = 0;
 	SCTP_BUF_LEN(chk->data) = SCTP_SIZE32(chk->send_size);
 	return;
 }
@@ -8546,6 +8571,7 @@ sctp_add_stream_reset_result(struct sctp_tmit_chunk *chk,
 	/* now fix the chunk length */
 	ch->chunk_length = htons(len + old_len);
 	chk->book_size = len + old_len;
+	chk->book_size_scale = 0;
 	chk->send_size = SCTP_SIZE32(chk->book_size);
 	SCTP_BUF_LEN(chk->data) = chk->send_size;
 	return;
@@ -8582,6 +8608,7 @@ sctp_add_stream_reset_result_tsn(struct sctp_tmit_chunk *chk,
 	ch->chunk_length = htons(len + old_len);
 	chk->book_size = len + old_len;
 	chk->send_size = SCTP_SIZE32(chk->book_size);
+	chk->book_size_scale = 0;
 	SCTP_BUF_LEN(chk->data) = chk->send_size;
 	return;
 }
@@ -8625,6 +8652,7 @@ sctp_send_str_reset_req(struct sctp_tcb *stcb,
 	chk->asoc = &stcb->asoc;
 	chk->book_size = sizeof(struct sctp_chunkhdr);
 	chk->send_size = SCTP_SIZE32(chk->book_size);
+	chk->book_size_scale = 0;
 
 	chk->data = sctp_get_mbuf_for_msg(MCLBYTES, 0, M_DONTWAIT, 1, MT_DATA);
 	if (chk->data == NULL) {
@@ -9278,6 +9306,11 @@ sctp_lower_sosend(struct socket *so,
 		goto out_unlocked;
 	}
 	if ((use_rcvinfo) && srcv) {
+		if (INVALID_SINFO_FLAG(srcv->sinfo_flags) || PR_SCTP_INVALID_POLICY(srcv->sinfo_flags)) {
+			error = EINVAL;
+			splx(s);
+			goto out_unlocked;
+		}
 		if (srcv->sinfo_flags)
 			SCTP_STAT_INCR(sctps_sends_with_flags);
 
@@ -9383,8 +9416,13 @@ sctp_lower_sosend(struct socket *so,
 			 * process
 			 */
 			if ((use_rcvinfo) && (srcv) &&
-			    (srcv->sinfo_flags & SCTP_ABORT)) {
-				/* User asks to abort a non-existant asoc */
+			    ((srcv->sinfo_flags & SCTP_ABORT) ||
+			    ((srcv->sinfo_flags & SCTP_EOF) &&
+			    (uio->uio_resid == 0)))) {
+				/*
+				 * User asks to abort a non-existant assoc,
+				 * or EOF a non-existant assoc with no data
+				 */
 				error = ENOENT;
 				splx(s);
 				goto out_unlocked;
@@ -10230,7 +10268,11 @@ skip_out_eof:
 			queue_only = 0;
 		} else {
 			sctp_send_initiate(inp, stcb);
-			stcb->asoc.state = SCTP_STATE_COOKIE_WAIT;
+			if (stcb->asoc.state & SCTP_STATE_SHUTDOWN_PENDING)
+				stcb->asoc.state = SCTP_STATE_COOKIE_WAIT |
+				    SCTP_STATE_SHUTDOWN_PENDING;
+			else
+				stcb->asoc.state = SCTP_STATE_COOKIE_WAIT;
 			queue_only_for_init = 0;
 			queue_only = 1;
 		}

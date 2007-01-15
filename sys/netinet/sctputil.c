@@ -1080,14 +1080,11 @@ sctp_init_asoc(struct sctp_inpcb *m, struct sctp_association *asoc,
 	if (m->sctp_flags & SCTP_PCB_FLAGS_BOUND_V6) {
 		struct in6pcb *inp6;
 
-
 		/* Its a V6 socket */
 		inp6 = (struct in6pcb *)m;
 		asoc->ipv6_addr_legal = 1;
 		/* Now look at the binding flag to see if V4 will be legal */
-		if (
-		    (inp6->inp_flags & IN6P_IPV6_V6ONLY)
-		    == 0) {
+		if (SCTP_IPV6_V6ONLY(inp6) == 0) {
 			asoc->ipv4_addr_legal = 1;
 		} else {
 			/* V4 addresses are NOT legal on the association */
@@ -1098,7 +1095,6 @@ sctp_init_asoc(struct sctp_inpcb *m, struct sctp_association *asoc,
 		asoc->ipv4_addr_legal = 1;
 		asoc->ipv6_addr_legal = 0;
 	}
-
 
 	asoc->my_rwnd = max(m->sctp_socket->so_rcv.sb_hiwat, SCTP_MINIMAL_RWND);
 	asoc->peers_rwnd = m->sctp_socket->so_rcv.sb_hiwat;
@@ -1326,15 +1322,28 @@ sctp_timeout_handler(void *t)
 		return;
 	}
 	tmr->stopped_from = 0xa006;
-	/* record in stopped what t-o occured */
-	tmr->stopped_from = tmr->type;
 
 	if (stcb) {
 		atomic_add_int(&stcb->asoc.refcnt, 1);
 		SCTP_TCB_LOCK(stcb);
 		atomic_add_int(&stcb->asoc.refcnt, -1);
 	}
+	/* record in stopped what t-o occured */
+	tmr->stopped_from = tmr->type;
+
 	/* mark as being serviced now */
+	if (SCTP_OS_TIMER_PENDING(&tmr->timer)) {
+		/*
+		 * Callout has been rescheduled.
+		 */
+		goto get_out;
+	}
+	if (!SCTP_OS_TIMER_ACTIVE(&tmr->timer)) {
+		/*
+		 * Not active, so no action.
+		 */
+		goto get_out;
+	}
 	SCTP_OS_TIMER_DEACTIVATE(&tmr->timer);
 
 	/* call the handler for the appropriate timer type */
@@ -1575,6 +1584,7 @@ sctp_timeout_handler(void *t)
 		 */
 		sctp_fix_ecn_echo(&stcb->asoc);
 	}
+get_out:
 	if (stcb) {
 		SCTP_TCB_UNLOCK(stcb);
 	}
@@ -2299,7 +2309,7 @@ sctp_calculate_sum(struct mbuf *m, int32_t * pktlen, uint32_t offset)
 
 void
 sctp_mtu_size_reset(struct sctp_inpcb *inp,
-    struct sctp_association *asoc, u_long mtu)
+    struct sctp_association *asoc, uint32_t mtu)
 {
 	/*
 	 * Reset the P-MTU size on this association, this involves changing
@@ -2450,7 +2460,6 @@ sctp_calculate_rto(struct sctp_tcb *stcb,
 	return ((uint32_t) new_rto);
 }
 
-
 /*
  * return a pointer to a contiguous piece of data from the given mbuf chain
  * starting at 'off' for 'len' bytes.  If the desired piece spans more than
@@ -2496,6 +2505,7 @@ sctp_m_getptr(struct mbuf *m, int off, int len, uint8_t * in_ptr)
 			return ((caddr_t)in_ptr);
 	}
 }
+
 
 
 struct sctp_paramhdr *
@@ -2602,9 +2612,10 @@ sctp_notify_assoc_change(uint32_t event, struct sctp_tcb *stcb,
 	if (((stcb->sctp_ep->sctp_flags & SCTP_PCB_FLAGS_TCPTYPE) ||
 	    (stcb->sctp_ep->sctp_flags & SCTP_PCB_FLAGS_IN_TCPPOOL)) &&
 	    (event == SCTP_COMM_LOST)) {
-		if (TAILQ_EMPTY(&stcb->sctp_ep->read_queue)) {
+		if (SCTP_GET_STATE(&stcb->asoc) == SCTP_STATE_COOKIE_WAIT)
+			stcb->sctp_socket->so_error = ECONNREFUSED;
+		else
 			stcb->sctp_socket->so_error = ECONNRESET;
-		}
 		/* Wake ANY sleepers */
 		sorwakeup(stcb->sctp_socket);
 		sowwakeup(stcb->sctp_socket);
@@ -3644,19 +3655,6 @@ sctp_print_address_pkt(struct ip *iph, struct sctphdr *sh)
 	}
 }
 
-#if defined(HAVE_SCTP_SO_LASTRECORD)
-
-/* cloned from uipc_socket.c */
-
-#define SCTP_SBLINKRECORD(sb, m0) do {					\
-	if ((sb)->sb_lastrecord != NULL)				\
-		SCTP_BUF_NEXT_PKT((sb)->sb_lastrecord) = (m0);			\
-	else								\
-		(sb)->sb_mb = (m0);					\
-	(sb)->sb_lastrecord = (m0);					\
-} while (/*CONSTCOND*/0)
-#endif
-
 void
 sctp_pull_off_control_to_new_inp(struct sctp_inpcb *old_inp,
     struct sctp_inpcb *new_inp,
@@ -3980,7 +3978,7 @@ sctp_free_bufspace(struct sctp_tcb *stcb, struct sctp_association *asoc,
 	    0,
 	    tp1->mbcnt);
 	if (asoc->total_output_queue_size >= tp1->book_size) {
-		asoc->total_output_queue_size -= tp1->book_size;
+		atomic_add_int(&asoc->total_output_queue_size, -tp1->book_size);
 	} else {
 		asoc->total_output_queue_size = 0;
 	}
@@ -4325,9 +4323,11 @@ restart_nosblocks:
 	    (inp->sctp_flags & SCTP_PCB_FLAGS_SOCKET_ALLGONE)) {
 		goto out;
 	}
-	if (so->so_error || so->so_rcv.sb_state & SBS_CANTRCVMORE) {
+	if (so->so_rcv.sb_state & SBS_CANTRCVMORE) {
 		if (so->so_error) {
 			error = so->so_error;
+			if ((in_flags & MSG_PEEK) == 0)
+				so->so_error = 0;
 		} else {
 			error = ENOTCONN;
 		}
@@ -4387,7 +4387,54 @@ restart_nosblocks:
 		held_length = 0;
 		goto restart_nosblocks;
 	} else if (so->so_rcv.sb_cc == 0) {
-		error = EWOULDBLOCK;
+		if (so->so_error) {
+			error = so->so_error;
+			if ((in_flags & MSG_PEEK) == 0)
+				so->so_error = 0;
+		} else {
+			if ((inp->sctp_flags & SCTP_PCB_FLAGS_TCPTYPE) ||
+			    (inp->sctp_flags & SCTP_PCB_FLAGS_IN_TCPPOOL)) {
+				if ((inp->sctp_flags & SCTP_PCB_FLAGS_CONNECTED) == 0) {
+					/*
+					 * For active open side clear flags
+					 * for re-use passive open is
+					 * blocked by connect.
+					 */
+					if (inp->sctp_flags & SCTP_PCB_FLAGS_WAS_ABORTED) {
+						/*
+						 * You were aborted, passive
+						 * side always hits here
+						 */
+						error = ECONNRESET;
+						/*
+						 * You get this once if you
+						 * are active open side
+						 */
+						if (!(inp->sctp_flags & SCTP_PCB_FLAGS_IN_TCPPOOL)) {
+							/*
+							 * Remove flag if on
+							 * the active open
+							 * side
+							 */
+							inp->sctp_flags &= ~SCTP_PCB_FLAGS_WAS_ABORTED;
+						}
+					}
+					so->so_state &= ~(SS_ISCONNECTING |
+					    SS_ISDISCONNECTING |
+					    SS_ISCONFIRMING |
+					    SS_ISCONNECTED);
+					if (error == 0) {
+						if ((inp->sctp_flags & SCTP_PCB_FLAGS_WAS_CONNECTED) == 0) {
+							error = ENOTCONN;
+						} else {
+							inp->sctp_flags &= ~SCTP_PCB_FLAGS_WAS_CONNECTED;
+						}
+					}
+					goto out;
+				}
+			}
+			error = EWOULDBLOCK;
+		}
 		goto out;
 	}
 	error = sblock(&so->so_rcv, (block_allowed ? M_WAITOK : 0));
@@ -4906,7 +4953,7 @@ get_more_data:
 			sctp_user_rcvd(stcb, &freed_so_far, hold_rlock, rwnd_req);
 		}
 wait_some_more:
-		if (so->so_error || so->so_rcv.sb_state & SBS_CANTRCVMORE) {
+		if (so->so_rcv.sb_state & SBS_CANTRCVMORE) {
 			goto release;
 		}
 		if (inp->sctp_flags & SCTP_PCB_FLAGS_SOCKET_GONE)
@@ -5034,7 +5081,7 @@ get_more_data2:
 				goto release;
 			}
 	wait_some_more2:
-			if (so->so_error || so->so_rcv.sb_state & SBS_CANTRCVMORE)
+			if (so->so_rcv.sb_state & SBS_CANTRCVMORE)
 				goto release;
 			if (hold_rlock == 1) {
 				SCTP_INP_READ_UNLOCK(inp);
@@ -5128,7 +5175,7 @@ get_more_data2:
 						hold_sblock = 0;
 					}
 					splx(s);
-					*mp = sctp_m_copym(m, 0, cp_len,
+					*mp = SCTP_M_COPYM(m, 0, cp_len,
 					    M_TRYWAIT
 					    );
 					s = splnet();

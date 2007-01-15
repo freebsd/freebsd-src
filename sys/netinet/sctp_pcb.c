@@ -32,7 +32,6 @@
 
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
-
 #include "opt_ipsec.h"
 #include "opt_compat.h"
 #include "opt_inet6.h"
@@ -671,8 +670,7 @@ sctp_endpoint_probe(struct sockaddr *nam, struct sctppcbhead *head,
 			/* got it */
 			if ((nam->sa_family == AF_INET) &&
 			    (inp->sctp_flags & SCTP_PCB_FLAGS_BOUND_V6) &&
-			    (((struct inpcb *)inp)->inp_flags & IN6P_IPV6_V6ONLY)
-			    ) {
+			    SCTP_IPV6_V6ONLY(inp)) {
 				/* IPv4 on a IPv6 socket with ONLY IPv6 set */
 				SCTP_INP_RUNLOCK(inp);
 				continue;
@@ -1431,8 +1429,7 @@ sctp_inpcb_alloc(struct socket *so)
 		SCTP_ZONE_FREE(sctppcbinfo.ipi_zone_ep, inp);
 		return (EOPNOTSUPP);
 	}
-	inp->sctp_tcbhash = hashinit(sctp_pcbtblsize,
-	    M_PCB,
+	inp->sctp_tcbhash = SCTP_HASH_INIT(sctp_pcbtblsize,
 	    &inp->sctp_hashmark);
 	if (inp->sctp_tcbhash == NULL) {
 		printf("Out of SCTP-INPCB->hashinit - no resources\n");
@@ -1592,7 +1589,7 @@ sctp_move_pcb_and_assoc(struct sctp_inpcb *old_inp, struct sctp_inpcb *new_inp,
 
 	SCTP_INP_INFO_WUNLOCK();
 	if (new_inp->sctp_tcbhash != NULL) {
-		SCTP_FREE(new_inp->sctp_tcbhash);
+		SCTP_HASH_FREE(new_inp->sctp_tcbhash, new_inp->sctp_hashmark);
 		new_inp->sctp_tcbhash = NULL;
 	}
 	if ((new_inp->sctp_flags & SCTP_PCB_FLAGS_BOUNDALL) == 0) {
@@ -1660,8 +1657,7 @@ sctp_isport_inuse(struct sctp_inpcb *inp, uint16_t lport)
 		/* This one is in use. */
 		/* check the v6/v4 binding issue */
 		if ((t_inp->sctp_flags & SCTP_PCB_FLAGS_BOUND_V6) &&
-		    (((struct inpcb *)t_inp)->inp_flags & IN6P_IPV6_V6ONLY)
-		    ) {
+		    SCTP_IPV6_V6ONLY(t_inp)) {
 			if (inp->sctp_flags & SCTP_PCB_FLAGS_BOUND_V6) {
 				/* collision in V6 space */
 				return (1);
@@ -1675,8 +1671,7 @@ sctp_isport_inuse(struct sctp_inpcb *inp, uint16_t lport)
 		} else {
 			/* t_inp is bound only V4 */
 			if ((inp->sctp_flags & SCTP_PCB_FLAGS_BOUND_V6) &&
-			    (((struct inpcb *)inp)->inp_flags & IN6P_IPV6_V6ONLY)
-			    ) {
+			    SCTP_IPV6_V6ONLY(t_inp)) {
 				/* no conflict */
 				continue;
 			}
@@ -1724,9 +1719,7 @@ sctp_inpcb_bind(struct socket *so, struct sockaddr *addr, struct thread *p)
 			struct sockaddr_in *sin;
 
 			/* IPV6_V6ONLY socket? */
-			if (
-			    (ip_inp->inp_flags & IN6P_IPV6_V6ONLY)
-			    ) {
+			if (SCTP_IPV6_V6ONLY(ip_inp)) {
 				return (EINVAL);
 			}
 			if (addr->sa_len != sizeof(*sin))
@@ -2460,8 +2453,8 @@ sctp_inpcb_free(struct sctp_inpcb *inp, int immediate, int from)
 #endif
 	/* Now lets see about freeing the EP hash table. */
 	if (inp->sctp_tcbhash != NULL) {
-		SCTP_FREE(inp->sctp_tcbhash);
-		inp->sctp_tcbhash = 0;
+		SCTP_HASH_FREE(inp->sctp_tcbhash, inp->sctp_hashmark);
+		inp->sctp_tcbhash = NULL;
 	}
 	/* Now we must put the ep memory back into the zone pool */
 	SCTP_INP_LOCK_DESTROY(inp);
@@ -3116,8 +3109,8 @@ sctp_del_remote_addr(struct sctp_tcb *stcb, struct sockaddr *remaddr)
 }
 
 
-static void
-sctp_add_vtag_to_timewait(struct sctp_inpcb *inp, uint32_t tag)
+void
+sctp_add_vtag_to_timewait(struct sctp_inpcb *inp, uint32_t tag, uint32_t time)
 {
 	struct sctpvtaghead *chain;
 	struct sctp_tagblock *twait_block;
@@ -3134,7 +3127,7 @@ sctp_add_vtag_to_timewait(struct sctp_inpcb *inp, uint32_t tag)
 				if ((twait_block->vtag_block[i].v_tag == 0) &&
 				    !set) {
 					twait_block->vtag_block[i].tv_sec_at_expire =
-					    now.tv_sec + SCTP_TIME_WAIT;
+					    now.tv_sec + time;
 					twait_block->vtag_block[i].v_tag = tag;
 					set = 1;
 				} else if ((twait_block->vtag_block[i].v_tag) &&
@@ -3167,7 +3160,7 @@ sctp_add_vtag_to_timewait(struct sctp_inpcb *inp, uint32_t tag)
 		if (twait_block == NULL) {
 			return;
 		}
-		memset(twait_block, 0, sizeof(struct sctp_timewait));
+		memset(twait_block, 0, sizeof(struct sctp_tagblock));
 		LIST_INSERT_HEAD(chain, twait_block, sctp_nxt_tagblock);
 		twait_block->vtag_block[0].tv_sec_at_expire = now.tv_sec +
 		    SCTP_TIME_WAIT;
@@ -3419,31 +3412,14 @@ sctp_free_assoc(struct sctp_inpcb *inp, struct sctp_tcb *stcb, int from_inpcbfre
 			}
 		}
 	}
-	/* Stop any timer someone may have started */
-	SCTP_OS_TIMER_STOP(&asoc->strreset_timer.timer);
 	/*
 	 * Make it invalid too, that way if its about to run it will abort
 	 * and return.
 	 */
-	asoc->strreset_timer.type = SCTP_TIMER_TYPE_NONE;
 	sctp_iterator_asoc_being_freed(inp, stcb);
 	/* re-increment the lock */
 	if (from_inpcbfree == SCTP_NORMAL_PROC) {
 		atomic_add_int(&stcb->asoc.refcnt, -1);
-	}
-	/* now restop the timers to be sure - this is paranoia at is finest! */
-	SCTP_OS_TIMER_STOP(&asoc->hb_timer.timer);
-	SCTP_OS_TIMER_STOP(&asoc->dack_timer.timer);
-	SCTP_OS_TIMER_STOP(&asoc->strreset_timer.timer);
-	SCTP_OS_TIMER_STOP(&asoc->asconf_timer.timer);
-	SCTP_OS_TIMER_STOP(&asoc->shut_guard_timer.timer);
-	SCTP_OS_TIMER_STOP(&asoc->autoclose_timer.timer);
-	SCTP_OS_TIMER_STOP(&asoc->delayed_event_timer.timer);
-
-	TAILQ_FOREACH(net, &asoc->nets, sctp_next) {
-		SCTP_OS_TIMER_STOP(&net->fr_timer.timer);
-		SCTP_OS_TIMER_STOP(&net->rxt_timer.timer);
-		SCTP_OS_TIMER_STOP(&net->pmtu_timer.timer);
 	}
 	asoc->state = 0;
 	if (inp->sctp_tcbhash) {
@@ -3461,8 +3437,28 @@ sctp_free_assoc(struct sctp_inpcb *inp, struct sctp_tcb *stcb, int from_inpcbfre
 	}
 	/* pull from vtag hash */
 	LIST_REMOVE(stcb, sctp_asocs);
-	sctp_add_vtag_to_timewait(inp, asoc->my_vtag);
+	sctp_add_vtag_to_timewait(inp, asoc->my_vtag, SCTP_TIME_WAIT);
 
+
+	/*
+	 * Now restop the timers to be sure - this is paranoia at is finest!
+	 */
+	SCTP_OS_TIMER_STOP(&asoc->strreset_timer.timer);
+	SCTP_OS_TIMER_STOP(&asoc->hb_timer.timer);
+	SCTP_OS_TIMER_STOP(&asoc->dack_timer.timer);
+	SCTP_OS_TIMER_STOP(&asoc->strreset_timer.timer);
+	SCTP_OS_TIMER_STOP(&asoc->asconf_timer.timer);
+	SCTP_OS_TIMER_STOP(&asoc->shut_guard_timer.timer);
+	SCTP_OS_TIMER_STOP(&asoc->autoclose_timer.timer);
+	SCTP_OS_TIMER_STOP(&asoc->delayed_event_timer.timer);
+
+	TAILQ_FOREACH(net, &asoc->nets, sctp_next) {
+		SCTP_OS_TIMER_STOP(&net->fr_timer.timer);
+		SCTP_OS_TIMER_STOP(&net->rxt_timer.timer);
+		SCTP_OS_TIMER_STOP(&net->pmtu_timer.timer);
+	}
+
+	asoc->strreset_timer.type = SCTP_TIMER_TYPE_NONE;
 	prev = NULL;
 	/*
 	 * The chunk lists and such SHOULD be empty but we check them just
@@ -4224,26 +4220,16 @@ sctp_pcb_init()
 	TUNABLE_INT_FETCH("net.inet.sctp.tcbhashsize", &sctp_hashtblsize);
 	TUNABLE_INT_FETCH("net.inet.sctp.pcbhashsize", &sctp_pcbtblsize);
 	TUNABLE_INT_FETCH("net.inet.sctp.chunkscale", &sctp_chunkscale);
-
-	sctppcbinfo.sctp_asochash = hashinit((sctp_hashtblsize * 31),
-	    M_PCB,
+	sctppcbinfo.sctp_asochash = SCTP_HASH_INIT((sctp_hashtblsize * 31),
 	    &sctppcbinfo.hashasocmark);
-
-	sctppcbinfo.sctp_ephash = hashinit(sctp_hashtblsize,
-	    M_PCB,
+	sctppcbinfo.sctp_ephash = SCTP_HASH_INIT(sctp_hashtblsize,
 	    &sctppcbinfo.hashmark);
-
-	sctppcbinfo.sctp_tcpephash = hashinit(sctp_hashtblsize,
-	    M_PCB,
+	sctppcbinfo.sctp_tcpephash = SCTP_HASH_INIT(sctp_hashtblsize,
 	    &sctppcbinfo.hashtcpmark);
-
 	sctppcbinfo.hashtblsize = sctp_hashtblsize;
 
-	/*
-	 * init the small hash table we use to track restarted asoc's
-	 */
-	sctppcbinfo.sctp_restarthash = hashinit(SCTP_STACK_VTAG_HASH_SIZE,
-	    M_PCB,
+	/* init the small hash table we use to track restarted asoc's */
+	sctppcbinfo.sctp_restarthash = SCTP_HASH_INIT(SCTP_STACK_VTAG_HASH_SIZE,
 	    &sctppcbinfo.hashrestartmark);
 
 	/* init the zones */
@@ -4308,8 +4294,6 @@ sctp_pcb_init()
 
 	SCTP_OS_TIMER_INIT(&sctppcbinfo.addr_wq_timer.timer);
 
-	/* port stuff */
-	sctppcbinfo.lastlow = ipport_firstauto;
 	/* Init the TIMEWAIT list */
 	for (i = 0; i < SCTP_STACK_VTAG_HASH_SIZE; i++) {
 		LIST_INIT(&sctppcbinfo.vtag_timewait[i]);

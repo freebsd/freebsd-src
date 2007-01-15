@@ -225,13 +225,7 @@ struct sctp_epinfo {
 
 	struct sctpvtaghead vtag_timewait[SCTP_STACK_VTAG_HASH_SIZE];
 
-
 	struct sctp_timer addr_wq_timer;
-
-	/* for port allocations */
-	uint16_t lastport;
-	uint16_t lastlow;
-	uint16_t lasthi;
 
 };
 
@@ -462,6 +456,9 @@ sctp_aloc_assoc(struct sctp_inpcb *, struct sockaddr *,
     int, int *, uint32_t);
 
 int sctp_free_assoc(struct sctp_inpcb *, struct sctp_tcb *, int, int);
+
+void
+     sctp_add_vtag_to_timewait(struct sctp_inpcb *, uint32_t, uint32_t);
 
 int sctp_add_local_addr_ep(struct sctp_inpcb *, struct ifaddr *);
 

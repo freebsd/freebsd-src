@@ -136,6 +136,9 @@ struct sctp_snd_all_completes {
 #define SCTP_ADDR_OVER	  0x0800/* Override the primary-address */
 #define SCTP_SENDALL      0x1000/* Send this on all associations */
 #define SCTP_EOR          0x2000/* end of message signal */
+#define INVALID_SINFO_FLAG(x) (((x) & 0xffffff00 \
+                                    & ~(SCTP_EOF | SCTP_ABORT | SCTP_UNORDERED |\
+				        SCTP_ADDR_OVER | SCTP_SENDALL | SCTP_EOR)) != 0)
 /* for the endpoint */
 
 /* The lower byte is an enumeration of PR-SCTP policies */
@@ -143,12 +146,12 @@ struct sctp_snd_all_completes {
 #define SCTP_PR_SCTP_BUF  0x0002/* Buffer based PR-SCTP */
 #define SCTP_PR_SCTP_RTX  0x0003/* Number of retransmissions based PR-SCTP */
 
-#define PR_SCTP_POLICY(x)      ((x) & 0xff)
-#define PR_SCTP_ENABLED(x)     (PR_SCTP_POLICY(x) != 0)
-#define PR_SCTP_TTL_ENABLED(x) (PR_SCTP_POLICY(x) == SCTP_PR_SCTP_TTL)
-#define PR_SCTP_BUF_ENABLED(x) (PR_SCTP_POLICY(x) == SCTP_PR_SCTP_BUF)
-#define PR_SCTP_RTX_ENABLED(x) (PR_SCTP_POLICY(x) == SCTP_PR_SCTP_RTX)
-
+#define PR_SCTP_POLICY(x)         ((x) & 0xff)
+#define PR_SCTP_ENABLED(x)        (PR_SCTP_POLICY(x) != 0)
+#define PR_SCTP_TTL_ENABLED(x)    (PR_SCTP_POLICY(x) == SCTP_PR_SCTP_TTL)
+#define PR_SCTP_BUF_ENABLED(x)    (PR_SCTP_POLICY(x) == SCTP_PR_SCTP_BUF)
+#define PR_SCTP_RTX_ENABLED(x)    (PR_SCTP_POLICY(x) == SCTP_PR_SCTP_RTX)
+#define PR_SCTP_INVALID_POLICY(x) (PR_SCTP_POLICY(x) > SCTP_PR_SCTP_RTX)
 /* Stat's */
 struct sctp_pcbinfo {
 	uint32_t ep_count;
