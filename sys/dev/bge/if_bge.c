@@ -1686,7 +1686,7 @@ bge_probe(device_t dev)
 			    br != NULL ? "" : "unknown ", id >> 16);
 			device_set_desc_copy(dev, buf);
 			if (pci_get_subvendor(dev) == DELL_VENDORID)
-				sc->bge_flags |= BGE_FLAG_NO3LED;
+				sc->bge_flags |= BGE_FLAG_NO_3LED;
 			return (0);
 		}
 		t++;
@@ -2197,23 +2197,34 @@ bge_attach(device_t dev)
 	case BGE_ASICREV_BCM5704:
 		sc->bge_flags |= BGE_FLAG_5700_FAMILY | BGE_FLAG_JUMBO;
 		break;
-
 	case BGE_ASICREV_BCM5714_A0:
 	case BGE_ASICREV_BCM5780:
 	case BGE_ASICREV_BCM5714:
 		sc->bge_flags |= BGE_FLAG_5714_FAMILY /* | BGE_FLAG_JUMBO */;
-		/* Fall through */
-
+		/* FALLTHRU */
 	case BGE_ASICREV_BCM5750:
 	case BGE_ASICREV_BCM5752:
 	case BGE_ASICREV_BCM5755:
 	case BGE_ASICREV_BCM5787:
 		sc->bge_flags |= BGE_FLAG_575X_PLUS;
-		/* Fall through */
-
+		/* FALLTHRU */
 	case BGE_ASICREV_BCM5705:
 		sc->bge_flags |= BGE_FLAG_5705_PLUS;
 		break;
+	}
+
+	/* Set various bug flags. */
+	if (sc->bge_chiprev == BGE_CHIPREV_5703_AX ||
+	    sc->bge_chiprev == BGE_CHIPREV_5704_AX)
+		sc->bge_flags |= BGE_FLAG_ADC_BUG;
+	if (sc->bge_chipid == BGE_CHIPID_BCM5704_A0)
+		sc->bge_flags |= BGE_FLAG_5704_A0_BUG;
+	if (BGE_IS_5705_PLUS(sc)) {
+		if (sc->bge_asicrev == BGE_ASICREV_BCM5755 ||
+		    sc->bge_asicrev == BGE_ASICREV_BCM5787)
+			sc->bge_flags |= BGE_FLAG_JITTER_BUG;
+		else
+			sc->bge_flags |= BGE_FLAG_BER_BUG;
 	}
 
   	/*
@@ -4190,7 +4201,7 @@ bge_sysctl_debug_info(SYSCTL_HANDLER_ARGS)
 			printf(" - PCI-X Bus\n");
 		if (sc->bge_flags & BGE_FLAG_PCIE)
 			printf(" - PCI Express Bus\n");
-		if (sc->bge_flags & BGE_FLAG_NO3LED)
+		if (sc->bge_flags & BGE_FLAG_NO_3LED)
 			printf(" - No 3 LEDs\n");
 		if (sc->bge_flags & BGE_FLAG_RX_ALIGNBUG)
 			printf(" - RX Alignment Bug\n");
