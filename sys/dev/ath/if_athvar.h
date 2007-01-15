@@ -559,6 +559,11 @@ void	ath_intr(void *);
 	(((ah)->ah_regdomain == 0 && (ah)->ah_countryCode == 842) || \
 	 (ah)->ah_regdomain == 0x12)
 #endif
+#if HAL_ABI_VERSION < 0x06122400
+/* XXX yech, can't get to regdomain so just hack a compat shim */
+#define	ath_hal_isgsmsku(ah) \
+	((ah)->ah_countryCode == 843)
+#endif
 
 #define	ath_hal_setuprxdesc(_ah, _ds, _size, _intreq) \
 	((*(_ah)->ah_setupRxDesc)((_ah), (_ds), (_size), (_intreq)))
