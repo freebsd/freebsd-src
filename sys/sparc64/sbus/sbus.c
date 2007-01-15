@@ -430,20 +430,22 @@ sbus_attach(device_t dev)
 	rid = 0;
 	mr = SYSIO_READ8(sc, SBR_THERM_INT_MAP);
 	vec = INTVEC(mr);
-	if ((sc->sc_ot_ires = bus_alloc_resource(dev, SYS_RES_IRQ, &rid, vec,
-	    vec, 1, RF_ACTIVE)) == NULL)
-		panic("%s: failed to get temperature interrupt", __func__);
-	bus_setup_intr(dev, sc->sc_ot_ires, INTR_TYPE_MISC | INTR_FAST,
-	    sbus_overtemp, sc, &sc->sc_ot_ihand);
+	sc->sc_ot_ires = bus_alloc_resource(dev, SYS_RES_IRQ, &rid, vec,
+	    vec, 1, RF_ACTIVE);
+	if (sc->sc_ot_ires == NULL ||
+	    bus_setup_intr(dev, sc->sc_ot_ires, INTR_TYPE_MISC | INTR_FAST,
+	    sbus_overtemp, sc, &sc->sc_ot_ihand) != 0)
+		panic("%s: failed to set up temperature interrupt", __func__);
 	SYSIO_WRITE8(sc, SBR_THERM_INT_MAP, INTMAP_ENABLE(mr, PCPU_GET(mid)));
 	rid = 0;
 	mr = SYSIO_READ8(sc, SBR_POWER_INT_MAP);
 	vec = INTVEC(mr);
-	if ((sc->sc_pf_ires = bus_alloc_resource(dev, SYS_RES_IRQ, &rid, vec,
-	    vec, 1, RF_ACTIVE)) == NULL)
-		panic("%s: failed to get power fail interrupt", __func__);
-	bus_setup_intr(dev, sc->sc_pf_ires, INTR_TYPE_MISC | INTR_FAST,
-	    sbus_pwrfail, sc, &sc->sc_pf_ihand);
+	sc->sc_pf_ires = bus_alloc_resource(dev, SYS_RES_IRQ, &rid, vec,
+	    vec, 1, RF_ACTIVE);
+	if (sc->sc_pf_ires == NULL ||
+	    bus_setup_intr(dev, sc->sc_pf_ires, INTR_TYPE_MISC | INTR_FAST,
+	    sbus_pwrfail, sc, &sc->sc_pf_ihand) != 0)
+		panic("%s: failed to set up power fail interrupt", __func__);
 	SYSIO_WRITE8(sc, SBR_POWER_INT_MAP, INTMAP_ENABLE(mr, PCPU_GET(mid)));
 
 	/* Initialize the counter-timer. */
