@@ -97,6 +97,8 @@ static void	brgphy_fixup_adc_bug(struct mii_softc *);
 static void	brgphy_fixup_5704_a0_bug(struct mii_softc *);
 static void	brgphy_fixup_ber_bug(struct mii_softc *);
 static void	brgphy_fixup_jitter_bug(struct mii_softc *);
+static void	brgphy_ethernet_wirespeed(struct mii_softc *);
+static void	brgphy_jumbo_settings(struct mii_softc *, u_long);
 static int	brgphy_mii_model;
 static int	brgphy_mii_rev;
 
@@ -600,9 +602,46 @@ brgphy_fixup_jitter_bug(struct mii_softc *sc)
 }
 
 static void
-brgphy_reset(struct mii_softc *sc)
+brgphy_ethernet_wirespeed(struct mii_softc *sc)
 {
 	u_int32_t	val;
+
+	/* Enable Ethernet@WireSpeed. */
+	PHY_WRITE(sc, BRGPHY_MII_AUXCTL, 0x7007);
+	val = PHY_READ(sc, BRGPHY_MII_AUXCTL);
+	PHY_WRITE(sc, BRGPHY_MII_AUXCTL, val | (1 << 15) | (1 << 4));
+}
+
+static void
+brgphy_jumbo_settings(struct mii_softc *sc, u_long mtu)
+{
+	u_int32_t	val;
+
+	/* Set or clear jumbo frame settings in the PHY. */
+	if (mtu > ETHER_MAX_LEN) {
+		PHY_WRITE(sc, BRGPHY_MII_AUXCTL, 0x7);
+		val = PHY_READ(sc, BRGPHY_MII_AUXCTL);
+		PHY_WRITE(sc, BRGPHY_MII_AUXCTL,
+		    val | BRGPHY_AUXCTL_LONG_PKT);
+
+		val = PHY_READ(sc, BRGPHY_MII_PHY_EXTCTL);
+		PHY_WRITE(sc, BRGPHY_MII_PHY_EXTCTL,
+		    val | BRGPHY_PHY_EXTCTL_HIGH_LA);
+	} else {
+		PHY_WRITE(sc, BRGPHY_MII_AUXCTL, 0x7);
+		val = PHY_READ(sc, BRGPHY_MII_AUXCTL);
+		PHY_WRITE(sc, BRGPHY_MII_AUXCTL,
+		    val & ~(BRGPHY_AUXCTL_LONG_PKT | 0x7));
+
+		val = PHY_READ(sc, BRGPHY_MII_PHY_EXTCTL);
+		PHY_WRITE(sc, BRGPHY_MII_PHY_EXTCTL,
+		    val & ~BRGPHY_PHY_EXTCTL_HIGH_LA);
+	}
+}
+
+static void
+brgphy_reset(struct mii_softc *sc)
+{
 	struct ifnet	*ifp;
 	struct bge_softc	*bge_sc = NULL;
 	struct bce_softc	*bce_sc = NULL;
@@ -633,29 +672,6 @@ brgphy_reset(struct mii_softc *sc)
 
 	/* Handle any NetXtreme/bge workarounds. */
 	if (bge_sc) {
-		/*
-		 * Don't enable Ethernet@WireSpeed for the 5700 or the
-		 * 5705 A1 and A2 chips. Make sure we only do this test
-		 * on "bge" NICs, since other drivers may use this same
-		 * PHY subdriver.
-		 */
-		if (bge_sc->bge_asicrev == BGE_ASICREV_BCM5700 ||
-		    bge_sc->bge_chipid == BGE_CHIPID_BCM5705_A1 ||
-		    bge_sc->bge_chipid == BGE_CHIPID_BCM5705_A2)
-			return;
-
-		/* Enable Ethernet@WireSpeed. */
-		PHY_WRITE(sc, BRGPHY_MII_AUXCTL, 0x7007);
-		val = PHY_READ(sc, BRGPHY_MII_AUXCTL);
-		PHY_WRITE(sc, BRGPHY_MII_AUXCTL, val | (1 << 15) | (1 << 4));
-
-		/* Enable Link LED on Dell boxes */
-		if (bge_sc->bge_flags & BGE_FLAG_NO_3LED) {
-			PHY_WRITE(sc, BRGPHY_MII_PHY_EXTCTL,
-			    PHY_READ(sc, BRGPHY_MII_PHY_EXTCTL) &
-			    ~BRGPHY_PHY_EXTCTL_3_LED);
-		}
-
 		/* Fix up various bugs */
 		if (bge_sc->bge_flags & BGE_FLAG_ADC_BUG)
 			brgphy_fixup_adc_bug(sc);
@@ -665,31 +681,27 @@ brgphy_reset(struct mii_softc *sc)
 			brgphy_fixup_ber_bug(sc);
 		if (bge_sc->bge_flags & BGE_FLAG_JITTER_BUG)
 			brgphy_fixup_jitter_bug(sc);
-	} else if (bce_sc) {
-		/* Set or clear jumbo frame settings in the PHY. */
-		if (ifp->if_mtu > ETHER_MAX_LEN) {
-			PHY_WRITE(sc, BRGPHY_MII_AUXCTL, 0x7);
-			val = PHY_READ(sc, BRGPHY_MII_AUXCTL);
-			PHY_WRITE(sc, BRGPHY_MII_AUXCTL,
-			    val | BRGPHY_AUXCTL_LONG_PKT);
 
-			val = PHY_READ(sc, BRGPHY_MII_PHY_EXTCTL);
-			PHY_WRITE(sc, BRGPHY_MII_PHY_EXTCTL,
-			    val | BRGPHY_PHY_EXTCTL_HIGH_LA);
-		} else {
-			PHY_WRITE(sc, BRGPHY_MII_AUXCTL, 0x7);
-			val = PHY_READ(sc, BRGPHY_MII_AUXCTL);
-			PHY_WRITE(sc, BRGPHY_MII_AUXCTL,
-			    val & ~(BRGPHY_AUXCTL_LONG_PKT | 0x7));
+		brgphy_jumbo_settings(sc, ifp->if_mtu);
 
-			val = PHY_READ(sc, BRGPHY_MII_PHY_EXTCTL);
+		/*
+		 * Don't enable Ethernet@WireSpeed for the 5700 or the
+		 * 5705 A1 and A2 chips.
+		 */
+		if (bge_sc->bge_asicrev != BGE_ASICREV_BCM5700 &&
+		    bge_sc->bge_chipid != BGE_CHIPID_BCM5705_A1 &&
+		    bge_sc->bge_chipid != BGE_CHIPID_BCM5705_A2)
+			brgphy_ethernet_wirespeed(sc);
+
+		/* Enable Link LED on Dell boxes */
+		if (bge_sc->bge_flags & BGE_FLAG_NO_3LED) {
 			PHY_WRITE(sc, BRGPHY_MII_PHY_EXTCTL,
-			    val & ~BRGPHY_PHY_EXTCTL_HIGH_LA);
+			    PHY_READ(sc, BRGPHY_MII_PHY_EXTCTL) &
+			    ~BRGPHY_PHY_EXTCTL_3_LED);
 		}
-
-		/* Enable Ethernet@Wirespeed */
-		PHY_WRITE(sc, BRGPHY_MII_AUXCTL, 0x7007);
-		val = PHY_READ(sc, BRGPHY_MII_AUXCTL);
-		PHY_WRITE(sc, BRGPHY_MII_AUXCTL, (val | (1 << 15) | (1 << 4)));
+	} else if (bce_sc) {
+		brgphy_fixup_ber_bug(sc);
+		brgphy_jumbo_settings(sc, ifp->if_mtu);
+		brgphy_ethernet_wirespeed(sc);
 	}
 }
