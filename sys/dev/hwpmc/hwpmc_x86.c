@@ -82,7 +82,7 @@ pmc_intel_initialize(void)
 		case 0x7: case 0x8: case 0xA: case 0xB:
 			cputype = PMC_CPU_INTEL_PIII;
 			break;
-		case 0x9: case 0xD:
+		case 0x9: case 0xD: case 0xE:
 			cputype = PMC_CPU_INTEL_PM;
 			break;
 		}
@@ -91,7 +91,7 @@ pmc_intel_initialize(void)
 #if	defined(__i386__) || defined(__amd64__)
 	case 0xF00:		/* P4 */
 		model = ((cpu_id & 0xF0000) >> 12) | ((cpu_id & 0xF0) >> 4);
-		if (model >= 0 && model <= 4) /* known models */
+		if (model >= 0 && model <= 6) /* known models */
 			cputype = PMC_CPU_INTEL_PIV;
 		break;
 	}
