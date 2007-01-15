@@ -267,6 +267,7 @@ ieee80211_ifdetach(struct ieee80211com *ic)
 	ieee80211_remove_vap(ic);
 
 	ieee80211_sysctl_detach(ic);
+	/* NB: must be called before ieee80211_node_detach */
 	ieee80211_proto_detach(ic);
 	ieee80211_crypto_detach(ic);
 	ieee80211_node_detach(ic);
@@ -278,12 +279,34 @@ ieee80211_ifdetach(struct ieee80211com *ic)
 	ether_ifdetach(ifp);
 }
 
+static __inline int
+mapgsm(u_int freq, u_int flags)
+{
+	freq *= 10;
+	if (flags & IEEE80211_CHAN_QUARTER)
+		freq += 5;
+	else if (flags & IEEE80211_CHAN_HALF)
+		freq += 10;
+	else
+		freq += 20;
+	/* NB: there is no 907/20 wide but leave room */
+	return (freq - 906*10) / 5;
+}
+
+static __inline int
+mappsb(u_int freq, u_int flags)
+{
+	return 37 + ((freq * 10) + ((freq % 5) == 2 ? 5 : 0) - 49400) / 5;
+}
+
 /*
  * Convert MHz frequency to IEEE channel number.
  */
 int
 ieee80211_mhz2ieee(u_int freq, u_int flags)
 {
+	if (flags & IEEE80211_CHAN_GSM)
+		return mapgsm(freq, flags);
 	if (flags & IEEE80211_CHAN_2GHZ) {	/* 2GHz band */
 		if (freq == 2484)
 			return 14;
@@ -294,20 +317,21 @@ ieee80211_mhz2ieee(u_int freq, u_int flags)
 	} else if (flags & IEEE80211_CHAN_5GHZ) {	/* 5Ghz band */
 		if (freq <= 5000) {
 			if (flags &(IEEE80211_CHAN_HALF|IEEE80211_CHAN_QUARTER))
-				return 37 + ((freq * 10) +
-				    ((freq % 5) == 2 ? 5 : 0) - 49400) / 5;
+				return mappsb(freq, flags);
 			return (freq - 4000) / 5;
 		} else
 			return (freq - 5000) / 5;
 	} else {				/* either, guess */
 		if (freq == 2484)
 			return 14;
-		if (freq < 2484)
+		if (freq < 2484) {
+			if (907 <= freq && freq <= 922)
+				return mapgsm(freq, flags);
 			return ((int) freq - 2407) / 5;
+		}
 		if (freq < 5000) {
 			if (flags &(IEEE80211_CHAN_HALF|IEEE80211_CHAN_QUARTER))
-				return 37 + ((freq * 10) +
-				    ((freq % 5) == 2 ? 5 : 0) - 49400) / 5;
+				return mappsb(freq, flags);
 			else if (freq > 4900)
 				return (freq - 4000) / 5;
 			else
@@ -343,6 +367,8 @@ ieee80211_chan2ieee(struct ieee80211com *ic, const struct ieee80211_channel *c)
 u_int
 ieee80211_ieee2mhz(u_int chan, u_int flags)
 {
+	if (flags & IEEE80211_CHAN_GSM)
+		return 907 + 5 * (chan / 10);
 	if (flags & IEEE80211_CHAN_2GHZ) {	/* 2GHz band */
 		if (chan == 14)
 			return 2484;
@@ -357,13 +383,13 @@ ieee80211_ieee2mhz(u_int chan, u_int flags)
 		}
 		return 5000 + (chan*5);
 	} else {				/* either, guess */
+		/* XXX can't distinguish PSB+GSM channels */
 		if (chan == 14)
 			return 2484;
 		if (chan < 14)			/* 0-13 */
 			return 2407 + chan*5;
 		if (chan < 27)			/* 15-26 */
 			return 2512 + ((chan-15)*20);
-		/* XXX can't distinguish PSB channels */
 		return 5000 + (chan*5);
 	}
 }
@@ -494,12 +520,10 @@ ieee80211_get_suprates(struct ieee80211com *ic, const struct ieee80211_channel *
 {
 	enum ieee80211_phymode mode = ieee80211_chan2mode(ic, c);
 
-	if (mode == IEEE80211_MODE_11A) {
-		if (IEEE80211_IS_CHAN_HALF(c))
-			return &ieee80211_rateset_half;
-		if (IEEE80211_IS_CHAN_QUARTER(c))
-			return &ieee80211_rateset_quarter;
-	}
+	if (IEEE80211_IS_CHAN_HALF(c))
+		return &ieee80211_rateset_half;
+	if (IEEE80211_IS_CHAN_QUARTER(c))
+		return &ieee80211_rateset_quarter;
 	return &ic->ic_sup_rates[mode];
 }
 
@@ -766,7 +790,7 @@ ieee80211_media_status(struct ifnet *ifp, struct ifmediareq *imr)
 		/*
 		 * A fixed rate is set, report that.
 		 */
-		rs = &ic->ic_sup_rates[ic->ic_curmode];
+		rs = ieee80211_get_suprates(ic, ic->ic_curchan);
 		imr->ifm_active |= ieee80211_rate2media(ic,
 			rs->rs_rates[ic->ic_fixed_rate], ic->ic_curmode);
 	} else if (ic->ic_opmode == IEEE80211_M_STA) {
@@ -923,19 +947,18 @@ ieee80211_setmode(struct ieee80211com *ic, enum ieee80211_phymode mode)
 	 * available channel from the active list.  This is likely
 	 * not the right one.
 	 */
-	if (ic->ic_ibss_chan == NULL ||
-	    isclr(ic->ic_chan_active, ieee80211_chan2ieee(ic, ic->ic_ibss_chan))) {
+	if (isclr(ic->ic_chan_active, ieee80211_chan2ieee(ic, ic->ic_curchan))) {
+		ic->ic_curchan = NULL;
 		for (i = 0; i <= IEEE80211_CHAN_MAX; i++)
 			if (isset(ic->ic_chan_active, i)) {
-				ic->ic_ibss_chan = &ic->ic_channels[i];
+				ic->ic_curchan = &ic->ic_channels[i];
 				break;
 			}
-		KASSERT(ic->ic_ibss_chan != NULL &&
-		    isset(ic->ic_chan_active,
-			ieee80211_chan2ieee(ic, ic->ic_ibss_chan)),
-		    ("Bad IBSS channel %u",
-		     ieee80211_chan2ieee(ic, ic->ic_ibss_chan)));
+		KASSERT(ic->ic_curchan != NULL, ("no current channel"));
 	}
+	if (ic->ic_ibss_chan == NULL ||
+	    isclr(ic->ic_chan_active, ieee80211_chan2ieee(ic, ic->ic_ibss_chan)))
+		ic->ic_ibss_chan = ic->ic_curchan;
 	/*
 	 * If the desired channel is set but no longer valid then reset it.
 	 */
@@ -944,28 +967,21 @@ ieee80211_setmode(struct ieee80211com *ic, enum ieee80211_phymode mode)
 		ic->ic_des_chan = IEEE80211_CHAN_ANYC;
 
 	/*
-	 * Do mode-specific rate setup.
+	 * Adjust basic rates in 11b/11g supported rate set.
+	 * Note that if operating on a hal/quarter rate channel
+	 * this is a noop as those rates sets are different
+	 * and used instead.
 	 */
-	if (mode == IEEE80211_MODE_11G) {
-		/*
-		 * Use a mixed 11b/11g rate set.
-		 */
-		ieee80211_set11gbasicrates(&ic->ic_sup_rates[mode],
-			IEEE80211_MODE_11G);
-	} else if (mode == IEEE80211_MODE_11B) {
-		/*
-		 * Force pure 11b rate set.
-		 */
-		ieee80211_set11gbasicrates(&ic->ic_sup_rates[mode],
-			IEEE80211_MODE_11B);
-	}
+	if (mode == IEEE80211_MODE_11G || mode == IEEE80211_MODE_11B)
+		ieee80211_set11gbasicrates(&ic->ic_sup_rates[mode], mode);
+
 	/*
 	 * Setup an initial rate set according to the
 	 * current/default channel selected above.  This
 	 * will be changed when scanning but must exist
 	 * now so driver have a consistent state of ic_ibss_chan.
 	 */
-	if (ic->ic_bss)		/* NB: can be called before lateattach */
+	if (ic->ic_bss != NULL)	/* NB: can be called before lateattach */
 		ic->ic_bss->ni_rates = ic->ic_sup_rates[mode];
 
 	ic->ic_curmode = mode;

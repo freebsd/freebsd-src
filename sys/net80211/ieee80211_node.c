@@ -453,17 +453,10 @@ ieee80211_create_ibss(struct ieee80211com* ic, struct ieee80211_channel *chan)
 	/*
 	 * Do mode-specific rate setup.
 	 */
-	if (ic->ic_curmode == IEEE80211_MODE_11G) {
-		/*
-		 * Use a mixed 11b/11g rate set.
-		 */
-		ieee80211_set11gbasicrates(&ni->ni_rates, IEEE80211_MODE_11G);
-	} else if (ic->ic_curmode == IEEE80211_MODE_11B) {
-		/*
-		 * Force pure 11b rate set.
-		 */
-		ieee80211_set11gbasicrates(&ni->ni_rates, IEEE80211_MODE_11B);
-	}
+	if (IEEE80211_IS_CHAN_FULL(chan) &&
+	    (ic->ic_curmode == IEEE80211_MODE_11G ||
+	     ic->ic_curmode == IEEE80211_MODE_11B))
+		ieee80211_set11gbasicrates(&ni->ni_rates, ic->ic_curmode);
 
 	(void) ieee80211_sta_join(ic, ieee80211_ref_node(ni));
 }
@@ -2097,7 +2090,8 @@ ieee80211_node_join(struct ieee80211com *ic, struct ieee80211_node *ni, int resp
 		IEEE80211_AID_SET(ni->ni_associd, ic->ic_aid_bitmap);
 		ic->ic_sta_assoc++;
 		newassoc = 1;
-		if (ic->ic_curmode == IEEE80211_MODE_11G)
+		if (ic->ic_curmode == IEEE80211_MODE_11G &&
+		    IEEE80211_IS_CHAN_FULL(ni->ni_chan))
 			ieee80211_node_join_11g(ic, ni);
 	} else
 		newassoc = 0;
@@ -2222,7 +2216,8 @@ ieee80211_node_leave(struct ieee80211com *ic, struct ieee80211_node *ni)
 	ni->ni_associd = 0;
 	ic->ic_sta_assoc--;
 
-	if (ic->ic_curmode == IEEE80211_MODE_11G)
+	if (ic->ic_curmode == IEEE80211_MODE_11G &&
+	    IEEE80211_IS_CHAN_FULL(ni->ni_chan))
 		ieee80211_node_leave_11g(ic, ni);
 	/*
 	 * Cleanup station state.  In particular clear various
