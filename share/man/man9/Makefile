@@ -599,7 +599,8 @@ MLINKS+=hash.9 hash32.9 \
 	hash.9 hash32_strn.9 \
 	hash.9 hash32_strne.9
 MLINKS+=hashinit.9 hashdestroy.9 \
-	hashinit.9 phashinit.9
+	hashinit.9 phashinit.9 \
+	hashinit.9 hashinit_flags.9
 MLINKS+=ieee80211.9 ieee80211_attach.9 \
 	ieee80211.9 ieee80211_chan2ieee.9 \
 	ieee80211.9 ieee80211_chan2mode.9 \
