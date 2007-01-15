@@ -208,8 +208,8 @@ struct ath_softc {
 				sc_xchanmode: 1,/* extended channel mode */
 				sc_outdoor  : 1;/* outdoor operation */
 						/* rate tables */
-#define	IEEE80211_MODE_11A_HALF		(IEEE80211_MODE_MAX+0)
-#define	IEEE80211_MODE_11A_QUARTER	(IEEE80211_MODE_MAX+1)
+#define	IEEE80211_MODE_HALF	(IEEE80211_MODE_MAX+0)
+#define	IEEE80211_MODE_QUARTER	(IEEE80211_MODE_MAX+1)
 	const HAL_RATE_TABLE	*sc_rates[IEEE80211_MODE_MAX+2];
 	const HAL_RATE_TABLE	*sc_currates;	/* current rate table */
 	enum ieee80211_phymode	sc_curmode;	/* current phy mode */
