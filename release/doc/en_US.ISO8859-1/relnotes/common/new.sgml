@@ -113,293 +113,65 @@
   <sect2 id="security">
     <title>Security Advisories</title>
 
-    <para>A bug in &man.ypserv.8;, which effectively disabled the
-      <filename>/var/yp/securenets</filename> access control mechanism,
-      has been corrected.  More details are available in security
-      advisory
-      <ulink url="http://security.FreeBSD.org/advisories/FreeBSD-SA-06:15.ypserv.asc">FreeBSD-SA-06:15.ypserv</ulink>.</para>
-
-    <para>A bug in the smbfs file system, which could allow an
-      attacker to escape out of &man.chroot.2 environments on an smbfs
-      mounted filesystem, has been fixed.  For more details, see
-      security advisory
-      <ulink url="http://security.FreeBSD.org/advisories/FreeBSD-SA-06:16.smbfs.asc">FreeBSD-SA-06:16.smbfs</ulink>.</para>
-
-    <para>A potential denial of service problem in &man.sendmail.8;
-      caused by excessive recursion which leads to stack
-      exhaustion when attempting delivery of a malformed
-      MIME message, has been fixed.  For more details,
-      see security advisory <ulink
-      url="http://security.FreeBSD.org/advisories/FreeBSD-SA-06:17.sendmail.asc">FreeBSD-SA-06:17.sendmail</ulink>.</para>
-
-    <para>A potential buffer overflow condition in &man.sppp.4; has
-      been corrected.  For more details, see security advisory
-      <ulink url="http://security.FreeBSD.org/advisories/FreeBSD-SA-06:18.ppp.asc">FreeBSD-SA-06:18.ppp</ulink>.</para>
-
-    <para>An OpenSSL bug related to validation of PKCS#1 v1.5
-      signatures has been fixed.  For more details, see security
-      advisory
-      <ulink url="http://security.FreeBSD.org/advisories/FreeBSD-SA-06:19.openssl.asc">FreeBSD-SA-06:19.openssl</ulink>.</para>
-
-    <para>A potential denial of service attack against &man.named.8;
-      has been fixed.  For more details, see security advisory
-      <ulink url="http://security.FreeBSD.org/advisories/FreeBSD-SA-06:20.bind.asc">FreeBSD-SA-06:20.bind</ulink>.</para>
-
-    <para>Several programming errors have been fixed in &man.gzip.1;.
-      They could have the effect of causing a crash or an infinite
-      loop when decompressing files.  More information can be found in
-      security advisory
-      <ulink url="http://security.FreeBSD.org/advisories/FreeBSD-SA-06:21.gzip.asc">FreeBSD-SA-06:21.gzip</ulink>.</para>
-
-    <para>Several vulnerabilities have been fixed in OpenSSH.  More
-      details can be found in security advisory
-      <ulink url="http://security.FreeBSD.org/advisories/FreeBSD-SA-06:22.openssh.asc">FreeBSD-SA-06:22.openssh</ulink>.</para>
-
-    <para>Multiple errors in the OpenSSL &man.crypto.3; library have
-      been fixed.  Potential effects are varied, and are documented in
-      more detail in security advisory
-      <ulink url="http://security.FreeBSD.org/advisories/FreeBSD-SA-06:23.openssl.asc">FreeBSD-SA-06:23.openssl</ulink>.</para>
-
-    <para>A bug that could permit corrupt archives to cause an
-      infinite loop in &man.libarchive.3; and &man.tar.1; has been
-      fixed.  More details are available in
-      <ulink url="http://security.FreeBSD.org/advisories/FreeBSD-SA-06:24.libarchive.asc">FreeBSD-SA-06:24.libarchive</ulink>.</para>
-
-    <para>A bug that could allow users in
-      the <groupname>operator</groupname> group to read parts of kernel
-      memory has been corrected.  For more details, consult security
-      advisory
-      <ulink url="http://security.FreeBSD.org/advisories/FreeBSD-SA-06:25.kmem.asc">FreeBSD-SA-06:25.kmem</ulink>.</para>
-
-    <para>A bug in the <filename>jail</filename> startup script that
-      could permit privilege escalation via a symlink attack has been
-      fixed.  More information is available in
-      <ulink url="http://security.FreeBSD.org/advisories/FreeBSD-SA-07:01.jail.asc">FreeBSD-SA-07:01.jail</ulink>.</para>
+    <para></para>
 
   </sect2>
 
   <sect2 id="kernel">
     <title>Kernel Changes</title>
 
-    <para>Security event auditing is now supported in the &os; kernel,
-      and is enabled by the <literal>AUDIT</literal> kernel
-      configuration option.  More information can be found in the
-      &man.audit.4; manual page.</para>
-
-    <para arch="amd64,i386">Instead of including all of physical
-      memory in a kernel crash dump, the kernel now defaults to
-      dumping only pages that are actively mapped into kernel virtual
-      memory.  This functionality requires that the new
-      <varname>debug.minidump</varname> sysctl variable be set to
-      <literal>1</literal>.</para>
-
-    <para>A bug has been fixed in the statistics-keeping code in the
-      kernel's UMA memory allocator.  This caused a count of memory
-      allocation failures (as shown by <command>netstat -m</command>)
-      to increase erroneously.</para>
-
-    <para>&os; now runs on the Xbox, whose architecture is nearly identical
-      to the i386.  For details of the latest development, see
-      <ulink url="http://www.FreeBSD.org/platforms/xbox.html"></ulink>.
-      </para>
+    <para></para>
 
     <!-- Above this line, sort kernel changes by manpage/keyword-->
 
     <sect3 id="boot">
       <title>Boot Loader Changes</title>
 
+      <para></para>
+
       <!-- Above this line, order boot loader changes by keyword-->
-
-      <para arch="pc98">A bootable CDROM loader has been implemented
-	for the pc98 platform.</para>
-
-      <para arch="i386">A bug in the i386 boot loader, which could
-	cause filesystem corruption if
-	a <filename>nextboot.conf</filename> file was used and landed
-	after cylinder 1023, has been fixed.</para>
 
     </sect3>
 
     <sect3 id="proc">
       <title>Hardware Support</title>
 
-      <para>The &man.amdsmb.4; driver has been added.  It provides
-	support for the AMD-8111 SMBus 2.0 controller.</para>
-
-      <para arch="i386">Support has been improved for
-	so-called <quote>legacy-free</quote> hardware, in particular,
-	i386 systems without AT-style keyboard controllers such as the
-	Macbook Pro.</para>
-
-      <para arch="i386,amd64">&man.ipmi.4;, an OpenIPMI compatible driver,
-	has been added.
-	OpenIPMI (Intelligent Platform Management Interface) is an open
-	standard designed to enable remote monitoring and control of server,
-	networking and telecommunication platforms.</para>
-
-      <para>Support for the PadLock Security Co-processor in VIA C3,
-	Eden, and C7
-	processors has been added to the &man.crypto.9; subsystem.
-	More information can be found in the &man.padlock.4; manual
-	page.</para>
-
-      <para>The &man.nfsmb.4; driver, which supports the NVIDIA nForce
-	2/3/4 SMBus 2.0 controller, has been added.</para>
+      <para></para>
 
       <sect4 id="mm">
 	<title>Multimedia Support</title>
 
 	<para></para>
+
       </sect4>
 
       <sect4 id="net-if">
 	<title>Network Interface Support</title>
 
-	<para>The &man.ath.4; driver has been updated to
-	  HAL version 0.9.17.2.</para>
+	<para></para>
 
-	<para arch="alpha,amd64,i386,sparc64">The &man.ath.4;, &man.ath.hal.4;, and
-	  <literal>ath_rate_sample</literal> drivers have been
-	  included in the <filename>GENERIC</filename> kernel by
-	  default.</para>
-
-	<para>Some improvements have been made to the &man.bce.4;
-	  driver to improve its stability.  One user-visible aspect of
-	  these changes is that transmit-side checksum offload
-	  involving IP fragments has been disabled, because it was not
-	  handled correctly by the hardware.</para>
-
-	<para>The &man.em.4; driver has been updated to version 6.2.9
-	  from Intel.  Among other changes, it adds support for a
-	  number of new adapters.  Compiling the driver with
-	  the <literal>EM_FAST_INTR</literal> preprocesor symbol
-	  defined will enabled optional <quote>fast interrupt</quote>
-	  processing.  <quote>Fast interrupt</quote> processing, as
-	  implemented in this version of the driver, has been shown to
-	  yield significant performance improvements in some cases,
-	  but has been linked to stability issues in other
-	  cases.</para>
-
-	<para>A number of improvements and bugfixes have been made to the
-	  functionality of the &man.iwi.4; driver.  This driver now
-	  requires the firmware image in the 
-	  <filename role="package">net/iwi-firmware-kmod</filename>
-	  port/package; prior versions of this driver used the
-	  <filename role="package">net/iwi-firmware</filename>
-	  port/package.</para>
-
-	<para>The &man.my.4; driver now has &man.altq.4; support.</para>
-
-	<para>The &man.nve.4; driver has been updated to version 1.0-0310
-	  (23-Nov-2005).  It also now has &man.altq.4; support.</para>
-
-	<para>The &man.sk.4; driver is now MPSAFE.</para>
-
-	<para>The &man.stge.4; driver has been added.  It supports the
-	  Sundance/Tamarack TC9021 Gigabit Ethernet controller and was
-	  ported from NetBSD.</para>
       </sect4>
     </sect3>
 
     <sect3 id="net-proto">
       <title>Network Protocols</title>
 
-      <para>Multiple copies of a packet received via different
-        &man.bpf.4; listeners now all have identical
-        timestamps.</para>
+      <para></para>
 
-      <para>The &man.enc.4; IPsec filtering pseudo-device has been
-	added.  It allows firewall packages using the &man.pfil.9;
-	framework to examine (and filter) IPsec traffic before
-	outbound encryption and after inbound decryption.</para>
-
-      <para>The sysctl variables <varname>net.inet.ip.portrange.reservedhigh</varname>
-	and <varname>net.inet.ip.portrange.reservedlow</varname>
-	can be used with IPv6 now.</para>
-
-      <para>The <literal>IPFIREWALL_FORWARD_EXTENDED</literal> kernel
-	option has been removed.  This option was used to permit
-	&man.ipfw.4; to redirect packets with local destinations.
-	This behavior is now always enabled when
-	the <literal>IPFIREWALL_FORWARD</literal> kernel option is
-	enabled.</para>
-
-      <para>The &man.ipfw.4; packet filter now supports
-	<literal>tag</literal> and <literal>untag</literal> rule keywords.
-	When a packet matches a rule with the <literal>tag</literal>
-	keyword, the numeric tag for the given number in the range
-	from 0 to 65535 will be attached to the packet.
-	The tag acts as an internal marker (it is not sent out over
-	the wire) that can be used to identify these packets later on,
-	for example, by using <literal>tagged</literal>
-	rule option.  For more details, see &man.ipfw.8;.</para>
-
-      <para>The &man.ng.ether.4; Netgraph node no longer overwrites
-        the MAC address of outgoing frames by default.</para>
-
-      <para>The &man.ng.tag.4; Netgraph node has been added to
-        support the manipulation of mbuf tags attached to data in the
-        kernel.</para>
-
-      <para>Support for &man.kqueue.2; operations has been added to
-	the &man.tun.4; driver.</para>
-
-      <para>&os; &release.prev; contained a bug in the IPv6
-	implementation, which caused spurious error messages to be
-	printed for point-to-point interfaces.  This problem has been
-	corrected.</para>
-
-      <para>IPv6 link-local addresses are now enabled only
-	if <varname>ipv6_enable</varname> is set in &man.rc.conf.5;.</para>
-
-      <para>A bug that prevented &man.carp.4; from working correctly
-	in some IPv6 environments has been fixed.</para>
     </sect3>
 
     <sect3 id="disks">
       <title>Disks and Storage</title>
 
-      <para>The &man.arcmsr.4; driver has been updated to version
-	1.20.00.13.</para>
-
-      <para>The &man.ata.4; driver now supports USB mass storage class
-	devices.  To enable it, a line <literal>device atausb</literal>
-	in the kernel configuration file or loading the
-	<filename>atausb</filename> kernel module is needed.
-	Note that this functionality cannot coexist with the
-	&man.umass.4; driver.</para>
-
-      <para>The &man.ata.4; driver has been updated to reflect the
-        version in &os; CURRENT.</para>
-
-      <para>&man.geli.8; is now able to perform data integrity
-        verification (data authentication) of encrypted data stored on
-        disk.  Note that the encryption algorithm is now specified to
-        the &man.geli.8; control program using the <option>-e</option>
-        option; the <option>-a</option> option is now used to specify
-        the authentication algorithm.</para>
-
-      <para>The &man.isp.4; driver has been updated to reflect the
-        version in &os; CURRENT.</para>
+      <para></para>
 
     </sect3>
 
     <sect3 id="fs">
       <title>File Systems</title>
 
-      <para>The &man.linsysfs.5; pseudo-filesystem driver has been
-	added.  It provides a subset of the
-	Linux <filename>sys</filename> filesystem, and is required for
-	the correct operation of some Linux binaries (such as the LSI
-	MegaRAID SAS utility).</para>
+      <para></para>
 
-      <para>A deadlock observed when both quotas and snapshots were in
-	use on a file system on &os; &release.prev; has been
-	corrected.</para>
-
-      <para>A performance regression with NFS servers running &os;
-	&release.prev;, caused by a leak of the Giant kernel lock, has
-	been fixed.</para>
     </sect3>
 
   </sect2>
@@ -407,244 +179,35 @@
   <sect2 id="userland">
     <title>Userland Changes</title>
 
-    <para>The &man.asf.8; utility has been revised and extended.  Now
-      it can operate via several interfaces including &man.kvm.3;,
-      which supports not only live systems, but also kernel crash dumps.</para>
+    <para></para>
 
-    <para>The OpenBSM userland tools, including &man.audit.8;,
-      &man.auditd.8;,
-      &man.auditreduce.1;, and
-      &man.praudit.1;, have been added.</para>
-
-    <para>The &man.cp.1; utility now supports a <option>-l</option>
-      option, which causes it to create hardlinks to the source files
-      instead of copying them.</para>
-
-    <para>The &man.csup.1; utility has been imported.
-      This is an implementation of a CVSup-compatible client written
-      in the C language.  Note that it currently supports checkout mode
-      only.</para>
-
-    <para>The &man.dhclient.8; program now sends the host's name in
-      DHCP requests if it is not specified in the configuration
-      file.</para>
-
-    <para>The &man.du.1; program now supports a <option>-n</option>
-      flag, which causes it to ignore files and directories with
-      the <literal>nodump</literal> flag set.</para>
-
-    <para>The &man.find.1; program now supports <option>-Btime</option>
-      and other related primaries, which can be used to create expressions
-      based on a file's creation time.</para>
-
-    <para>The &man.freebsd-update.8; utility, a tool for managing
-      binary updates to the &os; base system, has been added.</para>
-
-    <para>The &man.fsdb.8; utility now supports changing the birth
-      time of files on UFS2 file systems using the new 
-      <literal>btime</literal> command.</para>
-
-    <para>The &man.fsdb.8; program now supports
-      a <literal>findblk</literal> command, which finds the inode(s)
-      owning a specific disk block.</para>
-
-    <para>The &man.getent.1; utility has been imported from NetBSD.
-      It retrieves and displays information from an administrative
-      database (such as <filename>hosts</filename>) using the lookup
-      order specified in &man.nsswitch.conf.5;.</para>
-
-    <para>The &man.id.1; utility now supports a <option>-A</option>
-      flag to print process audit properties, including the audit user
-      id.</para>
-
-    <para>The &man.iostat.8; utility now supports
-      a <option>-x</option> flag (inspired by Solaris) to print
-      extended disk statistics.  If the new <option>-z</option> flag is
-      also specified, no output is made for disks with no
-      activity.</para>
-
-    <para>The &man.jail.8; program now supports a <option>-s</option>
-      option to specify a jail's securelevel.</para>
-
-    <para>The &man.jexec.8; utility now supports <option>-u</option>
-      and <option>-U</option> flags to specify username credentials
-      under which a command should be executed.</para>
-
-    <para>The &man.logger.1; utility now supports
-      a <option>-P</option>, which specifies the port to which syslog
-      messages should be sent.</para>
-
-    <para>The &man.ls.1; utility now supports
-      an <option>-U</option> flag to use the file creation
-      time for sorting.</para>
-
-    <para>The &man.mount.8; utility now supports a
-      <literal>late</literal> keyword in &man.fstab.5;, along with a
-      corresponding <option>-l</option> command-line option to specify
-      that these <quote>late</quote> file systems should be
-      mounted.</para>
-
-    <para>The &man.ping.8; command now supports a <option>-W</option>
-      option to specify the maximum time to wait for an echo reply.
-      </para>
-
-    <para>The &man.pkill.1; utility (also known as &man.pgrep.1;) has
-      been moved from <filename>/usr/bin</filename>
-      to <filename>/bin</filename> so that it can be used by startup
-      scripts.  Symbolic links from its former location have been
-      created for backward compatibliity.</para>
-
-    <para>An extensible implementation of &man.printf.3;, compatible
-      with GLIBC, has been added to <filename>libc</filename>.  It is
-      only used if the environment variable
-      <varname>USE_XPRINTF</varname> is defined, one of the extension
-      functions is called, or the global variable
-      <varname>__use_xprintf</varname> is set to a value greater than
-      <literal>0</literal>.  Five extensions are currently supported:
-      <literal>%H</literal> (hex dump),
-      <literal>%T</literal> (<varname>time_t</varname> and
-      time-related structures),
-      <literal>%M</literal> (errno message),
-      <literal>%Q</literal> (double-quoted, escaped string),
-      <literal>%V</literal> (&man.strvis.3;-format string),
-      </para>
-
-    <para>The DNS resolver library in &os;'s <application>libc</application>
-      has been updated to that from BIND 9.3.3.</para>
-
-    <para>The &man.tail.1; utility now supports a <option>-q</option>
-      flag to suppress header lines when multiple files are
-      specified.</para>
-
-    <para>The &man.traceroute.8; program now supports
-      a <option>-D</option> flag, which causes it to display the
-      differences between the sent and received
-      packets.</para>
-
-    <para>The &man.traceroute.8; utility now supports
-      a <option>-e</option> option, which sets a fixed destination
-      port for probe packets.  This can be useful for tracing behind
-      packet-filtering firewalls.</para>
-
-    <para>&man.traceroute.8; now decodes the complete set of ICMP
-      unreachable messages in its output.</para>
-
-    <para>The compiler toolchain is now capable of generating
-      executables for systems using the ARM processor.</para>
-
-    <sect3 id="rc-scripts">
-      <title><filename>/etc/rc.d</filename> Scripts</title>
-
-      <para>The <filename>auditd</filename> script for
-	OpenBSM &man.auditd.8; has been added.</para>
-
-      <para>A bug in the <filename>rc.d/jail</filename> startup
-        script, which caused a number of problems for users attempting
-        to use jails on &os; &release.prev;, has been
-        corrected.</para>
-    </sect3>
   </sect2>
 
   <sect2 id="contrib">
     <title>Contributed Software</title>
 
-    <para><application>BIND</application> has been updated from 9.3.1
-      to 9.3.3.</para>
+    <para></para>
 
-    <para><application>GCC</application> has been updated from 3.4.4
-      to 3.4.6.</para>
-
-    <para><application>IPFilter</application> has been updated from
-      4.1.8 to 4.1.13.</para>
-
-    <para><application>less</application> has been updated from v381
-      to v394.</para>
-
-    <para><application>libpcap</application> has been updated from
-      0.9.1 to 0.9.4.</para>
-
-    <para><application>lukemftpd</application> has been updated from a
-      snapshot from NetBSD as of 9 August 2004 to a snapshot from
-      NetBSD as of 31 August 2006.</para>
-
-    <para><application>netcat</application> has been updated from the
-      version in a 4 February 2005 OpenBSD snapshot to the version
-      included in OpenBSD 3.9.</para>
-
-    <para><application>OpenSSH</application> has been updated from
-      4.2p1 to 4.5p1.</para>
-
-    <para><application>sendmail</application> has been updated from
-      8.13.6 to 8.13.8.</para>
-
-    <para><application>tcpdump</application> has been updated from
-      3.9.1 to 3.9.4.</para>
-
-    <para>The timezone database has been updated from the
-      <application>tzdata2005r</application> release to the
-      <application>tzdata2006g</application> release.</para>
-
-    <para>TrustedBSD <application>OpenBSM</application>,
-      version 1.0 alpha 12, an implementation of the documented Sun Basic
-      Security Module (BSM) Audit API and file format, as well as local
-      extensions to support the Mac OS X and FreeBSD operating systems
-      has been added.  This also includes command line tools for audit
-      trail reduction and conversion to text, as well as documentation
-      of the commands, file format, and APIs.
-      For this functionality, the <literal>AUDIT</literal> kernel option,
-      <filename>/var/audit</filename> directory, and
-      <literal>audit</literal> group have been added.</para>
-
-    <para><application>zlib</application>
-      has been updated from version 1.2.2 to version 1.2.3.</para>
   </sect2>
 
   <sect2 id="ports">
     <title>Ports/Packages Collection Infrastructure</title>
 
-    <para>&man.pkg.add.1; now supports an <option>-F</option>
-      flag to disable checking whether the same package is already
-      installed or not.</para>
+    <para></para>
+
   </sect2>
 
   <sect2 id="releng">
     <title>Release Engineering and Integration</title>
 
-    <para>The &man.sysinstall.8; utility now displays the running &os;
-      version in menu titles.</para>
-
-    <para>A <filename>/media</filename> directory has been
-      added to contain mount points for removable media
-      such as CDROMs, floppy disks, USB drives, and so on.</para>
-
-    <para>The supported version of
-      the <application>GNOME</application> desktop environment
-      (<filename role="package">x11/gnome2</filename>) has been
-      updated from 2.12.3 to 2.16.1.</para>
-
-    <para>The supported version of
-      the <application>KDE</application> desktop environment
-      (<filename role="package">x11/kde3</filename>) has been
-      updated from 3.5.1 to 3.5.4.</para>
-
-    <para arch="i386,amd64">The supported Linux emulation now uses the
-      libraries in the
-      <filename role="package">emulators/linux_base-fc4</filename>
-      package.</para>
+    <para></para>
 
   </sect2>
 
   <sect2 id="doc">
     <title>Documentation</title>
 
-    <para>The manual pages for <application>NTP</application>
-      have been updated to 4.2.0, to match the version of
-      code actually included in &os;.</para>
-
-    <para>Documentation of existing functionality has been improved by
-      the addition of the following manual pages:
-      &man.nanobsd.8;,
-      &man.sysctl.9;.</para>
+    <para></para>
 
   </sect2>
 </sect1>
