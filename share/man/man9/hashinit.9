@@ -29,7 +29,7 @@
 .Dt HASHINIT 9
 .Os
 .Sh NAME
-.Nm hashinit , hashdestroy , phashinit
+.Nm hashinit , hashinit_flags, hashdestroy , phashinit
 .Nd manage kernel hash tables
 .Sh SYNOPSIS
 .In sys/malloc.h
@@ -38,12 +38,15 @@
 .Ft "void *"
 .Fn hashinit "int nelements" "struct malloc_type *type" "u_long *hashmask"
 .Ft void
+.Fn hashinit_flags "int nelements" "struct malloc_type *type" "u_long *hashmask" "int flags"
+.Ft void
 .Fn hashdestroy "void *hashtbl" "struct malloc_type *type" "u_long hashmask"
 .Ft "void *"
 .Fn phashinit "int nelements" "struct malloc_type *type" "u_long *nentries"
 .Sh DESCRIPTION
 The
-.Fn hashinit
+.Fn hashinit ,
+.Fn hashinit_flags 
 and
 .Fn phashinit
 functions allocate space for hash tables of size given by the argument
@@ -59,6 +62,13 @@ The
 function allocates hash tables that are sized to the largest prime
 number less than or equal to argument
 .Fa nelements .
+The 
+.Fn hashinit_flags
+functionn operates like 
+.Fn hashinit
+but also accepts an additional argument
+.Fa flags
+which control various options during allocation.
 Allocated hash tables are contiguous arrays of
 .Xr LIST_HEAD 3
 entries, allocated using
@@ -80,6 +90,20 @@ The argument
 should be the bit mask returned by the call to
 .Fn hashinit
 that allocated the hash table.
+The argument
+.Fa flags
+must be used with one of the following values.
+.Pp
+.Bl -tag -width ".Dv HASH_NOWAIT" -offset indent -compact
+.It Dv HASH_NOWAIT
+Any malloc performed by the
+.Fn hashinit_flags
+function will not be allowed to wait, and therefore may fail.
+.It Dv HASH_WAITOK
+Any malloc performed by the
+.Fn hashinit_flags
+function is allowed to wait for memory.
+.El
 .Sh IMPLEMENTATION NOTES
 The largest prime hash value chosen by
 .Fn phashinit

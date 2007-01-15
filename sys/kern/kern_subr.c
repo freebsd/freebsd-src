@@ -358,10 +358,11 @@ again:
 }
 
 /*
- * General routine to allocate a hash table.
+ * General routine to allocate a hash table with control of memory flags.
  */
 void *
-hashinit(int elements, struct malloc_type *type, u_long *hashmask)
+hashinit_flags(int elements, struct malloc_type *type, u_long *hashmask,
+    int flags)
 {
 	long hashsize;
 	LIST_HEAD(generic, generic) *hashtbl;
@@ -369,14 +370,43 @@ hashinit(int elements, struct malloc_type *type, u_long *hashmask)
 
 	if (elements <= 0)
 		panic("hashinit: bad elements");
+
+	/* Check for valid flags. */
+	KASSERT(flags | (HASH_WAITOK | HASH_NOWAIT) ==
+	    (HASH_WAITOK | HASH_NOWAIT),
+	    ("Bad flags (0x%x) passed to hashinit_flags", flags));
+
+	/* Exactly one of HASH_WAITOK and HASH_NOWAIT must be set. */
+	KASSERT((flags & HASH_WAITOK) ^ (flags & HASH_NOWAIT),
+	    ("Both WAITOK and NOWAIT passed to hashinit_flags"));
+
 	for (hashsize = 1; hashsize <= elements; hashsize <<= 1)
 		continue;
 	hashsize >>= 1;
-	hashtbl = malloc((u_long)hashsize * sizeof(*hashtbl), type, M_WAITOK);
-	for (i = 0; i < hashsize; i++)
-		LIST_INIT(&hashtbl[i]);
-	*hashmask = hashsize - 1;
+
+	if (flags & HASH_NOWAIT)
+		hashtbl = malloc((u_long)hashsize * sizeof(*hashtbl),
+		    type, M_NOWAIT);
+	else
+		hashtbl = malloc((u_long)hashsize * sizeof(*hashtbl),
+		    type, M_WAITOK);
+
+	if (hashtbl != NULL) {
+		for (i = 0; i < hashsize; i++)
+			LIST_INIT(&hashtbl[i]);
+		*hashmask = hashsize - 1;
+	}
 	return (hashtbl);
+}
+
+/*
+ * Allocate and initialize a hash table with default flag: may sleep.
+ */
+void *
+hashinit(int elements, struct malloc_type *type, u_long *hashmask)
+{
+
+	return (hashinit_flags(elements, type, hashmask, HASH_WAITOK));
 }
 
 void
