@@ -222,7 +222,7 @@ ng_deflate_rcvmsg(node_p node, item_p item, hook_p lasthook)
 
 	if (msg->header.typecookie != NGM_DEFLATE_COOKIE)
 		ERROUT(EINVAL);
-	
+
 	switch (msg->header.cmd) {
 	case NGM_DEFLATE_CONFIG:
 	    {
@@ -246,7 +246,7 @@ ng_deflate_rcvmsg(node_p node, item_p item, hook_p lasthook)
 				inflateEnd(&priv->cx);
 			priv->cfg.enable = 0;
 		}
-			
+
 		/* Configuration is OK, reset to it. */
 		priv->cfg = *cfg;
 
@@ -300,7 +300,7 @@ ng_deflate_rcvmsg(node_p node, item_p item, hook_p lasthook)
 			if (resp == NULL)
 				ERROUT(ENOMEM);
 			bcopy(&priv->stats, resp->data,
-			    sizeof(struct ng_deflate_stats));	
+			    sizeof(struct ng_deflate_stats));
 		}
 
 		/* Clear stats if requested. */
@@ -334,7 +334,7 @@ ng_deflate_rcvdata(hook_p hook, item_p item)
 		NG_FREE_ITEM(item);
 		return (ENXIO);
 	}
-	
+
 	NGI_GET_M(item, m);
 	/* Compress */
 	if (priv->compress) {
@@ -458,7 +458,7 @@ ng_deflate_compress(node_p node, struct mbuf *m, struct mbuf **resultp)
 		NG_FREE_M(m);
 		return (ENOMEM);
 	}
-	
+
 	/* Work with contiguous regions of memory. */
 	m_copydata(m, 0, inlen, (caddr_t)priv->inbuf);
 	outlen = DEFLATE_BUF_SIZE;
@@ -538,7 +538,7 @@ ng_deflate_decompress(node_p node, struct mbuf *m, struct mbuf **resultp)
 	*resultp = NULL;
 
 	inlen = m->m_pkthdr.len;
-		
+
 	if (inlen > DEFLATE_BUF_SIZE) {
 		priv->stats.Errors++;
 		NG_FREE_M(m);
@@ -563,7 +563,7 @@ ng_deflate_decompress(node_p node, struct mbuf *m, struct mbuf **resultp)
 	/* Packet is compressed, so decompress. */
 	if (proto == PROT_COMPD) {
 		priv->stats.FramesComp++;
-    	
+
 		/* Check sequence number. */
 		rseqnum = ntohs(((uint16_t *)(priv->inbuf + offset))[0]);
 		offset += 2;
