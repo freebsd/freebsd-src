@@ -533,24 +533,6 @@ ath_rate_tx_complete(struct ath_softc *sc, struct ath_node *an,
 		    short_tries, long_tries);
 		return;
 	}
-
-	if (ts->ts_status) {		/* this packet failed */
-		DPRINTF(sc, ATH_DEBUG_RATE,
-"%s: %s size %d rate/try [%d/%d %d/%d %d/%d %d/%d] FAIL tries [%d/%d]\n", 
-		    __func__,
-		    ether_sprintf(an->an_node.ni_macaddr),
-		    bin_to_size(size_to_bin(frame_size)),
-		    sc->sc_hwmap[MS(ds0->ds_ctl3, AR_XmitRate0)].ieeerate,
-			MS(ds0->ds_ctl2, AR_XmitDataTries0),
-		    sc->sc_hwmap[MS(ds0->ds_ctl3, AR_XmitRate1)].ieeerate,
-			MS(ds0->ds_ctl2, AR_XmitDataTries1),
-		    sc->sc_hwmap[MS(ds0->ds_ctl3, AR_XmitRate2)].ieeerate,
-			MS(ds0->ds_ctl2, AR_XmitDataTries2),
-		    sc->sc_hwmap[MS(ds0->ds_ctl3, AR_XmitRate3)].ieeerate,
-			MS(ds0->ds_ctl2, AR_XmitDataTries3),
-		    short_tries, long_tries);
-	}
-
 	mrr = sc->sc_mrretry && !(ic->ic_flags & IEEE80211_F_USEPROT);
 	if (!mrr || !(ts->ts_rate & HAL_TXSTAT_ALTRATE)) {
 		int ndx = rate_to_ndx(sn, final_rate);
@@ -571,32 +553,43 @@ ath_rate_tx_complete(struct ath_softc *sc, struct ath_node *an,
 			     0, 0,
 			     short_tries, long_tries, ts->ts_status);
 	} else {
-		int rate0, tries0, ndx0;
-		int rate1, tries1, ndx1;
-		int rate2, tries2, ndx2;
-		int rate3, tries3, ndx3;
+		int hwrate0, rate0, tries0, ndx0;
+		int hwrate1, rate1, tries1, ndx1;
+		int hwrate2, rate2, tries2, ndx2;
+		int hwrate3, rate3, tries3, ndx3;
 		int finalTSIdx = ts->ts_finaltsi;
 
 		/*
 		 * Process intermediate rates that failed.
 		 */
-		rate0 = sc->sc_hwmap[MS(ds0->ds_ctl3, AR_XmitRate0)].ieeerate;
+		if (sc->sc_ah->ah_magic != 0x20065416) {
+			hwrate0 = MS(ds0->ds_ctl3, AR_XmitRate0);
+			hwrate1 = MS(ds0->ds_ctl3, AR_XmitRate1);
+			hwrate2 = MS(ds0->ds_ctl3, AR_XmitRate2);
+			hwrate3 = MS(ds0->ds_ctl3, AR_XmitRate3);
+		} else {
+			hwrate0 = MS(ds0->ds_ctl3, AR5416_XmitRate0);
+			hwrate1 = MS(ds0->ds_ctl3, AR5416_XmitRate1);
+			hwrate2 = MS(ds0->ds_ctl3, AR5416_XmitRate2);
+			hwrate3 = MS(ds0->ds_ctl3, AR5416_XmitRate3);
+		}
+
+		rate0 = sc->sc_hwmap[hwrate0].ieeerate;
 		tries0 = MS(ds0->ds_ctl2, AR_XmitDataTries0);
 		ndx0 = rate_to_ndx(sn, rate0);
 
-		rate1 = sc->sc_hwmap[MS(ds0->ds_ctl3, AR_XmitRate1)].ieeerate;
+		rate1 = sc->sc_hwmap[hwrate1].ieeerate;
 		tries1 = MS(ds0->ds_ctl2, AR_XmitDataTries1);
 		ndx1 = rate_to_ndx(sn, rate1);
 
-		rate2 = sc->sc_hwmap[MS(ds0->ds_ctl3, AR_XmitRate2)].ieeerate;
+		rate2 = sc->sc_hwmap[hwrate2].ieeerate;
 		tries2 = MS(ds0->ds_ctl2, AR_XmitDataTries2);
 		ndx2 = rate_to_ndx(sn, rate2);
 
-		rate3 = sc->sc_hwmap[MS(ds0->ds_ctl3, AR_XmitRate3)].ieeerate;
+		rate3 = sc->sc_hwmap[hwrate3].ieeerate;
 		tries3 = MS(ds0->ds_ctl2, AR_XmitDataTries3);
 		ndx3 = rate_to_ndx(sn, rate3);
 
-#if 1
 		DPRINTF(sc, ATH_DEBUG_RATE,
 "%s: %s size %d finaltsidx %d tries %d %s rate/try [%d/%d %d/%d %d/%d %d/%d]\n", 
 		     __func__, ether_sprintf(an->an_node.ni_macaddr),
@@ -608,7 +601,6 @@ ath_rate_tx_complete(struct ath_softc *sc, struct ath_node *an,
 		     rate1, tries1,
 		     rate2, tries2,
 		     rate3, tries3);
-#endif
 
 		/*
 		 * NB: series > 0 are not penalized for failure
