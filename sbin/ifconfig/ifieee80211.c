@@ -156,20 +156,43 @@ ieee80211_ieee2mhz(u_int chan)
 	return 5000 + (chan*5);
 }
 
+static __inline int
+mapgsm(u_int freq, u_int flags)
+{
+	freq *= 10;
+	if (flags & IEEE80211_CHAN_QUARTER)
+		freq += 5;
+	else if (flags & IEEE80211_CHAN_HALF)
+		freq += 10;
+	else
+		freq += 20;
+	/* NB: there is no 907/20 wide but leave room */
+	return (freq - 906*10) / 5;
+}
+
+static __inline int
+mappsb(u_int freq, u_int flags)
+{
+	return 37 + ((freq * 10) + ((freq % 5) == 2 ? 5 : 0) - 49400) / 5;
+}
+
 /*
  * Convert MHz frequency to IEEE channel number.
  */
 static u_int
 ieee80211_mhz2ieee(u_int freq, u_int flags)
 {
+	if ((flags & IEEE80211_CHAN_GSM) || (907 <= freq && freq <= 922))
+		return mapgsm(freq, flags);
 	if (freq == 2484)
 		return 14;
 	if (freq < 2484)
 		return (freq - 2407) / 5;
 	if (freq < 5000) {
-		if (freq > 4900)	/* XXX hack mapping of PSB */
-			return 37 + ((freq * 10) +
-				(((freq % 5) == 2) ? 5 : 0) - 49400) / 5;
+		if (flags & (IEEE80211_CHAN_HALF|IEEE80211_CHAN_QUARTER))
+			return mappsb(freq, flags);
+		else if (freq > 4900)
+			return (freq - 4000) / 5;
 		else
 			return 15 + ((freq - 2512) / 20);
 	}
@@ -1039,7 +1062,7 @@ list_stations(int s)
 		printf("%s %4u %4d %3dM %4d %4d %6d %6d %-4.4s %-4.4s"
 			, ether_ntoa((const struct ether_addr*) si->isi_macaddr)
 			, IEEE80211_AID(si->isi_associd)
-			, ieee80211_mhz2ieee(si->isi_freq, si->isi_freq)
+			, ieee80211_mhz2ieee(si->isi_freq, si->isi_flags)
 			, (si->isi_rates[si->isi_txrate] & IEEE80211_RATE_VAL)/2
 			, si->isi_rssi
 			, si->isi_inact
@@ -1072,9 +1095,14 @@ print_chaninfo(const struct ieee80211_channel *c)
 		else
 			strlcat(buf, " 11a", sizeof(buf));
 	}
-	if (IEEE80211_IS_CHAN_ANYG(c))
-		strlcat(buf, " 11g", sizeof(buf));
-	else if (IEEE80211_IS_CHAN_B(c))
+	if (IEEE80211_IS_CHAN_ANYG(c)) {
+		if (IEEE80211_IS_CHAN_HALF(c))
+			strlcat(buf, " 11g/10Mhz", sizeof(buf));
+		else if (IEEE80211_IS_CHAN_QUARTER(c))
+			strlcat(buf, " 11g/5Mhz", sizeof(buf));
+		else
+			strlcat(buf, " 11g", sizeof(buf));
+	} else if (IEEE80211_IS_CHAN_B(c))
 		strlcat(buf, " 11b", sizeof(buf));
 	if (IEEE80211_IS_CHAN_T(c))
 		strlcat(buf, " Turbo", sizeof(buf));
