@@ -54,24 +54,28 @@ sctp_build_readq_entry(struct sctp_tcb *stcb,
 
 #define sctp_build_readq_entry_mac(_ctl, in_it, a, net, tsn, ppid, context, stream_no, stream_seq, flags, dm) do { \
 	if (_ctl) { \
-		(_ctl)->sinfo_context = a; \
-		(_ctl)->stcb = (in_it); \
-		(_ctl)->sinfo_assoc_id = sctp_get_associd((in_it)); \
-		(_ctl)->port_from = (in_it)->rport; \
+		atomic_add_int(&((net)->ref_count), 1); \
 		(_ctl)->sinfo_stream = stream_no; \
 		(_ctl)->sinfo_ssn = stream_seq; \
 		(_ctl)->sinfo_flags = (flags << 8); \
 		(_ctl)->sinfo_ppid = ppid; \
+		(_ctl)->sinfo_context = a; \
 		(_ctl)->sinfo_timetolive = 0; \
 		(_ctl)->sinfo_tsn = tsn; \
 		(_ctl)->sinfo_cumtsn = tsn; \
-		(_ctl)->whoFrom = net; \
+		(_ctl)->sinfo_assoc_id = sctp_get_associd((in_it)); \
 		(_ctl)->length = 0; \
-		atomic_add_int(&((net)->ref_count), 1); \
+		(_ctl)->held_length = 0; \
+		(_ctl)->whoFrom = net; \
 		(_ctl)->data = dm; \
 		(_ctl)->tail_mbuf = NULL; \
+		(_ctl)->stcb = (in_it); \
+		(_ctl)->port_from = (in_it)->rport; \
+		(_ctl)->spec_flags = 0; \
 		(_ctl)->do_not_ref_stcb = 0; \
 		(_ctl)->end_added = 0; \
+		(_ctl)->pdapi_aborted = 0; \
+		(_ctl)->resv = 0; \
 	} \
 } while (0)
 

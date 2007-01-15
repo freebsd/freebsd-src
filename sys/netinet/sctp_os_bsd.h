@@ -82,6 +82,10 @@ typedef struct uma_zone *sctp_zone_t;
 /* SCTP_ZONE_FREE: free element from the zone */
 #define SCTP_ZONE_FREE(zone, element) \
 	uma_zfree(zone, element);
+#define SCTP_HASH_INIT(size, hashmark) hashinit_flags(size, M_PCB, hashmark, HASH_NOWAIT)
+#define SCTP_HASH_FREE(table, hashmark) hashdestroy(table, M_PCB, hashmark)
+
+#define SCTP_M_COPYM	m_copym
 
 /*
  * timers
@@ -92,6 +96,7 @@ typedef struct callout sctp_os_timer_t;
 #define SCTP_OS_TIMER_INIT(tmr)	callout_init(tmr, 1)
 #define SCTP_OS_TIMER_START	callout_reset
 #define SCTP_OS_TIMER_STOP	callout_stop
+#define SCTP_OS_TIMER_STOP_DRAIN callout_drain
 #define SCTP_OS_TIMER_PENDING	callout_pending
 #define SCTP_OS_TIMER_ACTIVE	callout_active
 #define SCTP_OS_TIMER_DEACTIVATE callout_deactivate
@@ -153,5 +158,9 @@ typedef struct callout sctp_os_timer_t;
 /* Macro's for getting length from V6/V4 header */
 #define SCTP_GET_IPV4_LENGTH(iph) (iph->ip_len)
 #define SCTP_GET_IPV6_LENGTH(ip6) (ntohs(ip6->ip6_plen))
+
+/* is the endpoint v6only? */
+#define SCTP_IPV6_V6ONLY(inp)	(((struct inpcb *)inp)->inp_flags & IN6P_IPV6_V6ONLY)
+
 
 #endif
