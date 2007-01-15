@@ -480,7 +480,8 @@ acpi_cpu_cx_probe(struct acpi_cpu_softc *sc)
 	 * was an error parsing it. Switch back to generic mode.
 	 */
 	cpu_cx_generic = TRUE;
-	device_printf(sc->cpu_dev, "Switching to generic Cx mode\n");
+	if (bootverbose)
+	    device_printf(sc->cpu_dev, "switching to generic Cx mode\n");
     }
 
     /*
@@ -574,20 +575,18 @@ acpi_cpu_cx_cst(struct acpi_cpu_softc *sc)
     buf.Pointer = NULL;
     buf.Length = ACPI_ALLOCATE_BUFFER;
     status = AcpiEvaluateObject(sc->cpu_handle, "_CST", NULL, &buf);
-    if (ACPI_FAILURE(status)) {
-    	device_printf(sc->cpu_dev, "Unable to find _CST method\n");
+    if (ACPI_FAILURE(status))
 	return (ENXIO);
-    }
 
     /* _CST is a package with a count and at least one Cx package. */
     top = (ACPI_OBJECT *)buf.Pointer;
     if (!ACPI_PKG_VALID(top, 2) || acpi_PkgInt32(top, 0, &count) != 0) {
-	device_printf(sc->cpu_dev, "Invalid _CST package\n");
+	device_printf(sc->cpu_dev, "invalid _CST package\n");
 	AcpiOsFree(buf.Pointer);
 	return (ENXIO);
     }
     if (count != top->Package.Count - 1) {
-	device_printf(sc->cpu_dev, "Invalid _CST state count (%d != %d)\n",
+	device_printf(sc->cpu_dev, "invalid _CST state count (%d != %d)\n",
 	       count, top->Package.Count - 1);
 	count = top->Package.Count - 1;
     }
