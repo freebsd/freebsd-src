@@ -123,6 +123,7 @@ struct ieee80211_channel {
 #define	IEEE80211_CHAN_PASSIVE	0x0200	/* Only passive scan allowed */
 #define	IEEE80211_CHAN_DYN	0x0400	/* Dynamic CCK-OFDM channel */
 #define	IEEE80211_CHAN_GFSK	0x0800	/* GFSK channel (FHSS PHY) */
+#define	IEEE80211_CHAN_GSM	0x1000	/* 900 MHz spectrum channel */
 #define	IEEE80211_CHAN_HALF	0x4000	/* Half rate channel */
 #define	IEEE80211_CHAN_QUARTER	0x8000	/* Quarter rate channel */
 
@@ -181,6 +182,10 @@ struct ieee80211_channel {
 	(((_c)->ic_flags & IEEE80211_CHAN_HALF) != 0)
 #define	IEEE80211_IS_CHAN_QUARTER(_c) \
 	(((_c)->ic_flags & IEEE80211_CHAN_QUARTER) != 0)
+#define	IEEE80211_IS_CHAN_FULL(_c) \
+	(((_c)->ic_flags & (IEEE80211_CHAN_QUARTER | IEEE80211_CHAN_HALF)) == 0)
+#define	IEEE80211_IS_CHAN_GSM(_c) \
+	(((_c)->ic_flags & IEEE80211_CHAN_GSM) != 0)
 
 /* ni_chan encoding for FH phy */
 #define	IEEE80211_FH_CHANMOD	80
