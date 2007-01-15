@@ -364,8 +364,8 @@ ath_attach(u_int16_t devid, struct ath_softc *sc)
 	ath_rate_setup(sc, IEEE80211_MODE_11G);
 	ath_rate_setup(sc, IEEE80211_MODE_TURBO_A);
 	ath_rate_setup(sc, IEEE80211_MODE_TURBO_G);
-	ath_rate_setup(sc, IEEE80211_MODE_11A_HALF);
-	ath_rate_setup(sc, IEEE80211_MODE_11A_QUARTER);
+	ath_rate_setup(sc, IEEE80211_MODE_HALF);
+	ath_rate_setup(sc, IEEE80211_MODE_QUARTER);
 
 	/* NB: setup here so ath_rate_update is happy */
 	ath_setcurmode(sc, IEEE80211_MODE_11A);
@@ -885,8 +885,14 @@ ath_bmiss_proc(void *arg, int pending)
 	}
 }
 
-static u_int
-ath_chan2flags(struct ieee80211com *ic, struct ieee80211_channel *chan)
+/*
+ * Convert net80211 channel to a HAL channel with the flags
+ * constrained to reflect the current operating mode and
+ * the frequency possibly mapped for GSM channels.
+ */
+static void
+ath_mapchan(struct ieee80211com *ic, HAL_CHANNEL *hc,
+	const struct ieee80211_channel *chan)
 {
 #define	N(a)	(sizeof(a) / sizeof(a[0]))
 	static const u_int modeflags[] = {
@@ -902,11 +908,14 @@ ath_chan2flags(struct ieee80211com *ic, struct ieee80211_channel *chan)
 
 	KASSERT(mode < N(modeflags), ("unexpected phy mode %u", mode));
 	KASSERT(modeflags[mode] != 0, ("mode %u undefined", mode));
+	hc->channelFlags = modeflags[mode];
 	if (IEEE80211_IS_CHAN_HALF(chan))
-		return modeflags[mode] | CHANNEL_HALF;
+		hc->channelFlags |= CHANNEL_HALF;
 	if (IEEE80211_IS_CHAN_QUARTER(chan))
-		return modeflags[mode] | CHANNEL_QUARTER;
-	return modeflags[mode];
+		hc->channelFlags |= CHANNEL_QUARTER;
+
+	hc->channel = IEEE80211_IS_CHAN_GSM(chan) ?
+		2422 + (922 - chan->ic_freq) : chan->ic_freq;
 #undef N
 }
 
@@ -936,8 +945,7 @@ ath_init(void *arg)
 	 * be followed by initialization of the appropriate bits
 	 * and then setup of the interrupt mask.
 	 */
-	sc->sc_curchan.channel = ic->ic_curchan->ic_freq;
-	sc->sc_curchan.channelFlags = ath_chan2flags(ic, ic->ic_curchan);
+	ath_mapchan(ic, &sc->sc_curchan, ic->ic_curchan);
 	if (!ath_hal_reset(ah, sc->sc_opmode, &sc->sc_curchan, AH_FALSE, &status)) {
 		if_printf(ifp, "unable to reset hardware; hal status %u\n",
 			status);
@@ -1095,16 +1103,13 @@ ath_reset(struct ifnet *ifp)
 	struct ath_softc *sc = ifp->if_softc;
 	struct ieee80211com *ic = &sc->sc_ic;
 	struct ath_hal *ah = sc->sc_ah;
-	struct ieee80211_channel *c;
 	HAL_STATUS status;
 
 	/*
 	 * Convert to a HAL channel description with the flags
 	 * constrained to reflect the current operating mode.
 	 */
-	c = ic->ic_curchan;
-	sc->sc_curchan.channel = c->ic_freq;
-	sc->sc_curchan.channelFlags = ath_chan2flags(ic, c);
+	ath_mapchan(ic, &sc->sc_curchan, ic->ic_curchan);
 
 	ath_hal_intrset(ah, 0);		/* disable interrupts */
 	ath_draintxq(sc);		/* stop xmit side */
@@ -1122,7 +1127,7 @@ ath_reset(struct ifnet *ifp)
 	 * that changes the channel so update any state that
 	 * might change as a result.
 	 */
-	ath_chan_change(sc, c);
+	ath_chan_change(sc, ic->ic_curchan);
 	if (ath_startrecv(sc) != 0)	/* restart recv */
 		if_printf(ifp, "%s: unable to start recv logic\n", __func__);
 	if (ic->ic_state == IEEE80211_S_RUN)
@@ -1859,17 +1864,19 @@ ath_setslottime(struct ath_softc *sc)
 	struct ath_hal *ah = sc->sc_ah;
 	u_int usec;
 
-	if (IEEE80211_IS_CHAN_A(ic->ic_curchan)) {
-		if (IEEE80211_IS_CHAN_HALF(ic->ic_curchan))
-			usec = 13;
-		else if (IEEE80211_IS_CHAN_QUARTER(ic->ic_curchan))
-			usec = 21;
-		else
+	if (IEEE80211_IS_CHAN_HALF(ic->ic_curchan))
+		usec = 13;
+	else if (IEEE80211_IS_CHAN_QUARTER(ic->ic_curchan))
+		usec = 21;
+	else if (IEEE80211_IS_CHAN_ANYG(ic->ic_curchan)) {
+		/* honor short/long slot time only in 11g */
+		/* XXX shouldn't honor on pure g or turbo g channel */
+		if (ic->ic_flags & IEEE80211_F_SHSLOT)
 			usec = HAL_SLOT_TIME_9;
-	} else if (ic->ic_flags & IEEE80211_F_SHSLOT)
+		else
+			usec = HAL_SLOT_TIME_20;
+	} else
 		usec = HAL_SLOT_TIME_9;
-	else
-		usec = HAL_SLOT_TIME_20;
 
 	DPRINTF(sc, ATH_DEBUG_RESET,
 	    "%s: chan %u MHz flags 0x%x %s slot, %u usec\n",
@@ -4318,13 +4325,12 @@ ath_chan_change(struct ath_softc *sc, struct ieee80211_channel *chan)
 	 * Change channels and update the h/w rate map
 	 * if we're switching; e.g. 11a to 11b/g.
 	 */
-	mode = ieee80211_chan2mode(ic, chan);
-	if (mode == IEEE80211_MODE_11A) {
-		if (IEEE80211_IS_CHAN_HALF(chan))
-			mode = IEEE80211_MODE_11A_HALF;
-		else if (IEEE80211_IS_CHAN_QUARTER(chan))
-			mode = IEEE80211_MODE_11A_QUARTER;
-	}
+	if (IEEE80211_IS_CHAN_HALF(chan))
+		mode = IEEE80211_MODE_HALF;
+	else if (IEEE80211_IS_CHAN_QUARTER(chan))
+		mode = IEEE80211_MODE_QUARTER;
+	else
+		mode = ieee80211_chan2mode(ic, chan);
 	if (mode != sc->sc_curmode)
 		ath_setcurmode(sc, mode);
 	/*
@@ -4340,6 +4346,10 @@ ath_chan_change(struct ath_softc *sc, struct ieee80211_channel *chan)
 		flags = IEEE80211_CHAN_B;
 	if (IEEE80211_IS_CHAN_T(chan))
 		flags |= IEEE80211_CHAN_TURBO;
+	if (IEEE80211_IS_CHAN_HALF(chan))
+		flags |= IEEE80211_CHAN_HALF;
+	if (IEEE80211_IS_CHAN_QUARTER(chan))
+		flags |= IEEE80211_CHAN_QUARTER;
 	sc->sc_tx_th.wt_chan_freq = sc->sc_rx_th.wr_chan_freq =
 		htole16(chan->ic_freq);
 	sc->sc_tx_th.wt_chan_flags = sc->sc_rx_th.wr_chan_flags =
@@ -4400,8 +4410,7 @@ ath_chan_set(struct ath_softc *sc, struct ieee80211_channel *chan)
 	 * the flags constrained to reflect the current
 	 * operating mode.
 	 */
-	hchan.channel = chan->ic_freq;
-	hchan.channelFlags = ath_chan2flags(ic, chan);
+	ath_mapchan(ic, &hchan, chan);
 
 	DPRINTF(sc, ATH_DEBUG_RESET,
 	    "%s: %u (%u MHz, hal flags 0x%x) -> %u (%u MHz, hal flags 0x%x)\n",
@@ -4829,6 +4838,9 @@ ath_getchannels(struct ath_softc *sc,
 				    ix, c->channel, c->channelFlags);
 			continue;
 		}
+		if (bootverbose)
+			if_printf(ifp, "hal channel %u/%x -> %u\n",
+			    c->channel, c->channelFlags, ix);
 		/*
 		 * Calculate net80211 flags; most are compatible
 		 * but some need massaging.  Note the static turbo
@@ -4838,6 +4850,12 @@ ath_getchannels(struct ath_softc *sc,
 		flags = c->channelFlags & COMPAT;
 		if (c->channelFlags & CHANNEL_STURBO)
 			flags |= IEEE80211_CHAN_TURBO;
+		if (ath_hal_isgsmsku(ah)) {
+			/* remap to true frequencies */
+			c->channel = 922 + (2422 - c->channel);
+			flags |= IEEE80211_CHAN_GSM;
+			ix = ieee80211_mhz2ieee(c->channel, flags);
+		}
 		if (ic->ic_channels[ix].ic_freq == 0) {
 			ic->ic_channels[ix].ic_freq = c->channel;
 			ic->ic_channels[ix].ic_flags = flags;
@@ -4943,10 +4961,10 @@ ath_rate_setup(struct ath_softc *sc, u_int mode)
 	case IEEE80211_MODE_11A:
 		rt = ath_hal_getratetable(ah, HAL_MODE_11A);
 		break;
-	case IEEE80211_MODE_11A_HALF:
+	case IEEE80211_MODE_HALF:
 		rt = ath_hal_getratetable(ah, HAL_MODE_11A_HALF_RATE);
 		break;
-	case IEEE80211_MODE_11A_QUARTER:
+	case IEEE80211_MODE_QUARTER:
 		rt = ath_hal_getratetable(ah, HAL_MODE_11A_QUARTER_RATE);
 		break;
 	case IEEE80211_MODE_11B:
@@ -4995,6 +5013,7 @@ ath_setcurmode(struct ath_softc *sc, enum ieee80211_phymode mode)
 		{   4, 267,  66 },
 		{   2, 400, 100 },
 		{   0, 500, 130 },
+		/* XXX half/quarter rates */
 	};
 	const HAL_RATE_TABLE *rt;
 	int i, j;
