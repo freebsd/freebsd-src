@@ -7,11 +7,11 @@
 .Nd schedule permanent connection to close
 .Sh SYNOPSIS
 .Nm
-.Op -S Ar server
-.Op -U Ar user
-.Op -c Ar handle
+.Op Fl S Ar server
+.Op Fl U Ar user
+.Op Fl c Ar handle
 .Nm
-.Op -c Ar handle
+.Op Fl c Ar handle
 .No / Ns Ar server Ns : Ns Ar user
 .Sh DESCRIPTION
 The
@@ -23,7 +23,8 @@ If the connection is busy (i.e., used by other processes) it will
 be closed when the last process using it is terminated.
 This command is similar to the
 .Tn DOS
-logout.exe command.
+.Pa logout.exe
+command.
 .Pp
 The options are:
 .Bl -tag -width indent
@@ -40,9 +41,8 @@ one connection active.
 .It Fl c Ar handle
 Close a connection by handle.
 A list of available handles can be obtained with the following command:
-.Bd -literal -offset indent
-	ncplist c
-.Ed
+.Pp
+.Dl "ncplist c"
 .El
 .Sh HISTORY
 The
