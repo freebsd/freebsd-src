@@ -66,6 +66,12 @@ __FBSDID("$FreeBSD$");
 static int brgphy_probe(device_t);
 static int brgphy_attach(device_t);
 
+struct brgphy_softc {
+	struct mii_softc mii_sc;
+	int mii_model;
+	int mii_rev;
+};
+
 static device_method_t brgphy_methods[] = {
 	/* device interface */
 	DEVMETHOD(device_probe,		brgphy_probe),
@@ -99,8 +105,6 @@ static void	brgphy_fixup_ber_bug(struct mii_softc *);
 static void	brgphy_fixup_jitter_bug(struct mii_softc *);
 static void	brgphy_ethernet_wirespeed(struct mii_softc *);
 static void	brgphy_jumbo_settings(struct mii_softc *, u_long);
-static int	brgphy_mii_model;
-static int	brgphy_mii_rev;
 
 static const struct mii_phydesc brgphys[] = {
 	MII_PHY_DESC(xxBROADCOM, BCM5400),
@@ -131,6 +135,7 @@ brgphy_probe(device_t dev)
 static int
 brgphy_attach(device_t dev)
 {
+	struct brgphy_softc *bsc;
 	struct mii_softc *sc;
 	struct mii_attach_args *ma;
 	struct mii_data *mii;
@@ -139,7 +144,8 @@ brgphy_attach(device_t dev)
 	struct bce_softc *bce_sc = NULL;
 	int fast_ether_only = FALSE;
 
-	sc = device_get_softc(dev);
+	bsc = device_get_softc(dev);
+	sc = &bsc->mii_sc;
 	ma = device_get_ivars(dev);
 	sc->mii_dev = device_get_parent(dev);
 	mii = device_get_softc(sc->mii_dev);
@@ -163,8 +169,8 @@ brgphy_attach(device_t dev)
 	    BMCR_LOOP | BMCR_S100);
 #endif
 
-	brgphy_mii_model = MII_MODEL(ma->mii_id2);
-	brgphy_mii_rev = MII_REV(ma->mii_id2);
+	bsc->mii_model = MII_MODEL(ma->mii_id2);
+	bsc->mii_rev = MII_REV(ma->mii_id2);
 	brgphy_reset(sc);
 
 	sc->mii_capabilities = PHY_READ(sc, MII_BMSR) & ma->mii_capmask;
@@ -211,6 +217,7 @@ brgphy_attach(device_t dev)
 static int
 brgphy_service(struct mii_softc *sc, struct mii_data *mii, int cmd)
 {
+	struct brgphy_softc *bsc = (struct brgphy_softc *)sc;
 	struct ifmedia_entry *ife = mii->mii_media.ifm_cur;
 
 	switch (cmd) {
@@ -308,12 +315,12 @@ brgphy_service(struct mii_softc *sc, struct mii_data *mii, int cmd)
 	if (sc->mii_media_active != mii->mii_media_active ||
 	    sc->mii_media_status != mii->mii_media_status ||
 	    cmd == MII_MEDIACHG) {
-		switch (brgphy_mii_model) {
+		switch (bsc->mii_model) {
 		case MII_MODEL_xxBROADCOM_BCM5400:
 			bcm5401_load_dspcode(sc);
 			break;
 		case MII_MODEL_xxBROADCOM_BCM5401:
-			if (brgphy_mii_rev == 1 || brgphy_mii_rev == 3)
+			if (bsc->mii_rev == 1 || bsc->mii_rev == 3)
 				bcm5401_load_dspcode(sc);
 			break;
 		case MII_MODEL_xxBROADCOM_BCM5411:
@@ -328,6 +335,7 @@ brgphy_service(struct mii_softc *sc, struct mii_data *mii, int cmd)
 static void
 brgphy_setmedia(struct mii_softc *sc, int media, int master)
 {
+	struct brgphy_softc *bsc = (struct brgphy_softc *)sc;
 	int bmcr, gig;
 
 	switch (IFM_SUBTYPE(media)) {
@@ -361,7 +369,7 @@ brgphy_setmedia(struct mii_softc *sc, int media, int master)
 	PHY_WRITE(sc, BRGPHY_MII_BMCR,
 	    bmcr | BRGPHY_BMCR_AUTOEN | BRGPHY_BMCR_STARTNEG);
 
-	if (brgphy_mii_model != MII_MODEL_xxBROADCOM_BCM5701)
+	if (bsc->mii_model != MII_MODEL_xxBROADCOM_BCM5701)
 		return;
 
 	/*
@@ -442,12 +450,13 @@ brgphy_status(struct mii_softc *sc)
 static int
 brgphy_mii_phy_auto(struct mii_softc *sc)
 {
+	struct brgphy_softc *bsc = (struct brgphy_softc *)sc;
 	int ktcr = 0;
 
 	brgphy_loop(sc);
 	brgphy_reset(sc);
 	ktcr = BRGPHY_1000CTL_AFD | BRGPHY_1000CTL_AHD;
-	if (brgphy_mii_model == MII_MODEL_xxBROADCOM_BCM5701)
+	if (bsc->mii_model == MII_MODEL_xxBROADCOM_BCM5701)
 		ktcr |= BRGPHY_1000CTL_MSE | BRGPHY_1000CTL_MSC;
 	PHY_WRITE(sc, BRGPHY_MII_1000CTL, ktcr);
 	ktcr = PHY_READ(sc, BRGPHY_MII_1000CTL);
@@ -642,18 +651,19 @@ brgphy_jumbo_settings(struct mii_softc *sc, u_long mtu)
 static void
 brgphy_reset(struct mii_softc *sc)
 {
-	struct ifnet	*ifp;
-	struct bge_softc	*bge_sc = NULL;
-	struct bce_softc	*bce_sc = NULL;
+	struct brgphy_softc *bsc = (struct brgphy_softc *)sc;
+	struct bge_softc *bge_sc = NULL;
+	struct bce_softc *bce_sc = NULL;
+	struct ifnet *ifp;
 
 	mii_phy_reset(sc);
 
-	switch (brgphy_mii_model) {
+	switch (bsc->mii_model) {
 	case MII_MODEL_xxBROADCOM_BCM5400:
 		bcm5401_load_dspcode(sc);
 		break;
 	case MII_MODEL_xxBROADCOM_BCM5401:
-		if (brgphy_mii_rev == 1 || brgphy_mii_rev == 3)
+		if (bsc->mii_rev == 1 || bsc->mii_rev == 3)
 			bcm5401_load_dspcode(sc);
 		break;
 	case MII_MODEL_xxBROADCOM_BCM5411:
