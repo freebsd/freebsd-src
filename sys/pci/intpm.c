@@ -110,7 +110,6 @@ intsmb_attach(device_t dev)
 	int error, rid, value;
 	char *str;
 
-	sc = device_get_softc(dev);
 	mtx_init(&sc->lock, device_get_nameunit(dev), "intsmb", MTX_DEF);
 
 	rid = PCI_BASE_ADDR_SMB;
