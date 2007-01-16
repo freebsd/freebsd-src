@@ -48,12 +48,28 @@
  * $FreeBSD$
  */
 
-#ifndef _DEV_FB_CREATOR_H_
-#define	_DEV_FB_CREATOR_H_
+#ifndef _DEV_FB_CREATORREG_H_
+#define	_DEV_FB_CREATORREG_H_
 
 #define	FFB_NREG		24
 
+#define	FFB_PROM		0
 #define	FFB_DAC			1
+#define	FFB_FBC			2
+#define	FFB_DFB8R		3
+#define	FFB_DFB8G		4
+#define	FFB_DFB8B		5
+#define	FFB_DFB8X		6
+#define	FFB_DFB24		7
+#define	FFB_DFB32		8
+#define	FFB_SFB8R		9
+#define	FFB_SFB8G		10
+#define	FFB_SFB8B		11
+#define	FFB_SFB8X		12
+#define	FFB_SFB32		13
+#define	FFB_SFB64		14
+#define	FFB_DFB422A		15
+
 #define	FFB_DAC_TYPE		0x0
 #define	FFB_DAC_VALUE		0x4
 #define	FFB_DAC_TYPE2		0x8
@@ -104,7 +120,6 @@
 #define	FFB_DAC_CUR_CTRL_P0	0x1		/* Plane0 Display Disable */
 #define	FFB_DAC_CUR_CTRL_P1	0x2		/* Plane1 Display Disable */
 
-#define	FFB_FBC			2
 #define	FFB_FBC_BY		0x60
 #define	FFB_FBC_BX		0x64
 #define	FFB_FBC_DY		0x68
@@ -201,46 +216,32 @@
 #define	FFB_PHYS_PROM		0x00000000
 #define	FFB_PHYS_EXP		0x00200000
 
-#define	FFB_READ(sc, reg, off) \
-	bus_space_read_4((sc)->sc_bt[(reg)], (sc)->sc_bh[(reg)], (off))
-#define	FFB_WRITE(sc, reg, off, val) \
-	bus_space_write_4((sc)->sc_bt[(reg)], (sc)->sc_bh[(reg)], (off), (val))
+#define	FFB_SIZE_SFB8R		0x00400000
+#define	FFB_SIZE_SFB8G		0x00400000
+#define	FFB_SIZE_SFB8B		0x00400000
+#define	FFB_SIZE_SFB8X		0x00400000
+#define	FFB_SIZE_SFB32		0x01000000
+#define	FFB_SIZE_SFB64		0x02000000
+#define	FFB_SIZE_FBC		0x00002000
+#define	FFB_SIZE_FBC_BM		0x00002000
+#define	FFB_SIZE_DFB8R		0x00400000
+#define	FFB_SIZE_DFB8G		0x00400000
+#define	FFB_SIZE_DFB8B		0x00400000
+#define	FFB_SIZE_DFB8X		0x00400000
+#define	FFB_SIZE_DFB24		0x01000000
+#define	FFB_SIZE_DFB32		0x01000000
+#define	FFB_SIZE_DFB422A	0x00800000
+#define	FFB_SIZE_DFB422AD	0x00800000
+#define	FFB_SIZE_DFB24B		0x01000000
+#define	FFB_SIZE_DFB422B	0x00800000
+#define	FFB_SIZE_DFB422BD	0x00800000
+#define	FFB_SIZE_SFB16Z		0x00800000
+#define	FFB_SIZE_SFB8Z		0x00800000
+#define	FFB_SIZE_SFB422		0x00800000
+#define	FFB_SIZE_SFB422D	0x00800000
+#define	FFB_SIZE_FBC_KREG	0x00002000
+#define	FFB_SIZE_DAC		0x00002000
+#define	FFB_SIZE_PROM		0x00010000
+#define	FFB_SIZE_EXP		0x00002000
 
-#define	CREATOR_DRIVER_NAME	"creator"
-
-struct creator_softc {
-	video_adapter_t		sc_va;			/* XXX must be first */
-
-	phandle_t		sc_node;
-
-	struct cdev		*sc_si;
-
-	int			sc_rid[FFB_NREG];
-	struct resource		*sc_reg[FFB_NREG];
-	bus_space_tag_t		sc_bt[FFB_NREG];
-	bus_space_handle_t	sc_bh[FFB_NREG];
-
-	int			sc_height;
-	int			sc_width;
-
-	int			sc_xmargin;
-	int			sc_ymargin;
-
-	u_char			*sc_font;
-
-	int			sc_bg_cache;
-	int			sc_fg_cache;
-	int			sc_fifo_cache;
-	int			sc_fontinc_cache;
-	int			sc_fontw_cache;
-	int			sc_pmask_cache;
-
-	int			sc_flags;
-#define	CREATOR_AFB		(1 << 0)
-#define	CREATOR_CONSOLE		(1 << 1)
-#define	CREATOR_CUREN		(1 << 2)
-#define	CREATOR_CURINV		(1 << 3)
-#define	CREATOR_PAC1		(1 << 4)
-};
-
-#endif /* !_DEV_FB_CREATOR_H_ */
+#endif /* !_DEV_FB_CREATORREG_H_ */
