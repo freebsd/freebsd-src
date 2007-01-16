@@ -186,11 +186,13 @@ struct pci_quirk pci_quirks[] = {
 
 	/*
 	 * MSI doesn't work on earlier Intel chipsets including
-	 * E7500, E7501, E7505, E7210, and 855.
+	 * E7500, E7501, E7505, 845, 865, 875/E7210, and 855.
 	 */
 	{ 0x25408086, PCI_QUIRK_DISABLE_MSI,	0,	0 },
 	{ 0x254c8086, PCI_QUIRK_DISABLE_MSI,	0,	0 },
 	{ 0x25508086, PCI_QUIRK_DISABLE_MSI,	0,	0 },
+	{ 0x25608086, PCI_QUIRK_DISABLE_MSI,	0,	0 },
+	{ 0x25708086, PCI_QUIRK_DISABLE_MSI,	0,	0 },
 	{ 0x25788086, PCI_QUIRK_DISABLE_MSI,	0,	0 },
 	{ 0x35808086, PCI_QUIRK_DISABLE_MSI,	0,	0 },
 
