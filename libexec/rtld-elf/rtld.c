@@ -92,11 +92,10 @@ static void *fill_search_info(const char *, size_t, void *);
 static char *find_library(const char *, const Obj_Entry *);
 static const char *gethints(void);
 static void init_dag(Obj_Entry *);
-static void init_dag1(Obj_Entry *root, Obj_Entry *obj, DoneList *);
+static void init_dag1(Obj_Entry *, Obj_Entry *, DoneList *);
 static void init_rtld(caddr_t);
-static void initlist_add_neededs(Needed_Entry *needed, Objlist *list);
-static void initlist_add_objects(Obj_Entry *obj, Obj_Entry **tail,
-  Objlist *list);
+static void initlist_add_neededs(Needed_Entry *, Objlist *);
+static void initlist_add_objects(Obj_Entry *, Obj_Entry **, Objlist *);
 static bool is_exported(const Elf_Sym *);
 static void linkmap_add(Obj_Entry *);
 static void linkmap_delete(Obj_Entry *);
@@ -120,17 +119,19 @@ static void rtld_exit(void);
 static char *search_library_path(const char *, const char *);
 static const void **get_program_var_addr(const char *name);
 static void set_program_var(const char *, const void *);
-static const Elf_Sym *symlook_default(const char *, unsigned long hash,
-  const Obj_Entry *refobj, const Obj_Entry **defobj_out, bool in_plt);
+static const Elf_Sym *symlook_default(const char *, unsigned long,
+  const Obj_Entry *, const Obj_Entry **, bool);
 static const Elf_Sym *symlook_list(const char *, unsigned long,
-  Objlist *, const Obj_Entry **, bool in_plt, DoneList *);
-static void trace_loaded_objects(Obj_Entry *obj);
+  const Objlist *, const Obj_Entry **, bool, DoneList *);
+static const Elf_Sym *symlook_needed(const char *, unsigned long,
+  const Needed_Entry *, const Obj_Entry **, bool, DoneList *);
+static void trace_loaded_objects(Obj_Entry *);
 static void unlink_object(Obj_Entry *);
 static void unload_object(Obj_Entry *);
 static void unref_dag(Obj_Entry *);
 static void ref_dag(Obj_Entry *);
 
-void r_debug_state(struct r_debug*, struct link_map*);
+void r_debug_state(struct r_debug *, struct link_map *);
 
 /*
  * Data declarations.
@@ -1766,10 +1767,10 @@ trace:
 void *
 dlsym(void *handle, const char *name)
 {
-    const Obj_Entry *obj;
-    unsigned long hash;
+    DoneList donelist;
+    const Obj_Entry *obj, *defobj;
     const Elf_Sym *def;
-    const Obj_Entry *defobj;
+    unsigned long hash;
     int lockstate;
 
     hash = elf_hash(name);
@@ -1810,20 +1811,20 @@ dlsym(void *handle, const char *name)
 	    return NULL;
 	}
 
+	donelist_init(&donelist);
 	if (obj->mainprog) {
-	    DoneList donelist;
-
 	    /* Search main program and all libraries loaded by it. */
-	    donelist_init(&donelist);
 	    def = symlook_list(name, hash, &list_main, &defobj, true,
-	      &donelist);
+			       &donelist);
 	} else {
-	    /*
-	     * XXX - This isn't correct.  The search should include the whole
-	     * DAG rooted at the given object.
-	     */
-	    def = symlook_obj(name, hash, obj, true);
-	    defobj = obj;
+	    Needed_Entry fake;
+
+	    /* Search the whole DAG rooted at the given object. */
+	    fake.next = NULL;
+	    fake.obj = (Obj_Entry *)obj;
+	    fake.name = 0;
+	    def = symlook_needed(name, hash, &fake, &defobj, true,
+				 &donelist);
 	}
     }
 
@@ -2274,7 +2275,7 @@ symlook_default(const char *name, unsigned long hash,
 }
 
 static const Elf_Sym *
-symlook_list(const char *name, unsigned long hash, Objlist *objlist,
+symlook_list(const char *name, unsigned long hash, const Objlist *objlist,
   const Obj_Entry **defobj_out, bool in_plt, DoneList *dlp)
 {
     const Elf_Sym *symp;
@@ -2299,6 +2300,56 @@ symlook_list(const char *name, unsigned long hash, Objlist *objlist,
     if (def != NULL)
 	*defobj_out = defobj;
     return def;
+}
+
+/*
+ * Search the symbol table of a shared object and all objects needed
+ * by it for a symbol of the given name.  Search order is
+ * breadth-first.  Returns a pointer to the symbol, or NULL if no
+ * definition was found.
+ */
+static const Elf_Sym *
+symlook_needed(const char *name, unsigned long hash, const Needed_Entry *needed,
+  const Obj_Entry **defobj_out, bool in_plt, DoneList *dlp)
+{
+    const Elf_Sym *def, *def_w;
+    const Needed_Entry *n;
+    const Obj_Entry *obj, *defobj, *defobj1;
+
+    def = def_w = NULL;
+    defobj = NULL;
+    for (n = needed; n != NULL; n = n->next) {
+	if ((obj = n->obj) == NULL ||
+	    donelist_check(dlp, obj) ||
+	    (def = symlook_obj(name, hash, obj, in_plt)) == NULL)
+	    continue;
+	defobj = obj;
+	if (ELF_ST_BIND(def->st_info) != STB_WEAK) {
+	    *defobj_out = defobj;
+	    return (def);
+	}
+    }
+    /*
+     * There we come when either symbol definition is not found in
+     * directly needed objects, or found symbol is weak.
+     */
+    for (n = needed; n != NULL; n = n->next) {
+	if ((obj = n->obj) == NULL)
+	    continue;
+	def_w = symlook_needed(name, hash, obj->needed, &defobj1,
+			       in_plt, dlp);
+	if (def_w == NULL)
+	    continue;
+	if (def == NULL || ELF_ST_BIND(def_w->st_info) != STB_WEAK) {
+	    def = def_w;
+	    defobj = defobj1;
+	}
+	if (ELF_ST_BIND(def_w->st_info) != STB_WEAK)
+	    break;
+    }
+    if (def != NULL)
+	*defobj_out = defobj;
+    return (def);
 }
 
 /*
