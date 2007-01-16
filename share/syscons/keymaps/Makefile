@@ -12,7 +12,7 @@ FILES=	INDEX.keymaps \
 	el.iso07.kbd \
 	estonian.iso.kbd estonian.iso15.kbd estonian.cp850.kbd \
 	finnish.iso.kbd finnish.cp850.kbd \
-	fr.iso.kbd fr.iso.acc.kbd fr.dvorak.kbd \
+	fr.iso.kbd fr.iso.acc.kbd fr.dvorak.kbd fr.dvorak.acc.kbd \
 	fr_CA.iso.acc.kbd \
 	german.iso.kbd german.iso.acc.kbd german.cp850.kbd \
 	gr.elot.acc.kbd gr.us101.acc.kbd \
