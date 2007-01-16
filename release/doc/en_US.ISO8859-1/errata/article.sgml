@@ -87,7 +87,7 @@
       the snapshot).</para>
 
     <para>For a list of all &os; CERT security advisories, see <ulink
-      url="http://www.FreeBSD.org/security/"></ulink> or <ulink
+      url="http://security.FreeBSD.org/"></ulink> or <ulink
       url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/"></ulink>.</para>
 
   </sect1>
