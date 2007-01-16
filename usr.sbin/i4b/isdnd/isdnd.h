@@ -46,7 +46,6 @@
 #include <syslog.h>
 #include <regex.h>
 #include <time.h>
-#include <errno.h>
 
 #ifdef USE_CURSES
 #include <curses.h>
