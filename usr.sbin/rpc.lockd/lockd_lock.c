@@ -1205,7 +1205,7 @@ duplicate_block(struct file_lock *fl)
 
 	/*
 	 * Is this lock request already on the blocking list?
-	 * Condider it a dupe if the file handles, offset, length,
+	 * Consider it a dupe if the file handles, offset, length,
 	 * exclusivity and client match.
 	 */
 	LIST_FOREACH(ifl, &blockedlocklist_head, nfslocklist) {
