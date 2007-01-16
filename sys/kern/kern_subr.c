@@ -371,14 +371,9 @@ hashinit_flags(int elements, struct malloc_type *type, u_long *hashmask,
 	if (elements <= 0)
 		panic("hashinit: bad elements");
 
-	/* Check for valid flags. */
-	KASSERT((flags | (HASH_WAITOK | HASH_NOWAIT)) ==
-	    (HASH_WAITOK | HASH_NOWAIT),
-	    ("Bad flags (0x%x) passed to hashinit_flags", flags));
-
 	/* Exactly one of HASH_WAITOK and HASH_NOWAIT must be set. */
 	KASSERT((flags & HASH_WAITOK) ^ (flags & HASH_NOWAIT),
-	    ("Both WAITOK and NOWAIT passed to hashinit_flags"));
+	    ("Bad flags (0x%x) passed to hashinit_flags", flags));
 
 	for (hashsize = 1; hashsize <= elements; hashsize <<= 1)
 		continue;
