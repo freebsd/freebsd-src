@@ -107,6 +107,7 @@
 #define	PCIY_DEBUG	0x0a	/* Debug port */
 #define	PCIY_CRES	0x0b	/* CompactPCI central resource control */
 #define	PCIY_HOTPLUG	0x0c	/* PCI Hot-Plug */
+#define	PCIY_SUBVENDOR	0x0d	/* PCI-PCI bridge subvendor ID */
 #define	PCIY_AGP8X	0x0e	/* AGP 8x */
 #define	PCIY_SECDEV	0x0f	/* Secure Device */
 #define	PCIY_EXPRESS	0x10	/* PCI Express */
@@ -166,9 +167,6 @@
 #define	PCIR_PMLIMITH_1	0x2c
 
 #define	PCIR_BRIDGECTL_1 0x3e
-
-#define	PCIR_SUBVEND_1	0x34
-#define	PCIR_SUBDEV_1	0x36
 
 /* config registers for header type 2 (CardBus) devices */
 
@@ -451,6 +449,9 @@
 #define	PCIM_HTCMD_MSI_ENABLE		0x0001
 #define	PCIR_HTMSI_ADDRESS_LO	0x4
 #define	PCIR_HTMSI_ADDRESS_HI	0x8
+
+/* PCI-PCI Bridge Subvendor definitions */
+#define	PCIR_SUBVENDCAP_ID	0x4
 
 /* MSI-X definitions */
 #define	PCIR_MSIX_CTRL		0x2
