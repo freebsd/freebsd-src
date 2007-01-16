@@ -93,19 +93,30 @@
   </sect1>
 
   <sect1 id="late-news">
-    <title>Update Information</title>
+    <title>Late-Breaking News and Corrections</title>
 
-    <para>No news.</para>
+    <para>[20070116] The release notes should have mentioned that a
+      separate ISO image has been created with readable documentation
+      files.  It contains renderings of the documention for all
+      supported languages; the last several &os; releases only
+      contained English documents due to space limitations.</para>
+
+    <para>[20070116] Some versions of the release announcement
+      contained an incorrect manual page reference for the GELI disk
+      encryption subsystem.  The correct manual page is
+      &man.geli.8;.</para>
+
   </sect1>
 
   <sect1 id="security">
     <title>Security Advisories</title>
 
+<!--
     <para>The following security advisories pertain to &os; &release.bugfix;.
       For more information, consult the individual advisories available from
       <ulink url="http://security.FreeBSD.org/"></ulink>.</para>
 
-<!--
+
     <informaltable frame="none" pgwide="0">
       <tgroup cols="3">
 	<colspec colwidth="1*">
@@ -125,12 +136,45 @@
       </tgroup>
     </informaltable>
 -->
+
+    <para>No advisories.</para>
+
   </sect1>
 
   <sect1 id="known-problems">
     <title>Known Problems and Solutions</title>
 
-    <para>No issues.</para>
+    <para>[20070116] As mentioned in the release notes, the
+      &man.arcmsr.4; driver was updated for &os; &release.bugfix;.
+      Some isolated crash problems were noted after this update,
+      although the driver in general tends to work quite well for
+      many testers, and it seems to be <quote>better</quote> in
+      general in terms of functionality and supported hardware.
+      Users having problems may wish to consider backing out the
+      driver update or installing a version of this driver 
+      <ulink url="ftp://ftp.areca.com.tw/RaidCards/AP_Drivers/FreeBSD/DRIVER/SourceCode/">directly
+      from Areca</ulink>.  Further investigation is continuing into
+      these issues.</para>
+
+    <para>[20070116] &os; &release.bugfix; has been diagnosed with
+      kernel bug related to UNIX-domain sockets.
+      A <ulink url="http://people.FreeBSD.org/~jhb/patches/unp_gc.patch">patch</ulink>
+      for this problem has been committed to HEAD and RELENG_6, and is
+      a candidate for an errata patch to RELENG_6_2 after further
+      testing.</para>
+
+    <para>[20070116] Systems with very heavy network activity have
+      been observed to have some problems with the kernel memory
+      allocator.  Symptoms are processes that get stuck in zonelimit
+      state, or system livelocks.  One partial workaround for this
+      problem is to add the following line
+      to <filename>/boot/loader.conf</filename> and reboot:</para>
+
+    <screen>kern.ipc.nmbclusters="0"</screen>
+
+    <para>Other workarounds have been discussed on the
+      <literal>freebsd-current@</literal>
+      and <literal>freebsd-stable@</literal> mailing lists.</para>
 
   </sect1>
 
