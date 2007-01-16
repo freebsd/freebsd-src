@@ -8,6 +8,9 @@ Items affecting the ports and packages system can be found in
 /usr/ports/UPDATING.  Please read that file before running
 portupgrade.
 
+20070115:
+	FreeBSD 6.2-RELEASE
+
 20060902:
 	The IEEE80211_IOC_STA_INFO ioctl was updated to take a mac
 	address parameter.  Binaries using the old ioctl number will
