@@ -116,10 +116,12 @@ struct fatcache {
  * cache is probably pretty worthless if a file is opened by multiple
  * processes.
  */
-#define	FC_SIZE		2	/* number of entries in the cache */
+#define	FC_SIZE		3	/* number of entries in the cache */
 #define	FC_LASTMAP	0	/* entry the last call to pcbmap() resolved
 				 * to */
 #define	FC_LASTFC	1	/* entry for the last cluster in the file */
+#define	FC_NEXTTOLASTFC	2	/* entry for a close to the last cluster in
+				 * the file */
 
 #define	FCE_EMPTY	0xffffffff	/* doesn't represent an actual cluster # */
 
@@ -129,6 +131,13 @@ struct fatcache {
 #define	fc_setcache(dep, slot, frcn, fsrcn) \
 	(dep)->de_fc[(slot)].fc_frcn = (frcn); \
 	(dep)->de_fc[(slot)].fc_fsrcn = (fsrcn);
+
+#define	fc_last_to_nexttolast(dep) do {		 \
+	(dep)->de_fc[FC_NEXTTOLASTFC].fc_frcn =  \
+	(dep)->de_fc[FC_LASTFC].fc_frcn;	 \
+	(dep)->de_fc[FC_NEXTTOLASTFC].fc_fsrcn = \
+	(dep)->de_fc[FC_LASTFC].fc_fsrcn;	 \
+} while (0)
 
 /*
  * This is the in memory variant of a dos directory entry.  It is usually
