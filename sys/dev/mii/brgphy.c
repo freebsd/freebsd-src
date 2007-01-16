@@ -86,7 +86,7 @@ static devclass_t brgphy_devclass;
 static driver_t brgphy_driver = {
 	"brgphy",
 	brgphy_methods,
-	sizeof(struct mii_softc)
+	sizeof(struct brgphy_softc)
 };
 
 DRIVER_MODULE(brgphy, miibus, brgphy_driver, brgphy_devclass, 0, 0);
