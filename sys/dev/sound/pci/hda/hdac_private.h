@@ -31,7 +31,7 @@
 
 
 /****************************************************************************
- * Miscellanious defines
+ * Miscellaneous defines
  ****************************************************************************/
 #define HDAC_DMA_ALIGNMENT	128
 #define HDAC_CODEC_MAX		16
