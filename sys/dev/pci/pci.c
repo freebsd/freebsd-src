@@ -385,8 +385,6 @@ pci_hdrtypedata(device_t pcib, int b, int s, int f, pcicfgregs *cfg)
 		cfg->nummaps	    = PCI_MAXMAPS_0;
 		break;
 	case 1:
-		cfg->subvendor      = REG(PCIR_SUBVEND_1, 2);
-		cfg->subdevice      = REG(PCIR_SUBDEV_1, 2);
 		cfg->nummaps	    = PCI_MAXMAPS_1;
 		break;
 	case 2:
@@ -567,6 +565,13 @@ pci_read_extcap(device_t pcib, pcicfgregs *cfg)
 			cfg->vpd.vpd_reg = ptr;
 			pci_read_vpd(pcib, cfg);
 			break;
+		case PCIY_SUBVENDOR:
+			/* Should always be true. */
+			if ((cfg->hdrtype & PCIM_HDRTYPE) == 1) {
+				val = REG(ptr + PCIR_SUBVENDCAP_ID, 4);
+				cfg->subvendor = val & 0xffff;
+				cfg->subdevice = val >> 16;
+			}
 		default:
 			break;
 		}
