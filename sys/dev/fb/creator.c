@@ -30,22 +30,170 @@ __FBSDID("$FreeBSD$");
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/bus.h>
+#include <sys/conf.h>
 #include <sys/consio.h>
 #include <sys/fbio.h>
 #include <sys/kernel.h>
 #include <sys/module.h>
-
-#include <machine/bus.h>
-#include <machine/ofw_upa.h>
-#include <machine/sc_machdep.h>
-
-#include <dev/fb/fbreg.h>
-#include <dev/fb/gallant12x22.h>
-#include <dev/syscons/syscons.h>
+#include <sys/resource.h>
 
 #include <dev/ofw/openfirm.h>
 
-#include <sparc64/creator/creator.h>
+#include <machine/bus.h>
+#include <machine/bus_private.h>
+#include <machine/nexusvar.h>
+#include <machine/ofw_machdep.h>
+#include <machine/ofw_upa.h>
+#include <machine/resource.h>
+#include <machine/sc_machdep.h>
+
+#include <sys/rman.h>
+
+#include <dev/fb/fbreg.h>
+#include <dev/fb/creatorreg.h>
+#include <dev/fb/gallant12x22.h>
+#include <dev/syscons/syscons.h>
+
+#define	CREATOR_DRIVER_NAME	"creator"
+
+struct creator_softc {
+	video_adapter_t		sc_va;			/* XXX must be first */
+
+	phandle_t		sc_node;
+
+	struct cdev		*sc_si;
+
+	int			sc_rid[FFB_NREG];
+	struct resource		*sc_reg[FFB_NREG];
+	bus_space_tag_t		sc_bt[FFB_NREG];
+	bus_space_handle_t	sc_bh[FFB_NREG];
+
+	int			sc_height;
+	int			sc_width;
+
+	int			sc_xmargin;
+	int			sc_ymargin;
+
+	u_char			*sc_font;
+
+	int			sc_bg_cache;
+	int			sc_fg_cache;
+	int			sc_fifo_cache;
+	int			sc_fontinc_cache;
+	int			sc_fontw_cache;
+	int			sc_pmask_cache;
+
+	int			sc_flags;
+#define	CREATOR_AFB		(1 << 0)
+#define	CREATOR_CONSOLE		(1 << 1)
+#define	CREATOR_CUREN		(1 << 2)
+#define	CREATOR_CURINV		(1 << 3)
+#define	CREATOR_PAC1		(1 << 4)
+};
+
+#define	FFB_READ(sc, reg, off)						\
+	bus_space_read_4((sc)->sc_bt[(reg)], (sc)->sc_bh[(reg)], (off))
+#define	FFB_WRITE(sc, reg, off, val)					\
+	bus_space_write_4((sc)->sc_bt[(reg)], (sc)->sc_bh[(reg)], (off), (val))
+
+#define	C(r, g, b)	((b << 16) | (g << 8) | (r))
+static const uint32_t creator_cmap[] = {
+	C(0x00, 0x00, 0x00),		/* black */
+	C(0x00, 0x00, 0xff),		/* blue */
+	C(0x00, 0xff, 0x00),		/* green */
+	C(0x00, 0xc0, 0xc0),		/* cyan */
+	C(0xff, 0x00, 0x00),		/* red */
+	C(0xc0, 0x00, 0xc0),		/* magenta */
+	C(0xc0, 0xc0, 0x00),		/* brown */
+	C(0xc0, 0xc0, 0xc0),		/* light grey */
+	C(0x80, 0x80, 0x80),		/* dark grey */
+	C(0x80, 0x80, 0xff),		/* light blue */
+	C(0x80, 0xff, 0x80),		/* light green */
+	C(0x80, 0xff, 0xff),		/* light cyan */
+	C(0xff, 0x80, 0x80),		/* light red */
+	C(0xff, 0x80, 0xff),		/* light magenta */
+	C(0xff, 0xff, 0x80),		/* yellow */
+	C(0xff, 0xff, 0xff),		/* white */
+};
+#undef C
+
+static const struct {
+	vm_offset_t virt;
+	vm_paddr_t phys;
+	vm_size_t size;
+} creator_fb_map[] = {
+	{ FFB_VIRT_SFB8R,	FFB_PHYS_SFB8R,		FFB_SIZE_SFB8R },
+	{ FFB_VIRT_SFB8G,	FFB_PHYS_SFB8G,		FFB_SIZE_SFB8G },
+	{ FFB_VIRT_SFB8B,	FFB_PHYS_SFB8B,		FFB_SIZE_SFB8B },
+	{ FFB_VIRT_SFB8X,	FFB_PHYS_SFB8X,		FFB_SIZE_SFB8X },
+	{ FFB_VIRT_SFB32,	FFB_PHYS_SFB32,		FFB_SIZE_SFB32 },
+	{ FFB_VIRT_SFB64,	FFB_PHYS_SFB64,		FFB_SIZE_SFB64 },
+	{ FFB_VIRT_FBC,		FFB_PHYS_FBC,		FFB_SIZE_FBC },
+	{ FFB_VIRT_FBC_BM,	FFB_PHYS_FBC_BM,	FFB_SIZE_FBC_BM },
+	{ FFB_VIRT_DFB8R,	FFB_PHYS_DFB8R,		FFB_SIZE_DFB8R },
+	{ FFB_VIRT_DFB8G,	FFB_PHYS_DFB8G,		FFB_SIZE_DFB8G },
+	{ FFB_VIRT_DFB8B,	FFB_PHYS_DFB8B,		FFB_SIZE_DFB8B },
+	{ FFB_VIRT_DFB8X,	FFB_PHYS_DFB8X,		FFB_SIZE_DFB8X },
+	{ FFB_VIRT_DFB24,	FFB_PHYS_DFB24,		FFB_SIZE_DFB24 },
+	{ FFB_VIRT_DFB32,	FFB_PHYS_DFB32,		FFB_SIZE_DFB32 },
+	{ FFB_VIRT_DFB422A,	FFB_PHYS_DFB422A,	FFB_SIZE_DFB422A },
+	{ FFB_VIRT_DFB422AD,	FFB_PHYS_DFB422AD,	FFB_SIZE_DFB422AD },
+	{ FFB_VIRT_DFB24B,	FFB_PHYS_DFB24B,	FFB_SIZE_DFB24B },
+	{ FFB_VIRT_DFB422B,	FFB_PHYS_DFB422B,	FFB_SIZE_DFB422B },
+	{ FFB_VIRT_DFB422BD,	FFB_PHYS_DFB422BD,	FFB_SIZE_DFB422BD },
+	{ FFB_VIRT_SFB16Z,	FFB_PHYS_SFB16Z,	FFB_SIZE_SFB16Z },
+	{ FFB_VIRT_SFB8Z,	FFB_PHYS_SFB8Z,		FFB_SIZE_SFB8Z },
+	{ FFB_VIRT_SFB422,	FFB_PHYS_SFB422,	FFB_SIZE_SFB422 },
+	{ FFB_VIRT_SFB422D,	FFB_PHYS_SFB422D,	FFB_SIZE_SFB422D },
+	{ FFB_VIRT_FBC_KREG,	FFB_PHYS_FBC_KREG,	FFB_SIZE_FBC_KREG },
+	{ FFB_VIRT_DAC,		FFB_PHYS_DAC,		FFB_SIZE_DAC },
+	{ FFB_VIRT_PROM,	FFB_PHYS_PROM,		FFB_SIZE_PROM },
+	{ FFB_VIRT_EXP,		FFB_PHYS_EXP,		FFB_SIZE_EXP },
+};
+
+#define	CREATOR_FB_MAP_SIZE						\
+	(sizeof(creator_fb_map) / sizeof(creator_fb_map[0]))
+
+static struct creator_softc creator_softc;
+static struct bus_space_tag creator_bst_store[FFB_FBC];
+
+static device_probe_t creator_bus_probe;
+static device_attach_t creator_bus_attach;
+
+static device_method_t creator_bus_methods[] = {
+	DEVMETHOD(device_probe,		creator_bus_probe),
+	DEVMETHOD(device_attach,	creator_bus_attach),
+
+	{ 0, 0 }
+};
+
+static devclass_t creator_devclass;
+
+DEFINE_CLASS_0(creator, creator_bus_driver, creator_bus_methods,
+    sizeof(struct creator_softc));
+DRIVER_MODULE(creator, nexus, creator_bus_driver, creator_devclass, 0, 0);
+#if 0
+DRIVER_MODULE(creator, upa, creator_bus_driver, creator_devclass, 0, 0);
+#endif
+
+static d_open_t creator_fb_open;
+static d_close_t creator_fb_close;
+static d_ioctl_t creator_fb_ioctl;
+static d_mmap_t creator_fb_mmap;
+
+static struct cdevsw creator_fb_devsw = {
+	.d_version =	D_VERSION,
+	.d_flags =	D_NEEDGIANT,
+	.d_open =	creator_fb_open,
+	.d_close =	creator_fb_close,
+	.d_ioctl =	creator_fb_ioctl,
+	.d_mmap =	creator_fb_mmap,
+	.d_name =	"fb",
+};
+
+static void creator_cursor_enable(struct creator_softc *sc, int onoff);
+static void creator_cursor_install(struct creator_softc *sc);
+static void creator_shutdown(void *xsc);
 
 static int creator_configure(int flags);
 
@@ -80,9 +228,6 @@ static vi_putp_t creator_putp;
 static vi_putc_t creator_putc;
 static vi_puts_t creator_puts;
 static vi_putm_t creator_putm;
-
-static void creator_cursor_enable(struct creator_softc *sc, int onoff);
-static void creator_cursor_install(struct creator_softc *sc);
 
 static video_switch_t creatorvidsw = {
 	.probe			= creator_probe,
@@ -127,28 +272,6 @@ RENDERER(creator, 0, txtrndrsw, gfb_set);
 
 RENDERER_MODULE(creator, gfb_set);
 
-extern struct bus_space_tag nexus_bustag;
-
-#define	C(r, g, b)	((b << 16) | (g << 8) | (r))
-static const int cmap[] = {
-	C(0x00, 0x00, 0x00),		/* black */
-	C(0x00, 0x00, 0xff),		/* blue */
-	C(0x00, 0xff, 0x00),		/* green */
-	C(0x00, 0xc0, 0xc0),		/* cyan */
-	C(0xff, 0x00, 0x00),		/* red */
-	C(0xc0, 0x00, 0xc0),		/* magenta */
-	C(0xc0, 0xc0, 0x00),		/* brown */
-	C(0xc0, 0xc0, 0xc0),		/* light grey */
-	C(0x80, 0x80, 0x80),		/* dark grey */
-	C(0x80, 0x80, 0xff),		/* light blue */
-	C(0x80, 0xff, 0x80),		/* light green */
-	C(0x80, 0xff, 0xff),		/* light cyan */
-	C(0xff, 0x80, 0x80),		/* light red */
-	C(0xff, 0x80, 0xff),		/* light magenta */
-	C(0xff, 0xff, 0x80),		/* yellow */
-	C(0xff, 0xff, 0xff),		/* white */
-};
-
 static const u_char creator_mouse_pointer[64][8] __aligned(8) = {
 	{ 0x00, 0x00, },	/* ............ */
 	{ 0x80, 0x00, },	/* *........... */
@@ -173,8 +296,6 @@ static const u_char creator_mouse_pointer[64][8] __aligned(8) = {
 	{ 0x00, 0x00, },	/* ............ */
 	{ 0x00, 0x00, },	/* ............ */
 };
-
-static struct creator_softc creator_softc;
 
 static inline void creator_ras_fifo_wait(struct creator_softc *sc, int n);
 static inline void creator_ras_setfontinc(struct creator_softc *sc, int fontinc);
@@ -272,16 +393,20 @@ creator_ras_setpmask(struct creator_softc *sc, int pmask)
 	creator_ras_wait(sc);
 }
 
+/*
+ * video driver interface
+ */
 static int
 creator_configure(int flags)
 {
-	struct upa_regs reg[FFB_NREG];
 	struct creator_softc *sc;
 	phandle_t chosen;
 	phandle_t output;
 	ihandle_t stdout;
-	char buf[32];
+	bus_addr_t addr;
+	char buf[sizeof("SUNW,ffb")];
 	int i;
+	int space;
 
 	/*
 	 * For the high-level console probing return the number of
@@ -315,11 +440,11 @@ creator_configure(int flags)
 	} else
 		return (0);
 
-	if (OF_getprop(output, "reg", reg, sizeof(reg)) == -1)
-		return (0);
-	for (i = 0; i < FFB_NREG; i++) {
-		sc->sc_bt[i] = &nexus_bustag;
-		sc->sc_bh[i] = UPA_REG_PHYS(reg + i);
+	for (i = FFB_DAC; i <= FFB_FBC; i++) {
+		if (OF_decode_addr(output, i, &space, &addr) != 0)
+			return (0);
+		sc->sc_bt[i] = &creator_bst_store[i - FFB_DAC];
+		sc->sc_bh[i] = sparc64_fake_bustag(space, addr, sc->sc_bt[i]);
 	}
 
 	if (creator_init(0, &sc->sc_va, 0) < 0)
@@ -343,7 +468,7 @@ creator_init(int unit, video_adapter_t *adp, int flags)
 	struct creator_softc *sc;
 	phandle_t options;
 	video_info_t *vi;
-	char buf[32];
+	char buf[sizeof("screen-#columns")];
 
 	sc = (struct creator_softc *)adp;
 	vi = &adp->va_info;
@@ -628,7 +753,7 @@ creator_fill_rect(video_adapter_t *adp, int val, int x, int y, int cx, int cy)
 	creator_ras_fifo_wait(sc, 2);
 	FFB_WRITE(sc, FFB_FBC, FFB_FBC_ROP, FBC_ROP_NEW);
 	FFB_WRITE(sc, FFB_FBC, FFB_FBC_DRAWOP, FBC_DRAWOP_RECTANGLE);
-	creator_ras_setfg(sc, cmap[val & 0xf]);
+	creator_ras_setfg(sc, creator_cmap[val & 0xf]);
 	/*
 	 * Note that at least the Elite3D cards are sensitive to the order
 	 * of operations here.
@@ -702,8 +827,8 @@ creator_putc(video_adapter_t *adp, vm_offset_t off, u_int8_t c, u_int8_t a)
 	row = (off / adp->va_info.vi_width) * adp->va_info.vi_cheight;
 	col = (off % adp->va_info.vi_width) * adp->va_info.vi_cwidth;
 	p = (uint16_t *)sc->sc_font + (c * adp->va_info.vi_cheight);
-	creator_ras_setfg(sc, cmap[a & 0xf]);
-	creator_ras_setbg(sc, cmap[(a >> 4) & 0xf]);
+	creator_ras_setfg(sc, creator_cmap[a & 0xf]);
+	creator_ras_setbg(sc, creator_cmap[(a >> 4) & 0xf]);
 	creator_ras_fifo_wait(sc, 1 + adp->va_info.vi_cheight);
 	FFB_WRITE(sc, FFB_FBC, FFB_FBC_FONTXY,
 	    ((row + sc->sc_ymargin) << 16) | (col + sc->sc_xmargin));
@@ -745,6 +870,228 @@ creator_putm(video_adapter_t *adp, int x, int y, u_int8_t *pixel_image,
 	return (0);
 }
 
+/*
+ * bus interface
+ */
+static int
+creator_bus_probe(device_t dev)
+{
+	const char *name;
+	phandle_t node;
+	int type;
+
+	name = nexus_get_name(dev);
+	node = nexus_get_node(dev);
+	if (strcmp(name, "SUNW,ffb") == 0) {
+		if (OF_getprop(node, "board_type", &type, sizeof(type)) == -1)
+			return (ENXIO);
+		switch (type & 7) {
+		case 0x0:
+			device_set_desc(dev, "Creator");
+			break;
+		case 0x3:
+			device_set_desc(dev, "Creator3D");
+			break;
+		default:
+			return (ENXIO);
+		}
+	} else if (strcmp(name, "SUNW,afb") == 0)
+		device_set_desc(dev, "Elite3D");
+	else
+		return (ENXIO);
+	return (BUS_PROBE_DEFAULT);
+}
+
+static int
+creator_bus_attach(device_t dev)
+{
+	struct creator_softc *sc;
+	struct upa_regs *reg;
+	video_adapter_t *adp;
+	video_switch_t *sw;
+	phandle_t node;
+	bus_addr_t phys;
+	bus_size_t size;
+	int error;
+	int nreg;
+	int unit;
+	int i;
+
+	node = nexus_get_node(dev);
+	if ((sc = (struct creator_softc *)vid_get_adapter(vid_find_adapter(
+	    CREATOR_DRIVER_NAME, 0))) != NULL && sc->sc_node == node) {
+	    	device_printf(dev, "console\n");
+	    	device_set_softc(dev, sc);
+	} else {
+		sc = device_get_softc(dev);
+		sc->sc_node = node;
+	}
+	adp = &sc->sc_va;
+
+	/*
+	 * Allocate resources regardless of whether we are the console
+	 * and already obtained the bus tags and handles for the FFB_DAC
+	 * and FFB_FBC register banks in creator_configure() or not so
+	 * the resources are marked as taken in the respective RMAN.
+	 * The supported cards use either 15 (Creator, Elite3D?) or 24
+	 * (Creator3D?) register banks. We make sure that we can also
+	 * allocate the resources for at least the FFB_DAC and FFB_FBC
+	 * banks here. We try but don't actually care whether we can
+	 * allocate more than these two resources and just limit the
+	 * range accessible via creator_fb_mmap() accordingly.
+	 */
+	reg = nexus_get_reg(dev);
+	nreg = nexus_get_nreg(dev);
+	if (nreg <= FFB_FBC) {
+		device_printf(dev, "not enough resources\n");
+		error = ENXIO;
+		goto fail;
+	}
+	for (i = 0; i < nreg; i++) {
+		phys = UPA_REG_PHYS(reg + i);
+		size = UPA_REG_SIZE(reg + i);
+		sc->sc_rid[i] = i;
+		sc->sc_reg[i] = bus_alloc_resource(dev, SYS_RES_MEMORY,
+		    &sc->sc_rid[i], phys, phys + size - 1, size,
+		    RF_ACTIVE);
+		if (sc->sc_reg[i] == NULL) {
+			if (i <= FFB_FBC) {
+				device_printf(dev,
+				    "cannot allocate resources\n");
+				error = ENXIO;
+				goto fail;
+			}
+			break;
+		}
+		sc->sc_bt[i] = rman_get_bustag(sc->sc_reg[i]);
+		sc->sc_bh[i] = rman_get_bushandle(sc->sc_reg[i]);
+	}
+	/*
+	 * The XFree86/Xorg sunffb(4) expects to be able to access the
+	 * memory spanned by the first and the last resource as one chunk
+	 * via creator_fb_mmap(), using offsets from the first resource,
+	 * even though the backing resources are actually non-continuous.
+	 * So make sure that the memory we provide is at least backed by
+	 * increasing resources.
+	 */
+	adp->va_mem_base = rman_get_start(sc->sc_reg[0]);
+	for (i = 1; i < FFB_NREG && sc->sc_reg[i] != NULL &&
+	    rman_get_start(sc->sc_reg[i]) > rman_get_start(sc->sc_reg[i - 1]);
+	    i++)
+		;
+    	adp->va_mem_size = rman_get_end(sc->sc_reg[i - 1]) -
+	    adp->va_mem_base + 1;
+
+	if (!(sc->sc_flags & CREATOR_CONSOLE)) {
+		if ((sw = vid_get_switch(CREATOR_DRIVER_NAME)) == NULL) {
+			device_printf(dev, "cannot get video switch\n");
+			error = ENODEV;
+			goto fail;
+		}
+		/*
+		 * During device configuration we don't necessarily probe
+		 * the adapter which is the console first so we can't use
+		 * the device unit number for the video adapter unit. The
+		 * worst case would be that we use the video adapter unit
+		 * 0 twice. As it doesn't really matter which unit number
+		 * the corresponding video adapter has just use the next
+		 * unused one.
+		 */
+		for (i = 0; i < devclass_get_maxunit(creator_devclass); i++)
+			if (vid_find_adapter(CREATOR_DRIVER_NAME, i) < 0)
+				break;
+		if (strcmp(nexus_get_name(dev), "SUNW,afb") == 0)
+			sc->sc_flags |= CREATOR_AFB;
+		if ((error = sw->init(i, adp, 0)) != 0) {
+			device_printf(dev, "cannot initialize adapter\n");
+		    	goto fail;
+		}
+	}
+
+	if (bootverbose) {
+		if (sc->sc_flags & CREATOR_PAC1)
+			device_printf(dev,
+			    "BT9068/PAC1 RAMDAC (%s cursor control)\n",
+			    sc->sc_flags & CREATOR_CURINV ? "inverted" :
+			    "normal");
+		else
+			device_printf(dev, "BT498/PAC2 RAMDAC\n");
+	}
+	device_printf(dev, "resolution %dx%d\n", sc->sc_width, sc->sc_height);
+
+	unit = device_get_unit(dev);
+	sc->sc_si = make_dev(&creator_fb_devsw, unit, UID_ROOT, GID_WHEEL,
+	    0600, "fb%d", unit);
+	sc->sc_si->si_drv1 = sc;
+
+	EVENTHANDLER_REGISTER(shutdown_final, creator_shutdown, sc,
+	    SHUTDOWN_PRI_DEFAULT);
+
+	return (0);
+
+ fail:
+	for (i = 0; i < FFB_NREG && sc->sc_reg[i] != NULL; i++)
+		bus_release_resource(dev, SYS_RES_MEMORY, sc->sc_rid[i],
+		    sc->sc_reg[i]);
+ 	return (error);
+}
+
+/*
+ * /dev/fb interface
+ */
+static int
+creator_fb_open(struct cdev *dev, int flags, int mode, struct thread *td)
+{
+
+	return (0);
+}
+
+static int
+creator_fb_close(struct cdev *dev, int flags, int mode, struct thread *td)
+{
+
+	return (0);
+}
+
+static int
+creator_fb_ioctl(struct cdev *dev, u_long cmd, caddr_t data, int flags,
+    struct thread *td)
+{
+	struct creator_softc *sc;
+
+	sc = dev->si_drv1;
+	return (creator_ioctl(&sc->sc_va, cmd, data));
+}
+
+static int
+creator_fb_mmap(struct cdev *dev, vm_offset_t offset, vm_paddr_t *paddr,
+    int prot)
+{
+	struct creator_softc *sc;
+	int i;
+
+	/*
+	 * NB: This is a special implementation based on the /dev/fb
+	 * requirements of the XFree86/Xorg sunffb(4).
+	 */
+	sc = dev->si_drv1;
+	for (i = 0; i < CREATOR_FB_MAP_SIZE; i++) {
+		if (offset >= creator_fb_map[i].virt &&
+		    offset < creator_fb_map[i].virt + creator_fb_map[i].size) {
+		    	offset += creator_fb_map[i].phys -
+			    creator_fb_map[i].virt;
+			if (offset >= sc->sc_va.va_mem_size)
+				return (EINVAL);
+			*paddr = sc->sc_bh[0] + offset;
+			return (0);
+		}
+	}
+	return (EINVAL);
+}
+
+/*
+ * internal functions
+ */
 static void
 creator_cursor_enable(struct creator_softc *sc, int onoff)
 {
@@ -773,8 +1120,25 @@ creator_cursor_install(struct creator_softc *sc)
 		for (j = 0; j < 64; j++) {
 			FFB_WRITE(sc, FFB_DAC, FFB_DAC_VALUE2,
 			    *(const uint32_t *)(&creator_mouse_pointer[j][0]));
-			FFB_WRITE(sc, FFB_DAC, FFB_DAC_VALUE2, 
+			FFB_WRITE(sc, FFB_DAC, FFB_DAC_VALUE2,
 			    *(const uint32_t *)(&creator_mouse_pointer[j][4]));
 		}
+	}
+}
+
+static void
+creator_shutdown(void *xsc)
+{
+	struct creator_softc *sc = xsc;
+
+	creator_cursor_enable(sc, 0);
+	/*
+	 * In case this is the console set the cursor of the stdout
+	 * instance to the start of the last line so OFW output ends
+	 * up beneath what FreeBSD left on the screen.
+	 */
+	if (sc->sc_flags & CREATOR_CONSOLE) {
+		OF_interpret("stdout @ is my-self 0 to column#", 0);
+		OF_interpret("stdout @ is my-self #lines 1 - to line#", 0);
 	}
 }
