@@ -244,10 +244,14 @@ OF_decode_addr(phandle_t node, int bank, int *space, bus_addr_t *addr)
 
 	/* Done with mapping. Return the bus space as used by FreeBSD. */
 	*addr = start;
+	if (OF_parent(lbus) == 0) {
+		*space = UPA_BUS_SPACE;
+		return (0);
+	}
 	if (OF_getprop(lbus, "name", name, sizeof(name)) == -1)
 		return (ENXIO);
 	name[sizeof(name) - 1] = '\0';
-	if (strcmp(name, "central") == 0) {
+	if (strcmp(name, "central") == 0 || strcmp(name, "upa") == 0) {
 		*space = UPA_BUS_SPACE;
 		return (0);
 	} else if (strcmp(name, "pci") == 0) {
