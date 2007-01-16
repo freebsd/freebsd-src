@@ -28,7 +28,7 @@
 .\"     @(#)chmod.2	8.1 (Berkeley) 6/4/93
 .\" $FreeBSD$
 .\"
-.Dd December 9, 2006
+.Dd January 16, 2006
 .Dt CHMOD 2
 .Os
 .Sh NAME
@@ -174,6 +174,10 @@ Too many symbolic links were encountered in translating the pathname.
 .It Bq Er EPERM
 The effective user ID does not match the owner of the file and
 the effective user ID is not the super-user.
+.It Bq Er EPERM
+The effective user ID is not the super-user, the effective user ID do match the
+owner of the file, but the group ID of the file does not match the effective
+group ID nor one of the supplementary group IDs.
 .It Bq Er EPERM
 The named file has its immutable or append-only flag set, see the
 .Xr chflags 2
