@@ -643,6 +643,7 @@ struct rl_stats {
 #endif
 
 #define RL_TX_DESC_CNT		64
+#define RL_TX_DESC_THLD		4
 #define RL_RX_DESC_CNT		RL_TX_DESC_CNT
 
 #define RL_RX_LIST_SZ		(RL_RX_DESC_CNT * sizeof(struct rl_desc))
@@ -671,7 +672,6 @@ struct rl_stats {
 struct rl_softc;
 
 struct rl_dmaload_arg {
-	struct rl_softc		*sc;
 	int			rl_idx;
 	int			rl_maxsegs;
 	uint32_t		rl_flags;
