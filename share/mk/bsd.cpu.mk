@@ -22,8 +22,10 @@ MACHINE_CPU = arm
 # between e.g. i586 and pentium)
 
 . if ${MACHINE_ARCH} == "i386"
-.  if ${CPUTYPE} == "nocona"
-CPUTYPE = prescott
+.  if ${CPUTYPE} == "prescott"
+CPUTYPE = nocona
+.  elif ${CPUTYPE} == "core2"
+CPUTYPE = core
 .  elif ${CPUTYPE} == "p4"
 CPUTYPE = pentium4
 .  elif ${CPUTYPE} == "p4m"
@@ -131,6 +133,8 @@ MACHINE_CPU = k5 i586 i486 i386
 MACHINE_CPU = 3dnow mmx i586 i486 i386
 .  elif ${CPUTYPE} == "c3-2"
 MACHINE_CPU = sse mmx i586 i486 i386
+.  elif ${CPUTYPE} == "nocona" || ${CPUTYPE} == "core"
+MACHINE_CPU = sse3 sse2 sse i686 mmx i586 i486 i386
 .  elif ${CPUTYPE} == "pentium4" || ${CPUTYPE} == "pentium4m" || ${CPUTYPE} == "pentium-m"
 MACHINE_CPU = sse2 sse i686 mmx i586 i486 i386
 .  elif ${CPUTYPE} == "pentium3" || ${CPUTYPE} == "pentium3m"
@@ -151,7 +155,7 @@ MACHINE_CPU = i386
 . elif ${MACHINE_ARCH} == "amd64"
 .  if ${CPUTYPE} == "opteron" || ${CPUTYPE} == "athlon64" || ${CPUTYPE} == "k8"
 MACHINE_CPU = k8 3dnow
-.  elif ${CPUTYPE} == "nocona"
+.  elif ${CPUTYPE} == "nocona" || ${CPUTYPE} == "core2"
 MACHINE_CPU = sse3
 .  endif
 MACHINE_CPU += amd64 sse2 sse mmx
