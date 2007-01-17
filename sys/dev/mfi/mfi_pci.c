@@ -88,7 +88,9 @@ struct mfi_ident {
 	int		flags;
 	const char	*desc;
 } mfi_identifiers[] = {
-	{0x1000, 0x0411, 0xffff, 0xffff, 0, "LSI MegaSAS 1064R"},
+	{0x1000, 0x0409, 0xffff, 0xffff, 0, "LSI MegaSAS 1064R"}, /* Lindsay ZCR IOP */
+	{0x1000, 0x0411, 0xffff, 0xffff, 0, "LSI MegaSAS 1064R"}, /* Brocton IOP */
+	{0x1000, 0x0413, 0xffff, 0xffff, 0, "LSI MegaSAS 1064R"}, /* Verde ZCR */
 	{0x1028, 0x0015, 0xffff, 0xffff, 0, "Dell PERC 5/i"},
 	{0, 0, 0, 0, 0, NULL}
 };
