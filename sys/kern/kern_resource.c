@@ -142,7 +142,7 @@ getpriority(td, uap)
 		if (uap->who == 0)
 			uap->who = td->td_ucred->cr_uid;
 		sx_slock(&allproc_lock);
-		LIST_FOREACH(p, &allproc, p_list) {
+		FOREACH_PROC_IN_SYSTEM(p) {
 			PROC_LOCK(p);
 			if (!p_cansee(td, p) &&
 			    p->p_ucred->cr_uid == uap->who) {
