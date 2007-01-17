@@ -88,6 +88,12 @@ __FBSDID("$FreeBSD$");
 
 #include "miibus_if.h"
 
+/* 
+ * XXX: For the main bus dma tag. Can go away if the new method to get the 
+ * dma tag from the parent got MFC'd into RELENG_6.
+ */
+extern struct ixp425_softc *ixp425_softc;
+
 struct npebuf {
 	struct npebuf	*ix_next;	/* chain to next buffer */
 	void		*ix_m;		/* backpointer to mbuf */
@@ -447,7 +453,7 @@ npe_dma_setup(struct npe_softc *sc, struct npedma *dma,
 	dma->nbuf = nbuf;
 
 	/* DMA tag for mapped mbufs  */
-	error = bus_dma_tag_create(NULL, 1, 0,
+	error = bus_dma_tag_create(ixp425_softc->sc_dmat, 1, 0,
 	    BUS_SPACE_MAXADDR_32BIT, BUS_SPACE_MAXADDR, NULL, NULL,
 	    MCLBYTES, maxseg, MCLBYTES, 0,
 	    busdma_lock_mutex, &sc->sc_mtx, &dma->mtag);
@@ -458,7 +464,7 @@ npe_dma_setup(struct npe_softc *sc, struct npedma *dma,
 	}
 
 	/* DMA tag and map for the NPE buffers */
-	error = bus_dma_tag_create(NULL, sizeof(uint32_t), 0, 
+	error = bus_dma_tag_create(ixp425_softc->sc_dmat, sizeof(uint32_t), 0, 
 	    BUS_SPACE_MAXADDR_32BIT, BUS_SPACE_MAXADDR, NULL, NULL,
 	    nbuf * sizeof(struct npehwbuf), 1,
 	    nbuf * sizeof(struct npehwbuf), 0,
@@ -582,7 +588,7 @@ npe_activate(device_t dev)
 		return error;
 
 	/* setup statistics block */
-	error = bus_dma_tag_create(NULL, sizeof(uint32_t), 0,
+	error = bus_dma_tag_create(ixp425_softc->sc_dmat, sizeof(uint32_t), 0,
 	    BUS_SPACE_MAXADDR_32BIT, BUS_SPACE_MAXADDR, NULL, NULL,
 	    sizeof(struct npestats), 1, sizeof(struct npestats), 0,
 	    busdma_lock_mutex, &sc->sc_mtx, &sc->sc_stats_tag);
