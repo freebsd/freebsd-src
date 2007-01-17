@@ -51,7 +51,7 @@ CPUTYPE = athlon-mp
 CPUTYPE = athlon
 .  endif
 . elif ${MACHINE_ARCH} == "amd64"
-.  if ${CPUTYPE} == "prescott"
+.  if ${CPUTYPE} == "prescott" || ${CPUTYPE} == "core2"
 CPUTYPE = nocona
 .  endif
 . endif
