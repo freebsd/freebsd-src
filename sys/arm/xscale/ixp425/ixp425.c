@@ -149,6 +149,7 @@ arm_mask_irq(uintptr_t nb)
 void
 arm_unmask_irq(uintptr_t nb)
 {
+
 	intr_enabled |= (1 << nb);
 	ixp425_set_intrmask();
 }
@@ -210,6 +211,11 @@ ixp425_attach(device_t dev)
 	intr_enabled = 0;
 	ixp425_set_intrmask();
 	ixp425_set_intrsteer();
+
+	if (bus_dma_tag_create(NULL, 1, 0, BUS_SPACE_MAXADDR_32BIT,
+	    BUS_SPACE_MAXADDR, NULL, NULL,  0xffffffff, 0xff, 0xffffffff, 0, 
+	    NULL, NULL, &sc->sc_dmat))
+		panic("couldn't create the IXP425 dma tag !");
 
 	sc->sc_irq_rman.rm_type = RMAN_ARRAY;
 	sc->sc_irq_rman.rm_descr = "IXP425 IRQs";
