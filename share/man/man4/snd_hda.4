@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd December 17, 2006
+.Dd January 17, 2007
 .Dt SND_HDA 4
 .Os
 .Sh NAME
@@ -73,6 +73,31 @@ The HDA specification defines the register-level interface, physical link
 characteristics, codec programming models, and codec architectural components.
 This specification is intended for both device driver developers and hardware
 component designers.
+.Ss Boot-time Configuration
+The following variables are available at boot-time through the
+.Xr device.hints 5
+file:
+.Bl -tag -width ".Va hint.pcm.%d.config" -offset indent
+.It Va hint.pcm.%d.config
+Configures a range of possible options.
+Possible values are:
+.Dq Li gpio0 ,
+.Dq Li gpio1 ,
+.Dq Li gpio2 ,
+.Dq Li gpioflush ,
+.Dq Li eapdinv ,
+.Dq Li fixedrate ,
+.Dq Li forcestereo ,
+.Dq Li softpcmvol ,
+and
+.Dq Li vref .
+An option prefixed with
+.Dq Li no ,
+such as
+.Dq Li nofixedrate
+will do the opposite and takes precedence.
+Options can be separated by whitespace and commas.
+.El
 .Ss Runtime Configuration
 The following
 .Xr sysctl 8
@@ -124,7 +149,7 @@ SiS 966
 VIA VT8251/8237A
 .El
 .Pp
-Generic Audio chipsets compatible with the Intel HDA specification should work,
+Generic audio chipsets compatible with the Intel HDA specification should work,
 but have not been verified yet.
 The following codecs have been verified to work:
 .Pp
@@ -166,7 +191,9 @@ Sigmatel STAC9227
 .El
 .Sh SEE ALSO
 .Xr sound 4 ,
-.Xr loader.conf 5
+.Xr device.hints 5 ,
+.Xr loader.conf 5 ,
+.Xr sysctl 8
 .Sh HISTORY
 The
 .Nm
