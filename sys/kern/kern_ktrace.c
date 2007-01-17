@@ -629,7 +629,7 @@ ktrace(td, uap)
 	 */
 	if (ops == KTROP_CLEARFILE) {
 		sx_slock(&allproc_lock);
-		LIST_FOREACH(p, &allproc, p_list) {
+		FOREACH_PROC_IN_SYSTEM(p) {
 			PROC_LOCK(p);
 			if (p->p_tracevp == vp) {
 				if (ktrcanset(td, p)) {
@@ -968,7 +968,7 @@ ktr_writerequest(struct thread *td, struct ktr_request *req)
 	 */
 	cred = NULL;
 	sx_slock(&allproc_lock);
-	LIST_FOREACH(p, &allproc, p_list) {
+	FOREACH_PROC_IN_SYSTEM(p) {
 		PROC_LOCK(p);
 		if (p->p_tracevp == vp) {
 			mtx_lock(&ktrace_mtx);
