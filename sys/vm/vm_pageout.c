@@ -1574,7 +1574,7 @@ vm_daemon()
 		 * process is swapped out -- deactivate pages
 		 */
 		sx_slock(&allproc_lock);
-		LIST_FOREACH(p, &allproc, p_list) {
+		FOREACH_PROC_IN_SYSTEM(p) {
 			vm_pindex_t limit, size;
 
 			/*
