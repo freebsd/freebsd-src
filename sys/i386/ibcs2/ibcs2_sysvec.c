@@ -110,7 +110,7 @@ ibcs2_modevent(module_t mod, int type, void *unused)
 	case MOD_UNLOAD:
 		/* if this was an ELF module we'd use elf_brand_inuse()... */
 		sx_slock(&allproc_lock);
-		LIST_FOREACH(p, &allproc, p_list) {
+		FOREACH_PROC_IN_SYSTEM(p) {
 			if (p->p_sysent == &ibcs2_svr3_sysvec) {
 				rval = EBUSY;
 				break;

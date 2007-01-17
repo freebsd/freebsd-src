@@ -159,7 +159,7 @@ db_lookup_thread(db_expr_t addr, boolean_t check_pid)
 	if (td != NULL)
 		return (td);
 	if (check_pid) {
-		LIST_FOREACH(p, &allproc, p_list) {
+		FOREACH_PROC_IN_SYSTEM(p) {
 			if (p->p_pid == decaddr)
 				return (FIRST_THREAD_IN_PROC(p));
 		}
@@ -185,7 +185,7 @@ db_lookup_proc(db_expr_t addr)
 
 	decaddr = hex2dec(addr);
 	if (decaddr != -1) {
-		LIST_FOREACH(p, &allproc, p_list) {
+		FOREACH_PROC_IN_SYSTEM(p) {
 			if (p->p_pid == decaddr)
 				return (p);
 		}

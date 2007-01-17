@@ -579,7 +579,7 @@ db_kill(dummy1, dummy2, dummy3, dummy4)
 	 * since we're in DDB.
 	 */
 	/* sx_slock(&allproc_lock); */
-	LIST_FOREACH(p, &allproc, p_list)
+	FOREACH_PROC_IN_SYSTEM(p)
 	    if (p->p_pid == pid)
 		    break;
 	/* sx_sunlock(&allproc_lock); */
@@ -693,7 +693,7 @@ db_stack_trace_all(db_expr_t dummy, boolean_t dummy2, db_expr_t dummy3,
 	jmp_buf jb;
 	void *prev_jb;
 
-	LIST_FOREACH(p, &allproc, p_list) {
+	FOREACH_PROC_IN_SYSTEM(p) {
 		prev_jb = kdb_jmpbuf(jb);
 		if (setjmp(jb) == 0) {
 			FOREACH_THREAD_IN_PROC(p, td) {
