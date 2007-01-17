@@ -301,7 +301,8 @@ swap_pager_swap_init()
 	 * Initialize our zone.  Right now I'm just guessing on the number
 	 * we need based on the number of pages in the system.  Each swblock
 	 * can hold 16 pages, so this is probably overkill.  This reservation
-	 * is typically limited to around 32MB by default.
+	 * is typically limited to around 32MB by default.  The initial
+	 * guess caps the swap space at 8 times the size of RAM.
 	 */
 	n = cnt.v_page_count / 2;
 	if (maxswzone && n > maxswzone / sizeof(struct swblock))
@@ -1778,6 +1779,8 @@ retry:
 
 		swap = *pswap = zalloc(swap_zone);
 		if (swap == NULL) {
+			if (swap_zone->zpagecount >= swap_zone->zpagemax)
+				printf("swap zone exhausted, increase kern.maxswzone\n");
 			VM_WAIT;
 			goto retry;
 		}
