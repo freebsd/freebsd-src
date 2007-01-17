@@ -3544,7 +3544,7 @@ pmap_pid_dump(int pid)
 	int index;
 
 	sx_slock(&allproc_lock);
-	LIST_FOREACH(p, &allproc, p_list) {
+	FOREACH_PROC_IN_SYSTEM(p) {
 		if (p->p_pid != pid)
 			continue;
 
