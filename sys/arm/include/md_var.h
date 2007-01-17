@@ -46,4 +46,7 @@ extern int _min_bzero_size;
 #define SRC_IS_USER	0x2
 #define IS_PHYSICAL	0x4
 
+extern int busdma_swi_pending;
+void busdma_swi(void);
+
 #endif /* !_MACHINE_MD_VAR_H_ */
