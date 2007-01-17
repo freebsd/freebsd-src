@@ -431,9 +431,10 @@ ums_intr(xfer, addr, status)
 #define UMS_BUT(i) ((i) < 3 ? (((i) + 2) % 3) : (i))
 
 	DPRINTFN(5, ("ums_intr: sc=%p status=%d\n", sc, status));
-	DPRINTFN(5, ("ums_intr: data = %02x %02x %02x %02x %02x %02x\n",
-		     sc->sc_ibuf[0], sc->sc_ibuf[1], sc->sc_ibuf[2],
-		     sc->sc_ibuf[3], sc->sc_ibuf[4], sc->sc_ibuf[5]));
+	DPRINTFN(5, ("ums_intr: data ="));
+	for (i = 0; i < sc->sc_isize; i++)
+		DPRINTFN(5, (" %02x", sc->sc_ibuf[i]));
+	DPRINTFN(5, ("\n"));
 
 	if (status == USBD_CANCELLED)
 		return;
