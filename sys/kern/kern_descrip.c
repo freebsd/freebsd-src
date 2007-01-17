@@ -2384,7 +2384,7 @@ mountcheckdirs(struct vnode *olddp, struct vnode *newdp)
 	if (vrefcnt(olddp) == 1)
 		return;
 	sx_slock(&allproc_lock);
-	LIST_FOREACH(p, &allproc, p_list) {
+	FOREACH_PROC_IN_SYSTEM(p) {
 		fdp = fdhold(p);
 		if (fdp == NULL)
 			continue;
@@ -2481,7 +2481,7 @@ sysctl_kern_file(SYSCTL_HANDLER_ARGS)
 	bzero(&xf, sizeof(xf));
 	xf.xf_size = sizeof(xf);
 	sx_slock(&allproc_lock);
-	LIST_FOREACH(p, &allproc, p_list) {
+	FOREACH_PROC_IN_SYSTEM(p) {
 		if (p->p_state == PRS_NEW)
 			continue;
 		PROC_LOCK(p);
@@ -2563,7 +2563,7 @@ file_to_first_proc(struct file *fp)
 	struct proc *p;
 	int n;
 
-	LIST_FOREACH(p, &allproc, p_list) {
+	FOREACH_PROC_IN_SYSTEM(p) {
 		if (p->p_state == PRS_NEW)
 			continue;
 		fdp = p->p_fd;

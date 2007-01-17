@@ -1114,7 +1114,7 @@ DB_SHOW_COMMAND(allchains, db_show_allchains)
 	int i;
 
 	i = 1;
-	LIST_FOREACH(p, &allproc, p_list) {
+	FOREACH_PROC_IN_SYSTEM(p) {
 		FOREACH_THREAD_IN_PROC(p, td) {
 			if (TD_ON_LOCK(td) && LIST_EMPTY(&td->td_contested)) {
 				db_printf("chain %d:\n", i++);

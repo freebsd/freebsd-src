@@ -502,7 +502,7 @@ proc0_post(void *dummy __unused)
 	 * time from the filesystem.  Pretend that proc0 started now.
 	 */
 	sx_slock(&allproc_lock);
-	LIST_FOREACH(p, &allproc, p_list) {
+	FOREACH_PROC_IN_SYSTEM(p) {
 		microuptime(&p->p_stats->p_start);
 		p->p_rux.rux_runtime = 0;
 	}

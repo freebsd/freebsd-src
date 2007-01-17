@@ -1676,7 +1676,7 @@ killpg1(td, sig, pgid, all)
 		 * broadcast
 		 */
 		sx_slock(&allproc_lock);
-		LIST_FOREACH(p, &allproc, p_list) {
+		FOREACH_PROC_IN_SYSTEM(p) {
 			PROC_LOCK(p);
 			if (p->p_pid <= 1 || p->p_flag & P_SYSTEM ||
 			    p == td->td_proc || p->p_state == PRS_NEW) {
