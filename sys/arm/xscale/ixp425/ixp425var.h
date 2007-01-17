@@ -57,6 +57,7 @@ struct ixp425_softc {
 
 	struct rman sc_irq_rman;
 	struct rman sc_mem_rman;
+	bus_dma_tag_t sc_dmat;
 };
 
 struct ixppcib_softc {
@@ -73,6 +74,7 @@ struct ixppcib_softc {
 	
 	struct bus_space        sc_pci_memt;
 	struct bus_space        sc_pci_iot;
+	bus_dma_tag_t 		sc_dmat;
 };
 
 #define EXP_BUS_WRITE_4(sc, reg, data) \
