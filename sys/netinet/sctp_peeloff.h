@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2001-2006, Cisco Systems, Inc. All rights reserved.
+ * Copyright (c) 2001-2007, Cisco Systems, Inc. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -35,10 +35,6 @@ __FBSDID("$FreeBSD$");
 
 #ifndef __sctp_peeloff_h__
 #define __sctp_peeloff_h__
-
-#include <sys/types.h>
-#include <sys/socketvar.h>
-#include <sys/socket.h>
 
 
 

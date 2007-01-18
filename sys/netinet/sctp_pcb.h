@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2001-2006, Cisco Systems, Inc. All rights reserved.
+ * Copyright (c) 2001-2007, Cisco Systems, Inc. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -36,36 +36,8 @@ __FBSDID("$FreeBSD$");
 #ifndef __sctp_pcb_h__
 #define __sctp_pcb_h__
 
-
-
-/*
- * We must have V6 so the size of the proto can be calculated. Otherwise we
- * would not allocate enough for Net/Open BSD :-<
- */
-
-#if defined(_KERNEL)
-#include <net/pfil.h>
-#endif
-
-#include <sys/socket.h>
-#include <sys/socketvar.h>
-#include <net/if.h>
-#include <net/if_types.h>
-#include <net/if_var.h>
-#include <net/route.h>
-#include <netinet/in.h>
-#include <netinet/ip6.h>
-#include <netinet6/ip6_var.h>
-#include <netinet6/ip6protosw.h>
-#include <netinet6/in6_var.h>
-#include <netinet6/in6_pcb.h>
-
-#ifndef in6pcb
-#define in6pcb		inpcb
-#endif
-
-#include <netinet/sctp.h>
 #include <netinet/sctp_os.h>
+#include <netinet/sctp.h>
 #include <netinet/sctp_constants.h>
 
 LIST_HEAD(sctppcbhead, sctp_inpcb);
@@ -394,7 +366,6 @@ struct sctp_tcb {
 
 
 #include <netinet/sctp_lock_bsd.h>
-
 
 
 #if defined(_KERNEL)

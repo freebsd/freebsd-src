@@ -33,69 +33,8 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-#include "opt_ipsec.h"
-#include "opt_compat.h"
-#include "opt_inet6.h"
-#include "opt_inet.h"
-#include "opt_sctp.h"
-#include <sys/param.h>
-#include <sys/systm.h>
-#include <sys/malloc.h>
-#include <sys/mbuf.h>
-#include <sys/domain.h>
-#include <sys/protosw.h>
-#include <sys/socket.h>
-#include <sys/socketvar.h>
-#include <sys/proc.h>
-#include <sys/kernel.h>
-#include <sys/sysctl.h>
-#include <sys/resourcevar.h>
-#include <sys/uio.h>
-#ifdef INET6
-#include <sys/domain.h>
-#endif
-
-#include <sys/limits.h>
-#include <machine/cpu.h>
-
-#include <net/if.h>
-#include <net/if_types.h>
-
-#include <net/if_var.h>
-
-#include <net/route.h>
-
-#include <netinet/in.h>
-#include <netinet/in_systm.h>
-#include <netinet/ip.h>
-#include <netinet/in_pcb.h>
-#include <netinet/in_var.h>
-#include <netinet/ip_var.h>
-
-#ifdef INET6
-#include <netinet/ip6.h>
-#include <netinet6/ip6_var.h>
-#include <netinet6/scope6_var.h>
-#include <netinet6/nd6.h>
-
-#include <netinet6/in6_pcb.h>
-
-#include <netinet/icmp6.h>
-
-#endif				/* INET6 */
-
-
-
-#ifndef in6pcb
-#define in6pcb		inpcb
-#endif
-
-#ifdef IPSEC
-#include <netinet6/ipsec.h>
-#include <netkey/key.h>
-#endif				/* IPSEC */
-
 #include <netinet/sctp_os.h>
+#include <sys/proc.h>
 #include <netinet/sctp_var.h>
 #include <netinet/sctp_header.h>
 #include <netinet/sctp_pcb.h>
@@ -5085,6 +5024,7 @@ out_gu:
 			}
 			sp->some_taken = some_taken;
 			sp->length += to_move;
+			chk->data = NULL;
 			sctp_free_a_chunk(stcb, chk);
 			SCTP_TCB_SEND_UNLOCK(stcb);
 			goto out_gu;
@@ -5957,6 +5897,15 @@ again_one_more_time:
 						}
 						if (((chk->rec.data.rcv_flags & SCTP_DATA_LAST_FRAG) == SCTP_DATA_LAST_FRAG) &&
 						    ((chk->rec.data.rcv_flags & SCTP_DATA_FIRST_FRAG) == 0))
+							/*
+							 * Count number of
+							 * user msg's that
+							 * were fragmented
+							 * we do this by
+							 * counting when we
+							 * see a LAST
+							 * fragment only.
+							 */
 							SCTP_STAT_INCR_COUNTER64(sctps_fragusrmsgs);
 					}
 					if ((mtu == 0) || (r_mtu == 0) || (one_chunk)) {
@@ -7726,6 +7675,10 @@ sctp_send_sack(struct sctp_tcb *stcb)
 					mergeable = 1;
 				}
 			}
+			if (limit_reached) {
+				/* Reached the limit stop */
+				break;
+			}
 			jstart = 0;
 			offset += 8;
 		}
@@ -9223,11 +9176,10 @@ sctp_sosend(struct socket *so,
 )
 {
 	struct sctp_inpcb *inp;
-	int s, error, use_rcvinfo = 0;
+	int error, use_rcvinfo = 0;
 	struct sctp_sndrcvinfo srcv;
 
 	inp = (struct sctp_inpcb *)so->so_pcb;
-	s = splnet();
 	if (control) {
 		/* process cmsg snd/rcv info (maybe a assoc-id) */
 		if (sctp_find_cmsg(SCTP_SNDRCV, (void *)&srcv, control,
@@ -9238,7 +9190,6 @@ sctp_sosend(struct socket *so,
 	}
 	error = sctp_lower_sosend(so, addr, uio, top, control, flags,
 	    use_rcvinfo, &srcv, p);
-	splx(s);
 	return (error);
 }
 
@@ -9259,7 +9210,12 @@ sctp_lower_sosend(struct socket *so,
 	unsigned int sndlen, max_len;
 	int error, len;
 	struct mbuf *top = NULL;
-	int s, queue_only = 0, queue_only_for_init = 0;
+
+#if defined(__NetBSD__) || defined(__OpenBSD_)
+	int s;
+
+#endif
+	int queue_only = 0, queue_only_for_init = 0;
 	int free_cnt_applied = 0;
 	int un_sent = 0;
 	int now_filled = 0;
@@ -9284,7 +9240,6 @@ sctp_lower_sosend(struct socket *so,
 	t_inp = inp = (struct sctp_inpcb *)so->so_pcb;
 	if (inp == NULL) {
 		error = EFAULT;
-		splx(s);
 		goto out_unlocked;
 	}
 	atomic_add_int(&inp->total_sends, 1);
@@ -9295,20 +9250,17 @@ sctp_lower_sosend(struct socket *so,
 		top = SCTP_HEADER_TO_CHAIN(i_pak);
 	}
 
-	s = splnet();
 	hold_tcblock = 0;
 
 	if ((inp->sctp_flags & SCTP_PCB_FLAGS_TCPTYPE) &&
 	    (inp->sctp_socket->so_qlimit)) {
 		/* The listener can NOT send */
 		error = EFAULT;
-		splx(s);
 		goto out_unlocked;
 	}
 	if ((use_rcvinfo) && srcv) {
 		if (INVALID_SINFO_FLAG(srcv->sinfo_flags) || PR_SCTP_INVALID_POLICY(srcv->sinfo_flags)) {
 			error = EINVAL;
-			splx(s);
 			goto out_unlocked;
 		}
 		if (srcv->sinfo_flags)
@@ -9318,7 +9270,6 @@ sctp_lower_sosend(struct socket *so,
 			/* its a sendall */
 			error = sctp_sendall(inp, uio, top, srcv);
 			top = NULL;
-			splx(s);
 			goto out_unlocked;
 		}
 	}
@@ -9329,7 +9280,6 @@ sctp_lower_sosend(struct socket *so,
 		if (stcb == NULL) {
 			SCTP_INP_RUNLOCK(inp);
 			error = ENOTCONN;
-			splx(s);
 			goto out_unlocked;
 		}
 		hold_tcblock = 0;
@@ -9378,14 +9328,12 @@ sctp_lower_sosend(struct socket *so,
 		    (inp->sctp_flags & SCTP_PCB_FLAGS_SOCKET_ALLGONE)) {
 			/* Should I really unlock ? */
 			error = EFAULT;
-			splx(s);
 			goto out_unlocked;
 
 		}
 		if (((inp->sctp_flags & SCTP_PCB_FLAGS_BOUND_V6) == 0) &&
 		    (addr->sa_family == AF_INET6)) {
 			error = EINVAL;
-			splx(s);
 			goto out_unlocked;
 		}
 		SCTP_INP_WLOCK(inp);
@@ -9404,11 +9352,9 @@ sctp_lower_sosend(struct socket *so,
 	if (stcb == NULL) {
 		if (inp->sctp_flags & SCTP_PCB_FLAGS_TCPTYPE) {
 			error = ENOTCONN;
-			splx(s);
 			goto out_unlocked;
 		} else if (addr == NULL) {
 			error = ENOENT;
-			splx(s);
 			goto out_unlocked;
 		} else {
 			/*
@@ -9424,14 +9370,12 @@ sctp_lower_sosend(struct socket *so,
 				 * or EOF a non-existant assoc with no data
 				 */
 				error = ENOENT;
-				splx(s);
 				goto out_unlocked;
 			}
 			/* get an asoc/stcb struct */
 			stcb = sctp_aloc_assoc(inp, addr, 1, &error, 0);
 			if (stcb == NULL) {
 				/* Error is setup for us in the call */
-				splx(s);
 				goto out_unlocked;
 			}
 			if (create_lock_applied) {
@@ -9505,7 +9449,12 @@ sctp_lower_sosend(struct socket *so,
 							if (had_lock) {
 								SCTP_TCB_LOCK(stcb);
 							}
-							asoc->strmout = tmp_str;
+							if (asoc->strmout == NULL) {
+								asoc->strmout = tmp_str;
+							} else {
+								SCTP_FREE(asoc->strmout);
+								asoc->strmout = tmp_str;
+							}
 						}
 						for (i = 0; i < asoc->streamoutcnt; i++) {
 							/*
@@ -9567,7 +9516,6 @@ sctp_lower_sosend(struct socket *so,
 		    sctp_max_chunks_on_queue)) {
 			error = EWOULDBLOCK;
 			atomic_add_int(&stcb->sctp_ep->total_nospaces, 1);
-			splx(s);
 			goto out_unlocked;
 		}
 	}
@@ -9612,7 +9560,6 @@ sctp_lower_sosend(struct socket *so,
 			;
 		} else {
 			error = ECONNRESET;
-			splx(s);
 			goto out_unlocked;
 		}
 	}
@@ -9741,7 +9688,6 @@ sctp_lower_sosend(struct socket *so,
 		SCTP_TCB_UNLOCK(stcb);
 		hold_tcblock = 0;
 	}
-	splx(s);
 	/* Is the stream no. valid? */
 	if (srcv->sinfo_stream >= asoc->streamoutcnt) {
 		/* Invalid stream number */
@@ -10279,7 +10225,6 @@ skip_out_eof:
 	}
 	if ((queue_only == 0) && (nagle_applies == 0) && (stcb->asoc.peers_rwnd && un_sent)) {
 		/* we can attempt to send too. */
-		s = splnet();
 		if (hold_tcblock == 0) {
 			/*
 			 * If there is activity recv'ing sacks no need to
@@ -10292,7 +10237,6 @@ skip_out_eof:
 		} else {
 			sctp_chunk_output(inp, stcb, SCTP_OUTPUT_FROM_USR_SEND);
 		}
-		splx(s);
 	} else if ((queue_only == 0) &&
 		    (stcb->asoc.peers_rwnd == 0) &&
 	    (stcb->asoc.total_flight == 0)) {
