@@ -32,47 +32,6 @@
 
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
-
-
-
-#include "opt_ipsec.h"
-#include "opt_compat.h"
-#include "opt_inet6.h"
-#include "opt_inet.h"
-
-#include "opt_sctp.h"
-
-#include <sys/param.h>
-#include <sys/systm.h>
-#include <sys/malloc.h>
-#include <sys/mbuf.h>
-#include <sys/socket.h>
-#include <sys/socketvar.h>
-#include <sys/kernel.h>
-#include <sys/sysctl.h>
-
-#include <net/if.h>
-#include <net/if_types.h>
-#include <net/route.h>
-
-#include <netinet/in.h>
-#include <netinet/in_systm.h>
-#include <netinet/ip.h>
-#include <netinet/in_pcb.h>
-#include <netinet/in_var.h>
-#include <netinet/ip_var.h>
-
-#ifdef INET6
-#include <netinet/ip6.h>
-#include <netinet6/ip6_var.h>
-#include <netinet6/in6_pcb.h>
-#include <netinet/icmp6.h>
-#include <netinet6/nd6.h>
-#include <netinet6/scope6_var.h>
-#endif				/* INET6 */
-
-#include <netinet/in_pcb.h>
-
 #include <netinet/sctp_os.h>
 #include <netinet/sctp_var.h>
 #include <netinet/sctp_pcb.h>
@@ -1847,7 +1806,6 @@ static void
 sctp_addr_mgmt_ep(struct sctp_inpcb *inp, struct ifaddr *ifa, uint16_t type)
 {
 	struct sctp_tcb *stcb;
-	int s;
 
 
 	SCTP_INP_WLOCK(inp);
@@ -1915,14 +1873,12 @@ sctp_addr_mgmt_ep(struct sctp_inpcb *inp, struct ifaddr *ifa, uint16_t type)
 			/* drop through and notify all asocs */
 		}
 	}
-	s = splnet();
 	/* process for all associations for this endpoint */
 	LIST_FOREACH(stcb, &inp->sctp_asoc_list, sctp_tcblist) {
 		SCTP_TCB_LOCK(stcb);
 		sctp_addr_mgmt_assoc(inp, stcb, ifa, type);
 		SCTP_TCB_UNLOCK(stcb);
 	}
-	splx(s);
 	SCTP_INP_WUNLOCK(inp);
 }
 
@@ -1933,7 +1889,6 @@ static void
 sctp_addr_mgmt_restrict_ep(struct sctp_inpcb *inp, struct ifaddr *ifa)
 {
 	struct sctp_tcb *stcb;
-	int s;
 
 	/* is this endpoint bound to all? */
 	if ((inp->sctp_flags & SCTP_PCB_FLAGS_BOUNDALL) == 0) {
@@ -1943,7 +1898,6 @@ sctp_addr_mgmt_restrict_ep(struct sctp_inpcb *inp, struct ifaddr *ifa)
 		 */
 		return;
 	}
-	s = splnet();
 	SCTP_INP_RLOCK(inp);
 	/* process for all associations for this endpoint */
 	LIST_FOREACH(stcb, &inp->sctp_asoc_list, sctp_tcblist) {
@@ -1952,7 +1906,6 @@ sctp_addr_mgmt_restrict_ep(struct sctp_inpcb *inp, struct ifaddr *ifa)
 		sctp_add_local_addr_assoc(stcb, ifa);
 		SCTP_TCB_UNLOCK(stcb);
 	}
-	splx(s);
 	SCTP_INP_RUNLOCK(inp);
 }
 

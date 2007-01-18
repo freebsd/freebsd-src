@@ -33,72 +33,6 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-
-#include "opt_ipsec.h"
-#include "opt_compat.h"
-#include "opt_inet6.h"
-#include "opt_inet.h"
-#include "opt_sctp.h"
-
-#include <sys/param.h>
-#include <sys/systm.h>
-#include <sys/fcntl.h>
-#include <sys/lock.h>
-#include <sys/malloc.h>
-#include <sys/mbuf.h>
-#include <sys/domain.h>
-#include <sys/file.h>		/* for struct knote */
-#include <sys/kernel.h>
-#include <sys/event.h>
-#include <sys/poll.h>
-
-#include <sys/protosw.h>
-#include <sys/socket.h>
-#include <sys/socketvar.h>
-#include <sys/proc.h>
-#include <sys/kernel.h>
-#include <sys/resourcevar.h>
-#include <sys/signalvar.h>
-#include <sys/sysctl.h>
-#include <sys/uio.h>
-#include <sys/jail.h>
-
-#include <net/radix.h>
-#include <net/route.h>
-
-#ifdef INET6
-#include <sys/domain.h>
-#endif
-
-#include <sys/limits.h>
-#include <sys/mac.h>
-#include <sys/mutex.h>
-
-#include <net/if.h>
-#include <net/if_types.h>
-#include <net/route.h>
-
-#include <netinet/in.h>
-#include <netinet/in_systm.h>
-#include <netinet/ip.h>
-#include <netinet/in_pcb.h>
-#include <netinet/in_var.h>
-#include <netinet/ip_var.h>
-
-#ifdef INET6
-#include <netinet/ip6.h>
-#include <netinet6/ip6_var.h>
-
-#include <netinet6/in6_pcb.h>
-
-#include <netinet6/scope6_var.h>
-#endif				/* INET6 */
-
-#ifdef IPSEC
-#include <netinet6/ipsec.h>
-#include <netkey/key.h>
-#endif				/* IPSEC */
-
 #include <netinet/sctp_os.h>
 #include <netinet/sctp_pcb.h>
 #include <netinet/sctputil.h>
@@ -826,16 +760,13 @@ sctp_auditing(int from, struct sctp_inpcb *inp, struct sctp_tcb *stcb,
 void
 sctp_audit_log(uint8_t ev, uint8_t fd)
 {
-	int s;
 
-	s = splnet();
 	sctp_audit_data[sctp_audit_indx][0] = ev;
 	sctp_audit_data[sctp_audit_indx][1] = fd;
 	sctp_audit_indx++;
 	if (sctp_audit_indx >= SCTP_AUDIT_SIZE) {
 		sctp_audit_indx = 0;
 	}
-	splx(s);
 }
 
 #endif
@@ -1239,11 +1170,10 @@ sctp_timeout_handler(void *t)
 	struct sctp_tcb *stcb;
 	struct sctp_nets *net;
 	struct sctp_timer *tmr;
-	int s, did_output;
+	int did_output;
 	struct sctp_iterator *it = NULL;
 
 
-	s = splnet();
 	tmr = (struct sctp_timer *)t;
 	inp = (struct sctp_inpcb *)tmr->ep;
 	stcb = (struct sctp_tcb *)tmr->tcb;
@@ -1261,7 +1191,6 @@ sctp_timeout_handler(void *t)
 		 * printf("Stale SCTP timer fired (%p), ignoring...\n",
 		 * tmr);
 		 */
-		splx(s);
 		return;
 	}
 	tmr->stopped_from = 0xa001;
@@ -1270,12 +1199,10 @@ sctp_timeout_handler(void *t)
 		 * printf("SCTP timer fired with invalid type: 0x%x\n",
 		 * tmr->type);
 		 */
-		splx(s);
 		return;
 	}
 	tmr->stopped_from = 0xa002;
 	if ((tmr->type != SCTP_TIMER_TYPE_ADDR_WQ) && (inp == NULL)) {
-		splx(s);
 		return;
 	}
 	/* if this is an iterator timeout, get the struct and clear inp */
@@ -1293,7 +1220,6 @@ sctp_timeout_handler(void *t)
 		    (tmr->type != SCTP_TIMER_TYPE_SHUTDOWNGUARD) &&
 		    (tmr->type != SCTP_TIMER_TYPE_ASOCKILL))
 		    ) {
-			splx(s);
 			SCTP_INP_DECR_REF(inp);
 			return;
 		}
@@ -1301,7 +1227,6 @@ sctp_timeout_handler(void *t)
 	tmr->stopped_from = 0xa004;
 	if (stcb) {
 		if (stcb->asoc.state == 0) {
-			splx(s);
 			if (inp) {
 				SCTP_INP_DECR_REF(inp);
 			}
@@ -1315,7 +1240,6 @@ sctp_timeout_handler(void *t)
 	}
 #endif				/* SCTP_DEBUG */
 	if (!SCTP_OS_TIMER_ACTIVE(&tmr->timer)) {
-		splx(s);
 		if (inp) {
 			SCTP_INP_DECR_REF(inp);
 		}
@@ -1599,7 +1523,6 @@ out_no_decr:
 		printf("Timer now complete (type %d)\n", tmr->type);
 	}
 #endif				/* SCTP_DEBUG */
-	splx(s);
 	if (inp) {
 	}
 }
@@ -3278,6 +3201,7 @@ sctp_report_all_outbound(struct sctp_tcb *stcb, int holds_lock)
 		chk = TAILQ_FIRST(&asoc->send_queue);
 		while (chk) {
 			TAILQ_REMOVE(&asoc->send_queue, chk, sctp_next);
+			asoc->send_queue_cnt--;
 			if (chk->data) {
 				/*
 				 * trim off the sctp chunk header(it should
@@ -3306,6 +3230,7 @@ sctp_report_all_outbound(struct sctp_tcb *stcb, int holds_lock)
 		chk = TAILQ_FIRST(&asoc->sent_queue);
 		while (chk) {
 			TAILQ_REMOVE(&asoc->sent_queue, chk, sctp_next);
+			asoc->sent_queue_cnt--;
 			if (chk->data) {
 				/*
 				 * trim off the sctp chunk header(it should
@@ -4252,7 +4177,7 @@ sctp_sorecvmsg(struct socket *so,
 	int block_allowed = 1;
 	int freed_so_far = 0;
 	int copied_so_far = 0;
-	int s, in_eeor_mode = 0;
+	int in_eeor_mode = 0;
 	int no_rcv_needed = 0;
 	uint32_t rwnd_req = 0;
 	int hold_sblock = 0;
@@ -4285,7 +4210,6 @@ sctp_sorecvmsg(struct socket *so,
 	if (inp == NULL) {
 		return (EFAULT);
 	}
-	s = splnet();
 	rwnd_req = (so->so_rcv.sb_hiwat >> SCTP_RWND_HIWAT_SHIFT);
 	/* Must be at least a MTU's worth */
 	if (rwnd_req < SCTP_MIN_RWND)
@@ -4678,10 +4602,8 @@ get_more_data:
 				SCTP_INP_READ_UNLOCK(inp);
 				hold_rlock = 0;
 			}
-			splx(s);
 			if (cp_len > 0)
 				error = uiomove(mtod(m, char *), cp_len, uio);
-			s = splnet();
 #ifdef SCTP_RECV_DETAIL_RWND_LOGGING
 			sctp_misc_ints(SCTP_SORCV_DOESCPY,
 			    so->so_rcv.sb_cc,
@@ -5174,11 +5096,9 @@ get_more_data2:
 						SOCKBUF_UNLOCK(&so->so_rcv);
 						hold_sblock = 0;
 					}
-					splx(s);
 					*mp = SCTP_M_COPYM(m, 0, cp_len,
 					    M_TRYWAIT
 					    );
-					s = splnet();
 #ifdef SCTP_LOCK_LOGGING
 					sctp_log_lock(inp, stcb, SCTP_LOG_LOCK_SOCKBUF_R);
 #endif
@@ -5264,7 +5184,6 @@ out:
 		/* Save the value back for next time */
 		stcb->freed_by_sorcv_sincelast = freed_so_far;
 	}
-	splx(s);
 #ifdef SCTP_RECV_RWND_LOGGING
 	if (stcb) {
 		sctp_misc_ints(SCTP_SORECV_DONE,

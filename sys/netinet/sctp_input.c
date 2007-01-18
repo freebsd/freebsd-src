@@ -33,47 +33,6 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-#include "opt_ipsec.h"
-#include "opt_compat.h"
-#include "opt_inet6.h"
-#include "opt_inet.h"
-#include "opt_sctp.h"
-
-#include <sys/param.h>
-#include <sys/systm.h>
-#include <sys/malloc.h>
-#include <sys/mbuf.h>
-#include <sys/socket.h>
-#include <sys/socketvar.h>
-#include <sys/sysctl.h>
-#include <sys/domain.h>
-#include <sys/protosw.h>
-#include <sys/kernel.h>
-#include <sys/errno.h>
-#include <sys/syslog.h>
-
-#include <sys/limits.h>
-#include <machine/cpu.h>
-
-#include <net/if.h>
-#include <net/route.h>
-#include <net/if_types.h>
-
-#include <netinet/in.h>
-#include <netinet/in_systm.h>
-#include <netinet/ip.h>
-#include <netinet/in_pcb.h>
-#include <netinet/in_var.h>
-#include <netinet/ip_var.h>
-
-#ifdef INET6
-#include <netinet/ip6.h>
-#include <netinet6/ip6_var.h>
-#endif				/* INET6 */
-
-#include <netinet/ip_icmp.h>
-#include <netinet/icmp_var.h>
-
 #include <netinet/sctp_os.h>
 #include <netinet/sctp_var.h>
 #include <netinet/sctp_pcb.h>
@@ -84,14 +43,6 @@ __FBSDID("$FreeBSD$");
 #include <netinet/sctp_auth.h>
 #include <netinet/sctp_indata.h>
 #include <netinet/sctp_asconf.h>
-
-#include <netinet/ip_options.h>
-
-
-#ifdef IPSEC
-#include <netinet6/ipsec.h>
-#include <netkey/key.h>
-#endif				/* IPSEC */
 
 
 #ifdef SCTP_DEBUG
@@ -913,7 +864,7 @@ sctp_handle_error(struct sctp_chunkhdr *ch,
 		case SCTP_CAUSE_DELETING_SRC_ADDR:
 			/*
 			 * We should NOT get these here, but in a
-			 * ASCONF-ACK. n
+			 * ASCONF-ACK.
 			 */
 #ifdef SCTP_DEBUG
 			if (sctp_debug_on & SCTP_DEBUG_INPUT2) {
@@ -926,7 +877,7 @@ sctp_handle_error(struct sctp_chunkhdr *ch,
 			/*
 			 * And what, pray tell do we do with the fact that
 			 * the peer is out of resources? Not really sure we
-			 * could do anything but abort. I suspect this n		 *
+			 * could do anything but abort. I suspect this
 			 * should have came WITH an abort instead of in a
 			 * OP-ERROR.
 			 */
@@ -1180,7 +1131,12 @@ sctp_process_cookie_existing(struct mbuf *m, int iphlen, int offset,
 		 * to get into the OPEN state
 		 */
 		if (ntohl(initack_cp->init.initial_tsn) != asoc->init_seq_number) {
+#ifdef INVARIANTS
 			panic("Case D and non-match seq?");
+#else
+			printf("Case D, seq non-match %x vs %x?\n",
+			    ntohl(initack_cp->init.initial_tsn), asoc->init_seq_number);
+#endif
 		}
 		switch SCTP_GET_STATE
 			(asoc) {
@@ -1519,13 +1475,12 @@ sctp_process_cookie_existing(struct mbuf *m, int iphlen, int offset,
 
 		return (stcb);
 	}
-	/* if we are not a restart we need the assoc_id field pop'd */
-	asoc->assoc_id = ntohl(initack_cp->init.initiate_tag);
 	if (how_indx < sizeof(asoc->cookie_how))
 		asoc->cookie_how[how_indx] = 16;
 	/* all other cases... */
 	return (NULL);
 }
+
 
 /*
  * handle a state cookie for a new association m: input packet mbuf chain--
@@ -2165,7 +2120,7 @@ sctp_handle_cookie_echo(struct mbuf *m, int iphlen, int offset,
 			 */
 			NET_LOCK_GIANT();
 			SCTP_TCB_UNLOCK((*stcb));
-			so = sonewconn(oso, SS_ISCONNECTED
+			so = sonewconn(oso, 0
 			    );
 			NET_UNLOCK_GIANT();
 			SCTP_INP_WLOCK((*stcb)->sctp_ep);
@@ -2187,9 +2142,16 @@ sctp_handle_cookie_echo(struct mbuf *m, int iphlen, int offset,
 				return (NULL);
 			}
 			inp = (struct sctp_inpcb *)so->so_pcb;
+			SCTP_INP_INCR_REF(inp);
+			/*
+			 * We add the unbound flag here so that if we get an
+			 * soabort() before we get the move_pcb done, we
+			 * will properly cleanup.
+			 */
 			inp->sctp_flags = (SCTP_PCB_FLAGS_TCPTYPE |
 			    SCTP_PCB_FLAGS_CONNECTED |
 			    SCTP_PCB_FLAGS_IN_TCPPOOL |
+			    SCTP_PCB_FLAGS_UNBOUND |
 			    (SCTP_PCB_COPY_FLAGS & (*inp_p)->sctp_flags) |
 			    SCTP_PCB_FLAGS_DONT_WAKE);
 			inp->sctp_features = (*inp_p)->sctp_features;
@@ -2218,13 +2180,32 @@ sctp_handle_cookie_echo(struct mbuf *m, int iphlen, int offset,
 			 * another and get the tcb in the right place.
 			 */
 			sctp_move_pcb_and_assoc(*inp_p, inp, *stcb);
-
 			sctp_pull_off_control_to_new_inp((*inp_p), inp, *stcb);
 
+			/*
+			 * now we must check to see if we were aborted while
+			 * the move was going on and the lock/unlock
+			 * happened.
+			 */
+			if (inp->sctp_flags & SCTP_PCB_FLAGS_SOCKET_GONE) {
+				/*
+				 * yep it was, we leave the assoc attached
+				 * to the socket since the sctp_inpcb_free()
+				 * call will send an abort for us.
+				 */
+				SCTP_INP_DECR_REF(inp);
+				return (NULL);
+			}
+			SCTP_INP_DECR_REF(inp);
 			/* Switch over to the new guy */
 			*inp_p = inp;
-
 			sctp_ulp_notify(notification, *stcb, 0, NULL);
+
+			/*
+			 * Pull it from the incomplete queue and wake the
+			 * guy
+			 */
+			soisconnected(so);
 			return (m);
 		}
 	}
@@ -4678,7 +4659,6 @@ sctp_input(i_pak, off)
 #endif
 	struct mbuf *m;
 	int iphlen;
-	int s;
 	uint8_t ecn_bits;
 	struct ip *ip;
 	struct sctphdr *sh;
@@ -4880,12 +4860,10 @@ sctp_skip_csum_4:
 	offset -= sizeof(struct sctp_chunkhdr);
 
 	ecn_bits = ip->ip_tos;
-	s = splnet();
 
 	sctp_common_input_processing(&m, iphlen, offset, length, sh, ch,
 	    inp, stcb, net, ecn_bits);
 	/* inp's ref-count reduced && stcb unlocked */
-	splx(s);
 	if (m) {
 		sctp_m_freem(m);
 	}

@@ -33,43 +33,6 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-
-#include "opt_ipsec.h"
-#include "opt_inet6.h"
-#include "opt_inet.h"
-
-#include "opt_sctp.h"
-
-#include <sys/param.h>
-#include <sys/systm.h>
-#include <sys/mbuf.h>
-#include <sys/malloc.h>
-#include <sys/socket.h>
-#include <sys/socketvar.h>
-#include <sys/sysctl.h>
-
-#include <net/if.h>
-#include <net/route.h>
-
-
-#include <sys/limits.h>
-#include <machine/cpu.h>
-
-#include <netinet/in.h>
-#include <netinet/in_systm.h>
-#include <netinet/ip.h>
-#ifdef INET6
-#include <netinet/ip6.h>
-#endif				/* INET6 */
-#include <netinet/in_pcb.h>
-#include <netinet/in_var.h>
-#include <netinet/ip_var.h>
-#ifdef INET6
-#include <netinet6/ip6_var.h>
-#endif				/* INET6 */
-#include <netinet/ip_icmp.h>
-#include <netinet/icmp_var.h>
-
 #include <netinet/sctp_os.h>
 #include <netinet/sctp_var.h>
 #include <netinet/sctp_pcb.h>
@@ -80,10 +43,6 @@ __FBSDID("$FreeBSD$");
 #include <netinet/sctp_indata.h>
 #include <netinet/sctp_uio.h>
 #include <netinet/sctp_timer.h>
-#ifdef IPSEC
-#include <netinet6/ipsec.h>
-#include <netkey/key.h>
-#endif				/* IPSEC */
 
 
 #ifdef SCTP_DEBUG
@@ -2181,7 +2140,7 @@ sctp_sack_check(struct sctp_tcb *stcb, int ok_to_sack, int was_a_gap, int *abort
 	 */
 	struct sctp_association *asoc;
 	int i, at;
-	int all_ones;
+	int all_ones, last_all_ones = 0;
 	int slide_from, slide_end, lgap, distance;
 
 #ifdef SCTP_MAP_LOGGING
@@ -2214,14 +2173,16 @@ sctp_sack_check(struct sctp_tcb *stcb, int ok_to_sack, int was_a_gap, int *abort
 	for (i = 0; i < stcb->asoc.mapping_array_size; i++) {
 		if (asoc->mapping_array[i] == 0xff) {
 			at += 8;
+			last_all_ones = 1;
 		} else {
 			/* there is a 0 bit */
 			all_ones = 0;
 			at += sctp_map_lookup_tab[asoc->mapping_array[i]];
+			last_all_ones = 0;
 			break;
 		}
 	}
-	asoc->cumulative_tsn = asoc->mapping_array_base_tsn + at;
+	asoc->cumulative_tsn = asoc->mapping_array_base_tsn + (at - last_all_ones);
 	/* at is one off, since in the table a embedded -1 is present */
 	at++;
 
