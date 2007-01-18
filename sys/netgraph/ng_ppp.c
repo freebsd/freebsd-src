@@ -1284,10 +1284,8 @@ ng_ppp_rcvdata(hook_p hook, item_p item)
 	uint16_t proto;
 	struct mbuf *m;
 
-/*
-	KASSERT(linkNum >= 0 && linkNum < NG_PPP_MAX_LINKS,
+	KASSERT(linkNum < NG_PPP_MAX_LINKS,
 	    ("%s: bogus index 0x%x", __func__, index));
-*/
 
 	NGI_GET_M(item, m);
 
