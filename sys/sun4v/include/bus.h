@@ -84,12 +84,12 @@
 #include <machine/upa.h>
 
 /*
- * UPA and SBUS spaces are non-cached and big endian
+ * Nexus and SBus spaces are non-cached and big endian
  * (except for RAM and PROM)
  *
  * PCI spaces are non-cached and little endian
  */
-#define	UPA_BUS_SPACE		0
+#define	NEXUS_BUS_SPACE		0
 #define	SBUS_BUS_SPACE		1
 #define	PCI_CONFIG_BUS_SPACE	2
 #define	PCI_IO_BUS_SPACE	3
