@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2001-2006, Cisco Systems, Inc. All rights reserved.
+ * Copyright (c) 2001-2007, Cisco Systems, Inc. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -32,51 +32,9 @@
 
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
-#include "opt_ipsec.h"
-#include "opt_compat.h"
-#include "opt_inet6.h"
-#include "opt_inet.h"
-#include "opt_sctp.h"
-
-#include <sys/param.h>
-#include <sys/systm.h>
-#include <sys/malloc.h>
-#include <sys/mbuf.h>
-#include <sys/domain.h>
-#include <sys/protosw.h>
-#include <sys/socket.h>
-#include <sys/socketvar.h>
-#include <sys/priv.h>
-#include <sys/proc.h>
-#include <sys/kernel.h>
-#include <sys/sysctl.h>
-
-#include <sys/limits.h>
-#include <machine/cpu.h>
-
-#include <net/if.h>
-#include <net/if_types.h>
-#include <net/route.h>
-#include <netinet/in.h>
-#include <netinet/in_systm.h>
-#include <netinet/ip.h>
-#include <netinet/in_pcb.h>
-#include <netinet/in_var.h>
-#include <netinet/ip_var.h>
-
-#ifdef INET6
-#include <netinet/ip6.h>
-#include <netinet6/ip6_var.h>
-#include <netinet6/scope6_var.h>
-#include <netinet6/in6_pcb.h>
-#endif				/* INET6 */
-
-#ifdef IPSEC
-#include <netinet6/ipsec.h>
-#include <netkey/key.h>
-#endif				/* IPSEC */
 
 #include <netinet/sctp_os.h>
+#include <sys/proc.h>
 #include <netinet/sctp_var.h>
 #include <netinet/sctp_pcb.h>
 #include <netinet/sctputil.h>
@@ -1546,6 +1504,7 @@ sctp_move_pcb_and_assoc(struct sctp_inpcb *old_inp, struct sctp_inpcb *new_inp,
 	SCTP_INP_WLOCK(new_inp);
 	SCTP_TCB_LOCK(stcb);
 
+
 	new_inp->sctp_ep.time_of_secret_change =
 	    old_inp->sctp_ep.time_of_secret_change;
 	memcpy(new_inp->sctp_ep.secret_key, old_inp->sctp_ep.secret_key,
@@ -1572,6 +1531,8 @@ sctp_move_pcb_and_assoc(struct sctp_inpcb *old_inp, struct sctp_inpcb *new_inp,
 	    sctppcbinfo.hashtcpmark)];
 
 	LIST_INSERT_HEAD(head, new_inp, sctp_hash);
+	/* Its safe to access */
+	new_inp->sctp_flags &= ~SCTP_PCB_FLAGS_UNBOUND;
 
 	/* Now move the tcb into the endpoint list */
 	LIST_INSERT_HEAD(&new_inp->sctp_asoc_list, stcb, sctp_tcblist);
@@ -2062,10 +2023,9 @@ sctp_inpcb_free(struct sctp_inpcb *inp, int immediate, int from)
 
 	struct sctp_queued_to_read *sq;
 
-	int s, cnt;
+	int cnt;
 	sctp_sharedkey_t *shared_key;
 
-	s = splnet();
 
 #ifdef SCTP_LOG_CLOSING
 	sctp_log_closing(inp, NULL, 0);
@@ -2075,7 +2035,6 @@ sctp_inpcb_free(struct sctp_inpcb *inp, int immediate, int from)
 	so = inp->sctp_socket;
 	if (inp->sctp_flags & SCTP_PCB_FLAGS_SOCKET_ALLGONE) {
 		/* been here before.. eeks.. get out of here */
-		splx(s);
 		printf("This conflict in free SHOULD not be happening!\n");
 		SCTP_ITERATOR_UNLOCK();
 #ifdef SCTP_LOG_CLOSING
@@ -2256,8 +2215,6 @@ sctp_inpcb_free(struct sctp_inpcb *inp, int immediate, int from)
 		}
 		/* now is there some left in our SHUTDOWN state? */
 		if (cnt_in_sd) {
-			splx(s);
-
 			SCTP_INP_WUNLOCK(inp);
 			SCTP_ASOC_CREATE_UNLOCK(inp);
 			SCTP_INP_INFO_WUNLOCK();
@@ -2467,7 +2424,6 @@ sctp_inpcb_free(struct sctp_inpcb *inp, int immediate, int from)
 	SCTP_ZONE_FREE(sctppcbinfo.ipi_zone_ep, inp);
 	SCTP_DECR_EP_COUNT();
 
-	splx(s);
 }
 
 
@@ -3219,10 +3175,9 @@ sctp_free_assoc(struct sctp_inpcb *inp, struct sctp_tcb *stcb, int from_inpcbfre
 	sctp_sharedkey_t *shared_key;
 	struct socket *so;
 	int ccnt = 0;
-	int s, cnt = 0;
+	int cnt = 0;
 
 	/* first, lets purge the entry from the hash table. */
-	s = splnet();
 
 #ifdef SCTP_LOG_CLOSING
 	sctp_log_closing(inp, stcb, 6);
@@ -3231,7 +3186,6 @@ sctp_free_assoc(struct sctp_inpcb *inp, struct sctp_tcb *stcb, int from_inpcbfre
 #ifdef SCTP_LOG_CLOSING
 		sctp_log_closing(inp, NULL, 7);
 #endif
-		splx(s);
 		/* there is no asoc, really TSNH :-0 */
 		return (1);
 	}
@@ -3266,7 +3220,6 @@ sctp_free_assoc(struct sctp_inpcb *inp, struct sctp_tcb *stcb, int from_inpcbfre
 			sctp_timer_start(SCTP_TIMER_TYPE_ASOCKILL, inp, stcb, NULL);
 			/* no asoc destroyed */
 			SCTP_TCB_UNLOCK(stcb);
-			splx(s);
 #ifdef SCTP_LOG_CLOSING
 			sctp_log_closing(inp, stcb, 8);
 #endif
@@ -3352,7 +3305,6 @@ sctp_free_assoc(struct sctp_inpcb *inp, struct sctp_tcb *stcb, int from_inpcbfre
 			SCTP_INP_RUNLOCK(inp);
 
 		}
-		splx(s);
 #ifdef SCTP_LOG_CLOSING
 		sctp_log_closing(inp, stcb, 9);
 #endif
@@ -3761,7 +3713,6 @@ sctp_free_assoc(struct sctp_inpcb *inp, struct sctp_tcb *stcb, int from_inpcbfre
 		SCTP_INP_RUNLOCK(inp);
 	}
 out_of:
-	splx(s);
 	/* destroyed the asoc */
 #ifdef SCTP_LOG_CLOSING
 	sctp_log_closing(inp, NULL, 11);
@@ -4041,14 +3992,10 @@ int
 sctp_insert_laddr(struct sctpladdr *list, struct ifaddr *ifa)
 {
 	struct sctp_laddr *laddr;
-	int s;
-
-	s = splnet();
 
 	laddr = (struct sctp_laddr *)SCTP_ZONE_GET(sctppcbinfo.ipi_zone_laddr);
 	if (laddr == NULL) {
 		/* out of memory? */
-		splx(s);
 		return (EINVAL);
 	}
 	SCTP_INCR_LADDR_COUNT();
@@ -4057,7 +4004,6 @@ sctp_insert_laddr(struct sctpladdr *list, struct ifaddr *ifa)
 	/* insert it */
 	LIST_INSERT_HEAD(list, laddr, sctp_nxt_addr);
 
-	splx(s);
 	return (0);
 }
 
@@ -4067,14 +4013,11 @@ sctp_insert_laddr(struct sctpladdr *list, struct ifaddr *ifa)
 void
 sctp_remove_laddr(struct sctp_laddr *laddr)
 {
-	int s;
 
-	s = splnet();
 	/* remove from the list */
 	LIST_REMOVE(laddr, sctp_nxt_addr);
 	SCTP_ZONE_FREE(sctppcbinfo.ipi_zone_laddr, laddr);
 	SCTP_DECR_LADDR_COUNT();
-	splx(s);
 }
 
 /*
@@ -5250,7 +5193,6 @@ sctp_initiate_iterator(inp_func inpf, asoc_func af, uint32_t pcb_state,
     end_func ef, struct sctp_inpcb *s_inp, uint8_t chunk_output_off)
 {
 	struct sctp_iterator *it = NULL;
-	int s;
 
 	if (af == NULL) {
 		return (-1);
@@ -5286,9 +5228,7 @@ sctp_initiate_iterator(inp_func inpf, asoc_func af, uint32_t pcb_state,
 	SCTP_INP_INFO_WLOCK();
 	LIST_INSERT_HEAD(&sctppcbinfo.iteratorhead, it, sctp_nxt_itr);
 	SCTP_INP_INFO_WUNLOCK();
-	s = splnet();
 	sctp_timer_start(SCTP_TIMER_TYPE_ITERATOR, (struct sctp_inpcb *)it,
 	    NULL, NULL);
-	splx(s);
 	return (0);
 }
