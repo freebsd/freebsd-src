@@ -1189,6 +1189,18 @@ This is the default for all interfaces added to a bridge.
 Clear the
 .Dq learning
 attribute on a member interface.
+.It Cm sticky Ar interface
+Mark an interface as a
+.Dq sticky
+interface.
+Dynamically learned address entries are treated at static once entered into
+the cache.
+Sticky entries are never aged out of the cache or replaced, even if the
+address is seen on a different interface.
+.It Cm -sticky Ar interface
+Clear the
+.Dq sticky
+attribute on a member interface.
 .It Cm span Ar interface
 Add the interface named by
 .Ar interface
