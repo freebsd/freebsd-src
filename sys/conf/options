@@ -662,6 +662,8 @@ DEV_MCA			opt_mca.h
 DEV_CARP		opt_carp.h
 DEV_SPLASH		opt_splash.h
 
+# EISA support
+DEV_EISA		opt_eisa.h
 EISA_SLOTS		opt_eisa.h
 
 # ed driver

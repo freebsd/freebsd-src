@@ -1292,7 +1292,9 @@ int			dpt_init(struct dpt_softc *dpt);
 int			dpt_attach(dpt_softc_t * dpt);
 void			dpt_intr(void *arg);
 
+#ifdef DEV_EISA
 dpt_conf_t *		dpt_pio_get_conf(u_int32_t);
+#endif
 
 #if 0
 extern void		hex_dump(u_char * data, int length,

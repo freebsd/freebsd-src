@@ -50,6 +50,8 @@ __FBSDID("$FreeBSD$");
 #define _DPT_C_
 
 #include "opt_dpt.h"
+#include "opt_eisa.h"
+
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/eventhandler.h>
@@ -106,7 +108,9 @@ devclass_t	dpt_devclass;
 /* ================= Private Inline Function declarations ===================*/
 static __inline int		dpt_just_reset(dpt_softc_t * dpt);
 static __inline int		dpt_raid_busy(dpt_softc_t * dpt);
+#ifdef DEV_EISA
 static __inline int		dpt_pio_wait (u_int32_t, u_int, u_int, u_int);
+#endif
 static __inline int		dpt_wait(dpt_softc_t *dpt, u_int bits,
 					 u_int state);
 static __inline struct dpt_ccb* dptgetccb(struct dpt_softc *dpt);
@@ -181,6 +185,7 @@ dpt_raid_busy(dpt_softc_t * dpt)
 		return (0);
 }
 
+#ifdef DEV_EISA
 static __inline int
 dpt_pio_wait (u_int32_t base, u_int reg, u_int bits, u_int state)
 {
@@ -196,6 +201,7 @@ dpt_pio_wait (u_int32_t base, u_int reg, u_int bits, u_int state)
 	}
 	return (-1);
 }
+#endif
 
 static __inline int
 dpt_wait(dpt_softc_t *dpt, u_int bits, u_int state)
@@ -386,6 +392,7 @@ dptallocccbs(dpt_softc_t *dpt)
 	return (i);
 }
 
+#ifdef DEV_EISA
 dpt_conf_t *
 dpt_pio_get_conf (u_int32_t base)
 {
@@ -478,6 +485,7 @@ dpt_pio_get_conf (u_int32_t base)
 	}
 	return (NULL);
 }
+#endif
 
 /*
  * Read a configuration page into the supplied dpt_cont_t buffer.
