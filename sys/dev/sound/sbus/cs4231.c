@@ -306,10 +306,12 @@ MIXER_DECLARE(cs4231_mixer);
 static int
 cs4231_bus_probe(device_t dev)
 {
-	const char *name;
+	const char *compat, *name;
 
+	compat = ofw_bus_get_compat(dev);
 	name = ofw_bus_get_name(dev);
-	if (strcmp("SUNW,CS4231", name) == 0) {
+	if (strcmp("SUNW,CS4231", name) == 0 ||
+	    (compat != NULL && strcmp("SUNW,CS4231", compat) == 0)) {
 		device_set_desc(dev, "Sun Audiocs");
 		return (BUS_PROBE_DEFAULT);
 	}
@@ -319,11 +321,9 @@ cs4231_bus_probe(device_t dev)
 static int
 cs4231_sbus_attach(device_t dev)
 {
-	struct snddev_info *d;
 	struct cs4231_softc *sc;
 	int burst;
 
-	d = device_get_softc(dev);
 	sc = malloc(sizeof(struct cs4231_softc), M_DEVBUF, M_NOWAIT | M_ZERO);
 	if (sc == NULL) {
 		device_printf(dev, "cannot allocate softc\n");
@@ -352,10 +352,8 @@ cs4231_sbus_attach(device_t dev)
 static int
 cs4231_ebus_attach(device_t dev)
 {
-	struct snddev_info *d;
 	struct cs4231_softc *sc;
 
-	d = device_get_softc(dev);
 	sc = malloc(sizeof(struct cs4231_softc), M_DEVBUF, M_NOWAIT | M_ZERO);
 	if (sc == NULL) {
 		device_printf(dev, "cannot allocate softc\n");
