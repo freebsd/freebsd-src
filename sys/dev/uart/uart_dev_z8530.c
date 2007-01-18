@@ -192,7 +192,7 @@ static int z8530_probe(struct uart_bas *bas);
 static void z8530_init(struct uart_bas *bas, int, int, int, int);
 static void z8530_term(struct uart_bas *bas);
 static void z8530_putc(struct uart_bas *bas, int);
-static int z8530_poll(struct uart_bas *bas);
+static int z8530_rxready(struct uart_bas *bas);
 static int z8530_getc(struct uart_bas *bas, struct mtx *);
 
 struct uart_ops uart_z8530_ops = {
@@ -200,7 +200,7 @@ struct uart_ops uart_z8530_ops = {
 	.init = z8530_init,
 	.term = z8530_term,
 	.putc = z8530_putc,
-	.poll = z8530_poll,
+	.rxready = z8530_rxready,
 	.getc = z8530_getc,
 };
 
@@ -235,12 +235,10 @@ z8530_putc(struct uart_bas *bas, int c)
 }
 
 static int
-z8530_poll(struct uart_bas *bas)
+z8530_rxready(struct uart_bas *bas)
 {
 
-	if (!(uart_getreg(bas, REG_CTRL) & BES_RXA))
-		return (-1);
-	return (uart_getreg(bas, REG_DATA));
+	return ((uart_getreg(bas, REG_CTRL) & BES_RXA) != 0 ? 1 : 0);
 }
 
 static int

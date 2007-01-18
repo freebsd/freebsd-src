@@ -52,7 +52,7 @@ static int sa1110_probe(struct uart_bas *bas);
 static void sa1110_init(struct uart_bas *bas, int, int, int, int);
 static void sa1110_term(struct uart_bas *bas);
 static void sa1110_putc(struct uart_bas *bas, int);
-static int sa1110_poll(struct uart_bas *bas);
+static int sa1110_rxready(struct uart_bas *bas);
 static int sa1110_getc(struct uart_bas *bas, struct mtx *mtx);
 
 extern SLIST_HEAD(uart_devinfo_list, uart_devinfo) uart_sysdevs;
@@ -62,7 +62,7 @@ struct uart_ops uart_sa1110_ops = {
 	.init = sa1110_init,
 	.term = sa1110_term,
 	.putc = sa1110_putc,
-	.poll = sa1110_poll,
+	.rxready = sa1110_rxready,
 	.getc = sa1110_getc,
 };
 
@@ -102,11 +102,10 @@ sa1110_putc(struct uart_bas *bas, int c)
 }
 
 static int
-sa1110_poll(struct uart_bas *bas)
+sa1110_rxready(struct uart_bas *bas)
 {
-	if (!(uart_getreg(bas, SACOM_SR1) & SR1_RNE))
-		return (-1);
-	return (uart_getreg(bas, SACOM_DR) & 0xff);
+
+	return ((uart_getreg(bas, SACOM_SR1) & SR1_RNE) != 0 ? 1 : 0);
 }
 
 static int

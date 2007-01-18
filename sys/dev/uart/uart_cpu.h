@@ -41,7 +41,7 @@ struct uart_ops {
 	void (*init)(struct uart_bas *, int, int, int, int);
 	void (*term)(struct uart_bas *);
 	void (*putc)(struct uart_bas *, int);
-	int (*poll)(struct uart_bas *);
+	int (*rxready)(struct uart_bas *);
 	int (*getc)(struct uart_bas *, struct mtx *);
 };
 
@@ -137,12 +137,26 @@ uart_putc(struct uart_devinfo *di, int c)
 }
 
 static __inline int
+uart_rxready(struct uart_devinfo *di)
+{
+	int res;
+
+	uart_lock(di->hwmtx);
+	res = di->ops.rxready(&di->bas);
+	uart_unlock(di->hwmtx);
+	return (res);
+}
+
+static __inline int
 uart_poll(struct uart_devinfo *di)
 {
 	int res;
 
 	uart_lock(di->hwmtx);
-	res = di->ops.poll(&di->bas);
+	if (di->ops.rxready(&di->bas))
+		res = di->ops.getc(&di->bas, NULL);
+	else
+		res = -1;
 	uart_unlock(di->hwmtx);
 	return (res);
 }

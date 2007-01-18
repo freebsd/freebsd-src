@@ -72,8 +72,6 @@ struct sunkbd_softc {
 	struct uart_softc	*sc_uart;
 	struct uart_devinfo	*sc_sysdev;
 
-	int			sc_checked_key;
-
 	struct callout		sc_repeat_callout;
 	int			sc_repeat_key;
 
@@ -403,7 +401,7 @@ sunkbd_check(keyboard_t *kbd)
 		return (TRUE);
 
 	if (sc->sc_polling != 0 && sc->sc_sysdev != NULL &&
-	    (sc->sc_checked_key = uart_poll(sc->sc_sysdev)) != -1)
+	    uart_rxready(sc->sc_sysdev))
 		return (TRUE);
 
 	return (FALSE);
@@ -441,12 +439,6 @@ sunkbd_read_char(keyboard_t *kbd, int wait)
 		goto process_code;
 	}
 
-	if (sc->sc_checked_key != -1) {
-		suncode = sc->sc_checked_key;
-		sc->sc_checked_key = -1;
-		goto process_code;
-	}
-
 	for (;;) {
  next_code:
 		if (!(sc->sc_flags & KPCOMPOSE) && (sc->sc_composed_char > 0)) {
@@ -472,7 +464,6 @@ sunkbd_read_char(keyboard_t *kbd, int wait)
 		case SKBD_RSP_IDLE:
 			break;
 		default:
-
  process_code:
 			++kbd->kb_count;
 			key = SKBD_KEY_CHAR(suncode);
@@ -565,10 +556,12 @@ sunkbd_read_char(keyboard_t *kbd, int wait)
 			if (key == 0x13) {	/* left alt (KP compose key) */
 #endif
 				if (release != 0) {
-				    if (sc->sc_flags & KPCOMPOSE) {
-					sc->sc_flags &= ~KPCOMPOSE;
-					if (sc->sc_composed_char > UCHAR_MAX)
-						sc->sc_composed_char = 0;
+					if (sc->sc_flags & KPCOMPOSE) {
+						sc->sc_flags &= ~KPCOMPOSE;
+						if (sc->sc_composed_char >
+						    UCHAR_MAX)
+							sc->sc_composed_char =
+							    0;
 					}
 				} else {
 					if (!(sc->sc_flags & KPCOMPOSE)) {
@@ -768,7 +761,6 @@ sunkbd_clear_state(keyboard_t *kbd)
 	struct sunkbd_softc *sc;
 
 	sc = (struct sunkbd_softc *)kbd;
-	sc->sc_checked_key = -1;
 	sc->sc_repeat_key = -1;
 	sc->sc_accents = 0;
 	sc->sc_composed_char = 0;
