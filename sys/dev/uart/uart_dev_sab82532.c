@@ -173,7 +173,7 @@ static int sab82532_probe(struct uart_bas *bas);
 static void sab82532_init(struct uart_bas *bas, int, int, int, int);
 static void sab82532_term(struct uart_bas *bas);
 static void sab82532_putc(struct uart_bas *bas, int);
-static int sab82532_poll(struct uart_bas *bas);
+static int sab82532_rxready(struct uart_bas *bas);
 static int sab82532_getc(struct uart_bas *bas, struct mtx *);
 
 struct uart_ops uart_sab82532_ops = {
@@ -181,7 +181,7 @@ struct uart_ops uart_sab82532_ops = {
 	.init = sab82532_init,
 	.term = sab82532_term,
 	.putc = sab82532_putc,
-	.poll = sab82532_poll,
+	.rxready = sab82532_rxready,
 	.getc = sab82532_getc,
 };
 
@@ -303,12 +303,10 @@ sab82532_putc(struct uart_bas *bas, int c)
 }
 
 static int
-sab82532_poll(struct uart_bas *bas)
+sab82532_rxready(struct uart_bas *bas)
 {
 
-	if (uart_getreg(bas, SAB_STAR) & SAB_STAR_RFNE)
-		return (sab82532_getc(bas, NULL));
-	return (-1);
+	return ((uart_getreg(bas, SAB_STAR) & SAB_STAR_RFNE) != 0 ? 1 : 0);
 }
 
 static int
