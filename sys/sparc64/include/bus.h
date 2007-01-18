@@ -845,59 +845,6 @@ bus_space_peek_4(bus_space_tag_t t, bus_space_handle_t h, bus_size_t o,
 	return (fasword32(bus_type_asi[t->bst_type], (caddr_t)(h + o), a));
 }
 
-/* Back-compat functions for old ISA drivers */
-extern bus_space_tag_t isa_io_bt;
-extern bus_space_handle_t isa_io_hdl;
-extern bus_space_tag_t isa_mem_bt;
-extern bus_space_handle_t isa_mem_hdl;
-
-#define inb(o)		bus_space_read_1(isa_io_bt, isa_io_hdl, o)
-#define inw(o)		bus_space_read_2(isa_io_bt, isa_io_hdl, o)
-#define inl(o)		bus_space_read_4(isa_io_bt, isa_io_hdl, o)
-#define outb(o, v)	bus_space_write_1(isa_io_bt, isa_io_hdl, o, v)
-#define outw(o, v)	bus_space_write_2(isa_io_bt, isa_io_hdl, o, v)
-#define outl(o, v)	bus_space_write_4(isa_io_bt, isa_io_hdl, o, v)
-
-#define readb(o)	bus_space_read_1(isa_mem_bt, isa_mem_hdl, o)
-#define readw(o)	bus_space_read_2(isa_mem_bt, isa_mem_hdl, o)
-#define readl(o)	bus_space_read_4(isa_mem_bt, isa_mem_hdl, o)
-#define writeb(o, v)	bus_space_write_1(isa_mem_bt, isa_mem_hdl, o, v)
-#define writew(o, v)	bus_space_write_2(isa_mem_bt, isa_mem_hdl, o, v)
-#define writel(o, v)	bus_space_write_4(isa_mem_bt, isa_mem_hdl, o, v)
-
-#define insb(o, a, c) \
-	bus_space_read_multi_1(isa_io_bt, isa_io_hdl, o, (void*)a, c)
-#define insw(o, a, c) \
-	bus_space_read_multi_2(isa_io_bt, isa_io_hdl, o, (void*)a, c)
-#define insl(o, a, c) \
-	bus_space_read_multi_4(isa_io_bt, isa_io_hdl, o, (void*)a, c)
-#define outsb(o, a, c) \
-	bus_space_write_multi_1(isa_io_bt, isa_io_hdl, o, (void*)a, c)
-#define outsw(o, a, c) \
-	bus_space_write_multi_2(isa_io_bt, isa_io_hdl, o, (void*)a, c)
-#define outsl(o, a, c) \
-	bus_space_write_multi_4(isa_io_bt, isa_io_hdl, o, (void*)a, c)
-
-#define memcpy_fromio(d, s, c) \
-	bus_space_read_region_1(isa_mem_bt, isa_mem_hdl, s, d, c)
-#define memcpy_toio(d, s, c) \
-	bus_space_write_region_1(isa_mem_bt, isa_mem_hdl, d, s, c)
-#define memcpy_io(d, s, c) \
-	bus_space_copy_region_1(isa_mem_bt, isa_mem_hdl, s, isa_mem_hdl, d, c)
-#define memset_io(d, v, c) \
-	bus_space_set_region_1(isa_mem_bt, isa_mem_hdl, d, v, c)
-#define memsetw_io(d, v, c) \
-	bus_space_set_region_2(isa_mem_bt, isa_mem_hdl, d, v, c)
-
-static __inline void
-memsetw(void *d, int val, size_t size)
-{
-    u_int16_t *sp = d;
-
-    while (size--)
-	*sp++ = val;
-}
-
 #include <machine/bus_dma.h>
 
 #endif /* !_MACHINE_BUS_H_ */
