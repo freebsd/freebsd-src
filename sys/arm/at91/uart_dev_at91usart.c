@@ -94,7 +94,7 @@ static int at91_usart_probe(struct uart_bas *bas);
 static void at91_usart_init(struct uart_bas *bas, int, int, int, int);
 static void at91_usart_term(struct uart_bas *bas);
 static void at91_usart_putc(struct uart_bas *bas, int);
-static int at91_usart_poll(struct uart_bas *bas);
+static int at91_usart_rxready(struct uart_bas *bas);
 static int at91_usart_getc(struct uart_bas *bas, struct mtx *mtx);
 
 extern SLIST_HEAD(uart_devinfo_list, uart_devinfo) uart_sysdevs;
@@ -201,7 +201,7 @@ struct uart_ops at91_usart_ops = {
 	.init = at91_usart_init,
 	.term = at91_usart_term,
 	.putc = at91_usart_putc,
-	.poll = at91_usart_poll,
+	.rxready = at91_usart_rxready,
 	.getc = at91_usart_getc,
 };
 
@@ -252,15 +252,13 @@ at91_usart_putc(struct uart_bas *bas, int c)
 }
 
 /*
- * Poll for a character available
+ * Check for a character available.
  */
 static int
-at91_usart_poll(struct uart_bas *bas)
+at91_usart_rxready(struct uart_bas *bas)
 {
 
-	if (!(RD4(bas, USART_CSR) & USART_CSR_RXRDY))
-		return (-1);
-	return (RD4(bas, USART_RHR) & 0xff);
+	return ((RD4(bas, USART_CSR) & USART_CSR_RXRDY) != 0 ? 1 : 0);
 }
 
 /*

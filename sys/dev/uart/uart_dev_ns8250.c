@@ -217,7 +217,7 @@ static int ns8250_probe(struct uart_bas *bas);
 static void ns8250_init(struct uart_bas *bas, int, int, int, int);
 static void ns8250_term(struct uart_bas *bas);
 static void ns8250_putc(struct uart_bas *bas, int);
-static int ns8250_poll(struct uart_bas *bas);
+static int ns8250_rxready(struct uart_bas *bas);
 static int ns8250_getc(struct uart_bas *bas, struct mtx *);
 
 struct uart_ops uart_ns8250_ops = {
@@ -225,7 +225,7 @@ struct uart_ops uart_ns8250_ops = {
 	.init = ns8250_init,
 	.term = ns8250_term,
 	.putc = ns8250_putc,
-	.poll = ns8250_poll,
+	.rxready = ns8250_rxready,
 	.getc = ns8250_getc,
 };
 
@@ -299,12 +299,10 @@ ns8250_putc(struct uart_bas *bas, int c)
 }
 
 static int
-ns8250_poll(struct uart_bas *bas)
+ns8250_rxready(struct uart_bas *bas)
 {
 
-	if (uart_getreg(bas, REG_LSR) & LSR_RXRDY)
-		return (uart_getreg(bas, REG_DATA));
-	return (-1);
+	return ((uart_getreg(bas, REG_LSR) & LSR_RXRDY) != 0 ? 1 : 0);
 }
 
 static int
