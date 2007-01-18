@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2001-2006, Cisco Systems, Inc. All rights reserved.
+ * Copyright (c) 2001-2007, Cisco Systems, Inc. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -36,9 +36,6 @@ __FBSDID("$FreeBSD$");
 #ifndef __crc32c_h__
 #define __crc32c_h__
 
-
-#include <sys/types.h>
-
 #ifndef SCTP_USE_ADLER32
 
 #if defined(_KERNEL)
@@ -47,8 +44,6 @@ uint32_t update_crc32(uint32_t, unsigned char *, unsigned int);
 uint32_t old_update_crc32(uint32_t, unsigned char *, unsigned int);
 
 uint32_t sctp_csum_finalize(uint32_t);
-
-
 
 
 #endif				/* _KERNEL */
