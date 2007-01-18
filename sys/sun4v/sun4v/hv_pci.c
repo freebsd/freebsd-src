@@ -86,7 +86,6 @@ static pcib_write_config_t hvpci_write_config;
 static pcib_route_interrupt_t hvpci_route_interrupt;
 static ofw_bus_get_node_t hvpci_get_node;
 static ofw_pci_intr_pending_t hvpci_intr_pending;
-static ofw_pci_get_bus_handle_t hvpci_get_bus_handle;
 
 static device_method_t hv_pcib_methods[] = {
 	/* Device interface */
@@ -119,7 +118,6 @@ static device_method_t hv_pcib_methods[] = {
 
 	/* ofw_pci interface */
 	DEVMETHOD(ofw_pci_intr_pending,	hvpci_intr_pending),
-	DEVMETHOD(ofw_pci_get_bus_handle,	hvpci_get_bus_handle),
 
 	{ 0, 0 }
 };
@@ -363,32 +361,6 @@ hvpci_intr_pending(device_t dev, ofw_pci_intr_t intr)
 {
 	/* XXX - implement */
 	panic("unimplemnted");
-}
-
-static bus_space_handle_t
-hvpci_get_bus_handle(device_t dev, int type, bus_space_handle_t childhdl,
-    bus_space_tag_t *tag)
-{
-	struct hvpci_softc *sc;
-
-	sc = device_get_softc(dev);
-	switch (type) {
-	case SYS_RES_IOPORT:
-		*tag = sc->hs_pci_iot;
-#ifdef DEBUG
-		printf("io handle: %#lx\n", sc->hs_pci_ioh + childhdl);
-#endif
-		return (sc->hs_pci_ioh + childhdl);
-		break;
-
-	case SYS_RES_MEMORY:
-		*tag = sc->hs_pci_memt;
-		return (sc->hs_pci_ioh + childhdl);
-		break;
-
-	default:
-		panic("%s: illegal space (%d)", __func__, type);
-	}
 }
 
 static int
