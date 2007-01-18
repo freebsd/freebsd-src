@@ -1178,7 +1178,7 @@ bstp_set_other_tcprop(struct bstp_port *bp)
 	LIST_FOREACH(bp2, &bs->bs_bplist, bp_next) {
 		if (bp2 == bp)
 			continue;
-		bp->bp_tc_prop = 1;
+		bp2->bp_tc_prop = 1;
 	}
 }
 
