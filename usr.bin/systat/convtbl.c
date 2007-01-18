@@ -33,15 +33,19 @@
 #include <string.h>
 #include "convtbl.h"
 
-#define BIT	(8)
-#define BYTE	(1)
+#define BIT		(8)
+#define BITS		(1)
+#define KILOBIT		(1000LL)
+#define MEGABIT		(KILOBIT * 1000)
+#define GIGABIT		(MEGABIT * 1000)
+#define TERABIT		(GIGABIT * 1000)
 
-#define BITS	(1)
-#define BYTES	(1)
-#define KILO	(1024LL)
-#define MEGA	(KILO * 1024)
-#define GIGA	(MEGA * 1024)
-#define TERA	(GIGA * 1024)
+#define BYTE		(1)
+#define BYTES		(1)
+#define KILOBYTE	(1024LL)
+#define MEGABYTE	(KILOBYTE * 1024)
+#define GIGABYTE	(MEGABYTE * 1024)
+#define TERABYTE	(GIGABYTE * 1024)
 
 struct convtbl {
 	uintmax_t	 mul;
@@ -52,17 +56,17 @@ struct convtbl {
 
 static struct convtbl convtbl[] = {
 	/* mul, scale, str, name */
-	[SC_BYTE] =	{ BYTE, BYTES, "B",  "byte"  },
-	[SC_KILOBYTE] =	{ BYTE, KILO,  "KB", "kbyte" },
-	[SC_MEGABYTE] =	{ BYTE, MEGA,  "MB", "mbyte" },
-	[SC_GIGABYTE] =	{ BYTE, GIGA,  "GB", "gbyte" },
-	[SC_TERABYTE] =	{ BYTE, TERA,  "TB", "tbyte" },
+	[SC_BYTE] =	{ BYTE, BYTES, "B", "byte" },
+	[SC_KILOBYTE] =	{ BYTE, KILOBYTE, "KB", "kbyte" },
+	[SC_MEGABYTE] =	{ BYTE, MEGABYTE, "MB", "mbyte" },
+	[SC_GIGABYTE] =	{ BYTE, GIGABYTE, "GB", "gbyte" },
+	[SC_TERABYTE] =	{ BYTE, TERABYTE, "TB", "tbyte" },
 
-	[SC_BIT] =	{ BIT, BITS, "b",  "bit"  },
-	[SC_KILOBIT] =	{ BIT, KILO, "Kb", "kbit" },
-	[SC_MEGABIT] =	{ BIT, MEGA, "Mb", "mbit" },
-	[SC_GIGABIT] =	{ BIT, GIGA, "Gb", "gbit" },
-	[SC_TERABIT] =	{ BIT, TERA, "Tb", "tbit" },
+	[SC_BIT] =	{ BIT, BITS, "b", "bit" },
+	[SC_KILOBIT] =	{ BIT, KILOBIT, "Kb", "kbit" },
+	[SC_MEGABIT] =	{ BIT, MEGABIT, "Mb", "mbit" },
+	[SC_GIGABIT] =	{ BIT, GIGABIT, "Gb", "gbit" },
+	[SC_TERABIT] =	{ BIT, TERABIT, "Tb", "tbit" },
 
 	[SC_AUTO] =	{ 0, 0, "", "auto" }
 };
@@ -85,7 +89,7 @@ get_tbl_ptr(const uintmax_t size, const int scale)
 		 * index as the array index into the conversion table.
 		 */
 		for (tmp = size, idx = SC_KILOBYTE;
-		     tmp >= MEGA && idx < SC_BIT - 1;
+		     tmp >= MEGABYTE && idx < SC_BIT - 1;
 		     tmp >>= 10, idx++);
 
 	return (&convtbl[idx]);
