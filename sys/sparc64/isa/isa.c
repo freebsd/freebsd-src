@@ -54,11 +54,6 @@ __FBSDID("$FreeBSD$");
 #include <sparc64/isa/ofw_isa.h>
 
 /* There can be only one ISA bus, so it is safe to use globals. */
-bus_space_tag_t isa_io_bt = NULL;
-bus_space_handle_t isa_io_hdl;
-bus_space_tag_t isa_mem_bt = NULL;
-bus_space_handle_t isa_mem_hdl;
-
 static u_int64_t isa_io_base;
 static u_int64_t isa_io_limit;
 static u_int64_t isa_mem_base;
@@ -139,15 +134,11 @@ isa_init(device_t dev)
 			/* This is probably always 0. */
 			isa_io_base = ISAB_RANGE_PHYS(&isab_ranges[i]);
 			isa_io_limit = isab_ranges[i].size;
-			isa_io_hdl = OFW_PCI_GET_BUS_HANDLE(bridge,
-			    SYS_RES_IOPORT, isa_io_base, &isa_io_bt);
 			break;
 		case ISAR_SPACE_MEM:
 			/* This is probably always 0. */
 			isa_mem_base = ISAB_RANGE_PHYS(&isab_ranges[i]);
 			isa_mem_limit = isab_ranges[i].size;
-			isa_mem_hdl = OFW_PCI_GET_BUS_HANDLE(bridge,
-			    SYS_RES_MEMORY, isa_mem_base, &isa_mem_bt);
 			break;
 		}
 	}
@@ -359,14 +350,10 @@ isa_alloc_resource(device_t bus, device_t child, int type, int *rid,
 		base = limit = 0;
 		switch (type) {
 		case SYS_RES_MEMORY:
-			if (isa_mem_bt == NULL)
-				return (NULL);
 			base = isa_mem_base;
 			limit = base + isa_mem_limit;
 			break;
 		case SYS_RES_IOPORT:
-			if (isa_io_bt == NULL)
-				return (NULL);
 			base = isa_io_base;
 			limit = base + isa_io_limit;
 			break;

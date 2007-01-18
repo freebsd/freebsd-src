@@ -117,7 +117,6 @@ static pcib_read_config_t psycho_read_config;
 static pcib_write_config_t psycho_write_config;
 static pcib_route_interrupt_t psycho_route_interrupt;
 static ofw_pci_intr_pending_t psycho_intr_pending;
-static ofw_pci_get_bus_handle_t psycho_get_bus_handle;
 static ofw_bus_get_node_t psycho_get_node;
 static ofw_pci_adjust_busrange_t psycho_adjust_busrange;
 
@@ -150,7 +149,6 @@ static device_method_t psycho_methods[] = {
 
 	/* ofw_pci interface */
 	DEVMETHOD(ofw_pci_intr_pending,	psycho_intr_pending),
-	DEVMETHOD(ofw_pci_get_bus_handle,	psycho_get_bus_handle),
 	DEVMETHOD(ofw_pci_adjust_busrange,	psycho_adjust_busrange),
 
 	{ 0, 0 }
@@ -1276,25 +1274,6 @@ psycho_intr_pending(device_t dev, ofw_pci_intr_t intr)
 		return (0);
 	}
 	return (diag != 0);
-}
-
-static bus_space_handle_t
-psycho_get_bus_handle(device_t dev, int type, bus_space_handle_t childhdl,
-    bus_space_tag_t *tag)
-{
-	struct psycho_softc *sc;
-
-	sc = device_get_softc(dev);
-	switch (type) {
-	case SYS_RES_IOPORT:
-		*tag = sc->sc_pci_iot;
-		return (sc->sc_pci_bh[OFW_PCI_CS_IO] + childhdl);
-	case SYS_RES_MEMORY:
-		*tag = sc->sc_pci_memt;
-		return (sc->sc_pci_bh[OFW_PCI_CS_MEM32] + childhdl);
-	default:
-		panic("%s: illegal space (%d)\n", __func__, type);
-	}
 }
 
 static phandle_t
