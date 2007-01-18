@@ -45,6 +45,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/mutex.h>
 #include <sys/proc.h>
 #include <sys/stat.h>
+#include <sys/sx.h>
 #include <sys/syscallsubr.h>
 #include <sys/sysproto.h>
 #include <sys/tty.h>
@@ -88,6 +89,8 @@ int
 linux_open(struct thread *td, struct linux_open_args *args)
 {
     struct proc *p = td->td_proc;
+    struct file *fp;
+    int fd;
     char *path;
     int bsd_flags, error;
 
@@ -126,28 +129,54 @@ linux_open(struct thread *td, struct linux_open_args *args)
 	bsd_flags |= O_EXCL;
     if (args->flags & LINUX_O_NOCTTY)
 	bsd_flags |= O_NOCTTY;
+    if (args->flags & LINUX_O_DIRECT)
+	bsd_flags |= O_DIRECT;
+    if (args->flags & LINUX_O_NOFOLLOW)
+	bsd_flags |= O_NOFOLLOW;
+    /* XXX LINUX_O_NOATIME: unable to be easily implemented. */
 
     error = kern_open(td, path, UIO_SYSSPACE, bsd_flags, args->mode);
-    PROC_LOCK(p);
-    if (!error && !(bsd_flags & O_NOCTTY) &&
-	SESS_LEADER(p) && !(p->p_flag & P_CONTROLT)) {
-	struct file *fp;
-
-	PROC_UNLOCK(p);
-	error = fget(td, td->td_retval[0], &fp);
-	if (!error) {
-		if (fp->f_type == DTYPE_VNODE)
-			fo_ioctl(fp, TIOCSCTTY, (caddr_t) 0, td->td_ucred,
-			    td);
-	    fdrop(fp, td);
-	}
-    } else {
-	PROC_UNLOCK(p);
-#ifdef DEBUG
-	if (ldebug(open))
-		printf(LMSG("open returns error %d"), error);
-#endif
+    if (!error) {
+	    fd = td->td_retval[0];
+	    /*
+	     * XXX In between kern_open() and fget(), another process
+	     * having the same filedesc could use that fd without
+	     * checking below.
+	     */
+	    error = fget(td, fd, &fp);
+	    if (!error) {
+		    sx_slock(&proctree_lock);
+		    PROC_LOCK(p);
+		    if (!(bsd_flags & O_NOCTTY) &&
+			SESS_LEADER(p) && !(p->p_flag & P_CONTROLT)) {
+			    PROC_UNLOCK(p);
+			    sx_unlock(&proctree_lock);
+			    if (fp->f_type == DTYPE_VNODE)
+				    (void) fo_ioctl(fp, TIOCSCTTY, (caddr_t) 0,
+					     td->td_ucred, td);
+		    } else {
+			    PROC_UNLOCK(p);
+			    sx_sunlock(&proctree_lock);
+		    }
+		    if (args->flags & LINUX_O_DIRECTORY) {
+			    if (fp->f_type != DTYPE_VNODE ||
+				fp->f_vnode->v_type != VDIR) {
+				    error = ENOTDIR;
+			    }
+		    }
+		    fdrop(fp, td);
+		    /*
+		     * XXX as above, fdrop()/kern_close() pair is racy.
+		     */
+		    if (error)
+			    kern_close(td, fd);
+	    }
     }
+
+#ifdef DEBUG
+    if (ldebug(open))
+	    printf(LMSG("open returns error %d"), error);
+#endif
     LFREEPATH(path);
     return error;
 }
