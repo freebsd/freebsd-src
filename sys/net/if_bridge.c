@@ -2354,8 +2354,7 @@ bridge_rttrim(struct bridge_softc *sc)
 	if (sc->sc_brtcnt <= sc->sc_brtmax)
 		return;
 
-	for (brt = LIST_FIRST(&sc->sc_rtlist); brt != NULL; brt = nbrt) {
-		nbrt = LIST_NEXT(brt, brt_list);
+	LIST_FOREACH_SAFE(brt, &sc->sc_rtlist, brt_list, nbrt) {
 		if ((brt->brt_flags & IFBAF_TYPEMASK) == IFBAF_DYNAMIC) {
 			bridge_rtnode_destroy(sc, brt);
 			if (sc->sc_brtcnt <= sc->sc_brtmax)
@@ -2395,8 +2394,7 @@ bridge_rtage(struct bridge_softc *sc)
 
 	BRIDGE_LOCK_ASSERT(sc);
 
-	for (brt = LIST_FIRST(&sc->sc_rtlist); brt != NULL; brt = nbrt) {
-		nbrt = LIST_NEXT(brt, brt_list);
+	LIST_FOREACH_SAFE(brt, &sc->sc_rtlist, brt_list, nbrt) {
 		if ((brt->brt_flags & IFBAF_TYPEMASK) == IFBAF_DYNAMIC) {
 			if (time_uptime >= brt->brt_expire)
 				bridge_rtnode_destroy(sc, brt);
@@ -2416,8 +2414,7 @@ bridge_rtflush(struct bridge_softc *sc, int full)
 
 	BRIDGE_LOCK_ASSERT(sc);
 
-	for (brt = LIST_FIRST(&sc->sc_rtlist); brt != NULL; brt = nbrt) {
-		nbrt = LIST_NEXT(brt, brt_list);
+	LIST_FOREACH_SAFE(brt, &sc->sc_rtlist, brt_list, nbrt) {
 		if (full || (brt->brt_flags & IFBAF_TYPEMASK) == IFBAF_DYNAMIC)
 			bridge_rtnode_destroy(sc, brt);
 	}
@@ -2454,8 +2451,7 @@ bridge_rtdelete(struct bridge_softc *sc, struct ifnet *ifp, int full)
 
 	BRIDGE_LOCK_ASSERT(sc);
 
-	for (brt = LIST_FIRST(&sc->sc_rtlist); brt != NULL; brt = nbrt) {
-		nbrt = LIST_NEXT(brt, brt_list);
+	LIST_FOREACH_SAFE(brt, &sc->sc_rtlist, brt_list, nbrt) {
 		if (brt->brt_ifp == ifp && (full ||
 			    (brt->brt_flags & IFBAF_TYPEMASK) == IFBAF_DYNAMIC))
 			bridge_rtnode_destroy(sc, brt);
