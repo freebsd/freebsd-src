@@ -45,7 +45,9 @@
 #ifndef _MACHINE_CACHE_H_
 #define _MACHINE_CACHE_H_
 
+#ifndef LOCORE
 #include <dev/ofw/openfirm.h>
+#endif
 
 #define	DCACHE_COLOR_BITS	(1)
 #define	DCACHE_COLORS		(1 << DCACHE_COLOR_BITS)
@@ -71,6 +73,8 @@
 
 #define	IC_TAG_MASK	((1 << IC_TAG_BITS) - 1)
 #define	IC_VALID_MASK	((1 << IC_VALID_BITS) - 1)
+
+#ifndef LOCORE
 
 /*
  * Cache control information.
@@ -119,6 +123,8 @@ extern icache_page_inval_t *icache_page_inval;
 
 extern struct cacheinfo cache;
 
-#endif
+#endif /* KERNEL */
 
-#endif	/* !_MACHINE_CACHE_H_ */
+#endif /* !LOCORE */
+
+#endif /* !_MACHINE_CACHE_H_ */

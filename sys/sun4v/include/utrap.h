@@ -77,7 +77,7 @@
 /* 8 is 32-bit ABI syscall (old solaris syscall?) */
 #define	ST_BSD_SYSCALL			9
 #define	ST_FP_RESTORE			10
-#define ST_FPEMU_CONTEXT                11
+#define	ST_FPEMU_CONTEXT		11
 /* 11-15 are available */
 /* 16 is linux 32 bit syscall (but supposed to be reserved, grr) */
 /* 17 is old linux 64 bit syscall (but supposed to be reserved, grr) */

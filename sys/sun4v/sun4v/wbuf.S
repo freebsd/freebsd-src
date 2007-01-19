@@ -1,10 +1,10 @@
-
-
 #include <machine/asm.h>
 __FBSDID("$FreeBSD$")
-	
+
 #include <machine/asi.h>
 #include <machine/asmacros.h>
+#include <machine/frame.h>
+#include <machine/pcb.h>
 #include <machine/pstate.h>
 
 #include "assym.s"
