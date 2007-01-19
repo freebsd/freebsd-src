@@ -217,7 +217,8 @@ cardbus_detach_card(device_t cbdev)
 	int tmp;
 	int err = 0;
 
-	device_get_children(cbdev, &devlist, &numdevs);
+	if (device_get_children(cbdev, &devlist, &numdevs) != 0)
+		return (ENOENT);
 
 	if (numdevs == 0) {
 		free(devlist, M_TEMP);
@@ -251,7 +252,9 @@ cardbus_driver_added(device_t cbdev, driver_t *driver)
 	struct cardbus_devinfo *dinfo;
 
 	DEVICE_IDENTIFY(driver, cbdev);
-	device_get_children(cbdev, &devlist, &numdevs);
+	if (device_get_children(cbdev, &devlist, &numdevs) != 0)
+		return;
+
 	/*
 	 * If there are no drivers attached, but there are children,
 	 * then power the card up.
