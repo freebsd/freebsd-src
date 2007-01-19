@@ -1136,7 +1136,7 @@ rt2661_rx_intr(struct rt2661_softc *sc)
 		m->m_pkthdr.len = m->m_len =
 		    (le32toh(desc->flags) >> 16) & 0xfff;
 
-		if (sc->sc_drvbpf != NULL) {
+		if (bpf_peers_present(sc->sc_drvbpf)) {
 			struct rt2661_rx_radiotap_header *tap = &sc->sc_rxtap;
 			uint32_t tsf_lo, tsf_hi;
 
@@ -1484,7 +1484,7 @@ rt2661_tx_mgt(struct rt2661_softc *sc, struct mbuf *m0,
 		return error;
 	}
 
-	if (sc->sc_drvbpf != NULL) {
+	if (bpf_peers_present(sc->sc_drvbpf)) {
 		struct rt2661_tx_radiotap_header *tap = &sc->sc_txtap;
 
 		tap->wt_flags = 0;
@@ -1708,7 +1708,7 @@ rt2661_tx_data(struct rt2661_softc *sc, struct mbuf *m0,
 		wh = mtod(m0, struct ieee80211_frame *);
 	}
 
-	if (sc->sc_drvbpf != NULL) {
+	if (bpf_peers_present(sc->sc_drvbpf)) {
 		struct rt2661_tx_radiotap_header *tap = &sc->sc_txtap;
 
 		tap->wt_flags = 0;
@@ -1786,7 +1786,7 @@ rt2661_start(struct ifnet *ifp)
 			ni = (struct ieee80211_node *)m0->m_pkthdr.rcvif;
 			m0->m_pkthdr.rcvif = NULL;
 
-			if (ic->ic_rawbpf != NULL)
+			if (bpf_peers_present(ic->ic_rawbpf))
 				bpf_mtap(ic->ic_rawbpf, m0);
 
 			if (rt2661_tx_mgt(sc, m0, ni) != 0)
@@ -1840,7 +1840,7 @@ rt2661_start(struct ifnet *ifp)
 				continue;
 			}
 
-			if (ic->ic_rawbpf != NULL)
+			if (bpf_peers_present(ic->ic_rawbpf))
 				bpf_mtap(ic->ic_rawbpf, m0);
 
 			if (rt2661_tx_data(sc, m0, ni, ac) != 0) {

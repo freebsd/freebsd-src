@@ -1302,7 +1302,7 @@ iwi_frame_intr(struct iwi_softc *sc, struct iwi_rx_data *data, int i,
 
 	m_adj(m, sizeof (struct iwi_hdr) + sizeof (struct iwi_frame));
 
-	if (sc->sc_drvbpf != NULL) {
+	if (bpf_peers_present(sc->sc_drvbpf)) {
 		struct iwi_rx_radiotap_header *tap = &sc->sc_rxtap;
 
 		tap->wr_flags = 0;
@@ -1831,7 +1831,7 @@ iwi_tx_start(struct ifnet *ifp, struct mbuf *m0, struct ieee80211_node *ni,
 		wh = mtod(m0, struct ieee80211_frame *);
 	}
 
-	if (sc->sc_drvbpf != NULL) {
+	if (bpf_peers_present(sc->sc_drvbpf)) {
 		struct iwi_tx_radiotap_header *tap = &sc->sc_txtap;
 
 		tap->wt_flags = 0;
@@ -1986,7 +1986,7 @@ iwi_start(struct ifnet *ifp)
 			continue;
 		}
 
-		if (ic->ic_rawbpf != NULL)
+		if (bpf_peers_present(ic->ic_rawbpf))
 			bpf_mtap(ic->ic_rawbpf, m0);
 
 		if (iwi_tx_start(ifp, m0, ni, ac) != 0) {

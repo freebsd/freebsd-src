@@ -219,8 +219,7 @@ ng_sppp_start (struct ifnet *ifp)
 	ifp->if_drv_flags |= IFF_DRV_OACTIVE;
 
 	while ((m = sppp_dequeue (ifp)) != NULL) {
-		if (ifp->if_bpf)
-			BPF_MTAP (ifp, m);
+		BPF_MTAP (ifp, m);
 		len = m->m_pkthdr.len;
 		
 		NG_SEND_DATA_ONLY (error, priv->hook, m);
@@ -382,8 +381,7 @@ ng_sppp_rcvdata (hook_p hook, item_p item)
 	m->m_pkthdr.rcvif = SP2IFP(pp);
 
 	/* Berkeley packet filter */
-	if (SP2IFP(pp)->if_bpf)
-		BPF_MTAP (SP2IFP(pp), m);
+	BPF_MTAP (SP2IFP(pp), m);
 
 	/* Send packet */
 	sppp_input (SP2IFP(pp), m);

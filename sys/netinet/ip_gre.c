@@ -206,7 +206,7 @@ gre_input2(struct mbuf *m ,int hlen, u_char proto)
 	/* Unlike NetBSD, in FreeBSD m_adj() adjusts m->m_pkthdr.len as well */
 	m_adj(m, hlen);
 
-	if (GRE2IFP(sc)->if_bpf) {
+	if (bpf_peers_present(GRE2IFP(sc)->if_bpf)) {
 		bpf_mtap2(GRE2IFP(sc)->if_bpf, &af, sizeof(af), m);
 	}
 
@@ -289,7 +289,7 @@ gre_mobile_input(struct mbuf *m, int hlen)
 	ip->ip_sum = 0;
 	ip->ip_sum = in_cksum(m, (ip->ip_hl << 2));
 
-	if (GRE2IFP(sc)->if_bpf) {
+	if (bpf_peers_present(GRE2IFP(sc)->if_bpf)) {
 		u_int32_t af = AF_INET;
 		bpf_mtap2(GRE2IFP(sc)->if_bpf, &af, sizeof(af), m);
 	}

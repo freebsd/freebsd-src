@@ -1225,7 +1225,7 @@ rt2560_decryption_intr(struct rt2560_softc *sc)
 		m->m_pkthdr.len = m->m_len =
 		    (le32toh(desc->flags) >> 16) & 0xfff;
 
-		if (sc->sc_drvbpf != NULL) {
+		if (bpf_peers_present(sc->sc_drvbpf)) {
 			struct rt2560_rx_radiotap_header *tap = &sc->sc_rxtap;
 			uint32_t tsf_lo, tsf_hi;
 
@@ -1346,7 +1346,7 @@ rt2560_beacon_expire(struct rt2560_softc *sc)
 
 	ieee80211_beacon_update(ic, data->ni, &sc->sc_bo, data->m, 1);
 
-	if (ic->ic_rawbpf != NULL)
+	if (bpf_peers_present(ic->ic_rawbpf))
 		bpf_mtap(ic->ic_rawbpf, data->m);
 
 	rt2560_tx_bcn(sc, data->m, data->ni);
@@ -1606,7 +1606,7 @@ rt2560_tx_bcn(struct rt2560_softc *sc, struct mbuf *m0,
 		return error;
 	}
 
-	if (sc->sc_drvbpf != NULL) {
+	if (bpf_peers_present(sc->sc_drvbpf)) {
 		struct rt2560_tx_radiotap_header *tap = &sc->sc_txtap;
 
 		tap->wt_flags = 0;
@@ -1663,7 +1663,7 @@ rt2560_tx_mgt(struct rt2560_softc *sc, struct mbuf *m0,
 		return error;
 	}
 
-	if (sc->sc_drvbpf != NULL) {
+	if (bpf_peers_present(sc->sc_drvbpf)) {
 		struct rt2560_tx_radiotap_header *tap = &sc->sc_txtap;
 
 		tap->wt_flags = 0;
@@ -1882,7 +1882,7 @@ rt2560_tx_data(struct rt2560_softc *sc, struct mbuf *m0,
 		wh = mtod(m0, struct ieee80211_frame *);
 	}
 
-	if (sc->sc_drvbpf != NULL) {
+	if (bpf_peers_present(sc->sc_drvbpf)) {
 		struct rt2560_tx_radiotap_header *tap = &sc->sc_txtap;
 
 		tap->wt_flags = 0;
@@ -1961,7 +1961,7 @@ rt2560_start(struct ifnet *ifp)
 			ni = (struct ieee80211_node *)m0->m_pkthdr.rcvif;
 			m0->m_pkthdr.rcvif = NULL;
 
-			if (ic->ic_rawbpf != NULL)
+			if (bpf_peers_present(ic->ic_rawbpf))
 				bpf_mtap(ic->ic_rawbpf, m0);
 
 			if (rt2560_tx_mgt(sc, m0, ni) != 0)
@@ -1997,7 +1997,7 @@ rt2560_start(struct ifnet *ifp)
 				continue;
 			}
 
-			if (ic->ic_rawbpf != NULL)
+			if (bpf_peers_present(ic->ic_rawbpf))
 				bpf_mtap(ic->ic_rawbpf, m0);
 
 			if (rt2560_tx_data(sc, m0, ni) != 0) {
