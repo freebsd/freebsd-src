@@ -1205,8 +1205,7 @@ gem_start_locked(ifp)
 		bus_space_write_4(sc->sc_bustag, sc->sc_h, GEM_TX_KICK,
 			sc->sc_txnext);
 
-		if (ifp->if_bpf != NULL)
-			bpf_mtap(ifp->if_bpf, m0);
+		BPF_MTAP(ifp, m0);
 	} while (1);
 
 	if (txmfail == -1 || sc->sc_txfree == 0) {

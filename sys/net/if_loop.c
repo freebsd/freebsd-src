@@ -269,11 +269,11 @@ if_simloop(ifp, m, af, hlen)
 	 *	-> passes to lo0's BPF (even in case of IPv6, where ifp!=lo0)
 	 */
 	if (hlen > 0) {
-		if (ifp->if_bpf != NULL) {
+		if (bpf_peers_present(ifp->if_bpf)) {
 			bpf_mtap(ifp->if_bpf, m);
 		}
 	} else {
-		if (loif->if_bpf != NULL) {
+		if (bpf_peers_present(loif->if_bpf)) {
 			if ((m->m_flags & M_MCAST) == 0 || loif == ifp) {
 				/* XXX beware sizeof(af) != 4 */
 				u_int32_t af1 = af;	

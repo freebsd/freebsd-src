@@ -1185,8 +1185,7 @@ static void cx_send (drv_t *d)
 		if (! m)
 			return;
 #ifndef NETGRAPH
-		if (d->ifp->if_bpf)
-			BPF_MTAP (d->ifp, m);
+		BPF_MTAP (d->ifp, m);
 #endif
 		len = m_length (m, NULL);
 		if (! m->m_next)
@@ -1342,8 +1341,7 @@ static void cx_receive (cx_chan_t *c, char *data, int len)
 	m->m_pkthdr.rcvif = d->ifp;
 	/* Check if there's a BPF listener on this interface.
 	 * If so, hand off the raw packet to bpf. */
-	if (d->ifp->if_bpf)
-		BPF_TAP (d->ifp, data, len);
+	BPF_TAP (d->ifp, data, len);
 	IF_ENQUEUE (&d->queue, m);
 #endif
 }

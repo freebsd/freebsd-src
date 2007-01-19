@@ -796,7 +796,7 @@ awi_start(struct ifnet *ifp)
 			}
 			IFQ_DEQUEUE(&ifp->if_snd, m0);
 #if NBPFILTER > 0
-			if (ifp->if_bpf)
+			if (bpf_peers_present(ifp->if_bpf))
 				bpf_mtap(ifp->if_bpf, m0);
 #endif
 			if ((ifp->if_flags & IFF_LINK0) || sc->sc_adhoc_ap)
@@ -839,7 +839,7 @@ awi_start(struct ifnet *ifp)
 			ifp->if_opackets++;
 		}
 #if NBPFILTER > 0
-		if (ic->ic_rawbpf)
+		if (bpf_peers_present(ic->ic_rawbpf))
 			bpf_mtap(ic->ic_rawbpf, m0);
 #endif
 		if (dowep) {
