@@ -1244,6 +1244,9 @@ struct ahd_softc {
 	/* PCI cacheline size. */
 	u_int			  pci_cachesize;
 
+	/* PCI-X capability offset. */
+	int			  pcix_ptr;
+
 	/* IO Cell Parameters */
 	uint8_t			  iocell_opts[AHD_NUM_PER_DEV_ANNEXCOLS];
 
