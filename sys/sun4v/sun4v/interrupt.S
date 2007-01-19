@@ -30,15 +30,16 @@ __FBSDID("$FreeBSD$");
 
 #include "opt_simulator.h"
 #include "opt_trap_trace.h"
-	
-#include <machine/hypervisorvar.h>
+
 #include <machine/asi.h>
 #include <machine/asmacros.h>
+#include <machine/frame.h>
+#include <machine/hypervisorvar.h>
+#include <machine/intr_machdep.h>
 #include <machine/ktr.h>
 #include <machine/pstate.h>
 
 #include "assym.s"
-
 
 #define PUTCHAR(x) \
 0:	mov	x, %o0		; \

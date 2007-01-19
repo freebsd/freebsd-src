@@ -31,6 +31,8 @@
 #define	FPRS_DU		(1 << 1)
 #define	FPRS_FEF	(1 << 2)
 
+#ifndef LOCORE
+
 #define	FSR_EXC_BITS	5
 #define	FSR_EXC_MASK	((1UL << FSR_EXC_BITS) - 1)
 #define	FSR_CEXC_SHIFT	0
@@ -104,5 +106,7 @@
 #define	FSR_CC_LT	1	/* a < b */
 #define	FSR_CC_GT	2	/* a > b */
 #define	FSR_CC_UO	3	/* unordered */
+
+#endif /* !LOCORE */
 
 #endif /* !_MACHINE_FSR_H_ */
