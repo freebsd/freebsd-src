@@ -33,6 +33,8 @@
 #define	SPOFF		2047
 #define	BIAS		SPOFF		/* XXX - open/netbsd compat */
 
+#ifndef LOCORE
+
 /*
  * NOTE: keep this structure in sync with struct reg and struct mcontext.
  */
@@ -56,7 +58,7 @@ struct trapframe {
 	uint64_t tf_pad[2];
 };
 #define	tf_sp	tf_out[6]
- 
+
 #define	TF_DONE(tf) do { \
 	tf->tf_tpc = tf->tf_tnpc; \
 	tf->tf_tnpc += 4; \
@@ -85,5 +87,7 @@ struct thread;
 
 int	rwindow_save(struct thread *td);
 int	rwindow_load(struct thread *td, struct trapframe *tf, int n);
+
+#endif /* !LOCORE */
 
 #endif /* !_MACHINE_FRAME_H_ */

@@ -49,6 +49,8 @@
 #define	PIL_FAST	13	/* fast interrupts */
 #define	PIL_TICK	14
 
+#ifndef LOCORE
+
 struct trapframe;
 
 typedef	void ih_func_t(struct trapframe *);
@@ -76,13 +78,15 @@ extern ih_func_t *intr_handlers[];
 extern struct intr_vector intr_vectors[];
 
 void	intr_setup(int level, ih_func_t *ihf, int pri, iv_func_t *ivf,
-		   void *iva);
+	    void *iva);
 void	intr_init1(void);
 void	intr_init2(void);
 int	inthand_add(const char *name, int vec, void (*handler)(void *),
-    void *arg, int flags, void **cookiep);
+	    void *arg, int flags, void **cookiep);
 int	inthand_remove(int vec, void *cookie);
 
 ih_func_t intr_fast;
 
-#endif
+#endif /* !LOCORE */
+
+#endif /* !_MACHINE_INTR_MACHDEP_H_ */

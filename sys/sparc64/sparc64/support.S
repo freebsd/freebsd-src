@@ -27,9 +27,14 @@
 #include <machine/asm.h>
 __FBSDID("$FreeBSD$");
 
+#include <sys/errno.h>
+
 #include <machine/asi.h>
 #include <machine/asmacros.h>
+#include <machine/fsr.h>
+#include <machine/intr_machdep.h>
 #include <machine/ktr.h>
+#include <machine/pcb.h>
 #include <machine/pstate.h>
 
 #include "assym.s"

@@ -61,10 +61,16 @@ __FBSDID("$FreeBSD$");
 
 #include <machine/asi.h>
 #include <machine/asmacros.h>
+#include <machine/frame.h>
+#include <machine/fsr.h>
+#include <machine/intr_machdep.h>
 #include <machine/ktr.h>
+#include <machine/pcb.h>
 #include <machine/pstate.h>
 #include <machine/trap.h>
+#include <machine/tsb.h>
 #include <machine/tstate.h>
+#include <machine/utrap.h>
 #include <machine/wstate.h>
 
 #include "assym.s"

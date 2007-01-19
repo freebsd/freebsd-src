@@ -25,26 +25,30 @@
  *
  */
 
-	
 #include <machine/asm.h>
-__FBSDID("$FreeBSD$")			
+__FBSDID("$FreeBSD$")
 
 #include "opt_compat.h"
 #include "opt_ddb.h"
 #include "opt_simulator.h"
 #include "opt_trap_trace.h"
-	
+
 #include <machine/asi.h>
 #include <machine/asmacros.h>
+#include <machine/frame.h>
+#include <machine/fsr.h>
+#include <machine/hypervisorvar.h>
+#include <machine/intr_machdep.h>
 #include <machine/ktr.h>
+#include <machine/mmu.h>
+#include <machine/pcb.h>
 #include <machine/pstate.h>
 #include <machine/trap.h>
 #include <machine/tstate.h>
+#include <machine/utrap.h>
 #include <machine/wstate.h>
-#include <machine/hypervisorvar.h>
 
 #include "assym.s"
-#include <machine/mmu.h>
 
 #define PMAP_DEBUG
 
