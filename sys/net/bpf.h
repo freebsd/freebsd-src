@@ -615,7 +615,23 @@ struct bpf_dltlist {
 };
 
 #ifdef _KERNEL
-struct bpf_if;
+/*
+ * Descriptor associated with each attached hardware interface.
+ */
+struct bpf_if {
+	LIST_ENTRY(bpf_if)	bif_next;	/* list of all interfaces */
+	LIST_HEAD(, bpf_d)	bif_dlist;	/* descriptor list */
+	u_int bif_dlt;				/* link layer type */
+	u_int bif_hdrlen;		/* length of header (with padding) */
+	struct ifnet *bif_ifp;		/* corresponding interface */
+	struct mtx	bif_mtx;	/* mutex for interface */
+};
+
+/* ABI compatibility hacks. */
+#define	bpf_tap		bpf_tap_new
+#define	bpf_mtap	bpf_mtap_new
+#define	bpf_mtap2	bpf_mtap2_new
+   
 int	 bpf_validate(const struct bpf_insn *, int);
 void	 bpf_tap(struct bpf_if *, u_char *, u_int);
 void	 bpf_mtap(struct bpf_if *, struct mbuf *);
@@ -627,18 +643,27 @@ void	 bpfdetach(struct ifnet *);
 void	 bpfilterattach(int);
 u_int	 bpf_filter(const struct bpf_insn *, u_char *, u_int, u_int);
 
+static __inline int
+bpf_peers_present(struct bpf_if *bpf)
+{
+
+	if (!LIST_EMPTY(&bpf->bif_dlist))
+		return (1);
+	return (0);
+}
+
 #define	BPF_TAP(_ifp,_pkt,_pktlen) do {				\
-	if ((_ifp)->if_bpf)					\
+	if (bpf_peers_present((_ifp)->if_bpf))			\
 		bpf_tap((_ifp)->if_bpf, (_pkt), (_pktlen));	\
 } while (0)
 #define	BPF_MTAP(_ifp,_m) do {					\
-	if ((_ifp)->if_bpf) {					\
+	if (bpf_peers_present((_ifp)->if_bpf)) {		\
 		M_ASSERTVALID(_m);				\
 		bpf_mtap((_ifp)->if_bpf, (_m));			\
 	}							\
 } while (0)
 #define	BPF_MTAP2(_ifp,_data,_dlen,_m) do {			\
-	if ((_ifp)->if_bpf) {					\
+	if (bpf_peers_present((_ifp)->if_bpf)) {		\
 		M_ASSERTVALID(_m);				\
 		bpf_mtap2((_ifp)->if_bpf,(_data),(_dlen),(_m));	\
 	}							\
