@@ -29,11 +29,15 @@
 #ifndef	_MACHINE_PCB_H_
 #define	_MACHINE_PCB_H_
 
+#ifndef LOCORE
 #include <machine/frame.h>
+#endif
 
 #define	MAXWIN	8
 
 #define	PCB_FEF	(1 << 0)
+
+#ifndef LOCORE
 
 /* NOTE: pcb_ufp must be aligned on a 64 byte boundary. */
 struct pcb {
@@ -55,8 +59,10 @@ struct pcb {
 } __aligned(64);
 
 #ifdef _KERNEL
-void	makectx(struct trapframe *, struct pcb *);
+void	makectx(struct trapframe *tf, struct pcb *pcb);
 int	savectx(struct pcb *pcb);
 #endif
+
+#endif /* !LOCORE */
 
 #endif /* !_MACHINE_PCB_H_ */

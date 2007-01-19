@@ -25,14 +25,17 @@
  */
 
 #include <machine/asm.h>
-__FBSDID("$FreeBSD$"); 
-	
+__FBSDID("$FreeBSD$");
+
+#include <sys/errno.h>
+
 #include <machine/asi.h>
 #include <machine/asmacros.h>
+#include <machine/hypervisorvar.h>
+#include <machine/intr_machdep.h>
 #include <machine/ktr.h>
 #include <machine/pstate.h>
-#include <machine/hypervisorvar.h>
-	
+
 #include "assym.s"
 
 	.register %g2, #ignore

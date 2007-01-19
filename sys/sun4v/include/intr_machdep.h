@@ -49,6 +49,8 @@
 #define	PIL_FAST	13	/* fast interrupts */
 #define	PIL_TICK	14
 
+#ifndef LOCORE
+
 struct trapframe;
 
 typedef	void ih_func_t(struct trapframe *);
@@ -76,20 +78,22 @@ extern ih_func_t *intr_handlers[];
 extern struct intr_vector intr_vectors[];
 
 void	intr_setup(int level, ih_func_t *ihf, int pri, iv_func_t *ivf,
-		   void *iva);
+	    void *iva);
 int	inthand_add(const char *name, int vec, void (*handler)(void *),
-    void *arg, int flags, void **cookiep);
+	    void *arg, int flags, void **cookiep);
 int	inthand_remove(int vec, void *cookie);
-void cpu_intrq_init(void);
-
+void	cpu_intrq_init(void);
 
 ih_func_t intr_fast;
 
-#define CPU_LIST_SIZE  		(MAXCPU * sizeof(uint16_t)) 
+#define CPU_LIST_SIZE  		(MAXCPU * sizeof(uint16_t))
 
-#define INTR_REPORT_SIZE        64
 #define INTR_CPU_Q_SIZE         (cpu_q_entries * INTR_REPORT_SIZE)
 #define INTR_DEV_Q_SIZE         (dev_q_entries * INTR_REPORT_SIZE)
+
+#endif /* !LOCORE */
+
+#define INTR_REPORT_SIZE        64
 
 #define CPU_RQ_ENTRIES          64
 #define CPU_NRQ_ENTRIES         64
@@ -99,7 +103,4 @@ ih_func_t intr_fast;
 #define CPU_NRQ_SIZE            (CPU_NRQ_ENTRIES * Q_ENTRY_SIZE)
 
 
-
-
-
-#endif
+#endif /* !_MACHINE_INTR_MACHDEP_H_ */
