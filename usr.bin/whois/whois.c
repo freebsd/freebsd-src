@@ -304,6 +304,8 @@ whois(const char *query, const char *hostname, int flags)
 		err(EX_OSERR, "fdopen()");
 	if (strcmp(hostname, GERMNICHOST) == 0) {
 		fprintf(sfo, "-T dn,ace -C US-ASCII %s\r\n", query);
+	} else if (strcmp(hostname, "dk" QNICHOST_TAIL) == 0) {
+		fprintf(sfo, "--show-handles %s\r\n", query);
 	} else {
 		fprintf(sfo, "%s\r\n", query);
 	}
