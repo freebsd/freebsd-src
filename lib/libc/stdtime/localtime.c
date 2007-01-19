@@ -1518,8 +1518,8 @@ const int		do_norm_secs;
 	** If we have more than this, we will overflow tm_year for tmcomp().
 	** We should really return an error if we cannot represent it.
 	*/
-	if (bits > 56)
-		bits = 56;
+	if (bits > 48)
+		bits = 48;
 	/*
 	** If time_t is signed, then 0 is just above the median,
 	** assuming two's complement arithmetic.
