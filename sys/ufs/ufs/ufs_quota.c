@@ -415,7 +415,7 @@ chkdquot(ip)
 	 * This prevents the creation of 100GB+ quota files.
 	 */
 	if ((int)ip->i_uid < 0 || (int)ip->i_gid < 0)
-		return (0);
+		return;
 	for (i = 0; i < MAXQUOTAS; i++) {
 		if (ump->um_quotas[i] == NULLVP ||
 		    (ump->um_qflags[i] & (QTF_OPENING|QTF_CLOSING)))
