@@ -93,7 +93,7 @@ imax(int a, int b)
 	return (a > b ? a : b);
 }
 
-static int	aflag = 0, cflag, hflag, iflag, nflag;
+static int	aflag = 0, cflag, hflag, iflag, kflag, nflag;
 static struct	ufs_args mdev;
 
 int
@@ -123,6 +123,14 @@ main(int argc, char *argv[])
 		case 'b':
 				/* FALLTHROUGH */
 		case 'P':
+			/*
+			 * POSIX specifically discusses the the behavior of
+			 * both -k and -P. It states that the blocksize should
+			 * be set to 1024. Thus, if this occurs, simply break
+			 * rather than clobbering the old blocksize.
+			 */
+			if (kflag)
+				break;
 			putenv("BLOCKSIZE=512");
 			hflag = 0;
 			break;
@@ -143,7 +151,8 @@ main(int argc, char *argv[])
 			iflag = 1;
 			break;
 		case 'k':
-			putenv("BLOCKSIZE=1k");
+			kflag++;
+			putenv("BLOCKSIZE=1024");
 			hflag = 0;
 			break;
 		case 'l':
