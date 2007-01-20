@@ -67,12 +67,8 @@ __FBSDID("$FreeBSD$");
  * 	 may cause remote auth (identd) to return unexpected results.
  *
  */
-int portal_tcplisten(pcr, key, v, kso, fdp)
-       struct portal_cred *pcr;
-       char *key;
-       char **v;
-       int kso;
-       int *fdp;
+int portal_tcplisten(struct portal_cred *pcr, char *key, char **v,
+    int kso __unused, int *fdp)
 {
        char host[MAXHOSTNAMELEN];
        char port[MAXHOSTNAMELEN];
@@ -80,7 +76,7 @@ int portal_tcplisten(pcr, key, v, kso, fdp)
        char *q;
        struct hostent *hp;
        struct servent *sp;
-       struct in_addr **ipp;
+       struct in_addr **ipp = NULL;
        struct in_addr *ip[2];
        struct in_addr ina;
        u_short s_port;
@@ -88,7 +84,7 @@ int portal_tcplisten(pcr, key, v, kso, fdp)
        struct sockaddr_in sain;
 
        q = strchr(p, '/');
-       if (q == 0 || q - p >= sizeof(host))
+       if (q == 0 || q - p >= (int)sizeof(host))
                return (EINVAL);
        *q = '\0';
        snprintf(host, sizeof(host), "%s", p);

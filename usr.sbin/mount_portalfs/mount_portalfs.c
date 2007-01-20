@@ -65,21 +65,19 @@ __FBSDID("$FreeBSD$");
 
 struct mntopt mopts[] = {
 	MOPT_STDOPTS,
-	{ NULL }
+	MOPT_END
 };
 
 static void usage(void) __dead2;
 
 static sig_atomic_t readcf;	/* Set when SIGHUP received */
 
-static void sighup(sig)
-int sig;
+static void sighup(int sig __unused)
 {
 	readcf ++;
 }
 
-static void sigchld(sig)
-int sig;
+static void sigchld(int sig __unused)
 {
 	pid_t pid;
 
@@ -93,9 +91,7 @@ int sig;
 }
 
 int
-main(argc, argv)
-	int argc;
-	char *argv[];
+main(int argc, char *argv[])
 {
 	struct portal_args args;
 	struct sockaddr_un un;
@@ -206,7 +202,6 @@ main(argc, argv)
 		int so2;
 		pid_t pid;
 		fd_set fdset;
-		int rc;
 
 		/*
 		 * Check whether we need to re-read the configuration file
