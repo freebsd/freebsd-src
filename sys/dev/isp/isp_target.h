@@ -325,13 +325,13 @@ typedef struct {
  * Macros to create and fetch and test concatenated handle and tag value macros
  */
 
-#define	AT_MAKE_TAGID(tid, inst, aep)					\
+#define	AT_MAKE_TAGID(tid, bus, inst, aep)				\
 	tid = aep->at_handle;						\
 	if (aep->at_flags & AT_TQAE) {					\
 		tid |= (aep->at_tag_val << 16);				\
 		tid |= (1 << 24);					\
 	}								\
-	tid |= (GET_BUS_VAL(aep->at_iid) << 25);			\
+	tid |= (bus << 25);						\
 	tid |= (inst << 26)
 
 #define	CT_MAKE_TAGID(tid, bus, inst, ct)				\
@@ -349,11 +349,11 @@ typedef struct {
 #define	AT_GET_BUS(val)		(((val) >> 25) & 0x1)
 #define	AT_GET_HANDLE(val)	((val) & 0xffff)
 
-#define	IN_MAKE_TAGID(tid, inst, inp)					\
+#define	IN_MAKE_TAGID(tid, bus, inst, inp)				\
 	tid = inp->in_seqid;						\
 	tid |= (inp->in_tag_val << 16);					\
 	tid |= (1 << 24);						\
-	tid |= (GET_BUS_VAL(inp->in_iid) << 25);			\
+	tid |= (bus << 25);						\
 	tid |= (inst << 26)
 
 #define	TAG_INSERT_INST(tid, inst)					\
@@ -423,31 +423,35 @@ typedef struct {
 /*
  * Macros to create and fetch and test concatenated handle and tag value macros
  */
-#define	AT2_MAKE_TAGID(tid, inst, aep)					\
+#define	AT2_MAKE_TAGID(tid, bus, inst, aep)				\
 	tid = aep->at_rxid;						\
-	tid |= (inst << 16)
+	tid |= (((uint64_t)inst) << 32);				\
+	tid |= (((uint64_t)bus) << 48)
 
-#define	CT2_MAKE_TAGID(tid, inst, ct)					\
+#define	CT2_MAKE_TAGID(tid, bus, inst, ct)				\
 	tid = ct->ct_rxid;						\
-	tid |= (inst << 16)
+	tid |= (((uint64_t)inst) << 32);				\
+	tid |= (((uint64_t)(bus & 0xff)) << 48)
 
 #define	AT2_HAS_TAG(val)	1
-#define	AT2_GET_TAG(val)	((val) & 0xffff)
-#define	AT2_GET_INST(val)	((val) >> 16)
+#define	AT2_GET_TAG(val)	((val) & 0xffffffff)
+#define	AT2_GET_INST(val)	((val) >> 32)
 #define	AT2_GET_HANDLE		AT2_GET_TAG
+#define	AT2_GET_BUS(val)	(((val) >> 48) & 0xff)
 
 #define	FC_HAS_TAG	AT2_HAS_TAG
 #define	FC_GET_TAG	AT2_GET_TAG
 #define	FC_GET_INST	AT2_GET_INST
 #define	FC_GET_HANDLE	AT2_GET_HANDLE
 
-#define	IN_FC_MAKE_TAGID(tid, inst, seqid)				\
+#define	IN_FC_MAKE_TAGID(tid, bus, inst, seqid)				\
 	tid = seqid;							\
-	tid |= (inst << 16)
+	tid |= (((uint64_t)inst) << 32);				\
+	tid |= (((uint64_t)(bus & 0xff)) << 48)
 
 #define	FC_TAG_INSERT_INST(tid, inst)					\
-	tid &= ~0xffff;							\
-	tid |= (inst << 16)
+	tid &= ~0xffff00000000ull;					\
+	tid |= (((uint64_t)inst) << 32)
 
 /*
  * 24XX ATIO Definition

@@ -827,7 +827,7 @@ isp_got_msg(ispsoftc_t *isp, in_entry_t *inp)
 	nt.nt_iid = GET_IID_VAL(inp->in_iid);
 	nt.nt_tgt = inp->in_tgt;
 	nt.nt_lun = inp->in_lun;
-	IN_MAKE_TAGID(nt.nt_tagval, 0, inp);
+	IN_MAKE_TAGID(nt.nt_tagval, GET_BUS_VAL(inp->in_iid), 0, inp);
 	nt.nt_lreserved = inp;
 
 	if (status == IN_IDE_RECEIVED || status == IN_MSG_RECEIVED) {
@@ -875,8 +875,7 @@ isp_got_msg_fc(ispsoftc_t *isp, in_fcentry_t *inp)
 {
 	tmd_notify_t nt;
 	static const char f1[] = "%s from N-port handle 0x%x lun %d seq 0x%x";
-	static const char f2[] = 
-	    "unknown %s 0x%x lun %d N-Port handle 0x%x task flags 0x%x seq 0x%x\n";
+	static const char f2[] = "unknown %s 0x%x lun %d N-Port handle 0x%x task flags 0x%x seq 0x%x\n";
 	uint16_t seqid, loopid;
 
 	MEMZERO(&nt, sizeof (tmd_notify_t));
@@ -896,7 +895,7 @@ isp_got_msg_fc(ispsoftc_t *isp, in_fcentry_t *inp)
 	} else {
 		nt.nt_lun = inp->in_lun;
 	}
-	IN_FC_MAKE_TAGID(nt.nt_tagval, 0, seqid);
+	IN_FC_MAKE_TAGID(nt.nt_tagval, 0, 0, seqid);
 	nt.nt_need_ack = 1;
 	nt.nt_lreserved = inp;
 
@@ -941,9 +940,9 @@ static void
 isp_got_tmf_24xx(ispsoftc_t *isp, at7_entry_t *aep)
 {
 	tmd_notify_t nt;
-	static const char f1[] = "%s from PortID 0x%06x lun %d seq 0x%x";
+	static const char f1[] = "%s from PortID 0x%06x lun %d seq 0x%llx";
 	static const char f2[] = 
-	    "unknown Task Flag 0x%x lun %d PortID 0x%x tag 0x%x\n";
+	    "unknown Task Flag 0x%x lun %d PortID 0x%x tag 0x%llx\n";
 	uint32_t sid;
 
 	MEMZERO(&nt, sizeof (tmd_notify_t));
@@ -952,6 +951,9 @@ isp_got_tmf_24xx(ispsoftc_t *isp, at7_entry_t *aep)
 	nt.nt_lun =
 	    (aep->at_cmnd.fcp_cmnd_lun[0] << 8) |
 	    (aep->at_cmnd.fcp_cmnd_lun[1]);
+	/*
+	 * XXX: VPIDX HAS TO BE DERIVED FROM DESTINATION PORT
+	 */
 	nt.nt_tagval = aep->at_rxid;
 	nt.nt_lreserved = aep;
 	sid =
