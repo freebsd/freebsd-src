@@ -28,7 +28,7 @@
 .\"     From: @(#)ifconfig.8	8.3 (Berkeley) 1/5/94
 .\" $FreeBSD$
 .\"
-.Dd November 27, 2006
+.Dd January 20, 2007
 .Dt IFCONFIG 8
 .Os
 .Sh NAME
@@ -342,6 +342,11 @@ this directive is used to select between 802.11a
 and 802.11g
 .Pq Cm 11g
 operating modes.
+.It Cm inst Ar minst , Cm instance Ar minst
+Set the media instance to
+.Ar minst .
+This is useful for devices which have multiple physical layer interfaces
+.Pq PHYs .
 .It Cm name Ar name
 Set the interface name to
 .Ar name .
@@ -1294,7 +1299,7 @@ Allow
 to automatically detect edge status.
 This is the default for all interfaces added to a bridge.
 .It Cm -autoedge Ar interface
-Disable automatic edge status on 
+Disable automatic edge status on
 .Ar interface .
 .It Cm ptp Ar interface
 Set the

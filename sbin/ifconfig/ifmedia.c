@@ -248,7 +248,6 @@ setmedia(const char *val, int d, int s, const struct afswtch *afp)
 {
 	struct ifmediareq *ifmr;
 	int subtype;
-	
 
 	ifmr = getifmediastate(s);
 
@@ -314,6 +313,24 @@ domediaopt(const char *val, int clear, int s)
 	callback_register(setifmediacallback, (void *)ifmr);
 }
 
+static void
+setmediainst(const char *val, int d, int s, const struct afswtch *afp)
+{
+	struct ifmediareq *ifmr;
+	int inst;
+
+	ifmr = getifmediastate(s);
+
+	inst = atoi(val);
+	if (inst < 0 || inst > IFM_INST_MAX)
+		errx(1, "invalid media instance: %s", val);
+
+	strncpy(ifr.ifr_name, name, sizeof(ifr.ifr_name));
+	ifr.ifr_media = (ifmr->ifm_current & ~IFM_IMASK) | inst << IFM_ISHIFT;
+
+	ifmr->ifm_current = ifr.ifr_media;
+	callback_register(setifmediacallback, (void *)ifmr);
+}
 
 static void
 setmediamode(const char *val, int d, int s, const struct afswtch *afp)
@@ -721,6 +738,9 @@ print_media_word(int ifmw, int print_toptype)
 		}
 	}
 	printf("%s", seen_option ? ">" : "");
+
+	if (print_toptype)
+		printf(" instance %d", IFM_INST(ifmw));
 }
 
 static void
@@ -767,6 +787,8 @@ print_media_word_ifconfig(int ifmw)
 			}
 		}
 	}
+
+	printf(" instance %d", IFM_INST(ifmw));
 }
 
 /**********************************************************************
@@ -778,6 +800,8 @@ static struct cmd media_cmds[] = {
 	DEF_CMD_ARG("mode",	setmediamode),
 	DEF_CMD_ARG("mediaopt",	setmediaopt),
 	DEF_CMD_ARG("-mediaopt",unsetmediaopt),
+	DEF_CMD_ARG("inst",	setmediainst),
+	DEF_CMD_ARG("instance",	setmediainst),
 };
 static struct afswtch af_media = {
 	.af_name	= "af_media",
