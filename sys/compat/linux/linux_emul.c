@@ -91,17 +91,12 @@ linux_proc_init(struct thread *td, pid_t child, int flags)
 			struct linux_emuldata_shared *s;
 
 			s = malloc(sizeof *s, M_LINUX, M_WAITOK | M_ZERO);
-			em->shared = s;
 			s->refs = 1;
 			s->group_pid = child;
 
 			LIST_INIT(&s->threads);
+			em->shared = s;
 		}
-		p = pfind(child);
-		KASSERT(p != NULL, ("process not found in proc_init\n"));
-		p->p_emuldata = em;
-		PROC_UNLOCK(p);
-		EMUL_LOCK(&emul_lock);
 	} else {
 		/* lookup the old one */
 		em = em_find(td->td_proc, EMUL_DOLOCK);
@@ -120,11 +115,12 @@ linux_proc_init(struct thread *td, pid_t child, int flags)
 		if (flags & CLONE_THREAD) {
 			/* lookup the parent */
 		   	EMUL_SHARED_WLOCK(&emul_shared_lock);
-			p_em = em_find(td->td_proc, EMUL_DONTLOCK);
+			p_em = em_find(td->td_proc, EMUL_DOLOCK);
 			KASSERT(p_em != NULL, ("proc_init: parent emuldata not found for CLONE_THREAD\n"));
 			em->shared = p_em->shared;
 			em->shared->refs++;
 		   	EMUL_SHARED_WUNLOCK(&emul_shared_lock);
+			EMUL_UNLOCK(&emul_lock);
 		} else {
 			/*
 			 * handled earlier to avoid malloc(M_WAITOK) with
@@ -133,12 +129,13 @@ linux_proc_init(struct thread *td, pid_t child, int flags)
 		}
 	}
 	if (child != 0) {
-		EMUL_UNLOCK(&emul_lock);
 		EMUL_SHARED_WLOCK(&emul_shared_lock);
 		LIST_INSERT_HEAD(&em->shared->threads, em, threads);
 		EMUL_SHARED_WUNLOCK(&emul_shared_lock);
 
 		p = pfind(child);
+		KASSERT(p != NULL, ("process not found in proc_init\n"));
+		p->p_emuldata = em;
 		/* we might have a sleeping linux_schedtail */
 		wakeup(&p->p_emuldata);
 		PROC_UNLOCK(p);
