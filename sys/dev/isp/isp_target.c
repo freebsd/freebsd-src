@@ -875,7 +875,8 @@ isp_got_msg_fc(ispsoftc_t *isp, in_fcentry_t *inp)
 {
 	tmd_notify_t nt;
 	static const char f1[] = "%s from N-port handle 0x%x lun %d seq 0x%x";
-	static const char f2[] = "unknown %s 0x%x lun %d N-Port handle 0x%x task flags 0x%x seq 0x%x\n";
+	static const char f2[] = "unknown %s 0x%x lun %d N-Port handle 0x%x "
+	    "task flags 0x%x seq 0x%x\n";
 	uint16_t seqid, loopid;
 
 	MEMZERO(&nt, sizeof (tmd_notify_t));
@@ -936,13 +937,15 @@ isp_got_msg_fc(ispsoftc_t *isp, in_fcentry_t *inp)
 	(void) isp_async(isp, ISPASYNC_TARGET_NOTIFY, &nt);
 }
 
+#define	HILO(x)	(uint32_t) (x >> 32),  (uint32_t) x
 static void
 isp_got_tmf_24xx(ispsoftc_t *isp, at7_entry_t *aep)
 {
 	tmd_notify_t nt;
-	static const char f1[] = "%s from PortID 0x%06x lun %d seq 0x%llx";
+	static const char f1[] =
+	    "%s from PortID 0x%06x lun %d seq 0x%08x%08x";
 	static const char f2[] = 
-	    "unknown Task Flag 0x%x lun %d PortID 0x%x tag 0x%llx\n";
+	    "unknown Task Flag 0x%x lun %d PortID 0x%x tag 0x%08x%08x";
 	uint32_t sid;
 
 	MEMZERO(&nt, sizeof (tmd_notify_t));
@@ -964,33 +967,33 @@ isp_got_tmf_24xx(ispsoftc_t *isp, at7_entry_t *aep)
 	if (aep->at_cmnd.fcp_cmnd_task_management &
 	    FCP_CMND_TMF_ABORT_TASK_SET) {
 		isp_prt(isp, ISP_LOGINFO, f1, "ABORT TASK SET",
-		    sid, nt.nt_lun, nt.nt_tagval);
+		    sid, nt.nt_lun, HILO(nt.nt_tagval));
 		nt.nt_ncode = NT_ABORT_TASK_SET;
 	} else if (aep->at_cmnd.fcp_cmnd_task_management &
 	    FCP_CMND_TMF_CLEAR_TASK_SET) {
 		isp_prt(isp, ISP_LOGINFO, f1, "CLEAR TASK SET",
-		    sid, nt.nt_lun, nt.nt_tagval);
+		    sid, nt.nt_lun, HILO(nt.nt_tagval));
 		nt.nt_ncode = NT_CLEAR_TASK_SET;
 	} else if (aep->at_cmnd.fcp_cmnd_task_management &
 	    FCP_CMND_TMF_LUN_RESET) {
 		isp_prt(isp, ISP_LOGINFO, f1, "LUN RESET",
-		    sid, nt.nt_lun, nt.nt_tagval);
+		    sid, nt.nt_lun, HILO(nt.nt_tagval));
 		nt.nt_ncode = NT_LUN_RESET;
 	} else if (aep->at_cmnd.fcp_cmnd_task_management &
 	    FCP_CMND_TMF_TGT_RESET) {
 		isp_prt(isp, ISP_LOGINFO, f1, "TARGET RESET",
-		    sid, nt.nt_lun, nt.nt_tagval);
+		    sid, nt.nt_lun, HILO(nt.nt_tagval));
 		nt.nt_ncode = NT_TARGET_RESET;
 		nt.nt_lun = LUN_ANY;
 	} else if (aep->at_cmnd.fcp_cmnd_task_management &
 	    FCP_CMND_TMF_CLEAR_ACA) {
 		isp_prt(isp, ISP_LOGINFO, f1, "CLEAR ACA",
-		    sid, nt.nt_lun, nt.nt_tagval);
+		    sid, nt.nt_lun, HILO(nt.nt_tagval));
 		nt.nt_ncode = NT_CLEAR_ACA;
 	} else {
 		isp_prt(isp, ISP_LOGWARN, f2,
 		    aep->at_cmnd.fcp_cmnd_task_management,
-		    nt.nt_lun, sid, nt.nt_tagval);
+		    nt.nt_lun, sid, HILO(nt.nt_tagval));
 		isp_endcmd(isp, aep, 0, 0);
 		return;
 	}
