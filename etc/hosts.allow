@@ -66,6 +66,7 @@ rpcbind : 192.0.2.96/255.255.255.224 : allow
 rpcbind : ALL : deny
 
 # NIS master server. Only local nets should have access
+# (Since this is an RPC service, rpcbind needs to be considered)
 ypserv : localhost : allow
 ypserv : .unsafe.my.net.example.com : deny
 ypserv : .my.net.example.com : allow
