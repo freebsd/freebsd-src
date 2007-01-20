@@ -80,6 +80,10 @@
 #define NSDB_PASSWD		"passwd"
 #define NSDB_PASSWD_COMPAT	"passwd_compat"
 #define NSDB_SHELLS		"shells"
+#define NSDB_SERVICES		"services"
+#define NSDB_SERVICES_COMPAT	"services_compat"
+#define NSDB_PROTOCOLS		"protocols"
+#define NSDB_RPC		"rpc"
 
 /*
  * suggested databases to implement
@@ -93,11 +97,8 @@
 #define NSDB_NETMASKS		"netmasks"
 #define NSDB_PHONES		"phones"
 #define NSDB_PRINTCAP		"printcap"
-#define NSDB_PROTOCOLS		"protocols"
 #define NSDB_REMOTE		"remote"
-#define NSDB_RPC		"rpc"
 #define NSDB_SENDMAILVARS	"sendmailvars"
-#define NSDB_SERVICES		"services"
 #define NSDB_TERMCAP		"termcap"
 #define NSDB_TTYS		"ttys"
 
