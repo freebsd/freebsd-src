@@ -380,8 +380,8 @@ typedef struct {
 	uint8_t			isp_reserved;
 	uint16_t		isp_maxalloc;
 	uint16_t		isp_maxfrmlen;
-	uint64_t		isp_nodewwn;
-	uint64_t		isp_portwwn;
+	uint64_t		isp_wwnn_nvram;
+	uint64_t		isp_wwpn_nvram;
 
 	/*
 	 * Our Port Data Base
@@ -980,25 +980,25 @@ int isp_async(ispsoftc_t *, ispasync_t, void *);
  *
  *
  *	DEFAULT_IID(ispsoftc_t *)		Default SCSI initiator ID
- *	DEFAULT_LOOPID(ispsoftc_t *)	Default FC Loop ID
- *	DEFAULT_NODEWWN(ispsoftc_t *)	Default Node WWN
- *	DEFAULT_PORTWWN(ispsoftc_t *)	Default Port WWN
- *	DEFAULT_FRAMESIZE(ispsoftc_t *)	Default Frame Size
+ *	DEFAULT_LOOPID(ispsoftc_t *)		Default FC Loop ID
+ *	DEFAULT_NODEWWN(ispsoftc_t *)		Default Node WWN
+ *	DEFAULT_PORTWWN(ispsoftc_t *)		Default Port WWN
+ *	DEFAULT_FRAMESIZE(ispsoftc_t *)		Default Frame Size
  *	DEFAULT_EXEC_THROTTLE(ispsoftc_t *) Default Execution Throttle
  *		These establish reasonable defaults for each platform.
  * 		These must be available independent of card NVRAM and are
  *		to be used should NVRAM not be readable.
  *
- *	ISP_NODEWWN(ispsoftc_t *)	FC Node WWN to use
- *	ISP_PORTWWN(ispsoftc_t *)	FC Port WWN to use
+ *	ISP_NODEWWN(ispsoftc_t *)		FC Node WWN to use
+ *	ISP_PORTWWN(ispsoftc_t *)		FC Port WWN to use
  *
  *		These are to be used after NVRAM is read. The tags
- *		in fcparam.isp_{node,port}wwn reflect the values
+ *		in fcparam.isp_ww{n,p}n_nvram reflect the values
  *		read from NVRAM (possibly corrected for card botches).
  *		Each platform can take that information and override
  *		it or ignore and return the Node and Port WWNs to be
- * 		used when sending the Qlogic f/w the Initialization Control
- *		Block.
+ * 		used when sending the Qlogic f/w the Initialization
+ *		Control Block.
  *
  *	(XXX these do endian specific transformations- in transition XXX)
  *

@@ -1170,6 +1170,14 @@ isp_reset(ispsoftc_t *isp)
 			isp->isp_maxluns = 16;
 		}
 	}
+	/*
+	 * Must do this first to get defaults established.
+	 */
+	isp_setdfltparm(isp, 0);
+	if (IS_DUALBUS(isp)) {
+		isp_setdfltparm(isp, 1);
+	}
+
 }
 
 /*
@@ -1181,14 +1189,6 @@ isp_reset(ispsoftc_t *isp)
 void
 isp_init(ispsoftc_t *isp)
 {
-	/*
-	 * Must do this first to get defaults established.
-	 */
-	isp_setdfltparm(isp, 0);
-	if (IS_DUALBUS(isp)) {
-		isp_setdfltparm(isp, 1);
-	}
-
 	if (IS_FC(isp)) {
 		/*
 		 * Do this *before* initializing the firmware.
@@ -3956,6 +3956,7 @@ isp_register_fc4_type_24xx(ispsoftc_t *isp)
 static uint16_t
 isp_nxt_handle(ispsoftc_t *isp, uint16_t handle)
 {
+	int i;
 	if (handle == NIL_HANDLE) {
 		if (FCPARAM(isp)->isp_topo == TOPO_F_PORT) {
 			handle = 0;
@@ -3982,9 +3983,16 @@ isp_nxt_handle(ispsoftc_t *isp, uint16_t handle)
 	}
 	if (handle == FCPARAM(isp)->isp_loopid) {
 		return (isp_nxt_handle(isp, handle));
-	} else {
-		return (handle);
 	}
+	for (i = 0; i < MAX_FC_TARG; i++) {
+		if (FCPARAM(isp)->portdb[i].state == FC_PORTDB_STATE_NIL) {
+			continue;
+		}
+		if (FCPARAM(isp)->portdb[i].handle == handle) {
+			return (isp_nxt_handle(isp, handle));
+		}
+	}
+	return (handle);
 }
 
 /*
@@ -7034,15 +7042,16 @@ isp_setdfltparm(ispsoftc_t *isp, int channel)
 		fcp->isp_retry_count = ICB_DFLT_RCOUNT;
 		/* Platform specific.... */
 		fcp->isp_loopid = DEFAULT_LOOPID(isp);
-		fcp->isp_nodewwn = DEFAULT_NODEWWN(isp);
-		fcp->isp_portwwn = DEFAULT_PORTWWN(isp);
+		fcp->isp_wwnn_nvram = DEFAULT_NODEWWN(isp);
+		fcp->isp_wwpn_nvram = DEFAULT_PORTWWN(isp);
 		fcp->isp_fwoptions = 0;
 		fcp->isp_fwoptions |= ICBOPT_FAIRNESS;
 		fcp->isp_fwoptions |= ICBOPT_PDBCHANGE_AE;
 		fcp->isp_fwoptions |= ICBOPT_HARD_ADDRESS;
 		fcp->isp_fwoptions |= ICBOPT_FAST_POST;
-		if (isp->isp_confopts & ISP_CFG_FULL_DUPLEX)
+		if (isp->isp_confopts & ISP_CFG_FULL_DUPLEX) {
 			fcp->isp_fwoptions |= ICBOPT_FULL_DUPLEX;
+		}
 
 		/*
 		 * Make sure this is turned off now until we get
@@ -7052,7 +7061,7 @@ isp_setdfltparm(ispsoftc_t *isp, int channel)
 
 		/*
 		 * Now try and read NVRAM unless told to not do so.
-		 * This will set fcparam's isp_nodewwn && isp_portwwn.
+		 * This will set fcparam's isp_wwnn_nvram && isp_wwpn_nvram.
 		 */
 		if ((isp->isp_confopts & ISP_CFG_NONVRAM) == 0) {
 		    	nvfail = isp_read_nvram(isp);
@@ -7081,8 +7090,8 @@ isp_setdfltparm(ispsoftc_t *isp, int channel)
 			 * We always start out with values derived
 			 * from NVRAM or our platform default.
 			 */
-			ISP_NODEWWN(isp) = fcp->isp_nodewwn;
-			if (fcp->isp_nodewwn == 0) {
+			ISP_NODEWWN(isp) = fcp->isp_wwnn_nvram;
+			if (fcp->isp_wwnn_nvram == 0) {
 				isp_prt(isp, ISP_LOGCONFIG,
 				    "bad WWNN- using default");
 				ISP_NODEWWN(isp) = DEFAULT_NODEWWN(isp);
@@ -7098,8 +7107,8 @@ isp_setdfltparm(ispsoftc_t *isp, int channel)
 			 * We always start out with values derived
 			 * from NVRAM or our platform default.
 			 */
-			ISP_PORTWWN(isp) = fcp->isp_portwwn;
-			if (fcp->isp_portwwn == 0) {
+			ISP_PORTWWN(isp) = fcp->isp_wwpn_nvram;
+			if (fcp->isp_wwpn_nvram == 0) {
 				isp_prt(isp, ISP_LOGCONFIG,
 				    "bad WWPN- using default");
 				ISP_PORTWWN(isp) = DEFAULT_PORTWWN(isp);
@@ -7841,10 +7850,10 @@ isp_fix_nvram_wwns(ispsoftc_t *isp)
 	/*
 	 * Make sure we have both Node and Port as non-zero values.
 	 */
-	if (fcp->isp_nodewwn != 0 && fcp->isp_portwwn == 0) {
-		fcp->isp_portwwn = fcp->isp_nodewwn;
-	} else if (fcp->isp_nodewwn == 0 && fcp->isp_portwwn != 0) {
-		fcp->isp_nodewwn = fcp->isp_portwwn;
+	if (fcp->isp_wwnn_nvram != 0 && fcp->isp_wwpn_nvram == 0) {
+		fcp->isp_wwpn_nvram = fcp->isp_wwnn_nvram;
+	} else if (fcp->isp_wwnn_nvram == 0 && fcp->isp_wwpn_nvram != 0) {
+		fcp->isp_wwnn_nvram = fcp->isp_wwpn_nvram;
 	}
 
 	/*
@@ -7853,14 +7862,14 @@ isp_fix_nvram_wwns(ispsoftc_t *isp)
 	 * make sure that there's some non-zero value in 48..56
 	 * for the Port WWN.
 	 */
-	if (fcp->isp_nodewwn && fcp->isp_portwwn) {
-		if ((fcp->isp_nodewwn & (((uint64_t) 0xfff) << 48)) != 0 &&
-		    (fcp->isp_nodewwn >> 60) == 2) {
-			fcp->isp_nodewwn &= ~((uint64_t) 0xfff << 48);
+	if (fcp->isp_wwnn_nvram && fcp->isp_wwpn_nvram) {
+		if ((fcp->isp_wwnn_nvram & (((uint64_t) 0xfff) << 48)) != 0 &&
+		    (fcp->isp_wwnn_nvram >> 60) == 2) {
+			fcp->isp_wwnn_nvram &= ~((uint64_t) 0xfff << 48);
 		}
-		if ((fcp->isp_portwwn & (((uint64_t) 0xfff) << 48)) == 0 &&
-		    (fcp->isp_portwwn >> 60) == 2) {
-			fcp->isp_portwwn |= ((uint64_t) 1 << 56);
+		if ((fcp->isp_wwpn_nvram & (((uint64_t) 0xfff) << 48)) == 0 &&
+		    (fcp->isp_wwpn_nvram >> 60) == 2) {
+			fcp->isp_wwpn_nvram |= ((uint64_t) 1 << 56);
 		}
 	}
 }
@@ -7890,7 +7899,7 @@ isp_parse_nvram_2100(ispsoftc_t *isp, uint8_t *nvram_data)
 			wwn |= (((uint64_t) 2)<< 60);
 		}
 	}
-	fcp->isp_portwwn = wwn;
+	fcp->isp_wwpn_nvram = wwn;
 	if (IS_2200(isp) || IS_23XX(isp)) {
 		wwn = ISP2100_NVRAM_NODE_NAME(nvram_data);
 		if (wwn) {
@@ -7904,7 +7913,7 @@ isp_parse_nvram_2100(ispsoftc_t *isp, uint8_t *nvram_data)
 	} else {
 		wwn &= ~((uint64_t) 0xfff << 48);
 	}
-	fcp->isp_nodewwn = wwn;
+	fcp->isp_wwnn_nvram = wwn;
 
 	isp_fix_nvram_wwns(isp);
 
@@ -7924,8 +7933,8 @@ isp_parse_nvram_2100(ispsoftc_t *isp, uint8_t *nvram_data)
 	fcp->isp_fwoptions = ISP2100_NVRAM_OPTIONS(nvram_data);
 	isp_prt(isp, ISP_LOGDEBUG0,
 	    "NVRAM 0x%08x%08x 0x%08x%08x maxalloc %d maxframelen %d",
-	    (uint32_t) (fcp->isp_nodewwn >> 32), (uint32_t) fcp->isp_nodewwn,
-	    (uint32_t) (fcp->isp_portwwn >> 32), (uint32_t) fcp->isp_portwwn,
+	    (uint32_t) (fcp->isp_wwnn_nvram >> 32), (uint32_t) fcp->isp_wwnn_nvram,
+	    (uint32_t) (fcp->isp_wwpn_nvram >> 32), (uint32_t) fcp->isp_wwpn_nvram,
 	    ISP2100_NVRAM_MAXIOCBALLOCATION(nvram_data),
 	    ISP2100_NVRAM_MAXFRAMELENGTH(nvram_data));
 	isp_prt(isp, ISP_LOGDEBUG0,
@@ -7969,7 +7978,7 @@ isp_parse_nvram_2400(ispsoftc_t *isp, uint8_t *nvram_data)
 			wwn = 0;
 		}
 	}
-	fcp->isp_portwwn = wwn;
+	fcp->isp_wwpn_nvram = wwn;
 
 	wwn = ISP2400_NVRAM_NODE_NAME(nvram_data);
 	if (wwn) {
@@ -7977,7 +7986,7 @@ isp_parse_nvram_2400(ispsoftc_t *isp, uint8_t *nvram_data)
 			wwn = 0;
 		}
 	}
-	fcp->isp_nodewwn = wwn;
+	fcp->isp_wwnn_nvram = wwn;
 
 	isp_fix_nvram_wwns(isp);
 

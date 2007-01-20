@@ -42,6 +42,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/sysctl.h>
 #endif
 #include <cam/cam_periph.h>
+#include <cam/cam_xpt_periph.h>
 
 #if !defined(CAM_NEW_TRAN_CODE) && __FreeBSD_version >= 700025
 #define	CAM_NEW_TRAN_CODE	1
@@ -485,8 +486,8 @@ ispioctl(_DEV dev, u_long c, caddr_t addr, int flags, _IOP *td)
 			hba->fc_scsi_supported = 1;
 			hba->fc_topology = FCPARAM(isp)->isp_topo + 1;
 			hba->fc_loopid = FCPARAM(isp)->isp_loopid;
-			hba->nvram_node_wwn = FCPARAM(isp)->isp_nodewwn;
-			hba->nvram_port_wwn = FCPARAM(isp)->isp_portwwn;
+			hba->nvram_node_wwn = FCPARAM(isp)->isp_wwnn_nvram;
+			hba->nvram_port_wwn = FCPARAM(isp)->isp_wwpn_nvram;
 			hba->active_node_wwn = ISP_NODEWWN(isp);
 			hba->active_port_wwn = ISP_PORTWWN(isp);
 		}
@@ -1670,7 +1671,7 @@ isp_handle_platform_atio(ispsoftc_t *isp, at_entry_t *aep)
 	 * Construct a tag 'id' based upon tag value (which may be 0..255)
 	 * and the handle (which we have to preserve).
 	 */
-	AT_MAKE_TAGID(atiop->tag_id,  device_get_unit(isp->isp_dev), aep);
+	AT_MAKE_TAGID(atiop->tag_id, bus, device_get_unit(isp->isp_dev), aep);
 	if (aep->at_flags & AT_TQAE) {
 		atiop->tag_action = aep->at_tag_type;
 		atiop->ccb_h.status |= CAM_TAG_ACTION_VALID;

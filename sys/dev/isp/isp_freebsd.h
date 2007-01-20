@@ -346,8 +346,8 @@ default:							\
 #define	DEFAULT_LOOPID(x)	(isp)->isp_osinfo.default_id
 #define	DEFAULT_NODEWWN(isp)	(isp)->isp_osinfo.default_node_wwn
 #define	DEFAULT_PORTWWN(isp)	(isp)->isp_osinfo.default_port_wwn
-#define	ISP_NODEWWN(isp)	FCPARAM(isp)->isp_nodewwn
-#define	ISP_PORTWWN(isp)	FCPARAM(isp)->isp_portwwn
+#define	ISP_NODEWWN(isp)	FCPARAM(isp)->isp_wwnn_nvram
+#define	ISP_PORTWWN(isp)	FCPARAM(isp)->isp_wwpn_nvram
 
 #if	BYTE_ORDER == BIG_ENDIAN
 #ifdef	ISP_SBUS_SUPPORTED
