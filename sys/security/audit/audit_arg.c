@@ -417,8 +417,7 @@ audit_arg_sockaddr(struct thread *td, struct sockaddr *sa)
 	if (ar == NULL)
 		return;
 
-	bcopy(sa, &ar->k_ar.ar_arg_sockaddr,
-	    sizeof(ar->k_ar.ar_arg_sockaddr));
+	bcopy(sa, &ar->k_ar.ar_arg_sockaddr, sa->sa_len);
 	switch (sa->sa_family) {
 	case AF_INET:
 		ARG_SET_VALID(ar, ARG_SADDRINET);
