@@ -41,7 +41,6 @@ __FBSDID("$FreeBSD$");
  */
 
 #include "namespace.h"
-#include <sys/cdefs.h>
 #include <stdio.h>
 #include <errno.h>
 #include <netconfig.h>

@@ -107,7 +107,6 @@
 #include <stdlib.h>
 #include <fcntl.h>
 #include <unistd.h>
-#include <err.h>
 #include "gmt2local.h"
 
 /* packing rule for routing socket */
