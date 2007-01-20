@@ -5231,7 +5231,7 @@ bce_set_rx_mode(struct bce_softc *sc)
 {
 	struct ifnet *ifp;
 	struct ifmultiaddr *ifma;
-	u32 hashes[4] = { 0, 0, 0, 0 };
+	u32 hashes[NUM_MC_HASH_REGISTERS] = { 0, 0, 0, 0, 0, 0, 0, 0 };
 	u32 rx_mode, sort_mode;
 	int h, i;
 
@@ -5279,12 +5279,12 @@ bce_set_rx_mode(struct bce_softc *sc)
 			if (ifma->ifma_addr->sa_family != AF_LINK)
 				continue;
 			h = ether_crc32_le(LLADDR((struct sockaddr_dl *)
-		    	ifma->ifma_addr), ETHER_ADDR_LEN) & 0x7F;
-			hashes[(h & 0x60) >> 5] |= 1 << (h & 0x1F);
+			    ifma->ifma_addr), ETHER_ADDR_LEN) & 0xFF;
+			    hashes[(h & 0xE0) >> 5] |= 1 << (h & 0x1F);
 		}
 		IF_ADDR_UNLOCK(ifp);
 
-		for (i = 0; i < 4; i++)
+		for (i = 0; i < NUM_MC_HASH_REGISTERS; i++)
 			REG_WR(sc, BCE_EMAC_MULTICAST_HASH0 + (i * 4), hashes[i]);
 
 		sort_mode |= BCE_RPM_SORT_USER0_MC_HSH_EN;
