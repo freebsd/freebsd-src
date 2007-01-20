@@ -49,7 +49,9 @@ dev/fb/fb.c			optional	sc
 dev/fb/machfb.c			optional	machfb sc
 dev/hwpmc/hwpmc_sparc64.c	optional	hwpmc
 dev/kbd/kbd.c			optional	atkbd | sc | ukbd
+dev/le/if_le_lebuffer.c		optional	le sbus
 dev/le/if_le_ledma.c		optional	le sbus
+dev/le/lebuffer_sbus.c		optional	le sbus
 dev/ofw/ofw_bus_if.m		standard
 dev/ofw/ofw_bus_subr.c		standard
 dev/ofw/ofw_console.c		optional	ofw_console
