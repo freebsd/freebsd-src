@@ -121,7 +121,7 @@ __FBSDID("$FreeBSD$");
  * This character array is used with ki_stati-1 as an index and tries to
  * map our states to suitable linux states.
  */
-static char *linux_state = "RRSTZDD";
+static char linux_state[] = "RRSTZDD";
 
 /*
  * Filler function for proc/meminfo
@@ -462,15 +462,23 @@ static int
 linprocfs_doprocstat(PFS_FILL_ARGS)
 {
 	struct kinfo_proc kp;
+	char state;
+	static int ratelimit = 0;
 
 	PROC_LOCK(p);
 	fill_kinfo_proc(p, &kp);
 	sbuf_printf(sb, "%d", p->p_pid);
 #define PS_ADD(name, fmt, arg) sbuf_printf(sb, " " fmt, arg)
 	PS_ADD("comm",		"(%s)",	p->p_comm);
-	KASSERT(kp.ki_stat <= sizeof(linux_state),
-		("linprocfs: don't know how to handle unknown FreeBSD state"));
-	PS_ADD("state",		"%c",	linux_state[kp.ki_stat - 1]);
+	if (kp.ki_stat > sizeof(linux_state)) {
+		state = 'R';
+
+		if (ratelimit == 0)
+			printf("linprocfs: don't know how to handle unknown FreeBSD state %d/%d, mapping to R\n",
+			    kp.ki_stat, sizeof(linux_state));
+	} else
+		state = linux_state[kp.ki_stat - 1];
+	PS_ADD("state",		"%c",	state);
 	PS_ADD("ppid",		"%d",	p->p_pptr ? p->p_pptr->p_pid : 0);
 	PS_ADD("pgrp",		"%d",	p->p_pgid);
 	PS_ADD("session",	"%d",	p->p_session->s_sid);
