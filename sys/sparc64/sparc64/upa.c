@@ -413,8 +413,9 @@ upa_setup_intr(device_t dev, device_t child, struct resource *ires, int flags,
 	intrmap = UPA_READ(sc, imr, 0x0);
 	if (INTVEC(intrmap) != INTVEC(rman_get_start(ires))) {
 		device_printf(dev,
-		    "invalid interrupt vector (0x%lx != 0x%lx)\n",
-		    INTVEC(intrmap), INTVEC(rman_get_start(ires)));
+		    "invalid interrupt vector (0x%x != 0x%x)\n",
+		    (unsigned int)INTVEC(intrmap),
+		    (unsigned int)INTVEC(rman_get_start(ires)));
 		return (EINVAL);
 	}
 
