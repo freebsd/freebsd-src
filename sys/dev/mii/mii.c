@@ -64,6 +64,7 @@ MODULE_VERSION(miibus, 1);
 
 #include "miibus_if.h"
 
+static int miibus_print_child(device_t dev, device_t child);
 static int miibus_child_location_str(device_t bus, device_t child, char *buf,
     size_t buflen);
 static int miibus_child_pnpinfo_str(device_t bus, device_t child, char *buf,
@@ -82,7 +83,7 @@ static device_method_t miibus_methods[] = {
 	DEVMETHOD(device_shutdown,	bus_generic_shutdown),
 
 	/* bus interface */
-	DEVMETHOD(bus_print_child,	bus_generic_print_child),
+	DEVMETHOD(bus_print_child,	miibus_print_child),
 	DEVMETHOD(bus_driver_added,	bus_generic_driver_added),
 	DEVMETHOD(bus_child_pnpinfo_str, miibus_child_pnpinfo_str),
 	DEVMETHOD(bus_child_location_str, miibus_child_location_str),
@@ -179,7 +180,7 @@ miibus_attach(device_t dev)
 	v = device_get_ivars(dev);
 	ifmedia_upd = v[0];
 	ifmedia_sts = v[1];
-	ifmedia_init(&mii->mii_media, IFM_IMASK, ifmedia_upd, ifmedia_sts);
+	ifmedia_init(&mii->mii_media, 0, ifmedia_upd, ifmedia_sts);
 	bus_generic_attach(dev);
 
 	return(0);
@@ -196,6 +197,20 @@ miibus_detach(device_t dev)
 	mii->mii_ifp = NULL;
 
 	return(0);
+}
+
+static int
+miibus_print_child(device_t dev, device_t child)
+{
+	struct mii_attach_args *ma;
+	int retval;
+
+	ma = device_get_ivars(child);
+	retval = bus_print_child_header(dev, child);
+	retval += printf(" PHY %d", ma->mii_phyno);
+	retval += bus_print_child_footer(dev, child);
+
+	return (retval);
 }
 
 static int
