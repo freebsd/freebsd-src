@@ -217,7 +217,7 @@ struct tdq_group {
 /*
  * Run-time tunables.
  */
-static int rebalance = 1;
+static int rebalance = 0;
 static int pick_pri = 1;
 static int affinity;
 static int tryself = 1;
