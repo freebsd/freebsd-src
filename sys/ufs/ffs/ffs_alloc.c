@@ -188,6 +188,7 @@ retry:
 		*bnp = bno;
 		return (0);
 	}
+nospace:
 #ifdef QUOTA
 	UFS_UNLOCK(ump);
 	/*
@@ -196,7 +197,6 @@ retry:
 	(void) chkdq(ip, -btodb(size), cred, FORCE);
 	UFS_LOCK(ump);
 #endif
-nospace:
 	if (fs->fs_pendingblocks > 0 && reclaimed == 0) {
 		reclaimed = 1;
 		softdep_request_cleanup(fs, ITOV(ip));
