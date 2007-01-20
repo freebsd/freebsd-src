@@ -16,18 +16,18 @@
 name="quota"
 rcvar="enable_quotas"
 start_cmd="quota_start"
-stop_cmd="/usr/sbin/quotaoff -a"
+stop_cmd="/usr/sbin/quotaoff ${quotaoff_flags}"
 
 quota_start()
 {
 	if checkyesno check_quotas; then
 		echo -n 'Checking quotas:'
-		quotacheck -a
+		quotacheck ${quotacheck_flags}
 		echo ' done.'
 	fi
 
 	echo -n 'Enabling quotas:'
-	quotaon -a
+	quotaon ${quotaon_flags}
 	echo ' done.'
 }
 
