@@ -48,12 +48,8 @@ __FBSDID("$FreeBSD$");
 static int  errlog(void);
 static int  parse_argv(char *args, char **argv);
 
-int portal_pipe(pcr, key, v, so, fdp)
-struct portal_cred *pcr;
-char *key;
-char **v;
-int so;
-int *fdp;
+int portal_pipe(struct portal_cred *pcr, char *key, char **v,
+    int kso __unused, int *fdp)
 {
 	int fd[2];		/* Pipe endpoints. */
 	int caller_end;		/* The pipe end we will use. */
