@@ -724,12 +724,6 @@ tdq_notify(struct td_sched *ts)
 	 */
 	if (prio > ipi_thresh && td->td_priority < PRI_MIN_IDLE)
 		return;
-	/*
-	 * The idlethread finds new work via sched_runnable(), don't IPI
-	 * here.
-	 */
-	if (td == pcpu->pc_idlethread)
-		return;
 	if (ipi_ast)
 		ipi_selected(1 << cpu, IPI_AST);
 	else if (ipi_preempt)
@@ -1925,7 +1919,7 @@ sched_bind(struct thread *td, int cpu)
 	mtx_assert(&sched_lock, MA_OWNED);
 	ts = td->td_sched;
 	if (ts->ts_flags & TSF_BOUND)
-		return;
+		sched_unbind(td);
 	ts->ts_flags |= TSF_BOUND;
 #ifdef SMP
 	sched_pin();
