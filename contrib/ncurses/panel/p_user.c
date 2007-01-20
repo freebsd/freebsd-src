@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright (c) 1998,2000 Free Software Foundation, Inc.                   *
+ * Copyright (c) 1998-2000,2005 Free Software Foundation, Inc.              *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -36,21 +36,21 @@
  */
 #include "panel.priv.h"
 
-MODULE_ID("$Id: p_user.c,v 1.4 2000/12/10 02:20:44 tom Exp $")
+MODULE_ID("$Id: p_user.c,v 1.6 2005/02/19 16:52:44 tom Exp $")
 
 NCURSES_EXPORT(int)
-set_panel_userptr
-(PANEL *pan, NCURSES_CONST void *uptr)
+set_panel_userptr(PANEL * pan, NCURSES_CONST void *uptr)
 {
-  if(!pan)
-    return(ERR);
+  T((T_CALLED("set_panel_userptr(%p,%p)"), pan, uptr));
+  if (!pan)
+    returnCode(ERR);
   pan->user = uptr;
-  return(OK);
+  returnCode(OK);
 }
 
-NCURSES_EXPORT(NCURSES_CONST void*)
-panel_userptr (const PANEL *pan)
+NCURSES_EXPORT(NCURSES_CONST void *)
+panel_userptr(const PANEL * pan)
 {
-  return(pan ? pan->user : (NCURSES_CONST void *)0);
+  T((T_CALLED("panel_userptr(%p)"), pan));
+  returnCVoidPtr(pan ? pan->user : (NCURSES_CONST void *)0);
 }
-

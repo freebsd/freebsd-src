@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright (c) 1998,2000,2001 Free Software Foundation, Inc.              *
+ * Copyright (c) 1998-2001,2006 Free Software Foundation, Inc.              *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -35,7 +35,7 @@
 #include <ctype.h>
 #include <tic.h>
 
-MODULE_ID("$Id: comp_expand.c,v 1.17 2001/09/22 19:16:52 tom Exp $")
+MODULE_ID("$Id: comp_expand.c,v 1.18 2006/06/17 19:37:14 tom Exp $")
 
 static int
 trailing_spaces(const char *src)
@@ -50,8 +50,7 @@ trailing_spaces(const char *src)
 #define REALPRINT(s) (UChar(*(s)) < 127 && isprint(UChar(*(s))))
 
 NCURSES_EXPORT(char *)
-_nc_tic_expand
-(const char *srcp, bool tic_format, int numbers)
+_nc_tic_expand(const char *srcp, bool tic_format, int numbers)
 {
     static char *buffer;
     static size_t length;
@@ -62,6 +61,15 @@ _nc_tic_expand
     size_t need = (2 + strlen(str)) * 4;
     int ch;
 
+#if NO_LEAKS
+    if (srcp == 0) {
+	if (buffer != 0) {
+	    FreeAndNull(buffer);
+	    length = 0;
+	}
+	return 0;
+    }
+#endif
     if (buffer == 0 || need > length) {
 	if ((buffer = typeRealloc(char, length = need, buffer)) == 0)
 	      return 0;

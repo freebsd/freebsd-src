@@ -1,5 +1,5 @@
 .\"***************************************************************************
-.\" Copyright (c) 1998,2001 Free Software Foundation, Inc.                   *
+.\" Copyright (c) 1998-2005,2006 Free Software Foundation, Inc.              *
 .\"                                                                          *
 .\" Permission is hereby granted, free of charge, to any person obtaining a  *
 .\" copy of this software and associated documentation files (the            *
@@ -26,13 +26,18 @@
 .\" authorization.                                                           *
 .\"***************************************************************************
 .\"
-.\" $Id: curs_move.3x,v 1.7 2001/11/03 19:58:47 tom Exp $
+.\" $Id: curs_move.3x,v 1.12 2006/02/25 21:49:19 tom Exp $
 .TH curs_move 3X ""
+.na
+.hy 0
 .SH NAME
-\fBmove\fR, \fBwmove\fR - move \fBcurses\fR window cursor
+\fBmove\fR,
+\fBwmove\fR - move \fBcurses\fR window cursor
+.ad
+.hy
 .SH SYNOPSIS
 \fB#include <curses.h>\fR
-
+.sp
 \fBint move(int y, int x);\fR
 .br
 \fBint wmove(WINDOW *win, int y, int x);\fR
@@ -46,13 +51,14 @@ left-hand corner of the window, which is (0,0).
 These routines return \fBERR\fR upon failure and OK (SVr4
 specifies only "an integer value other than \fBERR\fR") upon successful
 completion.
+.PP
+Specifically, they return an error
+if the window pointer is null, or
+if the position is outside the window.
 .SH NOTES
 Note that \fBmove\fR may be a macro.
 .SH PORTABILITY
-These functions are described in the XSI Curses standard, Issue 4.  The
-standard specifies that if (y,x) is within a multi-column character, the cursor
-is moved to the first column of that character; however, this implementation
-does not yet support the extended-level XSI multibyte characters.
+These functions are described in the XSI Curses standard, Issue 4.
 .SH SEE ALSO
 \fBcurses\fR(3X), \fBcurs_refresh\fR(3X)
 .\"#

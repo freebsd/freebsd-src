@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright (c) 1998,1999,2000 Free Software Foundation, Inc.              *
+ * Copyright (c) 1998-2001,2004 Free Software Foundation, Inc.              *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -29,9 +29,10 @@
 /****************************************************************************
  *  Author: Zeyd M. Ben-Halim <zmbenhal@netcom.com> 1992,1995               *
  *     and: Eric S. Raymond <esr@snark.thyrsus.com>                         *
+ *     and: Thomas E. Dickey                        1998-2004               *
  ****************************************************************************/
 
-/* $Id: term_entry.h,v 1.32 2001/03/24 21:53:10 tom Exp $ */
+/* $Id: term_entry.h,v 1.34 2005/07/16 21:15:07 tom Exp $ */
 
 /*
  *	term_entry.h -- interface to entry-manipulation code
@@ -56,7 +57,7 @@ typedef struct entry {
         {
 	    char		*name;
 	    struct entry	*link;
-	    long	line;
+	    long		line;
         }
 	uses[MAX_USES];
 	int		ncrosslinks;
@@ -133,6 +134,9 @@ extern NCURSES_EXPORT(void) _nc_free_termtype (TERMTYPE *);
 /* lib_acs.c */
 extern NCURSES_EXPORT(void) _nc_init_acs (void);	/* corresponds to traditional 'init_acs()' */
 
+/* lib_termcap.c: trim sgr0 string for termcap users */
+extern NCURSES_EXPORT(char *) _nc_trim_sgr0 (TERMTYPE *);
+
 /* parse_entry.c: entry-parsing code */
 #if NCURSES_XNAMES
 extern NCURSES_EXPORT_VAR(bool) _nc_user_definable;
@@ -148,9 +152,11 @@ extern NCURSES_EXPORT(void) _nc_write_entry (TERMTYPE *const);
 /* comp_parse.c: entry list handling */
 extern NCURSES_EXPORT(void) _nc_read_entry_source (FILE*, char*, int, bool, bool (*)(ENTRY*));
 extern NCURSES_EXPORT(bool) _nc_entry_match (char *, char *);
-extern NCURSES_EXPORT(int) _nc_resolve_uses (bool);
+extern NCURSES_EXPORT(int) _nc_resolve_uses (bool); /* obs 20040705 */
+extern NCURSES_EXPORT(int) _nc_resolve_uses2 (bool, bool);
 extern NCURSES_EXPORT(void) _nc_free_entries (ENTRY *);
-extern NCURSES_IMPEXP void NCURSES_API (*_nc_check_termtype)(TERMTYPE *);
+extern NCURSES_IMPEXP void NCURSES_API (*_nc_check_termtype)(TERMTYPE *); /* obs 20040705 */
+extern NCURSES_IMPEXP void NCURSES_API (*_nc_check_termtype2)(TERMTYPE *, bool);
 
 /* trace_xnames.c */
 extern NCURSES_EXPORT(void) _nc_trace_xnames (TERMTYPE *);

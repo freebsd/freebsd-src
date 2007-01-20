@@ -39,7 +39,7 @@
 
 #include <curses.priv.h>
 
-MODULE_ID("$Id: lib_box_set.c,v 1.2 2002/03/23 21:35:24 tom Exp $")
+MODULE_ID("$Id: lib_box_set.c,v 1.4 2003/12/06 18:02:13 tom Exp $")
 
 NCURSES_EXPORT(int)
 wborder_set(WINDOW *win,
@@ -66,7 +66,7 @@ wborder_set(WINDOW *win,
     if (!win)
 	returnCode(ERR);
 
-#define RENDER_WITH_DEFAULT(ch,def) w ##ch = (ch == 0) ? *def : *ch
+#define RENDER_WITH_DEFAULT(ch,def) w ##ch = _nc_render(win, (ch == 0) ? *(const ARG_CH_T)def : *ch)
 
     RENDER_WITH_DEFAULT(ls, WACS_VLINE);
     RENDER_WITH_DEFAULT(rs, WACS_VLINE);

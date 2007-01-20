@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright (c) 1998,2000,2001 Free Software Foundation, Inc.              *
+ * Copyright (c) 1998-2003,2005 Free Software Foundation, Inc.              *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -29,6 +29,7 @@
 /****************************************************************************
  *  Author: Zeyd M. Ben-Halim <zmbenhal@netcom.com> 1992,1995               *
  *     and: Eric S. Raymond <esr@snark.thyrsus.com>                         *
+ *     and: Thomas E. Dickey                        1996-on                 *
  ****************************************************************************/
 
 /*
@@ -37,6 +38,7 @@
  *
  */
 
+#define USE_TERMLIB 1
 #include <curses.priv.h>
 
 #include <tic.h>
@@ -48,7 +50,7 @@
 #define DEBUG(level, params)	/*nothing */
 #endif
 
-MODULE_ID("$Id: comp_hash.c,v 1.25 2001/06/02 22:50:42 skimo Exp $")
+MODULE_ID("$Id: comp_hash.c,v 1.28 2005/08/20 19:58:18 tom Exp $")
 
 static int hash_function(const char *);
 
@@ -97,12 +99,11 @@ _nc_make_hash_table(struct name_table_entry *table,
  *	Computes the hashing function on the given string.
  *
  *	The current hash function is the sum of each consectutive pair
- *	of characters, taken as two-byte integers, mod Hashtabsize.
+ *	of characters, taken as two-byte integers, mod HASHTABSIZE.
  *
  */
 
-static
-int
+static int
 hash_function(const char *string)
 {
     long sum = 0;
@@ -128,8 +129,8 @@ hash_function(const char *string)
 
 #ifndef MAIN_PROGRAM
 NCURSES_EXPORT(struct name_table_entry const *)
-_nc_find_entry
-(const char *string, const struct name_table_entry *const *hash_table)
+_nc_find_entry(const char *string,
+	       const struct name_table_entry *const *hash_table)
 {
     int hashvalue;
     struct name_table_entry const *ptr;
@@ -159,10 +160,9 @@ _nc_find_entry
  */
 
 NCURSES_EXPORT(struct name_table_entry const *)
-_nc_find_type_entry
-(const char *string,
- int type,
- const struct name_table_entry *table)
+_nc_find_type_entry(const char *string,
+		    int type,
+		    const struct name_table_entry *table)
 {
     struct name_table_entry const *ptr;
 

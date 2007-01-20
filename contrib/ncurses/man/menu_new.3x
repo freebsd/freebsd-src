@@ -1,6 +1,6 @@
 '\" t
 .\"***************************************************************************
-.\" Copyright (c) 1998 Free Software Foundation, Inc.                        *
+.\" Copyright (c) 1998,2006 Free Software Foundation, Inc.                   *
 .\"                                                                          *
 .\" Permission is hereby granted, free of charge, to any person obtaining a  *
 .\" copy of this software and associated documentation files (the            *
@@ -27,7 +27,7 @@
 .\" authorization.                                                           *
 .\"***************************************************************************
 .\"
-.\" $Id: menu_new.3x,v 1.7 1998/11/29 01:10:13 Rick.Ohnemus Exp $
+.\" $Id: menu_new.3x,v 1.9 2006/11/04 18:31:37 tom Exp $
 .TH menu_new 3X ""
 .SH NAME
 \fBmenu_new\fR - create and destroy menus
@@ -41,24 +41,31 @@ int free_menu(MENU *menu);
 .SH DESCRIPTION
 The function \fBnew_menu\fR creates a new menu connected to a specified item
 pointer array (which must be \fBNULL\fR-terminated).
-
+.PP
 The function \fBfree_menu\fR disconnects \fImenu\fR from its item array
 and frees the storage allocated for the menu.
 .SH RETURN VALUE
 The function \fBnew_menu\fR returns \fBNULL\fR on error.
-
+It sets errno according to the function's failure:
+.TP 5
+.B E_NOT_CONNECTED
+No items are connected to the menu.
+.TP 5
+.B E_SYSTEM_ERROR
+System error occurred, e.g., malloc failure.
+.PP
 The function \fBfree_menu\fR returns one of the following:
 .TP 5
-\fBE_OK\fR
+.B E_OK
 The routine succeeded.
 .TP 5
-\fBE_SYSTEM_ERROR\fR
+.B E_SYSTEM_ERROR
 System error occurred (see \fBerrno\fR).
 .TP 5
-\fBE_BAD_ARGUMENT\fR
+.B E_BAD_ARGUMENT
 Routine detected an incorrect or out-of-range argument.
 .TP 5
-\fBE_POSTED\fR
+.B E_POSTED
 The menu has already been posted.
 .SH SEE ALSO
 \fBcurses\fR(3X), \fBmenu\fR(3X).

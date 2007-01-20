@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright (c) 2001 Free Software Foundation, Inc.                        *
+ * Copyright (c) 2001-2003,2005 Free Software Foundation, Inc.              *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -37,17 +37,18 @@
 
 #if USE_WIDEC_SUPPORT
 
-MODULE_ID("$Id: lib_wunctrl.c,v 1.6 2001/09/22 19:18:02 tom Exp $")
+MODULE_ID("$Id: lib_wunctrl.c,v 1.8 2005/04/16 18:10:44 tom Exp $")
 
 NCURSES_EXPORT(wchar_t *)
-wunctrl(cchar_t * wc)
+wunctrl(cchar_t *wc)
 {
     static wchar_t str[5], *sp;
 
     if (Charable(*wc)) {
-	const char *p;
-	for (p = unctrl(wctob(CharOf(*wc))), sp = str; *p;)
-	    *sp++ = btowc(*p++);
+	const char *p = unctrl((unsigned) _nc_to_char((wint_t) CharOf(*wc)));
+
+	for (sp = str; *p;)
+	    *sp++ = _nc_to_widechar(*p++);
 	return str;
     } else
 	return wc->chars;

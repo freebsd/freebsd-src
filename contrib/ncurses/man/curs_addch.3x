@@ -1,6 +1,6 @@
 '\" t
 .\"***************************************************************************
-.\" Copyright (c) 1998,2000 Free Software Foundation, Inc.                   *
+.\" Copyright (c) 1998-2005,2006 Free Software Foundation, Inc.              *
 .\"                                                                          *
 .\" Permission is hereby granted, free of charge, to any person obtaining a  *
 .\" copy of this software and associated documentation files (the            *
@@ -27,7 +27,7 @@
 .\" authorization.                                                           *
 .\"***************************************************************************
 .\"
-.\" $Id: curs_addch.3x,v 1.17 2000/07/01 19:53:01 tom Exp $
+.\" $Id: curs_addch.3x,v 1.25 2006/12/02 17:02:22 tom Exp $
 .TH curs_addch 3X ""
 .SH NAME
 \fBaddch\fR, \fBwaddch\fR, \fBmvaddch\fR, \fBmvwaddch\fR,
@@ -35,18 +35,18 @@
 \fBwechochar\fR - add a character (with attributes) to a \fBcurses\fR window, then advance the cursor
 .SH SYNOPSIS
 \fB#include <curses.h>\fR
-
-\fBint addch(chtype ch);\fR
+.PP
+\fBint addch(const chtype ch);\fR
 .br
-\fBint waddch(WINDOW *win, chtype ch);\fR
+\fBint waddch(WINDOW *win, const chtype ch);\fR
 .br
-\fBint mvaddch(int y, int x, chtype ch);\fR
+\fBint mvaddch(int y, int x, const chtype ch);\fR
 .br
-\fBint mvwaddch(WINDOW *win, int y, int x, chtype ch);\fR
+\fBint mvwaddch(WINDOW *win, int y, int x, const chtype ch);\fR
 .br
-\fBint echochar(chtype ch);\fR
+\fBint echochar(const chtype ch);\fR
 .br
-\fBint wechochar(WINDOW *win, chtype ch);\fR
+\fBint wechochar(WINDOW *win, const chtype ch);\fR
 .br
 .SH DESCRIPTION
 The \fBaddch\fR, \fBwaddch\fR, \fBmvaddch\fR and \fBmvwaddch\fR routines put
@@ -55,25 +55,29 @@ which is then advanced.  They are analogous to \fBputchar\fR in \fBstdio\fR(3).
 If the advance is at the right margin, the cursor automatically wraps to the
 beginning of the next line.  At the bottom of the current scrolling region, if
 \fBscrollok\fR is enabled, the scrolling region is scrolled up one line.
-
-If \fIch\fR is a tab, newline, or backspace, the cursor is moved appropriately
-within the window.  Backspace moves the cursor one character left; at the left
-edge of a window it does nothing.  Newline does a \fBclrtoeol\fR, then moves
-the cursor to the window left margin on the next line, scrolling the window if
-on the last line).  Tabs are considered to be at every eighth column.
-
+.PP
+If \fIch\fR is a tab, newline, or backspace,
+the cursor is moved appropriately within the window.
+Backspace moves the cursor one character left; at the left
+edge of a window it does nothing.
+Newline does a \fBclrtoeol\fR,
+then moves the cursor to the window left margin on the next line,
+scrolling the window if on the last line.
+Tabs are considered to be at every eighth column.
+The tab interval may be altered by setting the \fBTABSIZE\fR variable.
+.PP
 If \fIch\fR is any control character other than tab, newline, or backspace, it
 is drawn in \fB^\fR\fIX\fR notation.  Calling \fBwinch\fR after adding a
 control character does not return the character itself, but instead returns
 the ^-representation of the control character.
-
+.PP
 Video attributes can be combined with a character argument passed to
 \fBaddch\fR or related functions by logical-ORing them into the character.
 (Thus, text, including attributes, can be copied from one place to another
-using \fBinch\fR and \fBaddch\fR.).  See the \fBcurs_attr\fR(3X) page for
+using \fBinch\fR and \fBaddch\fR.)  See the \fBcurs_attr\fR(3X) page for
 values of predefined video attribute constants that can be usefully OR'ed
 into characters.
-
+.PP
 The \fBechochar\fR and \fBwechochar\fR routines are equivalent to a call to
 \fBaddch\fR followed by a call to \fBrefresh\fR, or a call to \fBwaddch\fR
 followed by a call to \fBwrefresh\fR.  The knowledge that only a single
@@ -84,9 +88,9 @@ their equivalents.
 The following variables may be used to add line drawing characters to the
 screen with routines of the \fBaddch\fR family.  The default character listed
 below is used if the \fBacsc\fR capability doesn't define a terminal-specific
-replacement for it (but see the EXTENSIONS section below).  The names are
-taken from VT100 nomenclature.
-
+replacement for it.
+The names are taken from VT100 nomenclature.
+.PP
 .TS
 l l l
 _ _ _
@@ -125,7 +129,6 @@ ACS_ULCORNER	+	upper left-hand corner
 ACS_URCORNER	+	upper right-hand corner
 ACS_VLINE	|	vertical line
 .TE
-
 .SH RETURN VALUE
 All routines return the integer \fBERR\fR upon failure and \fBOK\fR on success
 (the SVr4 manuals specify only "an integer value other than \fBERR\fR") upon
@@ -137,7 +140,7 @@ Note that \fBaddch\fR, \fBmvaddch\fR, \fBmvwaddch\fR, and
 .SH PORTABILITY
 All these functions are described in the XSI Curses standard, Issue 4.
 The defaults specified for forms-drawing characters apply in the POSIX locale.
-
+.LP
 Some ACS symbols
 (ACS_S3,
 ACS_S7,
@@ -151,10 +154,25 @@ any publicly released System V.  However, many publicly available terminfos
 include \fBacsc\fR strings in which their key characters (pryz{|}) are
 embedded, and a second-hand list of their character descriptions has come
 to light.  The ACS-prefixed names for them were invented for \fBncurses\fR(3X).
+.LP
+The \fBTABSIZE\fR variable is implemented in some versions of curses,
+but is not part of X/Open curses.
+.LP
+If \fIch\fR is a carriage return,
+the cursor is moved to the beginning of the current row of the window.
+This is true of other implementations, but is not documented.
 .SH SEE ALSO
-\fBcurses\fR(3X), \fBcurs_attr\fR(3X), \fBcurs_clear\fR(3X),
-\fBcurs_inch\fR(3X), \fBcurs_outopts\fR(3X), \fBcurs_refresh\fR(3X),
+\fBcurses\fR(3X),
+\fBcurs_attr\fR(3X),
+\fBcurs_clear\fR(3X),
+\fBcurs_inch\fR(3X),
+\fBcurs_outopts\fR(3X),
+\fBcurs_refresh\fR(3X),
 \fBputc\fR(3S).
+.PP
+Comparable functions in the wide-character (ncursesw) library are
+described in
+\fBcurs_add_wch\fR(3X).
 .\"#
 .\"# The following sets edit modes for GNU EMACS
 .\"# Local Variables:
