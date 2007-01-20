@@ -51,12 +51,8 @@ __FBSDID("$FreeBSD$");
  * Scan the providers list and call the
  * appropriate function.
  */
-static int activate_argv(pcr, key, v, so, fdp)
-struct portal_cred *pcr;
-char *key;
-char **v;
-int so;
-int *fdp;
+static int activate_argv(struct portal_cred *pcr, char *key, char **v, int so,
+    int *fdp)
 {
 	provider *pr;
 
@@ -67,11 +63,7 @@ int *fdp;
 	return (ENOENT);
 }
 
-static int get_request(so, pcr, key, klen)
-int so;
-struct portal_cred *pcr;
-char *key;
-int klen;
+static int get_request(int so, struct portal_cred *pcr, char *key, int klen)
 {
 	struct iovec iov[2];
 	struct msghdr msg;
@@ -90,7 +82,7 @@ int klen;
 	if (n < 0)
 		return (errno);
 
-	if (n <= sizeof(*pcr))
+	if (n <= (int)sizeof(*pcr))
 		return (EINVAL);
 
 	n -= sizeof(*pcr);
@@ -99,10 +91,7 @@ int klen;
 	return (0);
 }
 
-static void send_reply(so, fd, error)
-int so;
-int fd;
-int error;
+static void send_reply(int so, int fd, int error)
 {
 	int n;
 	struct iovec iov;
@@ -158,9 +147,7 @@ int error;
 	(void) close(fd);
 }
 
-void activate(q, so)
-qelem *q;
-int so;
+void activate(qelem *q, int so)
 {
 	struct portal_cred pcred;
 	char key[MAXPATHLEN+1];

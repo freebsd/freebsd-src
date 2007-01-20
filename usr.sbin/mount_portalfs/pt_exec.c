@@ -42,12 +42,8 @@ __FBSDID("$FreeBSD$");
 
 #include "portald.h"
 
-int portal_exec(pcr, key, v, so, fdp)
-struct portal_cred *pcr;
-char *key;
-char **v;
-int so;
-int *fdp;
+int portal_exec(struct portal_cred *pcr __unused, char *key __unused,
+    char **v __unused, int so __unused, int *fdp __unused)
 {
 	return (ENOEXEC);
 }
