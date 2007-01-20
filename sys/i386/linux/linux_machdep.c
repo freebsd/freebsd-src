@@ -297,20 +297,37 @@ int
 linux_fork(struct thread *td, struct linux_fork_args *args)
 {
 	int error;
+	struct proc *p2;
+	struct thread *td2;
 
 #ifdef DEBUG
 	if (ldebug(fork))
 		printf(ARGS(fork, ""));
 #endif
 
-	if ((error = fork(td, (struct fork_args *)args)) != 0)
+	if ((error = fork1(td, RFFDG | RFPROC | RFSTOPPED, 0, &p2)) != 0)
 		return (error);
+	
+	if (error == 0) {
+		td->td_retval[0] = p2->p_pid;
+		td->td_retval[1] = 0;
+	}
 
 	if (td->td_retval[1] == 1)
 		td->td_retval[0] = 0;
 	error = linux_proc_init(td, td->td_retval[0], 0);
 	if (error)
 		return (error);
+
+	td2 = FIRST_THREAD_IN_PROC(p2);
+
+	/*
+	 * Make this runnable after we are finished with it.
+	 */
+	mtx_lock_spin(&sched_lock);
+	TD_SET_CAN_RUN(td2);
+	setrunqueue(td2, SRQ_BORING);
+	mtx_unlock_spin(&sched_lock);
 
 	return (0);
 }
@@ -320,6 +337,7 @@ linux_vfork(struct thread *td, struct linux_vfork_args *args)
 {
 	int error;
 	struct proc *p2;
+	struct thread *td2;
 
 #ifdef DEBUG
 	if (ldebug(vfork))
@@ -327,10 +345,10 @@ linux_vfork(struct thread *td, struct linux_vfork_args *args)
 #endif
 
 	/* exclude RFPPWAIT */
-	if ((error = fork1(td, RFFDG | RFPROC | RFMEM, 0, &p2)) != 0)
+	if ((error = fork1(td, RFFDG | RFPROC | RFMEM | RFSTOPPED, 0, &p2)) != 0)
 		return (error);
 	if (error == 0) {
-	   	td->td_retval[0] = p2->p_pid;
+		td->td_retval[0] = p2->p_pid;
 		td->td_retval[1] = 0;
 	}
 	/* Are we the child? */
@@ -339,9 +357,23 @@ linux_vfork(struct thread *td, struct linux_vfork_args *args)
 	error = linux_proc_init(td, td->td_retval[0], 0);
 	if (error)
 		return (error);
-	/* wait for the children to exit, ie. emulate vfork */
+
 	PROC_LOCK(p2);
 	p2->p_flag |= P_PPWAIT;
+	PROC_UNLOCK(p2);
+
+	td2 = FIRST_THREAD_IN_PROC(p2);
+	
+	/*
+	 * Make this runnable after we are finished with it.
+	 */
+	mtx_lock_spin(&sched_lock);
+	TD_SET_CAN_RUN(td2);
+	setrunqueue(td2, SRQ_BORING);
+	mtx_unlock_spin(&sched_lock);
+
+	/* wait for the children to exit, ie. emulate vfork */
+	PROC_LOCK(p2);
 	while (p2->p_flag & P_PPWAIT)
 	   	msleep(td->td_proc, &p2->p_mtx, PWAIT, "ppwait", 0);
 	PROC_UNLOCK(p2);
@@ -523,6 +555,11 @@ linux_clone(struct thread *td, struct linux_clone_args *args)
 		printf(LMSG("clone: successful rfork to %ld, stack %p sig = %d"),
 		    (long)p2->p_pid, args->stack, exit_signal);
 #endif
+	if (args->flags & CLONE_VFORK) {
+	   	PROC_LOCK(p2);
+		p2->p_flag |= P_PPWAIT;
+	   	PROC_UNLOCK(p2);
+	}
 
 	/*
 	 * Make this runnable after we are finished with it.
@@ -538,7 +575,6 @@ linux_clone(struct thread *td, struct linux_clone_args *args)
 	if (args->flags & CLONE_VFORK) {
    	   	/* wait for the children to exit, ie. emulate vfork */
    	   	PROC_LOCK(p2);
-		p2->p_flag |= P_PPWAIT;
 		while (p2->p_flag & P_PPWAIT)
    		   	msleep(td->td_proc, &p2->p_mtx, PWAIT, "ppwait", 0);
 		PROC_UNLOCK(p2);
