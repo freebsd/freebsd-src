@@ -72,7 +72,7 @@ static MALLOC_DEFINE(M_DQUOT, "ufs_quota", "UFS quota entries");
 static char *quotatypes[] = INITQFNAMES;
 
 static int chkdqchg(struct inode *, ufs2_daddr_t, struct ucred *, int);
-static int chkiqchg(struct inode *, ino_t, struct ucred *, int);
+static int chkiqchg(struct inode *, int, struct ucred *, int);
 static int dqget(struct vnode *,
 		u_long, struct ufsmount *, int, struct dquot **);
 static int dqsync(struct vnode *, struct dquot *);
@@ -99,13 +99,18 @@ getinoquota(ip)
 	struct vnode *vp = ITOV(ip);
 	int error;
 
-#ifndef NO_FFS_SNAPSHOT
 	/*
-	 * Disk quotas must be turned off for snapshot files.
+	 * Disk quotas must be turned off for system files.  Currently
+	 * snapshot and quota files.
 	 */
-	if ((ip->i_flags & SF_SNAPSHOT) != 0)
+	if ((vp->v_vflag & VV_SYSTEM) != 0)
 		return (0);
-#endif
+	/*
+	 * XXX: Turn off quotas for files with a negative UID or GID.
+	 * This prevents the creation of 100GB+ quota files.
+	 */
+	if ((int)ip->i_uid < 0 || (int)ip->i_gid < 0)
+		return (0);
 	ump = VFSTOUFS(vp->v_mount);
 	/*
 	 * Set up the user quota based on file uid.
@@ -140,8 +145,21 @@ chkdq(ip, change, cred, flags)
 {
 	struct dquot *dq;
 	ufs2_daddr_t ncurblocks;
+	struct vnode *vp = ITOV(ip);
 	int i, error;
 
+	/*
+	 * Disk quotas must be turned off for system files.  Currently
+	 * snapshot and quota files.
+	 */
+	if ((vp->v_vflag & VV_SYSTEM) != 0)
+		return (0);
+	/*
+	 * XXX: Turn off quotas for files with a negative UID or GID.
+	 * This prevents the creation of 100GB+ quota files.
+	 */
+	if ((int)ip->i_uid < 0 || (int)ip->i_gid < 0)
+		return (0);
 #ifdef DIAGNOSTIC
 	if ((flags & CHOWN) == 0)
 		chkdquot(ip);
@@ -256,7 +274,7 @@ chkdqchg(ip, change, cred, type)
 int
 chkiq(ip, change, cred, flags)
 	struct inode *ip;
-	ino_t change;
+	int change;
 	struct ucred *cred;
 	int flags;
 {
@@ -270,7 +288,6 @@ chkiq(ip, change, cred, flags)
 #endif
 	if (change == 0)
 		return (0);
-	/* XXX: change is unsigned */
 	if (change < 0) {
 		for (i = 0; i < MAXQUOTAS; i++) {
 			if ((dq = ip->i_dquot[i]) == NODQUOT)
@@ -281,7 +298,7 @@ chkiq(ip, change, cred, flags)
 			}
 			ncurinodes = dq->dq_curinodes + change;
 			/* XXX: ncurinodes is unsigned */
-			if (ncurinodes >= 0)
+			if (dq->dq_curinodes != 0 && ncurinodes >= 0)
 				dq->dq_curinodes = ncurinodes;
 			else
 				dq->dq_curinodes = 0;
@@ -325,7 +342,7 @@ chkiq(ip, change, cred, flags)
 static int
 chkiqchg(ip, change, cred, type)
 	struct inode *ip;
-	ino_t change;
+	int change;
 	struct ucred *cred;
 	int type;
 {
@@ -384,15 +401,21 @@ chkdquot(ip)
 	struct inode *ip;
 {
 	struct ufsmount *ump = VFSTOUFS(ITOV(ip)->v_mount);
+	struct vnode *vp = ITOV(ip);
 	int i;
 
-#ifndef NO_FFS_SNAPSHOT
 	/*
-	 * Disk quotas must be turned off for snapshot files.
+	 * Disk quotas must be turned off for system files.  Currently
+	 * these are snapshots and quota files.
 	 */
-	if ((ip->i_flags & SF_SNAPSHOT) != 0)
+	if ((vp->v_vflag & VV_SYSTEM) != 0)
 		return;
-#endif
+	/*
+	 * XXX: Turn off quotas for files with a negative UID or GID.
+	 * This prevents the creation of 100GB+ quota files.
+	 */
+	if ((int)ip->i_uid < 0 || (int)ip->i_gid < 0)
+		return (0);
 	for (i = 0; i < MAXQUOTAS; i++) {
 		if (ump->um_quotas[i] == NULLVP ||
 		    (ump->um_qflags[i] & (QTF_OPENING|QTF_CLOSING)))
@@ -929,7 +952,7 @@ dqget(vp, id, ump, type, dqp)
 	aiov.iov_base = &dq->dq_dqb;
 	aiov.iov_len = sizeof (struct dqblk);
 	auio.uio_resid = sizeof (struct dqblk);
-	auio.uio_offset = (off_t)(id * sizeof (struct dqblk));
+	auio.uio_offset = (off_t)id * sizeof (struct dqblk);
 	auio.uio_segflg = UIO_SYSSPACE;
 	auio.uio_rw = UIO_READ;
 	auio.uio_td = (struct thread *)0;
@@ -1044,7 +1067,7 @@ dqsync(vp, dq)
 	aiov.iov_base = &dq->dq_dqb;
 	aiov.iov_len = sizeof (struct dqblk);
 	auio.uio_resid = sizeof (struct dqblk);
-	auio.uio_offset = (off_t)(dq->dq_id * sizeof (struct dqblk));
+	auio.uio_offset = (off_t)dq->dq_id * sizeof (struct dqblk);
 	auio.uio_segflg = UIO_SYSSPACE;
 	auio.uio_rw = UIO_WRITE;
 	auio.uio_td = (struct thread *)0;
