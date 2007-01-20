@@ -41,7 +41,9 @@ __FBSDID("$FreeBSD$");
 #include <sys/types.h>
 #include <sys/socket.h>
 #include <errno.h>
+#include <limits.h>
 #include <netdb.h>
+#include <nsswitch.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -49,6 +51,12 @@ __FBSDID("$FreeBSD$");
 #include "reentrant.h"
 #include "un-namespace.h"
 #include "netdb_private.h"
+#include "nss_tls.h"
+
+static const ns_src defaultsrc[] = {
+	{ NSSRC_FILES, NS_SUCCESS },
+	{ NULL, 0 }
+};
 
 NETDB_THREAD_ALLOC(protoent_data)
 NETDB_THREAD_ALLOC(protodata)
@@ -193,42 +201,107 @@ again:
 	return (0);
 }
 
-int
-getprotoent_r(struct protoent *pptr, char *buffer, size_t buflen,
-    struct protoent **result)
+static int
+files_getprotoent_r(void *retval, void *mdata, va_list ap)
 {
 	struct protoent pe;
 	struct protoent_data *ped;
 
+	struct protoent	*pptr;
+	char *buffer;
+	size_t buflen;
+	int *errnop;
+
+	pptr = va_arg(ap, struct protoent *);
+	buffer = va_arg(ap, char *);
+	buflen = va_arg(ap, size_t);
+	errnop = va_arg(ap, int *);
+
 	if ((ped = __protoent_data_init()) == NULL)
 		return (-1);
 
-	if (__getprotoent_p(&pe, ped) != 0)
-		return (-1);
-	if (__copy_protoent(&pe, pptr, buffer, buflen) != 0)
-		return (-1);
-	*result = pptr;
-	return (0);
+	if (__getprotoent_p(&pe, ped) != 0) {
+		*errnop = errno;
+		return (NS_NOTFOUND);
+	}
+
+	if (__copy_protoent(&pe, pptr, buffer, buflen) != 0) {
+		*errnop = errno;
+		return (NS_NOTFOUND);
+	}
+
+	*((struct protoent **)retval) = pptr;
+	return (NS_SUCCESS);
 }
 
-void
-setprotoent(int f)
+static int
+files_setprotoent(void *retval, void *mdata, va_list ap)
+{
+	struct protoent_data *ped;
+	int f;
+
+	f = va_arg(ap, int);
+	if ((ped = __protoent_data_init()) == NULL)
+		return (NS_UNAVAIL);
+
+	__setprotoent_p(f, ped);
+	return (NS_UNAVAIL);
+}
+
+static int
+files_endprotoent(void *retval, void *mdata, va_list ap)
 {
 	struct protoent_data *ped;
 
 	if ((ped = __protoent_data_init()) == NULL)
-		return;
-	__setprotoent_p(f, ped);
+		return (NS_UNAVAIL);
+
+	__endprotoent_p(ped);
+	return (NS_UNAVAIL);
+}
+
+int
+getprotoent_r(struct protoent *pptr, char *buffer, size_t buflen,
+    struct protoent **result)
+{
+	static const ns_dtab dtab[] = {
+		{ NSSRC_FILES, files_getprotoent_r, (void *)nss_lt_all },
+		{ NULL, NULL, NULL }
+	};
+	int rv, ret_errno;
+
+	ret_errno = 0;
+	*result = NULL;
+	rv = nsdispatch(result, dtab, NSDB_PROTOCOLS, "getprotoent_r",
+	    defaultsrc, pptr, buffer, buflen, &ret_errno);
+
+	if (rv == NS_SUCCESS)
+		return (0);
+	else
+		return (ret_errno);
+}
+
+void
+setprotoent(int stayopen)
+{
+	static const ns_dtab dtab[] = {
+		{ NSSRC_FILES, files_setprotoent, NULL },
+		{ NULL, NULL, NULL }
+	};
+
+	(void)nsdispatch(NULL, dtab, NSDB_PROTOCOLS, "setprotoent", defaultsrc,
+		stayopen);
 }
 
 void
 endprotoent(void)
 {
-	struct protoent_data *ped;
+	static const ns_dtab dtab[] = {
+		{ NSSRC_FILES, files_endprotoent, NULL },
+		{ NULL, NULL, NULL }
+	};
 
-	if ((ped = __protoent_data_init()) == NULL)
-		return;
-	__endprotoent_p(ped);
+	(void)nsdispatch(NULL, dtab, NSDB_PROTOCOLS, "endprotoent", defaultsrc);
 }
 
 struct protoent *

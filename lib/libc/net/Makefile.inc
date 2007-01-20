@@ -9,8 +9,7 @@ SRCS+=	addr2ascii.c ascii2addr.c base64.c ether_addr.c eui64.c \
 	gethostbydns.c gethostbyht.c gethostbynis.c gethostnamadr.c \
 	getifaddrs.c getifmaddrs.c getnameinfo.c \
 	getnetbydns.c getnetbyht.c getnetbynis.c getnetnamadr.c \
-	getproto.c getprotoent.c getprotoname.c getservbyname.c \
-	getservbyport.c getservent.c hesiod.c \
+	getproto.c getprotoent.c getprotoname.c getservent.c hesiod.c \
 	if_indextoname.c if_nameindex.c if_nametoindex.c \
 	ip6opt.c linkaddr.c map_v4v6.c name6.c \
 	nsdispatch.c nslexer.c nsparser.c nss_compat.c \

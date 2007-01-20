@@ -42,10 +42,13 @@ __FBSDID("$FreeBSD$");
 #include <sys/socket.h>
 #include <arpa/inet.h>
 #include <errno.h>
+#include <limits.h>
 #include <netdb.h>
+#include <nsswitch.h>
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
+#include <unistd.h>
 #ifdef YP
 #include <rpc/rpc.h>
 #include <rpcsvc/yp_prot.h>
@@ -55,285 +58,126 @@ __FBSDID("$FreeBSD$");
 #include "reentrant.h"
 #include "un-namespace.h"
 #include "netdb_private.h"
+#include "nss_tls.h"
 
-NETDB_THREAD_ALLOC(servent_data)
-NETDB_THREAD_ALLOC(servdata)
-
-static void
-servent_data_clear(struct servent_data *sed)
+enum constants
 {
-	if (sed->fp) {
-		fclose(sed->fp);
-		sed->fp = NULL;
-	}
-#ifdef YP
-	free(sed->yp_key);
-	sed->yp_key = NULL;
-#endif
-}
+	SETSERVENT		= 1,
+	ENDSERVENT		= 2,
+	SERVENT_STORAGE_INITIAL	= 1 << 10, /* 1 KByte */
+	SERVENT_STORAGE_MAX	= 1 << 20, /* 1 MByte */
+};
 
-static void
-servent_data_free(void *ptr)
+struct servent_mdata
 {
-	struct servent_data *sed = ptr;
+	enum nss_lookup_type how;
+	int compat_mode;
+};
 
-	servent_data_clear(sed);
-	free(sed);
-}
+static const ns_src defaultsrc[] = {
+	{ NSSRC_COMPAT, NS_SUCCESS },
+	{ NULL, 0 }
+};
 
-static void
-servdata_free(void *ptr)
+static int servent_unpack(char *, struct servent *, char **, size_t, int *);
+
+/* files backend declarations */
+struct files_state
 {
-	free(ptr);
-}
+	FILE *fp;
+	int stayopen;
 
-int
-__copy_servent(struct servent *se, struct servent *sptr, char *buf,
-    size_t buflen)
-{
-	char *cp;
-	int i, n;
-	int numptr, len;
+	int compat_mode_active;
+};
+static void files_endstate(void *);
+NSS_TLS_HANDLING(files);
 
-	/* Find out the amount of space required to store the answer. */
-	numptr = 1; /* NULL ptr */
-	len = (char *)ALIGN(buf) - buf;
-	for (i = 0; se->s_aliases[i]; i++, numptr++) {
-		len += strlen(se->s_aliases[i]) + 1;
-	}
-	len += strlen(se->s_name) + 1;
-	len += strlen(se->s_proto) + 1;
-	len += numptr * sizeof(char*);
-
-	if (len > (int)buflen) {
-		errno = ERANGE;
-		return (-1);
-	}
-
-	/* copy port value */
-	sptr->s_port = se->s_port;
-
-	cp = (char *)ALIGN(buf) + numptr * sizeof(char *);
-
-	/* copy official name */
-	n = strlen(se->s_name) + 1;
-	strcpy(cp, se->s_name);
-	sptr->s_name = cp;
-	cp += n;
-
-	/* copy aliases */
-	sptr->s_aliases = (char **)ALIGN(buf);
-	for (i = 0 ; se->s_aliases[i]; i++) {
-		n = strlen(se->s_aliases[i]) + 1;
-		strcpy(cp, se->s_aliases[i]);
-		sptr->s_aliases[i] = cp;
-		cp += n;
-	}
-	sptr->s_aliases[i] = NULL;
-
-	/* copy proto */
-	n = strlen(se->s_proto) + 1;
-	strcpy(cp, se->s_proto);
-	sptr->s_proto = cp;
-	cp += n;
-
-	return (0);
-}
+static int files_servent(void *, void *, va_list);
+static int files_setservent(void *, void *, va_list);
 
 #ifdef YP
-static int
-_getservbyport_yp(struct servent_data *sed)
+/* nis backend declarations */
+static 	int 	nis_servent(void *, void *, va_list);
+static 	int 	nis_setservent(void *, void *, va_list);
+
+struct nis_state
 {
-	char *result;
-	int resultlen;
-	char buf[YPMAXRECORD + 2];
-	int rv;
+	int yp_stepping;
+	char yp_domain[MAXHOSTNAMELEN];
+	char *yp_key;
+	int yp_keylen;
+};
+static void nis_endstate(void *);
+NSS_TLS_HANDLING(nis);
 
-	snprintf(buf, sizeof(buf), "%d/%s", ntohs(sed->yp_port),
-	    sed->yp_proto);
-
-	sed->yp_port = 0;
-	sed->yp_proto = NULL;
-
-	if (!sed->yp_domain) {
-		if (yp_get_default_domain(&sed->yp_domain))
-			return (0);
-	}
-
-	/*
-	 * We have to be a little flexible here. Ideally you're supposed
-	 * to have both a services.byname and a services.byport map, but
-	 * some systems have only services.byname. FreeBSD cheats a little
-	 * by putting the services.byport information in the same map as
-	 * services.byname so that either case will work. We allow for both
-	 * possibilities here: if there is no services.byport map, we try
-	 * services.byname instead.
-	 */
-	if ((rv = yp_match(sed->yp_domain, "services.byport", buf, strlen(buf),
-						&result, &resultlen))) {
-		if (rv == YPERR_MAP) {
-			if (yp_match(sed->yp_domain, "services.byname", buf,
-					strlen(buf), &result, &resultlen))
-			return(0);
-		} else
-			return(0);
-	}
-
-	/* getservent() expects lines terminated with \n -- make it happy */
-	snprintf(sed->line, sizeof sed->line, "%.*s\n", resultlen, result);
-
-	free(result);
-	return(1);
-}
-
-static int
-_getservbyname_yp(struct servent_data *sed)
-{
-	char *result;
-	int resultlen;
-	char buf[YPMAXRECORD + 2];
-
-	if(!sed->yp_domain) {
-		if(yp_get_default_domain(&sed->yp_domain))
-			return (0);
-	}
-
-	snprintf(buf, sizeof(buf), "%s/%s", sed->yp_name, sed->yp_proto);
-
-	sed->yp_name = 0;
-	sed->yp_proto = NULL;
-
-	if (yp_match(sed->yp_domain, "services.byname", buf, strlen(buf),
-	    &result, &resultlen)) {
-		return(0);
-	}
-
-	/* getservent() expects lines terminated with \n -- make it happy */
-	snprintf(sed->line, sizeof sed->line, "%.*s\n", resultlen, result);
-
-	free(result);
-	return(1);
-}
-
-static int
-_getservent_yp(struct servent_data *sed)
-{
-	char *lastkey, *result;
-	int resultlen;
-	int rv;
-
-	if (!sed->yp_domain) {
-		if (yp_get_default_domain(&sed->yp_domain))
-			return (0);
-	}
-
-	if (!sed->yp_stepping) {
-		free(sed->yp_key);
-		rv = yp_first(sed->yp_domain, "services.byname", &sed->yp_key,
-		    &sed->yp_keylen, &result, &resultlen);
-		if (rv) {
-			sed->yp_stepping = 0;
-			return(0);
-		}
-		sed->yp_stepping = 1;
-	} else {
-		lastkey = sed->yp_key;
-		rv = yp_next(sed->yp_domain, "services.byname", sed->yp_key,
-		    sed->yp_keylen, &sed->yp_key, &sed->yp_keylen, &result,
-		    &resultlen);
-		free(lastkey);
-		if (rv) {
-			sed->yp_stepping = 0;
-			return (0);
-		}
-	}
-
-	/* getservent() expects lines terminated with \n -- make it happy */
-	snprintf(sed->line, sizeof sed->line, "%.*s\n", resultlen, result);
-
-	free(result);
-
-	return(1);
-}
+static int nis_servent(void *, void *, va_list);
+static int nis_setservent(void *, void *, va_list);
 #endif
 
-void
-__setservent_p(int f, struct servent_data *sed)
-{
-	if (sed->fp == NULL)
-		sed->fp = fopen(_PATH_SERVICES, "r");
-	else
-		rewind(sed->fp);
-	sed->stayopen |= f;
-}
+/* compat backend declarations */
+static int compat_setservent(void *, void *, va_list);
 
-void
-__endservent_p(struct servent_data *sed)
-{
-	servent_data_clear(sed);
-	sed->stayopen = 0;
-#ifdef YP
-	sed->yp_stepping = 0;
-	sed->yp_domain = NULL;
-#endif
-}
+/* get** wrappers for get**_r functions declarations */
+struct servent_state {
+	struct servent serv;
+	char *buffer;
+	size_t bufsize;
+};
+static	void	servent_endstate(void *);
+NSS_TLS_HANDLING(servent);
 
-int
-__getservent_p(struct servent *se, struct servent_data *sed)
+struct key {
+	const char *proto;
+	union {
+		const char *name;
+		int port;
+	};
+};
+
+static int wrap_getservbyname_r(struct key, struct servent *, char *, size_t,
+    struct servent **);
+static int wrap_getservbyport_r(struct key, struct servent *, char *, size_t,
+    struct servent **);
+static int wrap_getservent_r(struct key, struct servent *, char *, size_t,
+    struct servent **);
+static struct servent *getserv(int (*fn)(struct key, struct servent *, char *,
+    size_t, struct servent **), struct key);
+
+static int
+servent_unpack(char *p, struct servent *serv, char **aliases,
+    size_t aliases_size, int *errnop)
 {
-	char *p;
 	char *cp, **q, *endp;
 	long l;
 
-#ifdef YP
-	if (sed->yp_stepping && _getservent_yp(sed)) {
-		p = sed->line;
-		goto unpack;
-	}
-tryagain:
-#endif
-	if (sed->fp == NULL && (sed->fp = fopen(_PATH_SERVICES, "r")) == NULL)
-		return (-1);
-again:
-	if ((p = fgets(sed->line, sizeof sed->line, sed->fp)) == NULL)
-		return (-1);
-#ifdef YP
-	if (*p == '+' && _yp_check(NULL)) {
-		if (sed->yp_name != NULL) {
-			if (!_getservbyname_yp(sed))
-				goto tryagain;
-		}
-		else if (sed->yp_port != 0) {
-			if (!_getservbyport_yp(sed))
-				goto tryagain;
-		}
-		else if (!_getservent_yp(sed))
-			goto tryagain;
-	}
-unpack:
-#endif
 	if (*p == '#')
-		goto again;
+		return -1;
+
+	memset(serv, 0, sizeof(struct servent));
+
 	cp = strpbrk(p, "#\n");
 	if (cp != NULL)
 		*cp = '\0';
-	se->s_name = p;
+	serv->s_name = p;
+
 	p = strpbrk(p, " \t");
 	if (p == NULL)
-		goto again;
+		return -1;
 	*p++ = '\0';
 	while (*p == ' ' || *p == '\t')
 		p++;
 	cp = strpbrk(p, ",/");
 	if (cp == NULL)
-		goto again;
+		return -1;
+
 	*cp++ = '\0';
 	l = strtol(p, &endp, 10);
 	if (endp == p || *endp != '\0' || l < 0 || l > USHRT_MAX)
-		goto again;
-	se->s_port = htons((in_port_t)l);
-	se->s_proto = cp;
-	q = se->s_aliases = sed->aliases;
+		return -1;
+	serv->s_port = htons((in_port_t)l);
+	serv->s_proto = cp;
+
+	q = serv->s_aliases = aliases;
 	cp = strpbrk(cp, " \t");
 	if (cp != NULL)
 		*cp++ = '\0';
@@ -342,63 +186,732 @@ unpack:
 			cp++;
 			continue;
 		}
-		if (q < &sed->aliases[_MAXALIASES - 1])
+		if (q < &aliases[aliases_size - 1]) {
 			*q++ = cp;
+		} else {
+			*q = NULL;
+			*errnop = ERANGE;
+			return -1;
+		}
 		cp = strpbrk(cp, " \t");
 		if (cp != NULL)
 			*cp++ = '\0';
 	}
 	*q = NULL;
-	return (0);
+
+	return 0;
+}
+
+/* files backend implementation */
+static	void
+files_endstate(void *p)
+{
+	FILE * f;
+
+	if (p == NULL)
+		return;
+
+	f = ((struct files_state *)p)->fp;
+	if (f != NULL)
+		fclose(f);
+
+	free(p);
+}
+
+/*
+ * compat structures. compat and files sources functionalities are almost
+ * equal, so they all are managed by files_servent function
+ */
+static int
+files_servent(void *retval, void *mdata, va_list ap)
+{
+	static const ns_src compat_src[] = {
+#ifdef YP
+		{ NSSRC_NIS, NS_SUCCESS },
+#endif
+		{ NULL, 0 }
+	};
+	ns_dtab compat_dtab[] = {
+#ifdef YP
+		{ NSSRC_NIS, nis_servent,
+			(void *)((struct servent_mdata *)mdata)->how },
+#endif
+		{ NULL, NULL, NULL }
+	};
+
+	struct files_state *st;
+	int rv;
+	int stayopen;
+
+	struct servent_mdata *serv_mdata;
+	char *name;
+	char *proto;
+	int port;
+
+	struct servent *serv;
+	char *buffer;
+	size_t bufsize;
+	int *errnop;
+
+	char **aliases;
+	int aliases_size;
+	size_t linesize;
+	char *line;
+	char **cp;
+
+	name = NULL;
+	proto = NULL;
+	serv_mdata = (struct servent_mdata *)mdata;
+	switch (serv_mdata->how) {
+	case nss_lt_name:
+		name = va_arg(ap, char *);
+		proto = va_arg(ap, char *);
+		break;
+	case nss_lt_id:
+		port = va_arg(ap, int);
+		proto = va_arg(ap, char *);
+		break;
+	case nss_lt_all:
+		break;
+	default:
+		return NS_NOTFOUND;
+	};
+
+	serv = va_arg(ap, struct servent *);
+	buffer  = va_arg(ap, char *);
+	bufsize = va_arg(ap, size_t);
+	errnop = va_arg(ap,int *);
+
+	*errnop = files_getstate(&st);
+	if (*errnop != 0)
+		return (NS_UNAVAIL);
+
+	if (st->fp == NULL)
+		st->compat_mode_active = 0;
+
+	if (st->fp == NULL && (st->fp = fopen(_PATH_SERVICES, "r")) == NULL) {
+		*errnop = errno;
+		return (NS_UNAVAIL);
+	}
+
+	if (serv_mdata->how == nss_lt_all)
+		stayopen = 1;
+	else {
+		rewind(st->fp);
+		stayopen = st->stayopen;
+	}
+
+	rv = NS_NOTFOUND;
+	do {
+		if (!st->compat_mode_active) {
+			if ((line = fgetln(st->fp, &linesize)) == NULL) {
+				*errnop = errno;
+				rv = NS_RETURN;
+				break;
+			}
+
+			if (*line=='+') {
+				if (serv_mdata->compat_mode != 0)
+					st->compat_mode_active = 1;
+			} else {
+				if (bufsize <= linesize + _ALIGNBYTES +
+				    sizeof(char *)) {
+					*errnop = ERANGE;
+					rv = NS_RETURN;
+					break;
+				}
+				aliases = (char **)_ALIGN(&buffer[linesize+1]);
+				aliases_size = (buffer + bufsize -
+				    (char *)aliases) / sizeof(char *);
+				if (aliases_size < 1) {
+					*errnop = ERANGE;
+					rv = NS_RETURN;
+					break;
+				}
+
+				memcpy(buffer, line, linesize);
+				buffer[linesize] = '\0';
+			}
+		}
+
+		if (st->compat_mode_active != 0) {
+			switch (serv_mdata->how) {
+			case nss_lt_name:
+				rv = nsdispatch(retval, compat_dtab,
+				    NSDB_SERVICES_COMPAT, "getservbyname_r",
+				    compat_src, name, proto, serv, buffer,
+				    bufsize, errnop);
+				break;
+			case nss_lt_id:
+				rv = nsdispatch(retval, compat_dtab,
+				    NSDB_SERVICES_COMPAT, "getservbyport_r",
+				    compat_src, port, proto, serv, buffer,
+					bufsize, errnop);
+				break;
+			case nss_lt_all:
+				rv = nsdispatch(retval, compat_dtab,
+				    NSDB_SERVICES_COMPAT, "getservent_r",
+				    compat_src, serv, buffer, bufsize, errnop);
+				break;
+			}
+
+			if (!(rv & NS_TERMINATE) ||
+			    serv_mdata->how != nss_lt_all)
+				st->compat_mode_active = 0;
+
+			continue;
+		}
+
+		rv = servent_unpack(buffer, serv, aliases, aliases_size,
+		    errnop);
+		if (rv !=0 ) {
+			if (*errnop == 0) {
+				rv = NS_NOTFOUND;
+				continue;
+			}
+			else {
+				rv = NS_RETURN;
+				break;
+			}
+		}
+
+		rv = NS_NOTFOUND;
+		switch (serv_mdata->how) {
+		case nss_lt_name:
+			if (strcmp(name, serv->s_name) == 0)
+				goto gotname;
+			for (cp = serv->s_aliases; *cp; cp++)
+				if (strcmp(name, *cp) == 0)
+					goto gotname;
+
+			continue;
+		gotname:
+			if (proto == 0 || strcmp(serv->s_proto, proto) == 0)
+				rv = NS_SUCCESS;
+			break;
+		case nss_lt_id:
+			if (port != serv->s_port)
+				continue;
+
+			if (proto == 0 || strcmp(serv->s_proto, proto) == 0)
+				rv = NS_SUCCESS;
+			break;
+		case nss_lt_all:
+			rv = NS_SUCCESS;
+			break;
+		}
+
+	} while (!(rv & NS_TERMINATE));
+
+	if (!stayopen && st->fp != NULL) {
+		fclose(st->fp);
+		st->fp = NULL;
+	}
+
+	if ((rv == NS_SUCCESS) && (retval != NULL))
+		*(struct servent **)retval=serv;
+
+	return (rv);
+}
+
+static int
+files_setservent(void *retval, void *mdata, va_list ap)
+{
+	struct files_state *st;
+	int rv;
+	int f;
+
+	rv = files_getstate(&st);
+	if (rv != 0)
+		return (NS_UNAVAIL);
+
+	switch ((enum constants)mdata) {
+	case SETSERVENT:
+		f = va_arg(ap,int);
+		if (st->fp == NULL)
+			st->fp = fopen(_PATH_SERVICES, "r");
+		else
+			rewind(st->fp);
+		st->stayopen |= f;
+		break;
+	case ENDSERVENT:
+		if (st->fp != NULL) {
+			fclose(st->fp);
+			st->fp = NULL;
+		}
+		st->stayopen = 0;
+		break;
+	default:
+		break;
+	};
+
+	st->compat_mode_active = 0;
+	return (NS_UNAVAIL);
+}
+
+/* nis backend implementation */
+#ifdef YP
+static 	void
+nis_endstate(void *p)
+{
+	if (p == NULL)
+		return;
+
+	free(((struct nis_state *)p)->yp_key);
+	free(p);
+}
+
+static int
+nis_servent(void *retval, void *mdata, va_list ap)
+{
+	char *resultbuf, *lastkey;
+	int resultbuflen;
+	char buf[YPMAXRECORD + 2];
+
+	struct nis_state *st;
+	int rv;
+
+	enum nss_lookup_type how;
+	char *name;
+	char *proto;
+	int port;
+
+	struct servent *serv;
+	char *buffer;
+	size_t bufsize;
+	int *errnop;
+
+	char **aliases;
+	int aliases_size;
+
+	name = NULL;
+	proto = NULL;
+	how = (enum nss_lookup_type)mdata;
+	switch (how) {
+	case nss_lt_name:
+		name = va_arg(ap, char *);
+		proto = va_arg(ap, char *);
+		break;
+	case nss_lt_id:
+		port = va_arg(ap, int);
+		proto = va_arg(ap, char *);
+		break;
+	case nss_lt_all:
+		break;
+	default:
+		return NS_NOTFOUND;
+	};
+
+	serv = va_arg(ap, struct servent *);
+	buffer  = va_arg(ap, char *);
+	bufsize = va_arg(ap, size_t);
+	errnop = va_arg(ap, int *);
+
+	*errnop = nis_getstate(&st);
+	if (*errnop != 0)
+		return (NS_UNAVAIL);
+
+	if (st->yp_domain[0] == '\0') {
+		if (getdomainname(st->yp_domain, sizeof st->yp_domain)) {
+			*errnop = errno;
+			return (NS_UNAVAIL);
+		}
+	}
+
+	do {
+		switch (how) {
+		case nss_lt_name:
+			snprintf(buf, sizeof(buf), "%s/%s", name, proto);
+			if (yp_match(st->yp_domain, "services.byname", buf,
+			    strlen(buf), &resultbuf, &resultbuflen)) {
+				rv = NS_NOTFOUND;
+				goto fin;
+			}
+			break;
+		case nss_lt_id:
+			snprintf(buf, sizeof(buf), "%d/%s", ntohs(port),
+			    proto);
+
+			/*
+			 * We have to be a little flexible
+			 * here. Ideally you're supposed to have both
+			 * a services.byname and a services.byport
+			 * map, but some systems have only
+			 * services.byname. FreeBSD cheats a little by
+			 * putting the services.byport information in
+			 * the same map as services.byname so that
+			 * either case will work. We allow for both
+			 * possibilities here: if there is no
+			 * services.byport map, we try services.byname
+			 * instead.
+			 */
+			rv = yp_match(st->yp_domain, "services.byport", buf,
+			    strlen(buf), &resultbuf, &resultbuflen);
+			if (rv) {
+				if (rv == YPERR_MAP) {
+					if (yp_match(st->yp_domain,
+					    "services.byname", buf,
+					    strlen(buf), &resultbuf,
+					    &resultbuflen)) {
+						rv = NS_NOTFOUND;
+						goto fin;
+					}
+				} else {
+					rv = NS_NOTFOUND;
+					goto fin;
+				}
+			}
+
+			break;
+		case nss_lt_all:
+			if (!st->yp_stepping) {
+				free(st->yp_key);
+				rv = yp_first(st->yp_domain, "services.byname",
+				    &st->yp_key, &st->yp_keylen, &resultbuf,
+				    &resultbuflen);
+				if (rv) {
+					rv = NS_NOTFOUND;
+					goto fin;
+				}
+				st->yp_stepping = 1;
+			} else {
+				lastkey = st->yp_key;
+				rv = yp_next(st->yp_domain, "services.byname",
+				    st->yp_key, st->yp_keylen, &st->yp_key,
+				    &st->yp_keylen, &resultbuf, &resultbuflen);
+				free(lastkey);
+				if (rv) {
+					st->yp_stepping = 0;
+					rv = NS_NOTFOUND;
+					goto fin;
+				}
+			}
+			break;
+		};
+
+		/* we need a room for additional \n symbol */
+		if (bufsize <=
+		    resultbuflen + 1 + _ALIGNBYTES + sizeof(char *)) {
+			*errnop = ERANGE;
+			rv = NS_RETURN;
+			break;
+		}
+
+		aliases = (char **)_ALIGN(&buffer[resultbuflen + 2]);
+		aliases_size =
+		    (buffer + bufsize - (char *)aliases) / sizeof(char *);
+		if (aliases_size < 1) {
+			*errnop = ERANGE;
+			rv = NS_RETURN;
+			break;
+		}
+
+		/*
+		 * servent_unpack expects lines terminated with \n --
+		 * make it happy
+		 */
+		memcpy(buffer, resultbuf, resultbuflen);
+		buffer[resultbuflen] = '\n';
+		buffer[resultbuflen + 1] = '\0';
+
+		if (servent_unpack(buffer, serv, aliases, aliases_size,
+		    errnop) != 0) {
+			if (*errnop == 0)
+				rv = NS_NOTFOUND;
+			else
+				rv = NS_RETURN;
+		} else
+			rv = NS_SUCCESS;
+		free(resultbuf);
+
+	} while (!(rv & NS_TERMINATE) && how == nss_lt_all);
+
+fin:
+	if (rv == NS_SUCCESS && retval != NULL)
+		*(struct servent **)retval = serv;
+
+	return (rv);
+}
+
+static int
+nis_setservent(void *result, void *mdata, va_list ap)
+{
+	struct nis_state *st;
+	int rv;
+
+	rv = nis_getstate(&st);
+	if (rv != 0)
+		return (NS_UNAVAIL);
+
+	switch ((enum constants)mdata) {
+	case SETSERVENT:
+	case ENDSERVENT:
+		free(st->yp_key);
+		st->yp_key = NULL;
+		st->yp_stepping = 0;
+		break;
+	default:
+		break;
+	};
+
+	return (NS_UNAVAIL);
+}
+#endif
+
+/* compat backend implementation */
+static int
+compat_setservent(void *retval, void *mdata, va_list ap)
+{
+	static const ns_src compat_src[] = {
+#ifdef YP
+		{ NSSRC_NIS, NS_SUCCESS },
+#endif
+		{ NULL, 0 }
+	};
+	ns_dtab compat_dtab[] = {
+#ifdef YP
+		{ NSSRC_NIS, nis_setservent, mdata },
+#endif
+		{ NULL, NULL, NULL }
+	};
+	int f;
+
+	(void)files_setservent(retval, mdata, ap);
+
+	switch ((enum constants)mdata) {
+	case SETSERVENT:
+		f = va_arg(ap,int);
+		(void)nsdispatch(retval, compat_dtab, NSDB_SERVICES_COMPAT,
+		    "setservent", compat_src, f);
+		break;
+	case ENDSERVENT:
+		(void)nsdispatch(retval, compat_dtab, NSDB_SERVICES_COMPAT,
+		    "endservent", compat_src);
+		break;
+	default:
+		break;
+	}
+
+	return (NS_UNAVAIL);
+}
+
+/* get**_r functions implementation */
+int
+getservbyname_r(const char *name, const char *proto, struct servent *serv,
+    char *buffer, size_t bufsize, struct servent **result)
+{
+	static const struct servent_mdata mdata = { nss_lt_name, 0 };
+	static const struct servent_mdata compat_mdata = { nss_lt_name, 1 };
+	static const ns_dtab dtab[] = {
+		{ NSSRC_FILES, files_servent, (void *)&mdata },
+#ifdef YP
+		{ NSSRC_NIS, nis_servent, (void *)nss_lt_name },
+#endif
+		{ NSSRC_COMPAT, files_servent, (void *)&compat_mdata },
+		{ NULL, NULL, NULL }
+	};
+	int	rv, ret_errno;
+
+	ret_errno = 0;
+	*result = NULL;
+	rv = nsdispatch(result, dtab, NSDB_SERVICES, "getservbyname_r",
+	    defaultsrc, name, proto, serv, buffer, bufsize, &ret_errno);
+
+	if (rv == NS_SUCCESS)
+		return (0);
+	else
+		return (ret_errno);
 }
 
 int
-getservent_r(struct servent *sptr, char *buffer, size_t buflen,
+getservbyport_r(int port, const char *proto, struct servent *serv,
+    char *buffer, size_t bufsize, struct servent **result)
+{
+	static const struct servent_mdata mdata = { nss_lt_id, 0 };
+	static const struct servent_mdata compat_mdata = { nss_lt_id, 1 };
+	static const ns_dtab dtab[] = {
+		{ NSSRC_FILES, files_servent, (void *)&mdata },
+#ifdef YP
+		{ NSSRC_NIS, nis_servent, (void *)nss_lt_id },
+#endif
+		{ NSSRC_COMPAT, files_servent, (void *)&compat_mdata },
+		{ NULL, NULL, NULL }
+	};
+	int rv, ret_errno;
+
+	ret_errno = 0;
+	*result = NULL;
+	rv = nsdispatch(result, dtab, NSDB_SERVICES, "getservbyport_r",
+	    defaultsrc, port, proto, serv, buffer, bufsize, &ret_errno);
+
+	if (rv == NS_SUCCESS)
+		return (0);
+	else
+		return (ret_errno);
+}
+
+int
+getservent_r(struct servent *serv, char *buffer, size_t bufsize,
     struct servent **result)
 {
-	struct servent se;
-	struct servent_data *sed;
+	static const struct servent_mdata mdata = { nss_lt_all, 0 };
+	static const struct servent_mdata compat_mdata = { nss_lt_all, 1 };
+	static const ns_dtab dtab[] = {
+		{ NSSRC_FILES, files_servent, (void *)&mdata },
+#ifdef YP
+		{ NSSRC_NIS, nis_servent, (void *)nss_lt_all },
+#endif
+		{ NSSRC_COMPAT, files_servent, (void *)&compat_mdata },
+		{ NULL, NULL, NULL }
+	};
+	int rv, ret_errno;
 
-	if ((sed = __servent_data_init()) == NULL)
-		return (-1);
+	ret_errno = 0;
+	*result = NULL;
+	rv = nsdispatch(result, dtab, NSDB_SERVICES, "getservent_r",
+	    defaultsrc, serv, buffer, bufsize, &ret_errno);
 
-	if (__getservent_p(&se, sed) != 0)
-		return (-1);
-	if (__copy_servent(&se, sptr, buffer, buflen) != 0)
-		return (-1);
-	*result = sptr;
-	return (0);
+	if (rv == NS_SUCCESS)
+		return (0);
+	else
+		return (ret_errno);
 }
 
 void
-setservent(int f)
+setservent(int stayopen)
 {
-	struct servent_data *sed;
+	static const ns_dtab dtab[] = {
+		{ NSSRC_FILES, files_setservent, (void *)SETSERVENT },
+#ifdef YP
+		{ NSSRC_NIS, nis_setservent, (void *)SETSERVENT },
+#endif
+		{ NSSRC_COMPAT, compat_setservent, (void *)SETSERVENT },
+		{ NULL, NULL, NULL }
+	};
 
-	if ((sed = __servent_data_init()) == NULL)
-		return;
-	__setservent_p(f, sed);
+	(void)nsdispatch(NULL, dtab, NSDB_SERVICES, "setservent", defaultsrc,
+	    stayopen);
 }
 
 void
-endservent(void)
+endservent()
 {
-	struct servent_data *sed;
+	static const ns_dtab dtab[] = {
+		{ NSSRC_FILES, files_setservent, (void *)ENDSERVENT },
+#ifdef YP
+		{ NSSRC_NIS, nis_setservent, (void *)ENDSERVENT },
+#endif
+		{ NSSRC_COMPAT, compat_setservent, (void *)ENDSERVENT },
+		{ NULL, NULL, NULL }
+	};
 
-	if ((sed = __servent_data_init()) == NULL)
+	(void)nsdispatch(NULL, dtab, NSDB_SERVICES, "endservent", defaultsrc);
+}
+
+/* get** wrappers for get**_r functions implementation */
+static void
+servent_endstate(void *p)
+{
+	if (p == NULL)
 		return;
-	__endservent_p(sed);
+
+	free(((struct servent_state *)p)->buffer);
+	free(p);
+}
+
+static int
+wrap_getservbyname_r(struct key key, struct servent *serv, char *buffer,
+    size_t bufsize, struct servent **res)
+{
+	return (getservbyname_r(key.name, key.proto, serv, buffer, bufsize,
+	    res));
+}
+
+static int
+wrap_getservbyport_r(struct key key, struct servent *serv, char *buffer,
+    size_t bufsize, struct servent **res)
+{
+	return (getservbyport_r(key.port, key.proto, serv, buffer, bufsize,
+	    res));
+}
+
+static	int
+wrap_getservent_r(struct key key, struct servent *serv, char *buffer,
+    size_t bufsize, struct servent **res)
+{
+	return (getservent_r(serv, buffer, bufsize, res));
+}
+
+static struct servent *
+getserv(int (*fn)(struct key, struct servent *, char *, size_t,
+    struct servent **), struct key key)
+{
+	int rv;
+	struct servent *res;
+	struct servent_state * st;
+
+	rv = servent_getstate(&st);
+	if (rv != 0) {
+		errno = rv;
+		return NULL;
+	}
+
+	if (st->buffer == NULL) {
+		st->buffer = malloc(SERVENT_STORAGE_INITIAL);
+		if (st->buffer == NULL)
+			return (NULL);
+		st->bufsize = SERVENT_STORAGE_INITIAL;
+	}
+	do {
+		rv = fn(key, &st->serv, st->buffer, st->bufsize, &res);
+		if (res == NULL && rv == ERANGE) {
+			free(st->buffer);
+			if ((st->bufsize << 1) > SERVENT_STORAGE_MAX) {
+				st->buffer = NULL;
+				errno = ERANGE;
+				return (NULL);
+			}
+			st->bufsize <<= 1;
+			st->buffer = malloc(st->bufsize);
+			if (st->buffer == NULL)
+				return (NULL);
+		}
+	} while (res == NULL && rv == ERANGE);
+	if (rv != 0)
+		errno = rv;
+
+	return (res);
 }
 
 struct servent *
-getservent(void)
+getservbyname(const char *name, const char *proto)
 {
-	struct servdata *sd;
-	struct servent *rval;
+	struct key key;
 
-	if ((sd = __servdata_init()) == NULL)
-		return (NULL);
-	if (getservent_r(&sd->serv, sd->data, sizeof(sd->data), &rval) != 0)
-		return (NULL);
-	return (rval);
+	key.name = name;
+	key.proto = proto;
+
+	return (getserv(wrap_getservbyname_r, key));
+}
+
+struct servent *
+getservbyport(int port, const char *proto)
+{
+	struct key key;
+
+	key.port = port;
+	key.proto = proto;
+
+	return (getserv(wrap_getservbyport_r, key));
+}
+
+struct servent *
+getservent()
+{
+	struct key key;
+
+	key.proto = NULL;
+	key.port = 0;
+
+	return (getserv(wrap_getservent_r, key));
 }
