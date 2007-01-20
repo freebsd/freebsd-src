@@ -350,7 +350,7 @@ le_pci_attach(device_t dev)
 	    BUS_SPACE_MAXSIZE_32BIT,	/* maxsize */
 	    0,				/* nsegments */
 	    BUS_SPACE_MAXSIZE_32BIT,	/* maxsegsize */
-	    BUS_DMA_WAITOK,		/* flags */
+	    0,				/* flags */
 	    NULL, NULL,			/* lockfunc, lockarg */
 	    &lesc->sc_pdmat);
 	if (error != 0) {
@@ -373,7 +373,7 @@ le_pci_attach(device_t dev)
 	    sc->sc_memsize,		/* maxsize */
 	    1,				/* nsegments */
 	    sc->sc_memsize,		/* maxsegsize */
-	    BUS_DMA_WAITOK,		/* flags */
+	    0,				/* flags */
 	    NULL, NULL,			/* lockfunc, lockarg */
 	    &lesc->sc_dmat);
 	if (error != 0) {
