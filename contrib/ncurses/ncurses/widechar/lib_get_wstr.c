@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright (c) 2002 Free Software Foundation, Inc.                        *
+ * Copyright (c) 2002-2003,2004 Free Software Foundation, Inc.              *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -27,7 +27,7 @@
  ****************************************************************************/
 
 /****************************************************************************
- *  Author: Thomas E. Dickey 2002                                           *
+ *  Author: Thomas E. Dickey                                                *
  ****************************************************************************/
 
 /*
@@ -40,23 +40,38 @@
 #include <curses.priv.h>
 #include <term.h>
 
-MODULE_ID("$Id: lib_get_wstr.c,v 1.3 2002/05/11 22:29:43 tom Exp $")
+MODULE_ID("$Id: lib_get_wstr.c,v 1.8 2004/10/16 21:55:36 tom Exp $")
+
+static int
+wadd_wint(WINDOW *win, wint_t *src)
+{
+    cchar_t tmp;
+    wchar_t wch[2];
+
+    wch[0] = *src;
+    wch[1] = 0;
+    setcchar(&tmp, wch, A_NORMAL, 0, NULL);
+    return wadd_wch(win, &tmp);
+}
 
 /*
  * This wipes out the last character, no matter whether it was a tab, control
  * or other character, and handles reverse wraparound.
  */
-static wchar_t *
-WipeOut(WINDOW *win, int y, int x, wchar_t * first, wchar_t * last, bool echoed)
+static wint_t *
+WipeOut(WINDOW *win, int y, int x, wint_t *first, wint_t *last, bool echoed)
 {
     if (last > first) {
 	*--last = '\0';
 	if (echoed) {
 	    int y1 = win->_cury;
 	    int x1 = win->_curx;
+	    int n;
 
 	    wmove(win, y, x);
-	    waddwstr(win, first);
+	    for (n = 0; first[n] != 0; ++n) {
+		wadd_wint(win, first + n);
+	    }
 	    getyx(win, y, x);
 	    while (win->_cury < y1
 		   || (win->_cury == y1 && win->_curx < x1))
@@ -69,14 +84,14 @@ WipeOut(WINDOW *win, int y, int x, wchar_t * first, wchar_t * last, bool echoed)
 }
 
 NCURSES_EXPORT(int)
-wgetn_wstr(WINDOW *win, wint_t * str, int maxlen)
+wgetn_wstr(WINDOW *win, wint_t *str, int maxlen)
 {
     TTY buf;
     bool oldnl, oldecho, oldraw, oldcbreak;
     wint_t erasec;
     wint_t killc;
-    wchar_t *oldstr;
-    wchar_t *tmpstr;
+    wint_t *oldstr = str;
+    wint_t *tmpstr = str;
     wint_t ch;
     int y, x, code;
 
@@ -99,16 +114,31 @@ wgetn_wstr(WINDOW *win, wint_t * str, int maxlen)
     erasec = erasechar();
     killc = killchar();
 
-    assert(sizeof(wchar_t) == sizeof(wint_t));
-    oldstr = (wchar_t *) str;
-    tmpstr = (wchar_t *) str;
-
     getyx(win, y, x);
 
     if (is_wintouched(win) || (win->_flags & _HASMOVED))
 	wrefresh(win);
 
     while ((code = wget_wch(win, &ch)) != ERR) {
+	/*
+	 * Map special characters into key-codes.
+	 */
+	if (ch == '\r')
+	    ch = '\n';
+	if (ch == '\n') {
+	    code = KEY_CODE_YES;
+	    ch = KEY_ENTER;
+	}
+	if (ch < KEY_MIN) {
+	    if (ch == erasec) {
+		ch = KEY_BACKSPACE;
+		code = KEY_CODE_YES;
+	    }
+	    if (ch == killc) {
+		ch = KEY_EOL;
+		code = KEY_CODE_YES;
+	    }
+	}
 	if (code == KEY_CODE_YES) {
 	    /*
 	     * Some terminals (the Wyse-50 is the most common) generate a \n
@@ -116,21 +146,18 @@ wgetn_wstr(WINDOW *win, wint_t * str, int maxlen)
 	     * choice whether to set kcud=\n for wget_wch(); terminating
 	     * *getn_wstr() with \n should work either way.
 	     */
-	    if (ch == '\n'
-		|| ch == '\r'
-		|| ch == KEY_DOWN
-		|| ch == KEY_ENTER) {
+	    if (ch == KEY_DOWN || ch == KEY_ENTER) {
 		if (oldecho == TRUE
 		    && win->_cury == win->_maxy
 		    && win->_scroll)
 		    wechochar(win, (chtype) '\n');
 		break;
 	    }
-	    if (ch == erasec || ch == KEY_LEFT || ch == KEY_BACKSPACE) {
+	    if (ch == KEY_LEFT || ch == KEY_BACKSPACE) {
 		if (tmpstr > oldstr) {
 		    tmpstr = WipeOut(win, y, x, oldstr, tmpstr, oldecho);
 		}
-	    } else if (ch == killc) {
+	    } else if (ch == KEY_EOL) {
 		while (tmpstr > oldstr) {
 		    tmpstr = WipeOut(win, y, x, oldstr, tmpstr, oldecho);
 		}
@@ -141,12 +168,11 @@ wgetn_wstr(WINDOW *win, wint_t * str, int maxlen)
 	    beep();
 	} else {
 	    *tmpstr++ = ch;
+	    *tmpstr = 0;
 	    if (oldecho == TRUE) {
 		int oldy = win->_cury;
-		cchar_t tmp;
 
-		setcchar(&tmp, tmpstr - 1, A_NORMAL, 0, NULL);
-		if (wadd_wch(win, &tmp) == ERR) {
+		if (wadd_wint(win, tmpstr - 1) == ERR) {
 		    /*
 		     * We can't really use the lower-right corner for input,
 		     * since it'll mess up bookkeeping for erases.
@@ -188,18 +214,18 @@ wgetn_wstr(WINDOW *win, wint_t * str, int maxlen)
     SP->_raw = oldraw;
     SP->_cbreak = oldcbreak;
 
-    _nc_set_tty_mode(&buf);
+    (void) _nc_set_tty_mode(&buf);
 
     *tmpstr = 0;
     if (code == ERR) {
 	if (tmpstr == oldstr) {
-	    *tmpstr++ = (wchar_t)WEOF;
+	    *tmpstr++ = WEOF;
 	    *tmpstr = 0;
 	}
 	returnCode(ERR);
     }
 
-    T(("wgetn_wstr returns %s", _nc_viswbuf(oldstr)));
+    T(("wgetn_wstr returns %s", _nc_viswibuf(oldstr)));
 
     returnCode(OK);
 }

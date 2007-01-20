@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright (c) 1998-2000 Free Software Foundation, Inc.                   *
+ * Copyright (c) 1998-2005,2006 Free Software Foundation, Inc.              *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -27,10 +27,10 @@
  ****************************************************************************/
 
 /****************************************************************************
- *  Author: Thomas E. Dickey <dickey@clark.net> 1997,1998                   *
+ *  Author: Thomas E. Dickey                    1997-on                     *
  ****************************************************************************/
 /*
- * $Id: progs.priv.h,v 1.27 2001/06/18 18:43:52 tom Exp $
+ * $Id: progs.priv.h,v 1.30 2006/11/26 00:28:01 tom Exp $
  *
  *	progs.priv.h
  *
@@ -52,10 +52,6 @@
 
 #if HAVE_UNISTD_H
 #include <unistd.h>
-#else
-# if HAVE_LIBC_H
-# include <libc.h>
-# endif
 #endif
 
 #if HAVE_SYS_BSDTYPES_H
@@ -71,8 +67,17 @@
 #if HAVE_DIRENT_H
 # include <dirent.h>
 # define NAMLEN(dirent) strlen((dirent)->d_name)
+# if defined(_FILE_OFFSET_BITS) && defined(HAVE_STRUCT_DIRENT64)
+#  if !defined(_LP64) && (_FILE_OFFSET_BITS == 64)
+#   define	DIRENT	struct dirent64
+#  else
+#   define	DIRENT	struct dirent
+#  endif
+# else
+#  define	DIRENT	struct dirent
+# endif
 #else
-# define dirent direct
+# define DIRENT struct direct
 # define NAMLEN(dirent) (dirent)->d_namlen
 # if HAVE_SYS_NDIR_H
 #  include <sys/ndir.h>
@@ -104,6 +109,7 @@ extern int optind;
 #include <curses.h>
 #include <term_entry.h>
 #include <tic.h>
+#include <nc_tparm.h>
 #include <nc_alloc.h>
 
 /* usually in <unistd.h> */

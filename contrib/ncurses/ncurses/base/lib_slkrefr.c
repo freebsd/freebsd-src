@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright (c) 1998,2000 Free Software Foundation, Inc.                   *
+ * Copyright (c) 1998-2005,2006 Free Software Foundation, Inc.              *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -29,6 +29,8 @@
 /****************************************************************************
  *  Author: Zeyd M. Ben-Halim <zmbenhal@netcom.com> 1992,1995               *
  *     and: Eric S. Raymond <esr@snark.thyrsus.com>                         *
+ *     and: Juergen Pfeifer                         1996-on                 *
+ *     and: Thomas E. Dickey                                                *
  ****************************************************************************/
 
 /*
@@ -38,7 +40,7 @@
 #include <curses.priv.h>
 #include <term.h>		/* num_labels, label_*, plab_norm */
 
-MODULE_ID("$Id: lib_slkrefr.c,v 1.10 2000/12/10 02:43:27 tom Exp $")
+MODULE_ID("$Id: lib_slkrefr.c,v 1.15 2006/11/25 22:32:15 tom Exp $")
 
 /*
  * Write the soft labels to the soft-key window.
@@ -55,18 +57,18 @@ slk_intern_refresh(SLK * slk)
 		if (num_labels > 0 && SLK_STDFMT(fmt)) {
 		    if (i < num_labels) {
 			TPUTS_TRACE("plab_norm");
-			putp(tparm(plab_norm, i + 1, slk->ent[i].form_text));
+			putp(TPARM_2(plab_norm, i + 1, slk->ent[i].form_text));
 		    }
 		} else {
-		    wmove(slk->win, SLK_LINES(fmt) - 1, slk->ent[i].x);
-		    if (SP && SP->_slk)
-			wattrset(slk->win, SP->_slk->attr);
-		    waddnstr(slk->win, slk->ent[i].form_text,
-			     MAX_SKEY_LEN(fmt));
+		    wmove(slk->win, SLK_LINES(fmt) - 1, slk->ent[i].ent_x);
+		    if (SP && SP->_slk) {
+			wattrset(slk->win, AttrOf(SP->_slk->attr));
+		    }
+		    waddstr(slk->win, slk->ent[i].form_text);
 		    /* if we simulate SLK's, it's looking much more
 		       natural to use the current ATTRIBUTE also
 		       for the label window */
-		    wattrset(slk->win, stdscr->_attrs);
+		    wattrset(slk->win, WINDOW_ATTRS(stdscr));
 		}
 	    }
 	    slk->ent[i].dirty = FALSE;

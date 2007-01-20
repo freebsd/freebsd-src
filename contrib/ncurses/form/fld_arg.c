@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright (c) 1998,2000 Free Software Foundation, Inc.                   *
+ * Copyright (c) 1998-2003,2004 Free Software Foundation, Inc.              *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -27,21 +27,21 @@
  ****************************************************************************/
 
 /****************************************************************************
- *   Author: Juergen Pfeifer <juergen.pfeifer@gmx.net> 1995,1997            *
+ *   Author:  Juergen Pfeifer, 1995,1997                                    *
  ****************************************************************************/
 
 #include "form.priv.h"
 
-MODULE_ID("$Id: fld_arg.c,v 1.5 2000/12/10 02:09:37 tom Exp $")
+MODULE_ID("$Id: fld_arg.c,v 1.11 2004/12/25 22:20:18 tom Exp $")
 
 /*---------------------------------------------------------------------------
-|   Facility      :  libnform  
+|   Facility      :  libnform
 |   Function      :  int set_fieldtype_arg(
 |                            FIELDTYPE *typ,
 |                            void * (* const make_arg)(va_list *),
 |                            void * (* const copy_arg)(const void *),
 |                            void   (* const free_arg)(void *) )
-|   
+|
 |   Description   :  Connects to the type additional arguments necessary
 |                    for a set_field_type call. The various function pointer
 |                    arguments are:
@@ -61,34 +61,38 @@ MODULE_ID("$Id: fld_arg.c,v 1.5 2000/12/10 02:09:37 tom Exp $")
 |                    E_BAD_ARGUMENT - invalid argument
 +--------------------------------------------------------------------------*/
 NCURSES_EXPORT(int)
-set_fieldtype_arg
-    (FIELDTYPE * typ,
-     void * (* const make_arg)(va_list *),
-     void * (* const copy_arg)(const void *),
-     void   (* const free_arg)(void *))
+set_fieldtype_arg(FIELDTYPE *typ,
+		  void *(*const make_arg)(va_list *),
+		  void *(*const copy_arg)(const void *),
+		  void (*const free_arg) (void *))
 {
-  if ( !typ || !make_arg )
-    RETURN(E_BAD_ARGUMENT);
+  T((T_CALLED("set_fieldtype_arg(%p,%p,%p,%p)"),
+     typ, make_arg, copy_arg, free_arg));
 
-  typ->status |= _HAS_ARGS;
-  typ->makearg = make_arg;
-  typ->copyarg = copy_arg;
-  typ->freearg = free_arg;
-  RETURN(E_OK);
+  if (typ != 0 && make_arg != (void *)0)
+    {
+      typ->status |= _HAS_ARGS;
+      typ->makearg = make_arg;
+      typ->copyarg = copy_arg;
+      typ->freearg = free_arg;
+      RETURN(E_OK);
+    }
+  RETURN(E_BAD_ARGUMENT);
 }
 
 /*---------------------------------------------------------------------------
-|   Facility      :  libnform  
+|   Facility      :  libnform
 |   Function      :  void *field_arg(const FIELD *field)
-|   
+|
 |   Description   :  Retrieve pointer to the fields argument structure.
 |
 |   Return Values :  Pointer to structure or NULL if none is defined.
 +--------------------------------------------------------------------------*/
 NCURSES_EXPORT(void *)
-field_arg (const FIELD * field)
+field_arg(const FIELD *field)
 {
-  return Normalize_Field(field)->arg;
+  T((T_CALLED("field_arg(%p)"), field));
+  returnVoidPtr(Normalize_Field(field)->arg);
 }
 
 /* fld_arg.c ends here */

@@ -1,6 +1,6 @@
-# $Id: Makefile.in,v 1.36 2002/01/20 01:49:17 tom Exp $
+# $Id: Makefile.in,v 1.42 2006/10/14 20:40:36 tom Exp $
 ##############################################################################
-# Copyright (c) 1998,1999,2000,2001,2002 Free Software Foundation, Inc.      #
+# Copyright (c) 1998-2004,2006 Free Software Foundation, Inc.                #
 #                                                                            #
 # Permission is hereby granted, free of charge, to any person obtaining a    #
 # copy of this software and associated documentation files (the "Software"), #
@@ -45,6 +45,9 @@
 SHELL		= /bin/sh
 THIS		= Makefile
 
+x		= @EXEEXT@
+o		= .@OBJEXT@
+
 MODEL		= @DFT_LWR_MODEL@
 DESTDIR		= @DESTDIR@
 srcdir		= @srcdir@
@@ -55,10 +58,15 @@ libdir		= @libdir@
 includedir	= @includedir@
 
 LIBTOOL		= @LIBTOOL@
+LIBTOOL_CLEAN	= @LIB_CLEAN@
+LIBTOOL_COMPILE	= @LIB_COMPILE@
+LIBTOOL_LINK	= @LIB_LINK@
+LIBTOOL_INSTALL	= @LIB_INSTALL@
+LIBTOOL_UNINSTALL = @LIB_UNINSTALL@
 
 INSTALL		= @INSTALL@
 INSTALL_LIB	= @INSTALL@ @INSTALL_LIB@
-INSTALL_PROG	= @INSTALL_PROG@
+INSTALL_PROG	= @INSTALL_PROGRAM@
 INSTALL_DATA	= @INSTALL_DATA@
 
 AR		= @AR@
@@ -71,8 +79,7 @@ CC		= @CC@
 CPP		= @CPP@
 CFLAGS		= @CFLAGS@
 
-CPPFLAGS	= @CPPFLAGS@ \
-		  -DHAVE_CONFIG_H 
+CPPFLAGS	= -I@top_srcdir@/ncurses -DHAVE_CONFIG_H @CPPFLAGS@
 
 CCFLAGS		= $(CPPFLAGS) $(CFLAGS)
 
@@ -84,7 +91,7 @@ CFLAGS_SHARED	= $(CCFLAGS) @CC_SHARED_OPTS@
 
 CFLAGS_DEFAULT	= $(CFLAGS_@DFT_UPR_MODEL@)
 
-LINK		= $(LIBTOOL) $(CC)
+LINK		= $(LIBTOOL_LINK) $(CC)
 LDFLAGS		= @LDFLAGS@ @LD_MODEL@ @LIBS@
 
 SHLIB_DIRS	= -L../lib
@@ -97,7 +104,7 @@ NCURSES_MINOR	= @NCURSES_MINOR@
 REL_VERSION	= @cf_cv_rel_version@
 ABI_VERSION	= @cf_cv_abi_version@
 
-RANLIB		= @RANLIB@
+RANLIB		= @LIB_PREP@
 
 IMPORT_LIB	= @IMPORT_LIB@
 SHARED_LIB	= @SHARED_LIB@
@@ -108,7 +115,7 @@ LINT_OPTS	= @LINT_OPTS@
 LINT_LIBS	= -lform -lncurses @LIBS@
 
 AUTO_SRC	= \
-		../include/form.h  
+		../include/form.h
 
 ################################################################################
 all \

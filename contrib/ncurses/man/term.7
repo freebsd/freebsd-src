@@ -1,5 +1,5 @@
 .\"***************************************************************************
-.\" Copyright (c) 1998-2000,2002 Free Software Foundation, Inc.              *
+.\" Copyright (c) 1998-2003,2006 Free Software Foundation, Inc.              *
 .\"                                                                          *
 .\" Permission is hereby granted, free of charge, to any person obtaining a  *
 .\" copy of this software and associated documentation files (the            *
@@ -26,7 +26,7 @@
 .\" authorization.                                                           *
 .\"***************************************************************************
 .\"
-.\" $Id: term.7,v 1.13 2002/04/20 16:50:47 tom Exp $
+.\" $Id: term.7,v 1.15 2006/02/25 21:47:06 tom Exp $
 .TH TERM 7
 .ds n 5
 .ds d @TERMINFO@
@@ -65,16 +65,16 @@ which you wish to override the system default type for your line.
 .PP
 Terminal type descriptions are stored as files of capability data underneath
 \*d.  To browse a list of all terminal names recognized by the system, do
-
+.sp
 	toe | more
-
+.sp
 from your shell.  These capability files are in a binary format optimized for
 retrieval speed (unlike the old text-based \fBtermcap\fR format they replace);
 to examine an entry, you must use the \fBinfocmp\fR(1) command.  Invoke it as
 follows:
-
+.sp
 	infocmp \fIentry-name\fR
-
+.sp
 where \fIentry-name\fR is the name of the type you wish to examine (and the
 name of its capability file the subdirectory of \*d named for its first
 letter).  This command dumps a capability file in the text format described by
@@ -96,7 +96,7 @@ terminals that also explains how to parse them:
 First, choose a root name.  The root will consist of a lower-case letter
 followed by up to seven lower-case letters or digits.  You need to avoid using
 punctuation characters in root names, because they are used and interpreted as
-filenames and shell meta-characters (such as !, $, *, ? etc.) embedded in them
+filenames and shell meta-characters (such as !, $, *, ?, etc.) embedded in them
 may cause odd and unhelpful behavior.  The slash (/), or any other character
 that may be interpreted by anyone's file system (\e, $, [, ]), is especially
 dangerous (terminfo is platform-independent, and choosing names with special
@@ -136,29 +136,29 @@ with another that has this suffix and uses magic cookies to support multiple
 attributes.
 .TP 5
 -am
-Enable auto-margin (right-margin wraparound)
+Enable auto-margin (right-margin wraparound).
 .TP 5
 -m
-Mono mode - suppress color support
+Mono mode - suppress color support.
 .TP 5
 -na
 No arrow keys - termcap ignores arrow keys which are actually there on the
 terminal, so the user can use the arrow keys locally.
 .TP 5
 -nam
-No auto-margin - suppress am capability
+No auto-margin - suppress am capability.
 .TP 5
 -nl
-No labels - suppress soft labels
+No labels - suppress soft labels.
 .TP 5
 -nsl
-No status line - suppress status line
+No status line - suppress status line.
 .TP 5
 -pp
 Has a printer port which is used.
 .TP 5
 -rv
-Terminal in reverse video mode (black on white)
+Terminal in reverse video mode (black on white).
 .TP 5
 -s
 Enable status line.
@@ -190,10 +190,10 @@ should be unique within the first 14 characters.
 compiled terminal capability data base
 .TP 5
 /etc/inittab
-tty line initialization (AT&T-like UNIXes).
+tty line initialization (AT&T-like UNIXes)
 .TP 5
 /etc/ttys
-tty line initialization (BSD-like UNIXes).
+tty line initialization (BSD-like UNIXes)
 .SH SEE ALSO
 \fBcurses\fR(3X), \fBterminfo\fR(\*n), \fBterm\fR(\*n).
 .\"#

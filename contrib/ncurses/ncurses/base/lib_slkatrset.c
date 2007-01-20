@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright (c) 1998,2000 Free Software Foundation, Inc.                   *
+ * Copyright (c) 1998-2000,2005 Free Software Foundation, Inc.              *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -27,8 +27,8 @@
  ****************************************************************************/
 
 /****************************************************************************
- *  Author: Zeyd M. Ben-Halim <zmbenhal@netcom.com> 1992,1995               *
- *     and: Eric S. Raymond <esr@snark.thyrsus.com>                         *
+ *  Author:  Juergen Pfeifer, 1997                                          *
+ *     and:  Thomas E. Dickey 2005                                          *
  ****************************************************************************/
 
 /*
@@ -38,7 +38,7 @@
  */
 #include <curses.priv.h>
 
-MODULE_ID("$Id: lib_slkatrset.c,v 1.6 2000/12/10 02:43:27 tom Exp $")
+MODULE_ID("$Id: lib_slkatrset.c,v 1.7 2005/01/08 21:46:47 tom Exp $")
 
 NCURSES_EXPORT(int)
 slk_attrset(const chtype attr)
@@ -46,7 +46,7 @@ slk_attrset(const chtype attr)
     T((T_CALLED("slk_attrset(%s)"), _traceattr(attr)));
 
     if (SP != 0 && SP->_slk != 0) {
-	SP->_slk->attr = attr;
+	SetAttr(SP->_slk->attr, attr);
 	returnCode(OK);
     } else
 	returnCode(ERR);

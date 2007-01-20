@@ -1,6 +1,6 @@
 '\" t
 .\"***************************************************************************
-.\" Copyright (c) 1998,2002 Free Software Foundation, Inc.                   *
+.\" Copyright (c) 1998-2002,2006 Free Software Foundation, Inc.              *
 .\"                                                                          *
 .\" Permission is hereby granted, free of charge, to any person obtaining a  *
 .\" copy of this software and associated documentation files (the            *
@@ -27,7 +27,7 @@
 .\" authorization.                                                           *
 .\"***************************************************************************
 .\"
-.\" $Id: form_new_page.3x,v 1.6 2002/01/19 22:48:51 tom Exp $
+.\" $Id: form_new_page.3x,v 1.8 2006/11/04 17:12:00 tom Exp $
 .TH form_new_page 3X ""
 .SH NAME
 \fBform_new_page\fR - form pagination functions
@@ -41,21 +41,21 @@ bool new_page(const FIELD *field);
 .SH DESCRIPTION
 The function \fBset_new_page\fR sets or resets a flag marking the given field
 as the beginning of a new page on its form.
-
+.PP
 The function \fBnew_page\fR is a predicate which tests if a given field marks
 a page beginning on its form.
 .SH RETURN VALUE
 The function \fBnew_page\fR returns \fBTRUE\fR or \fBFALSE\fR.
-
+.PP
 The function \fBset_new_page\fR return one of the following:
 .TP 5
-\fBE_OK\fR
+.B E_OK
 The routine succeeded.
 .TP 5
-\fBE_SYSTEM_ERROR\fR
+.B E_SYSTEM_ERROR
 System error occurred (see \fBerrno\fR).
 .TP 5
-\fBE_CONNECTED\fR
+.B E_CONNECTED
 The given field is already connected to a form.
 .SH SEE ALSO
 \fBcurses\fR(3X) and related pages whose names begin "form_" for detailed

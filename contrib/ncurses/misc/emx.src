@@ -1,4 +1,31 @@
-# $Id: emx.src,v 1.7 2000/08/27 02:16:08 jmcoopr Exp $
+##############################################################################
+# Copyright (c) 1998-2003,2006 Free Software Foundation, Inc.                #
+#                                                                            #
+# Permission is hereby granted, free of charge, to any person obtaining a    #
+# copy of this software and associated documentation files (the "Software"), #
+# to deal in the Software without restriction, including without limitation  #
+# the rights to use, copy, modify, merge, publish, distribute, distribute    #
+# with modifications, sublicense, and/or sell copies of the Software, and to #
+# permit persons to whom the Software is furnished to do so, subject to the  #
+# following conditions:                                                      #
+#                                                                            #
+# The above copyright notice and this permission notice shall be included in #
+# all copies or substantial portions of the Software.                        #
+#                                                                            #
+# THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR #
+# IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,   #
+# FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL    #
+# THE ABOVE COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER      #
+# LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING    #
+# FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER        #
+# DEALINGS IN THE SOFTWARE.                                                  #
+#                                                                            #
+# Except as contained in this notice, the name(s) of the above copyright     #
+# holders shall not be used in advertising or otherwise to promote the sale, #
+# use or other dealings in this Software without prior written               #
+# authorization.                                                             #
+##############################################################################
+# $Id: emx.src,v 1.9 2006/04/22 21:46:17 tom Exp $
 # This is a reformatted copy of the terminfo source for OS/2 EMX from
 # Juan Jose Garcia Ripoll <worm@arrakis.es>.
 # http://www.arrakis.es/~worm/
@@ -85,6 +112,7 @@ klone+sgr|attribute control for ansi.sys displays,
 	smpch=\E[11m,
 	smso=\E[7m,
 	smul=\E[4m,
+	use=klone+acs,
 
 # Highlight controls corresponding to the ANSI.SYS standard.  *All*
 # console drivers for Intel boxes obey these.  Does not assume \E[11m will
@@ -103,6 +131,7 @@ klone+sgr-dumb|attribute control for ansi.sys displays (no ESC [ 11 m),
 	smacs=\E[12m,
 	smso=\E[7m,
 	smul=\E[4m,
+	use=klone+acs,
 
 # ANSI.SYS color control.
 # The DOS 5 manual asserts that these sequences meet the ISO 6429 standard.
@@ -113,8 +142,17 @@ klone+color|color control for ansi.sys and ISO6429-compatible displays,
 	op=\E[37;40m,
 	setab=\E[4%p1%dm,
 	setaf=\E[3%p1%dm,
-	setb=\E[4%?%p1%{1}%=%t4%e%p1%{3}%=%t6%e%p1%{4}%=%t1%e%p1%{6}%=%t3%e%p1%d%;m,
-	setf=\E[3%?%p1%{1}%=%t4%e%p1%{3}%=%t6%e%p1%{4}%=%t1%e%p1%{6}%=%t3%e%p1%d%;m,
+
+# This is better than klone+color, it doesn't assume white-on-black as the
+# default color pair,  but many `ANSI' terminals don't grok the <op> cap.
+ecma+color|color control for ECMA-48-compatible terminals,
+	AX,
+	colors#8,
+	ncv#3,
+	pairs#64,
+	op=\E[39;49m,
+	setab=\E[4%p1%dm,
+	setaf=\E[3%p1%dm,
 
 #### ANSI/ECMA-48 terminals and terminal emulators
 #
@@ -209,7 +247,9 @@ ansi.sys|ANSI.SYS 3.1 and later versions,
 # no_color_video to inform the application that standout(1), underline(2)
 # reverse(4) and invisible(64) don't work with color.
 emx-base|DOS special keys,
+	bce,
 	bw,
+	it#8,
 	ncv#71,
 	bel=^G,
 	ka1=\0G,
@@ -293,7 +333,7 @@ emx-base|DOS special keys,
 #	me	<->	sgr0	turn off all atributes
 #
 # On my terminal, \E[4m looks dim.
-ansi|ANSI.SYS color,
+ansi-emx|ANSI.SYS color,
 	blink=\E[5m,
 	bold=\E[1m,
 	kmous=\E[M,
@@ -319,17 +359,17 @@ window|ANSI.SYS window,
 	smul=\E[1;31;47m,
 	use=emx-base,
 os2|OS/2-emx ANSI.SYS,
-	cuu=\E[%p1%dA,
-	cuu1=\E[A,
+	cub=\E[%p1%dD,
+	cub1=\E[D,
 	cud=\E[%p1%dB,
 	cud1=\E[B,
 	cuf=\E[%p1%dC,
 	cuf1=\E[C,
-	cub=\E[%p1%dD,
-	cub1=\E[D,
-	sc=\E[s,
+	cuu=\E[%p1%dA,
+	cuu1=\E[A,
 	rc=\E[u,
-	use=ansi,
+	sc=\E[s,
+	use=ansi-emx,
 	use=mono,
 mono|ANSI.SYS mono,
 	blink=\E[5m,
@@ -353,7 +393,7 @@ mono2|ANSI.SYS mono2,
 	smul=\E[1;31;40m,
 	use=mono,
 # nice colors for Emacs (white on blue, mode line white on cyan)
-ansi-color-2|ANSI.SYS color 2,
+ansi-color-2-emx|ANSI.SYS color 2,
 	rmcup=\E[0m,
 	rmso=\E[0;37;44m,
 	rmul=\E[0m,
@@ -361,9 +401,9 @@ ansi-color-2|ANSI.SYS color 2,
 	smcup=\E[0;37;44m,
 	smso=\E[1;37;46m,
 	smul=\E[1;31;40m,
-	use=ansi,
+	use=ansi-emx,
 # nice colors for Emacs (white on black, mode line black on cyan)
-ansi-color-3|ANSI.SYS color 3,
+ansi-color-3-emx|ANSI.SYS color 3,
 	rmcup=\E[0m,
 	rmso=\E[0m,
 	rmul=\E[0m,
@@ -371,7 +411,7 @@ ansi-color-3|ANSI.SYS color 3,
 	smcup=\E[0m,
 	smso=\E[30;46m,
 	smul=\E[1;31;40m,
-	use=ansi,
+	use=ansi-emx,
 
 #### X terminal emulators
 #
@@ -437,7 +477,7 @@ x10term|vs100-x10|xterm terminal emulator (X10 window system),
 # xterm's internal mouse-tracking facility; ncurses will interpret the
 # following three bytes of mouse status information.
 # From: Eric S. Raymond <esr@snark.thyrsus.com> 14 Dec 1995
-xterm|vs100|xterm terminal emulator (X11R6 Window System),
+xterm-r6|xterm terminal emulator (X11R6 Window System),
 	am,
 	km,
 	mir,
@@ -488,7 +528,15 @@ xterm|vs100|xterm terminal emulator (X11R6 Window System),
 	kf10=\E[21~,
 	kf11=\E[23~,
 	kf12=\E[24~,
+	kf13=\E[25~,
+	kf14=\E[26~,
+	kf15=\E[28~,
+	kf16=\E[29~,
+	kf17=\E[31~,
+	kf18=\E[32~,
+	kf19=\E[33~,
 	kf2=\E[12~,
+	kf20=\E[34~,
 	kf3=\E[13~,
 	kf4=\E[14~,
 	kf5=\E[15~,
@@ -496,6 +544,7 @@ xterm|vs100|xterm terminal emulator (X11R6 Window System),
 	kf7=\E[18~,
 	kf8=\E[19~,
 	kf9=\E[20~,
+	kfnd=\E[1~,
 	khome=\EO\0,
 	kich1=\E[2~,
 	kmous=\E[M,
@@ -545,6 +594,7 @@ kterm|kterm kanji terminal emulator (X window system),
 	sc=\E7,
 	tsl=\E[?E\E[?%i%dT,
 	use=xterm,
+	use=ecma+color,
 
 # See the note on ICH/ICH1 VERSUS RMIR/SMIR near the end of file
 xterm-nic|xterm with ich/ich1 suppressed for non-curses programs,
@@ -758,7 +808,6 @@ emu|emu native mode,
 	cup=\EE%p1%d;%p2%d;,
 	cuu=\Ep-%p1%d;,
 	cuu1=\EA,
-	cvvis=\Ea,
 	dch=\EI%p1%d;,
 	dch1=\EI1;,
 	dl=\ER%p1%d;,
@@ -816,10 +865,21 @@ emu|emu native mode,
 	rmso=\ES,
 	rmul=\ES,
 	rs2=\ES\Es0;\Er0;,
-	setab=\Es%i%p1%d; setaf=\Er%i%p1%d;,
+	setab=\Es%i%p1%d;,
+	setaf=\Er%i%p1%d;,
 	sgr0=\ES,
 	smacs=\0,
 	smir=\EY,
 	smso=\ES\ET,
 	smul=\ES\EV,
 	tbc=\Ej,
+###############################################################################
+# Aliases which conflict with terminfo.src
+ansi|ANSI.SYS color,
+	use=ansi-emx,
+ansi-color-2|ANSI.SYS color 2,
+	use=ansi-color-2-emx,
+ansi-color-3|ANSI.SYS color 3,
+	use=ansi-color-3-emx,
+xterm|vs100|xterm terminal emulator (X11R6 Window System),
+	use=xterm-r6,
