@@ -299,6 +299,10 @@ lance_init_locked(struct lance_softc *sc)
 	/* Set the correct byte swapping mode, etc. */
 	(*sc->sc_wrcsr)(sc, LE_CSR3, sc->sc_conf3);
 
+	/* Set the current media. This may require the chip to be stopped. */
+	if (sc->sc_mediachange)
+		(void)(*sc->sc_mediachange)(sc);
+
 	/*
 	 * Update our private copy of the Ethernet address.
 	 * We NEED the copy so we can ensure its alignment!
@@ -321,10 +325,6 @@ lance_init_locked(struct lance_softc *sc)
 	for (timo = 100000; timo; timo--)
 		if ((*sc->sc_rdcsr)(sc, LE_CSR0) & LE_C0_IDON)
 			break;
-
-	/* Set the current media. */
-	if (sc->sc_mediachange)
-		(void)(*sc->sc_mediachange)(sc);
 
 	if ((*sc->sc_rdcsr)(sc, LE_CSR0) & LE_C0_IDON) {
 		/* Start the LANCE. */
@@ -460,13 +460,21 @@ static int
 lance_mediachange(struct ifnet *ifp)
 {
 	struct lance_softc *sc = ifp->if_softc;
-	int error;
 
 	if (sc->sc_mediachange) {
+		/*
+		 * For setting the port in LE_CSR15 the PCnet chips must
+		 * be powered down or stopped and unlike documented may
+		 * not take effect without an initialization. So don't
+		 * invoke (*sc_mediachange) directly here but go through
+		 * lance_init_locked().
+		 */
 		LE_LOCK(sc);
-		error = (*sc->sc_mediachange)(sc);
+		lance_stop(sc);
+		lance_init_locked(sc);
+		if (!IFQ_DRV_IS_EMPTY(&ifp->if_snd))
+			(*sc->sc_start_locked)(sc);
 		LE_UNLOCK(sc);
-		return (error);
 	}
 	return (0);
 }
