@@ -61,6 +61,12 @@ __FBSDID("$FreeBSD$");
 #include <machine/smp.h>
 
 /*
+ * TODO:
+ *	Pick idle from affinity group or self group first.
+ *	Implement pick_score.
+ */
+
+/*
  * Thread scheduler specific section.
  */
 struct td_sched {	
@@ -703,6 +709,15 @@ tdq_notify(struct td_sched *ts)
 	cpu = ts->ts_cpu;
 	pcpu = pcpu_find(cpu);
 	td = pcpu->pc_curthread;
+
+	/*
+	 * If our priority is not better than the current priority there is
+	 * nothing to do.
+	 */
+	if (prio > td->td_priority)
+		return;
+	/* Always set NEEDRESCHED. */
+	td->td_flags |= TDF_NEEDRESCHED;
 	/*
 	 * IPI if we exceed the threshold or if the target cpu is running an
 	 * idle thread.
@@ -710,18 +725,14 @@ tdq_notify(struct td_sched *ts)
 	if (prio > ipi_thresh && td->td_priority < PRI_MIN_IDLE)
 		return;
 	/*
- 	 * IPI only if our priority is better than the running thread and
-	 * the running thread is not the per cpu idle thread.  The
-	 * idlethread finds new work via sched_runnable().
+	 * The idlethread finds new work via sched_runnable(), don't IPI
+	 * here.
 	 */
 	if (td == pcpu->pc_idlethread)
 		return;
-	if (prio > td->td_priority)
-		return;
-	if (ipi_ast) {
-		td->td_flags |= TDF_NEEDRESCHED;
+	if (ipi_ast)
 		ipi_selected(1 << cpu, IPI_AST);
-	} else if (ipi_preempt)
+	else if (ipi_preempt)
 		ipi_selected(1 << cpu, IPI_PREEMPT);
 }
 
@@ -1913,17 +1924,17 @@ sched_bind(struct thread *td, int cpu)
 
 	mtx_assert(&sched_lock, MA_OWNED);
 	ts = td->td_sched;
-	KASSERT((ts->ts_flags & TSF_BOUND) == 0,
-	    ("sched_bind: thread %p already bound.", td));
+	if (ts->ts_flags & TSF_BOUND)
+		return;
 	ts->ts_flags |= TSF_BOUND;
 #ifdef SMP
+	sched_pin();
 	if (PCPU_GET(cpuid) == cpu)
 		return;
-	/* sched_rem without the runq_remove */
+	ts->ts_cpu = cpu;
 	ts->ts_state = TSS_THREAD;
 	/* When we return from mi_switch we'll be on the correct cpu. */
 	mi_switch(SW_VOL, NULL);
-	sched_pin();
 #endif
 }
 
@@ -1934,9 +1945,8 @@ sched_unbind(struct thread *td)
 
 	mtx_assert(&sched_lock, MA_OWNED);
 	ts = td->td_sched;
-	KASSERT(ts->ts_flags & TSF_BOUND,
-	    ("sched_unbind: thread %p not bound.", td));
-	mtx_assert(&sched_lock, MA_OWNED);
+	if ((ts->ts_flags & TSF_BOUND) == 0)
+		return;
 	ts->ts_flags &= ~TSF_BOUND;
 #ifdef SMP
 	sched_unpin();
