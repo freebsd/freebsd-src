@@ -36,12 +36,12 @@
 .\"	from: @(#)le.4	8.1 (Berkeley) 6/9/93
 .\" $FreeBSD$
 .\"
-.Dd November 9, 2006
+.Dd January 20, 2007
 .Dt LE 4
 .Os
 .Sh NAME
 .Nm le
-.Nd "AMD Am7900 LANCE and Am79C9xx PCnet Ethernet interface driver"
+.Nd "AMD Am7900 LANCE and Am79C9xx ILACC/PCnet Ethernet interface driver"
 .Sh SYNOPSIS
 To compile this driver into the kernel,
 place the following line in your
@@ -57,14 +57,14 @@ module at boot time, place the following line in
 if_le_load="YES"
 .Ed
 .Pp
-For C-Bus non-PnP cards, the port address and the IRQ number have to be
+For C-Bus non-PnP adapters, the port address and the IRQ number have to be
 specified in
 .Pa /boot/device.hints :
 .Cd hint.le.0.at="isa"
 .Cd hint.le.0.port="0x03d0"
 .Cd hint.le.0.irq="6"
 .Pp
-For ISA non-PnP cards, the port address as well as the IRQ and the DRQ
+For ISA non-PnP adapters, the port address as well as the IRQ and the DRQ
 numbers have to be specified in
 .Pa /boot/device.hints :
 .Cd hint.le.0.at="isa"
@@ -75,8 +75,10 @@ numbers have to be specified in
 The
 .Nm
 driver provides support for Ethernet adapters based on the
-.Tn AMD
-Am7990 and Am79C90 (CMOS, pin-compatible)
+.Tn AMD Am7990
+and
+.Tn Am79C90
+.Pq CMOS, pin-compatible
 Local Area Network Controller for Ethernet
 .Pq Tn LANCE
 chips.
@@ -84,7 +86,11 @@ chips.
 The
 .Nm
 driver also supports Ethernet adapters based on the
-.Tn AMD 79C9xx
+.Tn AMD Am79C900
+Integrated Local Area Communications Controller
+.Pq Tn ILACC
+as well as the
+.Tn Am79C9xx PCnet
 family of chips, which are single-chip implementations of a
 .Tn LANCE
 chip and a DMA engine.
@@ -242,9 +248,24 @@ driver are:
 .Tn AMD Am79C978 PCnet-Home
 .El
 .Pp
+This includes support for the following Ethernet adapters:
+.Pp
+.Bl -bullet -compact
+.It
+.Tn AcerLAN NIC P20
+.It
+.Tn Allied Telesyn AT-2450 and AT-2700 series
+.It
+.Tn VMware emulated AMD Am79C970A PCnet-PCI II interface
+.El
+.Pp
 The
 .Nm
-driver supports the following media types with these chips:
+driver supports the selection of the following media types via
+.Xr ifconfig 8
+with
+.Tn PCI
+bus Ethernet adapters:
 .Bl -tag -width ".Cm 10base5/AUI"
 .It Cm autoselect
 Enable autoselection of the media type.
@@ -273,7 +294,11 @@ driver supports the on-board
 interfaces found in
 .Tn Sun Ultra 1
 machines.
-The following media types are available with these:
+The
+.Nm
+driver allows the selection of the following media types via
+.Xr ifconfig 8
+with these on-board interfaces:
 .Bl -tag -width ".Cm 10base5/AUI"
 .It Cm autoselect
 Enable autoselection of the media type.
@@ -288,26 +313,29 @@ examining all ports for carrier.
 The first media type with which a carrier is detected will be selected.
 Additionally, if carrier is dropped on a port, the driver will switch
 between the possible ports until one with carrier is found.
-.\" .Pp
-.\" The
-.\" .Nm
-.\" driver also supports
-.\" .Tn SBus
-.\" Ethernet cards.
-.\" These include:
-.\" .Bl -bullet -compact
-.\" .It
-.\" SBE/S
-.\" .Tn SCSI
-.\" and Buffered Ethernet
-.\" (Sun P/N 501-1860)
-.\" .It
-.\" FSBE/S
-.\" Fast
-.\" .Tn SCSI
-.\" and Buffered Ethernet
-.\" (Sun P/N 501-2015)
-.\" .El
+.Pp
+The
+.Nm
+driver also supports the following
+.Tn Sun SBus
+Ethernet add-on adapters:
+.Pp
+.Bl -bullet -compact
+.It
+.Tn SCSI HBA and Buffered Ethernet
+.Pq SBE/S, P/N 501-1869
+.It
+.Tn Fast SCSI and Buffered Ethernet
+.Pq FSBE/S, P/N 501-2015 and 501-2981
+.El
+.Pp
+The
+.Nm
+driver does not support the selection of media types and options via
+.Xr ifconfig 8
+with
+.Tn SBus
+Ethernet add-on adapters.
 .Pp
 For further information on configuring media types and options, see
 .Xr ifconfig 8 .
