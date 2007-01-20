@@ -82,6 +82,9 @@
 
 #define	 MC_REGA_RSMASK	0x0f	/* Interrupt rate select mask (see below) */
 #define	 MC_REGA_DVMASK	0x70	/* Divisor select mask (see below) */
+#define	 MC_REGA_DV0	0x10	/* Divisor 0 */
+#define	 MC_REGA_DV1	0x20	/* Divisor 1 */
+#define	 MC_REGA_DV2	0x40	/* Divisor 2 */
 #define	 MC_REGA_UIP	0x80	/* Update in progress; read only. */
 
 #define	MC_REGB		0xb	/* Control register B */
@@ -139,7 +142,7 @@
  * Time base (divisor select) constants (Control register A)
  */
 #define	MC_BASE_4_MHz	0x00		/* 4MHz crystal */
-#define	MC_BASE_1_MHz	0x10		/* 1MHz crystal */
-#define	MC_BASE_32_KHz	0x20		/* 32KHz crystal */
-#define	MC_BASE_NONE	0x60		/* actually, both of these reset */
-#define	MC_BASE_RESET	0x70
+#define	MC_BASE_1_MHz	MC_REGA_DV0	/* 1MHz crystal */
+#define	MC_BASE_32_KHz	MC_REGA_DV1	/* 32KHz crystal */
+#define	MC_BASE_NONE	(MC_REGA_DV2 | MC_REGA_DV1) /* actually also resets */
+#define	MC_BASE_RESET	(MC_REGA_DV2 | MC_REGA_DV1 | MC_REGA_DV0)
