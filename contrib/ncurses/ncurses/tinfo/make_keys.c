@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright (c) 1998,2000 Free Software Foundation, Inc.                   *
+ * Copyright (c) 1998-2000,2005 Free Software Foundation, Inc.              *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -35,9 +35,11 @@
  * making the output show the indices into the TERMTYPE Strings array.  Doing
  * it that way lets us cut down on the size of the init_keytry() function.
  */
+
+#define USE_TERMLIB 1
 #include <curses.priv.h>
 
-MODULE_ID("$Id: make_keys.c,v 1.10 2000/12/10 02:55:08 tom Exp $")
+MODULE_ID("$Id: make_keys.c,v 1.12 2005/08/20 19:58:18 tom Exp $")
 
 #include <names.c>
 
@@ -66,7 +68,7 @@ lookup(const char *name)
 }
 
 static void
-make_keys(FILE * ifp, FILE * ofp)
+make_keys(FILE *ifp, FILE *ofp)
 {
     char buffer[BUFSIZ];
     char from[BUFSIZ];
@@ -92,7 +94,7 @@ make_keys(FILE * ifp, FILE * ofp)
 }
 
 static void
-write_list(FILE * ofp, const char **list)
+write_list(FILE *ofp, const char **list)
 {
     while (*list != 0)
 	fprintf(ofp, "%s\n", *list++);

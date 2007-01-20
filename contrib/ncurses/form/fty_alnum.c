@@ -1,54 +1,81 @@
+/****************************************************************************
+ * Copyright (c) 1998-2005,2006 Free Software Foundation, Inc.              *
+ *                                                                          *
+ * Permission is hereby granted, free of charge, to any person obtaining a  *
+ * copy of this software and associated documentation files (the            *
+ * "Software"), to deal in the Software without restriction, including      *
+ * without limitation the rights to use, copy, modify, merge, publish,      *
+ * distribute, distribute with modifications, sublicense, and/or sell       *
+ * copies of the Software, and to permit persons to whom the Software is    *
+ * furnished to do so, subject to the following conditions:                 *
+ *                                                                          *
+ * The above copyright notice and this permission notice shall be included  *
+ * in all copies or substantial portions of the Software.                   *
+ *                                                                          *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS  *
+ * OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF               *
+ * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.   *
+ * IN NO EVENT SHALL THE ABOVE COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM,   *
+ * DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR    *
+ * OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR    *
+ * THE USE OR OTHER DEALINGS IN THE SOFTWARE.                               *
+ *                                                                          *
+ * Except as contained in this notice, the name(s) of the above copyright   *
+ * holders shall not be used in advertising or otherwise to promote the     *
+ * sale, use or other dealings in this Software without prior written       *
+ * authorization.                                                           *
+ ****************************************************************************/
 
-/*
- * THIS CODE IS SPECIFICALLY EXEMPTED FROM THE NCURSES PACKAGE COPYRIGHT.
- * You may freely copy it for use as a template for your own field types.
- * If you develop a field type that might be of general use, please send
- * it back to the ncurses maintainers for inclusion in the next version.
- */
 /***************************************************************************
 *                                                                          *
-*  Author : Juergen Pfeifer, juergen.pfeifer@gmx.net                       *
+*  Author : Juergen Pfeifer                                                *
 *                                                                          *
 ***************************************************************************/
 
 #include "form.priv.h"
 
-MODULE_ID("$Id: fty_alnum.c,v 1.10 2000/12/09 23:46:12 tom Exp $")
+MODULE_ID("$Id: fty_alnum.c,v 1.19 2006/04/22 21:33:05 tom Exp $")
 
-typedef struct {
-  int width;
-} alnumARG;
+#define thisARG alnumARG
+
+typedef struct
+  {
+    int width;
+  }
+thisARG;
 
 /*---------------------------------------------------------------------------
-|   Facility      :  libnform  
-|   Function      :  static void *Make_AlphaNumeric_Type(va_list *ap)
-|   
+|   Facility      :  libnform
+|   Function      :  static void *Make_This_Type(va_list *ap)
+|
 |   Description   :  Allocate structure for alphanumeric type argument.
 |
 |   Return Values :  Pointer to argument structure or NULL on error
 +--------------------------------------------------------------------------*/
-static void *Make_AlphaNumeric_Type(va_list * ap)
+static void *
+Make_This_Type(va_list *ap)
 {
-  alnumARG *argp = (alnumARG *)malloc(sizeof(alnumARG));
+  thisARG *argp = (thisARG *) malloc(sizeof(thisARG));
 
   if (argp)
-    argp->width = va_arg(*ap,int);
+    argp->width = va_arg(*ap, int);
 
   return ((void *)argp);
 }
 
 /*---------------------------------------------------------------------------
-|   Facility      :  libnform  
-|   Function      :  static void *Copy_AlphaNumericType(const void *argp)
-|   
-|   Description   :  Copy structure for alphanumeric type argument.  
+|   Facility      :  libnform
+|   Function      :  static void *Copy_ThisType(const void *argp)
+|
+|   Description   :  Copy structure for alphanumeric type argument.
 |
 |   Return Values :  Pointer to argument structure or NULL on error.
 +--------------------------------------------------------------------------*/
-static void *Copy_AlphaNumeric_Type(const void *argp)
+static void *
+Copy_This_Type(const void *argp)
 {
-  const alnumARG *ap = (const alnumARG *)argp;
-  alnumARG *result = (alnumARG *)malloc(sizeof(alnumARG));
+  const thisARG *ap = (const thisARG *)argp;
+  thisARG *result = (thisARG *) malloc(sizeof(thisARG));
 
   if (result)
     *result = *ap;
@@ -57,81 +84,78 @@ static void *Copy_AlphaNumeric_Type(const void *argp)
 }
 
 /*---------------------------------------------------------------------------
-|   Facility      :  libnform  
-|   Function      :  static void Free_AlphaNumeric_Type(void *argp)
-|   
+|   Facility      :  libnform
+|   Function      :  static void Free_This_Type(void *argp)
+|
 |   Description   :  Free structure for alphanumeric type argument.
 |
 |   Return Values :  -
 +--------------------------------------------------------------------------*/
-static void Free_AlphaNumeric_Type(void * argp)
+static void
+Free_This_Type(void *argp)
 {
-  if (argp) 
+  if (argp)
     free(argp);
 }
 
 /*---------------------------------------------------------------------------
-|   Facility      :  libnform  
-|   Function      :  static bool Check_AlphaNumeric_Field(
-|                                      FIELD *field,
+|   Facility      :  libnform
+|   Function      :  static bool Check_This_Character(
+|                                      int c,
 |                                      const void *argp)
-|   
-|   Description   :  Validate buffer content to be a valid alphanumeric value
 |
-|   Return Values :  TRUE  - field is valid
-|                    FALSE - field is invalid
-+--------------------------------------------------------------------------*/
-static bool Check_AlphaNumeric_Field(FIELD * field, const void * argp)
-{
-  int width = ((const alnumARG *)argp)->width;
-  unsigned char *bp  = (unsigned char *)field_buffer(field,0);
-  int  l = -1;
-  unsigned char *s;
-
-  while(*bp && *bp==' ') 
-    bp++;
-  if (*bp)
-    {
-      s = bp;
-      while(*bp && isalnum(*bp)) 
-	bp++;
-      l = (int)(bp-s);
-      while(*bp && *bp==' ') 
-	bp++;
-    }
-  return ((*bp || (l < width)) ? FALSE : TRUE);
-}
-
-/*---------------------------------------------------------------------------
-|   Facility      :  libnform  
-|   Function      :  static bool Check_AlphaNumeric_Character(
-|                                      int c, 
-|                                      const void *argp )
-|   
 |   Description   :  Check a character for the alphanumeric type.
 |
 |   Return Values :  TRUE  - character is valid
 |                    FALSE - character is invalid
 +--------------------------------------------------------------------------*/
-static bool Check_AlphaNumeric_Character(int c, const void * argp GCC_UNUSED)
+static bool
+Check_This_Character(int c, const void *argp GCC_UNUSED)
 {
-  return (isalnum(c) ? TRUE : FALSE);
+#if USE_WIDEC_SUPPORT
+  if (iswalnum((wint_t) c))
+    return TRUE;
+#endif
+  return (isalnum(UChar(c)) ? TRUE : FALSE);
 }
 
-static FIELDTYPE typeALNUM = {
+/*---------------------------------------------------------------------------
+|   Facility      :  libnform
+|   Function      :  static bool Check_This_Field(
+|                                      FIELD *field,
+|                                      const void *argp)
+|
+|   Description   :  Validate buffer content to be a valid alphanumeric value
+|
+|   Return Values :  TRUE  - field is valid
+|                    FALSE - field is invalid
++--------------------------------------------------------------------------*/
+static bool
+Check_This_Field(FIELD *field, const void *argp)
+{
+  int width = ((const thisARG *)argp)->width;
+  unsigned char *bp = (unsigned char *)field_buffer(field, 0);
+  bool result = (width < 0);
+
+  Check_CTYPE_Field(result, bp, width, Check_This_Character);
+  return (result);
+}
+
+static FIELDTYPE typeTHIS =
+{
   _HAS_ARGS | _RESIDENT,
-  1,                           /* this is mutable, so we can't be const */
+  1,				/* this is mutable, so we can't be const */
   (FIELDTYPE *)0,
   (FIELDTYPE *)0,
-  Make_AlphaNumeric_Type,
-  Copy_AlphaNumeric_Type,
-  Free_AlphaNumeric_Type,
-  Check_AlphaNumeric_Field,
-  Check_AlphaNumeric_Character,
+  Make_This_Type,
+  Copy_This_Type,
+  Free_This_Type,
+  Check_This_Field,
+  Check_This_Character,
   NULL,
   NULL
 };
 
-NCURSES_EXPORT_VAR(FIELDTYPE*) TYPE_ALNUM = &typeALNUM;
+NCURSES_EXPORT_VAR(FIELDTYPE*) TYPE_ALNUM = &typeTHIS;
 
 /* fty_alnum.c ends here */

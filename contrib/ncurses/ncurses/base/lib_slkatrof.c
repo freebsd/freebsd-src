@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright (c) 1998,2000 Free Software Foundation, Inc.                   *
+ * Copyright (c) 1998-2000,2005 Free Software Foundation, Inc.              *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -27,8 +27,8 @@
  ****************************************************************************/
 
 /****************************************************************************
- *  Author: Zeyd M. Ben-Halim <zmbenhal@netcom.com> 1992,1995               *
- *     and: Eric S. Raymond <esr@snark.thyrsus.com>                         *
+ *  Author:  Juergen Pfeifer, 1997                                          *
+ *     and:  Thomas E. Dickey 2005                                          *
  ****************************************************************************/
 
 /*
@@ -38,7 +38,7 @@
  */
 #include <curses.priv.h>
 
-MODULE_ID("$Id: lib_slkatrof.c,v 1.6 2000/12/10 02:43:27 tom Exp $")
+MODULE_ID("$Id: lib_slkatrof.c,v 1.8 2005/01/08 23:01:32 tom Exp $")
 
 NCURSES_EXPORT(int)
 slk_attroff(const chtype attr)
@@ -46,7 +46,12 @@ slk_attroff(const chtype attr)
     T((T_CALLED("slk_attroff(%s)"), _traceattr(attr)));
 
     if (SP != 0 && SP->_slk != 0) {
-	toggle_attr_off(SP->_slk->attr, attr);
+	TR(TRACE_ATTRS, ("... current %s", _tracech_t(CHREF(SP->_slk->attr))));
+	RemAttr(SP->_slk->attr, attr);
+	if ((attr & A_COLOR) != 0) {
+	    SetPair(SP->_slk->attr, 0);
+	}
+	TR(TRACE_ATTRS, ("new attribute is %s", _tracech_t(CHREF(SP->_slk->attr))));
 	returnCode(OK);
     } else
 	returnCode(ERR);

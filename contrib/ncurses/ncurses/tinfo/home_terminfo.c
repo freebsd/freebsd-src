@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright (c) 1998,2000 Free Software Foundation, Inc.                   *
+ * Copyright (c) 1998-2004,2005 Free Software Foundation, Inc.              *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -27,7 +27,7 @@
  ****************************************************************************/
 
 /****************************************************************************
- *  Author: Thomas E. Dickey <dickey@clark.net> 1998,2000                   *
+ *  Author: Thomas E. Dickey 1998,2000,2004,2005                            *
  ****************************************************************************/
 
 /*
@@ -37,7 +37,7 @@
 #include <curses.priv.h>
 #include <tic.h>
 
-MODULE_ID("$Id: home_terminfo.c,v 1.6 2000/12/10 02:55:07 tom Exp $")
+MODULE_ID("$Id: home_terminfo.c,v 1.9 2005/07/02 19:43:38 tom Exp $")
 
 #define my_length (strlen(home) + sizeof(PRIVATE_INFO))
 
@@ -46,6 +46,8 @@ MODULE_ID("$Id: home_terminfo.c,v 1.6 2000/12/10 02:55:07 tom Exp $")
 NCURSES_EXPORT(char *)
 _nc_home_terminfo(void)
 {
+    char *result = 0;
+#ifdef USE_HOME_TERMINFO
     char *home;
     static char *temp = 0;
 
@@ -55,11 +57,12 @@ _nc_home_terminfo(void)
 		&& my_length <= PATH_MAX) {
 		temp = typeMalloc(char, my_length);
 		if (temp == 0)
-		    _nc_err_abort("Out of memory");
+		    _nc_err_abort(MSG_NO_MEMORY);
 		(void) sprintf(temp, PRIVATE_INFO, home);
 	    }
 	}
-	return temp;
+	result = temp;
     }
-    return 0;
+#endif
+    return result;
 }

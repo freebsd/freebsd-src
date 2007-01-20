@@ -1,6 +1,6 @@
 '\" t
 .\"***************************************************************************
-.\" Copyright (c) 1998 Free Software Foundation, Inc.                        *
+.\" Copyright (c) 1998,2006 Free Software Foundation, Inc.                   *
 .\"                                                                          *
 .\" Permission is hereby granted, free of charge, to any person obtaining a  *
 .\" copy of this software and associated documentation files (the            *
@@ -27,7 +27,7 @@
 .\" authorization.                                                           *
 .\"***************************************************************************
 .\"
-.\" $Id: menu_cursor.3x,v 1.5 1998/11/29 01:09:30 Rick.Ohnemus Exp $
+.\" $Id: menu_cursor.3x,v 1.6 2006/11/04 17:13:57 tom Exp $
 .TH menu_cursor 3X ""
 .SH NAME
 \fBmenu_cursor\fR - position a menu's cursor
@@ -43,16 +43,16 @@ routines have been called to do screen-painting in response to a menu select.
 .SH RETURN VALUE
 This routine returns one of the following:
 .TP 5
-\fBE_OK\fR
+.B E_OK
 The routine succeeded.
 .TP 5
-\fBE_SYSTEM_ERROR\fR
+.B E_SYSTEM_ERROR
 System error occurred (see \fBerrno\fR).
 .TP 5
-\fBE_BAD_ARGUMENT\fR
+.B E_BAD_ARGUMENT
 Routine detected an incorrect or out-of-range argument.
 .TP 5
-\fBE_NOT_POSTED\fR
+.B E_NOT_POSTED
 The menu has not been posted.
 .SH SEE ALSO
 \fBcurses\fR(3X), \fBmenu\fR(3X).

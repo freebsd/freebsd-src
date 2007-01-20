@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright (c) 1998,1999,2000,2001 Free Software Foundation, Inc.         *
+ * Copyright (c) 1998-2003,2005 Free Software Foundation, Inc.              *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -36,6 +36,8 @@
  *
  *	The routine napms.
  *
+ *	(This file was originally written by Eric Raymond; however except for
+ *	comments, none of the original code remains - T.Dickey).
  */
 
 #include <curses.priv.h>
@@ -47,7 +49,7 @@
 #endif
 #endif
 
-MODULE_ID("$Id: lib_napms.c,v 1.12 2001/12/22 22:20:40 tom Exp $")
+MODULE_ID("$Id: lib_napms.c,v 1.15 2005/04/03 13:58:14 tom Exp $")
 
 NCURSES_EXPORT(int)
 napms(int ms)
@@ -56,13 +58,16 @@ napms(int ms)
 
 #if HAVE_NANOSLEEP
     {
-	struct timespec ts;
-	ts.tv_sec = ms / 1000;
-	ts.tv_nsec = (ms % 1000) * 1000000;
-	nanosleep(&ts, NULL);
+	struct timespec request, remaining;
+	request.tv_sec = ms / 1000;
+	request.tv_nsec = (ms % 1000) * 1000000;
+	while (nanosleep(&request, &remaining) == -1
+	       && errno == EINTR) {
+	    request = remaining;
+	}
     }
 #else
-    _nc_timed_wait(0, ms, (int *) 0);
+    _nc_timed_wait(0, ms, (int *) 0 EVENTLIST_2nd(0));
 #endif
 
     returnCode(OK);

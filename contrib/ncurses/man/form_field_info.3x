@@ -1,6 +1,6 @@
 '\" t
 .\"***************************************************************************
-.\" Copyright (c) 1998,2000,2001,2002 Free Software Foundation, Inc.         *
+.\" Copyright (c) 1998-2005,2006 Free Software Foundation, Inc.              *
 .\"                                                                          *
 .\" Permission is hereby granted, free of charge, to any person obtaining a  *
 .\" copy of this software and associated documentation files (the            *
@@ -27,7 +27,7 @@
 .\" authorization.                                                           *
 .\"***************************************************************************
 .\"
-.\" $Id: form_field_info.3x,v 1.8 2002/01/19 22:48:32 tom Exp $
+.\" $Id: form_field_info.3x,v 1.10 2006/11/04 17:14:31 tom Exp $
 .TH form_field_info 3X ""
 .SH NAME
 \fBform_field_info\fR - retrieve field characteristics
@@ -44,21 +44,22 @@ The function \fBfield_info\fR returns the sizes and other attributes passed in
 to the field at its creation time.  The attributes are: height, width, row of
 upper-left corner, column of upper-left corner, number off-screen rows, and
 number of working buffers.
-
+.PP
 The function \fBdynamic_field_info\fR returns the actual size of the field, and
 its maximum possible size.  If the field has no size limit, the location
-addressed by the third argument will be set to 0.  (A field can be made dynamic
-by turning off the \fBO_STATIC\fR).
+addressed by the third argument will be set to 0.
+A field can be made dynamic
+by turning off the \fBO_STATIC\fR option with \fBfield_opts_off\fR.
 .SH RETURN VALUE
 These routines return one of the following:
 .TP 5
-\fBE_OK\fR
+.B E_OK
 The routine succeeded.
 .TP 5
-\fBE_SYSTEM_ERROR\fR
+.B E_SYSTEM_ERROR
 System error occurred (see \fBerrno\fR).
 .TP 5
-\fBE_BAD_ARGUMENT\fR
+.B E_BAD_ARGUMENT
 Routine detected an incorrect or out-of-range argument.
 .SH SEE ALSO
 \fBcurses\fR(3X) and related pages whose names begin "form_" for detailed

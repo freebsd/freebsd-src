@@ -1,4 +1,31 @@
--- $Id: README,v 1.20 2000/08/12 23:31:21 tom Exp $
+-------------------------------------------------------------------------------
+-- Copyright (c) 1998-2004,2006 Free Software Foundation, Inc.               --
+--                                                                           --
+-- Permission is hereby granted, free of charge, to any person obtaining a   --
+-- copy of this software and associated documentation files (the             --
+-- "Software"), to deal in the Software without restriction, including       --
+-- without limitation the rights to use, copy, modify, merge, publish,       --
+-- distribute, distribute with modifications, sublicense, and/or sell copies --
+-- of the Software, and to permit persons to whom the Software is furnished  --
+-- to do so, subject to the following conditions:                            --
+--                                                                           --
+-- The above copyright notice and this permission notice shall be included   --
+-- in all copies or substantial portions of the Software.                    --
+--                                                                           --
+-- THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS   --
+-- OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF                --
+-- MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN --
+-- NO EVENT SHALL THE ABOVE COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM,       --
+-- DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR     --
+-- OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE --
+-- USE OR OTHER DEALINGS IN THE SOFTWARE.                                    --
+--                                                                           --
+-- Except as contained in this notice, the name(s) of the above copyright    --
+-- holders shall not be used in advertising or otherwise to promote the      --
+-- sale, use or other dealings in this Software without prior written        --
+-- authorization.                                                            --
+-------------------------------------------------------------------------------
+-- $Id: README,v 1.23 2006/04/22 22:19:37 tom Exp $
 -------------------------------------------------------------------------------
 		README file for the ncurses package
 
@@ -43,6 +70,14 @@ The libraries are:
 	libform.so         (shared)
 	libform_g.a        (debug enabled)
 
+If you configure using the --enable-widec option, a "w" is appended to the
+library names (e.g., libncursesw.a), and the resulting libraries support
+wide-characters, e.g., via a UTF-8 locale.  The corresponding header files
+are compatible with the non-wide-character configuration; wide-character
+features are provided by ifdef's in the header files.  The wide-character
+library interfaces are not binary-compatible with the non-wide-character
+version.
+
 The ncurses libraries implement the curses API.  The panel, menu and forms
 libraries implement clones of the SVr4 panel, menu and forms APIs.  The source
 code for these lives in the `ncurses', `panel', `menu', and `form' directories
@@ -56,7 +91,7 @@ install.libs' rule as libncurses++.
 In the `Ada95' directory, you'll find code and documentation for an
 Ada95 binding of the curses API, to be used with the GNAT compiler.
 This binding is built by a normal top-level `make' if configure detects
-an usable version of GNAT (3.10 or above). It is not installed automatically.
+an usable version of GNAT (3.11 or above). It is not installed automatically.
 See the Ada95 directory for more build and installation instructions and
 for documentation of the binding.
 

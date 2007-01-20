@@ -1,6 +1,6 @@
-# $Id: Makefile.in,v 1.22 2001/10/27 18:17:22 tom Exp $
+# $Id: Makefile.in,v 1.24 2005/01/29 19:30:06 tom Exp $
 ##############################################################################
-# Copyright (c) 1998 Free Software Foundation, Inc.                          #
+# Copyright (c) 1998-2004,2005 Free Software Foundation, Inc.                #
 #                                                                            #
 # Permission is hereby granted, free of charge, to any person obtaining a    #
 # copy of this software and associated documentation files (the "Software"), #
@@ -65,6 +65,9 @@ preinstall :
 	@ echo ''
 	@ echo '** Configuration summary for NCURSES $(NCURSES_MAJOR).$(NCURSES_MINOR) $(NCURSES_PATCH):'
 	@ echo ''
+	@ echo '     extended funcs: '`test @NCURSES_EXT_FUNCS@ != 0 && echo yes || echo no`
+	@ echo '     xterm terminfo: '@WHICH_XTERM@
+	@ echo ''
 	@ echo '      bin directory: '$(bindir)
 	@ echo '      lib directory: '$(libdir)
 	@ echo '  include directory: '$(includedir)
@@ -89,5 +92,6 @@ mostlyclean \
 realclean \
 depend \
 sources \
+tags \
 uninstall \
 install ::

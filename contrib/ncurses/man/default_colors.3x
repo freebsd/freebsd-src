@@ -1,5 +1,5 @@
 .\"***************************************************************************
-.\" Copyright (c) 1998-2000,2002 Free Software Foundation, Inc.              *
+.\" Copyright (c) 1998-2005,2006 Free Software Foundation, Inc.              *
 .\"                                                                          *
 .\" Permission is hereby granted, free of charge, to any person obtaining a  *
 .\" copy of this software and associated documentation files (the            *
@@ -26,16 +26,16 @@
 .\" authorization.                                                           *
 .\"***************************************************************************
 .\"
-.\" Author: Thomas E. Dickey <dickey@clark.net> 1997,1999,2000
+.\" Author: Thomas E. Dickey 1997,1999,2000,2005
 .\"
-.\" $Id: default_colors.3x,v 1.16 2002/02/16 22:39:52 tom Exp $
+.\" $Id: default_colors.3x,v 1.19 2006/02/25 21:49:19 tom Exp $
 .TH default_colors 3X ""
 .SH NAME
 \fBuse_default_colors\fR,
 \fBassume_default_colors\fR \- use terminal's default colors
 .SH SYNOPSIS
 \fB#include <curses.h>\fP
-
+.sp
 \fBint use_default_colors(void);\fP
 .br
 \fBint assume_default_colors(int fg, int bg);\fP
@@ -107,6 +107,26 @@ error as well.
 Associated with this extension, the \fBinit_pair\fR(3X) function accepts
 negative arguments to specify default foreground or background
 colors.
+.PP
+The \fIuse_default_colors()\fP function was added to support \fIded\fP.
+This is a full-screen application which uses curses to manage only part
+of the screen.  The bottom portion of the screen, which is of adjustable
+size, is left uncolored to display the results from shell commands.
+The top portion of the screen colors filenames using a scheme like the
+"color ls" programs.
+Attempting to manage the background color of the screen for this application
+would give unsatisfactory results for a variety of reasons.
+This extension was devised after
+noting that color xterm (and similar programs) provides a background color
+which does not necessarily correspond to any of the ANSI colors.
+While a special terminfo entry could be constructed using nine colors,
+there was no mechanism provided within curses to account for the related
+\fIorig_pair\fP and \fIback_color_erase\fP capabilities.
+.PP
+The \fIassume_default_colors()\fP function was added to solve
+a different problem: support for applications which would use
+environment variables and other configuration to bypass curses'
+notion of the terminal's default colors, setting specific values.
 .SH PORTABILITY
 These routines are specific to ncurses.  They were not supported on
 Version 7, BSD or System V implementations.  It is recommended that

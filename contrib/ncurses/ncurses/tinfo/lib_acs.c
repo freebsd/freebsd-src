@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright (c) 1998,1999,2000,2001 Free Software Foundation, Inc.         *
+ * Copyright (c) 1998-2005,2006 Free Software Foundation, Inc.              *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -29,12 +29,13 @@
 /****************************************************************************
  *  Author: Zeyd M. Ben-Halim <zmbenhal@netcom.com> 1992,1995               *
  *     and: Eric S. Raymond <esr@snark.thyrsus.com>                         *
+ *     and: Thomas E. Dickey                        1996-on                 *
  ****************************************************************************/
 
 #include <curses.priv.h>
 #include <term.h>		/* ena_acs, acs_chars */
 
-MODULE_ID("$Id: lib_acs.c,v 1.21 2001/12/23 00:15:10 tom Exp $")
+MODULE_ID("$Id: lib_acs.c,v 1.30 2006/01/07 21:27:15 tom Exp $")
 
 #if BROKEN_LINKER
 NCURSES_EXPORT_VAR(chtype *)
@@ -55,98 +56,120 @@ NCURSES_EXPORT_VAR(chtype) acs_map[ACS_LEN] =
 NCURSES_EXPORT(void)
 _nc_init_acs(void)
 {
+    chtype *fake_map = acs_map;
+    chtype *real_map = SP != 0 ? SP->_acs_map : fake_map;
+    int j;
+
     T(("initializing ACS map"));
+
+    /*
+     * If we're using this from curses (rather than terminfo), we are storing
+     * the mapping information in the SCREEN struct so we can decide how to
+     * render it.
+     */
+    if (real_map != fake_map) {
+	for (j = 1; j < ACS_LEN; ++j) {
+	    real_map[j] = 0;
+	    fake_map[j] = A_ALTCHARSET | j;
+	    SP->_screen_acs_map[j] = FALSE;
+	}
+    } else {
+	for (j = 1; j < ACS_LEN; ++j) {
+	    real_map[j] = 0;
+	}
+    }
 
     /*
      * Initializations for a UNIX-like multi-terminal environment.  Use
      * ASCII chars and count on the terminfo description to do better.
      */
-    ACS_ULCORNER = '+';		/* should be upper left corner */
-    ACS_LLCORNER = '+';		/* should be lower left corner */
-    ACS_URCORNER = '+';		/* should be upper right corner */
-    ACS_LRCORNER = '+';		/* should be lower right corner */
-    ACS_RTEE = '+';		/* should be tee pointing left */
-    ACS_LTEE = '+';		/* should be tee pointing right */
-    ACS_BTEE = '+';		/* should be tee pointing up */
-    ACS_TTEE = '+';		/* should be tee pointing down */
-    ACS_HLINE = '-';		/* should be horizontal line */
-    ACS_VLINE = '|';		/* should be vertical line */
-    ACS_PLUS = '+';		/* should be large plus or crossover */
-    ACS_S1 = '~';		/* should be scan line 1 */
-    ACS_S9 = '_';		/* should be scan line 9 */
-    ACS_DIAMOND = '+';		/* should be diamond */
-    ACS_CKBOARD = ':';		/* should be checker board (stipple) */
-    ACS_DEGREE = '\'';		/* should be degree symbol */
-    ACS_PLMINUS = '#';		/* should be plus/minus */
-    ACS_BULLET = 'o';		/* should be bullet */
-    ACS_LARROW = '<';		/* should be arrow pointing left */
-    ACS_RARROW = '>';		/* should be arrow pointing right */
-    ACS_DARROW = 'v';		/* should be arrow pointing down */
-    ACS_UARROW = '^';		/* should be arrow pointing up */
-    ACS_BOARD = '#';		/* should be board of squares */
-    ACS_LANTERN = '#';		/* should be lantern symbol */
-    ACS_BLOCK = '#';		/* should be solid square block */
+    real_map['l'] = '+';	/* should be upper left corner */
+    real_map['m'] = '+';	/* should be lower left corner */
+    real_map['k'] = '+';	/* should be upper right corner */
+    real_map['j'] = '+';	/* should be lower right corner */
+    real_map['u'] = '+';	/* should be tee pointing left */
+    real_map['t'] = '+';	/* should be tee pointing right */
+    real_map['v'] = '+';	/* should be tee pointing up */
+    real_map['w'] = '+';	/* should be tee pointing down */
+    real_map['q'] = '-';	/* should be horizontal line */
+    real_map['x'] = '|';	/* should be vertical line */
+    real_map['n'] = '+';	/* should be large plus or crossover */
+    real_map['o'] = '~';	/* should be scan line 1 */
+    real_map['s'] = '_';	/* should be scan line 9 */
+    real_map['`'] = '+';	/* should be diamond */
+    real_map['a'] = ':';	/* should be checker board (stipple) */
+    real_map['f'] = '\'';	/* should be degree symbol */
+    real_map['g'] = '#';	/* should be plus/minus */
+    real_map['~'] = 'o';	/* should be bullet */
+    real_map[','] = '<';	/* should be arrow pointing left */
+    real_map['+'] = '>';	/* should be arrow pointing right */
+    real_map['.'] = 'v';	/* should be arrow pointing down */
+    real_map['-'] = '^';	/* should be arrow pointing up */
+    real_map['h'] = '#';	/* should be board of squares */
+    real_map['i'] = '#';	/* should be lantern symbol */
+    real_map['0'] = '#';	/* should be solid square block */
     /* these defaults were invented for ncurses */
-    ACS_S3 = '-';		/* should be scan line 3 */
-    ACS_S7 = '-';		/* should be scan line 7 */
-    ACS_LEQUAL = '<';		/* should be less-than-or-equal-to */
-    ACS_GEQUAL = '>';		/* should be greater-than-or-equal-to */
-    ACS_PI = '*';		/* should be greek pi */
-    ACS_NEQUAL = '!';		/* should be not-equal */
-    ACS_STERLING = 'f';		/* should be pound-sterling symbol */
+    real_map['p'] = '-';	/* should be scan line 3 */
+    real_map['r'] = '-';	/* should be scan line 7 */
+    real_map['y'] = '<';	/* should be less-than-or-equal-to */
+    real_map['z'] = '>';	/* should be greater-than-or-equal-to */
+    real_map['{'] = '*';	/* should be greek pi */
+    real_map['|'] = '!';	/* should be not-equal */
+    real_map['}'] = 'f';	/* should be pound-sterling symbol */
+
+#if !USE_WIDEC_SUPPORT
+    if (_nc_unicode_locale() && _nc_locale_breaks_acs()) {
+	acs_chars = NULL;
+	ena_acs = NULL;
+	enter_alt_charset_mode = NULL;
+	exit_alt_charset_mode = NULL;
+	set_attributes = NULL;
+    }
+#endif
 
     if (ena_acs != NULL) {
 	TPUTS_TRACE("ena_acs");
 	putp(ena_acs);
     }
-#define ALTCHAR(c)	((chtype)(((unsigned char)(c)) | A_ALTCHARSET))
+#if NCURSES_EXT_FUNCS
+    /*
+     * Linux console "supports" the "PC ROM" character set by the coincidence
+     * that smpch/rmpch and smacs/rmacs have the same values.  ncurses has
+     * no codepage support (see SCO Merge for an example).  Outside of the
+     * values defined in acsc, there are no definitions for the "PC ROM"
+     * character set (assumed by some applications to be codepage 437), but we
+     * allow those applications to use those codepoints.
+     *
+     * test/blue.c uses this feature.
+     */
+#define PCH_KLUDGE(a,b) (a != 0 && b != 0 && !strcmp(a,b))
+    if (PCH_KLUDGE(enter_pc_charset_mode, enter_alt_charset_mode) &&
+	PCH_KLUDGE(exit_pc_charset_mode, exit_alt_charset_mode)) {
+	size_t i;
+	for (i = 1; i < ACS_LEN; ++i) {
+	    if (real_map[i] == 0) {
+		real_map[i] = i;
+		if (real_map != fake_map) {
+		    if (SP != 0)
+			SP->_screen_acs_map[i] = TRUE;
+		}
+	    }
+	}
+    }
+#endif
 
     if (acs_chars != NULL) {
 	size_t i = 0;
 	size_t length = strlen(acs_chars);
 
-	while (i < length)
-	    switch (acs_chars[i]) {
-	    case 'l':
-	    case 'm':
-	    case 'k':
-	    case 'j':
-	    case 'u':
-	    case 't':
-	    case 'v':
-	    case 'w':
-	    case 'q':
-	    case 'x':
-	    case 'n':
-	    case 'o':
-	    case 's':
-	    case '`':
-	    case 'a':
-	    case 'f':
-	    case 'g':
-	    case '~':
-	    case ',':
-	    case '+':
-	    case '.':
-	    case '-':
-	    case 'h':
-	    case 'i':
-	    case '0':
-	    case 'p':
-	    case 'r':
-	    case 'y':
-	    case 'z':
-	    case '{':
-	    case '|':
-	    case '}':
-		acs_map[(unsigned int) acs_chars[i]] =
-		    ALTCHAR(acs_chars[i + 1]);
-		i++;
-		/* FALLTHRU */
-	    default:
-		i++;
-		break;
+	while (i + 1 < length) {
+	    if (acs_chars[i] != 0 && UChar(acs_chars[i]) < ACS_LEN) {
+		real_map[UChar(acs_chars[i])] = UChar(acs_chars[i + 1]) | A_ALTCHARSET;
+		if (SP != 0)
+		    SP->_screen_acs_map[UChar(acs_chars[i])] = TRUE;
 	    }
+	    i += 2;
+	}
     }
 #ifdef TRACE
     /* Show the equivalent mapping, noting if it does not match the
@@ -154,14 +177,18 @@ _nc_init_acs(void)
      */
     if (_nc_tracing & TRACE_CALLS) {
 	size_t n, m;
-	char show[ACS_LEN + 1];
+	char show[ACS_LEN * 2 + 1];
 	for (n = 1, m = 0; n < ACS_LEN; n++) {
-	    if (acs_map[n] != 0) {
+	    if (real_map[n] != 0) {
 		show[m++] = (char) n;
-		show[m++] = ChCharOf(acs_map[n]);
+		show[m++] = ChCharOf(real_map[n]);
 	    }
 	}
 	show[m] = 0;
+	if (acs_chars == NULL || strcmp(acs_chars, show))
+	    _tracef("%s acs_chars %s",
+		    (acs_chars == NULL) ? "NULL" : "READ",
+		    _nc_visbuf(acs_chars));
 	_tracef("%s acs_chars %s",
 		(acs_chars == NULL)
 		? "NULL"

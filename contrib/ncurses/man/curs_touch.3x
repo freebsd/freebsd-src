@@ -1,5 +1,5 @@
 .\"***************************************************************************
-.\" Copyright (c) 1998,2000 Free Software Foundation, Inc.                   *
+.\" Copyright (c) 1998-2005,2006 Free Software Foundation, Inc.              *
 .\"                                                                          *
 .\" Permission is hereby granted, free of charge, to any person obtaining a  *
 .\" copy of this software and associated documentation files (the            *
@@ -26,8 +26,10 @@
 .\" authorization.                                                           *
 .\"***************************************************************************
 .\"
-.\" $Id: curs_touch.3x,v 1.8 2000/07/08 11:07:57 tom Exp $
+.\" $Id: curs_touch.3x,v 1.11 2006/02/25 21:49:19 tom Exp $
 .TH curs_touch 3X ""
+.na
+.hy 0
 .SH NAME
 \fBtouchwin\fR,
 \fBtouchline\fR,
@@ -35,6 +37,8 @@
 \fBwtouchln\fR,
 \fBis_linetouched\fR,
 \fBis_wintouched\fR - \fBcurses\fR refresh control routines
+.ad
+.hy
 .SH SYNOPSIS
 \fB#include <curses.h>\fR
 .br
@@ -59,15 +63,15 @@ to one window affects the other window, but the records of which lines
 have been changed in the other window do not reflect the change.  The
 routine \fBtouchline\fR only pretends that \fIcount\fR lines have been
 changed, beginning with line \fIstart\fR.
-
+.PP
 The \fBuntouchwin\fR routine marks all lines in the window as unchanged since
 the last call to \fBwrefresh\fR.
-
+.PP
 The \fBwtouchln\fR routine makes \fIn\fR lines in the window, starting
 at line \fIy\fR, look as if they have (\fIchanged\fR\fB=1\fR) or have
 not (\fIchanged\fR\fB=0\fR) been changed since the last call to
 \fBwrefresh\fR.
-
+.PP
 The \fBis_linetouched\fR and \fBis_wintouched\fR routines return
 \fBTRUE\fR if the specified line/window was modified since the last
 call to \fBwrefresh\fR; otherwise they return \fBFALSE\fR.  In
@@ -77,9 +81,25 @@ valid for the given window.
 All routines return the integer \fBERR\fR upon failure and an integer value
 other than \fBERR\fR upon successful completion, unless otherwise noted in the
 preceding routine descriptions.
+.PP
+X/Open does not define any error conditions.
+In this implementation
+.RS
+.TP 5
+\fBis_linetouched\fP
+returns an error 
+if the window pointer is null, or
+if the line number is outside the window.
+Note that ERR is distinct from TRUE and FALSE, which are the normal return values of this function.
+.TP 5
+\fBwtouchln\fP
+returns an error 
+if the window pointer is null, or
+if the line number is outside the window.
+.RE
 .SH PORTABILITY
 The XSI Curses standard, Issue 4 describes these functions.
-
+.PP
 Some historic curses implementations had, as an undocumented feature, the
 ability to do the equivalent of \fBclearok(..., 1)\fR by saying
 \fBtouchwin(stdscr)\fR or \fBclear(stdscr)\fR.  This will not work under
