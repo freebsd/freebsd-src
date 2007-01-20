@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright (c) 1998,2000,2001 Free Software Foundation, Inc.              *
+ * Copyright (c) 1998-2005,2006 Free Software Foundation, Inc.              *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -29,11 +29,11 @@
 /****************************************************************************
  *  Author: Zeyd M. Ben-Halim <zmbenhal@netcom.com> 1992,1995               *
  *     and: Eric S. Raymond <esr@snark.thyrsus.com>                         *
+ *     and: Thomas E. Dickey                        1996-on                 *
  ****************************************************************************/
 
 /*
  *	toe.c --- table of entries report generator
- *
  */
 
 #include <progs.priv.h>
@@ -41,23 +41,22 @@
 #include <sys/stat.h>
 
 #include <dump_entry.h>
-#include <term_entry.h>
 
-MODULE_ID("$Id: toe.c,v 1.26 2001/06/16 11:00:41 tom Exp $")
+#if USE_HASHED_DB
+#include <hashed_db.h>
+#endif
+
+MODULE_ID("$Id: toe.c,v 1.41 2006/08/19 18:18:09 tom Exp $")
 
 #define isDotname(name) (!strcmp(name, ".") || !strcmp(name, ".."))
 
 const char *_nc_progname;
 
-static int typelist(int eargc, char *eargv[], bool,
-		    void (*)(const char *, TERMTYPE *));
-static void deschook(const char *, TERMTYPE *);
-
 #if NO_LEAKS
 #undef ExitProgram
+static void ExitProgram(int code) GCC_NORETURN;
 static void
-ExitProgram(int code) GCC_NORETURN;
-     static void ExitProgram(int code)
+ExitProgram(int code)
 {
     _nc_free_entries(_nc_head);
     _nc_leaks_dump_entry();
@@ -65,46 +64,289 @@ ExitProgram(int code) GCC_NORETURN;
 }
 #endif
 
+#if USE_HASHED_DB
 static bool
-is_a_file(char *path)
+make_db_name(char *dst, const char *src, unsigned limit)
 {
-    struct stat sb;
-    return (stat(path, &sb) == 0
-	    && (sb.st_mode & S_IFMT) == S_IFREG);
-}
+    static const char suffix[] = DBM_SUFFIX;
 
-static bool
-is_a_directory(char *path)
-{
-    struct stat sb;
-    return (stat(path, &sb) == 0
-	    && (sb.st_mode & S_IFMT) == S_IFDIR);
-}
+    bool result = FALSE;
+    unsigned lens = sizeof(suffix) - 1;
+    unsigned size = strlen(src);
+    unsigned need = lens + size;
 
-static char *
-get_directory(char *path)
-{
-    if (path != 0) {
-	if (!is_a_directory(path)
-	    || access(path, R_OK | X_OK) != 0)
-	    path = 0;
+    if (need <= limit) {
+	if (size >= lens
+	    && !strcmp(src + size - lens, suffix))
+	    (void) strcpy(dst, src);
+	else
+	    (void) sprintf(dst, "%s%s", src, suffix);
+	result = TRUE;
     }
-    return path;
+    return result;
+}
+#endif
+
+static bool
+is_database(const char *path)
+{
+    bool result = FALSE;
+#if USE_DATABASE
+    if (_nc_is_dir_path(path) && access(path, R_OK | X_OK) == 0) {
+	result = TRUE;
+    }
+#endif
+#if USE_TERMCAP
+    if (_nc_is_file_path(path) && access(path, R_OK) == 0) {
+	result = TRUE;
+    }
+#endif
+#if USE_HASHED_DB
+    if (!result) {
+	char filename[PATH_MAX];
+	if (_nc_is_file_path(path) && access(path, R_OK) == 0) {
+	    result = TRUE;
+	} else if (make_db_name(filename, path, sizeof(filename))) {
+	    if (_nc_is_file_path(filename) && access(filename, R_OK) == 0) {
+		result = TRUE;
+	    }
+	}
+    }
+#endif
+    return result;
+}
+
+static void
+deschook(const char *cn, TERMTYPE *tp)
+/* display a description for the type */
+{
+    const char *desc;
+
+    if ((desc = strrchr(tp->term_names, '|')) == 0 || *++desc == '\0')
+	desc = "(No description)";
+
+    (void) printf("%-10s\t%s\n", cn, desc);
+}
+
+#if USE_TERMCAP
+static void
+show_termcap(char *buffer,
+	     void (*hook) (const char *, TERMTYPE *tp))
+{
+    TERMTYPE data;
+    char *next = strchr(buffer, ':');
+    char *last;
+    char *list = buffer;
+
+    if (next)
+	*next = '\0';
+
+    last = strrchr(buffer, '|');
+    if (last)
+	++last;
+
+    data.term_names = strdup(buffer);
+    while ((next = strtok(list, "|")) != 0) {
+	if (next != last)
+	    hook(next, &data);
+	list = 0;
+    }
+    free(data.term_names);
+}
+#endif
+
+static int
+typelist(int eargc, char *eargv[],
+	 bool verbosity,
+	 void (*hook) (const char *, TERMTYPE *tp))
+/* apply a function to each entry in given terminfo directories */
+{
+    int i;
+
+    for (i = 0; i < eargc; i++) {
+#if USE_DATABASE
+	if (_nc_is_dir_path(eargv[i])) {
+	    DIR *termdir;
+	    DIRENT *subdir;
+
+	    if ((termdir = opendir(eargv[i])) == 0) {
+		(void) fflush(stdout);
+		(void) fprintf(stderr,
+			       "%s: can't open terminfo directory %s\n",
+			       _nc_progname, eargv[i]);
+		return (EXIT_FAILURE);
+	    } else if (verbosity)
+		(void) printf("#\n#%s:\n#\n", eargv[i]);
+
+	    while ((subdir = readdir(termdir)) != 0) {
+		size_t len = NAMLEN(subdir);
+		char buf[PATH_MAX];
+		char name_1[PATH_MAX];
+		DIR *entrydir;
+		DIRENT *entry;
+
+		strncpy(name_1, subdir->d_name, len)[len] = '\0';
+		if (isDotname(name_1))
+		    continue;
+
+		(void) sprintf(buf, "%s/%s/", eargv[i], name_1);
+		if (chdir(buf) != 0)
+		    continue;
+
+		entrydir = opendir(".");
+		while ((entry = readdir(entrydir)) != 0) {
+		    char name_2[PATH_MAX];
+		    TERMTYPE lterm;
+		    char *cn;
+		    int status;
+
+		    len = NAMLEN(entry);
+		    strncpy(name_2, entry->d_name, len)[len] = '\0';
+		    if (isDotname(name_2) || !_nc_is_file_path(name_2))
+			continue;
+
+		    status = _nc_read_file_entry(name_2, &lterm);
+		    if (status <= 0) {
+			(void) fflush(stdout);
+			(void) fprintf(stderr,
+				       "%s: couldn't open terminfo file %s.\n",
+				       _nc_progname, name_2);
+			return (EXIT_FAILURE);
+		    }
+
+		    /* only visit things once, by primary name */
+		    cn = _nc_first_name(lterm.term_names);
+		    if (!strcmp(cn, name_2)) {
+			/* apply the selected hook function */
+			(*hook) (cn, &lterm);
+		    }
+		    _nc_free_termtype(&lterm);
+		}
+		closedir(entrydir);
+	    }
+	    closedir(termdir);
+	}
+#if USE_HASHED_DB
+	else {
+	    DB *capdbp;
+	    char filename[PATH_MAX];
+
+	    if (make_db_name(filename, eargv[i], sizeof(filename))) {
+		if ((capdbp = _nc_db_open(filename, FALSE)) != 0) {
+		    DBT key, data;
+		    int code;
+
+		    code = _nc_db_first(capdbp, &key, &data);
+		    while (code == 0) {
+			TERMTYPE lterm;
+			int used;
+			char *have;
+			char *cn;
+
+			if (_nc_db_have_data(&key, &data, &have, &used)) {
+			    if (_nc_read_termtype(&lterm, have, used) > 0) {
+				/* only visit things once, by primary name */
+				cn = _nc_first_name(lterm.term_names);
+				/* apply the selected hook function */
+				(*hook) (cn, &lterm);
+				_nc_free_termtype(&lterm);
+			    }
+			}
+			code = _nc_db_next(capdbp, &key, &data);
+		    }
+
+		    _nc_db_close(capdbp);
+		}
+	    }
+	}
+#endif
+#endif
+#if USE_TERMCAP
+#if HAVE_BSD_CGETENT
+	char *db_array[2];
+	char *buffer = 0;
+
+	if (verbosity)
+	    (void) printf("#\n#%s:\n#\n", eargv[i]);
+
+	db_array[0] = eargv[i];
+	db_array[1] = 0;
+
+	if (cgetfirst(&buffer, db_array)) {
+	    show_termcap(buffer, hook);
+	    free(buffer);
+	    while (cgetnext(&buffer, db_array)) {
+		show_termcap(buffer, hook);
+		free(buffer);
+	    }
+	}
+	cgetclose();
+#else
+	/* scan termcap text-file only */
+	if (_nc_is_file_path(eargv[i])) {
+	    char buffer[2048];
+	    FILE *fp;
+
+	    if ((fp = fopen(eargv[i], "r")) != 0) {
+		while (fgets(buffer, sizeof(buffer), fp) != 0) {
+		    if (*buffer == '#')
+			continue;
+		    if (isspace(*buffer))
+			continue;
+		    show_termcap(buffer, hook);
+		}
+		fclose(fp);
+	    }
+	}
+#endif
+#endif
+    }
+
+    return (EXIT_SUCCESS);
+}
+
+static void
+usage(void)
+{
+    (void) fprintf(stderr, "usage: %s [-ahuUV] [-v n] [file...]\n", _nc_progname);
+    ExitProgram(EXIT_FAILURE);
 }
 
 int
 main(int argc, char *argv[])
 {
+    bool all_dirs = FALSE;
     bool direct_dependencies = FALSE;
     bool invert_dependencies = FALSE;
     bool header = FALSE;
-    int i, c;
+    int i;
     int code;
+    int this_opt, last_opt = '?';
+    int v_opt = 0;
 
     _nc_progname = _nc_rootname(argv[0]);
 
-    while ((c = getopt(argc, argv, "huv:UV")) != EOF)
-	switch (c) {
+    while ((this_opt = getopt(argc, argv, "0123456789ahuvUV")) != EOF) {
+	/* handle optional parameter */
+	if (isdigit(this_opt)) {
+	    switch (last_opt) {
+	    case 'v':
+		v_opt = (this_opt - '0');
+		break;
+	    default:
+		if (isdigit(last_opt))
+		    v_opt *= 10;
+		else
+		    v_opt = 0;
+		v_opt += (this_opt - '0');
+		last_opt = this_opt;
+	    }
+	    continue;
+	}
+	switch (this_opt) {
+	case 'a':
+	    all_dirs = TRUE;
+	    break;
 	case 'h':
 	    header = TRUE;
 	    break;
@@ -112,7 +354,7 @@ main(int argc, char *argv[])
 	    direct_dependencies = TRUE;
 	    break;
 	case 'v':
-	    set_trace_level(atoi(optarg));
+	    v_opt = 1;
 	    break;
 	case 'U':
 	    invert_dependencies = TRUE;
@@ -121,9 +363,10 @@ main(int argc, char *argv[])
 	    puts(curses_version());
 	    ExitProgram(EXIT_SUCCESS);
 	default:
-	    (void) fprintf(stderr, "usage: toe [-huUV] [-v n] [file...]\n");
-	    ExitProgram(EXIT_FAILURE);
+	    usage();
 	}
+    }
+    set_trace_level(v_opt);
 
     if (direct_dependencies || invert_dependencies) {
 	if (freopen(argv[optind], "r", stdin) == 0) {
@@ -141,14 +384,15 @@ main(int argc, char *argv[])
     if (direct_dependencies) {
 	ENTRY *qp;
 
-	for_entry_list(qp)
+	for_entry_list(qp) {
 	    if (qp->nuses) {
-	    int j;
+		int j;
 
-	    (void) printf("%s:", _nc_first_name(qp->tterm.term_names));
-	    for (j = 0; j < qp->nuses; j++)
-		(void) printf(" %s", qp->uses[j].name);
-	    putchar('\n');
+		(void) printf("%s:", _nc_first_name(qp->tterm.term_names));
+		for (j = 0; j < qp->nuses; j++)
+		    (void) printf(" %s", qp->uses[j].name);
+		putchar('\n');
+	    }
 	}
 
 	ExitProgram(EXIT_SUCCESS);
@@ -187,121 +431,71 @@ main(int argc, char *argv[])
      */
     if (optind < argc) {
 	code = typelist(argc - optind, argv + optind, header, deschook);
-    } else {
-	char *home, *eargv[3];
-	char personal[PATH_MAX];
-	int j;
+    } else if (all_dirs) {
+	DBDIRS state;
+	int offset;
+	int pass;
+	const char *path;
+	char **eargv = 0;
 
-	j = 0;
-	if ((eargv[j] = get_directory(getenv("TERMINFO"))) != 0) {
-	    j++;
-	} else {
-	    if ((home = getenv("HOME")) != 0) {
-		(void) sprintf(personal, PRIVATE_INFO, home);
-		if ((eargv[j] = get_directory(personal)) != 0)
-		    j++;
+	code = EXIT_FAILURE;
+	for (pass = 0; pass < 2; ++pass) {
+	    unsigned count = 0;
+
+	    _nc_first_db(&state, &offset);
+	    while ((path = _nc_next_db(&state, &offset)) != 0) {
+		if (!is_database(path)) {
+		    ;
+		} else if (eargv != 0) {
+		    unsigned n;
+		    int found = FALSE;
+
+		    /* eliminate duplicates */
+		    for (n = 0; n < count; ++n) {
+			if (!strcmp(path, eargv[n])) {
+			    found = TRUE;
+			    break;
+			}
+		    }
+		    if (!found) {
+			eargv[count] = strdup(path);
+			++count;
+		    }
+		} else {
+		    ++count;
+		}
 	    }
-	    if ((eargv[j] = get_directory(strcpy(personal, TERMINFO))) != 0)
-		j++;
+	    if (!pass) {
+		eargv = typeCalloc(char *, count + 1);
+	    } else {
+		code = typelist((int) count, eargv, header, deschook);
+		while (count-- > 0)
+		    free(eargv[count]);
+		free(eargv);
+	    }
 	}
-	eargv[j] = 0;
+    } else {
+	DBDIRS state;
+	int offset;
+	const char *path;
+	char *eargv[3];
+	int count = 0;
 
-	code = typelist(j, eargv, header, deschook);
+	_nc_first_db(&state, &offset);
+	while ((path = _nc_next_db(&state, &offset)) != 0) {
+	    if (is_database(path)) {
+		eargv[count++] = strdup(path);
+		break;
+	    }
+	}
+	eargv[count] = 0;
+
+	code = typelist(count, eargv, header, deschook);
+
+	while (count-- > 0)
+	    free(eargv[count]);
     }
+    _nc_last_db();
 
     ExitProgram(code);
-}
-
-static void
-deschook(const char *cn, TERMTYPE * tp)
-/* display a description for the type */
-{
-    const char *desc;
-
-    if ((desc = strrchr(tp->term_names, '|')) == 0)
-	desc = "(No description)";
-    else
-	++desc;
-
-    (void) printf("%-10s\t%s\n", cn, desc);
-}
-
-static int
-typelist(int eargc, char *eargv[],
-	 bool verbosity,
-	 void (*hook) (const char *, TERMTYPE * tp))
-/* apply a function to each entry in given terminfo directories */
-{
-    int i;
-
-    for (i = 0; i < eargc; i++) {
-	DIR *termdir;
-	struct dirent *subdir;
-
-	if ((termdir = opendir(eargv[i])) == 0) {
-	    (void) fflush(stdout);
-	    (void) fprintf(stderr,
-			   "%s: can't open terminfo directory %s\n",
-			   _nc_progname, eargv[i]);
-	    return (EXIT_FAILURE);
-	} else if (verbosity)
-	    (void) printf("#\n#%s:\n#\n", eargv[i]);
-
-	while ((subdir = readdir(termdir)) != 0) {
-	    size_t len = NAMLEN(subdir);
-	    char buf[PATH_MAX];
-	    char name_1[PATH_MAX];
-	    DIR *entrydir;
-	    struct dirent *entry;
-
-	    strncpy(name_1, subdir->d_name, len)[len] = '\0';
-	    if (isDotname(name_1))
-		continue;
-
-	    (void) sprintf(buf, "%s/%s/", eargv[i], name_1);
-	    if (chdir(buf) != 0)
-		continue;
-
-	    entrydir = opendir(".");
-	    while ((entry = readdir(entrydir)) != 0) {
-		char name_2[PATH_MAX];
-		TERMTYPE lterm;
-		char *cn;
-		int status;
-
-		len = NAMLEN(entry);
-		strncpy(name_2, entry->d_name, len)[len] = '\0';
-		if (isDotname(name_2) || !is_a_file(name_2))
-		    continue;
-
-		status = _nc_read_file_entry(name_2, &lterm);
-		if (status <= 0) {
-		    (void) fflush(stdout);
-		    (void) fprintf(stderr,
-				   "toe: couldn't open terminfo file %s.\n",
-				   name_2);
-		    return (EXIT_FAILURE);
-		}
-
-		/* only visit things once, by primary name */
-		cn = _nc_first_name(lterm.term_names);
-		if (!strcmp(cn, name_2)) {
-		    /* apply the selected hook function */
-		    (*hook) (cn, &lterm);
-		}
-		if (lterm.term_names) {
-		    free(lterm.term_names);
-		    lterm.term_names = 0;
-		}
-		if (lterm.str_table) {
-		    free(lterm.str_table);
-		    lterm.str_table = 0;
-		}
-	    }
-	    closedir(entrydir);
-	}
-	closedir(termdir);
-    }
-
-    return (EXIT_SUCCESS);
 }

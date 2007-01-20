@@ -1,4 +1,31 @@
-# $Id: dist.mk,v 1.306 2002/06/15 17:13:40 tom Exp $
+##############################################################################
+# Copyright (c) 1998-2005,2006 Free Software Foundation, Inc.                #
+#                                                                            #
+# Permission is hereby granted, free of charge, to any person obtaining a    #
+# copy of this software and associated documentation files (the "Software"), #
+# to deal in the Software without restriction, including without limitation  #
+# the rights to use, copy, modify, merge, publish, distribute, distribute    #
+# with modifications, sublicense, and/or sell copies of the Software, and to #
+# permit persons to whom the Software is furnished to do so, subject to the  #
+# following conditions:                                                      #
+#                                                                            #
+# The above copyright notice and this permission notice shall be included in #
+# all copies or substantial portions of the Software.                        #
+#                                                                            #
+# THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR #
+# IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,   #
+# FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL    #
+# THE ABOVE COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER      #
+# LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING    #
+# FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER        #
+# DEALINGS IN THE SOFTWARE.                                                  #
+#                                                                            #
+# Except as contained in this notice, the name(s) of the above copyright     #
+# holders shall not be used in advertising or otherwise to promote the sale, #
+# use or other dealings in this Software without prior written               #
+# authorization.                                                             #
+##############################################################################
+# $Id: dist.mk,v 1.567 2006/12/17 19:58:35 tom Exp $
 # Makefile for creating ncurses distributions.
 #
 # This only needs to be used directly as a makefile by developers, but
@@ -9,13 +36,18 @@ SHELL = /bin/sh
 
 # These define the major/minor/patch versions of ncurses.
 NCURSES_MAJOR = 5
-NCURSES_MINOR = 2
-NCURSES_PATCH = 20020615
+NCURSES_MINOR = 6
+NCURSES_PATCH = 20061217
 
 # We don't append the patch to the version, since this only applies to releases
 VERSION = $(NCURSES_MAJOR).$(NCURSES_MINOR)
 
-DUMP	= lynx -dump
+# The most recent html files were generated with lynx 2.8.6, using ncurses
+# configured with
+#	--without-manpage-renames
+# on Debian/testing.  The -scrollbar and -width options are used to make lynx
+# use 79 columns as it did in 2.8.5 and before.
+DUMP	= lynx -dump -scrollbar=0 -width=79
 DUMP2	= $(DUMP) -nolist
 
 GNATHTML= `type -p gnathtml || type -p gnathtml.pl`
@@ -24,8 +56,10 @@ GNATHTML= `type -p gnathtml || type -p gnathtml.pl`
 # Not all man programs agree with this assumption; some use half-spacing, which
 # has the effect of lengthening the text portion of the page -- so man2html
 # would remove some text.  The man program on Redhat 6.1 appears to work with
-# man2html if we set the top/bottom margins to 6 (the default is 7).
-MAN2HTML= man2html -botm=6 -topm=6 -cgiurl '$$title.$$section$$subsection.html'
+# man2html if we set the top/bottom margins to 6 (the default is 7).  Newer
+# versions of 'man' on Linux leave no margin (and make it harder to sync with
+# pages).
+MAN2HTML= man2html -botm=0 -topm=0 -cgiurl '$$title.$$section$$subsection.html'
 
 ALL	= ANNOUNCE doc/html/announce.html doc/ncurses-intro.doc doc/hackguide.doc manhtml adahtml
 
@@ -35,7 +69,7 @@ dist:	$(ALL)
 	(cd ..;  tar cvf ncurses-$(VERSION).tar `sed <ncurses-$(VERSION)/MANIFEST 's/^./ncurses-$(VERSION)/'`;  gzip ncurses-$(VERSION).tar)
 
 distclean:
-	rm -f $(ALL) subst.tmp subst.sed MANIFEST.tmp
+	rm -f $(ALL) subst.tmp subst.sed
 
 # Don't mess with announce.html.in unless you have lynx available!
 doc/html/announce.html: announce.html.in
@@ -49,9 +83,17 @@ doc/ncurses-intro.doc: doc/html/ncurses-intro.html
 doc/hackguide.doc: doc/html/hackguide.html
 	$(DUMP2) doc/html/hackguide.html > $@
 
-MANPROG	= tbl | nroff -man
+# This is the original command:
+#	MANPROG	= tbl | nroff -man
+#
+# This happens to work for groff 1.18.1 on Debian.  At some point groff's
+# maintainer changed the line-length (we do not want/need that here).
+#
+# The distributed html files are formatted using
+#	configure --without-manpage-renames
+MANPROG	= tbl | nroff -mandoc -rLL=65n -rLT=71n -Tascii
 
-manhtml: MANIFEST
+manhtml:
 	@rm -f doc/html/man/*.html
 	@mkdir -p doc/html/man
 	@rm -f subst.tmp ;
@@ -68,8 +110,10 @@ manhtml: MANIFEST
 	@echo 's/<\/B>/<\/STRONG>/g' >> subst.tmp
 	@echo 's/<I>/<EM>/g'         >> subst.tmp
 	@echo 's/<\/I>/<\/EM>/g'     >> subst.tmp
-	@echo 's/<\/TITLE>/<\/TITLE><link rev=made href="mailto:bug-ncurses@gnu.org">/' >> subst.tmp
-	@sort < subst.tmp | uniq > subst.sed
+	@misc/csort < subst.tmp | uniq > subst.sed
+	@echo '/<\/TITLE>/a\' >> subst.sed
+	@echo '<link rev=made href="mailto:bug-ncurses@gnu.org">\' >> subst.sed
+	@echo '<meta http-equiv="Content-Type" content="text\/html; charset=iso-8859-1">' >> subst.sed
 	@rm -f subst.tmp
 	@for f in man/*.[0-9]* ; do \
 	   m=`basename $$f` ;\
@@ -86,47 +130,28 @@ manhtml: MANIFEST
 			-e 's/>/\&gt;/g' \
 	   >> doc/html/man/$$g ;\
 	   echo '-->' >> doc/html/man/$$g ;\
-	   man/edit_man.sh editing /usr/man man $$f | $(MANPROG) | tr '\255' '-' | $(MAN2HTML) -title "$$T" | \
+	   ./edit_man.sh normal editing /usr/man man $$f | $(MANPROG) | tr '\255' '-' | $(MAN2HTML) -title "$$T" | \
 	   sed -f subst.sed |\
 	   sed -e 's/"curses.3x.html"/"ncurses.3x.html"/g' \
 	   >> doc/html/man/$$g ;\
 	done
 	@rm -f subst.sed
-	@sed -e "\%./doc/html/man/%d" < MANIFEST > MANIFEST.tmp
-	@find ./doc/html/man -type f -print >> MANIFEST.tmp
-	@chmod u+w MANIFEST
-	@sort -u < MANIFEST.tmp > MANIFEST
-	@rm -f MANIFEST.tmp
 
 #
 # Please note that this target can only be properly built if the build of the
 # Ada95 subdir has been done.  The reason is, that the gnathtml tool uses the
 # .ali files generated by the Ada95 compiler during the build process.  These
 # .ali files contain cross referencing information required by gnathtml.
-adahtml: MANIFEST
+adahtml:
 	if [ ! -z "$(GNATHTML)" ]; then \
 	  (cd ./Ada95/gen ; make html) ;\
-	  sed -e "\%./doc/html/ada/%d" < MANIFEST > MANIFEST.tmp ;\
-	  find ./doc/html/ada -type f -print >> MANIFEST.tmp ;\
-	  sort -u < MANIFEST.tmp > MANIFEST ;\
-	  rm -f MANIFEST.tmp ;\
 	fi
-
-# Prepare distribution for version control
-vcprepare:
-	find . -type d -exec mkdir {}/RCS \;
-
-# Write-lock almost all files not under version control.
-ADA_EXCEPTIONS=$(shell eval 'a="\\\\\|";for x in Ada95/gen/terminal*.m4; do echo -n $${a}Ada95/ada_include/`basename $${x} .m4`; done')
-EXCEPTIONS = 'announce.html$\\|ANNOUNCE\\|misc/.*\\.doc\\|man/terminfo.5\\|lib_gen.c'$(ADA_EXCEPTIONS)
-writelock:
-	for x in `grep -v $(EXCEPTIONS) MANIFEST`; do if [ ! -f `dirname $$x`/RCS/`basename $$x`,v ]; then chmod a-w $${x}; fi; done
 
 # This only works on a clean source tree, of course.
 MANIFEST:
 	-rm -f $@
 	touch $@
-	find . -type f -print |sort | fgrep -v .lsm |fgrep -v .spec >$@
+	find . -type f -print |misc/csort | fgrep -v .lsm |fgrep -v .spec >$@
 
 TAGS:
 	etags */*.[ch]

@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright (c) 1998,1999,2000,2001 Free Software Foundation, Inc.         *
+ * Copyright (c) 1998-2005,2006 Free Software Foundation, Inc.              *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -29,6 +29,7 @@
 /****************************************************************************
  *  Author: Zeyd M. Ben-Halim <zmbenhal@netcom.com> 1992,1995               *
  *     and: Eric S. Raymond <esr@snark.thyrsus.com>                         *
+ *     and: Thomas E. Dickey                        1996 on                 *
  ****************************************************************************/
 
 /*
@@ -64,7 +65,7 @@
 #include <curses.priv.h>
 #include <term.h>
 
-MODULE_ID("$Id: lib_vidattr.c,v 1.39 2001/08/26 00:40:46 Philippe.Blain Exp $")
+MODULE_ID("$Id: lib_vidattr.c,v 1.46 2006/01/21 23:39:40 tom Exp $")
 
 #define doPut(mode) TPUTS_TRACE(#mode); tputs(mode, 1, outc)
 
@@ -87,8 +88,7 @@ MODULE_ID("$Id: lib_vidattr.c,v 1.39 2001/08/26 00:40:46 Philippe.Blain Exp $")
 	}
 
 NCURSES_EXPORT(int)
-vidputs
-(chtype newmode, int (*outc) (int))
+vidputs(chtype newmode, int (*outc) (int))
 {
     static attr_t previous_attr = A_NORMAL;
     attr_t turn_on, turn_off;
@@ -105,15 +105,51 @@ vidputs
 
     /* this allows us to go on whether or not newterm() has been called */
     if (SP)
-	previous_attr = SP->_current_attr;
+	previous_attr = AttrOf(SCREEN_ATTRS(SP));
 
     TR(TRACE_ATTRS, ("previous attribute was %s", _traceattr(previous_attr)));
 
-#if !USE_XMC_SUPPORT
     if ((SP != 0)
-	&& (magic_cookie_glitch > 0))
+	&& (magic_cookie_glitch > 0)) {
+#if USE_XMC_SUPPORT
+	static chtype table[] =
+	{
+	    A_STANDOUT,
+	    A_UNDERLINE,
+	    A_REVERSE,
+	    A_BLINK,
+	    A_DIM,
+	    A_BOLD,
+	    A_INVIS,
+	    A_PROTECT,
+	};
+	unsigned n;
+	int used = 0;
+	int limit = (max_attributes <= 0) ? 1 : max_attributes;
+	chtype retain = 0;
+
+	/*
+	 * Limit the number of attribute bits set in the newmode according to
+	 * the terminfo max_attributes value.
+	 */
+	for (n = 0; n < SIZEOF(table); ++n) {
+	    if ((table[n] & SP->_ok_attributes) == 0) {
+		newmode &= ~table[n];
+	    } else if ((table[n] & newmode) != 0) {
+		if (used++ >= limit) {
+		    newmode &= ~table[n];
+		    if (newmode == retain)
+			break;
+		} else {
+		    retain = newmode;
+		}
+	    }
+	}
+#else
 	newmode &= ~(SP->_xmc_suppress);
 #endif
+	TR(TRACE_ATTRS, ("suppressed attribute is %s", _traceattr(newmode)));
+    }
 
     /*
      * If we have a terminal that cannot combine color with video
@@ -177,7 +213,7 @@ vidputs
 		    TurnOff(A_STANDOUT, exit_standout_mode);
 		}
 	    }
-	    previous_attr &= ~A_COLOR;
+	    previous_attr &= ALL_BUT_COLOR;
 	}
 
 	SetColorsIf((pair != 0) || fix_pair0, previous_attr);
@@ -194,7 +230,7 @@ vidputs
 			(newmode & A_INVIS) != 0,
 			(newmode & A_PROTECT) != 0,
 			(newmode & A_ALTCHARSET) != 0), 1, outc);
-	    previous_attr &= ~A_COLOR;
+	    previous_attr &= ALL_BUT_COLOR;
 	}
 	SetColorsIf((pair != 0) || fix_pair0, previous_attr);
     } else {
@@ -213,8 +249,8 @@ vidputs
 
 	if (turn_off && exit_attribute_mode) {
 	    doPut(exit_attribute_mode);
-	    turn_on |= (newmode & (chtype) (~A_COLOR));
-	    previous_attr &= ~A_COLOR;
+	    turn_on |= (newmode & ALL_BUT_COLOR);
+	    previous_attr &= ALL_BUT_COLOR;
 	}
 	SetColorsIf((pair != 0) || fix_pair0, previous_attr);
 
@@ -229,22 +265,12 @@ vidputs
 	TurnOn(A_PROTECT,	enter_protected_mode);
 	TurnOn(A_INVIS,		enter_secure_mode);
 	TurnOn(A_UNDERLINE,	enter_underline_mode);
-#ifdef enter_horizontal_hl_mode
+#if USE_WIDEC_SUPPORT
 	TurnOn(A_HORIZONTAL,	enter_horizontal_hl_mode);
-#endif
-#ifdef enter_left_hl_mode
 	TurnOn(A_LEFT,		enter_left_hl_mode);
-#endif
-#ifdef enter_low_hl_mode
 	TurnOn(A_LOW,		enter_low_hl_mode);
-#endif
-#ifdef enter_right_hl_mode
 	TurnOn(A_RIGHT,		enter_right_hl_mode);
-#endif
-#ifdef enter_top_hl_mode
 	TurnOn(A_TOP,		enter_top_hl_mode);
-#endif
-#ifdef enter_vertical_hl_mode
 	TurnOn(A_VERTICAL,	enter_vertical_hl_mode);
 #endif
 	/* *INDENT-ON* */
@@ -255,7 +281,7 @@ vidputs
 	newmode |= A_REVERSE;
 
     if (SP)
-	SP->_current_attr = newmode;
+	SetAttr(SCREEN_ATTRS(SP), newmode);
     else
 	previous_attr = newmode;
 

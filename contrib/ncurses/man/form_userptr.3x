@@ -1,6 +1,6 @@
 '\" t
 .\"***************************************************************************
-.\" Copyright (c) 1998 Free Software Foundation, Inc.                        *
+.\" Copyright (c) 1998,2006 Free Software Foundation, Inc.                   *
 .\"                                                                          *
 .\" Permission is hereby granted, free of charge, to any person obtaining a  *
 .\" copy of this software and associated documentation files (the            *
@@ -27,7 +27,7 @@
 .\" authorization.                                                           *
 .\"***************************************************************************
 .\"
-.\" $Id: form_userptr.3x,v 1.9 1998/11/29 01:08:39 Rick.Ohnemus Exp $
+.\" $Id: form_userptr.3x,v 1.11 2006/11/04 18:43:24 tom Exp $
 .TH form_userptr 3X ""
 .SH NAME
 \fBform_userptr\fR - associate application data with a form item
@@ -43,14 +43,10 @@ Every form and every form item has a field that can be used to hold
 application-specific data (that is, the form-driver code leaves it alone).
 These functions get and set the form user pointer field.
 .SH RETURN VALUE
-The function \fBform_userptr\fR returns \fBNULL\fR on error.
-The function \fBset_form_userptr\fR returns one of the following:
-.TP 5
-\fBE_OK\fR
-The routine succeeded.
-.TP 5
-\fBE_SYSTEM_ERROR\fR
-System error occurred (see \fBerrno\fR).
+The function \fBform_userptr\fR returns a pointer (which may be \fBNULL\fR).
+It does not set errno.
+.PP
+The function \fBset_form_userptr\fR returns \fBE_OK\fP (success).
 .SH SEE ALSO
 \fBcurses\fR(3X), \fBform\fR(3X).
 .SH NOTES
@@ -59,9 +55,9 @@ The header file \fB<form.h>\fR automatically includes the header file
 .SH PORTABILITY
 These routines emulate the System V forms library.  They were not supported on
 Version 7 or BSD versions.
-
-The user pointer should be a void pointer.  We leave it as a char pointer for
-SVr4 compatibility.
+.PP
+The user pointer is a void pointer.
+We chose not to leave it as a char pointer for SVr4 compatibility.
 .SH AUTHORS
 Juergen Pfeifer.  Manual pages and adaptation for new curses by Eric
 S. Raymond.

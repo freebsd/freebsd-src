@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright (c) 1998,1999,2000,2001 Free Software Foundation, Inc.         *
+ * Copyright (c) 1998-2002,2003 Free Software Foundation, Inc.              *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -45,16 +45,14 @@
 #include <termcap.h>		/* ospeed */
 #include <tic.h>
 
-MODULE_ID("$Id: lib_tputs.c,v 1.59 2001/09/22 18:35:23 tom Exp $")
+MODULE_ID("$Id: lib_tputs.c,v 1.62 2003/08/23 21:39:20 tom Exp $")
 
-NCURSES_EXPORT_VAR(char)
-PC = 0;				/* used by termcap library */
+NCURSES_EXPORT_VAR(char) PC = 0;		/* used by termcap library */
 NCURSES_EXPORT_VAR(NCURSES_OSPEED) ospeed = 0;	/* used by termcap library */
 
-NCURSES_EXPORT_VAR(int)
-_nc_nulls_sent = 0;		/* used by 'tack' program */
+NCURSES_EXPORT_VAR(int) _nc_nulls_sent = 0;	/* used by 'tack' program */
 
-     static int (*my_outch) (int c) = _nc_outch;
+static int (*my_outch) (int c) = _nc_outch;
 
 NCURSES_EXPORT(int)
 delay_output(int ms)
@@ -67,7 +65,7 @@ delay_output(int ms)
     } else {
 	register int nullcount;
 
-	nullcount = (ms * _nc_baudrate(ospeed)) / 10000;
+	nullcount = (ms * _nc_baudrate(ospeed)) / (BAUDBYTE * 1000);
 	for (_nc_nulls_sent += nullcount; nullcount > 0; nullcount--)
 	    my_outch(PC);
 	if (my_outch == _nc_outch)
@@ -86,9 +84,7 @@ _nc_flush(void)
 NCURSES_EXPORT(int)
 _nc_outch(int ch)
 {
-#ifdef TRACE
-    _nc_outchars++;
-#endif /* TRACE */
+    TRACE_OUTCHARS(1);
 
     if (SP != 0
 	&& SP->_cleanup) {
@@ -111,8 +107,7 @@ putp(const char *string)
 }
 
 NCURSES_EXPORT(int)
-tputs
-(const char *string, int affcnt, int (*outc) (int))
+tputs(const char *string, int affcnt, int (*outc) (int))
 {
     bool always_delay;
     bool normal_delay;

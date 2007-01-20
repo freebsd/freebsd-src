@@ -1,5 +1,5 @@
 .\"***************************************************************************
-.\" Copyright (c) 2000,2002 Free Software Foundation, Inc.                   *
+.\" Copyright (c) 2000-2002,2005 Free Software Foundation, Inc.              *
 .\"                                                                          *
 .\" Permission is hereby granted, free of charge, to any person obtaining a  *
 .\" copy of this software and associated documentation files (the            *
@@ -26,8 +26,10 @@
 .\" authorization.                                                           *
 .\"***************************************************************************
 .\"
-.\" $Id: curs_trace.3x,v 1.5 2002/02/16 22:39:52 tom Exp $
+.\" $Id: curs_trace.3x,v 1.7 2005/05/15 17:02:54 tom Exp $
 .TH curs_trace 3X ""
+.na
+.hy 0
 .SH NAME
 \fB_tracef\fR,
 \fB_tracedump\fR,
@@ -39,9 +41,11 @@
 \fB_tracechtype2\fR,
 \fB_tracemouse\fR,
 \fBtrace\fR - \fBcurses\fR debugging routines
+.ad
+.hy
 .SH SYNOPSIS
 \fB#include <curses.h>\fR
-.br
+.sp
 \fBvoid _tracef(const char *format, ...);\fR
 .br
 \fBvoid _tracedump(const char *label, WINDOW *win);\fR
@@ -67,11 +71,11 @@ as well as applications which use the ncurses libraries.
 These functions are normally available only with the debugging library
 \fIlibncurses_g.a\fR, but may be compiled into any model (shared, static,
 profile) by defining the symbol \fBTRACE\fR.
-
+.PP
 The principal parts of this interface are the \fBtrace\fR routine which
 selectively enables different tracing features, and the \fB_tracef\fR
 routine which writes formatted data to the \fItrace\fR file.
-
+.PP
 Calling \fBtrace\fR with a nonzero parameter opens the file \fBtrace\fR
 in the current directory for output.  The parameter is formed by OR'ing
 values from the list of \fBTRACE_\fP\fIxxx\fR definitions in \fB<curses.h>\fR.
@@ -127,7 +131,7 @@ trace changes to video attributes and colors.
 .TP 5
 TRACE_MAXIMUM
 maximum trace level, enables all of the separate trace features.
-
+.PP
 Some tracing features are enabled whenever the \fBtrace\fR parameter
 is nonzero.  Some features overlap.
 The specific names are used as a guideline.

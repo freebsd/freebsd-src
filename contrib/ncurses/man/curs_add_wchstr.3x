@@ -1,5 +1,5 @@
 .\"***************************************************************************
-.\" Copyright (c) 2002 Free Software Foundation, Inc.                        *
+.\" Copyright (c) 2002-2004,2005 Free Software Foundation, Inc.              *
 .\"                                                                          *
 .\" Permission is hereby granted, free of charge, to any person obtaining a  *
 .\" copy of this software and associated documentation files (the            *
@@ -26,10 +26,9 @@
 .\" authorization.                                                           *
 .\"***************************************************************************
 .\"
-.\" $Id: curs_add_wchstr.3x,v 1.1 2002/02/23 22:15:55 tom Exp $
+.\" $Id: curs_add_wchstr.3x,v 1.6 2005/01/02 01:28:49 tom Exp $
 .TH curs_add_wchstr 3X ""
 .SH NAME
-.PP
 \fBadd_wchstr\fR,
 \fBadd_wchnstr\fR,
 \fBwadd_wchstr\fR,
@@ -40,7 +39,7 @@
 \fBmvwadd_wchnstr\fR \- add an array of complex characters (and attributes) to a curses window
 .SH SYNOPSIS
 .B #include <curses.h>
-
+.PP
 .nf
 \fBint add_wchstr(const cchar_t *\fR\fIwchstr\fR\fB);\fR
 .br
@@ -73,7 +72,7 @@ On the other hand, they do not perform checking
 they do not advance the current cursor position,
 they do not expand other control characters to ^-escapes,
 and they truncate the string if it crosses the right margin,
-rather then wrapping it around to the new line.
+rather than wrapping it around to the new line.
 .PP
 These routines end successfully
 on encountering a null \fIcchar_t\fR, or
@@ -88,7 +87,7 @@ All routines return the integer \fBERR\fR upon failure and \fBOK\fR on success.
 All these entry points are described in the XSI Curses standard, Issue 4.
 .SH SEE ALSO
 \fBcurses\fR(3X),
-\fBcurs_addchstr\fR(3X)
+\fBcurs_addchstr\fR(3X),
 \fBcurs_addwstr\fR(3X)
 .\"#
 .\"# The following sets edit modes for GNU EMACS

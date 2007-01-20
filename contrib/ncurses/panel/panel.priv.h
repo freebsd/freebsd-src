@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright (c) 2000 Free Software Foundation, Inc.                        *
+ * Copyright (c) 1998-2001,2005 Free Software Foundation, Inc.              *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -26,7 +26,7 @@
  * authorization.                                                           *
  ****************************************************************************/
 
-/* $Id: panel.priv.h,v 1.19 2001/06/02 23:31:05 tom Exp $ */
+/* $Id: panel.priv.h,v 1.21 2005/11/26 15:27:00 tom Exp $ */
 
 #ifndef NCURSES_PANEL_PRIV_H
 #define NCURSES_PANEL_PRIV_H 1
@@ -51,12 +51,6 @@
 #include "panel.h"
 #include <nc_panel.h>
 
-#if ( CC_HAS_INLINE_FUNCS && !defined(TRACE) )
-#  define INLINE inline
-#else
-#  define INLINE
-#endif
-
 #if USE_RCS_IDS
 #  define MODULE_ID(id) static const char Ident[] = id;
 #else
@@ -72,6 +66,9 @@
 #    define USER_PTR(ptr) _nc_my_visbuf((const char *)ptr)
 #  endif
 
+#  define returnPanel(code)	TRACE_RETURN(code,panel)
+
+   extern NCURSES_EXPORT(PANEL *) _nc_retrace_panel (PANEL *);
    extern NCURSES_EXPORT(void) _nc_dPanel (const char*, const PANEL*);
    extern NCURSES_EXPORT(void) _nc_dStack (const char*, int, const PANEL*);
    extern NCURSES_EXPORT(void) _nc_Wnoutrefresh (const PANEL*);
@@ -85,6 +82,7 @@
 #  define Touchpan(pan) _nc_Touchpan(pan)
 #  define Touchline(pan,start,count) _nc_Touchline(pan,start,count)
 #else /* !TRACE */
+#  define returnPanel(code)	return code
 #  define dBug(x)
 #  define dPanel(text,pan)
 #  define dStack(fmt,num,pan)
@@ -98,7 +96,7 @@
 #define _nc_bottom_panel _nc_panelhook()->bottom_panel
 
 #define EMPTY_STACK() (_nc_top_panel==_nc_bottom_panel)
-#define Is_Bottom(p)  (((p)!=(PANEL*)0) && !EMPTY_STACK() && (_nc_bottom_panel->above==(p))) 
+#define Is_Bottom(p)  (((p)!=(PANEL*)0) && !EMPTY_STACK() && (_nc_bottom_panel->above==(p)))
 #define Is_Top(p) (((p)!=(PANEL*)0) && !EMPTY_STACK() && (_nc_top_panel==(p)))
 #define Is_Pseudo(p) ((p) && ((p)==_nc_bottom_panel))
 
@@ -138,9 +136,9 @@
 /*+-------------------------------------------------------------------------
 	Walk through the panel stack starting at the given location and
         check for intersections; overlapping panels are "touched", so they
-        are incrementally overwriting cells that should be hidden. 
+        are incrementally overwriting cells that should be hidden.
         If the "touch" flag is set, the panel gets touched before it is
-        updated. 
+        updated.
 ---------------------------------------------------------------------------*/
 #define PANEL_UPDATE(pan,panstart)\
 {  PANEL* pan2 = ((panstart) ? (panstart) : _nc_bottom_panel);\

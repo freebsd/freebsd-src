@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright (c) 1998,1999,2000,2001 Free Software Foundation, Inc.         *
+ * Copyright (c) 1998-2005,2006 Free Software Foundation, Inc.              *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -29,6 +29,7 @@
 /****************************************************************************
  *  Author: Zeyd M. Ben-Halim <zmbenhal@netcom.com> 1992,1995               *
  *     and: Eric S. Raymond <esr@snark.thyrsus.com>                         *
+ *     and: Thomas E. Dickey                        1996-on                 *
  ****************************************************************************/
 
 /*
@@ -57,27 +58,20 @@
 #include <tic.h>
 #include <term_entry.h>
 
-MODULE_ID("$Id: read_termcap.c,v 1.58 2001/10/28 01:11:34 tom Exp $")
+MODULE_ID("$Id: read_termcap.c,v 1.71 2006/07/29 12:06:51 tom Exp $")
 
 #if !PURE_TERMINFO
 
-#ifdef __EMX__
-#define is_pathname(s) ((((s) != 0) && ((s)[0] == '/')) \
-		  || (((s)[0] != 0) && ((s)[1] == ':')))
-#else
-#define is_pathname(s) ((s) != 0 && (s)[0] == '/')
-#endif
-
 #define TC_SUCCESS     0
-#define TC_UNRESOLVED -1
-#define TC_NOT_FOUND  -2
-#define TC_SYS_ERR    -3
-#define TC_REF_LOOP   -4
+#define TC_NOT_FOUND  -1
+#define TC_SYS_ERR    -2
+#define TC_REF_LOOP   -3
+#define TC_UNRESOLVED -4	/* this is not returned by BSD cgetent */
 
-static char *
+static NCURSES_CONST char *
 get_termpath(void)
 {
-    char *result;
+    NCURSES_CONST char *result;
 
     if (!use_terminfo_vars() || (result = getenv("TERMPATH")) == 0)
 	result = TERMPATH;
@@ -231,10 +225,10 @@ _nc_cgetcap(char *buf, const char *cap, int type)
  * Returns:
  *
  * positive #    on success (i.e., the index in db_array)
- * TC_UNRESOLVED if we had too many recurrences to resolve
  * TC_NOT_FOUND  if the requested record couldn't be found
  * TC_SYS_ERR    if a system error was encountered (e.g.,couldn't open a file)
  * TC_REF_LOOP   if a potential reference loop is detected
+ * TC_UNRESOLVED if we had too many recurrences to resolve
  */
 static int
 _nc_cgetent(char **buf, int *oline, char **db_array, const char *name)
@@ -720,7 +714,7 @@ get_tc_token(char **srcp, int *endp)
 	    if (*s == '\0') {
 		break;
 	    } else if (*s++ == '\n') {
-		while (isspace(*s))
+		while (isspace(UChar(*s)))
 		    s++;
 	    } else {
 		found = TRUE;
@@ -734,7 +728,7 @@ get_tc_token(char **srcp, int *endp)
 		break;
 	    }
 	    base = s;
-	} else if (isgraph(ch)) {
+	} else if (isgraph(UChar(ch))) {
 	    found = TRUE;
 	}
     }
@@ -754,7 +748,7 @@ copy_tc_token(char *dst, const char *src, size_t len)
 
     while ((ch = *src++) != '\0') {
 	if (ch == '\\' && *src == '\n') {
-	    while (isspace(*src))
+	    while (isspace(UChar(*src)))
 		src++;
 	    continue;
 	}
@@ -784,7 +778,7 @@ _nc_tgetent(char *bp, char **sourcename, int *lineno, const char *name)
     char pathbuf[PBUFSIZ];	/* holds raw path of filenames */
     char *pathvec[PVECSIZ];	/* to point to names in pathbuf */
     char **pvec;		/* holds usable tail of path vector */
-    char *termpath;
+    NCURSES_CONST char *termpath;
     string_desc desc;
 
     fname = pathvec;
@@ -805,7 +799,7 @@ _nc_tgetent(char *bp, char **sourcename, int *lineno, const char *name)
     _nc_str_init(&desc, pathbuf, sizeof(pathbuf));
     if (cp == NULL) {
 	_nc_safe_strcpy(&desc, get_termpath());
-    } else if (!is_pathname(cp)) {	/* TERMCAP holds an entry */
+    } else if (!_nc_is_abs_path(cp)) {	/* TERMCAP holds an entry */
 	if ((termpath = get_termpath()) != 0) {
 	    _nc_safe_strcat(&desc, termpath);
 	} else {
@@ -843,7 +837,7 @@ _nc_tgetent(char *bp, char **sourcename, int *lineno, const char *name)
 	}
     }
     *fname = 0;			/* mark end of vector */
-    if (is_pathname(cp)) {
+    if (_nc_is_abs_path(cp)) {
 	if (_nc_cgetset(cp) < 0) {
 	    return (TC_SYS_ERR);
 	}
@@ -896,8 +890,21 @@ _nc_tgetent(char *bp, char **sourcename, int *lineno, const char *name)
      * cgetent, then it is the actual filename).
      */
     if (i >= 0) {
+#if HAVE_BSD_CGETENT
+	char temp[PATH_MAX];
+
+	_nc_str_init(&desc, temp, sizeof(temp));
+	_nc_safe_strcpy(&desc, pathvec[i]);
+	_nc_safe_strcat(&desc, ".db");
+	if (_nc_access(temp, R_OK) == 0) {
+	    _nc_safe_strcpy(&desc, pathvec[i]);
+	}
+	if ((the_source = strdup(temp)) != 0)
+	    *sourcename = the_source;
+#else
 	if ((the_source = strdup(pathvec[i])) != 0)
 	    *sourcename = the_source;
+#endif
     }
 
     return (i);
@@ -932,29 +939,39 @@ add_tc(char *termpaths[], char *path, int count)
 #endif /* !USE_GETCAP */
 
 NCURSES_EXPORT(int)
-_nc_read_termcap_entry(const char *const tn, TERMTYPE * const tp)
+_nc_read_termcap_entry(const char *const tn, TERMTYPE *const tp)
 {
-    int found = FALSE;
+    int found = TGETENT_NO;
     ENTRY *ep;
 #if USE_GETCAP_CACHE
     char cwd_buf[PATH_MAX];
 #endif
 #if USE_GETCAP
     char *p, tc[TBUFSIZ];
+    int status;
     static char *source;
     static int lineno;
 
     T(("read termcap entry for %s", tn));
+
+    if (strlen(tn) == 0
+	|| strcmp(tn, ".") == 0
+	|| strcmp(tn, "..") == 0
+	|| _nc_pathlast(tn) != 0) {
+	T(("illegal or missing entry name '%s'", tn));
+	return TGETENT_NO;
+    }
+
     if (use_terminfo_vars() && (p = getenv("TERMCAP")) != 0
-	&& !is_pathname(p) && _nc_name_match(p, tn, "|:")) {
+	&& !_nc_is_abs_path(p) && _nc_name_match(p, tn, "|:")) {
 	/* TERMCAP holds a termcap entry */
 	strncpy(tc, p, sizeof(tc) - 1);
 	tc[sizeof(tc) - 1] = '\0';
 	_nc_set_source("TERMCAP");
     } else {
 	/* we're using getcap(3) */
-	if (_nc_tgetent(tc, &source, &lineno, tn) < 0)
-	    return (ERR);
+	if ((status = _nc_tgetent(tc, &source, &lineno, tn)) < 0)
+	    return (status == TC_NOT_FOUND ? TGETENT_NO : TGETENT_ERR);
 
 	_nc_curr_line = lineno;
 	_nc_set_source(source);
@@ -1001,7 +1018,7 @@ _nc_read_termcap_entry(const char *const tn, TERMTYPE * const tp)
 
     termpaths[filecount] = 0;
     if (use_terminfo_vars() && (tc = getenv("TERMCAP")) != 0) {
-	if (is_pathname(tc)) {	/* interpret as a filename */
+	if (_nc_is_abs_path(tc)) {	/* interpret as a filename */
 	    ADD_TC(tc, 0);
 	    normal = FALSE;
 	} else if (_nc_name_match(tc, tn, "|:")) {	/* treat as a capability file */
@@ -1038,7 +1055,7 @@ _nc_read_termcap_entry(const char *const tn, TERMTYPE * const tp)
      * Probably /etc/termcap is a symlink to /usr/share/misc/termcap.
      * Avoid reading the same file twice.
      */
-#ifdef HAVE_LINK
+#if HAVE_LINK
     for (j = 0; j < filecount; j++) {
 	bool omit = FALSE;
 	if (stat(termpaths[j], &test_stat[j]) != 0
@@ -1100,10 +1117,10 @@ _nc_read_termcap_entry(const char *const tn, TERMTYPE * const tp)
 #endif /* USE_GETCAP */
 
     if (_nc_head == 0)
-	return (ERR);
+	return (TGETENT_ERR);
 
     /* resolve all use references */
-    _nc_resolve_uses(TRUE);
+    _nc_resolve_uses2(TRUE, FALSE);
 
     /* find a terminal matching tn, if we can */
 #if USE_GETCAP_CACHE
@@ -1113,13 +1130,12 @@ _nc_read_termcap_entry(const char *const tn, TERMTYPE * const tp)
 	for_entry_list(ep) {
 	    if (_nc_name_match(ep->tterm.term_names, tn, "|:")) {
 		/*
-		 * Make a local copy of the terminal capabilities.  Free all
-		 * entry storage except the string table for the loaded type
-		 * (which we disconnected from the list by NULLing out
-		 * ep->tterm.str_table above).
+		 * Make a local copy of the terminal capabilities, delinked
+		 * from the list.
 		 */
 		*tp = ep->tterm;
-		ep->tterm.str_table = (char *) 0;
+		_nc_delink_entry(_nc_head, &(ep->tterm));
+		free(ep);
 
 		/*
 		 * OK, now try to write the type to user's terminfo directory. 
@@ -1136,7 +1152,7 @@ _nc_read_termcap_entry(const char *const tn, TERMTYPE * const tp)
 #if USE_GETCAP_CACHE
 		(void) _nc_write_entry(tp);
 #endif
-		found = TRUE;
+		found = TGETENT_YES;
 		break;
 	    }
 	}
@@ -1145,7 +1161,6 @@ _nc_read_termcap_entry(const char *const tn, TERMTYPE * const tp)
     }
 #endif
 
-    _nc_free_entries(_nc_head);
     return (found);
 }
 #else

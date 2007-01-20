@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright (c) 1998,2000,2001 Free Software Foundation, Inc.              *
+ * Copyright (c) 1998-2005,2006 Free Software Foundation, Inc.              *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -27,7 +27,7 @@
  ****************************************************************************/
 
 /****************************************************************************
- *  Author: Thomas E. Dickey 1996-2001                                      *
+ *  Author: Thomas E. Dickey 1996-on                                        *
  *     and: Zeyd M. Ben-Halim <zmbenhal@netcom.com> 1992,1995               *
  *     and: Eric S. Raymond <esr@snark.thyrsus.com>                         *
  ****************************************************************************/
@@ -39,7 +39,7 @@
 #include <curses.priv.h>
 #include <ctype.h>
 
-MODULE_ID("$Id: lib_tracedmp.c,v 1.22 2001/11/03 15:45:35 tom Exp $")
+MODULE_ID("$Id: lib_tracedmp.c,v 1.27 2006/10/14 20:43:31 tom Exp $")
 
 #ifdef TRACE
 NCURSES_EXPORT(void)
@@ -53,9 +53,13 @@ _tracedump(const char *name, WINDOW *win)
     /* compute narrowest possible display width */
     for (width = i = 0; i <= win->_maxy; ++i) {
 	n = 0;
-	for (j = 0; j <= win->_maxx; ++j)
-	    if (CharOf(win->_line[i].text[j]) != L(' '))
+	for (j = 0; j <= win->_maxx; ++j) {
+	    if (CharOf(win->_line[i].text[j]) != L(' ')
+		|| AttrOf(win->_line[i].text[j]) != A_NORMAL
+		|| GetPair(win->_line[i].text[j]) != 0) {
 		n = j;
+	    }
+	}
 
 	if (n > width)
 	    width = n;
@@ -64,7 +68,7 @@ _tracedump(const char *name, WINDOW *win)
 	++width;
     if (++width + 1 > (int) used) {
 	used = 2 * (width + 1);
-	buf = _nc_doalloc(buf, used);
+	buf = typeRealloc(char, used, buf);
     }
 
     for (n = 0; n <= win->_maxy; ++n) {
@@ -89,24 +93,34 @@ _tracedump(const char *name, WINDOW *win)
 		: '?';
 	}
 	ep[j] = '\0';
-	_tracef("%s[%2d] %3d%3d ='%s'",
+	_tracef("%s[%2d] %3ld%3ld ='%s'",
 		name, n,
-		win->_line[n].firstchar,
-		win->_line[n].lastchar,
+		(long) win->_line[n].firstchar,
+		(long) win->_line[n].lastchar,
 		ep);
 
 	/* dump A_COLOR part, will screw up if there are more than 96 */
 	havecolors = FALSE;
 	for (j = 0; j < width; ++j)
-	    if (AttrOf(win->_line[n].text[j]) & A_COLOR) {
+	    if (GetPair(win->_line[n].text[j]) != 0) {
 		havecolors = TRUE;
 		break;
 	    }
 	if (havecolors) {
 	    ep = buf;
-	    for (j = 0; j < width; ++j)
-		ep[j] = UChar(CharOf(win->_line[n].text[j]) >>
-			      NCURSES_ATTR_SHIFT) + ' ';
+	    for (j = 0; j < width; ++j) {
+		int pair = GetPair(win->_line[n].text[j]);
+		if (pair >= 52)
+		    ep[j] = '?';
+		else if (pair >= 36)
+		    ep[j] = pair + 'A';
+		else if (pair >= 10)
+		    ep[j] = pair + 'a';
+		else if (pair >= 1)
+		    ep[j] = pair + '0';
+		else
+		    ep[j] = ' ';
+	    }
 	    ep[j] = '\0';
 	    _tracef("%*s[%2d]%*s='%s'", (int) strlen(name),
 		    "colors", n, 8, " ", buf);
@@ -135,6 +149,7 @@ _tracedump(const char *name, WINDOW *win)
     }
 #if NO_LEAKS
     free(buf);
+    buf = 0;
     used = 0;
 #endif
 }
