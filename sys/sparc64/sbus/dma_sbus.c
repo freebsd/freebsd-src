@@ -113,7 +113,7 @@ static void dma_destroy_dinfo(struct dma_devinfo *);
 static int dma_print_res(struct dma_devinfo *);
 
 static device_method_t dma_methods[] = {
-        /* Device interface */
+	/* Device interface */
 	DEVMETHOD(device_probe,		dma_probe),
 	DEVMETHOD(device_attach,	dma_attach),
 	DEVMETHOD(device_shutdown,	bus_generic_shutdown),
@@ -159,10 +159,10 @@ dma_probe(device_t dev)
 	name = ofw_bus_get_name(dev);
 	if (strcmp(name, "espdma") == 0 || strcmp(name, "dma") == 0 ||
 	    strcmp(name, "ledma") == 0) {
-                device_set_desc_copy(dev, name);
-                return (0);
+		device_set_desc_copy(dev, name);
+		return (0);
 	}
-        return (ENXIO);
+	return (ENXIO);
 }
 
 static int
@@ -228,8 +228,8 @@ dma_attach(device_t dev)
 	}
 
 	error = bus_dma_tag_create(
-	    NULL,			/* parent */
-	    PAGE_SIZE, 0,		/* alignment, boundary */
+	    bus_get_dma_tag(dev),	/* parent */
+	    1, 0,			/* alignment, boundary */
 	    BUS_SPACE_MAXADDR,		/* lowaddr */
 	    BUS_SPACE_MAXADDR,		/* highaddr */
 	    NULL, NULL,			/* filter, filterarg */
