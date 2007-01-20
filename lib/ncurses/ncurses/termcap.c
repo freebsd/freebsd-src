@@ -197,7 +197,7 @@ _nc_read_termcap_entry(const char *const name, TERMTYPE *const tp)
 		for (;;) {
 			while ((tok = strsep(&ps, ":")) != NULL &&
 			       *(tok - 2) != '\\' &&
-			       (*tok == '\0' || *tok == '\\' || !isgraph(*tok)))
+			       (*tok == '\0' || *tok == '\\' || !isgraph(UChar(*tok))))
 				;
 			if (tok == NULL)
 				break;
@@ -229,35 +229,34 @@ done:
  */
 
 	if (i < 0)
-		return(ERR);
+		return(TGETENT_ERR);
 
 	_nc_set_source("TERMCAP");
 	_nc_read_entry_source((FILE *)NULL, _nc_termcap, FALSE, TRUE, NULLHOOK);
 
 	if (_nc_head == (ENTRY *)NULL)
-		return(ERR);
+		return(TGETENT_ERR);
 
 	/* resolve all use references */
-	_nc_resolve_uses(TRUE);
+	_nc_resolve_uses2(TRUE, FALSE);
 
 	for_entry_list(ep)
 		if (_nc_name_match(ep->tterm.term_names, name, "|:"))
 		{
 			/*
-			 * Make a local copy of the terminal capabilities. free
-			 * all entry storage except the string table for the
-			 * loaded type (which we disconnected from the list by
-			 * NULLing out ep->tterm.str_table above).
+			 * Make a local copy of the terminal capabilities, delinked
+			 * from the list.
 			 */
 			memcpy(tp, &ep->tterm, sizeof(TERMTYPE));
-			ep->tterm.str_table = (char *)NULL;
+			_nc_delink_entry(_nc_head, &(ep->tterm));
+			free(ep);
 			_nc_free_entries(_nc_head);
 			_nc_head = _nc_tail = NULL;	/* do not reuse! */
 
-			return 1;	/* OK */
+			return TGETENT_YES;	/* OK */
 		}
 
 	_nc_free_entries(_nc_head);
 	_nc_head = _nc_tail = NULL;	/* do not reuse! */
-	return(0);	/* not found */
+	return(TGETENT_NO);	/* not found */
 }
