@@ -473,9 +473,11 @@ linprocfs_doprocstat(PFS_FILL_ARGS)
 	if (kp.ki_stat > sizeof(linux_state)) {
 		state = 'R';
 
-		if (ratelimit == 0)
+		if (ratelimit == 0) {
 			printf("linprocfs: don't know how to handle unknown FreeBSD state %d/%d, mapping to R\n",
 			    kp.ki_stat, sizeof(linux_state));
+			++ratelimit;
+		}
 	} else
 		state = linux_state[kp.ki_stat - 1];
 	PS_ADD("state",		"%c",	state);
