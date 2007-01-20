@@ -15,15 +15,15 @@
 ** 
 ** You should have received a copy of the GNU General Public License
 ** along with TACK; see the file COPYING.  If not, write to
-** the Free Software Foundation, Inc., 59 Temple Place - Suite 330,
-** Boston, MA 02111-1307, USA.
+** the Free Software Foundation, Inc., 51 Franklin Street, Fifth Floor,
+** Boston, MA 02110-1301, USA
 */
 /* screen formatting and I/O utility functions */
 
 #include <tack.h>
 #include <time.h>
 
-MODULE_ID("$Id: output.c,v 1.7 2001/06/18 18:44:40 tom Exp $")
+MODULE_ID("$Id: output.c,v 1.11 2006/11/26 00:16:49 tom Exp $")
 
 /* globals */
 long char_sent;			/* number of characters sent */
@@ -34,7 +34,7 @@ int replace_mode;		/* used to output replace mode padding */
 int can_go_home;		/* TRUE if we can fashion a home command */
 int can_clear_screen;		/* TRUE if we can somehow clear the screen */
 int raw_characters_sent;	/* Total output characters */
-int log_count;			/* Number of characters on a log line */
+static int log_count;		/* Number of characters on a log line */
 
 /* translate mode default strings */
 #define TM_carriage_return	TM_string[0].value
@@ -186,9 +186,9 @@ tt_putp(const char *string)
 }
 
 /*
-**	tt_putparm(string, reps, arg1, arg2, ...)
+**	tt_putparm(string, reps, arg1, arg2)
 **
-**	Send tt_tputs(tparm(string, args...), reps)
+**	Send tt_tputs(tparm(string, args1, arg2), reps)
 **	Use this function inside timing tests.
 */
 void
@@ -216,7 +216,7 @@ tt_putparm(
 				break;
 			}
 		}
-		(void) tputs(tparm((NCURSES_CONST char *)string, arg1, arg2), reps, tc_putch);
+		(void) tputs(TPARM_2((NCURSES_CONST char *)string, arg1, arg2), reps, tc_putch);
 	}
 }
 
@@ -506,10 +506,10 @@ expand(const char *s)
 		for (; (ch = *s); s++) {
 			if ((ch & 0x80) && v) {	/* print it in reverse video
 						   mode */
-				strcpy(t, liberated(tparm(v)));
+				strcpy(t, liberated(TPARM_0(v)));
 				for (; *t; t++);
 				expand_one(ch & 0x7f, &t);
-				strcpy(t, liberated(tparm(exit_attribute_mode)));
+				strcpy(t, liberated(TPARM_0(exit_attribute_mode)));
 				for (; *t; t++);
 			} else {
 				expand_one(ch, &t);

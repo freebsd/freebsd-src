@@ -32,7 +32,7 @@
  ****************************************************************************/
 
 /*
- * $Id: SigAction.h,v 1.6 2000/12/10 02:36:10 tom Exp $
+ * $Id: SigAction.h,v 1.8 2005/08/06 20:05:32 tom Exp $
  *
  * This file exists to handle non-POSIX systems which don't have <unistd.h>,
  * and usually no sigaction() nor <termios.h>
@@ -58,10 +58,6 @@ typedef struct sigaction sigaction_t;
 #else	/* !HAVE_SIGACTION */
 
 #if HAVE_SIGVEC
-
-#if HAVE_LIBC_H
-#include <libc.h>
-#endif
 
 #undef  SIG_BLOCK
 #define SIG_BLOCK       00
@@ -105,12 +101,8 @@ typedef unsigned long sigset_t;
 #undef  sigaddset
 #define sigaddset   _nc_sigaddset
 
-extern NCURSES_EXPORT(int) sigaction (int sig, sigaction_t * sigact, sigaction_t *  osigact);
-extern NCURSES_EXPORT(int) sigprocmask (int how, sigset_t *mask, sigset_t *omask);
-extern NCURSES_EXPORT(int) sigemptyset (sigset_t *mask);
-extern NCURSES_EXPORT(int) sigsuspend (sigset_t *mask);
-extern NCURSES_EXPORT(int) sigdelset (sigset_t *mask, int sig);
-extern NCURSES_EXPORT(int) sigaddset (sigset_t *mask, int sig);
+/* tty/lib_tstp.c is the only user */
+#include <base/sigaction.c>
 
 #endif /* HAVE_SIGVEC */
 #endif /* HAVE_SIGACTION */

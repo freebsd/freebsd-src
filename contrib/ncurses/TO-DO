@@ -1,87 +1,103 @@
--- $Id: TO-DO,v 1.39 1998/07/12 00:25:39 tom Exp $
+-------------------------------------------------------------------------------
+-- Copyright (c) 1998-2005,2006 Free Software Foundation, Inc.               --
+--                                                                           --
+-- Permission is hereby granted, free of charge, to any person obtaining a   --
+-- copy of this software and associated documentation files (the             --
+-- "Software"), to deal in the Software without restriction, including       --
+-- without limitation the rights to use, copy, modify, merge, publish,       --
+-- distribute, distribute with modifications, sublicense, and/or sell copies --
+-- of the Software, and to permit persons to whom the Software is furnished  --
+-- to do so, subject to the following conditions:                            --
+--                                                                           --
+-- The above copyright notice and this permission notice shall be included   --
+-- in all copies or substantial portions of the Software.                    --
+--                                                                           --
+-- THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS   --
+-- OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF                --
+-- MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN --
+-- NO EVENT SHALL THE ABOVE COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM,       --
+-- DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR     --
+-- OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE --
+-- USE OR OTHER DEALINGS IN THE SOFTWARE.                                    --
+--                                                                           --
+-- Except as contained in this notice, the name(s) of the above copyright    --
+-- holders shall not be used in advertising or otherwise to promote the      --
+-- sale, use or other dealings in this Software without prior written        --
+-- authorization.                                                            --
+-------------------------------------------------------------------------------
+-- $Id: TO-DO,v 1.48 2006/10/28 19:49:16 tom Exp $
+-------------------------------------------------------------------------------
 
 SHORT-TERM TO-DO ITEMS:
 
 Known Problems:
 
-* GNAT does not put libraries in the correct order, so a build only links
-  properly if you use shared libraries since -lncurses is first.
++ libtool does not work with GNAT.
 
-* XPG4 specifies that the enhanced features are not available unless the
-  _XOPEN_SOURCE_EXTENDED test macro is defined by the application.  Ncurses uses
-  this macro (incorrectly) to address a dependency upon wchar_t.  The functions
-  which use wchar_t are not implemented, so the effect of the test macro is
-  pointless.
-
-* The screen optimization has been tested only in an ad hoc manner.  We should
++ The screen optimization has been tested only in an ad hoc manner.  We should
   develop a good set of regression tests to cover lib_doupdate.c and
   lib_mvcur.c.
 
-* Magic cookie support does not work, since the logic does not take into account
-  refresh.  Also, the initial optimize does not adjust the current location
-  when a cookie is emitted.
++ Magic cookie support (for nonzero xmc values) does not work, since the logic
+  does not take into account refresh.  Also, the initial optimize does not
+  adjust the current location when a cookie is emitted.
 
-* Scrolling optimization has holes: for example, it forces repaints of the
++ Scrolling optimization has holes:  for example, it forces repaints of the
   screen between calls to refresh().
 
-* SVr4 uses slightly different rules for determining when softkeys are shown.
++ SVr4 uses slightly different rules for determining when softkeys are shown. 
   For example, they are initially displayed (before the ncurses 'e' test
   activates them), and a touchwin can apparently also force them to be
   displayed.
 
 + The code departs from perfect 8-bit cleanness in one respect; you cannot
-  specify a character \200 as part of a capability string, because the terminfo
-  library interprets \200 as a request to embed NUL (\000) at that point.  This
-  is a legacy terminfo property we can't mess with.
+  specify a character \200 as part of a capability string, because the
+  terminfo library interprets \200 as a request to embed NUL (\000) at that
+  point.  This is a legacy terminfo property we can't mess with.
 
-* The window classes defined in the c++ subdirectory need documentation.
-  Some C++ programmer could earn a lot of good karma by doing this...
++ The window classes defined in the c++ subdirectory need documentation.  Some
+  C++ programmer could earn a lot of good karma by doing this...
+
++ The resizeterm() function does not handle ripped-off lines such as that done
+  for the slk_XXX functions.
+
++ vid_attr() should support the set_a_attributes (sgr1) string, but does not. 
+  There appear to be no terminals that require that functionality.
 
 Portability (or lack thereof):
 
-* Users of older System V UNIXes (but not Solaris, and probably not SVr4)
-  may trip over a known problem with the signal-handling code which causes
-  abrupt termination of ncurses applications following resume from a ^Z
-  suspend (this problem was first seen running lynx).  You will not see 
-  this problem if you are running Linux or one of the 4.4BSD derivatives
-  like FreeBSD, NetBSD, or BSDI.  For details, see the analysis in the
-  header comment of ncurses/lib_tstp.c.
++ Users of older System V UNIXes (but not Solaris, and probably not SVr4) may
+  trip over a known problem with the signal-handling code which causes abrupt
+  termination of ncurses applications following resume from a ^Z suspend (this
+  problem was first seen running lynx).  You will not see this problem if you
+  are running Linux or one of the 4.4BSD derivatives like FreeBSD, NetBSD, or
+  BSDI.  For details, see the analysis in the header comment of
+  ncurses/tty/lib_tstp.c .
 
-* In theory, vwprintw and vwscanf are supposed to use the older varargs.h
++ In theory, vwprintw and vwscanf are supposed to use the older varargs.h
   interface for handling variadic argument lists.  Linux doesn't have
-  varargs.h, it has the newer X/Open-standard stdargs.h equivalent. So
-  these functions use stdargs instead.  This is unlikely to be a problem 
-  unless you're building ncurses on a System V old enough to only have
-  varargs.h.  (Solaris 2.5.1 uses the stdarg.h binding as well).
+  varargs.h, it has the newer X/Open-standard stdargs.h equivalent.  So these
+  functions use stdargs instead.  This is unlikely to be a problem unless
+  you're building ncurses on a System V old enough to only have varargs.h. 
+  (Solaris 2.5.1 uses the stdarg.h binding as well).
 
-* If you're using a BSD earlier than 4.4BSD, or a Linux old enough not to
-  have a native vsscanf(3) in its library, vwscanw() will not work.  You lose.
-  (It should work on any System V, however).  If you want to fix this, add
-  an implementation to ncurses/vsscanf.c.
++ If you're using a BSD earlier than 4.4BSD, or a Linux old enough not to have
+  a native vsscanf(3) in its library, vwscanw() will not work.  You lose.  (It
+  should work on any System V, however).  If you want to fix this, add an
+  implementation to ncurses/vsscanf.c.
 
-* The demo build for the c++ library craps out with many link errors under gcc
-  2.6.3.  We're told the C++ support in 2.6.3 is broken and that the right
-  fix is to upgrade to 2.7.0.  This demo is also known to not build with
-  the Sun SPARCworks 4.1 C++ compiler, due to a problem resolving templates.
-
-* Under Ultrix, configure craps out (Ultrix sh is lame).  Run it under ksh.
-
-* We've not tested the configure script with cross-compilers.  The autoconf
-  tests are supposed to be able to support this (please report bugs).  You will
-  have to configure and build in two steps.  The first step must create the
-  automatically-generated sources (e.g., comp_captab.c) on your host machine. 
-  Then, run "make mostlyclean", remove config.* from the top-level directory
-  and configure for the cross-compiler.
++ The C++ binding fails to build with a few C++ compilers, mainly with
+  configure script problems with vsscanf().
 
 + terminfo.5 does not format with the SunOS (and most other platform's) tbl
-  utility because it relies on a diversion for each table entry.  Get the groff
-  package.
+  utility because it relies on a diversion for each table entry.  Get the
+  groff package.
 
 Untested features:
 
-* The code for the HP color model using set_color_pair is untested.
++ The code for the HP color model using set_color_pair is untested.
 
-* The code for handling soft labels on a terminal type with built-in support
++ The code for handling soft labels on a terminal type with built-in support
   for them (num_labels > 0, label_height, label_width, label_format, label_off,
   label_on, plab_norm, lab_f*) has not been tested.  The label_format and
   lab_f* capabilities aren't presently used.
@@ -95,72 +111,9 @@ of the SVr4 API.  The library is BASE conformant with this standard.
 We would like to make ncurses fully conformant at the EXTENDED level
 supporting internationalization.
 
-Here are page references to all material involving wide or multi-byte
-characters in Issue 4 of the XSI Curses standard, with notes on their
-status in this implementation:
-
-	Page 1 (1.1.2) New Features discussion of internationalization.
-	Page 12 (2.4): Definition of cchar_t, wchar_t.
-	Page 16 (3.3.2): Introduction of multi-column characters.
-	Page 17-18 (3.3.5): Description of non-spacing characters.
-	Page 19-21 (3.4.2): Basic character operations.
-	Page 34 (addnstr): These should now call underlying wide-
-character functions, and do (through waddnstr) if _XOPEN_SOURCE_EXTENDED is on).
-	Page 35 (addnwstr): wide-character add-string functions.  All macros 
-except waddnwstr() which is not yet defined.
-	Page 36 (add_wch): wide-character add-char functions.  All macros 
-except wadd_wch() which is not yet defined.
-	Page 39 (attr_get): implemented -- we've just made the current-
-attributes field of the window an attr_t.
-	Page 43 (bkgrnd):  None of these are implemented.
-	Page 45 (border_set): Neither of these is implemented.
-	Page 47 (box_set): box_set implemented as macro, but the underlying
-wborder_set() is not yet defined.
-	Page 78 (echo_wchar): echo_wchar() implemented as macro, underlying
-wecho_wchar() not yet implemented.
-	Page 81 (erasechar): Neither entry point is implemented.
-	Page 87 (getbkgrnd): Not implemented.
-	Page 88 (getcchar): Not implemented.
-	Page 93 (getn_wstr): All implemented (as macros) except the
-underlying wgetn_wstr().
-	Page 97 (get_wch):  All implemented (as macros) except the
-underlying wget_wch().
-	Page 99 (get_wstr): Xref to page 93.
-	Page 105 (hline_set): All implemented (as macros) except the
-underlying whline_set(), wvline_set().
-	Page 114 (innstr): Multi-byte character-completeness check is
-not implemented.
-	Page 115 (innwstr): All implemented (as macros) except the
-underlying winnw_str().
-	Page 119 (insnstr): Implementation may not be correct for multi-byte
-characters.
-	Page 120 (ins_nwstr): Not implemented.
-	Page 121 (insstr): Xref to page 119.
-	Page 122 (instr): Xref to page 119.
-	Page 123 (ins_wch): Not implemented.
-	Page 124 (ins_wstr): Xref to page 120.
-	Page 126 (in_wch): Not implemented.
-	Page 127 (in_wchnstr): Not implemented.
-	Page 128 (inwstr): Xref to page 115.
-	Page 133 (killwchar): killwchar not implemented.
-	Page 158 (pechochar): pecho_wchar() not implemented.
-	Page 176 (setcchar): Not implemented.
-	Page 181 (slk_attroff): slk_wset not implemented.
-	Page 200 (ungetch): unget_wch() not implemented.
-	Page 203 (vidattr): vid_attr() and vid_puts() not implemented.
-	Page 206 (vline_set): Xref to page 105.
-	Page 214 (wunctrl): Not implemented.
-	Page 216 (curses.h): cchar_t, wint_t, wchar_t references.
-	Page 220 (curses.h): KEY_CODE_YES
-
-Basically, the macro superstructure is there but the core is absent.  We
-need better multi-locale support guarantees from the OS to finish this.
-If you are working on internationalization support, please contact us so
-we can cooperate.
-
 2. DOS port
 
-Only 16 of the 55 files in the library depend on the terminfo format.
+Only a few of the files in the library depend on the terminfo format.
 It should be possible to further kernelize the package, then rewrite 
 a small number of core files to produce a functionally-compatible
 port that would do updates to a memory-mapped screen area.  The first
@@ -248,4 +201,4 @@ These are the potentially important ones for ncurses.  Notes:
 	ii) We probably don't care about dest_tabs_magic_smso; only
 		Telerays used it and they're all long obsolete.
 
-
+-- vile:txtmode

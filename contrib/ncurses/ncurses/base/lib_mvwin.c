@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright (c) 1998,2000,2001 Free Software Foundation, Inc.              *
+ * Copyright (c) 1998-2001,2006 Free Software Foundation, Inc.              *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -40,7 +40,7 @@
 
 #include <curses.priv.h>
 
-MODULE_ID("$Id: lib_mvwin.c,v 1.12 2001/12/19 01:06:22 tom Exp $")
+MODULE_ID("$Id: lib_mvwin.c,v 1.14 2006/02/25 22:53:46 tom Exp $")
 
 NCURSES_EXPORT(int)
 mvwin(WINDOW *win, int by, int bx)
@@ -50,6 +50,11 @@ mvwin(WINDOW *win, int by, int bx)
     if (!win || (win->_flags & _ISPAD))
 	returnCode(ERR);
 
+    /*
+     * mvwin() should only modify the indices.  See test/demo_menus.c and
+     * test/movewindow.c for examples.
+     */
+#if 0
     /* Copying subwindows is allowed, but it is expensive... */
     if (win->_flags & _SUBWIN) {
 	int err = ERR;
@@ -89,6 +94,7 @@ mvwin(WINDOW *win, int by, int bx)
 	}
 	returnCode(err);
     }
+#endif
 
     if (by + win->_maxy > screen_lines - 1
 	|| bx + win->_maxx > screen_columns - 1

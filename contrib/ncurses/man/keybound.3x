@@ -1,5 +1,5 @@
 .\"***************************************************************************
-.\" Copyright (c) 1999,2002 Free Software Foundation, Inc.                   *
+.\" Copyright (c) 1999-2003,2006 Free Software Foundation, Inc.              *
 .\"                                                                          *
 .\" Permission is hereby granted, free of charge, to any person obtaining a  *
 .\" copy of this software and associated documentation files (the            *
@@ -26,24 +26,27 @@
 .\" authorization.                                                           *
 .\"***************************************************************************
 .\"
-.\" Author: Thomas E. Dickey <dickey@clark.net> 1999
+.\" Author: Thomas E. Dickey 1999
 .\"
-.\" $Id: keybound.3x,v 1.3 2002/02/16 22:30:36 tom Exp $
+.\" $Id: keybound.3x,v 1.6 2006/02/25 21:47:06 tom Exp $
 .TH keyok 3X ""
 .SH NAME
 \fBkeybound\fP \- return definition of keycode
 .SH SYNOPSIS
 \fB#include <curses.h>\fP
-
+.sp
 \fBchar * keybound(int keycode, int count);\fP
 .SH DESCRIPTION
 This is an extension to the curses library.
 It permits an application to determine the string which is defined
 in the terminfo for specific keycodes.
 .SH RETURN VALUE
-The keycode must be greater than zero, else NULL is returned.
+The \fIkeycode\fP parameter must be greater than zero, else NULL is returned.
 If it does not correspond to a defined key, then NULL is returned.
-Otherwise, the function returns a string, which must be freed by the caller.
+The \fIcount\fP parameter is used to allow the application to iterate
+through multiple definitions, counting from zero.
+When successful,
+the function returns a string which must be freed by the caller.
 .SH PORTABILITY
 These routines are specific to ncurses.  They were not supported on
 Version 7, BSD or System V implementations.  It is recommended that

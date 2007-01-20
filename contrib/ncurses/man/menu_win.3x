@@ -1,6 +1,6 @@
 '\" t
 .\"***************************************************************************
-.\" Copyright (c) 1998 Free Software Foundation, Inc.                        *
+.\" Copyright (c) 1998,2006 Free Software Foundation, Inc.                   *
 .\"                                                                          *
 .\" Permission is hereby granted, free of charge, to any person obtaining a  *
 .\" copy of this software and associated documentation files (the            *
@@ -27,7 +27,7 @@
 .\" authorization.                                                           *
 .\"***************************************************************************
 .\"
-.\" $Id: menu_win.3x,v 1.6 1998/11/29 01:11:11 Rick.Ohnemus Exp $
+.\" $Id: menu_win.3x,v 1.8 2006/11/04 17:12:00 tom Exp $
 .TH menu_win 3X ""
 .SH NAME
 \fBmenu_win\fR - make and break menu window and subwindow associations
@@ -48,33 +48,33 @@ int scale_menu(const MENU *menu, int *rows, int *columns);
 Every menu has an associated pair of \fBcurses\fR windows.  The menu window
 displays any title and border associated with the window; the menu subwindow
 displays the items of the menu that are currently available for selection.
-
+.PP
 The first four functions get and set those windows.  It is not necessary to set
 either window; by default, the driver code uses \fBstdscr\fR for both.
-
+.PP
 In the \fBset_\fR functions, window argument of \fBNULL\fR is treated as though
 it were \fBstsdcr\fR.  A menu argument of \fBNULL\fR is treated as a request
 to change the system default menu window or subwindow.
-
+.PP
 The function \fBscale_menu\fR returns the minimum size required for the
 subwindow of \fImenu\fR.
 .SH RETURN VALUE
 Routines that return pointers return \fBNULL\fR on error.  Routines that return
 an integer return one of the following error codes:
 .TP 5
-\fBE_OK\fR
+.B E_OK
 The routine succeeded.
 .TP 5
-\fBE_SYSTEM_ERROR\fR
+.B E_SYSTEM_ERROR
 System error occurred (see \fBerrno\fR).
 .TP 5
-\fBE_BAD_ARGUMENT\fR
+.B E_BAD_ARGUMENT
 Routine detected an incorrect or out-of-range argument.
 .TP 5
-\fBE_POSTED\fR
+.B E_POSTED
 The menu has already been posted.
 .TP 5
-\fBE_NOT_CONNECTED\fR
+.B E_NOT_CONNECTED
 No items are connected to the menu.
 .SH SEE ALSO
 \fBcurses\fR(3X), \fBmenu\fR(3X).

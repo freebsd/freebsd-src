@@ -1,5 +1,5 @@
 .\"***************************************************************************
-.\" Copyright (c) 1998,2002 Free Software Foundation, Inc.                   *
+.\" Copyright (c) 1998-2003,2006 Free Software Foundation, Inc.              *
 .\"                                                                          *
 .\" Permission is hereby granted, free of charge, to any person obtaining a  *
 .\" copy of this software and associated documentation files (the            *
@@ -26,10 +26,10 @@
 .\" authorization.                                                           *
 .\"***************************************************************************
 .\"
-.\" $Id: form_field_validation.3x,v 1.12 2002/02/16 22:39:52 tom Exp $
+.\" $Id: form_field_validation.3x,v 1.15 2006/11/04 17:14:19 tom Exp $
 .TH form_field_validation 3X ""
 .SH NAME
-\fBform_field_validation\fR - data type validation for fields 
+\fBform_field_validation\fR - data type validation for fields
 .SH SYNOPSIS
 \fB#include <form.h>\fR
 .br
@@ -38,10 +38,25 @@ int set_field_type(FIELD *field, FIELDTYPE *type, ...);
 FIELDTYPE *field_type(const FIELD *field);
 .br
 void *field_arg(const FIELD *field);
+.sp
+FIELDTYPE *TYPE_ALNUM;
+.br
+FIELDTYPE *TYPE_ALPHA;
+.br
+FIELDTYPE *TYPE_ENUM;
+.br
+FIELDTYPE *TYPE_INTEGER;
+.br
+FIELDTYPE *TYPE_NUMERIC;
+.br
+FIELDTYPE *TYPE_REGEXP;
+.br
+FIELDTYPE *TYPE_IPV4;
 .br
 .SH DESCRIPTION
 The function \fBset_field_type\fR declares a data type for a given form field.
-This is the type checked by validation functions.  The types are as follows:
+This is the type checked by validation functions.
+The predefined types are as follows:
 .TP 5
 TYPE_ALNUM
 Alphanumeric data.  Requires a third \fBint\fR argument, a minimum field width.
@@ -56,27 +71,29 @@ case-sensitivity; and a fifth \fBint\fR flag argument specifying whether a parti
 match must be a unique one (if this flag is off, a prefix matches the first
 of any set of more than one list elements with that prefix). Please notice
 that the string list is not copied, only a reference to it is stored in the
-field. So you should avoid to use a list that lives in automatic variables
+field. So you should avoid using a list that lives in automatic variables
 on the stack.
 .TP 5
 TYPE_INTEGER
 Integer data, parsable to an integer by \fBatoi(3)\fR.  Requires a third
-\fBint\fR argument controlling the precision, a fourth \fBlong\fR argument 
+\fBint\fR argument controlling the precision, a fourth \fBlong\fR argument
 constraining minimum value, and a fifth \fBlong\fR constraining maximum value.
-If the maximum value is less or equal the minimum value, the range is simply
-ignored. On return the field buffer is formatted according to the \fBprintf\fR
-format specification ".*ld", where the '*' is replaced by the precision argument.
+If the maximum value is less than or equal to the minimum value, the range is
+simply ignored. On return the field buffer is formatted according to the
+\fBprintf\fR format specification ".*ld", where the '*' is replaced by the
+precision argument.
 For details of the precision handling see \fBprintf's\fR man-page.
 .TP 5
 TYPE_NUMERIC
 Numeric data (may have a decimal-point part). Requires a third
 \fBint\fR argument controlling the precision, a fourth \fBdouble\fR
-argument constraining minimum value, and a fifth \fBdouble\fR constraining 
-maximum value. If your system supports locale's, the decimal point character
+argument constraining minimum value, and a fifth \fBdouble\fR constraining
+maximum value. If your system supports locales, the decimal point character
 to be used must be the one specified by your locale.
-If the maximum value is less or equal the minimum value, the range is simply
-ignored. On return the field buffer is formatted according to the \fBprintf\fR
-format specification ".*f", where the '*' is replaced by the precision argument.
+If the maximum value is less than or equal to the minimum value, the range is
+simply ignored. On return the field buffer is formatted according to the
+\fBprintf\fR format specification ".*f", where the '*' is replaced by the
+precision argument.
 For details of the precision handling see \fBprintf's\fR man-page.
 .TP 5
 TYPE_REGEXP
@@ -96,17 +113,17 @@ is checked whether or not the buffer has the form a.b.c.d, where a,b,c and d are
 numbers between 0 and 255. Trailing blanks in the buffer are ignored. The address
 itself is not validated. Please note that this is an ncurses extension. This
 field type may not be available in other curses implementations.
-
+.PP
 It is possible to set up new programmer-defined field types.  See the
 \fBform_fieldtype\fR(3X) manual page.
 .SH RETURN VALUE
 The functions \fBfield_type\fR and \fBfield_arg\fR return \fBNULL\fR on
 error. The function \fBset_field_type\fR returns one of the following:
 .TP 5
-\fBE_OK\fR
+.B E_OK
 The routine succeeded.
 .TP 5
-\fBE_SYSTEM_ERROR\fR
+.B E_SYSTEM_ERROR
 System error occurred (see \fBerrno\fR).
 .SH SEE ALSO
 \fBcurses\fR(3X), \fBform\fR(3X).

@@ -15,14 +15,14 @@
 **
 ** You should have received a copy of the GNU General Public License
 ** along with TACK; see the file COPYING.  If not, write to
-** the Free Software Foundation, Inc., 59 Temple Place - Suite 330,
-** Boston, MA 02111-1307, USA.
+** the Free Software Foundation, Inc., 51 Franklin Street, Fifth Floor,
+** Boston, MA 02110-1301, USA
 */
 /* initialization and wrapup code */
 
 #include <tack.h>
 
-MODULE_ID("$Id: init.c,v 1.3 2001/06/16 17:54:19 tom Exp $")
+MODULE_ID("$Id: init.c,v 1.7 2006/11/26 00:16:01 tom Exp $")
 
 #if NCURSES_VERSION_MAJOR >= 5 || NCURSES_VERSION_PATCH >= 981219
 #define _nc_get_curterm(p) _nc_get_tty_mode(p)
@@ -159,7 +159,7 @@ display_basic(void)
 	}
 	report_cap("      (clear)", clear_screen);
 	if (!cursor_home && cursor_address) {
-		report_cap("(cup) (home)", tparm(cursor_address, 0, 0));
+		report_cap("(cup) (home)", TPARM_2(cursor_address, 0, 0));
 	} else {
 		report_cap("      (home)", cursor_home);
 	}
@@ -170,7 +170,11 @@ display_basic(void)
 	report_cap("ACK   (u8)", user8);
 #endif
 
-	sprintf(temp, "\nTerminal size: %d x %d.  Baud rate: %ld.  Frame size: %d.%d", columns, lines, tty_baud_rate, tty_frame_size >> 1, (tty_frame_size & 1) * 5);
+	sprintf(temp, "\nTerminal size: %d x %d.  Baud rate: %u.  Frame size: %d.%d",
+		columns, lines,
+		tty_baud_rate,
+		tty_frame_size >> 1,
+		(tty_frame_size & 1) * 5);
 	putln(temp);
 }
 
@@ -196,9 +200,17 @@ curses_setup(
 	ncurses starts scanning the termcap file.
 	**/
 	if ((status = _nc_read_entry(tty_basename, tty_filename, &term)) == 0) {
-		fprintf(stderr, "Terminal not found: TERM=%s\n", tty_basename);
-		show_usage(exec_name);
-		exit(1);
+		const TERMTYPE *fallback = _nc_fallback(tty_basename);
+
+		if (fallback) {
+		    term = *fallback;
+		    sprintf(tty_filename, "(fallback)%s", tty_basename);
+		    status = 1;
+		} else {
+		    fprintf(stderr, "Terminal not found: TERM=%s\n", tty_basename);
+		    show_usage(exec_name);
+		    exit(1);
+		}
 	}
 	if (status == -1) {
 		fprintf(stderr, "Terminfo database is inaccessible\n");

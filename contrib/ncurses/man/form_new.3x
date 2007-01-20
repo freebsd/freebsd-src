@@ -1,6 +1,6 @@
 '\" t
 .\"***************************************************************************
-.\" Copyright (c) 1998 Free Software Foundation, Inc.                        *
+.\" Copyright (c) 1998,2006 Free Software Foundation, Inc.                   *
 .\"                                                                          *
 .\" Permission is hereby granted, free of charge, to any person obtaining a  *
 .\" copy of this software and associated documentation files (the            *
@@ -27,7 +27,7 @@
 .\" authorization.                                                           *
 .\"***************************************************************************
 .\"
-.\" $Id: form_new.3x,v 1.5 1998/11/29 01:07:37 Rick.Ohnemus Exp $
+.\" $Id: form_new.3x,v 1.7 2006/11/04 17:12:00 tom Exp $
 .TH form_new 3X ""
 .SH NAME
 \fBform_new\fR - create and destroy forms
@@ -41,24 +41,34 @@ int free_form(FORM *form);
 .SH DESCRIPTION
 The function \fBnew_form\fR creates a new form connected to a specified field
 pointer array (which must be \fBNULL\fR-terminated).
-
+.PP
 The function \fBfree_form\fR disconnects \fIform\fR from its field array
 and frees the storage allocated for the form.
 .SH RETURN VALUE
 The function \fBnew_form\fR returns \fBNULL\fR on error.
-
-The function \fBfree_form\fR returns one of the following:
+It sets errno according to the function's success:
 .TP 5
-\fBE_OK\fR
+.B E_OK
 The routine succeeded.
 .TP 5
-\fBE_SYSTEM_ERROR\fR
-System error occurred (see \fBerrno\fR).
-.TP 5
-\fBE_BAD_ARGUMENT\fR
+.B E_BAD_ARGUMENT
 Routine detected an incorrect or out-of-range argument.
 .TP 5
-\fBE_POSTED\fR
+.B E_CONNECTED
+The field is already connected to a form.
+.TP 5
+.B E_SYSTEM_ERROR
+System error occurred, e.g., malloc failure.
+.PP
+The function \fBfree_form\fR returns one of the following:
+.TP 5
+.B E_OK
+The routine succeeded.
+.TP 5
+.B E_BAD_ARGUMENT
+Routine detected an incorrect or out-of-range argument.
+.TP 5
+.B E_POSTED
 The form has already been posted.
 .SH SEE ALSO
 \fBcurses\fR(3X), \fBform\fR(3X).

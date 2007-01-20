@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright (c) 1998,1999,2000,2001 Free Software Foundation, Inc.         *
+ * Copyright (c) 1998-2005,2006 Free Software Foundation, Inc.              *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -29,6 +29,7 @@
 /****************************************************************************
  *  Author: Zeyd M. Ben-Halim <zmbenhal@netcom.com> 1992,1995               *
  *     and: Eric S. Raymond <esr@snark.thyrsus.com>                         *
+ *     and: Thomas E. Dickey                        1996-on                 *
  ****************************************************************************/
 
 /*
@@ -99,11 +100,10 @@ char *ttyname(int fd);
 #include <sys/ptem.h>
 #endif
 
-#include <curses.h>		/* for bool typedef */
 #include <dump_entry.h>
 #include <transform.h>
 
-MODULE_ID("$Id: tset.c,v 0.52 2001/09/29 21:13:56 tom Exp $")
+MODULE_ID("$Id: tset.c,v 1.67 2006/09/16 17:51:10 tom Exp $")
 
 extern char **environ;
 
@@ -113,6 +113,9 @@ extern char **environ;
 const char *_nc_progname = "tset";
 
 static TTY mode, oldmode, original;
+
+static bool opt_c;		/* set control-chars */
+static bool opt_w;		/* set window-size */
 
 static bool can_restore = FALSE;
 static bool isreset = FALSE;	/* invoked as reset */
@@ -142,7 +145,7 @@ exit_error(void)
 	SET_TTY(STDERR_FILENO, &original);
     (void) fprintf(stderr, "\n");
     fflush(stderr);
-    exit(EXIT_FAILURE);
+    ExitProgram(EXIT_FAILURE);
     /* NOTREACHED */
 }
 
@@ -151,7 +154,7 @@ err(const char *fmt,...)
 {
     va_list ap;
     va_start(ap, fmt);
-    (void) fprintf(stderr, "tset: ");
+    (void) fprintf(stderr, "%s: ", _nc_progname);
     (void) vfprintf(stderr, fmt, ap);
     va_end(ap);
     exit_error();
@@ -162,7 +165,15 @@ static void
 failed(const char *msg)
 {
     char temp[BUFSIZ];
-    perror(strncat(strcpy(temp, "tset: "), msg, sizeof(temp) - 10));
+    unsigned len = strlen(_nc_progname) + 2;
+
+    if (len < sizeof(temp) - 12) {
+	strcpy(temp, _nc_progname);
+	strcat(temp, ": ");
+    } else {
+	strcpy(temp, "tset: ");
+    }
+    perror(strncat(temp, msg, sizeof(temp) - strlen(temp) - 2));
     exit_error();
     /* NOTREACHED */
 }
@@ -197,6 +208,7 @@ askuser(const char *dflt)
     char *p;
 
     /* We can get recalled; if so, don't continue uselessly. */
+    clearerr(stdin);
     if (feof(stdin) || ferror(stdin)) {
 	(void) fprintf(stderr, "\n");
 	exit_error();
@@ -349,7 +361,7 @@ add_mapping(const char *port, char *arg)
     char *base = 0;
 
     copy = strdup(arg);
-    mapp = malloc(sizeof(MAP));
+    mapp = (MAP *) malloc(sizeof(MAP));
     if (copy == 0 || mapp == 0)
 	failed("malloc");
     mapp->next = 0;
@@ -573,7 +585,7 @@ get_termcap_entry(char *userarg)
      * real entry from /etc/termcap.  This prevents us from being fooled
      * by out of date stuff in the environment.
      */
-  found:if ((p = getenv("TERMCAP")) != 0 && *p != '/') {
+  found:if ((p = getenv("TERMCAP")) != 0 && !_nc_is_abs_path(p)) {
 	/* 'unsetenv("TERMCAP")' is not portable.
 	 * The 'environ' array is better.
 	 */
@@ -602,13 +614,13 @@ get_termcap_entry(char *userarg)
     while (setupterm((NCURSES_CONST char *) ttype, STDOUT_FILENO, &errret)
 	   != OK) {
 	if (errret == 0) {
-	    (void) fprintf(stderr, "tset: unknown terminal type %s\n",
-			   ttype);
+	    (void) fprintf(stderr, "%s: unknown terminal type %s\n",
+			   _nc_progname, ttype);
 	    ttype = 0;
 	} else {
 	    (void) fprintf(stderr,
-			   "tset: can't initialize terminal type %s (error %d)\n",
-			   ttype, errret);
+			   "%s: can't initialize terminal type %s (error %d)\n",
+			   _nc_progname, ttype, errret);
 	    ttype = 0;
 	}
 	ttype = askuser(ttype);
@@ -626,8 +638,10 @@ get_termcap_entry(char *userarg)
  **************************************************************************/
 
 /* some BSD systems have these built in, some systems are missing
- * one or more definitions. The safest solution is to override.
+ * one or more definitions. The safest solution is to override unless the
+ * commonly-altered ones are defined.
  */
+#if !(defined(CERASE) && defined(CINTR) && defined(CKILL) && defined(CQUIT))
 #undef CEOF
 #undef CERASE
 #undef CINTR
@@ -638,20 +652,49 @@ get_termcap_entry(char *userarg)
 #undef CSTART
 #undef CSTOP
 #undef CSUSP
+#endif
 
 /* control-character defaults */
+#ifndef CEOF
 #define CEOF	CTRL('D')
+#endif
+#ifndef CERASE
 #define CERASE	CTRL('H')
+#endif
+#ifndef CINTR
 #define CINTR	127		/* ^? */
+#endif
+#ifndef CKILL
 #define CKILL	CTRL('U')
+#endif
+#ifndef CLNEXT
 #define CLNEXT  CTRL('v')
+#endif
+#ifndef CRPRNT
 #define CRPRNT  CTRL('r')
+#endif
+#ifndef CQUIT
 #define CQUIT	CTRL('\\')
+#endif
+#ifndef CSTART
 #define CSTART	CTRL('Q')
+#endif
+#ifndef CSTOP
 #define CSTOP	CTRL('S')
+#endif
+#ifndef CSUSP
 #define CSUSP	CTRL('Z')
+#endif
 
-#define	CHK(val, dft)	((int)val <= 0 ? dft : val)
+#if defined(_POSIX_VDISABLE)
+#define DISABLED(val)   (((_POSIX_VDISABLE != -1) \
+		       && ((val) == _POSIX_VDISABLE)) \
+		      || ((val) <= 0))
+#else
+#define DISABLED(val)   ((int)(val) <= 0)
+#endif
+
+#define CHK(val, dft)   (DISABLED(val) ? dft : val)
 
 static bool set_tabs(void);
 
@@ -803,13 +846,13 @@ static void
 set_control_chars(void)
 {
 #ifdef TERMIOS
-    if (mode.c_cc[VERASE] == 0 || terasechar >= 0)
+    if (DISABLED(mode.c_cc[VERASE]) || terasechar >= 0)
 	mode.c_cc[VERASE] = terasechar >= 0 ? terasechar : default_erase();
 
-    if (mode.c_cc[VINTR] == 0 || intrchar >= 0)
+    if (DISABLED(mode.c_cc[VINTR]) || intrchar >= 0)
 	mode.c_cc[VINTR] = intrchar >= 0 ? intrchar : CINTR;
 
-    if (mode.c_cc[VKILL] == 0 || tkillchar >= 0)
+    if (DISABLED(mode.c_cc[VKILL]) || tkillchar >= 0)
 	mode.c_cc[VKILL] = tkillchar >= 0 ? tkillchar : CKILL;
 #endif
 }
@@ -935,7 +978,7 @@ set_init(void)
  * Return TRUE if we set any tab stops, FALSE if not.
  */
 static bool
-set_tabs()
+set_tabs(void)
 {
     if (set_tab && clear_all_tabs) {
 	int c;
@@ -948,10 +991,10 @@ set_tabs()
 	     * used to try a bunch of half-clever things
 	     * with cup and hpa, for an average saving of
 	     * somewhat less than two character times per
-	     * tab stop, less that .01 sec at 2400cps. We
+	     * tab stop, less than .01 sec at 2400cps. We
 	     * lost all this cruft because it seemed to be
 	     * introducing some odd bugs.
-	     * ----------12345678----------- */
+	     * -----------12345678----------- */
 	    (void) fputs("        ", stderr);
 	    tputs(set_tab, 0, outc);
 	}
@@ -985,11 +1028,13 @@ report(const char *name, int which, unsigned def)
 
     (void) fprintf(stderr, "%s %s ", name, older == newer ? "is" : "set to");
 
+    if (DISABLED(newer))
+	(void) fprintf(stderr, "undef.\n");
     /*
      * Check 'delete' before 'backspace', since the key_backspace value
      * is ambiguous.
      */
-    if (newer == 0177)
+    else if (newer == 0177)
 	(void) fprintf(stderr, "delete.\n");
     else if ((p = key_backspace) != 0
 	     && newer == (unsigned char) p[0]
@@ -997,9 +1042,9 @@ report(const char *name, int which, unsigned def)
 	(void) fprintf(stderr, "backspace.\n");
     else if (newer < 040) {
 	newer ^= 0100;
-	(void) fprintf(stderr, "control-%c (^%c).\n", newer, newer);
+	(void) fprintf(stderr, "control-%c (^%c).\n", UChar(newer), UChar(newer));
     } else
-	(void) fprintf(stderr, "%c.\n", newer);
+	(void) fprintf(stderr, "%c.\n", UChar(newer));
 }
 #endif
 
@@ -1038,10 +1083,28 @@ obsolete(char **argv)
 }
 
 static void
-usage(const char *pname)
+usage(void)
 {
-    (void) fprintf(stderr,
-		   "usage: %s [-IQVrs] [-] [-e ch] [-i ch] [-k ch] [-m mapping] [terminal]", pname);
+    static const char *tbl[] =
+    {
+	""
+	,"Options:"
+	,"  -c          set control characters"
+	,"  -e ch       erase character"
+	,"  -I          no initialization strings"
+	,"  -i ch       interrupt character"
+	,"  -k ch       kill character"
+	,"  -m mapping  map identifier to type"
+	,"  -Q          do not output control key settings"
+	,"  -r          display term on stderr"
+	,"  -s          output TERM set command"
+	,"  -V          print curses-version"
+	,"  -w          set window-size"
+    };
+    unsigned n;
+    (void) fprintf(stderr, "Usage: %s [options] [terminal]\n", _nc_progname);
+    for (n = 0; n < sizeof(tbl) / sizeof(tbl[0]); ++n)
+	fprintf(stderr, "%s\n", tbl[n]);
     exit_error();
     /* NOTREACHED */
 }
@@ -1064,28 +1127,12 @@ main(int argc, char **argv)
     const char *p;
     const char *ttype;
 
-    if (GET_TTY(STDERR_FILENO, &mode) < 0)
-	failed("standard error");
-    can_restore = TRUE;
-    original = oldmode = mode;
-#ifdef TERMIOS
-    ospeed = cfgetospeed(&mode);
-#else
-    ospeed = mode.sg_ospeed;
-#endif
-
-    p = _nc_rootname(*argv);
-    if (!strcmp(p, PROG_RESET)) {
-	isreset = TRUE;
-	reset_mode();
-    }
-
     obsolete(argv);
     noinit = noset = quiet = Sflag = sflag = showterm = 0;
-    while ((ch = getopt(argc, argv, "a:d:e:Ii:k:m:np:qQSrsV")) != EOF) {
+    while ((ch = getopt(argc, argv, "a:cd:e:Ii:k:m:np:qQSrsVw")) != EOF) {
 	switch (ch) {
-	case 'q':		/* display term only */
-	    noset = 1;
+	case 'c':		/* set control-chars */
+	    opt_c = TRUE;
 	    break;
 	case 'a':		/* OBSOLETE: map identifier to type */
 	    add_mapping("arpanet", optarg);
@@ -1116,28 +1163,54 @@ main(int argc, char **argv)
 	case 'Q':		/* don't output control key settings */
 	    quiet = 1;
 	    break;
-	case 'S':		/* OBSOLETE: output TERM & TERMCAP */
-	    Sflag = 1;
+	case 'q':		/* display term only */
+	    noset = 1;
 	    break;
 	case 'r':		/* display term on stderr */
 	    showterm = 1;
 	    break;
+	case 'S':		/* OBSOLETE: output TERM & TERMCAP */
+	    Sflag = 1;
+	    break;
 	case 's':		/* output TERM set command */
 	    sflag = 1;
 	    break;
-	case 'V':
+	case 'V':		/* print curses-version */
 	    puts(curses_version());
-	    return EXIT_SUCCESS;
+	    ExitProgram(EXIT_SUCCESS);
+	case 'w':		/* set window-size */
+	    opt_w = TRUE;
+	    break;
 	case '?':
 	default:
-	    usage(*argv);
+	    usage();
 	}
     }
+
+    _nc_progname = _nc_rootname(*argv);
     argc -= optind;
     argv += optind;
 
     if (argc > 1)
-	usage(*argv);
+	usage();
+
+    if (!opt_c && !opt_w)
+	opt_c = opt_w = TRUE;
+
+    if (GET_TTY(STDERR_FILENO, &mode) < 0)
+	failed("standard error");
+    can_restore = TRUE;
+    original = oldmode = mode;
+#ifdef TERMIOS
+    ospeed = cfgetospeed(&mode);
+#else
+    ospeed = mode.sg_ospeed;
+#endif
+
+    if (!strcmp(_nc_progname, PROG_RESET)) {
+	isreset = TRUE;
+	reset_mode();
+    }
 
     ttype = get_termcap_entry(*argv);
 
@@ -1146,24 +1219,28 @@ main(int argc, char **argv)
 	tlines = lines;
 
 #if defined(TIOCGWINSZ) && defined(TIOCSWINSZ)
-	/* Set window size */
-	(void) ioctl(STDERR_FILENO, TIOCGWINSZ, &win);
-	if (win.ws_row == 0 && win.ws_col == 0 &&
-	    tlines > 0 && tcolumns > 0) {
-	    win.ws_row = tlines;
-	    win.ws_col = tcolumns;
-	    (void) ioctl(STDERR_FILENO, TIOCSWINSZ, &win);
+	if (opt_w) {
+	    /* Set window size */
+	    (void) ioctl(STDERR_FILENO, TIOCGWINSZ, &win);
+	    if (win.ws_row == 0 && win.ws_col == 0 &&
+		tlines > 0 && tcolumns > 0) {
+		win.ws_row = tlines;
+		win.ws_col = tcolumns;
+		(void) ioctl(STDERR_FILENO, TIOCSWINSZ, &win);
+	    }
 	}
 #endif
-	set_control_chars();
-	set_conversions();
+	if (opt_c) {
+	    set_control_chars();
+	    set_conversions();
 
-	if (!noinit)
-	    set_init();
+	    if (!noinit)
+		set_init();
 
-	/* Set the modes if they've changed. */
-	if (memcmp(&mode, &oldmode, sizeof(mode))) {
-	    SET_TTY(STDERR_FILENO, &mode);
+	    /* Set the modes if they've changed. */
+	    if (memcmp(&mode, &oldmode, sizeof(mode))) {
+		SET_TTY(STDERR_FILENO, &mode);
+	    }
 	}
     }
 
@@ -1182,8 +1259,8 @@ main(int argc, char **argv)
 #ifdef TERMIOS
 	if (!quiet) {
 	    report("Erase", VERASE, CERASE);
-	    report("Kill", VKILL, CINTR);
-	    report("Interrupt", VINTR, CKILL);
+	    report("Kill", VKILL, CKILL);
+	    report("Interrupt", VINTR, CINTR);
 	}
 #endif
     }
@@ -1192,19 +1269,21 @@ main(int argc, char **argv)
 	err("The -S option is not supported under terminfo.");
 
     if (sflag) {
+	int len;
+	char *var;
+	char *leaf;
 	/*
 	 * Figure out what shell we're using.  A hack, we look for an
 	 * environmental variable SHELL ending in "csh".
 	 */
-	if ((p = getenv("SHELL")) != 0
-	    && !strcmp(p + strlen(p) - 3, "csh"))
+	if ((var = getenv("SHELL")) != 0
+	    && ((len = strlen(leaf = _nc_basename(var))) >= 3)
+	    && !strcmp(leaf + len - 3, "csh"))
 	    p = "set noglob;\nsetenv TERM %s;\nunset noglob;\n";
 	else
 	    p = "TERM=%s;\n";
 	(void) printf(p, ttype);
     }
 
-    return EXIT_SUCCESS;
+    ExitProgram(EXIT_SUCCESS);
 }
-
-/* tset.c ends here */

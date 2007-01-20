@@ -1,6 +1,6 @@
 '\" t
 .\"***************************************************************************
-.\" Copyright (c) 1998 Free Software Foundation, Inc.                        *
+.\" Copyright (c) 1998,2006 Free Software Foundation, Inc.                   *
 .\"                                                                          *
 .\" Permission is hereby granted, free of charge, to any person obtaining a  *
 .\" copy of this software and associated documentation files (the            *
@@ -27,7 +27,7 @@
 .\" authorization.                                                           *
 .\"***************************************************************************
 .\"
-.\" $Id: form_opts.3x,v 1.6 1998/11/29 01:07:53 Rick.Ohnemus Exp $
+.\" $Id: form_opts.3x,v 1.8 2006/11/04 17:12:00 tom Exp $
 .TH form_opts 3X ""
 .SH NAME
 \fBform_opts\fR - set and get form options
@@ -45,15 +45,15 @@ OPTIONS form_opts(const FORM *form);
 .SH DESCRIPTION
 The function \fBset_form_opts\fR sets all the given form's option bits (form
 option bits may be logically-OR'ed together).
-
+.PP
 The function \fBform_opts_on\fR turns on the given option bits, and leaves
 others alone.
-
+.PP
 The function \fBform_opts_off\fR turns off the given option bits, and leaves
 others alone.
-
+.PP
 The function \fBform_opts\fR returns the form's current option bits.
-
+.PP
 The following options are defined (all are on by default):
 .TP 5
 O_NL_OVERLOAD
@@ -66,10 +66,10 @@ beginning of a field goes to the previous field.
 .SH RETURN VALUE
 Except for \fBform_opts\fR, each routine returns one of the following:
 .TP 5
-\fBE_OK\fR
+.B E_OK
 The routine succeeded.
 .TP 5
-\fBE_SYSTEM_ERROR\fR
+.B E_SYSTEM_ERROR
 System error occurred (see \fBerrno\fR).
 .SH SEE ALSO
 \fBcurses\fR(3X), \fBform\fR(3X).

@@ -1,6 +1,6 @@
 #!/bin/sh
 ##############################################################################
-# Copyright (c) 1998,2000 Free Software Foundation, Inc.                     #
+# Copyright (c) 1998-2003,2005 Free Software Foundation, Inc.                #
 #                                                                            #
 # Permission is hereby granted, free of charge, to any person obtaining a    #
 # copy of this software and associated documentation files (the "Software"), #
@@ -29,7 +29,7 @@
 #
 # Author: Thomas E. Dickey <dickey@clark.net> 1996
 #
-# $Id: shlib,v 1.6 2000/05/20 23:01:17 tom Exp $
+# $Id: shlib,v 1.10 2005/06/25 22:41:17 tom Exp $
 # Use this script as a wrapper when running executables linked to shared
 # libraries on systems that use the $LD_LIBRARY_PATH variable and don't embed
 # the soname's path within the linked executable (such as IRIX), e.g,
@@ -58,30 +58,83 @@
 # Special cases:
 #
 #	BeOS R4.5 uses $LIBRARY_PATH rather than $LD_LIBRARY_PATH.
-
+#	Cygwin uses $PATH
+#	Mac OS X uses $DYLD_LIBRARY_PATH
+#
+# Other cases not handled by this script:
+#
+#	AIX uses $LIBPATH
+#	IRIX64 may use $LD_LIBRARY64_PATH or $LD_LIBRARYN32_PATH
+#	Solaris may use $LD_LIBRARY_PATH_64
+#
+CDPATH=
 #
 # Make sure that we use the PATH that was set in run_tic.sh
-#
-if test X$NEWPATH != X ; then
-	PATH=$NEWPATH
+if test -n "$SHLIB_PATH" ; then
+	PATH=$SHLIB_PATH
 	export PATH
 fi
 
+# Find the lib-directory for this build tree
 q=""
-for p in lib ../lib
+for p in lib ../lib ../../lib ../../../lib
 do
 	if test -d $p; then
-		q="$p"
+		q=`cd $p; pwd`
+	elif test -f configure && test ! -d ../$p ; then
+		break
 	fi
 done
+
+# Set the environment variable.
 if test -n "$q" ; then
-	if test -n "$LD_LIBRARY_PATH"; then
-		LD_LIBRARY_PATH="$q:$LD_LIBRARY_PATH"
+	system=
+	if test -n "$SHLIB_HOST" ; then
+		system="$SHLIB_HOST"
+	elif test -n "$PATHEXT" ; then
+		system=cygwin
 	elif test -n "$LIBRARY_PATH" ; then
-		LIBRARY_PATH="$q:$LIBRARY_PATH"
+		system=beos
+	elif test -n "$DYLD_LIBRARY_PATH" ; then
+		system=darwin
+	elif test -n "$LD_LIBRARY_PATH"; then
+		system=unix
 	else
-		LD_LIBRARY_PATH="$q"
+		for r in $q/*.*
+		do
+			if test -f "$r"
+			then
+				case $r in
+				*.dll)
+					system=cygwin
+					;;
+				*.dylib)
+					system=darwin
+					;;
+				esac
+			fi
+			test -n "$system" && break
+		done
 	fi
-	export LD_LIBRARY_PATH
+
+	case .$system in
+	.cygwin*)
+		variable=PATH
+		;;
+	.beos*)
+		variable=LIBRARY_PATH
+		;;
+	.darwin*)
+		variable=DYLD_LIBRARY_PATH
+		;;
+	*)
+		variable=LD_LIBRARY_PATH
+		;;
+	esac
+
+	eval 'test -z "$'$variable'" && '$variable'=":"'
+	eval $variable'="$q:$'$variable'"'
+	eval 'export '$variable
 fi
+
 eval "$*"

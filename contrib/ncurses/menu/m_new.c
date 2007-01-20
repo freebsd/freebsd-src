@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright (c) 1998,2000 Free Software Foundation, Inc.                   *
+ * Copyright (c) 1998-2004,2006 Free Software Foundation, Inc.              *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -27,7 +27,7 @@
  ****************************************************************************/
 
 /****************************************************************************
- *   Author: Juergen Pfeifer <juergen.pfeifer@gmx.net> 1995,1997            *
+ *   Author:  Juergen Pfeifer, 1995,1997                                    *
  ****************************************************************************/
 
 /***************************************************************************
@@ -37,7 +37,7 @@
 
 #include "menu.priv.h"
 
-MODULE_ID("$Id: m_new.c,v 1.11 2000/12/10 02:16:48 tom Exp $")
+MODULE_ID("$Id: m_new.c,v 1.18 2006/11/04 19:04:06 tom Exp $")
 
 /*---------------------------------------------------------------------------
 |   Facility      :  libnmenu  
@@ -51,10 +51,12 @@ MODULE_ID("$Id: m_new.c,v 1.11 2000/12/10 02:16:48 tom Exp $")
 |   Return Values :  NULL on error
 +--------------------------------------------------------------------------*/
 NCURSES_EXPORT(MENU *)
-new_menu (ITEM ** items)
+new_menu(ITEM ** items)
 {
-  MENU *menu = (MENU *)calloc(1,sizeof(MENU));
-  
+  int err = E_SYSTEM_ERROR;
+  MENU *menu = (MENU *) calloc(1, sizeof(MENU));
+
+  T((T_CALLED("new_menu(%p)"), items));
   if (menu)
     {
       *menu = _nc_Default_Menu;
@@ -63,18 +65,19 @@ new_menu (ITEM ** items)
       menu->cols = menu->fcols;
       if (items && *items)
 	{
-	  if (!_nc_Connect_Items(menu,items))
+	  if (!_nc_Connect_Items(menu, items))
 	    {
+	      err = E_NOT_CONNECTED;
 	      free(menu);
-	      menu = (MENU *)0;
+	      menu = (MENU *) 0;
 	    }
 	}
     }
 
   if (!menu)
-    SET_ERROR(E_SYSTEM_ERROR);
+    SET_ERROR(err);
 
-  return(menu);
+  returnMenu(menu);
 }
 
 /*---------------------------------------------------------------------------
@@ -89,17 +92,18 @@ new_menu (ITEM ** items)
 |                    E_POSTED           - Menu is already posted
 +--------------------------------------------------------------------------*/
 NCURSES_EXPORT(int)
-free_menu (MENU * menu)
+free_menu(MENU * menu)
 {
+  T((T_CALLED("free_menu(%p)"), menu));
   if (!menu)
     RETURN(E_BAD_ARGUMENT);
-  
-  if ( menu->status & _POSTED )
+
+  if (menu->status & _POSTED)
     RETURN(E_POSTED);
-  
-  if (menu->items) 
+
+  if (menu->items)
     _nc_Disconnect_Items(menu);
-  
+
   if ((menu->status & _MARK_ALLOCATED) && menu->mark)
     free(menu->mark);
 

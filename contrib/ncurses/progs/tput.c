@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright (c) 1998,1999,2000,2001 Free Software Foundation, Inc.         *
+ * Copyright (c) 1998-2005,2006 Free Software Foundation, Inc.              *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -45,7 +45,7 @@
 #endif
 #include <transform.h>
 
-MODULE_ID("$Id: tput.c,v 1.30 2001/07/22 00:16:33 tom Exp $")
+MODULE_ID("$Id: tput.c,v 1.38 2006/11/26 00:27:47 tom Exp $")
 
 #define PUTS(s)		fputs(s, stdout)
 #define PUTCHAR(c)	putchar(c)
@@ -67,17 +67,18 @@ quit(int status, const char *fmt,...)
     va_list argp;
 
     va_start(argp, fmt);
+    fprintf(stderr, "%s: ", prg_name);
     vfprintf(stderr, fmt, argp);
     fprintf(stderr, "\n");
     va_end(argp);
-    exit(status);
+    ExitProgram(status);
 }
 
 static void
 usage(void)
 {
     fprintf(stderr, "usage: %s [-V] [-S] [-T term] capname\n", prg_name);
-    exit(EXIT_FAILURE);
+    ExitProgram(EXIT_FAILURE);
 }
 
 static void
@@ -124,6 +125,25 @@ tparm_type(const char *name)
 }
 
 static int
+exit_code(int token, int value)
+{
+    int result = 99;
+
+    switch (token) {
+    case BOOLEAN:
+	result = !value;	/* TRUE=0, FALSE=1 */
+	break;
+    case NUMBER:
+	result = 0;		/* always zero */
+	break;
+    case STRING:
+	result = value;		/* 0=normal, 1=missing */
+	break;
+    }
+    return result;
+}
+
+static int
 tput(int argc, char *argv[])
 {
     NCURSES_CONST char *name;
@@ -157,14 +177,14 @@ tput(int argc, char *argv[])
 
 #ifdef set_lr_margin
 	if (set_lr_margin != 0) {
-	    PUTS(tparm(set_lr_margin, 0, columns - 1));
+	    PUTS(TPARM_2(set_lr_margin, 0, columns - 1));
 	} else
 #endif
 #ifdef set_left_margin_parm
 	    if (set_left_margin_parm != 0
 		&& set_right_margin_parm != 0) {
-	    PUTS(tparm(set_left_margin_parm, 0));
-	    PUTS(tparm(set_right_margin_parm, columns - 1));
+	    PUTS(TPARM_1(set_left_margin_parm, 0));
+	    PUTS(TPARM_1(set_right_margin_parm, columns - 1));
 	} else
 #endif
 	    if (clear_margins != 0
@@ -178,7 +198,7 @@ tput(int argc, char *argv[])
 	    }
 	    PUTS(set_left_margin);
 	    if (parm_right_cursor) {
-		PUTS(tparm(parm_right_cursor, columns - 1));
+		PUTS(TPARM_1(parm_right_cursor, columns - 1));
 	    } else {
 		for (i = 0; i < columns - 1; i++) {
 		    PUTCHAR(' ');
@@ -197,7 +217,7 @@ tput(int argc, char *argv[])
 	    if (clear_all_tabs != 0 && set_tab != 0) {
 		for (i = 0; i < columns - 1; i += 8) {
 		    if (parm_right_cursor) {
-			PUTS(tparm(parm_right_cursor, 8));
+			PUTS(TPARM_1(parm_right_cursor, 8));
 		    } else {
 			for (j = 0; j < 8; j++)
 			    PUTCHAR(' ');
@@ -211,7 +231,7 @@ tput(int argc, char *argv[])
 	if (is_reset && reset_file != 0) {
 	    f = fopen(reset_file, "r");
 	    if (f == 0) {
-		quit(errno, "Can't open reset_file: '%s'", reset_file);
+		quit(4 + errno, "Can't open reset_file: '%s'", reset_file);
 	    }
 	    while ((c = fgetc(f)) != EOF) {
 		PUTCHAR(c);
@@ -220,7 +240,7 @@ tput(int argc, char *argv[])
 	} else if (init_file != 0) {
 	    f = fopen(init_file, "r");
 	    if (f == 0) {
-		quit(errno, "Can't open init_file: '%s'", init_file);
+		quit(4 + errno, "Can't open init_file: '%s'", init_file);
 	    }
 	    while ((c = fgetc(f)) != EOF) {
 		PUTCHAR(c);
@@ -231,8 +251,8 @@ tput(int argc, char *argv[])
 
 	if (is_reset && reset_3string != 0) {
 	    PUTS(reset_3string);
-	} else if (init_2string != 0) {
-	    PUTS(init_2string);
+	} else if (init_3string != 0) {
+	    PUTS(init_3string);
 	}
 	FLUSH;
 	return 0;
@@ -267,17 +287,19 @@ tput(int argc, char *argv[])
 #endif
 
     if ((status = tigetflag(name)) != -1) {
-	return (status != 0);
+	return exit_code(BOOLEAN, status);
     } else if ((status = tigetnum(name)) != CANCELLED_NUMERIC) {
 	(void) printf("%d\n", status);
-	return (0);
+	return exit_code(NUMBER, 0);
     } else if ((s = tigetstr(name)) == CANCELLED_STRING) {
-	quit(4, "%s: unknown terminfo capability '%s'", prg_name, name);
+	quit(4, "unknown terminfo capability '%s'", name);
     } else if (s != ABSENT_STRING) {
 	if (argc > 1) {
 	    int k;
-	    int numbers[10];
-	    char *strings[10];
+	    int popcount;
+	    long numbers[1 + NUM_PARM];
+	    char *strings[1 + NUM_PARM];
+	    char *p_is_s[NUM_PARM];
 
 	    /* Nasty hack time. The tparm function needs to see numeric
 	     * parameters as numbers, not as pointers to their string
@@ -291,32 +313,40 @@ tput(int argc, char *argv[])
 		if (tmp == 0 || *tmp != 0)
 		    numbers[k] = 0;
 	    }
-	    for (k = argc; k <= 9; k++) {
+	    for (k = argc; k <= NUM_PARM; k++) {
 		numbers[k] = 0;
 		strings[k] = 0;
 	    }
 
 	    switch (tparm_type(name)) {
 	    case Num_Str:
-		s = tparm(s, numbers[1], strings[2]);
+		s = TPARM_2(s, numbers[1], strings[2]);
 		break;
 	    case Num_Str_Str:
-		s = tparm(s, numbers[1], strings[2], strings[3]);
+		s = TPARM_3(s, numbers[1], strings[2], strings[3]);
 		break;
 	    default:
-		s = tparm(s,
-			  numbers[1], numbers[2], numbers[3],
-			  numbers[4], numbers[5], numbers[6],
-			  numbers[7], numbers[8], numbers[9]);
+		(void) _nc_tparm_analyze(s, p_is_s, &popcount);
+#define myParam(n) (p_is_s[n - 1] != 0 ? ((long) strings[n]) : numbers[n])
+		s = TPARM_9(s,
+			    myParam(1),
+			    myParam(2),
+			    myParam(3),
+			    myParam(4),
+			    myParam(5),
+			    myParam(6),
+			    myParam(7),
+			    myParam(8),
+			    myParam(9));
 		break;
 	    }
 	}
 
 	/* use putp() in order to perform padding */
 	putp(s);
-	return (0);
+	return exit_code(STRING, 0);
     }
-    return (0);
+    return exit_code(STRING, 1);
 }
 
 int
@@ -327,7 +357,7 @@ main(int argc, char **argv)
     bool cmdline = TRUE;
     int c;
     char buf[BUFSIZ];
-    int errors = 0;
+    int result = 0;
 
     check_aliases(prg_name = _nc_rootname(argv[0]));
 
@@ -344,7 +374,7 @@ main(int argc, char **argv)
 	    break;
 	case 'V':
 	    puts(curses_version());
-	    return EXIT_SUCCESS;
+	    ExitProgram(EXIT_SUCCESS);
 	default:
 	    usage();
 	    /* NOTREACHED */
@@ -374,7 +404,7 @@ main(int argc, char **argv)
     if (cmdline) {
 	if ((argc <= 0) && !is_reset && !is_init)
 	    usage();
-	return tput(argc, argv);
+	ExitProgram(tput(argc, argv));
     }
 
     while (fgets(buf, sizeof(buf), stdin) != 0) {
@@ -395,9 +425,12 @@ main(int argc, char **argv)
 	argvec[argnum] = 0;
 
 	if (argnum != 0
-	    && tput(argnum, argvec) != 0)
-	    errors++;
+	    && tput(argnum, argvec) != 0) {
+	    if (result == 0)
+		result = 4;	/* will return value >4 */
+	    ++result;
+	}
     }
 
-    return errors > 0;
+    ExitProgram(result);
 }

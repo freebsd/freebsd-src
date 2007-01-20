@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright (c) 1998,2000 Free Software Foundation, Inc.                   *
+ * Copyright (c) 1998-2000,2005 Free Software Foundation, Inc.              *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -36,12 +36,13 @@
  */
 #include "panel.priv.h"
 
-MODULE_ID("$Id: p_hidden.c,v 1.5 2000/12/10 02:20:44 tom Exp $")
+MODULE_ID("$Id: p_hidden.c,v 1.7 2005/02/19 16:39:17 tom Exp $")
 
 NCURSES_EXPORT(int)
-panel_hidden (const PANEL *pan)
+panel_hidden(const PANEL * pan)
 {
-  if(!pan)
-    return(ERR);
-  return(IS_LINKED(pan) ? FALSE : TRUE);
-} 
+  T((T_CALLED("panel_hidden(%p)"), pan));
+  if (!pan)
+    returnCode(ERR);
+  returnCode(IS_LINKED(pan) ? FALSE : TRUE);
+}

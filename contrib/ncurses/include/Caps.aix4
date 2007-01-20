@@ -1,5 +1,5 @@
 ##############################################################################
-# Copyright (c) 2001 Free Software Foundation, Inc.                          #
+# Copyright (c) 2001-2002,2006 Free Software Foundation, Inc.                #
 #                                                                            #
 # Permission is hereby granted, free of charge, to any person obtaining a    #
 # copy of this software and associated documentation files (the "Software"), #
@@ -28,7 +28,7 @@
 #
 # Author: Thomas Dickey
 #
-# $Id: Caps.aix4,v 1.5 2002/04/20 15:43:42 tom Exp $
+# $Id: Caps.aix4,v 1.7 2006/05/27 15:33:04 tom Exp $
 #
 # This is an adaptation of ncurses' termcap/terminfo capability table, which
 # is designed to align with AIX 4.x's terminfo.
@@ -227,11 +227,11 @@ move_standout_mode		msgr	bool	ms	-	-	YBCGE	safe to move while in standout mode
 over_strike			os	bool	os	-	-	YBCG-	terminal can overstrike
 status_line_esc_ok		eslok	bool	es	-	-	YB-G-	escape can be used on the status line
 dest_tabs_magic_smso		xt	bool	xt	-	-	YBCGE	tabs destructive, magic so char (t1061)
-tilde_glitch			hz	bool	hz	-	-	YB-GE	can't print ~'s (hazeltine)
+tilde_glitch			hz	bool	hz	-	-	YB-GE	cannot print ~'s (hazeltine)
 transparent_underline		ul	bool	ul	-	-	YBCGE	underline character overstrikes
 xon_xoff			xon	bool	xo	-	-	YB---	terminal uses xon/xoff handshaking
-needs_xon_xoff			nxon	bool	nx	-	-	-----	padding won't work, xon/xoff required
-prtr_silent			mc5i	bool	5i	-	-	-----	printer won't echo on screen
+needs_xon_xoff			nxon	bool	nx	-	-	-----	padding will not work, xon/xoff required
+prtr_silent			mc5i	bool	5i	-	-	-----	printer will not echo on screen
 hard_cursor			chts	bool	HC	-	-	-----	cursor is hard to see
 non_rev_rmcup			nrrmc	bool	NR	-	-	-----	smcup does not reverse rmcup
 no_pad_char			npc	bool	NP	-	-	-----	pad character does not exist
@@ -275,7 +275,7 @@ maximum_windows			wnum	num	MW	-	-	-----	maximum number of defineable windows
 # These came in with SVr4's color support
 max_colors			colors	num	Co	-	-	-----	maximum number of colors on screen
 max_pairs			pairs	num	pa	-	-	-----	maximum number of color-pairs on the screen
-no_color_video			ncv	num	NC	-	-	-----	video attributes that can't be used with colors
+no_color_video			ncv	num	NC	-	-	-----	video attributes that cannot be used with colors
 #%.TE
 #%.ad
 #%
@@ -1069,8 +1069,8 @@ acs_plus			OTGC	str	GC	-		-	-----	single intersection
 # functionally identical to SVr4 extensions, but they make the binary format
 # different.  Grrr....
 #
-memory_lock			meml	str	ml	-		-	----K	memory lock above
-memory_unlock			memu	str	mu	-		-	----K	memory unlock
+memory_lock			meml	str	ml	-		-	----K	lock memory above cursor
+memory_unlock			memu	str	mu	-		-	----K	unlock memory
 #plab_norm			pln	str	pn	-		-	-----	program label #1 to show string #2
 #label_on			smln	str	LO	-		-	-----	turn on soft labels
 #label_off			rmln	str	LF	-		-	-----	turn off soft labels

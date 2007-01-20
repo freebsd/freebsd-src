@@ -1,6 +1,6 @@
 '\" t
 .\"***************************************************************************
-.\" Copyright (c) 1998 Free Software Foundation, Inc.                        *
+.\" Copyright (c) 1998,2006 Free Software Foundation, Inc.                   *
 .\"                                                                          *
 .\" Permission is hereby granted, free of charge, to any person obtaining a  *
 .\" copy of this software and associated documentation files (the            *
@@ -27,7 +27,7 @@
 .\" authorization.                                                           *
 .\"***************************************************************************
 .\"
-.\" $Id: form_hook.3x,v 1.6 1999/03/20 22:37:15 Todd.Miller Exp $
+.\" $Id: form_hook.3x,v 1.8 2006/11/04 17:12:00 tom Exp $
 .TH form_hook 3X ""
 .SH NAME
 \fBform_hook\fR - set hooks for automatic invocation by applications
@@ -53,21 +53,21 @@ void (*)(FORM *) form_term(const FORM *form);
 .SH DESCRIPTION
 These functions make it possible to set hook functions to be called at various
 points in the automatic processing of input event codes by \fBform_driver\fR.
-
+.PP
 The function \fBset_field_init\fR sets a hook to be called at form-post time
 and each time the selected field changes (after the change).  \fBfield_init\fR
 returns the current field init hook, if any (\fBNULL\fR if there is no such
 hook).
-
+.PP
 The function \fBset_field_term\fR sets a hook to be called at form-unpost time
 and each time the selected field changes (before the change).  \fBfield_term\fR
 returns the current field term hook, if any (\fBNULL\fR if there is no such
 hook).
-
+.PP
 The function \fBset_form_init\fR sets a hook to be called at form-post time and
 just after a page change once it is posted.  \fBform_init\fR returns the
 current form init hook, if any (\fBNULL\fR if there is no such hook).
-
+.PP
 The function \fBset_form_term\fR sets a hook to be called at form-unpost time
 and just before a page change once it is posted.  \fBform_init\fR
 returns the current form term hook, if any (\fBNULL\fR if there is no such
@@ -76,10 +76,10 @@ hook).
 Routines that return pointers return \fBNULL\fR on error.  Other routines
 return one of the following:
 .TP 5
-\fBE_OK\fR
+.B E_OK
 The routine succeeded.
 .TP 5
-\fBE_SYSTEM_ERROR\fR
+.B E_SYSTEM_ERROR
 System error occurred (see \fBerrno\fR).
 .SH SEE ALSO
 \fBcurses\fR(3X), \fBform\fR(3X).
