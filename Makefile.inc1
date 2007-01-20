@@ -453,7 +453,7 @@ build32:
 	cd ${.CURDIR}/${_dir}; \
 	    ${LIB32MAKE} DESTDIR=${LIB32TMP} obj
 .endfor
-.for _dir in lib/libncurses lib/libmagic
+.for _dir in lib/ncurses/ncurses lib/libmagic
 	cd ${.CURDIR}/${_dir}; \
 	    MAKEOBJDIRPREFIX=${OBJTREE}/lib32 ${MAKE} DESTDIR= build-tools
 .endfor
@@ -932,7 +932,7 @@ build-tools:
     bin/csh \
     bin/sh \
     ${_rescue} \
-    lib/libncurses \
+    lib/ncurses/ncurses \
     ${_share} \
     ${_aicasm} \
     usr.bin/awk \
@@ -1020,7 +1020,7 @@ _prebuild_libs=	${_kerberos5_lib_libasn1} ${_kerberos5_lib_libkrb5} \
 		lib/libbz2 lib/libcom_err lib/libcrypt lib/libexpat \
 		${_lib_libgssapi} ${_lib_libipx} \
 		lib/libkiconv lib/libkvm lib/libmd \
-		lib/libncurses lib/libopie lib/libpam \
+		lib/ncurses/ncurses lib/libopie lib/libpam \
 		lib/libradius lib/libsbuf lib/libtacplus lib/libutil \
 		${_lib_libypclnt} lib/libz lib/msun \
 		${_secure_lib_libcrypto} ${_secure_lib_libssh} \
