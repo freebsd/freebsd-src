@@ -8,7 +8,7 @@ MAN=	mount_portalfs.8
 
 MOUNT=	${.CURDIR}/../../sbin/mount
 CFLAGS+=-I${MOUNT}
-WARNS?=	6
+WARNS?=	3
 
 .PATH:	${MOUNT}
 
