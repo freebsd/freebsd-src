@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright (c) 2002 Free Software Foundation, Inc.                        *
+ * Copyright (c) 2002-2004,2006 Free Software Foundation, Inc.              *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -27,7 +27,7 @@
  ****************************************************************************/
 
 /****************************************************************************
- * Author: Thomas Dickey 2002                                               *
+ * Author: Thomas Dickey                                                    *
  ****************************************************************************/
 
 /*
@@ -39,10 +39,10 @@
 
 #include <curses.priv.h>
 
-MODULE_ID("$Id: lib_in_wch.c,v 1.1 2002/03/10 20:22:00 tom Exp $")
+MODULE_ID("$Id: lib_in_wch.c,v 1.4 2006/09/03 15:41:22 tom Exp $")
 
 NCURSES_EXPORT(int)
-win_wch(WINDOW *win, NCURSES_CONST cchar_t * wcval)
+win_wch(WINDOW *win, cchar_t *wcval)
 {
     int row, col;
     int code = OK;
@@ -53,8 +53,10 @@ win_wch(WINDOW *win, NCURSES_CONST cchar_t * wcval)
 	getyx(win, row, col);
 
 	*wcval = win->_line[row].text[col];
+	TR(TRACE_CCALLS, ("data %s", _tracecchar_t(wcval)));
     } else {
 	code = ERR;
     }
-    returnCode(code);
+    TR(TRACE_CCALLS, (T_RETURN("%d"), code));
+    return (code);
 }

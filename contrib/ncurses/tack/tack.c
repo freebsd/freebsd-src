@@ -15,13 +15,13 @@
 ** 
 ** You should have received a copy of the GNU General Public License
 ** along with TACK; see the file COPYING.  If not, write to
-** the Free Software Foundation, Inc., 59 Temple Place - Suite 330,
-** Boston, MA 02111-1307, USA.
+** the Free Software Foundation, Inc., 51 Franklin Street, Fifth Floor,
+** Boston, MA 02110-1301, USA
 */
 
 #include <tack.h>
 
-MODULE_ID("$Id: tack.c,v 1.2 2001/10/28 01:05:35 tom Exp $")
+MODULE_ID("$Id: tack.c,v 1.4 2005/09/17 19:49:16 tom Exp $")
 
 /*
    This program is designed to test terminfo, not curses.  Therefore
@@ -62,14 +62,12 @@ FILE *log_fp;			/* Terminal logfile */
  *
  *****************************************************************************/
 
-extern struct test_menu sync_menu;
-
 static void tools_hex_echo(struct test_list *, int *, int *);
 static void tools_debug(struct test_list *, int *, int *);
 
 static char hex_echo_menu_entry[80];
 
-struct test_list tools_test_list[] = {
+static struct test_list tools_test_list[] = {
 	{0, 0, 0, 0, "s) ANSI status reports", tools_status, 0},
 	{0, 0, 0, 0, "g) ANSI SGR modes (bold, underline, reverse)", tools_sgr, 0},
 	{0, 0, 0, 0, "c) ANSI character sets", tools_charset, 0},
@@ -83,7 +81,7 @@ struct test_list tools_test_list[] = {
 	{MENU_LAST, 0, 0, 0, 0, 0, 0}
 };
 
-struct test_menu tools_menu = {
+static struct test_menu tools_menu = {
 	0, 'q', 0, "Tools Menu", "tools",
 	0, 0, tools_test_list, 0, 0, 0
 };
@@ -115,23 +113,17 @@ static struct test_menu tty_menu = {
 	tty_show_state, tty_test_list, 0, 0, 0
 };
 
-extern struct test_list edit_test_list[];
-
 struct test_menu edit_menu = {
 	0, 'q', 0, "Edit terminfo menu",
 	"edit", 0,
 	0, edit_test_list, 0, 0, 0
 };
 
-extern struct test_list mode_test_list[];
-
-struct test_menu mode_menu = {
+static struct test_menu mode_menu = {
 	0, 'n', 0, "Test modes and glitches:",
 	"mode", "n) run standard tests",
 	0, mode_test_list, 0, 0, 0
 };
-
-extern struct test_list acs_test_list[];
 
 static struct test_menu acs_menu = {
 	0, 'n', 0,
@@ -140,16 +132,12 @@ static struct test_menu acs_menu = {
 	0, acs_test_list, 0, 0, 0
 };
 
-extern struct test_list color_test_list[];
-
-struct test_menu color_menu = {
+static struct test_menu color_menu = {
 	0, 'n', 0,
 	"Test color:",
 	"color", "n) run standard tests",
 	0, color_test_list, 0, 0, 0
 };
-
-extern struct test_list crum_test_list[];
 
 static struct test_menu crum_menu = {
 	0, 'n', 0,
@@ -158,16 +146,12 @@ static struct test_menu crum_menu = {
 	0, crum_test_list, 0, 0, 0
 };
 
-extern struct test_list funkey_test_list[];
-
 static struct test_menu funkey_menu = {
 	0, 'n', 0,
 	"Test function keys:",
 	"fkey", "n) run standard tests",
 	sync_test, funkey_test_list, 0, 0, 0
 };
-
-extern struct test_list printer_test_list[];
 
 static struct test_menu printer_menu = {
 	0, 'n', 0,
@@ -177,7 +161,6 @@ static struct test_menu printer_menu = {
 };
 
 static void pad_gen(struct test_list *, int *, int *);
-extern struct test_list pad_test_list[];
 
 static struct test_menu pad_menu = {
 	0, 'n', 0,
@@ -203,7 +186,7 @@ static struct test_list normal_test_list[] = {
 };
 
 
-struct test_menu normal_menu = {
+static struct test_menu normal_menu = {
 	0, 'n', 0, "Main test menu",
 	"test", "n) run standard tests",
 	0, normal_test_list, 0, 0, 0
@@ -216,7 +199,7 @@ static void start_log(struct test_list *, int *, int *);
 
 static char logging_menu_entry[80] = "l) start logging";
 
-struct test_list start_test_list[] = {
+static struct test_list start_test_list[] = {
 	{0, 0, 0, 0, "b) display basic information", start_basic, 0},
 	{0, 0, 0, 0, "m) change modes", start_modes, 0},
 	{0, 0, 0, 0, "t) tools", start_tools, 0},
@@ -226,7 +209,7 @@ struct test_list start_test_list[] = {
 };
 	
 
-struct test_menu start_menu = {
+static struct test_menu start_menu = {
 	0, 'n', 0, "Main Menu", "tack", 0,
 	0, start_test_list, 0, 0, 0
 };
@@ -319,7 +302,7 @@ tty_show_state(
 {
 	put_crlf();
 	(void) sprintf(temp,
-		"Accepting %d bits, UNIX delays %d, XON/XOFF %sabled, speed %ld, translate %s, scan-code mode %s.",
+		"Accepting %d bits, UNIX delays %d, XON/XOFF %sabled, speed %u, translate %s, scan-code mode %s.",
 		(char_mask == ALLOW_PARITY) ? 8 : 7,
 		select_delay_type,
 		select_xon_xoff ? "en" : "dis",

@@ -1,6 +1,6 @@
 '\" t
 .\"***************************************************************************
-.\" Copyright (c) 1998 Free Software Foundation, Inc.                        *
+.\" Copyright (c) 1998,2006 Free Software Foundation, Inc.                   *
 .\"                                                                          *
 .\" Permission is hereby granted, free of charge, to any person obtaining a  *
 .\" copy of this software and associated documentation files (the            *
@@ -27,7 +27,7 @@
 .\" authorization.                                                           *
 .\"***************************************************************************
 .\"
-.\" $Id: form_cursor.3x,v 1.4 1998/11/29 01:05:43 Rick.Ohnemus Exp $
+.\" $Id: form_cursor.3x,v 1.6 2006/11/04 18:50:24 tom Exp $
 .TH form_cursor 3X ""
 .SH NAME
 \fBform_cursor\fR - position a form window cursor
@@ -44,17 +44,18 @@ form operation.
 .SH RETURN VALUE
 This routine returns one of the following:
 .TP 5
-\fBE_OK\fR
+.B E_OK
 The routine succeeded.
 .TP 5
-\fBE_SYSTEM_ERROR\fR
-System error occurred (see \fBerrno\fR).
-.TP 5
-\fBE_BAD_ARGUMENT\fR
+.B E_BAD_ARGUMENT
 Routine detected an incorrect or out-of-range argument.
 .TP 5
-\fBE_NOT_POSTED\fR
+.B E_NOT_POSTED
 The form has not been posted.
+.TP 5
+.B E_SYSTEM_ERROR
+System error occurred (see \fBerrno\fR).
+.
 .SH SEE ALSO
 \fBcurses\fR(3X), \fBform\fR(3X).
 .SH NOTES

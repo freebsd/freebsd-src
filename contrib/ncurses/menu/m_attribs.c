@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright (c) 1998,2000 Free Software Foundation, Inc.                   *
+ * Copyright (c) 1998-2003,2004 Free Software Foundation, Inc.              *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -27,7 +27,7 @@
  ****************************************************************************/
 
 /****************************************************************************
- *   Author: Juergen Pfeifer <juergen.pfeifer@gmx.net> 1995,1997            *
+ *   Author:  Juergen Pfeifer, 1995,1997                                    *
  ****************************************************************************/
 
 /***************************************************************************
@@ -37,7 +37,7 @@
 
 #include "menu.priv.h"
 
-MODULE_ID("$Id: m_attribs.c,v 1.9 2000/12/10 02:16:48 tom Exp $")
+MODULE_ID("$Id: m_attribs.c,v 1.14 2004/12/11 23:29:12 tom Exp $")
 
 /* Macro to redraw menu if it is posted and changed */
 #define Refresh_Menu(menu) \
@@ -51,6 +51,7 @@ MODULE_ID("$Id: m_attribs.c,v 1.9 2000/12/10 02:16:48 tom Exp $")
 #define GEN_MENU_ATTR_SET_FCT( name ) \
 NCURSES_IMPEXP int NCURSES_API set_menu_ ## name (MENU * menu, chtype attr)\
 {\
+   T((T_CALLED("set_menu_" #name "(%p,%s)"), menu, _traceattr(attr)));\
    if (!(attr==A_NORMAL || (attr & A_ATTRIBUTES)==attr))\
       RETURN(E_BAD_ARGUMENT);\
    if (menu && ( menu -> name != attr))\
@@ -62,11 +63,12 @@ NCURSES_IMPEXP int NCURSES_API set_menu_ ## name (MENU * menu, chtype attr)\
    RETURN(E_OK);\
 }
 
-/* "Template" macro to generate a function to get a menus attribute */
+/* "Template" macro to generate a function to get a menu's attribute */
 #define GEN_MENU_ATTR_GET_FCT( name ) \
 NCURSES_IMPEXP chtype NCURSES_API menu_ ## name (const MENU * menu)\
 {\
-   return (Normalize_Menu( menu ) -> name);\
+   T((T_CALLED("menu_" #name "(%p)"), menu));\
+   returnAttr(Normalize_Menu( menu ) -> name);\
 }
 
 /*---------------------------------------------------------------------------
@@ -74,14 +76,14 @@ NCURSES_IMPEXP chtype NCURSES_API menu_ ## name (const MENU * menu)\
 |   Function      :  int set_menu_fore(MENU *menu, chtype attr)
 |   
 |   Description   :  Set the attribute for selectable items. In single-
-|                    valued menus thiis is used to highlight the current
+|                    valued menus this is used to highlight the current
 |                    item ((i.e. where the cursor is), in multi-valued
 |                    menus this is used to highlight the selected items.
 |
 |   Return Values :  E_OK              - success
 |                    E_BAD_ARGUMENT    - an invalid value has been passed   
 +--------------------------------------------------------------------------*/
-GEN_MENU_ATTR_SET_FCT( fore )
+GEN_MENU_ATTR_SET_FCT(fore)
 
 /*---------------------------------------------------------------------------
 |   Facility      :  libnmenu  
@@ -93,7 +95,7 @@ GEN_MENU_ATTR_SET_FCT( fore )
 |
 |   Return Values :  Attribute value
 +--------------------------------------------------------------------------*/
-GEN_MENU_ATTR_GET_FCT( fore )
+GEN_MENU_ATTR_GET_FCT(fore)
 
 /*---------------------------------------------------------------------------
 |   Facility      :  libnmenu  
@@ -105,7 +107,7 @@ GEN_MENU_ATTR_GET_FCT( fore )
 |   Return Values :  E_OK             - success  
 |                    E_BAD_ARGUMENT   - an invalid value has been passed
 +--------------------------------------------------------------------------*/
-GEN_MENU_ATTR_SET_FCT( back )
+GEN_MENU_ATTR_SET_FCT(back)
 
 /*---------------------------------------------------------------------------
 |   Facility      :  libnmenu  
@@ -116,7 +118,7 @@ GEN_MENU_ATTR_SET_FCT( back )
 |
 |   Return Values :  Attribute value
 +--------------------------------------------------------------------------*/
-GEN_MENU_ATTR_GET_FCT( back )
+GEN_MENU_ATTR_GET_FCT(back)
 
 /*---------------------------------------------------------------------------
 |   Facility      :  libnmenu  
@@ -127,7 +129,7 @@ GEN_MENU_ATTR_GET_FCT( back )
 |   Return Values :  E_OK             - success
 |                    E_BAD_ARGUMENT   - an invalid value has been passed    
 +--------------------------------------------------------------------------*/
-GEN_MENU_ATTR_SET_FCT( grey )
+GEN_MENU_ATTR_SET_FCT(grey)
 
 /*---------------------------------------------------------------------------
 |   Facility      :  libnmenu  
@@ -137,5 +139,5 @@ GEN_MENU_ATTR_SET_FCT( grey )
 |
 |   Return Values :  Attribute value
 +--------------------------------------------------------------------------*/
-GEN_MENU_ATTR_GET_FCT( grey )
+GEN_MENU_ATTR_GET_FCT(grey)
 /* m_attribs.c ends here */

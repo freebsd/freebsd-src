@@ -1,11 +1,39 @@
 <!DOCTYPE HTML PUBLIC "-//IETF//DTD HTML 3.0//EN">
 <!--
-  $Id: ncurses-intro.html,v 1.35 2001/09/02 00:23:11 tom Exp $
+  $Id: ncurses-intro.html,v 1.41 2005/12/24 15:47:05 tom Exp $
+  ****************************************************************************
+  * Copyright (c) 1998-2004,2005 Free Software Foundation, Inc.              *
+  *                                                                          *
+  * Permission is hereby granted, free of charge, to any person obtaining a  *
+  * copy of this software and associated documentation files (the            *
+  * "Software"), to deal in the Software without restriction, including      *
+  * without limitation the rights to use, copy, modify, merge, publish,      *
+  * distribute, distribute with modifications, sublicense, and/or sell       *
+  * copies of the Software, and to permit persons to whom the Software is    *
+  * furnished to do so, subject to the following conditions:                 *
+  *                                                                          *
+  * The above copyright notice and this permission notice shall be included  *
+  * in all copies or substantial portions of the Software.                   *
+  *                                                                          *
+  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS  *
+  * OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF               *
+  * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.   *
+  * IN NO EVENT SHALL THE ABOVE COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM,   *
+  * DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR    *
+  * OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR    *
+  * THE USE OR OTHER DEALINGS IN THE SOFTWARE.                               *
+  *                                                                          *
+  * Except as contained in this notice, the name(s) of the above copyright   *
+  * holders shall not be used in advertising or otherwise to promote the     *
+  * sale, use or other dealings in this Software without prior written       *
+  * authorization.                                                           *
+  ****************************************************************************
 -->
 <HTML>
 <HEAD>
 <TITLE>Writing Programs with NCURSES</TITLE>
 <link rev="made" href="mailto:bugs-ncurses@gnu.org">
+<meta http-equiv="Content-Type" content="text/html; charset=iso-8859-1">
 </HEAD>
 <BODY>
 
@@ -221,16 +249,11 @@ maintainer of this package is
 &lt;esr@snark.thyrsus.com&gt;
 wrote many of the new features in versions after 1.8.1
 and wrote most of this introduction.
-<A HREF="mailto:juergen.pfeifer@gmx.net">J&uuml;rgen Pfeifer</A>
+J&uuml;rgen Pfeifer
 wrote all of the menu and forms code as well as the
 <A HREF="http://www.adahome.com">Ada95</A> binding.
 Ongoing work is being done by
-<A HREF="mailto:dickey@herndon4.his.com">Thomas Dickey</A>
-and
-<A HREF="mailto:juergen.pfeifer@gmx.net">J&uuml;rgen Pfeifer</A>.
-<A HREF="mailto:florian@gnu.org">Florian La Roche</A>
-acts as the maintainer for the Free Software Foundation, which holds the
-copyright on ncurses.
+<A HREF="mailto:dickey@invisible-island.net">Thomas Dickey</A> (maintainer).
 Contact the current maintainers at
 <A HREF="mailto:bug-ncurses@gnu.org">bug-ncurses@gnu.org</A>.
 <P>
@@ -613,6 +636,7 @@ Presently, mouse event reporting works in the following environments:
 <li>xterm and similar programs such as rxvt.
 <li>Linux console, when configured with <CODE>gpm</CODE>(1), Alessandro
 Rubini's mouse server.
+<li>FreeBSD sysmouse (console)
 <li>OS/2 EMX
 </ul>
 <P>
@@ -690,7 +714,7 @@ the first call to <CODE>refresh()</CODE> will clear the screen.  If an error
 occurs a message is written to standard error and the program
 exits. Otherwise it returns a pointer to stdscr.  A few functions may be
 called before initscr (<CODE>slk_init()</CODE>, <CODE>filter()</CODE>,
-<CODE>ripofflines()</CODE>, <CODE>use_env()</CODE>, and, if you are using multiple
+<CODE>ripoffline()</CODE>, <CODE>use_env()</CODE>, and, if you are using multiple
 terminals, <CODE>newterm()</CODE>.)
 <DT> <CODE>endwin()</CODE>
 <DD> Your program should always call <CODE>endwin()</CODE> before exiting or
@@ -732,7 +756,7 @@ the  terminal,  as  other  routines  merely  manipulate data
 structures.  <CODE>wrefresh()</CODE> copies the named window  to the physical
 terminal screen,  taking  into account  what is already
 there in  order to  do optimizations.  <CODE>refresh()</CODE> does a
-refresh of <CODE>stdscr()</CODE>.   Unless <CODE>leaveok()</CODE> has been
+refresh of <CODE>stdscr</CODE>.   Unless <CODE>leaveok()</CODE> has been
 enabled, the physical cursor of the terminal is left at  the
 location of the window's cursor.
 <DT> <CODE>doupdate()</CODE> and <CODE>wnoutrefresh(win)</CODE>
@@ -982,7 +1006,7 @@ on and refresh them, the changes made to the overlapping region under historic
 
 To understand why this is a problem, remember that screen updates are
 calculated between two representations of the <EM>entire</EM> display. The
-documentation says that when you refresh a window, it is first copied to to the
+documentation says that when you refresh a window, it is first copied to the
 virtual screen, and then changes are calculated to update the physical screen
 (and applied to the terminal).  But "copied to" is not very specific, and
 subtle differences in how copying works can produce different behaviors in the
@@ -1020,7 +1044,7 @@ guarantee an entire-contents copy anywhere. <P>
 
 The really clean way to handle this is to use the panels library.  If,
 when you want a screen update, you do <CODE>update_panels()</CODE>, it will
-do all the necessary <CODE>wnoutrfresh()</CODE> calls for whatever panel
+do all the necessary <CODE>wnoutrefresh()</CODE> calls for whatever panel
 stacking order you have defined.  Then you can do one <CODE>doupdate()</CODE>
 and there will be a <EM>single</EM> burst of physical I/O that will do
 all your updates.
@@ -1222,10 +1246,10 @@ The general flow of control of a menu program looks like this:
 <LI>Initialize <CODE>curses</CODE>.
 <LI>Create the menu items, using <CODE>new_item()</CODE>.
 <LI>Create the menu using <CODE>new_menu()</CODE>.
-<LI>Post the menu using <CODE>menu_post()</CODE>.
+<LI>Post the menu using <CODE>post_menu()</CODE>.
 <LI>Refresh the screen.
 <LI>Process user requests via an input loop.
-<LI>Unpost the menu using <CODE>menu_unpost()</CODE>.
+<LI>Unpost the menu using <CODE>unpost_menu()</CODE>.
 <LI>Free the menu, using <CODE>free_menu()</CODE>.
 <LI>Free the items using <CODE>free_item()</CODE>.
 <LI>Terminate <CODE>curses</CODE>.
@@ -1308,8 +1332,8 @@ refreshed or erased at post/unpost time.  The inner window or
 By default, both windows are <CODE>stdscr</CODE>.  You can set them with the
 functions in <CODE>menu_win(3x)</CODE>. <P>
 
-When you call <CODE>menu_post()</CODE>, you write the menu to its
-subwindow.  When you call <CODE>menu_unpost()</CODE>, you erase the
+When you call <CODE>post_menu()</CODE>, you write the menu to its
+subwindow.  When you call <CODE>unpost_menu()</CODE>, you erase the
 subwindow, However, neither of these actually modifies the screen.  To
 do that, call <CODE>wrefresh()</CODE> or some equivalent.
 
@@ -1441,10 +1465,10 @@ The general flow of control of a form program looks like this:
 <LI>Initialize <CODE>curses</CODE>.
 <LI>Create the form fields, using <CODE>new_field()</CODE>.
 <LI>Create the form using <CODE>new_form()</CODE>.
-<LI>Post the form using <CODE>form_post()</CODE>.
+<LI>Post the form using <CODE>post_form()</CODE>.
 <LI>Refresh the screen.
 <LI>Process user requests via an input loop.
-<LI>Unpost the form using <CODE>form_unpost()</CODE>.
+<LI>Unpost the form using <CODE>unpost_form()</CODE>.
 <LI>Free the form, using <CODE>free_form()</CODE>.
 <LI>Free the fields using <CODE>free_field()</CODE>.
 <LI>Terminate <CODE>curses</CODE>.
@@ -1480,7 +1504,7 @@ the screen (the third and fourth arguments, which must be zero or
 greater). Note that these coordinates are relative to the form
 subwindow, which will coincide with <CODE>stdscr</CODE> by default but
 need not be <CODE>stdscr</CODE> if you've done an explicit
-<CODE>set_form_window()</CODE> call. <P>
+<CODE>set_form_win()</CODE> call. <P>
 
 The fifth argument allows you to specify a number of off-screen rows.  If
 this is zero, the entire field will always be displayed.  If it is
@@ -2519,13 +2543,13 @@ By default, all options are on.  Here are the available option bits:
 <DL>
 <DT> O_NL_OVERLOAD
 <DD> Enable overloading of <CODE>REQ_NEW_LINE</CODE> as described in <A
-NAME="fedit">Editing Requests</A>.  The value of this option is
+href="#fedit">Editing Requests</A>.  The value of this option is
 ignored on dynamic fields that have not reached their size limit;
 these have no last line, so the circumstances for triggering a
 <CODE>REQ_NEXT_FIELD</CODE> never arise.
 <DT> O_BS_OVERLOAD
 <DD> Enable overloading of <CODE>REQ_DEL_PREV</CODE> as described in
-<A NAME="fedit">Editing Requests</A>.
+<A href="#fedit">Editing Requests</A>.
 </DL>
 
 The option values are bit-masks and can be composed with logical-or in

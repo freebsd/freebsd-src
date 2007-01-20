@@ -1,5 +1,5 @@
 .\"***************************************************************************
-.\" Copyright (c) 2002 Free Software Foundation, Inc.                        *
+.\" Copyright (c) 2002-2004,2006 Free Software Foundation, Inc.              *
 .\"                                                                          *
 .\" Permission is hereby granted, free of charge, to any person obtaining a  *
 .\" copy of this software and associated documentation files (the            *
@@ -26,10 +26,9 @@
 .\" authorization.                                                           *
 .\"***************************************************************************
 .\"
-.\" $Id: curs_bkgrnd.3x,v 1.1 2002/02/23 23:23:42 tom Exp $
+.\" $Id: curs_bkgrnd.3x,v 1.3 2006/02/25 21:49:19 tom Exp $
 .TH curs_bkgrnd 3X ""
 .SH NAME
-.PP
 \fBbkgrnd\fR,
 \fBwbkgrnd\fR,
 \fBbkgrndset\fR,
@@ -39,7 +38,7 @@
 .SH SYNOPSIS
 .PP
 .B #include <curses.h>
-
+.sp
 \fBint bkgrnd(\fR\fB const cchar_t *\fR\fIwch\fR\fB);\fR
 .br
 \fBint wbkgrnd(\fR\fB WINDOW *\fR\fIwin\fR\fB, const cchar_t *\fR\fIwch\fR\fB);\fR
@@ -64,26 +63,26 @@ the blank characters.
 The background becomes a property of the
 character and moves with the character through any scrolling and
 insert/delete line/character operations.
-
+.PP
 To the extent possible on a
 particular terminal, the attribute part of the background is displayed
 as the graphic rendition of the character put on the screen.
-
+.PP
 The \fBbkgrnd\fR and \fBwbkgrnd\fR functions
 set the background property of the current or specified window
 and then apply this setting to every character position in that window:
-
 .RS
+.PP
 The rendition of every character on the screen is changed to
 the new background rendition.
-
+.PP
 Wherever the former background character
 appears, it is changed to the new background character.
 .RE
-
+.PP
 The \fBgetbkgrnd\fR function returns the given window's current background
 character/attribute pair via the \fBwch\fR pointer.
-
+.
 .SH NOTES
 Note that
 \fBbkgrnd\fR,

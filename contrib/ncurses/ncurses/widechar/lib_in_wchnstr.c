@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright (c) 2002 Free Software Foundation, Inc.                        *
+ * Copyright (c) 2002,2004 Free Software Foundation, Inc.                   *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -27,7 +27,7 @@
  ****************************************************************************/
 
 /****************************************************************************
- * Author: Thomas Dickey 2002                                               *
+ * Author: Thomas Dickey 2002,2004                                          *
  ****************************************************************************/
 
 /*
@@ -39,22 +39,28 @@
 
 #include <curses.priv.h>
 
-MODULE_ID("$Id: lib_in_wchnstr.c,v 1.1 2002/04/13 19:33:57 tom Exp $")
+MODULE_ID("$Id: lib_in_wchnstr.c,v 1.3 2004/05/16 00:12:30 tom Exp $")
 
 NCURSES_EXPORT(int)
-win_wchnstr(WINDOW *win, NCURSES_CONST cchar_t * wchstr, int n)
+win_wchnstr(WINDOW *win, cchar_t * wchstr, int n)
 {
     int code = OK;
 
-    TR(TRACE_CCALLS, (T_CALLED("win_wchnstr(%p,%p,%d)"), win, wchstr, n));
+    TR(TRACE_CALLS, (T_CALLED("win_wchnstr(%p,%p,%d)"), win, wchstr, n));
     if (win != 0
 	&& wchstr != 0) {
+	int row, col;
+	int j;
+
+	getyx(win, row, col);
 
 	if (n < 0) {
 	    n = getmaxx(win) + 1 - getcurx(win);
 	}
-	while (n-- > 0)
-	    win_wch(win, wchstr++);
+	for (j = 0; j < n; ++j) {
+	    wchstr[j] = win->_line[row].text[col + j];
+	}
+	T(("result = %s", _nc_viscbuf(wchstr, n)));
     } else {
 	code = ERR;
     }

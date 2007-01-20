@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright (c) 2001 Free Software Foundation, Inc.                        *
+ * Copyright (c) 2001-2002,2003 Free Software Foundation, Inc.              *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -34,9 +34,11 @@
 
 #include <ctype.h>
 
-MODULE_ID("$Id: varargs.c,v 1.2 2002/06/01 16:16:00 tom Exp $")
+MODULE_ID("$Id: varargs.c,v 1.4 2003/05/24 21:10:28 tom Exp $")
 
 #ifdef TRACE
+
+#define MAX_PARMS 10
 
 typedef enum {
     atUnknown = 0, atInteger, atFloat, atPoint, atString
@@ -44,7 +46,7 @@ typedef enum {
 
 #define VA_INT(type) ival = va_arg(ap, type)
 #define VA_FLT(type) fval = va_arg(ap, type)
-#define VA_PTR(type) pval = (void *)va_arg(ap, type)
+#define VA_PTR(type) pval = (char *)va_arg(ap, type)
 #define VA_STR(type) sval = va_arg(ap, type)
 
 /*
@@ -58,6 +60,8 @@ _nc_varargs(const char *fmt, va_list ap)
     static size_t result_len;
 
     char buffer[BUFSIZ];
+    const char *param;
+    int n;
 
     if (fmt == 0 || *fmt == '\0')
 	return dummy;
@@ -75,14 +79,16 @@ _nc_varargs(const char *fmt, va_list ap)
 	    int done = FALSE;
 	    int ival = 0;
 	    int type = 0;
+	    ARGTYPE parm[MAX_PARMS];
+	    int parms = 0;
 	    ARGTYPE used = atUnknown;
 
 	    while (*++fmt != '\0' && !done) {
 
 		if (*fmt == '*') {
 		    VA_INT(int);
-		    used = atInteger;
-		    break;
+		    if (parms < MAX_PARMS)
+			parm[parms++] = atInteger;
 		} else if (isalpha(UChar(*fmt))) {
 		    done = TRUE;
 		    switch (*fmt) {
@@ -135,30 +141,34 @@ _nc_varargs(const char *fmt, va_list ap)
 		} else if (*fmt == '%') {
 		    done = TRUE;
 		}
-		if (used != atUnknown) {
-		    const char *param = buffer;
-		    switch (used) {
-		    case atInteger:
-			sprintf(buffer, "%d", ival);
-			break;
-		    case atFloat:
-			sprintf(buffer, "%f", fval);
-			break;
-		    case atPoint:
-			sprintf(buffer, "%p", pval);
-			break;
-		    case atString:
-			param = _nc_visbuf2(1, sval);
-			break;
-		    default:
-			strcpy(buffer, "?");
-			break;
+		if (used != atUnknown && parms < MAX_PARMS) {
+		    parm[parms++] = used;
+		    for (n = 0; n < parms; ++n) {
+			used = parm[n];
+			param = buffer;
+			switch (used) {
+			case atInteger:
+			    sprintf(buffer, "%d", ival);
+			    break;
+			case atFloat:
+			    sprintf(buffer, "%f", fval);
+			    break;
+			case atPoint:
+			    sprintf(buffer, "%p", pval);
+			    break;
+			case atString:
+			    param = _nc_visbuf2(1, sval);
+			    break;
+			default:
+			    strcpy(buffer, "?");
+			    break;
+			}
+			result_len += strlen(param) + 2;
+			result_buf = typeRealloc(char, result_len, result_buf);
+			sprintf(result_buf + strlen(result_buf), ", %s", param);
 		    }
-		    result_len += strlen(param) + 2;
-		    result_buf = typeRealloc(char, result_len, result_buf);
-		    sprintf(result_buf + strlen(result_buf), ",%s", param);
-		    used = atUnknown;
 		}
+		used = atUnknown;
 	    }
 	} else {
 	    fmt++;

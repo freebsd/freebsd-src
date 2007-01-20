@@ -1,5 +1,5 @@
 .\"***************************************************************************
-.\" Copyright (c) 1998,2000 Free Software Foundation, Inc.                   *
+.\" Copyright (c) 1998-2003,2005 Free Software Foundation, Inc.              *
 .\"                                                                          *
 .\" Permission is hereby granted, free of charge, to any person obtaining a  *
 .\" copy of this software and associated documentation files (the            *
@@ -26,8 +26,10 @@
 .\" authorization.                                                           *
 .\"***************************************************************************
 .\"
-.\" $Id: curs_addstr.3x,v 1.10 2002/03/09 23:09:29 tom Exp $
+.\" $Id: curs_addstr.3x,v 1.13 2005/05/15 16:17:14 tom Exp $
 .TH curs_addstr 3X ""
+.na
+.hy 0
 .SH NAME
 \fBaddstr\fR,
 \fBaddnstr\fR,
@@ -37,10 +39,12 @@
 \fBmvaddnstr\fR,
 \fBmvwaddstr\fR,
 \fBmvwaddnstr\fR - add a string of characters to a \fBcurses\fR window and advance cursor
+.ad
+.hy
 .SH SYNOPSIS
 .nf
 \fB#include <curses.h>\fR
-
+.PP
 \fBint addstr(const char *\fR\fIstr\fR\fB);\fR
 .br
 \fBint addnstr(const char *\fR\fIstr\fR\fB, int \fR\fIn\fR\fB);\fR
@@ -70,6 +74,12 @@ or until a terminating null is reached.
 All routines return the integer \fBERR\fR upon failure and \fBOK\fR on success
 (the SVr4 manuals specify only "an integer value other than \fBERR\fR") upon
 successful completion.
+.PP
+X/Open does not define any error conditions.
+This implementation returns an error
+if the window pointer is null or
+if the string pointer is null or
+if the corresponding calls to \fBwaddch\fP return an error.
 .SH NOTES
 Note that all of these routines except \fBwaddstr\fR and \fBwaddnstr\fR may be
 macros.

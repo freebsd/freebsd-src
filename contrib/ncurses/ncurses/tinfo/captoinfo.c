@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright (c) 1998,1999,2000,2001 Free Software Foundation, Inc.         *
+ * Copyright (c) 1998-2005,2006 Free Software Foundation, Inc.              *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -29,6 +29,7 @@
 /****************************************************************************
  *  Author: Zeyd M. Ben-Halim <zmbenhal@netcom.com> 1992,1995               *
  *     and: Eric S. Raymond <esr@snark.thyrsus.com>                         *
+ *     and: Thomas E. Dickey                        1996-on                 *
  ****************************************************************************/
 
 /*
@@ -39,7 +40,7 @@
  *
  *	There is just one entry point:
  *
- *	char *_nc_captoinfo(n, s, parametrized)
+ *	char *_nc_captoinfo(n, s, parameterized)
  *
  *	Convert value s for termcap string capability named n into terminfo
  *	format.
@@ -92,7 +93,7 @@
 #include <ctype.h>
 #include <tic.h>
 
-MODULE_ID("$Id: captoinfo.c,v 1.41 2001/06/02 22:50:31 skimo Exp $")
+MODULE_ID("$Id: captoinfo.c,v 1.49 2006/12/16 19:16:53 tom Exp $")
 
 #define MAX_PUSHED	16	/* max # args we can push onto the stack */
 
@@ -115,7 +116,7 @@ init_string(void)
     if (my_string == 0)
 	my_string = typeMalloc(char, my_length = 256);
     if (my_string == 0)
-	_nc_err_abort("Out of memory");
+	_nc_err_abort(MSG_NO_MEMORY);
 
     *my_string = '\0';
     return my_string;
@@ -129,18 +130,18 @@ save_string(char *d, const char *const s)
     if (need > my_length) {
 	my_string = (char *) realloc(my_string, my_length = (need + need));
 	if (my_string == 0)
-	    _nc_err_abort("Out of memory");
+	    _nc_err_abort(MSG_NO_MEMORY);
 	d = my_string + have;
     }
     (void) strcpy(d, s);
     return d + strlen(d);
 }
 
-static inline char *
-save_char(char *s, char c)
+static NCURSES_INLINE char *
+save_char(char *s, int c)
 {
     static char temp[2];
-    temp[0] = c;
+    temp[0] = (char) c;
     return save_string(s, temp);
 }
 
@@ -272,12 +273,12 @@ getparm(int parm, int n)
  * Convert a termcap string to terminfo format.
  * 'cap' is the relevant terminfo capability index.
  * 's' is the string value of the capability.
- * 'parametrized' tells what type of translations to do:
+ * 'parameterized' tells what type of translations to do:
  *	% translations if 1
  *	pad translations if >=0
  */
-char *
-_nc_captoinfo(const char *cap, const char *s, int const parametrized)
+NCURSES_EXPORT(char *)
+_nc_captoinfo(const char *cap, const char *s, int const parameterized)
 {
     const char *capstart;
 
@@ -294,7 +295,7 @@ _nc_captoinfo(const char *cap, const char *s, int const parametrized)
     capstart = 0;
     if (s == 0)
 	s = "";
-    if (parametrized >= 0 && isdigit(UChar(*s)))
+    if (parameterized >= 0 && isdigit(UChar(*s)))
 	for (capstart = s;; s++)
 	    if (!(isdigit(UChar(*s)) || *s == '*' || *s == '.'))
 		break;
@@ -303,7 +304,7 @@ _nc_captoinfo(const char *cap, const char *s, int const parametrized)
 	switch (*s) {
 	case '%':
 	    s++;
-	    if (parametrized < 1) {
+	    if (parameterized < 1) {
 		dp = save_char(dp, '%');
 		break;
 	    }
@@ -464,7 +465,7 @@ _nc_captoinfo(const char *cap, const char *s, int const parametrized)
 		dp = save_char(dp, '%');
 		s--;
 		_nc_warning("unknown %% code %s (%#x) in %s",
-			    unctrl((chtype) * s), UChar(*s), cap);
+			    unctrl((chtype) *s), UChar(*s), cap);
 		break;
 	    }
 	    break;
@@ -636,8 +637,8 @@ save_tc_inequality(char *bufptr, int c1, int c2)
  * Convert a terminfo string to termcap format.  Parameters are as in
  * _nc_captoinfo().
  */
-char *
-_nc_infotocap(const char *cap GCC_UNUSED, const char *str, int const parametrized)
+NCURSES_EXPORT(char *)
+_nc_infotocap(const char *cap GCC_UNUSED, const char *str, int const parameterized)
 {
     int seenone = 0, seentwo = 0, saw_m = 0, saw_n = 0;
     const char *padding;
@@ -649,11 +650,11 @@ _nc_infotocap(const char *cap GCC_UNUSED, const char *str, int const parametrize
 
     /* we may have to move some trailing mandatory padding up front */
     padding = str + strlen(str) - 1;
-    if (*padding == '>' && *--padding == '/') {
+    if (padding > str && *padding == '>' && *--padding == '/') {
 	--padding;
 	while (isdigit(UChar(*padding)) || *padding == '.' || *padding == '*')
 	    padding--;
-	if (*padding == '<' && *--padding == '$')
+	if (padding > str && *padding == '<' && *--padding == '$')
 	    trimmed = padding;
 	padding += 2;
 
@@ -678,7 +679,8 @@ _nc_infotocap(const char *cap GCC_UNUSED, const char *str, int const parametrize
 	    --str;
 	} else if (str[0] == '%' && str[1] == '%') {	/* escaped '%' */
 	    bufptr = save_string(bufptr, "%%");
-	} else if (*str != '%' || (parametrized < 1)) {
+	    ++str;
+	} else if (*str != '%' || (parameterized < 1)) {
 	    bufptr = save_char(bufptr, *str);
 	} else if (sscanf(str, "%%?%%{%d}%%>%%t%%{%d}%%+%%;", &c1, &c2) == 2) {
 	    str = strchr(str, ';');
@@ -833,4 +835,13 @@ main(int argc, char *argv[])
 }
 #endif /* MAIN */
 
-/* captoinfo.c ends here */
+#if NO_LEAKS
+NCURSES_EXPORT(void)
+_nc_captoinfo_leaks(void)
+{
+    if (my_string != 0) {
+	FreeAndNull(my_string);
+    }
+    my_length = 0;
+}
+#endif

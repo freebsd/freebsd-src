@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright (c) 1998-2000,2002 Free Software Foundation, Inc.              *
+ * Copyright (c) 1998-2003,2004 Free Software Foundation, Inc.              *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -48,13 +48,13 @@
 #include <curses.priv.h>
 #include <term.h>		/* cur_term */
 
-MODULE_ID("$Id: lib_kernel.c,v 1.22 2002/05/11 20:32:18 tom Exp $")
+MODULE_ID("$Id: lib_kernel.c,v 1.24 2004/05/08 17:11:21 tom Exp $")
 
 static int
 _nc_vdisable(void)
 {
-    int value;
-#if defined(_POSIX_VDISABLE) && defined(HAVE_UNISTD_H)
+    int value = -1;
+#if defined(_POSIX_VDISABLE) && HAVE_UNISTD_H
     value = _POSIX_VDISABLE;
 #endif
 #if defined(_PC_VDISABLE)

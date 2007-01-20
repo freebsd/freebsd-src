@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright (c) 1998,1999,2000,2001 Free Software Foundation, Inc.         *
+ * Copyright (c) 1998-2004,2005 Free Software Foundation, Inc.              *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -29,10 +29,16 @@
 /****************************************************************************
  *  Author: Zeyd M. Ben-Halim <zmbenhal@netcom.com> 1992,1995               *
  *     and: Eric S. Raymond <esr@snark.thyrsus.com>                         *
+ *     and: Thomas E. Dickey                        1996-on                 *
  ****************************************************************************/
 
 /*
  *	lib_trace.c - Tracing/Debugging routines
+ *
+ * The _tracef() function is originally from pcurses (by Pavel Curtis) in 1982. 
+ * pcurses allowed one to enable/disable tracing using traceon() and traceoff()
+ * functions.  ncurses provides a trace() function which allows one to
+ * selectively enable or disable several tracing features.
  */
 
 #include <curses.priv.h>
@@ -40,32 +46,38 @@
 
 #include <ctype.h>
 
-MODULE_ID("$Id: lib_trace.c,v 1.48 2001/10/20 20:35:25 tom Exp $")
+MODULE_ID("$Id: lib_trace.c,v 1.59 2006/08/19 12:05:25 tom Exp $")
 
-NCURSES_EXPORT_VAR(unsigned)
-_nc_tracing = 0;		/* always define this */
+NCURSES_EXPORT_VAR(unsigned) _nc_tracing = 0; /* always define this */
 
 #ifdef TRACE
-NCURSES_EXPORT_VAR(const char *)
-_nc_tputs_trace = "";
-NCURSES_EXPORT_VAR(long)
-_nc_outchars = 0;
+NCURSES_EXPORT_VAR(const char *) _nc_tputs_trace = "";
+NCURSES_EXPORT_VAR(long) _nc_outchars = 0;
 
-     static FILE *tracefp;	/* default to writing to stderr */
+static FILE *tracefp = 0;	/* default to writing to stderr */
 
 NCURSES_EXPORT(void)
-trace(const unsigned int tracelevel GCC_UNUSED)
+trace(const unsigned int tracelevel)
 {
     static bool been_here = FALSE;
-    static char my_name[] = "trace";
+    static char my_name[PATH_MAX];
 
-    if (!been_here && tracelevel) {
+    if ((tracefp == 0) && tracelevel) {
+	const char *mode = been_here ? "ab" : "wb";
+
+	if (*my_name == '\0') {
+	    if (getcwd(my_name, sizeof(my_name) - 10) == 0) {
+		perror("curses: Can't get working directory");
+		exit(EXIT_FAILURE);
+	    }
+	    strcat(my_name, "/trace");
+	}
+
 	been_here = TRUE;
-
 	_nc_tracing = tracelevel;
 	if (_nc_access(my_name, W_OK) < 0
-	    || (tracefp = fopen(my_name, "wb")) == 0) {
-	    perror("curses: Can't open 'trace' file: ");
+	    || (tracefp = fopen(my_name, mode)) == 0) {
+	    perror("curses: Can't open 'trace' file");
 	    exit(EXIT_FAILURE);
 	}
 	/* Try to set line-buffered mode, or (failing that) unbuffered,
@@ -77,8 +89,16 @@ trace(const unsigned int tracelevel GCC_UNUSED)
 #elif HAVE_SETBUF		/* POSIX */
 	(void) setbuffer(tracefp, (char *) 0);
 #endif
-	_tracef("TRACING NCURSES version %s (tracelevel=%#x)",
-		curses_version(), tracelevel);
+	_tracef("TRACING NCURSES version %s.%d (tracelevel=%#x)",
+		NCURSES_VERSION,
+		NCURSES_VERSION_PATCH,
+		tracelevel);
+    } else if (tracelevel == 0) {
+	if (tracefp != 0) {
+	    fclose(tracefp);
+	    tracefp = 0;
+	}
+	_nc_tracing = tracelevel;
     } else if (_nc_tracing != tracelevel) {
 	_nc_tracing = tracelevel;
 	_tracef("tracelevel=%#x", tracelevel);
@@ -94,7 +114,7 @@ _tracef(const char *fmt,...)
     va_list ap;
     bool before = FALSE;
     bool after = FALSE;
-    int doit = _nc_tracing;
+    unsigned doit = _nc_tracing;
     int save_err = errno;
 
     if (strlen(fmt) >= sizeof(Called) - 1) {
@@ -133,11 +153,27 @@ _tracef(const char *fmt,...)
     errno = save_err;
 }
 
+/* Trace 'bool' return-values */
+NCURSES_EXPORT(NCURSES_BOOL)
+_nc_retrace_bool(NCURSES_BOOL code)
+{
+    T((T_RETURN("%s"), code ? "TRUE" : "FALSE"));
+    return code;
+}
+
 /* Trace 'int' return-values */
 NCURSES_EXPORT(int)
 _nc_retrace_int(int code)
 {
     T((T_RETURN("%d"), code));
+    return code;
+}
+
+/* Trace 'unsigned' return-values */
+NCURSES_EXPORT(unsigned)
+_nc_retrace_unsigned(unsigned code)
+{
+    T((T_RETURN("%#x"), code));
     return code;
 }
 
@@ -149,9 +185,33 @@ _nc_retrace_ptr(char *code)
     return code;
 }
 
+/* Trace 'const char*' return-values */
+NCURSES_EXPORT(const char *)
+_nc_retrace_cptr(const char *code)
+{
+    T((T_RETURN("%s"), _nc_visbuf(code)));
+    return code;
+}
+
+/* Trace 'NCURSES_CONST void*' return-values */
+NCURSES_EXPORT(NCURSES_CONST void *)
+_nc_retrace_cvoid_ptr(NCURSES_CONST void *code)
+{
+    T((T_RETURN("%p"), code));
+    return code;
+}
+
+/* Trace 'void*' return-values */
+NCURSES_EXPORT(void *)
+_nc_retrace_void_ptr(void *code)
+{
+    T((T_RETURN("%p"), code));
+    return code;
+}
+
 /* Trace 'SCREEN *' return-values */
 NCURSES_EXPORT(SCREEN *)
-_nc_retrace_sp(SCREEN * code)
+_nc_retrace_sp(SCREEN *code)
 {
     T((T_RETURN("%p"), code));
     return code;
