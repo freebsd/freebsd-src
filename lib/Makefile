@@ -12,7 +12,7 @@
 # libkvm must be built before libdevstat.
 # msun must be built before libg++ and libstdc++.
 # libmd must be built before libatm, libopie, libradius, and libtacplus.
-# libncurses must be built before libdialog, libedit and libreadline.
+# ncurses must be built before libdialog, libedit and libreadline.
 # libnetgraph must be built before libbsnmp/modules/snmp_netgraph.
 # libopie must be built before libpam.
 # libradius must be built before libpam.
@@ -24,15 +24,15 @@
 #
 # Otherwise, the SUBDIR list should be in alphabetical order.
 
-SUBDIR=	${_csu} libbsm libcom_err libcrypt libelf libkvm msun libmd libncurses \
+SUBDIR=	${_csu} libbsm libcom_err libcrypt libelf libkvm msun libmd ncurses \
 	libnetgraph libradius librpcsvc libsbuf libtacplus libutil \
 	${_libypclnt} libalias libarchive ${_libatm} \
 	libbegemot ${_libbluetooth} libbsnmp libbz2 libc \
 	libcalendar libcam libcompat libdevinfo libdevstat libdisk \
-	libedit libexpat libfetch libform libftpio libgeom ${_libgpib} \
+	libedit libexpat libfetch libftpio libgeom ${_libgpib} \
 	libgssapi libipsec \
-	${_libipx} libkiconv libmagic libmemstat libmenu ${_libmilter} ${_libmp} \
-	${_libncp} ${_libngatm} libopie libpam libpanel libpcap \
+	${_libipx} libkiconv libmagic libmemstat ${_libmilter} ${_libmp} \
+	${_libncp} ${_libngatm} libopie libpam libpcap \
 	libpmc ${_libpthread} librt ${_libsdp} ${_libsm} ${_libsmb} \
 	${_libsmdb} \
 	${_libsmutil} libstand libtelnet ${_libthr} ${_libthread_db} libufs \
