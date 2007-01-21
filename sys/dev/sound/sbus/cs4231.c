@@ -434,7 +434,7 @@ cs4231_attach_common(struct cs4231_softc *sc)
 	    CS4231_DEFAULT_BUF_SZ, CS4231_MAX_BUF_SZ);
 	for (i = 0; i < sc->sc_nires; i++) {
 		if (bus_dma_tag_create(
-		    NULL,			/* parent */
+		    bus_get_dma_tag(sc->sc_dev),/* parent */
 		    64, 0,			/* alignment, boundary */
 		    BUS_SPACE_MAXADDR_32BIT,	/* lowaddr */
 		    BUS_SPACE_MAXADDR,		/* highaddr */

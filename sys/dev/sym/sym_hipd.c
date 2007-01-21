@@ -8491,11 +8491,7 @@ sym_pci_attach(device_t dev)
 	int 	i;
 	bus_dma_tag_t	bus_dmat;
 
-	/*
-	 *  I expected to be told about a parent 
-	 *  DMA tag, but didn't find any.
-	 */
-	bus_dmat = NULL;
+	bus_dmat = bus_get_dma_tag(dev);
 
 	/*
 	 *  Only probed devices should be attached.
