@@ -1945,7 +1945,8 @@ sk_dma_alloc(sc_if)
 	 * RAM. Until we have more clues of the breakage, disable DAC mode
 	 * by limiting DMA address to be in 32bit address space.
 	 */
-	error = bus_dma_tag_create(NULL,	/* parent */
+	error = bus_dma_tag_create(
+		    bus_get_dma_tag(sc_if->sk_if_dev),/* parent */
 		    1, 0,			/* algnmnt, boundary */
 		    BUS_SPACE_MAXADDR_32BIT,	/* lowaddr */
 		    BUS_SPACE_MAXADDR,		/* highaddr */

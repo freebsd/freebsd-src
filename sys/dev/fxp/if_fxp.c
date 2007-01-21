@@ -612,19 +612,19 @@ fxp_attach(device_t dev)
 	sc->maxtxseg = FXP_NTXSEG;
 	if (sc->flags & FXP_FLAG_EXT_RFA)
 		sc->maxtxseg--;
-	error = bus_dma_tag_create(NULL, 2, 0, BUS_SPACE_MAXADDR_32BIT,
-	    BUS_SPACE_MAXADDR, NULL, NULL, MCLBYTES * sc->maxtxseg,
-	    sc->maxtxseg, MCLBYTES, 0, busdma_lock_mutex, &Giant,
-	    &sc->fxp_mtag);
+	error = bus_dma_tag_create(bus_get_dma_tag(dev), 2, 0,
+	    BUS_SPACE_MAXADDR_32BIT, BUS_SPACE_MAXADDR, NULL, NULL,
+	    MCLBYTES * sc->maxtxseg, sc->maxtxseg, MCLBYTES, 0,
+	    busdma_lock_mutex, &Giant, &sc->fxp_mtag);
 	if (error) {
 		device_printf(dev, "could not allocate dma tag\n");
 		goto fail;
 	}
 
-	error = bus_dma_tag_create(NULL, 4, 0, BUS_SPACE_MAXADDR_32BIT,
-	    BUS_SPACE_MAXADDR, NULL, NULL, sizeof(struct fxp_stats), 1,
-	    sizeof(struct fxp_stats), 0, busdma_lock_mutex, &Giant,
-	    &sc->fxp_stag);
+	error = bus_dma_tag_create(bus_get_dma_tag(dev), 4, 0,
+	    BUS_SPACE_MAXADDR_32BIT, BUS_SPACE_MAXADDR, NULL, NULL,
+	    sizeof(struct fxp_stats), 1, sizeof(struct fxp_stats), 0,
+	    busdma_lock_mutex, &Giant, &sc->fxp_stag);
 	if (error) {
 		device_printf(dev, "could not allocate dma tag\n");
 		goto fail;
@@ -641,9 +641,10 @@ fxp_attach(device_t dev)
 		goto fail;
 	}
 
-	error = bus_dma_tag_create(NULL, 4, 0, BUS_SPACE_MAXADDR_32BIT,
-	    BUS_SPACE_MAXADDR, NULL, NULL, FXP_TXCB_SZ, 1,
-	    FXP_TXCB_SZ, 0, busdma_lock_mutex, &Giant, &sc->cbl_tag);
+	error = bus_dma_tag_create(bus_get_dma_tag(dev), 4, 0,
+	    BUS_SPACE_MAXADDR_32BIT, BUS_SPACE_MAXADDR, NULL, NULL,
+	    FXP_TXCB_SZ, 1, FXP_TXCB_SZ, 0,
+	    busdma_lock_mutex, &Giant, &sc->cbl_tag);
 	if (error) {
 		device_printf(dev, "could not allocate dma tag\n");
 		goto fail;
@@ -662,10 +663,10 @@ fxp_attach(device_t dev)
 		goto fail;
 	}
 
-	error = bus_dma_tag_create(NULL, 4, 0, BUS_SPACE_MAXADDR_32BIT,
-	    BUS_SPACE_MAXADDR, NULL, NULL, sizeof(struct fxp_cb_mcs), 1,
-	    sizeof(struct fxp_cb_mcs), 0, busdma_lock_mutex, &Giant,
-	    &sc->mcs_tag);
+	error = bus_dma_tag_create(bus_get_dma_tag(dev), 4, 0,
+	    BUS_SPACE_MAXADDR_32BIT, BUS_SPACE_MAXADDR, NULL, NULL,
+	    sizeof(struct fxp_cb_mcs), 1, sizeof(struct fxp_cb_mcs), 0,
+	    busdma_lock_mutex, &Giant, &sc->mcs_tag);
 	if (error) {
 		device_printf(dev, "could not allocate dma tag\n");
 		goto fail;
