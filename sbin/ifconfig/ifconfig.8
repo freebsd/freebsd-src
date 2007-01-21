@@ -28,7 +28,7 @@
 .\"     From: @(#)ifconfig.8	8.3 (Berkeley) 1/5/94
 .\" $FreeBSD$
 .\"
-.Dd October 9, 2006
+.Dd November 27, 2006
 .Dt IFCONFIG 8
 .Os
 .Sh NAME
@@ -1223,38 +1223,87 @@ Spanning Tree is used to detect and remove loops in a network topology.
 Disable Spanning Tree protocol on
 .Ar interface .
 This is the default for all interfaces added to a bridge.
+.It Cm edge Ar interface
+Set
+.Ar interface
+as an edge port.
+An edge port connects directly to end stations cannot create bridging
+loops in the network, this allows it to transition straight to forwarding.
+.It Cm -edge Ar interface
+Disable edge status on
+.Ar interface .
+.It Cm autoedge Ar interface
+Allow
+.Ar interface
+to automatically detect edge status.
+This is the default for all interfaces added to a bridge.
+.It Cm -autoedge Ar interface
+Disable automatic edge status on 
+.Ar interface .
+.It Cm ptp Ar interface
+Set the
+.Ar interface
+as a point to point link.
+This is required for straight transitions to forwarding and
+should be enabled on a direct link to another RSTP capable switch.
+.It Cm -ptp Ar interface
+Disable point to point link status on
+.Ar interface .
+This should be disabled for a half duplex link and for an interface
+connected to a shared network segment,
+like a hub or a wireless network.
+.It Cm autoptp Ar interface
+Automatically detect the point to point status on
+.Ar interface
+by checking the full duplex link status.
+This is the default for interfaces added to the bridge.
+.It Cm -autoptp Ar interface
+Disable automatic point to point link detection on
+.Ar interface .
 .It Cm maxage Ar seconds
 Set the time that a Spanning Tree protocol configuration is valid.
 The default is 20 seconds.
-The minimum is 1 second and the maximum is 255 seconds.
+The minimum is 6 seconds and the maximum is 40 seconds.
 .It Cm fwddelay Ar seconds
 Set the time that must pass before an interface begins forwarding
 packets when Spanning Tree is enabled.
 The default is 15 seconds.
-The minimum is 1 second and the maximum is 255 seconds.
+The minimum is 4 seconds and the maximum is 30 seconds.
 .It Cm hellotime Ar seconds
 Set the time between broadcasting of Spanning Tree protocol
 configuration messages.
+The hello time may only be changed when operating in legacy stp mode.
 The default is 2 seconds.
-The minimum is 1 second and the maximum is 255 seconds.
+The minimum is 1 second and the maximum is 2 seconds.
 .It Cm priority Ar value
 Set the bridge priority for Spanning Tree.
 The default is 32768.
-The minimum is 0 and the maximum is 65536.
+The minimum is 0 and the maximum is 61440.
+.It Cm protocol Ar value
+Set the Spanning Tree protocol.
+The default is stp.
+The available options are stp and rstp.
+.It Cm holdcnt Ar value
+Set the transmit hold count for Spanning Tree.
+This is the number of packets transmitted before being rate limited.
+The default is 6.
+The minimum is 1 and the maximum is 10.
 .It Cm ifpriority Ar interface Ar value
 Set the Spanning Tree priority of
 .Ar interface
 to
 .Ar value .
 The default is 128.
-The minimum is 0 and the maximum is 255.
+The minimum is 0 and the maximum is 240.
 .It Cm ifpathcost Ar interface Ar value
 Set the Spanning Tree path cost of
 .Ar interface
 to
 .Ar value .
-The default is 55.
-The minimum is 0 and the maximum is 65535.
+The default is calculated from the link speed.
+To change a previously selected path cost back to automatic, set the
+cost to 0.
+The minimum is 1 and the maximum is 200000000.
 .El
 .Pp
 The following parameters are specific to IP tunnel interfaces,
