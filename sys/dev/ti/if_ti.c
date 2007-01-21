@@ -2367,7 +2367,7 @@ ti_attach(dev)
 	}
 
 	/* Allocate the general information block and ring buffers. */
-	if (bus_dma_tag_create(NULL,			/* parent */
+	if (bus_dma_tag_create(bus_get_dma_tag(dev),	/* parent */
 				1, 0,			/* algnmnt, boundary */
 				BUS_SPACE_MAXADDR,	/* lowaddr */
 				BUS_SPACE_MAXADDR,	/* highaddr */

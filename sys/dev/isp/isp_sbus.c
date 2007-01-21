@@ -479,6 +479,18 @@ imc(void *arg, bus_dma_segment_t *segs, int nseg, int error)
  */
 #define ISP_NSEGS ((MAXPHYS / PAGE_SIZE) + 1)  
 
+#if __FreeBSD_version < 700020
+#define	BUS_DMA_ROOTARG	NULL
+#define	isp_dma_tag_create(a, b, c, d, e, f, g, h, i, j, k, z)	\
+	bus_dma_tag_create(a, b, c, d, e, f, g, h, i, j, k, \
+	busdma_lock_mutex, &Giant, z)
+#else
+#define	BUS_DMA_ROOTARG	bus_get_dma_tag(sbs->sbus_dev)
+#define	isp_dma_tag_create(a, b, c, d, e, f, g, h, i, j, k, z)	\
+	bus_dma_tag_create(a, b, c, d, e, f, g, h, i, j, k, \
+	busdma_lock_mutex, &Giant, z)
+#endif
+
 static int
 isp_sbus_mbxdma(ispsoftc_t *isp)
 {
@@ -497,10 +509,10 @@ isp_sbus_mbxdma(ispsoftc_t *isp)
 
 	ISP_UNLOCK(isp);
 
-	if (bus_dma_tag_create(NULL, 1, BUS_SPACE_MAXADDR_24BIT+1,
+	if (isp_dma_tag_create(BUS_DMA_ROOTARG, 1, BUS_SPACE_MAXADDR_24BIT+1,
 	    BUS_SPACE_MAXADDR_32BIT, BUS_SPACE_MAXADDR_32BIT,
 	    NULL, NULL, BUS_SPACE_MAXSIZE_32BIT, ISP_NSEGS,
-	    BUS_SPACE_MAXADDR_24BIT, 0, busdma_lock_mutex, &Giant,
+	    BUS_SPACE_MAXADDR_24BIT, 0,
 	    &sbs->dmat)) {
 		isp_prt(isp, ISP_LOGERR, "could not create master dma tag");
 		ISP_LOCK(isp);
