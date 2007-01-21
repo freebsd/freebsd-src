@@ -107,7 +107,7 @@ rlphy_probe(device_t dev)
 		return (rv);
 
 	nic = device_get_name(device_get_parent(device_get_parent(dev)));
-	if (strcmp(nic, "rl") == 0 && strcmp(nic, "re") == 0)
+	if (strcmp(nic, "rl") == 0 || strcmp(nic, "re") == 0)
 		return (mii_phy_dev_probe(dev, rlintphys, BUS_PROBE_DEFAULT));
 	return (ENXIO);
 }
