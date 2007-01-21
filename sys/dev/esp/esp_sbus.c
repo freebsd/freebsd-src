@@ -262,7 +262,7 @@ esp_sbus_attach(device_t dev)
 
 		/* Create a parent DMA tag based on this bus. */
 		error = bus_dma_tag_create(
-		    NULL,			/* parent */
+		    bus_get_dma_tag(dev),	/* parent */
 		    PAGE_SIZE, 0,		/* alignment, boundary */
 		    BUS_SPACE_MAXADDR,		/* lowaddr */
 		    BUS_SPACE_MAXADDR,		/* highaddr */

@@ -357,7 +357,13 @@ fwohci_pci_attach(device_t self)
 		return ENXIO;
 	}
 
-	err = bus_dma_tag_create(/*parent*/NULL, /*alignment*/1,
+	err = bus_dma_tag_create(
+#if defined(__FreeBSD__) && __FreeBSD_version >= 700020
+				/*parent*/bus_get_dma_tag(self),
+#else
+				/*parent*/NULL,
+#endif
+				/*alignment*/1,
 				/*boundary*/0,
 #if BOUNCE_BUFFER_TEST
 				/*lowaddr*/BUS_SPACE_MAXADDR_24BIT,

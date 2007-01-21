@@ -897,7 +897,7 @@ stge_dma_alloc(struct stge_softc *sc)
 	int error, i;
 
 	/* create parent tag. */
-	error = bus_dma_tag_create(NULL,	/* parent */
+	error = bus_dma_tag_create(bus_get_dma_tag(sc->sc_dev),/* parent */
 		    1, 0,			/* algnmnt, boundary */
 		    STGE_DMA_MAXADDR,		/* lowaddr */
 		    BUS_SPACE_MAXADDR,		/* highaddr */
