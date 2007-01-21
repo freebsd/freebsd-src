@@ -48,18 +48,18 @@
 .Sh DESCRIPTION
 The
 .Nm
-daemon is a simple wrapper daemon that allows to use standard
+daemon is a simple wrapper daemon that allows the use of
 .Xr ppp 8
-on RFCOMM connection.
+via an RFCOMM connection.
 It can operate in two modes: client and server.
 .Pp
-In the client mode,
+In client mode,
 .Nm
 opens an RFCOMM connection to the specified server's
 .Ar BD_ADRR
 and
 .Ar channel .
-Once RFCOMM connection is established,
+Once the RFCOMM connection is established,
 .Nm
 executes
 .Xr ppp 8
@@ -67,14 +67,14 @@ in
 .Fl direct
 mode with the specified
 .Ar label .
-The
+Likewise,
 .Xr ppp 8
-in its turn operates over the RFCOMM connection just like it would operate
-over the standard serial port thus allowing user to
+operates over the RFCOMM connection just like it would over a standard serial
+port, thus allowing a user to
 .Dq "dial out"
 and connect to the Internet.
 .Pp
-In the server mode,
+In server mode,
 .Nm
 opens an RFCOMM socket and listens for incoming connections from remote clients.
 Once the new incoming connection is accepted,
@@ -85,41 +85,41 @@ in
 .Fl direct
 mode with the specified
 .Ar label .
-The
+Likewise,
 .Xr ppp 8
-in its turn operates over the RFCOMM connection just like it would operate over
-the standard serial port thus providing network connectivity to remote clients.
+operates over the RFCOMM connection just like it would over a standard serial
+port, thus providing network connectivity to remote clients.
 .Pp
 The options are as follows:
 .Bl -tag -width indent
 .It Fl a Ar address
-In the client mode, this required option specifies the address of the remote
+In client mode, this required option specifies the address of the remote
 RFCOMM server.
-In the server mode, this option can be used to specify the local
+In server mode, this option can be used to specify the local
 address to listen on.
-By default, server will listen on
+By default, in server mode, the daemon will listen on
 .Dv ANY
 address.
 The address can be specified as BD_ADDR or name.
-If name was specified then the
+If a name was specified, the
 .Nm
 utility will attempt to resolve the name via
 .Xr bt_gethostbyname 3 .
 .It Fl C Ar channel
-In both client and server modes, this required option specifies RFCOMM channel
-to connect to or listen on.
-In the server mode, RFCOMM channel should be a number between 1 and 30.
-In the client mode, RFCOMM channel could either be a number between 1 and 30
+In both client and server mode, this required option specifies the RFCOMM
+channel to connect to or listen on.
+In server mode, the channel should be a number between 1 and 30.
+In client mode, the channel could either be a number between 1 and 30
 or a service name.
 Supported service names are:
 .Cm DUN
-(for DialUp Networking service) and
+(Dial-Up Networking) and
 .Cm LAN
-(for LAN Access Using PPP service).
-If service name was specified instead of numeric RFCOMM channel then
+(LAN Access Using PPP).
+If a service name is used instead of a numeric channel number, then
 .Nm
-utility will try to obtain RFCOMM channel for the service via Service
-Discovery Protocol.
+will try to obtain an RFCOMM channel number via SDP
+(Service Discovery Protocol).
 .It Fl c
 Act as an RFCOMM client.
 This is the default mode.
@@ -128,39 +128,51 @@ Do not detach from the controlling terminal, i.e., run in foreground.
 .It Fl h
 Display usage message and exit.
 .It Fl l Ar label
-In both client and server modes, this required option specifies which
+In both client and server mode, this required option specifies which
 .Xr ppp 8
 label will be used.
 .It Fl S
-In the server mode, register the Serial Port (SP) service in addition to the
-LAN Access Using PPP (LAN) service.
+In server mode, register the
+.Cm SP
+(Serial Port) service in addition to the
+.Cm LAN
+(LAN Access Using PPP) service.
+.Pp
 It appears that some cell phones are using the so-called
 .Dq "callback mechanism" .
 In this scenario, the user is trying to connect his cell phone to the Internet,
-and user's host computer is acting as the gateway server.
+while the user's host computer is acting as the gateway server.
 It seems that it is not possible to tell the phone to just connect and start
-using the LAN service.
+using the
+.Cm LAN
+service.
 Instead, the user's host computer must
 .Dq "jump start"
-the phone by connecting to the phone's SP service.
+the phone by connecting to the phone's
+.Cm SP
+service.
 What happens next is the phone kills the existing connection and opens another
 connection back to the user's host computer.
-The phone really wants to use LAN service, but for whatever reason it looks
-for the SP service on the user's host computer.
-This brain damaged behavior was reported for Nokia 6600 and Sony/Ericsson P900.
+The phone really wants to use the
+.Cm LAN
+service, but for whatever reason it looks for the
+.Cm SP
+service on the user's host computer.
+This brain-damaged behavior was reported for the Nokia 6600 and the
+Sony/Ericsson P900.
 .It Fl s
 Act as an RFCOMM server.
 .It Fl u Ar N
-This option maps directly onto
+This option maps directly to the
 .Fl unit
 .Xr ppp 8
-command line option and tells
+command-line option and tells
 .Nm
 to instruct
 .Xr ppp 8
 to only attempt to open
 .Pa /dev/tun Ns Ar N .
-This option only works in the client mode.
+This option only works in client mode.
 .El
 .Sh PPP CONFIGURATION
 .Ss Important Notes on PPP Configuration
@@ -187,10 +199,10 @@ dialing out from the
 section into an appropriate outgoing label.
 .Ss RFCOMM Server
 One of the typical examples is the LAN access.
-In this example, RFCOMM connection
-is used as a null-modem connection between client and server.
-Both client
-and server will start talking PPP right after RFCOMM connection was established.
+In this example, an RFCOMM connection
+is used as a null-modem connection between a client and a server.
+Both client and server will start talking PPP right after the RFCOMM
+connection has been established.
 .Bd -literal -offset indent
 rfcomm-server:
  set timeout 0
@@ -208,10 +220,14 @@ rfcomm-server:
 .Ss RFCOMM Client
 The
 .Nm
-utility
-supports both LAN and DUN (Dial-Up Networking) access.
-The client's configuration for the LAN access is very similar to server's and
-might look like this.
+utility supports both
+.Cm LAN
+(LAN Access Using PPP) and
+.Cm DUN
+(Dial-Up Networking) access.
+The client's configuration for
+.Cm LAN
+access is very similar to the server's and might look like this:
 .Bd -literal -offset indent
 rfcomm-client:
  enable lqr
@@ -228,17 +244,19 @@ rfcomm-client:
  disable chap
 .Ed
 .Pp
-The client's configuration for the DUN access is different.
+The client's configuration for
+.Cm DUN
+access is different.
 In this scenario, the client gets connected to the virtual serial port on the
 server.
-To open a PPP session, client must dial a number.
+To open a PPP session, the client must dial a number.
 Note that by default
 .Xr ppp 8
 will not execute any configured chat scripts.
 The
 .Ic force-scripts
 option can be used to override this behavior.
-The example of such configuration is shown below.
+An example configuration is shown below:
 .Bd -literal -offset indent
 rfcomm-dialup:
  # This is IMPORTANT option
@@ -261,7 +279,7 @@ rfcomm-dialup:
  add default HISADDR
 .Ed
 .Pp
-Note that by adjusting the initialization string, one can make CSD (Circuit
+Note that by adjusting the initialization string, one can make a CSD (Circuit
 Switched Data), HSCSD (High Speed Circuit Switched Data) or GPRS (General
 Packet Radio Service) connection.
 The availability of the particular connection
@@ -282,7 +300,7 @@ will execute
 .Xr ppp 8
 in
 .Fl direct
-mode with
+mode with the
 .Dq Li rfcomm-server
 label.
 .Pp
@@ -296,25 +314,25 @@ will try to connect to the RFCOMM server at
 .Li 00:01:02:03:04:05
 address and channel
 .Li 1 .
-Once connected, the
+Once connected,
 .Nm
 will execute
 .Xr ppp 8
 in
 .Fl direct
-mode with
+mode with the
 .Dq Li rfcomm-client
 label.
 .Sh DIAGNOSTICS
 .Ex -std
-.Sh CAVEAT
+.Sh CAVEATS
 The
 .Nm
-utility in server mode will try to register Bluetooth LAN Access Over PPP
-service with local SPD daemon.
-If local SDP daemon is not running the
+utility in server mode will try to register the Bluetooth LAN Access Over PPP
+service with the local SPD daemon.
+If the local SDP daemon is not running,
 .Nm
-utility will exit with error.
+will exit with an error.
 .Sh SEE ALSO
 .Xr rfcomm_sppd 1 ,
 .Xr bluetooth 3 ,
