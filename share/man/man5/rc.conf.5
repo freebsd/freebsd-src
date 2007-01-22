@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd August 21, 2006
+.Dd October 6, 2006
 .Dt RC.CONF 5
 .Os
 .Sh NAME
@@ -3767,6 +3767,11 @@ For example:
 autobridge_interfaces="bridge0"
 autobridge_bridge0="tap* dc0 vlan[345]"
 .Ed
+.It mixer_enable
+.Pq Vt bool
+If set to
+.Dq Li YES ,
+enable support for sound mixer.
 .El
 .Sh FILES
 .Bl -tag -width ".Pa /etc/defaults/rc.conf" -compact
@@ -3823,6 +3828,7 @@ autobridge_bridge0="tap* dc0 vlan[345]"
 .Xr lpd 8 ,
 .Xr mdconfig 8 ,
 .Xr mdmfs 8 ,
+.Xr mixer 8,
 .Xr mountd 8 ,
 .Xr moused 8 ,
 .Xr mrouted 8 ,
