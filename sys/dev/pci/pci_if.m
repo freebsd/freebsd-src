@@ -118,12 +118,29 @@ METHOD int alloc_msi {
 	int		*count;
 };
 
+METHOD int alloc_msix {
+	device_t	dev;
+	device_t	child;
+	int		*count;
+};
+
+METHOD int remap_msix {
+	device_t	dev;
+	device_t	child;
+	u_int		*indices;
+};
+
 METHOD int release_msi {
 	device_t	dev;
 	device_t	child;
 };
 
 METHOD int msi_count {
+	device_t	dev;
+	device_t	child;
+} DEFAULT null_msi_count;
+
+METHOD int msix_count {
 	device_t	dev;
 	device_t	child;
 } DEFAULT null_msi_count;
