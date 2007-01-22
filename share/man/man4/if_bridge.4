@@ -35,7 +35,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd October 8, 2006
+.Dd January 20, 2007
 .Dt IF_BRIDGE 4
 .Os
 .Sh NAME
@@ -80,7 +80,7 @@ variable in
 The
 .Nm
 interface randomly chooses a link (MAC) address in the range reserved for
-locally adminstered addresses when it is created.
+locally administered addresses when it is created.
 The address can be changed by assigning the desired link address using
 .Xr ifconfig 8 .
 .Pp
@@ -94,16 +94,11 @@ interfaces that are part of the bridge.
 For unicast traffic, the bridge learns which MAC addresses are associated
 with which interfaces and will forward the traffic selectively.
 .Pp
-The
-.Nm
-driver implements the IEEE 802.1D Spanning Tree protocol (STP).
-Spanning Tree is used to detect and remove loops in a network topology.
-.Pp
 All the bridged member interfaces need to be up in order to pass network traffic.
 These can be enabled using
-.Xr ifconfig 8 
+.Xr ifconfig 8
 or
-.Va ifconfig_ Ns Ao Ar interface Ac Ns Va ="up"
+.Va ifconfig_ Ns Ao Ar interface Ac Ns Li ="up"
 in
 .Xr rc.conf 5 .
 .Pp
@@ -123,8 +118,31 @@ This can be used to multiplex the input of two or more interfaces into a single
 stream.
 This is useful for reconstructing the traffic for network taps
 that transmit the RX/TX signals out through two separate interfaces.
-.Sh PACKET FILTERING
+.Sh SPANNING TREE
+The
+.Nm
+driver implements the Rapid Spanning Tree Protocol (RSTP or 802.1w) with
+backwards compatibility with the legacy Spanning Tree Protocol (STP).
+Spanning Tree is used to detect and remove loops in a network topology.
 .Pp
+RSTP provides faster spanning tree convergence than legacy STP, the protocol
+will exchange information with neighbouring switches to quickly transition to
+forwarding without creating loops.
+.Pp
+The code will default to STP and can be set to operate in RSTP mode with
+rapid state transitions via the
+.Va proto
+command in
+.Xr ifconfig 8 .
+.Pp
+The bridge can log STP port changes to
+.Xr syslog 3
+by enabling the
+.Va net.link.bridge.log_stp
+variable using
+.Xr sysctl 8 .
+.Pp
+.Sh PACKET FILTERING
 Packet filtering can be used with any firewall package that hooks in via the
 .Xr pfil 9
 framework.
@@ -228,11 +246,11 @@ ifconfig_fxp0="up"
 .Ed
 .Pp
 Consider a system with two 4-port Ethernet boards.
-The following will cause a bridge consisting of all 8 ports with Spanning Tree
-enabled to be created:
+The following will cause a bridge consisting of all 8 ports with Rapid Spanning
+Tree enabled to be created:
 .Bd -literal -offset indent
 ifconfig bridge0 create
-ifconfig bridge0 \e
+ifconfig bridge0 proto rstp \e
     addm fxp0 stp fxp0 \e
     addm fxp1 stp fxp1 \e
     addm fxp2 stp fxp2 \e
@@ -296,6 +314,10 @@ This version of the
 driver has been heavily modified from the original version by
 .An Jason R. Thorpe
 .Aq thorpej@wasabisystems.com .
+.Pp
+Rapid Spanning Tree Protocol (RSTP) support was added by
+.An Andrew Thompson
+.Aq thompsa@FreeBSD.org .
 .Sh BUGS
 The
 .Nm
