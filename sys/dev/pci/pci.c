@@ -101,6 +101,7 @@ static void		pci_write_vpd_reg(device_t pcib, pcicfgregs *cfg,
 			    int reg, uint32_t data);
 #endif
 static void		pci_read_vpd(device_t pcib, pcicfgregs *cfg);
+static int		pci_msi_blacklisted(void);
 
 static device_method_t pci_methods[] = {
 	/* Device interface */
@@ -145,8 +146,11 @@ static device_method_t pci_methods[] = {
 	DEVMETHOD(pci_assign_interrupt,	pci_assign_interrupt_method),
 	DEVMETHOD(pci_find_extcap,	pci_find_extcap_method),
 	DEVMETHOD(pci_alloc_msi,	pci_alloc_msi_method),
+	DEVMETHOD(pci_alloc_msix,	pci_alloc_msix_method),
+	DEVMETHOD(pci_remap_msix,	pci_remap_msix_method),
 	DEVMETHOD(pci_release_msi,	pci_release_msi_method),
 	DEVMETHOD(pci_msi_count,	pci_msi_count_method),
+	DEVMETHOD(pci_msix_count,	pci_msix_count_method),
 
 	{ 0, 0 }
 };
@@ -1024,13 +1028,35 @@ pci_pending_msix(device_t dev, u_int index)
 	return (bus_read_4(cfg->msix.msix_pba_res, offset) & bit);
 }
 
-static int
-pci_alloc_msix(device_t dev, device_t child, int *count)
+/*
+ * Attempt to allocate *count MSI-X messages.  The actual number allocated is
+ * returned in *count.  After this function returns, each message will be
+ * available to the driver as SYS_RES_IRQ resources starting at rid 1.
+ */
+int
+pci_alloc_msix_method(device_t dev, device_t child, int *count)
 {
 	struct pci_devinfo *dinfo = device_get_ivars(child);
 	pcicfgregs *cfg = &dinfo->cfg;
 	struct resource_list_entry *rle;
 	int actual, error, i, irq, max;
+
+	/* Don't let count == 0 get us into trouble. */
+	if (*count == 0)
+		return (EINVAL);
+
+	/* If rid 0 is allocated, then fail. */
+	rle = resource_list_find(&dinfo->resources, SYS_RES_IRQ, 0);
+	if (rle != NULL && rle->res != NULL)
+		return (ENXIO);
+
+	/* Already have allocated messages? */
+	if (cfg->msi.msi_alloc != 0 || cfg->msix.msix_alloc != 0)
+		return (ENXIO);
+
+	/* If MSI is blacklisted for this system, fail. */
+	if (pci_msi_blacklisted())
+		return (ENXIO);
 
 	/* MSI-X capability present? */
 	if (cfg->msix.msix_location == 0 || !pci_do_msix)
@@ -1051,10 +1077,6 @@ pci_alloc_msix(device_t dev, device_t child, int *count)
 			return (ENXIO);
 	}
 	cfg->msix.msix_pba_res = rle->res;
-
-	/* Already have allocated messages? */
-	if (cfg->msix.msix_alloc != 0)
-		return (ENXIO);
 
 	if (bootverbose)
 		device_printf(child,
@@ -1132,24 +1154,105 @@ pci_alloc_msix(device_t dev, device_t child, int *count)
 	return (0);
 }
 
+/*
+ * By default, pci_alloc_msix() will assign the allocated IRQ resources to
+ * the first N messages in the MSI-X table.  However, device drivers may
+ * want to use different layouts in the case that they do not allocate a
+ * full table.  This method allows the driver to specify what layout it
+ * wants.  It must be called after a successful pci_alloc_msix() but
+ * before any of the associated SYS_RES_IRQ resources are allocated via
+ * bus_alloc_resource().  The 'indices' array contains N (where N equals
+ * the 'count' returned from pci_alloc_msix()) message indices.  The
+ * indices are 1-based (meaning the first message is at index 1).  On
+ * successful return, each of the messages in the 'indices' array will
+ * have an associated SYS_RES_IRQ whose rid is equal to the index.  Thus,
+ * if indices contains { 2, 4 }, then upon successful return, the 'child'
+ * device will have two SYS_RES_IRQ resources available at rids 2 and 4.
+ */
+int
+pci_remap_msix_method(device_t dev, device_t child, u_int *indices)
+{
+	struct pci_devinfo *dinfo = device_get_ivars(child);
+	pcicfgregs *cfg = &dinfo->cfg;
+	struct resource_list_entry *rle;
+	int count, error, i, j, *irqs;
+
+	/* Sanity check the indices. */
+	for (i = 0; i < cfg->msix.msix_alloc; i++)
+		if (indices[i] == 0 || indices[i] > cfg->msix.msix_msgnum)
+			return (EINVAL);
+
+	/* Check for duplicates. */
+	for (i = 0; i < cfg->msix.msix_alloc; i++)
+		for (j = i + 1; j < cfg->msix.msix_alloc; j++)
+			if (indices[i] == indices[j])
+				return (EINVAL);
+
+	/* Make sure none of the resources are allocated. */
+	for (i = 1, count = 0; count < cfg->msix.msix_alloc; i++) {
+		rle = resource_list_find(&dinfo->resources, SYS_RES_IRQ, i);
+		if (rle == NULL)
+			continue;
+		if (rle->res != NULL)
+			return (EBUSY);
+		count++;
+	}
+
+	/* Save the IRQ values and free the existing resources. */
+	irqs = malloc(sizeof(int) * cfg->msix.msix_alloc, M_TEMP, M_WAITOK);
+	for (i = 1, count = 0; count < cfg->msix.msix_alloc; i++) {
+		rle = resource_list_find(&dinfo->resources, SYS_RES_IRQ, i);
+		if (rle == NULL)
+			continue;
+		irqs[count] = rle->start;
+		resource_list_delete(&dinfo->resources, SYS_RES_IRQ, i);
+		count++;
+	}
+
+	/* Map the IRQ values to the new message indices and rids. */
+	for (i = 0; i < cfg->msix.msix_alloc; i++) {
+		resource_list_add(&dinfo->resources, SYS_RES_IRQ, indices[i],
+		    irqs[i], irqs[i], 1);
+		error = PCIB_REMAP_MSIX(device_get_parent(dev), child,
+		    indices[i], irqs[i]);
+		KASSERT(error == 0, ("Failed to remap MSI-X message"));
+	}
+	if (bootverbose) {
+		if (cfg->msix.msix_alloc == 1)
+			device_printf(child,
+			    "Remapped MSI-X IRQ to index %d\n", indices[0]);
+		else {
+			device_printf(child, "Remapped MSI-X IRQs to indices");
+			for (i = 0; i < cfg->msix.msix_alloc - 1; i++)
+				printf(" %d,", indices[i]);
+			printf(" %d\n", indices[cfg->msix.msix_alloc - 1]);
+		}
+	}
+	free(irqs, M_TEMP);
+
+	return (0);
+}
+
 static int
 pci_release_msix(device_t dev, device_t child)
 {
 	struct pci_devinfo *dinfo = device_get_ivars(child);
 	pcicfgregs *cfg = &dinfo->cfg;
 	struct resource_list_entry *rle;
-	int i;
+	int count, i;
 
 	/* Do we have any messages to release? */
 	if (cfg->msix.msix_alloc == 0)
 		return (ENODEV);
 
 	/* Make sure none of the resources are allocated. */
-	for (i = 0; i < cfg->msix.msix_alloc; i++) {
-		rle = resource_list_find(&dinfo->resources, SYS_RES_IRQ, i + 1);
-		KASSERT(rle != NULL, ("missing MSI resource"));
+	for (i = 1, count = 0; count < cfg->msix.msix_alloc; i++) {
+		rle = resource_list_find(&dinfo->resources, SYS_RES_IRQ, i);
+		if (rle == NULL)
+			continue;
 		if (rle->res != NULL)
 			return (EBUSY);
+		count++;
 	}
 
 	/* Update control register with to disable MSI-X. */
@@ -1158,15 +1261,35 @@ pci_release_msix(device_t dev, device_t child)
 	    cfg->msix.msix_ctrl, 2);
 
 	/* Release the messages. */
-	for (i = 0; i < cfg->msix.msix_alloc; i++) {
-		rle = resource_list_find(&dinfo->resources, SYS_RES_IRQ, i + 1);
+	for (i = 1, count = 0; count < cfg->msix.msix_alloc; i++) {
+		rle = resource_list_find(&dinfo->resources, SYS_RES_IRQ, i);
+		if (rle == NULL)
+			continue;
 		PCIB_RELEASE_MSIX(device_get_parent(dev), child,
 		    rle->start);
-		resource_list_delete(&dinfo->resources, SYS_RES_IRQ, i + 1);
+		resource_list_delete(&dinfo->resources, SYS_RES_IRQ, i);
+		count++;
 	}
 
 	/* Update alloc count. */
 	cfg->msix.msix_alloc = 0;
+	return (0);
+}
+
+/*
+ * Return the max supported MSI-X messages this device supports.
+ * Basically, assuming the MD code can alloc messages, this function
+ * should return the maximum value that pci_alloc_msix() can return.
+ * Thus, it is subject to the tunables, etc.
+ */
+int
+pci_msix_count_method(device_t dev, device_t child)
+{
+	struct pci_devinfo *dinfo = device_get_ivars(child);
+	pcicfgregs *cfg = &dinfo->cfg;
+
+	if (pci_do_msix && cfg->msix.msix_location != 0)
+		return (cfg->msix.msix_msgnum);
 	return (0);
 }
 
@@ -1294,22 +1417,17 @@ pci_alloc_msi_method(device_t dev, device_t child, int *count)
 	if (rle != NULL && rle->res != NULL)
 		return (ENXIO);
 
+	/* Already have allocated messages? */
+	if (cfg->msi.msi_alloc != 0 || cfg->msix.msix_alloc != 0)
+		return (ENXIO);
+
 	/* If MSI is blacklisted for this system, fail. */
 	if (pci_msi_blacklisted())
 		return (ENXIO);
 
-	/* Try MSI-X first. */
-	error = pci_alloc_msix(dev, child, count);
-	if (error != ENODEV)
-		return (error);
-
 	/* MSI capability present? */
 	if (cfg->msi.msi_location == 0 || !pci_do_msi)
 		return (ENODEV);
-
-	/* Already have allocated messages? */
-	if (cfg->msi.msi_alloc != 0)
-		return (ENXIO);
 
 	if (bootverbose)
 		device_printf(child,
@@ -1444,10 +1562,10 @@ pci_release_msi_method(device_t dev, device_t child)
 }
 
 /*
- * Return the max supported MSI or MSI-X messages this device supports.
+ * Return the max supported MSI messages this device supports.
  * Basically, assuming the MD code can alloc messages, this function
- * should return the maximum value that pci_alloc_msi() can return.  Thus,
- * it is subject to the tunables, etc.
+ * should return the maximum value that pci_alloc_msi() can return.
+ * Thus, it is subject to the tunables, etc.
  */
 int
 pci_msi_count_method(device_t dev, device_t child)
@@ -1455,8 +1573,6 @@ pci_msi_count_method(device_t dev, device_t child)
 	struct pci_devinfo *dinfo = device_get_ivars(child);
 	pcicfgregs *cfg = &dinfo->cfg;
 
-	if (pci_do_msix && cfg->msix.msix_location != 0)
-		return (cfg->msix.msix_msgnum);
 	if (pci_do_msi && cfg->msi.msi_location != 0)
 		return (cfg->msi.msi_msgnum);
 	return (0);

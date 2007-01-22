@@ -82,6 +82,7 @@ static device_method_t pcib_methods[] = {
     DEVMETHOD(pcib_alloc_msi,		pcib_alloc_msi),
     DEVMETHOD(pcib_release_msi,		pcib_release_msi),
     DEVMETHOD(pcib_alloc_msix,		pcib_alloc_msix),
+    DEVMETHOD(pcib_remap_msix,		pcib_remap_msix),
     DEVMETHOD(pcib_release_msix,	pcib_release_msix),
 
     { 0, 0 }
@@ -581,6 +582,16 @@ pcib_alloc_msix(device_t pcib, device_t dev, int index, int *irq)
 		return (ENXIO);
 	bus = device_get_parent(pcib);
 	return (PCIB_ALLOC_MSIX(device_get_parent(bus), dev, index, irq));
+}
+
+/* Pass request to remap an MSI-X message up to the parent bridge. */
+int
+pcib_remap_msix(device_t pcib, device_t dev, int index, int irq)
+{
+	device_t bus;
+
+	bus = device_get_parent(pcib);
+	return (PCIB_REMAP_MSIX(device_get_parent(bus), dev, index, irq));
 }
 
 /* Pass request to release an MSI-X message up to the parent bridge. */
