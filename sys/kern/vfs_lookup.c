@@ -69,13 +69,18 @@ __FBSDID("$FreeBSD$");
  * Allocation zone for namei
  */
 uma_zone_t namei_zone;
+/*
+ * Placeholder vnode for mp traversal
+ */
+static struct vnode *vp_crossmp;
 
 static void
 nameiinit(void *dummy __unused)
 {
 	namei_zone = uma_zcreate("NAMEI", MAXPATHLEN, NULL, NULL, NULL, NULL,
 	    UMA_ALIGN_PTR, 0);
-
+	getnewvnode("crossmp", NULL, &dead_vnodeops, &vp_crossmp);
+	vp_crossmp->v_vnlock->lk_flags &= ~LK_NOSHARE;
 }
 SYSINIT(vfs, SI_SUB_VFS, SI_ORDER_SECOND, nameiinit, NULL)
 
@@ -559,7 +564,8 @@ unionlookup:
 	 * If we have a shared lock we may need to upgrade the lock for the
 	 * last operation.
 	 */
-	if (VOP_ISLOCKED(dp, td) == LK_SHARED &&
+	if (dp != vp_crossmp &&
+	    VOP_ISLOCKED(dp, td) == LK_SHARED &&
 	    (cnp->cn_flags & ISLASTCN) && (cnp->cn_flags & LOCKPARENT))
 		vn_lock(dp, LK_UPGRADE|LK_RETRY, td);
 	/*
@@ -658,10 +664,17 @@ unionlookup:
 		VFS_UNLOCK_GIANT(vfslocked);
 		vfslocked = VFS_LOCK_GIANT(mp);
 		if (dp != ndp->ni_dvp)
-			VOP_UNLOCK(ndp->ni_dvp, 0, td);
+			vput(ndp->ni_dvp);
+		else
+			vrele(ndp->ni_dvp);
+		VFS_UNLOCK_GIANT(dvfslocked);
+		dvfslocked = 0;
+		vref(vp_crossmp);
+		ndp->ni_dvp = vp_crossmp;
 		error = VFS_ROOT(mp, compute_cn_lkflags(mp, cnp->cn_lkflags), &tdp, td);
 		vfs_unbusy(mp, td);
-		vn_lock(ndp->ni_dvp, compute_cn_lkflags(mp, cnp->cn_lkflags | LK_RETRY), td);
+		if (vn_lock(vp_crossmp, LK_SHARED | LK_NOWAIT, td))
+			panic("vp_crossmp exclusively locked or reclaimed");
 		if (error) {
 			dpunlocked = 1;
 			goto bad2;
