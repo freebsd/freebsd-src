@@ -417,6 +417,7 @@ vendor TRUMPION		0x090a	Trumpion
 vendor ALATION		0x0910	Alation
 vendor CONCORDCAMERA	0x0919	Concord Camera
 vendor GOHUBS		0x0921	GoHubs
+vendor XEROX		0x0924	Xerox
 vendor BIOMETRIC	0x0929	American Biometric
 vendor TOSHIBA		0x0930	Toshiba
 vendor PLEXTOR		0x093b	Plextor
@@ -1692,6 +1693,9 @@ product WESTERN HUB		0x0500	USB HUB
 
 /* Windbond Electronics */
 product WINBOND UH104		0x5518	4-port USB Hub
+
+/* Xerox products */
+product XEROX WCM15		0xffef	WorkCenter M15
 
 /* Xirlink products */
 product XIRLINK PCCAM		0x8080	IBM PC Camera
