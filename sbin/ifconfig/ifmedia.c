@@ -739,7 +739,7 @@ print_media_word(int ifmw, int print_toptype)
 	}
 	printf("%s", seen_option ? ">" : "");
 
-	if (print_toptype)
+	if (print_toptype && IFM_INST(ifmw) != 0)
 		printf(" instance %d", IFM_INST(ifmw));
 }
 
@@ -788,7 +788,8 @@ print_media_word_ifconfig(int ifmw)
 		}
 	}
 
-	printf(" instance %d", IFM_INST(ifmw));
+	if (IFM_INST(ifmw) != 0)
+		printf(" instance %d", IFM_INST(ifmw));
 }
 
 /**********************************************************************
