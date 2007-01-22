@@ -1055,6 +1055,11 @@ sosend_dgram(so, addr, uio, top, control, flags, td)
 		if (error)
 			goto out;
 #else
+		/*
+		 * Copy the data from userland into a mbuf chain.
+		 * If no data is to be copied in, a single empty mbuf
+		 * is returned.
+		 */
 		top = m_uiotombuf(uio, M_WAITOK, space, max_hdr,
 		    (M_PKTHDR | ((flags & MSG_EOR) ? M_EOR : 0)));
 		if (top == NULL) {
@@ -1230,6 +1235,11 @@ restart:
 					goto release;
 				}
 #else
+				/*
+				 * Copy the data from userland into a mbuf
+				 * chain.  If no data is to be copied in,
+				 * a single empty mbuf is returned.
+				 */
 				top = m_uiotombuf(uio, M_WAITOK, space,
 				    (atomic ? max_hdr : 0),
 				    (atomic ? M_PKTHDR : 0) |
