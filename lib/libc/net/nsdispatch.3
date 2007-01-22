@@ -32,7 +32,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd April 16, 2003
+.Dd January 22, 2007
 .Dt NSDISPATCH 3
 .Os
 .Sh NAME
@@ -209,6 +209,20 @@ function returns the value of the method that caused the dispatcher to
 terminate, or
 .Dv NS_NOTFOUND
 otherwise.
+.Sh NOTES
+.Fx Ns 's
+.Lb libc
+provides stubs for compatibility with NSS modules
+written for the
+.Tn GNU
+C Library
+.Nm nsswitch
+interface.
+However, these stubs only support the use of the
+.Dq Li passwd
+and
+.Dq Li group
+databases.
 .Sh SEE ALSO
 .Xr hesiod 3 ,
 .Xr stdarg 3 ,

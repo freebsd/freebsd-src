@@ -33,7 +33,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd May 20, 2006
+.Dd January 22, 2007
 .Dt NSSWITCH.CONF 5
 .Os
 .Sh NAME
@@ -105,21 +105,45 @@ The following databases are used by the following C library functions:
 .It Sy Database
 .Sy "Used by"
 .It group
-.Xr getgrent 3
+.Xr getgrent 3 ,
+.Xr getgrent_r 3 ,
+.Xr getgrgid_r 3 ,
+.Xr getgrnam_r 3 ,
+.Xr setgrent 3 ,
+.Xr endgrent 3
 .It hosts
-.Xr gethostbyname 3
+.Xr getaddrinfo 3 ,
+.Xr gethostbyaddr 3 ,
+.Xr gethostbyaddr_r 3 ,
+.Xr gethostbyname 3 ,
+.Xr gethostbyname2 3 ,
+.Xr gethostbyname_r 3 ,
+.Xr getipnodebyaddr 3 ,
+.Xr getipnodebyname 3
 .It networks
-.Xr getnetbyname 3
+.Xr getnetbyaddr 3 ,
+.Xr getnetbyaddr_r 3 ,
+.Xr getnetbyname 3 ,
+.Xr getnetbyname_r 3
 .It passwd
-.Xr getpwent 3
+.Xr getpwent 3 ,
+.Xr getpwent_r 3 ,
+.Xr getpwnam_r 3 ,
+.Xr getpwuid_r 3 ,
+.Xr setpwent 3 ,
+.Xr endpwent 3
 .It shells
 .Xr getusershell 3
 .It services
 .Xr getservent 3
 .It rpc
+.Xr getrpcbyname 3 ,
+.Xr getrpcbynumber 3 ,
 .Xr getrpcent 3
 .It proto
 .Xr getprotobyname 3
+.Xr getprotobynumber 3 ,
+.Xr getprotoent 3
 .El
 .Ss Status codes
 The following status codes are available:
@@ -313,6 +337,20 @@ If system got compiled with
 you have to remove
 .Sq nis
 entries.
+.Pp
+.Fx Ns 's
+.Lb libc
+provides stubs for compatibility with NSS modules
+written for the
+.Tn GNU
+C Library
+.Nm nsswitch
+interface.
+However, these stubs only support the use of the
+.Dq Li passwd
+and
+.Dq Li group
+databases.
 .Sh SEE ALSO
 .Xr nsdispatch 3 ,
 .Xr cached.conf 5 ,
