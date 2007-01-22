@@ -1643,8 +1643,11 @@ m_uiotombuf(struct uio *uio, int how, int len, int align, int flags)
 	if (align >= MHLEN)
 		return (NULL);
 
-	/* Give us all or nothing. */
-	m = m_getm2(NULL, total + align, how, MT_DATA, flags);
+	/*
+	 * Give us the full allocation or nothing.
+	 * If len is zero return the smallest empty mbuf.
+	 */
+	m = m_getm2(NULL, max(total + align, 1), how, MT_DATA, flags);
 	if (m == NULL)
 		return (NULL);
 	m->m_data += align;
