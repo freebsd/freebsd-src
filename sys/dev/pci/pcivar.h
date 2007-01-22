@@ -396,6 +396,18 @@ pci_alloc_msi(device_t dev, int *count)
 }
 
 static __inline int
+pci_alloc_msix(device_t dev, int *count)
+{
+    return (PCI_ALLOC_MSIX(device_get_parent(dev), dev, count));
+}
+
+static __inline int
+pci_remap_msix(device_t dev, u_int *indices)
+{
+    return (PCI_REMAP_MSIX(device_get_parent(dev), dev, indices));
+}
+
+static __inline int
 pci_release_msi(device_t dev)
 {
     return (PCI_RELEASE_MSI(device_get_parent(dev), dev));
@@ -405,6 +417,12 @@ static __inline int
 pci_msi_count(device_t dev)
 {
     return (PCI_MSI_COUNT(device_get_parent(dev), dev));
+}
+
+static __inline int
+pci_msix_count(device_t dev)
+{
+    return (PCI_MSIX_COUNT(device_get_parent(dev), dev));
 }
 
 device_t pci_find_bsf(uint8_t, uint8_t, uint8_t);
