@@ -32,7 +32,7 @@
 .\"     From: @(#)tcp.4	8.1 (Berkeley) 6/5/93
 .\" $FreeBSD$
 .\"
-.Dd September 13, 2006
+.Dd January 22, 2007
 .Dt TCP 4
 .Os
 .Sh NAME
@@ -117,6 +117,23 @@ supports a number of socket options which can be set with
 and tested with
 .Xr getsockopt 2 :
 .Bl -tag -width ".Dv TCP_NODELAY"
+.It Dv TCP_INFO
+Information about a socket's underlying TCP session may be retrieved
+by passing the read-only option
+.Dv TCP_INFO
+to
+.Xr getsockopt 2 .
+It accepts a single argument: a pointer to an instance of
+.Vt "struct tcp_info" .
+.Pp
+This API is subject to change; consult the source to determine
+which fields are currently filled out by this option.
+.Fx
+specific additions include
+send window size,
+receive window size,
+and
+bandwidth-controlled window space.
 .It Dv TCP_NODELAY
 Under most circumstances,
 .Tn TCP
@@ -540,3 +557,9 @@ protocol appeared in
 The RFC 1323 extensions for window scaling and timestamps were added
 in
 .Bx 4.4 .
+The
+.Dv TCP_INFO
+option was introduced in
+.Tn Linux 2.6
+and is
+.Em subject to change .
