@@ -152,6 +152,7 @@ int	msi_alloc(device_t dev, int count, int maxcount, int *irqs, int *newirq,
 void	msi_init(void);
 int	msi_release(int *irqs, int count);
 int	msix_alloc(device_t dev, int index, int *irq, int *new);
+int	msix_remap(int index, int irq);
 int	msix_release(int irq);
 
 #endif	/* !LOCORE */

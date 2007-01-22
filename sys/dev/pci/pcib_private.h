@@ -78,6 +78,7 @@ int		pcib_route_interrupt(device_t pcib, device_t dev, int pin);
 int		pcib_alloc_msi(device_t pcib, device_t dev, int count, int maxcount, int *irqs);
 int		pcib_release_msi(device_t pcib, device_t dev, int count, int *irqs);
 int		pcib_alloc_msix(device_t pcib, device_t dev, int index, int *irq);
+int		pcib_remap_msix(device_t pcib, device_t dev, int index, int irq);
 int		pcib_release_msix(device_t pcib, device_t dev, int irq);
 
 #endif

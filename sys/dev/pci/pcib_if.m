@@ -126,6 +126,16 @@ METHOD int alloc_msix {
 };
 
 #
+# Remap a single MSI-X message to a different index.
+#
+METHOD int remap_msix {
+	device_t	pcib;
+	device_t	dev;
+	int		index;
+	int		irq;
+};
+
+#
 # Release a single MSI-X message mapped onto 'irq'.
 #
 METHOD int release_msix {

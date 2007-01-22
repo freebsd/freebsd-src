@@ -96,6 +96,7 @@ static device_method_t acpi_pcib_pci_methods[] = {
     DEVMETHOD(pcib_alloc_msi,		pcib_alloc_msi),
     DEVMETHOD(pcib_release_msi,		pcib_release_msi),
     DEVMETHOD(pcib_alloc_msix,		pcib_alloc_msix),
+    DEVMETHOD(pcib_remap_msix,		pcib_remap_msix),
     DEVMETHOD(pcib_release_msix,	pcib_release_msix),
 
     {0, 0}

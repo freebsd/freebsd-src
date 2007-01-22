@@ -120,6 +120,7 @@ static device_method_t mptable_hostb_methods[] = {
 	DEVMETHOD(pcib_alloc_msi,	mptable_hostb_alloc_msi),
 	DEVMETHOD(pcib_release_msi,	pcib_release_msi),
 	DEVMETHOD(pcib_alloc_msix,	mptable_hostb_alloc_msix),
+	DEVMETHOD(pcib_remap_msix,	pcib_remap_msix),
 	DEVMETHOD(pcib_release_msix,	pcib_release_msix),
 
 	{ 0, 0 }
@@ -176,6 +177,7 @@ static device_method_t mptable_pcib_pci_methods[] = {
 	DEVMETHOD(pcib_alloc_msi,	pcib_alloc_msi),
 	DEVMETHOD(pcib_release_msi,	pcib_release_msi),
 	DEVMETHOD(pcib_alloc_msix,	pcib_alloc_msix),
+	DEVMETHOD(pcib_remap_msix,	pcib_remap_msix),
 	DEVMETHOD(pcib_release_msix,	pcib_release_msix),
 
 	{0, 0}

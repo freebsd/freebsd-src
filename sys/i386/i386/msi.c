@@ -480,6 +480,30 @@ msix_alloc(device_t dev, int index, int *irq, int *new)
 }
 
 int
+msix_remap(int index, int irq)
+{
+	struct msi_intsrc *msi;
+
+	sx_xlock(&msi_sx);
+	msi = (struct msi_intsrc *)intr_lookup_source(irq);
+	if (msi == NULL) {
+		sx_xunlock(&msi_sx);
+		return (ENOENT);
+	}
+
+	/* Make sure this is an MSI-X message. */
+	if (!msi->msi_msix) {
+		sx_xunlock(&msi_sx);
+		return (EINVAL);
+	}
+
+	KASSERT(msi->msi_dev != NULL, ("unowned message"));
+	msi->msi_index = index;
+	sx_xunlock(&msi_sx);
+	return (0);
+}
+
+int
 msix_release(int irq)
 {
 	struct msi_intsrc *msi;
