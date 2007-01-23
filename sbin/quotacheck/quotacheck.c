@@ -132,7 +132,7 @@ struct fileusage *
 	 lookup(u_long, int);
 void	*needchk(struct fstab *);
 int	 oneof(char *, char*[], int);
-void	 printchanges(char *, int, struct dqblk *, struct fileusage *);
+void	 printchanges(char *, int, struct dqblk *, struct fileusage *, u_long);
 void	 setinodebuf(ino_t);
 int	 update(char *, char *, int);
 void	 usage(void);
@@ -483,7 +483,7 @@ update(fsname, quotafile, type)
 			fup->fu_curblocks = 0;
 			continue;
 		}
-		printchanges(fsname, type, &dqbuf, fup);
+		printchanges(fsname, type, &dqbuf, fup, id);
 		/*
 		 * Reset time limit if have a soft limit and were
 		 * previously under it, but are now over it.
@@ -524,7 +524,7 @@ update(fsname, quotafile, type)
 			bzero(&dqbuf, sizeof(struct dqblk));
 			if (fup->fu_id > highid)
 				highid = fup->fu_id;
-			printchanges(fsname, type, &dqbuf, fup);
+			printchanges(fsname, type, &dqbuf, fup, id);
 			dqbuf.dqb_curinodes = fup->fu_curinodes;
 			dqbuf.dqb_curblocks = fup->fu_curblocks;
 			offset = (off_t)fup->fu_id * sizeof(struct dqblk);
@@ -654,7 +654,7 @@ addid(id, type, name, fsname)
 	if (name)
 		len = strlen(name);
 	else
-		len = 10;
+		len = 0;
 	if ((fup = calloc(1, sizeof(*fup) + len)) == NULL)
 		errx(1, "calloc failed");
 	fhp = &fuhead[type][id & (FUHASH - 1)];
@@ -782,18 +782,35 @@ bread(bno, buf, cnt)
  * Display updated block and i-node counts.
  */
 void
-printchanges(fsname, type, dp, fup)
+printchanges(fsname, type, dp, fup, id)
 	char *fsname;
 	int type;
 	struct dqblk *dp;
 	struct fileusage *fup;
+	u_long id;
 {
 	if (!vflag)
 		return;
 	if (aflag)
 		(void)printf("%s: ", fsname);
-	(void)printf("%-8s fixed (%s):", fup->fu_name, 
-	    type == GRPQUOTA ? "group" : "user");
+	if (fup->fu_name[0] == '\0')
+		(void)printf("%-8lu fixed ", id);
+	else
+		(void)printf("%-8s fixed ", fup->fu_name);
+	switch (type) {
+
+	case GRPQUOTA:
+		(void)printf("(group):");
+		break;
+
+	case USRQUOTA:
+		(void)printf("(user): ");
+		break;
+
+	default:
+		(void)printf("(unknown quota type %d)", type);
+		break;
+	}
 	if (dp->dqb_curinodes != fup->fu_curinodes)
 		(void)printf("\tinodes %lu -> %lu", (u_long)dp->dqb_curinodes,
 		    (u_long)fup->fu_curinodes);
