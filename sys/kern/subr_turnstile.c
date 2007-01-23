@@ -414,7 +414,9 @@ turnstile_adjust(struct thread *td, u_char oldpri)
 	 */
 	if (td == TAILQ_FIRST(&ts->ts_blocked) && td->td_priority < oldpri) {
 		mtx_unlock_spin(&tc->tc_lock);
+		critical_enter();
 		propagate_priority(td);
+		critical_exit();
 	} else
 		mtx_unlock_spin(&tc->tc_lock);
 }
@@ -640,7 +642,9 @@ turnstile_wait(struct lock_object *lock, struct thread *owner)
 	td->td_blocked = ts;
 	td->td_lockname = lock->lo_name;
 	TD_SET_LOCK(td);
+	critical_enter();
 	propagate_priority(td);
+	critical_exit();
 
 	if (LOCK_LOG_TEST(lock, 0))
 		CTR4(KTR_LOCK, "%s: td %d blocked on [%p] %s", __func__,
