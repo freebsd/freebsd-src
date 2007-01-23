@@ -949,15 +949,12 @@ ipi_bitmap_handler(struct trapframe frame)
 	ipi_bitmap = atomic_readandclear_int(&cpu_ipi_pending[cpu]);
 
 	if (ipi_bitmap & (1 << IPI_PREEMPT)) {
+		struct thread *running_thread = curthread;
 		mtx_lock_spin(&sched_lock);
-		/* Don't preempt the idle thread */
-		if (curthread != PCPU_GET(idlethread)) {
-			struct thread *running_thread = curthread;
-			if (running_thread->td_critnest > 1) 
-				running_thread->td_owepreempt = 1;
-			else 		
-				mi_switch(SW_INVOL | SW_PREEMPT, NULL);
-		}
+		if (running_thread->td_critnest > 1) 
+			running_thread->td_owepreempt = 1;
+		else 		
+			mi_switch(SW_INVOL | SW_PREEMPT, NULL);
 		mtx_unlock_spin(&sched_lock);
 	}
 
