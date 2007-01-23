@@ -497,9 +497,16 @@ xfs_geom_bufsync(struct bufobj *bo, int waitfor, struct thread *td)
 	return bufsync(bo,waitfor,td);
 }
 
+static void
+xfs_geom_bufbdflush(struct bufobj *bo, struct buf *bp)
+{
+	bufbdflush(bo, bp);
+}
+
 struct buf_ops xfs_bo_ops = {
 	.bop_name =     "XFS",
 	.bop_write =    xfs_geom_bufwrite,
 	.bop_strategy = xfs_geom_strategy,
 	.bop_sync =     xfs_geom_bufsync,
+	.bop_bdflush =	xfs_geom_bufbdflush,
 };
