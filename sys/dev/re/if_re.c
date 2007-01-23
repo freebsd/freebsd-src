@@ -2319,6 +2319,20 @@ re_init_locked(sc)
 	re_tx_list_init(sc);
 
 	/*
+	 * Load the addresses of the RX and TX lists into the chip.
+	 */
+
+	CSR_WRITE_4(sc, RL_RXLIST_ADDR_HI,
+	    RL_ADDR_HI(sc->rl_ldata.rl_rx_list_addr));
+	CSR_WRITE_4(sc, RL_RXLIST_ADDR_LO,
+	    RL_ADDR_LO(sc->rl_ldata.rl_rx_list_addr));
+
+	CSR_WRITE_4(sc, RL_TXLIST_ADDR_HI,
+	    RL_ADDR_HI(sc->rl_ldata.rl_tx_list_addr));
+	CSR_WRITE_4(sc, RL_TXLIST_ADDR_LO,
+	    RL_ADDR_LO(sc->rl_ldata.rl_tx_list_addr));
+
+	/*
 	 * Enable transmit and receive.
 	 */
 	CSR_WRITE_1(sc, RL_COMMAND, RL_CMD_TX_ENB|RL_CMD_RX_ENB);
@@ -2335,6 +2349,9 @@ re_init_locked(sc)
 			    RL_TXCFG_CONFIG|RL_LOOPTEST_ON_CPLUS);
 	} else
 		CSR_WRITE_4(sc, RL_TXCFG, RL_TXCFG_CONFIG);
+
+	CSR_WRITE_1(sc, RL_EARLY_TX_THRESH, 16);
+
 	CSR_WRITE_4(sc, RL_RXCFG, RL_RXCFG_CONFIG);
 
 	/* Set the individual bit to receive frames for this host only. */
@@ -2389,21 +2406,6 @@ re_init_locked(sc)
 	/* Enable receiver and transmitter. */
 	CSR_WRITE_1(sc, RL_COMMAND, RL_CMD_TX_ENB|RL_CMD_RX_ENB);
 #endif
-	/*
-	 * Load the addresses of the RX and TX lists into the chip.
-	 */
-
-	CSR_WRITE_4(sc, RL_RXLIST_ADDR_HI,
-	    RL_ADDR_HI(sc->rl_ldata.rl_rx_list_addr));
-	CSR_WRITE_4(sc, RL_RXLIST_ADDR_LO,
-	    RL_ADDR_LO(sc->rl_ldata.rl_rx_list_addr));
-
-	CSR_WRITE_4(sc, RL_TXLIST_ADDR_HI,
-	    RL_ADDR_HI(sc->rl_ldata.rl_tx_list_addr));
-	CSR_WRITE_4(sc, RL_TXLIST_ADDR_LO,
-	    RL_ADDR_LO(sc->rl_ldata.rl_tx_list_addr));
-
-	CSR_WRITE_1(sc, RL_EARLY_TX_THRESH, 16);
 
 #ifdef RE_TX_MODERATION
 	/*
