@@ -471,7 +471,7 @@ static struct da_quirk_entry da_quirk_table[] =
 		 * EasyMP3 EM732X USB 2.0 Flash MP3 Player
 		 * PR: usb/96546
 		 */
-		{T_DIRECT, SIP_MEDIA_REMOVABLE, "*", "MP3 Player*",
+		{T_DIRECT, SIP_MEDIA_REMOVABLE, "EM732X", "MP3 Player*",
 		"1.0"}, /*quirks*/ DA_Q_NO_SYNC_CACHE
 	},
 };
