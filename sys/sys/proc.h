@@ -645,14 +645,6 @@ struct proc {
 #define	SW_INVOL	0x0002		/* Involuntary switch. */
 #define SW_PREEMPT	0x0004		/* The invol switch is a preemption */
 
-/* Flags for setrunqueue().  Why are we setting this thread on the run queue? */
-#define SRQ_BORING	0x0000		/* No special circumstances. */
-#define SRQ_YIELDING	0x0001		/* We are yielding (from mi_switch). */
-#define SRQ_OURSELF	0x0002		/* It is ourself (from mi_switch). */
-#define SRQ_INTR	0x0004		/* It is probably urgent. */
-#define SRQ_PREEMPTED	0x0008		/* has been preempted.. be kind */
-#define	SRQ_BORROWING	0x0010		/* Priority updated due to prio_lend */
-
 /* How values for thread_single(). */
 #define	SINGLE_NO_EXIT	0
 #define	SINGLE_EXIT	1
@@ -809,7 +801,6 @@ struct	proc *pfind(pid_t);		/* Find process by id. */
 struct	pgrp *pgfind(pid_t);		/* Find process group by id. */
 struct	proc *zpfind(pid_t);		/* Find zombie process by id. */
 
-void	adjustrunqueue(struct thread *, int newpri);
 void	ast(struct trapframe *framep);
 struct	thread *choosethread(void);
 int	cr_cansignal(struct ucred *cred, struct proc *proc, int signum);
@@ -846,7 +837,6 @@ int	securelevel_ge(struct ucred *cr, int level);
 int	securelevel_gt(struct ucred *cr, int level);
 void	sessrele(struct session *);
 void	setrunnable(struct thread *);
-void	setrunqueue(struct thread *, int flags);
 void	setsugid(struct proc *p);
 int	sigonstack(size_t sp);
 void	sleepinit(void);

@@ -83,10 +83,6 @@ struct td_sched {
 	struct thread	*ts_thread;	/* (*) Active associated thread. */
 	fixpt_t		ts_pctcpu;	/* (j) %cpu during p_swtime. */
 	u_char		ts_rqindex;	/* (j) Run queue index. */
-	enum {
-		TSS_THREAD = 0x0,	/* slaved to thread state */
-		TSS_ONRUNQ
-	} ts_state;			/* (j) TD_STAT in scheduler status. */
 	int		ts_cpticks;	/* (j) Ticks of cpu time. */
 	struct runq	*ts_runq;	/* runq the thread is currently on */
 };
@@ -111,8 +107,6 @@ static int	sched_quantum;	/* Roundrobin scheduling quantum in ticks. */
 #define	SCHED_QUANTUM	(hz / 10)	/* Default sched quantum */
 
 static struct callout roundrobin_callout;
-
-static struct td_sched *sched_choose(void);
 
 static void	setup_runqs(void);
 static void	roundrobin(void *arg);
@@ -404,11 +398,10 @@ schedcpu(void)
 			 * because the thread may not HAVE everything in
 			 * memory? XXX I think this is out of date.
 			 */
-			if (ts->ts_state == TSS_ONRUNQ) {
+			if (TD_ON_RUNQ(td)) {
 				awake = 1;
 				ts->ts_flags &= ~TSF_DIDRUN;
-			} else if ((ts->ts_state == TSS_THREAD) &&
-			    (TD_IS_RUNNING(td))) {
+			} else if (TD_IS_RUNNING(td)) {
 				awake = 1;
 				/* Do not clear TSF_DIDRUN */
 			} else if (ts->ts_flags & TSF_DIDRUN) {
@@ -584,7 +577,6 @@ schedinit(void)
 	proc0.p_sched = NULL; /* XXX */
 	thread0.td_sched = &td_sched0;
 	td_sched0.ts_thread = &thread0;
-	td_sched0.ts_state = TSS_THREAD;
 }
 
 int
@@ -709,10 +701,11 @@ sched_priority(struct thread *td, u_char prio)
 	mtx_assert(&sched_lock, MA_OWNED);
 	if (td->td_priority == prio)
 		return;
-	if (TD_ON_RUNQ(td)) {
-		adjustrunqueue(td, prio);
-	} else {
-		td->td_priority = prio;
+	td->td_priority = prio;
+	if (TD_ON_RUNQ(td) && 
+	    td->td_sched->ts_rqindex != (prio / RQ_PPQ)) {
+		sched_rem(td);
+		sched_add(td, SRQ_BORING);
 	}
 }
 
@@ -878,7 +871,7 @@ sched_switch(struct thread *td, struct thread *newtd, int flags)
 	else {
 		if (TD_IS_RUNNING(td)) {
 			/* Put us back on the run queue. */
-			setrunqueue(td, (flags & SW_PREEMPT) ?
+			sched_add(td, (flags & SW_PREEMPT) ?
 			    SRQ_OURSELF|SRQ_YIELDING|SRQ_PREEMPTED :
 			    SRQ_OURSELF|SRQ_YIELDING);
 		}
@@ -928,7 +921,7 @@ sched_wakeup(struct thread *td)
 		resetpriority(td);
 	}
 	td->td_slptime = 0;
-	setrunqueue(td, SRQ_BORING);
+	sched_add(td, SRQ_BORING);
 }
 
 #ifdef SMP
@@ -1065,15 +1058,16 @@ sched_add(struct thread *td, int flags)
 
 	ts = td->td_sched;
 	mtx_assert(&sched_lock, MA_OWNED);
-	KASSERT(ts->ts_state != TSS_ONRUNQ,
-	    ("sched_add: td_sched %p (%s) already in run queue", ts,
-	    td->td_proc->p_comm));
+	KASSERT((td->td_inhibitors == 0),
+	    ("sched_add: trying to run inhibited thread"));
+	KASSERT((TD_CAN_RUN(td) || TD_IS_RUNNING(td)),
+	    ("sched_add: bad thread state"));
 	KASSERT(td->td_proc->p_sflag & PS_INMEM,
 	    ("sched_add: process swapped out"));
 	CTR5(KTR_SCHED, "sched_add: %p(%s) prio %d by %p(%s)",
 	    td, td->td_proc->p_comm, td->td_priority, curthread,
 	    curthread->td_proc->p_comm);
-
+	TD_SET_RUNQ(td);
 
 	if (td->td_pinned != 0) {
 		cpu = td->td_lastcpu;
@@ -1119,21 +1113,22 @@ sched_add(struct thread *td, int flags)
 	if ((td->td_proc->p_flag & P_NOLOAD) == 0)
 		sched_load_add();
 	runq_add(ts->ts_runq, ts, flags);
-	ts->ts_state = TSS_ONRUNQ;
 }
 #else /* SMP */
 {
 	struct td_sched *ts;
 	ts = td->td_sched;
 	mtx_assert(&sched_lock, MA_OWNED);
-	KASSERT(ts->ts_state != TSS_ONRUNQ,
-	    ("sched_add: td_sched %p (%s) already in run queue", ts,
-	    td->td_proc->p_comm));
+	KASSERT((td->td_inhibitors == 0),
+	    ("sched_add: trying to run inhibited thread"));
+	KASSERT((TD_CAN_RUN(td) || TD_IS_RUNNING(td)),
+	    ("sched_add: bad thread state"));
 	KASSERT(td->td_proc->p_sflag & PS_INMEM,
 	    ("sched_add: process swapped out"));
 	CTR5(KTR_SCHED, "sched_add: %p(%s) prio %d by %p(%s)",
 	    td, td->td_proc->p_comm, td->td_priority, curthread,
 	    curthread->td_proc->p_comm);
+	TD_SET_RUNQ(td);
 	CTR2(KTR_RUNQ, "sched_add: adding td_sched:%p (td:%p) to runq", ts, td);
 	ts->ts_runq = &runq;
 
@@ -1155,7 +1150,6 @@ sched_add(struct thread *td, int flags)
 	if ((td->td_proc->p_flag & P_NOLOAD) == 0)
 		sched_load_add();
 	runq_add(ts->ts_runq, ts, flags);
-	ts->ts_state = TSS_ONRUNQ;
 	maybe_resched(td);
 }
 #endif /* SMP */
@@ -1168,7 +1162,7 @@ sched_rem(struct thread *td)
 	ts = td->td_sched;
 	KASSERT(td->td_proc->p_sflag & PS_INMEM,
 	    ("sched_rem: process swapped out"));
-	KASSERT((ts->ts_state == TSS_ONRUNQ),
+	KASSERT(TD_ON_RUNQ(td),
 	    ("sched_rem: thread not on run queue"));
 	mtx_assert(&sched_lock, MA_OWNED);
 	CTR5(KTR_SCHED, "sched_rem: %p(%s) prio %d by %p(%s)",
@@ -1178,15 +1172,14 @@ sched_rem(struct thread *td)
 	if ((td->td_proc->p_flag & P_NOLOAD) == 0)
 		sched_load_rem();
 	runq_remove(ts->ts_runq, ts);
-
-	ts->ts_state = TSS_THREAD;
+	TD_SET_CAN_RUN(td);
 }
 
 /*
  * Select threads to run.
  * Notice that the running threads still consume a slot.
  */
-struct td_sched *
+struct thread *
 sched_choose(void)
 {
 	struct td_sched *ts;
@@ -1217,12 +1210,13 @@ sched_choose(void)
 
 	if (ts) {
 		runq_remove(rq, ts);
-		ts->ts_state = TSS_THREAD;
+		ts->ts_flags |= TSF_DIDRUN;
 
 		KASSERT(ts->ts_thread->td_proc->p_sflag & PS_INMEM,
 		    ("sched_choose: process swapped out"));
-	}
-	return (ts);
+		return (ts->ts_thread);
+	} 
+	return (PCPU_GET(idlethread));
 }
 
 void
@@ -1263,8 +1257,6 @@ sched_bind(struct thread *td, int cpu)
 	ts->ts_runq = &runq_pcpu[cpu];
 	if (PCPU_GET(cpuid) == cpu)
 		return;
-
-	ts->ts_state = TSS_THREAD;
 
 	mi_switch(SW_VOL, NULL);
 #endif
@@ -1325,5 +1317,44 @@ void
 sched_tick(void)
 {
 }
+
+/*
+ * The actual idle process.
+ */
+void
+sched_idletd(void *dummy)
+{
+	struct proc *p;
+	struct thread *td;
+#ifdef SMP
+	cpumask_t mycpu;
+#endif
+
+	td = curthread;
+	p = td->td_proc;
+#ifdef SMP
+	mycpu = PCPU_GET(cpumask);
+	mtx_lock_spin(&sched_lock);
+	idle_cpus_mask |= mycpu;
+	mtx_unlock_spin(&sched_lock);
+#endif
+	for (;;) {
+		mtx_assert(&Giant, MA_NOTOWNED);
+
+		while (sched_runnable() == 0)
+			cpu_idle();
+
+		mtx_lock_spin(&sched_lock);
+#ifdef SMP
+		idle_cpus_mask &= ~mycpu;
+#endif
+		mi_switch(SW_VOL, NULL);
+#ifdef SMP
+		idle_cpus_mask |= mycpu;
+#endif
+		mtx_unlock_spin(&sched_lock);
+	}
+}
+
 #define KERN_SWITCH_INCLUDE 1
 #include "kern/kern_switch.c"

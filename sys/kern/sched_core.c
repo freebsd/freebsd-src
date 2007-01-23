@@ -189,10 +189,6 @@ struct td_sched {
 	int		ts_flags;	/* (j) TSF_* flags. */
 	fixpt_t		ts_pctcpu;	/* (j) %cpu during p_swtime. */
 	u_char		ts_rqindex;	/* (j) Run queue index. */
-	enum {
-		TSS_THREAD = 0x0,	/* slaved to thread state */
-		TSS_ONRUNQ
-	} ts_state;			/* (j) thread sched specific status. */
 	int		ts_slice;	/* Time slice in ticks */
 	struct kseq	*ts_kseq;	/* Kseq the thread belongs to */
 	struct krunq	*ts_runq;	/* Assiociated runqueue */
@@ -350,7 +346,6 @@ static void kseq_runq_rem(struct kseq *, struct td_sched *);
 static void kseq_setup(struct kseq *);
 
 static int sched_is_timeshare(struct thread *td);
-static struct td_sched *sched_choose(void);
 static int sched_calc_pri(struct td_sched *ts);
 static int sched_starving(struct kseq *, unsigned, struct td_sched *);
 static void sched_pctcpu_update(struct td_sched *);
@@ -501,7 +496,7 @@ krunq_choose(struct krunq *rq)
 /*
  * Remove the KSE from the queue specified by its priority, and clear the
  * corresponding status bit if the queue becomes empty.
- * Caller must set ts->ts_state afterwards.
+ * Caller must set state afterwards.
  */
 static void
 krunq_remove(struct krunq *rq, struct td_sched *ts)
@@ -790,7 +785,6 @@ schedinit(void)
 	proc0.p_sched = NULL; /* XXX */
 	thread0.td_sched = &kse0;
 	kse0.ts_thread = &thread0;
-	kse0.ts_state = TSS_THREAD;
 	kse0.ts_slice = 100;
 }
 
@@ -842,6 +836,8 @@ sched_thread_priority(struct thread *td, u_char prio)
 		 * propagation, we may have to move ourselves to a new
 		 * queue.  We still call adjustrunqueue below in case td_sched
 		 * needs to fix things up.
+		 *
+		 * XXX td_priority is never set here.
 		 */
 		if (prio < td->td_priority && ts->ts_runq != NULL &&
 		    ts->ts_runq != ts->ts_kseq->ksq_curr) {
@@ -849,7 +845,11 @@ sched_thread_priority(struct thread *td, u_char prio)
 			ts->ts_runq = ts->ts_kseq->ksq_curr;
 			krunq_add(ts->ts_runq, ts);
 		}
-		adjustrunqueue(td, prio);
+		if (ts->ts_rqindex != prio) {
+			sched_rem(td);
+			td->td_priority = prio;
+			sched_add(td, SRQ_BORING);
+		}
 	} else
 		td->td_priority = prio;
 }
@@ -990,7 +990,7 @@ sched_switch(struct thread *td, struct thread *newtd, int flags)
 		/* We are ending our run so make our slot available again */
 		kseq_load_rem(ksq, ts);
 		if (TD_IS_RUNNING(td)) {
-			setrunqueue(td, (flags & SW_PREEMPT) ?
+			sched_add(td, (flags & SW_PREEMPT) ?
 			    SRQ_OURSELF|SRQ_YIELDING|SRQ_PREEMPTED :
 			    SRQ_OURSELF|SRQ_YIELDING);
 		} else {
@@ -1084,7 +1084,7 @@ sched_wakeup(struct thread *td)
 			sched_user_prio(td, sched_recalc_pri(ts, now));
 		}
 	}
-	setrunqueue(td, SRQ_BORING);
+	sched_add(td, SRQ_BORING);
 }
 
 /*
@@ -1344,7 +1344,7 @@ sched_userret(struct thread *td)
 	}
 }
 
-struct td_sched *
+struct thread *
 sched_choose(void)
 {
 	struct td_sched  *ts;
@@ -1371,12 +1371,11 @@ sched_choose(void)
 
 	if (ts != NULL) {
 		kseq_runq_rem(kseq, ts);
-		ts->ts_state = TSS_THREAD;
 		ts->ts_flags &= ~TSF_PREEMPTED;
 		ts->ts_timestamp = sched_timestamp();
+		return (ts->ts_thread);
 	}
-
-	return (ts);
+	return (PCPU_GET(idlethread));
 }
 
 #ifdef SMP
@@ -1481,11 +1480,16 @@ sched_add(struct thread *td, int flags)
 #endif
 
 	mtx_assert(&sched_lock, MA_OWNED);
+	CTR5(KTR_SCHED, "sched_add: %p(%s) prio %d by %p(%s)",
+	    td, td->td_proc->p_comm, td->td_priority, curthread,
+	    curthread->td_proc->p_comm);
+	KASSERT((td->td_inhibitors == 0),
+	    ("sched_add: trying to run inhibited thread"));
+	KASSERT((TD_CAN_RUN(td) || TD_IS_RUNNING(td)),
+	    ("sched_add: bad thread state"));
+	TD_SET_RUNQ(td);
 	mytd = curthread;
 	ts = td->td_sched;
-	KASSERT(ts->ts_state != TSS_ONRUNQ,
-	    ("sched_add: td_sched %p (%s) already in run queue", ts,
-	    ts->ts_proc->p_comm));
 	KASSERT(ts->ts_proc->p_sflag & PS_INMEM,
 	    ("sched_add: process swapped out"));
 	KASSERT(ts->ts_runq == NULL,
@@ -1559,7 +1563,6 @@ sched_add(struct thread *td, int flags)
 		need_resched = TDF_NEEDRESCHED;
 	}
 
-	ts->ts_state = TSS_ONRUNQ;
 	kseq_runq_add(ksq, ts);
 	kseq_load_add(ksq, ts);
 
@@ -1602,13 +1605,13 @@ sched_rem(struct thread *td)
 
 	mtx_assert(&sched_lock, MA_OWNED);
 	ts = td->td_sched;
-	KASSERT((ts->ts_state == TSS_ONRUNQ),
+	KASSERT(TD_ON_RUNQ(td),
 	    ("sched_rem: KSE not on run queue"));
 
 	kseq = ts->ts_kseq;
 	kseq_runq_rem(kseq, ts);
 	kseq_load_rem(kseq, ts);
-	ts->ts_state = TSS_THREAD;
+	TD_SET_CAN_RUN(td);
 }
 
 fixpt_t
@@ -1705,5 +1708,44 @@ sched_sizeof_thread(void)
 {
 	return (sizeof(struct thread) + sizeof(struct td_sched));
 }
+
+/*
+ * The actual idle process.
+ */
+void
+sched_idletd(void *dummy)
+{
+	struct proc *p;
+	struct thread *td;
+#ifdef SMP
+	cpumask_t mycpu;
+#endif
+
+	td = curthread;
+	p = td->td_proc;
+#ifdef SMP
+	mycpu = PCPU_GET(cpumask);
+	mtx_lock_spin(&sched_lock);
+	idle_cpus_mask |= mycpu;
+	mtx_unlock_spin(&sched_lock);
+#endif
+	for (;;) {
+		mtx_assert(&Giant, MA_NOTOWNED);
+
+		while (sched_runnable() == 0)
+			cpu_idle();
+
+		mtx_lock_spin(&sched_lock);
+#ifdef SMP
+		idle_cpus_mask &= ~mycpu;
+#endif
+		mi_switch(SW_VOL, NULL);
+#ifdef SMP
+		idle_cpus_mask |= mycpu;
+#endif
+		mtx_unlock_spin(&sched_lock);
+	}
+}
+
 #define KERN_SWITCH_INCLUDE 1
 #include "kern/kern_switch.c"

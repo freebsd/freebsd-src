@@ -43,8 +43,6 @@ __FBSDID("$FreeBSD$");
 static void idle_setup(void *dummy);
 SYSINIT(idle_setup, SI_SUB_SCHED_IDLE, SI_ORDER_FIRST, idle_setup, NULL)
 
-static void idle_proc(void *dummy);
-
 /*
  * Set up per-cpu idle process contexts.  The AP's shouldn't be running or
  * accessing their idle processes at this point, so don't bother with
@@ -62,11 +60,11 @@ idle_setup(void *dummy)
 
 #ifdef SMP
 	SLIST_FOREACH(pc, &cpuhead, pc_allcpu) {
-		error = kthread_create(idle_proc, NULL, &p,
+		error = kthread_create(sched_idletd, NULL, &p,
 		    RFSTOPPED | RFHIGHPID, 0, "idle: cpu%d", pc->pc_cpuid);
 		pc->pc_idlethread = FIRST_THREAD_IN_PROC(p);
 #else
-		error = kthread_create(idle_proc, NULL, &p,
+		error = kthread_create(sched_idletd, NULL, &p,
 		    RFSTOPPED | RFHIGHPID, 0, "idle");
 		PCPU_SET(idlethread, FIRST_THREAD_IN_PROC(p));
 #endif
@@ -86,42 +84,4 @@ idle_setup(void *dummy)
 #ifdef SMP
 	}
 #endif
-}
-
-/*
- * The actual idle process.
- */
-static void
-idle_proc(void *dummy)
-{
-	struct proc *p;
-	struct thread *td;
-#ifdef SMP
-	cpumask_t mycpu;
-#endif
-
-	td = curthread;
-	p = td->td_proc;
-#ifdef SMP
-	mycpu = PCPU_GET(cpumask);
-	mtx_lock_spin(&sched_lock);
-	idle_cpus_mask |= mycpu;
-	mtx_unlock_spin(&sched_lock);
-#endif
-	for (;;) {
-		mtx_assert(&Giant, MA_NOTOWNED);
-
-		while (sched_runnable() == 0)
-			cpu_idle();
-
-		mtx_lock_spin(&sched_lock);
-#ifdef SMP
-		idle_cpus_mask &= ~mycpu;
-#endif
-		mi_switch(SW_VOL, NULL);
-#ifdef SMP
-		idle_cpus_mask |= mycpu;
-#endif
-		mtx_unlock_spin(&sched_lock);
-	}
 }
