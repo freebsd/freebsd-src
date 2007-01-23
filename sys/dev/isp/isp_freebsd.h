@@ -475,6 +475,28 @@ void isp_mbox_release(ispsoftc_t *);
 int isp_mstohz(int);
 
 /*
+ * Platform specific defines
+ */
+#if __FreeBSD_version < 500000  
+#define	BUS_DMA_ROOTARG(x)	NULL
+#define	isp_dma_tag_create(a, b, c, d, e, f, g, h, i, j, k, z)	\
+	bus_dma_tag_create(a, b, c, d, e, f, g, h, i, j, k, z)
+#elif	__FreeBSD_version < 700020
+#define	BUS_DMA_ROOTARG(x)	NULL
+#define	isp_dma_tag_create(a, b, c, d, e, f, g, h, i, j, k, z)	\
+	bus_dma_tag_create(a, b, c, d, e, f, g, h, i, j, k, \
+	busdma_lock_mutex, &Giant, z)
+#else
+#define	BUS_DMA_ROOTARG(x)	bus_get_dma_tag(x)
+#define	isp_dma_tag_create(a, b, c, d, e, f, g, h, i, j, k, z)	\
+	bus_dma_tag_create(a, b, c, d, e, f, g, h, i, j, k, \
+	busdma_lock_mutex, &Giant, z)
+#endif
+
+/* Should be BUS_SPACE_MAXSIZE, but MAXPHYS is larger than BUS_SPACE_MAXSIZE */
+#define ISP_NSEGS ((MAXPHYS / PAGE_SIZE) + 1)  
+
+/*
  * Platform specific inline functions
  */
 
