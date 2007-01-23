@@ -2793,16 +2793,63 @@ utility.
 .Pq Vt bool
 Set to
 .Dq Li YES
-to turn on user disk quotas on system startup via the
+to turn on user and group disk quotas on system startup via the
 .Xr quotaon 8
-command.
+command for all file systems marked as having quotas enabled in
+.Pa /etc/fstab .
+The kernel must be built with
+.Cd "options QUOTA"
+for disk quotas to function.
 .It Va check_quotas
 .Pq Vt bool
 Set to
 .Dq Li YES
-to enable user disk quota checking via the
+to enable user and group disk quota checking via the
 .Xr quotacheck 8
 command.
+.It Va quotacheck_flags
+.Pq Vt str
+If
+.Va enable_quotas
+is set to
+.Dq Li YES ,
+and
+.Va check_quotas
+is set to
+.Dq Li YES ,
+these are the flags to pass to the
+.Xr quotacheck 8
+utility.
+The default is
+.Dq Li "-a" ,
+which checks quotas for all file systems with quotas enabled in
+.Pa /etc/fstab .
+.It Va quotaon_flags
+.Pq Vt str
+If
+.Va enable_quotas
+is set to
+.Dq Li YES ,
+these are the flags to pass to the
+.Xr quotaon 8
+utility.
+The default is 
+.Dq Li "-a" ,
+which enables quotas for all file systems with quotas enabled in
+.Pa /etc/fstab .
+.It Va quotaoff_flags
+.Pq Vt str
+If
+.Va enable_quotas
+is set to
+.Dq Li YES ,
+these are the flags to pass to the
+.Xr quotaoff 8
+utility when shutting down the quota system.
+The default is
+.Dq Li "-a" ,
+which disables quotas for all file systems with quotas enabled in
+.Pa /etc/fstab .
 .It Va accounting_enable
 .Pq Vt bool
 Set to
@@ -3660,6 +3707,7 @@ enable support for sound mixer.
 .Xr tcp 4 ,
 .Xr udp 4 ,
 .Xr exports 5 ,
+.Xr fstab 5 ,
 .Xr ipf 5 ,
 .Xr ipnat 5 ,
 .Xr motd 5 ,
