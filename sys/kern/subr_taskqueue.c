@@ -355,7 +355,7 @@ taskqueue_start_threads(struct taskqueue **tqp, int count, int pri,
 			continue;
 		td = FIRST_THREAD_IN_PROC(tq->tq_pproc[i]);
 		sched_prio(td, pri);
-		setrunqueue(td, SRQ_BORING);
+		sched_add(td, SRQ_BORING);
 	}
 	mtx_unlock_spin(&sched_lock);
 

@@ -115,6 +115,8 @@ void	sched_clock(struct thread *td);
 void	sched_rem(struct thread *td);
 void	sched_tick(void);
 void	sched_relinquish(struct thread *td);
+struct thread *sched_choose(void);
+void	sched_idletd(void *);
 
 /*
  * Binding makes cpu affinity permanent while pinning is used to temporarily
@@ -144,6 +146,15 @@ sched_unpin(void)
 {
 	curthread->td_pinned--;
 }
+
+/* sched_add arguments (formerly setrunqueue) */
+#define	SRQ_BORING	0x0000		/* No special circumstances. */
+#define	SRQ_YIELDING	0x0001		/* We are yielding (from mi_switch). */
+#define	SRQ_OURSELF	0x0002		/* It is ourself (from mi_switch). */
+#define	SRQ_INTR	0x0004		/* It is probably urgent. */
+#define	SRQ_PREEMPTED	0x0008		/* has been preempted.. be kind */
+#define	SRQ_BORROWING	0x0010		/* Priority updated due to prio_lend */
+
 
 /* temporarily here */
 void schedinit(void);

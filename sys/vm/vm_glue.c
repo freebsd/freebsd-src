@@ -765,9 +765,9 @@ void kick_proc0(void)
 
 		
 	if (TD_AWAITING_INTR(td)) {
-		CTR2(KTR_INTR, "%s: setrunqueue %d", __func__, 0);
+		CTR2(KTR_INTR, "%s: sched_add %d", __func__, 0);
 		TD_CLR_IWAIT(td);
-		setrunqueue(td, SRQ_INTR);
+		sched_add(td, SRQ_INTR);
 	} else {
 		proc0_rescan = 1;
 		CTR2(KTR_INTR, "%s: state %d",

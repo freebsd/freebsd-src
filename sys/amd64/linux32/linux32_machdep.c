@@ -46,6 +46,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/proc.h>
 #include <sys/resource.h>
 #include <sys/resourcevar.h>
+#include <sys/sched.h>
 #include <sys/syscallsubr.h>
 #include <sys/sysproto.h>
 #include <sys/unistd.h>
@@ -480,7 +481,7 @@ linux_fork(struct thread *td, struct linux_fork_args *args)
 	/* make it run */
 	mtx_lock_spin(&sched_lock);
 	TD_SET_CAN_RUN(td2);
-	setrunqueue(td2, SRQ_BORING);
+	sched_add(td2, SRQ_BORING);
 	mtx_unlock_spin(&sched_lock);
 
 	return (0);
@@ -521,7 +522,7 @@ linux_vfork(struct thread *td, struct linux_vfork_args *args)
 	/* make it run */
 	mtx_lock_spin(&sched_lock);
 	TD_SET_CAN_RUN(td2);
-	setrunqueue(td2, SRQ_BORING);
+	sched_add(td2, SRQ_BORING);
 	mtx_unlock_spin(&sched_lock);
 
 	/* wait for the children to exit, ie. emulate vfork */
@@ -672,7 +673,7 @@ linux_clone(struct thread *td, struct linux_clone_args *args)
 	 */
 	mtx_lock_spin(&sched_lock);
 	TD_SET_CAN_RUN(td2);
-	setrunqueue(td2, SRQ_BORING);
+	sched_add(td2, SRQ_BORING);
 	mtx_unlock_spin(&sched_lock);
 
 	td->td_retval[0] = p2->p_pid;

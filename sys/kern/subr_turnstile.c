@@ -875,7 +875,7 @@ turnstile_unpend(struct turnstile *ts, int owner_type)
 #endif
 			TD_CLR_LOCK(td);
 			MPASS(TD_CAN_RUN(td));
-			setrunqueue(td, SRQ_BORING);
+			sched_add(td, SRQ_BORING);
 		} else {
 			td->td_flags |= TDF_TSNOBLOCK;
 			MPASS(TD_IS_RUNNING(td) || TD_ON_RUNQ(td));

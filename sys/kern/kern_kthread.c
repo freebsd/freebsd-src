@@ -38,6 +38,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/sx.h>
 #include <sys/unistd.h>
 #include <sys/wait.h>
+#include <sys/sched.h>
 
 #include <machine/stdarg.h>
 
@@ -113,7 +114,7 @@ kthread_create(void (*func)(void *), void *arg,
 	/* Delay putting it on the run queue until now. */
 	if (!(flags & RFSTOPPED)) {
 		mtx_lock_spin(&sched_lock);
-		setrunqueue(td, SRQ_BORING); 
+		sched_add(td, SRQ_BORING); 
 		mtx_unlock_spin(&sched_lock);
 	}
 
