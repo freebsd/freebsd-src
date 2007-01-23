@@ -101,12 +101,18 @@ vfs_hang_addrlist(struct mount *mp, struct netexport *nep,
 	 * with fields like cr_uidinfo and cr_prison?  Currently, this
 	 * routine does not touch them (leaves them as NULL).
 	 */
-	if (argp->ex_anon.cr_version != XUCRED_VERSION)
+	if (argp->ex_anon.cr_version != XUCRED_VERSION) {
+		vfs_mount_error(mp, "ex_anon.cr_version: %d != %d",
+		    argp->ex_anon.cr_version, XUCRED_VERSION);
 		return (EINVAL);
+	}
 
 	if (argp->ex_addrlen == 0) {
-		if (mp->mnt_flag & MNT_DEFEXPORTED)
+		if (mp->mnt_flag & MNT_DEFEXPORTED) {
+			vfs_mount_error(mp,
+			    "MNT_DEFEXPORTED already set for mount %p", mp);
 			return (EPERM);
+		}
 		np = &nep->ne_defexported;
 		np->netc_exflags = argp->ex_flags;
 		bzero(&np->netc_anon, sizeof(np->netc_anon));
@@ -134,8 +140,9 @@ vfs_hang_addrlist(struct mount *mp, struct netexport *nep,
 	saddr = (struct sockaddr *) (np + 1);
 	if ((error = copyin(argp->ex_addr, saddr, argp->ex_addrlen)))
 		goto out;
-	if (saddr->sa_family > AF_MAX) {
+	if (saddr->sa_family == AF_UNSPEC || saddr->sa_family > AF_MAX) {
 		error = EINVAL;
+		vfs_mount_error(mp, "Invalid saddr->sa_family: %d");
 		goto out;
 	}
 	if (saddr->sa_len > argp->ex_addrlen)
@@ -162,8 +169,9 @@ vfs_hang_addrlist(struct mount *mp, struct netexport *nep,
 			}
 		if ((rnh = nep->ne_rtable[i]) == NULL) {
 			error = ENOBUFS;
-			vfs_mount_error(mp,
-			    "Unable to initialize radix node head");
+			vfs_mount_error(mp, "%s %s %d",
+			    "Unable to initialize radix node head ",
+			    "for address family", i);
 			goto out;
 		}
 	}
@@ -233,10 +241,11 @@ vfs_export(struct mount *mp, struct export_args *argp)
 	int error;
 
 	nep = mp->mnt_export;
+	error = 0;
 	if (argp->ex_flags & MNT_DELEXPORT) {
 		if (nep == NULL) {
-			vfs_deleteopt(mp->mnt_optnew, "export");
-			return (ENOENT);
+			error = ENOENT;
+			goto out;
 		}
 		if (mp->mnt_flag & MNT_EXPUBLIC) {
 			vfs_setpublicfs(NULL, NULL, NULL);
@@ -251,7 +260,6 @@ vfs_export(struct mount *mp, struct export_args *argp)
 		MNT_ILOCK(mp);
 		mp->mnt_flag &= ~(MNT_EXPORTED | MNT_DEFEXPORTED);
 		MNT_IUNLOCK(mp);
-		vfs_deleteopt(mp->mnt_optnew, "export");
 	}
 	if (argp->ex_flags & MNT_EXPORTED) {
 		if (nep == NULL) {
@@ -260,18 +268,30 @@ vfs_export(struct mount *mp, struct export_args *argp)
 		}
 		if (argp->ex_flags & MNT_EXPUBLIC) {
 			if ((error = vfs_setpublicfs(mp, nep, argp)) != 0)
-				return (error);
+				goto out;
 			MNT_ILOCK(mp);
 			mp->mnt_flag |= MNT_EXPUBLIC;
 			MNT_IUNLOCK(mp);
 		}
 		if ((error = vfs_hang_addrlist(mp, nep, argp)))
-			return (error);
+			goto out;
 		MNT_ILOCK(mp);
 		mp->mnt_flag |= MNT_EXPORTED;
 		MNT_IUNLOCK(mp);
 	}
-	return (0);
+
+out:
+	/*
+	 * Once we have executed the vfs_export() command, we do
+	 * not want to keep the "export" option around in the
+	 * options list, since that will cause subsequent MNT_UPDATE
+	 * calls to fail.  The export information is saved in
+	 * mp->mnt_export, so we can safely delete the "export" mount option
+	 * here.
+	 */
+	vfs_deleteopt(mp->mnt_optnew, "export");
+	vfs_deleteopt(mp->mnt_opt, "export");
+	return (error);
 }
 
 /*
