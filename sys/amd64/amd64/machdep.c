@@ -1176,7 +1176,6 @@ hammer_time(u_int64_t modulep, u_int64_t physfree)
 	 *	     under witness.
 	 */
 	mutex_init();
-	mtx_init(&clock_lock, "clk", NULL, MTX_SPIN);
 	mtx_init(&icu_lock, "icu", NULL, MTX_SPIN | MTX_NOWITNESS);
 
 	/* exceptions */
@@ -1205,6 +1204,12 @@ hammer_time(u_int64_t modulep, u_int64_t physfree)
 	r_idt.rd_limit = sizeof(idt0) - 1;
 	r_idt.rd_base = (long) idt;
 	lidt(&r_idt);
+
+	/*
+	 * Initialize the i8254 before the console so that console
+	 * initialization can use DELAY().
+	 */
+	i8254_init();
 
 	/*
 	 * Initialize the console before we print anything out.
