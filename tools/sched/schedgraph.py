@@ -50,11 +50,8 @@ status = None
 configtypes = []
 
 def ticks2sec(ticks):
-	ns = ticksps / 1000000000
-	ticks /= ns
-	if (ticks < 1000):
-		return (str(ticks) + "ns")
-	ticks /= 1000
+	us = ticksps / 1000000
+	ticks /= us
 	if (ticks < 1000):
 		return (str(ticks) + "us")
 	ticks /= 1000
@@ -498,7 +495,7 @@ class Yielding(StateEvent):
 	enabled = 1
 	def __init__(self, thread, cpu, timestamp, prio):
 		StateEvent.__init__(self, thread, cpu, timestamp)
-		self.skipnext = 2
+		self.skipnext = 1
 		self.prio = prio
 		self.textadd(("prio:", self.prio, 0))
 
@@ -543,7 +540,7 @@ class Preempted(StateEvent):
 	enabled = 1
 	def __init__(self, thread, cpu, timestamp, prio, bythread):
 		StateEvent.__init__(self, thread, cpu, timestamp)
-		self.skipnext = 2
+		self.skipnext = 1
 		self.prio = prio
 		self.linked = bythread
 		self.textadd(("prio:", self.prio, 0))
@@ -829,6 +826,9 @@ class KTRFile:
 		self.fixup()
 		global ticksps
 		ticksps = self.ticksps()
+		print "Ticks per second", ticksps, "timespan", self.timespan()
+		print "stathz", self.stathz
+		print "first", self.timestamp_first, "last", self.timestamp_last
 
 	def parse(self, file):
 		try:
