@@ -181,7 +181,7 @@ pagezero_start(void __unused *arg)
 	td = FIRST_THREAD_IN_PROC(pagezero_proc);
 	sched_class(td, PRI_IDLE);
 	sched_prio(td, PRI_MAX_IDLE);
-	setrunqueue(td, SRQ_BORING);
+	sched_add(td, SRQ_BORING);
 	mtx_unlock_spin(&sched_lock);
 }
 SYSINIT(pagezero, SI_SUB_KTHREAD_VM, SI_ORDER_ANY, pagezero_start, NULL)

@@ -710,7 +710,7 @@ kse_create(struct thread *td, struct kse_create_args *uap)
 		 */
 		if (newtd != td) {
 			mtx_lock_spin(&sched_lock);
-			setrunqueue(newtd, SRQ_BORING);
+			sched_add(newtd, SRQ_BORING);
 			mtx_unlock_spin(&sched_lock);
 		}
 	} else {
@@ -745,7 +745,7 @@ kse_create(struct thread *td, struct kse_create_args *uap)
 			}
 			PROC_UNLOCK(p);
 			mtx_lock_spin(&sched_lock);
-			setrunqueue(newtd, SRQ_BORING);
+			sched_add(newtd, SRQ_BORING);
 			mtx_unlock_spin(&sched_lock);
 		}
 	}
@@ -1111,7 +1111,7 @@ thread_switchout(struct thread *td, int flags, struct thread *nextthread)
 		td->td_pflags &= ~TDP_CAN_UNBIND;
 		td2 = thread_schedule_upcall(td, ku);
 		if (flags & SW_INVOL || nextthread) {
-			setrunqueue(td2, SRQ_YIELDING);
+			sched_add(td2, SRQ_YIELDING);
 		} else {
 			/* Keep up with reality.. we have one extra thread 
 			 * in the picture.. and it's 'running'.

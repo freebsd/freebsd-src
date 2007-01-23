@@ -730,7 +730,7 @@ kick_init(const void *udata __unused)
 	td = FIRST_THREAD_IN_PROC(initproc);
 	mtx_lock_spin(&sched_lock);
 	TD_SET_CAN_RUN(td);
-	setrunqueue(td, SRQ_BORING);
+	sched_add(td, SRQ_BORING);
 	mtx_unlock_spin(&sched_lock);
 }
 SYSINIT(kickinit, SI_SUB_KTHREAD_INIT, SI_ORDER_FIRST, kick_init, NULL)

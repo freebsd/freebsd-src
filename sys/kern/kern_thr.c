@@ -241,7 +241,7 @@ create_thread(struct thread *td, mcontext_t *ctx,
 	}
 	TD_SET_CAN_RUN(newtd);
 	/* if ((flags & THR_SUSPENDED) == 0) */
-		setrunqueue(newtd, SRQ_BORING);
+		sched_add(newtd, SRQ_BORING);
 	mtx_unlock_spin(&sched_lock);
 
 	return (error);
