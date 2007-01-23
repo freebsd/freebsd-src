@@ -263,13 +263,6 @@ DELAY(int n)
 		printf("DELAY(%d)...", n);
 #endif
 	/*
-	 * Guard against the timer being uninitialized if we are called
-	 * early for console i/o.
-	 */
-	if (timer0_max_count == 0)
-		set_timer_freq(timer_freq, hz);
-
-	/*
 	 * Read the counter first, so that the rest of the setup overhead is
 	 * counted.  Guess the initial overhead is 20 usec (on most systems it
 	 * takes about 1.5 usec for each of the i/o's in getit().  The loop
@@ -511,10 +504,15 @@ timer_restore(void)
 	i8254_restore();		/* restore timer_freq and hz */
 }
 
-/*
- * Initialize 8254 timer 0 early so that it can be used in DELAY().
- * XXX initialization of other timers is unintentionally left blank.
- */
+/* This is separate from startrtclock() so that it can be called early. */
+void
+i8254_init(void)
+{
+
+	mtx_init(&clock_lock, "clk", NULL, MTX_SPIN | MTX_NOPROFILE);
+	set_timer_freq(timer_freq, hz);
+}
+
 void
 startrtclock()
 {
@@ -526,7 +524,6 @@ startrtclock()
 	else
 		timer_freq = 2457600L; /* 2.4576 MHz */
 
-	set_timer_freq(timer_freq, hz);
 	freq = calibrate_clocks();
 #ifdef CLK_CALIBRATION_LOOP
 	if (bootverbose) {
