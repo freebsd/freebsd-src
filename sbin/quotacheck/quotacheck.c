@@ -498,7 +498,7 @@ update(fsname, quotafile, type)
 			dqbuf.dqb_itime = 0;
 		dqbuf.dqb_curinodes = fup->fu_curinodes;
 		dqbuf.dqb_curblocks = fup->fu_curblocks;
-		if (fseek(qfo, offset, SEEK_SET) < 0) {
+		if (fseeko(qfo, offset, SEEK_SET) < 0) {
 			warn("%s: seek failed", quotafile);
 			return(1);
 		}
@@ -528,7 +528,7 @@ update(fsname, quotafile, type)
 			dqbuf.dqb_curinodes = fup->fu_curinodes;
 			dqbuf.dqb_curblocks = fup->fu_curblocks;
 			offset = (off_t)fup->fu_id * sizeof(struct dqblk);
-			if (fseek(qfo, offset, SEEK_SET) < 0) {
+			if (fseeko(qfo, offset, SEEK_SET) < 0) {
 				warn("%s: seek failed", quotafile);
 				return(1);
 			}
