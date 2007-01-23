@@ -954,6 +954,8 @@ acpi_cpu_quirks(void)
 {
     device_t acpi_dev;
 
+    ACPI_FUNCTION_TRACE((char *)(uintptr_t)__func__);
+
     /*
      * Bus mastering arbitration control is needed to keep caches coherent
      * while sleeping in C3.  If it's not present but a working flush cache
