@@ -52,7 +52,7 @@
 The
 .Nm
 utility calls the
-.Xr mount 2
+.Xr nmount 2
 system call to prepare and graft a remote NFS file system
 .Pq Ar rhost : Ns Ar path
 on to the file system tree at the point
@@ -93,6 +93,8 @@ then version 2).
 Note that NFS version 2 has a file size limit of 2 gigabytes.
 .It Fl 3
 Use the NFS Version 3 protocol.
+.It Fl 4
+Use the NFS Version 4 protocol.
 .It Fl D
 Set the
 .Dq "dead server threshold"
@@ -329,7 +331,7 @@ when mounting servers that do not support TCP mounts.
 Set the retransmit timeout count for soft mounts to the specified value.
 .El
 .Sh SEE ALSO
-.Xr mount 2 ,
+.Xr nmount 2 ,
 .Xr unmount 2 ,
 .Xr fstab 5 ,
 .Xr mount 8 ,
