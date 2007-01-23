@@ -1,4 +1,28 @@
 /*
+ * copyright (c) 2003
+ * the regents of the university of michigan
+ * all rights reserved
+ * 
+ * permission is granted to use, copy, create derivative works and redistribute
+ * this software and such derivative works for any purpose, so long as the name
+ * of the university of michigan is not used in any advertising or publicity
+ * pertaining to the use or distribution of this software without specific,
+ * written prior authorization.  if the above copyright notice or any other
+ * identification of the university of michigan is included in any copy of any
+ * portion of this software, then the disclaimer below must also be included.
+ * 
+ * this software is provided as is, without representation from the university
+ * of michigan as to its fitness for any purpose, and without warranty by the
+ * university of michigan of any kind, either express or implied, including
+ * without limitation the implied warranties of merchantability and fitness for
+ * a particular purpose. the regents of the university of michigan shall not be
+ * liable for any damages, including special, indirect, incidental, or
+ * consequential damages, with respect to any claim arising out of or in
+ * connection with the use of the software, even if it has been or is hereafter
+ * advised of the possibility of such damages.
+ */
+
+/*
  * Copyright (c) 1992, 1993, 1994
  *	The Regents of the University of California.  All rights reserved.
  *
@@ -183,7 +207,8 @@ char *portspec = NULL;	/* Server nfs port; NULL means look up via rpcbind. */
 enum mountmode {
 	ANY,
 	V2,
-	V3
+	V3,
+	V4
 } mountmode = ANY;
 
 /* Return codes for nfs_tryproto. */
@@ -195,6 +220,7 @@ enum tryret {
 };
 
 int	getnfsargs(char *, struct nfs_args *);
+int	getnfs4args(char *, struct nfs_args *);
 /* void	set_rpc_maxgrouplist(int); */
 struct netconfig *getnetconf_cached(const char *netid);
 char	*netidbytype(int af, int sotype);
@@ -202,6 +228,8 @@ void	usage(void) __dead2;
 int	xdr_dir(XDR *, char *);
 int	xdr_fh(XDR *, struct nfhret *);
 enum tryret nfs_tryproto(struct nfs_args *nfsargsp, struct addrinfo *ai,
+    char *hostp, char *spec, char **errstr);
+enum tryret nfs4_tryproto(struct nfs_args *nfsargsp, struct addrinfo *ai,
     char *hostp, char *spec, char **errstr);
 enum tryret returncode(enum clnt_stat stat, struct rpc_err *rpcerr);
 
@@ -270,14 +298,25 @@ main(int argc, char *argv[])
 
 	++fstype;
 
+	if (strcmp(fstype, "nfs4") == 0) {
+		nfsproto = IPPROTO_TCP;
+		portspec = "2049";
+		nfsdefargs.sotype = SOCK_STREAM;
+		mountmode = V4;
+	}
+
 	while ((c = getopt(argc, argv,
-	    "23a:bcdD:g:I:iLlNo:PR:r:sTt:w:x:U")) != -1)
+	    "234a:bcdD:g:I:iLlNo:PR:r:sTt:w:x:U")) != -1)
 		switch (c) {
 		case '2':
 			mountmode = V2;
 			break;
 		case '3':
 			mountmode = V3;
+			break;
+		case '4':
+			mountmode = V4;
+			fstype = "nfs4";
 			break;
 		case 'a':
 			num = strtol(optarg, &p, 10);
@@ -442,6 +481,8 @@ main(int argc, char *argv[])
 			break;
 		case 'U':
 			mnttcp_ok = 0;
+			nfsargsp->sotype = SOCK_DGRAM;
+			nfsproto = IPPROTO_UDP;
 			break;
 		default:
 			usage();
@@ -461,8 +502,14 @@ main(int argc, char *argv[])
 	if (retrycnt == -1)
 		/* The default is to keep retrying forever. */
 		retrycnt = 0;
-	if (!getnfsargs(spec, nfsargsp))
-		exit(1);
+
+	if (mountmode == V4) {
+		if (!getnfs4args(spec, nfsargsp))
+			exit(1);
+	} else { 
+		if (!getnfsargs(spec, nfsargsp))
+			exit(1);
+	}
 
 	/* resolve the mountpoint with realpath(3) */
 	(void)checkpath(name, mntpath);
@@ -556,6 +603,123 @@ getnfsargs(char *spec, struct nfs_args *nfsargsp)
 			    (opflags & OF_NOINET4))
 				continue;
 			ret = nfs_tryproto(nfsargsp, ai, hostp, spec, &errstr);
+			if (ret == TRYRET_SUCCESS)
+				break;
+			if (ret != TRYRET_LOCALERR)
+				remoteerr = 1;
+			if ((opflags & ISBGRND) == 0)
+				fprintf(stderr, "%s\n", errstr);
+		}
+		if (ret == TRYRET_SUCCESS)
+			break;
+
+		/* Exit if all errors were local. */
+		if (!remoteerr)
+			exit(1);
+
+		/*
+		 * If retrycnt == 0, we are to keep retrying forever.
+		 * Otherwise decrement it, and exit if it hits zero.
+		 */
+		if (retrycnt != 0 && --retrycnt == 0)
+			exit(1);
+
+		if ((opflags & (BGRND | ISBGRND)) == BGRND) {
+			warnx("Cannot immediately mount %s:%s, backgrounding",
+			    hostp, spec);
+			opflags |= ISBGRND;
+			if (daemon(0, 0) != 0)
+				err(1, "daemon");
+		}
+		sleep(60);
+	}
+	freeaddrinfo(ai_nfs);
+	nfsargsp->hostname = nam;
+	/* Add mounted file system to PATH_MOUNTTAB */
+	if (!add_mtab(hostp, spec))
+		warnx("can't update %s for %s:%s", PATH_MOUNTTAB, hostp, spec);
+	return (1);
+}
+
+
+int
+getnfs4args(char *spec, struct nfs_args *nfsargsp)
+{
+	struct addrinfo hints, *ai_nfs, *ai;
+	enum tryret ret;
+	int ecode, speclen, remoteerr;
+	char *hostp, *delimp, *errstr;
+	size_t len;
+	static char nam[MNAMELEN + 1];
+
+	if ((delimp = strrchr(spec, ':')) != NULL) {
+		hostp = spec;
+		spec = delimp + 1;
+	} else if ((delimp = strrchr(spec, '@')) != NULL) {
+		warnx("path@server syntax is deprecated, use server:path");
+		hostp = delimp + 1;
+	} else {
+		warnx("no <host>:<dirpath> nfs-name");
+		return (0);
+	}
+	*delimp = '\0';
+
+	/*
+	 * If there has been a trailing slash at mounttime it seems
+	 * that some mountd implementations fail to remove the mount
+	 * entries from their mountlist while unmounting.
+	 */
+	for (speclen = strlen(spec); 
+		speclen > 1 && spec[speclen - 1] == '/';
+		speclen--)
+		spec[speclen - 1] = '\0';
+	if (strlen(hostp) + strlen(spec) + 1 > MNAMELEN) {
+		warnx("%s:%s: %s", hostp, spec, strerror(ENAMETOOLONG));
+		return (0);
+	}
+	/* Make both '@' and ':' notations equal */
+	if (*hostp != '\0') {
+		len = strlen(hostp);
+		memmove(nam, hostp, len);
+		nam[len] = ':';
+		memmove(nam + len + 1, spec, speclen);
+		nam[len + speclen + 1] = '\0';
+	}
+
+	/*
+	 * Handle an internet host address.
+	 */
+	memset(&hints, 0, sizeof hints);
+	hints.ai_flags = AI_NUMERICHOST;
+	hints.ai_socktype = nfsargsp->sotype;
+	if (getaddrinfo(hostp, portspec, &hints, &ai_nfs) != 0) {
+		hints.ai_flags = 0;
+		if ((ecode = getaddrinfo(hostp, portspec, &hints, &ai_nfs))
+		    != 0) {
+			if (portspec == NULL)
+				errx(1, "%s: %s", hostp, gai_strerror(ecode));
+			else
+				errx(1, "%s:%s: %s", hostp, portspec,
+				    gai_strerror(ecode));
+			return (0);
+		}
+	}
+
+	ret = TRYRET_LOCALERR;
+	for (;;) {
+		/*
+		 * Try each entry returned by getaddrinfo(). Note the
+		 * occurence of remote errors by setting `remoteerr'.
+		 */
+		remoteerr = 0;
+		for (ai = ai_nfs; ai != NULL; ai = ai->ai_next) {
+			if ((ai->ai_family == AF_INET6) &&
+			    (opflags & OF_NOINET6))
+				continue;
+			if ((ai->ai_family == AF_INET) && 
+			    (opflags & OF_NOINET4))
+				continue;
+			ret = nfs4_tryproto(nfsargsp, ai, hostp, spec, &errstr);
 			if (ret == TRYRET_SUCCESS)
 				break;
 			if (ret != TRYRET_LOCALERR)
@@ -794,6 +958,81 @@ tryagain:
 
 
 /*
+ * Try to set up the NFS arguments according to the address
+ * family, protocol (and possibly port) specified in `ai'.
+ *
+ * Returns TRYRET_SUCCESS if successful, or:
+ *   TRYRET_TIMEOUT		The server did not respond.
+ *   TRYRET_REMOTEERR		The server reported an error.
+ *   TRYRET_LOCALERR		Local failure.
+ *
+ * In all error cases, *errstr will be set to a statically-allocated string
+ * describing the error.
+ */
+enum tryret
+nfs4_tryproto(struct nfs_args *nfsargsp, struct addrinfo *ai, char *hostp,
+    char *spec, char **errstr)
+{
+	static char errbuf[256];
+	struct sockaddr_storage nfs_ss;
+	struct netbuf nfs_nb;
+	struct netconfig *nconf;
+	char *netid;
+	int nfsvers;
+
+	errbuf[0] = '\0';
+	*errstr = errbuf;
+
+	if ((netid = netidbytype(ai->ai_family, nfsargsp->sotype)) == NULL) {
+		snprintf(errbuf, sizeof errbuf,
+		    "af %d sotype %d not supported", ai->ai_family,
+		    nfsargsp->sotype);
+		return (TRYRET_LOCALERR);
+	}
+	if ((nconf = getnetconf_cached(netid)) == NULL) {
+		snprintf(errbuf, sizeof errbuf, "%s: %s", netid, nc_sperror());
+		return (TRYRET_LOCALERR);
+	}
+
+	nfsvers = 4;
+
+	if (portspec != NULL && atoi(portspec) != 0) {
+		/* `ai' contains the complete nfsd sockaddr. */
+		nfs_nb.buf = ai->ai_addr;
+		nfs_nb.len = nfs_nb.maxlen = ai->ai_addrlen;
+	} else {
+		/* Ask the remote rpcbind. */
+		nfs_nb.buf = &nfs_ss;
+		nfs_nb.len = nfs_nb.maxlen = sizeof nfs_ss;
+
+		if (!rpcb_getaddr(RPCPROG_NFS, nfsvers, nconf, &nfs_nb,
+		    hostp)) {
+			snprintf(errbuf, sizeof errbuf, "[%s] %s:%s: %s",
+			    netid, hostp, spec,
+			    clnt_spcreateerror("RPCPROG_NFS"));
+			return (returncode(rpc_createerr.cf_stat,
+			    &rpc_createerr.cf_error));
+		}
+	}
+
+	/*
+	 * Store the filehandle and server address in nfsargsp, making
+	 * sure to copy any locally allocated structures.
+	 */
+	nfsargsp->addrlen = nfs_nb.len;
+	nfsargsp->addr = malloc(nfsargsp->addrlen);
+
+	if (nfsargsp->addr == NULL)
+		err(1, "malloc");
+	bcopy(nfs_nb.buf, nfsargsp->addr, nfsargsp->addrlen);
+
+	/* XXX hack */
+	nfsargsp->flags |= (NFSMNT_NFSV3 | NFSMNT_NFSV4);
+
+	return (TRYRET_SUCCESS);
+}
+
+/*
  * Catagorise a RPC return status and error into an `enum tryret'
  * return code.
  */
@@ -930,7 +1169,7 @@ void
 usage()
 {
 	(void)fprintf(stderr, "%s\n%s\n%s\n%s\n",
-"usage: mount_nfs [-23bcdiLlNPsTU] [-a maxreadahead] [-D deadthresh]",
+"usage: mount_nfs [-234bcdiLlNPsTU] [-a maxreadahead] [-D deadthresh]",
 "                 [-g maxgroups] [-I readdirsize] [-o options] [-R retrycnt]",
 "                 [-r readsize] [-t timeout] [-w writesize] [-x retrans]",
 "                 rhost:path node");
