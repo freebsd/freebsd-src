@@ -104,7 +104,7 @@ acpi_PkgStr(ACPI_OBJECT *res, int idx, void *dst, size_t size)
 
 int
 acpi_PkgGas(device_t dev, ACPI_OBJECT *res, int idx, int *type, int *rid,
-    struct resource **dst)
+    struct resource **dst, u_int flags)
 {
     ACPI_GENERIC_ADDRESS gas;
     ACPI_OBJECT *obj;
@@ -116,7 +116,7 @@ acpi_PkgGas(device_t dev, ACPI_OBJECT *res, int idx, int *type, int *rid,
 
     memcpy(&gas, obj->Buffer.Pointer + 3, sizeof(gas));
 
-    return (acpi_bus_alloc_gas(dev, type, rid, &gas, dst));
+    return (acpi_bus_alloc_gas(dev, type, rid, &gas, dst, flags));
 }
 
 ACPI_HANDLE
