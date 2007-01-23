@@ -2118,7 +2118,6 @@ init386(first)
 	 *	     under witness.
 	 */
 	mutex_init();
-	mtx_init(&clock_lock, "clk", NULL, MTX_SPIN | MTX_NOPROFILE);
 	mtx_init(&icu_lock, "icu", NULL, MTX_SPIN | MTX_NOWITNESS | MTX_NOPROFILE);
 
 	/* make ldt memory segments */
@@ -2200,6 +2199,12 @@ init386(first)
 		arch_i386_xbox_memsize = (inl(0xcfc) == 0x7FFFFFF) ? 128 : 64;
 	}
 #endif /* XBOX */
+
+	/*
+	 * Initialize the i8254 before the console so that console
+	 * initialization can use DELAY().
+	 */
+	i8254_init();
 
 	/*
 	 * Initialize the console before we print anything out.
