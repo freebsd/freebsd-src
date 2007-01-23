@@ -56,7 +56,6 @@ SUBDIR=	adjkerntz \
 	mount_cd9660 \
 	mount_msdosfs \
 	mount_nfs \
-	mount_nfs4 \
 	mount_ntfs \
 	mount_nullfs \
 	mount_udf \
