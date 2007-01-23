@@ -756,18 +756,22 @@ ipmi_startup(void *arg)
 	error = ipmi_submit_driver_request(sc, req, MAX_TIMEOUT);
 	if (error == EWOULDBLOCK) {
 		device_printf(dev, "Timed out waiting for GET_DEVICE_ID\n");
+		ipmi_free_request(req);
 		return;
 	} else if (error) {
 		device_printf(dev, "Failed GET_DEVICE_ID: %d\n", error);
+		ipmi_free_request(req);
 		return;
 	} else if (req->ir_compcode != 0) {
 		device_printf(dev,
 		    "Bad completion code for GET_DEVICE_ID: %d\n",
 		    req->ir_compcode);
+		ipmi_free_request(req);
 		return;
 	} else if (req->ir_replylen < 5) {
 		device_printf(dev, "Short reply for GET_DEVICE_ID: %d\n",
 		    req->ir_replylen);
+		ipmi_free_request(req);
 		return;
 	}
 
@@ -888,14 +892,16 @@ ipmi_detach(device_t dev)
 	sc->ipmi_cloning = 0;
 	IPMI_UNLOCK(sc);
 
-	EVENTHANDLER_DEREGISTER(dev_clone, sc->ipmi_clone_tag);
+	if (sc->ipmi_clone_tag)
+		EVENTHANDLER_DEREGISTER(dev_clone, sc->ipmi_clone_tag);
 #else
 	if (sc->ipmi_idev.ipmi_open) {
 		IPMI_UNLOCK(sc);
 		return (EBUSY);
 	}
 	IPMI_UNLOCK(sc);
-	destroy_dev(sc->ipmi_idev.ipmi_cdev);
+	if (sc->ipmi_idev.ipmi_cdev)
+		destroy_dev(sc->ipmi_idev.ipmi_cdev);
 #endif
 
 	/* Detach from watchdog handling and turn off watchdog. */
