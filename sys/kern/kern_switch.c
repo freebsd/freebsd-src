@@ -86,34 +86,20 @@ SYSCTL_INT(_kern_sched, OID_AUTO, preemption, CTLFLAG_RD,
 struct thread *
 choosethread(void)
 {
-	struct td_sched *ts;
 	struct thread *td;
 
 #if defined(SMP) && (defined(__i386__) || defined(__amd64__))
 	if (smp_active == 0 && PCPU_GET(cpuid) != 0) {
 		/* Shutting down, run idlethread on AP's */
 		td = PCPU_GET(idlethread);
-		ts = td->td_sched;
 		CTR1(KTR_RUNQ, "choosethread: td=%p (idle)", td);
-		ts->ts_flags |= TSF_DIDRUN;
 		TD_SET_RUNNING(td);
 		return (td);
 	}
 #endif
 
 retry:
-	ts = sched_choose();
-	if (ts) {
-		td = ts->ts_thread;
-		CTR2(KTR_RUNQ, "choosethread: td=%p pri=%d",
-		    td, td->td_priority);
-	} else {
-		/* Simulate runq_choose() having returned the idle thread */
-		td = PCPU_GET(idlethread);
-		ts = td->td_sched;
-		CTR1(KTR_RUNQ, "choosethread: td=%p (idle)", td);
-	}
-	ts->ts_flags |= TSF_DIDRUN;
+	td = sched_choose();
 
 	/*
 	 * If we are in panic, only allow system threads,
@@ -128,69 +114,6 @@ retry:
 
 	TD_SET_RUNNING(td);
 	return (td);
-}
-
-
-#if 0
-/*
- * currently not used.. threads remove themselves from the
- * run queue by running.
- */
-static void
-remrunqueue(struct thread *td)
-{
-	mtx_assert(&sched_lock, MA_OWNED);
-	KASSERT((TD_ON_RUNQ(td)), ("remrunqueue: Bad state on run queue"));
-	CTR1(KTR_RUNQ, "remrunqueue: td%p", td);
-	TD_SET_CAN_RUN(td);
-	/* remove from sys run queue */
-	sched_rem(td);
-	return;
-}
-#endif
-
-/*
- * Change the priority of a thread that is on the run queue.
- */
-void
-adjustrunqueue( struct thread *td, int newpri)
-{
-	struct td_sched *ts;
-
-	mtx_assert(&sched_lock, MA_OWNED);
-	KASSERT((TD_ON_RUNQ(td)), ("adjustrunqueue: Bad state on run queue"));
-
-	ts = td->td_sched;
-	CTR1(KTR_RUNQ, "adjustrunqueue: td%p", td);
-		/* We only care about the td_sched in the run queue. */
-	td->td_priority = newpri;
-#ifndef SCHED_CORE
-	if (ts->ts_rqindex != (newpri / RQ_PPQ))
-#else
-	if (ts->ts_rqindex != newpri)
-#endif
-	{
-		sched_rem(td);
-		sched_add(td, SRQ_BORING);
-	}
-}
-
-void
-setrunqueue(struct thread *td, int flags)
-{
-
-	CTR2(KTR_RUNQ, "setrunqueue: td:%p pid:%d",
-	    td, td->td_proc->p_pid);
-	CTR5(KTR_SCHED, "setrunqueue: %p(%s) prio %d by %p(%s)",
-            td, td->td_proc->p_comm, td->td_priority, curthread,
-            curthread->td_proc->p_comm);
-	mtx_assert(&sched_lock, MA_OWNED);
-	KASSERT((td->td_inhibitors == 0),
-			("setrunqueue: trying to run inhibited thread"));
-	KASSERT((TD_CAN_RUN(td) || TD_IS_RUNNING(td)),
-	    ("setrunqueue: bad thread state"));
-	TD_SET_RUNQ(td);
-	sched_add(td, flags);
 }
 
 /*
@@ -283,7 +206,7 @@ maybe_preempt(struct thread *td)
 	pri = td->td_priority;
 	cpri = ctd->td_priority;
 	if (panicstr != NULL || pri >= cpri || cold /* || dumping */ ||
-	    TD_IS_INHIBITED(ctd) || td->td_sched->ts_state != TSS_THREAD)
+	    TD_IS_INHIBITED(ctd))
 		return (0);
 #ifndef FULL_PREEMPTION
 	if (pri > PRI_MAX_ITHD && cpri < PRI_MIN_IDLE)
@@ -301,7 +224,6 @@ maybe_preempt(struct thread *td)
 	 * Thread is runnable but not yet put on system run queue.
 	 */
 	MPASS(TD_ON_RUNQ(td));
-	MPASS(td->td_sched->ts_state != TSS_ONRUNQ);
 	TD_SET_RUNNING(td);
 	CTR3(KTR_PROC, "preempting to thread %p (pid %d, %s)\n", td,
 	    td->td_proc->p_pid, td->td_proc->p_comm);
@@ -579,7 +501,7 @@ runq_choose_from(struct runq *rq, int idx)
 /*
  * Remove the thread from the queue specified by its priority, and clear the
  * corresponding status bit if the queue becomes empty.
- * Caller must set ts->ts_state afterwards.
+ * Caller must set state afterwards.
  */
 void
 runq_remove(struct runq *rq, struct td_sched *ts)
@@ -642,7 +564,6 @@ sched_newthread(struct thread *td)
 	bzero(ts, sizeof(*ts));
 	td->td_sched     = ts;
 	ts->ts_thread	= td;
-	ts->ts_state	= TSS_THREAD;
 }
 
 /*

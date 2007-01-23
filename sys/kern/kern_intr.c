@@ -317,7 +317,7 @@ ithread_destroy(struct intr_thread *ithread)
 	ithread->it_flags |= IT_DEAD;
 	if (TD_AWAITING_INTR(td)) {
 		TD_CLR_IWAIT(td);
-		setrunqueue(td, SRQ_INTR);
+		sched_add(td, SRQ_INTR);
 	}
 	mtx_unlock_spin(&sched_lock);
 }
@@ -552,7 +552,7 @@ intr_event_schedule_thread(struct intr_event *ie)
 		CTR3(KTR_INTR, "%s: schedule pid %d (%s)", __func__, p->p_pid,
 		    p->p_comm);
 		TD_CLR_IWAIT(td);
-		setrunqueue(td, SRQ_INTR);
+		sched_add(td, SRQ_INTR);
 	} else {
 		CTR5(KTR_INTR, "%s: pid %d (%s): it_need %d, state %d",
 		    __func__, p->p_pid, p->p_comm, it->it_need, td->td_state);
