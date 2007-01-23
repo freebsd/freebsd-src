@@ -176,6 +176,23 @@
       <literal>freebsd-current@</literal>
       and <literal>freebsd-stable@</literal> mailing lists.</para>
 
+    <para>[20070123] &os; &release.bugfix; does not properly add a
+      host route to the destination of a &man.gif.4; interface
+      configured as an IPv6 point-to-point interface.  This makes it
+      impossible to send traffic across the tunnel.  A workaround is
+      to add the required route manually.  If the &man.gif.4;
+      interface was configured as:</para>
+
+    <screen>&prompt.root; ifconfig gif0 <replaceable>ADDRESS</replaceable>/128 <replaceable>DESTINATION</replaceable></screen>
+
+    <para>then the correct route can be added with this command:</para>
+
+    <screen>&prompt.root; route add -host -inet6 <replaceable>DESTINATION</replaceable> -iface gif0 -llinfo -nostatic</screen>
+
+    <para>This problem is being investigated for a possible errata
+      note.</para>
+
+
   </sect1>
 
 </article>
