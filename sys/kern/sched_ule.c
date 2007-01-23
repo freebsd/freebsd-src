@@ -60,6 +60,10 @@ __FBSDID("$FreeBSD$");
 #include <machine/cpu.h>
 #include <machine/smp.h>
 
+#ifndef PREEMPTION
+#error	"SCHED_ULE requires options PREEMPTION"
+#endif
+
 /*
  * TODO:
  *	Pick idle from affinity group or self group first.
@@ -74,10 +78,6 @@ struct td_sched {
 	int		ts_flags;	/* (j) TSF_* flags. */
 	struct thread	*ts_thread;	/* (*) Active associated thread. */
 	u_char		ts_rqindex;	/* (j) Run queue index. */
-	enum {
-		TSS_THREAD,
-		TSS_ONRUNQ
-	} ts_state;			/* (j) thread sched specific status. */
 	int		ts_slptime;
 	int		ts_slice;
 	struct runq	*ts_runq;
@@ -252,7 +252,6 @@ static struct tdq	tdq_cpu;
 #define	TDQ_CPU(x)	(&tdq_cpu)
 #endif
 
-static struct td_sched *sched_choose(void);	/* XXX Should be thread * */
 static void sched_priority(struct thread *);
 static void sched_thread_priority(struct thread *, u_char);
 static int sched_interact_score(struct thread *);
@@ -1231,7 +1230,6 @@ schedinit(void)
 	td_sched0.ts_ltick = ticks;
 	td_sched0.ts_ftick = ticks;
 	td_sched0.ts_thread = &thread0;
-	td_sched0.ts_state = TSS_THREAD;
 }
 
 /*
@@ -1432,7 +1430,7 @@ sched_switch(struct thread *td, struct thread *newtd, int flags)
 			 */
 			if (preempt)
 				sched_pin_td(td);
-			setrunqueue(td, preempt ?
+			sched_add(td, preempt ?
 			    SRQ_OURSELF|SRQ_YIELDING|SRQ_PREEMPTED :
 			    SRQ_OURSELF|SRQ_YIELDING);
 			if (preempt)
@@ -1511,7 +1509,7 @@ sched_wakeup(struct thread *td)
 		sched_pctcpu_update(td->td_sched);
 		sched_priority(td);
 	}
-	setrunqueue(td, SRQ_BORING);
+	sched_add(td, SRQ_BORING);
 }
 
 /*
@@ -1577,7 +1575,7 @@ sched_class(struct thread *td, int class)
 	 * count because could be changing to or from an interrupt
 	 * class.
 	 */
-	if (td->td_sched->ts_state == TSS_ONRUNQ) {
+	if (TD_ON_RUNQ(td)) {
 		struct tdq *tdq;
 
 		tdq = TDQ_CPU(td->td_sched->ts_cpu);
@@ -1679,16 +1677,7 @@ sched_clock(struct thread *td)
 		if (TAILQ_EMPTY(&tdq->tdq_timeshare.rq_queues[tdq->tdq_ridx]))
 			tdq->tdq_ridx = tdq->tdq_idx;
 	}
-	/* Adjust ticks for pctcpu */
 	ts = td->td_sched;
-	ts->ts_ticks += tickincr;
-	ts->ts_ltick = ticks;
-	/*
-	 * Update if we've exceeded our desired tick threshhold by over one
-	 * second.
-	 */
-	if (ts->ts_ftick + SCHED_TICK_MAX < ts->ts_ltick)
-		sched_pctcpu_update(ts);
 	/*
 	 * We only do slicing code for TIMESHARE threads.
 	 */
@@ -1736,7 +1725,7 @@ out:
 	return (load);
 }
 
-struct td_sched *
+struct thread *
 sched_choose(void)
 {
 	struct tdq *tdq;
@@ -1755,14 +1744,48 @@ restart:
 				goto restart;
 #endif
 		tdq_runq_rem(tdq, ts);
-		ts->ts_state = TSS_THREAD;
-		return (ts);
+		return (ts->ts_thread);
 	}
 #ifdef SMP
 	if (tdq_idled(tdq) == 0)
 		goto restart;
 #endif
-	return (NULL);
+	return (PCPU_GET(idlethread));
+}
+
+static int
+sched_preempt(struct thread *td)
+{
+	struct thread *ctd;
+	int cpri;
+	int pri;
+
+	ctd = curthread;
+	pri = td->td_priority;
+	cpri = ctd->td_priority;
+	if (panicstr != NULL || pri >= cpri || cold || TD_IS_INHIBITED(ctd))
+		return (0);
+	/*
+	 * Always preempt IDLE threads.  Otherwise only if the preempting
+	 * thread is an ithread.
+	 */
+	if (pri > PRI_MAX_ITHD && cpri < PRI_MIN_IDLE)
+		return (0);
+	if (ctd->td_critnest > 1) {
+		CTR1(KTR_PROC, "sched_preempt: in critical section %d",
+		    ctd->td_critnest);
+		ctd->td_owepreempt = 1;
+		return (0);
+	}
+	/*
+	 * Thread is runnable but not yet put on system run queue.
+	 */
+	MPASS(TD_ON_RUNQ(td));
+	TD_SET_RUNNING(td);
+	CTR3(KTR_PROC, "preempting to thread %p (pid %d, %s)\n", td,
+	    td->td_proc->p_pid, td->td_proc->p_comm);
+	mi_switch(SW_INVOL|SW_PREEMPT, td);
+	return (1);
 }
 
 void
@@ -1776,28 +1799,32 @@ sched_add(struct thread *td, int flags)
 	int cpuid;
 	int cpumask;
 #endif
+	ts = td->td_sched;
 
+	mtx_assert(&sched_lock, MA_OWNED);
 	CTR5(KTR_SCHED, "sched_add: %p(%s) prio %d by %p(%s)",
 	    td, td->td_proc->p_comm, td->td_priority, curthread,
 	    curthread->td_proc->p_comm);
-	mtx_assert(&sched_lock, MA_OWNED);
-	tdq = TDQ_SELF();
-	ts = td->td_sched;
-	class = PRI_BASE(td->td_pri_class);
-	preemptive = !(flags & SRQ_YIELDING);
-	KASSERT(ts->ts_state != TSS_ONRUNQ,
-	    ("sched_add: thread %p (%s) already in run queue", td,
-	    td->td_proc->p_comm));
+	KASSERT((td->td_inhibitors == 0),
+	    ("sched_add: trying to run inhibited thread"));
+	KASSERT((TD_CAN_RUN(td) || TD_IS_RUNNING(td)),
+	    ("sched_add: bad thread state"));
 	KASSERT(td->td_proc->p_sflag & PS_INMEM,
 	    ("sched_add: process swapped out"));
 	KASSERT(ts->ts_runq == NULL,
 	    ("sched_add: thread %p is still assigned to a run queue", td));
+        TD_SET_RUNQ(td);
+	tdq = TDQ_SELF();
+	class = PRI_BASE(td->td_pri_class);
+	preemptive = !(flags & SRQ_YIELDING);
 	/*
 	 * Recalculate the priority before we select the target cpu or
 	 * run-queue.
 	 */
 	if (class == PRI_TIMESHARE)
 		sched_priority(td);
+	if (ts->ts_slice == 0)
+		ts->ts_slice = sched_slice;
 #ifdef SMP
 	cpuid = PCPU_GET(cpuid);
 	/*
@@ -1839,20 +1866,16 @@ sched_add(struct thread *td, int flags)
 	}
 #endif
 	/*
-	 * Set the slice and pick the run queue.
+	 * Pick the run queue based on priority.
 	 */
-	if (ts->ts_slice == 0)
-		ts->ts_slice = sched_slice;
 	if (td->td_priority <= PRI_MAX_REALTIME)
 		ts->ts_runq = &tdq->tdq_realtime;
 	else if (td->td_priority <= PRI_MAX_TIMESHARE)
 		ts->ts_runq = &tdq->tdq_timeshare;
 	else
 		ts->ts_runq = &tdq->tdq_idle;
-	if (preemptive && maybe_preempt(td))
+	if (preemptive && sched_preempt(td))
 		return;
-	ts->ts_state = TSS_ONRUNQ;
-
 	tdq_runq_add(tdq, ts, flags);
 	tdq_load_add(tdq, ts);
 #ifdef SMP
@@ -1876,13 +1899,13 @@ sched_rem(struct thread *td)
 	    curthread->td_proc->p_comm);
 	mtx_assert(&sched_lock, MA_OWNED);
 	ts = td->td_sched;
-	KASSERT((ts->ts_state == TSS_ONRUNQ),
+	KASSERT(TD_ON_RUNQ(td),
 	    ("sched_rem: thread not on run queue"));
 
-	ts->ts_state = TSS_THREAD;
 	tdq = TDQ_CPU(ts->ts_cpu);
 	tdq_runq_rem(tdq, ts);
 	tdq_load_rem(tdq, ts);
+	TD_SET_CAN_RUN(td);
 }
 
 fixpt_t
@@ -1926,7 +1949,6 @@ sched_bind(struct thread *td, int cpu)
 	if (PCPU_GET(cpuid) == cpu)
 		return;
 	ts->ts_cpu = cpu;
-	ts->ts_state = TSS_THREAD;
 	/* When we return from mi_switch we'll be on the correct cpu. */
 	mi_switch(SW_VOL, NULL);
 #endif
@@ -1995,6 +2017,35 @@ sched_sizeof_thread(void)
 void
 sched_tick(void)
 {
+	struct td_sched *ts;
+
+	ts = curthread->td_sched;
+	/* Adjust ticks for pctcpu */
+	ts->ts_ticks += 1 << SCHED_TICK_SHIFT;
+	ts->ts_ltick = ticks;
+	/*
+	 * Update if we've exceeded our desired tick threshhold by over one
+	 * second.
+	 */
+	if (ts->ts_ftick + SCHED_TICK_MAX < ts->ts_ltick)
+		sched_pctcpu_update(ts);
+}
+
+/*
+ * The actual idle process.
+ */
+void
+sched_idletd(void *dummy)
+{
+	struct proc *p;
+	struct thread *td;
+
+	td = curthread;
+	p = td->td_proc;
+	mtx_assert(&Giant, MA_NOTOWNED);
+	/* ULE Relies on preemption for idle interruption. */
+	for (;;)
+		cpu_idle();
 }
 
 static SYSCTL_NODE(_kern, OID_AUTO, sched, CTLFLAG_RW, 0, "Scheduler");
