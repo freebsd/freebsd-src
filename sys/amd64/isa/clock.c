@@ -103,11 +103,11 @@ int	statclock_disable;
 u_int	timer_freq = TIMER_FREQ;
 int	timer0_max_count;
 int	timer0_real_max_count;
-struct mtx clock_lock;
 #define	RTC_LOCK	mtx_lock_spin(&clock_lock)
 #define	RTC_UNLOCK	mtx_unlock_spin(&clock_lock)
 
 static	int	beeping = 0;
+static	struct mtx clock_lock;
 static	const u_char daysinmonth[] = {31,28,31,30,31,30,31,31,30,31,30,31};
 static	struct intsrc *i8254_intsrc;
 static	u_int32_t i8254_lastcount;
@@ -294,13 +294,6 @@ DELAY(int n)
 	if (state == 1)
 		printf("DELAY(%d)...", n);
 #endif
-	/*
-	 * Guard against the timer being uninitialized if we are called
-	 * early for console i/o.
-	 */
-	if (timer0_max_count == 0)
-		set_timer_freq(timer_freq, hz);
-
 	/*
 	 * Read the counter first, so that the rest of the setup overhead is
 	 * counted.  Guess the initial overhead is 20 usec (on most systems it
@@ -560,10 +553,15 @@ set_timer_freq(u_int freq, int intr_freq)
 	mtx_unlock_spin(&clock_lock);
 }
 
-/*
- * Initialize 8254 timer 0 early so that it can be used in DELAY().
- * XXX initialization of other timers is unintentionally left blank.
- */
+/* This is separate from startrtclock() so that it can be called early. */
+void
+i8254_init(void)
+{
+
+	mtx_init(&clock_lock, "clk", NULL, MTX_SPIN);
+	set_timer_freq(timer_freq, hz);
+}
+
 void
 startrtclock()
 {
@@ -572,7 +570,6 @@ startrtclock()
 	writertc(RTC_STATUSA, rtc_statusa);
 	writertc(RTC_STATUSB, RTCSB_24HR);
 
-	set_timer_freq(timer_freq, hz);
 	freq = calibrate_clocks();
 #ifdef CLK_CALIBRATION_LOOP
 	if (bootverbose) {
