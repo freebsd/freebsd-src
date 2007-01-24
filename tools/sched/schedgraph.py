@@ -64,7 +64,8 @@ class Scaler(Frame):
 	def __init__(self, master, target):
 		Frame.__init__(self, master)
 		self.scale = Scale(self, command=self.scaleset,
-		    from_=1000, to_=1000000, orient=HORIZONTAL, resolution=1000)
+		    from_=1000, to_=10000000, orient=HORIZONTAL,
+		    resolution=1000)
 		self.label = Label(self, text="Ticks per pixel")
 		self.label.pack(side=LEFT)
 		self.scale.pack(fill="both", expand=1)
@@ -410,6 +411,11 @@ class StateEvent(Event):
 				next = skipped
 			self.skipnext -= 1
 		self.duration = next.timestamp - self.timestamp
+		if (self.duration < 0):
+			self.duration = 0
+			print "Unsynchronized timestamp"
+			print self.cpu, self.timestamp
+			print next.cpu, next.timestamp
 		delta = self.duration / canvas.ratio
 		l = canvas.create_rectangle(xpos, ypos,
 		    xpos + delta, ypos - 10, fill=self.color, width=0,
@@ -813,22 +819,27 @@ class Counter(EventSource):
 
 class KTRFile:
 	def __init__(self, file):
-		self.timestamp_first = None
-		self.timestamp_last = None
+		self.timestamp_first = {}
+		self.timestamp_last = {}
+		self.timestamp_adjust = {}
+		self.timestamp_f = None
+		self.timestamp_l = None
 		self.lineno = -1
 		self.threads = []
 		self.sources = []
 		self.ticks = {}
 		self.load = {}
 		self.crit = {}
+		self.stathz = 0
 
 		self.parse(file)
 		self.fixup()
 		global ticksps
-		ticksps = self.ticksps()
-		print "Ticks per second", ticksps, "timespan", self.timespan()
+		print "first", self.timestamp_f, "last", self.timestamp_l
+		print "time span", self.timespan()
 		print "stathz", self.stathz
-		print "first", self.timestamp_first, "last", self.timestamp_last
+		ticksps = self.ticksps()
+		print "Ticks per second", ticksps
 
 	def parse(self, file):
 		try:
@@ -895,7 +906,9 @@ class KTRFile:
 			   [critsec_re, self.critsec],
 			   [idled_re, self.idled]]
 
-		for line in ifp.readlines():
+		lines = ifp.readlines()
+		self.synchstamp(lines)
+		for line in lines:
 			self.lineno += 1
 			if ((self.lineno % 1024) == 0):
 				status.startup("Parsing line " +
@@ -908,18 +921,77 @@ class KTRFile:
 			# if (m == None):
 			# 	print line,
 
-	def checkstamp(self, timestamp):
+	def synchstamp(self, lines):
+		status.startup("Rationalizing Timestamps")
+		tstamp_re = re.compile("\s+\d+\s+(\d+)\s+(\d+)\s+.*")
+		for line in lines:
+			m = tstamp_re.match(line)
+			if (m != None):
+				self.addstamp(*m.groups())
+		self.pickstamp()
+		self.monostamp(lines)
+
+
+	def monostamp(self, lines):
+		laststamp = None
+		tstamp_re = re.compile("\s+\d+\s+(\d+)\s+(\d+)\s+.*")
+		for line in lines:
+			m = tstamp_re.match(line)
+			if (m == None):
+				continue
+			(cpu, timestamp) = m.groups()
+			timestamp = int(timestamp)
+			cpu = int(cpu)
+			timestamp -= self.timestamp_adjust[cpu]
+			if (laststamp != None and timestamp > laststamp):
+				self.timestamp_adjust[cpu] += timestamp - laststamp
+			laststamp = timestamp
+
+	def addstamp(self, cpu, timestamp):
 		timestamp = int(timestamp)
-		if (self.timestamp_first == None):
-			self.timestamp_first = timestamp
-		if (timestamp > self.timestamp_first):
+		cpu = int(cpu)
+		try:
+			if (timestamp > self.timestamp_first[cpu]):
+				return
+		except:
+			self.timestamp_first[cpu] = timestamp
+		self.timestamp_last[cpu] = timestamp
+
+	def pickstamp(self):
+		base = self.timestamp_last[0]
+		for i in range(0, len(self.timestamp_last)):
+			if (self.timestamp_last[i] < base):
+				base = self.timestamp_last[i]
+
+		print "Adjusting to base stamp", base
+		for i in range(0, len(self.timestamp_last)):
+			self.timestamp_adjust[i] = self.timestamp_last[i] - base;
+			print "CPU ", i, "adjust by ", self.timestamp_adjust[i]
+
+		self.timestamp_f = 0
+		for i in range(0, len(self.timestamp_first)):
+			first = self.timestamp_first[i] - self.timestamp_adjust[i]
+			if (first > self.timestamp_f):
+				self.timestamp_f = first
+
+		self.timestamp_l = 0
+		for i in range(0, len(self.timestamp_last)):
+			last = self.timestamp_last[i] - self.timestamp_adjust[i]
+			if (last > self.timestamp_l):
+				self.timestamp_l = last
+
+
+	def checkstamp(self, cpu, timestamp):
+		cpu = int(cpu)
+		timestamp = int(timestamp)
+		if (timestamp > self.timestamp_first[cpu]):
 			print "Bad timestamp on line ", self.lineno
 			return (0)
-		self.timestamp_last = timestamp
-		return (1)
+		timestamp -= self.timestamp_adjust[cpu]
+		return (timestamp)
 
 	def timespan(self):
-		return (self.timestamp_first - self.timestamp_last);
+		return (self.timestamp_f - self.timestamp_l);
 
 	def ticksps(self):
 		return (self.timespan() / self.ticks[0]) * int(self.stathz)
@@ -931,7 +1003,8 @@ class KTRFile:
 		TDI_LOCK = 0x0008
 		TDI_IWAIT = 0x0010 
 
-		if (self.checkstamp(timestamp) == 0):
+		timestamp = self.checkstamp(cpu, timestamp)
+		if (timestamp == 0):
 			return
 		inhibit = int(inhibit)
 		thread = self.findtd(td, pcomm)
@@ -952,26 +1025,30 @@ class KTRFile:
 			sys.exit(1)
 		
 	def idled(self, cpu, timestamp, td, pcomm, prio):
-		if (self.checkstamp(timestamp) == 0):
+		timestamp = self.checkstamp(cpu, timestamp)
+		if (timestamp == 0):
 			return
 		thread = self.findtd(td, pcomm)
 		Idle(thread, cpu, timestamp, prio)
 
 	def preempted(self, cpu, timestamp, td, pcomm, prio, bytd, bypcomm):
-		if (self.checkstamp(timestamp) == 0):
+		timestamp = self.checkstamp(cpu, timestamp)
+		if (timestamp == 0):
 			return
 		thread = self.findtd(td, pcomm)
 		Preempted(thread, cpu, timestamp, prio,
 		    self.findtd(bytd, bypcomm))
 
 	def switchin(self, cpu, timestamp, td, pcomm, prio):
-		if (self.checkstamp(timestamp) == 0):
+		timestamp = self.checkstamp(cpu, timestamp)
+		if (timestamp == 0):
 			return
 		thread = self.findtd(td, pcomm)
 		Running(thread, cpu, timestamp, prio)
 
 	def sched_add(self, cpu, timestamp, td, pcomm, prio, bytd, bypcomm):
-		if (self.checkstamp(timestamp) == 0):
+		timestamp = self.checkstamp(cpu, timestamp)
+		if (timestamp == 0):
 			return
 		thread = self.findtd(td, pcomm)
 		bythread = self.findtd(bytd, bypcomm)
@@ -979,20 +1056,23 @@ class KTRFile:
 		Wokeup(bythread, cpu, timestamp, thread)
 
 	def sched_rem(self, cpu, timestamp, td, pcomm, prio, bytd, bypcomm):
-		if (self.checkstamp(timestamp) == 0):
+		timestamp = self.checkstamp(cpu, timestamp)
+		if (timestamp == 0):
 			return
 		thread = self.findtd(td, pcomm)
 		KsegrpRunq(thread, cpu, timestamp, prio,
 		    self.findtd(bytd, bypcomm))
 
 	def sched_exit(self, cpu, timestamp, td, pcomm, prio):
-		if (self.checkstamp(timestamp) == 0):
+		timestamp = self.checkstamp(cpu, timestamp)
+		if (timestamp == 0):
 			return
 		thread = self.findtd(td, pcomm)
 		Sched_exit(thread, cpu, timestamp, prio)
 
 	def sched_clock(self, cpu, timestamp, td, pcomm, prio, stathz):
-		if (self.checkstamp(timestamp) == 0):
+		timestamp = self.checkstamp(cpu, timestamp)
+		if (timestamp == 0):
 			return
 		self.stathz = stathz
 		cpu = int(cpu)
@@ -1007,7 +1087,8 @@ class KTRFile:
 	def sched_prio(self, cpu, timestamp, td, pcomm, prio, newprio, bytd, bypcomm):
 		if (prio == newprio):
 			return
-		if (self.checkstamp(timestamp) == 0):
+		timestamp = self.checkstamp(cpu, timestamp)
+		if (timestamp == 0):
 			return
 		thread = self.findtd(td, pcomm)
 		bythread = self.findtd(bytd, bypcomm)
@@ -1015,7 +1096,8 @@ class KTRFile:
 		Lend(bythread, cpu, timestamp, newprio, thread)
 
 	def cpuload(self, cpu, timestamp, count):
-		if (self.checkstamp(timestamp) == 0):
+		timestamp = self.checkstamp(cpu, timestamp)
+		if (timestamp == 0):
 			return
 		cpu = int(cpu)
 		try:
@@ -1027,7 +1109,8 @@ class KTRFile:
 		Count(load, cpu, timestamp, count)
 
 	def loadglobal(self, cpu, timestamp, count):
-		if (self.checkstamp(timestamp) == 0):
+		timestamp = self.checkstamp(cpu, timestamp)
+		if (timestamp == 0):
 			return
 		cpu = 0
 		try:
@@ -1039,7 +1122,8 @@ class KTRFile:
 		Count(load, cpu, timestamp, count)
 
 	def critsec(self, cpu, timestamp, td, pcomm, to):
-		if (self.checkstamp(timestamp) == 0):
+		timestamp = self.checkstamp(cpu, timestamp)
+		if (timestamp == 0):
 			return
 		cpu = int(cpu)
 		try:
@@ -1061,8 +1145,8 @@ class KTRFile:
 
 	def fixup(self):
 		for source in self.sources:
-			Padevent(source, -1, self.timestamp_last)
-			Padevent(source, -1, self.timestamp_first, last=1)
+			Padevent(source, -1, self.timestamp_l)
+			Padevent(source, -1, self.timestamp_f, last=1)
 			source.fixup()
 
 class SchedDisplay(Canvas):
