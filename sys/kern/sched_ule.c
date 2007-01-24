@@ -91,8 +91,8 @@ struct td_sched {
 #endif
 
 	/* originally from kg_sched */
-	int	skg_slptime;		/* Number of ticks we vol. slept */
-	int	skg_runtime;		/* Number of ticks we were running */
+	u_int	skg_slptime;		/* Number of ticks we vol. slept */
+	u_int	skg_runtime;		/* Number of ticks we were running */
 };
 /* flags kept in ts_flags */
 #define	TSF_BOUND	0x0001		/* Thread can not migrate. */
@@ -1109,7 +1109,8 @@ sched_priority(struct thread *td)
 		pri += ((PRI_MAX_REALTIME - PRI_MIN_REALTIME) / sched_interact)
 		    * score;
 		KASSERT(pri >= PRI_MIN_REALTIME && pri <= PRI_MAX_REALTIME,
-		    ("sched_priority: invalid interactive priority %d", pri));
+		    ("sched_priority: invalid interactive priority %d score %d",
+		    pri, score));
 	} else {
 		pri = SCHED_PRI_MIN;
 		if (td->td_sched->ts_ticks)
@@ -1145,7 +1146,7 @@ static void
 sched_interact_update(struct thread *td)
 {
 	struct td_sched *ts;
-	int sum;
+	u_int sum;
 
 	ts = td->td_sched;
 	sum = ts->skg_runtime + ts->skg_slptime;
@@ -1501,7 +1502,7 @@ sched_wakeup(struct thread *td)
 	slptime = td->td_sched->ts_slptime;
 	td->td_sched->ts_slptime = 0;
 	if (slptime && slptime != ticks) {
-		int hzticks;
+		u_int hzticks;
 
 		hzticks = (ticks - slptime) << SCHED_TICK_SHIFT;
 		td->td_sched->skg_slptime += hzticks;
