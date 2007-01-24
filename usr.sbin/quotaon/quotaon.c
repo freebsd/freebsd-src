@@ -177,8 +177,8 @@ quotaonoff(fs, offmode, type, qfpathname)
 		return (1);
 	}
 	if (vflag)
-		printf("%s: %s quotas turned on\n", fs->fs_file,
-		    qfextension[type]);
+		printf("%s: %s quotas turned on with data file %s\n", 
+		    fs->fs_file, qfextension[type], qfpathname);
 	return (0);
 }
 
