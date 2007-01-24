@@ -2475,8 +2475,13 @@ uma_zfree_internal(uma_zone_t zone, void *item, void *udata,
 		if (keg->uk_pages < keg->uk_maxpages)
 			keg->uk_flags &= ~UMA_ZFLAG_FULL;
 
-		/* We can handle one more allocation */
-		wakeup_one(keg);
+		/* 
+		 * We can handle one more allocation. Since we're clearing ZFLAG_FULL,
+		 * wake up all procs blocked on pages. This should be uncommon, so 
+		 * keeping this simple for now (rather than adding count of blocked 
+		 * threads etc).
+		 */
+		wakeup(keg);
 	}
 
 	ZONE_UNLOCK(zone);
