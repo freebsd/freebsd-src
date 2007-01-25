@@ -65,24 +65,6 @@
 
 #include <nfsclient/nfsnode.h>
 
-static int	nfs_iosize(struct nfsmount *nmp);
-
-static int
-nfs_iosize(struct nfsmount *nmp)
-{
-	int iosize;
-
-	/*
-	 * Calculate the size used for io buffers.  Use the larger
-	 * of the two sizes to minimise nfs requests but make sure
-	 * that it is at least one VM page to avoid wasting buffer
-	 * space.
-	 */
-	iosize = max(nmp->nm_rsize, nmp->nm_wsize);
-	if (iosize < PAGE_SIZE) iosize = PAGE_SIZE;
-	return iosize;
-}
-
 void
 nfs4_vfsop_fsinfo(struct nfsv4_fattr *fap, struct nfsmount *nmp)
 {
