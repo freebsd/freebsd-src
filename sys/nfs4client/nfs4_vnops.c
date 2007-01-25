@@ -1,4 +1,3 @@
-/* $FreeBSD$ */
 /* $Id: nfs_vnops.c,v 1.45 2003/11/05 14:59:02 rees Exp $ */
 
 /*-
@@ -220,14 +219,15 @@ struct nfs4_lowner nfs4_masterlowner;
 
 SYSCTL_DECL(_vfs_nfs4);
 
-static int	nfsaccess_cache_timeout = NFS_MAXATTRTIMO;
+static int	nfs4_access_cache_timeout = NFS_MAXATTRTIMO;
 SYSCTL_INT(_vfs_nfs4, OID_AUTO, access_cache_timeout, CTLFLAG_RW,
-	   &nfsaccess_cache_timeout, 0, "NFS ACCESS cache timeout");
+	   &nfs4_access_cache_timeout, 0, "NFS ACCESS cache timeout");
 
+#if 0
 static int	nfsv3_commit_on_close = 0;
 SYSCTL_INT(_vfs_nfs4, OID_AUTO, nfsv3_commit_on_close, CTLFLAG_RW,
 	   &nfsv3_commit_on_close, 0, "write+commit on close, else only write");
-#if 0
+
 SYSCTL_INT(_vfs_nfs4, OID_AUTO, access_cache_hits, CTLFLAG_RD,
 	   &nfsstats.accesscache_hits, 0, "NFS ACCESS cache hit count");
 
@@ -239,7 +239,7 @@ SYSCTL_INT(_vfs_nfs4, OID_AUTO, access_cache_misses, CTLFLAG_RD,
 			 | NFSV3ACCESS_EXTEND | NFSV3ACCESS_EXECUTE	\
 			 | NFSV3ACCESS_DELETE | NFSV3ACCESS_LOOKUP)
 static int
-nfs3_access_otw(struct vnode *vp, int wmode, struct thread *td,
+nfs4_v3_access_otw(struct vnode *vp, int wmode, struct thread *td,
     struct ucred *cred)
 {
 	const int v3 = 1;
@@ -337,7 +337,7 @@ nfs4_access(struct vop_access_args *ap)
 				mode |= NFSV3ACCESS_LOOKUP;
 		}
 		/* XXX safety belt, only make blanket request if caching */
-		if (nfsaccess_cache_timeout > 0) {
+		if (nfs4_access_cache_timeout > 0) {
 			wmode = NFSV3ACCESS_READ | NFSV3ACCESS_MODIFY |
 			    NFSV3ACCESS_EXTEND | NFSV3ACCESS_EXECUTE |
 			    NFSV3ACCESS_DELETE | NFSV3ACCESS_LOOKUP;
@@ -349,20 +349,20 @@ nfs4_access(struct vop_access_args *ap)
 		 * Does our cached result allow us to give a definite yes to
 		 * this request?
 		 */
-		if ((time_second < (np->n_modestamp + nfsaccess_cache_timeout)) &&
-		    (ap->a_cred->cr_uid == np->n_modeuid) &&
-		    ((np->n_mode & mode) == mode)) {
+		if (time_second < np->n_modestamp + nfs4_access_cache_timeout &&
+		    ap->a_cred->cr_uid == np->n_modeuid &&
+		    (np->n_mode & mode) == mode) {
 			nfsstats.accesscache_hits++;
 		} else {
 			/*
 			 * Either a no, or a don't know.  Go to the wire.
 			 */
 			nfsstats.accesscache_misses++;
-		        error = nfs3_access_otw(vp, wmode, ap->a_td,ap->a_cred);
-			if (!error) {
-				if ((np->n_mode & mode) != mode) {
+		        error = nfs4_v3_access_otw(vp, wmode, ap->a_td,
+			    ap->a_cred);
+			if (error == 0) {
+				if ((np->n_mode & mode) != mode)
 					error = EACCES;
-				}
 			}
 		}
 		return (error);
