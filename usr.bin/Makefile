@@ -139,7 +139,6 @@ SUBDIR=	alias \
 	nohup \
 	${_nslookup} \
 	${_nsupdate} \
-	objformat \
 	opieinfo \
 	opiekey \
 	opiepasswd \
