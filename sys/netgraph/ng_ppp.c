@@ -76,7 +76,7 @@
  *     vjc_ip <-                                    <- vjc_ip
  *   vjc_comp ->         header compression         -> vjc_comp
  * vjc_uncomp ->                                    -> vjc_uncomp
- *   vjc_vjip ->                                    -> vjc_vjip
+ *   vjc_vjip ->
  *              -comp_xmit()-----------hcomp_recv()-
  *   compress <-            compression             <- decompress
  *   compress ->                                    -> decompress
@@ -296,6 +296,9 @@ static int	ng_ppp_mp_xmit(node_p node, item_p item, uint16_t proto);
 static int	ng_ppp_mp_recv(node_p node, item_p item, uint16_t proto,
 		    uint16_t linkNum);
 static int	ng_ppp_link_xmit(node_p node, item_p item, uint16_t proto,
+		    uint16_t linkNum);
+
+static int	ng_ppp_bypass(node_p node, item_p item, uint16_t proto,
 		    uint16_t linkNum);
 
 static int	ng_ppp_check_packet(node_p node);
@@ -808,6 +811,35 @@ ng_ppp_rcvdata_bypass(hook_p hook, item_p item)
 }
 
 static int
+ng_ppp_bypass(node_p node, item_p item, uint16_t proto, uint16_t linkNum)
+{
+	const priv_p priv = NG_NODE_PRIVATE(node);
+	uint16_t hdr[2];
+	struct mbuf *m;
+	int error;
+
+	if (priv->hooks[HOOK_INDEX_BYPASS] == NULL) {
+	    NG_FREE_ITEM(item);
+	    return (ENXIO);
+	}
+
+	/* Add 4-byte bypass header. */
+	hdr[0] = htons(linkNum);
+	hdr[1] = htons(proto);
+
+	NGI_GET_M(item, m);
+	if ((m = ng_ppp_prepend(m, &hdr, 4)) == NULL) {
+		NG_FREE_ITEM(item);
+		return (ENOBUFS);
+	}
+	NGI_M(item) = m;
+
+	/* Send packet out hook. */
+	NG_FWD_ITEM_HOOK(error, item, priv->hooks[HOOK_INDEX_BYPASS]);
+	return (error);
+}
+
+static int
 ng_ppp_proto_recv(node_p node, item_p item, uint16_t proto, uint16_t linkNum)
 {
 	const priv_p priv = NG_NODE_PRIVATE(node);
@@ -833,29 +865,11 @@ ng_ppp_proto_recv(node_p node, item_p item, uint16_t proto, uint16_t linkNum)
 		break;
 	}
 
-	if (outHook == NULL && priv->hooks[HOOK_INDEX_BYPASS] != NULL) {
-		uint16_t hdr[2];
-		struct mbuf *m;
+	if (outHook == NULL)
+		return (ng_ppp_bypass(node, item, proto, linkNum));
 
-		hdr[0] = htons(linkNum);
-		hdr[1] = htons(proto);
-
-		NGI_GET_M(item, m);
-		if ((m = ng_ppp_prepend(m, &hdr, 4)) == NULL) {
-			NG_FREE_ITEM(item);
-			return (ENOBUFS);
-		}
-		NGI_M(item) = m;
-		outHook = priv->hooks[HOOK_INDEX_BYPASS];
-	}
-
-	if (outHook != NULL) {
-	    /* Send packet out hook. */
-	    NG_FWD_ITEM_HOOK(error, item, outHook);
-	} else {
-	    NG_FREE_ITEM(item);
-	    error = ENXIO;
-	}
+	/* Send packet out hook. */
+	NG_FWD_ITEM_HOOK(error, item, outHook);
 	return (error);
 }
 
@@ -936,7 +950,6 @@ ng_ppp_hcomp_recv(node_p node, item_p item, uint16_t proto, uint16_t linkNum)
 
 	if (priv->conf.enableVJDecompression && priv->vjCompHooked) {
 		hook_p outHook = NULL;
-		int error;
 
 		switch (proto) {
 		    case PROT_VJCOMP:
@@ -948,6 +961,8 @@ ng_ppp_hcomp_recv(node_p node, item_p item, uint16_t proto, uint16_t linkNum)
 		}
 
 		if (outHook) {
+			int error;
+
 			/* Send packet out hook. */
 			NG_FWD_ITEM_HOOK(error, item, outHook);
 			return (error);
@@ -1067,6 +1082,10 @@ ng_ppp_comp_recv(node_p node, item_p item, uint16_t proto, uint16_t linkNum)
 		NG_FWD_ITEM_HOOK(error, item,
 		    priv->hooks[HOOK_INDEX_DECOMPRESS]);
 		return (error);
+	} else if (proto == PROT_COMPD) {
+		/* Disabled protos MUST be silently discarded, but
+		 * unsupported MUST not. Let user-level decide this. */
+		return (ng_ppp_bypass(node, item, proto, linkNum));
 	}
 
 	return (ng_ppp_hcomp_recv(node, item, proto, linkNum));
@@ -1157,13 +1176,20 @@ ng_ppp_crypt_recv(node_p node, item_p item, uint16_t proto, uint16_t linkNum)
 	priv->bundleStats.recvFrames++;
 	priv->bundleStats.recvOctets += NGI_M(item)->m_pkthdr.len;
 
-	if (proto == PROT_CRYPTD && priv->conf.enableDecryption &&
-	    priv->hooks[HOOK_INDEX_DECRYPT] != NULL) {
-		int error;
+	if (proto == PROT_CRYPTD) {
+		if (priv->conf.enableDecryption &&
+		    priv->hooks[HOOK_INDEX_DECRYPT] != NULL) {
+			int error;
 
-		/* Send packet out hook. */
-		NG_FWD_ITEM_HOOK(error, item, priv->hooks[HOOK_INDEX_DECRYPT]);
-		return (error);
+			/* Send packet out hook. */
+			NG_FWD_ITEM_HOOK(error, item,
+			    priv->hooks[HOOK_INDEX_DECRYPT]);
+			return (error);
+		} else {
+			/* Disabled protos MUST be silently discarded, but
+			 * unsupported MUST not. Let user-level decide this. */
+			return (ng_ppp_bypass(node, item, proto, linkNum));
+		}
 	}
 
 	return (ng_ppp_comp_recv(node, item, proto, linkNum));
@@ -1311,6 +1337,16 @@ ng_ppp_rcvdata(hook_p hook, item_p item)
 		link->stats.badProtos++;
 		NG_FREE_ITEM(item);
 		return (EIO);
+	}
+
+	/* LCP packets must go directly to bypass. */
+	if (proto >= 0xB000)
+		return (ng_ppp_bypass(node, item, proto, linkNum));
+	
+	if (!link->conf.enableLink) {
+		/* Non-LCP packets are denied on a disabled link. */
+		NG_FREE_ITEM(item);
+		return (ENXIO);
 	}
 
 	return (ng_ppp_mp_recv(node, item, proto, linkNum));
