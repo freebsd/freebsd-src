@@ -739,17 +739,29 @@ static void
 eli_setkey_attached(struct gctl_req *req, struct g_eli_metadata *md)
 {
 	unsigned char key[G_ELI_USERKEYLEN];
-	intmax_t val;
+	intmax_t val, old = 0;
+	int error;
 
 	val = gctl_get_intmax(req, "iterations");
 	/* Check if iterations number should be changed. */
 	if (val != -1)
 		md->md_iterations = val;
+	else
+		old = md->md_iterations;
 
 	/* Generate key for Master Key encryption. */
 	if (eli_genkey(req, md, key, 1) == NULL) {
 		bzero(key, sizeof(key));
 		return;
+	}
+	/*
+	 * If number of iterations has changed, but wasn't given as a
+	 * command-line argument, update the request.
+	 */
+	if (val == -1 && md->md_iterations != old) {
+		error = gctl_change_param(req, "iterations", sizeof(intmax_t),
+		    &md->md_iterations);
+		assert(error == 0);
 	}
 
 	gctl_ro_param(req, "key", sizeof(key), key);
