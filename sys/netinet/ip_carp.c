@@ -458,7 +458,7 @@ carpdetach(struct carp_softc *sc)
 			FREE(cif, M_IFADDR);
 		}
 	}
-        sc->sc_carpdev = NULL;
+	sc->sc_carpdev = NULL;
 }
 
 /* Detach an interface from the carp. */
@@ -467,7 +467,7 @@ carp_ifdetach(void *arg __unused, struct ifnet *ifp)
 {
 	struct carp_if *cif = (struct carp_if *)ifp->if_carp;
 	struct carp_softc *sc, *nextsc;
- 
+
 	if (cif == NULL)
 		return;
 
@@ -1376,9 +1376,9 @@ carp_multicast_cleanup(struct carp_softc *sc)
 	struct ip_moptions *imo = &sc->sc_imo;
 #ifdef INET6
 	struct ip6_moptions *im6o = &sc->sc_im6o;
-#endif 
+#endif
 	u_int16_t n = imo->imo_num_memberships;
-  
+
 	/* Clean up our own multicast memberships */
 	while (n-- > 0) {
 		if (imo->imo_membership[n] != NULL) {
@@ -1393,7 +1393,7 @@ carp_multicast_cleanup(struct carp_softc *sc)
 	while (!LIST_EMPTY(&im6o->im6o_memberships)) {
 		struct in6_multi_mship *imm =
 		    LIST_FIRST(&im6o->im6o_memberships);
-    
+
 		LIST_REMOVE(imm, i6mm_chain);
 		in6_leavegroup(imm);
 	}
