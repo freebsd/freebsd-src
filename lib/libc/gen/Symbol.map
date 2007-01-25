@@ -177,7 +177,6 @@ FBSD_1.0 {
 	getnetgrent;
 	endnetgrent;
 	innetgr;
-	getobjformat;
 	getosreldate;
 	getpagesize;
 	getpeereid;
