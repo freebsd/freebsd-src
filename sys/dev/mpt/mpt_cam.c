@@ -3226,7 +3226,7 @@ mpt_action(struct cam_sim *sim, union ccb *ccb)
 		/*
 		 * The base speed is the speed of the underlying connection.
 		 */
-#ifdef	CAM_NEW_TRAN
+#ifdef	CAM_NEW_TRAN_CODE
 		cpi->protocol = PROTO_SCSI;
 		if (mpt->is_fc) {
 			cpi->hba_misc = PIM_NOBUSRESET;
