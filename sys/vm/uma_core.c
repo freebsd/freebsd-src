@@ -238,7 +238,6 @@ static void bucket_zone_drain(void);
 static int uma_zalloc_bucket(uma_zone_t zone, int flags);
 static uma_slab_t uma_zone_slab(uma_zone_t zone, int flags);
 static void *uma_slab_alloc(uma_zone_t zone, uma_slab_t slab);
-static void zone_drain(uma_zone_t);
 static uma_zone_t uma_kcreate(uma_zone_t zone, size_t size, uma_init uminit,
     uma_fini fini, int align, u_int32_t flags);
 
@@ -680,7 +679,7 @@ bucket_cache_drain(uma_zone_t zone)
  * Returns:
  *	Nothing.
  */
-static void
+void
 zone_drain(uma_zone_t zone)
 {
 	struct slabhead freeslabs = { 0 };
@@ -2677,6 +2676,12 @@ uma_zone_exhausted(uma_zone_t zone)
 	full = (zone->uz_keg->uk_flags & UMA_ZFLAG_FULL);
 	ZONE_UNLOCK(zone);
 	return (full);	
+}
+
+int
+uma_zone_exhausted_nolock(uma_zone_t zone)
+{
+	return (zone->uz_keg->uk_flags & UMA_ZFLAG_FULL);
 }
 
 void *
