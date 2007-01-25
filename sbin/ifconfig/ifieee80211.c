@@ -1913,9 +1913,10 @@ get_string(const char *val, const char *sep, u_int8_t *buf, int *lenp)
 	}
 	len = p - buf;
 	/* The string "-" is treated as the empty string. */
-	if (!hexstr && len == 1 && buf[0] == '-')
+	if (!hexstr && len == 1 && buf[0] == '-') {
 		len = 0;
-	if (len < *lenp)
+		memset(buf, 0, *lenp);
+	} else if (len < *lenp)
 		memset(p, 0, *lenp - len);
 	*lenp = len;
 	return val;
