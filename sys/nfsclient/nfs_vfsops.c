@@ -105,8 +105,8 @@ static int nfs_tprintf_delay = NFS_TPRINTF_DELAY;
 SYSCTL_INT(_vfs_nfs, NFS_TPRINTF_DELAY,
         downdelayinterval, CTLFLAG_RW, &nfs_tprintf_delay, 0, "");
 
-static int	nfs_iosize(struct nfsmount *nmp);
-static void	nfs_decode_args(struct mount *mp, struct nfsmount *nmp, struct nfs_args *argp);
+static void	nfs_decode_args(struct mount *mp, struct nfsmount *nmp,
+		    struct nfs_args *argp);
 static int	mountnfs(struct nfs_args *, struct mount *,
 		    struct sockaddr *, char *, struct vnode **,
 		    struct ucred *cred);
@@ -174,7 +174,7 @@ static void	nfs_convert_diskless(void);
 static void	nfs_convert_oargs(struct nfs_args *args,
 		    struct onfs_args *oargs);
 
-static int
+int
 nfs_iosize(struct nfsmount *nmp)
 {
 	int iosize;
@@ -185,10 +185,9 @@ nfs_iosize(struct nfsmount *nmp)
 	 * that it is at least one VM page to avoid wasting buffer
 	 * space.
 	 */
-	iosize = max(nmp->nm_rsize, nmp->nm_wsize);
-	if (iosize < PAGE_SIZE) 
-		iosize = PAGE_SIZE;
-	return iosize;
+	iosize = imax(nmp->nm_rsize, nmp->nm_wsize);
+	iosize = imax(iosize, PAGE_SIZE);
+	return (iosize);
 }
 
 static void
