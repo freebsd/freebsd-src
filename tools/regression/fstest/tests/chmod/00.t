@@ -145,8 +145,8 @@ expect 0 -u 65535 -g 65535 chmod ${n0} 0755
 expect 0755 stat ${n0} mode
 
 # Unfortunately FreeBSD doesn't clear set-gid bit, but returns EPERM instead.
-case "${os}:${fs}" in
-FreeBSD:UFS)
+case "${os}" in
+FreeBSD)
 	expect EPERM -u 65535 -g 65534 chmod ${n0} 02755
 	expect 0755 stat ${n0} mode
 	;;
