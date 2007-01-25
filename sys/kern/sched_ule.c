@@ -700,31 +700,43 @@ steal:
 static void
 tdq_notify(struct td_sched *ts)
 {
-	struct thread *td;
+	struct thread *ctd;
 	struct pcpu *pcpu;
-	int prio;
+	int cpri;
+	int pri;
 	int cpu;
 
-	prio = ts->ts_thread->td_priority;
 	cpu = ts->ts_cpu;
+	pri = ts->ts_thread->td_priority;
 	pcpu = pcpu_find(cpu);
-	td = pcpu->pc_curthread;
+	ctd = pcpu->pc_curthread;
+	cpri = ctd->td_priority;
 
 	/*
 	 * If our priority is not better than the current priority there is
 	 * nothing to do.
 	 */
-	if (prio > td->td_priority)
+	if (pri > cpri)
 		return;
-	/* Always set NEEDRESCHED. */
-	td->td_flags |= TDF_NEEDRESCHED;
 	/*
-	 * IPI if we exceed the threshold or if the target cpu is running an
-	 * idle thread.
+	 * Always IPI idle.
 	 */
-	if (prio > ipi_thresh && td->td_priority < PRI_MIN_IDLE)
+	if (cpri > PRI_MIN_IDLE)
+		goto sendipi;
+	/*
+	 * If we're realtime or better and there is timeshare or worse running
+	 * send an IPI.
+	 */
+	if (pri < PRI_MAX_REALTIME && cpri > PRI_MAX_REALTIME)
+		goto sendipi;
+	/*
+	 * Otherwise only IPI if we exceed the threshold.
+	 */
+	if (pri > ipi_thresh)
 		return;
-	if (td->td_priority < PRI_MIN_IDLE) {
+sendipi:
+	ctd->td_flags |= TDF_NEEDRESCHED;
+	if (cpri < PRI_MIN_IDLE) {
 		if (ipi_ast)
 			ipi_selected(1 << cpu, IPI_AST);
 		else if (ipi_preempt)
