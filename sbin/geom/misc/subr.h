@@ -45,4 +45,6 @@ void gctl_error(struct gctl_req *req, const char *error, ...) __printflike(2, 3)
 int gctl_get_int(struct gctl_req *req, const char *pfmt, ...) __printflike(2, 3);
 intmax_t gctl_get_intmax(struct gctl_req *req, const char *pfmt, ...) __printflike(2, 3);
 const char *gctl_get_ascii(struct gctl_req *req, const char *pfmt, ...) __printflike(2, 3);
+int gctl_change_param(struct gctl_req *req, const char *name, int len,
+    const void *value);
 #endif	/* !_SUBR_H_ */
