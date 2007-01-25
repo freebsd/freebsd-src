@@ -48,6 +48,8 @@ struct uma_zone;
 /* Opaque type used as a handle to the zone */
 typedef struct uma_zone * uma_zone_t;
 
+void zone_drain(uma_zone_t);
+
 /* 
  * Item constructor
  *
@@ -518,6 +520,7 @@ u_int32_t *uma_find_refcnt(uma_zone_t zone, void *item);
  * 	Non-zero if zone is exhausted.
  */
 int uma_zone_exhausted(uma_zone_t zone);
+int uma_zone_exhausted_nolock(uma_zone_t zone);
 
 /*
  * Exported statistics structures to be used by user space monitoring tools.
