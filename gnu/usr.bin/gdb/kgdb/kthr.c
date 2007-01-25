@@ -104,12 +104,17 @@ kgdb_thr_init(void)
 	stoppcbs = lookup("_stoppcbs");
 
 	while (paddr != 0) {
-		if (kvm_read(kvm, paddr, &p, sizeof(p)) != sizeof(p))
+		if (kvm_read(kvm, paddr, &p, sizeof(p)) != sizeof(p)) {
 			warnx("kvm_read: %s", kvm_geterr(kvm));
+			break;
+		}
 		addr = (uintptr_t)TAILQ_FIRST(&p.p_threads);
 		while (addr != 0) {
-			if (kvm_read(kvm, addr, &td, sizeof(td)) != sizeof(td))
+			if (kvm_read(kvm, addr, &td, sizeof(td)) !=
+			    sizeof(td)) {
 				warnx("kvm_read: %s", kvm_geterr(kvm));
+				break;
+			}
 			kt = malloc(sizeof(*kt));
 			kt->next = first;
 			kt->kaddr = addr;
