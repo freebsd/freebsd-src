@@ -70,6 +70,8 @@ __FBSDID("$FreeBSD$");
  *	Implement pick_score.
  */
 
+#define	KTR_ULE	0x0		/* Enable for pickpri debugging. */
+
 /*
  * Thread scheduler specific section.
  */
@@ -97,7 +99,6 @@ struct td_sched {
 /* flags kept in ts_flags */
 #define	TSF_BOUND	0x0001		/* Thread can not migrate. */
 #define	TSF_XFERABLE	0x0002		/* Thread was added as transferable. */
-#define	TSF_DIDRUN	0x2000		/* Thread actually ran. */
 
 static struct td_sched td_sched0;
 
@@ -670,7 +671,7 @@ tdq_idled(struct tdq *tdq)
 			ts = tdq_steal(steal, 1);
 			if (ts == NULL)
 				continue;
-			CTR5(KTR_SCHED,
+			CTR5(KTR_ULE,
 			    "tdq_idled: stealing td %p(%s) pri %d from %d busy 0x%X",
 			    ts->ts_thread, ts->ts_thread->td_proc->p_comm,
 			    ts->ts_thread->td_priority, cpu, tdq_busy);
@@ -723,9 +724,12 @@ tdq_notify(struct td_sched *ts)
 	 */
 	if (prio > ipi_thresh && td->td_priority < PRI_MIN_IDLE)
 		return;
-	if (ipi_ast)
-		ipi_selected(1 << cpu, IPI_AST);
-	else if (ipi_preempt)
+	if (td->td_priority < PRI_MIN_IDLE) {
+		if (ipi_ast)
+			ipi_selected(1 << cpu, IPI_AST);
+		else if (ipi_preempt)
+			ipi_selected(1 << cpu, IPI_PREEMPT);
+	} else 
 		ipi_selected(1 << cpu, IPI_PREEMPT);
 }
 
@@ -834,7 +838,7 @@ tdq_pickpri(struct tdq *tdq, struct td_sched *ts, int flags)
 	 */
 	pcpu = pcpu_find(ts->ts_cpu);
 	if (pcpu->pc_curthread->td_priority > PRI_MIN_IDLE) {
-		CTR5(KTR_SCHED,
+		CTR5(KTR_ULE,
 		    "ts_cpu %d idle, ltick %d ticks %d pri %d curthread %d",
 		    ts->ts_cpu, ts->ts_rltick, ticks, pri,
 		    pcpu->pc_curthread->td_priority);
@@ -844,7 +848,7 @@ tdq_pickpri(struct tdq *tdq, struct td_sched *ts, int flags)
 	 * If we have affinity, try to place it on the cpu we last ran on.
 	 */
 	if (SCHED_AFFINITY(ts) && pcpu->pc_curthread->td_priority > pri) {
-		CTR5(KTR_SCHED,
+		CTR5(KTR_ULE,
 		    "affinity for %d, ltick %d ticks %d pri %d curthread %d",
 		    ts->ts_cpu, ts->ts_rltick, ticks, pri,
 		    pcpu->pc_curthread->td_priority);
@@ -862,7 +866,7 @@ tdq_pickpri(struct tdq *tdq, struct td_sched *ts, int flags)
 		 */
 		if ((TDQ_SELF()->tdq_load == 1) && (flags & SRQ_YIELDING ||
 		    curthread->td_pri_class == PRI_ITHD)) {
-			CTR2(KTR_SCHED, "tryself load %d flags %d",
+			CTR2(KTR_ULE, "tryself load %d flags %d",
 			    TDQ_SELF()->tdq_load, flags);
 			return (self);
 		}
@@ -870,12 +874,12 @@ tdq_pickpri(struct tdq *tdq, struct td_sched *ts, int flags)
 	/*
 	 * Look for an idle group.
 	 */
-	CTR1(KTR_SCHED, "tdq_idle %X", tdq_idle);
+	CTR1(KTR_ULE, "tdq_idle %X", tdq_idle);
 	cpu = ffs(tdq_idle);
 	if (cpu)
 		return (cpu - 1);
 	if (tryselfidle && pri < curthread->td_priority) {
-		CTR1(KTR_SCHED, "tryself %d",
+		CTR1(KTR_ULE, "tryself %d",
 		    curthread->td_priority);
 		return (self);
 	}
@@ -890,7 +894,7 @@ tdq_pickpri(struct tdq *tdq, struct td_sched *ts, int flags)
 			continue;
 		pcpu = pcpu_find(cpu);
 		pri = pcpu->pc_curthread->td_priority;
-		CTR4(KTR_SCHED,
+		CTR4(KTR_ULE,
 		    "cpu %d pri %d lowcpu %d lowpri %d",
 		    cpu, pri, lowcpu, lowpri);
 		if (pri < lowpri)
@@ -967,7 +971,7 @@ sched_setup(void *dummy)
 	 * in case which sched_clock() called before sched_initticks().
 	 */
 	realstathz = hz;
-	sched_slice = (realstathz/7);	/* 140ms */
+	sched_slice = (realstathz/10);	/* ~100ms */
 	tickincr = 1 << SCHED_TICK_SHIFT;
 
 #ifdef SMP
@@ -1062,7 +1066,7 @@ sched_initticks(void *dummy)
 {
 	mtx_lock_spin(&sched_lock);
 	realstathz = stathz ? stathz : hz;
-	sched_slice = (realstathz/7);	/* ~140ms */
+	sched_slice = (realstathz/10);	/* ~100ms */
 
 	/*
 	 * tickincr is shifted out by 10 to avoid rounding errors due to
@@ -1443,7 +1447,6 @@ sched_switch(struct thread *td, struct thread *newtd, int flags)
 		 * If we bring in a thread account for it as if it had been
 		 * added to the run queue and then chosen.
 		 */
-		newtd->td_sched->ts_flags |= TSF_DIDRUN;
 		TD_SET_RUNNING(newtd);
 		tdq_load_add(TDQ_SELF(), newtd->td_sched);
 	} else
@@ -1491,25 +1494,28 @@ sched_sleep(struct thread *td)
 void
 sched_wakeup(struct thread *td)
 {
+	struct td_sched *ts;
 	int slptime;
 
 	mtx_assert(&sched_lock, MA_OWNED);
-
+	ts = td->td_sched;
 	/*
 	 * If we slept for more than a tick update our interactivity and
 	 * priority.
 	 */
-	slptime = td->td_sched->ts_slptime;
-	td->td_sched->ts_slptime = 0;
+	slptime = ts->ts_slptime;
+	ts->ts_slptime = 0;
 	if (slptime && slptime != ticks) {
 		u_int hzticks;
 
 		hzticks = (ticks - slptime) << SCHED_TICK_SHIFT;
-		td->td_sched->skg_slptime += hzticks;
+		ts->skg_slptime += hzticks;
 		sched_interact_update(td);
-		sched_pctcpu_update(td->td_sched);
+		sched_pctcpu_update(ts);
 		sched_priority(td);
 	}
+	/* Reset the slice value after we sleep. */
+	ts->ts_slice = sched_slice;
 	sched_add(td, SRQ_BORING);
 }
 
@@ -1834,7 +1840,8 @@ sched_add(struct thread *td, int flags)
 	 */
 	if (THREAD_CAN_MIGRATE(td)) {
 		if (td->td_priority <= PRI_MAX_ITHD) {
-			CTR2(KTR_SCHED, "ithd %d < %d", td->td_priority, PRI_MAX_ITHD);
+			CTR2(KTR_ULE, "ithd %d < %d",
+			    td->td_priority, PRI_MAX_ITHD);
 			ts->ts_cpu = cpuid;
 		}
 		if (pick_pri)
@@ -1842,7 +1849,7 @@ sched_add(struct thread *td, int flags)
 		else
 			ts->ts_cpu = tdq_pickidle(tdq, ts);
 	} else
-		CTR1(KTR_SCHED, "pinned %d", td->td_pinned);
+		CTR1(KTR_ULE, "pinned %d", td->td_pinned);
 	if (ts->ts_cpu != cpuid)
 		preemptive = 0;
 	tdq = TDQ_CPU(ts->ts_cpu);
