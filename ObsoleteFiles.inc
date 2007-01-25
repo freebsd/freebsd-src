@@ -14,6 +14,11 @@
 # The file is partitioned: OLD_FILES first, then OLD_LIBS and OLD_DIRS last.
 #
 
+# 20070125: objformat bites the dust
+OLD_FILES+=usr/bin/objformat
+OLD_FILES+=usr/share/man/man1/objformat.1.gz
+OLD_FILES+=usr/include/objformat.h
+OLD_FILES+=usr/share/man/man3/getobjformat.3.gz
 # 20061201: remove symlink to *.so.4 libalias modules
 OLD_FILES+=usr/lib/libalias_cuseeme.so
 OLD_FILES+=usr/lib/libalias_dummy.so
