@@ -76,6 +76,7 @@ const char *progname;
 #define	IEEE80211_MSG_DOTH	0x00000100	/* 802.11h support */
 #define	IEEE80211_MSG_INACT	0x00000080	/* inactivity handling */
 #define	IEEE80211_MSG_ROAM	0x00000040	/* sta-mode roaming */
+#define	IEEE80211_MSG_RATECTL	0x00000020	/* tx rate control */
 
 static struct {
 	const char	*name;
@@ -106,6 +107,7 @@ static struct {
 	{ "doth",	IEEE80211_MSG_DOTH },
 	{ "inact",	IEEE80211_MSG_INACT },
 	{ "roam",	IEEE80211_MSG_ROAM },
+	{ "rate",	IEEE80211_MSG_RATECTL },
 };
 
 static u_int
