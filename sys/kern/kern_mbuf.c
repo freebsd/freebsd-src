@@ -372,6 +372,14 @@ mb_dtor_pack(void *mem, int size, void *arg)
 #ifdef INVARIANTS
 	trash_dtor(m->m_ext.ext_buf, MCLBYTES, arg);
 #endif
+	/*
+	 * If there are processes blocked on zone_clust, waiting for pages to be freed up,
+	 * cause them to be woken up by draining the packet zone. We are exposed to a race here 
+	 * (in the check for the UMA_ZFLAG_FULL) where we might miss the flag set, but that is 
+	 * deliberate. We don't want to acquire the zone lock for every mbuf free.
+	 */
+ 	if (uma_zone_exhausted_nolock(zone_clust))
+ 		zone_drain(zone_pack);
 }
 
 /*
