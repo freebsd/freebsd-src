@@ -315,6 +315,7 @@ ng_tcpmss_rcvdata(hook_p hook, item_p item)
 
 	/* Check mbuf packet size and arrange for IP+TCP header */
 	M_CHECK(iphlen - sizeof(struct ip) + sizeof(struct tcphdr));
+	ip = mtod(m, struct ip *);
 	tcp = (struct tcphdr *)((caddr_t )ip + iphlen);
 
 	/* Check TCP header length. */
@@ -330,6 +331,8 @@ ng_tcpmss_rcvdata(hook_p hook, item_p item)
 	priv->stats.SYNPkts++;
 
 	M_CHECK(tcphlen - sizeof(struct tcphdr));
+	ip = mtod(m, struct ip *);
+	tcp = (struct tcphdr *)((caddr_t )ip + iphlen);
 
 #undef	M_CHECK
 
