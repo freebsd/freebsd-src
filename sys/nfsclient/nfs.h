@@ -329,6 +329,7 @@ int	nfs_connect(struct nfsmount *, struct nfsreq *);
 void	nfs_disconnect(struct nfsmount *);
 void	nfs_safedisconnect(struct nfsmount *);
 int	nfs_getattrcache(struct vnode *, struct vattr *);
+int	nfs_iosize(struct nfsmount *nmp);
 int	nfsm_strtmbuf(struct mbuf **, char **, const char *, long);
 int	nfs_bioread(struct vnode *, struct uio *, int, struct ucred *);
 int	nfsm_uiotombuf(struct uio *, struct mbuf **, int, caddr_t *);
