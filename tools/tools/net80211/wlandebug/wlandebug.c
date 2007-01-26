@@ -95,7 +95,7 @@ static struct {
 	{ "output",	IEEE80211_MSG_OUTPUT },
 	{ "state",	IEEE80211_MSG_STATE },
 	{ "power",	IEEE80211_MSG_POWER },
-	{ "dotx1",	IEEE80211_MSG_DOT1X },
+	{ "dot1x",	IEEE80211_MSG_DOT1X },
 	{ "dot1xsm",	IEEE80211_MSG_DOT1XSM },
 	{ "radius",	IEEE80211_MSG_RADIUS },
 	{ "raddump",	IEEE80211_MSG_RADDUMP },
