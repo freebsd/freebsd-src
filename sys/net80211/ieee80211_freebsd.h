@@ -29,6 +29,7 @@
 #ifndef _NET80211_IEEE80211_FREEBSD_H_
 #define _NET80211_IEEE80211_FREEBSD_H_
 
+#ifdef _KERNEL
 /*
  * Beacon locking definitions.
  */
@@ -184,6 +185,7 @@ void	ieee80211_sysctl_attach(struct ieee80211com *);
 void	ieee80211_sysctl_detach(struct ieee80211com *);
 
 void	ieee80211_load_module(const char *);
+#endif /* _KERNEL */
 
 /* XXX this stuff belongs elsewhere */
 /*
