@@ -15,7 +15,6 @@ SUBDIR= bc \
 	${_gperf} \
 	grep \
 	${_groff} \
-	gzip \
 	${_man} \
 	patch \
 	${_rcs} \

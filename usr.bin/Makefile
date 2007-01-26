@@ -75,6 +75,7 @@ SUBDIR=	alias \
 	getent \
 	getopt \
 	${_gprof} \
+	gzip \
 	head \
 	${_hesinfo} \
 	hexdump \
