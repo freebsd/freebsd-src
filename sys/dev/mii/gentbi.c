@@ -201,6 +201,7 @@ gentbi_attach(device_t dev)
 	mii_phy_add_media(sc);
 	printf("\n");
 
+	MIIBUS_MEDIAINIT(sc->mii_dev);
 	return (0);
 }
 
