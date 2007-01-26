@@ -32,12 +32,6 @@
 # when going to single-user mode.
 console	none				unknown	off secure
 #
-# ofw_console(4)
-#screen	"/usr/libexec/getty Pc"		cons25	on  secure
-# zs(4)
-#ttyy0	"/usr/libexec/getty std.9600"	cons25	on  secure
-#ttyy1	"/usr/libexec/getty std.9600"	cons25	off secure
-#
 ttyv0	"/usr/libexec/getty Pc"		cons25	on  secure
 # Virtual terminals
 ttyv1	"/usr/libexec/getty Pc"		cons25	on  secure
@@ -50,10 +44,10 @@ ttyv7	"/usr/libexec/getty Pc"		cons25	on  secure
 #ttyv8	"/usr/X11R6/bin/xdm -nodaemon"	xterm	off secure
 # Serial terminals
 # The 'dialup' keyword identifies dialin lines to login, fingerd etc.
-ttyd0	"/usr/libexec/getty std.9600"	dialup	off secure
-ttyd1	"/usr/libexec/getty std.9600"	dialup	off secure
-ttyd2	"/usr/libexec/getty std.9600"	dialup	off secure
-ttyd3	"/usr/libexec/getty std.9600"	dialup	off secure
+ttyu0	"/usr/libexec/getty std.9600"	vt100	on  secure
+ttyu1	"/usr/libexec/getty std.9600"	dialup	off secure
+ttyu2	"/usr/libexec/getty std.9600"	dialup	off secure
+ttyu3	"/usr/libexec/getty std.9600"	dialup	off secure
 # Dumb console
 dcons	"/usr/libexec/getty std.9600"	vt100	off secure
 # Pseudo terminals
