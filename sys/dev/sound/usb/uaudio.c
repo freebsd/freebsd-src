@@ -4490,11 +4490,19 @@ uaudio_sndstat_prepare_pcm(struct sbuf *s, device_t dev, int verbose)
 
 		sbuf_printf(s, "interrupts %d, ", c->interrupts);
 		if (c->direction == PCMDIR_REC)
-			sbuf_printf(s, "overruns %d, hfree %d, sfree %d",
-				c->xruns, sndbuf_getfree(c->bufhard), sndbuf_getfree(c->bufsoft));
+			sbuf_printf(s, "overruns %d, feed %u, hfree %d, sfree %d [b:%d/%d/%d|bs:%d/%d/%d]",
+			    c->xruns, c->feedcount, sndbuf_getfree(c->bufhard), sndbuf_getfree(c->bufsoft),
+			    sndbuf_getsize(c->bufhard), sndbuf_getblksz(c->bufhard),
+			    sndbuf_getblkcnt(c->bufhard),
+			    sndbuf_getsize(c->bufsoft), sndbuf_getblksz(c->bufsoft),
+			    sndbuf_getblkcnt(c->bufsoft));
 		else
-			sbuf_printf(s, "underruns %d, ready %d",
-				c->xruns, sndbuf_getready(c->bufsoft));
+			sbuf_printf(s, "underruns %d, feed %u, ready %d [b:%d/%d/%d|bs:%d/%d/%d]",
+			    c->xruns, c->feedcount, sndbuf_getready(c->bufsoft),
+			    sndbuf_getsize(c->bufhard), sndbuf_getblksz(c->bufhard),
+			    sndbuf_getblkcnt(c->bufhard),
+			    sndbuf_getsize(c->bufsoft), sndbuf_getblksz(c->bufsoft),
+			    sndbuf_getblkcnt(c->bufsoft));
 		sbuf_printf(s, "\n\t");
 
 		sbuf_printf(s, "{%s}", (c->direction == PCMDIR_REC)? "hardware" : "userland");
