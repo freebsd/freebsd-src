@@ -1962,7 +1962,8 @@ do_mount(struct exportlist *ep, struct grouplist *grp, int exflags,
 			if (cp == dirp) {
 				if (debug)
 					warnx("mnt unsucc");
-				syslog(LOG_ERR, "can't export %s", dirp);
+				syslog(LOG_ERR, "can't export %s %s", dirp,
+				    errmsg);
 				ret = 1;
 				goto error_exit;
 			}
@@ -1972,7 +1973,8 @@ do_mount(struct exportlist *ep, struct grouplist *grp, int exflags,
 			if (statfs(dirp, &fsb1) != 0 || bcmp(&fsb1.f_fsid,
 			    &fsb->f_fsid, sizeof(fsb1.f_fsid)) != 0) {
 				*cp = savedc;
-				syslog(LOG_ERR, "can't export %s", dirp);
+				syslog(LOG_ERR, "can't export %s %s", dirp,
+				    errmsg);
 				ret = 1;
 				goto error_exit;
 			}
