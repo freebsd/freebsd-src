@@ -149,15 +149,21 @@ ua_chan_setblocksize(kobj_t obj, void *data, u_int32_t blocksize)
 	device_t pa_dev;
 	struct ua_chinfo *ch = data;
 	struct ua_info *ua = ch->parent;
+	u_int32_t blkcnt;
 
-	if (blocksize) {
-		RANGE(blocksize, 128, ua->bufsz / 2);
-		if (sndbuf_resize(ch->buffer, ua->bufsz/blocksize, blocksize) != 0) {
-			ch->blksz = blocksize;
-		}
-	}
+	RANGE(blocksize, 128, ua->bufsz / 2);
+	blkcnt = ua->bufsz / blocksize;
+
+	if ((sndbuf_getblksz(ch->buffer) != blocksize ||
+	    sndbuf_getblkcnt(ch->buffer) != blkcnt) &&
+	    sndbuf_resize(ch->buffer, blkcnt, blocksize) != 0)
+		device_printf(ua->sc_dev, "%s: failed blksz=%u blkcnt=%u\n",
+		    __func__, blocksize, blkcnt);
+
+	ch->blksz = sndbuf_getblksz(ch->buffer);
+
 	pa_dev = device_get_parent(ua->sc_dev);
-	uaudio_chan_set_param_blocksize(pa_dev, blocksize, ch->dir);
+	uaudio_chan_set_param_blocksize(pa_dev, ch->blksz, ch->dir);
 
 	return ch->blksz;
 }
