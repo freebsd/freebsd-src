@@ -531,13 +531,6 @@ bce_attach(device_t dev)
 			goto bce_attach_fail;
 	}
 
-	if (BCE_CHIP_BOND_ID(sc) & BCE_CHIP_BOND_ID_SERDES_BIT) {
-		BCE_PRINTF(sc, "%s(%d): SerDes controllers are not supported!\n",
-			__FILE__, __LINE__);
-		rc = ENODEV;
-		goto bce_attach_fail;
-	}
-
 	/* 
 	 * The embedded PCIe to PCI-X bridge (EPB) 
 	 * in the 5708 cannot address memory above 
@@ -742,20 +735,13 @@ bce_attach(device_t dev)
 	IFQ_SET_MAXLEN(&ifp->if_snd, ifp->if_snd.ifq_drv_maxlen);
 	IFQ_SET_READY(&ifp->if_snd);
 
-	if (sc->bce_phy_flags & BCE_PHY_SERDES_FLAG) {
-		BCE_PRINTF(sc, "%s(%d): SerDes is not supported by this driver!\n", 
+	/* Look for our PHY. */
+	if (mii_phy_probe(dev, &sc->bce_miibus, bce_ifmedia_upd,
+		bce_ifmedia_sts)) {
+		BCE_PRINTF(sc, "%s(%d): PHY probe failed!\n", 
 			__FILE__, __LINE__);
-		rc = ENODEV;
+		rc = ENXIO;
 		goto bce_attach_fail;
-	} else {
-		/* Look for our PHY. */
-		if (mii_phy_probe(dev, &sc->bce_miibus, bce_ifmedia_upd,
-			bce_ifmedia_sts)) {
-			BCE_PRINTF(sc, "%s(%d): PHY probe failed!\n", 
-				__FILE__, __LINE__);
-			rc = ENXIO;
-			goto bce_attach_fail;
-		}
 	}
 
 	/* Attach to the Ethernet interface list. */
@@ -836,12 +822,8 @@ bce_detach(device_t dev)
 	ether_ifdetach(ifp);
 
 	/* If we have a child device on the MII bus remove it too. */
-	if (sc->bce_phy_flags & BCE_PHY_SERDES_FLAG) {
-		ifmedia_removeall(&sc->bce_ifmedia);
-	} else {
-		bus_generic_detach(dev);
-		device_delete_child(dev, sc->bce_miibus);
-	}
+	bus_generic_detach(dev);
+	device_delete_child(dev, sc->bce_miibus);
 
 	/* Release all remaining resources. */
 	bce_release_resources(sc);
@@ -1118,7 +1100,8 @@ bce_miibus_statchg(device_t dev)
 	BCE_CLRBIT(sc, BCE_EMAC_MODE, BCE_EMAC_MODE_PORT);
 
 	/* Set MII or GMII inerface based on the speed negotiated by the PHY. */
-	if (IFM_SUBTYPE(mii->mii_media_active) == IFM_1000_T) {
+	if (IFM_SUBTYPE(mii->mii_media_active) == IFM_1000_T || 
+	    IFM_SUBTYPE(mii->mii_media_active) == IFM_1000_SX) {
 		DBPRINT(sc, BCE_INFO, "Setting GMII interface.\n");
 		BCE_SETBIT(sc, BCE_EMAC_MODE, BCE_EMAC_MODE_PORT_GMII);
 	} else {
@@ -3832,8 +3815,6 @@ bce_ifmedia_upd_locked(struct ifnet *ifp)
 	ifm = &sc->bce_ifmedia;
 	BCE_LOCK_ASSERT(sc);
 
-	/* DRC - ToDo: Add SerDes support. */
-
 	mii = device_get_softc(sc->bce_miibus);
 	sc->bce_link = 0;
 	if (mii->mii_instance) {
@@ -3863,8 +3844,6 @@ bce_ifmedia_sts(struct ifnet *ifp, struct ifmediareq *ifmr)
 	BCE_LOCK(sc);
 
 	mii = device_get_softc(sc->bce_miibus);
-
-	/* DRC - ToDo: Add SerDes support. */
 
 	mii_pollstat(mii);
 	ifmr->ifm_active = mii->mii_media_active;
@@ -4879,17 +4858,10 @@ bce_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 			DBPRINT(sc, BCE_VERBOSE, "bce_phy_flags = 0x%08X\n",
 				sc->bce_phy_flags);
 
-			if (sc->bce_phy_flags & BCE_PHY_SERDES_FLAG) {
-				DBPRINT(sc, BCE_VERBOSE, "SerDes media set/get\n");
-
-				error = ifmedia_ioctl(ifp, ifr,
-				    &sc->bce_ifmedia, command);
-			} else {
-				DBPRINT(sc, BCE_VERBOSE, "Copper media set/get\n");
-				mii = device_get_softc(sc->bce_miibus);
-				error = ifmedia_ioctl(ifp, ifr,
-				    &mii->mii_media, command);
-			}
+			DBPRINT(sc, BCE_VERBOSE, "Copper media set/get\n");
+			mii = device_get_softc(sc->bce_miibus);
+			error = ifmedia_ioctl(ifp, ifr,
+			    &mii->mii_media, command);
 			break;
 
 		/* Set interface capability */
@@ -5566,8 +5538,6 @@ bce_tick(void *xsc)
 	/* If link is up already up then we're done. */
 	if (sc->bce_link)
 		goto bce_tick_locked_exit;
-
-	/* DRC - ToDo: Add SerDes support and check SerDes link here. */
 
 	mii = device_get_softc(sc->bce_miibus);
 	mii_tick(mii);
