@@ -87,12 +87,12 @@ LD_32_, for example: LD_32_TRACE_LOADED_OBJECTS.
 .Pp
 .Bl -tag -width ".Ev LD_LIBMAP_DISABLE"
 .It Ev LD_DUMP_REL_POST
-If set
+If set,
 .Nm
 will print a table containing all relocations after symbol
 binding and relocation.
 .It Ev LD_DUMP_REL_PRE
-If set
+If set,
 .Nm
 will print a table containing all relocations before symbol
 binding and relocation.
@@ -182,6 +182,11 @@ Additionally,
 and
 .Ql \et
 are recognized and have their usual meaning.
+.It Ev LD_UTRACE
+If set,
+.Nm
+will log events such as the loading and unloading of shared objects via
+.Xr utrace 2 .
 .El
 .Sh FILES
 .Bl -tag -width ".Pa /var/run/ld-elf32.so.hints" -compact
