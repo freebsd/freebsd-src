@@ -47,8 +47,8 @@ __FBSDID("$FreeBSD$");
 static uint32_t sdram_64bit[] = {
 	0x00800000,	/* 8M:  One 2M x 32 chip */
 	0x01000000,	/* 16M: Two 2M x 32 chips */
-	0x01000000,	/* 16M: One 4M x 32 chip */
-	0x02000000,	/* 32M: Two 4M x 32 chips */
+	0x01000000,	/* 16M: Two 4M x 16 chips */
+	0x02000000,	/* 32M: Four 4M x 32 chips */
 	0, 0, 0, 0
 };
 
