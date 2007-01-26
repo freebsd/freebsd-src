@@ -1316,7 +1316,7 @@ nd6_rtrequest(req, rt, info)
 		callout_init(&ln->ln_timer_ch, 0);
 
 		/* this is required for "ndp" command. - shin */
-		if (req == RTM_ADD && (rt->rt_flags & RTF_STATIC)) {
+		if (req == RTM_ADD) {
 		        /*
 			 * gate should have some valid AF_LINK entry,
 			 * and ln->ln_expire should have some lifetime
