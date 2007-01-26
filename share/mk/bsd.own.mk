@@ -297,6 +297,7 @@ WITH_IDEA=
     BIND_UTILS \
     BLUETOOTH \
     BOOT \
+    BZIP2 \
     CALENDAR \
     CDDL \
     CPP \
@@ -434,6 +435,7 @@ MK_GDB:=	no
 # MK_* variable is set to "no".
 #
 .for var in \
+    BZIP2 \
     GNU \
     INET6 \
     IPX \
