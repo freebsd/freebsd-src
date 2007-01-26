@@ -1234,7 +1234,7 @@ via_attach(device_t dev)
 	else
 		via->dxs_src = 0;
 
-	nsegs = (via_dxs_chnum + via_sgd_chnum) * via->blkcnt;
+	nsegs = (via_dxs_chnum + via_sgd_chnum + NWRCHANS) * via->blkcnt;
 
 	/* DMA tag for buffers */
 	if (bus_dma_tag_create(/*parent*/NULL, /*alignment*/2, /*boundary*/0,
