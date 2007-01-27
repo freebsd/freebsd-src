@@ -188,6 +188,7 @@ again:
 	if (requested_load) {
 		printf("%s: failed to load firmware image %s\n",
 		    __func__, imagename);
+		(void) linker_release_module(imagename, NULL, NULL);
 		return NULL;
 	}
 	td = curthread;
