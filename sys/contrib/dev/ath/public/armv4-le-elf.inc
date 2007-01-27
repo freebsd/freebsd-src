@@ -33,7 +33,7 @@
 # ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF
 # THE POSSIBILITY OF SUCH DAMAGES.
 #
-# $Id: //depot/sw/branches/sam_hal/public/armv4-le-elf.inc#3 $
+# $Id: //depot/sw/branches/sam_hal/public/armv4-le-elf.inc#4 $
 #
 
 #
@@ -70,5 +70,5 @@ AH_REGOPS_FUNC=1
 
 LDOPTS=	-EL
 COPTS+=	-DAH_BYTE_ORDER=AH_LITTLE_ENDIAN
-COPTS+= -march=armv4 -mlittle-endian -msoft-float \
+COPTS+= -march=armv4 -mlittle-endian \
 	-fno-strict-aliasing -fno-common

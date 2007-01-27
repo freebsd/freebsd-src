@@ -33,6 +33,6 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF
  * THE POSSIBILITY OF SUCH DAMAGES.
  *
- * $Id: //depot/sw/branches/sam_hal/version.h#14 $
+ * $Id: //depot/sw/branches/sam_hal/version.h#35 $
  */
-#define	ATH_HAL_VERSION	"0.9.17.2"
+#define	ATH_HAL_VERSION	"0.9.20.3"
