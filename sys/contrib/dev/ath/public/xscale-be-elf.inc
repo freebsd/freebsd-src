@@ -33,7 +33,7 @@
 # ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF
 # THE POSSIBILITY OF SUCH DAMAGES.
 #
-# $Id: //depot/sw/branches/sam_hal/public/xscale-be-elf.inc#2 $
+# $Id: //depot/sw/branches/sam_hal/public/xscale-be-elf.inc#3 $
 #
 
 #
@@ -78,4 +78,4 @@ AH_REGOPS_FUNC=1
 LDOPTS=	-EB
 COPTS+=	-DAH_BYTE_ORDER=AH_BIG_ENDIAN
 COPTS+= -march=armv4 -mbig-endian -fno-strict-aliasing -fno-common -mapcs-32 \
-	-mtune=xscale  -mshort-load-bytes -msoft-float -mfp=2
+	-mtune=xscale  -mshort-load-bytes
