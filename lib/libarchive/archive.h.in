@@ -1,13 +1,12 @@
 /*-
- * Copyright (c) 2003-2004 Tim Kientzle
+ * Copyright (c) 2003-2007 Tim Kientzle
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
  * are met:
  * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer
- *    in this position and unchanged.
+ *    notice, this list of conditions and the following disclaimer.
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
@@ -36,7 +35,8 @@
  */
 
 #include <sys/types.h>  /* Linux requires this for off_t */
-#include <inttypes.h>  /* For int64_t */
+@ARCHIVE_H_INCLUDE_INTTYPES_H@
+#include <stdio.h> /* For FILE * */
 #include <unistd.h>  /* For ssize_t and size_t */
 
 #ifdef __cplusplus
@@ -46,8 +46,8 @@ extern "C" {
 
 /*
  * If ARCHIVE_API_VERSION != archive_api_version(), then the library you
- * were linked with is using an incompatible API.  This is almost
- * certainly a fatal problem.
+ * were linked with is using an incompatible API to the one you were
+ * compiled with.  This is almost certainly a fatal problem.
  *
  * ARCHIVE_API_FEATURE is incremented with each significant feature
  * addition, so you can test (at compile or run time) if a particular
@@ -58,6 +58,7 @@ extern "C" {
  *
  *    1 - Version tests are available.
  *    2 - archive_{read,write}_close available separately from _finish.
+ *    3 - open_memory, open_memory2, open_FILE, open_fd available
  */
 #define	ARCHIVE_API_VERSION	@ARCHIVE_API_MAJOR@
 int		archive_api_version(void);
@@ -110,11 +111,16 @@ struct archive_entry;
 typedef ssize_t	archive_read_callback(struct archive *, void *_client_data,
 		    const void **_buffer);
 /* Skips at most request bytes from archive and returns the skipped amount */
+#if ARCHIVE_API_VERSION < 2
 typedef ssize_t	archive_skip_callback(struct archive *, void *_client_data,
 		    size_t request);
+#else
+typedef off_t	archive_skip_callback(struct archive *, void *_client_data,
+		    off_t request);
+#endif
 /* Returns size actually written, zero on EOF, -1 on error. */
 typedef ssize_t	archive_write_callback(struct archive *, void *_client_data,
-		    void *_buffer, size_t _length);
+		    const void *_buffer, size_t _length);
 typedef int	archive_open_callback(struct archive *, void *_client_data);
 typedef int	archive_close_callback(struct archive *, void *_client_data);
 
@@ -196,14 +202,28 @@ int		 archive_read_open2(struct archive *, void *_client_data,
 		     archive_skip_callback *, archive_close_callback *);
 
 /*
- * The archive_read_open_file function is a convenience function built
- * on archive_read_open that uses a canned callback suitable for
- * common situations.  Note that a NULL filename indicates stdin.
+ * A variety of shortcuts that invoke archive_read_open() with
+ * canned callbacks suitable for common situations.  The ones that
+ * accept a block size handle tape blocking correctly.
  */
-int		 archive_read_open_file(struct archive *, const char *_file,
-		     size_t _block_size);
+/* Use this if you know the filename.  Note: NULL indicates stdin. */
+int		 archive_read_open_filename(struct archive *,
+		     const char *_filename, size_t _block_size);
+/* archive_read_open_file() is a deprecated synonym for ..._open_filename(). */
+int		 archive_read_open_file(struct archive *,
+		     const char *_filename, size_t _block_size);
+/* Read an archive that's stored in memory. */
+int		 archive_read_open_memory(struct archive *,
+		     void * buff, size_t size);
+/* A more involved version that is only used for internal testing. */
+int		archive_read_open_memory2(struct archive *a, void *buff,
+		     size_t size, size_t read_size);
+/* Read an archive that's already open, using the file descriptor. */
 int		 archive_read_open_fd(struct archive *, int _fd,
 		     size_t _block_size);
+/* Read an archive that's already open, using a FILE *. */
+/* Note: DO NOT use this with tape drives. */
+int		 archive_read_open_FILE(struct archive *, FILE *_file);
 
 /* Parses and returns next entry header. */
 int		 archive_read_next_header(struct archive *,
@@ -267,6 +287,11 @@ int		 archive_read_extract(struct archive *, struct archive_entry *,
 void		 archive_read_extract_set_progress_callback(struct archive *,
 		     void (*_progress_func)(void *), void *_user_data);
 
+/* Record the dev/ino of a file that will not be written.  This is
+ * generally set to the dev/ino of the archive being read. */
+void		archive_read_extract_set_skip_file(struct archive *,
+		     dev_t, ino_t);
+
 /* Close the file and release most resources. */
 int		 archive_read_close(struct archive *);
 /* Release all resources and destroy the object. */
@@ -291,9 +316,15 @@ void		 archive_read_finish(struct archive *);
 struct archive	*archive_write_new(void);
 int		 archive_write_set_bytes_per_block(struct archive *,
 		     int bytes_per_block);
+int		 archive_write_get_bytes_per_block(struct archive *);
 /* XXX This is badly misnamed; suggestions appreciated. XXX */
 int		 archive_write_set_bytes_in_last_block(struct archive *,
 		     int bytes_in_last_block);
+int		 archive_write_get_bytes_in_last_block(struct archive *);
+
+/* The dev/ino of a file that won't be archived.  This is used
+ * to avoid recursively adding an archive to itself. */
+int		 archive_write_set_skip_file(struct archive *, dev_t, ino_t);
 
 int		 archive_write_set_compression_bzip2(struct archive *);
 int		 archive_write_set_compression_gzip(struct archive *);
@@ -314,7 +345,14 @@ int		 archive_write_open(struct archive *, void *,
 		     archive_open_callback *, archive_write_callback *,
 		     archive_close_callback *);
 int		 archive_write_open_fd(struct archive *, int _fd);
+int		 archive_write_open_filename(struct archive *, const char *_file);
+/* A deprecated synonym for archive_write_open_filename() */
 int		 archive_write_open_file(struct archive *, const char *_file);
+int		 archive_write_open_FILE(struct archive *, FILE *);
+/* _buffSize is the size of the buffer, _used refers to a variable that
+ * will be updated after each write into the buffer. */
+int		 archive_write_open_memory(struct archive *,
+			void *_buffer, size_t _buffSize, size_t *_used);
 
 /*
  * Note that the library will truncate writes beyond the size provided
@@ -324,6 +362,7 @@ int		 archive_write_header(struct archive *,
 		     struct archive_entry *);
 /* TODO: should be ssize_t, but that might require .so version bump? */
 int		 archive_write_data(struct archive *, const void *, size_t);
+int		 archive_write_finish_entry(struct archive *);
 int		 archive_write_close(struct archive *);
 void		 archive_write_finish(struct archive *);
 

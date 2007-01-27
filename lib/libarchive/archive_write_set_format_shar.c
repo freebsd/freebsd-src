@@ -1,13 +1,12 @@
 /*-
- * Copyright (c) 2003-2004 Tim Kientzle
+ * Copyright (c) 2003-2007 Tim Kientzle
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
  * are met:
  * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer
- *    in this position and unchanged.
+ *    notice, this list of conditions and the following disclaimer.
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
@@ -27,12 +26,20 @@
 #include "archive_platform.h"
 __FBSDID("$FreeBSD$");
 
+#ifdef HAVE_SYS_STAT_H
 #include <sys/stat.h>
+#endif
+#ifdef HAVE_ERRNO_H
 #include <errno.h>
+#endif
 #include <stdarg.h>
 #include <stdio.h>
+#ifdef HAVE_STDLIB_H
 #include <stdlib.h>
+#endif
+#ifdef HAVE_STRING_H
 #include <string.h>
+#endif
 
 #include "archive.h"
 #include "archive_entry.h"
@@ -56,9 +63,9 @@ struct shar {
 static int	archive_write_shar_finish(struct archive *);
 static int	archive_write_shar_header(struct archive *,
 		    struct archive_entry *);
-static int	archive_write_shar_data_sed(struct archive *,
+static ssize_t	archive_write_shar_data_sed(struct archive *,
 		    const void * buff, size_t);
-static int	archive_write_shar_data_uuencode(struct archive *,
+static ssize_t	archive_write_shar_data_uuencode(struct archive *,
 		    const void * buff, size_t);
 static int	archive_write_shar_finish_entry(struct archive *);
 static int	shar_printf(struct archive *, const char *fmt, ...);
@@ -71,7 +78,7 @@ shar_printf(struct archive *a, const char *fmt, ...)
 	va_list ap;
 	int ret;
 
-	shar = a->format_data;
+	shar = (struct shar *)a->format_data;
 	va_start(ap, fmt);
 	archive_string_empty(&(shar->work));
 	archive_string_vsprintf(&(shar->work), fmt, ap);
@@ -92,7 +99,7 @@ archive_write_set_format_shar(struct archive *a)
 	if (a->format_finish != NULL)
 		(a->format_finish)(a);
 
-	shar = malloc(sizeof(*shar));
+	shar = (struct shar *)malloc(sizeof(*shar));
 	if (shar == NULL) {
 		archive_set_error(a, ENOMEM, "Can't allocate shar data");
 		return (ARCHIVE_FATAL);
@@ -122,7 +129,7 @@ archive_write_set_format_shar_dump(struct archive *a)
 	struct shar *shar;
 
 	archive_write_set_format_shar(a);
-	shar = a->format_data;
+	shar = (struct shar *)a->format_data;
 	shar->dump = 1;
 	a->format_write_data = archive_write_shar_data_uuencode;
 	a->archive_format = ARCHIVE_FORMAT_SHAR_DUMP;
@@ -140,7 +147,7 @@ archive_write_shar_header(struct archive *a, struct archive_entry *entry)
 	const struct stat *st;
 	int ret;
 
-	shar = a->format_data;
+	shar = (struct shar *)a->format_data;
 	if (!shar->wrote_header) {
 		ret = shar_printf(a, "#!/bin/sh\n");
 		if (ret != ARCHIVE_OK)
@@ -315,18 +322,19 @@ archive_write_shar_header(struct archive *a, struct archive_entry *entry)
 }
 
 /* XXX TODO: This could be more efficient XXX */
-static int
+static ssize_t
 archive_write_shar_data_sed(struct archive *a, const void *buff, size_t n)
 {
 	struct shar *shar;
 	const char *src;
 	int ret;
+	size_t written = n;
 
-	shar = a->format_data;
+	shar = (struct shar *)a->format_data;
 	if (!shar->has_data)
 		return (0);
 
-	src = buff;
+	src = (const char *)buff;
 	ret = ARCHIVE_OK;
 	shar->outpos = 0;
 	while (n-- > 0) {
@@ -349,7 +357,9 @@ archive_write_shar_data_sed(struct archive *a, const void *buff, size_t n)
 
 	if (shar->outpos > 0)
 		ret = (a->compression_write)(a, shar->outbuff, shar->outpos);
-	return (ret);
+	if (ret != ARCHIVE_OK)
+		return (ret);
+	return (written);
 }
 
 #define	UUENC(c)	(((c)!=0) ? ((c) & 077) + ' ': '`')
@@ -376,7 +386,7 @@ uuencode_group(struct shar *shar)
 	shar->outbuff[shar->outpos] = 0;
 }
 
-static int
+static ssize_t
 archive_write_shar_data_uuencode(struct archive *a, const void *buff,
     size_t length)
 {
@@ -385,10 +395,10 @@ archive_write_shar_data_uuencode(struct archive *a, const void *buff,
 	size_t n;
 	int ret;
 
-	shar = a->format_data;
+	shar = (struct shar *)a->format_data;
 	if (!shar->has_data)
 		return (ARCHIVE_OK);
-	src = buff;
+	src = (const char *)buff;
 	n = length;
 	while (n-- > 0) {
 		if (shar->uuavail == 3)
@@ -405,7 +415,7 @@ archive_write_shar_data_uuencode(struct archive *a, const void *buff,
 		shar->uubuffer[shar->uuavail++] = *src++;
 		shar->outbytes++;
 	}
-	return (ARCHIVE_OK);
+	return (length);
 }
 
 static int
@@ -415,7 +425,7 @@ archive_write_shar_finish_entry(struct archive *a)
 	struct shar *shar;
 	int ret;
 
-	shar = a->format_data;
+	shar = (struct shar *)a->format_data;
 	if (shar->entry == NULL)
 		return (0);
 
@@ -504,7 +514,7 @@ archive_write_shar_finish(struct archive *a)
 	 * fix them all up at end-of-archive.
 	 */
 
-	shar = a->format_data;
+	shar = (struct shar *)a->format_data;
 
 	/*
 	 * Only write the end-of-archive markers if the archive was

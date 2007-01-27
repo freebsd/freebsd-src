@@ -1,13 +1,12 @@
 /*-
- * Copyright (c) 2003-2004 Tim Kientzle
+ * Copyright (c) 2003-2007 Tim Kientzle
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
  * are met:
  * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer
- *    in this position and unchanged.
+ *    notice, this list of conditions and the following disclaimer.
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
@@ -31,11 +30,19 @@
 
 __FBSDID("$FreeBSD$");
 
+#ifdef HAVE_ERRNO_H
 #include <errno.h>
+#endif
+#ifdef HAVE_STDLIB_H
 #include <stdlib.h>
+#endif
+#ifdef HAVE_STRING_H
 #include <string.h>
+#endif
 #include <time.h>
+#ifdef HAVE_ZLIB_H
 #include <zlib.h>
+#endif
 
 #include "archive.h"
 #include "archive_private.h"
@@ -54,7 +61,7 @@ struct private_data {
  * of ugly hackery to convert a const * pointer to a non-const pointer.
  */
 #define	SET_NEXT_IN(st,src)					\
-	(st)->stream.next_in = (void *)(uintptr_t)(const void *)(src)
+	(st)->stream.next_in = (Bytef *)(uintptr_t)(const void *)(src)
 
 static int	archive_compressor_gzip_finish(struct archive *);
 static int	archive_compressor_gzip_init(struct archive *);
@@ -105,7 +112,7 @@ archive_compressor_gzip_init(struct archive *a)
 	memset(state, 0, sizeof(*state));
 
 	state->compressed_buffer_size = a->bytes_per_block;
-	state->compressed = malloc(state->compressed_buffer_size);
+	state->compressed = (unsigned char *)malloc(state->compressed_buffer_size);
 	state->crc = crc32(0L, NULL, 0);
 
 	if (state->compressed == NULL) {
@@ -186,7 +193,7 @@ archive_compressor_gzip_write(struct archive *a, const void *buff,
 	struct private_data *state;
 	int ret;
 
-	state = a->compression_data;
+	state = (struct private_data *)a->compression_data;
 	if (a->client_writer == NULL) {
 		archive_set_error(a, ARCHIVE_ERRNO_PROGRAMMER,
 		    "No write callback is registered?  "
@@ -195,7 +202,7 @@ archive_compressor_gzip_write(struct archive *a, const void *buff,
 	}
 
 	/* Update statistics */
-	state->crc = crc32(state->crc, buff, length);
+	state->crc = crc32(state->crc, (const Bytef *)buff, length);
 	state->total_in += length;
 
 	/* Compress input data to output buffer */
@@ -221,7 +228,7 @@ archive_compressor_gzip_finish(struct archive *a)
 	unsigned tocopy;
 	unsigned char trailer[8];
 
-	state = a->compression_data;
+	state = (struct private_data *)a->compression_data;
 	ret = 0;
 	if (a->client_writer == NULL) {
 		archive_set_error(a, ARCHIVE_ERRNO_PROGRAMMER,

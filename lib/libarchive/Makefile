@@ -6,13 +6,16 @@ LDADD=	-lbz2 -lz
 
 # The libarchive version stamp.
 # Version is three numbers:
-#  Major: Bumped ONLY when API/ABI breakage happens.
-#  Minor: Bumped when significant new features are added (see SHLIB_MAJOR)
+#  Major: Bumped ONLY when API/ABI breakage happens (see SHLIB_MAJOR)
+#  Minor: Bumped when significant new features are added
 #  Revision: Bumped on any notable change
-VERSION= 1.2.53
-ARCHIVE_API_MAJOR!=	echo ${VERSION} | sed -e 's/\..*//'
-ARCHIVE_API_MINOR!=	echo ${VERSION} | sed -e 's/[0-9]*\.//' | sed -e 's/\..*//'
+VERSION= 1.3.1
 
+ARCHIVE_API_MAJOR!=	echo ${VERSION} | sed -e 's/[^0-9]/./g' -e 's/\..*//'
+ARCHIVE_API_MINOR!=	echo ${VERSION} | sed -e 's/[^0-9]/./g' -e 's/[0-9]*\.//' -e 's/\..*//'
+
+# FreeBSD SHLIB_MAJOR value is managed as part of the FreeBSD system.
+# It has no real relation to the version number above.
 # libarchive in FreeBSD 6 uses SHLIB_MAJOR=2.
 SHLIB_MAJOR= 2
 
@@ -20,23 +23,20 @@ CFLAGS+=	-DPACKAGE_NAME=\"lib${LIB}\"
 CFLAGS+=	-DPACKAGE_VERSION=\"${VERSION}\"
 CFLAGS+=	-I${.OBJDIR}
 
-# FreeBSD/arm has some limitations.
-.if ${MACHINE_ARCH} == "arm"
-WARNS?= 3
-.else
 WARNS?=	6
-.endif
 
 # Headers to be installed in /usr/include
 INCS=	archive.h archive_entry.h
 
 # Build archive.h from archive.h.in by substituting version information.
+# Note: FreeBSD has inttypes.h, so enable that include in archive.h.in
 archive.h:	archive.h.in Makefile
 	cat ${.CURDIR}/archive.h.in |					\
 		sed 's/@VERSION@/${VERSION}/g' | 			\
 		sed 's/@SHLIB_MAJOR@/${SHLIB_MAJOR}/g' |		\
 		sed 's/@ARCHIVE_API_MAJOR@/${ARCHIVE_API_MAJOR}/g' |	\
 		sed 's/@ARCHIVE_API_MINOR@/${ARCHIVE_API_MINOR}/g' |	\
+		sed 's|@ARCHIVE_H_INCLUDE_INTTYPES_H@|#include <inttypes.h>  /* For int64_t */|g' |			\
 		cat > archive.h
 
 # archive.h needs to be cleaned
@@ -52,6 +52,8 @@ SRCS=	archive.h					\
 	archive_read_extract.c				\
 	archive_read_open_fd.c				\
 	archive_read_open_file.c			\
+	archive_read_open_filename.c			\
+	archive_read_open_memory.c			\
 	archive_read_support_compression_all.c		\
 	archive_read_support_compression_bzip2.c	\
 	archive_read_support_compression_compress.c	\
@@ -68,6 +70,8 @@ SRCS=	archive.h					\
 	archive_write.c					\
 	archive_write_open_fd.c				\
 	archive_write_open_file.c			\
+	archive_write_open_filename.c			\
+	archive_write_open_memory.c			\
 	archive_write_set_compression_bzip2.c		\
 	archive_write_set_compression_gzip.c		\
 	archive_write_set_compression_none.c		\
@@ -148,13 +152,17 @@ MLINKS+=	archive_read.3 archive_read_data_into_fd.3
 MLINKS+=	archive_read.3 archive_read_data_skip.3
 MLINKS+=	archive_read.3 archive_read_extract.3
 MLINKS+=	archive_read.3 archive_read_extract_set_progress_callback.3
+MLINKS+=	archive_read.3 archive_read_extract_set_skip_file.3
 MLINKS+=	archive_read.3 archive_read_finish.3
 MLINKS+=	archive_read.3 archive_read_new.3
 MLINKS+=	archive_read.3 archive_read_next_header.3
 MLINKS+=	archive_read.3 archive_read_open.3
+MLINKS+=	archive_read.3 archive_read_open2.3
+MLINKS+=	archive_read.3 archive_read_open_FILE.3
 MLINKS+=	archive_read.3 archive_read_open_fd.3
 MLINKS+=	archive_read.3 archive_read_open_file.3
-MLINKS+=	archive_read.3 archive_read_set_bytes_per_block.3
+MLINKS+=	archive_read.3 archive_read_open_filename.3
+MLINKS+=	archive_read.3 archive_read_open_memory.3
 MLINKS+=	archive_read.3 archive_read_support_compression_all.3
 MLINKS+=	archive_read.3 archive_read_support_compression_bzip2.3
 MLINKS+=	archive_read.3 archive_read_support_compression_compress.3
@@ -174,14 +182,19 @@ MLINKS+=	archive_util.3 archive_format_name.3
 MLINKS+=	archive_util.3 archive_set_error.3
 MLINKS+=	archive_write.3 archive_write_data.3
 MLINKS+=	archive_write.3 archive_write_finish.3
+MLINKS+=	archive_write.3 archive_write_finish_entry.3
+MLINKS+=	archive_write.3 archive_write_get_bytes_in_last_block.3
+MLINKS+=	archive_write.3 archive_write_get_bytes_per_block.3
 MLINKS+=	archive_write.3 archive_write_header.3
 MLINKS+=	archive_write.3 archive_write_new.3
 MLINKS+=	archive_write.3 archive_write_open.3
+MLINKS+=	archive_write.3 archive_write_open_FILE.3
 MLINKS+=	archive_write.3 archive_write_open_fd.3
 MLINKS+=	archive_write.3 archive_write_open_file.3
-MLINKS+=	archive_write.3 archive_write_prepare.3
-MLINKS+=	archive_write.3 archive_write_set_bytes_per_block.3
+MLINKS+=	archive_write.3 archive_write_open_filename.3
+MLINKS+=	archive_write.3 archive_write_open_memory.3
 MLINKS+=	archive_write.3 archive_write_set_bytes_in_last_block.3
+MLINKS+=	archive_write.3 archive_write_set_bytes_per_block.3
 MLINKS+=	archive_write.3 archive_write_set_callbacks.3
 MLINKS+=	archive_write.3 archive_write_set_compression_bzip2.3
 MLINKS+=	archive_write.3 archive_write_set_compression_gzip.3

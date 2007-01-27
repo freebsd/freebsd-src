@@ -1,13 +1,12 @@
 /*-
- * Copyright (c) 2003-2004 Tim Kientzle
+ * Copyright (c) 2003-2007 Tim Kientzle
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
  * are met:
  * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer
- *    in this position and unchanged.
+ *    notice, this list of conditions and the following disclaimer.
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
@@ -27,8 +26,12 @@
 #include "archive_platform.h"
 __FBSDID("$FreeBSD$");
 
+#ifdef HAVE_SYS_STAT_H
 #include <sys/stat.h>
+#endif
+#ifdef HAVE_SYS_TYPES_H
 #include <sys/types.h>
+#endif
 #ifdef MAJOR_IN_MKDEV
 #include <sys/mkdev.h>
 #else
@@ -39,11 +42,17 @@ __FBSDID("$FreeBSD$");
 #ifdef HAVE_EXT2FS_EXT2_FS_H
 #include <ext2fs/ext2_fs.h>	/* for Linux file flags */
 #endif
+#ifdef HAVE_LIMITS_H
 #include <limits.h>
+#endif
 #include <stddef.h>
 #include <stdio.h>
+#ifdef HAVE_STDLIB_H
 #include <stdlib.h>
+#endif
+#ifdef HAVE_STRING_H
 #include <string.h>
+#endif
 
 /* Obtain suitable wide-character manipulation functions. */
 #ifdef HAVE_WCHAR_H
@@ -209,7 +218,7 @@ aes_copy(struct aes *dest, struct aes *src)
 	}
 
 	if (src->aes_wcs != NULL) {
-		dest->aes_wcs_alloc = malloc((wcslen(src->aes_wcs) + 1)
+		dest->aes_wcs_alloc = (wchar_t *)malloc((wcslen(src->aes_wcs) + 1)
 		    * sizeof(wchar_t));
 		dest->aes_wcs = dest->aes_wcs_alloc;
 		if (dest->aes_wcs == NULL)
@@ -231,7 +240,7 @@ aes_get_mbs(struct aes *aes)
 		 * be a better way... XXX
 		 */
 		int mbs_length = wcslen(aes->aes_wcs) * 3 + 64;
-		aes->aes_mbs_alloc = malloc(mbs_length);
+		aes->aes_mbs_alloc = (char *)malloc(mbs_length);
 		aes->aes_mbs = aes->aes_mbs_alloc;
 		if (aes->aes_mbs == NULL)
 			__archive_errx(1, "No memory for aes_get_mbs()");
@@ -253,7 +262,7 @@ aes_get_wcs(struct aes *aes)
 		 */
 		int wcs_length = strlen(aes->aes_mbs);
 		aes->aes_wcs_alloc
-		    = malloc((wcs_length + 1) * sizeof(wchar_t));
+		    = (wchar_t *)malloc((wcs_length + 1) * sizeof(wchar_t));
 		aes->aes_wcs = aes->aes_wcs_alloc;
 		if (aes->aes_wcs == NULL)
 			__archive_errx(1, "No memory for aes_get_wcs()");
@@ -289,7 +298,7 @@ aes_copy_mbs(struct aes *aes, const char *mbs)
 		free(aes->aes_wcs_alloc);
 		aes->aes_wcs_alloc = NULL;
 	}
-	aes->aes_mbs_alloc = malloc((strlen(mbs) + 1) * sizeof(char));
+	aes->aes_mbs_alloc = (char *)malloc((strlen(mbs) + 1) * sizeof(char));
 	if (aes->aes_mbs_alloc == NULL)
 		__archive_errx(1, "No memory for aes_copy_mbs()");
 	strcpy(aes->aes_mbs_alloc, mbs);
@@ -326,7 +335,7 @@ aes_copy_wcs(struct aes *aes, const wchar_t *wcs)
 		aes->aes_wcs_alloc = NULL;
 	}
 	aes->aes_mbs = NULL;
-	aes->aes_wcs_alloc = malloc((wcslen(wcs) + 1) * sizeof(wchar_t));
+	aes->aes_wcs_alloc = (wchar_t *)malloc((wcslen(wcs) + 1) * sizeof(wchar_t));
 	if (aes->aes_wcs_alloc == NULL)
 		__archive_errx(1, "No memory for aes_copy_wcs()");
 	wcscpy(aes->aes_wcs_alloc, wcs);
@@ -354,7 +363,7 @@ archive_entry_clone(struct archive_entry *entry)
 	struct archive_entry *entry2;
 
 	/* Allocate new structure and copy over all of the fields. */
-	entry2 = malloc(sizeof(*entry2));
+	entry2 = (struct archive_entry *)malloc(sizeof(*entry2));
 	if (entry2 == NULL)
 		return (NULL);
 	memset(entry2, 0, sizeof(*entry2));
@@ -386,7 +395,7 @@ archive_entry_new(void)
 {
 	struct archive_entry *entry;
 
-	entry = malloc(sizeof(*entry));
+	entry = (struct archive_entry *)malloc(sizeof(*entry));
 	if (entry == NULL)
 		return (NULL);
 	memset(entry, 0, sizeof(*entry));
@@ -901,7 +910,7 @@ acl_new_entry(struct archive_entry *entry,
 	}
 
 	/* Add a new entry to the list. */
-	ap = malloc(sizeof(*ap));
+	ap = (struct ae_acl *)malloc(sizeof(*ap));
 	if (ap == NULL)
 		return (NULL);
 	memset(ap, 0, sizeof(*ap));
@@ -1083,7 +1092,7 @@ archive_entry_acl_text_w(struct archive_entry *entry, int flags)
 		return (NULL);
 
 	/* Now, allocate the string and actually populate it. */
-	wp = entry->acl_text_w = malloc(length * sizeof(wchar_t));
+	wp = entry->acl_text_w = (wchar_t *)malloc(length * sizeof(wchar_t));
 	if (wp == NULL)
 		__archive_errx(1, "No memory to generate the text version of the ACL");
 	count = 0;
@@ -1338,7 +1347,7 @@ __archive_entry_acl_parse_w(struct archive_entry *entry,
 					free(namebuff);
 				namebuff_length = name_end - name_start + 256;
 				namebuff =
-				    malloc(namebuff_length * sizeof(wchar_t));
+				    (wchar_t *)malloc(namebuff_length * sizeof(wchar_t));
 				if (namebuff == NULL)
 					goto fail;
 			}
@@ -1387,16 +1396,16 @@ archive_entry_xattr_add_entry(struct archive_entry *entry,
 	for (xp = entry->xattr_head; xp != NULL; xp = xp->next)
 		;
 
-	if ((xp = malloc(sizeof(struct ae_xattr))) == NULL)
+	if ((xp = (struct ae_xattr *)malloc(sizeof(struct ae_xattr))) == NULL)
 		/* XXX Error XXX */
 		return;
 
 	xp->name = strdup(name);
-	if ((xp -> value = malloc(size)) != NULL) {
-		memcpy(xp -> value, value, size);
-		xp -> size = size;
+	if ((xp->value = malloc(size)) != NULL) {
+		memcpy(xp->value, value, size);
+		xp->size = size;
 	} else
-		xp -> size = 0;
+		xp->size = 0;
 
 	xp->next = entry->xattr_head;
 	entry->xattr_head = xp;
@@ -1632,7 +1641,7 @@ ae_fflagstostr(unsigned long bitset, unsigned long bitclear)
 
 	if (length == 0)
 		return (NULL);
-	string = malloc(length);
+	string = (char *)malloc(length);
 	if (string == NULL)
 		return (NULL);
 
