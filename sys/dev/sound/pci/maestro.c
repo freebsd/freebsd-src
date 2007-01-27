@@ -56,9 +56,6 @@
 
 SND_DECLARE_FILE("$FreeBSD$");
 
-
-#define inline __inline
-
 /*
  * PCI IDs of supported chips:
  *
@@ -198,66 +195,71 @@ SYSCTL_UINT(_debug_maestro, OID_AUTO, powerstate_active, CTLFLAG_RW,
 SYSCTL_UINT(_debug_maestro, OID_AUTO, powerstate_idle, CTLFLAG_RW,
 	    &powerstate_idle, 0, "The Dx power state when idle (0-2)");
 SYSCTL_UINT(_debug_maestro, OID_AUTO, powerstate_init, CTLFLAG_RW,
-	    &powerstate_init, 0, "The Dx power state prior to the first use (0-2)");
+	    &powerstate_init, 0,
+	    "The Dx power state prior to the first use (0-2)");
 
 
 /* -----------------------------
  * Prototypes
  */
 
-static inline void	 agg_lock(struct agg_info*);
-static inline void	 agg_unlock(struct agg_info*);
-static inline void	 agg_sleep(struct agg_info*, const char *wmesg, int msec);
+static void	agg_sleep(struct agg_info*, const char *wmesg, int msec);
 
-static inline u_int32_t	 agg_rd(struct agg_info*, int, int size);
-static inline void	 agg_wr(struct agg_info*, int, u_int32_t data, int size);
+static __inline u_int32_t	agg_rd(struct agg_info*, int, int size);
+static __inline void		agg_wr(struct agg_info*, int, u_int32_t data,
+								int size);
+static int	agg_rdcodec(struct agg_info*, int);
+static int	agg_wrcodec(struct agg_info*, int, u_int32_t);
 
-static inline int	 agg_rdcodec(struct agg_info*, int);
-static inline int	 agg_wrcodec(struct agg_info*, int, u_int32_t);
+static void	ringbus_setdest(struct agg_info*, int, int);
 
-static inline void	 ringbus_setdest(struct agg_info*, int, int);
+static u_int16_t	wp_rdreg(struct agg_info*, u_int16_t);
+static void		wp_wrreg(struct agg_info*, u_int16_t, u_int16_t);
+static u_int16_t	wp_rdapu(struct agg_info*, unsigned, u_int16_t);
+static void	wp_wrapu(struct agg_info*, unsigned, u_int16_t, u_int16_t);
+static void	wp_settimer(struct agg_info*, u_int);
+static void	wp_starttimer(struct agg_info*);
+static void	wp_stoptimer(struct agg_info*);
 
-static inline u_int16_t	 wp_rdreg(struct agg_info*, u_int16_t);
-static inline void	 wp_wrreg(struct agg_info*, u_int16_t, u_int16_t);
-static inline u_int16_t	 wp_rdapu(struct agg_info*, unsigned, u_int16_t);
-static inline void	 wp_wrapu(struct agg_info*, unsigned, u_int16_t, u_int16_t);
-static inline void	 wp_settimer(struct agg_info*, u_int);
-static inline void	 wp_starttimer(struct agg_info*);
-static inline void	 wp_stoptimer(struct agg_info*);
+#if 0
+static u_int16_t	wc_rdreg(struct agg_info*, u_int16_t);
+#endif
+static void		wc_wrreg(struct agg_info*, u_int16_t, u_int16_t);
+#if 0
+static u_int16_t	wc_rdchctl(struct agg_info*, int);
+#endif
+static void		wc_wrchctl(struct agg_info*, int, u_int16_t);
 
-static inline u_int16_t	 wc_rdreg(struct agg_info*, u_int16_t);
-static inline void	 wc_wrreg(struct agg_info*, u_int16_t, u_int16_t);
-static inline u_int16_t	 wc_rdchctl(struct agg_info*, int);
-static inline void	 wc_wrchctl(struct agg_info*, int, u_int16_t);
+static void	agg_stopclock(struct agg_info*, int part, int st);
 
-static inline void	 agg_stopclock(struct agg_info*, int part, int st);
+static void	agg_initcodec(struct agg_info*);
+static void	agg_init(struct agg_info*);
+static void	agg_power(struct agg_info*, int);
 
-static inline void	 agg_initcodec(struct agg_info*);
-static void		 agg_init(struct agg_info*);
-static void		 agg_power(struct agg_info*, int);
+static void	aggch_start_dac(struct agg_chinfo*);
+static void	aggch_stop_dac(struct agg_chinfo*);
+static void	aggch_start_adc(struct agg_rchinfo*);
+static void	aggch_stop_adc(struct agg_rchinfo*);
+static void	aggch_feed_adc_stereo(struct agg_rchinfo*);
+static void	aggch_feed_adc_mono(struct agg_rchinfo*);
 
-static void		 aggch_start_dac(struct agg_chinfo*);
-static void		 aggch_stop_dac(struct agg_chinfo*);
-static void		 aggch_start_adc(struct agg_rchinfo*);
-static void		 aggch_stop_adc(struct agg_rchinfo*);
-static void		 aggch_feed_adc_stereo(struct agg_rchinfo*);
-static void		 aggch_feed_adc_mono(struct agg_rchinfo*);
+#ifdef AGG_JITTER_CORRECTION
+static void	suppress_jitter(struct agg_chinfo*);
+static void	suppress_rec_jitter(struct agg_rchinfo*);
+#endif
 
-static inline void	 suppress_jitter(struct agg_chinfo*);
-static inline void	 suppress_rec_jitter(struct agg_rchinfo*);
+static void	set_timer(struct agg_info*);
 
-static void		 set_timer(struct agg_info*);
-
-static void		 agg_intr(void *);
-static int		 agg_probe(device_t);
-static int		 agg_attach(device_t);
-static int		 agg_detach(device_t);
-static int		 agg_suspend(device_t);
-static int		 agg_resume(device_t);
-static int		 agg_shutdown(device_t);
+static void	agg_intr(void *);
+static int	agg_probe(device_t);
+static int	agg_attach(device_t);
+static int	agg_detach(device_t);
+static int	agg_suspend(device_t);
+static int	agg_resume(device_t);
+static int	agg_shutdown(device_t);
 
 static void	*dma_malloc(bus_dma_tag_t, u_int32_t, bus_addr_t*);
-static void	 dma_free(bus_dma_tag_t, void *);
+static void	dma_free(bus_dma_tag_t, void *);
 
 
 /* -----------------------------
@@ -265,24 +267,10 @@ static void	 dma_free(bus_dma_tag_t, void *);
  */
 
 /* locking */
+#define agg_lock(sc)	snd_mtxlock(&((sc)->lock))
+#define agg_unlock(sc)	snd_mtxunlock(&((sc)->lock))
 
-static inline void
-agg_lock(struct agg_info *sc)
-{
-#ifdef USING_MUTEX
-	mtx_lock(&sc->lock);
-#endif
-}
-
-static inline void
-agg_unlock(struct agg_info *sc)
-{
-#ifdef USING_MUTEX
-	mtx_unlock(&sc->lock);
-#endif
-}
-
-static inline void
+static void
 agg_sleep(struct agg_info *sc, const char *wmesg, int msec)
 {
 	int timo;
@@ -300,7 +288,7 @@ agg_sleep(struct agg_info *sc, const char *wmesg, int msec)
 
 /* I/O port */
 
-static inline u_int32_t
+static __inline u_int32_t
 agg_rd(struct agg_info *sc, int regno, int size)
 {
 	switch (size) {
@@ -320,7 +308,7 @@ agg_rd(struct agg_info *sc, int regno, int size)
 	    ((struct agg_info*)(sc))->st, \
 	    ((struct agg_info*)(sc))->sh, (regno))
 
-static inline void
+static __inline void
 agg_wr(struct agg_info *sc, int regno, u_int32_t data, int size)
 {
 	switch (size) {
@@ -345,7 +333,7 @@ agg_wr(struct agg_info *sc, int regno, u_int32_t data, int size)
 
 /* Codec/Ringbus */
 
-static inline int
+static int
 agg_codec_wait4idle(struct agg_info *ess)
 {
 	unsigned t = 26;
@@ -359,7 +347,7 @@ agg_codec_wait4idle(struct agg_info *ess)
 }
 
 
-static inline int
+static int
 agg_rdcodec(struct agg_info *ess, int regno)
 {
 	int ret;
@@ -386,7 +374,7 @@ agg_rdcodec(struct agg_info *ess, int regno)
 	return ret;
 }
 
-static inline int
+static int
 agg_wrcodec(struct agg_info *ess, int regno, u_int32_t data)
 {
 	/* We have to wait for a SAFE time to write addr/data */
@@ -409,7 +397,7 @@ agg_wrcodec(struct agg_info *ess, int regno, u_int32_t data)
 	return 0;
 }
 
-static inline void
+static void
 ringbus_setdest(struct agg_info *ess, int src, int dest)
 {
 	u_int32_t	data;
@@ -424,21 +412,21 @@ ringbus_setdest(struct agg_info *ess, int src, int dest)
 
 /* Wave Processor */
 
-static inline u_int16_t
+static u_int16_t
 wp_rdreg(struct agg_info *ess, u_int16_t reg)
 {
 	AGG_WR(ess, PORT_DSP_INDEX, reg, 2);
 	return AGG_RD(ess, PORT_DSP_DATA, 2);
 }
 
-static inline void
+static void
 wp_wrreg(struct agg_info *ess, u_int16_t reg, u_int16_t data)
 {
 	AGG_WR(ess, PORT_DSP_INDEX, reg, 2);
 	AGG_WR(ess, PORT_DSP_DATA, data, 2);
 }
 
-static inline int
+static int
 wp_wait_data(struct agg_info *ess, u_int16_t data)
 {
 	unsigned t = 0;
@@ -453,7 +441,7 @@ wp_wait_data(struct agg_info *ess, u_int16_t data)
 	return 0;
 }
 
-static inline u_int16_t
+static u_int16_t
 wp_rdapu(struct agg_info *ess, unsigned ch, u_int16_t reg)
 {
 	wp_wrreg(ess, WPREG_CRAM_PTR, reg | (ch << 4));
@@ -462,14 +450,15 @@ wp_rdapu(struct agg_info *ess, unsigned ch, u_int16_t reg)
 	return wp_rdreg(ess, WPREG_DATA_PORT);
 }
 
-static inline void
+static void
 wp_wrapu(struct agg_info *ess, unsigned ch, u_int16_t reg, u_int16_t data)
 {
 	wp_wrreg(ess, WPREG_CRAM_PTR, reg | (ch << 4));
 	if (wp_wait_data(ess, reg | (ch << 4)) == 0) {
 		wp_wrreg(ess, WPREG_DATA_PORT, data);
 		if (wp_wait_data(ess, data) != 0)
-			device_printf(ess->dev, "wp_wrapu() write timed out.\n");
+			device_printf(ess->dev,
+			    "wp_wrapu() write timed out.\n");
 	} else {
 		device_printf(ess->dev, "wp_wrapu() indexing timed out.\n");
 	}
@@ -493,7 +482,7 @@ apu_setparam(struct agg_info *ess, int apuch,
 	wp_wrapu(ess, apuch, APUREG_FREQ_HIWORD, dv >> 8);
 }
 
-static inline void
+static void
 wp_settimer(struct agg_info *ess, u_int divide)
 {
 	u_int prescale = 0;
@@ -514,7 +503,7 @@ wp_settimer(struct agg_info *ess, u_int divide)
 	wp_wrreg(ess, WPREG_TIMER_ENABLE, 1);
 }
 
-static inline void
+static void
 wp_starttimer(struct agg_info *ess)
 {
 	AGG_WR(ess, PORT_INT_STAT, 1, 2);
@@ -523,7 +512,7 @@ wp_starttimer(struct agg_info *ess)
 	wp_wrreg(ess, WPREG_TIMER_START, 1);
 }
 
-static inline void
+static void
 wp_stoptimer(struct agg_info *ess)
 {
 	AGG_WR(ess, PORT_HOSTINT_CTRL, ~HOSTINT_CTRL_DSOUND_INT_ENABLED
@@ -536,27 +525,31 @@ wp_stoptimer(struct agg_info *ess)
 
 /* WaveCache */
 
-static inline u_int16_t
+#if 0
+static u_int16_t
 wc_rdreg(struct agg_info *ess, u_int16_t reg)
 {
 	AGG_WR(ess, PORT_WAVCACHE_INDEX, reg, 2);
 	return AGG_RD(ess, PORT_WAVCACHE_DATA, 2);
 }
+#endif
 
-static inline void
+static void
 wc_wrreg(struct agg_info *ess, u_int16_t reg, u_int16_t data)
 {
 	AGG_WR(ess, PORT_WAVCACHE_INDEX, reg, 2);
 	AGG_WR(ess, PORT_WAVCACHE_DATA, data, 2);
 }
 
-static inline u_int16_t
+#if 0
+static u_int16_t
 wc_rdchctl(struct agg_info *ess, int ch)
 {
 	return wc_rdreg(ess, ch << 3);
 }
+#endif
 
-static inline void
+static void
 wc_wrchctl(struct agg_info *ess, int ch, u_int16_t data)
 {
 	wc_wrreg(ess, ch << 3, data);
@@ -565,7 +558,7 @@ wc_wrchctl(struct agg_info *ess, int ch, u_int16_t data)
 /* -------------------------------------------------------------------- */
 
 /* Power management */
-static inline void
+static void
 agg_stopclock(struct agg_info *ess, int part, int st)
 {
 	u_int32_t data;
@@ -589,7 +582,7 @@ agg_stopclock(struct agg_info *ess, int part, int st)
  * Controller.
  */
 
-static inline void
+static void
 agg_initcodec(struct agg_info* ess)
 {
 	u_int16_t data;
@@ -773,7 +766,8 @@ agg_power(struct agg_info *ess, int status)
 			DELAY(100);
 #if 0
 			if ((agg_rdcodec(ess, AC97_REG_POWER) & 3) != 3)
-				device_printf(ess->dev, "warning: codec not ready.\n");
+				device_printf(ess->dev,
+				    "warning: codec not ready.\n");
 #endif
 			AGG_WR(ess, PORT_RINGBUS_CTRL,
 			       (AGG_RD(ess, PORT_RINGBUS_CTRL, 4)
@@ -1068,7 +1062,7 @@ aggch_stop_adc(struct agg_rchinfo *ch)
  *
  * XXX - this function works in 16bit stereo format only.
  */
-static inline void
+static void
 interleave(int16_t *l, int16_t *r, int16_t *p, unsigned n)
 {
 	int16_t *end;
@@ -1110,7 +1104,7 @@ aggch_feed_adc_stereo(struct agg_rchinfo *ch)
  *
  * XXX - this function works in 16bit monoral format only.
  */
-static inline void
+static void
 mixdown(int16_t *src, int16_t *dest, unsigned n)
 {
 	int16_t *end;
@@ -1138,12 +1132,13 @@ aggch_feed_adc_mono(struct agg_rchinfo *ch)
 	ch->hwptr = cur;
 }
 
+#ifdef AGG_JITTER_CORRECTION
 /*
  * Stereo jitter suppressor.
  * Sometimes playback pointers differ in stereo-paired channels.
  * Calling this routine within intr fixes the problem.
  */
-static inline void
+static void
 suppress_jitter(struct agg_chinfo *ch)
 {
 	if (ch->stereo) {
@@ -1160,7 +1155,7 @@ suppress_jitter(struct agg_chinfo *ch)
 	}
 }
 
-static inline void
+static void
 suppress_rec_jitter(struct agg_rchinfo *ch)
 {
 	int cp1, cp2, diff /*, halfsize*/ ;
@@ -1175,8 +1170,9 @@ suppress_rec_jitter(struct agg_rchinfo *ch)
 			AGG_WR(ch->parent, PORT_DSP_DATA, cp1, 2);
 	}
 }
+#endif
 
-static inline u_int
+static u_int
 calc_timer_div(struct agg_chinfo *ch)
 {
 	u_int speed;
@@ -1193,7 +1189,7 @@ calc_timer_div(struct agg_chinfo *ch)
 		+ speed - 1) / speed;
 }
 
-static inline u_int
+static u_int
 calc_timer_div_rch(struct agg_rchinfo *ch)
 {
 	u_int speed;
@@ -1280,7 +1276,8 @@ AC97_DECLARE(agg_ac97);
 /* Playback channel. */
 
 static void *
-aggpch_init(kobj_t obj, void *devinfo, struct snd_dbuf *b, struct pcm_channel *c, int dir)
+aggpch_init(kobj_t obj, void *devinfo, struct snd_dbuf *b,
+						struct pcm_channel *c, int dir)
 {
 	struct agg_info *ess = devinfo;
 	struct agg_chinfo *ch;
@@ -1485,7 +1482,8 @@ CHANNEL_DECLARE(aggpch);
 /* Recording channel. */
 
 static void *
-aggrch_init(kobj_t obj, void *devinfo, struct snd_dbuf *b, struct pcm_channel *c, int dir)
+aggrch_init(kobj_t obj, void *devinfo, struct snd_dbuf *b,
+						struct pcm_channel *c, int dir)
 {
 	struct agg_info *ess = devinfo;
 	struct agg_rchinfo *ch;
