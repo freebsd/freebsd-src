@@ -38,7 +38,9 @@
 .Ft "void *"
 .Fn hashinit "int nelements" "struct malloc_type *type" "u_long *hashmask"
 .Ft void
-.Fn hashinit_flags "int nelements" "struct malloc_type *type" "u_long *hashmask" "int flags"
+.Fo hashinit_flags
+.Fa "int nelements" "struct malloc_type *type" "u_long *hashmask" "int flags"
+.Fc
 .Ft void
 .Fn hashdestroy "void *hashtbl" "struct malloc_type *type" "u_long hashmask"
 .Ft "void *"
@@ -46,7 +48,7 @@
 .Sh DESCRIPTION
 The
 .Fn hashinit ,
-.Fn hashinit_flags 
+.Fn hashinit_flags
 and
 .Fn phashinit
 functions allocate space for hash tables of size given by the argument
@@ -62,9 +64,9 @@ The
 function allocates hash tables that are sized to the largest prime
 number less than or equal to argument
 .Fa nelements .
-The 
+The
 .Fn hashinit_flags
-functionn operates like 
+function operates like
 .Fn hashinit
 but also accepts an additional argument
 .Fa flags
