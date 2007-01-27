@@ -931,11 +931,15 @@ midistat_open(struct cdev *i_dev, int flags, int mode, struct thread * td)
 	    return EBUSY;
 	}
 	midistat_isopen = 1;
+	mtx_unlock(&midistat_lock);
 
-	if (sbuf_new(&midistat_sbuf, NULL, 4096, 0) == NULL) {
+	if (sbuf_new(&midistat_sbuf, NULL, 4096, SBUF_AUTOEXTEND) == NULL) {
 	    error = ENXIO;
+	    mtx_lock(&midistat_lock);
 	    goto out;
 	}
+
+	mtx_lock(&midistat_lock);
 	midistat_bufptr = 0;
 	error = (midistat_prepare(&midistat_sbuf) > 0) ? 0 : ENOMEM;
 
@@ -974,9 +978,11 @@ midistat_read(struct cdev *i_dev, struct uio * buf, int flag)
 	}
 	l = min(buf->uio_resid, sbuf_len(&midistat_sbuf) - midistat_bufptr);
 	err = 0;
-	if (l > 0)
+	if (l > 0) {
+	    mtx_unlock(&midistat_lock);
 	    err = uiomove(sbuf_data(&midistat_sbuf) + midistat_bufptr, l, buf);
-	else
+	    mtx_lock(&midistat_lock);
+	} else
 	    l = 0;
 	midistat_bufptr += l;
 	mtx_unlock(&midistat_lock);
