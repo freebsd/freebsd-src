@@ -63,7 +63,7 @@ SND_DECLARE_FILE("$FreeBSD$");
 #define NCHANS		(NWRCHANS + NDXSCHANS + NMSGDCHANS)
 #define	NSEGS		NCHANS * SEGS_PER_CHAN	/* Segments in SGD table */
 #define VIA_SEGS_MIN		2
-#define VIA_SEGS_MAX		128
+#define VIA_SEGS_MAX		64
 #define VIA_SEGS_DEFAULT	2
 
 #define	VIA_DEFAULT_BUFSZ	0x1000
