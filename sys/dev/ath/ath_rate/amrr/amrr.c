@@ -142,11 +142,12 @@ ath_rate_setupxtxdesc(struct ath_softc *sc, struct ath_node *an,
 
 void
 ath_rate_tx_complete(struct ath_softc *sc, struct ath_node *an,
-	const struct ath_desc *ds, const struct ath_desc *ds0)
+	const struct ath_buf *bf)
 {
 	struct amrr_node *amn = ATH_NODE_AMRR(an);
-	int sr = ds->ds_txstat.ts_shortretry;
-	int lr = ds->ds_txstat.ts_longretry;
+	const struct ath_tx_status *ts = &bf->bf_status.ds_txstat;
+	int sr = ts->ts_shortretry;
+	int lr = ts->ts_longretry;
 	int retry_count = sr + lr;
 
 	amn->amn_tx_try0_cnt++;

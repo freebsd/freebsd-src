@@ -78,14 +78,18 @@ __FBSDID("$FreeBSD$");
 #define	SAMPLE_DEBUG
 #ifdef SAMPLE_DEBUG
 enum {
-	ATH_DEBUG_RATE		= 0x00000010	/* rate control */
+	ATH_DEBUG_NODE		= 0x00080000,	/* node management */
+	ATH_DEBUG_RATE		= 0x00000010,	/* rate control */
+	ATH_DEBUG_ANY		= 0xffffffff
 };
-#define	DPRINTF(sc, _fmt, ...) do {				\
-	if (sc->sc_debug & ATH_DEBUG_RATE)			\
-		printf(_fmt, __VA_ARGS__);			\
+#define	DPRINTF(sc, m, fmt, ...) do {				\
+	if (sc->sc_debug & (m))					\
+		printf(fmt, __VA_ARGS__);			\
 } while (0)
 #else
-#define	DPRINTF(sc, _fmt, ...)
+#define	DPRINTF(sc, m, fmt, ...) do {				\
+	(void) sc;						\
+} while (0)
 #endif
 
 /*
@@ -147,14 +151,14 @@ rate_to_ndx(struct sample_node *sn, int rate) {
 void
 ath_rate_node_init(struct ath_softc *sc, struct ath_node *an)
 {
-	DPRINTF(sc, "%s:\n", __func__);
+	DPRINTF(sc, ATH_DEBUG_NODE, "%s:\n", __func__);
 	/* NB: assumed to be zero'd by caller */
 }
 
 void
 ath_rate_node_cleanup(struct ath_softc *sc, struct ath_node *an)
 {
-	DPRINTF(sc, "%s:\n", __func__);
+	DPRINTF(sc, ATH_DEBUG_NODE, "%s:\n", __func__);
 }
 
 
@@ -318,18 +322,19 @@ ath_rate_findrate(struct ath_softc *sc, struct ath_node *an,
 			
 			if (change_rates) {
 				if (best_ndx != sn->current_rate[size_bin]) {
-					DPRINTF(sc, "%s: %s size %d switch rate %d (%d/%d) -> %d (%d/%d) after %d packets mrr %d\n",
-						__func__,
-						ether_sprintf(an->an_node.ni_macaddr),
-						packet_size_bins[size_bin],
-						sn->rates[sn->current_rate[size_bin]].rate,
-						sn->stats[size_bin][sn->current_rate[size_bin]].average_tx_time,
-						sn->stats[size_bin][sn->current_rate[size_bin]].perfect_tx_time,
-						sn->rates[best_ndx].rate,
-						sn->stats[size_bin][best_ndx].average_tx_time,
-						sn->stats[size_bin][best_ndx].perfect_tx_time,
-						sn->packets_since_switch[size_bin],
-						mrr);
+					DPRINTF(sc, ATH_DEBUG_RATE,
+"%s: %s size %d switch rate %d (%d/%d) -> %d (%d/%d) after %d packets mrr %d\n",
+					    __func__,
+					    ether_sprintf(an->an_node.ni_macaddr),
+					    packet_size_bins[size_bin],
+					    sn->rates[sn->current_rate[size_bin]].rate,
+					    sn->stats[size_bin][sn->current_rate[size_bin]].average_tx_time,
+					    sn->stats[size_bin][sn->current_rate[size_bin]].perfect_tx_time,
+					    sn->rates[best_ndx].rate,
+					    sn->stats[size_bin][best_ndx].average_tx_time,
+					    sn->stats[size_bin][best_ndx].perfect_tx_time,
+					    sn->packets_since_switch[size_bin],
+					    mrr);
 				}
 				sn->packets_since_switch[size_bin] = 0;
 				sn->current_rate[size_bin] = best_ndx;
@@ -406,30 +411,51 @@ update_stats(struct ath_softc *sc, struct ath_node *an,
 
 	size_bin = size_to_bin(frame_size);
 	size = bin_to_size(size_bin);
+
+	if (!(0 <= ndx0 && ndx0 < sn->num_rates)) {
+		printf("%s: bogus ndx0 %d, max %u, mode %u\n",
+		    __func__, ndx0, sn->num_rates, sc->sc_curmode);
+		return;
+	}
 	rate = sn->rates[ndx0].rate;
 
 	tt += calc_usecs_unicast_packet(sc, size, sn->rates[ndx0].rix, 
-					short_tries-1, 
+					short_tries,
 					MIN(tries0, tries) - 1);
 	tries_so_far += tries0;
 	if (tries1 && tries0 < tries) {
+		if (!(0 <= ndx1 && ndx1 < sn->num_rates)) {
+			printf("%s: bogus ndx1 %d, max %u, mode %u\n",
+			    __func__, ndx1, sn->num_rates, sc->sc_curmode);
+			return;
+		}
 		tt += calc_usecs_unicast_packet(sc, size, sn->rates[ndx1].rix, 
-						short_tries-1, 
+						short_tries,
 						MIN(tries1 + tries_so_far, tries) - tries_so_far - 1);
 	}
 	tries_so_far += tries1;
 
 	if (tries2 && tries0 + tries1 < tries) {
+		if (!(0 <= ndx2 && ndx2 < sn->num_rates)) {
+			printf("%s: bogus ndx2 %d, max %u, mode %u\n",
+			    __func__, ndx2, sn->num_rates, sc->sc_curmode);
+			return;
+		}
 		tt += calc_usecs_unicast_packet(sc, size, sn->rates[ndx2].rix, 
-					       short_tries-1, 
+					       short_tries,
 						MIN(tries2 + tries_so_far, tries) - tries_so_far - 1);
 	}
 
 	tries_so_far += tries2;
 
 	if (tries3 && tries0 + tries1 + tries2 < tries) {
+		if (!(0 <= ndx3 && ndx3 < sn->num_rates)) {
+			printf("%s: bogus ndx3 %d, max %u, mode %u\n",
+			    __func__, ndx3, sn->num_rates, sc->sc_curmode);
+			return;
+		}
 		tt += calc_usecs_unicast_packet(sc, size, sn->rates[ndx3].rix, 
-						short_tries-1, 
+						short_tries,
 						MIN(tries3 + tries_so_far, tries) - tries_so_far - 1);
 	}
 	if (sn->stats[size_bin][ndx0].total_packets < (100 / (100 - ssc->ath_smoothing_rate))) {
@@ -467,12 +493,14 @@ update_stats(struct ath_softc *sc, struct ath_node *an,
 
 
 	if (ndx0 == sn->current_sample_ndx[size_bin]) {
-		DPRINTF(sc, "%s: %s size %d sample rate %d tries (%d/%d) tt %d avg_tt (%d/%d) status %d\n", 
-			__func__, ether_sprintf(an->an_node.ni_macaddr), 
-			size, rate, short_tries, tries, tt, 
-			sn->stats[size_bin][ndx0].average_tx_time,
-			sn->stats[size_bin][ndx0].perfect_tx_time,
-			status);
+		DPRINTF(sc, ATH_DEBUG_RATE,
+"%s: %s size %d %s sample rate %d tries (%d/%d) tt %d avg_tt (%d/%d)\n", 
+		    __func__, ether_sprintf(an->an_node.ni_macaddr), 
+		    size,
+		    status ? "FAIL" : "OK",
+		    rate, short_tries, tries, tt, 
+		    sn->stats[size_bin][ndx0].average_tx_time,
+		    sn->stats[size_bin][ndx0].perfect_tx_time);
 		sn->sample_tt[size_bin] = tt;
 		sn->current_sample_ndx[size_bin] = -1;
 	}
@@ -480,117 +508,124 @@ update_stats(struct ath_softc *sc, struct ath_node *an,
 
 void
 ath_rate_tx_complete(struct ath_softc *sc, struct ath_node *an,
-	const struct ath_desc *ds, const struct ath_desc *ds0)
+	const struct ath_buf *bf)
 {
 	struct ieee80211com *ic = &sc->sc_ic;
 	struct sample_node *sn = ATH_NODE_SAMPLE(an);
-	const struct ar5212_desc *ads = (const struct ar5212_desc *)&ds->ds_ctl0;
+	const struct ath_tx_status *ts = &bf->bf_status.ds_txstat;
+	const struct ath_desc *ds0 = &bf->bf_desc[0];
 	int final_rate, short_tries, long_tries, frame_size;
-	int ndx = -1;
 	int mrr;
 
-	final_rate = sc->sc_hwmap[ds->ds_txstat.ts_rate &~ HAL_TXSTAT_ALTRATE].ieeerate;
-	short_tries = ds->ds_txstat.ts_shortretry + 1;
-	long_tries = ds->ds_txstat.ts_longretry + 1;
+	final_rate = sc->sc_hwmap[ts->ts_rate &~ HAL_TXSTAT_ALTRATE].ieeerate;
+	short_tries = ts->ts_shortretry;
+	long_tries = ts->ts_longretry + 1;
 	frame_size = ds0->ds_ctl0 & 0x0fff; /* low-order 12 bits of ds_ctl0 */
 	if (frame_size == 0)		    /* NB: should not happen */
 		frame_size = 1500;
 
 	if (sn->num_rates <= 0) {
-		DPRINTF(sc, "%s: %s size %d status %d rate/try %d/%d "
-			"no rates yet\n", 
-			__func__, ether_sprintf(an->an_node.ni_macaddr),
-			bin_to_size(size_to_bin(frame_size)),
-			ds->ds_txstat.ts_status,
-			short_tries, long_tries);
+		DPRINTF(sc, ATH_DEBUG_RATE,
+		    "%s: %s size %d %s rate/try %d/%d no rates yet\n", 
+		    __func__, ether_sprintf(an->an_node.ni_macaddr),
+		    bin_to_size(size_to_bin(frame_size)),
+		    ts->ts_status ? "FAIL" : "OK",
+		    short_tries, long_tries);
 		return;
 	}
 
-	mrr = sc->sc_mrretry && !(ic->ic_flags & IEEE80211_F_USEPROT);
-
-	if (sc->sc_mrretry && ds->ds_txstat.ts_status) {
-		/* this packet failed */
-		DPRINTF(sc, "%s: %s size %d rate/try %d/%d %d/%d %d/%d %d/%d status %s retries (%d/%d)\n", 
-			__func__,
-			ether_sprintf(an->an_node.ni_macaddr),
-			bin_to_size(size_to_bin(frame_size)),
-			sc->sc_hwmap[ads->xmit_rate0].ieeerate,
-				ads->xmit_tries0,
-			sc->sc_hwmap[ads->xmit_rate1].ieeerate,
-				ads->xmit_tries1,
-			sc->sc_hwmap[ads->xmit_rate2].ieeerate,
-				ads->xmit_tries2,
-			sc->sc_hwmap[ads->xmit_rate3].ieeerate,
-				ads->xmit_tries3,
-			ds->ds_txstat.ts_status ? "FAIL" : "OK",
-			short_tries, 
-			long_tries);
+	if (ts->ts_status) {		/* this packet failed */
+		DPRINTF(sc, ATH_DEBUG_RATE,
+"%s: %s size %d rate/try [%d/%d %d/%d %d/%d %d/%d] FAIL tries [%d/%d]\n", 
+		    __func__,
+		    ether_sprintf(an->an_node.ni_macaddr),
+		    bin_to_size(size_to_bin(frame_size)),
+		    sc->sc_hwmap[MS(ds0->ds_ctl3, AR_XmitRate0)].ieeerate,
+			MS(ds0->ds_ctl2, AR_XmitDataTries0),
+		    sc->sc_hwmap[MS(ds0->ds_ctl3, AR_XmitRate1)].ieeerate,
+			MS(ds0->ds_ctl2, AR_XmitDataTries1),
+		    sc->sc_hwmap[MS(ds0->ds_ctl3, AR_XmitRate2)].ieeerate,
+			MS(ds0->ds_ctl2, AR_XmitDataTries2),
+		    sc->sc_hwmap[MS(ds0->ds_ctl3, AR_XmitRate3)].ieeerate,
+			MS(ds0->ds_ctl2, AR_XmitDataTries3),
+		    short_tries, long_tries);
 	}
 
-	if (!mrr || !(ds->ds_txstat.ts_rate & HAL_TXSTAT_ALTRATE)) {
-		/* only one rate was used */
-		ndx = rate_to_ndx(sn, final_rate);
-		DPRINTF(sc, "%s: %s size %d status %d rate/try %d/%d/%d\n", 
-			__func__, ether_sprintf(an->an_node.ni_macaddr),
-			bin_to_size(size_to_bin(frame_size)),
-			ds->ds_txstat.ts_status,
-			ndx, short_tries, long_tries);
-		if (ndx >= 0 && ndx < sn->num_rates) {
-			update_stats(sc, an, frame_size, 
-				     ndx, long_tries,
-				     0, 0,
-				     0, 0,
-				     0, 0,
-				     short_tries, long_tries, ds->ds_txstat.ts_status);
-		}
+	mrr = sc->sc_mrretry && !(ic->ic_flags & IEEE80211_F_USEPROT);
+	if (!mrr || !(ts->ts_rate & HAL_TXSTAT_ALTRATE)) {
+		int ndx = rate_to_ndx(sn, final_rate);
+
+		/*
+		 * Only one rate was used; optimize work.
+		 */
+		DPRINTF(sc, ATH_DEBUG_RATE,
+		    "%s: %s size %d %s rate/try %d/%d/%d\n", 
+		     __func__, ether_sprintf(an->an_node.ni_macaddr),
+		     bin_to_size(size_to_bin(frame_size)),
+		     ts->ts_status ? "FAIL" : "OK",
+		     final_rate, short_tries, long_tries);
+		update_stats(sc, an, frame_size, 
+			     ndx, long_tries,
+			     0, 0,
+			     0, 0,
+			     0, 0,
+			     short_tries, long_tries, ts->ts_status);
 	} else {
 		int rate0, tries0, ndx0;
 		int rate1, tries1, ndx1;
 		int rate2, tries2, ndx2;
 		int rate3, tries3, ndx3;
-		int finalTSIdx = ads->final_ts_index;
+		int finalTSIdx = ts->ts_finaltsi;
 
 		/*
 		 * Process intermediate rates that failed.
 		 */
-
-		rate0 = sc->sc_hwmap[ads->xmit_rate0].ieeerate;
-		tries0 = ads->xmit_tries0;
+		rate0 = sc->sc_hwmap[MS(ds0->ds_ctl3, AR_XmitRate0)].ieeerate;
+		tries0 = MS(ds0->ds_ctl2, AR_XmitDataTries0);
 		ndx0 = rate_to_ndx(sn, rate0);
-		
-		rate1 = sc->sc_hwmap[ads->xmit_rate1].ieeerate;
-		tries1 = ads->xmit_tries1;
+
+		rate1 = sc->sc_hwmap[MS(ds0->ds_ctl3, AR_XmitRate1)].ieeerate;
+		tries1 = MS(ds0->ds_ctl2, AR_XmitDataTries1);
 		ndx1 = rate_to_ndx(sn, rate1);
-		
-		rate2 = sc->sc_hwmap[ads->xmit_rate2].ieeerate;
-		tries2 = ads->xmit_tries2;
+
+		rate2 = sc->sc_hwmap[MS(ds0->ds_ctl3, AR_XmitRate2)].ieeerate;
+		tries2 = MS(ds0->ds_ctl2, AR_XmitDataTries2);
 		ndx2 = rate_to_ndx(sn, rate2);
-		
-		rate3 = sc->sc_hwmap[ads->xmit_rate3].ieeerate;
-		tries3 = ads->xmit_tries3;
+
+		rate3 = sc->sc_hwmap[MS(ds0->ds_ctl3, AR_XmitRate3)].ieeerate;
+		tries3 = MS(ds0->ds_ctl2, AR_XmitDataTries3);
 		ndx3 = rate_to_ndx(sn, rate3);
-		
+
 #if 1
-		DPRINTF(sc, "%s: %s size %d finaltsidx %d tries %d status %d rate/try %d/%d %d/%d %d/%d %d/%d\n", 
-			__func__, ether_sprintf(an->an_node.ni_macaddr),
-			bin_to_size(size_to_bin(frame_size)),
-			finalTSIdx,
-			long_tries, 
-			ds->ds_txstat.ts_status,
-			rate0, tries0,
-			rate1, tries1,
-			rate2, tries2,
-			rate3, tries3);
+		DPRINTF(sc, ATH_DEBUG_RATE,
+"%s: %s size %d finaltsidx %d tries %d %s rate/try [%d/%d %d/%d %d/%d %d/%d]\n", 
+		     __func__, ether_sprintf(an->an_node.ni_macaddr),
+		     bin_to_size(size_to_bin(frame_size)),
+		     finalTSIdx,
+		     long_tries, 
+		     ts->ts_status ? "FAIL" : "OK",
+		     rate0, tries0,
+		     rate1, tries1,
+		     rate2, tries2,
+		     rate3, tries3);
 #endif
 
+		/*
+		 * NB: series > 0 are not penalized for failure
+		 * based on the try counts under the assumption
+		 * that losses are often bursty and since we
+		 * sample higher rates 1 try at a time doing so
+		 * may unfairly penalize them.
+		 */
 		if (tries0) {
 			update_stats(sc, an, frame_size, 
 				     ndx0, tries0, 
 				     ndx1, tries1, 
 				     ndx2, tries2, 
 				     ndx3, tries3, 
-				     short_tries, ds->ds_txstat.ts_longretry + 1, 
+				     short_tries, long_tries, 
 				     long_tries > tries0);
+			long_tries -= tries0;
 		}
 		
 		if (tries1 && finalTSIdx > 0) {
@@ -599,8 +634,9 @@ ath_rate_tx_complete(struct ath_softc *sc, struct ath_node *an,
 				     ndx2, tries2, 
 				     ndx3, tries3, 
 				     0, 0, 
-				     short_tries, ds->ds_txstat.ts_longretry + 1 - tries0, 
-				     ds->ds_txstat.ts_status);
+				     short_tries, long_tries, 
+				     ts->ts_status);
+			long_tries -= tries1;
 		}
 
 		if (tries2 && finalTSIdx > 1) {
@@ -609,8 +645,9 @@ ath_rate_tx_complete(struct ath_softc *sc, struct ath_node *an,
 				     ndx3, tries3, 
 				     0, 0,
 				     0, 0,
-				     short_tries, ds->ds_txstat.ts_longretry + 1 - tries0 - tries1, 
-				     ds->ds_txstat.ts_status);
+				     short_tries, long_tries, 
+				     ts->ts_status);
+			long_tries -= tries2;
 		}
 
 		if (tries3 && finalTSIdx > 2) {
@@ -619,8 +656,8 @@ ath_rate_tx_complete(struct ath_softc *sc, struct ath_node *an,
 				     0, 0,
 				     0, 0,
 				     0, 0,
-				     short_tries, ds->ds_txstat.ts_longretry + 1 - tries0 - tries1 - tries2, 
-				     ds->ds_txstat.ts_status);
+				     short_tries, long_tries, 
+				     ts->ts_status);
 		}
 	}
 }
@@ -628,8 +665,8 @@ ath_rate_tx_complete(struct ath_softc *sc, struct ath_node *an,
 void
 ath_rate_newassoc(struct ath_softc *sc, struct ath_node *an, int isnew)
 {
-	DPRINTF(sc, "%s: %s isnew %d\n", __func__,
-		ether_sprintf(an->an_node.ni_macaddr), isnew);
+	DPRINTF(sc, ATH_DEBUG_NODE, "%s: %s isnew %d\n", __func__,
+	     ether_sprintf(an->an_node.ni_macaddr), isnew);
 	if (isnew)
 		ath_rate_ctl_reset(sc, &an->an_node);
 }
@@ -668,15 +705,16 @@ ath_rate_ctl_reset(struct ath_softc *sc, struct ieee80211_node *ni)
 		sn->static_rate_ndx = srate;
 	}
 
-        DPRINTF(sc, "%s: %s size 1600 rate/tt", __func__, ether_sprintf(ni->ni_macaddr));
+        DPRINTF(sc, ATH_DEBUG_RATE, "%s: %s size 1600 rate/tt",
+	    __func__, ether_sprintf(ni->ni_macaddr));
 
 	sn->num_rates = ni->ni_rates.rs_nrates;
         for (x = 0; x < ni->ni_rates.rs_nrates; x++) {
 		sn->rates[x].rate = ni->ni_rates.rs_rates[x] & IEEE80211_RATE_VAL;
 		sn->rates[x].rix = sc->sc_rixmap[sn->rates[x].rate];
 		if (sn->rates[x].rix == 0xff) {
-			DPRINTF(sc, "%s: ignore bogus rix at %d\n",
-				__func__, x);
+			DPRINTF(sc, ATH_DEBUG_RATE,
+			    "%s: ignore bogus rix at %d\n", __func__, x);
 			continue;
 		}
 		sn->rates[x].rateCode = rt->info[sn->rates[x].rix].rateCode;
@@ -684,11 +722,10 @@ ath_rate_ctl_reset(struct ath_softc *sc, struct ieee80211_node *ni)
 			rt->info[sn->rates[x].rix].rateCode | 
 			rt->info[sn->rates[x].rix].shortPreamble;
 
-		DPRINTF(sc, " %d/%d", sn->rates[x].rate,
-			calc_usecs_unicast_packet(sc, 1600, sn->rates[x].rix, 
-						  0,0));
+		DPRINTF(sc, ATH_DEBUG_RATE, " %d/%d", sn->rates[x].rate,
+		    calc_usecs_unicast_packet(sc, 1600, sn->rates[x].rix, 0,0));
 	}
-	DPRINTF(sc, "%s\n", "");
+	DPRINTF(sc, ATH_DEBUG_RATE, "%s\n", "");
 	
 	/* set the visible bit-rate to the lowest one available */
 	ni->ni_txrate = 0;
@@ -724,14 +761,15 @@ ath_rate_ctl_reset(struct ath_softc *sc, struct ieee80211_node *ni)
 		sn->current_rate[y] = ndx;
 	}
 
-	DPRINTF(sc, "%s: %s %d rates %d%sMbps (%dus)- %d%sMbps (%dus)\n",
-		__func__, ether_sprintf(ni->ni_macaddr), 
-		sn->num_rates,
-		sn->rates[0].rate/2, sn->rates[0].rate % 0x1 ? ".5" : "",
-		sn->stats[1][0].perfect_tx_time,
-		sn->rates[sn->num_rates-1].rate/2,
-			sn->rates[sn->num_rates-1].rate % 0x1 ? ".5" : "",
-		sn->stats[1][sn->num_rates-1].perfect_tx_time
+	DPRINTF(sc, ATH_DEBUG_RATE,
+	    "%s: %s %d rates %d%sMbps (%dus)- %d%sMbps (%dus)\n",
+	    __func__, ether_sprintf(ni->ni_macaddr), 
+	    sn->num_rates,
+	    sn->rates[0].rate/2, sn->rates[0].rate % 0x1 ? ".5" : "",
+	    sn->stats[1][0].perfect_tx_time,
+	    sn->rates[sn->num_rates-1].rate/2,
+		sn->rates[sn->num_rates-1].rate % 0x1 ? ".5" : "",
+	    sn->stats[1][sn->num_rates-1].perfect_tx_time
 	);
 
         if (sn->static_rate_ndx != -1)
@@ -789,7 +827,7 @@ ath_rate_attach(struct ath_softc *sc)
 {
 	struct sample_softc *osc;
 	
-	DPRINTF(sc, "%s:\n", __func__);
+	DPRINTF(sc, ATH_DEBUG_ANY, "%s:\n", __func__);
 	osc = malloc(sizeof(struct sample_softc), M_DEVBUF, M_NOWAIT|M_ZERO);
 	if (osc == NULL)
 		return NULL;
