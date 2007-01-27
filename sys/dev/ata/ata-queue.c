@@ -704,6 +704,7 @@ ata_cmd2str(struct ata_request *request)
 	case 0xa0: return ("PACKET_CMD");
 	case 0xa1: return ("ATAPI_IDENTIFY");
 	case 0xa2: return ("SERVICE");
+	case 0xb0: return ("SMART");
 	case 0xc0: return ("CFA ERASE");
 	case 0xc4: return ("READ_MUL");
 	case 0xc5: return ("WRITE_MUL");
