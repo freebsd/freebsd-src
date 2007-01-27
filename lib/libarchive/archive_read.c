@@ -1,13 +1,12 @@
 /*-
- * Copyright (c) 2003-2004 Tim Kientzle
+ * Copyright (c) 2003-2007 Tim Kientzle
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
  * are met:
  * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer
- *    in this position and unchanged.
+ *    notice, this list of conditions and the following disclaimer.
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
@@ -35,11 +34,19 @@
 #include "archive_platform.h"
 __FBSDID("$FreeBSD$");
 
+#ifdef HAVE_ERRNO_H
 #include <errno.h>
+#endif
 #include <stdio.h>
+#ifdef HAVE_STDLIB_H
 #include <stdlib.h>
+#endif
+#ifdef HAVE_STRING_H
 #include <string.h>
+#endif
+#ifdef HAVE_UNISTD_H
 #include <unistd.h>
+#endif
 
 #include "archive.h"
 #include "archive_entry.h"
@@ -57,7 +64,7 @@ archive_read_new(void)
 	struct archive	*a;
 	unsigned char	*nulls;
 
-	a = malloc(sizeof(*a));
+	a = (struct archive *)malloc(sizeof(*a));
 	if (a == NULL) {
 		archive_set_error(a, ENOMEM, "Can't allocate archive object");
 		return (NULL);
@@ -69,7 +76,7 @@ archive_read_new(void)
 	a->bytes_per_block = ARCHIVE_DEFAULT_BYTES_PER_BLOCK;
 
 	a->null_length = 1024;
-	nulls = malloc(a->null_length);
+	nulls = (unsigned char *)malloc(a->null_length);
 	if (nulls == NULL) {
 		archive_set_error(a, ENOMEM, "Can't allocate archive object 'nulls' element");
 		free(a);
@@ -88,19 +95,16 @@ archive_read_new(void)
 }
 
 /*
- * Set the block size.
+ * Record the do-not-extract-to file. This belongs in archive_read_extract.c.
  */
-/*
-int
-archive_read_set_bytes_per_block(struct archive *a, int bytes_per_block)
+void
+archive_read_extract_set_skip_file(struct archive *a, dev_t d, ino_t i)
 {
-	__archive_check_magic(a, ARCHIVE_READ_MAGIC, ARCHIVE_STATE_NEW, "archive_read_set_bytes_per_block");
-	if (bytes_per_block < 1)
-		bytes_per_block = 1;
-	a->bytes_per_block = bytes_per_block;
-	return (0);
+	__archive_check_magic(a, ARCHIVE_READ_MAGIC, ARCHIVE_STATE_ANY, "archive_read_extract_set_skip_file");
+	a->skip_file_dev = d;
+	a->skip_file_ino = i;
 }
-*/
+
 
 /*
  * Open the archive
@@ -402,7 +406,7 @@ archive_read_data(struct archive *a, void *buff, size_t s)
 	int	 r;
 
 	bytes_read = 0;
-	dest = buff;
+	dest = (char *)buff;
 
 	while (s > 0) {
 		if (a->read_data_remaining <= 0) {
@@ -425,7 +429,28 @@ archive_read_data(struct archive *a, void *buff, size_t s)
 			archive_set_error(a, ARCHIVE_ERRNO_FILE_FORMAT,
 			    "Encountered out-of-order sparse blocks");
 			return (ARCHIVE_RETRY);
-		} else {
+		}
+
+		/* Compute the amount of zero padding needed. */
+		if (a->read_data_output_offset + (off_t)s <
+		    a->read_data_offset) {
+			len = s;
+		} else if (a->read_data_output_offset <
+		    a->read_data_offset) {
+			len = a->read_data_offset -
+			    a->read_data_output_offset;
+		} else
+			len = 0;
+
+		/* Add zeroes. */
+		memset(dest, 0, len);
+		s -= len;
+		a->read_data_output_offset += len;
+		dest += len;
+		bytes_read += len;
+
+		/* Copy data if there is any space left. */
+		if (s > 0) {
 			len = a->read_data_remaining;
 			if (len > s)
 				len = s;
@@ -504,19 +529,25 @@ archive_read_data_block(struct archive *a,
 int
 archive_read_close(struct archive *a)
 {
+	int r = ARCHIVE_OK, r1 = ARCHIVE_OK;
+
 	__archive_check_magic(a, ARCHIVE_READ_MAGIC, ARCHIVE_STATE_ANY, "archive_read_close");
 	a->state = ARCHIVE_STATE_CLOSED;
 
 	/* Call cleanup functions registered by optional components. */
 	if (a->cleanup_archive_extract != NULL)
-		(a->cleanup_archive_extract)(a);
+		r = (a->cleanup_archive_extract)(a);
 
 	/* TODO: Finish the format processing. */
 
 	/* Close the input machinery. */
-	if (a->compression_finish != NULL)
-		(a->compression_finish)(a);
-	return (ARCHIVE_OK);
+	if (a->compression_finish != NULL) {
+		r1 = (a->compression_finish)(a);
+		if (r1 < r)
+			r = r1;
+	}
+
+	return (r);
 }
 
 /*

@@ -1,13 +1,12 @@
 /*-
- * Copyright (c) 2003-2004 Tim Kientzle
+ * Copyright (c) 2003-2007 Tim Kientzle
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
  * are met:
  * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer
- *    in this position and unchanged.
+ *    notice, this list of conditions and the following disclaimer.
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
@@ -133,7 +132,7 @@ struct archive {
 	ssize_t	(*compression_read_ahead)(struct archive *,
 		    const void **, size_t request);
 	ssize_t	(*compression_read_consume)(struct archive *, size_t);
-	ssize_t (*compression_skip)(struct archive *, size_t);
+	off_t (*compression_skip)(struct archive *, off_t);
 
 	/*
 	 * Format detection is mostly the same as compression
@@ -182,7 +181,7 @@ struct archive {
 	int	(*format_finish_entry)(struct archive *);
 	int 	(*format_write_header)(struct archive *,
 		    struct archive_entry *);
-	int	(*format_write_data)(struct archive *,
+	ssize_t	(*format_write_data)(struct archive *,
 		    const void *buff, size_t);
 
 	/*
@@ -191,7 +190,7 @@ struct archive {
 	struct extract		 *extract;
 	void			(*extract_progress)(void *);
 	void			 *extract_progress_user_data;
-	void			(*cleanup_archive_extract)(struct archive *);
+	int			(*cleanup_archive_extract)(struct archive *);
 
 	int		  archive_error_number;
 	const char	 *error;

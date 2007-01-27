@@ -1,4 +1,4 @@
-.\" Copyright (c) 2003-2005 Tim Kientzle
+.\" Copyright (c) 2003-2007 Tim Kientzle
 .\" All rights reserved.
 .\"
 .\" Redistribution and use in source and binary forms, with or without
@@ -24,12 +24,11 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd January 8, 2005
+.Dd August 19, 2006
 .Dt archive_read 3
 .Os
 .Sh NAME
 .Nm archive_read_new ,
-.Nm archive_read_set_bytes_per_block ,
 .Nm archive_read_support_compression_all ,
 .Nm archive_read_support_compression_bzip2 ,
 .Nm archive_read_support_compression_compress ,
@@ -41,8 +40,11 @@
 .Nm archive_read_support_format_tar ,
 .Nm archive_read_support_format_zip ,
 .Nm archive_read_open ,
+.Nm archive_read_open2 ,
 .Nm archive_read_open_fd ,
-.Nm archive_read_open_file ,
+.Nm archive_read_open_FILE ,
+.Nm archive_read_open_filename ,
+.Nm archive_read_open_memory ,
 .Nm archive_read_next_header ,
 .Nm archive_read_data ,
 .Nm archive_read_data_block ,
@@ -58,8 +60,6 @@
 .In archive.h
 .Ft struct archive *
 .Fn archive_read_new "void"
-.Ft int
-.Fn archive_read_set_bytes_per_block "struct archive *" "int"
 .Ft int
 .Fn archive_read_support_compression_all "struct archive *"
 .Ft int
@@ -83,9 +83,15 @@
 .Ft int
 .Fn archive_read_open "struct archive *" "void *client_data" "archive_open_callback *" "archive_read_callback *" "archive_close_callback *"
 .Ft int
+.Fn archive_read_open2 "struct archive *" "void *client_data" "archive_open_callback *" "archive_read_callback *" "archive_skip_callback *" "archive_close_callback *"
+.Ft int
+.Fn archive_read_open_FILE "struct archive *" "FILE *file"
+.Ft int
 .Fn archive_read_open_fd "struct archive *" "int fd" "size_t block_size"
 .Ft int
-.Fn archive_read_open_file "struct archive *" "const char *filename" "size_t block_size"
+.Fn archive_read_open_filename "struct archive *" "const char *filename" "size_t block_size"
+.Ft int
+.Fn archive_read_open_memory "struct archive *" "void *buff" "size_t size"
 .Ft int
 .Fn archive_read_next_header "struct archive *" "struct archive_entry **"
 .Ft ssize_t
@@ -120,11 +126,6 @@ order they would be used:
 Allocates and initializes a
 .Tn struct archive
 object suitable for reading from an archive.
-.It Fn archive_read_set_bytes_per_block
-Sets the block size used for reading the archive data.
-This controls the size that will be used when invoking the read
-callback function.
-The default is 20 records or 10240 bytes for tar formats.
 .It Fn archive_read_support_compression_all , Fn archive_read_support_compression_bzip2 , Fn archive_read_support_compression_compress , Fn archive_read_support_compression_gzip , Fn archive_read_support_compression_none
 Enables auto-detection code and decompression support for the
 specified compression.
@@ -146,36 +147,53 @@ For convenience,
 enables support for all available formats.
 Note that there is no default.
 .It Fn archive_read_open
+The same as
+.Fn archive_read_open2 ,
+except that the skip callback is assumed to be
+.Dv NULL .
+.It Fn archive_read_open2
 Freeze the settings, open the archive, and prepare for reading entries.
 This is the most generic version of this call, which accepts
-three callback functions.
+four callback functions.
 Most clients will want to use
-.Fn archive_read_open_file
+.Fn archive_read_open_filename ,
+.Fn archive_read_open_FILE ,
+.Fn archive_read_open_fd ,
 or
-.Fn archive_read_open_fd
+.Fn archive_read_open_memory
 instead.
 The library invokes the client-provided functions to obtain
 raw bytes from the archive.
-Note: The API permits a decompression method to fork and invoke the
-callbacks from another process.
-Although none of the current decompression methods use this technique,
-future decompression methods may utilize this technique.
-If the decompressor forks, it will ensure that the open and close
-callbacks are invoked within the same process as the read callback.
-In particular, clients should not attempt to use shared variables to
-communicate between the open/read/close callbacks and the mainline code.
+.It Fn archive_read_open_FILE
+Like
+.Fn archive_read_open ,
+except that it accepts a
+.Ft "FILE *"
+pointer.
+This function should not be used with tape drives or other devices
+that require strict I/O blocking.
 .It Fn archive_read_open_fd
 Like
 .Fn archive_read_open ,
 except that it accepts a file descriptor and block size rather than
-a trio of function pointers.
+a set of function pointers.
 Note that the file descriptor will not be automatically closed at
 end-of-archive.
+This function is safe for use with tape drives or other blocked devices.
 .It Fn archive_read_open_file
+This is a deprecated synonym for
+.Fn archive_read_open_filename .
+.It Fn archive_read_open_filename
 Like
 .Fn archive_read_open ,
 except that it accepts a simple filename and a block size.
 A NULL filename represents standard input.
+This function is safe for use with tape drives or other blocked devices.
+.It Fn archive_read_open_memory
+Like
+.Fn archive_read_open ,
+except that it accepts a pointer and size of a block of
+memory containing the archive data.
 .It Fn archive_read_next_header
 Read the header for the next entry and return a pointer to
 a
@@ -212,6 +230,12 @@ Note that the client is responsible for sizing the buffer appropriately.
 A convenience function that repeatedly calls
 .Fn archive_read_data_block
 to copy the entire entry to the provided file descriptor.
+.It Fn archive_read_extract_set_skip_file
+This function records the device and inode numbers
+of a file that should not be restored.
+This is a convenience that prevents
+.Fn archive_read_extract
+from restoring a file over the archive itself.
 .It Fn archive_read_extract
 A convenience function that recreates the specified object on
 disk and reads the entry data into that object.
@@ -297,6 +321,14 @@ The callback functions must match the following prototypes:
 .Ft typedef ssize_t
 .Fn archive_read_callback "struct archive *" "void *client_data" "const void **buffer"
 .It
+.\" #if ARCHIVE_API_VERSION < 2
+.Ft typedef int
+.Fn archive_skip_callback "struct archive *" "void *client_data" "size_t request"
+.\" #else
+.\" .Ft typedef off_t
+.\" .Fn archive_skip_callback "struct archive *" "void *client_data" "off_t request"
+.\" #endif
+.It
 .Ft typedef int
 .Fn archive_open_callback "struct archive *" "void *client_data"
 .It
@@ -332,6 +364,22 @@ On error, the read callback should invoke
 .Fn archive_set_error
 to register an error code and message and
 return -1.
+.Pp
+The skip callback is invoked when the
+library wants to ignore a block of data.
+The return value is the number of bytes actually
+skipped, which may differ from the request.
+If the callback cannot skip data, it should return
+zero.
+If the skip callback is not provided (the
+function pointer is
+.Dv NULL ),
+the library will invoke the read function
+instead and simply discard the result.
+A skip callback can provide significant
+performance gains when reading uncompressed
+archives from slow disk drives or other media
+that can skip quickly.
 .Pp
 The close callback is invoked by archive_close when
 the archive processing is complete.

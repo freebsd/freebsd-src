@@ -1,13 +1,12 @@
 /*-
- * Copyright (c) 2003-2004 Tim Kientzle
+ * Copyright (c) 2003-2007 Tim Kientzle
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
  * are met:
  * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer
- *    in this position and unchanged.
+ *    notice, this list of conditions and the following disclaimer.
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
@@ -27,14 +26,23 @@
 #include "archive_platform.h"
 __FBSDID("$FreeBSD$");
 
+#ifdef HAVE_SYS_STAT_H
 #include <sys/stat.h>
+#endif
+#ifdef HAVE_ERRNO_H
 #include <errno.h>
+#endif
+#ifdef HAVE_STDLIB_H
 #include <stdlib.h>
+#endif
+#ifdef HAVE_STRING_H
 #include <string.h>
+#endif
+#ifdef HAVE_UNISTD_H
 #include <unistd.h>
+#endif
 
 #include "archive.h"
-#include "archive_private.h"
 
 struct read_fd_data {
 	int	 fd;
@@ -45,14 +53,18 @@ struct read_fd_data {
 static int	file_close(struct archive *, void *);
 static int	file_open(struct archive *, void *);
 static ssize_t	file_read(struct archive *, void *, const void **buff);
+#if ARCHIVE_API_VERSION < 2
 static ssize_t	file_skip(struct archive *, void *, size_t request);
+#else
+static off_t	file_skip(struct archive *, void *, off_t request);
+#endif
 
 int
 archive_read_open_fd(struct archive *a, int fd, size_t block_size)
 {
 	struct read_fd_data *mine;
 
-	mine = malloc(sizeof(*mine));
+	mine = (struct read_fd_data *)malloc(sizeof(*mine));
 	if (mine == NULL) {
 		archive_set_error(a, ENOMEM, "No memory");
 		return (ARCHIVE_FATAL);
@@ -71,7 +83,7 @@ archive_read_open_fd(struct archive *a, int fd, size_t block_size)
 static int
 file_open(struct archive *a, void *client_data)
 {
-	struct read_fd_data *mine = client_data;
+	struct read_fd_data *mine = (struct read_fd_data *)client_data;
 	struct stat st;
 
 	if (fstat(mine->fd, &st) != 0) {
@@ -79,15 +91,15 @@ file_open(struct archive *a, void *client_data)
 		return (ARCHIVE_FATAL);
 	}
 
-	a->skip_file_dev = st.st_dev;
-	a->skip_file_ino = st.st_ino;
+	if (S_ISREG(st.st_mode))
+		archive_read_extract_set_skip_file(a, st.st_dev, st.st_ino);
 	return (ARCHIVE_OK);
 }
 
 static ssize_t
 file_read(struct archive *a, void *client_data, const void **buff)
 {
-	struct read_fd_data *mine = client_data;
+	struct read_fd_data *mine = (struct read_fd_data *)client_data;
 	ssize_t bytes_read;
 
 	*buff = mine->buffer;
@@ -98,12 +110,17 @@ file_read(struct archive *a, void *client_data, const void **buff)
 	return (bytes_read);
 }
 
+#if ARCHIVE_API_VERSION < 2
 static ssize_t
 file_skip(struct archive *a, void *client_data, size_t request)
+#else
+static off_t
+file_skip(struct archive *a, void *client_data, off_t request)
+#endif
 {
-	struct read_fd_data *mine = client_data;
+	struct read_fd_data *mine = (struct read_fd_data *)client_data;
 	off_t old_offset, new_offset;
-	
+
 	/* Reduce request to the next smallest multiple of block_size */
 	request = (request / mine->block_size) * mine->block_size;
 	/*
@@ -138,7 +155,7 @@ file_skip(struct archive *a, void *client_data, size_t request)
 static int
 file_close(struct archive *a, void *client_data)
 {
-	struct read_fd_data *mine = client_data;
+	struct read_fd_data *mine = (struct read_fd_data *)client_data;
 
 	(void)a; /* UNUSED */
 	if (mine->buffer != NULL)
