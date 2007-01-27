@@ -85,14 +85,7 @@ struct bpf_d {
 	int		bd_async;	/* non-zero if packet reception should generate signal */
 	int		bd_sig;		/* signal to send upon packet reception */
 	struct sigio *	bd_sigio;	/* information for async I/O */
-#if BSD < 199103
-	u_char		bd_selcoll;	/* true if selects collide */
-	int		bd_timedout;
-	struct thread *	bd_selthread;	/* process that last selected us */
-#else
-	u_char		bd_pad;		/* explicit alignment */
 	struct selinfo	bd_sel;		/* bsd select info */
-#endif
 	struct mtx	bd_mtx;		/* mutex for this descriptor */
 	struct callout	bd_callout;	/* for BPF timeouts with select */
 	struct label	*bd_label;	/* MAC label for descriptor */
