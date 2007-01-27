@@ -198,6 +198,9 @@ uint64_t	ifmedia_baudrate(int);
 #define	IFM_IEEE80211_OFDM72	18	/* OFDM 72Mbps */
 #define	IFM_IEEE80211_DS354k	19	/* Direct Sequence 354Kbps */
 #define	IFM_IEEE80211_DS512k	20	/* Direct Sequence 512Kbps */
+#define	IFM_IEEE80211_OFDM3	21	/* OFDM 3Mbps */
+#define	IFM_IEEE80211_OFDM4	22	/* OFDM 4.5Mbps */
+#define	IFM_IEEE80211_OFDM27	23	/* OFDM 27Mbps */
 
 #define	IFM_IEEE80211_ADHOC	0x00000100	/* Operate in Adhoc mode */
 #define	IFM_IEEE80211_HOSTAP	0x00000200	/* Operate in Host AP mode */
@@ -437,6 +440,9 @@ struct ifmedia_description {
 	{ IFM_IEEE80211_OFDM72, "OFDM/72Mbps" },			\
 	{ IFM_IEEE80211_DS354k, "DS/354Kbps" },				\
 	{ IFM_IEEE80211_DS512k, "DS/512Kbps" },				\
+	{ IFM_IEEE80211_OFDM3, "OFDM/3Mbps" },				\
+	{ IFM_IEEE80211_OFDM4, "OFDM/4.5Mbps" },			\
+	{ IFM_IEEE80211_OFDM27, "OFDM/27Mbps" },			\
 	{ 0, NULL },							\
 }
 
@@ -472,6 +478,9 @@ struct ifmedia_description {
 	{ IFM_IEEE80211_DS354k, "DirectSequence/354Kbps" },		\
 	{ IFM_IEEE80211_DS512k, "DS512K" },				\
 	{ IFM_IEEE80211_DS512k, "DirectSequence/512Kbps" },		\
+	{ IFM_IEEE80211_OFDM3, "OFDM3" },				\
+	{ IFM_IEEE80211_OFDM4, "OFDM4.5" },				\
+	{ IFM_IEEE80211_OFDM27, "OFDM27" },				\
 	{ 0, NULL },							\
 }
 
