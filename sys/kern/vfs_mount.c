@@ -194,6 +194,17 @@ vfs_freeopts(struct vfsoptlist *opts)
 	free(opts, M_MOUNT);
 }
 
+void
+vfs_deleteopt(struct vfsoptlist *opts, const char *name)
+{
+	struct vfsopt *opt, *temp;
+  
+	TAILQ_FOREACH_SAFE(opt, opts, link, temp)  {
+		if (strcmp(opt->name, name) == 0)
+			vfs_freeopt(opts, opt);
+	}
+}
+
 /*
  * Check if options are equal (with or without the "no" prefix).
  */
@@ -1421,6 +1432,27 @@ devfs_fixup(struct thread *td)
 
 	/* Unlink the no longer needed /dev/dev -> / symlink */
 	kern_unlink(td, "/dev/dev", UIO_SYSSPACE);
+}
+
+/*
+ * Report errors during filesystem mounting. 
+ */
+void
+vfs_mount_error(struct mount *mp, const char *fmt, ...)
+{
+	struct vfsoptlist *moptlist = mp->mnt_optnew;
+	va_list ap;
+	int error, len;
+	char *errmsg;
+
+	error = vfs_getopt(moptlist, "errmsg", (void **)&errmsg, &len);
+	if (error || errmsg == NULL || len <= 0) {
+		return;
+	}
+
+	va_start(ap, fmt);
+	vsnprintf(errmsg, (size_t)len, fmt, ap);
+	va_end(ap);
 }
 
 /*
