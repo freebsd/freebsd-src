@@ -1,13 +1,12 @@
 /*-
- * Copyright (c) 2003-2004 Tim Kientzle
+ * Copyright (c) 2003-2007 Tim Kientzle
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
  * are met:
  * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer
- *    in this position and unchanged.
+ *    notice, this list of conditions and the following disclaimer.
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
@@ -27,9 +26,15 @@
 #include "archive_platform.h"
 __FBSDID("$FreeBSD$");
 
+#ifdef HAVE_ERRNO_H
 #include <errno.h>
+#endif
+#ifdef HAVE_STDLIB_H
 #include <stdlib.h>
+#endif
+#ifdef HAVE_STRING_H
 #include <string.h>
+#endif
 
 #include "archive.h"
 #include "archive_private.h"
@@ -83,13 +88,14 @@ archive_compressor_none_init(struct archive *a)
 	memset(state, 0, sizeof(*state));
 
 	state->buffer_size = a->bytes_per_block;
-	state->buffer = malloc(state->buffer_size);
-
-	if (state->buffer == NULL) {
-		archive_set_error(a, ENOMEM,
-		    "Can't allocate output buffer");
-		free(state);
-		return (ARCHIVE_FATAL);
+	if (state->buffer_size != 0) {
+		state->buffer = (char *)malloc(state->buffer_size);
+		if (state->buffer == NULL) {
+			archive_set_error(a, ENOMEM,
+			    "Can't allocate output buffer");
+			free(state);
+			return (ARCHIVE_FATAL);
+		}
 	}
 
 	state->next = state->buffer;
@@ -113,8 +119,8 @@ archive_compressor_none_write(struct archive *a, const void *vbuff,
 	ssize_t bytes_written;
 	struct archive_none *state;
 
-	state = a->compression_data;
-	buff = vbuff;
+	state = (struct archive_none *)a->compression_data;
+	buff = (const char *)vbuff;
 	if (a->client_writer == NULL) {
 		archive_set_error(a, ARCHIVE_ERRNO_PROGRAMMER,
 		    "No write callback is registered?  "
@@ -123,7 +129,27 @@ archive_compressor_none_write(struct archive *a, const void *vbuff,
 	}
 
 	remaining = length;
-	while (remaining > 0) {
+
+	/*
+	 * If there is no buffer for blocking, just pass the data
+	 * straight through to the client write callback.  In
+	 * particular, this supports "no write delay" operation for
+	 * special applications.  Just set the block size to zero.
+	 */
+	if (state->buffer_size == 0) {
+		while (remaining > 0) {
+			bytes_written = (a->client_writer)(a, a->client_data,
+			    buff, remaining);
+			if (bytes_written <= 0)
+				return (ARCHIVE_FATAL);
+			remaining -= bytes_written;
+			buff += bytes_written;
+		}
+		a->file_position += length;
+		return (ARCHIVE_OK);
+	}
+
+	while ((remaining > 0) || (state->avail == 0)) {
 		/*
 		 * If we have a full output block, write it and reset the
 		 * output buffer.
@@ -166,7 +192,7 @@ archive_compressor_none_finish(struct archive *a)
 	int ret2;
 	struct archive_none *state;
 
-	state = a->compression_data;
+	state = (struct archive_none *)a->compression_data;
 	ret = ret2 = ARCHIVE_OK;
 	if (a->client_writer == NULL) {
 		archive_set_error(a, ARCHIVE_ERRNO_PROGRAMMER,

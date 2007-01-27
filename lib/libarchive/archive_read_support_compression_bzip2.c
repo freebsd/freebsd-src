@@ -1,13 +1,12 @@
 /*-
- * Copyright (c) 2003-2004 Tim Kientzle
+ * Copyright (c) 2003-2007 Tim Kientzle
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
  * are met:
  * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer
- *    in this position and unchanged.
+ *    notice, this list of conditions and the following disclaimer.
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
@@ -28,11 +27,19 @@
 
 __FBSDID("$FreeBSD$");
 
+#ifdef HAVE_ERRNO_H
 #include <errno.h>
+#endif
 #include <stdio.h>
+#ifdef HAVE_STDLIB_H
 #include <stdlib.h>
+#endif
+#ifdef HAVE_STRING_H
 #include <string.h>
+#endif
+#ifdef HAVE_UNISTD_H
 #include <unistd.h>
+#endif
 #ifdef HAVE_BZLIB_H
 #include <bzlib.h>
 #endif
@@ -81,7 +88,7 @@ bid(const void *buff, size_t len)
 	if (len < 1)
 		return (0);
 
-	buffer = buff;
+	buffer = (const unsigned char *)buff;
 	bits_checked = 0;
 	if (buffer[0] != 'B')	/* Verify first ID byte. */
 		return (0);
@@ -153,7 +160,7 @@ init(struct archive *a, const void *buff, size_t n)
 	a->compression_code = ARCHIVE_COMPRESSION_BZIP2;
 	a->compression_name = "bzip2";
 
-	state = malloc(sizeof(*state));
+	state = (struct private_data *)malloc(sizeof(*state));
 	if (state == NULL) {
 		archive_set_error(a, ENOMEM,
 		    "Can't allocate data for %s decompression",
@@ -163,7 +170,7 @@ init(struct archive *a, const void *buff, size_t n)
 	memset(state, 0, sizeof(*state));
 
 	state->uncompressed_buffer_size = 64 * 1024;
-	state->uncompressed_buffer = malloc(state->uncompressed_buffer_size);
+	state->uncompressed_buffer = (char *)malloc(state->uncompressed_buffer_size);
 	state->stream.next_out = state->uncompressed_buffer;
 	state->read_next = state->uncompressed_buffer;
 	state->stream.avail_out = state->uncompressed_buffer_size;
@@ -182,7 +189,7 @@ init(struct archive *a, const void *buff, size_t n)
 	 * next_in pointer, only reads it).  The result: this ugly
 	 * cast to remove 'const'.
 	 */
-	state->stream.next_in = (void *)(uintptr_t)(const void *)buff;
+	state->stream.next_in = (char *)(uintptr_t)(const void *)buff;
 	state->stream.avail_in = n;
 
 	a->compression_read_ahead = read_ahead;
@@ -245,7 +252,7 @@ read_ahead(struct archive *a, const void **p, size_t min)
 	struct private_data *state;
 	int read_avail, was_avail, ret;
 
-	state = a->compression_data;
+	state = (struct private_data *)a->compression_data;
 	was_avail = -1;
 	if (!a->client_reader) {
 		archive_set_error(a, ARCHIVE_ERRNO_PROGRAMMER,
@@ -286,7 +293,7 @@ read_consume(struct archive *a, size_t n)
 {
 	struct private_data *state;
 
-	state = a->compression_data;
+	state = (struct private_data *)a->compression_data;
 	a->file_position += n;
 	state->read_next += n;
 	if (state->read_next > state->stream.next_out)
@@ -304,7 +311,7 @@ finish(struct archive *a)
 	struct private_data *state;
 	int ret;
 
-	state = a->compression_data;
+	state = (struct private_data *)a->compression_data;
 	ret = ARCHIVE_OK;
 	switch (BZ2_bzDecompressEnd(&(state->stream))) {
 	case BZ_OK:

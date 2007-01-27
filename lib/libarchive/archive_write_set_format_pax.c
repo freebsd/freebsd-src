@@ -1,13 +1,12 @@
 /*-
- * Copyright (c) 2003-2004 Tim Kientzle
+ * Copyright (c) 2003-2007 Tim Kientzle
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
  * are met:
  * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer
- *    in this position and unchanged.
+ *    notice, this list of conditions and the following disclaimer.
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
@@ -27,7 +26,9 @@
 #include "archive_platform.h"
 __FBSDID("$FreeBSD$");
 
+#ifdef HAVE_SYS_STAT_H
 #include <sys/stat.h>
+#endif
 #ifdef MAJOR_IN_MKDEV
 #include <sys/mkdev.h>
 #else
@@ -35,10 +36,18 @@ __FBSDID("$FreeBSD$");
 #include <sys/sysmacros.h>
 #endif
 #endif
+#ifdef HAVE_ERRNO_H
 #include <errno.h>
+#endif
+#ifdef HAVE_STDLIB_H
 #include <stdlib.h>
+#endif
+#ifdef HAVE_STRING_H
 #include <string.h>
+#endif
+#ifdef HAVE_UNISTD_H
 #include <unistd.h>
+#endif
 
 #include "archive.h"
 #include "archive_entry.h"
@@ -60,7 +69,7 @@ static void		 add_pax_attr_time(struct archive_string *,
 			     unsigned long nanos);
 static void		 add_pax_attr_w(struct archive_string *,
 			     const char *key, const wchar_t *wvalue);
-static int		 archive_write_pax_data(struct archive *,
+static ssize_t		 archive_write_pax_data(struct archive *,
 			     const void *, size_t);
 static int		 archive_write_pax_finish(struct archive *);
 static int		 archive_write_pax_finish_entry(struct archive *);
@@ -103,7 +112,7 @@ archive_write_set_format_pax(struct archive *a)
 	if (a->format_finish != NULL)
 		(a->format_finish)(a);
 
-	pax = malloc(sizeof(*pax));
+	pax = (struct pax *)malloc(sizeof(*pax));
 	if (pax == NULL) {
 		archive_set_error(a, ENOMEM, "Can't allocate pax data");
 		return (ARCHIVE_FATAL);
@@ -218,7 +227,7 @@ utf8_encode(const wchar_t *wval)
 		/* Ignore larger values; UTF-8 can't encode them. */
 	}
 
-	utf8_value = malloc(utf8len + 1);
+	utf8_value = (char *)malloc(utf8len + 1);
 	if (utf8_value == NULL) {
 		__archive_errx(1, "Not enough memory for attributes");
 		return (NULL);
@@ -346,7 +355,7 @@ archive_write_pax_header_xattrs(struct pax *pax, struct archive_entry *entry)
 		if (url_encoded_name != NULL) {
 			/* Convert narrow-character to wide-character. */
 			int wcs_length = strlen(url_encoded_name);
-			wcs_name = malloc((wcs_length + 1) * sizeof(wchar_t));
+			wcs_name = (wchar_t *)malloc((wcs_length + 1) * sizeof(wchar_t));
 			if (wcs_name == NULL)
 				__archive_errx(1, "No memory for xattr conversion");
 			mbstowcs(wcs_name, url_encoded_name, wcs_length);
@@ -358,7 +367,7 @@ archive_write_pax_header_xattrs(struct pax *pax, struct archive_entry *entry)
 			free(wcs_name); /* Done with wchar_t name. */
 		}
 
-		encoded_value = base64_encode(value, size);
+		encoded_value = base64_encode((const char *)value, size);
 
 		if (encoded_name != NULL && encoded_value != NULL) {
 			archive_string_init(&s);
@@ -397,7 +406,7 @@ archive_write_pax_header(struct archive *a,
 	char pax_entry_name[256];
 
 	need_extension = 0;
-	pax = a->format_data;
+	pax = (struct pax *)a->format_data;
 	pax->written = 1;
 
 	st_original = archive_entry_stat(entry_original);
@@ -795,7 +804,7 @@ archive_write_pax_header(struct archive *a,
 		}
 
 		pax->entry_bytes_remaining = archive_strlen(&(pax->pax_header));
-		pax->entry_padding = 0x1ff & (- pax->entry_bytes_remaining);
+		pax->entry_padding = 0x1ff & (-(int64_t)pax->entry_bytes_remaining);
 
 		r = (a->compression_write)(a, pax->pax_header.s,
 		    archive_strlen(&(pax->pax_header)));
@@ -824,7 +833,7 @@ archive_write_pax_header(struct archive *a,
 	 */
 	archive_entry_set_size(entry_original, archive_entry_size(entry_main));
 	pax->entry_bytes_remaining = archive_entry_size(entry_main);
-	pax->entry_padding = 0x1ff & (- pax->entry_bytes_remaining);
+	pax->entry_padding = 0x1ff & (-(int64_t)pax->entry_bytes_remaining);
 	archive_entry_free(entry_main);
 
 	return (ret);
@@ -1035,7 +1044,7 @@ archive_write_pax_finish(struct archive *a)
 	int r;
 
 	r = ARCHIVE_OK;
-	pax = a->format_data;
+	pax = (struct pax *)a->format_data;
 	if (pax->written && a->compression_write != NULL)
 		r = write_nulls(a, 512 * 2);
 	archive_string_free(&pax->pax_header);
@@ -1050,7 +1059,7 @@ archive_write_pax_finish_entry(struct archive *a)
 	struct pax *pax;
 	int ret;
 
-	pax = a->format_data;
+	pax = (struct pax *)a->format_data;
 	ret = write_nulls(a, pax->entry_bytes_remaining + pax->entry_padding);
 	pax->entry_bytes_remaining = pax->entry_padding = 0;
 	return (ret);
@@ -1071,20 +1080,23 @@ write_nulls(struct archive *a, size_t padding)
 	return (ARCHIVE_OK);
 }
 
-static int
+static ssize_t
 archive_write_pax_data(struct archive *a, const void *buff, size_t s)
 {
 	struct pax *pax;
 	int ret;
 
-	pax = a->format_data;
+	pax = (struct pax *)a->format_data;
 	pax->written = 1;
 	if (s > pax->entry_bytes_remaining)
 		s = pax->entry_bytes_remaining;
 
 	ret = (a->compression_write)(a, buff, s);
 	pax->entry_bytes_remaining -= s;
-	return (ret);
+	if (ret == ARCHIVE_OK)
+		return (s);
+	else
+		return (ret);
 }
 
 static int
@@ -1143,12 +1155,16 @@ static char *
 base64_encode(const char *s, size_t len)
 {
 	static const char digits[64] =
-	    "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
+	    { 'A','B','C','D','E','F','G','H','I','J','K','L','M','N','O',
+	      'P','Q','R','S','T','U','V','W','X','Y','Z','a','b','c','d',
+	      'e','f','g','h','i','j','k','l','m','n','o','p','q','r','s',
+	      't','u','v','w','x','y','z','0','1','2','3','4','5','6','7',
+	      '8','9','+','/' };
 	int v;
 	char *d, *out;
 
 	/* 3 bytes becomes 4 chars, but round up and allow for trailing NUL */
-	out = malloc((len * 4 + 2) / 3 + 1);
+	out = (char *)malloc((len * 4 + 2) / 3 + 1);
 	if (out == NULL)
 		return (NULL);
 	d = out;

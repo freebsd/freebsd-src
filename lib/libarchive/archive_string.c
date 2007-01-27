@@ -1,13 +1,12 @@
 /*-
- * Copyright (c) 2003-2004 Tim Kientzle
+ * Copyright (c) 2003-2007 Tim Kientzle
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
  * are met:
  * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer
- *    in this position and unchanged.
+ *    notice, this list of conditions and the following disclaimer.
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
@@ -32,8 +31,12 @@ __FBSDID("$FreeBSD$");
  * strings while minimizing heap activity.
  */
 
+#ifdef HAVE_STDLIB_H
 #include <stdlib.h>
+#endif
+#ifdef HAVE_STRING_H
 #include <string.h>
+#endif
 
 #include "archive_private.h"
 #include "archive_string.h"
@@ -67,7 +70,7 @@ __archive_string_ensure(struct archive_string *as, size_t s)
 		as->buffer_length = 32;
 	while (as->buffer_length < s)
 		as->buffer_length *= 2;
-	as->s = realloc(as->s, as->buffer_length);
+	as->s = (char *)realloc(as->s, as->buffer_length);
 	/* TODO: Return null instead and fix up all of our callers to
 	 * handle this correctly. */
 	if (as->s == NULL)
@@ -100,7 +103,7 @@ __archive_strappend_char(struct archive_string *as, char c)
 struct archive_string *
 __archive_strappend_int(struct archive_string *as, int d, int base)
 {
-	static const char *digits = "0123457890abcdef";
+	static const char *digits = "0123456789abcdef";
 
 	if (d < 0) {
 		__archive_strappend_char(as, '-');
