@@ -54,31 +54,37 @@ static const char rcsid[] =
 
 #include "mntopts.h"
 
-struct mntopt mopts[] = {
-	MOPT_STDOPTS,
-	MOPT_ASYNC,
-	MOPT_FORCE,
-	MOPT_SYNC,
-	MOPT_UPDATE,
-	MOPT_END
-};
-
-static void	usage(void) __dead2;
+static void	usage(void);
 
 int
-main(argc, argv)
-	int argc;
-	char *argv[];
+main(int argc, char *argv[])
 {
-	struct iovec iov[6];
-	int ch, mntflags;
+	struct iovec *iov;
+	int ch, iovlen;
 	char *fs_name, *fspec, mntpath[MAXPATHLEN];
+	char *fstype;
 
-	mntflags = 0;
+	fstype = strrchr(argv[0], '_');
+	if (fstype == NULL)
+		errx(EX_USAGE, "argv[0] must end in _fstype");
+	else
+		++fstype;
+
+	iov = NULL;
+	iovlen = 0;
 	while ((ch = getopt(argc, argv, "o:")) != -1)
 		switch (ch) {
-		case 'o':
-			getmntopts(optarg, mopts, &mntflags, 0);
+		case 'o': {
+			char *p = NULL;
+			char *val = strdup("");
+			p = strchr(optarg, '=');
+			if (p != NULL) {
+				free(val);
+				*p = '\0';
+				val = p + 1;
+			}
+			build_iovec(&iov, &iovlen, optarg, val, strlen(val)+1);
+			}
 			break;
 		case '?':
 		default:
@@ -100,24 +106,16 @@ main(argc, argv)
 	(void)checkpath(fs_name, mntpath);
 	(void)rmslashes(fspec, fspec);
 
-	iov[0].iov_base = "fstype";
-	iov[0].iov_len = sizeof("fstype");
-	iov[1].iov_base = "ext2fs";
-	iov[1].iov_len = strlen(iov[1].iov_base) + 1;
-	iov[2].iov_base = "fspath";
-	iov[2].iov_len = sizeof("fspath");
-	iov[3].iov_base = mntpath;
-	iov[3].iov_len = strlen(mntpath) + 1;
-	iov[4].iov_base = "from";
-	iov[4].iov_len = sizeof("from");
-	iov[5].iov_base = fspec;
-	iov[5].iov_len = strlen(fspec) + 1;
-	if (nmount(iov, 6, mntflags) < 0)
+	build_iovec(&iov, &iovlen, "fstype", fstype, strlen(fstype) + 1);
+	build_iovec(&iov, &iovlen, "fspath", mntpath, strlen(mntpath) + 1);
+	build_iovec(&iov, &iovlen, "from", fspec, strlen(fspec) + 1);
+
+	if (nmount(iov, iovlen, 0) < 0)
 		err(EX_OSERR, "%s", fspec);
-	exit(0);
+	return (0);
 }
 
-void
+static void
 usage()
 {
 	(void)fprintf(stderr,
