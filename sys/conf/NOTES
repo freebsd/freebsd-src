@@ -2436,6 +2436,8 @@ device		ubsa
 device		ubser
 # USB support for serial adapters based on the FT8U100AX and FT8U232AM
 device		uftdi
+# USB support for some Windows CE based serial communication.
+device		uipaq
 # USB support for Prolific PL-2303 serial adapters
 device		uplcom
 # USB Visor and Palm devices
