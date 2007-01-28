@@ -3435,6 +3435,126 @@ ath_tx_findrix(const HAL_RATE_TABLE *rt, int rate)
 }
 
 static int
+ath_tx_dmasetup(struct ath_softc *sc, struct ath_buf *bf, struct mbuf *m0)
+{
+	struct mbuf *m;
+	int error;
+
+	/*
+	 * Load the DMA map so any coalescing is done.  This
+	 * also calculates the number of descriptors we need.
+	 */
+	error = bus_dmamap_load_mbuf_sg(sc->sc_dmat, bf->bf_dmamap, m0,
+				     bf->bf_segs, &bf->bf_nseg,
+				     BUS_DMA_NOWAIT);
+	if (error == EFBIG) {
+		/* XXX packet requires too many descriptors */
+		bf->bf_nseg = ATH_TXDESC+1;
+	} else if (error != 0) {
+		sc->sc_stats.ast_tx_busdma++;
+		m_freem(m0);
+		return error;
+	}
+	/*
+	 * Discard null packets and check for packets that
+	 * require too many TX descriptors.  We try to convert
+	 * the latter to a cluster.
+	 */
+	if (bf->bf_nseg > ATH_TXDESC) {		/* too many desc's, linearize */
+		sc->sc_stats.ast_tx_linear++;
+		m = ath_defrag(m0, M_DONTWAIT, ATH_TXDESC);
+		if (m == NULL) {
+			m_freem(m0);
+			sc->sc_stats.ast_tx_nombuf++;
+			return ENOMEM;
+		}
+		m0 = m;
+		error = bus_dmamap_load_mbuf_sg(sc->sc_dmat, bf->bf_dmamap, m0,
+					     bf->bf_segs, &bf->bf_nseg,
+					     BUS_DMA_NOWAIT);
+		if (error != 0) {
+			sc->sc_stats.ast_tx_busdma++;
+			m_freem(m0);
+			return error;
+		}
+		KASSERT(bf->bf_nseg <= ATH_TXDESC,
+		    ("too many segments after defrag; nseg %u", bf->bf_nseg));
+	} else if (bf->bf_nseg == 0) {		/* null packet, discard */
+		sc->sc_stats.ast_tx_nodata++;
+		m_freem(m0);
+		return EIO;
+	}
+	DPRINTF(sc, ATH_DEBUG_XMIT, "%s: m %p len %u\n",
+		__func__, m0, m0->m_pkthdr.len);
+	bus_dmamap_sync(sc->sc_dmat, bf->bf_dmamap, BUS_DMASYNC_PREWRITE);
+	bf->bf_m = m0;
+
+	return 0;
+}
+
+static void
+ath_tx_handoff(struct ath_softc *sc, struct ath_txq *txq, struct ath_buf *bf)
+{
+	struct ath_hal *ah = sc->sc_ah;
+	struct ath_desc *ds, *ds0;
+	int i;
+
+	/*
+	 * Fillin the remainder of the descriptor info.
+	 */
+	ds0 = ds = bf->bf_desc;
+	for (i = 0; i < bf->bf_nseg; i++, ds++) {
+		ds->ds_data = bf->bf_segs[i].ds_addr;
+		if (i == bf->bf_nseg - 1)
+			ds->ds_link = 0;
+		else
+			ds->ds_link = bf->bf_daddr + sizeof(*ds) * (i + 1);
+		ath_hal_filltxdesc(ah, ds
+			, bf->bf_segs[i].ds_len	/* segment length */
+			, i == 0		/* first segment */
+			, i == bf->bf_nseg - 1	/* last segment */
+			, ds0			/* first descriptor */
+		);
+		DPRINTF(sc, ATH_DEBUG_XMIT,
+			"%s: %d: %08x %08x %08x %08x %08x %08x\n",
+			__func__, i, ds->ds_link, ds->ds_data,
+			ds->ds_ctl0, ds->ds_ctl1, ds->ds_hw[0], ds->ds_hw[1]);
+	}
+	/*
+	 * Insert the frame on the outbound list and pass it on
+	 * to the hardware.  Multicast frames buffered for power
+	 * save stations and transmit from the CAB queue are stored
+	 * on a s/w only queue and loaded on to the CAB queue in
+	 * the SWBA handler since frames only go out on DTIM and
+	 * to avoid possible races.
+	 */
+	ATH_TXQ_LOCK(txq);
+	ATH_TXQ_INSERT_TAIL(txq, bf, bf_list);
+	if (txq != &sc->sc_mcastq) {
+		if (txq->axq_link == NULL) {
+			ath_hal_puttxbuf(ah, txq->axq_qnum, bf->bf_daddr);
+			DPRINTF(sc, ATH_DEBUG_XMIT,
+			    "%s: TXDP[%u] = %p (%p) depth %d\n", __func__,
+			    txq->axq_qnum, (caddr_t)bf->bf_daddr, bf->bf_desc,
+			    txq->axq_depth);
+		} else {
+			*txq->axq_link = bf->bf_daddr;
+			DPRINTF(sc, ATH_DEBUG_XMIT,
+			    "%s: link[%u](%p)=%p (%p) depth %d\n", __func__,
+			    txq->axq_qnum, txq->axq_link,
+			    (caddr_t)bf->bf_daddr, bf->bf_desc, txq->axq_depth);
+		}
+		txq->axq_link = &bf->bf_desc[bf->bf_nseg - 1].ds_link;
+		ath_hal_txstart(ah, txq->axq_qnum);
+	} else {
+		if (txq->axq_link != NULL)
+			*txq->axq_link = bf->bf_daddr;
+		txq->axq_link = &bf->bf_desc[bf->bf_nseg - 1].ds_link;
+	}
+	ATH_TXQ_UNLOCK(txq);
+}
+
+static int
 ath_tx_start(struct ath_softc *sc, struct ieee80211_node *ni, struct ath_buf *bf,
     struct mbuf *m0)
 {
@@ -3442,11 +3562,11 @@ ath_tx_start(struct ath_softc *sc, struct ieee80211_node *ni, struct ath_buf *bf
 	struct ath_hal *ah = sc->sc_ah;
 	struct ifnet *ifp = sc->sc_ifp;
 	const struct chanAccParams *cap = &ic->ic_wme.wme_chanParams;
-	int i, error, iswep, ismcast, ismrr;
+	int error, iswep, ismcast, ismrr;
 	int keyix, hdrlen, pktlen, try0;
 	u_int8_t rix, txrate, ctsrate;
 	u_int8_t cix = 0xff;		/* NB: silence compiler */
-	struct ath_desc *ds, *ds0;
+	struct ath_desc *ds;
 	struct ath_txq *txq;
 	struct ieee80211_frame *wh;
 	u_int subtype, flags, ctsduration;
@@ -3454,7 +3574,6 @@ ath_tx_start(struct ath_softc *sc, struct ieee80211_node *ni, struct ath_buf *bf
 	const HAL_RATE_TABLE *rt;
 	HAL_BOOL shortPreamble;
 	struct ath_node *an;
-	struct mbuf *m;
 	u_int pri;
 
 	wh = mtod(m0, struct ieee80211_frame *);
@@ -3520,50 +3639,12 @@ ath_tx_start(struct ath_softc *sc, struct ieee80211_node *ni, struct ath_buf *bf
 	 * Load the DMA map so any coalescing is done.  This
 	 * also calculates the number of descriptors we need.
 	 */
-	error = bus_dmamap_load_mbuf_sg(sc->sc_dmat, bf->bf_dmamap, m0,
-				     bf->bf_segs, &bf->bf_nseg,
-				     BUS_DMA_NOWAIT);
-	if (error == EFBIG) {
-		/* XXX packet requires too many descriptors */
-		bf->bf_nseg = ATH_TXDESC+1;
-	} else if (error != 0) {
-		sc->sc_stats.ast_tx_busdma++;
-		m_freem(m0);
+	error = ath_tx_dmasetup(sc, bf, m0);
+	if (error != 0)
 		return error;
-	}
-	/*
-	 * Discard null packets and check for packets that
-	 * require too many TX descriptors.  We try to convert
-	 * the latter to a cluster.
-	 */
-	if (bf->bf_nseg > ATH_TXDESC) {		/* too many desc's, linearize */
-		sc->sc_stats.ast_tx_linear++;
-		m = ath_defrag(m0, M_DONTWAIT, ATH_TXDESC);
-		if (m == NULL) {
-			m_freem(m0);
-			sc->sc_stats.ast_tx_nombuf++;
-			return ENOMEM;
-		}
-		m0 = m;
-		error = bus_dmamap_load_mbuf_sg(sc->sc_dmat, bf->bf_dmamap, m0,
-					     bf->bf_segs, &bf->bf_nseg,
-					     BUS_DMA_NOWAIT);
-		if (error != 0) {
-			sc->sc_stats.ast_tx_busdma++;
-			m_freem(m0);
-			return error;
-		}
-		KASSERT(bf->bf_nseg <= ATH_TXDESC,
-		    ("too many segments after defrag; nseg %u", bf->bf_nseg));
-	} else if (bf->bf_nseg == 0) {		/* null packet, discard */
-		sc->sc_stats.ast_tx_nodata++;
-		m_freem(m0);
-		return EIO;
-	}
-	DPRINTF(sc, ATH_DEBUG_XMIT, "%s: m %p len %u\n", __func__, m0, pktlen);
-	bus_dmamap_sync(sc->sc_dmat, bf->bf_dmamap, BUS_DMASYNC_PREWRITE);
-	bf->bf_m = m0;
 	bf->bf_node = ni;			/* NB: held reference */
+	m0 = bf->bf_m;				/* NB: may have changed */
+	wh = mtod(m0, struct ieee80211_frame *);
 
 	/* setup descriptors */
 	ds = bf->bf_desc;
@@ -3845,60 +3926,7 @@ ath_tx_start(struct ath_softc *sc, struct ieee80211_node *ni, struct ath_buf *bf
 	if (ismrr)
 		ath_rate_setupxtxdesc(sc, an, ds, shortPreamble, rix);
 
-	/*
-	 * Fillin the remainder of the descriptor info.
-	 */
-	ds0 = ds;
-	for (i = 0; i < bf->bf_nseg; i++, ds++) {
-		ds->ds_data = bf->bf_segs[i].ds_addr;
-		if (i == bf->bf_nseg - 1)
-			ds->ds_link = 0;
-		else
-			ds->ds_link = bf->bf_daddr + sizeof(*ds) * (i + 1);
-		ath_hal_filltxdesc(ah, ds
-			, bf->bf_segs[i].ds_len	/* segment length */
-			, i == 0		/* first segment */
-			, i == bf->bf_nseg - 1	/* last segment */
-			, ds0			/* first descriptor */
-		);
-		DPRINTF(sc, ATH_DEBUG_XMIT,
-			"%s: %d: %08x %08x %08x %08x %08x %08x\n",
-			__func__, i, ds->ds_link, ds->ds_data,
-			ds->ds_ctl0, ds->ds_ctl1, ds->ds_hw[0], ds->ds_hw[1]);
-	}
-	/*
-	 * Insert the frame on the outbound list and pass it on
-	 * to the hardware.  Multicast frames buffered for power
-	 * save stations and transmit from the CAB queue are stored
-	 * on a s/w only queue and loaded on to the CAB queue in
-	 * the SWBA handler since frames only go out on DTIM and
-	 * to avoid possible races.
-	 */
-	ATH_TXQ_LOCK(txq);
-	ATH_TXQ_INSERT_TAIL(txq, bf, bf_list);
-	if (txq != &sc->sc_mcastq) {
-		if (txq->axq_link == NULL) {
-			ath_hal_puttxbuf(ah, txq->axq_qnum, bf->bf_daddr);
-			DPRINTF(sc, ATH_DEBUG_XMIT,
-			    "%s: TXDP[%u] = %p (%p) depth %d\n", __func__,
-			    txq->axq_qnum, (caddr_t)bf->bf_daddr, bf->bf_desc,
-			    txq->axq_depth);
-		} else {
-			*txq->axq_link = bf->bf_daddr;
-			DPRINTF(sc, ATH_DEBUG_XMIT,
-			    "%s: link[%u](%p)=%p (%p) depth %d\n", __func__,
-			    txq->axq_qnum, txq->axq_link,
-			    (caddr_t)bf->bf_daddr, bf->bf_desc, txq->axq_depth);
-		}
-		txq->axq_link = &bf->bf_desc[bf->bf_nseg - 1].ds_link;
-		ath_hal_txstart(ah, txq->axq_qnum);
-	} else {
-		if (txq->axq_link != NULL)
-			*txq->axq_link = bf->bf_daddr;
-		txq->axq_link = &bf->bf_desc[bf->bf_nseg - 1].ds_link;
-	}
-	ATH_TXQ_UNLOCK(txq);
-
+	ath_tx_handoff(sc, txq, bf);
 	return 0;
 }
 
