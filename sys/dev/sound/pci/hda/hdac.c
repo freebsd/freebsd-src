@@ -80,7 +80,7 @@
 
 #include "mixer_if.h"
 
-#define HDA_DRV_TEST_REV	"20070105_0038"
+#define HDA_DRV_TEST_REV	"20070128_0039"
 #define HDA_WIDGET_PARSER_REV	1
 
 SND_DECLARE_FILE("$FreeBSD$");
@@ -172,6 +172,7 @@ SND_DECLARE_FILE("$FreeBSD$");
 #define HP_NX7400_SUBVENDOR	HDA_MODEL_CONSTRUCT(HP, 0x30a2)
 #define HP_NX6310_SUBVENDOR	HDA_MODEL_CONSTRUCT(HP, 0x30aa)
 #define HP_NX6325_SUBVENDOR	HDA_MODEL_CONSTRUCT(HP, 0x30b0)
+#define HP_XW4300_SUBVENDOR	HDA_MODEL_CONSTRUCT(HP, 0x3013)
 #define HP_ALL_SUBVENDOR	HDA_MODEL_CONSTRUCT(HP, 0xffff)
 /* What is wrong with XN 2563 anyway? (Got the picture ?) */
 #define HP_NX6325_SUBVENDORX	0x103c30b0
@@ -529,8 +530,10 @@ static const struct {
 	    13, { 14, -1 }, -1 },
 	{ LENOVO_ALL_SUBVENDOR, HDA_CODEC_AD1986A, HDAC_HP_SWITCH_CTL, 1,
 	    26, { 27, -1 }, -1 },
+#if 0
 	{ ACER_ALL_SUBVENDOR, HDA_CODEC_ALC883, HDAC_HP_SWITCH_CTL, 0,
 	    20, { 21, -1 }, -1 },
+#endif
 };
 #define HDAC_HP_SWITCH_LEN	\
 		(sizeof(hdac_hp_switch) / sizeof(hdac_hp_switch[0]))
@@ -3607,6 +3610,18 @@ hdac_vendor_patch_parse(struct hdac_devinfo *devinfo)
 			if (w->nid != 5)
 				w->enable = 0;
 		}
+		if (subvendor == HP_XW4300_SUBVENDOR) {
+			ctl = hdac_audio_ctl_amp_get(devinfo, 16, 0, 1);
+			if (ctl != NULL && ctl->widget != NULL) {
+				ctl->ossmask = SOUND_MASK_SPEAKER;
+				ctl->widget->ctlflags |= SOUND_MASK_SPEAKER;
+			}
+			ctl = hdac_audio_ctl_amp_get(devinfo, 17, 0, 1);
+			if (ctl != NULL && ctl->widget != NULL) {
+				ctl->ossmask = SOUND_MASK_SPEAKER;
+				ctl->widget->ctlflags |= SOUND_MASK_SPEAKER;
+			}
+		}
 		break;
 	case HDA_CODEC_ALC861:
 		ctl = hdac_audio_ctl_amp_get(devinfo, 28, 1, 1);
@@ -4358,7 +4373,7 @@ hdac_audio_ctl_commit(struct hdac_devinfo *devinfo)
 					printf(" childnid=%d",
 					ctl->childwidget->nid);
 				printf(" Bind to NONE\n");
-		}
+			}
 		);
 		if (ctl->step > 0) {
 			ctl->ossval = (ctl->left * 100) / ctl->step;
