@@ -680,7 +680,7 @@ sf_buf_init(void *arg)
 }
 
 /*
- * Get an sf_buf from the freelist. Will block if none are available.
+ * Get an sf_buf from the freelist.  May block if none are available.
  */
 struct sf_buf *
 sf_buf_alloc(struct vm_page *m, int flags)
