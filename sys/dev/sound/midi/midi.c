@@ -1,6 +1,5 @@
 /*-
- * (c) 2003 Mathew Kanner
- * 
+ * Copyright (c) 2003 Mathew Kanner
  * Copyright (c) 1998 The NetBSD Foundation, Inc.
  * All rights reserved.
  *

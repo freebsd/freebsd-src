@@ -1,7 +1,7 @@
 /*-
- * Include file for midi sequencer driver.
- * (c) 2003 Mathew Kanner
- * Copyright by Seigo Tanimura 1999.
+ * Copyright (c) 2003 Mathew Kanner
+ * Copyright (c) 1999 Seigo Tanimura
+ * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -25,6 +25,10 @@
  * SUCH DAMAGE.
  *
  * $FreeBSD$
+ */
+
+/*
+ * Include file for the midi sequence driver.
  */
 
 #ifndef _SEQUENCER_H_
