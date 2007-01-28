@@ -1054,6 +1054,7 @@ dev/usb/uhci.c			optional uhci
 dev/usb/uhci_pci.c		optional uhci pci
 dev/usb/uhid.c			optional uhid
 dev/usb/uhub.c			optional usb
+dev/usb/uipaq.c			optional uipaq
 dev/usb/ukbd.c			optional ukbd
 dev/usb/ulpt.c			optional ulpt
 dev/usb/umass.c			optional umass
