@@ -208,6 +208,7 @@ MAN=	accept_filter.9 \
 	securelevel_gt.9 \
 	selrecord.9 \
 	sema.9 \
+	sf_buf.9 \
 	signal.9 \
 	sleep.9 \
 	sleepqueue.9 \
