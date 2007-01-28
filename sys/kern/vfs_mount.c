@@ -86,6 +86,7 @@ static int	vfs_donmount(struct thread *td, int fsflags,
 		    struct uio *fsoptions);
 static void	free_mntarg(struct mntarg *ma);
 static void	vfs_mount_destroy(struct mount *);
+static int	vfs_getopt_pos(struct vfsoptlist *opts, const char *name);
 
 static int	usermount = 0;
 SYSCTL_INT(_vfs, OID_AUTO, usermount, CTLFLAG_RW, &usermount, 0,
@@ -585,12 +586,23 @@ static int
 vfs_donmount(struct thread *td, int fsflags, struct uio *fsoptions)
 {
 	struct vfsoptlist *optlist;
-	char *fstype, *fspath;
-	int error, fstypelen, fspathlen;
+	struct vfsopt *opt, *noro_opt;
+	char *fstype, *fspath, *errmsg;
+	int error, fstypelen, fspathlen, errmsg_len, errmsg_pos;
+	int has_rw, has_noro;
+
+	errmsg = NULL;
+	errmsg_len = 0;
+	errmsg_pos = -1;
+	has_rw = 0;
+	has_noro = 0;
 
 	error = vfs_buildopts(fsoptions, &optlist);
 	if (error)
 		return (error);
+
+	if (vfs_getopt(optlist, "errmsg", (void **)&errmsg, &errmsg_len) == 0) 
+		errmsg_pos = vfs_getopt_pos(optlist, "errmsg");
 
 	/*
 	 * We need these two options before the others,
@@ -601,12 +613,16 @@ vfs_donmount(struct thread *td, int fsflags, struct uio *fsoptions)
 	error = vfs_getopt(optlist, "fstype", (void **)&fstype, &fstypelen);
 	if (error || fstype[fstypelen - 1] != '\0') {
 		error = EINVAL;
+		if (errmsg != NULL)
+			strncpy(errmsg, "Invalid fstype", errmsg_len);
 		goto bail;
 	}
 	fspathlen = 0;
 	error = vfs_getopt(optlist, "fspath", (void **)&fspath, &fspathlen);
 	if (error || fspath[fspathlen - 1] != '\0') {
 		error = EINVAL;
+		if (errmsg != NULL)
+			strncpy(errmsg, "Invalid fspath", errmsg_len);
 		goto bail;
 	}
 
@@ -616,62 +632,63 @@ vfs_donmount(struct thread *td, int fsflags, struct uio *fsoptions)
 	 * logic based on MNT_UPDATE.  This is very important
 	 * when we want to update the root filesystem.
 	 */ 
-	if (vfs_getopt(optlist, "update", NULL, NULL) == 0)
-		fsflags |= MNT_UPDATE;
+	TAILQ_FOREACH(opt, optlist, link) {
+		if (strcmp(opt->name, "update") == 0)
+			fsflags |= MNT_UPDATE;
+		else if (strcmp(opt->name, "async") == 0)
+			fsflags |= MNT_ASYNC;
+		else if (strcmp(opt->name, "force") == 0)
+			fsflags |= MNT_FORCE;
+		else if (strcmp(opt->name, "multilabel") == 0)
+			fsflags |= MNT_MULTILABEL;
+		else if (strcmp(opt->name, "noasync") == 0)
+			fsflags &= ~MNT_ASYNC;
+		else if (strcmp(opt->name, "noatime") == 0)
+			fsflags |= MNT_NOATIME;
+		else if (strcmp(opt->name, "noclusterr") == 0)
+			fsflags |= MNT_NOCLUSTERR;
+		else if (strcmp(opt->name, "noclusterw") == 0)
+			fsflags |= MNT_NOCLUSTERW;
+		else if (strcmp(opt->name, "noexec") == 0)
+			fsflags |= MNT_NOEXEC;
+		else if (strcmp(opt->name, "nosuid") == 0)
+			fsflags |= MNT_NOSUID;
+		else if (strcmp(opt->name, "nosymfollow") == 0)
+			fsflags |= MNT_NOSYMFOLLOW;
+		else if (strcmp(opt->name, "noro") == 0) {
+			fsflags &= ~MNT_RDONLY;
+			has_noro = 1;
+		}
+		else if (strcmp(opt->name, "rw") == 0) {
+			fsflags &= ~MNT_RDONLY;
+			has_rw = 1;
+		}
+		else if (strcmp(opt->name, "ro") == 0 ||
+		    strcmp(opt->name, "rdonly") == 0)
+			fsflags |= MNT_RDONLY;
+		else if (strcmp(opt->name, "snapshot") == 0)
+			fsflags |= MNT_SNAPSHOT;
+		else if (strcmp(opt->name, "suiddir") == 0)
+			fsflags |= MNT_SUIDDIR;
+		else if (strcmp(opt->name, "sync") == 0)
+			fsflags |= MNT_SYNCHRONOUS;
+		else if (strcmp(opt->name, "union") == 0)
+			fsflags |= MNT_UNION;
+	}
 
-	if (vfs_getopt(optlist, "async", NULL, NULL) == 0)
-		fsflags |= MNT_ASYNC;
-
-	if (vfs_getopt(optlist, "force", NULL, NULL) == 0)
-		fsflags |= MNT_FORCE;
-
-	if (vfs_getopt(optlist, "multilabel", NULL, NULL) == 0)
-		fsflags |= MNT_MULTILABEL;
-
-	if (vfs_getopt(optlist, "noasync", NULL, NULL) == 0)
-		fsflags &= ~MNT_ASYNC;
-
-	if (vfs_getopt(optlist, "noatime", NULL, NULL) == 0)
-		fsflags |= MNT_NOATIME;
-
-	if (vfs_getopt(optlist, "noclusterr", NULL, NULL) == 0)
-		fsflags |= MNT_NOCLUSTERR;
-
-	if (vfs_getopt(optlist, "noclusterw", NULL, NULL) == 0)
-		fsflags |= MNT_NOCLUSTERW;
-
-	if (vfs_getopt(optlist, "noexec", NULL, NULL) == 0)
-		fsflags |= MNT_NOEXEC;
-
-	if (vfs_getopt(optlist, "nosuid", NULL, NULL) == 0)
-		fsflags |= MNT_NOSUID;
-
-	if (vfs_getopt(optlist, "nosymfollow", NULL, NULL) == 0)
-		fsflags |= MNT_NOSYMFOLLOW;
-
-	if (vfs_getopt(optlist, "noro", NULL, NULL) == 0)
-		fsflags &= ~MNT_RDONLY;
-
-	if (vfs_getopt(optlist, "ro", NULL, NULL) == 0)
-		fsflags |= MNT_RDONLY;
-
-	if (vfs_getopt(optlist, "rdonly", NULL, NULL) == 0)
-		fsflags |= MNT_RDONLY;
-
-	if (vfs_getopt(optlist, "rw", NULL, NULL) == 0)
-		fsflags &= ~MNT_RDONLY;
-
-	if (vfs_getopt(optlist, "snapshot", NULL, NULL) == 0)
-		fsflags |= MNT_SNAPSHOT;
-
-	if (vfs_getopt(optlist, "suiddir", NULL, NULL) == 0)
-		fsflags |= MNT_SUIDDIR;
-
-	if (vfs_getopt(optlist, "sync", NULL, NULL) == 0)
-		fsflags |= MNT_SYNCHRONOUS;
-
-	if (vfs_getopt(optlist, "union", NULL, NULL) == 0)
-		fsflags |= MNT_UNION;
+	/*
+	 * If "rw" was specified as a mount option, and we
+	 * are trying to update a mount-point from "ro" to "rw",
+	 * we need a mount option "noro", since in vfs_mergeopts(),
+	 * "noro" will cancel "ro", but "rw" will not do anything.
+	 */
+	if (has_rw && !has_noro) {
+		noro_opt = malloc(sizeof(struct vfsopt), M_MOUNT, M_WAITOK);
+		noro_opt->name = strdup("noro", M_MOUNT);
+		noro_opt->value = NULL;
+		noro_opt->len = 0;
+		TAILQ_INSERT_TAIL(optlist, noro_opt, link);
+	}
 
 	/*
 	 * Be ultra-paranoid about making sure the type and fspath
@@ -687,7 +704,21 @@ vfs_donmount(struct thread *td, int fsflags, struct uio *fsoptions)
 	error = vfs_domount(td, fstype, fspath, fsflags, optlist);
 	mtx_unlock(&Giant);
 bail:
-	if (error)
+	/* copyout the errmsg */
+	if (errmsg_pos != -1 && ((2 * errmsg_pos + 1) < fsoptions->uio_iovcnt)
+	    && errmsg_len > 0 && errmsg != NULL) {
+		if (fsoptions->uio_segflg == UIO_SYSSPACE) {
+			bcopy(errmsg,
+			    fsoptions->uio_iov[2 * errmsg_pos + 1].iov_base,
+			    fsoptions->uio_iov[2 * errmsg_pos + 1].iov_len);
+		} else {
+			copyout(errmsg,
+			    fsoptions->uio_iov[2 * errmsg_pos + 1].iov_base,
+			    fsoptions->uio_iov[2 * errmsg_pos + 1].iov_len);
+		} 
+	}
+
+	if (error != 0)
 		vfs_freeopts(optlist);
 	return (error);
 }
@@ -1708,6 +1739,24 @@ vfs_getopt(opts, name, buf, len)
 		}
 	}
 	return (ENOENT);
+}
+
+static int
+vfs_getopt_pos(struct vfsoptlist *opts, const char *name)
+{
+	struct vfsopt *opt;
+	int i;
+
+	if (opts == NULL)
+		return (-1);
+
+	i = 0;
+	TAILQ_FOREACH(opt, opts, link) {
+		if (strcmp(name, opt->name) == 0)
+			return (i);
+		++i;
+	}
+	return (-1);
 }
 
 char *
