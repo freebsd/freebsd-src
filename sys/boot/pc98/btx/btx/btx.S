@@ -206,7 +206,7 @@ init.7: 	stosl				# Set entry
 #ifdef PAGING
 		or $0x80000001,%eax             #  mode and enable paging
 #else
-		or $0x01,%eax			#  mode
+		inc %ax				#  mode
 #endif
 		mov %eax,%cr0			#
 		ljmp $SEL_SCODE,$init.8		# To 32-bit code
@@ -473,12 +473,12 @@ intrtn.1:	leal 0x10(%esi),%ebx		# Saved exception frame
 		movb $0x4,%cl			# Update seg regs
 		rep				#  in INT_V86
 		movsl				#  args
-intrtn.2:	movl %edx,%esi			# Segment registers
+intrtn.2:	xchgl %edx,%esi			# Segment registers
 		leal 0x28(%ebp),%edi		# Set up seg
 		movb $0x4,%cl			#  regs for
 		rep				#  later
 		movsl				#  pop
-		movl %ebx,%esi			# Restore exception
+		xchgl %ebx,%esi			# Restore exception
 		movb $0x5,%cl			#  frame to
 		rep				#  supervisor
 		movsl				#  stack
@@ -523,9 +523,7 @@ v86mon.3:	cmpb $0xf,%al			# Prefixed instruction?
 		je v86wrmsr			# Yes
 		cmpb $0x32,(%esi)		# Is it a RDMSR?
 		je v86rdmsr			# Yes
-		cmpb $0x20,(%esi)		# Is this a
-		jne v86mon.4			#  MOV EAX,CR0
-		cmpb $0xc0,0x1(%esi)		#  instruction?
+		cmpb $0x20,(%esi)		# Is this a MOV reg,CRx?
 		je v86mov			# Yes
 v86mon.4:	cmpb $0xfa,%al			# CLI?
 		je v86cli			# Yes
@@ -557,10 +555,24 @@ v86mon.7:	subl %edi,%esi			# From linear
 		leal 0x8(%esp,1),%esp		# Discard int no, error
 		iret				# To V86 mode
 /*
- * Emulate MOV EAX,CR0.
+ * Emulate MOV reg,CRx.
  */
-v86mov: 	movl %cr0,%eax			# CR0 to
-		movl %eax,0x1c(%ebp)		#  saved EAX
+v86mov: 	movb 0x1(%esi),%bl		# Fetch Mod R/M byte
+		testb $0x10,%bl			# Read CR2 or CR3?
+		jnz v86mov.1			# Yes
+		movl %cr0,%eax			# Read CR0
+		testb $0x20,%bl			# Read CR4 instead?
+		jz v86mov.2			# No
+		movl %cr4,%eax			# Read CR4
+		jmp v86mov.2
+v86mov.1:	movl %cr2,%eax			# Read CR2
+		testb $0x08,%bl			# Read CR3 instead?
+		jz v86mov.2			# No
+		movl %cr3,%eax			# Read CR3
+v86mov.2:	andl $0x7,%ebx			# Compute offset in
+		shl $2,%ebx			#  frame of destination
+		neg %ebx			#  register
+		movl %eax,0x1c(%ebp,%ebx,1)	# Store CR to reg
 		incl %esi			# Adjust IP
 /*
  * Return from emulating a 0x0f prefixed instruction
@@ -636,41 +648,28 @@ v86popf.1:	movl (%ebx),%eax		# Load flags
  * reads count of words from saved %cx
  * returns success by setting %ah to 0
  */
-int15_87:	pushl %eax			# Save
-		pushl %ebx			#  some information
-		pushl %esi			#  onto the stack.
-		pushl %edi
-		xorl %eax,%eax			# clean EAX
-		xorl %ebx,%ebx			# clean EBX
-		movl 0x4(%ebp),%esi		# Get user's ESI
-		movl 0x3C(%ebp),%ebx		# store ES
-		movw %si,%ax			# store SI
-		shll $0x4,%ebx			# Make it a seg.
-		addl %eax,%ebx			# ebx=(es<<4)+si
-		movb 0x14(%ebx),%al		# Grab the
-		movb 0x17(%ebx),%ah		#  necessary
-		shll $0x10,%eax			#  information
-		movw 0x12(%ebx),%ax		#  from
-		movl %eax,%esi			#  the
-		movb 0x1c(%ebx),%al		#  GDT in order to
-		movb 0x1f(%ebx),%ah		#  have %esi offset
-		shll $0x10,%eax			#  of source and %edi
-		movw 0x1a(%ebx),%ax		#  of destination.
-		movl %eax,%edi
+int15_87:	pushl %esi			# Save 
+		pushl %edi			#  registers
+		movl 0x3C(%ebp),%edi		# Load ES
+		movzwl 0x4(%ebp),%eax		# Load user's SI
+		shll $0x4,%edi			# EDI = (ES << 4) +
+		addl %eax,%edi			#   SI
+		movl 0x11(%edi),%eax		# Read base of
+		movb 0x17(%edi),%al		#  GDT entry
+		ror $8,%eax			#  for source
+		xchgl %eax,%esi			#  into %esi
+		movl 0x19(%edi),%eax		# Read base of
+		movb 0x1f(%edi),%al		#  GDT entry for
+		ror $8,%eax			#  destination
+		xchgl %eax,%edi			#  into %edi
 		pushl %ds			# Make:
 		popl %es			# es = ds
-		pushl %ecx			# stash ECX
-		xorl %ecx,%ecx			# highw of ECX is clear
-		movw 0x18(%ebp),%cx		# Get user's ECX
-		shll $0x1,%ecx			# Convert from num words to num
-						#  bytes
+		movzwl 0x18(%ebp),%ecx		# Get user's CX
+		shll $0x1,%ecx			# Convert count from words
 		rep				# repeat...
 		movsb				#  perform copy.
-		popl %ecx			# Restore
-		popl %edi
-		popl %esi			#  previous
-		popl %ebx			#  register
-		popl %eax			#  values.
+		popl %edi			# Restore
+		popl %esi			#  registers
 		movb $0x0,0x1d(%ebp)		# set ah = 0 to indicate
 						#  success
 		andb $0xfe,%dl			# clear CF
@@ -689,23 +688,16 @@ v86intn:	lodsb				# Get int no
 		cmpb $0x19,%al			# is it int 19?
 		je reboot			#  yes, reboot the machine
 		cmpb $0x15,%al			# is it int 15?
-		jne v86intn.3			#  no, skip parse
-		pushl %eax                      # stash EAX
-		movl 0x1c(%ebp),%eax		# user's saved EAX
-		cmpb $0x87,%ah			# is it the memcpy subfunction?
-		jne v86intn.1			#  no, keep checking
-		popl %eax			# get the stack straight
-		jmp int15_87			# it's our cue
-v86intn.1:	cmpw $0x4f53,%ax		# is it the delete key callout?
-		jne v86intn.2			#  no, handle the int normally
-		movb BDA_KEYFLAGS,%al		# get the shift key state
-		andb $0x18,%al			# mask off just Ctrl and Alt
-		cmpb $0x18,%al			# are both Ctrl and Alt down?
-		jne v86intn.2			#  no, handle the int normally
-		popl %eax			# restore EAX
-		jmp reboot			# reboot the machine
-v86intn.2:	popl %eax			# restore EAX
-v86intn.3:	subl %edi,%esi			# From
+		jne v86intn.1			#  no, skip parse
+		cmpb $0x87,0x1d(%ebp)		# is it the memcpy subfunction?
+		je int15_87			#  yes
+		cmpw $0x4f53,0x1c(%ebp)		# is it the delete key callout?
+		jne v86intn.1			#  no, handle the int normally
+		movb BDA_KEYFLAGS,%ch		# get the shift key state
+		andb $0x18,%ch			# mask off just Ctrl and Alt
+		cmpb $0x18,%ch			# are both Ctrl and Alt down?
+		je reboot			# yes, reboot the machine
+v86intn.1:	subl %edi,%esi			# From
 		shrl $0x4,%edi			#  linear
 		movw %dx,-0x2(%ebx)		# Save flags
 		movw %di,-0x4(%ebx)		# Save CS
