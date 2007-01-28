@@ -119,16 +119,13 @@ static void	bpf_drvinit(void *);
 static void	bpf_clone(void *, struct ucred *, char *, int, struct cdev **);
 static int	bpf_stats_sysctl(SYSCTL_HANDLER_ARGS);
 
-/*
- * The default read buffer size is patchable.
- */
 SYSCTL_NODE(_net, OID_AUTO, bpf, CTLFLAG_RW, 0, "bpf sysctl");
 static int bpf_bufsize = 4096;
 SYSCTL_INT(_net_bpf, OID_AUTO, bufsize, CTLFLAG_RW,
-    &bpf_bufsize, 0, "");
+    &bpf_bufsize, 0, "Default bpf buffer size");
 static int bpf_maxbufsize = BPF_MAXBUFSIZE;
 SYSCTL_INT(_net_bpf, OID_AUTO, maxbufsize, CTLFLAG_RW,
-    &bpf_maxbufsize, 0, "");
+    &bpf_maxbufsize, 0, "Maximum bpf buffer size");
 static int bpf_maxinsns = BPF_MAXINSNS;
 SYSCTL_INT(_net_bpf, OID_AUTO, maxinsns, CTLFLAG_RW,
     &bpf_maxinsns, 0, "Maximum bpf program instructions");
