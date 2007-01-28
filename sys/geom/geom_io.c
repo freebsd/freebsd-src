@@ -343,9 +343,14 @@ g_io_request(struct bio *bp, struct g_consumer *cp)
 	bp->_bio_cflags = bp->bio_cflags;
 #endif
 
-	if (bp->bio_cmd & (BIO_READ|BIO_WRITE|BIO_DELETE|BIO_GETATTR)) {
+	if (bp->bio_cmd & (BIO_READ|BIO_WRITE|BIO_GETATTR)) {
 		KASSERT(bp->bio_data != NULL,
-		    ("NULL bp->data in g_io_request"));
+		    ("NULL bp->data in g_io_request(cmd=%hhu)", bp->bio_cmd));
+	}
+	if (bp->bio_cmd & (BIO_DELETE|BIO_FLUSH)) {
+		KASSERT(bp->bio_data == NULL,
+		    ("non-NULL bp->data in g_io_request(cmd=%hhu)",
+		    bp->bio_cmd));
 	}
 	if (bp->bio_cmd & (BIO_READ|BIO_WRITE|BIO_DELETE)) {
 		KASSERT(bp->bio_offset % cp->provider->sectorsize == 0,
