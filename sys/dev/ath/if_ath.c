@@ -170,8 +170,8 @@ static void	ath_calibrate(void *);
 static int	ath_newstate(struct ieee80211com *, enum ieee80211_state, int);
 static void	ath_setup_stationkey(struct ieee80211_node *);
 static void	ath_newassoc(struct ieee80211_node *, int);
-static int	ath_getchannels(struct ath_softc *, u_int cc,
-			HAL_BOOL outdoor, HAL_BOOL xchanmode);
+static int	ath_getchannels(struct ath_softc *,
+			HAL_REG_DOMAIN, HAL_CTRY_CODE, HAL_BOOL, HAL_BOOL);
 static void	ath_led_event(struct ath_softc *, int);
 static void	ath_update_txpow(struct ath_softc *);
 
@@ -192,15 +192,15 @@ static	int ath_calinterval = 30;		/* calibrate every 30 secs */
 SYSCTL_INT(_hw_ath, OID_AUTO, calibrate, CTLFLAG_RW, &ath_calinterval,
 	    0, "chip calibration interval (secs)");
 static	int ath_outdoor = AH_TRUE;		/* outdoor operation */
-SYSCTL_INT(_hw_ath, OID_AUTO, outdoor, CTLFLAG_RD, &ath_outdoor,
+SYSCTL_INT(_hw_ath, OID_AUTO, outdoor, CTLFLAG_RW, &ath_outdoor,
 	    0, "outdoor operation");
 TUNABLE_INT("hw.ath.outdoor", &ath_outdoor);
 static	int ath_xchanmode = AH_TRUE;		/* extended channel use */
-SYSCTL_INT(_hw_ath, OID_AUTO, xchanmode, CTLFLAG_RD, &ath_xchanmode,
+SYSCTL_INT(_hw_ath, OID_AUTO, xchanmode, CTLFLAG_RW, &ath_xchanmode,
 	    0, "extended channel mode");
 TUNABLE_INT("hw.ath.xchanmode", &ath_xchanmode);
 static	int ath_countrycode = CTRY_DEFAULT;	/* country code */
-SYSCTL_INT(_hw_ath, OID_AUTO, countrycode, CTLFLAG_RD, &ath_countrycode,
+SYSCTL_INT(_hw_ath, OID_AUTO, countrycode, CTLFLAG_RW, &ath_countrycode,
 	    0, "country code");
 TUNABLE_INT("hw.ath.countrycode", &ath_countrycode);
 static	int ath_regdomain = 0;			/* regulatory domain */
@@ -208,11 +208,11 @@ SYSCTL_INT(_hw_ath, OID_AUTO, regdomain, CTLFLAG_RD, &ath_regdomain,
 	    0, "regulatory domain");
 
 static	int ath_rxbuf = ATH_RXBUF;		/* # rx buffers to allocate */
-SYSCTL_INT(_hw_ath, OID_AUTO, rxbuf, CTLFLAG_RD, &ath_rxbuf,
+SYSCTL_INT(_hw_ath, OID_AUTO, rxbuf, CTLFLAG_RW, &ath_rxbuf,
 	    0, "rx buffers allocated");
 TUNABLE_INT("hw.ath.rxbuf", &ath_rxbuf);
 static	int ath_txbuf = ATH_TXBUF;		/* # tx buffers to allocate */
-SYSCTL_INT(_hw_ath, OID_AUTO, txbuf, CTLFLAG_RD, &ath_txbuf,
+SYSCTL_INT(_hw_ath, OID_AUTO, txbuf, CTLFLAG_RW, &ath_txbuf,
 	    0, "tx buffers allocated");
 TUNABLE_INT("hw.ath.txbuf", &ath_txbuf);
 
@@ -349,8 +349,8 @@ ath_attach(u_int16_t devid, struct ath_softc *sc)
 	 * is resposible for filtering this list based on settings
 	 * like the phy mode.
 	 */
-	error = ath_getchannels(sc, ath_countrycode,
-			ath_outdoor, ath_xchanmode);
+	error = ath_getchannels(sc, ath_regdomain, ath_countrycode,
+			ath_xchanmode != 0, ath_outdoor != 0);
 	if (error != 0)
 		goto bad;
 
@@ -362,6 +362,8 @@ ath_attach(u_int16_t devid, struct ath_softc *sc)
 	ath_rate_setup(sc, IEEE80211_MODE_11G);
 	ath_rate_setup(sc, IEEE80211_MODE_TURBO_A);
 	ath_rate_setup(sc, IEEE80211_MODE_TURBO_G);
+	ath_rate_setup(sc, IEEE80211_MODE_HALF);
+	ath_rate_setup(sc, IEEE80211_MODE_QUARTER);
 	/* NB: setup here so ath_rate_update is happy */
 	ath_setcurmode(sc, IEEE80211_MODE_11A);
 
@@ -879,8 +881,14 @@ ath_bmiss_proc(void *arg, int pending)
 	}
 }
 
-static u_int
-ath_chan2flags(struct ieee80211com *ic, struct ieee80211_channel *chan)
+/*
+ * Convert net80211 channel to a HAL channel with the flags
+ * constrained to reflect the current operating mode and
+ * the frequency possibly mapped for GSM channels.
+ */
+static void
+ath_mapchan(struct ieee80211com *ic, HAL_CHANNEL *hc,
+	const struct ieee80211_channel *chan)
 {
 #define	N(a)	(sizeof(a) / sizeof(a[0]))
 	static const u_int modeflags[] = {
@@ -896,7 +904,14 @@ ath_chan2flags(struct ieee80211com *ic, struct ieee80211_channel *chan)
 
 	KASSERT(mode < N(modeflags), ("unexpected phy mode %u", mode));
 	KASSERT(modeflags[mode] != 0, ("mode %u undefined", mode));
-	return modeflags[mode];
+	hc->channelFlags = modeflags[mode];
+	if (IEEE80211_IS_CHAN_HALF(chan))
+		hc->channelFlags |= CHANNEL_HALF;
+	if (IEEE80211_IS_CHAN_QUARTER(chan))
+		hc->channelFlags |= CHANNEL_QUARTER;
+
+	hc->channel = IEEE80211_IS_CHAN_GSM(chan) ?
+		2422 + (922 - chan->ic_freq) : chan->ic_freq;
 #undef N
 }
 
@@ -926,8 +941,7 @@ ath_init(void *arg)
 	 * be followed by initialization of the appropriate bits
 	 * and then setup of the interrupt mask.
 	 */
-	sc->sc_curchan.channel = ic->ic_curchan->ic_freq;
-	sc->sc_curchan.channelFlags = ath_chan2flags(ic, ic->ic_curchan);
+	ath_mapchan(ic, &sc->sc_curchan, ic->ic_curchan);
 	if (!ath_hal_reset(ah, sc->sc_opmode, &sc->sc_curchan, AH_FALSE, &status)) {
 		if_printf(ifp, "unable to reset hardware; hal status %u\n",
 			status);
@@ -1085,16 +1099,13 @@ ath_reset(struct ifnet *ifp)
 	struct ath_softc *sc = ifp->if_softc;
 	struct ieee80211com *ic = &sc->sc_ic;
 	struct ath_hal *ah = sc->sc_ah;
-	struct ieee80211_channel *c;
 	HAL_STATUS status;
 
 	/*
 	 * Convert to a HAL channel description with the flags
 	 * constrained to reflect the current operating mode.
 	 */
-	c = ic->ic_curchan;
-	sc->sc_curchan.channel = c->ic_freq;
-	sc->sc_curchan.channelFlags = ath_chan2flags(ic, c);
+	ath_mapchan(ic, &sc->sc_curchan, ic->ic_curchan);
 
 	ath_hal_intrset(ah, 0);		/* disable interrupts */
 	ath_draintxq(sc);		/* stop xmit side */
@@ -1112,7 +1123,7 @@ ath_reset(struct ifnet *ifp)
 	 * that changes the channel so update any state that
 	 * might change as a result.
 	 */
-	ath_chan_change(sc, c);
+	ath_chan_change(sc, ic->ic_curchan);
 	if (ath_startrecv(sc) != 0)	/* restart recv */
 		if_printf(ifp, "%s: unable to start recv logic\n", __func__);
 	if (ic->ic_state == IEEE80211_S_RUN)
@@ -1847,11 +1858,28 @@ ath_setslottime(struct ath_softc *sc)
 {
 	struct ieee80211com *ic = &sc->sc_ic;
 	struct ath_hal *ah = sc->sc_ah;
+	u_int usec;
 
-	if (ic->ic_flags & IEEE80211_F_SHSLOT)
-		ath_hal_setslottime(ah, HAL_SLOT_TIME_9);
-	else
-		ath_hal_setslottime(ah, HAL_SLOT_TIME_20);
+	if (IEEE80211_IS_CHAN_HALF(ic->ic_curchan))
+		usec = 13;
+	else if (IEEE80211_IS_CHAN_QUARTER(ic->ic_curchan))
+		usec = 21;
+	else if (IEEE80211_IS_CHAN_ANYG(ic->ic_curchan)) {
+		/* honor short/long slot time only in 11g */
+		/* XXX shouldn't honor on pure g or turbo g channel */
+		if (ic->ic_flags & IEEE80211_F_SHSLOT)
+			usec = HAL_SLOT_TIME_9;
+		else
+			usec = HAL_SLOT_TIME_20;
+	} else
+		usec = HAL_SLOT_TIME_9;
+
+	DPRINTF(sc, ATH_DEBUG_RESET,
+	    "%s: chan %u MHz flags 0x%x %s slot, %u usec\n",
+	    __func__, ic->ic_curchan->ic_freq, ic->ic_curchan->ic_flags,
+	    ic->ic_flags & IEEE80211_F_SHSLOT ? "short" : "long", usec);
+
+	ath_hal_setslottime(ah, usec);
 	sc->sc_updateslot = OK;
 }
 
@@ -4265,7 +4293,12 @@ ath_chan_change(struct ath_softc *sc, struct ieee80211_channel *chan)
 	 * Change channels and update the h/w rate map
 	 * if we're switching; e.g. 11a to 11b/g.
 	 */
-	mode = ieee80211_chan2mode(ic, chan);
+	if (IEEE80211_IS_CHAN_HALF(chan))
+		mode = IEEE80211_MODE_HALF;
+	else if (IEEE80211_IS_CHAN_QUARTER(chan))
+		mode = IEEE80211_MODE_QUARTER;
+	else
+		mode = ieee80211_chan2mode(ic, chan);
 	if (mode != sc->sc_curmode)
 		ath_setcurmode(sc, mode);
 	/*
@@ -4275,13 +4308,16 @@ ath_chan_change(struct ath_softc *sc, struct ieee80211_channel *chan)
 	if (IEEE80211_IS_CHAN_A(chan))
 		flags = IEEE80211_CHAN_A;
 	/* XXX 11g schizophrenia */
-	else if (IEEE80211_IS_CHAN_G(chan) ||
-	    IEEE80211_IS_CHAN_PUREG(chan))
+	else if (IEEE80211_IS_CHAN_ANYG(chan))
 		flags = IEEE80211_CHAN_G;
 	else
 		flags = IEEE80211_CHAN_B;
 	if (IEEE80211_IS_CHAN_T(chan))
 		flags |= IEEE80211_CHAN_TURBO;
+	if (IEEE80211_IS_CHAN_HALF(chan))
+		flags |= IEEE80211_CHAN_HALF;
+	if (IEEE80211_IS_CHAN_QUARTER(chan))
+		flags |= IEEE80211_CHAN_QUARTER;
 	sc->sc_tx_th.wt_chan_freq = sc->sc_rx_th.wr_chan_freq =
 		htole16(chan->ic_freq);
 	sc->sc_tx_th.wt_chan_flags = sc->sc_rx_th.wr_chan_flags =
@@ -4342,8 +4378,7 @@ ath_chan_set(struct ath_softc *sc, struct ieee80211_channel *chan)
 	 * the flags constrained to reflect the current
 	 * operating mode.
 	 */
-	hchan.channel = chan->ic_freq;
-	hchan.channelFlags = ath_chan2flags(ic, chan);
+	ath_mapchan(ic, &hchan, chan);
 
 	DPRINTF(sc, ATH_DEBUG_RESET,
 	    "%s: %u (%u MHz, hal flags 0x%x) -> %u (%u MHz, hal flags 0x%x)\n",
@@ -4710,15 +4745,20 @@ ath_newassoc(struct ieee80211_node *ni, int isnew)
 }
 
 static int
-ath_getchannels(struct ath_softc *sc, u_int cc,
-	HAL_BOOL outdoor, HAL_BOOL xchanmode)
+ath_getchannels(struct ath_softc *sc,
+    HAL_REG_DOMAIN rd, HAL_CTRY_CODE cc, HAL_BOOL outdoor, HAL_BOOL xchanmode)
 {
-#define	COMPAT	(CHANNEL_ALL_NOTURBO|CHANNEL_PASSIVE)
+#define	COMPAT \
+	(CHANNEL_ALL_NOTURBO|CHANNEL_PASSIVE|CHANNEL_HALF|CHANNEL_QUARTER)
+#define IS_CHAN_PUBLIC_SAFETY(_c) \
+	(((_c)->channelFlags & CHANNEL_5GHZ) && \
+	 ((_c)->channel > 4940 && (_c)->channel < 4990))
 	struct ieee80211com *ic = &sc->sc_ic;
 	struct ifnet *ifp = sc->sc_ifp;
 	struct ath_hal *ah = sc->sc_ah;
 	HAL_CHANNEL *chans;
 	int i, ix, nchan;
+	u_int32_t regdomain;
 
 	chans = malloc(IEEE80211_CHAN_MAX * sizeof(HAL_CHANNEL),
 			M_TEMP, M_NOWAIT);
@@ -4727,13 +4767,10 @@ ath_getchannels(struct ath_softc *sc, u_int cc,
 		return ENOMEM;
 	}
 	if (!ath_hal_init_channels(ah, chans, IEEE80211_CHAN_MAX, &nchan,
-	    NULL, 0, NULL,
-	    cc, HAL_MODE_ALL, outdoor, xchanmode)) {
-		u_int32_t rd;
-
-		ath_hal_getregdomain(ah, &rd);
+	    NULL, 0, NULL, cc, HAL_MODE_ALL, outdoor, xchanmode)) {
+		ath_hal_getregdomain(ah, &regdomain);
 		if_printf(ifp, "unable to collect channel list from hal; "
-			"regdomain likely %u country code %u\n", rd, cc);
+			"regdomain likely %u country code %u\n", regdomain, cc);
 		free(chans, M_TEMP);
 		return EINVAL;
 	}
@@ -4742,11 +4779,20 @@ ath_getchannels(struct ath_softc *sc, u_int cc,
 	 * Convert HAL channels to ieee80211 ones and insert
 	 * them in the table according to their channel number.
 	 */
+	memset(ic->ic_channels, 0, sizeof(ic->ic_channels));
 	for (i = 0; i < nchan; i++) {
 		HAL_CHANNEL *c = &chans[i];
 		u_int16_t flags;
 
+		/*
+		 * XXX we're not ready to handle the ieee number mapping
+		 * for public safety channels as they overlap with any
+		 * 2GHz channels; for now use a non-public safety
+		 * numbering that is non-overlapping.
+		 */
 		ix = ath_hal_mhz2ieee(ah, c->channel, c->channelFlags);
+		if (IS_CHAN_PUBLIC_SAFETY(c))
+			ix += 37;		/* XXX */
 		if (ix > IEEE80211_CHAN_MAX) {
 			if_printf(ifp, "bad hal channel %d (%u/%x) ignored\n",
 				ix, c->channel, c->channelFlags);
@@ -4760,6 +4806,9 @@ ath_getchannels(struct ath_softc *sc, u_int cc,
 				    ix, c->channel, c->channelFlags);
 			continue;
 		}
+		if (bootverbose)
+			if_printf(ifp, "hal channel %u/%x -> %u\n",
+			    c->channel, c->channelFlags, ix);
 		/*
 		 * Calculate net80211 flags; most are compatible
 		 * but some need massaging.  Note the static turbo
@@ -4769,6 +4818,12 @@ ath_getchannels(struct ath_softc *sc, u_int cc,
 		flags = c->channelFlags & COMPAT;
 		if (c->channelFlags & CHANNEL_STURBO)
 			flags |= IEEE80211_CHAN_TURBO;
+		if (ath_hal_isgsmsku(ah)) {
+			/* remap to true frequencies */
+			c->channel = 922 + (2422 - c->channel);
+			flags |= IEEE80211_CHAN_GSM;
+			ix = ieee80211_mhz2ieee(c->channel, flags);
+		}
 		if (ic->ic_channels[ix].ic_freq == 0) {
 			ic->ic_channels[ix].ic_freq = c->channel;
 			ic->ic_channels[ix].ic_flags = flags;
@@ -4778,7 +4833,12 @@ ath_getchannels(struct ath_softc *sc, u_int cc,
 		}
 	}
 	free(chans, M_TEMP);
+	ath_hal_getregdomain(ah, &sc->sc_regdomain);
+	ath_hal_getcountrycode(ah, &sc->sc_countrycode);
+	sc->sc_xchanmode = xchanmode;
+	sc->sc_outdoor = outdoor;
 	return 0;
+#undef IS_CHAN_PUBLIC_SAFETY
 #undef COMPAT
 }
 
@@ -4859,34 +4919,21 @@ ath_update_txpow(struct ath_softc *sc)
 	ic->ic_bss->ni_txpower = txpow;
 }
 
-static void
-rate_setup(struct ath_softc *sc,
-	const HAL_RATE_TABLE *rt, struct ieee80211_rateset *rs)
-{
-	int i, maxrates;
-
-	if (rt->rateCount > IEEE80211_RATE_MAXSIZE) {
-		DPRINTF(sc, ATH_DEBUG_ANY,
-			"%s: rate table too small (%u > %u)\n",
-		       __func__, rt->rateCount, IEEE80211_RATE_MAXSIZE);
-		maxrates = IEEE80211_RATE_MAXSIZE;
-	} else
-		maxrates = rt->rateCount;
-	for (i = 0; i < maxrates; i++)
-		rs->rs_rates[i] = rt->info[i].dot11Rate;
-	rs->rs_nrates = maxrates;
-}
-
 static int
 ath_rate_setup(struct ath_softc *sc, u_int mode)
 {
 	struct ath_hal *ah = sc->sc_ah;
-	struct ieee80211com *ic = &sc->sc_ic;
 	const HAL_RATE_TABLE *rt;
 
 	switch (mode) {
 	case IEEE80211_MODE_11A:
 		rt = ath_hal_getratetable(ah, HAL_MODE_11A);
+		break;
+	case IEEE80211_MODE_HALF:
+		rt = ath_hal_getratetable(ah, HAL_MODE_11A_HALF_RATE);
+		break;
+	case IEEE80211_MODE_QUARTER:
+		rt = ath_hal_getratetable(ah, HAL_MODE_11A_QUARTER_RATE);
 		break;
 	case IEEE80211_MODE_11B:
 		rt = ath_hal_getratetable(ah, HAL_MODE_11B);
@@ -4907,11 +4954,7 @@ ath_rate_setup(struct ath_softc *sc, u_int mode)
 		return 0;
 	}
 	sc->sc_rates[mode] = rt;
-	if (rt != NULL) {
-		rate_setup(sc, rt, &ic->ic_sup_rates[mode]);
-		return 1;
-	} else
-		return 0;
+	return (rt != NULL);
 }
 
 static void
@@ -4938,6 +4981,7 @@ ath_setcurmode(struct ath_softc *sc, enum ieee80211_phymode mode)
 		{   4, 267,  66 },
 		{   2, 400, 100 },
 		{   0, 500, 130 },
+		/* XXX half/quarter rates */
 	};
 	const HAL_RATE_TABLE *rt;
 	int i, j;
@@ -5376,18 +5420,45 @@ ath_sysctl_rfsilent(SYSCTL_HANDLER_ARGS)
 }
 
 static int
+ath_sysctl_countrycode(SYSCTL_HANDLER_ARGS)
+{
+	struct ath_softc *sc = arg1;
+	u_int32_t cc = sc->sc_countrycode;
+	struct ieee80211com *ic = &sc->sc_ic;
+	int error;
+
+	error = sysctl_handle_int(oidp, &cc, 0, req);
+	if (error || !req->newptr)
+		return error;
+	error = ath_getchannels(sc, sc->sc_regdomain, cc,
+			sc->sc_outdoor, sc->sc_xchanmode);
+	if (error != 0)
+		return error;
+	ieee80211_media_init(ic, ath_media_change, ieee80211_media_status);
+	/* setcurmode? */
+	return 0;
+}
+
+static int
 ath_sysctl_regdomain(SYSCTL_HANDLER_ARGS)
 {
 	struct ath_softc *sc = arg1;
-	u_int32_t rd;
+	u_int32_t rd = sc->sc_regdomain;
+	struct ieee80211com *ic = &sc->sc_ic;
 	int error;
 
-	if (!ath_hal_getregdomain(sc->sc_ah, &rd))
-		return EINVAL;
 	error = sysctl_handle_int(oidp, &rd, 0, req);
 	if (error || !req->newptr)
 		return error;
-	return !ath_hal_setregdomain(sc->sc_ah, rd) ? EINVAL : 0;
+	if (!ath_hal_setregdomain(sc->sc_ah, rd))
+		return EINVAL;
+	error = ath_getchannels(sc, rd, sc->sc_countrycode,
+			sc->sc_outdoor, sc->sc_xchanmode);
+	if (error != 0)
+		return error;
+	ieee80211_media_init(ic, ath_media_change, ieee80211_media_status);
+	/* setcurmode? */
+	return 0;
 }
 
 static int
@@ -5425,10 +5496,9 @@ ath_sysctlattach(struct ath_softc *sc)
 	struct sysctl_oid *tree = device_get_sysctl_tree(sc->sc_dev);
 	struct ath_hal *ah = sc->sc_ah;
 
-	ath_hal_getcountrycode(sc->sc_ah, &sc->sc_countrycode);
-	SYSCTL_ADD_INT(ctx, SYSCTL_CHILDREN(tree), OID_AUTO,
-		"countrycode", CTLFLAG_RD, &sc->sc_countrycode, 0,
-		"EEPROM country code");
+	SYSCTL_ADD_PROC(ctx, SYSCTL_CHILDREN(tree), OID_AUTO,
+		"countrycode", CTLTYPE_INT | CTLFLAG_RW, sc, 0,
+		ath_sysctl_countrycode, "I", "country code");
 	SYSCTL_ADD_PROC(ctx, SYSCTL_CHILDREN(tree), OID_AUTO,
 		"regdomain", CTLTYPE_INT | CTLFLAG_RW, sc, 0,
 		ath_sysctl_regdomain, "I", "EEPROM regdomain code");
