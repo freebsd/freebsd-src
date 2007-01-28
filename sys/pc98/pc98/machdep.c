@@ -1971,7 +1971,7 @@ init386(first)
 	 *	     under witness.
 	 */
 	mutex_init();
-	mtx_init(&icu_lock, "icu", NULL, MTX_SPIN | MTX_NOWITNESS);
+	mtx_init(&icu_lock, "icu", NULL, MTX_SPIN | MTX_NOWITNESS | MTX_NOPROFILE);
 
 	/* make ldt memory segments */
 	ldt_segs[LUCODE_SEL].ssd_limit = atop(0 - 1);
