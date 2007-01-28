@@ -35,7 +35,7 @@
 .\" $FreeBSD$
 .\" $Whistle: ng_ppp.8,v 1.3 1999/01/25 23:46:27 archie Exp $
 .\"
-.Dd August 2, 2004
+.Dd December 28, 2006
 .Dt NG_PPP 4
 .Os
 .Sh NAME
@@ -132,15 +132,51 @@ Compression is supported via two hooks,
 .Dv compress
 and
 .Dv decompress .
-When enabled and connected, the PPP node writes outgoing frames on the
-.Dv comp
-hook and expects to receive back the compressed frame on the same hook.
-Similarly, the
+Compression and decompression can be enabled by toggling the 
+.Vt enableCompression
+and 
+.Vt enableDecompression
+fields of the node configuration structure.
+(See below.)
+If
+.Vt enableCompression
+is set to
+.Dv NG_PPP_COMPRESS_SIMPLE ,
+then all outgoing frames are sent to the
+.Dv compress     
+hook and all packets received on this hook are expected to be
+compressed, so the COMPD tag is put on them unconditionally.
+If
+.Vt enableCompression
+is set to
+.Dv NG_PPP_COMPRESS_FULL ,
+then packets received on the 
+.Dv compress    
+hook are resent as is.
+The compressor node should put the tag, if the packet was compressed.
+If 
+.Vt enableDecompression
+is set to 
+.Dv NG_PPP_DECOMPRESS_SIMPLE ,
+then the node will sent to the
+.Dv decompress 
+hook only those frames, that are marked with the COMPD tag.
+If
+.Vt enableDecompression
+is set to
+.Dv NG_PPP_DECOMPRESS_FULL ,
+then the node will sent all incoming packets to the
 .Dv decompress
-hook is used to uncompress incoming frames when decompression is
-negotiated (compression and decompression are independently negotiable).
-The type of node attached to these hooks should correspond
-to the type of compression negotiated, e.g., Deflate, Predictor-1, etc.
+hook.
+Compression and decompression can be completely disabled by setting the
+.Vt enableCompression
+and
+.Vt enableDecompression
+fields to the
+.Dv NG_PPP_COMPRESS_NONE
+and
+.Dv NG_PPP_DECOMPRESS_NONE ,
+respectively.
 .Pp
 Encryption works exactly analogously via the
 .Dv encrypt
