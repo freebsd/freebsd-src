@@ -179,7 +179,6 @@ SUBDIR=	ac \
 	${_usbdevs} \
 	vidcontrol \
 	vipw \
-	vnconfig \
 	watch \
 	watchdogd \
 	wicontrol \
