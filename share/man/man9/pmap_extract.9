@@ -55,13 +55,6 @@ the returned page for use by the caller, only if the mapping permits
 the given page protection.
 .Sh IMPLEMENTATION NOTES
 Currently, the page protection requested by the caller is not verified.
-.Pp
-In the
-.Fn pmap_extract_and_hold
-function, the
-.Va Giant
-lock is held for the duration of the call to ensure that only a single
-caller is present.
 .Sh RETURN VALUES
 The
 .Fn pmap_extract
