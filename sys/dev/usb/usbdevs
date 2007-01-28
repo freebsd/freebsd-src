@@ -773,6 +773,7 @@ product CATC CHIEF		0x000d	USB Chief Bus & Protocol Analyzer
 product CATC ANDROMEDA		0x1237	Andromeda hub
 
 /* CASIO products */
+product CASIO BE300		0x2002	BE-300 PDA
 product CASIO NAMELAND		0x4001	CASIO Nameland EZ-USB
 
 /* Cherry products */
@@ -791,6 +792,7 @@ product CHICONY KB8933		0x0001	KB-8933 keyboard
 product CMOTECH CDMAMODEM	0x5141	CMOTECH CDMA Technologies USB modem
 
 /* Compaq products */
+product COMPAQ IPAQPOCKETPC	0x0003	iPAQ PocketPC
 product COMPAQ PJB100		0x504a	Personal Jukebox PJB100
 product COMPAQ IPAQLINUX	0x505a	iPAQ Linux
 
@@ -1069,6 +1071,8 @@ product HP 82x0C		0x0b01  Scanjet 82x0C
 product HP 2300D 		0x0b17	Laserjet 2300d
 product HP 970CSE		0x1004	Deskjet 970Cse
 product HP 5400C		0x1005	Scanjet 5400C
+product HP 2215			0x1016	iPAQ 22xx/Jornada 548
+product HP 568J			0x1116	Jornada 568
 product HP 930C			0x1204	DeskJet 930c
 product HP P2000U		0x1801	Inkjet P-2000U
 product HP 640C			0x2004	DeskJet 640c
@@ -1555,6 +1559,7 @@ product SHARP SLA300		0x8005	Zaurus SL-A300 PDA
 product SHARP SL5600		0x8006	Zaurus SL-5600 PDA
 product SHARP SLC700		0x8007	Zaurus SL-C700 PDA
 product SHARP SLC750		0x9031	Zaurus SL-C750 PDA
+product SHARP WZERO3ES		0x9123	W-ZERO3 ES Smartphone
 
 /* Shuttle Technology products */
 product SHUTTLE EUSB		0x0001	E-USB Bridge
