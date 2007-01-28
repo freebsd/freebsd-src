@@ -41,6 +41,7 @@ __FBSDID("$FreeBSD$");
 
 #include <err.h>
 #include <errno.h>
+#include <stdarg.h>
 #include <stdlib.h>
 #include <string.h>
 #include <sysexits.h>
@@ -161,4 +162,21 @@ build_iovec(struct iovec **iov, int *iovlen, const char *name, void *val, int le
 		len = strlen(val) + 1;
 	(*iov)[i].iov_len = len;
 	*iovlen = ++i;
+}
+
+/*
+ * This function is needed for compatibility with parameters
+ * which used to use the mount_argf() command for the old mount() syscall.
+ */
+void
+build_iovec_argf(struct iovec **iov, int *iovlen, const char *name,
+    const char *fmt, ...)
+{
+	va_list ap;
+	char val[255] = { 0 };
+
+	va_start(ap, fmt);
+	vsnprintf(val, sizeof(val), fmt, ap);  
+	va_end(ap);
+	build_iovec(iov, iovlen, name, strdup(val), strlen(val) + 1);
 }
