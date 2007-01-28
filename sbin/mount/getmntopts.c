@@ -158,8 +158,12 @@ build_iovec(struct iovec **iov, int *iovlen, const char *name, void *val, int le
 	(*iov)[i].iov_len = strlen(name) + 1;
 	i++;
 	(*iov)[i].iov_base = val;
-	if (len < 0)
-		len = strlen(val) + 1;
+        if (len == -1) {
+                if (val != NULL)
+                        len = strlen(val) + 1;
+                else
+                        len = 0;
+        }
 	(*iov)[i].iov_len = len;
 	*iovlen = ++i;
 }
