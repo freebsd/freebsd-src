@@ -186,6 +186,7 @@ MAN=	aac.4 \
 	ng_btsocket.4 \
 	ng_ccatm.4 \
 	ng_cisco.4 \
+	ng_deflate.4 \
 	ng_device.4 \
 	nge.4 \
 	ng_echo.4 \
@@ -214,6 +215,7 @@ MAN=	aac.4 \
 	ng_ppp.4 \
 	ng_pppoe.4 \
 	ng_pptpgre.4 \
+	ng_pred1.4 \
 	ng_rfc1490.4 \
 	ng_socket.4 \
 	ng_source.4 \
