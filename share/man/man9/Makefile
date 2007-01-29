@@ -964,6 +964,10 @@ MLINKS+=sema.9 sema_destroy.9 \
 	sema.9 sema_trywait.9 \
 	sema.9 sema_value.9 \
 	sema.9 sema_wait.9
+MLINKS+=sf_buf.9 sf_buf_alloc.9 \
+	sf_buf.9 sf_buf_free.9 \
+	sf_buf.9 sf_buf_kva.9 \
+	sf_buf.9 sf_buf_page.9
 MLINKS+=signal.9 cursig.9 \
 	signal.9 execsigs.9 \
 	signal.9 issignal.9 \
