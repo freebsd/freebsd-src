@@ -51,12 +51,12 @@
 struct bpf_d {
 	LIST_ENTRY(bpf_d) bd_next;	/* Linked list of descriptors */
 	/*
-	 * Buffer slots: two mbuf clusters buffer the incoming packets.
+	 * Buffer slots: two malloc buffers store the incoming packets.
 	 *   The model has three slots.  Sbuf is always occupied.
 	 *   sbuf (store) - Receive interrupt puts packets here.
-	 *   hbuf (hold) - When sbuf is full, put cluster here and
+	 *   hbuf (hold) - When sbuf is full, put buffer here and
 	 *                 wakeup read (replace sbuf with fbuf).
-	 *   fbuf (free) - When read is done, put cluster here.
+	 *   fbuf (free) - When read is done, put buffer here.
 	 * On receiving, if sbuf is full and fbuf is 0, packet is dropped.
 	 */
 	caddr_t		bd_sbuf;	/* store slot */
