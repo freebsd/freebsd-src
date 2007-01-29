@@ -1,5 +1,9 @@
 Frequently Asked Questions about BIND 9
 
+Copyright © 2004-2007 Internet Systems Consortium, Inc. ("ISC")
+
+Copyright © 2000-2003 Internet Software Consortium.
+
 -------------------------------------------------------------------------------
 
 Q: Why doesn't -u work on Linux 2.2.x when I build with --enable-threads?
@@ -629,4 +633,43 @@ A: Red Hat Security Enhanced Linux (SELinux) policy security protections :
 
    See these man-pages for more information : selinux(8), named_selinux(8), chcon
    (1), setsebool(8)
+
+Q: I want to forward all DNS queries from my caching nameserver to another server.
+   But there are some domains which have to be served locally, via rbldnsd.
+
+   How do I achieve this ?
+
+A: options {
+           forward only;
+           forwarders { <ip.of.primary.nameserver>; };
+   };
+
+   zone "sbl-xbl.spamhaus.org" {
+           type forward; forward only;
+           forwarders { <ip.of.rbldns.server> port 530; };
+   };
+
+   zone "list.dsbl.org" {
+           type forward; forward only;
+           forwarders { <ip.of.rbldns.server> port 530; };
+   };
+
+
+Q: Will named be affected by the 2007 changes to daylight savings rules in the US.
+
+A: No, so long as the machines internal clock (as reported by "date -u") remains
+   at UTC. The only visible change if you fail to upgrade your OS, if you are in a
+   affected area, will be that log messages will be a hour out during the period
+   where the old rules do not match the new rules.
+
+   For most OS's this change just means that you need to update the conversion
+   rules from UTC to local time. Normally this involves updating a file in /etc
+   (which sets the default timezone for the machine) and possibly a directory
+   which has all the conversion rules for the world (e.g. /usr/share/zoneinfo).
+   When updating the OS do not forget to update any chroot areas as well. See your
+   OS's documetation for more details.
+
+   The local timezone conversion rules can also be done on a individual basis by
+   setting the TZ envirionment variable appropriately. See your OS's documentation
+   for more details.
 
