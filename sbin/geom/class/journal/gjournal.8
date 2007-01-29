@@ -1,0 +1,238 @@
+.\" Copyright (c) 2006-2007 Pawel Jakub Dawidek <pjd@FreeBSD.org>
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHORS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHORS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd December 5, 2006
+.Dt GJOURNAL 8
+.Os
+.Sh NAME
+.Nm gjournal
+.Nd "control utility for journaled devices"
+.Sh SYNOPSIS
+.Nm
+.Cm label
+.Op Fl fhv
+.Op Fl s Ar jsize
+.Ar dataprov
+.Op Ar jprov
+.Nm
+.Cm stop
+.Op Fl fv
+.Ar name ...
+.Nm
+.Cm sync
+.Op Fl v
+.Nm
+.Cm clear
+.Op Fl v
+.Ar prov ...
+.Nm
+.Cm dump
+.Ar prov ...
+.Nm
+.Cm list
+.Nm
+.Cm status
+.Nm
+.Cm load
+.Nm
+.Cm unload
+.Sh DESCRIPTION
+The
+.Nm
+utility is used for journal configuration on the given GEOM provider.
+The Journal and data may be stored on the same provider or on two separate
+providers.
+This is block level journaling, not file system level journaling, which means
+.Nm
+everything gets logged, e.g.: for file systems, it journals both data and
+metadata.
+The
+.Nm
+GEOM class can talk to file systems, which allows the use of
+.Nm
+for file system journaling and to keep file systems in a consistent state.
+At this time, only UFS file systems are supported.
+.Pp
+.\" XXX This next sentence needs fixed, it's a run on.
+To configure journaling via
+.Nm
+for the UFS file system, one should create a gjournaled provider using the
+.Nm
+utility with the
+.Fl J
+flag for
+.Xr newfs 8
+or
+.Xr tunefs 8
+which instructs UFS to cooperate with the
+.Nm
+provider below.
+There are important differences in how gjournaled UFS works.
+The most important one is that
+.Xr sync 2
+and
+.Xr fsync 2
+system calls do not work as expected anymore.
+To ensure that data is stored on the data provider, the
+.Nm Cm sync
+command should be used after calling
+.Xr sync 2 .
+For the best performance possible, soft-updates should be disabled when
+.Nm
+is used.
+It is also safe and recommended to use the
+.Cm async
+.Xr mount 8
+option.
+.Pp
+When
+.Nm
+is configured on top of
+.Nm gmirror
+or
+.Nm graid3
+providers, it also keeps them in a consistent state, thus
+automatic synchronization on power failure or system crash may be disabled
+on those providers.
+.Pp
+The
+.Nm
+utility uses on-disk metadata, stored in the provider's last sector, to store all needed
+information.
+This could be a problem when an existing file system is converted to use
+.Nm .
+.Pp
+The first argument to
+.Nm
+indicates an action to be performed:
+.Bl -tag -width ".Cm status"
+.It Cm label
+Configures
+.Nm
+on the given provider(s).
+If only one provider is given, both data and journal is stored on the same
+provider.
+If two providers are given, the first one will be used as data provider and the
+second will be used as the journal provider.
+.Pp
+Additional options include:
+.Bl -tag -width ".Fl s Ar jsize"
+.It Fl f
+May be used to convert an existing file system to use
+.Nm ,
+but only if the journal will be configured on a separate provider and if the last
+sector in the data provider is not used by the existing file system.
+If
+.Nm
+detects that the last sector is used, it will refuse to overwrite it
+and return an error.
+This behavior may be forced by using the
+.Fl f
+flag, which will force
+.Nm
+to overwrite the last sector.
+.It Fl h
+Hardcode provider names in meta-data.
+.It Fl s Ar jsize
+Specifies size of the journal if only one provider is used for both data and
+journal.
+The default is one gigabyte.
+Size should be chosen based on provider's load, and not on its size.
+It is not recommended to use
+.Nm
+for small file systems (e.g.: only few gigabytes big).
+.El
+.It Cm clear
+Clear meta-data on the given providers.
+.It Cm stop
+Stop the given provider.
+.Pp
+Additional options include:
+.Bl -tag -width ".Fl f"
+.It Fl f
+Stop the given provider even if it is opened.
+.El
+.It Cm sync
+Trigger journal switch and enforce sending data to the data provider.
+.It Cm dump
+Dump metadata stored on the given providers.
+.It Cm list
+See
+.Xr geom 8 .
+.It Cm status
+See
+.Xr geom 8 .
+.It Cm load
+See
+.Xr geom 8 .
+.It Cm unload
+See
+.Xr geom 8 .
+.El
+.Pp
+Additional options include:
+.Bl -tag -width ".Fl v"
+.It Fl v
+Be more verbose.
+.El
+.Sh EXIT STATUS
+Exit status is 0 on success, and 1 if the command fails.
+.Sh EXAMPLES
+Create a
+.Nm
+based UFS file system and mount it:
+.Bd -literal -offset indent
+gjournal load
+gjournal label da0
+newfs -J /dev/da0.journal
+mount -o async /dev/da0.journal /mnt
+.Ed
+.Pp
+Configure gjournaling on an existing file system, but only if
+.Nm
+allows this (i.e.: if the last sector is not already used by the file system):
+.Bd -literal -offset indent
+umount /dev/da0s1d
+gjournal label da0s1d da0s1e && tunefs -J enable -n disable && mount -o async /dev/da0s1d.journal /mnt || mount /dev/da0s1d /mnt
+.Ed
+.Sh SEE ALSO
+.Xr geom 4 ,
+.Xr geom 8 ,
+.Xr mount 8 ,
+.Xr newfs 8 ,
+.Xr tunefs 8 ,
+.Xr umount 8
+.Sh HISTORY
+The
+.Nm
+utility appeared in
+.Fx 7.0 .
+.Sh AUTHORS
+.An Pawel Jakub Dawidek Aq pjd@FreeBSD.org
+.Sh BUGS
+Documentation for sysctls
+.Va kern.geom.journal.*
+is missing.
