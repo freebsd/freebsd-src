@@ -92,6 +92,7 @@ __FBSDID("$FreeBSD$");
 #include <machine/smp.h>
 #endif
 #include <machine/tss.h>
+#include <security/audit/audit.h>
 
 extern void trap(struct trapframe frame);
 extern void syscall(struct trapframe frame);
@@ -786,10 +787,15 @@ syscall(frame)
 
 		if ((callp->sy_narg & SYF_MPSAFE) == 0) {
 			mtx_lock(&Giant);
+			AUDIT_SYSCALL_ENTER(code, td);
 			error = (*callp->sy_call)(td, argp);
+			AUDIT_SYSCALL_EXIT(error, td);
 			mtx_unlock(&Giant);
-		} else
+		} else {
+			AUDIT_SYSCALL_ENTER(code, td);
 			error = (*callp->sy_call)(td, argp);
+			AUDIT_SYSCALL_EXIT(error, td);
+		}
 	}
 
 	switch (error) {
