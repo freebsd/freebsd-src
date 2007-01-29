@@ -37,6 +37,7 @@
  *
  *      from: @(#)trap.c        7.4 (Berkeley) 5/13/91
  * 	from: FreeBSD: src/sys/i386/i386/trap.c,v 1.197 2001/07/19
+ * $FreeBSD$
  */
 
 #include <sys/cdefs.h>
@@ -68,6 +69,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/uio.h>
 #include <sys/ktrace.h>
 #endif
+#include <security/audit/audit.h>
 
 #include <vm/vm.h>
 #include <vm/pmap.h>
@@ -591,7 +593,9 @@ syscall(struct trapframe *tf)
 
 		PTRACESTOP_SC(p, td, S_PT_SCE);
 
+		AUDIT_SYSCALL_ENTER(code, td);
 		error = (*callp->sy_call)(td, argp);
+		AUDIT_SYSCALL_EXIT(code, td);
 
 		CTR5(KTR_SYSC, "syscall: p=%p error=%d %s return %#lx %#lx ", p,
 		    error, syscallnames[code], td->td_retval[0],
