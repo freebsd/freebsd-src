@@ -2318,7 +2318,6 @@ check_option(struct client_lease *l, int option)
 			    sbuf, opbuf);
 			l->options[option].len = 0;
 			free(l->options[option].data);
-			return (0);
 		}
 		return (1);
 	case DHO_DOMAIN_NAME:
