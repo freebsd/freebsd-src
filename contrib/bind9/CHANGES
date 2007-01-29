@@ -1,4 +1,11 @@
 
+	--- 9.3.4 released ---
+
+2126.	[security]	Serialise validation of type ANY responses. [RT #16555]
+
+2124.	[security]	It was possible to dereference a freed fetch
+			context. [RT #16584]
+
 	--- 9.3.3 released ---
 
 2107.	[bug]		dighost.c: more cleanup of buffers. [RT #16499]
