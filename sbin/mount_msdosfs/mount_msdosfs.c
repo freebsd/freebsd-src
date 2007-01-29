@@ -72,6 +72,7 @@ main(int argc, char **argv)
 	int c, mntflags, set_gid, set_uid, set_mask, set_dirmask;
 	char *dev, *dir, mntpath[MAXPATHLEN], *csp;
 	char fstype[] = "msdosfs";
+	char errmsg[255] = {0};
 	char *cs_dos = NULL;
 	char *cs_local = NULL;
 	mode_t mask = 0, dirmask = 0;
@@ -211,13 +212,14 @@ main(int argc, char **argv)
 	build_iovec(&iov, &iovlen, "fstype", fstype, (size_t)-1);
 	build_iovec(&iov, &iovlen, "fspath", mntpath, (size_t)-1);
 	build_iovec(&iov, &iovlen, "from", dev, (size_t)-1);
+	build_iovec(&iov, &iovlen, "errmsg", errmsg, sizeof(errmsg));
 	build_iovec_argf(&iov, &iovlen, "uid", "%d", uid);
 	build_iovec_argf(&iov, &iovlen, "gid", "%u", gid);
 	build_iovec_argf(&iov, &iovlen, "mask", "%u", mask);
 	build_iovec_argf(&iov, &iovlen, "dirmask", "%u", dirmask);
 
 	if (nmount(iov, iovlen, mntflags) < 0)
-		err(1, "%s", dev);
+		err(1, "%s: %s", dev, errmsg);
 
 	exit (0);
 }
