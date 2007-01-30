@@ -326,11 +326,12 @@ msdosfs_getattr(ap)
 			fileid = (uint64_t)roottobn(pmp, 0) * dirsperblk;
 		fileid += (uint64_t)dep->de_diroffset / sizeof(struct direntry);
 	}
-#ifdef MSDOSFS_LARGE
-	vap->va_fileid = msdosfs_fileno_map(pmp->pm_mountp, fileid);
-#else
-	vap->va_fileid = (long)fileid;
-#endif
+
+	if (pmp->pm_flags & MSDOSFS_LARGEFS)
+		vap->va_fileid = msdosfs_fileno_map(pmp->pm_mountp, fileid);
+	else
+		vap->va_fileid = (long)fileid;
+
 	if ((dep->de_Attributes & ATTR_READONLY) == 0)
 		mode = S_IRWXU|S_IRWXG|S_IRWXO;
 	else
@@ -1571,12 +1572,14 @@ msdosfs_readdir(ap)
 							  * dirsperblk;
 				else
 					fileno = 1;
-#ifdef MSDOSFS_LARGE
-				dirbuf.d_fileno = msdosfs_fileno_map(
-				    pmp->pm_mountp, fileno);
-#else
-				dirbuf.d_fileno = (uint32_t)fileno;
-#endif
+				if (pmp->pm_flags & MSDOSFS_LARGEFS) {
+					dirbuf.d_fileno =
+					    msdosfs_fileno_map(pmp->pm_mountp,
+					    fileno);
+				} else {
+
+					dirbuf.d_fileno = (uint32_t)fileno;
+				}
 				dirbuf.d_type = DT_DIR;
 				switch (n) {
 				case 0:
@@ -1700,12 +1703,12 @@ msdosfs_readdir(ap)
 				fileno = (uint64_t)offset / sizeof(struct direntry);
 				dirbuf.d_type = DT_REG;
 			}
-#ifdef MSDOSFS_LARGE
-			dirbuf.d_fileno = msdosfs_fileno_map(pmp->pm_mountp,
-			    fileno);
-#else
-			dirbuf.d_fileno = (uint32_t)fileno;
-#endif
+			if (pmp->pm_flags & MSDOSFS_LARGEFS) {
+				dirbuf.d_fileno =
+				    msdosfs_fileno_map(pmp->pm_mountp, fileno);
+			} else
+				dirbuf.d_fileno = (uint32_t)fileno;
+
 			if (chksum != winChksum(dentp)) {
 				dirbuf.d_namlen = dos2unixfn(dentp->deName,
 				    (u_char *)dirbuf.d_name,
