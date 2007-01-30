@@ -106,6 +106,8 @@ typedef struct
 	int done;			/* transmits completed	*/
 	int pkt_done;			/* packets completed */
 	int boundary;			/* boundary transmits cannot cross*/
+	int stall;			/* #times hw queue exhausted */
+	int wake;			/* #times irq re-enabled xmit */
 
 } mxge_tx_buf_t;
 
