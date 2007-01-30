@@ -75,8 +75,6 @@
 #include <geom/geom.h>
 #include <geom/geom_vfs.h>
 
-#include "opt_msdosfs.h"
-
 /* List of mount options we support */
 static const char *msdosfs_opts[] = {
 	"from",
