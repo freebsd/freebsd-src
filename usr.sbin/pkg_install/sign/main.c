@@ -106,9 +106,9 @@ main(argc, argv, envp)
 	int i;
 	int type = TAG_ANY;
 
-/* #ifndef BSD4_4 */
+#ifndef BSD4_4
 	set_program_name(argv[0]);
-/* #endif */
+#endif
 #ifdef CHECKER_ONLY
 	mode = CHECK;
 #else
