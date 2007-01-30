@@ -430,7 +430,7 @@ nfs_mountroot(struct mount *mp, struct thread *td)
 	 * Do enough of ifconfig(8) so that the critical net interface can
 	 * talk to the server.
 	 */
-	error = socreate(nd->myif.ifra_addr.sa_family, &so, SOCK_DGRAM, 0,
+	error = socreate(nd->myif.ifra_addr.sa_family, &so, nd->root_args.sotype, 0,
 	    td->td_ucred, td);
 	if (error)
 		panic("nfs_mountroot: socreate(%04x): %d",
