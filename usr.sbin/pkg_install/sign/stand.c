@@ -3,7 +3,7 @@ __FBSDID("$FreeBSD$");
 
 #include "stand.h"
 
-#ifdef BSD4_4
+#ifndef BSD4_4
 #include <string.h>
 #include <stdio.h>
 #include <errno.h>
