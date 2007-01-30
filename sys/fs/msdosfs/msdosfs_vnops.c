@@ -80,8 +80,6 @@
 #include <fs/msdosfs/denode.h>
 #include <fs/msdosfs/fat.h>
 
-#include "opt_msdosfs.h"
-
 #define	DOS_FILESIZE_MAX	0xffffffff
 
 /*
