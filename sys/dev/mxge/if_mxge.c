@@ -1023,6 +1023,8 @@ dmabench_fail:
 	sc->tx.req = 0;
 	sc->tx.done = 0;
 	sc->tx.pkt_done = 0;
+	sc->tx.wake = 0;
+	sc->tx.stall = 0;
 	sc->rx_big.cnt = 0;
 	sc->rx_small.cnt = 0;
 	sc->rdma_tags_available = 15;
@@ -1236,6 +1238,14 @@ mxge_add_sysctls(mxge_softc_t *sc)
 		       "tx_pkt_done",
 		       CTLFLAG_RD, &sc->tx.pkt_done,
 		       0, "tx_done");
+	SYSCTL_ADD_INT(ctx, children, OID_AUTO, 
+		       "tx_stall",
+		       CTLFLAG_RD, &sc->tx.stall,
+		       0, "tx_stall");
+	SYSCTL_ADD_INT(ctx, children, OID_AUTO, 
+		       "tx_wake",
+		       CTLFLAG_RD, &sc->tx.wake,
+		       0, "tx_wake");
 
 	/* verbose printing? */
 	SYSCTL_ADD_INT(ctx, children, OID_AUTO, 
@@ -1676,7 +1686,10 @@ mxge_start_locked(mxge_softc_t *sc)
 		mxge_encap(sc, m);
 	}
 	/* ran out of transmit slots */
-	sc->ifp->if_drv_flags |= IFF_DRV_OACTIVE;
+	if ((sc->ifp->if_drv_flags & IFF_DRV_OACTIVE) == 0) {
+		sc->ifp->if_drv_flags |= IFF_DRV_OACTIVE;
+		sc->tx.stall++;
+	}
 }
 
 static void
@@ -2021,6 +2034,7 @@ mxge_tx_done(mxge_softc_t *sc, uint32_t mcp_idx)
 	    tx->req - tx->done < (tx->mask + 1)/4) {
 		mtx_lock(&sc->tx_lock);
 		ifp->if_drv_flags &= ~IFF_DRV_OACTIVE;
+		sc->tx.wake++;
 		mxge_start_locked(sc);
 		mtx_unlock(&sc->tx_lock);
 	}
@@ -2213,8 +2227,8 @@ mxge_alloc_rings(mxge_softc_t *sc)
 
 	tx_ring_entries = tx_ring_size / sizeof (mcp_kreq_ether_send_t);
 	rx_ring_entries = rx_ring_size / sizeof (mcp_dma_addr_t);
-	sc->ifp->if_snd.ifq_drv_maxlen = sc->ifp->if_snd.ifq_maxlen;
 	IFQ_SET_MAXLEN(&sc->ifp->if_snd, tx_ring_entries - 1);
+	sc->ifp->if_snd.ifq_drv_maxlen = sc->ifp->if_snd.ifq_maxlen;
 	IFQ_SET_READY(&sc->ifp->if_snd);
 
 	sc->tx.mask = tx_ring_entries - 1;
@@ -2866,7 +2880,8 @@ mxge_attach(device_t dev)
 	/* hook into the network stack */
 	if_initname(ifp, device_get_name(dev), device_get_unit(dev));
 	ifp->if_baudrate = 100000000;
-	ifp->if_capabilities = IFCAP_RXCSUM | IFCAP_TXCSUM | IFCAP_TSO4;
+	ifp->if_capabilities = IFCAP_RXCSUM | IFCAP_TXCSUM | IFCAP_TSO4 |
+		IFCAP_JUMBO_MTU;
 	ifp->if_hwassist = CSUM_TCP | CSUM_UDP | CSUM_TSO;
 	ifp->if_capenable = ifp->if_capabilities;
 	sc->csum_flag = 1;
