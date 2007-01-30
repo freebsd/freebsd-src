@@ -121,7 +121,7 @@ fatblock(pmp, ofs, bnp, sizep, bop)
 		*sizep = size;
 	if (bop)
 		*bop = ofs % pmp->pm_fatblocksize;
-		pm_fatblocksize =  pmp->pm_fatblocksize;
+		pm_fatblocksize = pmp->pm_fatblocksize;
 }
 
 /*
