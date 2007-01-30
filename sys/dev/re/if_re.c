@@ -1459,7 +1459,6 @@ re_newbuf(sc, idx, m)
 	 */
 	m_adj(m, RE_ETHER_ALIGN);
 #endif
-	arg.sc = sc;
 	arg.rl_idx = idx;
 	arg.rl_maxsegs = 1;
 	arg.rl_flags = 0;
@@ -1471,6 +1470,9 @@ re_newbuf(sc, idx, m)
 	if (error || arg.rl_maxsegs != 1) {
 		if (n != NULL)
 			m_freem(n);
+		if (arg.rl_maxsegs == 0)
+			bus_dmamap_unload(sc->rl_ldata.rl_mtag,
+			    sc->rl_ldata.rl_rx_dmamap[idx]);
 		return (ENOMEM);
 	}
 
@@ -1754,13 +1756,11 @@ re_txeof(sc)
 	idx = sc->rl_ldata.rl_tx_considx;
 
 	/* Invalidate the TX descriptor list */
-
 	bus_dmamap_sync(sc->rl_ldata.rl_tx_list_tag,
 	    sc->rl_ldata.rl_tx_list_map,
 	    BUS_DMASYNC_POSTREAD);
 
 	while (sc->rl_ldata.rl_tx_free < RL_TX_DESC_CNT) {
-
 		txstat = le32toh(sc->rl_ldata.rl_tx_list[idx].rl_cmdstat);
 		if (txstat & RL_TDESC_CMD_OWN)
 			break;
@@ -1773,7 +1773,6 @@ re_txeof(sc)
 		 * be the only place where the TX status bits
 		 * are valid.
 		 */
-
 		if (txstat & RL_TDESC_CMD_EOF) {
 			m_freem(sc->rl_ldata.rl_tx_mbuf[idx]);
 			sc->rl_ldata.rl_tx_mbuf[idx] = NULL;
@@ -1790,37 +1789,35 @@ re_txeof(sc)
 		sc->rl_ldata.rl_tx_free++;
 		RL_DESC_INC(idx);
 	}
+	sc->rl_ldata.rl_tx_considx = idx;
 
 	/* No changes made to the TX ring, so no flush needed */
 
-	if (sc->rl_ldata.rl_tx_free) {
-		sc->rl_ldata.rl_tx_considx = idx;
+	if (sc->rl_ldata.rl_tx_free > RL_TX_DESC_THLD)
 		ifp->if_drv_flags &= ~IFF_DRV_OACTIVE;
-		sc->rl_watchdog_timer = 0;
-	}
 
-	/*
-	 * Some chips will ignore a second TX request issued while an
-	 * existing transmission is in progress. If the transmitter goes
-	 * idle but there are still packets waiting to be sent, we need
-	 * to restart the channel here to flush them out. This only seems
-	 * to be required with the PCIe devices.
-	 */
-
-	if (sc->rl_ldata.rl_tx_free < RL_TX_DESC_CNT)
-	    CSR_WRITE_1(sc, sc->rl_txstart, RL_TXSTART_START);
+	if (sc->rl_ldata.rl_tx_free < RL_TX_DESC_CNT) {
+		/*
+		 * Some chips will ignore a second TX request issued
+		 * while an existing transmission is in progress. If
+		 * the transmitter goes idle but there are still
+		 * packets waiting to be sent, we need to restart the
+		 * channel here to flush them out. This only seems to
+		 * be required with the PCIe devices.
+		 */
+		CSR_WRITE_1(sc, sc->rl_txstart, RL_TXSTART_START);
 
 #ifdef RE_TX_MODERATION
-	/*
-	 * If not all descriptors have been released reaped yet,
-	 * reload the timer so that we will eventually get another
-	 * interrupt that will cause us to re-enter this routine.
-	 * This is done in case the transmitter has gone idle.
-	 */
-	if (sc->rl_ldata.rl_tx_free != RL_TX_DESC_CNT)
+		/*
+		 * If not all descriptors have been reaped yet, reload
+		 * the timer so that we will eventually get another
+		 * interrupt that will cause us to re-enter this routine.
+		 * This is done in case the transmitter has gone idle.
+		 */
 		CSR_WRITE_4(sc, RL_TIMERCNT, 1);
 #endif
-
+	} else
+		sc->rl_watchdog_timer = 0;
 }
 
 static void
@@ -2002,7 +1999,7 @@ re_encap(sc, m_head, idx)
 
 	RL_LOCK_ASSERT(sc);
 
-	if (sc->rl_ldata.rl_tx_free <= 4)
+	if (sc->rl_ldata.rl_tx_free <= RL_TX_DESC_THLD)
 		return (EFBIG);
 
 	/*
@@ -2021,11 +2018,10 @@ re_encap(sc, m_head, idx)
 	if ((*m_head)->m_pkthdr.csum_flags & CSUM_UDP)
 		arg.rl_flags |= RL_TDESC_CMD_UDPCSUM;
 
-	arg.sc = sc;
 	arg.rl_idx = *idx;
 	arg.rl_maxsegs = sc->rl_ldata.rl_tx_free;
-	if (arg.rl_maxsegs > 4)
-		arg.rl_maxsegs -= 4;
+	if (arg.rl_maxsegs > RL_TX_DESC_THLD)
+		arg.rl_maxsegs -= RL_TX_DESC_THLD;
 	arg.rl_ring = sc->rl_ldata.rl_tx_list;
 
 	map = sc->rl_ldata.rl_tx_dmamap[*idx];
@@ -2044,7 +2040,6 @@ re_encap(sc, m_head, idx)
 	 * below can assemble the packet into a single buffer that's
 	 * padded out to the mininum frame size.
 	 */
-
 	if (arg.rl_flags && (*m_head)->m_pkthdr.len < RL_MIN_FRAMELEN)
 		error = EFBIG;
 	else
@@ -2059,17 +2054,20 @@ re_encap(sc, m_head, idx)
 	/* Too many segments to map, coalesce into a single mbuf */
 
 	if (error || arg.rl_maxsegs == 0) {
+		if (arg.rl_maxsegs == 0)
+			bus_dmamap_unload(sc->rl_ldata.rl_mtag, map);
 		m_new = m_defrag(*m_head, M_DONTWAIT);
-		if (m_new == NULL)
+		if (m_new == NULL) {
+			m_freem(*m_head);
+			*m_head = NULL;
 			return (ENOBUFS);
-		else
-			*m_head = m_new;
+		}
+		*m_head = m_new;
 
 		/*
 		 * Manually pad short frames, and zero the pad space
 		 * to avoid leaking data.
 		 */
-
 		if (m_new->m_pkthdr.len < RL_MIN_FRAMELEN) {
 			bzero(mtod(m_new, char *) + m_new->m_pkthdr.len,
 			    RL_MIN_FRAMELEN - m_new->m_pkthdr.len);
@@ -2078,16 +2076,17 @@ re_encap(sc, m_head, idx)
 			m_new->m_len = m_new->m_pkthdr.len;
 		}
 
-		arg.sc = sc;
-		arg.rl_idx = *idx;
+		/* Note that we'll run over RL_TX_DESC_THLD here. */
 		arg.rl_maxsegs = sc->rl_ldata.rl_tx_free;
-		arg.rl_ring = sc->rl_ldata.rl_tx_list;
-
 		error = bus_dmamap_load_mbuf(sc->rl_ldata.rl_mtag, map,
 		    *m_head, re_dma_map_desc, &arg, BUS_DMA_NOWAIT);
-		if (error) {
-			device_printf(sc->rl_dev, "can't map mbuf (error %d)\n",
-			    error);
+		if (error || arg.rl_maxsegs == 0) {
+			device_printf(sc->rl_dev,
+			    "can't map defragmented mbuf (error %d)\n", error);
+			m_freem(m_new);
+			*m_head = NULL;
+			if (arg.rl_maxsegs == 0)
+				bus_dmamap_unload(sc->rl_ldata.rl_mtag, map);
 			return (EFBIG);
 		}
 	}
@@ -2170,6 +2169,8 @@ re_start(ifp)
 			break;
 
 		if (re_encap(sc, &m_head, &idx)) {
+			if (m_head == NULL)
+				break;
 			IFQ_DRV_PREPEND(&ifp->if_snd, m_head);
 			ifp->if_drv_flags |= IFF_DRV_OACTIVE;
 			break;
@@ -2200,11 +2201,6 @@ re_start(ifp)
 	    BUS_DMASYNC_PREWRITE|BUS_DMASYNC_PREREAD);
 
 	sc->rl_ldata.rl_tx_prodidx = idx;
-
-	/*
-	 * RealTek put the TX poll request register in a different
-	 * location on the 8169 gigE chip. I don't know why.
-	 */
 
 	CSR_WRITE_1(sc, sc->rl_txstart, RL_TXSTART_START);
 
