@@ -126,6 +126,7 @@ struct npe_softc {
 	int		sc_debug;	/* DPRINTF* control */
 	int		sc_tickinterval;
 	struct callout	tick_ch;	/* Tick callout */
+	int		npe_watchdog_timer;
 	struct npedma	txdma;
 	struct npebuf	*tx_free;	/* list of free tx buffers */
 	struct npedma	rxdma;
@@ -229,7 +230,7 @@ static void	npeinit(void *);
 static void	npestart_locked(struct ifnet *);
 static void	npestart(struct ifnet *);
 static void	npestop(struct npe_softc *);
-static void	npewatchdog(struct ifnet *);
+static void	npewatchdog(struct npe_softc *);
 static int	npeioctl(struct ifnet * ifp, u_long, caddr_t);
 
 static int	npe_setrxqosentry(struct npe_softc *, int classix,
@@ -328,12 +329,10 @@ npe_attach(device_t dev)
 	ifp->if_flags = IFF_BROADCAST | IFF_SIMPLEX | IFF_MULTICAST;
 	ifp->if_start = npestart;
 	ifp->if_ioctl = npeioctl;
-	ifp->if_watchdog = npewatchdog;
 	ifp->if_init = npeinit;
 	IFQ_SET_MAXLEN(&ifp->if_snd, sc->txdma.nbuf - 1);
 	ifp->if_snd.ifq_maxlen = IFQ_MAXLEN;
 	IFQ_SET_READY(&ifp->if_snd);
-	ifp->if_timer = 0;
 	ifp->if_linkmib = &sc->mibdata;
 	ifp->if_linkmiblen = sizeof(sc->mibdata);
 	sc->mibdata.dot3Compliance = DOT3COMPLIANCE_STATS;
@@ -796,6 +795,8 @@ npe_tick(void *xsc)
 	npe_updatestats(sc);
 	mii_tick(mii);
 
+	npewatchdog(sc);
+
 	/* schedule next poll */
 	callout_reset(&sc->tick_ch, sc->sc_tickinterval * hz, npe_tick, sc);
 #undef ACK
@@ -845,7 +846,7 @@ npe_txdone_finish(struct npe_softc *sc, const struct txdone *td)
 	 */
 	ifp->if_opackets += td->count;
 	ifp->if_drv_flags &= ~IFF_DRV_OACTIVE;
-	ifp->if_timer = 0;
+	sc->npe_watchdog_timer = 0;
 	npestart_locked(ifp);
 	NPE_UNLOCK(sc);
 }
@@ -1104,7 +1105,7 @@ if (ifp->if_drv_flags & IFF_DRV_RUNNING) return;/*XXX*/
 
 	ifp->if_drv_flags |= IFF_DRV_RUNNING;
 	ifp->if_drv_flags &= ~IFF_DRV_OACTIVE;
-	ifp->if_timer = 0;		/* just in case */
+	sc->npe_watchdog_timer = 0;		/* just in case */
 
 	/* enable transmitter and reciver in the MAC */
  	WR4(sc, NPE_MAC_RX_CNTRL1,
@@ -1287,7 +1288,7 @@ npestart_locked(struct ifnet *ifp)
 		/* XXX add vlan priority */
 		ixpqmgr_qwrite(sc->tx_qid, npe->ix_neaddr);
 
-		ifp->if_timer = 5;
+		sc->npe_watchdog_timer = 5;
 	}
 	if (sc->tx_free == NULL)
 		ifp->if_drv_flags |= IFF_DRV_OACTIVE;
@@ -1356,7 +1357,7 @@ npestop(struct npe_softc *sc)
  	WR4(sc, NPE_MAC_TX_CNTRL1,
 	    RD4(sc, NPE_MAC_TX_CNTRL1) &~ NPE_TX_CNTRL1_TX_EN);
 
-	ifp->if_timer = 0;
+	sc->npe_watchdog_timer = 0;
 	ifp->if_drv_flags &= ~(IFF_DRV_RUNNING | IFF_DRV_OACTIVE);
 
 	callout_stop(&sc->tick_ch);
@@ -1378,15 +1379,17 @@ npestop(struct npe_softc *sc)
 }
 
 void
-npewatchdog(struct ifnet *ifp)
+npewatchdog(struct npe_softc *sc)
 {
-	struct npe_softc *sc = ifp->if_softc;
+	NPE_ASSERT_LOCKED(sc);
 
-	NPE_LOCK(sc);
-	if_printf(ifp, "device timeout\n");
-	ifp->if_oerrors++;
+	if (sc->npe_watchdog_timer == 0 || --sc->npe_watchdog_timer != 0)
+		return;
+
+	device_printf(sc->sc_dev, "watchdog timeout\n");
+	sc->sc_ifp->if_oerrors++;
+
 	npeinit_locked(sc);
-	NPE_UNLOCK(sc);
 }
 
 static int
