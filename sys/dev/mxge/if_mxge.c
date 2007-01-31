@@ -648,7 +648,7 @@ mxge_send_cmd(mxge_softc_t *sc, uint32_t cmd, mxge_cmd_t *data)
 
 	buf->response_addr.low = htobe32(dma_low);
 	buf->response_addr.high = htobe32(dma_high);
-	mtx_lock(&sc->cmd_lock);
+	mtx_lock(&sc->cmd_mtx);
 	response->result = 0xffffffff;
 	mb();
 	mxge_pio_copy((volatile void *)cmd_addr, buf, sizeof (*buf));
@@ -661,20 +661,20 @@ mxge_send_cmd(mxge_softc_t *sc, uint32_t cmd, mxge_cmd_t *data)
 		if (response->result != 0xffffffff) {
 			if (response->result == 0) {
 				data->data0 = be32toh(response->data);
-				mtx_unlock(&sc->cmd_lock);
+				mtx_unlock(&sc->cmd_mtx);
 				return 0;
 			} else {
 				device_printf(sc->dev, 
 					      "mxge: command %d "
 					      "failed, result = %d\n",
 					      cmd, be32toh(response->result));
-				mtx_unlock(&sc->cmd_lock);
+				mtx_unlock(&sc->cmd_mtx);
 				return ENXIO;
 			}
 		}
 		DELAY(1000);
 	}
-	mtx_unlock(&sc->cmd_lock);
+	mtx_unlock(&sc->cmd_mtx);
 	device_printf(sc->dev, "mxge: command %d timed out"
 		      "result = %d\n",
 		      cmd, be32toh(response->result));
@@ -927,7 +927,6 @@ mxge_reset(mxge_softc_t *sc)
 {
 
 	mxge_cmd_t cmd;
-	mxge_dma_t dmabench_dma;
 	size_t bytes;
 	int status;
 
@@ -975,13 +974,10 @@ mxge_reset(mxge_softc_t *sc)
 	
 	/* run a DMA benchmark */
 	sc->read_dma = sc->write_dma = sc->read_write_dma = 0;
-	status = mxge_dma_alloc(sc, &dmabench_dma, 4096, 4096);
-	if (status)
-		goto dmabench_fail;
 
 	/* Read DMA */
-	cmd.data0 = MXGE_LOWPART_TO_U32(dmabench_dma.bus_addr);
-	cmd.data1 = MXGE_HIGHPART_TO_U32(dmabench_dma.bus_addr);
+	cmd.data0 = MXGE_LOWPART_TO_U32(sc->dmabench_dma.bus_addr);
+	cmd.data1 = MXGE_HIGHPART_TO_U32(sc->dmabench_dma.bus_addr);
 	cmd.data2 = sc->tx.boundary * 0x10000;
 
 	status = mxge_send_cmd(sc, MXGEFW_DMA_TEST, &cmd);
@@ -992,8 +988,8 @@ mxge_reset(mxge_softc_t *sc)
 			(cmd.data0 & 0xffff);
 
 	/* Write DMA */
-	cmd.data0 = MXGE_LOWPART_TO_U32(dmabench_dma.bus_addr);
-	cmd.data1 = MXGE_HIGHPART_TO_U32(dmabench_dma.bus_addr);
+	cmd.data0 = MXGE_LOWPART_TO_U32(sc->dmabench_dma.bus_addr);
+	cmd.data1 = MXGE_HIGHPART_TO_U32(sc->dmabench_dma.bus_addr);
 	cmd.data2 = sc->tx.boundary * 0x1;
 	status = mxge_send_cmd(sc, MXGEFW_DMA_TEST, &cmd);
 	if (status != 0)
@@ -1002,8 +998,8 @@ mxge_reset(mxge_softc_t *sc)
 		sc->write_dma = ((cmd.data0>>16) * sc->tx.boundary * 2) /
 			(cmd.data0 & 0xffff);
 	/* Read/Write DMA */
-	cmd.data0 = MXGE_LOWPART_TO_U32(dmabench_dma.bus_addr);
-	cmd.data1 = MXGE_HIGHPART_TO_U32(dmabench_dma.bus_addr);
+	cmd.data0 = MXGE_LOWPART_TO_U32(sc->dmabench_dma.bus_addr);
+	cmd.data1 = MXGE_HIGHPART_TO_U32(sc->dmabench_dma.bus_addr);
 	cmd.data2 = sc->tx.boundary * 0x10001;
 	status = mxge_send_cmd(sc, MXGEFW_DMA_TEST, &cmd);
 	if (status != 0)
@@ -1013,9 +1009,6 @@ mxge_reset(mxge_softc_t *sc)
 			((cmd.data0>>16) * sc->tx.boundary * 2 * 2) /
 			(cmd.data0 & 0xffff);
 
-	mxge_dma_free(&dmabench_dma);
-
-dmabench_fail:
 	/* reset mcp/driver shared state back to 0 */
 	bzero(sc->rx_done.entry, bytes);
 	sc->rx_done.idx = 0;
@@ -1028,6 +1021,8 @@ dmabench_fail:
 	sc->rx_big.cnt = 0;
 	sc->rx_small.cnt = 0;
 	sc->rdma_tags_available = 15;
+	sc->fw_stats->valid = 0;
+	sc->fw_stats->send_done_count = 0;
 	status = mxge_update_mac_address(sc);
 	mxge_change_promisc(sc, 0);
 	mxge_change_pause(sc, sc->pause);
@@ -1054,11 +1049,11 @@ mxge_change_intr_coal(SYSCTL_HANDLER_ARGS)
         if (intr_coal_delay == 0 || intr_coal_delay > 1000*1000)
                 return EINVAL;
 
-	sx_xlock(&sc->driver_lock);
+	mtx_lock(&sc->driver_mtx);
 	*sc->intr_coal_delay_ptr = htobe32(intr_coal_delay);
 	sc->intr_coal_delay = intr_coal_delay;
 	
-	sx_xunlock(&sc->driver_lock);
+	mtx_unlock(&sc->driver_mtx);
         return err;
 }
 
@@ -1078,9 +1073,9 @@ mxge_change_flow_control(SYSCTL_HANDLER_ARGS)
         if (enabled == sc->pause)
                 return 0;
 
-	sx_xlock(&sc->driver_lock);
+	mtx_lock(&sc->driver_mtx);
 	err = mxge_change_pause(sc, enabled);
-	sx_xunlock(&sc->driver_lock);
+	mtx_unlock(&sc->driver_mtx);
         return err;
 }
 
@@ -1698,9 +1693,9 @@ mxge_start(struct ifnet *ifp)
 	mxge_softc_t *sc = ifp->if_softc;
 
 
-	mtx_lock(&sc->tx_lock);
+	mtx_lock(&sc->tx_mtx);
 	mxge_start_locked(sc);
-	mtx_unlock(&sc->tx_lock);		
+	mtx_unlock(&sc->tx_mtx);		
 }
 
 /*
@@ -2032,11 +2027,11 @@ mxge_tx_done(mxge_softc_t *sc, uint32_t mcp_idx)
 
 	if (ifp->if_drv_flags & IFF_DRV_OACTIVE &&
 	    tx->req - tx->done < (tx->mask + 1)/4) {
-		mtx_lock(&sc->tx_lock);
+		mtx_lock(&sc->tx_mtx);
 		ifp->if_drv_flags &= ~IFF_DRV_OACTIVE;
 		sc->tx.wake++;
 		mxge_start_locked(sc);
-		mtx_unlock(&sc->tx_lock);
+		mtx_unlock(&sc->tx_mtx);
 	}
 }
 
@@ -2406,25 +2401,15 @@ mxge_open(mxge_softc_t *sc)
 		device_printf(sc->dev, "failed to reset\n");
 		return EIO;
 	}
-
+	bzero(sc->rx_done.entry, 
+	      mxge_max_intr_slots * sizeof(*sc->rx_done.entry));
+	
 	if (MCLBYTES >= 
 	    sc->ifp->if_mtu + ETHER_HDR_LEN + MXGEFW_PAD)
 		sc->big_bytes = MCLBYTES;
 	else
 		sc->big_bytes = MJUMPAGESIZE;
 
-	err = mxge_alloc_rings(sc);
-	if (err != 0) {
-		device_printf(sc->dev, "failed to allocate rings\n");
-		return err;
-	}
-
-	err = bus_setup_intr(sc->dev, sc->irq_res, 
-			     INTR_TYPE_NET | INTR_MPSAFE,
-			     mxge_intr, sc, &sc->ih);
-	if (err != 0) {
-		goto abort_with_rings;
-	}
 
 	/* get the lanai pointers to the send and receive rings */
 
@@ -2442,8 +2427,7 @@ mxge_open(mxge_softc_t *sc)
 	if (err != 0) {
 		device_printf(sc->dev, 
 			      "failed to get ring sizes or locations\n");
-		err = EIO;
-		goto abort_with_irq;
+		return EIO;
 	}
 
 	if (sc->wc) {
@@ -2532,10 +2516,7 @@ mxge_open(mxge_softc_t *sc)
 
 abort:
 	mxge_free_mbufs(sc);
-abort_with_irq:
-	bus_teardown_intr(sc->dev, sc->irq_res, sc->ih);
-abort_with_rings:
-	mxge_free_rings(sc);
+
 	return err;
 }
 
@@ -2554,15 +2535,14 @@ mxge_close(mxge_softc_t *sc)
 	}
 	if (old_down_cnt == sc->down_cnt) {
 		/* wait for down irq */
-		(void)tsleep(&sc->down_cnt, PWAIT, "down mxge", hz);
+		DELAY(2 * sc->intr_coal_delay);
 	}
 	if (old_down_cnt == sc->down_cnt) {
 		device_printf(sc->dev, "never got down irq\n");
 	}
-	if (sc->ih != NULL)
-		bus_teardown_intr(sc->dev, sc->irq_res, sc->ih);
+
 	mxge_free_mbufs(sc);
-	mxge_free_rings(sc);
+
 	return 0;
 }
 
@@ -2585,7 +2565,7 @@ mxge_change_mtu(mxge_softc_t *sc, int mtu)
 	if ((real_mtu > MXGE_MAX_ETHER_MTU) ||
 	    real_mtu < 60)
 		return EINVAL;
-	sx_xlock(&sc->driver_lock);
+	mtx_lock(&sc->driver_mtx);
 	old_mtu = ifp->if_mtu;
 	ifp->if_mtu = mtu;
 	if (ifp->if_drv_flags & IFF_DRV_RUNNING) {
@@ -2597,7 +2577,7 @@ mxge_change_mtu(mxge_softc_t *sc, int mtu)
 			(void) mxge_open(sc);
 		}
 	}
-	sx_xunlock(&sc->driver_lock);
+	mtx_unlock(&sc->driver_mtx);
 	return err;
 }	
 
@@ -2634,7 +2614,7 @@ mxge_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 		break;
 
 	case SIOCSIFFLAGS:
-		sx_xlock(&sc->driver_lock);
+		mtx_lock(&sc->driver_mtx);
 		if (ifp->if_flags & IFF_UP) {
 			if (!(ifp->if_drv_flags & IFF_DRV_RUNNING))
 				err = mxge_open(sc);
@@ -2649,18 +2629,18 @@ mxge_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 			if (ifp->if_drv_flags & IFF_DRV_RUNNING)
 				mxge_close(sc);
 		}
-		sx_xunlock(&sc->driver_lock);
+		mtx_unlock(&sc->driver_mtx);
 		break;
 
 	case SIOCADDMULTI:
 	case SIOCDELMULTI:
-		sx_xlock(&sc->driver_lock);
+		mtx_lock(&sc->driver_mtx);
 		mxge_set_multicast_list(sc);
-		sx_xunlock(&sc->driver_lock);
+		mtx_unlock(&sc->driver_mtx);
 		break;
 
 	case SIOCSIFCAP:
-		sx_xlock(&sc->driver_lock);
+		mtx_lock(&sc->driver_mtx);
 		mask = ifr->ifr_reqcap ^ ifp->if_capenable;
 		if (mask & IFCAP_TXCSUM) {
 			if (IFCAP_TXCSUM & ifp->if_capenable) {
@@ -2693,7 +2673,7 @@ mxge_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 				err = EINVAL;
 			}
 		}
-		sx_xunlock(&sc->driver_lock);
+		mtx_unlock(&sc->driver_mtx);
 		break;
 
 	case SIOCGIFMEDIA:
@@ -2768,11 +2748,16 @@ mxge_attach(device_t dev)
 		err = ENOSPC;
 		goto abort_with_parent_dmat;
 	}
-	mtx_init(&sc->cmd_lock, NULL,
+	snprintf(sc->cmd_mtx_name, sizeof(sc->cmd_mtx_name), "%s:cmd",
+		 device_get_nameunit(dev));
+	mtx_init(&sc->cmd_mtx, sc->cmd_mtx_name, NULL, MTX_DEF);
+	snprintf(sc->tx_mtx_name, sizeof(sc->tx_mtx_name), "%s:tx", 
+		 device_get_nameunit(dev));
+	mtx_init(&sc->tx_mtx, sc->tx_mtx_name, NULL, MTX_DEF);
+	snprintf(sc->driver_mtx_name, sizeof(sc->driver_mtx_name),
+		 "%s:drv", device_get_nameunit(dev));
+	mtx_init(&sc->driver_mtx, sc->driver_mtx_name,
 		 MTX_NETWORK_LOCK, MTX_DEF);
-	mtx_init(&sc->tx_lock, device_get_nameunit(dev),
-		 MTX_NETWORK_LOCK, MTX_DEF);
-	sx_init(&sc->driver_lock, device_get_nameunit(dev));
 
 	/* find the PCIe link width and set max read request to 4KB*/
 	if (pci_find_extcap(dev, PCIY_EXPRESS, &reg) == 0) {
@@ -2839,12 +2824,15 @@ mxge_attach(device_t dev)
 		goto abort_with_zeropad_dma;
 	sc->fw_stats = (mcp_irq_data_t *)sc->fw_stats_dma.addr;
 
+	err = mxge_dma_alloc(sc, &sc->dmabench_dma, 4096, 4096);
+	if (err != 0)
+		goto abort_with_fw_stats;
 
 	/* allocate interrupt queues */
 	bytes = mxge_max_intr_slots * sizeof (*sc->rx_done.entry);
 	err = mxge_dma_alloc(sc, &sc->rx_done.dma, bytes, 4096);
 	if (err != 0)
-		goto abort_with_fw_stats;
+		goto abort_with_dmabench;
 	sc->rx_done.entry = sc->rx_done.dma.addr;
 	bzero(sc->rx_done.entry, bytes);
 
@@ -2877,6 +2865,18 @@ mxge_attach(device_t dev)
 	if (err != 0)
 		goto abort_with_irq_res;
 
+	err = mxge_alloc_rings(sc);
+	if (err != 0) {
+		device_printf(sc->dev, "failed to allocate rings\n");
+		goto abort_with_irq_res;
+	}
+
+	err = bus_setup_intr(sc->dev, sc->irq_res, 
+			     INTR_TYPE_NET | INTR_MPSAFE,
+			     mxge_intr, sc, &sc->ih);
+	if (err != 0) {
+		goto abort_with_rings;
+	}
 	/* hook into the network stack */
 	if_initname(ifp, device_get_name(dev), device_get_unit(dev));
 	ifp->if_baudrate = 100000000;
@@ -2902,6 +2902,8 @@ mxge_attach(device_t dev)
 	mxge_add_sysctls(sc);
 	return 0;
 
+abort_with_rings:
+	mxge_free_rings(sc);
 abort_with_irq_res:
 	bus_release_resource(dev, SYS_RES_IRQ,
 			     sc->msi_enabled ? 1 : 0, sc->irq_res);
@@ -2910,6 +2912,8 @@ abort_with_irq_res:
 abort_with_rx_done:
 	sc->rx_done.entry = NULL;
 	mxge_dma_free(&sc->rx_done.dma);
+abort_with_dmabench:
+	mxge_dma_free(&sc->dmabench_dma);
 abort_with_fw_stats:
 	mxge_dma_free(&sc->fw_stats_dma);
 abort_with_zeropad_dma:
@@ -2920,9 +2924,9 @@ abort_with_mem_res:
 	bus_release_resource(dev, SYS_RES_MEMORY, PCIR_BARS, sc->mem_res);
 abort_with_lock:
 	pci_disable_busmaster(dev);
-	mtx_destroy(&sc->cmd_lock);
-	mtx_destroy(&sc->tx_lock);
-	sx_destroy(&sc->driver_lock);
+	mtx_destroy(&sc->cmd_mtx);
+	mtx_destroy(&sc->tx_mtx);
+	mtx_destroy(&sc->driver_mtx);
 	if_free(ifp);
 abort_with_parent_dmat:
 	bus_dma_tag_destroy(sc->parent_dmat);
@@ -2936,12 +2940,14 @@ mxge_detach(device_t dev)
 {
 	mxge_softc_t *sc = device_get_softc(dev);
 
-	sx_xlock(&sc->driver_lock);
+	mtx_lock(&sc->driver_mtx);
 	if (sc->ifp->if_drv_flags & IFF_DRV_RUNNING)
 		mxge_close(sc);
-	sx_xunlock(&sc->driver_lock);
+	mtx_unlock(&sc->driver_mtx);
 	ether_ifdetach(sc->ifp);
 	mxge_dummy_rdma(sc, 0);
+	bus_teardown_intr(sc->dev, sc->irq_res, sc->ih);
+	mxge_free_rings(sc);
 	bus_release_resource(dev, SYS_RES_IRQ,
 			     sc->msi_enabled ? 1 : 0, sc->irq_res);
 	if (sc->msi_enabled)
@@ -2950,13 +2956,14 @@ mxge_detach(device_t dev)
 	sc->rx_done.entry = NULL;
 	mxge_dma_free(&sc->rx_done.dma);
 	mxge_dma_free(&sc->fw_stats_dma);
+	mxge_dma_free(&sc->dmabench_dma);
 	mxge_dma_free(&sc->zeropad_dma);
 	mxge_dma_free(&sc->cmd_dma);
 	bus_release_resource(dev, SYS_RES_MEMORY, PCIR_BARS, sc->mem_res);
 	pci_disable_busmaster(dev);
-	mtx_destroy(&sc->cmd_lock);
-	mtx_destroy(&sc->tx_lock);
-	sx_destroy(&sc->driver_lock);
+	mtx_destroy(&sc->cmd_mtx);
+	mtx_destroy(&sc->tx_mtx);
+	mtx_destroy(&sc->driver_mtx);
 	if_free(sc->ifp);
 	bus_dma_tag_destroy(sc->parent_dmat);
 	return 0;
