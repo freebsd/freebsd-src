@@ -108,7 +108,8 @@ typedef struct
 	int boundary;			/* boundary transmits cannot cross*/
 	int stall;			/* #times hw queue exhausted */
 	int wake;			/* #times irq re-enabled xmit */
-
+	int watchdog_req;		/* cache of req */
+	int watchdog_done;		/* cache of done */
 } mxge_tx_buf_t;
 
 typedef struct {
@@ -160,6 +161,7 @@ typedef struct {
 	int fw_multicast_support;
 	int link_width;
 	mxge_dma_t dmabench_dma;
+	struct callout co_hdl;
 	char *mac_addr_string;
 	char product_code_string[64];
 	char serial_number_string[64];
