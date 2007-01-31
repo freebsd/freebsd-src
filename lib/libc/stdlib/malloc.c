@@ -550,6 +550,14 @@ struct arena_run_link_s {
 	qr(arena_run_t)	link;
 };
 
+/* Avoid pointer aliasing issues. */
+static inline arena_run_t *
+arena_bin_link(void *ptr)
+{
+
+	return ((arena_run_t *)ptr);
+}
+
 struct arena_bin_s {
 	/*
 	 * Current run being used to service allocations of this bin's size
@@ -1318,7 +1326,7 @@ chunk_alloc(size_t size)
 			if (incr == size) {
 				ret = brk_cur;
 			} else {
-				ret = (void *)(intptr_t)brk_cur + incr;
+				ret = (void *)((intptr_t)brk_cur + incr);
 				incr += size;
 			}
 
@@ -1326,7 +1334,7 @@ chunk_alloc(size_t size)
 			if (brk_prev == brk_cur) {
 				/* Success. */
 				malloc_mutex_unlock(&brk_mtx);
-				brk_max = (void *)(intptr_t)ret + size;
+				brk_max = (void *)((intptr_t)ret + size);
 				goto RETURN;
 			}
 		} while (brk_prev != (void *)-1);
@@ -1412,13 +1420,13 @@ chunk_dealloc(void *chunk, size_t size)
 		 * the sake of poorly designed multi-threaded programs.
 		 */
 		if (brk_cur == brk_max
-		    && (void *)(uintptr_t)chunk + size == brk_max
+		    && (void *)((uintptr_t)chunk + size) == brk_max
 		    && sbrk(-(intptr_t)size) == brk_max) {
 			malloc_mutex_unlock(&brk_mtx);
 			if (brk_prev == brk_max) {
 				/* Success. */
-				brk_prev = (void *)(intptr_t)brk_max
-				    - (intptr_t)size;
+				brk_prev = (void *)((intptr_t)brk_max
+				    - (intptr_t)size);
 				brk_max = brk_prev;
 			}
 			goto RETURN;
@@ -1608,7 +1616,7 @@ arena_run_reg_alloc(arena_run_t *run, arena_bin_t *bin)
 		mask = run->regs_mask[i];
 		if (mask != 0) {
 			/* Usable allocation found. */
-			bit = ffs(mask) - 1;
+			bit = ffs((int)mask) - 1;
 
 			regind = ((i << (SIZEOF_INT_2POW + 3)) + bit);
 			ret = (void *)&((char *)run)[bin->reg0_offset
@@ -1764,7 +1772,7 @@ arena_run_split(arena_t *arena, arena_run_t *run, bool large, size_t size)
 	/* Update map for trailing pages. */
 	map_offset += need_pages;
 	while (map_offset < run_ind + total_pages) {
-		log2_run_pages = ffs(map_offset) - 1;
+		log2_run_pages = ffs((int)map_offset) - 1;
 		run_pages = (1 << log2_run_pages);
 
 		chunk->map[map_offset].free = true;
@@ -1848,7 +1856,7 @@ arena_chunk_alloc(arena_t *arena)
 		 * of by "allocating" the leading pages.
 		 */
 		while (map_offset < (chunk_size >> pagesize_2pow)) {
-			log2_run_pages = ffs(map_offset) - 1;
+			log2_run_pages = ffs((int)map_offset) - 1;
 			run_pages = (1 << log2_run_pages);
 
 			chunk->map[map_offset].free = true;
@@ -1904,7 +1912,8 @@ arena_bin_run_promote(arena_t *arena, arena_bin_t *bin, arena_run_t *run)
 			assert(0);
 			break;
 		case RUN_Q0:
-			qr_before_insert((arena_run_t *)&bin->runs0, run, link);
+			qr_before_insert(arena_bin_link(&bin->runs0), run,
+			    link);
 			run->free_max = bin->nregs - 1;
 			run->free_min = (bin->nregs >> 1) + 1;
 			assert(run->nfree <= run->free_max);
@@ -1912,7 +1921,7 @@ arena_bin_run_promote(arena_t *arena, arena_bin_t *bin, arena_run_t *run)
 			break;
 		case RUN_Q25:
 			qr_remove(run, link);
-			qr_before_insert((arena_run_t *)&bin->runs25, run,
+			qr_before_insert(arena_bin_link(&bin->runs25), run,
 			    link);
 			run->free_max = ((bin->nregs >> 2) * 3) - 1;
 			run->free_min = (bin->nregs >> 2) + 1;
@@ -1921,7 +1930,7 @@ arena_bin_run_promote(arena_t *arena, arena_bin_t *bin, arena_run_t *run)
 			break;
 		case RUN_Q50:
 			qr_remove(run, link);
-			qr_before_insert((arena_run_t *)&bin->runs50, run,
+			qr_before_insert(arena_bin_link(&bin->runs50), run,
 			    link);
 			run->free_max = (bin->nregs >> 1) - 1;
 			run->free_min = 1;
@@ -1985,7 +1994,8 @@ arena_bin_run_demote(arena_t *arena, arena_bin_t *bin, arena_run_t *run)
 			break;
 		case RUN_Q0:
 			qr_remove(run, link);
-			qr_before_insert((arena_run_t *)&bin->runs0, run, link);
+			qr_before_insert(arena_bin_link(&bin->runs0), run,
+			    link);
 			run->free_max = bin->nregs - 1;
 			run->free_min = (bin->nregs >> 1) + 1;
 			assert(run->nfree <= run->free_max);
@@ -1993,7 +2003,7 @@ arena_bin_run_demote(arena_t *arena, arena_bin_t *bin, arena_run_t *run)
 			break;
 		case RUN_Q25:
 			qr_remove(run, link);
-			qr_before_insert((arena_run_t *)&bin->runs25, run,
+			qr_before_insert(arena_bin_link(&bin->runs25), run,
 			    link);
 			run->free_max = ((bin->nregs >> 2) * 3) - 1;
 			run->free_min = (bin->nregs >> 2) + 1;
@@ -2002,7 +2012,7 @@ arena_bin_run_demote(arena_t *arena, arena_bin_t *bin, arena_run_t *run)
 			break;
 		case RUN_Q50:
 			qr_remove(run, link);
-			qr_before_insert((arena_run_t *)&bin->runs50, run,
+			qr_before_insert(arena_bin_link(&bin->runs50), run,
 			    link);
 			run->free_max = (bin->nregs >> 1) - 1;
 			run->free_min = 1;
@@ -2010,7 +2020,7 @@ arena_bin_run_demote(arena_t *arena, arena_bin_t *bin, arena_run_t *run)
 			assert(run->nfree >= run->free_min);
 			break;
 		case RUN_Q75:
-			qr_before_insert((arena_run_t *)&bin->runs75, run,
+			qr_before_insert(arena_bin_link(&bin->runs75), run,
 			    link);
 			run->free_max = (bin->nregs >> 2) - 1;
 			run->free_min = 1;
@@ -2047,7 +2057,7 @@ AGAIN:
 	 * large enough.  Look for a precise fit, but do not pass up a chunk
 	 * that has a run which is large enough to split.
 	 */
-	min_ind = ffs(size >> pagesize_2pow) - 1;
+	min_ind = ffs((int)(size >> pagesize_2pow)) - 1;
 	RB_FOREACH(chunk, arena_chunk_tree_s, &arena->chunks) {
 		for (i = min_ind;
 		    i < (opt_chunk_2pow - pagesize_2pow);
@@ -2096,7 +2106,7 @@ arena_run_dalloc(arena_t *arena, arena_run_t *run, size_t size)
 	run_ind = (unsigned)(((uintptr_t)run - (uintptr_t)chunk)
 	    >> pagesize_2pow);
 	run_pages = (size >> pagesize_2pow);
-	log2_run_pages = ffs(run_pages) - 1;
+	log2_run_pages = ffs((int)run_pages) - 1;
 	assert(run_pages > 0);
 
 	/* Subtract pages from count of pages used in chunk. */
@@ -2168,14 +2178,14 @@ arena_bin_nonfull_run_get(arena_t *arena, arena_bin_t *bin)
 	unsigned i, remainder;
 
 	/* Look for a usable run. */
-	if ((run = qr_next((arena_run_t *)&bin->runs50, link))
-	    != (arena_run_t *)&bin->runs50
-	    || (run = qr_next((arena_run_t *)&bin->runs25, link))
-	    != (arena_run_t *)&bin->runs25
-	    || (run = qr_next((arena_run_t *)&bin->runs0, link))
-	    != (arena_run_t *)&bin->runs0
-	    || (run = qr_next((arena_run_t *)&bin->runs75, link))
-	    != (arena_run_t *)&bin->runs75) {
+	if ((run = qr_next(arena_bin_link(&bin->runs50), link))
+	    != arena_bin_link(&bin->runs50)
+	    || (run = qr_next(arena_bin_link(&bin->runs25), link))
+	    != arena_bin_link(&bin->runs25)
+	    || (run = qr_next(arena_bin_link(&bin->runs0), link))
+	    != arena_bin_link(&bin->runs0)
+	    || (run = qr_next(arena_bin_link(&bin->runs75), link))
+	    != arena_bin_link(&bin->runs75)) {
 		/* run is guaranteed to have available space. */
 		qr_remove(run, link);
 		return (run);
@@ -2276,7 +2286,8 @@ arena_malloc(arena_t *arena, size_t size)
 		if (size < small_min) {
 			/* Tiny. */
 			size = pow2_ceil(size);
-			bin = &arena->bins[ffs(size >> (tiny_min_2pow + 1))];
+			bin = &arena->bins[ffs((int)(size >> (tiny_min_2pow +
+			    1)))];
 #if (!defined(NDEBUG) || defined(MALLOC_STATS))
 			/*
 			 * Bin calculation is always correct, but we may need
@@ -2295,7 +2306,7 @@ arena_malloc(arena_t *arena, size_t size)
 			/* Sub-page. */
 			size = pow2_ceil(size);
 			bin = &arena->bins[ntbins + nqbins
-			    + (ffs(size >> opt_small_max_2pow) - 2)];
+			    + (ffs((int)(size >> opt_small_max_2pow)) - 2)];
 		}
 		assert(size == bin->reg_size);
 
@@ -2375,8 +2386,8 @@ arena_ralloc(void *ptr, size_t size, size_t oldsize)
 	/* Avoid moving the allocation if the size class would not change. */
 	if (size < small_min) {
 		if (oldsize < small_min &&
-		    ffs(pow2_ceil(size) >> (tiny_min_2pow + 1))
-		    == ffs(pow2_ceil(oldsize) >> (tiny_min_2pow + 1)))
+		    ffs((int)(pow2_ceil(size) >> (tiny_min_2pow + 1)))
+		    == ffs((int)(pow2_ceil(oldsize) >> (tiny_min_2pow + 1))))
 			goto IN_PLACE;
 	} else if (size <= small_max) {
 		if (oldsize >= small_min && oldsize <= small_max &&
@@ -2493,10 +2504,10 @@ arena_new(arena_t *arena)
 	for (i = 0; i < ntbins; i++) {
 		bin = &arena->bins[i];
 		bin->runcur = NULL;
-		qr_new((arena_run_t *)&bin->runs0, link);
-		qr_new((arena_run_t *)&bin->runs25, link);
-		qr_new((arena_run_t *)&bin->runs50, link);
-		qr_new((arena_run_t *)&bin->runs75, link);
+		qr_new(arena_bin_link(&bin->runs0), link);
+		qr_new(arena_bin_link(&bin->runs25), link);
+		qr_new(arena_bin_link(&bin->runs50), link);
+		qr_new(arena_bin_link(&bin->runs75), link);
 
 		bin->reg_size = (1 << (tiny_min_2pow + i));
 
@@ -2530,10 +2541,10 @@ arena_new(arena_t *arena)
 	for (; i < ntbins + nqbins; i++) {
 		bin = &arena->bins[i];
 		bin->runcur = NULL;
-		qr_new((arena_run_t *)&bin->runs0, link);
-		qr_new((arena_run_t *)&bin->runs25, link);
-		qr_new((arena_run_t *)&bin->runs50, link);
-		qr_new((arena_run_t *)&bin->runs75, link);
+		qr_new(arena_bin_link(&bin->runs0), link);
+		qr_new(arena_bin_link(&bin->runs25), link);
+		qr_new(arena_bin_link(&bin->runs50), link);
+		qr_new(arena_bin_link(&bin->runs75), link);
 
 		bin->reg_size = quantum * (i - ntbins + 1);
 
@@ -2564,10 +2575,10 @@ arena_new(arena_t *arena)
 	for (; i < ntbins + nqbins + nsbins; i++) {
 		bin = &arena->bins[i];
 		bin->runcur = NULL;
-		qr_new((arena_run_t *)&bin->runs0, link);
-		qr_new((arena_run_t *)&bin->runs25, link);
-		qr_new((arena_run_t *)&bin->runs50, link);
-		qr_new((arena_run_t *)&bin->runs75, link);
+		qr_new(arena_bin_link(&bin->runs0), link);
+		qr_new(arena_bin_link(&bin->runs25), link);
+		qr_new(arena_bin_link(&bin->runs50), link);
+		qr_new(arena_bin_link(&bin->runs75), link);
 
 		bin->reg_size = (small_max << (i - (ntbins + nqbins) + 1));
 
@@ -2940,7 +2951,7 @@ isalloc(const void *ptr)
 		malloc_mutex_lock(&chunks_mtx);
 
 		/* Extract from tree of huge allocations. */
-		key.chunk = (void *)ptr;
+		key.chunk = __DECONST(void *, ptr);
 		node = RB_FIND(chunk_tree_s, &huge, &key);
 		assert(node != NULL);
 
@@ -3150,7 +3161,7 @@ malloc_init_hard(void)
 		 * pagesize_2pow.
 		 */
 		assert(((result - 1) & result) == 0);
-		pagesize_2pow = ffs(result) - 1;
+		pagesize_2pow = ffs((int)result) - 1;
 	}
 
 	for (i = 0; i < 3; i++) {
@@ -3410,7 +3421,7 @@ malloc_init_hard(void)
 		    89, 97, 101, 103, 107, 109, 113, 127, 131, 137, 139, 149,
 		    151, 157, 163, 167, 173, 179, 181, 191, 193, 197, 199, 211,
 		    223, 227, 229, 233, 239, 241, 251, 257, 263};
-		unsigned i, nprimes, parenas;
+		unsigned nprimes, parenas;
 
 		/*
 		 * Pick a prime number of hash arenas that is more than narenas
@@ -3559,6 +3570,7 @@ calloc(size_t num, size_t size)
 	size_t num_size;
 
 	if (malloc_init()) {
+		num_size = 0;
 		ret = NULL;
 		goto RETURN;
 	}
