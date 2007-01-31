@@ -79,9 +79,9 @@
 /* List of mount options we support */
 static const char *msdosfs_opts[] = {
 	"from",
-	"export",
+	"export", "force", "sync",
 	"uid", "gid", "mask", "dirmask",
-	"shortname", "longname", "win95",
+	"shortname", "shortnames", "longname", "longnames", "nowin95", "win95",
 	"kiconv", "cs_win", "cs_dos", "cs_local",
 	NULL
 };
@@ -168,11 +168,10 @@ update_mp(mp, td)
 	vfs_flagopt(mp->mnt_optnew, "kiconv",
 	    &pmp->pm_flags, MSDOSFSMNT_KICONV);
 
-	/* XXX: Can't use flagopt due to negative option */
-	if (!vfs_getopt(mp->mnt_optnew, "win95", NULL, NULL))
-		pmp->pm_flags &= ~MSDOSFSMNT_NOWIN95;
-	else
+	if (vfs_getopt(mp->mnt_optnew, "nowin95", NULL, NULL) == 0)
 		pmp->pm_flags |= MSDOSFSMNT_NOWIN95;
+	else
+		pmp->pm_flags &= ~MSDOSFSMNT_NOWIN95;
 
 	if (pmp->pm_flags & MSDOSFSMNT_NOWIN95)
 		pmp->pm_flags |= MSDOSFSMNT_SHORTNAME;
