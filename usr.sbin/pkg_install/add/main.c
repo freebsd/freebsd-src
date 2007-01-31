@@ -47,9 +47,7 @@ char	*Directory	= NULL;
 char	FirstPen[FILENAME_MAX];
 add_mode_t AddMode	= NORMAL;
 
-#define MAX_PKGS	200
-char	pkgnames[MAX_PKGS][MAXPATHLEN];
-char	*pkgs[MAX_PKGS];
+char	**pkgs;
 
 struct {
 	int lowver;	/* Lowest version number to match */
@@ -179,15 +177,13 @@ main(int argc, char **argv)
     argc -= optind;
     argv += optind;
 
-    if (argc > MAX_PKGS) {
-	errx(1, "too many packages (max %d)", MAX_PKGS);
-    }
-
     if (AddMode != SLAVE) {
-	for (ch = 0; ch < MAX_PKGS; pkgs[ch++] = NULL) ;
+	pkgs = (char **)malloc(argc * sizeof(char *));
+	for (ch = 0; ch <= argc; pkgs[ch++] = NULL) ;
 
 	/* Get all the remaining package names, if any */
 	for (ch = 0; *argv; ch++, argv++) {
+	    char temp[MAXPATHLEN];
     	    if (Remote) {
 		if ((packagesite = getpackagesite()) == NULL)
 		    errx(1, "package name too long");
@@ -213,31 +209,27 @@ main(int argc, char **argv)
 	    if (!strcmp(*argv, "-"))	/* stdin? */
 		pkgs[ch] = (char *)"-";
 	    else if (isURL(*argv)) {  	/* preserve URLs */
-		if (strlcpy(pkgnames[ch], *argv, sizeof(pkgnames[ch]))
-		    >= sizeof(pkgnames[ch]))
+		if (strlcpy(temp, *argv, sizeof(temp)) >= sizeof(temp))
 		    errx(1, "package name too long");
-		pkgs[ch] = pkgnames[ch];
+		pkgs[ch] = strdup(temp);
 	    }
 	    else if ((Remote) && isURL(remotepkg)) {
-	    	if (strlcpy(pkgnames[ch], remotepkg, sizeof(pkgnames[ch]))
-		    >= sizeof(pkgnames[ch]))
+	    	if (strlcpy(temp, remotepkg, sizeof(temp)) >= sizeof(temp))
 		    errx(1, "package name too long");
-		pkgs[ch] = pkgnames[ch];
+		pkgs[ch] = strdup(temp);
 	    } else {			/* expand all pathnames to fullnames */
 		if (fexists(*argv)) /* refers to a file directly */
-		    pkgs[ch] = realpath(*argv, pkgnames[ch]);
+		    pkgs[ch] = strdup(realpath(*argv, temp));
 		else {		/* look for the file in the expected places */
 		    if (!(cp = fileFindByPath(NULL, *argv))) {
 			/* let pkg_do() fail later, so that error is reported */
-			if (strlcpy(pkgnames[ch], *argv, sizeof(pkgnames[ch]))
-			    >= sizeof(pkgnames[ch]))
+			if (strlcpy(temp, *argv, sizeof(temp)) >= sizeof(temp))
 			    errx(1, "package name too long");
-			pkgs[ch] = pkgnames[ch];
+			pkgs[ch] = strdup(temp);
 		    } else {
-			if (strlcpy(pkgnames[ch], cp, sizeof(pkgnames[ch]))
-			    >= sizeof(pkgnames[ch]))
+			if (strlcpy(temp, cp, sizeof(temp)) >= sizeof(temp))
 			    errx(1, "package name too long");
-			pkgs[ch] = pkgnames[ch];
+			pkgs[ch] = strdup(temp);
 		    }
 		}
 	    }
