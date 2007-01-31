@@ -1434,6 +1434,8 @@ nfsmout:
 		if (vap->va_atime.tv_sec == VNOVAL)
 			vap->va_atime = vap->va_mtime;
 		error = nfs_setattrrpc(newvp, vap, cnp->cn_cred, cnp->cn_thread);
+		if (error)
+			vput(newvp);
 	}
 	if (!error) {
 		if (cnp->cn_flags & MAKEENTRY)
