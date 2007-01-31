@@ -2163,41 +2163,39 @@ mxge_free_rings(mxge_softc_t *sc)
 	if (sc->rx_big.shadow != NULL)
 		free(sc->rx_big.shadow, M_DEVBUF);
 	if (sc->tx.info != NULL) {
-		for (i = 0; i <= sc->tx.mask; i++) {
-			if (sc->tx.info[i].map != NULL) 
+		if (sc->tx.dmat != NULL) {
+			for (i = 0; i <= sc->tx.mask; i++) {
 				bus_dmamap_destroy(sc->tx.dmat,
 						   sc->tx.info[i].map);
+			}
+			bus_dma_tag_destroy(sc->tx.dmat);
 		}
 		free(sc->tx.info, M_DEVBUF);
 	}
 	if (sc->rx_small.info != NULL) {
-		for (i = 0; i <= sc->rx_small.mask; i++) {
-			if (sc->rx_small.info[i].map != NULL) 
+		if (sc->rx_small.dmat != NULL) {
+			for (i = 0; i <= sc->rx_small.mask; i++) {
 				bus_dmamap_destroy(sc->rx_small.dmat,
 						   sc->rx_small.info[i].map);
+			}
+			bus_dmamap_destroy(sc->rx_small.dmat,
+					   sc->rx_small.extra_map);
+			bus_dma_tag_destroy(sc->rx_small.dmat);
 		}
 		free(sc->rx_small.info, M_DEVBUF);
 	}
 	if (sc->rx_big.info != NULL) {
-		for (i = 0; i <= sc->rx_big.mask; i++) {
-			if (sc->rx_big.info[i].map != NULL) 
+		if (sc->rx_big.dmat != NULL) {
+			for (i = 0; i <= sc->rx_big.mask; i++) {
 				bus_dmamap_destroy(sc->rx_big.dmat,
 						   sc->rx_big.info[i].map);
+			}
+			bus_dmamap_destroy(sc->rx_big.dmat,
+					   sc->rx_big.extra_map);
+			bus_dma_tag_destroy(sc->rx_big.dmat);
 		}
 		free(sc->rx_big.info, M_DEVBUF);
 	}
-	if (sc->rx_big.extra_map != NULL)
-		bus_dmamap_destroy(sc->rx_big.dmat,
-				   sc->rx_big.extra_map);
-	if (sc->rx_small.extra_map != NULL)
-		bus_dmamap_destroy(sc->rx_small.dmat,
-				   sc->rx_small.extra_map);
-	if (sc->tx.dmat != NULL) 
-		bus_dma_tag_destroy(sc->tx.dmat);
-	if (sc->rx_small.dmat != NULL) 
-		bus_dma_tag_destroy(sc->rx_small.dmat);
-	if (sc->rx_big.dmat != NULL) 
-		bus_dma_tag_destroy(sc->rx_big.dmat);
 }
 
 static int
