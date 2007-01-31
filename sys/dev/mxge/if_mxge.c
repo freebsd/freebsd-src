@@ -90,6 +90,7 @@ static int mxge_intr_coal_delay = 30;
 static int mxge_deassert_wait = 1;
 static int mxge_flow_control = 1;
 static int mxge_verbose = 0;
+static int mxge_ticks;
 static char *mxge_fw_unaligned = "mxge_ethp_z8e";
 static char *mxge_fw_aligned = "mxge_eth_z8e";
 
@@ -2104,12 +2105,6 @@ mxge_intr(void *arg)
 }
 
 static void
-mxge_watchdog(struct ifnet *ifp)
-{
-	printf("%s called\n", __FUNCTION__);
-}
-
-static void
 mxge_init(void *arg)
 {
 }
@@ -2140,6 +2135,7 @@ mxge_free_mbufs(mxge_softc_t *sc)
 	}
 
 	for (i = 0; i <= sc->tx.mask; i++) {
+		sc->tx.info[i].flag = 0;
 		if (sc->tx.info[i].m == NULL)
 			continue;
 		bus_dmamap_unload(sc->tx.dmat,
@@ -2401,7 +2397,7 @@ mxge_open(mxge_softc_t *sc)
 	}
 	bzero(sc->rx_done.entry, 
 	      mxge_max_intr_slots * sizeof(*sc->rx_done.entry));
-	
+
 	if (MCLBYTES >= 
 	    sc->ifp->if_mtu + ETHER_HDR_LEN + MXGEFW_PAD)
 		sc->big_bytes = MCLBYTES;
@@ -2533,7 +2529,7 @@ mxge_close(mxge_softc_t *sc)
 	}
 	if (old_down_cnt == sc->down_cnt) {
 		/* wait for down irq */
-		DELAY(2 * sc->intr_coal_delay);
+		DELAY(10 * sc->intr_coal_delay);
 	}
 	if (old_down_cnt == sc->down_cnt) {
 		device_printf(sc->dev, "never got down irq\n");
@@ -2544,6 +2540,149 @@ mxge_close(mxge_softc_t *sc)
 	return 0;
 }
 
+static void
+mxge_setup_cfg_space(mxge_softc_t *sc)
+{
+	device_t dev = sc->dev;
+	int reg;
+	uint16_t cmd, lnk, pectl;
+
+	/* find the PCIe link width and set max read request to 4KB*/
+	if (pci_find_extcap(dev, PCIY_EXPRESS, &reg) == 0) {
+		lnk = pci_read_config(dev, reg + 0x12, 2);
+		sc->link_width = (lnk >> 4) & 0x3f;
+		
+		pectl = pci_read_config(dev, reg + 0x8, 2);
+		pectl = (pectl & ~0x7000) | (5 << 12);
+		pci_write_config(dev, reg + 0x8, pectl, 2);
+	}
+
+	/* Enable DMA and Memory space access */
+	pci_enable_busmaster(dev);
+	cmd = pci_read_config(dev, PCIR_COMMAND, 2);
+	cmd |= PCIM_CMD_MEMEN;
+	pci_write_config(dev, PCIR_COMMAND, cmd, 2);
+}
+
+static uint32_t
+mxge_read_reboot(mxge_softc_t *sc)
+{
+	device_t dev = sc->dev;
+	uint32_t vs;
+
+	/* find the vendor specific offset */
+	if (pci_find_extcap(dev, PCIY_VENDOR, &vs) != 0) {
+		device_printf(sc->dev,
+			      "could not find vendor specific offset\n");
+		return (uint32_t)-1;
+	}
+	/* enable read32 mode */
+	pci_write_config(dev, vs + 0x10, 0x3, 1);
+	/* tell NIC which register to read */
+	pci_write_config(dev, vs + 0x18, 0xfffffff0, 4);
+	return (pci_read_config(dev, vs + 0x14, 4));
+}
+
+static void
+mxge_watchdog_reset(mxge_softc_t *sc)
+{
+	int err;
+	uint32_t reboot;
+	uint16_t cmd;
+
+	err = ENXIO;
+
+	device_printf(sc->dev, "Watchdog reset!\n");
+
+	/* 
+	 * check to see if the NIC rebooted.  If it did, then all of
+	 * PCI config space has been reset, and things like the
+	 * busmaster bit will be zero.  If this is the case, then we
+	 * must restore PCI config space before the NIC can be used
+	 * again
+	 */
+	cmd = pci_read_config(sc->dev, PCIR_COMMAND, 2);
+	if (cmd == 0xffff) {
+		/* 
+		 * maybe the watchdog caught the NIC rebooting; wait
+		 * up to 100ms for it to finish.  If it does not come
+		 * back, then give up 
+		 */
+		DELAY(1000*100);
+		cmd = pci_read_config(sc->dev, PCIR_COMMAND, 2);
+		if (cmd == 0xffff) {
+			device_printf(sc->dev, "NIC disappeared!\n");
+			goto abort;
+		}
+	}
+	if ((cmd & PCIM_CMD_BUSMASTEREN) == 0) {
+		/* print the reboot status */
+		reboot = mxge_read_reboot(sc);
+		device_printf(sc->dev, "NIC rebooted, status = 0x%x\n",
+			      reboot);
+		/* restore PCI configuration space */
+
+		/* XXXX waiting for pci_cfg_restore() to be exported */
+		goto abort; /* just abort for now */
+
+		/* and redo any changes we made to our config space */
+		mxge_setup_cfg_space(sc);
+	} else {
+		device_printf(sc->dev, "NIC did not reboot, ring state:\n");
+		device_printf(sc->dev, "tx.req=%d tx.done=%d\n",
+			      sc->tx.req, sc->tx.done);
+		device_printf(sc->dev, "pkt_done=%d fw=%d\n",
+			      sc->tx.pkt_done,
+			      be32toh(sc->fw_stats->send_done_count));
+	}
+
+	if (sc->ifp->if_drv_flags & IFF_DRV_RUNNING) {
+		mxge_close(sc);
+		err = mxge_open(sc);
+	}
+
+abort:
+	/* 
+	 * stop the watchdog if the nic is dead, to avoid spamming the
+	 * console
+	 */
+	if (err != 0) {
+		callout_stop(&sc->co_hdl);
+	}
+}
+
+static void
+mxge_watchdog(mxge_softc_t *sc)
+{
+	mxge_tx_buf_t *tx = &sc->tx;
+
+	/* see if we have outstanding transmits, which
+	   have been pending for more than mxge_ticks */
+	if (tx->req != tx->done &&
+	    tx->watchdog_req != tx->watchdog_done &&
+	    tx->done == tx->watchdog_done)
+		mxge_watchdog_reset(sc);
+
+	tx->watchdog_req = tx->req;
+	tx->watchdog_done = tx->done;
+}
+
+static void
+mxge_tick(void *arg)
+{
+	mxge_softc_t *sc = arg;
+
+
+	/* Synchronize with possible callout reset/stop. */
+	if (callout_pending(&sc->co_hdl) ||
+	    !callout_active(&sc->co_hdl)) {
+		mtx_unlock(&sc->driver_mtx);
+		return;
+	}
+
+	callout_reset(&sc->co_hdl, mxge_ticks, mxge_tick, sc);
+	mxge_watchdog(sc);
+}
 
 static int
 mxge_media_change(struct ifnet *ifp)
@@ -2567,6 +2706,7 @@ mxge_change_mtu(mxge_softc_t *sc, int mtu)
 	old_mtu = ifp->if_mtu;
 	ifp->if_mtu = mtu;
 	if (ifp->if_drv_flags & IFF_DRV_RUNNING) {
+		callout_stop(&sc->co_hdl);
 		mxge_close(sc);
 		err = mxge_open(sc);
 		if (err != 0) {
@@ -2574,6 +2714,7 @@ mxge_change_mtu(mxge_softc_t *sc, int mtu)
 			mxge_close(sc);
 			(void) mxge_open(sc);
 		}
+		callout_reset(&sc->co_hdl, mxge_ticks, mxge_tick, sc);
 	}
 	mtx_unlock(&sc->driver_mtx);
 	return err;
@@ -2614,9 +2755,11 @@ mxge_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 	case SIOCSIFFLAGS:
 		mtx_lock(&sc->driver_mtx);
 		if (ifp->if_flags & IFF_UP) {
-			if (!(ifp->if_drv_flags & IFF_DRV_RUNNING))
+			if (!(ifp->if_drv_flags & IFF_DRV_RUNNING)) {
 				err = mxge_open(sc);
-			else {
+				callout_reset(&sc->co_hdl, mxge_ticks,
+					      mxge_tick, sc);
+			} else {
 				/* take care of promis can allmulti
 				   flag chages */
 				mxge_change_promisc(sc, 
@@ -2624,8 +2767,10 @@ mxge_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 				mxge_set_multicast_list(sc);
 			}
 		} else {
-			if (ifp->if_drv_flags & IFF_DRV_RUNNING)
+			if (ifp->if_drv_flags & IFF_DRV_RUNNING) {
 				mxge_close(sc);
+				callout_stop(&sc->co_hdl);
+			}
 		}
 		mtx_unlock(&sc->driver_mtx);
 		break;
@@ -2701,11 +2846,14 @@ mxge_fetch_tunables(mxge_softc_t *sc)
 			  &mxge_deassert_wait);	
 	TUNABLE_INT_FETCH("hw.mxge.verbose", 
 			  &mxge_verbose);	
+	TUNABLE_INT_FETCH("hw.mxge.ticks", &mxge_ticks);
 
 	if (bootverbose)
 		mxge_verbose = 1;
 	if (mxge_intr_coal_delay < 0 || mxge_intr_coal_delay > 10*1000)
 		mxge_intr_coal_delay = 30;
+	if (mxge_ticks == 0)
+		mxge_ticks = hz;	
 	sc->pause = mxge_flow_control;
 }
 
@@ -2715,8 +2863,7 @@ mxge_attach(device_t dev)
 	mxge_softc_t *sc = device_get_softc(dev);
 	struct ifnet *ifp;
 	size_t bytes;
-	int count, rid, err, reg;
-	uint16_t cmd, pectl, lnk;
+	int count, rid, err;
 
 	sc->dev = dev;
 	mxge_fetch_tunables(sc);
@@ -2757,22 +2904,10 @@ mxge_attach(device_t dev)
 	mtx_init(&sc->driver_mtx, sc->driver_mtx_name,
 		 MTX_NETWORK_LOCK, MTX_DEF);
 
-	/* find the PCIe link width and set max read request to 4KB*/
-	if (pci_find_extcap(dev, PCIY_EXPRESS, &reg) == 0) {
-		lnk = pci_read_config(dev, reg + 0x12, 2);
-		sc->link_width = (lnk >> 4) & 0x3f;
-		
-		pectl = pci_read_config(dev, reg + 0x8, 2);
-		pectl = (pectl & ~0x7000) | (5 << 12);
-		pci_write_config(dev, reg + 0x8, pectl, 2);
-	}
+	callout_init_mtx(&sc->co_hdl, &sc->driver_mtx, 0);
 
-	/* Enable DMA and Memory space access */
-	pci_enable_busmaster(dev);
-	cmd = pci_read_config(dev, PCIR_COMMAND, 2);
-	cmd |= PCIM_CMD_MEMEN;
-	pci_write_config(dev, PCIR_COMMAND, cmd, 2);
-
+	mxge_setup_cfg_space(sc);
+	
 	/* Map the board into the kernel */
 	rid = PCIR_BARS;
 	sc->mem_res = bus_alloc_resource(dev, SYS_RES_MEMORY, &rid, 0,
@@ -2888,7 +3023,6 @@ mxge_attach(device_t dev)
         ifp->if_flags = IFF_BROADCAST | IFF_SIMPLEX | IFF_MULTICAST;
         ifp->if_ioctl = mxge_ioctl;
         ifp->if_start = mxge_start;
-	ifp->if_watchdog = mxge_watchdog;
 	ether_ifattach(ifp, sc->mac_addr);
 	/* ether_ifattach sets mtu to 1500 */
 	ifp->if_mtu = MXGE_MAX_ETHER_MTU - ETHER_HDR_LEN;
@@ -2941,8 +3075,10 @@ mxge_detach(device_t dev)
 	mtx_lock(&sc->driver_mtx);
 	if (sc->ifp->if_drv_flags & IFF_DRV_RUNNING)
 		mxge_close(sc);
+	callout_stop(&sc->co_hdl);
 	mtx_unlock(&sc->driver_mtx);
 	ether_ifdetach(sc->ifp);
+	ifmedia_removeall(&sc->media);
 	mxge_dummy_rdma(sc, 0);
 	bus_teardown_intr(sc->dev, sc->irq_res, sc->ih);
 	mxge_free_rings(sc);
