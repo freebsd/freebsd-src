@@ -114,7 +114,7 @@ typedef struct
 typedef struct {
 	struct ifnet* ifp;
 	int big_bytes;
-	struct mtx tx_lock;
+	struct mtx tx_mtx;
 	int csum_flag;			/* rx_csums? 		*/
 	uint8_t	mac_addr[6];		/* eeprom mac address */
 	mxge_tx_buf_t tx;	/* transmit ring 	*/
@@ -138,8 +138,8 @@ typedef struct {
 	int intr_coal_delay;
 	volatile uint32_t *intr_coal_delay_ptr;
 	int wc;
-	struct mtx cmd_lock;
-	struct sx driver_lock;
+	struct mtx cmd_mtx;
+	struct mtx driver_mtx;
 	int wake_queue;
 	int stop_queue;
 	int down_cnt;
@@ -159,10 +159,14 @@ typedef struct {
 	int read_write_dma;
 	int fw_multicast_support;
 	int link_width;
+	mxge_dma_t dmabench_dma;
 	char *mac_addr_string;
 	char product_code_string[64];
 	char serial_number_string[64];
 	char scratch[256];
+	char tx_mtx_name[16];
+	char cmd_mtx_name[16];
+	char driver_mtx_name[16];
 } mxge_softc_t;
 
 #define MXGE_PCI_VENDOR_MYRICOM 	0x14c1
