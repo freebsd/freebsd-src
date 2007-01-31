@@ -1,5 +1,3 @@
-#ifndef _PCMDSP_H_
-#define _PCMDSP_H_
 /*-
  * Copyright (c) 1999 Cameron Grant <cg@freebsd.org>
  * All rights reserved.
@@ -27,6 +25,9 @@
  *
  * $FreeBSD$
  */
+
+#ifndef _PCMDSP_H_
+#define _PCMDSP_H_
 
 extern struct cdevsw dsp_cdevsw;
 
