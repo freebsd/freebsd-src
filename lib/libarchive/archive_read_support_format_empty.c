@@ -27,14 +27,64 @@
 __FBSDID("$FreeBSD$");
 
 #include "archive.h"
+#include "archive_entry.h"
+#include "archive_private.h"
 
+static int	archive_read_format_empty_bid(struct archive *);
+static int	archive_read_format_empty_read_data(struct archive *,
+		    const void **, size_t *, off_t *);
+static int	archive_read_format_empty_read_header(struct archive *,
+		    struct archive_entry *);
 int
-archive_read_support_format_all(struct archive *a)
+archive_read_support_format_empty(struct archive *a)
 {
-	archive_read_support_format_cpio(a);
-	archive_read_support_format_empty(a);
-	archive_read_support_format_iso9660(a);
-	archive_read_support_format_tar(a);
-	archive_read_support_format_zip(a);
-	return (ARCHIVE_OK);
+	int r;
+
+	r = __archive_read_register_format(a,
+	    NULL,
+	    archive_read_format_empty_bid,
+	    archive_read_format_empty_read_header,
+	    archive_read_format_empty_read_data,
+	    NULL,
+	    NULL);
+
+	return (r);
+}
+
+
+static int
+archive_read_format_empty_bid(struct archive *a)
+{
+	int bytes_read;
+	const void *h;
+
+	bytes_read = (a->compression_read_ahead)(a, &h, 1);
+	if (bytes_read > 0)
+		return (-1);
+	return (1);
+}
+
+static int
+archive_read_format_empty_read_header(struct archive *a,
+    struct archive_entry *entry)
+{
+	(void)a; /* UNUSED */
+	(void)entry; /* UNUSED */
+
+	a->archive_format = ARCHIVE_FORMAT_EMPTY;
+	a->archive_format_name = "Empty file";
+
+	return (ARCHIVE_EOF);
+}
+
+static int
+archive_read_format_empty_read_data(struct archive *a,
+    const void **buff, size_t *size, off_t *offset)
+{
+	(void)a; /* UNUSED */
+	(void)buff; /* UNUSED */
+	(void)size; /* UNUSED */
+	(void)offset; /* UNUSED */
+
+	return (ARCHIVE_EOF);
 }

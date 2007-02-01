@@ -157,6 +157,7 @@ typedef int	archive_close_callback(struct archive *, void *_client_data);
 #define	ARCHIVE_FORMAT_ISO9660			0x40000
 #define	ARCHIVE_FORMAT_ISO9660_ROCKRIDGE	(ARCHIVE_FORMAT_ISO9660 | 1)
 #define	ARCHIVE_FORMAT_ZIP			0x50000
+#define	ARCHIVE_FORMAT_EMPTY			0x60000
 
 /*-
  * Basic outline for reading an archive:
@@ -187,6 +188,7 @@ int		 archive_read_support_compression_none(struct archive *);
 
 int		 archive_read_support_format_all(struct archive *);
 int		 archive_read_support_format_cpio(struct archive *);
+int		 archive_read_support_format_empty(struct archive *);
 int		 archive_read_support_format_gnutar(struct archive *);
 int		 archive_read_support_format_iso9660(struct archive *);
 int		 archive_read_support_format_tar(struct archive *);
