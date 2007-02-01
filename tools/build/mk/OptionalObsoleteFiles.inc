@@ -1008,6 +1008,7 @@ OLD_FILES+=usr/lib/libmemstat_p.a
 OLD_FILES+=usr/lib/libmenu_p.a
 OLD_FILES+=usr/lib/libmilter_p.a
 OLD_FILES+=usr/lib/libmp_p.a
+OLD_FILES+=usr/lib/libmytinfo_p.a
 OLD_FILES+=usr/lib/libncp_p.a
 OLD_FILES+=usr/lib/libncurses_p.a
 OLD_FILES+=usr/lib/libnetgraph_p.a
