@@ -1446,6 +1446,8 @@ tcp_attach(so)
 		if (error)
 			return (error);
 	}
+	so->so_rcv.sb_flags |= SB_AUTOSIZE;
+	so->so_snd.sb_flags |= SB_AUTOSIZE;
 	INP_INFO_WLOCK(&tcbinfo);
 	error = in_pcballoc(so, &tcbinfo);
 	if (error) {

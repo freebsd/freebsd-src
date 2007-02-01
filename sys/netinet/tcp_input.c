@@ -161,6 +161,18 @@ SYSCTL_INT(_net_inet_tcp_reass, OID_AUTO, overflows, CTLFLAG_RD,
 	   &tcp_reass_overflows, 0,
 	   "Global number of TCP Segment Reassembly Queue Overflows");
 
+int	tcp_do_autorcvbuf = 1;
+SYSCTL_INT(_net_inet_tcp, OID_AUTO, recvbuf_auto, CTLFLAG_RW,
+	   &tcp_do_autorcvbuf, 0, "Enable automatic receive buffer sizing");
+
+int	tcp_autorcvbuf_inc = 16*1024;
+SYSCTL_INT(_net_inet_tcp, OID_AUTO, recvbuf_inc, CTLFLAG_RW,
+	   &tcp_autorcvbuf_inc, 0, "Incrementor step size of automatic receive buffer");
+
+int	tcp_autorcvbuf_max = 256*1024;
+SYSCTL_INT(_net_inet_tcp, OID_AUTO, recvbuf_max, CTLFLAG_RW,
+	   &tcp_autorcvbuf_max, 0, "Max size of automatic receive buffer");
+
 struct inpcbhead tcb;
 #define	tcb6	tcb  /* for KAME src sync over BSD*'s */
 struct inpcbinfo tcbinfo;
@@ -1295,6 +1307,8 @@ after_listen:
 		} else if (th->th_ack == tp->snd_una &&
 		    LIST_EMPTY(&tp->t_segq) &&
 		    tlen <= sbspace(&so->so_rcv)) {
+			int newsize = 0;	/* automatic sockbuf scaling */
+
 			KASSERT(headlocked, ("headlocked"));
 			INP_INFO_WUNLOCK(&tcbinfo);
 			headlocked = 0;
@@ -1321,18 +1335,78 @@ after_listen:
 			tcpstat.tcps_rcvpack++;
 			tcpstat.tcps_rcvbyte += tlen;
 			ND6_HINT(tp);	/* some progress has been done */
-			/*
 #ifdef TCPDEBUG
 			if (so->so_options & SO_DEBUG)
 				tcp_trace(TA_INPUT, ostate, tp,
 				    (void *)tcp_saveipgen, &tcp_savetcp, 0);
 #endif
-			 * Add data to socket buffer.
-			 */
+		/*
+		 * Automatic sizing of receive socket buffer.  Often the send
+		 * buffer size is not optimally adjusted to the actual network
+		 * conditions at hand (delay bandwidth product).  Setting the
+		 * buffer size too small limits throughput on links with high
+		 * bandwidth and high delay (eg. trans-continental/oceanic links).
+		 *
+		 * On the receive side the socket buffer memory is only rarely
+		 * used to any significant extent.  This allows us to be much
+		 * more aggressive in scaling the receive socket buffer.  For
+		 * the case that the buffer space is actually used to a large
+		 * extent and we run out of kernel memory we can simply drop
+		 * the new segments; TCP on the sender will just retransmit it
+		 * later.  Setting the buffer size too big may only consume too
+		 * much kernel memory if the application doesn't read() from
+		 * the socket or packet loss or reordering makes use of the
+		 * reassembly queue.
+		 *
+		 * The criteria to step up the receive buffer one notch are:
+		 *  1. the number of bytes received during the time it takes
+		 *     one timestamp to be reflected back to us (the RTT);
+		 *  2. received bytes per RTT is within seven eighth of the
+		 *     current socket buffer size;
+		 *  3. receive buffer size has not hit maximal automatic size;
+		 *
+		 * This algorithm does one step per RTT at most and only if
+		 * we receive a bulk stream w/o packet losses or reorderings.
+		 * Shrinking the buffer during idle times is not necessary as
+		 * it doesn't consume any memory when idle.
+		 *
+		 * TODO: Only step up if the application is actually serving
+		 * the buffer to better manage the socket buffer resources.
+		 */
+			if (tcp_do_autorcvbuf &&
+			    to.to_tsecr &&
+			    (so->so_rcv.sb_flags & SB_AUTOSIZE)) {
+				if (to.to_tsecr > tp->rfbuf_ts &&
+				    to.to_tsecr - tp->rfbuf_ts < hz) {
+					if (tp->rfbuf_cnt >
+					    (so->so_rcv.sb_hiwat / 8 * 7) &&
+					    so->so_rcv.sb_hiwat <
+					    tcp_autorcvbuf_max) {
+						newsize =
+						    min(so->so_rcv.sb_hiwat +
+						    tcp_autorcvbuf_inc,
+						    tcp_autorcvbuf_max);
+					}
+					/* Start over with next RTT. */
+					tp->rfbuf_ts = 0;
+					tp->rfbuf_cnt = 0;
+				} else
+					tp->rfbuf_cnt += tlen;	/* add up */
+			}
+
+			/* Add data to socket buffer. */
 			SOCKBUF_LOCK(&so->so_rcv);
 			if (so->so_rcv.sb_state & SBS_CANTRCVMORE) {
 				m_freem(m);
 			} else {
+				/*
+				 * Set new socket buffer size.
+				 * Give up when limit is reached.
+				 */
+				if (newsize)
+					if (!sbreserve_locked(&so->so_rcv,
+					    newsize, so, curthread))
+						so->so_rcv.sb_flags &= ~SB_AUTOSIZE;
 				m_adj(m, drop_hdrlen);	/* delayed header drop */
 				sbappendstream_locked(&so->so_rcv, m);
 			}
@@ -1360,6 +1434,10 @@ after_listen:
 		win = 0;
 	tp->rcv_wnd = imax(win, (int)(tp->rcv_adv - tp->rcv_nxt));
 	}
+
+	/* Reset receive buffer auto scaling when not in bulk receive mode. */
+	tp->rfbuf_ts = 0;
+	tp->rfbuf_cnt = 0;
 
 	switch (tp->t_state) {
 

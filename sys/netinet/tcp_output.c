@@ -110,6 +110,19 @@ int	tcp_do_tso = 1;
 SYSCTL_INT(_net_inet_tcp, OID_AUTO, tso, CTLFLAG_RW,
 	&tcp_do_tso, 0, "Enable TCP Segmentation Offload");
 
+int	tcp_do_autosndbuf = 1;
+SYSCTL_INT(_net_inet_tcp, OID_AUTO, sendbuf_auto, CTLFLAG_RW,
+	&tcp_do_autosndbuf, 0, "Enable automatic send buffer sizing");
+
+int	tcp_autosndbuf_inc = 8*1024;
+SYSCTL_INT(_net_inet_tcp, OID_AUTO, sendbuf_inc, CTLFLAG_RW,
+	&tcp_autosndbuf_inc, 0, "Incrementor step size of automatic send buffer");
+
+int	tcp_autosndbuf_max = 256*1024;
+SYSCTL_INT(_net_inet_tcp, OID_AUTO, sendbuf_max, CTLFLAG_RW,
+	&tcp_autosndbuf_max, 0, "Max size of automatic send buffer");
+
+
 /*
  * Tcp output routine: figure out what should be sent and send it.
  */
@@ -380,11 +393,60 @@ after_sack_rexmit:
 		}
 	}
 
+	/* len will be >= 0 after this point. */
+	KASSERT(len >= 0, ("%s: len < 0", __func__));
+
 	/*
-	 * len will be >= 0 after this point.  Truncate to the maximum
-	 * segment length or enable TCP Segmentation Offloading (if supported
-	 * by hardware) and ensure that FIN is removed if the length no longer
-	 * contains the last data byte.
+	 * Automatic sizing of send socket buffer.  Often the send buffer
+	 * size is not optimally adjusted to the actual network conditions
+	 * at hand (delay bandwidth product).  Setting the buffer size too
+	 * small limits throughput on links with high bandwidth and high
+	 * delay (eg. trans-continental/oceanic links).  Setting the
+	 * buffer size too big consumes too much real kernel memory,
+	 * especially with many connections on busy servers.
+	 *
+	 * The criteria to step up the send buffer one notch are:
+	 *  1. receive window of remote host is larger than send buffer
+	 *     (with a fudge factor of 5/4th);
+	 *  2. send buffer is filled to 7/8th with data (so we actually
+	 *     have data to make use of it);
+	 *  3. send buffer fill has not hit maximal automatic size;
+	 *  4. our send window (slow start and cogestion controlled) is
+	 *     larger than sent but unacknowledged data in send buffer.
+	 *
+	 * The remote host receive window scaling factor may limit the
+	 * growing of the send buffer before it reaches its allowed
+	 * maximum.
+	 *
+	 * It scales directly with slow start or congestion window
+	 * and does at most one step per received ACK.  This fast
+	 * scaling has the drawback of growing the send buffer beyond
+	 * what is strictly necessary to make full use of a given
+	 * delay*bandwith product.  However testing has shown this not
+	 * to be much of an problem.  At worst we are trading wasting
+	 * of available bandwith (the non-use of it) for wasting some
+	 * socket buffer memory.
+	 *
+	 * TODO: Shrink send buffer during idle periods together
+	 * with congestion window.  Requires another timer.  Has to
+	 * wait for upcoming tcp timer rewrite.
+	 */
+	if (tcp_do_autosndbuf && so->so_snd.sb_flags & SB_AUTOSIZE) {
+		if ((tp->snd_wnd / 4 * 5) >= so->so_snd.sb_hiwat &&
+		    so->so_snd.sb_cc >= (so->so_snd.sb_hiwat / 8 * 7) &&
+		    so->so_snd.sb_cc < tcp_autosndbuf_max &&
+		    sendwin >= (so->so_snd.sb_cc - (tp->snd_nxt - tp->snd_una))) {
+			if (!sbreserve_locked(&so->so_snd,
+			    min(so->so_snd.sb_hiwat + tcp_autosndbuf_inc,
+			     tcp_autosndbuf_max), so, curthread))
+				so->so_snd.sb_flags &= ~SB_AUTOSIZE;
+		}
+	}
+
+	/*
+	 * Truncate to the maximum segment length or enable TCP Segmentation
+	 * Offloading (if supported by hardware) and ensure that FIN is removed
+	 * if the length no longer contains the last data byte.
 	 *
 	 * TSO may only be used if we are in a pure bulk sending state.  The
 	 * presence of TCP-MD5, SACK retransmits, SACK advertizements and
@@ -605,6 +667,10 @@ send:
 		*lp   = htonl(tp->ts_recent);
 		optlen += TCPOLEN_TSTAMP_APPA;
 	}
+
+	/* Set receive buffer autosizing timestamp. */
+	if (tp->rfbuf_ts == 0 && (so->so_rcv.sb_flags & SB_AUTOSIZE))
+		tp->rfbuf_ts = ticks;
 
 #ifdef TCP_SIGNATURE
 #ifdef INET6
