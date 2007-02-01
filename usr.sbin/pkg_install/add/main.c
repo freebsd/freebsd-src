@@ -178,7 +178,7 @@ main(int argc, char **argv)
     argv += optind;
 
     if (AddMode != SLAVE) {
-	pkgs = (char **)malloc(argc * sizeof(char *));
+	pkgs = (char **)malloc((argc+1) * sizeof(char *));
 	for (ch = 0; ch <= argc; pkgs[ch++] = NULL) ;
 
 	/* Get all the remaining package names, if any */
