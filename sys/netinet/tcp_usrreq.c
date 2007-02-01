@@ -1131,9 +1131,14 @@ tcp_connect(tp, nam, td)
 	inp->inp_laddr = laddr;
 	in_pcbrehash(inp);
 
-	/* Compute window scaling to request.  */
+	/*
+	 * Compute window scaling to request:
+	 * Scale to fit into sweet spot.  See tcp_syncache.c.
+	 * XXX: This should move to tcp_output().
+	 * XXX: This should be based on the actual MSS.
+	 */
 	while (tp->request_r_scale < TCP_MAX_WINSHIFT &&
-	    (TCP_MAXWIN << tp->request_r_scale) < so->so_rcv.sb_hiwat)
+	    (0x1 << tp->request_r_scale) < tcp_minmss)
 		tp->request_r_scale++;
 
 	soisconnecting(so);
