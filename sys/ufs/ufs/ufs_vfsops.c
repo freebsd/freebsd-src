@@ -86,10 +86,10 @@ ufs_root(mp, flags, vpp, td)
  * Do operations associated with quotas
  */
 int
-ufs_quotactl(mp, cmds, uid, arg, td)
+ufs_quotactl(mp, cmds, id, arg, td)
 	struct mount *mp;
 	int cmds;
-	uid_t uid;
+	uid_t id;
 	void *arg;
 	struct thread *td;
 {
@@ -98,10 +98,23 @@ ufs_quotactl(mp, cmds, uid, arg, td)
 #else
 	int cmd, type, error;
 
-	if (uid == -1)
-		uid = td->td_ucred->cr_ruid;
 	cmd = cmds >> SUBCMDSHIFT;
 	type = cmds & SUBCMDMASK;
+	if (id == -1) {
+		switch (type) {
+
+		case USRQUOTA:
+			id = td->td_ucred->cr_ruid;
+			break;
+
+		case GRPQUOTA:
+			id = td->td_ucred->cr_rgid;
+			break;
+
+		default:
+			return (EINVAL);
+		}
+	}
 	if ((u_int)type >= MAXQUOTAS)
 		return (EINVAL);
 
@@ -118,15 +131,15 @@ ufs_quotactl(mp, cmds, uid, arg, td)
 		break;
 
 	case Q_SETQUOTA:
-		error = setquota(td, mp, uid, type, arg);
+		error = setquota(td, mp, id, type, arg);
 		break;
 
 	case Q_SETUSE:
-		error = setuse(td, mp, uid, type, arg);
+		error = setuse(td, mp, id, type, arg);
 		break;
 
 	case Q_GETQUOTA:
-		error = getquota(td, mp, uid, type, arg);
+		error = getquota(td, mp, id, type, arg);
 		break;
 
 	case Q_SYNC:
