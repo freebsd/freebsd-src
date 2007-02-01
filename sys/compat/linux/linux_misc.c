@@ -1606,7 +1606,7 @@ linux_exit_group(struct thread *td, struct linux_exit_group_args *args)
 #endif
 
 	if (linux_use26(td)) {
-		td_em = em_find(td->td_proc, EMUL_DOLOCK);
+		td_em = em_find(td->td_proc, EMUL_DONTLOCK);
 
 		KASSERT(td_em != NULL, ("exit_group: emuldata not found.\n"));
 
@@ -1624,11 +1624,10 @@ linux_exit_group(struct thread *td, struct linux_exit_group_args *args)
 		}
 
 		EMUL_SHARED_RUNLOCK(&emul_shared_lock);
-		EMUL_UNLOCK(&emul_lock);
 	}
 	/*
 	 * XXX: we should send a signal to the parent if
-	 * SIGNAL_EXIT_GROUP is set. We ignore that (temporrarily?)
+	 * SIGNAL_EXIT_GROUP is set. We ignore that (temporarily?)
 	 * as it doesnt occur often.
 	 */
 	exit1(td, W_EXITCODE(args->error_code, 0));
