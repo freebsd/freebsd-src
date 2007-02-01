@@ -202,6 +202,8 @@ struct tcpcb {
 					   episode starts at this seq number */
 	struct sackhint	sackhint;	/* SACK scoreboard hint */
 	int	t_rttlow;		/* smallest observerved RTT */
+	u_int32_t	rfbuf_ts;	/* recv buffer autoscaling timestamp */
+	int	rfbuf_cnt;		/* recv buffer autoscaling byte count */
 };
 
 #define IN_FASTRECOVERY(tp)	(tp->t_flags & TF_FASTRECOVERY)
