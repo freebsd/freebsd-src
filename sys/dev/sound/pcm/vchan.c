@@ -334,6 +334,7 @@ vchan_init(kobj_t obj, void *devinfo, struct snd_dbuf *b, struct pcm_channel *c,
 static int
 vchan_free(kobj_t obj, void *data)
 {
+	free(data, M_DEVBUF);
 	return 0;
 }
 
