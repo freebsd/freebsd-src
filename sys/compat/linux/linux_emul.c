@@ -114,13 +114,18 @@ linux_proc_init(struct thread *td, pid_t child, int flags)
 	if (child != 0) {
 		if (flags & CLONE_THREAD) {
 			/* lookup the parent */
-		   	EMUL_SHARED_WLOCK(&emul_shared_lock);
-			p_em = em_find(td->td_proc, EMUL_DOLOCK);
+			/* 
+			 * we dont have to lock the p_em because
+			 * its waiting for us in linux_clone so
+			 * there is no chance of it changing the
+			 * p_em->shared address
+			 */
+			p_em = em_find(td->td_proc, EMUL_DONTLOCK);
 			KASSERT(p_em != NULL, ("proc_init: parent emuldata not found for CLONE_THREAD\n"));
 			em->shared = p_em->shared;
+			EMUL_SHARED_WLOCK(&emul_shared_lock);
 			em->shared->refs++;
-		   	EMUL_SHARED_WUNLOCK(&emul_shared_lock);
-			EMUL_UNLOCK(&emul_lock);
+			EMUL_SHARED_WUNLOCK(&emul_shared_lock);
 		} else {
 			/*
 			 * handled earlier to avoid malloc(M_WAITOK) with
@@ -136,8 +141,6 @@ linux_proc_init(struct thread *td, pid_t child, int flags)
 		p = pfind(child);
 		KASSERT(p != NULL, ("process not found in proc_init\n"));
 		p->p_emuldata = em;
-		/* we might have a sleeping linux_schedtail */
-		wakeup(&p->p_emuldata);
 		PROC_UNLOCK(p);
 	} else
 		EMUL_UNLOCK(&emul_lock);
@@ -162,16 +165,23 @@ linux_proc_exit(void *arg __unused, struct proc *p)
 
 	KASSERT(em != NULL, ("proc_exit: emuldata not found.\n"));
 
+	/* reparent all procs that are not a thread leader to initproc */
+	if (em->shared->group_pid != p->p_pid) {
+	   	sx_xlock(&proctree_lock);
+	   	wakeup(initproc);
+		PROC_LOCK(p);
+		proc_reparent(p, initproc);
+		p->p_sigparent = SIGCHLD;
+		PROC_UNLOCK(p);
+	   	sx_xunlock(&proctree_lock);
+	}
+
 	child_clear_tid = em->child_clear_tid;
 
 	EMUL_UNLOCK(&emul_lock);
 
 	EMUL_SHARED_WLOCK(&emul_shared_lock);
 	LIST_REMOVE(em, threads);
-
-	PROC_LOCK(p);
-	p->p_emuldata = NULL;
-	PROC_UNLOCK(p);
 
 	em->shared->refs--;
 	if (em->shared->refs == 0)
@@ -243,11 +253,15 @@ linux_proc_exec(void *arg __unused, struct proc *p, struct image_params *imgp)
 	    && p->p_sysent == &elf_linux_sysvec)) {
 		struct linux_emuldata *em;
 
-		em = em_find(p, EMUL_DOLOCK);
+		/* 
+		 * XXX:There's a race because here we assign p->p_emuldata NULL
+		 * but the process is still counted as linux one for a short
+ 		 * time so some other process might reference it and try to
+ 		 * access its p->p_emuldata and panicing on a NULL reference.
+		 */
+		em = em_find(p, EMUL_DONTLOCK);
 
 		KASSERT(em != NULL, ("proc_exec: emuldata not found.\n"));
-
-		EMUL_UNLOCK(&emul_lock);
 
 		EMUL_SHARED_WLOCK(&emul_shared_lock);
 		LIST_REMOVE(em, threads);
@@ -277,22 +291,10 @@ linux_schedtail(void *arg __unused, struct proc *p)
 	if (__predict_true(p->p_sysent != &elf_linux_sysvec))
 		return;
 
-retry:
 	/* find the emuldata */
 	em = em_find(p, EMUL_DOLOCK);
 
-	if (em == NULL) {
-		/*
-		 * We might have been called before proc_init for this
-		 * process so tsleep and be woken up by it. We use
-		 * p->p_emuldata for this
-		 */
-
-		error = tsleep(&p->p_emuldata, PLOCK, "linux_schedtail", hz);
-		if (error == 0)
-			goto retry;
-		panic("no emuldata found for userreting process.\n");
-	}
+	KASSERT(em != NULL, ("linux_schedtail: emuldata not found.\n"));
 	child_set_tid = em->child_set_tid;
 	EMUL_UNLOCK(&emul_lock);
 
