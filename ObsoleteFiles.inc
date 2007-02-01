@@ -14,6 +14,9 @@
 # The file is partitioned: OLD_FILES first, then OLD_LIBS and OLD_DIRS last.
 #
 
+# 20070201: remove libmytinfo link
+OLD_FILES+=usr/lib/libmytinfo.a
+OLD_FILES+=usr/lib/libmytinfo.so
 # 20070128: remove vnconfig
 OLD_FILES+=usr/sbin/vnconfig
 # 20070125: objformat bites the dust
