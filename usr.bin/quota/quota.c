@@ -88,11 +88,11 @@ struct quotause {
 static const char *timeprt(time_t seconds);
 static struct quotause *getprivs(long id, int quotatype);
 static void usage(void);
-static void showuid(u_long uid);
-static void showgid(u_long gid);
-static void showusrname(char *name);
-static void showgrpname(char *name);
-static void showquotas(int type, u_long id, const char *name);
+static int showuid(u_long uid);
+static int showgid(u_long gid);
+static int showusrname(char *name);
+static int showgrpname(char *name);
+static int showquotas(int type, u_long id, const char *name);
 static void heading(int type, u_long id, const char *name, const char *tag);
 static int ufshasquota(struct fstab *fs, int type, char **qfnamep);
 static int getufsquota(struct fstab *fs, struct quotause *qup, long id,
@@ -113,7 +113,7 @@ main(int argc, char *argv[])
 {
 	int ngroups; 
 	gid_t mygid, gidset[NGROUPS];
-	int i, ch, gflag = 0, uflag = 0;
+	int i, ch, gflag = 0, uflag = 0, errflag = 0;
 
 	while ((ch = getopt(argc, argv, "ghlquv")) != -1) {
 		switch(ch) {
@@ -145,39 +145,39 @@ main(int argc, char *argv[])
 		uflag++;
 	if (argc == 0) {
 		if (uflag)
-			showuid(getuid());
+			errflag += showuid(getuid());
 		if (gflag) {
 			mygid = getgid();
 			ngroups = getgroups(NGROUPS, gidset);
 			if (ngroups < 0)
 				err(1, "getgroups");
-			showgid(mygid);
+			errflag += showgid(mygid);
 			for (i = 0; i < ngroups; i++)
 				if (gidset[i] != mygid)
-					showgid(gidset[i]);
+					errflag += showgid(gidset[i]);
 		}
-		return(0);
+		return(errflag);
 	}
 	if (uflag && gflag)
 		usage();
 	if (uflag) {
 		for (; argc > 0; argc--, argv++) {
 			if (alldigits(*argv))
-				showuid(atoi(*argv));
+				errflag += showuid(atoi(*argv));
 			else
-				showusrname(*argv);
+				errflag += showusrname(*argv);
 		}
-		return(0);
+		return(errflag);
 	}
 	if (gflag) {
 		for (; argc > 0; argc--, argv++) {
 			if (alldigits(*argv))
-				showgid(atoi(*argv));
+				errflag += showgid(atoi(*argv));
 			else
-				showgrpname(*argv);
+				errflag += showgrpname(*argv);
 		}
 	}
-	return(0);
+	return(errflag);
 }
 
 static void
@@ -194,7 +194,7 @@ usage(void)
 /*
  * Print out quotas for a specified user identifier.
  */
-static void
+static int
 showuid(u_long uid)
 {
 	struct passwd *pwd = getpwuid(uid);
@@ -204,28 +204,28 @@ showuid(u_long uid)
 		name = "(no account)";
 	else
 		name = pwd->pw_name;
-	showquotas(USRQUOTA, uid, name);
+	return(showquotas(USRQUOTA, uid, name));
 }
 
 /*
  * Print out quotas for a specifed user name.
  */
-static void
+static int
 showusrname(char *name)
 {
 	struct passwd *pwd = getpwnam(name);
 
 	if (pwd == NULL) {
 		warnx("%s: unknown user", name);
-		return;
+		return(1);
 	}
-	showquotas(USRQUOTA, pwd->pw_uid, name);
+	return(showquotas(USRQUOTA, pwd->pw_uid, name));
 }
 
 /*
  * Print out quotas for a specified group identifier.
  */
-static void
+static int
 showgid(u_long gid)
 {
 	struct group *grp = getgrgid(gid);
@@ -235,22 +235,22 @@ showgid(u_long gid)
 		name = "(no entry)";
 	else
 		name = grp->gr_name;
-	showquotas(GRPQUOTA, gid, name);
+	return(showquotas(GRPQUOTA, gid, name));
 }
 
 /*
  * Print out quotas for a specifed group name.
  */
-static void
+static int
 showgrpname(char *name)
 {
 	struct group *grp = getgrnam(name);
 
 	if (grp == NULL) {
 		warnx("%s: unknown group", name);
-		return;
+		return(1);
 	}
-	showquotas(GRPQUOTA, grp->gr_gid, name);
+	return(showquotas(GRPQUOTA, grp->gr_gid, name));
 }
 
 static void
@@ -264,14 +264,14 @@ prthumanval(int len, int64_t bytes)
 	(void)printf(" %*s", len, buf);
 }
 
-static void
+static int
 showquotas(int type, u_long id, const char *name)
 {
 	struct quotause *qup;
 	struct quotause *quplist;
 	const char *msgi, *msgb;
 	const char *nam;
-	int lines = 0;
+	int lines = 0, overquota = 0;
 	static time_t now;
 
 	if (now == 0)
@@ -286,10 +286,13 @@ showquotas(int type, u_long id, const char *name)
 			continue;
 		msgi = (char *)0;
 		if (qup->dqblk.dqb_ihardlimit &&
-		    qup->dqblk.dqb_curinodes >= qup->dqblk.dqb_ihardlimit)
+		    qup->dqblk.dqb_curinodes >= qup->dqblk.dqb_ihardlimit) {
+			overquota++;
 			msgi = "File limit reached on";
+		}
 		else if (qup->dqblk.dqb_isoftlimit &&
 		    qup->dqblk.dqb_curinodes >= qup->dqblk.dqb_isoftlimit) {
+			overquota++;
 			if (qup->dqblk.dqb_itime > now)
 				msgi = "In file grace period on";
 			else
@@ -297,10 +300,13 @@ showquotas(int type, u_long id, const char *name)
 		}
 		msgb = (char *)0;
 		if (qup->dqblk.dqb_bhardlimit &&
-		    qup->dqblk.dqb_curblocks >= qup->dqblk.dqb_bhardlimit)
+		    qup->dqblk.dqb_curblocks >= qup->dqblk.dqb_bhardlimit) {
+			overquota++;
 			msgb = "Block limit reached on";
+		}
 		else if (qup->dqblk.dqb_bsoftlimit &&
 		    qup->dqblk.dqb_curblocks >= qup->dqblk.dqb_bsoftlimit) {
+			overquota++;
 			if (qup->dqblk.dqb_btime > now)
 				msgb = "In block grace period on";
 			else
@@ -357,6 +363,7 @@ showquotas(int type, u_long id, const char *name)
 	}
 	if (!qflag && lines == 0)
 		heading(type, id, name, "none");
+	return(overquota);
 }
 
 static void
