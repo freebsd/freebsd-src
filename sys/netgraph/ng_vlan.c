@@ -361,13 +361,17 @@ ng_vlan_rcvdata(hook_p hook, item_p item)
 		 * If from downstream, select between a match hook
 		 * or the nomatch hook.
 		 */
-		mtag = m_tag_locate(m, MTAG_VLAN, MTAG_VLAN_TAG, NULL);
-		if (mtag != NULL || eh->ether_type == htons(ETHERTYPE_VLAN)) {
-			if (mtag != NULL) {
+		if (m->m_flags & M_VLANTAG ||
+		    eh->ether_type == htons(ETHERTYPE_VLAN)) {
+			if (m->m_flags & M_VLANTAG) {
 				/*
 				 * Packet is tagged, m contains a normal
 				 * Ethernet frame; tag is stored out-of-band.
 				 */
+				mtag = m_tag_locate(m, MTAG_VLAN,
+				    MTAG_VLAN_TAG, NULL);
+				KASSERT(mtag != NULL,
+				    ("%s: M_VLANTAG without m_tag", __func__));
 				vlan = EVL_VLANOFTAG(VLAN_TAG_VALUE(mtag));
 				(void)&evl;	/* XXX silence GCC */
 			} else {
@@ -378,11 +382,13 @@ ng_vlan_rcvdata(hook_p hook, item_p item)
 				}
 				evl = mtod(m, struct ether_vlan_header *);
 				vlan = EVL_VLANOFTAG(ntohs(evl->evl_tag));
+				(void)&mtag;	/* XXX silence GCC */
 			}
 			if ((f = ng_vlan_findentry(priv, vlan)) != NULL) {
-				if (mtag != NULL) 
+				if (m->m_flags & M_VLANTAG) {
 					m_tag_delete(m, mtag);
-				else {
+					m->m_flags &= ~M_VLANTAG;
+				} else {
 					evl->evl_encap_proto = evl->evl_proto;
 					bcopy(mtod(m, caddr_t),
 					    mtod(m, caddr_t) +
