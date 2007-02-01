@@ -174,7 +174,7 @@ struct ucred;
 struct vnode;
 
 int	chkdq(struct inode *, int64_t, struct ucred *, int);
-int	chkiq(struct inode *, ino_t, struct ucred *, int);
+int	chkiq(struct inode *, int, struct ucred *, int);
 void	dqinit(void);
 void	dqrele(struct vnode *, struct dquot *);
 void	dquninit(void);
