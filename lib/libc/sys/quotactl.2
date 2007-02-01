@@ -58,7 +58,7 @@ given by
 .Fa cmd
 operates on the given filename
 .Fa path
-for the given user
+for the given user or group
 .Fa id .
 (NOTE: One should use the QCMD macro defined in
 .In ufs/ufs/quota.h
@@ -68,6 +68,12 @@ The address of an optional command specific data structure,
 .Fa addr ,
 may be given; its interpretation
 is discussed below with each command.
+.Pp
+For commands that use the
+.Fa id
+identifier, it must be either -1 or any positive value.
+The value of -1 indicates that the current UID or GID should be used.
+Any other negative value will return an error.
 .Pp
 Currently quotas are supported only for the
 .Dq ufs
@@ -179,6 +185,15 @@ In
 and
 .Dv Q_SETQUOTA ,
 quotas are not currently enabled for this file system.
+.Pp
+The
+.Fa id
+argument to
+.Dv Q_GETQUOTA ,
+.Dv Q_SETQUOTA 
+or
+.Dv Q_SETUSE
+is a negative value.
 .It Bq Er EACCES
 In
 .Dv Q_QUOTAON ,
