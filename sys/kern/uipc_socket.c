@@ -368,6 +368,10 @@ socreate(dom, aso, type, proto, cred, td)
 	knlist_init(&so->so_snd.sb_sel.si_note, SOCKBUF_MTX(&so->so_snd),
 	    NULL, NULL, NULL);
 	so->so_count = 1;
+	/*
+	 * Auto-sizing of socket buffers is managed by the protocols and
+	 * the appropriate flags must be set in the pru_attach function.
+	 */
 	error = (*prp->pr_usrreqs->pru_attach)(so, proto, td);
 	if (error) {
 		KASSERT(so->so_count == 1, ("socreate: so_count %d",
@@ -442,6 +446,8 @@ sonewconn(head, connstatus)
 	so->so_snd.sb_lowat = head->so_snd.sb_lowat;
 	so->so_rcv.sb_timeo = head->so_rcv.sb_timeo;
 	so->so_snd.sb_timeo = head->so_snd.sb_timeo;
+	so->so_rcv.sb_flags |= head->so_rcv.sb_flags & SB_AUTOSIZE;
+	so->so_snd.sb_flags |= head->so_snd.sb_flags & SB_AUTOSIZE;
 	so->so_state |= connstatus;
 	ACCEPT_LOCK();
 	if (connstatus) {
@@ -2116,6 +2122,8 @@ sosetopt(so, sopt)
 					error = ENOBUFS;
 					goto bad;
 				}
+				(sopt->sopt_name == SO_SNDBUF ? &so->so_snd :
+				    &so->so_rcv)->sb_flags &= ~SB_AUTOSIZE;
 				break;
 
 			/*
