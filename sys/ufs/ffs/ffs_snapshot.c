@@ -281,6 +281,7 @@ restart:
 		return (error);
 	}
 	vp = nd.ni_vp;
+	vp->v_vflag |= VV_SYSTEM;
 	ip = VTOI(vp);
 	devvp = ip->i_devvp;
 	/*
@@ -367,18 +368,6 @@ restart:
 		if (error)
 			goto out;
 	}
-#ifdef QUOTA
-	/*
-	 * Turn off disk quotas for snapshot file.
-	 */
-	(void) chkdq(ip, -DIP(ip, i_blocks), KERNCRED, FORCE);
-	for (i = 0; i < MAXQUOTAS; i++) {
-		if (ip->i_dquot[i] != NODQUOT) {
-			dqrele(vp, ip->i_dquot[i]);
-			ip->i_dquot[i] = NODQUOT;
-		}
-	}
-#endif
 	/*
 	 * Change inode to snapshot type file.
 	 */
@@ -682,7 +671,6 @@ loop:
 	devvp->v_vflag |= VV_COPYONWRITE;
 	VI_UNLOCK(devvp);
 	ASSERT_VOP_LOCKED(vp, "ffs_snapshot vp");
-	vp->v_vflag |= VV_SYSTEM;
 out1:
 	KASSERT((sn != NULL && sbp != NULL && error == 0) ||
 		(sn == NULL && sbp == NULL && error != 0),
