@@ -252,7 +252,6 @@ CLEANFILES+=	${GENSRC} ${GENHDR} keys.list make_hash term.h.new \
 SYMLINKS+=	libncurses.a ${LIBDIR}/libcurses.a
 SYMLINKS+=	libncurses.a ${LIBDIR}/libtermcap.a
 SYMLINKS+=	libncurses.a ${LIBDIR}/libtermlib.a
-SYMLINKS+=	libncurses.a ${LIBDIR}/libmytinfo.a
 SYMLINKS+=	libncurses.a ${LIBDIR}/libtinfo.a
 .endif
 .if !defined(NO_PIC)
@@ -260,14 +259,12 @@ SYMLINKS+=	libncurses.a ${LIBDIR}/libtinfo.a
 SYMLINKS+=	libncurses.so ${LIBDIR}/libcurses.so
 SYMLINKS+=	libncurses.so ${LIBDIR}/libtermcap.so
 SYMLINKS+=	libncurses.so ${LIBDIR}/libtermlib.so
-SYMLINKS+=	libncurses.so ${LIBDIR}/libmytinfo.so
 SYMLINKS+=	libncurses.so ${LIBDIR}/libtinfo.so
 .endif
 .if ${MK_PROFILE} != "no"
 SYMLINKS+=	libncurses_p.a ${LIBDIR}/libcurses_p.a
 SYMLINKS+=	libncurses_p.a ${LIBDIR}/libtermcap_p.a
 SYMLINKS+=	libncurses_p.a ${LIBDIR}/libtermlib_p.a
-SYMLINKS+=	libncurses_p.a ${LIBDIR}/libmytinfo_p.a
 SYMLINKS+=	libncurses_p.a ${LIBDIR}/libtinfo_p.a
 .endif
 
