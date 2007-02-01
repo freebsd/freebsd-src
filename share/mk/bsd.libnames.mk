@@ -81,7 +81,6 @@ LIBMENU?=	${DESTDIR}${LIBDIR}/libmenu.a
 LIBMILTER?=	${DESTDIR}${LIBDIR}/libmilter.a
 .endif
 LIBMP?=		${DESTDIR}${LIBDIR}/libmp.a
-LIBMYTINFO?=	"don't use LIBMYTINFO, use LIBNCURSES"
 .if ${MK_NCP} != "no"
 LIBNCP?=	${DESTDIR}${LIBDIR}/libncp.a
 .endif
