@@ -1014,9 +1014,15 @@ syncache_add(struct in_conninfo *inc, struct tcpopt *to, struct tcphdr *th,
 		if (to->to_flags & TOF_SCALE) {
 			int wscale = 0;
 
-			/* Compute proper scaling value from buffer space */
+			/*
+			 * Compute proper scaling value from buffer space.
+			 * Leave enough room for the socket buffer to grow
+			 * with auto sizing.  This allows us to scale the
+			 * receive buffer over a wide range while not losing
+			 * any efficiency or fine granularity.
+			 */
 			while (wscale < TCP_MAX_WINSHIFT &&
-			    (TCP_MAXWIN << wscale) < sb_hiwat)
+			    (0x1 << wscale) < tcp_minmss)
 				wscale++;
 			sc->sc_requested_r_scale = wscale;
 			sc->sc_requested_s_scale = to->to_requested_s_scale;
