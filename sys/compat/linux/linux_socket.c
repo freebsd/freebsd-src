@@ -49,6 +49,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/syscallsubr.h>
 #include <sys/uio.h>
 #include <sys/syslog.h>
+#include <sys/un.h>
 
 #include <netinet/in.h>
 #include <netinet/in_systm.h>
@@ -292,6 +293,20 @@ linux_to_bsd_so_sockopt(int opt)
 		return (SO_OOBINLINE);
 	case LINUX_SO_LINGER:
 		return (SO_LINGER);
+	case LINUX_SO_PEERCRED:
+		return (LOCAL_PEERCRED);
+	case LINUX_SO_RCVLOWAT:
+		return (SO_RCVLOWAT);
+	case LINUX_SO_SNDLOWAT:
+		return (SO_SNDLOWAT);
+	case LINUX_SO_RCVTIMEO:
+		return (SO_RCVTIMEO);
+	case LINUX_SO_SNDTIMEO:
+		return (SO_SNDTIMEO);
+	case LINUX_SO_TIMESTAMP:
+		return (SO_TIMESTAMP);
+	case LINUX_SO_ACCEPTCONN:
+		return (SO_ACCEPTCONN);
 	}
 	return (-1);
 }
@@ -1046,6 +1061,9 @@ linux_recvmsg(struct thread *td, struct linux_recvmsg_args *args)
 	/* XXXTJR recvmsg is broken on amd64 */
 
 	if ((error = copyin(args, &linux_args, sizeof(linux_args))))
+		return (error);
+
+	if ((error = copyin(PTRIN(args->msg), &msg, sizeof (msg))))
 		return (error);
 
 	bsd_args.s = linux_args.s;
