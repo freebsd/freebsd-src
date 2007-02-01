@@ -891,6 +891,11 @@ dqget(vp, id, ump, type, dqp)
 	struct uio auio;
 	int error;
 
+	/* XXX: Disallow negative id values to prevent the
+	* creation of 100GB+ quota data files.
+	*/
+	if ((int)id < 0)
+		return (EINVAL);
 	dqvp = ump->um_quotas[type];
 	if (dqvp == NULLVP || (ump->um_qflags[type] & QTF_CLOSING)) {
 		*dqp = NODQUOT;
