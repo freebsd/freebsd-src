@@ -31,7 +31,7 @@
 .\"     @(#)quotacheck.8	8.1 (Berkeley) 6/5/93
 .\" $FreeBSD$
 .\"
-.Dd November 7, 2006
+.Dd January 25, 2007
 .Dt QUOTACHECK 8
 .Os
 .Sh NAME
@@ -137,6 +137,8 @@ with the variable
 .Ar enable_quotas
 in
 .Pa /etc/rc.conf .
+The kernel must also be built with 
+.Cd "options QUOTA" .
 .Pp
 The
 .Nm
@@ -159,6 +161,7 @@ default file systems
 .Xr quota 1 ,
 .Xr quotactl 2 ,
 .Xr fstab 5 ,
+.Xr rc.conf 5 ,
 .Xr edquota 8 ,
 .Xr fsck 8 ,
 .Xr quotaon 8 ,
@@ -168,3 +171,12 @@ The
 .Nm
 utility appeared in
 .Bx 4.2 .
+.Sh BUGS
+The quota system will ignore UIDs or GIDs that would be negative
+when evaluated as a signed value.
+Typically those types of ids can appear in the file system from NFS
+mounts or archive files from other operating systems.
+Extremely large UIDs or GIDs will cause
+.Nm
+to run for an unreasonable amount of time and also produce extremely
+large quota data files.
