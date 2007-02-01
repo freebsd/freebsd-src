@@ -438,6 +438,14 @@ linux_clone(struct thread *td, struct linux_clone_args *args)
 	error = fork1(td, ff, 0, &p2);
 	if (error)
 		return (error);
+
+	if (args->flags & (CLONE_PARENT|CLONE_THREAD)) {
+	   	sx_xlock(&proctree_lock);
+		PROC_LOCK(p2);
+		proc_reparent(p2, td->td_proc->p_pptr);
+		PROC_UNLOCK(p2);
+		sx_xunlock(&proctree_lock);
+	}
 	
 	/* create the emuldata */
 	error = linux_proc_init(td, p2->p_pid, args->flags);
@@ -455,14 +463,6 @@ linux_clone(struct thread *td, struct linux_clone_args *args)
 		   	EMUL_UNLOCK(&emul_lock);
 			return (error);
 		}
-	}
-
-	if (args->flags & (CLONE_PARENT|CLONE_THREAD)) {
-	   	sx_xlock(&proctree_lock);
-		PROC_LOCK(p2);
-		proc_reparent(p2, td->td_proc->p_pptr);
-		PROC_UNLOCK(p2);
-		sx_xunlock(&proctree_lock);
 	}
 
 	if (args->flags & CLONE_THREAD) {
