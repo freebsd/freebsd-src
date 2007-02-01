@@ -172,16 +172,6 @@ archive_read_open2(struct archive *a, void *client_data,
 		return (ARCHIVE_FATAL);
 	}
 
-	/* An empty archive is a serious error. */
-	if (bytes_read == 0) {
-		archive_set_error(a, ARCHIVE_ERRNO_FILE_FORMAT,
-		    "Empty input file");
-		/* Close the empty file. */
-		if (client_closer)
-			(client_closer)(a, client_data);
-		return (ARCHIVE_FATAL);
-	}
-
 	/* Now that the client callbacks have worked, remember them. */
 	a->client_opener = client_opener; /* Do we need to remember this? */
 	a->client_reader = client_reader;
