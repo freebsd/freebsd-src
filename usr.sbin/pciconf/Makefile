@@ -2,6 +2,7 @@
 # $FreeBSD$
 
 PROG=	pciconf
+SRCS=	pciconf.c cap.c
 MAN=	pciconf.8
 
 CFLAGS+= -I${.CURDIR}/../../sys
