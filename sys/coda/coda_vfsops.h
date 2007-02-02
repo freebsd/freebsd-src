@@ -57,7 +57,6 @@ vfs_quotactl_t	coda_quotactl;
 vfs_statfs_t	coda_nb_statfs;
 vfs_sync_t	coda_sync;
 vfs_vget_t	coda_vget;
-vfs_vptofh_t	coda_vptofh;
 vfs_init_t	coda_init;
 
 int getNewVnode(struct vnode **vpp);
