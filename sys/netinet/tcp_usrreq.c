@@ -1245,6 +1245,10 @@ tcp_fill_info(tp, ti)
 		ti->tcpi_snd_wscale = tp->snd_scale;
 		ti->tcpi_rcv_wscale = tp->rcv_scale;
 	}
+
+	ti->tcpi_rtt = ((u_int64_t)tp->t_srtt * tick) >> TCP_RTT_SHIFT;
+	ti->tcpi_rttvar = ((u_int64_t)tp->t_rttvar * tick) >> TCP_RTTVAR_SHIFT;
+
 	ti->tcpi_snd_ssthresh = tp->snd_ssthresh;
 	ti->tcpi_snd_cwnd = tp->snd_cwnd;
 
