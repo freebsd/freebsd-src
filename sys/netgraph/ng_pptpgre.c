@@ -132,8 +132,8 @@ typedef u_int64_t		pptptime_t;
 #define PPTP_MAX_ACK_DELAY	(PPTP_TIME_SCALE / 2)	/* 500 milliseconds */
 
 /* See RFC 2637 section 4.4 */
-#define PPTP_ACK_ALPHA(x)	((x) >> 3)	/* alpha = 0.125 */
-#define PPTP_ACK_BETA(x)	((x) >> 2)	/* beta = 0.25 */
+#define PPTP_ACK_ALPHA(x)	(((x) + 4) >> 3)	/* alpha = 0.125 */
+#define PPTP_ACK_BETA(x)	(((x) + 2) >> 2)	/* beta = 0.25 */
 #define PPTP_ACK_CHI(x) 	((x) << 2)	/* chi = 4 */
 #define PPTP_ACK_DELTA(x) 	((x) << 1)	/* delta = 2 */
 
@@ -676,7 +676,8 @@ ng_pptpgre_recv(node_p node, item_p item)
 			if (diff < 0)
 				diff = -diff;
 			a->dev += PPTP_ACK_BETA(diff - a->dev);
-			a->ato = a->rtt + PPTP_ACK_CHI(a->dev);
+			    /* +2 to compensate low precision of int math */
+			a->ato = a->rtt + PPTP_ACK_CHI(a->dev + 2);
 			if (a->ato > PPTP_MAX_TIMEOUT)
 				a->ato = PPTP_MAX_TIMEOUT;
 			if (a->ato < PPTP_MIN_TIMEOUT)
@@ -827,7 +828,7 @@ ng_pptpgre_recv_ack_timeout(node_p node, hook_p hook, void *arg1, int arg2)
 
 	/* Update adaptive timeout stuff */
 	priv->stats.recvAckTimeouts++;
-	a->rtt = PPTP_ACK_DELTA(a->rtt);
+	a->rtt = PPTP_ACK_DELTA(a->rtt) + 1; /* +1 to avoid delta*0 case */
 	a->ato = a->rtt + PPTP_ACK_CHI(a->dev);
 	if (a->ato > PPTP_MAX_TIMEOUT)
 		a->ato = PPTP_MAX_TIMEOUT;
