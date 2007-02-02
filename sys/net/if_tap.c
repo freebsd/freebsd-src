@@ -255,7 +255,7 @@ tapmodevent(module_t mod, int type, void *data)
 static void
 tapclone(void *arg, struct ucred *cred, char *name, int namelen, struct cdev **dev)
 {
-	u_int		extra;
+	int		extra;
 	int		i, unit;
 	char		*device_name = name;
 
