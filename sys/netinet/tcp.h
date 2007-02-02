@@ -208,8 +208,8 @@ struct tcp_info {
 	/* Metrics; variable units. */
 	u_int32_t	__tcpi_pmtu;
 	u_int32_t	__tcpi_rcv_ssthresh;
-	u_int32_t	__tcpi_rtt;
-	u_int32_t	__tcpi_rttvar;
+	u_int32_t	tcpi_rtt;		/* Smoothed RTT in usecs. */
+	u_int32_t	tcpi_rttvar;		/* RTT variance in usecs. */
 	u_int32_t	tcpi_snd_ssthresh;	/* Slow start threshold. */
 	u_int32_t	tcpi_snd_cwnd;		/* Send congestion window. */
 	u_int32_t	__tcpi_advmss;
