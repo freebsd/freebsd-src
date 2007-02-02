@@ -7,4 +7,7 @@ WARNS?=	6
 MAN=	mount.8
 # We do NOT install the getmntopts.3 man page.
 
+DPADD=	${LIBUTIL}
+LDADD=	-lutil
+
 .include <bsd.prog.mk>
