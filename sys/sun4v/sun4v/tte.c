@@ -74,7 +74,7 @@ tte_clear_phys_bit(vm_page_t m, uint64_t flags)
 		PMAP_LOCK(pmap);
 		otte_data = tte_hash_clear_bits(pmap->pm_hash, pv->pv_va, flags);
 		if ((matchbits = (otte_data & active_flags)) != 0) {
-			if (matchbits == VTD_W) 
+			if ((otte_data & (VTD_SW_W|VTD_W)) == (VTD_SW_W|VTD_W)) 
 				vm_page_dirty(m);
 			pmap_invalidate_page(pmap, pv->pv_va, TRUE);
 		}
