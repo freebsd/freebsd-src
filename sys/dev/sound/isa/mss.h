@@ -1,15 +1,6 @@
 /*-
- * file: mss.h
- *
- * (C) 1997 Luigi Rizzo (luigi@iet.unipi.it)
- *
- * This file contains information and macro definitions for
- * AD1848-compatible devices, used in the MSS/WSS compatible boards.
- *
- */
-
-/*-
  * Copyright (c) 1999 Doug Rabson
+ * Copyright (c) 1997 Luigi Rizzo (luigi@iet.unipi.it)
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -34,6 +25,11 @@
  * SUCH DAMAGE.
  *
  * $FreeBSD$
+ */
+
+/*
+ * This file contains information and macro definitions for
+ * AD1848-compatible devices, used in the MSS/WSS compatible boards.
  */
 
 /*
