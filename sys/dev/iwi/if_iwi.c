@@ -545,9 +545,10 @@ iwi_alloc_cmd_ring(struct iwi_softc *sc, struct iwi_cmd_ring *ring, int count)
 	ring->queued = 0;
 	ring->cur = ring->next = 0;
 
-	error = bus_dma_tag_create(NULL, 4, 0, BUS_SPACE_MAXADDR_32BIT,
-	    BUS_SPACE_MAXADDR, NULL, NULL, count * IWI_CMD_DESC_SIZE, 1,
-	    count * IWI_CMD_DESC_SIZE, 0, NULL, NULL, &ring->desc_dmat);
+	error = bus_dma_tag_create(bus_get_dma_tag(sc->sc_dev), 4, 0,
+	    BUS_SPACE_MAXADDR_32BIT, BUS_SPACE_MAXADDR, NULL, NULL,
+	    count * IWI_CMD_DESC_SIZE, 1, count * IWI_CMD_DESC_SIZE, 0, 
+	    NULL, NULL, &ring->desc_dmat);
 	if (error != 0) {
 		device_printf(sc->sc_dev, "could not create desc DMA tag\n");
 		goto fail;
@@ -606,9 +607,10 @@ iwi_alloc_tx_ring(struct iwi_softc *sc, struct iwi_tx_ring *ring, int count,
 	ring->csr_ridx = csr_ridx;
 	ring->csr_widx = csr_widx;
 
-	error = bus_dma_tag_create(NULL, 4, 0, BUS_SPACE_MAXADDR_32BIT,
-	    BUS_SPACE_MAXADDR, NULL, NULL, count * IWI_TX_DESC_SIZE, 1,
-	    count * IWI_TX_DESC_SIZE, 0, NULL, NULL, &ring->desc_dmat);
+	error = bus_dma_tag_create(bus_get_dma_tag(sc->sc_dev), 4, 0,
+	    BUS_SPACE_MAXADDR_32BIT, BUS_SPACE_MAXADDR, NULL, NULL,
+	    count * IWI_TX_DESC_SIZE, 1, count * IWI_TX_DESC_SIZE, 0, NULL, 
+	    NULL, &ring->desc_dmat);
 	if (error != 0) {
 		device_printf(sc->sc_dev, "could not create desc DMA tag\n");
 		goto fail;
@@ -636,9 +638,9 @@ iwi_alloc_tx_ring(struct iwi_softc *sc, struct iwi_tx_ring *ring, int count,
 		goto fail;
 	}
 
-	error = bus_dma_tag_create(NULL, 1, 0, BUS_SPACE_MAXADDR_32BIT,
-	    BUS_SPACE_MAXADDR, NULL, NULL, MCLBYTES, IWI_MAX_NSEG,
-	    MCLBYTES, 0, NULL, NULL, &ring->data_dmat);
+	error = bus_dma_tag_create(bus_get_dma_tag(sc->sc_dev), 1, 0,
+	BUS_SPACE_MAXADDR_32BIT, BUS_SPACE_MAXADDR, NULL, NULL, MCLBYTES,
+	IWI_MAX_NSEG, MCLBYTES, 0, NULL, NULL, &ring->data_dmat);
 	if (error != 0) {
 		device_printf(sc->sc_dev, "could not create data DMA tag\n");
 		goto fail;
@@ -744,9 +746,9 @@ iwi_alloc_rx_ring(struct iwi_softc *sc, struct iwi_rx_ring *ring, int count)
 		goto fail;
 	}
 
-	error = bus_dma_tag_create(NULL, 1, 0, BUS_SPACE_MAXADDR_32BIT,
-	    BUS_SPACE_MAXADDR, NULL, NULL, MCLBYTES, 1, MCLBYTES, 0, NULL,
-	    NULL, &ring->data_dmat);
+	error = bus_dma_tag_create(bus_get_dma_tag(sc->sc_dev), 1, 0,
+	    BUS_SPACE_MAXADDR_32BIT, BUS_SPACE_MAXADDR, NULL, NULL, MCLBYTES,
+	    1, MCLBYTES, 0, NULL, NULL, &ring->data_dmat);
 	if (error != 0) {
 		device_printf(sc->sc_dev, "could not create data DMA tag\n");
 		goto fail;
@@ -3111,9 +3113,10 @@ iwi_init_locked(void *priv, int force)
 	if (sc->fw_uc.size > sc->fw_dma_size)
 		sc->fw_dma_size = sc->fw_uc.size;
 
-	if (bus_dma_tag_create(NULL, 4, 0, BUS_SPACE_MAXADDR_32BIT,
-	    BUS_SPACE_MAXADDR, NULL, NULL, sc->fw_dma_size, 1, sc->fw_dma_size,
-	    0, NULL, NULL, &sc->fw_dmat) != 0) {
+	if (bus_dma_tag_create(bus_get_dma_tag(sc->sc_dev), 4, 0, 
+	    BUS_SPACE_MAXADDR_32BIT, BUS_SPACE_MAXADDR, NULL, NULL, 
+	    sc->fw_dma_size, 1, sc->fw_dma_size, 0, NULL, NULL, 
+	    &sc->fw_dmat) != 0) {
 		device_printf(sc->sc_dev,
 		    "could not create firmware DMA tag\n");
 		IWI_LOCK(sc);
