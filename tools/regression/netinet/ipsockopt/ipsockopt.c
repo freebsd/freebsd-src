@@ -32,13 +32,19 @@
 #include <netinet/in.h>
 #include <netinet/in_systm.h>
 #include <netinet/ip.h>
+#include <arpa/inet.h>
 
 #include <err.h>
 #include <errno.h>
+#include <getopt.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
+
+static int dorandom = 0;
+static int nmcastgroups = IP_MAX_MEMBERSHIPS;
+static int verbose = 0;
 
 /*
  * The test tool exercises IP-level socket options by interrogating the
@@ -634,6 +640,7 @@ test_ip_boolean(int sock, const char *socktypename, int option,
 static void
 test_ip_multicast_membership(int sock, const char *socktypename)
 {
+    char addrbuf[16];
     struct ip_mreq mreq;
     uint32_t basegroup;
     uint16_t i;
@@ -651,38 +658,51 @@ test_ip_multicast_membership(int sock, const char *socktypename)
     if (sotype == SOCK_STREAM)
 	return;
     /*
-     * For SOCK_DGRAM and SOCK_RAW sockets, pick a multicast group ID
-     * in subnet 224/5 with 11 random bits in the middle, and the groups
-     * themselves joined in sequential order up to IP_MAX_MEMBERSHIPS.
-     * The 224/8 range has special meaning, so don't use it.
+     * The 224/8 range is administratively scoped and has special meaning,
+     * therefore it is not used for this test.
+     * If we were not told to be non-deterministic:
+     * Join multicast groups from 238.1.1.0 up to nmcastgroups.
+     * Otherwise, pick a multicast group ID in subnet 238/5 with 11 random
+     * bits in the middle, and join groups in linear order up to nmcastgroups.
      */
-    basegroup = 0xEE000000;	/* 224.0.0.0/5 i.e. 5 bits. */
-    basegroup |= ((random() % ((1 << 11) - 1)) << 16);	/* Mid 11 bits. */
+    if (dorandom) {
+	/* be non-deterministic (for interactive operation; a fuller test) */
+	srandomdev();
+	basegroup = 0xEE000000;	/* 238.0.0.0 */
+	basegroup |= ((random() % ((1 << 11) - 1)) << 16);	/* 11 bits */
+    } else {
+	/* be deterministic (for automated operation) */
+	basegroup = 0xEE010100;	/* 238.1.1.0 */
+    }
     /*
      * Join the multicast group(s) on the default multicast interface;
      * this usually maps to the interface to which the default
      * route is pointing.
      */
-    for (i = 0; i < IP_MAX_MEMBERSHIPS; i++) {
+    for (i = 0; i < nmcastgroups; i++) {
 	mreq.imr_multiaddr.s_addr = htonl((basegroup | i));
 	mreq.imr_interface.s_addr = INADDR_ANY;
+	inet_ntop(AF_INET, &mreq.imr_multiaddr, addrbuf, sizeof(addrbuf));
+	if (verbose)
+		fprintf(stderr, "IP_ADD_MEMBERSHIP %s INADDR_ANY\n", addrbuf);
 	if (setsockopt(sock, IPPROTO_IP, IP_ADD_MEMBERSHIP, &mreq,
 		       sizeof(mreq)) < 0) {
 		err(-1,
 "test_ip_multicast_membership(%d, %s): failed IP_ADD_MEMBERSHIP (%s, %s)",
-		    sock, socktypename,
-		    inet_ntoa(mreq.imr_multiaddr), "INADDR_ANY");
+		    sock, socktypename, addrbuf, "INADDR_ANY");
 	}
     }
-    for (i = 0; i < IP_MAX_MEMBERSHIPS; i++) {
+    for (i = 0; i < nmcastgroups; i++) {
 	mreq.imr_multiaddr.s_addr = htonl((basegroup | i));
 	mreq.imr_interface.s_addr = INADDR_ANY;
+	inet_ntop(AF_INET, &mreq.imr_multiaddr, addrbuf, sizeof(addrbuf));
+	if (verbose)
+		fprintf(stderr, "IP_DROP_MEMBERSHIP %s INADDR_ANY\n", addrbuf);
 	if (setsockopt(sock, IPPROTO_IP, IP_DROP_MEMBERSHIP, &mreq,
 		       sizeof(mreq)) < 0) {
 		err(-1,
 "test_ip_multicast_membership(%d, %s): failed IP_DROP_MEMBERSHIP (%s, %s)",
-		    sock, socktypename,
-		    inet_ntoa(mreq.imr_multiaddr), "INADDR_ANY");
+		    sock, socktypename, addrbuf, "INADDR_ANY");
 	}
     }
 }
@@ -860,6 +880,14 @@ testsuite(int priv)
 	}
 }
 
+static void
+usage()
+{
+
+	fprintf(stderr, "usage: ipsockopt [-M ngroups] [-r] [-v]\n");
+	exit(EXIT_FAILURE);
+}
+
 /*
  * Very simply exercise that we can get and set each option.  If we're running
  * as root, run it also as nobody.  If not as root, complain about that.
@@ -867,8 +895,26 @@ testsuite(int priv)
 int
 main(int argc, char *argv[])
 {
+	int ch;
+
+	while ((ch = getopt(argc, argv, "M:rv")) != -1) {
+		switch (ch) {
+		case 'M':
+			nmcastgroups = atoi(optarg);
+			break;
+		case 'r':
+			dorandom = 1;	/* introduce non-determinism */
+			break;
+		case 'v':
+			verbose = 1;
+			break;
+		default:
+			usage();
+		}
+	}
 
 	printf("1..1\n");
+
 	if (geteuid() != 0) {
 		warnx("Not running as root, can't run tests as root");
 		fprintf(stderr, "\n");
