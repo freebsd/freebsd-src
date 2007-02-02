@@ -114,7 +114,8 @@ static char *pil_names[] = {
 	"rndzvs",	/* PIL_RENDEZVOUS */
 	"ast",		/* PIL_AST */
 	"stop",		/* PIL_STOP */
-	"stray", "stray", "stray", "stray", "stray", "stray", "stray",
+	"preempt",      /* PIL_PREEMPT */
+	"stray", "stray", "stray", "stray", "stray", "stray",
 	"fast",		/* PIL_FAST */
 	"tick",		/* PIL_TICK */
 };
@@ -266,6 +267,7 @@ intr_init(void)
 	intr_handlers[PIL_AST] = cpu_ipi_ast;
 	intr_handlers[PIL_RENDEZVOUS] = (ih_func_t *)smp_rendezvous_action;
 	intr_handlers[PIL_STOP]= cpu_ipi_stop;
+	intr_handlers[PIL_PREEMPT]= cpu_ipi_preempt;
 #endif
 	mtx_init(&intr_table_lock, "intr table", NULL, MTX_SPIN);
 	cpu_intrq_alloc();
