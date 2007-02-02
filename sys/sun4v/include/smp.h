@@ -44,6 +44,8 @@
 #define	IPI_AST		PIL_AST
 #define	IPI_RENDEZVOUS	PIL_RENDEZVOUS
 #define	IPI_STOP	PIL_STOP
+#define IPI_PREEMPT     PIL_PREEMPT
+
 
 #define	IPI_RETRIES	5000
 
@@ -79,6 +81,7 @@ void	cpu_ipi_send(u_int mid, u_long d0, u_long d1, u_long d2);
 
 void cpu_ipi_ast(struct trapframe *tf);
 void cpu_ipi_stop(struct trapframe *tf);
+void cpu_ipi_preempt(struct trapframe *tf);
 
 void	ipi_selected(u_int cpus, u_int ipi);
 void	ipi_all(u_int ipi);
