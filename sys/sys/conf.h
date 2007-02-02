@@ -240,7 +240,7 @@ void clone_setup(struct clonedevs **cdp);
 void clone_cleanup(struct clonedevs **);
 #define CLONE_UNITMASK 0xfffff
 #define CLONE_FLAG0 (CLONE_UNITMASK + 1)
-int clone_create(struct clonedevs **, struct cdevsw *, int *unit, struct cdev **dev, u_int extra);
+int clone_create(struct clonedevs **, struct cdevsw *, int *unit, struct cdev **dev, int extra);
 
 int	count_dev(struct cdev *_dev);
 void	destroy_dev(struct cdev *_dev);

@@ -803,7 +803,7 @@ clone_setup(struct clonedevs **cdp)
 }
 
 int
-clone_create(struct clonedevs **cdp, struct cdevsw *csw, int *up, struct cdev **dp, u_int extra)
+clone_create(struct clonedevs **cdp, struct cdevsw *csw, int *up, struct cdev **dp, int extra)
 {
 	struct clonedevs *cd;
 	struct cdev *dev, *ndev, *dl, *de;
