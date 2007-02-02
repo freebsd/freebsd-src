@@ -58,6 +58,7 @@ static const char rcsid[] =
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
+#include <libutil.h>
 
 #include "extern.h"
 #include "mntopts.h"
@@ -204,14 +205,33 @@ specified_ro(const char *arg)
 	return (ret);
 }
 
+static void
+restart_mountd(void)
+{
+	struct pidfh *pfh;
+	pid_t mountdpid; 
+
+	pfh = pidfile_open(_PATH_MOUNTDPID, 0600, &mountdpid);
+	if (pfh != NULL) {
+		/* Mountd is not running. */
+		pidfile_remove(pfh);
+		return;
+	}
+	if (errno != EEXIST) {
+		/* Cannot open pidfile for some reason. */
+		return;
+	}
+	/* We have mountd(8) PID in mountdpid varible, let's signal it. */
+	if (kill(mountdpid, SIGHUP) == -1)
+		err(1, "signal mountd");
+}
+
 int
 main(int argc, char *argv[])
 {
 	const char *mntfromname, **vfslist, *vfstype;
 	struct fstab *fs;
 	struct statfs *mntbuf;
-	FILE *mountdfp;
-	pid_t pid;
 	int all, ch, i, init_flags, late, mntsize, rval, have_fstab, ro;
 	char *cp, *ep, *options;
 
@@ -411,15 +431,10 @@ main(int argc, char *argv[])
 
 	/*
 	 * If the mount was successfully, and done by root, tell mountd the
-	 * good news.  Pid checks are probably unnecessary, but don't hurt.
+	 * good news.
 	 */
-	if (rval == 0 && getuid() == 0 &&
-	    (mountdfp = fopen(_PATH_MOUNTDPID, "r")) != NULL) {
-		if (fscanf(mountdfp, "%d", &pid) == 1 &&
-		     pid > 0 && kill(pid, SIGHUP) == -1 && errno != ESRCH)
-			err(1, "signal mountd");
-		(void)fclose(mountdfp);
-	}
+	if (rval == 0 && getuid() == 0)
+		restart_mountd();
 
 	exit(rval);
 }
