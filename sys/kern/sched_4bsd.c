@@ -866,9 +866,12 @@ sched_switch(struct thread *td, struct thread *newtd, int flags)
 	 * or stopped or any thing else similar.  We never put the idle
 	 * threads on the run queue, however.
 	 */
-	if (td == PCPU_GET(idlethread))
+	if (td->td_flags & TDF_IDLETD) {
 		TD_SET_CAN_RUN(td);
-	else {
+#ifdef SMP
+		idle_cpus_mask &= ~PCPU_GET(cpumask);
+#endif
+	} else {
 		if (TD_IS_RUNNING(td)) {
 			/* Put us back on the run queue. */
 			sched_add(td, (flags & SW_PREEMPT) ?
@@ -901,13 +904,33 @@ sched_switch(struct thread *td, struct thread *newtd, int flags)
 			PMC_SWITCH_CONTEXT(td, PMC_FN_CSW_OUT);
 #endif
 
+                /* I feel sleepy */
 		cpu_switch(td, newtd);
+		/*
+		 * Where am I?  What year is it?
+		 * We are in the same thread that went to sleep above,
+		 * but any amount of time may have passed. All out context
+		 * will still be available as will local variables.
+		 * PCPU values however may have changed as we may have
+		 * changed CPU so don't trust cached values of them.
+		 * New threads will go to fork_exit() instead of here
+		 * so if you change things here you may need to change
+		 * things there too.
+		 * If the thread above was exiting it will never wake
+		 * up again here, so either it has saved everything it
+		 * needed to, or the thread_wait() or wait() will
+		 * need to reap it.
+		 */
 #ifdef	HWPMC_HOOKS
 		if (PMC_PROC_IS_USING_PMCS(td->td_proc))
 			PMC_SWITCH_CONTEXT(td, PMC_FN_CSW_IN);
 #endif
 	}
 
+#ifdef SMP
+	if (td->td_flags & TDF_IDLETD)
+		idle_cpus_mask |= PCPU_GET(cpumask);
+#endif
 	sched_lock.mtx_lock = (uintptr_t)td;
 	td->td_oncpu = PCPU_GET(cpuid);
 }
@@ -1326,18 +1349,9 @@ sched_idletd(void *dummy)
 {
 	struct proc *p;
 	struct thread *td;
-#ifdef SMP
-	cpumask_t mycpu;
-#endif
 
 	td = curthread;
 	p = td->td_proc;
-#ifdef SMP
-	mycpu = PCPU_GET(cpumask);
-	mtx_lock_spin(&sched_lock);
-	idle_cpus_mask |= mycpu;
-	mtx_unlock_spin(&sched_lock);
-#endif
 	for (;;) {
 		mtx_assert(&Giant, MA_NOTOWNED);
 
@@ -1345,13 +1359,7 @@ sched_idletd(void *dummy)
 			cpu_idle();
 
 		mtx_lock_spin(&sched_lock);
-#ifdef SMP
-		idle_cpus_mask &= ~mycpu;
-#endif
 		mi_switch(SW_VOL, NULL);
-#ifdef SMP
-		idle_cpus_mask |= mycpu;
-#endif
 		mtx_unlock_spin(&sched_lock);
 	}
 }
