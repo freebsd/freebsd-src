@@ -370,6 +370,13 @@ static struct witness_order_list_entry order_lists[] = {
 	{ "cdev", &lock_class_mtx_sleep },
 	{ NULL, NULL },
 	/*
+	 * kqueue/VFS interaction
+	 */
+	{ "kqueue", &lock_class_mtx_sleep },
+	{ "struct mount mtx", &lock_class_mtx_sleep },
+	{ "vnode interlock", &lock_class_mtx_sleep },
+	{ NULL, NULL },
+	/*
 	 * spin locks
 	 */
 #ifdef SMP
