@@ -219,6 +219,7 @@ static void	carp_sc_state_locked(struct carp_softc *);
 static void	carp_send_na(struct carp_softc *);
 static int	carp_set_addr6(struct carp_softc *, struct sockaddr_in6 *);
 static int	carp_del_addr6(struct carp_softc *, struct sockaddr_in6 *);
+static void	carp_multicast6_cleanup(struct carp_softc *);
 #endif
 
 static LIST_HEAD(, carp_softc) carpif_list;
@@ -423,6 +424,16 @@ carp_clone_destroy(struct ifnet *ifp)
 	free(sc, M_CARP);
 }
 
+/*
+ * This function can be called on CARP interface destroy path,
+ * and in case of the removal of the underlying interface as
+ * well. We differentiate these two cases. In the latter case
+ * we do not cleanup our multicast memberships, since they
+ * are already freed. Also, in the latter case we do not
+ * release the lock on return, because the function will be
+ * called once more, for another CARP instance on the same
+ * interface.
+ */
 static void
 carpdetach(struct carp_softc *sc, int unlock)
 {
@@ -443,7 +454,11 @@ carpdetach(struct carp_softc *sc, int unlock)
 	carp_set_state(sc, INIT);
 	SC2IFP(sc)->if_flags &= ~IFF_UP;
 	carp_setrun(sc, 0);
-	carp_multicast_cleanup(sc);
+	if (unlock)
+		carp_multicast_cleanup(sc);
+#ifdef INET6
+	carp_multicast6_cleanup(sc);
+#endif
 
 	if (sc->sc_carpdev != NULL) {
 		cif = (struct carp_if *)sc->sc_carpdev->if_carp;
@@ -1369,13 +1384,10 @@ carp_setrun(struct carp_softc *sc, sa_family_t af)
 	}
 }
 
-void
+static void
 carp_multicast_cleanup(struct carp_softc *sc)
 {
 	struct ip_moptions *imo = &sc->sc_imo;
-#ifdef INET6
-	struct ip6_moptions *im6o = &sc->sc_im6o;
-#endif
 	u_int16_t n = imo->imo_num_memberships;
 
 	/* Clean up our own multicast memberships */
@@ -1387,8 +1399,14 @@ carp_multicast_cleanup(struct carp_softc *sc)
 	}
 	imo->imo_num_memberships = 0;
 	imo->imo_multicast_ifp = NULL;
+}
 
 #ifdef INET6
+static void
+carp_multicast6_cleanup(struct carp_softc *sc)
+{
+	struct ip6_moptions *im6o = &sc->sc_im6o;
+
 	while (!LIST_EMPTY(&im6o->im6o_memberships)) {
 		struct in6_multi_mship *imm =
 		    LIST_FIRST(&im6o->im6o_memberships);
@@ -1397,8 +1415,8 @@ carp_multicast_cleanup(struct carp_softc *sc)
 		in6_leavegroup(imm);
 	}
 	im6o->im6o_multicast_ifp = NULL;
-#endif
 }
+#endif
 
 static int
 carp_set_addr(struct carp_softc *sc, struct sockaddr_in *sin)
