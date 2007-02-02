@@ -64,8 +64,8 @@
 #define	__tg_is_complex(e1, e2, e3)					\
 	(__tg_type3(e1, e2, e3, float _Complex) ||			\
 	    __tg_type3(e1, e2, e3, double _Complex) ||			\
-	    __tg_type3(e1, e2, e3, long double _Complex)) ||		\
-	    __tg_type3(e1, e2, e3, __typeof__(_Complex_I))
+	    __tg_type3(e1, e2, e3, long double _Complex) ||		\
+	    __tg_type3(e1, e2, e3, __typeof__(_Complex_I)))
 
 #define	__tg_impl_simple(x, y, z, fn, fnf, fnl, ...)			\
 	__builtin_choose_expr(__tg_type_corr(x, y, z, long double),	\
