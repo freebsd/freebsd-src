@@ -34,6 +34,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/imgact.h>
+#include <sys/kernel.h>
 #include <sys/lock.h>
 #include <sys/malloc.h>
 #include <sys/mutex.h>
@@ -278,8 +279,6 @@ linux_proc_exec(void *arg __unused, struct proc *p, struct image_params *imgp)
 		free(em, M_LINUX);
 	}
 }
-
-extern int hz;				/* in subr_param.c */
 
 void
 linux_schedtail(void *arg __unused, struct proc *p)
