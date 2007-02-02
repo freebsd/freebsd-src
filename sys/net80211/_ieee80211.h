@@ -186,6 +186,8 @@ struct ieee80211_channel {
 	(((_c)->ic_flags & (IEEE80211_CHAN_QUARTER | IEEE80211_CHAN_HALF)) == 0)
 #define	IEEE80211_IS_CHAN_GSM(_c) \
 	(((_c)->ic_flags & IEEE80211_CHAN_GSM) != 0)
+#define	IEEE80211_IS_CHAN_PASSIVE(_c) \
+	(((_c)->ic_flags & IEEE80211_CHAN_PASSIVE) != 0)
 
 /* ni_chan encoding for FH phy */
 #define	IEEE80211_FH_CHANMOD	80
