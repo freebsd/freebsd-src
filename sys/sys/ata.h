@@ -230,6 +230,7 @@ struct ata_params {
 #define	ATA_PACKET_CMD			0xa0	/* packet command */
 #define	ATA_ATAPI_IDENTIFY		0xa1	/* get ATAPI params*/
 #define	ATA_SERVICE			0xa2	/* service command */
+#define ATA_SMART_CMD                   0xb0    /* SMART command */
 #define	ATA_READ_MUL			0xc4	/* read multi command */
 #define	ATA_WRITE_MUL			0xc5	/* write multi command */
 #define	ATA_SET_MULTI			0xc6	/* set multi size command */

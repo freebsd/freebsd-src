@@ -99,7 +99,7 @@ ata_queue_request(struct ata_request *request)
 
     /* if this is not a callback wait until request is completed */
     if (!request->callback) {
-	ATA_DEBUG_RQ(request, "wait for completition");
+	ATA_DEBUG_RQ(request, "wait for completion");
 	sema_wait(&request->done);
 	sema_destroy(&request->done);
     }
@@ -216,7 +216,7 @@ ata_finish(struct ata_request *request)
 	ata_completed(request, 0);
     }
     else {
-	/* reset timeout and put on the proper taskqueue for completition */
+	/* reset timeout and put on the proper taskqueue for completion */
 	if (!dumping && !(request->flags & ATA_R_TIMEOUT))
 	    callout_reset(&request->callout, request->timeout * hz,
 			  (timeout_t*)ata_timeout, request);
@@ -595,6 +595,7 @@ ata_cmd2str(struct ata_request *request)
 	case 0xa0: return ("PACKET_CMD");
 	case 0xa1: return ("ATAPI_IDENTIFY");
 	case 0xa2: return ("SERVICE");
+	case 0xb0: return ("SMART");
 	case 0xc4: return ("READ_MUL");
 	case 0xc5: return ("WRITE_MUL");
 	case 0xc6: return ("SET_MULTI");
