@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 1997 Luigi Rizzo (luigi@iet.unipi.it)
+ * Copyright (c) 1997 Luigi Rizzo
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
