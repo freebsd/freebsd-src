@@ -488,11 +488,11 @@ update(fsname, quotafile, type)
 		 * Reset time limit if have a soft limit and were
 		 * previously under it, but are now over it.
 		 */
-		if (dqbuf.dqb_bsoftlimit &&
+		if (dqbuf.dqb_bsoftlimit && id != 0 &&
 		    dqbuf.dqb_curblocks < dqbuf.dqb_bsoftlimit &&
 		    fup->fu_curblocks >= dqbuf.dqb_bsoftlimit)
 			dqbuf.dqb_btime = 0;
-		if (dqbuf.dqb_isoftlimit &&
+		if (dqbuf.dqb_isoftlimit && id != 0 &&
 		    dqbuf.dqb_curinodes < dqbuf.dqb_isoftlimit &&
 		    fup->fu_curinodes >= dqbuf.dqb_isoftlimit)
 			dqbuf.dqb_itime = 0;
