@@ -817,7 +817,6 @@ usbd_probe_and_attach(device_t parent, usbd_device_handle dev,
 	usbd_interface_handle ifaces[256]; /* 256 is the absolute max */
 	char *devinfo;
 
-#if defined(__FreeBSD__)
 	/* XXX FreeBSD may leak resources on failure cases -- fixme */
  	device_t bdev;
 	struct usb_attach_arg *uaap;
@@ -839,7 +838,6 @@ usbd_probe_and_attach(device_t parent, usbd_device_handle dev,
 		return (USBD_INVAL);
 	}
 	device_set_ivars(bdev, uaap);
-#endif
 	uaa.device = dev;
 	uaa.iface = NULL;
 	uaa.ifaces = NULL;
@@ -944,6 +942,7 @@ usbd_probe_and_attach(device_t parent, usbd_device_handle dev,
 				}
 				uaap = malloc(sizeof(uaa), M_USB, M_NOWAIT);
 				if (uaap == NULL) {
+					free(devinfo, M_USB);
 					return (USBD_NOMEM);
 				}
 				device_set_ivars(bdev, uaap);
@@ -987,6 +986,7 @@ usbd_probe_and_attach(device_t parent, usbd_device_handle dev,
 	*uaap = uaa;
 	usbd_devinfo(dev, 1, devinfo);
 	device_set_desc_copy(bdev, devinfo);
+	free(devinfo, M_USB);
 	dv = USB_DO_ATTACH(dev, bdev, parent, &uaa, usbd_print, usbd_submatch);
 	if (dv != NULL)
 		return (USBD_NORMAL_COMPLETION);
