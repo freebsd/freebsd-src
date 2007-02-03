@@ -533,8 +533,14 @@ trap_pfault(frame, usermode)
 		map = &vm->vm_map;
 	}
 
+	/*
+	 * PGEX_I is defined only if the execute disable bit capability is
+	 * supported and enabled.
+	 */
 	if (frame->tf_err & PGEX_W)
 		ftype = VM_PROT_WRITE;
+	else if ((frame->tf_err & PGEX_I) && pg_nx != 0)
+		ftype = VM_PROT_EXECUTE;
 	else
 		ftype = VM_PROT_READ;
 
@@ -605,9 +611,10 @@ trap_fatal(frame, eva)
 #endif
 	if (type == T_PAGEFLT) {
 		printf("fault virtual address	= 0x%lx\n", eva);
-		printf("fault code		= %s %s, %s\n",
+		printf("fault code		= %s %s %s, %s\n",
 			code & PGEX_U ? "user" : "supervisor",
 			code & PGEX_W ? "write" : "read",
+			code & PGEX_I ? "instruction" : "data",
 			code & PGEX_P ? "protection violation" : "page not present");
 	}
 	printf("instruction pointer	= 0x%lx:0x%lx\n",
