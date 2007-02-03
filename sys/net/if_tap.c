@@ -813,6 +813,7 @@ tapread(struct cdev *dev, struct uio *uio, int flag)
 static int
 tapwrite(struct cdev *dev, struct uio *uio, int flag)
 {
+	struct ether_header	*eh;
 	struct tap_softc	*tp = dev->si_drv1;
 	struct ifnet		*ifp = tp->tap_ifp;
 	struct mbuf		*m;
@@ -837,6 +838,23 @@ tapwrite(struct cdev *dev, struct uio *uio, int flag)
 	}
 
 	m->m_pkthdr.rcvif = ifp;
+
+	/*
+	 * Only pass a unicast frame to ether_input(), if it would actually
+	 * have been received by non-virtual hardware.
+	 */
+	if (m->m_len < sizeof(struct ether_header)) {
+		m_freem(m);
+		return (0);
+	}
+	eh = mtod(m, struct ether_header *);
+
+	if (eh && (ifp->if_flags & IFF_PROMISC) == 0 &&
+	    !ETHER_IS_MULTICAST(eh->ether_dhost) &&
+	    bcmp(eh->ether_dhost, IF_LLADDR(ifp), ETHER_ADDR_LEN) != 0) {
+		m_freem(m);
+		return (0);
+	}
 
 	/* Pass packet up to parent. */
 	(*ifp->if_input)(ifp, m);
