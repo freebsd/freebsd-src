@@ -28,7 +28,7 @@
 .\"     @(#)mountd.8	8.4 (Berkeley) 4/28/95
 .\" $FreeBSD$
 .\"
-.Dd May 2, 2006
+.Dd February 3, 2007
 .Dt MOUNTD 8
 .Os
 .Sh NAME
@@ -40,7 +40,7 @@ mount requests
 .Nm
 .Op Fl 2dlnr
 .Op Fl p Ar port
-.Op Ar exportsfile
+.Op Ar exportsfile ...
 .Sh DESCRIPTION
 The
 .Nm
@@ -106,6 +106,7 @@ flag.
 .It Ar exportsfile
 Specify an alternate location
 for the exports file.
+There can many exports files.
 .El
 .Pp
 When
