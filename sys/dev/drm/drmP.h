@@ -173,7 +173,7 @@ MALLOC_DECLARE(M_DRM);
 #define wait_queue_head_t	atomic_t
 #define DRM_WAKEUP(w)		wakeup((void *)w)
 #define DRM_WAKEUP_INT(w)	wakeup(w)
-#define DRM_INIT_WAITQUEUE(queue) do {} while (0)
+#define DRM_INIT_WAITQUEUE(queue) do {(void)(queue);} while (0)
 
 #if defined(__FreeBSD__) && __FreeBSD_version < 502109
 #define bus_alloc_resource_any(dev, type, rid, flags) \
@@ -273,6 +273,7 @@ extern struct cfdriver drm_cd;
 #endif
 
 typedef unsigned long dma_addr_t;
+typedef u_int64_t u64;
 typedef u_int32_t u32;
 typedef u_int16_t u16;
 typedef u_int8_t u8;
@@ -715,6 +716,9 @@ struct drm_device {
 
 	struct drm_driver_info driver;
 	drm_pci_id_list_t *id_entry;	/* PCI ID, name, and chipset private */
+
+	u_int16_t pci_device;		/* PCI device id */
+	u_int16_t pci_vendor;		/* PCI vendor id */
 
 	char		  *unique;	/* Unique identifier: e.g., busid  */
 	int		  unique_len;	/* Length of unique field	   */
