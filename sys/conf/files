@@ -754,8 +754,8 @@ dev/mlx/mlx_disk.c		optional mlx
 dev/mlx/mlx_pci.c		optional mlx pci
 dev/mly/mly.c			optional mly
 dev/mmc/mmc.c			optional mmc
-dev/mmc/mmcbr_if.m		optional mmc
-dev/mmc/mmcbus_if.m		optional mmc
+dev/mmc/mmcbr_if.m		standard
+dev/mmc/mmcbus_if.m		standard
 dev/mmc/mmcsd.c			optional mmcsd
 dev/mpt/mpt.c			optional mpt
 dev/mpt/mpt_cam.c		optional mpt
