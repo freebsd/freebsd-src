@@ -120,6 +120,10 @@ ata_pci_probe(device_t dev)
 	if (!ata_national_ident(dev))
 	    return ATA_PROBE_OK;
 	break;
+    case ATA_NETCELL_ID:
+	if (!ata_netcell_ident(dev))
+	    return ATA_PROBE_OK;
+	break;
     case ATA_NVIDIA_ID:
 	if (!ata_nvidia_ident(dev))
 	    return ATA_PROBE_OK;
