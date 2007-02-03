@@ -1038,7 +1038,7 @@ rescan_or_reset_bus(int bus, int rescan)
 	retval = 0;
 
 	if ((fd = open(XPT_DEVICE, O_RDWR)) < 0) {
-		warnx("error opening tranport layer device %s", XPT_DEVICE);
+		warnx("error opening transport layer device %s", XPT_DEVICE);
 		warn("%s", XPT_DEVICE);
 		return(1);
 	}
@@ -1224,7 +1224,7 @@ scanlun_or_reset_dev(int bus, int target, int lun, int scan)
 
 	if (scan) {
 		if ((fd = open(XPT_DEVICE, O_RDWR)) < 0) {
-			warnx("error opening tranport layer device %s\n",
+			warnx("error opening transport layer device %s\n",
 			    XPT_DEVICE);
 			warn("%s", XPT_DEVICE);
 			return(1);
