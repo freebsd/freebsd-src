@@ -493,8 +493,8 @@ update(fsname, quotafile, type)
 		    fup->fu_curblocks >= dqbuf.dqb_bsoftlimit)
 			dqbuf.dqb_btime = 0;
 		if (dqbuf.dqb_isoftlimit &&
-		    dqbuf.dqb_curblocks < dqbuf.dqb_isoftlimit &&
-		    fup->fu_curblocks >= dqbuf.dqb_isoftlimit)
+		    dqbuf.dqb_curinodes < dqbuf.dqb_isoftlimit &&
+		    fup->fu_curinodes >= dqbuf.dqb_isoftlimit)
 			dqbuf.dqb_itime = 0;
 		dqbuf.dqb_curinodes = fup->fu_curinodes;
 		dqbuf.dqb_curblocks = fup->fu_curblocks;
