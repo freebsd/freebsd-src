@@ -42,7 +42,7 @@ __FBSDID("$FreeBSD$");
 static int radeon_do_cleanup_cp(drm_device_t * dev);
 
 /* CP microcode (from ATI) */
-static u32 R200_cp_microcode[][2] = {
+static const u32 R200_cp_microcode[][2] = {
 	{0x21007000, 0000000000},
 	{0x20007000, 0000000000},
 	{0x000000ab, 0x00000004},
@@ -301,7 +301,7 @@ static u32 R200_cp_microcode[][2] = {
 	{0000000000, 0000000000},
 };
 
-static u32 radeon_cp_microcode[][2] = {
+static const u32 radeon_cp_microcode[][2] = {
 	{0x21007000, 0000000000},
 	{0x20007000, 0000000000},
 	{0x000000b4, 0x00000004},
@@ -560,7 +560,7 @@ static u32 radeon_cp_microcode[][2] = {
 	{0000000000, 0000000000},
 };
 
-static u32 R300_cp_microcode[][2] = {
+static const u32 R300_cp_microcode[][2] = {
 	{ 0x4200e000, 0000000000 },
 	{ 0x4000e000, 0000000000 },
 	{ 0x000000af, 0x00000008 },
@@ -867,13 +867,13 @@ static int radeon_do_pixcache_flush(drm_radeon_private_t * dev_priv)
 
 	dev_priv->stats.boxes |= RADEON_BOX_WAIT_IDLE;
 
-	tmp = RADEON_READ(RADEON_RB2D_DSTCACHE_CTLSTAT);
-	tmp |= RADEON_RB2D_DC_FLUSH_ALL;
-	RADEON_WRITE(RADEON_RB2D_DSTCACHE_CTLSTAT, tmp);
+	tmp = RADEON_READ(RADEON_RB3D_DSTCACHE_CTLSTAT);
+	tmp |= RADEON_RB3D_DC_FLUSH_ALL;
+	RADEON_WRITE(RADEON_RB3D_DSTCACHE_CTLSTAT, tmp);
 
 	for (i = 0; i < dev_priv->usec_timeout; i++) {
-		if (!(RADEON_READ(RADEON_RB2D_DSTCACHE_CTLSTAT)
-		      & RADEON_RB2D_DC_BUSY)) {
+		if (!(RADEON_READ(RADEON_RB3D_DSTCACHE_CTLSTAT)
+		      & RADEON_RB3D_DC_BUSY)) {
 			return 0;
 		}
 		DRM_UDELAY(1);
@@ -1261,6 +1261,12 @@ static void radeon_test_writeback(drm_radeon_private_t * dev_priv)
 		dev_priv->writeback_works = 0;
 		DRM_INFO("writeback forced off\n");
 	}
+
+	if (!dev_priv->writeback_works) {
+		/* Disable writeback to avoid unnecessary bus master transfers */
+		RADEON_WRITE(RADEON_CP_RB_CNTL, RADEON_READ(RADEON_CP_RB_CNTL) | RADEON_RB_NO_UPDATE);
+		RADEON_WRITE(RADEON_SCRATCH_UMSK, 0);
+	}
 }
 
 /* Enable or disable PCI-E GART on the chip */
@@ -1347,6 +1353,12 @@ static int radeon_do_init_cp(drm_device_t * dev, drm_radeon_init_t * init)
 	{
 		DRM_DEBUG("Forcing AGP card to PCI mode\n");
 		dev_priv->flags &= ~CHIP_IS_AGP;
+	}
+	else if (!(dev_priv->flags & (CHIP_IS_AGP | CHIP_IS_PCI | CHIP_IS_PCIE))
+		 && !init->is_pci)
+	{
+		DRM_DEBUG("Restoring AGP flag\n");
+		dev_priv->flags |= CHIP_IS_AGP;
 	}
 
 	if ((!(dev_priv->flags & CHIP_IS_AGP)) && !dev->sg) {
@@ -2202,9 +2214,10 @@ int radeon_driver_load(struct drm_device *dev, unsigned long flags)
 
 	if (drm_device_is_agp(dev))
 		dev_priv->flags |= CHIP_IS_AGP;
-
-	if (drm_device_is_pcie(dev))
+	else if (drm_device_is_pcie(dev))
 		dev_priv->flags |= CHIP_IS_PCIE;
+	else
+		dev_priv->flags |= CHIP_IS_PCI;
 
 	DRM_DEBUG("%s card detected\n",
 		  ((dev_priv->flags & CHIP_IS_AGP) ? "AGP" : (((dev_priv->flags & CHIP_IS_PCIE) ? "PCIE" : "PCI"))));

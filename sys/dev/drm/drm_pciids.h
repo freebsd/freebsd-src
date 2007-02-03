@@ -230,6 +230,7 @@
 	{0x1106, 0x3122, 0, "VIA CLE266"}, \
 	{0x1106, 0x7205, 0, "VIA KM400"}, \
 	{0x1106, 0x3108, 0, "VIA K8M800"}, \
+	{0x1106, 0x3344, 0, "VIA P4VM800PRO"}, \
 	{0, 0, 0, NULL}
 
 #define i810_PCI_IDS \
@@ -288,6 +289,10 @@
 	{0x8086, 0x2592, 0, "Intel i915GM"}, \
 	{0x8086, 0x2772, 0, "Intel i945G"}, \
 	{0x8086, 0x27A2, 0, "Intel i945GM"}, \
+	{0x8086, 0x2972, 0, "Intel i946GZ"}, \
+	{0x8086, 0x2982, 0, "Intel i965G"}, \
+	{0x8086, 0x2992, 0, "Intel i965Q"}, \
+	{0x8086, 0x29A2, 0, "Intel i965G"}, \
 	{0, 0, 0, NULL}
 
 #define imagine_PCI_IDS \
