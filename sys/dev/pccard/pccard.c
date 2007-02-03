@@ -297,6 +297,7 @@ pccard_detach_card(device_t dev)
 	struct pccard_softc *sc = PCCARD_SOFTC(dev);
 	struct pccard_function *pf;
 	struct pccard_config_entry *cfe;
+	struct pccard_ivar *devi;
 	int state;
 
 	/*
@@ -312,7 +313,9 @@ pccard_detach_card(device_t dev)
 		if (pf->cfe != NULL)
 			pccard_function_disable(pf);
 		pccard_function_free(pf);
+		devi = PCCARD_IVAR(pf->dev);
 		device_delete_child(dev, pf->dev);
+		free(devi, M_DEVBUF);
 	}
 	if (sc->sc_enabled_count == 0)
 		POWER_DISABLE_SOCKET(device_get_parent(dev), dev);
