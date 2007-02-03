@@ -205,7 +205,8 @@ void	terminate(int);
 struct exportlist *exphead;
 struct mountlist *mlhead;
 struct grouplist *grphead;
-char exname[MAXPATHLEN];
+char *exnames_default[2] = { _PATH_EXPORTS, NULL };
+char **exnames;
 struct xucred def_anon = {
 	XUCRED_VERSION,
 	(uid_t)-2,
@@ -322,11 +323,10 @@ main(argc, argv)
 	grphead = (struct grouplist *)NULL;
 	exphead = (struct exportlist *)NULL;
 	mlhead = (struct mountlist *)NULL;
-	if (argc == 1) {
-		strncpy(exname, *argv, MAXPATHLEN-1);
-		exname[MAXPATHLEN-1] = '\0';
-	} else
-		strcpy(exname, _PATH_EXPORTS);
+	if (argc > 0)
+		exnames = argv;
+	else
+		exnames = exnames_default;
 	openlog("mountd", LOG_PID, LOG_DAEMON);
 	if (debug)
 		warnx("getting export list");
@@ -541,7 +541,7 @@ usage()
 {
 	fprintf(stderr,
 		"usage: mountd [-2] [-d] [-l] [-n] [-p <port>] [-r] "
-		"[export_file]\n");
+		"[export_file ...]\n");
 	exit(1);
 }
 
@@ -953,130 +953,20 @@ int linesize;
 FILE *exp_file;
 
 /*
- * Get the export list
+ * Get the export list from one, currently open file
  */
-void
-get_exportlist()
+static void
+get_exportlist_one()
 {
 	struct exportlist *ep, *ep2;
 	struct grouplist *grp, *tgrp;
 	struct exportlist **epp;
-	struct export_args export;
 	struct dirlist *dirhead;
-	struct iovec *iov;
-	struct statfs fsb, *fsp, *mntbufp;
+	struct statfs fsb;
 	struct xucred anon;
-	struct xvfsconf vfc;
 	char *cp, *endcp, *dirp, *hst, *usr, *dom, savedc;
-	char errmsg[255];
-	int len, has_host, exflags, got_nondir, dirplen, num, i, netgrp;
-	int iovlen;
+	int len, has_host, exflags, got_nondir, dirplen, netgrp;
 
-	bzero(&export, sizeof(export));
-	export.ex_flags = MNT_DELEXPORT;
-	dirp = NULL;
-	dirplen = 0;
-	iov = NULL;
-	iovlen = 0;
-	bzero(errmsg, sizeof(errmsg));
-
-	/*
-	 * First, get rid of the old list
-	 */
-	ep = exphead;
-	while (ep) {
-		ep2 = ep;
-		ep = ep->ex_next;
-		free_exp(ep2);
-	}
-	exphead = (struct exportlist *)NULL;
-
-	grp = grphead;
-	while (grp) {
-		tgrp = grp;
-		grp = grp->gr_next;
-		free_grp(tgrp);
-	}
-	grphead = (struct grouplist *)NULL;
-
-	/*
-	 * And delete exports that are in the kernel for all local
-	 * filesystems.
-	 * XXX: Should know how to handle all local exportable filesystems.
-	 */
-	num = getmntinfo(&mntbufp, MNT_NOWAIT);
-
-	if (num > 0) {
-		build_iovec(&iov, &iovlen, "fstype", NULL, 0);
-		build_iovec(&iov, &iovlen, "fspath", NULL, 0);
-		build_iovec(&iov, &iovlen, "from", NULL, 0);
-		build_iovec(&iov, &iovlen, "update", NULL, 0);
-		build_iovec(&iov, &iovlen, "export", &export, sizeof(export));
-		build_iovec(&iov, &iovlen, "errmsg", errmsg, sizeof(errmsg));
-	}
-
-	for (i = 0; i < num; i++) {
-		fsp = &mntbufp[i];
-		if (getvfsbyname(fsp->f_fstypename, &vfc) != 0) {
-			syslog(LOG_ERR, "getvfsbyname() failed for %s",
-			    fsp->f_fstypename);
-			continue;
-		}
-
-		/*
-		 * Do not delete export for network filesystem by
-		 * passing "export" arg to nmount().
-		 * It only makes sense to do this for local filesystems.
-		 */
-		if (vfc.vfc_flags & VFCF_NETWORK)
-			continue;
-
-		iov[1].iov_base = fsp->f_fstypename;
-		iov[1].iov_len = strlen(fsp->f_fstypename) + 1;
-		iov[3].iov_base = fsp->f_mntonname;
-		iov[3].iov_len = strlen(fsp->f_mntonname) + 1;
-		iov[5].iov_base = fsp->f_mntfromname;
-		iov[5].iov_len = strlen(fsp->f_mntfromname) + 1;
-
-		/*
-		 * Kick out MNT_ROOTFS.  It should not be passed from
-		 * userland to kernel.  It should only be used 
-		 * internally in the kernel.
-		 */
-		if (fsp->f_flags & MNT_ROOTFS) {
-			fsp->f_flags &= ~MNT_ROOTFS;
-		}
-
-		if (nmount(iov, iovlen, fsp->f_flags) < 0 &&
-		    errno != ENOENT && errno != ENOTSUP) {
-			syslog(LOG_ERR,
-			    "can't delete exports for %s: %m %s",
-			    fsp->f_mntonname, errmsg);
-		}
-	}
-
-	if (iov != NULL) {
-		/* Free strings allocated by strdup() in getmntopts.c */
-		free(iov[0].iov_base); /* fstype */
-		free(iov[2].iov_base); /* fspath */
-		free(iov[4].iov_base); /* from */
-		free(iov[6].iov_base); /* update */
-		free(iov[8].iov_base); /* export */
-		free(iov[10].iov_base); /* errmsg */
-
-		/* free iov, allocated by realloc() */
-		free(iov);
-		iovlen = 0;
-	}
-
-	/*
-	 * Read in the exports file and build the list, calling
-	 * nmount() as we go along to push the export rules into the kernel.
-	 */
-	if ((exp_file = fopen(exname, "r")) == NULL) {
-		syslog(LOG_ERR, "can't open %s", exname);
-		exit(2);
-	}
 	dirhead = (struct dirlist *)NULL;
 	while (get_line()) {
 		if (debug)
@@ -1294,7 +1184,136 @@ nextline:
 			dirhead = (struct dirlist *)NULL;
 		}
 	}
-	fclose(exp_file);
+}
+
+/*
+ * Get the export list from all specified files
+ */
+void
+get_exportlist()
+{
+	struct exportlist *ep, *ep2;
+	struct grouplist *grp, *tgrp;
+	struct export_args export;
+	struct iovec *iov;
+	struct statfs *fsp, *mntbufp;
+	struct xvfsconf vfc;
+	char *dirp;
+	char errmsg[255];
+	int dirplen, num, i;
+	int iovlen;
+
+	bzero(&export, sizeof(export));
+	export.ex_flags = MNT_DELEXPORT;
+	dirp = NULL;
+	dirplen = 0;
+	iov = NULL;
+	iovlen = 0;
+	bzero(errmsg, sizeof(errmsg));
+
+	/*
+	 * First, get rid of the old list
+	 */
+	ep = exphead;
+	while (ep) {
+		ep2 = ep;
+		ep = ep->ex_next;
+		free_exp(ep2);
+	}
+	exphead = (struct exportlist *)NULL;
+
+	grp = grphead;
+	while (grp) {
+		tgrp = grp;
+		grp = grp->gr_next;
+		free_grp(tgrp);
+	}
+	grphead = (struct grouplist *)NULL;
+
+	/*
+	 * And delete exports that are in the kernel for all local
+	 * filesystems.
+	 * XXX: Should know how to handle all local exportable filesystems.
+	 */
+	num = getmntinfo(&mntbufp, MNT_NOWAIT);
+
+	if (num > 0) {
+		build_iovec(&iov, &iovlen, "fstype", NULL, 0);
+		build_iovec(&iov, &iovlen, "fspath", NULL, 0);
+		build_iovec(&iov, &iovlen, "from", NULL, 0);
+		build_iovec(&iov, &iovlen, "update", NULL, 0);
+		build_iovec(&iov, &iovlen, "export", &export, sizeof(export));
+		build_iovec(&iov, &iovlen, "errmsg", errmsg, sizeof(errmsg));
+	}
+
+	for (i = 0; i < num; i++) {
+		fsp = &mntbufp[i];
+		if (getvfsbyname(fsp->f_fstypename, &vfc) != 0) {
+			syslog(LOG_ERR, "getvfsbyname() failed for %s",
+			    fsp->f_fstypename);
+			continue;
+		}
+
+		/*
+		 * Do not delete export for network filesystem by
+		 * passing "export" arg to nmount().
+		 * It only makes sense to do this for local filesystems.
+		 */
+		if (vfc.vfc_flags & VFCF_NETWORK)
+			continue;
+
+		iov[1].iov_base = fsp->f_fstypename;
+		iov[1].iov_len = strlen(fsp->f_fstypename) + 1;
+		iov[3].iov_base = fsp->f_mntonname;
+		iov[3].iov_len = strlen(fsp->f_mntonname) + 1;
+		iov[5].iov_base = fsp->f_mntfromname;
+		iov[5].iov_len = strlen(fsp->f_mntfromname) + 1;
+
+		/*
+		 * Kick out MNT_ROOTFS.  It should not be passed from
+		 * userland to kernel.  It should only be used 
+		 * internally in the kernel.
+		 */
+		if (fsp->f_flags & MNT_ROOTFS) {
+			fsp->f_flags &= ~MNT_ROOTFS;
+		}
+
+		if (nmount(iov, iovlen, fsp->f_flags) < 0 &&
+		    errno != ENOENT && errno != ENOTSUP) {
+			syslog(LOG_ERR,
+			    "can't delete exports for %s: %m %s",
+			    fsp->f_mntonname, errmsg);
+		}
+	}
+
+	if (iov != NULL) {
+		/* Free strings allocated by strdup() in getmntopts.c */
+		free(iov[0].iov_base); /* fstype */
+		free(iov[2].iov_base); /* fspath */
+		free(iov[4].iov_base); /* from */
+		free(iov[6].iov_base); /* update */
+		free(iov[8].iov_base); /* export */
+		free(iov[10].iov_base); /* errmsg */
+
+		/* free iov, allocated by realloc() */
+		free(iov);
+		iovlen = 0;
+	}
+
+	/*
+	 * Read in the exports file and build the list, calling
+	 * nmount() as we go along to push the export rules into the kernel.
+	 */
+	for (i = 0; exnames[i] != NULL; i++) {
+		if (debug)
+			warnx("reading exports from %s", exnames[i]);
+		if ((exp_file = fopen(exnames[i], "r")) == NULL) {
+			syslog(LOG_ERR, "can't open %s", exnames[i]);
+			exit(2);
+		}
+		get_exportlist_one();
+		fclose(exp_file);
+	}
 }
 
 /*
