@@ -94,6 +94,11 @@ firmware_register(const char *imagename, const void *data, size_t datasize,
 	frp->parent = parent;
 	frp->file = NULL;
 	mtx_unlock(&firmware_mtx);
+
+	if (bootverbose)
+		printf("firmware: '%s' version %u: %zu bytes loaded at %p\n",
+		    imagename, version, datasize, data);
+
 	return frp;
 }
 
