@@ -87,16 +87,13 @@ int uipaqdebug = 0;
 
 struct uipaq_softc {
 	struct ucom_softc       sc_ucom;
-
 	u_int16_t		sc_lcr;		/* state for DTR/RTS */
-
 	u_int16_t		sc_flags;
 
 };
 
 /* Callback routines */
 static void	uipaq_set(void *, int, int, int);
-
 
 /* Support routines. */
 /* based on uppc module by Sam Lawrance */
@@ -105,7 +102,6 @@ static void	uipaq_rts(struct uipaq_softc *sc, int onoff);
 static void	uipaq_break(struct uipaq_softc* sc, int onoff);
 
 int uipaq_detach(device_t self);
-
 
 struct ucom_callback uipaq_callback = {
 	NULL,
@@ -126,13 +122,12 @@ struct uipaq_type {
 static const struct uipaq_type uipaq_devs[] = {
 	{{ USB_VENDOR_HP, USB_PRODUCT_HP_2215 }, 0 },
 	{{ USB_VENDOR_HP, USB_PRODUCT_HP_568J }, 0},
-	{{ USB_VENDOR_COMPAQ, USB_PRODUCT_COMPAQ_IPAQPOCKETPC} , 0},
-	{{ USB_VENDOR_CASIO, USB_PRODUCT_CASIO_BE300} , 0},
-	{{ USB_VENDOR_SHARP, USB_PRODUCT_SHARP_WZERO3ES}, 0},
+	{{ USB_VENDOR_COMPAQ, USB_PRODUCT_COMPAQ_IPAQPOCKETPC } , 0},
+	{{ USB_VENDOR_CASIO, USB_PRODUCT_CASIO_BE300 } , 0},
+	{{ USB_VENDOR_SHARP, USB_PRODUCT_SHARP_WZERO3ES }, 0},
 };
 
 #define uipaq_lookup(v, p) ((const struct uipaq_type *)usb_lookup(uipaq_devs, v, p))
-
 
 USB_MATCH(uipaq)
 {
@@ -148,22 +143,22 @@ USB_MATCH(uipaq)
 	    UMATCH_VENDOR_PRODUCT : UMATCH_NONE);
 }
 
-USB_ATTACH(uipaq)
+static int
+uipaq_attach(device_t self)
 {
-	USB_ATTACH_START(uipaq, sc, uaa);
+	struct uipaq_softc *sc = device_get_softc(self);
+	struct usb_attach_arg *uaa = device_get_ivars(self);
 	usbd_device_handle dev = uaa->device;
 	usbd_interface_handle iface;
 	usb_interface_descriptor_t *id;
 	usb_endpoint_descriptor_t *ed;
 	char *devinfop;
-	const char *devname;
 	int i;
 	usbd_status err;
 	struct ucom_softc *ucom = &sc->sc_ucom;
 
 	ucom->sc_dev = self;
 	ucom->sc_udev = dev;
-	devname = device_get_nameunit(ucom->sc_dev);
 	devinfop = malloc (1024, M_USBDEV, M_WAITOK);
 
 	DPRINTFN(10,("\nuipaq_attach: sc=%p\n", sc));
@@ -171,43 +166,39 @@ USB_ATTACH(uipaq)
 	/* Move the device into the configured state. */
 	err = usbd_set_config_no(dev, UIPAQ_CONFIG_NO, 1);
 	if (err) {
-		printf("\n%s: failed to set configuration, err=%s\n",
-		    devname, usbd_errstr(err));
+		device_printf(ucom->sc_dev,
+		    "failed to set configuration: %s\n", usbd_errstr(err));
 		goto bad;
 	}
 
 	err = usbd_device2interface_handle(dev, UIPAQ_IFACE_INDEX, &iface);
 	if (err) {
-		printf("\n%s: failed to get interface, err=%s\n",
-		    devname, usbd_errstr(err));
+		device_printf(ucom->sc_dev, "failed to get interface: %s\n",
+		    usbd_errstr(err));
 		goto bad;
 	}
 
 	usbd_devinfo(dev, 0, devinfop);
-
-	printf("%s: %s\n", devname, devinfop);
+	ucom->sc_dev = self;
+	device_set_desc_copy(self, devinfop);
+	device_printf(ucom->sc_dev, "%s\n", devinfop);
 	free(devinfop, M_USBDEV);
 
 	sc->sc_flags = uipaq_lookup(uaa->vendor, uaa->product)->uv_flags;
-
 	id = usbd_get_interface_descriptor(iface);
-
 	ucom->sc_iface = iface;
-	
-	
 	ucom->sc_ibufsize = UIPAQIBUFSIZE;
 	ucom->sc_obufsize = UIPAQOBUFSIZE;
 	ucom->sc_ibufsizepad = UIPAQIBUFSIZE;
 	ucom->sc_opkthdrlen = 0;
 	ucom->sc_callback = &uipaq_callback;
 	ucom->sc_parent = sc;
-	
 	ucom->sc_bulkin_no = ucom->sc_bulkout_no = -1;
 	for (i=0; i<id->bNumEndpoints; i++) {
 		ed = usbd_interface2endpoint_descriptor(iface, i);
 		if (ed == NULL) {
-			printf("%s: no endpoint descriptor for %d\n",
-					devname,i);
+			device_printf(ucom->sc_dev, 
+			    "no endpoint descriptor for %d\n", i);
 			goto bad;
 		}
 		if (UE_GET_DIR(ed->bEndpointAddress) == UE_DIR_IN &&
@@ -219,22 +210,19 @@ USB_ATTACH(uipaq)
 		}
 	}
 	if (ucom->sc_bulkin_no == -1 || ucom->sc_bulkout_no == -1) {
-		printf("%s: no proper endpoints found (%d,%d) \n",
-		       devname, ucom->sc_bulkin_no, ucom->sc_bulkout_no);
-		USB_ATTACH_ERROR_RETURN;
+		device_printf(ucom->sc_dev,
+		    "no proper endpoints found (%d,%d)\n",
+		    ucom->sc_bulkin_no, ucom->sc_bulkout_no);
+		return (ENXIO);
 	}
 	
 	ucom_attach(&sc->sc_ucom);
-		
-	   
-	USB_ATTACH_SUCCESS_RETURN;
-
+	return (0);
 bad:
 	DPRINTF(("uipaq_attach: ATTACH ERROR\n"));
 	ucom->sc_dying = 1;
-	USB_ATTACH_ERROR_RETURN;
+	return (ENXIO);
 }
-
 
 void
 uipaq_dtr(struct uipaq_softc* sc, int onoff)
@@ -269,7 +257,6 @@ uipaq_dtr(struct uipaq_softc* sc, int onoff)
 	}
 }
 
-
 void
 uipaq_rts(struct uipaq_softc* sc, int onoff)
 {
@@ -299,7 +286,6 @@ uipaq_rts(struct uipaq_softc* sc, int onoff)
 	}
 }
 
-
 void
 uipaq_break(struct uipaq_softc* sc, int onoff)
 {
@@ -325,7 +311,6 @@ uipaq_break(struct uipaq_softc* sc, int onoff)
 	}
 }
 
-
 void
 uipaq_set(void *addr, int portno, int reg, int onoff)
 {
@@ -348,8 +333,6 @@ uipaq_set(void *addr, int portno, int reg, int onoff)
 		return;
 	}
 }
-
-
 
 int
 uipaq_detach(device_t self)
