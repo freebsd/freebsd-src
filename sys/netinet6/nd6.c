@@ -2196,6 +2196,7 @@ nd6_need_cache(ifp)
 	case IFT_PPP:
 	case IFT_TUNNEL:
 	case IFT_BRIDGE:
+	case IFT_PROPVIRTUAL:
 		return (1);
 	default:
 		return (0);
