@@ -217,9 +217,9 @@ extern struct lock_class lock_class_lockmgr;
 
 extern struct lock_class *lock_classes[];
 
-void	lock_init(struct lock_object *lock, struct lock_class *class,
-    const char *name, const char *type, int flags);
-void	lock_destroy(struct lock_object *lock);
+void	lock_init(struct lock_object *, struct lock_class *,
+    const char *, const char *, int);
+void	lock_destroy(struct lock_object *);
 void	spinlock_enter(void);
 void	spinlock_exit(void);
 void	witness_init(struct lock_object *);
