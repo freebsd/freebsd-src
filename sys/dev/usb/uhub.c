@@ -182,7 +182,7 @@ uhub_attach(device_t self)
 	}
 	err = usbd_set_config_index(dev, 0, 1);
 	if (err) {
-		DEVPRINTF((sc->dev, "configuration failed, error=%s\n",
+		DEVPRINTF((sc->sc_dev, "configuration failed, error=%s\n",
 		    usbd_errstr(err)));
 		return (ENXIO);
 	}
