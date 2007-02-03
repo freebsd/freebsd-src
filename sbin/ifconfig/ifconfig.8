@@ -1506,6 +1506,47 @@ Only the super-user may modify the configuration of a network interface.
 .Sh NOTES
 The media selection system is relatively new and only some drivers support
 it (or have need for it).
+.Sh EXAMPLES
+Assign the IPv4 address
+.Li 192.168.1.10 ,
+with a network mask of
+.Li 255.255.255.0 ,
+to the interface
+.Li fxp0 :
+.Dl # ifconfig fxp0 inet 192.168.1.10 netmask 255.255.255.0
+.Pp
+Assign the IPv4 address
+.Li 172.16.20.2 ,
+with the CIDR network prefix
+.Li /22 ,
+to the interface
+.Li ed0 :
+.Dl # ifconfig ed0 inet 172.16.20.2/22
+.Pp
+Assign the IPv6 address
+.Li 3ffe:112:fffc:10:1::2/64
+to the interface
+.Li em0 :
+.Dl # ifconfig em0 inet6 add 3ffe:112:fffc:10:1::2 prefixlen 64
+.Pp
+Remove the IPv6 address added in the above example,
+using the
+.Li /
+character as shorthand for the network prefix:
+.Dl # ifconfig em0 inet6 3ffe:112:fffc:10:1::2/64 delete
+.Pp
+Configure the interface
+.Li xl0 ,
+to use 100baseTX, full duplex Ethernet media options:
+.Dl # ifconfig xl0 media 100baseTX mediaopt full-duplex
+.Pp
+Create the software network interface
+.Li gif1 :
+.Dl # ifconfig gif1 create
+.Pp
+Destroy the software network interface
+.Li gif1 :
+.Dl # ifconfig gif1 destroy
 .Sh DIAGNOSTICS
 Messages indicating the specified interface does not exist, the
 requested address is unknown, or the user is not privileged and
