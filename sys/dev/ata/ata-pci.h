@@ -198,6 +198,9 @@ struct ata_connect_task {
 #define ATA_NATIONAL_ID         0x100b
 #define ATA_SC1100              0x0502100b
 
+#define ATA_NETCELL_ID          0x169c
+#define ATA_NETCELL_SR          0x0044169c
+
 #define ATA_NVIDIA_ID           0x10de
 #define ATA_NFORCE1             0x01bc10de
 #define ATA_NFORCE2             0x006510de
@@ -450,6 +453,7 @@ int ata_jmicron_ident(device_t);
 int ata_marvell_ident(device_t);
 int ata_national_ident(device_t);
 int ata_nvidia_ident(device_t);
+int ata_netcell_ident(device_t);
 int ata_promise_ident(device_t);
 int ata_serverworks_ident(device_t);
 int ata_sii_ident(device_t);
