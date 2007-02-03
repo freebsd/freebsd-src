@@ -277,10 +277,8 @@ USB_ATTACH(uvisor)
 
 	devinfo = malloc(1024, M_USBDEV, M_WAITOK);
 	ucom = &sc->sc_ucom;
-
 	bzero(sc, sizeof (struct uvisor_softc));
 	usbd_devinfo(dev, 0, devinfo);
-
 	ucom->sc_dev = self;
 	device_set_desc_copy(self, devinfo);
 
@@ -289,6 +287,7 @@ USB_ATTACH(uvisor)
 
 	devname = device_get_nameunit(ucom->sc_dev);
 	printf("%s: %s\n", devname, devinfo);
+	free(devinfo, M_USBDEV);
 
 	DPRINTFN(10,("\nuvisor_attach: sc=%p\n", sc));
 
