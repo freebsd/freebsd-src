@@ -41,7 +41,7 @@ __FBSDID("$FreeBSD$");
 
 #define DRIVER_NAME		"radeon"
 #define DRIVER_DESC		"ATI Radeon"
-#define DRIVER_DATE		"20060225"
+#define DRIVER_DATE		"20060524"
 
 /* Interface history:
  *
@@ -96,10 +96,12 @@ __FBSDID("$FreeBSD$");
  * 1.22- Add support for texture cache flushes (R300_TX_CNTL)
  * 1.23- Add new radeon memory map work from benh
  * 1.24- Add general-purpose packet for manipulating scratch registers (r300)
+ * 1.25- Add support for r200 vertex programs (R200_EMIT_VAP_PVS_CNTL,
+ *       new packet type)
  */
 
 #define DRIVER_MAJOR		1
-#define DRIVER_MINOR		24
+#define DRIVER_MINOR		25
 #define DRIVER_PATCHLEVEL	0
 
 /*
@@ -144,6 +146,7 @@ enum radeon_chip_flags {
 	CHIP_HAS_HIERZ = 0x00100000UL,
 	CHIP_IS_PCIE = 0x00200000UL,
 	CHIP_NEW_MEMMAP = 0x00400000UL,
+	CHIP_IS_PCI = 0x00800000UL,
 };
 
 #define GET_RING_HEAD(dev_priv)	(dev_priv->writeback_works ? \
@@ -544,6 +547,11 @@ extern int r300_do_cp_cmdbuf(drm_device_t *dev, DRMFILE filp,
 #	define RADEON_RB3D_ZC_FREE		(1 << 2)
 #	define RADEON_RB3D_ZC_FLUSH_ALL		0x5
 #	define RADEON_RB3D_ZC_BUSY		(1 << 31)
+#define RADEON_RB3D_DSTCACHE_CTLSTAT            0x325c
+#	define RADEON_RB3D_DC_FLUSH		(3 << 0)
+#	define RADEON_RB3D_DC_FREE		(3 << 2)
+#	define RADEON_RB3D_DC_FLUSH_ALL		0xf
+#	define RADEON_RB3D_DC_BUSY		(1 << 31)
 #define RADEON_RB3D_ZSTENCILCNTL	0x1c2c
 #	define RADEON_Z_TEST_MASK		(7 << 4)
 #	define RADEON_Z_TEST_ALWAYS		(7 << 4)
@@ -680,6 +688,7 @@ extern int r300_do_cp_cmdbuf(drm_device_t *dev, DRMFILE filp,
 #define RADEON_CP_RB_BASE		0x0700
 #define RADEON_CP_RB_CNTL		0x0704
 #	define RADEON_BUF_SWAP_32BIT		(2 << 16)
+#	define RADEON_RB_NO_UPDATE		(1 << 27)
 #define RADEON_CP_RB_RPTR_ADDR		0x070c
 #define RADEON_CP_RB_RPTR		0x0710
 #define RADEON_CP_RB_WPTR		0x0714
@@ -885,6 +894,8 @@ extern int r300_do_cp_cmdbuf(drm_device_t *dev, DRMFILE filp,
 #define RADEON_PP_CUBIC_OFFSET_T1_0         0x1e00
 #define RADEON_PP_CUBIC_OFFSET_T2_0         0x1e14
 
+#define RADEON_SE_TCL_STATE_FLUSH           0x2284
+
 #define SE_VAP_CNTL__TCL_ENA_MASK                          0x00000001
 #define SE_VAP_CNTL__FORCE_W_TO_ONE_MASK                   0x00010000
 #define SE_VAP_CNTL__VF_MAX_VTX_NUM__SHIFT                 0x00000012
@@ -905,6 +916,8 @@ extern int r300_do_cp_cmdbuf(drm_device_t *dev, DRMFILE filp,
 
 #define R200_PP_AFS_0                     0x2f80
 #define R200_PP_AFS_1                     0x2f00 /* same as txcblend_0 */
+
+#define R200_VAP_PVS_CNTL_1               0x22D0
 
 /* MPEG settings from VHA code */
 #define RADEON_VHA_SETTO16_1                       0x2694
@@ -1011,13 +1024,13 @@ do {									\
 } while (0)
 
 #define RADEON_FLUSH_CACHE() do {					\
-	OUT_RING( CP_PACKET0( RADEON_RB2D_DSTCACHE_CTLSTAT, 0 ) );	\
-	OUT_RING( RADEON_RB2D_DC_FLUSH );				\
+	OUT_RING( CP_PACKET0( RADEON_RB3D_DSTCACHE_CTLSTAT, 0 ) );	\
+	OUT_RING( RADEON_RB3D_DC_FLUSH );				\
 } while (0)
 
 #define RADEON_PURGE_CACHE() do {					\
-	OUT_RING( CP_PACKET0( RADEON_RB2D_DSTCACHE_CTLSTAT, 0 ) );	\
-	OUT_RING( RADEON_RB2D_DC_FLUSH_ALL );				\
+	OUT_RING( CP_PACKET0( RADEON_RB3D_DSTCACHE_CTLSTAT, 0 ) );	\
+	OUT_RING( RADEON_RB3D_DC_FLUSH_ALL );				\
 } while (0)
 
 #define RADEON_FLUSH_ZCACHE() do {					\
@@ -1085,7 +1098,7 @@ do {									\
 			   n, __FUNCTION__ );				\
 	}								\
 	if ( dev_priv->ring.space <= (n) * sizeof(u32) ) {		\
-                COMMIT_RING();						\
+		COMMIT_RING();						\
 		radeon_wait_ring( dev_priv, (n) * sizeof(u32) );	\
 	}								\
 	_nr = n; dev_priv->ring.space -= (n) * sizeof(u32);		\
