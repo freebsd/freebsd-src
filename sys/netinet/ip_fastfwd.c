@@ -318,6 +318,8 @@ ip_fastforward(struct mbuf *m)
 	    ntohl(ip->ip_dst.s_addr) == (u_long)INADDR_BROADCAST ||
 	    IN_MULTICAST(ntohl(ip->ip_src.s_addr)) ||
 	    IN_MULTICAST(ntohl(ip->ip_dst.s_addr)) ||
+	    IN_LINKLOCAL(ntohl(ip->ip_src.s_addr)) ||
+	    IN_LINKLOCAL(ntohl(ip->ip_dst.s_addr)) ||
 	    ip->ip_src.s_addr == INADDR_ANY ||
 	    ip->ip_dst.s_addr == INADDR_ANY )
 		return m;
