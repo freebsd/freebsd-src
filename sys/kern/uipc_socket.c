@@ -1263,8 +1263,20 @@ dontblock:
 #endif /* ZERO_COPY_SOCKETS */
 			error = uiomove(mtod(m, char *) + moff, (int)len, uio);
 			SOCKBUF_LOCK(&so->so_rcv);
-			if (error)
+			if (error) {
+				/*
+				 * If any part of the record has been removed
+				 * (such as the MT_SONAME mbuf, which will
+				 * happen when PR_ADDR, and thus also
+				 * PR_ATOMIC, is set), then drop the entire
+				 * record to maintain the atomicity of the
+				 * receive operation.
+				 */
+				if (m && pr->pr_flags & PR_ATOMIC &&
+				    ((flags & MSG_PEEK) == 0))
+					(void)sbdroprecord_locked(&so->so_rcv);
 				goto release;
+			}
 		} else
 			uio->uio_resid -= len;
 		SOCKBUF_LOCK_ASSERT(&so->so_rcv);
