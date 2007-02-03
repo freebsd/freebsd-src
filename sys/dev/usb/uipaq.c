@@ -159,7 +159,6 @@ uipaq_attach(device_t self)
 
 	ucom->sc_dev = self;
 	ucom->sc_udev = dev;
-	devinfop = malloc (1024, M_USBDEV, M_WAITOK);
 
 	DPRINTFN(10,("\nuipaq_attach: sc=%p\n", sc));
 
@@ -178,6 +177,11 @@ uipaq_attach(device_t self)
 		goto bad;
 	}
 
+	devinfop = malloc (1024, M_USBDEV, M_WAITOK);
+	if (devinfop == NULL) {
+		err = ENOMEM;
+		goto bad;
+	}
 	usbd_devinfo(dev, 0, devinfop);
 	ucom->sc_dev = self;
 	device_set_desc_copy(self, devinfop);
