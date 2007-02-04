@@ -114,7 +114,7 @@ c_entries(void)
 		 */
 		case '"':
 		case '\'':
-			(void)skip_string(c);
+			skip_string(c);
 			break;
 
 		/*
