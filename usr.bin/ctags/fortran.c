@@ -124,7 +124,7 @@ PF_funcs()
 			continue;
 		for (cp = lbp + 1; *cp && intoken(*cp); ++cp)
 			continue;
-		if ((cp = lbp + 1))
+		if (cp == lbp + 1)
 			continue;
 		*cp = EOS;
 		(void)strlcpy(tok, lbp, sizeof(tok));	/* possible trunc */
