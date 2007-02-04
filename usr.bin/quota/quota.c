@@ -85,7 +85,7 @@ struct quotause {
 	char	fsname[MAXPATHLEN + 1];
 };
 
-static const char *timeprt(time_t seconds);
+static char *timeprt(time_t seconds, int *needfree);
 static struct quotause *getprivs(long id, int quotatype);
 static void usage(void);
 static int showuid(u_long uid);
@@ -271,6 +271,8 @@ showquotas(int type, u_long id, const char *name)
 	struct quotause *quplist;
 	const char *msgi, *msgb;
 	const char *nam;
+	char *bgrace, *igrace;
+	int bfree, ifree;
 	int lines = 0, overquota = 0;
 	static time_t now;
 
@@ -348,16 +350,22 @@ showquotas(int type, u_long id, const char *name)
 					, (u_long) (dbtob(qup->dqblk.dqb_bhardlimit)
 						    / 1024));
 			}
+			if (msgb != NULL)
+				bgrace = timeprt(qup->dqblk.dqb_btime, &bfree);
+			if (msgi != NULL)
+				igrace = timeprt(qup->dqblk.dqb_itime, &ifree);
 			printf("%8s%8lu%c%7lu%8lu%8s\n"
-				, (msgb == (char *)0) ? ""
-				    :timeprt(qup->dqblk.dqb_btime)
+				, (msgb == (char *)0) ? "" : bgrace
 				, (u_long)qup->dqblk.dqb_curinodes
 				, (msgi == (char *)0) ? ' ' : '*'
 				, (u_long)qup->dqblk.dqb_isoftlimit
 				, (u_long)qup->dqblk.dqb_ihardlimit
-				, (msgi == (char *)0) ? ""
-				    : timeprt(qup->dqblk.dqb_itime)
+				, (msgi == (char *)0) ? "" : igrace
 			);
+			if (msgb != NULL && bfree)
+				free(bgrace);
+			if (msgi != NULL && ifree)
+				free(igrace);
 			continue;
 		}
 	}
@@ -390,30 +398,38 @@ heading(int type, u_long id, const char *name, const char *tag)
 /*
  * Calculate the grace period and return a printable string for it.
  */
-static const char *
-timeprt(time_t seconds)
+static char *
+timeprt(time_t seconds, int *needfree)
 {
 	time_t hours, minutes;
-	static char buf[20];
+	char	*buf;
 	static time_t now;
 
 	if (now == 0)
 		time(&now);
-	if (now > seconds)
+	if (now > seconds) {
+		*needfree = 0;
 		return ("none");
+	}
 	seconds -= now;
 	minutes = (seconds + 30) / 60;
 	hours = (minutes + 30) / 60;
 	if (hours >= 36) {
-		sprintf(buf, "%lddays", ((long)hours + 12) / 24);
+		if (asprintf(&buf, "%lddays", ((long)hours + 12) / 24) < 0)
+			errx(1, "asprintf failed in timeprt(1)");
+		*needfree = 1;
 		return (buf);
 	}
 	if (minutes >= 60) {
-		sprintf(buf, "%2ld:%ld", (long)minutes / 60,
-		    (long)minutes % 60);
+		if (asprintf(&buf, "%2ld:%ld", (long)minutes / 60,
+		    (long)minutes % 60) < 0)
+			errx(1, "asprintf failed in timeprt(2)");
+		*needfree = 1;
 		return (buf);
 	}
-	sprintf(buf, "%2ld", (long)minutes);
+	if (asprintf(&buf, "%2ld", (long)minutes) < 0)
+		errx(1, "asprintf failed in timeprt(3)");
+	*needfree = 1;
 	return (buf);
 }
 
