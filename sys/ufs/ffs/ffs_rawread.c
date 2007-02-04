@@ -310,7 +310,7 @@ ffs_rawread_main(struct vnode *vp,
 			/* XXX: Leave some bufs for swap */
 			bp = getpbuf(&ffsrawbufcnt);
 			sa = bp->b_data;
-			bp->b_vp = vp; 
+			pbgetvp(vp, bp);
 			error = ffs_rawread_readahead(vp, udata, offset,
 						     resid, td, bp, sa);
 			if (error != 0)
@@ -324,7 +324,7 @@ ffs_rawread_main(struct vnode *vp,
 					nbp = NULL;
 				if (nbp != NULL) {
 					nsa = nbp->b_data;
-					nbp->b_vp = vp;
+					pbgetvp(vp, nbp);
 					
 					nerror = ffs_rawread_readahead(vp, 
 								       udata +
@@ -337,6 +337,7 @@ ffs_rawread_main(struct vnode *vp,
 								       nbp,
 								       nsa);
 					if (nerror) {
+						pbrelvp(nbp);
 						relpbuf(nbp, &ffsrawbufcnt);
 						nbp = NULL;
 					}
@@ -385,6 +386,7 @@ ffs_rawread_main(struct vnode *vp,
 			nsa = tsa;
 			
 			if (resid <= bp->b_bufsize) { /* No more readaheads */
+				pbrelvp(nbp);
 				relpbuf(nbp, &ffsrawbufcnt);
 				nbp = NULL;
 			} else { /* Setup next readahead */
@@ -399,6 +401,7 @@ ffs_rawread_main(struct vnode *vp,
 							       nbp,
 							       nsa);
 				if (nerror != 0) {
+					pbrelvp(nbp);
 					relpbuf(nbp, &ffsrawbufcnt);
 					nbp = NULL;
 				}
@@ -413,13 +416,16 @@ ffs_rawread_main(struct vnode *vp,
 		}
 	}
 	
-	if (bp != NULL)
+	if (bp != NULL) {
+		pbrelvp(bp);
 		relpbuf(bp, &ffsrawbufcnt);
+	}
 	if (nbp != NULL) {			/* Run down readahead buffer */
 		spl = splbio();
 		bwait(nbp, PRIBIO, "rawrd");
 		splx(spl);
 		vunmapbuf(nbp);
+		pbrelvp(nbp);
 		relpbuf(nbp, &ffsrawbufcnt);
 	}
 	
