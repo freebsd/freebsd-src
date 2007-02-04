@@ -126,10 +126,12 @@ add_node(NODE *node, NODE *cur_node)
 static void
 free_tree(NODE *node)
 {
+	NODE *node_next;
 	while (node) {
 		if (node->right)
 			free_tree(node->right);
+		node_next = node->left;
 		free(node);
-		node = node->left;
+		node = node_next;
 	}
 }
