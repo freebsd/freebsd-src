@@ -375,7 +375,13 @@ getprivs(id, quotatype, fspath)
 				    getentry(quotagroup, GRPQUOTA));
 				(void) fchmod(fd, 0640);
 			}
-			lseek(fd, (long)(id * sizeof(struct dqblk)), L_SET);
+			if (lseek(fd, (off_t)id * sizeof(struct dqblk),
+			    L_SET) < 0) {
+				warn("seek error on %s", qfpathname);
+				close(fd);
+				free(qup);
+				continue;
+			}
 			switch (read(fd, &qup->dqblk, sizeof(struct dqblk))) {
 			case 0:			/* EOF */
 				/*
@@ -421,21 +427,70 @@ putprivs(id, quotatype, quplist)
 {
 	register struct quotause *qup;
 	int qcmd, fd;
+	struct dqblk dqbuf;
 
 	qcmd = QCMD(Q_SETQUOTA, quotatype);
 	for (qup = quplist; qup; qup = qup->next) {
 		if (quotactl(qup->fsname, qcmd, id, &qup->dqblk) == 0)
 			continue;
-		if ((fd = open(qup->qfname, O_WRONLY)) < 0) {
+		if ((fd = open(qup->qfname, O_RDWR)) < 0) {
 			warn("%s", qup->qfname);
-		} else {
-			lseek(fd, (long)id * (long)sizeof (struct dqblk), 0);
-			if (write(fd, &qup->dqblk, sizeof (struct dqblk)) !=
-			    sizeof (struct dqblk)) {
-				warn("%s", qup->qfname);
-			}
-			close(fd);
+			continue;
 		}
+		if (lseek(fd, (off_t)id * sizeof(struct dqblk), L_SET) < 0) {
+			warn("seek error on %s", qup->qfname);
+			close(fd);
+			continue;
+		}
+		switch (read(fd, &dqbuf, sizeof(struct dqblk))) {
+		case 0:			/* EOF */
+			/*
+			 * Convert implicit 0 quota (EOF)
+			 * into an explicit one (zero'ed dqblk)
+			 */
+			bzero(&dqbuf, sizeof(struct dqblk));
+			break;
+
+		case sizeof(struct dqblk):	/* OK */
+			break;
+
+		default:		/* ERROR */
+			warn("read error in %s", qup->qfname);
+			close(fd);
+			continue;
+		}
+		/*
+		 * Reset time limit if have a soft limit and were
+		 * previously under it, but are now over it
+		 * or if there previously was no soft limit, but 
+		 * now have one and are over it.
+		 */
+		if (dqbuf.dqb_bsoftlimit && id != 0 &&
+		    dqbuf.dqb_curblocks < dqbuf.dqb_bsoftlimit &&
+		    dqbuf.dqb_curblocks >= qup->dqblk.dqb_bsoftlimit)
+			qup->dqblk.dqb_btime = 0;
+		if (dqbuf.dqb_bsoftlimit == 0 && id != 0 &&
+		    dqbuf.dqb_curblocks >= qup->dqblk.dqb_bsoftlimit)
+			qup->dqblk.dqb_btime = 0;
+		if (dqbuf.dqb_isoftlimit && id != 0 &&
+		    dqbuf.dqb_curinodes < dqbuf.dqb_isoftlimit &&
+		    dqbuf.dqb_curinodes >= qup->dqblk.dqb_isoftlimit)
+			qup->dqblk.dqb_itime = 0;
+		if (dqbuf.dqb_isoftlimit == 0 && id !=0 &&
+		    dqbuf.dqb_curinodes >= qup->dqblk.dqb_isoftlimit)
+			qup->dqblk.dqb_itime = 0;
+		qup->dqblk.dqb_curinodes = dqbuf.dqb_curinodes;
+		qup->dqblk.dqb_curblocks = dqbuf.dqb_curblocks;
+		if (lseek(fd, (off_t)id * sizeof(struct dqblk), L_SET) < 0) {
+			warn("seek error on %s", qup->qfname);
+			close(fd);
+			continue;
+		}
+		if (write(fd, &qup->dqblk, sizeof (struct dqblk)) !=
+		    sizeof (struct dqblk)) {
+			warn("%s", qup->qfname);
+			}
+		close(fd);
 	}
 }
 
