@@ -517,6 +517,7 @@ vendor AINCOMM		0x12fd	Aincomm
 vendor MOBILITY		0x1342	Mobility
 vendor LINKSYS4		0x13b1	Linksys
 vendor SHARK		0x13d2	Shark
+vendor NOVATEL		0x1410	Novatel Wireless
 vendor RADIOSHACK	0x1453	Radio Shack
 vendor SILICOM		0x1485	Silicom
 vendor RALINK		0x148f	Ralink Technology
@@ -1402,6 +1403,9 @@ product NIKON LS40		0x4000	CoolScan LS40 ED
 
 /* NovaTech Products */
 product NOVATECH NV902		0x9020  NovaTech NV-902W
+
+/* Novatel Wireless products */
+product NOVATEL U740		0x1400	Merlin U740
 
 /* Olympus products */
 product OLYMPUS C1		0x0102	C-1 Digital Camera
