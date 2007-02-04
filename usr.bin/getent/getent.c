@@ -77,7 +77,7 @@ enum {
 	RV_OK		= 0,
 	RV_USAGE	= 1,
 	RV_NOTFOUND	= 2,
-	RV_NOENUM	= 3,
+	RV_NOENUM	= 3
 };
 
 static struct getentdb {
@@ -109,7 +109,6 @@ main(int argc, char *argv[])
 	for (curdb = databases; curdb->name != NULL; curdb++) {
 		if (strcmp(curdb->name, argv[1]) == 0) {
 			exit(curdb->callback(argc, argv));
-			break;
 		}
 	}
 	fprintf(stderr, "Unknown database: %s\n", argv[1]);
@@ -178,6 +177,7 @@ printfmtstrings(char *strings[], const char *prefix, const char *sep,
 		curpref = sep;
 	}
 	printf("\n");
+	va_end(ap);
 }
 
 /*
