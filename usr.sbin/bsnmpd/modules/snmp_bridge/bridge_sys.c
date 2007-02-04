@@ -36,9 +36,7 @@
 #include <sys/socket.h>
 #include <sys/sysctl.h>
 
-#if __FreeBSD_version > 700018
 #include <net/bridgestp.h>
-#endif
 #include <net/ethernet.h>
 #include <net/if.h>
 #include <net/if_bridgevar.h>
@@ -238,10 +236,8 @@ bridge_get_op_param(struct bridge_if *bif)
 	bif->max_age = 100 * b_req.ifbop_maxage;
 	bif->hello_time = 100 * b_req.ifbop_hellotime;
 	bif->fwd_delay = 100 * b_req.ifbop_fwddelay;
-#if __FreeBSD_version > 700024
 	bif->stp_version = b_req.ifbop_protocol;
 	bif->tx_hold_count = b_req.ifbop_holdcount;
-#endif
 
 	if (b_req.ifbop_root_port == 0 &&
 	    bif->root_port != b_req.ifbop_root_port)
@@ -436,7 +432,6 @@ int
 bridge_set_tx_hold_count(struct bridge_if *bif __unused,
     int32_t tx_hc __unused)
 {
-#if __FreeBSD_version > 700024
 	struct ifdrv ifd;
 	struct ifbrparam b_param;
 
@@ -457,16 +452,12 @@ bridge_set_tx_hold_count(struct bridge_if *bif __unused,
 
 	bif->tx_hold_count = b_param.ifbrp_txhc;
 	return (0);
-#else
-	return (-1);
-#endif
 }
 
 int
 bridge_set_stp_version(struct bridge_if *bif __unused,
     int32_t stp_proto __unused)
 {
-#if __FreeBSD_version > 700024
 	struct ifdrv ifd;
 	struct ifbrparam b_param;
 
@@ -484,9 +475,6 @@ bridge_set_stp_version(struct bridge_if *bif __unused,
 
 	bif->stp_version = b_param.ifbrp_proto;
 	return (0);
-#else
-	return (-1);
-#endif
 }
 
 /*
@@ -643,9 +631,7 @@ state2snmp_st(uint8_t ifbr_state)
 		case BSTP_IFSTATE_FORWARDING:
 			return (StpPortState_forwarding);
 		case BSTP_IFSTATE_BLOCKING:
-#if __FreeBSD_version > 700024
 		case BSTP_IFSTATE_DISCARDING:
-#endif
 			return (StpPortState_blocking);
 	}
 
@@ -671,12 +657,11 @@ bridge_port_getinfo_conf(struct ifbreq *k_info, struct bridge_port *bp)
 	 * the maximum value."
 	 */
 
-#if __FreeBSD_version > 700024
 	if (k_info->ifbr_ifsflags & IFBIF_BSTP_ADMCOST)
 		bp->admin_path_cost = k_info->ifbr_path_cost;
 	else
 		bp->admin_path_cost = 0;
-#endif
+
 	bp->path_cost = k_info->ifbr_path_cost;
 
 	if (k_info->ifbr_ifsflags & IFBIF_STP)
@@ -690,7 +675,6 @@ bridge_port_getinfo_conf(struct ifbreq *k_info, struct bridge_port *bp)
 	else
 		bp->span_enable = begemotBridgeBaseSpanEnabled_disabled;
 
-#if __FreeBSD_version > 700024
 	if (k_info->ifbr_ifsflags & IFBIF_BSTP_ADMEDGE)
 		bp->admin_edge = TruthValue_true;
 	else
@@ -714,7 +698,6 @@ bridge_port_getinfo_conf(struct ifbreq *k_info, struct bridge_port *bp)
 		bp->admin_ptp = StpPortAdminPointToPointType_forceFalse;
 		bp->oper_ptp = TruthValue_false;
 	}
-#endif
 }
 
 /*
@@ -830,11 +813,9 @@ bridge_port_set_path_cost(const char *bif_name, struct bridge_port *bp,
 	struct ifdrv ifd;
 	struct ifbreq b_req;
 
-#if __FreeBSD_version < 700025
 	if (path_cost < SNMP_PORT_MIN_PATHCOST ||
 	    path_cost > SNMP_PORT_PATHCOST_OBSOLETE)
 		return (-2);
-#endif
 
 	strlcpy(ifd.ifd_name, bif_name, sizeof(ifd.ifd_name));
 	ifd.ifd_len = sizeof(b_req);
@@ -850,11 +831,7 @@ bridge_port_set_path_cost(const char *bif_name, struct bridge_port *bp,
 		return (-1);
 	}
 
-#if __FreeBSD_version > 700024
 	bp->admin_path_cost = path_cost;
-#else
-	bp->path_cost = path_cost;
-#endif
 
 	return (0);
 }
@@ -866,7 +843,6 @@ int
 bridge_port_set_admin_ptp(const char *bif_name __unused,
     struct bridge_port *bp __unused, uint32_t admin_ptp __unused)
 {
-#if __FreeBSD_version > 700024
 	struct ifdrv ifd;
 	struct ifbreq b_req;
 
@@ -909,9 +885,6 @@ bridge_port_set_admin_ptp(const char *bif_name __unused,
 
 	bp->admin_ptp = admin_ptp;
 	return (0);
-#else
-	return (-1);
-#endif
 }
 
 /*
@@ -921,7 +894,6 @@ int
 bridge_port_set_admin_edge(const char *bif_name __unused,
     struct bridge_port *bp __unused, uint32_t enable __unused)
 {
-#if __FreeBSD_version > 700024
 	struct ifdrv ifd;
 	struct ifbreq b_req;
 
@@ -955,10 +927,8 @@ bridge_port_set_admin_edge(const char *bif_name __unused,
 	}
 
 	bp->admin_edge = enable;
+
 	return (0);
-#else
-	return (-1);
-#endif
 }
 
 /*
