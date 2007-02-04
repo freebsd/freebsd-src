@@ -987,10 +987,18 @@ dqget(vp, id, ump, type, dqp)
 	    dq->dq_ihardlimit == 0 && dq->dq_bhardlimit == 0)
 		dq->dq_flags |= DQ_FAKE;
 	if (dq->dq_id != 0) {
-		if (dq->dq_btime == 0)
+		if (dq->dq_btime == 0) {
 			dq->dq_btime = time_second + ump->um_btime[type];
-		if (dq->dq_itime == 0)
+			if (dq->dq_bsoftlimit &&
+			    dq->dq_curblocks >= dq->dq_bsoftlimit)
+				dq->dq_flags |= DQ_MOD;
+		}
+		if (dq->dq_itime == 0) {
 			dq->dq_itime = time_second + ump->um_itime[type];
+			if (dq->dq_isoftlimit &&
+			    dq->dq_curinodes >= dq->dq_isoftlimit)
+				dq->dq_flags |= DQ_MOD;
+		}
 	}
 	*dqp = dq;
 	return (0);
