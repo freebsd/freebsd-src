@@ -1251,6 +1251,16 @@ psmprobe(device_t dev)
         endprobe(ENXIO);
     }
 
+    /*
+     * Synaptics TouchPad seems to go back to Relative Mode after
+     * the previous set_controller_command_byte() call; by issueing
+     * a Read Mode Byte command, the touchpad is in Absolute Mode
+     * again.
+     */
+    if (sc->hw.model == MOUSE_MODEL_SYNAPTICS) {
+        mouse_ext_command(sc->kbdc, 1);
+    }
+
     /* done */
     kbdc_set_device_mask(sc->kbdc, mask | KBD_AUX_CONTROL_BITS);
     kbdc_lock(sc->kbdc, FALSE);
