@@ -49,6 +49,7 @@ __FBSDID("$FreeBSD$");
  */
 #include <sys/param.h>
 #include <sys/disklabel.h>
+#include <sys/mount.h>
 #include <sys/stat.h>
 
 #include <ufs/ufs/dinode.h>
@@ -587,14 +588,15 @@ hasquota(fs, type, qfnamep)
 {
 	char *opt;
 	char *cp;
+	struct statfs sfb;
 	static char initname, usrname[100], grpname[100];
 	static char buf[BUFSIZ];
 
 	if (!initname) {
-		(void)snprintf(usrname, sizeof(usrname),
-		    "%s%s", qfextension[USRQUOTA], qfname);
-		(void)snprintf(grpname, sizeof(grpname),
-		    "%s%s", qfextension[GRPQUOTA], qfname);
+		(void)snprintf(usrname, sizeof(usrname), "%s%s",
+		    qfextension[USRQUOTA], qfname);
+		(void)snprintf(grpname, sizeof(grpname), "%s%s",
+		    qfextension[GRPQUOTA], qfname);
 		initname = 1;
 	}
 	strcpy(buf, fs->fs_mntops);
@@ -611,9 +613,18 @@ hasquota(fs, type, qfnamep)
 	if (cp)
 		*qfnamep = cp;
 	else {
-		(void)snprintf(buf, sizeof(buf),
-		    "%s/%s.%s", fs->fs_file, qfname, qfextension[type]);
+		(void)snprintf(buf, sizeof(buf), "%s/%s.%s", fs->fs_file,
+		    qfname, qfextension[type]);
 		*qfnamep = buf;
+	}
+	if (statfs(fs->fs_file, &sfb) != 0) {
+		warn("cannot statfs mount point %s", fs->fs_file);
+		return (0);
+	}
+	if (strcmp(fs->fs_file, sfb.f_mntonname)) {
+		warnx("%s not mounted for %s quotas", fs->fs_file,
+		    type == USRQUOTA ? "user" : "group");
+		return (0);
 	}
 	return (1);
 }
