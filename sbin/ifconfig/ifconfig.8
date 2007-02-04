@@ -28,7 +28,7 @@
 .\"     From: @(#)ifconfig.8	8.3 (Berkeley) 1/5/94
 .\" $FreeBSD$
 .\"
-.Dd February 3, 2007
+.Dd February 4, 2007
 .Dt IFCONFIG 8
 .Os
 .Sh NAME
@@ -1569,32 +1569,47 @@ The media selection system is relatively new and only some drivers support
 it (or have need for it).
 .Sh EXAMPLES
 Assign the IPv4 address
-.Li 192.168.1.10 ,
+.Li 192.0.2.10 ,
 with a network mask of
 .Li 255.255.255.0 ,
 to the interface
 .Li fxp0 :
-.Dl # ifconfig fxp0 inet 192.168.1.10 netmask 255.255.255.0
+.Dl # ifconfig fxp0 inet 192.0.2.10 netmask 255.255.255.0
 .Pp
-Assign the IPv4 address
-.Li 172.16.20.2 ,
+Add the IPv4 address
+.Li 192.0.2.45 ,
 with the CIDR network prefix
-.Li /22 ,
+.Li /28 ,
 to the interface
-.Li ed0 :
-.Dl # ifconfig ed0 inet 172.16.20.2/22
+.Li ed0 ,
+using
+.Cm add
+as a synonym for the canonical form of the option
+.Cm alias :
+.Dl # ifconfig ed0 inet 192.0.2.45/28 add
 .Pp
-Assign the IPv6 address
-.Li 3ffe:112:fffc:10:1::2/64
+Remove the IPv4 address
+.Li 192.0.2.45
+from the interface
+.Li ed0 :
+.Dl # ifconfig ed0 inet 192.0.2.45 -alias
+.Pp
+Add the IPv6 address
+.Li 2001:DB8:DBDB::123/48
 to the interface
 .Li em0 :
-.Dl # ifconfig em0 inet6 add 3ffe:112:fffc:10:1::2 prefixlen 64
+.Dl # ifconfig em0 inet6 2001:db8:bdbd::123 prefixlen 48 alias
+Note that lower case hexadecimal IPv6 addresses are acceptable.
 .Pp
 Remove the IPv6 address added in the above example,
 using the
 .Li /
-character as shorthand for the network prefix:
-.Dl # ifconfig em0 inet6 3ffe:112:fffc:10:1::2/64 delete
+character as shorthand for the network prefix,
+and using
+.Cm delete
+as a synonym for the canonical form of the option
+.Fl alias :
+.Dl # ifconfig em0 inet6 2001:db8:bdbd::123/48 delete
 .Pp
 Configure the interface
 .Li xl0 ,
