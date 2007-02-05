@@ -650,7 +650,7 @@ main(int ac, char* av[])
 	char	*prog;
 	int	logopt = LOG_NDELAY | LOG_PID;
 
-	while ((ch = getopt(ac, av, "df:sv")) != EOF) {
+	while ((ch = getopt(ac, av, "df:sv")) != -1) {
 		switch (ch) {
 		case 'd':
 			daemonize = 0;

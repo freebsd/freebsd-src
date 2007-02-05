@@ -36,7 +36,7 @@ proc_arg(int ac, char **av)
 
     tmp_dir = getenv("TMPDIR") ? getenv("TMPDIR") : tmp_dir;
 
-    while ((ch = getopt(ac, av, "ans:")) != EOF) {
+    while ((ch = getopt(ac, av, "ans:")) != -1) {
 	switch (ch) {
 	case 'a':
 	    slot_map = ~0;

@@ -69,7 +69,7 @@ static void
 login(int argc, char *argv[], struct ncp_conn_loginfo *li) {
 	int error = 0, connid, opt, setprimary = 0;
 
-	while ((opt = getopt(argc, argv, STDPARAM_OPT"D")) != EOF){
+	while ((opt = getopt(argc, argv, STDPARAM_OPT"D")) != -1) {
 		switch(opt){
 		    case STDPARAM_ARGS:
 			if (ncp_li_arg(li, opt, optarg))	
