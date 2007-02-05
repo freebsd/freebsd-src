@@ -340,11 +340,8 @@ tapclone(void *arg, struct ucred *cred, char *name, int namelen, struct cdev **d
 	if (*dev != NULL)
 		return;
 
-	/*
-	 * If tap cloning is enabled, only the superuser can create
-	 * an interface.
-	 */
-	if (!tapdclone || priv_check_cred(cred, PRIV_NET_IFCREATE, 0) != 0)
+	if (!tapdclone ||
+	    (!tapuopen && priv_check_cred(cred, PRIV_NET_IFCREATE, 0) != 0))
 		return;
 
 	unit = 0;
