@@ -49,6 +49,7 @@ static vop_poll_t	dead_poll;
 static vop_read_t	dead_read;
 static vop_write_t	dead_write;
 static vop_getwritemount_t dead_getwritemount;
+static vop_rename_t	dead_rename;
 
 struct vop_vector dead_vnodeops = {
 	.vop_default =		&default_vnodeops,
@@ -73,7 +74,7 @@ struct vop_vector dead_vnodeops = {
 	.vop_readlink =		VOP_EBADF,
 	.vop_reclaim =		VOP_NULL,
 	.vop_remove =		VOP_PANIC,
-	.vop_rename =		VOP_PANIC,
+	.vop_rename =		dead_rename,
 	.vop_rmdir =		VOP_PANIC,
 	.vop_setattr =		VOP_EBADF,
 	.vop_symlink =		VOP_PANIC,
@@ -210,4 +211,26 @@ dead_poll(ap)
 	struct vop_poll_args *ap;
 {
 	return (POLLHUP);
+}
+
+static int
+dead_rename(ap)
+	struct vop_rename_args  /* {
+		struct vnode *a_fdvp;
+		struct vnode *a_fvp;
+		struct componentname *a_fcnp;
+		struct vnode *a_tdvp;
+		struct vnode *a_tvp;
+		struct componentname *a_tcnp;
+	} */ *ap;
+{
+	if (ap->a_tvp)
+		vput(ap->a_tvp);
+	if (ap->a_tdvp == ap->a_tvp)
+		vrele(ap->a_tdvp);
+	else
+		vput(ap->a_tdvp);
+	vrele(ap->a_fdvp);
+	vrele(ap->a_fvp);
+	return (EXDEV);
 }
