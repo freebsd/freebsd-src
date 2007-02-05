@@ -380,7 +380,7 @@ main(int argc, char *argv[])
 	bzero(args, sizeof(args));
 
 	what = LO_NONE;
-	while ((opt = getopt(argc, argv, "h")) != EOF) {
+	while ((opt = getopt(argc, argv, "h")) != -1) {
 		switch (opt) {
 		    case 'h': case '?':
 			help();
