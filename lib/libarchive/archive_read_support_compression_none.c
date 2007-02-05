@@ -301,7 +301,11 @@ archive_decompressor_none_skip(struct archive *a, off_t request)
 	/*
 	 * If a client_skipper was provided, try that first.
 	 */
+#if ARCHIVE_API_VERSION < 2
 	if ((a->client_skipper != NULL) && (request < SSIZE_MAX)) {
+#else
+	if (a->client_skipper != NULL) {
+#endif
 		bytes_skipped = (a->client_skipper)(a, a->client_data,
 		    request);
 		if (bytes_skipped < 0) {	/* error */
@@ -333,7 +337,8 @@ archive_decompressor_none_skip(struct archive *a, off_t request)
 		if (bytes_read == 0) {
 			/* We hit EOF before we satisfied the skip request. */
 			archive_set_error(a, ARCHIVE_ERRNO_MISC,
-			    "Truncated input file (need to skip %d bytes)", (int)request);
+			    "Truncated input file (need to skip %jd bytes)",
+			    (intmax_t)request);
 			return (ARCHIVE_FATAL);
 		}
 		assert(bytes_read >= 0); /* precondition for cast below */
