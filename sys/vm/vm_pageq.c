@@ -198,9 +198,9 @@ vm_pageq_add_new_page(vm_paddr_t pa)
 	m->flags = 0;
 	m->pc = (pa >> PAGE_SHIFT) & PQ_COLORMASK;
 	pmap_page_init(m);
-	mtx_lock_spin(&vm_page_queue_free_mtx);
+	mtx_lock(&vm_page_queue_free_mtx);
 	vm_pageq_enqueue(m->pc + PQ_FREE, m);
-	mtx_unlock_spin(&vm_page_queue_free_mtx);
+	mtx_unlock(&vm_page_queue_free_mtx);
 }
 
 /*

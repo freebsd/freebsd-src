@@ -254,7 +254,7 @@ vm_page_startup(vm_offset_t vaddr)
 	mtx_init(&vm_page_queue_mtx, "vm page queue mutex", NULL, MTX_DEF |
 	    MTX_RECURSE);
 	mtx_init(&vm_page_queue_free_mtx, "vm page queue free mutex", NULL,
-	    MTX_SPIN);
+	    MTX_DEF);
 
 	/*
 	 * Initialize the queue headers for the free queue, the active queue
@@ -869,7 +869,7 @@ vm_page_alloc(vm_object_t object, vm_pindex_t pindex, int req)
 	};
 
 loop:
-	mtx_lock_spin(&vm_page_queue_free_mtx);
+	mtx_lock(&vm_page_queue_free_mtx);
 	if (cnt.v_free_count > cnt.v_free_reserved ||
 	    (page_req == VM_ALLOC_SYSTEM && 
 	     cnt.v_cache_count == 0 && 
@@ -881,7 +881,7 @@ loop:
 		 */
 		m = vm_pageq_find(PQ_FREE, color, (req & VM_ALLOC_ZERO) != 0);
 	} else if (page_req != VM_ALLOC_INTERRUPT) {
-		mtx_unlock_spin(&vm_page_queue_free_mtx);
+		mtx_unlock(&vm_page_queue_free_mtx);
 		/*
 		 * Allocatable from cache (non-interrupt only).  On success,
 		 * we must free the page and try again, thus ensuring that
@@ -899,9 +899,9 @@ loop:
 			if (page_req != VM_ALLOC_SYSTEM) 
 				return (NULL);
 
-			mtx_lock_spin(&vm_page_queue_free_mtx);
+			mtx_lock(&vm_page_queue_free_mtx);
 			if (cnt.v_free_count <= cnt.v_interrupt_free_min) {
-				mtx_unlock_spin(&vm_page_queue_free_mtx);
+				mtx_unlock(&vm_page_queue_free_mtx);
 				return (NULL);
 			}
 			m = vm_pageq_find(PQ_FREE, color, (req & VM_ALLOC_ZERO) != 0);
@@ -913,7 +913,7 @@ loop:
 		/*
 		 * Not allocatable from cache from interrupt, give up.
 		 */
-		mtx_unlock_spin(&vm_page_queue_free_mtx);
+		mtx_unlock(&vm_page_queue_free_mtx);
 		atomic_add_int(&vm_pageout_deficit, 1);
 		pagedaemon_wakeup();
 		return (NULL);
@@ -957,7 +957,7 @@ loop:
 	m->busy = 0;
 	m->valid = 0;
 	KASSERT(m->dirty == 0, ("vm_page_alloc: free/cache page %p was dirty", m));
-	mtx_unlock_spin(&vm_page_queue_free_mtx);
+	mtx_unlock(&vm_page_queue_free_mtx);
 
 	if ((req & VM_ALLOC_NOOBJ) == 0)
 		vm_page_insert(m, object, pindex);
@@ -1151,7 +1151,7 @@ vm_page_free_toq(vm_page_t m)
 	} else
 		VM_PAGE_SETQUEUE1(m, PQ_FREE);
 	pq = &vm_page_queues[VM_PAGE_GETQUEUE(m)];
-	mtx_lock_spin(&vm_page_queue_free_mtx);
+	mtx_lock(&vm_page_queue_free_mtx);
 	pq->lcnt++;
 	++(*pq->cnt);
 
@@ -1165,7 +1165,7 @@ vm_page_free_toq(vm_page_t m)
 	} else {
 		TAILQ_INSERT_HEAD(&pq->pl, m, pageq);
 	}
-	mtx_unlock_spin(&vm_page_queue_free_mtx);
+	mtx_unlock(&vm_page_queue_free_mtx);
 	vm_page_free_wakeup();
 }
 
