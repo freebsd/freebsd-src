@@ -198,7 +198,7 @@ contigmalloc1(
 	for (pass = 2; pass >= 0; pass--) {
 		vm_page_lock_queues();
 again0:
-		mtx_lock_spin(&vm_page_queue_free_mtx);
+		mtx_lock(&vm_page_queue_free_mtx);
 again:
 		/*
 		 * Find first page in array that is free, within range,
@@ -219,7 +219,7 @@ again:
 		 */
 		if ((i == cnt.v_page_count) ||
 			((VM_PAGE_TO_PHYS(&pga[i]) + size) > high)) {
-			mtx_unlock_spin(&vm_page_queue_free_mtx);
+			mtx_unlock(&vm_page_queue_free_mtx);
 			/*
 			 * Instead of racing to empty the inactive/active
 			 * queues, give up, even with more left to free,
@@ -260,7 +260,7 @@ again1:
 				goto again;
 			}
 		}
-		mtx_unlock_spin(&vm_page_queue_free_mtx);
+		mtx_unlock(&vm_page_queue_free_mtx);
 		for (i = start; i < (start + size / PAGE_SIZE); i++) {
 			vm_page_t m = &pga[i];
 
@@ -283,7 +283,7 @@ again1:
 				VM_OBJECT_UNLOCK(object);
 			}
 		}
-		mtx_lock_spin(&vm_page_queue_free_mtx);
+		mtx_lock(&vm_page_queue_free_mtx);
 		for (i = start; i < (start + size / PAGE_SIZE); i++) {
 			pqtype = pga[i].queue - pga[i].pc;
 			if (pqtype != PQ_FREE) {
@@ -304,7 +304,7 @@ again1:
 			m->wire_count = 0;
 			m->busy = 0;
 		}
-		mtx_unlock_spin(&vm_page_queue_free_mtx);
+		mtx_unlock(&vm_page_queue_free_mtx);
 		vm_page_unlock_queues();
 		/*
 		 * We've found a contiguous chunk that meets are requirements.
@@ -368,12 +368,12 @@ vm_contig_unqueue_free(vm_page_t m)
 {
 	int error = 0;
 
-	mtx_lock_spin(&vm_page_queue_free_mtx);
+	mtx_lock(&vm_page_queue_free_mtx);
 	if ((m->queue - m->pc) == PQ_FREE)
 		vm_pageq_remove_nowakeup(m);
 	else
 		error = EAGAIN;
-	mtx_unlock_spin(&vm_page_queue_free_mtx);
+	mtx_unlock(&vm_page_queue_free_mtx);
 	if (error)
 		return (error);
 	m->valid = VM_PAGE_BITS_ALL;
