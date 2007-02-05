@@ -458,16 +458,21 @@ tunclose(struct cdev *dev, int foo, int bar, struct thread *td)
 		splx(s);
 	}
 
+	/* Delete all addresses and routes which reference this interface. */
 	if (ifp->if_drv_flags & IFF_DRV_RUNNING) {
 		struct ifaddr *ifa;
 
 		s = splimp();
-		/* find internet addresses and delete routes */
-		TAILQ_FOREACH(ifa, &ifp->if_addrhead, ifa_link)
-			if (ifa->ifa_addr->sa_family == AF_INET)
-				/* Unlocked read. */
+		TAILQ_FOREACH(ifa, &ifp->if_addrhead, ifa_link) {
+			/* deal w/IPv4 PtP destination; unlocked read */
+			if (ifa->ifa_addr->sa_family == AF_INET) {
 				rtinit(ifa, (int)RTM_DELETE,
 				    tp->tun_flags & TUN_DSTADDR ? RTF_HOST : 0);
+			} else {
+				rtinit(ifa, (int)RTM_DELETE, 0);
+			}
+		}
+		if_purgeaddrs(ifp);
 		ifp->if_drv_flags &= ~IFF_DRV_RUNNING;
 		splx(s);
 	}
