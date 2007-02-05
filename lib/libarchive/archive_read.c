@@ -65,10 +65,8 @@ archive_read_new(void)
 	unsigned char	*nulls;
 
 	a = (struct archive *)malloc(sizeof(*a));
-	if (a == NULL) {
-		archive_set_error(a, ENOMEM, "Can't allocate archive object");
+	if (a == NULL)
 		return (NULL);
-	}
 	memset(a, 0, sizeof(*a));
 
 	a->user_uid = geteuid();
