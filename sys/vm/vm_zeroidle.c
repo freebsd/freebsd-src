@@ -103,14 +103,14 @@ vm_page_zero_idle(void)
 	static int free_rover;
 	vm_page_t m;
 
-	mtx_lock_spin(&vm_page_queue_free_mtx);
+	mtx_lock(&vm_page_queue_free_mtx);
 	zero_state = 0;
 	m = vm_pageq_find(PQ_FREE, free_rover, FALSE);
 	if (m != NULL && (m->flags & PG_ZERO) == 0) {
 		vm_pageq_remove_nowakeup(m);
-		mtx_unlock_spin(&vm_page_queue_free_mtx);
+		mtx_unlock(&vm_page_queue_free_mtx);
 		pmap_zero_page_idle(m);
-		mtx_lock_spin(&vm_page_queue_free_mtx);
+		mtx_lock(&vm_page_queue_free_mtx);
 		m->flags |= PG_ZERO;
 		vm_pageq_enqueue(PQ_FREE + m->pc, m);
 		++vm_page_zero_count;
@@ -119,7 +119,7 @@ vm_page_zero_idle(void)
 			zero_state = 1;
 	}
 	free_rover = (free_rover + PQ_PRIME2) & PQ_COLORMASK;
-	mtx_unlock_spin(&vm_page_queue_free_mtx);
+	mtx_unlock(&vm_page_queue_free_mtx);
 }
 
 /* Called by vm_page_free to hint that a new page is available. */
