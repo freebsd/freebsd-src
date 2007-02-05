@@ -420,9 +420,11 @@ passin:
 	ifp = ro.ro_rt->rt_ifp;
 
 	/*
-	 * Immediately drop blackholed traffic.
+	 * Immediately drop blackholed traffic, and directed broadcasts
+	 * for either the all-ones or all-zero subnet addresses on
+	 * locally attached networks.
 	 */
-	if (ro.ro_rt->rt_flags & RTF_BLACKHOLE)
+	if ((ro.ro_rt->rt_flags & (RTF_BLACKHOLE|RTF_BROADCAST)) != 0)
 		goto drop;
 
 	/*
