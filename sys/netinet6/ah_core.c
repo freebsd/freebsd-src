@@ -188,7 +188,7 @@ static const struct ah_algorithm ah_algorithms[] = {
 		"aes-xcbc-mac",
 		ah_aes_xcbc_mac_init, ah_aes_xcbc_mac_loop,
 		ah_aes_xcbc_mac_result, },
-	{ ah_sumsiz_1216, ah_none_mature, 1, 80, /* TCP_KEYLEN_MIN/MAX */
+	{ ah_sumsiz_1216, ah_none_mature, 8, 640,	/* bits (RFC 2385) */
 		"TCP-MD5",
 		ah_none_init, ah_none_loop,
 		ah_none_result, },
