@@ -38,10 +38,10 @@
  * $FreeBSD$
  */
 /*
- * Userland interface for Mandatory Access Control.
+ * Userland interface for Mandatory Access Control.  Loosely based on the
+ * POSIX.1e API.  More information may be found at:
  *
- * The POSIX.1e implementation page may be reached at:
- * http://www.trustedbsd.org/
+ * http://www.TrustedBSD.org/
  */
 
 #ifndef _SYS_MAC_H_
@@ -59,6 +59,10 @@
 #define	MAC_MAX_LABEL_ELEMENT_DATA	4096
 #define	MAC_MAX_LABEL_BUF_LEN		8192
 
+/*
+ * struct mac is the data structure used to carry MAC labels in system calls
+ * and ioctls between userspace and the kernel.
+ */
 struct mac {
 	size_t		 m_buflen;
 	char		*m_string;
@@ -70,14 +74,13 @@ typedef struct mac	*mac_t;
 
 /*
  * Location of the userland MAC framework configuration file.  mac.conf
- * binds policy names to shared libraries that understand those policies,
- * as well as setting defaults for MAC-aware applications.
+ * set defaults for MAC-aware applications.
  */
 #define	MAC_CONFFILE	"/etc/mac.conf"
 
 /*
- * Extended non-POSIX.1e interfaces that offer additional services
- * available from the userland and kernel MAC frameworks.
+ * Extended non-POSIX.1e interfaces that offer additional services available
+ * from the userland and kernel MAC frameworks.
  */
 __BEGIN_DECLS
 int	 mac_execve(char *fname, char **argv, char **envv, mac_t _label);
