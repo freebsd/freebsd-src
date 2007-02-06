@@ -46,7 +46,6 @@
 #include <sys/extattr.h>
 #include <sys/kernel.h>
 #include <sys/ksem.h>
-#include <sys/mac.h>
 #include <sys/malloc.h>
 #include <sys/mman.h>
 #include <sys/mount.h>
