@@ -47,8 +47,6 @@
 #ifndef _SYS_MAC_H_
 #define	_SYS_MAC_H_
 
-#include <sys/_label.h>
-
 #ifndef _POSIX_MAC
 #define	_POSIX_MAC
 #endif
