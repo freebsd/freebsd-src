@@ -47,8 +47,6 @@
 #error "no user-serviceable parts inside"
 #endif
 
-#include <sys/_label.h>
-
 /*-
  * Pluggable access control policy definition structure.
  *
@@ -970,11 +968,9 @@ int	mac_policy_modevent(module_t mod, int type, void *data);
 /*
  * Policy interface to map a struct label pointer to per-policy data.
  * Typically, policies wrap this in their own accessor macro that casts a
- * void pointer to a policy-specific data type.
- *
- * XXXRW: It might be preferable to provide get/set methods via functions to
- * avoid encoding the struct label layout in compiled modules.
+ * uintptr_t to a policy-specific data type.
  */
-#define	LABEL_TO_SLOT(l, s)	(l)->l_perpolicy[s]
+intptr_t	mac_label_get(struct label *l, int slot);
+void		mac_label_set(struct label *l, int slot, intptr_t v);
 
 #endif /* !_SYS_SECURITY_MAC_MAC_POLICY_H_ */

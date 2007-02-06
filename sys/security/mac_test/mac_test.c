@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 1999-2002 Robert N. M. Watson
+ * Copyright (c) 1999-2002, 2007 Robert N. M. Watson
  * Copyright (c) 2001-2005 McAfee, Inc.
  * All rights reserved.
  *
@@ -102,7 +102,8 @@ SYSCTL_INT(_security_mac_test, OID_AUTO, enabled, CTLFLAG_RW,
 #define	VNODEMAGIC	0x1a67a45c
 #define	EXMAGIC		0x849ba1fd
 
-#define	SLOT(x)	LABEL_TO_SLOT((x), test_slot).l_long
+#define	SLOT(x)	mac_label_get((x), test_slot)
+#define	SLOT_SET(x, v)	mac_label_set((x), test_slot, (v))
 
 #define	ASSERT_BPF_LABEL(x)	KASSERT(SLOT(x) == BPFMAGIC ||		\
 	SLOT(x) == 0, ("%s: Bad BPF label", __func__ ))
@@ -305,7 +306,7 @@ static void
 mac_test_init_bpfdesc_label(struct label *label)
 {
 
-	SLOT(label) = BPFMAGIC;
+	SLOT_SET(label, BPFMAGIC);
 	atomic_add_int(&init_count_bpfdesc, 1);
 }
 
@@ -313,7 +314,7 @@ static void
 mac_test_init_cred_label(struct label *label)
 {
 
-	SLOT(label) = CREDMAGIC;
+	SLOT_SET(label, CREDMAGIC);
 	atomic_add_int(&init_count_cred, 1);
 }
 
@@ -321,7 +322,7 @@ static void
 mac_test_init_devfsdirent_label(struct label *label)
 {
 
-	SLOT(label) = DEVFSMAGIC;
+	SLOT_SET(label, DEVFSMAGIC);
 	atomic_add_int(&init_count_devfsdirent, 1);
 }
 
@@ -329,7 +330,7 @@ static void
 mac_test_init_ifnet_label(struct label *label)
 {
 
-	SLOT(label) = IFNETMAGIC;
+	SLOT_SET(label, IFNETMAGIC);
 	atomic_add_int(&init_count_ifnet, 1);
 }
 
@@ -342,7 +343,7 @@ mac_test_init_inpcb_label(struct label *label, int flag)
 		    "mac_test_init_inpcb_label() at %s:%d", __FILE__,
 		    __LINE__);
 
-	SLOT(label) = INPCBMAGIC;
+	SLOT_SET(label, INPCBMAGIC);
 	atomic_add_int(&init_count_inpcb, 1);
 	return (0);
 }
@@ -350,28 +351,28 @@ mac_test_init_inpcb_label(struct label *label, int flag)
 static void
 mac_test_init_sysv_msgmsg_label(struct label *label)
 {
-	SLOT(label) = SYSVIPCMSGMAGIC;
+	SLOT_SET(label, SYSVIPCMSGMAGIC);
 	atomic_add_int(&init_count_sysv_msg, 1);
 }
 
 static void
 mac_test_init_sysv_msgqueue_label(struct label *label)
 {
-	SLOT(label) = SYSVIPCMSQMAGIC;
+	SLOT_SET(label, SYSVIPCMSQMAGIC);
 	atomic_add_int(&init_count_sysv_msq, 1);
 }
 
 static void
 mac_test_init_sysv_sem_label(struct label *label)
 {
-	SLOT(label) = SYSVIPCSEMMAGIC;
+	SLOT_SET(label, SYSVIPCSEMMAGIC);
 	atomic_add_int(&init_count_sysv_sem, 1);
 }
 
 static void
 mac_test_init_sysv_shm_label(struct label *label)
 {
-	SLOT(label) = SYSVIPCSHMMAGIC;
+	SLOT_SET(label, SYSVIPCSHMMAGIC);
 	atomic_add_int(&init_count_sysv_shm, 1);
 }
 
@@ -384,7 +385,7 @@ mac_test_init_ipq_label(struct label *label, int flag)
 		    "mac_test_init_ipq_label() at %s:%d", __FILE__,
 		    __LINE__);
 
-	SLOT(label) = IPQMAGIC;
+	SLOT_SET(label, IPQMAGIC);
 	atomic_add_int(&init_count_ipq, 1);
 	return (0);
 }
@@ -398,7 +399,7 @@ mac_test_init_mbuf_label(struct label *label, int flag)
 		    "mac_test_init_mbuf_label() at %s:%d", __FILE__,
 		    __LINE__);
 
-	SLOT(label) = MBUFMAGIC;
+	SLOT_SET(label, MBUFMAGIC);
 	atomic_add_int(&init_count_mbuf, 1);
 	return (0);
 }
@@ -407,7 +408,7 @@ static void
 mac_test_init_mount_label(struct label *label)
 {
 
-	SLOT(label) = MOUNTMAGIC;
+	SLOT_SET(label, MOUNTMAGIC);
 	atomic_add_int(&init_count_mount, 1);
 }
 
@@ -415,7 +416,7 @@ static void
 mac_test_init_mount_fs_label(struct label *label)
 {
 
-	SLOT(label) = MOUNTMAGIC;
+	SLOT_SET(label, MOUNTMAGIC);
 	atomic_add_int(&init_count_mount_fslabel, 1);
 }
 
@@ -428,7 +429,7 @@ mac_test_init_socket_label(struct label *label, int flag)
 		    "mac_test_init_socket_label() at %s:%d", __FILE__,
 		    __LINE__);
 
-	SLOT(label) = SOCKETMAGIC;
+	SLOT_SET(label, SOCKETMAGIC);
 	atomic_add_int(&init_count_socket, 1);
 	return (0);
 }
@@ -442,7 +443,7 @@ mac_test_init_socket_peer_label(struct label *label, int flag)
 		    "mac_test_init_socket_peer_label() at %s:%d", __FILE__,
 		    __LINE__);
 
-	SLOT(label) = SOCKETMAGIC;
+	SLOT_SET(label, SOCKETMAGIC);
 	atomic_add_int(&init_count_socket_peerlabel, 1);
 	return (0);
 }
@@ -451,7 +452,7 @@ static void
 mac_test_init_pipe_label(struct label *label)
 {
 
-	SLOT(label) = PIPEMAGIC;
+	SLOT_SET(label, PIPEMAGIC);
 	atomic_add_int(&init_count_pipe, 1);
 }
 
@@ -459,7 +460,7 @@ static void
 mac_test_init_posix_sem_label(struct label *label)
 {
 
-	SLOT(label) = POSIXSEMMAGIC;
+	SLOT_SET(label, POSIXSEMMAGIC);
 	atomic_add_int(&init_count_posixsems, 1);
 }
 
@@ -467,7 +468,7 @@ static void
 mac_test_init_proc_label(struct label *label)
 {
 
-	SLOT(label) = PROCMAGIC;
+	SLOT_SET(label, PROCMAGIC);
 	atomic_add_int(&init_count_proc, 1);
 }
 
@@ -475,7 +476,7 @@ static void
 mac_test_init_vnode_label(struct label *label)
 {
 
-	SLOT(label) = VNODEMAGIC;
+	SLOT_SET(label, VNODEMAGIC);
 	atomic_add_int(&init_count_vnode, 1);
 }
 
@@ -485,7 +486,7 @@ mac_test_destroy_bpfdesc_label(struct label *label)
 
 	if (SLOT(label) == BPFMAGIC || SLOT(label) == 0) {
 		atomic_add_int(&destroy_count_bpfdesc, 1);
-		SLOT(label) = EXMAGIC;
+		SLOT_SET(label, EXMAGIC);
 	} else if (SLOT(label) == EXMAGIC) {
 		DEBUGGER("mac_test_destroy_bpfdesc: dup destroy");
 	} else {
@@ -499,7 +500,7 @@ mac_test_destroy_cred_label(struct label *label)
 
 	if (SLOT(label) == CREDMAGIC || SLOT(label) == 0) {
 		atomic_add_int(&destroy_count_cred, 1);
-		SLOT(label) = EXMAGIC;
+		SLOT_SET(label, EXMAGIC);
 	} else if (SLOT(label) == EXMAGIC) {
 		DEBUGGER("mac_test_destroy_cred: dup destroy");
 	} else {
@@ -513,7 +514,7 @@ mac_test_destroy_devfsdirent_label(struct label *label)
 
 	if (SLOT(label) == DEVFSMAGIC || SLOT(label) == 0) {
 		atomic_add_int(&destroy_count_devfsdirent, 1);
-		SLOT(label) = EXMAGIC;
+		SLOT_SET(label, EXMAGIC);
 	} else if (SLOT(label) == EXMAGIC) {
 		DEBUGGER("mac_test_destroy_devfsdirent: dup destroy");
 	} else {
@@ -527,7 +528,7 @@ mac_test_destroy_ifnet_label(struct label *label)
 
 	if (SLOT(label) == IFNETMAGIC || SLOT(label) == 0) {
 		atomic_add_int(&destroy_count_ifnet, 1);
-		SLOT(label) = EXMAGIC;
+		SLOT_SET(label, EXMAGIC);
 	} else if (SLOT(label) == EXMAGIC) {
 		DEBUGGER("mac_test_destroy_ifnet: dup destroy");
 	} else {
@@ -541,7 +542,7 @@ mac_test_destroy_inpcb_label(struct label *label)
 
 	if (SLOT(label) == INPCBMAGIC || SLOT(label) == 0) {
 		atomic_add_int(&destroy_count_inpcb, 1);
-		SLOT(label) = EXMAGIC;
+		SLOT_SET(label, EXMAGIC);
 	} else if (SLOT(label) == EXMAGIC) {
 		DEBUGGER("mac_test_destroy_inpcb: dup destroy");
 	} else {
@@ -555,7 +556,7 @@ mac_test_destroy_sysv_msgmsg_label(struct label *label)
 
 	if (SLOT(label) == SYSVIPCMSGMAGIC || SLOT(label) == 0) {
 		atomic_add_int(&destroy_count_sysv_msg, 1);
-		SLOT(label) = EXMAGIC;
+		SLOT_SET(label, EXMAGIC);
 	} else if (SLOT(label) == EXMAGIC) {
 		DEBUGGER("mac_test_destroy_sysv_msgmsg_label: dup destroy");
 	} else {
@@ -570,7 +571,7 @@ mac_test_destroy_sysv_msgqueue_label(struct label *label)
 
 	if (SLOT(label) == SYSVIPCMSQMAGIC || SLOT(label) == 0) {
 		atomic_add_int(&destroy_count_sysv_msq, 1);
-		SLOT(label) = EXMAGIC;
+		SLOT_SET(label, EXMAGIC);
 	} else if (SLOT(label) == EXMAGIC) {
 		DEBUGGER("mac_test_destroy_sysv_msgqueue_label: dup destroy");
 	} else {
@@ -585,7 +586,7 @@ mac_test_destroy_sysv_sem_label(struct label *label)
 
 	if (SLOT(label) == SYSVIPCSEMMAGIC || SLOT(label) == 0) {
 		atomic_add_int(&destroy_count_sysv_sem, 1);
-		SLOT(label) = EXMAGIC;
+		SLOT_SET(label, EXMAGIC);
 	} else if (SLOT(label) == EXMAGIC) {
 		DEBUGGER("mac_test_destroy_sysv_sem_label: dup destroy");
 	} else {
@@ -599,7 +600,7 @@ mac_test_destroy_sysv_shm_label(struct label *label)
 
 	if (SLOT(label) == SYSVIPCSHMMAGIC || SLOT(label) == 0) {
 		atomic_add_int(&destroy_count_sysv_shm, 1);
-		SLOT(label) = EXMAGIC;
+		SLOT_SET(label, EXMAGIC);
 	} else if (SLOT(label) == EXMAGIC) {
 		DEBUGGER("mac_test_destroy_sysv_shm_label: dup destroy");
 	} else {
@@ -613,7 +614,7 @@ mac_test_destroy_ipq_label(struct label *label)
 
 	if (SLOT(label) == IPQMAGIC || SLOT(label) == 0) {
 		atomic_add_int(&destroy_count_ipq, 1);
-		SLOT(label) = EXMAGIC;
+		SLOT_SET(label, EXMAGIC);
 	} else if (SLOT(label) == EXMAGIC) {
 		DEBUGGER("mac_test_destroy_ipq: dup destroy");
 	} else {
@@ -635,7 +636,7 @@ mac_test_destroy_mbuf_label(struct label *label)
 
 	if (SLOT(label) == MBUFMAGIC || SLOT(label) == 0) {
 		atomic_add_int(&destroy_count_mbuf, 1);
-		SLOT(label) = EXMAGIC;
+		SLOT_SET(label, EXMAGIC);
 	} else if (SLOT(label) == EXMAGIC) {
 		DEBUGGER("mac_test_destroy_mbuf: dup destroy");
 	} else {
@@ -649,7 +650,7 @@ mac_test_destroy_mount_label(struct label *label)
 
 	if ((SLOT(label) == MOUNTMAGIC || SLOT(label) == 0)) {
 		atomic_add_int(&destroy_count_mount, 1);
-		SLOT(label) = EXMAGIC;
+		SLOT_SET(label, EXMAGIC);
 	} else if (SLOT(label) == EXMAGIC) {
 		DEBUGGER("mac_test_destroy_mount: dup destroy");
 	} else {
@@ -663,7 +664,7 @@ mac_test_destroy_mount_fs_label(struct label *label)
 
 	if ((SLOT(label) == MOUNTMAGIC || SLOT(label) == 0)) {
 		atomic_add_int(&destroy_count_mount_fslabel, 1);
-		SLOT(label) = EXMAGIC;
+		SLOT_SET(label, EXMAGIC);
 	} else if (SLOT(label) == EXMAGIC) {
 		DEBUGGER("mac_test_destroy_mount_fslabel: dup destroy");
 	} else {
@@ -677,7 +678,7 @@ mac_test_destroy_socket_label(struct label *label)
 
 	if ((SLOT(label) == SOCKETMAGIC || SLOT(label) == 0)) {
 		atomic_add_int(&destroy_count_socket, 1);
-		SLOT(label) = EXMAGIC;
+		SLOT_SET(label, EXMAGIC);
 	} else if (SLOT(label) == EXMAGIC) {
 		DEBUGGER("mac_test_destroy_socket: dup destroy");
 	} else {
@@ -691,7 +692,7 @@ mac_test_destroy_socket_peer_label(struct label *label)
 
 	if ((SLOT(label) == SOCKETMAGIC || SLOT(label) == 0)) {
 		atomic_add_int(&destroy_count_socket_peerlabel, 1);
-		SLOT(label) = EXMAGIC;
+		SLOT_SET(label, EXMAGIC);
 	} else if (SLOT(label) == EXMAGIC) {
 		DEBUGGER("mac_test_destroy_socket_peerlabel: dup destroy");
 	} else {
@@ -705,7 +706,7 @@ mac_test_destroy_pipe_label(struct label *label)
 
 	if ((SLOT(label) == PIPEMAGIC || SLOT(label) == 0)) {
 		atomic_add_int(&destroy_count_pipe, 1);
-		SLOT(label) = EXMAGIC;
+		SLOT_SET(label, EXMAGIC);
 	} else if (SLOT(label) == EXMAGIC) {
 		DEBUGGER("mac_test_destroy_pipe: dup destroy");
 	} else {
@@ -719,7 +720,7 @@ mac_test_destroy_posix_sem_label(struct label *label)
 
 	if ((SLOT(label) == POSIXSEMMAGIC || SLOT(label) == 0)) {
 		atomic_add_int(&destroy_count_posixsems, 1);
-		SLOT(label) = EXMAGIC;
+		SLOT_SET(label, EXMAGIC);
 	} else if (SLOT(label) == EXMAGIC) {
 		DEBUGGER("mac_test_destroy_posix_sem: dup destroy");
 	} else {
@@ -733,7 +734,7 @@ mac_test_destroy_proc_label(struct label *label)
 
 	if ((SLOT(label) == PROCMAGIC || SLOT(label) == 0)) {
 		atomic_add_int(&destroy_count_proc, 1);
-		SLOT(label) = EXMAGIC;
+		SLOT_SET(label, EXMAGIC);
 	} else if (SLOT(label) == EXMAGIC) {
 		DEBUGGER("mac_test_destroy_proc: dup destroy");
 	} else {
@@ -747,7 +748,7 @@ mac_test_destroy_vnode_label(struct label *label)
 
 	if (SLOT(label) == VNODEMAGIC || SLOT(label) == 0) {
 		atomic_add_int(&destroy_count_vnode, 1);
-		SLOT(label) = EXMAGIC;
+		SLOT_SET(label, EXMAGIC);
 	} else if (SLOT(label) == EXMAGIC) {
 		DEBUGGER("mac_test_destroy_vnode: dup destroy");
 	} else {
