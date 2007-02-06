@@ -70,7 +70,7 @@ ShowCmd(int ac, char **av)
 
 	/* Get options */
 	optind = 1;
-	while ((ch = getopt(ac, av, "n")) != EOF) {
+	while ((ch = getopt(ac, av, "n")) != -1) {
 		switch (ch) {
 		case 'n':
 			no_hooks = 1;

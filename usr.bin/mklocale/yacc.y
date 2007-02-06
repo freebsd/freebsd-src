@@ -227,7 +227,7 @@ main(int ac, char *av[])
 
     fp = stdout;
 
-    while ((x = getopt(ac, av, "do:")) != EOF) {
+    while ((x = getopt(ac, av, "do:")) != -1) {
 	switch(x) {
 	case 'd':
 	    debug = 1;

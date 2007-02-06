@@ -147,7 +147,7 @@ main(int ac, char *av[])
 	snprintf(name, sizeof(name), "ngctl%d", getpid());
 
 	/* Parse command line */
-	while ((ch = getopt(ac, av, "df:n:")) != EOF) {
+	while ((ch = getopt(ac, av, "df:n:")) != -1) {
 		switch (ch) {
 		case 'd':
 			NgSetDebug(NgSetDebug(-1) + 1);
