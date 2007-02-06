@@ -40,6 +40,7 @@
 #include <memstat.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <unistd.h>
 
 static struct nlist namelist[] = {
 #define X_UMA_KEGS	0
@@ -57,7 +58,7 @@ static void
 usage(void)
 {
 
-	fprintf(stderr, "umastat\n");
+	fprintf(stderr, "umastat [-M core [-N system]]\n");
 	exit(-1);
 }
 
@@ -283,11 +284,31 @@ main(int argc, char *argv[])
 	kvm_t *kvm;
 	int all_cpus, cpu, mp_maxcpus, mp_maxid, ret, ub_cnt, ub_entries;
 	size_t uzp_userspace_len;
+	char *memf, *nlistf;
+	int ch;
 
-	if (argc != 1)
+	memf = nlistf = NULL;
+	while ((ch = getopt(argc, argv, "M:N:")) != -1) {
+		switch (ch) {
+		case 'M':
+			memf = optarg;
+			break;
+		case 'N':
+			nlistf = optarg;
+			break;
+		default:
+			usage();
+		}
+	}
+	argc -= optind;
+	argv += optind;
+
+	if (argc != 0)
+		usage();
+	if (nlistf != NULL && memf == NULL)
 		usage();
 
-	kvm = kvm_open(NULL, NULL, NULL, 0, "umastat");
+	kvm = kvm_open(nlistf, memf, NULL, 0, "umastat");
 	if (kvm == NULL)
 		err(-1, "kvm_open");
 
