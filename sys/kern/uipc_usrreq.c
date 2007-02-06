@@ -854,12 +854,12 @@ uipc_ctloutput(struct socket *so, struct sockopt *sopt)
 
 	unp = sotounpcb(so);
 	KASSERT(unp != NULL, ("uipc_ctloutput: unp == NULL"));
-	UNP_LOCK();
 	error = 0;
 	switch (sopt->sopt_dir) {
 	case SOPT_GET:
 		switch (sopt->sopt_name) {
 		case LOCAL_PEERCRED:
+			UNP_LOCK();
 			if (unp->unp_flags & UNP_HAVEPC)
 				xu = unp->unp_peercred;
 			else {
@@ -868,14 +868,17 @@ uipc_ctloutput(struct socket *so, struct sockopt *sopt)
 				else
 					error = EINVAL;
 			}
+			UNP_UNLOCK();
 			if (error == 0)
 				error = sooptcopyout(sopt, &xu, sizeof(xu));
 			break;
 		case LOCAL_CREDS:
+			/* Unocked read. */
 			optval = unp->unp_flags & UNP_WANTCRED ? 1 : 0;
 			error = sooptcopyout(sopt, &optval, sizeof(optval));
 			break;
 		case LOCAL_CONNWAIT:
+			/* Unocked read. */
 			optval = unp->unp_flags & UNP_CONNWAIT ? 1 : 0;
 			error = sooptcopyout(sopt, &optval, sizeof(optval));
 			break;
@@ -899,6 +902,7 @@ uipc_ctloutput(struct socket *so, struct sockopt *sopt)
 	else \
 		unp->unp_flags &= ~bit;
 
+			UNP_LOCK();
 			switch (sopt->sopt_name) {
 			case LOCAL_CREDS:
 				OPTSET(UNP_WANTCRED);
@@ -909,6 +913,7 @@ uipc_ctloutput(struct socket *so, struct sockopt *sopt)
 			default:
 				break;
 			}
+			UNP_UNLOCK();
 			break;
 #undef	OPTSET
 		default:
@@ -920,7 +925,6 @@ uipc_ctloutput(struct socket *so, struct sockopt *sopt)
 		error = EOPNOTSUPP;
 		break;
 	}
-	UNP_UNLOCK();
 	return (error);
 }
 
