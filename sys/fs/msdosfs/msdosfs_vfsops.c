@@ -329,17 +329,6 @@ msdosfs_mount(struct mount *mp, struct thread *td)
 			if (error)
 				return (error);
 		}
-
-		if (vfs_getopt(mp->mnt_optnew, "from", NULL, NULL)) {
-#ifdef	__notyet__	/* doesn't work correctly with current mountd	XXX */
-			if (args.flags & MSDOSFSMNT_MNTOPT) {
-				pmp->pm_flags &= ~MSDOSFSMNT_MNTOPT;
-				pmp->pm_flags |= args.flags & MSDOSFSMNT_MNTOPT;
-				if (pmp->pm_flags & MSDOSFSMNT_NOWIN95)
-					pmp->pm_flags |= MSDOSFSMNT_SHORTNAME;
-			}
-#endif
-		}
 	}
 	/*
 	 * Not an update, or updating the name: look up the name
