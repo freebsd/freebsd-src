@@ -52,7 +52,6 @@
 #include <sys/extattr.h>
 #include <sys/kernel.h>
 #include <sys/ksem.h>
-#include <sys/mac.h>
 #include <sys/mount.h>
 #include <sys/proc.h>
 #include <sys/systm.h>

@@ -43,6 +43,12 @@
 #ifndef _SYS_SECURITY_MAC_MAC_POLICY_H_
 #define	_SYS_SECURITY_MAC_MAC_POLICY_H_
 
+#ifndef _KERNEL
+#error "no user-serviceable parts inside"
+#endif
+
+#include <sys/_label.h>
+
 /*-
  * Pluggable access control policy definition structure.
  *
