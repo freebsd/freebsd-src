@@ -823,15 +823,16 @@ readvar(kvm_t *kd, const char *name, int nlid, void *ptr, size_t len)
 	if (kd != NULL) {
 		ssize_t nbytes;
 
-		nbytes = kvm_read(kd, nlid, ptr, len);
+		nbytes = kvm_read(kd, namelist[nlid].n_value, ptr, len);
 
-		if (nbytes == 0) {
-			warnx("kvm_read(%s): %s", name, kvm_geterr(kd));
+		if (nbytes < 0) {
+			warnx("kvm_read(%s): %s", namelist[nlid].n_name,
+			    kvm_geterr(kd));
 			return (1);
 		}
 		if (nbytes != len) {
-			warnx("kvm_read(%s): expected %lu bytes, got %ld bytes",
-			      name, (unsigned long)len, (long)nbytes);
+			warnx("kvm_read(%s): expected %zu bytes, got %zd bytes",
+			      namelist[nlid].n_name, len, nbytes);
 			return (1);
 		}
 	} else {
