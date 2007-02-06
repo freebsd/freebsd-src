@@ -70,7 +70,7 @@ DotCmd(int ac, char **av)
 
 	/* Get options */
 	optind = 1;
-	while ((ch = getopt(ac, av, "")) != EOF) {
+	while ((ch = getopt(ac, av, "")) != -1) {
 		switch (ch) {
 		case '?':
 		default:

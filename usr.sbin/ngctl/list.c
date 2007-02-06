@@ -73,7 +73,7 @@ ListCmd(int ac, char **av)
 
 	/* Get options */
 	optind = 1;
-	while ((ch = getopt(ac, av, "ln")) != EOF) {
+	while ((ch = getopt(ac, av, "ln")) != -1) {
 		switch (ch) {
 		case 'l':
 			list_hooks = 1;
