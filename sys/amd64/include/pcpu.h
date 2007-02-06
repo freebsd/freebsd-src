@@ -94,30 +94,15 @@ extern struct pcpu *pcpup;
 #define	__PCPU_GET(name) __extension__ ({				\
 	__pcpu_type(name) __result;					\
 									\
-	if (sizeof(__result) == 1) {					\
-		u_char __b;						\
-		__asm __volatile("movb %%gs:%1,%0"			\
-		    : "=r" (__b)					\
-		    : "m" (*(u_char *)(__pcpu_offset(name))));		\
-		__result = *(__pcpu_type(name) *)&__b;			\
-	} else if (sizeof(__result) == 2) {				\
-		u_short __w;						\
-		__asm __volatile("movw %%gs:%1,%0"			\
-		    : "=r" (__w)					\
-		    : "m" (*(u_short *)(__pcpu_offset(name))));		\
-		__result = *(__pcpu_type(name) *)&__w;			\
-	} else if (sizeof(__result) == 4) {				\
-		u_int __i;						\
-		__asm __volatile("movl %%gs:%1,%0"			\
-		    : "=r" (__i)					\
-		    : "m" (*(u_int *)(__pcpu_offset(name))));		\
-		__result = *(__pcpu_type(name) *)&__i;			\
-	} else if (sizeof(__result) == 8) {				\
-		u_long __l;						\
-		__asm __volatile("movq %%gs:%1,%0"			\
-		    : "=r" (__l)					\
-		    : "m" (*(u_long *)(__pcpu_offset(name))));		\
-		__result = *(__pcpu_type(name) *)&__l;			\
+	if (sizeof(__result) == 1 || sizeof(__result) == 2 ||		\
+	    sizeof(__result) == 4 || sizeof(__result) == 8) {		\
+		struct __s {						\
+			u_char	__b[MIN(sizeof(__pcpu_type(name)), 8)];	\
+		} __s;							\
+		__asm __volatile("mov %%gs:%1,%0"			\
+		    : "=r" (__s)					\
+		    : "m" (*(struct __s *)(__pcpu_offset(name))));	\
+		*(struct __s *)(void *)&__result = __s;			\
 	} else {							\
 		__result = *__PCPU_PTR(name);				\
 	}								\
@@ -131,30 +116,15 @@ extern struct pcpu *pcpup;
 #define	__PCPU_SET(name, val) {						\
 	__pcpu_type(name) __val = (val);				\
 									\
-	if (sizeof(__val) == 1) {					\
-		u_char __b;						\
-		__b = *(u_char *)&__val;				\
-		__asm __volatile("movb %1,%%gs:%0"			\
-		    : "=m" (*(u_char *)(__pcpu_offset(name)))		\
-		    : "r" (__b));					\
-	} else if (sizeof(__val) == 2) {				\
-		u_short __w;						\
-		__w = *(u_short *)&__val;				\
-		__asm __volatile("movw %1,%%gs:%0"			\
-		    : "=m" (*(u_short *)(__pcpu_offset(name)))		\
-		    : "r" (__w));					\
-	} else if (sizeof(__val) == 4) {				\
-		u_int __i;						\
-		__i = *(u_int *)&__val;					\
-		__asm __volatile("movl %1,%%gs:%0"			\
-		    : "=m" (*(u_int *)(__pcpu_offset(name)))		\
-		    : "r" (__i));					\
-	} else if (sizeof(__val) == 8) {				\
-		u_long __l;						\
-		__l = *(u_long *)&__val;				\
-		__asm __volatile("movq %1,%%gs:%0"			\
-		    : "=m" (*(u_long *)(__pcpu_offset(name)))		\
-		    : "r" (__l));					\
+	if (sizeof(__val) == 1 || sizeof(__val) == 2 ||			\
+	    sizeof(__val) == 4 || sizeof(__val) == 8) {			\
+		struct __s {						\
+			u_char	__b[MIN(sizeof(__pcpu_type(name)), 8)];	\
+		} __s;							\
+		__s = *(struct __s *)(void *)&__val;			\
+		__asm __volatile("mov %1,%%gs:%0"			\
+		    : "=m" (*(struct __s *)(__pcpu_offset(name)))	\
+		    : "r" (__s));					\
 	} else {							\
 		*__PCPU_PTR(name) = __val;				\
 	}								\
