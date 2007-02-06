@@ -477,8 +477,11 @@ mountfs(vfstype, spec, name, flags, options, mntopts)
 		optbuf = catopt(optbuf, "update");
 
 	/* Compatibility glue. */
-	if (strcmp(vfstype, "msdos") == 0)
+	if (strcmp(vfstype, "msdos") == 0) {
+		warnx(
+		    "Using \"-t msdosfs\", since \"-t msdos\" is deprecated.");
 		vfstype = "msdosfs";
+	}
 
 	/* Construct the name of the appropriate mount command */
 	(void)snprintf(execname, sizeof(execname), "mount_%s", vfstype);
