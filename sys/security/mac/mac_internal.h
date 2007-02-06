@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 1999-2002 Robert N. M. Watson
+ * Copyright (c) 1999-2002, 2006 Robert N. M. Watson
  * Copyright (c) 2001 Ilmar S. Habibulin
  * Copyright (c) 2001-2004 Networks Associates Technology, Inc.
  * Copyright (c) 2006 nCircle Network Security, Inc.
@@ -61,6 +61,23 @@ LIST_HEAD(mac_policy_list_head, mac_policy_conf);
 #ifdef MALLOC_DECLARE
 MALLOC_DECLARE(M_MACTEMP);
 #endif
+
+/*
+ * MAC labels -- in-kernel storage format.
+ *
+ * In general, struct label pointers are embedded in kernel data structures
+ * representing objects that may be labeled (and protected).  Struct label is
+ * opaque to both kernel services that invoke the MAC Framework and MAC
+ * policy modules.  In particular, we do not wish to encode the layout of the
+ * label structure into any ABIs.  Historically, the slot array contained
+ * unions of {long, void} but now contains uintptr_t.
+ */
+#define	MAC_MAX_SLOTS	4
+#define	MAC_FLAG_INITIALIZED	0x0000001	/* Is initialized for use. */
+struct label {
+	int		l_flags;
+	intptr_t	l_perpolicy[MAC_MAX_SLOTS];
+};
 
 /*
  * MAC Framework global variables.

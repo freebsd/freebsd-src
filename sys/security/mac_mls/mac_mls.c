@@ -116,8 +116,8 @@ SYSCTL_INT(_security_mac_mls, OID_AUTO, max_compartments, CTLFLAG_RD,
     &max_compartments, 0, "Maximum compartments the policy supports");
 
 static int	mac_mls_slot;
-#define	SLOT(l)	((struct mac_mls *)LABEL_TO_SLOT((l), mac_mls_slot).l_ptr)
-#define	SLOT_SET(l, val) (LABEL_TO_SLOT((l), mac_mls_slot).l_ptr = (val))
+#define	SLOT(l)	((struct mac_mls *)mac_label_get((l), mac_mls_slot))
+#define	SLOT_SET(l, val) mac_label_set((l), mac_mls_slot, (uintptr_t)(val))
 
 static uma_zone_t	zone_mls;
 
