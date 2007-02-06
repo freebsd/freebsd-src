@@ -43,6 +43,10 @@
 #ifndef _SYS_SECURITY_MAC_MAC_INTERNAL_H_
 #define	_SYS_SECURITY_MAC_MAC_INTERNAL_H_
 
+#ifndef _KERNEL
+#error "no user-serviceable parts inside"
+#endif
+
 /*
  * MAC Framework sysctl namespace.
  */

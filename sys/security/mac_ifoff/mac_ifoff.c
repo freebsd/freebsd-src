@@ -45,7 +45,6 @@
 #include <sys/param.h>
 #include <sys/conf.h>
 #include <sys/kernel.h>
-#include <sys/mac.h>
 #include <sys/mount.h>
 #include <sys/proc.h>
 #include <sys/systm.h>

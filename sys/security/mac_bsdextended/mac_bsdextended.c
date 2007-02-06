@@ -49,7 +49,6 @@
 #include <sys/kernel.h>
 #include <sys/jail.h>
 #include <sys/lock.h>
-#include <sys/mac.h>
 #include <sys/malloc.h>
 #include <sys/mount.h>
 #include <sys/mutex.h>
