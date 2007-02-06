@@ -126,11 +126,11 @@ SYSCTL_INT(_security_mac_lomac, OID_AUTO, revocation_enabled, CTLFLAG_RW,
 TUNABLE_INT("security.mac.lomac.revocation_enabled", &revocation_enabled);
 
 static int	mac_lomac_slot;
-#define	SLOT(l)	((struct mac_lomac *)LABEL_TO_SLOT((l), mac_lomac_slot).l_ptr)
-#define	SLOT_SET(l, val) (LABEL_TO_SLOT((l), mac_lomac_slot).l_ptr = (val))
+#define	SLOT(l)	((struct mac_lomac *)mac_label_get((l), mac_lomac_slot))
+#define	SLOT_SET(l, val) mac_label_set((l), mac_lomac_slot, (uintptr_t)(val))
 #define	PSLOT(l) ((struct mac_lomac_proc *)				\
-    LABEL_TO_SLOT((l), mac_lomac_slot).l_ptr)
-#define	PSLOT_SET(l, val) (LABEL_TO_SLOT((l), mac_lomac_slot).l_ptr = (val))
+    mac_label_get((l), mac_lomac_slot))
+#define	PSLOT_SET(l, val) mac_label_set((l), mac_lomac_slot, (uintptr_t)(val))
 
 MALLOC_DEFINE(M_MACLOMAC, "mac_lomac_label", "MAC/LOMAC labels");
 

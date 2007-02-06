@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 1999-2002 Robert N. M. Watson
+ * Copyright (c) 1999-2002, 2007 Robert N. M. Watson
  * Copyright (c) 2001-2005 McAfee, Inc.
  * All rights reserved.
  *
@@ -132,8 +132,8 @@ SYSCTL_INT(_security_mac_biba, OID_AUTO, revocation_enabled, CTLFLAG_RW,
 TUNABLE_INT("security.mac.biba.revocation_enabled", &revocation_enabled);
 
 static int	mac_biba_slot;
-#define	SLOT(l)	((struct mac_biba *)LABEL_TO_SLOT((l), mac_biba_slot).l_ptr)
-#define	SLOT_SET(l, val) (LABEL_TO_SLOT((l), mac_biba_slot).l_ptr = (val))
+#define	SLOT(l)	((struct mac_biba *)mac_label_get((l), mac_biba_slot))
+#define	SLOT_SET(l, val) mac_label_set((l), mac_biba_slot, (uintptr_t)(val))
 
 static uma_zone_t	zone_biba;
 

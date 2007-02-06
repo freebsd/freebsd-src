@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 1999-2002 Robert N. M. Watson
+ * Copyright (c) 1999-2002, 2007 Robert N. M. Watson
  * Copyright (c) 2001-2002 Networks Associates Technology, Inc.
  * All rights reserved.
  *
@@ -79,7 +79,8 @@ SYSCTL_INT(_security_mac_partition, OID_AUTO, enabled, CTLFLAG_RW,
     &mac_partition_enabled, 0, "Enforce partition policy");
 
 static int	partition_slot;
-#define	SLOT(l)	(LABEL_TO_SLOT((l), partition_slot).l_long)
+#define	SLOT(l)	mac_label_get((l), partition_slot)
+#define	SLOT_SET(l, v)	mac_label_set((l), partition_slot, (v))
 
 static void
 mac_partition_init(struct mac_policy_conf *conf)
@@ -91,21 +92,21 @@ static void
 mac_partition_init_label(struct label *label)
 {
 
-	SLOT(label) = 0;
+	SLOT_SET(label, 0);
 }
 
 static void
 mac_partition_destroy_label(struct label *label)
 {
 
-	SLOT(label) = 0;
+	SLOT_SET(label, 0);
 }
 
 static void
 mac_partition_copy_label(struct label *src, struct label *dest)
 {
 
-	SLOT(dest) = SLOT(src);
+	SLOT_SET(dest, SLOT(src));
 }
 
 static int
@@ -118,7 +119,7 @@ mac_partition_externalize_label(struct label *label, char *element_name,
 
 	(*claimed)++;
 
-	if (sbuf_printf(sb, "%ld", SLOT(label)) == -1)
+	if (sbuf_printf(sb, "%d", SLOT(label)) == -1)
 		return (EINVAL);
 	else
 		return (0);
@@ -133,7 +134,7 @@ mac_partition_internalize_label(struct label *label, char *element_name,
 		return (0);
 
 	(*claimed)++;
-	SLOT(label) = strtol(element_data, NULL, 10);
+	SLOT_SET(label, strtol(element_data, NULL, 10));
 	return (0);
 }
 
@@ -141,14 +142,14 @@ static void
 mac_partition_create_proc0(struct ucred *cred)
 {
 
-	SLOT(cred->cr_label) = 0;
+	SLOT_SET(cred->cr_label, 0);
 }
 
 static void
 mac_partition_create_proc1(struct ucred *cred)
 {
 
-	SLOT(cred->cr_label) = 0;
+	SLOT_SET(cred->cr_label, 0);
 }
 
 static void
@@ -156,7 +157,7 @@ mac_partition_relabel_cred(struct ucred *cred, struct label *newlabel)
 {
 
 	if (SLOT(newlabel) != 0)
-		SLOT(cred->cr_label) = SLOT(newlabel);
+		SLOT_SET(cred->cr_label, SLOT(newlabel));
 }
 
 static int
