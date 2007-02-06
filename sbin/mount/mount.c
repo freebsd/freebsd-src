@@ -74,7 +74,7 @@ struct statfs *getmntpt(const char *);
 int	hasopt(const char *, const char *);
 int	ismounted(struct fstab *, struct statfs *, int);
 int	isremountable(const char *);
-void	mangle(char *, int *, const char **);
+void	mangle(char *, int *, char *[]);
 char   *update_options(char *, char *, int);
 int	mountfs(const char *, const char *, const char *,
 			int, const char *, const char *);
@@ -119,6 +119,9 @@ remountable_fs_names[] = {
 	"ufs", "ffs", "ext2fs",
 	0
 };
+
+static const char userquotaeq[] = "userquota=";
+static const char groupquotaeq[] = "groupquota=";
 
 static int
 specified_ro(const char *arg)
@@ -431,7 +434,7 @@ mountfs(vfstype, spec, name, flags, options, mntopts)
 	const char *vfstype, *spec, *name, *options, *mntopts;
 	int flags;
 {
-	const char *argv[100];
+	char *argv[100];
 	struct statfs sf;
 	pid_t pid;
 	int argc, i, status;
@@ -483,8 +486,8 @@ mountfs(vfstype, spec, name, flags, options, mntopts)
 	argc = 0;
 	argv[argc++] = execname;
 	mangle(optbuf, &argc, argv);
-	argv[argc++] = spec;
-	argv[argc++] = name;
+	argv[argc++] = strdup(spec);
+	argv[argc++] = strdup(name);
 	argv[argc] = NULL;
 
 	if (debug) {
@@ -631,10 +634,7 @@ catopt(s0, s1)
 }
 
 void
-mangle(options, argcp, argv)
-	char *options;
-	int *argcp;
-	const char **argv;
+mangle(char *options, int *argcp, char *argv[])
 {
 	char *p, *s;
 	int argc;
@@ -642,16 +642,43 @@ mangle(options, argcp, argv)
 	argc = *argcp;
 	for (s = options; (p = strsep(&s, ",")) != NULL;)
 		if (*p != '\0') {
-			if (*p == '-') {
+			if (strcmp(p, "noauto") == 0) {
+				/*
+				 * Do not pass noauto option to nmount().
+				 * or external mount program.  noauto is
+				 * only used to prevent mounting a file system
+				 * when 'mount -a' is specified, and is
+				 * not a real mount option.
+				 */
+				continue;
+			} else if (strcmp(p, "late") == 0) {
+				/*
+				 * "late" is used to prevent certain file
+				 * systems from being mounted before late
+				 * in the boot cycle; for instance,
+				 * loopback NFS mounts can't be mounted
+				 * before mountd starts.
+				 */
+				continue;
+			} else if (strcmp(p, "userquota") == 0) {
+				continue;
+			} else if (strncmp(p, userquotaeq,
+			    sizeof(userquotaeq) - 1) == 0) {
+				continue;
+			} else if (strcmp(p, "groupquota") == 0) {
+				continue;
+			} else if (strncmp(p, groupquotaeq,
+			    sizeof(groupquotaeq) - 1) == 0) {
+				continue;
+			} else if (*p == '-') {
 				argv[argc++] = p;
 				p = strchr(p, '=');
 				if (p != NULL) {
 					*p = '\0';
 					argv[argc++] = p+1;
 				}
-			} else if (strcmp(p, "rw") != 0 &&
-			    strcmp(p, "late") != 0) {
-				argv[argc++] = "-o";
+			} else {
+				argv[argc++] = strdup("-o");
 				argv[argc++] = p;
 			}
 		}
