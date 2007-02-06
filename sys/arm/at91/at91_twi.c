@@ -375,3 +375,4 @@ static driver_t at91_twi_driver = {
 
 DRIVER_MODULE(at91_twi, atmelarm, at91_twi_driver, at91_twi_devclass, 0, 0);
 DRIVER_MODULE(iicbus, at91_twi, iicbus_driver, iicbus_devclass, 0, 0);
+MODULE_DEPEND(at91_twi, iicbus, 1, 1, 1);
