@@ -119,7 +119,7 @@ mac_partition_externalize_label(struct label *label, char *element_name,
 
 	(*claimed)++;
 
-	if (sbuf_printf(sb, "%d", SLOT(label)) == -1)
+	if (sbuf_printf(sb, "%jd", (intmax_t)SLOT(label)) == -1)
 		return (EINVAL);
 	else
 		return (0);
