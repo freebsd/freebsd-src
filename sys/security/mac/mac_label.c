@@ -1,5 +1,6 @@
 /*-
  * Copyright (c) 2003-2004 Networks Associates Technology, Inc.
+ * Copyright (c) 2007 Robert N. M. Watson
  * All rights reserved.
  *
  * This software was developed for the FreeBSD Project in part by Network
@@ -35,6 +36,7 @@ __FBSDID("$FreeBSD$");
 #include "opt_mac.h"
 
 #include <sys/param.h>
+#include <sys/module.h>
 #include <sys/sysctl.h>
 #include <sys/systm.h>
 
@@ -42,6 +44,7 @@ __FBSDID("$FreeBSD$");
 
 #include <security/mac/mac_framework.h>
 #include <security/mac/mac_internal.h>
+#include <security/mac/mac_policy.h>
 
 /*
  * zone_label is the UMA zone from which most labels are allocated.  Label
@@ -124,4 +127,25 @@ mac_labelzone_free(struct label *label)
 {
 
 	uma_zfree(zone_label, label);
+}
+
+/*
+ * Functions used by policy modules to get and set label values.
+ */
+intptr_t
+mac_label_get(struct label *l, int slot)
+{
+
+	KASSERT(l != NULL, ("mac_label_get: NULL label"));
+
+	return (l->l_perpolicy[slot]);
+}
+
+void
+mac_label_set(struct label *l, int slot, intptr_t v)
+{
+
+	KASSERT(l != NULL, ("mac_label_set: NULL label"));
+
+	l->l_perpolicy[slot] = v;
 }

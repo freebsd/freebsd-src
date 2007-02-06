@@ -50,8 +50,6 @@
 #error "no user-serviceable parts inside"
 #endif
 
-#include <sys/_label.h>
-
 struct bpf_d;
 struct cdev;
 struct componentname;
@@ -62,6 +60,7 @@ struct image_params;
 struct inpcb;
 struct ipq;
 struct ksem;
+struct label;
 struct m_tag;
 struct mac;
 struct mbuf;
