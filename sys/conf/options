@@ -74,7 +74,6 @@ DIRECTIO
 FULL_PREEMPTION	opt_sched.h
 IPI_PREEMPTION	opt_sched.h
 GEOM_AES	opt_geom.h
-GEOM_APPLE	opt_geom.h
 GEOM_BDE	opt_geom.h
 GEOM_BSD	opt_geom.h
 GEOM_CACHE	opt_geom.h
@@ -82,12 +81,13 @@ GEOM_CONCAT	opt_geom.h
 GEOM_ELI	opt_geom.h
 GEOM_FOX	opt_geom.h
 GEOM_GATE	opt_geom.h
-GEOM_GPT	opt_geom.h
 GEOM_JOURNAL	opt_geom.h
 GEOM_LABEL	opt_geom.h
 GEOM_MBR	opt_geom.h
 GEOM_MIRROR	opt_geom.h
 GEOM_NOP	opt_geom.h
+GEOM_PART_APM	opt_geom.h
+GEOM_PART_GPT	opt_geom.h
 GEOM_PC98	opt_geom.h
 GEOM_RAID3	opt_geom.h
 GEOM_SHSEC	opt_geom.h

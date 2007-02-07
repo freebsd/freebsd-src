@@ -32,7 +32,6 @@ dev/syscons/scgfbrndr.c		optional	sc
 dev/syscons/scterm-sc.c		optional	sc
 dev/syscons/scvtb.c		optional	sc
 dev/uart/uart_cpu_powerpc.c	optional	uart
-geom/geom_apple.c		standard
 kern/syscalls.c			optional	ktr
 powerpc/powerpc/atomic.S	standard
 powerpc/powerpc/autoconf.c	standard

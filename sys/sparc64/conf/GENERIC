@@ -47,7 +47,7 @@ options 	NFS_ROOT		# NFS usable as /, requires NFSCLIENT
 options 	CD9660			# ISO 9660 Filesystem
 options 	PROCFS			# Process filesystem (requires PSEUDOFS)
 options 	PSEUDOFS		# Pseudo-filesystem framework
-options 	GEOM_GPT		# GUID Partition Tables.
+options 	GEOM_PART_GPT		# GUID Partition Tables.
 options 	COMPAT_43TTY		# BSD 4.3 TTY compat [KEEP THIS!]
 options 	COMPAT_FREEBSD5		# Compatible with FreeBSD5
 options 	COMPAT_FREEBSD6		# Compatible with FreeBSD6
