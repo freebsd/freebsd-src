@@ -366,7 +366,6 @@ static struct witness_order_list_entry order_lists[] = {
 	 */
 	{ "system map", &lock_class_mtx_sleep },
 	{ "vm page queue mutex", &lock_class_mtx_sleep },
-	{ "vm page queue free mutex", &lock_class_mtx_sleep },
 	{ "vnode interlock", &lock_class_mtx_sleep },
 	{ "cdev", &lock_class_mtx_sleep },
 	{ NULL, NULL },
