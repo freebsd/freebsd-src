@@ -1178,7 +1178,6 @@ geom/eli/g_eli_privacy.c	optional geom_eli
 geom/eli/pkcs5v2.c		optional geom_eli
 geom/gate/g_gate.c		optional geom_gate
 geom/geom_aes.c			optional geom_aes
-geom/geom_apple.c		optional geom_apple
 geom/geom_bsd.c			optional geom_bsd
 geom/geom_bsd_enc.c		optional geom_bsd
 geom/geom_ccd.c			optional ccd | geom_ccd
@@ -1188,7 +1187,6 @@ geom/geom_disk.c		standard
 geom/geom_dump.c		standard
 geom/geom_event.c		standard
 geom/geom_fox.c			optional geom_fox
-geom/geom_gpt.c			optional geom_gpt
 geom/geom_io.c			standard
 geom/geom_kern.c		standard
 geom/geom_mbr.c			optional geom_mbr
@@ -1213,6 +1211,10 @@ geom/label/g_label_ufs.c	optional geom_label
 geom/mirror/g_mirror.c		optional geom_mirror
 geom/mirror/g_mirror_ctl.c	optional geom_mirror
 geom/nop/g_nop.c		optional geom_nop
+geom/part/g_part.c		standard
+geom/part/g_part_if.m		standard
+geom/part/g_part_apm.c		optional geom_part_apm
+geom/part/g_part_gpt.c		optional geom_part_gpt
 geom/raid3/g_raid3.c		optional geom_raid3
 geom/raid3/g_raid3_ctl.c	optional geom_raid3
 geom/shsec/g_shsec.c		optional geom_shsec

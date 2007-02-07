@@ -15,8 +15,8 @@ device		mem		# Memory and kernel memory devices
 device		uart_ns8250
 
 options 	GEOM_BSD
-options 	GEOM_GPT
 options 	GEOM_MBR
+options 	GEOM_PART_GPT
 
 # KSE support went from being default to a kernel option
 options 	KSE
