@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: validator.h,v 1.18.12.11 2006/01/06 00:01:42 marka Exp $ */
+/* $Id: validator.h,v 1.18.12.11.6.1 2007/01/11 04:51:39 marka Exp $ */
 
 #ifndef DNS_VALIDATOR_H
 #define DNS_VALIDATOR_H 1
@@ -144,6 +144,7 @@ struct dns_validator {
  * dns_validator_create() options.
  */
 #define DNS_VALIDATOR_DLV 1U
+#define DNS_VALIDATOR_DEFER 2U
 
 ISC_LANG_BEGINDECLS
 
@@ -189,6 +190,15 @@ dns_validator_create(dns_view_t *view, dns_name_t *name, dns_rdatatype_t type,
  * If DNS_VALIDATOR_DLV is set the caller knows there is not a
  * trusted key and the validator should immediately attempt to validate
  * the answer by looking for a appopriate DLV RRset.
+ */
+
+void
+dns_validator_send(dns_validator_t *validator);
+/*%<
+ * Send a deferred validation request
+ *
+ * Requires:
+ *	'validator' to points to a valid DNSSEC validator.
  */
 
 void

@@ -1,7 +1,7 @@
 <!DOCTYPE article PUBLIC "-//OASIS//DTD DocBook XML V4.2//EN"
        "http://www.oasis-open.org/docbook/xml/4.2/docbookx.dtd" []>
 <!--
- - Copyright (C) 2004-2006  Internet Systems Consortium, Inc. ("ISC")
+ - Copyright (C) 2004-2007  Internet Systems Consortium, Inc. ("ISC")
  - Copyright (C) 2000-2003  Internet Software Consortium.
  -
  - Permission to use, copy, modify, and distribute this software for any
@@ -17,10 +17,26 @@
  - PERFORMANCE OF THIS SOFTWARE.
 -->
 
-<!-- $Id: FAQ.xml,v 1.4.6.5 2006/02/27 21:11:40 marka Exp $ -->
+<!-- $Id: FAQ.xml,v 1.4.6.5.6.1 2007/01/12 02:28:00 marka Exp $ -->
 
 <article class="faq">
   <title>Frequently Asked Questions about BIND 9</title>
+  <articleinfo>
+    <copyright>
+      <year>2004</year>
+      <year>2005</year>
+      <year>2006</year>
+      <year>2007</year>
+      <holder>Internet Systems Consortium, Inc. ("ISC")</holder>
+    </copyright>
+    <copyright>
+      <year>2000</year>
+      <year>2001</year>
+      <year>2002</year>
+      <year>2003</year>
+      <holder>Internet Software Consortium.</holder>
+    </copyright>
+  </articleinfo>
   <qandaset defaultlabel='qanda'>
     <qandaentry>
       <question>
@@ -1190,6 +1206,69 @@ named_cache_t: for files modifiable by named - $ROOTDIR/var/{tmp,named/{slaves,d
 	<para>
 	  See these man-pages for more information : selinux(8),
 	  named_selinux(8), chcon(1), setsebool(8)
+	</para>
+      </answer>
+    </qandaentry>
+    <qandaentry>
+      <question>
+	<para>
+	  I want to forward all DNS queries from my caching nameserver to
+	  another server. But there are some domains which have to be
+	  served locally, via rbldnsd.
+	</para>
+	<para>
+	  How do I achieve this ?
+	</para>
+      </question>
+      <answer>
+        <programlisting>
+options {
+	forward only;
+	forwarders { &lt;ip.of.primary.nameserver&gt;; };
+};
+
+zone "sbl-xbl.spamhaus.org" {
+	type forward; forward only;
+	forwarders { &lt;ip.of.rbldns.server&gt; port 530; };
+};
+
+zone "list.dsbl.org" {
+	type forward; forward only;
+	forwarders { &lt;ip.of.rbldns.server&gt; port 530; };
+};
+        </programlisting>
+      </answer>
+    </qandaentry>
+    <qandaentry>
+      <question>
+	<para>
+	  Will named be affected by the 2007 changes to daylight savings
+	  rules in the US.
+	</para>
+      </question>
+      <answer>
+	<para>
+	  No, so long as the machines internal clock (as reported
+	  by "date -u") remains at UTC.  The only visible change
+	  if you fail to upgrade your OS, if you are in a affected
+	  area, will be that log messages will be a hour out during
+	  the period where the old rules do not match the new rules.
+	</para>
+	<para>
+	  For most OS's this change just means that you need to
+	  update the conversion rules from UTC to local time.
+	  Normally this involves updating a file in /etc (which
+	  sets the default timezone for the machine) and possibly
+	  a directory which has all the conversion rules for the
+	  world (e.g. /usr/share/zoneinfo).  When updating the OS
+	  do not forget to update any chroot areas as well.
+	  See your OS's documetation for more details.
+	</para>
+	<para>
+	  The local timezone conversion rules can also be done on
+	  a individual basis by setting the TZ envirionment variable
+	  appropriately.  See your OS's documentation for more
+	  details.
 	</para>
       </answer>
     </qandaentry>
