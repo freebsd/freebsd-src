@@ -1479,13 +1479,13 @@ vm_pageout()
 	 * The pageout daemon is never done, so loop forever.
 	 */
 	while (TRUE) {
-		vm_page_lock_queues();
 		/*
 		 * If we have enough free memory, wakeup waiters.  Do
 		 * not clear vm_pages_needed until we reach our target,
 		 * otherwise we may be woken up over and over again and
 		 * waste a lot of cpu.
 		 */
+		mtx_lock(&vm_page_queue_free_mtx);
 		if (vm_pages_needed && !vm_page_count_min()) {
 			if (!vm_paging_needed())
 				vm_pages_needed = 0;
@@ -1499,8 +1499,9 @@ vm_pageout()
 			 */
 			++pass;
 			if (pass > 1)
-				msleep(&vm_pages_needed, &vm_page_queue_mtx, PVM,
-				       "psleep", hz/2);
+				msleep(&vm_pages_needed,
+				    &vm_page_queue_free_mtx, PVM, "psleep",
+				    hz / 2);
 		} else {
 			/*
 			 * Good enough, sleep & handle stats.  Prime the pass
@@ -1510,10 +1511,13 @@ vm_pageout()
 				pass = 1;
 			else
 				pass = 0;
-			error = msleep(&vm_pages_needed, &vm_page_queue_mtx, PVM,
-				    "psleep", vm_pageout_stats_interval * hz);
+			error = msleep(&vm_pages_needed,
+			    &vm_page_queue_free_mtx, PVM, "psleep",
+			    vm_pageout_stats_interval * hz);
 			if (error && !vm_pages_needed) {
+				mtx_unlock(&vm_page_queue_free_mtx);
 				pass = 0;
+				vm_page_lock_queues();
 				vm_pageout_page_stats();
 				vm_page_unlock_queues();
 				continue;
@@ -1521,16 +1525,16 @@ vm_pageout()
 		}
 		if (vm_pages_needed)
 			cnt.v_pdwakeups++;
-		vm_page_unlock_queues();
+		mtx_unlock(&vm_page_queue_free_mtx);
 		vm_pageout_scan(pass);
 	}
 }
 
 /*
- * Unless the page queue lock is held by the caller, this function
+ * Unless the free page queue lock is held by the caller, this function
  * should be regarded as advisory.  Specifically, the caller should
  * not msleep() on &cnt.v_free_count following this function unless
- * the page queue lock is held until the msleep() is performed.
+ * the free page queue lock is held until the msleep() is performed.
  */
 void
 pagedaemon_wakeup()

@@ -984,17 +984,17 @@ void
 vm_wait(void)
 {
 
-	vm_page_lock_queues();
+	mtx_lock(&vm_page_queue_free_mtx);
 	if (curproc == pageproc) {
 		vm_pageout_pages_needed = 1;
-		msleep(&vm_pageout_pages_needed, &vm_page_queue_mtx,
+		msleep(&vm_pageout_pages_needed, &vm_page_queue_free_mtx,
 		    PDROP | PSWP, "VMWait", 0);
 	} else {
 		if (!vm_pages_needed) {
 			vm_pages_needed = 1;
 			wakeup(&vm_pages_needed);
 		}
-		msleep(&cnt.v_free_count, &vm_page_queue_mtx, PDROP | PVM,
+		msleep(&cnt.v_free_count, &vm_page_queue_free_mtx, PDROP | PVM,
 		    "vmwait", 0);
 	}
 }
@@ -1013,12 +1013,12 @@ void
 vm_waitpfault(void)
 {
 
-	vm_page_lock_queues();
+	mtx_lock(&vm_page_queue_free_mtx);
 	if (!vm_pages_needed) {
 		vm_pages_needed = 1;
 		wakeup(&vm_pages_needed);
 	}
-	msleep(&cnt.v_free_count, &vm_page_queue_mtx, PDROP | PUSER,
+	msleep(&cnt.v_free_count, &vm_page_queue_free_mtx, PDROP | PUSER,
 	    "pfault", 0);
 }
 
@@ -1066,7 +1066,7 @@ static inline void
 vm_page_free_wakeup(void)
 {
 
-	mtx_assert(&vm_page_queue_mtx, MA_OWNED);
+	mtx_assert(&vm_page_queue_free_mtx, MA_OWNED);
 	/*
 	 * if pageout daemon needs pages, then tell it that there are
 	 * some free.
@@ -1165,8 +1165,8 @@ vm_page_free_toq(vm_page_t m)
 	} else {
 		TAILQ_INSERT_HEAD(&pq->pl, m, pageq);
 	}
-	mtx_unlock(&vm_page_queue_free_mtx);
 	vm_page_free_wakeup();
+	mtx_unlock(&vm_page_queue_free_mtx);
 }
 
 /*
@@ -1404,7 +1404,9 @@ vm_page_cache(vm_page_t m)
 	}
 	vm_pageq_remove_nowakeup(m);
 	vm_pageq_enqueue(PQ_CACHE + m->pc, m);
+	mtx_lock(&vm_page_queue_free_mtx);
 	vm_page_free_wakeup();
+	mtx_unlock(&vm_page_queue_free_mtx);
 }
 
 /*
