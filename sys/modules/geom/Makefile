@@ -1,7 +1,6 @@
 # $FreeBSD$
 
-SUBDIR=	geom_apple \
-	geom_bde \
+SUBDIR=	geom_bde \
 	geom_bsd \
 	geom_cache \
 	geom_ccd \
@@ -9,7 +8,6 @@ SUBDIR=	geom_apple \
 	geom_eli \
 	geom_fox \
 	geom_gate \
-	geom_gpt \
 	geom_journal \
 	geom_label \
 	geom_mbr \
