@@ -102,8 +102,8 @@ struct vifctl {
 	struct	in_addr vifc_rmt_addr;	/* remote address (tunnels only) */
 };
 
-#define	VIFF_TUNNEL	0x1		/* vif represents a tunnel end-point */
-#define VIFF_SRCRT	0x2		/* tunnel uses IP source routing */
+#define	VIFF_TUNNEL	0x1		/* no-op; retained for old source */
+#define VIFF_SRCRT	0x2		/* no-op; retained for old source */
 #define VIFF_REGISTER	0x4		/* used for PIM Register encap/decap */
 
 /*

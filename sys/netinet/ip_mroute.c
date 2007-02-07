@@ -181,33 +181,7 @@ static struct callout expire_upcalls_ch;
 static struct tbf tbftable[MAXVIFS];
 #define		TBF_REPROCESS	(hz / 100)	/* 100x / second */
 
-/*
- * 'Interfaces' associated with decapsulator (so we can tell
- * packets that went through it from ones that get reflected
- * by a broken gateway).  These interfaces are never linked into
- * the system ifnet list & no routes point to them.  I.e., packets
- * can't be sent this way.  They only exist as a placeholder for
- * multicast source verification.
- */
-static struct ifnet multicast_decap_if[MAXVIFS];
-
 #define ENCAP_TTL 64
-#define ENCAP_PROTO IPPROTO_IPIP	/* 4 */
-
-/* prototype IP hdr for encapsulated packets */
-static struct ip multicast_encap_iphdr = {
-#if BYTE_ORDER == LITTLE_ENDIAN
-	sizeof(struct ip) >> 2, IPVERSION,
-#else
-	IPVERSION, sizeof(struct ip) >> 2,
-#endif
-	0,				/* tos */
-	sizeof(struct ip),		/* total length */
-	0,				/* id */
-	0,				/* frag offset */
-	ENCAP_TTL, ENCAP_PROTO,
-	0,				/* checksum */
-};
 
 /*
  * Bandwidth meter variables and constants
@@ -287,14 +261,6 @@ static vifi_t reg_vif_num = VIFI_INVALID;
  * Private variables.
  */
 static vifi_t	   numvifs;
-static const struct encaptab *encap_cookie;
-
-/*
- * one-back cache used by mroute_encapcheck to locate a tunnel's vif
- * given a datagram's src ip address.
- */
-static u_long last_encap_src;
-static struct vif *last_encap_vif;
 
 /*
  * Callout for queue processing.
@@ -325,7 +291,6 @@ static int set_assert(int);
 static void expire_upcalls(void *);
 static int ip_mdq(struct mbuf *, struct ifnet *, struct mfc *, vifi_t);
 static void phyint_send(struct ip *, struct vif *, struct mbuf *);
-static void encap_send(struct ip *, struct vif *, struct mbuf *);
 static void tbf_control(struct vif *, struct mbuf *, struct ip *, u_long);
 static void tbf_queue(struct vif *, struct mbuf *);
 static void tbf_process_q(struct vif *);
@@ -792,14 +757,6 @@ X_ip_mrouter_done(void)
     ip_mrouter = NULL;
     mrt_api_config = 0;
 
-    VIF_LOCK();
-    if (encap_cookie) {
-	const struct encaptab *c = encap_cookie;
-	encap_cookie = NULL;
-	encap_detach(c);
-    }
-    VIF_UNLOCK();
-
     callout_stop(&tbf_reprocess_ch);
 
     VIF_LOCK();
@@ -856,11 +813,6 @@ X_ip_mrouter_done(void)
     bzero(bw_meter_timers, sizeof(bw_meter_timers));
     MFC_UNLOCK();
 
-    /*
-     * Reset de-encapsulation cache
-     */
-    last_encap_src = INADDR_ANY;
-    last_encap_vif = NULL;
 #ifdef PIM
     reg_vif_num = VIFI_INVALID;
 #endif
@@ -924,90 +876,6 @@ set_api_config(uint32_t *apival)
 }
 
 /*
- * Decide if a packet is from a tunnelled peer.
- * Return 0 if not, 64 if so.  XXX yuck.. 64 ???
- */
-static int
-mroute_encapcheck(const struct mbuf *m, int off, int proto, void *arg)
-{
-    struct ip *ip = mtod(m, struct ip *);
-    int hlen = ip->ip_hl << 2;
-
-    /*
-     * don't claim the packet if it's not to a multicast destination or if
-     * we don't have an encapsulating tunnel with the source.
-     * Note:  This code assumes that the remote site IP address
-     * uniquely identifies the tunnel (i.e., that this site has
-     * at most one tunnel with the remote site).
-     */
-    if (!IN_MULTICAST(ntohl(((struct ip *)((char *)ip+hlen))->ip_dst.s_addr)))
-	return 0;
-    if (ip->ip_src.s_addr != last_encap_src) {
-	struct vif *vifp = viftable;
-	struct vif *vife = vifp + numvifs;
-
-	last_encap_src = ip->ip_src.s_addr;
-	last_encap_vif = NULL;
-	for ( ; vifp < vife; ++vifp)
-	    if (vifp->v_rmt_addr.s_addr == ip->ip_src.s_addr) {
-		if ((vifp->v_flags & (VIFF_TUNNEL|VIFF_SRCRT)) == VIFF_TUNNEL)
-		    last_encap_vif = vifp;
-		break;
-	    }
-    }
-    if (last_encap_vif == NULL) {
-	last_encap_src = INADDR_ANY;
-	return 0;
-    }
-    return 64;
-}
-
-/*
- * De-encapsulate a packet and feed it back through ip input (this
- * routine is called whenever IP gets a packet that mroute_encap_func()
- * claimed).
- */
-static void
-mroute_encap_input(struct mbuf *m, int off)
-{
-    struct ip *ip = mtod(m, struct ip *);
-    int hlen = ip->ip_hl << 2;
-
-    if (hlen > sizeof(struct ip))
-	ip_stripoptions(m, (struct mbuf *) 0);
-    m->m_data += sizeof(struct ip);
-    m->m_len -= sizeof(struct ip);
-    m->m_pkthdr.len -= sizeof(struct ip);
-
-    m->m_pkthdr.rcvif = last_encap_vif->v_ifp;
-
-    netisr_queue(NETISR_IP, m);		/* mbuf is free'd on failure. */
-    /*
-     * normally we would need a "schednetisr(NETISR_IP)"
-     * here but we were called by ip_input and it is going
-     * to loop back & try to dequeue the packet we just
-     * queued as soon as we return so we avoid the
-     * unnecessary software interrrupt.
-     *
-     * XXX
-     * This no longer holds - we may have direct-dispatched the packet,
-     * or there may be a queue processing limit.
-     */
-}
-
-extern struct domain inetdomain;
-static struct protosw mroute_encap_protosw =
-{
-	.pr_type =		SOCK_RAW,
-	.pr_domain =		&inetdomain,
-	.pr_protocol =		IPPROTO_IPV4,
-	.pr_flags =		PR_ATOMIC|PR_ADDR,
-	.pr_input =		mroute_encap_input,
-	.pr_ctloutput =		rip_ctloutput,
-	.pr_usrreqs =		&rip_usrreqs
-};
-
-/*
  * Add a vif to the vif table
  */
 static int
@@ -1055,42 +923,10 @@ add_vif(struct vifctl *vifcp)
 	ifp = ifa->ifa_ifp;
     }
 
-    if (vifcp->vifc_flags & VIFF_TUNNEL) {
-	if ((vifcp->vifc_flags & VIFF_SRCRT) == 0) {
-	    /*
-	     * An encapsulating tunnel is wanted.  Tell
-	     * mroute_encap_input() to start paying attention
-	     * to encapsulated packets.
-	     */
-	    if (encap_cookie == NULL) {
-		int i;
-
-		encap_cookie = encap_attach_func(AF_INET, IPPROTO_IPV4,
-				mroute_encapcheck,
-				(struct protosw *)&mroute_encap_protosw, NULL);
-
-		if (encap_cookie == NULL) {
-		    printf("ip_mroute: unable to attach encap\n");
-		    VIF_UNLOCK();
-		    return EIO;	/* XXX */
-		}
-		for (i = 0; i < MAXVIFS; ++i) {
-		    if_initname(&multicast_decap_if[i], "mdecap", i);
-		}
-	    }
-	    /*
-	     * Set interface to fake encapsulator interface
-	     */
-	    ifp = &multicast_decap_if[vifcp->vifc_vifi];
-	    /*
-	     * Prepare cached route entry
-	     */
-	    bzero(&vifp->v_route, sizeof(vifp->v_route));
-	} else {
-	    log(LOG_ERR, "source routed tunnels not supported\n");
-	    VIF_UNLOCK();
-	    return EOPNOTSUPP;
-	}
+    if ((vifcp->vifc_flags & VIFF_TUNNEL) != 0) {
+	log(LOG_ERR, "tunnels are no longer supported\n");
+	VIF_UNLOCK();
+	return EOPNOTSUPP;
 #ifdef PIM
     } else if (vifcp->vifc_flags & VIFF_REGISTER) {
 	ifp = &multicast_register_if;
@@ -1178,11 +1014,6 @@ del_vif_locked(vifi_t vifi)
 
     if (!(vifp->v_flags & (VIFF_TUNNEL | VIFF_REGISTER)))
 	if_allmulti(vifp->v_ifp, 0);
-
-    if (vifp == last_encap_vif) {
-	last_encap_vif = NULL;
-	last_encap_src = INADDR_ANY;
-    }
 
     /*
      * Free packets queued at the interface
@@ -1781,9 +1612,7 @@ ip_mdq(struct mbuf *m, struct ifnet *ifp, struct mfc *rt, vifi_t xmt_vif)
  * separate.
  */
 #define MC_SEND(ip,vifp,m) {				\
-		if ((vifp)->v_flags & VIFF_TUNNEL)	\
-		    encap_send((ip), (vifp), (m));	\
-		else					\
+		if (((vifp)->v_flags & VIFF_TUNNEL) == 0)	\
 		    phyint_send((ip), (vifp), (m));	\
 }
 
@@ -1968,75 +1797,6 @@ phyint_send(struct ip *ip, struct vif *vifp, struct mbuf *m)
 	tbf_control(vifp, mb_copy, mtod(mb_copy, struct ip *), ip->ip_len);
 }
 
-static void
-encap_send(struct ip *ip, struct vif *vifp, struct mbuf *m)
-{
-    struct mbuf *mb_copy;
-    struct ip *ip_copy;
-    int i, len = ip->ip_len;
-
-    VIF_LOCK_ASSERT();
-
-    /* Take care of delayed checksums */
-    if (m->m_pkthdr.csum_flags & CSUM_DELAY_DATA) {
-	in_delayed_cksum(m);
-	m->m_pkthdr.csum_flags &= ~CSUM_DELAY_DATA;
-    }
-
-    /*
-     * copy the old packet & pullup its IP header into the
-     * new mbuf so we can modify it.  Try to fill the new
-     * mbuf since if we don't the ethernet driver will.
-     */
-    MGETHDR(mb_copy, M_DONTWAIT, MT_DATA);
-    if (mb_copy == NULL)
-	return;
-#ifdef MAC
-    mac_create_mbuf_multicast_encap(m, vifp->v_ifp, mb_copy);
-#endif
-    mb_copy->m_data += max_linkhdr;
-    mb_copy->m_len = sizeof(multicast_encap_iphdr);
-
-    if ((mb_copy->m_next = m_copypacket(m, M_DONTWAIT)) == NULL) {
-	m_freem(mb_copy);
-	return;
-    }
-    i = MHLEN - M_LEADINGSPACE(mb_copy);
-    if (i > len)
-	i = len;
-    mb_copy = m_pullup(mb_copy, i);
-    if (mb_copy == NULL)
-	return;
-    mb_copy->m_pkthdr.len = len + sizeof(multicast_encap_iphdr);
-
-    /*
-     * fill in the encapsulating IP header.
-     */
-    ip_copy = mtod(mb_copy, struct ip *);
-    *ip_copy = multicast_encap_iphdr;
-    ip_copy->ip_id = ip_newid();
-    ip_copy->ip_len += len;
-    ip_copy->ip_src = vifp->v_lcl_addr;
-    ip_copy->ip_dst = vifp->v_rmt_addr;
-
-    /*
-     * turn the encapsulated IP header back into a valid one.
-     */
-    ip = (struct ip *)((caddr_t)ip_copy + sizeof(multicast_encap_iphdr));
-    --ip->ip_ttl;
-    ip->ip_len = htons(ip->ip_len);
-    ip->ip_off = htons(ip->ip_off);
-    ip->ip_sum = 0;
-    mb_copy->m_data += sizeof(multicast_encap_iphdr);
-    ip->ip_sum = in_cksum(mb_copy, ip->ip_hl << 2);
-    mb_copy->m_data -= sizeof(multicast_encap_iphdr);
-
-    if (vifp->v_rate_limit == 0)
-	tbf_send_packet(vifp, mb_copy);
-    else
-	tbf_control(vifp, mb_copy, ip, ip_copy->ip_len);
-}
-
 /*
  * Token bucket filter module
  */
@@ -2196,9 +1956,7 @@ tbf_send_packet(struct vif *vifp, struct mbuf *m)
 {
     VIF_LOCK_ASSERT();
 
-    if (vifp->v_flags & VIFF_TUNNEL)	/* If tunnel options */
-	ip_output(m, NULL, &vifp->v_route, IP_FORWARDING, NULL, NULL);
-    else {
+    if ((vifp->v_flags & VIFF_TUNNEL) == 0) {
 	struct ip_moptions imo;
 	struct in_multi *imm[2];
 	int error;
