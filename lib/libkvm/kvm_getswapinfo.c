@@ -33,6 +33,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/blist.h>
 #include <sys/sysctl.h>
 
+#include <vm/swap_pager.h>
 #include <vm/vm_param.h>
 
 #include <err.h>
@@ -49,18 +50,34 @@ __FBSDID("$FreeBSD$");
 
 #include "kvm_private.h"
 
-#define NL_SWAPBLIST	0
-#define NL_SWDEVT	1
-#define NL_NSWDEV	2
-#define NL_DMMAX	3
+static struct nlist kvm_swap_nl[] = {
+	{ "_swtailq" },		/* list of swap devices and sizes */
+	{ "_dmmax" },		/* maximum size of a swap block */
+	{ NULL }
+};
+
+#define NL_SWTAILQ	0
+#define NL_DMMAX	1
 
 static int kvm_swap_nl_cached = 0;
 static int unswdev;  /* number of found swap dev's */
 static int dmmax;
 
+static int  kvm_getswapinfo_kvm(kvm_t *, struct kvm_swap *, int, int);
 static int  kvm_getswapinfo_sysctl(kvm_t *, struct kvm_swap *, int, int);
+static int  nlist_init(kvm_t *);
 static int  getsysctl(kvm_t *, char *, void *, size_t);
 
+#define KREAD(kd, addr, obj) \
+	(kvm_read(kd, addr, (char *)(obj), sizeof(*obj)) != sizeof(*obj))
+#define	KGET(idx, var)							\
+	KGET2(kvm_swap_nl[(idx)].n_value, var, kvm_swap_nl[(idx)].n_name)
+#define KGET2(addr, var, msg)						\
+	if (KREAD(kd, (u_long)(addr), (var))) {				\
+		_kvm_err(kd, kd->program, "cannot read %s", msg);	\
+		return (-1);						\
+	}
+	
 #define GETSWDEVNAME(dev, str, flags)					\
 	if (dev == NODEV) {						\
 		strlcpy(str, "[NFS swap]", sizeof(str));		\
@@ -91,8 +108,50 @@ kvm_getswapinfo(
 	if (ISALIVE(kd)) {
 		return kvm_getswapinfo_sysctl(kd, swap_ary, swap_max, flags);
 	} else {
-		return -1;
+		return kvm_getswapinfo_kvm(kd, swap_ary, swap_max, flags);
 	}
+}
+
+int
+kvm_getswapinfo_kvm(
+	kvm_t *kd,
+	struct kvm_swap *swap_ary,
+	int swap_max,
+	int flags
+) {
+	int i, ttl;
+	TAILQ_HEAD(, swdevt) swtailq;
+	struct swdevt *sp, swinfo;
+	struct kvm_swap tot;
+
+	if (!nlist_init(kd))
+		return (-1);
+
+	bzero(&tot, sizeof(tot));
+	KGET(NL_SWTAILQ, &swtailq);
+	sp = TAILQ_FIRST(&swtailq);
+	for (i = 0; sp != NULL; i++) {
+		KGET2(sp, &swinfo, "swinfo");
+		ttl = swinfo.sw_nblks - dmmax;
+		if (i < swap_max - 1) {
+			bzero(&swap_ary[i], sizeof(swap_ary[i]));
+			swap_ary[i].ksw_total = ttl;
+			swap_ary[i].ksw_used = swinfo.sw_used;
+			swap_ary[i].ksw_flags = swinfo.sw_flags;
+			GETSWDEVNAME(swinfo.sw_dev, swap_ary[i].ksw_devname,
+			     flags);
+		}
+		tot.ksw_total += ttl;
+		tot.ksw_used += swinfo.sw_used;
+		sp = TAILQ_NEXT(&swinfo, sw_list);
+	}
+
+	if (i >= swap_max)
+		i = swap_max - 1;
+	if (i >= 0)
+		swap_ary[i] = tot;
+
+        return(i);
 }
 
 #define	GETSYSCTL(kd, name, var)					\
@@ -165,6 +224,36 @@ kvm_getswapinfo_sysctl(
 		swap_ary[ti] = tot;
 
         return(ti);
+}
+
+static int
+nlist_init(kvm_t *kd)
+{
+	TAILQ_HEAD(, swdevt) swtailq;
+	struct swdevt *sp, swinfo;
+
+	if (kvm_swap_nl_cached)
+		return (1);
+
+	if (kvm_nlist(kd, kvm_swap_nl) < 0)
+		return (0);
+
+	/* Required entries */
+	if (kvm_swap_nl[NL_SWTAILQ].n_value == 0) {
+		_kvm_err(kd, kd->program, "unable to find swtailq");
+		return (0);
+	}
+		
+	if (kvm_swap_nl[NL_DMMAX].n_value == 0) {
+		_kvm_err(kd, kd->program, "unable to find dmmax");
+		return (0);
+	}
+
+	/* Get globals, type of swap */
+	KGET(NL_DMMAX, &dmmax);
+
+	kvm_swap_nl_cached = 1;
+	return (1);
 }
 
 static int
