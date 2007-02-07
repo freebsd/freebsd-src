@@ -453,7 +453,7 @@ vendor BROADCOM		0x0a5c	Broadcom
 vendor GREENHOUSE	0x0a6b	GREENHOUSE
 vendor GEOCAST		0x0a79	Geocast
 vendor NEODIO		0x0aec	Neodio
-vendor VODAFONE		0x0af0	Vodafone
+vendor OPTION		0x0af0	Option
 vendor ASUS		0x0b05	ASUS
 vendor TODOS		0x0b0c	Todos Data System
 vendor SIIG2		0x0b39	SIIG
@@ -510,6 +510,7 @@ vendor AINCOMM		0x12fd	Aincomm
 vendor MOBILITY		0x1342	Mobility
 vendor LINKSYS4		0x13b1	Linksys
 vendor SHARK		0x13d2	Shark
+vendor NOVATEL		0x1410	Novatel Wireless
 vendor RADIOSHACK	0x1453	Radio Shack
 vendor SILICOM		0x1485	Silicom
 vendor RALINK		0x148f	Ralink Technology
@@ -1340,6 +1341,9 @@ product NIKON LS40		0x4000	CoolScan LS40 ED
 /* NovaTech Products */
 product NOVATECH NV902		0x9020  NovaTech NV-902W
 
+/* Novatel Wireless products */
+product NOVATEL U740		0x1400	Merlin U740
+
 /* Olympus products */
 product OLYMPUS C1		0x0102	C-1 Digital Camera
 product OLYMPUS C700		0x0105	C-700 Ultra Zoom
@@ -1674,8 +1678,10 @@ product VISIONEER 6200		0x0311	OneTouch 6200
 product VISIONEER 8100		0x0321	OneTouch 8100
 product VISIONEER 8600		0x0331	OneTouch 8600
 
-/* Vodafone products */
-product VODAFONE MC3G		0x5000	Mobile Connect 3G datacard
+/* Option products */
+product OPTION VODAFONEMC3G	0x5000	Vodafone Mobile Connect 3G datacard
+product	OPTION GT3G		0x6000	GlobeTrotter 3G datacard
+product OPTION GT3GQUAD		0x6300	GlobeTrotter 3G QUAD datacard
 
 /* VTech products */
 product VTECH RT2570		0x3012	RT2570

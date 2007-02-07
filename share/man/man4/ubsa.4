@@ -35,7 +35,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd November 22, 2006
+.Dd February 4, 2007
 .Dt UBSA 4
 .Os
 .Sh NAME
@@ -83,8 +83,20 @@ GoHubs GoCOM232
 .It
 Peracom single port serial adapter
 .It
-Vodafone Mobile Connect 3G datacard
+Novatel Wireless Merlin U740 (only basic modem port supported)
+.It
+Option Globetrotter 3G (aka Vodafone Mobile Connect Card 3G)
+.It
+Option Globetrotter 3G Quad
+.It
+Option Globetrotter 3G Fusion (no WLAN support, only basic 3G modem port)
+.It
+Option Globetrotter 3G Fusion Quad (no WLAN support)
 .El
+.Pp
+The supported 3G cards provide the necessary modem port for ppp,
+pppd, or mpd connections; other functions of these cards (diagnostic port,
+SIM toolkit port, WLAN) are not supported.
 .Sh SEE ALSO
 .Xr tty 4 ,
 .Xr ucom 4 ,
