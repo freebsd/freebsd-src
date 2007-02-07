@@ -21,6 +21,15 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 7.x IS SLOW:
 	developers choose to disable these features on build machines
 	to maximize performance.
 
+20070207:
+	Support for IPIP tunnels (VIFF_TUNNEL) in IPv4 multicast routing
+	has been removed. Its functionality may be achieved by explicitly
+	configuring gif(4) interfaces and using the 'phyint' keyword in
+	mrouted.conf.
+	XORP does not support source-routed IPv4 multicast tunnels nor the
+	integrated IPIP tunneling, therefore it is not affected by this
+	change. The __FreeBSD_version macro has been bumped to 700030.
+
 20061221:
 	Support for PCI Message Signalled Interrupts has been
 	re-enabled in the bge driver, only for those chips which are
