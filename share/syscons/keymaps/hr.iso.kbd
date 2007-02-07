@@ -56,8 +56,8 @@
   048   'b'    'B'    stx    stx    '{'    '{'    stx    stx     C
   049   'n'    'N'    so     so     '}'    '}'    so     so      C
   050   'm'    'M'    cr     cr     167    167    cr     cr      C
-  051   ','    ';'    nop    nop    ','    ';'    nop    nop     O
-  052   '.'    ':'    nop    nop    '.'    ':'    nop    nop     O
+  051   ','    ';'    nop    nop    '<'    ';'    '<'    nop     O
+  052   '.'    ':'    nop    nop    '>'    ':'    '>'    nop     O
   053   '-'    '_'    nop    nop    '-'    '_'    nop    nop     O
   054   rshift rshift rshift rshift rshift rshift rshift rshift  O
   055   '*'    '*'    '*'    '*'    '*'    '*'    '*'    '*'     O
