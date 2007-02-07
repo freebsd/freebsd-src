@@ -1606,15 +1606,6 @@ ip_mdq(struct mbuf *m, struct ifnet *ifp, struct mfc *rt, vifi_t xmt_vif)
     int plen = ip->ip_len;
 
     VIF_LOCK_ASSERT();
-/*
- * Macro to send packet on vif.  Since RSVP packets don't get counted on
- * input, they shouldn't get counted on output, so statistics keeping is
- * separate.
- */
-#define MC_SEND(ip,vifp,m) {				\
-		if (((vifp)->v_flags & VIFF_TUNNEL) == 0)	\
-		    phyint_send((ip), (vifp), (m));	\
-}
 
     /*
      * If xmt_vif is not -1, send on only the requested vif.
@@ -1627,7 +1618,7 @@ ip_mdq(struct mbuf *m, struct ifnet *ifp, struct mfc *rt, vifi_t xmt_vif)
 	    pim_register_send(ip, viftable + xmt_vif, m, rt);
 	else
 #endif
-	MC_SEND(ip, viftable + xmt_vif, m);
+	phyint_send(ip, viftable + xmt_vif, m);
 	return 1;
     }
 
@@ -1730,7 +1721,7 @@ ip_mdq(struct mbuf *m, struct ifnet *ifp, struct mfc *rt, vifi_t xmt_vif)
 		pim_register_send(ip, viftable + vifi, m, rt);
 	    else
 #endif
-	    MC_SEND(ip, viftable+vifi, m);
+	    phyint_send(ip, viftable + vifi, m);
 	}
 
     /*
