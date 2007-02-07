@@ -138,37 +138,6 @@ __FBSDID("$FreeBSD$");
 #define SWAP_META_PAGES		(SWB_NPAGES * 2)
 #define SWAP_META_MASK		(SWAP_META_PAGES - 1)
 
-typedef	int32_t	swblk_t;	/*
-				 * swap offset.  This is the type used to
-				 * address the "virtual swap device" and
-				 * therefore the maximum swap space is
-				 * 2^32 pages.
-				 */
-
-struct swdevt;
-typedef void sw_strategy_t(struct buf *bp, struct swdevt *sw);
-typedef void sw_close_t(struct thread *td, struct swdevt *sw);
-
-/*
- * Swap device table
- */
-struct swdevt {
-	int	sw_flags;
-	int	sw_nblks;
-	int     sw_used;
-	dev_t	sw_dev;
-	struct vnode *sw_vp;
-	void	*sw_id;
-	swblk_t	sw_first;
-	swblk_t	sw_end;
-	struct blist *sw_blist;
-	TAILQ_ENTRY(swdevt)	sw_list;
-	sw_strategy_t		*sw_strategy;
-	sw_close_t		*sw_close;
-};
-
-#define	SW_CLOSING	0x04
-
 struct swblock {
 	struct swblock	*swb_hnext;
 	vm_object_t	swb_object;
