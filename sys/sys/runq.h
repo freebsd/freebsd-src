@@ -63,12 +63,12 @@ struct runq {
 };
 
 void	runq_add(struct runq *, struct td_sched *, int);
-void	runq_add_pri(struct runq *, struct td_sched *, int, int);
+void	runq_add_pri(struct runq *, struct td_sched *, u_char, int);
 int	runq_check(struct runq *);
 struct	td_sched *runq_choose(struct runq *);
-struct	td_sched *runq_choose_from(struct runq *, int);
+struct	td_sched *runq_choose_from(struct runq *, u_char);
 void	runq_init(struct runq *);
 void	runq_remove(struct runq *, struct td_sched *);
-void	runq_remove_idx(struct runq *, struct td_sched *, int *);
+void	runq_remove_idx(struct runq *, struct td_sched *, u_char *);
 
 #endif
