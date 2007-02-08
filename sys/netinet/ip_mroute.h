@@ -253,8 +253,8 @@ struct sioc_vif_req {
 struct vif {
     u_char		v_flags;	/* VIFF_ flags defined above         */
     u_char		v_threshold;	/* min ttl required to forward on vif*/
-    u_int		v_rate_limit;	/* max rate			     */
-    struct tbf	       *v_tbf;		/* token bucket structure at intf.   */
+    u_int		v_rate_limit;	/* ignored; kept for compatibility */
+    struct tbf         *v_tbf;		/* ignored; kept for compatibility */
     struct in_addr	v_lcl_addr;	/* local interface address           */
     struct in_addr	v_rmt_addr;	/* remote address (tunnels only)     */
     struct ifnet       *v_ifp;		/* pointer to interface              */
@@ -325,25 +325,6 @@ struct rtdetq {
 #endif
 
 #define MAX_UPQ	4		/* max. no of pkts in upcall Q */
-
-/*
- * Token Bucket filter code
- */
-#define MAX_BKT_SIZE    10000             /* 10K bytes size		*/
-#define MAXQSIZE        10                /* max # of pkts in queue	*/
-
-/*
- * the token bucket filter at each vif
- */
-struct tbf
-{
-    struct timeval tbf_last_pkt_t; /* arr. time of last pkt	*/
-    u_long tbf_n_tok;		/* no of tokens in bucket	*/
-    u_long tbf_q_len;		/* length of queue at this vif	*/
-    u_long tbf_max_q_len;	/* max. queue length		*/
-    struct mbuf *tbf_q;		/* Packet queue			*/
-    struct mbuf *tbf_t;		/* tail-insertion pointer	*/
-};
 
 /*
  * Structure for measuring the bandwidth and sending an upcall if the
