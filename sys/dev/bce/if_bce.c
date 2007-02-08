@@ -131,8 +131,8 @@ static struct bce_type bce_devs[] = {
 		"Broadcom NetXtreme II BCM5708 1000Base-T" },
 
 	/* BCM5708S controllers and OEM boards. */
-	{ BRCM_VENDORID, BRCM_DEVICEID_BCM5708,  PCI_ANY_ID,  PCI_ANY_ID,
-		"Broadcom NetXtreme II BCM5708 1000Base-T" },
+	{ BRCM_VENDORID, BRCM_DEVICEID_BCM5708S,  PCI_ANY_ID,  PCI_ANY_ID,
+		"Broadcom NetXtreme II BCM5708S 1000Base-T" },
 	{ 0, 0, 0, 0, NULL }
 };
 
@@ -3831,8 +3831,8 @@ bce_ifmedia_upd(struct ifnet *ifp)
 	sc->bce_link = 0;
 	if (mii->mii_instance) {
 		struct mii_softc *miisc;
-		for (miisc = LIST_FIRST(&mii->mii_phys); miisc != NULL;
-		    miisc = LIST_NEXT(miisc, mii_list))
+
+		LIST_FOREACH(miisc, &mii->mii_phys, mii_list)
 			mii_phy_reset(miisc);
 	}
 	mii_mediachg(mii);
@@ -4518,7 +4518,7 @@ bce_tx_encap(struct bce_softc *sc, struct mbuf **m_head)
             
 		/* Try to defrag the mbuf if there are too many segments. */
 	        DBPRINT(sc, BCE_WARN, "%s(): fragmented mbuf (%d pieces)\n",
-                    __FUNCTION__, map_arg.maxsegs);
+                    __FUNCTION__, nsegs);
 
                 m0 = m_defrag(*m_head, M_DONTWAIT);
                 if (m0 == NULL) {
@@ -4571,7 +4571,7 @@ bce_tx_encap(struct bce_softc *sc, struct mbuf **m_head)
 	DBPRINT(sc, BCE_INFO_SEND,
 		"%s(): Start: prod = 0x%04X, chain_prod = %04X, "
 		"prod_bseq = 0x%08X\n",
-		__FUNCTION__, *prod, chain_prod, prod_bseq);
+		__FUNCTION__, prod, chain_prod, prod_bseq);
 
 	/*
 	 * Cycle through each mbuf segment that makes up
@@ -4598,7 +4598,7 @@ bce_tx_encap(struct bce_softc *sc, struct mbuf **m_head)
 	/* Set the END flag on the last TX buffer descriptor. */
 	txbd->tx_bd_flags |= htole16(TX_BD_FLAGS_END);
 
-	DBRUN(BCE_INFO_SEND, bce_dump_tx_chain(sc, debug_prod, nseg));
+	DBRUN(BCE_INFO_SEND, bce_dump_tx_chain(sc, debug_prod, nsegs));
 
 	DBPRINT(sc, BCE_INFO_SEND,
 		"%s(): End: prod = 0x%04X, chain_prod = %04X, "
@@ -4858,6 +4858,13 @@ bce_watchdog(struct ifnet *ifp)
 		bce_dump_driver_state(sc);
 		bce_dump_status_block(sc));
 
+	/*
+	 * If we are in this routine because of pause frames, then
+	 * don't reset the hardware.
+	 */
+	if (REG_RD(sc, BCE_EMAC_TX_STATUS) & BCE_EMAC_TX_STATUS_XOFFED)	
+		return;
+
 	BCE_PRINTF(sc, "%s(%d): Watchdog timeout occurred, resetting!\n", 
 		__FILE__, __LINE__);
 
@@ -5080,7 +5087,7 @@ bce_set_rx_mode(struct bce_softc *sc)
 {
 	struct ifnet *ifp;
 	struct ifmultiaddr *ifma;
-	u32 hashes[4] = { 0, 0, 0, 0 };
+	u32 hashes[NUM_MC_HASH_REGISTERS] = { 0, 0, 0, 0, 0, 0, 0, 0 };
 	u32 rx_mode, sort_mode;
 	int h, i;
 
@@ -5124,11 +5131,11 @@ bce_set_rx_mode(struct bce_softc *sc)
 			if (ifma->ifma_addr->sa_family != AF_LINK)
 				continue;
 			h = ether_crc32_le(LLADDR((struct sockaddr_dl *)
-		    	ifma->ifma_addr), ETHER_ADDR_LEN) & 0x7F;
-			hashes[(h & 0x60) >> 5] |= 1 << (h & 0x1F);
+			    ifma->ifma_addr), ETHER_ADDR_LEN) & 0xFF;
+			    hashes[(h & 0xE0) >> 5] |= 1 << (h & 0x1F);
 		}
 
-		for (i = 0; i < 4; i++)
+		for (i = 0; i < NUM_MC_HASH_REGISTERS; i++)
 			REG_WR(sc, BCE_EMAC_MULTICAST_HASH0 + (i * 4), hashes[i]);
 
 		sort_mode |= BCE_RPM_SORT_USER0_MC_HSH_EN;
