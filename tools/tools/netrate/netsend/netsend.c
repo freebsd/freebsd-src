@@ -268,7 +268,7 @@ main(int argc, char *argv[])
 		interval.tv_sec = 0;
 		interval.tv_nsec = ((1 * 1000000000) / rate);
 	}
-	printf("Sending packet of payload size %ld every %jd.%09ld for %ld "
+	printf("Sending packet of payload size %ld every %jd.%09lds for %ld "
 	    "seconds\n", payloadsize, (intmax_t)interval.tv_sec,
 	    interval.tv_nsec, duration);
 
