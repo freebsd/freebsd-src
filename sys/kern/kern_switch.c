@@ -306,7 +306,7 @@ runq_findbit(struct runq *rq)
 }
 
 static __inline int
-runq_findbit_from(struct runq *rq, int start)
+runq_findbit_from(struct runq *rq, u_char start)
 {
 	struct rqbits *rqb;
 	int bit;
@@ -388,7 +388,7 @@ runq_add(struct runq *rq, struct td_sched *ts, int flags)
 }
 
 void
-runq_add_pri(struct runq *rq, struct td_sched *ts, int pri, int flags)
+runq_add_pri(struct runq *rq, struct td_sched *ts, u_char pri, int flags)
 {
 	struct rqhead *rqh;
 
@@ -478,7 +478,7 @@ runq_choose(struct runq *rq)
 }
 
 struct td_sched *
-runq_choose_from(struct runq *rq, int idx)
+runq_choose_from(struct runq *rq, u_char idx)
 {
 	struct rqhead *rqh;
 	struct td_sched *ts;
@@ -511,10 +511,10 @@ runq_remove(struct runq *rq, struct td_sched *ts)
 }
 
 void
-runq_remove_idx(struct runq *rq, struct td_sched *ts, int *idx)
+runq_remove_idx(struct runq *rq, struct td_sched *ts, u_char *idx)
 {
 	struct rqhead *rqh;
-	int pri;
+	u_char pri;
 
 	KASSERT(ts->ts_thread->td_proc->p_sflag & PS_INMEM,
 		("runq_remove_idx: process swapped out"));

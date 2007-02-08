@@ -178,10 +178,10 @@ struct tdq {
 	struct runq	tdq_idle;		/* Queue of IDLE threads. */
 	struct runq	tdq_timeshare;		/* timeshare run queue. */
 	struct runq	tdq_realtime;		/* real-time run queue. */
-	int		tdq_idx;		/* Current insert index. */
-	int		tdq_ridx;		/* Current removal index. */
+	u_char		tdq_idx;		/* Current insert index. */
+	u_char		tdq_ridx;		/* Current removal index. */
+	short		tdq_flags;		/* Thread queue flags */
 	int		tdq_load;		/* Aggregate load. */
-	int		tdq_flags;		/* Thread queue flags */
 #ifdef SMP
 	int		tdq_transferable;
 	LIST_ENTRY(tdq)	tdq_siblings;		/* Next in tdq group. */
@@ -368,7 +368,7 @@ tdq_runq_add(struct tdq *tdq, struct td_sched *ts, int flags)
 	}
 #endif
 	if (ts->ts_runq == &tdq->tdq_timeshare) {
-		int pri;
+		u_char pri;
 
 		pri = ts->ts_thread->td_priority;
 		KASSERT(pri <= PRI_MAX_TIMESHARE && pri >= PRI_MIN_TIMESHARE,
