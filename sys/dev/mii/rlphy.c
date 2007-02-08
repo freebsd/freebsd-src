@@ -57,6 +57,11 @@ __FBSDID("$FreeBSD$");
 
 #include "miibus_if.h"
 
+struct rlphy_softc {
+	struct mii_softc sc_mii;	/* generic PHY */
+	int sc_is_RTL8201L;		/* is an external RTL8201L PHY */
+};
+
 static int rlphy_probe(device_t);
 static int rlphy_attach(device_t);
 
@@ -74,7 +79,7 @@ static devclass_t rlphy_devclass;
 static driver_t rlphy_driver = {
 	"rlphy",
 	rlphy_methods,
-	sizeof(struct mii_softc)
+	sizeof(struct rlphy_softc)
 };
 
 DRIVER_MODULE(rlphy, miibus, rlphy_driver, rlphy_devclass, 0, 0);
@@ -118,12 +123,21 @@ rlphy_attach(device_t dev)
 	struct mii_softc	*sc;
 	struct mii_attach_args	*ma;
 	struct mii_data		*mii;
+	struct rlphy_softc 	*rsc;
 
 	sc = device_get_softc(dev);
 	ma = device_get_ivars(dev);
 	sc->mii_dev = device_get_parent(dev);
 	mii = device_get_softc(sc->mii_dev);
 
+        /*
+         * Check whether we're the RTL8201L PHY and remember so the status
+         * routine can query the proper register for speed detection.
+         */
+	rsc = (struct rlphy_softc *)sc;
+	if (mii_phy_dev_probe(dev, rlphys, BUS_PROBE_DEFAULT) == 0)
+		rsc->sc_is_RTL8201L++;
+	
 	/*
 	 * The RealTek PHY can never be isolated, so never allow non-zero
 	 * instances!
@@ -210,6 +224,7 @@ rlphy_service(struct mii_softc *sc, struct mii_data *mii, int cmd)
 static void
 rlphy_status(struct mii_softc *phy)
 {
+	struct rlphy_softc *rsc =(struct rlphy_softc *)phy;
 	struct mii_data *mii = phy->mii_pdata;
 	struct ifmedia_entry *ife = mii->mii_media.ifm_cur;
 	int bmsr, bmcr, anlpar;
@@ -286,7 +301,7 @@ rlphy_status(struct mii_softc *phy)
 		 *   can test the 'SPEED10' bit of the MAC's media status
 		 *   register.
 		 */
-		if (strcmp(mii->mii_ifp->if_dname, "rl") != 0) {
+		if (rsc->sc_is_RTL8201L) {
 			if (PHY_READ(phy, 0x0019) & 0x01)
 				mii->mii_media_active |= IFM_100_TX;
 			else
