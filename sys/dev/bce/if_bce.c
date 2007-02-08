@@ -116,8 +116,8 @@ static struct bce_type bce_devs[] = {
 		"Broadcom NetXtreme II BCM5708 1000Base-T" },
 
 	/* BCM5708S controllers and OEM boards. */
-	{ BRCM_VENDORID, BRCM_DEVICEID_BCM5708,  PCI_ANY_ID,  PCI_ANY_ID,
-		"Broadcom NetXtreme II BCM5708 1000Base-T" },
+	{ BRCM_VENDORID, BRCM_DEVICEID_BCM5708S,  PCI_ANY_ID,  PCI_ANY_ID,
+		"Broadcom NetXtreme II BCM5708S 1000Base-T" },
 	{ 0, 0, 0, 0, NULL }
 };
 
