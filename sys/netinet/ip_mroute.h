@@ -262,7 +262,7 @@ struct vif {
     u_long		v_pkt_out;	/* # pkts out on interface           */
     u_long		v_bytes_in;	/* # bytes in on interface	     */
     u_long		v_bytes_out;	/* # bytes out on interface	     */
-    struct route	v_route;	/* cached route if this is a tunnel */
+    struct route	v_route;	/* cached route */
     u_int		v_rsvp_on;	/* RSVP listening on this vif */
     struct socket      *v_rsvpd;	/* RSVP daemon socket */
 };
