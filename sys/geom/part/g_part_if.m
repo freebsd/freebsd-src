@@ -32,6 +32,7 @@
 #include <sys/sbuf.h>
 #include <sys/bus.h>
 #include <machine/bus.h>
+#include <sys/systm.h>
 #include <geom/geom.h>
 #include <geom/part/g_part.h>
 
