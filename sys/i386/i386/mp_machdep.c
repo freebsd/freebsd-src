@@ -674,6 +674,8 @@ set_interrupt_apic_ids(void)
 			continue;
 		if (cpu_info[apic_id].cpu_bsp)
 			continue;
+		if (cpu_info[apic_id].cpu_disabled)
+			continue;
 
 		/* Don't let hyperthreads service interrupts. */
 		if (hyperthreading_cpus > 1 &&
