@@ -118,9 +118,7 @@ static vfs_vptofh_t	msdosfs_vptofh;
 #define	MAXCSLEN	64
 
 static int
-update_mp(mp, td)
-	struct mount *mp;
-	struct thread *td;
+update_mp(struct mount *mp, struct thread *td)
 {
 	struct msdosfsmount *pmp = VFSTOMSDOSFS(mp);
 	void *dos, *win, *local;
@@ -392,10 +390,7 @@ msdosfs_mount(struct mount *mp, struct thread *td)
 }
 
 static int
-mountmsdosfs(devvp, mp, td)
-	struct vnode *devvp;
-	struct mount *mp;
-	struct thread *td;
+mountmsdosfs(struct vnode *devvp, struct mount *mp, struct thread *td)
 {
 	struct msdosfsmount *pmp;
 	struct buf *bp;
@@ -752,10 +747,7 @@ error_exit:
  * Unmount the filesystem described by mp.
  */
 static int
-msdosfs_unmount(mp, mntflags, td)
-	struct mount *mp;
-	int mntflags;
-	struct thread *td;
+msdosfs_unmount(struct mount *mp, int mntflags, struct thread *td)
 {
 	struct msdosfsmount *pmp;
 	int error, flags;
@@ -820,11 +812,7 @@ msdosfs_unmount(mp, mntflags, td)
 }
 
 static int
-msdosfs_root(mp, flags, vpp, td)
-	struct mount *mp;
-	int flags;
-	struct vnode **vpp;
-	struct thread *td;
+msdosfs_root(struct mount *mp, int flags, struct vnode **vpp, struct thread *td)
 {
 	struct msdosfsmount *pmp = VFSTOMSDOSFS(mp);
 	struct denode *ndep;
@@ -841,10 +829,7 @@ msdosfs_root(mp, flags, vpp, td)
 }
 
 static int
-msdosfs_statfs(mp, sbp, td)
-	struct mount *mp;
-	struct statfs *sbp;
-	struct thread *td;
+msdosfs_statfs(struct mount *mp, struct statfs *sbp, struct thread *td)
 {
 	struct msdosfsmount *pmp;
 
@@ -860,10 +845,7 @@ msdosfs_statfs(mp, sbp, td)
 }
 
 static int
-msdosfs_sync(mp, waitfor, td)
-	struct mount *mp;
-	int waitfor;
-	struct thread *td;
+msdosfs_sync(struct mount *mp, int waitfor, struct thread *td)
 {
 	struct vnode *vp, *nvp;
 	struct denode *dep;
@@ -932,10 +914,7 @@ loop:
 }
 
 static int
-msdosfs_fhtovp(mp, fhp, vpp)
-	struct mount *mp;
-	struct fid *fhp;
-	struct vnode **vpp;
+msdosfs_fhtovp(struct mount *mp, struct fid *fhp, struct vnode **vpp)
 {
 	struct msdosfsmount *pmp = VFSTOMSDOSFS(mp);
 	struct defid *defhp = (struct defid *) fhp;
@@ -953,9 +932,7 @@ msdosfs_fhtovp(mp, fhp, vpp)
 }
 
 static int
-msdosfs_vptofh(vp, fhp)
-	struct vnode *vp;
-	struct fid *fhp;
+msdosfs_vptofh(struct vnode *vp, struct fid *fhp)
 {
 	struct denode *dep;
 	struct defid *defhp;
