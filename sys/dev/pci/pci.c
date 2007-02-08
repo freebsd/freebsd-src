@@ -244,6 +244,11 @@ SYSCTL_INT(_hw_pci, OID_AUTO, do_power_resume, CTLFLAG_RW,
     &pci_do_power_resume, 1,
   "Transition from D3 -> D0 on resume.");
 
+static int pci_do_vpd = 1;
+TUNABLE_INT("hw.pci.enable_vpd", &pci_do_vpd);
+SYSCTL_INT(_hw_pci, OID_AUTO, enable_vpd, CTLFLAG_RW, &pci_do_vpd, 1,
+    "Enable support for VPD.");
+
 static int pci_do_msi = 1;
 TUNABLE_INT("hw.pci.enable_msi", &pci_do_msi);
 SYSCTL_INT(_hw_pci, OID_AUTO, enable_msi, CTLFLAG_RW, &pci_do_msi, 1,
@@ -568,8 +573,10 @@ pci_read_extcap(device_t pcib, pcicfgregs *cfg)
 			cfg->msix.msix_pba_offset = val & ~PCIM_MSIX_BIR_MASK;
 			break;
 		case PCIY_VPD:		/* PCI Vital Product Data */
-			cfg->vpd.vpd_reg = ptr;
-			pci_read_vpd(pcib, cfg);
+			if (pci_do_vpd) {
+				cfg->vpd.vpd_reg = ptr;
+				pci_read_vpd(pcib, cfg);
+			}
 			break;
 		case PCIY_SUBVENDOR:
 			/* Should always be true. */
