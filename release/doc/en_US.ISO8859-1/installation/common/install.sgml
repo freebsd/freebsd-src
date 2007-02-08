@@ -941,7 +941,7 @@ pqb0.0.1.4.0               PQB0                       PCI EIDE</screen>
 	  partitions exactly like you would mount any other DOS drive,
 	  e.g.:</para>
 
-	  <screen>&prompt.root; <userinput>mount -t msdos /dev/da0s5 /dos_d</userinput></screen>
+	  <screen>&prompt.root; <userinput>mount -t msdosfs /dev/da0s5 /dos_d</userinput></screen>
 	</answer>
       </qandaentry>
 

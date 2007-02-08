@@ -802,7 +802,7 @@ pqb0.0.1.4.0               PQB0                       PCI EIDE</screen>
 	  SCSI 驱动器 0 上。 对于 IDE 驱动器， 相应地用 <literal>ad</literal> 换掉
 	  <literal>da</literal>。 您可以按下面的方法来挂接其它 DOS 驱动器：</para>
 
-	  <screen>&prompt.root; <userinput>mount -t msdos /dev/da0s5 /dos_d</userinput></screen>
+	  <screen>&prompt.root; <userinput>mount -t msdosfs /dev/da0s5 /dos_d</userinput></screen>
 	</answer>
       </qandaentry>
 
