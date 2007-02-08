@@ -146,7 +146,7 @@ static int ate_activate(device_t dev);
 static void ate_deactivate(device_t dev);
 static int ate_ifmedia_upd(struct ifnet *ifp);
 static void ate_ifmedia_sts(struct ifnet *ifp, struct ifmediareq *ifmr);
-static void ate_get_mac(struct ate_softc *sc, u_char *eaddr);
+static int ate_get_mac(struct ate_softc *sc, u_char *eaddr);
 static void ate_set_mac(struct ate_softc *sc, u_char *eaddr);
 
 /*
@@ -179,7 +179,6 @@ ate_attach(device_t dev)
 
 	sc->use_rmii = (RD4(sc, ETH_CFG) & ETH_CFG_RMII) == ETH_CFG_RMII;
 
-
 	/*Sysctls*/
 	sctx = device_get_sysctl_ctx(dev);
 	soid = device_get_sysctl_tree(dev);
@@ -191,7 +190,10 @@ ate_attach(device_t dev)
 	ATE_LOCK_INIT(sc);
 	callout_init_mtx(&sc->tick_ch, &sc->sc_mtx, 0);
 
-	ate_get_mac(sc, eaddr);
+	if ((err = ate_get_mac(sc, eaddr)) != 0) {
+		device_printf(dev, "No MAC address set");
+		goto out;
+	}
 	ate_set_mac(sc, eaddr);
 
 	sc->ifp = ifp = if_alloc(IFT_ETHER);
@@ -582,24 +584,27 @@ ate_set_mac(struct ate_softc *sc, u_char *eaddr)
 
 }
 
-static void
+static int
 ate_get_mac(struct ate_softc *sc, u_char *eaddr)
 {
-    uint32_t low, high;
+	uint32_t low, high;
 
-    /*
-     * The boot loader setup the MAC with an address, if one is set in
-     * the loader.  The TSC loader will also set the MAC address in a
-     * similar way.  Grab the MAC address from the SA1[HL] registers.
-     */
-    low = RD4(sc, ETH_SA1L);
-    high =  RD4(sc, ETH_SA1H);
-    eaddr[0] = (high >> 8) & 0xff;
-    eaddr[1] = high & 0xff;
-    eaddr[2] = (low >> 24) & 0xff;
-    eaddr[3] = (low >> 16) & 0xff;
-    eaddr[4] = (low >> 8) & 0xff;
-    eaddr[5] = low & 0xff;
+	/*
+	 * The boot loader setup the MAC with an address, if one is set in
+	 * the loader.  The TSC loader will also set the MAC address in a
+	 * similar way.  Grab the MAC address from the SA1[HL] registers.
+	 */
+	low = RD4(sc, ETH_SA1L);
+	high =  RD4(sc, ETH_SA1H);
+	if ((low | (high & 0xffff)) == 0)
+		return (ENXIO);
+	eaddr[0] = (high >> 8) & 0xff;
+	eaddr[1] = high & 0xff;
+	eaddr[2] = (low >> 24) & 0xff;
+	eaddr[3] = (low >> 16) & 0xff;
+	eaddr[4] = (low >> 8) & 0xff;
+	eaddr[5] = low & 0xff;
+	return (0);
 }
 
 static void
