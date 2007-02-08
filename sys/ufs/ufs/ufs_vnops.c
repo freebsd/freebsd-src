@@ -133,19 +133,15 @@ ufs_itimes(vp)
 {
 	struct inode *ip;
 	struct timespec ts;
-	int mnt_locked;
 
 	ip = VTOI(vp);
-	mnt_locked = 0;
-	if ((vp->v_mount->mnt_flag & MNT_RDONLY) != 0) {
-		VI_LOCK(vp);
-		goto out;
-	}
-	MNT_ILOCK(vp->v_mount);		/* For reading of mnt_kern_flags. */
-	mnt_locked = 1;
 	VI_LOCK(vp);
-	if ((ip->i_flag & (IN_ACCESS | IN_CHANGE | IN_UPDATE)) == 0)
-		goto out_unl;
+	if ((vp->v_mount->mnt_flag & MNT_RDONLY) != 0)
+		goto out;
+	if ((ip->i_flag & (IN_ACCESS | IN_CHANGE | IN_UPDATE)) == 0) {
+		VI_UNLOCK(vp);
+		return;
+	}
 
 	if ((vp->v_type == VBLK || vp->v_type == VCHR) && !DOINGSOFTDEP(vp))
 		ip->i_flag |= IN_LAZYMOD;
@@ -172,10 +168,7 @@ ufs_itimes(vp)
 
  out:
 	ip->i_flag &= ~(IN_ACCESS | IN_CHANGE | IN_UPDATE);
- out_unl:
 	VI_UNLOCK(vp);
-	if (mnt_locked)
-		MNT_IUNLOCK(vp->v_mount);
 }
 
 /*
