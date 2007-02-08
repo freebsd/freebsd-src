@@ -203,8 +203,8 @@ tar_mode_c(struct bsdtar *bsdtar)
 }
 
 /*
- * Same as 'c', except we only support tar formats in uncompressed
- * files on disk.
+ * Same as 'c', except we only support tar or empty formats in
+ * uncompressed files on disk.
  */
 void
 tar_mode_r(struct bsdtar *bsdtar)
@@ -213,13 +213,14 @@ tar_mode_r(struct bsdtar *bsdtar)
 	int	format;
 	struct archive *a;
 	struct archive_entry *entry;
+	int	r;
 
 	/* Sanity-test some arguments and the file. */
 	test_for_append(bsdtar);
 
 	format = ARCHIVE_FORMAT_TAR_PAX_RESTRICTED;
 
-	bsdtar->fd = open(bsdtar->filename, O_RDWR);
+	bsdtar->fd = open(bsdtar->filename, O_RDWR | O_CREAT, 0666);
 	if (bsdtar->fd < 0)
 		bsdtar_errc(bsdtar, 1, errno,
 		    "Cannot open %s", bsdtar->filename);
@@ -228,7 +229,11 @@ tar_mode_r(struct bsdtar *bsdtar)
 	archive_read_support_compression_all(a);
 	archive_read_support_format_tar(a);
 	archive_read_support_format_gnutar(a);
-	archive_read_open_fd(a, bsdtar->fd, 10240);
+	r = archive_read_open_fd(a, bsdtar->fd, 10240);
+	if (r != ARCHIVE_OK)
+		bsdtar_errc(bsdtar, 1, archive_errno(a),
+		    "Can't read archive %s: %s", bsdtar->filename,
+		    archive_error_string(a));
 	while (0 == archive_read_next_header(a, &entry)) {
 		if (archive_compression(a) != ARCHIVE_COMPRESSION_NONE) {
 			archive_read_finish(a);
@@ -247,13 +252,37 @@ tar_mode_r(struct bsdtar *bsdtar)
 	a = archive_write_new();
 	archive_write_set_compression_none(a);
 	/*
-	 * Set format to same one auto-detected above, except use
-	 * ustar for appending to GNU tar, since the library doesn't
-	 * write GNU tar format.
+	 * Set the format to be used for writing.  To allow people to
+	 * extend empty files, we need to allow them to specify the format,
+	 * which opens the possibility that they will specify a format that
+	 * doesn't match the existing format.  Hence, the following bit
+	 * of arcane ugliness.
 	 */
-	if (format == ARCHIVE_FORMAT_TAR_GNUTAR)
-		format = ARCHIVE_FORMAT_TAR_USTAR;
-	archive_write_set_format(a, format);
+
+	if (bsdtar->create_format != NULL) {
+		/* If the user requested a format, use that, but ... */
+		archive_write_set_format_by_name(a,
+		    bsdtar->create_format);
+		/* ... complain if it's not compatible. */
+		format &= ARCHIVE_FORMAT_BASE_MASK;
+		if (format != (int)(archive_format(a) & ARCHIVE_FORMAT_BASE_MASK)
+		    && format != ARCHIVE_FORMAT_EMPTY) {
+			bsdtar_errc(bsdtar, 1, 0,
+			    "Format %s is incompatible with the archive %s.",
+			    bsdtar->create_format, bsdtar->filename);
+		}
+	} else {
+		/*
+		 * Just preserve the current format, with a little care
+		 * for formats that libarchive can't write.
+		 */
+		if (format == ARCHIVE_FORMAT_TAR_GNUTAR)
+			/* TODO: When gtar supports pax, use pax restricted. */
+			format = ARCHIVE_FORMAT_TAR_USTAR;
+		if (format == ARCHIVE_FORMAT_EMPTY)
+			format = ARCHIVE_FORMAT_TAR_PAX_RESTRICTED;
+		archive_write_set_format(a, format);
+	}
 	lseek(bsdtar->fd, end_offset, SEEK_SET); /* XXX check return val XXX */
 	archive_write_open_fd(a, bsdtar->fd); /* XXX check return val XXX */
 
@@ -1433,8 +1462,7 @@ test_for_append(struct bsdtar *bsdtar)
 		    "Cannot append to %s with compression", bsdtar->filename);
 
 	if (stat(bsdtar->filename, &s) != 0)
-		bsdtar_errc(bsdtar, 1, errno,
-		    "Cannot stat %s", bsdtar->filename);
+		return;
 
 	if (!S_ISREG(s.st_mode))
 		bsdtar_errc(bsdtar, 1, 0,
