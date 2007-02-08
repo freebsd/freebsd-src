@@ -1749,7 +1749,6 @@ send_packet(struct vif *vifp, struct mbuf *m)
 	struct ip_moptions imo;
 	struct in_multi *imm[2];
 	int error;
-	static struct route ro; /* XXX */
 
 	VIF_LOCK_ASSERT();
 
@@ -1767,7 +1766,7 @@ send_packet(struct vif *vifp, struct mbuf *m)
 	 * should get rejected because they appear to come from
 	 * the loopback interface, thus preventing looping.
 	 */
-	error = ip_output(m, NULL, &ro, IP_FORWARDING, &imo, NULL);
+	error = ip_output(m, NULL, &vifp->v_route, IP_FORWARDING, &imo, NULL);
 	if (mrtdebug & DEBUG_XMIT) {
 	    log(LOG_DEBUG, "phyint_send on vif %td err %d\n",
 		vifp - viftable, error);
