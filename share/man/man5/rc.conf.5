@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd January 23, 2007
+.Dd February 9, 2007
 .Dt RC.CONF 5
 .Os
 .Sh NAME
@@ -1163,6 +1163,33 @@ Entries in
 are automatically appended to
 .Va network_interfaces
 for configuration.
+.It Va fec_interfaces
+.Pq Vt str
+Set to the list of
+.Xr ng_fec 4
+Fast EtherChannel interfaces to configure on this host.
+A
+.Va fecconfig_ Ns Aq Ar interface
+variable is assumed to exist for each value of
+.Ar interface .
+The value of this variable is used to configure link aggregated interfaces
+according to the syntax of the
+.Cm NGM_FEC_ADD_IFACE
+to
+.Xr ngctl 8 
+msg.
+Additionally, this option ensures that each listed interface is created
+via the
+.Cm mkpeer
+command to
+.Xr ngctl 8
+before attempting to configure it.
+For example:
+.Bd -literal
+fec_interfaces="fec0"
+fecconfig_fec0="em0 em1"
+ifconfig_fec0="DHCP"
+.Ed
 .It Va gif_interfaces
 .Pq Vt str
 Set to the list of
