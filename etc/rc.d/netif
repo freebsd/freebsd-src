@@ -57,6 +57,9 @@ network_start()
 		# Create cloned interfaces
 		clone_up
 
+		# Create Fast EtherChannel interfaces
+		fec_up
+
 		# Create IPv6<-->IPv4 tunnels
 		gif_up
 
