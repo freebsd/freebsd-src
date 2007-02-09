@@ -301,7 +301,7 @@ main(int argc, char *argv[])
 	openlog(__progname, LOG_PID | LOG_NDELAY, DHCPD_LOG_FACILITY);
 	setlogmask(LOG_UPTO(LOG_INFO));
 
-	while ((ch = getopt(argc, argv, "bc:dl:nqu")) != -1)
+	while ((ch = getopt(argc, argv, "bc:dl:qu")) != -1)
 		switch (ch) {
 		case 'b':
 			immediate_daemon = 1;
@@ -437,7 +437,7 @@ usage(void)
 {
 	extern char	*__progname;
 
-	fprintf(stderr, "usage: %s [-dqu] ", __progname);
+	fprintf(stderr, "usage: %s [-bdqu] ", __progname);
 	fprintf(stderr, "[-c conffile] [-l leasefile] interface\n");
 	exit(1);
 }
@@ -1480,7 +1480,6 @@ make_discover(struct interface_info *ip, struct client_lease *lease)
 		}
 	}
 
-#ifdef SEND_CLIENT_IDENTIFIER	
 	/* set unique client identifier */
 	char client_ident[sizeof(struct hardware)];
 	if (!options[DHO_DHCP_CLIENT_IDENTIFIER]) {
@@ -1494,7 +1493,6 @@ make_discover(struct interface_info *ip, struct client_lease *lease)
 		options[DHO_DHCP_CLIENT_IDENTIFIER]->buf_size = hwlen+1;
 		options[DHO_DHCP_CLIENT_IDENTIFIER]->timeout = 0xFFFFFFFF;
 	}
-#endif	
 
 	/* Set up the option buffer... */
 	ip->client->packet_length = cons_options(NULL, &ip->client->packet, 0,
@@ -1606,7 +1604,6 @@ make_request(struct interface_info *ip, struct client_lease * lease)
 		}
 	}
 
-#ifdef SEND_CLIENT_IDENTIFIER	
 	/* set unique client identifier */
 	char client_ident[sizeof(struct hardware)];
 	if (!options[DHO_DHCP_CLIENT_IDENTIFIER]) {
@@ -1620,7 +1617,6 @@ make_request(struct interface_info *ip, struct client_lease * lease)
 		options[DHO_DHCP_CLIENT_IDENTIFIER]->buf_size = hwlen+1;
 		options[DHO_DHCP_CLIENT_IDENTIFIER]->timeout = 0xFFFFFFFF;
 	}
-#endif	
 
 	/* Set up the option buffer... */
 	ip->client->packet_length = cons_options(NULL, &ip->client->packet, 0,
@@ -2322,7 +2318,6 @@ check_option(struct client_lease *l, int option)
 			    sbuf, opbuf);
 			l->options[option].len = 0;
 			free(l->options[option].data);
-			return (0);
 		}
 		return (1);
 	case DHO_DOMAIN_NAME:
