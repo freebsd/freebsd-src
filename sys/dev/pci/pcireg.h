@@ -506,8 +506,30 @@
 #define	PCIR_HTMSI_ADDRESS_LO	0x4
 #define	PCIR_HTMSI_ADDRESS_HI	0x8
 
+/* PCI Vendor capability definitions */
+#define	PCIR_VENDOR_LENGTH	0x2
+#define	PCIR_VENDOR_DATA	0x3
+
+/* PCI EHCI Debug Port definitions */
+#define	PCIR_DEBUG_PORT		0x2
+#define	PCIM_DEBUG_PORT_OFFSET		0x1FFF
+#define	PCIM_DEBUG_PORT_BAR		0xe000
+
 /* PCI-PCI Bridge Subvendor definitions */
 #define	PCIR_SUBVENDCAP_ID	0x4
+
+/* PCI Express definitions */
+#define	PCIR_EXPRESS_FLAGS	0x2
+#define	PCIM_EXP_FLAGS_VERSION		0x000F
+#define	PCIM_EXP_FLAGS_TYPE		0x00F0
+#define	PCIM_EXP_TYPE_ENDPOINT		0x0000
+#define	PCIM_EXP_TYPE_LEGACY_ENDPOINT	0x0010
+#define	PCIM_EXP_TYPE_ROOT_PORT		0x0040
+#define	PCIM_EXP_TYPE_UPSTREAM_PORT	0x0050
+#define	PCIM_EXP_TYPE_DOWNSTREAM_PORT	0x0060
+#define	PCIM_EXP_TYPE_PCI_BRIDGE	0x0070
+#define	PCIM_EXP_FLAGS_SLOT		0x0100
+#define	PCIM_EXP_FLAGS_IRQ		0x3e00
 
 /* MSI-X definitions */
 #define	PCIR_MSIX_CTRL		0x2
