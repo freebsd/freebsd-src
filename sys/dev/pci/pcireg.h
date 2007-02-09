@@ -266,6 +266,7 @@
 #define PCIS_BASEPERIPH_TIMER	0x02
 #define PCIS_BASEPERIPH_RTC	0x03
 #define PCIS_BASEPERIPH_PCIHOT	0x04
+#define PCIS_BASEPERIPH_SDHC	0x05
 #define PCIS_BASEPERIPH_OTHER	0x80
 
 #define PCIC_INPUTDEV	0x09
@@ -429,3 +430,40 @@
 #define PCIXM_STATUS_MAXSPLITS	0x0380	/* Maximum Split Transactions */
 #define PCIXM_STATUS_MAXCRDS	0x1C00	/* Maximum Cumulative Read Size */
 #define PCIXM_STATUS_RCVDSCEM	0x2000	/* Received a Split Comp w/Error msg */
+
+/* HT (HyperTransport) Capability definitions */
+#define	PCIR_HT_COMMAND		0x2
+#define	PCIM_HTCMD_CAP_MASK		0xf800	/* Capability type. */
+#define	PCIM_HTCAP_SLAVE		0x0000	/* 000xx */
+#define	PCIM_HTCAP_HOST			0x2000	/* 001xx */
+#define	PCIM_HTCAP_SWITCH		0x4000	/* 01000 */
+#define	PCIM_HTCAP_INTERRUPT		0x8000	/* 10000 */
+#define	PCIM_HTCAP_REVISION_ID		0x8800	/* 10001 */
+#define	PCIM_HTCAP_UNITID_CLUMPING	0x9000	/* 10010 */
+#define	PCIM_HTCAP_EXT_CONFIG_SPACE	0x9800	/* 10011 */
+#define	PCIM_HTCAP_ADDRESS_MAPPING	0xa000	/* 10100 */
+#define	PCIM_HTCAP_MSI_MAPPING		0xa800	/* 10101 */
+#define	PCIM_HTCAP_DIRECT_ROUTE		0xb000	/* 10110 */
+#define	PCIM_HTCAP_VCSET		0xb800	/* 10111 */
+#define	PCIM_HTCAP_RETRY_MODE		0xc000	/* 11000 */
+
+/* HT MSI Mapping Capability definitions. */
+#define	PCIM_HTCMD_MSI_ENABLE		0x0001
+#define	PCIR_HTMSI_ADDRESS_LO	0x4
+#define	PCIR_HTMSI_ADDRESS_HI	0x8
+
+/* MSI-X definitions */
+#define	PCIR_MSIX_CTRL		0x2
+#define	PCIM_MSIXCTRL_MSIX_ENABLE	0x8000
+#define	PCIM_MSIXCTRL_FUNCTION_MASK	0x4000
+#define	PCIM_MSIXCTRL_TABLE_SIZE	0x07FF
+#define	PCIR_MSIX_TABLE		0x4
+#define	PCIR_MSIX_PBA		0x8
+#define	PCIM_MSIX_BIR_MASK		0x7
+#define	PCIM_MSIX_BIR_BAR_10		0
+#define	PCIM_MSIX_BIR_BAR_14		1
+#define	PCIM_MSIX_BIR_BAR_18		2
+#define	PCIM_MSIX_BIR_BAR_1C		3
+#define	PCIM_MSIX_BIR_BAR_20		4
+#define	PCIM_MSIX_BIR_BAR_24		5
+#define	PCIM_MSIX_VCTRL_MASK		0x1
