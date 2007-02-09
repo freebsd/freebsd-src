@@ -33,9 +33,7 @@
 
 #include <sys/types.h>
 #include <sys/mac.h>
-#include <sys/types.h>
 #include <sys/queue.h>
-#include <sys/mac.h>
 #include <sys/stat.h>
 
 #include <ctype.h>
