@@ -175,7 +175,6 @@ nsmb_dev_close(struct cdev *dev, int flag, int fmt, struct thread *td)
 */
 	dev->si_drv1 = NULL;
 	free(sdp, M_NSMBDEV);
-	dev_relthread(dev);	/* XXX dealing with si_threadcount */
 	destroy_dev(dev);
 	splx(s);
 	return 0;
