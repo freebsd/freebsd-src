@@ -115,6 +115,7 @@ struct sockaddr	*get_ifa(char *, int);
 void		 routehandler(struct protocol *);
 void		 usage(void);
 int		 check_option(struct client_lease *l, int option);
+int		 check_classless_option(unsigned char *data, int len);
 int		 ipv4addrs(char * buf);
 int		 res_hnok(const char *dn);
 int		 check_search(const char *srch);
@@ -2374,10 +2375,77 @@ check_option(struct client_lease *l, int option)
 	case DHO_DHCP_USER_CLASS_ID:
 	case DHO_END:
 		return (1);
+	case DHO_CLASSLESS_ROUTES:
+		return (check_classless_option(l->options[option].data,
+		    l->options[option].len));
 	default:
 		warning("unknown dhcp option value 0x%x", option);
 		return (unknown_ok);
 	}
+}
+
+/* RFC 3442 The Classless Static Routes option checks */
+int
+check_classless_option(unsigned char *data, int len)
+{
+	int i = 0;
+	unsigned char width;
+	in_addr_t addr, mask;
+
+	if (len < 5) {
+		warning("Too small length: %d", len);
+		return (0);
+	}
+	while(i < len) {
+		width = data[i++];
+		if (width == 0) {
+			i += 4;
+			continue;
+		} else if (width < 9) {
+			addr =  (in_addr_t)(data[i] 	<< 24);
+			i += 1;
+		} else if (width < 17) {
+			addr =  (in_addr_t)(data[i] 	<< 24) +
+				(in_addr_t)(data[i + 1]	<< 16);
+			i += 2;
+		} else if (width < 25) {
+			addr =  (in_addr_t)(data[i] 	<< 24) +
+				(in_addr_t)(data[i + 1]	<< 16) +
+				(in_addr_t)(data[i + 2]	<< 8);
+			i += 3;
+		} else if (width < 33) {
+			addr =  (in_addr_t)(data[i] 	<< 24) +
+				(in_addr_t)(data[i + 1]	<< 16) +
+				(in_addr_t)(data[i + 2]	<< 8)  +
+				data[i + 3];
+			i += 4;
+		} else {
+			warning("Incorrect subnet width: %d", width);
+			return (0);
+		}
+		mask = (in_addr_t)(~0) << (32 - width);
+		addr = ntohl(addr);
+		mask = ntohl(mask);
+
+		/*
+		 * From RFC 3442:
+		 * ... After deriving a subnet number and subnet mask
+		 * from each destination descriptor, the DHCP client
+		 * MUST zero any bits in the subnet number where the
+		 * corresponding bit in the mask is zero...
+		 */
+		if ((addr & mask) != addr) {
+			addr &= mask;
+			data[i - 1] = (unsigned char)(
+				(addr >> (((32 - width)/8)*8)) & 0xFF);
+		} 
+		i += 4;
+	}
+	if (i > len) {
+		warning("Incorrect data length: %d (must be %d)", len, i);
+		return (0);
+	}
+	return (1);
 }
 
 int
