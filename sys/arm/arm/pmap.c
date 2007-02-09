@@ -2883,6 +2883,7 @@ pmap_remove_pages(pmap_t pmap, vm_offset_t sva, vm_offset_t eva)
 		npv = TAILQ_NEXT(pv, pv_plist);
 		pmap_nuke_pv(m, pmap, pv);
 		pmap_free_pv_entry(pv);
+		pmap_free_l2_bucket(pmap, l2b, 1);
 	}
 	vm_page_unlock_queues();
 	cpu_idcache_wbinv_all();
