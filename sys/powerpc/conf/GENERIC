@@ -46,6 +46,7 @@ options 	CD9660			#ISO 9660 Filesystem
 options 	PROCFS			#Process filesystem (requires PSEUDOFS)
 options 	PSEUDOFS		#Pseudo-filesystem framework
 options 	GEOM_PART_GPT		#GUID Partition Tables.
+options 	GEOM_LABEL		#Provides labelization
 options 	COMPAT_43TTY		#BSD 4.3 TTY compat [KEEP THIS!]
 options 	COMPAT_FREEBSD4		#Keep this for a while
 options 	COMPAT_FREEBSD5		#Compatible with FreeBSD5
