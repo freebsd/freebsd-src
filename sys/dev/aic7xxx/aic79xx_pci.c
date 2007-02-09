@@ -342,7 +342,12 @@ ahd_pci_config(struct ahd_softc *ahd, struct ahd_pci_identity *entry)
 	error = entry->setup(ahd);
 	if (error != 0)
 		return (error);
-	
+
+	/*
+	 * Find the PCI-X cap pointer.  If we don't find it,
+	 * pcix_ptr will be 0.
+	 */
+	pci_find_extcap(ahd->dev_softc, PCIY_PCIX, &ahd->pcix_ptr);
 	devconfig = aic_pci_read_config(ahd->dev_softc, DEVCONFIG, /*bytes*/4);
 	if ((devconfig & PCIXINITPAT) == PCIXINIT_PCI33_66) {
 		ahd->chip |= AHD_PCI;
@@ -350,6 +355,8 @@ ahd_pci_config(struct ahd_softc *ahd, struct ahd_pci_identity *entry)
 		ahd->bugs &= ~AHD_PCIX_BUG_MASK;
 	} else {
 		ahd->chip |= AHD_PCIX;
+		if (ahd->pcix_ptr == 0)
+			return (ENXIO);
 	}
 	ahd->bus_description = pci_bus_modes[PCI_BUS_MODES_INDEX(devconfig)];
 
@@ -867,16 +874,16 @@ ahd_pci_split_intr(struct ahd_softc *ahd, u_int intstat)
 	uint8_t		sg_split_status1[2];
 	ahd_mode_state	saved_modes;
 	u_int		i;
-	uint16_t	pcix_status;
+	uint32_t	pcix_status;
 
 	/*
 	 * Check for splits in all modes.  Modes 0 and 1
 	 * additionally have SG engine splits to look at.
 	 */
-	pcix_status = aic_pci_read_config(ahd->dev_softc, PCIXR_STATUS,
-					  /*bytes*/2);
+	pcix_status = aic_pci_read_config(ahd->dev_softc,
+	    ahd->pcix_ptr + PCIXR_STATUS, /*bytes*/ 4);
 	printf("%s: PCI Split Interrupt - PCI-X status = 0x%x\n",
-	       ahd_name(ahd), pcix_status);
+	       ahd_name(ahd), pcix_status >> 16);
 	saved_modes = ahd_save_modes(ahd);
 	for (i = 0; i < 4; i++) {
 		ahd_set_modes(ahd, i, i);
@@ -922,8 +929,8 @@ ahd_pci_split_intr(struct ahd_softc *ahd, u_int intstat)
 	/*
 	 * Clear PCI-X status bits.
 	 */
-	aic_pci_write_config(ahd->dev_softc, PCIXR_STATUS,
-			     pcix_status, /*bytes*/2);
+	aic_pci_write_config(ahd->dev_softc, ahd->pcix_ptr + PCIXR_STATUS,
+			     pcix_status, /*bytes*/4);
 	ahd_outb(ahd, CLRINT, CLRSPLTINT);
 	ahd_restore_modes(ahd, saved_modes);
 }
