@@ -2111,9 +2111,9 @@ do_tdsignal(struct proc *p, struct thread *td, int sig, ksiginfo_t *ksi)
 
 	if (!_SIG_VALID(sig))
 #ifdef KSE
-		panic("do_tdsignal(): invalid signal");
+		panic("do_tdsignal(): invalid signal %d", sig);
 #else
-		panic("tdsignal(): invalid signal");
+		panic("tdsignal(): invalid signal %d", sig);
 #endif
 
 #ifdef KSE
