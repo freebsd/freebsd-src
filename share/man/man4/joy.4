@@ -8,11 +8,19 @@
 .Nm joy
 .Nd joystick device driver
 .Sh SYNOPSIS
-To link into the kernel:
-.Cd device joy
+To compile this driver into the kernel,
+place the following lines in your
+kernel configuration file:
+.Bd -ragged -offset indent
+.Cd "device joy"
+.Ed
 .Pp
-To load as a kernel loadable module:
-.Dl kldload joy
+Alternatively, to load the driver as a
+module at boot time, place the following line in
+.Xr loader.conf 5 :
+.Bd -literal -offset indent
+kldload joy
+.Ed
 .Pp
 In
 .Pa /boot/device.hints :
@@ -104,7 +112,9 @@ Time = 24.2e-6s + 0.011e-6s * R/Ohms
 joystick device files
 .El
 .Sh HISTORY
-The joystick driver appeared in
+The
+.Nm
+driver appeared in
 .Fx 2.0.5 .
 .Sh AUTHORS
 .An Jean-Marc Zucconi Aq jmz@cabri.obs-besancon.fr
