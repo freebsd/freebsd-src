@@ -45,7 +45,7 @@ struct pcib_softc
 {
     device_t	dev;
     uint32_t	flags;		/* flags */
-#define PCIB_SUBTRACTIVE	0x1
+#define	PCIB_SUBTRACTIVE	0x1
     uint16_t	command;	/* command register */
     uint8_t	secbus;		/* secondary bus number */
     uint8_t	subbus;		/* subordinate bus number */
