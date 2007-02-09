@@ -1871,20 +1871,12 @@ getdatasock(char *mode)
 #ifdef TCP_NOPUSH
 	/*
 	 * Turn off push flag to keep sender TCP from sending short packets
-	 * at the boundaries of each write().  Should probably do a SO_SNDBUF
-	 * to set the send buffer size as well, but that may not be desirable
-	 * in heavy-load situations.
+	 * at the boundaries of each write().
 	 */
 	on = 1;
 	if (setsockopt(s, IPPROTO_TCP, TCP_NOPUSH, &on, sizeof on) < 0)
 		syslog(LOG_WARNING, "data setsockopt (TCP_NOPUSH): %m");
 #endif
-#ifdef SO_SNDBUF
-	on = 65536;
-	if (setsockopt(s, SOL_SOCKET, SO_SNDBUF, &on, sizeof on) < 0)
-		syslog(LOG_WARNING, "data setsockopt (SO_SNDBUF): %m");
-#endif
-
 	return (fdopen(s, mode));
 bad:
 	/* Return the real value of errno (close may change it) */
