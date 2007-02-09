@@ -32,7 +32,7 @@
 .\"     @(#)icmp.4	8.1 (Berkeley) 6/5/93
 .\" $FreeBSD$
 .\"
-.Dd August 21, 2005
+.Dd February 9, 2007
 .Dt ICMP 4
 .Os
 .Sh NAME
@@ -88,6 +88,75 @@ them (based on the destination address).
 Incoming packets are received with the
 .Tn IP
 header and options intact.
+.Ss Types
+ICMP messages are classified according to the type and code fields
+present in the ICMP header.
+The abbreviations for the types and codes may be used in rules in
+.Xr pf.conf 5 .
+The following types are defined:
+.Bl -column x xxxxxxxxxxxx -offset indent
+.It Sy Num Ta Sy Abbrev. Ta Sy Description
+.It 0 Ta echorep Ta "Echo reply"
+.It 3 Ta unreach Ta "Destination unreachable"
+.It 4 Ta squench Ta "Packet loss, slow down"
+.It 5 Ta redir Ta "Shorter route exists"
+.It 6 Ta althost Ta "Alternate host address"
+.It 8 Ta echoreq Ta "Echo request"
+.It 9 Ta routeradv Ta "Router advertisement"
+.It 10 Ta routersol Ta "Router solicitation"
+.It 11 Ta timex Ta "Time exceeded"
+.It 12 Ta paramprob Ta "Invalid IP header"
+.It 13 Ta timereq Ta "Timestamp request"
+.It 14 Ta timerep Ta "Timestamp reply"
+.It 15 Ta inforeq Ta "Information request"
+.It 16 Ta inforep Ta "Information reply"
+.It 17 Ta maskreq Ta "Address mask request"
+.It 18 Ta maskrep Ta "Address mask reply"
+.It 30 Ta trace Ta Traceroute
+.It 31 Ta dataconv Ta "Data conversion problem"
+.It 32 Ta mobredir Ta "Mobile host redirection"
+.It 33 Ta ipv6-where Ta "IPv6 where-are-you"
+.It 34 Ta ipv6-here Ta "IPv6 i-am-here"
+.It 35 Ta mobregreq Ta "Mobile registration request"
+.It 36 Ta mobregrep Ta "Mobile registration reply"
+.It 39 Ta skip Ta SKIP
+.It 40 Ta photuris Ta Photuris
+.El
+.Pp
+The following codes are defined:
+.Bl -column x xxxxxxxxxxxx xxxxxxxx -offset indent
+.It Sy Num Ta Sy Abbrev. Ta Sy Type Ta Sy Description
+.It 0 Ta net-unr Ta unreach Ta "Network unreachable"
+.It 1 Ta host-unr Ta unreach Ta "Host unreachable"
+.It 2 Ta proto-unr Ta unreach Ta "Protocol unreachable"
+.It 3 Ta port-unr Ta unreach Ta "Port unreachable"
+.It 4 Ta needfrag Ta unreach Ta "Fragmentation needed but DF bit set"
+.It 5 Ta srcfail Ta unreach Ta "Source routing failed"
+.It 6 Ta net-unk Ta unreach Ta "Network unknown"
+.It 7 Ta host-unk Ta unreach Ta "Host unknown"
+.It 8 Ta isolate Ta unreach Ta "Host isolated"
+.It 9 Ta net-prohib Ta unreach Ta "Network administratively prohibited"
+.It 10 Ta host-prohib Ta unreach Ta "Host administratively prohibited"
+.It 11 Ta net-tos Ta unreach Ta "Invalid TOS for network"
+.It 12 Ta host-tos Ta unreach Ta "Invalid TOS for host"
+.It 13 Ta filter-prohib Ta unreach Ta "Prohibited access"
+.It 14 Ta host-preced Ta unreach Ta "Precedence violation"
+.It 15 Ta cutoff-preced Ta unreach Ta "Precedence cutoff"
+.It 0 Ta redir-net Ta redir Ta "Shorter route for network"
+.It 1 Ta redir-host Ta redir Ta "Shorter route for host"
+.It 2 Ta redir-tos-net Ta redir Ta "Shorter route for TOS and network"
+.It 3 Ta redir-tos-host Ta redir Ta "Shorter route for TOS and host"
+.It 0 Ta normal-adv Ta routeradv Ta "Normal advertisement"
+.It 16 Ta common-adv Ta routeradv Ta "Selective advertisement"
+.It 0 Ta transit Ta timex Ta "Time exceeded in transit"
+.It 1 Ta reassemb Ta timex Ta "Time exceeded in reassembly"
+.It 0 Ta badhead Ta paramprob Ta "Invalid option pointer"
+.It 1 Ta optmiss Ta paramprob Ta "Missing option"
+.It 2 Ta badlen Ta paramprob Ta "Invalid length"
+.It 1 Ta unknown-ind Ta photuris Ta "Unknown security index"
+.It 2 Ta auth-fail Ta photuris Ta "Authentication failed"
+.It 3 Ta decrypt-fail Ta photuris Ta "Decryption failed"
+.El
 .Ss MIB Variables
 The
 .Tn ICMP
@@ -176,7 +245,8 @@ exists.
 .Xr send 2 ,
 .Xr inet 4 ,
 .Xr intro 4 ,
-.Xr ip 4
+.Xr ip 4 ,
+.Xr pf.conf 5
 .Sh HISTORY
 The
 .Nm
