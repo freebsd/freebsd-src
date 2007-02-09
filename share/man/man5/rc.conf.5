@@ -389,6 +389,12 @@ For the
 DHCP client, see the
 .Xr dhclient 8
 manpage for a description of the command line options available.
+.It Va dhclient_flags_ Ns Aq Ar iface
+Additional flags to pass to the DHCP client program running on
+.Ar iface
+only.
+When specified, this variable overrides
+.Va dhclient_flags .
 .It Va background_dhclient
 .Pq Vt bool
 Set to
@@ -397,6 +403,12 @@ to start the DHCP client in background.
 This can cause trouble with applications depending on
 a working network, but it will provide a faster startup
 in many cases.
+.It Va background_dhclient_ Ns Aq Ar iface
+When specified, this variable overrides the
+.Va background_dhclient
+variable for interface
+.Ar iface
+only.
 .It Va synchronous_dhclient
 .Pq Bt bool
 Set to
