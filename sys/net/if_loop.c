@@ -290,7 +290,7 @@ if_simloop(ifp, m, af, hlen)
 	/* Strip away media header */
 	if (hlen > 0) {
 		m_adj(m, hlen);
-#if defined(__ia64__) || defined(__sparc64__)
+#ifndef __NO_STRICT_ALIGNMENT
 		/*
 		 * Some archs do not like unaligned data, so
 		 * we move data down in the first mbuf.
