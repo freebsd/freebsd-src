@@ -8,6 +8,10 @@ Items affecting the ports and packages system can be found in
 /usr/ports/UPDATING.  Please read that file before running
 portupgrade.
 
+20070209:	p13	FreeBSD-SA-07:02.bind
+	Correct two remote denials of service in BIND involving DNSSEC and
+	recursive DNS queries respectively.
+
 20070111:	p12	FreeBSD-SA-07:01.jail
 	Correct jail rc.d script privilege escalation.
 
