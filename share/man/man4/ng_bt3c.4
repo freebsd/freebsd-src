@@ -59,22 +59,6 @@ I am using the original firmware that came with the card on CD-ROM.
 .Pp
 .Dl "MD5 (BT3CPCC.BIN) = 36170fda56ea9fdbf1702c966f8a97f1"
 .Pp
-For
-.Pa OLDCARD
-systems the entry in
-.Xr pccard.conf 5
-might look like this:
-.Bd -literal -offset indent
-# 3Com 3CRWB60-A Bluetooth PC Card
-card "3COM" "3CRWB60-A" "Bluetooth PC Card"
-        config	auto	"btccc" ?
-	insert	/usr/sbin/bt3cfw -n $device -f /etc/BT3CPCC.bin
-.Ed
-.Pp
-Do not forget to load the module and
-.Dv SIGHUP
-.Xr pccardd 8 .
-.Pp
 The node has a single hook called
 .Dv hook .
 Incoming bytes received on the device are re-assembled into HCI frames
@@ -131,9 +115,7 @@ This node shuts down when the corresponding card is un-plugged.
 .Xr pcic 4 ,
 .Xr pccard.conf 5 ,
 .Xr bt3cfw 8 ,
-.Xr ngctl 8 ,
-.Xr pccardc 8 ,
-.Xr pccardd 8
+.Xr ngctl 8
 .Sh HISTORY
 The
 .Nm btccc
