@@ -18,7 +18,7 @@ stop_cmd="dhclient_stop"
 
 dhclient_start()
 {
-	# prevent unnecessicary restarts
+	# prevent unnecessary restarts
 	# XXX: should use a pidfile
 	if [ -x /usr/bin/pgrep ]; then
 		pids=`/usr/bin/pgrep -f "dhclient: $ifn(\$| .*)"`
@@ -27,7 +27,18 @@ dhclient_start()
 		fi
 	fi
 
-	if checkyesno background_dhclient; then
+	# Override for $ifn specific flags (see rc.subr for $flags setting)
+	eval specific=\$dhclient_flags_$ifn
+	if [ -z "$flags" -a -n "$specific" ]; then
+		rc_flags=$specific
+	fi
+
+	eval specific=\$background_dhclient_$ifn
+	if [ -n "$specific" ]; then
+		if checkyesno background_dhclient_$ifn; then
+			rc_flags="${rc_flags} -b"
+		fi
+	elif checkyesno background_dhclient; then
 		rc_flags="${rc_flags} -b"
 	fi
 
