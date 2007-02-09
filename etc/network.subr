@@ -455,26 +455,89 @@ clone_down()
 	debug "Destroyed clones: ${_list}"
 }
 
+# Create netgraph nodes.
+#
+ng_mkpeer() {
+	ngctl -f - 2> /dev/null <<EOF
+mkpeer $*
+msg dummy nodeinfo
+EOF
+}
+
+ng_create_one() {
+	ng_mkpeer $* | while read line; do
+		t=`expr "${line}" : '.* name="\([a-z]*[0-9]*\)" .*'`
+		if [ -n "${t}" ]; then
+			echo ${t}
+			return
+		fi
+	done
+}
+
 gif_up() {
+	# The following must be removed once RELENG_7 is branched.
 	case ${gif_interfaces} in
-	[Nn][Oo] | '')
+	[Nn][Oo])
+		warn "gif_interfaces=\"NO\" is deprecated, use gif_interfaces=\"\" instead."
+		gif_interfaces=""
 		;;
-	*)
-		for i in ${gif_interfaces}; do
-			peers=`get_if_var $i gifconfig_IF`
-			case ${peers} in
+	esac
+
+	for i in ${gif_interfaces}; do
+		peers=`get_if_var $i gifconfig_IF`
+		case ${peers} in
+		'')
+			continue
+			;;
+		*)
+			ifconfig $i create >/dev/null 2>&1
+			ifconfig $i tunnel ${peers}
+			ifconfig $i up
+			;;
+		esac
+	done
+}
+
+# ng_fec_create ifn
+# Configure Fast EtherChannel for interface $ifn. Returns 0 if FEC
+# arguments were found and configured; returns !0 otherwise.
+ng_fec_create() {
+	 local req_iface iface bogus
+	 req_iface="$1"
+
+	 ngctl shutdown ${req_iface}: > /dev/null 2>&1
+
+	 bogus=""
+	 while true; do
+		 iface=`ng_create_one fec dummy fec`
+		 if [ -z "${iface}" ]; then
+			 exit 2
+		 fi
+		 if [ "${iface}" = "${req_iface}" ]; then
+			 break
+		 fi
+		 bogus="${bogus} ${iface}"
+	 done
+
+	 for iface in ${bogus}; do
+		 ngctl shutdown ${iface}:
+	 done
+}
+
+fec_up() {
+	for i in ${fec_interfaces}; do
+		ng_fec_create $i
+		for j in `get_if_var $i fecconfig_IF`; do
+			case ${j} in
 			'')
 				continue
 				;;
 			*)
-				ifconfig $i create >/dev/null 2>&1
-				ifconfig $i tunnel ${peers}
-				ifconfig $i up
+				ngctl msg ${i}: add_iface "\"${j}\""
 				;;
 			esac
 		done
-		;;
-	esac
+	done
 }
 
 #
