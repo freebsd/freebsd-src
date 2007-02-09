@@ -25,7 +25,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd February 7, 1997
+.Dd February 2, 2007
 .Dt PCICONF 8
 .Os
 .Sh NAME
@@ -33,7 +33,7 @@
 .Nd diagnostic utility for the PCI bus
 .Sh SYNOPSIS
 .Nm
-.Fl l Op Fl v
+.Fl l Op Fl cv
 .Nm
 .Fl a Ar selector
 .Nm
@@ -61,13 +61,6 @@ bar0@pci0:5:0: class=0x000100 card=0x00000000 chip=0x88c15333 rev=0x00 hdr=0x00
 none0@pci0:6:0: class=0x020000 card=0x00000000 chip=0x802910ec rev=0x00 hdr=0x00
 .Ed
 .Pp
-If the
-.Fl v
-option is supplied,
-.Nm
-will attempt to load the vendor/device information database, and print
-vendor, device, class and subclass identification strings for each device.
-.Pp
 The first column gives the
 device name, unit number, and
 .Ar selector .
@@ -86,12 +79,7 @@ The third column gives the contents of the subvendorid register, introduced
 in revision 2.1 of the
 .Tn PCI
 standard.
-It is 0 for most current (2.0)
-.Tn PCI
-cards, but is supposed to be loaded with a unique card identification code
-in newly developed
-.Tn PCI
-cards.
+Note that it will be 0 for older cards.
 The field consists of the card ID in the upper
 half and the card vendor ID in the lower half of the value.
 .Pp
@@ -101,11 +89,16 @@ It consists of two fields, identifying the chip and
 its vendor, as above.
 The fifth column prints the chip's revision.
 The sixth column describes the header type.
-Currently assigned header types are 0 for all devices except
+Currently assigned header types include 0 for most devices,
+1 for
 .Tn PCI
 to
 .Tn PCI
-bridges, and 1 for such bridge chips.
+bridges, and 2 for
+.Tn PCI
+to
+.Tn CardBus
+bridges.
 If the most significant bit
 of the header type register is set for
 function 0 of a
@@ -114,6 +107,30 @@ device, it is a
 .Em multi-function
 device, which contains several (similar or independent) functions on
 one chip.
+.Pp
+If the
+.Fl c
+option is supplied,
+.Nm
+will list any capabilities supported by each device.
+Each capability will be enumerated via a line in the following format:
+.Bd -literal
+    cap 10[40] = PCI-Express 1 root port
+.Ed
+.Pp
+The first value after the
+.Dq Li cap
+prefix is the capability ID in hexadecimal.
+The second value in the square brackets is the offset of the capability
+in config space in hexadecimal.
+The format of the text after the equals sign is capability-specific.
+.Pp
+If the
+.Fl v
+option is supplied,
+.Nm
+will attempt to load the vendor/device information database, and print
+vendor, device, class and subclass identification strings for each device.
 .Pp
 All invocations of
 .Nm

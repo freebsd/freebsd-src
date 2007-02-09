@@ -35,6 +35,7 @@ static const char rcsid[] =
 #include <sys/types.h>
 #include <sys/fcntl.h>
 
+#include <ctype.h>
 #include <err.h>
 #include <stdlib.h>
 #include <stdio.h>
@@ -46,6 +47,7 @@ static const char rcsid[] =
 #include <dev/pci/pcireg.h>
 
 #include "pathnames.h"
+#include "pciconf.h"
 
 struct pci_device_info
 {
@@ -64,10 +66,10 @@ struct pci_vendor_info
 
 TAILQ_HEAD(,pci_vendor_info)	pci_vendors;
 
-static void list_devs(int vendors);
+static void list_devs(int verbose, int caps);
 static void list_verbose(struct pci_conf *p);
-static char *guess_class(struct pci_conf *p);
-static char *guess_subclass(struct pci_conf *p);
+static const char *guess_class(struct pci_conf *p);
+static const char *guess_subclass(struct pci_conf *p);
 static int load_vendors(void);
 static void readit(const char *, const char *, int);
 static void writeit(const char *, const char *, const char *, int);
@@ -76,10 +78,10 @@ static void chkattached(const char *, int);
 static int exitstatus = 0;
 
 static void
-usage()
+usage(void)
 {
 	fprintf(stderr, "%s\n%s\n%s\n%s\n",
-		"usage: pciconf -l [-v]",
+		"usage: pciconf -l [-cv]",
 		"       pciconf -a selector",
 		"       pciconf -r [-b | -h] selector addr[:addr2]",
 		"       pciconf -w [-b | -h] selector addr value");
@@ -90,15 +92,19 @@ int
 main(int argc, char **argv)
 {
 	int c;
-	int listmode, readmode, writemode, attachedmode, verbose;
+	int listmode, readmode, writemode, attachedmode, caps, verbose;
 	int byte, isshort;
 
-	listmode = readmode = writemode = attachedmode = verbose = byte = isshort = 0;
+	listmode = readmode = writemode = attachedmode = caps = verbose = byte = isshort = 0;
 
-	while ((c = getopt(argc, argv, "alrwbhv")) != -1) {
+	while ((c = getopt(argc, argv, "aclrwbhv")) != -1) {
 		switch(c) {
 		case 'a':
 			attachedmode = 1;
+			break;
+
+		case 'c':
+			caps = 1;
 			break;
 
 		case 'l':
@@ -137,7 +143,7 @@ main(int argc, char **argv)
 		usage();
 
 	if (listmode) {
-		list_devs(verbose);
+		list_devs(verbose, caps);
 	} else if (attachedmode) {
 		chkattached(argv[optind],
 		       byte ? 1 : isshort ? 2 : 4);
@@ -155,7 +161,7 @@ main(int argc, char **argv)
 }
 
 static void
-list_devs(int verbose)
+list_devs(int verbose, int caps)
 {
 	int fd;
 	struct pci_conf_io pc;
@@ -165,7 +171,7 @@ list_devs(int verbose)
 	if (verbose)
 		load_vendors();
 
-	fd = open(_PATH_DEVPCI, O_RDONLY, 0);
+	fd = open(_PATH_DEVPCI, caps ? O_RDWR : O_RDONLY, 0);
 	if (fd < 0)
 		err(1, "%s", _PATH_DEVPCI);
 
@@ -212,6 +218,8 @@ list_devs(int verbose)
 			       p->pc_revid, p->pc_hdr);
 			if (verbose)
 				list_verbose(p);
+			if (caps)
+				list_caps(fd, p);
 		}
 	} while (pc.status == PCI_GETCONF_MORE_DEVS);
 
@@ -223,11 +231,11 @@ list_verbose(struct pci_conf *p)
 {
 	struct pci_vendor_info	*vi;
 	struct pci_device_info	*di;
-	char *dp;
+	const char *dp;
 
 	TAILQ_FOREACH(vi, &pci_vendors, link) {
 		if (vi->id == p->pc_vendor) {
-			printf("    vendor   = '%s'\n", vi->desc);
+			printf("    vendor     = '%s'\n", vi->desc);
 			break;
 		}
 	}
@@ -236,15 +244,15 @@ list_verbose(struct pci_conf *p)
 	} else {
 		TAILQ_FOREACH(di, &vi->devs, link) {
 			if (di->id == p->pc_device) {
-				printf("    device   = '%s'\n", di->desc);
+				printf("    device     = '%s'\n", di->desc);
 				break;
 			}
 		}
 	}
 	if ((dp = guess_class(p)) != NULL)
-		printf("    class    = %s\n", dp);
+		printf("    class      = %s\n", dp);
 	if ((dp = guess_subclass(p)) != NULL)
-		printf("    subclass = %s\n", dp);
+		printf("    subclass   = %s\n", dp);
 }
 
 /*
@@ -254,7 +262,7 @@ static struct
 {
 	int	class;
 	int	subclass;
-	char	*desc;
+	const char *desc;
 } pci_nomatch_tab[] = {
 	{PCIC_OLD,		-1,			"old"},
 	{PCIC_OLD,		PCIS_OLD_NONVGA,	"non-VGA display device"},
@@ -337,7 +345,7 @@ static struct
 	{0, 0,		NULL}
 };
 
-static char *
+static const char *
 guess_class(struct pci_conf *p)
 {
 	int	i;
@@ -349,7 +357,7 @@ guess_class(struct pci_conf *p)
 	return(NULL);
 }
 
-static char *
+static const char *
 guess_subclass(struct pci_conf *p)
 {
 	int	i;
@@ -365,7 +373,7 @@ guess_subclass(struct pci_conf *p)
 static int
 load_vendors(void)
 {
-	char *dbf;
+	const char *dbf;
 	FILE *db;
 	struct pci_vendor_info *cv;
 	struct pci_device_info *cd;
@@ -458,6 +466,20 @@ load_vendors(void)
 	return(error);
 }
 
+uint32_t
+read_config(int fd, struct pcisel *sel, long reg, int width)
+{
+	struct pci_io pi;
+
+	pi.pi_sel = *sel;
+	pi.pi_reg = reg;
+	pi.pi_width = width;
+
+	if (ioctl(fd, PCIOCREAD, &pi) < 0)
+		err(1, "ioctl(PCIOCREAD)");
+
+	return (pi.pi_data);
+}
 
 static struct pcisel
 getsel(const char *str)
@@ -496,16 +518,8 @@ getsel(const char *str)
 static void
 readone(int fd, struct pcisel *sel, long reg, int width)
 {
-	struct pci_io pi;
 
-	pi.pi_sel = *sel;
-	pi.pi_reg = reg;
-	pi.pi_width = width;
-
-	if (ioctl(fd, PCIOCREAD, &pi) < 0)
-		err(1, "ioctl(PCIOCREAD)");
-
-	printf("%0*x", width*2, pi.pi_data);
+	printf("%0*x", width*2, read_config(fd, sel, reg, width));
 }
 
 static void
@@ -559,7 +573,7 @@ writeit(const char *name, const char *reg, const char *data, int width)
 }
 
 static void
-chkattached (const char *name, int width)
+chkattached(const char *name, int width)
 {
 	int fd;
 	struct pci_io pi;
