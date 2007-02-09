@@ -513,6 +513,7 @@ vendor TWINMOS		0x126f	TwinMOS
 vendor TSUNAMI		0x1241	Tsunami
 vendor CREATIVE2	0x1292	Creative Labs
 vendor BELKIN2		0x1293	Belkin
+vendor HUAWEI		0x12d1	Huawei Technologies
 vendor AINCOMM		0x12fd	Aincomm
 vendor MOBILITY		0x1342	Mobility
 vendor LINKSYS4		0x13b1	Linksys
@@ -1083,6 +1084,9 @@ product HP HN210E		0x811c	Ethernet HN210E
 
 /* HP products */
 product HP2 C500		0x6002	PhotoSmart C500
+
+/* HUAWEI products */
+product HUAWEI MOBILE		0x1001	Huawei Mobile
 
 /* IBM Corporation */
 product IBM USBCDROMDRIVE	0x4427	USB CD-ROM Drive
