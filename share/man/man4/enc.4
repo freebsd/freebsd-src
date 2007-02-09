@@ -60,7 +60,7 @@ interface allows an administrator
 to see outgoing packets before they have been processed by
 .Xr fast_ipsec 4 ,
 or incoming packets after they have been similarly processed, via
-.Xr tcpdump 8 .
+.Xr tcpdump 1 .
 .Pp
 The
 .Dq Li enc0
@@ -68,7 +68,7 @@ interface inherits all IPsec traffic.
 Thus all IPsec traffic can be filtered based on
 .Dq Li enc0 ,
 and all IPsec traffic could be seen by invoking
-.Xr tcpdump 8
+.Xr tcpdump 1
 on the
 .Dq Li enc0
 interface.
