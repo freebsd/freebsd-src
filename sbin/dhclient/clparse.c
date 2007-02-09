@@ -90,6 +90,8 @@ read_client_conf(void)
 	top_level_config.requested_options
 	    [top_level_config.requested_option_count++] = DHO_TIME_OFFSET;
 	top_level_config.requested_options
+	    [top_level_config.requested_option_count++] = DHO_CLASSLESS_ROUTES;
+	top_level_config.requested_options
 	    [top_level_config.requested_option_count++] = DHO_ROUTERS;
 	top_level_config.requested_options
 	    [top_level_config.requested_option_count++] = DHO_DOMAIN_NAME;
