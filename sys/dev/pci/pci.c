@@ -331,8 +331,6 @@ pci_hdrtypedata(device_t pcib, int b, int s, int f, pcicfgregs *cfg)
 		cfg->nummaps	    = PCI_MAXMAPS_0;
 		break;
 	case 1:
-		cfg->subvendor      = REG(PCIR_SUBVEND_1, 2);
-		cfg->subdevice      = REG(PCIR_SUBDEV_1, 2);
 		cfg->nummaps	    = PCI_MAXMAPS_1;
 		break;
 	case 2:
@@ -422,6 +420,7 @@ static void
 pci_read_extcap(device_t pcib, pcicfgregs *cfg)
 {
 #define	REG(n, w)	PCIB_READ_CONFIG(pcib, cfg->bus, cfg->slot, cfg->func, n, w)
+	uint32_t val;
 	int	ptr, nextptr, ptrptr;
 
 	switch (cfg->hdrtype & PCIM_HDRTYPE) {
@@ -470,6 +469,13 @@ pci_read_extcap(device_t pcib, pcicfgregs *cfg)
 				cfg->msi.msi_data = PCIR_MSI_DATA;
 			cfg->msi.msi_msgnum = 1 << ((cfg->msi.msi_ctrl &
 						     PCIM_MSICTRL_MMC_MASK)>>1);
+		case PCIY_SUBVENDOR:
+			/* Should always be true. */
+			if ((cfg->hdrtype & PCIM_HDRTYPE) == 1) {
+				val = REG(ptr + PCIR_SUBVENDCAP_ID, 4);
+				cfg->subvendor = val & 0xffff;
+				cfg->subdevice = val >> 16;
+			}
 		default:
 			break;
 		}
