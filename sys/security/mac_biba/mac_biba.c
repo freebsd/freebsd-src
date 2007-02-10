@@ -2350,14 +2350,13 @@ static int
 mac_biba_check_system_swapoff(struct ucred *cred, struct vnode *vp,
     struct label *label)
 {
-	struct mac_biba *subj, *obj;
+	struct mac_biba *subj;
 	int error;
 
 	if (!mac_biba_enabled)
 		return (0);
 
 	subj = SLOT(cred->cr_label);
-	obj = SLOT(label);
 
 	error = mac_biba_subject_privileged(subj);
 	if (error)
