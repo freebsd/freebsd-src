@@ -732,7 +732,9 @@ USB_ATTACH(aue)
 	ifp->if_start = aue_start;
 	ifp->if_watchdog = aue_watchdog;
 	ifp->if_init = aue_init;
-	ifp->if_snd.ifq_maxlen = IFQ_MAXLEN;
+	IFQ_SET_MAXLEN(&ifp->if_snd, IFQ_MAXLEN);
+	ifp->if_snd.ifq_drv_maxlen = IFQ_MAXLEN;
+	IFQ_SET_READY(&ifp->if_snd);
 
 	/*
 	 * Do MII setup.
@@ -1034,7 +1036,7 @@ aue_tick(void *xsc)
 	if (!sc->aue_link && mii->mii_media_status & IFM_ACTIVE &&
 	    IFM_SUBTYPE(mii->mii_media_active) != IFM_NONE) {
 		sc->aue_link++;
-		if (ifp->if_snd.ifq_head != NULL)
+		if (!IFQ_DRV_IS_EMPTY(&ifp->if_snd))
 			aue_start(ifp);
 	}
 
@@ -1106,14 +1108,14 @@ aue_start(struct ifnet *ifp)
 		return;
 	}
 
-	IF_DEQUEUE(&ifp->if_snd, m_head);
+	IFQ_DRV_DEQUEUE(&ifp->if_snd, m_head);
 	if (m_head == NULL) {
 		AUE_UNLOCK(sc);
 		return;
 	}
 
 	if (aue_encap(sc, m_head, 0)) {
-		IF_PREPEND(&ifp->if_snd, m_head);
+		IFQ_DRV_PREPEND(&ifp->if_snd, m_head);
 		ifp->if_drv_flags |= IFF_DRV_OACTIVE;
 		AUE_UNLOCK(sc);
 		return;
@@ -1350,7 +1352,7 @@ aue_watchdog(struct ifnet *ifp)
 	usbd_get_xfer_status(c->ue_xfer, NULL, NULL, NULL, &stat);
 	aue_txeof(c->ue_xfer, c, stat);
 
-	if (ifp->if_snd.ifq_head != NULL)
+	if (!IFQ_IS_EMPTY(&ifp->if_snd))
 		aue_start(ifp);
 	AUE_UNLOCK(sc);
 	return;
