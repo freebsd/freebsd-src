@@ -1016,6 +1016,7 @@ isp_pci_attach(device_t dev)
 			did = 0x2322;
 			break;
 		case PCI_PRODUCT_QLOGIC_ISP2422:
+		case PCI_PRODUCT_QLOGIC_ISP2432:
 			did = 0x2400;
 			break;
 		default:
