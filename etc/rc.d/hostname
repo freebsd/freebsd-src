@@ -58,7 +58,16 @@ hostname_start()
 		fi
 	fi
 
-	/bin/hostname ${hostname}
+	# Have we got a hostname yet?
+	#
+	if [ -z "${hostname}" ]; then
+		warn "\$hostname is not set -- see ${rcvar_manpage}."
+		return
+	fi
+
+	# All right, it is safe to invoke hostname(1) now.
+	#
+	/bin/hostname "${hostname}"
 	echo "Setting hostname: `hostname`."
 }
 
