@@ -200,6 +200,11 @@ SYSCTL_STRUCT(_net_inet_pim, PIMCTL_STATS, stats, CTLFLAG_RD,
     &pimstat, pimstat,
     "PIM Statistics (struct pimstat, netinet/pim_var.h)");
 
+static u_long	pim_squelch_wholepkt = 0;
+SYSCTL_ULONG(_net_inet_pim, OID_AUTO, squelch_wholepkt, CTLFLAG_RW,
+    &pim_squelch_wholepkt, 0,
+    "Disable IGMP_WHOLEPKT notifications if rendezvous point is unspecified");
+
 extern  struct domain inetdomain;
 struct protosw in_pim_protosw = {
 	.pr_type =		SOCK_RAW,
@@ -2522,6 +2527,14 @@ pim_register_send(struct ip *ip, struct vif *vifp,
     if (mrtdebug & DEBUG_PIM)
 	log(LOG_DEBUG, "pim_register_send: ");
 
+    /*
+     * Do not send IGMP_WHOLEPKT notifications to userland, if the
+     * rendezvous point was unspecified, and we were told not to.
+     */
+    if (pim_squelch_wholepkt != 0 && (mrt_api_config & MRT_MFC_RP) &&
+	(rt->mfc_rp.s_addr == INADDR_ANY))
+	return 0;
+
     mb_copy = pim_register_prepare(ip, m);
     if (mb_copy == NULL)
 	return ENOBUFS;
@@ -2991,6 +3004,8 @@ ip_mroute_modevent(module_t mod, int type, void *unused)
 	MFC_LOCK_INIT();
 	VIF_LOCK_INIT();
 	ip_mrouter_reset();
+	TUNABLE_ULONG_FETCH("net.inet.pim.squelch_wholepkt",
+	    &pim_squelch_wholepkt);
 	pim_encap_cookie = encap_attach_func(AF_INET, IPPROTO_PIM,
 	    pim_encapcheck, &in_pim_protosw, NULL);
 	if (pim_encap_cookie == NULL) {
