@@ -56,9 +56,6 @@
 #include <netinet/ip_var.h>
 #include <netinet/ip_icmp.h>
 #include <netinet/igmp_var.h>
-#ifdef PIM
-#include <netinet/pim_var.h>
-#endif
 #include <netinet/tcp.h>
 #include <netinet/tcp_timer.h>
 #include <netinet/tcp_var.h>
@@ -345,17 +342,15 @@ struct protosw inetsw[] = {
 	.pr_usrreqs =		&rip_usrreqs
 },
 #endif
-#ifdef PIM
 {
 	.pr_type =		SOCK_RAW,
 	.pr_domain =		&inetdomain,
 	.pr_protocol =		IPPROTO_PIM,
 	.pr_flags =		PR_ATOMIC|PR_ADDR|PR_LASTHDR,
-	.pr_input =		pim_input,
+	.pr_input =		encap4_input,
 	.pr_ctloutput =		rip_ctloutput,
 	.pr_usrreqs =		&rip_usrreqs
 },
-#endif	/* PIM */
 #ifdef DEV_PFSYNC
 {
 	.pr_type =		SOCK_RAW,
@@ -438,9 +433,6 @@ SYSCTL_NODE(_net_inet, IPPROTO_AH,	ipsec,	CTLFLAG_RW, 0,	"IPSEC");
 #endif /* IPSEC */
 #endif /* !FAST_IPSEC */
 SYSCTL_NODE(_net_inet, IPPROTO_RAW,	raw,	CTLFLAG_RW, 0,	"RAW");
-#ifdef PIM
-SYSCTL_NODE(_net_inet, IPPROTO_PIM,	pim,	CTLFLAG_RW, 0,	"PIM");
-#endif
 #ifdef DEV_PFSYNC
 SYSCTL_NODE(_net_inet, IPPROTO_PFSYNC,	pfsync,	CTLFLAG_RW, 0,	"PFSYNC");
 #endif

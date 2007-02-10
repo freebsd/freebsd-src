@@ -58,9 +58,7 @@
 #include "opt_mac.h"
 #include "opt_mrouting.h"
 
-#ifdef PIM
 #define _PIM_VT 1
-#endif
 
 #include <sys/param.h>
 #include <sys/kernel.h>
@@ -91,10 +89,8 @@
 #include <netinet/ip_mroute.h>
 #include <netinet/ip_var.h>
 #include <netinet/ip_options.h>
-#ifdef PIM
 #include <netinet/pim.h>
 #include <netinet/pim_var.h>
-#endif
 #include <netinet/udp.h>
 #include <machine/in_cksum.h>
 
@@ -197,11 +193,26 @@ static u_int	bw_upcalls_n; /* # of pending upcalls */
 static struct callout bw_upcalls_ch;
 #define BW_UPCALLS_PERIOD (hz)		/* periodical flush of bw upcalls */
 
-#ifdef PIM
 static struct pimstat pimstat;
+
+SYSCTL_NODE(_net_inet, IPPROTO_PIM, pim, CTLFLAG_RW, 0, "PIM");
 SYSCTL_STRUCT(_net_inet_pim, PIMCTL_STATS, stats, CTLFLAG_RD,
     &pimstat, pimstat,
     "PIM Statistics (struct pimstat, netinet/pim_var.h)");
+
+extern  struct domain inetdomain;
+struct protosw in_pim_protosw = {
+	.pr_type =		SOCK_RAW,
+	.pr_domain =		&inetdomain,
+	.pr_protocol =		IPPROTO_PIM,
+	.pr_flags =		PR_ATOMIC|PR_ADDR|PR_LASTHDR,
+	.pr_input =		pim_input,
+	.pr_output =		(pr_output_t*)rip_output,
+	.pr_ctloutput =		rip_ctloutput,
+	.pr_usrreqs =		&rip_usrreqs
+};
+static const struct encaptab *pim_encap_cookie;
+static int pim_encapcheck(const struct mbuf *, int, int, void *);
 
 /*
  * Note: the PIM Register encapsulation adds the following in front of a
@@ -247,7 +258,6 @@ static struct pim_encap_pimhdr pim_encap_pimhdr = {
 
 static struct ifnet multicast_register_if;
 static vifi_t reg_vif_num = VIFI_INVALID;
-#endif /* PIM */
 
 /*
  * Private variables.
@@ -296,7 +306,6 @@ static void bw_meter_process(void);
 static void expire_bw_upcalls_send(void *);
 static void expire_bw_meter_process(void *);
 
-#ifdef PIM
 static int pim_register_send(struct ip *, struct vif *,
 		struct mbuf *, struct mfc *);
 static int pim_register_send_rp(struct ip *, struct vif *,
@@ -304,7 +313,6 @@ static int pim_register_send_rp(struct ip *, struct vif *,
 static int pim_register_send_upcall(struct ip *, struct vif *,
 		struct mbuf *, struct mfc *);
 static struct mbuf *pim_register_prepare(struct ip *, struct mbuf *);
-#endif
 
 /*
  * whether or not special PIM assert processing is enabled.
@@ -603,7 +611,7 @@ ip_mrouter_reset(void)
     callout_init(&bw_meter_ch, NET_CALLOUT_MPSAFE);
 }
 
-static struct mtx mrouter_mtx;		/* used to synch init/done work */
+static struct mtx mrouter_mtx;
 
 static void
 if_detached_event(void *arg __unused, struct ifnet *ifp)
@@ -788,9 +796,7 @@ X_ip_mrouter_done(void)
     bzero(bw_meter_timers, sizeof(bw_meter_timers));
     MFC_UNLOCK();
 
-#ifdef PIM
     reg_vif_num = VIFI_INVALID;
-#endif
 
     mtx_unlock(&mrouter_mtx);
 
@@ -883,7 +889,6 @@ add_vif(struct vifctl *vifcp)
     }
 
     /* Find the interface with an address in AF_INET family */
-#ifdef PIM
     if (vifcp->vifc_flags & VIFF_REGISTER) {
 	/*
 	 * XXX: Because VIFF_REGISTER does not really need a valid
@@ -891,9 +896,7 @@ add_vif(struct vifctl *vifcp)
 	 * check its address.
 	 */
 	ifp = NULL;
-    } else
-#endif
-    {
+    } else {
 	sin.sin_addr = vifcp->vifc_lcl_addr;
 	ifa = ifa_ifwithaddr((struct sockaddr *)&sin);
 	if (ifa == NULL) {
@@ -907,7 +910,6 @@ add_vif(struct vifctl *vifcp)
 	log(LOG_ERR, "tunnels are no longer supported\n");
 	VIF_UNLOCK();
 	return EOPNOTSUPP;
-#ifdef PIM
     } else if (vifcp->vifc_flags & VIFF_REGISTER) {
 	ifp = &multicast_register_if;
 	if (mrtdebug)
@@ -918,7 +920,6 @@ add_vif(struct vifctl *vifcp)
 	    multicast_register_if.if_flags = IFF_LOOPBACK;
 	    reg_vif_num = vifcp->vifc_vifi;
 	}
-#endif
     } else {		/* Make sure the interface supports multicast */
 	if ((ifp->if_flags & IFF_MULTICAST) == 0) {
 	    VIF_UNLOCK();
@@ -984,10 +985,8 @@ del_vif_locked(vifi_t vifi)
     if (!(vifp->v_flags & (VIFF_TUNNEL | VIFF_REGISTER)))
 	if_allmulti(vifp->v_ifp, 0);
 
-#ifdef PIM
     if (vifp->v_flags & VIFF_REGISTER)
 	reg_vif_num = VIFI_INVALID;
-#endif
 
     bzero((caddr_t)vifp, sizeof (*vifp));
 
@@ -1571,12 +1570,10 @@ ip_mdq(struct mbuf *m, struct ifnet *ifp, struct mfc *rt, vifi_t xmt_vif)
      * (since vifi_t is u_short, -1 becomes MAXUSHORT, which > numvifs.)
      */
     if (xmt_vif < numvifs) {
-#ifdef PIM
 	if (viftable[xmt_vif].v_flags & VIFF_REGISTER)
-	    pim_register_send(ip, viftable + xmt_vif, m, rt);
+		pim_register_send(ip, viftable + xmt_vif, m, rt);
 	else
-#endif
-	phyint_send(ip, viftable + xmt_vif, m);
+		phyint_send(ip, viftable + xmt_vif, m);
 	return 1;
     }
 
@@ -1603,10 +1600,8 @@ ip_mdq(struct mbuf *m, struct ifnet *ifp, struct mfc *rt, vifi_t xmt_vif)
 	    struct timeval now;
 	    u_long delta;
 
-#ifdef PIM
 	    if (ifp == &multicast_register_if)
 		pimstat.pims_rcv_registers_wrongiif++;
-#endif
 
 	    /* Get vifi for the incoming packet */
 	    for (vifi=0; vifi < numvifs && viftable[vifi].v_ifp != ifp; vifi++)
@@ -1674,12 +1669,10 @@ ip_mdq(struct mbuf *m, struct ifnet *ifp, struct mfc *rt, vifi_t xmt_vif)
 	if ((rt->mfc_ttls[vifi] > 0) && (ip->ip_ttl > rt->mfc_ttls[vifi])) {
 	    viftable[vifi].v_pkt_out++;
 	    viftable[vifi].v_bytes_out += plen;
-#ifdef PIM
 	    if (viftable[vifi].v_flags & VIFF_REGISTER)
 		pim_register_send(ip, viftable + vifi, m, rt);
 	    else
-#endif
-	    phyint_send(ip, viftable + vifi, m);
+		phyint_send(ip, viftable + vifi, m);
 	}
 
     /*
@@ -2516,7 +2509,6 @@ expire_bw_meter_process(void *unused)
  * End of bandwidth monitoring code
  */
 
-#ifdef PIM
 /*
  * Send the packet up to the user daemon, or eventually do kernel encapsulation
  *
@@ -2729,6 +2721,24 @@ pim_register_send_rp(struct ip *ip, struct vif *vifp,
     pimstat.pims_snd_registers_bytes += len;
 
     return 0;
+}
+
+/*
+ * pim_encapcheck() is called by the encap4_input() path at runtime to
+ * determine if a packet is for PIM; allowing PIM to be dynamically loaded
+ * into the kernel.
+ */
+static int
+pim_encapcheck(const struct mbuf *m, int off, int proto, void *arg)
+{
+
+#ifdef DIAGNOSTIC
+    KASSERT(proto == IPPROTO_PIM, ("not for IPPROTO_PIM"));
+#endif
+    if (proto != IPPROTO_PIM)
+	return 0;	/* not for us; reject the datagram. */
+
+    return 64;		/* claim the datagram. */
 }
 
 /*
@@ -2971,7 +2981,6 @@ pim_input_to_daemon:
 
     return;
 }
-#endif /* PIM */
 
 static int
 ip_mroute_modevent(module_t mod, int type, void *unused)
@@ -2982,6 +2991,15 @@ ip_mroute_modevent(module_t mod, int type, void *unused)
 	MFC_LOCK_INIT();
 	VIF_LOCK_INIT();
 	ip_mrouter_reset();
+	pim_encap_cookie = encap_attach_func(AF_INET, IPPROTO_PIM,
+	    pim_encapcheck, &in_pim_protosw, NULL);
+	if (pim_encap_cookie == NULL) {
+		printf("ip_mroute: unable to attach pim encap\n");
+		VIF_LOCK_DESTROY();
+		MFC_LOCK_DESTROY();
+		mtx_destroy(&mrouter_mtx);
+		return (EINVAL);
+	}
 	ip_mcast_src = X_ip_mcast_src;
 	ip_mforward = X_ip_mforward;
 	ip_mrouter_done = X_ip_mrouter_done;
@@ -3005,6 +3023,11 @@ ip_mroute_modevent(module_t mod, int type, void *unused)
 	 */
 	if (ip_mrouter)
 	    return EINVAL;
+
+	if (pim_encap_cookie) {
+	    encap_detach(pim_encap_cookie);
+	    pim_encap_cookie = NULL;
+	}
 
 	X_ip_mrouter_done();
 	ip_mcast_src = NULL;
