@@ -113,7 +113,10 @@
   <sect2 id="security">
     <title>Security Advisories</title>
 
-    <para></para>
+    <para>Two remote denials of service in BIND (one involving DNSSEC and
+      one involving recursive DNS queries) have been fixed.  For more
+      information, see security advisory
+      <ulink url="http://security.FreeBSD.org/advisories/FreeBSD-SA-07:02.bind.asc">FreeBSD-SA-07:02.bind</ulink>.</para>
 
   </sect2>
 
@@ -186,7 +189,8 @@
   <sect2 id="contrib">
     <title>Contributed Software</title>
 
-    <para></para>
+    <para><application>BIND</application> has been updated from 9.3.3
+      to 9.3.4.</para>
 
   </sect2>
 
