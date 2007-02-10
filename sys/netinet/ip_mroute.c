@@ -1292,7 +1292,7 @@ X_ip_mforward(struct ip *ip, struct ifnet *ifp, struct mbuf *m,
     VIF_LOCK();
     MFC_LOCK();
     if (imo && ((vifi = imo->imo_multicast_vif) < numvifs)) {
-	if (ip->ip_ttl < 255)
+	if (ip->ip_ttl < MAXTTL)
 	    ip->ip_ttl++;	/* compensate for -1 in *_send routines */
 	if (rsvpdebug && ip->ip_p == IPPROTO_RSVP) {
 	    struct vif *vifp = viftable + vifi;
