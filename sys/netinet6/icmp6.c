@@ -684,7 +684,7 @@ icmp6_input(mp, offp, proto)
 					n = NULL;
 				}
 			}
-			if (!m_dup_pkthdr(n, m, M_DONTWAIT)) {
+			if (n && !m_dup_pkthdr(n, m, M_DONTWAIT)) {
 				/*
 				 * Previous code did a blind M_COPY_PKTHDR
 				 * and said "just for rcvif".  If true, then
