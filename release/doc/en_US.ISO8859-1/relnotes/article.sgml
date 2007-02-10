@@ -271,6 +271,11 @@
       fixed.  More information is available in
       <ulink url="http://security.FreeBSD.org/advisories/FreeBSD-SA-07:01.jail.asc">FreeBSD-SA-07:01.jail</ulink>. &merged;</para>
 
+    <para>Two remote denials of service in BIND (one involving DNSSEC and
+      one involving recursive DNS queries) have been fixed.  For more
+      information, see security advisory
+      <ulink url="http://security.FreeBSD.org/advisories/FreeBSD-SA-07:02.bind.asc">FreeBSD-SA-07:02.bind</ulink>. &merged;</para>
+
   </sect2>
 
   <sect2 id="kernel">
@@ -976,6 +981,14 @@ pipe tablearg ip from table(1) to any</programlisting>
 	to &man.ifconfig.8;.  Network interfaces and drivers
 	supporting TSO currently include &man.em.4; and
 	&man.mxge.4;.</para>
+
+      <para>&os; now supports auto-sizing of TCP socket buffers.  This
+	allows the socket buffer sizes to adapt dynamically to network
+	conditions, rather than being set statically.  The behavior of
+	this feature can be controlled using
+	the <varname>net.inet.tcp.sendbuf_*</varname>
+	and <varname>net.inet.tcp.recvbuf_*</varname> sysctl
+	variables.</para>
 
       <para>Support for &man.kqueue.2; operations has been added to
 	the &man.tun.4; driver. &merged;</para>
@@ -1733,7 +1746,7 @@ mdconfig_md1="-t vnode -f /var/foo.img"</programlisting>
       has been updated to 20051021.</para>
 
     <para><application>BIND</application> has been updated from 9.3.1
-      to 9.3.3. &merged;</para>
+      to 9.3.4. &merged;</para>
 
     <para><application>BSNMPD</application> has been updated from
       1.11 to 1.12.</para>
@@ -1745,6 +1758,9 @@ mdconfig_md1="-t vnode -f /var/foo.img"</programlisting>
     <para><application>FILE</application> has been updated from 4.12
       to 4.17.</para>
 
+    <para>The GNU version of <application>gzip</application> has been
+      replaced with a version of gzip imported from NetBSD.</para>
+
     <para><application>netcat</application> has been updated from the
       version in a 4 February 2005 OpenBSD snapshot to the version
       included in OpenBSD 3.9. &merged;</para>
@@ -1753,7 +1769,7 @@ mdconfig_md1="-t vnode -f /var/foo.img"</programlisting>
       to 3.4.6. &merged;</para>
 
     <para><application>GNU Readline library</application> has been
-      updated from 5.0 to 5.1.</para>
+      updated from 5.0 to 5.2 patch 1.</para>
 
     <para><application>GNU Troff</application>
       has been updated from version 1.19 to version 1.19.2.
@@ -1777,6 +1793,9 @@ mdconfig_md1="-t vnode -f /var/foo.img"</programlisting>
 
     <para><application>OpenSSL</application> has been updated from
       0.9.7e to 0.9.8d.</para>
+
+    <para><application>ncurses</application> has been updated from
+      5.2-20010512 to 5.6-20061217.</para>
 
     <para><application>hostapd</application>
       has been updated from version 0.3.9 to version 0.4.8.
