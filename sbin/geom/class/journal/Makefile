@@ -8,7 +8,6 @@ SRCS+=	geom_journal_ufs.c
 DPADD=	${LIBMD} ${LIBUFS}
 LDADD=	-lmd -lufs
 
-NO_MAN=
 CFLAGS+=-I${.CURDIR}/../../../../sys
 
 .include <bsd.lib.mk>
