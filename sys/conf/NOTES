@@ -807,10 +807,7 @@ device		stf			#6to4 IPv6 over IPv4 encapsulation
 # Internet family options:
 #
 # MROUTING enables the kernel multicast packet forwarder, which works
-# with mrouted(8).
-#
-# PIM enables Protocol Independent Multicast in the kernel.
-# Requires MROUTING enabled.
+# with mrouted and XORP.
 #
 # IPFIREWALL enables support for IP firewall construction, in
 # conjunction with the `ipfw' program.  IPFIREWALL_VERBOSE sends
@@ -854,7 +851,6 @@ device		stf			#6to4 IPv6 over IPv4 encapsulation
 # using the trpt(8) utility.
 #
 options 	MROUTING		# Multicast routing
-options 	PIM			# Protocol Independent Multicast
 options 	IPFIREWALL		#firewall
 options 	IPFIREWALL_VERBOSE	#enable logging to syslogd(8)
 options 	IPFIREWALL_VERBOSE_LIMIT=100	#limit verbosity
