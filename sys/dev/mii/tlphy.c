@@ -128,8 +128,7 @@ static void	tlphy_acomp(struct tlphy_softc *);
 static void	tlphy_status(struct tlphy_softc *);
 
 static int
-tlphy_probe(dev)
-	device_t		dev;
+tlphy_probe(device_t dev)
 {
 	struct mii_attach_args *ma;       
 
@@ -145,8 +144,7 @@ tlphy_probe(dev)
 }
 
 static int
-tlphy_attach(dev)
-	device_t		dev;
+tlphy_attach(device_t dev)
 {
 	struct tlphy_softc *sc;
 	struct mii_attach_args *ma;
@@ -226,10 +224,7 @@ tlphy_attach(dev)
 }
 
 static int
-tlphy_service(self, mii, cmd)
-	struct mii_softc *self;
-	struct mii_data *mii;
-	int cmd;
+tlphy_service(struct mii_softc *self, struct mii_data *mii, int cmd)
 {
 	struct tlphy_softc *sc = (struct tlphy_softc *)self;
 	struct ifmedia_entry *ife = mii->mii_media.ifm_cur;
@@ -340,8 +335,7 @@ tlphy_service(self, mii, cmd)
 }
 
 static void
-tlphy_status(sc)
-	struct tlphy_softc *sc;
+tlphy_status(struct tlphy_softc *sc)
 {
 	struct mii_data *mii = sc->sc_mii.mii_pdata;
 	int bmsr, bmcr, tlctrl;
@@ -383,8 +377,7 @@ tlphy_status(sc)
 }
 
 static int
-tlphy_auto(sc)
-	struct tlphy_softc *sc;
+tlphy_auto(struct tlphy_softc *sc)
 {
 	int error;
 
@@ -410,8 +403,7 @@ tlphy_auto(sc)
 }
 
 static void
-tlphy_acomp(sc)
-	struct tlphy_softc *sc;
+tlphy_acomp(struct tlphy_softc *sc)
 {
 	int aner, anlpar;
 
