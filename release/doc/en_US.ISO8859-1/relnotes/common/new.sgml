@@ -168,6 +168,11 @@
       fixed.  More information is available in
       <ulink url="http://security.FreeBSD.org/advisories/FreeBSD-SA-07:01.jail.asc">FreeBSD-SA-07:01.jail</ulink>.</para>
 
+    <para>Two remote denials of service in BIND (one involving DNSSEC and
+      one involving recursive DNS queries) have been fixed.  For more
+      information, see security advisory
+      <ulink url="http://security.FreeBSD.org/advisories/FreeBSD-SA-07:02.bind.asc">FreeBSD-SA-07:02.bind</ulink>.</para>
+
   </sect2>
 
   <sect2 id="kernel">
@@ -250,7 +255,7 @@
     <title>Contributed Software</title>
 
     <para><application>BIND</application> has been updated from 9.3.1
-      to 9.3.3.</para>
+      to 9.3.4.</para>
 
     <para><application>netcat</application> has been updated from the
       version in a 4 February 2005 OpenBSD snapshot to the version
