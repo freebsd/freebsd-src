@@ -35,7 +35,7 @@
 .\"	from: @(#)quota.1	8.1 (Berkeley) 6/6/93
 .\" $FreeBSD$
 .\"
-.Dd October 22, 2006
+.Dd Februry 3, 2007
 .Dt QUOTA 1
 .Os
 .Sh NAME
@@ -44,15 +44,18 @@
 .Sh SYNOPSIS
 .Nm
 .Op Fl ghlu
-.Op Fl v | Fl q
+.Op Fl f Ar path
+.Op Fl v | Fl q | Fl r
 .Nm
 .Op Fl hlu
-.Op Fl v | Fl q
+.Op Fl f Ar path
+.Op Fl v | Fl q | Fl r
 .Ar user ...
 .Nm
 .Fl g
 .Op Fl hl
-.Op Fl v | Fl q
+.Op Fl f Ar path
+.Op Fl v | Fl q | Fl r
 .Ar group ...
 .Sh DESCRIPTION
 The
@@ -63,6 +66,10 @@ Disk block usage and limits are shown in 1024-byte blocks.
 .Pp
 The following options are available:
 .Bl -tag -width indent
+.It Fl f Ar path
+Only display quota information for the file system
+that contains the specified path.
+This can be any file within a mounted file system.
 .It Fl g
 Print group quotas for the group
 of which the user is a member.
@@ -77,6 +84,21 @@ file systems.
 Print a more terse message,
 containing only information
 on file systems where usage is over quota.
+The
+.Fl q
+flag takes precedence over the
+.Fl v
+flag.
+.It Fl r
+Display the raw quota information as it appears in the quota structure.
+Non-zero time values will be also be displayed in
+.Xr ctime 3
+format.
+This option implies
+.Fl v
+and will override the
+.Fl q
+flag.
 .It Fl u
 Print the user quotas.
 This is the default unless
@@ -106,12 +128,6 @@ flag and optional
 argument to view only the limits of groups of which they are members.
 .Pp
 The
-.Fl q
-flag takes precedence over the
-.Fl v
-flag.
-.Pp
-The
 .Nm
 utility tries to report the quotas of all mounted file systems.
 If the file system is mounted via
@@ -128,7 +144,9 @@ file systems, quotas must be turned on in
 If
 .Nm
 exits with a non-zero status, one or more file systems
-are over quota.
+are over quota or the path specified with the
+.Fl f
+option does not exist.
 .Pp
 If the
 .Fl l
@@ -148,6 +166,7 @@ to find file system names and locations
 .El
 .Sh SEE ALSO
 .Xr quotactl 2 ,
+.Xr ctime 3 ,
 .Xr fstab 5 ,
 .Xr edquota 8 ,
 .Xr quotacheck 8 ,
