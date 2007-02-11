@@ -496,6 +496,14 @@ m_clget(struct mbuf *m, int how)
 
 	m->m_ext.ext_buf = NULL;
 	uma_zalloc_arg(zone_clust, m, how);
+	/*
+	 * On a cluster allocation failure, drain the packet zone and retry,
+	 * we might be able to loosen a few clusters up on the drain.
+	 */
+	if ((how & M_NOWAIT) && (m->m_ext.ext_buf == NULL)) {
+		zone_drain(zone_pack);
+		uma_zalloc_arg(zone_clust, m, how);
+	}
 }
 
 /*
