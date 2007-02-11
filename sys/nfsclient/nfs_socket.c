@@ -1091,10 +1091,13 @@ nfs_request(struct vnode *vp, struct mbuf *mrest, int procnum,
 	u_int32_t *xidp;
 
 	/* Reject requests while attempting a forced unmount. */
+	MNT_ILOCK(vp->v_mount);
 	if (vp->v_mount->mnt_kern_flag & MNTK_UNMOUNTF) {
+		MNT_IUNLOCK(vp->v_mount);
 		m_freem(mrest);
 		return (ESTALE);
 	}
+	MNT_IUNLOCK(vp->v_mount);
 	nmp = VFSTONFS(vp->v_mount);
 	if ((nmp->nm_flag & NFSMNT_NFSV4) != 0)
 		return nfs4_request(vp, mrest, procnum, td, cred, mrp, mdp, dposp);
@@ -1703,10 +1706,13 @@ nfs_sigintr(struct nfsmount *nmp, struct nfsreq *rep, struct thread *td)
 			mtx_unlock(&rep->r_mtx);
 	}
 	/* Terminate all requests while attempting a forced unmount. */
+	MNT_ILOCK(nmp->nm_mountp);
 	if (nmp->nm_mountp->mnt_kern_flag & MNTK_UNMOUNTF) {
+		MNT_IUNLOCK(nmp->nm_mountp);
 		error = EIO;
 		goto out;
 	}
+	MNT_IUNLOCK(nmp->nm_mountp);
 	if (!(nmp->nm_flag & NFSMNT_INT))
 		goto out;
 	if (td == NULL)
