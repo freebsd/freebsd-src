@@ -94,6 +94,6 @@ COMMDIR2= ${SYS}/dev/advansys \
 	${SYS}/fs/specfs \
 	${SYS}/fs/umapfs \
 	${SYS}/fs/unionfs \
-	${SYS}/isofs/cd9660 \
+	${SYS}/fs/cd9660 \
 	${SYS}/ufs/ffs \
 	${SYS}/ufs/ufs

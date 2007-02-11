@@ -47,7 +47,6 @@ LSUBDIRS=	cam/scsi \
 	fs/unionfs \
 	geom/cache geom/concat geom/eli geom/gate geom/journal geom/label \
 	geom/mirror geom/nop geom/raid3 geom/shsec geom/stripe \
-	isofs/cd9660 \
 	netatm/ipatm netatm/sigpvc netatm/spans netatm/uni \
 	netgraph/atm netgraph/netflow \
 	security/audit \
@@ -163,6 +162,9 @@ copies:
 	cd ${.CURDIR}/../sys/contrib/altq/altq; \
 	${INSTALL} -C -o ${BINOWN} -g ${BINGRP} -m 444 *.h \
 	    ${DESTDIR}${INCLUDEDIR}/altq
+	cd ${.CURDIR}/../sys/fs/cd9660/; \
+	${INSTALL} -C -o ${BINOWN} -g ${BINGRP} -m 444 *.h \
+	    ${DESTDIR}${INCLUDEDIR}/isofs/cd9660
 .if ${MK_IPFILTER} != "no"
 	cd ${.CURDIR}/../sys/contrib/ipfilter/netinet; \
 	${INSTALL} -C -o ${BINOWN} -g ${BINGRP} -m 444 *.h \
@@ -287,3 +289,8 @@ symlinks:
 	done
 .endif
 .endif
+	cd ${.CURDIR}/../sys/fs/cd9660; \
+	for h in *.h; do \
+		ln -fs ../../../../sys/fs/cd9660/$$h \
+		    ${DESTDIR}${INCLUDEDIR}/isofs/cd9660; \
+	done
