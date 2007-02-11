@@ -840,7 +840,7 @@ nfs_lookup(struct vop_lookup_args *ap)
 			m_freem(mrep);
 			return (EISDIR);
 		}
-		error = nfs_nget(dvp->v_mount, fhp, fhsize, &np);
+		error = nfs_nget(dvp->v_mount, fhp, fhsize, &np, LK_EXCLUSIVE);
 		if (error) {
 			m_freem(mrep);
 			return (error);
@@ -859,7 +859,7 @@ nfs_lookup(struct vop_lookup_args *ap)
 
 	if (flags & ISDOTDOT) {
 		VOP_UNLOCK(dvp, 0, td);
-		error = nfs_nget(dvp->v_mount, fhp, fhsize, &np);
+		error = nfs_nget(dvp->v_mount, fhp, fhsize, &np, cnp->cn_lkflags);
 		vn_lock(dvp, LK_EXCLUSIVE | LK_RETRY, td);
 		if (error)
 			return (error);
@@ -868,7 +868,7 @@ nfs_lookup(struct vop_lookup_args *ap)
 		VREF(dvp);
 		newvp = dvp;
 	} else {
-		error = nfs_nget(dvp->v_mount, fhp, fhsize, &np);
+		error = nfs_nget(dvp->v_mount, fhp, fhsize, &np, cnp->cn_lkflags);
 		if (error) {
 			m_freem(mrep);
 			return (error);
@@ -2290,7 +2290,7 @@ nfs_readdirplusrpc(struct vnode *vp, struct uio *uiop, struct ucred *cred)
 				    np = dnp;
 				} else {
 				    error = nfs_nget(vp->v_mount, fhp,
-					fhsize, &np);
+					fhsize, &np, LK_EXCLUSIVE);
 				    if (error)
 					doit = 0;
 				    else
@@ -2484,7 +2484,7 @@ nfs_lookitup(struct vnode *dvp, const char *name, int len, struct ucred *cred,
 		    VREF(dvp);
 		    newvp = dvp;
 		} else {
-		    error = nfs_nget(dvp->v_mount, nfhp, fhlen, &np);
+		    error = nfs_nget(dvp->v_mount, nfhp, fhlen, &np, LK_EXCLUSIVE);
 		    if (error) {
 			m_freem(mrep);
 			return (error);
