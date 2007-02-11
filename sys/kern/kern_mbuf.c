@@ -366,6 +366,16 @@ mb_dtor_pack(void *mem, int size, void *arg)
 #endif
 	mbstat.m_mbufs -= 1;	/* XXX */
 	mbstat.m_mclusts -= 1;	/* XXX */
+	/*
+	 * If there are processes blocked on zone_clust, waiting for pages to be freed up,
+	 * cause them to be woken up by draining the packet zone. Draining the cluster zone
+	 * is unnecessary here (as freeing clusters would have caused these blocked processes
+	 * to be woken up). We are exposed to a race here (in the check for the UMA_ZFLAG_FULL)
+	 * where we might miss the flag set, but that is deliberate. We don't want to acquire 
+	 * the zone lock for every mbuf free.
+	 */
+	if (uma_zone_exhausted_nolock(zone_clust))
+		zone_drain(zone_pack);
 }
 
 /*
