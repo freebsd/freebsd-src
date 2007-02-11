@@ -182,11 +182,7 @@ bmtphy_attach(device_t dev)
 	sc->mii_capabilities =
 	    PHY_READ(sc, MII_BMSR) & ma->mii_capmask;
 	device_printf(dev, " ");
-	if ((sc->mii_capabilities & BMSR_MEDIAMASK) == 0)
-		printf("no media present");
-	else
-		mii_phy_add_media(sc);
-
+	mii_phy_add_media(sc);
 	printf("\n");
 
 	MIIBUS_MEDIAINIT(sc->mii_dev);
