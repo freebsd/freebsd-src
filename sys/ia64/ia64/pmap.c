@@ -752,11 +752,6 @@ pmap_growkernel(vm_offset_t addr)
 	struct ia64_lpte *ptepage;
 	vm_page_t nkpg;
 
-	if (kernel_vm_end >= addr)
-		return;
-
-	critical_enter();
-
 	while (kernel_vm_end < addr) {
 		/* We could handle more by increasing the size of kptdir. */
 		if (nkpt == MAXKPT)
@@ -775,8 +770,6 @@ pmap_growkernel(vm_offset_t addr)
 		nkpt++;
 		kernel_vm_end += PAGE_SIZE * NKPTEPG;
 	}
-
-	critical_exit();
 }
 
 /***************************************************
