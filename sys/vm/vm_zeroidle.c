@@ -103,7 +103,7 @@ vm_page_zero_idle(void)
 	static int free_rover;
 	vm_page_t m;
 
-	mtx_lock(&vm_page_queue_free_mtx);
+	mtx_assert(&vm_page_queue_free_mtx, MA_OWNED);
 	zero_state = 0;
 	m = vm_pageq_find(PQ_FREE, free_rover, FALSE);
 	if (m != NULL && (m->flags & PG_ZERO) == 0) {
@@ -119,7 +119,6 @@ vm_page_zero_idle(void)
 			zero_state = 1;
 	}
 	free_rover = (free_rover + PQ_PRIME2) & PQ_COLORMASK;
-	mtx_unlock(&vm_page_queue_free_mtx);
 }
 
 /* Called by vm_page_free to hint that a new page is available. */
@@ -127,7 +126,7 @@ void
 vm_page_zero_idle_wakeup(void)
 {
 
-	mtx_assert(&vm_page_queue_mtx, MA_OWNED);
+	mtx_assert(&vm_page_queue_free_mtx, MA_OWNED);
 	if (wakeup_needed && vm_page_zero_check()) {
 		wakeup_needed = FALSE;
 		wakeup(&zero_state);
@@ -140,6 +139,7 @@ vm_pagezero(void __unused *arg)
 
 	idlezero_enable = idlezero_enable_default;
 
+	mtx_lock(&vm_page_queue_free_mtx);
 	for (;;) {
 		if (vm_page_zero_check()) {
 			vm_page_zero_idle();
@@ -151,10 +151,9 @@ vm_pagezero(void __unused *arg)
 			}
 #endif
 		} else {
-			vm_page_lock_queues();
 			wakeup_needed = TRUE;
-			msleep(&zero_state, &vm_page_queue_mtx,
-			    PDROP, "pgzero", hz * 300);
+			msleep(&zero_state, &vm_page_queue_free_mtx, 0,
+			    "pgzero", hz * 300);
 		}
 	}
 }

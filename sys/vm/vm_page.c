@@ -486,7 +486,6 @@ vm_page_free(vm_page_t m)
 {
 	vm_page_flag_clear(m, PG_ZERO);
 	vm_page_free_toq(m);
-	vm_page_zero_idle_wakeup();
 }
 
 /*
@@ -1164,6 +1163,7 @@ vm_page_free_toq(vm_page_t m)
 		++vm_page_zero_count;
 	} else {
 		TAILQ_INSERT_HEAD(&pq->pl, m, pageq);
+		vm_page_zero_idle_wakeup();
 	}
 	vm_page_free_wakeup();
 	mtx_unlock(&vm_page_queue_free_mtx);
