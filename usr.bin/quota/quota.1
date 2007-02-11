@@ -35,7 +35,7 @@
 .\"	from: @(#)quota.1	8.1 (Berkeley) 6/6/93
 .\" $FreeBSD$
 .\"
-.Dd Februry 3, 2007
+.Dd February 3, 2007
 .Dt QUOTA 1
 .Os
 .Sh NAME
@@ -45,17 +45,17 @@
 .Nm
 .Op Fl ghlu
 .Op Fl f Ar path
-.Op Fl v | Fl q | Fl r
+.Op Fl v | q | r
 .Nm
 .Op Fl hlu
 .Op Fl f Ar path
-.Op Fl v | Fl q | Fl r
+.Op Fl v | q | r
 .Ar user ...
 .Nm
 .Fl g
 .Op Fl hl
 .Op Fl f Ar path
-.Op Fl v | Fl q | Fl r
+.Op Fl v | q | r
 .Ar group ...
 .Sh DESCRIPTION
 The
@@ -91,7 +91,7 @@ flag takes precedence over the
 flag.
 .It Fl r
 Display the raw quota information as it appears in the quota structure.
-Non-zero time values will be also be displayed in
+Non-zero time values will also be displayed in
 .Xr ctime 3
 format.
 This option implies
