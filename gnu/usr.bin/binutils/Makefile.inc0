@@ -22,6 +22,12 @@ RELTOP:= ..
 RELSRC=	${RELTOP}/../../../contrib/binutils
 SRCDIR=	${.CURDIR}/${RELSRC}
 
+.if ${TARGET_ARCH} == "arm" || ${TARGET_ARCH} == "i386" || ${TARGET_ARCH} == "powerpc"
+CFLAGS+= -DBFD_DEFAULT_TARGET_SIZE=32
+.else
+CFLAGS+= -DBFD_DEFAULT_TARGET_SIZE=64
+.endif
+
 CFLAGS+= -I.
 .if exists(${.CURDIR}/${TARGET_ARCH})
 CFLAGS+= -I${.CURDIR}/${TARGET_ARCH}
