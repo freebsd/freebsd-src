@@ -73,6 +73,7 @@ __FBSDID("$FreeBSD$");
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <time.h>
 #include <unistd.h>
 
 const char *qfname = QUOTAFILENAME;
@@ -93,6 +94,7 @@ static int showgid(u_long gid);
 static int showusrname(char *name);
 static int showgrpname(char *name);
 static int showquotas(int type, u_long id, const char *name);
+static void showrawquotas(int type, u_long id, struct quotause *qup);
 static void heading(int type, u_long id, const char *name, const char *tag);
 static int ufshasquota(struct fstab *fs, int type, char **qfnamep);
 static int getufsquota(struct fstab *fs, struct quotause *qup, long id,
@@ -105,8 +107,10 @@ static int alldigits(char *s);
 
 int	hflag;
 int	lflag;
+int	rflag;
 int	qflag;
 int	vflag;
+char	*filename = NULL;
 
 int
 main(int argc, char *argv[])
@@ -115,8 +119,11 @@ main(int argc, char *argv[])
 	gid_t mygid, gidset[NGROUPS];
 	int i, ch, gflag = 0, uflag = 0, errflag = 0;
 
-	while ((ch = getopt(argc, argv, "ghlquv")) != -1) {
+	while ((ch = getopt(argc, argv, "f:ghlrquv")) != -1) {
 		switch(ch) {
+		case 'f':
+			filename = optarg;
+			break;
 		case 'g':
 			gflag++;
 			break;
@@ -128,6 +135,9 @@ main(int argc, char *argv[])
 			break;
 		case 'q':
 			qflag++;
+			break;
+		case 'r':
+			rflag++;
 			break;
 		case 'u':
 			uflag++;
@@ -185,9 +195,9 @@ usage(void)
 {
 
 	fprintf(stderr, "%s\n%s\n%s\n",
-	    "usage: quota [-ghlu] [-v | -q]",
-	    "       quota [-hlu] [-v | -q] user ...",
-	    "       quota -g [-hl] [-v | -q] group ...");
+	    "usage: quota [-ghlu] [-f path] [-v | -q | -r]",
+	    "       quota [-hlu] [-f path] [-v | -q | -r] user ...",
+	    "       quota -g [-hl] [-f path] [-v | -q | -r] group ...");
 	exit(1);
 }
 
@@ -280,12 +290,6 @@ showquotas(int type, u_long id, const char *name)
 		time(&now);
 	quplist = getprivs(id, type);
 	for (qup = quplist; qup; qup = qup->next) {
-		if (!vflag &&
-		    qup->dqblk.dqb_isoftlimit == 0 &&
-		    qup->dqblk.dqb_ihardlimit == 0 &&
-		    qup->dqblk.dqb_bsoftlimit == 0 &&
-		    qup->dqblk.dqb_bhardlimit == 0)
-			continue;
 		msgi = (char *)0;
 		if (qup->dqblk.dqb_ihardlimit &&
 		    qup->dqblk.dqb_curinodes >= qup->dqblk.dqb_ihardlimit) {
@@ -314,6 +318,16 @@ showquotas(int type, u_long id, const char *name)
 			else
 				msgb = "Over block quota on";
 		}
+		if (rflag) {
+			showrawquotas(type, id, qup);
+			continue;
+		}
+		if (!vflag &&
+		    qup->dqblk.dqb_isoftlimit == 0 &&
+		    qup->dqblk.dqb_ihardlimit == 0 &&
+		    qup->dqblk.dqb_bsoftlimit == 0 &&
+		    qup->dqblk.dqb_bhardlimit == 0)
+			continue;
 		if (qflag) {
 			if ((msgi != (char *)0 || msgb != (char *)0) &&
 			    lines++ == 0)
@@ -369,10 +383,37 @@ showquotas(int type, u_long id, const char *name)
 			continue;
 		}
 	}
-	if (!qflag && lines == 0)
+	if (!qflag && !rflag && lines == 0)
 		heading(type, id, name, "none");
 	return(overquota);
 }
+
+static void
+showrawquotas(type, id, qup)
+	int type;
+	u_long id;
+	struct quotause *qup;
+{
+	printf("Raw %s quota information for id %lu on %s\n",
+	    type == USRQUOTA ? "user" : "group", id, qup->fsname);
+	printf("block hard limit:     %lu\n", qup->dqblk.dqb_bhardlimit);
+	printf("block soft limit:     %lu\n", qup->dqblk.dqb_bsoftlimit);
+	printf("current block count:  %lu\n", qup->dqblk.dqb_curblocks);
+	printf("i-node hard limit:    %lu\n", qup->dqblk.dqb_ihardlimit);
+	printf("i-node soft limit:    %lu\n", qup->dqblk.dqb_isoftlimit);
+	printf("current i-node count: %lu\n", qup->dqblk.dqb_curinodes);
+	printf("block grace time:     %ld", qup->dqblk.dqb_btime);
+	if (qup->dqblk.dqb_btime != 0)
+		printf(" %s", ctime(&qup->dqblk.dqb_btime));
+	else
+		printf("\n");
+	printf("i-node grace time:    %ld", qup->dqblk.dqb_itime);
+	if (qup->dqblk.dqb_itime != 0)
+		printf(" %s", ctime(&qup->dqblk.dqb_itime));
+	else
+		printf("\n");
+}
+
 
 static void
 heading(int type, u_long id, const char *name, const char *tag)
@@ -444,9 +485,13 @@ getprivs(long id, int quotatype)
 	struct quotause *quphead;
 	struct statfs *fst;
 	int nfst, i;
+	int len;
+	struct statfs sfb;
 
 	qup = quphead = (struct quotause *)0;
 
+	if (filename != NULL && statfs(filename, &sfb) != 0)
+		err(1, "cannot statfs %s", filename);
 	nfst = getmntinfo(&fst, MNT_NOWAIT);
 	if (nfst == 0)
 		errx(2, "no filesystems mounted!");
@@ -457,11 +502,17 @@ getprivs(long id, int quotatype)
 			    == NULL)
 				errx(2, "out of memory");
 		}
+		/*
+		 * See if the user requested a specific file system
+		 * or specified a file inside a mounted file system.
+		 */
+		if (filename != NULL &&
+		    strcmp(sfb.f_mntonname, fst[i].f_mntonname) != 0)
+			continue;
 		if (strcmp(fst[i].f_fstypename, "nfs") == 0) {
 			if (lflag)
 				continue;
-			if (getnfsquota(&fst[i], qup, id, quotatype)
-			    == 0)
+			if (getnfsquota(&fst[i], qup, id, quotatype) == 0)
 				continue;
 		} else if (strcmp(fst[i].f_fstypename, "ufs") == 0) {
 			/*
