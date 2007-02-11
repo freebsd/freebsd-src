@@ -55,10 +55,10 @@ __FBSDID("$FreeBSD$");
 #include <sys/syslog.h>
 #include <sys/iconv.h>
 
-#include <isofs/cd9660/iso.h>
-#include <isofs/cd9660/iso_rrip.h>
-#include <isofs/cd9660/cd9660_node.h>
-#include <isofs/cd9660/cd9660_mount.h>
+#include <fs/cd9660/iso.h>
+#include <fs/cd9660/iso_rrip.h>
+#include <fs/cd9660/cd9660_node.h>
+#include <fs/cd9660/cd9660_mount.h>
 
 #include <geom/geom.h>
 #include <geom/geom_vfs.h>
