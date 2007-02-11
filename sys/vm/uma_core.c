@@ -111,6 +111,9 @@ static uma_zone_t slabrefzone;	/* With refcounters (for UMA_ZONE_REFCNT) */
  */
 static uma_zone_t hashzone;
 
+/* The boot-time adjusted value for cache line alignment. */
+static int uma_align_cache = 16 - 1;
+
 static MALLOC_DEFINE(M_UMAHASH, "UMAHash", "UMA Hash Buckets");
 
 /*
@@ -1707,10 +1710,19 @@ uma_kcreate(uma_zone_t zone, size_t size, uma_init uminit, uma_fini fini,
 	args.size = size;
 	args.uminit = uminit;
 	args.fini = fini;
-	args.align = align;
+	args.align = (align == UMA_ALIGN_CACHE) ? uma_align_cache : align;
 	args.flags = flags;
 	args.zone = zone;
 	return (uma_zalloc_internal(kegs, &args, M_WAITOK));
+}
+
+/* See uma.h */
+void
+uma_set_align(int align)
+{
+
+	if (align != UMA_ALIGN_CACHE)
+		uma_align_cache = align;
 }
 
 /* See uma.h */
