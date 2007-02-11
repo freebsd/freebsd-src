@@ -58,6 +58,7 @@ __FBSDID("$FreeBSD$");
 
 #include <vm/vm.h>
 #include <vm/pmap.h>
+#include <vm/uma.h>
 
 #include <machine/cpuconf.h>
 #include <machine/cpufunc.h>
@@ -799,7 +800,7 @@ set_cpufuncs()
 		cpu_reset_needs_v4_MMU_disable = 0;
 		get_cachetype_cp15();
 		pmap_pte_init_generic();
-		return 0;
+		goto out;
 	}
 #endif	
 #ifdef CPU_ARM8
@@ -809,7 +810,7 @@ set_cpufuncs()
 		cpu_reset_needs_v4_MMU_disable = 0;	/* XXX correct? */
 		get_cachetype_cp15();
 		pmap_pte_init_arm8();
-		return 0;
+		goto out;
 	}
 #endif	/* CPU_ARM8 */
 #ifdef CPU_ARM9
@@ -829,7 +830,7 @@ set_cpufuncs()
 #else
 		pmap_pte_init_generic();
 #endif
-		return 0;
+		goto out;
 	}
 #endif /* CPU_ARM9 */
 #ifdef CPU_ARM10
@@ -849,7 +850,7 @@ set_cpufuncs()
 		arm10_dcache_index_inc = 1U << (32 - arm_dcache_l2_assoc);
 		arm10_dcache_index_max = 0U - arm10_dcache_index_inc;
 		pmap_pte_init_generic();
-		return 0;
+		goto out;
 	}
 #endif /* CPU_ARM10 */
 #ifdef CPU_SA110
@@ -858,7 +859,7 @@ set_cpufuncs()
 		cpu_reset_needs_v4_MMU_disable = 1;	/* SA needs it */
 		get_cachetype_table();
 		pmap_pte_init_sa1();
-		return 0;
+		goto out;
 	}
 #endif	/* CPU_SA110 */
 #ifdef CPU_SA1100
@@ -870,7 +871,7 @@ set_cpufuncs()
 		/* Use powersave on this CPU. */
 		cpu_do_powersave = 1;
 
-		return 0;
+		goto out;
 	}
 #endif	/* CPU_SA1100 */
 #ifdef CPU_SA1110
@@ -882,7 +883,7 @@ set_cpufuncs()
 		/* Use powersave on this CPU. */
 		cpu_do_powersave = 1;
 
-		return 0;
+		goto out;
 	}
 #endif	/* CPU_SA1110 */
 #ifdef CPU_IXP12X0
@@ -891,7 +892,7 @@ set_cpufuncs()
                 cpu_reset_needs_v4_MMU_disable = 1;
                 get_cachetype_table();
                 pmap_pte_init_sa1();
-                return 0;
+		goto out;
         }
 #endif  /* CPU_IXP12X0 */
 #ifdef CPU_XSCALE_80200
@@ -948,7 +949,7 @@ set_cpufuncs()
 		cpu_reset_needs_v4_MMU_disable = 1;	/* XScale needs it */
 		get_cachetype_cp15();
 		pmap_pte_init_xscale();
-		return 0;
+		goto out;
 	}
 #endif /* CPU_XSCALE_80200 */
 #if defined(CPU_XSCALE_80321) || defined(CPU_XSCALE_80219)
@@ -975,7 +976,7 @@ set_cpufuncs()
 		cpu_reset_needs_v4_MMU_disable = 1;	/* XScale needs it */
 		get_cachetype_cp15();
 		pmap_pte_init_xscale();
-		return 0;
+		goto out;
 	}
 #endif /* CPU_XSCALE_80321 */
 
@@ -989,7 +990,7 @@ set_cpufuncs()
 		cpu_reset_needs_v4_MMU_disable = 1;	/* XScale needs it */
 		get_cachetype_cp15();
 		pmap_pte_init_xscale();
-		return 0;
+		goto out;
 	}
 #endif /* CPU_XSCALE_81342 */
 #ifdef CPU_XSCALE_PXA2X0
@@ -1009,7 +1010,7 @@ set_cpufuncs()
 		/* Use powersave on this CPU. */
 		cpu_do_powersave = 1;
 
-		return 0;
+		goto out;
 	}
 #endif /* CPU_XSCALE_PXA2X0 */
 #ifdef CPU_XSCALE_IXP425
@@ -1025,7 +1026,7 @@ set_cpufuncs()
 		get_cachetype_cp15();
 		pmap_pte_init_xscale();
 
-		return 0;
+		goto out;
 	}
 #endif /* CPU_XSCALE_IXP425 */
 	/*
@@ -1033,6 +1034,9 @@ set_cpufuncs()
 	 */
 	panic("No support for this CPU type (%08x) in kernel", cputype);
 	return(ARCHITECTURE_NOT_PRESENT);
+out:
+	uma_set_align(arm_dcache_align_mask);
+	return (0);
 }
 
 /*
