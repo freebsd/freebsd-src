@@ -236,7 +236,7 @@ uma_zone_t uma_zsecond_create(char *name, uma_ctor ctor, uma_dtor dtor,
 #define UMA_ALIGN_INT	(sizeof(int) - 1)	/* "" int */
 #define UMA_ALIGN_SHORT	(sizeof(short) - 1)	/* "" short */
 #define UMA_ALIGN_CHAR	(sizeof(char) - 1)	/* "" char */
-#define UMA_ALIGN_CACHE	(16 - 1)		/* Cache line size align */
+#define UMA_ALIGN_CACHE	(0 - 1)			/* Cache line size align */
 
 /*
  * Destroys an empty uma zone.  If the zone is not empty uma complains loudly.
@@ -386,6 +386,18 @@ void uma_startup2(void);
  */
 
 void uma_reclaim(void);
+
+/*
+ * Sets the alignment mask to be used for all zones requesting cache
+ * alignment.  Should be called by MD boot code prior to starting VM/UMA.
+ *
+ * Arguments:
+ *	align The alignment mask
+ *
+ * Returns:
+ *	Nothing
+ */
+void uma_set_align(int align);
 
 /*
  * Switches the backing object of a zone
