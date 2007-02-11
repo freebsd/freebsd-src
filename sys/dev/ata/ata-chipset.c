@@ -115,6 +115,8 @@ static void ata_marvell_dmasetprd(void *xsc, bus_dma_segment_t *segs, int nsegs,
 static void ata_marvell_dmainit(device_t dev);
 static int ata_national_chipinit(device_t dev);
 static void ata_national_setmode(device_t dev, int mode);
+static int ata_netcell_chipinit(device_t dev);
+static int ata_netcell_allocate(device_t dev);
 static int ata_nvidia_chipinit(device_t dev);
 static int ata_nvidia_allocate(device_t dev);
 static int ata_nvidia_status(device_t dev);
@@ -2798,6 +2800,49 @@ ata_national_setmode(device_t dev, int mode)
     }
 }
 
+/*
+ * NetCell chipset support functions
+ */
+int
+ata_netcell_ident(device_t dev)
+{
+    struct ata_pci_controller *ctlr = device_get_softc(dev);
+
+    if (pci_get_devid(dev) == ATA_NETCELL_SR) {
+	device_set_desc(dev, "Netcell SyncRAID SR3000/5000 RAID Controller");
+	ctlr->chipinit = ata_netcell_chipinit;
+	return 0;
+    }
+    return ENXIO;
+}
+
+static int
+ata_netcell_chipinit(device_t dev)
+{
+    struct ata_pci_controller *ctlr = device_get_softc(dev);
+
+    if (ata_generic_chipinit(dev))
+	return ENXIO;
+
+    ctlr->allocate = ata_netcell_allocate;
+    return 0;
+}
+
+static int
+ata_netcell_allocate(device_t dev)
+{
+    struct ata_channel *ch = device_get_softc(dev);
+ 
+    /* setup the usual register normal pci style */
+    if (ata_pci_allocate(dev))
+	return ENXIO;
+ 
+    /* don't use 32 bit PIO transfers; these cause the NetCell to return
+     * garbage */
+    ch->flags |= ATA_USE_16BIT;
+
+    return 0;
+}
 
 /*
  * nVidia chipset support functions
