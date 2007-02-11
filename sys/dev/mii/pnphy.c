@@ -100,8 +100,7 @@ static int	pnphy_service(struct mii_softc *, struct mii_data *, int);
 static void	pnphy_status(struct mii_softc *);
 
 static int
-pnphy_probe(dev)
-	device_t		dev;
+pnphy_probe(device_t dev)
 {
 	struct mii_attach_args *ma;
 
@@ -121,8 +120,7 @@ pnphy_probe(dev)
 }
 
 static int
-pnphy_attach(dev)
-	device_t		dev;
+pnphy_attach(device_t dev)
 {
 	struct mii_softc *sc;
 	struct mii_attach_args *ma;
@@ -163,10 +161,7 @@ pnphy_attach(dev)
 }
 
 static int
-pnphy_service(sc, mii, cmd)
-	struct mii_softc *sc;
-	struct mii_data *mii;
-	int cmd;
+pnphy_service(struct mii_softc *sc, struct mii_data *mii, int cmd)
 {
 	struct ifmedia_entry *ife = mii->mii_media.ifm_cur;
 
@@ -246,8 +241,7 @@ pnphy_service(sc, mii, cmd)
 }
 
 static void
-pnphy_status(sc)
-	struct mii_softc *sc;
+pnphy_status(struct mii_softc *sc)
 {
 	struct mii_data *mii = sc->mii_pdata;
 	int reg;

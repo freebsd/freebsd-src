@@ -83,8 +83,7 @@ static int	amphy_service(struct mii_softc *, struct mii_data *, int);
 static void	amphy_status(struct mii_softc *);
 
 static int
-amphy_probe(dev)
-	device_t		dev;
+amphy_probe(device_t dev)
 {
 	struct mii_attach_args *ma;
 
@@ -105,8 +104,7 @@ amphy_probe(dev)
 }
 
 static int
-amphy_attach(dev)
-	device_t		dev;
+amphy_attach(device_t dev)
 {
 	struct mii_softc *sc;
 	struct mii_attach_args *ma;
@@ -148,10 +146,7 @@ amphy_attach(dev)
 }
 
 static int
-amphy_service(sc, mii, cmd)
-	struct mii_softc *sc;
-	struct mii_data *mii;
-	int cmd;
+amphy_service(struct mii_softc *sc, struct mii_data *mii, int cmd)
 {
 	struct ifmedia_entry *ife = mii->mii_media.ifm_cur;
 	int reg;
@@ -226,8 +221,7 @@ amphy_service(sc, mii, cmd)
 }
 
 static void
-amphy_status(sc)
-	struct mii_softc *sc;
+amphy_status(struct mii_softc *sc)
 {
 	struct mii_data *mii = sc->mii_pdata;
 	int bmsr, bmcr, par, anlpar;

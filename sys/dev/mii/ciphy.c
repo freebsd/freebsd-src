@@ -92,8 +92,7 @@ static void	ciphy_reset(struct mii_softc *);
 static void	ciphy_fixup(struct mii_softc *);
 
 static int
-ciphy_probe(dev)
-	device_t		dev;
+ciphy_probe(device_t dev)
 {
 	struct mii_attach_args *ma;
 
@@ -121,8 +120,7 @@ ciphy_probe(dev)
 }
 
 static int
-ciphy_attach(dev)
-	device_t		dev;
+ciphy_attach(device_t dev)
 {
 	struct mii_softc *sc;
 	struct mii_attach_args *ma;
@@ -157,10 +155,7 @@ ciphy_attach(dev)
 }
 
 static int
-ciphy_service(sc, mii, cmd)
-	struct mii_softc *sc;
-	struct mii_data *mii;
-	int cmd;
+ciphy_service(struct mii_softc *sc, struct mii_data *mii, int cmd)
 {
 	struct ifmedia_entry *ife = mii->mii_media.ifm_cur;
 	int reg, speed, gig;
@@ -312,8 +307,7 @@ setit:
 }
 
 static void
-ciphy_status(sc)
-	struct mii_softc *sc;
+ciphy_status(struct mii_softc *sc)
 {
 	struct mii_data *mii = sc->mii_pdata;
 	int bmsr, bmcr;

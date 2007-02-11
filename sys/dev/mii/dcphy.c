@@ -115,8 +115,7 @@ static void	dcphy_reset(struct mii_softc *);
 static int	dcphy_auto(struct mii_softc *);
 
 static int
-dcphy_probe(dev)
-	device_t		dev;
+dcphy_probe(device_t dev)
 {
 	struct mii_attach_args *ma;
 
@@ -136,8 +135,7 @@ dcphy_probe(dev)
 }
 
 static int
-dcphy_attach(dev)
-	device_t		dev;
+dcphy_attach(device_t dev)
 {
 	struct mii_softc *sc;
 	struct mii_attach_args *ma;
@@ -201,10 +199,7 @@ dcphy_attach(dev)
 }
 
 static int
-dcphy_service(sc, mii, cmd)
-	struct mii_softc *sc;
-	struct mii_data *mii;
-	int cmd;
+dcphy_service(struct mii_softc *sc, struct mii_data *mii, int cmd)
 {
 	struct dc_softc		*dc_sc;
 	struct ifmedia_entry *ife = mii->mii_media.ifm_cur;
@@ -338,8 +333,7 @@ dcphy_service(sc, mii, cmd)
 }
 
 static void
-dcphy_status(sc)
-	struct mii_softc *sc;
+dcphy_status(struct mii_softc *sc)
 {
 	struct mii_data *mii = sc->mii_pdata;
 	int reg, anlpar, tstat = 0;
@@ -422,8 +416,7 @@ skip:
 }
 
 static int
-dcphy_auto(mii)
-	struct mii_softc	*mii;
+dcphy_auto(struct mii_softc *mii)
 {
 	struct dc_softc		*sc;
 
@@ -444,8 +437,7 @@ dcphy_auto(mii)
 }
 
 static void
-dcphy_reset(mii)
-	struct mii_softc	*mii;
+dcphy_reset(struct mii_softc *mii)
 {
 	struct dc_softc		*sc;
 
