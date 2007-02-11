@@ -47,9 +47,9 @@ __FBSDID("$FreeBSD$");
 #include <sys/stat.h>
 #include <sys/mutex.h>
 
-#include <isofs/cd9660/iso.h>
-#include <isofs/cd9660/cd9660_node.h>
-#include <isofs/cd9660/cd9660_mount.h>
+#include <fs/cd9660/iso.h>
+#include <fs/cd9660/cd9660_node.h>
+#include <fs/cd9660/cd9660_mount.h>
 
 static unsigned	cd9660_chars2ui(unsigned char *begin, int len);
 

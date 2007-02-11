@@ -46,9 +46,9 @@ __FBSDID("$FreeBSD$");
 #include <sys/vnode.h>
 #include <sys/mount.h>
 
-#include <isofs/cd9660/iso.h>
-#include <isofs/cd9660/cd9660_node.h>
-#include <isofs/cd9660/iso_rrip.h>
+#include <fs/cd9660/iso.h>
+#include <fs/cd9660/cd9660_node.h>
+#include <fs/cd9660/iso_rrip.h>
 
 /*
  * Convert a component of a pathname into a pointer to a locked inode.

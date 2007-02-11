@@ -45,10 +45,10 @@ __FBSDID("$FreeBSD$");
 #include <sys/mount.h>
 #include <sys/kernel.h>
 
-#include <isofs/cd9660/iso.h>
-#include <isofs/cd9660/cd9660_node.h>
-#include <isofs/cd9660/cd9660_rrip.h>
-#include <isofs/cd9660/iso_rrip.h>
+#include <fs/cd9660/iso.h>
+#include <fs/cd9660/cd9660_node.h>
+#include <fs/cd9660/cd9660_rrip.h>
+#include <fs/cd9660/iso_rrip.h>
 
 typedef int	rrt_func_t(void *, ISO_RRIP_ANALYZE *ana);
 

@@ -57,9 +57,9 @@ __FBSDID("$FreeBSD$");
 #include <vm/vnode_pager.h>
 #include <vm/uma.h>
 
-#include <isofs/cd9660/iso.h>
-#include <isofs/cd9660/cd9660_node.h>
-#include <isofs/cd9660/iso_rrip.h>
+#include <fs/cd9660/iso.h>
+#include <fs/cd9660/cd9660_node.h>
+#include <fs/cd9660/iso_rrip.h>
 
 static vop_setattr_t	cd9660_setattr;
 static vop_open_t	cd9660_open;
