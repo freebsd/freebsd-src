@@ -163,7 +163,7 @@
       a candidate for an errata patch to RELENG_6_2 after further
       testing.</para>
 
-    <para>[20070116] Systems with very heavy network activity have
+    <para>[20070116, update 20070212] Systems with very heavy network activity have
       been observed to have some problems with the kernel memory
       allocator.  Symptoms are processes that get stuck in zonelimit
       state, or system livelocks.  One partial workaround for this
@@ -175,6 +175,8 @@
     <para>Other workarounds have been discussed on the
       <literal>freebsd-current@</literal>
       and <literal>freebsd-stable@</literal> mailing lists.</para>
+
+    <para>A bugfix has been committed to HEAD and has been merged to RELENG_6.</para>
 
     <para>[20070123] &os; &release.bugfix; does not properly add a
       host route to the destination of a &man.gif.4; interface
