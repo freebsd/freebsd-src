@@ -285,8 +285,11 @@ vn_close(vp, flags, file_cred, td)
 
 	vn_start_write(vp, &mp, V_WAIT);
 	vn_lock(vp, LK_EXCLUSIVE | LK_RETRY, td);
-	if (flags & FWRITE)
+	if (flags & FWRITE) {
+		VNASSERT(vp->v_writecount > 0, vp, 
+		    ("vn_close: negative writecount"));
 		vp->v_writecount--;
+	}
 	error = VOP_CLOSE(vp, flags, file_cred, td);
 	vput(vp);
 	vn_finished_write(mp);
