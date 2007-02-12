@@ -1162,7 +1162,7 @@ flushbuflist(bufv, flags, bo, slpflag, slptimeo)
 			return (EAGAIN);	/* XXX: why not loop ? */
 		}
 		bremfree(bp);
-		bp->b_flags |= (B_INVAL | B_NOCACHE | B_RELBUF);
+		bp->b_flags |= (B_INVAL | B_RELBUF);
 		bp->b_flags &= ~B_ASYNC;
 		brelse(bp);
 		BO_LOCK(bo);

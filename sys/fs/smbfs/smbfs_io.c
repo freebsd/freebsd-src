@@ -683,6 +683,13 @@ smbfs_vinvalbuf(struct vnode *vp, struct thread *td)
 			return EINTR;
 	}
 	np->n_flag |= NFLUSHINPROG;
+
+	if (vp->v_bufobj.bo_object != NULL) {
+		VM_OBJECT_LOCK(vp->v_bufobj.bo_object);
+		vm_object_page_clean(vp->v_bufobj.bo_object, 0, 0, OBJPC_SYNC);
+		VM_OBJECT_UNLOCK(vp->v_bufobj.bo_object);
+	}
+
 	error = vinvalbuf(vp, V_SAVE, td, PCATCH, 0);
 	while (error) {
 		if (error == ERESTART || error == EINTR) {
