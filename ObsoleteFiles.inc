@@ -14,6 +14,8 @@
 # The file is partitioned: OLD_FILES first, then OLD_LIBS and OLD_DIRS last.
 #
 
+# 20070212: kame.4 removed
+OLD_FILES+=usr/share/man/man4/kame.4.gz
 # 20070201: remove libmytinfo link
 OLD_FILES+=usr/lib/libmytinfo.a
 OLD_FILES+=usr/lib/libmytinfo.so
