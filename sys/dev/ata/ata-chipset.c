@@ -315,9 +315,8 @@ ata_sata_connect(struct ata_channel *ch)
     /* clear SATA error register */
     ATA_IDX_OUTL(ch, ATA_SERROR, ATA_IDX_INL(ch, ATA_SERROR));
 
-    /* find out what type device we got poll for spec'd 31 seconds */
+    /* poll 31 seconds for device ready */
     /* XXX SOS 10 secs for now as I have little patience */
-    ch->devices = 0;
     for (timeout = 0; timeout < 1000; timeout++) {
 	if (ATA_IDX_INB(ch, ATA_STATUS) & ATA_S_BUSY) 
 	    DELAY(10000);
@@ -326,16 +325,9 @@ ata_sata_connect(struct ata_channel *ch)
     }
     if (bootverbose)
 	device_printf(ch->dev, "SATA connect ready time=%dms\n", timeout * 10);
-    if (timeout < 1000) {
-	if ((ATA_IDX_INB(ch, ATA_CYL_LSB) == ATAPI_MAGIC_LSB) &&
-	    (ATA_IDX_INB(ch, ATA_CYL_MSB) == ATAPI_MAGIC_MSB))
-	    ch->devices = ATA_ATAPI_MASTER;
-	else 
-	    ch->devices = ATA_ATA_MASTER;
-    }
-    if (bootverbose)
-	device_printf(ch->dev, "sata_connect devices=0x%b\n",
-		      ch->devices, "\20\3ATAPI_MASTER\1ATA_MASTER");
+
+    /* do a reset and find out what type device we've got */
+    ata_generic_reset(ch->dev);
     return 1;
 }
 
