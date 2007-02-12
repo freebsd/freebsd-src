@@ -91,6 +91,8 @@ __FBSDID("$FreeBSD$");
 #include <netinet6/scope6_var.h>
 #endif				/* INET6 */
 
+
+
 #include <netinet/ip_options.h>
 
 
@@ -104,6 +106,7 @@ __FBSDID("$FreeBSD$");
  *
  */
 #define USER_ADDR_NULL	(NULL)	/* FIX ME: temp */
+#define SCTP_LIST_EMPTY(list)	LIST_EMPTY(list)
 
 /*
  * general memory allocation
@@ -137,8 +140,8 @@ typedef struct uma_zone *sctp_zone_t;
 }
 
 /* SCTP_ZONE_GET: allocate element from the zone */
-#define SCTP_ZONE_GET(zone) \
-	uma_zalloc(zone, M_NOWAIT);
+#define SCTP_ZONE_GET(zone, type) \
+	(type *)uma_zalloc(zone, M_NOWAIT);
 
 /* SCTP_ZONE_FREE: free element from the zone */
 #define SCTP_ZONE_FREE(zone, element) \
@@ -165,7 +168,6 @@ typedef struct callout sctp_os_timer_t;
 /*
  * Functions
  */
-#define SCTP_READ_RANDOM(buf, len)	read_random(buf, len)
 
 /* Mbuf manipulation and access macros  */
 #define SCTP_BUF_LEN(m) (m->m_len)
@@ -223,5 +225,32 @@ typedef struct callout sctp_os_timer_t;
 /* is the endpoint v6only? */
 #define SCTP_IPV6_V6ONLY(inp)	(((struct inpcb *)inp)->inp_flags & IN6P_IPV6_V6ONLY)
 
+
+/*
+ * SCTP AUTH
+ */
+#define HAVE_SHA2
+
+#define SCTP_READ_RANDOM(buf, len)	read_random(buf, len)
+
+#ifdef USE_SCTP_SHA1
+#include <netinet/sctp_sha1.h>
+#else
+#include <crypto/sha1.h>
+/* map standard crypto API names */
+#define SHA1_Init	SHA1Init
+#define SHA1_Update	SHA1Update
+#define SHA1_Final(x,y)	SHA1Final((caddr_t)x, y)
+#endif
+
+#if defined(HAVE_SHA2)
+#include <crypto/sha2/sha2.h>
+#endif
+
+#include <sys/md5.h>
+/* map standard crypto API names */
+#define MD5_Init	MD5Init
+#define MD5_Update	MD5Update
+#define MD5_Final	MD5Final
 
 #endif

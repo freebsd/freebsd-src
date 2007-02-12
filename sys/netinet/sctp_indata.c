@@ -321,13 +321,12 @@ sctp_service_reassembly(struct sctp_tcb *stcb, struct sctp_association *asoc)
 	uint16_t stream_no;
 	int end = 0;
 	int cntDel;
-
-	cntDel = stream_no = 0;
 	struct sctp_queued_to_read *control, *ctl, *ctlat;
 
-	if (stcb && ((stcb->sctp_ep->sctp_flags & SCTP_PCB_FLAGS_SOCKET_GONE) ||
-	    (stcb->asoc.state & SCTP_STATE_CLOSED_SOCKET))
-	    ) {
+	cntDel = stream_no = 0;
+	if (stcb &&
+	    ((stcb->sctp_ep->sctp_flags & SCTP_PCB_FLAGS_SOCKET_GONE) ||
+	    (stcb->asoc.state & SCTP_STATE_CLOSED_SOCKET))) {
 		/* socket above is long gone */
 		asoc->fragmented_delivery_inprogress = 0;
 		chk = TAILQ_FIRST(&asoc->reasmqueue);
@@ -1456,9 +1455,15 @@ sctp_process_a_data_chunk(struct sctp_tcb *stcb, struct sctp_association *asoc,
 	uint16_t strmno, strmseq;
 	struct mbuf *oper;
 	struct sctp_queued_to_read *control;
+	int ordered;
+	uint32_t protocol_id;
+	uint8_t chunk_flags;
 
 	chk = NULL;
 	tsn = ntohl(ch->dp.tsn);
+	chunk_flags = ch->ch.chunk_flags;
+	protocol_id = ch->dp.protocol_id;
+	ordered = ((ch->ch.chunk_flags & SCTP_DATA_UNORDERED) == 0);
 #ifdef SCTP_MAP_LOGGING
 	sctp_log_map(0, tsn, asoc->cumulative_tsn, SCTP_MAP_PREPARE_SLIDE);
 #endif
@@ -1613,8 +1618,18 @@ sctp_process_a_data_chunk(struct sctp_tcb *stcb, struct sctp_association *asoc,
 	 * only validate the FIRST fragment so the bit must be set.
 	 */
 	strmseq = ntohs(ch->dp.stream_sequence);
-	if ((ch->ch.chunk_flags & SCTP_DATA_FIRST_FRAG) &&
-	    (ch->ch.chunk_flags & SCTP_DATA_UNORDERED) == 0 &&
+
+#ifdef SCTP_ASOCLOG_OF_TSNS
+	asoc->in_tsnlog[asoc->tsn_in_at].tsn = tsn;
+	asoc->in_tsnlog[asoc->tsn_in_at].strm = strmno;
+	asoc->in_tsnlog[asoc->tsn_in_at].seq = strmseq;
+	asoc->tsn_in_at++;
+	if (asoc->tsn_in_at >= SCTP_TSN_LOG_SIZE) {
+		asoc->tsn_in_at = 0;
+	}
+#endif
+	if ((chunk_flags & SCTP_DATA_FIRST_FRAG) &&
+	    (chunk_flags & SCTP_DATA_UNORDERED) == 0 &&
 	    (compare_with_wrap(asoc->strmin[strmno].last_sequence_delivered,
 	    strmseq, MAX_SEQ) ||
 	    asoc->strmin[strmno].last_sequence_delivered == strmseq)) {
@@ -1655,6 +1670,11 @@ sctp_process_a_data_chunk(struct sctp_tcb *stcb, struct sctp_association *asoc,
 		*abort_flag = 1;
 		return (0);
 	}
+	/************************************
+	 * From here down we may find ch-> invalid
+	 * so its a good idea NOT to use it.
+	 *************************************/
+
 	the_len = (chk_length - sizeof(struct sctp_data_chunk));
 	if (last_chunk == 0) {
 		dmbuf = SCTP_M_COPYM(*m,
@@ -1705,10 +1725,10 @@ sctp_process_a_data_chunk(struct sctp_tcb *stcb, struct sctp_association *asoc,
 		SCTP_STAT_INCR(sctps_nomem);
 		return (0);
 	}
-	if ((ch->ch.chunk_flags & SCTP_DATA_NOT_FRAG) == SCTP_DATA_NOT_FRAG &&
+	if ((chunk_flags & SCTP_DATA_NOT_FRAG) == SCTP_DATA_NOT_FRAG &&
 	    asoc->fragmented_delivery_inprogress == 0 &&
 	    TAILQ_EMPTY(&asoc->resetHead) &&
-	    ((ch->ch.chunk_flags & SCTP_DATA_UNORDERED) ||
+	    ((ordered == 0) ||
 	    ((asoc->strmin[strmno].last_sequence_delivered + 1) == strmseq &&
 	    TAILQ_EMPTY(&asoc->strmin[strmno].inqueue)))) {
 		/* Candidate for express delivery */
@@ -1723,16 +1743,16 @@ sctp_process_a_data_chunk(struct sctp_tcb *stcb, struct sctp_association *asoc,
 		/* It would be nice to avoid this copy if we could :< */
 		sctp_alloc_a_readq(stcb, control);
 		sctp_build_readq_entry_mac(control, stcb, asoc->context, net, tsn,
-		    ch->dp.protocol_id,
+		    protocol_id,
 		    stcb->asoc.context,
 		    strmno, strmseq,
-		    ch->ch.chunk_flags,
+		    chunk_flags,
 		    dmbuf);
 		if (control == NULL) {
 			goto failed_express_del;
 		}
 		sctp_add_to_readq(stcb->sctp_ep, stcb, control, &stcb->sctp_socket->so_rcv, 1);
-		if ((ch->ch.chunk_flags & SCTP_DATA_UNORDERED) == 0) {
+		if ((chunk_flags & SCTP_DATA_UNORDERED) == 0) {
 			/* for ordered, bump what we delivered */
 			asoc->strmin[strmno].last_sequence_delivered++;
 		}
@@ -1755,7 +1775,7 @@ failed_express_del:
 	    (asoc->ssn_of_pdapi == strmseq)
 	    ) {
 		control = stcb->asoc.control_pdapi;
-		if ((ch->ch.chunk_flags & SCTP_DATA_FIRST_FRAG) == SCTP_DATA_FIRST_FRAG) {
+		if ((chunk_flags & SCTP_DATA_FIRST_FRAG) == SCTP_DATA_FIRST_FRAG) {
 			/* Can't be another first? */
 			goto failed_pdapi_express_del;
 		}
@@ -1764,7 +1784,7 @@ failed_express_del:
 			int end = 0;
 			uint32_t cumack;
 
-			if (ch->ch.chunk_flags & SCTP_DATA_LAST_FRAG) {
+			if (chunk_flags & SCTP_DATA_LAST_FRAG) {
 				end = 1;
 			}
 			cumack = asoc->cumulative_tsn;
@@ -1780,15 +1800,15 @@ failed_express_del:
 			SCTP_STAT_INCR(sctps_recvexpressm);
 			control->sinfo_tsn = tsn;
 			asoc->tsn_last_delivered = tsn;
-			asoc->fragment_flags = ch->ch.chunk_flags;
+			asoc->fragment_flags = chunk_flags;
 			asoc->tsn_of_pdapi_last_delivered = tsn;
-			asoc->last_flags_delivered = ch->ch.chunk_flags;
+			asoc->last_flags_delivered = chunk_flags;
 			asoc->last_strm_seq_delivered = strmseq;
 			asoc->last_strm_no_delivered = strmno;
 			if (end) {
 				/* clean up the flags and such */
 				asoc->fragmented_delivery_inprogress = 0;
-				if ((ch->ch.chunk_flags & SCTP_DATA_UNORDERED) == 0) {
+				if ((chunk_flags & SCTP_DATA_UNORDERED) == 0) {
 					asoc->strmin[strmno].last_sequence_delivered++;
 				}
 				stcb->asoc.control_pdapi = NULL;
@@ -1806,7 +1826,7 @@ failed_express_del:
 	}
 failed_pdapi_express_del:
 	control = NULL;
-	if ((ch->ch.chunk_flags & SCTP_DATA_NOT_FRAG) != SCTP_DATA_NOT_FRAG) {
+	if ((chunk_flags & SCTP_DATA_NOT_FRAG) != SCTP_DATA_NOT_FRAG) {
 		sctp_alloc_a_chunk(stcb, chk);
 		if (chk == NULL) {
 			/* No memory so we drop the chunk */
@@ -1821,10 +1841,10 @@ failed_pdapi_express_del:
 		chk->no_fr_allowed = 0;
 		chk->rec.data.stream_seq = strmseq;
 		chk->rec.data.stream_number = strmno;
-		chk->rec.data.payloadtype = ch->dp.protocol_id;
+		chk->rec.data.payloadtype = protocol_id;
 		chk->rec.data.context = stcb->asoc.context;
 		chk->rec.data.doing_fast_retransmit = 0;
-		chk->rec.data.rcv_flags = ch->ch.chunk_flags;
+		chk->rec.data.rcv_flags = chunk_flags;
 		chk->asoc = asoc;
 		chk->send_size = the_len;
 		chk->whoTo = net;
@@ -1833,10 +1853,10 @@ failed_pdapi_express_del:
 	} else {
 		sctp_alloc_a_readq(stcb, control);
 		sctp_build_readq_entry_mac(control, stcb, asoc->context, net, tsn,
-		    ch->dp.protocol_id,
+		    protocol_id,
 		    stcb->asoc.context,
 		    strmno, strmseq,
-		    ch->ch.chunk_flags,
+		    chunk_flags,
 		    dmbuf);
 		if (control == NULL) {
 			/* No memory so we drop the chunk */
@@ -1980,7 +2000,7 @@ failed_pdapi_express_del:
 			}
 		}
 		/* ok, if we reach here we have passed the sanity checks */
-		if (ch->ch.chunk_flags & SCTP_DATA_UNORDERED) {
+		if (chunk_flags & SCTP_DATA_UNORDERED) {
 			/* queue directly into socket buffer */
 			sctp_add_to_readq(stcb->sctp_ep, stcb,
 			    control,
@@ -2073,7 +2093,7 @@ finish_express_del:
 	if (last_chunk) {
 		*m = NULL;
 	}
-	if ((ch->ch.chunk_flags & SCTP_DATA_UNORDERED) == 0) {
+	if (ordered) {
 		SCTP_STAT_INCR_COUNTER64(sctps_inorderchunks);
 	} else {
 		SCTP_STAT_INCR_COUNTER64(sctps_inunorderchunks);
@@ -2401,9 +2421,8 @@ sctp_sack_check(struct sctp_tcb *stcb, int ok_to_sack, int was_a_gap, int *abort
 					 * duplicates.
 					 */
 					stcb->asoc.first_ack_sent = 1;
-
+					SCTP_OS_TIMER_STOP(&stcb->asoc.dack_timer.timer);
 					sctp_send_sack(stcb);
-					/* The sending will stop the timer */
 				}
 			} else {
 				sctp_timer_start(SCTP_TIMER_TYPE_RECV,
@@ -2908,7 +2927,7 @@ sctp_handle_segments(struct sctp_tcb *stcb, struct sctp_association *asoc,
 							 * newly acked.
 							 * update
 							 * this_sack_highest_
-							 * n ewack if
+							 * newack if
 							 * appropriate.
 							 */
 							if (tp1->rec.data.chunk_was_revoked == 0)
@@ -2924,7 +2943,7 @@ sctp_handle_segments(struct sctp_tcb *stcb, struct sctp_association *asoc,
 							 * CMT DAC algo:
 							 * also update
 							 * this_sack_lowest_n
-							 * e wack
+							 * ewack
 							 */
 							if (*this_sack_lowest_newack == 0) {
 #ifdef SCTP_SACK_LOGGING
@@ -2946,9 +2965,9 @@ sctp_handle_segments(struct sctp_tcb *stcb, struct sctp_association *asoc,
 							 * acked, then we
 							 * have a new
 							 * (rtx-)pseudo-cumac
-							 * k . Set
+							 * k. Set
 							 * new_(rtx_)pseudo_c
-							 * u mack to TRUE so
+							 * umack to TRUE so
 							 * that the cwnd for
 							 * this dest can be
 							 * updated. Also
@@ -2956,7 +2975,7 @@ sctp_handle_segments(struct sctp_tcb *stcb, struct sctp_association *asoc,
 							 * for the next
 							 * expected
 							 * (rtx-)pseudo-cumac
-							 * k . Separate
+							 * k. Separate
 							 * pseudo_cumack
 							 * trackers for
 							 * first
@@ -3089,24 +3108,43 @@ sctp_check_for_revoked(struct sctp_association *asoc, uint32_t cumack,
 			 */
 			if (tp1->sent == SCTP_DATAGRAM_ACKED) {
 				/* it has been revoked */
-				tp1->sent = SCTP_DATAGRAM_SENT;
-				tp1->rec.data.chunk_was_revoked = 1;
-				/*
-				 * We must add this stuff back in to assure
-				 * timers and such get started.
-				 */
-				tp1->whoTo->flight_size += tp1->book_size;
-				asoc->total_flight_count++;
-				asoc->total_flight += tp1->book_size;
-				tot_revoked++;
+
+				if (sctp_cmt_on_off) {
+					/*
+					 * If CMT is ON, leave "sent" at
+					 * ACKED. CMT causes reordering of
+					 * data and acks (received on
+					 * different interfaces) can be
+					 * persistently reordered. Acking
+					 * followed by apparent revoking and
+					 * re-acking causes unexpected weird
+					 * behavior. So, at this time, CMT
+					 * does not respect renegs. Renegs
+					 * cannot be recovered. I will fix
+					 * this once I am sure that things
+					 * are working right again with CMT.
+					 */
+				} else {
+					tp1->sent = SCTP_DATAGRAM_SENT;
+					tp1->rec.data.chunk_was_revoked = 1;
+					/*
+					 * We must add this stuff back in to
+					 * assure timers and such get
+					 * started.
+					 */
+					tp1->whoTo->flight_size += tp1->book_size;
+					asoc->total_flight_count++;
+					asoc->total_flight += tp1->book_size;
+					tot_revoked++;
 #ifdef SCTP_SACK_LOGGING
-				sctp_log_sack(asoc->last_acked_seq,
-				    cumack,
-				    tp1->rec.data.TSN_seq,
-				    0,
-				    0,
-				    SCTP_LOG_TSN_REVOKED);
+					sctp_log_sack(asoc->last_acked_seq,
+					    cumack,
+					    tp1->rec.data.TSN_seq,
+					    0,
+					    0,
+					    SCTP_LOG_TSN_REVOKED);
 #endif
+				}
 			} else if (tp1->sent == SCTP_DATAGRAM_MARKED) {
 				/* it has been re-acked in this SACK */
 				tp1->sent = SCTP_DATAGRAM_ACKED;
@@ -4382,8 +4420,11 @@ again:
 				stcb->sctp_ep->last_abort_code = SCTP_FROM_SCTP_INDATA + SCTP_LOC_24;
 				sctp_abort_an_association(stcb->sctp_ep, stcb, SCTP_RESPONSE_TO_USER_REQ, oper);
 			} else {
+				if ((SCTP_GET_STATE(asoc) == SCTP_STATE_OPEN) ||
+				    (SCTP_GET_STATE(asoc) == SCTP_STATE_SHUTDOWN_RECEIVED)) {
+					SCTP_STAT_DECR_GAUGE32(sctps_currestab);
+				}
 				asoc->state = SCTP_STATE_SHUTDOWN_SENT;
-				SCTP_STAT_DECR_GAUGE32(sctps_currestab);
 				sctp_stop_timers_for_shutdown(stcb);
 				sctp_send_shutdown(stcb,
 				    stcb->asoc.primary_destination);
@@ -4397,8 +4438,8 @@ again:
 			if (asoc->state & SCTP_STATE_PARTIAL_MSG_LEFT) {
 				goto abort_out_now;
 			}
-			asoc->state = SCTP_STATE_SHUTDOWN_ACK_SENT;
 			SCTP_STAT_DECR_GAUGE32(sctps_currestab);
+			asoc->state = SCTP_STATE_SHUTDOWN_ACK_SENT;
 			sctp_send_shutdown_ack(stcb,
 			    stcb->asoc.primary_destination);
 
@@ -4896,17 +4937,7 @@ done_with_it:
 	 * we had some before and now we have NONE.
 	 */
 
-	if (sctp_cmt_on_off) {
-		/*
-		 * Don't check for revoked if CMT is ON. CMT causes
-		 * reordering of data and acks (received on different
-		 * interfaces) can be persistently reordered. Acking
-		 * followed by apparent revoking and re-acking causes
-		 * unexpected weird behavior. So, at this time, CMT does not
-		 * respect renegs. Renegs will have to be recovered through
-		 * a timeout. Not a big deal for such a rare event.
-		 */
-	} else if (num_seg)
+	if (num_seg)
 		sctp_check_for_revoked(asoc, cum_ack, biggest_tsn_acked);
 	else if (asoc->saw_sack_with_frags) {
 		int cnt_revoked = 0;
@@ -5020,8 +5051,11 @@ done_with_it:
 				sctp_abort_an_association(stcb->sctp_ep, stcb, SCTP_RESPONSE_TO_USER_REQ, oper);
 				return;
 			} else {
+				if ((SCTP_GET_STATE(asoc) == SCTP_STATE_OPEN) ||
+				    (SCTP_GET_STATE(asoc) == SCTP_STATE_SHUTDOWN_RECEIVED)) {
+					SCTP_STAT_DECR_GAUGE32(sctps_currestab);
+				}
 				asoc->state = SCTP_STATE_SHUTDOWN_SENT;
-				SCTP_STAT_DECR_GAUGE32(sctps_currestab);
 				sctp_stop_timers_for_shutdown(stcb);
 				sctp_send_shutdown(stcb,
 				    stcb->asoc.primary_destination);
@@ -5036,8 +5070,8 @@ done_with_it:
 			if (asoc->state & SCTP_STATE_PARTIAL_MSG_LEFT) {
 				goto abort_out_now;
 			}
-			asoc->state = SCTP_STATE_SHUTDOWN_ACK_SENT;
 			SCTP_STAT_DECR_GAUGE32(sctps_currestab);
+			asoc->state = SCTP_STATE_SHUTDOWN_ACK_SENT;
 			sctp_send_shutdown_ack(stcb,
 			    stcb->asoc.primary_destination);
 
