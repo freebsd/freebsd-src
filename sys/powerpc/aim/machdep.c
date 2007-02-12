@@ -484,7 +484,7 @@ sendsig(sig_t catcher, ksiginfo_t *ksi, sigset_t *mask)
 	 */
 	if ((td->td_pflags & TDP_ALTSTACK) != 0 && !oonstack &&
 	    SIGISMEMBER(psp->ps_sigonstack, sig)) {
-		sfp = (struct sigframe *)((caddr_t)td->td_sigstk.ss_sp +
+		sfp = (struct sigframe *)(td->td_sigstk.ss_sp +
 		   td->td_sigstk.ss_size - rndfsize);
 	} else {
 		sfp = (struct sigframe *)(tf->fixreg[1] - rndfsize);
@@ -542,7 +542,7 @@ sendsig(sig_t catcher, ksiginfo_t *ksi, sigset_t *mask)
 	/*
 	 * copy the frame out to userland.
 	 */
-	if (copyout((caddr_t)&sf, (caddr_t)sfp, sizeof(sf)) != 0) {
+	if (copyout(&sf, sfp, sizeof(*sfp)) != 0) {
 		/*
 		 * Process has trashed its stack. Kill it.
 		 */
