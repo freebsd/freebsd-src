@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2001-2006, Cisco Systems, Inc. All rights reserved.
+ * Copyright (c) 2001-2007, Cisco Systems, Inc. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -637,6 +637,8 @@ sctp_mark_all_for_resend(struct sctp_tcb *stcb,
 				stcb->asoc.total_flight_count--;
 			chk->sent = SCTP_DATAGRAM_RESEND;
 			SCTP_STAT_INCR(sctps_markedretrans);
+			net->marked_retrans++;
+			stcb->asoc.marked_retrans++;
 #ifdef SCTP_FLIGHT_LOGGING
 			sctp_misc_ints(SCTP_FLIGHT_LOG_DOWN,
 			    chk->whoTo->flight_size,
@@ -1558,12 +1560,14 @@ sctp_autoclose_timer(struct sctp_inpcb *inp,
 				 * there is nothing queued to send, so I'm
 				 * done...
 				 */
-				if (SCTP_GET_STATE(asoc) !=
-				    SCTP_STATE_SHUTDOWN_SENT) {
+				if (SCTP_GET_STATE(asoc) != SCTP_STATE_SHUTDOWN_SENT) {
 					/* only send SHUTDOWN 1st time thru */
 					sctp_send_shutdown(stcb, stcb->asoc.primary_destination);
+					if ((SCTP_GET_STATE(asoc) == SCTP_STATE_OPEN) ||
+					    (SCTP_GET_STATE(asoc) == SCTP_STATE_SHUTDOWN_RECEIVED)) {
+						SCTP_STAT_DECR_GAUGE32(sctps_currestab);
+					}
 					asoc->state = SCTP_STATE_SHUTDOWN_SENT;
-					SCTP_STAT_DECR_GAUGE32(sctps_currestab);
 					sctp_timer_start(SCTP_TIMER_TYPE_SHUTDOWN,
 					    stcb->sctp_ep, stcb,
 					    asoc->primary_destination);
@@ -1589,7 +1593,6 @@ sctp_autoclose_timer(struct sctp_inpcb *inp,
 		}
 	}
 }
-
 
 void
 sctp_iterator_timer(struct sctp_iterator *it)

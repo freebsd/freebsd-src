@@ -263,6 +263,10 @@ struct sctp_nets {
 #ifdef SCTP_HIGH_SPEED
 	uint8_t last_hs_used;	/* index into the last HS table entry we used */
 #endif
+	struct timeval start_time;	/* time when this net was created */
+	uint32_t marked_retrans;/* number or DATA chunks marked for timer
+				 * based retransmissions */
+	uint32_t marked_fastretrans;
 };
 
 
@@ -442,6 +446,14 @@ struct sctp_scoping {
 	uint8_t ipv4_local_scope;
 	uint8_t local_scope;
 	uint8_t site_scope;
+};
+
+#define SCTP_TSN_LOG_SIZE 40
+
+struct sctp_tsn_log {
+	uint32_t tsn;
+	uint16_t strm;
+	uint16_t seq;
 };
 
 /*
@@ -647,6 +659,16 @@ struct sctp_association {
 	uint32_t last_reset_action[SCTP_MAX_RESET_PARAMS];
 	uint32_t last_sending_seq[SCTP_MAX_RESET_PARAMS];
 	uint32_t last_base_tsnsent[SCTP_MAX_RESET_PARAMS];
+#ifdef SCTP_ASOCLOG_OF_TSNS
+	/*
+	 * special log  - This adds considerable size to the asoc, but
+	 * provides a log that you can use to detect problems via kgdb.
+	 */
+	struct sctp_tsn_log in_tsnlog[SCTP_TSN_LOG_SIZE];
+	struct sctp_tsn_log out_tsnlog[SCTP_TSN_LOG_SIZE];
+	uint16_t tsn_in_at;
+	uint16_t tsn_out_at;
+#endif				/* SCTP_ASOCLOG_OF_TSNS */
 	/*
 	 * window state information and smallest MTU that I use to bound
 	 * segmentation
@@ -881,6 +903,16 @@ struct sctp_association {
 	 * trailing locactions out.  If I get a TSN above the array
 	 * mappingArraySz, I discard the datagram and let retransmit happen.
 	 */
+	uint32_t marked_retrans;
+	uint32_t timoinit;
+	uint32_t timodata;
+	uint32_t timosack;
+	uint32_t timoshutdown;
+	uint32_t timoheartbeat;
+	uint32_t timocookie;
+	uint32_t timoshutdownack;
+	struct timeval start_time;
+	struct timeval discontinuity_time;
 };
 
 #endif

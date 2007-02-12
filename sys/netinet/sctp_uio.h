@@ -43,6 +43,7 @@ __FBSDID("$FreeBSD$");
 #endif
 #include <sys/types.h>
 #include <sys/socket.h>
+#include <sys/time.h>
 #include <netinet/in.h>
 
 typedef uint32_t sctp_assoc_t;
@@ -83,7 +84,14 @@ struct sctp_initmsg {
  * when enabled which is 48 bytes.
  */
 
+/*
+ * The assoc up needs a verfid
+ * all sendrcvinfo's need a verfid for SENDING only.
+ */
+
+
 #define SCTP_ALIGN_RESV_PAD 96
+#define SCTP_ALIGN_RESV_PAD_SHORT 80
 
 struct sctp_sndrcvinfo {
 	uint16_t sinfo_stream;
@@ -113,12 +121,14 @@ struct sctp_extrcvinfo {
 	uint32_t next_asocid;
 	uint32_t next_length;
 	uint32_t next_ppid;
+	uint8_t __reserve_pad[SCTP_ALIGN_RESV_PAD_SHORT];
 };
 
 #define SCTP_NO_NEXT_MSG           0x0000
 #define SCTP_NEXT_MSG_AVAIL        0x0001
 #define SCTP_NEXT_MSG_ISCOMPLETE   0x0002
 #define SCTP_NEXT_MSG_IS_UNORDERED 0x0004
+#define SCTP_NEXT_MSG_IS_NOTIFICATION 0x0008
 
 struct sctp_snd_all_completes {
 	uint16_t sall_stream;
@@ -734,6 +744,8 @@ struct sctpstat {
 	/* MIB according to RFC 3873 */
 	u_long sctps_currestab;	/* sctpStats  1   (Gauge32) */
 	u_long sctps_activeestab;	/* sctpStats  2 (Counter32) */
+	u_long sctps_restartestab;
+	u_long sctps_collisionestab;
 	u_long sctps_passiveestab;	/* sctpStats  3 (Counter32) */
 	u_long sctps_aborted;	/* sctpStats  4 (Counter32) */
 	u_long sctps_shutdown;	/* sctpStats  5 (Counter32) */
@@ -749,7 +761,7 @@ struct sctpstat {
 	u_long sctps_reasmusrmsgs;	/* sctpStats 15 (Counter64) */
 	u_long sctps_outpackets;/* sctpStats 16 (Counter64) */
 	u_long sctps_inpackets;	/* sctpStats 17 (Counter64) */
-	u_long sctps_discontinuitytime;	/* sctpStats 18 (TimeStamp) */
+	struct timeval sctps_discontinuitytime;	/* sctpStats 18 (TimeStamp) */
 	/* input statistics: */
 	u_long sctps_recvpackets;	/* total input packets        */
 	u_long sctps_recvdatagrams;	/* total input datagrams      */
@@ -901,12 +913,20 @@ struct xsctp_inpcb {
 };
 
 struct xsctp_tcb {
-	uint16_t remote_port;
-	uint16_t number_local_addresses;
-	uint16_t number_remote_addresses;
-	uint16_t number_incomming_streams;
-	uint16_t number_outgoing_streams;
-	uint32_t state;
+	uint16_t LocalPort;	/* sctpAssocEntry 3   */
+	uint16_t RemPort;	/* sctpAssocEntry 4   */
+	union sctp_sockstore RemPrimAddr;	/* sctpAssocEntry 5/6 */
+	uint32_t HeartBeatInterval;	/* sctpAssocEntry 7   */
+	uint32_t State;		/* sctpAssocEntry 8   */
+	uint32_t InStreams;	/* sctpAssocEntry 9   */
+	uint32_t OutStreams;	/* sctpAssocEntry 10  */
+	uint32_t MaxRetr;	/* sctpAssocEntry 11  */
+	uint32_t PrimProcess;	/* sctpAssocEntry 12  */
+	uint32_t T1expireds;	/* sctpAssocEntry 13  */
+	uint32_t T2expireds;	/* sctpAssocEntry 14  */
+	uint32_t RtxChunks;	/* sctpAssocEntry 15  */
+	struct timeval StartTime;	/* sctpAssocEntry 16  */
+	struct timeval DiscontinuityTime;	/* sctpAssocEntry 17  */
 	uint32_t total_sends;
 	uint32_t total_recvs;
 	uint32_t local_tag;
@@ -916,16 +936,28 @@ struct xsctp_tcb {
 	uint32_t cumulative_tsn;
 	uint32_t cumulative_tsn_ack;
 	/* add more association specific data here */
+	uint16_t number_local_addresses;
+	uint16_t number_remote_addresses;
 };
 
 struct xsctp_laddr {
-	union sctp_sockstore address;
+	union sctp_sockstore LocalAddr;	/* sctpAssocLocalAddrEntry 1/2 */
+	struct timeval LocalStartTime;	/* sctpAssocLocalAddrEntry 3   */
 	/* add more local address specific data */
 };
 
 struct xsctp_raddr {
-	union sctp_sockstore address;
-	uint16_t state;
+	union sctp_sockstore RemAddr;	/* sctpAssocLocalRemEntry 1/2 */
+	uint8_t RemAddrActive;	/* sctpAssocLocalRemEntry 3   */
+	uint8_t RemAddrConfirmed;	/* */
+	uint8_t RemAddrHBActive;/* sctpAssocLocalRemEntry 4   */
+	uint32_t RemAddrRTO;	/* sctpAssocLocalRemEntry 5   */
+	uint32_t RemAddrMaxPathRtx;	/* sctpAssocLocalRemEntry 6   */
+	uint32_t RemAddrRtx;	/* sctpAssocLocalRemEntry 7   */
+	uint32_t RemAddrErrorCounter;	/* */
+	uint32_t RemAddrCwnd;	/* */
+	uint32_t RemAddrFlightSize;	/* */
+	struct timeval RemAddrStartTime;	/* sctpAssocLocalRemEntry 8   */
 	/* add more remote address specific data */
 };
 

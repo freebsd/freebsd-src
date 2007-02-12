@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2001-2006, Cisco Systems, Inc. All rights reserved.
+ * Copyright (c) 2001-2007, Cisco Systems, Inc. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -2372,7 +2372,6 @@ sctp_lowlevel_chunk_output(struct sctp_inpcb *inp,
 		struct ip6_hdr *ip6h;
 
 		struct route_in6 ip6route;
-
 		struct ifnet *ifp;
 		u_char flowTop;
 		uint16_t flowBottom;
@@ -2783,11 +2782,17 @@ sctp_send_initiate(struct sctp_inpcb *inp, struct sctp_tcb *stcb)
 		/* attach RANDOM parameter, if available */
 		if (stcb->asoc.authinfo.random != NULL) {
 			random = (struct sctp_auth_random *)(mtod(m, caddr_t)+SCTP_BUF_LEN(m));
-			random->ph.param_type = htons(SCTP_RANDOM);
 			p_len = sizeof(*random) + stcb->asoc.authinfo.random_len;
+#ifdef SCTP_AUTH_DRAFT_04
+			random->ph.param_type = htons(SCTP_RANDOM);
 			random->ph.param_length = htons(p_len);
-			bcopy(stcb->asoc.authinfo.random->key, random->random_data,
+			bcopy(stcb->asoc.authinfo.random->key,
+			    random->random_data,
 			    stcb->asoc.authinfo.random_len);
+#else
+			/* random key already contains the header */
+			bcopy(stcb->asoc.authinfo.random->key, random, p_len);
+#endif
 			/* zero out any padding required */
 			bzero((caddr_t)random + p_len, SCTP_SIZE32(p_len) - p_len);
 			SCTP_BUF_LEN(m) += SCTP_SIZE32(p_len);
@@ -2900,7 +2905,7 @@ sctp_arethere_unrecognized_parameters(struct mbuf *in_initpkt,
 	struct sctp_paramhdr *phdr, params;
 
 	struct mbuf *mat, *op_err;
-	char tempbuf[2048];
+	char tempbuf[SCTP_CHUNK_BUFFER_SIZE];
 	int at, limit, pad_needed;
 	uint16_t ptype, plen;
 	int err_at;
@@ -4101,7 +4106,7 @@ sctp_msg_append(struct sctp_tcb *stcb,
 		error = ECONNRESET;
 		goto out_now;
 	}
-	sp = (struct sctp_stream_queue_pending *)SCTP_ZONE_GET(sctppcbinfo.ipi_zone_strmoq);
+	sp = SCTP_ZONE_GET(sctppcbinfo.ipi_zone_strmoq, struct sctp_stream_queue_pending);
 	if (sp == NULL) {
 		error = ENOMEM;
 		goto out_now;
@@ -4411,8 +4416,10 @@ sctp_sendall_iterator(struct sctp_inpcb *inp, struct sctp_tcb *stcb, void *ptr,
 					 * through
 					 */
 					sctp_send_shutdown(stcb, stcb->asoc.primary_destination);
+					if (SCTP_GET_STATE(asoc) == SCTP_STATE_OPEN) {
+						SCTP_STAT_DECR_GAUGE32(sctps_currestab);
+					}
 					asoc->state = SCTP_STATE_SHUTDOWN_SENT;
-					SCTP_STAT_DECR_GAUGE32(sctps_currestab);
 					sctp_timer_start(SCTP_TIMER_TYPE_SHUTDOWN, stcb->sctp_ep, stcb,
 					    asoc->primary_destination);
 					sctp_timer_start(SCTP_TIMER_TYPE_SHUTDOWNGUARD, stcb->sctp_ep, stcb,
@@ -5089,6 +5096,17 @@ out_gu:
 	 * Put the rest of the things in place now. Size was done earlier in
 	 * previous loop prior to padding.
 	 */
+
+#ifdef SCTP_ASOCLOG_OF_TSNS
+	asoc->out_tsnlog[asoc->tsn_out_at].tsn = chk->rec.data.TSN_seq;
+	asoc->out_tsnlog[asoc->tsn_out_at].strm = chk->rec.data.stream_number;
+	asoc->out_tsnlog[asoc->tsn_out_at].seq = chk->rec.data.stream_seq;
+	asoc->tsn_out_at++;
+	if (asoc->tsn_out_at >= SCTP_TSN_LOG_SIZE) {
+		asoc->tsn_out_at = 0;
+	}
+#endif
+
 	dchkh->ch.chunk_type = SCTP_DATA;
 	dchkh->ch.chunk_flags = chk->rec.data.rcv_flags;
 	dchkh->dp.tsn = htonl(chk->rec.data.TSN_seq);
@@ -5350,14 +5368,13 @@ sctp_med_chunk_output(struct sctp_inpcb *inp,
 	int asconf, cookie, no_out_cnt;
 	int bundle_at, ctl_cnt, no_data_chunks, cwnd_full_ind, eeor_mode;
 	unsigned int mtu, r_mtu, omtu, mx_mtu, to_out;
-
-	*num_out = 0;
 	struct sctp_nets *start_at, *old_startat = NULL, *send_start_at;
-
-	cwnd_full_ind = 0;
 	int tsns_sent = 0;
 	uint32_t auth_offset = 0;
 	struct sctp_auth_chunk *auth = NULL;
+
+	*num_out = 0;
+	cwnd_full_ind = 0;
 
 	if ((asoc->state & SCTP_STATE_SHUTDOWN_PENDING) ||
 	    (asoc->state & SCTP_STATE_SHUTDOWN_RECEIVED) ||
@@ -7596,7 +7613,13 @@ sctp_send_sack(struct sctp_tcb *stcb)
 	sack = mtod(a_chk->data, struct sctp_sack_chunk *);
 	sack->ch.chunk_type = SCTP_SELECTIVE_ACK;
 	/* 0x01 is used by nonce for ecn */
-	sack->ch.chunk_flags = (asoc->receiver_nonce_sum & SCTP_SACK_NONCE_SUM);
+	if ((sctp_ecn_enable) &&
+	    (sctp_ecn_nonce) &&
+	    (asoc->peer_supports_ecn_nonce))
+		sack->ch.chunk_flags = (asoc->receiver_nonce_sum & SCTP_SACK_NONCE_SUM);
+	else
+		sack->ch.chunk_flags = 0;
+
 	if (sctp_cmt_on_off && sctp_cmt_use_dac) {
 		/*
 		 * CMT DAC algorithm: If 2 (i.e., 0x10) packets have been
@@ -7928,7 +7951,6 @@ sctp_send_shutdown_complete2(struct mbuf *m, int iphlen, struct sctphdr *sh)
 			RTFREE(ro.ro_rt);
 	} else if (ip6_out != NULL) {
 		struct route_in6 ro;
-
 
 		bzero(&ro, sizeof(ro));
 		ip6_output(o_pak, NULL, &ro, 0, NULL, NULL
@@ -8789,7 +8811,6 @@ sctp_send_abort(struct mbuf *m, int iphlen, struct sctphdr *sh, uint32_t vtag,
 	} else if (ip6_out != NULL) {
 		struct route_in6 ro;
 
-
 		/* zap the stack pointer to the route */
 		bzero(&ro, sizeof(ro));
 #ifdef SCTP_DEBUG
@@ -8907,7 +8928,6 @@ sctp_send_operr_to(struct mbuf *m, int iphlen,
 	} else {
 		/* V6 */
 		struct route_in6 ro;
-
 		struct ip6_hdr *out6, *in6;
 
 		o_pak = SCTP_GET_HEADER_FOR_OUTPUT(sizeof(struct ip6_hdr));
@@ -9114,7 +9134,7 @@ sctp_copy_it_in(struct sctp_tcb *stcb,
 		*errno = ECONNRESET;
 		goto out_now;
 	}
-	sp = (struct sctp_stream_queue_pending *)SCTP_ZONE_GET(sctppcbinfo.ipi_zone_strmoq);
+	sp = SCTP_ZONE_GET(sctppcbinfo.ipi_zone_strmoq, struct sctp_stream_queue_pending);
 	if (sp == NULL) {
 		*errno = ENOMEM;
 		goto out_now;
@@ -10096,8 +10116,10 @@ dataless_eof:
 			    (SCTP_GET_STATE(asoc) != SCTP_STATE_SHUTDOWN_ACK_SENT)) {
 				/* only send SHUTDOWN the first time through */
 				sctp_send_shutdown(stcb, stcb->asoc.primary_destination);
+				if (SCTP_GET_STATE(asoc) == SCTP_STATE_OPEN) {
+					SCTP_STAT_DECR_GAUGE32(sctps_currestab);
+				}
 				asoc->state = SCTP_STATE_SHUTDOWN_SENT;
-				SCTP_STAT_DECR_GAUGE32(sctps_currestab);
 				sctp_timer_start(SCTP_TIMER_TYPE_SHUTDOWN, stcb->sctp_ep, stcb,
 				    asoc->primary_destination);
 				sctp_timer_start(SCTP_TIMER_TYPE_SHUTDOWNGUARD, stcb->sctp_ep, stcb,

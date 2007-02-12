@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2001-2006, Cisco Systems, Inc. All rights reserved.
+ * Copyright (c) 2001-2007, Cisco Systems, Inc. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -49,7 +49,6 @@ __FBSDID("$FreeBSD$");
 extern uint32_t sctp_debug_on;
 
 #endif
-
 
 
 
@@ -612,7 +611,8 @@ sctp_handle_shutdown(struct sctp_shutdown_chunk *cp,
 		/* send SHUTDOWN-ACK */
 		sctp_send_shutdown_ack(stcb, stcb->asoc.primary_destination);
 		/* move to SHUTDOWN-ACK-SENT state */
-		if (asoc->state == SCTP_STATE_SHUTDOWN_RECEIVED) {
+		if ((SCTP_GET_STATE(asoc) == SCTP_STATE_OPEN) ||
+		    (SCTP_GET_STATE(asoc) == SCTP_STATE_SHUTDOWN_RECEIVED)) {
 			SCTP_STAT_DECR_GAUGE32(sctps_currestab);
 		}
 		asoc->state = SCTP_STATE_SHUTDOWN_ACK_SENT;
@@ -1057,7 +1057,7 @@ sctp_process_cookie_existing(struct mbuf *m, int iphlen, int offset,
 
 	/* I know that the TCB is non-NULL from the caller */
 	asoc = &stcb->asoc;
-	for (how_indx = 0; how_indx < sizeof(asoc->cookie_how); i++) {
+	for (how_indx = 0; how_indx < sizeof(asoc->cookie_how); how_indx++) {
 		if (asoc->cookie_how[how_indx] == 0)
 			break;
 	}
@@ -1160,16 +1160,20 @@ sctp_process_cookie_existing(struct mbuf *m, int iphlen, int offset,
 			    net, SCTP_FROM_SCTP_INPUT + SCTP_LOC_11);
 			sctp_timer_stop(SCTP_TIMER_TYPE_INIT, inp, stcb, net, SCTP_FROM_SCTP_INPUT + SCTP_LOC_12);
 			/* update current state */
+			if (SCTP_GET_STATE(asoc) == SCTP_STATE_COOKIE_ECHOED)
+				SCTP_STAT_INCR_COUNTER32(sctps_activeestab);
+			else
+				SCTP_STAT_INCR_COUNTER32(sctps_collisionestab);
 			if (asoc->state & SCTP_STATE_SHUTDOWN_PENDING) {
-				asoc->state = SCTP_STATE_OPEN |
-				    SCTP_STATE_SHUTDOWN_PENDING;
+				asoc->state = SCTP_STATE_OPEN | SCTP_STATE_SHUTDOWN_PENDING;
 				sctp_timer_start(SCTP_TIMER_TYPE_SHUTDOWNGUARD,
 				    stcb->sctp_ep, stcb, asoc->primary_destination);
 
-			} else if ((asoc->state & SCTP_STATE_SHUTDOWN_SENT) == 0) {
+			} else {
 				/* if ok, move to OPEN state */
 				asoc->state = SCTP_STATE_OPEN;
 			}
+			SCTP_STAT_INCR_GAUGE32(sctps_currestab);
 			sctp_stop_all_cookie_timers(stcb);
 			if (((stcb->sctp_ep->sctp_flags & SCTP_PCB_FLAGS_TCPTYPE) ||
 			    (stcb->sctp_ep->sctp_flags & SCTP_PCB_FLAGS_IN_TCPPOOL)) &&
@@ -1204,6 +1208,7 @@ sctp_process_cookie_existing(struct mbuf *m, int iphlen, int offset,
 			 * we're in the OPEN state (or beyond), so peer must
 			 * have simply lost the COOKIE-ACK
 			 */
+
 			break;
 			}	/* end switch */
 		sctp_stop_all_cookie_timers(stcb);
@@ -1331,10 +1336,19 @@ sctp_process_cookie_existing(struct mbuf *m, int iphlen, int offset,
 				    SCTP_PCB_FLAGS_CONNECTED;
 				soisconnected(stcb->sctp_ep->sctp_socket);
 			}
+			if (SCTP_GET_STATE(asoc) == SCTP_STATE_COOKIE_ECHOED)
+				SCTP_STAT_INCR_COUNTER32(sctps_activeestab);
+			else
+				SCTP_STAT_INCR_COUNTER32(sctps_collisionestab);
+			SCTP_STAT_INCR_COUNTER32(sctps_activeestab);
+			SCTP_STAT_INCR_GAUGE32(sctps_currestab);
+		} else if (SCTP_GET_STATE(asoc) == SCTP_STATE_OPEN) {
+			SCTP_STAT_INCR_COUNTER32(sctps_restartestab);
+		} else {
+			SCTP_STAT_INCR_COUNTER32(sctps_collisionestab);
 		}
 		if (asoc->state & SCTP_STATE_SHUTDOWN_PENDING) {
-			asoc->state = SCTP_STATE_OPEN |
-			    SCTP_STATE_SHUTDOWN_PENDING;
+			asoc->state = SCTP_STATE_OPEN | SCTP_STATE_SHUTDOWN_PENDING;
 			sctp_timer_start(SCTP_TIMER_TYPE_SHUTDOWNGUARD,
 			    stcb->sctp_ep, stcb, asoc->primary_destination);
 
@@ -1379,6 +1393,16 @@ sctp_process_cookie_existing(struct mbuf *m, int iphlen, int offset,
 		/* notify upper layer */
 		*notification = SCTP_NOTIFY_ASSOC_RESTART;
 		atomic_add_int(&stcb->asoc.refcnt, 1);
+		if ((SCTP_GET_STATE(asoc) != SCTP_STATE_OPEN) &&
+		    (SCTP_GET_STATE(asoc) != SCTP_STATE_SHUTDOWN_RECEIVED) &&
+		    (SCTP_GET_STATE(asoc) != SCTP_STATE_SHUTDOWN_SENT)) {
+			SCTP_STAT_INCR_GAUGE32(sctps_currestab);
+		}
+		if (SCTP_GET_STATE(asoc) == SCTP_STATE_OPEN) {
+			SCTP_STAT_INCR_GAUGE32(sctps_restartestab);
+		} else if (SCTP_GET_STATE(asoc) != SCTP_STATE_SHUTDOWN_SENT) {
+			SCTP_STAT_INCR_GAUGE32(sctps_collisionestab);
+		}
 		if (asoc->state & SCTP_STATE_SHUTDOWN_PENDING) {
 			asoc->state = SCTP_STATE_OPEN |
 			    SCTP_STATE_SHUTDOWN_PENDING;
@@ -1509,7 +1533,7 @@ sctp_process_cookie_new(struct mbuf *m, int iphlen, int offset,
 	int retval;
 	int error = 0;
 	uint32_t old_tag;
-	uint8_t chunk_buf[DEFAULT_CHUNK_BUFFER];
+	uint8_t auth_chunk_buf[SCTP_PARAM_BUFFER_SIZE];
 
 	/*
 	 * find and validate the INIT chunk in the cookie (peer's info) the
@@ -1647,7 +1671,7 @@ sctp_process_cookie_new(struct mbuf *m, int iphlen, int offset,
 		struct sctp_auth_chunk *auth;
 
 		auth = (struct sctp_auth_chunk *)
-		    sctp_m_getptr(m, auth_offset, auth_len, chunk_buf);
+		    sctp_m_getptr(m, auth_offset, auth_len, auth_chunk_buf);
 		if (sctp_handle_auth(stcb, auth, m, auth_offset)) {
 			/* auth HMAC failed, dump the assoc and packet */
 #ifdef SCTP_DEBUG
@@ -1812,7 +1836,6 @@ sctp_handle_cookie_echo(struct mbuf *m, int iphlen, int offset,
 		sin->sin_port = sh->dest_port;
 		sin->sin_addr.s_addr = iph->ip_dst.s_addr;
 		size_of_pkt = SCTP_GET_IPV4_LENGTH(iph);
-
 	} else if (iph->ip_v == (IPV6_VERSION >> 4)) {
 		/* its IPv6 */
 		struct ip6_hdr *ip6;
@@ -1825,7 +1848,7 @@ sctp_handle_cookie_echo(struct mbuf *m, int iphlen, int offset,
 		ip6 = mtod(m, struct ip6_hdr *);
 		sin6->sin6_port = sh->dest_port;
 		sin6->sin6_addr = ip6->ip6_dst;
-		size_of_pkt = SCTP_GET_IPV6_LENGTH(ip6);
+		size_of_pkt = SCTP_GET_IPV6_LENGTH(ip6) + iphlen;
 	} else {
 		return (NULL);
 	}
@@ -2796,13 +2819,13 @@ static void
 sctp_clean_up_stream_reset(struct sctp_tcb *stcb)
 {
 	struct sctp_association *asoc;
-
-	asoc = &stcb->asoc;
 	struct sctp_tmit_chunk *chk = stcb->asoc.str_reset;
 
 	if (stcb->asoc.str_reset == NULL) {
 		return;
 	}
+	asoc = &stcb->asoc;
+
 	sctp_timer_stop(SCTP_TIMER_TYPE_STRRESET, stcb->sctp_ep, stcb, chk->whoTo, SCTP_FROM_SCTP_INPUT + SCTP_LOC_25);
 	TAILQ_REMOVE(&asoc->control_send_queue,
 	    chk,
@@ -3104,11 +3127,11 @@ sctp_handle_stream_reset(struct sctp_tcb *stcb, struct sctp_stream_reset_out_req
 	struct sctp_tmit_chunk *chk;
 	struct sctp_chunkhdr *ch;
 	struct sctp_paramhdr *ph;
+	int ret_code = 0;
+	int num_param = 0;
 
 	/* now it may be a reset or a reset-response */
 	chk_length = ntohs(sr_req->ch.chunk_length);
-	int ret_code = 0;
-	int num_param = 0;
 
 	/* setup for adding the response */
 	sctp_alloc_a_chunk(stcb, chk);
@@ -3143,7 +3166,6 @@ strres_nochunk:
 	ch->chunk_flags = 0;
 	ch->chunk_length = htons(chk->send_size);
 	SCTP_BUF_LEN(chk->data) = SCTP_SIZE32(chk->send_size);
-
 
 	ph = (struct sctp_paramhdr *)&sr_req->sr_req;
 	while ((size_t)chk_length >= sizeof(struct sctp_stream_reset_tsn_request)) {
@@ -3504,7 +3526,7 @@ sctp_process_control(struct mbuf *m, int iphlen, int *offset, int length,
 	 * d-mtu-ceiling for now (2k) and that should hopefully work ...
 	 * until we get into jumbo grams and such..
 	 */
-	uint8_t chunk_buf[DEFAULT_CHUNK_BUFFER];
+	uint8_t chunk_buf[SCTP_CHUNK_BUFFER_SIZE];
 	struct sctp_tcb *locked_tcb = stcb;
 	int got_auth = 0;
 	uint32_t auth_offset = 0, auth_len = 0;

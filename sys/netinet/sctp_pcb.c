@@ -1326,7 +1326,7 @@ sctp_inpcb_alloc(struct socket *so)
 	error = 0;
 
 	SCTP_INP_INFO_WLOCK();
-	inp = (struct sctp_inpcb *)SCTP_ZONE_GET(sctppcbinfo.ipi_zone_ep);
+	inp = SCTP_ZONE_GET(sctppcbinfo.ipi_zone_ep, struct sctp_inpcb);
 	if (inp == NULL) {
 		printf("Out of SCTP-INPCB structures - no resources\n");
 		SCTP_INP_INFO_WUNLOCK();
@@ -1504,7 +1504,6 @@ sctp_move_pcb_and_assoc(struct sctp_inpcb *old_inp, struct sctp_inpcb *new_inp,
 	SCTP_INP_WLOCK(new_inp);
 	SCTP_TCB_LOCK(stcb);
 
-
 	new_inp->sctp_ep.time_of_secret_change =
 	    old_inp->sctp_ep.time_of_secret_change;
 	memcpy(new_inp->sctp_ep.secret_key, old_inp->sctp_ep.secret_key,
@@ -1556,8 +1555,7 @@ sctp_move_pcb_and_assoc(struct sctp_inpcb *old_inp, struct sctp_inpcb *new_inp,
 	if ((new_inp->sctp_flags & SCTP_PCB_FLAGS_BOUNDALL) == 0) {
 		/* Subset bound, so copy in the laddr list from the old_inp */
 		LIST_FOREACH(oladdr, &old_inp->sctp_addr_list, sctp_nxt_addr) {
-			laddr = (struct sctp_laddr *)SCTP_ZONE_GET(
-			    sctppcbinfo.ipi_zone_laddr);
+			laddr = SCTP_ZONE_GET(sctppcbinfo.ipi_zone_laddr, struct sctp_laddr);
 			if (laddr == NULL) {
 				/*
 				 * Gak, what can we do? This assoc is really
@@ -2145,8 +2143,11 @@ sctp_inpcb_free(struct sctp_inpcb *inp, int immediate, int from)
 					 * so I send shutdown
 					 */
 					sctp_send_shutdown(asoc, asoc->asoc.primary_destination);
+					if ((SCTP_GET_STATE(&asoc->asoc) == SCTP_STATE_OPEN) ||
+					    (SCTP_GET_STATE(&asoc->asoc) == SCTP_STATE_SHUTDOWN_RECEIVED)) {
+						SCTP_STAT_DECR_GAUGE32(sctps_currestab);
+					}
 					asoc->asoc.state = SCTP_STATE_SHUTDOWN_SENT;
-					SCTP_STAT_DECR_GAUGE32(sctps_currestab);
 					sctp_timer_start(SCTP_TIMER_TYPE_SHUTDOWN, asoc->sctp_ep, asoc,
 					    asoc->asoc.primary_destination);
 					sctp_timer_start(SCTP_TIMER_TYPE_SHUTDOWNGUARD, asoc->sctp_ep, asoc,
@@ -2636,12 +2637,13 @@ sctp_add_remote_addr(struct sctp_tcb *stcb, struct sockaddr *newaddr,
 		/* not supported family type */
 		return (-1);
 	}
-	net = (struct sctp_nets *)SCTP_ZONE_GET(sctppcbinfo.ipi_zone_net);
+	net = SCTP_ZONE_GET(sctppcbinfo.ipi_zone_net, struct sctp_nets);
 	if (net == NULL) {
 		return (-1);
 	}
 	SCTP_INCR_RADDR_COUNT();
 	bzero(net, sizeof(*net));
+	SCTP_GETTIME_TIMEVAL(&net->start_time);
 	memcpy(&net->ro._l_addr, newaddr, newaddr->sa_len);
 	if (newaddr->sa_family == AF_INET) {
 		((struct sockaddr_in *)&net->ro._l_addr)->sin_port = stcb->rport;
@@ -2903,7 +2905,7 @@ sctp_aloc_assoc(struct sctp_inpcb *inp, struct sockaddr *firstaddr,
 			return (NULL);
 		}
 	}
-	stcb = (struct sctp_tcb *)SCTP_ZONE_GET(sctppcbinfo.ipi_zone_asoc);
+	stcb = SCTP_ZONE_GET(sctppcbinfo.ipi_zone_asoc, struct sctp_tcb);
 	if (stcb == NULL) {
 		/* out of memory? */
 		*error = ENOMEM;
@@ -3076,7 +3078,7 @@ sctp_add_vtag_to_timewait(struct sctp_inpcb *inp, uint32_t tag, uint32_t time)
 	SCTP_GETTIME_TIMEVAL(&now);
 	chain = &sctppcbinfo.vtag_timewait[(tag % SCTP_STACK_VTAG_HASH_SIZE)];
 	set = 0;
-	if (!LIST_EMPTY(chain)) {
+	if (!SCTP_LIST_EMPTY(chain)) {
 		/* Block(s) present, lets find space, and expire on the fly */
 		LIST_FOREACH(twait_block, chain, sctp_nxt_tagblock) {
 			for (i = 0; i < SCTP_NUMBER_IN_VTAG_BLOCK; i++) {
@@ -3630,7 +3632,7 @@ sctp_free_assoc(struct sctp_inpcb *inp, struct sctp_tcb *stcb, int from_inpcbfre
 	}
 
 	/* local addresses, if any */
-	while (!LIST_EMPTY(&asoc->sctp_local_addr_list)) {
+	while (!SCTP_LIST_EMPTY(&asoc->sctp_local_addr_list)) {
 		laddr = LIST_FIRST(&asoc->sctp_local_addr_list);
 		LIST_REMOVE(laddr, sctp_nxt_addr);
 		SCTP_ZONE_FREE(sctppcbinfo.ipi_zone_laddr, laddr);
@@ -3993,7 +3995,7 @@ sctp_insert_laddr(struct sctpladdr *list, struct ifaddr *ifa)
 {
 	struct sctp_laddr *laddr;
 
-	laddr = (struct sctp_laddr *)SCTP_ZONE_GET(sctppcbinfo.ipi_zone_laddr);
+	laddr = SCTP_ZONE_GET(sctppcbinfo.ipi_zone_laddr, struct sctp_laddr);
 	if (laddr == NULL) {
 		/* out of memory? */
 		return (EINVAL);
@@ -4152,7 +4154,7 @@ sctp_pcb_init()
 	sctp_pcb_initialized = 1;
 
 	bzero(&sctpstat, sizeof(struct sctpstat));
-
+	SCTP_GETTIME_TIMEVAL(&sctpstat.sctps_discontinuitytime);
 	/* init the empty list of (All) Endpoints */
 	LIST_INIT(&sctppcbinfo.listhead);
 
@@ -4268,11 +4270,13 @@ sctp_load_addresses_from_init(struct sctp_tcb *stcb, struct mbuf *m,
 	struct sockaddr *local_sa = (struct sockaddr *)&dest_store;
 	struct sockaddr_in sin;
 	struct sockaddr_in6 sin6;
-	uint8_t store[384];
+	uint8_t random_store[SCTP_PARAM_BUFFER_SIZE];
 	struct sctp_auth_random *random = NULL;
 	uint16_t random_len = 0;
+	uint8_t hmacs_store[SCTP_PARAM_BUFFER_SIZE];
 	struct sctp_auth_hmac_algo *hmacs = NULL;
 	uint16_t hmacs_len = 0;
+	uint8_t chunks_store[SCTP_PARAM_BUFFER_SIZE];
 	struct sctp_auth_chunk_list *chunks = NULL;
 	uint16_t num_chunks = 0;
 	sctp_key_t *new_key;
@@ -4569,7 +4573,7 @@ sctp_load_addresses_from_init(struct sctp_tcb *stcb, struct mbuf *m,
 		} else if (ptype == SCTP_SUPPORTED_CHUNK_EXT) {
 			/* A supported extension chunk */
 			struct sctp_supported_chunk_types_param *pr_supported;
-			uint8_t local_store[128];
+			uint8_t local_store[SCTP_PARAM_BUFFER_SIZE];
 			int num_ent, i;
 
 			phdr = sctp_get_next_param(m, offset,
@@ -4613,14 +4617,14 @@ sctp_load_addresses_from_init(struct sctp_tcb *stcb, struct mbuf *m,
 			stcb->asoc.peer_supports_ecn_nonce = 1;
 			stcb->asoc.ecn_nonce_allowed = 1;
 		} else if (ptype == SCTP_RANDOM) {
-			if (plen > sizeof(store))
+			if (plen > sizeof(random_store))
 				break;
 			if (got_random) {
 				/* already processed a RANDOM */
 				goto next_param;
 			}
 			phdr = sctp_get_next_param(m, offset,
-			    (struct sctp_paramhdr *)store,
+			    (struct sctp_paramhdr *)random_store,
 			    plen);
 			if (phdr == NULL)
 				return (-26);
@@ -4639,14 +4643,14 @@ sctp_load_addresses_from_init(struct sctp_tcb *stcb, struct mbuf *m,
 			int num_hmacs;
 			int i;
 
-			if (plen > sizeof(store))
+			if (plen > sizeof(hmacs_store))
 				break;
 			if (got_hmacs) {
 				/* already processed a HMAC list */
 				goto next_param;
 			}
 			phdr = sctp_get_next_param(m, offset,
-			    (struct sctp_paramhdr *)store,
+			    (struct sctp_paramhdr *)hmacs_store,
 			    plen);
 			if (phdr == NULL)
 				return (-28);
@@ -4670,14 +4674,14 @@ sctp_load_addresses_from_init(struct sctp_tcb *stcb, struct mbuf *m,
 		} else if (ptype == SCTP_CHUNK_LIST) {
 			int i;
 
-			if (plen > sizeof(store))
+			if (plen > sizeof(chunks_store))
 				break;
 			if (got_chklist) {
 				/* already processed a Chunks list */
 				goto next_param;
 			}
 			phdr = sctp_get_next_param(m, offset,
-			    (struct sctp_paramhdr *)store,
+			    (struct sctp_paramhdr *)chunks_store,
 			    plen);
 			if (phdr == NULL)
 				return (-30);
@@ -4749,21 +4753,38 @@ next_param:
 		return (-31);
 	}
 	/* concatenate the full random key */
-	keylen = random_len + num_chunks + hmacs_len;
+#ifdef SCTP_AUTH_DRAFT_04
+	keylen = random_len;
 	new_key = sctp_alloc_key(keylen);
 	if (new_key != NULL) {
 		/* copy in the RANDOM */
 		if (random != NULL)
 			bcopy(random->random_data, new_key->key, random_len);
+	}
+#else
+	keylen = sizeof(*random) + random_len + sizeof(*chunks) + num_chunks +
+	    sizeof(*hmacs) + hmacs_len;
+	new_key = sctp_alloc_key(keylen);
+	if (new_key != NULL) {
+		/* copy in the RANDOM */
+		if (random != NULL) {
+			keylen = sizeof(*random) + random_len;
+			bcopy(random, new_key->key, keylen);
+		}
 		/* append in the AUTH chunks */
-		if (chunks != NULL)
-			bcopy(chunks->chunk_types, new_key->key + random_len,
-			    num_chunks);
+		if (chunks != NULL) {
+			bcopy(chunks, new_key->key + keylen,
+			    sizeof(*chunks) + num_chunks);
+			keylen += sizeof(*chunks) + num_chunks;
+		}
 		/* append in the HMACs */
-		if (hmacs != NULL)
-			bcopy(hmacs->hmac_ids, new_key->key + random_len + num_chunks,
-			    hmacs_len);
-	} else {
+		if (hmacs != NULL) {
+			bcopy(hmacs, new_key->key + keylen,
+			    sizeof(*hmacs) + hmacs_len);
+		}
+	}
+#endif
+	else {
 		return (-32);
 	}
 	if (stcb->asoc.authinfo.peer_random != NULL)
@@ -4871,7 +4892,7 @@ check_restart:
 	}
 check_time_wait:
 	/* Now what about timed wait ? */
-	if (!LIST_EMPTY(chain)) {
+	if (!SCTP_LIST_EMPTY(chain)) {
 		/*
 		 * Block(s) are present, lets see if we have this tag in the
 		 * list

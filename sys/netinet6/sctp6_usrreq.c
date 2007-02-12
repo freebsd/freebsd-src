@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2001-2006, Cisco Systems, Inc. All rights reserved.
+ * Copyright (c) 2001-2007, Cisco Systems, Inc. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -715,7 +715,7 @@ sctp6_disconnect(struct socket *so)
 	}
 	SCTP_INP_RLOCK(inp);
 	if (inp->sctp_flags & SCTP_PCB_FLAGS_TCPTYPE) {
-		if (LIST_EMPTY(&inp->sctp_asoc_list)) {
+		if (SCTP_LIST_EMPTY(&inp->sctp_asoc_list)) {
 			/* No connection */
 			SCTP_INP_RUNLOCK(inp);
 			return (ENOTCONN);
@@ -789,8 +789,11 @@ sctp6_disconnect(struct socket *so)
 					/* only send SHUTDOWN the first time */
 					sctp_send_shutdown(stcb, stcb->asoc.primary_destination);
 					sctp_chunk_output(stcb->sctp_ep, stcb, 1);
+					if ((SCTP_GET_STATE(asoc) == SCTP_STATE_OPEN) ||
+					    (SCTP_GET_STATE(asoc) == SCTP_STATE_SHUTDOWN_RECEIVED)) {
+						SCTP_STAT_DECR_GAUGE32(sctps_currestab);
+					}
 					asoc->state = SCTP_STATE_SHUTDOWN_SENT;
-					SCTP_STAT_DECR_GAUGE32(sctps_currestab);
 					sctp_timer_start(SCTP_TIMER_TYPE_SHUTDOWN,
 					    stcb->sctp_ep, stcb,
 					    asoc->primary_destination);
