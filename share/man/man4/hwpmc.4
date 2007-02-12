@@ -139,10 +139,7 @@ Processes are allowed to allocate as many PMCs as the hardware and
 current operating conditions permit.
 Processes may mix allocations of system-wide and process-private
 PMCs.
-Multiple processes are allowed to be concurrently using the facilities
-of the
-.Nm
-driver.
+Multiple processes may be using PMCs simultaneously.
 .Pp
 Allocated PMCs are started using the
 .Dv PMC_OP_PMCSTART
