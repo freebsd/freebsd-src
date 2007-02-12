@@ -35,7 +35,7 @@ OLD_FILES+=usr/lib/libalias_nbt.so
 OLD_FILES+=usr/lib/libalias_pptp.so
 OLD_FILES+=usr/lib/libalias_skinny.so
 OLD_FILES+=usr/lib/libalias_smedia.so
-# 20061201: remove old *.so.4 liablias modules
+# 20061201: remove old *.so.4 libalias modules
 OLD_FILES+=lib/libalias_cuseeme.so.4
 OLD_FILES+=lib/libalias_dummy.so.4
 OLD_FILES+=lib/libalias_ftp.so.4
