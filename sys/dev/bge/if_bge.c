@@ -1687,6 +1687,8 @@ bge_probe(device_t dev)
 			device_set_desc_copy(dev, buf);
 			if (pci_get_subvendor(dev) == DELL_VENDORID)
 				sc->bge_flags |= BGE_FLAG_NO_3LED;
+			if (did == BCOM_DEVICEID_BCM5755M)
+				sc->bge_flags |= BGE_FLAG_ADJUST_TRIM;
 			return (0);
 		}
 		t++;
@@ -2219,7 +2221,8 @@ bge_attach(device_t dev)
 		sc->bge_flags |= BGE_FLAG_ADC_BUG;
 	if (sc->bge_chipid == BGE_CHIPID_BCM5704_A0)
 		sc->bge_flags |= BGE_FLAG_5704_A0_BUG;
-	if (BGE_IS_5705_PLUS(sc)) {
+	if (BGE_IS_5705_PLUS(sc) &&
+	    !(sc->bge_flags & BGE_FLAG_ADJUST_TRIM)) {
 		if (sc->bge_asicrev == BGE_ASICREV_BCM5755 ||
 		    sc->bge_asicrev == BGE_ASICREV_BCM5787)
 			sc->bge_flags |= BGE_FLAG_JITTER_BUG;
