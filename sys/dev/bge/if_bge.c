@@ -111,8 +111,8 @@ __FBSDID("$FreeBSD$");
 
 #include <dev/bge/if_bgereg.h>
 
-#define BGE_CSUM_FEATURES	(CSUM_IP | CSUM_TCP | CSUM_UDP)
-#define ETHER_MIN_NOPAD		(ETHER_MIN_LEN - ETHER_CRC_LEN) /* i.e., 60 */
+#define	BGE_CSUM_FEATURES	(CSUM_IP | CSUM_TCP | CSUM_UDP)
+#define	ETHER_MIN_NOPAD		(ETHER_MIN_LEN - ETHER_CRC_LEN) /* i.e., 60 */
 
 MODULE_DEPEND(bge, pci, 1, 1, 1);
 MODULE_DEPEND(bge, ether, 1, 1, 1);
@@ -286,11 +286,11 @@ static const struct bge_revision bge_majorrevs[] = {
 	{ 0, NULL }
 };
 
-#define BGE_IS_JUMBO_CAPABLE(sc)	((sc)->bge_flags & BGE_FLAG_JUMBO)
-#define BGE_IS_5700_FAMILY(sc)		((sc)->bge_flags & BGE_FLAG_5700_FAMILY)
-#define BGE_IS_5705_PLUS(sc)		((sc)->bge_flags & BGE_FLAG_5705_PLUS)
-#define BGE_IS_5714_FAMILY(sc)		((sc)->bge_flags & BGE_FLAG_5714_FAMILY)
-#define BGE_IS_575X_PLUS(sc)		((sc)->bge_flags & BGE_FLAG_575X_PLUS)
+#define	BGE_IS_JUMBO_CAPABLE(sc)	((sc)->bge_flags & BGE_FLAG_JUMBO)
+#define	BGE_IS_5700_FAMILY(sc)		((sc)->bge_flags & BGE_FLAG_5700_FAMILY)
+#define	BGE_IS_5705_PLUS(sc)		((sc)->bge_flags & BGE_FLAG_5705_PLUS)
+#define	BGE_IS_5714_FAMILY(sc)		((sc)->bge_flags & BGE_FLAG_5714_FAMILY)
+#define	BGE_IS_575X_PLUS(sc)		((sc)->bge_flags & BGE_FLAG_575X_PLUS)
 
 const struct bge_revision * bge_lookup_rev(uint32_t);
 const struct bge_vendor * bge_lookup_vendor(uint16_t);
@@ -359,8 +359,8 @@ static void bge_miibus_statchg(device_t);
 static void bge_poll(struct ifnet *ifp, enum poll_cmd cmd, int count);
 #endif
 
-#define BGE_RESET_START 1
-#define BGE_RESET_STOP  2
+#define	BGE_RESET_START 1
+#define	BGE_RESET_STOP  2
 static void bge_sig_post_reset(struct bge_softc *, int);
 static void bge_sig_legacy(struct bge_softc *, int);
 static void bge_sig_pre_reset(struct bge_softc *, int);
@@ -1120,9 +1120,9 @@ bge_chipinit(struct bge_softc *sc)
 	/* Set up the PCI DMA control register. */
 	if (sc->bge_flags & BGE_FLAG_PCIE) {
 		/* PCI Express bus */
-		dma_rw_ctl = BGE_PCI_READ_CMD|BGE_PCI_WRITE_CMD |
-		    (0xf << BGE_PCIDMARWCTL_RD_WAT_SHIFT) |
-		    (0x2 << BGE_PCIDMARWCTL_WR_WAT_SHIFT);
+		dma_rw_ctl = BGE_PCI_READ_CMD | BGE_PCI_WRITE_CMD |
+		    BGE_PCIDMARWCTL_RD_WAT_SHIFT(0xf) |
+		    BGE_PCIDMARWCTL_WR_WAT_SHIFT(0x2);
 	} else if (sc->bge_flags & BGE_FLAG_PCIX) {
 		/* PCI-X bus */
 		if (BGE_IS_5714_FAMILY(sc)) {
@@ -1140,14 +1140,14 @@ bge_chipinit(struct bge_softc *sc)
 			 * The 5704 uses a different encoding of read/write
 			 * watermarks.
 			 */
-			dma_rw_ctl = BGE_PCI_READ_CMD|BGE_PCI_WRITE_CMD |
-			    (0x7 << BGE_PCIDMARWCTL_RD_WAT_SHIFT) |
-			    (0x3 << BGE_PCIDMARWCTL_WR_WAT_SHIFT);
+			dma_rw_ctl = BGE_PCI_READ_CMD | BGE_PCI_WRITE_CMD |
+			    BGE_PCIDMARWCTL_RD_WAT_SHIFT(0x7) |
+			    BGE_PCIDMARWCTL_WR_WAT_SHIFT(0x3);
 		else
-			dma_rw_ctl = BGE_PCI_READ_CMD|BGE_PCI_WRITE_CMD |
-			    (0x3 << BGE_PCIDMARWCTL_RD_WAT_SHIFT) |
-			    (0x3 << BGE_PCIDMARWCTL_WR_WAT_SHIFT) |
-			    (0x0F);
+			dma_rw_ctl = BGE_PCI_READ_CMD | BGE_PCI_WRITE_CMD |
+			    BGE_PCIDMARWCTL_RD_WAT_SHIFT(0x3) |
+			    BGE_PCIDMARWCTL_WR_WAT_SHIFT(0x3) |
+			    0x0f;
 
 		/*
 		 * 5703 and 5704 need ONEDMA_AT_ONCE as a workaround
@@ -1163,10 +1163,10 @@ bge_chipinit(struct bge_softc *sc)
 		}
 	} else
 		/* Conventional PCI bus */
-		dma_rw_ctl = BGE_PCI_READ_CMD|BGE_PCI_WRITE_CMD |
-		    (0x7 << BGE_PCIDMARWCTL_RD_WAT_SHIFT) |
-		    (0x7 << BGE_PCIDMARWCTL_WR_WAT_SHIFT) |
-		    (0x0F);
+		dma_rw_ctl = BGE_PCI_READ_CMD | BGE_PCI_WRITE_CMD |
+		    BGE_PCIDMARWCTL_RD_WAT_SHIFT(0x7) |
+		    BGE_PCIDMARWCTL_WR_WAT_SHIFT(0x7) |
+		    0x0f;
 
 	if (sc->bge_asicrev == BGE_ASICREV_BCM5703 ||
 	    sc->bge_asicrev == BGE_ASICREV_BCM5704 ||
@@ -3185,7 +3185,7 @@ bge_stats_update(struct bge_softc *sc)
 
 	stats = BGE_MEMWIN_START + BGE_STATS_BLOCK;
 
-#define READ_STAT(sc, stats, stat) \
+#define	READ_STAT(sc, stats, stat) \
 	CSR_READ_4(sc, stats + offsetof(struct bge_stats, stat))
 
 	cnt = READ_STAT(sc, stats, txstats.etherStatsCollisions.bge_addr_lo);
@@ -3200,7 +3200,7 @@ bge_stats_update(struct bge_softc *sc)
 	ifp->if_oerrors += (uint32_t)(cnt - sc->bge_tx_discards);
 	sc->bge_tx_discards = cnt;
 
-#undef READ_STAT
+#undef	READ_STAT
 }
 
 /*
