@@ -2216,6 +2216,9 @@ bge_attach(device_t dev)
 	}
 
 	/* Set various bug flags. */
+	if (sc->bge_chipid == BGE_CHIPID_BCM5701_A0 ||
+	    sc->bge_chipid == BGE_CHIPID_BCM5701_B0)
+		sc->bge_flags |= BGE_FLAG_CRC_BUG;
 	if (sc->bge_chiprev == BGE_CHIPREV_5703_AX ||
 	    sc->bge_chiprev == BGE_CHIPREV_5704_AX)
 		sc->bge_flags |= BGE_FLAG_ADC_BUG;
