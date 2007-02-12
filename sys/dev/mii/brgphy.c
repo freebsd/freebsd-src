@@ -574,14 +574,14 @@ brgphy_fixup_ber_bug(struct mii_softc *sc)
 		int		reg;
 		u_int16_t	val;
 	} dspcode[] = {
-		{ 0x18,				0x0c00 },
-		{ 0x17,				0x000a },
-		{ 0x15,				0x310b },
-		{ 0x17,				0x201f },
-		{ 0x15,				0x9506 },
-		{ 0x17,				0x401f },
-		{ 0x15,				0x14e2 },
-		{ 0x18,				0x0400 },
+		{ BRGPHY_MII_AUXCTL,		0x0c00 },
+		{ BRGPHY_MII_DSP_ADDR_REG,	0x000a },
+		{ BRGPHY_MII_DSP_RW_PORT,	0x310b },
+		{ BRGPHY_MII_DSP_ADDR_REG,	0x201f },
+		{ BRGPHY_MII_DSP_RW_PORT,	0x9506 },
+		{ BRGPHY_MII_DSP_ADDR_REG,	0x401f },
+		{ BRGPHY_MII_DSP_RW_PORT,	0x14e2 },
+		{ BRGPHY_MII_AUXCTL,		0x0400 },
 		{ 0,				0 },
 	};
 	int i;
