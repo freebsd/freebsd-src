@@ -36,10 +36,6 @@ __FBSDID("$FreeBSD$");
 #ifndef __sctp_constants_h__
 #define __sctp_constants_h__
 
-#if defined(_KERNEL)
-#include <sys/kernel.h>
-#endif
-
 
 #define SCTP_VERSION_STRING "KAME-BSD 1.1"
 /* #define SCTP_AUDITING_ENABLED 1 used for debug/auditing */
@@ -556,7 +552,7 @@ __FBSDID("$FreeBSD$");
 #define SCTP_ASOC_MAX_CHUNKS_ON_QUEUE 512
 
 #define MSEC_TO_TICKS(x) ((hz == 1000) ? x : (((x) * hz) / 1000))
-#define TICKS_TO_MSEC(x) ((hz == 1000) ? x : (((x) * 1000) / hz));
+#define TICKS_TO_MSEC(x) ((hz == 1000) ? x : (((x) * 1000) / hz))
 
 #define SEC_TO_TICKS(x) ((x) * hz)
 #define TICKS_TO_SEC(x) ((x) / hz)
@@ -689,8 +685,8 @@ __FBSDID("$FreeBSD$");
 
 #define SCTP_DEFAULT_MAXSEGMENT 65535
 
-#define DEFAULT_CHUNK_BUFFER	2048
-#define DEFAULT_PARAM_BUFFER	512
+#define SCTP_CHUNK_BUFFER_SIZE	2048
+#define SCTP_PARAM_BUFFER_SIZE	512
 
 #define SCTP_DEFAULT_MINSEGMENT 512	/* MTU size ... if no mtu disc */
 #define SCTP_HOW_MANY_SECRETS	2	/* how many secrets I keep */
@@ -908,20 +904,19 @@ __FBSDID("$FreeBSD$");
 #define SCTP_DEF_SYSTEM_RESC_LIMIT 1000
 
 
-
 #define IN4_ISPRIVATE_ADDRESS(a) \
-   ((((u_char *)&(a)->s_addr)[0] == 10) || \
-    ((((u_char *)&(a)->s_addr)[0] == 172) && \
-     (((u_char *)&(a)->s_addr)[1] >= 16) && \
-     (((u_char *)&(a)->s_addr)[1] <= 32)) || \
-    ((((u_char *)&(a)->s_addr)[0] == 192) && \
-     (((u_char *)&(a)->s_addr)[1] == 168)))
+   ((((uint8_t *)&(a)->s_addr)[0] == 10) || \
+    ((((uint8_t *)&(a)->s_addr)[0] == 172) && \
+     (((uint8_t *)&(a)->s_addr)[1] >= 16) && \
+     (((uint8_t *)&(a)->s_addr)[1] <= 32)) || \
+    ((((uint8_t *)&(a)->s_addr)[0] == 192) && \
+     (((uint8_t *)&(a)->s_addr)[1] == 168)))
 
 #define IN4_ISLOOPBACK_ADDRESS(a) \
-    ((((u_char *)&(a)->s_addr)[0] == 127) && \
-     (((u_char *)&(a)->s_addr)[1] == 0) && \
-     (((u_char *)&(a)->s_addr)[2] == 0) && \
-     (((u_char *)&(a)->s_addr)[3] == 1))
+    ((((uint8_t *)&(a)->s_addr)[0] == 127) && \
+     (((uint8_t *)&(a)->s_addr)[1] == 0) && \
+     (((uint8_t *)&(a)->s_addr)[2] == 0) && \
+     (((uint8_t *)&(a)->s_addr)[3] == 1))
 
 
 #if defined(_KERNEL)
@@ -966,7 +961,6 @@ do { \
 	} \
 } while (0)
 
-/* FIXME */
 #define sctp_sorwakeup_locked(inp, so) \
 do { \
 	if (inp->sctp_flags & SCTP_PCB_FLAGS_DONT_WAKE) { \

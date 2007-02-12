@@ -149,24 +149,24 @@ sctp_handle_ootb(struct mbuf *, int, int, struct sctphdr *,
 
 int sctp_is_there_an_abort_here(struct mbuf *, int, uint32_t *);
 uint32_t sctp_is_same_scope(struct sockaddr_in6 *, struct sockaddr_in6 *);
+
 struct sockaddr_in6 *
-sctp_recover_scope(struct sockaddr_in6 *,
-    struct sockaddr_in6 *);
-
-
-
+             sctp_recover_scope(struct sockaddr_in6 *, struct sockaddr_in6 *);
 
 #define sctp_recover_scope_mac(addr, store) do { \
-			 if ((addr->sin6_family == AF_INET6) && \
-			     (IN6_IS_SCOPE_LINKLOCAL(&addr->sin6_addr)) && \
-			     (addr->sin6_scope_id == 0)) { \
-				*store = *addr; \
-				if (!sa6_recoverscope(store)) { \
-					addr = store; \
-				} \
-			 } \
-                      } while (0)
-
+	 if ((addr->sin6_family == AF_INET6) && \
+	     (IN6_IS_SCOPE_LINKLOCAL(&addr->sin6_addr))) { \
+		*store = *addr; \
+		if (addr->sin6_scope_id == 0) { \
+			if (!sa6_recoverscope(store)) { \
+				addr = store; \
+			} \
+		} else { \
+			in6_clearscope(&addr->sin6_addr); \
+			addr = store; \
+		} \
+	 } \
+} while (0)
 
 
 int sctp_cmpaddr(struct sockaddr *, struct sockaddr *);
