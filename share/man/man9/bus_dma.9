@@ -60,7 +60,7 @@
 .\" $FreeBSD$
 .\" $NetBSD: bus_dma.9,v 1.25 2002/10/14 13:43:16 wiz Exp $
 .\"
-.Dd December 5, 2005
+.Dd August 31, 2006
 .Dt BUS_DMA 9
 .Os
 .Sh NAME
@@ -133,7 +133,7 @@ abstracting machine dependent issues like setting up
 DMA mappings, handling cache issues, bus specific features
 and limitations.
 .Sh STRUCTURES AND TYPES
-.Bl -tag -width compact
+.Bl -tag -width indent
 .It Vt bus_dma_tag_t
 A machine-dependent (MD) opaque type that describes the
 characteristics of DMA transactions.
@@ -143,11 +143,11 @@ This allows all devices along the path of DMA transactions
 to contribute to the constraints of those transactions.
 .It Vt bus_dma_filter_t
 Client specified address filter having the format:
-.Bl -tag -width compact
+.Bl -tag -width indent
 .It Ft int
 .Fn "client_filter" "void *filtarg" "bus_addr_t testaddr"
 .El
-.sp
+.Pp
 Address filters can be specified during tag creation to allow
 for devices whose DMA address restrictions cannot be specified
 by a single window.
@@ -172,7 +172,7 @@ DMA segments.
 	bus_addr_t	ds_addr;
 	bus_size_t	ds_len;
 .Ed
-.sp
+.Pp
 The
 .Fa ds_addr
 field contains the device visible address of the DMA segment, and
@@ -187,9 +187,12 @@ A machine-dependent opaque type describing an individual mapping.
 One map is used for each memory allocation that will be loaded.
 Maps can be reused once they have been unloaded.
 Multiple maps can be associated with one DMA tag.
-While the value of the map may evaluate to NULL on some platforms under
-certain conditions, it should never be assumed that it will be NULL in all
-cases.
+While the value of the map may evaluate to
+.Dv NULL
+on some platforms under certain conditions,
+it should never be assumed that it will be
+.Dv NULL
+in all cases.
 .It Vt bus_dmamap_callback_t
 Client specified callback for receiving mapping information resulting from
 the load of a
@@ -197,12 +200,12 @@ the load of a
 via
 .Fn bus_dmamap_load .
 Callbacks are of the format:
-.Bl -tag -width compact
+.Bl -tag -width indent
 .It Ft void
 .Fn "client_callback" "void *callback_arg" "bus_dma_segment_t *segs" \
 "int nseg" "int error"
 .El
-.sp
+.Pp
 The
 .Fa callback_arg
 is the callback argument passed to dmamap load functions.
@@ -227,14 +230,14 @@ via
 .Fn bus_dmamap_load_uio
 or
 .Fn bus_dmamap_load_mbuf .
-.sp
+.Pp
 Callback2s are of the format:
-.Bl -tag -width compact
+.Bl -tag -width indent
 .It Ft void
 .Fn "client_callback2" "void *callback_arg" "bus_dma_segment_t *segs" \
 "int nseg" "bus_size_t mapsize" "int error"
 .El
-.sp
+.Pp
 Callback2's behavior is the same as
 .Vt bus_dmamap_callback_t
 with the addition that the length of the data mapped is provided via
@@ -257,22 +260,22 @@ description below for more details on how to use these operations.
 All operations specified below are performed from the host memory point of view,
 where a read implies data coming from the device to the host memory, and a write
 implies data going from the host memory to the device.
-Alternately, the operations can be thought of in terms of driver operations,
+Alternatively, the operations can be thought of in terms of driver operations,
 where reading a network packet or storage sector corresponds to a read operation
 in
 .Nm .
-.Bl -tag -width BUS_DMASYNC_POSTWRITE
+.Bl -tag -width ".Dv BUS_DMASYNC_POSTWRITE"
 .It Dv BUS_DMASYNC_PREREAD
 Perform any synchronization required prior to an update of host memory by the
-DMA read operation.
+device.
 .It Dv BUS_DMASYNC_PREWRITE
 Perform any synchronization required after an update of host memory by the CPU
-and prior to DMA write operations.
+and prior to device access to host memory.
 .It Dv BUS_DMASYNC_POSTREAD
-Perform any synchronization required after DMA read operations and prior to
-CPU access to host memory.
+Perform any synchronization required after an update of host memory by the
+device and prior to CPU access to host memory.
 .It Dv BUS_DMASYNC_POSTWRITE
-Perform any synchronization required after DMA write operations.
+Perform any synchronization required after the device access to host memory.
 .El
 .It Vt bus_dma_lock_t
 Client specified lock/mutex manipulation method.
@@ -287,11 +290,11 @@ If the load operation does not need to be deferred, then it
 will not be called since the function loading the map should
 be holding the appropriate locks.
 This method is of the format:
-.Bl -tag -width compact
+.Bl -tag -width indent
 .It Ft void
 .Fn "lockfunc" "void *lockfunc_arg" "bus_dma_lock_op_t op"
 .El
-.sp
+.Pp
 Two
 .Vt lockfunc
 implementations are provided for convenience.
@@ -304,27 +307,28 @@ passed into
 will generate a system panic if it is called.
 It is substituted into the tag when
 .Fa lockfunc
-is passed as NULL to
+is passed as
+.Dv NULL
+to
 .Fn bus_dma_tag_create .
 .It Vt bus_dma_lock_op_t
 Operations to be performed by the client-specified
 .Fn lockfunc .
-.Bl -tag -width BUS_DMA_UNLOCK
+.Bl -tag -width ".Dv BUS_DMA_UNLOCK"
 .It Dv BUS_DMA_LOCK
 Acquires and/or locks the client locking primitive.
 .It Dv BUS_DMA_UNLOCK
 Releases and/or unlocks the client locking primitive.
 .El
 .El
-.sp
 .Sh FUNCTIONS
-.Bl -tag -width compact
+.Bl -tag -width indent
 .It Fn bus_dma_tag_create "parent" "alignment" "boundary" "lowaddr" \
 "highaddr" "*filtfunc" "*filtfuncarg" "maxsize" "nsegments" "maxsegsz" \
 "flags" "lockfunc" "lockfuncarg" "*dmat"
 Allocates a device specific DMA tag, and initializes it according to
 the arguments provided:
-.Bl -tag -width *filtfuncarg -compact
+.Bl -tag -width ".Fa filtfuncarg"
 .It Fa parent
 Indicates restrictions between the parent bridge, CPU memory, and the
 device.
@@ -337,7 +341,7 @@ Hardware that can DMA starting at any address would specify
 for byte alignment.
 Hardware requiring DMA transfers to start on a multiple of 4K
 would specify
-.Em 4096.
+.Em 4096 .
 .It Fa boundary
 Boundary constraint, in bytes, of the target DMA memory region.
 The boundary indicates the set of addresses, all multiples of the
@@ -347,8 +351,7 @@ The boundary must be a power of 2 and must be no smaller than the
 maximum segment size.
 .Ql 0
 indicates that there are no boundary restrictions.
-.It Fa lowaddr
-.It Fa highaddr
+.It Fa lowaddr , highaddr
 Bounds of the window of bus address space that
 .Em cannot
 be directly accessed by the device.
@@ -372,11 +375,13 @@ This area of
 is used to bounce requests that would otherwise conflict with
 the exclusion window.
 .It Fa filtfunc
-Optional filter function (may be NULL) to be called for any attempt to
+Optional filter function (may be
+.Dv NULL )
+to be called for any attempt to
 map memory into the window described by
 .Fa lowaddr
 and
-.Fa highaddr.
+.Fa highaddr .
 A filter function is only required when the single window described
 by
 .Fa lowaddr
@@ -387,7 +392,8 @@ The filter function will be called for every machine page
 that overlaps the exclusion window.
 .It Fa filtfuncarg
 Argument passed to all calls to the filter function for this tag.
-May be NULL.
+May be
+.Dv NULL .
 .It Fa maxsize
 Maximum size, in bytes, of the sum of all segment lengths in a given
 DMA mapping associated with this tag.
@@ -403,7 +409,7 @@ with
 .Fa dmat .
 .It Fa flags
 Are as follows:
-.Bl -tag -width "BUS_DMA_ALLOCNOW" -compact
+.Bl -tag -width ".Dv BUS_DMA_ALLOCNOW"
 .It Dv BUS_DMA_ALLOCNOW
 Pre-allocate enough resources to handle at least one map load operation on
 this tag.
@@ -418,9 +424,13 @@ that resources will be allocated or reserved exclusively for this tag.
 It should be treated only as a minor optimization.
 .El
 .It Fa lockfunc
-Optional lock manipulation function (may be NULL) to be called when busdma
+Optional lock manipulation function (may be
+.Dv NULL )
+to be called when busdma
 needs to manipulate a lock on behalf of the client.
-If NULL is specified,
+If
+.Dv NULL
+is specified,
 .Fn dflt_lock
 is used.
 .It Fa lockfuncarg
@@ -451,7 +461,7 @@ on success.
 .It Fn bus_dmamap_create "dmat" "flags" "*mapp"
 Allocates and initializes a DMA map.
 Arguments are as follows:
-.Bl -tag -width nsegments -compact
+.Bl -tag -width ".Fa nsegments"
 .It Fa dmat
 DMA tag.
 .It Fa flags
@@ -471,7 +481,7 @@ map or allocating mapping resources.
 .It Fn bus_dmamap_destroy "dmat" "map"
 Frees all resources associated with a given DMA map.
 Arguments are as follows:
-.Bl -tag -width dmat -compact
+.Bl -tag -width ".Fa dmat"
 .It Fa dmat
 DMA tag used to allocate
 .Fa map .
@@ -493,10 +503,10 @@ associated with the DMA map
 .Fa map .
 This call will always return immediately and will not block for any reason.
 Arguments are as follows:
-.Bl -tag -width buflen -compact
+.Bl -tag -width ".Fa buflen"
 .It Fa dmat
 DMA tag used to allocate
-.Fa map.
+.Fa map .
 .It Fa map
 A DMA map without a currently active mapping.
 .It Fa buf
@@ -515,15 +525,15 @@ load returns, and code should be structured appropriately to handle this.
 See below for specific flags and error codes that control this behavior.
 .It Fa flags
 Are as follows:
-.Bl -tag -width BUS_DMA_NOWAIT -compact
-.It Er BUS_DMA_NOWAIT
+.Bl -tag -width ".Dv BUS_DMA_NOWAIT"
+.It Dv BUS_DMA_NOWAIT
 The load should not be deferred in case of insufficient mapping resources,
 and instead should return immediately with an appropriate error.
 .El
 .El
 .Pp
 Return values to the caller are as follows:
-.Bl -tag -width EINPROGRESS -compact
+.Bl -tag -width ".Er EINPROGRESS"
 .It 0
 The callback has been called and completed.
 The status of the mapping has been delivered to the callback.
@@ -536,7 +546,7 @@ be deferred until all callbacks have been processed.
 .It Er ENOMEM
 The load request has failed due to insufficient resources, and the caller
 specifically used the
-.Fa BUS_DMA_NOWAIT
+.Dv BUS_DMA_NOWAIT
 flag.
 .It Er EINVAL
 The load request was invalid.
@@ -558,7 +568,7 @@ argument used to create the dma tag
 When the callback is called, it is presented with an error value
 indicating the disposition of the mapping.
 Error may be one of the following:
-.Bl -tag -width EINPROGRESS -compact
+.Bl -tag -width ".Er EINPROGRESS"
 .It 0
 The mapping was successful and the
 .Fa dm_segs
@@ -581,7 +591,7 @@ A
 argument is also passed to the callback routine, which
 contains the mbuf chain's packet header length.
 The
-.Fa BUS_DMA_NOWAIT
+.Dv BUS_DMA_NOWAIT
 flag is implied, thus no callback deferral will happen.
 .Pp
 Mbuf chains are assumed to be in kernel virtual address space.
@@ -617,7 +627,7 @@ argument is also passed to the callback routine, which contains the size of
 i.e.
 .Fa uio->uio_resid .
 The
-.Fa BUS_DMA_NOWAIT
+.Dv BUS_DMA_NOWAIT
 flag is implied, thus no callback deferral will happen.
 Returns the same errors as
 .Fn bus_dmamap_load .
@@ -638,7 +648,7 @@ Pages may be locked using
 .It Fn bus_dmamap_unload "dmat" "map"
 Unloads a DMA map.
 Arguments are as follows:
-.Bl -tag -width dmam -compact
+.Bl -tag -width ".Fa dmam"
 .It Fa dmat
 DMA tag used to allocate
 .Fa map .
@@ -655,7 +665,7 @@ prior to unloading the map.
 Performs synchronization of a device visible mapping with the CPU visible
 memory referenced by that mapping.
 Arguments are as follows:
-.Bl -tag -width dmat -compact
+.Bl -tag -width ".Fa dmat"
 .It Fa dmat
 DMA tag used to allocate
 .Fa map .
@@ -669,27 +679,32 @@ for a description of the acceptable values for
 .Fa op .
 .El
 .Pp
+The
 .Fn bus_dmamap_sync
-is the method used to ensure that CPU and device DMA access to shared
+function
+is the method used to ensure that CPU's and device's direct
+memory access (DMA) to shared
 memory is coherent.
-For example, the CPU might be used to setup the contents of a buffer
-that is to be DMA'ed into a device.
+For example, the CPU might be used to set up the contents of a buffer
+that is to be made available to a device.
 To ensure that the data are visible via the device's mapping of that
-memory, the buffer must be loaded and a dma sync operation of
-.Dv BUS_DMASYNC_PREREAD
-must be performed.
-Additional sync operations must be performed after every CPU write
-to this memory if additional DMA reads are to be performed.
-Conversely, for the DMA write case, the buffer must be loaded,
-and a dma sync operation of
+memory, the buffer must be loaded and a DMA sync operation of
 .Dv BUS_DMASYNC_PREWRITE
 must be performed.
-The CPU will only be able to see the results of this DMA write
-once the DMA has completed and a
-.Dv BUS_DMASYNC_POSTWRITE
-operation has been performed.
+If later CPU modifies this buffer again, another
+.Dv BUS_DMASYNC_PREWRITE
+sync operation must be performed before an additional
+access to this memory by a device.
+Conversely, a device updates the memory that is to be read by a CPU.
+In this case, the buffer must be loaded, and a DMA sync operation of
+.Dv BUS_DMASYNC_PREREAD
+must be performed.
+The CPU will only be able to see the results of this memory update
+once the DMA operation has completed and a
+.Dv BUS_DMASYNC_POSTREAD
+sync operation has been performed.
 .Pp
-If DMA read and write operations are not preceded and followed by the
+If read and write operations are not preceded and followed by the
 appropriate synchronization operations, behavior is undefined.
 .It Fn bus_dmamem_alloc "dmat" "**vaddr" "flags" "*mapp"
 Allocates memory that is mapped into KVA at the address returned
@@ -700,7 +715,7 @@ that is permanently loaded into the newly created
 returned via
 .Fa mapp .
 Arguments are as follows:
-.Bl -tag -width alignment -compact
+.Bl -tag -width ".Fa alignment"
 .It Fa dmat
 DMA tag describing the constraints of the DMA mapping.
 .It Fa vaddr
@@ -708,7 +723,7 @@ Pointer to a pointer that will hold the returned KVA mapping of
 the allocated region.
 .It Fa flags
 Flags are defined as follows:
-.Bl -tag -width BUS_DMA_NOWAIT -compact
+.Bl -tag -width ".Dv BUS_DMA_NOWAIT"
 .It Dv BUS_DMA_WAITOK
 The routine can safely wait (sleep) for resources.
 .It Dv BUS_DMA_NOWAIT
@@ -724,6 +739,9 @@ a CPU and a DMA engine, frequently.
 Use of this flag does not remove the requirement of using
 bus_dmamap_sync, but it may reduce the cost of performing
 these operations.
+The
+.Dv BUS_DMA_COHERENT
+flag is currently implemented on sparc64 and arm.
 .It Dv BUS_DMA_ZERO
 Causes the allocated memory to be set to all zeros.
 .El
@@ -753,7 +771,7 @@ Although an explicit load is not required for each access to the memory
 referenced by the returned map, the synchronization requirements
 as described in the
 .Fn bus_dmamap_sync
-section still apply and should be used to achieve portability on architecutures
+section still apply and should be used to achieve portability on architectures
 without coherent buses.
 .Pp
 Returns
@@ -766,7 +784,7 @@ Frees memory previously allocated by
 Any mappings
 will be invalidated.
 Arguments are as follows:
-.Bl -tag -width vaddr -compact
+.Bl -tag -width ".Fa vaddr"
 .It Fa dmat
 DMA tag.
 .It Fa vaddr
@@ -791,6 +809,76 @@ code, as discussed above.
 All
 .Vt void
 routines will succeed if provided with valid arguments.
+.Sh LOCKING
+Two locking protocols are used by
+.Nm .
+The first is a private global lock that is used to synchronize access to the
+bounce buffer pool on the architectures that make use of them.
+This lock is strictly a leaf lock that is only used internally to
+.Nm
+and is not exposed to clients of the API.
+.Pp
+The second protocol involves protecting various resources stored in the tag.
+Since almost all
+.Nm
+operations are done through requests from the driver that created the tag,
+the most efficient way to protect the tag resources is through the lock that
+the driver uses.
+In cases where
+.Nm
+acts on its own without being called by the driver, the lock primitive
+specified in the tag is acquired and released automatically.
+An example of this is when the
+.Fn bus_dmamap_load
+callback function is called from a deferred context instead of the driver
+context.
+This means that certain
+.Nm
+functions must always be called with the same lock held that is specified in the
+tag.
+These functions include:
+.Pp
+.Bl -item -offset indent -compact
+.It
+.Fn bus_dmamap_load
+.It
+.Fn bus_dmamap_load_uio
+.It
+.Fn bus_dmamap_load_mbuf
+.It
+.Fn bus_dmamap_load_mbuf_sg
+.It
+.Fn bus_dmamap_unload
+.It
+.Fn bus_dmamap_sync
+.El
+.Pp
+There is one exception to this rule.
+It is common practice to call some of these functions during driver start-up
+without any locks held.
+So long as there is a guarantee of no possible concurrent use of the tag by
+different threads during this operation, it is safe to not hold a lock for
+these functions.
+.Pp
+Certain
+.Nm
+operations should not be called with the driver lock held, either because
+they are already protected by an internal lock, or because they might sleep
+due to memory or resource allocation.
+The following functions must not be
+called with any non-sleepable locks held:
+.Pp
+.Bl -item -offset indent -compact
+.It
+.Fn bus_dma_tag_create
+.It
+.Fn bus_dmamap_create
+.It
+.Fn bus_dmamem_alloc
+.El
+.Pp
+All other functions do not have a locking protocol and can thus be
+called with or without and system or driver locks held.
 .Sh SEE ALSO
 .Xr devclass 9 ,
 .Xr device 9 ,
