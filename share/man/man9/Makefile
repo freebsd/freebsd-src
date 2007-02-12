@@ -379,6 +379,7 @@ MLINKS+=bus_dma.9 busdma.9 \
 	bus_dma.9 bus_dmamap_destroy.9 \
 	bus_dma.9 bus_dmamap_load.9 \
 	bus_dma.9 bus_dmamap_load_mbuf.9 \
+	bus_dma.9 bus_dmamap_load_mbuf_sg.9 \
 	bus_dma.9 bus_dmamap_load_uio.9 \
 	bus_dma.9 bus_dmamap_sync.9 \
 	bus_dma.9 bus_dmamap_unload.9 \
