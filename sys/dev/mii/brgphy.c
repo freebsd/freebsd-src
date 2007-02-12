@@ -103,6 +103,7 @@ static void	brgphy_fixup_5704_a0_bug(struct mii_softc *);
 static void	brgphy_fixup_adc_bug(struct mii_softc *);
 static void	brgphy_fixup_adjust_trim(struct mii_softc *);
 static void	brgphy_fixup_ber_bug(struct mii_softc *);
+static void	brgphy_fixup_crc_bug(struct mii_softc *);
 static void	brgphy_fixup_jitter_bug(struct mii_softc *);
 static void	brgphy_ethernet_wirespeed(struct mii_softc *);
 static void	brgphy_jumbo_settings(struct mii_softc *, u_long);
@@ -612,6 +613,25 @@ brgphy_fixup_ber_bug(struct mii_softc *sc)
 }
 
 static void
+brgphy_fixup_crc_bug(struct mii_softc *sc)
+{
+	static const struct {
+		int		reg;
+		uint16_t	val;
+	} dspcode[] = {
+		{ BRGPHY_MII_DSP_ADDR_REG,	0x0a75 },
+		{ 0x1c,				0x8c68 },
+		{ 0x1c,				0x8d68 },
+		{ 0x1c,				0x8c68 },
+		{ 0,				0 },
+	};
+	int i;
+
+	for (i = 0; dspcode[i].reg != 0; i++)
+		PHY_WRITE(sc, dspcode[i].reg, dspcode[i].val);
+}
+
+static void
 brgphy_fixup_jitter_bug(struct mii_softc *sc)
 {
 	static const struct {
@@ -716,6 +736,8 @@ brgphy_reset(struct mii_softc *sc)
 			brgphy_fixup_adjust_trim(sc);
 		if (bge_sc->bge_flags & BGE_FLAG_BER_BUG)
 			brgphy_fixup_ber_bug(sc);
+		if (bge_sc->bge_flags & BGE_FLAG_CRC_BUG)
+			brgphy_fixup_crc_bug(sc);
 		if (bge_sc->bge_flags & BGE_FLAG_JITTER_BUG)
 			brgphy_fixup_jitter_bug(sc);
 
