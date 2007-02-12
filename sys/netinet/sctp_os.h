@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2006, Cisco Systems, Inc. All rights reserved.
+ * Copyright (c) 2006-2007, Cisco Systems, Inc. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -47,10 +47,11 @@ __FBSDID("$FreeBSD$");
  *  name = string name of the zone/pool.
  *  size = size of each zone/pool element.
  *  number = number of elements in zone/pool.
+ *  type = structure type to allocate
  *
  * sctp_zone_t
  * SCTP_ZONE_INIT(zone, name, size, number)
- * SCTP_ZONE_GET(zone)
+ * SCTP_ZONE_GET(zone, type)
  * SCTP_ZONE_FREE(zone, element)
  * SCTP_ZONE_DESTROY(zone)
  */

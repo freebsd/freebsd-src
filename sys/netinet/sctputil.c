@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2001-2006, Cisco Systems, Inc. All rights reserved.
+ * Copyright (c) 2001-2007, Cisco Systems, Inc. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -1104,6 +1104,16 @@ sctp_init_asoc(struct sctp_inpcb *m, struct sctp_association *asoc,
 	asoc->authinfo.recv_key = NULL;
 	asoc->authinfo.recv_keyid = 0;
 	LIST_INIT(&asoc->shared_keys);
+	asoc->marked_retrans = 0;
+	asoc->timoinit = 0;
+	asoc->timodata = 0;
+	asoc->timosack = 0;
+	asoc->timoshutdown = 0;
+	asoc->timoheartbeat = 0;
+	asoc->timocookie = 0;
+	asoc->timoshutdownack = 0;
+	SCTP_GETTIME_TIMEVAL(&asoc->start_time);
+	SCTP_GETTIME_TIMEVAL(&asoc->discontinuity_time);
 
 	return (0);
 }
@@ -1146,7 +1156,7 @@ sctp_handle_addr_wq(void)
 		return;
 	}
 	LIST_REMOVE(wi, sctp_nxt_addr);
-	if (!LIST_EMPTY(&sctppcbinfo.addr_wq)) {
+	if (!SCTP_LIST_EMPTY(&sctppcbinfo.addr_wq)) {
 		sctp_timer_start(SCTP_TIMER_TYPE_ADDR_WQ,
 		    (struct sctp_inpcb *)NULL,
 		    (struct sctp_tcb *)NULL,
@@ -1281,6 +1291,7 @@ sctp_timeout_handler(void *t)
 		break;
 	case SCTP_TIMER_TYPE_SEND:
 		SCTP_STAT_INCR(sctps_timodata);
+		stcb->asoc.timodata++;
 		stcb->asoc.num_send_timers_up--;
 		if (stcb->asoc.num_send_timers_up < 0) {
 			stcb->asoc.num_send_timers_up = 0;
@@ -1312,6 +1323,7 @@ sctp_timeout_handler(void *t)
 		break;
 	case SCTP_TIMER_TYPE_INIT:
 		SCTP_STAT_INCR(sctps_timoinit);
+		stcb->asoc.timoinit++;
 		if (sctp_t1init_timer(inp, stcb, net)) {
 			/* no need to unlock on tcb its gone */
 			goto out_decr;
@@ -1321,6 +1333,7 @@ sctp_timeout_handler(void *t)
 		break;
 	case SCTP_TIMER_TYPE_RECV:
 		SCTP_STAT_INCR(sctps_timosack);
+		stcb->asoc.timosack++;
 		sctp_send_sack(stcb);
 #ifdef SCTP_AUDITING_ENABLED
 		sctp_auditing(4, inp, stcb, net);
@@ -1333,6 +1346,7 @@ sctp_timeout_handler(void *t)
 			goto out_decr;
 		}
 		SCTP_STAT_INCR(sctps_timoshutdown);
+		stcb->asoc.timoshutdown++;
 #ifdef SCTP_AUDITING_ENABLED
 		sctp_auditing(4, inp, stcb, net);
 #endif
@@ -1344,6 +1358,7 @@ sctp_timeout_handler(void *t)
 			int cnt_of_unconf = 0;
 
 			SCTP_STAT_INCR(sctps_timoheartbeat);
+			stcb->asoc.timoheartbeat++;
 			TAILQ_FOREACH(net, &stcb->asoc.nets, sctp_next) {
 				if ((net->dest_state & SCTP_ADDR_UNCONFIRMED) &&
 				    (net->dest_state & SCTP_ADDR_REACHABLE)) {
@@ -1370,6 +1385,7 @@ sctp_timeout_handler(void *t)
 			goto out_decr;
 		}
 		SCTP_STAT_INCR(sctps_timocookie);
+		stcb->asoc.timocookie++;
 #ifdef SCTP_AUDITING_ENABLED
 		sctp_auditing(4, inp, stcb, net);
 #endif
@@ -1416,6 +1432,7 @@ sctp_timeout_handler(void *t)
 			goto out_decr;
 		}
 		SCTP_STAT_INCR(sctps_timoshutdownack);
+		stcb->asoc.timoshutdownack++;
 #ifdef SCTP_AUDITING_ENABLED
 		sctp_auditing(4, inp, stcb, net);
 #endif
@@ -2265,7 +2282,7 @@ sctp_mtu_size_reset(struct sctp_inpcb *inp,
 
 /*
  * given an association and starting time of the current RTT period return
- * RTO in number of usecs net should point to the current network
+ * RTO in number of msecs net should point to the current network
  */
 uint32_t
 sctp_calculate_rto(struct sctp_tcb *stcb,
@@ -2275,7 +2292,7 @@ sctp_calculate_rto(struct sctp_tcb *stcb,
 {
 	/*
 	 * given an association and the starting time of the current RTT
-	 * period (in value1/value2) return RTO in number of usecs.
+	 * period (in value1/value2) return RTO in number of msecs.
 	 */
 	int calc_time = 0;
 	int o_calctime;
@@ -2610,7 +2627,15 @@ sctp_notify_peer_addr_change(struct sctp_tcb *stcb, uint32_t state,
 	if (sa->sa_family == AF_INET) {
 		memcpy(&spc->spc_aaddr, sa, sizeof(struct sockaddr_in));
 	} else {
+		struct sockaddr_in6 *sin6;
+
 		memcpy(&spc->spc_aaddr, sa, sizeof(struct sockaddr_in6));
+
+		/* recover scope_id for user */
+		sin6 = (struct sockaddr_in6 *)&spc->spc_aaddr;
+		if (IN6_IS_SCOPE_LINKLOCAL(&sin6->sin6_addr)) {
+			(void)sa6_recoverscope(sin6);
+		}
 	}
 	spc->spc_state = state;
 	spc->spc_error = error;
@@ -3458,7 +3483,6 @@ sctp_is_same_scope(struct sockaddr_in6 *addr1, struct sockaddr_in6 *addr2)
 struct sockaddr_in6 *
 sctp_recover_scope(struct sockaddr_in6 *addr, struct sockaddr_in6 *store)
 {
-
 	/* check and strip embedded scope junk */
 	if (addr->sin6_family == AF_INET6) {
 		if (IN6_IS_SCOPE_LINKLOCAL(&addr->sin6_addr)) {
@@ -3468,7 +3492,9 @@ sctp_recover_scope(struct sockaddr_in6 *addr, struct sockaddr_in6 *store)
 					/* use the recovered scope */
 					addr = store;
 				}
+			} else {
 				/* else, return the original "to" addr */
+				in6_clearscope(&addr->sin6_addr);
 			}
 		}
 	}
@@ -4507,6 +4533,9 @@ found_one:
 				if (nxt->sinfo_flags & SCTP_UNORDERED) {
 					s_extra->next_flags |= SCTP_NEXT_MSG_IS_UNORDERED;
 				}
+				if (nxt->spec_flags & M_NOTIFICATION) {
+					s_extra->next_flags |= SCTP_NEXT_MSG_IS_NOTIFICATION;
+				}
 				s_extra->next_asocid = nxt->sinfo_assoc_id;
 				s_extra->next_length = nxt->length;
 				s_extra->next_ppid = nxt->sinfo_ppid;
@@ -4581,7 +4610,6 @@ found_one:
 
 			to6 = (struct sockaddr_in6 *)to;
 			sctp_recover_scope_mac(to6, (&lsa6));
-
 		}
 #endif
 	}
