@@ -2467,6 +2467,7 @@ struct bge_softc {
 #define	BGE_FLAG_JITTER_BUG	0x01000000
 #define	BGE_FLAG_BER_BUG	0x02000000
 #define	BGE_FLAG_ADJUST_TRIM	0x04000000
+#define	BGE_FLAG_CRC_BUG	0x08000000
 	uint32_t		bge_chipid;
 	uint8_t			bge_asicrev;
 	uint8_t			bge_chiprev;
