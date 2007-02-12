@@ -623,14 +623,19 @@ brgphy_ethernet_wirespeed(struct mii_softc *sc)
 static void
 brgphy_jumbo_settings(struct mii_softc *sc, u_long mtu)
 {
+	struct brgphy_softc *bsc = (struct brgphy_softc *)sc;
 	u_int32_t	val;
 
 	/* Set or clear jumbo frame settings in the PHY. */
 	if (mtu > ETHER_MAX_LEN) {
-		PHY_WRITE(sc, BRGPHY_MII_AUXCTL, 0x7);
-		val = PHY_READ(sc, BRGPHY_MII_AUXCTL);
-		PHY_WRITE(sc, BRGPHY_MII_AUXCTL,
-		    val | BRGPHY_AUXCTL_LONG_PKT);
+		if (bsc->mii_model == MII_MODEL_xxBROADCOM_BCM5401)
+			PHY_WRITE(sc, BRGPHY_MII_AUXCTL, 0x4c20);
+		else {
+			PHY_WRITE(sc, BRGPHY_MII_AUXCTL, 0x7);
+			val = PHY_READ(sc, BRGPHY_MII_AUXCTL);
+			PHY_WRITE(sc, BRGPHY_MII_AUXCTL,
+			    val | BRGPHY_AUXCTL_LONG_PKT);
+		}
 
 		val = PHY_READ(sc, BRGPHY_MII_PHY_EXTCTL);
 		PHY_WRITE(sc, BRGPHY_MII_PHY_EXTCTL,
