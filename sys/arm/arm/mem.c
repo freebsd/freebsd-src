@@ -92,8 +92,21 @@ memrw(struct cdev *dev, struct uio *uio, int flags)
 			continue;
 		}
 		if (minor(dev) == CDEV_MINOR_MEM) {
+			int i;
+			int address_valid = 0;
+
 			v = uio->uio_offset;
 			v &= ~PAGE_MASK;
+			for (i = 0; dump_avail[i] || dump_avail[i + 1];
+			i += 2) {
+				if (v >= dump_avail[i] && 
+				    v < dump_avail[i + 1]) {
+					address_valid = 1;
+					break;
+				}
+			}
+			if (!address_valid)
+				return (EINVAL);
 			pmap_kenter((vm_offset_t)_tmppt, v);
 			o = (int)uio->uio_offset & PAGE_MASK;
 			c = (u_int)(PAGE_SIZE - ((int)iov->iov_base & PAGE_MASK));
