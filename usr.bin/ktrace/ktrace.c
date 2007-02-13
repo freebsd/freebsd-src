@@ -123,7 +123,7 @@ main(int argc, char *argv[])
 	argv += optind;
 	argc -= optind;
 	
-	if ((pidset && *argv) || (!pidset && !*argv))
+	if ((pidset && *argv) || (!pidset && clear == NOTSET && !*argv))
 		usage();
 			
 	if (inherit)
