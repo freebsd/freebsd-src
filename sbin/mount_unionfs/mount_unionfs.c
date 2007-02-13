@@ -132,6 +132,7 @@ main(int argc, char *argv[])
 	int ch, mntflags, iovlen;
 	char source [MAXPATHLEN], target[MAXPATHLEN], errmsg[255];
 	char uid_str[20], gid_str[20];
+	char fstype[] = "unionfs";
 	char *p, *val;
 
 	iov = NULL;
@@ -182,7 +183,7 @@ main(int argc, char *argv[])
 		errx(EX_USAGE, "%s (%s) and %s (%s) are not distinct paths",
 		     argv[0], target, argv[1], source);
 
-	build_iovec(&iov, &iovlen, "fstype", "unionfs", (size_t)-1);
+	build_iovec(&iov, &iovlen, "fstype", fstype, (size_t)-1);
 	build_iovec(&iov, &iovlen, "fspath", source, (size_t)-1);
 	build_iovec(&iov, &iovlen, "from", target, (size_t)-1);
 	build_iovec(&iov, &iovlen, "errmsg", errmsg, sizeof(errmsg));
