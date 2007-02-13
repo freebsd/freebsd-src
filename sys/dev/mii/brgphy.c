@@ -34,7 +34,7 @@
 __FBSDID("$FreeBSD$");
 
 /*
- * Driver for the Broadcom BCR5400 1000baseTX PHY.
+ * Driver for the Broadcom BCM54xx/57xx 1000baseTX PHY.
  */
 
 #include <sys/param.h>
@@ -669,9 +669,10 @@ brgphy_jumbo_settings(struct mii_softc *sc, u_long mtu)
 
 	/* Set or clear jumbo frame settings in the PHY. */
 	if (mtu > ETHER_MAX_LEN) {
-		if (bsc->mii_model == MII_MODEL_xxBROADCOM_BCM5401)
+		if (bsc->mii_model == MII_MODEL_xxBROADCOM_BCM5401) {
+			/* BCM5401 PHY cannot read-modify-write. */
 			PHY_WRITE(sc, BRGPHY_MII_AUXCTL, 0x4c20);
-		else {
+		} else {
 			PHY_WRITE(sc, BRGPHY_MII_AUXCTL, 0x7);
 			val = PHY_READ(sc, BRGPHY_MII_AUXCTL);
 			PHY_WRITE(sc, BRGPHY_MII_AUXCTL,
