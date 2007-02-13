@@ -495,11 +495,12 @@ arpresolve(struct ifnet *ifp, struct rtentry *rt0, struct mbuf *m,
 	else
 		error = (rt == rt0) ? EHOSTDOWN : EHOSTUNREACH;
 
-	if (la->la_asked++ == 0 || rt->rt_expire != time_second) {
+	if (la->la_asked == 0 || rt->rt_expire != time_second) {
 		struct in_addr sin =
 		    SIN(rt->rt_ifa->ifa_addr)->sin_addr;
 
 		rt->rt_expire = time_second;
+		la->la_asked++;
 		RT_UNLOCK(rt);
 
 		arprequest(ifp, &sin, &SIN(dst)->sin_addr,
