@@ -1798,6 +1798,7 @@ vfs_getopts(struct vfsoptlist *opts, const char *name, int *error)
 		}
 		return (opt->value);
 	}
+	*error = ENOENT;
 	return (NULL);
 }
 
