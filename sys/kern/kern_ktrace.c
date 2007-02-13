@@ -628,6 +628,9 @@ ktrace(td, uap)
 	 * Clear all uses of the tracefile.
 	 */
 	if (ops == KTROP_CLEARFILE) {
+		int vrele_count;
+
+		vrele_count = 0;
 		sx_slock(&allproc_lock);
 		FOREACH_PROC_IN_SYSTEM(p) {
 			PROC_LOCK(p);
@@ -639,20 +642,20 @@ ktrace(td, uap)
 					p->p_tracevp = NULL;
 					p->p_traceflag = 0;
 					mtx_unlock(&ktrace_mtx);
-					PROC_UNLOCK(p);
-					vfslocked = VFS_LOCK_GIANT(vp->v_mount);
-					(void) vn_close(vp, FREAD|FWRITE,
-						cred, td);
-					VFS_UNLOCK_GIANT(vfslocked);
+					vrele_count++;
 					crfree(cred);
-				} else {
-					PROC_UNLOCK(p);
+				} else
 					error = EPERM;
-				}
-			} else
-				PROC_UNLOCK(p);
+			}
+			PROC_UNLOCK(p);
 		}
 		sx_sunlock(&allproc_lock);
+		if (vrele_count > 0) {
+			vfslocked = VFS_LOCK_GIANT(vp->v_mount);
+			while (vrele_count-- > 0)
+				vrele(vp);
+			VFS_UNLOCK_GIANT(vfslocked);
+		}
 		goto done;
 	}
 	/*
