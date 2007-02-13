@@ -435,9 +435,15 @@ nfsrv_setattr(struct nfsrv_descript *nfsd, struct nfssvc_sock *slp,
 		if (vp->v_type == VDIR) {
 			error = EISDIR;
 			goto out;
-		} else if ((error = nfsrv_access(vp, VWRITE, cred, rdonly,
-		    td, 0)) != 0)
-			goto out;
+		} else  {
+			vfslocked = VFS_LOCK_GIANT(vp->v_mount);
+			if ((error = nfsrv_access(vp, VWRITE, cred, rdonly,
+		    td, 0)) != 0) {
+				VFS_UNLOCK_GIANT(vfslocked);
+				goto out;
+			}
+			VFS_UNLOCK_GIANT(vfslocked);
+		}
 	}
 	vfslocked = VFS_LOCK_GIANT(vp->v_mount);
 	error = VOP_SETATTR(vp, vap, cred, td);
