@@ -952,6 +952,7 @@ unp_connect(struct socket *so, struct sockaddr *nam, struct thread *td)
 		UNP_UNLOCK();
 		return (EALREADY);
 	}
+	unp->unp_flags |= UNP_CONNECTING;
 	UNP_UNLOCK();
 	sa = malloc(sizeof(struct sockaddr_un), M_SONAME, M_WAITOK);
 	mtx_lock(&Giant);
