@@ -32,7 +32,7 @@
 __FBSDID("$FreeBSD$");
 
 /*
- * MacPPC bus dma support routines
+ * ARM bus dma support routines
  */
 
 #define _ARM32_BUS_DMA_PRIVATE
