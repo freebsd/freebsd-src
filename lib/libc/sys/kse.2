@@ -47,7 +47,7 @@
 .In sys/types.h
 .In sys/kse.h
 .Ft int
-.Fn kse_create "struct kse_mailbox *mbx" "int newgroup"
+.Fn kse_create "struct kse_mailbox *mbx" "int sys-scope"
 .Ft int
 .Fn kse_exit void
 .Ft int
@@ -103,9 +103,6 @@ wishes; these may run concurrently on real CPUs.
 .It
 All operations that block in the kernel become asynchronous, allowing
 the user process to schedule another thread when any thread blocks.
-.It
-Multiple thread schedulers within the same process are possible, and they
-may operate independently of each other.
 .El
 .\"
 .Ss Definitions
@@ -123,7 +120,8 @@ A thread that is currently executing is always associated with
 exactly one KSE, whether executing in user space or in the kernel.
 The KSE is said to be
 .Sy assigned
-to the thread.
+to the thread. KSE's (a user abstraction) are implemented on top
+of kernel threads using an 'upcall' entity.
 .Pp
 The KSE becomes
 .Sy unassigned ,
@@ -160,22 +158,13 @@ that KSE should be utilized next.
 KSEs always complete as much work as possible in the kernel before
 becoming unassigned.
 .Pp
-A
-.Sy "KSE group"
-is a collection of KSEs that are scheduled uniformly and which share
-access to the same pool of threads, which are associated with the KSE group.
-A KSE group is the smallest entity to which a kernel scheduling
-priority may be assigned.
-For the purposes of process scheduling and accounting, each
-KSE group
-counts similarly to a traditional unthreaded process.
-Individual KSEs within a KSE group are effectively indistinguishable,
-and any KSE in a KSE group may be assigned by the kernel to any runnable
-(in the kernel) thread associated with that KSE group.
+Individual KSEs within a process are effectively indistinguishable,
+and any KSE in a process may be assigned by the kernel to any runnable
+(in the kernel) thread associated with that process.
 In practice, the kernel attempts to preserve the affinity between threads
 and actual CPUs to optimize cache behavior, but this is invisible to the
 user process.
-(Affinity is not yet implemented.)
+(Affinity is not yet fully implemented.)
 .Pp
 Each KSE has a unique
 .Sy "KSE mailbox"
@@ -199,17 +188,17 @@ that the KSE is currently executing.
 This pointer is saved when the thread blocks in the kernel.
 .Pp
 Whenever a thread blocked in the kernel is ready to return to user space,
-it is added to the KSE group's list of
+it is added to the process's list of
 .Sy completed
 threads.
 This list is presented to the user code at the next upcall as a linked list
 of thread mailboxes.
 .Pp
-There is a kernel-imposed limit on the number of threads in a KSE group
+There is a kernel-imposed limit on the number of threads in a process
 that may be simultaneously blocked in the kernel (this number is not
 currently visible to the user).
 When this limit is reached, upcalls are blocked and no work is performed
-for the KSE group until one of the threads completes (or a signal is
+for the process until one of the threads completes (or a signal is
 received).
 .\"
 .Ss Managing KSEs
@@ -223,27 +212,30 @@ creates a new KSE (except for the very first invocation; see below).
 The KSE will be associated with the mailbox pointed to by
 .Fa mbx .
 If
-.Fa newgroup
-is non-zero, a new KSE group is also created containing the KSE.
-Otherwise, the new KSE is added to the current KSE group.
-Newly created KSEs are initially unassigned; therefore,
-they will upcall immediately.
+.Fa sys_scope
+is non-zero, then the new thread will be counted as a system scope
+thread. Other things must be done as well to make a system scope thread
+so this is not sufficient (yet). System scope variables are not covered
+in detail in this manual page yet, but briefly, they never perform
+upcalls and do not return to the user thread scheduler. Once launched
+they run autonomously. The pthreads library knows how to make system
+scope threads and users are encouraged to use the library interface.
 .Pp
-Each process initially has a single KSE in a single KSE group executing
-a single user thread.
+Each process initially has a single KSE executing a single user thread.
 Since the KSE does not have an associated mailbox, it must remain assigned
 to the thread and does not perform any upcalls.
+(It is by definition a system scope thread).
 The result is the traditional, unthreaded mode of operation.
 Therefore, as a special case, the first call to
 .Fn kse_create
 by this initial thread with
-.Fa newgroup
+.Fa sys_scope
 equal to zero does not create a new KSE; instead, it simply associates the
 current KSE with the supplied KSE mailbox, and no immediate upcall results.
 However, an upcall will be triggered the next time the thread blocks and
 the required conditions are met.
 .Pp
-The kernel does not allow more KSEs to exist in a KSE group than the
+The kernel does not allow more KSEs to exist in a process than the
 number of physical CPUs in the system (this number is available as the
 .Xr sysctl 3
 variable
@@ -261,8 +253,8 @@ The
 .Fn kse_exit
 system call
 causes the KSE assigned to the currently running thread to be destroyed.
-If this KSE is the last one in the KSE group, there must be no remaining
-threads associated with the KSE group blocked in the kernel.
+If this KSE is the last one in the process, there must be no remaining
+threads associated with that process blocked in the kernel.
 This system call does not return unless there is an error.
 Calling
 .Fn kse_exit
@@ -309,7 +301,7 @@ argument
 may be
 .Dv NULL
 to specify
-.Dq "any KSE in the current KSE group" .
+.Dq "any KSE in the current process" .
 .Pp
 The
 .Fn kse_thr_interrupt
@@ -460,7 +452,7 @@ points to a linked list of user threads that have completed their work
 in the kernel since the last upcall.
 The user thread scheduler should put these threads back into its
 own runnable queue.
-Each thread in a KSE group that completes a kernel operation
+Each thread in a process that completes a kernel operation
 (synchronous or asynchronous) that results in an upcall is guaranteed to be
 linked into exactly one KSE's
 .Va km_completed
@@ -571,23 +563,7 @@ system call
 will fail if:
 .Bl -tag -width Er
 .It Bq Er ENXIO
-There are already as many KSEs in the KSE group as hardware processors.
-.It Bq Er EAGAIN
-The system-imposed limit on the total number of KSE groups under
-execution would be exceeded.
-The limit is given by the
-.Xr sysctl 3
-MIB variable
-.Dv KERN_MAXPROC .
-(The limit is actually ten less than this
-except for the super user.)
-.It Bq Er EAGAIN
-The user is not the super user, and the system-imposed limit on the total
-number of KSE groups under execution by a single user would be exceeded.
-The limit is given by the
-.Xr sysctl 3
-MIB variable
-.Dv KERN_MAXPROCPERUID .
+There are already as many KSEs in the process as hardware processors.
 .It Bq Er EAGAIN
 The user is not the super user, and the soft resource limit corresponding
 to the
@@ -609,8 +585,8 @@ system call
 will fail if:
 .Bl -tag -width Er
 .It Bq Er EDEADLK
-The current KSE is the last in its KSE group and there are still one or more
-threads associated with the KSE group blocked in the kernel.
+The current KSE is the last in its process and there are still one or more
+threads associated with the process blocked in the kernel.
 .It Bq Er ESRCH
 The current KSE has no associated mailbox, i.e., the process is operating
 in traditional, unthreaded mode (in this case use
