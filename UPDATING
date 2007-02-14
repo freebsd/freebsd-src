@@ -21,6 +21,17 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 7.x IS SLOW:
 	developers choose to disable these features on build machines
 	to maximize performance.
 
+20070214:
+	The output of netstat -r has changed. Without -n, we now only
+	print a "network name" without the prefix length if the network
+	address and mask exactly match a Class A/B/C network, and an entry
+	exists in the nsswitch "networks" map.
+	With -n, we print the full unabbreviated CIDR network prefix in
+	the form "a.b.c.d/p". 0.0.0.0/0 is always printed as "default".
+	This change is in preparation for changes such as equal-cost
+	multipath, and to more generally assist operational deployment
+	of FreeBSD as a modern IPv4 router.
+
 20070210:
 	PIM has been turned on by default in the IPv4 multicast
 	routing code. The kernel option 'PIM' has now been removed.
