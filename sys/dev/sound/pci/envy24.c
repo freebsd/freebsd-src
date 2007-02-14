@@ -109,7 +109,7 @@ struct cfg_info {
 /* device private data */
 struct sc_info {
 	device_t	dev;
-	void		*lock;
+	struct mtx	*lock;
 
 	/* Control/Status registor */
 	struct resource *cs;
