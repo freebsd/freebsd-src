@@ -1146,11 +1146,12 @@ vm_page_free_toq(vm_page_t m)
 	}
 	if (m->hold_count != 0) {
 		m->flags &= ~PG_ZERO;
-		VM_PAGE_SETQUEUE2(m, PQ_HOLD);
-	} else
-		VM_PAGE_SETQUEUE1(m, PQ_FREE);
-	pq = &vm_page_queues[VM_PAGE_GETQUEUE(m)];
+		vm_pageq_enqueue(PQ_HOLD, m);
+		return;
+	}
+	VM_PAGE_SETQUEUE1(m, PQ_FREE);
 	mtx_lock(&vm_page_queue_free_mtx);
+	pq = &vm_page_queues[VM_PAGE_GETQUEUE(m)];
 	pq->lcnt++;
 	++(*pq->cnt);
 
