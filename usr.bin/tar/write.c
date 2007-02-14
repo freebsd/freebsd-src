@@ -851,10 +851,18 @@ write_file_data(struct bsdtar *bsdtar, struct archive *a, int fd)
 	bytes_read = read(fd, buff, sizeof(buff));
 	while (bytes_read > 0) {
 		bytes_written = archive_write_data(a, buff, bytes_read);
-		if (bytes_written <= 0) {
+		if (bytes_written < 0) {
 			/* Write failed; this is bad */
 			bsdtar_warnc(bsdtar, 0, "%s", archive_error_string(a));
 			return (-1);
+		}
+		if (bytes_written < bytes_read) {
+			/* Write was truncated; warn but continue. */
+			bsdtar_warnc(bsdtar, 0,
+			    "Truncated write; file may have grown while being archived.");
+			/* Make bsdtar return a final error because of this. */
+			bsdtar->return_value = 1;
+			return (0);
 		}
 		bytes_read = read(fd, buff, sizeof(buff));
 	}
