@@ -217,6 +217,7 @@ struct pci_quirk pci_quirks[] = {
 struct devlist pci_devq;
 uint32_t pci_generation;
 uint32_t pci_numdevs = 0;
+static int pcie_chipset, pcix_chipset;
 
 /* sysctl vars */
 SYSCTL_NODE(_hw, OID_AUTO, pci, CTLFLAG_RD, 0, "PCI bus tuning parameters");
@@ -585,6 +586,27 @@ pci_read_extcap(device_t pcib, pcicfgregs *cfg)
 				cfg->subvendor = val & 0xffff;
 				cfg->subdevice = val >> 16;
 			}
+			break;
+		case PCIY_PCIX:		/* PCI-X */
+			/*
+			 * Assume we have a PCI-X chipset if we have
+			 * at least one PCI-PCI bridge with a PCI-X
+			 * capability.  Note that some systems with
+			 * PCI-express or HT chipsets might match on
+			 * this check as well.
+			 */
+			if ((cfg->hdrtype & PCIM_HDRTYPE) == 1)
+				pcix_chipset = 1;
+			break;
+		case PCIY_EXPRESS:	/* PCI-express */
+			/*
+			 * Assume we have a PCI-express chipset if we have
+			 * at least one PCI-express root port.
+			 */
+			val = REG(ptr + PCIR_EXPRESS_FLAGS, 2);
+			if ((val & PCIM_EXP_FLAGS_TYPE) ==
+			    PCIM_EXP_TYPE_ROOT_PORT)
+				pcie_chipset = 1;
 			break;
 		default:
 			break;
@@ -1403,6 +1425,10 @@ pci_msi_blacklisted(void)
 
 	if (!pci_honor_msi_blacklist)
 		return (0);
+
+	/* Blacklist all non-PCI-express and non-PCI-X chipsets. */
+	if (!(pcie_chipset || pcix_chipset))
+		return (1);
 
 	dev = pci_find_bsf(0, 0, 0);
 	if (dev != NULL)
