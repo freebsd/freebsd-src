@@ -569,6 +569,10 @@ nfsrv_lookup(struct nfsrv_descript *nfsd, struct nfssvc_sock *slp,
 
 			error = lookup(&ind);
 			ind.ni_dvp = NULL;
+			if (ind.ni_cnd.cn_flags & GIANTHELD) {
+				mtx_unlock(&Giant);
+				ind.ni_cnd.cn_flags &= ~GIANTHELD;
+			}
 
 			if (error == 0) {
 				/*
@@ -1915,6 +1919,10 @@ nfsrv_create(struct nfsrv_descript *nfsd, struct nfssvc_sock *slp,
 
 			error = lookup(&nd);
 			nd.ni_dvp = NULL;
+			if (nd.ni_cnd.cn_flags & GIANTHELD) {
+				mtx_unlock(&Giant);
+				nd.ni_cnd.cn_flags &= ~GIANTHELD;
+			}
 			if (error)
 				goto ereply;
 
@@ -2141,6 +2149,10 @@ nfsrv_mknod(struct nfsrv_descript *nfsd, struct nfssvc_sock *slp,
 
 		error = lookup(&nd);
 		nd.ni_dvp = NULL;
+		if (nd.ni_cnd.cn_flags & GIANTHELD) {
+			mtx_unlock(&Giant);
+			nd.ni_cnd.cn_flags &= ~GIANTHELD;
+		}
 
 		if (error)
 			goto out;
@@ -2514,8 +2526,8 @@ out:
 		tond.ni_dvp = NULL;
 		tond.ni_vp = NULL;
 		if (error) {
-			fromnd.ni_cnd.cn_flags &= ~HASBUF;
-			tond.ni_cnd.cn_flags &= ~HASBUF;
+			NDFREE(&fromnd, NDF_ONLY_PNBUF);
+			NDFREE(&tond, NDF_ONLY_PNBUF);
 		}
 	} else {
 		if (error == -1)
@@ -2809,6 +2821,12 @@ nfsrv_symlink(struct nfsrv_descript *nfsd, struct nfssvc_sock *slp,
 	nd.ni_cnd.cn_flags = LOCKPARENT | SAVESTART;
 	error = nfs_namei(&nd, fhp, len, slp, nam, &md, &dpos,
 		&dirp, v3, &dirfor, &dirfor_ret, td, FALSE);
+	if (error == 0) {
+		VATTR_NULL(vap);
+		if (v3)
+			nfsm_srvsattr(vap);
+		nfsm_srvpathsiz(len2);
+	}
 	NFSD_UNLOCK();
 	mtx_lock(&Giant);	/* VFS */
 	if (dirp && !v3) {
@@ -2818,10 +2836,6 @@ nfsrv_symlink(struct nfsrv_descript *nfsd, struct nfssvc_sock *slp,
 	if (error)
 		goto out;
 
-	VATTR_NULL(vap);
-	if (v3)
-		nfsm_srvsattr(vap);
-	nfsm_srvpathsiz(len2);
 	MALLOC(pathcp, caddr_t, len2 + 1, M_TEMP, M_WAITOK);
 	iv.iov_base = pathcp;
 	iv.iov_len = len2;
@@ -2878,6 +2892,10 @@ nfsrv_symlink(struct nfsrv_descript *nfsd, struct nfssvc_sock *slp,
 
 		error = lookup(&nd);
 		nd.ni_dvp = NULL;
+		if (nd.ni_cnd.cn_flags & GIANTHELD) {
+			mtx_unlock(&Giant);
+			nd.ni_cnd.cn_flags &= ~GIANTHELD;
+		}
 
 		if (error == 0) {
 			bzero((caddr_t)fhp, sizeof(nfh));

@@ -875,6 +875,10 @@ nfs_namei(struct nameidata *ndp, fhandle_t *fhp, int len,
 	}
 	if (!lockleaf)
 		cnp->cn_flags &= ~LOCKLEAF;
+	if (cnp->cn_flags & GIANTHELD) {
+		mtx_unlock(&Giant);
+		cnp->cn_flags &= ~GIANTHELD;
+	}
 
 	/*
 	 * nfs_namei() guarentees that fields will not contain garbage
@@ -1327,6 +1331,24 @@ nfsm_srvnamesiz_xx(int *s, int m, struct mbuf **md, caddr_t *dpos)
 	if (*s > m)
 		return NFSERR_NAMETOL;
 	if (*s <= 0)
+		return EBADRPC;
+	return 0;
+}
+
+int
+nfsm_srvnamesiz0_xx(int *s, int m, struct mbuf **md, caddr_t *dpos)
+{
+	u_int32_t *tl;
+
+	NFSD_LOCK_DONTCARE();
+
+	tl = nfsm_dissect_xx_nonblock(NFSX_UNSIGNED, md, dpos);
+	if (tl == NULL)
+		return EBADRPC;
+	*s = fxdr_unsigned(int32_t, *tl);
+	if (*s > m)
+		return NFSERR_NAMETOL;
+	if (*s < 0)
 		return EBADRPC;
 	return 0;
 }
