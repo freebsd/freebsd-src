@@ -120,7 +120,8 @@ A thread that is currently executing is always associated with
 exactly one KSE, whether executing in user space or in the kernel.
 The KSE is said to be
 .Sy assigned
-to the thread. KSE's (a user abstraction) are implemented on top
+to the thread.
+KSEs (a user abstraction) are implemented on top
 of kernel threads using an 'upcall' entity.
 .Pp
 The KSE becomes
@@ -215,10 +216,12 @@ If
 .Fa sys_scope
 is non-zero, then the new thread will be counted as a system scope
 thread. Other things must be done as well to make a system scope thread
-so this is not sufficient (yet). System scope variables are not covered
+so this is not sufficient (yet).
+System scope variables are not covered
 in detail in this manual page yet, but briefly, they never perform
-upcalls and do not return to the user thread scheduler. Once launched
-they run autonomously. The pthreads library knows how to make system
+upcalls and do not return to the user thread scheduler.
+Once launched they run autonomously.
+The pthreads library knows how to make system
 scope threads and users are encouraged to use the library interface.
 .Pp
 Each process initially has a single KSE executing a single user thread.
