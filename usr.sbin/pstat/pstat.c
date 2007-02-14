@@ -83,7 +83,7 @@ enum {
 static struct nlist nl[] = {
 	{ .n_name = "_constty" },
 	{ .n_name = "_maxfiles" },
-	{ .n_name = "_nfiles" },
+	{ .n_name = "_openfiles" },
 	{ .n_name = "_tty_list" },
 	{ .n_name = "" }
 };
