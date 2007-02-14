@@ -351,6 +351,16 @@ __END_DECLS
 #define	IN_EXPERIMENTAL(i)	(((u_int32_t)(i) & 0xf0000000) == 0xf0000000)
 #define	IN_BADCLASS(i)		(((u_int32_t)(i) & 0xf0000000) == 0xf0000000)
 
+#define IN_LINKLOCAL(i)		(((u_int32_t)(i) & 0xffff0000) == 0xa9fe0000)
+
+#define	IN_PRIVATE(i)	((((u_int32_t)(i) & 0xff000000) == 0x0a000000) || \
+			 (((u_int32_t)(i) & 0xfff00000) == 0xac100000) || \
+			 (((u_int32_t)(i) & 0xffff0000) == 0xc0a80000))
+
+#define	IN_LOCAL_GROUP(i)	(((u_int32_t)(i) & 0xffffff00) == 0xe0000000)
+ 
+#define	IN_ANY_LOCAL(i)		(IN_LINKLOCAL(i) || IN_LOCAL_GROUP(i))
+
 #define	INADDR_LOOPBACK		(u_int32_t)0x7f000001
 #ifndef _KERNEL
 #define	INADDR_NONE		0xffffffff		/* -1 return */
