@@ -186,7 +186,7 @@ main(int argc, char **argv)
 	device = *argv;
 	if (out_file == NULL)
 		errx(1, "out_file not specified");
-	
+
 	/*
 	 * Now we try to guess the (raw)device name.
 	 */
@@ -270,56 +270,60 @@ main(int argc, char **argv)
 		}
 	}
 
-	/* for each requested cylinder group ... */
-	for (cylno = cg_start; cylno < cg_stop; cylno++) {
-		snprintf(dbg_line, sizeof(dbg_line), "cgr %d", cylno);
-		if (cfg_lv & 0x002) {
-			/* dump the superblock copies */
+	if (cfg_lv & 0xf8) {
+		/* for each requested cylinder group ... */
+		for (cylno = cg_start; cylno < cg_stop; cylno++) {
+			snprintf(dbg_line, sizeof(dbg_line), "cgr %d", cylno);
+			if (cfg_lv & 0x002) {
+				/* dump the superblock copies */
+				if (bread(&disk, fsbtodb(&sblock,
+				    cgsblock(&sblock, cylno)), 
+				    (void *)&osblock, SBLOCKSIZE) == -1)
+					err(1, "bread: %s", disk.d_error);
+				DBG_DUMP_FS(&osblock, dbg_line);
+			}
+
+			/*
+			 * Read the cylinder group and dump whatever was
+			 * requested.
+			 */
 			if (bread(&disk, fsbtodb(&sblock,
-			    cgsblock(&sblock, cylno)), 
-			    (void *)&osblock, SBLOCKSIZE) == -1)
+			    cgtod(&sblock, cylno)), (void *)&acg,
+			    (size_t)sblock.fs_cgsize) == -1)
 				err(1, "bread: %s", disk.d_error);
-			DBG_DUMP_FS(&osblock, dbg_line);
-		}
 
-		/*
-		 * Read the cylinder group and dump whatever was
-		 * requested.
-		 */
-		if (bread(&disk, fsbtodb(&sblock,
-		    cgtod(&sblock, cylno)), (void *)&acg,
-		    (size_t)sblock.fs_cgsize) == -1)
-			err(1, "bread: %s", disk.d_error);
-
-		if (cfg_lv & 0x008)
-			DBG_DUMP_CG(&sblock, dbg_line, &acg);
-		if (cfg_lv & 0x010)
-			DBG_DUMP_INMAP(&sblock, dbg_line, &acg);
-		if (cfg_lv & 0x020)
-			DBG_DUMP_FRMAP(&sblock, dbg_line, &acg);
-		if (cfg_lv & 0x040) {
-			DBG_DUMP_CLMAP(&sblock, dbg_line, &acg);
-			DBG_DUMP_CLSUM(&sblock, dbg_line, &acg);
+			if (cfg_lv & 0x008)
+				DBG_DUMP_CG(&sblock, dbg_line, &acg);
+			if (cfg_lv & 0x010)
+				DBG_DUMP_INMAP(&sblock, dbg_line, &acg);
+			if (cfg_lv & 0x020)
+				DBG_DUMP_FRMAP(&sblock, dbg_line, &acg);
+			if (cfg_lv & 0x040) {
+				DBG_DUMP_CLMAP(&sblock, dbg_line, &acg);
+				DBG_DUMP_CLSUM(&sblock, dbg_line, &acg);
+			}
+	#ifdef NOT_CURRENTLY
+			/*
+			 * See the comment in sbin/growfs/debug.c for why this
+			 * is currently disabled, and what needs to be done to
+			 * re-enable it.
+			 */
+			if (disk.d_ufs == 1 && cfg_lv & 0x080)
+				DBG_DUMP_SPTBL(&sblock, dbg_line, &acg);
+	#endif
 		}
-#ifdef NOT_CURRENTLY
-		/*
-		 * See the comment in sbin/growfs/debug.c for why this
-		 * is currently disabled, and what needs to be done to
-		 * re-enable it.
-		 */
-		if (disk.d_ufs == 1 && cfg_lv & 0x080)
-			DBG_DUMP_SPTBL(&sblock, dbg_line, &acg);
-#endif
 	}
 
-	/* Dump the requested inode(s) */
-	if (cfg_in != -2)
-		DUMP_WHOLE_INODE((ino_t)cfg_in, cfg_lv);
-	else {
-		for (in = cg_start * sblock.fs_ipg;
-		    in < (ino_t)cg_stop * sblock.fs_ipg; 
-		    in++)
-			DUMP_WHOLE_INODE(in, cfg_lv);
+	if (cfg_lv & 0x300) {
+		/* Dump the requested inode(s) */
+		if (cfg_in != -2)
+			DUMP_WHOLE_INODE((ino_t)cfg_in, cfg_lv);
+		else {
+			for (in = cg_start * sblock.fs_ipg;
+			    in < (ino_t)cg_stop * sblock.fs_ipg; 
+			    in++)
+				DUMP_WHOLE_INODE(in, cfg_lv);
+		}
 	}
 
 	DBG_CLOSE;
