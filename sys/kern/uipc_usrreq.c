@@ -1,7 +1,7 @@
 /*-
  * Copyright (c) 1982, 1986, 1989, 1991, 1993
  *	The Regents of the University of California.
- * Copyright (c) 2004-2006 Robert N. M. Watson
+ * Copyright (c) 2004-2007 Robert N. M. Watson
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -161,7 +161,7 @@ SYSCTL_INT(_net_local, OID_AUTO, inflight, CTLFLAG_RD, &unp_rights, 0, "");
  */
 static struct mtx unp_mtx;
 #define	UNP_LOCK_INIT() \
-	mtx_init(&unp_mtx, "unp", NULL, MTX_DEF)
+	mtx_init(&unp_mtx, "unp", NULL, MTX_DEF | MTX_RECURSE)
 #define	UNP_LOCK()		mtx_lock(&unp_mtx)
 #define	UNP_UNLOCK()		mtx_unlock(&unp_mtx)
 #define	UNP_LOCK_ASSERT()	mtx_assert(&unp_mtx, MA_OWNED)
@@ -278,7 +278,7 @@ uipc_attach(struct socket *so, int proto, struct thread *td)
 		if (error)
 			return (error);
 	}
-	unp = uma_zalloc(unp_zone, M_WAITOK | M_ZERO);
+	unp = uma_zalloc(unp_zone, M_NOWAIT | M_ZERO);
 	if (unp == NULL)
 		return (ENOBUFS);
 	LIST_INIT(&unp->unp_refs);
@@ -988,17 +988,9 @@ unp_connect(struct socket *so, struct sockaddr *nam, struct thread *td)
 		goto bad2;
 	}
 	if (so->so_proto->pr_flags & PR_CONNREQUIRED) {
-		if (so2->so_options & SO_ACCEPTCONN) {
-			/*
-			 * NB: drop locks here so unp_attach is entered w/o
-			 * locks; this avoids a recursive lock of the head
-			 * and holding sleep locks across a (potentially)
-			 * blocking malloc.
-			 */
-			UNP_UNLOCK();
+		if (so2->so_options & SO_ACCEPTCONN)
 			so3 = sonewconn(so2, 0);
-			UNP_LOCK();
-		} else
+		else
 			so3 = NULL;
 		if (so3 == NULL) {
 			error = ECONNREFUSED;
