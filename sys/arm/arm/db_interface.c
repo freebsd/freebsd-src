@@ -109,7 +109,7 @@ db_access_und_sp(struct db_variable *vp, db_expr_t *valp, int rw)
 		*valp = get_stackptr(PSR_UND32_MODE);
 		return (1);
 	}
-	return(0);
+	return (0);
 }
 
 int
@@ -120,7 +120,7 @@ db_access_abt_sp(struct db_variable *vp, db_expr_t *valp, int rw)
 		*valp = get_stackptr(PSR_ABT32_MODE);
 		return (1);
 	}
-	return(0);
+	return (0);
 }
 
 int
@@ -131,7 +131,7 @@ db_access_irq_sp(struct db_variable *vp, db_expr_t *valp, int rw)
 		*valp = get_stackptr(PSR_IRQ32_MODE);
 		return (1);
 	}
-	return(0);
+	return (0);
 }
 
 int db_frame(struct db_variable *vp, db_expr_t *valp, int rw)
@@ -146,7 +146,7 @@ int db_frame(struct db_variable *vp, db_expr_t *valp, int rw)
 		*valp = *reg;
 	else
 		*reg = *valp;
-	return(1);
+	return (1);
 }
 
 void
@@ -339,4 +339,3 @@ branch_taken(u_int insn, db_addr_t pc)
 		panic("branch_taken: botch");
 	}
 }
-
