@@ -585,6 +585,7 @@ pci_read_extcap(device_t pcib, pcicfgregs *cfg)
 				cfg->subvendor = val & 0xffff;
 				cfg->subdevice = val >> 16;
 			}
+			break;
 		default:
 			break;
 		}
