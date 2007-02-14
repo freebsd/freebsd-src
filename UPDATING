@@ -8,6 +8,10 @@ Items affecting the ports and packages system can be found in
 /usr/ports/UPDATING.  Please read that file before running
 portupgrade.
 
+20070214:	p18	FreeBSD-EN-07:01.nfs
+	Correct problems with locking, namei leakage, and symlink
+	creation in the NFS subsystem.
+
 20070111:	p17	FreeBSD-SA-07:01.jail
 	Correct jail rc.d script privilege escalation.
 
