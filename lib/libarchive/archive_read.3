@@ -36,6 +36,7 @@
 .Nm archive_read_support_compression_none ,
 .Nm archive_read_support_format_all ,
 .Nm archive_read_support_format_cpio ,
+.Nm archive_read_support_format_empty ,
 .Nm archive_read_support_format_iso9660 ,
 .Nm archive_read_support_format_tar ,
 .Nm archive_read_support_format_zip ,
@@ -74,6 +75,8 @@
 .Fn archive_read_support_format_all "struct archive *"
 .Ft int
 .Fn archive_read_support_format_cpio "struct archive *"
+.Ft int
+.Fn archive_read_support_format_empty "struct archive *"
 .Ft int
 .Fn archive_read_support_format_iso9660 "struct archive *"
 .Ft int
@@ -135,7 +138,7 @@ is always enabled by default.
 For convenience,
 .Fn archive_read_support_compression_all
 enables all available decompression code.
-.It Fn archive_read_support_format_all , Fn archive_read_support_format_cpio , Fn archive_read_support_format_iso9660 , Fn archive_read_support_format_tar, Fn archive_read_support_format_zip
+.It Fn archive_read_support_format_all , Fn archive_read_support_format_cpio , Fn archive_read_support_format_empty , Fn archive_read_support_format_iso9660 , Fn archive_read_support_format_tar, Fn archive_read_support_format_zip
 Enables support---including auto-detection code---for the
 specified archive format.
 For example,
@@ -539,3 +542,14 @@ or before calling
 you may confuse the permission-setting logic with
 the result that directory permissions are restored
 incorrectly.
+.Pp
+Many traditional archiver programs treat
+empty files as valid empty archives.
+For example, many implementations of
+.Xr tar 1
+allow you to append entries to an empty file.
+Of course, it is impossible to determine the format of an empty file
+by inspecting the contents, so this library treats empty files as
+having a special
+.Dq empty
+format.
