@@ -339,38 +339,60 @@ udf_pathconf(struct vop_pathconf_args *a)
 	}
 }
 
-static int
-udf_read(struct vop_read_args *a)
-{
-	struct vnode *vp = a->a_vp;
-	struct uio *uio = a->a_uio;
-	struct udf_node *node = VTON(vp);
-	struct buf *bp;
-	uint8_t *data;
-	off_t fsize, offset;
-	int error = 0;
-	int size;
+#define lblkno(udfmp, loc)	((loc) >> (udfmp)->bshift)
+#define blkoff(udfmp, loc)	((loc) & (udfmp)->bmask)
+#define lblktosize(imp, blk)	((blk) << (udfmp)->bshift)
 
+static int
+udf_read(struct vop_read_args *ap)
+{
+	struct vnode *vp = ap->a_vp;
+	struct uio *uio = ap->a_uio;
+	struct udf_node *node = VTON(vp);
+	struct udf_mnt *udfmp;
+	struct buf *bp;
+	daddr_t lbn, rablock;
+	off_t diff, fsize;
+	int error = 0;
+	long size, n, on;
+
+	if (uio->uio_resid == 0)
+		return (0);
 	if (uio->uio_offset < 0)
 		return (EINVAL);
-
 	fsize = le64toh(node->fentry->inf_len);
-
-	while (uio->uio_offset < fsize && uio->uio_resid > 0) {
-		offset = uio->uio_offset;
-		if (uio->uio_resid + offset <= fsize)
-			size = uio->uio_resid;
-		else
-			size = fsize - offset;
-		error = udf_readatoffset(node, &size, offset, &bp, &data);
-		if (error == 0)
-			error = uiomove(data, size, uio);
-		if (bp != NULL)
+	udfmp = node->udfmp;
+	do {
+		lbn = lblkno(udfmp, uio->uio_offset);
+		on = blkoff(udfmp, uio->uio_offset);
+		n = min((u_int)(udfmp->bsize - on),
+			uio->uio_resid);
+		diff = fsize - uio->uio_offset;
+		if (diff <= 0)
+			return (0);
+		if (diff < n)
+			n = diff;
+		size = udfmp->bsize;
+		rablock = lbn + 1;
+		if ((vp->v_mount->mnt_flag & MNT_NOCLUSTERR) == 0) {
+			if (lblktosize(udfmp, rablock) < fsize) {
+				error = cluster_read(vp, fsize, lbn, size, NOCRED,
+					uio->uio_resid, (ap->a_ioflag >> 16), &bp);
+			} else {
+				error = bread(vp, lbn, size, NOCRED, &bp);
+			}
+		} else {
+			error = bread(vp, lbn, size, NOCRED, &bp);
+		}
+		n = min(n, size - bp->b_resid);
+		if (error) {
 			brelse(bp);
-		if (error)
-			break;
-	};
+			return (error);
+		}
 
+		error = uiomove(bp->b_data + on, (int)n, uio);
+		brelse(bp);
+	} while (error == 0 && uio->uio_resid > 0 && n != 0);
 	return (error);
 }
 
@@ -776,23 +798,29 @@ udf_strategy(struct vop_strategy_args *a)
 	struct vnode *vp;
 	struct udf_node *node;
 	int maxsize;
+	daddr_t sector;
 	struct bufobj *bo;
+	int multiplier;
 
 	bp = a->a_bp;
 	vp = a->a_vp;
 	node = VTON(vp);
 
-	/* cd9660 has this test reversed, but it seems more logical this way */
-	if (bp->b_blkno != bp->b_lblkno) {
+	if (bp->b_blkno == bp->b_lblkno) {
 		/*
 		 * Files that are embedded in the fentry don't translate well
 		 * to a block number.  Reject.
 		 */
 		if (udf_bmap_internal(node, bp->b_lblkno * node->udfmp->bsize,
-		    &bp->b_lblkno, &maxsize)) {
+		    &sector, &maxsize)) {
 			clrbuf(bp);
 			bp->b_blkno = -1;
 		}
+
+		/* bmap gives sector numbers, bio works with device blocks */
+		multiplier = node->udfmp->bsize / DEV_BSIZE;
+		bp->b_blkno = sector * multiplier;
+
 	}
 	if ((long)bp->b_blkno == -1) {
 		bufdone(bp);
