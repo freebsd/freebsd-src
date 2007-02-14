@@ -256,7 +256,7 @@ static const struct bge_revision {
 	{ BGE_CHIPID_BCM5714_B3,	"BCM5714 B3" },
 	{ BGE_CHIPID_BCM5715_A0,	"BCM5715 A0" },
 	{ BGE_CHIPID_BCM5715_A1,	"BCM5715 A1" },
-	/* 5784 and 5787 share the same ASIC ID */
+	/* 5754 and 5787 share the same ASIC ID */
 	{ BGE_CHIPID_BCM5787_A0,	"BCM5754/5787 A0" }, 
 	{ BGE_CHIPID_BCM5787_A1,	"BCM5754/5787 A1" },
 	{ BGE_CHIPID_BCM5787_A2,	"BCM5754/5787 A2" },
@@ -280,7 +280,7 @@ static const struct bge_revision bge_majorrevs[] = {
 	{ BGE_ASICREV_BCM5780,		"unknown BCM5780" },
 	{ BGE_ASICREV_BCM5714,		"unknown BCM5714" },
 	{ BGE_ASICREV_BCM5755,		"unknown BCM5755" },
-	/* 5784 and 5787 share the same ASIC ID */
+	/* 5754 and 5787 share the same ASIC ID */
 	{ BGE_ASICREV_BCM5787,		"unknown BCM5754/5787" },
 
 	{ 0, NULL }
