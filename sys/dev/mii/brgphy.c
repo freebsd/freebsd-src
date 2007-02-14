@@ -619,7 +619,7 @@ brgphy_fixup_crc_bug(struct mii_softc *sc)
 		int		reg;
 		uint16_t	val;
 	} dspcode[] = {
-		{ BRGPHY_MII_DSP_ADDR_REG,	0x0a75 },
+		{ BRGPHY_MII_DSP_RW_PORT,	0x0a75 },
 		{ 0x1c,				0x8c68 },
 		{ 0x1c,				0x8d68 },
 		{ 0x1c,				0x8c68 },
