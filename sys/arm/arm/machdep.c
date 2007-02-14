@@ -57,6 +57,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/exec.h>
 #include <sys/imgact.h>
 #include <sys/kernel.h>
+#include <sys/ktr.h>
 #include <sys/linker.h>
 #include <sys/lock.h>
 #include <sys/malloc.h>
@@ -106,26 +107,38 @@ sendsig(catcher, ksi, mask)
 	ksiginfo_t *ksi;
 	sigset_t *mask;
 {
-	struct thread *td = curthread;
-	struct proc *p = td->td_proc;
-	struct trapframe *tf = td->td_frame;
+	struct thread *td;
+	struct proc *p;
+	struct trapframe *tf;
 	struct sigframe *fp, frame;
-	struct sigacts *psp = td->td_proc->p_sigacts;
+	struct sigacts *psp;
 	int onstack;
 	int sig;
 	int code;
 
-	onstack = sigonstack(td->td_frame->tf_usr_sp);
-
+	td = curthread;
+	p = td->td_proc;
+	PROC_LOCK_ASSERT(p, MA_OWNED);
 	sig = ksi->ksi_signo;
 	code = ksi->ksi_code;
-	if ((td->td_flags & TDP_ALTSTACK) &&
-	    !(onstack) &&
-	    SIGISMEMBER(td->td_proc->p_sigacts->ps_sigonstack, sig)) {
-		fp = (void*)(td->td_sigstk.ss_sp + td->td_sigstk.ss_size);
+	psp = p->p_sigacts;
+	mtx_assert(&psp->ps_mtx, MA_OWNED);
+	tf = td->td_frame;
+	onstack = sigonstack(tf->tf_usr_sp);
+
+	CTR4(KTR_SIG, "sendsig: td=%p (%s) catcher=%p sig=%d", td, p->p_comm,
+	    catcher, sig);
+
+	/* Allocate and validate space for the signal handler context. */
+	if ((td->td_flags & TDP_ALTSTACK) != 0 && !(onstack) &&
+	    SIGISMEMBER(psp->ps_sigonstack, sig)) {
+		fp = (struct sigframe *)(td->td_sigstk.ss_sp + 
+		    td->td_sigstk.ss_size);
+#if defined(COMPAT_43)
 		td->td_sigstk.ss_flags |= SS_ONSTACK;
+#endif
 	} else
-		fp = (void*)td->td_frame->tf_usr_sp;
+		fp = (struct sigframe *)td->td_frame->tf_usr_sp;
 		 
 	/* make room on the stack */
 	fp--;
@@ -133,18 +146,27 @@ sendsig(catcher, ksi, mask)
 	/* make the stack aligned */
 	fp = (struct sigframe *)STACKALIGN(fp);
 	/* Populate the siginfo frame. */
+	get_mcontext(td, &frame.sf_uc.uc_mcontext, 0);
 	frame.sf_si = ksi->ksi_info;
 	frame.sf_uc.uc_sigmask = *mask;
-	frame.sf_uc.uc_link = NULL;
-	frame.sf_uc.uc_flags = (td->td_pflags & TDP_ALTSTACK ) 
+	frame.sf_uc.uc_stack.ss_flags = (td->td_pflags & TDP_ALTSTACK ) 
 	    ? ((onstack) ? SS_ONSTACK : 0) : SS_DISABLE;
 	frame.sf_uc.uc_stack = td->td_sigstk;
-	memset(&frame.sf_uc.uc_stack, 0, sizeof(frame.sf_uc.uc_stack));
-	get_mcontext(td, &frame.sf_uc.uc_mcontext, 0);
-	PROC_UNLOCK(td->td_proc);
 	mtx_unlock(&psp->ps_mtx);
-	if (copyout(&frame, (void*)fp, sizeof(frame)) != 0)
+	PROC_UNLOCK(td->td_proc);
+
+	/* Copy the sigframe out to the user's stack. */
+	if (copyout(&frame, fp, sizeof(*fp)) != 0) {
+		/* Process has trashed its stack. Kill it. */
+		CTR2(KTR_SIG, "sendsig: sigexit td=%p fp=%p", td, fp);
+		PROC_LOCK(p);
 		sigexit(td, SIGILL);
+	}
+
+	/* Translate the signal if appropriate. */
+	if (p->p_sysent->sv_sigtbl && sig <= p->p_sysent->sv_sigsize)
+		sig = p->p_sysent->sv_sigtbl[_SIG_IDX(sig)];
+
 	/*
 	 * Build context to run handler in.  We invoke the handler
 	 * directly, only returning via the trampoline.  Note the
@@ -153,15 +175,15 @@ sendsig(catcher, ksi, mask)
 	 */
 	
 	tf->tf_r0 = sig;
-	tf->tf_r1 = (int)&fp->sf_si;
-	tf->tf_r2 = (int)&fp->sf_uc;
+	tf->tf_r1 = (register_t)&fp->sf_si;
+	tf->tf_r2 = (register_t)&fp->sf_uc;
 
 	/* the trampoline uses r5 as the uc address */
-	tf->tf_r5 = (int)&fp->sf_uc;
-	tf->tf_pc = (int)catcher;
-	tf->tf_usr_sp = (int)fp;
-	tf->tf_usr_lr = (int)(PS_STRINGS - *(p->p_sysent->sv_szsigcode));
-	PROC_LOCK(td->td_proc);
+	tf->tf_r5 = (register_t)&fp->sf_uc;
+	tf->tf_pc = (register_t)catcher;
+	tf->tf_usr_sp = (register_t)fp;
+	tf->tf_usr_lr = (register_t)(PS_STRINGS - *(p->p_sysent->sv_szsigcode));
+	PROC_LOCK(p);
 	mtx_lock(&psp->ps_mtx);
 }
 
