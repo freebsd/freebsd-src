@@ -1142,7 +1142,7 @@ pci_alloc_msix_method(device_t dev, device_t child, int *count)
 
 			/* Unfinished range? */
 			if (run)
-				printf("%d", irq);
+				printf("-%d", irq);
 			printf(" for MSI-X\n");
 		}
 	}
@@ -1221,8 +1221,16 @@ pci_remap_msix_method(device_t dev, device_t child, u_int *indices)
 	for (i = 0; i < cfg->msix.msix_alloc; i++) {
 		resource_list_add(&dinfo->resources, SYS_RES_IRQ, indices[i],
 		    irqs[i], irqs[i], 1);
+
+		/*
+		 * The indices in the backend code (PCIB_* methods and the
+		 * MI helper routines for MD code such as pci_enable_msix())
+		 * are all zero-based.  However, the indices passed to this
+		 * function are 1-based so that the correspond 1:1 with the
+		 * SYS_RES_IRQ resource IDs.
+		 */
 		error = PCIB_REMAP_MSIX(device_get_parent(dev), child,
-		    indices[i], irqs[i]);
+		    indices[i] - 1, irqs[i]);
 		KASSERT(error == 0, ("Failed to remap MSI-X message"));
 	}
 	if (bootverbose) {
