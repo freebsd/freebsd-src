@@ -2593,7 +2593,7 @@ bge_reset(struct bge_softc *sc)
 
 	dev = sc->bge_dev;
 
-	if (BGE_IS_5705_PLUS(sc) && !BGE_IS_5714_FAMILY(sc)) {
+	if (BGE_IS_575X_PLUS(sc) && !BGE_IS_5714_FAMILY(sc)) {
 		if (sc->bge_flags & BGE_FLAG_PCIE)
 			write_op = bge_writemem_direct;
 		else
