@@ -209,6 +209,7 @@ show_files(const char *title, Package *plist)
 {
     PackingList p;
     Boolean ign = FALSE;
+    char *prefix = NULL;
     const char *dir = ".";
 
     if (!Quiet)
@@ -223,7 +224,12 @@ show_files(const char *title, Package *plist)
 	    break;
 
 	case PLIST_CWD:
-	    dir = p->name;
+	    if (!prefix)
+		prefix = p->name;
+	    if (p->name == NULL)
+		dir = prefix;
+	    else
+		dir = p->name;
 	    break;
 
 	case PLIST_IGNORE:
@@ -251,6 +257,7 @@ show_size(const char *title, Package *plist)
     long blksize;
     int headerlen;
     char *descr;
+    char *prefix = NULL;
 
     descr = getbsize(&headerlen, &blksize);
     if (!Quiet)
@@ -270,7 +277,12 @@ show_size(const char *title, Package *plist)
 	    break;
 
 	case PLIST_CWD:
-	    dir = p->name;
+	    if (!prefix)
+		prefix = p->name;
+	    if (p->name == NULL)
+		dir = prefix;
+	    else
+		dir = p->name;
 	    break;
 
 	case PLIST_IGNORE:
@@ -297,15 +309,21 @@ show_cksum(const char *title, Package *plist)
 {
     PackingList p;
     const char *dir = ".";
+    char *prefix = NULL;
     char tmp[FILENAME_MAX];
 
     if (!Quiet)
 	printf("%s%s", InfoPrefix, title);
 
     for (p = plist->head; p != NULL; p = p->next)
-	if (p->type == PLIST_CWD) 
-	    dir = p->name;
-	else if (p->type == PLIST_FILE) {
+	if (p->type == PLIST_CWD) {
+	    if (!prefix)
+		prefix = p->name;
+	    if (p->name == NULL)
+		dir = prefix;
+	    else
+		dir = p->name;
+	} else if (p->type == PLIST_FILE) {
 	    snprintf(tmp, FILENAME_MAX, "%s/%s", dir, p->name);
 	    if (!fexists(tmp))
 		warnx("%s doesn't exist", tmp);
