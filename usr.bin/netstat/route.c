@@ -134,7 +134,6 @@ static const char *fmt_sockaddr (struct sockaddr *sa, struct sockaddr *mask,
 static void p_flags (int, const char *);
 static const char *fmt_flags(int f);
 static void p_rtentry (struct rtentry *);
-static u_long forgemask (u_long);
 static void domask (char *, u_long, u_long);
 
 /*
@@ -801,26 +800,18 @@ routename(u_long in)
 	return (line);
 }
 
-static u_long
-forgemask(u_long a)
-{
-	u_long m;
-
-	if (IN_CLASSA(a))
-		m = IN_CLASSA_NET;
-	else if (IN_CLASSB(a))
-		m = IN_CLASSB_NET;
-	else
-		m = IN_CLASSC_NET;
-	return (m);
-}
+#define	NSHIFT(m) (							\
+	(m) == IN_CLASSA_NET ? IN_CLASSA_NSHIFT :			\
+	(m) == IN_CLASSB_NET ? IN_CLASSB_NSHIFT :			\
+	(m) == IN_CLASSC_NET ? IN_CLASSC_NSHIFT :			\
+	0)
 
 static void
 domask(char *dst, u_long addr, u_long mask)
 {
 	int b, i;
 
-	if (!mask || (forgemask(addr) == mask)) {
+	if (mask == 0 || (!numeric_addr && NSHIFT(mask) != 0)) {
 		*dst = '\0';
 		return;
 	}
@@ -853,61 +844,27 @@ netname(u_long in, u_long mask)
 	char *cp = 0;
 	static char line[MAXHOSTNAMELEN];
 	struct netent *np = 0;
-	u_long dmask;
 	u_long i;
 
-#define	NSHIFT(m) (							\
-	(m) == IN_CLASSA_NET ? IN_CLASSA_NSHIFT :			\
-	(m) == IN_CLASSB_NET ? IN_CLASSB_NSHIFT :			\
-	(m) == IN_CLASSC_NET ? IN_CLASSC_NSHIFT :			\
-	0)
-
 	i = ntohl(in);
-	dmask = forgemask(i);
 	if (!numeric_addr && i) {
 		np = getnetbyaddr(i >> NSHIFT(mask), AF_INET);
-		if (np == NULL && mask == 0)
-			np = getnetbyaddr(i >> NSHIFT(dmask), AF_INET);
 		if (np != NULL) {
 			cp = np->n_name;
 			trimdomain(cp, strlen(cp));
 		}
 	}
-#undef NSHIFT
 	if (cp != NULL) {
 		strncpy(line, cp, sizeof(line) - 1);
 		line[sizeof(line) - 1] = '\0';
 	} else {
-		switch (dmask) {
-		case IN_CLASSA_NET:
-			if ((i & IN_CLASSA_HOST) == 0) {
-				sprintf(line, "%lu", C(i >> 24));
-				break;
-			}
-			/* FALLTHROUGH */
-		case IN_CLASSB_NET:
-			if ((i & IN_CLASSB_HOST) == 0) {
-				sprintf(line, "%lu.%lu",
-					C(i >> 24), C(i >> 16));
-				break;
-			}
-			/* FALLTHROUGH */
-		case IN_CLASSC_NET:
-			if ((i & IN_CLASSC_HOST) == 0) {
-				sprintf(line, "%lu.%lu.%lu",
-					C(i >> 24), C(i >> 16), C(i >> 8));
-				break;
-			}
-			/* FALLTHROUGH */
-		default:
-			sprintf(line, "%lu.%lu.%lu.%lu",
-				C(i >> 24), C(i >> 16), C(i >> 8), C(i));
-			break;
-		}
+		inet_ntop(AF_INET, (char *)&in, line, sizeof(line) - 1);
 	}
 	domask(line + strlen(line), i, mask);
 	return (line);
 }
+
+#undef NSHIFT
 
 #ifdef INET6
 const char *
