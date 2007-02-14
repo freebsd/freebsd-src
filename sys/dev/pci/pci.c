@@ -469,6 +469,7 @@ pci_read_extcap(device_t pcib, pcicfgregs *cfg)
 				cfg->msi.msi_data = PCIR_MSI_DATA;
 			cfg->msi.msi_msgnum = 1 << ((cfg->msi.msi_ctrl &
 						     PCIM_MSICTRL_MMC_MASK)>>1);
+			break;
 		case PCIY_SUBVENDOR:
 			/* Should always be true. */
 			if ((cfg->hdrtype & PCIM_HDRTYPE) == 1) {
@@ -476,6 +477,7 @@ pci_read_extcap(device_t pcib, pcicfgregs *cfg)
 				cfg->subvendor = val & 0xffff;
 				cfg->subdevice = val >> 16;
 			}
+			break;
 		default:
 			break;
 		}
