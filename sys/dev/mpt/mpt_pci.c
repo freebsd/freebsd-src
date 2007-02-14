@@ -106,9 +106,10 @@ __FBSDID("$FreeBSD$");
 #include <dev/mpt/mpt_raid.h>
 
 #if __FreeBSD_version < 700000
+#define	pci_msix_count(x)	0
 #define	pci_msi_count(x)	0
-#define	pci_msi_enable(x)	0
 #define	pci_alloc_msi(x, y)	1
+#define	pci_alloc_msix(x, y)	1
 #define	pci_release_msi(x)	do { ; } while (0)
 #endif
 
@@ -527,14 +528,28 @@ mpt_pci_attach(device_t dev)
 
 	/* Get a handle to the interrupt */
 	iqd = 0;
-	if (mpt->msi_enable && pci_msi_count(dev) == 1) {
-		mpt->pci_msi_count = 1;
-		if (pci_alloc_msi(dev, &mpt->pci_msi_count) == 0) {
-			iqd = 1;
-		} else {
-			mpt->pci_msi_count = 0;
+	if (mpt->msi_enable) {
+		/*
+		 * First try to alloc an MSI-X message.  If that
+		 * fails, then try to alloc an MSI message instead.
+		 */
+		if (pci_msix_count(dev) == 1) {
+			mpt->pci_msi_count = 1;
+			if (pci_alloc_msix(dev, &mpt->pci_msi_count) == 0) {
+				iqd = 1;
+			} else {
+				mpt->pci_msi_count = 0;
+			}
 		}
-	}	
+		if (iqd == 0 && pci_msi_count(dev) == 1) {
+			mpt->pci_msi_count = 1;
+			if (pci_alloc_msi(dev, &mpt->pci_msi_count) == 0) {
+				iqd = 1;
+			} else {
+				mpt->pci_msi_count = 0;
+			}
+		}
+	}
 	mpt->pci_irq = bus_alloc_resource_any(dev, SYS_RES_IRQ, &iqd,
 	    RF_ACTIVE | RF_SHAREABLE);
 	if (mpt->pci_irq == NULL) {
