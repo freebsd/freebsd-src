@@ -47,6 +47,12 @@
  * passing UNIX domain sockets over other UNIX domain sockets requires the
  * implementation of a simple garbage collector to find and tear down cycles
  * of disconnected sockets.
+ *
+ * TODO:
+ *	SEQPACKET, RDM
+ *	rethink name space problems
+ *	need a proper out-of-band
+ *	lock pushdown
  */
 
 #include <sys/cdefs.h>
@@ -87,24 +93,23 @@ __FBSDID("$FreeBSD$");
 
 #include <vm/uma.h>
 
-static uma_zone_t unp_zone;
-static	unp_gen_t unp_gencnt;
-static	u_int unp_count;
+static uma_zone_t	unp_zone;
+static unp_gen_t	unp_gencnt;
+static u_int		unp_count;	/* Count of local sockets. */
+static ino_t		unp_ino;	/* Prototype for fake inode numbers. */
+static int		unp_rights;	/* File descriptors in flight. */
+static struct unp_head	unp_shead;	/* List of local stream sockets. */
+static struct unp_head	unp_dhead;	/* List of local datagram sockets. */
 
-static	struct unp_head unp_shead, unp_dhead;
+static const struct sockaddr	sun_noname = { sizeof(sun_noname), AF_LOCAL };
 
 /*
- * Unix communications domain.
- *
- * TODO:
- *	SEQPACKET, RDM
- *	rethink name space problems
- *	need a proper out-of-band
- *	lock pushdown
+ * Garbage collection of cyclic file descriptor/socket references occurs
+ * asynchronously in a taskqueue context in order to avoid recursion and
+ * reentrance in the UNIX domain socket, file descriptor, and socket layer
+ * code.  See unp_gc() for a full description.
  */
-static const struct	sockaddr sun_noname = { sizeof(sun_noname), AF_LOCAL };
-static ino_t	unp_ino;		/* prototype for fake inode numbers */
-struct mbuf *unp_addsockcred(struct thread *, struct mbuf *);
+static struct task	unp_gc_task;
 
 /*
  * Both send and receive buffers are allocated PIPSIZ bytes of buffering for
@@ -122,8 +127,6 @@ static u_long	unpst_sendspace = PIPSIZ;
 static u_long	unpst_recvspace = PIPSIZ;
 static u_long	unpdg_sendspace = 2*1024;	/* really max datagram size */
 static u_long	unpdg_recvspace = 4*1024;
-
-static int	unp_rights;			/* file descriptors in flight */
 
 SYSCTL_NODE(_net, PF_LOCAL, local, CTLFLAG_RW, 0, "Local domain");
 SYSCTL_NODE(_net_local, SOCK_STREAM, stream, CTLFLAG_RW, 0, "SOCK_STREAM");
@@ -159,7 +162,7 @@ SYSCTL_INT(_net_local, OID_AUTO, inflight, CTLFLAG_RD, &unp_rights, 0, "");
  * and exposes weaknesses in the socket->protocol API by offering poor
  * failure modes.
  */
-static struct mtx unp_mtx;
+static struct mtx	unp_mtx;
 #define	UNP_LOCK_INIT() \
 	mtx_init(&unp_mtx, "unp", NULL, MTX_DEF | MTX_RECURSE)
 #define	UNP_LOCK()		mtx_lock(&unp_mtx)
@@ -167,27 +170,21 @@ static struct mtx unp_mtx;
 #define	UNP_LOCK_ASSERT()	mtx_assert(&unp_mtx, MA_OWNED)
 #define	UNP_UNLOCK_ASSERT()	mtx_assert(&unp_mtx, MA_NOTOWNED)
 
-/*
- * Garbage collection of cyclic file descriptor/socket references occurs
- * asynchronously in a taskqueue context in order to avoid recursion and
- * reentrance in the UNIX domain socket, file descriptor, and socket layer
- * code.  See unp_gc() for a full description.
- */
-static struct task	unp_gc_task;
-
-static int     unp_connect(struct socket *,struct sockaddr *, struct thread *);
-static int     unp_connect2(struct socket *so, struct socket *so2, int);
-static void    unp_disconnect(struct unpcb *);
-static void    unp_shutdown(struct unpcb *);
-static void    unp_drop(struct unpcb *, int);
-static void    unp_gc(__unused void *, int);
-static void    unp_scan(struct mbuf *, void (*)(struct file *));
-static void    unp_mark(struct file *);
-static void    unp_discard(struct file *);
-static void    unp_freerights(struct file **, int);
-static int     unp_internalize(struct mbuf **, struct thread *);
-static int     unp_listen(struct socket *, struct unpcb *, int,
+static int	 unp_connect(struct socket *, struct sockaddr *,
+		    struct thread *);
+static int	 unp_connect2(struct socket *so, struct socket *so2, int);
+static void	 unp_disconnect(struct unpcb *);
+static void	 unp_shutdown(struct unpcb *);
+static void	 unp_drop(struct unpcb *, int);
+static void	 unp_gc(__unused void *, int);
+static void	 unp_scan(struct mbuf *, void (*)(struct file *));
+static void	 unp_mark(struct file *);
+static void	 unp_discard(struct file *);
+static void	 unp_freerights(struct file **, int);
+static int	 unp_internalize(struct mbuf **, struct thread *);
+static int	 unp_listen(struct socket *, struct unpcb *, int,
 		   struct thread *);
+struct mbuf	*unp_addsockcred(struct thread *, struct mbuf *);
 
 /*
  * Definitions of protocols supported in the LOCAL domain.
