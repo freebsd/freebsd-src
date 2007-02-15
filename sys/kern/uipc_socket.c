@@ -163,10 +163,10 @@ MALLOC_DEFINE(M_SONAME, "soname", "socket name");
 MALLOC_DEFINE(M_PCB, "pcb", "protocol control block");
 
 static int somaxconn = SOMAXCONN;
-static int somaxconn_sysctl(SYSCTL_HANDLER_ARGS);
+static int sysctl_somaxconn(SYSCTL_HANDLER_ARGS);
 /* XXX: we dont have SYSCTL_USHORT */
 SYSCTL_PROC(_kern_ipc, KIPC_SOMAXCONN, somaxconn, CTLTYPE_UINT | CTLFLAG_RW,
-    0, sizeof(int), somaxconn_sysctl, "I", "Maximum pending socket connection "
+    0, sizeof(int), sysctl_somaxconn, "I", "Maximum pending socket connection "
     "queue size");
 static int numopensockets;
 SYSCTL_INT(_kern_ipc, OID_AUTO, numopensockets, CTLFLAG_RD,
@@ -2699,7 +2699,7 @@ socheckuid(struct socket *so, uid_t uid)
 }
 
 static int
-somaxconn_sysctl(SYSCTL_HANDLER_ARGS)
+sysctl_somaxconn(SYSCTL_HANDLER_ARGS)
 {
 	int error;
 	int val;
