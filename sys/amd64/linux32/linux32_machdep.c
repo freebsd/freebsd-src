@@ -43,6 +43,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/malloc.h>
 #include <sys/mman.h>
 #include <sys/mutex.h>
+#include <sys/priv.h>
 #include <sys/proc.h>
 #include <sys/resource.h>
 #include <sys/resourcevar.h>
@@ -52,6 +53,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/unistd.h>
 
 #include <machine/frame.h>
+#include <machine/psl.h>
 
 #include <vm/vm.h>
 #include <vm/pmap.h>
@@ -902,6 +904,23 @@ linux_mmap_common(struct thread *td, struct l_mmap_argv *linux_args)
 }
 
 int
+linux_iopl(struct thread *td, struct linux_iopl_args *args)
+{
+	int error;
+
+	if (args->level < 0 || args->level > 3)
+		return (EINVAL);
+	if ((error = priv_check(td, PRIV_IO)) != 0)
+		return (error);
+	if ((error = securelevel_gt(td->td_ucred, 0)) != 0)
+		return (error);
+	td->td_frame->tf_rflags = (td->td_frame->tf_rflags & ~PSL_IOPL) |
+	    (args->level * (PSL_IOPL / 3));
+
+	return (0);
+}
+
+int
 linux_pipe(struct thread *td, struct linux_pipe_args *args)
 {
 	int pip[2];
@@ -932,7 +951,6 @@ linux_pipe(struct thread *td, struct linux_pipe_args *args)
 	td->td_retval[0] = 0;
 	return (0);
 }
-
 int
 linux_sigaction(struct thread *td, struct linux_sigaction_args *args)
 {
