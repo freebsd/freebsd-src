@@ -31,6 +31,7 @@
 # BEFORE:  netif
 
 . /etc/rc.subr
+. /etc/network.subr
 
 name="hostname"
 start_cmd="hostname_start"
@@ -61,7 +62,11 @@ hostname_start()
 	# Have we got a hostname yet?
 	#
 	if [ -z "${hostname}" ]; then
-		warn "\$hostname is not set -- see ${rcvar_manpage}."
+		# Null hostname is probably OK if DHCP is in use.
+		#
+		if [ -z "`list_net_interfaces dhcp`" ]; then
+			warn "\$hostname is not set -- see ${rcvar_manpage}."
+		fi
 		return
 	fi
 
