@@ -115,6 +115,7 @@ static vop_setextattr_t		_xfs_setextattr;
 static vop_strategy_t		_xfs_strategy;
 static vop_symlink_t		_xfs_symlink;
 static vop_write_t		_xfs_write;
+static vop_vptofh_t		_xfs_vptofh;
 
 struct vop_vector xfs_vnops = {
 	.vop_default =		&default_vnodeops,
@@ -148,6 +149,7 @@ struct vop_vector xfs_vnops = {
 	.vop_strategy =		_xfs_strategy,
 	.vop_symlink =		_xfs_symlink,
 	.vop_write =		_xfs_write,
+	.vop_vptofh =		_xfs_vptofh,
 };
 
 /*
@@ -171,6 +173,7 @@ struct vop_vector xfs_fifoops = {
 	.vop_reclaim =		_xfs_reclaim,
 	.vop_setattr =		_xfs_setattr,
 	.vop_write =		_xfsfifo_write,
+	.vop_vptofh =		_xfs_vptofh,
 };
 
 static int
@@ -1680,4 +1683,17 @@ vop_deleteextattr {
 	XVOP_ATTR_REMOVE(VPTOXFSVP(ap->a_vp), ap->a_name, xfs_flags,
 	    ap->a_cred, error);
 	return (error);
+}
+
+static int
+_xfs_vptofh(struct vop_vptofh_args *ap)
+/*
+vop_vptofh {
+	IN struct vnode *a_vp;
+	IN struct fid *a_fhp;
+};
+*/
+{
+	printf("xfs_vptofh");
+	return ENOSYS;
 }

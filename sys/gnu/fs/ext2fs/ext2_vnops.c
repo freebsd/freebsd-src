@@ -107,6 +107,7 @@ static vop_setattr_t	ext2_setattr;
 static vop_strategy_t	ext2_strategy;
 static vop_symlink_t	ext2_symlink;
 static vop_write_t	ext2_write;
+static vop_vptofh_t	ext2_vptofh;
 static vop_close_t	ext2fifo_close;
 static vop_kqfilter_t	ext2fifo_kqfilter;
 static int filt_ext2read(struct knote *kn, long hint);
@@ -147,6 +148,7 @@ struct vop_vector ext2_vnodeops = {
 	.vop_strategy =		ext2_strategy,
 	.vop_symlink =		ext2_symlink,
 	.vop_write =		ext2_write,
+	.vop_vptofh =		ext2_vptofh,
 };
 
 struct vop_vector ext2_fifoops = {
@@ -162,6 +164,7 @@ struct vop_vector ext2_fifoops = {
 	.vop_reclaim =		ext2_reclaim,
 	.vop_setattr =		ext2_setattr,
 	.vop_write =		VOP_PANIC,
+	.vop_vptofh =		ext2_vptofh,
 };
 
 #include <gnu/fs/ext2fs/ext2_readwrite.c>
@@ -1539,6 +1542,28 @@ ext2_advlock(ap)
 	struct inode *ip = VTOI(ap->a_vp);
 
 	return (lf_advlock(ap, &(ip->i_lockf), ip->i_size));
+}
+
+/*
+ * Vnode pointer to File handle
+ */
+/* ARGSUSED */
+static int
+ext2_vptofh(ap)
+	struct vop_vptofh_args /* {
+		struct vnode *a_vp;
+		struct fid *a_fhp;
+	} */ *ap;
+{
+	struct inode *ip;
+	struct ufid *ufhp;
+
+	ip = VTOI(ap->a_vp);
+	ufhp = (struct ufid *)ap->a_fhp;
+	ufhp->ufid_len = sizeof(struct ufid);
+	ufhp->ufid_ino = ip->i_number;
+	ufhp->ufid_gen = ip->i_gen;
+	return (0);
 }
 
 /*

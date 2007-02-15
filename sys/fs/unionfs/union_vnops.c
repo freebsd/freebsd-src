@@ -2229,6 +2229,12 @@ unionfs_setlabel(struct vop_setlabel_args *ap)
 	return (error);
 }
 
+static int
+unionfs_vptofh(struct vop_vptofh_args *ap)
+{
+	return (EOPNOTSUPP);
+}
+
 struct vop_vector unionfs_vnodeops = {
 	.vop_default =		&default_vnodeops,
 
@@ -2275,4 +2281,5 @@ struct vop_vector unionfs_vnodeops = {
 	.vop_unlock =		unionfs_unlock,
 	.vop_whiteout =		unionfs_whiteout,
 	.vop_write =		unionfs_write,
+	.vop_vptofh =		unionfs_vptofh,
 };

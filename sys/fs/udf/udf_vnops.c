@@ -67,6 +67,7 @@ static vop_strategy_t	udf_strategy;
 static vop_bmap_t	udf_bmap;
 static vop_cachedlookup_t	udf_lookup;
 static vop_reclaim_t	udf_reclaim;
+static vop_vptofh_t	udf_vptofh;
 static int udf_readatoffset(struct udf_node *node, int *size, off_t offset,
     struct buf **bp, uint8_t **data);
 static int udf_bmap_internal(struct udf_node *node, off_t offset,
@@ -88,6 +89,7 @@ static struct vop_vector udf_vnodeops = {
 	.vop_readlink =		udf_readlink,
 	.vop_reclaim =		udf_reclaim,
 	.vop_strategy =		udf_strategy,
+	.vop_vptofh =		udf_vptofh,
 };
 
 MALLOC_DEFINE(M_UDFFID, "udf_fid", "UDF FileId structure");
@@ -1018,6 +1020,20 @@ udf_reclaim(struct vop_reclaim_args *a)
 		uma_zfree(udf_zone_node, unode);
 		vp->v_data = NULL;
 	}
+
+	return (0);
+}
+
+static int
+udf_vptofh(struct vop_vptofh_args *a)
+{
+	struct udf_node *node;
+	struct ifid *ifhp;
+
+	node = VTON(a->a_vp);
+	ifhp = (struct ifid *)a->a_fhp;
+	ifhp->ifid_len = sizeof(struct ifid);
+	ifhp->ifid_ino = node->hash_id;
 
 	return (0);
 }

@@ -117,7 +117,6 @@ static vfs_root_t      udf_root;
 static vfs_statfs_t    udf_statfs;
 static vfs_unmount_t   udf_unmount;
 static vfs_fhtovp_t	udf_fhtovp;
-static vfs_vptofh_t	udf_vptofh;
 
 static int udf_find_partmaps(struct udf_mnt *, struct logvol_desc *);
 
@@ -130,7 +129,6 @@ static struct vfsops udf_vfsops = {
 	.vfs_uninit =		udf_uninit,
 	.vfs_unmount =		udf_unmount,
 	.vfs_vget =		udf_vget,
-	.vfs_vptofh =		udf_vptofh,
 };
 VFS_SET(udf_vfsops, udf, VFCF_READONLY);
 
@@ -687,13 +685,6 @@ udf_vget(struct mount *mp, ino_t ino, int flags, struct vnode **vpp)
 	return (0);
 }
 
-struct ifid {
-	u_short	ifid_len;
-	u_short	ifid_pad;
-	int	ifid_ino;
-	long	ifid_start;
-};
-
 static int
 udf_fhtovp(struct mount *mp, struct fid *fhp, struct vnode **vpp)
 {
@@ -715,20 +706,6 @@ udf_fhtovp(struct mount *mp, struct fid *fhp, struct vnode **vpp)
 
 	*vpp = nvp;
 	vnode_create_vobject(*vpp, fsize, curthread);
-	return (0);
-}
-
-static int
-udf_vptofh (struct vnode *vp, struct fid *fhp)
-{
-	struct udf_node *node;
-	struct ifid *ifhp;
-
-	node = VTON(vp);
-	ifhp = (struct ifid *)fhp;
-	ifhp->ifid_len = sizeof(struct ifid);
-	ifhp->ifid_ino = node->hash_id;
-
 	return (0);
 }
 

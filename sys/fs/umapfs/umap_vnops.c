@@ -62,6 +62,7 @@ static vop_print_t	umap_print;
 static vop_reclaim_t	umap_reclaim;
 static vop_rename_t	umap_rename;
 static vop_unlock_t	umap_unlock;
+static vop_vptofh_t	umap_vptofh;
 
 /*
  * This is the 10-Apr-92 bypass routine.
@@ -498,6 +499,19 @@ umap_rename(ap)
 	return error;
 }
 
+static int
+umap_vptofh(ap)
+	struct vop_vptofh_args /* {
+		struct vnode *a_vp;
+		struct fid *a_fhp;
+	} */ *ap;
+{
+	struct vnode *lvp;
+
+	lvp = UMAPVPTOLOWERVP(ap->a_vp);
+	return (VOP_VPTOFH(lvp, ap->a_fhp));
+}
+
 /*
  * Global vfs data structures
  */
@@ -516,4 +530,5 @@ static struct vop_vector umap_vnodeops = {
 	.vop_reclaim =		umap_reclaim,
 	.vop_rename =		umap_rename,
 	.vop_unlock =		umap_unlock,
+	.vop_vptofh =		umap_vptofh,
 };
