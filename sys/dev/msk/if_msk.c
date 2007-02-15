@@ -3029,7 +3029,8 @@ msk_rxeof(struct msk_if_softc *sc_if, uint32_t status, int len)
 	cons = sc_if->msk_cdata.msk_rx_cons;
 	do {
 		rxlen = status >> 16;
-		if ((status & GMR_FS_VLAN) != 0)
+		if ((status & GMR_FS_VLAN) != 0 &&
+		    (ifp->if_capenable & IFCAP_VLAN_HWTAGGING) != 0)
 			rxlen -= ETHER_VLAN_ENCAP_LEN;
 		if (len > sc_if->msk_framesize ||
 		    ((status & GMR_FS_ANY_ERR) != 0) ||
@@ -3081,7 +3082,8 @@ msk_jumbo_rxeof(struct msk_if_softc *sc_if, uint32_t status, int len)
 	cons = sc_if->msk_cdata.msk_rx_cons;
 	do {
 		rxlen = status >> 16;
-		if ((status & GMR_FS_VLAN) != 0)
+		if ((status & GMR_FS_VLAN) != 0 &&
+		    (ifp->if_capenable & IFCAP_VLAN_HWTAGGING) != 0)
 			rxlen -= ETHER_VLAN_ENCAP_LEN;
 		if (len > sc_if->msk_framesize ||
 		    ((status & GMR_FS_ANY_ERR) != 0) ||
