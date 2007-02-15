@@ -118,6 +118,14 @@ int linker_reference_module(const char* _modname, struct mod_depend *_verinfo,
 			    linker_file_t* _result);
 
 /*
+ * Release a reference to a module, unloading it if there are no more
+ * references.  Note that one should either provide a module name and
+ * optional version info or a linker file, but not both.
+ */
+int linker_release_module(const char *_modname, struct mod_depend *_verinfo,
+			    linker_file_t _file);
+
+/*
  * Find a currently loaded file given its filename.
  */
 linker_file_t linker_find_file_by_name(const char* _filename);
