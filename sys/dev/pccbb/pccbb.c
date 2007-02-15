@@ -431,13 +431,8 @@ cbb_driver_added(device_t brdev, driver_t *driver)
 	for (tmp = 0; tmp < numdevs; tmp++) {
 		dev = devlist[tmp];
 		if (device_get_state(dev) == DS_NOTPRESENT &&
-		    device_probe_and_attach(dev) == 0) {
+		    device_probe_and_attach(dev) == 0)
 			wake++;
-			if (strcmp(device_get_name(dev), "cardbus") == 0)
-				sc->cbdev = dev;
-			else if (strcmp(device_get_name(dev), "pccard") == 0)
-				sc->exca[0].pccarddev = dev;
-		}
 	}
 	free(devlist, M_TEMP);
 
@@ -453,11 +448,8 @@ cbb_child_detached(device_t brdev, device_t child)
 {
 	struct cbb_softc *sc = device_get_softc(brdev);
 
-	if (child == sc->cbdev)
-		sc->cbdev = NULL;
-	else if (child == sc->exca[0].pccarddev)
-		sc->exca[0].pccarddev = NULL;
-	else
+	/* I'm not sure we even need this */
+	if (child != sc->cbdev && child != sc->exca[0].pccarddev)
 		device_printf(brdev, "Unknown child detached: %s\n",
 		    device_get_nameunit(child));
 }
@@ -556,7 +548,7 @@ cbb_insert(struct cbb_softc *sc)
 	    sockevent, sockstate));
 
 	if (sockstate & CBB_STATE_R2_CARD) {
-		if (sc->exca[0].pccarddev) {
+		if (device_is_attached(sc->exca[0].pccarddev)) {
 			sc->flags |= CBB_16BIT_CARD;
 			exca_insert(&sc->exca[0]);
 		} else {
@@ -564,7 +556,7 @@ cbb_insert(struct cbb_softc *sc)
 			    "16-bit card inserted, but no pccard bus.\n");
 		}
 	} else if (sockstate & CBB_STATE_CB_CARD) {
-		if (sc->cbdev != NULL) {
+		if (device_is_attached(sc->cbdev)) {
 			sc->flags &= ~CBB_16BIT_CARD;
 			CARD_ATTACH_CARD(sc->cbdev);
 		} else {
@@ -587,7 +579,7 @@ cbb_removal(struct cbb_softc *sc)
 	if (sc->flags & CBB_16BIT_CARD) {
 		exca_removal(&sc->exca[0]);
 	} else {
-		if (sc->cbdev != NULL)
+		if (device_is_attached(sc->cbdev))
 			CARD_DETACH_CARD(sc->cbdev);
 	}
 	cbb_destroy_res(sc);

@@ -780,7 +780,7 @@ exca_insert(struct exca_softc *exca)
 void
 exca_removal(struct exca_softc *exca)
 {
-	if (exca->pccarddev != NULL)
+	if (device_is_attached(exca->pccarddev))
 		CARD_DETACH_CARD(exca->pccarddev);
 }
 
