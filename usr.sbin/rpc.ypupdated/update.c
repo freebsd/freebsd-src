@@ -328,4 +328,3 @@ match(char *line, char *name)
 		(line[len] == ' ' || line[len] == '\t'));
 }
 #endif /* !YP */
-
