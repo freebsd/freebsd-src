@@ -281,10 +281,8 @@ int
 cbb_detach(device_t brdev)
 {
 	struct cbb_softc *sc = device_get_softc(brdev);
-	int numdevs;
 	device_t *devlist;
-	int tmp;
-	int error;
+	int tmp, tries, error, numdevs;
 
 	/*
 	 * Before we delete the children (which we have to do because
@@ -302,7 +300,19 @@ cbb_detach(device_t brdev)
 	 * for the kldload/unload case to work.  If we failed to do that, then
 	 * we'd get duplicate devices when cbb.ko was reloaded.
 	 */
-	device_get_children(brdev, &devlist, &numdevs);
+	tries = 10;
+	do {
+		error = device_get_children(brdev, &devlist, &numdevs);
+		if (error == 0)
+			break;
+		/*
+		 * Try hard to cope with low memory.
+		 */
+		if (error == ENOMEM) {
+			tsleep(sc, PZERO, "cbbnomem", 1);
+			continue;
+		}
+	} while (tries-- > 0);
 	for (tmp = 0; tmp < numdevs; tmp++)
 		device_delete_child(brdev, devlist[tmp]);
 	free(devlist, M_TEMP);
@@ -413,12 +423,21 @@ cbb_driver_added(device_t brdev, driver_t *driver)
 	int wake = 0;
 
 	DEVICE_IDENTIFY(driver, brdev);
-	device_get_children(brdev, &devlist, &numdevs);
+	tmp = device_get_children(brdev, &devlist, &numdevs);
+	if (tmp != 0) {
+		device_printf(brdev, "Cannot get children list, no reprobe\n");
+		return;
+	}
 	for (tmp = 0; tmp < numdevs; tmp++) {
 		dev = devlist[tmp];
 		if (device_get_state(dev) == DS_NOTPRESENT &&
-		    device_probe_and_attach(dev) == 0)
+		    device_probe_and_attach(dev) == 0) {
 			wake++;
+			if (strcmp(device_get_name(dev), "cardbus") == 0)
+				sc->cbdev = dev;
+			else if (strcmp(device_get_name(dev), "pccard") == 0)
+				sc->exca[0].pccarddev = dev;
+		}
 	}
 	free(devlist, M_TEMP);
 
