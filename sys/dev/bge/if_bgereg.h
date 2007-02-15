@@ -2297,6 +2297,7 @@ struct bge_softc {
 	u_int8_t		bge_pcie;
 	struct bge_ring_data	*bge_rdata;	/* rings */
 	struct bge_chain_data	bge_cdata;	/* mbufs */
+	u_int32_t		bge_tx_prodidx;
 	u_int16_t		bge_tx_saved_considx;
 	u_int16_t		bge_rx_saved_considx;
 	u_int16_t		bge_ev_saved_considx;
