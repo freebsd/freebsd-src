@@ -200,6 +200,12 @@
 	    <entry>11&nbsp;January&nbsp;2007</entry>
 	    <entry><para>Jail rc.d script privilege escalation</para></entry>
 	  </row>
+
+	  <row>
+	    <entry><ulink url="http://security.FreeBSD.org/advisories/FreeBSD-SA-07:02.bind.asc">SA-07:02.bind</ulink></entry>
+	    <entry>9&nbsp;February&nbsp;2007</entry>
+	    <entry><para>Multiple Denial of Service vulnerabilities in &man.named.8;</para></entry>
+	  </row>
 	</tbody>
       </tgroup>
     </informaltable>
