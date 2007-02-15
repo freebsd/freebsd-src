@@ -63,7 +63,6 @@ static vfs_sync_t	nullfs_sync;
 static vfs_statfs_t	nullfs_statfs;
 static vfs_unmount_t	nullfs_unmount;
 static vfs_vget_t	nullfs_vget;
-static vfs_vptofh_t	nullfs_vptofh;
 static vfs_extattrctl_t	nullfs_extattrctl;
 
 /*
@@ -344,17 +343,6 @@ nullfs_fhtovp(mp, fidp, vpp)
 	return (null_nodeget(mp, *vpp, vpp));
 }
 
-static int
-nullfs_vptofh(vp, fhp)
-	struct vnode *vp;
-	struct fid *fhp;
-{
-	struct vnode *lvp;
-
-	lvp = NULLVPTOLOWERVP(vp);
-	return VFS_VPTOFH(lvp, fhp);
-}
-
 static int                        
 nullfs_extattrctl(mp, cmd, filename_vp, namespace, attrname, td)
 	struct mount *mp;
@@ -381,7 +369,6 @@ static struct vfsops null_vfsops = {
 	.vfs_uninit =		nullfs_uninit,
 	.vfs_unmount =		nullfs_unmount,
 	.vfs_vget =		nullfs_vget,
-	.vfs_vptofh =		nullfs_vptofh,
 };
 
 VFS_SET(null_vfsops, nullfs, VFCF_LOOPBACK);

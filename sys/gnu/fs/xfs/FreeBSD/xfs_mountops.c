@@ -81,7 +81,6 @@ static vfs_statfs_t	_xfs_statfs;
 static vfs_sync_t	_xfs_sync;
 static vfs_vget_t	_xfs_vget;
 static vfs_fhtovp_t	_xfs_fhtovp;
-static vfs_vptofh_t	_xfs_vptofh;
 static vfs_init_t	_xfs_init;
 static vfs_uninit_t	_xfs_uninit;
 static vfs_extattrctl_t	_xfs_extattrctl;
@@ -383,15 +382,6 @@ _xfs_fhtovp(mp, fidp, vpp)
 }
 
 static int
-_xfs_vptofh(vp, fhp)
-	struct vnode *vp;
-	struct fid *fhp;
-{
-	printf("xfs_vptofh");
-	return ENOSYS;
-}
-
-static int
 _xfs_extattrctl(struct mount *mp, int cm,
                 struct vnode *filename_v,
                 int attrnamespace, const char *attrname,
@@ -429,7 +419,6 @@ static struct vfsops xfs_fsops = {
 	.vfs_sync =	_xfs_sync,
 	.vfs_vget =	_xfs_vget,
 	.vfs_fhtovp =	_xfs_fhtovp,
-	.vfs_vptofh =	_xfs_vptofh,
 	.vfs_init =	_xfs_init,
 	.vfs_uninit =	_xfs_uninit,
 	.vfs_extattrctl = _xfs_extattrctl,

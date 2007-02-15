@@ -68,7 +68,6 @@ static vfs_mount_t      hpfs_mount;
 static vfs_root_t       hpfs_root;
 static vfs_statfs_t     hpfs_statfs;
 static vfs_unmount_t    hpfs_unmount;
-static vfs_vptofh_t     hpfs_vptofh;
 
 static int
 hpfs_cmount ( 
@@ -435,22 +434,6 @@ hpfs_fhtovp(
 }
 
 static int
-hpfs_vptofh(
-	struct vnode *vp,
-	struct fid *fhp)
-{
-	register struct hpfsnode *hpp;
-	register struct hpfid *hpfhp;
-
-	hpp = VTOHP(vp);
-	hpfhp = (struct hpfid *)fhp;
-	hpfhp->hpfid_len = sizeof(struct hpfid);
-	hpfhp->hpfid_ino = hpp->h_no;
-	/* hpfhp->hpfid_gen = hpp->h_gen; */
-	return (0);
-}
-
-static int
 hpfs_vget(
 	struct mount *mp,
 	ino_t ino,
@@ -550,6 +533,5 @@ static struct vfsops hpfs_vfsops = {
 	.vfs_statfs =		hpfs_statfs,
 	.vfs_unmount =		hpfs_unmount,
 	.vfs_vget =		hpfs_vget,
-	.vfs_vptofh =		hpfs_vptofh,
 };
 VFS_SET(hpfs_vfsops, hpfs, 0);

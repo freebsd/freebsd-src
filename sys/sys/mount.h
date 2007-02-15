@@ -525,7 +525,11 @@ typedef	int vfs_vget_t(struct mount *mp, ino_t ino, int flags,
 typedef	int vfs_fhtovp_t(struct mount *mp, struct fid *fhp, struct vnode **vpp);
 typedef	int vfs_checkexp_t(struct mount *mp, struct sockaddr *nam,
 		    int *extflagsp, struct ucred **credanonp);
+#if __FreeBSD_version < 800000
 typedef	int vfs_vptofh_t(struct vnode *vp, struct fid *fhp);
+#else
+#error Remove this code, vfs_vptofh was replaced with vop_vptofh.
+#endif
 typedef	int vfs_init_t(struct vfsconf *);
 typedef	int vfs_uninit_t(struct vfsconf *);
 typedef	int vfs_extattrctl_t(struct mount *mp, int cmd,
@@ -546,7 +550,11 @@ struct vfsops {
 	vfs_vget_t		*vfs_vget;
 	vfs_fhtovp_t		*vfs_fhtovp;
 	vfs_checkexp_t		*vfs_checkexp;
+#if __FreeBSD_version < 800000
 	vfs_vptofh_t		*vfs_vptofh;
+#else
+#error Remove this code, vfs_vptofh was replaced with vop_vptofh.
+#endif
 	vfs_init_t		*vfs_init;
 	vfs_uninit_t		*vfs_uninit;
 	vfs_extattrctl_t	*vfs_extattrctl;
@@ -566,7 +574,11 @@ vfs_statfs_t	__vfs_statfs;
 	(*(MP)->mnt_op->vfs_vget)(MP, INO, FLAGS, VPP)
 #define VFS_FHTOVP(MP, FIDP, VPP) \
 	(*(MP)->mnt_op->vfs_fhtovp)(MP, FIDP, VPP)
-#define	VFS_VPTOFH(VP, FIDP)	  (*(VP)->v_mount->mnt_op->vfs_vptofh)(VP, FIDP)
+#if __FreeBSD_version < 800000
+#define	VFS_VPTOFH(VP, FIDP)	(*(VP)->v_mount->mnt_op->vfs_vptofh)(VP, FIDP)
+#else
+#error Remove this code, vfs_vptofh was replaced with vop_vptofh.
+#endif
 #define VFS_CHECKEXP(MP, NAM, EXFLG, CRED) \
 	(*(MP)->mnt_op->vfs_checkexp)(MP, NAM, EXFLG, CRED)
 #define VFS_EXTATTRCTL(MP, C, FN, NS, N, P) \
@@ -693,7 +705,11 @@ vfs_sync_t		vfs_stdnosync;
 vfs_vget_t		vfs_stdvget;
 vfs_fhtovp_t		vfs_stdfhtovp;
 vfs_checkexp_t		vfs_stdcheckexp;
+#if __FreeBSD_version < 800000
 vfs_vptofh_t		vfs_stdvptofh;
+#else
+#error Remove this code, vfs_vptofh was replaced with vop_vptofh.
+#endif
 vfs_init_t		vfs_stdinit;
 vfs_uninit_t		vfs_stduninit;
 vfs_extattrctl_t	vfs_stdextattrctl;

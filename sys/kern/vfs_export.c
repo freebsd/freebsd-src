@@ -337,7 +337,7 @@ vfs_setpublicfs(struct mount *mp, struct netexport *nep,
 	if ((error = VFS_ROOT(mp, LK_EXCLUSIVE, &rvp, curthread /* XXX */)))
 		return (error);
 
-	if ((error = VFS_VPTOFH(rvp, &nfs_pub.np_handle.fh_fid)))
+	if ((error = VOP_VPTOFH(rvp, &nfs_pub.np_handle.fh_fid)))
 		return (error);
 
 	vput(rvp);

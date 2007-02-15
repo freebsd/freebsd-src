@@ -708,6 +708,15 @@ null_getwritemount(struct vop_getwritemount_args *ap)
 	return (0);
 }
 
+static int
+null_vptofh(struct vop_vptofh_args *ap)
+{
+	struct vnode *lvp;
+
+	lvp = NULLVPTOLOWERVP(ap->a_vp);
+	return VOP_VPTOFH(lvp, ap->a_fhp);
+}
+
 /*
  * Global vfs data structures
  */
@@ -728,4 +737,5 @@ struct vop_vector null_vnodeops = {
 	.vop_setattr =		null_setattr,
 	.vop_strategy =		VOP_EOPNOTSUPP,
 	.vop_unlock =		null_unlock,
+	.vop_vptofh =		null_vptofh,
 };

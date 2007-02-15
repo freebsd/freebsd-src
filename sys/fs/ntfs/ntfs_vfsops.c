@@ -80,7 +80,6 @@ static vfs_mount_t      ntfs_mount;
 static vfs_root_t       ntfs_root;
 static vfs_statfs_t     ntfs_statfs;
 static vfs_unmount_t    ntfs_unmount;
-static vfs_vptofh_t     ntfs_vptofh;
 
 static b_strategy_t     ntfs_bufstrategy;
 
@@ -622,24 +621,6 @@ ntfs_fhtovp(
 	return (0);
 }
 
-static int
-ntfs_vptofh(
-	struct vnode *vp,
-	struct fid *fhp)
-{
-	register struct ntnode *ntp;
-	register struct ntfid *ntfhp;
-
-	ddprintf(("ntfs_fhtovp(): %p\n", vp));
-
-	ntp = VTONT(vp);
-	ntfhp = (struct ntfid *)fhp;
-	ntfhp->ntfid_len = sizeof(struct ntfid);
-	ntfhp->ntfid_ino = ntp->i_number;
-	/* ntfhp->ntfid_gen = ntp->i_gen; */
-	return (0);
-}
-
 int
 ntfs_vgetex(
 	struct mount *mp,
@@ -787,7 +768,6 @@ static struct vfsops ntfs_vfsops = {
 	.vfs_uninit =	ntfs_uninit,
 	.vfs_unmount =	ntfs_unmount,
 	.vfs_vget =	ntfs_vget,
-	.vfs_vptofh =	ntfs_vptofh,
 };
 VFS_SET(ntfs_vfsops, ntfs, 0);
 MODULE_VERSION(ntfs, 1);
