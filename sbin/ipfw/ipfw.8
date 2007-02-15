@@ -63,6 +63,12 @@
 .Op Ar number ...
 .Pp
 .Nm
+.Cm nat
+.Ar number
+.Cm config
+.Ar config-options
+.Pp
+.Nm
 .Op Fl cfnNqS
 .Oo
 .Fl p Ar preproc
@@ -733,6 +739,13 @@ To enable
 .Cm fwd
 a custom kernel needs to be compiled with the option
 .Cd "options IPFIREWALL_FORWARD" .
+.It Cm nat Ar nat_nr
+Pass packet to a
+nat instance
+(for network address translation, address redirect, etc.):
+see the
+.Sx NETWORK ADDRESS TRANSLATION (NAT)
+Section for further information.
 .It Cm pipe Ar pipe_nr
 Pass packet to a
 .Xr dummynet 4
