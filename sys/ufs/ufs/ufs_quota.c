@@ -96,8 +96,10 @@ getinoquota(ip)
 	struct inode *ip;
 {
 	struct ufsmount *ump;
-	struct vnode *vp = ITOV(ip);
+	struct vnode *vp;
 	int error;
+
+	vp = ITOV(ip);
 
 	/*
 	 * Disk quotas must be turned off for system files.  Currently
@@ -442,7 +444,7 @@ quotaon(td, mp, type, fname)
 	int type;
 	void *fname;
 {
-	struct ufsmount *ump = VFSTOUFS(mp);
+	struct ufsmount *ump;
 	struct vnode *vp, **vpp;
 	struct vnode *mvp;
 	struct dquot *dq;
@@ -457,6 +459,7 @@ quotaon(td, mp, type, fname)
 	if (error)
 		return (error);
 
+	ump = VFSTOUFS(mp);
 	vpp = &ump->um_quotas[type];
 	NDINIT(&nd, LOOKUP, FOLLOW, UIO_USERSPACE, fname, td);
 	flags = FREAD | FWRITE;
@@ -542,7 +545,7 @@ quotaoff(td, mp, type)
 {
 	struct vnode *vp;
 	struct vnode *qvp, *mvp;
-	struct ufsmount *ump = VFSTOUFS(mp);
+	struct ufsmount *ump;
 	struct dquot *dq;
 	struct inode *ip;
 	int error;
@@ -555,6 +558,7 @@ quotaoff(td, mp, type)
 	if (error)
 		return (error);
 
+	ump = VFSTOUFS(mp);
 	if ((qvp = ump->um_quotas[type]) == NULLVP)
 		return (0);
 	ump->um_qflags[type] |= QTF_CLOSING;
@@ -665,7 +669,7 @@ setquota(td, mp, id, type, addr)
 {
 	struct dquot *dq;
 	struct dquot *ndq;
-	struct ufsmount *ump = VFSTOUFS(mp);
+	struct ufsmount *ump;
 	struct dqblk newlim;
 	int error;
 
@@ -674,6 +678,7 @@ setquota(td, mp, id, type, addr)
 	if (error)
 		return (error);
 
+	ump = VFSTOUFS(mp);
 	error = copyin(addr, &newlim, sizeof (struct dqblk));
 	if (error)
 		return (error);
@@ -731,7 +736,7 @@ setuse(td, mp, id, type, addr)
 	void *addr;
 {
 	struct dquot *dq;
-	struct ufsmount *ump = VFSTOUFS(mp);
+	struct ufsmount *ump;
 	struct dquot *ndq;
 	struct dqblk usage;
 	int error;
@@ -741,6 +746,7 @@ setuse(td, mp, id, type, addr)
 	if (error)
 		return (error);
 
+	ump = VFSTOUFS(mp);
 	error = copyin(addr, &usage, sizeof (struct dqblk));
 	if (error)
 		return (error);
