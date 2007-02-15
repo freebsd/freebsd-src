@@ -422,7 +422,7 @@ ixpnpe_init(struct ixpnpe_softc *sc, const char *imageName, uint32_t imageId)
 {
     uint32_t imageSize;
     const uint32_t *imageCodePtr;
-    struct firmware *fw;
+    const struct firmware *fw;
     int error;
 
     DPRINTF(sc->sc_dev, "load %s, imageId 0x%08x\n", imageName, imageId);
