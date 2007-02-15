@@ -1122,7 +1122,35 @@ appeared in an early version of
 Besides being used for network packets, they were used
 to store various dynamic structures, such as routing table
 entries, interface addresses, protocol control blocks, etc.
+In more recent
+.Fx
+use of
+.Vt mbufs
+is almost entirely limited to packet storage, with
+.Xr uma 9
+zones being used directly to store other network-related memory.
+.Pp
+Historically, the
+.Vt mbuf
+allocator has been a special-purpose memory allocator able to run in
+interrupt contexts and allocating from a special kernel address space map.
+As of
+.Fx 5.3 ,
+the
+.Vt mbuf
+allocator is a wrapper around
+.Xr uma 9 ,
+allowing caching of
+.Vt mbufs ,
+clusters, and
+.Vt mbuf
++ cluster pairs in per-CPU caches, as well as bringing other benefits of
+slab allocation.
 .Sh AUTHORS
 The original
 .Nm
 manual page was written by Yar Tikhiy.
+The
+.Xr uma 9
+.Vt mbuf
+allocator was written by Bosko Milekic.
