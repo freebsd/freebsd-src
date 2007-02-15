@@ -72,8 +72,8 @@ hostname_start()
 
 	# All right, it is safe to invoke hostname(1) now.
 	#
+	echo "Setting hostname: ${hostname}."
 	/bin/hostname "${hostname}"
-	echo "Setting hostname: `hostname`."
 }
 
 load_rc_config $name
