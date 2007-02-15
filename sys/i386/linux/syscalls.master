@@ -224,7 +224,7 @@
 123	AUE_NULL	STD	{ int linux_modify_ldt(l_int func, \
 				    void *ptr, l_ulong bytecount); }
 124	AUE_ADJTIME	STD	{ int linux_adjtimex(void); }
-125	AUE_MPROTECT	NOPROTO	{ int mprotect(caddr_t addr, int len, \
+125	AUE_MPROTECT	STD	{ int linux_mprotect(caddr_t addr, int len, \
 				    int prot); }
 126	AUE_SIGPROCMASK	STD	{ int linux_sigprocmask(l_int how, \
 				    l_osigset_t *mask, l_osigset_t *omask); }
