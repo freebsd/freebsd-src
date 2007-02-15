@@ -48,6 +48,7 @@ __FBSDID("$FreeBSD$");
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <ctype.h>
 #include <unistd.h>
 
 typedef enum { false, true } bool;
@@ -66,6 +67,7 @@ static	bool loudsubs;		/* Suppress output from helper programs? */
 static	bool norun;		/* Actually run the helper programs? */
 static	int unit;      		/* The unit we're working with. */
 static	const char *mdname;	/* Name of memory disk device (e.g., "md"). */
+static	const char *mdsuffix;	/* Suffix of memory disk device (e.g., ".uzip"). */
 static	size_t mdnamelen;	/* Length of mdname. */
 static	const char *path_mdconfig =_PATH_MDCONFIG;
 
@@ -236,13 +238,16 @@ main(int argc, char **argv)
 		unitstr += 5;
 	if (strncmp(unitstr, mdname, mdnamelen) == 0)
 		unitstr += mdnamelen;
-	if (*unitstr == '\0') {
+	if (!isdigit(*unitstr)) {
 		autounit = true;
 		unit = -1;
+		mdsuffix = unitstr;
 	} else {
 		ul = strtoul(unitstr, &p, 10);
-		if (ul == ULONG_MAX || *p != '\0')
+		if (ul == ULONG_MAX)
 			errx(1, "bad device unit: %s", unitstr);
+		if (*p != '\0')
+			mdsuffix = p;
 		unit = ul;
 	}
 
@@ -424,8 +429,8 @@ do_mount(const char *args, const char *mtpoint)
 {
 	int rv;
 
-	rv = run(NULL, "%s%s /dev/%s%d %s", _PATH_MOUNT, args,
-	    mdname, unit, mtpoint);
+	rv = run(NULL, "%s%s /dev/%s%d%s %s", _PATH_MOUNT, args,
+	    mdname, unit, mdsuffix, mtpoint);
 	if (rv)
 		errx(1, "mount exited with error code %d", rv);
 }
