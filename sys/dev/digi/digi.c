@@ -795,7 +795,7 @@ digi_loadmoduledata(struct digi_softc *sc)
 	free(sym, M_TEMP);
 	if (symptr == NULL) {
 		printf("digi_%s.ko: Symbol `%s' not found\n", sc->module, sym);
-		linker_file_unload(lf, LINKER_UNLOAD_FORCE);
+		linker_release_module(NULL, NULL, lf);
 		return (EINVAL);
 	}
 
@@ -803,7 +803,7 @@ digi_loadmoduledata(struct digi_softc *sc)
 	if (digi_mod->dm_version != DIGI_MOD_VERSION) {
 		printf("digi_%s.ko: Invalid version %d (need %d)\n",
 		    sc->module, digi_mod->dm_version, DIGI_MOD_VERSION);
-		linker_file_unload(lf, LINKER_UNLOAD_FORCE);
+		linker_release_module(NULL, NULL, lf);
 		return (EINVAL);
 	}
 
@@ -825,7 +825,7 @@ digi_loadmoduledata(struct digi_softc *sc)
 		bcopy(digi_mod->dm_link.data, sc->link.data, sc->link.size);
 	}
 
-	linker_file_unload(lf, LINKER_UNLOAD_FORCE);
+	linker_release_module(NULL, NULL, lf);
 
 	return (0);
 }
