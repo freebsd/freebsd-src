@@ -656,10 +656,11 @@ usage(void)
 {
 
 	fprintf(stderr,
-"usage: %s [-DLlMNPSUX] [-a maxcontig] [-b block-size] [-c cylinders]\n"
-"\t[-d rotdelay] [-E path-mdconfig] [-e maxbpg] [-F file] [-f frag-size]\n"
-"\t[-i bytes] [-m percent-free] [-n rotational-positions] [-O optimization]\n"
-"\t[-o mount-options] [-p permissions] [-s size] [-v version]\n"
-"\t[-w user:group] md-device mount-point\n", getprogname());
+"usage: %s [-DLlMNPSUX] [-a maxcontig] [-b block-size]\n"
+"\t[-c blocks-per-cylinder-group][-d max-extent-size] [-E path-mdconfig]\n"
+"\t[-e maxbpg] [-F file] [-f frag-size] [-i bytes] [-m percent-free]\n"
+"\t[-n rotational-positions] [-O optimization] [-o mount-options]\n"
+"\t[-p permissions] [-s size] [-v version] [-w user:group]\n"
+"\tmd-device mount-point\n", getprogname());
 	exit(1);
 }

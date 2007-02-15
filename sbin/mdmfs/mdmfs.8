@@ -25,7 +25,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd November 3, 2006
+.Dd February 15, 2007
 .Dt MDMFS 8
 .Os
 .Sh NAME
@@ -39,8 +39,8 @@ driver
 .Op Fl DLlMNPSUX
 .Op Fl a Ar maxcontig
 .Op Fl b Ar block-size
-.Op Fl c Ar cylinders
-.Op Fl d Ar rotdelay
+.Op Fl c Ar blocks-per-cylinder-group
+.Op Fl d Ar max-extent-size 
 .Op Fl E Ar path-mdconfig
 .Op Fl e Ar maxbpg
 .Op Fl F Ar file
@@ -114,19 +114,18 @@ out before forcing a rotational delay
 option).
 .It Fl b Ar block-size
 The block size of the file system, in bytes.
-.It Fl c Ar cylinders
-The number of cylinders per cylinder group in the file system.
+.It Fl c Ar blocks-per-cylinder-group
+The number of blocks per cylinder group in the file system.
 .It Fl D
 If not using auto-unit,
 do not run
 .Xr mdconfig 8
 to try to detach the unit before attaching it.
-.It Fl d Ar rotdelay
-Specify the minimum time in milliseconds required to initiate another
-disk transfer on the same cylinder.
-Modern disks with read/write-behind achieve higher performance without
-this feature,
-so it is best to leave it at 0 milliseconds.
+.It Fl d Ar max-extent-size
+The file system may choose to store large files using extents.
+This parameter specifies the largest extent size that may be
+used.  It is presently limited to its default value which is 16
+times the file system blocksize.
 .It Fl E Ar path-mdconfig
 Use
 .Ar path-mdconfig
