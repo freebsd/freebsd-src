@@ -52,6 +52,9 @@
 **                                                       with scsi pass-through command
 **                                                       add new device id of sas raid adapters 
 **                                                       code fit for SPARC64 & PPC 
+**     1.20.00.14   02/05/2007         Erich Chen        bug fix for incorrect ccb_h.status report
+**                                                       and cause g_vfs_done() read write error
+
 ******************************************************************************************
 * $FreeBSD$
 */
@@ -1299,7 +1302,8 @@ static void arcmsr_executesrb(void *arg, bus_dma_segment_t *dm_segs, int nseg, i
 	}
 	pccb->ccb_h.status |= CAM_SIM_QUEUED;
 	if(acb->srboutstandingcount >= ARCMSR_MAX_OUTSTANDING_CMD) {
-		pccb->ccb_h.status |= CAM_SCSI_BUSY;
+		pccb->ccb_h.status &= ~CAM_STATUS_MASK;
+		pccb->ccb_h.status |= CAM_REQUEUE_REQ;
 		arcmsr_srb_complete(srb, 0);
 		return;
 	}
