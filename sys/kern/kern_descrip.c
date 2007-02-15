@@ -2544,8 +2544,12 @@ file_type_to_name(short type)
 		return ("pipe");
 	case DTYPE_FIFO:
 		return ("fifo");
+	case DTYPE_KQUEUE:
+		return ("kque");
 	case DTYPE_CRYPTO:
 		return ("crpt");
+	case DTYPE_MQUEUE:
+		return ("mque");
 	default:
 		return ("unkn");
 	}
