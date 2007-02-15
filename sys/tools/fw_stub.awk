@@ -125,7 +125,7 @@ for (file_i = 0; file_i < num_files; file_i++) {
 printc("\nstatic int\n"\
 opt_m "_fw_modevent(module_t mod, int type, void *unused)\
 {\
-	struct firmware *fp, *parent;\
+	const struct firmware *fp, *parent;\
 	int error;\
 	switch (type) {\
 	case MOD_LOAD:");

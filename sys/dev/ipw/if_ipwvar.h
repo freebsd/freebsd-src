@@ -99,7 +99,7 @@ struct ipw_softc {
 	bus_space_tag_t			sc_st;
 	bus_space_handle_t		sc_sh;
 	void 				*sc_ih;
-	struct firmware			*sc_firmware;
+	const struct firmware		*sc_firmware;
 
 	int				sc_tx_timer;
 

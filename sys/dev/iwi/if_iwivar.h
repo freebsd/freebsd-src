@@ -108,7 +108,7 @@ struct iwi_node {
 };
 
 struct iwi_fw {
-	struct firmware		*fp;		/* image handle */
+	const struct firmware	*fp;		/* image handle */
 	const char		*data;		/* firmware image data */
 	size_t			size;		/* firmware image size */
 	const char		*name;		/* associated image name */

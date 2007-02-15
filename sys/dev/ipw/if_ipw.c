@@ -1956,7 +1956,7 @@ ipw_init(void *priv)
 	struct ipw_softc *sc = priv;
 	struct ieee80211com *ic = &sc->sc_ic;
 	struct ifnet *ifp = ic->ic_ifp;
-	struct firmware *fp;
+	const struct firmware *fp;
 	const struct ipw_firmware_hdr *hdr;
 	const char *imagename, *fw;
 	int owned;
