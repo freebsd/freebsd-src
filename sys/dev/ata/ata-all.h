@@ -228,6 +228,29 @@
 #define ATA_AHCI_CT_SG_OFFSET           128
 #define ATA_AHCI_CT_SIZE                256
 
+struct ata_ahci_dma_prd {
+    u_int64_t                   dba;
+    u_int32_t                   reserved;
+    u_int32_t                   dbc;            /* 0 based */
+#define ATA_AHCI_PRD_MASK       0x003fffff      /* max 4MB */
+#define ATA_AHCI_PRD_IPC        (1<<31)
+} __packed;
+
+struct ata_ahci_cmd_tab {
+    u_int8_t                    cfis[64];
+    u_int8_t                    acmd[32];
+    u_int8_t                    reserved[32];
+    struct ata_ahci_dma_prd     prd_tab[16];
+} __packed;
+
+struct ata_ahci_cmd_list {
+    u_int16_t                   cmd_flags;
+    u_int16_t                   prd_length;     /* PRD entries */
+    u_int32_t                   bytecount;
+    u_int64_t                   cmd_table_phys; /* 128byte aligned */
+} __packed;
+
+
 /* DMA register defines */
 #define ATA_DMA_ENTRIES                 256
 #define ATA_DMA_EOT                     0x80000000
