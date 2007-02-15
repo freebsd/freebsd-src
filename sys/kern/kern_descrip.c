@@ -2577,20 +2577,43 @@ file_to_first_proc(struct file *fp)
 	return (NULL);
 }
 
+static void
+db_print_file(struct file *fp, int header)
+{
+	struct proc *p;
+
+	if (header)
+		db_printf("%8s %4s %8s %8s %4s %5s %6s %8s %5s %12s\n",
+		    "File", "Type", "Data", "Flag", "GCFl", "Count",
+		    "MCount", "Vnode", "FPID", "FCmd");
+	p = file_to_first_proc(fp);
+	db_printf("%8p %4s %8p %08x %04x %5d %6d %8p %5d %12s\n", fp,
+	    file_type_to_name(fp->f_type), fp->f_data, fp->f_flag,
+	    fp->f_gcflag, fp->f_count, fp->f_msgcount, fp->f_vnode,
+	    p != NULL ? p->p_pid : -1, p != NULL ? p->p_comm : "-");
+}
+
+DB_SHOW_COMMAND(file, db_show_file)
+{
+	struct file *fp;
+
+	if (!have_addr) {
+		db_printf("usage: show file <addr>\n");
+		return;
+	}
+	fp = (struct file *)addr;
+	db_print_file(fp, 1);
+}
+
 DB_SHOW_COMMAND(files, db_show_files)
 {
 	struct file *fp;
-	struct proc *p;
+	int header;
 
-	db_printf("%8s %4s %8s %8s %4s %5s %6s %8s %5s %12s\n", "File",
-	    "Type", "Data", "Flag", "GCFl", "Count", "MCount", "Vnode",
-	    "FPID", "FCmd");
+	header = 1;
 	LIST_FOREACH(fp, &filehead, f_list) {
-		p = file_to_first_proc(fp);
-		db_printf("%8p %4s %8p %08x %04x %5d %6d %8p %5d %12s\n", fp,
-		    file_type_to_name(fp->f_type), fp->f_data, fp->f_flag,
-		    fp->f_gcflag, fp->f_count, fp->f_msgcount, fp->f_vnode,
-		    p != NULL ? p->p_pid : -1, p != NULL ? p->p_comm : "-");
+		db_print_file(fp, header);
+		header = 0;
 	}
 }
 #endif
