@@ -2169,7 +2169,7 @@ iwi_reset(struct iwi_softc *sc)
 static const struct iwi_firmware_ohdr *
 iwi_setup_ofw(struct iwi_softc *sc, struct iwi_fw *fw)
 {
-	struct firmware *fp = fw->fp;
+	const struct firmware *fp = fw->fp;
 	const struct iwi_firmware_ohdr *hdr;
 
 	if (fp->datasize < sizeof (struct iwi_firmware_ohdr)) {
@@ -2234,7 +2234,7 @@ iwi_get_firmware(struct iwi_softc *sc)
 {
 	struct ieee80211com *ic = &sc->sc_ic;
 	const struct iwi_firmware_hdr *hdr;
-	struct firmware *fp;
+	const struct firmware *fp;
 
 	/* invalidate cached firmware on mode change */
 	if (sc->fw_mode != ic->ic_opmode)
