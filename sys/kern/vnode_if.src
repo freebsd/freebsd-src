@@ -579,3 +579,11 @@ vop_setlabel {
 	IN struct ucred *cred;
 	IN struct thread *td;
 };
+
+
+%% setlabel	vp	= = =
+
+vop_vptofh {
+	IN struct vnode *vp;
+	IN struct fid *fhp;
+};

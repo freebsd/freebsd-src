@@ -80,6 +80,7 @@ static vop_readdir_t	ntfs_readdir;
 static vop_cachedlookup_t	ntfs_lookup;
 static vop_fsync_t	ntfs_fsync;
 static vop_pathconf_t	ntfs_pathconf;
+static vop_vptofh_t	ntfs_vptofh;
 
 int	ntfs_prtactive = 1;	/* 1 => print out reclaim of active vnodes */
 
@@ -731,6 +732,26 @@ ntfs_pathconf(ap)
 	/* NOTREACHED */
 }
 
+int
+ntfs_vptofh(ap)
+	struct vop_vptofh_args /* {
+		struct vnode *a_vp;
+		struct fid *a_fhp;
+	} */ *ap;
+{
+	register struct ntnode *ntp;
+	register struct ntfid *ntfhp;
+
+	ddprintf(("ntfs_fhtovp(): %p\n", ap->a_vp));
+
+	ntp = VTONT(ap->a_vp);
+	ntfhp = (struct ntfid *)ap->a_fhp;
+	ntfhp->ntfid_len = sizeof(struct ntfid);
+	ntfhp->ntfid_ino = ntp->i_number;
+	/* ntfhp->ntfid_gen = ntp->i_gen; */
+	return (0);
+}
+
 /*
  * Global vfs data structures
  */
@@ -752,4 +773,5 @@ struct vop_vector ntfs_vnodeops = {
 	.vop_reclaim =		ntfs_reclaim,
 	.vop_strategy =		ntfs_strategy,
 	.vop_write =		ntfs_write,
+	.vop_vptofh =		ntfs_vptofh,
 };

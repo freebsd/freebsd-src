@@ -74,6 +74,13 @@ struct udf_dirstream {
 	int		fid_fragment;
 };
 
+struct ifid {
+	u_short	ifid_len;
+	u_short	ifid_pad;
+	int	ifid_ino;
+	long	ifid_start;
+};
+
 #define	VFSTOUDFFS(mp)	((struct udf_mnt *)((mp)->mnt_data))
 #define	VTON(vp)	((struct udf_node *)((vp)->v_data))
 

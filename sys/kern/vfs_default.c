@@ -96,6 +96,7 @@ struct vop_vector default_vnodeops = {
 	.vop_revoke =		VOP_PANIC,
 	.vop_strategy =		vop_nostrategy,
 	.vop_unlock =		vop_stdunlock,
+	.vop_vptofh =		vop_stdvptofh,
 };
 
 /*
@@ -511,6 +512,12 @@ vop_stdputpages(ap)
 	     ap->a_sync, ap->a_rtvals);
 }
 
+int
+vop_stdvptofh(struct vop_vptofh_args *ap)
+{
+	return VFS_VPTOFH(ap->a_vp, ap->a_fhp);
+}
+
 /*
  * vfs default ops
  * used to fill the vfs function table to get reasonable default return values.
@@ -536,6 +543,7 @@ vfs_stdstatfs (mp, sbp, td)
 	return (EOPNOTSUPP);
 }
 
+#if __FreeBSD_version < 800000
 int
 vfs_stdvptofh (vp, fhp)
 	struct vnode *vp;
@@ -544,6 +552,9 @@ vfs_stdvptofh (vp, fhp)
 
 	return (EOPNOTSUPP);
 }
+#else
+#error Remove this code, vfs_vptofh was replaced with vop_vptofh.
+#endif
 
 int
 vfs_stdquotactl (mp, cmds, uid, arg, td)

@@ -87,7 +87,6 @@ static vfs_unmount_t ffs_unmount;
 static vfs_mount_t ffs_mount;
 static vfs_statfs_t ffs_statfs;
 static vfs_fhtovp_t ffs_fhtovp;
-static vfs_vptofh_t ffs_vptofh;
 static vfs_sync_t ffs_sync;
 
 static struct vfsops ufs_vfsops = {
@@ -103,7 +102,6 @@ static struct vfsops ufs_vfsops = {
 	.vfs_uninit =		ffs_uninit,
 	.vfs_unmount =		ffs_unmount,
 	.vfs_vget =		ffs_vget,
-	.vfs_vptofh =		ffs_vptofh,
 };
 
 VFS_SET(ufs_vfsops, ufs, 0);
@@ -1508,26 +1506,6 @@ ffs_fhtovp(mp, fhp, vpp)
 	    ufhp->ufid_ino >= fs->fs_ncg * fs->fs_ipg)
 		return (ESTALE);
 	return (ufs_fhtovp(mp, ufhp, vpp));
-}
-
-/*
- * Vnode pointer to File handle
- */
-/* ARGSUSED */
-static int
-ffs_vptofh(vp, fhp)
-	struct vnode *vp;
-	struct fid *fhp;
-{
-	struct inode *ip;
-	struct ufid *ufhp;
-
-	ip = VTOI(vp);
-	ufhp = (struct ufid *)fhp;
-	ufhp->ufid_len = sizeof(struct ufid);
-	ufhp->ufid_ino = ip->i_number;
-	ufhp->ufid_gen = ip->i_gen;
-	return (0);
 }
 
 /*

@@ -78,6 +78,7 @@ static vop_remove_t	hpfs_remove;
 static vop_bmap_t	hpfs_bmap;
 static vop_fsync_t	hpfs_fsync;
 static vop_pathconf_t	hpfs_pathconf;
+static vop_vptofh_t	hpfs_vptofh;
 
 static int
 hpfs_fsync(ap)
@@ -1208,6 +1209,24 @@ hpfs_pathconf(ap)
 	/* NOTREACHED */
 }
 
+int
+hpfs_vptofh(ap)
+	struct vop_vptofh_args /* {
+		struct vnode *a_vp;
+		struct fid *a_fhp;
+	} */ *ap;
+{
+	register struct hpfsnode *hpp;
+	register struct hpfid *hpfhp;
+
+	hpp = VTOHP(ap->a_vp);
+	hpfhp = (struct hpfid *)ap->a_fhp;
+	hpfhp->hpfid_len = sizeof(struct hpfid);
+	hpfhp->hpfid_ino = hpp->h_no;
+	/* hpfhp->hpfid_gen = hpp->h_gen; */
+	return (0);
+}
+
 
 /*
  * Global vfs data structures
@@ -1235,4 +1254,5 @@ struct vop_vector hpfs_vnodeops = {
 	.vop_setattr =		hpfs_setattr,
 	.vop_strategy =		hpfs_strategy,
 	.vop_write =		hpfs_write,
+	.vop_vptofh =		hpfs_vptofh,
 };

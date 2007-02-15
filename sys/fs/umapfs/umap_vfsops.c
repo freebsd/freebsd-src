@@ -59,7 +59,6 @@ static vfs_quotactl_t		umapfs_quotactl;
 static vfs_statfs_t		umapfs_statfs;
 static vfs_unmount_t		umapfs_unmount;
 static vfs_fhtovp_t		umapfs_fhtovp;
-static vfs_vptofh_t		umapfs_vptofh;
 static vfs_checkexp_t		umapfs_checkexp;
 static vfs_vget_t		umapfs_vget;
 static vfs_extattrctl_t	umapfs_extattrctl;
@@ -384,17 +383,6 @@ umapfs_checkexp(mp, nam, exflagsp, credanonp)
 }
 
 static int
-umapfs_vptofh(vp, fhp)
-	struct vnode *vp;
-	struct fid *fhp;
-{
-	struct vnode *lvp;
-
-	lvp = UMAPVPTOLOWERVP(vp);
-	return (VFS_VPTOFH(lvp, fhp));
-}
-
-static int
 umapfs_extattrctl(mp, cmd, filename_vp, namespace, attrname, td)
 	struct mount *mp;
 	int cmd;
@@ -419,7 +407,6 @@ static struct vfsops umap_vfsops = {
 	.vfs_statfs =    		umapfs_statfs,
 	.vfs_unmount =   		umapfs_unmount,
 	.vfs_vget =      		umapfs_vget,
-	.vfs_vptofh =    		umapfs_vptofh,
 };
 
 VFS_SET(umap_vfsops, umapfs, VFCF_LOOPBACK);

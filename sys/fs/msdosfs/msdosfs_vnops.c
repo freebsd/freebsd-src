@@ -107,6 +107,7 @@ static vop_bmap_t	msdosfs_bmap;
 static vop_strategy_t	msdosfs_strategy;
 static vop_print_t	msdosfs_print;
 static vop_pathconf_t	msdosfs_pathconf;
+static vop_vptofh_t	msdosfs_vptofh;
 
 /*
  * Some general notes:
@@ -1904,6 +1905,25 @@ msdosfs_advlock(ap)
 	return (lf_advlock(ap, &dep->de_lockf, dep->de_FileSize));
 }
 
+static int
+msdosfs_vptofh(ap)
+	struct vop_vptofh_args /* {
+		struct vnode *a_vp;
+		struct fid *a_fhp;
+	} */ *ap;
+{
+	struct denode *dep;
+	struct defid *defhp;
+
+	dep = VTODE(ap->a_vp);
+	defhp = (struct defid *)ap->a_fhp;
+	defhp->defid_len = sizeof(struct defid);
+	defhp->defid_dirclust = dep->de_dirclust;
+	defhp->defid_dirofs = dep->de_diroffset;
+	/* defhp->defid_gen = dep->de_gen; */
+	return (0);
+}
+
 /* Global vfs data structures for msdosfs */
 struct vop_vector msdosfs_vnodeops = {
 	.vop_default =		&default_vnodeops,
@@ -1934,4 +1954,5 @@ struct vop_vector msdosfs_vnodeops = {
 	.vop_strategy =		msdosfs_strategy,
 	.vop_symlink =		msdosfs_symlink,
 	.vop_write =		msdosfs_write,
+	.vop_vptofh =		msdosfs_vptofh,
 };
