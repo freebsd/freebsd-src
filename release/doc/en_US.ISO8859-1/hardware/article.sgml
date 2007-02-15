@@ -1,3 +1,59 @@
+<!-- $FreeBSD$ -->
+
+<!DOCTYPE article PUBLIC "-//FreeBSD//DTD DocBook V4.1-Based Extension//EN" [
+<!ENTITY % articles.ent PUBLIC "-//FreeBSD//ENTITIES DocBook FreeBSD Articles Entity Set//EN">
+%articles.ent;
+
+<!ENTITY % release PUBLIC "-//FreeBSD//ENTITIES Release Specification//EN">
+%release;
+<!ENTITY % devauto PUBLIC "-//FreeBSD//ENTITIES Auto Generated Device Lists//EN">
+%devauto;
+
+<!-- Text constants which probably don't need to be changed.-->
+
+<!-- Architecture names -->
+<!ENTITY arch.amd64 "amd64">
+<!ENTITY arch.arm "arm">
+<!ENTITY arch.i386 "i386">
+<!ENTITY arch.ia64 "ia64">
+<!ENTITY arch.pc98 "pc98">
+<!ENTITY arch.powerpc "powerpc">
+<!ENTITY arch.sparc64 "sparc64">
+<!ENTITY arch.sun4v "sun4v">
+
+]>
+
+<article>
+
+<articleinfo>
+  <title>&os; &release.current; Hardware Notes</title>
+
+  <corpauthor>The &os; Documentation Project</corpauthor>
+
+  <copyright>
+    <year>2000</year>
+    <year>2001</year>
+    <year>2002</year>
+    <year>2003</year>
+    <year>2004</year>
+    <year>2005</year>
+    <year>2006</year>
+    <holder role="mailto:doc@FreeBSD.org">The &os; Documentation Project</holder>
+  </copyright>
+</articleinfo>
+
+<sect1 id="intro">
+  <title>Introduction</title>
+
+  <para>This document contains the hardware compatibility notes for
+  &os; &release.current;.
+  It lists
+  devices known to work on this platform, as well as some notes on
+  boot-time kernel customization that may be useful when attempting to
+  configure support for new devices.</para>
+
+</sect1>
+
 <!--
 
 	The "Supported Devices" section of the release notes.
@@ -965,3 +1021,5 @@
 
   </sect2>
 </sect1>
+
+</article>
