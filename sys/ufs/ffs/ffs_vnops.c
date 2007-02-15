@@ -118,6 +118,7 @@ static vop_getextattr_t	ffs_getextattr;
 static vop_listextattr_t	ffs_listextattr;
 static vop_openextattr_t	ffs_openextattr;
 static vop_setextattr_t	ffs_setextattr;
+static vop_vptofh_t	ffs_vptofh;
 
 
 /* Global vfs data structures for ufs. */
@@ -129,12 +130,14 @@ struct vop_vector ffs_vnodeops1 = {
 	.vop_read =		ffs_read,
 	.vop_reallocblks =	ffs_reallocblks,
 	.vop_write =		ffs_write,
+	.vop_vptofh =		ffs_vptofh,
 };
 
 struct vop_vector ffs_fifoops1 = {
 	.vop_default =		&ufs_fifoops,
 	.vop_fsync =		ffs_fsync,
 	.vop_reallocblks =	ffs_reallocblks, /* XXX: really ??? */
+	.vop_vptofh =		ffs_vptofh,
 };
 
 /* Global vfs data structures for ufs. */
@@ -152,6 +155,7 @@ struct vop_vector ffs_vnodeops2 = {
 	.vop_listextattr =	ffs_listextattr,
 	.vop_openextattr =	ffs_openextattr,
 	.vop_setextattr =	ffs_setextattr,
+	.vop_vptofh =		ffs_vptofh,
 };
 
 struct vop_vector ffs_fifoops2 = {
@@ -166,6 +170,7 @@ struct vop_vector ffs_fifoops2 = {
 	.vop_listextattr =	ffs_listextattr,
 	.vop_openextattr =	ffs_openextattr,
 	.vop_setextattr =	ffs_setextattr,
+	.vop_vptofh =		ffs_vptofh,
 };
 
 /*
@@ -1689,4 +1694,27 @@ vop_setextattr {
 	if (stand_alone)
 		error = ffs_close_ea(ap->a_vp, 1, ap->a_cred, ap->a_td);
 	return(error);
+}
+
+/*
+ * Vnode pointer to File handle
+ */
+static int
+ffs_vptofh(struct vop_vptofh_args *ap)
+/*
+vop_vptofh {
+	IN struct vnode *a_vp;
+	IN struct fid *a_fhp;
+};
+*/
+{
+	struct inode *ip;
+	struct ufid *ufhp;
+
+	ip = VTOI(ap->a_vp);
+	ufhp = (struct ufid *)ap->a_fhp;
+	ufhp->ufid_len = sizeof(struct ufid);
+	ufhp->ufid_ino = ip->i_number;
+	ufhp->ufid_gen = ip->i_gen;
+	return (0);
 }

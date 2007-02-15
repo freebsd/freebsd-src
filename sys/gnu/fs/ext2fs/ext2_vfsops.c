@@ -92,7 +92,6 @@ static vfs_statfs_t		ext2_statfs;
 static vfs_sync_t		ext2_sync;
 static vfs_vget_t		ext2_vget;
 static vfs_fhtovp_t		ext2_fhtovp;
-static vfs_vptofh_t		ext2_vptofh;
 static vfs_mount_t		ext2_mount;
 
 MALLOC_DEFINE(M_EXT2NODE, "ext2_node", "EXT2 vnode private part");
@@ -106,7 +105,6 @@ static struct vfsops ext2fs_vfsops = {
 	.vfs_sync =		ext2_sync,
 	.vfs_unmount =		ext2_unmount,
 	.vfs_vget =		ext2_vget,
-	.vfs_vptofh =		ext2_vptofh,
 };
 
 VFS_SET(ext2fs_vfsops, ext2fs, 0);
@@ -1095,26 +1093,6 @@ ext2_fhtovp(mp, fhp, vpp)
 	}
 	*vpp = nvp;
 	vnode_create_vobject(*vpp, 0, curthread);
-	return (0);
-}
-
-/*
- * Vnode pointer to File handle
- */
-/* ARGSUSED */
-static int
-ext2_vptofh(vp, fhp)
-	struct vnode *vp;
-	struct fid *fhp;
-{
-	struct inode *ip;
-	struct ufid *ufhp;
-
-	ip = VTOI(vp);
-	ufhp = (struct ufid *)fhp;
-	ufhp->ufid_len = sizeof(struct ufid);
-	ufhp->ufid_ino = ip->i_number;
-	ufhp->ufid_gen = ip->i_gen;
 	return (0);
 }
 

@@ -26,7 +26,6 @@ static vfs_mount_t	reiserfs_mount;
 static vfs_root_t	reiserfs_root;
 static vfs_statfs_t	reiserfs_statfs;
 static vfs_unmount_t	reiserfs_unmount;
-static vfs_vptofh_t	reiserfs_vptofh;
 
 static int	reiserfs_mountfs(struct vnode *devvp, struct mount *mp,
 		    struct thread *td);
@@ -374,30 +373,6 @@ reiserfs_fhtovp(struct mount *mp, struct fid *fhp, struct vnode **vpp)
 
 	reiserfs_log(LOG_DEBUG, "return it\n");
 	*vpp = nvp;
-	return (0);
-}
-
-/*
- * Vnode pointer to File handle
- */
-static int
-reiserfs_vptofh(struct vnode *vp, struct fid *fhp)
-{
-	struct rfid *rfhp;
-	struct reiserfs_node *ip;
-
-	ip = VTOI(vp);
-	reiserfs_log(LOG_DEBUG,
-	    "fill *fhp with inode (dirid=%d, objectid=%d)\n",
-	    ip->i_ino, ip->i_number);
-
-	rfhp = (struct rfid *)fhp;
-	rfhp->rfid_len      = sizeof(struct rfid);
-	rfhp->rfid_dirid    = ip->i_ino;
-	rfhp->rfid_objectid = ip->i_number;
-	rfhp->rfid_gen      = ip->i_generation;
-
-	reiserfs_log(LOG_DEBUG, "return it\n");
 	return (0);
 }
 
@@ -1180,7 +1155,6 @@ static struct vfsops reiser_vfsops = {
 	.vfs_statfs	= reiserfs_statfs,
 	//.vfs_sync	= reiserfs_sync,
 	//.vfs_vget	= reiserfs_vget,
-	.vfs_vptofh	= reiserfs_vptofh,
 };
 
 VFS_SET(reiser_vfsops, reiserfs, VFCF_READONLY);

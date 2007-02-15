@@ -74,6 +74,7 @@ static int iso_shipdir(struct isoreaddir *idp);
 static vop_readdir_t	cd9660_readdir;
 static vop_readlink_t	cd9660_readlink;
 static vop_strategy_t	cd9660_strategy;
+static vop_vptofh_t	cd9660_vptofh;
 
 /*
  * Setattr call. Only allowed for block and character special devices.
@@ -798,6 +799,32 @@ cd9660_pathconf(ap)
 }
 
 /*
+ * Vnode pointer to File handle
+ */
+static int
+cd9660_vptofh(ap)
+	struct vop_vptofh_args /* {
+		struct vnode *a_vp;
+		struct fid *a_fhp;
+	} */ *ap;
+{
+	struct iso_node *ip = VTOI(ap->a_vp);
+	struct ifid *ifhp;
+
+	ifhp = (struct ifid *)ap->a_fhp;
+	ifhp->ifid_len = sizeof(struct ifid);
+
+	ifhp->ifid_ino = ip->i_number;
+	ifhp->ifid_start = ip->iso_start;
+
+#ifdef	ISOFS_DBG
+	printf("vptofh: ino %d, start %ld\n",
+	       ifhp->ifid_ino,ifhp->ifid_start);
+#endif
+	return 0;
+}
+
+/*
  * Global vfs data structures for cd9660
  */
 struct vop_vector cd9660_vnodeops = {
@@ -817,6 +844,7 @@ struct vop_vector cd9660_vnodeops = {
 	.vop_reclaim =		cd9660_reclaim,
 	.vop_setattr =		cd9660_setattr,
 	.vop_strategy =		cd9660_strategy,
+	.vop_vptofh =		cd9660_vptofh,
 };
 
 /*
@@ -830,4 +858,5 @@ struct vop_vector cd9660_fifoops = {
 	.vop_inactive =		cd9660_inactive,
 	.vop_reclaim =		cd9660_reclaim,
 	.vop_setattr =		cd9660_setattr,
+	.vop_vptofh =		cd9660_vptofh,
 };

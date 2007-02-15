@@ -634,7 +634,7 @@ nfsrv_lookup(struct nfsrv_descript *nfsd, struct nfssvc_sock *slp,
 	vp = ndp->ni_vp;
 	bzero((caddr_t)fhp, sizeof(nfh));
 	fhp->fh_fsid = vp->v_mount->mnt_stat.f_fsid;
-	error = VFS_VPTOFH(vp, &fhp->fh_fid);
+	error = VOP_VPTOFH(vp, &fhp->fh_fid);
 	if (!error)
 		error = VOP_GETATTR(vp, vap, cred, td);
 
@@ -1977,7 +1977,7 @@ nfsrv_create(struct nfsrv_descript *nfsd, struct nfssvc_sock *slp,
 	if (!error) {
 		bzero((caddr_t)fhp, sizeof(nfh));
 		fhp->fh_fsid = nd.ni_vp->v_mount->mnt_stat.f_fsid;
-		error = VFS_VPTOFH(nd.ni_vp, &fhp->fh_fid);
+		error = VOP_VPTOFH(nd.ni_vp, &fhp->fh_fid);
 		if (!error)
 			error = VOP_GETATTR(nd.ni_vp, vap, cred, td);
 	}
@@ -2205,7 +2205,7 @@ out:
 	if (!error) {
 		bzero((caddr_t)fhp, sizeof(nfh));
 		fhp->fh_fsid = vp->v_mount->mnt_stat.f_fsid;
-		error = VFS_VPTOFH(vp, &fhp->fh_fid);
+		error = VOP_VPTOFH(vp, &fhp->fh_fid);
 		if (!error)
 			error = VOP_GETATTR(vp, vap, cred, td);
 	}
@@ -2952,7 +2952,7 @@ nfsrv_symlink(struct nfsrv_descript *nfsd, struct nfssvc_sock *slp,
 		if (error == 0) {
 			bzero((caddr_t)fhp, sizeof(nfh));
 			fhp->fh_fsid = nd.ni_vp->v_mount->mnt_stat.f_fsid;
-			error = VFS_VPTOFH(nd.ni_vp, &fhp->fh_fid);
+			error = VOP_VPTOFH(nd.ni_vp, &fhp->fh_fid);
 			if (!error)
 				error = VOP_GETATTR(nd.ni_vp, vap, cred,
 					td);
@@ -3130,7 +3130,7 @@ nfsrv_mkdir(struct nfsrv_descript *nfsd, struct nfssvc_sock *slp,
 	if (!error) {
 		bzero((caddr_t)fhp, sizeof(nfh));
 		fhp->fh_fsid = nd.ni_vp->v_mount->mnt_stat.f_fsid;
-		error = VFS_VPTOFH(nd.ni_vp, &fhp->fh_fid);
+		error = VOP_VPTOFH(nd.ni_vp, &fhp->fh_fid);
 		if (!error)
 			error = VOP_GETATTR(nd.ni_vp, vap, cred, td);
 	}
@@ -3947,7 +3947,7 @@ again:
 			 */
 			KASSERT(nvp->v_mount == vp->v_mount,
 			    ("nfsrv_readdirplus: nvp mount != vp mount"));
-			if (VFS_VPTOFH(nvp, &nfhp->fh_fid)) {
+			if (VOP_VPTOFH(nvp, &nfhp->fh_fid)) {
 				vput(nvp);
 				nvp = NULL;
 				goto invalid;

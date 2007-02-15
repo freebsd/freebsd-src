@@ -3979,7 +3979,7 @@ lgetfh(td, uap)
 	vp = nd.ni_vp;
 	bzero(&fh, sizeof(fh));
 	fh.fh_fsid = vp->v_mount->mnt_stat.f_fsid;
-	error = VFS_VPTOFH(vp, &fh.fh_fid);
+	error = VOP_VPTOFH(vp, &fh.fh_fid);
 	vput(vp);
 	VFS_UNLOCK_GIANT(vfslocked);
 	if (error)
@@ -4018,7 +4018,7 @@ getfh(td, uap)
 	vp = nd.ni_vp;
 	bzero(&fh, sizeof(fh));
 	fh.fh_fsid = vp->v_mount->mnt_stat.f_fsid;
-	error = VFS_VPTOFH(vp, &fh.fh_fid);
+	error = VOP_VPTOFH(vp, &fh.fh_fid);
 	vput(vp);
 	VFS_UNLOCK_GIANT(vfslocked);
 	if (error)

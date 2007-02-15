@@ -16,6 +16,7 @@ static vop_open_t	reiserfs_open;
 static vop_pathconf_t	reiserfs_pathconf;
 static vop_readlink_t	reiserfs_readlink;
 static vop_strategy_t	reiserfs_strategy;
+static vop_vptofh_t	reiserfs_vptofh;
 
 /* Global vfs data structures for ReiserFS */
 struct vop_vector reiserfs_vnodeops = {
@@ -34,6 +35,7 @@ struct vop_vector reiserfs_vnodeops = {
 	.vop_readlink     = reiserfs_readlink,
 	.vop_pathconf     = reiserfs_pathconf,
 	.vop_strategy     = reiserfs_strategy,
+	.vop_vptofh       = reiserfs_vptofh,
 };
 
 struct vop_vector reiserfs_specops = {
@@ -350,4 +352,31 @@ reiserfs_strategy(struct vop_strategy_args /* {
 
 	bufdone(bp);
 	return (error);
+}
+
+/*
+ * Vnode pointer to File handle
+ */
+static int
+reiserfs_vptofh(struct vop_vptofh_args /* {
+					  struct vnode *a_vp;
+					  struct fid *a_fhp;
+					  } */ *ap)
+{
+	struct rfid *rfhp;
+	struct reiserfs_node *ip;
+
+	ip = VTOI(ap->a_vp);
+	reiserfs_log(LOG_DEBUG,
+	    "fill *fhp with inode (dirid=%d, objectid=%d)\n",
+	    ip->i_ino, ip->i_number);
+
+	rfhp = (struct rfid *)ap->a_fhp;
+	rfhp->rfid_len      = sizeof(struct rfid);
+	rfhp->rfid_dirid    = ip->i_ino;
+	rfhp->rfid_objectid = ip->i_number;
+	rfhp->rfid_gen      = ip->i_generation;
+
+	reiserfs_log(LOG_DEBUG, "return it\n");
+	return (0);
 }

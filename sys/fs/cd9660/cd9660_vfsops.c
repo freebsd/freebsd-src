@@ -75,7 +75,6 @@ static vfs_root_t	cd9660_root;
 static vfs_statfs_t	cd9660_statfs;
 static vfs_vget_t	cd9660_vget;
 static vfs_fhtovp_t	cd9660_fhtovp;
-static vfs_vptofh_t	cd9660_vptofh;
 
 static struct vfsops cd9660_vfsops = {
 	.vfs_fhtovp =		cd9660_fhtovp,
@@ -85,7 +84,6 @@ static struct vfsops cd9660_vfsops = {
 	.vfs_statfs =		cd9660_statfs,
 	.vfs_unmount =		cd9660_unmount,
 	.vfs_vget =		cd9660_vget,
-	.vfs_vptofh =		cd9660_vptofh,
 };
 VFS_SET(cd9660_vfsops, cd9660, VFCF_READONLY);
 MODULE_VERSION(cd9660, 1);
@@ -595,13 +593,6 @@ cd9660_statfs(mp, sbp, td)
  * - check that the generation number matches
  */
 
-struct ifid {
-	u_short	ifid_len;
-	u_short	ifid_pad;
-	int	ifid_ino;
-	long	ifid_start;
-};
-
 /* ARGSUSED */
 static int
 cd9660_fhtovp(mp, fhp, vpp)
@@ -820,29 +811,4 @@ cd9660_vget_internal(mp, ino, flags, vpp, relocated, isodir)
 
 	*vpp = vp;
 	return (0);
-}
-
-/*
- * Vnode pointer to File handle
- */
-/* ARGSUSED */
-static int
-cd9660_vptofh(vp, fhp)
-	struct vnode *vp;
-	struct fid *fhp;
-{
-	struct iso_node *ip = VTOI(vp);
-	struct ifid *ifhp;
-
-	ifhp = (struct ifid *)fhp;
-	ifhp->ifid_len = sizeof(struct ifid);
-
-	ifhp->ifid_ino = ip->i_number;
-	ifhp->ifid_start = ip->iso_start;
-
-#ifdef	ISOFS_DBG
-	printf("vptofh: ino %d, start %ld\n",
-	       ifhp->ifid_ino,ifhp->ifid_start);
-#endif
-	return 0;
 }

@@ -112,7 +112,6 @@ static vfs_root_t	msdosfs_root;
 static vfs_statfs_t	msdosfs_statfs;
 static vfs_sync_t	msdosfs_sync;
 static vfs_unmount_t	msdosfs_unmount;
-static vfs_vptofh_t	msdosfs_vptofh;
 
 /* Maximum length of a character set name (arbitrary). */
 #define	MAXCSLEN	64
@@ -931,21 +930,6 @@ msdosfs_fhtovp(struct mount *mp, struct fid *fhp, struct vnode **vpp)
 	return (0);
 }
 
-static int
-msdosfs_vptofh(struct vnode *vp, struct fid *fhp)
-{
-	struct denode *dep;
-	struct defid *defhp;
-
-	dep = VTODE(vp);
-	defhp = (struct defid *)fhp;
-	defhp->defid_len = sizeof(struct defid);
-	defhp->defid_dirclust = dep->de_dirclust;
-	defhp->defid_dirofs = dep->de_diroffset;
-	/* defhp->defid_gen = dep->de_gen; */
-	return (0);
-}
-
 static struct vfsops msdosfs_vfsops = {
 	.vfs_fhtovp =		msdosfs_fhtovp,
 	.vfs_mount =		msdosfs_mount,
@@ -954,7 +938,6 @@ static struct vfsops msdosfs_vfsops = {
 	.vfs_statfs =		msdosfs_statfs,
 	.vfs_sync =		msdosfs_sync,
 	.vfs_unmount =		msdosfs_unmount,
-	.vfs_vptofh =		msdosfs_vptofh,
 };
 
 VFS_SET(msdosfs_vfsops, msdosfs, 0);

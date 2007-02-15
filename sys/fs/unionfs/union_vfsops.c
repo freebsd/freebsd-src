@@ -61,7 +61,6 @@ static vfs_sync_t	unionfs_sync;
 static vfs_statfs_t	unionfs_statfs;
 static vfs_unmount_t	unionfs_unmount;
 static vfs_vget_t	unionfs_vget;
-static vfs_vptofh_t	unionfs_vptofh;
 static vfs_extattrctl_t	unionfs_extattrctl;
 
 static struct vfsops unionfs_vfsops;
@@ -505,12 +504,6 @@ unionfs_checkexp(struct mount *mp, struct sockaddr *nam, int *extflagsp,
 }
 
 static int
-unionfs_vptofh(struct vnode *vp, struct fid *fhp)
-{
-	return (EOPNOTSUPP);
-}
-
-static int
 unionfs_extattrctl(struct mount *mp, int cmd, struct vnode *filename_vp,
     int namespace, const char *attrname, struct thread *td)
 {
@@ -542,7 +535,6 @@ static struct vfsops unionfs_vfsops = {
 	.vfs_uninit =		unionfs_uninit,
 	.vfs_unmount =		unionfs_unmount,
 	.vfs_vget =		unionfs_vget,
-	.vfs_vptofh =		unionfs_vptofh,
 };
 
 VFS_SET(unionfs_vfsops, unionfs, VFCF_LOOPBACK);

@@ -249,6 +249,13 @@ struct iso_mnt {
 	void *im_l2d;
 };
 
+struct ifid {
+	u_short	ifid_len;
+	u_short	ifid_pad;
+	int	ifid_ino;
+	long	ifid_start;
+};
+
 #define VFSTOISOFS(mp)	((struct iso_mnt *)((mp)->mnt_data))
 
 #define blkoff(imp, loc)	((loc) & (imp)->im_bmask)
