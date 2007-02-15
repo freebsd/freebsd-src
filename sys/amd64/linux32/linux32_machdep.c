@@ -951,6 +951,7 @@ linux_pipe(struct thread *td, struct linux_pipe_args *args)
 	td->td_retval[0] = 0;
 	return (0);
 }
+
 int
 linux_sigaction(struct thread *td, struct linux_sigaction_args *args)
 {
