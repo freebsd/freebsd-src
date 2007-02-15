@@ -690,16 +690,6 @@ linux_clone(struct thread *td, struct linux_clone_args *args)
 	return (0);
 }
 
-/* XXX move */
-struct l_mmap_argv {
-	l_ulong		addr;
-	l_ulong		len;
-	l_ulong		prot;
-	l_ulong		flags;
-	l_ulong		fd;
-	l_ulong		pgoff;
-};
-
 #define STACK_SIZE  (2 * 1024 * 1024)
 #define GUARD_SIZE  (4 * PAGE_SIZE)
 
@@ -789,9 +779,44 @@ linux_mmap_common(struct thread *td, struct l_mmap_argv *linux_args)
 		bsd_args.flags |= MAP_ANON;
 	else
 		bsd_args.flags |= MAP_NOSYNC;
-	if (linux_args->flags & LINUX_MAP_GROWSDOWN) {
+	if (linux_args->flags & LINUX_MAP_GROWSDOWN)
 		bsd_args.flags |= MAP_STACK;
 
+	/*
+	 * PROT_READ, PROT_WRITE, or PROT_EXEC implies PROT_READ and PROT_EXEC
+	 * on Linux/i386. We do this to ensure maximum compatibility.
+	 * Linux/ia64 does the same in i386 emulation mode.
+	 */
+	bsd_args.prot = linux_args->prot;
+	if (bsd_args.prot & (PROT_READ | PROT_WRITE | PROT_EXEC))
+		bsd_args.prot |= PROT_READ | PROT_EXEC;
+
+	if (linux_args->fd != -1) {
+		/*
+		 * Linux follows Solaris mmap(2) description:
+		 * The file descriptor fildes is opened with
+		 * read permission, regardless of the
+		 * protection options specified.
+		 */
+
+		if ((error = fget(td, linux_args->fd, &fp)) != 0)
+			return (error);
+		if (fp->f_type != DTYPE_VNODE) {
+			fdrop(fp, td);
+			return (EINVAL);
+		}
+
+		/* Linux mmap() just fails for O_WRONLY files */
+		if (!(fp->f_flag & FREAD)) {
+			fdrop(fp, td);
+			return (EACCES);
+		}
+
+		fdrop(fp, td);
+	}
+	bsd_args.fd = linux_args->fd;
+
+	if (linux_args->flags & LINUX_MAP_GROWSDOWN) {
 		/* 
 		 * The linux MAP_GROWSDOWN option does not limit auto
 		 * growth of the region.  Linux mmap with this option
@@ -814,11 +839,7 @@ linux_mmap_common(struct thread *td, struct l_mmap_argv *linux_args)
 		 * fixed size of (STACK_SIZE - GUARD_SIZE).
 		 */
 
-		/* This gives us TOS */
-		bsd_args.addr = (caddr_t)PTRIN(linux_args->addr) +
-		    linux_args->len;
-
-		if ((caddr_t)PTRIN(bsd_args.addr) >
+		if ((caddr_t)PTRIN(linux_args->addr) + linux_args->len >
 		    p->p_vmspace->vm_maxsaddr) {
 			/* 
 			 * Some linux apps will attempt to mmap
@@ -837,8 +858,7 @@ linux_mmap_common(struct thread *td, struct l_mmap_argv *linux_args)
 			 * mmap's return value.
 			 */
 			PROC_LOCK(p);
-			p->p_vmspace->vm_maxsaddr =
-			    (char *)LINUX32_USRSTACK -
+			p->p_vmspace->vm_maxsaddr = (char *)LINUX32_USRSTACK -
 			    lim_cur(p, RLIMIT_STACK);
 			PROC_UNLOCK(p);
 		}
@@ -856,48 +876,11 @@ linux_mmap_common(struct thread *td, struct l_mmap_argv *linux_args)
 		 * not using VM_STACK we map the full stack, since we
 		 * don't have a way to autogrow it.
 		 */
-		bsd_args.addr -= bsd_args.len;
+		bsd_args.addr = (caddr_t)PTRIN(linux_args->addr) -
+		    bsd_args.len;
 	} else {
 		bsd_args.addr = (caddr_t)PTRIN(linux_args->addr);
 		bsd_args.len  = linux_args->len;
-	}
-
-	/*
-	 * We add PROT_EXEC to work around buggy applications (e.g. Java)
-	 * that take advantage of the fact that execute permissions are not
-	 * enforced by x86 CPUs.
-	 */
-	bsd_args.prot = linux_args->prot | PROT_EXEC;
-	if (linux_args->flags & LINUX_MAP_ANON)
-		bsd_args.fd = -1;
-	else {
-		/*
-		 * Linux follows Solaris mmap(2) description:
-		 * The file descriptor fildes is opened with
-		 * read permission, regardless of the
-		 * protection options specified.
-		 * If PROT_WRITE is specified, the application
-		 * must have opened the file descriptor
-		 * fildes with write permission unless
-		 * MAP_PRIVATE is specified in the flag
-		 * argument as described below.
-		 */
-
-		if ((error = fget(td, linux_args->fd, &fp)) != 0)
-			return (error);
-		if (fp->f_type != DTYPE_VNODE) {
-			fdrop(fp, td);
-			return (EINVAL);
-		}
-
-		/* Linux mmap() just fails for O_WRONLY files */
-		if (! (fp->f_flag & FREAD)) {
-			fdrop(fp, td);
-			return (EACCES);
-		}
-
-		bsd_args.fd = linux_args->fd;
-		fdrop(fp, td);
 	}
 	bsd_args.pos = (off_t)linux_args->pgoff * PAGE_SIZE;
 	bsd_args.pad = 0;
@@ -1181,8 +1164,7 @@ linux_mprotect(struct thread *td, struct linux_mprotect_args *uap)
 	bsd_args.addr = uap->addr;
 	bsd_args.len = uap->len;
 	bsd_args.prot = uap->prot;
-	/* XXX PROT_READ implies PROT_EXEC; see linux_mmap_common(). */
-	if ((bsd_args.prot & PROT_READ) != 0)
-		bsd_args.prot |= PROT_EXEC;
+	if (bsd_args.prot & (PROT_READ | PROT_WRITE | PROT_EXEC))
+		bsd_args.prot |= PROT_READ | PROT_EXEC;
 	return (mprotect(td, &bsd_args));
 }
