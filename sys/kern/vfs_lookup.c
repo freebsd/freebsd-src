@@ -520,15 +520,16 @@ dirloop:
 		for (;;) {
 			if (dp == ndp->ni_rootdir || 
 			    dp == ndp->ni_topdir || 
-			    dp == rootvnode) {
+			    dp == rootvnode ||
+			    ((dp->v_vflag & VV_ROOT) != 0 &&
+			     (cnp->cn_flags & NOCROSSMOUNT) != 0)) {
 				ndp->ni_dvp = dp;
 				ndp->ni_vp = dp;
 				vfslocked = VFS_LOCK_GIANT(dp->v_mount);
 				VREF(dp);
 				goto nextname;
 			}
-			if ((dp->v_vflag & VV_ROOT) == 0 ||
-			    (cnp->cn_flags & NOCROSSMOUNT))
+			if ((dp->v_vflag & VV_ROOT) == 0)
 				break;
 			if (dp->v_iflag & VI_DOOMED) {	/* forced unmount */
 				error = EBADF;
