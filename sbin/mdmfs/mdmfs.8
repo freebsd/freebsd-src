@@ -77,7 +77,7 @@ and mounts it using
 .Xr mount 8 .
 It can handle 
 .Xr geom_uzip 4 
-compressed disk images, as long as the kernel support this GEOM class.
+compressed disk images, as long as the kernel supports this GEOM class.
 All the command line options are passed to the appropriate program
 at the appropriate stage in order to achieve the desired effect.
 .Pp
@@ -317,7 +317,7 @@ based compressed disk image:
 .Pp
 .Dl "mdmfs -P -F foo.uzip -oro md.uzip /tmp/"
 .Pp
-Mount the same image specifing the
+Mount the same image, specifying the
 .Pa /dev/md1
 device:
 .Pp
