@@ -347,6 +347,9 @@ msi_alloc(device_t dev, int count, int maxcount, int *irqs, int *newirq,
 		msi->msi_intsrc.is_pic = &msi_pic;
 		msi->msi_dev = dev;
 		msi->msi_vector = vector + i;
+		if (bootverbose)
+			printf("msi: routing MSI IRQ %d to vector %u\n",
+			    msi->msi_irq, msi->msi_vector);
 		msi->msi_index = i;
 		msi->msi_first = fsrc;
 
@@ -463,6 +466,9 @@ msix_alloc(device_t dev, int index, int *irq, int *new)
 
 	/* Allocate an IDT vector. */
 	vector = apic_alloc_vector(i);
+	if (bootverbose)
+		printf("msi: routing MSI-X IRQ %d to vector %u\n", msi->msi_irq,
+		    vector);
 
 	/* Setup source. */
 	msi->msi_intsrc.is_pic = &msix_pic;
