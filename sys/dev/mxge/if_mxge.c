@@ -512,7 +512,7 @@ mxge_validate_firmware(mxge_softc_t *sc, const mcp_gen_header_t *hdr)
 static int
 mxge_load_firmware_helper(mxge_softc_t *sc, uint32_t *limit)
 {
-	struct firmware *fw;
+	const struct firmware *fw;
 	const mcp_gen_header_t *hdr;
 	unsigned hdr_offset;
 	const char *fw_data;

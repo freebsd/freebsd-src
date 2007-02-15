@@ -166,7 +166,7 @@ struct isposinfo {
 	struct callout_handle 	ldt;	/* loop down timer */
 	struct callout_handle	gdt;	/* gone device timer */
 #if __FreeBSD_version >= 500000  
-	struct firmware *	fw;
+	const struct firmware *	fw;
 	struct mtx		lock;
 	struct cv		kthread_cv;
 	union {

@@ -30,36 +30,35 @@
 /*
  * Loadable firmware support.
  *
- * Firmware images are embedded in kernel loadable modules that can
+ * The firmware abstraction provides an interface for loading firmware
+ * images into the kernel and making them available to clients.
+ *
+ * Firmware images are usually embedded in kernel loadable modules that can
  * be loaded on-demand or pre-loaded as desired.  Modules may contain
  * one or more firmware images that are stored as opaque data arrays
- * and registered with a unique string name.  Consumers request
- * firmware by name with held references counted to use in disallowing
+ * and registered with a unique string name. Clients request
+ * firmware by name, and are returned a struct firmware * below on success.
+ * The kernel keeps track of references to firmware images to allow/prevent
  * module/data unload.
  *
- * When multiple images are stored in one module the one image is
+ * When multiple images are stored in one module, the first image is
  * treated as the master with the other images holding references
  * to it.  This means that to unload the module each dependent/subimage
  * must first have its references removed.
+ * In order for automatic loading to work, the master image must have
+ * the same name as the module it is embedded into.
  */
 struct firmware {
 	const char	*name;		/* system-wide name */
 	const void	*data;		/* location of image */
 	size_t		 datasize;	/* size of image in bytes */
 	unsigned int	 version;	/* version of the image */
-	int		 refcnt;	/* held references */
-	struct firmware *parent;	/* not null if a subimage */
-	linker_file_t	 file;		/* loadable module */
-	int		 flags;		/* FIRMWAREFLAG_ flags */
 };
 
-/* "flags" field definitions */
-#define FIRMWAREFLAG_KEEPKLDREF	0x0001	/* don't release KLD reference */
-
-struct firmware	*firmware_register(const char *, const void *, size_t,
-    unsigned int, struct firmware *);
-int		 firmware_unregister(const char *);
-struct firmware *firmware_get(const char *);
+const struct firmware	*firmware_register(const char *,
+	const void *, size_t, unsigned int, const struct firmware *);
+int	 firmware_unregister(const char *);
+const struct firmware *firmware_get(const char *);
 #define	FIRMWARE_UNLOAD		0x0001	/* unload if unreferenced */
-void		 firmware_put(struct firmware *, int);
+void		 firmware_put(const struct firmware *, int);
 #endif /* _SYS_FIRMWARE_H_ */
