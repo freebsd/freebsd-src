@@ -1443,6 +1443,7 @@ kern/tty_subr.c			standard
 kern/tty_tty.c			standard
 kern/uipc_accf.c		optional inet
 kern/uipc_cow.c			optional zero_copy_sockets
+kern/uipc_debug.c		optional ddb
 kern/uipc_domain.c		standard
 kern/uipc_mbuf.c		standard
 kern/uipc_mbuf2.c		standard
