@@ -691,7 +691,6 @@ vm_page_remove(vm_page_t m)
 	vm_object_t object;
 	vm_page_t root;
 
-	mtx_assert(&vm_page_queue_mtx, MA_OWNED);
 	if ((object = m->object) == NULL)
 		return;
 	VM_OBJECT_LOCK_ASSERT(object, MA_OWNED);
@@ -699,6 +698,7 @@ vm_page_remove(vm_page_t m)
 		m->oflags &= ~VPO_BUSY;
 		vm_page_flash(m);
 	}
+	mtx_assert(&vm_page_queue_mtx, MA_OWNED);
 
 	/*
 	 * Now remove from the object's list of backed pages.
@@ -1101,7 +1101,8 @@ vm_page_free_toq(vm_page_t m)
 {
 	struct vpgqueues *pq;
 
-	mtx_assert(&vm_page_queue_mtx, MA_OWNED);
+	if (VM_PAGE_GETQUEUE(m) != PQ_NONE)
+		mtx_assert(&vm_page_queue_mtx, MA_OWNED);
 	KASSERT(!pmap_page_is_mapped(m),
 	    ("vm_page_free_toq: freeing mapped page %p", m));
 	cnt.v_tfree++;
