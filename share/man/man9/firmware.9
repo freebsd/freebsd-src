@@ -43,25 +43,22 @@ struct firmware {
 	const void	*data;		/* location of image */
 	size_t		datasize;	/* size of image in bytes */
 	unsigned int	version;	/* version of the image */
-	int		refcnt;		/* held references */
-	struct firmware	*parent;	/* not null if a subimage */
-	linker_file_t	file;		/* loadable module */
 };
 .Ed
-.Ft "struct firmware *"
+.Ft "const struct firmware *"
 .Fo firmware_register
 .Fa "const char *imagename"
 .Fa "const void *data"
 .Fa "size_t datasize"
 .Fa "unsigned int version"
-.Fa "struct firmware *parent"
+.Fa "const struct firmware *parent"
 .Fc
 .Ft int
 .Fn firmware_unregister "const char *imagename"
-.Ft "struct firmware *"
+.Ft "const struct firmware *"
 .Fn firmware_get "const char *imagename"
 .Ft void
-.Fn firmware_put "struct firmware *fp" "int flags"
+.Fn firmware_put "const struct firmware *fp" "int flags"
 .Sh DESCRIPTION
 The
 .Nm firmware
@@ -88,7 +85,7 @@ subsystem by calling the function
 .Fn firmware_register ,
 and unregistered by calling
 .Fn firmware_unregister .
-These functions are usually (but not exclusively) performed by
+These functions are usually (but not exclusively) called by
 specially crafted kernel modules that contain the firmware image.
 The modules can be statically compiled in the kernel, or loaded by
 .Nm /boot/loader ,
@@ -118,8 +115,6 @@ located at address
 .Nm data ,
 under the name
 .Nm imagename .
-.Nm parent
-is and a pointer to the parent image, if any.
 .Pp
 The function returns NULL on error (e.g. because an
 image with the same name already exists, or the image
