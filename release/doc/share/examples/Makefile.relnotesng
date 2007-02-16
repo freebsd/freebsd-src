@@ -7,8 +7,8 @@
 #
 
 ARCHS=		amd64 ia64 i386 pc98 powerpc sparc64
-MULTITEXTS=	installation hardware
-UNITEXTS=	readme relnotes errata
+MULTITEXTS=	installation
+UNITEXTS=	hardware readme relnotes errata
 
 IMAGEDIR=	.imagedir
 RHOST=		freefall.freebsd.org
