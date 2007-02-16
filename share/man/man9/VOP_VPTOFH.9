@@ -28,18 +28,17 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd July 24, 1996
+.Dd February 16, 2007
 .Os
-.Dt VFS_VPTOFH 9
+.Dt VOP_VPTOFH 9
 .Sh NAME
-.Nm VFS_VPTOFH
+.Nm VOP_VPTOFH
 .Nd turn a vnode into an NFS filehandle
 .Sh SYNOPSIS
 .In sys/param.h
-.In sys/mount.h
 .In sys/vnode.h
 .Ft int
-.Fn VFS_VPTOFH "struct vnode *vp" "struct fid *fhp"
+.Fn VOP_VPTOFH "struct vnode *vp" "struct fid *fhp"
 .Sh DESCRIPTION
 This is used by the NFS server to create an opaque filehandle which
 uniquely identifies the file and which can be used by an NFS client
