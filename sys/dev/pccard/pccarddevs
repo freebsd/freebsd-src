@@ -647,6 +647,7 @@ vendor MELCO2			-1	Melco Corporation
 vendor NDC			-1	NDC
 vendor NEC			-1	NEC
 vendor OEM2			-1	Generic OEM
+vendor PHISON			-1	PHISON
 vendor PLANET			-1 	Planet
 vendor PREMAX			-1 	Premax
 vendor RPTI			-1 	RPTI
@@ -725,6 +726,7 @@ product OEM2 IDE	{ "PCMCIA", "IDE&spCARD", NULL, NULL } Generic PCMCIA IDE CARD
 product OEM2 ETHERNET		{ "PCMCIA", "Ethernet", NULL, NULL } NE2000 PC Card
 product OEM2 FAST_ETHERNET	{ "PCMCIA", "FAST&spETHERNET&spCARD", NULL, NULL } NE2000 PC Card
 product OEM2 NE2000		{ "NE2000&spCompatible&spPC&spCard", "PCMCIA", NULL, NULL } Generic NE2000 PC Card
+product PHISON CF_CARD		{ "PHISON", "CF&spCard", NULL, NULL } Generic CF or SD/MMC/SmartMedia Reader
 product PLANET SMARTCOM2000	{ "PCMCIA", "UE2212", NULL, NULL } Planet SmartCOM 2000
 product RPTI EP400		{ "RPTI&spLTD.", "EP400", "CISV100", NULL } RPTI EP400
 product RPTI EP401		{ "RPTI", "EP401&spEthernet&spNE2000&spCompatible", NULL, NULL } RPTI EP401
