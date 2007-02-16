@@ -428,6 +428,7 @@ static const struct {
 #define HDA_CODEC_STAC9220	HDA_CODEC_CONSTRUCT(SIGMATEL, 0x7690)
 #define HDA_CODEC_STAC922XD	HDA_CODEC_CONSTRUCT(SIGMATEL, 0x7681)
 #define HDA_CODEC_STAC9227	HDA_CODEC_CONSTRUCT(SIGMATEL, 0x7618)
+#define HDA_CODEC_STAC9271D	HDA_CODEC_CONSTRUCT(SIGMATEL, 0x7627)
 #define HDA_CODEC_STACXXXX	HDA_CODEC_CONSTRUCT(SIGMATEL, 0xffff)
 
 /*
@@ -466,6 +467,7 @@ static const struct {
 	{ HDA_CODEC_STAC9220,  "Sigmatel STAC9220" },
 	{ HDA_CODEC_STAC922XD, "Sigmatel STAC9220D/9223D" },
 	{ HDA_CODEC_STAC9227,  "Sigmatel STAC9227" },
+	{ HDA_CODEC_STAC9271D, "Sigmatel STAC9271D" },
 	{ HDA_CODEC_CXVENICE,  "Conexant Venice" },
 	{ HDA_CODEC_CXWAIKIKI, "Conexant Waikiki" },
 	/* Unknown codec */
@@ -2117,7 +2119,7 @@ hdac_poll_callback(void *arg)
 	struct hdac_softc *sc = arg;
 	if (sc == NULL)
 		return;
-	
+
 	hdac_lock(sc);
 	if (sc->polling == 0) {
 		hdac_unlock(sc);
@@ -4213,7 +4215,7 @@ hdac_audio_commit(struct hdac_devinfo *devinfo, uint32_t cfl)
 		gdata = 0;
 		gmask = 0;
 		gdir = 0;
-  
+
 		if (sc->pci_subvendor == APPLE_INTEL_MAC)
 			hdac_command(sc, HDA_CMD_12BIT(cad, devinfo->nid,
 			    0x7e7, 0), cad);
