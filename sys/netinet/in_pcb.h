@@ -161,7 +161,6 @@ struct inpcb {
 		struct	icmp6_filter *inp6_icmp6filt;
 		/* IPV6_CHECKSUM setsockopt */
 		int	inp6_cksum;
-		u_short	inp6_ifindex;
 		short	inp6_hops;
 	} inp_depend6;
 	LIST_ENTRY(inpcb) inp_portlist;
@@ -181,7 +180,6 @@ struct inpcb {
 #define	in6p_moptions	inp_depend6.inp6_moptions
 #define	in6p_icmp6filt	inp_depend6.inp6_icmp6filt
 #define	in6p_cksum	inp_depend6.inp6_cksum
-#define	inp6_ifindex	inp_depend6.inp6_ifindex
 #define	in6p_flags	inp_flags  /* for KAME src sync over BSD*'s */
 #define	in6p_socket	inp_socket  /* for KAME src sync over BSD*'s */
 #define	in6p_lport	inp_lport  /* for KAME src sync over BSD*'s */
