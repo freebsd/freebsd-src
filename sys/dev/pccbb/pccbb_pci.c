@@ -611,7 +611,7 @@ cbb_chipinit(struct cbb_softc *sc)
 
 	/*
 	 * Need to tell ExCA registers to CSC interrupts route via PCI
-	 * interrupts.  There are two ways to do this.  Once is to set
+	 * interrupts.  There are two ways to do this.  One is to set
 	 * INTR_ENABLE and the other is to set CSC to 0.  Since both
 	 * methods are mutually compatible, we do both.
 	 */
