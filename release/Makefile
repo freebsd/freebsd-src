@@ -159,8 +159,8 @@ RELEASEDISTFILES?=	${.CURDIR}/../../ports/distfiles
 AUTO_KEYBOARD_DETECT?= 0
 
 .if !defined(NODOC)
-DIST_DOCS_ARCH_INDEP=	readme relnotes errata
-DIST_DOCS_ARCH_DEP=	installation hardware
+DIST_DOCS_ARCH_INDEP=	hardware readme relnotes errata
+DIST_DOCS_ARCH_DEP=	installation
 .endif
 
 # Things which without too much trouble can be considered variables
