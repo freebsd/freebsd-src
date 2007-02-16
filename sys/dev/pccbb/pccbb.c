@@ -522,7 +522,7 @@ cbb_event_thread(void *arg)
 		err = 0;
 		while (err != EWOULDBLOCK &&
 		    (sc->flags & CBB_KTHREAD_DONE) == 0)
-			err = cv_timedwait(&sc->cv, &sc->mtx, 1 * hz);
+			err = cv_timedwait(&sc->cv, &sc->mtx, hz / 4);
 		mtx_unlock(&sc->mtx);
 	}
 	DEVPRINTF((sc->dev, "Thread terminating\n"));
@@ -1232,6 +1232,9 @@ cbb_pcic_power_disable_socket(device_t brdev, device_t child)
 
 	/* wait 300ms until power fails (Tpf). */
 	tsleep(sc, PZERO, "cbbP1", hz * 300 / 1000);
+
+	/* enable CSC interrupts */
+	exca_putb(&sc->exca[0], EXCA_INTR, EXCA_INTR_ENABLE);
 }
 
 /************************************************************************/
