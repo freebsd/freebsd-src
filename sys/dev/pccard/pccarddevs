@@ -74,6 +74,10 @@ $FreeBSD$
  * "The first 256 identifiers are reserved for manufacturers who have
  *  JEDEC IDs assigned to them by JEDEC publication 106."
  *
+ * The latest rev of JEDEC Publication 106 is revision S and can be
+ * downloaded from:
+ *	http://www.jedec.org/download/search/JEP106s.pdf
+ *
  * There's really only 128 of these available, since the first bank of
  * publication 106 reserves the top bit for parity.
  */
