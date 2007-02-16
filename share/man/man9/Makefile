@@ -260,7 +260,6 @@ MAN=	accept_filter.9 \
 	VFS_UNMOUNT.9 \
 	vfs_unmountall.9 \
 	VFS_VGET.9 \
-	VFS_VPTOFH.9 \
 	vget.9 \
 	vgone.9 \
 	vhold.9 \
@@ -342,6 +341,7 @@ MAN=	accept_filter.9 \
 	VOP_SETACL.9 \
 	VOP_SETEXTATTR.9 \
 	VOP_STRATEGY.9 \
+	VOP_VPTOFH.9 \
 	vput.9 \
 	vref.9 \
 	vrele.9 \
