@@ -515,7 +515,7 @@ vop_stdputpages(ap)
 int
 vop_stdvptofh(struct vop_vptofh_args *ap)
 {
-	return VFS_VPTOFH(ap->a_vp, ap->a_fhp);
+	return (EOPNOTSUPP);
 }
 
 /*
@@ -542,19 +542,6 @@ vfs_stdstatfs (mp, sbp, td)
 
 	return (EOPNOTSUPP);
 }
-
-#if __FreeBSD_version < 800000
-int
-vfs_stdvptofh (vp, fhp)
-	struct vnode *vp;
-	struct fid *fhp;
-{
-
-	return (EOPNOTSUPP);
-}
-#else
-#error Remove this code, vfs_vptofh was replaced with vop_vptofh.
-#endif
 
 int
 vfs_stdquotactl (mp, cmds, uid, arg, td)

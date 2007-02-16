@@ -215,13 +215,6 @@ vfs_register(struct vfsconf *vfc)
 	if (vfsops->vfs_checkexp == NULL)
 		/* check if file system is exported */
 		vfsops->vfs_checkexp =	vfs_stdcheckexp;
-#if __FreeBSD_version < 800000
-	if (vfsops->vfs_vptofh == NULL)
-		/* turn a vnode into an NFS file handle */
-		vfsops->vfs_vptofh =	vfs_stdvptofh;
-#else
-#error Remove this code, vfs_vptofh was replaced with vop_vptofh.
-#endif
 	if (vfsops->vfs_init == NULL)
 		/* file system specific initialisation */
 		vfsops->vfs_init =	vfs_stdinit;
