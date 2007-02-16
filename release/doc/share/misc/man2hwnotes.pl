@@ -40,7 +40,7 @@
 # arguments to the .It command, only the argument will be printed.
 
 # Usage:
-# man2hwnotes.pl [-l] [-d 0-6] [-a <archlist file>] [-o <outputfile>]
+# man2hwnotes.pl [-cl] [-d 0-6] [-a <archlist file>] [-o <outputfile>]
 #                <manualpage> [<manualpage> ...]
 
 use strict;
@@ -55,6 +55,7 @@ my $archlist_file = "dev.archlist.txt";
 my %archlist;
 
 # Globals
+my $compat_mode = 0; # Enable compat for old Hardware Notes style
 my $debuglevel = 0;
 my $only_list_out = 0; # Should only lists be generated in the output?
 my @out_lines; # Single lines
@@ -62,10 +63,13 @@ my @out_dev;   # Device entities
 
 # Getopt
 my %options = ();
-if (!getopts("a:d:lo:",\%options)) {
+if (!getopts("a:cd:lo:",\%options)) {
     die("$!: Invalid command line arguments in ", __LINE__, "\n");
 }
 
+if (defined($options{c})) {
+    $compat_mode = 1;
+}
 if (defined($options{d})) {
     $debuglevel = $options{d};
 }
@@ -367,9 +371,17 @@ sub flush_out {
     $entity_name = add_txt_ent(${$mdocvars}{parabuf});
     ${$mdocvars}{parabuf} = "";
     if(defined($archlist{${$mdocvars}{Nm}})) {
-	$para_arch = ' arch="' . $archlist{${$mdocvars}{Nm}} . '"';
+	if ($compat_mode) {
+	    $para_arch = ' arch="' . $archlist{${$mdocvars}{Nm}} . '"';
+	} else {
+	    $para_arch = '[' . $archlist{${$mdocvars}{Nm}} . '] ';
+	}
     }
-    $out = "<para".$para_arch.">&".$entity_name.";</para>";
+    if ($compat_mode) {
+	$out = "<para".$para_arch.">&".$entity_name.";</para>";
+    } else {
+	$out = "<para>".$para_arch."&".$entity_name.";</para>";
+    }
 
     dlog(4, "Flushing parabuf");
     add_sgmltag($mdocvars, $out);
@@ -384,8 +396,12 @@ sub add_listitem {
     $entity_name = add_txt_ent(${$mdocvars}{parabuf});
     ${$mdocvars}{parabuf} = "";
 
-    if(defined($archlist{${$mdocvars}{Nm}})) {
-	$para_arch = ' arch="' . $archlist{${$mdocvars}{Nm}} . '"';
+    if ($compat_mode) {
+	if(defined($archlist{${$mdocvars}{Nm}})) {
+	    $para_arch = ' arch="' . $archlist{${$mdocvars}{Nm}} . '"';
+	}
+    } else {
+	$listitem = "<listitem><para>&".$entity_name.";</para></listitem>";
     }
     $listitem = "<listitem><para".$para_arch.">&".$entity_name.";</para></listitem>";
     dlog(4, "Adding '$listitem' to out_dev");
