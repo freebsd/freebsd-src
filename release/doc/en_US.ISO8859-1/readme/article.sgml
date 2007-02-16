@@ -340,13 +340,11 @@
 	</itemizedlist>
 
 	<note>
-	  <para>Several of these documents (in particular,
-	    <filename>HARDWARE.TXT</filename> and
-	    <filename>INSTALL.TXT</filename>) contain information that
-	    is specific to a particular hardware architecture.  For
-	    example, the alpha hardware notes contain information not
-	    applicable to the &i386;, and vice versa.  The architecture
-	    for which each document applies will be listed in that
+	  <para>There are various versions of
+	    <filename>INSTALL.TXT</filename>, each containing information
+	    specific to a particular hardware architecture.
+	    The architecture
+	    to which each document applies will be listed in that
 	    document's title.</para>
 	</note>
 
