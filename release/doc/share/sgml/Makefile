@@ -6,7 +6,7 @@ RELN_ROOT?= ${.CURDIR}/../..
 .include "${DOC_PREFIX}/share/mk/doc.project.mk"
 
 dev-auto.sgml: ${MAN4PAGES} ${ARCHLIST} ${MAN2HWNOTES_CMD} catalog-auto
-	${PERL} ${MAN2HWNOTES_CMD} -a ${ARCHLIST} -o ${.TARGET} ${MAN4PAGES}
+	${PERL} ${MAN2HWNOTES_CMD} ${MAN2HWNOTES_FLAGS} -a ${ARCHLIST} -o ${.TARGET} ${MAN4PAGES}
 
 catalog-auto:
 	${ECHO_CMD} 'PUBLIC "-//FreeBSD//ENTITIES Auto Generated Device Lists//EN"' \
