@@ -2231,7 +2231,9 @@ pci_add_resources(device_t bus, device_t dev, int force, uint32_t prefetchmask)
 	/* ATA devices needs special map treatment */
 	if ((pci_get_class(dev) == PCIC_STORAGE) &&
 	    (pci_get_subclass(dev) == PCIS_STORAGE_IDE) &&
-	    (pci_get_progif(dev) & PCIP_STORAGE_IDE_MASTERDEV))
+	    ((pci_get_progif(dev) & PCIP_STORAGE_IDE_MASTERDEV) ||
+	     (!pci_read_config(dev, PCIR_BAR(0), 4) &&
+	      !pci_read_config(dev, PCIR_BAR(2), 4))) )
 		pci_ata_maps(pcib, bus, dev, b, s, f, rl, force, prefetchmask);
 	else
 		for (i = 0; i < cfg->nummaps;)
