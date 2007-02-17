@@ -1,6 +1,8 @@
 /*-
  * Copyright (c) 1982, 1986, 1991, 1993, 1995
- *	The Regents of the University of California.  All rights reserved.
+ *	The Regents of the University of California.
+ * Copyright (c) 2007 Robert N. M. Watson
+ * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -30,6 +32,7 @@
  * $FreeBSD$
  */
 
+#include "opt_ddb.h"
 #include "opt_ipsec.h"
 #include "opt_inet6.h"
 #include "opt_mac.h"
@@ -47,6 +50,10 @@
 #include <sys/jail.h>
 #include <sys/kernel.h>
 #include <sys/sysctl.h>
+
+#ifdef DDB
+#include <ddb/ddb.h>
+#endif
 
 #include <vm/uma.h>
 
@@ -1233,3 +1240,246 @@ ipport_tick(void *xtp)
 	ipport_tcplastcount = ipport_tcpallocs;
 	callout_reset(&ipport_tick_callout, hz, ipport_tick, NULL);
 }
+
+#ifdef DDB
+static void
+db_print_indent(int indent)
+{
+	int i;
+
+	for (i = 0; i < indent; i++)
+		db_printf(" ");
+}
+
+static void
+db_print_inconninfo(struct in_conninfo *inc, const char *name, int indent)
+{
+	char faddr_str[48], laddr_str[48];
+
+	db_print_indent(indent);
+	db_printf("%s at %p\n", name, inc);
+
+	indent += 2;
+
+	if (inc->inc_flags == 1) {
+		/* IPv6. */
+		ip6_sprintf(laddr_str, &inc->inc6_laddr);
+		ip6_sprintf(faddr_str, &inc->inc6_faddr);
+	} else {
+		/* IPv4. */
+		inet_ntoa_r(inc->inc_laddr, laddr_str);
+		inet_ntoa_r(inc->inc_faddr, faddr_str);
+	}
+	db_print_indent(indent);
+	db_printf("inc_laddr %s   inc_lport %u\n", laddr_str,
+	    ntohs(inc->inc_lport));
+	db_print_indent(indent);
+	db_printf("inc_faddr %s   inc_fport %u\n", faddr_str,
+	    ntohs(inc->inc_fport));
+}
+
+static void
+db_print_inpflags(int inp_flags)
+{
+	int comma;
+
+	comma = 0;
+	if (inp_flags & INP_RECVOPTS) {
+		db_printf("%sINP_RECVOPTS", comma ? ", " : "");
+		comma = 1;
+	}
+	if (inp_flags & INP_RECVRETOPTS) {
+		db_printf("%sINP_RECVRETOPTS", comma ? ", " : "");
+		comma = 1;
+	}
+	if (inp_flags & INP_RECVDSTADDR) {
+		db_printf("%sINP_RECVDSTADDR", comma ? ", " : "");
+		comma = 1;
+	}
+	if (inp_flags & INP_HDRINCL) {
+		db_printf("%sINP_HDRINCL", comma ? ", " : "");
+		comma = 1;
+	}
+	if (inp_flags & INP_HIGHPORT) {
+		db_printf("%sINP_HIGHPORT", comma ? ", " : "");
+		comma = 1;
+	}
+	if (inp_flags & INP_LOWPORT) {
+		db_printf("%sINP_LOWPORT", comma ? ", " : "");
+		comma = 1;
+	}
+	if (inp_flags & INP_ANONPORT) {
+		db_printf("%sINP_ANONPORT", comma ? ", " : "");
+		comma = 1;
+	}
+	if (inp_flags & INP_RECVIF) {
+		db_printf("%sINP_RECVIF", comma ? ", " : "");
+		comma = 1;
+	}
+	if (inp_flags & INP_MTUDISC) {
+		db_printf("%sINP_MTUDISC", comma ? ", " : "");
+		comma = 1;
+	}
+	if (inp_flags & INP_FAITH) {
+		db_printf("%sINP_FAITH", comma ? ", " : "");
+		comma = 1;
+	}
+	if (inp_flags & INP_RECVTTL) {
+		db_printf("%sINP_RECVTTL", comma ? ", " : "");
+		comma = 1;
+	}
+	if (inp_flags & INP_DONTFRAG) {
+		db_printf("%sINP_DONTFRAG", comma ? ", " : "");
+		comma = 1;
+	}
+	if (inp_flags & IN6P_IPV6_V6ONLY) {
+		db_printf("%sIN6P_IPV6_V6ONLY", comma ? ", " : "");
+		comma = 1;
+	}
+	if (inp_flags & IN6P_PKTINFO) {
+		db_printf("%sIN6P_PKTINFO", comma ? ", " : "");
+		comma = 1;
+	}
+	if (inp_flags & IN6P_HOPLIMIT) {
+		db_printf("%sIN6P_HOPLIMIT", comma ? ", " : "");
+		comma = 1;
+	}
+	if (inp_flags & IN6P_HOPOPTS) {
+		db_printf("%sIN6P_HOPOPTS", comma ? ", " : "");
+		comma = 1;
+	}
+	if (inp_flags & IN6P_DSTOPTS) {
+		db_printf("%sIN6P_DSTOPTS", comma ? ", " : "");
+		comma = 1;
+	}
+	if (inp_flags & IN6P_RTHDR) {
+		db_printf("%sIN6P_RTHDR", comma ? ", " : "");
+		comma = 1;
+	}
+	if (inp_flags & IN6P_RTHDRDSTOPTS) {
+		db_printf("%sIN6P_RTHDRDSTOPTS", comma ? ", " : "");
+		comma = 1;
+	}
+	if (inp_flags & IN6P_TCLASS) {
+		db_printf("%sIN6P_TCLASS", comma ? ", " : "");
+		comma = 1;
+	}
+	if (inp_flags & IN6P_AUTOFLOWLABEL) {
+		db_printf("%sIN6P_AUTOFLOWLABEL", comma ? ", " : "");
+		comma = 1;
+	}
+	if (inp_flags & IN6P_RFC2292) {
+		db_printf("%sIN6P_RFC2292", comma ? ", " : "");
+		comma = 1;
+	}
+	if (inp_flags & IN6P_MTU) {
+		db_printf("IN6P_MTU%s", comma ? ", " : "");
+		comma = 1;
+	}
+}
+
+static void
+db_print_inpvflag(u_char inp_vflag)
+{
+	int comma;
+
+	comma = 0;
+	if (inp_vflag & INP_IPV4) {
+		db_printf("%sINP_IPV4", comma ? ", " : "");
+		comma  = 1;
+	}
+	if (inp_vflag & INP_IPV6) {
+		db_printf("%sINP_IPV6", comma ? ", " : "");
+		comma  = 1;
+	}
+	if (inp_vflag & INP_IPV6PROTO) {
+		db_printf("%sINP_IPV6PROTO", comma ? ", " : "");
+		comma  = 1;
+	}
+	if (inp_vflag & INP_TIMEWAIT) {
+		db_printf("%sINP_TIMEWAIT", comma ? ", " : "");
+		comma  = 1;
+	}
+	if (inp_vflag & INP_ONESBCAST) {
+		db_printf("%sINP_ONESBCAST", comma ? ", " : "");
+		comma  = 1;
+	}
+	if (inp_vflag & INP_DROPPED) {
+		db_printf("%sINP_DROPPED", comma ? ", " : "");
+		comma  = 1;
+	}
+	if (inp_vflag & INP_SOCKREF) {
+		db_printf("%sINP_SOCKREF", comma ? ", " : "");
+		comma  = 1;
+	}
+}
+
+void
+db_print_inpcb(struct inpcb *inp, const char *name, int indent)
+{
+
+	db_print_indent(indent);
+	db_printf("%s at %p\n", name, inp);
+
+	indent += 2;
+
+	db_print_indent(indent);
+	db_printf("inp_flow: 0x%x\n", inp->inp_flow);
+
+	db_print_inconninfo(&inp->inp_inc, "inp_conninfo", indent);
+
+	db_print_indent(indent);
+	db_printf("inp_ppcb: %p   inp_pcbinfo: %p   inp_socket: %p\n",
+	    inp->inp_ppcb, inp->inp_pcbinfo, inp->inp_socket);
+
+	db_print_indent(indent);
+	db_printf("inp_label: %p   inp_flags: 0x%x (",
+	   inp->inp_label, inp->inp_flags);
+	db_print_inpflags(inp->inp_flags);
+	db_printf(")\n");
+
+	db_print_indent(indent);
+	db_printf("inp_sp: %p   inp_vflag: 0x%x (", inp->inp_sp,
+	    inp->inp_vflag);
+	db_print_inpvflag(inp->inp_vflag);
+	db_printf(")\n");
+
+	db_print_indent(indent);
+	db_printf("inp_ip_ttl: %d   inp_ip_p: %d   inp_ip_minttl: %d\n",
+	    inp->inp_ip_ttl, inp->inp_ip_p, inp->inp_ip_minttl);
+
+	db_print_indent(indent);
+#ifdef INET6
+	if (inp->inp_vflag & INP_IPV6) {
+		db_printf("in6p_options: %p   in6p_outputopts: %p   "
+		    "in6p_moptions: %p\n", inp->in6p_options,
+		    inp->in6p_outputopts, inp->in6p_moptions);
+		db_printf("in6p_icmp6filt: %p   in6p_cksum %d   "
+		    "in6p_hops %u\n", inp->in6p_icmp6filt, inp->in6p_cksum,
+		    inp->in6p_hops);
+	} else
+#endif
+	{
+		db_printf("inp_ip_tos: %d   inp_ip_options: %p   "
+		    "inp_ip_moptions: %p\n", inp->inp_ip_tos,
+		    inp->inp_options, inp->inp_moptions);
+	}
+
+	db_print_indent(indent);
+	db_printf("inp_phd: %p   inp_gencnt: %ju\n", inp->inp_phd,
+	    (uintmax_t)inp->inp_gencnt);
+}
+
+DB_SHOW_COMMAND(inpcb, db_show_inpcb)
+{
+	struct inpcb *inp;
+
+	if (!have_addr) {
+		db_printf("usage: show inpcb <addr>\n");
+		return;
+	}
+	inp = (struct inpcb *)addr;
+
+	db_print_inpcb(inp, "inpcb", 0);
+}
+#endif
