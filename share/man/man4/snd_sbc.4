@@ -25,11 +25,13 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd December 15, 2005
+.Dd February 17, 2007
 .Dt SND_SBC 4
 .Os
 .Sh NAME
-.Nm snd_sbc
+.Nm snd_sbc ,
+.Nm snd_sb16 ,
+.Nm snd_sb8
 .Nd Creative Sound Blaster ISA and compatible bridge device driver
 .Sh SYNOPSIS
 To compile this driver into the kernel, place the following lines in your
@@ -37,13 +39,17 @@ kernel configuration file:
 .Bd -ragged -offset indent
 .Cd "device sound"
 .Cd "device snd_sbc"
+.Cd "device snd_sb16"
+.Cd "device snd_sb8"
 .Ed
 .Pp
 Alternatively, to load the driver as a module at boot time, place the
-following line in
+following lines in
 .Xr loader.conf 5 :
 .Bd -literal -offset indent
 snd_sbc_load="YES"
+snd_sb16_load="YES"
+snd_sb8_load="YES"
 .Ed
 .Pp
 Non-PnP cards require the following lines in
@@ -60,7 +66,8 @@ The
 .Nm
 bridge driver allows the generic audio driver
 .Xr sound 4
-to attach to Creative Sound Blaster ISA compatible audio cards.
+to attach to Creative Sound Blaster ISA (mostly SB8 and SB16, known as
+SoundBlaster Pro) compatible audio cards.
 .Pp
 The value of flags specifies the secondary DMA channel.
 If the secondary
