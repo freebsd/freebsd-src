@@ -474,12 +474,7 @@ vm_page_unhold(vm_page_t mem)
 /*
  *	vm_page_free:
  *
- *	Free a page
- *
- *	The clearing of PG_ZERO is a temporary safety until the code can be
- *	reviewed to determine that PG_ZERO is being properly cleared on
- *	write faults or maps.  PG_ZERO was previously cleared in
- *	vm_page_alloc().
+ *	Free a page.
  */
 void
 vm_page_free(vm_page_t m)
