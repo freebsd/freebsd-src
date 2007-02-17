@@ -124,7 +124,7 @@ getifgroups(int s)
 }
 
 static void
-printgroup(char *groupname)
+printgroup(const char *groupname)
 {
 	struct ifgroupreq	 ifgr;
 	struct ifg_req		*ifg;
