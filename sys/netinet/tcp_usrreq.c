@@ -1,7 +1,7 @@
 /*-
  * Copyright (c) 1982, 1986, 1988, 1993
  *	The Regents of the University of California.
- * Copyright (c) 2006 Robert N. M. Watson
+ * Copyright (c) 2006-2007 Robert N. M. Watson
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -32,6 +32,7 @@
  * $FreeBSD$
  */
 
+#include "opt_ddb.h"
 #include "opt_inet.h"
 #include "opt_inet6.h"
 #include "opt_tcpdebug.h"
@@ -50,6 +51,10 @@
 #include <sys/protosw.h>
 #include <sys/proc.h>
 #include <sys/jail.h>
+
+#ifdef DDB
+#include <ddb/ddb.h>
+#endif
 
 #include <net/if.h>
 #include <net/route.h>
@@ -1581,3 +1586,318 @@ tcp_usrclosed(tp)
 				      tcp_timer_2msl, tp);
 	}
 }
+
+#ifdef DDB
+static void
+db_print_indent(int indent)
+{
+	int i;
+
+	for (i = 0; i < indent; i++)
+		db_printf(" ");
+}
+
+static void
+db_print_tstate(int t_state)
+{
+
+	switch (t_state) {
+	case TCPS_CLOSED:
+		db_printf("TCPS_CLOSED");
+		return;
+
+	case TCPS_LISTEN:
+		db_printf("TCPS_LISTEN");
+		return;
+
+	case TCPS_SYN_SENT:
+		db_printf("TCPS_SYN_SENT");
+		return;
+
+	case TCPS_SYN_RECEIVED:
+		db_printf("TCPS_SYN_RECEIVED");
+		return;
+
+	case TCPS_ESTABLISHED:
+		db_printf("TCPS_ESTABLISHED");
+		return;
+
+	case TCPS_CLOSE_WAIT:
+		db_printf("TCPS_CLOSE_WAIT");
+		return;
+
+	case TCPS_FIN_WAIT_1:
+		db_printf("TCPS_FIN_WAIT_1");
+		return;
+
+	case TCPS_CLOSING:
+		db_printf("TCPS_CLOSING");
+		return;
+
+	case TCPS_LAST_ACK:
+		db_printf("TCPS_LAST_ACK");
+		return;
+
+	case TCPS_FIN_WAIT_2:
+		db_printf("TCPS_FIN_WAIT_2");
+		return;
+
+	case TCPS_TIME_WAIT:
+		db_printf("TCPS_TIME_WAIT");
+		return;
+
+	default:
+		db_printf("unknown");
+		return;
+	}
+}
+
+static void
+db_print_tflags(u_int t_flags)
+{
+	int comma;
+
+	comma = 0;
+	if (t_flags & TF_ACKNOW) {
+		db_printf("%sTF_ACKNOW", comma ? ", " : "");
+		comma = 1;
+	}
+	if (t_flags & TF_DELACK) {
+		db_printf("%sTF_DELACK", comma ? ", " : "");
+		comma = 1;
+	}
+	if (t_flags & TF_NODELAY) {
+		db_printf("%sTF_NODELAY", comma ? ", " : "");
+		comma = 1;
+	}
+	if (t_flags & TF_NOOPT) {
+		db_printf("%sTF_NOOPT", comma ? ", " : "");
+		comma = 1;
+	}
+	if (t_flags & TF_SENTFIN) {
+		db_printf("%sTF_SENTFIN", comma ? ", " : "");
+		comma = 1;
+	}
+	if (t_flags & TF_REQ_SCALE) {
+		db_printf("%sTF_REQ_SCALE", comma ? ", " : "");
+		comma = 1;
+	}
+	if (t_flags & TF_RCVD_SCALE) {
+		db_printf("%sTF_RECVD_SCALE", comma ? ", " : "");
+		comma = 1;
+	}
+	if (t_flags & TF_REQ_TSTMP) {
+		db_printf("%sTF_REQ_TSTMP", comma ? ", " : "");
+		comma = 1;
+	}
+	if (t_flags & TF_RCVD_TSTMP) {
+		db_printf("%sTF_RCVD_TSTMP", comma ? ", " : "");
+		comma = 1;
+	}
+	if (t_flags & TF_SACK_PERMIT) {
+		db_printf("%sTF_SACK_PERMIT", comma ? ", " : "");
+		comma = 1;
+	}
+	if (t_flags & TF_NEEDSYN) {
+		db_printf("%sTF_NEEDSYN", comma ? ", " : "");
+		comma = 1;
+	}
+	if (t_flags & TF_NEEDFIN) {
+		db_printf("%sTF_NEEDFIN", comma ? ", " : "");
+		comma = 1;
+	}
+	if (t_flags & TF_NOPUSH) {
+		db_printf("%sTF_NOPUSH", comma ? ", " : "");
+		comma = 1;
+	}
+	if (t_flags & TF_NOPUSH) {
+		db_printf("%sTF_NOPUSH", comma ? ", " : "");
+		comma = 1;
+	}
+	if (t_flags & TF_MORETOCOME) {
+		db_printf("%sTF_MORETOCOME", comma ? ", " : "");
+		comma = 1;
+	}
+	if (t_flags & TF_LQ_OVERFLOW) {
+		db_printf("%sTF_LQ_OVERFLOW", comma ? ", " : "");
+		comma = 1;
+	}
+	if (t_flags & TF_LASTIDLE) {
+		db_printf("%sTF_LASTIDLE", comma ? ", " : "");
+		comma = 1;
+	}
+	if (t_flags & TF_RXWIN0SENT) {
+		db_printf("%sTF_RXWIN0SENT", comma ? ", " : "");
+		comma = 1;
+	}
+	if (t_flags & TF_FASTRECOVERY) {
+		db_printf("%sTF_FASTRECOVERY", comma ? ", " : "");
+		comma = 1;
+	}
+	if (t_flags & TF_WASFRECOVERY) {
+		db_printf("%sTF_WASFRECOVERY", comma ? ", " : "");
+		comma = 1;
+	}
+	if (t_flags & TF_SIGNATURE) {
+		db_printf("%sTF_SIGNATURE", comma ? ", " : "");
+		comma = 1;
+	}
+	if (t_flags & TF_FORCEDATA) {
+		db_printf("%sTF_FORCEDATA", comma ? ", " : "");
+		comma = 1;
+	}
+	if (t_flags & TF_TSO) {
+		db_printf("%sTF_TSO", comma ? ", " : "");
+		comma = 1;
+	}
+}
+
+static void
+db_print_toobflags(char t_oobflags)
+{
+	int comma;
+
+	comma = 0;
+	if (t_oobflags & TCPOOB_HAVEDATA) {
+		db_printf("%sTCPOOB_HAVEDATA", comma ? ", " : "");
+		comma = 1;
+	}
+	if (t_oobflags & TCPOOB_HADDATA) {
+		db_printf("%sTCPOOB_HADDATA", comma ? ", " : "");
+		comma = 1;
+	}
+}
+
+static void
+db_print_tcpcb(struct tcpcb *tp, const char *name, int indent)
+{
+
+	db_print_indent(indent);
+	db_printf("%s at %p\n", name, tp);
+
+	indent += 2;
+
+	db_print_indent(indent);
+	db_printf("t_segq first: %p   t_segqlen: %d   t_dupacks: %d\n",
+	   LIST_FIRST(&tp->t_segq), tp->t_segqlen, tp->t_dupacks);
+
+	db_print_indent(indent);
+	db_printf("tt_rexmt: %p   tt_persist: %p   tt_keep: %p\n",
+	    tp->tt_rexmt, tp->tt_persist, tp->tt_keep);
+
+	db_print_indent(indent);
+	db_printf("tt_2msl: %p   tt_delack: %p   t_inpcb: %p\n", tp->tt_2msl,
+	    tp->tt_delack, tp->t_inpcb);
+
+	db_print_indent(indent);
+	db_printf("t_state: %d (", tp->t_state);
+	db_print_tstate(tp->t_state);
+	db_printf(")\n");
+
+	db_print_indent(indent);
+	db_printf("t_flags: 0x%x (", tp->t_flags);
+	db_print_tflags(tp->t_flags);
+	db_printf(")\n");
+
+	db_print_indent(indent);
+	db_printf("snd_una: 0x%08x   snd_max: 0x%08x   snd_nxt: x0%08x\n",
+	    tp->snd_una, tp->snd_max, tp->snd_nxt);
+
+	db_print_indent(indent);
+	db_printf("snd_up: 0x%08x   snd_wl1: 0x%08x   snd_wl2: 0x%08x\n",
+	   tp->snd_up, tp->snd_wl1, tp->snd_wl2);
+
+	db_print_indent(indent);
+	db_printf("iss: 0x%08x   irs: 0x%08x   rcv_nxt: 0x%08x\n",
+	    tp->iss, tp->irs, tp->rcv_nxt);
+
+	db_print_indent(indent);
+	db_printf("rcv_adv: 0x%08x   rcv_wnd: %lu   rcv_up: 0x%08x\n",
+	    tp->rcv_adv, tp->rcv_wnd, tp->rcv_up);
+
+	db_print_indent(indent);
+	db_printf("snd_wnd: %lu   snd_cwnd: %lu   snd_bwnd: %lu\n",
+	   tp->snd_wnd, tp->snd_cwnd, tp->snd_bwnd);
+
+	db_print_indent(indent);
+	db_printf("snd_ssthresh: %lu   snd_bandwidth: %lu   snd_recover: "
+	    "0x%08x\n", tp->snd_ssthresh, tp->snd_bandwidth,
+	    tp->snd_recover);
+
+	db_print_indent(indent);
+	db_printf("t_maxopd: %u   t_rcvtime: %lu   t_startime: %lu\n",
+	    tp->t_maxopd, tp->t_rcvtime, tp->t_starttime);
+
+	db_print_indent(indent);
+	db_printf("t_rttime: %d   t_rtsq: 0x%08x   t_bw_rtttime: %d\n",
+	    tp->t_rtttime, tp->t_rtseq, tp->t_bw_rtttime);
+
+	db_print_indent(indent);
+	db_printf("t_bw_rtseq: 0x%08x   t_rxtcur: %d   t_maxseg: %u   "
+	    "t_srtt: %d\n", tp->t_bw_rtseq, tp->t_rxtcur, tp->t_maxseg,
+	    tp->t_srtt);
+
+	db_print_indent(indent);
+	db_printf("t_rttvar: %d   t_rxtshift: %d   t_rttmin: %u   "
+	    "t_rttbest: %u\n", tp->t_rttvar, tp->t_rxtshift, tp->t_rttmin,
+	    tp->t_rttbest);
+
+	db_print_indent(indent);
+	db_printf("t_rttupdated: %lu   max_sndwnd: %lu   t_softerror: %d\n",
+	    tp->t_rttupdated, tp->max_sndwnd, tp->t_softerror);
+
+	db_print_indent(indent);
+	db_printf("t_oobflags: 0x%x (", tp->t_oobflags);
+	db_print_toobflags(tp->t_oobflags);
+	db_printf(")   t_iobc: 0x%02x\n", tp->t_iobc);
+
+	db_print_indent(indent);
+	db_printf("snd_scale: %u   rcv_scale: %u   request_r_scale: %u\n",
+	    tp->snd_scale, tp->rcv_scale, tp->request_r_scale);
+
+	db_print_indent(indent);
+	db_printf("requested_s_scale: %u   ts_recent: %u   ts_recent_age: "
+	    "%lu\n", tp->requested_s_scale, tp->ts_recent, tp->ts_recent_age);
+
+	db_print_indent(indent);
+	db_printf("ts_offset: %u   last_ack_sent: 0x%08x   snd_cwnd_prev: "
+	    "%lu\n", tp->ts_offset, tp->last_ack_sent, tp->snd_cwnd_prev);
+
+	db_print_indent(indent);
+	db_printf("snd_ssthresh_prev: %lu   snd_recover_prev: 0x%08x   "
+	    "t_badrxtwin: %lu\n", tp->snd_ssthresh_prev,
+	    tp->snd_recover_prev, tp->t_badrxtwin);
+
+	db_print_indent(indent);
+	db_printf("snd_limited: %u   rcv_second: %lu   rcv_pps: %lu   "
+	    "tcv_byps: %lu\n", tp->snd_limited, tp->rcv_second, tp->rcv_pps,
+	    tp->rcv_byps);
+
+	db_print_indent(indent);
+	db_printf("sack_enable: %d   snd_numholes: %d  snd_holes first: %p\n",
+	    tp->sack_enable, tp->snd_numholes, TAILQ_FIRST(&tp->snd_holes));
+
+	db_print_indent(indent);
+	db_printf("snd_fack: 0x%08x   rcv_numsacks: %d   sack_newdata: "
+	    "0x%08x\n", tp->snd_fack, tp->rcv_numsacks, tp->sack_newdata);
+
+	/* Skip sackblks, sackhint. */
+
+	db_print_indent(indent);
+	db_printf("t_rttlow: %d   rfbuf_ts: %u   rfbuf_cnt: %d\n",
+	    tp->t_rttlow, tp->rfbuf_ts, tp->rfbuf_cnt);
+}
+
+DB_SHOW_COMMAND(tcpcb, db_show_tcpcb)
+{
+	struct tcpcb *tp;
+
+	if (!have_addr) {
+		db_printf("usage: show tcpcb <addr>\n");
+		return;
+	}
+	tp = (struct tcpcb *)addr;
+
+	db_print_tcpcb(tp, "tcpcb", 0);
+}
+#endif

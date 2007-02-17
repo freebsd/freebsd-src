@@ -370,6 +370,12 @@ struct sockaddr *
 void	in_pcbsosetlabel(struct socket *so);
 void	in_pcbremlists(struct inpcb *inp);
 void	ipport_tick(void *xtp);
+
+/*
+ * Debugging routines compiled in when DDB is present.
+ */
+void	db_print_inpcb(struct inpcb *inp, const char *name, int indent);
+
 #endif /* _KERNEL */
 
 #endif /* !_NETINET_IN_PCB_H_ */
