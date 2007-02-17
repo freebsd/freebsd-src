@@ -493,6 +493,8 @@ MLINKS+=sl.4 if_sl.4
 MLINKS+=smp.4 SMP.4
 MLINKS+=sn.4 if_sn.4
 MLINKS+=snd_envy24.4 snd_ak452x.4
+MLINKS+=snd_sbc.4 snd_sb16.4 \
+	snd_sbc.4 snd_sb8.4
 MLINKS+=${_spkr.4} ${_speaker.4}
 MLINKS+=splash.4 screensaver.4
 MLINKS+=ste.4 if_ste.4
