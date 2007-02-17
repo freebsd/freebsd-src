@@ -59,10 +59,14 @@ static MALLOC_DEFINE(M_ATAPCI, "ata_pci", "ATA driver PCI");
 int
 ata_legacy(device_t dev)
 {
-    return ((pci_read_config(dev, PCIR_PROGIF, 1)&PCIP_STORAGE_IDE_MASTERDEV) &&
-	    ((pci_read_config(dev, PCIR_PROGIF, 1) &
-	      (PCIP_STORAGE_IDE_MODEPRIM | PCIP_STORAGE_IDE_MODESEC)) !=
-	     (PCIP_STORAGE_IDE_MODEPRIM | PCIP_STORAGE_IDE_MODESEC)));
+    return (((pci_read_config(dev, PCIR_PROGIF, 1)&PCIP_STORAGE_IDE_MASTERDEV)&&
+	     ((pci_read_config(dev, PCIR_PROGIF, 1) &
+	       (PCIP_STORAGE_IDE_MODEPRIM | PCIP_STORAGE_IDE_MODESEC)) !=
+	      (PCIP_STORAGE_IDE_MODEPRIM | PCIP_STORAGE_IDE_MODESEC))) ||
+	    (!pci_read_config(dev, PCIR_BAR(0), 4) &&
+	     !pci_read_config(dev, PCIR_BAR(1), 4) &&
+	     !pci_read_config(dev, PCIR_BAR(2), 4) &&
+	     !pci_read_config(dev, PCIR_BAR(3), 4)));
 }
 
 int
@@ -211,11 +215,7 @@ ata_pci_attach(device_t dev)
 
     /* attach all channels on this controller */
     for (unit = 0; unit < ctlr->channels; unit++) {
-	if (unit == 0 && (pci_get_progif(dev) & 0x81) == 0x80) {
-	    device_add_child(dev, "ata", unit);
-	    continue;
-	}
-	if (unit == 1 && (pci_get_progif(dev) & 0x84) == 0x80) {
+	if ((unit == 0 || unit == 1) && ata_legacy(dev)) {
 	    device_add_child(dev, "ata", unit);
 	    continue;
 	}
