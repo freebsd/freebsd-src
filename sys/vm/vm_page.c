@@ -479,7 +479,8 @@ vm_page_unhold(vm_page_t mem)
 void
 vm_page_free(vm_page_t m)
 {
-	vm_page_flag_clear(m, PG_ZERO);
+
+	m->flags &= ~PG_ZERO;
 	vm_page_free_toq(m);
 }
 
@@ -491,7 +492,8 @@ vm_page_free(vm_page_t m)
 void
 vm_page_free_zero(vm_page_t m)
 {
-	vm_page_flag_set(m, PG_ZERO);
+
+	m->flags |= PG_ZERO;
 	vm_page_free_toq(m);
 }
 
