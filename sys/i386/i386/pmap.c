@@ -1559,7 +1559,6 @@ pmap_release(pmap_t pmap)
 
 	pmap_qremove((vm_offset_t)pmap->pm_pdir, NPGPTD);
 
-	vm_page_lock_queues();
 	for (i = 0; i < NPGPTD; i++) {
 		m = ptdpg[i];
 #ifdef PAE
@@ -1570,7 +1569,6 @@ pmap_release(pmap_t pmap)
 		atomic_subtract_int(&cnt.v_wire_count, 1);
 		vm_page_free_zero(m);
 	}
-	vm_page_unlock_queues();
 	PMAP_LOCK_DESTROY(pmap);
 }
 
