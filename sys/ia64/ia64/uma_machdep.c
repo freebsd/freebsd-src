@@ -76,7 +76,5 @@ uma_small_free(void *mem, int size, u_int8_t flags)
 	vm_page_t m;
 
 	m = PHYS_TO_VM_PAGE(IA64_RR_MASK((u_int64_t)mem));
-	vm_page_lock_queues();
 	vm_page_free(m);
-	vm_page_unlock_queues();
 }
