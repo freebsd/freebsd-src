@@ -130,7 +130,7 @@ cpu_setup(u_int cpuid)
 		min = (pvr >>  0) & 0xf;
 	}
 
-	for (cp = models; cp->name[0] != '\0'; cp++) {
+	for (cp = models; cp->version != 0; cp++) {
 		if (cp->version == vers)
 			break;
 	}
