@@ -326,7 +326,7 @@ partition
 .Ar ( da0s1
 being your DOS primary
 partition).
-Now let's further assume that you have 500MB in this
+Now let's further assume that you have 4GB in this
 partition and you want to sub-partition that space into root, swap,
 var and usr file systems for
 .Fx .
@@ -334,14 +334,14 @@ Your invocation of the
 .Ar diskLabelEditor
 function might involve setting the following variables:
 .Bl -tag -width findx
-.It Li "da0s2-1=ufs 40960 /"
-A 20MB root file system (all sizes are in 512 byte blocks).
-.It Li "da0s2-2=swap 131072 /"
-A 64MB swap partition.
-.It Li "da0s2-3=ufs 204800 /var"
-A 100MB /var file system.
+.It Li "da0s2-1=ufs 2097152 /"
+A 1GB root file system (all sizes are in 512 byte blocks).
+.It Li "da0s2-2=swap 1048576 /"
+A 512MB swap partition.
+.It Li "da0s2-3=ufs 524288 /var"
+A 256MB /var file system.
 .It Li "da0s2-4=ufs 0 /usr 1"
-With the balance of free space (around 316MB) going to the /usr
+With the balance of free space (around 2.25GB) going to the /usr
 file system and with soft-updates enabled (the argument following
 the mount point, if non-zero, means to set the soft updates flag).
 .El
@@ -405,6 +405,10 @@ Possible distribution values are:
 .Bl -tag -width indentxx
 .It Li base
 The base binary distribution.
+.It Li generic
+The GENERIC kernel.
+.It Li smp
+A kernel suitable for multiple processor systems.
 .It Li doc
 Miscellaneous documentation
 .It Li games
@@ -448,6 +452,8 @@ The ports collection.
 /usr/src/release
 .It Li srescue
 /usr/src/rescue
+.It Li stools
+/usr/src/tools
 .It Li sbin
 /usr/src/bin
 .It Li ssbin
@@ -460,8 +466,6 @@ The ports collection.
 /usr/src/usr.bin
 .It Li susbin
 /usr/src/usr.sbin
-.It Li ssmailcf
-/usr/src/usr.sbin/sendmail/cf
 .It Li Xbin
 X.Org client applications.
 .It Li Xlib
