@@ -2139,7 +2139,7 @@ BEGIN_CRITICAL;
 END_CRITICAL;
 pkt_status_check_overrun:
 	/*
-	 * Status PKT overruns are uncerimoniously recovered with a
+	 * Status PKT overruns are unceremoniously recovered with a
 	 * bus reset.  If we've overrun, let the host know so that
 	 * recovery can be performed.
 	 *

@@ -539,7 +539,7 @@ chk_times(intmax_t a, intmax_t b, intmax_t r)
 	/* special case: first operand is 0, no overflow possible */
 	if (a == 0)
 		return 0;
-	/* cerify that result of division matches second operand */
+	/* verify that result of division matches second operand */
 	if (r / a != b)
 		return 1;
 	return 0;
@@ -637,7 +637,7 @@ op_colon(struct val *a, struct val *b)
 	int eval;
 	struct val *v;
 
-	/* coerce to both arguments to strings */
+	/* coerce both arguments to strings */
 	to_string(a);
 	to_string(b);
 
