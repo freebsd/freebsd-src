@@ -82,7 +82,5 @@ uma_small_free(void *mem, int size, u_int8_t flags)
 	pa = DMAP_TO_PHYS((vm_offset_t)mem);
 	dump_drop_page(pa);
 	m = PHYS_TO_VM_PAGE(pa);
-	vm_page_lock_queues();
 	vm_page_free(m);
-	vm_page_unlock_queues();
 }
