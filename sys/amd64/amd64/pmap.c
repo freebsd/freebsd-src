@@ -1498,11 +1498,9 @@ pmap_release(pmap_t pmap)
 	pmap->pm_pml4[DMPML4I] = 0;	/* Direct Map */
 	pmap->pm_pml4[PML4PML4I] = 0;	/* Recursive Mapping */
 
-	vm_page_lock_queues();
 	m->wire_count--;
 	atomic_subtract_int(&cnt.v_wire_count, 1);
 	vm_page_free_zero(m);
-	vm_page_unlock_queues();
 	PMAP_LOCK_DESTROY(pmap);
 }
 
