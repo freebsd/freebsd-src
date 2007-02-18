@@ -860,8 +860,6 @@ write_file_data(struct bsdtar *bsdtar, struct archive *a, int fd)
 			/* Write was truncated; warn but continue. */
 			bsdtar_warnc(bsdtar, 0,
 			    "Truncated write; file may have grown while being archived.");
-			/* Make bsdtar return a final error because of this. */
-			bsdtar->return_value = 1;
 			return (0);
 		}
 		bytes_read = read(fd, buff, sizeof(buff));
