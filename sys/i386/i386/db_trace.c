@@ -360,9 +360,9 @@ db_nextframe(struct i386_frame **fp, db_addr_t *ip, struct thread *td)
 	 * current frame.
 	 */
 	if (frame_type == INTERRUPT)
-		tf = (struct trapframe *)((int)*fp + 12);
+		tf = (struct trapframe *)((int)*fp + 16);
 	else
-		tf = (struct trapframe *)((int)*fp + 8);
+		tf = (struct trapframe *)((int)*fp + 12);
 
 	if (INKERNEL((int) tf)) {
 		esp = get_esp(tf);
