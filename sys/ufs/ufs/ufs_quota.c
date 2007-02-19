@@ -451,11 +451,7 @@ quotaon(td, mp, type, fname)
 	int error, flags;
 	struct nameidata nd;
 
-	/*
-	 * XXXRW: Can this be right?  Jail is allowed to do this?
-	 */
-	error = priv_check_cred(td->td_ucred, PRIV_UFS_QUOTAON,
-	    SUSER_ALLOWJAIL);
+	error = priv_check_cred(td->td_ucred, PRIV_UFS_QUOTAON, 0);
 	if (error)
 		return (error);
 
@@ -550,11 +546,7 @@ quotaoff(td, mp, type)
 	struct inode *ip;
 	int error;
 
-	/*
-	 * XXXRW: This also seems wrong to allow in a jail?
-	 */
-	error = priv_check_cred(td->td_ucred, PRIV_UFS_QUOTAOFF,
-	    SUSER_ALLOWJAIL);
+	error = priv_check_cred(td->td_ucred, PRIV_UFS_QUOTAOFF, 0);
 	if (error)
 		return (error);
 
@@ -741,8 +733,7 @@ setuse(td, mp, id, type, addr)
 	struct dqblk usage;
 	int error;
 
-	error = priv_check_cred(td->td_ucred, PRIV_UFS_SETUSE,
-	    SUSER_ALLOWJAIL);
+	error = priv_check_cred(td->td_ucred, PRIV_UFS_SETUSE, 0);
 	if (error)
 		return (error);
 
