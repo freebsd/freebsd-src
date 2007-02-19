@@ -1,7 +1,11 @@
 /*	$NetBSD: sysv_ipc.c,v 1.7 1994/06/29 06:33:11 cgd Exp $	*/
 /*-
  * Copyright (c) 1994 Herb Peyerl <hpeyerl@novatel.ca>
+ * Copyright (c) 2006 nCircle Network Security, Inc.
  * All rights reserved.
+ *
+ * This software was developed by Robert N. M. Watson for the TrustedBSD
+ * Project under contract to nCircle Network Security, Inc.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -39,6 +43,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/sem.h>
 #include <sys/shm.h>
 #include <sys/ipc.h>
+#include <sys/priv.h>
 #include <sys/proc.h>
 #include <sys/ucred.h>
 
@@ -72,50 +77,73 @@ shmexit(struct vmspace *vm)
  * Note: The MAC Framework does not require any modifications to the
  * ipcperm() function, as access control checks are performed throughout the
  * implementation of each primitive.  Those entry point calls complement the
- * ipcperm() discertionary checks.
+ * ipcperm() discertionary checks.  Unlike file system discretionary access
+ * control, the original create of an object is given the same rights as the
+ * current owner.
  */
 int
-ipcperm(td, perm, mode)
-	struct thread *td;
-	struct ipc_perm *perm;
-	int mode;
+ipcperm(struct thread *td, struct ipc_perm *perm, int acc_mode)
 {
 	struct ucred *cred = td->td_ucred;
-	int error;
+	int error, obj_mode, dac_granted, priv_granted;
 
-	if (cred->cr_uid != perm->cuid && cred->cr_uid != perm->uid) {
-		/*
-		 * For a non-create/owner, we require privilege to
-		 * modify the object protections.  Note: some other
-		 * implementations permit IPC_M to be delegated to
-		 * unprivileged non-creator/owner uids/gids.
-		 */
-		if (mode & IPC_M) {
-			error = suser(td);
-			if (error)
-				return (error);
-		}
-		/*
-		 * Try to match against creator/owner group; if not, fall
-		 * back on other.
-		 */
-		mode >>= 3;
-		if (!groupmember(perm->gid, cred) &&
-		    !groupmember(perm->cgid, cred))
-			mode >>= 3;
+	dac_granted = 0;
+	if (cred->cr_uid == perm->cuid || cred->cr_uid == perm->uid) {
+		obj_mode = perm->mode;
+		dac_granted |= IPC_M;
+	} else if (groupmember(perm->gid, cred) ||
+	    groupmember(perm->cgid, cred)) {
+		obj_mode = perm->mode;
+		obj_mode <<= 3;
 	} else {
-		/*
-		 * Always permit the creator/owner to update the object
-		 * protections regardless of whether the object mode
-		 * permits it.
-		 */
-		if (mode & IPC_M)
-			return (0);
+		obj_mode = perm->mode;
+		obj_mode <<= 6;
 	}
 
-	if ((mode & perm->mode) != mode) {
-		if (suser(td) != 0)
-			return (EACCES);
+	/*
+	 * While the System V IPC permission model allows IPC_M to be
+	 * granted, as part of the mode, our implementation requires
+	 * privilege to adminster the object if not the owner or creator.
+	 */
+#if 0
+	if (obj_mode & IPC_M)
+		dac_granted |= IPC_M;
+#endif
+	if (obj_mode & IPC_R)
+		dac_granted |= IPC_R;
+	if (obj_mode & IPC_W)
+		dac_granted |= IPC_W;
+
+	/*
+	 * Simple case: all required rights are granted by DAC.
+	 */
+	if ((dac_granted & acc_mode) == acc_mode)
+		return (0);
+
+	/*
+	 * Privilege is required to satisfy the request.
+	 */
+	priv_granted = 0;
+	if ((acc_mode & IPC_M) && !(dac_granted & IPC_M)) {
+		error = priv_check(td, PRIV_IPC_ADMIN);
+		if (error == 0)
+			priv_granted |= IPC_M;
 	}
-	return (0);
+
+	if ((acc_mode & IPC_R) && !(dac_granted & IPC_R)) {
+		error = priv_check(td, PRIV_IPC_READ);
+		if (error == 0)
+			priv_granted |= IPC_R;
+	}
+
+	if ((acc_mode & IPC_W) && !(dac_granted & IPC_W)) {
+		error = priv_check(td, PRIV_IPC_WRITE);
+		if (error == 0)
+			priv_granted |= IPC_W;
+	}
+
+	if (((dac_granted | priv_granted) & acc_mode) == acc_mode)
+		return (0);
+	else
+		return (EACCES);
 }
