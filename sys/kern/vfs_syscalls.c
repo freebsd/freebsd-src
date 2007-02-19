@@ -87,8 +87,6 @@ static int setutimes(struct thread *td, struct vnode *,
 static int vn_access(struct vnode *vp, int user_flags, struct ucred *cred,
     struct thread *td);
 
-int (*union_dircheckp)(struct thread *td, struct vnode **, struct file *);
-
 /*
  * The module initialization routine for POSIX asynchronous I/O will
  * set this to the version of AIO that it implements.  (Zero means
@@ -3657,44 +3655,26 @@ unionread:
 		}
 		FREE(dirbuf, M_TEMP);
 	}
-	VOP_UNLOCK(vp, 0, td);
 	if (error) {
+		VOP_UNLOCK(vp, 0, td);
 		VFS_UNLOCK_GIANT(vfslocked);
 		fdrop(fp, td);
 		return (error);
 	}
-	if (uap->count == auio.uio_resid) {
-		if (union_dircheckp) {
-			error = union_dircheckp(td, &vp, fp);
-			if (error == -1) {
-				VFS_UNLOCK_GIANT(vfslocked);
-				goto unionread;
-			}
-			if (error) {
-				VFS_UNLOCK_GIANT(vfslocked);
-				fdrop(fp, td);
-				return (error);
-			}
-		}
-		/*
-		 * XXX We could delay dropping the lock above but
-		 * union_dircheckp complicates things.
-		 */
-		vn_lock(vp, LK_EXCLUSIVE|LK_RETRY, td);
-		if ((vp->v_vflag & VV_ROOT) &&
-		    (vp->v_mount->mnt_flag & MNT_UNION)) {
-			struct vnode *tvp = vp;
-			vp = vp->v_mount->mnt_vnodecovered;
-			VREF(vp);
-			fp->f_vnode = vp;
-			fp->f_data = vp;
-			fp->f_offset = 0;
-			vput(tvp);
-			VFS_UNLOCK_GIANT(vfslocked);
-			goto unionread;
-		}
-		VOP_UNLOCK(vp, 0, td);
+	if (uap->count == auio.uio_resid &&
+	    (vp->v_vflag & VV_ROOT) &&
+	    (vp->v_mount->mnt_flag & MNT_UNION)) {
+		struct vnode *tvp = vp;
+		vp = vp->v_mount->mnt_vnodecovered;
+		VREF(vp);
+		fp->f_vnode = vp;
+		fp->f_data = vp;
+		fp->f_offset = 0;
+		vput(tvp);
+		VFS_UNLOCK_GIANT(vfslocked);
+		goto unionread;
 	}
+	VOP_UNLOCK(vp, 0, td);
 	VFS_UNLOCK_GIANT(vfslocked);
 	error = copyout(&loff, uap->basep, sizeof(long));
 	fdrop(fp, td);
@@ -3743,6 +3723,7 @@ getdirentries(td, uap)
 unionread:
 	vfslocked = VFS_LOCK_GIANT(vp->v_mount);
 	if (vp->v_type != VDIR) {
+		VFS_UNLOCK_GIANT(vfslocked);
 		error = EINVAL;
 		goto fail;
 	}
@@ -3765,44 +3746,31 @@ unionread:
 		error = VOP_READDIR(vp, &auio, fp->f_cred, &eofflag, NULL,
 		    NULL);
 	fp->f_offset = auio.uio_offset;
-	VOP_UNLOCK(vp, 0, td);
-	if (error)
-		goto fail;
-	if (uap->count == auio.uio_resid) {
-		if (union_dircheckp) {
-			error = union_dircheckp(td, &vp, fp);
-			if (error == -1) {
-				VFS_UNLOCK_GIANT(vfslocked);
-				goto unionread;
-			}
-			if (error)
-				goto fail;
-		}
-		/*
-		 * XXX We could delay dropping the lock above but
-		 * union_dircheckp complicates things.
-		 */
-		vn_lock(vp, LK_EXCLUSIVE | LK_RETRY, td);
-		if ((vp->v_vflag & VV_ROOT) &&
-		    (vp->v_mount->mnt_flag & MNT_UNION)) {
-			struct vnode *tvp = vp;
-			vp = vp->v_mount->mnt_vnodecovered;
-			VREF(vp);
-			fp->f_vnode = vp;
-			fp->f_data = vp;
-			fp->f_offset = 0;
-			vput(tvp);
-			VFS_UNLOCK_GIANT(vfslocked);
-			goto unionread;
-		}
+	if (error) {
 		VOP_UNLOCK(vp, 0, td);
+		VFS_UNLOCK_GIANT(vfslocked);
+		goto fail;
 	}
+	if (uap->count == auio.uio_resid &&
+	    (vp->v_vflag & VV_ROOT) &&
+	    (vp->v_mount->mnt_flag & MNT_UNION)) {
+		struct vnode *tvp = vp;
+		vp = vp->v_mount->mnt_vnodecovered;
+		VREF(vp);
+		fp->f_vnode = vp;
+		fp->f_data = vp;
+		fp->f_offset = 0;
+		vput(tvp);
+		VFS_UNLOCK_GIANT(vfslocked);
+		goto unionread;
+	}
+	VOP_UNLOCK(vp, 0, td);
+	VFS_UNLOCK_GIANT(vfslocked);
 	if (uap->basep != NULL) {
 		error = copyout(&loff, uap->basep, sizeof(long));
 	}
 	td->td_retval[0] = uap->count - auio.uio_resid;
 fail:
-	VFS_UNLOCK_GIANT(vfslocked);
 	fdrop(fp, td);
 	return (error);
 }
