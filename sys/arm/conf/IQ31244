@@ -23,6 +23,8 @@ ident		IQ31244
 options 	PHYSADDR=0xa0000000
 options		KERNPHYSADDR=0xa0200000	
 options		KERNVIRTADDR=0xc0200000		# Used in ldscript.arm
+options		FLASHADDR=0xf0000000
+options		LOADERRAMADDR=0x00000000
 
 options STARTUP_PAGETABLE_ADDR=0xa0000000
 include		"../xscale/i80321/std.iq31244"
