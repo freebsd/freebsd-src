@@ -126,7 +126,8 @@ mac_seeotheruids_check(struct ucred *u1, struct ucred *u2)
 		return (0);
 
 	if (suser_privileged) {
-		if (priv_check_cred(u1, PRIV_SEEOTHERUIDS, 0) == 0)
+		if (priv_check_cred(u1, PRIV_SEEOTHERUIDS, SUSER_ALLOWJAIL)
+		    == 0)
 			return (0);
 	}
 
