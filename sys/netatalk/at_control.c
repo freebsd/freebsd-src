@@ -31,6 +31,7 @@
 #include <sys/sockio.h>
 #include <sys/malloc.h>
 #include <sys/kernel.h>
+#include <sys/priv.h>
 #include <sys/socket.h>
 #include <net/if.h>
 #include <net/route.h>
@@ -121,7 +122,7 @@ at_control(struct socket *so, u_long cmd, caddr_t data, struct ifnet *ifp,
 		 *
 		 * XXXRW: Layering?
 		 */
-		if (suser(td))
+		if (priv_check(td, PRIV_NET_ADDIFADDR))
 			return (EPERM);
 
 		sat = satosat(&ifr->ifr_addr);
