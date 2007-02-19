@@ -187,7 +187,7 @@ chkdq(ip, change, cred, flags)
 		return (0);
 	}
 	if ((flags & FORCE) == 0 && priv_check_cred(cred,
-	    PRIV_UFS_EXCEEDQUOTA, 0)) {
+	    PRIV_VFS_EXCEEDQUOTA, 0)) {
 		for (i = 0; i < MAXQUOTAS; i++) {
 			if ((dq = ip->i_dquot[i]) == NODQUOT)
 				continue;
@@ -310,7 +310,7 @@ chkiq(ip, change, cred, flags)
 		return (0);
 	}
 	if ((flags & FORCE) == 0 && priv_check_cred(cred,
-	    PRIV_UFS_EXCEEDQUOTA, 0)) {
+	    PRIV_VFS_EXCEEDQUOTA, 0)) {
 		for (i = 0; i < MAXQUOTAS; i++) {
 			if ((dq = ip->i_dquot[i]) == NODQUOT)
 				continue;
@@ -620,7 +620,7 @@ getquota(td, mp, id, type, addr)
 	case USRQUOTA:
 		if ((td->td_ucred->cr_uid != id) && !unprivileged_get_quota) {
 			error = priv_check_cred(td->td_ucred,
-			    PRIV_UFS_GETQUOTA, SUSER_ALLOWJAIL);
+			    PRIV_VFS_GETQUOTA, SUSER_ALLOWJAIL);
 			if (error)
 				return (error);
 		}
@@ -630,7 +630,7 @@ getquota(td, mp, id, type, addr)
 		if (!groupmember(id, td->td_ucred) &&
 		    !unprivileged_get_quota) {
 			error = priv_check_cred(td->td_ucred,
-			    PRIV_UFS_GETQUOTA, SUSER_ALLOWJAIL);
+			    PRIV_VFS_GETQUOTA, SUSER_ALLOWJAIL);
 			if (error)
 				return (error);
 		}
@@ -665,7 +665,7 @@ setquota(td, mp, id, type, addr)
 	struct dqblk newlim;
 	int error;
 
-	error = priv_check_cred(td->td_ucred, PRIV_UFS_SETQUOTA,
+	error = priv_check_cred(td->td_ucred, PRIV_VFS_SETQUOTA,
 	    SUSER_ALLOWJAIL);
 	if (error)
 		return (error);
