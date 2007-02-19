@@ -542,6 +542,7 @@ prison_priv_check(struct ucred *cred, int priv)
 		 */
 	case PRIV_KTRACE:
 
+#if 0
 		/*
 		 * Allow jailed processes to configure audit identity and
 		 * submit audit records (login, etc).  In the future we may
@@ -551,6 +552,7 @@ prison_priv_check(struct ucred *cred, int priv)
 	case PRIV_AUDIT_GETAUDIT:
 	case PRIV_AUDIT_SETAUDIT:
 	case PRIV_AUDIT_SUBMIT:
+#endif
 
 		/*
 		 * Allow jailed processes to manipulate process UNIX
