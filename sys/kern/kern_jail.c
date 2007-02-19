@@ -618,14 +618,11 @@ prison_priv_check(struct ucred *cred, int priv)
 
 		/*
 		 * Allow root in jail to manage a variety of quota
-		 * properties.  Some are a bit surprising and should be
-		 * reconsidered.
+		 * properties.  These should likely be conditional on a
+		 * configuration option.
 		 */
 	case PRIV_UFS_GETQUOTA:
-	case PRIV_UFS_QUOTAOFF:		/* XXXRW: Slightly surprising. */
-	case PRIV_UFS_QUOTAON:		/* XXXRW: Slightly surprising. */
 	case PRIV_UFS_SETQUOTA:
-	case PRIV_UFS_SETUSE:		/* XXXRW: Slightly surprising. */
 
 		/*
 		 * Since Jail relies on chroot() to implement file system
