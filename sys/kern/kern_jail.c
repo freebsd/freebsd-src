@@ -621,8 +621,8 @@ prison_priv_check(struct ucred *cred, int priv)
 		 * properties.  These should likely be conditional on a
 		 * configuration option.
 		 */
-	case PRIV_UFS_GETQUOTA:
-	case PRIV_UFS_SETQUOTA:
+	case PRIV_VFS_GETQUOTA:
+	case PRIV_VFS_SETQUOTA:
 
 		/*
 		 * Since Jail relies on chroot() to implement file system

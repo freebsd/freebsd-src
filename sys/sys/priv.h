@@ -224,12 +224,9 @@
  * UFS-specific privileges.
  */
 #define	PRIV_UFS_EXTATTRCTL	270	/* Can configure EAs on UFS1. */
-#define	PRIV_UFS_GETQUOTA	271	/* getquota(). */
-#define	PRIV_UFS_QUOTAOFF	272	/* quotaoff(). */
-#define	PRIV_UFS_QUOTAON	273	/* quotaon(). */
-#define	PRIV_UFS_SETQUOTA	274	/* setquota(). */
-#define	PRIV_UFS_SETUSE		275	/* setuse(). */
-#define	PRIV_UFS_EXCEEDQUOTA	276	/* Exempt from quota restrictions. */
+#define	PRIV_UFS_QUOTAOFF	271	/* quotaoff(). */
+#define	PRIV_UFS_QUOTAON	272	/* quotaon(). */
+#define	PRIV_UFS_SETUSE		273	/* setuse(). */
 
 /*
  * VFS privileges.
@@ -244,27 +241,30 @@
 #define	PRIV_VFS_CHOWN		317	/* Can set user; group to non-member. */
 #define	PRIV_VFS_CHROOT		318	/* chroot(). */
 #define	PRIV_VFS_CLEARSUGID	319	/* Don't clear sugid on change. */
-#define	PRIV_VFS_EXTATTR_SYSTEM	320	/* Operate on system EA namespace. */
-#define	PRIV_VFS_FCHROOT	321	/* fchroot(). */
-#define	PRIV_VFS_FHOPEN		322	/* Can fhopen(). */
-#define	PRIV_VFS_FHSTAT		323	/* Can fhstat(). */
-#define	PRIV_VFS_FHSTATFS	324	/* Can fhstatfs(). */
-#define	PRIV_VFS_GENERATION	325	/* stat() returns generation number. */
-#define	PRIV_VFS_GETFH		326	/* Can retrieve file handles. */
-#define	PRIV_VFS_LINK		327	/* bsd.hardlink_check_uid */
-#define	PRIV_VFS_MKNOD_BAD	328	/* Can mknod() to mark bad inodes. */
-#define	PRIV_VFS_MKNOD_DEV	329	/* Can mknod() to create dev nodes. */
-#define	PRIV_VFS_MKNOD_WHT	330	/* Can mknod() to create whiteout. */
-#define	PRIV_VFS_MOUNT		331	/* Can mount(). */
-#define	PRIV_VFS_MOUNT_OWNER	332	/* Override owner on user mounts. */
-#define	PRIV_VFS_MOUNT_EXPORTED	333	/* Can set MNT_EXPORTED on mount. */
-#define	PRIV_VFS_MOUNT_PERM	334	/* Override dev node perms at mount. */
-#define	PRIV_VFS_MOUNT_SUIDDIR	335	/* Can set MNT_SUIDDIR on mount. */
-#define	PRIV_VFS_MOUNT_NONUSER	336	/* Can perform a non-user mount. */
-#define	PRIV_VFS_SETGID		337	/* Can setgid if not in group. */
-#define	PRIV_VFS_STICKYFILE	338	/* Can set sticky bit on file. */
-#define	PRIV_VFS_SYSFLAGS	339	/* Can modify system flags. */
-#define	PRIV_VFS_UNMOUNT	340	/* Can unmount(). */
+#define	PRIV_VFS_EXCEEDQUOTA	320	/* Exempt from quota restrictions. */
+#define	PRIV_VFS_EXTATTR_SYSTEM	321	/* Operate on system EA namespace. */
+#define	PRIV_VFS_FCHROOT	322	/* fchroot(). */
+#define	PRIV_VFS_FHOPEN		323	/* Can fhopen(). */
+#define	PRIV_VFS_FHSTAT		324	/* Can fhstat(). */
+#define	PRIV_VFS_FHSTATFS	325	/* Can fhstatfs(). */
+#define	PRIV_VFS_GENERATION	326	/* stat() returns generation number. */
+#define	PRIV_VFS_GETFH		327	/* Can retrieve file handles. */
+#define	PRIV_VFS_GETQUOTA	328	/* getquota(). */
+#define	PRIV_VFS_LINK		329	/* bsd.hardlink_check_uid */
+#define	PRIV_VFS_MKNOD_BAD	330	/* Can mknod() to mark bad inodes. */
+#define	PRIV_VFS_MKNOD_DEV	331	/* Can mknod() to create dev nodes. */
+#define	PRIV_VFS_MKNOD_WHT	332	/* Can mknod() to create whiteout. */
+#define	PRIV_VFS_MOUNT		333	/* Can mount(). */
+#define	PRIV_VFS_MOUNT_OWNER	334	/* Override owner on user mounts. */
+#define	PRIV_VFS_MOUNT_EXPORTED	335	/* Can set MNT_EXPORTED on mount. */
+#define	PRIV_VFS_MOUNT_PERM	336	/* Override dev node perms at mount. */
+#define	PRIV_VFS_MOUNT_SUIDDIR	337	/* Can set MNT_SUIDDIR on mount. */
+#define	PRIV_VFS_MOUNT_NONUSER	338	/* Can perform a non-user mount. */
+#define	PRIV_VFS_SETGID		339	/* Can setgid if not in group. */
+#define	PRIV_VFS_SETQUOTA	340	/* setquota(). */
+#define	PRIV_VFS_STICKYFILE	341	/* Can set sticky bit on file. */
+#define	PRIV_VFS_SYSFLAGS	342	/* Can modify system flags. */
+#define	PRIV_VFS_UNMOUNT	343	/* Can unmount(). */
 
 /*
  * Virtual memory privileges.
