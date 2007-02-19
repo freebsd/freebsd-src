@@ -3,9 +3,9 @@
 RELN_ROOT?= ${.CURDIR}/../..
 
 .ifdef NO_LANGCODE_IN_DESTDIR
-DESTDIR?=	${DOCDIR}/relnotes
+DESTDIR?=	${DOCDIR}/hardware
 .else
-DESTDIR?=	${DOCDIR}/en_US.ISO8859-1/relnotes
+DESTDIR?=	${DOCDIR}/en_US.ISO8859-1/hardware
 .endif
 
 DOC?= article
