@@ -110,11 +110,9 @@ procfs_ioctl(PFS_IOCTL_ARGS)
 			 * XXXRW: Is this specific check required here, as
 			 * p_candebug() should implement it, or other checks
 			 * are missing.
-			 *
-			 * XXXRW: Other debugging privileges are granted in
-			 * jail, why isn't this?
 			 */
-			error = priv_check(td, PRIV_DEBUG_SUGID);
+			error = priv_check_cred(td->td_ucred,
+			    PRIV_DEBUG_SUGID, SUSER_ALLOWJAIL);
 			if (error)
 				break;
 		}
