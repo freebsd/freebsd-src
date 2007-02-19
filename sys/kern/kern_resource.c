@@ -330,7 +330,7 @@ rtprio_thread(struct thread *td, struct rtprio_thread_args *uap)
 			break;
 
 		/* Disallow setting rtprio in most cases if not superuser. */
-		if (suser(td) != 0) {
+		if (priv_check(td, PRIV_SCHED_RTPRIO) != 0) {
 			/* can't set realtime priority */
 /*
  * Realtime priority has to be restricted for reasons which should be
