@@ -722,9 +722,6 @@ shmget_existing(td, uap, mode, segnum)
 	if (error != 0)
 		return (error);
 #endif
-	error = ipcperm(td, &shmseg->u.shm_perm, mode);
-	if (error)
-		return (error);
 	if (uap->size && uap->size > shmseg->u.shm_segsz)
 		return (EINVAL);
 	td->td_retval[0] = IXSEQ_TO_IPCID(segnum, shmseg->u.shm_perm);
