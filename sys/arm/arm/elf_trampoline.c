@@ -103,7 +103,7 @@ memcpy(void *dst, const void *src, int len)
     	char *d = dst;
 
 	while (len) {
-		if (len >= 4 && !((vm_offset_t)d & 3) &&
+		if (0 && len >= 4 && !((vm_offset_t)d & 3) &&
 		    !((vm_offset_t)s & 3)) {
 			*(uint32_t *)d = *(uint32_t *)s;
 			s += 4;
@@ -143,6 +143,37 @@ _start(void)
 	int physaddr = KERNPHYSADDR;
 	int tmp1;
 	unsigned int sp = ((unsigned int)&_end & ~3) + 4;
+#if defined(FLASHADDR) && defined(LOADERRAMADDR)
+	unsigned int pc;
+
+	__asm __volatile("adr %0, _start\n"
+	    : "=r" (pc));
+	if ((FLASHADDR > LOADERRAMADDR && pc >= FLASHADDR) ||
+	    (FLASHADDR < LOADERRAMADDR && pc < LOADERRAMADDR)) {
+		/*
+		 * We're running from flash, so just copy the whole thing
+		 * from flash to memory.
+		 * This is far from optimal, we could do the relocation or
+		 * the unzipping directly from flash to memory to avoid this
+		 * needless copy, but it would require to know the flash
+		 * physical address.
+		 */
+		unsigned int target_addr;
+		unsigned int tmp_sp;
+
+		target_addr = (unsigned int)&_start - PHYSADDR + LOADERRAMADDR;
+		tmp_sp = target_addr + 0x100000 +
+		    (unsigned int)&_end - (unsigned int)&_start;
+		memcpy((char *)target_addr, (char *)pc,
+		    (unsigned int)&_end - (unsigned int)&_start);
+		/* Temporary set the sp and jump to the new location. */
+		__asm __volatile(
+		    "mov sp, %1\n"
+		    "mov pc, %0\n"
+		    : : "r" (target_addr), "r" (tmp_sp));
+		
+	}
+#endif
 #ifdef KZIP
 	sp += KERNSIZE + 0x100;
 	sp &= ~(L1_TABLE_SIZE - 1);

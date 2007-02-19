@@ -66,47 +66,53 @@ __FBSDID("$FreeBSD$");
 ENTRY_NP(btext)
 
 ASENTRY_NP(_start)
-
-
-	/* Check if we are running on RAM, if not move ourself to RAM */
-#if 0
-	cmp	pc, #PHYSADDR
-	bhi	start_inram /* XXX: This is wrong */
-#endif
-	b	start_inram /*
-			     * XXX: this is even more wrong, but RedBoot
-			     * use 0x00000000-0x100000000 as virtual
-			     * addresses for the RAM.
-			     */
-
-	/* move me to RAM
-	 * XXX: we can use memcpy if it is PIC
+#if defined (FLASHADDR) && defined(LOADERRAMADDR)
+	/* Check if we're running from flash. */
+	ldr	r7, =FLASHADDR
+	/* 
+	 * If we're running with MMU disabled, test against the
+	 * physical address instead.
 	 */
-	ldr r1, Lcopy_size
-	adr r0, _C_LABEL(_start)
-	add r1, r1, #3
-	mov r1, r1, LSR #2
-	mov r2, #PHYSADDR
-	add r2, r2, #0x00200000
-	mov r4, r2
-
-5:	ldr r3,[r0],#4
-	str r3,[r2],#4
-	subs r1,r1,#1
-	bhi 5b
-
-	/* Jump to RAM */
-	ldr r0, Lstart_off
-	add pc, r4, r0
-
-Lcopy_size:	.word _edata-_C_LABEL(_start)
-Lstart_off:	.word start_inram-_C_LABEL(_start)
-start_inram:
+	mrc     p15, 0, r2, c1, c0, 0
+	ands	r2, r2, #CPU_CONTROL_MMU_ENABLE
+	ldreq	r8, =PHYSADDR
+	ldrne	r8, =LOADERRAMADDR
+	cmp	r7, r8
+	bls 	flash_lower
+	cmp	r7, pc
+	bhi	from_ram
+	b	do_copy
+	
+flash_lower:
+	cmp	r8, pc
+	bls	from_ram
+do_copy:
+	ldr	r9, =KERNBASE
+	adr	r1, _start 
+	ldr	r0, Lreal_start
+	ldr	r2, Lend
+	sub	r2, r2, r0
+	sub	r0, r0, r9
+	add	r0, r0, r8
+	mov	r4, r0
+	/* Make sure _arm_memcpy is NULL */
+	ldr	r3, .L_arm_memcpy
+	ldr	r3, [r3]
+	mov	r5, #0
+	str	r5, [r3]
+	bl	memcpy
+	ldr	r0, Lram_offset
+	add	pc, r4, r0
+Lram_offset:	.word from_ram-_C_LABEL(_start)
+from_ram:
+	nop
+#endif
 	adr	r7, Lunmapped
 	bic     r7, r7, #0xff000000
 	orr     r7, r7, #PHYSADDR
 			
 
+disable_mmu:
 	/* Disable MMU for a while */
 	mrc     p15, 0, r2, c1, c0, 0
 	bic	r2, r2, #(CPU_CONTROL_MMU_ENABLE | CPU_CONTROL_DC_ENABLE |\
@@ -120,7 +126,6 @@ start_inram:
 	nop
 	mov	pc, r7
 Lunmapped:
-
 #ifdef STARTUP_PAGETABLE_ADDR
 	/* build page table from scratch */
 	ldr	r0, Lstartup_pagetable
@@ -191,6 +196,10 @@ Lvirtaddr:
 	.word	KERNVIRTADDR
 Lphysaddr:
 	.word	KERNPHYSADDR
+Lreal_start:
+	.word	_start
+Lend:	
+	.word	_edata
 Lstartup_pagetable:
 	.word	STARTUP_PAGETABLE_ADDR
 mmu_init_table:
@@ -206,6 +215,11 @@ mmu_init_table:
 	.word	_edata
 	.word	_end
 	.word	svcstk + INIT_ARM_STACK_SIZE
+
+#if defined(FLASHADDR) && defined(LOADERRAMADDR)
+.L_arm_memcpy:
+        .word   _C_LABEL(_arm_memcpy)
+#endif
 
 .Lvirt_done:
 	.word	virt_done
