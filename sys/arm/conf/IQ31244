@@ -1,4 +1,4 @@
-# GENERIC -- Generic kernel configuration file for FreeBSD/arm
+# IQ31244 -- Custom kernel configuration file for FreeBSD/arm on the IQ31244
 #
 # For more information on this file, please read the handbook section on
 # Kernel Configuration Files:

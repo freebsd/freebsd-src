@@ -1,4 +1,4 @@
-# GENERIC -- Generic kernel configuration file for FreeBSD/arm
+# SIMICS -- Custom kernel configuration file for FreeBSD/arm on Simics SA1110
 #
 # For more information on this file, please read the handbook section on
 # Kernel Configuration Files:
