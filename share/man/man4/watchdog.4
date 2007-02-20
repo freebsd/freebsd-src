@@ -32,54 +32,95 @@
 .Nm watchdog
 .Nd "hardware and software watchdog"
 .Sh SYNOPSIS
-.Cd "options CPU_ELAN"
-.Cd "options CPU_GEODE"
-.Cd "options SW_WATCHDOG"
-.Pp
 .In sys/watchdog.h
 .Sh DESCRIPTION
 The
 .Nm
 facility is used for controlling hardware and software watchdogs.
 .Pp
-The interface is through a device
 .Pa /dev/fido
-which responds to a single
+responds to a single
 .Xr ioctl 2
 call,
 .Dv WDIOCPATPAT .
+It takes a single argument which represents a timeout value specified as a
+power of two nanoseconds, or-ed with a flag selecting active or passive control
+of the watchdog.
 .Pp
-The call takes a single argument which represents a timeout value
-specified as an integer power of two nanoseconds.
-.Pp
-The
 .Dv WD_ACTIVE
-flag signals that the
+indicates that the
 .Nm
-will be kept from
-timing out from userland, for instance by the
+will be kept from timing out from userland, for instance by the
 .Xr watchdogd 8
 daemon.
-.Pp
-To disable the watchdogs, an argument of zero should be used.
+.Dv WD_PASSIVE
+indicates that the
+.Nm
+will be kept from timing out from the kernel.
 .Pp
 The
 .Xr ioctl 2
 call will return success if just one of the available
 .Xr watchdog 9
-implementations support the request.
-If the call fails, for instance if none of
+implementations supports setting the timeout to the specified timeout. This
+means that at least one watchdog is armed. If the call fails, for instance if
+none of
 .Xr watchdog 9
-implementations support the timeout
-length, all watchdogs are disabled and must be explicitly re-enabled.
+implementations support the timeout length, all watchdogs are disabled and must
+be explicitly re-enabled.
+.Pp
+To disable the watchdogs pass
+.Dv WD_TO_NEVER .
+If disarming the watchdog(s) failed an error is returned. The watchdog might
+still be armed!
+.Sh RETURN VALUES
+The ioctl returns zero on success and non-zero on failure.
+.Bl -tag -width Er
+.It Bq Er EOPNOTSUPP
+No watchdog present in the kernel (timeout value other than 0).
+.It Bq Er EOPNOTSUPP
+Watchdog could not be disabled (timeout value of 0).
+.It Bq Er EINVALID
+Invalid flag combination passed.
+.It Bq Er EINVALID
+None of the watchdogs supports the requested timeout value.
 .Sh EXAMPLES
-.\" XXX insert some descriptive text here
 .Bd -literal -offset indent
-u_int u = WD_ACTIVE | WD_TO_8SEC;
-int fd = open("/dev/fido", O_RDWR);
+#include <paths.h>
+#include <sys/watchdog.h>
 
-ioctl(fd, WDIOCPATPAT, &u);
+#define WDPATH	"/dev/" _PATH_WATCHDOG
+int wdfd = -1;
+
+static void
+wd_init(void) 
+{
+	wdfd = open(WDPATH, O_RDWR);
+	if (wdfd == -1)
+		err(1, WDPATH);
+}
+static void
+wd_reset(u_int timeout)
+{
+	if (ioctl(wdfd, WDIOCPATPAT, &timeout) == -1)
+		err(1, "WDIOCPATPAT");
+}
+
+/* in main() */
+wd_init();
+wd_reset(WD_ACTIVE|WD_TO_8SEC);
+/* potential freeze point */
+wd_reset(WD_TO_NEVER);
 .Ed
+.Pp
+Enables a watchdog to recover from a potentially freezing piece of code.
+.Pp
+.Bd -literal -offset indent
+options SW_WATCHDOG
+.Ed
+.Pp
+in your kernel config adds a software watchdog in the kernel, dropping to KDB
+or panic-ing when firing.
 .Sh SEE ALSO
 .Xr watchdogd 8 ,
 .Xr watchdog 9
@@ -88,14 +129,17 @@ The
 .Nm
 code first appeared in
 .Fx 5.1 .
+.Sh BUGS
+The
+.Dv WD_PASSIVE
+option has not yet been implemented.
 .Sh AUTHORS
 .An -nosplit
 The
 .Nm
 facility was written by
 .An Poul-Henning Kamp Aq phk@FreeBSD.org .
-The software watchdog code
-and this manual page were written by
+The software watchdog code and this manual page were written by
 .An Sean Kelly Aq smkelly@FreeBSD.org .
 Some contributions were made by
 .An Jeff Roberson Aq jeff@FreeBSD.org .
