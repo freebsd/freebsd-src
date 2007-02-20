@@ -134,7 +134,10 @@
 #define IWI_RATE_OFDM48	1
 #define IWI_RATE_OFDM54	3
 
-/* firmware binary image header, fields in little endian */
+/*
+ * Old version firmware images start with this header,
+ * fields are in little endian (le32) format.
+ */
 struct iwi_firmware_ohdr {
 	uint32_t	version;
 	uint32_t	mode;
@@ -150,6 +153,11 @@ struct iwi_firmware_ohdr {
 #define	IWI_FW_MODE_IBSS	1
 #define	IWI_FW_MODE_MONITOR	2
 
+/*
+ * New version firmware images contain boot, ucode and firmware
+ * all in one chunk. The header at the beginning gives the version
+ * and the size of each (sub)image, in le32 format.
+ */
 struct iwi_firmware_hdr {
 	uint32_t	version;	/* version stamp */
 	uint32_t	bsize;		/* size of boot image */
