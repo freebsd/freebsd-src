@@ -596,7 +596,6 @@ prison_priv_check(struct ucred *cred, int priv)
 		 */
 	case PRIV_IPC_READ:
 	case PRIV_IPC_WRITE:
-	case PRIV_IPC_EXEC:
 	case PRIV_IPC_ADMIN:
 	case PRIV_IPC_MSGSIZE:
 	case PRIV_MQ_ADMIN:
