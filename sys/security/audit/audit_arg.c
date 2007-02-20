@@ -617,19 +617,17 @@ audit_arg_file(struct proc *p, struct file *fp)
 
 	case DTYPE_SOCKET:
 		so = (struct socket *)fp->f_data;
-		SOCK_LOCK(so);
 		if (INP_CHECK_SOCKAF(so, PF_INET)) {
-			if (so->so_pcb == NULL) {
-				SOCK_UNLOCK(so);
-				return;
-			}
+			SOCK_LOCK(so);
 			ar->k_ar.ar_arg_sockinfo.so_type =
 			    so->so_type;
 			ar->k_ar.ar_arg_sockinfo.so_domain =
 			    INP_SOCKAF(so);
 			ar->k_ar.ar_arg_sockinfo.so_protocol =
 			    so->so_proto->pr_protocol;
+			SOCK_UNLOCK(so);
 			pcb = (struct inpcb *)so->so_pcb;
+			INP_LOCK(pcb);
 			ar->k_ar.ar_arg_sockinfo.so_raddr =
 			    pcb->inp_faddr.s_addr;
 			ar->k_ar.ar_arg_sockinfo.so_laddr =
@@ -638,9 +636,9 @@ audit_arg_file(struct proc *p, struct file *fp)
 			    pcb->inp_fport;
 			ar->k_ar.ar_arg_sockinfo.so_lport =
 			    pcb->inp_lport;
+			INP_UNLOCK(pcb);
 			ARG_SET_VALID(ar, ARG_SOCKINFO);
 		}
-		SOCK_UNLOCK(so);
 		break;
 
 	default:
