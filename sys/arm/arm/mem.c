@@ -64,6 +64,13 @@ __FBSDID("$FreeBSD$");
 
 #include <machine/memdev.h>
 
+#include "opt_global.h"
+
+#ifdef ARM_USE_SMALL_ALLOC
+extern vm_offset_t alloc_curaddr;
+extern vm_offset_t alloc_firstaddr;
+#endif
+
 /*
  * Used in /dev/mem drivers and elsewhere
  */
@@ -91,8 +98,21 @@ memrw(struct cdev *dev, struct uio *uio, int flags)
 			continue;
 		}
 		if (minor(dev) == CDEV_MINOR_MEM) {
+			int i;
+			int address_valid = 0;
+
 			v = uio->uio_offset;
 			v &= ~PAGE_MASK;
+			for (i = 0; phys_avail[i] || phys_avail[i + 1];
+			i += 2) {
+				if (v >= phys_avail[i] && 
+				    v < phys_avail[i + 1]) {
+					address_valid = 1;
+					break;
+				}
+			}
+			if (!address_valid)
+				return (EINVAL);
 			pmap_kenter((vm_offset_t)_tmppt, v);
 			o = (int)uio->uio_offset & PAGE_MASK;
 			c = (u_int)(PAGE_SIZE - ((int)iov->iov_base & PAGE_MASK));
@@ -116,11 +136,14 @@ memrw(struct cdev *dev, struct uio *uio, int flags)
 			for (; addr < eaddr; addr += PAGE_SIZE) 
 				if (pmap_extract(kernel_pmap, addr) == 0)
 					return (EFAULT);
-
 			if (!kernacc((caddr_t)(int)uio->uio_offset, c,
 			    uio->uio_rw == UIO_READ ? 
 			    VM_PROT_READ : VM_PROT_WRITE))
-				return (EFAULT);
+#ifdef ARM_USE_SMALL_ALLOC
+				if (addr < alloc_firstaddr || addr >
+				    alloc_curaddr)
+#endif
+					return (EFAULT);
 			error = uiomove((caddr_t)(int)uio->uio_offset, (int)c, uio);
 			continue;
 		}
