@@ -38,7 +38,9 @@
 .Sh DESCRIPTION
 The
 .Nm
-utility can be used to control the kernel's watchdog facility.
+utility can be used to control the kernel's watchdog facility. This utility
+sets an active watchdog. If the utility is not called again before the timeout
+period has elapsed the watchdog fires.
 .Pp
 The
 .Fl d
@@ -47,9 +49,8 @@ enables debugging.
 .Pp
 The
 .Fl t Ar timeout
-option
-specifies the desired timeout period in seconds, a value of
-zero will disable the watchdog.
+option specifies the desired timeout period in seconds, a value of zero will
+disable the watchdog.
 .Sh SEE ALSO
 .Xr watchdog 4 ,
 .Xr watchdogd 8 ,
