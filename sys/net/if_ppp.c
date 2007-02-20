@@ -719,7 +719,8 @@ pppsioctl(ifp, cmd, data)
 	 * XXXRW: Isn't this suser() check redundant to the one at the ifnet
 	 * layer?
 	 */
-	if ((error = suser(td)) != 0)
+	error = priv_check(td, PRIV_NET_SETIFMTU);
+	if (error)
 	    break;
 	if (ifr->ifr_mtu > PPP_MAXMTU)
 	    error = EINVAL;
