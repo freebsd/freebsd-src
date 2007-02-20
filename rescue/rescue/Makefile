@@ -181,9 +181,8 @@ CRUNCH_BUILDOPTS_dhclient= -DRELEASE_CRUNCH -Dlint
 # Programs from stock /usr/bin
 # 
 CRUNCH_SRCDIRS+= usr.bin
-CRUNCH_SRCDIRS+= gnu/usr.bin
 
-CRUNCH_PROGS_gnu/usr.bin+= gzip
+CRUNCH_PROGS_usr.bin+= gzip
 CRUNCH_ALIAS_gzip= gunzip gzcat zcat
 
 CRUNCH_PROGS_usr.bin+= bzip2
