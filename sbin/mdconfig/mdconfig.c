@@ -130,8 +130,6 @@ main(int argc, char **argv)
 			cmdline=2;
 			break;
 		case 'f':
-			if (cmdline != 0 && cmdline != 1 && cmdline != 2)
-				usage();
 			if (cmdline == 0) {
 				action = ATTACH;
 				cmdline = 1;
@@ -142,6 +140,8 @@ main(int argc, char **argv)
 				mdio.md_options = MD_CLUSTER | MD_AUTOUNIT | MD_COMPRESS;
 				cmdline = 2;
 			}
+ 			if (cmdline != 2)
+ 				usage();
 			if (realpath(optarg, mdio.md_file) == NULL) {
 				err(1, "could not find full path for %s",
 				    optarg);
@@ -194,6 +194,17 @@ main(int argc, char **argv)
 			mdio.md_sectorsize = strtoul(optarg, &p, 0);
 			break;
 		case 's':
+			if (cmdline == 0) {
+				/* Imply ``-a'' */
+				action = ATTACH;
+				cmdline = 1;
+			}
+			if (cmdline == 1) {
+				/* Imply ``-t malloc'' */
+				mdio.md_type = MD_MALLOC;
+				mdio.md_options = MD_AUTOUNIT | MD_COMPRESS;
+				cmdline = 2;
+			}
 			if (cmdline != 2)
 				usage();
 			mdio.md_mediasize = (off_t)strtoumax(optarg, &p, 0);
