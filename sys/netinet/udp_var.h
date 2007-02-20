@@ -98,7 +98,7 @@ extern struct inpcbinfo		udbinfo;
 extern u_long			udp_sendspace;
 extern u_long			udp_recvspace;
 extern struct udpstat		udpstat;
-extern int			log_in_vain;
+extern int			udp_log_in_vain;
 
 void		 udp_ctlinput(int, struct sockaddr *, void *);
 void		 udp_init(void);

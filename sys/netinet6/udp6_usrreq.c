@@ -326,7 +326,7 @@ udp6_input(mp, offp, proto)
 				  &ip6->ip6_dst, uh->uh_dport, 1,
 				  m->m_pkthdr.rcvif);
 	if (in6p == NULL) {
-		if (log_in_vain) {
+		if (udp_log_in_vain) {
 			char ip6bufs[INET6_ADDRSTRLEN];
 			char ip6bufd[INET6_ADDRSTRLEN];
 
