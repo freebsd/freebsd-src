@@ -41,12 +41,13 @@
  * connected in pairs (socketpair(2)), or bound/connected to using the file
  * system name space.  For most purposes, only the receive socket buffer is
  * used, as sending on one socket delivers directly to the receive socket
- * buffer of a second socket.  The implementation is substantially
- * complicated by the fact that "ancillary data", such as file descriptors or
- * credentials, may be passed across UNIX domain sockets.  The potential for
- * passing UNIX domain sockets over other UNIX domain sockets requires the
- * implementation of a simple garbage collector to find and tear down cycles
- * of disconnected sockets.
+ * buffer of a second socket.
+ *
+ * The implementation is substantially complicated by the fact that
+ * "ancillary data", such as file descriptors or credentials, may be passed
+ * across UNIX domain sockets.  The potential for passing UNIX domain sockets
+ * over other UNIX domain sockets requires the implementation of a simple
+ * garbage collector to find and tear down cycles of disconnected sockets.
  *
  * TODO:
  *	SEQPACKET, RDM
@@ -184,7 +185,7 @@ static void	 unp_freerights(struct file **, int);
 static int	 unp_internalize(struct mbuf **, struct thread *);
 static int	 unp_listen(struct socket *, struct unpcb *, int,
 		   struct thread *);
-struct mbuf	*unp_addsockcred(struct thread *, struct mbuf *);
+static struct mbuf	*unp_addsockcred(struct thread *, struct mbuf *);
 
 /*
  * Definitions of protocols supported in the LOCAL domain.
@@ -461,10 +462,6 @@ uipc_detach(struct socket *so)
 	unp->unp_gencnt = ++unp_gencnt;
 	--unp_count;
 	if ((vp = unp->unp_vnode) != NULL) {
-		/*
-		 * XXXRW: should v_socket be frobbed only while holding
-		 * Giant?
-		 */
 		unp->unp_vnode->v_socket = NULL;
 		unp->unp_vnode = NULL;
 	}
@@ -1557,7 +1554,7 @@ out:
 	return (error);
 }
 
-struct mbuf *
+static struct mbuf *
 unp_addsockcred(struct thread *td, struct mbuf *control)
 {
 	struct mbuf *m, *n, *n_prev;
