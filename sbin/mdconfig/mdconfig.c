@@ -130,8 +130,12 @@ main(int argc, char **argv)
 			cmdline=2;
 			break;
 		case 'f':
-			if (cmdline != 1 && cmdline != 2)
+			if (cmdline != 0 && cmdline != 1 && cmdline != 2)
 				usage();
+			if (cmdline == 0) {
+				action = ATTACH;
+				cmdline = 1;
+			}
 			if (cmdline == 1) {
 				/* Imply ``-t vnode'' */
 				mdio.md_type = MD_VNODE;
