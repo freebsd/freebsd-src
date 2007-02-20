@@ -231,10 +231,9 @@ struct iwi_softc {
  *	and must be kept in sync.
  */
 #define	IWI_LOCK_DECL	int	__waslocked = 0
-//#define	IWI_LOCK_ASSERT(sc)	mtx_assert(&(sc)->sc_mtx, MA_OWNED)
-#define IWI_LOCK_ASSERT(sc)	do {				\
+#define IWI_LOCK_CHECK(sc)	do {				\
 	if (!mtx_owned(&(sc)->sc_mtx))	\
-		printf("%s iwi_lock not held\n", __func__);		\
+		DPRINTF(("%s iwi_lock not held\n", __func__));		\
 } while (0)
 #define IWI_LOCK(sc)	do {				\
 	if (!(__waslocked = mtx_owned(&(sc)->sc_mtx)))	\

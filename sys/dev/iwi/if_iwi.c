@@ -955,7 +955,7 @@ iwi_newstate(struct ieee80211com *ic, enum ieee80211_state nstate, int arg)
 	struct ifnet *ifp = ic->ic_ifp;
 	struct iwi_softc *sc = ifp->if_softc;
 
-	IWI_LOCK_ASSERT(sc);
+	IWI_LOCK_CHECK(sc);
 	DPRINTF(("%s: %s -> %s flags 0x%x\n", __func__,
 		ieee80211_state_name[ic->ic_state],
 		ieee80211_state_name[nstate], sc->flags));
@@ -1202,7 +1202,7 @@ iwi_setcurchan(struct iwi_softc *sc, int chan)
 {
 	struct ieee80211com *ic = &sc->sc_ic;
 
-	IWI_LOCK_ASSERT(sc);
+	IWI_LOCK_CHECK(sc);
 	ic->ic_curchan = &ic->ic_channels[chan];
 	sc->curchan = chan;
 
@@ -1696,7 +1696,7 @@ iwi_cmd(struct iwi_softc *sc, uint8_t type, void *data, uint8_t len)
 {
 	struct iwi_cmd_desc *desc;
 
-	IWI_LOCK_ASSERT(sc);
+	IWI_LOCK_CHECK(sc);
 
 	if (sc->flags & IWI_FLAG_BUSY) {
 		device_printf(sc->sc_dev, "%s: cmd %d not sent, busy\n",
@@ -1760,7 +1760,7 @@ iwi_tx_start(struct ifnet *ifp, struct mbuf *m0, struct ieee80211_node *ni,
 	int error, nsegs, hdrlen, i;
 	int ismcast, flags, xflags, staid;
 
-	IWI_LOCK_ASSERT(sc);
+	IWI_LOCK_CHECK(sc);
 	wh = mtod(m0, const struct ieee80211_frame *);
 	/* NB: only data frames use this path */
 	hdrlen = ieee80211_hdrsize(wh);
@@ -2054,6 +2054,13 @@ iwi_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 
 	IWI_LOCK(sc);
 
+	/*
+	 * wait until pending iwi_cmd() are completed, to avoid races
+	 * that could cause problems.
+	 */
+	while (sc->flags & IWI_FLAG_BUSY)
+		msleep(sc, &sc->sc_mtx, 0, "iwiioctl", hz);
+
 	switch (cmd) {
 	case SIOCSIFFLAGS:
 		if (ifp->if_flags & IFF_UP) {
@@ -2074,16 +2081,6 @@ iwi_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 		break;
 
 	default:
-		/*
-		 * XXX the driver has a tendency to freeze the machine
-		 * when initializing the interface. This seems due to
-		 * a race condition, whose origin is still unclear.
-		 * Adding a printf in this particular condition seems to cure
-		 * the symptom, so we do it until we find a proper fix.
-		 */
-		if (sc->flags & IWI_FLAG_BUSY)
-			device_printf(sc->sc_dev, "%s: flags %x cmd 0x%lx\n",
-				__func__, sc->flags, cmd);
 		error = ieee80211_ioctl(ic, cmd, data);
 	}
 
@@ -2106,7 +2103,7 @@ iwi_stop_master(struct iwi_softc *sc)
 	uint32_t tmp;
 	int ntries;
 
-	IWI_LOCK_ASSERT(sc);
+	IWI_LOCK_CHECK(sc);
 
 	/* disable interrupts */
 	CSR_WRITE_4(sc, IWI_CSR_INTR_MASK, 0);
@@ -2374,7 +2371,7 @@ iwi_load_ucode(struct iwi_softc *sc, const struct iwi_fw *fw)
 	size_t size = fw->size;
 	int i, ntries, error;
 
-	IWI_LOCK_ASSERT(sc);
+	IWI_LOCK_CHECK(sc);
 	error = 0;
 	CSR_WRITE_4(sc, IWI_CSR_RST, CSR_READ_4(sc, IWI_CSR_RST) |
 	    IWI_RST_STOP_MASTER);
@@ -2447,7 +2444,7 @@ iwi_load_firmware(struct iwi_softc *sc, const struct iwi_fw *fw)
 	uint32_t sentinel, ctl, src, dst, sum, len, mlen, tmp;
 	int ntries, error;
 
-	IWI_LOCK_ASSERT(sc);
+	IWI_LOCK_CHECK(sc);
 	/* copy firmware image to DMA memory */
 	memcpy(sc->fw_virtaddr, fw->data, fw->size);
 
@@ -2589,7 +2586,7 @@ iwi_config(struct iwi_softc *sc)
 	struct iwi_txpower power;
 	uint32_t data;
 	int error, i;
-	IWI_LOCK_ASSERT(sc);
+	IWI_LOCK_CHECK(sc);
 
 	IEEE80211_ADDR_COPY(ic->ic_myaddr, IF_LLADDR(ifp));
 	DPRINTF(("Setting MAC address to %6D\n", ic->ic_myaddr, ":"));
@@ -2717,7 +2714,7 @@ iwi_scan(struct iwi_softc *sc)
 	struct iwi_scan_ext scan;
 	int i, ix, start, scan_type, error;
 
-	IWI_LOCK_ASSERT(sc);
+	IWI_LOCK_CHECK(sc);
 
 	memset(&scan, 0, sizeof scan);
 
@@ -2921,7 +2918,7 @@ iwi_auth_and_assoc(struct iwi_softc *sc)
 	uint16_t capinfo;
 	int error;
  
-	IWI_LOCK_ASSERT(sc);
+	IWI_LOCK_CHECK(sc);
 	if (IEEE80211_IS_CHAN_2GHZ(ni->ni_chan)) {
 		memset(&config, 0, sizeof config);
 		config.bluetooth_coexistence = sc->bluetooth;
@@ -3160,7 +3157,7 @@ iwi_init_locked(void *priv, int force)
 	int i;
 	IWI_LOCK_DECL;
 
-	IWI_LOCK_ASSERT(sc);
+	IWI_LOCK_CHECK(sc);
 	if (sc->flags & IWI_FLAG_FW_LOADING) {
 		device_printf(sc->sc_dev, "%s: already loading\n", __func__);
 		return;		/* XXX: condvar? */
@@ -3278,7 +3275,7 @@ iwi_stop(void *priv)
 	struct ieee80211com *ic = &sc->sc_ic;
 	struct ifnet *ifp = ic->ic_ifp;
 
-	IWI_LOCK_ASSERT(sc);	/* XXX: pretty sure this triggers */
+	IWI_LOCK_CHECK(sc);	/* XXX: pretty sure this triggers */
 	if (sc->sc_softled) {
 		callout_stop(&sc->sc_ledtimer);
 		sc->sc_blinking = 0;
