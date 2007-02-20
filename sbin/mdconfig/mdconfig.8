@@ -101,7 +101,11 @@ becomes the backingstore for this memory disk.
 Swap space is used to back this memory disk.
 .El
 .It Fl f Ar file
-Filename to use for the vnode type memory disk.
+Filename to use for the vnode type memory disk. Options
+.Fl a
+and
+.Fl t Ar vnode
+are implied if not specified.
 .It Fl l
 List configured devices.
 If given with
@@ -118,7 +122,11 @@ is the number of 512 byte sectors unless suffixed with a
 or
 .Cm t
 which
-denotes byte, kilobyte, megabyte, gigabyte and terabyte respectively.
+denotes byte, kilobyte, megabyte, gigabyte and terabyte respectively. Options
+.Fl a
+and
+.Fl t Ar malloc
+are implied if not specified.
 .It Fl S Ar sectorsize
 Sectorsize to use for malloc backed device.
 .It Fl x Ar sectors/track
