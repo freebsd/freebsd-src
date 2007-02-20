@@ -1,6 +1,7 @@
 /*-
  * Copyright (c) 1982, 1986, 1989, 1993
- *	The Regents of the University of California.  All rights reserved.
+ *	The Regents of the University of California.
+ * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -31,14 +32,14 @@
  */
 
 #ifndef _NETINET_UDP_VAR_H_
-#define _NETINET_UDP_VAR_H_
+#define	_NETINET_UDP_VAR_H_
 
 /*
  * UDP kernel structures and variables.
  */
-struct	udpiphdr {
-	struct	ipovly ui_i;		/* overlaid ip structure */
-	struct	udphdr ui_u;		/* udp header */
+struct udpiphdr {
+	struct ipovly	ui_i;		/* overlaid ip structure */
+	struct udphdr	ui_u;		/* udp header */
 };
 #define	ui_x1		ui_i.ih_x1
 #define	ui_pr		ui_i.ih_pr
@@ -50,7 +51,7 @@ struct	udpiphdr {
 #define	ui_ulen		ui_u.uh_ulen
 #define	ui_sum		ui_u.uh_sum
 
-struct	udpstat {
+struct udpstat {
 				/* input statistics: */
 	u_long	udps_ipackets;		/* total input packets */
 	u_long	udps_hdrops;		/* packet shorter than header */
@@ -70,42 +71,40 @@ struct	udpstat {
 };
 
 /*
- * Names for UDP sysctl objects
+ * Names for UDP sysctl objects.
  */
 #define	UDPCTL_CHECKSUM		1	/* checksum UDP packets */
-#define UDPCTL_STATS		2	/* statistics (read-only) */
+#define	UDPCTL_STATS		2	/* statistics (read-only) */
 #define	UDPCTL_MAXDGRAM		3	/* max datagram size */
 #define	UDPCTL_RECVSPACE	4	/* default receive buffer space */
 #define	UDPCTL_PCBLIST		5	/* list of PCBs for UDP sockets */
-#define UDPCTL_MAXID		6
+#define	UDPCTL_MAXID		6
 
-#define UDPCTL_NAMES { \
-	{ 0, 0 }, \
-	{ "checksum", CTLTYPE_INT }, \
-	{ "stats", CTLTYPE_STRUCT }, \
-	{ "maxdgram", CTLTYPE_INT }, \
-	{ "recvspace", CTLTYPE_INT }, \
-	{ "pcblist", CTLTYPE_STRUCT }, \
+#define	UDPCTL_NAMES	{						\
+	{ 0, 0 },							\
+	{ "checksum", CTLTYPE_INT },					\
+	{ "stats", CTLTYPE_STRUCT },					\
+	{ "maxdgram", CTLTYPE_INT },					\
+	{ "recvspace", CTLTYPE_INT },					\
+	{ "pcblist", CTLTYPE_STRUCT },					\
 }
 
 #ifdef _KERNEL
 SYSCTL_DECL(_net_inet_udp);
 
-extern struct	pr_usrreqs udp_usrreqs;
-extern struct	inpcbhead udb;
-extern struct	inpcbinfo udbinfo;
-extern u_long	udp_sendspace;
-extern u_long	udp_recvspace;
-extern struct	udpstat udpstat;
-extern int	log_in_vain;
+extern struct pr_usrreqs	udp_usrreqs;
+extern struct inpcbhead		udb;
+extern struct inpcbinfo		udbinfo;
+extern u_long			udp_sendspace;
+extern u_long			udp_recvspace;
+extern struct udpstat		udpstat;
+extern int			log_in_vain;
 
-void	udp_ctlinput(int, struct sockaddr *, void *);
-void	udp_init(void);
-void	udp_input(struct mbuf *, int);
-
-struct inpcb *
-	udp_notify(struct inpcb *inp, int errno);
-int	udp_shutdown(struct socket *so);
+void		 udp_ctlinput(int, struct sockaddr *, void *);
+void		 udp_init(void);
+void		 udp_input(struct mbuf *, int);
+struct inpcb	*udp_notify(struct inpcb *inp, int errno);
+int		 udp_shutdown(struct socket *so);
 #endif
 
 #endif
