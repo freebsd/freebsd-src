@@ -105,9 +105,9 @@ static int	udpcksum = 1;
 SYSCTL_INT(_net_inet_udp, UDPCTL_CHECKSUM, checksum, CTLFLAG_RW, &udpcksum,
     0, "");
 
-int	log_in_vain = 0;
+int	udp_log_in_vain = 0;
 SYSCTL_INT(_net_inet_udp, OID_AUTO, log_in_vain, CTLFLAG_RW,
-    &log_in_vain, 0, "Log all incoming UDP packets");
+    &udp_log_in_vain, 0, "Log all incoming UDP packets");
 
 static int	blackhole = 0;
 SYSCTL_INT(_net_inet_udp, OID_AUTO, blackhole, CTLFLAG_RW, &blackhole, 0,
@@ -407,7 +407,7 @@ udp_input(struct mbuf *m, int off)
 	inp = in_pcblookup_hash(&udbinfo, ip->ip_src, uh->uh_sport,
 	    ip->ip_dst, uh->uh_dport, 1, m->m_pkthdr.rcvif);
 	if (inp == NULL) {
-		if (log_in_vain) {
+		if (udp_log_in_vain) {
 			char buf[4*sizeof "123"];
 
 			strcpy(buf, inet_ntoa(ip->ip_dst));
