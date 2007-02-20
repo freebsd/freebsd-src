@@ -77,16 +77,15 @@
 #define	PRIV_SWAPON		9	/* Can swapon(). */
 #define	PRIV_SWAPOFF		10	/* Can swapoff(). */
 #define	PRIV_MSGBUF		11	/* Can read kernel message buffer. */
-#define	PRIV_WITNESS		12	/* Can configure WITNESS. */
-#define	PRIV_IO			13	/* Can perform low-level I/O. */
-#define	PRIV_KEYBOARD		14	/* Reprogram keyboard. */
-#define	PRIV_DRIVER		15	/* Low-level driver privilege. */
-#define	PRIV_ADJTIME		16	/* Set time adjustment. */
-#define	PRIV_NTP_ADJTIME	17	/* Set NTP time adjustment. */
-#define	PRIV_CLOCK_SETTIME	18	/* Can call clock_settime. */
-#define	PRIV_SETTIMEOFDAY	19	/* Can call settimeofday. */
-#define	PRIV_SETHOSTID		20	/* Can call sethostid. */
-#define	PRIV_SETDOMAINNAME	21	/* Can call setdomainname. */
+#define	PRIV_IO			12	/* Can perform low-level I/O. */
+#define	PRIV_KEYBOARD		13	/* Reprogram keyboard. */
+#define	PRIV_DRIVER		14	/* Low-level driver privilege. */
+#define	PRIV_ADJTIME		15	/* Set time adjustment. */
+#define	PRIV_NTP_ADJTIME	16	/* Set NTP time adjustment. */
+#define	PRIV_CLOCK_SETTIME	17	/* Can call clock_settime. */
+#define	PRIV_SETTIMEOFDAY	18	/* Can call settimeofday. */
+#define	PRIV_SETHOSTID		19	/* Can call sethostid. */
+#define	PRIV_SETDOMAINNAME	20	/* Can call setdomainname. */
 
 /*
  * Audit subsystem privileges.
