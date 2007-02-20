@@ -166,9 +166,8 @@
  */
 #define	PRIV_IPC_READ		170	/* Can override IPC read perm. */
 #define	PRIV_IPC_WRITE		171	/* Can override IPC write perm. */
-#define	PRIV_IPC_EXEC		172	/* Can override IPC exec perm. */
-#define	PRIV_IPC_ADMIN		173	/* Can override IPC owner-only perm. */
-#define	PRIV_IPC_MSGSIZE	174	/* Exempt IPC message queue limit. */
+#define	PRIV_IPC_ADMIN		172	/* Can override IPC owner-only perm. */
+#define	PRIV_IPC_MSGSIZE	173	/* Exempt IPC message queue limit. */
 
 /*
  * POSIX message queue privileges.
