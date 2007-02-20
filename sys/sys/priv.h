@@ -303,104 +303,104 @@
 #define	PRIV_NET_SETIFMAC	404	/* Set interface MAC label. */
 #define	PRIV_NET_ADDMULTI	405	/* Add multicast addr. to ifnet. */
 #define	PRIV_NET_DELMULTI	406	/* Delete multicast addr. from ifnet. */
-#define	PRIV_NET_HWIOCTL	507	/* Issue hardware ioctl on ifnet. */
-#define	PRIV_NET_SETLLADDR	508
-#define	PRIV_NET_ADDIFGROUP	509	/* Add new interface group. */
-#define	PRIV_NET_DELIFGROUP	510	/* Delete interface group. */
-#define	PRIV_NET_IFCREATE	511	/* Create cloned interface. */
-#define	PRIV_NET_IFDESTROY	512	/* Destroy cloned interface. */
-#define	PRIV_NET_ADDIFADDR	513	/* Add protocol addr to interface. */
-#define	PRIV_NET_DELIFADDR	514	/* Delete protocol addr on interface. */
+#define	PRIV_NET_HWIOCTL	407	/* Issue hardware ioctl on ifnet. */
+#define	PRIV_NET_SETLLADDR	408
+#define	PRIV_NET_ADDIFGROUP	409	/* Add new interface group. */
+#define	PRIV_NET_DELIFGROUP	410	/* Delete interface group. */
+#define	PRIV_NET_IFCREATE	411	/* Create cloned interface. */
+#define	PRIV_NET_IFDESTROY	412	/* Destroy cloned interface. */
+#define	PRIV_NET_ADDIFADDR	413	/* Add protocol addr to interface. */
+#define	PRIV_NET_DELIFADDR	414	/* Delete protocol addr on interface. */
 
 /*
  * 802.11-related privileges.
  */
-#define	PRIV_NET80211_GETKEY	540	/* Query 802.11 keys. */
-#define	PRIV_NET80211_MANAGE	541	/* Administer 802.11. */
+#define	PRIV_NET80211_GETKEY	440	/* Query 802.11 keys. */
+#define	PRIV_NET80211_MANAGE	441	/* Administer 802.11. */
 
 /*
  * AppleTalk privileges.
  */
-#define	PRIV_NETATALK_RESERVEDPORT	550	/* Bind low port number. */
+#define	PRIV_NETATALK_RESERVEDPORT	450	/* Bind low port number. */
 
 /*
  * ATM privileges.
  */
-#define	PRIV_NETATM_CFG		560
-#define	PRIV_NETATM_ADD		561
-#define	PRIV_NETATM_DEL		562
-#define	PRIV_NETATM_SET		563
+#define	PRIV_NETATM_CFG		460
+#define	PRIV_NETATM_ADD		461
+#define	PRIV_NETATM_DEL		462
+#define	PRIV_NETATM_SET		463
 
 /*
  * Bluetooth privileges.
  */
-#define	PRIV_NETBLUETOOTH_RAW	570	/* Open raw bluetooth socket. */
+#define	PRIV_NETBLUETOOTH_RAW	470	/* Open raw bluetooth socket. */
 
 /*
  * Netgraph and netgraph module privileges.
  */
-#define	PRIV_NETGRAPH_CONTROL	580	/* Open netgraph control socket. */
-#define	PRIV_NETGRAPH_TTY	581	/* Configure tty for netgraph. */
+#define	PRIV_NETGRAPH_CONTROL	480	/* Open netgraph control socket. */
+#define	PRIV_NETGRAPH_TTY	481	/* Configure tty for netgraph. */
 
 /*
  * IPv4 and IPv6 privileges.
  */
-#define	PRIV_NETINET_RESERVEDPORT	590	/* Bind low port number. */
-#define	PRIV_NETINET_IPFW	591	/* Administer IPFW firewall. */
-#define	PRIV_NETINET_DIVERT	592	/* Open IP divert socket. */
-#define	PRIV_NETINET_PF		593	/* Administer pf firewall. */
-#define	PRIV_NETINET_DUMMYNET	594	/* Administer DUMMYNET. */
-#define	PRIV_NETINET_CARP	595	/* Administer CARP. */
-#define	PRIV_NETINET_MROUTE	596	/* Administer multicast routing. */
-#define	PRIV_NETINET_RAW	597	/* Open netinet raw socket. */
-#define	PRIV_NETINET_GETCRED	598	/* Query netinet pcb credentials. */
-#define	PRIV_NETINET_ADDRCTRL6	599	/* Administer IPv6 address scopes. */
-#define	PRIV_NETINET_ND6	600	/* Administer IPv6 neighbor disc. */
-#define	PRIV_NETINET_SCOPE6	601	/* Administer IPv6 address scopes. */
-#define	PRIV_NETINET_ALIFETIME6	602	/* Administer IPv6 address lifetimes. */
-#define	PRIV_NETINET_IPSEC	603	/* Administer IPSEC. */
+#define	PRIV_NETINET_RESERVEDPORT	490	/* Bind low port number. */
+#define	PRIV_NETINET_IPFW	491	/* Administer IPFW firewall. */
+#define	PRIV_NETINET_DIVERT	492	/* Open IP divert socket. */
+#define	PRIV_NETINET_PF		493	/* Administer pf firewall. */
+#define	PRIV_NETINET_DUMMYNET	494	/* Administer DUMMYNET. */
+#define	PRIV_NETINET_CARP	495	/* Administer CARP. */
+#define	PRIV_NETINET_MROUTE	496	/* Administer multicast routing. */
+#define	PRIV_NETINET_RAW	497	/* Open netinet raw socket. */
+#define	PRIV_NETINET_GETCRED	498	/* Query netinet pcb credentials. */
+#define	PRIV_NETINET_ADDRCTRL6	499	/* Administer IPv6 address scopes. */
+#define	PRIV_NETINET_ND6	500	/* Administer IPv6 neighbor disc. */
+#define	PRIV_NETINET_SCOPE6	501	/* Administer IPv6 address scopes. */
+#define	PRIV_NETINET_ALIFETIME6	502	/* Administer IPv6 address lifetimes. */
+#define	PRIV_NETINET_IPSEC	503	/* Administer IPSEC. */
 
 /*
  * IPX/SPX privileges.
  */
-#define	PRIV_NETIPX_RESERVEDPORT	620	/* Bind low port number. */
-#define	PRIV_NETIPX_RAW		621	/* Open netipx raw socket. */
+#define	PRIV_NETIPX_RESERVEDPORT	520	/* Bind low port number. */
+#define	PRIV_NETIPX_RAW		521	/* Open netipx raw socket. */
 
 /*
  * NCP privileges.
  */
-#define	PRIV_NETNCP		630	/* Use another user's connection. */
+#define	PRIV_NETNCP		530	/* Use another user's connection. */
 
 /*
  * SMB privileges.
  */
-#define	PRIV_NETSMB		640	/* Use another user's connection. */
+#define	PRIV_NETSMB		540	/* Use another user's connection. */
 
 /*
  * VM86 privileges.
  */
-#define	PRIV_VM86_INTCALL	650/* Allow invoking vm86 int handlers. */
+#define	PRIV_VM86_INTCALL	550	/* Allow invoking vm86 int handlers. */
 
 /*
  * Set of reserved privilege values, which will be allocated to code as
  * needed, in order to avoid renumbering later privileges due to insertion.
  */
-#define	_PRIV_RESERVED0		660
-#define	_PRIV_RESERVED1		661
-#define	_PRIV_RESERVED2		662
-#define	_PRIV_RESERVED3		663
-#define	_PRIV_RESERVED4		664
-#define	_PRIV_RESERVED5		665
-#define	_PRIV_RESERVED6		666
-#define	_PRIV_RESERVED7		667
-#define	_PRIV_RESERVED8		668
-#define	_PRIV_RESERVED9		669
-#define	_PRIV_RESERVED10	670
-#define	_PRIV_RESERVED11	671
-#define	_PRIV_RESERVED12	672
-#define	_PRIV_RESERVED13	673
-#define	_PRIV_RESERVED14	674
-#define	_PRIV_RESERVED15	675
+#define	_PRIV_RESERVED0		560
+#define	_PRIV_RESERVED1		561
+#define	_PRIV_RESERVED2		562
+#define	_PRIV_RESERVED3		563
+#define	_PRIV_RESERVED4		564
+#define	_PRIV_RESERVED5		565
+#define	_PRIV_RESERVED6		566
+#define	_PRIV_RESERVED7		567
+#define	_PRIV_RESERVED8		568
+#define	_PRIV_RESERVED9		569
+#define	_PRIV_RESERVED10	570
+#define	_PRIV_RESERVED11	571
+#define	_PRIV_RESERVED12	572
+#define	_PRIV_RESERVED13	573
+#define	_PRIV_RESERVED14	574
+#define	_PRIV_RESERVED15	575
 
 /*
  * Define a set of valid privilege numbers that can be used by loadable
@@ -409,27 +409,27 @@
  * of specific privileges, such as jail, and as such may be arbitrarily
  * denied.
  */
-#define	PRIV_MODULE0		700
-#define	PRIV_MODULE1		701
-#define	PRIV_MODULE2		702
-#define	PRIV_MODULE3		703
-#define	PRIV_MODULE4		704
-#define	PRIV_MODULE5		705
-#define	PRIV_MODULE6		706
-#define	PRIV_MODULE7		707
-#define	PRIV_MODULE8		708
-#define	PRIV_MODULE9		709
-#define	PRIV_MODULE10		710
-#define	PRIV_MODULE11		711
-#define	PRIV_MODULE12		712
-#define	PRIV_MODULE13		713
-#define	PRIV_MODULE14		714
-#define	PRIV_MODULE15		715
+#define	PRIV_MODULE0		600
+#define	PRIV_MODULE1		601
+#define	PRIV_MODULE2		602
+#define	PRIV_MODULE3		603
+#define	PRIV_MODULE4		604
+#define	PRIV_MODULE5		605
+#define	PRIV_MODULE6		606
+#define	PRIV_MODULE7		607
+#define	PRIV_MODULE8		608
+#define	PRIV_MODULE9		609
+#define	PRIV_MODULE10		610
+#define	PRIV_MODULE11		611
+#define	PRIV_MODULE12		612
+#define	PRIV_MODULE13		613
+#define	PRIV_MODULE14		614
+#define	PRIV_MODULE15		615
 
 /*
  * Track end of privilege list.
  */
-#define	_PRIV_HIGHEST		716
+#define	_PRIV_HIGHEST		616
 
 /*
  * Validate that a named privilege is known by the privilege system.  Invalid
