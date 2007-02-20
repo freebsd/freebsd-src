@@ -502,6 +502,7 @@ MLINKS+=wb.4 if_wb.4
 MLINKS+=wi.4 if_wi.4
 MLINKS+=xe.4 if_xe.4
 MLINKS+=xl.4 if_xl.4
+MLINKS+=watchdog.4 SW_WATCHDOG.4
 
 .if ${MACHINE_ARCH} == "amd64" || ${MACHINE_ARCH} == "i386"
 _amdsmb.4=	amdsmb.4

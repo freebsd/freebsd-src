@@ -62,7 +62,6 @@ struct iopwdog_softc {
 	device_t dev;
 	int armed;
 	int wdog_period;
-	struct callout_handle wdog_callout;
 };
 
 static __inline void
@@ -83,8 +82,6 @@ iopwdog_tickle(void *arg)
 		return;
 	wdtcr_write(WDTCR_ENABLE1);
 	wdtcr_write(WDTCR_ENABLE2);
-	sc->wdog_callout = timeout(iopwdog_tickle, sc,
-	    hz * (sc->wdog_period - 1));
 }
 
 static int
@@ -112,14 +109,21 @@ iopwdog_watchdog_fn(void *private, u_int cmd, int *error)
 {
 	struct iopwdog_softc *sc = private;
 
-	if (cmd == 0)
-		return;
-	if ((((uint64_t)1 << (cmd & WD_INTERVAL))) >
-	    (uint64_t)sc->wdog_period * 1000000000)
-		return;
-	sc->armed = 1;
-	iopwdog_tickle(sc);
-	*error = 0;
+	cmd &= WD_INTERVAL;
+	if (cmd > 0 && cmd <= 63
+	    && (uint64_t)1 << (cmd & WD_INTERVAL) <=
+	       (uint64_t)sc->wdog_period * 1000000000) {
+		/* Valid value -> Enable watchdog */
+		iopwdog_tickle(sc);
+		sc->armed = 1;
+		*error = 0;
+	} else {
+		/* XXX Can't disable this watchdog? */
+		if (sc->armed)
+			*error = EOPNOTSUPP;
+		else if (cmd > 0)
+			*error = EINVAL;
+	}
 }
 
 static int

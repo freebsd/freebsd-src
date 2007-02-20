@@ -536,15 +536,15 @@ SYSCTL_PROC(_kern, KERN_CLOCKRATE, clockrate, CTLTYPE_STRUCT|CTLFLAG_RD,
 #ifdef SW_WATCHDOG
 
 static void
-watchdog_config(void *unused __unused, u_int cmd, int *err)
+watchdog_config(void *unused __unused, u_int cmd, int *error)
 {
 	u_int u;
 
 	u = cmd & WD_INTERVAL;
-	if ((cmd & WD_ACTIVE) && u >= WD_TO_1SEC) {
+	if (u >= WD_TO_1SEC) {
 		watchdog_ticks = (1 << (u - WD_TO_1SEC)) * hz;
 		watchdog_enabled = 1;
-		*err = 0;
+		*error = 0;
 	} else {
 		watchdog_enabled = 0;
 	}

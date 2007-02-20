@@ -30,11 +30,7 @@
 
 #include <sys/ioccom.h>
 
-#ifdef I_HAVE_TOTALLY_LOST_MY_SENSE_OF_HUMOUR
-#define	_PATH_WATCHDOG	"watchdog"
-#else
 #define	_PATH_WATCHDOG	"fido"
-#endif
 
 #define WDIOCPATPAT	_IOW('W', 42, u_int)
 
