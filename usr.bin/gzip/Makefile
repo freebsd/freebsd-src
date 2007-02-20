@@ -10,7 +10,7 @@ DPADD=		${LIBZ}
 LDADD=		-lz
 WARNS?=		6
 
-.if ${MK_BZIP2_SUPPORT} != "no"
+.if !defined(MK_BZIP2_SUPPORT) || ${MK_BZIP2_SUPPORT} != "no"
 DPADD+=		${LIBBZ2}
 LDADD+=		-lbz2
 .else
