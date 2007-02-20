@@ -539,12 +539,6 @@ sysctl_debug_witness_watch(SYSCTL_HANDLER_ARGS)
 	error = sysctl_handle_int(oidp, &value, 0, req);
 	if (error != 0 || req->newptr == NULL)
 		return (error);
-	/*
-	 * XXXRW: Why a priv check here?
-	 */
-	error = priv_check(req->td, PRIV_WITNESS);
-	if (error != 0)
-		return (error);
 	if (value == witness_watch)
 		return (0);
 	if (value != 0)
