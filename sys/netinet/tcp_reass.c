@@ -105,9 +105,9 @@ struct	tcpstat tcpstat;
 SYSCTL_STRUCT(_net_inet_tcp, TCPCTL_STATS, stats, CTLFLAG_RW,
     &tcpstat , tcpstat, "TCP statistics (struct tcpstat, netinet/tcp_var.h)");
 
-static int log_in_vain = 0;
+static int tcp_log_in_vain = 0;
 SYSCTL_INT(_net_inet_tcp, OID_AUTO, log_in_vain, CTLFLAG_RW,
-    &log_in_vain, 0, "Log all incoming TCP connections");
+    &tcp_log_in_vain, 0, "Log all incoming TCP connections");
 
 static int blackhole = 0;
 SYSCTL_INT(_net_inet_tcp, OID_AUTO, blackhole, CTLFLAG_RW,
@@ -714,7 +714,7 @@ findpcb:
 	 * but should either do a listen or a connect soon.
 	 */
 	if (inp == NULL) {
-		if (log_in_vain) {
+		if (tcp_log_in_vain) {
 #ifdef INET6
 			char dbuf[INET6_ADDRSTRLEN+2], sbuf[INET6_ADDRSTRLEN+2];
 #else
@@ -736,7 +736,7 @@ findpcb:
 				strcpy(dbuf, inet_ntoa(ip->ip_dst));
 				strcpy(sbuf, inet_ntoa(ip->ip_src));
 			}
-			switch (log_in_vain) {
+			switch (tcp_log_in_vain) {
 			case 1:
 				if ((thflags & TH_SYN) == 0)
 					break;
