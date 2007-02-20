@@ -149,7 +149,22 @@ struct iwi_softc {
 	int			mem_rid;
 	int			irq_rid;
 
+	/*
+	 * The card needs external firmware images to work, which is made of a
+	 * bootloader, microcode and firmware proper. In version 3.00 and
+	 * above, all pieces are contained in a single image, preceded by a
+	 * struct iwi_firmware_hdr indicating the size of the 3 pieces.
+	 * Old firmware < 3.0 has separate boot and ucode, so we need to
+	 * load all of them explicitly.
+	 * To avoid issues related to fragmentation, we keep the block of
+	 * dma-ble memory around until detach time, and reallocate it when
+	 * it becomes too small. fw_dma_size is the size currently allocated.
+	 */
 	int			fw_dma_size;
+	uint32_t		fw_flags;	/* allocation status */
+#define	IWI_FW_HAVE_DMAT	0x01
+#define	IWI_FW_HAVE_MAP		0x02
+#define	IWI_FW_HAVE_PHY		0x04
 	bus_dma_tag_t		fw_dmat;
 	bus_dmamap_t		fw_map;
 	bus_addr_t		fw_physaddr;
@@ -216,6 +231,11 @@ struct iwi_softc {
  *	and must be kept in sync.
  */
 #define	IWI_LOCK_DECL	int	__waslocked = 0
+//#define	IWI_LOCK_ASSERT(sc)	mtx_assert(&(sc)->sc_mtx, MA_OWNED)
+#define IWI_LOCK_ASSERT(sc)	do {				\
+	if (!mtx_owned(&(sc)->sc_mtx))	\
+		printf("%s iwi_lock not held\n", __func__);		\
+} while (0)
 #define IWI_LOCK(sc)	do {				\
 	if (!(__waslocked = mtx_owned(&(sc)->sc_mtx)))	\
 		mtx_lock(&(sc)->sc_mtx);		\
