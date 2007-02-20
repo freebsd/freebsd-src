@@ -200,9 +200,9 @@ main(int argc, char **argv)
 				cmdline = 1;
 			}
 			if (cmdline == 1) {
-				/* Imply ``-t malloc'' */
-				mdio.md_type = MD_MALLOC;
-				mdio.md_options = MD_AUTOUNIT | MD_COMPRESS;
+				/* Imply ``-t swap'' */
+				mdio.md_type = MD_SWAP;
+				mdio.md_options = MD_CLUSTER | MD_AUTOUNIT | MD_COMPRESS;
 				cmdline = 2;
 			}
 			if (cmdline != 2)
