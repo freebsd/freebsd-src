@@ -460,19 +460,18 @@ mac_bsdextended_check(struct ucred *cred, struct vnode *vp, struct vattr *vap,
 	if (suser_cred(cred, 0) == 0)
 		return (0);
 
+	/*
+	 * Since we do not separately handle append, map append to write.
+	 */
+	if (acc_mode & MBI_APPEND) {
+		acc_mode &= ~MBI_APPEND;
+		acc_mode |= MBI_WRITE;
+	}
+
 	mtx_lock(&mac_bsdextended_mtx);
 	for (i = 0; i < rule_slots; i++) {
 		if (rules[i] == NULL)
 			continue;
-
-		/*
-		 * Since we do not separately handle append, map append to
-		 * write.
-		 */
-		if (acc_mode & MBI_APPEND) {
-			acc_mode &= ~MBI_APPEND;
-			acc_mode |= MBI_WRITE;
-		}
 
 		error = mac_bsdextended_rulecheck(rules[i], cred,
 		    vp, vap, acc_mode);
