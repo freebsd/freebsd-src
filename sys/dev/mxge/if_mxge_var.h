@@ -153,6 +153,10 @@ typedef struct {
 	char *fw_name;
 	char eeprom_strings[MXGE_EEPROM_STRINGS_SIZE];
 	char fw_version[128];
+	int fw_ver_major;
+	int fw_ver_minor;
+	int fw_ver_tiny;
+	int adopted_rx_filter_bug;
 	device_t dev;
 	struct ifmedia media;
 	int read_dma;
