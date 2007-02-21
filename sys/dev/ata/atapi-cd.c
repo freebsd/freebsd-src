@@ -1238,7 +1238,8 @@ acd_get_progress(device_t dev, int *finished)
     request->flags = ATA_R_ATAPI | ATA_R_READ;
     request->timeout = 30;
     ata_queue_request(request);
-    if (!request->error && request->u.atapi.sense.error & ATA_SENSE_VALID)
+    if (!request->error &&
+	request->u.atapi.sense.specific & ATA_SENSE_SPEC_VALID)
 	*finished = ((request->u.atapi.sense.specific2 |
 		     (request->u.atapi.sense.specific1 << 8)) * 100) / 65535;
     else
