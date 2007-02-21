@@ -326,10 +326,10 @@ ntfs_mountfs(devvp, mp, td)
 	ntmp->ntm_bo = &devvp->v_bufobj;
 
 	cs_local = vfs_getopts(mp->mnt_optnew, "cs_local", &error);
-	if (error)
+	if (error && error != ENOENT)
 		goto out;
 	cs_ntfs = vfs_getopts(mp->mnt_optnew, "cs_ntfs", &error);
-	if (error)
+	if (error && error != ENOENT)
 		goto out;
 	/* Copy in the 8-bit to Unicode conversion table */
 	/* Initialize Unicode to 8-bit table from 8toU table */
