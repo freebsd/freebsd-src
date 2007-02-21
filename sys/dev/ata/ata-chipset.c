@@ -404,7 +404,9 @@ ata_ahci_chipinit(device_t dev)
 	     ATA_INL(ctlr->r_res2, ATA_AHCI_GHC) | ATA_AHCI_GHC_AE);
 
     /* get the number of HW channels */
-    ctlr->channels = (ATA_INL(ctlr->r_res2, ATA_AHCI_CAP) & ATA_AHCI_NPMASK)+1;
+    ctlr->channels =
+	MAX(flsl(ATA_INL(ctlr->r_res2, ATA_AHCI_PI)), 
+	    (ATA_INL(ctlr->r_res2, ATA_AHCI_CAP) & ATA_AHCI_NPMASK) + 1);
 
     /* clear interrupts */
     ATA_OUTL(ctlr->r_res2, ATA_AHCI_IS, ATA_INL(ctlr->r_res2, ATA_AHCI_IS));
@@ -427,7 +429,8 @@ ata_ahci_chipinit(device_t dev)
     device_printf(dev,
 		  "AHCI Version %x%x.%x%x controller with %d ports detected\n",
 		  (version >> 24) & 0xff, (version >> 16) & 0xff,
-		  (version >> 8) & 0xff, version & 0xff, ctlr->channels);
+		  (version >> 8) & 0xff, version & 0xff,
+		  (ATA_INL(ctlr->r_res2, ATA_AHCI_CAP) & ATA_AHCI_NPMASK) + 1);
     return 0;
 }
 
@@ -464,7 +467,7 @@ ata_ahci_allocate(device_t dev)
     ch->hw.end_transaction = ata_ahci_end_transaction;
     ch->hw.command = NULL;      /* not used here */
 
-    /* setup the work areas */
+    /* setup work areas */
     ATA_OUTL(ctlr->r_res2, ATA_AHCI_P_CLB + offset,
 	     ch->dma->work_bus + ATA_AHCI_CL_OFFSET);
     ATA_OUTL(ctlr->r_res2, ATA_AHCI_P_CLBU + offset, 0x00000000);
@@ -662,6 +665,11 @@ ata_ahci_reset(device_t dev)
     u_int32_t cmd;
     int offset = ch->unit << 7;
     int timeout;
+
+    if (!(ATA_INL(ctlr->r_res2, ATA_AHCI_PI) & (1 << ch->unit))) {
+	device_printf(dev, "port not implemented\n");
+	ch->devices = 0;
+    }
 
     /* kill off all activity on this channel */
     cmd = ATA_INL(ctlr->r_res2, ATA_AHCI_P_CMD + offset);
