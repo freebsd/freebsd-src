@@ -191,7 +191,7 @@ _libelf_release_scn(Elf_Scn *s)
 		d = _libelf_release_data(d);
 	}
 
-	STAILQ_FOREACH_SAFE(d, &s->s_data, d_next, td) {
+	STAILQ_FOREACH_SAFE(d, &s->s_rawdata, d_next, td) {
 		assert((d->d_flags & LIBELF_F_MALLOCED) == 0);
 		STAILQ_REMOVE(&s->s_rawdata, d, _Elf_Data, d_next);
 		d = _libelf_release_data(d);
