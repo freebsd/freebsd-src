@@ -109,9 +109,10 @@ mroute6pr(u_long mfcaddr, u_long mifaddr)
 	mifi_t maxmif = 0;
 	long int waitings;
 
+	/* XXX: sysctl not yet implemented for mif6table. */
 	if (mfcaddr == 0 || mifaddr == 0) {
-		printf("No IPv6 multicast routing compiled into this"
-		       " system.\n");
+		printf("No IPv6 multicast forwarding configured in the "
+		    "running system.\n");
 		return;
 	}
 
@@ -147,6 +148,7 @@ mroute6pr(u_long mfcaddr, u_long mifaddr)
 	if (!banner_printed)
 		printf("\nIPv6 Multicast Interface Table is empty\n");
 
+	/* XXX: sysctl not yet implemented for mf6ctable. */
 	kread(mfcaddr, (char *)&mf6ctable, sizeof(mf6ctable));
 	banner_printed = 0;
 	for (i = 0; i < MF6CTBLSIZ; ++i) {
@@ -200,9 +202,10 @@ mrt6_stats(u_long mstaddr)
 {
 	struct mrt6stat mrtstat;
 
+	/* XXX: sysctl not yet implemented for mrt6stat. */
 	if (mstaddr == 0) {
-		printf("No IPv6 multicast routing compiled into this"
-		       " system.\n");
+		printf("No IPv6 multicast forwarding configured in the "
+		    "running system.\n");
 		return;
 	}
 
