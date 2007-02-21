@@ -482,7 +482,7 @@ union qualhack
 static int
 mxge_validate_firmware(mxge_softc_t *sc, const mcp_gen_header_t *hdr)
 {
-	int major, minor;
+
 
 	if (be32toh(hdr->mcp_type) != MCP_TYPE_ETH) {
 		device_printf(sc->dev, "Bad firmware type: 0x%x\n", 
@@ -495,10 +495,11 @@ mxge_validate_firmware(mxge_softc_t *sc, const mcp_gen_header_t *hdr)
 	if (mxge_verbose)
 		device_printf(sc->dev, "firmware id: %s\n", hdr->version);
 
-	sscanf(sc->fw_version, "%d.%d", &major, &minor);
+	sscanf(sc->fw_version, "%d.%d.%d", &sc->fw_ver_major,
+	       &sc->fw_ver_minor, &sc->fw_ver_tiny);
 
-	if (!(major == MXGEFW_VERSION_MAJOR
-	      && minor == MXGEFW_VERSION_MINOR)) {
+	if (!(sc->fw_ver_major == MXGEFW_VERSION_MAJOR
+	      && sc->fw_ver_minor == MXGEFW_VERSION_MINOR)) {
 		device_printf(sc->dev, "Found firmware version %s\n",
 			      sc->fw_version);
 		device_printf(sc->dev, "Driver needs %d.%d\n",
@@ -713,6 +714,21 @@ mxge_adopt_running_firmware(mxge_softc_t *sc)
 				hdr_offset, (char *)hdr, bytes);
 	status = mxge_validate_firmware(sc, hdr);
 	free(hdr, M_DEVBUF);
+
+	/* 
+	 * check to see if adopted firmware has bug where adopting
+	 * it will cause broadcasts to be filtered unless the NIC
+	 * is kept in ALLMULTI mode
+	 */
+	if (sc->fw_ver_major == 1 && sc->fw_ver_minor == 4 &&
+	    sc->fw_ver_tiny >= 4 && sc->fw_ver_tiny <= 11) {
+		sc->adopted_rx_filter_bug = 1;
+		device_printf(sc->dev, "Adopting fw %d.%d.%d: "
+			      "working around rx filter bug\n",
+			      sc->fw_ver_major, sc->fw_ver_minor,
+			      sc->fw_ver_tiny);
+	}
+
 	return status;
 }
 
@@ -875,7 +891,9 @@ mxge_set_multicast_list(mxge_softc_t *sc)
 		       " error status: %d\n", err);
 		return;
 	}
-
+	
+	if (sc->adopted_rx_filter_bug)
+		return;
 	
 	if (ifp->if_flags & IFF_ALLMULTI)
 		/* request to disable multicast filtering, so quit here */
