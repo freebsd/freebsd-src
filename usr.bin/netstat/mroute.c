@@ -86,24 +86,28 @@ mroutepr(u_long mfcaddr, u_long vifaddr)
 	len = sizeof(mfctable);
 	if (sysctlbyname("net.inet.ip.mfctable", mfctable, &len, NULL, 0) < 0) {
 		warn("sysctl: net.inet.ip.mfctable");
-		/* Compatability with older kernels - candidate for removal */
 		if (mfcaddr == 0) {
-			printf("No IPv4 multicast routing compiled into this system.\n");
+			printf("No IPv4 multicast forwarding configured in "
+			    "the running system.\n");
 			return;
 		}
-
+		/*
+		 * XXX: Try KVM if the module is neither compiled nor loaded.
+		 * The correct behaviour would be to always use KVM if
+		 * the -M option is specified to netstat(1).
+		 */
 		kread(mfcaddr, (char *)mfctable, sizeof(mfctable));
 	}
 
 	len = sizeof(viftable);
 	if (sysctlbyname("net.inet.ip.viftable", viftable, &len, NULL, 0) < 0) {
 		warn("sysctl: net.inet.ip.viftable");
-		/* Compatability with older kernels - candidate for removal */
 		if (vifaddr == 0) {
-			printf("No IPv4 multicast routing compiled into this system.\n");
+			printf("No IPv4 multicast forwarding configured in "
+			    "the running system.\n");
 			return;
 		}
-
+		/* XXX KVM */
 		kread(vifaddr, (char *)viftable, sizeof(viftable));
 	}
 
@@ -275,7 +279,8 @@ mrt_stats(u_long mstaddr)
 		warn("sysctl: net.inet.ip.mrtstat");
 		/* Compatability with older kernels - candidate for removal */
 		if (mstaddr == 0) {
-			printf("No IPv4 multicast routing compiled into this system.\n");
+			printf("No IPv4 multicast forwarding configured in "
+			    "the running system.\n");
 			return;
 		}
 
