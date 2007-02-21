@@ -77,9 +77,14 @@ list of current privileges in
 to see if one already exists for the class of privilege required.
 Only if there is not an exact match should a new privilege be added to the
 privilege list.
-As the privilege number becomes encoded in the kernel module ABI, privileges
-should only be appended to the list, not inserted in the list, and the list
-sort order should not be changed.
+As privilege numbers becomes encoded in the kernel module ABI, privilege
+constants must not be changed as any kernel modules depending on privileges
+will then need to be recompiled.
+When adding a new privilege, be certain to also determine whether it should
+be listed in
+.Fn prison_priv_check ,
+which includes a complete list of privileges granted to the root user in
+.Xr jail 2.
 .Pp
 Certain catch-all privileges exist, such as
 .Dv PRIV_DRIVER ,
