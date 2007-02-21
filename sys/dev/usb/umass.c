@@ -2570,6 +2570,10 @@ umass_cam_action(struct cam_sim *sim, union ccb *ccb)
 		strncpy(cpi->dev_name, cam_sim_name(sim), DEV_IDLEN);
 		cpi->unit_number = cam_sim_unit(sim);
 		cpi->bus_id = device_get_unit(sc->sc_dev);
+		cpi->protocol = PROTO_SCSI;
+		cpi->protocol_version = SCSI_REV_2;
+		cpi->transport = XPORT_USB;
+		cpi->transport_version = 0;
 
 		if (sc == NULL) {
 			cpi->base_transfer_speed = 0;
@@ -2609,7 +2613,7 @@ umass_cam_action(struct cam_sim *sim, union ccb *ccb)
 		cts->protocol = PROTO_SCSI;
 		cts->protocol_version = SCSI_REV_2;
 		cts->transport = XPORT_USB;
-		cts->transport_version = XPORT_VERSION_UNSPECIFIED;
+		cts->transport_version = 0;
 		cts->xport_specific.valid = 0;
 
 
