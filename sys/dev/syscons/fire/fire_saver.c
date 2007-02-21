@@ -52,6 +52,12 @@
 #define GREEN(n)	 ((n) * 3 + 1)
 #define BLUE(n)		 ((n) * 3 + 2)
 
+#define SET_ORIGIN(adp, o) do {				\
+	int oo = o;					\
+	if (oo != last_origin)				\
+	    set_origin(adp, last_origin = oo);		\
+	} while (0)
+
 static u_char		*buf;
 static u_char		*vid;
 static int		 banksize, scrmode, bpsl, scrw, scrh;
@@ -63,6 +69,7 @@ fire_update(video_adapter_t *adp)
 {
 	int x, y;
 	int o, p;
+	int last_origin = -1;
 
 	/* make a new bottom line */
 	for (x = 0, y = scrh; x < scrw; x++)
@@ -87,12 +94,12 @@ fire_update(video_adapter_t *adp)
 			p -= banksize;
 			o += banksize;
 		}
-		set_origin(adp, o);
+		SET_ORIGIN(adp, o);
 		if (p + scrw < banksize) {
 			bcopy(buf + y * scrw, vid + p, scrw);
 		} else {
 			bcopy(buf + y * scrw, vid + p, banksize - p);
-			set_origin(adp, o + banksize);
+			SET_ORIGIN(adp, o + banksize);
 			bcopy(buf + y * scrw + (banksize - p), vid,
 			      scrw - (banksize - p));
 			p -= banksize;
