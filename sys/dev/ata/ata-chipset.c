@@ -387,9 +387,7 @@ static int
 ata_ahci_chipinit(device_t dev)
 {
     struct ata_pci_controller *ctlr = device_get_softc(dev);
-    u_int32_t version, ports_implemented;;
-    int i, j; 
-    static int mapping[32];
+    u_int32_t version;
 
     /* reset AHCI controller */
     ATA_OUTL(ctlr->r_res2, ATA_AHCI_GHC,
@@ -407,14 +405,6 @@ ata_ahci_chipinit(device_t dev)
 
     /* get the number of HW channels */
     ctlr->channels = (ATA_INL(ctlr->r_res2, ATA_AHCI_CAP) & ATA_AHCI_NPMASK)+1;
-
-    /* if port layout has holes setup the right mapping */
-    ports_implemented = ATA_INL(ctlr->r_res2, ATA_AHCI_PI);
-    for (i=0, j=0; i<32 && j<ctlr->channels; i++) {
-	if (ports_implemented & (1<<i))
-	    mapping[j++] = i;
-    }
-    device_set_ivars(dev, mapping);
 
     /* clear interrupts */
     ATA_OUTL(ctlr->r_res2, ATA_AHCI_IS, ATA_INL(ctlr->r_res2, ATA_AHCI_IS));
@@ -446,7 +436,7 @@ ata_ahci_allocate(device_t dev)
 {
     struct ata_pci_controller *ctlr = device_get_softc(device_get_parent(dev));
     struct ata_channel *ch = device_get_softc(dev);
-    int offset = ((int*)(device_get_ivars(ctlr->dev)))[ch->unit] << 7;
+    int offset = ch->unit << 7;
 
     /* setup legacy cruft we need */
     ch->r_io[ATA_DATA].res = NULL;
@@ -505,11 +495,11 @@ ata_ahci_status(device_t dev)
     struct ata_channel *ch = device_get_softc(dev);
     struct ata_connect_task *tp;
     u_int32_t action, istatus, sstatus, error, issued;
-    int offset = ((int*)(device_get_ivars(ctlr->dev)))[ch->unit] << 7;
+    int offset = ch->unit << 7;
     int tag = 0;
 
     action = ATA_INL(ctlr->r_res2, ATA_AHCI_IS);
-    if (action & (1 << ((int*)(device_get_ivars(ctlr->dev)))[ch->unit])) {
+    if (action & (1 << ch->unit)) {
 	istatus = ATA_INL(ctlr->r_res2, ATA_AHCI_P_IS + offset);
 	issued = ATA_INL(ctlr->r_res2, ATA_AHCI_P_CI + offset);
 	sstatus = ATA_INL(ctlr->r_res2, ATA_AHCI_P_SSTS + offset);
@@ -571,7 +561,7 @@ ata_ahci_begin_transaction(struct ata_request *request)
     struct ata_channel *ch = device_get_softc(device_get_parent(request->dev));
     struct ata_ahci_cmd_tab *ctp;
     struct ata_ahci_cmd_list *clp;
-    int offset = ((int*)(device_get_ivars(ctlr->dev)))[ch->unit] << 7;
+    int offset = ch->unit << 7;
     int tag = 0, entries = 0;
     int fis_size;
 	
@@ -639,7 +629,7 @@ ata_ahci_end_transaction(struct ata_request *request)
     struct ata_channel *ch = device_get_softc(device_get_parent(request->dev));
     struct ata_ahci_cmd_list *clp;
     u_int32_t tf_data;
-    int offset = ((int*)(device_get_ivars(ctlr->dev)))[ch->unit] << 7;
+    int offset = ch->unit << 7;
     int tag = 0;
 
     /* kill the timeout */
@@ -670,7 +660,7 @@ ata_ahci_reset(device_t dev)
     struct ata_pci_controller *ctlr = device_get_softc(device_get_parent(dev));
     struct ata_channel *ch = device_get_softc(dev);
     u_int32_t cmd;
-    int offset = ((int*)(device_get_ivars(ctlr->dev)))[ch->unit] << 7;
+    int offset = ch->unit << 7;
     int timeout;
 
     /* kill off all activity on this channel */
