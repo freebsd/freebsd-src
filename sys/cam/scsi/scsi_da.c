@@ -1820,11 +1820,15 @@ dagetcapacity(struct cam_periph *periph)
 	uint32_t block_len;
 	uint64_t maxsector;
 	int error;
+	u_int32_t sense_flags;
 
 	softc = (struct da_softc *)periph->softc;
 	block_len = 0;
 	maxsector = 0;
 	error = 0;
+	sense_flags = SF_RETRY_UA;
+	if (softc->flags & DA_FLAG_PACK_REMOVABLE)
+		sense_flags |= SF_NO_PRINT;
 
 	/* Do a read capacity */
 	rcap = (struct scsi_read_capacity_data *)malloc(sizeof(*rcaplong),
@@ -1843,7 +1847,7 @@ dagetcapacity(struct cam_periph *periph)
 
 	error = cam_periph_runccb(ccb, daerror,
 				  /*cam_flags*/CAM_RETRY_SELTO,
-				  /*sense_flags*/SF_RETRY_UA,
+				  sense_flags,
 				  softc->disk->d_devstat);
 
 	if ((ccb->ccb_h.status & CAM_DEV_QFRZN) != 0)
@@ -1878,7 +1882,7 @@ dagetcapacity(struct cam_periph *periph)
 
 	error = cam_periph_runccb(ccb, daerror,
 				  /*cam_flags*/CAM_RETRY_SELTO,
-				  /*sense_flags*/SF_RETRY_UA,
+				  sense_flags,
 				  softc->disk->d_devstat);
 
 	if ((ccb->ccb_h.status & CAM_DEV_QFRZN) != 0)
