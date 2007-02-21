@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 1998 - 2006 Søren Schmidt <sos@FreeBSD.org>
+ * Copyright (c) 1998 - 2007 Søren Schmidt <sos@FreeBSD.org>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -568,8 +568,11 @@ ata_pcichannel_attach(device_t dev)
     if (ch->dma)
 	ch->dma->alloc(dev);
 
-    if ((error = ctlr->allocate(dev)))
+    if ((error = ctlr->allocate(dev))) {
+	if (ch->dma)
+	    ch->dma->free(dev);
 	return error;
+    }
 
     return ata_attach(dev);
 }
