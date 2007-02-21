@@ -1024,7 +1024,9 @@ vge_attach(dev)
 #endif
 	ifp->if_watchdog = vge_watchdog;
 	ifp->if_init = vge_init;
-	ifp->if_snd.ifq_maxlen = VGE_IFQ_MAXLEN;
+	IFQ_SET_MAXLEN(&ifp->if_snd, VGE_IFQ_MAXLEN);
+	ifp->if_snd.ifq_drv_maxlen = VGE_IFQ_MAXLEN;
+	IFQ_SET_READY(&ifp->if_snd);
 
 	TASK_INIT(&sc->vge_txtask, 0, vge_tx_task, ifp);
 
