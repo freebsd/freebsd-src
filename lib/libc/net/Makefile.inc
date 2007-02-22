@@ -51,7 +51,10 @@ MAN+=	addr2ascii.3 byteorder.3 ethers.3 eui64.3 \
 	inet.3 inet_net.3 \
 	inet6_opt_init.3 inet6_option_space.3 inet6_rth_space.3 \
 	inet6_rthdr_space.3 linkaddr.3 \
-	nsdispatch.3 rcmd.3 rcmdsh.3 resolver.3 sockatmark.3
+	nsdispatch.3 rcmd.3 rcmdsh.3 resolver.3 sockatmark.3 \
+        sctp_bindx.3 sctp_connectx.3 sctp_freepaddrs.3 \
+        sctp_getaddrlen.3 sctp_getassocid.3 sctp_getpaddrs.3 \
+        sctp_opt_info.3 sctp_recvmsg.3 sctp_send.3 sctp_sendmsg.3 \
 
 MLINKS+=addr2ascii.3 ascii2addr.3
 MLINKS+=byteorder.3 htonl.3 byteorder.3 htons.3 byteorder.3 ntohl.3 \
@@ -81,6 +84,10 @@ MLINKS+=inet.3 addr.3 inet.3 inet_addr.3 inet.3 inet_aton.3 \
 	inet.3 inet_network.3 inet.3 inet_ntoa.3 \
 	inet.3 inet_ntop.3 inet.3 inet_pton.3 \
 	inet.3 network.3 inet.3 ntoa.3 
+MLINKS+= sctp_send.3 sctp_sendx.3
+MLINKS+= sctp_sendmsg.3 sctp_sendmsgx.3
+MLINKS+= sctp_freepaddrs.3 sctp_freeladdrs.3
+MLINKS+= sctp_getpaddrs.3 sctp_getladdrs.3
 MLINKS+=inet_net.3 inet_net_ntop.3 inet_net.3 inet_net_pton.3
 MLINKS+=inet6_opt_init.3 inet6_opt_append.3 \
 	inet6_opt_init.3 inet6_opt_find.3 \
