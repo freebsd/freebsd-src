@@ -978,7 +978,21 @@ if_rtdel(struct radix_node *rn, void *arg)
 	return (0);
 }
 
-#define	sa_equal(a1, a2)	(bcmp((a1), (a2), ((a1))->sa_len) == 0)
+/*
+ * XXX: Because sockaddr_dl has deeper structure than the sockaddr
+ * structs used to represent other address families, it is necessary
+ * to perform a different comparison.
+ */
+
+#define	sa_equal(a1, a2)	\
+	(bcmp((a1), (a2), ((a1))->sa_len) == 0)
+
+#define	sa_dl_equal(a1, a2)	\
+	((((struct sockaddr_dl *)(a1))->sdl_len ==			\
+	 ((struct sockaddr_dl *)(a2))->sdl_len) &&			\
+	 (bcmp(LLADDR((struct sockaddr_dl *)(a1)),			\
+	       LLADDR((struct sockaddr_dl *)(a2)),			\
+	       ((struct sockaddr_dl *)(a1))->sdl_alen) == 0))
 
 /*
  * Locate an interface based on a complete address.
@@ -2123,8 +2137,13 @@ if_findmulti(struct ifnet *ifp, struct sockaddr *sa)
 	IF_ADDR_LOCK_ASSERT(ifp);
 
 	TAILQ_FOREACH(ifma, &ifp->if_multiaddrs, ifma_link) {
-		if (sa_equal(ifma->ifma_addr, sa))
-			break;
+		if (sa->sa_family == AF_LINK) {
+			if (sa_dl_equal(ifma->ifma_addr, sa))
+				break;
+		} else {
+			if (sa_equal(ifma->ifma_addr, sa))
+				break;
+		}
 	}
 
 	return ifma;
