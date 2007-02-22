@@ -28,10 +28,8 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  */
-#ifdef __FreeBSD__
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
-#endif
 #include <stdio.h>
 #include <string.h>
 #include <errno.h>
@@ -842,7 +840,7 @@ sctp_peeloff(int sd, sctp_assoc_t assoc_id)
 #endif
 
 
-#undef SCTP_CONTROL_VEC_SIZE_SND   8192
-#undef SCTP_CONTROL_VEC_SIZE_RCV  16384
-#undef SCTP_STACK_BUF_SIZE         2048
-#undef SCTP_SMALL_IOVEC_SIZE          2
+#undef SCTP_CONTROL_VEC_SIZE_SND
+#undef SCTP_CONTROL_VEC_SIZE_RCV
+#undef SCTP_STACK_BUF_SIZE
+#undef SCTP_SMALL_IOVEC_SIZE
