@@ -144,6 +144,7 @@ struct vm_page {
  */
 #define	VPO_BUSY	0x0001	/* page is in transit */
 #define	VPO_WANTED	0x0002	/* someone is waiting for page */
+#define	VPO_CLEANCHK	0x0100	/* page will be checked for cleaning */
 #define	VPO_SWAPINPROG	0x0200	/* swap I/O in progress on page */
 #define	VPO_NOSYNC	0x0400	/* do not collect for syncer */
 
@@ -226,7 +227,6 @@ extern struct pq_coloring page_queue_coloring;
 #define	PG_WRITEABLE	0x0010		/* page is mapped writeable */
 #define	PG_ZERO		0x0040		/* page is zeroed */
 #define PG_REFERENCED	0x0080		/* page has been referenced */
-#define PG_CLEANCHK	0x0100		/* page will be checked for cleaning */
 #define PG_UNMANAGED	0x0800		/* No PV management for page */
 #define PG_MARKER	0x1000		/* special queue marker page */
 #define	PG_SLAB		0x2000		/* object pointer is actually a slab */

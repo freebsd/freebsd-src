@@ -803,7 +803,7 @@ vm_object_page_clean(vm_object_t object, vm_pindex_t start, vm_pindex_t end, int
 	 */
 	clearobjflags = 1;
 	TAILQ_FOREACH(p, &object->memq, listq) {
-		vm_page_flag_set(p, PG_CLEANCHK);
+		p->oflags |= VPO_CLEANCHK;
 		if ((flags & OBJPC_NOSYNC) && (p->oflags & VPO_NOSYNC))
 			clearobjflags = 0;
 		else
@@ -833,17 +833,17 @@ rescan:
 
 again:
 		pi = p->pindex;
-		if (((p->flags & PG_CLEANCHK) == 0) ||
+		if ((p->oflags & VPO_CLEANCHK) == 0 ||
 			(pi < tstart) || (pi >= tend) ||
 			(p->valid == 0) ||
 		    VM_PAGE_INQUEUE1(p, PQ_CACHE)) {
-			vm_page_flag_clear(p, PG_CLEANCHK);
+			p->oflags &= ~VPO_CLEANCHK;
 			continue;
 		}
 
 		vm_page_test_dirty(p);
 		if ((p->dirty & p->valid) == 0) {
-			vm_page_flag_clear(p, PG_CLEANCHK);
+			p->oflags &= ~VPO_CLEANCHK;
 			continue;
 		}
 
@@ -853,7 +853,7 @@ again:
 		 * not cleared in this case so we do not have to set them.
 		 */
 		if ((flags & OBJPC_NOSYNC) && (p->oflags & VPO_NOSYNC)) {
-			vm_page_flag_clear(p, PG_CLEANCHK);
+			p->oflags &= ~VPO_CLEANCHK;
 			continue;
 		}
 
@@ -911,16 +911,16 @@ vm_object_page_collect_flush(vm_object_t object, vm_page_t p, int curgeneration,
 		if ((tp = vm_page_lookup(object, pi + i)) != NULL) {
 			if ((tp->oflags & VPO_BUSY) ||
 				((pagerflags & VM_PAGER_IGNORE_CLEANCHK) == 0 &&
-				 (tp->flags & PG_CLEANCHK) == 0) ||
+				 (tp->oflags & VPO_CLEANCHK) == 0) ||
 				(tp->busy != 0))
 				break;
 			if (VM_PAGE_INQUEUE1(tp, PQ_CACHE)) {
-				vm_page_flag_clear(tp, PG_CLEANCHK);
+				tp->oflags &= ~VPO_CLEANCHK;
 				break;
 			}
 			vm_page_test_dirty(tp);
 			if ((tp->dirty & tp->valid) == 0) {
-				vm_page_flag_clear(tp, PG_CLEANCHK);
+				tp->oflags &= ~VPO_CLEANCHK;
 				break;
 			}
 			maf[ i - 1 ] = tp;
@@ -939,16 +939,16 @@ vm_object_page_collect_flush(vm_object_t object, vm_page_t p, int curgeneration,
 			if ((tp = vm_page_lookup(object, pi - i)) != NULL) {
 				if ((tp->oflags & VPO_BUSY) ||
 					((pagerflags & VM_PAGER_IGNORE_CLEANCHK) == 0 &&
-					 (tp->flags & PG_CLEANCHK) == 0) ||
+					 (tp->oflags & VPO_CLEANCHK) == 0) ||
 					(tp->busy != 0))
 					break;
 				if (VM_PAGE_INQUEUE1(tp, PQ_CACHE)) {
-					vm_page_flag_clear(tp, PG_CLEANCHK);
+					tp->oflags &= ~VPO_CLEANCHK;
 					break;
 				}
 				vm_page_test_dirty(tp);
 				if ((tp->dirty & tp->valid) == 0) {
-					vm_page_flag_clear(tp, PG_CLEANCHK);
+					tp->oflags &= ~VPO_CLEANCHK;
 					break;
 				}
 				mab[ i - 1 ] = tp;
@@ -962,14 +962,14 @@ vm_object_page_collect_flush(vm_object_t object, vm_page_t p, int curgeneration,
 	for(i = 0; i < maxb; i++) {
 		int index = (maxb - i) - 1;
 		ma[index] = mab[i];
-		vm_page_flag_clear(ma[index], PG_CLEANCHK);
+		ma[index]->oflags &= ~VPO_CLEANCHK;
 	}
-	vm_page_flag_clear(p, PG_CLEANCHK);
+	p->oflags &= ~VPO_CLEANCHK;
 	ma[maxb] = p;
 	for(i = 0; i < maxf; i++) {
 		int index = (maxb + i) + 1;
 		ma[index] = maf[i];
-		vm_page_flag_clear(ma[index], PG_CLEANCHK);
+		ma[index]->oflags &= ~VPO_CLEANCHK;
 	}
 	runlen = maxb + maxf + 1;
 
@@ -977,7 +977,7 @@ vm_object_page_collect_flush(vm_object_t object, vm_page_t p, int curgeneration,
 	for (i = 0; i < runlen; i++) {
 		if (ma[i]->valid & ma[i]->dirty) {
 			pmap_remove_write(ma[i]);
-			vm_page_flag_set(ma[i], PG_CLEANCHK);
+			ma[i]->oflags |= VPO_CLEANCHK;
 
 			/*
 			 * maxf will end up being the actual number of pages
