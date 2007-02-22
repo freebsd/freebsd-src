@@ -80,6 +80,7 @@ mediaInitCDROM(Device *dev)
     char *cp = NULL;
     Boolean readInfo = TRUE;
     static Boolean bogusCDOK = FALSE;
+    int err;
 
     if (cdromMounted)
 	return TRUE;
@@ -88,7 +89,11 @@ mediaInitCDROM(Device *dev)
     bzero(&args, sizeof(args));
     args.fspec = dev->devname;
     args.flags = 0;
-    if (mount("cd9660", mountpoint, MNT_RDONLY, (caddr_t) &args) == -1) {
+    err = mount("cd9660", mountpoint, MNT_RDONLY, (caddr_t) &args);
+    /* If disc inserted too recently first access generates EIO, try again */
+    if (err == -1 && errno == EIO)
+        err = mount("cd9660", mountpoint, MNT_RDONLY, (caddr_t) &args);
+    if (err == -1) {
 	if (errno == EINVAL) {
 	    msgConfirm("The disc in your drive looks more like an Audio disc than a FreeBSD release.");
 	    return FALSE;
