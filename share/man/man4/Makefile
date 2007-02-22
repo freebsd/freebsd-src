@@ -281,6 +281,7 @@ MAN=	aac.4 \
 	sched_core.4 \
 	sched_ule.4 \
 	screen.4 \
+	sctp.4 \
 	scsi.4 \
 	sem.4 \
 	ses.4 \

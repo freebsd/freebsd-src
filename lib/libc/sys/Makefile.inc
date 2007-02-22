@@ -84,6 +84,7 @@ MAN+=	_exit.2 abort2.2 accept.2 access.2 acct.2  adjtime.2 \
 	sigaction.2 sigaltstack.2 sigpending.2 sigprocmask.2 sigqueue.2 \
 	sigreturn.2 sigstack.2 sigsuspend.2 sigwait.2 sigwaitinfo.2 \
 	socket.2 socketpair.2 stat.2 statfs.2 \
+        sctp_generic_recvmsg.2  sctp_generic_sendmsg.2  sctp_peeloff.2 \
 	swapon.2 symlink.2 sync.2 sysarch.2 syscall.2 \
 	timer_create.2 timer_delete.2 timer_settime.2 \
 	truncate.2 umask.2 undelete.2 \
