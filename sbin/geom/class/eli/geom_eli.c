@@ -672,7 +672,7 @@ eli_attach(struct gctl_req *req)
 	gctl_ro_param(req, "key", sizeof(key), key);
 	if (gctl_issue(req) == NULL) {
 		if (verbose)
-			printf("Attched to %s.\n", prov);
+			printf("Attached to %s.\n", prov);
 	}
 	bzero(key, sizeof(key));
 }
