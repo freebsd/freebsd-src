@@ -1182,7 +1182,7 @@ brelse(struct buf *bp)
 		 * cache the buffer.
 		 */
 		bp->b_flags |= B_INVAL;
-		if (LIST_FIRST(&bp->b_dep) != NULL)
+		if (!LIST_EMPTY(&bp->b_dep))
 			buf_deallocate(bp);
 		if (bp->b_flags & B_DELWRI) {
 			atomic_subtract_int(&numdirtybuffers, 1);
@@ -1861,7 +1861,7 @@ restart:
 			crfree(bp->b_wcred);
 			bp->b_wcred = NOCRED;
 		}
-		if (LIST_FIRST(&bp->b_dep) != NULL)
+		if (!LIST_EMPTY(&bp->b_dep))
 			buf_deallocate(bp);
 		if (bp->b_vflags & BV_BKGRDINPROG)
 			panic("losing buffer 3");
@@ -2180,7 +2180,7 @@ flushbufqueues(int queue, int flushdeps)
 			continue;
 		}
 
-		if (LIST_FIRST(&bp->b_dep) != NULL && buf_countdeps(bp, 0)) {
+		if (!LIST_EMPTY(&bp->b_dep) && buf_countdeps(bp, 0)) {
 			if (flushdeps == 0) {
 				BUF_UNLOCK(bp);
 				continue;
@@ -2514,7 +2514,7 @@ loop:
 					bp->b_flags |= B_NOCACHE;
 					bwrite(bp);
 				} else {
-					if (LIST_FIRST(&bp->b_dep) == NULL) {
+					if (LIST_EMPTY(&bp->b_dep)) {
 						bp->b_flags |= B_RELBUF;
 						brelse(bp);
 					} else {
@@ -3183,7 +3183,7 @@ bufdone_finish(struct buf *bp)
 	KASSERT(BUF_REFCNT(bp) > 0, ("biodone: bp %p not busy %d", bp,
 	    BUF_REFCNT(bp)));
 
-	if (LIST_FIRST(&bp->b_dep) != NULL)
+	if (!LIST_EMPTY(&bp->b_dep))
 		buf_complete(bp);
 
 	if (bp->b_flags & B_VMIO) {
