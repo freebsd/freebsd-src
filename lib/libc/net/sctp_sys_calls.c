@@ -28,8 +28,10 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  */
+#ifdef __FreeBSD__
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
+#endif
 #include <stdio.h>
 #include <string.h>
 #include <errno.h>
@@ -54,14 +56,20 @@ __FBSDID("$FreeBSD$");
 	 (*(const u_int32_t *)(const void *)(&(a)->s6_addr[8]) == ntohl(0x0000ffff)))
 #endif
 
+
 #define SCTP_CONTROL_VEC_SIZE_SND   8192
 #define SCTP_CONTROL_VEC_SIZE_RCV  16384
+#define SCTP_STACK_BUF_SIZE         2048
+#define SCTP_SMALL_IOVEC_SIZE          2
 
 #ifdef SCTP_DEBUG_PRINT_ADDRESS
+
+#define SCTP_STRING_BUF_SZ 256
+
 static void
 SCTPPrintAnAddress(struct sockaddr *a)
 {
-	char stringToPrint[256];
+	char stringToPrint[SCTP_STRING_BUF_SZ];
 	u_short prt;
 	char *srcaddr, *txt;
 
@@ -79,8 +87,8 @@ SCTPPrintAnAddress(struct sockaddr *a)
 		txt = "IPv6 Address: ";
 	} else if (a->sa_family == AF_LINK) {
 		int i;
-		char tbuf[200];
-		u_char adbuf[200];
+		char tbuf[SCTP_STRING_BUF_SZ];
+		u_char adbuf[SCTP_STRING_BUF_SZ];
 		struct sockaddr_dl *dl;
 
 		dl = (struct sockaddr_dl *)a;
@@ -101,10 +109,6 @@ SCTPPrintAnAddress(struct sockaddr *a)
 				printf(":");
 		}
 		printf("\n");
-		/*
-		 * u_short	sdl_route[16]; *//* source routing
-		 * information
-		 */
 		return;
 	} else {
 		return;
@@ -164,7 +168,7 @@ sctp_getaddrlen(sa_family_t family)
 int
 sctp_connectx(int sd, const struct sockaddr *addrs, int addrcnt)
 {
-	char buf[2048];
+	char buf[SCTP_STACK_BUF_SIZE];
 	int i, ret, cnt, *aa;
 	char *cpto;
 	const struct sockaddr *at;
@@ -288,7 +292,7 @@ sctp_getpaddrs(int sd, sctp_assoc_t id, struct sockaddr **raddrs)
 	struct sockaddr *re;
 	sctp_assoc_t asoc;
 	caddr_t lim;
-	socklen_t siz;
+	size_t siz;
 	int cnt;
 
 	if (raddrs == NULL) {
@@ -298,14 +302,14 @@ sctp_getpaddrs(int sd, sctp_assoc_t id, struct sockaddr **raddrs)
 	asoc = id;
 	siz = sizeof(sctp_assoc_t);
 	if (getsockopt(sd, IPPROTO_SCTP, SCTP_GET_REMOTE_ADDR_SIZE,
-	    &asoc, &siz) != 0) {
+	    &asoc, (socklen_t *) & siz) != 0) {
 		errno = ENOMEM;
 		return (-1);
 	}
 	/* size required is returned in 'asoc' */
-	siz = (uint32_t) asoc;
+	siz = (size_t)asoc;
 	siz += sizeof(struct sctp_getaddresses);
-	addrs = calloc((unsigned long)1, (unsigned long)siz);
+	addrs = calloc(1, siz);
 	if (addrs == NULL) {
 		errno = ENOMEM;
 		return (-1);
@@ -350,7 +354,7 @@ sctp_getladdrs(int sd, sctp_assoc_t id, struct sockaddr **raddrs)
 	caddr_t lim;
 	struct sockaddr *sa;
 	int size_of_addresses;
-	socklen_t siz;
+	size_t siz;
 	int cnt;
 
 	if (raddrs == NULL) {
@@ -360,7 +364,7 @@ sctp_getladdrs(int sd, sctp_assoc_t id, struct sockaddr **raddrs)
 	size_of_addresses = 0;
 	siz = sizeof(int);
 	if (getsockopt(sd, IPPROTO_SCTP, SCTP_GET_LOCAL_ADDR_SIZE,
-	    &size_of_addresses, &siz) != 0) {
+	    &size_of_addresses, (socklen_t *) & siz) != 0) {
 		errno = ENOMEM;
 		return (-1);
 	}
@@ -370,7 +374,7 @@ sctp_getladdrs(int sd, sctp_assoc_t id, struct sockaddr **raddrs)
 	}
 	siz = size_of_addresses + sizeof(struct sockaddr_storage);
 	siz += sizeof(struct sctp_getaddresses);
-	addrs = calloc((unsigned long)1, (unsigned long)siz);
+	addrs = calloc(1, siz);
 	if (addrs == NULL) {
 		errno = ENOMEM;
 		return (-1);
@@ -436,7 +440,7 @@ sctp_sendmsg(int s,
 	ssize_t sz;
 	struct msghdr msg;
 	struct sctp_sndrcvinfo *s_info;
-	struct iovec iov[2];
+	struct iovec iov[SCTP_SMALL_IOVEC_SIZE];
 	char controlVector[SCTP_CONTROL_VEC_SIZE_RCV];
 	struct cmsghdr *cmsg;
 	struct sockaddr *who = NULL;
@@ -547,7 +551,7 @@ sctp_send(int sd, const void *data, size_t len,
 #else
 	ssize_t sz;
 	struct msghdr msg;
-	struct iovec iov[2];
+	struct iovec iov[SCTP_SMALL_IOVEC_SIZE];
 	struct sctp_sndrcvinfo *s_info;
 	char controlVector[SCTP_CONTROL_VEC_SIZE_SND];
 	struct cmsghdr *cmsg;
@@ -595,6 +599,20 @@ sctp_sendx(int sd, const void *msg, size_t msg_len,
 	int add_len, len, no_end_cx = 0;
 	struct sockaddr *at;
 
+
+#ifdef SYS_sctp_generic_sendmsg
+	if (addrcnt < SCTP_SMALL_IOVEC_SIZE) {
+		socklen_t l;
+
+		/*
+		 * Quick way, we don't need to do a connectx so lets use the
+		 * syscall directly.
+		 */
+		l = addrs->sa_len;
+		return (syscall(SYS_sctp_generic_sendmsg, sd,
+		    msg, msg_len, addrs, l, sinfo, flags));
+	}
+#endif
 	len = sizeof(int);
 	at = addrs;
 	cnt = 0;
@@ -616,10 +634,6 @@ sctp_sendx(int sd, const void *msg, size_t msg_len,
 	if (cnt == 0) {
 		errno = EINVAL;
 		return (-1);
-	}
-	if (len > 2048) {
-		/* Never enough memory */
-		return (E2BIG);
 	}
 	buf = malloc(len);
 	if (buf == NULL) {
@@ -693,7 +707,7 @@ sctp_recvmsg(int s,
 {
 
 #ifdef SYS_sctp_generic_recvmsg
-	struct iovec iov[2];
+	struct iovec iov[SCTP_SMALL_IOVEC_SIZE];
 
 	iov[0].iov_base = dbuf;
 	iov[0].iov_len = len;
@@ -704,7 +718,7 @@ sctp_recvmsg(int s,
 	ssize_t sz;
 	int sinfo_found = 0;
 	struct msghdr msg;
-	struct iovec iov[2];
+	struct iovec iov[SCTP_SMALL_IOVEC_SIZE];
 	char controlVector[SCTP_CONTROL_VEC_SIZE_RCV];
 	struct cmsghdr *cmsg;
 
@@ -826,3 +840,9 @@ sctp_peeloff(int sd, sctp_assoc_t assoc_id)
 }
 
 #endif
+
+
+#undef SCTP_CONTROL_VEC_SIZE_SND   8192
+#undef SCTP_CONTROL_VEC_SIZE_RCV  16384
+#undef SCTP_STACK_BUF_SIZE         2048
+#undef SCTP_SMALL_IOVEC_SIZE          2
