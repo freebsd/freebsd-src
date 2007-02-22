@@ -1029,8 +1029,8 @@ base_chunk_alloc(size_t minsize)
 				malloc_mutex_unlock(&brk_mtx);
 				base_chunk = brk_cur;
 				base_next_addr = base_chunk;
-				base_past_addr = (void *)((uintptr_t)base_chunk +
-				    incr);
+				base_past_addr = (void *)((uintptr_t)base_chunk
+				    + incr);
 #ifdef MALLOC_STATS
 				base_total += incr;
 #endif
@@ -1042,8 +1042,8 @@ base_chunk_alloc(size_t minsize)
 #endif
 
 	/*
-	 * Don't worry about chunk alignment here, since base_chunk doesn't really
-	 * need to be aligned.
+	 * Don't worry about chunk alignment here, since base_chunk doesn't
+	 * really need to be aligned.
 	 */
 	base_chunk = pages_map(NULL, chunk_size);
 	if (base_chunk == NULL)
@@ -1067,8 +1067,12 @@ base_alloc(size_t size)
 
 	malloc_mutex_lock(&base_mtx);
 
-	/* Make sure there's enough space for the allocation. */
-	if ((uintptr_t)base_next_addr + csize > (uintptr_t)base_past_addr) {
+	/*
+	 * Make sure there's enough space for the allocation.
+	 * base_chunk_alloc() does not guarantee that a newly allocated chunk
+	 * is >= size, so loop here, rather than only trying once.
+	 */
+	while ((uintptr_t)base_next_addr + csize > (uintptr_t)base_past_addr) {
 		if (base_chunk_alloc(csize)) {
 			ret = NULL;
 			goto RETURN;
@@ -1299,6 +1303,36 @@ chunk_alloc(size_t size)
 		}
 	}
 
+	/*
+	 * Try to over-allocate, but allow the OS to place the allocation
+	 * anywhere.  Beware of size_t wrap-around.
+	 */
+	if (size + chunk_size > size) {
+		if ((ret = pages_map(NULL, size + chunk_size)) != NULL) {
+			size_t offset = CHUNK_ADDR2OFFSET(ret);
+
+			/*
+			 * Success.  Clean up unneeded leading/trailing space.
+			 */
+			if (offset != 0) {
+				/* Leading space. */
+				pages_unmap(ret, chunk_size - offset);
+
+				ret = (void *)((uintptr_t)ret + (chunk_size -
+				    offset));
+
+				/* Trailing space. */
+				pages_unmap((void *)((uintptr_t)ret + size),
+				    offset);
+			} else {
+				/* Trailing space only. */
+				pages_unmap((void *)((uintptr_t)ret + size),
+				    chunk_size);
+			}
+			goto RETURN;
+		}
+	}
+
 #ifdef USE_BRK
 	/*
 	 * Try to create allocations in brk, in order to make full use of
@@ -1341,36 +1375,6 @@ chunk_alloc(size_t size)
 		malloc_mutex_unlock(&brk_mtx);
 	}
 #endif
-
-	/*
-	 * Try to over-allocate, but allow the OS to place the allocation
-	 * anywhere.  Beware of size_t wrap-around.
-	 */
-	if (size + chunk_size > size) {
-		if ((ret = pages_map(NULL, size + chunk_size)) != NULL) {
-			size_t offset = CHUNK_ADDR2OFFSET(ret);
-
-			/*
-			 * Success.  Clean up unneeded leading/trailing space.
-			 */
-			if (offset != 0) {
-				/* Leading space. */
-				pages_unmap(ret, chunk_size - offset);
-
-				ret = (void *)((uintptr_t)ret + (chunk_size -
-				    offset));
-
-				/* Trailing space. */
-				pages_unmap((void *)((uintptr_t)ret + size),
-				    offset);
-			} else {
-				/* Trailing space only. */
-				pages_unmap((void *)((uintptr_t)ret + size),
-				    chunk_size);
-			}
-			goto RETURN;
-		}
-	}
 
 	/* All strategies for allocation failed. */
 	ret = NULL;
