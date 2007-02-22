@@ -42,6 +42,8 @@ __FBSDID("$FreeBSD$");
 #include <sys/socket.h>
 #include <sys/systm.h>
 #include <sys/malloc.h>
+#include <sys/lock.h>
+#include <sys/mutex.h>
 #include <sys/module.h>
 #include <sys/bus.h>
 #include <sys/endian.h>
@@ -55,7 +57,6 @@ __FBSDID("$FreeBSD$");
 
 #include <machine/bus.h>
 #include <machine/resource.h>
-#include <machine/clock.h>
 #include <sys/rman.h>
 
 #include <dev/pci/pcireg.h>
@@ -156,6 +157,7 @@ static void	iwi_stop_master(struct iwi_softc *);
 static int	iwi_reset(struct iwi_softc *);
 static int	iwi_load_ucode(struct iwi_softc *, const struct iwi_fw *);
 static int	iwi_load_firmware(struct iwi_softc *, const struct iwi_fw *);
+static void	iwi_release_fw_dma(struct iwi_softc *sc);
 static int	iwi_config(struct iwi_softc *);
 static int	iwi_get_firmware(struct iwi_softc *);
 static void	iwi_put_firmware(struct iwi_softc *);
@@ -330,32 +332,15 @@ iwi_attach(device_t dev)
 		goto fail;
 	}
 
-	error = iwi_alloc_tx_ring(sc, &sc->txq[0], IWI_TX_RING_COUNT,
-	    IWI_CSR_TX1_RIDX, IWI_CSR_TX1_WIDX);
-	if (error != 0) {
-		device_printf(dev, "could not allocate Tx ring 1\n");
-		goto fail;
-	}
-
-	error = iwi_alloc_tx_ring(sc, &sc->txq[1], IWI_TX_RING_COUNT,
-	    IWI_CSR_TX2_RIDX, IWI_CSR_TX2_WIDX);
-	if (error != 0) {
-		device_printf(dev, "could not allocate Tx ring 2\n");
-		goto fail;
-	}
-
-	error = iwi_alloc_tx_ring(sc, &sc->txq[2], IWI_TX_RING_COUNT,
-	    IWI_CSR_TX3_RIDX, IWI_CSR_TX3_WIDX);
-	if (error != 0) {
-		device_printf(dev, "could not allocate Tx ring 3\n");
-		goto fail;
-	}
-
-	error = iwi_alloc_tx_ring(sc, &sc->txq[3], IWI_TX_RING_COUNT,
-	    IWI_CSR_TX4_RIDX, IWI_CSR_TX4_WIDX);
-	if (error != 0) {
-		device_printf(dev, "could not allocate Tx ring 4\n");
-		goto fail;
+	for (i = 0; i < 4; i++) {
+		error = iwi_alloc_tx_ring(sc, &sc->txq[i], IWI_TX_RING_COUNT,
+		    IWI_CSR_TX1_RIDX + i * 4,
+		    IWI_CSR_TX1_WIDX + i * 4);
+		if (error != 0) {
+			device_printf(dev, "could not allocate Tx ring %d\n",
+				i+i);
+			goto fail;
+		}
 	}
 
 	if (iwi_alloc_rx_ring(sc, &sc->rxq, IWI_RX_RING_COUNT) != 0) {
@@ -495,6 +480,7 @@ iwi_detach(device_t dev)
 		ieee80211_ifdetach(ic);
 	}
 	iwi_put_firmware(sc);
+	iwi_release_fw_dma(sc);
 
 	iwi_free_cmd_ring(sc, &sc->cmdq);
 	iwi_free_tx_ring(sc, &sc->txq[0]);
@@ -544,9 +530,10 @@ iwi_alloc_cmd_ring(struct iwi_softc *sc, struct iwi_cmd_ring *ring, int count)
 	ring->queued = 0;
 	ring->cur = ring->next = 0;
 
-	error = bus_dma_tag_create(NULL, 4, 0, BUS_SPACE_MAXADDR_32BIT,
-	    BUS_SPACE_MAXADDR, NULL, NULL, count * IWI_CMD_DESC_SIZE, 1,
-	    count * IWI_CMD_DESC_SIZE, 0, NULL, NULL, &ring->desc_dmat);
+	error = bus_dma_tag_create(bus_get_dma_tag(sc->sc_dev), 4, 0,
+	    BUS_SPACE_MAXADDR_32BIT, BUS_SPACE_MAXADDR, NULL, NULL,
+	    count * IWI_CMD_DESC_SIZE, 1, count * IWI_CMD_DESC_SIZE, 0, 
+	    NULL, NULL, &ring->desc_dmat);
 	if (error != 0) {
 		device_printf(sc->sc_dev, "could not create desc DMA tag\n");
 		goto fail;
@@ -605,9 +592,10 @@ iwi_alloc_tx_ring(struct iwi_softc *sc, struct iwi_tx_ring *ring, int count,
 	ring->csr_ridx = csr_ridx;
 	ring->csr_widx = csr_widx;
 
-	error = bus_dma_tag_create(NULL, 4, 0, BUS_SPACE_MAXADDR_32BIT,
-	    BUS_SPACE_MAXADDR, NULL, NULL, count * IWI_TX_DESC_SIZE, 1,
-	    count * IWI_TX_DESC_SIZE, 0, NULL, NULL, &ring->desc_dmat);
+	error = bus_dma_tag_create(bus_get_dma_tag(sc->sc_dev), 4, 0,
+	    BUS_SPACE_MAXADDR_32BIT, BUS_SPACE_MAXADDR, NULL, NULL,
+	    count * IWI_TX_DESC_SIZE, 1, count * IWI_TX_DESC_SIZE, 0, NULL, 
+	    NULL, &ring->desc_dmat);
 	if (error != 0) {
 		device_printf(sc->sc_dev, "could not create desc DMA tag\n");
 		goto fail;
@@ -635,9 +623,9 @@ iwi_alloc_tx_ring(struct iwi_softc *sc, struct iwi_tx_ring *ring, int count,
 		goto fail;
 	}
 
-	error = bus_dma_tag_create(NULL, 1, 0, BUS_SPACE_MAXADDR_32BIT,
-	    BUS_SPACE_MAXADDR, NULL, NULL, MCLBYTES, IWI_MAX_NSEG,
-	    MCLBYTES, 0, NULL, NULL, &ring->data_dmat);
+	error = bus_dma_tag_create(bus_get_dma_tag(sc->sc_dev), 1, 0,
+	BUS_SPACE_MAXADDR_32BIT, BUS_SPACE_MAXADDR, NULL, NULL, MCLBYTES,
+	IWI_MAX_NSEG, MCLBYTES, 0, NULL, NULL, &ring->data_dmat);
 	if (error != 0) {
 		device_printf(sc->sc_dev, "could not create data DMA tag\n");
 		goto fail;
@@ -743,9 +731,9 @@ iwi_alloc_rx_ring(struct iwi_softc *sc, struct iwi_rx_ring *ring, int count)
 		goto fail;
 	}
 
-	error = bus_dma_tag_create(NULL, 1, 0, BUS_SPACE_MAXADDR_32BIT,
-	    BUS_SPACE_MAXADDR, NULL, NULL, MCLBYTES, 1, MCLBYTES, 0, NULL,
-	    NULL, &ring->data_dmat);
+	error = bus_dma_tag_create(bus_get_dma_tag(sc->sc_dev), 1, 0,
+	    BUS_SPACE_MAXADDR_32BIT, BUS_SPACE_MAXADDR, NULL, NULL, MCLBYTES,
+	    1, MCLBYTES, 0, NULL, NULL, &ring->data_dmat);
 	if (error != 0) {
 		device_printf(sc->sc_dev, "could not create data DMA tag\n");
 		goto fail;
@@ -967,6 +955,7 @@ iwi_newstate(struct ieee80211com *ic, enum ieee80211_state nstate, int arg)
 	struct ifnet *ifp = ic->ic_ifp;
 	struct iwi_softc *sc = ifp->if_softc;
 
+	IWI_LOCK_CHECK(sc);
 	DPRINTF(("%s: %s -> %s flags 0x%x\n", __func__,
 		ieee80211_state_name[ic->ic_state],
 		ieee80211_state_name[nstate], sc->flags));
@@ -1213,6 +1202,7 @@ iwi_setcurchan(struct iwi_softc *sc, int chan)
 {
 	struct ieee80211com *ic = &sc->sc_ic;
 
+	IWI_LOCK_CHECK(sc);
 	ic->ic_curchan = &ic->ic_channels[chan];
 	sc->curchan = chan;
 
@@ -1231,6 +1221,7 @@ iwi_frame_intr(struct iwi_softc *sc, struct iwi_rx_data *data, int i,
 	struct mbuf *mnew, *m;
 	struct ieee80211_node *ni;
 	int type, error, framelen;
+	IWI_LOCK_DECL;
 
 	framelen = le16toh(frame->len);
 	if (framelen < IEEE80211_MIN_LEN || framelen > MCLBYTES) {
@@ -1311,6 +1302,7 @@ iwi_frame_intr(struct iwi_softc *sc, struct iwi_rx_data *data, int i,
 
 		bpf_mtap2(sc->sc_drvbpf, tap, sc->sc_rxtap_len, m);
 	}
+	IWI_UNLOCK(sc);
 
 	ni = ieee80211_find_rxnode(ic, mtod(m, struct ieee80211_frame_min *));
 
@@ -1320,6 +1312,7 @@ iwi_frame_intr(struct iwi_softc *sc, struct iwi_rx_data *data, int i,
 	/* node is no longer needed */
 	ieee80211_free_node(ni);
 
+	IWI_LOCK(sc);
 	if (sc->sc_softled) {
 		/*
 		 * Blink for any data frame.  Otherwise do a
@@ -1703,6 +1696,8 @@ iwi_cmd(struct iwi_softc *sc, uint8_t type, void *data, uint8_t len)
 {
 	struct iwi_cmd_desc *desc;
 
+	IWI_LOCK_CHECK(sc);
+
 	if (sc->flags & IWI_FLAG_BUSY) {
 		device_printf(sc->sc_dev, "%s: cmd %d not sent, busy\n",
 			__func__, type);
@@ -1765,6 +1760,7 @@ iwi_tx_start(struct ifnet *ifp, struct mbuf *m0, struct ieee80211_node *ni,
 	int error, nsegs, hdrlen, i;
 	int ismcast, flags, xflags, staid;
 
+	IWI_LOCK_CHECK(sc);
 	wh = mtod(m0, const struct ieee80211_frame *);
 	/* NB: only data frames use this path */
 	hdrlen = ieee80211_hdrsize(wh);
@@ -2058,6 +2054,13 @@ iwi_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 
 	IWI_LOCK(sc);
 
+	/*
+	 * wait until pending iwi_cmd() are completed, to avoid races
+	 * that could cause problems.
+	 */
+	while (sc->flags & IWI_FLAG_BUSY)
+		msleep(sc, &sc->sc_mtx, 0, "iwiioctl", hz);
+
 	switch (cmd) {
 	case SIOCSIFFLAGS:
 		if (ifp->if_flags & IFF_UP) {
@@ -2074,7 +2077,6 @@ iwi_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 				 */
 				sc->sc_rfkill_timer = 0;
 			}
-			iwi_put_firmware(sc);
 		}
 		break;
 
@@ -2100,6 +2102,8 @@ iwi_stop_master(struct iwi_softc *sc)
 {
 	uint32_t tmp;
 	int ntries;
+
+	IWI_LOCK_CHECK(sc);
 
 	/* disable interrupts */
 	CSR_WRITE_4(sc, IWI_CSR_INTR_MASK, 0);
@@ -2163,7 +2167,7 @@ iwi_reset(struct iwi_softc *sc)
 static const struct iwi_firmware_ohdr *
 iwi_setup_ofw(struct iwi_softc *sc, struct iwi_fw *fw)
 {
-	struct firmware *fp = fw->fp;
+	const struct firmware *fp = fw->fp;
 	const struct iwi_firmware_ohdr *hdr;
 
 	if (fp->datasize < sizeof (struct iwi_firmware_ohdr)) {
@@ -2217,6 +2221,7 @@ iwi_getfw(struct iwi_fw *fw, const char *fwname,
  * This is necessary because we re-init the device sometimes
  * from a context where we cannot read from the filesystem
  * (e.g. from the taskqueue thread when rfkill is re-enabled).
+ * XXX return 0 on success, 1 on error.
  *
  * NB: the order of get'ing and put'ing images here is
  * intentional to support handling firmware images bundled
@@ -2228,7 +2233,7 @@ iwi_get_firmware(struct iwi_softc *sc)
 {
 	struct ieee80211com *ic = &sc->sc_ic;
 	const struct iwi_firmware_hdr *hdr;
-	struct firmware *fp;
+	const struct firmware *fp;
 
 	/* invalidate cached firmware on mode change */
 	if (sc->fw_mode != ic->ic_opmode)
@@ -2300,33 +2305,38 @@ iwi_get_firmware(struct iwi_softc *sc)
 		/*
 		 * Check and setup combined image.
 		 */
-		if (fp->datasize < sizeof(hdr)) {
+		if (fp->datasize < sizeof(struct iwi_firmware_hdr)) {
 			device_printf(sc->sc_dev, "image '%s' too small\n",
 			    fp->name);
 			goto bad;
 		}
 		hdr = (const struct iwi_firmware_hdr *)fp->data;
-		if (fp->datasize < sizeof(*hdr) + hdr->bsize + hdr->usize + hdr->fsize) {
+		if (fp->datasize < sizeof(*hdr) + le32toh(hdr->bsize) + le32toh(hdr->usize)
+				+ le32toh(hdr->fsize)) {
 			device_printf(sc->sc_dev, "image '%s' too small (2)\n",
 			    fp->name);
 			goto bad;
 		}
 		sc->fw_boot.data = ((const char *) fp->data) + sizeof(*hdr);
-		sc->fw_boot.size = hdr->bsize;
+		sc->fw_boot.size = le32toh(hdr->bsize);
 		sc->fw_boot.name = fp->name;
 		sc->fw_uc.data = sc->fw_boot.data + sc->fw_boot.size;
-		sc->fw_uc.size = hdr->usize;
+		sc->fw_uc.size = le32toh(hdr->usize);
 		sc->fw_uc.name = fp->name;
 		sc->fw_fw.data = sc->fw_uc.data + sc->fw_uc.size;
-		sc->fw_fw.size = hdr->fsize;
+		sc->fw_fw.size = le32toh(hdr->fsize);
 		sc->fw_fw.name = fp->name;
 	}
+#if 0
+	device_printf(sc->sc_dev, "boot %d ucode %d fw %d bytes\n",
+		sc->fw_boot.size, sc->fw_uc.size, sc->fw_fw.size);
+#endif
 
 	sc->fw_mode = ic->ic_opmode;
-	return 1;
+	return 0;
 bad:
 	iwi_put_firmware(sc);
-	return 0;
+	return 1;
 }
 
 static void
@@ -2361,6 +2371,7 @@ iwi_load_ucode(struct iwi_softc *sc, const struct iwi_fw *fw)
 	size_t size = fw->size;
 	int i, ntries, error;
 
+	IWI_LOCK_CHECK(sc);
 	error = 0;
 	CSR_WRITE_4(sc, IWI_CSR_RST, CSR_READ_4(sc, IWI_CSR_RST) |
 	    IWI_RST_STOP_MASTER);
@@ -2433,6 +2444,7 @@ iwi_load_firmware(struct iwi_softc *sc, const struct iwi_fw *fw)
 	uint32_t sentinel, ctl, src, dst, sum, len, mlen, tmp;
 	int ntries, error;
 
+	IWI_LOCK_CHECK(sc);
 	/* copy firmware image to DMA memory */
 	memcpy(sc->fw_virtaddr, fw->data, fw->size);
 
@@ -2492,12 +2504,13 @@ iwi_load_firmware(struct iwi_softc *sc, const struct iwi_fw *fw)
 			break;
 		DELAY(100);
 	}
+	/* sync dma, just in case */
+	bus_dmamap_sync(sc->fw_dmat, sc->fw_map, BUS_DMASYNC_POSTWRITE);
 	if (ntries == 400) {
 		device_printf(sc->sc_dev,
 		    "timeout processing command blocks for %s firmware\n",
 		    fw->name);
-		error = EIO;
-		goto fail5;
+		return EIO;
 	}
 
 	/* we're done with command blocks processing */
@@ -2518,7 +2531,6 @@ iwi_load_firmware(struct iwi_softc *sc, const struct iwi_fw *fw)
 		    "initialization to complete\n", fw->name);
 	}
 
-fail5:
 	return error;
 }
 
@@ -2574,6 +2586,7 @@ iwi_config(struct iwi_softc *sc)
 	struct iwi_txpower power;
 	uint32_t data;
 	int error, i;
+	IWI_LOCK_CHECK(sc);
 
 	IEEE80211_ADDR_COPY(ic->ic_myaddr, IF_LLADDR(ifp));
 	DPRINTF(("Setting MAC address to %6D\n", ic->ic_myaddr, ":"));
@@ -2700,6 +2713,8 @@ iwi_scan(struct iwi_softc *sc)
 	const struct ieee80211_channel *c;
 	struct iwi_scan_ext scan;
 	int i, ix, start, scan_type, error;
+
+	IWI_LOCK_CHECK(sc);
 
 	memset(&scan, 0, sizeof scan);
 
@@ -2902,7 +2917,8 @@ iwi_auth_and_assoc(struct iwi_softc *sc)
 	struct iwi_rateset rs;
 	uint16_t capinfo;
 	int error;
-
+ 
+	IWI_LOCK_CHECK(sc);
 	if (IEEE80211_IS_CHAN_2GHZ(ni->ni_chan)) {
 		memset(&config, 0, sizeof config);
 		config.bluetooth_coexistence = sc->bluetooth;
@@ -3071,6 +3087,66 @@ iwi_init(void *priv)
 	IWI_UNLOCK(sc);
 }
 
+/*
+ * release dma resources for the firmware
+ */
+static void
+iwi_release_fw_dma(struct iwi_softc *sc)
+{
+	if (sc->fw_flags & IWI_FW_HAVE_PHY)
+		bus_dmamap_unload(sc->fw_dmat, sc->fw_map);
+	if (sc->fw_flags & IWI_FW_HAVE_MAP)
+		bus_dmamem_free(sc->fw_dmat, sc->fw_virtaddr, sc->fw_map);
+	if (sc->fw_flags & IWI_FW_HAVE_DMAT)
+		bus_dma_tag_destroy(sc->fw_dmat);
+
+	sc->fw_flags = 0;
+	sc->fw_dma_size = 0;
+	sc->fw_dmat = NULL;
+	sc->fw_map = NULL;
+	sc->fw_physaddr = 0;
+	sc->fw_virtaddr = NULL;
+}
+
+/*
+ * allocate the dma descriptor for the firmware.
+ * Return 0 on success, 1 on error.
+ * Must be called unlocked, protected by IWI_FLAG_FW_LOADING.
+ */
+static int
+iwi_init_fw_dma(struct iwi_softc *sc, int size)
+{
+	if (sc->fw_dma_size > size)
+		return 0;
+	if (bus_dma_tag_create(bus_get_dma_tag(sc->sc_dev), 4, 0,
+	    BUS_SPACE_MAXADDR_32BIT, BUS_SPACE_MAXADDR, NULL, NULL,
+	    size, 1, size, 0, NULL, NULL, &sc->fw_dmat) != 0) {
+		device_printf(sc->sc_dev,
+		    "could not create firmware DMA tag\n");
+		goto error;
+	}
+	sc->fw_flags |= IWI_FW_HAVE_DMAT;
+	if (bus_dmamem_alloc(sc->fw_dmat, &sc->fw_virtaddr, 0,
+	    &sc->fw_map) != 0) {
+		device_printf(sc->sc_dev,
+		    "could not allocate firmware DMA memory\n");
+		goto error;
+	}
+	sc->fw_flags |= IWI_FW_HAVE_MAP;
+	if (bus_dmamap_load(sc->fw_dmat, sc->fw_map, sc->fw_virtaddr,
+	    size, iwi_dma_map_addr, &sc->fw_physaddr, 0) != 0) {
+		device_printf(sc->sc_dev, "could not load firmware DMA map\n");
+		goto error;
+	}
+	sc->fw_flags |= IWI_FW_HAVE_PHY;
+	sc->fw_dma_size = size;
+	return 0;
+
+error:
+	iwi_release_fw_dma(sc);
+	return 1;
+}
+
 static void
 iwi_init_locked(void *priv, int force)
 {
@@ -3081,8 +3157,11 @@ iwi_init_locked(void *priv, int force)
 	int i;
 	IWI_LOCK_DECL;
 
-	if (sc->flags & IWI_FLAG_FW_LOADING)
+	IWI_LOCK_CHECK(sc);
+	if (sc->flags & IWI_FLAG_FW_LOADING) {
+		device_printf(sc->sc_dev, "%s: already loading\n", __func__);
 		return;		/* XXX: condvar? */
+	}
 
 	iwi_stop(sc);
 
@@ -3094,52 +3173,34 @@ iwi_init_locked(void *priv, int force)
 	sc->flags |= IWI_FLAG_FW_LOADING;
 
 	IWI_UNLOCK(sc);
-	if (!iwi_get_firmware(sc)) {
+	if (iwi_get_firmware(sc)) {
 		IWI_LOCK(sc);
 		goto fail;
 	}
 
 	/* allocate DMA memory for mapping firmware image */
-	if (sc->fw_boot.size > sc->fw_dma_size)
-		sc->fw_dma_size = sc->fw_boot.size;
-	if (sc->fw_fw.size > sc->fw_dma_size)
-		sc->fw_dma_size = sc->fw_fw.size;
-	if (sc->fw_uc.size > sc->fw_dma_size)
-		sc->fw_dma_size = sc->fw_uc.size;
-
-	if (bus_dma_tag_create(NULL, 4, 0, BUS_SPACE_MAXADDR_32BIT,
-	    BUS_SPACE_MAXADDR, NULL, NULL, sc->fw_dma_size, 1, sc->fw_dma_size,
-	    0, NULL, NULL, &sc->fw_dmat) != 0) {
-		device_printf(sc->sc_dev,
-		    "could not create firmware DMA tag\n");
+	i = sc->fw_fw.size;
+	if (sc->fw_boot.size > i)
+		i = sc->fw_boot.size;
+	/* XXX do we dma the ucode as well ? */
+	if (sc->fw_uc.size > i)
+		i = sc->fw_uc.size;
+	if (iwi_init_fw_dma(sc, i)) {
 		IWI_LOCK(sc);
 		goto fail;
-	}
-	if (bus_dmamem_alloc(sc->fw_dmat, &sc->fw_virtaddr, 0,
-	    &sc->fw_map) != 0) {
-		device_printf(sc->sc_dev,
-		    "could not allocate firmware DMA memory\n");
-		IWI_LOCK(sc);
-		goto fail2;
-	}
-	if (bus_dmamap_load(sc->fw_dmat, sc->fw_map, sc->fw_virtaddr,
-	    sc->fw_dma_size, iwi_dma_map_addr, &sc->fw_physaddr, 0) != 0) {
-		device_printf(sc->sc_dev, "could not load firmware DMA map\n");
-		IWI_LOCK(sc);
-		goto fail3;
 	}
 	IWI_LOCK(sc);
 
 	if (iwi_load_firmware(sc, &sc->fw_boot) != 0) {
 		device_printf(sc->sc_dev,
 		    "could not load boot firmware %s\n", sc->fw_boot.name);
-		goto fail4;
+		goto fail;
 	}
 
 	if (iwi_load_ucode(sc, &sc->fw_uc) != 0) {
 		device_printf(sc->sc_dev,
 		    "could not load microcode %s\n", sc->fw_uc.name);
-		goto fail4;
+		goto fail;
 	}
 
 	iwi_stop_master(sc);
@@ -3174,14 +3235,9 @@ iwi_init_locked(void *priv, int force)
 	if (iwi_load_firmware(sc, &sc->fw_fw) != 0) {
 		device_printf(sc->sc_dev,
 		    "could not load main firmware %s\n", sc->fw_fw.name);
-		goto fail4;
+		goto fail;
 	}
 	sc->flags |= IWI_FLAG_FW_INITED;
-
-	bus_dmamap_sync(sc->fw_dmat, sc->fw_map, BUS_DMASYNC_POSTWRITE);
-	bus_dmamap_unload(sc->fw_dmat, sc->fw_map);
-	bus_dmamem_free(sc->fw_dmat, sc->fw_virtaddr, sc->fw_map);
-	bus_dma_tag_destroy(sc->fw_dmat);
 
 	if (iwi_config(sc) != 0) {
 		device_printf(sc->sc_dev, "device configuration failed\n");
@@ -3206,10 +3262,6 @@ iwi_init_locked(void *priv, int force)
 	sc->flags &= ~IWI_FLAG_FW_LOADING;
 	return;
 
-fail4:	bus_dmamap_sync(sc->fw_dmat, sc->fw_map, BUS_DMASYNC_POSTWRITE);
-	bus_dmamap_unload(sc->fw_dmat, sc->fw_map);
-fail3:	bus_dmamem_free(sc->fw_dmat, sc->fw_virtaddr, sc->fw_map);
-fail2:	bus_dma_tag_destroy(sc->fw_dmat);
 fail:	ifp->if_flags &= ~IFF_UP;
 	sc->flags &= ~IWI_FLAG_FW_LOADING;
 	iwi_stop(sc);
@@ -3223,6 +3275,7 @@ iwi_stop(void *priv)
 	struct ieee80211com *ic = &sc->sc_ic;
 	struct ifnet *ifp = ic->ic_ifp;
 
+	IWI_LOCK_CHECK(sc);	/* XXX: pretty sure this triggers */
 	if (sc->sc_softled) {
 		callout_stop(&sc->sc_ledtimer);
 		sc->sc_blinking = 0;

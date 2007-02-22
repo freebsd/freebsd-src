@@ -157,7 +157,7 @@ struct isposinfo {
 		intsok		: 1,
 		simqfrozen	: 3;
 #if __FreeBSD_version >= 500000  
-	struct firmware *	fw;
+	const struct firmware *	fw;
 	struct mtx		lock;
 	struct cv		kthread_cv;
 #endif
