@@ -558,9 +558,10 @@ ether_input(struct ifnet *ifp, struct mbuf *m)
 #endif
 
 	/*
-	 * Give bpf a chance at the packet.
+	 * Give bpf a chance at the packet.  Process any 802.1Q tags
+	 * that may have been attached to the mbuf.
 	 */
-	BPF_MTAP(ifp, m);
+	ETHER_BPF_MTAP(ifp, m);
 
 	/* If the CRC is still on the packet, trim it off. */
 	if (m->m_flags & M_HASFCS) {
