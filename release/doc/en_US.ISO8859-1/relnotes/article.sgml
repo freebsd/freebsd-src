@@ -1759,7 +1759,8 @@ mdconfig_md1="-t vnode -f /var/foo.img"</programlisting>
       to 4.17.</para>
 
     <para>The GNU version of <application>gzip</application> has been
-      replaced with a version of gzip imported from NetBSD.</para>
+      replaced with a modified version of gzip ported from NetBSD.
+      &merged;</para>
 
     <para><application>netcat</application> has been updated from the
       version in a 4 February 2005 OpenBSD snapshot to the version
