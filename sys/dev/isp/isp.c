@@ -1555,6 +1555,7 @@ isp_fibre_init(ispsoftc_t *isp)
 	fcparam *fcp;
 	isp_icb_t local, *icbp = &local;
 	mbreg_t mbs;
+	int ownloopid;
 	uint64_t nwwn, pwwn;
 
 	fcp = isp->isp_param;
@@ -1630,25 +1631,17 @@ isp_fibre_init(ispsoftc_t *isp)
 	icbp->icb_retry_delay = fcp->isp_retry_delay;
 	icbp->icb_retry_count = fcp->isp_retry_count;
 	icbp->icb_hardaddr = fcp->isp_loopid;
+	ownloopid = (isp->isp_confopts & ISP_CFG_OWNLOOPID) != 0;
 	if (icbp->icb_hardaddr > 125) {
-		/*
-		 * We end up with these Loop IDs for F-Port topologies
-		 */
-		if (icbp->icb_hardaddr != 0xff &&
-		    icbp->icb_hardaddr != 0x800 &&
-		    icbp->icb_hardaddr != 0xffff) {
-			isp_prt(isp, ISP_LOGERR,
-			    "bad hard address %u- resetting to zero",
-			    icbp->icb_hardaddr); 
-			icbp->icb_hardaddr = 0;
-		}
+		icbp->icb_hardaddr = 0;
+		ownloopid = 0;
 	}
 
 	/*
 	 * Our life seems so much better with 2200s and later with
 	 * the latest f/w if we set Hard Address.
 	 */
-	if (ISP_FW_NEWER_THAN(isp, 2, 2, 5)) {
+	if (ownloopid || ISP_FW_NEWER_THAN(isp, 2, 2, 5)) {
 		icbp->icb_fwoptions |= ICBOPT_HARD_ADDRESS;
 	}
 
@@ -1800,6 +1793,7 @@ isp_fibre_init(ispsoftc_t *isp)
 	isp_mboxcmd(isp, &mbs);
 	FC_SCRATCH_RELEASE(isp);
 	if (mbs.param[0] != MBOX_COMMAND_COMPLETE) {
+		isp_print_bytes(isp, "isp_fibre_init", sizeof (*icbp), icbp);
 		return;
 	}
 	isp->isp_reqidx = 0;
@@ -1818,6 +1812,7 @@ isp_fibre_init_2400(ispsoftc_t *isp)
 	fcparam *fcp;
 	isp_icb_2400_t local, *icbp = &local;
 	mbreg_t mbs;
+	int ownloopid;
 	uint64_t nwwn, pwwn;
 
 	fcp = isp->isp_param;
@@ -1886,21 +1881,12 @@ isp_fibre_init_2400(ispsoftc_t *isp)
 	icbp->icb_fwoptions1 = fcp->isp_fwoptions;
 
 	icbp->icb_hardaddr = fcp->isp_loopid;
+	ownloopid = (isp->isp_confopts & ISP_CFG_OWNLOOPID) != 0;
 	if (icbp->icb_hardaddr > 125) {
-		/*
-		 * We end up with these Loop IDs for F-Port topologies
-		 */
-		if (icbp->icb_hardaddr != 0xff &&
-		    icbp->icb_hardaddr != 0x800 &&
-		    icbp->icb_hardaddr != 0xffff) {
-			isp_prt(isp, ISP_LOGERR,
-			    "bad hard address %u- resetting to zero",
-			    icbp->icb_hardaddr); 
-			icbp->icb_hardaddr = 0;
-		}
+		icbp->icb_hardaddr = 0;
+		ownloopid = 0;
 	}
-
-	if (isp->isp_confopts & ISP_CFG_OWNLOOPID) {
+	if (ownloopid) {
 		icbp->icb_fwoptions1 |= ICB2400_OPT1_HARD_ADDRESS;
 	}
 
@@ -2280,7 +2266,6 @@ isp_port_login(ispsoftc_t *isp, uint16_t handle, uint32_t portid)
 		    "isp_plogi_old: portid 0x%06x already logged in as %u",
 		    portid, mbs.param[1]);
 		return (MBOX_PORT_ID_USED | (mbs.param[1] << 16));
-		break;
 
 	case MBOX_LOOP_ID_USED:
 		isp_prt(isp, ISP_LOGDEBUG0,
@@ -2963,19 +2948,17 @@ isp_scan_loop(ispsoftc_t *isp)
 		/*
 		 * Check to make sure it's still a valid entry. The 24XX seems
 		 * to return a portid but not a WWPN/WWNN or role for devices
-		 * which shift on a loop, or have a WWPN/WWNN but no portid.
+		 * which shift on a loop.
 		 */
 		if (tmp.node_wwn == 0 || tmp.port_wwn == 0 || tmp.portid == 0) {
-			if (isp->isp_dblev & ISP_LOGSANCFG) {
-				int a, b, c;
-				a = !(tmp.node_wwn == 0);
-				b = !(tmp.port_wwn == 0);
-				c = !(tmp.portid == 0);
-				isp_prt(isp, ISP_LOGALL,
-				    "bad pdb (%1d%1d%1d) @ handle 0x%x",
-				    a, b, c, handle);
-				isp_dump_portdb(isp);
-			}
+			int a, b, c;
+			a = (tmp.node_wwn == 0);
+			b = (tmp.port_wwn == 0);
+			c = (tmp.portid == 0);
+			isp_prt(isp, ISP_LOGWARN,
+			    "bad pdb (%1d%1d%1d) @ handle 0x%x", a, b, c,
+			    handle);
+			isp_dump_portdb(isp);
 			continue;
 		}
 
@@ -4576,7 +4559,6 @@ again:
 		if ((IS_FC(isp) && mbox != ASYNC_RIO_RESP) ||
 		    isp->isp_state != ISP_RUNSTATE) {
 			goto out;
-			return;
 		}
 	}
 
@@ -7523,11 +7505,11 @@ isp_rd_2400_nvram(ispsoftc_t *isp, uint32_t addr, uint32_t *rp)
 	for (loops = 0; loops < 5000; loops++) {
 		USEC_DELAY(10);
 		tmp = ISP_READ(isp, BIU2400_FLASH_ADDR);
-		if ((tmp & (1 << 31)) != 0) {
+		if ((tmp & (1U << 31)) != 0) {
 			break;
 		}
 	}
-	if (tmp & (1 << 31)) {
+	if (tmp & (1U << 31)) {
 		tmp = ISP_READ(isp, BIU2400_FLASH_DATA);
 		*rp = tmp;
 	} else {
