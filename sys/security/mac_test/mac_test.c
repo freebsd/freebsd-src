@@ -39,29 +39,23 @@
  * Generic mandatory access module that does nothing.
  */
 
-#include <sys/types.h>
 #include <sys/param.h>
 #include <sys/acl.h>
-#include <sys/conf.h>
 #include <sys/kdb.h>
-#include <sys/extattr.h>
 #include <sys/kernel.h>
 #include <sys/ksem.h>
 #include <sys/malloc.h>
+#include <sys/module.h>
 #include <sys/mount.h>
+#include <sys/msg.h>
 #include <sys/proc.h>
-#include <sys/systm.h>
-#include <sys/sysproto.h>
-#include <sys/sysent.h>
 #include <sys/vnode.h>
-#include <sys/file.h>
+#include <sys/sem.h>
+#include <sys/shm.h>
 #include <sys/socket.h>
 #include <sys/socketvar.h>
 #include <sys/sx.h>
 #include <sys/sysctl.h>
-#include <sys/msg.h>
-#include <sys/sem.h>
-#include <sys/shm.h>
 
 #include <fs/devfs/devfs.h>
 
@@ -69,8 +63,6 @@
 #include <net/if.h>
 #include <net/if_types.h>
 #include <net/if_var.h>
-
-#include <vm/vm.h>
 
 #include <security/mac/mac_policy.h>
 
