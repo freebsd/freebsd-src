@@ -281,7 +281,7 @@ Actually, ppbus and adapter operating modes on one hands and for each
 one, current and available modes are separated.
 .Pp
 With this level of abstraction a particular chipset may commute from any
-native mode the any other mode emulated with extended modes without
+native mode to any other mode emulated with extended modes without
 disturbing upper layers.
 For example, most chipsets support NIBBLE mode as
 native and emulated with ECP and/or EPP.
@@ -307,7 +307,7 @@ This mode will be saved in the context structure and
 returned each time the driver requests the ppbus.
 .Ss Bus allocation and interrupts
 ppbus allocation is mandatory not to corrupt I/O of other devices.
-An other
+Another
 usage of ppbus allocation is to reserve the port and receive incoming
 interrupts.
 .Pp
