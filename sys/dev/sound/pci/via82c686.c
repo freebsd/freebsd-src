@@ -555,7 +555,8 @@ via_attach(device_t dev)
 			via->codec_caps & (AC97_EXTCAP_VRA | AC97_EXTCAP_VRM));
 
 	/* DMA tag for buffers */
-	if (bus_dma_tag_create(/*parent*/NULL, /*alignment*/2, /*boundary*/0,
+	if (bus_dma_tag_create(/*parent*/bus_get_dma_tag(dev), /*alignment*/2,
+		/*boundary*/0,
 		/*lowaddr*/BUS_SPACE_MAXADDR_32BIT,
 		/*highaddr*/BUS_SPACE_MAXADDR,
 		/*filter*/NULL, /*filterarg*/NULL,
@@ -571,7 +572,8 @@ via_attach(device_t dev)
 	 *  requires a list in memory of work to do.  We need only 16 bytes
 	 *  for this list, and it is wasteful to allocate 16K.
 	 */
-	if (bus_dma_tag_create(/*parent*/NULL, /*alignment*/2, /*boundary*/0,
+	if (bus_dma_tag_create(/*parent*/bus_get_dma_tag(dev), /*alignment*/2,
+		/*boundary*/0,
 		/*lowaddr*/BUS_SPACE_MAXADDR_32BIT,
 		/*highaddr*/BUS_SPACE_MAXADDR,
 		/*filter*/NULL, /*filterarg*/NULL,

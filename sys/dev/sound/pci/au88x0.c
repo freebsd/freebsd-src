@@ -636,7 +636,7 @@ au88x0_pci_attach(device_t dev)
 	/* DMA mapping */
 	aui->aui_bufsize = pcm_getbuffersize(dev, AU88X0_BUFSIZE_MIN,
 	    AU88X0_BUFSIZE_DFLT, AU88X0_BUFSIZE_MAX);
-	error = bus_dma_tag_create(NULL,
+	error = bus_dma_tag_create(bus_get_dma_tag(dev),
 	    2, 0, /* 16-bit alignment, no boundary */
 	    BUS_SPACE_MAXADDR_32BIT, BUS_SPACE_MAXADDR, /* restrict to 4GB */
 	    NULL, NULL, /* no filter */

@@ -157,7 +157,7 @@ struct {
  */
 
 /* stuff */
-static int       ds_init(struct sc_info *);
+static int       ds_init(struct sc_info *, device_t);
 static void      ds_intr(void *);
 
 /* talk to the card */
@@ -785,7 +785,7 @@ ds_setmap(void *arg, bus_dma_segment_t *segs, int nseg, int error)
 }
 
 static int
-ds_init(struct sc_info *sc)
+ds_init(struct sc_info *sc, device_t dev)
 {
 	int i;
 	u_int32_t *ci, r, pcs, rcs, ecs, ws, memsz, cb;
@@ -833,7 +833,9 @@ ds_init(struct sc_info *sc)
 	memsz += (64 + 1) * 4;
 
 	if (sc->regbase == NULL) {
-		if (bus_dma_tag_create(NULL, 2, 0, BUS_SPACE_MAXADDR_32BIT, BUS_SPACE_MAXADDR,
+		if (bus_dma_tag_create(bus_get_dma_tag(dev), 2, 0,
+				       BUS_SPACE_MAXADDR_32BIT,
+				       BUS_SPACE_MAXADDR,
 				       NULL, NULL, memsz, 1, memsz, 0, NULL,
 				       NULL, &sc->control_dmat))
 			return -1;
@@ -970,7 +972,8 @@ ds_pci_attach(device_t dev)
 
 	sc->bufsz = pcm_getbuffersize(dev, 4096, DS1_BUFFSIZE, 65536);
 
-	if (bus_dma_tag_create(/*parent*/NULL, /*alignment*/2, /*boundary*/0,
+	if (bus_dma_tag_create(/*parent*/bus_get_dma_tag(dev), /*alignment*/2,
+		/*boundary*/0,
 		/*lowaddr*/BUS_SPACE_MAXADDR_32BIT,
 		/*highaddr*/BUS_SPACE_MAXADDR,
 		/*filter*/NULL, /*filterarg*/NULL,
@@ -982,7 +985,7 @@ ds_pci_attach(device_t dev)
 	}
 
 	sc->regbase = NULL;
-	if (ds_init(sc) == -1) {
+	if (ds_init(sc, dev) == -1) {
 		device_printf(dev, "unable to initialize the card\n");
 		goto bad;
 	}
@@ -1050,7 +1053,7 @@ ds_pci_resume(device_t dev)
 
        sc = pcm_getdevinfo(dev);
 
-       if (ds_init(sc) == -1) {
+       if (ds_init(sc, dev) == -1) {
            device_printf(dev, "unable to reinitialize the card\n");
            return ENXIO;
        }
