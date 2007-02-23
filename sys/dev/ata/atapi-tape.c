@@ -612,7 +612,7 @@ ast_load_unload(device_t dev, u_int8_t function)
     error = ata_atapicmd(dev, ccb, NULL, 0, 0, 10);
     if (error)
 	return error;
-    tsleep((caddr_t)&error, PRIBIO, "astlu", 1 * hz);
+    pause("astlu", 1 * hz);
     if (function == ATAPI_SS_EJECT)
 	return 0;
     return ast_wait_dsc(dev, 60*60);
@@ -665,7 +665,7 @@ ast_wait_dsc(device_t dev, int timeout)
 	error = ata_atapicmd(dev, ccb, NULL, 0, 0, 0);
 	if (error != EBUSY)
 	    break;
-	tsleep(&error, PRIBIO, "atpwt", hz / 2);
+	pause("atpwt", hz / 2);
 	timeout -= (hz / 2);
     }
     return error;

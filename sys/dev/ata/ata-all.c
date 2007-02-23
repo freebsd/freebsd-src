@@ -122,7 +122,7 @@ ata_attach(device_t dev)
 
     /* reset the controller HW, the channel and device(s) */
     while (ATA_LOCKING(dev, ATA_LF_LOCK) != ch->unit)
-	tsleep(&error, PRIBIO, "ataatch", 1);
+	pause("ataatch", 1);
     ATA_RESET(dev);
     ATA_LOCKING(dev, ATA_LF_UNLOCK);
 
@@ -196,7 +196,7 @@ ata_reinit(device_t dev)
 
     /* poll for locking the channel */
     while (ATA_LOCKING(dev, ATA_LF_LOCK) != ch->unit)
-	tsleep(&dev, PRIBIO, "atarini", 1);
+	pause("atarini", 1);
 
     /* catch eventual request in ch->running */
     mtx_lock(&ch->state_mtx);
@@ -824,7 +824,7 @@ ata_udelay(int interval)
     if (1 || interval < (1000000/hz) || ata_delayed_attach)
 	DELAY(interval);
     else
-	tsleep(&interval, PRIBIO, "ataslp", interval/(1000000/hz));
+	pause("ataslp", interval/(1000000/hz));
 }
 
 char *
