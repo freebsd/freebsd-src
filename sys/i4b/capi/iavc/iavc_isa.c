@@ -243,7 +243,7 @@ iavc_isa_attach(device_t dev)
 	/* setup the interrupt */
 
 	if(bus_setup_intr(dev, sc->sc_resources.irq, INTR_TYPE_NET,
-		      (void(*)(void*))iavc_isa_intr,
+		      NULL, (void(*)(void*))iavc_isa_intr,
 		      sc, &ih))
 	{
 		printf("iavc%d: irq setup failed\n", unit);

@@ -495,7 +495,7 @@ avma1pp2_attach_avma1pp(device_t dev)
 		goto fail;
 	}
 
-	error = bus_setup_intr(dev, sc->sc_resources.irq, INTR_TYPE_NET, avma1pp2_intr, sc, &ih);
+	error = bus_setup_intr(dev, sc->sc_resources.irq, INTR_TYPE_NET, NULL, avma1pp2_intr, sc, &ih);
 
 	if (error) {
 		bus_release_resource(dev, SYS_RES_IRQ, 0, sc->sc_resources.irq);

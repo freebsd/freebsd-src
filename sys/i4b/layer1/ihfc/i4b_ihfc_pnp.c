@@ -206,7 +206,7 @@ ihfc_pnp_probe(device_t dev)
 				/* setup interrupt routine now to avvoid stray	*
 				 * interrupts.					*/
 
-				bus_setup_intr(dev, S_IRQ, INTR_TYPE_NET, (void(*)(void*))
+				bus_setup_intr(dev, S_IRQ, INTR_TYPE_NET, NULL, (void(*)(void*))
 					HFC_INTR, sc, &dummy);
 
 				flag = 1;
@@ -298,7 +298,7 @@ ihfc_isa_probe(device_t dev)
 		/* setup interrupt routine now to avvoid stray	*
 		 * interrupts.					*/
 
-		bus_setup_intr(dev, S_IRQ, INTR_TYPE_NET, (void(*)(void*))
+		bus_setup_intr(dev, S_IRQ, INTR_TYPE_NET, NULL, (void(*)(void*))
 			HFC_INTR, sc, &dummy);
 
 		flag = 1;

@@ -304,7 +304,7 @@ isic_probe_s016(device_t dev)
 
 	bus_setup_intr(dev, sc->sc_resources.irq,
 			INTR_TYPE_NET,
-			(void(*)(void *))(isicintr),
+			NULL, (void(*)(void *))(isicintr),
 			sc, &ih);
 
 	/* get the irq number */

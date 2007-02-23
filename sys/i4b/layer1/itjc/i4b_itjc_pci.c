@@ -1568,7 +1568,7 @@ itjc_attach(device_t dev)
 	++res_init_level;
 
 	error = bus_setup_intr(dev, sc->sc_resources.irq, INTR_TYPE_NET,
-			 itjc_intr, sc, &ih);
+			 NULL, itjc_intr, sc, &ih);
 
 	if (error)
 	{

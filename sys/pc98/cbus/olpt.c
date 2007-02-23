@@ -348,7 +348,7 @@ lpt_attach(device_t dev)
 					     sc->res_port);
 			return ENXIO;
 		}
-		if (bus_setup_intr(dev, sc->res_irq, INTR_TYPE_TTY, lpt_intr,
+		if (bus_setup_intr(dev, sc->res_irq, INTR_TYPE_TTY, NULL, lpt_intr,
 				   sc, &sc->sc_ih)) {
 			bus_release_resource(dev, SYS_RES_IOPORT, 0,
 					     sc->res_port);
