@@ -822,7 +822,7 @@ fdc_attach(device_t dev)
 	fdc = device_get_softc(dev);
 	fdc->fdc_dev = dev;
 	error = bus_setup_intr(dev, fdc->res_irq,
-			       INTR_TYPE_BIO | INTR_ENTROPY, fdc_intr, fdc,
+			       INTR_TYPE_BIO | INTR_ENTROPY, NULL, fdc_intr, fdc,
 			       &fdc->fdc_intr);
 	if (error) {
 		device_printf(dev, "cannot setup interrupt\n");

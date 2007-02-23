@@ -1285,7 +1285,7 @@ psmattach(device_t dev)
 				      RF_SHAREABLE | RF_ACTIVE);
     if (sc->intr == NULL)
 	return (ENXIO);
-    error = bus_setup_intr(dev, sc->intr, INTR_TYPE_TTY, psmintr, sc, &sc->ih);
+    error = bus_setup_intr(dev, sc->intr, INTR_TYPE_TTY, NULL, psmintr, sc, &sc->ih);
     if (error) {
 	bus_release_resource(dev, SYS_RES_IRQ, rid, sc->intr);
 	return (error);

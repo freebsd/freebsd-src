@@ -481,7 +481,7 @@ static int cp_attach (device_t dev)
 	callout_init (&led_timo[unit], cp_mpsafenet ? CALLOUT_MPSAFE : 0);
 	error  = bus_setup_intr (dev, bd->cp_irq,
 				INTR_TYPE_NET|(cp_mpsafenet?INTR_MPSAFE:0),
-				cp_intr, bd, &bd->cp_intrhand);
+				NULL, cp_intr, bd, &bd->cp_intrhand);
 	if (error) {
 		cp_destroy = 1;
 		printf ("cp%d: cannot set up irq\n", unit);

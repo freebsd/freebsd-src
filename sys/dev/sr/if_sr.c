@@ -390,7 +390,7 @@ sr_attach(device_t device)
 	sr_init_sca(hc);
 
 	if (bus_setup_intr(device, hc->res_irq,
-	    INTR_TYPE_NET, srintr, hc, &hc->intr_cookie) != 0)
+	    INTR_TYPE_NET, NULL, srintr, hc, &hc->intr_cookie) != 0)
 		goto errexit;
 
 	/*

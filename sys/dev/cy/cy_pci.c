@@ -145,14 +145,14 @@ cy_pci_attach(dev)
 		goto fail;
 	}
 #ifdef CY_PCI_FASTINTR
-	irq_setup = bus_setup_intr(dev, irq_res, INTR_TYPE_TTY | INTR_FAST,
-	    cyintr, vsc, &irq_cookie);
+	irq_setup = bus_setup_intr(dev, irq_res, INTR_TYPE_TTY,
+	    cyintr, NULL, vsc, &irq_cookie);
 #else
 	irq_setup = ENXIO;
 #endif
 	if (irq_setup != 0)
 		irq_setup = bus_setup_intr(dev, irq_res, INTR_TYPE_TTY,
-		    cyintr, vsc, &irq_cookie);
+		    NULL, (driver_intr_t *)cyintr, vsc, &irq_cookie);
 	if (irq_setup != 0) {
 		device_printf(dev, "interrupt setup failed\n");
 		goto fail;

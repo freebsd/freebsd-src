@@ -140,7 +140,7 @@ static struct timecounter i8254_timecounter = {
 	0			/* quality */
 };
 
-static void
+static int
 clkintr(struct trapframe *frame)
 {
 
@@ -157,6 +157,7 @@ clkintr(struct trapframe *frame)
 	}
 	KASSERT(!using_lapic_timer, ("clk interrupt enabled with lapic timer"));
 	hardclock(TRAPF_USERMODE(frame), TRAPF_PC(frame));
+	return (FILTER_HANDLED);
 }
 
 int
@@ -211,11 +212,13 @@ release_timer2()
  * Stat clock ticks can still be lost, causing minor loss of accuracy
  * in the statistics, but the stat clock will no longer stop.
  */
-static void
+static int
 rtcintr(struct trapframe *frame)
 {
+	int flag = 0;
 
 	while (rtcin(RTC_INTR) & RTCIR_PERIOD) {
+		flag = 1;
 		if (profprocs != 0) {
 			if (--pscnt == 0)
 				pscnt = psdiv;
@@ -224,6 +227,7 @@ rtcintr(struct trapframe *frame)
 		if (pscnt == psdiv)
 			statclock(TRAPF_USERMODE(frame));
 	}
+	return(flag ? FILTER_HANDLED : FILTER_STRAY);
 }
 
 #include "opt_ddb.h"
@@ -758,8 +762,8 @@ cpu_initclocks()
 	 * timecounter to user a simpler algorithm.
 	 */
 	if (!using_lapic_timer) {
-		intr_add_handler("clk", 0, (driver_intr_t *)clkintr, NULL,
-		    INTR_TYPE_CLK | INTR_FAST, NULL);
+		intr_add_handler("clk", 0, (driver_filter_t *)clkintr, NULL, NULL,
+		    INTR_TYPE_CLK, NULL);
 		i8254_intsrc = intr_lookup_source(0);
 		if (i8254_intsrc != NULL)
 			i8254_pending =
@@ -792,8 +796,8 @@ cpu_initclocks()
 
 		/* Enable periodic interrupts from the RTC. */
 		rtc_statusb |= RTCSB_PINTR;
-		intr_add_handler("rtc", 8, (driver_intr_t *)rtcintr, NULL,
-		    INTR_TYPE_CLK | INTR_FAST, NULL);
+		intr_add_handler("rtc", 8, (driver_filter_t *)rtcintr, NULL, NULL,
+		    INTR_TYPE_CLK, NULL);
 
 		writertc(RTC_STATUSB, rtc_statusb);
 		rtcin(RTC_INTR);

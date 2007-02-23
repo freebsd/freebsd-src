@@ -305,20 +305,21 @@ aac_attach(struct aac_softc *sc)
 	}
 	if (sc->flags & AAC_FLAGS_NEW_COMM) {
 		if (bus_setup_intr(sc->aac_dev, sc->aac_irq,
-				   INTR_MPSAFE|INTR_TYPE_BIO, aac_new_intr,
-				   sc, &sc->aac_intr)) {
+				   INTR_MPSAFE|INTR_TYPE_BIO, NULL, 
+				   aac_new_intr, sc, &sc->aac_intr)) {
 			device_printf(sc->aac_dev, "can't set up interrupt\n");
 			return (EINVAL);
 		}
 	} else {
 		if (bus_setup_intr(sc->aac_dev, sc->aac_irq,
-				   INTR_FAST|INTR_TYPE_BIO, aac_fast_intr,
+				   INTR_TYPE_BIO, aac_fast_intr, NULL,
 				   sc, &sc->aac_intr)) {
 			device_printf(sc->aac_dev,
 				      "can't set up FAST interrupt\n");
 			if (bus_setup_intr(sc->aac_dev, sc->aac_irq,
 					   INTR_MPSAFE|INTR_TYPE_BIO,
-					   aac_fast_intr, sc, &sc->aac_intr)) {
+					   NULL, (driver_intr_t *)aac_fast_intr,
+					   sc, &sc->aac_intr)) {
 				device_printf(sc->aac_dev,
 					     "can't set up MPSAFE interrupt\n");
 				return (EINVAL);
@@ -780,7 +781,7 @@ aac_new_intr(void *arg)
 	mtx_unlock(&sc->aac_io_lock);
 }
 
-void
+int
 aac_fast_intr(void *arg)
 {
 	struct aac_softc *sc;
@@ -822,6 +823,7 @@ aac_fast_intr(void *arg)
 		 */
 		wakeup(sc->aifthread);
 	}
+	return (FILTER_HANDLED);
 }
 
 /*

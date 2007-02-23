@@ -3024,7 +3024,7 @@ mxge_attach(device_t dev)
 
 	err = bus_setup_intr(sc->dev, sc->irq_res, 
 			     INTR_TYPE_NET | INTR_MPSAFE,
-			     mxge_intr, sc, &sc->ih);
+			     NULL, mxge_intr, sc, &sc->ih);
 	if (err != 0) {
 		goto abort_with_rings;
 	}

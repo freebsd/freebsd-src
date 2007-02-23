@@ -351,11 +351,11 @@ iq80321_alloc_resource(device_t dev, device_t child, int type, int *rid,
 
 static int
 iq80321_setup_intr(device_t dev, device_t child,
-    struct resource *ires, int flags, driver_intr_t *intr, void *arg,
-    void **cookiep)
+    struct resource *ires, int flags, driver_filter_t *filt, 
+    driver_intr_t *intr, void *arg, void **cookiep)
 {
-	BUS_SETUP_INTR(device_get_parent(dev), child, ires, flags, intr, arg,
-	    cookiep);
+	BUS_SETUP_INTR(device_get_parent(dev), child, ires, flags, filt, intr, 
+	    arg, cookiep);
 	intr_enabled |= 1 << rman_get_start(ires);
 	i80321_set_intrmask();
 	

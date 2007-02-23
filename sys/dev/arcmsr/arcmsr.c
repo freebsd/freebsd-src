@@ -2117,7 +2117,7 @@ static u_int32_t arcmsr_attach(device_t dev)
 	irqres=bus_alloc_resource(dev, SYS_RES_IRQ, &rid, 0ul, ~0ul, 1, RF_SHAREABLE | RF_ACTIVE);
 	if(irqres == NULL || 
 	bus_setup_intr(dev, irqres, INTR_TYPE_CAM|INTR_ENTROPY|INTR_MPSAFE
-		, arcmsr_interrupt, acb, &acb->ih)) {
+  		, NULL, arcmsr_interrupt, acb, &acb->ih))  {
 		arcmsr_free_resource(acb);
 		printf("arcmsr%d: unable to register interrupt handler!\n", unit);
 		return ENXIO;

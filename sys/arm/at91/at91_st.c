@@ -183,7 +183,7 @@ at91st_watchdog(void *argp, u_int cmd, int *error)
 	WR4(ST_CR, ST_CR_WDRST);
 }
 
-static void
+static int
 clock_intr(void *arg)
 {
 	struct trapframe *fp = arg;
@@ -194,7 +194,9 @@ clock_intr(void *arg)
 		tot_count += 32768 / hz;
 #endif
 		hardclock(TRAPF_USERMODE(fp), TRAPF_PC(fp));
+		return (FILTER_HANDLED);
 	}
+	return (FILTER_STRAY);
 }
 
 void
@@ -222,8 +224,8 @@ cpu_initclocks(void)
 	if (!irq)
 		panic("Unable to allocate irq for the system timer");
 	else
-		bus_setup_intr(dev, irq, INTR_TYPE_CLK | INTR_FAST,
-		    clock_intr, NULL, &ih);
+		bus_setup_intr(dev, irq, INTR_TYPE_CLK,
+		    clock_intr, NULL, NULL, &ih);
 
 	WR4(ST_PIMR, rel_value);
 

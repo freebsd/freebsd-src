@@ -1799,7 +1799,7 @@ vpdfailed:
 
 	/* Hook interrupt last to avoid having to lock softc */
 	error = bus_setup_intr(dev, sc->sk_res[1], INTR_TYPE_NET|INTR_MPSAFE,
-	    sk_intr, sc, &sc->sk_intrhand);
+	    NULL, sk_intr, sc, &sc->sk_intrhand);
 
 	if (error) {
 		device_printf(dev, "couldn't set up irq\n");

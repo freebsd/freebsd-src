@@ -163,7 +163,7 @@ at91_spi_activate(device_t dev)
 	if (sc->irq_res == NULL)
 		goto errout;
 	err = bus_setup_intr(dev, sc->irq_res, INTR_TYPE_MISC | INTR_MPSAFE,
-	    at91_spi_intr, sc, &sc->intrhand);
+	    NULL, at91_spi_intr, sc, &sc->intrhand);
 	if (err != 0)
 		goto errout;
 	return (0);

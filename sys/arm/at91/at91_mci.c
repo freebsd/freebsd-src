@@ -192,7 +192,7 @@ at91_mci_attach(device_t dev)
 	 * Activate the interrupt
 	 */
 	err = bus_setup_intr(dev, sc->irq_res, INTR_TYPE_MISC | INTR_MPSAFE,
-	    at91_mci_intr, sc, &sc->intrhand);
+	    NULL, at91_mci_intr, sc, &sc->intrhand);
 	if (err) {
 		AT91_MCI_LOCK_DESTROY(sc);
 		goto out;

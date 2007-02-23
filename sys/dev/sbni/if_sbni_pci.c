@@ -137,7 +137,7 @@ sbni_pci_attach(device_t dev)
 	if (sc->irq_res) {
 		printf(" irq %ld\n", rman_get_start(sc->irq_res));
 		error = bus_setup_intr(dev, sc->irq_res, INTR_TYPE_NET,
-				       sbni_intr, sc, &sc->irq_handle);
+				       NULL, sbni_intr, sc, &sc->irq_handle);
 		if (error) {
 			printf("sbni%d: bus_setup_intr\n", next_sbni_unit);
 			goto attach_failed;

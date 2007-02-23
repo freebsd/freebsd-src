@@ -148,7 +148,7 @@ vx_pci_attach(device_t dev)
 		goto bad;
 
 	if (bus_setup_intr(dev, sc->vx_irq, INTR_TYPE_NET | INTR_MPSAFE,
-	    vx_intr, sc, &sc->vx_intrhand))
+	    NULL, vx_intr, sc, &sc->vx_intrhand))
 		goto bad_mtx;
 
 	/* defect check for 3C590 */

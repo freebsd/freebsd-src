@@ -149,7 +149,7 @@ static	void	fpusave(union savefpu *);
 static	void	fpurstor(union savefpu *);
 static	int	npx_attach(device_t dev);
 static	void	npx_identify(driver_t *driver, device_t parent);
-static	void	npx_intr(void *);
+static	int	npx_intr(void *);
 static	int	npx_probe(device_t dev);
 #ifdef I586_CPU_XXX
 static	long	timezero(const char *funcname,
@@ -201,7 +201,7 @@ npx_identify(driver, parent)
 /*
  * Do minimal handling of npx interrupts to convert them to traps.
  */
-static void
+static int
 npx_intr(dummy)
 	void *dummy;
 {
@@ -234,6 +234,7 @@ npx_intr(dummy)
 		td->td_flags |= TDF_ASTPENDING;
 		mtx_unlock_spin(&sched_lock);
 	}
+	return (FILTER_HANDLED);
 }
 
 /*
@@ -279,8 +280,8 @@ npx_probe(dev)
 	irq_res = bus_alloc_resource(dev, SYS_RES_IRQ, &irq_rid, irq_num,
 	    irq_num, 1, RF_ACTIVE);
 	if (irq_res != NULL) {
-		if (bus_setup_intr(dev, irq_res, INTR_TYPE_MISC | INTR_FAST,
-			npx_intr, NULL, &irq_cookie) != 0)
+		if (bus_setup_intr(dev, irq_res, INTR_TYPE_MISC,
+			npx_intr, NULL, NULL, &irq_cookie) != 0)
 			panic("npx: can't create intr");
 	}
 

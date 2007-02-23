@@ -218,7 +218,8 @@ sn_attach(device_t dev)
 	 * during startup to avoid LORs in the network layer.
 	 */
 	if ((err = bus_setup_intr(dev, sc->irq_res,
-	    INTR_TYPE_NET | INTR_MPSAFE, sn_intr, sc, &sc->intrhand)) != 0) {
+	    INTR_TYPE_NET | INTR_MPSAFE, NULL, sn_intr, sc, 
+	    &sc->intrhand)) != 0) {
 		sn_detach(dev);
 		return err;
 	}

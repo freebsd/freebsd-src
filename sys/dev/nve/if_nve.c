@@ -536,7 +536,7 @@ nve_attach(device_t dev)
 
 	/* Activate our interrupt handler. - attach last to avoid lock */
 	error = bus_setup_intr(sc->dev, sc->irq, INTR_TYPE_NET | INTR_MPSAFE,
-	    nve_intr, sc, &sc->sc_ih);
+	    NULL, nve_intr, sc, &sc->sc_ih);
 	if (error) {
 		device_printf(sc->dev, "couldn't set up interrupt handler\n");
 		goto fail;

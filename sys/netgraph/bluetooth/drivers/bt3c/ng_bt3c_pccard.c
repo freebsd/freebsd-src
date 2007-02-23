@@ -635,7 +635,7 @@ bt3c_pccard_attach(device_t dev)
 	}
 
 	sc->irq_cookie = NULL;
-	if (bus_setup_intr(dev, sc->irq, INTR_TYPE_TTY, bt3c_intr, sc,
+	if (bus_setup_intr(dev, sc->irq, INTR_TYPE_TTY, NULL, bt3c_intr, sc,
 			&sc->irq_cookie) != 0) {
 		device_printf(dev, "Could not setup ISR\n");
 		goto bad;

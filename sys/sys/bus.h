@@ -122,8 +122,43 @@ typedef struct devclass		*devclass_t;
 #define device_method_t		kobj_method_t
 
 /**
- * @brief A driver interrupt service routine
+ * @brief Driver interrupt filter return values
+ *
+ * If a driver provides an interrupt filter routine it must return an
+ * integer consisting of oring together zero or more of the following
+ * flags:
+ *
+ *	FILTER_STRAY	- this device did not trigger the interrupt
+ *	FILTER_HANDLED	- the interrupt has been fully handled and can be EOId
+ *	FILTER_SCHEDULE_THREAD - the threaded interrupt handler should be
+ *			  scheduled to execute
+ *
+ * If the driver does not provide a filter, then the interrupt code will
+ * act is if the filter had returned FILTER_SCHEDULE_THREAD.  Note that it
+ * is illegal to specify any other flag with FILTER_STRAY and that it is
+ * illegal to not specify either of FILTER_HANDLED or FILTER_SCHEDULE_THREAD
+ * if FILTER_STRAY is not specified.
  */
+#define	FILTER_STRAY		0x01
+#define	FILTER_HANDLED		0x02
+#define	FILTER_SCHEDULE_THREAD	0x04
+
+/**
+ * @brief Driver interrupt service routines
+ *
+ * The filter routine is run in primary interrupt context and may not
+ * block or use regular mutexes.  It may only use spin mutexes for
+ * synchronization.  The filter may either completely handle the
+ * interrupt or it may perform some of the work and defer more
+ * expensive work to the regular interrupt handler.  If a filter
+ * routine is not registered by the driver, then the regular interrupt
+ * handler is always used to handle interrupts from this device.
+ *
+ * The regular interrupt handler executes in its own thread context
+ * and may use regular mutexes.  However, it is prohibited from
+ * sleeping on a sleep queue.
+ */
+typedef int driver_filter_t(void*);
 typedef void driver_intr_t(void*);
 
 /**
@@ -272,7 +307,8 @@ int	bus_generic_release_resource(device_t bus, device_t child,
 int	bus_generic_resume(device_t dev);
 int	bus_generic_setup_intr(device_t dev, device_t child,
 			       struct resource *irq, int flags,
-			       driver_intr_t *intr, void *arg, void **cookiep);
+			       driver_filter_t *filter, driver_intr_t *intr, 
+			       void *arg, void **cookiep);
 
 struct resource *
 	bus_generic_rl_alloc_resource (device_t, device_t, int, int *,
@@ -318,7 +354,8 @@ int	bus_release_resource(device_t dev, int type, int rid,
 			     struct resource *r);
 int	bus_free_resource(device_t dev, int type, struct resource *r);
 int	bus_setup_intr(device_t dev, struct resource *r, int flags,
-		       driver_intr_t handler, void *arg, void **cookiep);
+		       driver_filter_t filter, driver_intr_t handler, 
+		       void *arg, void **cookiep);
 int	bus_teardown_intr(device_t dev, struct resource *r, void *cookie);
 int	bus_set_resource(device_t dev, int type, int rid,
 			 u_long start, u_long count);

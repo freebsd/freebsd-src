@@ -115,7 +115,7 @@ struct softc {
 
 static d_ioctl_t adlink_ioctl;
 static d_mmap_t	adlink_mmap;
-static void adlink_intr(void *arg);
+static int adlink_intr(void *arg);
 
 static struct cdevsw adlink_cdevsw = {
 	.d_version =	D_VERSION,
@@ -124,7 +124,7 @@ static struct cdevsw adlink_cdevsw = {
 	.d_name =	"adlink",
 };
 
-static void
+static int
 adlink_intr(void *arg)
 {
 	struct softc *sc;
@@ -134,7 +134,7 @@ adlink_intr(void *arg)
 	sc = arg;
 	u = bus_read_4(sc->res[0], 0x38);
 	if (!(u & 0x00800000))
-		return;
+		return; // XXX - FILTER_STRAY?
 	bus_write_4(sc->res[0], 0x38, u | 0x003f4000);
 
 	sc->sample += sc->p0->chunksize / 2;
@@ -147,7 +147,7 @@ adlink_intr(void *arg)
 
 	if (sc->p0->state != STATE_RUN) {
 		printf("adlink: stopping %d\n", sc->p0->state);
-		return;
+		return; // XXX - FILTER_STRAY?
 	}
 
 	pg = pg->next;
@@ -156,6 +156,7 @@ adlink_intr(void *arg)
 	bus_write_4(sc->res[0], 0x24, pg->phys);
 	bus_write_4(sc->res[0], 0x28, sc->p0->chunksize);
 	wakeup(sc);
+	return (FILTER_HANDLED);
 }
 
 static int
@@ -372,14 +373,15 @@ adlink_attach(device_t self)
 	if (error)
 		return (error);
 
+	/* XXX why do we need INTR_MPSAFE if INTR_FAST was declared too?!?!? */
 	i = bus_setup_intr(self, sc->res[2],
-	    INTR_MPSAFE | INTR_TYPE_MISC | INTR_FAST,
-	    adlink_intr, sc, &sc->intrhand);
+	    INTR_MPSAFE | INTR_TYPE_MISC,
+	    adlink_intr, NULL, sc, &sc->intrhand);
 	if (i) {
 		printf("adlink: Couldn't get FAST intr\n");
 		i = bus_setup_intr(self, sc->res[2],
 		    INTR_MPSAFE | INTR_TYPE_MISC,
-		    adlink_intr, sc, &sc->intrhand);
+		    NULL, (driver_intr_t *)adlink_intr, sc, &sc->intrhand);
 	}
 
 	if (i) {

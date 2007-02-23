@@ -277,7 +277,7 @@ en_pci_attach(device_t dev)
 	 * Do the interrupt SETUP last just before returning
 	 */
 	error = bus_setup_intr(dev, scp->irq, INTR_TYPE_NET,
-	    en_intr, sc, &scp->ih);
+	    NULL, en_intr, sc, &scp->ih);
 	if (error) {
 		en_reset(sc);
 		atm_ifdetach(sc->ifp);

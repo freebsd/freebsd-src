@@ -337,7 +337,7 @@ adv_isa_probe(device_t dev)
 						RF_ACTIVE);
 		if (irqres == NULL ||
 		    bus_setup_intr(dev, irqres, INTR_TYPE_CAM|INTR_ENTROPY,
-				   adv_intr, adv, &ih)) {
+		        NULL, adv_intr, adv, &ih)) {
 			bus_dmamap_unload(overrun_dmat, overrun_dmamap);
 			bus_dmamem_free(overrun_dmat, overrun_buf,
 			    overrun_dmamap);

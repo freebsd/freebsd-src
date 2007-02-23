@@ -275,7 +275,7 @@ static void	em_add_int_delay_sysctl(struct adapter *, const char *,
 static poll_handler_t em_poll;
 static void	em_intr(void *);
 #else
-static void	em_intr_fast(void *);
+static int	em_intr_fast(void *);
 static void	em_add_int_process_limit(struct adapter *, const char *,
 		const char *, int *, int);
 static void	em_handle_rxtx(void *context, int pending);
@@ -1307,7 +1307,7 @@ em_handle_rxtx(void *context, int pending)
  *  Fast Interrupt Service routine
  *
  *********************************************************************/
-static void
+static int
 em_intr_fast(void *arg)
 {
 	struct adapter	*adapter = arg;
@@ -1320,11 +1320,11 @@ em_intr_fast(void *arg)
 
 	/* Hot eject?  */
 	if (reg_icr == 0xffffffff)
-		return;
+		return (FILTER_STRAY);
 
 	/* Definitely not our interrupt.  */
 	if (reg_icr == 0x0)
-		return;
+		return (FILTER_STRAY);
 
 	/*
 	 * Starting with the 82571 chip, bit 31 should be used to
@@ -1332,7 +1332,7 @@ em_intr_fast(void *arg)
 	 */
 	if (adapter->hw.mac_type >= em_82571 &&
 	    (reg_icr & E1000_ICR_INT_ASSERTED) == 0)
-		return;
+		return (FILTER_STRAY);
 
 	/*
 	 * Mask interrupts until the taskqueue is finished running.  This is
@@ -1348,6 +1348,7 @@ em_intr_fast(void *arg)
 
 	if (reg_icr & E1000_ICR_RXO)
 		adapter->rx_overruns++;
+	return (FILTER_HANDLED);
 }
 #endif /* ! DEVICE_POLLING */
 
@@ -2173,8 +2174,8 @@ em_allocate_intr(struct adapter *adapter)
 
 #ifdef DEVICE_POLLING
 	if (adapter->int_handler_tag == NULL && (error = bus_setup_intr(dev,
-	    adapter->res_interrupt, INTR_TYPE_NET | INTR_MPSAFE, em_intr, adapter,
-	    &adapter->int_handler_tag)) != 0) {
+	    adapter->res_interrupt, INTR_TYPE_NET | INTR_MPSAFE, NULL, em_intr,
+	    adapter, &adapter->int_handler_tag)) != 0) {
 		device_printf(dev, "Failed to register interrupt handler");
 		return (error);
 	}
@@ -2190,7 +2191,7 @@ em_allocate_intr(struct adapter *adapter)
 	taskqueue_start_threads(&adapter->tq, 1, PI_NET, "%s taskq",
 	    device_get_nameunit(adapter->dev));
 	if ((error = bus_setup_intr(dev, adapter->res_interrupt,
-	    INTR_TYPE_NET | INTR_FAST, em_intr_fast, adapter,
+	    INTR_TYPE_NET, em_intr_fast, NULL, adapter,
 	    &adapter->int_handler_tag)) != 0) {
 		device_printf(dev, "Failed to register fast interrupt "
 			    "handler: %d\n", error);

@@ -384,7 +384,7 @@ bktr_attach( device_t dev )
 	}
 
 	error = bus_setup_intr(dev, bktr->res_irq, INTR_TYPE_TTY,
-                               bktr_intr, bktr, &bktr->res_ih);
+                               NULL, bktr_intr, bktr, &bktr->res_ih);
 	if (error) {
 		device_printf(dev, "could not setup irq\n");
 		goto fail;

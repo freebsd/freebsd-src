@@ -423,7 +423,7 @@ bfe_attach(device_t dev)
 	 * Hook interrupt last to avoid having to lock softc
 	 */
 	error = bus_setup_intr(dev, sc->bfe_irq, INTR_TYPE_NET | INTR_MPSAFE,
-			bfe_intr, sc, &sc->bfe_intrhand);
+			NULL, bfe_intr, sc, &sc->bfe_intrhand);
 
 	if (error) {
 		printf("bfe%d: couldn't set up irq\n", unit);

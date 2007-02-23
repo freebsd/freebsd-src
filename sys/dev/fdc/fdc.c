@@ -261,6 +261,7 @@ struct fd_data {
 #define FD_NOT_VALID -2
 
 static driver_intr_t fdc_intr;
+static driver_filter_t fdc_intr_fast;
 static void fdc_reset(struct fdc_data *);
 
 SYSCTL_NODE(_debug, OID_AUTO, fdc, CTLFLAG_RW, 0, "fdc driver");
@@ -684,6 +685,14 @@ fdc_intr(void *arg)
 {
 
 	wakeup(arg);
+}
+
+static int
+fdc_intr_fast(void *arg)
+{
+
+	wakeup(arg);
+	return(FILTER_HANDLED);
 }
 
 /*
@@ -1758,9 +1767,11 @@ fdc_attach(device_t dev)
 		return (error);
 	}
 	error = bus_setup_intr(dev, fdc->res_irq,
-	    INTR_TYPE_BIO | INTR_ENTROPY | INTR_MPSAFE |
-	    ((fdc->flags & FDC_NOFAST) ? 0 : INTR_FAST),
-	    fdc_intr, fdc, &fdc->fdc_intr);
+	    INTR_TYPE_BIO | INTR_ENTROPY | 
+	    ((fdc->flags & FDC_NOFAST) ? INTR_MPSAFE : 0),		       
+            ((fdc->flags & FDC_NOFAST) ? NULL : fdc_intr_fast), 	    
+	    ((fdc->flags & FDC_NOFAST) ? fdc_intr : NULL), 
+			       fdc, &fdc->fdc_intr);
 	if (error) {
 		device_printf(dev, "cannot setup interrupt\n");
 		return (error);

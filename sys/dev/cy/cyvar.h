@@ -32,5 +32,5 @@ extern	devclass_t	cy_devclass;
 extern	char		cy_driver_name[];
 
 void	*cyattach_common(cy_addr cy_iobase, int cy_align);
-driver_intr_t	cyintr;
+driver_filter_t	cyintr;
 int	cy_units(cy_addr cy_iobase, int cy_align);

@@ -915,7 +915,7 @@ nge_attach(dev)
 	 * Hookup IRQ last.
 	 */
 	error = bus_setup_intr(dev, sc->nge_irq, INTR_TYPE_NET | INTR_MPSAFE,
-	    nge_intr, sc, &sc->nge_intrhand);
+	    NULL, nge_intr, sc, &sc->nge_intrhand);
 	if (error) {
 		device_printf(dev, "couldn't set up irq\n");
 		goto fail;

@@ -972,7 +972,7 @@ rl_attach(device_t dev)
 
 	/* Hook interrupt last to avoid having to lock softc */
 	error = bus_setup_intr(dev, sc->rl_irq, INTR_TYPE_NET | INTR_MPSAFE,
-	    rl_intr, sc, &sc->rl_intrhand);
+	    NULL, rl_intr, sc, &sc->rl_intrhand);
 	if (error) {
 		device_printf(sc->rl_dev, "couldn't set up irq\n");
 		ether_ifdetach(ifp);

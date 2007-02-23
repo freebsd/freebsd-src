@@ -1131,7 +1131,7 @@ static void hpt_final_init(void *dummy)
 			}
 			
 			if (bus_setup_intr(hba->pcidev, hba->irq_res, INTR_TYPE_CAM,
-				hpt_pci_intr, vbus_ext, &hba->irq_handle)) 
+				NULL, hpt_pci_intr, vbus_ext, &hba->irq_handle)) 
 			{
 				os_printk("can't set up interrupt");
 				return ;

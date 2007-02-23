@@ -50,7 +50,7 @@ char scc_driver_name[] = "scc";
 
 MALLOC_DEFINE(M_SCC, "SCC", "SCC driver");
 
-static void
+static int
 scc_bfe_intr(void *arg)
 {
 	struct scc_softc *sc = arg;
@@ -88,7 +88,9 @@ scc_bfe_intr(void *arg)
 			else
 				SCC_ICLEAR(sc, ch);
 		}
+		return (FILTER_HANDLED);
 	}
+	return (FILTER_STRAY);
 }
 
 int
@@ -217,12 +219,12 @@ scc_bfe_attach(device_t dev)
 		if (ch->ch_ires == NULL)
 			continue;
 		error = bus_setup_intr(dev, ch->ch_ires,
-		    INTR_TYPE_TTY | INTR_FAST, scc_bfe_intr, sc,
+		    INTR_TYPE_TTY, scc_bfe_intr, NULL, sc,
 		    &ch->ch_icookie);
 		if (error) {
 			error = bus_setup_intr(dev, ch->ch_ires,
-			    INTR_TYPE_TTY | INTR_MPSAFE, scc_bfe_intr, sc,
-			    &ch->ch_icookie);
+			    INTR_TYPE_TTY | INTR_MPSAFE, NULL,
+			    (driver_intr_t *)scc_bfe_intr, sc, &ch->ch_icookie);
 		} else
 			sc->sc_fastintr = 1;
 
@@ -495,7 +497,7 @@ scc_bus_release_resource(device_t dev, device_t child, int type, int rid,
 
 int
 scc_bus_setup_intr(device_t dev, device_t child, struct resource *r, int flags,
-    void (*ihand)(void *), void *arg, void **cookiep)
+    driver_filter_t *filt, void (*ihand)(void *), void *arg, void **cookiep)
 {
 	struct scc_chan *ch;
 	struct scc_mode *m;
@@ -506,14 +508,14 @@ scc_bus_setup_intr(device_t dev, device_t child, struct resource *r, int flags,
 		return (EINVAL);
 
 	/* Interrupt handlers must be FAST or MPSAFE. */
-	if ((flags & (INTR_FAST|INTR_MPSAFE)) == 0)
+	if (filt == NULL && !(flags & INTR_MPSAFE))
 		return (EINVAL);
 
 	sc = device_get_softc(dev);
 	if (sc->sc_polled)
 		return (ENXIO);
 
-	if (sc->sc_fastintr && !(flags & INTR_FAST)) {
+	if (sc->sc_fastintr && filt == NULL) {
 		sc->sc_fastintr = 0;
 		for (c = 0; c < sc->sc_class->cl_channels; c++) {
 			ch = &sc->sc_chan[c];
@@ -521,15 +523,15 @@ scc_bus_setup_intr(device_t dev, device_t child, struct resource *r, int flags,
 				continue;
 			bus_teardown_intr(dev, ch->ch_ires, ch->ch_icookie);
 			bus_setup_intr(dev, ch->ch_ires,
-			    INTR_TYPE_TTY | INTR_MPSAFE, scc_bfe_intr, sc,
-			    &ch->ch_icookie);
+			    INTR_TYPE_TTY | INTR_MPSAFE, NULL,
+			    (driver_intr_t *)scc_bfe_intr, sc, &ch->ch_icookie);
 		}
 	}
 
 	m = device_get_ivars(child);
 	m->m_hasintr = 1;
-	m->m_fastintr = (flags & INTR_FAST) ? 1 : 0;
-	m->ih = ihand;
+	m->m_fastintr = (filt != NULL) ? 1 : 0;
+	m->ih = (filt != NULL) ? filt : (driver_filter_t *)ihand;
 	m->ih_arg = arg;
 
 	i = 0, isrc = SER_INT_OVERRUN;

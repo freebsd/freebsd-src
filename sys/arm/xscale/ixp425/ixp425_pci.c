@@ -254,11 +254,11 @@ ixppcib_write_ivar(device_t dev, device_t child, int which, uintptr_t value)
 
 static int
 ixppcib_setup_intr(device_t dev, device_t child, struct resource *ires,
-    int flags, driver_intr_t *intr, void *arg, void **cookiep)
+    int flags, driver_filter_t *filt, driver_intr_t *intr, void *arg, void **cookiep)
 {
 
 	return (BUS_SETUP_INTR(device_get_parent(dev), child, ires, flags,
-	    intr, arg, cookiep));
+	    filt, intr, arg, cookiep));
 }
 
 static int

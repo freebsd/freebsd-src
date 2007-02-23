@@ -270,7 +270,7 @@ ie_isa_3C507_attach (device_t dev)
 	}
 
 	error = bus_setup_intr(dev, sc->irq_res, INTR_TYPE_NET,
-				ie_intr, sc, &sc->irq_ih);
+				NULL, ie_intr, sc, &sc->irq_ih);
 	if (error) {
 		device_printf(dev, "Unable to register interrupt handler\n"); 
 		goto bad;
@@ -561,7 +561,7 @@ ie_isa_ee16_attach (device_t dev)
 	}
 
 	error = bus_setup_intr(dev, sc->irq_res, INTR_TYPE_NET,
-				ie_intr, sc, &sc->irq_ih);
+				NULL, ie_intr, sc, &sc->irq_ih);
 	if (error) {
 		device_printf(dev, "Unable to register interrupt handler\n"); 
 		goto bad;
@@ -773,7 +773,7 @@ ie_isa_sl_attach (device_t dev)
 	}
 
 	error = bus_setup_intr(dev, sc->irq_res, INTR_TYPE_NET,
-				ie_intr, sc, &sc->irq_ih);
+				NULL, ie_intr, sc, &sc->irq_ih);
 	if (error) {
 		device_printf(dev, "Unable to register interrupt handler\n"); 
 		goto bad;

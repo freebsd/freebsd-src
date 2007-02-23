@@ -760,7 +760,7 @@ lptwrite(struct cdev *dev, struct uio *uio, int ioflag)
 	if (sc->sc_irq & LP_USE_IRQ) {
 		/* register our interrupt handler */
 		err = bus_setup_intr(lptdev, sc->intr_resource,
-			       INTR_TYPE_TTY, lpt_intr, lptdev,
+			       INTR_TYPE_TTY, NULL, lpt_intr, lptdev,
 			       &sc->intr_cookie);
 		if (err) {
 			device_printf(lptdev, "handler registration failed, polled mode.\n");

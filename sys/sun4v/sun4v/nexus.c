@@ -306,7 +306,7 @@ nexus_read_ivar(device_t dev, device_t child, int which, uintptr_t *result)
 
 static int
 nexus_setup_intr(device_t dev, device_t child, struct resource *res, int flags,
-    driver_intr_t *intr, void *arg, void **cookiep)
+    driver_filter_t *filt, driver_intr_t *intr, void *arg, void **cookiep)
 {
 	struct nexus_devinfo *ndi;
 	device_t ichild;
@@ -346,7 +346,7 @@ nexus_setup_intr(device_t dev, device_t child, struct resource *res, int flags,
 		goto fail;
 
 	error = inthand_add(device_get_nameunit(child), ihdl,
-			   intr, arg, flags, cookiep);
+			   filt, intr, arg, flags, cookiep);
 
 	cpuid = 0;
 	if (hv_intr_settarget(ihdl, cpuid) != H_EOK) {

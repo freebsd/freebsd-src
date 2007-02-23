@@ -95,7 +95,7 @@ ahd_map_int(struct ahd_softc *ahd)
 
 	/* Hook up our interrupt handler */
 	error = bus_setup_intr(ahd->dev_softc, ahd->platform_data->irq,
-			       INTR_TYPE_CAM, ahd_platform_intr, ahd,
+			       INTR_TYPE_CAM, NULL, ahd_platform_intr, ahd,
 			       &ahd->platform_data->ih);
 	if (error != 0)
 		device_printf(ahd->dev_softc, "bus_setup_intr() failed: %d\n",

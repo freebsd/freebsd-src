@@ -134,7 +134,7 @@ mse_common_attach(device_t dev)
 	}
 
 	if (bus_setup_intr(dev, sc->sc_intr,
-	    INTR_TYPE_TTY, mseintr, sc, &sc->sc_ih)) {
+	    INTR_TYPE_TTY, NULL, mseintr, sc, &sc->sc_ih)) {
 		bus_release_resource(dev, SYS_RES_IOPORT, rid, sc->sc_port);
 		bus_release_resource(dev, SYS_RES_IRQ, rid, sc->sc_intr);
 		return ENXIO;

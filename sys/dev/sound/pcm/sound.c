@@ -129,7 +129,7 @@ snd_setup_intr(device_t dev, struct resource *res, int flags, driver_intr_t hand
 #else
 	flags = INTR_TYPE_AV;
 #endif
-	return bus_setup_intr(dev, res, flags, hand, param, cookiep);
+	return bus_setup_intr(dev, res, flags, NULL, hand, param, cookiep);
 }
 
 #ifndef	PCM_DEBUG_MTX

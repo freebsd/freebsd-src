@@ -246,7 +246,7 @@ ncv_pccard_attach(device_t dev)
 		return(ENXIO);
 	}
 	error = bus_setup_intr(dev, sc->irq_res, INTR_TYPE_CAM | INTR_ENTROPY,
-			       ncv_pccard_intr, (void *)sc, &sc->ncv_intrhand);
+			       NULL, ncv_pccard_intr, (void *)sc, &sc->ncv_intrhand);
 	if (error) {
 		ncv_release_resource(dev);
 		return(error);

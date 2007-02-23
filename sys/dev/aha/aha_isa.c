@@ -272,7 +272,7 @@ aha_isa_attach(device_t dev)
 	}
 
 	error = bus_setup_intr(dev, aha->irq, INTR_TYPE_CAM|INTR_ENTROPY,
-	    aha_intr, aha, &ih);
+	    NULL, aha_intr, aha, &ih);
 	if (error) {
 		device_printf(dev, "Unable to register interrupt handler\n");
                 goto fail;

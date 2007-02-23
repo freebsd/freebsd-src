@@ -377,7 +377,7 @@ le_cbus_attach(device_t dev)
 	}
 
 	error = bus_setup_intr(dev, lesc->sc_ires, INTR_TYPE_NET | INTR_MPSAFE,
-	    am7990_intr, sc, &lesc->sc_ih);
+	    NULL, am7990_intr, sc, &lesc->sc_ih);
 	if (error != 0) {
 		device_printf(dev, "cannot set up interrupt\n");
 		goto fail_am7990;
