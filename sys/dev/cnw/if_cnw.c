@@ -1631,7 +1631,7 @@ static int cnw_pccard_attach(device_t dev)
 		return (error);
 	}
 
-	error = bus_setup_intr(dev, sc->irq, INTR_TYPE_NET,
+	error = bus_setup_intr(dev, sc->irq, INTR_TYPE_NET, NULL,
 			       cnw_intr, sc, &sc->cnw_intrhand);
 
 	if (error) {
