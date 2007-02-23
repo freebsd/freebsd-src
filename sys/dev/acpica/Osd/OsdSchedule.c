@@ -132,7 +132,6 @@ void
 AcpiOsSleep(ACPI_INTEGER Milliseconds)
 {
     int		timo;
-    static int	dummy;
 
     ACPI_FUNCTION_TRACE((char *)(uintptr_t)__func__);
 
@@ -143,7 +142,7 @@ AcpiOsSleep(ACPI_INTEGER Milliseconds)
      * DELAY instead for better granularity.
      */
     if (timo > 0)
-	tsleep(&dummy, 0, "acpislp", timo);
+	pause("acpislp", timo);
     else
 	DELAY(Milliseconds * 1000);
 
