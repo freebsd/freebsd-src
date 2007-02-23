@@ -2083,13 +2083,44 @@ mpt_cam_event(struct mpt_softc *mpt, request_t *req,
 		break;
 
 	case MPI_EVENT_RESCAN:
+	{
+		union ccb *ccb;
+		uint32_t pathid;
 		/*
 		 * In general this means a device has been added to the loop.
 		 */
 		mpt_prt(mpt, "Rescan Port: %d\n", (data0 >> 8) & 0xff);
-/*		xpt_async(AC_FOUND_DEVICE, path, NULL);  */
-		break;
+		if (mpt->ready == 0) {
+			break;
+		}
+		if (mpt->phydisk_sim) {
+			pathid = cam_sim_path(mpt->phydisk_sim);;
+		} else {
+			pathid = cam_sim_path(mpt->sim);
+		}
+		MPTLOCK_2_CAMLOCK(mpt);
+		/*
+		 * Allocate a CCB, create a wildcard path for this bus,
+		 * and schedule a rescan.
+		 */
+		ccb = xpt_alloc_ccb_nowait();
+		if (ccb == NULL) {
+			mpt_prt(mpt, "unable to alloc CCB for rescan\n");
+			CAMLOCK_2_MPTLOCK(mpt);
+			break;
+		}
 
+		if (xpt_create_path(&ccb->ccb_h.path, xpt_periph, pathid,
+		    CAM_TARGET_WILDCARD, CAM_LUN_WILDCARD) != CAM_REQ_CMP) {
+			CAMLOCK_2_MPTLOCK(mpt);
+			mpt_prt(mpt, "unable to create path for rescan\n");
+			xpt_free_ccb(ccb);
+			break;
+		}
+		xpt_rescan(ccb);
+		CAMLOCK_2_MPTLOCK(mpt);
+		break;
+	}
 	case MPI_EVENT_LINK_STATUS_CHANGE:
 		mpt_prt(mpt, "Port %d: LinkState: %s\n",
 		    (data1 >> 8) & 0xff,
@@ -2909,6 +2940,13 @@ mpt_action(struct cam_sim *sim, union ccb *ccb)
 			mpt_set_ccb_status(ccb, CAM_REQ_INVALID);
 			break;
 		}
+#ifdef	MPT_TEST_MULTIPATH
+		if (mpt->failure_id == ccb->ccb_h.target_id) {
+			ccb->ccb_h.status &= ~CAM_SIM_QUEUED;
+			mpt_set_ccb_status(ccb, CAM_SEL_TIMEOUT);
+			break;
+		}
+#endif
 		ccb->csio.scsi_status = SCSI_STATUS_OK;
 		mpt_start(sim, ccb);
 		return;
