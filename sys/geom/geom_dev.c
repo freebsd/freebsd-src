@@ -416,7 +416,7 @@ g_dev_orphan(struct g_consumer *cp)
 
 	/* Wait for the cows to come home */
 	while (cp->nstart != cp->nend)
-		msleep(&dev, NULL, PRIBIO, "gdevorphan", hz / 10);
+		tsleep(&dev, PRIBIO, "gdevorphan", hz / 10);
 
 	if (cp->acr > 0 || cp->acw > 0 || cp->ace > 0)
 		g_access(cp, -cp->acr, -cp->acw, -cp->ace);
