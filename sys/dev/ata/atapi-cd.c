@@ -710,7 +710,7 @@ acd_geom_access(struct g_provider *pp, int dr, int dw, int de)
 	     request->u.atapi.sense.key == 7) &&
 	    request->u.atapi.sense.asc == 4 &&
 	    request->u.atapi.sense.ascq == 1)
-	    tsleep(&timeout, PRIBIO, "acdld", hz / 2);
+	    pause("acdld", hz / 2);
 	else
 	    break;
     }
@@ -1095,7 +1095,7 @@ acd_fixate(device_t dev, int multisession)
     /* some drives just return ready, wait for the expected fixate time */
     if ((error = acd_test_ready(dev)) != EBUSY) {
 	timeout = timeout / (cdp->cap.cur_write_speed / 177);
-	tsleep(&error, PRIBIO, "acdfix", timeout * hz / 2);
+	pause("acdfix", timeout * hz / 2);
 	return acd_test_ready(dev);
     }
 
@@ -1104,7 +1104,7 @@ acd_fixate(device_t dev, int multisession)
 	    return error;
 	if ((error = acd_test_ready(dev)) != EBUSY)
 	    return error;
-	tsleep(&error, PRIBIO, "acdcld", hz / 2);
+	pause("acdcld", hz / 2);
     }
     return EIO;
 }
