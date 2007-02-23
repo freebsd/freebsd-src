@@ -149,7 +149,7 @@ pcii_attach(device_t dev)
 		return (error);
 
 	error = bus_setup_intr(dev, sc->res[0],
-	    INTR_TYPE_MISC | INTR_MPSAFE,
+	    INTR_TYPE_MISC | INTR_MPSAFE, NULL,
 	    upd7210intr, &sc->upd7210, &sc->intr_handler);
 	if (error) {
 		bus_release_resources(dev, pcii_res_spec, sc->res);
