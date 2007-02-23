@@ -209,13 +209,14 @@ rman_manage_region(struct rman *rm, u_long start, u_long end)
 				s->r_end = r->r_end;
 				free(r, M_RMAN);
 			}
-		} else {
+		} else if (t != NULL) {
 			/* Can we merge with just the next region? */
-			if (t != NULL) {
-				t->r_start = r->r_start;
-				free(r, M_RMAN);
-			} else
-				TAILQ_INSERT_BEFORE(s, r, r_link);
+			t->r_start = r->r_start;
+			free(r, M_RMAN);
+		} else if (s->r_end < r->r_start) {
+			TAILQ_INSERT_AFTER(&rm->rm_list, s, r, r_link);
+		} else {
+			TAILQ_INSERT_BEFORE(s, r, r_link);
 		}
 	}
 
