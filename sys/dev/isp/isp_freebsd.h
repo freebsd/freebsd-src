@@ -492,6 +492,12 @@ int isp_mstohz(int);
 	bus_dma_tag_create(a, b, c, d, e, f, g, h, i, j, k, \
 	busdma_lock_mutex, &Giant, z)
 #endif
+#if __FreeBSD_version < 700031
+#define	isp_setup_intr(d, i, f, U, if, ifa, hp)	\
+	bus_setup_intr(d, i, f, if, ifa, hp)
+#else
+#define	isp_setup_intr	bus_setup_intr
+#endif
 
 /* Should be BUS_SPACE_MAXSIZE, but MAXPHYS is larger than BUS_SPACE_MAXSIZE */
 #define ISP_NSEGS ((MAXPHYS / PAGE_SIZE) + 1)  

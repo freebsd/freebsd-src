@@ -563,7 +563,7 @@ mpt_pci_attach(device_t dev)
 	mpt_disable_ints(mpt);
 
 	/* Register the interrupt handler */
-	if (bus_setup_intr(dev, mpt->pci_irq, MPT_IFLAGS, NULL, mpt_pci_intr,
+	if (mpt_setup_intr(dev, mpt->pci_irq, MPT_IFLAGS, NULL, mpt_pci_intr,
 	    mpt, &mpt->ih)) {
 		device_printf(dev, "could not setup interrupt\n");
 		goto bad;

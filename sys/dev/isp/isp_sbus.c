@@ -311,7 +311,7 @@ isp_sbus_attach(device_t dev)
 		goto bad;
 	}
 
-	if (bus_setup_intr(dev, sbs->sbus_ires, ISP_IFLAGS,
+	if (isp_setup_intr(dev, sbs->sbus_ires, ISP_IFLAGS,
 	    NULL, isp_sbus_intr, isp, &sbs->ih)) {
 		device_printf(dev, "could not setup interrupt\n");
 		goto bad;
