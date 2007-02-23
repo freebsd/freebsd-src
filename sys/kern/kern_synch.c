@@ -69,6 +69,7 @@ SYSINIT(synch_setup, SI_SUB_KICK_SCHEDULER, SI_ORDER_FIRST, synch_setup, NULL)
 
 int	hogticks;
 int	lbolt;
+static int pause_wchan;
 
 static struct callout loadav_callout;
 static struct callout lbolt_callout;
@@ -164,7 +165,10 @@ msleep(ident, mtx, priority, wmesg, timo)
 	if (TD_ON_SLEEPQ(td))
 		sleepq_remove(td, td->td_wchan);
 
-	flags = SLEEPQ_MSLEEP;
+	if (ident == &pause_wchan)
+		flags = SLEEPQ_PAUSE;
+	else
+		flags = SLEEPQ_MSLEEP;
 	if (catch)
 		flags |= SLEEPQ_INTERRUPTIBLE;
 
@@ -305,6 +309,22 @@ msleep_spin(ident, mtx, wmesg, timo)
 	mtx_lock_spin(mtx);
 	WITNESS_RESTORE(&mtx->mtx_object, mtx);
 	return (rval);
+}
+
+/*
+ * pause() is like tsleep() except that the intention is to not be
+ * explicitly woken up by another thread.  Instead, the current thread
+ * simply wishes to sleep until the timeout expires.  It is
+ * implemented using a dummy wait channel.
+ */
+int
+pause(wmesg, timo)
+	const char *wmesg;
+	int timo;
+{
+
+	KASSERT(timo != 0, ("pause: timeout required"));
+	return (tsleep(&pause_wchan, 0, wmesg, timo));
 }
 
 /*

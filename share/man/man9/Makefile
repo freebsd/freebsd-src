@@ -997,6 +997,7 @@ MLINKS+=signal.9 cursig.9 \
 	signal.9 trapsignal.9
 MLINKS+=sleep.9 msleep.9 \
 	sleep.9 msleep_spin.9 \
+	sleep.9 pause.9 \
 	sleep.9 tsleep.9 \
 	sleep.9 wakeup.9 \
 	sleep.9 wakeup_one.9
