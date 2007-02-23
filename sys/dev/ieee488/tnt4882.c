@@ -284,7 +284,7 @@ tnt_attach(device_t dev)
 		return (error);
 
 	error = bus_setup_intr(dev, sc->res[2], INTR_TYPE_MISC | INTR_MPSAFE,
-	    upd7210intr, &sc->upd7210, &sc->intr_handler);
+	    NULL, upd7210intr, &sc->upd7210, &sc->intr_handler);
 
 	/* Necessary magic for MITE */
 	bus_write_4(sc->res[0], 0xc0, rman_get_start(sc->res[1]) | 0x80);
