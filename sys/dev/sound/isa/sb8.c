@@ -735,7 +735,8 @@ sb_attach(device_t dev)
 
 	pcm_setflags(dev, pcm_getflags(dev) | SD_F_SIMPLEX);
 
-    	if (bus_dma_tag_create(/*parent*/NULL, /*alignment*/2, /*boundary*/0,
+    	if (bus_dma_tag_create(/*parent*/bus_get_dma_tag(dev), /*alignment*/2,
+			/*boundary*/0,
 			/*lowaddr*/BUS_SPACE_MAXADDR_24BIT,
 			/*highaddr*/BUS_SPACE_MAXADDR,
 			/*filter*/NULL, /*filterarg*/NULL,

@@ -2332,7 +2332,7 @@ envy24ht_init(struct sc_info *sc)
 }
 
 static int
-envy24ht_alloc_resource(struct sc_info *sc)
+envy24ht_alloc_resource(struct sc_info *sc, device_t dev)
 {
 	/* allocate I/O port resource */
 	sc->csid = PCIR_CCS;
@@ -2367,7 +2367,8 @@ envy24ht_alloc_resource(struct sc_info *sc)
 	}
 
 	/* allocate DMA resource */
-	if (bus_dma_tag_create(/*parent*/NULL, /*alignment*/4, /*boundary*/0,
+	if (bus_dma_tag_create(/*parent*/bus_get_dma_tag(dev), /*alignment*/4,
+	    /*boundary*/0,
 	    /*lowaddr*/BUS_SPACE_MAXADDR_ENVY24,
 	    /*highaddr*/BUS_SPACE_MAXADDR_ENVY24,
 	    /*filter*/NULL, /*filterarg*/NULL,
@@ -2413,7 +2414,7 @@ envy24ht_pci_attach(device_t dev)
 	data = pci_read_config(dev, PCIR_COMMAND, 2);
 
 	/* allocate resources */
-	err = envy24ht_alloc_resource(sc);
+	err = envy24ht_alloc_resource(sc, dev);
 	if (err) {
 		device_printf(dev, "unable to allocate system resources\n");
 		goto bad;

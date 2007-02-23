@@ -1240,7 +1240,7 @@ m3_pci_attach(device_t dev)
 	    M3_BUFSIZE_MAX);
 
 	if (bus_dma_tag_create(
-	    NULL,		/* parent */
+	    bus_get_dma_tag(dev),	/* parent */
 	    2, 0,		/* alignment, boundary */
 	    M3_MAXADDR,		/* lowaddr */
 	    BUS_SPACE_MAXADDR,	/* highaddr */
