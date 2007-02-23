@@ -99,7 +99,7 @@ cs_isa_attach(device_t dev)
         cs_alloc_irq(dev, sc->irq_rid, 0);
                 
         error = bus_setup_intr(dev, sc->irq_res, INTR_TYPE_NET,
-	    csintr, sc, &sc->irq_handle);
+	    NULL, csintr, sc, &sc->irq_handle);
         if (error) {
                 cs_release_resources(dev);
                 return (error);

@@ -1951,7 +1951,7 @@ hatm_attach(device_t dev)
 #endif
 
 	error = bus_setup_intr(dev, sc->irqres, sc->mpsafe | INTR_TYPE_NET,
-	    hatm_intr, &sc->irq_0, &sc->ih);
+	    NULL, hatm_intr, &sc->irq_0, &sc->ih);
 	if (error != 0) {
 		device_printf(dev, "could not setup interrupt\n");
 		hatm_detach(dev);

@@ -159,7 +159,7 @@ iop_attach(void *arg)
 
     /* setup and enable interrupts */
     bus_setup_intr(sc->dev, sc->r_irq, INTR_TYPE_BIO|INTR_ENTROPY|INTR_MPSAFE,
-		   iop_intr, sc, &sc->handle);
+		   NULL, iop_intr, sc, &sc->handle);
     sc->reg->oqueue_intr_mask = 0x0;
 }
 

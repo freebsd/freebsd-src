@@ -86,7 +86,7 @@ AcpiOsInstallInterruptHandler(UINT32 InterruptNumber,
 	goto error;
     }
     if (bus_setup_intr(sc->acpi_dev, sc->acpi_irq, INTR_TYPE_MISC|INTR_MPSAFE,
-	(driver_intr_t *)ServiceRoutine, Context, &sc->acpi_irq_handle)) {
+	NULL, (driver_intr_t *)ServiceRoutine, Context, &sc->acpi_irq_handle)) {
 	device_printf(sc->acpi_dev, "could not set up interrupt\n");
 	goto error;
     }

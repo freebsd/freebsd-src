@@ -80,8 +80,8 @@ static struct resource *sbc_alloc_resource(device_t bus, device_t child, int typ
 static int sbc_release_resource(device_t bus, device_t child, int type, int rid,
 				struct resource *r);
 static int sbc_setup_intr(device_t dev, device_t child, struct resource *irq,
-   	       int flags, driver_intr_t *intr, void *arg,
-   	       void **cookiep);
+   	       int flags, driver_filter_t *filter, driver_intr_t *intr, 
+   	       void *arg, void **cookiep);
 static int sbc_teardown_intr(device_t dev, device_t child, struct resource *irq,
   		  void *cookie);
 
@@ -503,13 +503,17 @@ sbc_intr(void *p)
 
 static int
 sbc_setup_intr(device_t dev, device_t child, struct resource *irq,
-   	       int flags, driver_intr_t *intr, void *arg,
-   	       void **cookiep)
+   	       int flags, driver_filter_t *filter, driver_intr_t *intr, 
+   	       void *arg, void **cookiep)
 {
 	struct sbc_softc *scp = device_get_softc(dev);
 	struct sbc_ihl *ihl = NULL;
 	int i, ret;
 
+	if (filter != NULL) {
+		printf("sbc.c: we cannot use a filter here\n");
+		return (EINVAL);
+	}
 	sbc_lock(scp);
 	i = 0;
 	while (i < IRQ_MAX) {

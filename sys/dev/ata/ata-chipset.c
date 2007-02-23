@@ -3267,7 +3267,7 @@ ata_promise_chipinit(device_t dev)
 	    u_int32_t dimm = ATA_INL(ctlr->r_res2, 0x000c0080);
 
 	    if (bus_teardown_intr(dev, ctlr->r_irq, ctlr->handle) ||
-		bus_setup_intr(dev, ctlr->r_irq, ATA_INTR_FLAGS,
+		bus_setup_intr(dev, ctlr->r_irq, ATA_INTR_FLAGS, NULL,
 			       ata_promise_sx4_intr, ctlr, &ctlr->handle)) {
 		device_printf(dev, "unable to setup interrupt\n");
 		goto failnfree;
@@ -3301,7 +3301,7 @@ ata_promise_chipinit(device_t dev)
 
 	/* mio type controllers need an interrupt intercept */
 	if (bus_teardown_intr(dev, ctlr->r_irq, ctlr->handle) ||
-		bus_setup_intr(dev, ctlr->r_irq, ATA_INTR_FLAGS,
+	    bus_setup_intr(dev, ctlr->r_irq, ATA_INTR_FLAGS, NULL,
 			       ata_promise_mio_intr, ctlr, &ctlr->handle)) {
 		device_printf(dev, "unable to setup interrupt\n");
 		goto failnfree;
@@ -5161,7 +5161,7 @@ ata_setup_interrupt(device_t dev)
 	    device_printf(dev, "unable to map interrupt\n");
 	    return ENXIO;
 	}
-	if ((bus_setup_intr(dev, ctlr->r_irq, ATA_INTR_FLAGS,
+	if ((bus_setup_intr(dev, ctlr->r_irq, ATA_INTR_FLAGS, NULL,
 			    ata_generic_intr, ctlr, &ctlr->handle))) {
 	    device_printf(dev, "unable to setup interrupt\n");
 	    return ENXIO;

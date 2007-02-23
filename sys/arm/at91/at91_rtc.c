@@ -110,8 +110,8 @@ at91_rtc_attach(device_t dev)
 	 * Activate the interrupt, but disable all interrupts in the hardware
 	 */
 	WR4(sc, RTC_IDR, 0xffffffff);
-	err = bus_setup_intr(dev, sc->irq_res, INTR_TYPE_MISC | INTR_FAST,
-	    at91_rtc_intr, sc, &sc->intrhand);
+	err = bus_setup_intr(dev, sc->irq_res, INTR_TYPE_MISC,
+	    at91_rtc_intr, NULL, sc, &sc->intrhand);
 	if (err) {
 		AT91_RTC_LOCK_DESTROY(sc);
 		goto out;
@@ -173,7 +173,7 @@ at91_rtc_deactivate(device_t dev)
 	return;
 }
 
-static void
+static int
 at91_rtc_intr(void *xsc)
 {
 	struct at91_rtc_softc *sc = xsc;
@@ -188,7 +188,7 @@ at91_rtc_intr(void *xsc)
 	AT91_RTC_UNLOCK(sc);
 #endif
 	wakeup(sc);
-	return;
+	return (FILTER_HANDLED);
 }
 
 /*

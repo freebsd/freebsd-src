@@ -682,7 +682,7 @@ static int ct_attach (device_t dev)
 	s = splimp ();
 	if (bus_setup_intr (dev, bd->irq_res,
 			   INTR_TYPE_NET|(ct_mpsafenet?INTR_MPSAFE:0),
-			   ct_intr, bd, &bd->intrhand)) {
+			   NULL, ct_intr, bd, &bd->intrhand)) {
 		printf ("ct%d: Can't setup irq %ld\n", unit, irq);
 		bd->board = 0;
 		adapter [unit] = 0;

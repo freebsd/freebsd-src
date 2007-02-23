@@ -169,7 +169,7 @@ ath_pci_attach(device_t dev)
 	}
 	if (bus_setup_intr(dev, psc->sc_irq,
 			   INTR_TYPE_NET | INTR_MPSAFE,
-			   ath_intr, sc, &psc->sc_ih)) {
+			   NULL, ath_intr, sc, &psc->sc_ih)) {
 		device_printf(dev, "could not establish interrupt\n");
 		goto bad2;
 	}

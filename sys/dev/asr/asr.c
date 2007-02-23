@@ -2297,7 +2297,7 @@ asr_pci_map_int(device_t dev, Asr_softc_t *sc)
 		return (0);
 	}
 	if (bus_setup_intr(dev, sc->ha_irq_res, INTR_TYPE_CAM | INTR_ENTROPY,
-	  (driver_intr_t *)asr_intr, (void *)sc, &(sc->ha_intr))) {
+	  NULL, (driver_intr_t *)asr_intr, (void *)sc, &(sc->ha_intr))) {
 		return (0);
 	}
 	sc->ha_irq = pci_read_config(dev, PCIR_INTLINE, sizeof(char));

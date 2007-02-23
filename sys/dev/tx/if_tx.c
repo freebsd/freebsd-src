@@ -418,7 +418,7 @@ epic_attach(device_t dev)
 
 	/* Activate our interrupt handler. */
 	error = bus_setup_intr(dev, sc->irq, INTR_TYPE_NET,
-	    epic_intr, sc, &sc->sc_ih);
+	    NULL, epic_intr, sc, &sc->sc_ih);
 	if (error) {
 		device_printf(dev, "couldn't set up irq\n");
 		goto fail;

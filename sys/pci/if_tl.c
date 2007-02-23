@@ -1303,7 +1303,7 @@ tl_attach(dev)
 
 	/* Hook interrupt last to avoid having to lock softc */
 	error = bus_setup_intr(dev, sc->tl_irq, INTR_TYPE_NET | INTR_MPSAFE,
-	    tl_intr, sc, &sc->tl_intrhand);
+	    NULL, tl_intr, sc, &sc->tl_intrhand);
 
 	if (error) {
 		device_printf(dev, "couldn't set up irq\n");

@@ -152,8 +152,8 @@ vx_eisa_attach(device_t dev)
 	if (vx_attach(dev) == 0)
 		goto bad;
 
-	if (bus_setup_intr(dev, irq, INTR_TYPE_NET | INTR_MPSAFE, vx_intr, sc,
-		&sc->vx_intrhand))
+	if (bus_setup_intr(dev, irq, INTR_TYPE_NET | INTR_MPSAFE, NULL,
+		  vx_intr, sc, &sc->vx_intrhand))
 		goto bad_mtx;
 
 	return (0);

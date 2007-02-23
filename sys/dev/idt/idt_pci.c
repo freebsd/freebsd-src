@@ -160,7 +160,7 @@ idt_attach(device_t dev)
 		goto fail;
 	}
 
-	error = bus_setup_intr(dev, sc->irq, INTR_TYPE_NET, nicstar_intr,
+	error = bus_setup_intr(dev, sc->irq, INTR_TYPE_NET, NULL, nicstar_intr,
 			       sc, &sc->irq_ih);
 	if (error) {
 		device_printf(dev, "could not setup irq.\n");

@@ -50,6 +50,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/systm.h>
 #include <sys/uio.h>
 #include <sys/bus.h>
+#include <sys/interrupt.h>
 
 #include <machine/stdarg.h>
 
@@ -3095,12 +3096,13 @@ bus_generic_driver_added(device_t dev, driver_t *driver)
  */
 int
 bus_generic_setup_intr(device_t dev, device_t child, struct resource *irq,
-    int flags, driver_intr_t *intr, void *arg, void **cookiep)
+    int flags, driver_filter_t *filter, driver_intr_t *intr, void *arg, 
+    void **cookiep)
 {
 	/* Propagate up the bus hierarchy until someone handles it. */
 	if (dev->parent)
 		return (BUS_SETUP_INTR(dev->parent, child, irq, flags,
-		    intr, arg, cookiep));
+		    filter, intr, arg, cookiep));
 	return (EINVAL);
 }
 
@@ -3457,7 +3459,7 @@ bus_release_resource(device_t dev, int type, int rid, struct resource *r)
  */
 int
 bus_setup_intr(device_t dev, struct resource *r, int flags,
-    driver_intr_t handler, void *arg, void **cookiep)
+    driver_filter_t filter, driver_intr_t handler, void *arg, void **cookiep)
 {
 	int error;
 
@@ -3466,14 +3468,19 @@ bus_setup_intr(device_t dev, struct resource *r, int flags,
 		    !debug_mpsafenet)
 			flags &= ~INTR_MPSAFE;
 		error = BUS_SETUP_INTR(dev->parent, dev, r, flags,
-		    handler, arg, cookiep);
+		    filter, handler, arg, cookiep);
 		if (error == 0) {
-			if (!(flags & (INTR_MPSAFE | INTR_FAST)))
+			if (handler != NULL && !(flags & INTR_MPSAFE))
 				device_printf(dev, "[GIANT-LOCKED]\n");
 			if (bootverbose && (flags & INTR_MPSAFE))
 				device_printf(dev, "[MPSAFE]\n");
-			if (flags & INTR_FAST)
-				device_printf(dev, "[FAST]\n");
+			if (filter != NULL) {
+				if (handler == NULL)
+					device_printf(dev, "[FILTER]\n");
+				else 
+					device_printf(dev, "[FILTER+ITHREAD]\n");
+			} else 
+				device_printf(dev, "[ITHREAD]\n");
 		}
 	} else
 		error = EINVAL;

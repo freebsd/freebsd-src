@@ -442,7 +442,7 @@ le_pci_attach(device_t dev)
 	}
 
 	error = bus_setup_intr(dev, lesc->sc_ires, INTR_TYPE_NET | INTR_MPSAFE,
-	    am79900_intr, sc, &lesc->sc_ih);
+	    NULL, am79900_intr, sc, &lesc->sc_ih);
 	if (error != 0) {
 		device_printf(dev, "cannot set up interrupt\n");
 		goto fail_am79900;

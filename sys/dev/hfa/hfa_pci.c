@@ -161,7 +161,7 @@ hfa_pci_attach (dev)
          * Map interrupt in
          */
 	error = bus_setup_intr(dev, sc->irq, INTR_TYPE_NET,
-	                            hfa_intr, sc, &sc->irq_ih);
+	                            NULL, hfa_intr, sc, &sc->irq_ih);
 	if (error) {
 	        device_printf(dev, "Interrupt handler setup failed.\n");
 	        goto fail;

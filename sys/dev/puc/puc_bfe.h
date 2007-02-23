@@ -88,7 +88,7 @@ int puc_bus_get_resource(device_t, device_t, int, int, u_long *, u_long *);
 int puc_bus_read_ivar(device_t, device_t, int, uintptr_t *);
 int puc_bus_release_resource(device_t, device_t, int, int, struct resource *);
 int puc_bus_setup_intr(device_t, device_t, struct resource *, int,
-    driver_intr_t *, void *, void **);
+    driver_filter_t *, driver_intr_t *, void *, void **);
 int puc_bus_teardown_intr(device_t, device_t, struct resource *, void *);
 
 #endif /* _DEV_PUC_BFE_H_ */

@@ -780,7 +780,7 @@ static int cx_attach (device_t dev)
 	s = splhigh ();
 	if (bus_setup_intr (dev, bd->irq_res,
 			   INTR_TYPE_NET|(cx_mpsafenet?INTR_MPSAFE:0),
-			   cx_intr, bd, &bd->intrhand)) {
+			   NULL, cx_intr, bd, &bd->intrhand)) {
 		printf ("cx%d: Can't setup irq %ld\n", unit, irq);
 		bd->board = 0;
 		b->sys = 0;

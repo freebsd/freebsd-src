@@ -644,7 +644,7 @@ cyinput(struct com_s *com)
 			  com->mcr_image |= com->mcr_rts);
 }
 
-void
+int
 cyintr(void *vcom)
 {
 	struct com_s	*basecom;
@@ -671,7 +671,7 @@ cyintr(void *vcom)
 		/* poll to see if it has any work */
 		status = cd_inb(iobase, CD1400_SVRR, cy_align);
 		if (status == 0)
-			continue;
+			continue; // XXX - FILTER_STRAY?
 #ifdef CyDebug
 		++cy_svrr_probes;
 #endif
@@ -1111,6 +1111,7 @@ terminate_tx_service:
 	swi_sched(cy_slow_ih, SWI_DELAY);
 
 	COM_UNLOCK();
+	return (FILTER_HANDLED);
 }
 
 static void

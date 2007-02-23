@@ -262,10 +262,11 @@ isa_release_resource(device_t bus, device_t child, int type, int rid,
  */
 int
 isa_setup_intr(device_t bus, device_t child, struct resource *r, int flags,
-	       void (*ihand)(void *), void *arg, void **cookiep)
+	       driver_filter_t filter, void (*ihand)(void *), void *arg,
+	       void **cookiep)
 {
 	return (BUS_SETUP_INTR(device_get_parent(bus), child, r, flags,
-			       ihand, arg, cookiep));
+			       filter, ihand, arg, cookiep));
 }
 
 int

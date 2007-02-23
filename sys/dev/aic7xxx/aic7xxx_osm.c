@@ -107,7 +107,7 @@ ahc_map_int(struct ahc_softc *ahc)
 
 	/* Hook up our interrupt handler */
 	error = bus_setup_intr(ahc->dev_softc, ahc->platform_data->irq,
-			       INTR_TYPE_CAM, ahc_platform_intr, ahc,
+			       INTR_TYPE_CAM, NULL, ahc_platform_intr, ahc,
 			       &ahc->platform_data->ih);
 
 	if (error != 0)

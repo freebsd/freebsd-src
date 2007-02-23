@@ -209,7 +209,7 @@ ral_pci_attach(device_t dev)
 	 * Hook our interrupt after all initialization is complete.
 	 */
 	error = bus_setup_intr(dev, psc->irq, INTR_TYPE_NET | INTR_MPSAFE,
-	    psc->sc_opns->intr, psc, &psc->sc_ih);
+	    NULL, psc->sc_opns->intr, psc, &psc->sc_ih);
 	if (error != 0) {
 		device_printf(dev, "could not set up interrupt\n");
 		return error;

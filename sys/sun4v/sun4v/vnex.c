@@ -249,7 +249,7 @@ vnex_probe_nomatch(device_t dev, device_t child)
 
 static int
 vnex_setup_intr(device_t dev, device_t child, struct resource *res, int flags,
-    driver_intr_t *intr, void *arg, void **cookiep)
+    driver_filter_t *filt,driver_intr_t *intr, void *arg, void **cookiep)
 {
 
 	uint64_t reg, nreg;
@@ -298,7 +298,7 @@ vnex_setup_intr(device_t dev, device_t child, struct resource *res, int flags,
 		goto fail;
 
 	error = inthand_add(device_get_nameunit(child), ihdl,
-			    intr, arg, flags, cookiep);
+			    filt, intr, arg, flags, cookiep);
 
 	printf("inthandler added\n");
 fail:

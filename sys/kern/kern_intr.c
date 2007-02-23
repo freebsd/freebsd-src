@@ -324,25 +324,24 @@ ithread_destroy(struct intr_thread *ithread)
 
 int
 intr_event_add_handler(struct intr_event *ie, const char *name,
-    driver_intr_t handler, void *arg, u_char pri, enum intr_type flags,
-    void **cookiep)
+    driver_filter_t filter, driver_intr_t handler, void *arg, u_char pri,
+    enum intr_type flags, void **cookiep)
 {
 	struct intr_handler *ih, *temp_ih;
 	struct intr_thread *it;
 
-	if (ie == NULL || name == NULL || handler == NULL)
+	if (ie == NULL || name == NULL || (handler == NULL && filter == NULL))
 		return (EINVAL);
 
 	/* Allocate and populate an interrupt handler structure. */
 	ih = malloc(sizeof(struct intr_handler), M_ITHREAD, M_WAITOK | M_ZERO);
+	ih->ih_filter = filter;
 	ih->ih_handler = handler;
 	ih->ih_argument = arg;
 	ih->ih_name = name;
 	ih->ih_event = ie;
 	ih->ih_pri = pri;
-	if (flags & INTR_FAST)
-		ih->ih_flags = IH_FAST;
-	else if (flags & INTR_EXCL)
+	if (flags & INTR_EXCL)
 		ih->ih_flags = IH_EXCLUSIVE;
 	if (flags & INTR_MPSAFE)
 		ih->ih_flags |= IH_MPSAFE;
@@ -372,7 +371,7 @@ intr_event_add_handler(struct intr_event *ie, const char *name,
 	intr_event_update(ie);
 
 	/* Create a thread if we need one. */
-	while (ie->ie_thread == NULL && !(flags & INTR_FAST)) {
+	while (ie->ie_thread == NULL && handler != NULL) {
 		if (ie->ie_flags & IE_ADDING_THREAD)
 			msleep(ie, &ie->ie_lock, 0, "ithread", 0);
 		else {
@@ -589,7 +588,7 @@ swi_add(struct intr_event **eventp, const char *name, driver_intr_t handler,
 		if (eventp != NULL)
 			*eventp = ie;
 	}
-	return (intr_event_add_handler(ie, name, handler, arg,
+	return (intr_event_add_handler(ie, name, NULL, handler, arg,
 		    (pri * RQ_PPQ) + PI_SOFT, flags, cookiep));
 		    /* XXKSE.. think of a better way to get separate queues */
 }
@@ -668,10 +667,6 @@ ithread_execute_handlers(struct proc *p, struct intr_event *ie)
 			else
 				atomic_store_rel_int(&ih->ih_need, 0);
 		}
-
-		/* Fast handlers are handled in primary interrupt context. */
-		if (ih->ih_flags & IH_FAST)
-			continue;
 
 		/* Execute this handler. */
 		CTR6(KTR_INTR, "%s: pid %d exec %p(%p) for %s flg=%x",
@@ -828,14 +823,10 @@ db_dump_intrhand(struct intr_handler *ih)
 	db_printsym((uintptr_t)ih->ih_handler, DB_STGY_PROC);
 	db_printf("(%p)", ih->ih_argument);
 	if (ih->ih_need ||
-	    (ih->ih_flags & (IH_FAST | IH_EXCLUSIVE | IH_ENTROPY | IH_DEAD |
+	    (ih->ih_flags & (IH_EXCLUSIVE | IH_ENTROPY | IH_DEAD |
 	    IH_MPSAFE)) != 0) {
 		db_printf(" {");
 		comma = 0;
-		if (ih->ih_flags & IH_FAST) {
-			db_printf("FAST");
-			comma = 1;
-		}
 		if (ih->ih_flags & IH_EXCLUSIVE) {
 			if (comma)
 				db_printf(", ");

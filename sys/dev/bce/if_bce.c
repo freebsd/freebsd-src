@@ -754,7 +754,7 @@ bce_attach(device_t dev)
 #endif
 
 	/* Hookup IRQ last. */
-	rc = bus_setup_intr(dev, sc->bce_irq, INTR_TYPE_NET | INTR_MPSAFE,
+	rc = bus_setup_intr(dev, sc->bce_irq, INTR_TYPE_NET | INTR_MPSAFE, NULL,
 	   bce_intr, sc, &sc->bce_intrhand);
 
 	if (rc) {

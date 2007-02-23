@@ -845,7 +845,7 @@ ipmi_attach(device_t dev)
 
 	if (sc->ipmi_irq_res != NULL && sc->ipmi_intr != NULL) {
 		error = bus_setup_intr(dev, sc->ipmi_irq_res, INTR_TYPE_MISC,
-		    sc->ipmi_intr, sc, &sc->ipmi_irq);
+		    NULL, sc->ipmi_intr, sc, &sc->ipmi_irq);
 		if (error) {
 			device_printf(dev, "can't set up interrupt\n");
 			return (error);

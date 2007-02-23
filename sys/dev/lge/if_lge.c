@@ -573,7 +573,7 @@ lge_attach(dev)
 	ether_ifattach(ifp, eaddr);
 
 	error = bus_setup_intr(dev, sc->lge_irq, INTR_TYPE_NET | INTR_MPSAFE,
-	    lge_intr, sc, &sc->lge_intrhand);
+	    NULL, lge_intr, sc, &sc->lge_intrhand);
 
 	if (error) {
 		ether_ifdetach(ifp);

@@ -58,8 +58,8 @@ static int last_printed = 0;
 void	arm_handler_execute(struct trapframe *, int);
 
 void
-arm_setup_irqhandler(const char *name, void (*hand)(void*), void *arg, 
-    int irq, int flags, void **cookiep)
+arm_setup_irqhandler(const char *name, driver_filter_t *filt, 
+    void (*hand)(void*), void *arg, int irq, int flags, void **cookiep)
 {
 	struct intr_event *event;
 	int error;
@@ -82,7 +82,7 @@ arm_setup_irqhandler(const char *name, void (*hand)(void*), void *arg,
 		intrcnt_index++;
 		
 	}
-	intr_event_add_handler(event, name, hand, arg,
+	intr_event_add_handler(event, name, filt, hand, arg,
 	    intr_priority(flags), flags, cookiep);
 }
 
@@ -118,10 +118,10 @@ arm_handler_execute(struct trapframe *frame, int irqnb)
 		/* Execute fast handlers. */
 		thread = 0;
 		TAILQ_FOREACH(ih, &event->ie_handlers, ih_next) {
-			if (!(ih->ih_flags & IH_FAST))
+			if (ih->ih_filter == NULL)
 				thread = 1;
 			else
-				ih->ih_handler(ih->ih_argument ?
+				ih->ih_filter(ih->ih_argument ?
 				    ih->ih_argument : frame);
 		}
 

@@ -1113,7 +1113,7 @@ ste_attach(dev)
 
 	/* Hook interrupt last to avoid having to lock softc */
 	error = bus_setup_intr(dev, sc->ste_irq, INTR_TYPE_NET | INTR_MPSAFE,
-	    ste_intr, sc, &sc->ste_intrhand);
+	    NULL, ste_intr, sc, &sc->ste_intrhand);
 
 	if (error) {
 		device_printf(dev, "couldn't set up irq\n");

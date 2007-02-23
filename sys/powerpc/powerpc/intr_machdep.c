@@ -133,8 +133,8 @@ intr_init(void (*handler)(void), int nirq, void (*irq_e)(uintptr_t),
 }
 
 int
-inthand_add(const char *name, u_int irq, void (*handler)(void *), void *arg,
-    int flags, void **cookiep)
+inthand_add(const char *name, u_int irq, driver_filter_t *filter, 
+    void (*handler)(void *), void *arg, int flags, void **cookiep)
 {
 	struct ppc_intr *i, *orphan;
 	u_int idx;
@@ -178,7 +178,7 @@ inthand_add(const char *name, u_int irq, void (*handler)(void *), void *arg,
 		}
 	}
 
-	error = intr_event_add_handler(i->event, name, handler, arg,
+	error = intr_event_add_handler(i->event, name, filter, handler, arg,
 	    intr_priority(flags), flags, cookiep);
 	if (!error)
 		intrcnt_setname(i->event->ie_fullname, i->cntidx);
@@ -219,13 +219,13 @@ intr_handle(u_int irq)
 	sched = 0;
 	critical_enter();
 	TAILQ_FOREACH(ih, &ie->ie_handlers, ih_next) {
-		if (!(ih->ih_flags & IH_FAST)) {
+		if (ih->ih_filter == NULL) {
 			sched = 1;
 			continue;
 		}
 		CTR4(KTR_INTR, "%s: exec %p(%p) for %s", __func__,
-		    ih->ih_handler, ih->ih_argument, ih->ih_name);
-		ih->ih_handler(ih->ih_argument);
+		    ih->ih_filter, ih->ih_argument, ih->ih_name);
+		ih->ih_filter(ih->ih_argument);
 	}
 	critical_exit();
 

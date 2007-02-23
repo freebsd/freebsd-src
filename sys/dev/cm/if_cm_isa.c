@@ -107,7 +107,7 @@ cm_isa_attach(dev)
 	mtx_init(&sc->sc_mtx, device_get_nameunit(dev),
 	    MTX_NETWORK_LOCK, MTX_DEF);
 	error = bus_setup_intr(dev, sc->irq_res, INTR_TYPE_NET | INTR_MPSAFE,
-	    cmintr, sc, &sc->irq_handle);
+	    NULL, cmintr, sc, &sc->irq_handle);
 	if (error)
 		goto err;
 

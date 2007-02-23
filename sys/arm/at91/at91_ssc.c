@@ -124,7 +124,7 @@ at91_ssc_attach(device_t dev)
 	 * Activate the interrupt
 	 */
 	err = bus_setup_intr(dev, sc->irq_res, INTR_TYPE_MISC | INTR_MPSAFE,
-	    at91_ssc_intr, sc, &sc->intrhand);
+	    NULL, at91_ssc_intr, sc, &sc->intrhand);
 	if (err) {
 		AT91_SSC_LOCK_DESTROY(sc);
 		goto out;

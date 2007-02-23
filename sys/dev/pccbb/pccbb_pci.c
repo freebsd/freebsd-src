@@ -400,7 +400,7 @@ cbb_pci_attach(device_t brdev)
 	}
 
 	if (bus_setup_intr(brdev, sc->irq_res, INTR_TYPE_AV | INTR_MPSAFE,
-	    cbb_pci_intr, sc, &sc->intrhand)) {
+	    NULL, cbb_pci_intr, sc, &sc->intrhand)) {
 		device_printf(brdev, "couldn't establish interrupt\n");
 		goto err;
 	}

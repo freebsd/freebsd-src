@@ -809,7 +809,7 @@ stge_attach(device_t dev)
 	 * Hookup IRQ
 	 */
 	error = bus_setup_intr(dev, sc->sc_res[1], INTR_TYPE_NET | INTR_MPSAFE,
-	    stge_intr, sc, &sc->sc_ih);
+	    NULL, stge_intr, sc, &sc->sc_ih);
 	if (error != 0) {
 		ether_ifdetach(ifp);
 		device_printf(sc->sc_dev, "couldn't set up IRQ\n");

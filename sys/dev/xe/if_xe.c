@@ -1925,8 +1925,8 @@ xe_activate(device_t dev)
 		xe_deactivate(dev);
 		return ENOMEM;
 	}
-	if ((err = bus_setup_intr(dev, sc->irq_res, INTR_TYPE_NET, xe_intr, sc,
-	    &sc->intrhand)) != 0) {
+	if ((err = bus_setup_intr(dev, sc->irq_res, INTR_TYPE_NET, NULL, 
+	    xe_intr, sc, &sc->intrhand)) != 0) {
 		xe_deactivate(dev);
 		return err;
 	}

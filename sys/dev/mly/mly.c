@@ -380,7 +380,7 @@ mly_pci_attach(struct mly_softc *sc)
 	mly_printf(sc, "can't allocate interrupt\n");
 	goto fail;
     }
-    if (bus_setup_intr(sc->mly_dev, sc->mly_irq, INTR_TYPE_CAM | INTR_ENTROPY,  mly_intr, sc, &sc->mly_intr)) {
+    if (bus_setup_intr(sc->mly_dev, sc->mly_irq, INTR_TYPE_CAM | INTR_ENTROPY, NULL, mly_intr, sc, &sc->mly_intr)) {
 	mly_printf(sc, "can't set up interrupt\n");
 	goto fail;
     }

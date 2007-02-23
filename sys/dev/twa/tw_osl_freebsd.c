@@ -174,9 +174,11 @@ static TW_INT32	twa_attach(device_t dev);
 static TW_INT32	twa_detach(device_t dev);
 static TW_INT32	twa_shutdown(device_t dev);
 static TW_VOID	twa_busdma_lock(TW_VOID *lock_arg, bus_dma_lock_op_t op);
-static TW_VOID	twa_pci_intr(TW_VOID *arg);
 #ifdef TW_OSLI_DEFERRED_INTR_USED
+static int	twa_pci_intr_fast(TW_VOID *arg);
 static TW_VOID	twa_deferred_intr(TW_VOID *context, TW_INT32 pending);
+#else
+static TW_VOID	twa_pci_intr(TW_VOID *arg);
 #endif /* TW_OSLI_DEFERRED_INTR_USED */
 
 static TW_INT32	tw_osli_alloc_mem(struct twa_softc *sc);
@@ -357,12 +359,13 @@ twa_attach(device_t dev)
 		return(ENXIO);
 	}
 	if ((error = bus_setup_intr(sc->bus_dev, sc->irq_res,
-			((mp_ncpus > 1) ? (INTR_MPSAFE
+			INTR_TYPE_CAM | INTR_MPSAFE,
 #ifdef TW_OSLI_DEFERRED_INTR_USED
-			| INTR_FAST
-#endif /* TW_OSLI_DEFERRED_INTR_USED */
-			) : 0) | INTR_TYPE_CAM,
-			twa_pci_intr, sc, &sc->intr_handle))) {
+			twa_pci_intr_fast, NULL,
+#else
+			NULL, twa_pci_intr,	    
+#endif 
+			sc, &sc->intr_handle))) {
 		tw_osli_printf(sc, "error = %d",
 			TW_CL_SEVERITY_ERROR_STRING,
 			TW_CL_MESSAGE_SOURCE_FREEBSD_DRIVER,
@@ -977,7 +980,28 @@ twa_busdma_lock(TW_VOID *lock_arg, bus_dma_lock_op_t op)
 }
 
 
+#ifdef TW_OSLI_DEFERRED_INTR_USED
+/*
+ * Function name:	twa_pci_intr_fast
+ * Description:		Interrupt handler.  Wrapper for twa_interrupt.
+ *
+ * Input:		arg	-- ptr to OSL internal ctlr context
+ * Output:		FILTER_HANDLED or FILTER_STRAY
+ * Return value:	None
+ */
+static int
+twa_pci_intr_fast(TW_VOID *arg)
+{
+	struct twa_softc	*sc = (struct twa_softc *)arg;
 
+	tw_osli_dbg_dprintf(10, sc, "entered");
+	if (tw_cl_interrupt(&(sc->ctlr_handle))) {
+		tw_cl_deferred_interrupt(&(sc->ctlr_handle));
+		return(FILTER_HANDLED);
+	}
+	return(FILTER_STRAY);
+}
+#else
 /*
  * Function name:	twa_pci_intr
  * Description:		Interrupt handler.  Wrapper for twa_interrupt.
@@ -993,15 +1017,9 @@ twa_pci_intr(TW_VOID *arg)
 
 	tw_osli_dbg_dprintf(10, sc, "entered");
 	if (tw_cl_interrupt(&(sc->ctlr_handle)))
-#ifdef TW_OSLI_DEFERRED_INTR_USED
-		taskqueue_enqueue_fast(taskqueue_fast,
-			&(sc->deferred_intr_callback));
-#else /* TW_OSLI_DEFERRED_INTR_USED */
 		tw_cl_deferred_interrupt(&(sc->ctlr_handle));
-#endif /* TW_OSLI_DEFERRED_INTR_USED */
 }
-
-
+#endif
 
 #ifdef TW_OSLI_DEFERRED_INTR_USED
 

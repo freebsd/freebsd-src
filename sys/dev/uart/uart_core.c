@@ -227,13 +227,14 @@ uart_intr_txidle(void *arg)
 	return (0);
 }
 
-static void
+static int
 uart_intr(void *arg)
 {
 	struct uart_softc *sc = arg;
-	int ipend;
+	int flag = 0, ipend;
 
 	while (!sc->sc_leaving && (ipend = UART_IPEND(sc)) != 0) {
+		flag = 1;
 		if (ipend & SER_INT_OVERRUN)
 			uart_intr_overrun(sc);
 		if (ipend & SER_INT_BREAK)
@@ -243,8 +244,9 @@ uart_intr(void *arg)
 		if (ipend & SER_INT_SIGCHG)
 			uart_intr_sigchg(sc);
 		if (ipend & SER_INT_TXIDLE)
-			uart_intr_txidle(sc);
+			uart_intr_txidle(sc);		
 	}
+	return((flag)?FILTER_HANDLED:FILTER_STRAY);
 }
 
 serdev_intr_t *
@@ -401,12 +403,12 @@ uart_bus_attach(device_t dev)
 	    RF_ACTIVE | RF_SHAREABLE);
 	if (sc->sc_ires != NULL) {
 		error = bus_setup_intr(dev,
-		    sc->sc_ires, INTR_TYPE_TTY | INTR_FAST, uart_intr,
-		    sc, &sc->sc_icookie);
+		    sc->sc_ires, INTR_TYPE_TTY, 
+		    uart_intr, NULL, sc, &sc->sc_icookie);		    
 		if (error)
 			error = bus_setup_intr(dev,
 			    sc->sc_ires, INTR_TYPE_TTY | INTR_MPSAFE,
-			    uart_intr, sc, &sc->sc_icookie);
+			    NULL, (driver_intr_t *)uart_intr, sc, &sc->sc_icookie);
 		else
 			sc->sc_fastintr = 1;
 

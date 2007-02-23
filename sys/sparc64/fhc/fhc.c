@@ -50,7 +50,7 @@ __FBSDID("$FreeBSD$");
 #include <sparc64/sbus/ofw_sbus.h>
 
 struct fhc_clr {
-	driver_intr_t		*fc_func;
+	driver_filter_t		*fc_func;
 	void			*fc_arg;
 	void			*fc_cookie;
 	bus_space_tag_t		fc_bt;
@@ -62,7 +62,7 @@ struct fhc_devinfo {
 	struct resource_list	fdi_rl;
 };
 
-static void fhc_intr_stub(void *);
+static int fhc_intr_stub(void *);
 static void fhc_led_func(void *, int);
 static int fhc_print_res(struct fhc_devinfo *);
 
@@ -206,7 +206,7 @@ fhc_probe_nomatch(device_t dev, device_t child)
 
 int
 fhc_setup_intr(device_t bus, device_t child, struct resource *r, int flags,
-    driver_intr_t *func, void *arg, void **cookiep)
+    driver_filter_t *filt, driver_intr_t *func, void *arg, void **cookiep)
 {
 	struct fhc_softc *sc;
 	struct fhc_clr *fc;
@@ -216,6 +216,9 @@ fhc_setup_intr(device_t bus, device_t child, struct resource *r, int flags,
 	int i;
 	long vec;
 	uint32_t inr;
+
+	if (filt != NULL && func != NULL)
+		return (EINVAL);
 
 	sc = device_get_softc(bus);
 	vec = rman_get_start(r);
@@ -238,7 +241,7 @@ fhc_setup_intr(device_t bus, device_t child, struct resource *r, int flags,
 	fc = malloc(sizeof(*fc), M_DEVBUF, M_WAITOK | M_ZERO);
 	if (fc == NULL)
 		return (0);
-	fc->fc_func = func;
+	fc->fc_func = (filt != NULL) ? filt : (driver_filter_t *)func;
 	fc->fc_arg = arg;
 	fc->fc_bt = bt;
 	fc->fc_bh = bh;
@@ -246,8 +249,12 @@ fhc_setup_intr(device_t bus, device_t child, struct resource *r, int flags,
 	bus_space_write_4(bt, bh, FHC_IMAP, inr);
 	bus_space_read_4(bt, bh, FHC_IMAP);
 
-	error = bus_generic_setup_intr(bus, child, r, flags, fhc_intr_stub,
-	    fc, cookiep);
+	if (filt != NULL)
+		error = bus_generic_setup_intr(bus, child, r, flags,
+		    fhc_intr_stub, NULL, fc, cookiep);
+	else
+		error = bus_generic_setup_intr(bus, child, r, flags,
+		    NULL, (driver_intr_t *)fhc_intr_stub, fc, cookiep);
 	if (error != 0) {
 		free(fc, M_DEVBUF);
 		return (error);
@@ -276,7 +283,7 @@ fhc_teardown_intr(device_t bus, device_t child, struct resource *r,
 	return (error);
 }
 
-static void
+static int
 fhc_intr_stub(void *arg)
 {
 	struct fhc_clr *fc = arg;
@@ -285,6 +292,7 @@ fhc_intr_stub(void *arg)
 
 	bus_space_write_4(fc->fc_bt, fc->fc_bh, FHC_ICLR, 0x0);
 	bus_space_read_4(fc->fc_bt, fc->fc_bh, FHC_ICLR);
+	return (FILTER_HANDLED);
 }
 
 struct resource *
