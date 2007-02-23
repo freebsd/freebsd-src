@@ -1377,7 +1377,7 @@ mn_attach (device_t self)
 		return(ENXIO);
 	}
 
-	error = bus_setup_intr(self, sc->irq, INTR_TYPE_NET, mn_intr, sc, &sc->intrhand);
+	error = bus_setup_intr(self, sc->irq, INTR_TYPE_NET, NULL, mn_intr, sc, &sc->intrhand);
 
 	if (error) {
 		printf("couldn't set up irq\n");
