@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 1999-2002 Robert N. M. Watson
+ * Copyright (c) 1999-2002, 2007 Robert N. M. Watson
  * Copyright (c) 2001-2003 Networks Associates Technology, Inc.
  * All rights reserved.
  *
@@ -42,36 +42,9 @@
  * on, try mac_stub.
  */
 
-#include <sys/types.h>
 #include <sys/param.h>
-#include <sys/acl.h>
-#include <sys/conf.h>
-#include <sys/extattr.h>
 #include <sys/kernel.h>
-#include <sys/mount.h>
-#include <sys/proc.h>
-#include <sys/systm.h>
-#include <sys/sysproto.h>
-#include <sys/sysent.h>
-#include <sys/vnode.h>
-#include <sys/file.h>
-#include <sys/socket.h>
-#include <sys/socketvar.h>
-#include <sys/pipe.h>
-#include <sys/sx.h>
-#include <sys/sysctl.h>
-
-#include <fs/devfs/devfs.h>
-
-#include <net/bpfdesc.h>
-#include <net/if.h>
-#include <net/if_types.h>
-#include <net/if_var.h>
-
-#include <netinet/in.h>
-#include <netinet/ip_var.h>
-
-#include <vm/vm.h>
+#include <sys/module.h>
 
 #include <security/mac/mac_policy.h>
 
