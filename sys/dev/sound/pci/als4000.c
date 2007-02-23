@@ -773,7 +773,7 @@ als_resource_grab(device_t dev, struct sc_info *sc)
 
 	sc->bufsz = pcm_getbuffersize(dev, 4096, ALS_DEFAULT_BUFSZ, 65536);
 
-	if (bus_dma_tag_create(/*parent*/NULL,
+	if (bus_dma_tag_create(/*parent*/bus_get_dma_tag(dev),
 			       /*alignment*/2, /*boundary*/0,
 			       /*lowaddr*/BUS_SPACE_MAXADDR_24BIT,
 			       /*highaddr*/BUS_SPACE_MAXADDR,

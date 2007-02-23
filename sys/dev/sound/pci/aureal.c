@@ -637,7 +637,8 @@ au_pci_attach(device_t dev)
 	if (codec == NULL) goto bad;
 	if (mixer_init(dev, ac97_getmixerclass(), codec) == -1) goto bad;
 
-	if (bus_dma_tag_create(/*parent*/NULL, /*alignment*/2, /*boundary*/0,
+	if (bus_dma_tag_create(/*parent*/bus_get_dma_tag(dev), /*alignment*/2,
+		/*boundary*/0,
 		/*lowaddr*/BUS_SPACE_MAXADDR_32BIT,
 		/*highaddr*/BUS_SPACE_MAXADDR,
 		/*filter*/NULL, /*filterarg*/NULL,
