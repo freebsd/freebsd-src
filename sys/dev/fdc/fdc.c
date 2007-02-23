@@ -790,7 +790,7 @@ fdc_worker(struct fdc_data *fdc)
 	if (fdc->flags & FDC_NEEDS_RESET) {
 		fdc->flags &= ~FDC_NEEDS_RESET;
 		fdc_reset(fdc);
-		msleep(fdc, NULL, PRIBIO, "fdcrst", hz);
+		tsleep(fdc, PRIBIO, "fdcrst", hz);
 		/* Discard results */
 		for (i = 0; i < 4; i++)
 			fdc_sense_int(fdc, &st0, &cyl);
@@ -855,7 +855,7 @@ fdc_worker(struct fdc_data *fdc)
 		retry_line = __LINE__;
 		if (fdc_cmd(fdc, 2, NE7CMD_RECAL, fd->fdsu, 0))
 			return (1);
-		msleep(fdc, NULL, PRIBIO, "fdrecal", hz);
+		tsleep(fdc, PRIBIO, "fdrecal", hz);
 		retry_line = __LINE__;
 		if (fdc_sense_int(fdc, &st0, &cyl) == FD_NOT_VALID)
 			return (1); /* XXX */
@@ -867,7 +867,7 @@ fdc_worker(struct fdc_data *fdc)
 		retry_line = __LINE__;
 		if (fdc_cmd(fdc, 3, NE7CMD_SEEK, fd->fdsu, 1, 0))
 			return (1);
-		msleep(fdc, NULL, PRIBIO, "fdseek", hz);
+		tsleep(fdc, PRIBIO, "fdseek", hz);
 		retry_line = __LINE__;
 		if (fdc_sense_int(fdc, &st0, &cyl) == FD_NOT_VALID)
 			return (1); /* XXX */
@@ -956,7 +956,7 @@ fdc_worker(struct fdc_data *fdc)
 		retry_line = __LINE__;
 		if (fdc_cmd(fdc, 2, NE7CMD_RECAL, fd->fdsu, 0))
 			return (1);
-		msleep(fdc, NULL, PRIBIO, "fdrecal", hz);
+		tsleep(fdc, PRIBIO, "fdrecal", hz);
 		retry_line = __LINE__;
 		if (fdc_sense_int(fdc, &st0, &cyl) == FD_NOT_VALID)
 			return (1); /* XXX */
@@ -967,7 +967,7 @@ fdc_worker(struct fdc_data *fdc)
 		fd->track = 0;
 		/* let the heads settle */
 		if (settle)
-			msleep(fdc->fd, NULL, PRIBIO, "fdhdstl", settle);
+			tsleep(fdc->fd, PRIBIO, "fdhdstl", settle);
 	}
 
 	/*
@@ -983,7 +983,7 @@ fdc_worker(struct fdc_data *fdc)
 		retry_line = __LINE__;
 		if (fdc_cmd(fdc, 3, NE7CMD_SEEK, fd->fdsu, descyl, 0))
 			return (1);
-		msleep(fdc, NULL, PRIBIO, "fdseek", hz);
+		tsleep(fdc, PRIBIO, "fdseek", hz);
 		retry_line = __LINE__;
 		if (fdc_sense_int(fdc, &st0, &cyl) == FD_NOT_VALID)
 			return (1); /* XXX */
@@ -994,7 +994,7 @@ fdc_worker(struct fdc_data *fdc)
 		}
 		/* let the heads settle */
 		if (settle)
-			msleep(fdc->fd, NULL, PRIBIO, "fdhdstl", settle);
+			tsleep(fdc->fd, PRIBIO, "fdhdstl", settle);
 	}
 	fd->track = cylinder;
 
@@ -1080,7 +1080,7 @@ fdc_worker(struct fdc_data *fdc)
 	}
 
 	/* Wait for interrupt */
-	i = msleep(fdc, NULL, PRIBIO, "fddata", hz);
+	i = tsleep(fdc, PRIBIO, "fddata", hz);
 
 	/* PIO if the read looks good */
 	if (i == 0 && (fdc->flags & FDC_NODMA) && (bp->bio_cmd & BIO_READ))
@@ -1279,7 +1279,7 @@ fdmisccmd(struct fd_data *fd, u_int cmd, void *data)
 	fd_enqueue(fd, bp);
 
 	do {
-		msleep(bp, NULL, PRIBIO, "fdwait", hz);
+		tsleep(bp, PRIBIO, "fdwait", hz);
 	} while (!(bp->bio_flags & BIO_DONE));
 	error = bp->bio_error;
 
