@@ -271,7 +271,7 @@ intr_execute_handlers(struct intsrc *isrc, struct trapframe *frame)
 			continue;
 		}
 		CTR4(KTR_INTR, "%s: exec %p(%p) for %s", __func__,
-		    ih->ih_handler, ih->ih_argument == NULL ? frame :
+		    ih->ih_filter, ih->ih_argument == NULL ? frame :
 		    ih->ih_argument, ih->ih_name);
 		if (ih->ih_argument == NULL)
 			ih->ih_filter(frame);
