@@ -1642,6 +1642,7 @@ linux_prctl(struct thread *td, struct linux_prctl_args *args)
 	struct proc *p = td->td_proc;
 	char comm[LINUX_MAX_COMM_LEN];
 	struct linux_emuldata *em;
+	int pdeath_signal;
 
 #ifdef DEBUG
 	if (ldebug(prctl))
@@ -1661,10 +1662,11 @@ linux_prctl(struct thread *td, struct linux_prctl_args *args)
 	case LINUX_PR_GET_PDEATHSIG:
 		em = em_find(p, EMUL_DOLOCK);
 		KASSERT(em != NULL, ("prctl: emuldata not found.\n"));
-		error = copyout(&em->pdeath_signal,
-		    (void *)(register_t)args->arg2,
-		    sizeof(em->pdeath_signal));
+		pdeath_signal = em->pdeath_signal;
 		EMUL_UNLOCK(&emul_lock);
+		error = copyout(&pdeath_signal,
+		    (void *)(register_t)args->arg2,
+		    sizeof(pdeath_signal));
 		break;
 	case LINUX_PR_SET_NAME:
 		/*

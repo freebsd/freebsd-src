@@ -186,9 +186,11 @@ linux_proc_exit(void *arg __unused, struct proc *p)
 	LIST_REMOVE(em, threads);
 
 	em->shared->refs--;
-	if (em->shared->refs == 0)
+	if (em->shared->refs == 0) {
+		EMUL_SHARED_WUNLOCK(&emul_shared_lock);
 		free(em->shared, M_LINUX);
-	EMUL_SHARED_WUNLOCK(&emul_shared_lock);
+	} else	
+		EMUL_SHARED_WUNLOCK(&emul_shared_lock);
 
 	if (child_clear_tid != NULL) {
 		struct linux_sys_futex_args cup;
@@ -273,9 +275,11 @@ linux_proc_exec(void *arg __unused, struct proc *p, struct image_params *imgp)
 		PROC_UNLOCK(p);
 
 		em->shared->refs--;
-		if (em->shared->refs == 0)
+		if (em->shared->refs == 0) {
+			EMUL_SHARED_WUNLOCK(&emul_shared_lock);
 			free(em->shared, M_LINUX);
-		EMUL_SHARED_WUNLOCK(&emul_shared_lock);
+		} else
+			EMUL_SHARED_WUNLOCK(&emul_shared_lock);
 
 		free(em, M_LINUX);
 	}
