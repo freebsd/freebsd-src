@@ -55,24 +55,18 @@
  * because the kernel only knows about uids and gids.
  */
 
-#include <sys/types.h>
 #include <sys/param.h>
-#include <sys/conf.h>
 #include <sys/domain.h>
 #include <sys/kernel.h>
-#include <sys/libkern.h>
 #include <sys/lock.h>
 #include <sys/malloc.h>
-#include <sys/mount.h>
+#include <sys/module.h>
 #include <sys/mutex.h>
 #include <sys/priv.h>
 #include <sys/proc.h>
 #include <sys/protosw.h>
 #include <sys/queue.h>
 #include <sys/systm.h>
-#include <sys/sysproto.h>
-#include <sys/sysent.h>
-#include <sys/file.h>
 #include <sys/sbuf.h>
 #include <sys/socket.h>
 #include <sys/socketvar.h>
@@ -80,8 +74,6 @@
 
 #include <netinet/in.h>
 #include <netinet/in_pcb.h>
-
-#include <vm/vm.h>
 
 #include <security/mac/mac_policy.h>
 

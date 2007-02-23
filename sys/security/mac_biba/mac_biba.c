@@ -39,9 +39,7 @@
  * Biba fixed label mandatory integrity policy.
  */
 
-#include <sys/types.h>
 #include <sys/param.h>
-#include <sys/acl.h>
 #include <sys/conf.h>
 #include <sys/extattr.h>
 #include <sys/kernel.h>

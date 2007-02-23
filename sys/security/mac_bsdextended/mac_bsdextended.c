@@ -1,6 +1,6 @@
 /*-
  * Copyright (c) 2005 Tom Rhodes
- * Copyright (c) 1999-2002 Robert N. M. Watson
+ * Copyright (c) 1999-2002, 2007 Robert N. M. Watson
  * Copyright (c) 2001-2005 Networks Associates Technology, Inc.
  * All rights reserved.
  *
@@ -42,34 +42,19 @@
  * mandatory rules regarding users and some system objects.
  */
 
-#include <sys/types.h>
 #include <sys/param.h>
 #include <sys/acl.h>
-#include <sys/conf.h>
 #include <sys/kernel.h>
 #include <sys/jail.h>
 #include <sys/lock.h>
 #include <sys/malloc.h>
+#include <sys/module.h>
 #include <sys/mount.h>
 #include <sys/mutex.h>
-#include <sys/proc.h>
 #include <sys/systm.h>
-#include <sys/sysproto.h>
-#include <sys/sysent.h>
 #include <sys/vnode.h>
-#include <sys/file.h>
-#include <sys/socket.h>
-#include <sys/socketvar.h>
 #include <sys/sysctl.h>
 #include <sys/syslog.h>
-#include <sys/ucred.h>
-
-#include <net/bpfdesc.h>
-#include <net/if.h>
-#include <net/if_types.h>
-#include <net/if_var.h>
-
-#include <vm/vm.h>
 
 #include <security/mac/mac_policy.h>
 #include <security/mac_bsdextended/mac_bsdextended.h>
