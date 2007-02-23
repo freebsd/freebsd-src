@@ -762,7 +762,7 @@ sv_attach(device_t dev) {
         sc->irq   = bus_alloc_resource(dev, SYS_RES_IRQ, &sc->irqid,
 				       0, ~0, 1, RF_ACTIVE | RF_SHAREABLE);
         if (!sc->irq ||
-	    bus_setup_intr(dev, sc->irq, INTR_TYPE_AV, NULL, sv_intr, sc, &sc->ih)) {
+	    snd_setup_intr(dev, sc->irq, 0, sv_intr, sc, &sc->ih)) {
                 device_printf(dev, "sv_attach: Unable to map interrupt\n");
                 goto fail;
         }
