@@ -263,7 +263,7 @@ systemShutdown(int status)
 #if defined(__alpha__) || defined(__sparc64__)
 	reboot(RB_HALT);
 #else
-	reboot(0);
+	reboot(RB_AUTOBOOT);
 #endif
     }
     else
