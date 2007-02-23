@@ -385,7 +385,7 @@ static void	emu_addefxop(struct emu_sc_info *sc, unsigned int op, unsigned int z
 static void	emu_initefx(struct emu_sc_info *sc);
 
 static int	emu_cardbus_init(struct emu_sc_info *sc);
-static int	emu_init(struct emu_sc_info *sc, device_t dev);
+static int	emu_init(struct emu_sc_info *sc);
 static int	emu_uninit(struct emu_sc_info *sc);
 
 static int	emu_read_ivar(device_t bus __unused, device_t dev, int ivar_index, uintptr_t * result);
@@ -2338,7 +2338,7 @@ emu_cardbus_init(struct emu_sc_info *sc)
 
 /* Probe and attach the card */
 static int
-emu_init(struct emu_sc_info *sc, device_t dev)
+emu_init(struct emu_sc_info *sc)
 {
 	uint32_t ch, tmp;
 	uint32_t spdif_sr;
@@ -2385,7 +2385,7 @@ emu_init(struct emu_sc_info *sc, device_t dev)
 		emu_wrptr(sc, 0, SPBYPASS, 0xf00);	/* What will happen if
 							 * we write 1 here? */
 
-	if (bus_dma_tag_create( /* parent */ bus_get_dma_tag(dev),
+	if (bus_dma_tag_create( /* parent */ bus_get_dma_tag(sc->dev),
 	     /* alignment */ 2, /* boundary */ 0,
 	     /* lowaddr */ 1 << 31,	/* can only access 0-2gb */
 	     /* highaddr */ BUS_SPACE_MAXADDR,
@@ -2835,7 +2835,7 @@ emu_pci_attach(device_t dev)
 
 	i = 0;
 	sc->irq = bus_alloc_resource_any(dev, SYS_RES_IRQ, &i, RF_ACTIVE | RF_SHAREABLE);
-	if ((sc->irq == NULL) || bus_setup_intr(dev, sc->irq, INTR_MPSAFE | INTR_TYPE_AV, NULL, emu_intr, sc, &sc->ih)) {
+	if ((sc->irq == NULL) || snd_setup_intr(dev, sc->irq, INTR_MPSAFE, emu_intr, sc, &sc->ih)) {
 		device_printf(dev, "unable to map interrupt\n");
 		goto bad;
 	}
@@ -2854,7 +2854,7 @@ emu_pci_attach(device_t dev)
 	sc->root = device_get_sysctl_tree(dev);
 	if (sc->root == NULL)
 		goto bad;
-	if (emu_init(sc, dev) == -1) {
+	if (emu_init(sc) == -1) {
 		device_printf(dev, "unable to initialize the card\n");
 		goto bad;
 	}
