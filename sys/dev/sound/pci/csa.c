@@ -82,8 +82,10 @@ static int csa_release_resource(device_t bus, device_t child, int type, int rid,
 				   struct resource *r);
 static int csa_setup_intr(device_t bus, device_t child,
 			  struct resource *irq, int flags,
-			  driver_filter_t *filter, driver_intr_t *intr, 
-			  void *arg, void **cookiep);
+#if __FreeBSD_version >= 700031
+			  driver_filter_t *filter,
+#endif
+			  driver_intr_t *intr,  void *arg, void **cookiep);
 static int csa_teardown_intr(device_t bus, device_t child,
 			     struct resource *irq, void *cookie);
 static driver_intr_t csa_intr;
@@ -440,17 +442,21 @@ csa_release_resource(device_t bus, device_t child, int type, int rid,
 static int
 csa_setup_intr(device_t bus, device_t child,
 	       struct resource *irq, int flags,
-	       driver_filter_t *filter, driver_intr_t *intr, void *arg, 
-	       void **cookiep)
+#if __FreeBSD_version >= 700031
+	       driver_filter_t *filter,
+#endif
+	       driver_intr_t *intr, void *arg, void **cookiep)
 {
 	sc_p scp;
 	csa_res *resp;
 	struct sndcard_func *func;
 
+#if __FreeBSD_version >= 700031
 	if (filter != NULL) {
 		printf("ata-csa.c: we cannot use a filter here\n");
 		return (EINVAL);
 	}
+#endif
 	scp = device_get_softc(bus);
 	resp = &scp->res;
 
