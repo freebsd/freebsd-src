@@ -75,15 +75,6 @@
 
 #include <security/mac/mac_policy.h>
 
-SYSCTL_DECL(_security_mac);
-
-SYSCTL_NODE(_security_mac, OID_AUTO, none, CTLFLAG_RW, 0,
-    "TrustedBSD mac_none policy controls");
-
-static int	mac_none_enabled = 1;
-SYSCTL_INT(_security_mac_none, OID_AUTO, enabled, CTLFLAG_RW,
-    &mac_none_enabled, 0, "Enforce none policy");
-
 static struct mac_policy_ops mac_none_ops =
 {
 };
