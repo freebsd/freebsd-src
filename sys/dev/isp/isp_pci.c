@@ -435,13 +435,10 @@ isp_pci_probe(device_t dev)
 
 #if __FreeBSD_version < 500000  
 static void
-isp_get_options(device_t dev, ispsoftc_t *isp)
+isp_get_generic_options(device_t dev, ispsoftc_t *isp)
 {
 	uint64_t wwn;
 	int bitmap, unit;
-
-	callout_handle_init(&isp->isp_osinfo.ldt);
-	callout_handle_init(&isp->isp_osinfo.gdt);
 
 	unit = device_get_unit(dev);
 	if (getenv_int("isp_disable", &bitmap)) {
@@ -450,7 +447,6 @@ isp_get_options(device_t dev, ispsoftc_t *isp)
 			return;
 		}
 	}
-
 	if (getenv_int("isp_no_fwload", &bitmap)) {
 		if (bitmap & (1 << unit))
 			isp->isp_confopts |= ISP_CFG_NORELOAD;
@@ -467,6 +463,61 @@ isp_get_options(device_t dev, ispsoftc_t *isp)
 		if (bitmap & (1 << unit))
 			isp->isp_confopts &= ~ISP_CFG_NONVRAM;
 	}
+
+	bitmap = 0;
+	(void) getenv_int("isp_debug", &bitmap);
+	if (bitmap) {
+		isp->isp_dblev = bitmap;
+	} else {
+		isp->isp_dblev = ISP_LOGWARN|ISP_LOGERR;
+	}
+	if (bootverbose) {
+		isp->isp_dblev |= ISP_LOGCONFIG|ISP_LOGINFO;
+	}
+
+	bitmap = 0;
+	if (getenv_int("role", &bitmap)) {
+		isp->isp_role = bitmap;
+	} else {
+		isp->isp_role = ISP_DEFAULT_ROLES;
+	}
+
+}
+
+static void
+isp_get_pci_options(device_t dev, int *m1, int *m2)
+{
+	int bitmap;
+	int unit = device_get_unit(dev);
+
+	*m1 = PCIM_CMD_MEMEN;
+	*m2 = PCIM_CMD_PORTEN;
+	if (getenv_int("isp_mem_map", &bitmap)) {
+		if (bitmap & (1 << unit)) {
+			*m1 = PCIM_CMD_MEMEN;
+			*m2 = PCIM_CMD_PORTEN;
+		}
+	}
+	bitmap = 0;
+	if (getenv_int("isp_io_map", &bitmap)) {
+		if (bitmap & (1 << unit)) {
+			*m1 = PCIM_CMD_PORTEN;
+			*m2 = PCIM_CMD_MEMEN;
+		}
+	}
+}
+
+static void
+isp_get_specific_options(device_t dev, ispsoftc_t *isp)
+{
+
+	callout_handle_init(&isp->isp_osinfo.ldt);
+	callout_handle_init(&isp->isp_osinfo.gdt);
+
+	if (IS_SCSI(isp)) {
+		return;
+	}
+
 	if (getenv_int("isp_fcduplex", &bitmap)) {
 		if (bitmap & (1 << unit))
 			isp->isp_confopts |= ISP_CFG_FULL_DUPLEX;
@@ -505,17 +556,6 @@ isp_get_options(device_t dev, ispsoftc_t *isp)
 	}
 
 	bitmap = 0;
-	(void) getenv_int("isp_debug", &bitmap);
-	if (bitmap) {
-		isp->isp_dblev = bitmap;
-	} else {
-		isp->isp_dblev = ISP_LOGWARN|ISP_LOGERR;
-	}
-	if (bootverbose) {
-		isp->isp_dblev |= ISP_LOGCONFIG|ISP_LOGINFO;
-	}
-
-	bitmap = 0;
 	(void) getenv_int("isp_fabric_hysteresis", &bitmap);
 	if (bitmap >= 0 && bitmap < 256) {
 		isp->isp_osinfo.hysteresis = bitmap;
@@ -538,8 +578,6 @@ isp_get_options(device_t dev, ispsoftc_t *isp)
 	} else {
 		isp->isp_osinfo.gone_device_time = isp_gone_device_time;
 	}
-
-
 #ifdef	ISP_FW_CRASH_DUMP
 	bitmap = 0;
 	if (getenv_int("isp_fw_dump_enable", &bitmap)) {
@@ -561,50 +599,16 @@ isp_get_options(device_t dev, ispsoftc_t *isp)
 		}
 	}
 #endif
-	bitmap = 0;
-	if (getenv_int("role", &bitmap)) {
-		isp->isp_role = bitmap;
-	} else {
-		isp->isp_role = ISP_DEFAULT_ROLES;
-	}
-}
-
-static void
-isp_get_pci_options(device_t dev, int *m1, int *m2)
-{
-	int bitmap;
-	int unit = device_get_unit(dev);
-
-	*m1 = PCIM_CMD_MEMEN;
-	*m2 = PCIM_CMD_PORTEN;
-	if (getenv_int("isp_mem_map", &bitmap)) {
-		if (bitmap & (1 << unit)) {
-			*m1 = PCIM_CMD_MEMEN;
-			*m2 = PCIM_CMD_PORTEN;
-		}
-	}
-	bitmap = 0;
-	if (getenv_int("isp_io_map", &bitmap)) {
-		if (bitmap & (1 << unit)) {
-			*m1 = PCIM_CMD_PORTEN;
-			*m2 = PCIM_CMD_MEMEN;
-		}
-	}
 }
 #else
 static void
-isp_get_options(device_t dev, ispsoftc_t *isp)
+isp_get_generic_options(device_t dev, ispsoftc_t *isp)
 {
 	int tval;
-	const char *sptr;
-
-	callout_handle_init(&isp->isp_osinfo.ldt);
-	callout_handle_init(&isp->isp_osinfo.gdt);
 
 	/*
 	 * Figure out if we're supposed to skip this one.
 	 */
-
 	tval = 0;
 	if (resource_int_value(device_get_name(dev), device_get_unit(dev),
 	    "disable", &tval) == 0 && tval) {
@@ -637,6 +641,75 @@ isp_get_options(device_t dev, ispsoftc_t *isp)
             "ignore_nvram", &tval) == 0 && tval != 0) {
 		isp->isp_confopts |= ISP_CFG_NONVRAM;
 	}
+
+	tval = 0;
+        (void) resource_int_value(device_get_name(dev), device_get_unit(dev),
+            "debug", &tval);
+	if (tval) {
+		isp->isp_dblev = tval;
+	} else {
+		isp->isp_dblev = ISP_LOGWARN|ISP_LOGERR;
+	}
+	if (bootverbose) {
+		isp->isp_dblev |= ISP_LOGCONFIG|ISP_LOGINFO;
+	}
+
+}
+
+static void
+isp_get_pci_options(device_t dev, int *m1, int *m2)
+{
+	int tval;
+	/*
+	 * Which we should try first - memory mapping or i/o mapping?
+	 *
+	 * We used to try memory first followed by i/o on alpha, otherwise
+	 * the reverse, but we should just try memory first all the time now.
+	 */
+	*m1 = PCIM_CMD_MEMEN;
+	*m2 = PCIM_CMD_PORTEN;
+
+	tval = 0;
+        if (resource_int_value(device_get_name(dev), device_get_unit(dev),
+            "prefer_iomap", &tval) == 0 && tval != 0) {
+		*m1 = PCIM_CMD_PORTEN;
+		*m2 = PCIM_CMD_MEMEN;
+	}
+	tval = 0;
+        if (resource_int_value(device_get_name(dev), device_get_unit(dev),
+            "prefer_memmap", &tval) == 0 && tval != 0) {
+		*m1 = PCIM_CMD_MEMEN;
+		*m2 = PCIM_CMD_PORTEN;
+	}
+}
+
+static void
+isp_get_specific_options(device_t dev, ispsoftc_t *isp)
+{
+	const char *sptr;
+	int tval;
+
+	isp->isp_osinfo.default_id = -1;
+	if (resource_int_value(device_get_name(dev), device_get_unit(dev),
+            "iid", &tval) == 0) {
+		isp->isp_osinfo.default_id = tval;
+		isp->isp_confopts |= ISP_CFG_OWNLOOPID;
+	}
+	if (isp->isp_osinfo.default_id == -1) {
+		if (IS_FC(isp)) {
+			isp->isp_osinfo.default_id = 109;
+		} else {
+			isp->isp_osinfo.default_id = 7;
+		}
+	}
+
+	callout_handle_init(&isp->isp_osinfo.ldt);
+	callout_handle_init(&isp->isp_osinfo.gdt);
+
+	if (IS_SCSI(isp)) {
+		return;
+	}
+
 	tval = 0;
         if (resource_int_value(device_get_name(dev), device_get_unit(dev),
             "fullduplex", &tval) == 0 && tval != 0) {
@@ -661,7 +734,6 @@ isp_get_options(device_t dev, ispsoftc_t *isp)
 		}
 	}
 #endif
-
 	sptr = 0;
         if (resource_string_value(device_get_name(dev), device_get_unit(dev),
             "topology", (const char **) &sptr) == 0 && sptr != 0) {
@@ -718,34 +790,6 @@ isp_get_options(device_t dev, ispsoftc_t *isp)
 		isp->isp_osinfo.default_node_wwn = 0x400000007F000009ull;
 	}
 
-	isp->isp_osinfo.default_id = -1;
-	if (resource_int_value(device_get_name(dev), device_get_unit(dev),
-            "iid", &tval) == 0) {
-		isp->isp_osinfo.default_id = tval;
-		isp->isp_confopts |= ISP_CFG_OWNLOOPID;
-	}
-	if (isp->isp_osinfo.default_id == -1) {
-		if (IS_FC(isp)) {
-			isp->isp_osinfo.default_id = 109;
-		} else {
-			isp->isp_osinfo.default_id = 7;
-		}
-	}
-
-	/*
-	 * Set up logging levels.
-	 */
-	tval = 0;
-        (void) resource_int_value(device_get_name(dev), device_get_unit(dev),
-            "debug", &tval);
-	if (tval) {
-		isp->isp_dblev = tval;
-	} else {
-		isp->isp_dblev = ISP_LOGWARN|ISP_LOGERR;
-	}
-	if (bootverbose) {
-		isp->isp_dblev |= ISP_LOGCONFIG|ISP_LOGINFO;
-	}
 
 	tval = 0;
 	(void) resource_int_value(device_get_name(dev), device_get_unit(dev),
@@ -774,33 +818,6 @@ isp_get_options(device_t dev, ispsoftc_t *isp)
 		isp->isp_osinfo.gone_device_time = isp_gone_device_time;
 	}
 }
-
-static void
-isp_get_pci_options(device_t dev, int *m1, int *m2)
-{
-	int tval;
-	/*
-	 * Which we should try first - memory mapping or i/o mapping?
-	 *
-	 * We used to try memory first followed by i/o on alpha, otherwise
-	 * the reverse, but we should just try memory first all the time now.
-	 */
-	*m1 = PCIM_CMD_MEMEN;
-	*m2 = PCIM_CMD_PORTEN;
-
-	tval = 0;
-        if (resource_int_value(device_get_name(dev), device_get_unit(dev),
-            "prefer_iomap", &tval) == 0 && tval != 0) {
-		*m1 = PCIM_CMD_PORTEN;
-		*m2 = PCIM_CMD_MEMEN;
-	}
-	tval = 0;
-        if (resource_int_value(device_get_name(dev), device_get_unit(dev),
-            "prefer_memmap", &tval) == 0 && tval != 0) {
-		*m1 = PCIM_CMD_MEMEN;
-		*m2 = PCIM_CMD_PORTEN;
-	}
-}
 #endif
 
 static int
@@ -826,9 +843,9 @@ isp_pci_attach(device_t dev)
 	isp = &pcs->pci_isp;
 
 	/*
-	 * Set and Get Generic Options
+	 * Get Generic Options
 	 */
-	isp_get_options(dev, isp);
+	isp_get_generic_options(dev, isp);
 
 	/*
 	 * Check to see if options have us disabled
@@ -985,6 +1002,11 @@ isp_pci_attach(device_t dev)
 	isp->isp_type = basetype;
 	isp->isp_revision = pci_get_revid(dev);
 	isp->isp_dev = dev;
+
+	/*
+	 * Now that we know who we are (roughly) get/set specific options
+	 */
+	isp_get_specific_options(dev, isp);
 
 #if __FreeBSD_version >= 700000  
 	/*
