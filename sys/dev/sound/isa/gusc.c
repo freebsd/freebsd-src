@@ -316,7 +316,7 @@ gusc_attach(device_t dev)
 	}
 
 	if (scp->irq != NULL)
-		bus_setup_intr(dev, scp->irq, INTR_TYPE_AV, gusc_intr, scp, &ih);
+		bus_setup_intr(dev, scp->irq, INTR_TYPE_AV, NULL, gusc_intr, scp, &ih);
 	bus_generic_attach(dev);
 
 	return (0);
@@ -419,11 +419,15 @@ gusc_release_resource(device_t bus, device_t child, int type, int rid,
 
 static int
 gusc_setup_intr(device_t dev, device_t child, struct resource *irq,
-		int flags, driver_intr_t *intr, void *arg, void **cookiep)
+		int flags, driver_filter_t *filter, driver_intr_t *intr, void *arg, void **cookiep)
 {
 	sc_p scp = (sc_p)device_get_softc(dev);
 	devclass_t devclass;
 
+	if (filter != NULL) {
+		printf("gusc.c: we cannot use a filter here\n");
+		return (EINVAL);
+	}
 	devclass = device_get_devclass(child);
 	if (strcmp(devclass_get_name(devclass), "midi") == 0) {
 		scp->midi_intr.intr = intr;
@@ -434,7 +438,7 @@ gusc_setup_intr(device_t dev, device_t child, struct resource *irq,
 		scp->pcm_intr.arg = arg;
 		return 0;
 	}
-	return bus_generic_setup_intr(dev, child, irq, flags, intr,
+	return bus_generic_setup_intr(dev, child, irq, flags, filter, intr,
 				      arg, cookiep);
 }
 

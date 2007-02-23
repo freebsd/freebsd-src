@@ -958,7 +958,7 @@ my_attach(device_t dev)
 	ether_ifattach(ifp, eaddr);
 
 	error = bus_setup_intr(dev, sc->my_irq, INTR_TYPE_NET | INTR_MPSAFE,
-			       my_intr, sc, &sc->my_intrhand);
+			       NULL, my_intr, sc, &sc->my_intrhand);
 
 	if (error) {
 		device_printf(dev, "couldn't set up irq\n");

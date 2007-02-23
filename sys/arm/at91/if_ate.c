@@ -226,7 +226,7 @@ ate_attach(device_t dev)
 	 * Activate the interrupt
 	 */
 	err = bus_setup_intr(dev, sc->irq_res, INTR_TYPE_NET | INTR_MPSAFE,
-	    ate_intr, sc, &sc->intrhand);
+	    NULL, ate_intr, sc, &sc->intrhand);
 	if (err) {
 		ether_ifdetach(ifp);
 		ATE_LOCK_DESTROY(sc);

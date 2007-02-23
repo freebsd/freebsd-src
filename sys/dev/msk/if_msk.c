@@ -228,7 +228,7 @@ static int msk_attach(device_t);
 static int msk_detach(device_t);
 
 static void msk_tick(void *);
-static void msk_intr(void *);
+static int msk_intr(void *);
 static void msk_int_task(void *, int);
 static void msk_intr_phy(struct msk_if_softc *);
 static void msk_intr_gmac(struct msk_if_softc *);
@@ -1784,7 +1784,7 @@ mskc_attach(device_t dev)
 	    device_get_nameunit(sc->msk_dev));
 	/* Hook interrupt last to avoid having to lock softc. */
 	error = bus_setup_intr(dev, sc->msk_irq[0], INTR_TYPE_NET |
-	    INTR_MPSAFE | INTR_FAST, msk_intr, sc, &sc->msk_intrhand[0]);
+	    INTR_MPSAFE, msk_intr, NULL, sc, &sc->msk_intrhand[0]);
 
 	if (error != 0) {
 		device_printf(dev, "couldn't set up interrupt handler\n");
@@ -3483,7 +3483,7 @@ msk_handle_events(struct msk_softc *sc)
 	return (sc->msk_stat_cons != CSR_READ_2(sc, STAT_PUT_IDX));
 }
 
-static void
+static int
 msk_intr(void *xsc)
 {
 	struct msk_softc *sc;
@@ -3494,10 +3494,11 @@ msk_intr(void *xsc)
 	/* Reading B0_Y2_SP_ISRC2 masks further interrupts. */
 	if (status == 0 || status == 0xffffffff) {
 		CSR_WRITE_4(sc, B0_Y2_SP_ICR, 2);
-		return;
+		return (FILTER_STRAY);
 	}
 
 	taskqueue_enqueue(sc->msk_tq, &sc->msk_int_task);
+	return (FILTER_HANDLED);
 }
 
 static void

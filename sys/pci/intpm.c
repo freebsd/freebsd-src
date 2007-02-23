@@ -159,8 +159,8 @@ intsmb_attach(device_t dev)
 		goto fail;
 	}
 
-	error = bus_setup_intr(dev, sc->irq_res, INTR_TYPE_MISC, intsmb_rawintr,
-	    sc, &sc->irq_hand);
+	error = bus_setup_intr(dev, sc->irq_res, INTR_TYPE_MISC, NULL, 
+	    intsmb_rawintr, sc, &sc->irq_hand);
 	if (error) {
 		device_printf(dev, "Failed to map intr\n");
 		goto fail;

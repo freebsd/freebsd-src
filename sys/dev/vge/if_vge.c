@@ -1037,7 +1037,7 @@ vge_attach(dev)
 
 	/* Hook interrupt last to avoid having to lock softc */
 	error = bus_setup_intr(dev, sc->vge_irq, INTR_TYPE_NET|INTR_MPSAFE,
-	    vge_intr, sc, &sc->vge_intrhand);
+	    NULL, vge_intr, sc, &sc->vge_intrhand);
 
 	if (error) {
 		printf("vge%d: couldn't set up irq\n", unit);

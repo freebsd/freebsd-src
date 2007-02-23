@@ -58,7 +58,7 @@ __FBSDID("$FreeBSD$");
 static uint32_t counts_per_hz;
 
 /* callback functions for intr_functions */
-void	ixpclk_intr(void *);
+int	ixpclk_intr(void *);
 
 struct ixpclk_softc {
 	device_t		sc_dev;
@@ -182,8 +182,8 @@ cpu_initclocks(void)
 	if (!irq)
 		panic("Unable to setup the clock irq handler.\n");
 	else
-		bus_setup_intr(dev, irq, INTR_TYPE_CLK | INTR_FAST,
-		    ixpclk_intr, NULL, &ihl);
+		bus_setup_intr(dev, irq, INTR_TYPE_CLK, ixpclk_intr, NULL,
+		    NULL, &ihl);
 
 	/* Set up the new clock parameters. */
 
@@ -244,7 +244,7 @@ DELAY(int n)
  *
  *	Handle the hardclock interrupt.
  */
-void
+int
 ixpclk_intr(void *arg)
 {
 	struct ixpclk_softc* sc = ixpclk_sc;
@@ -254,6 +254,7 @@ ixpclk_intr(void *arg)
 			  OST_TIM0_INT);
 
 	hardclock(TRAPF_USERMODE(frame), TRAPF_PC(frame));
+	return (FILTER_HANDLED);
 }
 
 void

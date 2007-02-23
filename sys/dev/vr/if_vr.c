@@ -764,7 +764,7 @@ vr_attach(dev)
 
 	/* Hook interrupt last to avoid having to lock softc */
 	error = bus_setup_intr(dev, sc->vr_irq, INTR_TYPE_NET | INTR_MPSAFE,
-	    vr_intr, sc, &sc->vr_intrhand);
+	    NULL, vr_intr, sc, &sc->vr_intrhand);
 
 	if (error) {
 		device_printf(dev, "couldn't set up irq\n");

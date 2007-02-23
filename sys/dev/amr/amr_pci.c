@@ -263,7 +263,7 @@ amr_pci_attach(device_t dev)
 	goto out;
     }
     if (bus_setup_intr(sc->amr_dev, sc->amr_irq,
-	INTR_TYPE_BIO | INTR_ENTROPY | INTR_MPSAFE, amr_pci_intr,
+	INTR_TYPE_BIO | INTR_ENTROPY | INTR_MPSAFE, NULL, amr_pci_intr,
 	sc, &sc->amr_intr)) {
         device_printf(sc->amr_dev, "can't set up interrupt\n");
 	goto out;

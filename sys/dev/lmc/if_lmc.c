@@ -5700,7 +5700,7 @@ fbsd_attach(device_t dev)
     return ENXIO;
     }
   if ((error = bus_setup_intr(dev, sc->irq_res, INTR_TYPE_NET | INTR_MPSAFE,
-   bsd_interrupt, sc, &sc->irq_cookie)))
+   NULL, bsd_interrupt, sc, &sc->irq_cookie)))
     {
     printf("%s: bus_setup_intr() failed; error %d\n", NAME_UNIT, error);
     fbsd_detach(dev);

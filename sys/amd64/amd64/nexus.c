@@ -95,7 +95,8 @@ static	int nexus_deactivate_resource(device_t, device_t, int, int,
 static	int nexus_release_resource(device_t, device_t, int, int,
 				   struct resource *);
 static	int nexus_setup_intr(device_t, device_t, struct resource *, int flags,
-			     void (*)(void *), void *, void **);
+			     driver_filter_t filter, void (*)(void *), void *, 
+			     void **);
 static	int nexus_teardown_intr(device_t, device_t, struct resource *,
 				void *);
 static struct resource_list *nexus_get_reslist(device_t dev, device_t child);
@@ -417,7 +418,8 @@ nexus_release_resource(device_t bus, device_t child, int type, int rid,
  */
 static int
 nexus_setup_intr(device_t bus, device_t child, struct resource *irq,
-		 int flags, void (*ihand)(void *), void *arg, void **cookiep)
+		 int flags, driver_filter_t filter, void (*ihand)(void *), 
+		 void *arg, void **cookiep)
 {
 	int		error;
 
@@ -437,7 +439,7 @@ nexus_setup_intr(device_t bus, device_t child, struct resource *irq,
 		return (error);
 
 	error = intr_add_handler(device_get_nameunit(child),
-	    rman_get_start(irq), ihand, arg, flags, cookiep);
+	    rman_get_start(irq), filter, ihand, arg, flags, cookiep);
 
 	return (error);
 }

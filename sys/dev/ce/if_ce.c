@@ -667,7 +667,7 @@ static int ce_attach (device_t dev)
 #else
 				INTR_TYPE_NET,
 #endif
-				ce_intr, bd, &bd->ce_intrhand);
+				NULL, ce_intr, bd, &bd->ce_intrhand);
 	if (error) {
 		printf ("ce%d: cannot set up irq\n", unit);
 		bus_release_resource (dev, SYS_RES_IRQ, 0, bd->ce_irq);

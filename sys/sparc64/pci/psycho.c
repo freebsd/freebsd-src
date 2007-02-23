@@ -81,20 +81,20 @@ static const struct psycho_desc *psycho_find_desc(const struct psycho_desc *,
     const char *);
 static const struct psycho_desc *psycho_get_desc(phandle_t, const char *);
 static void psycho_set_intr(struct psycho_softc *, int, bus_addr_t, int,
-    driver_intr_t);
+    driver_filter_t);
 static int psycho_find_intrmap(struct psycho_softc *, int, bus_addr_t *,
     bus_addr_t *, u_long *);
-static void psycho_intr_stub(void *);
+static int psycho_intr_stub(void *);
 static bus_space_tag_t psycho_alloc_bus_tag(struct psycho_softc *, int);
 
 /* Interrupt handlers */
-static void psycho_ue(void *);
-static void psycho_ce(void *);
-static void psycho_pci_bus(void *);
-static void psycho_powerfail(void *);
-static void psycho_overtemp(void *);
+static int psycho_ue(void *);
+static int psycho_ce(void *);
+static int psycho_pci_bus(void *);
+static int psycho_powerfail(void *);
+static int psycho_overtemp(void *);
 #ifdef PSYCHO_MAP_WAKEUP
-static void psycho_wakeup(void *);
+static int psycho_wakeup(void *);
 #endif
 
 /* IOMMU support */
@@ -170,7 +170,7 @@ SLIST_HEAD(, psycho_softc) psycho_softcs =
 struct psycho_clr {
 	struct psycho_softc	*pci_sc;
 	bus_addr_t		pci_clr;	/* clear register */
-	driver_intr_t		*pci_handler;	/* handler to call */
+	driver_filter_t		*pci_handler;	/* handler to call */
 	void			*pci_arg;	/* argument for the handler */
 	void			*pci_cookie;	/* parent bus int. cookie */
 	device_t		pci_ppb;	/* farest PCI-PCI bridge */
@@ -216,8 +216,11 @@ struct psycho_clr {
  * On UltraII machines, there can be any number of "Psycho+" ICs, each
  * providing two PCI buses.
  */
+
+#define FAST    0x66600000 
+
 #ifdef DEBUGGER_ON_POWERFAIL
-#define	PSYCHO_PWRFAIL_INT_FLAGS	INTR_FAST
+#define	PSYCHO_PWRFAIL_INT_FLAGS	FAST
 #else
 #define	PSYCHO_PWRFAIL_INT_FLAGS	0
 #endif
@@ -507,7 +510,7 @@ psycho_attach(device_t dev)
 	 * interrupt but they are also only used for PCI bus A.
 	 */
 	psycho_set_intr(sc, 0, sc->sc_half == 0 ? PSR_PCIAERR_INT_MAP :
-	    PSR_PCIBERR_INT_MAP, INTR_FAST, psycho_pci_bus);
+	    PSR_PCIBERR_INT_MAP, FAST, psycho_pci_bus);
 
 	/*
 	 * If we're a Hummingbird/Sabre or the first of a pair of Psycho's to
@@ -523,7 +526,7 @@ psycho_attach(device_t dev)
 		 * XXX Not all controllers have these, but installing them
 		 * is better than trying to sort through this mess.
 		 */
-		psycho_set_intr(sc, 1, PSR_UE_INT_MAP, INTR_FAST, psycho_ue);
+		psycho_set_intr(sc, 1, PSR_UE_INT_MAP, FAST, psycho_ue);
 		psycho_set_intr(sc, 2, PSR_CE_INT_MAP, 0, psycho_ce);
 		psycho_set_intr(sc, 3, PSR_POWER_INT_MAP,
 		    PSYCHO_PWRFAIL_INT_FLAGS, psycho_powerfail);
@@ -538,7 +541,7 @@ psycho_attach(device_t dev)
 			 * The spare hardware interrupt is used for the
 			 * over-temperature interrupt.
 			 */
-			psycho_set_intr(sc, 4, PSR_SPARE_INT_MAP, INTR_FAST,
+			psycho_set_intr(sc, 4, PSR_SPARE_INT_MAP, FAST,
 			    psycho_overtemp);
 #ifdef PSYCHO_MAP_WAKEUP
 			/*
@@ -678,19 +681,30 @@ psycho_attach(device_t dev)
 
 static void
 psycho_set_intr(struct psycho_softc *sc, int index, bus_addr_t map, int iflags,
-    driver_intr_t handler)
+    driver_filter_t handler)
 {
-	int rid, vec;
+	int rid, vec, res;
 	uint64_t mr;
 
+	res = EINVAL;
 	rid = index;
 	mr = PSYCHO_READ8(sc, map);
 	vec = INTVEC(mr);
 	sc->sc_irq_res[index] = bus_alloc_resource(sc->sc_dev, SYS_RES_IRQ,
 	    &rid, vec, vec, 1, RF_ACTIVE);
-	if (sc->sc_irq_res[index] == NULL ||
-	    bus_setup_intr(sc->sc_dev, sc->sc_irq_res[index], INTR_TYPE_MISC |
-	    iflags, handler, sc, &sc->sc_ihand[index]) != 0)
+	if (sc->sc_irq_res[index] != NULL) {
+		if (iflags & FAST) {
+			iflags &= ~FAST;
+			res = bus_setup_intr(sc->sc_dev, sc->sc_irq_res[index],
+		            INTR_TYPE_MISC | iflags, handler, NULL, sc, 
+		            &sc->sc_ihand[index]);
+		} else
+			res = bus_setup_intr(sc->sc_dev, sc->sc_irq_res[index],
+		            INTR_TYPE_MISC | iflags, NULL, 
+			    (driver_intr_t *)handler, sc, 
+		            &sc->sc_ihand[index]);
+	}
+	if (res)
 		panic("%s: failed to set up interrupt", __func__);
 	PSYCHO_WRITE8(sc, map, INTMAP_ENABLE(mr, PCPU_GET(mid)));
 }
@@ -749,7 +763,7 @@ psycho_find_intrmap(struct psycho_softc *sc, int ino, bus_addr_t *intrmapptr,
 /*
  * Interrupt handlers
  */
-static void
+static int
 psycho_ue(void *arg)
 {
 	struct psycho_softc *sc = arg;
@@ -767,9 +781,10 @@ psycho_ue(void *arg)
 		iommu_decode_fault(sc->sc_is, afar);
 	panic("%s: uncorrectable DMA error AFAR %#lx AFSR %#lx",
 	    device_get_name(sc->sc_dev), (u_long)afar, (u_long)afsr);
+	return (FILTER_HANDLED);
 }
 
-static void
+static int
 psycho_ce(void *arg)
 {
 	struct psycho_softc *sc = arg;
@@ -782,9 +797,10 @@ psycho_ce(void *arg)
 	/* Clear the error bits that we caught. */
 	PSYCHO_WRITE8(sc, PSR_CE_AFS, afsr & CEAFSR_ERRMASK);
 	PSYCHO_WRITE8(sc, PSR_CE_INT_CLR, 0);
+	return (FILTER_HANDLED);
 }
 
-static void
+static int
 psycho_pci_bus(void *arg)
 {
 	struct psycho_softc *sc = arg;
@@ -795,9 +811,10 @@ psycho_pci_bus(void *arg)
 	panic("%s: PCI bus %c error AFAR %#lx AFSR %#lx",
 	    device_get_name(sc->sc_dev), 'A' + sc->sc_half, (u_long)afar,
 	    (u_long)afsr);
+	return (FILTER_HANDLED);
 }
 
-static void
+static int
 psycho_powerfail(void *arg)
 {
 
@@ -810,18 +827,20 @@ psycho_powerfail(void *arg)
 	printf("Power Failure Detected: Shutting down NOW.\n");
 	shutdown_nice(0);
 #endif
+	return (FILTER_HANDLED);
 }
 
-static void
+static int
 psycho_overtemp(void *arg)
 {
 
 	printf("DANGER: OVER TEMPERATURE detected.\nShutting down NOW.\n");
 	shutdown_nice(RB_POWEROFF);
+	return (FILTER_HANDLED);
 }
 
 #ifdef PSYCHO_MAP_WAKEUP
-static void
+static int
 psycho_wakeup(void *arg)
 {
 	struct psycho_softc *sc = arg;
@@ -829,6 +848,7 @@ psycho_wakeup(void *arg)
 	PSYCHO_WRITE8(sc, PSR_PWRMGT_INT_CLR, 0);
 	/* Gee, we don't really have a framework to deal with this properly. */
 	device_printf(sc->sc_dev, "power management wakeup\n");
+	return (FILTER_HANDLED);
 }
 #endif /* PSYCHO_MAP_WAKEUP */
 
@@ -988,7 +1008,7 @@ psycho_read_ivar(device_t dev, device_t child, int which, uintptr_t *result)
 }
 
 /* Write to the correct clr register, and call the actual handler. */
-static void
+static int
 psycho_intr_stub(void *arg)
 {
 	struct psycho_clr *pc = arg;
@@ -1000,11 +1020,13 @@ psycho_intr_stub(void *arg)
 	}
 	pc->pci_handler(pc->pci_arg);
 	PSYCHO_WRITE8(pc->pci_sc, pc->pci_clr, 0);
+	return (FILTER_HANDLED);
 }
 
 static int
 psycho_setup_intr(device_t dev, device_t child, struct resource *ires,
-    int flags, driver_intr_t *intr, void *arg, void **cookiep)
+    int flags, driver_filter_t *filt, driver_intr_t *intr, void *arg, 
+    void **cookiep)
 {
 	struct {
 		int apb:1;
@@ -1018,6 +1040,9 @@ psycho_setup_intr(device_t dev, device_t child, struct resource *ires,
 	long vec;
 	uint64_t mr;
 	int error, ino;
+
+	if (filt != NULL && intr != NULL)
+		return (EINVAL);
 
 	sc = device_get_softc(dev);
 	pc = malloc(sizeof(*pc), M_DEVBUF, M_NOWAIT | M_ZERO);
@@ -1048,7 +1073,7 @@ psycho_setup_intr(device_t dev, device_t child, struct resource *ires,
 
 	pc->pci_sc = sc;
 	pc->pci_arg = arg;
-	pc->pci_handler = intr;
+	pc->pci_handler = (filt != NULL) ? filt : (driver_filter_t *)intr;
 	pc->pci_clr = intrclrptr;
 
 	/*
@@ -1104,8 +1129,12 @@ psycho_setup_intr(device_t dev, device_t child, struct resource *ires,
 	/* Disable the interrupt while we fiddle with it. */
 	mr = PSYCHO_READ8(sc, intrmapptr);
 	PSYCHO_WRITE8(sc, intrmapptr, mr & ~INTMAP_V);
-	error = BUS_SETUP_INTR(device_get_parent(dev), child, ires, flags,
-	    psycho_intr_stub, pc, cookiep);
+	if (filt != NULL)
+		error = BUS_SETUP_INTR(device_get_parent(dev), child, ires, flags,
+		    psycho_intr_stub, NULL, pc, cookiep);
+	else
+		error = BUS_SETUP_INTR(device_get_parent(dev), child, ires, flags,
+		    NULL, (driver_intr_t *)psycho_intr_stub, pc, cookiep);
 	if (error != 0) {
 		free(pc, M_DEVBUF);
 		return (error);

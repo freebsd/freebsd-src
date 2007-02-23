@@ -58,8 +58,8 @@ int		openpic_attach(device_t);
 struct resource	*openpic_allocate_intr(device_t, device_t, int *,
 			    u_long, u_int);
 int		openpic_setup_intr(device_t, device_t,
-			    struct resource *, int, driver_intr_t, void *,
-			    void **);
+			    struct resource *, int, driver_filter_t, 
+			    driver_intr_t, void *, void **);
 int		openpic_teardown_intr(device_t, device_t,
 			    struct resource *, void *);
 int		openpic_release_intr(device_t dev, device_t, int,

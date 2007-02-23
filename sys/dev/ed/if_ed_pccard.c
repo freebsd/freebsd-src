@@ -478,7 +478,7 @@ ed_pccard_attach(device_t dev)
 		goto bad;
 
 	error = bus_setup_intr(dev, sc->irq_res, INTR_TYPE_NET | INTR_MPSAFE,
-	    edintr, sc, &sc->irq_handle);
+	    NULL, edintr, sc, &sc->irq_handle);
 	if (error) {
 		device_printf(dev, "setup intr failed %d \n", error);
 		goto bad;

@@ -2460,7 +2460,7 @@ amd_attach(device_t dev)
 					RF_SHAREABLE | RF_ACTIVE);
 	if (irqres == NULL ||
 	    bus_setup_intr(dev, irqres, INTR_TYPE_CAM | INTR_ENTROPY,
-	    amd_intr, amd, &ih)) {
+	    NULL, amd_intr, amd, &ih)) {
 		if (bootverbose)
 			printf("amd%d: unable to register interrupt handler!\n",
 			       unit);

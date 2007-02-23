@@ -256,7 +256,7 @@ sbsh_attach(device_t dev)
 	init_card(sc);
 
 	error = bus_setup_intr(dev, sc->irq_res, INTR_TYPE_NET,
-				sbsh_intr, sc, &sc->intr_hand);
+				NULL, sbsh_intr, sc, &sc->intr_hand);
 	if (error) {
 		bus_release_resource(dev, SYS_RES_IRQ, 0, sc->irq_res);
 		bus_release_resource(dev, SYS_RES_MEMORY,

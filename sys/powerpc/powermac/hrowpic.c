@@ -79,8 +79,8 @@ static int		hrowpic_attach(device_t);
 static struct resource	*hrowpic_allocate_intr(device_t, device_t, int *,
                             u_long, u_int);
 static int		hrowpic_setup_intr(device_t, device_t,
-                            struct resource *, int, driver_intr_t, void *,
-                            void **);
+                            struct resource *, int, driver_filter_t, 
+			    driver_intr_t, void *, void **);
 static int		hrowpic_teardown_intr(device_t, device_t,
                             struct resource *, void *);
 static int		hrowpic_release_intr(device_t dev, device_t, int,
@@ -221,7 +221,8 @@ hrowpic_allocate_intr(device_t picdev, device_t child, int *rid, u_long intr,
 
 static int
 hrowpic_setup_intr(device_t picdev, device_t child, struct resource *res,
-    int flags, driver_intr_t *intr, void *arg, void **cookiep)
+    int flags, driver_filter_t *filt, driver_intr_t *intr, void *arg, 
+    void **cookiep)
 {
 	struct  hrowpic_softc *sc;
 	u_long start;
@@ -240,7 +241,7 @@ hrowpic_setup_intr(device_t picdev, device_t child, struct resource *res,
 	if (error)
 		return (error);
 
-	error = inthand_add(device_get_nameunit(child), start, intr, arg,
+	error = inthand_add(device_get_nameunit(child), start, filt, intr, arg,
 	    flags, cookiep);
 
 	if (!error) {

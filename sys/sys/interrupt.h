@@ -34,6 +34,7 @@
 
 struct intr_event;
 struct intr_thread;
+struct trapframe;
 
 /*
  * Describe a hardware interrupt handler.
@@ -42,6 +43,7 @@ struct intr_thread;
  * together.
  */
 struct intr_handler {
+	driver_filter_t	*ih_filter;	/* Filter function. */
 	driver_intr_t	*ih_handler;	/* Handler function. */
 	void		*ih_argument;	/* Argument to pass to handler. */
 	int		 ih_flags;
@@ -53,7 +55,6 @@ struct intr_handler {
 };
 
 /* Interrupt handle flags kept in ih_flags */
-#define	IH_FAST		0x00000001	/* Fast interrupt. */
 #define	IH_EXCLUSIVE	0x00000002	/* Exclusive interrupt. */
 #define	IH_ENTROPY	0x00000004	/* Device is a good entropy source. */
 #define	IH_DEAD		0x00000008	/* Handler should be removed. */
@@ -111,10 +112,11 @@ extern char 	intrnames[];	/* string table containing device names */
 #ifdef DDB
 void	db_dump_intr_event(struct intr_event *ie, int handlers);
 #endif
+int     intr_event_handle(struct intr_event *ie, struct trapframe *frame);
 u_char	intr_priority(enum intr_type flags);
 int	intr_event_add_handler(struct intr_event *ie, const char *name,
-	    driver_intr_t handler, void *arg, u_char pri, enum intr_type flags,
-	    void **cookiep);
+	    driver_filter_t filter, driver_intr_t handler, void *arg, 
+	    u_char pri, enum intr_type flags, void **cookiep);	    
 int	intr_event_create(struct intr_event **event, void *source,
 	    int flags, void (*enable)(void *), const char *fmt, ...)
 	    __printflike(5, 6);

@@ -342,7 +342,7 @@ fwohci_pci_attach(device_t self)
 #else
 			INTR_TYPE_NET,
 #endif
-		     (driver_intr_t *) fwohci_intr, sc, &sc->ih);
+		     NULL, (driver_intr_t *) fwohci_intr, sc, &sc->ih);
 #if defined(__DragonFly__) || __FreeBSD_version < 500000
 	/* XXX splcam() should mask this irq for sbp.c*/
 	err = bus_setup_intr(self, sc->irq_res, INTR_TYPE_CAM,

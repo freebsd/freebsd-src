@@ -81,7 +81,7 @@ static	int nexus_activate_resource(device_t, device_t, int, int,
 	struct resource *);
 static int
 nexus_setup_intr(device_t dev, device_t child, struct resource *res, int flags,
-        driver_intr_t *intr, void *arg, void **cookiep);
+        driver_filter_t *filt, driver_intr_t *intr, void *arg, void **cookiep);
 static int
 nexus_teardown_intr(device_t, device_t, struct resource *, void *);
 
@@ -125,13 +125,13 @@ nexus_probe(device_t dev)
 
 static int
 nexus_setup_intr(device_t dev, device_t child, struct resource *res, int flags,
-    driver_intr_t *intr, void *arg, void **cookiep)
+    driver_filter_t *filt, driver_intr_t *intr, void *arg, void **cookiep)
 {
 	int i;
 
 	for (i = rman_get_start(res); i <= rman_get_end(res); i++)
 		arm_setup_irqhandler(device_get_nameunit(child), 
-		    intr, arg, i, flags, cookiep);
+		    filt, intr, arg, i, flags, cookiep);
 	return (0);
 }
 

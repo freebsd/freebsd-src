@@ -8954,7 +8954,7 @@ static int sym_cam_attach(hcb_p np)
 	 *  Establish our interrupt handler.
 	 */
 	err = bus_setup_intr(np->device, np->irq_res,
-			     INTR_TYPE_CAM | INTR_ENTROPY, sym_intr, np,
+			     INTR_TYPE_CAM | INTR_ENTROPY, NULL, sym_intr, np,
 			     &np->intr);
 	if (err) {
 		device_printf(np->device, "bus_setup_intr() failed: %d\n",

@@ -409,7 +409,7 @@ nfe_attach(device_t dev)
 	ether_ifattach(ifp, sc->eaddr);
 
 	error = bus_setup_intr(dev, sc->nfe_irq, INTR_TYPE_NET | INTR_MPSAFE,
-	    nfe_intr, sc, &sc->nfe_intrhand);
+	    NULL, nfe_intr, sc, &sc->nfe_intrhand);
 
 	if (error) {
 		printf("nfe%d: couldn't set up irq\n", unit);

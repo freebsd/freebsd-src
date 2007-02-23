@@ -187,7 +187,7 @@ nsp_pccard_attach(device_t dev)
 		return(ENXIO);
 	}
 	error = bus_setup_intr(dev, sc->irq_res, INTR_TYPE_CAM | INTR_ENTROPY,
-			       nsp_pccard_intr, (void *)sc, &sc->nsp_intrhand);
+			       NULL, nsp_pccard_intr, (void *)sc, &sc->nsp_intrhand);
 	if (error) {
 		nsp_release_resource(dev);
 		return(error);

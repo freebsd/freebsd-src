@@ -1929,7 +1929,7 @@ hpt_attach(device_t dev)
 		return(ENXIO);
 	}
 
-	if(bus_setup_intr(pAdapter->hpt_dev, pAdapter->hpt_irq, INTR_TYPE_CAM, hpt_intr, pAdapter, &pAdapter->hpt_intr))
+	if(bus_setup_intr(pAdapter->hpt_dev, pAdapter->hpt_irq, INTR_TYPE_CAM, NULL, hpt_intr, pAdapter, &pAdapter->hpt_intr))
 	{
 		hpt_printk(("can't set up interrupt\n"));
 		free(pAdapter, M_DEVBUF);

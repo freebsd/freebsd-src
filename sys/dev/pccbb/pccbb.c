@@ -358,7 +358,8 @@ cbb_detach(device_t brdev)
 
 int
 cbb_setup_intr(device_t dev, device_t child, struct resource *irq,
-  int flags, driver_intr_t *intr, void *arg, void **cookiep)
+  int flags, driver_filter_t *filt, driver_intr_t *intr, void *arg,
+   void **cookiep)
 {
 	struct cbb_intrhand *ih;
 	struct cbb_softc *sc = device_get_softc(dev);
@@ -370,7 +371,7 @@ cbb_setup_intr(device_t dev, device_t child, struct resource *irq,
 	 * least common denominator until the base system supports mixing
 	 * and matching better.
 	 */
-	if ((flags & INTR_FAST) != 0)
+	if (filt != NULL)
 		return (EINVAL);
 	ih = malloc(sizeof(struct cbb_intrhand), M_DEVBUF, M_NOWAIT);
 	if (ih == NULL)
@@ -384,7 +385,7 @@ cbb_setup_intr(device_t dev, device_t child, struct resource *irq,
 	 * XXX for now that's all we need to do.
 	 */
 	err = BUS_SETUP_INTR(device_get_parent(dev), child, irq, flags,
-	    cbb_func_intr, ih, &ih->cookie);
+	    NULL, cbb_func_intr, ih, &ih->cookie);
 	if (err != 0) {
 		free(ih, M_DEVBUF);
 		return (err);

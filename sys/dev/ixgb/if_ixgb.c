@@ -1268,7 +1268,7 @@ ixgb_allocate_pci_resources(struct adapter * adapter)
 	}
 	if (bus_setup_intr(dev, adapter->res_interrupt,
 			   INTR_TYPE_NET | INTR_MPSAFE,
-			   (void (*) (void *))ixgb_intr, adapter,
+			   NULL, (void (*) (void *))ixgb_intr, adapter,
 			   &adapter->int_handler_tag)) {
 		printf("ixgb%d: Error registering interrupt handler!\n",
 		       adapter->unit);

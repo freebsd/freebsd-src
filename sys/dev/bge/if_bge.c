@@ -2505,7 +2505,7 @@ again:
 	 * Hookup IRQ last.
 	 */
 	error = bus_setup_intr(dev, sc->bge_irq, INTR_TYPE_NET | INTR_MPSAFE,
-	   bge_intr, sc, &sc->bge_intrhand);
+	   NULL, bge_intr, sc, &sc->bge_intrhand);
 
 	if (error) {
 		bge_detach(dev);

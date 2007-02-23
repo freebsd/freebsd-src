@@ -228,7 +228,8 @@ openpic_allocate_intr(device_t dev, device_t child, int *rid, u_long intr,
 
 int
 openpic_setup_intr(device_t dev, device_t child, struct resource *res,
-    int flags, driver_intr_t *intr, void *arg, void **cookiep)
+    int flags, driver_filter_t *filt, driver_intr_t *intr, void *arg, 
+    void **cookiep)
 {
 	struct	openpic_softc *sc;
 	u_long	start;
@@ -253,7 +254,7 @@ openpic_setup_intr(device_t dev, device_t child, struct resource *res,
 	if (error)
 		return (error);
 
-	error = inthand_add(device_get_nameunit(child), start, intr, arg,
+	error = inthand_add(device_get_nameunit(child), start, filt, intr, arg,
 	    flags, cookiep);
 
 	if (sc->sc_hwprobed)

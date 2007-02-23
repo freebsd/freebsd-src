@@ -303,7 +303,7 @@ arl_isa_attach (device_t dev)
 	arl_alloc_irq(dev, sc->irq_rid, 0);
 
 	error = bus_setup_intr(dev, sc->irq_res, INTR_TYPE_NET,
-			       arl_intr, sc, &sc->irq_handle);
+			       NULL, arl_intr, sc, &sc->irq_handle);
 	if (error) {
 		arl_release_resources(dev);
 		return (error);

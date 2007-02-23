@@ -67,9 +67,9 @@ static int	saost_probe(device_t);
 static int	saost_attach(device_t);
 
 int		gettick(void);
-static void	clockintr(void *);
+static int	clockintr(void *);
 #if 0
-static void	statintr(void *);
+static int	statintr(void *);
 #endif
 void		rtcinit(void);
 
@@ -141,7 +141,7 @@ saost_attach(device_t dev)
 
 }
 
-static void
+static int
 clockintr(arg)
 	void *arg;
 {
@@ -184,10 +184,11 @@ clockintr(arg)
 #if 0
 	mtx_unlock_spin(&clock_lock);
 #endif
+	return (FILTER_HANDLED);
 }
 
 #if 0
-static void
+static int
 statintr(arg)
 	void *arg;
 {
@@ -227,7 +228,7 @@ statintr(arg)
 
 	saost_sc->sc_statclock_count = nextmatch;
 	statclock(TRAPF_USERMODE(frame));
-
+	return (FILTER_HANDLED);
 }
 #endif
 
@@ -271,10 +272,10 @@ cpu_initclocks()
 	rid = 1;
 	irq2 = bus_alloc_resource(dev, SYS_RES_IRQ, &rid, 0, ~0, 1,
 	    RF_ACTIVE);
-	bus_setup_intr(dev, irq1, INTR_TYPE_CLK | INTR_FAST, clockintr, NULL,
+	bus_setup_intr(dev, irq1, INTR_TYPE_CLK, clockintr, NULL, NULL,
 	    &ih1);
 #if 0
-	bus_setup_intr(dev, irq2, INTR_TYPE_CLK | INTR_FAST, statintr, NULL
+	bus_setup_intr(dev, irq2, INTR_TYPE_CLK, statintr, NULL, NULL,
 	    ,&ih2);
 #endif
 	bus_space_write_4(saost_sc->sc_iot, saost_sc->sc_ioh, SAOST_SR, 0xf);

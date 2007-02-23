@@ -304,8 +304,8 @@ rc_attach(device_t dev)
 		ttycreate(tp, TS_CALLOUT, "m%d", chan + base);
 	}
 
-	error = bus_setup_intr(dev, sc->sc_irq, INTR_TYPE_TTY, rc_intr, sc,
-	    &sc->sc_hwicookie);
+	error = bus_setup_intr(dev, sc->sc_irq, INTR_TYPE_TTY, NULL, rc_intr,
+	    sc, &sc->sc_hwicookie);
 	if (error) {
 		device_printf(dev, "failed to register interrupt handler\n");
 		goto fail;

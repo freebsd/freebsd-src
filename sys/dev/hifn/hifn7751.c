@@ -530,7 +530,7 @@ hifn_attach(device_t dev)
 	 *     so make sure the IRQ is marked appropriately.
 	 */
 	if (bus_setup_intr(dev, sc->sc_irq, INTR_TYPE_NET | INTR_MPSAFE,
-			   hifn_intr, sc, &sc->sc_intrhand)) {
+			   NULL, hifn_intr, sc, &sc->sc_intrhand)) {
 		device_printf(dev, "could not setup interrupt\n");
 		goto fail_intr2;
 	}

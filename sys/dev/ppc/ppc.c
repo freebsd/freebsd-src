@@ -1822,7 +1822,7 @@ ppc_attach(device_t dev)
 	if (ppc->res_irq) {
 		/* default to the tty mask for registration */	/* XXX */
 		if (bus_setup_intr(dev, ppc->res_irq, INTR_TYPE_TTY,
-		    ppcintr, dev, &ppc->intr_cookie) == 0) {
+		    NULL, ppcintr, dev, &ppc->intr_cookie) == 0) {
 
 			/* remember the ppcintr is registered */
 			ppc->ppc_registered = 1;
@@ -1963,7 +1963,7 @@ ppc_read_ivar(device_t bus, device_t dev, int index, uintptr_t *val)
  */
 int
 ppc_setup_intr(device_t bus, device_t child, struct resource *r, int flags,
-			void (*ihand)(void *), void *arg, void **cookiep)
+			driver_filter_t *filt, void (*ihand)(void *), void *arg, void **cookiep)
 {
 	int error;
 	struct ppc_data *ppc = DEVTOSOFTC(bus);
@@ -1985,7 +1985,7 @@ ppc_setup_intr(device_t bus, device_t child, struct resource *r, int flags,
 
 	/* pass registration to the upper layer, ignore the incoming resource */
 	return (BUS_SETUP_INTR(device_get_parent(bus), child,
-			       r, flags, ihand, arg, cookiep));
+			       r, flags, filt, ihand, arg, cookiep));
 }
 
 /*
@@ -2006,7 +2006,7 @@ ppc_teardown_intr(device_t bus, device_t child, struct resource *r, void *ih)
 	/* default to the tty mask for registration */		/* XXX */
 	if (ppc->ppc_irq &&
 		!(error = BUS_SETUP_INTR(parent, bus, ppc->res_irq,
-			INTR_TYPE_TTY, ppcintr, bus, &ppc->intr_cookie))) {
+			INTR_TYPE_TTY, NULL, ppcintr, bus, &ppc->intr_cookie))) {
 
 		/* remember the ppcintr is registered */
 		ppc->ppc_registered = 1;

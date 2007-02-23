@@ -59,7 +59,7 @@ struct puc_port {
 
 	int		p_hasintr:1;
 
-	driver_intr_t	*p_ih;
+	driver_filter_t	*p_ih;
 	serdev_intr_t	*p_ihsrc[PUC_ISRCCNT];
 	void		*p_iharg;
 
@@ -125,7 +125,7 @@ puc_get_bar(struct puc_softc *sc, int rid)
 	return (bar);
 }
 
-static void
+static int
 puc_intr(void *arg)
 {
 	struct puc_port *port;
@@ -183,7 +183,9 @@ puc_intr(void *arg)
 			if (port->p_ihsrc[i] != NULL)
 				(*port->p_ihsrc[i])(port->p_iharg);
 		}
+		return (FILTER_HANDLED);
 	}
+	return (FILTER_STRAY);
 }
 
 int
@@ -312,11 +314,11 @@ puc_bfe_attach(device_t dev)
 	    RF_ACTIVE|RF_SHAREABLE);
 	if (sc->sc_ires != NULL) {
 		error = bus_setup_intr(dev, sc->sc_ires,
-		    INTR_TYPE_TTY | INTR_FAST, puc_intr, sc, &sc->sc_icookie);
+		    INTR_TYPE_TTY, puc_intr, NULL, sc, &sc->sc_icookie);
 		if (error)
 			error = bus_setup_intr(dev, sc->sc_ires,
-			    INTR_TYPE_TTY | INTR_MPSAFE, puc_intr, sc,
-			    &sc->sc_icookie);
+			    INTR_TYPE_TTY | INTR_MPSAFE, NULL,
+			    (driver_intr_t *)puc_intr, sc, &sc->sc_icookie);
 		else
 			sc->sc_fastintr = 1;
 
@@ -583,7 +585,7 @@ puc_bus_get_resource(device_t dev, device_t child, int type, int rid,
 
 int
 puc_bus_setup_intr(device_t dev, device_t child, struct resource *res,
-    int flags, void (*ihand)(void *), void *arg, void **cookiep)
+    int flags, driver_filter_t *filt, void (*ihand)(void *), void *arg, void **cookiep)
 {
 	struct puc_port *port;
 	struct puc_softc *sc;
@@ -602,7 +604,7 @@ puc_bus_setup_intr(device_t dev, device_t child, struct resource *res,
 	port = device_get_ivars(child);
 	KASSERT(port != NULL, ("%s %d", __func__, __LINE__));
 
-	if (ihand == NULL || cookiep == NULL || res != port->p_ires)
+	if (filt == NULL || cookiep == NULL || res != port->p_ires)
 		return (EINVAL);
 	if (rman_get_device(port->p_ires) != originator)
 		return (ENXIO);
@@ -624,16 +626,16 @@ puc_bus_setup_intr(device_t dev, device_t child, struct resource *res,
 	}
 	if (!serdev)
 		return (BUS_SETUP_INTR(device_get_parent(dev), originator,
-		    sc->sc_ires, flags, ihand, arg, cookiep));
+		    sc->sc_ires, flags, filt, ihand, arg, cookiep));
 
 	/* We demand that serdev devices use fast interrupts. */
-	if (!(flags & INTR_FAST))
+	if (filt == NULL)
 		return (ENXIO);
 
 	sc->sc_serdevs |= 1UL << (port->p_nr - 1);
 
 	port->p_hasintr = 1;
-	port->p_ih = ihand;
+	port->p_ih = filt;
 	port->p_iharg = arg;
 
 	*cookiep = port;

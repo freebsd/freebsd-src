@@ -1226,7 +1226,7 @@ sis_attach(device_t dev)
 
 	/* Hook interrupt last to avoid having to lock softc */
 	error = bus_setup_intr(dev, sc->sis_res[1], INTR_TYPE_NET | INTR_MPSAFE,
-	    sis_intr, sc, &sc->sis_intrhand);
+	    NULL, sis_intr, sc, &sc->sis_intrhand);
 
 	if (error) {
 		device_printf(dev, "couldn't set up irq\n");

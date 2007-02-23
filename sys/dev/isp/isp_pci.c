@@ -1170,7 +1170,7 @@ isp_pci_attach(device_t dev)
 	locksetup++;
 #endif
 
-	if (bus_setup_intr(dev, irq, ISP_IFLAGS, isp_pci_intr, isp, &pcs->ih)) {
+	if (bus_setup_intr(dev, irq, ISP_IFLAGS, NULL, isp_pci_intr, isp, &pcs->ih)) {
 		device_printf(dev, "could not setup interrupt\n");
 		goto bad;
 	}

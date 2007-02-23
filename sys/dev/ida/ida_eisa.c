@@ -324,7 +324,7 @@ ida_eisa_attach(device_t dev)
 	}
 
 	error = bus_setup_intr(dev, ida->irq, INTR_TYPE_BIO | INTR_ENTROPY,
-	    ida_intr, ida, &ida->ih);
+	    NULL, ida_intr, ida, &ida->ih);
 	if (error) {
 		device_printf(dev, "can't setup interrupt\n");
 		ida_free(ida);

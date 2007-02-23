@@ -3596,7 +3596,7 @@ trm_attach(device_t dev)
 	    RF_SHAREABLE | RF_ACTIVE);
     	if (pACB->irq == NULL ||
 	    bus_setup_intr(dev, pACB->irq, 
-	    INTR_TYPE_CAM, trm_Interrupt, pACB, &pACB->ih)) {
+	    INTR_TYPE_CAM, NULL, trm_Interrupt, pACB, &pACB->ih)) {
 		printf("trm%d: register Interrupt handler error!\n", unit);
 		goto bad;
 	}

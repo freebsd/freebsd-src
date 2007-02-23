@@ -130,7 +130,8 @@ static int ips_pci_attach(device_t dev)
                 device_printf(dev, "irq allocation failed\n");
                 goto error;
         }
-	if(bus_setup_intr(dev, sc->irqres, INTR_TYPE_BIO|INTR_MPSAFE, sc->ips_adapter_intr, sc, &sc->irqcookie)){
+	if(bus_setup_intr(dev, sc->irqres, INTR_TYPE_BIO|INTR_MPSAFE, NULL, 
+	    sc->ips_adapter_intr, sc, &sc->irqcookie)){
                 device_printf(dev, "irq setup failed\n");
                 goto error;
         }

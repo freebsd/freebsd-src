@@ -133,7 +133,7 @@ static devclass_t i80321_timer_devclass;
 
 DRIVER_MODULE(itimer, iq, i80321_timer_driver, i80321_timer_devclass, 0, 0);
 
-void	clockhandler(void *);
+int	clockhandler(void *);
 
 
 static __inline uint32_t
@@ -336,8 +336,8 @@ cpu_initclocks(void)
 	if (!irq)
 		panic("Unable to setup the clock irq handler.\n");
 	else
-		bus_setup_intr(dev, irq, INTR_TYPE_CLK | INTR_FAST, 
-		    clockhandler, NULL, &ihl);
+		bus_setup_intr(dev, irq, INTR_TYPE_CLK, clockhandler, NULL, 
+		    NULL, &ihl);
 	tmr0_write(0);			/* stop timer */
 	tisr_write(TISR_TMR0);		/* clear interrupt */
 
@@ -401,7 +401,7 @@ DELAY(int n)
  *
  *	Handle the hardclock interrupt.
  */
-void
+int
 clockhandler(void *arg)
 {
 	struct trapframe *frame = arg;
@@ -412,7 +412,7 @@ clockhandler(void *arg)
 
 	if (i80321_hardclock_hook != NULL)
 		(*i80321_hardclock_hook)();
-	return;
+	return (FILTER_HANDLED);
 }
 
 void

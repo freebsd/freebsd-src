@@ -360,7 +360,7 @@ mfi_attach(struct mfi_softc *sc)
 		return (EINVAL);
 	}
 	if (bus_setup_intr(sc->mfi_dev, sc->mfi_irq, INTR_MPSAFE|INTR_TYPE_BIO,
-	    mfi_intr, sc, &sc->mfi_intr)) {
+	    NULL, mfi_intr, sc, &sc->mfi_intr)) {
 		device_printf(sc->mfi_dev, "Cannot set up interrupt\n");
 		return (EINVAL);
 	}

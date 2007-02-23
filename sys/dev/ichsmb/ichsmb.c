@@ -125,7 +125,7 @@ ichsmb_attach(device_t dev)
 
 	/* Set up interrupt handler */
 	error = bus_setup_intr(dev, sc->irq_res, INTR_TYPE_MISC,
-	    ichsmb_device_intr, sc, &sc->irq_handle);
+	    NULL, ichsmb_device_intr, sc, &sc->irq_handle);
 	if (error != 0) {
 		device_printf(dev, "can't setup irq\n");
 		goto fail;

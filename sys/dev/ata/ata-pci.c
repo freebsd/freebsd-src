@@ -339,17 +339,21 @@ ata_pci_release_resource(device_t dev, device_t child, int type, int rid,
 
 int
 ata_pci_setup_intr(device_t dev, device_t child, struct resource *irq, 
-		   int flags, driver_intr_t *function, void *argument,
-		   void **cookiep)
+		   int flags, driver_filter_t *filter, driver_intr_t *function, 
+		   void *argument, void **cookiep)
 {
     if (ata_legacy(dev)) {
 	return BUS_SETUP_INTR(device_get_parent(dev), child, irq,
-			      flags, function, argument, cookiep);
+			      flags, filter, function, argument, cookiep);
     }
     else {
 	struct ata_pci_controller *controller = device_get_softc(dev);
 	int unit = ((struct ata_channel *)device_get_softc(child))->unit;
 
+	if (filter != NULL) {
+		printf("ata-pci.c: we cannot use a filter here\n");
+		return (EINVAL);
+	}
 	controller->interrupt[unit].function = function;
 	controller->interrupt[unit].argument = argument;
 	*cookiep = controller;

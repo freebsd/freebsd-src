@@ -76,7 +76,7 @@ struct scc_mode {
 	int		m_probed:1;
 	int		m_sysdev:1;
 
-	driver_intr_t	*ih;
+	driver_filter_t	*ih;
 	serdev_intr_t	*ih_src[SCC_ISRCCNT];
 	void		*ih_arg;
 };
@@ -146,7 +146,7 @@ int scc_bus_get_resource(device_t, device_t, int, int, u_long *, u_long *);
 int scc_bus_read_ivar(device_t, device_t, int, uintptr_t *);
 int scc_bus_release_resource(device_t, device_t, int, int, struct resource *);
 int scc_bus_setup_intr(device_t, device_t, struct resource *, int,
-    void (*)(void *), void *, void **);
+    driver_filter_t *, void (*)(void *), void *, void **);
 int scc_bus_teardown_intr(device_t, device_t, struct resource *, void *);
 
 #endif /* _DEV_SCC_BFE_H_ */

@@ -259,7 +259,7 @@ ar_attach(device_t device)
 	arc_init(hc);
 
 	if(bus_setup_intr(device, hc->res_irq,
-	    INTR_TYPE_NET, arintr, hc, &hc->intr_cookie) != 0)
+	    INTR_TYPE_NET, NULL, arintr, hc, &hc->intr_cookie) != 0)
 		return (1);
 
 	sc = hc->sc;

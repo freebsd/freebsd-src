@@ -254,7 +254,8 @@ twe_attach(device_t dev)
 	twe_free(sc);
 	return(ENXIO);
     }
-    if (bus_setup_intr(sc->twe_dev, sc->twe_irq, INTR_TYPE_BIO | INTR_ENTROPY,  twe_pci_intr, sc, &sc->twe_intr)) {
+    if (bus_setup_intr(sc->twe_dev, sc->twe_irq, INTR_TYPE_BIO | INTR_ENTROPY,  
+		       NULL, twe_pci_intr, sc, &sc->twe_intr)) {
 	twe_printf(sc, "can't set up interrupt\n");
 	twe_free(sc);
 	return(ENXIO);
