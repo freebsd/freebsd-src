@@ -46,6 +46,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/lock.h>
 #include <sys/mutex.h>
 #include <sys/sysctl.h>
+#include <sys/kthread.h>
 
 #ifdef PC98
 #include <pc98/pc98/pc98_machdep.h>	/* geometry translation */
@@ -1412,10 +1413,50 @@ cam_module_event_handler(module_t mod, int what, void *arg)
 	return 0;
 }
 
+/* thread to handle bus rescans */
+static TAILQ_HEAD(, ccb_hdr) ccb_scanq;
+static void
+xpt_scanner_thread(void *dummy)
+{
+	mtx_lock(&Giant);
+	for (;;) {
+		union ccb *ccb;
+		tsleep(&ccb_scanq, PRIBIO, "ccb_scanq", 0);
+		while ((ccb = (union ccb *)TAILQ_FIRST(&ccb_scanq)) != NULL) {
+			TAILQ_REMOVE(&ccb_scanq, &ccb->ccb_h, sim_links.tqe);
+			ccb->ccb_h.func_code = XPT_SCAN_BUS;
+			ccb->ccb_h.cbfcnp = xptdone;
+			xpt_setup_ccb(&ccb->ccb_h, ccb->ccb_h.path, 5);
+			cam_periph_runccb(ccb, NULL, 0, 0, NULL);
+			xpt_free_path(ccb->ccb_h.path);
+			xpt_free_ccb(ccb);
+		}
+	}
+}
+
+void
+xpt_rescan(union ccb *ccb)
+{
+	struct ccb_hdr *hdr;
+	GIANT_REQUIRED;
+	/*
+	 * Don't make duplicate entries for the same paths.
+	 */
+	TAILQ_FOREACH(hdr, &ccb_scanq, sim_links.tqe) {
+		if (xpt_path_comp(hdr->path, ccb->ccb_h.path) == 0) {
+			xpt_print(ccb->ccb_h.path, "rescan already queued\n");
+			xpt_free_path(ccb->ccb_h.path);
+			xpt_free_ccb(ccb);
+			return;
+		}
+	}
+	TAILQ_INSERT_TAIL(&ccb_scanq, &ccb->ccb_h, sim_links.tqe);
+	wakeup(&ccb_scanq);
+}
+
 /* Functions accessed by the peripheral drivers */
 static void
-xpt_init(dummy)
-	void *dummy;
+xpt_init(void *dummy)
 {
 	struct cam_sim *xpt_sim;
 	struct cam_path *path;
@@ -1425,6 +1466,7 @@ xpt_init(dummy)
 	TAILQ_INIT(&xpt_busses);
 	TAILQ_INIT(&cam_bioq);
 	SLIST_INIT(&ccb_freeq);
+	TAILQ_INIT(&ccb_scanq);
 	STAILQ_INIT(&highpowerq);
 
 	mtx_init(&cam_bioq_lock, "CAM BIOQ lock", NULL, MTX_DEF);
@@ -1490,6 +1532,10 @@ xpt_init(dummy)
 		       "- failing attach\n");
 	}
 
+	/* fire up rescan thread */
+	if (kthread_create(xpt_scanner_thread, NULL, NULL, 0, 0, "xpt_thrd")) {
+		printf("xpt_init: failed to create rescan thread\n");
+	}
 	/* Install our software interrupt handlers */
 	swi_add(NULL, "cambio", camisr, &cam_bioq, SWI_CAMBIO, 0, &cambio_ih);
 }
@@ -4453,8 +4499,7 @@ xptnextfreepathid(void)
 	bus = TAILQ_FIRST(&xpt_busses);
 retry:
 	/* Find an unoccupied pathid */
-	while (bus != NULL
-	    && bus->path_id <= pathid) {
+	while (bus != NULL && bus->path_id <= pathid) {
 		if (bus->path_id == pathid)
 			pathid++;
 		bus = TAILQ_NEXT(bus, links);

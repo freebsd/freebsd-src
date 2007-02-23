@@ -72,6 +72,7 @@ struct cam_sim		*xpt_path_sim(struct cam_path *path);
 struct cam_periph	*xpt_path_periph(struct cam_path *path);
 void			xpt_async(u_int32_t async_code, struct cam_path *path,
 				  void *async_arg);
+void			xpt_rescan(union ccb *ccb);
 #endif /* _KERNEL */
 
 #endif /* _CAM_CAM_XPT_H */
