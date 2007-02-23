@@ -143,6 +143,7 @@ ffs_alloc(ip, lbn, bpref, size, cred, bnp)
 	int cg, reclaimed;
 	static struct timeval lastfail;
 	static int curfail;
+	int64_t delta;
 #ifdef QUOTA
 	int error;
 #endif
@@ -183,7 +184,13 @@ retry:
 		cg = dtog(fs, bpref);
 	bno = ffs_hashalloc(ip, cg, bpref, size, ffs_alloccg);
 	if (bno > 0) {
-		DIP_SET(ip, i_blocks, DIP(ip, i_blocks) + btodb(size));
+		delta = btodb(size);
+		if (ip->i_flag & IN_SPACECOUNTED) {
+			UFS_LOCK(ump);
+			fs->fs_pendingblocks += delta;
+			UFS_UNLOCK(ump);
+		}
+		DIP_SET(ip, i_blocks, DIP(ip, i_blocks) + delta);
 		ip->i_flag |= IN_CHANGE | IN_UPDATE;
 		*bnp = bno;
 		return (0);
@@ -237,6 +244,7 @@ ffs_realloccg(ip, lbprev, bprev, bpref, osize, nsize, cred, bpp)
 	ufs2_daddr_t bno;
 	static struct timeval lastfail;
 	static int curfail;
+	int64_t delta;
 
 	*bpp = 0;
 	vp = ITOV(ip);
@@ -302,7 +310,13 @@ retry:
 	if (bno) {
 		if (bp->b_blkno != fsbtodb(fs, bno))
 			panic("ffs_realloccg: bad blockno");
-		DIP_SET(ip, i_blocks, DIP(ip, i_blocks) + btodb(nsize - osize));
+		delta = btodb(nsize - osize);
+		if (ip->i_flag & IN_SPACECOUNTED) {
+			UFS_LOCK(ump);
+			fs->fs_pendingblocks += delta;
+			UFS_UNLOCK(ump);
+		}
+		DIP_SET(ip, i_blocks, DIP(ip, i_blocks) + delta);
 		ip->i_flag |= IN_CHANGE | IN_UPDATE;
 		allocbuf(bp, nsize);
 		bp->b_flags |= B_DONE;
@@ -371,7 +385,13 @@ retry:
 			ffs_blkfree(ump, fs, ip->i_devvp,
 			    bno + numfrags(fs, nsize),
 			    (long)(request - nsize), ip->i_number);
-		DIP_SET(ip, i_blocks, DIP(ip, i_blocks) + btodb(nsize - osize));
+		delta = btodb(nsize - osize);
+		if (ip->i_flag & IN_SPACECOUNTED) {
+			UFS_LOCK(ump);
+			fs->fs_pendingblocks += delta;
+			UFS_UNLOCK(ump);
+		}
+		DIP_SET(ip, i_blocks, DIP(ip, i_blocks) + delta);
 		ip->i_flag |= IN_CHANGE | IN_UPDATE;
 		allocbuf(bp, nsize);
 		bp->b_flags |= B_DONE;
@@ -2431,6 +2451,11 @@ sysctl_ffs_fsck(SYSCTL_HANDLER_ARGS)
 		if ((error = ffs_vget(mp, (ino_t)cmd.value, LK_EXCLUSIVE, &vp)))
 			break;
 		ip = VTOI(vp);
+		if (ip->i_flag & IN_SPACECOUNTED) {
+			UFS_LOCK(ump);
+			fs->fs_pendingblocks += cmd.size;
+			UFS_UNLOCK(ump);
+		}
 		DIP_SET(ip, i_blocks, DIP(ip, i_blocks) + cmd.size);
 		ip->i_flag |= IN_CHANGE;
 		vput(vp);
