@@ -39,32 +39,14 @@
  * Experiment with a partition-like model.
  */
 
-#include <sys/types.h>
 #include <sys/param.h>
-#include <sys/conf.h>
 #include <sys/kernel.h>
-#include <sys/mount.h>
+#include <sys/module.h>
 #include <sys/priv.h>
 #include <sys/proc.h>
 #include <sys/sbuf.h>
 #include <sys/systm.h>
-#include <sys/sysproto.h>
-#include <sys/sysent.h>
-#include <sys/vnode.h>
-#include <sys/file.h>
-#include <sys/socket.h>
-#include <sys/socketvar.h>
-#include <sys/sx.h>
 #include <sys/sysctl.h>
-
-#include <fs/devfs/devfs.h>
-
-#include <net/bpfdesc.h>
-#include <net/if.h>
-#include <net/if_types.h>
-#include <net/if_var.h>
-
-#include <vm/vm.h>
 
 #include <security/mac/mac_policy.h>
 #include <security/mac_partition/mac_partition.h>
