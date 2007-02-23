@@ -573,7 +573,7 @@ wlattach(device_t device)
 	printf(", Freq %d MHz",sc->freq24); 		/* 2.4 Gz       */
     printf("\n");                                       /* 2.4 Gz       */
 
-    bus_setup_intr(device, sc->res_irq, INTR_TYPE_NET, wlintr, sc, &sc->intr_cookie);
+    bus_setup_intr(device, sc->res_irq, INTR_TYPE_NET, NULL, wlintr, sc, &sc->intr_cookie);
 
     if (bootverbose)
 	wldump(sc);

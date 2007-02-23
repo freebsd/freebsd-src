@@ -516,7 +516,7 @@ avm_pnp_attach(device_t dev)
 	/* not needed */
 	sc->sc_irq = rman_get_start(sc->sc_resources.irq);
 	bus_setup_intr(dev,sc->sc_resources.irq,INTR_TYPE_NET,
-				(void(*)(void*))avm_pnp_intr, sc,&ih);
+				NULL, (void(*)(void*))avm_pnp_intr, sc,&ih);
 	sc->sc_unit = unit;
 
 	/* end of new-bus stuff */

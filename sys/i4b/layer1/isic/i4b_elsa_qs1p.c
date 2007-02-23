@@ -325,7 +325,7 @@ eqs1p_pci_attach(device_t dev)
 	}
 
 	if(bus_setup_intr(dev, sc->sc_resources.irq, INTR_TYPE_NET,
-				(void(*)(void*))isicintr,
+				NULL, (void(*)(void*))isicintr,
 				sc, &ih))
 	{
 		printf("isic%d: Couldn't set up irq for ELSA MicroLink ISDN/PCI!\n", unit);

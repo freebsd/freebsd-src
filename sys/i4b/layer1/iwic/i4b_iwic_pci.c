@@ -231,7 +231,7 @@ iwic_pci_attach(device_t dev)
 	sc->enabled = FALSE;
 	
 	if(bus_setup_intr(dev, sc->sc_resources.irq, INTR_TYPE_NET,
-				(void(*)(void*))iwic_pci_intr,
+				NULL, (void(*)(void*))iwic_pci_intr,
 				sc, &ih))
 	{
 		printf("iwic%d: Couldn't set up irq!\n", unit);
