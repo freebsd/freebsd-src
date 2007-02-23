@@ -258,6 +258,13 @@ struct mpt_map_info {
 };
 
 void mpt_map_rquest(void *, bus_dma_segment_t *, int, int);
+/* **************************** NewBUS interrupt Crock ************************/
+#if __FreeBSD_version < 700031
+#define	mpt_setup_intr(d, i, f, U, if, ifa, hp)	\
+	bus_setup_intr(d, i, f, if, ifa, hp)
+#else
+#define	mpt_setup_intr	bus_setup_intr
+#endif
 
 /**************************** Kernel Thread Support ***************************/
 #if __FreeBSD_version > 500005
