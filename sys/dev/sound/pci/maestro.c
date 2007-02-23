@@ -1791,7 +1791,7 @@ agg_attach(device_t dev)
 #endif
 
 	ess->bufsz = pcm_getbuffersize(dev, 4096, AGG_DEFAULT_BUFSZ, 65536);
-	if (bus_dma_tag_create(/*parent*/ NULL,
+	if (bus_dma_tag_create(/*parent*/ bus_get_dma_tag(dev),
 			       /*align */ 4, 1 << (16+1),
 			       /*limit */ MAESTRO_MAXADDR, BUS_SPACE_MAXADDR,
 			       /*filter*/ NULL, NULL,
@@ -1806,7 +1806,7 @@ agg_attach(device_t dev)
 		goto bad;
 	}
 
-	if (bus_dma_tag_create(/*parent*/NULL,
+	if (bus_dma_tag_create(/*parent*/ bus_get_dma_tag(dev),
 			       /*align */ 1 << WAVCACHE_BASEADDR_SHIFT,
 			                  1 << (16+1),
 			       /*limit */ MAESTRO_MAXADDR, BUS_SPACE_MAXADDR,

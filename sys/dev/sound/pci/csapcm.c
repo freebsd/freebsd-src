@@ -704,7 +704,9 @@ csa_allocres(struct csa_info *csa, device_t dev)
 		if (resp->irq == NULL)
 			return (1);
 	}
-	if (bus_dma_tag_create(/*parent*/NULL, /*alignment*/CS461x_BUFFSIZE, /*boundary*/CS461x_BUFFSIZE,
+	if (bus_dma_tag_create(/*parent*/bus_get_dma_tag(dev),
+			       /*alignment*/CS461x_BUFFSIZE,
+			       /*boundary*/CS461x_BUFFSIZE,
 			       /*lowaddr*/BUS_SPACE_MAXADDR_32BIT,
 			       /*highaddr*/BUS_SPACE_MAXADDR,
 			       /*filter*/NULL, /*filterarg*/NULL,
