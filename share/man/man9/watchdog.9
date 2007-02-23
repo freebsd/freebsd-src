@@ -61,12 +61,12 @@ argument be set to zero.
 If the watchdog cannot be configured to the proposed timeout, it
 must be disabled and the
 .Fa error
-+argument set to
-+.Dv EINVAL .
-+If the watchdog cannot be disabled, the
-+.Fa error
-+argument must be set to 
-+.Dv EOPNOTSUPP .
+argument set to
+.Dv EINVAL .
+If the watchdog cannot be disabled, the
+.Fa error
+argument must be set to 
+.Dv EOPNOTSUPP .
 .Pp
 There is no specification of what the watchdog should do when it
 times out, but a hardware reset or similar
