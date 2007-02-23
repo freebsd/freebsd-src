@@ -281,7 +281,7 @@ isic_probe_itkix1(device_t dev)
 
 	bus_setup_intr(dev, sc->sc_resources.irq,
 			INTR_TYPE_NET,
-			(void(*)(void *))(isicintr),
+			NULL, (void(*)(void *))(isicintr),
 			sc, &ih);
 
 	#if defined(ITK_PROBE_DEBUG)

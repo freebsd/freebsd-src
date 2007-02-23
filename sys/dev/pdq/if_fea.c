@@ -235,7 +235,7 @@ pdq_eisa_attach (dev)
 	}
 
 	error = bus_setup_intr(dev, sc->irq, INTR_TYPE_NET,
-		               pdq_eisa_ifintr, dev, &sc->irq_ih);
+		               NULL, pdq_eisa_ifintr, dev, &sc->irq_ih);
 	if (error) {
 		device_printf(dev, "Failed to setup interrupt handler.\n");
 		error = ENXIO;
