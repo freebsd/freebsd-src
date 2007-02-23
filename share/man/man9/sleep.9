@@ -31,6 +31,7 @@
 .Sh NAME
 .Nm msleep ,
 .Nm msleep_spin ,
+.Nm pause ,
 .Nm tsleep ,
 .Nm wakeup
 .Nd wait for events
@@ -39,11 +40,13 @@
 .In sys/systm.h
 .In sys/proc.h
 .Ft int
-.Fn tsleep "void *chan" "int priority" "const char *wmesg" "int timo"
-.Ft int
 .Fn msleep "void *chan" "struct mtx *mtx" "int priority" "const char *wmesg" "int timo"
 .Ft int
 .Fn msleep_spin "void *chan" "struct mtx *mtx" "const char *wmesg" "int timo"
+.Ft void
+.Fn pause "const char *wmesg" "int timo"
+.Ft int
+.Fn tsleep "void *chan" "int priority" "const char *wmesg" "int timo"
 .Ft void
 .Fn wakeup "void *chan"
 .Ft void
@@ -53,6 +56,7 @@ The functions
 .Fn tsleep ,
 .Fn msleep ,
 .Fn msleep_spin ,
+.Fn pause ,
 .Fn wakeup ,
 and
 .Fn wakeup_one
@@ -61,12 +65,13 @@ If a thread must wait for an
 external event, it is put to sleep by
 .Fn tsleep ,
 .Fn msleep ,
+.Fn msleep_spin ,
 or
-.Fn msleep_spin .
+.Fn pause .
 The parameter
 .Fa chan
 is an arbitrary address that uniquely identifies the event on which
-the thread is being asleep.
+the thread is being put to sleep.
 All threads sleeping on a single
 .Fa chan
 are woken up later by
@@ -184,6 +189,16 @@ and it does not support the
 and
 .Dv PCATCH
 flags.
+.Pp
+The
+.Fn pause
+function is a wrapper around
+.Fn tsleep
+that suspends execution of the current thread for the indicated timeout.
+The thread can not be awakened early by signals or calls to
+.Fn wakeup
+or
+.Fn wakeup_one.
 .Sh RETURN VALUES
 See above.
 .Sh SEE ALSO
@@ -210,6 +225,10 @@ function appeared in
 .Fx 5.0 ,
 and the
 .Fn msleep_spin
+function appeared in
+.Fx 6.2 .
+.The
+.Fn pause
 function appeared in
 .Fx 7.0 .
 .Pp
