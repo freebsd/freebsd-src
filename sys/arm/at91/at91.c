@@ -543,14 +543,14 @@ at91_release_resource(device_t dev, device_t child, int type,
 
 static int
 at91_setup_intr(device_t dev, device_t child,
-    struct resource *ires, int flags, driver_intr_t *intr, void *arg,
-    void **cookiep)
+    struct resource *ires, int flags, driver_filter_t *filt, 
+    driver_intr_t *intr, void *arg, void **cookiep)    
 {
 	struct at91_softc *sc = device_get_softc(dev);
 
 	if (rman_get_start(ires) == AT91RM92_IRQ_SYSTEM && !(flags & INTR_FAST))
 		panic("All system interrupt ISRs must be type INTR_FAST");
-	BUS_SETUP_INTR(device_get_parent(dev), child, ires, flags, intr, arg,
+	BUS_SETUP_INTR(device_get_parent(dev), child, ires, flags, filt, intr, arg,
 	    cookiep);
 	bus_space_write_4(sc->sc_st, sc->sc_sys_sh, IC_IECR,
 	    1 << rman_get_start(ires));

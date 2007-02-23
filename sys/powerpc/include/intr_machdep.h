@@ -45,8 +45,8 @@ struct ppc_intr_handler {
 
 void	intr_init(void (*)(void), int, void (*)(uintptr_t), void (*)(uintptr_t));
 void	intr_setup(u_int, ih_func_t *, void *, u_int);
-int	inthand_add(const char *, u_int, void (*)(void *), void *, int,
-	    void **);
+int	inthand_add(const char *, u_int, driver_filter_t *filter, 
+	void (*)(void *), void *, int, void **);
 int	inthand_remove(u_int, void *);
 void	intr_handle(u_int);
 

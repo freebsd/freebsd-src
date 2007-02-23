@@ -135,7 +135,7 @@ envctrl_attach(device_t dev)
 
 	rv = bus_setup_intr(dev, sc->res_irq,
 			    INTR_TYPE_NET /* | INTR_ENTROPY */,
-			    pcf_intr, sc, &sc->intr_cookie);
+			    NULL, pcf_intr, sc, &sc->intr_cookie);
 	if (rv) {
 		device_printf(dev, "could not setup IRQ\n");
 		goto error;

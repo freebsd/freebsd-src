@@ -310,8 +310,8 @@ ixp425_alloc_resource(device_t dev, device_t child, int type, int *rid,
 
 static int
 ixp425_setup_intr(device_t dev, device_t child,
-    struct resource *ires, int flags, driver_intr_t *intr, void *arg,
-    void **cookiep)
+    struct resource *ires, int flags, driver_filter_t *filt, 
+    driver_intr_t *intr, void *arg, void **cookiep)    
 {
 	uint32_t mask;
 	int i;
@@ -324,8 +324,8 @@ ixp425_setup_intr(device_t dev, device_t child,
 			rman_set_start(ires, IXP425_INT_UART1);
 		rman_set_end(ires, rman_get_start(ires));
 	}
-	BUS_SETUP_INTR(device_get_parent(dev), child, ires, flags, intr, arg,
-	    cookiep);
+	BUS_SETUP_INTR(device_get_parent(dev), child, ires, flags, filt, intr,
+	     arg, cookiep);
 
 	mask = 0;
 	for (i = rman_get_start(ires); i <= rman_get_end(ires); i++)

@@ -387,8 +387,8 @@ isa_release_resource(device_t bus, device_t child, int type, int rid,
 
 int
 isa_setup_intr(device_t dev, device_t child,
-	       struct resource *irq, int flags,
-	       driver_intr_t *intr, void *arg, void **cookiep)
+	       struct resource *irq, int flags, driver_filter_t *filter, 
+	       driver_intr_t *intr, void *arg, void **cookiep)	       
 {
 
 	/*
@@ -397,8 +397,8 @@ isa_setup_intr(device_t dev, device_t child,
 	 * The interrupt had been routed before it was added to the
 	 * resource list of the child.
 	 */
-	return (BUS_SETUP_INTR(device_get_parent(dev), child, irq, flags, intr,
-	    arg, cookiep));
+	return (BUS_SETUP_INTR(device_get_parent(dev), child, irq, flags,
+	    filter, intr, arg, cookiep));
 }
 
 int

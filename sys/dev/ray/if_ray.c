@@ -3749,7 +3749,7 @@ ray_res_alloc_irq(struct ray_softc *sc)
 		return (ENOMEM);
 	}
 	if ((error = bus_setup_intr(sc->dev, sc->irq_res, INTR_TYPE_NET,
-	    ray_intr, sc, &sc->irq_handle)) != 0) {
+	    NULL, ray_intr, sc, &sc->irq_handle)) != 0) {
 		RAY_PRINTF(sc, "Failed to setup irq");
 		return (error);
 	}

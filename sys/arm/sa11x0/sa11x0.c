@@ -91,14 +91,14 @@ static struct resource *sa1110_alloc_resource(device_t, device_t, int, int *,
 static int sa1110_activate_resource(device_t, device_t, int, int,
         struct resource *);
 static int sa1110_setup_intr(device_t, device_t, struct resource *, int,
-        driver_intr_t *, void *, void **);
+        driver_filter_t *, driver_intr_t *, void *, void **);
 
 struct sa11x0_softc *sa11x0_softc; /* There can be only one. */
 
 static int
 sa1110_setup_intr(device_t dev, device_t child,
-        struct resource *ires,  int flags, driver_intr_t *intr, void *arg,
-	    void **cookiep)
+        struct resource *ires,  int flags, driver_filter_t *filt, 
+	driver_intr_t *intr, void *arg, void **cookiep)
 {
 	int saved_cpsr;
 	
@@ -113,7 +113,7 @@ sa1110_setup_intr(device_t dev, device_t child,
 	saved_cpsr = SetCPSR(I32_bit, I32_bit);                 
 
 	SetCPSR(I32_bit, saved_cpsr & I32_bit);
-	BUS_SETUP_INTR(device_get_parent(dev), child, ires, flags, intr, arg,
+	BUS_SETUP_INTR(device_get_parent(dev), child, ires, flags, filt, intr, arg,
 	    cookiep);
 	return (0);
 }

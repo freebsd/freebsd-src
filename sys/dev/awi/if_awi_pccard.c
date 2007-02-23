@@ -239,7 +239,7 @@ awi_pccard_enable(struct awi_softc *sc)
 
 	if (psc->sc_intrhand == 0) {
 		error = bus_setup_intr(dev, psc->sc_irq_res, INTR_TYPE_NET,
-		    (void (*)(void *))awi_intr, sc, &psc->sc_intrhand);
+		    NULL, (void (*)(void *))awi_intr, sc, &psc->sc_intrhand);
 		if (error) {
 			device_printf(dev,
 			    "couldn't establish interrupt error=%d\n", error);

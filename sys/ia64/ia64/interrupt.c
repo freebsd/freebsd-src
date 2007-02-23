@@ -283,8 +283,9 @@ ia64_send_eoi(uintptr_t vector)
 }
 
 int
-ia64_setup_intr(const char *name, int irq, driver_intr_t handler, void *arg,
-		enum intr_type flags, void **cookiep, volatile long *cntp)
+ia64_setup_intr(const char *name, int irq, driver_filter_t filter, 
+		driver_intr_t handler, void *arg, enum intr_type flags, 
+		void **cookiep, volatile long *cntp)		
 {
 	struct ia64_intr *i;
 	int errcode;
@@ -331,7 +332,7 @@ ia64_setup_intr(const char *name, int irq, driver_intr_t handler, void *arg,
 	}
 
 	/* Second, add this handler. */
-	errcode = intr_event_add_handler(i->event, name, handler, arg,
+	errcode = intr_event_add_handler(i->event, name, filter, handler, arg,
 	    intr_priority(flags), flags, cookiep);
 	if (errcode)
 		return errcode;
@@ -381,13 +382,13 @@ ia64_dispatch_intr(void *frame, unsigned long vector)
 	thread = 0;
 	critical_enter();
 	TAILQ_FOREACH(ih, &ie->ie_handlers, ih_next) {
-		if (!(ih->ih_flags & IH_FAST)) {
+		if (ih->ih_filter == NULL) {
 			thread = 1;
 			continue;
 		}
 		CTR4(KTR_INTR, "%s: exec %p(%p) for %s", __func__,
-		    ih->ih_handler, ih->ih_argument, ih->ih_name);
-		ih->ih_handler(ih->ih_argument);
+		    ih->ih_filter, ih->ih_argument, ih->ih_name);
+		ih->ih_filter(ih->ih_argument);
 	}
 	critical_exit();
 

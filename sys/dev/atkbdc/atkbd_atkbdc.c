@@ -136,7 +136,7 @@ atkbdattach(device_t dev)
 					  RF_SHAREABLE | RF_ACTIVE);
 	if (sc->intr == NULL)
 		return ENXIO;
-	error = bus_setup_intr(dev, sc->intr, INTR_TYPE_TTY, atkbdintr,
+	error = bus_setup_intr(dev, sc->intr, INTR_TYPE_TTY, NULL, atkbdintr,
 			       kbd, &sc->ih);
 	if (error)
 		bus_release_resource(dev, SYS_RES_IRQ, rid, sc->intr);

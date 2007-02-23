@@ -1606,7 +1606,7 @@ done:
 	ether_ifattach(ifp, eaddr);
 
 	error = bus_setup_intr(dev, sc->xl_irq, INTR_TYPE_NET | INTR_MPSAFE,
-	    xl_intr, sc, &sc->xl_intrhand);
+	    NULL, xl_intr, sc, &sc->xl_intrhand);
 	if (error) {
 		device_printf(dev, "couldn't set up irq\n");
 		ether_ifdetach(ifp);

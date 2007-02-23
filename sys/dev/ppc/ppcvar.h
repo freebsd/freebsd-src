@@ -40,7 +40,7 @@ u_char ppc_io(device_t, int, u_char *, int, u_char);
 int ppc_exec_microseq(device_t, struct ppb_microseq **);
 
 int ppc_setup_intr(device_t, device_t, struct resource *, int,
-		void (*)(void *), void *, void **);
+		driver_filter_t *filt, void (*)(void *), void *, void **);
 int ppc_teardown_intr(device_t, device_t, struct resource *, void *);
 void ppc_reset_epp(device_t);
 void ppc_ecp_sync(device_t);

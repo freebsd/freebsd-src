@@ -401,7 +401,7 @@ upa_alloc_resource(device_t dev, device_t child, int type, int *rid,
 
 static int
 upa_setup_intr(device_t dev, device_t child, struct resource *ires, int flags,
-    driver_intr_t *func, void *arg, void **cookiep)
+    driver_filter_t *filt, driver_intr_t *func, void *arg, void **cookiep)
 {
 	struct upa_softc *sc;
 	uint64_t intrmap;
@@ -427,7 +427,7 @@ upa_setup_intr(device_t dev, device_t child, struct resource *ires, int flags,
 
 	UPA_WRITE(sc, imr, 0x0, intrmap & ~INTMAP_V);
 	(void)UPA_READ(sc, imr, 0x0);
-	error = bus_generic_setup_intr(dev, child, ires, flags, func, arg,
+	error = bus_generic_setup_intr(dev, child, ires, flags, filt, func, arg,
 	    cookiep);
 	if (error != 0)
 		return (error);

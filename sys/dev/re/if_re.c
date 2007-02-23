@@ -241,7 +241,7 @@ static void re_txeof		(struct rl_softc *);
 static void re_poll		(struct ifnet *, enum poll_cmd, int);
 static void re_poll_locked	(struct ifnet *, enum poll_cmd, int);
 #endif
-static void re_intr		(void *);
+static int re_intr		(void *);
 static void re_tick		(void *);
 static void re_tx_task		(void *, int);
 static void re_int_task		(void *, int);
@@ -1318,8 +1318,8 @@ re_attach(dev)
 #endif
 
 	/* Hook interrupt last to avoid having to lock softc */
-	error = bus_setup_intr(dev, sc->rl_irq, INTR_TYPE_NET | INTR_MPSAFE |
-	    INTR_FAST, re_intr, sc, &sc->rl_intrhand);
+	error = bus_setup_intr(dev, sc->rl_irq, INTR_TYPE_NET | INTR_MPSAFE, 
+	    re_intr, NULL, sc, &sc->rl_intrhand);
 	if (error) {
 		device_printf(dev, "couldn't set up irq\n");
 		ether_ifdetach(ifp);
@@ -1927,7 +1927,7 @@ re_poll_locked(struct ifnet *ifp, enum poll_cmd cmd, int count)
 }
 #endif /* DEVICE_POLLING */
 
-static void
+static int
 re_intr(arg)
 	void			*arg;
 {
@@ -1938,12 +1938,12 @@ re_intr(arg)
 
 	status = CSR_READ_2(sc, RL_ISR);
 	if (status == 0xFFFF || (status & RL_INTRS_CPLUS) == 0)
-                return;
+                return (FILTER_STRAY);
 	CSR_WRITE_2(sc, RL_IMR, 0);
 
 	taskqueue_enqueue_fast(taskqueue_fast, &sc->rl_inttask);
 
-	return;
+	return (FILTER_HANDLED);
 }
 
 static void

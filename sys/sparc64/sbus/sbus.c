@@ -181,7 +181,7 @@ struct sbus_softc {
 struct sbus_clr {
 	struct sbus_softc	*scl_sc;
 	bus_addr_t		scl_clr;	/* clear register */
-	driver_intr_t		*scl_handler;	/* handler to call */
+	driver_filter_t		*scl_handler;	/* handler to call */
 	void			*scl_arg;	/* argument for the handler */
 	void			*scl_cookie;	/* parent bus int. cookie */
 };
@@ -209,10 +209,10 @@ static int sbus_inlist(const char *, const char **);
 static struct sbus_devinfo * sbus_setup_dinfo(device_t, struct sbus_softc *,
     phandle_t);
 static void sbus_destroy_dinfo(struct sbus_devinfo *);
-static void sbus_intr_stub(void *);
+static int sbus_intr_stub(void *);
 static bus_space_tag_t sbus_alloc_bustag(struct sbus_softc *);
-static void sbus_overtemp(void *);
-static void sbus_pwrfail(void *);
+static int sbus_overtemp(void *);
+static int sbus_pwrfail(void *);
 static int sbus_print_res(struct sbus_devinfo *);
 
 static device_method_t sbus_methods[] = {
@@ -433,8 +433,8 @@ sbus_attach(device_t dev)
 	sc->sc_ot_ires = bus_alloc_resource(dev, SYS_RES_IRQ, &rid, vec,
 	    vec, 1, RF_ACTIVE);
 	if (sc->sc_ot_ires == NULL ||
-	    bus_setup_intr(dev, sc->sc_ot_ires, INTR_TYPE_MISC | INTR_FAST,
-	    sbus_overtemp, sc, &sc->sc_ot_ihand) != 0)
+	    bus_setup_intr(dev, sc->sc_ot_ires, INTR_TYPE_MISC,
+	    sbus_overtemp, NULL, sc, &sc->sc_ot_ihand) != 0)
 		panic("%s: failed to set up temperature interrupt", __func__);
 	SYSIO_WRITE8(sc, SBR_THERM_INT_MAP, INTMAP_ENABLE(mr, PCPU_GET(mid)));
 	rid = 0;
@@ -443,8 +443,8 @@ sbus_attach(device_t dev)
 	sc->sc_pf_ires = bus_alloc_resource(dev, SYS_RES_IRQ, &rid, vec,
 	    vec, 1, RF_ACTIVE);
 	if (sc->sc_pf_ires == NULL ||
-	    bus_setup_intr(dev, sc->sc_pf_ires, INTR_TYPE_MISC | INTR_FAST,
-	    sbus_pwrfail, sc, &sc->sc_pf_ihand) != 0)
+	    bus_setup_intr(dev, sc->sc_pf_ires, INTR_TYPE_MISC,
+	    sbus_pwrfail, NULL, sc, &sc->sc_pf_ihand) != 0)
 		panic("%s: failed to set up power fail interrupt", __func__);
 	SYSIO_WRITE8(sc, SBR_POWER_INT_MAP, INTMAP_ENABLE(mr, PCPU_GET(mid)));
 
@@ -637,7 +637,7 @@ sbus_get_resource_list(device_t dev, device_t child)
 }
 
 /* Write to the correct clr register, and call the actual handler. */
-static void
+static int
 sbus_intr_stub(void *arg)
 {
 	struct sbus_clr *scl;
@@ -645,11 +645,12 @@ sbus_intr_stub(void *arg)
 	scl = (struct sbus_clr *)arg;
 	scl->scl_handler(scl->scl_arg);
 	SYSIO_WRITE8(scl->scl_sc, scl->scl_clr, 0);
+	return (FILTER_HANDLED);
 }
 
 static int
 sbus_setup_intr(device_t dev, device_t child, struct resource *ires, int flags,
-    driver_intr_t *intr, void *arg, void **cookiep)
+    driver_filter_t *filt, driver_intr_t *intr, void *arg, void **cookiep)
 {
 	struct sbus_softc *sc;
 	struct sbus_clr *scl;
@@ -659,6 +660,8 @@ sbus_setup_intr(device_t dev, device_t child, struct resource *ires, int flags,
 	int error, i;
 	long vec;
 
+	if (filt != NULL && intr != NULL)
+		return (EINVAL);
 	sc = device_get_softc(dev);
 	scl = (struct sbus_clr *)malloc(sizeof(*scl), M_DEVBUF, M_NOWAIT);
 	if (scl == NULL)
@@ -697,12 +700,17 @@ sbus_setup_intr(device_t dev, device_t child, struct resource *ires, int flags,
 
 	scl->scl_sc = sc;
 	scl->scl_arg = arg;
-	scl->scl_handler = intr;
+	scl->scl_handler = (filt != NULL) ? filt : (driver_filter_t *)intr;
 	scl->scl_clr = intrclrptr;
 	/* Disable the interrupt while we fiddle with it */
 	SYSIO_WRITE8(sc, intrmapptr, intrmap & ~INTMAP_V);
-	error = BUS_SETUP_INTR(device_get_parent(dev), child, ires, flags,
-	    sbus_intr_stub, scl, cookiep);
+	if (filt != NULL)
+		error = BUS_SETUP_INTR(device_get_parent(dev), child, ires, 
+		    flags, sbus_intr_stub, NULL, scl, cookiep);
+	else 
+		error = BUS_SETUP_INTR(device_get_parent(dev), child, ires, 
+		    flags, NULL, (driver_intr_t *)sbus_intr_stub, scl, 
+		    cookiep);
 	if (error != 0) {
 		free(scl, M_DEVBUF);
 		return (error);
@@ -913,21 +921,23 @@ sbus_get_devinfo(device_t bus, device_t child)
  * This handles the interrupt and powers off the machine.
  * The same needs to be done to PCI controller drivers.
  */
-static void
+static int
 sbus_overtemp(void *arg)
 {
 
 	printf("DANGER: OVER TEMPERATURE detected\nShutting down NOW.\n");
 	shutdown_nice(RB_POWEROFF);
+	return (FILTER_HANDLED);
 }
 
 /* Try to shut down in time in case of power failure. */
-static void
+static int
 sbus_pwrfail(void *arg)
 {
 
 	printf("Power failure detected\nShutting down NOW.\n");
 	shutdown_nice(0);
+	return (FILTER_HANDLED);
 }
 
 static bus_space_tag_t

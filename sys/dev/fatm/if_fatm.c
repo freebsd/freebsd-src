@@ -3060,7 +3060,7 @@ fatm_attach(device_t dev)
 #endif
 
 	error = bus_setup_intr(dev, sc->irqres, INTR_TYPE_NET | INTR_MPSAFE,
-	    fatm_intr, sc, &sc->ih);
+	    NULL, fatm_intr, sc, &sc->ih);
 	if (error) {
 		if_printf(ifp, "couldn't setup irq\n");
 		goto fail;

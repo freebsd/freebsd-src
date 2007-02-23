@@ -188,7 +188,7 @@ aic_isa_attach(device_t dev)
 	}
 
 	error = bus_setup_intr(dev, sc->sc_irq, INTR_TYPE_CAM|INTR_ENTROPY,
-				aic_intr, aic, &sc->sc_ih);
+				NULL, aic_intr, aic, &sc->sc_ih);
 	if (error) {
 		device_printf(dev, "failed to register interrupt handler\n");
 		aic_isa_release_resources(dev);

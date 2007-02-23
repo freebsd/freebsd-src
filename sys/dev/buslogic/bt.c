@@ -896,7 +896,7 @@ bt_attach(device_t dev)
 	/*
 	 * Setup interrupt.
 	 */
-	error = bus_setup_intr(dev, bt->irq, INTR_TYPE_CAM|INTR_ENTROPY,
+	error = bus_setup_intr(dev, bt->irq, INTR_TYPE_CAM|INTR_ENTROPY, NULL,
 			       bt_intr, bt, &bt->ih);
 	if (error) {
 		device_printf(dev, "bus_setup_intr() failed: %d\n", error);

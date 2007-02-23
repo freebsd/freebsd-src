@@ -417,7 +417,7 @@ ppbus_detach(device_t dev)
 
 static int
 ppbus_setup_intr(device_t bus, device_t child, struct resource *r, int flags,
-			void (*ihand)(void *), void *arg, void **cookiep)
+    driver_filter_t *filt, void (*ihand)(void *), void *arg, void **cookiep)
 {
 	int error;
 	struct ppb_data *ppb = DEVTOSOFTC(bus);
@@ -428,7 +428,7 @@ ppbus_setup_intr(device_t bus, device_t child, struct resource *r, int flags,
 		return (EINVAL);
 
 	if ((error = BUS_SETUP_INTR(device_get_parent(bus), child, r, flags,
-					ihand, arg, cookiep)))
+					filt, ihand, arg, cookiep)))
 		return (error);
 
 	/* store the resource and the cookie for eventually forcing

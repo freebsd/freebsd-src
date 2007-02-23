@@ -133,8 +133,8 @@ cy_isa_attach(device_t dev)
 		device_printf(dev, "interrupt resource allocation failed\n");
 		goto fail;
 	}
-	if (bus_setup_intr(dev, irq_res, INTR_TYPE_TTY | INTR_FAST, cyintr,
-	    vsc, &irq_cookie) != 0) {
+	if (bus_setup_intr(dev, irq_res, INTR_TYPE_TTY, 
+	    cyintr, NULL, vsc, &irq_cookie) != 0) {	    
 		device_printf(dev, "interrupt setup failed\n");
 		goto fail;
 	}

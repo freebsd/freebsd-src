@@ -344,7 +344,7 @@ iir_pci_attach(device_t dev)
 
     /* associate interrupt handler */
     if (bus_setup_intr( dev, irq, INTR_TYPE_CAM, 
-                        iir_intr, gdt, &ih )) {
+                        NULL, iir_intr, gdt, &ih )) {
         device_printf(dev, "Unable to register interrupt handler\n");
         error = ENXIO;
         goto err;

@@ -194,7 +194,7 @@ pcf_ebus_attach(device_t dev)
 
 	if (sc->res_irq) {
 		rv = bus_setup_intr(dev, sc->res_irq,
-		    INTR_TYPE_NET /* | INTR_ENTROPY */, pcf_intr, sc,
+		    INTR_TYPE_NET /* | INTR_ENTROPY */, NULL, pcf_intr, sc,
 		    &sc->intr_cookie);
 		if (rv) {
 			device_printf(dev, "could not setup IRQ\n");

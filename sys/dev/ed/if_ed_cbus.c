@@ -243,7 +243,7 @@ ed_cbus_attach(dev)
 	ed_alloc_irq(dev, sc->irq_rid, 0);
 
 	error = bus_setup_intr(dev, sc->irq_res, INTR_TYPE_NET | INTR_MPSAFE,
-	    edintr, sc, &sc->irq_handle);
+	    NULL, edintr, sc, &sc->irq_handle);
 	if (error) {
 		ed_release_resources(dev);
 		return (error);

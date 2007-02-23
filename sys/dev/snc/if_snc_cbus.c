@@ -190,7 +190,7 @@ snc_isa_attach(dev)
 	snc_alloc_irq(dev, 0, 0);
 		
 	error = bus_setup_intr(dev, sc->irq, INTR_TYPE_NET,
-			       sncintr, sc, &sc->irq_handle);
+			       NULL, sncintr, sc, &sc->irq_handle);
 	if (error) {
 		printf("snc_isa_attach: bus_setup_intr() failed\n");
 		snc_release_resources(dev);

@@ -263,7 +263,7 @@ static	void	comclose(struct tty *tp);
 static	int	comopen(struct tty *tp, struct cdev *dev);
 static	void	sioinput(struct com_s *com);
 static	void	siointr1(struct com_s *com);
-static	void	siointr(void *arg);
+static	int	siointr(void *arg);
 static	int	commodem(struct tty *tp, int sigon, int sigoff);
 static	int	comparam(struct tty *tp, struct termios *t);
 static	void	siopoll(void *);
@@ -1075,12 +1075,13 @@ determined_type: ;
 	com->irqres = bus_alloc_resource_any(dev, SYS_RES_IRQ, &rid, RF_ACTIVE);
 	if (com->irqres) {
 		ret = bus_setup_intr(dev, com->irqres,
-				     INTR_TYPE_TTY | INTR_FAST,
-				     siointr, com, &com->cookie);
+				     INTR_TYPE_TTY,
+				     siointr, NULL, com, 
+				     &com->cookie);
 		if (ret) {
 			ret = bus_setup_intr(dev,
 					     com->irqres, INTR_TYPE_TTY,
-					     siointr, com, &com->cookie);
+					     NULL, (driver_intr_t *)siointr, com, &com->cookie);
 			if (ret == 0)
 				device_printf(dev, "unable to activate interrupt in fast mode - using normal mode\n");
 		}
@@ -1378,7 +1379,7 @@ sioinput(com)
 		outb(com->modem_ctl_port, com->mcr_image |= MCR_RTS);
 }
 
-static void
+static int
 siointr(arg)
 	void		*arg;
 {
@@ -1422,6 +1423,7 @@ siointr(arg)
 	} while (possibly_more_intrs);
 	mtx_unlock_spin(&sio_lock);
 #endif /* COM_MULTIPORT */
+	return(FILTER_HANDLED);
 }
 
 static struct timespec siots[8];

@@ -291,7 +291,7 @@ ixpnpe_attach(device_t dev)
 	panic("%s: Unable to allocate irq %u", device_get_name(dev), irq);
     /* XXX could be a source of entropy */
     bus_setup_intr(dev, sc->sc_irq, INTR_TYPE_NET | INTR_MPSAFE,
-	ixpnpe_intr, sc, &sc->sc_ih);
+	NULL, ixpnpe_intr, sc, &sc->sc_ih);
     /* enable output fifo interrupts (NB: must also set OFIFO Write Enable) */ 
     npe_reg_write(sc, IX_NPECTL,
 	npe_reg_read(sc, IX_NPECTL) | (IX_NPECTL_OFE | IX_NPECTL_OFWE));

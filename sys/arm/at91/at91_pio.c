@@ -83,7 +83,7 @@ static devclass_t at91_pio_devclass;
 static int at91_pio_probe(device_t dev);
 static int at91_pio_attach(device_t dev);
 static int at91_pio_detach(device_t dev);
-static void at91_pio_intr(void *);
+static int at91_pio_intr(void *);
 
 /* helper routines */
 static int at91_pio_activate(device_t dev);
@@ -148,8 +148,8 @@ at91_pio_attach(device_t dev)
 	 * Activate the interrupt, but disable all interrupts in the hardware
 	 */
 	WR4(sc, PIO_IDR, 0xffffffff);
-	err = bus_setup_intr(dev, sc->irq_res, INTR_TYPE_MISC | INTR_FAST,
-	    at91_pio_intr, sc, &sc->intrhand);
+	err = bus_setup_intr(dev, sc->irq_res, INTR_TYPE_MISC,
+	    at91_pio_intr, NULL, sc, &sc->intrhand);
 	if (err) {
 		AT91_PIO_LOCK_DESTROY(sc);
 		goto out;
@@ -217,7 +217,7 @@ at91_pio_deactivate(device_t dev)
 	return;
 }
 
-static void
+static int
 at91_pio_intr(void *xsc)
 {
 	struct at91_pio_softc *sc = xsc;
@@ -232,7 +232,7 @@ at91_pio_intr(void *xsc)
 	AT91_PIO_UNLOCK(sc);
 #endif
 	wakeup(sc);
-	return;
+	return (FILTER_HANDLED);
 }
 
 static int 

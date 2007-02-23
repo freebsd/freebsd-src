@@ -122,7 +122,7 @@ an_attach_isa(device_t dev)
 	}
 
 	error = bus_setup_intr(dev, sc->irq_res, INTR_TYPE_NET,
-			       an_intr, sc, &sc->irq_handle);
+			       NULL, an_intr, sc, &sc->irq_handle);
 	if (error) {
 		an_release_resources(dev);
 		return (error);

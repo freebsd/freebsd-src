@@ -248,14 +248,14 @@ intr_execute_handlers(void *cookie)
 	/* Execute fast interrupt handlers directly. */
 	thread = 0;
 	TAILQ_FOREACH(ih, &ie->ie_handlers, ih_next) {
-		if (!(ih->ih_flags & IH_FAST)) {
+		if (ih->ih_filter == NULL) {
 			thread = 1;
 			continue;
 		}
-		MPASS(ih->ih_flags & IH_FAST && ih->ih_argument != NULL);
+		MPASS(ih->ih_filter != NULL && ih->ih_argument != NULL);
 		CTR3(KTR_INTR, "%s: executing handler %p(%p)", __func__,
-		    ih->ih_handler, ih->ih_argument);
-		ih->ih_handler(ih->ih_argument);
+		    ih->ih_filter, ih->ih_argument);
+		ih->ih_filter(ih->ih_argument);
 	}
 
 	/* Schedule a heavyweight interrupt process. */
@@ -270,8 +270,8 @@ intr_execute_handlers(void *cookie)
 }
 
 int
-inthand_add(const char *name, int vec, void (*handler)(void *), void *arg,
-    int flags, void **cookiep)
+inthand_add(const char *name, int vec, driver_filter_t *filt, 
+    void (*handler)(void *), void *arg, int flags, void **cookiep)    
 {
 	struct intr_vector *iv;
 	struct intr_event *ie;		/* descriptor for the IRQ */
@@ -303,12 +303,12 @@ inthand_add(const char *name, int vec, void (*handler)(void *), void *arg,
 		}
 	}
 
-	errcode = intr_event_add_handler(ie, name, handler, arg,
+	errcode = intr_event_add_handler(ie, name, filt, handler, arg,
 	    intr_priority(flags), flags, cookiep);
 	if (errcode)
 		return (errcode);
 	
-	intr_setup(flags & INTR_FAST ? PIL_FAST : PIL_ITHREAD, intr_fast, vec,
+	intr_setup(filt != NULL ? PIL_FAST : PIL_ITHREAD, intr_fast, vec,
 	    intr_execute_handlers, iv);
 
 	intr_stray_count[vec] = 0;

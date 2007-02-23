@@ -313,7 +313,7 @@ nexus_read_ivar(device_t dev, device_t child, int which, uintptr_t *result)
 
 static int
 nexus_setup_intr(device_t dev, device_t child, struct resource *res, int flags,
-    driver_intr_t *intr, void *arg, void **cookiep)
+    driver_filter_t *filt, driver_intr_t *intr, void *arg, void **cookiep)
 {
 	int error;
 
@@ -329,7 +329,7 @@ nexus_setup_intr(device_t dev, device_t child, struct resource *res, int flags,
 		return (error);
 
 	error = inthand_add(device_get_nameunit(child), rman_get_start(res),
-	    intr, arg, flags, cookiep);
+	    filt, intr, arg, flags, cookiep);
 
 	return (error);
 }

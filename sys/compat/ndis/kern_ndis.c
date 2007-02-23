@@ -1373,7 +1373,7 @@ NdisAddDevice(drv, pdo)
         if (sc->ndis_iftype == PCMCIABus || sc->ndis_iftype == PCIBus) {
 		error = bus_setup_intr(sc->ndis_dev, sc->ndis_irq,
 		    INTR_TYPE_NET | INTR_MPSAFE,
-		    ntoskrnl_intr, NULL, &sc->ndis_intrhand);
+		    NULL, ntoskrnl_intr, NULL, &sc->ndis_intrhand);
 		if (error)
 			return(NDIS_STATUS_FAILURE);
 	}

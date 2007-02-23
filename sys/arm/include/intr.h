@@ -50,7 +50,7 @@
 int arm_get_next_irq(void);
 void arm_mask_irq(uintptr_t);
 void arm_unmask_irq(uintptr_t);
-void arm_setup_irqhandler(const char *, void (*)(void*), void *, int, int,
-    void **);
+void arm_setup_irqhandler(const char *, int (*)(void*), void (*)(void*), 
+    void *, int, int, void **);    
 int arm_remove_irqhandler(void *);
 #endif	/* _MACHINE_INTR_H */

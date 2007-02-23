@@ -118,10 +118,10 @@ static struct resource *pccard_alloc_resource(device_t dev,
 static int	pccard_release_resource(device_t dev, device_t child, int type,
 		    int rid, struct resource *r);
 static void	pccard_child_detached(device_t parent, device_t dev);
-static void	pccard_intr(void *arg);
+static int	pccard_intr(void *arg);
 static int	pccard_setup_intr(device_t dev, device_t child,
-		    struct resource *irq, int flags, driver_intr_t *intr,
-		    void *arg, void **cookiep);
+		    struct resource *irq, int flags, driver_filter_t *filt, 
+		    driver_intr_t *intr, void *arg, void **cookiep);
 static int	pccard_teardown_intr(device_t dev, device_t child,
 		    struct resource *r, void *cookie);
 
@@ -1176,7 +1176,7 @@ pccard_child_detached(device_t parent, device_t dev)
 	pccard_function_disable(pf);
 }
 
-static void
+static int
 pccard_intr(void *arg)
 {
 	struct pccard_function *pf = (struct pccard_function*) arg;
@@ -1207,13 +1207,19 @@ pccard_intr(void *arg)
 		else
 			doisr = 0;
 	}
-	if (pf->intr_handler != NULL && doisr)
-		pf->intr_handler(pf->intr_handler_arg);
+	if (doisr) {
+		if (pf->filt_handler != NULL)
+			pf->filt_handler(pf->intr_handler_arg);
+		else 
+			pf->intr_handler(pf->intr_handler_arg);
+	}
+	return (FILTER_HANDLED);
 }
 
 static int
 pccard_setup_intr(device_t dev, device_t child, struct resource *irq,
-    int flags, driver_intr_t *intr, void *arg, void **cookiep)
+    int flags, driver_filter_t *filt, driver_intr_t *intr, void *arg, 
+    void **cookiep)
 {
 	struct pccard_softc *sc = PCCARD_SOFTC(dev);
 	struct pccard_ivar *ivar = PCCARD_IVAR(child);
@@ -1222,10 +1228,17 @@ pccard_setup_intr(device_t dev, device_t child, struct resource *irq,
 
 	if (pf->intr_handler != NULL)
 		panic("Only one interrupt handler per function allowed");
-	err = bus_generic_setup_intr(dev, child, irq, flags, pccard_intr,
-	    pf, cookiep);
+	if (filt != NULL && intr != NULL)
+		return (EINVAL);
+	if (filt != NULL)
+		err = bus_generic_setup_intr(dev, child, irq, flags, 
+		    pccard_intr, NULL, pf, cookiep);			
+	else
+		err = bus_generic_setup_intr(dev, child, irq, flags, 
+		    NULL, (driver_intr_t *)pccard_intr, pf, cookiep);
 	if (err != 0)
 		return (err);
+	pf->filt_handler = filt;
 	pf->intr_handler = intr;
 	pf->intr_handler_arg = arg;
 	pf->intr_handler_cookie = *cookiep;

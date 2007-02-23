@@ -340,7 +340,7 @@ txp_attach(dev)
 	ether_ifattach(ifp, eaddr);
 
 	error = bus_setup_intr(dev, sc->sc_irq, INTR_TYPE_NET | INTR_MPSAFE,
-	    txp_intr, sc, &sc->sc_intrhand);
+	    NULL, txp_intr, sc, &sc->sc_intrhand);
 
 	if (error) {
 		ether_ifdetach(ifp);

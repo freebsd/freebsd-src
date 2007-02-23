@@ -330,7 +330,7 @@ ct_isa_attach(device_t dev)
 	splx(s);
 
 	if (bus_setup_intr(dev, ct->irq_res, INTR_TYPE_CAM,
-			   (driver_intr_t *)ctintr, ct, &ct->sc_ih)) {
+			   NULL, (driver_intr_t *)ctintr, ct, &ct->sc_ih)) {
 		ct_space_unmap(dev, ct);
 		return ENXIO;
 	}

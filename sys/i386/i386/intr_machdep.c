@@ -149,8 +149,8 @@ intr_lookup_source(int vector)
 }
 
 int
-intr_add_handler(const char *name, int vector, driver_intr_t handler,
-    void *arg, enum intr_type flags, void **cookiep)
+intr_add_handler(const char *name, int vector, driver_filter_t filter,
+    driver_intr_t handler, void *arg, enum intr_type flags, void **cookiep)
 {
 	struct intsrc *isrc;
 	int error;
@@ -158,8 +158,8 @@ intr_add_handler(const char *name, int vector, driver_intr_t handler,
 	isrc = intr_lookup_source(vector);
 	if (isrc == NULL)
 		return (EINVAL);
-	error = intr_event_add_handler(isrc->is_event, name, handler, arg,
-	    intr_priority(flags), flags, cookiep);
+	error = intr_event_add_handler(isrc->is_event, name, filter, handler,
+	     arg, intr_priority(flags), flags, cookiep);
 	if (error == 0) {
 		intrcnt_updatename(isrc);
 		mtx_lock_spin(&intr_table_lock);
@@ -257,7 +257,7 @@ intr_execute_handlers(struct intsrc *isrc, struct trapframe *frame)
 	thread = 0;
 	critical_enter();
 	TAILQ_FOREACH(ih, &ie->ie_handlers, ih_next) {
-		if (!(ih->ih_flags & IH_FAST)) {
+		if (ih->ih_filter == NULL) {
 			thread = 1;
 			continue;
 		}
@@ -265,7 +265,7 @@ intr_execute_handlers(struct intsrc *isrc, struct trapframe *frame)
 		    ih->ih_handler, ih->ih_argument == NULL ? frame :
 		    ih->ih_argument, ih->ih_name);
 		if (ih->ih_argument == NULL)
-			ih->ih_handler(frame);
+			ih->ih_filter(frame);
 		else
 			ih->ih_handler(ih->ih_argument);
 	}

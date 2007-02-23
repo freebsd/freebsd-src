@@ -145,7 +145,7 @@ static struct mtx intr_table_lock;
 
 static void intr_execute_handlers(void *);
 static void intr_stray_level(struct trapframe *);
-static void intr_stray_vector(void *);
+static void  intr_stray_vector(void *);
 static int  intrcnt_setname(const char *, int);
 static void intrcnt_updatename(int, const char *, int);
 static void cpu_intrq_alloc(void);
@@ -294,14 +294,14 @@ intr_execute_handlers(void *cookie)
 
 	thread = 0;
 	TAILQ_FOREACH(ih, &ie->ie_handlers, ih_next) {
-		if (!(ih->ih_flags & IH_FAST)) {
+		if (ih->ih_filter == NULL) {
 			thread = 1;
 			continue;
 		}
-		MPASS(ih->ih_flags & IH_FAST && ih->ih_argument != NULL);
+		MPASS(ih->ih_filter == NULL && ih->ih_argument != NULL);
 		CTR3(KTR_INTR, "%s: executing handler %p(%p)", __func__,
-		    ih->ih_handler, ih->ih_argument);
-		ih->ih_handler(ih->ih_argument);
+		    ih->ih_filter, ih->ih_argument);
+		ih->ih_filter(ih->ih_argument);
 	}
 
 	/* Schedule a heavyweight interrupt process. */
@@ -315,7 +315,7 @@ intr_execute_handlers(void *cookie)
 	}
 }
 
-static void
+static int
 ithread_wrapper(void *arg)
 {
 	struct ithread_vector_handler *ivh = (struct ithread_vector_handler *)arg;
@@ -323,12 +323,12 @@ ithread_wrapper(void *arg)
 	ivh->ivh_handler(ivh->ivh_arg);
 	/* re-enable interrupt */
 	hv_intr_setstate(ivh->ivh_vec, HV_INTR_IDLE_STATE);
-
+	return (FILTER_HANDLED);
 }
 
 int
-inthand_add(const char *name, int vec, void (*handler)(void *), void *arg,
-    int flags, void **cookiep)
+inthand_add(const char *name, int vec, driver_filter_t *filt, 
+    void (*handler)(void *), void *arg, int flags, void **cookiep)    
 {
 	struct intr_vector *iv;
 	struct intr_event *ie;		/* descriptor for the IRQ */
@@ -336,6 +336,8 @@ inthand_add(const char *name, int vec, void (*handler)(void *), void *arg,
 	struct ithread_vector_handler *ivh;
 	int errcode, pil;
 
+	if (filt != NULL && handler != NULL)
+		return (EINVAL);
 	/*
 	 * Work around a race where more than one CPU may be registering
 	 * handlers on the same IRQ at the same time.
@@ -361,17 +363,17 @@ inthand_add(const char *name, int vec, void (*handler)(void *), void *arg,
 		}
 	}
 
-	if (!(flags & INTR_FAST)) {
+	if (filt != NULL) {
 		ivh = (struct ithread_vector_handler *)
 			malloc(sizeof(struct ithread_vector_handler), M_DEVBUF, M_WAITOK);
-		ivh->ivh_handler = handler;
+		ivh->ivh_handler = (driver_intr_t *)filt;
 		ivh->ivh_arg = arg;
 		ivh->ivh_vec = vec;
-		errcode = intr_event_add_handler(ie, name, ithread_wrapper, ivh,
+		errcode = intr_event_add_handler(ie, name, ithread_wrapper, NULL, ivh,
 						 intr_priority(flags), flags, cookiep);
 	} else {
 		ivh = NULL;
-		errcode = intr_event_add_handler(ie, name, handler, arg,
+		errcode = intr_event_add_handler(ie, name, NULL, handler, arg,
 						 intr_priority(flags), flags, 
 						 cookiep);
 	}
@@ -381,7 +383,7 @@ inthand_add(const char *name, int vec, void (*handler)(void *), void *arg,
 			free(ivh, M_DEVBUF);
 		return (errcode);
 	}
-	pil = (flags & INTR_FAST) ? PIL_FAST : PIL_ITHREAD;
+	pil = (filt != NULL) ? PIL_FAST : PIL_ITHREAD;
 
 	intr_setup(pil, intr_fast, vec, intr_execute_handlers, iv);
 

@@ -265,7 +265,7 @@ safe_attach(device_t dev)
 	 *     so make sure the IRQ is mapped appropriately.
 	 */
 	if (bus_setup_intr(dev, sc->sc_irq, INTR_TYPE_NET | INTR_MPSAFE,
-			   safe_intr, sc, &sc->sc_ih)) {
+			   NULL, safe_intr, sc, &sc->sc_ih)) {
 		device_printf(dev, "could not establish interrupt\n");
 		goto bad2;
 	}

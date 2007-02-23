@@ -808,7 +808,7 @@ fxp_attach(device_t dev)
 	 * Hook our interrupt after all initialization is complete.
 	 */
 	error = bus_setup_intr(dev, sc->fxp_res[1], INTR_TYPE_NET | INTR_MPSAFE,
-			       fxp_intr, sc, &sc->ih);
+			       NULL, fxp_intr, sc, &sc->ih);
 	if (error) {
 		device_printf(dev, "could not setup irq\n");
 		ether_ifdetach(sc->ifp);

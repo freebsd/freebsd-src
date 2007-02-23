@@ -390,7 +390,7 @@ hvcn_dev_attach(device_t dev)
 		goto fail;
 		
 	}
-	error = bus_setup_intr(dev, hvcn_irq, INTR_TYPE_TTY, hvcn_intr, hvcn_tp, 
+	error = bus_setup_intr(dev, hvcn_irq, INTR_TYPE_TTY, NULL, hvcn_intr, hvcn_tp, 
 			       hvcn_intrhand);
 	
 	if (error)

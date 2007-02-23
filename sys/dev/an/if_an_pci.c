@@ -240,7 +240,7 @@ an_attach_pci(dev)
 	 * Must setup the interrupt after the an_attach to prevent racing.
 	 */
 	error = bus_setup_intr(dev, sc->irq_res, INTR_TYPE_NET,
-	    an_intr, sc, &sc->irq_handle);
+	    NULL, an_intr, sc, &sc->irq_handle);
 
 fail:
 	if (error)
