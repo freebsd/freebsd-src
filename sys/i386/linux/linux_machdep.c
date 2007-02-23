@@ -435,6 +435,10 @@ linux_clone(struct thread *td, struct linux_clone_args *args)
 	if ((args->flags & 0xffffff00) == THREADING_FLAGS)
 		ff |= RFTHREAD;
 
+	if (args->flags & CLONE_PARENT_SETTID)
+		if (args->parent_tidptr == NULL)
+			return (EINVAL);
+
 	error = fork1(td, ff, 0, &p2);
 	if (error)
 		return (error);
@@ -453,17 +457,6 @@ linux_clone(struct thread *td, struct linux_clone_args *args)
 	em = em_find(p2, EMUL_DOLOCK);
 	KASSERT(em != NULL, ("clone: emuldata not found.\n"));
 	/* and adjust it */
-	if (args->flags & CLONE_PARENT_SETTID) {
-	   	if (args->parent_tidptr == NULL) {
-		   	EMUL_UNLOCK(&emul_lock);
-			return (EINVAL);
-		}
-		error = copyout(&p2->p_pid, args->parent_tidptr, sizeof(p2->p_pid));
-		if (error) {
-		   	EMUL_UNLOCK(&emul_lock);
-			return (error);
-		}
-	}
 
 	if (args->flags & CLONE_THREAD) {
 	   	/* XXX: linux mangles pgrp and pptr somehow
@@ -489,6 +482,12 @@ linux_clone(struct thread *td, struct linux_clone_args *args)
 
 	EMUL_UNLOCK(&emul_lock);
 
+	if (args->flags & CLONE_PARENT_SETTID) {
+		error = copyout(&p2->p_pid, args->parent_tidptr, sizeof(p2->p_pid));
+		if (error)
+			printf(LMSG("copyout failed!"));
+	}
+
 	PROC_LOCK(p2);
 	p2->p_sigparent = exit_signal;
 	PROC_UNLOCK(p2);
@@ -507,34 +506,37 @@ linux_clone(struct thread *td, struct linux_clone_args *args)
 		struct segment_descriptor sd;
 
 	   	error = copyin((void *)td->td_frame->tf_esi, &info, sizeof(struct l_user_desc));
-		if (error)
-   		   	return (error);
+		if (error) {
+			printf(LMSG("copyin failed!"));
+		} else {
 		
-		idx = info.entry_number;
+			idx = info.entry_number;
 		
-		/* 
-		 * looks like we're getting the idx we returned
-		 * in the set_thread_area() syscall
-		 */
-		if (idx != 6 && idx != 3)
-			return (EINVAL);
+			/* 
+			 * looks like we're getting the idx we returned
+			 * in the set_thread_area() syscall
+			 */
+			if (idx != 6 && idx != 3) {
+				printf(LMSG("resetting idx!"));
+				idx = 3;
+			}
 
-		/* this doesnt happen in practice */
-		if (idx == 6) {
-		   	/* we might copy out the entry_number as 3 */
-		   	info.entry_number = 3;
-			error = copyout(&info, (void *) td->td_frame->tf_esi, sizeof(struct l_user_desc));
-			if (error)
-	   		   	return (error);
-		}
+			/* this doesnt happen in practice */
+			if (idx == 6) {
+		   		/* we might copy out the entry_number as 3 */
+			   	info.entry_number = 3;
+				error = copyout(&info, (void *) td->td_frame->tf_esi, sizeof(struct l_user_desc));
+				if (error)
+					printf(LMSG("copyout failed!"));
+			}
 
-		a[0] = LDT_entry_a(&info);
-		a[1] = LDT_entry_b(&info);
+			a[0] = LDT_entry_a(&info);
+			a[1] = LDT_entry_b(&info);
 
-		memcpy(&sd, &a, sizeof(a));
+			memcpy(&sd, &a, sizeof(a));
 #ifdef DEBUG
-	if (ldebug(clone))
-	   	printf("Segment created in clone with CLONE_SETTLS: lobase: %x, hibase: %x, lolimit: %x, hilimit: %x, type: %i, dpl: %i, p: %i, xx: %i, def32: %i, gran: %i\n", sd.sd_lobase,
+		if (ldebug(clone))
+		   	printf("Segment created in clone with CLONE_SETTLS: lobase: %x, hibase: %x, lolimit: %x, hilimit: %x, type: %i, dpl: %i, p: %i, xx: %i, def32: %i, gran: %i\n", sd.sd_lobase,
 			sd.sd_hibase,
 			sd.sd_lolimit,
 			sd.sd_hilimit,
@@ -546,9 +548,10 @@ linux_clone(struct thread *td, struct linux_clone_args *args)
 			sd.sd_gran);
 #endif
 
-		/* set %gs */
-		td2->td_pcb->pcb_gsd = sd;
-		td2->td_pcb->pcb_gs = GSEL(GUGS_SEL, SEL_UPL);
+			/* set %gs */
+			td2->td_pcb->pcb_gsd = sd;
+			td2->td_pcb->pcb_gs = GSEL(GUGS_SEL, SEL_UPL);
+		}
 	} 
 
 #ifdef DEBUG
