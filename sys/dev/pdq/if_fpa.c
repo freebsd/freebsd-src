@@ -157,7 +157,7 @@ pdq_pci_attach(device_t dev)
 	goto bad;
     }
 
-    error = bus_setup_intr(dev, sc->irq, INTR_TYPE_NET,
+    error = bus_setup_intr(dev, sc->irq, INTR_TYPE_NET, NULL,
 			   pdq_pci_ifintr, dev, &sc->irq_ih);
     if (error) {
 	device_printf(dev, "Failed to setup interrupt handler.\n");
