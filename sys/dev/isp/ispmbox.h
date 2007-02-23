@@ -643,7 +643,7 @@ typedef struct {
 	uint16_t	ms_flags;
 	uint16_t	ms_reserved1;	/* low 8 bits */
 	uint16_t	ms_time;
-	uint16_t	ms_cmd_cnt;	/* Command DSD count */;
+	uint16_t	ms_cmd_cnt;	/* Command DSD count */
 	uint16_t	ms_tot_cnt;	/* Total DSD Count */
 	uint8_t		ms_type;	/* MS type */
 	uint8_t		ms_r_ctl;	/* R_CTL */
