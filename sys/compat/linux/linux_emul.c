@@ -168,18 +168,19 @@ linux_proc_exit(void *arg __unused, struct proc *p)
 
 	/* reparent all procs that are not a thread leader to initproc */
 	if (em->shared->group_pid != p->p_pid) {
-	   	sx_xlock(&proctree_lock);
-	   	wakeup(initproc);
+		child_clear_tid = em->child_clear_tid;
+		EMUL_UNLOCK(&emul_lock);
+		sx_xlock(&proctree_lock);
+		wakeup(initproc);
 		PROC_LOCK(p);
 		proc_reparent(p, initproc);
 		p->p_sigparent = SIGCHLD;
 		PROC_UNLOCK(p);
-	   	sx_xunlock(&proctree_lock);
+		sx_xunlock(&proctree_lock);
+	} else {
+		child_clear_tid = em->child_clear_tid;
+		EMUL_UNLOCK(&emul_lock);	
 	}
-
-	child_clear_tid = em->child_clear_tid;
-
-	EMUL_UNLOCK(&emul_lock);
 
 	EMUL_SHARED_WLOCK(&emul_shared_lock);
 	LIST_REMOVE(em, threads);
