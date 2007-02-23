@@ -2129,21 +2129,44 @@ isp_watchdog(void *arg)
 
 
 #if __FreeBSD_version >= 500000  
-#define	isp_make_here(isp, tgt)	isp_announce(isp, tgt, AC_FOUND_DEVICE)
-#define	isp_make_gone(isp, tgt)	isp_announce(isp, tgt, AC_LOST_DEVICE)
-
 /*
- * Support function for Announcement
+ * Support functions for Found/Lost
  */
 static void
-isp_announce(ispsoftc_t *isp, int tgt, int action)
+isp_make_here(ispsoftc_t *isp, int tgt)
 {
-	struct cam_path *tmppath;
+	union ccb *ccb;
+	ISPLOCK_2_CAMLOCK(mpt);
+	/*
+	 * Allocate a CCB, create a wildcard path for this bus,
+	 * and schedule a rescan.
+	 */
+	ccb = xpt_alloc_ccb_nowait();
+	if (ccb == NULL) {
+		isp_prt(isp, ISP_LOGWARN, "unable to alloc CCB for rescan");
+		CAMLOCK_2_ISPLOCK(mpt);
+		return;
+	}
+	if (xpt_create_path(&ccb->ccb_h.path, xpt_periph,
+	    cam_sim_path(isp->isp_sim), tgt, CAM_LUN_WILDCARD) != CAM_REQ_CMP) {
+		CAMLOCK_2_ISPLOCK(mpt);
+		isp_prt(isp, ISP_LOGWARN, "unable to create path for rescan");
+		xpt_free_ccb(ccb);
+		return;
+	}
+	xpt_rescan(ccb);
+	CAMLOCK_2_ISPLOCK(mpt);
+}
+
+static void
+isp_make_gone(ispsoftc_t *isp, int tgt)
+{
+	struct cam_path *tp;
 	ISPLOCK_2_CAMLOCK(isp);
-	if (xpt_create_path(&tmppath, NULL, cam_sim_path(isp->isp_sim), tgt,
+	if (xpt_create_path(&tp, NULL, cam_sim_path(isp->isp_sim), tgt,
 	    CAM_LUN_WILDCARD) == CAM_REQ_CMP) {
-		xpt_async(action, tmppath, NULL);
-		xpt_free_path(tmppath);
+		xpt_async(AC_LOST_DEVICE, tp, NULL);
+		xpt_free_path(tp);
 	}
 	CAMLOCK_2_ISPLOCK(isp);
 }
@@ -3651,9 +3674,9 @@ isp_mbox_wait_complete(ispsoftc_t *isp, mbreg_t *mbp)
 	}
 	if (isp->isp_osinfo.mboxcmd_done == 0) {
 		isp_prt(isp, ISP_LOGWARN,
-		    "%s Mailbox Command (0x%x) Timeout",
+		    "%s Mailbox Command (0x%x) Timeout (%uus)",
 		    isp->isp_osinfo.mbox_sleep_ok? "Interrupting" : "Polled",
-		    isp->isp_lastmbxcmd);
+		    isp->isp_lastmbxcmd, usecs);
 		mbp->param[0] = MBOX_TIMEOUT;
 		isp->isp_osinfo.mboxcmd_done = 1;
 	}
