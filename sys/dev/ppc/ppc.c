@@ -71,7 +71,7 @@ static void ppcintr(void *arg);
 #define DEVTOSOFTC(dev) ((struct ppc_data *)device_get_softc(dev))
 
 devclass_t ppc_devclass;
-const char ppc_driver_name[] = "ppc";  
+const char ppc_driver_name[] = "ppc";
 
 static char *ppc_models[] = {
 	"SMC-like", "SMC FDC37C665GT", "SMC FDC37C666GT", "PC87332", "PC87306",
