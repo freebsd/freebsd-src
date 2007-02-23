@@ -2963,17 +2963,19 @@ isp_scan_loop(ispsoftc_t *isp)
 		/*
 		 * Check to make sure it's still a valid entry. The 24XX seems
 		 * to return a portid but not a WWPN/WWNN or role for devices
-		 * which shift on a loop.
+		 * which shift on a loop, or have a WWPN/WWNN but no portid.
 		 */
 		if (tmp.node_wwn == 0 || tmp.port_wwn == 0 || tmp.portid == 0) {
-			int a, b, c;
-			a = (tmp.node_wwn == 0);
-			b = (tmp.port_wwn == 0);
-			c = (tmp.portid == 0);
-			isp_prt(isp, ISP_LOGWARN,
-			    "bad pdb (%1d%1d%1d) @ handle 0x%x", a, b, c,
-			    handle);
-			isp_dump_portdb(isp);
+			if (isp->isp_dblev & ISP_LOGSANCFG) {
+				int a, b, c;
+				a = !(tmp.node_wwn == 0);
+				b = !(tmp.port_wwn == 0);
+				c = !(tmp.portid == 0);
+				isp_prt(isp, ISP_LOGALL,
+				    "bad pdb (%1d%1d%1d) @ handle 0x%x",
+				    a, b, c, handle);
+				isp_dump_portdb(isp);
+			}
 			continue;
 		}
 
