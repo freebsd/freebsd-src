@@ -492,7 +492,7 @@ g_io_schedule_down(struct thread *tp __unused)
 		g_bioq_unlock(&g_bio_run_down);
 		if (pace > 0) {
 			CTR1(KTR_GEOM, "g_down pacing self (pace %d)", pace);
-			msleep(&error, NULL, PRIBIO, "g_down", hz/10);
+			tsleep(&error, PRIBIO, "g_down", hz/10);
 			pace--;
 		}
 		error = g_io_check(bp);
