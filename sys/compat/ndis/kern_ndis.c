@@ -1248,7 +1248,7 @@ ndis_init_nic(arg)
 	 * expects them to fire before the halt is called.
 	 */
 
-	tsleep(curthread->td_proc, PWAIT, "ndwait", hz);
+	pause("ndwait", hz);
 
 	NDIS_LOCK(sc);
 	sc->ndis_block->nmb_devicectx = sc;
