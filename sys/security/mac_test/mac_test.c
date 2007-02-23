@@ -278,28 +278,6 @@ SYSCTL_INT(_security_mac_test, OID_AUTO, internalize_count, CTLFLAG_RD,
 #endif
 
 /*
- * Policy module operations.
- */
-static void
-mac_test_destroy(struct mac_policy_conf *conf)
-{
-
-}
-
-static void
-mac_test_init(struct mac_policy_conf *conf)
-{
-
-}
-
-static int
-mac_test_syscall(struct thread *td, int call, void *arg)
-{
-
-	return (0);
-}
-
-/*
  * Label operations.
  */
 static void
@@ -2395,9 +2373,6 @@ mac_test_check_vnode_write(struct ucred *active_cred,
 
 static struct mac_policy_ops mac_test_ops =
 {
-	.mpo_destroy = mac_test_destroy,
-	.mpo_init = mac_test_init,
-	.mpo_syscall = mac_test_syscall,
 	.mpo_init_bpfdesc_label = mac_test_init_bpfdesc_label,
 	.mpo_init_cred_label = mac_test_init_cred_label,
 	.mpo_init_devfsdirent_label = mac_test_init_devfsdirent_label,

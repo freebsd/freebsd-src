@@ -83,12 +83,6 @@ static int	partition_slot;
 #define	SLOT_SET(l, v)	mac_label_set((l), partition_slot, (v))
 
 static void
-mac_partition_init(struct mac_policy_conf *conf)
-{
-
-}
-
-static void
 mac_partition_init_label(struct label *label)
 {
 
@@ -269,7 +263,6 @@ mac_partition_check_vnode_exec(struct ucred *cred, struct vnode *vp,
 
 static struct mac_policy_ops mac_partition_ops =
 {
-	.mpo_init = mac_partition_init,
 	.mpo_init_cred_label = mac_partition_init_label,
 	.mpo_destroy_cred_label = mac_partition_destroy_label,
 	.mpo_copy_cred_label = mac_partition_copy_label,
