@@ -74,7 +74,11 @@ vinit(void)
 	 * Read the .tiprc file in the HOME directory
 	 *  for sets
 	 */
-	if (strlen(value(HOME)) + sizeof("/.tiprc") > sizeof(file)) {
+	cp = value(HOME);
+	if (cp == NULL) {
+		(void)fprintf(stderr, 
+		    "$HOME not set. Skipping check for ~/.tiprc\n");
+	} else if (strlen(cp) + sizeof("/.tiprc") > sizeof(file)) {
 		(void)fprintf(stderr, "Home directory path too long: %s\n",
 		    value(HOME));
 	} else {
