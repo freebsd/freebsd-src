@@ -403,8 +403,10 @@ linker_load_file(const char *filename, linker_file_t *result)
 				linker_file_unload(lf, LINKER_UNLOAD_FORCE);
 				return (error);
 			}
+			KLD_UNLOCK();
 			linker_file_register_sysctls(lf);
 			linker_file_sysinit(lf);
+			KLD_LOCK();
 			lf->flags |= LINKER_FILE_LINKED;
 			*result = lf;
 			return (0);
@@ -502,7 +504,7 @@ linker_find_file_by_id(int fileid)
 
 	KLD_LOCK_ASSERT();
 	TAILQ_FOREACH(lf, &linker_files, link)
-		if (lf->id == fileid)
+		if (lf->id == fileid && lf->flags & LINKER_FILE_LINKED)
 			break;
 	return (lf);
 }
@@ -1033,21 +1035,25 @@ kldnext(struct thread *td, struct kldnext_args *uap)
 #endif
 
 	KLD_LOCK();
-	if (uap->fileid == 0) {
-		if (TAILQ_FIRST(&linker_files))
-			td->td_retval[0] = TAILQ_FIRST(&linker_files)->id;
-		else
-			td->td_retval[0] = 0;
-		goto out;
+	if (uap->fileid == 0)
+		lf = TAILQ_FIRST(&linker_files);
+	else {
+		lf = linker_find_file_by_id(uap->fileid);
+		if (lf == NULL) {
+			error = ENOENT;
+			goto out;
+		}
+		lf = TAILQ_NEXT(lf, link);
 	}
-	lf = linker_find_file_by_id(uap->fileid);
-	if (lf) {
-		if (TAILQ_NEXT(lf, link))
-			td->td_retval[0] = TAILQ_NEXT(lf, link)->id;
-		else
-			td->td_retval[0] = 0;
-	} else
-		error = ENOENT;
+
+	/* Skip partially loaded files. */
+	while (lf != NULL && !(lf->flags & LINKER_FILE_LINKED))
+		lf = TAILQ_NEXT(lf, link);
+
+	if (lf)
+		td->td_retval[0] = lf->id;
+	else
+		td->td_retval[0] = 0;
 out:
 	KLD_UNLOCK();
 	return (error);
