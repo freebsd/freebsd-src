@@ -130,7 +130,7 @@ slhci_pccard_attach(device_t dev)
 		device_printf(dev, "Could not add USB device\n");
 	}
 	device_set_ivars(sc->sc_bus.bdev, &sc->sc_bus);
-	error = bus_setup_intr(dev, sc->irq_res, INTR_TYPE_BIO, slhci_pccard_intr, sc, &sc->ih);
+	error = bus_setup_intr(dev, sc->irq_res, INTR_TYPE_BIO, NULL, slhci_pccard_intr, sc, &sc->ih);
 	if (error)
 		goto out;
 #if 1

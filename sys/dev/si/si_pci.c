@@ -99,7 +99,7 @@ si_pci_attach(device_t dev)
 	}
 	sc->sc_irq = rman_get_start(sc->sc_irq_res);
 	error = bus_setup_intr(dev, sc->sc_irq_res, INTR_TYPE_TTY,
-			       si_intr, sc, &ih);
+			       NULL, si_intr, sc, &ih);
 	if (error) {
 		device_printf(dev, "could not activate interrupt\n");
 		goto fail;
