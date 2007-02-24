@@ -51,6 +51,12 @@
 #define GREEN(n)	 ((n) * 3 + 1)
 #define BLUE(n)		 ((n) * 3 + 2)
 
+#define SET_ORIGIN(adp, o) do {				\
+	int oo = o;					\
+	if (oo != last_origin)				\
+	    set_origin(adp, last_origin = oo);		\
+	} while (0)
+
 static u_char		*vid;
 static int		 banksize, scrmode, bpsl, scrw, scrh;
 static u_char		 rain_pal[768];
@@ -73,6 +79,7 @@ rain_saver(video_adapter_t *adp, int blank)
 {
 	int i, j, o, p, pl;
 	u_char temp;
+	int last_origin = -1;
 
 	if (blank) {
 		/* switch to graphics mode */
@@ -87,18 +94,18 @@ rain_saver(video_adapter_t *adp, int blank)
 			bpsl = adp->va_line_width;
 			splx(pl);
 			for (i = 0; i < bpsl*scrh; i += banksize) {
-				set_origin(adp, i);
+				SET_ORIGIN(adp, i);
 				if ((bpsl * scrh - i) < banksize)
 					bzero(vid, bpsl * scrh - i);
 				else
 					bzero(vid, banksize);
 			}
-			set_origin(adp, 0);
+			SET_ORIGIN(adp, 0);
 			for (i = 0, o = 0, p = 0; i < scrw; i += 2, p += 2) {
 				if (p > banksize) {
 					p -= banksize;
 					o += banksize;
-					set_origin(adp, o);
+					SET_ORIGIN(adp, o);
 				}
 				vid[p] = 1 + (random() % MAX);
 			}
@@ -109,12 +116,12 @@ rain_saver(video_adapter_t *adp, int blank)
 					p -= banksize;
 					o += banksize;
 				}
-				set_origin(adp, o);
+				SET_ORIGIN(adp, o);
 				temp = (vid[p] < MAX) ? 1 + vid[p] : 1;
 				if (p + bpsl < banksize) {
 					vid[p + bpsl] = temp;
 				} else {
-					set_origin(adp, o + banksize);
+					SET_ORIGIN(adp, o + banksize);
 					vid[p + bpsl - banksize] = temp;
 				}
 			  }
