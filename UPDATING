@@ -21,6 +21,12 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 7.x IS SLOW:
 	developers choose to disable these features on build machines
 	to maximize performance.
 
+20070224:
+	The IPv6 multicast forwarding code may now be loaded into GENERIC
+	kernels by loading the ip_mroute.ko module.
+	The module build heeds the MK_INET6_SUPPORT make.conf option; it
+	may be set to "no" to omit building the IPv6 support.
+
 20070218:
 	The following build error may appear when upgrading from an old
 	-current (usr.sbin/bsnmpd/modules/snmp_bridge, depend stage):
