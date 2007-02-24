@@ -454,6 +454,7 @@ struct sis_softc {
 	u_int32_t		sis_rx_paddr;
 	u_int32_t		sis_tx_paddr;
 	struct callout		sis_stat_ch;
+	int			sis_watchdog_timer;
 	int			sis_stopped;
 #ifdef DEVICE_POLLING
 	int			rxcycles;
