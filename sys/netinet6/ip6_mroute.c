@@ -96,6 +96,7 @@
 #include <sys/socketvar.h>
 #include <sys/sockio.h>
 #include <sys/sx.h>
+#include <sys/sysctl.h>
 #include <sys/syslog.h>
 #include <sys/systm.h>
 #include <sys/time.h>
@@ -114,6 +115,7 @@
 #include <netinet6/scope6_var.h>
 #include <netinet6/nd6.h>
 #include <netinet6/ip6_mroute.h>
+#include <netinet6/ip6protosw.h>
 #include <netinet6/pim6.h>
 #include <netinet6/pim6_var.h>
 
@@ -130,6 +132,18 @@ static int socket_send __P((struct socket *, struct mbuf *,
 static int register_send __P((struct ip6_hdr *, struct mif6 *,
 	    struct mbuf *));
 
+extern struct domain inet6domain;
+struct ip6protosw in6_pim_protosw = {
+	.pr_type =		SOCK_RAW,
+	.pr_domain =		&inet6domain,
+	.pr_protocol =		IPPROTO_PIM,
+	.pr_flags =		PR_ATOMIC|PR_ADDR|PR_LASTHDR,
+	.pr_input =		pim6_input,
+	.pr_output =		rip6_output,
+	.pr_ctloutput =		rip6_ctloutput,
+	.pr_usrreqs =		&rip6_usrreqs
+};
+
 /*
  * Globals.  All but ip6_mrouter, ip6_mrtproto and mrt6stat could be static,
  * except for netstat or debugging purposes.
@@ -137,14 +151,32 @@ static int register_send __P((struct ip6_hdr *, struct mif6 *,
 struct socket  *ip6_mrouter = NULL;
 int		ip6_mrouter_ver = 0;
 int		ip6_mrtproto = IPPROTO_PIM;    /* for netstat only */
+
+SYSCTL_DECL(_net_inet6);
+SYSCTL_DECL(_net_inet6_ip6);
+SYSCTL_NODE(_net_inet6, IPPROTO_PIM, pim, CTLFLAG_RW, 0, "PIM");
+
 struct mrt6stat	mrt6stat;
+SYSCTL_STRUCT(_net_inet6_ip6, OID_AUTO, mrt6stat, CTLFLAG_RW,
+    &mrt6stat, mrt6stat,
+    "Multicast Routing Statistics (struct mrt6stat, netinet6/ip6_mroute.h)");
 
 #define NO_RTE_FOUND 	0x1
 #define RTE_FOUND	0x2
 
 struct mf6c	*mf6ctable[MF6CTBLSIZ];
+SYSCTL_OPAQUE(_net_inet6_ip6, OID_AUTO, mf6ctable, CTLFLAG_RD,
+    &mf6ctable, sizeof(mf6ctable), "S,*mf6ctable[MF6CTBLSIZ]",
+    "Multicast Forwarding Table (struct *mf6ctable[MF6CTBLSIZ], "
+    "netinet6/ip6_mroute.h)");
+
 u_char		n6expire[MF6CTBLSIZ];
+
 static struct mif6 mif6table[MAXMIFS];
+SYSCTL_OPAQUE(_net_inet6_ip6, OID_AUTO, mif6table, CTLFLAG_RD,
+    &mif6table, sizeof(mif6table), "S,vif[MAXMIFS]",
+    "Multicast Interfaces (struct mif[MAXMIFS], netinet6/ip6_mroute.h)");
+
 #ifdef MRT6DEBUG
 u_int		mrt6debug = 0;	  /* debug level 	*/
 #define DEBUG_MFC	0x02
@@ -187,6 +219,10 @@ static mifi_t nummifs = 0;
 static mifi_t reg_mif_num = (mifi_t)-1;
 
 static struct pim6stat pim6stat;
+SYSCTL_STRUCT(_net_inet6_pim, PIM6CTL_STATS, stats, CTLFLAG_RD,
+    &pim6stat, pim6stat,
+    "PIM Statistics (struct pim6stat, netinet6/pim_var.h)");
+
 static int pim6;
 
 /*
@@ -261,13 +297,17 @@ static int del_m6fc __P((struct mf6cctl *));
 
 static struct callout expire_upcalls_ch;
 
+int X_ip6_mforward(struct ip6_hdr *ip6, struct ifnet *ifp, struct mbuf *m);
+int X_ip6_mrouter_done(void);
+int X_ip6_mrouter_set(struct socket *so, struct sockopt *sopt);
+int X_ip6_mrouter_get(struct socket *so, struct sockopt *sopt);
+int X_mrt6_ioctl(int cmd, caddr_t data);
+
 /*
  * Handle MRT setsockopt commands to modify the multicast routing tables.
  */
 int
-ip6_mrouter_set(so, sopt)
-	struct socket *so;
-	struct sockopt *sopt;
+X_ip6_mrouter_set(struct socket *so, struct sockopt *sopt)
 {
 	int error = 0;
 	int optval;
@@ -290,7 +330,7 @@ ip6_mrouter_set(so, sopt)
 		error = ip6_mrouter_init(so, optval, sopt->sopt_name);
 		break;
 	case MRT6_DONE:
-		error = ip6_mrouter_done();
+		error = X_ip6_mrouter_done();
 		break;
 	case MRT6_ADD_MIF:
 		error = sooptcopyin(sopt, &mifc, sizeof(mifc), sizeof(mifc));
@@ -335,9 +375,7 @@ ip6_mrouter_set(so, sopt)
  * Handle MRT getsockopt commands
  */
 int
-ip6_mrouter_get(so, sopt)
-	struct socket *so;
-	struct sockopt *sopt;
+X_ip6_mrouter_get(struct socket *so, struct sockopt *sopt)
 {
 	int error = 0;
 
@@ -356,9 +394,7 @@ ip6_mrouter_get(so, sopt)
  * Handle ioctl commands to obtain information from the cache
  */
 int
-mrt6_ioctl(cmd, data)
-	int cmd;
-	caddr_t data;
+X_mrt6_ioctl(int cmd, caddr_t data)
 {
 	switch (cmd) {
 	case SIOCGETSGCNT_IN6:
@@ -478,7 +514,7 @@ ip6_mrouter_init(so, v, cmd)
  * Disable multicast routing
  */
 int
-ip6_mrouter_done()
+X_ip6_mrouter_done(void)
 {
 	mifi_t mifi;
 	int i;
@@ -993,10 +1029,7 @@ socket_send(s, mm, src)
  */
 
 int
-ip6_mforward(ip6, ifp, m)
-	struct ip6_hdr *ip6;
-	struct ifnet *ifp;
-	struct mbuf *m;
+X_ip6_mforward(struct ip6_hdr *ip6, struct ifnet *ifp, struct mbuf *m)
 {
 	struct mf6c *rt;
 	struct mif6 *mifp;

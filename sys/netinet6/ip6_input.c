@@ -696,7 +696,8 @@ passin:
 		 * ip6_mforward() returns a non-zero value, the packet
 		 * must be discarded, else it may be accepted below.
 		 */
-		if (ip6_mrouter && ip6_mforward(ip6, m->m_pkthdr.rcvif, m)) {
+		if (ip6_mrouter && ip6_mforward &&
+		    ip6_mforward(ip6, m->m_pkthdr.rcvif, m)) {
 			ip6stat.ip6s_cantforward++;
 			m_freem(m);
 			return;
