@@ -23,8 +23,9 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 7.x IS SLOW:
 
 20070224:
 	To support interrupt filtering a modification to the newbus API 
-	has occurred, and as a result ABI was broken: make sure that 
-	your kernel and modules are in sync. For more info: http://docs.freebsd.org/cgi/getmsg.cgi?fetch=465712+0+current/freebsd-current
+	has occurred, ABI was broken and __FreeBSD_version was bumped
+	to 700031. Please make sure that your kernel and modules are in 
+	sync. For more info: http://docs.freebsd.org/cgi/getmsg.cgi?fetch=465712+0+current/freebsd-current
 
 20070224:
 	The IPv6 multicast forwarding code may now be loaded into GENERIC
