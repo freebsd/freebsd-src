@@ -36,7 +36,6 @@ static const char rcsid[] =
 #include <sys/ioctl.h>
 #include <sys/socket.h>
 #include <net/if.h>
-#include <net/route.h>		/* for RTX_IFA */
 
 #include <netatalk/at.h>
 
@@ -45,6 +44,7 @@ static const char rcsid[] =
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
+#include <ifaddrs.h>
 
 #include <arpa/inet.h>
 
@@ -81,32 +81,30 @@ setatphase(const char *phase, int dummy __unused, int s,
 }
 
 static void
-at_status(int s __unused, const struct rt_addrinfo * info)
+at_status(int s __unused, const struct ifaddrs *ifa)
 {
 	struct sockaddr_at *sat, null_sat;
 	struct netrange *nr;
 
 	memset(&null_sat, 0, sizeof(null_sat));
 
-	sat = (struct sockaddr_at *)info->rti_info[RTAX_IFA];
+	sat = (struct sockaddr_at *)ifa->ifa_addr;
 	if (sat == NULL)
 		return;
 	nr = &sat->sat_range.r_netrange;
 	printf("\tatalk %d.%d range %d-%d phase %d",
 		ntohs(sat->sat_addr.s_net), sat->sat_addr.s_node,
 		ntohs(nr->nr_firstnet), ntohs(nr->nr_lastnet), nr->nr_phase);
-	if (flags & IFF_POINTOPOINT) {
-		/* note RTAX_BRD overlap with IFF_BROADCAST */
-		sat = (struct sockaddr_at *)info->rti_info[RTAX_BRD];
-		if (!sat)
+	if (ifa->ifa_flags & IFF_POINTOPOINT) {
+		sat = (struct sockaddr_at *)ifa->ifa_dstaddr;
+		if (sat == NULL)
 			sat = &null_sat;
 		printf("--> %d.%d",
 			ntohs(sat->sat_addr.s_net), sat->sat_addr.s_node);
 	}
-	if (flags & IFF_BROADCAST) {
-		/* note RTAX_BRD overlap with IFF_POINTOPOINT */
-		sat = (struct sockaddr_at *)info->rti_info[RTAX_BRD];
-		if (sat)
+	if (ifa->ifa_flags & IFF_BROADCAST) {
+		sat = (struct sockaddr_at *)ifa->ifa_broadaddr;
+		if (sat != NULL)
 			printf(" broadcast %d.%d",
 				ntohs(sat->sat_addr.s_net),
 				sat->sat_addr.s_node);
