@@ -124,9 +124,7 @@ struct rip6stat rip6stat;
 /*
  * Hooks for multicast forwarding.
  */
-
-struct socket *ip6_mrouter;
-
+struct socket *ip6_mrouter = NULL;
 int (*ip6_mrouter_set)(struct socket *, struct sockopt *);
 int (*ip6_mrouter_get)(struct socket *, struct sockopt *);
 int (*ip6_mrouter_done)(void);
