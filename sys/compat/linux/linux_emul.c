@@ -212,7 +212,7 @@ linux_proc_exit(void *arg __unused, struct proc *p)
 		error = linux_sys_futex(FIRST_THREAD_IN_PROC(p), &cup);
 		/*
 		 * this cannot happen at the moment and if this happens it
-		 * probably mean there is a userspace bug
+		 * probably means there is a user space bug
 		 */
 		if (error)
 			printf(LMSG("futex stuff in proc_exit failed.\n"));

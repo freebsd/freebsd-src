@@ -833,7 +833,7 @@ linux_waitpid(struct thread *td, struct linux_waitpid_args *args)
 		    args->pid, (void *)args->status, args->options);
 #endif
 	/*
-	 * this is necessary because the test in kern_wait doesnt work
+	 * this is necessary because the test in kern_wait doesn't work
 	 * because we mess with the options here
 	 */
 	if (args->options & ~(WUNTRACED | WNOHANG | WCONTINUED | __WCLONE))
@@ -1418,10 +1418,9 @@ linux_reboot(struct thread *td, struct linux_reboot_args *args)
 
 /*
  * The FreeBSD native getpid(2), getgid(2) and getuid(2) also modify
- * td->td_retval[1] when COMPAT_43 is defined. This
- * globbers registers that are assumed to be preserved. The following
- * lightweight syscalls fixes this. See also linux_getgid16() and
- * linux_getuid16() in linux_uid16.c.
+ * td->td_retval[1] when COMPAT_43 is defined. This clobbers registers that
+ * are assumed to be preserved. The following lightweight syscalls fixes
+ * this. See also linux_getgid16() and linux_getuid16() in linux_uid16.c
  *
  * linux_getpid() - MP SAFE
  * linux_getgid() - MP SAFE
