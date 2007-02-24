@@ -743,7 +743,7 @@ struct l_desc_struct {
 
 /* 
  * macros which does the same thing as those in linux include/asm-um/ldt-i386.h 
- * these convert linux user-space descriptor to machine one
+ * these convert linux user space descriptor to machine one
  */
 #define LDT_entry_a(info) \
         ((((info)->base_addr & LINUX_LOWERWORD) << 16) | ((info)->limit & LINUX_LOWERWORD))

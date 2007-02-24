@@ -124,7 +124,7 @@ exec_linux_imgact(struct image_params *imgp)
 
     /*
      * Check if file_offset page aligned,.
-     * Currently we cannot handle misalinged file offsets,
+     * Currently we cannot handle misaligned file offsets,
      * and so we read in the entire image (what a waste).
      */
     if (file_offset & PAGE_MASK) {
