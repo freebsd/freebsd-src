@@ -766,7 +766,7 @@ exca_probe_slots(device_t dev, struct exca_softc *exca, bus_space_tag_t iot,
 void
 exca_insert(struct exca_softc *exca)
 {
-	if (exca->pccarddev != NULL) {
+	if (device_is_attached(exca->pccarddev)) {
 		if (CARD_ATTACH_CARD(exca->pccarddev) != 0)
 			device_printf(exca->dev,
 			    "PC Card card activation failed\n");
