@@ -334,7 +334,7 @@ in6_control(so, cmd, data, ifp, td)
 	switch (cmd) {
 	case SIOCGETSGCNT_IN6:
 	case SIOCGETMIFCNT_IN6:
-		return (mrt6_ioctl(cmd, data));
+		return (mrt6_ioctl ? mrt6_ioctl(cmd, data) : EOPNOTSUPP);
 	}
 
 	switch(cmd) {

@@ -1760,7 +1760,7 @@ netinet/ip_icmp.c		optional inet
 netinet/ip_input.c		optional inet
 netinet/ip_ipsec.c		optional ipsec
 netinet/ip_ipsec.c		optional fast_ipsec
-netinet/ip_mroute.c		optional mrouting
+netinet/ip_mroute.c		optional mrouting inet | mrouting inet6
 netinet/ip_options.c		optional inet
 netinet/ip_output.c		optional inet
 netinet/raw_ip.c		optional inet
@@ -1815,7 +1815,7 @@ netinet6/in6_src.c		optional inet6
 netinet6/ip6_forward.c		optional inet6
 netinet6/ip6_id.c		optional inet6
 netinet6/ip6_input.c		optional inet6
-netinet6/ip6_mroute.c		optional inet6
+netinet6/ip6_mroute.c		optional mrouting inet6
 netinet6/ip6_output.c		optional inet6
 netinet6/ipcomp_core.c		optional ipsec
 netinet6/ipcomp_input.c		optional ipsec
