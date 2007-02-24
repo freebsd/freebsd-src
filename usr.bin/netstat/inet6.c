@@ -66,6 +66,7 @@ __FBSDID("$FreeBSD$");
 #include <arpa/inet.h>
 #include <netdb.h>
 
+#include <err.h>
 #include <stdint.h>
 #include <stdio.h>
 #include <errno.h>
@@ -995,12 +996,18 @@ icmp6_ifstats(char *ifname)
 void
 pim6_stats(u_long off __unused, const char *name, int af1 __unused)
 {
-	struct pim6stat pim6stat;
+	struct pim6stat pim6stat, zerostat;
+	size_t len = sizeof pim6stat;
 
-	if (off == 0)
+	/* TODO put back the KVM functionality for -M switch ie coredumps. */
+	if (zflag)
+		memset(&zerostat, 0, len);
+	if (sysctlbyname("net.inet6.pim.stats", &pim6stat, &len,
+	    zflag ? &zerostat : NULL, zflag ? len : 0) < 0) {
+		if (errno != ENOENT)
+			warn("sysctl: net.inet6.pim.stats");
 		return;
-	if (kread(off, (char *)&pim6stat, sizeof(pim6stat)))
-		return;
+	}
 	printf("%s:\n", name);
 
 #define	p(f, m) if (pim6stat.f || sflag <= 1) \
