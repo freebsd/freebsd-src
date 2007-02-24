@@ -36,13 +36,13 @@ static const char rcsid[] =
 #include <sys/ioctl.h>
 #include <sys/socket.h>
 #include <net/if.h>
-#include <net/route.h>		/* for RTX_IFA */
 
 #include <err.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
+#include <ifaddrs.h>
 
 #include <netinet/in.h>
 #include <net/if_var.h>		/* for struct ifaddr */
@@ -56,35 +56,33 @@ static struct ifaliasreq in_addreq;
 static struct ifreq in_ridreq;
 
 static void
-in_status(int s __unused, const struct rt_addrinfo * info)
+in_status(int s __unused, const struct ifaddrs *ifa)
 {
 	struct sockaddr_in *sin, null_sin;
 	
 	memset(&null_sin, 0, sizeof(null_sin));
 
-	sin = (struct sockaddr_in *)info->rti_info[RTAX_IFA];
+	sin = (struct sockaddr_in *)ifa->ifa_addr;
 	if (sin == NULL)
 		return;
 
 	printf("\tinet %s ", inet_ntoa(sin->sin_addr));
 
-	if (flags & IFF_POINTOPOINT) {
-		/* note RTAX_BRD overlap with IFF_BROADCAST */
-		sin = (struct sockaddr_in *)info->rti_info[RTAX_BRD];
-		if (!sin)
+	if (ifa->ifa_flags & IFF_POINTOPOINT) {
+		sin = (struct sockaddr_in *)ifa->ifa_dstaddr;
+		if (sin == NULL)
 			sin = &null_sin;
 		printf("--> %s ", inet_ntoa(sin->sin_addr));
 	}
 
-	sin = (struct sockaddr_in *)info->rti_info[RTAX_NETMASK];
-	if (!sin)
+	sin = (struct sockaddr_in *)ifa->ifa_netmask;
+	if (sin == NULL)
 		sin = &null_sin;
 	printf("netmask 0x%lx ", (unsigned long)ntohl(sin->sin_addr.s_addr));
 
-	if (flags & IFF_BROADCAST) {
-		/* note RTAX_BRD overlap with IFF_POINTOPOINT */
-		sin = (struct sockaddr_in *)info->rti_info[RTAX_BRD];
-		if (sin && sin->sin_addr.s_addr != 0)
+	if (ifa->ifa_flags & IFF_BROADCAST) {
+		sin = (struct sockaddr_in *)ifa->ifa_broadaddr;
+		if (sin != NULL && sin->sin_addr.s_addr != 0)
 			printf("broadcast %s", inet_ntoa(sin->sin_addr));
 	}
 	putchar('\n');
