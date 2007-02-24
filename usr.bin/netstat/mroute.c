@@ -121,7 +121,7 @@ mroutepr(u_long mfcaddr, u_long vifaddr)
 
 		maxvif = vifi;
 		if (!banner_printed) {
-			printf("\nVirtual Interface Table\n"
+			printf("\nIPv4 Virtual Interface Table\n"
 			       " Vif   Thresh   Rate   Local-Address   "
 			       "Remote-Address    Pkts-In   Pkts-Out\n");
 			banner_printed = 1;
@@ -137,7 +137,7 @@ mroutepr(u_long mfcaddr, u_long vifaddr)
 		printf(" %9lu  %9lu\n", v->v_pkt_in, v->v_pkt_out);
 	}
 	if (!banner_printed)
-		printf("\nVirtual Interface Table is empty\n");
+		printf("\nIPv4 Virtual Interface Table is empty\n");
 
 	banner_printed = 0;
 	for (i = 0; i < MFCTBLSIZ; ++i) {
@@ -147,7 +147,7 @@ mroutepr(u_long mfcaddr, u_long vifaddr)
 			kread((u_long)m, (char *)&mfc, sizeof mfc);
 
 			if (!banner_printed) {
-				printf("\nIPv4 Multicast Forwarding Cache\n"
+				printf("\nIPv4 Multicast Forwarding Table\n"
 				       " Origin          Group            "
 				       " Packets In-Vif  Out-Vifs:Ttls\n");
 				banner_printed = 1;
@@ -188,7 +188,7 @@ mroutepr(u_long mfcaddr, u_long vifaddr)
 		}
 	}
 	if (!banner_printed)
-		printf("\nMulticast Routing Table is empty\n");
+		printf("\nIPv4 Multicast Forwarding Table is empty\n");
 
 	printf("\n");
 	numeric_addr = saved_numeric_addr;
