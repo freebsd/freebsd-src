@@ -413,8 +413,8 @@ linux_clone(struct thread *td, struct linux_clone_args *args)
 	/* 
 	 * XXX: in linux sharing of fs info (chroot/cwd/umask)
 	 * and open files is independant. in fbsd its in one
-	 * structure but in reality it doesnt make any problems
-	 * because both this flags are set at once usually.
+	 * structure but in reality it doesn't cause any problems
+	 * because both of these flags are usually set together.
 	 */
 	if (!(args->flags & (CLONE_FILES | CLONE_FS)))
 		ff |= RFFDG;
@@ -424,7 +424,7 @@ linux_clone(struct thread *td, struct linux_clone_args *args)
 	 * kernel threads. Unfortunately despite the existence of the
 	 * CLONE_THREAD flag, version of linuxthreads package used in
 	 * most popular distros as of beginning of 2005 doesn't make
-	 * any use of it. Therefore, this detection relay fully on
+	 * any use of it. Therefore, this detection relies on
 	 * empirical observation that linuxthreads sets certain
 	 * combination of flags, so that we can make more or less
 	 * precise detection and notify the FreeBSD kernel that several
@@ -724,7 +724,7 @@ linux_mmap_common(struct thread *td, struct l_mmap_argv *linux_args)
 		 * Our mmap with MAP_STACK takes addr as the maximum
 		 * downsize limit on BOS, and as len the max size of
 		 * the region.  It them maps the top SGROWSIZ bytes,
-		 * and autgrows the region down, up to the limit
+		 * and auto grows the region down, up to the limit
 		 * in addr.
 		 *
 		 * If we don't use the MAP_STACK option, the effect
@@ -1108,18 +1108,21 @@ linux_set_thread_area(struct thread *td, struct linux_set_thread_area_args *args
 
 	idx = info.entry_number;
 	/* 
-	 * Semantics of linux version: every thread in the system has array
-	 * of 3 tls descriptors. 1st is GLIBC TLS, 2nd is WINE, 3rd unknown. This
-	 * syscall loads one of the selected tls decriptors with a value
-	 * and also loads GDT descriptors 6, 7 and 8 with the content of the per-thread 
-	 * descriptors.
+	 * Semantics of linux version: every thread in the system has array of
+	 * 3 tls descriptors. 1st is GLIBC TLS, 2nd is WINE, 3rd unknown. This 
+	 * syscall loads one of the selected tls decriptors with a value and
+	 * also loads GDT descriptors 6, 7 and 8 with the content of the
+	 * per-thread descriptors.
 	 *
-	 * Semantics of fbsd version: I think we can ignore that linux has 3 per-thread
-	 * descriptors and use just the 1st one. The tls_array[] is used only in 
-	 * set/get-thread_area() syscalls and for loading the GDT descriptors. In fbsd 
-	 * we use just one GDT descriptor for TLS so we will load just one. 
-	 * XXX: this doesnt work when user-space process tries to use more then 1 TLS segment
-	 * comment in the linux sources says wine might do that.
+	 * Semantics of fbsd version: I think we can ignore that linux has 3 
+	 * per-thread descriptors and use just the 1st one. The tls_array[]
+	 * is used only in set/get-thread_area() syscalls and for loading the
+	 * GDT descriptors. In fbsd we use just one GDT descriptor for TLS so
+	 * we will load just one. 
+	 *
+	 * XXX: this doesn't work when a user space process tries to use more
+	 * than 1 TLS segment. Comment in the linux sources says wine might do
+	 * this.
 	 */
 
 	/* 
@@ -1132,8 +1135,9 @@ linux_set_thread_area(struct thread *td, struct linux_set_thread_area_args *args
 
 	/* 
 	 * we have to copy out the GDT entry we use
-	 * FreeBSD uses GDT entry #3 for storing %gs so load that 
-	 * XXX: what if userspace program doesnt check this value and tries
+	 * FreeBSD uses GDT entry #3 for storing %gs so load that
+	 *
+	 * XXX: what if a user space program doesn't check this value and tries
 	 * to use 6, 7 or 8? 
 	 */
 	idx = info.entry_number = 3;
