@@ -36,7 +36,6 @@ static const char rcsid[] =
 #include <sys/ioctl.h>
 #include <sys/socket.h>
 #include <net/if.h>
-#include <net/route.h>		/* for RTX_IFA */
 
 #include <err.h>
 #include <stdio.h>
@@ -179,7 +178,7 @@ in6_fillscopeid(struct sockaddr_in6 *sin6)
 }
 
 static void
-in6_status(int s __unused, const struct rt_addrinfo * info)
+in6_status(int s __unused, const struct ifaddrs *ifa)
 {
 	struct sockaddr_in6 *sin, null_sin;
 	struct in6_ifreq ifr6;
@@ -192,7 +191,7 @@ in6_status(int s __unused, const struct rt_addrinfo * info)
 
 	memset(&null_sin, 0, sizeof(null_sin));
 
-	sin = (struct sockaddr_in6 *)info->rti_info[RTAX_IFA];
+	sin = (struct sockaddr_in6 *)ifa->ifa_addr;
 	if (sin == NULL)
 		return;
 
@@ -237,14 +236,13 @@ in6_status(int s __unused, const struct rt_addrinfo * info)
 			  sizeof(addr_buf));
 	printf("\tinet6 %s ", addr_buf);
 
-	if (flags & IFF_POINTOPOINT) {
-		/* note RTAX_BRD overlap with IFF_BROADCAST */
-		sin = (struct sockaddr_in6 *)info->rti_info[RTAX_BRD];
+	if (ifa->ifa_flags & IFF_POINTOPOINT) {
+		sin = (struct sockaddr_in6 *)ifa->ifa_dstaddr;
 		/*
 		 * some of the interfaces do not have valid destination
 		 * address.
 		 */
-		if (sin && sin->sin6_family == AF_INET6) {
+		if (sin != NULL && sin->sin6_family == AF_INET6) {
 			int error;
 
 			/* XXX: embedded link local addr check */
@@ -269,8 +267,8 @@ in6_status(int s __unused, const struct rt_addrinfo * info)
 		}
 	}
 
-	sin = (struct sockaddr_in6 *)info->rti_info[RTAX_NETMASK];
-	if (!sin)
+	sin = (struct sockaddr_in6 *)ifa->ifa_netmask;
+	if (sin == NULL)
 		sin = &null_sin;
 	printf("prefixlen %d ", prefix(&sin->sin6_addr,
 		sizeof(struct in6_addr)));
