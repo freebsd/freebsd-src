@@ -145,10 +145,9 @@ struct ip6protosw in6_pim_protosw = {
 };
 
 /*
- * Globals.  All but ip6_mrouter, ip6_mrtproto and mrt6stat could be static,
+ * Globals.  All but ip6_mrtproto and mrt6stat could be static,
  * except for netstat or debugging purposes.
  */
-struct socket  *ip6_mrouter = NULL;
 int		ip6_mrouter_ver = 0;
 int		ip6_mrtproto = IPPROTO_PIM;    /* for netstat only */
 
