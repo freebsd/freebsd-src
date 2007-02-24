@@ -74,7 +74,10 @@ __FBSDID("$FreeBSD$");
 #include <sys/queue.h>
 #include <sys/socket.h>
 #include <sys/socketvar.h>
+#include <sys/sysctl.h>
 #include <sys/protosw.h>
+#include <sys/mbuf.h>
+#include <sys/time.h>
 
 #include <net/if.h>
 #include <net/if_var.h>
@@ -82,8 +85,10 @@ __FBSDID("$FreeBSD$");
 
 #include <netinet/in.h>
 
+#include <err.h>
 #include <stdint.h>
 #include <stdio.h>
+#include <stdlib.h>
 
 #define	KERNEL 1
 #include <netinet6/ip6_mroute.h>
@@ -108,19 +113,24 @@ mroute6pr(u_long mfcaddr, u_long mifaddr)
 	int saved_numeric_addr;
 	mifi_t maxmif = 0;
 	long int waitings;
+	size_t len;
 
-	/* XXX: sysctl not yet implemented for mif6table. */
-	if (mfcaddr == 0 || mifaddr == 0) {
-		printf("No IPv6 multicast forwarding configured in the "
-		    "running system.\n");
-		return;
+	len = sizeof(mif6table);
+	if (sysctlbyname("net.inet6.ip6.mif6table", mif6table, &len,
+	    NULL, 0) < 0) {
+		warn("sysctl: net.inet6.ip6.mif6table");
+		if (mifaddr == 0) {
+			printf("No IPv6 multicast forwarding configured in "
+			    "the running system.\n");
+			return;
+		}
+		kread(mifaddr, (char *)mif6table, sizeof(mif6table));
 	}
 
 	saved_numeric_addr = numeric_addr;
 	numeric_addr = 1;
-
-	kread(mifaddr, (char *)&mif6table, sizeof(mif6table));
 	banner_printed = 0;
+
 	for (mifi = 0, mifp = mif6table; mifi < MAXMIFS; ++mifi, ++mifp) {
 		struct ifnet ifnet;
 		char ifname[IFNAMSIZ];
@@ -128,7 +138,9 @@ mroute6pr(u_long mfcaddr, u_long mifaddr)
 		if (mifp->m6_ifp == NULL)
 			continue;
 
+		/* XXX KVM */
 		kread((u_long)mifp->m6_ifp, (char *)&ifnet, sizeof(ifnet));
+
 		maxmif = mifi;
 		if (!banner_printed) {
 			printf("\nIPv6 Multicast Interface Table\n"
@@ -148,9 +160,25 @@ mroute6pr(u_long mfcaddr, u_long mifaddr)
 	if (!banner_printed)
 		printf("\nIPv6 Multicast Interface Table is empty\n");
 
-	/* XXX: sysctl not yet implemented for mf6ctable. */
-	kread(mfcaddr, (char *)&mf6ctable, sizeof(mf6ctable));
+	len = sizeof(mf6ctable);
+	if (sysctlbyname("net.inet6.ip6.mf6ctable", mf6ctable, &len,
+	    NULL, 0) < 0) {
+		warn("sysctl: net.inet6.ip6.mf6ctable");
+		if (mfcaddr == 0) {
+			printf("No IPv6 multicast forwarding configured in "
+			    "the running system.\n");
+			return;
+		}
+		/*
+		 * XXX: Try KVM if the module is neither compiled nor loaded.
+		 * The correct behaviour would be to always use KVM if
+		 * the -M option is specified to netstat(1).
+		 */
+		kread(mfcaddr, (char *)mf6ctable, sizeof(mf6ctable));
+	}
+
 	banner_printed = 0;
+
 	for (i = 0; i < MF6CTBLSIZ; ++i) {
 		mfcp = mf6ctable[i];
 		while(mfcp) {
@@ -172,6 +200,7 @@ mroute6pr(u_long mfcaddr, u_long mifaddr)
 
 			for (waitings = 0, rtep = mfc.mf6c_stall; rtep; ) {
 				waitings++;
+				/* XXX KVM */
 				kread((u_long)rtep, (char *)&rte, sizeof(rte));
 				rtep = rte.next;
 			}
@@ -191,7 +220,7 @@ mroute6pr(u_long mfcaddr, u_long mifaddr)
 		}
 	}
 	if (!banner_printed)
-		printf("\nIPv6 Multicast Routing Table is empty\n");
+		printf("\nIPv6 Multicast Forwarding Table is empty\n");
 
 	printf("\n");
 	numeric_addr = saved_numeric_addr;
@@ -201,15 +230,18 @@ void
 mrt6_stats(u_long mstaddr)
 {
 	struct mrt6stat mrtstat;
+	size_t len = sizeof mrtstat;
 
-	/* XXX: sysctl not yet implemented for mrt6stat. */
-	if (mstaddr == 0) {
-		printf("No IPv6 multicast forwarding configured in the "
-		    "running system.\n");
-		return;
+	if (sysctlbyname("net.inet6.ip6.mrt6stat", &mrtstat, &len,
+	    NULL, 0) < 0) {
+		warn("sysctl: net.inet6.ip6.mrt6stat");
+		if (mstaddr == 0) {
+			printf("No IPv6 multicast forwarding configured in the "
+			    "running system.\n");
+			return;
+		}
+		kread(mstaddr, (char *)&mrtstat, sizeof(mrtstat));
 	}
-
-	kread(mstaddr, (char *)&mrtstat, sizeof(mrtstat));
 	printf("IPv6 multicast forwarding:\n");
 
 #define	p(f, m) if (mrtstat.f || sflag <= 1) \
