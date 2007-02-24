@@ -143,6 +143,7 @@ mroutepr(u_long mfcaddr, u_long vifaddr)
 	for (i = 0; i < MFCTBLSIZ; ++i) {
 		m = mfctable[i];
 		while(m) {
+			/* XXX KVM */
 			kread((u_long)m, (char *)&mfc, sizeof mfc);
 
 			if (!banner_printed) {
@@ -170,6 +171,7 @@ mroutepr(u_long mfcaddr, u_long vifaddr)
 				
 				bwm = mfc.mfc_bw_meter;
 				while (bwm) {
+				    /* XXX KVM */
 				    kread((u_long)bwm, (char *)&bw_meter,
 						sizeof bw_meter);
 				    print_bw_meter(&bw_meter,
@@ -283,7 +285,7 @@ mrt_stats(u_long mstaddr)
 			    "the running system.\n");
 			return;
 		}
-
+		/* XXX KVM */
 		kread(mstaddr, (char *)&mrtstat, sizeof(mrtstat));
 	}
 	printf("IPv4 multicast forwarding:\n");
