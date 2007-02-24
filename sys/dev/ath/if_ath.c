@@ -5421,7 +5421,8 @@ ath_sysctl_tpscale(SYSCTL_HANDLER_ARGS)
 	error = sysctl_handle_int(oidp, &scale, 0, req);
 	if (error || !req->newptr)
 		return error;
-	return !ath_hal_settpscale(sc->sc_ah, scale) ? EINVAL : ath_reset(ifp);
+	return !ath_hal_settpscale(sc->sc_ah, scale) ? EINVAL :
+	    (ifp->if_drv_flags & IFF_DRV_RUNNING) ? ath_reset(ifp) : 0;
 }
 
 static int
@@ -5441,6 +5442,7 @@ static int
 ath_sysctl_rfkill(SYSCTL_HANDLER_ARGS)
 {
 	struct ath_softc *sc = arg1;
+	struct ifnet *ifp = sc->sc_ifp;
 	struct ath_hal *ah = sc->sc_ah;
 	u_int rfkill = ath_hal_getrfkill(ah);
 	int error;
@@ -5450,10 +5452,9 @@ ath_sysctl_rfkill(SYSCTL_HANDLER_ARGS)
 		return error;
 	if (rfkill == ath_hal_getrfkill(ah))	/* unchanged */
 		return 0;
-	if (!ath_hal_setrfkill(ah, rfkill) || ath_reset(sc->sc_ifp) != 0)
+	if (!ath_hal_setrfkill(ah, rfkill))
 		return EINVAL;
-	else
-		return 0;
+	return (ifp->if_drv_flags & IFF_DRV_RUNNING) ? ath_reset(ifp) : 0;
 }
 
 static int
