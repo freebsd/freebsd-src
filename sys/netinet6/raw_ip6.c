@@ -122,6 +122,18 @@ extern u_long	rip_recvspace;
 struct rip6stat rip6stat;
 
 /*
+ * Hooks for multicast forwarding.
+ */
+
+struct socket *ip6_mrouter;
+
+int (*ip6_mrouter_set)(struct socket *, struct sockopt *);
+int (*ip6_mrouter_get)(struct socket *, struct sockopt *);
+int (*ip6_mrouter_done)(void);
+int (*ip6_mforward)(struct ip6_hdr *, struct ifnet *, struct mbuf *);
+int (*mrt6_ioctl)(int, caddr_t);
+
+/*
  * Setup generic address and protocol structures
  * for raw_input routine, then pass them along with
  * mbuf chain.
@@ -507,7 +519,8 @@ rip6_ctloutput(so, sopt)
 		case MRT6_ADD_MFC:
 		case MRT6_DEL_MFC:
 		case MRT6_PIM:
-			error = ip6_mrouter_get(so, sopt);
+			error = ip6_mrouter_get ?  ip6_mrouter_get(so, sopt) :
+			    EOPNOTSUPP;
 			break;
 		case IPV6_CHECKSUM:
 			error = ip6_raw_ctloutput(so, sopt);
@@ -527,7 +540,8 @@ rip6_ctloutput(so, sopt)
 		case MRT6_ADD_MFC:
 		case MRT6_DEL_MFC:
 		case MRT6_PIM:
-			error = ip6_mrouter_set(so, sopt);
+			error = ip6_mrouter_set ?  ip6_mrouter_set(so, sopt) :
+			    EOPNOTSUPP;
 			break;
 		case IPV6_CHECKSUM:
 			error = ip6_raw_ctloutput(so, sopt);
@@ -587,9 +601,9 @@ rip6_detach(struct socket *so)
 	inp = sotoinpcb(so);
 	KASSERT(inp != NULL, ("rip6_detach: inp == NULL"));
 
-	/* xxx: RSVP */
-	if (so == ip6_mrouter)
+	if (so == ip6_mrouter && ip6_mrouter_done)
 		ip6_mrouter_done();
+	/* xxx: RSVP */
 	INP_INFO_WLOCK(&ripcbinfo);
 	INP_LOCK(inp);
 	if (inp->in6p_icmp6filt) {

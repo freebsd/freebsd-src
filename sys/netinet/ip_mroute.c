@@ -55,6 +55,8 @@
  * $FreeBSD$
  */
 
+#include "opt_inet.h"
+#include "opt_inet6.h"
 #include "opt_mac.h"
 #include "opt_mrouting.h"
 
@@ -92,6 +94,12 @@
 #include <netinet/pim.h>
 #include <netinet/pim_var.h>
 #include <netinet/udp.h>
+#ifdef INET6
+#include <netinet/ip6.h>
+#include <netinet6/in6_var.h>
+#include <netinet6/ip6_mroute.h>
+#include <netinet6/ip6_var.h>
+#endif
 #include <machine/in_cksum.h>
 
 #include <security/mac/mac_framework.h>
@@ -217,6 +225,19 @@ struct protosw in_pim_protosw = {
 	.pr_usrreqs =		&rip_usrreqs
 };
 static const struct encaptab *pim_encap_cookie;
+
+#ifdef INET6
+/* ip6_mroute.c glue */
+extern struct in6_protosw in6_pim_protosw;
+static const struct encaptab *pim6_encap_cookie;
+
+extern int X_ip6_mrouter_set(struct socket *, struct sockopt *);
+extern int X_ip6_mrouter_get(struct socket *, struct sockopt *);
+extern int X_ip6_mrouter_done(void);
+extern int X_ip6_mforward(struct ip6_hdr *, struct ifnet *, struct mbuf *);
+extern int X_mrt6_ioctl(int, caddr_t);
+#endif
+
 static int pim_encapcheck(const struct mbuf *, int, int, void *);
 
 /*
@@ -2737,7 +2758,7 @@ pim_register_send_rp(struct ip *ip, struct vif *vifp,
 }
 
 /*
- * pim_encapcheck() is called by the encap4_input() path at runtime to
+ * pim_encapcheck() is called by the encap[46]_input() path at runtime to
  * determine if a packet is for PIM; allowing PIM to be dynamically loaded
  * into the kernel.
  */
@@ -2995,6 +3016,10 @@ pim_input_to_daemon:
     return;
 }
 
+/*
+ * XXX: This is common code for dealing with initialization for both
+ * the IPv4 and IPv6 multicast forwarding paths. It could do with cleanup.
+ */
 static int
 ip_mroute_modevent(module_t mod, int type, void *unused)
 {
@@ -3006,6 +3031,7 @@ ip_mroute_modevent(module_t mod, int type, void *unused)
 	ip_mrouter_reset();
 	TUNABLE_ULONG_FETCH("net.inet.pim.squelch_wholepkt",
 	    &pim_squelch_wholepkt);
+
 	pim_encap_cookie = encap_attach_func(AF_INET, IPPROTO_PIM,
 	    pim_encapcheck, &in_pim_protosw, NULL);
 	if (pim_encap_cookie == NULL) {
@@ -3015,13 +3041,40 @@ ip_mroute_modevent(module_t mod, int type, void *unused)
 		mtx_destroy(&mrouter_mtx);
 		return (EINVAL);
 	}
+
+#ifdef INET6
+	pim6_encap_cookie = encap_attach_func(AF_INET6, IPPROTO_PIM,
+	    pim_encapcheck, (struct protosw *)&in6_pim_protosw, NULL);
+	if (pim6_encap_cookie == NULL) {
+		printf("ip_mroute: unable to attach pim6 encap\n");
+		if (pim_encap_cookie) {
+		    encap_detach(pim_encap_cookie);
+		    pim_encap_cookie = NULL;
+		}
+		VIF_LOCK_DESTROY();
+		MFC_LOCK_DESTROY();
+		mtx_destroy(&mrouter_mtx);
+		return (EINVAL);
+	}
+#endif
+
 	ip_mcast_src = X_ip_mcast_src;
 	ip_mforward = X_ip_mforward;
 	ip_mrouter_done = X_ip_mrouter_done;
 	ip_mrouter_get = X_ip_mrouter_get;
 	ip_mrouter_set = X_ip_mrouter_set;
+
+#ifdef INET6
+	ip6_mforward = X_ip6_mforward;
+	ip6_mrouter_done = X_ip6_mrouter_done;
+	ip6_mrouter_get = X_ip6_mrouter_get;
+	ip6_mrouter_set = X_ip6_mrouter_set;
+	mrt6_ioctl = X_mrt6_ioctl;
+#endif
+
 	ip_rsvp_force_done = X_ip_rsvp_force_done;
 	ip_rsvp_vif = X_ip_rsvp_vif;
+
 	legal_vif_num = X_legal_vif_num;
 	mrt_ioctl = X_mrt_ioctl;
 	rsvp_input_p = X_rsvp_input;
@@ -3036,29 +3089,49 @@ ip_mroute_modevent(module_t mod, int type, void *unused)
 	 * just loaded and then unloaded w/o starting up a user
 	 * process we still need to cleanup.
 	 */
-	if (ip_mrouter)
+	if (ip_mrouter
+#ifdef INET6
+	    || ip6_mrouter
+#endif
+	)
 	    return EINVAL;
+
+#ifdef INET6
+	if (pim6_encap_cookie) {
+	    encap_detach(pim6_encap_cookie);
+	    pim6_encap_cookie = NULL;
+	}
+	X_ip6_mrouter_done();
+	ip6_mforward = NULL;
+	ip6_mrouter_done = NULL;
+	ip6_mrouter_get = NULL;
+	ip6_mrouter_set = NULL;
+	mrt6_ioctl = NULL;
+#endif
 
 	if (pim_encap_cookie) {
 	    encap_detach(pim_encap_cookie);
 	    pim_encap_cookie = NULL;
 	}
-
 	X_ip_mrouter_done();
 	ip_mcast_src = NULL;
 	ip_mforward = NULL;
 	ip_mrouter_done = NULL;
 	ip_mrouter_get = NULL;
 	ip_mrouter_set = NULL;
+
 	ip_rsvp_force_done = NULL;
 	ip_rsvp_vif = NULL;
+
 	legal_vif_num = NULL;
 	mrt_ioctl = NULL;
 	rsvp_input_p = NULL;
+
 	VIF_LOCK_DESTROY();
 	MFC_LOCK_DESTROY();
 	mtx_destroy(&mrouter_mtx);
 	break;
+
     default:
 	return EOPNOTSUPP;
     }
