@@ -44,6 +44,12 @@
 #define SPP		 15
 #define STARS		 (SPP * (1 + 2 + 4 + 8))
 
+#define SET_ORIGIN(adp, o) do {				\
+	int oo = o;					\
+	if (oo != last_origin)				\
+	    set_origin(adp, last_origin = oo);		\
+	} while (0)
+
 static u_char		*vid;
 static int		 banksize, scrmode, bpsl, scrw, scrh;
 static int		 blanked;
@@ -61,6 +67,7 @@ static void
 warp_update(video_adapter_t *adp)
 {
 	int i, j, k, n, o, p;
+	int last_origin = -1;
 
 	for (i = 1, k = 0, n = SPP*8; i < 5; i++, n /= 2) {
 		for (j = 0; j < n; j++, k++) {
@@ -70,7 +77,7 @@ warp_update(video_adapter_t *adp)
 				p -= banksize;
 				o += banksize;
 			}
-			set_origin(adp, o);
+			SET_ORIGIN(adp, o);
 			vid[p] = 0;
 			star[k] += i;
 			if (star[k] > scrw*scrh)
@@ -81,7 +88,7 @@ warp_update(video_adapter_t *adp)
 				p -= banksize;
 				o += banksize;
 			}
-			set_origin(adp, o);
+			SET_ORIGIN(adp, o);
 			vid[p] = i;
 		}
 	}
