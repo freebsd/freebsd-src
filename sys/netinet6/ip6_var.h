@@ -353,7 +353,9 @@ struct ip6aux *ip6_addaux __P((struct mbuf *));
 struct ip6aux *ip6_findaux __P((struct mbuf *));
 void	ip6_delaux __P((struct mbuf *));
 
-int	ip6_mforward __P((struct ip6_hdr *, struct ifnet *, struct mbuf *));
+extern int	(*ip6_mforward)(struct ip6_hdr *, struct ifnet *,
+    struct mbuf *);
+
 int	ip6_process_hopopts __P((struct mbuf *, u_int8_t *, int, u_int32_t *,
 				 u_int32_t *));
 void	ip6_savecontrol __P((struct inpcb *, struct mbuf *, struct mbuf **));
