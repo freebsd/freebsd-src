@@ -137,7 +137,7 @@ static int sis_newbuf(struct sis_softc *, struct sis_desc *, struct mbuf *);
 static void sis_start(struct ifnet *);
 static void sis_startl(struct ifnet *);
 static void sis_stop(struct sis_softc *);
-static void sis_watchdog(struct ifnet *);
+static void sis_watchdog(struct sis_softc *);
 
 
 static struct resource_spec sis_res_spec[] = {
@@ -1193,7 +1193,6 @@ sis_attach(device_t dev)
 	ifp->if_flags = IFF_BROADCAST | IFF_SIMPLEX | IFF_MULTICAST;
 	ifp->if_ioctl = sis_ioctl;
 	ifp->if_start = sis_start;
-	ifp->if_watchdog = sis_watchdog;
 	ifp->if_init = sis_init;
 	IFQ_SET_MAXLEN(&ifp->if_snd, SIS_TX_LIST_CNT - 1);
 	ifp->if_snd.ifq_drv_maxlen = SIS_TX_LIST_CNT - 1;
@@ -1540,7 +1539,7 @@ sis_txeof(struct sis_softc *sc)
 		ifp->if_drv_flags &= ~IFF_DRV_OACTIVE;
 	}
 
-	ifp->if_timer = (sc->sis_tx_cnt == 0) ? 0 : 5;
+	sc->sis_watchdog_timer = (sc->sis_tx_cnt == 0) ? 0 : 5;
 
 	return;
 }
@@ -1559,6 +1558,8 @@ sis_tick(void *xsc)
 
 	mii = device_get_softc(sc->sis_miibus);
 	mii_tick(mii);
+
+	sis_watchdog(sc);
 
 	if (!sc->sis_link && mii->mii_media_status & IFM_ACTIVE &&
 	    IFM_SUBTYPE(mii->mii_media_active) != IFM_NONE) {
@@ -1822,7 +1823,7 @@ sis_startl(struct ifnet *ifp)
 		/*
 		 * Set a timeout in case the chip goes out to lunch.
 		 */
-		ifp->if_timer = 5;
+		sc->sis_watchdog_timer = 5;
 	}
 }
 
@@ -2165,29 +2166,27 @@ sis_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 }
 
 static void
-sis_watchdog(struct ifnet *ifp)
+sis_watchdog(struct sis_softc *sc)
 {
-	struct sis_softc *sc;
 
-	sc = ifp->if_softc;
-
-	SIS_LOCK(sc);
+	SIS_LOCK_ASSERT(sc);
 	if (sc->sis_stopped) {
 		SIS_UNLOCK(sc);
 		return;
 	}
 
-	ifp->if_oerrors++;
-	if_printf(ifp, "watchdog timeout\n");
+	if (sc->sis_watchdog_timer == 0 || --sc->sis_watchdog_timer >0)
+		return;
+
+	device_printf(sc->sis_dev, "watchdog timeout\n");
+	sc->sis_ifp->if_oerrors++;
 
 	sis_stop(sc);
 	sis_reset(sc);
 	sis_initl(sc);
 
-	if (!IFQ_DRV_IS_EMPTY(&ifp->if_snd))
-		sis_startl(ifp);
-
-	SIS_UNLOCK(sc);
+	if (!IFQ_DRV_IS_EMPTY(&sc->sis_ifp->if_snd))
+		sis_startl(sc->sis_ifp);
 }
 
 /*
@@ -2205,7 +2204,7 @@ sis_stop(struct sis_softc *sc)
 		return;
 	SIS_LOCK_ASSERT(sc);
 	ifp = sc->sis_ifp;
-	ifp->if_timer = 0;
+	sc->sis_watchdog_timer = 0;
 
 	callout_stop(&sc->sis_stat_ch);
 
