@@ -548,7 +548,7 @@ at91_setup_intr(device_t dev, device_t child,
 {
 	struct at91_softc *sc = device_get_softc(dev);
 
-	if (rman_get_start(ires) == AT91RM92_IRQ_SYSTEM && !(flags & INTR_FAST))
+	if (rman_get_start(ires) == AT91RM92_IRQ_SYSTEM && filt == NULL)
 		panic("All system interrupt ISRs must be type INTR_FAST");
 	BUS_SETUP_INTR(device_get_parent(dev), child, ires, flags, filt, intr, arg,
 	    cookiep);
