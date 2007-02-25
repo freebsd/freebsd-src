@@ -201,113 +201,113 @@ synth_alloc_t noalloc;
 }
 
 METHOD int killnote {
-    void /* X */ * _kobj;
-    uint8_t _chan;
-    uint8_t _note;
-    uint8_t _vel;
+	void /* X */ *_kobj;
+	uint8_t	_chan;
+	uint8_t	_note;
+	uint8_t	_vel;
 } DEFAULT nokillnote;
 
 METHOD int startnote {
-    void /* X */ * _kobj;
-    uint8_t _voice;
-    uint8_t _note;
-    uint8_t _parm;
+	void /* X */ *_kobj;
+	uint8_t	_voice;
+	uint8_t	_note;
+	uint8_t	_parm;
 } DEFAULT nostartnote;
 
 METHOD int setinstr {
-    void /* X */ * _kobj;
-    uint8_t _chn;
-    uint16_t _patchno;
+	void /* X */ *_kobj;
+	uint8_t	_chn;
+	uint16_t _patchno;
 } DEFAULT nosetinstr;
 
 METHOD int hwcontrol {
-    void /* X */ * _kobj;
-    uint8_t *_event;
+	void /* X */ *_kobj;
+	uint8_t *_event;
 } DEFAULT nohwcontrol;
 
 METHOD int aftertouch {
-    void /* X */ * _kobj;
-    uint8_t _x1;
-    uint8_t _x2;
+	void /* X */ *_kobj;
+	uint8_t	_x1;
+	uint8_t	_x2;
 } DEFAULT noaftertouch;
 
 METHOD int panning {
-    void /* X */ * _kobj;
-    uint8_t _x1;
-        uint8_t _x2;
+	void /* X */ *_kobj;
+	uint8_t	_x1;
+	uint8_t	_x2;
 } DEFAULT nopanning;
 
 METHOD int controller {
-    void /* X */ * _kobj;
-    uint8_t _x1;
-    uint8_t _x2;
-    uint16_t _x3;
+	void /* X */ *_kobj;
+	uint8_t	_x1;
+	uint8_t	_x2;
+	uint16_t _x3;
 } DEFAULT nocontroller;
 
 METHOD int volumemethod {
-    void /* X */ * _kobj;
-    uint8_t _x1;
+	void /* X */ *_kobj;
+	uint8_t	_x1;
 } DEFAULT novolumemethod;
 
 METHOD int bender {
-    void /* X */ * _kobj;
-    uint8_t _voice;
-    uint16_t _bend;
+	void /* X */ *_kobj;
+	uint8_t	_voice;
+	uint16_t _bend;
 } DEFAULT nobender;
 
 METHOD int setupvoice {
-    void /* X */ * _kobj;
-    uint8_t _voice;
-    uint8_t _chn;
+	void /* X */ *_kobj;
+	uint8_t	_voice;
+	uint8_t	_chn;
 } DEFAULT nosetupvoice;
 
 METHOD int sendsysex {
-    void /* X */ * _kobj;
-    void * _buf;
-    size_t _len;
+	void /* X */ *_kobj;
+	void   *_buf;
+	size_t	_len;
 } DEFAULT nosendsysex;
 
 METHOD int allocvoice {
-    void /* X */ * _kobj;
-    uint8_t _chn;
-    uint8_t _note;
-    void *_x;
+	void /* X */ *_kobj;
+	uint8_t	_chn;
+	uint8_t	_note;
+	void   *_x;
 } DEFAULT noallocvoice;
 
 METHOD int writeraw {
-    void /* X */ * _kobjt;
-    uint8_t * _buf;
-    size_t _len;
+	void /* X */ *_kobjt;
+	uint8_t *_buf;
+	size_t	_len;
 } DEFAULT nowriteraw;
 
 METHOD int reset {
-    void /* X */ * _kobjt;
+	void /* X */ *_kobjt;
 } DEFAULT noreset;
 
 METHOD char * shortname {
-    void /* X */ * _kobjt;
+	void /* X */ *_kobjt;
 } DEFAULT noshortname;
 
 METHOD int open {
-    void /* X */ * _kobjt;
-    void * _sythn;
-    int _mode;
+	void /* X */ *_kobjt;
+	void   *_sythn;
+	int	_mode;
 } DEFAULT noopen;
 
 METHOD int close {
-    void /* X */ * _kobjt;
+	void /* X */ *_kobjt;
 } DEFAULT noclose;
 
 METHOD int query {
-    void /* X */ * _kobjt;
+	void /* X */ *_kobjt;
 } DEFAULT noquery;
 
 METHOD int insync {
-    void /* X */ * _kobjt;
+	void /* X */ *_kobjt;
 } DEFAULT noinsync;
 
 METHOD int alloc {
-    void /* x */ * _kbojt;
-    uint8_t _chn;
-    uint8_t _note;
+	void /* x */ *_kbojt;
+	uint8_t	_chn;
+	uint8_t	_note;
 } DEFAULT noalloc;

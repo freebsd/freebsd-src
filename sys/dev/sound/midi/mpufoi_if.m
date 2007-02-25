@@ -33,18 +33,18 @@ INTERFACE mpufoi;
 
 METHOD unsigned char read {
 	struct mpu401 *_kobj;
-	void *_cookie;
-	int _reg;
+	void   *_cookie;
+	int	_reg;
 };
 
 METHOD void write {
 	struct mpu401 *_kobj;
-	void *_cookie;
-	int _reg;
+	void   *_cookie;
+	int	_reg;
 	unsigned char _d;
 };
 
 METHOD int uninit {
 	struct mpu401 *_kobj;
-	void *_cookie;
+	void   *_cookie;
 };

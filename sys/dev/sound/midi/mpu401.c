@@ -38,7 +38,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/systm.h>
 #include <sys/kobj.h>
 #include <sys/malloc.h>
-#include <sys/bus.h> /* to get driver_intr_t */
+#include <sys/bus.h>			/* to get driver_intr_t */
 
 #include <dev/sound/midi/mpu401.h>
 #include <dev/sound/midi/midi.h>
@@ -66,13 +66,13 @@ __FBSDID("$FreeBSD$");
 struct mpu401 {
 	KOBJ_FIELDS;
 	struct snd_midi *mid;
-	int flags;
+	int	flags;
 	driver_intr_t *si;
-	void *cookie;
+	void   *cookie;
 	struct callout timer;
 };
 
-static void mpu401_timeout(void *m) ;
+static void mpu401_timeout(void *m);
 static mpu401_intr_t mpu401_intr;
 
 static int mpu401_minit(kobj_t obj, struct mpu401 *m);
@@ -85,22 +85,23 @@ static const char *mpu401_mdescr(kobj_t obj, struct mpu401 *m, int verbosity);
 static const char *mpu401_mprovider(kobj_t obj, struct mpu401 *m);
 
 static kobj_method_t mpu401_methods[] = {
-	KOBJMETHOD(mpu_init,mpu401_minit),
-	KOBJMETHOD(mpu_uninit,mpu401_muninit),
-	KOBJMETHOD(mpu_inqsize,mpu401_minqsize),
-	KOBJMETHOD(mpu_outqsize,mpu401_moutqsize),
-	KOBJMETHOD(mpu_callback,mpu401_mcallback),
-	KOBJMETHOD(mpu_callbackp,mpu401_mcallbackp),
-	KOBJMETHOD(mpu_descr,mpu401_mdescr),
-	KOBJMETHOD(mpu_provider,mpu401_mprovider),
-        { 0, 0 }
+	KOBJMETHOD(mpu_init, mpu401_minit),
+	KOBJMETHOD(mpu_uninit, mpu401_muninit),
+	KOBJMETHOD(mpu_inqsize, mpu401_minqsize),
+	KOBJMETHOD(mpu_outqsize, mpu401_moutqsize),
+	KOBJMETHOD(mpu_callback, mpu401_mcallback),
+	KOBJMETHOD(mpu_callbackp, mpu401_mcallbackp),
+	KOBJMETHOD(mpu_descr, mpu401_mdescr),
+	KOBJMETHOD(mpu_provider, mpu401_mprovider),
+	{0, 0}
 };
 
 DEFINE_CLASS(mpu401, mpu401_methods, 0);
 
 void
-mpu401_timeout(void *a) 
-{	struct mpu401 *m=(struct mpu401 *)a;
+mpu401_timeout(void *a)
+{
+	struct mpu401 *m = (struct mpu401 *)a;
 
 	if (m->si)
 		(m->si)(m->cookie);
@@ -113,6 +114,7 @@ mpu401_intr(struct mpu401 *m)
 	MIDI_TYPE b[MPU_INTR_BUF];
 	int i;
 	int s;
+
 /*
 	printf("mpu401_intr\n");
 */
@@ -123,54 +125,54 @@ mpu401_intr(struct mpu401 *m)
 #else
 #define D(x,l)
 #endif
-	i=0;
+	i = 0;
 	s = STATUS(m);
-	D(s,1);
-	while ( (s&MPU_INPUTBUSY) == 0 && i<MPU_INTR_BUF) {
-		b[i]=READ(m);
+	D(s, 1);
+	while ((s & MPU_INPUTBUSY) == 0 && i < MPU_INTR_BUF) {
+		b[i] = READ(m);
 /*
 		printf("mpu401_intr in i %d d %d\n", i, b[i]);
 */
 		i++;
-	s = STATUS(m);
+		s = STATUS(m);
 	}
-	if (i) midi_in(m->mid, b, i);
-	i=0;
-	while ( !(s&MPU_OUTPUTBUSY) && i<MPU_INTR_BUF) {
-		if(midi_out(m->mid, b, 1)) { 
+	if (i)
+		midi_in(m->mid, b, i);
+	i = 0;
+	while (!(s & MPU_OUTPUTBUSY) && i < MPU_INTR_BUF) {
+		if (midi_out(m->mid, b, 1)) {
 /*
 			printf("mpu401_intr out i %d d %d\n", i, b[0]);
 */
-	
+
 			WRITE(m, *b);
-		}
-		else {
+		} else {
 /*
 			printf("mpu401_intr write: no output\n");
 */
 			return 0;
 		}
 		i++;
-	/* DELAY(100); */
-	s = STATUS(m);
+		/* DELAY(100); */
+		s = STATUS(m);
 	}
 
-	if ((m->flags & M_TXEN) && (m->si) ) {
-	    callout_reset(&m->timer, 1, mpu401_timeout, m);
+	if ((m->flags & M_TXEN) && (m->si)) {
+		callout_reset(&m->timer, 1, mpu401_timeout, m);
 	}
-
 	return (m->flags & M_TXEN) == M_TXEN;
 }
 
 struct mpu401 *
-mpu401_init(kobj_class_t cls, void *cookie,driver_intr_t softintr, mpu401_intr_t **cb)
+mpu401_init(kobj_class_t cls, void *cookie, driver_intr_t softintr,
+    mpu401_intr_t ** cb)
 {
 	struct mpu401 *m;
 
 	*cb = NULL;
 	m = malloc(sizeof(*m), M_MIDI, M_NOWAIT | M_ZERO);
 
-	if(!m)
+	if (!m)
 		return NULL;
 
 	kobj_init((kobj_t)m, cls);
@@ -181,7 +183,7 @@ mpu401_init(kobj_class_t cls, void *cookie,driver_intr_t softintr, mpu401_intr_t
 	m->cookie = cookie;
 	m->flags = 0;
 
-	m->mid = midi_init(&mpu401_class,0,0,m);
+	m->mid = midi_init(&mpu401_class, 0, 0, m);
 	if (!m->mid)
 		goto err;
 	*cb = mpu401_intr;
@@ -213,14 +215,14 @@ mpu401_minit(kobj_t obj, struct mpu401 *m)
 	CMD(m, MPU_RESET);
 	CMD(m, MPU_UART);
 	return 0;
-	i=0;
-	while(++i<2000) {
-		if(RXRDY(m))
-			if(READ(m) == MPU_ACK)
+	i = 0;
+	while (++i < 2000) {
+		if (RXRDY(m))
+			if (READ(m) == MPU_ACK)
 				break;
 	}
 
-	if( i < 2000 ) {
+	if (i < 2000) {
 		CMD(m, MPU_UART);
 		return 0;
 	}
@@ -252,16 +254,15 @@ static void
 mpu401_mcallback(kobj_t obj, struct mpu401 *m, int flags)
 {
 #if 0
-	printf("mpu401_callback %s %s %s %s\n", 
-		flags & M_RX ? "M_RX" : "",
-		flags & M_TX ? "M_TX" : "",
-		flags & M_RXEN ? "M_RXEN" : "",
-		flags & M_TXEN ? "M_TXEN" : "" );
+	printf("mpu401_callback %s %s %s %s\n",
+	    flags & M_RX ? "M_RX" : "",
+	    flags & M_TX ? "M_TX" : "",
+	    flags & M_RXEN ? "M_RXEN" : "",
+	    flags & M_TXEN ? "M_TXEN" : "");
 #endif
 	if (flags & M_TXEN && m->si) {
 		callout_reset(&m->timer, 1, mpu401_timeout, m);
 	}
-
 	m->flags = flags;
 }
 
