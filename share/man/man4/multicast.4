@@ -25,7 +25,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd September 4, 2003
+.Dd February 25, 2007
 .Dt MULTICAST 4
 .Os
 .\"
@@ -160,11 +160,8 @@ memset(&vc, 0, sizeof(vc));
 vc.vifc_vifi = vif_index;
 vc.vifc_flags = vif_flags;
 vc.vifc_threshold = min_ttl_threshold;
-vc.vifc_rate_limit = max_rate_limit;
+vc.vifc_rate_limit = 0;
 memcpy(&vc.vifc_lcl_addr, &vif_local_address, sizeof(vc.vifc_lcl_addr));
-if (vc.vifc_flags & VIFF_TUNNEL)
-    memcpy(&vc.vifc_rmt_addr, &vif_remote_address,
-           sizeof(vc.vifc_rmt_addr));
 setsockopt(mrouter_s4, IPPROTO_IP, MRT_ADD_VIF, (void *)&vc,
            sizeof(vc));
 .Ed
@@ -179,15 +176,32 @@ contains the
 flags as defined in
 .In netinet/ip_mroute.h .
 The
+.Dv VIFF_TUNNEL
+flag is no longer supported by
+.Fx .
+Users who wish to forward multicast datagrams over a tunnel should consider
+configuring a
+.Xr gif 4
+or
+.Xr gre 4
+tunnel and using it as a physical interface.
+.Pp
+The
 .Va min_ttl_threshold
 contains the minimum TTL a multicast data packet must have to be
 forwarded on that vif.
 Typically, it would have value of 1.
+.Pp
 The
 .Va max_rate_limit
-contains the maximum rate (in bits/s) of the multicast data packets forwarded
-on that vif.
-Value of 0 means no limit.
+argument is no longer supported in
+.Fx
+and should be set to 0.
+Users who wish to rate-limit multicast datagrams should consider the use of
+.Xr dummynet 4
+or
+.Xr altq 4 .
+.Pp
 The
 .Va vif_local_address
 contains the local IP address of the corresponding local interface.
@@ -930,7 +944,11 @@ signal, but the next upcall will be triggered no earlier than
 after the previous upcall.
 .\"
 .Sh SEE ALSO
+.Xr altq 4 ,
+.Xr dummynet 4 ,
 .Xr getsockopt 2 ,
+.Xr gif 4 ,
+.Xr gre 4 ,
 .Xr recvfrom 2 ,
 .Xr recvmsg 2 ,
 .Xr setsockopt 2 ,
