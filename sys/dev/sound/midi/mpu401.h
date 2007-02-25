@@ -31,9 +31,11 @@
 
 struct mpu401;
 
-typedef int mpu401_intr_t(struct mpu401 * _obj);
+typedef int mpu401_intr_t(struct mpu401 *_obj);
 
-extern struct mpu401 *mpu401_init(kobj_class_t _cls, void *cookie, 
-			driver_intr_t *_softintr,mpu401_intr_t **_cb);
-extern int mpu401_uninit(struct mpu401 * _obj);
+extern struct mpu401 *
+mpu401_init(kobj_class_t _cls, void *cookie, driver_intr_t *_softintr,
+    mpu401_intr_t ** _cb);
+extern int mpu401_uninit(struct mpu401 *_obj);
+
 #endif
