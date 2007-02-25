@@ -121,20 +121,16 @@ static void	lxtphy_status(struct mii_softc *);
 static void	lxtphy_set_tp(struct mii_softc *);
 static void	lxtphy_set_fx(struct mii_softc *);
 
+static const struct mii_phydesc lxtphys[] = {
+	MII_PHY_DESC(xxLEVEL1, LXT970),
+	MII_PHY_END
+};
+
 static int
 lxtphy_probe(device_t dev)
 {
-	struct mii_attach_args *ma;
 
-	ma = device_get_ivars(dev);
-
-	if (MII_OUI(ma->mii_id1, ma->mii_id2) == MII_OUI_xxLEVEL1 &&
-	    MII_MODEL(ma->mii_id2) == MII_MODEL_xxLEVEL1_LXT970) {
-		device_set_desc(dev, MII_STR_xxLEVEL1_LXT970);
-	} else
-		return (ENXIO);
-
-	return (BUS_PROBE_DEFAULT);
+	return (mii_phy_dev_probe(dev, lxtphys, BUS_PROBE_DEFAULT));
 }
 
 static int

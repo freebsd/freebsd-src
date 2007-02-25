@@ -116,23 +116,17 @@ static int	acphy_service(struct mii_softc *, struct mii_data *, int);
 static void	acphy_reset(struct mii_softc *);
 static void	acphy_status(struct mii_softc *);
 
+static const struct mii_phydesc acphys[] = {
+	MII_PHY_DESC(xxALTIMA, AC101),
+	MII_PHY_DESC(xxALTIMA, AC101L),
+	MII_PHY_END
+};
+
 static int
 acphy_probe(device_t dev)
 {
-	struct mii_attach_args *ma;
 
-	ma = device_get_ivars(dev);
-
-	if (MII_OUI(ma->mii_id1, ma->mii_id2) == MII_OUI_xxALTIMA &&
-	    MII_MODEL(ma->mii_id2) == MII_MODEL_xxALTIMA_AC101) {
-		device_set_desc(dev, MII_STR_xxALTIMA_AC101);
-	} else if(MII_OUI(ma->mii_id1, ma->mii_id2) == MII_OUI_xxALTIMA &&
-	          MII_MODEL(ma->mii_id2) == MII_MODEL_xxALTIMA_AC101L) {
-		device_set_desc(dev, MII_STR_xxALTIMA_AC101L);
-	} else 
-		return (ENXIO);
-
-	return (BUS_PROBE_DEFAULT);
+	return (mii_phy_dev_probe(dev, acphys, BUS_PROBE_DEFAULT));
 }
 
 static int

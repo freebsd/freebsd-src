@@ -120,41 +120,30 @@ DRIVER_MODULE(bmtphy, miibus, bmtphy_driver, bmtphy_devclass, 0, 0);
 static int	bmtphy_service(struct mii_softc *, struct mii_data *, int);
 static void	bmtphy_status(struct mii_softc *);
 
+static const struct mii_phydesc bmtphys_dp[] = {
+	MII_PHY_DESC(BROADCOM, BCM4401),
+	MII_PHY_DESC(BROADCOM, BCM5201),
+	MII_PHY_DESC(BROADCOM, BCM5221),
+	MII_PHY_END
+};
+
+static const struct mii_phydesc bmtphys_lp[] = {
+	MII_PHY_DESC(BROADCOM, 3C905B),
+	MII_PHY_DESC(BROADCOM, 3C905C),
+	MII_PHY_END
+};
+
 static int
 bmtphy_probe(device_t dev)
 {
-	struct	mii_attach_args *ma;
 	int	rval;
 
-	ma = device_get_ivars(dev);
-	rval = BUS_PROBE_DEFAULT;
+	/* Let exphy(4) take precedence for these. */
+	rval = mii_phy_dev_probe(dev, bmtphys_lp, BUS_PROBE_LOW_PRIORITY);
+	if (rval <= 0)
+		return (rval);
 
-	if (MII_OUI(ma->mii_id1, ma->mii_id2) != MII_OUI_BROADCOM)
-		return (ENXIO);
-
-	switch (MII_MODEL(ma->mii_id2)) {
-	case MII_MODEL_BROADCOM_3C905B:
-		device_set_desc(dev, MII_STR_BROADCOM_3C905B);
-		rval = BUS_PROBE_LOW_PRIORITY;	/* Let exphy take precedence. */
-		break;
-	case MII_MODEL_BROADCOM_3C905C:
-		device_set_desc(dev, MII_STR_BROADCOM_3C905C);
-		rval = BUS_PROBE_LOW_PRIORITY;	/* Let exphy take precedence. */
-		break;
-	case MII_MODEL_BROADCOM_BCM5201:
-		device_set_desc(dev, MII_STR_BROADCOM_BCM5201);
-		break;
-	case MII_MODEL_BROADCOM_BCM5221:
-		device_set_desc(dev, MII_STR_BROADCOM_BCM5221);
-		break;
-	case MII_MODEL_BROADCOM_BCM4401:
-		device_set_desc(dev, MII_STR_BROADCOM_BCM4401);
-		break;
-	default:
-		return (ENXIO);
-	}
-
-	return (rval);
+	return (mii_phy_dev_probe(dev, bmtphys_dp, BUS_PROBE_DEFAULT));
 }
 
 static int
