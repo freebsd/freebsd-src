@@ -65,21 +65,19 @@
 #define	_NETIPX_IPXIP_H_
 
 struct ifnet_en {
-	struct ifnet *ifen_ifp;
-	struct route ifen_route;
-	struct in_addr ifen_src;
-	struct in_addr ifen_dst;
-	struct ifnet_en *ifen_next;
+	struct ifnet	*ifen_ifp;
+	struct route	 ifen_route;
+	struct in_addr	 ifen_src;
+	struct in_addr	 ifen_dst;
+	struct ifnet_en	*ifen_next;
 };
 
-#define LOMTU	(1024+512)	/* XXX this is TINY_LOMTU */
+#define	LOMTU	(1024+512)	/* XXX this is TINY_LOMTU */
 
 #ifdef _KERNEL
-
 void	ipxip_ctlinput(int cmd, struct sockaddr *sa, void *arg);
 void	ipxip_input(struct mbuf *m, int hlen);
 int	ipxip_route(struct socket *so, struct sockopt *sopt);
-
 #endif
 
 #endif /* !_NETIPX_IPXIP_H_ */
