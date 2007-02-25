@@ -354,6 +354,7 @@ sparc64_init(caddr_t mdp, u_long o1, u_long o2, u_long o3, ofw_vec_t *vec)
 	}
 
 	cache_init(child);
+	uma_set_align(cache.dc_linesize - 1);
 
 	getenv_int("machdep.use_vis", &cpu_use_vis);
 	if (cpu_use_vis) {
