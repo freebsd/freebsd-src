@@ -302,7 +302,6 @@ MAN=	accept_filter.9 \
 	vm_page_protect.9 \
 	vm_page_rename.9 \
 	vm_page_sleep_busy.9 \
-	vm_page_unmanage.9 \
 	vm_page_wakeup.9 \
 	vm_page_wire.9 \
 	vm_page_zero_fill.9 \
