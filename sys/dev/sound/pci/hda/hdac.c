@@ -80,7 +80,7 @@
 
 #include "mixer_if.h"
 
-#define HDA_DRV_TEST_REV	"20070128_0039"
+#define HDA_DRV_TEST_REV	"20070225_0040"
 #define HDA_WIDGET_PARSER_REV	1
 
 SND_DECLARE_FILE("$FreeBSD$");
@@ -1690,7 +1690,7 @@ static uint32_t
 hdac_widget_pin_getconfig(struct hdac_widget *w)
 {
 	struct hdac_softc *sc;
-	uint32_t config, id;
+	uint32_t config, orig, id;
 	nid_t cad, nid;
 
 	sc = w->devinfo->codec->sc;
@@ -1701,6 +1701,8 @@ hdac_widget_pin_getconfig(struct hdac_widget *w)
 	config = hdac_command(sc,
 	    HDA_CMD_GET_CONFIGURATION_DEFAULT(cad, nid),
 	    cad);
+	orig = config;
+
 	/*
 	 * XXX REWRITE!!!! Don't argue!
 	 */
@@ -1757,9 +1759,70 @@ hdac_widget_pin_getconfig(struct hdac_widget *w)
 		default:
 			break;
 		}
+	} else if (id == HDA_CODEC_ALC883 &&
+	    HDA_DEV_MATCH(ACER_ALL_SUBVENDOR, sc->pci_subvendor)) {
+		switch (nid) {
+		case 25:
+			config &= ~(HDA_CONFIG_DEFAULTCONF_DEVICE_MASK |
+			    HDA_CONFIG_DEFAULTCONF_CONNECTIVITY_MASK);
+			config |= (HDA_CONFIG_DEFAULTCONF_DEVICE_MIC_IN |
+			    HDA_CONFIG_DEFAULTCONF_CONNECTIVITY_FIXED);
+			break;
+		default:
+			break;
+		}
+	} else if (id == HDA_CODEC_CXVENICE && sc->pci_subvendor ==
+	    HP_V3000_SUBVENDOR) {
+		switch (nid) {
+		case 18:
+			config &= ~HDA_CONFIG_DEFAULTCONF_CONNECTIVITY_MASK;
+			config |= HDA_CONFIG_DEFAULTCONF_CONNECTIVITY_NONE;
+			break;
+		case 20:
+			config &= ~(HDA_CONFIG_DEFAULTCONF_DEVICE_MASK |
+			    HDA_CONFIG_DEFAULTCONF_CONNECTIVITY_MASK);
+			config |= (HDA_CONFIG_DEFAULTCONF_DEVICE_MIC_IN |
+			    HDA_CONFIG_DEFAULTCONF_CONNECTIVITY_FIXED);
+			break;
+		default:
+			break;
+		}
 	}
 
+	HDA_BOOTVERBOSE(
+		if (config != orig)
+			device_printf(sc->dev,
+			    "HDA_DEBUG: Pin config nid=%u 0x%08x -> 0x%08x\n",
+			    nid, orig, config);
+	);
+
 	return (config);
+}
+
+static uint32_t
+hdac_widget_pin_getcaps(struct hdac_widget *w)
+{
+	struct hdac_softc *sc;
+	uint32_t caps, orig, id;
+	nid_t cad, nid;
+
+	sc = w->devinfo->codec->sc;
+	cad = w->devinfo->codec->cad;
+	nid = w->nid;
+	id = hdac_codec_id(w->devinfo);
+
+	caps = hdac_command(sc,
+	    HDA_CMD_GET_PARAMETER(cad, nid, HDA_PARAM_PIN_CAP), cad);
+	orig = caps;
+
+	HDA_BOOTVERBOSE(
+		if (caps != orig)
+			device_printf(sc->dev,
+			    "HDA_DEBUG: Pin caps nid=%u 0x%08x -> 0x%08x\n",
+			    nid, orig, caps);
+	);
+
+	return (caps);
 }
 
 static void
@@ -1774,8 +1837,7 @@ hdac_widget_pin_parse(struct hdac_widget *w)
 	config = hdac_widget_pin_getconfig(w);
 	w->wclass.pin.config = config;
 
-	pincap = hdac_command(sc,
-	    HDA_CMD_GET_PARAMETER(cad, nid, HDA_PARAM_PIN_CAP), cad);
+	pincap = hdac_widget_pin_getcaps(w);
 	w->wclass.pin.cap = pincap;
 
 	w->wclass.pin.ctrl = hdac_command(sc,
@@ -3652,6 +3714,35 @@ hdac_vendor_patch_parse(struct hdac_devinfo *devinfo)
 				strlcpy(w->name, "beep widget", sizeof(w->name));
 			}
 		}
+		break;
+	case HDA_CODEC_ALC883:
+		/*
+		 * nid: 24/25 = External (jack) or Internal (fixed) Mic.
+		 *              Clear vref cap for jack connectivity.
+		 */
+		w = hdac_widget_get(devinfo, 24);
+		if (w != NULL && w->enable != 0 && w->type ==
+		    HDA_PARAM_AUDIO_WIDGET_CAP_TYPE_PIN_COMPLEX &&
+		    (w->wclass.pin.config &
+		    HDA_CONFIG_DEFAULTCONF_CONNECTIVITY_MASK) ==
+		    HDA_CONFIG_DEFAULTCONF_CONNECTIVITY_JACK)
+			w->wclass.pin.cap &= ~(
+			    HDA_PARAM_PIN_CAP_VREF_CTRL_100_MASK |
+			    HDA_PARAM_PIN_CAP_VREF_CTRL_80_MASK |
+			    HDA_PARAM_PIN_CAP_VREF_CTRL_50_MASK);
+		w = hdac_widget_get(devinfo, 25);
+		if (w != NULL && w->enable != 0 && w->type ==
+		    HDA_PARAM_AUDIO_WIDGET_CAP_TYPE_PIN_COMPLEX &&
+		    (w->wclass.pin.config &
+		    HDA_CONFIG_DEFAULTCONF_CONNECTIVITY_MASK) ==
+		    HDA_CONFIG_DEFAULTCONF_CONNECTIVITY_JACK)
+			w->wclass.pin.cap &= ~(
+			    HDA_PARAM_PIN_CAP_VREF_CTRL_100_MASK |
+			    HDA_PARAM_PIN_CAP_VREF_CTRL_80_MASK |
+			    HDA_PARAM_PIN_CAP_VREF_CTRL_50_MASK);
+		/*
+		 * nid: 26 = Line-in, leave it alone.
+		 */
 		break;
 	case HDA_CODEC_AD1981HD:
 		w = hdac_widget_get(devinfo, 11);
