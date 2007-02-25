@@ -81,24 +81,14 @@ ASM_CFLAGS= -x assembler-with-cpp -DLOCORE ${CFLAGS}
 
 .if defined(PROFLEVEL) && ${PROFLEVEL} >= 1
 .if ${CC} == "icc"
-.error Profiling doesn't work with ICC yet.
-.else
-CFLAGS+=	-DGPROF -falign-functions=16
+.error "Profiling doesn't work with icc yet"
 .endif
+CFLAGS+=	-DGPROF -falign-functions=16
 .if ${PROFLEVEL} >= 2
 CFLAGS+=	-DGPROF4 -DGUPROF
-. if ${CC} == "icc"
-# XXX doesn't work yet
-#PROF=	-prof_gen
-. else
-PROF=	-finstrument-functions -Wno-inline
-. endif
+PROF=	-pg -mprofiler-epilogue
 .else
-. if ${CC} == "icc"
-PROF=	-p
-. else
 PROF=	-pg
-. endif
 .endif
 .endif
 DEFINED_PROF=	${PROF}
