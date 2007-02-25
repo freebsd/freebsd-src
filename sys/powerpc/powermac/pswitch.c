@@ -121,8 +121,8 @@ pswitch_attach(device_t dev)
 		return (ENXIO);
 	}
 
-	if (bus_setup_intr(dev, sc->sc_irq, INTR_TYPE_MISC | INTR_FAST,
-	    pswitch_intr, dev, &sc->sc_ih) != 0) {
+	if (bus_setup_intr(dev, sc->sc_irq, INTR_TYPE_MISC,
+	    pswitch_intr, NULL, dev, &sc->sc_ih) != 0) {
 		device_printf(dev, "could not setup interrupt\n");
 		bus_release_resource(dev, SYS_RES_IRQ, sc->sc_irqrid,
 		    sc->sc_irq);
