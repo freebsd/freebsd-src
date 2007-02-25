@@ -174,7 +174,7 @@ mlphy_attach(dev)
 	printf("\n");
 #undef ADD
 	MIIBUS_MEDIAINIT(sc->mii_dev);
-	return(0);
+	return (0);
 }
 
 static int
@@ -184,12 +184,11 @@ mlphy_service(xsc, mii, cmd)
 	int cmd;
 {
 	struct ifmedia_entry	*ife = mii->mii_media.ifm_cur;
-	int			reg;
 	struct mii_softc	*other = NULL;
 	struct mlphy_softc	*msc = (struct mlphy_softc *)xsc;
 	struct mii_softc	*sc = (struct mii_softc *)&msc->ml_mii;
 	device_t		*devlist;
-	int			devs, i;
+	int			devs, i, other_inst, reg;
 
 	/*
 	 * See if there's another PHY on this bus with us.
@@ -244,7 +243,7 @@ mlphy_service(xsc, mii, cmd)
 			}
 			(void) mii_phy_auto(sc);
 			msc->ml_linked = 0;
-			return(0);
+			return (0);
 		case IFM_10_T:
 			/*
 			 * For 10baseT modes, reset and program the
@@ -337,9 +336,9 @@ mlphy_service(xsc, mii, cmd)
 		/*
 		 * Only retry autonegotiation every 5 seconds.
 		 */
-		if (++sc->mii_ticks <= 5)
+		if (++sc->mii_ticks <= MII_ANEGTICKS)
 			break;
-		
+
 		sc->mii_ticks = 0;
 		msc->ml_linked = 0;
 		mii->mii_media_active = IFM_NONE;
@@ -350,13 +349,12 @@ mlphy_service(xsc, mii, cmd)
 			PHY_WRITE(other, MII_BMCR, BMCR_ISO);
 		}
 		mii_phy_auto(sc);
-		return(0);
+		return (0);
 	}
 
 	/* Update the media status. */
 
 	if (msc->ml_state == ML_STATE_AUTO_OTHER) {
-		int			other_inst;
 		other_inst = other->mii_inst;
 		other->mii_inst = sc->mii_inst;
 		(void) (*other->mii_service)(other, mii, MII_POLLSTAT);
@@ -385,8 +383,6 @@ mlphy_reset(sc)
 	reg = PHY_READ(sc, MII_BMCR);
 	reg &= ~BMCR_AUTOEN;
 	PHY_WRITE(sc, MII_BMCR, reg);
-
-	return;
 }
 
 /*
@@ -431,6 +427,4 @@ mlphy_status(sc)
 		mii_phy_reset(other);
 		mii_phy_auto(other);
 	}
-
-	return;
 }
