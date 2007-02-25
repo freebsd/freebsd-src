@@ -103,25 +103,31 @@ __FBSDID("$FreeBSD$");
 
 NET_NEEDS_GIANT("ipx_ip");
 
-static struct	ifnet ipxipif;
-static int	ipxipif_units;
+static struct		 ifnet ipxipif;
+static int		 ipxipif_units;
 
-/* list of all hosts and gateways or broadcast addrs */
-static struct	ifnet_en *ipxip_list;
+/* List of all hosts and gateways or broadcast addrs. */
+static struct ifnet_en	*ipxip_list;
 
-static	struct ifnet_en *ipxipattach(void);
-static	int ipxip_free(struct ifnet *ifp);
-static	int ipxipioctl(struct ifnet *ifp, u_long cmd, caddr_t data);
-static	int ipxipoutput(struct ifnet *ifp, struct mbuf *m,
-			struct sockaddr *dst, struct rtentry *rt);
-static	void ipxip_rtchange(struct in_addr *dst);
-static	void ipxipstart(struct ifnet *ifp);
+static struct ifreq	 ifr_ipxip = {"ipxip0"};
+static struct mbuf	*ipxip_badlen;
+static struct mbuf	*ipxip_lastin;
+static int		 ipxip_hold_input;
+
+static struct ifnet_en	*ipxipattach(void);
+static int		 ipxip_free(struct ifnet *ifp);
+static int		 ipxipioctl(struct ifnet *ifp, u_long cmd,
+			    caddr_t data);
+static int		 ipxipoutput(struct ifnet *ifp, struct mbuf *m,
+			    struct sockaddr *dst, struct rtentry *rt);
+static void		 ipxip_rtchange(struct in_addr *dst);
+static void		 ipxipstart(struct ifnet *ifp);
 
 static struct ifnet_en *
-ipxipattach()
+ipxipattach(void)
 {
-	register struct ifnet_en *m;
-	register struct ifnet *ifp;
+	struct ifnet_en *m;
+	struct ifnet *ifp;
 
 	if (ipxipif.if_mtu == 0) {
 		ifp = &ipxipif;
@@ -156,21 +162,16 @@ ipxipattach()
 	return (m);
 }
 
-
 /*
  * Process an ioctl request.
  */
 static int
-ipxipioctl(ifp, cmd, data)
-	register struct ifnet *ifp;
-	u_long cmd;
-	caddr_t data;
+ipxipioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 {
 	int error = 0;
 	struct ifreq *ifr;
 
 	switch (cmd) {
-
 	case SIOCSIFADDR:
 		ifp->if_flags |= IFF_UP;
 		/* FALLTHROUGH */
@@ -186,32 +187,25 @@ ipxipioctl(ifp, cmd, data)
 		if ((ifr->ifr_flags & IFF_UP) == 0)
 			error = ipxip_free(ifp);
 
-
 	default:
 		error = EINVAL;
 	}
 	return (error);
 }
 
-static struct mbuf *ipxip_badlen;
-static struct mbuf *ipxip_lastin;
-static int ipxip_hold_input;
-
 void
-ipxip_input(m, hlen)
-	register struct mbuf *m;
-	int hlen;
+ipxip_input(struct mbuf *m, int hlen)
 {
-	register struct ip *ip;
-	register struct ipx *ipx;
+	struct ip *ip;
+	struct ipx *ipx;
 	int len, s;
 
 	if (ipxip_hold_input) {
-		if (ipxip_lastin != NULL) {
+		if (ipxip_lastin != NULL)
 			m_freem(ipxip_lastin);
-		}
 		ipxip_lastin = m_copym(m, 0, (int)M_COPYALL, M_DONTWAIT);
 	}
+
 	/*
 	 * Get IP and IPX header together in first mbuf.
 	 */
@@ -235,8 +229,8 @@ ipxip_input(m, hlen)
 	}
 
 	/*
-	 * Make mbuf data length reflect IPX length.
-	 * If not enough data to reflect IPX length, drop.
+	 * Make mbuf data length reflect IPX length.  If not enough data to
+	 * reflect IPX length, drop.
 	 */
 	m->m_data += sizeof(struct ip);
 	m->m_len -= sizeof(struct ip);
@@ -253,40 +247,41 @@ ipxip_input(m, hlen)
 			ipxip_badlen = m;
 			return;
 		}
-		/* Any extra will be trimmed off by the IPX routines */
+		/*
+		 * Any extra will be trimmed off by the IPX routines.
+		 */
 	}
 
 	/*
-	 * Deliver to IPX
+	 * Deliver to IPX.
 	 */
 	netisr_dispatch(NETISR_IPX, m);
 }
 
 static int
-ipxipoutput(ifp, m, dst, rt)
-	struct ifnet *ifp;
-	struct mbuf *m;
-	struct sockaddr *dst;
-	struct rtentry *rt;
+ipxipoutput(struct ifnet *ifp, struct mbuf *m, struct sockaddr *dst,
+    struct rtentry *rt)
 {
-	register struct ifnet_en *ifn = (struct ifnet_en *)ifp->if_softc;
-	register struct ip *ip;
-	register struct route *ro = &(ifn->ifen_route);
-	register int len = 0;
-	register struct ipx *ipx = mtod(m, struct ipx *);
+	struct ifnet_en *ifn = (struct ifnet_en *)ifp->if_softc;
+	struct route *ro = &(ifn->ifen_route);
+	struct ipx *ipx = mtod(m, struct ipx *);
+	struct ip *ip;
+	int len = 0;
 	int error;
 
 	ifn->ifen_ifp->if_opackets++;
 	ipxipif.if_opackets++;
 
 	/*
-	 * Calculate data length and make space
-	 * for IP header.
+	 * Calculate data length and make space for IP header.
 	 */
 	len =  ntohs(ipx->ipx_len);
 	if (len & 1)
 		len++;		/* Preserve Garbage Byte */
-	/* following clause not necessary on vax */
+
+	/*
+	 * Following clause not necessary on VAX.
+	 */
 	if (3 & (intptr_t)m->m_data) {
 		/* force longword alignment of ip hdr */
 		struct mbuf *m0 = m_gethdr(MT_DATA, M_DONTWAIT);
@@ -306,6 +301,7 @@ ipxipoutput(ifp, m, dst, rt)
 		if (m == NULL)
 			return (ENOBUFS);
 	}
+
 	/*
 	 * Fill in IP header.
 	 */
@@ -320,37 +316,34 @@ ipxipoutput(ifp, m, dst, rt)
 	/*
 	 * Output final datagram.
 	 */
-	error =  (ip_output(m, (struct mbuf *)NULL, ro, SO_BROADCAST, NULL, NULL));
+	error =  ip_output(m, (struct mbuf *)NULL, ro, SO_BROADCAST, NULL,
+	    NULL);
 	if (error) {
 		ifn->ifen_ifp->if_oerrors++;
 		ifn->ifen_ifp->if_ierrors = error;
 	}
 	return (error);
-	m_freem(m);
-	return (ENETUNREACH);
 }
 
 static void
-ipxipstart(ifp)
-struct ifnet *ifp;
+ipxipstart(struct ifnet *ifp)
 {
+
 	panic("ipxip_start called\n");
 }
 
-static struct ifreq ifr_ipxip = {"ipxip0"};
-
 int
-ipxip_route(so, sopt)
-	struct socket *so;
-	struct sockopt *sopt;
+ipxip_route(struct socket *so, struct sockopt *sopt)
 {
-	int error;
+	struct in_ifaddr *ia;
 	struct ifnet_en *ifn;
 	struct sockaddr_in *src;
 	struct ipxip_req rq;
 	struct sockaddr_ipx *ipx_dst;
 	struct sockaddr_in *ip_dst;
+	struct ifnet *ifp;
 	struct route ro;
+	int error;
 
 	error = sooptcopyin(sopt, &rq, sizeof rq, sizeof rq);
 	if (error)
@@ -363,36 +356,32 @@ ipxip_route(so, sopt)
 	 */
 	if (ipx_ifaddr == NULL)
 		return (EADDRNOTAVAIL);
+
 	/*
-	 * Now, determine if we can get to the destination
+	 * Now, determine if we can get to the destination.
 	 */
 	bzero((caddr_t)&ro, sizeof(ro));
 	ro.ro_dst = *(struct sockaddr *)ip_dst;
 	rtalloc_ign(&ro, 0);
-	if (ro.ro_rt == NULL || ro.ro_rt->rt_ifp == NULL) {
+	if (ro.ro_rt == NULL || ro.ro_rt->rt_ifp == NULL)
 		return (ENETUNREACH);
-	}
 
 	/*
-	 * And see how he's going to get back to us:
-	 * i.e., what return ip address do we use?
+	 * And see how he's going to get back to us: i.e., what return IP
+	 * address do we use?
 	 */
-	{
-		register struct in_ifaddr *ia;
-		struct ifnet *ifp = ro.ro_rt->rt_ifp;
-
-		for (ia = TAILQ_FIRST(&in_ifaddrhead); ia != NULL;
-		     ia = TAILQ_NEXT(ia, ia_link))
-			if (ia->ia_ifp == ifp)
-				break;
-		if (ia == NULL)
-			ia = TAILQ_FIRST(&in_ifaddrhead);
-		if (ia == NULL) {
-			RTFREE(ro.ro_rt);
-			return (EADDRNOTAVAIL);
-		}
-		src = (struct sockaddr_in *)&ia->ia_addr;
+	ifp = ro.ro_rt->rt_ifp;
+	for (ia = TAILQ_FIRST(&in_ifaddrhead); ia != NULL;
+	     ia = TAILQ_NEXT(ia, ia_link))
+		if (ia->ia_ifp == ifp)
+			break;
+	if (ia == NULL)
+		ia = TAILQ_FIRST(&in_ifaddrhead);
+	if (ia == NULL) {
+		RTFREE(ro.ro_rt);
+		return (EADDRNOTAVAIL);
 	}
+	src = (struct sockaddr_in *)&ia->ia_addr;
 
 	/*
 	 * Is there a free (pseudo-)interface or space?
@@ -412,26 +401,27 @@ ipxip_route(so, sopt)
 	ifn->ifen_src = src->sin_addr;
 
 	/*
-	 * now configure this as a point to point link
+	 * Now configure this as a point to point link.
 	 */
 	ifr_ipxip.ifr_name[4] = '0' + ipxipif_units - 1;
 	ifr_ipxip.ifr_dstaddr = *(struct sockaddr *)ipx_dst;
 	ipx_control(so, (int)SIOCSIFDSTADDR, (caddr_t)&ifr_ipxip,
 			(struct ifnet *)ifn, sopt->sopt_td);
 
-	/* use any of our addresses */
+	/*
+	 * Use any of our addresses.
+	 */
 	satoipx_addr(ifr_ipxip.ifr_addr).x_host =
-			ipx_ifaddr->ia_addr.sipx_addr.x_host;
+	    ipx_ifaddr->ia_addr.sipx_addr.x_host;
 
 	return (ipx_control(so, (int)SIOCSIFADDR, (caddr_t)&ifr_ipxip,
-			(struct ifnet *)ifn, sopt->sopt_td));
+	    (struct ifnet *)ifn, sopt->sopt_td));
 }
 
 static int
-ipxip_free(ifp)
-struct ifnet *ifp;
+ipxip_free(struct ifnet *ifp)
 {
-	register struct ifnet_en *ifn = (struct ifnet_en *)ifp->if_softc;
+	struct ifnet_en *ifn = (struct ifnet_en *)ifp->if_softc;
 	struct route *ro = & ifn->ifen_route;
 
 	if (ro->ro_rt != NULL) {
@@ -443,10 +433,7 @@ struct ifnet *ifp;
 }
 
 void
-ipxip_ctlinput(cmd, sa, dummy)
-	int cmd;
-	struct sockaddr *sa;
-	void *dummy;
+ipxip_ctlinput(int cmd, struct sockaddr *sa, void *dummy)
 {
 	struct sockaddr_in *sin;
 
@@ -459,7 +446,6 @@ ipxip_ctlinput(cmd, sa, dummy)
 		return;
 
 	switch (cmd) {
-
 	case PRC_ROUTEDEAD:
 	case PRC_REDIRECT_NET:
 	case PRC_REDIRECT_HOST:
@@ -471,10 +457,9 @@ ipxip_ctlinput(cmd, sa, dummy)
 }
 
 static void
-ipxip_rtchange(dst)
-	register struct in_addr *dst;
+ipxip_rtchange(struct in_addr *dst)
 {
-	register struct ifnet_en *ifn;
+	struct ifnet_en *ifn;
 
 	for (ifn = ipxip_list; ifn != NULL; ifn = ifn->ifen_next) {
 		if (ifn->ifen_dst.s_addr == dst->s_addr &&
