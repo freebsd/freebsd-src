@@ -35,7 +35,7 @@
 struct name {                           \
         int h, t, s;                    \
         type * b;                        \
-} 
+}
 
 #define MIDIQ_INIT(head, buf, size) do {                \
         (head).h=(head).t=0;                          \

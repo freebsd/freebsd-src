@@ -50,7 +50,8 @@ void	seq_timer(void *arg);
 
 SYSCTL_DECL(_hw_midi_seq);
 
-extern int	seq_debug;
+extern int seq_debug;
+
 #define SEQ_DEBUG(y, x)			\
 	do {				\
 		if (seq_debug >= y) {	\
@@ -60,7 +61,7 @@ extern int	seq_debug;
 
 SYSCTL_DECL(_hw_midi);
 
-#endif /* _KERNEL */
+#endif					/* _KERNEL */
 
 #define SYNTHPROP_MIDI		1
 #define SYNTHPROP_SYNTH		2
@@ -68,17 +69,17 @@ SYSCTL_DECL(_hw_midi);
 #define SYNTHPROP_TX		8
 
 struct _midi_cmdtab {
-    int     cmd;
-    char *  name;
+	int	cmd;
+	char   *name;
 };
-typedef struct _midi_cmdtab      midi_cmdtab;
+typedef struct _midi_cmdtab midi_cmdtab;
 extern midi_cmdtab cmdtab_seqevent[];
 extern midi_cmdtab cmdtab_seqioctl[];
 extern midi_cmdtab cmdtab_timer[];
 extern midi_cmdtab cmdtab_seqcv[];
 extern midi_cmdtab cmdtab_seqccmn[];
 
-char     *midi_cmdname(int cmd, midi_cmdtab *tab);
+char   *midi_cmdname(int cmd, midi_cmdtab * tab);
 
 enum {
 	MORE,
