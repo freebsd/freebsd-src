@@ -1,4 +1,4 @@
-/*	$NetBSD: linux_futex.c,v 1.5 2005/11/23 16:14:57 manu Exp $ */
+/*	$NetBSD: linux_futex.c,v 1.7 2006/07/24 19:01:49 manu Exp $ */
 
 /*-
  * Copyright (c) 2005 Emmanuel Dreyfus, all rights reserved.
@@ -34,7 +34,7 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 #if 0
-__KERNEL_RCSID(1, "$NetBSD: linux_futex.c,v 1.5 2005/11/23 16:14:57 manu Exp $");
+__KERNEL_RCSID(1, "$NetBSD: linux_futex.c,v 1.7 2006/07/24 19:01:49 manu Exp $");
 #endif
 
 #include "opt_compat.h"
@@ -393,6 +393,11 @@ futex_sleep(struct futex *f, struct thread *td, unsigned long timeout)
 		    timeout);
 #endif
 	ret = tsleep(wp, PCATCH | PZERO, "linuxfutex", timeout);
+#ifdef DEBUG
+	if (ldebug(sys_futex))
+		printf("FUTEX -> %d tsleep returns %d\n",
+		    td->td_proc->p_pid, ret);
+#endif
 
 	FUTEX_LOCK;
 	TAILQ_REMOVE(&f->f_waiting_proc, wp, wp_list);
