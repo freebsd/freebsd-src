@@ -14,14 +14,14 @@
  * 3. All advertising materials mentioning features or use of this software
  *    must display the following acknowledgement:
  *	This product includes software developed by Emmanuel Dreyfus
- * 4. The name of the author may not be used to endorse or promote 
- *    products derived from this software without specific prior written 
+ * 4. The name of the author may not be used to endorse or promote
+ *    products derived from this software without specific prior written
  *    permission.
  *
- * THIS SOFTWARE IS PROVIDED BY THE THE AUTHOR AND CONTRIBUTORS ``AS IS'' 
- * AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, 
+ * THIS SOFTWARE IS PROVIDED BY THE THE AUTHOR AND CONTRIBUTORS ``AS IS''
+ * AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO,
  * THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
- * PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS 
+ * PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS
  * BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
  * CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
  * SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
@@ -34,7 +34,7 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 #if 0
- __KERNEL_RCSID(1, "$NetBSD: linux_futex.c,v 1.5 2005/11/23 16:14:57 manu Exp $");
+__KERNEL_RCSID(1, "$NetBSD: linux_futex.c,v 1.5 2005/11/23 16:14:57 manu Exp $");
 #endif
 
 #include "opt_compat.h"
@@ -67,8 +67,8 @@ struct waiting_proc {
 	TAILQ_ENTRY(waiting_proc) wp_list;
 };
 struct futex {
-	void *f_uaddr;
-	int f_refcount;
+	void   *f_uaddr;
+	int	f_refcount;
 	LIST_ENTRY(futex) f_list;
 	TAILQ_HEAD(lf_waiting_proc, waiting_proc) f_waiting_proc;
 };
@@ -85,7 +85,7 @@ struct sx futex_sx;		/* this protects the LIST of futexes */
 #define FUTEX_SYSTEM_LOCK mtx_lock(&Giant)
 #define FUTEX_SYSTEM_UNLOCK mtx_unlock(&Giant)
 
-static struct futex *futex_get(void *, int);
+static struct futex	*futex_get(void *, int);
 static void futex_put(struct futex *);
 static int futex_sleep(struct futex *, struct thread *, unsigned long);
 static int futex_wake(struct futex *, int, struct futex *);
@@ -105,7 +105,7 @@ linux_sys_futex(struct thread *td, struct linux_sys_futex_args *args)
 {
 	int val;
 	int ret;
-	struct l_timespec timeout = { 0, 0 };
+	struct l_timespec timeout = {0, 0};
 	int error = 0;
 	struct futex *f;
 	struct futex *newf;
@@ -118,56 +118,57 @@ linux_sys_futex(struct thread *td, struct linux_sys_futex_args *args)
 
 #ifdef	DEBUG
 	if (ldebug(sys_futex))
-	   	printf(ARGS(futex,"%p, %i, %i"), args->uaddr, args->op, args->val);
+		printf(ARGS(futex, "%p, %i, %i"), args->uaddr, args->op,
+		    args->val);
 #endif
 
 	switch (args->op) {
 	case LINUX_FUTEX_WAIT:
-	   	FUTEX_SYSTEM_LOCK;
+		FUTEX_SYSTEM_LOCK;
 
-		if ((error = copyin(args->uaddr, 
+		if ((error = copyin(args->uaddr,
 		    &val, sizeof(val))) != 0) {
-		   	FUTEX_SYSTEM_UNLOCK;
+			FUTEX_SYSTEM_UNLOCK;
 			return error;
 		}
 
 		if (val != args->val) {
-		   	FUTEX_SYSTEM_UNLOCK;
+			FUTEX_SYSTEM_UNLOCK;
 			return EWOULDBLOCK;
 		}
 
 		if (args->timeout != NULL) {
-			if ((error = copyin(args->timeout, 
+			if ((error = copyin(args->timeout,
 			    &timeout, sizeof(timeout))) != 0) {
-			  	FUTEX_SYSTEM_UNLOCK;
+				FUTEX_SYSTEM_UNLOCK;
 				return error;
 			}
 		}
 
 #ifdef DEBUG
 		if (ldebug(sys_futex))
-   			printf("FUTEX_WAIT %d: val = %d, uaddr = %p, "
-		    		"*uaddr = %d, timeout = %d.%09lu\n", 
-		    		td->td_proc->p_pid, args->val, 
-		    		args->uaddr, val, timeout.tv_sec,
-				(unsigned long)timeout.tv_nsec); 
+			printf("FUTEX_WAIT %d: val = %d, uaddr = %p, "
+			    "*uaddr = %d, timeout = %d.%09lu\n",
+			    td->td_proc->p_pid, args->val,
+			    args->uaddr, val, timeout.tv_sec,
+			    (unsigned long)timeout.tv_nsec);
 #endif
 		tv.tv_usec = timeout.tv_sec * 1000000 + timeout.tv_nsec / 1000;
 		timeout_hz = tvtohz(&tv);
 
 		if (timeout.tv_sec == 0 && timeout.tv_nsec == 0)
-		   	timeout_hz = 0;
-      		/*
-                 * If the user process requests a non null timeout,
-                 * make sure we do not turn it into an infinite
-                 * timeout because timeout_hz gets null.
-                 *
-                 * We use a minimal timeout of 1/hz. Maybe it would
-                 * make sense to just return ETIMEDOUT without sleeping.
-                 */
-                if (((timeout.tv_sec != 0) || (timeout.tv_nsec != 0)) &&
-                    (timeout_hz == 0))
-                        timeout_hz = 1;
+			timeout_hz = 0;
+		/*
+		 * If the user process requests a non null timeout,
+		 * make sure we do not turn it into an infinite
+		 * timeout because timeout_hz gets null.
+		 *
+		 * We use a minimal timeout of 1/hz. Maybe it would
+		 * make sense to just return ETIMEDOUT without sleeping.
+		 */
+		if (((timeout.tv_sec != 0) || (timeout.tv_nsec != 0)) &&
+		    (timeout_hz == 0))
+			timeout_hz = 1;
 
 
 		f = futex_get(args->uaddr, FUTEX_UNLOCKED);
@@ -176,8 +177,8 @@ linux_sys_futex(struct thread *td, struct linux_sys_futex_args *args)
 
 #ifdef DEBUG
 		if (ldebug(sys_futex))
-   			printf("FUTEX_WAIT %d: uaddr = %p, "
-		    		"ret = %d\n", td->td_proc->p_pid, args->uaddr, ret); 
+			printf("FUTEX_WAIT %d: uaddr = %p, "
+			    "ret = %d\n", td->td_proc->p_pid, args->uaddr, ret);
 #endif
 
 		FUTEX_SYSTEM_UNLOCK;
@@ -188,37 +189,37 @@ linux_sys_futex(struct thread *td, struct linux_sys_futex_args *args)
 		case EINTR:		/* signal */
 			return EINTR;
 			break;
-		case 0:			/* FUTEX_WAKE received */
+		case 0:		/* FUTEX_WAKE received */
 #ifdef DEBUG
 			if (ldebug(sys_futex))
 				printf("FUTEX_WAIT %d: uaddr = %p, got FUTEX_WAKE\n",
-			    		td->td_proc->p_pid, args->uaddr); 
+				    td->td_proc->p_pid, args->uaddr);
 #endif
 			return 0;
 			break;
 		default:
 #ifdef DEBUG
 			if (ldebug(sys_futex))
-   				printf("FUTEX_WAIT: unexpected ret = %d\n", ret);
+				printf("FUTEX_WAIT: unexpected ret = %d\n", ret);
 #endif
 			break;
 		}
 
 		/* NOTREACHED */
 		break;
-		
+
 	case LINUX_FUTEX_WAKE:
 		FUTEX_SYSTEM_LOCK;
 
-		/* 
-		 * XXX: Linux is able cope with different addresses 
-		 * corresponding to the same mapped memory in the sleeping 
+		/*
+		 * XXX: Linux is able cope with different addresses
+		 * corresponding to the same mapped memory in the sleeping
 		 * and the waker process.
 		 */
 #ifdef DEBUG
 		if (ldebug(sys_futex))
-   			printf("FUTEX_WAKE %d: uaddr = %p, val = %d\n", 
-		   		 td->td_proc->p_pid, args->uaddr, args->val); 
+			printf("FUTEX_WAKE %d: uaddr = %p, val = %d\n",
+			    td->td_proc->p_pid, args->uaddr, args->val);
 #endif
 		f = futex_get(args->uaddr, FUTEX_UNLOCKED);
 		td->td_retval[0] = futex_wake(f, args->val, NULL);
@@ -230,14 +231,14 @@ linux_sys_futex(struct thread *td, struct linux_sys_futex_args *args)
 	case LINUX_FUTEX_CMP_REQUEUE:
 		FUTEX_SYSTEM_LOCK;
 
-		if ((error = copyin(args->uaddr, 
+		if ((error = copyin(args->uaddr,
 		    &val, sizeof(val))) != 0) {
-		   	FUTEX_SYSTEM_UNLOCK;
+			FUTEX_SYSTEM_UNLOCK;
 			return error;
 		}
 
 		if (val != args->val3) {
-		   	FUTEX_SYSTEM_UNLOCK;
+			FUTEX_SYSTEM_UNLOCK;
 			return EAGAIN;
 		}
 
@@ -272,30 +273,32 @@ linux_sys_futex(struct thread *td, struct linux_sys_futex_args *args)
 		FUTEX_SYSTEM_LOCK;
 #ifdef DEBUG
 		if (ldebug(sys_futex))
-   		   	printf("FUTEX_WAKE_OP: %d: uaddr = %p, op = %d, val = %d, uaddr2 = %p, val3 = %d\n",
-		      		td->td_proc->p_pid, args->uaddr, args->op, args->val, args->uaddr2, args->val3);
+			printf("FUTEX_WAKE_OP: %d: uaddr = %p, op = %d, val = %d, uaddr2 = %p, val3 = %d\n",
+			    td->td_proc->p_pid, args->uaddr, args->op, args->val,
+			    args->uaddr2, args->val3);
 #endif
 		f = futex_get(args->uaddr, FUTEX_UNLOCKED);
 		f2 = futex_get(args->uaddr2, FUTEX_UNLOCKED);
 
-		/* This function returns positive number as results
-		 * and negative as errors
+		/*
+		 * This function returns positive number as results and
+		 * negative as errors
 		 */
 		op_ret = futex_atomic_op(td, args->val3, args->uaddr2);
 		if (op_ret < 0) {
 
-		   	/* XXX: we dont handle the EFAULT yet */
-		   	if (op_ret != -EFAULT) {
-			   	futex_put(f);
-			   	futex_put(f2);
+			/* XXX: we dont handle the EFAULT yet */
+			if (op_ret != -EFAULT) {
+				futex_put(f);
+				futex_put(f2);
 				FUTEX_SYSTEM_UNLOCK;
-			   	return (-op_ret);
+				return (-op_ret);
 			}
 
 			futex_put(f);
 			futex_put(f2);
 
-		   	FUTEX_SYSTEM_UNLOCK;
+			FUTEX_SYSTEM_UNLOCK;
 			return (EFAULT);
 
 		}
@@ -335,12 +338,12 @@ futex_get(void *uaddr, int locked)
 	struct futex *f;
 
 	if (locked == FUTEX_UNLOCKED)
-   	   	FUTEX_LOCK;
+		FUTEX_LOCK;
 	LIST_FOREACH(f, &futex_list, f_list) {
 		if (f->f_uaddr == uaddr) {
 			f->f_refcount++;
 			if (locked == FUTEX_UNLOCKED)
-   			   	FUTEX_UNLOCK;
+				FUTEX_UNLOCK;
 			return f;
 		}
 	}
@@ -351,17 +354,17 @@ futex_get(void *uaddr, int locked)
 	TAILQ_INIT(&f->f_waiting_proc);
 	LIST_INSERT_HEAD(&futex_list, f, f_list);
 	if (locked == FUTEX_UNLOCKED)
-   	   	FUTEX_UNLOCK;
+		FUTEX_UNLOCK;
 
 	return f;
 }
 
-static void 
+static void
 futex_put(f)
 	struct futex *f;
 {
-   	FUTEX_LOCK;
-   	f->f_refcount--;
+	FUTEX_LOCK;
+	f->f_refcount--;
 	if (f->f_refcount == 0) {
 		LIST_REMOVE(f, f_list);
 		free(f, M_LINUX);
@@ -371,7 +374,7 @@ futex_put(f)
 	return;
 }
 
-static int 
+static int
 futex_sleep(struct futex *f, struct thread *td, unsigned long timeout)
 {
 	struct waiting_proc *wp;
@@ -386,10 +389,10 @@ futex_sleep(struct futex *f, struct thread *td, unsigned long timeout)
 
 #ifdef DEBUG
 	if (ldebug(sys_futex))
-   		printf("FUTEX --> %d tlseep timeout = %ld\n", td->td_proc->p_pid,
-	  	      timeout);
+		printf("FUTEX --> %d tlseep timeout = %ld\n", td->td_proc->p_pid,
+		    timeout);
 #endif
-	ret = tsleep(wp, PCATCH|PZERO, "linuxfutex", timeout);
+	ret = tsleep(wp, PCATCH | PZERO, "linuxfutex", timeout);
 
 	FUTEX_LOCK;
 	TAILQ_REMOVE(&f->f_waiting_proc, wp, wp_list);
@@ -397,7 +400,7 @@ futex_sleep(struct futex *f, struct thread *td, unsigned long timeout)
 
 	if ((ret == 0) && (wp->wp_new_futex != NULL)) {
 		ret = futex_sleep(wp->wp_new_futex, td, timeout);
-		futex_put(wp->wp_new_futex); /* futex_get called in wakeup */
+		futex_put(wp->wp_new_futex);	/* futex_get called in wakeup */
 	}
 
 	free(wp, M_LINUX);
@@ -409,7 +412,7 @@ static int
 futex_wake(struct futex *f, int n, struct futex *newf)
 {
 	struct waiting_proc *wp;
-	int count = 0; 
+	int count = 0;
 
 	FUTEX_LOCK;
 	TAILQ_FOREACH(wp, &f->f_waiting_proc, wp_list) {
