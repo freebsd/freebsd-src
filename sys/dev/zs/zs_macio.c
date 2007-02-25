@@ -158,8 +158,8 @@ zs_macio_attach(device_t dev)
 		device_printf(dev, "could not allocate interrupt 1\n");
 		goto error;
 	}
-	if (bus_setup_intr(dev, sc->sc_irqres1, INTR_TYPE_TTY | INTR_FAST,
-	    zs_intr, sc, &sc->sc_ih1) != 0) {
+	if (bus_setup_intr(dev, sc->sc_irqres1, INTR_TYPE_TTY,
+	    zs_intr, NULL, sc, &sc->sc_ih1) != 0) {
 		device_printf(dev, "could not setup interrupt 1\n");
 		goto error;
 	}
@@ -170,8 +170,8 @@ zs_macio_attach(device_t dev)
 		device_printf(dev, "could not allocate interrupt 2\n");
 		goto error;
 	}
-	if (bus_setup_intr(dev, sc->sc_irqres2, INTR_TYPE_TTY | INTR_FAST,
-	    zs_intr, sc, &sc->sc_ih2) != 0) {
+	if (bus_setup_intr(dev, sc->sc_irqres2, INTR_TYPE_TTY,
+	    zs_intr, NULL, sc, &sc->sc_ih2) != 0) {
 		device_printf(dev, "could not setup interrupt 2\n");
 		goto error;
 	}
