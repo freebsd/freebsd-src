@@ -142,11 +142,13 @@ tlphy_probe(device_t dev)
 static int
 tlphy_attach(device_t dev)
 {
+	device_t *devlist;
 	struct tlphy_softc *sc;
+	struct mii_softc *other;
 	struct mii_attach_args *ma;
 	struct mii_data *mii;
 	const char *sep = "";
-	int capmask = 0xFFFFFFFF;
+	int capmask, devs, i;
 
 	sc = device_get_softc(dev);
 	ma = device_get_ivars(dev);
@@ -159,11 +161,8 @@ tlphy_attach(device_t dev)
 	sc->sc_mii.mii_service = tlphy_service;
 	sc->sc_mii.mii_pdata = mii;
 
+	capmask = 0xFFFFFFFF;
 	if (mii->mii_instance) {
-		struct mii_softc	*other;
-		device_t		*devlist;
-		int			devs, i;
-
 		device_get_children(sc->sc_mii.mii_dev, &devlist, &devs);
 		for (i = 0; i < devs; i++) {
 			if (strcmp(device_get_name(devlist[i]), "tlphy")) {
@@ -216,7 +215,7 @@ tlphy_attach(device_t dev)
 #undef ADD
 #undef PRINT
 	MIIBUS_MEDIAINIT(sc->sc_mii.mii_dev);
-	return(0);
+	return (0);
 }
 
 static int
@@ -248,7 +247,7 @@ tlphy_service(struct mii_softc *self, struct mii_data *mii, int cmd)
 			PHY_WRITE(&sc->sc_mii, MII_BMCR, reg | BMCR_ISO);
 			return (0);
 		}
-		
+
 		/*
 		 * If the interface is not up, don't do anything.
 		 */
@@ -313,7 +312,7 @@ tlphy_service(struct mii_softc *self, struct mii_data *mii, int cmd)
 		/*
 		 * Only retry autonegotiation every 5 seconds.
 		 */
-		if (++sc->sc_mii.mii_ticks <= 5)
+		if (++sc->sc_mii.mii_ticks <= MII_ANEGTICKS)
 			break;
 
 		sc->sc_mii.mii_ticks = 0;
@@ -342,7 +341,7 @@ tlphy_status(struct tlphy_softc *sc)
 	bmcr = PHY_READ(&sc->sc_mii, MII_BMCR);
 	if (bmcr & BMCR_ISO) {
 		mii->mii_media_active |= IFM_NONE;
-		mii->mii_media_status = 0;  
+		mii->mii_media_status = 0;
 		return;
 	}
 
@@ -355,7 +354,7 @@ tlphy_status(struct tlphy_softc *sc)
 
 	bmsr = PHY_READ(&sc->sc_mii, MII_BMSR) |
 	    PHY_READ(&sc->sc_mii, MII_BMSR);
-	if (bmsr & BMSR_LINK)   
+	if (bmsr & BMSR_LINK)
 		mii->mii_media_status |= IFM_ACTIVE;
 
 	if (bmcr & BMCR_LOOP)
