@@ -225,7 +225,7 @@ ixpqmgr_attach(device_t dev)
 		panic("Unable to allocate the qmgr irqs.\n");
 	/* XXX could be a source of entropy */
 	bus_setup_intr(dev, sc->sc_irq, INTR_TYPE_NET | INTR_MPSAFE,
-		ixpqmgr_intr, NULL, &sc->sc_ih);
+		NULL, ixpqmgr_intr, NULL, &sc->sc_ih);
 
 	/* NB: softc is pre-zero'd */
 	for (i = 0; i < IX_QMGR_MAX_NUM_QUEUES; i++) {

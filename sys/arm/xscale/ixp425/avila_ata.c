@@ -160,7 +160,7 @@ ata_avila_attach(device_t dev)
 		panic("Unable to allocate irq %u.\n", AVILA_IDE_IRQ);
 	bus_setup_intr(dev, sc->sc_irq,
 	    INTR_TYPE_BIO | INTR_MPSAFE | INTR_ENTROPY,
-	    ata_avila_intr, sc, &sc->sc_ih);
+	    NULL, ata_avila_intr, sc, &sc->sc_ih);
 
 	/* attach channel on this controller */
 	device_add_child(dev, "ata", devclass_find_free_unit(ata_devclass, 0));
@@ -225,8 +225,8 @@ ata_avila_release_resource(device_t dev, device_t child, int type, int rid,
 
 static int
 ata_avila_setup_intr(device_t dev, device_t child, struct resource *irq, 
-		   int flags, driver_intr_t *function, void *argument,
-		   void **cookiep)
+		   int flags, driver_filter_t *filt,
+		   driver_intr_t *function, void *argument, void **cookiep)
 {
 	struct ata_avila_softc *sc = device_get_softc(dev);
 	int unit = ((struct ata_channel *)device_get_softc(child))->unit;
