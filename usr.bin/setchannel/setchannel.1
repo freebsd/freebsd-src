@@ -36,11 +36,8 @@
 .Pp
 .Sh DESCRIPTION
 .Nm
-provides support for selecting channels on the PVR250 and PVR350 via
-.Pa /dev/cxm0
-(or
-.Pa /dev/bktr0
-on FreeBSD 4.x)
+provides support for selecting channels on Hauppauge WinTV cards,
+including the PVR 150, PVR 250, PVR 350 and PVR 500.
 .Pp
 The following options are available:
 .Bl -tag -width indent
@@ -50,6 +47,14 @@ Enable AFC.
 Disable AFC.
 .It Fl c
 Select composite input.
+.It Fl d
+Select the tuner unit number.  
+This is appended to the base device file name 
+.Pa /dev/cxm
+to form a device name such as 
+.Pa /dev/cxm0
+or
+.Pa /dev/cxm1 .
 .It Fl r
 Select radio input.
 .It Fl s
