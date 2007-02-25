@@ -702,7 +702,7 @@ cpu_initclocks()
 	 */
 	if (!using_lapic_timer) {
 		intr_add_handler("clk", 0, (driver_filter_t *)clkintr, NULL,
-		    NULL, INTR_TYPE_CLK | INTR_FAST, NULL);
+		    NULL, INTR_TYPE_CLK, NULL);
 		i8254_intsrc = intr_lookup_source(0);
 		if (i8254_intsrc != NULL)
 			i8254_pending =
