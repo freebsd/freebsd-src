@@ -389,7 +389,8 @@ i80321_pci_alloc_resource(device_t bus, device_t child, int type, int *rid,
 	if (rv == NULL) 
 		return (NULL);
 	if (type != SYS_RES_IRQ) {
-		bh += (rman_get_start(rv));
+		if (type == SYS_RES_MEMORY)
+			bh += (rman_get_start(rv));
 		rman_set_bustag(rv, bt);
 		rman_set_bushandle(rv, bh);
 		if (flags & RF_ACTIVE) {

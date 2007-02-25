@@ -139,6 +139,42 @@ const struct bus_space i80321_bs_tag_template = {
 	generic_armv4_bs_c_2,
 	NULL,
 	NULL,
+		/* read (single) stream */
+	generic_bs_r_1,
+	generic_armv4_bs_r_2,
+	generic_bs_r_4,
+	NULL,
+
+	/* read multiple stream */
+	generic_bs_rm_1,
+	generic_armv4_bs_rm_2,
+	generic_bs_rm_4,
+	NULL,
+
+	/* read region stream */
+	generic_bs_rr_1,
+	generic_armv4_bs_rr_2,
+	generic_bs_rr_4,
+	NULL,
+
+	/* write (single) stream */
+	generic_bs_w_1,
+	generic_armv4_bs_w_2,
+	generic_bs_w_4,
+	NULL,
+
+	/* write multiple stream */
+	generic_bs_wm_1,
+	generic_armv4_bs_wm_2,
+	generic_bs_wm_4,
+	NULL,
+
+	/* write region stream */
+	NULL,
+	generic_armv4_bs_wr_2,
+	generic_bs_wr_4,
+	NULL,
+
 };
 
 void
@@ -228,7 +264,7 @@ i80321_io_bs_map(void *t, bus_addr_t bpa, bus_size_t size, int flags,
 }
 
 void
-i80321_io_bs_unmap(void *t, bus_size_t size)
+i80321_io_bs_unmap(void *t, bus_space_handle_t bsh, bus_size_t size)
 {
 
 	/* Nothing to do. */
@@ -280,7 +316,7 @@ i80321_mem_bs_map(void *t, bus_addr_t bpa, bus_size_t size, int flags,
 }
 
 void
-i80321_mem_bs_unmap(void *t, bus_size_t size)
+i80321_mem_bs_unmap(void *t, bus_space_handle_t bsh, bus_size_t size)
 {
 	vm_offset_t va, endva;
 

@@ -68,7 +68,7 @@ at91_bs_map(void *t, bus_addr_t bpa, bus_size_t size, int flags,
 }
 
 static void
-at91_bs_unmap(void *t, bus_size_t size)
+at91_bs_unmap(void *t, bus_space_handle_t h, bus_size_t size)
 {
 	vm_offset_t va, endva;
 
