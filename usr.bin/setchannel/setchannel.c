@@ -54,9 +54,12 @@ usage()
 	    ("Usage: setchannel [-a {on|off}] [-c | -r | -s | -t] "
 	    "[-g geom] [-m chnl_set] [chnl | freq]\n"
 	    "  -a    Enable / disable AFC.\n"
-	    "  -c    Select composite input.\n" "  -r    Select radio input.\n"
-	    "  -s    Select svideo input.\n" "  -t    Select tuner.\n"
-	    "  -g    Select geometry.\n" "          352x240 or 352x288 = VCD\n"
+	    "  -c    Select composite input.\n"
+            "  -r    Select radio input.\n"
+	    "  -s    Select svideo input.\n"
+            "  -t    Select tuner.\n"
+	    "  -g    Select geometry.\n"
+            "          352x240 or 352x288 = VCD\n"
 	    "          480x480 or 480x576 = SVCD\n"
 	    "          352x480 or 352x576 = DVD (half D1)\n"
 	    "          720x480 or 720x576 = DVD (full D1)\n"
@@ -68,7 +71,8 @@ usage()
 	    "          %u = Japan Broadcast / NTSC\n"
 	    "          %u = Japan Cable / NTSC\n"
 	    "          %u = Australia / PAL\n"
-	    "          %u = France / SECAM\n" "  chnl  Channel\n"
+	    "          %u = France / SECAM\n"
+            "  chnl  Channel\n"
 	    "  freq  Frequency in MHz (must include decimal point).\n",
 	    CHNLSET_NABCST, CHNLSET_CABLEIRC, CHNLSET_WEUROPE, CHNLSET_JPNBCST,
 	    CHNLSET_JPNCABLE, CHNLSET_AUSTRALIA, CHNLSET_FRANCE);
@@ -104,7 +108,7 @@ main(int argc, char *argv[])
 	x_size = 0;
 	y_size = 0;
 
-	while ((c = getopt(argc, argv, "a:crstg:m:")) != -1)
+	while ((c = getopt(argc, argv, "a:crg:m:st")) != -1)
 		switch (c) {
 		case 'a':
 			if (strcasecmp(optarg, "on") == 0)
