@@ -206,7 +206,7 @@
 #define PCN_MODE_RXNOBROAD	0x4000
 #define PCN_MODE_PROMISC	0x8000
 
-/* Settings for PCN_MODE_PORTSEL when ASEL (BCR2[1] is 0 */
+/* Settings for PCN_MODE_PORTSEL when ASEL (BCR2[1]) is 0 */
 #define PCN_PORT_AUI		0x0000
 #define PCN_PORT_10BASET	0x0080
 #define PCN_PORT_GPSI		0x0100
@@ -339,7 +339,11 @@
  * MII address register (BCR33)
  */
 #define PCN_MIIADDR_REGAD	0x001F
-#define PCN_MIIADDR_PHYADD	0x03E0
+#define PCN_MIIADDR_PHYAD	0x03E0
+
+/* addresses of internal PHYs */
+#define PCN_PHYAD_100BTX	30
+#define PCN_PHYAD_10BT		31
 
 /*
  * MII data register (BCR34)
@@ -453,7 +457,8 @@ struct pcn_softc {
 	void			*pcn_intrhand;
 	device_t		pcn_miibus;
 	u_int8_t		pcn_link;
-	u_int8_t		pcn_phyaddr;
+	int8_t			pcn_extphyaddr;
+	int8_t			pcn_inst_10bt;
 	int			pcn_if_flags;
 	int			pcn_type;
 	struct pcn_list_data	*pcn_ldata;
@@ -480,7 +485,6 @@ struct pcn_softc {
 
 #define CSR_READ_2(sc, reg)		\
 	bus_space_read_2(sc->pcn_btag, sc->pcn_bhandle, reg)
-
 
 #define PCN_TIMEOUT		1000
 #define ETHER_ALIGN		2
