@@ -30,45 +30,45 @@
 
 INTERFACE mpu;
 
-METHOD int inqsize{
-	struct snd_midi * _kobj;
-	void *_cookie;
+METHOD int inqsize {
+	struct snd_midi *_kobj;
+	void   *_cookie;
 };
 
 METHOD int outqsize {
-	struct snd_midi * _kobj;
-	void *_cookie;
+	struct snd_midi *_kobj;
+	void   *_cookie;
 };
 
 METHOD int init {
-	struct snd_midi * _kobj;
-	void *_cookie;
+	struct snd_midi *_kobj;
+	void   *_cookie;
 };
 
 METHOD void callbackp {
-	struct snd_midi * _kobj;
-	void *_cookie;
-	int _flags;
+	struct snd_midi *_kobj;
+	void   *_cookie;
+	int	_flags;
 };
 
-METHOD void callback { 
-	struct snd_midi * _kobj;
-	void *_cookie;
-	int _flags;
+METHOD void callback {
+	struct snd_midi *_kobj;
+	void   *_cookie;
+	int	_flags;
 };
 
-METHOD const char * provider{
-	struct snd_midi * _kobj;
-	void *_cookie;
+METHOD const char * provider {
+	struct snd_midi *_kobj;
+	void   *_cookie;
 };
 
-METHOD const char * descr { 
-	struct snd_midi * _kobj; 
-	void *_cookie;
-	int _verbosity;
+METHOD const char * descr {
+	struct snd_midi *_kobj;
+	void   *_cookie;
+	int	_verbosity;
 };
 
-METHOD int uninit { 
-	struct snd_midi * _kobj; 
-	void *_cookie;
+METHOD int uninit {
+	struct snd_midi *_kobj;
+	void   *_cookie;
 };
