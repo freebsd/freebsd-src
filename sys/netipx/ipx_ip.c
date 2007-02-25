@@ -103,7 +103,7 @@ __FBSDID("$FreeBSD$");
 
 NET_NEEDS_GIANT("ipx_ip");
 
-static struct		 ifnet ipxipif;
+static struct ifnet	 ipxipif;
 static int		 ipxipif_units;
 
 /* List of all hosts and gateways or broadcast addrs. */
