@@ -175,9 +175,8 @@ kmem_alloc(map, size)
 		mem = vm_page_grab(kernel_object, OFF_TO_IDX(offset + i),
 		    VM_ALLOC_NOBUSY | VM_ALLOC_ZERO | VM_ALLOC_RETRY);
 		mem->valid = VM_PAGE_BITS_ALL;
-		vm_page_lock_queues();
-		vm_page_unmanage(mem);
-		vm_page_unlock_queues();
+		KASSERT((mem->flags & PG_UNMANAGED) != 0,
+		    ("kmem_alloc: page %p is managed", mem));
 	}
 	VM_OBJECT_UNLOCK(kernel_object);
 
@@ -364,9 +363,8 @@ retry:
 		if (flags & M_ZERO && (m->flags & PG_ZERO) == 0)
 			pmap_zero_page(m);
 		m->valid = VM_PAGE_BITS_ALL;
-		vm_page_lock_queues();
-		vm_page_unmanage(m);
-		vm_page_unlock_queues();
+		KASSERT((m->flags & PG_UNMANAGED) != 0,
+		    ("kmem_malloc: page %p is managed", m));
 	}
 	VM_OBJECT_UNLOCK(kmem_object);
 

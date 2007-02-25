@@ -150,11 +150,6 @@ phys_pager_getpages(vm_object_t object, vm_page_t *m, int count, int reqpage)
 		}
 		KASSERT(m[i]->valid == VM_PAGE_BITS_ALL,
 		    ("phys_pager_getpages: partially valid page %p", m[i]));
-	}
-	vm_page_lock_queues();
-	for (i = 0; i < count; i++) {
-		/* Switch off pv_entries */
-		vm_page_unmanage(m[i]);
 		m[i]->dirty = 0;
 		/* The requested page must remain busy, the others not. */
 		if (reqpage != i) {
@@ -162,7 +157,6 @@ phys_pager_getpages(vm_object_t object, vm_page_t *m, int count, int reqpage)
 			m[i]->busy = 0;
 		}
 	}
-	vm_page_unlock_queues();
 	return (VM_PAGER_OK);
 }
 

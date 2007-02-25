@@ -2269,8 +2269,7 @@ vm_map_entry_delete(vm_map_t map, vm_map_entry_t entry)
 		VM_OBJECT_LOCK(object);
 		if (object->ref_count != 1 &&
 		    ((object->flags & (OBJ_NOSPLIT|OBJ_ONEMAPPING)) == OBJ_ONEMAPPING ||
-		     object == kernel_object || object == kmem_object) &&
-		    (object->type == OBJT_DEFAULT || object->type == OBJT_SWAP)) {
+		    object == kernel_object || object == kmem_object)) {
 			vm_object_collapse(object);
 			vm_object_page_remove(object, offidxstart, offidxend, FALSE);
 			if (object->type == OBJT_SWAP)
