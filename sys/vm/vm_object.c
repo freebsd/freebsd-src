@@ -249,11 +249,11 @@ vm_object_init(void)
 	mtx_init(&vm_object_list_mtx, "vm object_list", NULL, MTX_DEF);
 	
 	VM_OBJECT_LOCK_INIT(&kernel_object_store, "kernel object");
-	_vm_object_allocate(OBJT_DEFAULT, OFF_TO_IDX(VM_MAX_KERNEL_ADDRESS - VM_MIN_KERNEL_ADDRESS),
+	_vm_object_allocate(OBJT_PHYS, OFF_TO_IDX(VM_MAX_KERNEL_ADDRESS - VM_MIN_KERNEL_ADDRESS),
 	    kernel_object);
 
 	VM_OBJECT_LOCK_INIT(&kmem_object_store, "kmem object");
-	_vm_object_allocate(OBJT_DEFAULT, OFF_TO_IDX(VM_MAX_KERNEL_ADDRESS - VM_MIN_KERNEL_ADDRESS),
+	_vm_object_allocate(OBJT_PHYS, OFF_TO_IDX(VM_MAX_KERNEL_ADDRESS - VM_MIN_KERNEL_ADDRESS),
 	    kmem_object);
 
 	/*
@@ -1800,7 +1800,8 @@ vm_object_page_remove(vm_object_t object, vm_pindex_t start, vm_pindex_t end,
 	 * remove pages from the object (we must instead remove the page
 	 * references, and then destroy the object).
 	 */
-	KASSERT(object->type != OBJT_PHYS,
+	KASSERT(object->type != OBJT_PHYS || object == kernel_object ||
+	    object == kmem_object,
 	    ("attempt to remove pages from a physical object"));
 
 	vm_object_pip_add(object, 1);
