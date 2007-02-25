@@ -226,6 +226,7 @@ void	mii_phy_update(struct mii_softc *, int);
 int	mii_phy_tick(struct mii_softc *);
 
 const struct mii_phydesc * mii_phy_match(const struct mii_attach_args *ma, const struct mii_phydesc *mpd);
+int mii_phy_dev_probe(device_t dev, const struct mii_phydesc *mpd, int mrv);
 
 void	ukphy_status(struct mii_softc *);
 #endif /* _KERNEL */
