@@ -31,6 +31,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <ctype.h>
+#include <errno.h>
 #include <fcntl.h>
 #include <string.h>
 #include <sys/types.h>
@@ -55,6 +56,7 @@ usage()
 	    "[-g geom] [-m chnl_set] [chnl | freq]\n"
 	    "  -a    Enable / disable AFC.\n"
 	    "  -c    Select composite input.\n"
+            "  -d    Select tuner unit number.\n"
             "  -r    Select radio input.\n"
 	    "  -s    Select svideo input.\n"
             "  -t    Select tuner.\n"
@@ -78,6 +80,9 @@ usage()
 	    CHNLSET_JPNCABLE, CHNLSET_AUSTRALIA, CHNLSET_FRANCE);
 }
 
+#define DEVNAME_BASE "/dev/cxm"
+char dev_name[16];
+
 int
 main(int argc, char *argv[])
 {
@@ -89,6 +94,7 @@ main(int argc, char *argv[])
 	int channel_set;
 	int i;
 	int status;
+        int unit;
 	int tfd;
 	unsigned int channel;
 	unsigned int fraction;
@@ -105,11 +111,13 @@ main(int argc, char *argv[])
 	device = 0;
 	freq = 0;
 	status = 0;
+        unit = 0;
 	x_size = 0;
 	y_size = 0;
 
-	while ((c = getopt(argc, argv, "a:crg:m:st")) != -1)
+	while ((c = getopt(argc, argv, "a:cd:rg:m:st")) != -1)
 		switch (c) {
+
 		case 'a':
 			if (strcasecmp(optarg, "on") == 0)
 				afc = 1;
@@ -124,6 +132,10 @@ main(int argc, char *argv[])
 		case 'c':
 			device = METEOR_INPUT_DEV2;
 			audio = -1;
+			break;
+
+		case 'd':
+			unit = atoi(optarg);
 			break;
 
 		case 'r':
@@ -202,9 +214,11 @@ main(int argc, char *argv[])
 		exit(1);
 	}
 
-	tfd = open("/dev/cxm0", O_RDONLY);
+        sprintf(dev_name, DEVNAME_BASE "%d", unit);
+        tfd = open(dev_name, O_RDONLY);
 	if (tfd < 0) {
-		perror("open() of /dev/cxm0 failed.");
+		fprintf(stderr, "Can't open %s: %s (%d)\n", dev_name,
+                        strerror(errno), errno);
 		exit(1);
 	}
 
