@@ -938,6 +938,8 @@ loop:
 		if (req & VM_ALLOC_ZERO)
 			flags = PG_ZERO;
 	}
+	if (object != NULL && object->type == OBJT_PHYS)
+		flags |= PG_UNMANAGED;
 	m->flags = flags;
 	if (req & (VM_ALLOC_NOBUSY | VM_ALLOC_NOOBJ))
 		m->oflags = 0;
@@ -1166,36 +1168,6 @@ vm_page_free_toq(vm_page_t m)
 	}
 	vm_page_free_wakeup();
 	mtx_unlock(&vm_page_queue_free_mtx);
-}
-
-/*
- *	vm_page_unmanage:
- *
- * 	Prevent PV management from being done on the page.  The page is
- *	removed from the paging queues as if it were wired, and as a 
- *	consequence of no longer being managed the pageout daemon will not
- *	touch it (since there is no way to locate the pte mappings for the
- *	page).  madvise() calls that mess with the pmap will also no longer
- *	operate on the page.
- *
- *	Beyond that the page is still reasonably 'normal'.  Freeing the page
- *	will clear the flag.
- *
- *	This routine is used by OBJT_PHYS objects - objects using unswappable
- *	physical memory as backing store rather then swap-backed memory and
- *	will eventually be extended to support 4MB unmanaged physical 
- *	mappings.
- */
-void
-vm_page_unmanage(vm_page_t m)
-{
-
-	mtx_assert(&vm_page_queue_mtx, MA_OWNED);
-	if ((m->flags & PG_UNMANAGED) == 0) {
-		if (m->wire_count == 0)
-			vm_pageq_remove(m);
-	}
-	vm_page_flag_set(m, PG_UNMANAGED);
 }
 
 /*
