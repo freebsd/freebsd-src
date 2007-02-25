@@ -184,9 +184,7 @@ sa11x0_bs_alloc(t, rstart, rend, size, alignment, boundary, cacheable,
 
 
 void
-sa11x0_bs_unmap(t, size)
-	void *t;
-	bus_size_t size;
+sa11x0_bs_unmap(void *t, bus_space_handle_t bsh, bus_size_t size)
 {
 	/*
 	 * Temporary implementation
