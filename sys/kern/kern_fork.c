@@ -423,7 +423,21 @@ again:
 	AUDIT_ARG(pid, p2->p_pid);
 	LIST_INSERT_HEAD(&allproc, p2, p_list);
 	LIST_INSERT_HEAD(PIDHASH(p2->p_pid), p2, p_hash);
+
+	PROC_LOCK(p2);
+	PROC_LOCK(p1);
+
 	sx_xunlock(&allproc_lock);
+
+	bcopy(&p1->p_startcopy, &p2->p_startcopy,
+	    __rangeof(struct proc, p_startcopy, p_endcopy));
+	PROC_UNLOCK(p1);
+
+	bzero(&p2->p_startzero,
+	    __rangeof(struct proc, p_startzero, p_endzero));
+
+	p2->p_ucred = crhold(td->td_ucred);
+	PROC_UNLOCK(p2);
 
 	/*
 	 * Malloc things while we don't hold any locks.
@@ -482,13 +496,9 @@ again:
 	PROC_LOCK(p2);
 	PROC_LOCK(p1);
 
-	bzero(&p2->p_startzero,
-	    __rangeof(struct proc, p_startzero, p_endzero));
 	bzero(&td2->td_startzero,
 	    __rangeof(struct thread, td_startzero, td_endzero));
 
-	bcopy(&p1->p_startcopy, &p2->p_startcopy,
-	    __rangeof(struct proc, p_startcopy, p_endcopy));
 	bcopy(&td->td_startcopy, &td2->td_startcopy,
 	    __rangeof(struct thread, td_startcopy, td_endcopy));
 
@@ -511,7 +521,6 @@ again:
 	sched_fork(td, td2);
 
 	mtx_unlock_spin(&sched_lock);
-	p2->p_ucred = crhold(td->td_ucred);
 	td2->td_ucred = crhold(p2->p_ucred);
 #ifdef AUDIT
 	audit_proc_fork(p1, p2);
