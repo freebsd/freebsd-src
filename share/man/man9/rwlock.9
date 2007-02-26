@@ -61,6 +61,8 @@
 .Fn rw_initialized "struct rwlock *rw"
 .Ft void
 .Fn rw_destroy "struct rwlock *rw"
+.Ft int
+.Fn rw_wowned "struct rwlock *rw"
 .Pp
 .Cd "options INVARIANTS"
 .Cd "options INVARIANT_SUPPORT"
@@ -167,6 +169,10 @@ This functions destroys a lock previously initialized with
 The
 .Fa rw
 lock must be unlocked.
+.It Fn rw_wowned "struct rwlock *rw"
+This function returns a non-zero value if the current thread owns an
+exclusive lock on
+.Fa rw .
 .It Fn rw_assert "struct rwlock *rw" "int what"
 This function allows assertions specified in
 .Fa what
