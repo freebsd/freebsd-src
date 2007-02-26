@@ -96,6 +96,15 @@ static int	always_keepalive = 1;
 SYSCTL_INT(_net_inet_tcp, OID_AUTO, always_keepalive, CTLFLAG_RW,
     &always_keepalive , 0, "Assume SO_KEEPALIVE on all TCP connections");
 
+int    tcp_fast_finwait2_recycle = 0;
+SYSCTL_INT(_net_inet_tcp, OID_AUTO, fast_finwait2_recycle, CTLFLAG_RW, 
+	   &tcp_fast_finwait2_recycle, 0, "Recycle closed FIN_WAIT_2 connections faster");
+
+int    tcp_finwait2_timeout;
+SYSCTL_PROC(_net_inet_tcp, OID_AUTO, finwait2_timeout, CTLTYPE_INT|CTLFLAG_RW,
+	    &tcp_finwait2_timeout, 0, sysctl_msec_to_ticks, "I", "");
+
+
 static int	tcp_keepcnt = TCPTV_KEEPCNT;
 	/* max idle probes */
 int	tcp_maxpersistidle;
@@ -211,13 +220,24 @@ tcp_timer_2msl(xtp)
 	 * still waiting for peer to close and connection has been idle
 	 * too long, or if 2MSL time is up from TIME_WAIT, delete connection
 	 * control block.  Otherwise, check again in a bit.
+	 *
+	 * If fastrecycle of FIN_WAIT_2, in FIN_WAIT_2 and receiver has closed, 
+	 * there's no point in hanging onto FIN_WAIT_2 socket. Just close it. 
+	 * Ignore fact that there were recent incoming segments.
 	 */
-	if (tp->t_state != TCPS_TIME_WAIT &&
-	    (ticks - tp->t_rcvtime) <= tcp_maxidle)
-		callout_reset(tp->tt_2msl, tcp_keepintvl,
-			      tcp_timer_2msl, tp);
-	else
-		tp = tcp_close(tp);
+	if (tcp_fast_finwait2_recycle && tp->t_state == TCPS_FIN_WAIT_2 &&
+	    tp->t_inpcb && tp->t_inpcb->inp_socket && 
+	    (tp->t_inpcb->inp_socket->so_rcv.sb_state & SBS_CANTRCVMORE)) {
+		tcpstat.tcps_finwait2_drops++;
+		tp = tcp_close(tp);             
+	} else {
+		if (tp->t_state != TCPS_TIME_WAIT &&
+		   (ticks - tp->t_rcvtime) <= tcp_maxidle)
+		       callout_reset(tp->tt_2msl, tcp_keepintvl,
+				     tcp_timer_2msl, tp);
+	       else
+		       tp = tcp_close(tp);
+       }
 
 #ifdef TCPDEBUG
 	if (tp != NULL && (tp->t_inpcb->inp_socket->so_options & SO_DEBUG))
