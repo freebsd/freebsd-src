@@ -36,4 +36,7 @@
 extern char sigcode[];
 extern int szsigcode;
 
+extern int busdma_swi_pending;
+void busdma_swi(void);
+
 #endif /* !_MACHINE_MD_VAR_H_ */
