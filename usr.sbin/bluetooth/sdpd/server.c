@@ -432,7 +432,8 @@ server_process_request(server_p srv, int32_t fd)
 		return (-1);
 	}
 
-	if (sizeof(*pdu) + (pdu->len = ntohs(pdu->len)) == len) {
+	if (len >= sizeof(*pdu) &&
+	    sizeof(*pdu) + (pdu->len = ntohs(pdu->len)) == len) {
 		switch (pdu->pid) {
 		case SDP_PDU_SERVICE_SEARCH_REQUEST:
 			error = server_prepare_service_search_response(srv, fd);
