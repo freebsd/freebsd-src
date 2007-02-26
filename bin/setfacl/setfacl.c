@@ -253,10 +253,20 @@ main(int argc, char *argv[])
 		if (need_mask && (set_acl_mask(&final_acl) == -1)) {
 			warnx("failed to set ACL mask on %s", file->filename);
 			carried_error++;
-		} else if (acl_set_file(file->filename, acl_type,
-		    final_acl) == -1) {
-			carried_error++;
-			warn("acl_set_file() failed for %s", file->filename);
+		} else if (h_flag) {
+			if (acl_set_link_np(file->filename, acl_type,
+			    final_acl) == -1) {
+				carried_error++;
+				warn("acl_set_link_np() failed for %s",
+				    file->filename);
+			}
+		} else {
+			if (acl_set_file(file->filename, acl_type,
+			    final_acl) == -1) {
+				carried_error++;
+				warn("acl_set_file() failed for %s",
+				    file->filename);
+			}
 		}
 
 		acl_free(acl[ACCESS_ACL]);
