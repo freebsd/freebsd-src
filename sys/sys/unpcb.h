@@ -79,6 +79,7 @@ struct unpcb {
 	int	unp_flags;		/* flags */
 	struct	xucred unp_peercred;	/* peer credentials, if applicable */
 	u_int	unp_refcount;
+	struct	mtx unp_mtx;		/* mutex */
 };
 
 /*
