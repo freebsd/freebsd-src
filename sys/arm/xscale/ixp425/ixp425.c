@@ -149,7 +149,6 @@ arm_mask_irq(uintptr_t nb)
 void
 arm_unmask_irq(uintptr_t nb)
 {
-
 	intr_enabled |= (1 << nb);
 	ixp425_set_intrmask();
 }
@@ -211,11 +210,6 @@ ixp425_attach(device_t dev)
 	intr_enabled = 0;
 	ixp425_set_intrmask();
 	ixp425_set_intrsteer();
-
-	if (bus_dma_tag_create(NULL, 1, 0, BUS_SPACE_MAXADDR_32BIT,
-	    BUS_SPACE_MAXADDR, NULL, NULL,  0xffffffff, 0xff, 0xffffffff, 0, 
-	    NULL, NULL, &sc->sc_dmat))
-		panic("couldn't create the IXP425 dma tag !");
 
 	sc->sc_irq_rman.rm_type = RMAN_ARRAY;
 	sc->sc_irq_rman.rm_descr = "IXP425 IRQs";
@@ -310,8 +304,8 @@ ixp425_alloc_resource(device_t dev, device_t child, int type, int *rid,
 
 static int
 ixp425_setup_intr(device_t dev, device_t child,
-    struct resource *ires, int flags, driver_filter_t *filt, 
-    driver_intr_t *intr, void *arg, void **cookiep)    
+    struct resource *ires, int flags, driver_intr_t *intr, void *arg,
+    void **cookiep)
 {
 	uint32_t mask;
 	int i;
@@ -324,8 +318,8 @@ ixp425_setup_intr(device_t dev, device_t child,
 			rman_set_start(ires, IXP425_INT_UART1);
 		rman_set_end(ires, rman_get_start(ires));
 	}
-	BUS_SETUP_INTR(device_get_parent(dev), child, ires, flags, filt, intr,
-	     arg, cookiep);
+	BUS_SETUP_INTR(device_get_parent(dev), child, ires, flags, intr, arg,
+	    cookiep);
 
 	mask = 0;
 	for (i = rman_get_start(ires); i <= rman_get_end(ires); i++)
