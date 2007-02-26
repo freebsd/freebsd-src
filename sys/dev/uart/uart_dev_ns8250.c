@@ -232,7 +232,7 @@ struct uart_ops uart_ns8250_ops = {
 static int
 ns8250_probe(struct uart_bas *bas)
 {
-	u_char lcr, val;
+	u_char val;
 
 	/* Check known 0 bits that don't depend on DLAB. */
 	val = uart_getreg(bas, REG_IIR);
@@ -242,36 +242,22 @@ ns8250_probe(struct uart_bas *bas)
 	if (val & 0xe0)
 		return (ENXIO);
 
-	lcr = uart_getreg(bas, REG_LCR);
-	uart_setreg(bas, REG_LCR, lcr & ~LCR_DLAB);
-	uart_barrier(bas);
-
-	/* Check known 0 bits that depend on !DLAB. */
-	val = uart_getreg(bas, REG_IER);
-	if (val & 0xf0)
-		goto fail;
-
-	uart_setreg(bas, REG_LCR, lcr);
-	uart_barrier(bas);
 	return (0);
-
- fail:
-	uart_setreg(bas, REG_LCR, lcr);
-	uart_barrier(bas);
-	return (ENXIO);
 }
 
 static void
 ns8250_init(struct uart_bas *bas, int baudrate, int databits, int stopbits,
     int parity)
 {
+	u_char	ier;
 
 	if (bas->rclk == 0)
 		bas->rclk = DEFAULT_RCLK;
 	ns8250_param(bas, baudrate, databits, stopbits, parity);
 
 	/* Disable all interrupt sources. */
-	uart_setreg(bas, REG_IER, 0);
+	ier = uart_getreg(bas, REG_IER) & 0xf0;
+	uart_setreg(bas, REG_IER, ier);
 	uart_barrier(bas);
 
 	/* Disable the FIFO (if present). */
@@ -407,7 +393,8 @@ ns8250_bus_attach(struct uart_softc *sc)
 	ns8250_bus_getsig(sc);
 
 	ns8250_clrint(bas);
-	ns8250->ier = IER_EMSC | IER_ERLS | IER_ERXRDY;
+	ns8250->ier = uart_getreg(bas, REG_IER) & 0xf0;
+	ns8250->ier |= IER_EMSC | IER_ERLS | IER_ERXRDY;
 	uart_setreg(bas, REG_IER, ns8250->ier);
 	uart_barrier(bas);
 	return (0);
@@ -417,9 +404,11 @@ static int
 ns8250_bus_detach(struct uart_softc *sc)
 {
 	struct uart_bas *bas;
+	u_char ier;
 
 	bas = &sc->sc_bas;
-	uart_setreg(bas, REG_IER, 0);
+	ier = uart_getreg(bas, REG_IER) & 0xf0;
+	uart_setreg(bas, REG_IER, ier);
 	uart_barrier(bas);
 	ns8250_clrint(bas);
 	return (0);
@@ -592,7 +581,7 @@ ns8250_bus_probe(struct uart_softc *sc)
 {
 	struct uart_bas *bas;
 	int count, delay, error, limit;
-	uint8_t lsr, mcr;
+	uint8_t lsr, mcr, ier;
 
 	bas = &sc->sc_bas;
 
@@ -676,7 +665,8 @@ ns8250_bus_probe(struct uart_softc *sc)
 		    --limit)
 			DELAY(delay);
 		if (limit == 0) {
-			uart_setreg(bas, REG_IER, 0);
+			ier = uart_getreg(bas, REG_IER) & 0xf0;
+			uart_setreg(bas, REG_IER, ier);
 			uart_setreg(bas, REG_MCR, mcr);
 			uart_setreg(bas, REG_FCR, 0);
 			uart_barrier(bas);
