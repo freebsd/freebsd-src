@@ -39,7 +39,6 @@ int	_posix1e_acl_sort(acl_t acl);
 int	_posix1e_acl(acl_t acl, acl_type_t type);
 int	_posix1e_acl_id_to_name(acl_tag_t tag, uid_t id, ssize_t buf_len,
 	    char *buf);
-int	_posix1e_acl_name_to_id(acl_tag_t tag, char *name, uid_t *id);
 int	_posix1e_acl_perm_to_string(acl_perm_t perm, ssize_t buf_len,
 	    char *buf);
 int	_posix1e_acl_string_to_perm(char *string, acl_perm_t *perm);
