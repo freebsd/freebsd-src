@@ -124,6 +124,7 @@
 void	rw_init(struct rwlock *rw, const char *name);
 void	rw_destroy(struct rwlock *rw);
 void	rw_sysinit(void *arg);
+int	rw_wowned(struct rwlock *rw);
 void	_rw_wlock(struct rwlock *rw, const char *file, int line);
 void	_rw_wunlock(struct rwlock *rw, const char *file, int line);
 void	_rw_rlock(struct rwlock *rw, const char *file, int line);
