@@ -186,6 +186,7 @@ ipxipioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 		ifr = (struct ifreq *)data;
 		if ((ifr->ifr_flags & IFF_UP) == 0)
 			error = ipxip_free(ifp);
+		break;
 
 	default:
 		error = EINVAL;
