@@ -89,6 +89,8 @@
 #define	TCPTV_INFLIGHT_RTTTHRESH (10*hz/1000)	/* below which inflight
 						   disengages, in msec */
 
+#define TCPTV_FINWAIT2_TIMEOUT (60*hz)         /* FIN_WAIT_2 timeout if no receiver */
+
 /*
  * Minimum retransmit timer is 3 ticks, for algorithmic stability.
  * TCPT_RANGESET() will add another TCPTV_CPU_VAR to deal with
@@ -151,6 +153,9 @@ extern int tcp_ttl;			/* time to live for TCP segs */
 extern int tcp_backoff[];
 
 struct tcptw;
+
+extern int tcp_finwait2_timeout;
+extern int tcp_fast_finwait2_recycle;
 
 void	tcp_timer_init(void);
 void	tcp_timer_2msl(void *xtp);
