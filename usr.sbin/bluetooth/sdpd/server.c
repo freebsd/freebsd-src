@@ -66,7 +66,8 @@ server_init(server_p srv, char const *control)
 {
 	struct sockaddr_un	un;
 	struct sockaddr_l2cap	l2;
-	int32_t			unsock, l2sock, size;
+	int32_t			unsock, l2sock;
+	socklen_t		size;
 	uint16_t		imtu;
 
 	assert(srv != NULL);
@@ -136,7 +137,7 @@ server_init(server_p srv, char const *control)
 	l2.l2cap_len = sizeof(l2);
 	l2.l2cap_family = AF_BLUETOOTH;
 	memcpy(&l2.l2cap_bdaddr, NG_HCI_BDADDR_ANY, sizeof(l2.l2cap_bdaddr));
-	l2.l2cap_psm = NG_L2CAP_PSM_SDP;
+	l2.l2cap_psm = htole16(NG_L2CAP_PSM_SDP);
 
 	if (bind(l2sock, (struct sockaddr *) &l2, sizeof(l2)) < 0) {
 		log_crit("Could not bind L2CAP socket. %s (%d)",
@@ -289,8 +290,9 @@ static void
 server_accept_client(server_p srv, int32_t fd)
 {
 	uint8_t		*rsp = NULL;
-	int32_t		 cfd, size, priv;
+	int32_t		 cfd, priv;
 	uint16_t	 omtu;
+	socklen_t	 size;
 
 	do {
 		cfd = accept(fd, NULL, NULL);
@@ -430,7 +432,8 @@ server_process_request(server_p srv, int32_t fd)
 		return (-1);
 	}
 
-	if (sizeof(*pdu) + (pdu->len = ntohs(pdu->len)) == len) {
+	if (len >= sizeof(*pdu) &&
+	    sizeof(*pdu) + (pdu->len = ntohs(pdu->len)) == len) {
 		switch (pdu->pid) {
 		case SDP_PDU_SERVICE_SEARCH_REQUEST:
 			error = server_prepare_service_search_response(srv, fd);
@@ -475,8 +478,8 @@ server_process_request(server_p srv, int32_t fd)
 
 		case SDP_PDU_SERVICE_SEARCH_ATTRIBUTE_REQUEST:
 			error = server_send_service_search_attribute_response(srv, fd);
-			
-break;
+			break;
+
 		case SDP_PDU_SERVICE_REGISTER_REQUEST:
 			error = server_send_service_register_response(srv, fd);
 			break;
@@ -487,6 +490,7 @@ break;
 
 		case SDP_PDU_SERVICE_CHANGE_REQUEST:
 			error = server_send_service_change_response(srv, fd);
+			break;
 
 		default:
 			error = SDP_ERROR_CODE_INVALID_REQUEST_SYNTAX;
