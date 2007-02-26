@@ -84,7 +84,7 @@ struct lock_class lock_class_lockmgr = {
 #define LK_ALL (LK_HAVE_EXCL | LK_WANT_EXCL | LK_WANT_UPGRADE | \
 	LK_SHARE_NONZERO | LK_WAIT_NONZERO)
 
-static int acquire(struct lock **lkpp, int extflags, int wanted);
+static int acquire(struct lock **lkpp, int extflags, int wanted, int *contested, uint64_t *waittime);
 static int acquiredrain(struct lock *lkp, int extflags) ;
 
 static __inline void
@@ -112,7 +112,7 @@ shareunlock(struct thread *td, struct lock *lkp, int decr) {
 }
 
 static int
-acquire(struct lock **lkpp, int extflags, int wanted)
+acquire(struct lock **lkpp, int extflags, int wanted, int *contested, uint64_t *waittime)
 {
 	struct lock *lkp = *lkpp;
 	int error;
@@ -123,6 +123,9 @@ acquire(struct lock **lkpp, int extflags, int wanted)
 	if ((extflags & LK_NOWAIT) && (lkp->lk_flags & wanted))
 		return EBUSY;
 	error = 0;
+	if ((lkp->lk_flags & wanted) != 0)
+		lock_profile_obtain_lock_failed(&lkp->lk_object, contested, waittime);
+	
 	while ((lkp->lk_flags & wanted) != 0) {
 		CTR2(KTR_LOCK,
 		    "acquire(): lkp == %p, lk_flags == 0x%x sleeping",
@@ -168,15 +171,15 @@ _lockmgr(struct lock *lkp, int flags, struct mtx *interlkp,
 	int error;
 	struct thread *thr;
 	int extflags, lockflags;
-	uint64_t waitstart;
-
+	int contested = 0;
+	uint64_t waitstart = 0;
+	
 	error = 0;
 	if (td == NULL)
 		thr = LK_KERNPROC;
 	else
 		thr = td;
 
-	lock_profile_waitstart(&waitstart);
 	if ((flags & LK_INTERNAL) == 0)
 		mtx_lock(lkp->lk_interlock);
 	CTR6(KTR_LOCK,
@@ -228,12 +231,12 @@ _lockmgr(struct lock *lkp, int flags, struct mtx *interlkp,
 			lockflags = LK_HAVE_EXCL;
 			if (td != NULL && !(td->td_pflags & TDP_DEADLKTREAT))
 				lockflags |= LK_WANT_EXCL | LK_WANT_UPGRADE;
-			error = acquire(&lkp, extflags, lockflags);
+			error = acquire(&lkp, extflags, lockflags, &contested, &waitstart);
 			if (error)
 				break;
 			sharelock(td, lkp, 1);
 			if (lkp->lk_sharecount == 1)
-				lock_profile_obtain_lock_success(&lkp->lk_object, waitstart, file, line);
+				lock_profile_obtain_lock_success(&lkp->lk_object, contested, waitstart, file, line);
 
 #if defined(DEBUG_LOCKS)
 			stack_save(&lkp->lk_stack);
@@ -246,7 +249,7 @@ _lockmgr(struct lock *lkp, int flags, struct mtx *interlkp,
 		 */
 		sharelock(td, lkp, 1);
 		if (lkp->lk_sharecount == 1)
-			lock_profile_obtain_lock_success(&lkp->lk_object, waitstart, file, line);
+			lock_profile_obtain_lock_success(&lkp->lk_object, contested, waitstart, file, line);
 		/* FALLTHROUGH downgrade */
 
 	case LK_DOWNGRADE:
@@ -308,7 +311,7 @@ _lockmgr(struct lock *lkp, int flags, struct mtx *interlkp,
 			 * drop to zero, then take exclusive lock.
 			 */
 			lkp->lk_flags |= LK_WANT_UPGRADE;
-			error = acquire(&lkp, extflags, LK_SHARE_NONZERO);
+			error = acquire(&lkp, extflags, LK_SHARE_NONZERO, &contested, &waitstart);
 			lkp->lk_flags &= ~LK_WANT_UPGRADE;
 
 			if (error) {
@@ -322,7 +325,7 @@ _lockmgr(struct lock *lkp, int flags, struct mtx *interlkp,
 			lkp->lk_lockholder = thr;
 			lkp->lk_exclusivecount = 1;
 			COUNT(td, 1);
-			lock_profile_obtain_lock_success(&lkp->lk_object, waitstart, file, line);
+			lock_profile_obtain_lock_success(&lkp->lk_object, contested, waitstart, file, line);
 #if defined(DEBUG_LOCKS)
 			stack_save(&lkp->lk_stack);
 #endif
@@ -362,14 +365,14 @@ _lockmgr(struct lock *lkp, int flags, struct mtx *interlkp,
 		/*
 		 * Try to acquire the want_exclusive flag.
 		 */
-		error = acquire(&lkp, extflags, (LK_HAVE_EXCL | LK_WANT_EXCL));
+		error = acquire(&lkp, extflags, (LK_HAVE_EXCL | LK_WANT_EXCL), &contested, &waitstart);
 		if (error)
 			break;
 		lkp->lk_flags |= LK_WANT_EXCL;
 		/*
 		 * Wait for shared locks and upgrades to finish.
 		 */
-		error = acquire(&lkp, extflags, LK_HAVE_EXCL | LK_WANT_UPGRADE | LK_SHARE_NONZERO);
+		error = acquire(&lkp, extflags, LK_HAVE_EXCL | LK_WANT_UPGRADE | LK_SHARE_NONZERO, &contested, &waitstart);
 		lkp->lk_flags &= ~LK_WANT_EXCL;
 		if (error) {
 			if (lkp->lk_flags & LK_WAIT_NONZERO)		
@@ -382,7 +385,7 @@ _lockmgr(struct lock *lkp, int flags, struct mtx *interlkp,
 			panic("lockmgr: non-zero exclusive count");
 		lkp->lk_exclusivecount = 1;
 		COUNT(td, 1);
-		lock_profile_obtain_lock_success(&lkp->lk_object, waitstart, file, line);
+		lock_profile_obtain_lock_success(&lkp->lk_object, contested, waitstart, file, line);
 #if defined(DEBUG_LOCKS)
 		stack_save(&lkp->lk_stack);
 #endif

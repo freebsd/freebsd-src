@@ -997,7 +997,7 @@ sched_setup(void *dummy)
 		tdq = &tdq_cpu[i];
 		tdq_setup(&tdq_cpu[i]);
 	}
-	if (smp_topology == NULL) {
+	if (1) {
 		struct tdq_group *tdg;
 		struct tdq *tdq;
 		int cpus;
