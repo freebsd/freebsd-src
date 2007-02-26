@@ -44,7 +44,7 @@
 .Sh SYNOPSIS
 .In sys/types.h
 .In sys/socket.h
-.In sys/sctp.h
+.In netinet/sctp.h
 .Ft ssize_t
 .Fn sctp_sendmsg "int s" "const void *msg" "size_t len" "const struct sockaddr *to" "socklen_t tolen" "uint32_t ppid" "uint32_t flags" "uint16_t stream_no" "uint32_t timetolive" "uint32_t context"
 .Ft ssize_t
