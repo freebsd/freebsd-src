@@ -108,6 +108,13 @@ rw_sysinit(void *arg)
 	rw_init(args->ra_rw, args->ra_desc);
 }
 
+int
+rw_wowned(struct rwlock *rw)
+{
+
+	return (rw_wowner(rw) == curthread);
+}
+
 void
 _rw_wlock(struct rwlock *rw, const char *file, int line)
 {
