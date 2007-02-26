@@ -35,12 +35,15 @@ __FBSDID("$FreeBSD$");
 #include <sys/acl.h>
 #include "un-namespace.h"
 #include <sys/errno.h>
+#include <grp.h>
+#include <pwd.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 
 #include "acl_support.h"
 
+static int _posix1e_acl_name_to_id(acl_tag_t tag, char *name, uid_t *id);
 static acl_tag_t acl_string_to_tag(char *tag, char *qualifier);
 static char *string_skip_whitespace(char *string);
 static void string_trim_trailing_whitespace(char *string);
@@ -234,5 +237,53 @@ error_label:
 	return(NULL);
 }
 
+/*
+ * Given a username/groupname from a text form of an ACL, return the uid/gid
+ * XXX NOT THREAD SAFE, RELIES ON GETPWNAM, GETGRNAM
+ * XXX USES *PW* AND *GR* WHICH ARE STATEFUL AND THEREFORE THIS ROUTINE
+ * MAY HAVE SIDE-EFFECTS
+ *
+ * XXX currently doesn't deal correctly with a numeric uid being passed
+ * instead of a username.  What is correct behavior here?  Check chown.
+ */
+static int
+_posix1e_acl_name_to_id(acl_tag_t tag, char *name, uid_t *id)
+{
+	struct group	*g;
+	struct passwd	*p;
+	unsigned long	l;
+	char 		*endp;
 
+	switch(tag) {
+	case ACL_USER:
+		p = getpwnam(name);
+		if (p == NULL) {
+			l = strtoul(name, &endp, 0);
+			if (*endp != '\0' || l != (unsigned long)(uid_t)l) {
+				errno = EINVAL;
+				return (-1);
+			}
+			*id = (uid_t)l;
+			return (0);
+		}
+		*id = p->pw_uid;
+		return (0);
 
+	case ACL_GROUP:
+		g = getgrnam(name);
+		if (g == NULL) {
+			l = strtoul(name, &endp, 0);
+			if (*endp != '\0' || l != (unsigned long)(gid_t)l) {
+				errno = EINVAL;
+				return (-1);
+			}
+			*id = (gid_t)l;
+			return (0);
+		}
+		*id = g->gr_gid;
+		return (0);
+
+	default:
+		return (EINVAL);
+	}
+}
