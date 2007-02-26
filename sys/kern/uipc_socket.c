@@ -257,15 +257,15 @@ SYSINIT(param, SI_SUB_TUNABLES, SI_ORDER_ANY, init_maxsockets, NULL);
  * soalloc() returns a socket with a ref count of 0.
  */
 static struct socket *
-soalloc(int mflags)
+soalloc(void)
 {
 	struct socket *so;
 
-	so = uma_zalloc(socket_zone, mflags | M_ZERO);
+	so = uma_zalloc(socket_zone, M_NOWAIT | M_ZERO);
 	if (so == NULL)
 		return (NULL);
 #ifdef MAC
-	if (mac_init_socket(so, mflags) != 0) {
+	if (mac_init_socket(so, M_NOWAIT) != 0) {
 		uma_zfree(socket_zone, so);
 		return (NULL);
 	}
@@ -351,7 +351,7 @@ socreate(dom, aso, type, proto, cred, td)
 
 	if (prp->pr_type != type)
 		return (EPROTOTYPE);
-	so = soalloc(M_WAITOK);
+	so = soalloc();
 	if (so == NULL)
 		return (ENOBUFS);
 
@@ -416,7 +416,7 @@ sonewconn(head, connstatus)
 	if (over)
 #endif
 		return (NULL);
-	so = soalloc(M_NOWAIT);
+	so = soalloc();
 	if (so == NULL)
 		return (NULL);
 	if ((head->so_options & SO_ACCEPTFILTER) != 0)
