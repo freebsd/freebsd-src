@@ -8,6 +8,7 @@ CPU_SA1100		opt_global.h
 CPU_SA1110		opt_global.h
 CPU_ARM9		opt_global.h
 CPU_XSCALE_80321	opt_global.h
+CPU_XSCALE_IXP425	opt_global.h
 PHYSADDR		opt_global.h
 KERNPHYSADDR		opt_global.h
 KERNVIRTADDR		opt_global.h
