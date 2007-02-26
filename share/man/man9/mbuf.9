@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd July 24, 2006
+.Dd February 26, 2007
 .Dt MBUF 9
 .Os
 .\"
@@ -96,6 +96,8 @@
 .Fn m_copyup "struct mbuf *mbuf" "int len" "int dstoff"
 .Ft struct mbuf *
 .Fn m_pullup "struct mbuf *mbuf" "int len"
+.Ft struct mbuf *
+.Fn m_pulldown "struct mbuf *mbuf" "int offset" "int len" "int *offsetp"
 .Ft struct mbuf *
 .Fn m_copym "struct mbuf *mbuf" "int offset" "int len" "int how"
 .Ft struct mbuf *
@@ -662,6 +664,42 @@ so
 .Fa len
 must be less than
 .Dv MHLEN .
+.\"
+.It Fn m_pulldown mbuf offset len offsetp
+Arrange that
+.Fa len
+bytes between
+.Fa offset
+and
+.Fa offset + len
+in the
+.Vt mbuf chain
+are contiguous and lay in the data area of
+.Fa mbuf ,
+so they are accessible with
+.Fn mtod mbuf type .
+.Fa len must be smaller than, or equal to, the size of an
+.Vt mbuf cluster .
+Return a pointer to an intermediate
+.Vt mbuf
+in the chain containing the requested region;
+the offset in the data region of the
+.Vt mbuf chain
+to the data contained in the returned mbuf is stored in
+.Fa *offsetp .
+If
+.Fa offp
+is NULL, the region may be accessed using
+.Fn mtod mbuf type .
+If
+.Fa offp
+is non-NULL, the region may be accessed using
+.Fn mtod mbuf uint8_t + *offsetp .
+The region of the mbuf chain between its beginning and
+.Fa off
+is not modified, therefore it is safe to hold pointers to data within
+this region before calling
+.Fn m_pulldown .
 .\"
 .It Fn m_copym mbuf offset len how
 Make a copy of an
