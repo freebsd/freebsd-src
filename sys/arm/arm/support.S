@@ -871,6 +871,18 @@ ENTRY(memmove)
 #if !defined(__XSCALE__)
 ENTRY(memcpy)
 	/* save leaf functions having to store this away */
+	/* Do not check arm_memcpy if we're running from flash */
+#ifdef FLASHADDR
+#if FLASHADDR > PHYSADDR
+	ldr	r3, =FLASHADDR
+	cmp	r3, pc
+	bls	.Lnormal
+#else
+	ldr	r3, =FLASHADDR
+	cmp	r3, pc
+	bhi	.Lnormal
+#endif
+#endif
 	ldr	r3, .L_arm_memcpy
 	ldr	r3, [r3]
 	cmp	r3, #0
@@ -1096,6 +1108,17 @@ ENTRY(memcpy)
 	pld	[r1]
 	cmp	r2, #0x0c
 	ble	.Lmemcpy_short		/* <= 12 bytes */
+#ifdef FLASHADDR
+#if FLASHADDR > PHYSADDR
+	ldr	r3, =FLASHADDR
+	cmp	r3, pc
+	bls	.Lnormal
+#else
+	ldr	r3, =FLASHADDR
+	cmp	r3, pc
+	bhi	.Lnormal
+#endif
+#endif
 	ldr	r3, .L_arm_memcpy
 	ldr	r3, [r3]
 	cmp	r3, #0

@@ -95,11 +95,6 @@ do_copy:
 	sub	r0, r0, r9
 	add	r0, r0, r8
 	mov	r4, r0
-	/* Make sure _arm_memcpy is NULL */
-	ldr	r3, .L_arm_memcpy
-	ldr	r3, [r3]
-	mov	r5, #0
-	str	r5, [r3]
 	bl	memcpy
 	ldr	r0, Lram_offset
 	add	pc, r4, r0
