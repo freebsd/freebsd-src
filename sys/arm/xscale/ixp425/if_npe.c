@@ -88,12 +88,6 @@ __FBSDID("$FreeBSD$");
 
 #include "miibus_if.h"
 
-/* 
- * XXX: For the main bus dma tag. Can go away if the new method to get the 
- * dma tag from the parent got MFC'd into RELENG_6.
- */
-extern struct ixp425_softc *ixp425_softc;
-
 struct npebuf {
 	struct npebuf	*ix_next;	/* chain to next buffer */
 	void		*ix_m;		/* backpointer to mbuf */
@@ -126,7 +120,6 @@ struct npe_softc {
 	int		sc_debug;	/* DPRINTF* control */
 	int		sc_tickinterval;
 	struct callout	tick_ch;	/* Tick callout */
-	int		npe_watchdog_timer;
 	struct npedma	txdma;
 	struct npebuf	*tx_free;	/* list of free tx buffers */
 	struct npedma	rxdma;
@@ -230,7 +223,7 @@ static void	npeinit(void *);
 static void	npestart_locked(struct ifnet *);
 static void	npestart(struct ifnet *);
 static void	npestop(struct npe_softc *);
-static void	npewatchdog(struct npe_softc *);
+static void	npewatchdog(struct ifnet *);
 static int	npeioctl(struct ifnet * ifp, u_long, caddr_t);
 
 static int	npe_setrxqosentry(struct npe_softc *, int classix,
@@ -325,13 +318,16 @@ npe_attach(device_t dev)
 
 	ifp->if_softc = sc;
 	if_initname(ifp, device_get_name(dev), device_get_unit(dev));
+	ifp->if_mtu = ETHERMTU;
 	ifp->if_flags = IFF_BROADCAST | IFF_SIMPLEX | IFF_MULTICAST;
 	ifp->if_start = npestart;
 	ifp->if_ioctl = npeioctl;
+	ifp->if_watchdog = npewatchdog;
 	ifp->if_init = npeinit;
 	IFQ_SET_MAXLEN(&ifp->if_snd, sc->txdma.nbuf - 1);
-	ifp->if_snd.ifq_drv_maxlen = IFQ_MAXLEN;
+	ifp->if_snd.ifq_maxlen = IFQ_MAXLEN;
 	IFQ_SET_READY(&ifp->if_snd);
+	ifp->if_timer = 0;
 	ifp->if_linkmib = &sc->mibdata;
 	ifp->if_linkmiblen = sizeof(sc->mibdata);
 	sc->mibdata.dot3Compliance = DOT3COMPLIANCE_STATS;
@@ -451,7 +447,7 @@ npe_dma_setup(struct npe_softc *sc, struct npedma *dma,
 	dma->nbuf = nbuf;
 
 	/* DMA tag for mapped mbufs  */
-	error = bus_dma_tag_create(ixp425_softc->sc_dmat, 1, 0,
+	error = bus_dma_tag_create(NULL, 1, 0,
 	    BUS_SPACE_MAXADDR_32BIT, BUS_SPACE_MAXADDR, NULL, NULL,
 	    MCLBYTES, maxseg, MCLBYTES, 0,
 	    busdma_lock_mutex, &sc->sc_mtx, &dma->mtag);
@@ -462,7 +458,7 @@ npe_dma_setup(struct npe_softc *sc, struct npedma *dma,
 	}
 
 	/* DMA tag and map for the NPE buffers */
-	error = bus_dma_tag_create(ixp425_softc->sc_dmat, sizeof(uint32_t), 0, 
+	error = bus_dma_tag_create(NULL, sizeof(uint32_t), 0, 
 	    BUS_SPACE_MAXADDR_32BIT, BUS_SPACE_MAXADDR, NULL, NULL,
 	    nbuf * sizeof(struct npehwbuf), 1,
 	    nbuf * sizeof(struct npehwbuf), 0,
@@ -586,7 +582,7 @@ npe_activate(device_t dev)
 		return error;
 
 	/* setup statistics block */
-	error = bus_dma_tag_create(ixp425_softc->sc_dmat, sizeof(uint32_t), 0,
+	error = bus_dma_tag_create(NULL, sizeof(uint32_t), 0,
 	    BUS_SPACE_MAXADDR_32BIT, BUS_SPACE_MAXADDR, NULL, NULL,
 	    sizeof(struct npestats), 1, sizeof(struct npestats), 0,
 	    busdma_lock_mutex, &sc->sc_mtx, &sc->sc_stats_tag);
@@ -794,8 +790,6 @@ npe_tick(void *xsc)
 	npe_updatestats(sc);
 	mii_tick(mii);
 
-	npewatchdog(sc);
-
 	/* schedule next poll */
 	callout_reset(&sc->tick_ch, sc->sc_tickinterval * hz, npe_tick, sc);
 #undef ACK
@@ -845,7 +839,7 @@ npe_txdone_finish(struct npe_softc *sc, const struct txdone *td)
 	 */
 	ifp->if_opackets += td->count;
 	ifp->if_drv_flags &= ~IFF_DRV_OACTIVE;
-	sc->npe_watchdog_timer = 0;
+	ifp->if_timer = 0;
 	npestart_locked(ifp);
 	NPE_UNLOCK(sc);
 }
@@ -1104,7 +1098,7 @@ if (ifp->if_drv_flags & IFF_DRV_RUNNING) return;/*XXX*/
 
 	ifp->if_drv_flags |= IFF_DRV_RUNNING;
 	ifp->if_drv_flags &= ~IFF_DRV_OACTIVE;
-	sc->npe_watchdog_timer = 0;		/* just in case */
+	ifp->if_timer = 0;		/* just in case */
 
 	/* enable transmitter and reciver in the MAC */
  	WR4(sc, NPE_MAC_RX_CNTRL1,
@@ -1287,7 +1281,7 @@ npestart_locked(struct ifnet *ifp)
 		/* XXX add vlan priority */
 		ixpqmgr_qwrite(sc->tx_qid, npe->ix_neaddr);
 
-		sc->npe_watchdog_timer = 5;
+		ifp->if_timer = 5;
 	}
 	if (sc->tx_free == NULL)
 		ifp->if_drv_flags |= IFF_DRV_OACTIVE;
@@ -1356,7 +1350,7 @@ npestop(struct npe_softc *sc)
  	WR4(sc, NPE_MAC_TX_CNTRL1,
 	    RD4(sc, NPE_MAC_TX_CNTRL1) &~ NPE_TX_CNTRL1_TX_EN);
 
-	sc->npe_watchdog_timer = 0;
+	ifp->if_timer = 0;
 	ifp->if_drv_flags &= ~(IFF_DRV_RUNNING | IFF_DRV_OACTIVE);
 
 	callout_stop(&sc->tick_ch);
@@ -1378,17 +1372,15 @@ npestop(struct npe_softc *sc)
 }
 
 void
-npewatchdog(struct npe_softc *sc)
+npewatchdog(struct ifnet *ifp)
 {
-	NPE_ASSERT_LOCKED(sc);
+	struct npe_softc *sc = ifp->if_softc;
 
-	if (sc->npe_watchdog_timer == 0 || --sc->npe_watchdog_timer != 0)
-		return;
-
-	device_printf(sc->sc_dev, "watchdog timeout\n");
-	sc->sc_ifp->if_oerrors++;
-
+	NPE_LOCK(sc);
+	if_printf(ifp, "device timeout\n");
+	ifp->if_oerrors++;
 	npeinit_locked(sc);
+	NPE_UNLOCK(sc);
 }
 
 static int

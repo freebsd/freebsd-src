@@ -39,7 +39,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/malloc.h>
-#define _ARM32_BUS_DMA_PRIVATE
 #include <sys/bus.h>
 #include <sys/kernel.h>
 #include <sys/module.h>
@@ -130,19 +129,6 @@ ixppcib_attach(device_t dev)
 	if (sc->sc_mem == NULL)
 		panic("cannot allocate PCI MEM space");
 
-#define	AHB_OFFSET	0x10000000UL
-	if (bus_dma_tag_create(NULL, 1, 0, AHB_OFFSET + 64 * 1024 * 1024,
-	    BUS_SPACE_MAXADDR, NULL, NULL,  0xffffffff, 0xff, 0xffffffff, 0, 
-	    NULL, NULL, &sc->sc_dmat))
-		panic("couldn't create the PCI dma tag !");
-	/* 
-	 * The PCI bus can only address 64MB. However, due to the way our
-	 * implementation of busdma works, busdma can't tell if a device
-	 * is a PCI device or not. So defaults to the PCI dma tag, which
-	 * restrict the DMA'able memory to the first 64MB, and explicitely
-	 * create less restrictive tags for non-PCI devices.
-	 */
-	arm_root_dma_tag = sc->sc_dmat;
 	/*
 	 * Initialize the bus space tags.
 	 */
@@ -172,6 +158,7 @@ ixppcib_attach(device_t dev)
 	 * PCI->AHB address translation
 	 * 	begin at the physical memory start + OFFSET
 	 */
+#define	AHB_OFFSET	0x10000000UL
 	PCI_CSR_WRITE_4(sc, PCI_AHBMEMBASE,
 	    (AHB_OFFSET & 0xFF000000) +
 	    ((AHB_OFFSET & 0xFF000000) >> 8) +
@@ -254,11 +241,11 @@ ixppcib_write_ivar(device_t dev, device_t child, int which, uintptr_t value)
 
 static int
 ixppcib_setup_intr(device_t dev, device_t child, struct resource *ires,
-    int flags, driver_filter_t *filt, driver_intr_t *intr, void *arg, void **cookiep)
+    int flags, driver_intr_t *intr, void *arg, void **cookiep)
 {
 
 	return (BUS_SETUP_INTR(device_get_parent(dev), child, ires, flags,
-	    filt, intr, arg, cookiep));
+	    intr, arg, cookiep));
 }
 
 static int

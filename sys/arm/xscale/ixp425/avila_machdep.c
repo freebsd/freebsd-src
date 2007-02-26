@@ -274,7 +274,7 @@ initarm(void *arg, void *arg2)
 #ifdef DDB
 	vm_offset_t zstart = 0, zend = 0;
 #endif
-	int i;
+	int i = 0;
 	uint32_t fake_preload[35];
 	uint32_t memsize;
 
@@ -493,7 +493,7 @@ initarm(void *arg, void *arg2)
 	undefined_handler_address = (u_int)undefinedinstruction_bounce;
 	undefined_init();
 				
-	proc_linkup(&proc0, &thread0);
+	proc_linkup(&proc0, &ksegrp0, &thread0);
 	thread0.td_kstack = kernelstack.pv_va;
 	thread0.td_pcb = (struct pcb *)
 		(thread0.td_kstack + KSTACK_PAGES * PAGE_SIZE) - 1;
