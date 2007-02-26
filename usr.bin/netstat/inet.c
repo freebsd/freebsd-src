@@ -436,6 +436,7 @@ tcp_stats(u_long off __unused, const char *name, int af1 __unused)
 	p(tcps_timeoutdrop, "\t\t%lu connection%s dropped by rexmit timeout\n");
 	p(tcps_persisttimeo, "\t%lu persist timeout%s\n");
 	p(tcps_persistdrop, "\t\t%lu connection%s dropped by persist timeout\n");
+	p(tcps_finwait2_drops, "\t%lu Connection%s (fin_wait_2) dropped because of timeout\n"); 
 	p(tcps_keeptimeo, "\t%lu keepalive timeout%s\n");
 	p(tcps_keepprobe, "\t\t%lu keepalive probe%s sent\n");
 	p(tcps_keepdrops, "\t\t%lu connection%s dropped by keepalive\n");

@@ -329,6 +329,7 @@ tcp_init(void)
 	tcp_rexmit_min = TCPTV_MIN;
 	tcp_rexmit_slop = TCPTV_CPU_VAR;
 	tcp_inflight_rttthresh = TCPTV_INFLIGHT_RTTTHRESH;
+	tcp_finwait2_timeout = TCPTV_FINWAIT2_TIMEOUT;
 
 	INP_INFO_LOCK_INIT(&tcbinfo, "tcp");
 	LIST_INIT(&tcb);

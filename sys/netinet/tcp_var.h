@@ -413,6 +413,8 @@ struct	tcpstat {
 	u_long	tcps_hc_added;		/* entry added to hostcache */
 	u_long	tcps_hc_bucketoverflow;	/* hostcache per bucket limit hit */
 
+	u_long  tcps_finwait2_drops;    /* Drop FIN_WAIT_2 connection after time limit */
+
 	/* SACK related stats */
 	u_long	tcps_sack_recovery_episode; /* SACK recovery episodes */
 	u_long  tcps_sack_rexmits;	    /* SACK rexmit segments   */
@@ -455,6 +457,7 @@ struct	xtcpcb {
 #define	TCPCTL_SACK		14	/* Selective Acknowledgement,rfc 2018 */
 #define	TCPCTL_DROP		15	/* drop tcp connection */
 #define	TCPCTL_MAXID		16
+#define TCPCTL_FINWAIT2_TIMEOUT        17
 
 #define TCPCTL_NAMES { \
 	{ 0, 0 }, \

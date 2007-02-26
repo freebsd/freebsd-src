@@ -1581,9 +1581,14 @@ tcp_usrclosed(tp)
 	if (tp && tp->t_state >= TCPS_FIN_WAIT_2) {
 		soisdisconnected(tp->t_inpcb->inp_socket);
 		/* To prevent the connection hanging in FIN_WAIT_2 forever. */
-		if (tp->t_state == TCPS_FIN_WAIT_2)
-			callout_reset(tp->tt_2msl, tcp_maxidle,
+		if (tp->t_state == TCPS_FIN_WAIT_2) {
+			int timeout;
+
+			timeout = (tcp_fast_finwait2_recycle) ? 
+				tcp_finwait2_timeout : tcp_maxidle;
+			callout_reset(tp->tt_2msl, timeout,
 				      tcp_timer_2msl, tp);
+		}
 	}
 }
 
