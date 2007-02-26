@@ -93,6 +93,7 @@ static void	brgphy_status(struct mii_softc *);
 static int	brgphy_mii_phy_auto(struct mii_softc *);
 static void	brgphy_reset(struct mii_softc *);
 static void	brgphy_loop(struct mii_softc *);
+static int	bcm5706_is_tbi(device_t);
 static void	bcm5401_load_dspcode(struct mii_softc *);
 static void	bcm5411_load_dspcode(struct mii_softc *);
 static void	bcm5703_load_dspcode(struct mii_softc *);
@@ -108,19 +109,40 @@ static const struct mii_phydesc brgphys[] = {
 	MII_PHY_DESC(xxBROADCOM, BCM5704),
 	MII_PHY_DESC(xxBROADCOM, BCM5705),
 	MII_PHY_DESC(xxBROADCOM, BCM5706C),
-	MII_PHY_DESC(xxBROADCOM, BCM5708C),
 	MII_PHY_DESC(xxBROADCOM, BCM5714),
 	MII_PHY_DESC(xxBROADCOM, BCM5750),
 	MII_PHY_DESC(xxBROADCOM, BCM5752),
 	MII_PHY_DESC(xxBROADCOM, BCM5780),
+	MII_PHY_DESC(xxBROADCOM, BCM5708C),
 	MII_PHY_END
 };
 
 static int
 brgphy_probe(device_t dev)
 {
+	struct mii_attach_args *ma;
+	int error;
 
-	return (mii_phy_dev_probe(dev, brgphys, BUS_PROBE_DEFAULT));
+	error = mii_phy_dev_probe(dev, brgphys, BUS_PROBE_DEFAULT);
+	if (error != BUS_PROBE_DEFAULT)
+		return (error);
+	
+	ma = device_get_ivars(dev);
+	if (MII_OUI(ma->mii_id1, ma->mii_id2) == MII_OUI_xxBROADCOM &&
+	    MII_MODEL(ma->mii_id2) == MII_MODEL_xxBROADCOM_BCM5706C) {
+		/*
+		 * Broadcom uses the same MII model ID on two
+		 * different types of phys.  The first is found on the
+		 * BCM 5706 and is supported by this driver.  The
+		 * other is found on the BCM 5706S and 5708S and is
+		 * supported by the gentbi(4) driver, so we check to
+		 * see if this phy is supported by gentbi(4) and fail
+		 * the probe if so.
+		 */
+		if (bcm5706_is_tbi(dev))
+			return (ENXIO);
+	}
+	return (error);
 }
 
 static int
@@ -463,6 +485,34 @@ brgphy_loop(struct mii_softc *sc)
 		}
 		DELAY(10);
 	}
+}
+
+/*
+ * Check to see if a 5706 phy is really a SerDes phy.  Copied from
+ * gentbi_probe().
+ */
+static int
+bcm5706_is_tbi(device_t dev)
+{
+	device_t parent;
+	struct mii_attach_args *ma;
+	int bmsr, extsr;
+
+	parent = device_get_parent(dev);
+	ma = device_get_ivars(dev);
+
+	bmsr = MIIBUS_READREG(parent, ma->mii_phyno, MII_BMSR);
+	if ((bmsr & BMSR_EXTSTAT) == 0 || (bmsr & BMSR_MEDIAMASK) != 0)
+		return (0);
+
+	extsr = MIIBUS_READREG(parent, ma->mii_phyno, MII_EXTSR);
+	if (extsr & (EXTSR_1000TFDX|EXTSR_1000THDX))
+		return (0);
+
+	if (extsr & (EXTSR_1000XFDX|EXTSR_1000XHDX))
+		return (1);
+
+	return (0);
 }
 
 /* Turn off tap power management on 5401. */
