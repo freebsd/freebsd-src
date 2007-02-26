@@ -48,19 +48,19 @@
 struct sap_query {
 	u_short		query_type;	/* net order */
 	u_short		server_type;	/* net order */
-};
+} __packed;
 
 struct sap_entry {
 	u_short		server_type;
 	u_char		server_name[IPX_SAP_SERVER_NAME_LEN];
 	struct ipx_addr	ipx;
 	u_short		hops;
-};
+} __packed;
 
 struct sap_packet {
 	u_short		operation;
 	struct sap_entry sap_entries[1];
-};
+} __packed;
 
 struct sap_rq {
 	struct sockaddr_ipx dest_addr;
