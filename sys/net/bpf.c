@@ -85,6 +85,8 @@ static MALLOC_DEFINE(M_BPF, "BPF", "BPF data");
 
 #define PRINET  26			/* interruptible */
 
+#define	M_SKIP_BPF	M_SKIP_FIREWALL
+
 /*
  * bpf_iflist is a list of BPF interface structures, each corresponding to a
  * specific DLT.  The same network interface might have several BPF interface
@@ -100,8 +102,8 @@ static void	bpf_attachd(struct bpf_d *, struct bpf_if *);
 static void	bpf_detachd(struct bpf_d *);
 static void	bpf_freed(struct bpf_d *);
 static void	bpf_mcopy(const void *, void *, size_t);
-static int	bpf_movein(struct uio *, int, int,
-		    struct mbuf **, struct sockaddr *, struct bpf_insn *);
+static int	bpf_movein(struct uio *, int, int, struct mbuf **,
+		    struct sockaddr *, int *, struct bpf_insn *);
 static int	bpf_setif(struct bpf_d *, struct ifreq *);
 static void	bpf_timed_out(void *);
 static __inline void
@@ -158,7 +160,7 @@ static struct filterops bpfread_filtops =
 
 static int
 bpf_movein(struct uio *uio, int linktype, int mtu, struct mbuf **mp,
-    struct sockaddr *sockp, struct bpf_insn *wfilter)
+    struct sockaddr *sockp, int *hdrlen, struct bpf_insn *wfilter)
 {
 	const struct ieee80211_bpf_params *p;
 	struct mbuf *m;
@@ -294,14 +296,8 @@ bpf_movein(struct uio *uio, int linktype, int mtu, struct mbuf **mp,
 			}
 		}
 		bcopy(m->m_data, sockp->sa_data, hlen);
-		m->m_pkthdr.len -= hlen;
-		m->m_len -= hlen;
-#if BSD >= 199103
-		m->m_data += hlen; /* XXX */
-#else
-		m->m_off += hlen;
-#endif
 	}
+	*hdrlen = hlen;
 
 	return (0);
 bad:
@@ -403,7 +399,7 @@ bpfopen(struct cdev *dev, int flags, int fmt, struct thread *td)
 	dev->si_drv1 = d;
 	d->bd_bufsize = bpf_bufsize;
 	d->bd_sig = SIGIO;
-	d->bd_seesent = 1;
+	d->bd_direction = BPF_D_INOUT;
 	d->bd_pid = td->td_proc->p_pid;
 #ifdef MAC
 	mac_init_bpfdesc(d);
@@ -602,9 +598,9 @@ bpfwrite(struct cdev *dev, struct uio *uio, int ioflag)
 {
 	struct bpf_d *d = dev->si_drv1;
 	struct ifnet *ifp;
-	struct mbuf *m;
-	int error;
+	struct mbuf *m, *mc;
 	struct sockaddr dst;
+	int error, hlen;
 
 	if (d->bd_bif == NULL)
 		return (ENXIO);
@@ -619,24 +615,48 @@ bpfwrite(struct cdev *dev, struct uio *uio, int ioflag)
 
 	bzero(&dst, sizeof(dst));
 	error = bpf_movein(uio, (int)d->bd_bif->bif_dlt, ifp->if_mtu,
-	    &m, &dst, d->bd_wfilter);
+	    &m, &dst, &hlen, d->bd_wfilter);
 	if (error)
 		return (error);
 
 	if (d->bd_hdrcmplt)
 		dst.sa_family = pseudo_AF_HDRCMPLT;
 
+	if (d->bd_feedback) {
+		mc = m_dup(m, M_DONTWAIT);
+		if (mc != NULL)
+			mc->m_pkthdr.rcvif = ifp;
+		/* XXX Do not return the same packet twice. */
+		if (d->bd_direction == BPF_D_INOUT)
+			m->m_flags |= M_SKIP_BPF;
+	} else
+		mc = NULL;
+
+	m->m_pkthdr.len -= hlen;
+	m->m_len -= hlen;
+	m->m_data += hlen;	/* XXX */
+
 #ifdef MAC
 	BPFD_LOCK(d);
 	mac_create_mbuf_from_bpfdesc(d, m);
+	if (mc != NULL)
+		mac_create_mbuf_from_bpfdesc(d, mc);
 	BPFD_UNLOCK(d);
 #endif
+
 	NET_LOCK_GIANT();
 	error = (*ifp->if_output)(ifp, m, &dst, NULL);
 	NET_UNLOCK_GIANT();
-	/*
-	 * The driver frees the mbuf.
-	 */
+
+	if (mc != NULL) {
+		if (error == 0) {
+			NET_LOCK_GIANT();
+			(*ifp->if_input)(ifp, mc);
+			NET_UNLOCK_GIANT();
+		} else
+			m_freem(mc);
+	}
+
 	return (error);
 }
 
@@ -679,9 +699,10 @@ reset_d(struct bpf_d *d)
  *  BIOCVERSION		Get filter language version.
  *  BIOCGHDRCMPLT	Get "header already complete" flag
  *  BIOCSHDRCMPLT	Set "header already complete" flag
- *  BIOCGSEESENT	Get "see packets sent" flag
- *  BIOCSSEESENT	Set "see packets sent" flag
+ *  BIOCGDIRECTION	Get packet direction flag
+ *  BIOCSDIRECTION	Set packet direction flag
  *  BIOCLOCK		Set "locked" flag
+ *  BIOCFEEDBACK	Set packet feedback mode.
  */
 /* ARGSUSED */
 static	int
@@ -713,6 +734,7 @@ bpfioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flags,
 		case BIOCVERSION:
 		case BIOCGRSIG:
 		case BIOCGHDRCMPLT:
+		case BIOCFEEDBACK:
 		case FIONREAD:
 		case BIOCLOCK:
 		case BIOCSRTIMEOUT:
@@ -935,9 +957,6 @@ bpfioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flags,
 		*(u_int *)addr = d->bd_hdrcmplt;
 		break;
 
-	case BIOCLOCK:
-		d->bd_locked = 1;
-		break;
 	/*
 	 * Set "header already complete" flag
 	 */
@@ -946,17 +965,38 @@ bpfioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flags,
 		break;
 
 	/*
-	 * Get "see sent packets" flag
+	 * Get packet direction flag
 	 */
-	case BIOCGSEESENT:
-		*(u_int *)addr = d->bd_seesent;
+	case BIOCGDIRECTION:
+		*(u_int *)addr = d->bd_direction;
 		break;
 
 	/*
-	 * Set "see sent packets" flag
+	 * Set packet direction flag
 	 */
-	case BIOCSSEESENT:
-		d->bd_seesent = *(u_int *)addr;
+	case BIOCSDIRECTION:
+		{
+			u_int	direction;
+
+			direction = *(u_int *)addr;
+			switch (direction) {
+			case BPF_D_IN:
+			case BPF_D_INOUT:
+			case BPF_D_OUT:
+				d->bd_direction = direction;
+				break;
+			default:
+				error = EINVAL;
+			}
+		}
+		break;
+
+	case BIOCFEEDBACK:
+		d->bd_feedback = *(u_int *)addr;
+		break;
+
+	case BIOCLOCK:
+		d->bd_locked = 1;
 		break;
 
 	case FIONBIO:		/* Non-blocking I/O */
@@ -1280,6 +1320,10 @@ bpf_mcopy(const void *src_arg, void *dst_arg, size_t len)
 	}
 }
 
+#define	BPF_CHECK_DIRECTION(d, m) \
+	if (((d)->bd_direction == BPF_D_IN && (m)->m_pkthdr.rcvif == NULL) || \
+	    ((d)->bd_direction == BPF_D_OUT && (m)->m_pkthdr.rcvif != NULL))
+
 /*
  * Incoming linkage from device drivers, when packet is in an mbuf chain.
  */
@@ -1291,13 +1335,18 @@ bpf_mtap(struct bpf_if *bp, struct mbuf *m)
 	int gottime;
 	struct timeval tv;
 
+	if (m->m_flags & M_SKIP_BPF) {
+		m->m_flags &= ~M_SKIP_BPF;
+		return;
+	}
+
 	gottime = 0;
 
 	pktlen = m_length(m, NULL);
 
 	BPFIF_LOCK(bp);
 	LIST_FOREACH(d, &bp->bif_dlist, bd_next) {
-		if (!d->bd_seesent && (m->m_pkthdr.rcvif == NULL))
+		BPF_CHECK_DIRECTION(d, m)
 			continue;
 		BPFD_LOCK(d);
 		++d->bd_rcount;
@@ -1340,6 +1389,11 @@ bpf_mtap2(struct bpf_if *bp, void *data, u_int dlen, struct mbuf *m)
 	int gottime;
 	struct timeval tv;
 
+	if (m->m_flags & M_SKIP_BPF) {
+		m->m_flags &= ~M_SKIP_BPF;
+		return;
+	}
+
 	gottime = 0;
 
 	pktlen = m_length(m, NULL);
@@ -1355,7 +1409,7 @@ bpf_mtap2(struct bpf_if *bp, void *data, u_int dlen, struct mbuf *m)
 
 	BPFIF_LOCK(bp);
 	LIST_FOREACH(d, &bp->bif_dlist, bd_next) {
-		if (!d->bd_seesent && (m->m_pkthdr.rcvif == NULL))
+		BPF_CHECK_DIRECTION(d, m)
 			continue;
 		BPFD_LOCK(d);
 		++d->bd_rcount;
@@ -1376,6 +1430,8 @@ bpf_mtap2(struct bpf_if *bp, void *data, u_int dlen, struct mbuf *m)
 	}
 	BPFIF_UNLOCK(bp);
 }
+
+#undef	BPF_CHECK_DIRECTION
 
 /*
  * Move the packet data from interface memory (pkt) into the
@@ -1693,7 +1749,8 @@ bpfstats_fill_xbpf(struct xbpf_d *d, struct bpf_d *bd)
 	d->bd_immediate = bd->bd_immediate;
 	d->bd_promisc = bd->bd_promisc;
 	d->bd_hdrcmplt = bd->bd_hdrcmplt;
-	d->bd_seesent = bd->bd_seesent;
+	d->bd_direction = bd->bd_direction;
+	d->bd_feedback = bd->bd_feedback;
 	d->bd_async = bd->bd_async;
 	d->bd_rcount = bd->bd_rcount;
 	d->bd_dcount = bd->bd_dcount;

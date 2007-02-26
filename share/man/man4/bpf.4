@@ -22,7 +22,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd August 23, 2005
+.Dd February 26, 2007
 .Dt BPF 4
 .Os
 .Sh NAME
@@ -305,12 +305,43 @@ This flag is initialized to zero by default.
 .It Dv BIOCSSEESENT
 .It Dv BIOCGSEESENT
 .Pq Li u_int
+These commands are obsolete but left for compatibility.
+Use
+.Dv BIOCSDIRECTION
+and
+.Dv BIOCGDIRECTION
+instead.
 Set or get the flag determining whether locally generated packets on the
 interface should be returned by BPF.
 Set to zero to see only incoming packets on the interface.
 Set to one to see packets originating locally and remotely on the interface.
-This flag is initialized to one by
-default.
+This flag is initialized to one by default.
+.It Dv BIOCSDIRECTION
+.It Dv BIOCGDIRECTION
+.Pq Li u_int
+Set or get the setting determining whether incoming, outgoing, or all packets
+on the interface should be returned by BPF.
+Set to
+.Dv BPF_D_IN
+to see only incoming packets on the interface.
+Set to
+.Dv BPF_D_INOUT
+to see packets originating locally and remotely on the interface.
+Set to
+.Dv BPF_D_OUT
+to see only outgoing packets on the interface.
+This setting is initialized to
+.Dv BPF_D_INOUT
+by default.
+.It Dv BIOCFEEDBACK
+.Pq Li u_int
+Set packet feedback mode.
+This allows injected packets to be fed back as input to the interface when
+output via the interface is successful.
+When
+.Dv BPF_D_INOUT
+direction is set, injected outgoing packet is not returned by BPF to avoid
+duplication. This flag is initialized to zero by default.
 .It Dv BIOCLOCK
 Set the locked flag on the
 .Nm
@@ -735,9 +766,12 @@ so desired, must utilize a filter to reject foreign packets.
 Data link protocols with variable length headers are not currently supported.
 .Pp
 The
-.Dv SEESENT
-flag has been observed to work incorrectly on some interface
+.Dv SEESENT ,
+.Dv DIRECTION ,
+and
+.Dv FEEDBACK
+settings have been observed to work incorrectly on some interface
 types, including those with hardware loopback rather than software loopback,
 and point-to-point interfaces.
-It appears to function correctly on a
+They appear to function correctly on a
 broad range of Ethernet-style interfaces.
