@@ -85,6 +85,7 @@ struct modeinfo {
 	uid_t uid;
 	gid_t gid;
 	int flags;
+	int extsize;
 };
 
 /*
@@ -114,6 +115,7 @@ static void		 flushent(void);
 static struct inotab	*inotablookup(ino_t);
 static RST_DIR		*opendirfile(const char *);
 static void		 putdir(char *, long);
+static void		 putdirattrs(char *, long);
 static void		 putent(struct direct *);
 static void		 rst_seekdir(RST_DIR *, long, long);
 static long		 rst_telldir(RST_DIR *);
@@ -184,7 +186,7 @@ extractdirs(int genmode)
 			return;
 		}
 		itp = allocinotab(&curfile, seekpt);
-		getfile(putdir, xtrnull);
+		getfile(putdir, putdirattrs, xtrnull);
 		putent(&nulldir);
 		flushent();
 		itp->t_size = seekpt - itp->t_seekpt;
@@ -410,6 +412,17 @@ flushent(void)
 }
 
 /*
+ * Save extended attributes for a directory entry to a file.
+ */
+static void
+putdirattrs(char *buf, long size)
+{
+
+	if (mf != NULL)
+		(void) fwrite(buf, 1, size, mf);
+}
+
+/*
  * Seek to an entry in a directory.
  * Only values returned by rst_telldir should be passed to rst_seekdir.
  * This routine handles many directories in a single file.
@@ -543,8 +556,9 @@ setdirmodes(int flags)
 	FILE *mf;
 	struct modeinfo node;
 	struct entry *ep;
-	char *cp;
+	char *cp, *buf;
 	const char *tmpdir;
+	int bufsize;
 
 	vprintf(stdout, "Set directory mode, owner, and times.\n");
 	if ((tmpdir = getenv("TMPDIR")) == NULL || tmpdir[0] == '\0')
@@ -564,10 +578,27 @@ setdirmodes(int flags)
 		return;
 	}
 	clearerr(mf);
+	bufsize = 0;
 	for (;;) {
 		(void) fread((char *)&node, 1, sizeof(struct modeinfo), mf);
 		if (feof(mf))
 			break;
+		if (node.extsize > 0) {
+			if (bufsize < node.extsize) {
+				if (bufsize > 0)
+					free(buf);
+				if ((buf = malloc(node.extsize)) != 0) {
+					bufsize = node.extsize;
+				} else {
+					bufsize = 0;
+				}
+			}
+			if (bufsize >= node.extsize) {
+				(void) fread(buf, 1, node.extsize, mf);
+			} else {
+				(void) fseek(mf, node.extsize, SEEK_CUR);
+			}
+		}
 		ep = lookupino(node.ino);
 		if (command == 'i' || command == 'x') {
 			if (ep == NULL)
@@ -582,18 +613,28 @@ setdirmodes(int flags)
 		}
 		if (ep == NULL) {
 			panic("cannot find directory inode %d\n", node.ino);
-		} else {
-			cp = myname(ep);
-			if (!Nflag) {
-				(void) chown(cp, node.uid, node.gid);
-				(void) chmod(cp, node.mode);
-				utimes(cp, node.ctimep);
-				utimes(cp, node.mtimep);
-				(void) chflags(cp, node.flags);
-			}
-			ep->e_flags &= ~NEW;
+			continue;
 		}
+		cp = myname(ep);
+		if (!Nflag) {
+			if (node.extsize > 0) {
+				if (bufsize >= node.extsize) {
+					set_extattr_file(cp, buf, node.extsize);
+				} else {
+					fprintf(stderr, "Cannot restore %s%s\n",
+					    "extended attributes for ", cp);
+				}
+			}
+			(void) chown(cp, node.uid, node.gid);
+			(void) chmod(cp, node.mode);
+			utimes(cp, node.ctimep);
+			utimes(cp, node.mtimep);
+			(void) chflags(cp, node.flags);
+		}
+		ep->e_flags &= ~NEW;
 	}
+	if (bufsize > 0)
+		free(buf);
 	if (ferror(mf))
 		panic("error setting directory modes\n");
 	(void) fclose(mf);
@@ -668,7 +709,7 @@ allocinotab(struct context *ctxp, long seekpt)
 
 	itp = calloc(1, sizeof(struct inotab));
 	if (itp == NULL)
-		panic("no memory directory table\n");
+		panic("no memory for directory table\n");
 	itp->t_next = inotab[INOHASH(ctxp->ino)];
 	inotab[INOHASH(ctxp->ino)] = itp;
 	itp->t_ino = ctxp->ino;
@@ -684,6 +725,7 @@ allocinotab(struct context *ctxp, long seekpt)
 	node.ctimep[0].tv_usec = ctxp->atime_nsec / 1000;
 	node.ctimep[1].tv_sec = ctxp->birthtime_sec;
 	node.ctimep[1].tv_usec = ctxp->birthtime_nsec / 1000;
+	node.extsize = ctxp->extsize;
 	node.mode = ctxp->mode;
 	node.flags = ctxp->file_flags;
 	node.uid = ctxp->uid;
