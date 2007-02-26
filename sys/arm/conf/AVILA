@@ -24,8 +24,6 @@ ident		AVILA
 options 	PHYSADDR=0x10000000
 options		KERNPHYSADDR=0x10200000	
 options		KERNVIRTADDR=0xc0200000		# Used in ldscript.arm
-options		FLASHADDR=0x50000000
-options		LOADERRAMADDR=0x00000000
 
 options STARTUP_PAGETABLE_ADDR=0x10000000
 include		"../xscale/ixp425/std.avila"
@@ -49,7 +47,6 @@ options 	DDB			#Enable the kernel debugger
 #options		DIAGNOSTIC
 
 options 	SCHED_4BSD		#4BSD scheduler
-options		KSE
 options 	INET			#InterNETworking
 options 	INET6			#IPv6 communications protocols
 options 	FFS			#Berkeley Fast Filesystem
@@ -74,6 +71,7 @@ options		BOOTP
 options		BOOTP_NFSROOT
 options		BOOTP_NFSV3
 options		BOOTP_WIRED_TO=npe0
+options		ARM32_NEW_VM_LAYOUT
 #options		BOOTP_WIRED_TO=ath0
 options		BOOTP_COMPAT
 #options		PREEMPTION
@@ -129,11 +127,22 @@ device		wlan		# 802.11 support
 #device		wlan_wep	# 802.11 WEP support
 #device		wlan_ccmp	# 802.11 CCMP support
 #device		wlan_tkip	# 802.11 TKIP support
-device		ath		# Atheros pci/cardbus NIC's
-device		ath_hal		# Atheros HAL (Hardware Access Layer)
-device		ath_rate_sample	# SampleRate tx rate control for ath
-options		ATH_DEBUG
+#device		ath		# Atheros pci/cardbus NIC's
+#device		ath_hal		# Atheros HAL (Hardware Access Layer)
+#device		ath_rate_sample	# SampleRate tx rate control for ath
+#options		ATH_DEBUG
+#options		ATH_DIAGAPI
 
 #device		crypto
 #device		cryptodev
 #device		hifn		# NB: Soekris minipci card known to work
+
+device		usb
+options 	USB_DEBUG
+device		uhci
+device		ohci
+device		ehci
+device		ugen
+device		umass
+device		scbus		# SCSI bus (required for SCSI)
+device		da		# Direct Access (disks)

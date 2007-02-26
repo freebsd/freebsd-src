@@ -166,7 +166,7 @@ ixp425_bs_map(void *t, bus_addr_t bpa, bus_size_t size,
 }
 
 void
-ixp425_bs_unmap(void *t, bus_space_handle_t h, bus_size_t size)
+ixp425_bs_unmap(void *t, bus_space_handle_t bsh, bus_size_t size)
 {
 	vm_offset_t va, endva;
 
