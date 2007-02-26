@@ -75,7 +75,7 @@ extern struct lock_prof lprof_buf[LPROF_HASH_SIZE];
 extern struct mtx lprof_locks[LPROF_LOCK_SIZE];
 extern int lock_prof_enable;
 
-void _lock_profile_obtain_lock_success(struct lock_object *lo, uint64_t waittime, const char *file, int line); 
+void _lock_profile_obtain_lock_success(struct lock_object *lo, int contested, uint64_t waittime, const char *file, int line); 
 void _lock_profile_update_wait(struct lock_object *lo, uint64_t waitstart);
 void _lock_profile_release_lock(struct lock_object *lo);
 
@@ -115,42 +115,22 @@ lock_profile_object_destroy(struct lock_object *lo)
 #endif
 }
 
-static inline void lock_profile_waitstart(uint64_t *waittime) 
-{
-	if (lock_prof_enable)
-		*waittime = nanoseconds();
-}
-
-static inline void lock_profile_obtain_lock_failed(struct lock_object *lo, int *contested) 
+static inline void lock_profile_obtain_lock_failed(struct lock_object *lo, int *contested,
+    uint64_t *waittime) 
 {
 	struct lock_profile_object *l = &lo->lo_profile_obj;
-	if (lock_prof_enable) {
-		if (*contested == 0) {
-			atomic_add_int(&l->lpo_contest_holding, 1);
-			*contested = 1;
 
-		}
+	if (lock_prof_enable && *contested == 0) {
+		*waittime = nanoseconds();
+		atomic_add_int(&l->lpo_contest_holding, 1);
+		*contested = 1;
 	}
 }
 
-static inline void lock_profile_obtain_lock_success(struct lock_object *lo, uint64_t waittime, const char *file, int line) 
-{
-	if (lock_prof_enable)
-		_lock_profile_obtain_lock_success(lo, waittime, file, line);
-}
-
-static inline void lock_profile_update_wait(struct lock_object *lo, uint64_t waitstart) 
-{
-	if (lock_prof_enable)
-		_lock_profile_update_wait(lo, waitstart);
-}
-
-static inline void lock_profile_update_contest_locking(struct lock_object *lo, int contested) 
+static inline void lock_profile_obtain_lock_success(struct lock_object *lo, int contested, uint64_t waittime, const char *file, int line) 
 {
 	if (lock_prof_enable) {
-		lo->lo_profile_obj.lpo_contest_holding = 0;
-		if (contested)
-			lo->lo_profile_obj.lpo_contest_locking++;
+		_lock_profile_obtain_lock_success(lo, contested, waittime, file, line);
 	}
 }
 
@@ -164,10 +144,9 @@ static inline void lock_profile_release_lock(struct lock_object *lo)
 #else /* !LOCK_PROFILING */
 static inline void lock_profile_update_wait(struct lock_object *lo, uint64_t waitstart) {;}
 static inline void lock_profile_update_contest_locking(struct lock_object *lo, int contested) {;}
-static inline void lock_profile_waitstart(uint64_t *waittime) {;}
 static inline void lock_profile_release_lock(struct lock_object *lo) {;}
-static inline void lock_profile_obtain_lock_failed(struct lock_object *lo, int *contested) {;}
-static inline void lock_profile_obtain_lock_success(struct lock_object *lo, uint64_t waittime,  
+static inline void lock_profile_obtain_lock_failed(struct lock_object *lo, int *contested, uint64_t *waittime) {;}
+static inline void lock_profile_obtain_lock_success(struct lock_object *lo, int contested, uint64_t waittime,  
 						    const char *file, int line) {;}
 static inline void lock_profile_object_destroy(struct lock_object *lo) {;}
 static inline void lock_profile_object_init(struct lock_object *lo, struct lock_class *class, const char *name) {;}

@@ -250,13 +250,17 @@ DB_SHOW_COMMAND(lock, db_show_lock)
 #endif
 
 #ifdef LOCK_PROFILING
-void _lock_profile_obtain_lock_success(struct lock_object *lo, uint64_t waittime, con\
-st char *file, int line)
+void _lock_profile_obtain_lock_success(struct lock_object *lo, int contested, uint64_t waittime, const char *file, int line)
 {
         struct lock_profile_object *l = &lo->lo_profile_obj;
 
         /* don't reset the timer when/if recursing */
         if (l->lpo_acqtime == 0) {
+		lo->lo_profile_obj.lpo_contest_holding = 0;
+
+		if (contested)
+			lo->lo_profile_obj.lpo_contest_locking++;		
+	
                 l->lpo_filename = file;
                 l->lpo_lineno = line;
                 l->lpo_acqtime = nanoseconds(); 
@@ -264,59 +268,6 @@ st char *file, int line)
 			l->lpo_waittime = l->lpo_acqtime - waittime;
                 else
 			l->lpo_waittime = 0;
-        }
-}
-
-void _lock_profile_update_wait(struct lock_object *lo, uint64_t waitstart)
-{
-        struct lock_profile_object *l = &lo->lo_profile_obj;
-
-        if (lock_prof_enable && waitstart) {
-                uint64_t now, waittime;
-                struct lock_prof *mpp;
-                u_int hash;
-                const char *p = l->lpo_filename;
-                int collision = 0;
-                now = nanoseconds();
-                if (now < waitstart)
-                        return;
-                waittime = now - waitstart;
-                hash = (l->lpo_namehash * 31 * 31 + (uintptr_t)p * 31 + l->lpo_lineno) & LPROF_HASH_MASK;
-
-                mpp = &lprof_buf[hash];
-                while (mpp->name != NULL) {
-                        if (mpp->line == l->lpo_lineno &&
-                          mpp->file == p &&
-                          mpp->namehash == l->lpo_namehash)
-                                break;
-                        /* If the lprof_hash entry is allocated to someone else, try the next one */
-                        collision = 1;
-                        CTR4(KTR_SPARE1, "Hash collision, %s:%d %s(%x)", mpp->file, mpp->line, mpp->name, mpp->namehash);
-                        hash = (hash + 1) & LPROF_HASH_MASK;
-                        mpp = &lprof_buf[hash];
-                }
-                if (mpp->name == NULL) {
-                        int buf;
-
-                        buf = atomic_fetchadd_int(&allocated_lprof_buf, 1);
-                        /* Just exit if we cannot get a trace buffer */
-                        if (buf >= LPROF_HASH_SIZE) {
-                                ++lock_prof_rejected;
-                                return;
-                        }
-			mpp->file = p;
-			mpp->line = l->lpo_lineno;
-			mpp->namehash = l->lpo_namehash;
-			mpp->type = l->lpo_type;
-			mpp->name = lo->lo_name;
-			if (collision)
-				++lock_prof_collisions;
-                        /* We might have raced someone else but who cares, they'll try again next time */
-			++lock_prof_records;
-                }
-                LPROF_LOCK(hash);
-                mpp->cnt_wait += waittime;
-                LPROF_UNLOCK(hash);
         }
 }
 
