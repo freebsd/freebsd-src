@@ -306,6 +306,7 @@ link_elf_init(void* arg)
 #endif
 
     (void)link_elf_link_common_finish(linker_kernel_file);
+    linker_kernel_file->flags |= LINKER_FILE_LINKED;
 }
 
 SYSINIT(link_elf, SI_SUB_KLD, SI_ORDER_THIRD, link_elf_init, 0);
