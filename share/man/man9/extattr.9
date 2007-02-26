@@ -78,6 +78,61 @@ Appropriate vnode extended attribute calls are:
 .Xr VOP_LISTEXTATTR 9 ,
 and
 .Xr VOP_SETEXTATTR 9 .
+.Pp
+The format of an external attribute is defined by the extattr structure:
+.Bd -literal
+struct extattr {
+	int32_t	ea_length;	    /* length of this attribute */
+	int8_t	ea_namespace;	    /* name space of this attribute */
+	int8_t	ea_contentpadlen;   /* padding at end of attribute */
+	int8_t	ea_namelength;	    /* length of attribute name */
+	char	ea_name[1];	    /* null-terminated attribute name */
+	/* extended attribute content follows */
+};
+.Ed
+.Pp
+Several macros are defined to manipulate these structures.
+Each macro takes a pointer to an extattr structure.
+.Bl -tag -width ".Dv EXTATTR_SET_LENGTHS(eap, size)"
+.It Dv EXTATTR_NEXT(eap)
+Returns a pointer to the next extended attribute following
+.Fa eap .
+.It Dv EXTATTR_CONTENT(eap)
+Returns a pointer to the extended attribute content referenced by 
+.Fa eap .
+.It Dv EXTATTR_CONTENT_SIZE(eap)
+Returns the size of the extended attribute content referenced by 
+.Fa eap .
+.It Dv EXTATTR_SET_LENGTHS(eap, size)
+Called with the size of the attribute content after initializing
+the attribute name to calculate and set the
+.Fa ea_length ,
+.Fa ea_namelength ,
+and
+.Fa ea_contentpadlen
+fields of the extended attribute structure.
+.El
+.Pp
+The following code identifies an ACL:
+.Bd -literal
+	if (eap->ea_namespace == EXTATTR_NAMESPACE_SYSTEM &&
+	    !strcmp(eap->ea_name, POSIX1E_ACL_ACCESS_EXTATTR_NAME) {
+		aclp = EXTATTR_CONTENT(eap);
+		acllen = EXTATTR_CONTENT_SIZE(eap);
+		...
+	}
+.Ed
+.Pp
+The following code creates an extended attribute
+containing a copy of a structure
+.Fa mygif :
+.Bd -literal
+	eap->ea_namespace = EXTATTR_NAMESPACE_USER;
+	strcpy(eap->ea_name, "filepic.gif");
+	EXTATTR_SET_LENGTHS(eap, sizeof(struct mygif));
+	memcpy(EXTATTR_CONTENT(eap), &mygif, sizeof(struct mygif));
+.Ed
+.Pp
 .Sh SEE ALSO
 .Xr VFS 9 ,
 .Xr VFS_EXTATTRCTL 9 ,
