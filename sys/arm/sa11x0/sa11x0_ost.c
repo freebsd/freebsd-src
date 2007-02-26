@@ -57,8 +57,6 @@ __FBSDID("$FreeBSD$");
 #include <machine/cpufunc.h>
 #include <machine/frame.h>
 
-#include <machine/katelib.h>
-
 #include <arm/sa11x0/sa11x0_reg.h> 
 #include <arm/sa11x0/sa11x0_var.h>
 #include <arm/sa11x0/sa11x0_ostreg.h>
