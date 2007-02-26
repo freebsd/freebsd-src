@@ -385,6 +385,7 @@ static int iicbb_read(device_t dev, char * buf, int len, int *read,
 DRIVER_MODULE(iicbb, bktr, iicbb_driver, iicbb_devclass, 0, 0);
 DRIVER_MODULE(iicbb, lpbb, iicbb_driver, iicbb_devclass, 0, 0);
 DRIVER_MODULE(iicbb, viapm, iicbb_driver, iicbb_devclass, 0, 0);
+DRIVER_MODULE(iicbb, ixpiic, iicbb_driver, iicbb_devclass, 0, 0);
 
 MODULE_DEPEND(iicbb, iicbus, IICBUS_MINVER, IICBUS_PREFVER, IICBUS_MAXVER);
 MODULE_VERSION(iicbb, IICBB_MODVER);

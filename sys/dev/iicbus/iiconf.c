@@ -331,3 +331,45 @@ iicbus_block_read(device_t bus, u_char slave, char *buf, int len, int *read)
 
 	return (error);
 }
+
+/*
+ * iicbus_trasnfer()
+ *
+ * Do an aribtrary number of transfers on the iicbus.  We pass these
+ * raw requests to the bridge driver.  If the bridge driver supports
+ * them directly, then it manages all the details.  If not, it can use
+ * the helper function iicbus_transfer_gen() which will do the
+ * transfers at a low level.
+ *
+ * Pointers passed in as part of iic_msg must be kernel pointers.
+ * Callers that have user addresses to manage must do so on their own.
+ */
+int
+iicbus_transfer(device_t bus, struct iic_msg *msgs, uint32_t nmsgs)
+{
+	return (IICBUS_TRANSFER(device_get_parent(bus), msgs, nmsgs));
+}
+
+/*
+ * Generic version of iicbus_transfer that calls the appropriate
+ * routines to accomplish this.  See note above about acceptable
+ * buffer addresses.
+ */
+int
+iicbus_transfer_gen(device_t bus, struct iic_msg *msgs, uint32_t nmsgs)
+{
+	int i, error, max, lenread, lenwrote;
+
+	for (i = 0, max = 0; i < nmsgs; i++)
+		if (max < msgs[i].len)
+			max = msgs[i].len;
+	for (i = 0, error = 0; i < nmsgs && error == 0; i++) {
+		if (msgs[i].flags & IIC_M_RD)
+			error = iicbus_block_read(bus, msgs[i].slave,
+			    msgs[i].buf, msgs[i].len, &lenread);
+		else
+			error = iicbus_block_write(bus, msgs[i].slave,
+			    msgs[i].buf, msgs[i].len, &lenwrote);
+	}
+	return (error);
+}
