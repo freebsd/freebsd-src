@@ -895,9 +895,9 @@ syscall(struct thread *td, trapframe_t *frame, u_int32_t insn)
 		
 		nap--;
 	} else if (code == SYS___syscall) {
-		code = *ap++;
+		code = ap[_QUAD_LOWWORD];
 		nap -= 2;
-		ap++;
+		ap += 2;
 	}
 	if (p->p_sysent->sv_mask)
 		code &= p->p_sysent->sv_mask;
@@ -937,7 +937,7 @@ syscall(struct thread *td, trapframe_t *frame, u_int32_t insn)
 	switch (error) {
 	case 0: 
 #ifdef __ARMEB__
-		if ((insn & 0x000fffff) &&
+		if ((insn & 0x000fffff) == SYS___syscall &&
 		    (code != SYS_lseek)) {
 			/*
 			 * 64-bit return, 32-bit syscall. Fixup byte order
