@@ -109,12 +109,24 @@ struct bpf_version {
 #define BIOCSRSIG	_IOW('B',115, u_int)
 #define BIOCGHDRCMPLT	_IOR('B',116, u_int)
 #define BIOCSHDRCMPLT	_IOW('B',117, u_int)
-#define BIOCGSEESENT	_IOR('B',118, u_int)
-#define BIOCSSEESENT	_IOW('B',119, u_int)
+#define BIOCGDIRECTION	_IOR('B',118, u_int)
+#define BIOCSDIRECTION	_IOW('B',119, u_int)
 #define	BIOCSDLT	_IOW('B',120, u_int)
 #define	BIOCGDLTLIST	_IOWR('B',121, struct bpf_dltlist)
 #define	BIOCLOCK	_IO('B', 122)
 #define	BIOCSETWF	_IOW('B',123, struct bpf_program)
+#define	BIOCFEEDBACK	_IOW('B',124, u_int)
+
+/* Obsolete */
+#define	BIOCGSEESENT	BIOCGDIRECTION
+#define	BIOCSSEESENT	BIOCSDIRECTION
+
+/* Packet directions */
+enum bpf_direction {
+	BPF_D_IN,	/* See incoming packets */
+	BPF_D_INOUT,	/* See incoming and outgoing packets */
+	BPF_D_OUT	/* See outgoing packets */
+};
 
 /*
  * Structure prepended to each packet.
