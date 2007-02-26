@@ -110,7 +110,6 @@ __FBSDID("$FreeBSD$");
 #include <machine/cpuconf.h>
 #include <machine/vmparam.h>
 #include <machine/frame.h>
-#include <machine/katelib.h>
 #include <machine/cpu.h>
 #include <machine/intr.h>
 #include <machine/pcb.h>
