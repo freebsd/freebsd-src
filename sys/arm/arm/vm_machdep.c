@@ -69,6 +69,8 @@ __FBSDID("$FreeBSD$");
 #include <vm/uma.h>
 #include <vm/uma_int.h>
 
+#include <machine/md_var.h>
+
 #ifndef NSFBUFS
 #define NSFBUFS		(512 + maxusers * 16)
 #endif
@@ -361,6 +363,9 @@ cpu_set_fork_handler(struct thread *td, void (*func)(void *), void *arg)
 void  
 swi_vm(void *dummy)
 {
+
+	if (busdma_swi_pending)
+		busdma_swi();
 }
 
 void
