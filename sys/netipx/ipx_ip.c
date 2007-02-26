@@ -69,7 +69,6 @@ __FBSDID("$FreeBSD$");
 #include "opt_inet.h"
 #include "opt_ipx.h"
 
-#ifdef IPXIP
 #ifndef INET
 #error The option IPXIP requires option INET.
 #endif
@@ -470,4 +469,3 @@ ipxip_rtchange(struct in_addr *dst)
 		}
 	}
 }
-#endif /* IPXIP */
