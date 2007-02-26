@@ -2301,8 +2301,12 @@ process_ACK:
 		 * compressed state.
 		 */
 				if (so->so_rcv.sb_state & SBS_CANTRCVMORE) {
+					int timeout;
+
 					soisdisconnected(so);
-					callout_reset(tp->tt_2msl, tcp_maxidle,
+					timeout = (tcp_fast_finwait2_recycle) ? 
+						tcp_finwait2_timeout : tcp_maxidle;
+					callout_reset(tp->tt_2msl, timeout,
 						      tcp_timer_2msl, tp);
 				}
 				tp->t_state = TCPS_FIN_WAIT_2;
