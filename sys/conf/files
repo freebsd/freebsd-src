@@ -622,6 +622,8 @@ dev/ie/if_ie_isa.c		optional ie isa
 dev/ieee488/ibfoo.c		optional pcii
 dev/ieee488/pcii.c		optional pcii
 dev/ieee488/upd7210.c		optional pcii
+dev/iicbus/ad7418.c		optional ad7418
+dev/iicbus/ds1672.c		optional ds1672
 dev/iicbus/if_ic.c		optional ic
 dev/iicbus/iic.c		optional iic
 dev/iicbus/iicbb.c		optional iicbb

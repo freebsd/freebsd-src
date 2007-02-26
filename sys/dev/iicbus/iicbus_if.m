@@ -27,6 +27,7 @@
 #
 
 #include <sys/bus.h>
+#include <dev/iicbus/iic.h>
 
 INTERFACE iicbus;
 
@@ -90,7 +91,7 @@ METHOD int read {
 #
 METHOD int write {
 	device_t dev;
-	char *buf;
+	const char *buf;
 	int len;
 	int *bytes;
 	int timeout;
@@ -104,4 +105,13 @@ METHOD int reset {
 	u_char speed;
 	u_char addr;
 	u_char *oldaddr;
+};
+
+#
+# Generalized Read/Write interface
+#
+METHOD int transfer {
+	device_t dev;
+	struct iic_msg *msgs;
+	uint32_t nmsgs;
 };
