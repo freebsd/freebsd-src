@@ -135,7 +135,7 @@ rlphy_attach(device_t dev)
          * routine can query the proper register for speed detection.
          */
 	rsc = (struct rlphy_softc *)sc;
-	if (mii_phy_dev_probe(dev, rlphys, BUS_PROBE_DEFAULT) == 0)
+	if (mii_phy_dev_probe(dev, rlphys, 0) == 0)
 		rsc->sc_is_RTL8201L++;
 	
 	/*
