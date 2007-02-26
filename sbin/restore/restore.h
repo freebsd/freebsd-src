@@ -115,6 +115,7 @@ struct context {
 	int	atime_nsec;	/* access time nanoseconds */
 	int	mtime_nsec;	/* modified time nanoseconds */
 	int	birthtime_nsec;	/* creation time nanoseconds */
+	int	extsize;	/* size of extended attribute data */
 	off_t	size;		/* size of file */
 	char	*name;		/* name of file */
 } curfile;
