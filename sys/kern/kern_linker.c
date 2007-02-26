@@ -1335,8 +1335,8 @@ linker_preload(void *arg)
 		linker_addmodules(linker_kernel_file, start, stop, 1);
 
 	/*
-	 * this is a once-off kinky bubble sort resolve relocation dependency
-	 * requirements
+	 * This is a once-off kinky bubble sort to resolve relocation
+	 * dependency requirements.
 	 */
 restart:
 	TAILQ_FOREACH(lf, &loaded_files, loaded) {
