@@ -25,7 +25,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd April 17, 2006
+.Dd February 23, 2007
 .Os
 .Dt SLEEP 9
 .Sh NAME
@@ -97,7 +97,9 @@ when a large number of threads are sleeping on the same address,
 but only one of them can actually do any useful work when made
 runnable.
 .Pp
+The
 .Fn wakeup_one
+function
 does not work reliably if more than one process is sleeping on the same address;
 in this case it is possible for an unrelated process to be woken.
 This process will ignore the wakeup, and the correct process will never be
@@ -204,7 +206,7 @@ that suspends execution of the current thread for the indicated timeout.
 The thread can not be awakened early by signals or calls to
 .Fn wakeup
 or
-.Fn wakeup_one.
+.Fn wakeup_one .
 .Sh RETURN VALUES
 See above.
 .Sh SEE ALSO
@@ -216,10 +218,11 @@ The functions
 .Fn sleep
 and
 .Fn wakeup
-was present in
+were present in
 .At v1 .
 They were probably also present in the preceding
-PDP-7 version of UNIX.
+PDP-7 version of
+.Ux .
 They were the basic process synchronization model.
 .Pp
 The
@@ -242,11 +245,10 @@ and the
 .Fn msleep_spin
 function appeared in
 .Fx 6.2 .
-.The
+The
 .Fn pause
 function appeared in
 .Fx 7.0 .
-.Pp
 .Sh AUTHORS
 .An -nosplit
 This manual page was written by
