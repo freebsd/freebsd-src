@@ -197,7 +197,7 @@ zs_attach(device_t dev)
 	return (0);
 }
 
-void
+int
 zs_intr(void *v)
 {
 	struct zs_softc *sc = v;
@@ -216,8 +216,11 @@ zs_intr(void *v)
 		needsoft |= zstty_intr(sc->sc_child[0], rr3 >> 3);
 	if ((rr3 & (ZSRR3_IP_B_RX | ZSRR3_IP_B_TX | ZSRR3_IP_B_STAT)) != 0)
 		needsoft |= zstty_intr(sc->sc_child[1], rr3);
-	if (needsoft)
+	if (needsoft) {
 		swi_sched(sc->sc_softih, 0);
+		return (FILTER_HANDLED);
+	}
+	return (FILTER_STRAY);
 }
 
 static void

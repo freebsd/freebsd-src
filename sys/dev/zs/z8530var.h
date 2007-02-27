@@ -65,7 +65,7 @@ struct zstty_softc {
 
 int zs_attach(device_t dev);
 int zs_probe(device_t dev);
-void zs_intr(void *v);
+int zs_intr(void *v);
 
 int zstty_attach(device_t dev);
 int zstty_probe(device_t dev);
