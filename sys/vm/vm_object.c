@@ -516,7 +516,7 @@ vm_object_deallocate(vm_object_t object)
 					 * priority than the current thread.
 					 * Let the lower priority thread run.
 					 */
-					tsleep(&proc0, PVM, "vmo_de", 1);
+					pause("vmo_de", 1);
 					continue;
 				}
 				/*
