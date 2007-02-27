@@ -55,10 +55,12 @@ utility is used for device multipath configuration.
 .Pp
 Only automatic configuration is supported at the present time via the
 .It Cm label
-command. This operation writes a label on the last sector of the underlying
-disk device with a contained name and UUID. The UUID guarantees uniqueness
+command.
+This operation writes a label on the last sector of the underlying
+disk device with a contained name and UUID.
+The UUID guarantees uniqueness
 in in a shared storage environment but is in general too cumbersome to use.
-The name is what is exported via the devcice interface.
+The name is what is exported via the device interface.
 .Pp
 The first argument to
 .Nm
@@ -107,9 +109,11 @@ Exit status is 0 on success, and 1 if the command fails.
 .Pp
 This is an active/passive
 multiple path architecture with no device knowledge or presumptions other
-than size matching built in. Therefore the user must exercise some care
+than size matching built in.
+Therefore the user must exercise some care
 in selecting providers that do indeed represent multiple paths to the
-same underlying disk device. The reason for this is that there are several
+same underlying disk device.
+The reason for this is that there are several
 criteria across multiple underlying transport types that can
 .Ar indicate
 identity, but in all respects such identity can rarely be considered
@@ -118,19 +122,23 @@ identity, but in all respects such identity can rarely be considered
 For example, if you use the World Word Port Name of a Fibre Channel
 disk object you might believe that two disks that have the same WWPN
 on different paths (or even disjoint fabrics) might be considered
-the same disk. Nearly always this would be a safe assumption, until
+the same disk.
+Nearly always this would be a safe assumption, until
 you realize that a WWPN, like an Ethernet MAC address, is a soft
 programmable entity, and that a misconfigured Director Class switch
-could lead you to believe that incorrectly that you've found multiple
-paths to the same device. This is an extreme and theoretical case, but
+could lead you to believe incorrectly that you have found multiple
+paths to the same device.
+This is an extreme and theoretical case, but
 it is possible enough to indicate that the policy for deciding which
 of multiple pathnames refer to the same device should be left to the
 system operator who will use tools and knowledge of their own storage
 subsystem to make the correct configuration selection.
 .Pp
 As an active/passive architecture, only one path has I/O moving on it
-at any point in time. This I/O continues until an I/O is returned with
-a generic I/O error or a "Nonexistent Device" error. When this occurs,
+at any point in time.
+This I/O continues until an I/O is returned with
+a generic I/O error or a "Nonexistent Device" error.
+When this occurs,
 the active device is kicked out of the
 .Nm MULTIPATH
 GEOM class and the next in a list is selected, the failed I/O reissued
@@ -138,7 +146,8 @@ and the system proceeds.
 .Pp
 When new devices are added to the system the
 .Nm MULTIPATH
-GEOM class is given an opportunity to taste these new devices. If a new
+GEOM class is given an opportunity to taste these new devices.
+If a new
 device has a
 .Nm MULTIPATH
 label, the device is used to either create a new
@@ -151,9 +160,11 @@ It is this mechanism that works reasonably with
 .Xr isp 4
 and
 .Xr mpt 4
-based Fibre Channel disk devices. For these devices, when a device disappears
-(due, e.g., to a cable pull or power failure to a switch), the device is
-proactively marked as gone and I/O to it failed. This causes the
+based Fibre Channel disk devices.
+For these devices, when a device disappears
+(due e.g., to a cable pull or power failure to a switch), the device is
+proactively marked as gone and I/O to it failed.
+This causes the
 .Nm MULTIPATH
 failure event just described.
 .Pp
@@ -164,13 +175,15 @@ or
 host bus adapters that new devices may have arrived (e.g., the arrival
 of an RSCN event from the Fabric Domain Controller), they can cause
 a rescan to occur and cause the attachment and configuration of any
-(now) new devices to occur, causing the taste event describe above.
+(now) new devices to occur, causing the taste event described above.
 .Pp
 This means that this active/passive architecture is not a one-shot path
 failover, but can be considered to be steady state as long as failed
 paths are repaired (automatically or otherwise).
 .Pp
-Automatic rescanning is not a requirement. Nor is Fibre Channel. The
+Automatic rescanning is not a requirement.
+Nor is Fibre Channel.
+The
 same failover mechanisms work equally well for traditional "Parallel"
 SCSI but require manual intervention with
 .Xr camcontrol 8
@@ -193,9 +206,10 @@ mysys# camcontrol inquiry da2 -S
 ECNTX0LUN000000SER10ac0d01
 .Ed
 .Pp
-Now that you've used the Serial Number to compare two disk paths
-it's not entirely unreasonable to conclude that these are multiple
-paths to the same device. However, only the user who is familiar
+Now that you have used the Serial Number to compare two disk paths
+it is not entirely unreasonable to conclude that these are multiple
+paths to the same device.
+However, only the user who is familiar
 with their storage is qualified to make this judgement.
 .Pp
 You can then use the
@@ -220,14 +234,14 @@ GEOM_MULTIPATH: adding da2 to Fred/b631385f-c61c-11db-b884-0011116ae789
 .Sh 
 .Sh SEE ALSO
 .Xr geom 4 ,
-.Xr isp 4,
-.Xr mpt 4,
+.Xr isp 4 ,
+.Xr mpt 4 ,
 .Xr loader.conf 5 ,
 .Xr camcontrol 8 ,
 .Xr geom 8 ,
 .Xr mount 8 ,
 .Xr newfs 8 ,
-.Xr sysctl 8 ,
+.Xr sysctl 8
 .Sh BUGS
 The
 .Nm
@@ -235,16 +249,17 @@ should allow for a manual method of pairing disks.
 .Pp
 There is currently no way for
 .Pa geom_multipath.ko
-to distinguish between various label instances of the same provider. That
+to distinguish between various label instances of the same provider.
+That
 is devices such as
 .Ar da0
 and
 .Ar da0c
 can be tasted and instantiated as multiple paths for the same device.
-Technically, this is correct, but pretty useless. This will be fixed soon
-(I hope), but to avoid this it's a good idea to destroy any label on
+Technically, this is correct, but pretty useless.
+This will be fixed soon
+(I hope), but to avoid this it is a good idea to destroy any label on
 the disk object prior to labelling it with
 .Nm .
-.Fx 7.0 .
 .Sh AUTHOR
 .An Matthew Jacob Aq mjacob@FreeBSD.org
