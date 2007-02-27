@@ -1,0 +1,250 @@
+.\" Copyright (c) 2007 Matthew Jacob
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHORS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHORS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd February 26, 2007
+.Dt GMULTIPATH 8
+.Os
+.Sh NAME
+.Nm gmultipath
+.Nd "disk multipath control utility"
+.Sh SYNOPSIS
+.Nm
+.Cm label
+.Op Fl hv
+.Ar name
+.Ar prov ...
+.Nm
+.Cm clear
+.Op Fl v
+.Ar prov ...
+.Nm
+.Cm list
+.Nm
+.Cm status
+.Nm
+.Cm load
+.Nm
+.Cm unload
+.Sh DESCRIPTION
+The
+.Nm
+utility is used for device multipath configuration.
+.Pp
+Only automatic configuration is supported at the present time via the
+.It Cm label
+command. This operation writes a label on the last sector of the underlying
+disk device with a contained name and UUID. The UUID guarantees uniqueness
+in in a shared storage environment but is in general too cumbersome to use.
+The name is what is exported via the devcice interface.
+.Pp
+The first argument to
+.Nm
+indicates an action to be performed:
+.Bl -tag -width ".Cm destroy"
+.It Cm label
+Label the given underlying device with the specified
+.Ar name .
+The kernel module
+.Pa geom_multipath.ko
+will be loaded if it is not loaded already.
+.It Cm clear
+Clear metadata on the given device.
+.It Cm list
+See
+.Xr geom 8 .
+.It Cm status
+See
+.Xr geom 8 .
+.It Cm load
+See
+.Xr geom 8 .
+.It Cm unload
+See
+.Xr geom 8 .
+.El
+.Pp
+.El
+.Sh SYSCTL VARIABLES
+The following
+.Xr sysctl 8
+variable can be used to control the behavior of the
+.Nm MULTIPATH
+GEOM class.
+.Bl -tag -width indent
+.It Va kern.geom.multipath.debug : No 0
+Debug level of the
+.Nm MULTIPATH
+GEOM class.
+This can be set to 0 (default) or 1 to disable or enable various
+forms of chattiness.
+.El
+.Sh EXIT STATUS
+Exit status is 0 on success, and 1 if the command fails.
+.Sh MULTIPATH ARCHITECTURE
+.Pp
+This is an active/passive
+multiple path architecture with no device knowledge or presumptions other
+than size matching built in. Therefore the user must exercise some care
+in selecting providers that do indeed represent multiple paths to the
+same underlying disk device. The reason for this is that there are several
+criteria across multiple underlying transport types that can
+.Ar indicate
+identity, but in all respects such identity can rarely be considered
+.Ar definitive .
+.Pp
+For example, if you use the World Word Port Name of a Fibre Channel
+disk object you might believe that two disks that have the same WWPN
+on different paths (or even disjoint fabrics) might be considered
+the same disk. Nearly always this would be a safe assumption, until
+you realize that a WWPN, like an Ethernet MAC address, is a soft
+programmable entity, and that a misconfigured Director Class switch
+could lead you to believe that incorrectly that you've found multiple
+paths to the same device. This is an extreme and theoretical case, but
+it is possible enough to indicate that the policy for deciding which
+of multiple pathnames refer to the same device should be left to the
+system operator who will use tools and knowledge of their own storage
+subsystem to make the correct configuration selection.
+.Pp
+As an active/passive architecture, only one path has I/O moving on it
+at any point in time. This I/O continues until an I/O is returned with
+a generic I/O error or a "Nonexistent Device" error. When this occurs,
+the active device is kicked out of the
+.Nm MULTIPATH
+GEOM class and the next in a list is selected, the failed I/O reissued
+and the system proceeds.
+.Pp
+When new devices are added to the system the
+.Nm MULTIPATH
+GEOM class is given an opportunity to taste these new devices. If a new
+device has a
+.Nm MULTIPATH
+label, the device is used to either create a new
+.Nm MULTIPATH
+GEOM, or to attach to the end of the list of devices for an existing
+.Nm MULTIPATH
+GEOM.
+.Pp
+It is this mechanism that works reasonably with
+.Xr isp 4
+and
+.Xr mpt 4
+based Fibre Channel disk devices. For these devices, when a device disappears
+(due, e.g., to a cable pull or power failure to a switch), the device is
+proactively marked as gone and I/O to it failed. This causes the
+.Nm MULTIPATH
+failure event just described.
+.Pp
+When Fibre Channel events inform either
+.Xr isp 4
+or
+.Xr mpt 4
+host bus adapters that new devices may have arrived (e.g., the arrival
+of an RSCN event from the Fabric Domain Controller), they can cause
+a rescan to occur and cause the attachment and configuration of any
+(now) new devices to occur, causing the taste event describe above.
+.Pp
+This means that this active/passive architecture is not a one-shot path
+failover, but can be considered to be steady state as long as failed
+paths are repaired (automatically or otherwise).
+.Pp
+Automatic rescanning is not a requirement. Nor is Fibre Channel. The
+same failover mechanisms work equally well for traditional "Parallel"
+SCSI but require manual intervention with
+.Xr camcontrol 8
+to cause the reattachment of repaired device links.
+.Sh EXAMPLES
+The following example shows how to use
+.Xr camcontrol 8
+to find possible multiple path devices and to create a
+.Nm MULTIPATH
+GEOM class for them.
+.Bd -literal -offset indent
+mysys# camcontrol devlist
+<ECNCTX @WESTVILLE >   at scbus0 target 0 lun 0 (da0,pass0)
+<ECNCTX @WESTVILLE >   at scbus0 target 0 lun 1 (da1,pass1)
+<ECNCTX @WESTVILLE >   at scbus1 target 0 lun 0 (da2,pass2)
+<ECNCTX @WESTVILLE >   at scbus1 target 0 lun 1 (da3,pass3)
+mysys# camcontrol inquiry da0 -S
+ECNTX0LUN000000SER10ac0d01
+mysys# camcontrol inquiry da2 -S
+ECNTX0LUN000000SER10ac0d01
+.Ed
+.Pp
+Now that you've used the Serial Number to compare two disk paths
+it's not entirely unreasonable to conclude that these are multiple
+paths to the same device. However, only the user who is familiar
+with their storage is qualified to make this judgement.
+.Pp
+You can then use the
+.Nm
+command to label and create the
+.Nm MULTIPATH
+GEOM class named 
+.Ar data .
+.Bd -literal -offset indent
+gmultipath label -v Fred /dev/da0 /dev/da2
+disklabel -Brw /dev/multipath/Fred auto
+newfs /dev/multipath/Freda
+mount /dev/mutlpath/Freda /mnt....
+.Ed
+.Pp
+The resultant console output looks something like:
+.Bd -literal -offset indent
+GEOM_MULTIPATH: adding da0 to Fred/b631385f-c61c-11db-b884-0011116ae789
+GEOM_MULTIPATH: da0 now active path in Fred
+GEOM_MULTIPATH: adding da2 to Fred/b631385f-c61c-11db-b884-0011116ae789
+.Ed
+.Sh 
+.Sh SEE ALSO
+.Xr geom 4 ,
+.Xr isp 4,
+.Xr mpt 4,
+.Xr loader.conf 5 ,
+.Xr camcontrol 8 ,
+.Xr geom 8 ,
+.Xr mount 8 ,
+.Xr newfs 8 ,
+.Xr sysctl 8 ,
+.Sh BUGS
+The
+.Nm
+should allow for a manual method of pairing disks.
+.Pp
+There is currently no way for
+.Pa geom_multipath.ko
+to distinguish between various label instances of the same provider. That
+is devices such as
+.Ar da0
+and
+.Ar da0c
+can be tasted and instantiated as multiple paths for the same device.
+Technically, this is correct, but pretty useless. This will be fixed soon
+(I hope), but to avoid this it's a good idea to destroy any label on
+the disk object prior to labelling it with
+.Nm .
+.Fx 7.0 .
+.Sh AUTHOR
+.An Matthew Jacob Aq mjacob@FreeBSD.org
