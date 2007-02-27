@@ -1545,8 +1545,8 @@ product SAMSUNG ML6060		0x3008	ML-6060 laser printer
 
 /* SanDisk products */
 product SANDISK SDDR05A		0x0001	ImageMate SDDR-05a
-product SANDISK SDDR05		0x0005	ImageMate SDDR-05
 product SANDISK SDDR31		0x0002	ImageMate SDDR-31
+product SANDISK SDDR05		0x0005	ImageMate SDDR-05
 product SANDISK SDDR12		0x0100	ImageMate SDDR-12
 product SANDISK SDDR09		0x0200	ImageMate SDDR-09
 product SANDISK SDDR75		0x0810	ImageMate SDDR-75
