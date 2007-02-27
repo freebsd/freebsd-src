@@ -89,7 +89,6 @@ static int
 scsuspend(device_t dev)
 {
 	int		retry = 10;
-	static int	dummy;
 	sc_softc_t	*sc;
 
 	sc = &main_softc;
@@ -107,7 +106,7 @@ scsuspend(device_t dev)
 		if (!sc->switch_in_progress) {
 			break;
 		}
-		tsleep(&dummy, 0, "scsuspend", 100);
+		pause("scsuspend", hz);
 	} while (retry--);
 
 	return (0);

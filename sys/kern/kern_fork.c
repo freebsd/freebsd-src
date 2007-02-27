@@ -82,8 +82,6 @@ struct fork_args {
 };
 #endif
 
-static int forksleep; /* Place for fork1() to sleep on. */
-
 /*
  * MPSAFE
  */
@@ -772,7 +770,7 @@ fail:
 		thread_single_end();
 		PROC_UNLOCK(p1);
 	}
-	tsleep(&forksleep, PUSER, "fork", hz / 2);
+	pause("fork", hz / 2);
 	return (error);
 }
 
