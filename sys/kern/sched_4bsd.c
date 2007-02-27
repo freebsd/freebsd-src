@@ -473,11 +473,10 @@ XXX  this is broken
 static void
 schedcpu_thread(void)
 {
-	int nowake;
 
 	for (;;) {
 		schedcpu();
-		tsleep(&nowake, 0, "-", hz);
+		pause("-", hz);
 	}
 }
 

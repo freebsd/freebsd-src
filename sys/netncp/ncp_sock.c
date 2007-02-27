@@ -162,7 +162,6 @@ ncp_sock_send(struct socket *so, struct mbuf *top, struct ncp_rq *rqp)
 	struct ncp_conn *conn = rqp->nr_conn;
 	struct mbuf *m;
 	int error, flags=0;
-	int sendwait;
 
 	for (;;) {
 		m = m_copym(top, 0, M_COPYALL, M_TRYWAIT);
@@ -172,7 +171,7 @@ ncp_sock_send(struct socket *so, struct mbuf *top, struct ncp_rq *rqp)
 			break;
 		if (rqp->rexmit == 0) break;
 		rqp->rexmit--;
-		tsleep(&sendwait, PWAIT, "ncprsn", conn->li.timeout * hz);
+		pause("ncprsn", conn->li.timeout * hz);
 		error = ncp_chkintr(conn, td);
 		if (error == EINTR) break;
 	}

@@ -2357,7 +2357,7 @@ static void hpt_worker_thread(void)
 #if (__FreeBSD_version < 500000)
 			YIELD_THREAD;
 #else 
-			tsleep((caddr_t)hpt_worker_thread, PPAUSE, "sched", 1); 
+			pause("sched", 1);
 #endif
 			if (SIGISMEMBER(curproc->p_siglist, SIGSTOP)) {
 				/* abort rebuilding process. */
@@ -2391,7 +2391,7 @@ static void hpt_worker_thread(void)
 /*
 #ifdef DEBUG
 		if (SIGISMEMBER(curproc->p_siglist, SIGSTOP))
-			tsleep((caddr_t)hpt_worker_thread, PPAUSE, "hptrdy", 2*hz);
+			pause("hptrdy", 2*hz);
 #endif
 */
 	#if (__FreeBSD_version >= 500043)
@@ -2399,7 +2399,7 @@ static void hpt_worker_thread(void)
 	#else 
 		kproc_suspend_loop(curproc);
 	#endif
-		tsleep((caddr_t)hpt_worker_thread, PPAUSE, "hptrdy", 2*hz);  /* wait for something to do */
+		pause("hptrdy", 2*hz);  /* wait for something to do */
 	}
 }
 

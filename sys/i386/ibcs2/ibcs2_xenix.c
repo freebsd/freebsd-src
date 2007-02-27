@@ -140,8 +140,7 @@ xenix_nap(struct thread *td, struct xenix_nap_args *uap)
 	DPRINTF(("IBCS2: 'xenix nap %d ms'\n", uap->millisec));
 	period = (long)uap->millisec / (1000/hz);
 	if (period)
-		while (tsleep(&period, PPAUSE, "nap", period) 
-		       != EWOULDBLOCK) ;
+		pause("nap", period);
 	return 0;
 }
 

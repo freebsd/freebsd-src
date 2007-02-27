@@ -1293,7 +1293,7 @@ waitfor_status_bits(struct scd_softc *sc, int bits_set, int bits_clear)
 			{
 				break;
 			}
-			tsleep(waitfor_status_bits, PZERO - 1, "waitfor", hz/10);
+			pause("waitfor", hz/10);
 		}
 	}
 	if ((c & bits_set) == bits_set &&
