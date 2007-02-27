@@ -212,15 +212,24 @@ See above.
 .Xr malloc 9 ,
 .Xr mi_switch 9
 .Sh HISTORY
-The sleep/wakeup thread synchronization mechanism is very old.
-It
-appeared in a very early version of
-.Ux .
+The functions
+.Fn sleep
+and
+.Fn wakeup
+was present in
+.At v1 .
+They were probably also present in the preceding
+PDP-7 version of UNIX.
+They were the basic process synchronization model.
 .Pp
 The
 .Fn tsleep
 function appeared in
-.Bx 4.4 .
+.Bx 4.4
+and added the parameters
+.Fa wmesg
+and
+.Fa timo .
 The
 .Fn wakeup_one
 function appeared in
@@ -238,12 +247,6 @@ function appeared in
 function appeared in
 .Fx 7.0 .
 .Pp
-The
-.Fn sleep
-function used to be the traditional form.
-It did not let you specify a timeout or a
-.Fa wmesg ,
-hence it was discontinued.
 .Sh AUTHORS
 .An -nosplit
 This manual page was written by
