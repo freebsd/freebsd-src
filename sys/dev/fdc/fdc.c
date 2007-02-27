@@ -1205,7 +1205,6 @@ fdc_thread(void *arg)
 		mtx_lock(&fdc->fdc_mtx);
 	}
 	fdc->flags &= ~(FDC_KTHREAD_EXIT | FDC_KTHREAD_ALIVE);
-	wakeup(&fdc->fdc_thread);
 	mtx_unlock(&fdc->fdc_mtx);
 
 	kthread_exit(0);
@@ -1711,8 +1710,8 @@ fdc_detach(device_t dev)
 		return (error);
 
 	/* kill worker thread */
-	fdc->flags |= FDC_KTHREAD_EXIT;
 	mtx_lock(&fdc->fdc_mtx);
+	fdc->flags |= FDC_KTHREAD_EXIT;
 	wakeup(&fdc->head);
 	while ((fdc->flags & FDC_KTHREAD_ALIVE) != 0)
 		msleep(&fdc->fdc_thread, &fdc->fdc_mtx, PRIBIO, "fdcdet", 0);
