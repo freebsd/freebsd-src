@@ -100,9 +100,9 @@ runnable.
 The
 .Fn wakeup_one
 function
-does not work reliably if more than one process is sleeping on the same address;
-in this case it is possible for an unrelated process to be woken.
-This process will ignore the wakeup, and the correct process will never be
+does not work reliably if more than one thread is sleeping on the same address;
+in this case it is possible for an unrelated thread to be woken.
+This thread will ignore the wakeup, and the correct process will never be
 woken.
 .Pp
 The
