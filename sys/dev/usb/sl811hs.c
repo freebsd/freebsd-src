@@ -134,7 +134,6 @@ static void		slhci_abort_xfer(usbd_xfer_handle, usbd_status);
 static void		slhci_device_clear_toggle(usbd_pipe_handle);
 
 extern int usbdebug;
-int slhci_dummy;
 
 /* For root hub */
 #define SLHCI_INTR_ENDPT	(1)
