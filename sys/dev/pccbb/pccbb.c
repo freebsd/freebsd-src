@@ -309,7 +309,7 @@ cbb_detach(device_t brdev)
 		 * Try hard to cope with low memory.
 		 */
 		if (error == ENOMEM) {
-			tsleep(sc, PZERO, "cbbnomem", 1);
+			pause("cbbnomem", 1);
 			continue;
 		}
 	} while (tries-- > 0);
@@ -795,7 +795,7 @@ cbb_power(device_t brdev, int volts)
 		 * bit, so don't whine if it never came on.
 		 */
 		if (sc->chipset == CB_TOPIC95) {
-			tsleep(sc, PZERO, "cbb95B", hz / 10);
+			pause("cbb95B", hz / 10);
 		} else if (sane <= 0) {
 			device_printf(sc->dev, "power timeout, doom?\n");
 		}
@@ -926,13 +926,13 @@ cbb_cardbus_reset(device_t brdev)
 
 	PCI_MASK_CONFIG(brdev, CBBR_BRIDGECTRL, |CBBM_BRIDGECTRL_RESET, 2);
 
-	tsleep(sc, PZERO, "cbbP3", hz * delay / 1000);
+	pause("cbbP3", hz * delay / 1000);
 
 	/* If a card exists, unreset it! */
 	if (CBB_CARD_PRESENT(cbb_get(sc, CBB_SOCKET_STATE))) {
 		PCI_MASK_CONFIG(brdev, CBBR_BRIDGECTRL,
 		    &~CBBM_BRIDGECTRL_RESET, 2);
-		tsleep(sc, PZERO, "cbbP4", hz * delay / 1000);
+		pause("cbbP4", hz * delay / 1000);
 	}
 }
 
@@ -1225,14 +1225,14 @@ cbb_pcic_power_disable_socket(device_t brdev, device_t child)
 
 	/* Turn off the card's interrupt and leave it in reset */
 	exca_putb(&sc->exca[0], EXCA_INTR, 0);
-	tsleep(sc, PZERO, "cbbP1", hz / 100);
+	pause("cbbP1", hz / 100);
 
 	/* power down the socket */
 	cbb_power(brdev, CARD_OFF);
 	exca_putb(&sc->exca[0], EXCA_PWRCTL, 0);
 
 	/* wait 300ms until power fails (Tpf). */
-	tsleep(sc, PZERO, "cbbP1", hz * 300 / 1000);
+	pause("cbbP1", hz * 300 / 1000);
 
 	/* enable CSC interrupts */
 	exca_putb(&sc->exca[0], EXCA_INTR, EXCA_INTR_ENABLE);
