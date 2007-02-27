@@ -571,8 +571,8 @@ pmc_debugflags_sysctl_handler(SYSCTL_HANDLER_ARGS)
  *     We prevent further scheduling of the PMC by marking it as in
  *     state 'DELETED'.  If the runcount of the PMC is non-zero then
  *     this PMC is currently running on a CPU somewhere.  The thread
- *     doing the PMCRELEASE operation waits by repeatedly doing an
- *     tsleep() till the runcount comes to zero.
+ *     doing the PMCRELEASE operation waits by repeatedly doing a
+ *     pause() till the runcount comes to zero.
  *
  */
 
@@ -638,7 +638,7 @@ pmc_select_cpu(int cpu)
 /*
  * Force a context switch.
  *
- * We do this by tsleep'ing for 1 tick -- invoking mi_switch() is not
+ * We do this by pause'ing for 1 tick -- invoking mi_switch() is not
  * guaranteed to force a context switch.
  */
 
@@ -646,7 +646,7 @@ static void
 pmc_force_context_switch(void)
 {
 
-	(void) tsleep((void *) pmc_force_context_switch, 0, "pmcctx", 1);
+	pause("pmcctx", 1);
 }
 
 /*
