@@ -1210,6 +1210,7 @@ geom/label/g_label_reiserfs.c	optional geom_label
 geom/label/g_label_ufs.c	optional geom_label
 geom/mirror/g_mirror.c		optional geom_mirror
 geom/mirror/g_mirror_ctl.c	optional geom_mirror
+geom/multipath/g_multipath.c	optional geom_multipath
 geom/nop/g_nop.c		optional geom_nop
 geom/part/g_part.c		standard
 geom/part/g_part_if.m		standard

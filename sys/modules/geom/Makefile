@@ -12,6 +12,7 @@ SUBDIR=	geom_bde \
 	geom_label \
 	geom_mbr \
 	geom_mirror \
+	geom_multipath \
 	geom_nop \
 	geom_pc98 \
 	geom_raid3 \

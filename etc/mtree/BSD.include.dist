@@ -114,6 +114,8 @@
         ..
         mirror
         ..
+        multipath
+        ..
         nop
         ..
         raid3
