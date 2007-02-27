@@ -97,6 +97,12 @@ when a large number of threads are sleeping on the same address,
 but only one of them can actually do any useful work when made
 runnable.
 .Pp
+.Fn wakeup_one
+does not work reliably if more than one process is sleeping on the same address;
+in this case it is possible for an unrelated process to be woken.
+This process will ignore the wakeup, and the correct process will never be
+woken.
+.Pp
 The
 .Fn msleep
 function is the general sleep call.
