@@ -43,7 +43,7 @@
 
 #define MS_TO_TICKS(ms) ((ms) * hz / 1000)
 #define delay_ms(X) \
-	tsleep(&slhci_dummy, PRIBIO, "slhci", MS_TO_TICKS(X))
+	pause("slhci", MS_TO_TICKS(X))
 
 #define SL11_PID_OUT	(0x1)
 #define SL11_PID_IN 	(0x9)
