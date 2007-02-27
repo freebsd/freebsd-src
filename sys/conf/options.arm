@@ -10,8 +10,10 @@ CPU_ARM9		opt_global.h
 CPU_XSCALE_80321	opt_global.h
 CPU_XSCALE_IXP425	opt_global.h
 PHYSADDR		opt_global.h
+FLASHADDR		opt_global.h
 KERNPHYSADDR		opt_global.h
 KERNVIRTADDR		opt_global.h
+LOADERRAMADDR		opt_global.h
 STARTUP_PAGETABLE_ADDR	opt_global.h
 XSCALE_CACHE_READ_WRITE_ALLOCATE	opt_global.h
 AT91_TSC		opt_at91.h
