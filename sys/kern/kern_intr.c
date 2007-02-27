@@ -656,6 +656,10 @@ ithread_execute_handlers(struct proc *p, struct intr_event *ie)
 			continue;
 		}
 
+		/* Skip filter only handlers */
+		if (ih->ih_handler == NULL)
+			continue;
+
 		/*
 		 * For software interrupt threads, we only execute
 		 * handlers that have their need flag set.  Hardware
