@@ -173,8 +173,8 @@ msleep(ident, mtx, priority, wmesg, timo)
 		flags |= SLEEPQ_INTERRUPTIBLE;
 
 	sleepq_lock(ident);
-	CTR5(KTR_PROC, "msleep: thread %p (pid %ld, %s) on %s (%p)",
-	    (void *)td, (long)p->p_pid, p->p_comm, wmesg, ident);
+	CTR5(KTR_PROC, "msleep: thread %ld (pid %ld, %s) on %s (%p)",
+	    td->td_tid, p->p_pid, p->p_comm, wmesg, ident);
 
 	DROP_GIANT();
 	if (mtx != NULL) {
@@ -260,8 +260,8 @@ msleep_spin(ident, mtx, wmesg, timo)
 	}
 
 	sleepq_lock(ident);
-	CTR5(KTR_PROC, "msleep_spin: thread %p (pid %ld, %s) on %s (%p)",
-	    (void *)td, (long)p->p_pid, p->p_comm, wmesg, ident);
+	CTR5(KTR_PROC, "msleep_spin: thread %ld (pid %ld, %s) on %s (%p)",
+	    td->td_tid, p->p_pid, p->p_comm, wmesg, ident);
 
 	DROP_GIANT();
 	mtx_assert(mtx, MA_OWNED | MA_NOTRECURSED);
@@ -425,8 +425,8 @@ mi_switch(int flags, struct thread *newtd)
 	cnt.v_swtch++;
 	PCPU_SET(switchtime, new_switchtime);
 	PCPU_SET(switchticks, ticks);
-	CTR4(KTR_PROC, "mi_switch: old thread %p (kse %p, pid %ld, %s)",
-	    (void *)td, td->td_sched, (long)p->p_pid, p->p_comm);
+	CTR4(KTR_PROC, "mi_switch: old thread %ld (kse %p, pid %ld, %s)",
+	    td->td_tid, td->td_sched, p->p_pid, p->p_comm);
 #if (KTR_COMPILE & KTR_SCHED) != 0
 	if (td == PCPU_GET(idlethread))
 		CTR3(KTR_SCHED, "mi_switch: %p(%s) prio %d idle",
@@ -454,8 +454,8 @@ mi_switch(int flags, struct thread *newtd)
 	CTR3(KTR_SCHED, "mi_switch: running %p(%s) prio %d",
 	    td, td->td_proc->p_comm, td->td_priority);
 
-	CTR4(KTR_PROC, "mi_switch: new thread %p (kse %p, pid %ld, %s)",
-	    (void *)td, td->td_sched, (long)p->p_pid, p->p_comm);
+	CTR4(KTR_PROC, "mi_switch: new thread %ld (kse %p, pid %ld, %s)",
+	    td->td_tid, td->td_sched, p->p_pid, p->p_comm);
 
 	/* 
 	 * If the last thread was exiting, finish cleaning it up.
