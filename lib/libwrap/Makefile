@@ -12,7 +12,7 @@ MAN+=	hosts_access.5 hosts_options.5
 MLINKS=	hosts_access.3 hosts_ctl.3 \
 	hosts_access.3 request_init.3 \
 	hosts_access.3 request_set.3 \
-	hosts_access.3 hosts.allow.5 \
+	hosts_options.5 hosts.allow.5 \
 
 .PATH:	${.CURDIR}/../../contrib/tcp_wrappers
 
