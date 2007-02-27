@@ -248,7 +248,7 @@ at91_spi_transfer(device_t dev, device_t child, struct spi_command *cmd)
 
 	rxdone = sc->rxdone;
 	do {
-		err = msleep(&sc->rxdone, NULL, PCATCH | PZERO, "spi", hz);
+		err = tsleep(&sc->rxdone, PCATCH | PZERO, "spi", hz);
 	} while (rxdone == sc->rxdone && err != EINTR);
 	WR4(sc, PDC_PTCR, PDC_PTCR_TXTDIS | PDC_PTCR_RXTDIS);
 	if (err == 0) {
