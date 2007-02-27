@@ -228,7 +228,9 @@ _sx_try_xlock(struct sx *sx, const char *file, int line)
 void
 _sx_sunlock(struct sx *sx, const char *file, int line)
 {
-
+	struct lock_object lo;
+	int count = -1;
+	
 	_sx_assert(sx, SX_SLOCKED, file, line);
 	mtx_lock(sx->sx_lock);
 
@@ -238,8 +240,13 @@ _sx_sunlock(struct sx *sx, const char *file, int line)
 	/* Release. */
 	sx->sx_cnt--;
 
-       if (sx->sx_cnt == 0)
-	       lock_profile_release_lock(&sx->sx_object);
+#ifdef LOCK_PROFILING
+	if (sx->sx_cnt == 0) {
+		memcpy(&lo, &sx->sx_object, sizeof(lo));
+		sx->sx_object.lo_flags &= ~LO_CONTESTED;
+		count = 0;
+	}
+#endif
 	/*
 	 * If we just released the last shared lock, wake any waiters up, giving
 	 * exclusive lockers precedence.  In order to make sure that exclusive
@@ -255,12 +262,16 @@ _sx_sunlock(struct sx *sx, const char *file, int line)
 	LOCK_LOG_LOCK("SUNLOCK", &sx->sx_object, 0, 0, file, line);
 
 	mtx_unlock(sx->sx_lock);
+	if (count == 0)
+		lock_profile_release_lock(&lo);
+
 }
 
 void
 _sx_xunlock(struct sx *sx, const char *file, int line)
 {
-
+	struct lock_object lo;
+	
 	_sx_assert(sx, SX_XLOCKED, file, line);
 	mtx_lock(sx->sx_lock);
 	MPASS(sx->sx_cnt == -1);
@@ -272,7 +283,10 @@ _sx_xunlock(struct sx *sx, const char *file, int line)
 	sx->sx_cnt++;
 	sx->sx_xholder = NULL;
 
-	lock_profile_release_lock(&sx->sx_object);
+#ifdef LOCK_PROFILING
+	memcpy(&lo, &sx->sx_object, sizeof(lo));
+	sx->sx_object.lo_flags &= ~LO_CONTESTED;
+#endif
 	/*
 	 * Wake up waiters if there are any.  Give precedence to slock waiters.
 	 */
@@ -284,6 +298,7 @@ _sx_xunlock(struct sx *sx, const char *file, int line)
 	LOCK_LOG_LOCK("XUNLOCK", &sx->sx_object, 0, 0, file, line);
 
 	mtx_unlock(sx->sx_lock);
+	lock_profile_release_lock(&lo);
 }
 
 int

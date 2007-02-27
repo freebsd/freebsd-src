@@ -158,6 +158,8 @@ void
 _mtx_unlock_flags(struct mtx *m, int opts, const char *file, int line)
 {
 
+	struct lock_object lo;
+	
 	MPASS(curthread != NULL);
 	KASSERT(m->mtx_lock != MTX_DESTROYED,
 	    ("mtx_unlock() of destroyed mutex @ %s:%d", file, line));
@@ -169,9 +171,12 @@ _mtx_unlock_flags(struct mtx *m, int opts, const char *file, int line)
 	LOCK_LOG_LOCK("UNLOCK", &m->mtx_object, opts, m->mtx_recurse, file,
 	    line);
 	mtx_assert(m, MA_OWNED);
-
-	lock_profile_release_lock(&m->mtx_object);
+#ifdef LOCK_PROFILING
+	memcpy(&lo, &m->mtx_object, sizeof(lo));
+	m->mtx_object.lo_flags &= ~LO_CONTESTED;
+#endif
 	_rel_sleep_lock(m, curthread, opts, file, line);
+	lock_profile_release_lock(&lo);
 }
 
 void
@@ -196,6 +201,8 @@ void
 _mtx_unlock_spin_flags(struct mtx *m, int opts, const char *file, int line)
 {
 
+	struct lock_object lo;
+	
 	MPASS(curthread != NULL);
 	KASSERT(m->mtx_lock != MTX_DESTROYED,
 	    ("mtx_unlock_spin() of destroyed mutex @ %s:%d", file, line));
@@ -206,8 +213,12 @@ _mtx_unlock_spin_flags(struct mtx *m, int opts, const char *file, int line)
 	LOCK_LOG_LOCK("UNLOCK", &m->mtx_object, opts, m->mtx_recurse, file,
 	    line);
 	mtx_assert(m, MA_OWNED);
-	lock_profile_release_lock(&m->mtx_object);
+#ifdef LOCK_PROFILING
+	memcpy(&lo, &m->mtx_object, sizeof(lo));
+	m->mtx_object.lo_flags &= ~LO_CONTESTED;
+#endif
 	_rel_spin_lock(m);
+	lock_profile_release_lock(&lo);
 }
 
 /*
