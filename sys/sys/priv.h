@@ -303,7 +303,7 @@
 #define	PRIV_NET_ADDMULTI	405	/* Add multicast addr. to ifnet. */
 #define	PRIV_NET_DELMULTI	406	/* Delete multicast addr. from ifnet. */
 #define	PRIV_NET_HWIOCTL	407	/* Issue hardware ioctl on ifnet. */
-#define	PRIV_NET_SETLLADDR	408
+#define	PRIV_NET_SETLLADDR	408	/* Set interface link-level address. */
 #define	PRIV_NET_ADDIFGROUP	409	/* Add new interface group. */
 #define	PRIV_NET_DELIFGROUP	410	/* Delete interface group. */
 #define	PRIV_NET_IFCREATE	411	/* Create cloned interface. */
