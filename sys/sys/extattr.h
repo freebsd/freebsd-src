@@ -112,7 +112,7 @@ int	extattr_check_cred(struct vnode *vp, int attrnamespace,
 
 /* User-level definition of KASSERT for macros above */
 #define KASSERT(cond, str) do { \
-        if (cond) { printf("panic: "); printf(str); printf("\n"); exit(1); } \
+        if (!(cond)) { printf("panic: "); printf(str); printf("\n"); exit(1); }\
 } while (0)
 
 struct iovec;
