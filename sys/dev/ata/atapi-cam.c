@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2001-2003 Thomas Quinot <thomas@cuivre.fr.eu.org>
+ * Copyright (c) 2001-2007 Thomas Quinot <thomas@cuivre.fr.eu.org>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -807,7 +807,7 @@ cam_rescan(struct cam_sim *sim)
 	return;
     }
 
-    CAM_DEBUG(ccb->ccb_h.path, CAM_DEBUG_TRACE, ("Rescanning ATAPI bus.\n"));
+    CAM_DEBUG(path, CAM_DEBUG_TRACE, ("Rescanning ATAPI bus.\n"));
     xpt_setup_ccb(&ccb->ccb_h, path, 5/*priority (low)*/);
     ccb->ccb_h.func_code = XPT_SCAN_BUS;
     ccb->ccb_h.cbfcnp = cam_rescan_callback;
