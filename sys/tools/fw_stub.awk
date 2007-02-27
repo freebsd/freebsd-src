@@ -93,7 +93,7 @@ for (i = 1; i < ARGC; i++) {
 		if (length(curr[2]) > 0)
 			shortnames[num_files] = curr[2];
 		else
-			shortnames[num_files] = curr[2];
+			shortnames[num_files] = curr[1];
 		if (length(curr[3]) > 0)
 			versions[num_files] = int(curr[3]);
 		else
