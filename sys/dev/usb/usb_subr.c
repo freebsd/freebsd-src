@@ -307,7 +307,7 @@ usb_delay_ms(usbd_bus_handle bus, u_int ms)
 	if (bus->use_polling || cold)
 		delay((ms+1) * 1000);
 	else
-		tsleep(&ms, PRIBIO, "usbdly", (ms*hz+999)/1000 + 1);
+		pause("usbdly", (ms*hz+999)/1000 + 1);
 }
 
 /* Delay given a device handle. */

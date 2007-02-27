@@ -103,7 +103,7 @@ pccard_read_cis(struct pccard_softc *sc)
 	 * XXX seem to indicate that a delay is required.  The old
 	 * XXX delay was 1s.  This delay is .1s.
 	 */
-	tsleep(&state, 0, "pccard", hz / 10);
+	pause("pccard", hz / 10);
 	if (pccard_scan_cis(device_get_parent(sc->dev), sc->dev,
 	    pccard_parse_cis_tuple, &state) == -1)
 		state.card->error++;

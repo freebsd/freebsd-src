@@ -284,7 +284,7 @@ random_kthread(void *arg __unused)
 
 		/* Found nothing, so don't belabour the issue */
 		if (!active)
-			tsleep(&harvestfifo, 0, "-", hz / 10);
+			pause("-", hz / 10);
 
 	}
 

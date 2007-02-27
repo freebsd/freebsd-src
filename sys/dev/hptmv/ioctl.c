@@ -206,7 +206,7 @@ lock_driver_idle(IAL_ADAPTER_T *pAdapter)
 #if (__FreeBSD_version < 500000)
 		YIELD_THREAD;
 #else 
-		tsleep(lock_driver_idle, PPAUSE, "switch", 1);
+		pause("switch", 1);
 #endif
 		oldspl = lock_driver();
 	}
@@ -421,7 +421,7 @@ int Kernel_DeviceIoControl(_VBUS_ARG
 						unlock_driver(oldspl);
 						while (!pArray->u.array.rf_rebuilding)
 						{
-							tsleep((caddr_t)Kernel_DeviceIoControl, PPAUSE, "pause", 1);
+							pause("pause", 1);
 							if ( timeout >= hz*3)
 								break;
 							timeout ++;
@@ -486,7 +486,7 @@ hpt_set_array_state(DEVICEID idArray, DWORD state)
 
 			while (!pVDevice->u.array.rf_rebuilding)
 			{
-				tsleep((caddr_t)hpt_set_array_state, PPAUSE, "pause", 1);
+				pause("pause", 1);
 				if ( timeout >= hz*20)
 					break;
 				timeout ++;
@@ -511,7 +511,7 @@ hpt_set_array_state(DEVICEID idArray, DWORD state)
 			
 			while (pVDevice->u.array.rf_abort_rebuild)
 			{
-				tsleep((caddr_t)hpt_set_array_state, PPAUSE, "pause", 1);
+				pause("pause", 1);
 				if ( timeout >= hz*20)
 					break;
 				timeout ++;
@@ -535,7 +535,7 @@ hpt_set_array_state(DEVICEID idArray, DWORD state)
 			
 			while (!pVDevice->u.array.rf_verifying)
 			{
-				tsleep((caddr_t)hpt_set_array_state, PPAUSE, "pause", 1);
+				pause("pause", 1);
 				if ( timeout >= hz*20)
 					break;
 				timeout ++;
@@ -554,7 +554,7 @@ hpt_set_array_state(DEVICEID idArray, DWORD state)
 			
 			while (pVDevice->u.array.rf_abort_rebuild)
 			{
-				tsleep((caddr_t)hpt_set_array_state, PPAUSE, "pause", 1);
+				pause("pause", 1);
 				if ( timeout >= hz*80)
 					break;
 				timeout ++;
@@ -575,7 +575,7 @@ hpt_set_array_state(DEVICEID idArray, DWORD state)
 			
 			while (!pVDevice->u.array.rf_initializing)
 			{
-				tsleep((caddr_t)hpt_set_array_state, PPAUSE, "pause", 1);
+				pause("pause", 1);
 				if ( timeout >= hz*80)
 					break;
 				timeout ++;
@@ -594,7 +594,7 @@ hpt_set_array_state(DEVICEID idArray, DWORD state)
 			
 			while (pVDevice->u.array.rf_abort_rebuild)
 			{
-				tsleep((caddr_t)hpt_set_array_state, PPAUSE, "pause", 1);
+				pause("pause", 1);
 				if ( timeout >= hz*80)
 					break;
 				timeout ++;
@@ -949,7 +949,7 @@ fail:
 #if (__FreeBSD_version < 500000)		
 		YIELD_THREAD; 
 #else 
-		tsleep(hpt_rebuild_data_block, PPAUSE, "switch", 1);
+		pause("switch", 1);
 #endif
 		oldspl = lock_driver();
 	}

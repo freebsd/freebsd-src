@@ -1199,7 +1199,7 @@ smbfs_smb_trans2find2(struct smbfs_fctx *ctx)
 			 * I've didn't notice any problem, but put code
 			 * for it.
 			 */
-			 tsleep(&flags, PVFS, "fix95", tvtohz(&tv));
+			 pause("fix95", tvtohz(&tv));
 		}
 #endif
 	}
