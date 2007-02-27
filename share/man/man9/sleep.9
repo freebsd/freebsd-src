@@ -25,7 +25,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd February 23, 2007
+.Dd February 27, 2007
 .Os
 .Dt SLEEP 9
 .Sh NAME
@@ -99,11 +99,16 @@ runnable.
 .Pp
 The
 .Fn wakeup_one
-function
-does not work reliably if more than one thread is sleeping on the same address;
-in this case it is possible for an unrelated thread to be woken.
-This thread will ignore the wakeup, and the correct process will never be
-woken.
+function does not work reliably if unrelated threads are sleeping on the same
+address.
+In this case, if a wakeup for one group of threads is delivered to a member of
+another group, that thread will ignore the wakeup, and the correct thread will
+never be woken up.
+It is the programmer's responsibility to choose a unique
+.Fa chan
+value.
+In case of doubt, do not use
+.Fn wakeup_one .
 .Pp
 The
 .Fn msleep
@@ -233,6 +238,10 @@ and added the parameters
 .Fa wmesg
 and
 .Fa timo .
+The
+.Fn sleep
+function was removed in
+.Fx 2.2 .
 The
 .Fn wakeup_one
 function appeared in
