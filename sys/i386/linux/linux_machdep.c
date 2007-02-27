@@ -684,7 +684,9 @@ linux_mmap_common(struct thread *td, struct l_mmap_argv *linux_args)
 	if (bsd_args.prot & (PROT_READ | PROT_WRITE | PROT_EXEC))
 		bsd_args.prot |= PROT_READ | PROT_EXEC;
 
-	if (linux_args->fd != -1) {
+	/* Linux does not check file descriptor when MAP_ANONYMOUS is set. */
+	bsd_args.fd = (bsd_args.flags & MAP_ANON) ? -1 : linux_args->fd;
+	if (bsd_args.fd != -1) {
 		/*
 		 * Linux follows Solaris mmap(2) description:
 		 * The file descriptor fildes is opened with
@@ -692,7 +694,7 @@ linux_mmap_common(struct thread *td, struct l_mmap_argv *linux_args)
 		 * protection options specified.
 		 */
 
-		if ((error = fget(td, linux_args->fd, &fp)) != 0)
+		if ((error = fget(td, bsd_args.fd, &fp)) != 0)
 			return (error);
 		if (fp->f_type != DTYPE_VNODE) {
 			fdrop(fp, td);
@@ -707,7 +709,6 @@ linux_mmap_common(struct thread *td, struct l_mmap_argv *linux_args)
 
 		fdrop(fp, td);
 	}
-	bsd_args.fd = linux_args->fd;
 
 	if (linux_args->flags & LINUX_MAP_GROWSDOWN) {
 		/* 
