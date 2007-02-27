@@ -264,6 +264,7 @@ LIB32MAKEENV=	MAKEOBJDIRPREFIX=${OBJTREE}/lib32 \
 LIB32MAKE=	${LIB32MAKEENV} ${MAKE} -DNO_CPU_CFLAGS -DCOMPAT_32BIT \
 		-DWITHOUT_BIND -DWITHOUT_MAN -DWITHOUT_NLS -DWITHOUT_INFO \
 		-DWITHOUT_HTML
+LIB32WMAKE=	${LIB32MAKE} -fMakefile.inc1 DESTDIR=${LIB32TMP}
 LIB32IMAKE=	${LIB32MAKE:NINSTALL=*} -DNO_INCS
 .endif
 
@@ -364,7 +365,7 @@ _cleanobj:
 	@echo "--------------------------------------------------------------"
 	${_+_}cd ${.CURDIR}; ${WMAKE} ${CLEANDIR:S/^/par-/}
 .if ${TARGET_ARCH} == "amd64"
-	rm -rf ${OBJTREE}/lib32
+	${_+_}cd ${.CURDIR}; ${LIB32WMAKE} ${CLEANDIR:S/^/par-/}
 .endif
 .endif
 _obj:
