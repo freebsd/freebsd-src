@@ -148,6 +148,7 @@ main(int argc, char *argv[])
 	char options[1024], *cp;
 	const char *ifname;
 	struct option *p;
+	size_t iflen;
 
 	all = downonly = uponly = namesonly = verbose = 0;
 
@@ -239,7 +240,10 @@ main(int argc, char *argv[])
 			 */
 			if (argc > 0 && (strcmp(argv[0], "create") == 0 ||
 			    strcmp(argv[0], "plumb") == 0)) {
-				(void) strlcpy(name, ifname, sizeof(name));
+				iflen = strlcpy(name, ifname, sizeof(name));
+				if (iflen >= sizeof(name))
+					errx(1, "%s: cloning name too long",
+					    ifname);
 				ifconfig(argc, argv, NULL);
 				exit(0);
 			}
@@ -274,8 +278,12 @@ main(int argc, char *argv[])
 			sdl = NULL;
 		if (cp != NULL && strcmp(cp, ifa->ifa_name) == 0)
 			continue;
-		if (strlcpy(name, ifa->ifa_name, sizeof(name)) >= sizeof(name))
+		iflen = strlcpy(name, ifa->ifa_name, sizeof(name));
+		if (iflen >= sizeof(name)) {
+			warnx("%s: interface name too long, skipping",
+			    ifa->ifa_name);
 			continue;
+		}
 		cp = ifa->ifa_name;
 
 		if (downonly && (ifa->ifa_flags & IFF_UP) != 0)
