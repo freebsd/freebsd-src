@@ -810,8 +810,8 @@ targread(struct cdev *dev, struct uio *uio, int ioflag)
 	user_descr = TAILQ_FIRST(abort_queue);
 	while (ccb_h == NULL && user_descr == NULL) {
 		if ((ioflag & IO_NDELAY) == 0) {
-			error = msleep(user_queue, NULL,
-				       PRIBIO | PCATCH, "targrd", 0);
+			error = tsleep(user_queue,
+			    PRIBIO | PCATCH, "targrd", 0);
 			ccb_h = TAILQ_FIRST(user_queue);
 			user_descr = TAILQ_FIRST(abort_queue);
 			if (error != 0) {
@@ -1037,7 +1037,7 @@ abort_all_pending(struct targ_softc *softc)
 
 	/* If we aborted at least one pending CCB ok, wait for it. */
 	if (cab.ccb_h.status == CAM_REQ_CMP) {
-		msleep(&softc->pending_ccb_queue, NULL,
+		tsleep(&softc->pending_ccb_queue,
 		       PRIBIO | PCATCH, "tgabrt", 0);
 	}
 
