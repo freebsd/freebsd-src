@@ -688,7 +688,7 @@ ufs2_blksout(union dinode *dp, ufs2_daddr_t *blkp, int frags, ino_t ino,
 			else
 				spcl.c_addr[j - i] = 0;
 		spcl.c_count = count - i;
-		if (last && !writingextdata)
+		if (last && count == blks && !writingextdata)
 			added = appendextdata(dp);
 		writeheader(ino);
 		bp = &blkp[i / tbperdb];
@@ -701,7 +701,7 @@ ufs2_blksout(union dinode *dp, ufs2_daddr_t *blkp, int frags, ino_t ino,
 			}
 		spcl.c_type = TS_ADDR;
 		spcl.c_count = 0;
-		if (last && !writingextdata) {
+		if (last && count == blks && !writingextdata) {
 			writingextdata = 1;
 			writeextdata(dp, ino, added);
 			writingextdata = 0;
