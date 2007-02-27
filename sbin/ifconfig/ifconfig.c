@@ -239,6 +239,7 @@ main(int argc, char *argv[])
 			 */
 			if (argc > 0 && (strcmp(argv[0], "create") == 0 ||
 			    strcmp(argv[0], "plumb") == 0)) {
+				(void) strlcpy(name, ifname, sizeof(name));
 				ifconfig(argc, argv, NULL);
 				exit(0);
 			}
