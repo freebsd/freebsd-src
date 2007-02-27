@@ -317,6 +317,10 @@ struct umass_devdescr_t {
 #	define NO_INQUIRY_EVPD		0x0800
 	/* Pad all RBC requests to 12 bytes. */
 #	define RBC_PAD_TO_12		0x1000
+	/* Device reports number of sectors from READ_CAPACITY, not max
+	 * sector number.
+	 */
+#	define READ_CAPACITY_OFFBY1	0x2000
 };
 
 static struct umass_devdescr_t umass_devdescrs[] = {
@@ -445,6 +449,10 @@ static struct umass_devdescr_t umass_devdescrs[] = {
 	{ USB_VENDOR_PNY, USB_PRODUCT_PNY_ATTACHE2, RID_WILDCARD,
 	  UMASS_PROTO_SCSI | UMASS_PROTO_BBB,
 	  IGNORE_RESIDUE | NO_START_STOP
+	},
+	{ USB_VENDOR_SANDISK, USB_PRODUCT_SANDISK_SDDR31, RID_WILDCARD,
+	  UMASS_PROTO_SCSI | UMASS_PROTO_BBB,
+	  READ_CAPACITY_OFFBY1
 	},
 	{ USB_VENDOR_SANDISK, USB_PRODUCT_SANDISK_SDCZ2_256, RID_WILDCARD,
 	  UMASS_PROTO_SCSI | UMASS_PROTO_BBB,
@@ -2698,6 +2706,16 @@ umass_cam_cb(struct umass_softc *sc, void *priv, int residue, int status)
 	switch (status) {
 	case STATUS_CMD_OK:
 		ccb->ccb_h.status = CAM_REQ_CMP;
+		if ((sc->quirks & READ_CAPACITY_OFFBY1) &&
+		    (ccb->ccb_h.func_code == XPT_SCSI_IO) &&
+		    (csio->cdb_io.cdb_bytes[0] == READ_CAPACITY)) {
+			struct scsi_read_capacity_data *rcap;
+			uint32_t maxsector;
+
+			rcap = (struct scsi_read_capacity_data *)csio->data_ptr;
+			maxsector = scsi_4btoul(rcap->addr) - 1;
+			scsi_ulto4b(maxsector, rcap->addr);
+		}
 		xpt_done(ccb);
 		break;
 
