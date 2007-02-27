@@ -10,6 +10,7 @@ SUBDIR+=eli
 SUBDIR+=journal
 SUBDIR+=label
 SUBDIR+=mirror
+SUBDIR+=multipath
 SUBDIR+=nop
 SUBDIR+=raid3
 SUBDIR+=shsec
