@@ -531,6 +531,7 @@ sidewaysintpr(unsigned interval1, u_long off)
 	struct ifnet ifnet;
 	u_long firstifnet;
 	struct ifnethead ifnethead;
+	struct itimerval interval_it;
 	struct iftot *iftot, *ip, *ipn, *total, *sum, *interesting;
 	int line;
 	int oldmask, first;
@@ -583,7 +584,10 @@ sidewaysintpr(unsigned interval1, u_long off)
 
 	(void)signal(SIGALRM, catchalarm);
 	signalled = NO;
-	(void)alarm(interval1);
+	interval_it.it_interval.tv_sec = interval1;
+	interval_it.it_interval.tv_usec = 0;
+	interval_it.it_value = interval_it.it_interval;
+	setitimer(ITIMER_REAL, &interval_it, NULL);
 	first = 1;
 banner:
 	printf("%17s %14s %16s", "input",
@@ -668,12 +672,10 @@ loop:
 		putchar('\n');
 	fflush(stdout);
 	oldmask = sigblock(sigmask(SIGALRM));
-	if (! signalled) {
+	while (!signalled)
 		sigpause(0);
-	}
-	sigsetmask(oldmask);
 	signalled = NO;
-	(void)alarm(interval1);
+	sigsetmask(oldmask);
 	line++;
 	first = 0;
 	if (line == 21)
@@ -684,8 +686,8 @@ loop:
 }
 
 /*
- * Called if an interval expires before sidewaysintpr has completed a loop.
- * Sets a flag to not wait for the alarm.
+ * Set a flag to indicate that a signal from the periodic itimer has been
+ * caught.
  */
 static void
 catchalarm(int signo __unused)
