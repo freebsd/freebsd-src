@@ -1626,7 +1626,6 @@ restart:
 	}
 	mtx_unlock(&swhash_mtx);
 	if (sp->sw_used) {
-		int dummy;
 		/*
 		 * Objects may be locked or paging to the device being
 		 * removed, so we will miss their pages and need to
@@ -1638,7 +1637,7 @@ restart:
 			panic("swapoff: failed to locate %d swap blocks",
 			    sp->sw_used);
 		}
-		tsleep(&dummy, PVM, "swpoff", hz / 20);
+		pause("swpoff", hz / 20);
 		goto full_rescan;
 	}
 }

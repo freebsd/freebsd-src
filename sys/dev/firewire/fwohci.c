@@ -1280,14 +1280,13 @@ static int
 fwohci_itx_disable(struct firewire_comm *fc, int dmach)
 {
 	struct fwohci_softc *sc = (struct fwohci_softc *)fc;
-	int sleepch;
 
 	OWRITE(sc, OHCI_ITCTLCLR(dmach), 
 			OHCI_CNTL_DMA_RUN | OHCI_CNTL_CYCMATCH_S);
 	OWRITE(sc, OHCI_IT_MASKCLR, 1 << dmach);
 	OWRITE(sc, OHCI_IT_STATCLR, 1 << dmach);
 	/* XXX we cannot free buffers until the DMA really stops */
-	tsleep((void *)&sleepch, FWPRI, "fwitxd", hz);
+	pause("fwitxd", hz);
 	fwohci_db_free(&sc->it[dmach]);
 	sc->it[dmach].xferq.flag &= ~FWXFERQ_RUNNING;
 	return 0;
@@ -1297,13 +1296,12 @@ static int
 fwohci_irx_disable(struct firewire_comm *fc, int dmach)
 {
 	struct fwohci_softc *sc = (struct fwohci_softc *)fc;
-	int sleepch;
 
 	OWRITE(sc, OHCI_IRCTLCLR(dmach), OHCI_CNTL_DMA_RUN);
 	OWRITE(sc, OHCI_IR_MASKCLR, 1 << dmach);
 	OWRITE(sc, OHCI_IR_STATCLR, 1 << dmach);
 	/* XXX we cannot free buffers until the DMA really stops */
-	tsleep((void *)&sleepch, FWPRI, "fwirxd", hz);
+	pause("fwirxd", hz);
 	fwohci_db_free(&sc->ir[dmach]);
 	sc->ir[dmach].xferq.flag &= ~FWXFERQ_RUNNING;
 	return 0;

@@ -228,7 +228,7 @@ g_dev_close(struct cdev *dev, int flags, int fmt, struct thread *td)
 			break;
  		if (cp->nstart == cp->nend)
 			break;
-		tsleep(&i, PRIBIO, "gdevwclose", hz / 10);
+		pause("gdevwclose", hz / 10);
 		i += hz / 10;
 	}
 	if (cp->acr == 0 && cp->acw == 0 && cp->nstart != cp->nend) {
@@ -366,7 +366,7 @@ g_dev_strategy(struct bio *bp)
 		bp2 = g_clone_bio(bp);
 		if (bp2 != NULL)
 			break;
-		tsleep(&bp, PRIBIO, "gdstrat", hz / 10);
+		pause("gdstrat", hz / 10);
 	}
 	KASSERT(bp2 != NULL, ("XXX: ENOMEM in a bad place"));
 	bp2->bio_done = g_dev_done;
@@ -416,7 +416,7 @@ g_dev_orphan(struct g_consumer *cp)
 
 	/* Wait for the cows to come home */
 	while (cp->nstart != cp->nend)
-		tsleep(&dev, PRIBIO, "gdevorphan", hz / 10);
+		pause("gdevorphan", hz / 10);
 
 	if (cp->acr > 0 || cp->acw > 0 || cp->ace > 0)
 		g_access(cp, -cp->acr, -cp->acw, -cp->ace);

@@ -2114,7 +2114,7 @@ END_DEBUG
 	sbp_logout_all(sbp);
 
 	/* XXX wait for logout completion */
-	tsleep(&i, FWPRI, "sbpdtc", hz/2);
+	pause("sbpdtc", hz/2);
 
 	for (i = 0 ; i < SBP_NUM_TARGETS ; i ++)
 		sbp_free_target(&sbp->targets[i]);

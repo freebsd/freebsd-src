@@ -175,7 +175,7 @@ ssif_polled_request(struct ipmi_softc *sc, struct ipmi_request *req)
 	smbus_release_bus(smbus, dev);
 
 	/* Give the BMC 100ms to chew on the request. */
-	tsleep(&error, 0, "ssifwt", hz / 10);
+	pause("ssifwt", hz / 10);
 
 	/* Try to read the first packet. */
 read_start:
@@ -190,7 +190,7 @@ read_start:
 		device_printf(dev, "SSIF: READ_START retry\n");
 #endif
 		/* Give the BMC another 10ms. */
-		tsleep(&error, 0, "ssifwt", hz / 100);
+		pause("ssifwt", hz / 100);
 		goto read_start;
 	}
 	if (error) {
@@ -328,7 +328,7 @@ ssif_loop(void *arg)
 				break;
 
 			/* Wait 60 ms between retries. */
-			tsleep(&ok, 0, "retry", 60 * hz / 1000);
+			pause("retry", 60 * hz / 1000);
 #ifdef SSIF_RETRY_DEBUG
 			device_printf(sc->ipmi_dev,
 			    "SSIF: Retrying request (%d)\n", i + 1);
@@ -343,7 +343,7 @@ ssif_loop(void *arg)
 		IPMI_UNLOCK(sc);
 
 		/* Enforce 10ms between requests. */
-		tsleep(&ok, 0, "delay", hz / 100);
+		pause("delay", hz / 100);
 
 		IPMI_LOCK(sc);
 	}

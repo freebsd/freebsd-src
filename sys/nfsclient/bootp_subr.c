@@ -759,7 +759,7 @@ bootpc_call(struct bootpc_globalcontext *gctx, struct thread *td)
 			}
 
 			/* XXX: Is this needed ? */
-			tsleep(&error, PZERO + 8, "bootpw", 10);
+			pause("bootpw", hz/10);
 
 			/* Set netmask to 255.0.0.0 */
 
