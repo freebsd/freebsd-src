@@ -80,7 +80,7 @@ static devclass_t at91_rtc_devclass;
 static int at91_rtc_probe(device_t dev);
 static int at91_rtc_attach(device_t dev);
 static int at91_rtc_detach(device_t dev);
-static void at91_rtc_intr(void *);
+static int at91_rtc_intr(void *);
 
 /* helper routines */
 static int at91_rtc_activate(device_t dev);
