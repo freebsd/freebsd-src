@@ -961,18 +961,21 @@ fbsd_thread_store_registers (int regno)
       err = td_thr_getgregs_p (&th, gregset);
       if (err != TD_OK)
         error ("%s: td_thr_getgregs %s", __func__, thread_db_err_str (err));
-      err = td_thr_getfpregs_p (&th, &fpregset);
+#ifdef PT_GETXMMREGS
+      err = td_thr_getxmmregs_p (&th, xmmregs);
       if (err != TD_OK)
-        error ("%s: td_thr_getfpgregs %s", __func__, thread_db_err_str (err));
+        {
+#endif
+          err = td_thr_getfpregs_p (&th, &fpregset);
+          if (err != TD_OK)
+            error ("%s: td_thr_getfpgregs %s", __func__, thread_db_err_str (err));
+#ifdef PT_GETXMMREGS
+        }
+#endif
       supply_register (regno, old_value);
     }
 
   fill_gregset (gregset, regno);
-  fill_fpregset (&fpregset, regno);
-#ifdef PT_GETXMMREGS
-  i387_fill_fxsave (xmmregs, regno);
-#endif
-
   err = td_thr_setgregs_p (&th, gregset);
   if (err != TD_OK)
     error ("Cannot store general-purpose registers for thread %d: Thread ID=%d, %s",
@@ -980,11 +983,13 @@ fbsd_thread_store_registers (int regno)
            thread_db_err_str (err));
 
 #ifdef PT_GETXMMREGS
+  i387_fill_fxsave (xmmregs, regno);
   err = td_thr_setxmmregs_p (&th, xmmregs);
   if (err == TD_OK)
     return;
 #endif
 
+  fill_fpregset (&fpregset, regno);
   err = td_thr_setfpregs_p (&th, &fpregset);
   if (err != TD_OK)
     error ("Cannot store floating-point registers for thread %d: Thread ID=%d, %s",
