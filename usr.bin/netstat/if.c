@@ -74,8 +74,8 @@ __FBSDID("$FreeBSD$");
 #define	YES	1
 #define	NO	0
 
-static void sidewaysintpr (u_int, u_long);
-static void catchalarm (int);
+static void sidewaysintpr(int, u_long);
+static void catchalarm(int);
 
 #ifdef INET6
 static char ntop_buf[INET6_ADDRSTRLEN];		/* for inet_ntop() */
@@ -171,7 +171,7 @@ show_stat(const char *fmt, int width, u_long value, short showvalue)
  * Print a description of the network interfaces.
  */
 void
-intpr(int _interval, u_long ifnetaddr, void (*pfunc)(char *))
+intpr(int interval1, u_long ifnetaddr, void (*pfunc)(char *))
 {
 	struct ifnet ifnet;
 	struct ifnethead ifnethead;
@@ -206,8 +206,8 @@ intpr(int _interval, u_long ifnetaddr, void (*pfunc)(char *))
 		printf("ifnet: symbol not defined\n");
 		return;
 	}
-	if (_interval) {
-		sidewaysintpr((unsigned)_interval, ifnetaddr);
+	if (interval1) {
+		sidewaysintpr(interval1, ifnetaddr);
 		return;
 	}
 	if (kread(ifnetaddr, (char *)&ifnethead, sizeof ifnethead))
@@ -520,13 +520,13 @@ u_char	signalled;			/* set if alarm goes off "early" */
 
 /*
  * Print a running summary of interface statistics.
- * Repeat display every interval seconds, showing statistics
- * collected over that interval.  Assumes that interval is non-zero.
+ * Repeat display every interval1 seconds, showing statistics
+ * collected over that interval.  Assumes that interval1 is non-zero.
  * First line printed at top of screen is always cumulative.
  * XXX - should be rewritten to use ifmib(4).
  */
 static void
-sidewaysintpr(unsigned interval1, u_long off)
+sidewaysintpr(int interval1, u_long off)
 {
 	struct ifnet ifnet;
 	u_long firstifnet;
