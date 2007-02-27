@@ -150,8 +150,8 @@ _rw_rlock(struct rwlock *rw, const char *file, int line)
 #ifdef SMP
 	volatile struct thread *owner;
 #endif
-	uint64_t waitstart;
-	int contested;
+	uint64_t waitstart = 0;
+	int contested = 0;
 	uintptr_t x;
 
 	KASSERT(rw_wowner(rw) != curthread,
