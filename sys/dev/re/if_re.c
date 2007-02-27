@@ -1365,6 +1365,8 @@ re_detach(dev)
 		re_stop(sc);
 		RL_UNLOCK(sc);
 		callout_drain(&sc->rl_stat_callout);
+		taskqueue_drain(taskqueue_fast, &sc->rl_inttask);
+		taskqueue_drain(taskqueue_fast, &sc->rl_txtask);
 		/*
 		 * Force off the IFF_UP flag here, in case someone
 		 * still had a BPF descriptor attached to this
@@ -1397,10 +1399,6 @@ re_detach(dev)
 		bus_release_resource(dev, SYS_RES_IRQ, 0, sc->rl_irq);
 	if (sc->rl_res)
 		bus_release_resource(dev, RL_RES, RL_RID, sc->rl_res);
-
-	/* Yield the CPU long enough for any tasks to drain */
-
-        tsleep(sc, PPAUSE, "rewait", hz);
 
 	/* Unload and free the RX DMA ring memory and map */
 
