@@ -133,7 +133,7 @@ g_disk_access(struct g_provider *pp, int r, int w, int e)
 		if (dp->d_open != NULL) {
 			g_disk_lock_giant(dp);
 			error = dp->d_open(dp);
-			if (error != 0)
+			if (bootverbose && error != 0)
 				printf("Opened disk %s -> %d\n",
 				    pp->name, error);
 			g_disk_unlock_giant(dp);
