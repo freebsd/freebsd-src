@@ -122,6 +122,7 @@ static inline void lock_profile_obtain_lock_failed(struct lock_object *lo, int *
 
 	if (lock_prof_enable && *contested == 0) {
 		*waittime = nanoseconds();
+		lo->lo_flags |= LO_CONTESTED;
 		atomic_add_int(&l->lpo_contest_holding, 1);
 		*contested = 1;
 	}
@@ -137,8 +138,14 @@ static inline void lock_profile_obtain_lock_success(struct lock_object *lo, int 
 static inline void lock_profile_release_lock(struct lock_object *lo)
 {
 	struct lock_profile_object *l = &lo->lo_profile_obj;
-	if (lock_prof_enable || l->lpo_acqtime)
+#ifdef LOCK_PROFILING_FAST
+	if((lo->lo_flags & LO_CONTESTED) == 0)
+		return;
+#endif		
+	if (lock_prof_enable || l->lpo_acqtime) {
+		lo->lo_flags &= ~LO_CONTESTED;
 		_lock_profile_release_lock(lo);
+	}
 }
 
 #else /* !LOCK_PROFILING */
