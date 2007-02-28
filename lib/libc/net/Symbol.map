@@ -1,8 +1,6 @@
 # $FreeBSD$
 
 FBSD_1.0 {
-	addr2ascii;
-	ascii2addr;
 	__b64_ntop;
 	__b64_pton;
 	ether_line;

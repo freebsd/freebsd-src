@@ -4,7 +4,7 @@
 # machine-independent net sources
 .PATH: ${.CURDIR}/net
 
-SRCS+=	addr2ascii.c ascii2addr.c base64.c  ether_addr.c eui64.c \
+SRCS+=	base64.c ether_addr.c eui64.c \
 	gai_strerror.c getaddrinfo.c \
 	gethostbydns.c gethostbyht.c gethostbynis.c gethostnamadr.c \
 	getifaddrs.c getifmaddrs.c getnameinfo.c \
@@ -43,7 +43,7 @@ nslexer.c: nslexer.l nsparser.h
 	${LEX} ${LFLAGS} -o/dev/stdout ${.IMPSRC} | \
 		sed -e '/YY_BUF_SIZE/s/16384/1024/' >${.TARGET}
 
-MAN+=	addr2ascii.3 byteorder.3 ethers.3 eui64.3 \
+MAN+=	byteorder.3 ethers.3 eui64.3 \
 	getaddrinfo.3 gai_strerror.3 gethostbyname.3 \
 	getifaddrs.3 getifmaddrs.3 getipnodebyname.3 \
 	getnameinfo.3 getnetent.3 getprotoent.3 getservent.3 \
@@ -56,7 +56,6 @@ MAN+=	addr2ascii.3 byteorder.3 ethers.3 eui64.3 \
         sctp_getaddrlen.3 sctp_getassocid.3 sctp_getpaddrs.3 \
         sctp_opt_info.3 sctp_recvmsg.3 sctp_send.3 sctp_sendmsg.3 \
 
-MLINKS+=addr2ascii.3 ascii2addr.3
 MLINKS+=byteorder.3 htonl.3 byteorder.3 htons.3 byteorder.3 ntohl.3 \
 	byteorder.3 ntohs.3
 MLINKS+=ethers.3 ether_aton.3 ethers.3 ether_hostton.3 ethers.3 ether_line.3 \
