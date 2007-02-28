@@ -8,6 +8,10 @@ Items affecting the ports and packages system can be found in
 /usr/ports/UPDATING.  Please read that file before running
 portupgrade.
 
+20070228:	p15	FreeBSD-EN-07:04.zoneinfo
+	Update zoneinfo files for change in Daylight Savings Time that
+	begins in 2007.
+
 20070214:	p14	FreeBSD-EN-07:01.nfs
 	Correct problems with locking, namei leakage, and symlink
 	creation in the NFS subsystem.

@@ -9,11 +9,11 @@ LEAPFILE=
 .endif
 
 TZFILES=	africa antarctica asia australasia etcetera europe \
-		factory northamerica southamerica systemv
+		factory northamerica southamerica
 POSIXRULES=	America/New_York
 
 .if defined(OLDTIMEZONES)
-TZFILES+=	backward
+TZFILES+=	backward systemv
 .endif
 
 all: yearistype

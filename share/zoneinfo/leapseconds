@@ -1,4 +1,4 @@
-# @(#)leapseconds	7.20
+# @(#)leapseconds	8.1
 
 # Allowance for leapseconds added to each timezone file.
 
@@ -50,7 +50,7 @@ Leap	2005	Dec	31	23:59:60	+	S
 # SERVICE INTERNATIONAL DE LA ROTATION TERRESTRE ET DES SYSTEMES DE REFERENCE
 #
 # SERVICE DE LA ROTATION TERRESTRE
-# OBSERVATOIRE DE PARIS                                   
+# OBSERVATOIRE DE PARIS
 # 61, Av. de l'Observatoire 75014 PARIS (France)
 # Tel.      : 33 (0) 1 40 51 22 26
 # FAX       : 33 (0) 1 40 51 22 91
