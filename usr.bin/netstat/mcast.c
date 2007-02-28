@@ -132,11 +132,13 @@ ifmalist_dump_af(const struct ifmaddrs * const ifmap, int const af)
 			    (psa->sdl.sdl_type == IFT_ETHER)) {
 				pgroup =
 ether_ntoa((struct ether_addr *)&psa->sdl.sdl_data);
+#if 0	/* XXX */
 			} else {
 				pgroup = addr2ascii(AF_LINK,
 				    &psa->sdl,
 				    sizeof(struct sockaddr_dl),
 				    addrbuf);
+#endif
 			}
 			break;
 		default:
