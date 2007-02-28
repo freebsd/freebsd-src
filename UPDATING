@@ -21,6 +21,14 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 7.x IS SLOW:
 	developers choose to disable these features on build machines
 	to maximize performance.
 
+20070228:
+	The name resolution/mapping functions addr2ascii(3) and ascii2addr(3)
+	were removed from FreeBSD's libc. These originally came from INRIA
+	IPv6. Nothing in FreeBSD ever used them. They may be regarded as
+	deprecated in previous releases.
+	The AF_LINK support for getnameinfo(3) was merged from NetBSD to
+	replace it as a more portable (and re-entrant) API.
+
 20070224:
 	To support interrupt filtering a modification to the newbus API 
 	has occurred, ABI was broken and __FreeBSD_version was bumped
