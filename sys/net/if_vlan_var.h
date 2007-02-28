@@ -40,9 +40,40 @@ struct	ether_vlan_header {
 	u_int16_t evl_proto;
 };
 
-#define EVL_VLID_MASK	0x0FFF
-#define	EVL_VLANOFTAG(tag) ((tag) & EVL_VLID_MASK)
-#define	EVL_PRIOFTAG(tag) (((tag) >> 13) & 7)
+#define	EVL_VLID_MASK		0x0FFF
+#define	EVL_PRI_MASK		0xE000
+#define	EVL_VLANOFTAG(tag)	((tag) & EVL_VLID_MASK)
+#define	EVL_PRIOFTAG(tag)	(((tag) >> 13) & 7)
+#define	EVL_CFIOFTAG(tag)	(((tag) >> 12) & 1)
+#define	EVL_MAKETAG(vlid, pri, cfi)					\
+	((((((pri) & 7) << 1) | ((cfi) & 1)) << 12) | ((vlid) & EVL_VLID_MASK))
+
+/* Set the VLAN ID in an mbuf packet header non-destructively. */
+#define EVL_APPLY_VLID(m, vlid)						\
+	do {								\
+		if ((m)->m_flags & M_VLANTAG) {				\
+			(m)->m_pkthdr.ether_vtag &= EVL_VLID_MASK;	\
+			(m)->m_pkthdr.ether_vtag |= (vlid);		\
+		} else {						\
+			(m)->m_pkthdr.ether_vtag = (vlid);		\
+			(m)->m_flags |= M_VLANTAG;			\
+		}							\
+	} while (0)
+
+/* Set the priority ID in an mbuf packet header non-destructively. */
+#define EVL_APPLY_PRI(m, pri)						\
+	do {								\
+		if ((m)->m_flags & M_VLANTAG) {				\
+			uint16_t __vlantag = (m)->m_pkthdr.ether_vtag;	\
+			(m)->m_pkthdr.ether_vtag |= EVL_MAKETAG(	\
+			    EVL_VLANOFTAG(__vlantag), (pri),		\
+			    EVL_CFIOFTAG(__vlantag));			\
+		} else {						\
+			(m)->m_pkthdr.ether_vtag =			\
+			    EVL_MAKETAG(0, (pri), 0);			\
+			(m)->m_flags |= M_VLANTAG;			\
+		}							\
+	} while (0)
 
 /* sysctl(3) tags, for compatibility purposes */
 #define	VLANCTL_PROTO	1
