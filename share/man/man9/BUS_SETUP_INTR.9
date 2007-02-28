@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd January 6, 2005
+.Dd March 01, 2007
 .Dt BUS_SETUP_INTR 9
 .Os
 .Sh NAME
@@ -37,11 +37,21 @@
 .In sys/param.h
 .In sys/bus.h
 .Ft int
-.Fn BUS_SETUP_INTR "device_t dev" "device_t child" "struct resource *irq" "int flags" "driver_intr_t *intr" "void *arg" "void **cookiep"
+.Fo BUS_SETUP_INTR 
+.Fa "device_t dev" "device_t child" "struct resource *irq" "int flags" 
+.Fa "driver_filter_t *filter" "driver_intr_t *ithread" "void *arg" 
+.Fa "void **cookiep"
+.Fc
 .Ft int
-.Fn bus_setup_intr "device_t dev" "struct resource *r" "int flags" "driver_intr_t handler" "void *arg" "void **cookiep"
+.Fo bus_setup_intr 
+.Fa "device_t dev" "struct resource *r" "int flags" 
+.Fa "driver_filter_t filter" "driver_intr_t ithread" "void *arg" 
+.Fa "void **cookiep"
+.Fc
 .Ft int
-.Fn BUS_TEARDOWN_INTR "device_t dev" "device_t child" "struct resource *irq" "void *cookiep"
+.Fo BUS_TEARDOWN_INTR 
+.Fa "device_t dev" "device_t child" "struct resource *irq" "void *cookiep"
+.Fc
 .Ft int
 .Fn bus_teardown_intr "device_t dev" "struct resource *r" "void *cookiep"
 .Sh DESCRIPTION
@@ -61,11 +71,6 @@ The
 .Fa flags
 also tell the interrupt handlers about certain
 device driver characteristics.
-.Dv INTR_FAST
-means the handler is for a timing-critical function.
-Extra care is take to speed up these handlers.
-Use of this implies
-.Dv INTR_EXCL .
 .Dv INTR_EXCL
 marks the handler as being
 an exclusive handler for this interrupt.
@@ -79,8 +84,16 @@ to be protected by the ``Giant Lock'' mutex.
 marks the interrupt as being a good source of entropy -
 this may be used by the entropy device
 .Pa /dev/random .
-The handler
-.Fa intr
+.Pp
+To define a time-critical handler (previously known as
+.Dv INTR_FAST )
+that will not execute any potentially blocking operation, use the
+.Fa filter
+argument.
+Otherwise, use the
+.Fa ithread
+argument.
+The defined handler
 will be called with the value
 .Fa arg
 as its only argument.
