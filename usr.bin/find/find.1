@@ -75,7 +75,7 @@ Interpret regular expressions followed by
 .Ic -regex
 and
 .Ic -iregex
-options as extended (modern) regular expressions rather than basic
+primaries as extended (modern) regular expressions rather than basic
 regular expressions (BRE's).
 The
 .Xr re_format 7
@@ -144,7 +144,9 @@ This option is equivalent to the
 .Ic -depth
 primary of
 .St -p1003.1-2001 .
+The
 .Fl d
+option
 can be useful when
 .Nm
 is used with
@@ -210,7 +212,7 @@ Please refer to the
 .Ic -atime
 primary description for information on supported time units.
 .It Ic -acl
-May be used in conjunction with other options to locate
+May be used in conjunction with other primaries to locate
 files with extended ACLs.
 See
 .Xr acl 3
@@ -465,7 +467,7 @@ displayed preceded by
 .Dq Li -> .
 The format is identical to that produced by
 .Bk -words
-.Nm ls Fl dgils .
+.Dq Nm ls Fl dgils .
 .Ek
 .It Ic -maxdepth Ar n
 Always true; descend at most
@@ -475,7 +477,7 @@ If any
 .Ic -maxdepth
 primary is specified, it applies to the entire expression even if it would
 not normally be evaluated.
-.Ic -maxdepth Li 0
+.Dq Ic -maxdepth Li 0
 limits the whole search to the command line arguments.
 .It Ic -mindepth Ar n
 Always true; do not apply any tests or actions at levels less than
@@ -484,7 +486,7 @@ If any
 .Ic -mindepth
 primary is specified, it applies to the entire expression even if it would
 not normally be evaluated.
-.Ic -mindepth Li 1
+.Dq Ic -mindepth Li 1
 processes all but the command line arguments.
 .It Ic -mmin Ar n
 True if the difference between the file last modification time and the time
@@ -531,21 +533,21 @@ True if the current file has a more recent last modification time than
 .Ar file .
 .It Ic -newer Ns Ar X Ns Ar Y Ar file
 True if the current file has a more recent last access time
-.Ar ( X Ns = Ns Cm a ) ,
+.Pq Ar X Ns = Ns Cm a ,
 inode creation time
-.Ar ( X Ns = Ns Cm B ) ,
+.Pq Ar X Ns = Ns Cm B ,
 change time
-.Ar ( X Ns = Ns Cm c ) ,
+.Pq Ar X Ns = Ns Cm c ,
 or modification time
-.Ar ( X Ns = Ns Cm m )
+.Pq Ar X Ns = Ns Cm m
 than the last access time
-.Ar ( Y Ns = Ns Cm a ) ,
+.Pq Ar Y Ns = Ns Cm a ,
 inode creation time
-.Ar ( Y Ns = Ns Cm B ) ,
+.Pq Ar Y Ns = Ns Cm B ,
 change time
-.Ar ( Y Ns = Ns Cm c ) ,
+.Pq Ar Y Ns = Ns Cm c ,
 or modification time
-.Ar ( Y Ns = Ns Cm m )
+.Pq Ar Y Ns = Ns Cm m
 of
 .Ar file .
 In addition, if
@@ -717,7 +719,6 @@ terabytes (1024 gigabytes)
 .It Cm P
 petabytes (1024 terabytes)
 .El
-.Pp
 .It Ic -type Ar t
 True if the file is of the specified type.
 Possible file types are as follows:
@@ -763,7 +764,7 @@ and neither means
 The primaries may be combined using the following operators.
 The operators are listed in order of decreasing precedence.
 .Pp
-.Bl -tag -width "( expression )" -compact
+.Bl -tag -width indent -compact
 .It Cm \&( Ar expression Cm \&)
 This evaluates to true if the parenthesized expression evaluates to
 true.
@@ -887,15 +888,15 @@ utility syntax is a superset of the syntax specified by the
 standard.
 .Pp
 All the single character options except
-.Ic -H
+.Fl H
 and
-.Ic -L
+.Fl L
 as well as
 .Ic -amin , -anewer , -cmin , -cnewer , -delete , -empty , -fstype ,
 .Ic -iname , -inum , -iregex , -ls , -maxdepth , -mindepth , -mmin ,
 .Ic -path , -print0 , -regex
 and all of the
-.Ic -B
+.Ic -B*
 birthtime related primaries are extensions to
 .St -p1003.1-2001 .
 .Pp
