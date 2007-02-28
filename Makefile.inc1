@@ -235,37 +235,30 @@ LIB32CPUTYPE=	k8
 .else
 LIB32CPUTYPE=	${TARGET_CPUTYPE}
 .endif
-LIB32PREFLAGS=	-m32 -march=${LIB32CPUTYPE} -mfancy-math-387 -DCOMPAT_32BIT
-LIB32POSTFLAGS=	-I${LIB32TMP}/usr/include \
+LIB32FLAGS=	-m32 -march=${LIB32CPUTYPE} -mfancy-math-387 -DCOMPAT_32BIT \
+		-iprefix ${LIB32TMP}/usr/ \
 		-L${LIB32TMP}/usr/lib32 \
 		-B${LIB32TMP}/usr/lib32
-LIB32CC=	${LIB32PREFLAGS} \
-		${LIB32POSTFLAGS}
-LIB32CXX=	${LIB32PREFLAGS} -I${LIB32TMP}/usr/include/c++/3.4 \
-		${LIB32POSTFLAGS}
-LIB32OBJC=	${LIB32PREFLAGS} -I${LIB32TMP}/usr/include/objc \
-		${LIB32POSTFLAGS}
 
 # Yes, the flags are redundant.
-LIB32MAKEENV=	MAKEOBJDIRPREFIX=${OBJTREE}/lib32 \
+LIB32WMAKEENV=	MAKEOBJDIRPREFIX=${OBJTREE}/lib32 \
 		_SHLIBDIRPREFIX=${LIB32TMP} \
 		MACHINE=i386 \
 		MACHINE_ARCH=i386 \
 		INSTALL="sh ${.CURDIR}/tools/install.sh" \
 		PATH=${TMPPATH} \
-		CC="${CC} ${LIB32CC}" \
-		CXX="${CXX} ${LIB32CXX}" \
-		OBJC="${OBJC} ${LIB32OBJC}" \
+		CC="${CC} ${LIB32FLAGS}" \
+		CXX="${CXX} ${LIB32FLAGS}" \
+		OBJC="${OBJC} ${LIB32FLAGS}" \
 		LD="${LD} -m elf_i386_fbsd -Y P,${LIB32TMP}/usr/lib32" \
 		AS="${AS} --32" \
 		LIBDIR=/usr/lib32 \
 		SHLIBDIR=/usr/lib32
 
-LIB32MAKE=	${LIB32MAKEENV} ${MAKE} -DNO_CPU_CFLAGS -DCOMPAT_32BIT \
+LIB32WMAKE=	${LIB32WMAKEENV} ${MAKE} -DNO_CPU_CFLAGS -DCOMPAT_32BIT \
 		-DWITHOUT_BIND -DWITHOUT_MAN -DWITHOUT_NLS -DWITHOUT_INFO \
-		-DWITHOUT_HTML
-LIB32WMAKE=	${LIB32MAKE} -fMakefile.inc1 DESTDIR=${LIB32TMP}
-LIB32IMAKE=	${LIB32MAKE:NINSTALL=*} -DNO_INCS
+		-DWITHOUT_HTML DESTDIR=${LIB32TMP}
+LIB32IMAKE=	${LIB32WMAKE:NINSTALL=*:NDESTDIR=*} -DNO_INCS
 .endif
 
 # install stage
@@ -365,7 +358,7 @@ _cleanobj:
 	@echo "--------------------------------------------------------------"
 	${_+_}cd ${.CURDIR}; ${WMAKE} ${CLEANDIR:S/^/par-/}
 .if ${TARGET_ARCH} == "amd64"
-	${_+_}cd ${.CURDIR}; ${LIB32WMAKE} ${CLEANDIR:S/^/par-/}
+	${_+_}cd ${.CURDIR}; ${LIB32WMAKE} -f Makefile.inc1 ${CLEANDIR:S/^/par-/}
 .endif
 .endif
 _obj:
@@ -435,34 +428,28 @@ build32:
 .endfor
 .endif
 .for _t in obj includes
-	cd ${.CURDIR}/include; \
-	    ${LIB32MAKE} DESTDIR=${LIB32TMP} ${_t}
-	cd ${.CURDIR}/lib; \
-	    ${LIB32MAKE} DESTDIR=${LIB32TMP} ${_t}
-	cd ${.CURDIR}/gnu/lib; \
-	    ${LIB32MAKE} DESTDIR=${LIB32TMP} ${_t}
+	cd ${.CURDIR}/include; ${LIB32WMAKE} ${_t}
+	cd ${.CURDIR}/lib; ${LIB32WMAKE} ${_t}
+	cd ${.CURDIR}/gnu/lib; ${LIB32WMAKE} ${_t}
 .if ${MK_CRYPT} != "no"
-	cd ${.CURDIR}/secure/lib; \
-	    ${LIB32MAKE} DESTDIR=${LIB32TMP} ${_t}
+	cd ${.CURDIR}/secure/lib; ${LIB32WMAKE} ${_t}
 .endif
 .if ${MK_KERBEROS} != "no"
-	cd ${.CURDIR}/kerberos5/lib; \
-	    ${LIB32MAKE} DESTDIR=${LIB32TMP} ${_t}
+	cd ${.CURDIR}/kerberos5/lib; ${LIB32WMAKE} ${_t}
 .endif
 .endfor
 .for _dir in usr.bin/lex/lib
-	cd ${.CURDIR}/${_dir}; \
-	    ${LIB32MAKE} DESTDIR=${LIB32TMP} obj
+	cd ${.CURDIR}/${_dir}; ${LIB32WMAKE} obj
 .endfor
 .for _dir in lib/ncurses/ncurses lib/libmagic
 	cd ${.CURDIR}/${_dir}; \
 	    MAKEOBJDIRPREFIX=${OBJTREE}/lib32 ${MAKE} DESTDIR= build-tools
 .endfor
 	cd ${.CURDIR}; \
-	    ${LIB32MAKE} -f Makefile.inc1 DESTDIR=${LIB32TMP} libraries 
+	    ${LIB32WMAKE} -f Makefile.inc1 libraries
 .for _t in obj depend all
 	cd ${.CURDIR}/libexec/rtld-elf; \
-	    PROG=ld-elf32.so.1 ${LIB32MAKE} DESTDIR=${LIB32TMP} ${_t}
+	    PROG=ld-elf32.so.1 ${LIB32WMAKE} ${_t}
 .endfor
 
 distribute32 install32:
