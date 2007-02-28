@@ -133,6 +133,8 @@ static int register_send __P((struct ip6_hdr *, struct mif6 *,
 	    struct mbuf *));
 
 extern struct domain inet6domain;
+
+/* XXX: referenced from ip_mroute.c for dynamically loading this code. */
 struct ip6protosw in6_pim_protosw = {
 	.pr_type =		SOCK_RAW,
 	.pr_domain =		&inet6domain,
@@ -144,18 +146,13 @@ struct ip6protosw in6_pim_protosw = {
 	.pr_usrreqs =		&rip6_usrreqs
 };
 
-/*
- * Globals.  All but ip6_mrtproto and mrt6stat could be static,
- * except for netstat or debugging purposes.
- */
-int		ip6_mrouter_ver = 0;
-int		ip6_mrtproto = IPPROTO_PIM;    /* for netstat only */
+static int ip6_mrouter_ver = 0;
 
 SYSCTL_DECL(_net_inet6);
 SYSCTL_DECL(_net_inet6_ip6);
 SYSCTL_NODE(_net_inet6, IPPROTO_PIM, pim, CTLFLAG_RW, 0, "PIM");
 
-struct mrt6stat	mrt6stat;
+static struct mrt6stat mrt6stat;
 SYSCTL_STRUCT(_net_inet6_ip6, OID_AUTO, mrt6stat, CTLFLAG_RW,
     &mrt6stat, mrt6stat,
     "Multicast Routing Statistics (struct mrt6stat, netinet6/ip6_mroute.h)");
@@ -163,13 +160,13 @@ SYSCTL_STRUCT(_net_inet6_ip6, OID_AUTO, mrt6stat, CTLFLAG_RW,
 #define NO_RTE_FOUND 	0x1
 #define RTE_FOUND	0x2
 
-struct mf6c	*mf6ctable[MF6CTBLSIZ];
+static struct mf6c *mf6ctable[MF6CTBLSIZ];
 SYSCTL_OPAQUE(_net_inet6_ip6, OID_AUTO, mf6ctable, CTLFLAG_RD,
     &mf6ctable, sizeof(mf6ctable), "S,*mf6ctable[MF6CTBLSIZ]",
     "Multicast Forwarding Table (struct *mf6ctable[MF6CTBLSIZ], "
     "netinet6/ip6_mroute.h)");
 
-u_char		n6expire[MF6CTBLSIZ];
+static u_char n6expire[MF6CTBLSIZ];
 
 static struct mif6 mif6table[MAXMIFS];
 SYSCTL_OPAQUE(_net_inet6_ip6, OID_AUTO, mif6table, CTLFLAG_RD,
@@ -177,7 +174,7 @@ SYSCTL_OPAQUE(_net_inet6_ip6, OID_AUTO, mif6table, CTLFLAG_RD,
     "Multicast Interfaces (struct mif[MAXMIFS], netinet6/ip6_mroute.h)");
 
 #ifdef MRT6DEBUG
-u_int		mrt6debug = 0;	  /* debug level 	*/
+static u_int mrt6debug = 0;		/* debug level */
 #define DEBUG_MFC	0x02
 #define DEBUG_FORWARD	0x04
 #define DEBUG_EXPIRE	0x08
@@ -282,7 +279,7 @@ static int pim6;
 
 #ifdef UPCALL_TIMING
 #define UPCALL_MAX	50
-u_long upcall_data[UPCALL_MAX + 1];
+static u_long upcall_data[UPCALL_MAX + 1];
 static void collate();
 #endif /* UPCALL_TIMING */
 
