@@ -18,7 +18,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd December 20, 2004
+.Dd February 28, 2007
 .Dt GETNAMEINFO 3
 .Os
 .Sh NAME
@@ -47,15 +47,29 @@ functions and is the converse of the
 .Xr getaddrinfo 3
 function.
 .Pp
+If a link-layer address is passed to
+.Fn getnameinfo ,
+its ASCII representation will be stored in
+.Fa host .
+The string pointed to by
+.Fa serv
+will be set to the empty string if non-NULL;
+.Fa flags
+will always be ignored.
+This is intended as a replacement for the legacy
+.Xr link_ntoa 3
+function.
+.Pp
 The
 .Li sockaddr
 structure
 .Fa sa
 should point to either a
-.Li sockaddr_in
-or
+.Li sockaddr_in ,
 .Li sockaddr_in6
-structure (for IPv4 or IPv6 respectively) that is
+or
+.Li sockaddr_dl
+structure (for IPv4, IPv6 or link-layer respectively) that is
 .Fa salen
 bytes long.
 .Pp
@@ -166,6 +180,7 @@ printf("host=%s\en", hbuf);
 .Xr gethostbyaddr 3 ,
 .Xr getservbyport 3 ,
 .Xr inet_ntop 3 ,
+.Xr link_ntoa 3 ,
 .Xr resolver 3 ,
 .Xr hosts 5 ,
 .Xr resolv.conf 5 ,
