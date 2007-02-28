@@ -1155,6 +1155,8 @@ after_listen:
 			tp->ts_recent = to.to_tsval;
 			tp->ts_recent_age = ticks;
 		}
+		/* Initial send window, already scaled. */
+		tp->snd_wnd = th->th_win;
 		if (to.to_flags & TOF_MSS)
 			tcp_mss(tp, to.to_mss);
 		if (tp->sack_enable) {
@@ -1483,9 +1485,6 @@ after_listen:
 		}
 		if ((thflags & TH_SYN) == 0)
 			goto drop;
-
-		/* Initial send window, already scaled. */
-		tp->snd_wnd = th->th_win;
 
 		tp->irs = th->th_seq;
 		tcp_rcvseqinit(tp);
