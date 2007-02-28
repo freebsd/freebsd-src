@@ -32,7 +32,7 @@
 .\"     From: @(#)tcp.4	8.1 (Berkeley) 6/5/93
 .\" $FreeBSD$
 .\"
-.Dd January 22, 2007
+.Dd February 28, 2007
 .Dt TCP 4
 .Os
 .Sh NAME
@@ -475,7 +475,8 @@ which allows the receiver to inform the sender about all successfully
 arrived segments, allowing the sender to retransmit the missing segments
 only.
 .It Va sack.maxholes
-Maximum number of SACK holes per connection. Defaults to 128.
+Maximum number of SACK holes per connection.
+Defaults to 128.
 .It Va sack.globalmaxholes
 Maximum number of SACK holes per system, across all connections. 
 Defaults to 65536.
@@ -503,14 +504,15 @@ Recycle
 .Dv FIN_WAIT_2 
 connections faster when the socket is marked as 
 "CANTRCVMORE" (no user process has the socket open, data received on 
-the socket cannot be read). The timeout used here is 
-.Va finwait2_timeout.
+the socket cannot be read).
+The timeout used here is 
+.Va finwait2_timeout .
 .It Va finwait2_timeout
 Timeout to use for fast recycling of 
 .Tn TCP
 .Dv FIN_WAIT_2 
-connections. Defaults to 
-60 seconds.
+connections.
+Defaults to 60 seconds.
 .El
 .Sh ERRORS
 A socket operation may fail with one of the following errors returned:
