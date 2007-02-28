@@ -1259,8 +1259,10 @@ out:
 				tp->t_flags &= ~TF_TSO;
 			tcp_mtudisc(tp->t_inpcb, 0);
 			return (0);
+		case EHOSTDOWN:
 		case EHOSTUNREACH:
 		case ENETDOWN:
+		case ENETUNREACH:
 			if (TCPS_HAVERCVDSYN(tp->t_state)) {
 				tp->t_softerror = error;
 				return (0);
