@@ -474,9 +474,11 @@ Enable support for RFC 2018, TCP Selective Acknowledgment option,
 which allows the receiver to inform the sender about all successfully
 arrived segments, allowing the sender to retransmit the missing segments
 only.
-.It Va sack.initburst
-Control the number of SACK retransmissions done upon initiation of SACK
-recovery.
+.It Va sack.maxholes
+Maximum number of SACK holes per connection. Defaults to 128.
+.It Va sack.globalmaxholes
+Maximum number of SACK holes per system, across all connections. 
+Defaults to 65536.
 .It Va maxtcptw
 When a TCP connection enters the
 .Dv TIME_WAIT
@@ -495,6 +497,20 @@ By default, it is initialized to
 .It Va nolocaltimewait
 Suppress creating of compressed TCP TIME_WAIT states for connections in
 which both endpoints are local.
+.It Va fast_finwait2_recycle
+Recycle 
+.Tn TCP 
+.Dv FIN_WAIT_2 
+connections faster when the socket is marked as 
+"CANTRCVMORE" (no user process has the socket open, data received on 
+the socket cannot be read). The timeout used here is 
+.Va finwait2_timeout.
+.It Va finwait2_timeout
+Timeout to use for fast recycling of 
+.Tn TCP
+.Dv FIN_WAIT_2 
+connections. Defaults to 
+60 seconds.
 .El
 .Sh ERRORS
 A socket operation may fail with one of the following errors returned:
