@@ -146,6 +146,17 @@ SYSCTL_OPAQUE(_net_inet_ip, OID_AUTO, mfctable, CTLFLAG_RD,
     &mfctable, sizeof(mfctable), "S,*mfc[MFCTBLSIZ]",
     "Multicast Forwarding Table (struct *mfc[MFCTBLSIZ], netinet/ip_mroute.h)");
 
+static struct mtx mrouter_mtx;
+#define	MROUTER_LOCK()		mtx_lock(&mrouter_mtx)
+#define	MROUTER_UNLOCK()	mtx_unlock(&mrouter_mtx)
+#define	MROUTER_LOCK_ASSERT()	do {					\
+	mtx_assert(&mrouter_mtx, MA_OWNED);				\
+	NET_ASSERT_GIANT();						\
+} while (0)
+#define	MROUTER_LOCK_INIT()	\
+	mtx_init(&mrouter_mtx, "IPv4 multicast forwarding", NULL, MTX_DEF)
+#define	MROUTER_LOCK_DESTROY()	mtx_destroy(&mrouter_mtx)
+
 static struct mtx mfc_mtx;
 #define	MFC_LOCK()	mtx_lock(&mfc_mtx)
 #define	MFC_UNLOCK()	mtx_unlock(&mfc_mtx)
@@ -637,8 +648,6 @@ ip_mrouter_reset(void)
     callout_init(&bw_meter_ch, NET_CALLOUT_MPSAFE);
 }
 
-static struct mtx mrouter_mtx;
-
 static void
 if_detached_event(void *arg __unused, struct ifnet *ifp)
 {
@@ -650,9 +659,9 @@ if_detached_event(void *arg __unused, struct ifnet *ifp)
     struct rtdetq *pq;
     struct rtdetq *npq;
 
-    mtx_lock(&mrouter_mtx);
+    MROUTER_LOCK();
     if (ip_mrouter == NULL) {
-	mtx_unlock(&mrouter_mtx);
+	MROUTER_UNLOCK();
     }
 
     /*
@@ -696,7 +705,7 @@ if_detached_event(void *arg __unused, struct ifnet *ifp)
     MFC_UNLOCK();
     VIF_UNLOCK();
 
-    mtx_unlock(&mrouter_mtx);
+    MROUTER_UNLOCK();
 }
                         
 /*
@@ -715,17 +724,17 @@ ip_mrouter_init(struct socket *so, int version)
     if (version != 1)
 	return ENOPROTOOPT;
 
-    mtx_lock(&mrouter_mtx);
+    MROUTER_LOCK();
 
     if (ip_mrouter != NULL) {
-	mtx_unlock(&mrouter_mtx);
+	MROUTER_UNLOCK();
 	return EADDRINUSE;
     }
 
     if_detach_event_tag = EVENTHANDLER_REGISTER(ifnet_departure_event, 
         if_detached_event, NULL, EVENTHANDLER_PRI_ANY);
     if (if_detach_event_tag == NULL) {
-	mtx_unlock(&mrouter_mtx);
+	MROUTER_UNLOCK();
 	return (ENOMEM);
     }
 
@@ -737,7 +746,7 @@ ip_mrouter_init(struct socket *so, int version)
 
     ip_mrouter = so;
 
-    mtx_unlock(&mrouter_mtx);
+    MROUTER_UNLOCK();
 
     if (mrtdebug)
 	log(LOG_DEBUG, "ip_mrouter_init\n");
@@ -758,10 +767,10 @@ X_ip_mrouter_done(void)
     struct mfc *rt;
     struct rtdetq *rte;
 
-    mtx_lock(&mrouter_mtx);
+    MROUTER_LOCK();
 
     if (ip_mrouter == NULL) {
-	mtx_unlock(&mrouter_mtx);
+	MROUTER_UNLOCK();
 	return EINVAL;
     }
 
@@ -826,7 +835,7 @@ X_ip_mrouter_done(void)
 
     reg_vif_num = VIFI_INVALID;
 
-    mtx_unlock(&mrouter_mtx);
+    MROUTER_UNLOCK();
 
     if (mrtdebug)
 	log(LOG_DEBUG, "ip_mrouter_done\n");
@@ -3027,7 +3036,7 @@ ip_mroute_modevent(module_t mod, int type, void *unused)
 {
     switch (type) {
     case MOD_LOAD:
-	mtx_init(&mrouter_mtx, "mrouter initialization", NULL, MTX_DEF);
+	MROUTER_LOCK_INIT();
 	MFC_LOCK_INIT();
 	VIF_LOCK_INIT();
 	ip_mrouter_reset();
@@ -3040,7 +3049,7 @@ ip_mroute_modevent(module_t mod, int type, void *unused)
 		printf("ip_mroute: unable to attach pim encap\n");
 		VIF_LOCK_DESTROY();
 		MFC_LOCK_DESTROY();
-		mtx_destroy(&mrouter_mtx);
+		MROUTER_LOCK_DESTROY();
 		return (EINVAL);
 	}
 
@@ -3055,7 +3064,7 @@ ip_mroute_modevent(module_t mod, int type, void *unused)
 		}
 		VIF_LOCK_DESTROY();
 		MFC_LOCK_DESTROY();
-		mtx_destroy(&mrouter_mtx);
+		MROUTER_LOCK_DESTROY();
 		return (EINVAL);
 	}
 #endif
@@ -3131,7 +3140,7 @@ ip_mroute_modevent(module_t mod, int type, void *unused)
 
 	VIF_LOCK_DESTROY();
 	MFC_LOCK_DESTROY();
-	mtx_destroy(&mrouter_mtx);
+	MROUTER_LOCK_DESTROY();
 	break;
 
     default:
