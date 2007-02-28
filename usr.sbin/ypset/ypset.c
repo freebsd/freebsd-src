@@ -101,7 +101,7 @@ bind_tohost(struct sockaddr_in *sin, char *dom, char *server)
 		(xdrproc_t)xdr_ypbind_setdom, &ypsd,
 		(xdrproc_t)xdr_void, NULL, tv);
 	if (r) {
-		warnx("sorry, cannot ypset for domain %s on host", dom);
+		warnx("sorry, cannot ypset for domain %s on host - make sure ypbind was started with -ypset or -ypsetme", dom);
 		clnt_destroy(client);
 		return (YPERR_YPBIND);
 	}
