@@ -8,6 +8,12 @@ Items affecting the ports and packages system can be found in
 /usr/ports/UPDATING.  Please read that file before running
 portupgrade.
 
+20070228:	p2	FreeBSD-EN-07:02.net FreeBSD-EN-07:03.rc.d_jail
+	Fix behavior of IPv6 over point-to-point gif(4) interfaces.
+	[EN-07:02]
+
+	Fix rc.d jail script interface IP alias removal. [EN-07:03]
+
 20070209:	p1	FreeBSD-SA-07:02.bind
 	Correct two remote denials of service in BIND involving DNSSEC and
 	recursive DNS queries respectively.
