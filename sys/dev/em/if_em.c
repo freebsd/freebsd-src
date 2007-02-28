@@ -2191,7 +2191,7 @@ em_allocate_intr(struct adapter *adapter)
 	taskqueue_start_threads(&adapter->tq, 1, PI_NET, "%s taskq",
 	    device_get_nameunit(adapter->dev));
 	if ((error = bus_setup_intr(dev, adapter->res_interrupt,
-	    INTR_TYPE_NET, em_intr_fast, NULL, adapter,
+	    INTR_TYPE_NET, NULL, em_intr_fast, adapter,
 	    &adapter->int_handler_tag)) != 0) {
 		device_printf(dev, "Failed to register fast interrupt "
 			    "handler: %d\n", error);
