@@ -35,12 +35,12 @@
 .\"     @(#)cut.1	8.1 (Berkeley) 6/6/93
 .\" $FreeBSD$
 .\"
-.Dd June 28, 2004
+.Dd December 21, 2006
 .Dt CUT 1
 .Os
 .Sh NAME
 .Nm cut
-.Nd select portions of each line of a file
+.Nd cut out selected portions of each line of a file
 .Sh SYNOPSIS
 .Nm
 .Fl b Ar list
@@ -57,7 +57,7 @@
 .Sh DESCRIPTION
 The
 .Nm
-utility selects portions of each line (as specified by
+utility cuts out selected portions of each line (as specified by
 .Ar list )
 from each
 .Ar file
@@ -85,7 +85,7 @@ and a second number
 and select the fields or columns from the first number to the second,
 inclusive.
 Numbers or number ranges may be preceded by a dash, which selects all
-fields or columns from 1 to the first number.
+fields or columns from 1 to the last number.
 Numbers or number ranges may be followed by a dash, which selects all
 fields or columns from the last number to the end of the line.
 Numbers and number ranges may be repeated, overlapping, and in any order.
@@ -129,10 +129,9 @@ The
 .Ev LANG , LC_ALL
 and
 .Ev LC_CTYPE
-environment variables affect the execution of the
+environment variables affect the execution of
 .Nm
-utility.
-Their effect is described in
+as described in
 .Xr environ 7 .
 .Sh EXIT STATUS
 .Ex -std
