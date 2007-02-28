@@ -800,11 +800,11 @@ uipc_send(struct socket *so, int flags, struct mbuf *m, struct sockaddr *nam,
 		 * correct error that the socket is not connected.
 		 */
 		UNP_PCB_LOCK_ASSERT(unp);
-		UNP_PCB_LOCK(unp2);
 		if (unp2 == NULL) {
 			error = ENOTCONN;
 			break;
 		}
+		UNP_PCB_LOCK(unp2);
 		so2 = unp2->unp_socket;
 		if (unp->unp_addr != NULL)
 			from = (struct sockaddr *)unp->unp_addr;
