@@ -121,6 +121,7 @@
 
 static MALLOC_DEFINE(M_MRTABLE6, "mf6c", "multicast forwarding cache entry");
 
+/* XXX: this is a very common idiom; move to <sys/mbuf.h> ? */
 #define M_HASCL(m) ((m)->m_flags & M_EXT)
 
 static int ip6_mdq __P((struct mbuf *, struct ifnet *, struct mf6c *));
@@ -253,6 +254,7 @@ static int pim6;
 /*
  * Macros to compute elapsed time efficiently
  * Borrowed from Van Jacobson's scheduling code
+ * XXX: replace with timersub() ?
  */
 #define TV_DELTA(a, b, delta) do { \
 	    int xxs; \
@@ -272,6 +274,7 @@ static int pim6;
 	    } \
 } while (/*CONSTCOND*/ 0)
 
+/* XXX: replace with timercmp(a, b, <) ? */
 #define TV_LT(a, b) (((a).tv_usec < (b).tv_usec && \
 	      (a).tv_sec <= (b).tv_sec) || (a).tv_sec < (b).tv_sec)
 
