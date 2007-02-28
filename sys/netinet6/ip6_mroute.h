@@ -103,9 +103,6 @@ struct mif6ctl {
 	mifi_t	    mif6c_mifi;	    	/* the index of the mif to be added  */
 	u_char	    mif6c_flags;     	/* MIFF_ flags defined below         */
 	u_short	    mif6c_pifi;		/* the index of the physical IF */
-#ifdef notyet
-	u_int	    mif6c_rate_limit;    /* max rate           		     */
-#endif
 };
 
 #define	MIFF_REGISTER	0x1	/* mif represents a register end-point */
@@ -209,9 +206,6 @@ struct sioc_mif_req6 {
 struct mif6 {
         u_char   	m6_flags;     	/* MIFF_ flags defined above         */
 	u_int      	m6_rate_limit; 	/* max rate			     */
-#ifdef notyet
-	struct tbf      *m6_tbf;      	/* token bucket structure at intf.   */
-#endif
 	struct in6_addr	m6_lcl_addr;   	/* local interface address           */
 	struct ifnet    *m6_ifp;     	/* pointer to interface              */
 	u_quad_t	m6_pkt_in;	/* # pkts in on interface            */

@@ -231,9 +231,7 @@ static int pim6;
 
 /*
  * Find a route for a given origin IPv6 address and Multicast group address.
- * Quality of service parameter to be added in the future!!!
  */
-
 #define MF6CFIND(o, g, rt) do { \
 	struct mf6c *_rt = mf6ctable[MF6CHASH(o,g)]; \
 	rt = NULL; \
@@ -543,10 +541,6 @@ X_ip6_mrouter_done(void)
 			}
 		}
 	}
-#ifdef notyet
-	bzero((caddr_t)qtable, sizeof(qtable));
-	bzero((caddr_t)tbftable, sizeof(tbftable));
-#endif
 	bzero((caddr_t)mif6table, sizeof(mif6table));
 	nummifs = 0;
 
@@ -612,9 +606,6 @@ add_m6if(mifcp)
 	struct mif6 *mifp;
 	struct ifnet *ifp;
 	int error, s;
-#ifdef notyet
-	struct tbf *m_tbf = tbftable + mifcp->mif6c_mifi;
-#endif
 
 	if (mifcp->mif6c_mifi >= MAXMIFS)
 		return (EINVAL);
@@ -660,10 +651,7 @@ add_m6if(mifcp)
 	s = splnet();
 	mifp->m6_flags     = mifcp->mif6c_flags;
 	mifp->m6_ifp       = ifp;
-#ifdef notyet
-	/* scaling up here allows division by 1024 in critical code */
-	mifp->m6_rate_limit = mifcp->mif6c_rate_limit * 1024 / 1000;
-#endif
+
 	/* initialize per mif pkt counters */
 	mifp->m6_pkt_in    = 0;
 	mifp->m6_pkt_out   = 0;
@@ -723,10 +711,6 @@ del_m6if(mifip)
 		}
 	}
 
-#ifdef notyet
-	bzero((caddr_t)qtable[*mifip], sizeof(qtable[*mifip]));
-	bzero((caddr_t)mifp->m6_tbf, sizeof(*(mifp->m6_tbf)));
-#endif
 	bzero((caddr_t)mifp, sizeof(*mifp));
 
 	/* Adjust nummifs down */
