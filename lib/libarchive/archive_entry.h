@@ -130,6 +130,7 @@ void	archive_entry_set_rdevmajor(struct archive_entry *, dev_t);
 void	archive_entry_set_rdevminor(struct archive_entry *, dev_t);
 void	archive_entry_set_size(struct archive_entry *, int64_t);
 void	archive_entry_set_symlink(struct archive_entry *, const char *);
+void	archive_entry_copy_symlink(struct archive_entry *, const char *);
 void	archive_entry_copy_symlink_w(struct archive_entry *, const wchar_t *);
 void	archive_entry_set_uid(struct archive_entry *, uid_t);
 void	archive_entry_set_uname(struct archive_entry *, const char *);
