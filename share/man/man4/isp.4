@@ -69,15 +69,16 @@ and utilizes Class 3 and Class 2 connections (Qlogic 2100 is Class
 3 only, minor patches to the Qlogic 2200 to force Class 2 mode).
 Support is available for Public and Private loops, and for
 point-to-point connections (Qlogic 2200 only).
-The newer 2-Gigabit cards (2300, 2312, 2322) and 4-Gigabit(2422, 2432)
+The newer 2-Gigabit cards (2300, 2312, 2322) and 4-Gigabit (2422, 2432)
 are also supported.
 Command tagging is
 supported for all (in fact,
 .Tn FibreChannel
 requires tagging).
-Fabric support is enabled by default for other than 2100 cards. Fabric
+Fabric support is enabled by default for other than 2100 cards.
+Fabric
 support for 2100 cards has been so problematic and these cards are so
-old now that it's just not worth your time to try it.
+old now that it is just not worth your time to try it.
 .Sh FIRMWARE
 Firmware is available if the
 .Xr ispfw 4
@@ -187,7 +188,8 @@ to use, overriding the value in NVRAM for the card.
 This should be the full 64 bit World Wide Node Name you would like
 to use, overriding the value in NVRAM for the card.
 .It Va hint.isp.0.iid
-A hint to override or set the Initiator ID or Loop ID. For Fibre Channel
+A hint to override or set the Initiator ID or Loop ID.
+For Fibre Channel
 cards in Local Loop topologies it is
 .Ar strongly
 recommended that you set this value to non-zero.
@@ -203,12 +205,14 @@ for the values.
 .Bl -tag -width indent
 .It Va dev.isp.N.loop_down_limit
 This value says how long to wait in seconds after loop has gone down before
-giving up and expiring all of the devices that were visible. The default is
-300 seconds (5 minutes). A seperate (nonadjustable) timeout is used when
+giving up and expiring all of the devices that were visible.
+The default is 300 seconds (5 minutes).
+A seperate (nonadjustable) timeout is used when
 booting to not stop booting on lack of FC connectivity.
 .It Va dev.isp.N.gone_device_time
 This value says how long to wait for devices to reappear if they (temporarily)
-disappear due to loop or fabric events. While this timeout is running, I/O
+disappear due to loop or fabric events.
+While this timeout is running, I/O
 to those devices will simply be held.
 .It Va dev.isp.N.wwnn
 This is the readonly World Wide Node Name value for this port.
