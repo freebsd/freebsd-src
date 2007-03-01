@@ -132,7 +132,7 @@ ifmalist_dump_af(const struct ifmaddrs * const ifmap, int const af)
 			    (psa->sdl.sdl_type == IFT_ETHER)) {
 				pgroup =
 ether_ntoa((struct ether_addr *)&psa->sdl.sdl_data);
-#if 0	/* XXX */
+#ifdef notyet
 			} else {
 				pgroup = addr2ascii(AF_LINK,
 				    &psa->sdl,
@@ -154,12 +154,14 @@ ether_ntoa((struct ether_addr *)&psa->sdl.sdl_data);
 					/* IEEE 802 */
 					plladdr =
 ether_ntoa((struct ether_addr *)&psa->sdl.sdl_data);
+#ifdef notyet
 				} else {
 					/* something more exotic */
 					plladdr = addr2ascii(AF_LINK,
 					    &psa->sdl,
 					    sizeof(struct sockaddr_dl),
 					    addrbuf);
+#endif
 				}
 			} else {
 				/* not a link-layer address */
