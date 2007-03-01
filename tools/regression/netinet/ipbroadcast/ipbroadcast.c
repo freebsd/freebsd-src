@@ -56,6 +56,7 @@ __FBSDID("$FreeBSD$");
 
 #define DEFAULT_PORT		6698
 #define DEFAULT_PAYLOAD_SIZE	24
+#define DEFAULT_TTL		1
 #define MY_CMSG_SIZE	CMSG_SPACE(sizeof(struct in_addr))
 
 static char *progname = NULL;
@@ -65,7 +66,7 @@ usage(void)
 {
 
 	fprintf(stderr,
-"usage: %s [-1] [-b] [-B] [-d] [-l len] [-p port] [-r] [-s srcaddr] \n"
+"usage: %s [-1] [-b] [-B] [-d] [-l len] [-p port] [-r] [-s srcaddr] [-t ttl]\n"
 "    <dest>\n",
 	    progname);
 	fprintf(stderr, "IPv4 broadcast test program. Sends a %d byte UDP "
@@ -77,10 +78,11 @@ usage(void)
 #if 0
 	fprintf(stderr, "-r: Fill datagram with random bytes\n");
 #endif
-	fprintf(stderr, "-s: Set IP_SENDSRCADDR to <srcaddr>\n");
 	fprintf(stderr, "-l: Set payload size to <len>\n");
 	fprintf(stderr, "-p: Set source and destination port (default: %d)\n",
 	    DEFAULT_PORT);
+	fprintf(stderr, "-s: Set IP_SENDSRCADDR to <srcaddr>\n");
+	fprintf(stderr, "-t: Set IP_TTL to <ttl>\n");
 
 	exit(EXIT_FAILURE);
 }
@@ -110,6 +112,7 @@ main(int argc, char *argv[])
 	int			 s;
 	socklen_t		 soptlen;
 	int			 soptval;
+	int			 ttl;
 
 	dobind = 0;
 	dobroadcast = 0;
@@ -120,12 +123,13 @@ main(int argc, char *argv[])
 	dstaddr.s_addr = INADDR_ANY;
 	srcaddr_s = NULL;
 	portno = DEFAULT_PORT;
+	ttl = DEFAULT_TTL;
 
 	buf = NULL;
 	buflen = DEFAULT_PAYLOAD_SIZE;
 
 	progname = basename(argv[0]);
-	while ((ch = getopt(argc, argv, "1bBdl:p:rs:")) != -1) {
+	while ((ch = getopt(argc, argv, "1bBdl:p:rs:t:")) != -1) {
 		switch (ch) {
 		case '1':
 			doonesbcast = 1;
@@ -150,6 +154,9 @@ main(int argc, char *argv[])
 			break;
 		case 's':
 			srcaddr_s = optarg;
+			break;
+		case 't':
+			ttl = atoi(optarg);
 			break;
 		default:
 			usage();
@@ -191,6 +198,15 @@ main(int argc, char *argv[])
 			close(s);
 			exit(EXIT_FAILURE);
 		}
+	}
+
+	soptval = ttl;
+	soptlen = sizeof(soptval);
+	ret = setsockopt(s, IPPROTO_IP, IP_TTL, &soptval, soptlen);
+	if (ret == -1) {
+		perror("setsockopt IPPROTO_IP IP_TTL");
+		close(s);
+		exit(EXIT_FAILURE);
 	}
 
 	if (doonesbcast) {
