@@ -774,21 +774,18 @@ uipc_send(struct socket *so, int flags, struct mbuf *m, struct sockaddr *nam,
 
 		unp2 = unp->unp_conn;
 		if (nam != NULL) {
+			UNP_GLOBAL_WLOCK_ASSERT();
 			if (unp2 != NULL) {
 				error = EISCONN;
-				UNP_PCB_LOCK(unp);
 				break;
 			}
 			error = unp_connect(so, nam, td);
-			UNP_PCB_LOCK(unp);
 			if (error)
 				break;
 			unp2 = unp->unp_conn;
 		} else {
-			UNP_PCB_LOCK(unp);
 			if (unp2 == NULL) {
 				error = ENOTCONN;
-				UNP_PCB_LOCK(unp);
 				break;
 			}
 		}
@@ -799,19 +796,19 @@ uipc_send(struct socket *so, int flags, struct mbuf *m, struct sockaddr *nam,
 		 * return the slightly counter-intuitive but otherwise
 		 * correct error that the socket is not connected.
 		 */
-		UNP_PCB_LOCK_ASSERT(unp);
 		if (unp2 == NULL) {
 			error = ENOTCONN;
 			break;
 		}
-		UNP_PCB_LOCK(unp2);
-		so2 = unp2->unp_socket;
+		/* Lockless read. */
+		if (unp2->unp_flags & UNP_WANTCRED)
+			control = unp_addsockcred(td, control);
+		UNP_PCB_LOCK(unp);
 		if (unp->unp_addr != NULL)
 			from = (struct sockaddr *)unp->unp_addr;
 		else
 			from = &sun_noname;
-		if (unp2->unp_flags & UNP_WANTCRED)
-			control = unp_addsockcred(td, control);
+		so2 = unp2->unp_socket;
 		SOCKBUF_LOCK(&so2->so_rcv);
 		if (sbappendaddr_locked(&so2->so_rcv, from, m, control)) {
 			sorwakeup_locked(so2);
@@ -821,9 +818,13 @@ uipc_send(struct socket *so, int flags, struct mbuf *m, struct sockaddr *nam,
 			SOCKBUF_UNLOCK(&so2->so_rcv);
 			error = ENOBUFS;
 		}
-		if (nam != NULL)
+		if (nam != NULL) {
+			UNP_GLOBAL_WLOCK_ASSERT();
+			UNP_PCB_LOCK(unp2);
 			unp_disconnect(unp, unp2);
-		UNP_PCB_UNLOCK(unp2);
+			UNP_PCB_UNLOCK(unp2);
+		}
+		UNP_PCB_UNLOCK(unp);
 		break;
 	}
 
@@ -836,18 +837,15 @@ uipc_send(struct socket *so, int flags, struct mbuf *m, struct sockaddr *nam,
 		 */
 		if ((so->so_state & SS_ISCONNECTED) == 0) {
 			if (nam != NULL) {
+				UNP_GLOBAL_WLOCK_ASSERT();
 				error = unp_connect(so, nam, td);
-				UNP_PCB_LOCK(unp);
 				if (error)
 					break;	/* XXX */
 			} else {
 				error = ENOTCONN;
-				UNP_PCB_LOCK(unp);
 				break;
 			}
-		} else
-			UNP_PCB_LOCK(unp);
-		UNP_PCB_LOCK_ASSERT(unp);
+		}
 
 		/* Lockless read. */
 		if (so->so_snd.sb_state & SBS_CANTSENDMORE) {
@@ -874,13 +872,12 @@ uipc_send(struct socket *so, int flags, struct mbuf *m, struct sockaddr *nam,
 			error = ENOTCONN;
 			break;
 		}
-		UNP_PCB_LOCK(unp2);
 		so2 = unp2->unp_socket;
+		UNP_PCB_LOCK(unp2);
 		SOCKBUF_LOCK(&so2->so_rcv);
 		if (unp2->unp_flags & UNP_WANTCRED) {
 			/*
-			 * Credentials are passed only once on
-			 * SOCK_STREAM.
+			 * Credentials are passed only once on SOCK_STREAM.
 			 */
 			unp2->unp_flags &= ~UNP_WANTCRED;
 			control = unp_addsockcred(td, control);
@@ -915,14 +912,14 @@ uipc_send(struct socket *so, int flags, struct mbuf *m, struct sockaddr *nam,
 	}
 
 	/*
-	 * SEND_EOF is equivalent to a SEND followed by
-	 * a SHUTDOWN.
+	 * SEND_EOF is equivalent to a SEND followed by a SHUTDOWN.
 	 */
 	if (flags & PRUS_EOF) {
+		UNP_PCB_LOCK(unp);
 		socantsendmore(so);
 		unp_shutdown(unp);
+		UNP_PCB_UNLOCK(unp);
 	}
-	UNP_PCB_UNLOCK(unp);
 
 	if ((nam != NULL) || (flags & PRUS_EOF))
 		UNP_GLOBAL_WUNLOCK();
