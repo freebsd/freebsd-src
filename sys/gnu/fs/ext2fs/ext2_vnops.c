@@ -596,7 +596,7 @@ ext2_chown(vp, uid, gid, cred, td)
 	ip->i_gid = gid;
 	ip->i_uid = uid;
 	ip->i_flag |= IN_CHANGE;
-	if (ouid != uid || ogid != gid) {
+	if ((ip->i_mode & (ISUID | ISGID)) && (ouid != uid || ogid != gid)) {
 		if (priv_check_cred(cred, PRIV_VFS_CLEARSUGID,
 		    SUSER_ALLOWJAIL) != 0)
 			ip->i_mode &= ~(ISUID | ISGID);
