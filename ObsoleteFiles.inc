@@ -14,6 +14,8 @@
 # The file is partitioned: OLD_FILES first, then OLD_LIBS and OLD_DIRS last.
 #
 
+# 20070301: remove addr2ascii and ascii2addr
+OLD_FILES+=usr/share/man/man3/addr2ascii.3.gz
 # 20070225: vm_page_unmanage() removed
 OLD_FILES+=usr/share/man/man9/vm_page_unmanage.9.gz
 # 20070212: kame.4 removed
