@@ -801,13 +801,14 @@ send:
 	 * IP, TCP and Options length to keep ip->ip_len from
 	 * overflowing.  Prevent the last segment from being
 	 * fractional thus making them all equal sized and set
-	 * the flag to continue sending.
+	 * the flag to continue sending.  TSO is disabled when
+	 * IP options or IPSEC are present.
 	 */
 	if (len + optlen + ipoptlen > tp->t_maxopd) {
 		flags &= ~TH_FIN;
 		if (tso) {
 			if (len > TCP_MAXWIN - hdrlen) {
-				len = TCP_MAXWIN - hdrlen;
+				len = TCP_MAXWIN - hdrlen - optlen;
 				len = len - (len % (tp->t_maxopd - optlen));
 				sendalot = 1;
 			} else if (tp->t_flags & TF_NEEDFIN)
