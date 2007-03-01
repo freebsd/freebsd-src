@@ -55,7 +55,7 @@ __FBSDID("$FreeBSD$");
 static int ata_generic_chipinit(device_t dev);
 static void ata_generic_intr(void *data);
 static void ata_generic_setmode(device_t dev, int mode);
-static void ata_sata_phy_enable(struct ata_channel *ch);
+static void ata_sata_phy_reset(device_t dev);
 static void ata_sata_phy_event(void *context, int dummy);
 static int ata_sata_connect(struct ata_channel *ch);
 static void ata_sata_setmode(device_t dev, int mode);
@@ -97,7 +97,6 @@ static void ata_intel_new_setmode(device_t dev, int mode);
 static int ata_intel_31244_allocate(device_t dev);
 static int ata_intel_31244_status(device_t dev);
 static int ata_intel_31244_command(struct ata_request *request);
-static void ata_intel_31244_reset(device_t dev);
 static int ata_ite_chipinit(device_t dev);
 static void ata_ite_setmode(device_t dev, int mode);
 static int ata_jmicron_chipinit(device_t dev);
@@ -123,7 +122,6 @@ static int ata_netcell_allocate(device_t dev);
 static int ata_nvidia_chipinit(device_t dev);
 static int ata_nvidia_allocate(device_t dev);
 static int ata_nvidia_status(device_t dev);
-static void ata_nvidia_reset(device_t dev);
 static int ata_promise_chipinit(device_t dev);
 static int ata_promise_allocate(device_t dev);
 static int ata_promise_status(device_t dev);
@@ -159,11 +157,11 @@ static void ata_sii_reset(device_t dev);
 static void ata_sii_setmode(device_t dev, int mode);
 static int ata_sis_chipinit(device_t dev);
 static int ata_sis_allocate(device_t dev);
-static void ata_sis_reset(device_t dev);
 static void ata_sis_setmode(device_t dev, int mode);
 static int ata_via_chipinit(device_t dev);
 static int ata_via_allocate(device_t dev);
 static void ata_via_reset(device_t dev);
+static void ata_via_setmode(device_t dev, int mode);
 static void ata_via_southbridge_fixup(device_t dev);
 static void ata_via_family_setmode(device_t dev, int mode);
 static struct ata_chip_id *ata_match_chip(device_t dev, struct ata_chip_id *index);
@@ -229,8 +227,9 @@ ata_generic_setmode(device_t dev, int mode)
  * SATA support functions
  */
 static void
-ata_sata_phy_enable(struct ata_channel *ch)
+ata_sata_phy_reset(device_t dev)
 {
+    struct ata_channel *ch = device_get_softc(dev);
     int loop, retry;
 
     if ((ATA_IDX_INL(ch, ATA_SCONTROL) & ATA_SC_DET_MASK) == ATA_SC_DET_IDLE) {
@@ -705,7 +704,7 @@ ata_ahci_reset(device_t dev)
     ATA_OUTL(ctlr->r_res2, ATA_AHCI_P_CMD + offset, ATA_AHCI_P_CMD_SUD);
 
     /* enable interface */
-    ata_sata_phy_enable(ch);
+    ata_sata_phy_reset(dev);
 
     /* no ATAPI yet */
     if (ch->devices & ATA_ATAPI_MASTER) {
@@ -1752,7 +1751,7 @@ ata_intel_chipinit(device_t dev)
 		return ENXIO;
 	    ctlr->channels = 4;
 	    ctlr->allocate = ata_intel_31244_allocate;
-	    ctlr->reset = ata_intel_31244_reset;
+	    ctlr->reset = ata_sata_phy_reset;
 	}
 	ctlr->setmode = ata_sata_setmode;
     }
@@ -2041,14 +2040,6 @@ ata_intel_31244_command(struct ata_request *request)
     ATA_IDX_OUTB(ch, ATA_COMMAND, request->u.ata.command);
 
     return 0;
-}
-
-static void
-ata_intel_31244_reset(device_t dev)
-{
-    struct ata_channel *ch = device_get_softc(dev);
-
-    ata_sata_phy_enable(ch);
 }
 
 
@@ -2763,7 +2754,7 @@ ata_marvell_edma_reset(device_t dev)
     ATA_OUTL(ctlr->r_res1, 0x0200c + ATA_MV_EDMA_BASE(ch), ~0x0);
 
     /* enable channel and test for devices */
-    ata_sata_phy_enable(ch);
+    ata_sata_phy_reset(dev);
 
     /* enable EDMA machinery */
     ATA_OUTL(ctlr->r_res1, 0x02028 + ATA_MV_EDMA_BASE(ch), 0x00000001);
@@ -2980,7 +2971,7 @@ ata_nvidia_chipinit(device_t dev)
 	    int offset = ctlr->chip->cfg2 & NV4 ? 0x0440 : 0x0010;
 
 	    ctlr->allocate = ata_nvidia_allocate;
-	    ctlr->reset = ata_nvidia_reset;
+	    ctlr->reset = ata_sata_phy_reset;
 
 	    /* enable control access */
 	    pci_write_config(dev, 0x50, pci_read_config(dev, 0x50, 1) | 0x04,1);
@@ -3093,14 +3084,6 @@ ata_nvidia_status(device_t dev)
 
     /* do we have any device action ? */
     return (status & (0x01 << shift));
-}
-
-static void
-ata_nvidia_reset(device_t dev)
-{
-    struct ata_channel *ch = device_get_softc(dev);
-
-    ata_sata_phy_enable(ch);
 }
 
 
@@ -3772,7 +3755,7 @@ ata_promise_mio_reset(device_t dev)
 	if ((ctlr->chip->cfg2 == PRSATA) ||
 	    ((ctlr->chip->cfg2 == PRCMBO) && (ch->unit < 2))) {
 
-	    ata_sata_phy_enable(ch);
+	    ata_sata_phy_reset(dev);
 
 	    /* reset and enable plug/unplug intr */
 	    ATA_OUTL(ctlr->r_res2, 0x06c, (0x00000011 << ch->unit));
@@ -3807,7 +3790,7 @@ ata_promise_mio_reset(device_t dev)
 		     (ATA_INL(ctlr->r_res2, 0x414 + (ch->unit << 8)) &
 		     ~0x00000003) | 0x00000001);
 
-	    ata_sata_phy_enable(ch);
+	    ata_sata_phy_reset(dev);
 
 	    /* reset and enable plug/unplug intr */
 	    ATA_OUTL(ctlr->r_res2, 0x060, (0x00000011 << ch->unit));
@@ -4544,7 +4527,7 @@ ata_sii_reset(device_t dev)
     ATA_OUTL(ctlr->r_res2, 0x48,
 	     ATA_INL(ctlr->r_res2, 0x48) & ~(0xc0 >> ch->unit));
 
-    ata_sata_phy_enable(ch);
+    ata_sata_phy_reset(dev);
 
     /* enable PHY state change interrupt */
     ATA_OUTL(ctlr->r_res2, 0x148 + offset, (1 << 16));
@@ -4730,7 +4713,7 @@ ata_sis_chipinit(device_t dev)
 	if ((ctlr->r_res2 = bus_alloc_resource_any(dev, ctlr->r_type2,
 						   &ctlr->r_rid2, RF_ACTIVE))) {
 	    ctlr->allocate = ata_sis_allocate;
-	    ctlr->reset = ata_sis_reset;
+	    ctlr->reset = ata_sata_phy_reset;
 
 	    /* enable PCI interrupt */
 	    pci_write_config(dev, PCIR_COMMAND,
@@ -4768,15 +4751,6 @@ ata_sis_allocate(device_t dev)
     /* XXX SOS unknown how to enable PHY state change interrupt */
     return 0;
 }
-
-static void
-ata_sis_reset(device_t dev)
-{
-    struct ata_channel *ch = device_get_softc(dev);
-
-    ata_sata_phy_enable(ch);
-}
-
 
 static void
 ata_sis_setmode(device_t dev, int mode)
@@ -4938,7 +4912,13 @@ ata_via_chipinit(device_t dev)
 	    pci_write_config(dev, PCIR_COMMAND,
 			     pci_read_config(dev, PCIR_COMMAND, 2) & ~0x0400,2);
 	}
-	ctlr->setmode = ata_sata_setmode;
+
+	if (ctlr->chip->cfg2 & VIABAR) {
+	    ctlr->channels = 3;
+	    ctlr->setmode = ata_via_setmode;
+	}
+	else
+	    ctlr->setmode = ata_sata_setmode;
 	return 0;
     }
 
@@ -4999,6 +4979,8 @@ ata_via_allocate(device_t dev)
 	    ch->r_io[i].offset = (i - ATA_BMCMD_PORT)+(ch->unit * ATA_BMIOSIZE);
 	}
 	ata_pci_hw(dev);
+	if (ch->unit > 1)
+	    return 0;
     }
     else {
 	/* setup the usual register normal pci style */
@@ -5022,9 +5004,46 @@ ata_via_allocate(device_t dev)
 static void
 ata_via_reset(device_t dev)
 {
+    struct ata_pci_controller *ctlr = device_get_softc(device_get_parent(dev));
     struct ata_channel *ch = device_get_softc(dev);
 
-    ata_sata_phy_enable(ch);
+    if ((ctlr->chip->cfg2 & VIABAR) && (ch->unit > 1))
+	ata_generic_reset(dev);
+    else
+	ata_sata_phy_reset(dev);
+}
+
+static void
+ata_via_setmode(device_t dev, int mode)
+{
+    device_t gparent = GRANDPARENT(dev);
+    struct ata_pci_controller *ctlr = device_get_softc(gparent);
+    struct ata_channel *ch = device_get_softc(device_get_parent(dev));
+    struct ata_device *atadev = device_get_softc(dev);
+    int error;
+
+    if ((ctlr->chip->cfg2 & VIABAR) && (ch->unit > 1)) {
+        u_int8_t pio_timings[] = { 0xa8, 0x65, 0x65, 0x32, 0x20,
+				   0x65, 0x32, 0x20,
+				   0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20 };
+        u_int8_t dma_timings[] = { 0xee, 0xe8, 0xe6, 0xe4, 0xe2, 0xe1, 0xe0 };
+
+	mode = ata_check_80pin(dev, ata_limit_mode(dev, mode, ATA_UDMA6));
+	error = ata_controlcmd(dev, ATA_SETFEATURES, ATA_SF_SETXFER, 0, mode);
+	if (bootverbose)
+	    device_printf(dev, "%ssetting %s on %s chip\n",
+			  (error) ? "FAILURE " : "", ata_mode2str(mode),
+			  ctlr->chip->text);
+	if (!error) {
+	    pci_write_config(gparent, 0xab, pio_timings[ata_mode2idx(mode)], 1);
+	    if (mode >= ATA_UDMA0)
+		pci_write_config(gparent, 0xb3,
+				 dma_timings[mode & ATA_MODE_MASK], 1);
+	    atadev->mode = mode;
+	}
+    }
+    else
+	ata_sata_setmode(dev, mode);
 }
 
 static void
@@ -5065,7 +5084,7 @@ ata_via_family_setmode(device_t dev, int mode)
     struct ata_channel *ch = device_get_softc(device_get_parent(dev));
     struct ata_device *atadev = device_get_softc(dev);
     u_int8_t timings[] = { 0xa8, 0x65, 0x42, 0x22, 0x20, 0x42, 0x22, 0x20,
-			   0x20, 0x20, 0x20, 0x20, 0x20, 0x20 };
+			   0x20, 0x20, 0x20, 0x20, 0x20, 0x20, 0x20 };
     int modes[][7] = {
 	{ 0xc2, 0xc1, 0xc0, 0x00, 0x00, 0x00, 0x00 },   /* VIA ATA33 */
 	{ 0xee, 0xec, 0xea, 0xe9, 0xe8, 0x00, 0x00 },   /* VIA ATA66 */
