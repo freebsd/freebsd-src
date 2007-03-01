@@ -62,4 +62,6 @@ struct kthr *kgdb_thr_next(struct kthr *);
 struct kthr *kgdb_thr_select(struct kthr *);
 char        *kgdb_thr_extra_thread_info(int);
 
+uintptr_t kgdb_lookup(const char *sym);
+
 #endif /* _KGDB_H_ */
