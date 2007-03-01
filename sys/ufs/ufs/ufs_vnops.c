@@ -584,7 +584,7 @@ ufs_setattr(ap)
 		 * the file or be the super-user.
 		 *
 		 * Possibly for historical reasons, try to use VADMIN in
-		 * preference to VADMIN for a NULL timestamp.  This means we
+		 * preference to VWRITE for a NULL timestamp.  This means we
 		 * will return EACCES in preference to EPERM if neither
 		 * check succeeds.
 		 */
