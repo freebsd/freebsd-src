@@ -238,7 +238,7 @@
 #define	PRIV_VFS_CHFLAGS_DEV	316	/* Can chflags() a device node. */
 #define	PRIV_VFS_CHOWN		317	/* Can set user; group to non-member. */
 #define	PRIV_VFS_CHROOT		318	/* chroot(). */
-#define	PRIV_VFS_CLEARSUGID	319	/* Don't clear sugid on change. */
+#define	PRIV_VFS_RETAINSUGID	319	/* Can retain sugid bits on change. */
 #define	PRIV_VFS_EXCEEDQUOTA	320	/* Exempt from quota restrictions. */
 #define	PRIV_VFS_EXTATTR_SYSTEM	321	/* Operate on system EA namespace. */
 #define	PRIV_VFS_FCHROOT	322	/* fchroot(). */
