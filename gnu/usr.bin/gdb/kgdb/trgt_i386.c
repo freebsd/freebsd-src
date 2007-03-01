@@ -134,6 +134,8 @@ kgdb_trgt_trapframe_prev_register(struct frame_info *next_frame,
 	char dummy_valuep[MAX_REGISTER_SIZE];
 	struct kgdb_frame_cache *cache;
 	int ofs, regsz;
+	static int ofs_fix = 0;
+	static int ofs_fixed = 0;
 
 	regsz = register_size(current_gdbarch, regnum);
 
@@ -145,8 +147,27 @@ kgdb_trgt_trapframe_prev_register(struct frame_info *next_frame,
 	*lvalp = not_lval;
 	*realnump = -1;
 
+	if (!ofs_fixed) {
+		uintptr_t calltrap_addr;
+		char calltrap[1];
+
+		calltrap_addr = kgdb_lookup("calltrap");
+		if (calltrap_addr != 0) {
+			if (kvm_read(kvm, calltrap_addr, calltrap,
+				     sizeof(calltrap)) != sizeof(calltrap)) {
+				warnx("kvm_read: %s", kvm_geterr(kvm));
+			} else if (calltrap[0] == 0x54) /* push %esp */ {
+				/*
+				 * To accomodate for rev. 1.117 of
+				 * i386/i386/exception.s
+				 */
+				ofs_fix = 4;
+			}
+		}
+		ofs_fixed = 1;
+	}
 	ofs = (regnum >= I386_EAX_REGNUM && regnum <= I386_FS_REGNUM)
-	    ? kgdb_trgt_frame_offset[regnum] : -1;
+	    ? kgdb_trgt_frame_offset[regnum] + ofs_fix : -1;
 	if (ofs == -1)
 		return;
 
