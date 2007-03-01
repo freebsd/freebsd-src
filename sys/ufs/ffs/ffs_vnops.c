@@ -788,11 +788,13 @@ ffs_write(ap)
 	 * we clear the setuid and setgid bits as a precaution against
 	 * tampering.
 	 */
-	if (resid > uio->uio_resid && ap->a_cred && 
-	    priv_check_cred(ap->a_cred, PRIV_VFS_CLEARSUGID,
-	    SUSER_ALLOWJAIL)) {
-		ip->i_mode &= ~(ISUID | ISGID);
-		DIP_SET(ip, i_mode, ip->i_mode);
+	if ((ip->i_mode & (ISUID | ISGID)) && resid > uio->uio_resid &&
+	    ap->a_cred) {
+		if (priv_check_cred(ap->a_cred, PRIV_VFS_CLEARSUGID,
+		    SUSER_ALLOWJAIL)) {
+			ip->i_mode &= ~(ISUID | ISGID);
+			DIP_SET(ip, i_mode, ip->i_mode);
+		}
 	}
 	if (error) {
 		if (ioflag & IO_UNIT) {
@@ -1115,10 +1117,12 @@ ffs_extwrite(struct vnode *vp, struct uio *uio, int ioflag, struct ucred *ucred)
 	 * we clear the setuid and setgid bits as a precaution against
 	 * tampering.
 	 */
-	if (resid > uio->uio_resid && ucred && 
-	    priv_check_cred(ucred, PRIV_VFS_CLEARSUGID, SUSER_ALLOWJAIL)) {
-		ip->i_mode &= ~(ISUID | ISGID);
-		dp->di_mode = ip->i_mode;
+	if ((ip->i_mode & (ISUID | ISGID)) && resid > uio->uio_resid && ucred) {
+		if (priv_check_cred(ap->a_cred, PRIV_VFS_CLEARSUGID,
+		    SUSER_ALLOWJAIL)) {
+			ip->i_mode &= ~(ISUID | ISGID);
+			dp->di_mode = ip->i_mode;
+		}
 	}
 	if (error) {
 		if (ioflag & IO_UNIT) {
