@@ -571,7 +571,7 @@ ether_input(struct ifnet *ifp, struct mbuf *m)
 	/*
 	 * Give bpf a chance at the packet.
 	 */
-	BPF_MTAP(ifp, m);
+	ETHER_BPF_MTAP(ifp, m);
 
 	/* If the CRC is still on the packet, trim it off. */
 	if (m->m_flags & M_HASFCS) {
@@ -1209,6 +1209,52 @@ static moduledata_t ether_mod = {
 	ether_modevent,
 	0
 };
+
+void
+ether_vlan_mtap(struct bpf_if *bp, struct mbuf *m, void *data, u_int dlen)
+{
+	struct ether_vlan_header vlan;
+	struct mbuf mv, mb;
+	struct m_tag *mtag;
+	u_int tag;
+
+	KASSERT((m->m_flags & M_VLANTAG) != 0,
+	    ("%s: vlan information not present", __func__));
+	KASSERT(m->m_len >= sizeof(struct ether_header),
+	    ("%s: mbuf not large enough for header", __func__));
+	mtag = m_tag_locate(m, MTAG_VLAN, MTAG_VLAN_TAG, NULL);
+	KASSERT(mtag != NULL,
+	    ("%s: NULL mtag with M_VLANTAG", __func__));
+	tag = EVL_VLANOFTAG(VLAN_TAG_VALUE(mtag));
+	bcopy(mtod(m, char *), &vlan, sizeof(struct ether_header));
+	vlan.evl_proto = vlan.evl_encap_proto;
+	vlan.evl_encap_proto = htons(ETHERTYPE_VLAN);
+	vlan.evl_tag = htons(tag);
+	m->m_len -= sizeof(struct ether_header);
+	m->m_data += sizeof(struct ether_header);
+	/*
+	 * If a data link has been supplied by the caller, then we will need to
+	 * re-create a stack allocated mbuf chain with the following structure:
+	 *
+	 * (1) mbuf #1 will contain the supplied data link
+	 * (2) mbuf #2 will contain the vlan header
+	 * (3) mbuf #3 will contain the original mbuf's packet data
+	 *
+	 * Otherwise, submit the packet and vlan header via bpf_mtap2().
+	 */
+	if (data != NULL) {
+		mv.m_next = m;
+		mv.m_data = (caddr_t)&vlan;
+		mv.m_len = sizeof(vlan);
+		mb.m_next = &mv;
+		mb.m_data = data;
+		mb.m_len = dlen;
+		bpf_mtap(bp, &mb);
+	} else
+		bpf_mtap2(bp, &vlan, sizeof(vlan), m);
+	m->m_len += sizeof(struct ether_header);
+	m->m_data -= sizeof(struct ether_header);
+}
 
 DECLARE_MODULE(ether, ether_mod, SI_SUB_INIT_IF, SI_ORDER_ANY);
 MODULE_VERSION(ether, 1);
