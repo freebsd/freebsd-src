@@ -78,6 +78,21 @@ extern const struct ng_parse_type ng_source_timeval_type;
 	  { NULL }						\
 }
 
+/* Packet embedding info for NGM_SOURCE_GET/SET_TIMESTAMP */
+struct ng_source_embed_info {
+	uint16_t	offset;		/* offset from ethernet header */
+	uint8_t		flags;
+	uint8_t		spare;
+};
+#define NGM_SOURCE_EMBED_ENABLE		0x01	/* enable embedding */
+
+/* Keep this in sync with the above structure definition. */
+#define NG_SOURCE_EMBED_TYPE_INFO {				\
+	{ "offset",		&ng_parse_hint16_type	},	\
+	{ "flags",		&ng_parse_hint8_type	},	\
+	{ NULL }						\
+}
+
 /* Netgraph commands */
 enum {
 	NGM_SOURCE_GET_STATS = 1,	/* get stats */
@@ -88,6 +103,8 @@ enum {
 	NGM_SOURCE_CLR_DATA,		/* clear the queued data */
 	NGM_SOURCE_SETIFACE,		/* configure downstream iface */
 	NGM_SOURCE_SETPPS,		/* rate-limiting packets per second */
+	NGM_SOURCE_SET_TIMESTAMP,	/* embed xmit timestamp */
+	NGM_SOURCE_GET_TIMESTAMP,
 };
 
 #endif /* _NETGRAPH_NG_SOURCE_H_ */
