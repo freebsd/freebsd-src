@@ -638,7 +638,7 @@ prison_priv_check(struct ucred *cred, int priv)
 	case PRIV_VFS_CHFLAGS_DEV:
 	case PRIV_VFS_CHOWN:
 	case PRIV_VFS_CHROOT:
-	case PRIV_VFS_CLEARSUGID:
+	case PRIV_VFS_RETAINSUGID:
 	case PRIV_VFS_FCHROOT:
 	case PRIV_VFS_LINK:
 	case PRIV_VFS_SETGID:
