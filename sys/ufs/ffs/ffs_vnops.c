@@ -1118,7 +1118,7 @@ ffs_extwrite(struct vnode *vp, struct uio *uio, int ioflag, struct ucred *ucred)
 	 * tampering.
 	 */
 	if ((ip->i_mode & (ISUID | ISGID)) && resid > uio->uio_resid && ucred) {
-		if (priv_check_cred(ap->a_cred, PRIV_VFS_RETAINSUGID,
+		if (priv_check_cred(ucred, PRIV_VFS_RETAINSUGID,
 		    SUSER_ALLOWJAIL)) {
 			ip->i_mode &= ~(ISUID | ISGID);
 			dp->di_mode = ip->i_mode;
