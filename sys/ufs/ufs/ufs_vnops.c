@@ -786,10 +786,11 @@ good:
 		panic("ufs_chown: lost quota");
 #endif /* QUOTA */
 	ip->i_flag |= IN_CHANGE;
-	if (priv_check_cred(cred, PRIV_VFS_CLEARSUGID, SUSER_ALLOWJAIL) &&
-	    (ouid != uid || ogid != gid)) {
-		ip->i_mode &= ~(ISUID | ISGID);
-		DIP_SET(ip, i_mode, ip->i_mode);
+	if ((ip->i_mode & (ISUID | ISGID)) && (ouid != uid || ogid != gid)) {
+		if (priv_check_cred(cred, PRIV_VFS_CLEARSUGID, SUSER_ALLOWJAIL)) {
+			ip->i_mode &= ~(ISUID | ISGID);
+			DIP_SET(ip, i_mode, ip->i_mode);
+		}
 	}
 	return (0);
 }
