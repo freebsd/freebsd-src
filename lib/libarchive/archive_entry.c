@@ -760,6 +760,12 @@ archive_entry_set_symlink(struct archive_entry *entry, const char *linkname)
 }
 
 void
+archive_entry_copy_symlink(struct archive_entry *entry, const char *linkname)
+{
+	aes_copy_mbs(&entry->ae_symlink, linkname);
+}
+
+void
 archive_entry_copy_symlink_w(struct archive_entry *entry, const wchar_t *linkname)
 {
 	aes_copy_wcs(&entry->ae_symlink, linkname);
