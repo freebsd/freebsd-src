@@ -52,8 +52,8 @@ static __cpumask_t stopped_cpus;
 static struct kthr *first;
 struct kthr *curkthr;
 
-static uintptr_t
-lookup(const char *sym)
+uintptr_t
+kgdb_lookup(const char *sym)
 {
 	struct nlist nl[2];
 
@@ -80,28 +80,28 @@ kgdb_thr_init(void)
 	struct kthr *kt;
 	uintptr_t addr, paddr;
 
-	addr = lookup("_allproc");
+	addr = kgdb_lookup("_allproc");
 	if (addr == 0)
 		return (NULL);
 	kvm_read(kvm, addr, &paddr, sizeof(paddr));
 
-	dumppcb = lookup("_dumppcb");
+	dumppcb = kgdb_lookup("_dumppcb");
 	if (dumppcb == 0)
 		return (NULL);
 
-	addr = lookup("_dumptid");
+	addr = kgdb_lookup("_dumptid");
 	if (addr != 0)
 		kvm_read(kvm, addr, &dumptid, sizeof(dumptid));
 	else
 		dumptid = -1;
 
-	addr =  lookup("_stopped_cpus");
+	addr =  kgdb_lookup("_stopped_cpus");
 	if (addr != 0)
 		kvm_read(kvm, addr, &stopped_cpus, sizeof(stopped_cpus));
 	else
 		stopped_cpus = 0;
 
-	stoppcbs = lookup("_stoppcbs");
+	stoppcbs = kgdb_lookup("_stoppcbs");
 
 	while (paddr != 0) {
 		if (kvm_read(kvm, paddr, &p, sizeof(p)) != sizeof(p)) {
