@@ -857,7 +857,7 @@ _gencat=	usr.bin/gencat
 _mklocale=	usr.bin/mklocale
 .endif
 
-.if ${BOOTSTRAPPING} < 700015
+.if ${BOOTSTRAPPING} < 700018
 _gensnmptree=	usr.sbin/bsnmpd/gensnmptree
 .endif
 
