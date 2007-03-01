@@ -597,7 +597,7 @@ ext2_chown(vp, uid, gid, cred, td)
 	ip->i_uid = uid;
 	ip->i_flag |= IN_CHANGE;
 	if ((ip->i_mode & (ISUID | ISGID)) && (ouid != uid || ogid != gid)) {
-		if (priv_check_cred(cred, PRIV_VFS_CLEARSUGID,
+		if (priv_check_cred(cred, PRIV_VFS_RETAINSUGID,
 		    SUSER_ALLOWJAIL) != 0)
 			ip->i_mode &= ~(ISUID | ISGID);
 	}
@@ -1648,7 +1648,7 @@ ext2_makeinode(mode, dvp, vpp, cnp)
 	tvp->v_type = IFTOVT(mode);	/* Rest init'd in getnewvnode(). */
 	ip->i_nlink = 1;
 	if ((ip->i_mode & ISGID) && !groupmember(ip->i_gid, cnp->cn_cred)) {
-		if (priv_check_cred(cnp->cn_cred, PRIV_VFS_CLEARSUGID,
+		if (priv_check_cred(cnp->cn_cred, PRIV_VFS_RETAINSUGID,
 		    SUSER_ALLOWJAIL))
 			ip->i_mode &= ~ISGID;
 	}
