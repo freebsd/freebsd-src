@@ -57,7 +57,7 @@
 /*
  * Structure of a 10Mb/s Ethernet header.
  */
-struct	ether_header {
+struct ether_header {
 	u_char	ether_dhost[ETHER_ADDR_LEN];
 	u_char	ether_shost[ETHER_ADDR_LEN];
 	u_short	ether_type;
@@ -66,7 +66,7 @@ struct	ether_header {
 /*
  * Structure of a 48-bit Ethernet address.
  */
-struct	ether_addr {
+struct ether_addr {
 	u_char octet[ETHER_ADDR_LEN];
 } __packed;
 
@@ -348,6 +348,15 @@ CTASSERT(sizeof (struct ether_addr) == ETHER_ADDR_LEN);
 #define	ETHERMTU	(ETHER_MAX_LEN-ETHER_HDR_LEN-ETHER_CRC_LEN)
 #define	ETHERMIN	(ETHER_MIN_LEN-ETHER_HDR_LEN-ETHER_CRC_LEN)
 #define	ETHERMTU_JUMBO	(ETHER_MAX_LEN_JUMBO - ETHER_HDR_LEN - ETHER_CRC_LEN)
+#define ETHER_BPF_MTAP(_ifp, _m) do {					\
+	if (bpf_peers_present((_ifp)->if_bpf)) {			\
+		M_ASSERTVALID(_m);					\
+		if (((_m)->m_flags & M_VLANTAG) != 0)			\
+			ether_vlan_mtap((_ifp)->if_bpf, (_m), NULL, 0);	\
+		else							\
+			bpf_mtap((_ifp)->if_bpf, (_m));			\
+	}								\
+} while (0)
 
 #ifdef _KERNEL
 
@@ -355,6 +364,7 @@ struct ifnet;
 struct mbuf;
 struct rtentry;
 struct sockaddr;
+struct bpf_if;
 
 extern	uint32_t ether_crc32_le(const uint8_t *, size_t);
 extern	uint32_t ether_crc32_be(const uint8_t *, size_t);
@@ -366,6 +376,8 @@ extern	int  ether_output(struct ifnet *,
 		   struct mbuf *, struct sockaddr *, struct rtentry *);
 extern	int  ether_output_frame(struct ifnet *, struct mbuf *);
 extern	char *ether_sprintf(const u_int8_t *);
+void	ether_vlan_mtap(struct bpf_if *, struct mbuf *,
+	    void *, u_int);
 
 #else /* _KERNEL */
 
