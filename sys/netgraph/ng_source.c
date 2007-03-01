@@ -77,6 +77,8 @@ __FBSDID("$FreeBSD$");
 #define NG_SOURCE_INTR_TICKS		1
 #define NG_SOURCE_DRIVER_IFQ_MAXLEN	(4*1024)
 
+#define	mtod_off(m,off,t)	((t)(mtod((m),caddr_t)+(off)))
+
 /* Per node info */
 struct privdata {
 	node_p				node;
@@ -88,6 +90,7 @@ struct privdata {
 	struct callout			intr_ch;
 	uint64_t			packets;	/* packets to send */
 	uint32_t			queueOctets;
+	struct ng_source_embed_info	embed_timestamp;
 };
 typedef struct privdata *sc_p;
 
@@ -110,6 +113,10 @@ static int		ng_source_start (sc_p, uint64_t);
 static void		ng_source_stop (sc_p);
 static int		ng_source_send (sc_p, int, int *);
 static int		ng_source_store_output_ifp(sc_p, char *);
+static void		ng_source_packet_mod(sc_p, struct mbuf *,
+			    int, int, caddr_t, int);
+static int		ng_source_dup_mod(sc_p, struct mbuf *,
+			    struct mbuf **);
 
 /* Parse type for timeval */
 static const struct ng_parse_struct_field ng_source_timeval_type_fields[] = {
@@ -128,6 +135,14 @@ static const struct ng_parse_struct_field ng_source_stats_type_fields[]
 static const struct ng_parse_type ng_source_stats_type = {
 	&ng_parse_struct_type,
 	&ng_source_stats_type_fields
+};
+
+/* Parse type for struct ng_source_embed_info */
+static const struct ng_parse_struct_field ng_source_embed_type_fields[] =
+	NG_SOURCE_EMBED_TYPE_INFO;
+static const struct ng_parse_type ng_source_embed_type = {
+	&ng_parse_struct_type,
+	&ng_source_embed_type_fields
 };
 
 /* List of commands and how to convert arguments to/from ASCII */
@@ -187,6 +202,20 @@ static const struct ng_cmdlist ng_source_cmds[] = {
 	  "setpps",
 	  &ng_parse_uint32_type,
 	  NULL
+	},
+	{
+	  NGM_SOURCE_COOKIE,
+	  NGM_SOURCE_SET_TIMESTAMP,
+	  "settimestamp",
+	  &ng_source_embed_type,
+	  NULL
+	},
+	{
+	  NGM_SOURCE_COOKIE,
+	  NGM_SOURCE_GET_TIMESTAMP,
+	  "gettimestamp",
+	  NULL,
+	  &ng_source_embed_type
 	},
 	{ 0 }
 };
@@ -371,6 +400,29 @@ ng_source_rcvmsg(node_p node, item_p item, hook_p lasthook)
 			pps = *(uint32_t *)msg->data;
 
 			sc->stats.maxPps = pps;
+
+			break;
+		    }
+		case NGM_SOURCE_SET_TIMESTAMP:
+		    {
+			struct ng_source_embed_info *embed;
+
+			embed = (struct ng_source_embed_info *)msg->data;
+			bcopy(embed, &sc->embed_timestamp, sizeof(*embed));
+
+			break;
+		    }
+		case NGM_SOURCE_GET_TIMESTAMP:
+		    {
+			struct ng_source_embed_info *embed;
+
+			NG_MKRESPONSE(resp, msg, sizeof(*embed), M_DONTWAIT);
+			if (resp == NULL) {
+				error = ENOMEM;
+				goto done;
+			}
+			embed = (struct ng_source_embed_info *)resp->data;
+			bcopy(&sc->embed_timestamp, embed, sizeof(*embed));
 
 			break;
 		    }
@@ -662,11 +714,13 @@ ng_source_send(sc_p sc, int tosend, int *sent_p)
 		if (m == NULL)
 			break;
 
-		/* Duplicate the packet. */
-		m2 = m_copypacket(m, M_DONTWAIT);
-		if (m2 == NULL) {
-			_IF_PREPEND(&sc->snd_queue, m);
-			error = ENOBUFS;
+		/* Duplicate and modify the packet. */
+		error = ng_source_dup_mod(sc, m, &m2);
+		if (error) {
+			if (error == ENOBUFS)
+				_IF_PREPEND(&sc->snd_queue, m);
+			else
+				_IF_ENQUEUE(&sc->snd_queue, m);
 			break;
 		}
 
@@ -684,4 +738,67 @@ ng_source_send(sc_p sc, int tosend, int *sent_p)
 	if (sent_p != NULL)
 		*sent_p = sent;
 	return (error);
+}
+
+/*
+ * Modify packet in 'm' by changing 'len' bytes starting at 'offset'
+ * to data in 'cp'.
+ *
+ * The packet data in 'm' must be in a contiguous buffer in a single mbuf.
+ */
+static void
+ng_source_packet_mod(sc_p sc, struct mbuf *m, int offset, int len, caddr_t cp,
+    int flags)
+{
+	if (len == 0)
+		return;
+
+	/* Can't modify beyond end of packet. */
+	/* TODO: Pad packet for this case. */
+	if (offset + len > m->m_len)
+		return;
+
+	bcopy(cp, mtod_off(m, offset, caddr_t), len);
+}
+
+static int
+ng_source_dup_mod(sc_p sc, struct mbuf *m0, struct mbuf **m_ptr)
+{
+	struct mbuf *m;
+	struct ng_source_embed_info *ts;
+	int modify;
+	int error = 0;
+
+	/* Are we going to modify packets? */
+	modify = sc->embed_timestamp.flags & NGM_SOURCE_EMBED_ENABLE;
+
+	/* Duplicate the packet. */
+	if (modify)
+		m = m_dup(m0, M_DONTWAIT);
+	else
+		m = m_copypacket(m0, M_DONTWAIT);
+	if (m == NULL) {
+		error = ENOBUFS;
+		goto done;
+	}
+	*m_ptr = m;
+
+	if (!modify)
+		goto done;
+
+	/* Modify the copied packet for sending. */
+	KASSERT(M_WRITABLE(m), ("%s: packet not writable", __func__));
+
+	ts = &sc->embed_timestamp;
+	if (ts->flags & NGM_SOURCE_EMBED_ENABLE) {
+		struct timeval now;
+		getmicrotime(&now);
+		now.tv_sec = htonl(now.tv_sec);
+		now.tv_usec = htonl(now.tv_usec);
+		ng_source_packet_mod(sc, m, ts->offset, sizeof (now),
+		    (caddr_t)&now, ts->flags);
+	}
+
+done:
+	return(error);
 }
