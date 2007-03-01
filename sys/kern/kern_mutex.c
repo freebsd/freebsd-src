@@ -157,9 +157,9 @@ _mtx_lock_flags(struct mtx *m, int opts, const char *file, int line)
 void
 _mtx_unlock_flags(struct mtx *m, int opts, const char *file, int line)
 {
-
+#ifdef LOCK_PROFILING
 	struct lock_object lo;
-	
+#endif	
 	MPASS(curthread != NULL);
 	KASSERT(m->mtx_lock != MTX_DESTROYED,
 	    ("mtx_unlock() of destroyed mutex @ %s:%d", file, line));
@@ -176,7 +176,9 @@ _mtx_unlock_flags(struct mtx *m, int opts, const char *file, int line)
 	m->mtx_object.lo_flags &= ~LO_CONTESTED;
 #endif
 	_rel_sleep_lock(m, curthread, opts, file, line);
+#ifdef LOCK_PROFILING
 	lock_profile_release_lock(&lo);
+#endif	
 }
 
 void
@@ -200,9 +202,9 @@ _mtx_lock_spin_flags(struct mtx *m, int opts, const char *file, int line)
 void
 _mtx_unlock_spin_flags(struct mtx *m, int opts, const char *file, int line)
 {
-
+#ifdef LOCK_PROFILING
 	struct lock_object lo;
-	
+#endif	
 	MPASS(curthread != NULL);
 	KASSERT(m->mtx_lock != MTX_DESTROYED,
 	    ("mtx_unlock_spin() of destroyed mutex @ %s:%d", file, line));
@@ -218,7 +220,9 @@ _mtx_unlock_spin_flags(struct mtx *m, int opts, const char *file, int line)
 	m->mtx_object.lo_flags &= ~LO_CONTESTED;
 #endif
 	_rel_spin_lock(m);
+#ifdef LOCK_PROFILING	
 	lock_profile_release_lock(&lo);
+#endif
 }
 
 /*
