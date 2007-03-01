@@ -378,7 +378,7 @@ archive_read_format_iso9660_read_header(struct archive *a,
 	archive_entry_set_pathname(entry,
 	    build_pathname(&iso9660->pathname, file));
 	if (file->symlink.s != NULL)
-		archive_entry_set_symlink(entry, file->symlink.s);
+		archive_entry_copy_symlink(entry, file->symlink.s);
 
 	/* If this entry points to the same data as the previous
 	 * entry, convert this into a hardlink to that entry.
