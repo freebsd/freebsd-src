@@ -787,7 +787,8 @@ good:
 #endif /* QUOTA */
 	ip->i_flag |= IN_CHANGE;
 	if ((ip->i_mode & (ISUID | ISGID)) && (ouid != uid || ogid != gid)) {
-		if (priv_check_cred(cred, PRIV_VFS_CLEARSUGID, SUSER_ALLOWJAIL)) {
+		if (priv_check_cred(cred, PRIV_VFS_RETAINSUGID,
+		    SUSER_ALLOWJAIL)) {
 			ip->i_mode &= ~(ISUID | ISGID);
 			DIP_SET(ip, i_mode, ip->i_mode);
 		}
