@@ -228,9 +228,10 @@ _sx_try_xlock(struct sx *sx, const char *file, int line)
 void
 _sx_sunlock(struct sx *sx, const char *file, int line)
 {
+#ifdef LOCK_PROFILING
 	struct lock_object lo;
 	int count = -1;
-	
+#endif	
 	_sx_assert(sx, SX_SLOCKED, file, line);
 	mtx_lock(sx->sx_lock);
 
@@ -262,15 +263,18 @@ _sx_sunlock(struct sx *sx, const char *file, int line)
 	LOCK_LOG_LOCK("SUNLOCK", &sx->sx_object, 0, 0, file, line);
 
 	mtx_unlock(sx->sx_lock);
+#ifdef LOCK_PROFILING	
 	if (count == 0)
 		lock_profile_release_lock(&lo);
-
+#endif
 }
 
 void
 _sx_xunlock(struct sx *sx, const char *file, int line)
 {
+#ifdef LOCK_PROFILING	
 	struct lock_object lo;
+#endif
 	
 	_sx_assert(sx, SX_XLOCKED, file, line);
 	mtx_lock(sx->sx_lock);
@@ -298,7 +302,9 @@ _sx_xunlock(struct sx *sx, const char *file, int line)
 	LOCK_LOG_LOCK("XUNLOCK", &sx->sx_object, 0, 0, file, line);
 
 	mtx_unlock(sx->sx_lock);
+#ifdef LOCK_PROFILING	
 	lock_profile_release_lock(&lo);
+#endif
 }
 
 int
