@@ -42,19 +42,6 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 7.x IS SLOW:
 	module unless WITHOUT_INET6 or WITHOUT_INET6_SUPPORT options are
 	set; see src.conf(5) for more information.
 
-20070218:
-	The following build error may appear when upgrading from an old
-	-current (usr.sbin/bsnmpd/modules/snmp_bridge, depend stage):
-		line 31: '(' expected at begin of node
-		context: " TruthValue ENUM (
-		*** Error code 1
-	If so, run "make install" in usr.sbin/bsnmpd/gensnmptree.  (It
-	should probably be a build tool).  In the same module, you may
-	also get the error:
-		...snmp_bridge/bridge_sys.c:39:27:
-		net/bridgestp.h: No such file or directory
-	If so, run "cp src/sys/net/bridgestp.h /usr/include/net".
-
 20070214:
 	The output of netstat -r has changed. Without -n, we now only
 	print a "network name" without the prefix length if the network
