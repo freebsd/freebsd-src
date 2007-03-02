@@ -76,6 +76,10 @@
                 ..
             ..
             legal
+                intel_ipw
+                ..
+                intel_iwi
+                ..
             ..
             ncurses
             ..
