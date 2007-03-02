@@ -52,7 +52,7 @@ struct pswitch_softc {
 static int	pswitch_probe(device_t);
 static int	pswitch_attach(device_t);
 
-static void	pswitch_intr(void *);
+static int	pswitch_intr(void *);
 
 static device_method_t pswitch_methods[] = {
 	/* Device interface */
@@ -132,7 +132,7 @@ pswitch_attach(device_t dev)
 	return (0);
 }
 
-static void
+static int
 pswitch_intr(void *arg)
 {
 	device_t	dev;
@@ -140,4 +140,5 @@ pswitch_intr(void *arg)
 	dev = (device_t)arg;
 
 	kdb_enter(device_get_nameunit(dev));
+	return (FILTER_HANDLED);
 }
