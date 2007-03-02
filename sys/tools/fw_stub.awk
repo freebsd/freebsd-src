@@ -33,7 +33,7 @@
 
 function usage ()
 {
-	print "usage: fw_stub <firmware:name>* [-m modname] [-c outfile]";
+	print "usage: fw_stub <firmware:name>* [-l name] [-m modname] [-c outfile]";
 	exit 1;
 }
 
@@ -84,6 +84,17 @@ for (i = 1; i < ARGC; i++) {
 					else
 						usage();
 				}
+			} else if (o == "l") {
+				if (length(ARGV[i]) > j) {
+					opt_l = substr(ARGV[i], j + 1);
+					break;
+				}
+				else {
+					if (++i < ARGC)
+						opt_l = ARGV[i];
+					else
+						usage();
+				}
 			} else
 				usage();
 		}
@@ -113,7 +124,12 @@ printc("#include <sys/param.h>\
 #include <sys/kernel.h>\
 #include <sys/module.h>\
 #include <sys/linker.h>\
-#include <sys/firmware.h>\n");
+#include <sys/firmware.h>\
+#include <sys/systm.h>\n");
+
+if (opt_l) {
+	printc("static long " opt_l "_license_ack = 0;");
+}
 
 for (file_i = 0; file_i < num_files; file_i++) {
 	symb = filenames[file_i];
@@ -128,7 +144,17 @@ opt_m "_fw_modevent(module_t mod, int type, void *unused)\
 	const struct firmware *fp, *parent;\
 	int error;\
 	switch (type) {\
-	case MOD_LOAD:");
+	case MOD_LOAD:\n");
+
+if (opt_l) {
+		printc("\
+		TUNABLE_LONG_FETCH(\"legal." opt_l ".license_ack\", &" opt_l "_license_ack);\
+		if (!" opt_l "_license_ack) {\
+			printf(\"" opt_m ": You need to read the LICENSE file in /usr/share/doc/legal/" opt_l "/.\\n\");\
+			printf(\"" opt_m ": If you agree with the license, set legal." opt_l ".license_ack=1 in /boot/loader.conf.\\n\");\
+			return(EPERM);\
+		}\n");
+}
 
 for (file_i = 0; file_i < num_files; file_i++) {
 	short = shortnames[file_i];
@@ -158,7 +184,7 @@ for (file_i = 0; file_i < num_files; file_i++) {
 printc("\t\treturn (0);");
 
 for (file_i = num_files - 1; file_i > 0; file_i--) {
-	printc("\tfail_" file_i ":")
+	printc("fail_" file_i ":")
 	printc("\t\t(void)firmware_unregister(\"" shortnames[file_i - 1] "\");");
 }
 

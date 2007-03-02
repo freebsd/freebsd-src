@@ -38,6 +38,10 @@
 #
 # FIRMWS	List of firmware images in format filename:shortname:version
 #
+# FIRMWARE_LICENSED
+#		Set to the name of the license the user has to agree on in
+#		order to use this firmware. See /usr/share/doc/legal
+#
 # DESTDIR	The tree where the module gets installed. [not set]
 #
 # +++ targets +++
@@ -131,7 +135,8 @@ ${KMOD:S/$/.c/}: @
 .else
 ${KMOD:S/$/.c/}: @/tools/fw_stub.awk
 .endif
-	${AWK} -f @/tools/fw_stub.awk ${FIRMWS} -m${KMOD} -c${KMOD:S/$/.c/g}
+	${AWK} -f @/tools/fw_stub.awk ${FIRMWS} -m${KMOD} -c${KMOD:S/$/.c/g} \
+	    ${FIRMWARE_LICENSE:C/.+/-l/}${FIRMWARE_LICENSE}
 
 SRCS+=	${KMOD:S/$/.c/}
 CLEANFILES+=	${KMOD:S/$/.c/}
