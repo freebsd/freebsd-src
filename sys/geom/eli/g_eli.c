@@ -326,7 +326,8 @@ g_eli_worker(void *arg)
 	sc = wr->w_softc;
 #ifdef SMP
 	/* Before sched_bind() to a CPU, wait for all CPUs to go on-line. */
-	if (sc->sc_crypto == G_ELI_CRYPTO_SW && g_eli_threads == 0) {
+	if (mp_ncpus > 1 && sc->sc_crypto == G_ELI_CRYPTO_SW &&
+	    g_eli_threads == 0) {
 		while (!smp_started)
 			tsleep(wr, 0, "geli:smp", hz / 4);
 	}
