@@ -416,6 +416,55 @@ linprocfs_douptime(PFS_FILL_ARGS)
 }
 
 /*
+ * Get OS build date
+ */
+static void
+linprocfs_osbuild(struct thread *td, struct sbuf *sb)
+{
+#if 0
+	char osbuild[256];
+	char *cp1, *cp2;
+
+	strncpy(osbuild, version, 256);
+	osbuild[255] = '\0';
+	cp1 = strstr(osbuild, "\n");
+	cp2 = strstr(osbuild, ":");
+	if (cp1 && cp2) {
+		*cp1 = *cp2 = '\0';
+		cp1 = strstr(osbuild, "#");
+	} else
+		cp1 = NULL;
+	if (cp1)
+		sbuf_printf(sb, "%s%s", cp1, cp2 + 1);
+	else
+#endif
+		sbuf_cat(sb, "#4 Sun Dec 18 04:30:00 CET 1977");
+}
+
+/*
+ * Get OS builder
+ */
+static void
+linprocfs_osbuilder(struct thread *td, struct sbuf *sb)
+{
+	char builder[256];
+	char *cp;
+
+	cp = strstr(version, "\n    ");
+	if (cp) {
+		strncpy(builder, cp + 5, 256);
+		builder[255] = '\0';
+		cp = strstr(builder, ":");
+		if (cp)
+			*cp = '\0';
+	}
+	if (cp)
+		sbuf_cat(sb, builder);
+	else
+		sbuf_cat(sb, "des@freebsd.org");
+}
+
+/*
  * Filler function for proc/version
  */
 static int
@@ -426,10 +475,12 @@ linprocfs_doversion(PFS_FILL_ARGS)
 
 	linux_get_osname(td, osname);
 	linux_get_osrelease(td, osrelease);
+	sbuf_printf(sb, "%s version %s (", osname, osrelease);
+	linprocfs_osbuilder(td, sb);
+	sbuf_cat(sb, ") (gcc version " __VERSION__ ") ");
+	linprocfs_osbuild(td, sb);
+	sbuf_cat(sb, "\n");
 
-	sbuf_printf(sb,
-	    "%s version %s (des@freebsd.org) (gcc version " __VERSION__ ")"
-	    " #4 Sun Dec 18 04:30:00 CET 1977\n", osname, osrelease);
 	return (0);
 }
 
@@ -935,6 +986,46 @@ linprocfs_donetdev(PFS_FILL_ARGS)
 }
 
 /*
+ * Filler function for proc/sys/kernel/osrelease
+ */
+static int
+linprocfs_doosrelease(PFS_FILL_ARGS)
+{
+	char osrelease[LINUX_MAX_UTSNAME];
+
+	linux_get_osrelease(td, osrelease);
+	sbuf_printf(sb, "%s\n", osrelease);
+
+	return (0);
+}
+
+/*
+ * Filler function for proc/sys/kernel/ostype
+ */
+static int
+linprocfs_doostype(PFS_FILL_ARGS)
+{
+	char osname[LINUX_MAX_UTSNAME];
+
+	linux_get_osname(td, osname);
+	sbuf_printf(sb, "%s\n", osname);
+
+	return (0);
+}
+
+/*
+ * Filler function for proc/sys/kernel/version
+ */
+static int
+linprocfs_doosbuild(PFS_FILL_ARGS)
+{
+	linprocfs_osbuild(td, sb);
+	sbuf_cat(sb, "\n");
+
+	return (0);
+}
+
+/*
  * Filler function for proc/sys/kernel/msgmni
  */
 static int
@@ -1146,6 +1237,12 @@ linprocfs_init(PFS_INIT_ARGS)
 	dir = pfs_create_dir(root, "sys", NULL, NULL, 0);
 	/* /proc/sys/kernel/... */
 	dir = pfs_create_dir(dir, "kernel", NULL, NULL, 0);
+	pfs_create_file(dir, "osrelease", &linprocfs_doosrelease,
+	    NULL, NULL, PFS_RD);
+	pfs_create_file(dir, "ostype", &linprocfs_doostype,
+	    NULL, NULL, PFS_RD);
+	pfs_create_file(dir, "version", &linprocfs_doosbuild,
+	    NULL, NULL, PFS_RD);
 	pfs_create_file(dir, "msgmni", &linprocfs_domsgmni,
 	    NULL, NULL, PFS_RD);
 	pfs_create_file(dir, "pid_max", &linprocfs_dopid_max,
