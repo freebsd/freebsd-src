@@ -696,14 +696,15 @@ ithread_execute_handlers(struct proc *p, struct intr_event *ie)
 	 * number of back to back interrupts exceeds the storm threshold,
 	 * then enter storming mode.
 	 */
-	if (intr_storm_threshold != 0 && ie->ie_count >= intr_storm_threshold) {
+	if (intr_storm_threshold != 0 && ie->ie_count >= intr_storm_threshold &&
+	    !(ie->ie_flags & IE_SOFT)) {
 		if (ie->ie_warned == 0) {
 			printf(
 	"Interrupt storm detected on \"%s\"; throttling interrupt source\n",
 			    ie->ie_name);
 			ie->ie_warned = 1;
 		}
-		tsleep(&ie->ie_count, 0, "istorm", 1);
+		pause("istorm", 1);
 	} else
 		ie->ie_count++;
 
