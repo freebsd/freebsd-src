@@ -421,6 +421,7 @@ usage()
 	    getprogname(),
 	    " [device-type]");
 	fprintf(stderr, "where fsoptions are:\n");
+	fprintf(stderr, "\t-J Enable journaling via gjournal\n");
 	fprintf(stderr, "\t-L volume label to add to superblock\n");
 	fprintf(stderr,
 	    "\t-N do not create file system, just print out parameters\n");
