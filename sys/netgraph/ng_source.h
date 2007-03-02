@@ -85,11 +85,38 @@ struct ng_source_embed_info {
 	uint8_t		spare;
 };
 #define NGM_SOURCE_EMBED_ENABLE		0x01	/* enable embedding */
+#define	NGM_SOURCE_INC_CNT_PER_LIST	0x02	/* increment once per list */
 
 /* Keep this in sync with the above structure definition. */
 #define NG_SOURCE_EMBED_TYPE_INFO {				\
 	{ "offset",		&ng_parse_hint16_type	},	\
 	{ "flags",		&ng_parse_hint8_type	},	\
+	{ NULL }						\
+}
+
+/* Packet embedding info for NGM_SOURCE_GET/SET_COUNTER */
+#define	NG_SOURCE_COUNTERS	4
+struct ng_source_embed_cnt_info {
+	uint16_t	offset;		/* offset from ethernet header */
+	uint8_t		flags;		/* as above */
+	uint8_t		width;		/* in bytes (1, 2, 4) */
+	uint32_t	next_val;
+	uint32_t	min_val;
+	uint32_t	max_val;
+	int32_t		increment;
+	uint8_t		index;		/* which counter (0..3) */
+};
+
+/* Keep this in sync with the above structure definition. */
+#define NG_SOURCE_EMBED_CNT_TYPE_INFO {				\
+	{ "offset",		&ng_parse_hint16_type	}, 	\
+	{ "flags",		&ng_parse_hint8_type	},	\
+	{ "width",		&ng_parse_uint8_type	},	\
+	{ "next_val",		&ng_parse_uint32_type	},	\
+	{ "min_val",		&ng_parse_uint32_type	},	\
+	{ "max_val",		&ng_parse_uint32_type	},	\
+	{ "increment",		&ng_parse_int32_type	},	\
+	{ "index",		&ng_parse_uint8_type	},	\
 	{ NULL }						\
 }
 
@@ -105,6 +132,8 @@ enum {
 	NGM_SOURCE_SETPPS,		/* rate-limiting packets per second */
 	NGM_SOURCE_SET_TIMESTAMP,	/* embed xmit timestamp */
 	NGM_SOURCE_GET_TIMESTAMP,
+	NGM_SOURCE_SET_COUNTER,		/* embed counter */
+	NGM_SOURCE_GET_COUNTER,
 };
 
 #endif /* _NETGRAPH_NG_SOURCE_H_ */
