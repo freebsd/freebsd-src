@@ -43,6 +43,7 @@ mfc		Merge a directory from HEAD to a branch where it does not
 mid	 	Create a Message-ID database for mailing lists.
 ncpus		Count the number of processors
 pciid		Generate src/share/misc/pci_vendors.
+pciroms		A tool for dumping PCI ROM images. WARNING: alpha quality.
 pirtool		A tool for dumping the $PIR table on i386 machines at runtime.
 portsinfo 	Generate list of new ports for last two weeks.
 prstats		Generate statistics about the PR database.
