@@ -3,7 +3,7 @@
 
 .include <bsd.own.mk>
 
-SUBDIR=	${_bind9} IPv6 papers psd smm usd
+SUBDIR=	${_bind9} IPv6 legal papers psd smm usd
 
 .if ${MK_BIND} != "no"
 _bind9=	bind9

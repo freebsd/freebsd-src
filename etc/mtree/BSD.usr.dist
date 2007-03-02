@@ -75,6 +75,8 @@
                 misc
                 ..
             ..
+            legal
+            ..
             ncurses
             ..
             ntp
