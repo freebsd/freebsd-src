@@ -262,6 +262,7 @@ archive_read_extract(struct archive *a, struct archive_entry *entry, int flags)
 
 	if (stat(archive_entry_pathname(entry), &extract->st) == 0)
 		extract->pst = &extract->st;
+	extract->umask = umask(0); /* Set the umask to zero, record old one. */
 
 	if (extract->pst != NULL &&
 	    extract->pst->st_dev == a->skip_file_dev &&
@@ -295,7 +296,7 @@ archive_read_extract(struct archive *a, struct archive_entry *entry, int flags)
 			break;
 		}
 	}
-
+	umask(extract->umask); /* Restore umask. */
 
 cleanup:
 #ifdef HAVE_FCHDIR
