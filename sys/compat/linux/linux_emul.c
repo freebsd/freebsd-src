@@ -86,7 +86,7 @@ linux_proc_init(struct thread *td, pid_t child, int flags)
 		em = malloc(sizeof *em, M_LINUX, M_WAITOK | M_ZERO);
 		em->pid = child;
 		em->pdeath_signal = 0;
-		if (flags & CLONE_THREAD) {
+		if (flags & LINUX_CLONE_THREAD) {
 			/* handled later in the code */
 		} else {
 			struct linux_emuldata_shared *s;
@@ -113,7 +113,7 @@ linux_proc_init(struct thread *td, pid_t child, int flags)
 	 * proc
 	 */
 	if (child != 0) {
-		if (flags & CLONE_THREAD) {
+		if (flags & LINUX_CLONE_THREAD) {
 			/* lookup the parent */
 			/* 
 			 * we dont have to lock the p_em because

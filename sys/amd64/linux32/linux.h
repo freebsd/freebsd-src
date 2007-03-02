@@ -8,7 +8,7 @@
  * modification, are permitted provided that the following conditions
  * are met:
  * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer 
+ *    notice, this list of conditions and the following disclaimer
  *    in this position and unchanged.
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
@@ -30,8 +30,8 @@
  * $FreeBSD$
  */
 
-#ifndef _AMD64_LINUX_LINUX_H_
-#define	_AMD64_LINUX_LINUX_H_
+#ifndef _AMD64_LINUX_H_
+#define	_AMD64_LINUX_H_
 
 #include <amd64/linux32/linux32_syscall.h>
 
@@ -39,20 +39,20 @@
  * debugging support
  */
 extern u_char linux_debug_map[];
-#define ldebug(name)	isclr(linux_debug_map, LINUX_SYS_linux_ ## name)
-#define ARGS(nm, fmt)	"linux(%ld): "#nm"("fmt")\n", (long)td->td_proc->p_pid
-#define LMSG(fmt)	"linux(%ld): "fmt"\n", (long)td->td_proc->p_pid
+#define	ldebug(name)	isclr(linux_debug_map, LINUX_SYS_linux_ ## name)
+#define	ARGS(nm, fmt)	"linux(%ld): "#nm"("fmt")\n", (long)td->td_proc->p_pid
+#define	LMSG(fmt)	"linux(%ld): "fmt"\n", (long)td->td_proc->p_pid
 
 #ifdef MALLOC_DECLARE
 MALLOC_DECLARE(M_LINUX);
 #endif
 
-#define LINUX32_USRSTACK	((1ul << 32) - PAGE_SIZE)
+#define	LINUX32_USRSTACK	((1ul << 32) - PAGE_SIZE)
 /* XXX 16 = sizeof(linux32_ps_strings) */
-#define LINUX32_PS_STRINGS	(LINUX32_USRSTACK - 16)
-#define LINUX32_MAXDSIZ		(512*1024*1024)	 	/* 512MB */
-#define LINUX32_MAXSSIZ		(64*1024*1024)		/* 64MB */
-#define LINUX32_MAXVMEM		0			/* Unlimited */
+#define	LINUX32_PS_STRINGS	(LINUX32_USRSTACK - 16)
+#define	LINUX32_MAXDSIZ		(512 * 1024 * 1024)	/* 512MB */
+#define	LINUX32_MAXSSIZ		(64 * 1024 * 1024)	/* 64MB */
+#define	LINUX32_MAXVMEM		0			/* Unlimited */
 
 #define	PTRIN(v)	(void *)(uintptr_t)(v)
 #define	PTROUT(v)	(l_uintptr_t)(uintptr_t)(v)
@@ -132,7 +132,7 @@ struct l___sysctl_args
 #define	LINUX_RLIMIT_NPROC	6
 #define	LINUX_RLIMIT_NOFILE	7
 #define	LINUX_RLIMIT_MEMLOCK	8
-#define	LINUX_RLIMIT_AS		9       /* address space limit */
+#define	LINUX_RLIMIT_AS		9	/* Address space limit */
 
 #define	LINUX_RLIM_NLIMITS	10
 
@@ -205,21 +205,21 @@ struct l_newstat {
 } __packed;
 
 struct l_stat {
-       l_ushort        st_dev;
-       l_ulong         st_ino;
-       l_ushort        st_mode;
-       l_ushort        st_nlink;
-       l_ushort        st_uid;
-       l_ushort        st_gid;
-       l_ushort        st_rdev;
-       l_long          st_size;
-       struct l_timespec       st_atimespec;
-       struct l_timespec       st_mtimespec;
-       struct l_timespec       st_ctimespec;
-       l_long          st_blksize;
-       l_long          st_blocks;
-       l_ulong         st_flags;
-       l_ulong         st_gen;
+	l_ushort	st_dev;
+	l_ulong		st_ino;
+	l_ushort	st_mode;
+	l_ushort	st_nlink;
+	l_ushort	st_uid;
+	l_ushort	st_gid;
+	l_ushort	st_rdev;
+	l_long		st_size;
+	struct l_timespec	st_atimespec;
+	struct l_timespec	st_mtimespec;
+	struct l_timespec	st_ctimespec;
+	l_long		st_blksize;
+	l_long		st_blocks;
+	l_ulong		st_flags;
+	l_ulong		st_gen;
 };
 
 struct l_stat64 {
@@ -315,9 +315,9 @@ struct l_new_utsname {
 #define	LINUX_SIGADDSET(set, sig)	SIGADDSET(set, sig)
 
 /* sigaltstack */
-#define LINUX_MINSIGSTKSZ	2048
-#define LINUX_SS_ONSTACK	1
-#define LINUX_SS_DISABLE	2
+#define	LINUX_MINSIGSTKSZ	2048
+#define	LINUX_SS_ONSTACK	1
+#define	LINUX_SS_DISABLE	2
 
 int linux_to_bsd_sigaltstack(int lsa);
 int bsd_to_linux_sigaltstack(int bsa);
@@ -380,11 +380,11 @@ struct l_ucontext {
 	l_uintptr_t	uc_link;
 	l_stack_t	uc_stack;
 	struct l_sigcontext	uc_mcontext;
-        l_sigset_t	uc_sigmask;
+	l_sigset_t	uc_sigmask;
 } __packed;
 
-#define LINUX_SI_MAX_SIZE     128
-#define LINUX_SI_PAD_SIZE     ((LINUX_SI_MAX_SIZE/sizeof(l_int)) - 3)
+#define	LINUX_SI_MAX_SIZE	128
+#define	LINUX_SI_PAD_SIZE	((LINUX_SI_MAX_SIZE/sizeof(l_int)) - 3)
 
 union l_sigval {
 	l_int		sival_int;
@@ -423,41 +423,41 @@ typedef struct l_siginfo {
 		} __packed _sigchld;
 
 		struct {
-			l_uintptr_t	_addr; /* faulting insn/memory ref. */
+			l_uintptr_t	_addr;	/* Faulting insn/memory ref. */
 		} __packed _sigfault;
 
 		struct {
-			l_int		_band;  /* POLL_IN,POLL_OUT,POLL_MSG */
+			l_int		_band;	/* POLL_IN,POLL_OUT,POLL_MSG */
 			l_int		_fd;
 		} __packed _sigpoll;
 	} _sifields;
 } __packed l_siginfo_t;
 
-#define lsi_pid          _sifields._kill._pid
-#define lsi_uid          _sifields._kill._uid
-#define lsi_status       _sifields._sigchld._status
-#define lsi_utime        _sifields._sigchld._utime
-#define lsi_stime        _sifields._sigchld._stime
-#define lsi_value        _sifields._rt._sigval
-#define lsi_int          _sifields._rt._sigval.sival_int
-#define lsi_ptr          _sifields._rt._sigval.sival_ptr
-#define lsi_addr         _sifields._sigfault._addr
-#define lsi_band         _sifields._sigpoll._band
-#define lsi_fd           _sifields._sigpoll._fd
+#define	lsi_pid		_sifields._kill._pid
+#define	lsi_uid		_sifields._kill._uid
+#define	lsi_status	_sifields._sigchld._status
+#define	lsi_utime	_sifields._sigchld._utime
+#define	lsi_stime	_sifields._sigchld._stime
+#define	lsi_value	_sifields._rt._sigval
+#define	lsi_int		_sifields._rt._sigval.sival_int
+#define	lsi_ptr		_sifields._rt._sigval.sival_ptr
+#define	lsi_addr	_sifields._sigfault._addr
+#define	lsi_band	_sifields._sigpoll._band
+#define	lsi_fd		_sifields._sigpoll._fd
 
 struct l_fpreg {
-	u_int16_t significand[4];
-	u_int16_t exponent;
+	u_int16_t	significand[4];
+	u_int16_t	exponent;
 } __packed;
 
 struct l_fpxreg {
-	u_int16_t significand[4];
-	u_int16_t exponent;
-	u_int16_t padding[3];
+	u_int16_t	significand[4];
+	u_int16_t	exponent;
+	u_int16_t	padding[3];
 } __packed;
 
 struct l_xmmreg {
-	u_int32_t element[4];
+	u_int32_t	element[4];
 } __packed;
 
 struct l_fpstate {
@@ -471,13 +471,13 @@ struct l_fpstate {
 	u_int32_t		datasel;
 	struct l_fpreg		_st[8];
 	u_int16_t		status;
-	u_int16_t		magic;  /* 0xffff = regular FPU data */
+	u_int16_t		magic;		/* 0xffff = regular FPU data */
 
 	/* FXSR FPU environment */
-	u_int32_t		_fxsr_env[6]; /* env is ignored */
+	u_int32_t		_fxsr_env[6];	/* env is ignored. */
 	u_int32_t		mxcsr;
 	u_int32_t		reserved;
-	struct l_fpxreg		_fxsr_st[8];  /* reg data is ignored */
+	struct l_fpxreg		_fxsr_st[8];	/* reg data is ignored. */
 	struct l_xmmreg		_xmm[8];
 	u_int32_t		padding[56];
 } __packed;
@@ -528,22 +528,22 @@ int	linux_ioctl_unregister_handler(struct linux_ioctl_handler *h);
 /*
  * open/fcntl flags
  */
-#define	LINUX_O_RDONLY		00
-#define	LINUX_O_WRONLY		01
-#define	LINUX_O_RDWR		02
-#define	LINUX_O_CREAT		0100
-#define	LINUX_O_EXCL		0200
-#define	LINUX_O_NOCTTY		0400
-#define	LINUX_O_TRUNC		01000
-#define	LINUX_O_APPEND		02000
-#define	LINUX_O_NONBLOCK	04000
+#define	LINUX_O_RDONLY		00000000
+#define	LINUX_O_WRONLY		00000001
+#define	LINUX_O_RDWR		00000002
+#define	LINUX_O_CREAT		00000100
+#define	LINUX_O_EXCL		00000200
+#define	LINUX_O_NOCTTY		00000400
+#define	LINUX_O_TRUNC		00001000
+#define	LINUX_O_APPEND		00002000
+#define	LINUX_O_NONBLOCK	00004000
 #define	LINUX_O_NDELAY		LINUX_O_NONBLOCK
-#define	LINUX_O_SYNC		010000
-#define	LINUX_FASYNC		020000
-#define	LINUX_O_DIRECT		040000	/* direct disk access hint */
-#define	LINUX_O_LARGEFILE	0100000
-#define	LINUX_O_DIRECTORY	0200000	/* must be a directory */
-#define	LINUX_O_NOFOLLOW	0400000	/* don't follow links */
+#define	LINUX_O_SYNC		00010000
+#define	LINUX_FASYNC		00020000
+#define	LINUX_O_DIRECT		00040000	/* Direct disk access hint */
+#define	LINUX_O_LARGEFILE	00100000
+#define	LINUX_O_DIRECTORY	00200000	/* Must be a directory */
+#define	LINUX_O_NOFOLLOW	00400000	/* Do not follow links */
 #define	LINUX_O_NOATIME		01000000
 
 #define	LINUX_F_DUPFD		0
@@ -568,12 +568,12 @@ int	linux_ioctl_unregister_handler(struct linux_ioctl_handler *h);
 /*
  * mount flags
  */
-#define LINUX_MS_RDONLY         0x0001
-#define LINUX_MS_NOSUID         0x0002
-#define LINUX_MS_NODEV          0x0004
-#define LINUX_MS_NOEXEC         0x0008
-#define LINUX_MS_REMOUNT        0x0020
-        
+#define	LINUX_MS_RDONLY		0x0001
+#define	LINUX_MS_NOSUID		0x0002
+#define	LINUX_MS_NODEV		0x0004
+#define	LINUX_MS_NOEXEC		0x0008
+#define	LINUX_MS_REMOUNT	0x0020
+
 /*
  * SystemV IPC defines
  */
@@ -671,13 +671,13 @@ union l_semun {
 #define	LINUX_SO_NO_CHECK	11
 #define	LINUX_SO_PRIORITY	12
 #define	LINUX_SO_LINGER		13
-#define	LINUX_SO_PEERCRED		17
-#define	LINUX_SO_RCVLOWAT		18
-#define	LINUX_SO_SNDLOWAT		19
-#define	LINUX_SO_RCVTIMEO		20
-#define	LINUX_SO_SNDTIMEO		21
-#define	LINUX_SO_TIMESTAMP		29
-#define	LINUX_SO_ACCEPTCONN		30
+#define	LINUX_SO_PEERCRED	17
+#define	LINUX_SO_RCVLOWAT	18
+#define	LINUX_SO_SNDLOWAT	19
+#define	LINUX_SO_RCVTIMEO	20
+#define	LINUX_SO_SNDTIMEO	21
+#define	LINUX_SO_TIMESTAMP	29
+#define	LINUX_SO_ACCEPTCONN	30
 
 #define	LINUX_IP_TOS		1
 #define	LINUX_IP_TTL		2
@@ -727,7 +727,7 @@ struct l_ifreq {
 	} ifr_ifru;
 } __packed;
 
-#define	ifr_name	ifr_ifrn.ifrn_name	/* interface name */
+#define	ifr_name	ifr_ifrn.ifrn_name	/* Interface name */
 #define	ifr_hwaddr	ifr_ifru.ifru_hwaddr	/* MAC address */
 
 struct l_ifconf {
@@ -774,89 +774,96 @@ struct l_user_desc {
 	l_uint		useable:1;
 };
 
-struct l_desc_struct {
-           unsigned long a,b;
-};
+#define	LINUX_LOWERWORD	0x0000ffff
 
-
-#define LINUX_LOWERWORD	0x0000ffff
-
-/* 
- * macros which does the same thing as those in linux include/asm-um/ldt-i386.h 
- * these convert linux user space descriptor to machine one
+/*
+ * Macros which does the same thing as those in Linux include/asm-um/ldt-i386.h.
+ * These convert Linux user space descriptor to machine one.
  */
-#define LDT_entry_a(info) \
-        ((((info)->base_addr & LINUX_LOWERWORD) << 16) | ((info)->limit & LINUX_LOWERWORD))
+#define	LINUX_LDT_entry_a(info)					\
+	((((info)->base_addr & LINUX_LOWERWORD) << 16) |	\
+	((info)->limit & LINUX_LOWERWORD))
 
-#define ENTRY_B_READ_EXEC_ONLY	9
-#define ENTRY_B_CONTENTS	10
-#define ENTRY_B_SEG_NOT_PRESENT	15
-#define ENTRY_B_BASE_ADDR	16
-#define ENTRY_B_USEABLE		20
-#define ENTRY_B_SEG32BIT	22
-#define ENTRY_B_LIMIT		23
+#define	LINUX_ENTRY_B_READ_EXEC_ONLY	9
+#define	LINUX_ENTRY_B_CONTENTS		10
+#define	LINUX_ENTRY_B_SEG_NOT_PRESENT	15
+#define	LINUX_ENTRY_B_BASE_ADDR		16
+#define	LINUX_ENTRY_B_USEABLE		20
+#define	LINUX_ENTRY_B_SEG32BIT		22
+#define	LINUX_ENTRY_B_LIMIT		23
 
-#define LDT_entry_b(info) \
-        (((info)->base_addr & 0xff000000) | \
-        ((info)->limit & 0xf0000) | \
-        ((info)->contents << ENTRY_B_CONTENTS) | \
-        (((info)->seg_not_present == 0) << ENTRY_B_SEG_NOT_PRESENT) | \
-        (((info)->base_addr & 0x00ff0000) >> ENTRY_B_BASE_ADDR) | \
-        (((info)->read_exec_only == 0) << ENTRY_B_READ_EXEC_ONLY) | \
-        ((info)->seg_32bit << ENTRY_B_SEG32BIT) | \
-        ((info)->useable << ENTRY_B_USEABLE) | \
-        ((info)->limit_in_pages << ENTRY_B_LIMIT) | 0x7000)
+#define	LINUX_LDT_entry_b(info)							\
+	(((info)->base_addr & 0xff000000) |					\
+	((info)->limit & 0xf0000) |						\
+	((info)->contents << LINUX_ENTRY_B_CONTENTS) |				\
+	(((info)->seg_not_present == 0) << LINUX_ENTRY_B_SEG_NOT_PRESENT) |	\
+	(((info)->base_addr & 0x00ff0000) >> LINUX_ENTRY_B_BASE_ADDR) |		\
+	(((info)->read_exec_only == 0) << LINUX_ENTRY_B_READ_EXEC_ONLY) |	\
+	((info)->seg_32bit << LINUX_ENTRY_B_SEG32BIT) |				\
+	((info)->useable << LINUX_ENTRY_B_USEABLE) |				\
+	((info)->limit_in_pages << LINUX_ENTRY_B_LIMIT) | 0x7000)
 
-#define LDT_empty(info) (\
-        (info)->base_addr       == 0    && \
-        (info)->limit           == 0    && \
-        (info)->contents        == 0    && \
-        (info)->seg_not_present == 1    && \
-        (info)->read_exec_only  == 1    && \
-        (info)->seg_32bit       == 0    && \
-        (info)->limit_in_pages  == 0    && \
-        (info)->useable         == 0    )
+#define	LINUX_LDT_empty(info)		\
+	((info)->base_addr == 0 &&	\
+	(info)->limit == 0 &&		\
+	(info)->contents == 0 &&	\
+	(info)->seg_not_present == 1 &&	\
+	(info)->read_exec_only == 1 &&	\
+	(info)->seg_32bit == 0 &&	\
+	(info)->limit_in_pages == 0 &&	\
+	(info)->useable == 0)
 
-/* macros for converting segments, they do the same as those in arch/i386/kernel/process.c */
-#define GET_BASE(desc) ( \
-        (((desc)->a >> 16) & LINUX_LOWERWORD) | \
-        (((desc)->b << 16) & 0x00ff0000) | \
-        ( (desc)->b        & 0xff000000)   )
+/*
+ * Macros for converting segments.
+ * They do the same as those in arch/i386/kernel/process.c in Linux.
+ */
+#define	LINUX_GET_BASE(desc)				\
+	((((desc)->a >> 16) & LINUX_LOWERWORD) |	\
+	(((desc)->b << 16) & 0x00ff0000) |		\
+	((desc)->b & 0xff000000))
 
-#define GET_LIMIT(desc) ( \
-        ((desc)->a & LINUX_LOWERWORD) | \
-         ((desc)->b & 0xf0000) )
+#define	LINUX_GET_LIMIT(desc)			\
+	(((desc)->a & LINUX_LOWERWORD) |	\
+	((desc)->b & 0xf0000))
 
-#define GET_32BIT(desc)         (((desc)->b >> ENTRY_B_SEG32BIT) & 1)
-#define GET_CONTENTS(desc)      (((desc)->b >> ENTRY_B_CONTENTS) & 3)
-#define GET_WRITABLE(desc)      (((desc)->b >> ENTRY_B_READ_EXEC_ONLY) & 1)
-#define GET_LIMIT_PAGES(desc)   (((desc)->b >> ENTRY_B_LIMIT) & 1)
-#define GET_PRESENT(desc)       (((desc)->b >> ENTRY_B_SEG_NOT_PRESENT) & 1)
-#define GET_USEABLE(desc)       (((desc)->b >> ENTRY_B_USEABLE) & 1)
+#define	LINUX_GET_32BIT(desc)		\
+	(((desc)->b >> LINUX_ENTRY_B_SEG32BIT) & 1)
+#define	LINUX_GET_CONTENTS(desc)	\
+	(((desc)->b >> LINUX_ENTRY_B_CONTENTS) & 3)
+#define	LINUX_GET_WRITABLE(desc)	\
+	(((desc)->b >> LINUX_ENTRY_B_READ_EXEC_ONLY) & 1)
+#define	LINUX_GET_LIMIT_PAGES(desc)	\
+	(((desc)->b >> LINUX_ENTRY_B_LIMIT) & 1)
+#define	LINUX_GET_PRESENT(desc)		\
+	(((desc)->b >> LINUX_ENTRY_B_SEG_NOT_PRESENT) & 1)
+#define	LINUX_GET_USEABLE(desc)		\
+	(((desc)->b >> LINUX_ENTRY_B_USEABLE) & 1)
 
-#define LINUX_CLOCK_REALTIME            0
-#define LINUX_CLOCK_MONOTONIC           1
-#define LINUX_CLOCK_PROCESS_CPUTIME_ID  2
-#define LINUX_CLOCK_THREAD_CPUTIME_ID   3
-#define LINUX_CLOCK_REALTIME_HR         4
-#define LINUX_CLOCK_MONOTONIC_HR        5
+#define	LINUX_CLOCK_REALTIME		0
+#define	LINUX_CLOCK_MONOTONIC		1
+#define	LINUX_CLOCK_PROCESS_CPUTIME_ID	2
+#define	LINUX_CLOCK_THREAD_CPUTIME_ID	3
+#define	LINUX_CLOCK_REALTIME_HR		4
+#define	LINUX_CLOCK_MONOTONIC_HR	5
 
 typedef int l_timer_t;
 typedef int l_mqd_t;
 
-#define CLONE_VM        0x100
-#define CLONE_FS        0x200
-#define CLONE_FILES     0x400
-#define CLONE_SIGHAND   0x800
-#define CLONE_PID       0x1000          /* this flag does not exist in linux anymore */
-#define CLONE_VFORK     0x4000
-#define CLONE_PARENT    0x00008000
-#define CLONE_THREAD    0x10000
-#define CLONE_SETTLS    0x80000
-#define CLONE_CHILD_CLEARTID    0x00200000
-#define CLONE_CHILD_SETTID      0x01000000
-#define CLONE_PARENT_SETTID     0x00100000
+#define	LINUX_CLONE_VM			0x00000100
+#define	LINUX_CLONE_FS			0x00000200
+#define	LINUX_CLONE_FILES		0x00000400
+#define	LINUX_CLONE_SIGHAND		0x00000800
+#define	LINUX_CLONE_PID			0x00001000	/* No longer exist in Linux */
+#define	LINUX_CLONE_VFORK		0x00004000
+#define	LINUX_CLONE_PARENT		0x00008000
+#define	LINUX_CLONE_THREAD		0x00010000
+#define	LINUX_CLONE_SETTLS		0x00080000
+#define	LINUX_CLONE_PARENT_SETTID	0x00100000
+#define	LINUX_CLONE_CHILD_CLEARTID	0x00200000
+#define	LINUX_CLONE_CHILD_SETTID	0x01000000
 
-#define THREADING_FLAGS (CLONE_VM | CLONE_FS | CLONE_FILES | CLONE_SIGHAND)
+#define	LINUX_THREADING_FLAGS					\
+	(LINUX_CLONE_VM | LINUX_CLONE_FS | LINUX_CLONE_FILES |	\
+	LINUX_CLONE_SIGHAND | LINUX_CLONE_THREAD)
 
-#endif /* !_AMD64_LINUX_LINUX_H_ */
+#endif /* !_AMD64_LINUX_H_ */
