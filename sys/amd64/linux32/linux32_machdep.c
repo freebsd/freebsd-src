@@ -561,9 +561,9 @@ linux_clone(struct thread *td, struct linux_clone_args *args)
 	if (exit_signal <= LINUX_SIGTBLSZ)
 		exit_signal = linux_to_bsd_signal[_SIG_IDX(exit_signal)];
 
-	if (args->flags & CLONE_VM)
+	if (args->flags & LINUX_CLONE_VM)
 		ff |= RFMEM;
-	if (args->flags & CLONE_SIGHAND)
+	if (args->flags & LINUX_CLONE_SIGHAND)
 		ff |= RFSIGSHARE;
 	/* 
 	 * XXX: in linux sharing of fs info (chroot/cwd/umask)
@@ -571,7 +571,7 @@ linux_clone(struct thread *td, struct linux_clone_args *args)
 	 * structure but in reality it doesn't cause any problems
 	 * because both of these flags are usually set together.
 	 */
-	if (!(args->flags & (CLONE_FILES | CLONE_FS)))
+	if (!(args->flags & (LINUX_CLONE_FILES | LINUX_CLONE_FS)))
 		ff |= RFFDG;
 
 	/*
@@ -587,14 +587,14 @@ linux_clone(struct thread *td, struct linux_clone_args *args)
 	 * that special treatment is necessary for signal delivery
 	 * between those processes and fd locking.
 	 */
-	if ((args->flags & 0xffffff00) == THREADING_FLAGS)
+	if ((args->flags & 0xffffff00) == LINUX_THREADING_FLAGS)
 		ff |= RFTHREAD;
 
 	error = fork1(td, ff, 0, &p2);
 	if (error)
 		return (error);
 
-	if (args->flags & (CLONE_PARENT|CLONE_THREAD)) {
+	if (args->flags & (LINUX_CLONE_PARENT | LINUX_CLONE_THREAD)) {
 	   	sx_xlock(&proctree_lock);
 		PROC_LOCK(p2);
 		proc_reparent(p2, td->td_proc->p_pptr);
@@ -608,7 +608,7 @@ linux_clone(struct thread *td, struct linux_clone_args *args)
 	em = em_find(p2, EMUL_DOLOCK);
 	KASSERT(em != NULL, ("clone: emuldata not found.\n"));
 	/* and adjust it */
-	if (args->flags & CLONE_PARENT_SETTID) {
+	if (args->flags & LINUX_CLONE_PARENT_SETTID) {
 	   	if (args->parent_tidptr == NULL) {
 		   	EMUL_UNLOCK(&emul_lock);
 			return (EINVAL);
@@ -620,7 +620,7 @@ linux_clone(struct thread *td, struct linux_clone_args *args)
 		}
 	}
 
-	if (args->flags & CLONE_THREAD) {
+	if (args->flags & LINUX_CLONE_THREAD) {
 	   	/* XXX: linux mangles pgrp and pptr somehow
 		 * I think it might be this but I am not sure.
 		 */
@@ -632,12 +632,12 @@ linux_clone(struct thread *td, struct linux_clone_args *args)
 	 	exit_signal = 0;
 	}
 
-	if (args->flags & CLONE_CHILD_SETTID)
+	if (args->flags & LINUX_CLONE_CHILD_SETTID)
 		em->child_set_tid = args->child_tidptr;
 	else
 	   	em->child_set_tid = NULL;
 
-	if (args->flags & CLONE_CHILD_CLEARTID)
+	if (args->flags & LINUX_CLONE_CHILD_CLEARTID)
 		em->child_clear_tid = args->child_tidptr;
 	else
 	   	em->child_clear_tid = NULL;
@@ -655,7 +655,7 @@ linux_clone(struct thread *td, struct linux_clone_args *args)
 	if (args->stack)
    	   	td2->td_frame->tf_rsp = PTROUT(args->stack);
 
-	if (args->flags & CLONE_SETTLS) {
+	if (args->flags & LINUX_CLONE_SETTLS) {
 	   	/* XXX: todo */
 	}
 
@@ -664,7 +664,7 @@ linux_clone(struct thread *td, struct linux_clone_args *args)
 		printf(LMSG("clone: successful rfork to %ld, stack %p sig = %d"),
 		    (long)p2->p_pid, args->stack, exit_signal);
 #endif
-	if (args->flags & CLONE_VFORK) {
+	if (args->flags & LINUX_CLONE_VFORK) {
 	   	PROC_LOCK(p2);
 	   	p2->p_flag |= P_PPWAIT;
 	   	PROC_UNLOCK(p2);
@@ -681,7 +681,7 @@ linux_clone(struct thread *td, struct linux_clone_args *args)
 	td->td_retval[0] = p2->p_pid;
 	td->td_retval[1] = 0;
 	
-	if (args->flags & CLONE_VFORK) {
+	if (args->flags & LINUX_CLONE_VFORK) {
    	   	/* wait for the children to exit, ie. emulate vfork */
    	   	PROC_LOCK(p2);
 		while (p2->p_flag & P_PPWAIT)
