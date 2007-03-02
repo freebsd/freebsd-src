@@ -406,9 +406,9 @@ linux_clone(struct thread *td, struct linux_clone_args *args)
 	if (exit_signal <= LINUX_SIGTBLSZ)
 		exit_signal = linux_to_bsd_signal[_SIG_IDX(exit_signal)];
 
-	if (args->flags & CLONE_VM)
+	if (args->flags & LINUX_CLONE_VM)
 		ff |= RFMEM;
-	if (args->flags & CLONE_SIGHAND)
+	if (args->flags & LINUX_CLONE_SIGHAND)
 		ff |= RFSIGSHARE;
 	/* 
 	 * XXX: in linux sharing of fs info (chroot/cwd/umask)
@@ -416,7 +416,7 @@ linux_clone(struct thread *td, struct linux_clone_args *args)
 	 * structure but in reality it doesn't cause any problems
 	 * because both of these flags are usually set together.
 	 */
-	if (!(args->flags & (CLONE_FILES | CLONE_FS)))
+	if (!(args->flags & (LINUX_CLONE_FILES | LINUX_CLONE_FS)))
 		ff |= RFFDG;
 
 	/*
@@ -432,10 +432,10 @@ linux_clone(struct thread *td, struct linux_clone_args *args)
 	 * that special treatment is necessary for signal delivery
 	 * between those processes and fd locking.
 	 */
-	if ((args->flags & 0xffffff00) == THREADING_FLAGS)
+	if ((args->flags & 0xffffff00) == LINUX_THREADING_FLAGS)
 		ff |= RFTHREAD;
 
-	if (args->flags & CLONE_PARENT_SETTID)
+	if (args->flags & LINUX_CLONE_PARENT_SETTID)
 		if (args->parent_tidptr == NULL)
 			return (EINVAL);
 
@@ -443,7 +443,7 @@ linux_clone(struct thread *td, struct linux_clone_args *args)
 	if (error)
 		return (error);
 
-	if (args->flags & (CLONE_PARENT|CLONE_THREAD)) {
+	if (args->flags & (LINUX_CLONE_PARENT | LINUX_CLONE_THREAD)) {
 	   	sx_xlock(&proctree_lock);
 		PROC_LOCK(p2);
 		proc_reparent(p2, td->td_proc->p_pptr);
@@ -458,7 +458,7 @@ linux_clone(struct thread *td, struct linux_clone_args *args)
 	KASSERT(em != NULL, ("clone: emuldata not found.\n"));
 	/* and adjust it */
 
-	if (args->flags & CLONE_THREAD) {
+	if (args->flags & LINUX_CLONE_THREAD) {
 	   	/* XXX: linux mangles pgrp and pptr somehow
 		 * I think it might be this but I am not sure.
 		 */
@@ -470,19 +470,19 @@ linux_clone(struct thread *td, struct linux_clone_args *args)
 	 	exit_signal = 0;
 	}
 
-	if (args->flags & CLONE_CHILD_SETTID)
+	if (args->flags & LINUX_CLONE_CHILD_SETTID)
 		em->child_set_tid = args->child_tidptr;
 	else
 	   	em->child_set_tid = NULL;
 
-	if (args->flags & CLONE_CHILD_CLEARTID)
+	if (args->flags & LINUX_CLONE_CHILD_CLEARTID)
 		em->child_clear_tid = args->child_tidptr;
 	else
 	   	em->child_clear_tid = NULL;
 
 	EMUL_UNLOCK(&emul_lock);
 
-	if (args->flags & CLONE_PARENT_SETTID) {
+	if (args->flags & LINUX_CLONE_PARENT_SETTID) {
 		error = copyout(&p2->p_pid, args->parent_tidptr, sizeof(p2->p_pid));
 		if (error)
 			printf(LMSG("copyout failed!"));
@@ -499,7 +499,7 @@ linux_clone(struct thread *td, struct linux_clone_args *args)
 	if (args->stack)
    	   	td2->td_frame->tf_esp = (unsigned int)args->stack;
 
-	if (args->flags & CLONE_SETTLS) {
+	if (args->flags & LINUX_CLONE_SETTLS) {
    	   	struct l_user_desc info;
    	   	int idx;
 	   	int a[2];
@@ -530,8 +530,8 @@ linux_clone(struct thread *td, struct linux_clone_args *args)
 					printf(LMSG("copyout failed!"));
 			}
 
-			a[0] = LDT_entry_a(&info);
-			a[1] = LDT_entry_b(&info);
+			a[0] = LINUX_LDT_entry_a(&info);
+			a[1] = LINUX_LDT_entry_b(&info);
 
 			memcpy(&sd, &a, sizeof(a));
 #ifdef DEBUG
@@ -559,7 +559,7 @@ linux_clone(struct thread *td, struct linux_clone_args *args)
 		printf(LMSG("clone: successful rfork to %ld, stack %p sig = %d"),
 		    (long)p2->p_pid, args->stack, exit_signal);
 #endif
-	if (args->flags & CLONE_VFORK) {
+	if (args->flags & LINUX_CLONE_VFORK) {
 	   	PROC_LOCK(p2);
 		p2->p_flag |= P_PPWAIT;
 	   	PROC_UNLOCK(p2);
@@ -576,7 +576,7 @@ linux_clone(struct thread *td, struct linux_clone_args *args)
 	td->td_retval[0] = p2->p_pid;
 	td->td_retval[1] = 0;
 
-	if (args->flags & CLONE_VFORK) {
+	if (args->flags & LINUX_CLONE_VFORK) {
    	   	/* wait for the children to exit, ie. emulate vfork */
    	   	PROC_LOCK(p2);
 		while (p2->p_flag & P_PPWAIT)
@@ -1146,12 +1146,12 @@ linux_set_thread_area(struct thread *td, struct linux_set_thread_area_args *args
 	if (error)
 		return (error);
 
-	if (LDT_empty(&info)) {
+	if (LINUX_LDT_empty(&info)) {
 		a[0] = 0;
 		a[1] = 0;
 	} else {
-		a[0] = LDT_entry_a(&info);
-		a[1] = LDT_entry_b(&info);
+		a[0] = LINUX_LDT_entry_a(&info);
+		a[1] = LINUX_LDT_entry_b(&info);
 	}
 
 	memcpy(&sd, &a, sizeof(a));
@@ -1213,14 +1213,14 @@ linux_get_thread_area(struct thread *td, struct linux_get_thread_area_args *args
 	memcpy(&desc, &sd, sizeof(desc));
 
 	info.entry_number = idx;
-	info.base_addr = GET_BASE(&desc);
-	info.limit = GET_LIMIT(&desc);
-	info.seg_32bit = GET_32BIT(&desc);
-	info.contents = GET_CONTENTS(&desc);
-	info.read_exec_only = !GET_WRITABLE(&desc);
-	info.limit_in_pages = GET_LIMIT_PAGES(&desc);
-	info.seg_not_present = !GET_PRESENT(&desc);
-	info.useable = GET_USEABLE(&desc);
+	info.base_addr = LINUX_GET_BASE(&desc);
+	info.limit = LINUX_GET_LIMIT(&desc);
+	info.seg_32bit = LINUX_GET_32BIT(&desc);
+	info.contents = LINUX_GET_CONTENTS(&desc);
+	info.read_exec_only = !LINUX_GET_WRITABLE(&desc);
+	info.limit_in_pages = LINUX_GET_LIMIT_PAGES(&desc);
+	info.seg_not_present = !LINUX_GET_PRESENT(&desc);
+	info.useable = LINUX_GET_USEABLE(&desc);
 
 	error = copyout(&info, args->desc, sizeof(struct l_user_desc));
 	if (error)
