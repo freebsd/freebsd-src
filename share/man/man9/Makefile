@@ -243,6 +243,7 @@ MAN=	accept_filter.9 \
 	vfsconf.9 \
 	VFS_FHTOVP.9 \
 	vfs_getnewfsid.9 \
+	vfs_getopt.9 \
 	vfs_getvfs.9 \
 	VFS_LOCK_GIANT.9 \
 	VFS_MOUNT.9 \
@@ -1164,6 +1165,11 @@ MLINKS+=vcount.9 count_dev.9
 MLINKS+=vfsconf.9 vfs_modevent.9 \
 	vfsconf.9 vfs_register.9 \
 	vfsconf.9 vfs_unregister.9
+MLINKS+=vfs_getopt.9 vfs_getopts.9 \
+	vfs_getopt.9 vfs_flagopt.9 \
+	vfs_getopt.9 vfs_scanopt.9 \
+	vfs_getopt.9 vfs_copyopt.9 \
+	vfs_getopt.9 vfs_filteropt.9
 MLINKS+=VFS_LOCK_GIANT.9 VFS_UNLOCK_GIANT.9
 MLINKS+=vgone.9 vgonel.9
 MLINKS+=vhold.9 vdrop.9
