@@ -86,11 +86,13 @@ struct privdata {
 	hook_p				output;
 	struct ng_source_stats		stats;
 	struct ifqueue			snd_queue;	/* packets to send */
+	struct mbuf			*last_packet;	/* last pkt in queue */
 	struct ifnet			*output_ifp;
 	struct callout			intr_ch;
 	uint64_t			packets;	/* packets to send */
 	uint32_t			queueOctets;
 	struct ng_source_embed_info	embed_timestamp;
+	struct ng_source_embed_cnt_info	embed_counter[NG_SOURCE_COUNTERS];
 };
 typedef struct privdata *sc_p;
 
@@ -115,6 +117,9 @@ static int		ng_source_send (sc_p, int, int *);
 static int		ng_source_store_output_ifp(sc_p, char *);
 static void		ng_source_packet_mod(sc_p, struct mbuf *,
 			    int, int, caddr_t, int);
+static void		ng_source_mod_counter(sc_p sc,
+			    struct ng_source_embed_cnt_info *cnt,
+			    struct mbuf *m, int increment);
 static int		ng_source_dup_mod(sc_p, struct mbuf *,
 			    struct mbuf **);
 
@@ -143,6 +148,14 @@ static const struct ng_parse_struct_field ng_source_embed_type_fields[] =
 static const struct ng_parse_type ng_source_embed_type = {
 	&ng_parse_struct_type,
 	&ng_source_embed_type_fields
+};
+
+/* Parse type for struct ng_source_embed_cnt_info */
+static const struct ng_parse_struct_field ng_source_embed_cnt_type_fields[] =
+	NG_SOURCE_EMBED_CNT_TYPE_INFO;
+static const struct ng_parse_type ng_source_embed_cnt_type = {
+	&ng_parse_struct_type,
+	&ng_source_embed_cnt_type_fields
 };
 
 /* List of commands and how to convert arguments to/from ASCII */
@@ -216,6 +229,20 @@ static const struct ng_cmdlist ng_source_cmds[] = {
 	  "gettimestamp",
 	  NULL,
 	  &ng_source_embed_type
+	},
+	{
+	  NGM_SOURCE_COOKIE,
+	  NGM_SOURCE_SET_COUNTER,
+	  "setcounter",
+	  &ng_source_embed_cnt_type,
+	  NULL
+	},
+	{
+	  NGM_SOURCE_COOKIE,
+	  NGM_SOURCE_GET_COUNTER,
+	  "getcounter",
+	  &ng_parse_uint8_type,
+	  &ng_source_embed_cnt_type
 	},
 	{ 0 }
 };
@@ -426,6 +453,41 @@ ng_source_rcvmsg(node_p node, item_p item, hook_p lasthook)
 
 			break;
 		    }
+		case NGM_SOURCE_SET_COUNTER:
+		    {
+			struct ng_source_embed_cnt_info *embed;
+
+			embed = (struct ng_source_embed_cnt_info *)msg->data;
+			if (embed->index >= NG_SOURCE_COUNTERS ||
+			    !(embed->width == 1 || embed->width == 2 ||
+			    embed->width == 4)) {
+				error = EINVAL;
+				goto done;
+			}
+			bcopy(embed, &sc->embed_counter[embed->index],
+			    sizeof(*embed));
+
+			break;
+		    }
+		case NGM_SOURCE_GET_COUNTER:
+		    {
+			uint8_t index = *(uint8_t *)msg->data;
+			struct ng_source_embed_cnt_info *embed;
+
+			if (index >= NG_SOURCE_COUNTERS) {
+				error = EINVAL;
+				goto done;
+			}
+			NG_MKRESPONSE(resp, msg, sizeof(*embed), M_DONTWAIT);
+			if (resp == NULL) {
+				error = ENOMEM;
+				goto done;
+			}
+			embed = (struct ng_source_embed_cnt_info *)resp->data;
+			bcopy(&sc->embed_counter[index], embed, sizeof(*embed));
+
+			break;
+		    }
 		default:
 			error = EINVAL;
 			break;
@@ -495,6 +557,7 @@ ng_source_rcvdata(hook_p hook, item_p item)
 	/* XXX should we check IF_QFULL() ? */
 	_IF_ENQUEUE(&sc->snd_queue, m);
 	sc->queueOctets += m->m_pkthdr.len;
+	sc->last_packet = m;
 
 	return (0);
 }
@@ -600,6 +663,7 @@ ng_source_clr_data (sc_p sc)
 		NG_FREE_M(m);
 	}
 	sc->queueOctets = 0;
+	sc->last_packet = 0;
 }
 
 /*
@@ -761,16 +825,48 @@ ng_source_packet_mod(sc_p sc, struct mbuf *m, int offset, int len, caddr_t cp,
 	bcopy(cp, mtod_off(m, offset, caddr_t), len);
 }
 
+static void
+ng_source_mod_counter(sc_p sc, struct ng_source_embed_cnt_info *cnt,
+    struct mbuf *m, int increment)
+{
+	caddr_t cp;
+	uint32_t val;
+
+	val = htonl(cnt->next_val);
+	cp = (caddr_t)&val + sizeof(val) - cnt->width;
+	ng_source_packet_mod(sc, m, cnt->offset, cnt->width, cp, cnt->flags);
+
+	if (increment) {
+		cnt->next_val += increment;
+
+		if (increment > 0 && cnt->next_val > cnt->max_val) {
+			cnt->next_val = cnt->min_val - 1 +
+			    (cnt->next_val - cnt->max_val);
+			if (cnt->next_val > cnt->max_val)
+				cnt->next_val = cnt->max_val;
+		} else if (increment < 0 && cnt->next_val < cnt->min_val) {
+			cnt->next_val = cnt->max_val + 1 +
+			    (cnt->next_val - cnt->min_val);
+			if (cnt->next_val < cnt->min_val)
+				cnt->next_val = cnt->max_val;
+		}
+	}
+}
+
 static int
 ng_source_dup_mod(sc_p sc, struct mbuf *m0, struct mbuf **m_ptr)
 {
 	struct mbuf *m;
+	struct ng_source_embed_cnt_info *cnt;
 	struct ng_source_embed_info *ts;
 	int modify;
 	int error = 0;
+	int i, increment;
 
 	/* Are we going to modify packets? */
 	modify = sc->embed_timestamp.flags & NGM_SOURCE_EMBED_ENABLE;
+	for (i = 0; !modify && i < NG_SOURCE_COUNTERS; ++i)
+		modify = sc->embed_counter[i].flags & NGM_SOURCE_EMBED_ENABLE;
 
 	/* Duplicate the packet. */
 	if (modify)
@@ -788,6 +884,18 @@ ng_source_dup_mod(sc_p sc, struct mbuf *m0, struct mbuf **m_ptr)
 
 	/* Modify the copied packet for sending. */
 	KASSERT(M_WRITABLE(m), ("%s: packet not writable", __func__));
+
+	for (i = 0; i < NG_SOURCE_COUNTERS; ++i) {
+		cnt = &sc->embed_counter[i];
+		if (cnt->flags & NGM_SOURCE_EMBED_ENABLE) {
+			if ((cnt->flags & NGM_SOURCE_INC_CNT_PER_LIST) == 0 ||
+			    sc->last_packet == m0)
+				increment = cnt->increment;
+			else
+				increment = 0;
+			ng_source_mod_counter(sc, cnt, m, increment);
+		}
+	}
 
 	ts = &sc->embed_timestamp;
 	if (ts->flags & NGM_SOURCE_EMBED_ENABLE) {
