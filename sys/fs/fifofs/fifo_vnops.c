@@ -447,6 +447,10 @@ fifo_printinfo(vp)
 {
 	register struct fifoinfo *fip = vp->v_fifoinfo;
 
+	if (fip == NULL){
+		printf(", NULL v_fifoinfo");
+		return (0);
+	}
 	printf(", fifo with %ld readers and %ld writers",
 		fip->fi_readers, fip->fi_writers);
 	return (0);
