@@ -78,7 +78,9 @@ ifmalist_dump_af(const struct ifmaddrs * const ifmap, int const af)
 	const struct ifmaddrs *ifma;
 	sockunion_t *psa;
 	char myifname[IFNAMSIZ];
+#ifdef INET6
 	char addrbuf[INET6_ADDRSTRLEN];
+#endif
 	char *pcolon;
 	char *pafname, *pifname, *plladdr, *pgroup;
 #ifdef INET6
