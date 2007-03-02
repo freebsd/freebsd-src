@@ -182,7 +182,7 @@ parameter which puts upper limit on the amount of packets
 sent per second.
 .It Dv NGM_SOURCE_SET_TIMESTAMP Pq Ic settimestamp
 This message specifies that a timestamp (in the format of a
-.Vt "struct timeval" Ns )
+.Vt "struct timeval" )
 should be inserted in the transmitted packets.
 This message requires a structure containing the following fields:
 .Bl -tag -width indent
@@ -207,7 +207,8 @@ inserted.
 .It Va flags
 Set to 1 to enable the counter.
 .It Va width
-The byte width of the counter.  It may be 1, 2, or 4.
+The byte width of the counter.
+It may be 1, 2, or 4.
 .It Va next_val
 The value for the next insertion of the counter.
 .It Va min_val
