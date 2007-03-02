@@ -1,4 +1,4 @@
-.\" Copyright 2002-2006 Sandvine Inc.
+.\" Copyright 2002-2007 Sandvine Inc.
 .\" All rights reserved.
 .\"
 .\" Subject to the following obligations and disclaimer of warranty, use and
@@ -29,10 +29,10 @@
 .\" THIS SOFTWARE, EVEN IF SANDVINE IS ADVISED OF THE POSSIBILITY OF SUCH
 .\" DAMAGE.
 .\"
-.\" Author: Dave Chapeskie <dchapeskie@sandvine.com>
+.\" Author: Dave Chapeskie
 .\" $FreeBSD$
 .\"
-.Dd October 22, 2006
+.Dd March 1, 2007
 .Dt NG_SOURCE 4
 .Os
 .Sh NAME
@@ -180,6 +180,52 @@ This message requires a single
 .Vt uint32_t
 parameter which puts upper limit on the amount of packets
 sent per second.
+.It Dv NGM_SOURCE_SET_TIMESTAMP Pq Ic settimestamp
+This message specifies that a timestamp (in the format of a
+.Vt "struct timeval" Ns )
+should be inserted in the transmitted packets.
+This message requires a structure containing the following fields:
+.Bl -tag -width indent
+.It Va offset
+The offset from the beginning of the packet at which the timestamp is to be
+inserted.
+.It Va flags
+Set to 1 to enable the timestamp.
+.El
+.It Dv NGM_SOURCE_GET_TIMESTAMP Pq Ic gettimestamp
+Returns the current timestamp settings in the form of the structure described
+above.
+.It Dv NGM_SOURCE_SET_COUNTER Pq Ic setcounter
+This message specifies that a counter should be embedded in transmitted
+packets.
+Up to four counters may be independently configured.
+This message requires a structure containing the following fields:
+.Bl -tag -width indent
+.It Va offset
+The offset from the beginning of the packet at which the counter is to be
+inserted.
+.It Va flags
+Set to 1 to enable the counter.
+.It Va width
+The byte width of the counter.  It may be 1, 2, or 4.
+.It Va next_val
+The value for the next insertion of the counter.
+.It Va min_val
+The minimum value to be used by the counter.
+.It Va max_val
+The maximum value to be used by the counter.
+.It Va increment
+The value to be added to the counter after each insertion.
+It may be negative.
+.It Va index
+The counter to be configured, from 0 to 3.
+.El
+.It Dv NGM_SOURCE_GET_COUNTER Pq Ic getcounter
+This message requires a single
+.Vt uint8_t
+parameter which specifies the counter to query.
+Returns the current counter settings in the form of the structure described
+above.
 .El
 .Sh SHUTDOWN
 This node shuts down upon receipt of a
@@ -299,4 +345,4 @@ The
 node type was implemented in
 .Fx 4.8 .
 .Sh AUTHORS
-.An Dave Chapeskie Aq dchapeskie@SANDVINE.com
+.An Dave Chapeskie
