@@ -434,6 +434,10 @@ ng_source_rcvmsg(node_p node, item_p item, hook_p lasthook)
 		    {
 			struct ng_source_embed_info *embed;
 
+			if (msg->header.arglen != sizeof(*embed)) {
+				error = EINVAL;
+				goto done;
+			}
 			embed = (struct ng_source_embed_info *)msg->data;
 			bcopy(embed, &sc->embed_timestamp, sizeof(*embed));
 
@@ -457,6 +461,10 @@ ng_source_rcvmsg(node_p node, item_p item, hook_p lasthook)
 		    {
 			struct ng_source_embed_cnt_info *embed;
 
+			if (msg->header.arglen != sizeof(*embed)) {
+				error = EINVAL;
+				goto done;
+			}
 			embed = (struct ng_source_embed_cnt_info *)msg->data;
 			if (embed->index >= NG_SOURCE_COUNTERS ||
 			    !(embed->width == 1 || embed->width == 2 ||
@@ -663,7 +671,7 @@ ng_source_clr_data (sc_p sc)
 		NG_FREE_M(m);
 	}
 	sc->queueOctets = 0;
-	sc->last_packet = 0;
+	sc->last_packet = NULL;
 }
 
 /*
