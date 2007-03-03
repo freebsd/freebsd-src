@@ -37,7 +37,14 @@
 #include <sys/types.h>  /* Linux requires this for off_t */
 @ARCHIVE_H_INCLUDE_INTTYPES_H@
 #include <stdio.h> /* For FILE * */
+#ifndef _WIN32
 #include <unistd.h>  /* For ssize_t and size_t */
+#else
+typedef long ssize_t;
+typedef unsigned int uid_t;
+typedef unsigned int gid_t;
+typedef unsigned short mode_t;
+#endif
 
 #ifdef __cplusplus
 extern "C" {
@@ -59,6 +66,7 @@ extern "C" {
  *    1 - Version tests are available.
  *    2 - archive_{read,write}_close available separately from _finish.
  *    3 - open_memory, open_memory2, open_FILE, open_fd available
+ *    5 - archive_write_disk interface available
  */
 #define	ARCHIVE_API_VERSION	@ARCHIVE_API_MAJOR@
 int		archive_api_version(void);
@@ -138,8 +146,17 @@ typedef int	archive_close_callback(struct archive *, void *_client_data);
  * Top 16 bits identifies the format family (e.g., "tar"); lower
  * 16 bits indicate the variant.  This is updated by read_next_header.
  * Note that the lower 16 bits will often vary from entry to entry.
+ * In some cases, this variation occurs as libarchive learns more about
+ * the archive (for example, later entries might utilize extensions that
+ * weren't necessary earlier in the archive; in this case, libarchive
+ * will change the format code to indicate the extended format that
+ * was used).  In other cases, it's because different tools have
+ * modified the archive and so different parts of the archive
+ * actually have slightly different formts.  (Both tar and cpio store
+ * format codes in each entry, so it is quite possible for each
+ * entry to be in a different format.)
  */
-#define	ARCHIVE_FORMAT_BASE_MASK		0xff0000U
+#define	ARCHIVE_FORMAT_BASE_MASK		0xff0000
 #define	ARCHIVE_FORMAT_CPIO			0x10000
 #define	ARCHIVE_FORMAT_CPIO_POSIX		(ARCHIVE_FORMAT_CPIO | 1)
 #define	ARCHIVE_FORMAT_CPIO_BIN_LE		(ARCHIVE_FORMAT_CPIO | 2)
@@ -274,15 +291,28 @@ int		 archive_read_data_into_fd(struct archive *, int fd);
  */
 
 /* The "flags" argument selects optional behavior, 'OR' the flags you want. */
-/* TODO: The 'Default' comments here are not quite correct; clean this up. */
-#define	ARCHIVE_EXTRACT_OWNER	(1) /* Default: owner/group not restored */
-#define	ARCHIVE_EXTRACT_PERM	(2) /* Default: restore perm only for reg file*/
-#define	ARCHIVE_EXTRACT_TIME	(4) /* Default: mod time not restored */
-#define	ARCHIVE_EXTRACT_NO_OVERWRITE (8) /* Default: Replace files on disk */
-#define	ARCHIVE_EXTRACT_UNLINK	(16) /* Default: don't unlink existing files */
-#define	ARCHIVE_EXTRACT_ACL	(32) /* Default: don't restore ACLs */
-#define	ARCHIVE_EXTRACT_FFLAGS	(64) /* Default: don't restore fflags */
-#define	ARCHIVE_EXTRACT_XATTR   (128) /* Default: don't restore xattrs */
+
+/* Default: Do not try to set owner/group. */
+#define	ARCHIVE_EXTRACT_OWNER	(1)
+/* Default: Do obey umask, do not restore SUID/SGID/SVTX bits. */
+#define	ARCHIVE_EXTRACT_PERM	(2)
+/* Default: Do not restore mtime/atime. */
+#define	ARCHIVE_EXTRACT_TIME	(4)
+/* Default: Replace existing files. */
+#define	ARCHIVE_EXTRACT_NO_OVERWRITE (8)
+/* Default: Try create first, unlink only if create fails with EEXIST. */
+#define	ARCHIVE_EXTRACT_UNLINK	(16)
+/* Default: Do not restore ACLs. */
+#define	ARCHIVE_EXTRACT_ACL	(32)
+/* Default: Do not restore fflags. */
+#define	ARCHIVE_EXTRACT_FFLAGS	(64)
+/* Default: Do not restore xattrs. */
+#define	ARCHIVE_EXTRACT_XATTR   (128)
+/* Default: Do not try to guard against extracts redirected by symlinks. */
+/* Note: With ARCHIVE_EXTRACT_UNLINK, will remove any intermediate symlink. */
+#define	ARCHIVE_EXTRACT_SECURE_SYMLINKS (256)
+/* Default: Do not reject entries with '..' as path elements. */
+#define	ARCHIVE_EXTRACT_SECURE_NODOTDOT (512)
 
 int		 archive_read_extract(struct archive *, struct archive_entry *,
 		     int flags);
@@ -298,7 +328,13 @@ void		archive_read_extract_set_skip_file(struct archive *,
 int		 archive_read_close(struct archive *);
 /* Release all resources and destroy the object. */
 /* Note that archive_read_finish will call archive_read_close for you. */
+#if ARCHIVE_API_VERSION > 1
+int		 archive_read_finish(struct archive *);
+#else
+/* Temporarily allow library to compile with either 1.x or 2.0 API. */
+/* Erroneously declared to return void in libarchive 1.x */
 void		 archive_read_finish(struct archive *);
+#endif
 
 /*-
  * To create an archive:
@@ -362,11 +398,76 @@ int		 archive_write_open_memory(struct archive *,
  */
 int		 archive_write_header(struct archive *,
 		     struct archive_entry *);
-/* TODO: should be ssize_t, but that might require .so version bump? */
+#if ARCHIVE_API_VERSION > 1
+ssize_t		 archive_write_data(struct archive *, const void *, size_t);
+#else
+/* Temporarily allow library to compile with either 1.x or 2.0 API. */
+/* This was erroneously declared to return "int" in libarchive 1.x. */
 int		 archive_write_data(struct archive *, const void *, size_t);
+#endif
+ssize_t		 archive_write_data_block(struct archive *, const void *, size_t, off_t);
 int		 archive_write_finish_entry(struct archive *);
 int		 archive_write_close(struct archive *);
+#if ARCHIVE_API_VERSION > 1
+int		 archive_write_finish(struct archive *);
+#else
+/* Temporarily allow library to compile with either 1.x or 2.0 API. */
+/* Return value was incorrect in libarchive 1.x. */
 void		 archive_write_finish(struct archive *);
+#endif
+
+/*-
+ * To create objects on disk:
+ *   1) Ask archive_write_disk_new for a new archive_write_disk object.
+ *   2) Set any global properties.  In particular, you should set
+ *      the compression and format to use.
+ *   3) For each entry:
+ *      - construct an appropriate struct archive_entry structure
+ *      - archive_write_header to create the file/dir/etc on disk
+ *      - archive_write_data to write the entry data
+ *   4) archive_write_finish to cleanup the writer and release resources
+ *
+ * In particular, you can use this in conjunction with archive_read()
+ * to pull entries out of an archive and create them on disk.
+ */
+struct archive	*archive_write_disk_new(void);
+/* This file will not be overwritten. */
+int		 archive_write_disk_set_skip_file(struct archive *,
+		     dev_t, ino_t);
+/* Set flags to control how the next item gets created. */
+int		 archive_write_disk_set_options(struct archive *,
+		     int flags);
+/*
+ * The lookup functions are given uname/uid (or gname/gid) pairs and
+ * return a uid (gid) suitable for this system.  These are used for
+ * restoring ownership and for setting ACLs.  The default functions
+ * are naive, they just return the uid/gid.  These are small, so reasonable
+ * for applications that don't need to preserve ownership; they
+ * are probably also appropriate for applications that are doing
+ * same-system backup and restore.
+ */
+/*
+ * The "standard" lookup functions use common system calls to lookup
+ * the uname/gname, falling back to the uid/gid if the names can't be
+ * found.  They cache lookups and are reasonably fast, but can be very
+ * large, so they are not used unless you ask for them.  In
+ * particular, these match the specifications of POSIX "pax" and old
+ * POSIX "tar".
+ */
+int		 archive_write_disk_set_standard_lookup(struct archive *);
+/*
+ * If neither the default (naive) nor the standard (big) functions suit
+ * your needs, you can write your own and register them.  Be sure to
+ * include a cleanup function if you have allocated private data.
+ */
+int		 archive_write_disk_set_group_lookup(struct archive *,
+		     void *private_data,
+		     gid_t (*loookup)(void *, const char *gname, gid_t gid),
+		     void (*cleanup)(void *));
+int		 archive_write_disk_set_user_lookup(struct archive *,
+		     void *private_data,
+		     uid_t (*)(void *, const char *uname, uid_t uid),
+		     void (*cleanup)(void *));
 
 /*
  * Accessor functions to read/set various information in
@@ -383,6 +484,7 @@ int		 archive_errno(struct archive *);
 const char	*archive_error_string(struct archive *);
 const char	*archive_format_name(struct archive *);
 int		 archive_format(struct archive *);
+void		 archive_clear_error(struct archive *);
 void		 archive_set_error(struct archive *, int _err, const char *fmt, ...);
 
 #ifdef __cplusplus

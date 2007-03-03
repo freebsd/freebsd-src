@@ -43,12 +43,14 @@ __FBSDID("$FreeBSD$");
 #include "archive.h"
 #include "archive_entry.h"
 #include "archive_private.h"
+#include "archive_write_private.h"
 
-static ssize_t	archive_write_cpio_data(struct archive *, const void *buff,
-		    size_t s);
-static int	archive_write_cpio_finish(struct archive *);
-static int	archive_write_cpio_finish_entry(struct archive *);
-static int	archive_write_cpio_header(struct archive *,
+static ssize_t	archive_write_cpio_data(struct archive_write *,
+		    const void *buff, size_t s);
+static int	archive_write_cpio_finish(struct archive_write *);
+static int	archive_write_cpio_destroy(struct archive_write *);
+static int	archive_write_cpio_finish_entry(struct archive_write *);
+static int	archive_write_cpio_header(struct archive_write *,
 		    struct archive_entry *);
 static int	format_octal(int64_t, void *, int);
 static int64_t	format_octal_recursive(int64_t, char *, int);
@@ -75,17 +77,18 @@ struct cpio_header {
  * Set output format to 'cpio' format.
  */
 int
-archive_write_set_format_cpio(struct archive *a)
+archive_write_set_format_cpio(struct archive *_a)
 {
+	struct archive_write *a = (struct archive_write *)_a;
 	struct cpio *cpio;
 
 	/* If someone else was already registered, unregister them. */
-	if (a->format_finish != NULL)
-		(a->format_finish)(a);
+	if (a->format_destroy != NULL)
+		(a->format_destroy)(a);
 
 	cpio = (struct cpio *)malloc(sizeof(*cpio));
 	if (cpio == NULL) {
-		archive_set_error(a, ENOMEM, "Can't allocate cpio data");
+		archive_set_error(&a->archive, ENOMEM, "Can't allocate cpio data");
 		return (ARCHIVE_FATAL);
 	}
 	memset(cpio, 0, sizeof(*cpio));
@@ -96,13 +99,14 @@ archive_write_set_format_cpio(struct archive *a)
 	a->format_write_data = archive_write_cpio_data;
 	a->format_finish_entry = archive_write_cpio_finish_entry;
 	a->format_finish = archive_write_cpio_finish;
+	a->format_destroy = archive_write_cpio_destroy;
 	a->archive_format = ARCHIVE_FORMAT_CPIO_POSIX;
 	a->archive_format_name = "POSIX cpio";
 	return (ARCHIVE_OK);
 }
 
 static int
-archive_write_cpio_header(struct archive *a, struct archive_entry *entry)
+archive_write_cpio_header(struct archive_write *a, struct archive_entry *entry)
 {
 	struct cpio *cpio;
 	const char *p, *path;
@@ -126,7 +130,7 @@ archive_write_cpio_header(struct archive *a, struct archive_entry *entry)
 	 * field only limits the number of files in the archive.
 	 */
 	if (st->st_ino > 0777777) {
-		archive_set_error(a, ERANGE, "large inode number truncated");
+		archive_set_error(&a->archive, ERANGE, "large inode number truncated");
 		ret = ARCHIVE_WARN;
 	}
 
@@ -167,7 +171,7 @@ archive_write_cpio_header(struct archive *a, struct archive_entry *entry)
 }
 
 static ssize_t
-archive_write_cpio_data(struct archive *a, const void *buff, size_t s)
+archive_write_cpio_data(struct archive_write *a, const void *buff, size_t s)
 {
 	struct cpio *cpio;
 	int ret;
@@ -215,7 +219,7 @@ format_octal_recursive(int64_t v, char *p, int s)
 }
 
 static int
-archive_write_cpio_finish(struct archive *a)
+archive_write_cpio_finish(struct archive_write *a)
 {
 	struct cpio *cpio;
 	struct stat st;
@@ -230,14 +234,22 @@ archive_write_cpio_finish(struct archive *a)
 	archive_entry_set_pathname(trailer, "TRAILER!!!");
 	er = archive_write_cpio_header(a, trailer);
 	archive_entry_free(trailer);
-
-	free(cpio);
-	a->format_data = NULL;
 	return (er);
 }
 
 static int
-archive_write_cpio_finish_entry(struct archive *a)
+archive_write_cpio_destroy(struct archive_write *a)
+{
+	struct cpio *cpio;
+
+	cpio = (struct cpio *)a->format_data;
+	free(cpio);
+	a->format_data = NULL;
+	return (ARCHIVE_OK);
+}
+
+static int
+archive_write_cpio_finish_entry(struct archive_write *a)
 {
 	struct cpio *cpio;
 	int to_write, ret;

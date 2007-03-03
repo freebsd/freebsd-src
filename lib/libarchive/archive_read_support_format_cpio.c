@@ -50,6 +50,7 @@ __FBSDID("$FreeBSD$");
 #include "archive.h"
 #include "archive_entry.h"
 #include "archive_private.h"
+#include "archive_read_private.h"
 
 struct cpio_bin_header {
 	unsigned char	c_magic[2];
@@ -108,7 +109,7 @@ struct links_entry {
 #define	CPIO_MAGIC   0x13141516
 struct cpio {
 	int			  magic;
-	int			(*read_header)(struct archive *, struct cpio *,
+	int			(*read_header)(struct archive_read *, struct cpio *,
 				     struct stat *, size_t *, size_t *);
 	struct links_entry	 *links_head;
 	struct archive_string	  entry_name;
@@ -120,34 +121,35 @@ struct cpio {
 
 static int64_t	atol16(const char *, unsigned);
 static int64_t	atol8(const char *, unsigned);
-static int	archive_read_format_cpio_bid(struct archive *);
-static int	archive_read_format_cpio_cleanup(struct archive *);
-static int	archive_read_format_cpio_read_data(struct archive *,
+static int	archive_read_format_cpio_bid(struct archive_read *);
+static int	archive_read_format_cpio_cleanup(struct archive_read *);
+static int	archive_read_format_cpio_read_data(struct archive_read *,
 		    const void **, size_t *, off_t *);
-static int	archive_read_format_cpio_read_header(struct archive *,
+static int	archive_read_format_cpio_read_header(struct archive_read *,
 		    struct archive_entry *);
 static int	be4(const unsigned char *);
-static int	header_bin_be(struct archive *, struct cpio *, struct stat *,
+static int	header_bin_be(struct archive_read *, struct cpio *, struct stat *,
 		    size_t *, size_t *);
-static int	header_bin_le(struct archive *, struct cpio *, struct stat *,
+static int	header_bin_le(struct archive_read *, struct cpio *, struct stat *,
 		    size_t *, size_t *);
-static int	header_newc(struct archive *, struct cpio *, struct stat *,
+static int	header_newc(struct archive_read *, struct cpio *, struct stat *,
 		    size_t *, size_t *);
-static int	header_odc(struct archive *, struct cpio *, struct stat *,
+static int	header_odc(struct archive_read *, struct cpio *, struct stat *,
 		    size_t *, size_t *);
 static int	le4(const unsigned char *);
 static void	record_hardlink(struct cpio *cpio, struct archive_entry *entry,
 		    const struct stat *st);
 
 int
-archive_read_support_format_cpio(struct archive *a)
+archive_read_support_format_cpio(struct archive *_a)
 {
+	struct archive_read *a = (struct archive_read *)_a;
 	struct cpio *cpio;
 	int r;
 
 	cpio = (struct cpio *)malloc(sizeof(*cpio));
 	if (cpio == NULL) {
-		archive_set_error(a, ENOMEM, "Can't allocate cpio data");
+		archive_set_error(&a->archive, ENOMEM, "Can't allocate cpio data");
 		return (ARCHIVE_FATAL);
 	}
 	memset(cpio, 0, sizeof(*cpio));
@@ -168,7 +170,7 @@ archive_read_support_format_cpio(struct archive *a)
 
 
 static int
-archive_read_format_cpio_bid(struct archive *a)
+archive_read_format_cpio_bid(struct archive_read *a)
 {
 	int bid, bytes_read;
 	const void *h;
@@ -227,7 +229,7 @@ archive_read_format_cpio_bid(struct archive *a)
 }
 
 static int
-archive_read_format_cpio_read_header(struct archive *a,
+archive_read_format_cpio_read_header(struct archive_read *a,
     struct archive_entry *entry)
 {
 	struct stat st;
@@ -274,7 +276,7 @@ archive_read_format_cpio_read_header(struct archive *a,
 	/* Compare name to "TRAILER!!!" to test for end-of-archive. */
 	if (namelength == 11 && strcmp((const char *)h, "TRAILER!!!") == 0) {
 	    /* TODO: Store file location of start of block. */
-	    archive_set_error(a, 0, NULL);
+	    archive_set_error(&a->archive, 0, NULL);
 	    return (ARCHIVE_EOF);
 	}
 
@@ -285,7 +287,7 @@ archive_read_format_cpio_read_header(struct archive *a,
 }
 
 static int
-archive_read_format_cpio_read_data(struct archive *a,
+archive_read_format_cpio_read_data(struct archive_read *a,
     const void **buff, size_t *size, off_t *offset)
 {
 	ssize_t bytes_read;
@@ -322,7 +324,7 @@ archive_read_format_cpio_read_data(struct archive *a,
 }
 
 static int
-header_newc(struct archive *a, struct cpio *cpio, struct stat *st,
+header_newc(struct archive_read *a, struct cpio *cpio, struct stat *st,
     size_t *namelength, size_t *name_pad)
 {
 	const void *h;
@@ -339,11 +341,11 @@ header_newc(struct archive *a, struct cpio *cpio, struct stat *st,
 	header = (const struct cpio_newc_header *)h;
 
 	if (memcmp(header->c_magic, "070701", 6) == 0) {
-		a->archive_format = ARCHIVE_FORMAT_CPIO_SVR4_NOCRC;
-		a->archive_format_name = "ASCII cpio (SVR4 with no CRC)";
+		a->archive.archive_format = ARCHIVE_FORMAT_CPIO_SVR4_NOCRC;
+		a->archive.archive_format_name = "ASCII cpio (SVR4 with no CRC)";
 	} else if (memcmp(header->c_magic, "070702", 6) == 0) {
-		a->archive_format = ARCHIVE_FORMAT_CPIO_SVR4_CRC;
-		a->archive_format_name = "ASCII cpio (SVR4 with CRC)";
+		a->archive.archive_format = ARCHIVE_FORMAT_CPIO_SVR4_CRC;
+		a->archive.archive_format_name = "ASCII cpio (SVR4 with CRC)";
 	} else {
 		/* TODO: Abort here? */
 	}
@@ -379,15 +381,15 @@ header_newc(struct archive *a, struct cpio *cpio, struct stat *st,
 }
 
 static int
-header_odc(struct archive *a, struct cpio *cpio, struct stat *st,
+header_odc(struct archive_read *a, struct cpio *cpio, struct stat *st,
     size_t *namelength, size_t *name_pad)
 {
 	const void *h;
 	const struct cpio_odc_header *header;
 	size_t bytes;
 
-	a->archive_format = ARCHIVE_FORMAT_CPIO_POSIX;
-	a->archive_format_name = "POSIX octet-oriented cpio";
+	a->archive.archive_format = ARCHIVE_FORMAT_CPIO_POSIX;
+	a->archive.archive_format_name = "POSIX octet-oriented cpio";
 
 	/* Read fixed-size portion of header. */
 	bytes = (a->compression_read_ahead)(a, &h, sizeof(struct cpio_odc_header));
@@ -423,15 +425,15 @@ header_odc(struct archive *a, struct cpio *cpio, struct stat *st,
 }
 
 static int
-header_bin_le(struct archive *a, struct cpio *cpio, struct stat *st,
+header_bin_le(struct archive_read *a, struct cpio *cpio, struct stat *st,
     size_t *namelength, size_t *name_pad)
 {
 	const void *h;
 	const struct cpio_bin_header *header;
 	size_t bytes;
 
-	a->archive_format = ARCHIVE_FORMAT_CPIO_BIN_LE;
-	a->archive_format_name = "cpio (little-endian binary)";
+	a->archive.archive_format = ARCHIVE_FORMAT_CPIO_BIN_LE;
+	a->archive.archive_format_name = "cpio (little-endian binary)";
 
 	/* Read fixed-size portion of header. */
 	bytes = (a->compression_read_ahead)(a, &h, sizeof(struct cpio_bin_header));
@@ -460,15 +462,15 @@ header_bin_le(struct archive *a, struct cpio *cpio, struct stat *st,
 }
 
 static int
-header_bin_be(struct archive *a, struct cpio *cpio, struct stat *st,
+header_bin_be(struct archive_read *a, struct cpio *cpio, struct stat *st,
     size_t *namelength, size_t *name_pad)
 {
 	const void *h;
 	const struct cpio_bin_header *header;
 	size_t bytes;
 
-	a->archive_format = ARCHIVE_FORMAT_CPIO_BIN_BE;
-	a->archive_format_name = "cpio (big-endian binary)";
+	a->archive.archive_format = ARCHIVE_FORMAT_CPIO_BIN_BE;
+	a->archive.archive_format_name = "cpio (big-endian binary)";
 
 	/* Read fixed-size portion of header. */
 	bytes = (a->compression_read_ahead)(a, &h,
@@ -497,7 +499,7 @@ header_bin_be(struct archive *a, struct cpio *cpio, struct stat *st,
 }
 
 static int
-archive_read_format_cpio_cleanup(struct archive *a)
+archive_read_format_cpio_cleanup(struct archive_read *a)
 {
 	struct cpio *cpio;
 

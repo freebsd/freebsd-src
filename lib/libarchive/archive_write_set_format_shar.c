@@ -44,6 +44,7 @@ __FBSDID("$FreeBSD$");
 #include "archive.h"
 #include "archive_entry.h"
 #include "archive_private.h"
+#include "archive_write_private.h"
 
 struct shar {
 	int			 dump;
@@ -60,19 +61,20 @@ struct shar {
 	struct archive_string	 work;
 };
 
-static int	archive_write_shar_finish(struct archive *);
-static int	archive_write_shar_header(struct archive *,
+static int	archive_write_shar_finish(struct archive_write *);
+static int	archive_write_shar_destroy(struct archive_write *);
+static int	archive_write_shar_header(struct archive_write *,
 		    struct archive_entry *);
-static ssize_t	archive_write_shar_data_sed(struct archive *,
+static ssize_t	archive_write_shar_data_sed(struct archive_write *,
 		    const void * buff, size_t);
-static ssize_t	archive_write_shar_data_uuencode(struct archive *,
+static ssize_t	archive_write_shar_data_uuencode(struct archive_write *,
 		    const void * buff, size_t);
-static int	archive_write_shar_finish_entry(struct archive *);
-static int	shar_printf(struct archive *, const char *fmt, ...);
+static int	archive_write_shar_finish_entry(struct archive_write *);
+static int	shar_printf(struct archive_write *, const char *fmt, ...);
 static void	uuencode_group(struct shar *);
 
 static int
-shar_printf(struct archive *a, const char *fmt, ...)
+shar_printf(struct archive_write *a, const char *fmt, ...)
 {
 	struct shar *shar;
 	va_list ap;
@@ -91,17 +93,18 @@ shar_printf(struct archive *a, const char *fmt, ...)
  * Set output format to 'shar' format.
  */
 int
-archive_write_set_format_shar(struct archive *a)
+archive_write_set_format_shar(struct archive *_a)
 {
+	struct archive_write *a = (struct archive_write *)_a;
 	struct shar *shar;
 
 	/* If someone else was already registered, unregister them. */
-	if (a->format_finish != NULL)
-		(a->format_finish)(a);
+	if (a->format_destroy != NULL)
+		(a->format_destroy)(a);
 
 	shar = (struct shar *)malloc(sizeof(*shar));
 	if (shar == NULL) {
-		archive_set_error(a, ENOMEM, "Can't allocate shar data");
+		archive_set_error(&a->archive, ENOMEM, "Can't allocate shar data");
 		return (ARCHIVE_FATAL);
 	}
 	memset(shar, 0, sizeof(*shar));
@@ -110,6 +113,7 @@ archive_write_set_format_shar(struct archive *a)
 	a->pad_uncompressed = 0;
 	a->format_write_header = archive_write_shar_header;
 	a->format_finish = archive_write_shar_finish;
+	a->format_destroy = archive_write_shar_destroy;
 	a->format_write_data = archive_write_shar_data_sed;
 	a->format_finish_entry = archive_write_shar_finish_entry;
 	a->archive_format = ARCHIVE_FORMAT_SHAR_BASE;
@@ -124,11 +128,12 @@ archive_write_set_format_shar(struct archive *a)
  * and other extended file information.
  */
 int
-archive_write_set_format_shar_dump(struct archive *a)
+archive_write_set_format_shar_dump(struct archive *_a)
 {
+	struct archive_write *a = (struct archive_write *)_a;
 	struct shar *shar;
 
-	archive_write_set_format_shar(a);
+	archive_write_set_format_shar(&a->archive);
 	shar = (struct shar *)a->format_data;
 	shar->dump = 1;
 	a->format_write_data = archive_write_shar_data_uuencode;
@@ -138,7 +143,7 @@ archive_write_set_format_shar_dump(struct archive *a)
 }
 
 static int
-archive_write_shar_header(struct archive *a, struct archive_entry *entry)
+archive_write_shar_header(struct archive_write *a, struct archive_entry *entry)
 {
 	const char *linkname;
 	const char *name;
@@ -186,7 +191,7 @@ archive_write_shar_header(struct archive *a, struct archive_entry *entry)
 		archive_entry_set_size(entry, 0);
 		if (archive_entry_hardlink(entry) == NULL &&
 		    archive_entry_symlink(entry) == NULL) {
-			archive_set_error(a, ARCHIVE_ERRNO_MISC,
+			archive_set_error(&a->archive, ARCHIVE_ERRNO_MISC,
 			    "shar format cannot archive this");
 			return (ARCHIVE_WARN);
 		}
@@ -323,7 +328,7 @@ archive_write_shar_header(struct archive *a, struct archive_entry *entry)
 
 /* XXX TODO: This could be more efficient XXX */
 static ssize_t
-archive_write_shar_data_sed(struct archive *a, const void *buff, size_t n)
+archive_write_shar_data_sed(struct archive_write *a, const void *buff, size_t n)
 {
 	struct shar *shar;
 	const char *src;
@@ -387,7 +392,7 @@ uuencode_group(struct shar *shar)
 }
 
 static ssize_t
-archive_write_shar_data_uuencode(struct archive *a, const void *buff,
+archive_write_shar_data_uuencode(struct archive_write *a, const void *buff,
     size_t length)
 {
 	struct shar *shar;
@@ -419,7 +424,7 @@ archive_write_shar_data_uuencode(struct archive *a, const void *buff,
 }
 
 static int
-archive_write_shar_finish_entry(struct archive *a)
+archive_write_shar_finish_entry(struct archive_write *a)
 {
 	const char *g, *p, *u;
 	struct shar *shar;
@@ -504,7 +509,7 @@ archive_write_shar_finish_entry(struct archive *a)
 }
 
 static int
-archive_write_shar_finish(struct archive *a)
+archive_write_shar_finish(struct archive_write *a)
 {
 	struct shar *shar;
 	int ret;
@@ -527,12 +532,21 @@ archive_write_shar_finish(struct archive *a)
 		if (ret != ARCHIVE_OK)
 			return (ret);
 		/* Shar output is never padded. */
-		archive_write_set_bytes_in_last_block(a, 1);
+		archive_write_set_bytes_in_last_block(&a->archive, 1);
 		/*
 		 * TODO: shar should also suppress padding of
 		 * uncompressed data within gzip/bzip2 streams.
 		 */
 	}
+	return (ARCHIVE_OK);
+}
+
+static int
+archive_write_shar_destroy(struct archive_write *a)
+{
+	struct shar *shar;
+
+	shar = (struct shar *)a->format_data;
 	if (shar->entry != NULL)
 		archive_entry_free(shar->entry);
 	if (shar->last_dir != NULL)
