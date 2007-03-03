@@ -118,6 +118,12 @@ archive_position_uncompressed(struct archive *a)
 	return (a->file_position);
 }
 
+void
+archive_clear_error(struct archive *a)
+{
+	archive_string_empty(&a->error_string);
+	a->error = NULL;
+}
 
 void
 archive_set_error(struct archive *a, int error_number, const char *fmt, ...)

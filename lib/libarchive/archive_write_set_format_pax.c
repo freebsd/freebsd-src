@@ -52,12 +52,12 @@ __FBSDID("$FreeBSD$");
 #include "archive.h"
 #include "archive_entry.h"
 #include "archive_private.h"
+#include "archive_write_private.h"
 
 struct pax {
 	uint64_t	entry_bytes_remaining;
 	uint64_t	entry_padding;
 	struct archive_string	pax_header;
-	char		written;
 };
 
 static void		 add_pax_attr(struct archive_string *, const char *key,
@@ -69,11 +69,12 @@ static void		 add_pax_attr_time(struct archive_string *,
 			     unsigned long nanos);
 static void		 add_pax_attr_w(struct archive_string *,
 			     const char *key, const wchar_t *wvalue);
-static ssize_t		 archive_write_pax_data(struct archive *,
+static ssize_t		 archive_write_pax_data(struct archive_write *,
 			     const void *, size_t);
-static int		 archive_write_pax_finish(struct archive *);
-static int		 archive_write_pax_finish_entry(struct archive *);
-static int		 archive_write_pax_header(struct archive *,
+static int		 archive_write_pax_finish(struct archive_write *);
+static int		 archive_write_pax_destroy(struct archive_write *);
+static int		 archive_write_pax_finish_entry(struct archive_write *);
+static int		 archive_write_pax_header(struct archive_write *,
 			     struct archive_entry *);
 static char		*base64_encode(const char *src, size_t len);
 static char		*build_pax_attribute_name(char *dest, const char *src);
@@ -82,7 +83,7 @@ static char		*build_ustar_entry_name(char *dest, const char *src,
 static char		*format_int(char *dest, int64_t);
 static int		 has_non_ASCII(const wchar_t *);
 static char		*url_encode(const char *in);
-static int		 write_nulls(struct archive *, size_t);
+static int		 write_nulls(struct archive_write *, size_t);
 
 /*
  * Set output format to 'restricted pax' format.
@@ -92,10 +93,11 @@ static int		 write_nulls(struct archive *, size_t);
  * bsdtar, for instance.
  */
 int
-archive_write_set_format_pax_restricted(struct archive *a)
+archive_write_set_format_pax_restricted(struct archive *_a)
 {
+	struct archive_write *a = (struct archive_write *)_a;
 	int r;
-	r = archive_write_set_format_pax(a);
+	r = archive_write_set_format_pax(&a->archive);
 	a->archive_format = ARCHIVE_FORMAT_TAR_PAX_RESTRICTED;
 	a->archive_format_name = "restricted POSIX pax interchange";
 	return (r);
@@ -105,16 +107,17 @@ archive_write_set_format_pax_restricted(struct archive *a)
  * Set output format to 'pax' format.
  */
 int
-archive_write_set_format_pax(struct archive *a)
+archive_write_set_format_pax(struct archive *_a)
 {
+	struct archive_write *a = (struct archive_write *)_a;
 	struct pax *pax;
 
-	if (a->format_finish != NULL)
-		(a->format_finish)(a);
+	if (a->format_destroy != NULL)
+		(a->format_destroy)(a);
 
 	pax = (struct pax *)malloc(sizeof(*pax));
 	if (pax == NULL) {
-		archive_set_error(a, ENOMEM, "Can't allocate pax data");
+		archive_set_error(&a->archive, ENOMEM, "Can't allocate pax data");
 		return (ARCHIVE_FATAL);
 	}
 	memset(pax, 0, sizeof(*pax));
@@ -124,6 +127,7 @@ archive_write_set_format_pax(struct archive *a)
 	a->format_write_header = archive_write_pax_header;
 	a->format_write_data = archive_write_pax_data;
 	a->format_finish = archive_write_pax_finish;
+	a->format_destroy = archive_write_pax_destroy;
 	a->format_finish_entry = archive_write_pax_finish_entry;
 	a->archive_format = ARCHIVE_FORMAT_TAR_PAX_INTERCHANGE;
 	a->archive_format_name = "POSIX pax interchange";
@@ -388,7 +392,7 @@ archive_write_pax_header_xattrs(struct pax *pax, struct archive_entry *entry)
  * key/value data.
  */
 static int
-archive_write_pax_header(struct archive *a,
+archive_write_pax_header(struct archive_write *a,
     struct archive_entry *entry_original)
 {
 	struct archive_entry *entry_main;
@@ -407,7 +411,6 @@ archive_write_pax_header(struct archive *a,
 
 	need_extension = 0;
 	pax = (struct pax *)a->format_data;
-	pax->written = 1;
 
 	st_original = archive_entry_stat(entry_original);
 
@@ -424,11 +427,11 @@ archive_write_pax_header(struct archive *a,
 		case S_IFIFO:
 			break;
 		case S_IFSOCK:
-			archive_set_error(a, ARCHIVE_ERRNO_FILE_FORMAT,
+			archive_set_error(&a->archive, ARCHIVE_ERRNO_FILE_FORMAT,
 			    "tar format cannot archive socket");
 			return (ARCHIVE_WARN);
 		default:
-			archive_set_error(a, ARCHIVE_ERRNO_FILE_FORMAT,
+			archive_set_error(&a->archive, ARCHIVE_ERRNO_FILE_FORMAT,
 			    "tar format cannot archive this (mode=0%lo)",
 			    (unsigned long)st_original->st_mode);
 			return (ARCHIVE_WARN);
@@ -1038,23 +1041,33 @@ build_pax_attribute_name(char *dest, const char *src)
 
 /* Write two null blocks for the end of archive */
 static int
-archive_write_pax_finish(struct archive *a)
+archive_write_pax_finish(struct archive_write *a)
 {
 	struct pax *pax;
 	int r;
 
-	r = ARCHIVE_OK;
+	if (a->compression_write == NULL)
+		return (ARCHIVE_OK);
+
 	pax = (struct pax *)a->format_data;
-	if (pax->written && a->compression_write != NULL)
-		r = write_nulls(a, 512 * 2);
-	archive_string_free(&pax->pax_header);
-	free(pax);
-	a->format_data = NULL;
+	r = write_nulls(a, 512 * 2);
 	return (r);
 }
 
 static int
-archive_write_pax_finish_entry(struct archive *a)
+archive_write_pax_destroy(struct archive_write *a)
+{
+	struct pax *pax;
+
+	pax = (struct pax *)a->format_data;
+	archive_string_free(&pax->pax_header);
+	free(pax);
+	a->format_data = NULL;
+	return (ARCHIVE_OK);
+}
+
+static int
+archive_write_pax_finish_entry(struct archive_write *a)
 {
 	struct pax *pax;
 	int ret;
@@ -1066,7 +1079,7 @@ archive_write_pax_finish_entry(struct archive *a)
 }
 
 static int
-write_nulls(struct archive *a, size_t padding)
+write_nulls(struct archive_write *a, size_t padding)
 {
 	int ret, to_write;
 
@@ -1081,13 +1094,12 @@ write_nulls(struct archive *a, size_t padding)
 }
 
 static ssize_t
-archive_write_pax_data(struct archive *a, const void *buff, size_t s)
+archive_write_pax_data(struct archive_write *a, const void *buff, size_t s)
 {
 	struct pax *pax;
 	int ret;
 
 	pax = (struct pax *)a->format_data;
-	pax->written = 1;
 	if (s > pax->entry_bytes_remaining)
 		s = pax->entry_bytes_remaining;
 

@@ -80,8 +80,6 @@ archive_read_data_into_fd(struct archive *a, int fd)
 			total_written += bytes_written;
 			p += bytes_written;
 			size -= bytes_written;
-			if (a->extract_progress != NULL)
-				(*a->extract_progress)(a->extract_progress_user_data);
 		}
 	}
 

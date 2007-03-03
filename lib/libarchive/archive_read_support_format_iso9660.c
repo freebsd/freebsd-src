@@ -49,6 +49,7 @@ __FBSDID("$FreeBSD$");
 #include "archive.h"
 #include "archive_entry.h"
 #include "archive_private.h"
+#include "archive_read_private.h"
 #include "archive_string.h"
 
 /*
@@ -222,12 +223,12 @@ struct iso9660 {
 };
 
 static void	add_entry(struct iso9660 *iso9660, struct file_info *file);
-static int	archive_read_format_iso9660_bid(struct archive *);
-static int	archive_read_format_iso9660_cleanup(struct archive *);
-static int	archive_read_format_iso9660_read_data(struct archive *,
+static int	archive_read_format_iso9660_bid(struct archive_read *);
+static int	archive_read_format_iso9660_cleanup(struct archive_read *);
+static int	archive_read_format_iso9660_read_data(struct archive_read *,
 		    const void **, size_t *, off_t *);
-static int	archive_read_format_iso9660_read_data_skip(struct archive *);
-static int	archive_read_format_iso9660_read_header(struct archive *,
+static int	archive_read_format_iso9660_read_data_skip(struct archive_read *);
+static int	archive_read_format_iso9660_read_header(struct archive_read *,
 		    struct archive_entry *);
 static const char *build_pathname(struct archive_string *, struct file_info *);
 static void	dump_isodirrec(FILE *, const unsigned char *isodirrec);
@@ -236,7 +237,7 @@ static time_t	isodate17(const unsigned char *);
 static time_t	isodate7(const unsigned char *);
 static int	isPVD(struct iso9660 *, const unsigned char *);
 static struct file_info *next_entry(struct iso9660 *);
-static int	next_entry_seek(struct archive *a, struct iso9660 *iso9660,
+static int	next_entry_seek(struct archive_read *a, struct iso9660 *iso9660,
 		    struct file_info **pfile);
 static struct file_info *
 		parse_file_info(struct iso9660 *iso9660,
@@ -248,14 +249,15 @@ static void	release_file(struct iso9660 *, struct file_info *);
 static unsigned	toi(const void *p, int n);
 
 int
-archive_read_support_format_iso9660(struct archive *a)
+archive_read_support_format_iso9660(struct archive *_a)
 {
+	struct archive_read *a = (struct archive_read *)_a;
 	struct iso9660 *iso9660;
 	int r;
 
 	iso9660 = (struct iso9660 *)malloc(sizeof(*iso9660));
 	if (iso9660 == NULL) {
-		archive_set_error(a, ENOMEM, "Can't allocate iso9660 data");
+		archive_set_error(&a->archive, ENOMEM, "Can't allocate iso9660 data");
 		return (ARCHIVE_FATAL);
 	}
 	memset(iso9660, 0, sizeof(*iso9660));
@@ -279,7 +281,7 @@ archive_read_support_format_iso9660(struct archive *a)
 
 
 static int
-archive_read_format_iso9660_bid(struct archive *a)
+archive_read_format_iso9660_bid(struct archive_read *a)
 {
 	struct iso9660 *iso9660;
 	ssize_t bytes_read;
@@ -338,7 +340,7 @@ isPVD(struct iso9660 *iso9660, const unsigned char *h)
 }
 
 static int
-archive_read_format_iso9660_read_header(struct archive *a,
+archive_read_format_iso9660_read_header(struct archive_read *a,
     struct archive_entry *entry)
 {
 	struct stat st;
@@ -349,9 +351,9 @@ archive_read_format_iso9660_read_header(struct archive *a,
 
 	iso9660 = (struct iso9660 *)*(a->pformat_data);
 
-	if (!a->archive_format) {
-		a->archive_format = ARCHIVE_FORMAT_ISO9660;
-		a->archive_format_name = "ISO9660";
+	if (!a->archive.archive_format) {
+		a->archive.archive_format = ARCHIVE_FORMAT_ISO9660;
+		a->archive.archive_format_name = "ISO9660";
 	}
 
 	/* Get the next entry that appears after the current offset. */
@@ -397,7 +399,7 @@ archive_read_format_iso9660_read_header(struct archive *a,
 	/* If the offset is before our current position, we can't
 	 * seek backwards to extract it, so issue a warning. */
 	if (file->offset < iso9660->current_position) {
-		archive_set_error(a, ARCHIVE_ERRNO_MISC,
+		archive_set_error(&a->archive, ARCHIVE_ERRNO_MISC,
 		    "Ignoring out-of-order file");
 		iso9660->entry_bytes_remaining = 0;
 		iso9660->entry_sparse_offset = 0;
@@ -419,7 +421,7 @@ archive_read_format_iso9660_read_header(struct archive *a,
 				step = iso9660->entry_bytes_remaining;
 			bytes_read = (a->compression_read_ahead)(a, &block, step);
 			if (bytes_read < step) {
-				archive_set_error(a, ARCHIVE_ERRNO_MISC,
+				archive_set_error(&a->archive, ARCHIVE_ERRNO_MISC,
 	    "Failed to read full block when scanning ISO9660 directory list");
 				release_file(iso9660, file);
 				return (ARCHIVE_FATAL);
@@ -445,9 +447,9 @@ archive_read_format_iso9660_read_header(struct archive *a,
 				child = parse_file_info(iso9660, file, p);
 				add_entry(iso9660, child);
 				if (iso9660->seenRockridge) {
-					a->archive_format =
+					a->archive.archive_format =
 					    ARCHIVE_FORMAT_ISO9660_ROCKRIDGE;
-					a->archive_format_name =
+					a->archive.archive_format_name =
 					    "ISO9660 with Rockridge extensions";
 				}
 			}
@@ -459,7 +461,7 @@ archive_read_format_iso9660_read_header(struct archive *a,
 }
 
 static int
-archive_read_format_iso9660_read_data_skip(struct archive *a)
+archive_read_format_iso9660_read_data_skip(struct archive_read *a)
 {
 	/* Because read_next_header always does an explicit skip
 	 * to the next entry, we don't need to do anything here. */
@@ -468,7 +470,7 @@ archive_read_format_iso9660_read_data_skip(struct archive *a)
 }
 
 static int
-archive_read_format_iso9660_read_data(struct archive *a,
+archive_read_format_iso9660_read_data(struct archive_read *a,
     const void **buff, size_t *size, off_t *offset)
 {
 	ssize_t bytes_read;
@@ -484,7 +486,7 @@ archive_read_format_iso9660_read_data(struct archive *a,
 
 	bytes_read = (a->compression_read_ahead)(a, buff, 1);
 	if (bytes_read == 0)
-		archive_set_error(a, ARCHIVE_ERRNO_MISC,
+		archive_set_error(&a->archive, ARCHIVE_ERRNO_MISC,
 		    "Truncated input file");
 	if (bytes_read <= 0)
 		return (ARCHIVE_FATAL);
@@ -500,7 +502,7 @@ archive_read_format_iso9660_read_data(struct archive *a,
 }
 
 static int
-archive_read_format_iso9660_cleanup(struct archive *a)
+archive_read_format_iso9660_cleanup(struct archive_read *a)
 {
 	struct iso9660 *iso9660;
 	struct file_info *file;
@@ -889,7 +891,7 @@ release_file(struct iso9660 *iso9660, struct file_info *file)
 }
 
 static int
-next_entry_seek(struct archive *a, struct iso9660 *iso9660,
+next_entry_seek(struct archive_read *a, struct iso9660 *iso9660,
     struct file_info **pfile)
 {
 	struct file_info *file;

@@ -1,0 +1,324 @@
+/*-
+ * Copyright (c) 2003-2007 Tim Kientzle
+ * All rights reserved.
+ *
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions
+ * are met:
+ * 1. Redistributions of source code must retain the above copyright
+ *    notice, this list of conditions and the following disclaimer.
+ * 2. Redistributions in binary form must reproduce the above copyright
+ *    notice, this list of conditions and the following disclaimer in the
+ *    documentation and/or other materials provided with the distribution.
+ *
+ * THIS SOFTWARE IS PROVIDED BY THE AUTHOR(S) ``AS IS'' AND ANY EXPRESS OR
+ * IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
+ * OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
+ * IN NO EVENT SHALL THE AUTHOR(S) BE LIABLE FOR ANY DIRECT, INDIRECT,
+ * INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
+ * NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+ * DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+ * THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+ * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
+ * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ */
+#include "test.h"
+__FBSDID("$FreeBSD$");
+
+#define UMASK 022
+
+static gid_t _default_gid = 0;
+static gid_t _invalid_gid = 0;
+static gid_t _alt_gid = 0;
+
+/*
+ * To fully test SGID restores, we need three distinct GIDs to work
+ * with:
+ *    * the GID that files are created with by default (for the
+ *      current user in the current directory)
+ *    * An "alt gid" that this user can create files with
+ *    * An "invalid gid" that this user is not permitted to create
+ *      files with.
+ * The second fails if this user doesn't belong to at least two groups;
+ * the third fails if the current user is root.
+ */
+static int
+searchgid(void)
+{
+	static int   _searched = 0;
+	uid_t uid = getuid();
+	gid_t gid = 0;
+	int n;
+	struct stat st;
+	int fd;
+
+	/* If we've already looked this up, we're done. */
+	if (_searched)
+		return;
+	_searched = 1;
+
+	/* Create a file on disk. */
+	fd = open("test_gid", O_CREAT, 0664);
+	failure("Couldn't create a file for gid testing.");
+	assert(fd > 0);
+
+	/* See what GID it ended up with.  This is our "valid" GID. */
+	assert(fstat(fd, &st) == 0);
+	_default_gid = st.st_gid;
+
+	/* Find a GID for which fchown() fails.  This is our "invalid" GID. */
+	_invalid_gid = 0;
+	/* This loop stops when we wrap the gid or examine 10,000 gids. */
+	for (gid = 1, n = 1; gid == n && n < 10000 ; n++, gid++) {
+		if (fchown(fd, uid, gid) != 0) {
+			_invalid_gid = gid;
+			break;
+		}
+	}
+
+	/*
+	 * Find a GID for which fchown() succeeds, but which isn't the
+	 * default.  This is the "alternate" gid.
+	 */
+	_alt_gid = 0;
+	for (gid = 1, n = 1; gid == n && n < 10000 ; n++, gid++) {
+		/* _alt_gid must be different than _default_gid */
+		if (gid == _default_gid)
+			continue;
+		if (fchown(fd, uid, gid) == 0) {
+			_alt_gid = gid;
+			break;
+		}
+	}
+	close(fd);
+}
+
+static int
+altgid(void)
+{
+	searchgid();
+	return (_alt_gid);
+}
+
+static int
+invalidgid(void)
+{
+	searchgid();
+	return (_invalid_gid);
+}
+
+static int
+defaultgid(void)
+{
+	searchgid();
+	return (_default_gid);
+}
+
+/*
+ * Exercise permission and ownership restores.
+ * In particular, try to exercise a bunch of border cases related
+ * to files/dirs that already exist, SUID/SGID bits, etc.
+ */
+
+DEFINE_TEST(test_write_disk_perms)
+{
+	struct archive *a;
+	struct archive_entry *ae;
+	struct stat st;
+
+	/* Create an archive_write_disk object. */
+	assert((a = archive_write_disk_new()) != NULL);
+
+	/* Write a regular file to it. */
+	assert((ae = archive_entry_new()) != NULL);
+	archive_entry_copy_pathname(ae, "file_0755");
+	archive_entry_set_mode(ae, S_IFREG | 0777);
+	assert(0 == archive_write_header(a, ae));
+	assert(0 == archive_write_finish_entry(a));
+
+	/* Write a regular file with SUID bit, but don't use _EXTRACT_PERM. */
+	assert((ae = archive_entry_new()) != NULL);
+	archive_entry_copy_pathname(ae, "file_no_suid");
+	archive_entry_set_mode(ae, S_IFREG | S_ISUID | 0777);
+	archive_write_disk_set_options(a, 0);
+	assert(0 == archive_write_header(a, ae));
+	assert(0 == archive_write_finish_entry(a));
+
+	/* Write a regular file with ARCHIVE_EXTRACT_PERM. */
+	assert(archive_entry_clear(ae) != NULL);
+	archive_entry_copy_pathname(ae, "file_0777");
+	archive_entry_set_mode(ae, S_IFREG | 0777);
+	archive_write_disk_set_options(a, ARCHIVE_EXTRACT_PERM);
+	assert(0 == archive_write_header(a, ae));
+	assert(0 == archive_write_finish_entry(a));
+
+	/* Write a regular file with ARCHIVE_EXTRACT_PERM & SUID bit */
+	assert(archive_entry_clear(ae) != NULL);
+	archive_entry_copy_pathname(ae, "file_4742");
+	archive_entry_set_mode(ae, S_IFREG | S_ISUID | 0742);
+	archive_entry_set_uid(ae, getuid());
+	archive_write_disk_set_options(a, ARCHIVE_EXTRACT_PERM);
+	assert(0 == archive_write_header(a, ae));
+	assert(0 == archive_write_finish_entry(a));
+
+	/*
+	 * Write a regular file with ARCHIVE_EXTRACT_PERM & SUID bit,
+	 * but wrong uid.  POSIX says you shouldn't restore SUID bit
+	 * unless the UID could be restored.
+	 */
+	assert(archive_entry_clear(ae) != NULL);
+	archive_entry_copy_pathname(ae, "file_bad_suid");
+	archive_entry_set_mode(ae, S_IFREG | S_ISUID | 0742);
+	archive_entry_set_uid(ae, getuid() + 1);
+	archive_write_disk_set_options(a, ARCHIVE_EXTRACT_PERM);
+	assertA(0 == archive_write_header(a, ae));
+	assertA(ARCHIVE_WARN == archive_write_finish_entry(a));
+
+	/* Write a regular file with ARCHIVE_EXTRACT_PERM & SGID bit */
+	assert(archive_entry_clear(ae) != NULL);
+	archive_entry_copy_pathname(ae, "file_perm_sgid");
+	archive_entry_set_mode(ae, S_IFREG | S_ISGID | 0742);
+	archive_entry_set_gid(ae, defaultgid());
+	archive_write_disk_set_options(a, ARCHIVE_EXTRACT_PERM);
+	assert(0 == archive_write_header(a, ae));
+	failure("Setting SGID bit should succeed here.");
+	assertEqualIntA(a, 0, archive_write_finish_entry(a));
+
+	if (altgid() == 0) {
+		/*
+		 * Current user must belong to at least two groups or
+		 * else we can't test setting the GID to another group.
+		 */
+		printf("Current user can't test gid restore: must belong to more than one group.\n");
+	} else {
+		/* Write a regular file with ARCHIVE_EXTRACT_PERM & SGID bit */
+		/*
+		 * This is a weird case: The user has asked for permissions to
+		 * be restored but not asked for ownership to be restored.  As
+		 * a result, the default file creation will create a file with
+		 * the wrong group.  There are two reasonable behaviors: warn
+		 * and drop the SGID bit (the current libarchive behavior) or
+		 * try to set the group.  It is completely wrong to set the
+		 * SGID bit with the wrong group (which is, incidentally,
+		 * exactly what gtar 1.15 does).
+		 */
+		assert(archive_entry_clear(ae) != NULL);
+		archive_entry_copy_pathname(ae, "file_alt_sgid");
+		archive_entry_set_mode(ae, S_IFREG | S_ISGID | 0742);
+		archive_entry_set_uid(ae, getuid());
+		archive_entry_set_gid(ae, altgid());
+		archive_write_disk_set_options(a, ARCHIVE_EXTRACT_PERM);
+		assert(0 == archive_write_header(a, ae));
+		failure("Setting SGID bit should not succeed here.");
+		assertEqualIntA(a, ARCHIVE_WARN, archive_write_finish_entry(a));
+
+		/* As above, but add _EXTRACT_OWNER. */
+		assert(archive_entry_clear(ae) != NULL);
+		archive_entry_copy_pathname(ae, "file_alt_sgid_owner");
+		archive_entry_set_mode(ae, S_IFREG | S_ISGID | 0742);
+		archive_entry_set_uid(ae, getuid());
+		archive_entry_set_gid(ae, altgid());
+		archive_write_disk_set_options(a,
+		    ARCHIVE_EXTRACT_PERM | ARCHIVE_EXTRACT_OWNER);
+		assert(0 == archive_write_header(a, ae));
+		failure("Setting SGID bit should succeed here.");
+		assertEqualIntA(a, ARCHIVE_OK, archive_write_finish_entry(a));
+	}
+
+	/*
+	 * Write a regular file with ARCHIVE_EXTRACT_PERM & SGID bit,
+	 * but wrong GID.  POSIX says you shouldn't restore SGID bit
+	 * unless the GID could be restored.
+	 */
+	if (invalidgid() == 0) {
+		/* This test always fails for root. */
+		printf("Running as root: Can't test SGID failures.\n");
+	} else {
+		assert(archive_entry_clear(ae) != NULL);
+		archive_entry_copy_pathname(ae, "file_bad_sgid");
+		archive_entry_set_mode(ae, S_IFREG | S_ISGID | 0742);
+		archive_entry_set_gid(ae, invalidgid());
+		archive_write_disk_set_options(a, ARCHIVE_EXTRACT_PERM);
+		assertA(0 == archive_write_header(a, ae));
+		failure("This SGID restore should fail.");
+		assertEqualIntA(a, ARCHIVE_WARN, archive_write_finish_entry(a));
+	}
+
+	/* Set ownership should fail if we're not root. */
+	if (getuid() == 0) {
+		printf("Running as root: Can't test setuid failures.\n");
+	} else {
+		assert(archive_entry_clear(ae) != NULL);
+		archive_entry_copy_pathname(ae, "file_bad_owner");
+		archive_entry_set_mode(ae, S_IFREG | 0744);
+		archive_entry_set_uid(ae, getuid() + 1);
+		archive_write_disk_set_options(a, ARCHIVE_EXTRACT_OWNER);
+		assertA(0 == archive_write_header(a, ae));
+		assertEqualIntA(a,ARCHIVE_WARN,archive_write_finish_entry(a));
+	}
+
+#if ARCHIVE_API_VERSION > 1
+	assert(0 == archive_write_finish(a));
+#else
+	archive_write_finish(a);
+#endif
+
+	/* Test the entries on disk. */
+	assert(0 == stat("file_0755", &st));
+	failure("file_0755: st.st_mode=%o", st.st_mode);
+	assert((st.st_mode & 07777) == 0755);
+
+	assert(0 == stat("file_no_suid", &st));
+	failure("file_0755: st.st_mode=%o", st.st_mode);
+	assert((st.st_mode & 07777) == 0755);
+
+	assert(0 == stat("file_0777", &st));
+	failure("file_0777: st.st_mode=%o", st.st_mode);
+	assert((st.st_mode & 07777) == 0777);
+
+	/* SUID bit should get set here. */
+	assert(0 == stat("file_4742", &st));
+	failure("file_4742: st.st_mode=%o", st.st_mode);
+	assert((st.st_mode & 07777) == (S_ISUID | 0742));
+
+	/* SUID bit should NOT have been set here. */
+	assert(0 == stat("file_bad_suid", &st));
+	failure("file_bad_suid: st.st_mode=%o", st.st_mode);
+	assert((st.st_mode & 07777) == (0742));
+
+	/* SGID should be set here. */
+	assert(0 == stat("file_perm_sgid", &st));
+	failure("file_perm_sgid: st.st_mode=%o", st.st_mode);
+	assert((st.st_mode & 07777) == (S_ISGID | 0742));
+
+	if (altgid() != 0) {
+		/* SGID should not be set here. */
+		assert(0 == stat("file_alt_sgid", &st));
+		failure("file_alt_sgid: st.st_mode=%o", st.st_mode);
+		assert((st.st_mode & 07777) == (0742));
+
+		/* SGID should be set here. */
+		assert(0 == stat("file_alt_sgid_owner", &st));
+		failure("file_alt_sgid: st.st_mode=%o", st.st_mode);
+		assert((st.st_mode & 07777) == (S_ISGID | 0742));
+	}
+
+	if (invalidgid() != 0) {
+		/* SGID should NOT be set here. */
+		assert(0 == stat("file_bad_sgid", &st));
+		failure("file_bad_sgid: st.st_mode=%o", st.st_mode);
+		assert((st.st_mode & 07777) == (0742));
+	}
+
+	if (getuid() != 0) {
+		assert(0 == stat("file_bad_owner", &st));
+		failure("file_bad_owner: st.st_mode=%o", st.st_mode);
+		assert((st.st_mode & 07777) == (0744));
+		failure("file_bad_owner: st.st_uid=%d getuid()=%d",
+		    st.st_uid, getuid());
+		/* The entry had getuid()+1, but because we're
+		 * not root, we should not have been able to set that. */
+		assert(st.st_uid == getuid());
+	}
+
+}
