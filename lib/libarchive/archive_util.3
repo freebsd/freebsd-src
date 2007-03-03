@@ -28,6 +28,7 @@
 .Dt archive_util 3
 .Os
 .Sh NAME
+.Nm archive_clear_error ,
 .Nm archive_compression ,
 .Nm archive_compression_name ,
 .Nm archive_errno ,
@@ -38,6 +39,8 @@
 .Nd libarchive utility functions
 .Sh SYNOPSIS
 .In archive.h
+.Ft void
+.Fn archive_clear_error "struct archive *"
 .Ft int
 .Fn archive_compression "struct archive *"
 .Ft const char *
@@ -59,6 +62,9 @@ object used in the
 .Xr libarchive 3
 library.
 .Bl -tag -compact -width indent
+.It Fn archive_clear_error
+Clears any error information left over from a previous call.
+Not generally used in client code.
 .It Fn archive_compression
 Returns a numeric code indicating the current compression.
 This value is set by

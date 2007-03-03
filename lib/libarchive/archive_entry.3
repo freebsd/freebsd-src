@@ -46,6 +46,7 @@
 .Nm archive_entry_copy_hardlink_w ,
 .Nm archive_entry_copy_pathname_w ,
 .Nm archive_entry_copy_stat ,
+.Nm archive_entry_copy_symlink ,
 .Nm archive_entry_copy_symlink_w ,
 .Nm archive_entry_copy_uname_w ,
 .Nm archive_entry_dev ,
@@ -123,6 +124,8 @@
 .Fn archive_entry_copy_pathname_w "struct archive_entry *" "const wchar_t *"
 .Ft void
 .Fn archive_entry_copy_stat "struct archive_entry *" "const struct stat *"
+.Ft void
+.Fn archive_entry_copy_symlink "struct archive_entry *" "const char *"
 .Ft void
 .Fn archive_entry_copy_symlink_w "struct archive_entry *" "const wchar_t *"
 .Ft void

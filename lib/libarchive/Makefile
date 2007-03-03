@@ -9,14 +9,14 @@ LDADD=	-lbz2 -lz
 #  Major: Bumped ONLY when API/ABI breakage happens (see SHLIB_MAJOR)
 #  Minor: Bumped when significant new features are added
 #  Revision: Bumped on any notable change
-VERSION= 1.3.1
+VERSION= 2.0.20
 
 ARCHIVE_API_MAJOR!=	echo ${VERSION} | sed -e 's/[^0-9]/./g' -e 's/\..*//'
 ARCHIVE_API_MINOR!=	echo ${VERSION} | sed -e 's/[^0-9]/./g' -e 's/[0-9]*\.//' -e 's/\..*//'
 
 # FreeBSD SHLIB_MAJOR value is managed as part of the FreeBSD system.
 # It has no real relation to the version number above.
-SHLIB_MAJOR= 3
+SHLIB_MAJOR= 4
 
 CFLAGS+=	-DPACKAGE_NAME=\"lib${LIB}\"
 CFLAGS+=	-DPACKAGE_VERSION=\"${VERSION}\"
@@ -67,7 +67,10 @@ SRCS=	archive.h					\
 	archive_string.c				\
 	archive_string_sprintf.c			\
 	archive_util.c					\
+	archive_virtual.c				\
 	archive_write.c					\
+	archive_write_disk.c				\
+	archive_write_disk_set_standard_lookup.c	\
 	archive_write_open_fd.c				\
 	archive_write_open_file.c			\
 	archive_write_open_filename.c			\
@@ -87,6 +90,7 @@ MAN=	archive_entry.3					\
 	archive_read.3					\
 	archive_util.3					\
 	archive_write.3					\
+	archive_write_disk.3				\
 	libarchive.3					\
 	libarchive-formats.5				\
 	tar.5
@@ -173,6 +177,7 @@ MLINKS+=	archive_read.3 archive_read_support_format_cpio.3
 MLINKS+=	archive_read.3 archive_read_support_format_iso9660.3
 MLINKS+=	archive_read.3 archive_read_support_format_tar.3
 MLINKS+=	archive_read.3 archive_read_support_format_zip.3
+MLINKS+=	archive_util.3 archive_clear_error.3
 MLINKS+=	archive_util.3 archive_compression.3
 MLINKS+=	archive_util.3 archive_compression_name.3
 MLINKS+=	archive_util.3 archive_errno.3
@@ -201,6 +206,15 @@ MLINKS+=	archive_write.3 archive_write_set_compression_gzip.3
 MLINKS+=	archive_write.3 archive_write_set_format_pax.3
 MLINKS+=	archive_write.3 archive_write_set_format_shar.3
 MLINKS+=	archive_write.3 archive_write_set_format_ustar.3
+MLINKS+=	archive_write_disk.3 archive_write_disk_new.3
+MLINKS+=	archive_write_disk.3 archive_write_disk_set_group_lookup.3
+MLINKS+=	archive_write_disk.3 archive_write_disk_set_options.3
+MLINKS+=	archive_write_disk.3 archive_write_disk_set_skip_file.3
+MLINKS+=	archive_write_disk.3 archive_write_disk_set_standard_lookup.3
+MLINKS+=	archive_write_disk.3 archive_write_disk_set_user_lookup.3
 MLINKS+=	libarchive.3 archive.3
+
+test:
+	cd ${.CURDIR}/test && make test
 
 .include <bsd.lib.mk>

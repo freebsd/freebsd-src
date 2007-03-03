@@ -89,13 +89,13 @@
 .Fn archive_write_open_memory "struct archive *" "void *buffer" "size_t bufferSize" "size_t *outUsed"
 .Ft int
 .Fn archive_write_header "struct archive *" "struct archive_entry *"
-.Ft int
+.Ft ssize_t
 .Fn archive_write_data "struct archive *" "const void *" "size_t"
 .Ft int
 .Fn archive_write_finish_entry "struct archive *"
 .Ft int
 .Fn archive_write_close "struct archive *"
-.Ft void
+.Ft int
 .Fn archive_write_finish "struct archive *"
 .Sh DESCRIPTION
 These functions provide a complete API for creating streaming
@@ -260,6 +260,12 @@ Complete the archive and invoke the close callback.
 Invokes
 .Fn archive_write_close
 if it was not invoked manually, then releases all resources.
+Note that this function was declared to return
+.Ft void
+in libarchive 1.x, which made it impossible to detect errors when
+.Fn archive_write_close
+was invoked implicitly from this function.
+This is corrected beginning with libarchive 2.0.
 .El
 More information about the
 .Va struct archive
@@ -457,8 +463,9 @@ through whatever API function resulted in that call, which
 may include
 .Fn archive_write_header ,
 .Fn archive_write_data ,
+.Fn archive_write_close ,
 or
-.Fn archive_write_close .
+.Fn archive_write_finish .
 The client callback can call
 .Fn archive_set_error
 to provide values that can then be retrieved by
