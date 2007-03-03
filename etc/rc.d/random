@@ -45,6 +45,7 @@ random_start()
 	*)
 		if [ -w /dev/random ]; then
 			feed_dev_random "${entropy_file}"
+			feed_dev_random /var/db/entropy-file
 		fi
 		;;
 	esac
@@ -60,22 +61,22 @@ random_stop()
 		;;
 	*)
 		echo -n 'Writing entropy file:'
-		rm -f ${entropy_file}
+		rm -f ${entropy_file} 2> /dev/null
 		oumask=`umask`
 		umask 077
-		if touch ${entropy_file}; then
+		if touch ${entropy_file} 2> /dev/null; then
 			entropy_file_confirmed="${entropy_file}"
 		else
 			# Try this as a reasonable alternative for read-only
 			# roots, diskless workstations, etc.
-			rm -f /var/db/entropy-file
-			if touch /var/db/entropy-file; then
+			rm -f /var/db/entropy-file 2> /dev/null
+			if touch /var/db/entropy-file 2> /dev/null; then
 				entropy_file_confirmed=/var/db/entropy-file
 			fi
 		fi
 		case ${entropy_file_confirmed} in
 		'')
-			err 1 'entropy file write failed.'
+			warn 'write failed (read-only fs?)'
 			;;
 		*)
 			dd if=/dev/random of=${entropy_file_confirmed} \
