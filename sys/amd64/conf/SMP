@@ -6,4 +6,6 @@
 
 include GENERIC
 
+ident	SMP-GENERIC
+
 options	SMP
