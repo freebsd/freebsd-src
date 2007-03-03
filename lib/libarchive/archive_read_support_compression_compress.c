@@ -81,6 +81,7 @@ __FBSDID("$FreeBSD$");
 
 #include "archive.h"
 #include "archive_private.h"
+#include "archive_read_private.h"
 
 /*
  * Because LZW decompression is pretty simple, I've just implemented
@@ -133,16 +134,17 @@ struct private_data {
 };
 
 static int	bid(const void *, size_t);
-static int	finish(struct archive *);
-static int	init(struct archive *, const void *, size_t);
-static ssize_t	read_ahead(struct archive *, const void **, size_t);
-static ssize_t	read_consume(struct archive *, size_t);
-static int	getbits(struct archive *, struct private_data *, int n);
-static int	next_code(struct archive *a, struct private_data *state);
+static int	finish(struct archive_read *);
+static int	init(struct archive_read *, const void *, size_t);
+static ssize_t	read_ahead(struct archive_read *, const void **, size_t);
+static ssize_t	read_consume(struct archive_read *, size_t);
+static int	getbits(struct archive_read *, struct private_data *, int n);
+static int	next_code(struct archive_read *a, struct private_data *state);
 
 int
-archive_read_support_compression_compress(struct archive *a)
+archive_read_support_compression_compress(struct archive *_a)
 {
+	struct archive_read *a = (struct archive_read *)_a;
 	return (__archive_read_register_compression(a, bid, init));
 }
 
@@ -187,13 +189,13 @@ bid(const void *buff, size_t len)
  * Setup the callbacks.
  */
 static int
-init(struct archive *a, const void *buff, size_t n)
+init(struct archive_read *a, const void *buff, size_t n)
 {
 	struct private_data *state;
 	int code;
 
-	a->compression_code = ARCHIVE_COMPRESSION_COMPRESS;
-	a->compression_name = "compress (.Z)";
+	a->archive.compression_code = ARCHIVE_COMPRESSION_COMPRESS;
+	a->archive.compression_name = "compress (.Z)";
 
 	a->compression_read_ahead = read_ahead;
 	a->compression_read_consume = read_consume;
@@ -202,9 +204,9 @@ init(struct archive *a, const void *buff, size_t n)
 
 	state = (struct private_data *)malloc(sizeof(*state));
 	if (state == NULL) {
-		archive_set_error(a, ENOMEM,
+		archive_set_error(&a->archive, ENOMEM,
 		    "Can't allocate data for %s decompression",
-		    a->compression_name);
+		    a->archive.compression_name);
 		return (ARCHIVE_FATAL);
 	}
 	memset(state, 0, sizeof(*state));
@@ -214,9 +216,9 @@ init(struct archive *a, const void *buff, size_t n)
 	state->uncompressed_buffer = malloc(state->uncompressed_buffer_size);
 
 	if (state->uncompressed_buffer == NULL) {
-		archive_set_error(a, ENOMEM,
+		archive_set_error(&a->archive, ENOMEM,
 		    "Can't allocate %s decompression buffers",
-		    a->compression_name);
+		    a->archive.compression_name);
 		goto fatal;
 	}
 
@@ -235,7 +237,7 @@ init(struct archive *a, const void *buff, size_t n)
 		 * blocks and gzip and compress are both enabled.
 		 * You can't distinguish gzip and compress only from
 		 * the first byte. */
-		archive_set_error(a, ARCHIVE_ERRNO_FILE_FORMAT,
+		archive_set_error(&a->archive, ARCHIVE_ERRNO_FILE_FORMAT,
 		    "Compress signature did not match.");
 		goto fatal;
 	}
@@ -270,7 +272,7 @@ fatal:
  * as necessary.
  */
 static ssize_t
-read_ahead(struct archive *a, const void **p, size_t min)
+read_ahead(struct archive_read *a, const void **p, size_t min)
 {
 	struct private_data *state;
 	int read_avail, was_avail, ret;
@@ -278,7 +280,7 @@ read_ahead(struct archive *a, const void **p, size_t min)
 	state = (struct private_data *)a->compression_data;
 	was_avail = -1;
 	if (!a->client_reader) {
-		archive_set_error(a, ARCHIVE_ERRNO_PROGRAMMER,
+		archive_set_error(&a->archive, ARCHIVE_ERRNO_PROGRAMMER,
 		    "No read callback is registered?  "
 		    "This is probably an internal programming error.");
 		return (ARCHIVE_FATAL);
@@ -325,12 +327,12 @@ read_ahead(struct archive *a, const void **p, size_t min)
  * Mark a previously-returned block of data as read.
  */
 static ssize_t
-read_consume(struct archive *a, size_t n)
+read_consume(struct archive_read *a, size_t n)
 {
 	struct private_data *state;
 
 	state = (struct private_data *)a->compression_data;
-	a->file_position += n;
+	a->archive.file_position += n;
 	state->read_next += n;
 	if (state->read_next > state->next_out)
 		__archive_errx(1, "Request to consume too many "
@@ -342,7 +344,7 @@ read_consume(struct archive *a, size_t n)
  * Clean up the decompressor.
  */
 static int
-finish(struct archive *a)
+finish(struct archive_read *a)
 {
 	struct private_data *state;
 	int ret = ARCHIVE_OK;
@@ -357,7 +359,7 @@ finish(struct archive *a)
 
 	a->compression_data = NULL;
 	if (a->client_closer != NULL)
-		ret = (a->client_closer)(a, a->client_data);
+		ret = (a->client_closer)(&a->archive, a->client_data);
 
 	return (ret);
 }
@@ -368,7 +370,7 @@ finish(struct archive *a)
  * format error, ARCHIVE_EOF if we hit end of data, ARCHIVE_OK otherwise.
  */
 static int
-next_code(struct archive *a, struct private_data *state)
+next_code(struct archive_read *a, struct private_data *state)
 {
 	int code, newcode;
 
@@ -412,7 +414,7 @@ next_code(struct archive *a, struct private_data *state)
 
 	if (code > state->free_ent) {
 		/* An invalid code is a fatal error. */
-		archive_set_error(a, -1, "Invalid compressed data");
+		archive_set_error(&a->archive, -1, "Invalid compressed data");
 		return (ARCHIVE_FATAL);
 	}
 
@@ -456,7 +458,7 @@ next_code(struct archive *a, struct private_data *state)
  * -1 indicates end of available data.
  */
 static int
-getbits(struct archive *a, struct private_data *state, int n)
+getbits(struct archive_read *a, struct private_data *state, int n)
 {
 	int code, ret;
 	static const int mask[] = {
@@ -467,13 +469,13 @@ getbits(struct archive *a, struct private_data *state, int n)
 
 	while (state->bits_avail < n) {
 		if (state->avail_in <= 0) {
-			ret = (a->client_reader)(a, a->client_data,
+			ret = (a->client_reader)(&a->archive, a->client_data,
 			    (const void **)&state->next_in);
 			if (ret < 0)
 				return (ARCHIVE_FATAL);
 			if (ret == 0)
 				return (ARCHIVE_EOF);
-			a->raw_position += ret;
+			a->archive.raw_position += ret;
 			state->avail_in = ret;
 		}
 		state->bit_buffer |= *state->next_in++ << state->bits_avail;

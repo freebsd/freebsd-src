@@ -113,7 +113,7 @@
 .Fn archive_read_extract_set_progress_callback "struct archive *" "void (*func)(void *)" "void *user_data"
 .Ft int
 .Fn archive_read_close "struct archive *"
-.Ft void
+.Ft int
 .Fn archive_read_finish "struct archive *"
 .Sh DESCRIPTION
 These functions provide a complete API for reading streaming archives.
@@ -148,7 +148,7 @@ ustar, pax interchange format, and many common variants.
 For convenience,
 .Fn archive_read_support_format_all
 enables support for all available formats.
-Note that there is no default.
+Only empty archives are supported by default.
 .It Fn archive_read_open
 The same as
 .Fn archive_read_open2 ,
@@ -233,58 +233,27 @@ Note that the client is responsible for sizing the buffer appropriately.
 A convenience function that repeatedly calls
 .Fn archive_read_data_block
 to copy the entire entry to the provided file descriptor.
-.It Fn archive_read_extract_set_skip_file
-This function records the device and inode numbers
-of a file that should not be restored.
-This is a convenience that prevents
+.It Fn archive_read_extract , Fn archive_read_extract_set_skip_file
+A convenience function that wraps the corresponding
+.Xr archive_write_disk 3
+interfaces.
+The first call to
 .Fn archive_read_extract
-from restoring a file over the archive itself.
-.It Fn archive_read_extract
-A convenience function that recreates the specified object on
-disk and reads the entry data into that object.
-The filename, permissions, and other critical information
-are taken from the provided
-.Va archive_entry
-object.
+creates a restore object using
+.Xr archive_write_disk_new 3
+and
+.Xr archive_write_disk_set_standard_lookup 3 ,
+then transparently invokes
+.Xr archive_write_disk_set_options 3 ,
+.Xr archive_write_header 3 ,
+.Xr archive_write_data 3 ,
+and
+.Xr archive_write_finish_entry 3
+to create the entry on disk and copy data into it.
 The
 .Va flags
-argument modifies how the object is recreated.
-It consists of a bitwise OR of one or more of the following values:
-.Bl -tag -compact -width "indent"
-.It Cm ARCHIVE_EXTRACT_OWNER
-The user and group IDs should be set on the restored file.
-By default, the user and group IDs are not restored.
-.It Cm ARCHIVE_EXTRACT_PERM
-The permissions (mode bits) should be restored for all objects.
-By default, permissions are only restored for regular files.
-.It Cm ARCHIVE_EXTRACT_TIME
-The timestamps (mtime, ctime, and atime) should be restored.
-By default, they are ignored.
-Note that restoring of atime is not currently supported.
-.It Cm ARCHIVE_EXTRACT_NO_OVERWRITE
-Existing files on disk will not be overwritten.
-By default, existing regular files are truncated and overwritten;
-existing directories will have their permissions updated;
-other pre-existing objects are unlinked and recreated from scratch.
-.It Cm ARCHIVE_EXTRACT_UNLINK
-Existing files on disk will be unlinked and recreated from scratch.
-By default, existing files are truncated and rewritten, but
-the file is not recreated.
-In particular, the default behavior does not break existing hard links.
-.It Cm ARCHIVE_EXTRACT_ACL
-Attempt to restore ACLs.
-By default, extended ACLs are ignored.
-.It Cm ARCHIVE_EXTRACT_FFLAGS
-Attempt to restore extended file flags.
-By default, file flags are ignored.
-.El
-Note that not all attributes are set immediately;
-some attributes are cached in memory and written to disk only
-when the archive is closed.
-(For example, read-only directories are initially created
-writable so that files within those directories can be
-restored.
-The final permissions are set when the archive is closed.)
+argument is passed unmodified to
+.Xr archiv_write_disk_set_options 3 .
 .It Fn archive_read_extract_set_progress_callback
 Sets a pointer to a user-defined callback that can be used
 for updating progress displays during extraction.
@@ -300,6 +269,12 @@ Complete the archive and invoke the close callback.
 Invokes
 .Fn archive_read_close
 if it was not invoked manually, then release all resources.
+Note: In libarchive 1.x, this function was declared to return
+.Ft void ,
+which made it impossible to detect certain errors when
+.Fn archive_read_close
+was invoked implicitly from this function.
+The declaration is corrected beginning with libarchive 2.0.
 .El
 .Pp
 Note that the library determines most of the relevant information about
@@ -523,26 +498,6 @@ The
 library was written by
 .An Tim Kientzle Aq kientzle@acm.org .
 .Sh BUGS
-Directories are actually extracted in two distinct phases.
-Directories are created during
-.Fn archive_read_extract ,
-but final permissions are not set until
-.Fn archive_read_close .
-This separation is necessary to correctly handle borderline
-cases such as a non-writable directory containing
-files, but can cause unexpected results.
-In particular, directory permissions are not fully
-restored until the archive is closed.
-If you use
-.Xr chdir 2
-to change the current directory between calls to
-.Fn archive_read_extract
-or before calling
-.Fn archive_read_close ,
-you may confuse the permission-setting logic with
-the result that directory permissions are restored
-incorrectly.
-.Pp
 Many traditional archiver programs treat
 empty files as valid empty archives.
 For example, many implementations of

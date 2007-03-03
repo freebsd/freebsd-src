@@ -6,16 +6,16 @@ This is all under a BSD license.  Use, enjoy, but don't blame me if it breaks!
 
 Documentation:
  * libarchive.3 gives an overview of the library as a whole
- * archive_read.3 and archive_write.3 provide detailed calling
-   sequences for the read and write APIs
+ * archive_read.3, archive_write.3, and archive_write_disk.3 provide
+   detailed calling sequences for the read and write APIs
  * archive_entry.3 details the "struct archive_entry" utility class
  * libarchive-formats.5 documents the file formats supported by the library
  * tar.5 provides some detailed information about a variety of different
    "tar" formats.
 
 You should also read the copious comments in "archive.h" and the source
-code for the sample "bsdtar" program for more details.  Please let me know
-about any errors or omissions you find.
+code for the sample "bsdtar" and "minitar" programs for more details.
+Please let me know about any errors or omissions you find.
 
 Currently, the library automatically detects and reads the following:
   * gzip compression
@@ -84,8 +84,10 @@ Notes:
    a block of data in memory and add it to a tar archive without
    first writing a temporary file.  You can also read an entry from
    an archive and write the data directly to a socket.  If you want
-   to read/write entries to disk, there are convenience functions to
-   make this especially easy.
+   to read/write entries to disk, the archive_write_disk interface
+   treats a directory as if it were an archive so you can copy
+   from archive->disk using the same code you use for archive->archive
+   transfers.
 
  * Note: "pax interchange format" is really an extended tar format,
    despite what the name says.
