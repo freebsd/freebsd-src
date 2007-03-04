@@ -72,7 +72,10 @@ data type.
 .Pp
 Operators are listed below in order of increasing precedence; all
 are left-associative.
-Operators with equal precedence are grouped within { } symbols.
+Operators with equal precedence are grouped within symbols
+.Ql {
+and
+.Ql } .
 .Bl -tag -width indent
 .It Ar expr1 Li | Ar expr2
 Return the evaluation of
@@ -97,7 +100,7 @@ Return the results of addition or subtraction of integer-valued arguments.
 Return the results of multiplication, integer division, or remainder of integer-valued arguments.
 .It Ar expr1 Li : Ar expr2
 The
-.Dq \&:
+.Dq Li \&:
 operator matches
 .Ar expr1
 against
@@ -105,13 +108,13 @@ against
 which must be a basic regular expression.
 The regular expression is anchored
 to the beginning of the string with an implicit
-.Dq ^ .
+.Dq Li ^ .
 .Pp
 If the match succeeds and the pattern contains at least one regular
 expression subexpression
-.Dq "\e(...\e)" ,
+.Dq Li "\e(...\e)" ,
 the string corresponding to
-.Dq "\e1"
+.Dq Li \e1
 is returned;
 otherwise the matching operator returns the number of characters matched.
 If the match fails and the pattern contains a regular expression subexpression
