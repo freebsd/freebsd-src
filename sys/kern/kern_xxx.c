@@ -54,9 +54,6 @@ struct gethostname_args {
 	u_int	len;
 };
 #endif
-/*
- * MPSAFE
- */
 /* ARGSUSED */
 int
 ogethostname(td, uap)
@@ -82,9 +79,6 @@ struct sethostname_args {
 	u_int	len;
 };
 #endif
-/*
- * MPSAFE
- */
 /* ARGSUSED */
 int
 osethostname(td, uap)
@@ -108,9 +102,6 @@ struct ogethostid_args {
 	int	dummy;
 };
 #endif
-/*
- * MPSAFE
- */
 /* ARGSUSED */
 int
 ogethostid(td, uap)
@@ -129,9 +120,6 @@ struct osethostid_args {
 	long	hostid;
 };
 #endif
-/*
- * MPSAFE
- */
 /* ARGSUSED */
 int
 osethostid(td, uap)
@@ -149,9 +137,6 @@ osethostid(td, uap)
 	return (0);
 }
 
-/*
- * MPSAFE
- */
 int
 oquota(td, uap)
 	struct thread *td;
@@ -175,9 +160,6 @@ struct uname_args {
 };
 #endif
 
-/*
- * MPSAFE
- */
 /* ARGSUSED */
 int
 uname(td, uap)
@@ -258,9 +240,6 @@ struct getdomainname_args {
 };
 #endif
 
-/*
- * MPSAFE
- */
 /* ARGSUSED */
 int
 getdomainname(td, uap)
@@ -286,9 +265,6 @@ struct setdomainname_args {
 };
 #endif
 
-/*
- * MPSAFE
- */
 /* ARGSUSED */
 int
 setdomainname(td, uap)

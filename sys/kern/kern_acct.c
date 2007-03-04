@@ -182,10 +182,8 @@ SYSCTL_INT(_kern, OID_AUTO, acct_suspended, CTLFLAG_RD, &acct_suspended, 0,
 	"Accounting suspended or not");
 
 /*
- * Accounting system call.  Written based on the specification and
- * previous implementation done by Mark Tinguely.
- *
- * MPSAFE
+ * Accounting system call.  Written based on the specification and previous
+ * implementation done by Mark Tinguely.
  */
 int
 acct(struct thread *td, struct acct_args *uap)

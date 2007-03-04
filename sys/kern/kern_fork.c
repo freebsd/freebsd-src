@@ -82,9 +82,6 @@ struct fork_args {
 };
 #endif
 
-/*
- * MPSAFE
- */
 /* ARGSUSED */
 int
 fork(td, uap)
@@ -102,9 +99,6 @@ fork(td, uap)
 	return (error);
 }
 
-/*
- * MPSAFE
- */
 /* ARGSUSED */
 int
 vfork(td, uap)
@@ -122,9 +116,6 @@ vfork(td, uap)
 	return (error);
 }
 
-/*
- * MPSAFE
- */
 int
 rfork(td, uap)
 	struct thread *td;

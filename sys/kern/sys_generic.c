@@ -93,9 +93,6 @@ struct read_args {
 	size_t	nbyte;
 };
 #endif
-/*
- * MPSAFE
- */
 int
 read(td, uap)
 	struct thread *td;
@@ -129,9 +126,6 @@ struct pread_args {
 	off_t	offset;
 };
 #endif
-/*
- * MPSAFE
- */
 int
 pread(td, uap)
 	struct thread *td;
@@ -163,9 +157,6 @@ struct readv_args {
 	u_int	iovcnt;
 };
 #endif
-/*
- * MPSAFE
- */
 int
 readv(struct thread *td, struct readv_args *uap)
 {
@@ -205,9 +196,6 @@ struct preadv_args {
 	off_t	offset;
 };
 #endif
-/*
- * MPSAFE
- */
 int
 preadv(struct thread *td, struct preadv_args *uap)
 {
@@ -303,9 +291,6 @@ struct write_args {
 	size_t	nbyte;
 };
 #endif
-/*
- * MPSAFE
- */
 int
 write(td, uap)
 	struct thread *td;
@@ -328,7 +313,7 @@ write(td, uap)
 }
 
 /*
- * Positioned write system call
+ * Positioned write system call.
  */
 #ifndef _SYS_SYSPROTO_H_
 struct pwrite_args {
@@ -339,9 +324,6 @@ struct pwrite_args {
 	off_t	offset;
 };
 #endif
-/*
- * MPSAFE
- */
 int
 pwrite(td, uap)
 	struct thread *td;
@@ -364,7 +346,7 @@ pwrite(td, uap)
 }
 
 /*
- * Gather write system call
+ * Gather write system call.
  */
 #ifndef _SYS_SYSPROTO_H_
 struct writev_args {
@@ -373,9 +355,6 @@ struct writev_args {
 	u_int	iovcnt;
 };
 #endif
-/*
- * MPSAFE
- */
 int
 writev(struct thread *td, struct writev_args *uap)
 {
@@ -405,7 +384,7 @@ kern_writev(struct thread *td, int fd, struct uio *auio)
 }
 
 /*
- * Gather positioned write system call
+ * Gather positioned write system call.
  */
 #ifndef _SYS_SYSPROTO_H_
 struct pwritev_args {
@@ -415,9 +394,6 @@ struct pwritev_args {
 	off_t	offset;
 };
 #endif
-/*
- * MPSAFE
- */
 int
 pwritev(struct thread *td, struct pwritev_args *uap)
 {
@@ -507,7 +483,7 @@ dofilewrite(td, fd, fp, auio, offset, flags)
 }
 
 /*
- * Ioctl system call
+ * Ioctl system call.
  */
 #ifndef _SYS_SYSPROTO_H_
 struct ioctl_args {
@@ -516,9 +492,6 @@ struct ioctl_args {
 	caddr_t	data;
 };
 #endif
-/*
- * MPSAFE
- */
 /* ARGSUSED */
 int
 ioctl(struct thread *td, struct ioctl_args *uap)
@@ -657,9 +630,6 @@ struct select_args {
 	struct	timeval *tv;
 };
 #endif
-/*
- * MPSAFE
- */
 int
 select(td, uap)
 	register struct thread *td;
@@ -889,9 +859,6 @@ struct poll_args {
 	int	timeout;
 };
 #endif
-/*
- * MPSAFE
- */
 int
 poll(td, uap)
 	struct thread *td;
@@ -1052,6 +1019,7 @@ pollscan(td, fds, nfd)
 
 /*
  * OpenBSD poll system call.
+ *
  * XXX this isn't quite a true representation..  OpenBSD uses select ops.
  */
 #ifndef _SYS_SYSPROTO_H_
@@ -1061,9 +1029,6 @@ struct openbsd_poll_args {
 	int	timeout;
 };
 #endif
-/*
- * MPSAFE
- */
 int
 openbsd_poll(td, uap)
 	register struct thread *td;
@@ -1073,12 +1038,12 @@ openbsd_poll(td, uap)
 }
 
 /*
- * Remove the references to the thread from all of the objects
- * we were polling.
+ * Remove the references to the thread from all of the objects we were
+ * polling.
  *
- * This code assumes that the underlying owner of the selinfo
- * structure will hold sellock before it changes it, and that
- * it will unlink itself from our list if it goes away.
+ * This code assumes that the underlying owner of the selinfo structure will
+ * hold sellock before it changes it, and that it will unlink itself from our
+ * list if it goes away.
  */
 void
 clear_selinfo_list(td)

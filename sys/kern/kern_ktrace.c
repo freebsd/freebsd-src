@@ -373,9 +373,6 @@ ktr_freerequest(struct ktr_request *req)
 	mtx_unlock(&ktrace_mtx);
 }
 
-/*
- * MPSAFE
- */
 void
 ktrsyscall(code, narg, args)
 	int code, narg;
@@ -407,9 +404,6 @@ ktrsyscall(code, narg, args)
 	ktr_submitrequest(curthread, req);
 }
 
-/*
- * MPSAFE
- */
 void
 ktrsysret(code, error, retval)
 	int code, error;
@@ -564,8 +558,6 @@ ktrcsw(out, user)
 
 /*
  * ktrace system call
- *
- * MPSAFE
  */
 #ifndef _SYS_SYSPROTO_H_
 struct ktrace_args {
@@ -739,8 +731,6 @@ done:
 
 /*
  * utrace system call
- *
- * MPSAFE
  */
 /* ARGSUSED */
 int

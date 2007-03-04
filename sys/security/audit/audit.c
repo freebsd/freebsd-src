@@ -290,8 +290,6 @@ currecord(void)
 }
 
 /*
- * MPSAFE
- *
  * XXXAUDIT: There are a number of races present in the code below due to
  * release and re-grab of the mutex.  The code should be revised to become
  * slightly less racy.
@@ -333,9 +331,6 @@ audit_free(struct kaudit_record *ar)
 	uma_zfree(audit_record_zone, ar);
 }
 
-/*
- * MPSAFE
- */
 void
 audit_commit(struct kaudit_record *ar, int error, int retval)
 {

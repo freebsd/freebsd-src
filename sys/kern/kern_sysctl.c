@@ -1295,9 +1295,6 @@ struct sysctl_args {
 };
 #endif
 
-/*
- * MPSAFE
- */
 int
 __sysctl(struct thread *td, struct sysctl_args *uap)
 {
@@ -1466,9 +1463,6 @@ struct getkerninfo_args {
 };
 #endif
 
-/*
- * MPSAFE
- */
 int
 ogetkerninfo(struct thread *td, struct getkerninfo_args *uap)
 {

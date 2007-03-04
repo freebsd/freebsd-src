@@ -841,9 +841,6 @@ linker_ddb_symbol_values(c_linker_sym_t sym, linker_symval_t *symval)
 /*
  * Syscalls.
  */
-/*
- * MPSAFE
- */
 int
 kern_kldload(struct thread *td, const char *file, int *fileid)
 {
@@ -909,9 +906,6 @@ kldload(struct thread *td, struct kldload_args *uap)
 	return (error);
 }
 
-/*
- * MPSAFE
- */
 int
 kern_kldunload(struct thread *td, int fileid, int flags)
 {
@@ -960,9 +954,6 @@ kern_kldunload(struct thread *td, int fileid, int flags)
 	return (error);
 }
 
-/*
- * MPSAFE
- */
 int
 kldunload(struct thread *td, struct kldunload_args *uap)
 {
@@ -970,9 +961,6 @@ kldunload(struct thread *td, struct kldunload_args *uap)
 	return (kern_kldunload(td, uap->fileid, LINKER_UNLOAD_NORMAL));
 }
 
-/*
- * MPSAFE
- */
 int
 kldunloadf(struct thread *td, struct kldunloadf_args *uap)
 {
@@ -983,9 +971,6 @@ kldunloadf(struct thread *td, struct kldunloadf_args *uap)
 	return (kern_kldunload(td, uap->fileid, uap->flags));
 }
 
-/*
- * MPSAFE
- */
 int
 kldfind(struct thread *td, struct kldfind_args *uap)
 {
@@ -1019,9 +1004,6 @@ out:
 	return (error);
 }
 
-/*
- * MPSAFE
- */
 int
 kldnext(struct thread *td, struct kldnext_args *uap)
 {
@@ -1059,9 +1041,6 @@ out:
 	return (error);
 }
 
-/*
- * MPSAFE
- */
 int
 kldstat(struct thread *td, struct kldstat_args *uap)
 {
@@ -1106,9 +1085,6 @@ kldstat(struct thread *td, struct kldstat_args *uap)
 	return (copyout(&stat, uap->stat, sizeof(struct kld_file_stat)));
 }
 
-/*
- * MPSAFE
- */
 int
 kldfirstmod(struct thread *td, struct kldfirstmod_args *uap)
 {
@@ -1138,9 +1114,6 @@ kldfirstmod(struct thread *td, struct kldfirstmod_args *uap)
 	return (error);
 }
 
-/*
- * MPSAFE
- */
 int
 kldsym(struct thread *td, struct kldsym_args *uap)
 {
