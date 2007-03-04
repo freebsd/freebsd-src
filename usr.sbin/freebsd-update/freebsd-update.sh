@@ -499,6 +499,24 @@ fetch_check_params () {
 		exit 1
 	fi
 
+	# Figure out what kernel configuration is running.  We start with
+	# the output of `uname -i`, and then make the following adjustments:
+	# 1. Replace "SMP-GENERIC" with "SMP".  Why the SMP kernel config
+	# file says "ident SMP-GENERIC", I don't know...
+	# 2. If the kernel claims to be GENERIC _and_ ${ARCH} is "amd64"
+	# _and_ `sysctl kern.version` contains a line which ends "/SMP", then
+	# we're running an SMP kernel.  This mis-identification is a bug
+	# which was fixed in 6.2-STABLE.
+	KERNCONF=`uname -i`
+	if [ ${KERNCONF} = "SMP-GENERIC" ]; then
+		KERNCONF=SMP
+	fi
+	if [ ${KERNCONF} = "GENERIC" ] && [ ${ARCH} = "amd64" ]; then
+		if sysctl kern.version | grep -qE '/SMP$'; then
+			KERNCONF=SMP
+		fi
+	fi
+
 	# Define some paths
 	BSPATCH=/usr/bin/bspatch
 	SHA256=/sbin/sha256
@@ -1078,14 +1096,13 @@ fetch_filter_metadata () {
 	rm $1.all $1.tmp
 }
 
-# Filter the metadata file $1 by adding lines with "/boot/`uname -i`"
+# Filter the metadata file $1 by adding lines with "/boot/${KERNCONF}"
 # replaced by ${KERNELDIR} (which is `sysctl -n kern.bootfile` minus the
-# trailing "/kernel"); and if "/boot/`uname -i`" does not exist, remove
+# trailing "/kernel"); and if "/boot/${KERNCONF}" does not exist, remove
 # the original lines which start with that.
 # Put another way: Deal with the fact that the FOO kernel is sometimes
 # installed in /boot/FOO/ and is sometimes installed elsewhere.
 fetch_filter_kernel_names () {
-	KERNCONF=`uname -i`
 
 	grep ^/boot/${KERNCONF} $1 |
 	    sed -e "s,/boot/${KERNCONF},${KERNELDIR},g" |
