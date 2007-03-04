@@ -1847,7 +1847,7 @@ vge_start(ifp)
 		 * If there's a BPF listener, bounce a copy of this frame
 		 * to him.
 		 */
-		BPF_MTAP(ifp, m_head);
+		ETHER_BPF_MTAP(ifp, m_head);
 	}
 
 	if (idx == sc->vge_ldata.vge_tx_prodidx) {
