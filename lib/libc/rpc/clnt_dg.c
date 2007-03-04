@@ -63,7 +63,14 @@ __FBSDID("$FreeBSD$");
 #include "mt_misc.h"
 
 
+#ifdef _FREEFALL_CONFIG
+/*
+ * Disable RPC exponential back-off for FreeBSD.org systems.
+ */
+#define	RPC_MAX_BACKOFF		1 /* second */
+#else
 #define	RPC_MAX_BACKOFF		30 /* seconds */
+#endif
 
 
 static struct clnt_ops *clnt_dg_ops(void);
