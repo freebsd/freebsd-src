@@ -379,7 +379,6 @@ static uint32_t mrt_api_config = 0;
 
 /*
  * Find a route for a given origin IP address and Multicast group address
- * Type of service parameter to be added in the future!!!
  * Statistics are updated by the caller if needed
  * (mrtstat.mrts_mfc_lookups and mrtstat.mrts_mfc_misses)
  */
