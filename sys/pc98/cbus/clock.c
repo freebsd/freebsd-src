@@ -30,8 +30,10 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)clock.c	7.2 (Berkeley) 5/12/91
- * $FreeBSD$
  */
+
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 /*
  * Routines to handle clock hardware.
@@ -103,9 +105,9 @@ int	statclock_disable;
 u_int	timer_freq = TIMER_FREQ;
 int	timer0_max_count;
 int	timer0_real_max_count;
-struct mtx clock_lock;
 
 static	int	beeping = 0;
+static	struct mtx clock_lock;
 static	struct intsrc *i8254_intsrc;
 static	u_int32_t i8254_lastcount;
 static	u_int32_t i8254_offset;
@@ -119,7 +121,7 @@ static	int	using_lapic_timer;
 #define	ACQUIRED	2
 #define	ACQUIRE_PENDING	3
 
-static 	u_char	timer1_state;
+static	u_char	timer1_state;
 static	u_char	timer2_state;
 static void rtc_serialcombit(int);
 static void rtc_serialcom(int);
@@ -394,8 +396,8 @@ static void findcpuspeed(void)
 static u_int
 calibrate_clocks(void)
 {
-	int	timeout;
-	u_int	count, prev_count, tot_count;
+	int timeout;
+	u_int count, prev_count, tot_count;
 	u_short	sec, start_sec;
 
 	if (bootverbose)
@@ -418,6 +420,8 @@ calibrate_clocks(void)
 		if (--timeout == 0)
 			goto fail;
 	}
+
+	/* Start keeping track of the i8254 counter. */
 	prev_count = getit();
 	if (prev_count == 0 || prev_count > timer0_max_count)
 		goto fail;
@@ -659,7 +663,7 @@ inittodr(time_t base)
 void
 resettodr()
 {
-	struct timespec ts;
+	struct timespec	ts;
 	struct clocktime ct;
 
 	if (disable_rtc_set)
