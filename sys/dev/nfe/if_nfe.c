@@ -1700,7 +1700,7 @@ nfe_start_locked(struct ifnet *ifp)
 		/* packet put in h/w queue, remove from s/w queue */
 		IFQ_DEQUEUE(&ifp->if_snd, m0);
 
-		BPF_MTAP(ifp, m0);
+		ETHER_BPF_MTAP(ifp, m0);
 	}
 	if (sc->txq.cur == old)	{ /* nothing sent */
 		return;
