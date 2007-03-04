@@ -66,13 +66,12 @@ and the original name.
 A typical usage of
 .Nm
 is
-.Bd -literal -offset indent
-mkstr pistrings xx *.c
-.Ed
+.Pp
+.Dl "mkstr pistrings xx *.c"
 .Pp
 This command causes all the error messages from the C source
 files in the current directory to be placed in the file
-.Ar pistrings
+.Pa pistrings
 and restructured copies of the sources to be placed in
 files whose names are prefixed with
 .Dq Li xx .
@@ -104,7 +103,7 @@ char efilname = "/usr/lib/pi_strings";
 int efil = -1;
 
 error(a1, a2, a3, a4)
-\&{
+{
 	char buf[256];
 
 	if (efil < 0) {
@@ -123,7 +122,7 @@ error(a1, a2, a3, a4)
 .Xr xstr 1 ,
 .Xr lseek 2
 .Sh HISTORY
-A
+An
 .Nm
 utility appeared in
 .Bx 3.0 .
