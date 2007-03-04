@@ -103,7 +103,7 @@ void *ypresp_data;
 static void _yp_unbind(struct dom_binding *);
 struct dom_binding *_ypbindlist;
 static char _yp_domain[MAXHOSTNAMELEN];
-int _yplib_timeout = 10;
+int _yplib_timeout = 20;
 
 static mutex_t _ypmutex = MUTEX_INITIALIZER;
 #define YPLOCK()	mutex_lock(&_ypmutex);
@@ -822,6 +822,14 @@ again:
 		YPUNLOCK();
 		return (YPERR_DOMAIN);
 	}
+
+	/*
+	 * Set low retry timeout to realistically handle UDP packet
+	 * loss for yp_next packet bursts.
+	 */
+	tv.tv_sec = 1;
+	tv.tv_usec = 0;
+	clnt_control(ysd->dom_client, CLSET_RETRY_TIMEOUT, (char*)&tv);
 
 	tv.tv_sec = _yplib_timeout;
 	tv.tv_usec = 0;
