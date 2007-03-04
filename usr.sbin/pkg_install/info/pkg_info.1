@@ -56,19 +56,23 @@ A package name may either be the name of
 an installed package, the pathname to a package distribution file or a
 URL to an FTP available package.
 Package version numbers can also be matched in a relational manner using the
-.Pa \*[Ge], \*[Le], \*[Gt]
+.Pa \*[Ge] , \*[Le] , \*[Gt]
 and
 .Pa \*[Lt]
 operators.
 For example,
-.Pa pkg_info 'portupgrade\*[Ge]20030723'
+.Pp
+.Dl "pkg_info 'portupgrade\*[Ge]20030723'"
+.Pp
 will match versions 20030723 and later of the
 .Pa portupgrade
 package.
 .It Fl a
 Show all currently installed packages.
 .It Fl b
-Use the BLOCKSIZE environment variable for output even when the
+Use the
+.Ev BLOCKSIZE
+environment variable for output even when the
 .Fl q
 or
 .Fl Q
@@ -111,11 +115,15 @@ Keep any downloaded package in
 .Ev PKGDIR
 if it is defined or in current directory by default.
 .It Fl r
-Show the list of packages on which each package depends.
+For each of the specified packages,
+show the list of packages on which it depends.
 .It Fl R
-Show the list of installed packages which require each package.
+For each of the specified packages,
+show the list of installed packages which require it.
 .It Fl m
-Show the mtree file (if any) for each package.
+Show the
+.Xr mtree 8
+file (if any) for each package.
 .It Fl L
 Show the files within each package.
 This is different from just
@@ -138,19 +146,19 @@ when selecting packages to be displayed (by default
 .Nm
 automatically expands shell glob patterns in the
 .Ar pkg-name ) .
-.It Fl W
+.It Fl W Ar filename
 For the specified
 .Ar filename
 argument show which package it belongs to.
 If the file is not in the
 current directory, and does not have an absolute path, then the
+directories specified in the environment variable
 .Ev PATH
-is searched using
+are searched using
 .Xr which 1 .
-.It Fl O
-For the specified
-.Ar origin
-argument list all packages having this origin.
+.It Fl O Ar origin
+List all packages having the specified
+.Ar origin .
 .It Fl x
 Treat the
 .Ar pkg-name
@@ -167,9 +175,9 @@ Like
 but treats the
 .Ar pkg-name
 as an extended regular expression.
-.It Fl e Ar pkg-name
+.It Fl e Ar package
 If the package identified by
-.Ar pkg-name
+.Ar package
 is currently installed, return 0, otherwise return 1.
 This option
 allows you to easily test for the presence of another (perhaps
@@ -179,21 +187,21 @@ Show only matching package names.
 This option takes
 precedence over all other package formatting options.
 If any packages match, return 0, otherwise return 1.
-.It Fl l Ar str
+.It Fl l Ar prefix
 Prefix each information category header (see
 .Fl q )
 shown with
-.Ar str .
-This is primarily of use to front-end programs who want to request a
+.Ar prefix .
+This is primarily of use to front-end programs that want to request a
 lot of different information fields at once for a package, but do not
-necessary want the output intermingled in such a way that they cannot
+necessarily want the output intermingled in such a way that they cannot
 organize it.
 This lets you add a special token to the start of
 each field.
 .It Fl t Ar template
 Use
 .Ar template
-as the input to
+as the argument to
 .Xr mktemp 3
 when creating a
 .Dq staging area .
@@ -203,8 +211,9 @@ but it may be necessary to override it in the situation where
 space in your
 .Pa /tmp
 directory is limited.
-Be sure to leave some number of `X' characters
-for
+Be sure to leave some number of
+.Ql X
+characters for
 .Xr mktemp 3
 to fill in with a unique ID.
 .Bd -ragged -offset indent -compact
@@ -226,7 +235,7 @@ command line, or from already installed package information
 in
 .Pa /var/db/pkg/ Ns Aq Ar pkg-name .
 .Sh ENVIRONMENT
-.Bl -tag -width PKG_TMPDIR
+.Bl -tag -width ".Ev PKG_TMPDIR"
 .It Ev BLOCKSIZE
 If the environment variable
 .Ev BLOCKSIZE
@@ -249,7 +258,7 @@ found.
 Specifies an alternative location to save downloaded packages to.
 .El
 .Sh FILES
-.Bl -tag -width /var/db/pkg -compact
+.Bl -tag -width ".Pa /var/db/pkg" -compact
 .It Pa /var/tmp
 Used if the environment variables
 .Ev PKG_TMPDIR
