@@ -280,9 +280,6 @@ module_file(module_t mod)
 /*
  * Syscalls.
  */
-/*
- * MPSAFE
- */
 int
 modnext(struct thread *td, struct modnext_args *uap)
 {
@@ -314,9 +311,6 @@ done2:
 	return (error);
 }
 
-/*
- * MPSAFE
- */
 int
 modfnext(struct thread *td, struct modfnext_args *uap)
 {
@@ -347,9 +341,6 @@ struct module_stat_v1 {
 	int	id;
 };
 
-/*
- * MPSAFE
- */
 int
 modstat(struct thread *td, struct modstat_args *uap)
 {
@@ -403,9 +394,6 @@ modstat(struct thread *td, struct modstat_args *uap)
 	return (error);
 }
 
-/*
- * MPSAFE
- */
 int
 modfind(struct thread *td, struct modfind_args *uap)
 {
@@ -447,9 +435,6 @@ struct module_stat32 {
 	modspecific32_t	data;
 };
 
-/*
- * MPSAFE
- */
 int
 freebsd32_modstat(struct thread *td, struct freebsd32_modstat_args *uap)
 {

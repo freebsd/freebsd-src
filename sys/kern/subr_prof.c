@@ -402,9 +402,6 @@ struct profil_args {
 	u_int	scale;
 };
 #endif
-/*
- * MPSAFE
- */
 /* ARGSUSED */
 int
 profil(td, uap)

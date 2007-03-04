@@ -91,8 +91,6 @@ void (*nlminfo_release_p)(struct proc *p);
 /*
  * exit --
  *	Death of process.
- *
- * MPSAFE
  */
 void
 sys_exit(struct thread *td, struct sys_exit_args *uap)
@@ -553,9 +551,6 @@ struct abort2_args {
 };
 #endif
 
-/*
- * MPSAFE.
- */
 int
 abort2(struct thread *td, struct abort2_args *uap)
 {
@@ -628,8 +623,6 @@ out:
 #ifdef COMPAT_43
 /*
  * The dirty work is handled by kern_wait().
- *
- * MPSAFE.
  */
 int
 owait(struct thread *td, struct owait_args *uap __unused)
@@ -645,8 +638,6 @@ owait(struct thread *td, struct owait_args *uap __unused)
 
 /*
  * The dirty work is handled by kern_wait().
- *
- * MPSAFE.
  */
 int
 wait4(struct thread *td, struct wait_args *uap)

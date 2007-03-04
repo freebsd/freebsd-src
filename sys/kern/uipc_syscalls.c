@@ -150,9 +150,6 @@ getsock(struct filedesc *fdp, int fd, struct file **fpp, u_int *fflagp)
 #define COMPAT_OLDSOCK
 #endif
 
-/*
- * MPSAFE
- */
 int
 socket(td, uap)
 	struct thread *td;
@@ -197,9 +194,6 @@ socket(td, uap)
 	return (error);
 }
 
-/*
- * MPSAFE
- */
 /* ARGSUSED */
 int
 bind(td, uap)
@@ -253,9 +247,6 @@ done2:
 	return (error);
 }
 
-/*
- * MPSAFE
- */
 /* ARGSUSED */
 int
 listen(td, uap)
@@ -292,7 +283,6 @@ done:
 
 /*
  * accept1()
- * MPSAFE
  */
 static int
 accept1(td, uap, compat)
@@ -506,9 +496,6 @@ done2:
 	return (error);
 }
 
-/*
- * MPSAFE (accept1() is MPSAFE)
- */
 int
 accept(td, uap)
 	struct thread *td;
@@ -519,9 +506,6 @@ accept(td, uap)
 }
 
 #ifdef COMPAT_OLDSOCK
-/*
- * MPSAFE (accept1() is MPSAFE)
- */
 int
 oaccept(td, uap)
 	struct thread *td;
@@ -532,9 +516,6 @@ oaccept(td, uap)
 }
 #endif /* COMPAT_OLDSOCK */
 
-/*
- * MPSAFE
- */
 /* ARGSUSED */
 int
 connect(td, uap)
@@ -619,9 +600,6 @@ done2:
 	return (error);
 }
 
-/*
- * MPSAFE
- */
 int
 socketpair(td, uap)
 	struct thread *td;
@@ -848,9 +826,6 @@ bad2:
 	return (error);
 }
 
-/*
- * MPSAFE
- */
 int
 sendto(td, uap)
 	struct thread *td;
@@ -882,9 +857,6 @@ sendto(td, uap)
 }
 
 #ifdef COMPAT_OLDSOCK
-/*
- * MPSAFE
- */
 int
 osend(td, uap)
 	struct thread *td;
@@ -911,9 +883,6 @@ osend(td, uap)
 	return (error);
 }
 
-/*
- * MPSAFE
- */
 int
 osendmsg(td, uap)
 	struct thread *td;
@@ -941,9 +910,6 @@ osendmsg(td, uap)
 }
 #endif
 
-/*
- * MPSAFE
- */
 int
 sendmsg(td, uap)
 	struct thread *td;
@@ -1157,9 +1123,6 @@ recvit(td, s, mp, namelenp)
 	return (error);
 }
 
-/*
- * MPSAFE
- */
 int
 recvfrom(td, uap)
 	struct thread *td;
@@ -1197,9 +1160,6 @@ done2:
 }
 
 #ifdef COMPAT_OLDSOCK
-/*
- * MPSAFE
- */
 int
 orecvfrom(td, uap)
 	struct thread *td;
@@ -1213,9 +1173,6 @@ orecvfrom(td, uap)
 
 
 #ifdef COMPAT_OLDSOCK
-/*
- * MPSAFE
- */
 int
 orecv(td, uap)
 	struct thread *td;
@@ -1246,8 +1203,6 @@ orecv(td, uap)
  * Old recvmsg.  This code takes advantage of the fact that the old msghdr
  * overlays the new one, missing only the flags, and with the (old) access
  * rights where the control fields are now.
- *
- * MPSAFE
  */
 int
 orecvmsg(td, uap)
@@ -1279,9 +1234,6 @@ orecvmsg(td, uap)
 }
 #endif
 
-/*
- * MPSAFE
- */
 int
 recvmsg(td, uap)
 	struct thread *td;
@@ -1316,9 +1268,6 @@ recvmsg(td, uap)
 	return (error);
 }
 
-/*
- * MPSAFE
- */
 /* ARGSUSED */
 int
 shutdown(td, uap)
@@ -1343,9 +1292,6 @@ shutdown(td, uap)
 	return (error);
 }
 
-/*
- * MPSAFE
- */
 /* ARGSUSED */
 int
 setsockopt(td, uap)
@@ -1410,9 +1356,6 @@ kern_setsockopt(td, s, level, name, val, valseg, valsize)
 	return(error);
 }
 
-/*
- * MPSAFE
- */
 /* ARGSUSED */
 int
 getsockopt(td, uap)
@@ -1496,8 +1439,6 @@ kern_getsockopt(td, s, level, name, val, valseg, valsize)
 
 /*
  * getsockname1() - Get socket name.
- *
- * MPSAFE
  */
 /* ARGSUSED */
 static int
@@ -1572,9 +1513,6 @@ done:
 	return (error);
 }
 
-/*
- * MPSAFE
- */
 int
 getsockname(td, uap)
 	struct thread *td;
@@ -1585,9 +1523,6 @@ getsockname(td, uap)
 }
 
 #ifdef COMPAT_OLDSOCK
-/*
- * MPSAFE
- */
 int
 ogetsockname(td, uap)
 	struct thread *td;
@@ -1600,8 +1535,6 @@ ogetsockname(td, uap)
 
 /*
  * getpeername1() - Get name of peer for connected socket.
- *
- * MPSAFE
  */
 /* ARGSUSED */
 static int
@@ -1681,9 +1614,6 @@ done2:
 	return (error);
 }
 
-/*
- * MPSAFE
- */
 int
 getpeername(td, uap)
 	struct thread *td;
@@ -1694,9 +1624,6 @@ getpeername(td, uap)
 }
 
 #ifdef COMPAT_OLDSOCK
-/*
- * MPSAFE
- */
 int
 ogetpeername(td, uap)
 	struct thread *td;
@@ -1809,15 +1736,13 @@ sf_buf_mext(void *addr, void *args)
 /*
  * sendfile(2)
  *
- * MPSAFE
- *
  * int sendfile(int fd, int s, off_t offset, size_t nbytes,
  *	 struct sf_hdtr *hdtr, off_t *sbytes, int flags)
  *
  * Send a file specified by 'fd' and starting at 'offset' to a socket
- * specified by 's'. Send only 'nbytes' of the file or until EOF if
- * nbytes == 0. Optionally add a header and/or trailer to the socket
- * output. If specified, write the total number of bytes sent into *sbytes.
+ * specified by 's'. Send only 'nbytes' of the file or until EOF if nbytes ==
+ * 0. Optionally add a header and/or trailer to the socket output.  If
+ * specified, write the total number of bytes sent into *sbytes.
  *
  */
 int

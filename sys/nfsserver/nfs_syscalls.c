@@ -125,9 +125,6 @@ struct nfssvc_args {
 	caddr_t argp;
 };
 #endif
-/*
- * MPSAFE
- */
 int
 nfssvc(struct thread *td, struct nfssvc_args *uap)
 {

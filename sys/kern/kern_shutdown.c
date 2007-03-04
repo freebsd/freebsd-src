@@ -150,9 +150,7 @@ shutdown_conf(void *unused)
 SYSINIT(shutdown_conf, SI_SUB_INTRINSIC, SI_ORDER_ANY, shutdown_conf, NULL)
 
 /*
- * The system call that results in a reboot
- *
- * MPSAFE
+ * The system call that results in a reboot.
  */
 /* ARGSUSED */
 int
@@ -495,8 +493,6 @@ static u_int panic_cpu = NOCPU;
  * Panic is called on unresolvable fatal errors.  It prints "panic: mesg",
  * and then reboots.  If we are called twice, then we avoid trying to sync
  * the disks as this often leads to recursive panics.
- *
- * MPSAFE
  */
 void
 panic(const char *fmt, ...)

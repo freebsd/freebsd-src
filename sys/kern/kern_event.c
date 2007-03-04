@@ -506,9 +506,6 @@ filt_timer(struct knote *kn, long hint)
 	return (kn->kn_data != 0);
 }
 
-/*
- * MPSAFE
- */
 int
 kqueue(struct thread *td, struct kqueue_args *uap)
 {
@@ -557,9 +554,6 @@ struct kevent_args {
 	const struct timespec *timeout;
 };
 #endif
-/*
- * MPSAFE
- */
 int
 kevent(struct thread *td, struct kevent_args *uap)
 {

@@ -368,9 +368,6 @@ struct ptrace_args {
 #define	COPYIN(u, k, s)		copyin(u, k, s)
 #define	COPYOUT(k, u, s)	copyout(k, u, s)
 #endif
-/*
- * MPSAFE
- */
 int
 ptrace(struct thread *td, struct ptrace_args *uap)
 {
