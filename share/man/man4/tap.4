@@ -1,7 +1,7 @@
 .\" $FreeBSD$
 .\" Based on PR#2411
 .\"
-.Dd July 9, 2000
+.Dd February 4, 2007
 .Os
 .Dt TAP 4
 .Sh NAME
@@ -41,11 +41,26 @@ The network interfaces are named
 etc., one for each control device that has been opened.
 These Ethernet network interfaces persist until
 .Pa if_tap.ko
-module is unloaded (if
-.Nm
-is built into your kernel, the network interfaces cannot be removed).
+module is unloaded, or until removed with "ifconfig destroy" (see below).
 .Pp
-The
+.Nm
+devices are created using interface cloning.
+This is done using the
+.Dq ifconfig tap Ns Sy N No create
+command.
+This is the preferred method of creating
+.Nm
+devices.
+The same method allows removal of interfaces.
+For this, use the
+.Dq ifconfig tap Ns Sy N No destroy
+command.
+.Pp
+If the
+.Xr sysctl 8
+variable
+.Va net.link.tap.devfs_cloning
+is non-zero, the
 .Nm
 interface
 permits opens on the special control device
@@ -57,9 +72,21 @@ will return a handle for the lowest unused
 device (use
 .Xr devname 3
 to determine which).
+.Pp
+.Bf Em
+Disabling the legacy devfs cloning functionality may break existing
+applications which use
+.Nm ,
+such as
+.Tn VMware
+and
+.Xr ssh 1 .
+It therefore defaults to being enabled until further notice.
+.Ef
+.Pp
 Control devices (once successfully opened) persist until
 .Pa if_tap.ko
-is unloaded in the same way that network interfaces persist (see above).
+is unloaded or the interface is destroyed.
 .Pp
 Each interface supports the usual Ethernet network interface
 .Xr ioctl 2 Ns s ,

@@ -61,6 +61,8 @@
 #include <net/ethernet.h>
 #include <net/if.h>
 #include <net/if_arp.h>
+#include <net/if_clone.h>
+#include <net/if_dl.h>
 #include <net/route.h>
 #include <net/if_types.h>
 
@@ -90,6 +92,14 @@ static void		tapcreate(struct cdev *);
 static void		tapifstart(struct ifnet *);
 static int		tapifioctl(struct ifnet *, u_long, caddr_t);
 static void		tapifinit(void *);
+
+static int		tap_clone_create(struct if_clone *, int);
+static void		tap_clone_destroy(struct ifnet *);
+static int		vmnet_clone_create(struct if_clone *, int);
+static void		vmnet_clone_destroy(struct ifnet *);
+
+IFC_SIMPLE_DECLARE(tap, 0);
+IFC_SIMPLE_DECLARE(vmnet, 0);
 
 /* character device */
 static d_open_t		tapopen;
@@ -140,6 +150,7 @@ static struct cdevsw	tap_cdevsw = {
 static struct mtx		tapmtx;
 static int			tapdebug = 0;        /* debug flag   */
 static int			tapuopen = 0;        /* allow user open() */	     
+static int			tapdclone = 1;	/* enable devfs cloning */
 static SLIST_HEAD(, tap_softc)	taphead;             /* first device */
 static struct clonedevs 	*tapclones;
 
@@ -152,9 +163,86 @@ SYSCTL_NODE(_net_link, OID_AUTO, tap, CTLFLAG_RW, 0,
     "Ethernet tunnel software network interface");
 SYSCTL_INT(_net_link_tap, OID_AUTO, user_open, CTLFLAG_RW, &tapuopen, 0,
 	"Allow user to open /dev/tap (based on node permissions)");
+SYSCTL_INT(_net_link_tap, OID_AUTO, devfs_cloning, CTLFLAG_RW, &tapdclone, 0,
+	"Enably legacy devfs interface creation");
 SYSCTL_INT(_net_link_tap, OID_AUTO, debug, CTLFLAG_RW, &tapdebug, 0, "");
 
+TUNABLE_INT("net.link.tap.devfs_cloning", &tapdclone);
+
 DEV_MODULE(if_tap, tapmodevent, NULL);
+
+static int
+tap_clone_create(struct if_clone *ifc, int unit)
+{
+	struct cdev *dev;
+	int i;
+	int extra;
+
+	if (strcmp(ifc->ifc_name, VMNET) == 0)
+		extra = VMNET_DEV_MASK;
+	else
+		extra = 0;
+
+	/* find any existing device, or allocate new unit number */
+	i = clone_create(&tapclones, &tap_cdevsw, &unit, &dev, extra);
+	if (i) {
+		dev = make_dev(&tap_cdevsw, unit2minor(unit | extra),
+		     UID_ROOT, GID_WHEEL, 0600, "%s%d", ifc->ifc_name, unit);
+		if (dev != NULL) {
+			dev_ref(dev);
+			dev->si_flags |= SI_CHEAPCLONE;
+		}
+	}
+
+	tapcreate(dev);
+	return (0);
+}
+
+/* vmnet devices are tap devices in disguise */
+static int
+vmnet_clone_create(struct if_clone *ifc, int unit)
+{
+	return tap_clone_create(ifc, unit);
+}
+
+static void
+tap_destroy(struct tap_softc *tp)
+{
+	struct ifnet *ifp = tp->tap_ifp;
+	int s;
+
+	/* Unlocked read. */
+	KASSERT(!(tp->tap_flags & TAP_OPEN),
+		("%s flags is out of sync", ifp->if_xname));
+
+	knlist_destroy(&tp->tap_rsel.si_note);
+	destroy_dev(tp->tap_dev);
+	s = splimp();
+	ether_ifdetach(ifp);
+	if_free_type(ifp, IFT_ETHER);
+	splx(s);
+
+	mtx_destroy(&tp->tap_mtx);
+	free(tp, M_TAP);
+}
+
+static void
+tap_clone_destroy(struct ifnet *ifp)
+{
+	struct tap_softc *tp = ifp->if_softc;
+
+	mtx_lock(&tapmtx);
+	SLIST_REMOVE(&taphead, tp, tap_softc, tap_next);
+	mtx_unlock(&tapmtx);
+	tap_destroy(tp);
+}
+
+/* vmnet devices are tap devices in disguise */
+static void
+vmnet_clone_destroy(struct ifnet *ifp)
+{
+	tap_clone_destroy(ifp);
+}
 
 /*
  * tapmodevent
@@ -167,7 +255,6 @@ tapmodevent(module_t mod, int type, void *data)
 	static eventhandler_tag	 eh_tag = NULL;
 	struct tap_softc	*tp = NULL;
 	struct ifnet		*ifp = NULL;
-	int			 s;
 
 	switch (type) {
 	case MOD_LOAD:
@@ -184,6 +271,8 @@ tapmodevent(module_t mod, int type, void *data)
 			mtx_destroy(&tapmtx);
 			return (ENOMEM);
 		}
+		if_clone_attach(&tap_cloner);
+		if_clone_attach(&vmnet_cloner);
 		return (0);
 
 	case MOD_UNLOAD:
@@ -205,6 +294,8 @@ tapmodevent(module_t mod, int type, void *data)
 		mtx_unlock(&tapmtx);
 
 		EVENTHANDLER_DEREGISTER(dev_clone, eh_tag);
+		if_clone_detach(&tap_cloner);
+		if_clone_detach(&vmnet_cloner);
 
 		mtx_lock(&tapmtx);
 		while ((tp = SLIST_FIRST(&taphead)) != NULL) {
@@ -215,19 +306,7 @@ tapmodevent(module_t mod, int type, void *data)
 
 			TAPDEBUG("detaching %s\n", ifp->if_xname);
 
-			/* Unlocked read. */
-			KASSERT(!(tp->tap_flags & TAP_OPEN), 
-				("%s flags is out of sync", ifp->if_xname));
-
-			knlist_destroy(&tp->tap_rsel.si_note);
-			destroy_dev(tp->tap_dev);
-			s = splimp();
-			ether_ifdetach(ifp);
-			if_free_type(ifp, IFT_ETHER);
-			splx(s);
-
-			mtx_destroy(&tp->tap_mtx);
-			free(tp, M_TAP);
+			tap_destroy(tp);
 			mtx_lock(&tapmtx);
 		}
 		mtx_unlock(&tapmtx);
@@ -253,38 +332,60 @@ tapmodevent(module_t mod, int type, void *data)
 static void
 tapclone(void *arg, struct ucred *cred, char *name, int namelen, struct cdev **dev)
 {
+	char		devname[SPECNAMELEN + 1];
+	int		i, unit, append_unit;
 	int		extra;
-	int		i, unit;
-	char		*device_name = name;
 
 	if (*dev != NULL)
 		return;
 
-	device_name = TAP;
+	if (!tapdclone ||
+	    (!tapuopen && suser_cred(cred, SUSER_ALLOWJAIL) != 0))
+		return;
+
+	unit = 0;
+	append_unit = 0;
 	extra = 0;
+
+	/* We're interested in only tap/vmnet devices. */
 	if (strcmp(name, TAP) == 0) {
 		unit = -1;
 	} else if (strcmp(name, VMNET) == 0) {
-		device_name = VMNET;
-		extra = VMNET_DEV_MASK;
 		unit = -1;
-	} else if (dev_stdclone(name, NULL, device_name, &unit) != 1) {
-		device_name = VMNET;
 		extra = VMNET_DEV_MASK;
-		if (dev_stdclone(name, NULL, device_name, &unit) != 1)
+	} else if (dev_stdclone(name, NULL, TAP, &unit) != 1) {
+		if (dev_stdclone(name, NULL, VMNET, &unit) != 1) {
 			return;
+		} else {
+			extra = VMNET_DEV_MASK;
+		}
 	}
+
+	if (unit == -1)
+		append_unit = 1;
 
 	/* find any existing device, or allocate new unit number */
 	i = clone_create(&tapclones, &tap_cdevsw, &unit, dev, extra);
 	if (i) {
+		if (append_unit) {
+			/*
+			 * We were passed 'tun' or 'tap', with no unit specified
+			 * so we'll need to append it now.
+			 */
+			namelen = snprintf(devname, sizeof(devname), "%s%d", name,
+			    unit);
+			name = devname;
+		}
+
 		*dev = make_dev(&tap_cdevsw, unit2minor(unit | extra),
-		     UID_ROOT, GID_WHEEL, 0600, "%s%d", device_name, unit);
+		     UID_ROOT, GID_WHEEL, 0600, "%s", name);
 		if (*dev != NULL) {
 			dev_ref(*dev);
 			(*dev)->si_flags |= SI_CHEAPCLONE;
 		}
 	}
+
+	if_clone_create(name, namelen);
 } /* tapclone */
 
 
@@ -372,24 +473,18 @@ tapopen(struct cdev *dev, int flag, int mode, struct thread *td)
 {
 	struct tap_softc	*tp = NULL;
 	struct ifnet		*ifp = NULL;
-	int			 s;
+	int			 error, s;
 
-	if (tapuopen == 0 && suser(td) != 0)
-		return (EPERM);
+	if (tapuopen == 0) {
+		error = suser(td);
+		if (error != 0)
+			return (error);
+	}
 
 	if ((dev2unit(dev) & CLONE_UNITMASK) > TAPMAXUNIT)
 		return (ENXIO);
 
-	/*
-	 * XXXRW: Non-atomic test-and-set of si_drv1.  Currently protected
-	 * by Giant, but the race actually exists under memory pressure as
-	 * well even when running with Giant, as malloc() may sleep.
-	 */
 	tp = dev->si_drv1;
-	if (tp == NULL) {
-		tapcreate(dev);
-		tp = dev->si_drv1;
-	}
 
 	mtx_lock(&tp->tap_mtx);
 	if (tp->tap_flags & TAP_OPEN) {
@@ -496,7 +591,7 @@ tapifinit(void *xtp)
 static int
 tapifioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 {
-	struct tap_softc	*tp = (struct tap_softc *)(ifp->if_softc);
+	struct tap_softc	*tp = ifp->if_softc;
 	struct ifstat		*ifs = NULL;
 	int			 s, dummy;
 
@@ -612,7 +707,10 @@ tapioctl(struct cdev *dev, u_long cmd, caddr_t data, int flag, struct thread *td
 	struct tapinfo		*tapp = NULL;
 	int			 s;
 	int			 f;
+#if defined(COMPAT_FREEBSD6) || defined(COMPAT_FREEBSD5) || \
+    defined(COMPAT_FREEBSD4)
 	int			 ival;
+#endif
 
 	switch (cmd) {
 		case TAPSIFINFO:
@@ -687,10 +785,13 @@ tapioctl(struct cdev *dev, u_long cmd, caddr_t data, int flag, struct thread *td
 			bcopy(&ifp->if_flags, data, sizeof(ifp->if_flags));
 			break;
 
+#if defined(COMPAT_FREEBSD6) || defined(COMPAT_FREEBSD5) || \
+    defined(COMPAT_FREEBSD4)
 		case _IO('V', 0):
 			ival = IOCPARM_IVAL(data);
 			data = (caddr_t)&ival;
 			/* FALLTHROUGH */
+#endif
 		case VMIO_SIOCSIFFLAGS: /* VMware/VMnet SIOCSIFFLAGS */
 			f = *(int *)data;
 			f &= 0x0fff;
