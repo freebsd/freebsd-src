@@ -744,8 +744,10 @@ ip_mrouter_init(struct socket *so, int version)
 
     if_detach_event_tag = EVENTHANDLER_REGISTER(ifnet_departure_event, 
         if_detached_event, NULL, EVENTHANDLER_PRI_ANY);
-    if (if_detach_event_tag == NULL)
+    if (if_detach_event_tag == NULL) {
+	mtx_unlock(&mrouter_mtx);
 	return (ENOMEM);
+    }
 
     callout_reset(&expire_upcalls_ch, EXPIRE_TIMEOUT, expire_upcalls, NULL);
 
