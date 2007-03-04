@@ -45,6 +45,7 @@
 #include <sys/random.h>
 
 #include <net/if.h>
+#include <net/if_clone.h>
 #include <net/if_types.h>
 #include <net/netisr.h>
 #include <net/route.h>
@@ -103,19 +104,33 @@ struct tun_softc {
 static struct mtx tunmtx;
 static MALLOC_DEFINE(M_TUN, TUNNAME, "Tunnel Interface");
 static int tundebug = 0;
+static int tundclone = 1;
 static struct clonedevs *tunclones;
 static TAILQ_HEAD(,tun_softc)	tunhead = TAILQ_HEAD_INITIALIZER(tunhead);
 SYSCTL_INT(_debug, OID_AUTO, if_tun_debug, CTLFLAG_RW, &tundebug, 0, "");
 
+SYSCTL_DECL(_net_link);
+SYSCTL_NODE(_net_link, OID_AUTO, tun, CTLFLAG_RW, 0,
+    "IP tunnel software network interface.");
+SYSCTL_INT(_net_link_tun, OID_AUTO, devfs_cloning, CTLFLAG_RW, &tundclone, 0,
+    "Enable legacy devfs interface creation.");
+
+TUNABLE_INT("net.link.tun.devfs_cloning", &tundclone);
+
 static void	tunclone(void *arg, struct ucred *cred, char *name,
 		    int namelen, struct cdev **dev);
-static void	tuncreate(struct cdev *dev);
+static void	tuncreate(const char *name, struct cdev *dev);
 static int	tunifioctl(struct ifnet *, u_long, caddr_t);
 static int	tuninit(struct ifnet *);
 static int	tunmodevent(module_t, int, void *);
 static int	tunoutput(struct ifnet *, struct mbuf *, struct sockaddr *,
 		    struct rtentry *rt);
 static void	tunstart(struct ifnet *);
+
+static int	tun_clone_create(struct if_clone *, int);
+static void	tun_clone_destroy(struct ifnet *);
+
+IFC_SIMPLE_DECLARE(tun, 0);
 
 static d_open_t		tunopen;
 static d_close_t	tunclose;
@@ -156,13 +171,43 @@ static struct cdevsw tun_cdevsw = {
 	.d_name =	TUNNAME,
 };
 
+static int
+tun_clone_create(struct if_clone *ifc, int unit)
+{
+	struct cdev *dev;
+	int i;
+
+	/* find any existing device, or allocate new unit number */
+	i = clone_create(&tunclones, &tun_cdevsw, &unit, &dev, 0);
+	if (i) {
+		/* No preexisting struct cdev *, create one */
+		dev = make_dev(&tun_cdevsw, unit2minor(unit),
+		    UID_UUCP, GID_DIALER, 0600, "%s%d", ifc->ifc_name, unit);
+		if (dev != NULL) {
+			dev_ref(dev);
+			dev->si_flags |= SI_CHEAPCLONE;
+		}
+	}
+	tuncreate(ifc->ifc_name, dev);
+
+	return (0);
+}
+
 static void
 tunclone(void *arg, struct ucred *cred, char *name, int namelen,
     struct cdev **dev)
 {
-	int u, i;
+	char devname[SPECNAMELEN + 1];
+	int u, i, append_unit;
 
 	if (*dev != NULL)
+		return;
+
+	/*
+	 * If tun cloning is enabled, only the superuser can create an
+	 * interface.
+	 */
+	if (!tundclone || suser_cred(cred, SUSER_ALLOWJAIL) != 0)
 		return;
 
 	if (strcmp(name, TUNNAME) == 0) {
@@ -172,17 +217,29 @@ tunclone(void *arg, struct ucred *cred, char *name, int namelen,
 	if (u != -1 && u > IF_MAXUNIT)
 		return;	/* Unit number too high */
 
+	if (u == -1)
+		append_unit = 1;
+	else
+		append_unit = 0;
+
 	/* find any existing device, or allocate new unit number */
 	i = clone_create(&tunclones, &tun_cdevsw, &u, dev, 0);
 	if (i) {
+		if (append_unit) {
+			namelen = snprintf(devname, sizeof(devname), "%s%d", name,
+			    u);
+			name = devname;
+		}
 		/* No preexisting struct cdev *, create one */
 		*dev = make_dev(&tun_cdevsw, unit2minor(u),
-		    UID_UUCP, GID_DIALER, 0600, "tun%d", u);
+		    UID_UUCP, GID_DIALER, 0600, "%s", name);
 		if (*dev != NULL) {
 			dev_ref(*dev);
 			(*dev)->si_flags |= SI_CHEAPCLONE;
 		}
 	}
+
+	if_clone_create(name, namelen);
 }
 
 static void
@@ -204,6 +261,17 @@ tun_destroy(struct tun_softc *tp)
 	free(tp, M_TUN);
 }
 
+static void
+tun_clone_destroy(struct ifnet *ifp)
+{
+	struct tun_softc *tp = ifp->if_softc;
+
+	mtx_lock(&tunmtx);
+	TAILQ_REMOVE(&tunhead, tp, tun_list);
+	mtx_unlock(&tunmtx);
+	tun_destroy(tp);
+}
+
 static int
 tunmodevent(module_t mod, int type, void *data)
 {
@@ -217,8 +285,10 @@ tunmodevent(module_t mod, int type, void *data)
 		tag = EVENTHANDLER_REGISTER(dev_clone, tunclone, 0, 1000);
 		if (tag == NULL)
 			return (ENOMEM);
+		if_clone_attach(&tun_cloner);
 		break;
 	case MOD_UNLOAD:
+		if_clone_detach(&tun_cloner);
 		EVENTHANDLER_DEREGISTER(dev_clone, tag);
 
 		mtx_lock(&tunmtx);
@@ -279,7 +349,7 @@ tunstart(struct ifnet *ifp)
 
 /* XXX: should return an error code so it can fail. */
 static void
-tuncreate(struct cdev *dev)
+tuncreate(const char *name, struct cdev *dev)
 {
 	struct tun_softc *sc;
 	struct ifnet *ifp;
@@ -297,8 +367,8 @@ tuncreate(struct cdev *dev)
 	ifp = sc->tun_ifp = if_alloc(IFT_PPP);
 	if (ifp == NULL)
 		panic("%s%d: failed to if_alloc() interface.\n",
-		    TUNNAME, dev2unit(dev));
-	if_initname(ifp, TUNNAME, dev2unit(dev));
+		    name, dev2unit(dev));
+	if_initname(ifp, name, dev2unit(dev));
 	ifp->if_mtu = TUNMTU;
 	ifp->if_ioctl = tunifioctl;
 	ifp->if_output = tunoutput;
@@ -329,7 +399,7 @@ tunopen(struct cdev *dev, int flag, int mode, struct thread *td)
 	 */
 	tp = dev->si_drv1;
 	if (!tp) {
-		tuncreate(dev);
+		tuncreate(TUNNAME, dev);
 		tp = dev->si_drv1;
 	}
 
@@ -425,29 +495,23 @@ tuninit(struct ifnet *ifp)
 	ifp->if_drv_flags |= IFF_DRV_RUNNING;
 	getmicrotime(&ifp->if_lastchange);
 
-	for (ifa = TAILQ_FIRST(&ifp->if_addrhead); ifa;
-	     ifa = TAILQ_NEXT(ifa, ifa_link)) {
-		if (ifa->ifa_addr == NULL)
-			error = EFAULT;
-			/* XXX: Should maybe return straight off? */
-		else {
 #ifdef INET
-			if (ifa->ifa_addr->sa_family == AF_INET) {
-			    struct sockaddr_in *si;
+	TAILQ_FOREACH(ifa, &ifp->if_addrhead, ifa_link) {
+		if (ifa->ifa_addr->sa_family == AF_INET) {
+			struct sockaddr_in *si;
 
-			    si = (struct sockaddr_in *)ifa->ifa_addr;
-			    mtx_lock(&tp->tun_mtx);
-			    if (si->sin_addr.s_addr)
-				    tp->tun_flags |= TUN_IASET;
+			si = (struct sockaddr_in *)ifa->ifa_addr;
+			mtx_lock(&tp->tun_mtx);
+			if (si->sin_addr.s_addr)
+				tp->tun_flags |= TUN_IASET;
 
-			    si = (struct sockaddr_in *)ifa->ifa_dstaddr;
-			    if (si && si->sin_addr.s_addr)
-				    tp->tun_flags |= TUN_DSTADDR;
-			    mtx_unlock(&tp->tun_mtx);
-			}
-#endif
+			si = (struct sockaddr_in *)ifa->ifa_dstaddr;
+			if (si && si->sin_addr.s_addr)
+				tp->tun_flags |= TUN_DSTADDR;
+			mtx_unlock(&tp->tun_mtx);
 		}
 	}
+#endif
 	return (error);
 }
 
@@ -607,9 +671,11 @@ tunioctl(struct cdev *dev, u_long cmd, caddr_t data, int flag, struct thread *td
 		tunp = (struct tuninfo *)data;
 		if (tunp->mtu < IF_MINMTU)
 			return (EINVAL);
-		if (TUN2IFP(tp)->if_mtu != tunp->mtu
-		&& (error = suser(td)) != 0)
-			return (error);
+		if (TUN2IFP(tp)->if_mtu != tunp->mtu) {
+			error = suser(td);
+			if (error != 0)
+				return (error);
+		}
 		TUN2IFP(tp)->if_mtu = tunp->mtu;
 		TUN2IFP(tp)->if_type = tunp->type;
 		TUN2IFP(tp)->if_baudrate = tunp->baudrate;
