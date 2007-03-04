@@ -486,10 +486,13 @@ cbb_event_thread(void *arg)
 			cbb_removal(sc);
 		} else if (status & CBB_STATE_NOT_A_CARD) {
 			/*
-			 * Up to 20 times, try to rescan the card when we
-			 * see NOT_A_CARD.
+			 * Up to 10 times, try to rescan the card when we see
+			 * NOT_A_CARD.  10 is somehwat arbitrary.  When this
+			 * pathology hits, there's a ~40% chance each try will
+			 * fail.  10 tries takes about 5s and results in a
+			 * 99.99% certainty of the results.
 			 */
-			if (not_a_card++ < 20) {
+			if (not_a_card++ < 10) {
 				DEVPRINTF((sc->dev,
 				    "Not a card bit set, rescanning\n"));
 				cbb_setb(sc, CBB_SOCKET_FORCE, CBB_FORCE_CV_TEST);
@@ -504,12 +507,12 @@ cbb_event_thread(void *arg)
 		mtx_unlock(&Giant);
 
 		/*
-		 * Wait until it has been 1s since the last time we
+		 * Wait until it has been 250ms since the last time we
 		 * get an interrupt.  We handle the rest of the interrupt
 		 * at the top of the loop.  Although we clear the bit in the
 		 * ISR, we signal sc->cv from the detach path after we've
 		 * set the CBB_KTHREAD_DONE bit, so we can't do a simple
-		 * 1s sleep here.
+		 * 250ms sleep here.
 		 *
 		 * In our ISR, we turn off the card changed interrupt.  Turn
 		 * them back on here before we wait for them to happen.  We
