@@ -919,6 +919,9 @@ ng_ksocket_rcvdata(hook_p hook, item_p item)
 	    (stag->id == NG_NODE_ID(node) || stag->id == 0))
 		sa = &stag->sa;
 
+	/* Reset specific mbuf flags to prevent addressing problems. */
+	m->m_flags &= ~(M_BCAST|M_MCAST);
+
 	/* Send packet */
 	error = (*so->so_proto->pr_usrreqs->pru_sosend)(so, sa, 0, m, 0, 0, td);
 
