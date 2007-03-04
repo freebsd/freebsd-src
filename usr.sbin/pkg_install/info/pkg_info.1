@@ -56,13 +56,13 @@ A package name may either be the name of
 an installed package, the pathname to a package distribution file or a
 URL to an FTP available package.
 Package version numbers can also be matched in a relational manner using the
-.Pa \*[Ge] , \*[Le] , \*[Gt]
+.Pa >= , <= , >
 and
-.Pa \*[Lt]
+.Pa <
 operators.
 For example,
 .Pp
-.Dl "pkg_info 'portupgrade\*[Ge]20030723'"
+.Dl "pkg_info 'portupgrade>=20030723'"
 .Pp
 will match versions 20030723 and later of the
 .Pa portupgrade
