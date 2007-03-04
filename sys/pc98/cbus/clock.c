@@ -362,9 +362,9 @@ sysbeep(int pitch, int period)
 			splx(x);
 			return (-1); /* XXX Should be EBUSY, but nobody cares anyway. */
 		}
-	disable_intr();
+	mtx_lock_spin(&clock_lock);
 	spkr_set_pitch(pitch);
-	enable_intr();
+	mtx_unlock_spin(&clock_lock);
 	if (!beeping) {
 		/* enable counter1 output to speaker */
 		ppi_spkr_on();
@@ -373,24 +373,6 @@ sysbeep(int pitch, int period)
 	}
 	splx(x);
 	return (0);
-}
-
-
-unsigned int delaycount;
-#define FIRST_GUESS	0x2000
-static void findcpuspeed(void)
-{
-	int i;
-	int remainder;
-
-	/* Put counter in count down mode */
-	outb(TIMER_MODE, TIMER_SEL0 | TIMER_16BIT | TIMER_RATEGEN);
-	outb(TIMER_CNTR0, 0xff);
-	outb(TIMER_CNTR0, 0xff);
-	for (i = FIRST_GUESS; i; i--)
-		;
-	remainder = getit();
-	delaycount = (FIRST_GUESS * TIMER_DIV(1000)) / (0xffff - remainder);
 }
 
 static u_int
@@ -515,6 +497,12 @@ i8254_init(void)
 {
 
 	mtx_init(&clock_lock, "clk", NULL, MTX_SPIN | MTX_NOPROFILE);
+
+	if (pc98_machine_type & M_8M)
+		timer_freq = 1996800L; /* 1.9968 MHz */
+	else
+		timer_freq = 2457600L; /* 2.4576 MHz */
+
 	set_timer_freq(timer_freq, hz);
 }
 
@@ -522,12 +510,6 @@ void
 startrtclock()
 {
 	u_int delta, freq;
-
-	findcpuspeed();
-	if (pc98_machine_type & M_8M)
-		timer_freq = 1996800L; /* 1.9968 MHz */
-	else
-		timer_freq = 2457600L; /* 2.4576 MHz */
 
 	freq = calibrate_clocks();
 #ifdef CLK_CALIBRATION_LOOP
@@ -633,6 +615,7 @@ inittodr(time_t base)
 {
 	struct timespec ts;
 	struct clocktime ct;
+	int i;
 
 	if (base) {
 		ts.tv_sec = base;
@@ -648,12 +631,15 @@ inittodr(time_t base)
 	ct.sec = bcd2bin(rtc_inb() & 0xff);		/* sec */
 	ct.min = bcd2bin(rtc_inb() & 0xff);		/* min */
 	ct.hour = bcd2bin(rtc_inb() & 0xff);		/* hour */
-	ct.day = bcd2bin(rtc_inb() & 0xff) - 1;		/* date */
-	ct.mon = (rtc_inb() >> 4) & 0x0f;		/* month */
+	ct.day = bcd2bin(rtc_inb() & 0xff);		/* date */
+	i = rtc_inb();
+	ct.dow = i & 0x0f;				/* dow */
+	ct.mon = (i >> 4) & 0x0f;			/* month */
 	ct.year = bcd2bin(rtc_inb() & 0xff) + 1900;	/* year */
 	if (ct.year < 1995)
 		ct.year += 100;
 	clock_ct_to_ts(&ct, &ts);
+	ts.tv_sec += utc_offset();
 	tc_setclock(&ts);
 }
 
@@ -680,7 +666,7 @@ resettodr()
 	rtc_outb(bin2bcd(ct.hour)); 		/* Write back Hours   */
 
 	rtc_outb(bin2bcd(ct.day));		/* Write back Day     */
-	rtc_outb((ct.mon << 4) | (ct.dow + 1));	/* Write back Month and DOW */
+	rtc_outb((ct.mon << 4) | ct.dow);	/* Write back Month and DOW */
 	rtc_outb(bin2bcd(ct.year % 100));	/* Write back Year    */
 
 	rtc_serialcom(0x02);	/* Time set & Counter hold command. */
