@@ -87,30 +87,6 @@ Due to the limited space of those programs to display arbitrary strings,
 this message should not be longer than 6 characters.
 .Pp
 The
-.Fn wakeup_one
-function is used to make the first thread in the queue that is
-sleeping on the parameter
-.Fa chan
-runnable.
-This can prevent the system from becoming saturated
-when a large number of threads are sleeping on the same address,
-but only one of them can actually do any useful work when made
-runnable.
-.Pp
-The
-.Fn wakeup_one
-function does not work reliably if unrelated threads are sleeping on the same
-address.
-In this case, if a wakeup for one group of threads is delivered to a member of
-another group, that thread will ignore the wakeup, and the correct thread will
-never be woken up.
-It is the programmer's responsibility to choose a unique
-.Fa chan
-value.
-In case of doubt, do not use
-.Fn wakeup_one .
-.Pp
-The
 .Fn msleep
 function is the general sleep call.
 It suspends the current thread until a wakeup is
@@ -212,6 +188,36 @@ The thread can not be awakened early by signals or calls to
 .Fn wakeup
 or
 .Fn wakeup_one .
+.Pp
+The
+.Fn wakeup_one
+function makes the first thread in the queue that is sleeping on the
+parameter
+.Fa chan
+runnable.
+This reduces the load when a large number of threads are sleeping on
+the same address, but only one of them can actually do any useful work
+when made runnable.
+.Pp
+Due to the way it works, the
+.Fn wakeup_one
+function requires that only related threads sleep on a specific
+.Fa chan
+address.
+It is the programmer's responsibility to choose a unique
+.Fa chan
+value.
+The older 
+.Fn wakeup 
+function did not require this, though it was never good practice to for threads to share a 
+.Fa chan
+value.
+When converting from
+.Fn wakeup
+to
+.Fn wakeup_one ,
+pay particular attention to ensure that no other threads wait on the same
+.Fa chan .
 .Sh RETURN VALUES
 See above.
 .Sh SEE ALSO
