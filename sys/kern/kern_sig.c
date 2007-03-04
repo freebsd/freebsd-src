@@ -646,8 +646,6 @@ sig_ffs(sigset_t *set)
  * sigaction
  * freebsd4_sigaction
  * osigaction
- *
- * MPSAFE
  */
 int
 kern_sigaction(td, sig, act, oact, flags)
@@ -803,9 +801,6 @@ struct sigaction_args {
 	struct	sigaction *oact;
 };
 #endif
-/*
- * MPSAFE
- */
 int
 sigaction(td, uap)
 	struct thread *td;
@@ -836,9 +831,6 @@ struct freebsd4_sigaction_args {
 	struct	sigaction *oact;
 };
 #endif
-/*
- * MPSAFE
- */
 int
 freebsd4_sigaction(td, uap)
 	struct thread *td;
@@ -871,9 +863,6 @@ struct osigaction_args {
 	struct	osigaction *osa;
 };
 #endif
-/*
- * MPSAFE
- */
 int
 osigaction(td, uap)
 	struct thread *td;
@@ -1093,9 +1082,6 @@ osigprocmask(td, uap)
 }
 #endif /* COMPAT_43 */
 
-/*
- * MPSAFE
- */
 int
 sigwait(struct thread *td, struct sigwait_args *uap)
 {
@@ -1121,9 +1107,7 @@ sigwait(struct thread *td, struct sigwait_args *uap)
 	td->td_retval[0] = error;
 	return (0);
 }
-/*
- * MPSAFE
- */
+
 int
 sigtimedwait(struct thread *td, struct sigtimedwait_args *uap)
 {
@@ -1158,9 +1142,6 @@ sigtimedwait(struct thread *td, struct sigtimedwait_args *uap)
 	return (error);
 }
 
-/*
- * MPSAFE
- */
 int
 sigwaitinfo(struct thread *td, struct sigwaitinfo_args *uap)
 {
@@ -1320,9 +1301,6 @@ struct sigpending_args {
 	sigset_t	*set;
 };
 #endif
-/*
- * MPSAFE
- */
 int
 sigpending(td, uap)
 	struct thread *td;
@@ -1344,9 +1322,6 @@ struct osigpending_args {
 	int	dummy;
 };
 #endif
-/*
- * MPSAFE
- */
 int
 osigpending(td, uap)
 	struct thread *td;
@@ -1375,9 +1350,6 @@ struct osigvec_args {
 	struct	sigvec *osv;
 };
 #endif
-/*
- * MPSAFE
- */
 /* ARGSUSED */
 int
 osigvec(td, uap)
@@ -1419,9 +1391,6 @@ struct osigblock_args {
 	int	mask;
 };
 #endif
-/*
- * MPSAFE
- */
 int
 osigblock(td, uap)
 	register struct thread *td;
@@ -1444,9 +1413,6 @@ struct osigsetmask_args {
 	int	mask;
 };
 #endif
-/*
- * MPSAFE
- */
 int
 osigsetmask(td, uap)
 	struct thread *td;
@@ -1475,9 +1441,6 @@ struct sigsuspend_args {
 	const sigset_t *sigmask;
 };
 #endif
-/*
- * MPSAFE
- */
 /* ARGSUSED */
 int
 sigsuspend(td, uap)
@@ -1528,9 +1491,6 @@ struct osigsuspend_args {
 	osigset_t mask;
 };
 #endif
-/*
- * MPSAFE
- */
 /* ARGSUSED */
 int
 osigsuspend(td, uap)
@@ -1562,9 +1522,6 @@ struct osigstack_args {
 	struct	sigstack *oss;
 };
 #endif
-/*
- * MPSAFE
- */
 /* ARGSUSED */
 int
 osigstack(td, uap)
@@ -1600,9 +1557,6 @@ struct sigaltstack_args {
 	stack_t	*oss;
 };
 #endif
-/*
- * MPSAFE
- */
 /* ARGSUSED */
 int
 sigaltstack(td, uap)
@@ -1732,9 +1686,6 @@ struct kill_args {
 	int	signum;
 };
 #endif
-/*
- * MPSAFE
- */
 /* ARGSUSED */
 int
 kill(td, uap)
@@ -1780,9 +1731,6 @@ struct okillpg_args {
 	int	signum;
 };
 #endif
-/*
- * MPSAFE
- */
 /* ARGSUSED */
 int
 okillpg(td, uap)
@@ -1885,11 +1833,9 @@ pgsignal(pgrp, sig, checkctty)
 }
 
 /*
- * Send a signal caused by a trap to the current thread.
- * If it will be caught immediately, deliver it with correct code.
- * Otherwise, post it normally.
- *
- * MPSAFE
+ * Send a signal caused by a trap to the current thread.  If it will be
+ * caught immediately, deliver it with correct code.  Otherwise, post it
+ * normally.
  */
 void
 trapsignal(struct thread *td, ksiginfo_t *ksi)
@@ -2041,8 +1987,6 @@ sigtd(struct proc *p, int sig, int prop)
  *     regardless of the signal action (eg, blocked or ignored).
  *
  * Other ignored signals are discarded immediately.
- *
- * MPSAFE
  */
 void
 psignal(struct proc *p, int sig)
@@ -2073,9 +2017,6 @@ psignal_event(struct proc *p, struct sigevent *sigev, ksiginfo_t *ksi)
 	return (tdsignal(p, td, ksi->ksi_signo, ksi));
 }
 
-/*
- * MPSAFE
- */
 int
 tdsignal(struct proc *p, struct thread *td, int sig, ksiginfo_t *ksi)
 {
@@ -2731,9 +2672,6 @@ issignal(td)
 	/* NOTREACHED */
 }
 
-/*
- * MPSAFE
- */
 void
 thread_stopped(struct proc *p)
 {
@@ -2892,8 +2830,6 @@ killproc(p, why)
  * signal state.  Mark the accounting record with the signal termination.
  * If dumping core, save the signal number for the debugger.  Calls exit and
  * does not return.
- *
- * MPSAFE
  */
 void
 sigexit(td, sig)
@@ -3208,17 +3144,14 @@ out:
 }
 
 /*
- * Nonexistent system call-- signal process (may want to handle it).
- * Flag error in case process won't see signal immediately (blocked or ignored).
+ * Nonexistent system call-- signal process (may want to handle it).  Flag
+ * error in case process won't see signal immediately (blocked or ignored).
  */
 #ifndef _SYS_SYSPROTO_H_
 struct nosys_args {
 	int	dummy;
 };
 #endif
-/*
- * MPSAFE
- */
 /* ARGSUSED */
 int
 nosys(td, args)
@@ -3234,8 +3167,8 @@ nosys(td, args)
 }
 
 /*
- * Send a SIGIO or SIGURG signal to a process or process group using
- * stored credentials rather than those of the current process.
+ * Send a SIGIO or SIGURG signal to a process or process group using stored
+ * credentials rather than those of the current process.
  */
 void
 pgsigio(sigiop, sig, checkctty)

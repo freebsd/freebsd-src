@@ -290,9 +290,6 @@ struct shmdt_args {
 };
 #endif
 
-/*
- * MPSAFE
- */
 int
 shmdt(td, uap)
 	struct thread *td;
@@ -344,9 +341,6 @@ struct shmat_args {
 };
 #endif
 
-/*
- * MPSAFE
- */
 int
 kern_shmat(td, shmid, shmaddr, shmflg)
 	struct thread *td;
@@ -477,9 +471,6 @@ struct oshmctl_args {
 	struct oshmid_ds *ubuf;
 };
 
-/*
- * MPSAFE
- */
 static int
 oshmctl(td, uap)
 	struct thread *td;
@@ -542,9 +533,6 @@ struct shmctl_args {
 };
 #endif
 
-/*
- * MPSAFE
- */
 int
 kern_shmctl(td, shmid, cmd, buf, bufsz)
 	struct thread *td;
@@ -813,9 +801,6 @@ shmget_allocate_segment(td, uap, mode)
 	return (0);
 }
 
-/*
- * MPSAFE
- */
 int
 shmget(td, uap)
 	struct thread *td;
@@ -848,9 +833,6 @@ done2:
 	return (error);
 }
 
-/*
- * MPSAFE
- */
 int
 shmsys(td, uap)
 	struct thread *td;

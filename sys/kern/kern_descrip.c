@@ -247,9 +247,6 @@ struct getdtablesize_args {
 	int	dummy;
 };
 #endif
-/*
- * MPSAFE
- */
 /* ARGSUSED */
 int
 getdtablesize(struct thread *td, struct getdtablesize_args *uap)
@@ -275,9 +272,6 @@ struct dup2_args {
 	u_int	to;
 };
 #endif
-/*
- * MPSAFE
- */
 /* ARGSUSED */
 int
 dup2(struct thread *td, struct dup2_args *uap)
@@ -295,9 +289,6 @@ struct dup_args {
 	u_int	fd;
 };
 #endif
-/*
- * MPSAFE
- */
 /* ARGSUSED */
 int
 dup(struct thread *td, struct dup_args *uap)
@@ -316,9 +307,6 @@ struct fcntl_args {
 	long	arg;
 };
 #endif
-/*
- * MPSAFE
- */
 /* ARGSUSED */
 int
 fcntl(struct thread *td, struct fcntl_args *uap)
@@ -965,9 +953,6 @@ struct close_args {
 	int     fd;
 };
 #endif
-/*
- * MPSAFE
- */
 /* ARGSUSED */
 int
 close(td, uap)
@@ -1048,9 +1033,6 @@ struct ofstat_args {
 	struct	ostat *sb;
 };
 #endif
-/*
- * MPSAFE
- */
 /* ARGSUSED */
 int
 ofstat(struct thread *td, struct ofstat_args *uap)
@@ -1077,9 +1059,6 @@ struct fstat_args {
 	struct	stat *sb;
 };
 #endif
-/*
- * MPSAFE
- */
 /* ARGSUSED */
 int
 fstat(struct thread *td, struct fstat_args *uap)
@@ -1120,9 +1099,6 @@ struct nfstat_args {
 	struct	nstat *sb;
 };
 #endif
-/*
- * MPSAFE
- */
 /* ARGSUSED */
 int
 nfstat(struct thread *td, struct nfstat_args *uap)
@@ -1148,9 +1124,6 @@ struct fpathconf_args {
 	int	name;
 };
 #endif
-/*
- * MPSAFE
- */
 /* ARGSUSED */
 int
 fpathconf(struct thread *td, struct fpathconf_args *uap)
@@ -2223,9 +2196,6 @@ struct flock_args {
 	int	how;
 };
 #endif
-/*
- * MPSAFE
- */
 /* ARGSUSED */
 int
 flock(struct thread *td, struct flock_args *uap)

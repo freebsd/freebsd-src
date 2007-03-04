@@ -320,9 +320,7 @@ DECLARE_MODULE(sysvmsg, sysvmsg_mod,
 MODULE_VERSION(sysvmsg, 1);
 
 /*
- * Entry point for all MSG calls
- *
- * MPSAFE
+ * Entry point for all MSG calls.
  */
 int
 msgsys(td, uap)
@@ -383,9 +381,6 @@ struct msgctl_args {
 };
 #endif
 
-/*
- * MPSAFE
- */
 int
 msgctl(td, uap)
 	struct thread *td;
@@ -559,9 +554,6 @@ struct msgget_args {
 };
 #endif
 
-/*
- * MPSAFE
- */
 int
 msgget(td, uap)
 	struct thread *td;
@@ -979,9 +971,6 @@ done2:
 	return (error);
 }
 
-/*
- * MPSAFE
- */
 int
 msgsnd(td, uap)
 	struct thread *td;
@@ -1265,9 +1254,6 @@ done2:
 	return (error);
 }
 
-/*
- * MPSAFE
- */
 int
 msgrcv(td, uap)
 	struct thread *td;

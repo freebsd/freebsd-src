@@ -185,8 +185,6 @@ vacl_aclcheck(struct thread *td, struct vnode *vp, acl_type_t type,
 
 /*
  * Given a file path, get an ACL for it
- *
- * MPSAFE
  */
 int
 __acl_get_file(struct thread *td, struct __acl_get_file_args *uap)
@@ -207,8 +205,6 @@ __acl_get_file(struct thread *td, struct __acl_get_file_args *uap)
 
 /*
  * Given a file path, get an ACL for it; don't follow links.
- *
- * MPSAFE
  */
 int
 __acl_get_link(struct thread *td, struct __acl_get_link_args *uap)
@@ -228,9 +224,7 @@ __acl_get_link(struct thread *td, struct __acl_get_link_args *uap)
 }
 
 /*
- * Given a file path, set an ACL for it
- *
- * MPSAFE
+ * Given a file path, set an ACL for it.
  */
 int
 __acl_set_file(struct thread *td, struct __acl_set_file_args *uap)
@@ -251,8 +245,6 @@ __acl_set_file(struct thread *td, struct __acl_set_file_args *uap)
 
 /*
  * Given a file path, set an ACL for it; don't follow links.
- *
- * MPSAFE
  */
 int
 __acl_set_link(struct thread *td, struct __acl_set_link_args *uap)
@@ -273,8 +265,6 @@ __acl_set_link(struct thread *td, struct __acl_set_link_args *uap)
 
 /*
  * Given a file descriptor, get an ACL for it
- *
- * MPSAFE
  */
 int
 __acl_get_fd(struct thread *td, struct __acl_get_fd_args *uap)
@@ -294,8 +284,6 @@ __acl_get_fd(struct thread *td, struct __acl_get_fd_args *uap)
 
 /*
  * Given a file descriptor, set an ACL for it
- *
- * MPSAFE
  */
 int
 __acl_set_fd(struct thread *td, struct __acl_set_fd_args *uap)
@@ -315,8 +303,6 @@ __acl_set_fd(struct thread *td, struct __acl_set_fd_args *uap)
 
 /*
  * Given a file path, delete an ACL from it.
- *
- * MPSAFE
  */
 int
 __acl_delete_file(struct thread *td, struct __acl_delete_file_args *uap)
@@ -337,8 +323,6 @@ __acl_delete_file(struct thread *td, struct __acl_delete_file_args *uap)
 
 /*
  * Given a file path, delete an ACL from it; don't follow links.
- *
- * MPSAFE
  */
 int
 __acl_delete_link(struct thread *td, struct __acl_delete_link_args *uap)
@@ -359,8 +343,6 @@ __acl_delete_link(struct thread *td, struct __acl_delete_link_args *uap)
 
 /*
  * Given a file path, delete an ACL from it.
- *
- * MPSAFE
  */
 int
 __acl_delete_fd(struct thread *td, struct __acl_delete_fd_args *uap)
@@ -379,9 +361,7 @@ __acl_delete_fd(struct thread *td, struct __acl_delete_fd_args *uap)
 }
 
 /*
- * Given a file path, check an ACL for it
- *
- * MPSAFE
+ * Given a file path, check an ACL for it.
  */
 int
 __acl_aclcheck_file(struct thread *td, struct __acl_aclcheck_file_args *uap)
@@ -402,8 +382,6 @@ __acl_aclcheck_file(struct thread *td, struct __acl_aclcheck_file_args *uap)
 
 /*
  * Given a file path, check an ACL for it; don't follow links.
- *
- * MPSAFE
  */
 int
 __acl_aclcheck_link(struct thread *td, struct __acl_aclcheck_link_args *uap)
@@ -423,9 +401,7 @@ __acl_aclcheck_link(struct thread *td, struct __acl_aclcheck_link_args *uap)
 }
 
 /*
- * Given a file descriptor, check an ACL for it
- *
- * MPSAFE
+ * Given a file descriptor, check an ACL for it.
  */
 int
 __acl_aclcheck_fd(struct thread *td, struct __acl_aclcheck_fd_args *uap)

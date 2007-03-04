@@ -107,9 +107,6 @@ sched_attach(void)
 	return ret;
 }
 
-/* 
- * MPSAFE
- */
 int
 sched_setparam(struct thread *td, struct sched_setparam_args *uap)
 {
@@ -142,9 +139,6 @@ sched_setparam(struct thread *td, struct sched_setparam_args *uap)
 	return (e);
 }
 
-/* 
- * MPSAFE
- */
 int
 sched_getparam(struct thread *td, struct sched_getparam_args *uap)
 {
@@ -175,9 +169,6 @@ sched_getparam(struct thread *td, struct sched_getparam_args *uap)
 	return (e);
 }
 
-/* 
- * MPSAFE
- */
 int
 sched_setscheduler(struct thread *td, struct sched_setscheduler_args *uap)
 {
@@ -215,9 +206,6 @@ sched_setscheduler(struct thread *td, struct sched_setscheduler_args *uap)
 	return (e);
 }
 
-/* 
- * MPSAFE
- */
 int
 sched_getscheduler(struct thread *td, struct sched_getscheduler_args *uap)
 {
@@ -249,9 +237,6 @@ done2:
 	return (e);
 }
 
-/* 
- * MPSAFE
- */
 int
 sched_yield(struct thread *td, struct sched_yield_args *uap)
 {
@@ -259,9 +244,6 @@ sched_yield(struct thread *td, struct sched_yield_args *uap)
 	return (ksched_yield(ksched));
 }
 
-/* 
- * MPSAFE
- */
 int
 sched_get_priority_max(struct thread *td,
     struct sched_get_priority_max_args *uap)
@@ -273,9 +255,6 @@ sched_get_priority_max(struct thread *td,
 	return (error);
 }
 
-/* 
- * MPSAFE
- */
 int
 sched_get_priority_min(struct thread *td,
     struct sched_get_priority_min_args *uap)
@@ -287,9 +266,6 @@ sched_get_priority_min(struct thread *td,
 	return (error);
 }
 
-/* 
- * MPSAFE
- */
 int
 sched_rr_get_interval(struct thread *td,
     struct sched_rr_get_interval_args *uap)

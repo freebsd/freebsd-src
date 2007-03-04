@@ -187,9 +187,6 @@ struct clock_gettime_args {
 };
 #endif
 
-/*
- * MPSAFE
- */
 /* ARGSUSED */
 int
 clock_gettime(struct thread *td, struct clock_gettime_args *uap)
@@ -259,9 +256,6 @@ struct clock_settime_args {
 };
 #endif
 
-/*
- * MPSAFE
- */
 /* ARGSUSED */
 int
 clock_settime(struct thread *td, struct clock_settime_args *uap)
@@ -402,9 +396,6 @@ struct nanosleep_args {
 };
 #endif
 
-/* 
- * MPSAFE
- */
 /* ARGSUSED */
 int
 nanosleep(struct thread *td, struct nanosleep_args *uap)
@@ -436,9 +427,6 @@ struct gettimeofday_args {
 	struct	timezone *tzp;
 };
 #endif
-/*
- * MPSAFE
- */
 /* ARGSUSED */
 int
 gettimeofday(struct thread *td, struct gettimeofday_args *uap)
@@ -465,9 +453,6 @@ struct settimeofday_args {
 	struct	timezone *tzp;
 };
 #endif
-/*
- * MPSAFE
- */
 /* ARGSUSED */
 int
 settimeofday(struct thread *td, struct settimeofday_args *uap)
@@ -546,9 +531,6 @@ struct getitimer_args {
 	struct	itimerval *itv;
 };
 #endif
-/*
- * MPSAFE
- */
 int
 getitimer(struct thread *td, struct getitimer_args *uap)
 {
@@ -602,9 +584,6 @@ struct setitimer_args {
 };
 #endif
 
-/*
- * MPSAFE
- */
 int
 setitimer(struct thread *td, struct setitimer_args *uap)
 {

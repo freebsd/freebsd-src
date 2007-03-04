@@ -94,8 +94,6 @@ init_prison(void *data __unused)
 SYSINIT(prison, SI_SUB_INTRINSIC, SI_ORDER_ANY, init_prison, NULL);
 
 /*
- * MPSAFE
- *
  * struct jail_args {
  *	struct jail *jail;
  * };
@@ -184,8 +182,6 @@ e_killmtx:
 }
 
 /*
- * MPSAFE
- *
  * struct jail_attach_args {
  *	int jid;
  * };

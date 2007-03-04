@@ -67,9 +67,6 @@ __FBSDID("$FreeBSD$");
 
 #ifdef MAC
 
-/*
- * MPSAFE
- */
 int
 __mac_get_pid(struct thread *td, struct __mac_get_pid_args *uap)
 {
@@ -119,9 +116,6 @@ __mac_get_pid(struct thread *td, struct __mac_get_pid_args *uap)
 	return (error);
 }
 
-/*
- * MPSAFE
- */
 int
 __mac_get_proc(struct thread *td, struct __mac_get_proc_args *uap)
 {
@@ -155,9 +149,6 @@ __mac_get_proc(struct thread *td, struct __mac_get_proc_args *uap)
 	return (error);
 }
 
-/*
- * MPSAFE
- */
 int
 __mac_set_proc(struct thread *td, struct __mac_set_proc_args *uap)
 {
@@ -224,9 +215,6 @@ out:
 	return (error);
 }
 
-/*
- * MPSAFE
- */
 int
 __mac_get_fd(struct thread *td, struct __mac_get_fd_args *uap)
 {
@@ -313,9 +301,6 @@ out:
 	return (error);
 }
 
-/*
- * MPSAFE
- */
 int
 __mac_get_file(struct thread *td, struct __mac_get_file_args *uap)
 {
@@ -366,9 +351,6 @@ out:
 	return (error);
 }
 
-/*
- * MPSAFE
- */
 int
 __mac_get_link(struct thread *td, struct __mac_get_link_args *uap)
 {
@@ -419,9 +401,6 @@ out:
 	return (error);
 }
 
-/*
- * MPSAFE
- */
 int
 __mac_set_fd(struct thread *td, struct __mac_set_fd_args *uap)
 {
@@ -514,9 +493,6 @@ out:
 	return (error);
 }
 
-/*
- * MPSAFE
- */
 int
 __mac_set_file(struct thread *td, struct __mac_set_file_args *uap)
 {
@@ -568,9 +544,6 @@ out:
 	return (error);
 }
 
-/*
- * MPSAFE
- */
 int
 __mac_set_link(struct thread *td, struct __mac_set_link_args *uap)
 {
@@ -622,9 +595,6 @@ out:
 	return (error);
 }
 
-/*
- * MPSAFE
- */
 int
 mac_syscall(struct thread *td, struct mac_syscall_args *uap)
 {

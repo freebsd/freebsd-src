@@ -80,9 +80,6 @@ struct getpid_args {
 	int	dummy;
 };
 #endif
-/*
- * MPSAFE
- */
 /* ARGSUSED */
 int
 getpid(struct thread *td, struct getpid_args *uap)
@@ -103,9 +100,6 @@ struct getppid_args {
         int     dummy;
 };
 #endif
-/*
- * MPSAFE
- */
 /* ARGSUSED */
 int
 getppid(struct thread *td, struct getppid_args *uap)
@@ -126,9 +120,6 @@ struct getpgrp_args {
         int     dummy;
 };
 #endif
-/*
- * MPSAFE
- */
 int
 getpgrp(struct thread *td, struct getpgrp_args *uap)
 {
@@ -146,9 +137,6 @@ struct getpgid_args {
 	pid_t	pid;
 };
 #endif
-/*
- * MPSAFE
- */
 int
 getpgid(struct thread *td, struct getpgid_args *uap)
 {
@@ -181,9 +169,6 @@ struct getsid_args {
 	pid_t	pid;
 };
 #endif
-/*
- * MPSAFE
- */
 int
 getsid(struct thread *td, struct getsid_args *uap)
 {
@@ -213,9 +198,6 @@ struct getuid_args {
         int     dummy;
 };
 #endif
-/*
- * MPSAFE
- */
 /* ARGSUSED */
 int
 getuid(struct thread *td, struct getuid_args *uap)
@@ -233,9 +215,6 @@ struct geteuid_args {
         int     dummy;
 };
 #endif
-/*
- * MPSAFE
- */
 /* ARGSUSED */
 int
 geteuid(struct thread *td, struct geteuid_args *uap)
@@ -250,9 +229,6 @@ struct getgid_args {
         int     dummy;
 };
 #endif
-/*
- * MPSAFE
- */
 /* ARGSUSED */
 int
 getgid(struct thread *td, struct getgid_args *uap)
@@ -275,9 +251,6 @@ struct getegid_args {
         int     dummy;
 };
 #endif
-/*
- * MPSAFE
- */
 /* ARGSUSED */
 int
 getegid(struct thread *td, struct getegid_args *uap)
@@ -293,9 +266,6 @@ struct getgroups_args {
 	gid_t	*gidset;
 };
 #endif
-/*
- * MPSAFE
- */
 int
 getgroups(struct thread *td, register struct getgroups_args *uap)
 {
@@ -336,9 +306,6 @@ struct setsid_args {
         int     dummy;
 };
 #endif
-/*
- * MPSAFE
- */
 /* ARGSUSED */
 int
 setsid(register struct thread *td, struct setsid_args *uap)
@@ -397,9 +364,6 @@ struct setpgid_args {
 	int	pgid;		/* target pgrp id */
 };
 #endif
-/*
- * MPSAFE
- */
 /* ARGSUSED */
 int
 setpgid(struct thread *td, register struct setpgid_args *uap)
@@ -500,9 +464,6 @@ struct setuid_args {
 	uid_t	uid;
 };
 #endif
-/*
- * MPSAFE
- */
 /* ARGSUSED */
 int
 setuid(struct thread *td, struct setuid_args *uap)
@@ -616,9 +577,6 @@ struct seteuid_args {
 	uid_t	euid;
 };
 #endif
-/*
- * MPSAFE
- */
 /* ARGSUSED */
 int
 seteuid(struct thread *td, struct seteuid_args *uap)
@@ -675,9 +633,6 @@ struct setgid_args {
 	gid_t	gid;
 };
 #endif
-/*
- * MPSAFE
- */
 /* ARGSUSED */
 int
 setgid(struct thread *td, struct setgid_args *uap)
@@ -778,9 +733,6 @@ struct setegid_args {
 	gid_t	egid;
 };
 #endif
-/*
- * MPSAFE
- */
 /* ARGSUSED */
 int
 setegid(struct thread *td, struct setegid_args *uap)
@@ -830,9 +782,6 @@ struct setgroups_args {
 	gid_t	*gidset;
 };
 #endif
-/*
- * MPSAFE
- */
 /* ARGSUSED */
 int
 setgroups(struct thread *td, struct setgroups_args *uap)
@@ -908,9 +857,6 @@ struct setreuid_args {
 	uid_t	euid;
 };
 #endif
-/*
- * MPSAFE
- */
 /* ARGSUSED */
 int
 setreuid(register struct thread *td, struct setreuid_args *uap)
@@ -980,9 +926,6 @@ struct setregid_args {
 	gid_t	egid;
 };
 #endif
-/*
- * MPSAFE
- */
 /* ARGSUSED */
 int
 setregid(register struct thread *td, struct setregid_args *uap)
@@ -1051,9 +994,6 @@ struct setresuid_args {
 	uid_t	suid;
 };
 #endif
-/*
- * MPSAFE
- */
 /* ARGSUSED */
 int
 setresuid(register struct thread *td, struct setresuid_args *uap)
@@ -1136,9 +1076,6 @@ struct setresgid_args {
 	gid_t	sgid;
 };
 #endif
-/*
- * MPSAFE
- */
 /* ARGSUSED */
 int
 setresgid(register struct thread *td, struct setresgid_args *uap)
@@ -1208,9 +1145,6 @@ struct getresuid_args {
 	uid_t	*suid;
 };
 #endif
-/*
- * MPSAFE
- */
 /* ARGSUSED */
 int
 getresuid(register struct thread *td, struct getresuid_args *uap)
@@ -1238,9 +1172,6 @@ struct getresgid_args {
 	gid_t	*sgid;
 };
 #endif
-/*
- * MPSAFE
- */
 /* ARGSUSED */
 int
 getresgid(register struct thread *td, struct getresgid_args *uap)
@@ -1266,9 +1197,6 @@ struct issetugid_args {
 	int dummy;
 };
 #endif
-/*
- * MPSAFE
- */
 /* ARGSUSED */
 int
 issetugid(register struct thread *td, struct issetugid_args *uap)
@@ -1289,9 +1217,6 @@ issetugid(register struct thread *td, struct issetugid_args *uap)
 	return (0);
 }
 
-/*
- * MPSAFE
- */
 int
 __setugid(struct thread *td, struct __setugid_args *uap)
 {
@@ -1321,8 +1246,6 @@ __setugid(struct thread *td, struct __setugid_args *uap)
 
 /*
  * Check if gid is a member of the group set.
- *
- * MPSAFE (cred must be held)
  */
 int
 groupmember(gid_t gid, struct ucred *cred)
@@ -1345,8 +1268,6 @@ groupmember(gid_t gid, struct ucred *cred)
  *
  * XXXRW: Possibly since this has to do with privilege, it should move to
  * kern_priv.c.
- *
- * MPSAFE
  */
 int
 securelevel_gt(struct ucred *cr, int level)
@@ -1836,7 +1757,6 @@ p_canwait(struct thread *td, struct proc *p)
 
 /*
  * Allocate a zeroed cred structure.
- * MPSAFE
  */
 struct ucred *
 crget(void)
@@ -1853,7 +1773,6 @@ crget(void)
 
 /*
  * Claim another reference to a ucred structure.
- * MPSAFE
  */
 struct ucred *
 crhold(struct ucred *cr)
@@ -1864,9 +1783,7 @@ crhold(struct ucred *cr)
 }
 
 /*
- * Free a cred structure.
- * Throws away space when ref count gets to 0.
- * MPSAFE
+ * Free a cred structure.  Throws away space when ref count gets to 0.
  */
 void
 crfree(struct ucred *cr)
@@ -1898,7 +1815,6 @@ crfree(struct ucred *cr)
 
 /*
  * Check to see if this ucred is shared.
- * MPSAFE
  */
 int
 crshared(struct ucred *cr)
@@ -1909,7 +1825,6 @@ crshared(struct ucred *cr)
 
 /*
  * Copy a ucred's contents from a template.  Does not block.
- * MPSAFE
  */
 void
 crcopy(struct ucred *dest, struct ucred *src)
@@ -1930,7 +1845,6 @@ crcopy(struct ucred *dest, struct ucred *src)
 
 /*
  * Dup cred struct to a new held one.
- * MPSAFE
  */
 struct ucred *
 crdup(struct ucred *cr)
@@ -1944,7 +1858,6 @@ crdup(struct ucred *cr)
 
 /*
  * Fill in a struct xucred based on a struct ucred.
- * MPSAFE
  */
 void
 cru2x(struct ucred *cr, struct xucred *xcr)
@@ -1958,9 +1871,8 @@ cru2x(struct ucred *cr, struct xucred *xcr)
 }
 
 /*
- * small routine to swap a thread's current ucred for the correct one
- * taken from the process.
- * MPSAFE
+ * small routine to swap a thread's current ucred for the correct one taken
+ * from the process.
  */
 void
 cred_update_thread(struct thread *td)
@@ -1986,9 +1898,6 @@ struct getlogin_args {
 	u_int	namelen;
 };
 #endif
-/*
- * MPSAFE
- */
 /* ARGSUSED */
 int
 getlogin(struct thread *td, struct getlogin_args *uap)
@@ -2016,9 +1925,6 @@ struct setlogin_args {
 	char	*namebuf;
 };
 #endif
-/*
- * MPSAFE
- */
 /* ARGSUSED */
 int
 setlogin(struct thread *td, struct setlogin_args *uap)
