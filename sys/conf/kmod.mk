@@ -38,7 +38,7 @@
 #
 # FIRMWS	List of firmware images in format filename:shortname:version
 #
-# FIRMWARE_LICENSED
+# FIRMWARE_LICENSE
 #		Set to the name of the license the user has to agree on in
 #		order to use this firmware. See /usr/share/doc/legal
 #
