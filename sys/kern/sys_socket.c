@@ -56,7 +56,7 @@ __FBSDID("$FreeBSD$");
 
 #include <security/mac/mac_framework.h>
 
-struct	fileops socketops = {
+struct fileops	socketops = {
 	.fo_read = soo_read,
 	.fo_write = soo_write,
 	.fo_ioctl = soo_ioctl,
@@ -69,12 +69,8 @@ struct	fileops socketops = {
 
 /* ARGSUSED */
 int
-soo_read(fp, uio, active_cred, flags, td)
-	struct file *fp;
-	struct uio *uio;
-	struct ucred *active_cred;
-	struct thread *td;
-	int flags;
+soo_read(struct file *fp, struct uio *uio, struct ucred *active_cred,
+    int flags, struct thread *td)
 {
 	struct socket *so = fp->f_data;
 	int error;
@@ -96,12 +92,8 @@ soo_read(fp, uio, active_cred, flags, td)
 
 /* ARGSUSED */
 int
-soo_write(fp, uio, active_cred, flags, td)
-	struct file *fp;
-	struct uio *uio;
-	struct ucred *active_cred;
-	struct thread *td;
-	int flags;
+soo_write(struct file *fp, struct uio *uio, struct ucred *active_cred,
+    int flags, struct thread *td)
 {
 	struct socket *so = fp->f_data;
 	int error;
@@ -127,12 +119,8 @@ soo_write(fp, uio, active_cred, flags, td)
 }
 
 int
-soo_ioctl(fp, cmd, data, active_cred, td)
-	struct file *fp;
-	u_long cmd;
-	void *data;
-	struct ucred *active_cred;
-	struct thread *td;
+soo_ioctl(struct file *fp, u_long cmd, void *data, struct ucred *active_cred,
+    struct thread *td)
 {
 	struct socket *so = fp->f_data;
 	int error = 0;
@@ -151,10 +139,10 @@ soo_ioctl(fp, cmd, data, active_cred, td)
 
 	case FIOASYNC:
 		/*
-		 * XXXRW: This code separately acquires SOCK_LOCK(so)
-		 * and SOCKBUF_LOCK(&so->so_rcv) even though they are
-		 * the same mutex to avoid introducing the assumption
-		 * that they are the same.
+		 * XXXRW: This code separately acquires SOCK_LOCK(so) and
+		 * SOCKBUF_LOCK(&so->so_rcv) even though they are the same
+		 * mutex to avoid introducing the assumption that they are
+		 * the same.
 		 */
 		if (*(int *)data) {
 			SOCK_LOCK(so);
@@ -206,9 +194,9 @@ soo_ioctl(fp, cmd, data, active_cred, td)
 		break;
 	default:
 		/*
-		 * Interface/routing/protocol specific ioctls:
-		 * interface and routing ioctls should have a
-		 * different entry since a socket's unnecessary
+		 * Interface/routing/protocol specific ioctls: interface and
+		 * routing ioctls should have a different entry since a
+		 * socket is unnecessary.
 		 */
 		if (IOCGROUP(cmd) == 'i')
 			error = ifioctl(so, cmd, data, td);
@@ -224,11 +212,8 @@ soo_ioctl(fp, cmd, data, active_cred, td)
 }
 
 int
-soo_poll(fp, events, active_cred, td)
-	struct file *fp;
-	int events;
-	struct ucred *active_cred;
-	struct thread *td;
+soo_poll(struct file *fp, int events, struct ucred *active_cred,
+    struct thread *td)
 {
 	struct socket *so = fp->f_data;
 	int error;
@@ -250,11 +235,8 @@ soo_poll(fp, events, active_cred, td)
 }
 
 int
-soo_stat(fp, ub, active_cred, td)
-	struct file *fp;
-	struct stat *ub;
-	struct ucred *active_cred;
-	struct thread *td;
+soo_stat(struct file *fp, struct stat *ub, struct ucred *active_cred,
+    struct thread *td)
 {
 	struct socket *so = fp->f_data;
 	int error;
@@ -275,8 +257,8 @@ soo_stat(fp, ub, active_cred, td)
 	 * If SBS_CANTRCVMORE is set, but there's still data left in the
 	 * receive buffer, the socket is still readable.
 	 *
-	 * XXXRW: perhaps should lock socket buffer so st_size result
-	 * is consistent.
+	 * XXXRW: perhaps should lock socket buffer so st_size result is
+	 * consistent.
 	 */
 	/* Unlocked read. */
 	if ((so->so_rcv.sb_state & SBS_CANTRCVMORE) == 0 ||
@@ -293,16 +275,14 @@ soo_stat(fp, ub, active_cred, td)
 }
 
 /*
- * API socket close on file pointer.  We call soclose() to close the 
- * socket (including initiating closing protocols).  soclose() will
- * sorele() the file reference but the actual socket will not go away
- * until the socket's ref count hits 0.
+ * API socket close on file pointer.  We call soclose() to close the socket
+ * (including initiating closing protocols).  soclose() will sorele() the
+ * file reference but the actual socket will not go away until the socket's
+ * ref count hits 0.
  */
 /* ARGSUSED */
 int
-soo_close(fp, td)
-	struct file *fp;
-	struct thread *td;
+soo_close(struct file *fp, struct thread *td)
 {
 	int error = 0;
 	struct socket *so;
