@@ -85,9 +85,6 @@ struct getpriority_args {
 	int	who;
 };
 #endif
-/*
- * MPSAFE
- */
 int
 getpriority(td, uap)
 	struct thread *td;
@@ -174,9 +171,6 @@ struct setpriority_args {
 	int	prio;
 };
 #endif
-/*
- * MPSAFE
- */
 int
 setpriority(td, uap)
 	struct thread *td;
@@ -278,8 +272,6 @@ donice(struct thread *td, struct proc *p, int n)
 
 /*
  * Set realtime priority for LWP.
- *
- * MPSAFE
  */
 #ifndef _SYS_SYSPROTO_H_
 struct rtprio_thread_args {
@@ -373,8 +365,6 @@ rtprio_thread(struct thread *td, struct rtprio_thread_args *uap)
 
 /*
  * Set realtime priority.
- *
- * MPSAFE
  */
 #ifndef _SYS_SYSPROTO_H_
 struct rtprio_args {
@@ -556,9 +546,6 @@ struct osetrlimit_args {
 	struct	orlimit *rlp;
 };
 #endif
-/*
- * MPSAFE
- */
 int
 osetrlimit(td, uap)
 	struct thread *td;
@@ -582,9 +569,6 @@ struct ogetrlimit_args {
 	struct	orlimit *rlp;
 };
 #endif
-/*
- * MPSAFE
- */
 int
 ogetrlimit(td, uap)
 	struct thread *td;
@@ -624,9 +608,6 @@ struct __setrlimit_args {
 	struct	rlimit *rlp;
 };
 #endif
-/*
- * MPSAFE
- */
 int
 setrlimit(td, uap)
 	struct thread *td;
@@ -771,9 +752,6 @@ struct __getrlimit_args {
 	struct	rlimit *rlp;
 };
 #endif
-/*
- * MPSAFE
- */
 /* ARGSUSED */
 int
 getrlimit(td, uap)
@@ -934,9 +912,6 @@ struct getrusage_args {
 	struct	rusage *rusage;
 };
 #endif
-/*
- * MPSAFE
- */
 int
 getrusage(td, uap)
 	register struct thread *td;

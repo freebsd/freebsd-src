@@ -168,9 +168,6 @@ struct execve_args {
 };
 #endif
 
-/*
- * MPSAFE
- */
 int
 execve(td, uap)
 	struct thread *td;
@@ -199,9 +196,6 @@ struct __mac_execve_args {
 };
 #endif
 
-/*
- * MPSAFE
- */
 int
 __mac_execve(td, uap)
 	struct thread *td;
@@ -277,8 +271,6 @@ kern_execve(td, args, mac_p)
 /*
  * In-kernel implementation of execve().  All arguments are assumed to be
  * userspace pointers from the passed thread.
- *
- * MPSAFE
  */
 static int
 do_execve(td, args, mac_p)

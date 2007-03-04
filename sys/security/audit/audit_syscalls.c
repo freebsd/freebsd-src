@@ -47,8 +47,6 @@
 #ifdef AUDIT
 
 /*
- * MPSAFE
- *
  * System call to allow a user space application to submit a BSM audit record
  * to the kernel for inclusion in the audit log. This function does little
  * verification on the audit record that is submitted.
@@ -142,8 +140,6 @@ free_out:
 }
 
 /*
- * MPSAFE
- *
  *  System call to manipulate auditing.
  */
 /* ARGSUSED */
@@ -395,8 +391,6 @@ auditon(struct thread *td, struct auditon_args *uap)
 }
 
 /*
- * MPSAFE
- *
  * System calls to manage the user audit information.
  */
 /* ARGSUSED */
@@ -422,7 +416,6 @@ getauid(struct thread *td, struct getauid_args *uap)
 	return copyout(&id, uap->auid, sizeof(id));
 }
 
-/* MPSAFE */
 /* ARGSUSED */
 int
 setauid(struct thread *td, struct setauid_args *uap)
@@ -460,7 +453,6 @@ setauid(struct thread *td, struct setauid_args *uap)
 }
 
 /*
- * MPSAFE
  * System calls to get and set process audit information.
  */
 /* ARGSUSED */
@@ -483,7 +475,6 @@ getaudit(struct thread *td, struct getaudit_args *uap)
 	return (copyout(&ai, uap->auditinfo, sizeof(ai)));
 }
 
-/* MPSAFE */
 /* ARGSUSED */
 int
 setaudit(struct thread *td, struct setaudit_args *uap)
@@ -513,7 +504,6 @@ setaudit(struct thread *td, struct setaudit_args *uap)
 	return (0);
 }
 
-/* MPSAFE */
 /* ARGSUSED */
 int
 getaudit_addr(struct thread *td, struct getaudit_addr_args *uap)
@@ -528,7 +518,6 @@ getaudit_addr(struct thread *td, struct getaudit_addr_args *uap)
 	return (ENOSYS);
 }
 
-/* MPSAFE */
 /* ARGSUSED */
 int
 setaudit_addr(struct thread *td, struct setaudit_addr_args *uap)
@@ -544,7 +533,6 @@ setaudit_addr(struct thread *td, struct setaudit_addr_args *uap)
 }
 
 /*
- * MPSAFE
  * Syscall to manage audit files.
  */
 /* ARGSUSED */

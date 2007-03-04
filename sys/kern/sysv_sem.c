@@ -319,9 +319,7 @@ DECLARE_MODULE(sysvsem, sysvsem_mod,
 MODULE_VERSION(sysvsem, 1);
 
 /*
- * Entry point for all SEM calls
- *
- * MPSAFE
+ * Entry point for all SEM calls.
  */
 int
 semsys(td, uap)
@@ -533,7 +531,7 @@ semvalid(semid, semakptr)
 }
 
 /*
- * Note that the user-mode half of this passes a union, not a pointer
+ * Note that the user-mode half of this passes a union, not a pointer.
  */
 #ifndef _SYS_SYSPROTO_H_
 struct __semctl_args {
@@ -544,9 +542,6 @@ struct __semctl_args {
 };
 #endif
 
-/*
- * MPSAFE
- */
 int
 __semctl(td, uap)
 	struct thread *td;
@@ -874,9 +869,6 @@ struct semget_args {
 };
 #endif
 
-/*
- * MPSAFE
- */
 int
 semget(td, uap)
 	struct thread *td;
@@ -990,9 +982,6 @@ struct semop_args {
 };
 #endif
 
-/*
- * MPSAFE
- */
 int
 semop(td, uap)
 	struct thread *td;

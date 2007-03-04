@@ -69,10 +69,8 @@ __FBSDID("$FreeBSD$");
 #include <security/mac/mac_framework.h>
 
 /*
- * Define the code needed before returning to user mode, for
- * trap and syscall.
- *
- * MPSAFE
+ * Define the code needed before returning to user mode, for trap and
+ * syscall.
  */
 void
 userret(struct thread *td, struct trapframe *frame)

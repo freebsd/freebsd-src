@@ -58,9 +58,6 @@ struct swapcontext_args {
 }
 #endif
 
-/*
- * MPSAFE
- */
 int
 getcontext(struct thread *td, struct getcontext_args *uap)
 {
@@ -79,9 +76,6 @@ getcontext(struct thread *td, struct getcontext_args *uap)
 	return (ret);
 }
 
-/*
- * MPSAFE
- */
 int
 setcontext(struct thread *td, struct setcontext_args *uap)
 {

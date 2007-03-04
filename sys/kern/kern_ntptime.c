@@ -307,9 +307,6 @@ struct ntp_adjtime_args {
 };
 #endif
 
-/*
- * MPSAFE
- */
 int
 ntp_adjtime(struct thread *td, struct ntp_adjtime_args *uap)
 {
@@ -927,9 +924,6 @@ struct adjtime_args {
 	struct timeval *olddelta;
 };
 #endif
-/*
- * MPSAFE
- */
 /* ARGSUSED */
 int
 adjtime(struct thread *td, struct adjtime_args *uap)
