@@ -72,6 +72,9 @@ CFLAGS+= -DNO_FLOATING_POINT
 .if ${MK_NS_CACHING} != "no"
 CFLAGS+= -DNS_CACHING
 .endif
+.if defined(_FREEFALL_CONFIG)
+CFLAGS+=-D_FREEFALL_CONFIG
+.endif
 
 .if defined(SYMVER_ENABLED)
 VERSION_DEF=${.CURDIR}/Versions.def
