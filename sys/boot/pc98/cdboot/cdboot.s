@@ -705,7 +705,7 @@ read.error:	mov %ah,%al			# Save error
 twiddle:	push %ax			# Save
 		push %bx			# Save
 		mov twiddle_index,%al		# Load index
-		mov twiddle_chars,%bx		# Address table
+		mov $twiddle_chars,%bx		# Address table
 		inc %al				# Next
 		and $3,%al			#  char
 		mov %al,twiddle_index		# Save index for next call
