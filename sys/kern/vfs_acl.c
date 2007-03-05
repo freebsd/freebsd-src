@@ -264,7 +264,7 @@ __acl_set_link(struct thread *td, struct __acl_set_link_args *uap)
 }
 
 /*
- * Given a file descriptor, get an ACL for it
+ * Given a file descriptor, get an ACL for it.
  */
 int
 __acl_get_fd(struct thread *td, struct __acl_get_fd_args *uap)
@@ -283,7 +283,7 @@ __acl_get_fd(struct thread *td, struct __acl_get_fd_args *uap)
 }
 
 /*
- * Given a file descriptor, set an ACL for it
+ * Given a file descriptor, set an ACL for it.
  */
 int
 __acl_set_fd(struct thread *td, struct __acl_set_fd_args *uap)
