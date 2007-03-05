@@ -1226,7 +1226,7 @@ cbb_pcic_power_disable_socket(device_t brdev, device_t child)
 
 	DPRINTF(("cbb_pcic_socket_disable\n"));
 
-	/* Turn off the card's interrupt and leave it in reset */
+	/* Turn off the card's interrupt and leave it in reset, wait 10ms */
 	exca_putb(&sc->exca[0], EXCA_INTR, 0);
 	pause("cbbP1", hz / 100);
 
@@ -1235,7 +1235,7 @@ cbb_pcic_power_disable_socket(device_t brdev, device_t child)
 	exca_putb(&sc->exca[0], EXCA_PWRCTL, 0);
 
 	/* wait 300ms until power fails (Tpf). */
-	pause("cbbP1", hz * 300 / 1000);
+	pause("cbbP2", hz * 300 / 1000);
 
 	/* enable CSC interrupts */
 	exca_putb(&sc->exca[0], EXCA_INTR, EXCA_INTR_ENABLE);
