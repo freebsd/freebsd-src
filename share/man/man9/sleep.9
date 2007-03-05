@@ -207,16 +207,18 @@ address.
 It is the programmer's responsibility to choose a unique
 .Fa chan
 value.
-The older 
-.Fn wakeup 
-function did not require this, though it was never good practice to for threads to share a 
+The older
+.Fn wakeup
+function did not require this, though it was never good practice to
+for threads to share a
 .Fa chan
 value.
 When converting from
 .Fn wakeup
 to
 .Fn wakeup_one ,
-pay particular attention to ensure that no other threads wait on the same
+pay particular attention to ensure that no other threads wait on the
+same
 .Fa chan .
 .Sh RETURN VALUES
 See above.
