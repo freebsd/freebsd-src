@@ -579,6 +579,7 @@ rtc_restore(void)
 
 	/* Restore all of the RTC's "status" (actually, control) registers. */
 	/* XXX locking is needed for RTC access. */
+	rtc_reg = -1;
 	writertc(RTC_STATUSB, RTCSB_24HR);
 	writertc(RTC_STATUSA, rtc_statusa);
 	writertc(RTC_STATUSB, rtc_statusb);
