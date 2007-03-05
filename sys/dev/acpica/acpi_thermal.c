@@ -434,16 +434,23 @@ acpi_tz_get_temperature(struct acpi_tz_softc *sc)
 {
     int		temp;
     ACPI_STATUS	status;
+    static char	*tmp_name = "_TMP";
 
     ACPI_FUNCTION_NAME ("acpi_tz_get_temperature");
 
-    status = acpi_GetInteger(sc->tz_handle, "_TMP", &temp);
+    /* Evaluate the thermal zone's _TMP method. */
+    status = acpi_GetInteger(sc->tz_handle, tmp_name, &temp);
     if (ACPI_FAILURE(status)) {
 	ACPI_VPRINT(sc->tz_dev, acpi_device_get_parent_softc(sc->tz_dev),
 	    "error fetching current temperature -- %s\n",
 	     AcpiFormatException(status));
 	return (FALSE);
     }
+
+    /* Check it for validity. */
+    acpi_tz_sanity(sc, &temp, tmp_name);
+    if (temp == -1)
+	return (FALSE);
 
     ACPI_DEBUG_PRINT((ACPI_DB_VALUES, "got %d.%dC\n", TZ_KELVTOC(temp)));
     sc->tz_temperature = temp;
@@ -646,12 +653,12 @@ acpi_tz_getparam(struct acpi_tz_softc *sc, char *node, int *data)
 
 /*
  * Sanity-check a temperature value.  Assume that setpoints
- * should be between 0C and 150C.
+ * should be between 0C and 200C.
  */
 static void
 acpi_tz_sanity(struct acpi_tz_softc *sc, int *val, char *what)
 {
-    if (*val != -1 && (*val < TZ_ZEROC || *val > TZ_ZEROC + 1500)) {
+    if (*val != -1 && (*val < TZ_ZEROC || *val > TZ_ZEROC + 2000)) {
 	device_printf(sc->tz_dev, "%s value is absurd, ignored (%d.%dC)\n",
 		      what, TZ_KELVTOC(*val));
 	*val = -1;
