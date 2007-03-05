@@ -674,6 +674,8 @@ sopno lev;			/* PLUS nesting level */
 			return(NULL);
 		assert(m->pmatch[i].rm_so != -1);
 		len = m->pmatch[i].rm_eo - m->pmatch[i].rm_so;
+		if (len == 0)
+			return(NULL);
 		assert(stop - m->beginp >= len);
 		if (sp > stop - len)
 			return(NULL);	/* not enough left to match */
