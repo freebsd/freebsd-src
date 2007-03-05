@@ -327,7 +327,7 @@ pci_maptype(unsigned mapreg)
 		0,			0,
 	};
 
-	return maptype[mapreg & 0x0f];
+	return (maptype[mapreg & 0x0f]);
 }
 
 /* return log2 of map size decoded for memory or port map */
@@ -624,11 +624,11 @@ pci_read_vpd_reg(device_t pcib, pcicfgregs *cfg, int reg)
 
 	KASSERT((reg & 3) == 0, ("VPD register must by 4 byte aligned"));
 
-	WREG(cfg->vpd.vpd_reg + 2, reg, 2);
-	while ((REG(cfg->vpd.vpd_reg + 2, 2) & 0x8000) != 0x8000)
+	WREG(cfg->vpd.vpd_reg + PCIR_VPD_ADDR, reg, 2);
+	while ((REG(cfg->vpd.vpd_reg + PCIR_VPD_ADDR, 2) & 0x8000) != 0x8000)
 		DELAY(1);	/* limit looping */
 
-	return REG(cfg->vpd.vpd_reg + 4, 4);
+	return (REG(cfg->vpd.vpd_reg + PCIR_VPD_DATA, 4));
 }
 
 #if 0
@@ -637,9 +637,9 @@ pci_write_vpd_reg(device_t pcib, pcicfgregs *cfg, int reg, uint32_t data)
 {
 	KASSERT((reg & 3) == 0, ("VPD register must by 4 byte aligned"));
 
-	WREG(cfg->vpd.vpd_reg + 4, data, 4);
-	WREG(cfg->vpd.vpd_reg + 2, reg | 0x8000, 2);
-	while ((REG(cfg->vpd.vpd_reg + 2, 2) & 0x8000) == 0x8000)
+	WREG(cfg->vpd.vpd_reg + PCIR_VPD_DATA, data, 4);
+	WREG(cfg->vpd.vpd_reg + PCIR_VPD_ADDR, reg | 0x8000, 2);
+	while ((REG(cfg->vpd.vpd_reg + PCIR_VPD_ADDR, 2) & 0x8000) == 0x8000)
 		DELAY(1);	/* limit looping */
 
 	return;
@@ -673,7 +673,7 @@ vpd_nextbyte(struct vpd_readstate *vrs)
 	}
 
 	vrs->cksum += byte;
-	return byte;
+	return (byte);
 }
 
 static void
@@ -918,9 +918,9 @@ pci_get_vpd_ident_method(device_t dev, device_t child, const char **identptr)
 	*identptr = cfg->vpd.vpd_ident;
 
 	if (*identptr == NULL)
-		return ENXIO;
+		return (ENXIO);
 
-	return 0;
+	return (0);
 }
 
 int
@@ -938,10 +938,10 @@ pci_get_vpd_readonly_method(device_t dev, device_t child, const char *kw,
 		}
 
 	if (i != cfg->vpd.vpd_rocnt)
-		return 0;
+		return (0);
 
 	*vptr = NULL;
-	return ENXIO;
+	return (ENXIO);
 }
 
 /*
@@ -3070,7 +3070,7 @@ pci_alloc_resource(device_t dev, device_t child, int type, int *rid,
 			if ((flags & RF_ACTIVE) &&
 			    bus_generic_activate_resource(dev, child, type,
 			    *rid, rle->res) != 0)
-				return NULL;
+				return (NULL);
 			return (rle->res);
 		}
 	}
