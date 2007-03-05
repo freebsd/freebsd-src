@@ -49,7 +49,7 @@ The
 .Fa how
 argument specifies the type of shutdown.
 Possible values are:
-.Bl -tag -width SHUT_RDWR
+.Bl -tag -width ".Dv SHUT_RDWR"
 .It Dv SHUT_RD
 Further receives will be disallowed.
 .It Dv SHUT_WR
@@ -60,7 +60,8 @@ to happen; see
 .Sx IMPLEMENTATION NOTES .
 .It Dv SHUT_RDWR
 Further sends and receives will be disallowed.
-Implies SHUT_WR.
+Implies
+.Dv SHUT_WR .
 .El
 .Pp
 If the file descriptor
@@ -70,42 +71,46 @@ is associated with a
 socket, all or part of the full-duplex connection will be shut down.
 .\"
 .Sh IMPLEMENTATION NOTES
-.Pp
 The following protocol specific actions apply to the use of
 .Dv SHUT_WR
 (and potentially also
 .Dv SHUT_RDWR ) ,
 based on the properties of the socket associated with the file descriptor
 .Fa s .
-.Bl -column ".Sy PF_INET6" ".Sy SOCK_STREAM" ".Sy IPPROTO_SCTP" \
-    -width "xxxxxxxxxxxxxxxx"
-.It Li Sy Domain Ta Sy Type Ta Sy Protocol Ta Sy Return value and action
-.It Li PF_INET Ta SOCK_DGRAM Ta IPPROTO_SCTP Ta
-Return -1.
+.Bl -column ".Dv PF_INET6" ".Dv SOCK_STREAM" ".Dv IPPROTO_SCTP"
+.It Sy Domain Ta Sy Type Ta Sy Protocol Ta Sy Return value and action
+.It Dv PF_INET Ta Dv SOCK_DGRAM Ta Dv IPPROTO_SCTP Ta
+Return \-1.
+The global variable
 .Va errno
 will be set to
 .Er EOPNOTSUPP .
-.It Li PF_INET Ta SOCK_DGRAM Ta IPPROTO_UDP Ta
+.It Dv PF_INET Ta Dv SOCK_DGRAM Ta Dv IPPROTO_UDP Ta
 Return 0.
-ICMP messages will NOT be generated.
-.It Li PF_INET Ta SOCK_STREAM Ta IPPROTO_SCTP Ta
+ICMP messages will
+.Em not
+be generated.
+.It Dv PF_INET Ta Dv SOCK_STREAM Ta Dv IPPROTO_SCTP Ta
 Return 0.
 Send queued data and tear down association.
-.It Li PF_INET Ta SOCK_STREAM Ta IPPROTO_TCP Ta
-Return 0.
+.It Dv PF_INET Ta Dv SOCK_STREAM Ta Dv IPPROTO_TCP Ta
+Return 0. \
 Send queued data, wait for ACK, then send FIN.
-.It Li PF_INET6 Ta SOCK_DGRAM Ta IPPROTO_SCTP Ta
-Return -1.
+.It Dv PF_INET6 Ta Dv SOCK_DGRAM Ta Dv IPPROTO_SCTP Ta
+Return \-1.
+The global variable
 .Va errno
 will be set to
 .Er EOPNOTSUPP .
-.It Li PF_INET6 Ta SOCK_DGRAM Ta IPPROTO_UDP Ta
+.It Dv PF_INET6 Ta Dv SOCK_DGRAM Ta Dv IPPROTO_UDP Ta
 Return 0.
-ICMP messages will NOT be generated.
-.It Li PF_INET6 Ta SOCK_STREAM Ta IPPROTO_SCTP Ta
+ICMP messages will
+.Em not
+be generated.
+.It Dv PF_INET6 Ta Dv SOCK_STREAM Ta Dv IPPROTO_SCTP Ta
 Return 0.
 Send queued data and tear down association.
-.It Li PF_INET6 Ta SOCK_STREAM Ta IPPROTO_TCP Ta
+.It Dv PF_INET6 Ta Dv SOCK_STREAM Ta Dv IPPROTO_TCP Ta
 Return 0.
 Send queued data, wait for ACK, then send FIN.
 .El
@@ -131,7 +136,7 @@ The socket associated with the file descriptor
 does not support this operation.
 .It Bq Er ENOTCONN
 The
-.Da s
+.Fa s
 argument specifies a
 .Dv SOCK_STREAM
 socket which is not connected.
@@ -165,9 +170,18 @@ constants appeared in
 .Sh AUTHORS
 .An -nosplit
 This manual page was updated by
-.An Bruce M. Simpson Aq bms@FreeBSD.org .
+.An Bruce M. Simpson Aq bms@FreeBSD.org
+to reflect how
+.Fn shutdown
+behaves with
+.Dv PF_INET
+and
+.Dv PF_INET6
+sockets.
 .Sh BUGS
-The ICMP "port unreachable" message should be generated in response to
+The ICMP
+.Dq Li "port unreachable"
+message should be generated in response to
 datagrams received on a local port to which
 .Fa s
 is bound
