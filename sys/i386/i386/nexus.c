@@ -12,7 +12,7 @@
  * no representations about the suitability of this software for any
  * purpose.  It is provided "as is" without express or implied
  * warranty.
- * 
+ *
  * THIS SOFTWARE IS PROVIDED BY M.I.T. ``AS IS''.  M.I.T. DISCLAIMS
  * ALL EXPRESS OR IMPLIED WARRANTIES WITH REGARD TO THIS SOFTWARE,
  * INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF
@@ -170,7 +170,7 @@ nexus_probe(device_t dev)
 
 	device_quiet(dev);	/* suppress attach message for neatness */
 
-	/* 
+	/*
 	 * XXX working notes:
 	 *
 	 * - IRQ resource creation should be moved to the PIC/APIC driver.
@@ -265,7 +265,7 @@ nexus_print_all_resources(device_t dev)
 
 	if (STAILQ_FIRST(rl))
 		retval += printf(" at");
-	
+
 	retval += resource_list_print_type(rl, "port", SYS_RES_IOPORT, "%#lx");
 	retval += resource_list_print_type(rl, "iomem", SYS_RES_MEMORY, "%#lx");
 	retval += resource_list_print_type(rl, "irq", SYS_RES_IRQ, "%ld");
@@ -298,7 +298,7 @@ nexus_add_child(device_t bus, int order, const char *name, int unit)
 		return(0);
 	resource_list_init(&ndev->nx_resources);
 
-	child = device_add_child_ordered(bus, order, name, unit); 
+	child = device_add_child_ordered(bus, order, name, unit);
 
 	/* should we free this in nexus_child_detached? */
 	device_set_ivars(child, ndev);
@@ -399,7 +399,7 @@ nexus_alloc_resource(device_t bus, device_t child, int type, int *rid,
 			return 0;
 		}
 	}
-	
+
 	return rv;
 }
 
@@ -441,7 +441,7 @@ nexus_deactivate_resource(device_t bus, device_t child, int type, int rid,
 		pmap_unmapdev((vm_offset_t)rman_get_virtual(r),
 		    rman_get_size(r));
 	}
-		
+
 	return (rman_deactivate_resource(r));
 }
 
@@ -609,7 +609,7 @@ nexus_release_msi(device_t pcib, device_t dev, int count, int *irqs)
 
 #ifdef DEV_ISA
 /*
- * Placeholder which claims PnP 'devices' which describe system 
+ * Placeholder which claims PnP 'devices' which describe system
  * resources.
  */
 static struct isa_pnp_id sysresource_ids[] = {
@@ -622,7 +622,7 @@ static int
 sysresource_probe(device_t dev)
 {
 	int	result;
-	
+
 	if ((result = ISA_PNP_PROBE(device_get_parent(dev), dev, sysresource_ids)) <= 0) {
 		device_quiet(dev);
 	}
