@@ -228,6 +228,10 @@ _kse_single_thread(struct pthread *curthread)
 	__sys_sigprocmask(SIG_SETMASK, &curthread->sigmask, NULL);
 	_thread_active_threads = 1;
 
+	curthread->kse->k_kcb->kcb_kmbx.km_curthread = NULL;
+	curthread->attr.flags &= ~PTHREAD_SCOPE_SYSTEM;
+	curthread->attr.flags |= PTHREAD_SCOPE_SYSTEM;
+
 	/*
 	 * Enter a loop to remove and free all threads other than
 	 * the running thread from the active thread list:
@@ -309,13 +313,6 @@ _kse_single_thread(struct pthread *curthread)
 		_lock_destroy(&_thread_list_lock);
 		inited = 0;
 	}
-
-	/*
-	 * After a fork(), the leftover thread goes back to being
-	 * scope process.
-	 */
-	curthread->attr.flags &= ~PTHREAD_SCOPE_SYSTEM;
-	curthread->attr.flags |= PTHREAD_SCOPE_PROCESS;
 
 	/* We're no longer part of any lists */
 	curthread->tlflags = 0;
