@@ -489,7 +489,7 @@ dofilewrite(td, fd, fp, auio, offset, flags)
 		    error == EINTR || error == EWOULDBLOCK))
 			error = 0;
 		/* Socket layer is responsible for issuing SIGPIPE. */
-		if (error == EPIPE) {
+		if (fp->f_type != DTYPE_SOCKET && error == EPIPE) {
 			PROC_LOCK(td->td_proc);
 			psignal(td->td_proc, SIGPIPE);
 			PROC_UNLOCK(td->td_proc);
