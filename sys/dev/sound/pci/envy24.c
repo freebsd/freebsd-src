@@ -2413,15 +2413,16 @@ envy24_pci_attach(device_t dev)
 	mixer_init(dev, &envy24mixer_class, sc);
 
 	/* set channel information */
-	err = pcm_register(dev, sc, 5, 2 + sc->adcn);
+	err = pcm_register(dev, sc, sc->dacn, sc->adcn);
 	if (err)
 		goto bad;
-	sc->chnum = 0;
-	for (i = 0; i < 5; i++) {
+	sc->chnum = ENVY24_CHAN_PLAY_DAC1;
+	for (i = 0; i < sc->dacn; i++) {
 		pcm_addchan(dev, PCMDIR_PLAY, &envy24chan_class, sc);
 		sc->chnum++;
 	}
-	for (i = 0; i < 2 + sc->adcn; i++) {
+	sc->chnum = ENVY24_CHAN_REC_ADC1;
+	for (i = 0; i < sc->adcn; i++) {
 		pcm_addchan(dev, PCMDIR_REC, &envy24chan_class, sc);
 		sc->chnum++;
 	}
