@@ -328,7 +328,7 @@ mptable_setup_local(void)
 		lapic_init(DEFAULT_APIC_BASE);
 		printf("Default Configuration %d", mpfps->config_type);
 	} else {
-		lapic_init((uintptr_t)mpct->apic_address);
+		lapic_init(mpct->apic_address);
 		printf("%.*s %.*s", (int)sizeof(mpct->oem_id), mpct->oem_id,
 		    (int)sizeof(mpct->product_id), mpct->product_id);
 	}
@@ -519,8 +519,8 @@ mptable_parse_apics_and_busses_handler(u_char *entry, void *arg __unused)
 		if (ioapics[apic->apic_id] != NULL)
 			panic("%s: Double APIC ID %d", __func__,
 			    apic->apic_id);
-		ioapics[apic->apic_id] = ioapic_create(
-			(uintptr_t)apic->apic_address, apic->apic_id, -1);
+		ioapics[apic->apic_id] = ioapic_create(apic->apic_address,
+		    apic->apic_id, -1);
 		break;
 	default:
 		break;
