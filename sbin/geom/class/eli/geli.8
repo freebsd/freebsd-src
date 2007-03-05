@@ -630,12 +630,13 @@ The offset and size of the corrupted data will be printed on the console.
 It is important to know against which attacks
 .Nm
 provides protection for your data.
-If data is modified or copied from one place on the disk
-to another,
+If data is modified in-place or copied from one place on the disk
+to another even without modification,
 .Nm
-should be able to detect such a modification.
-If an attacker can remember the encrypted data, modify them and write them
-back to the same place, the modification will not be detected.
+should be able to detect such a change.
+If an attacker can remember the encrypted data, he can overwrite any future
+changes with the data he owns without notice.
+In other words
 .Nm
 will not protect your data against replay attacks.
 .Sh SEE ALSO
