@@ -764,7 +764,7 @@ mqfs_search(struct mqfs_node *pd, const char *name, int len)
 }
 
 /*
- * Look up a file or directory
+ * Look up a file or directory.
  */
 static int
 mqfs_lookupx(struct vop_cachedlookup_args *ap)
@@ -1904,7 +1904,7 @@ notifier_remove(struct proc *p, struct mqueue *mq, int fd)
 }
 
 /*
- * Syscall to open a message queue
+ * Syscall to open a message queue.
  */
 int
 kmq_open(struct thread *td, struct kmq_open_args *uap)
@@ -2018,7 +2018,7 @@ kmq_open(struct thread *td, struct kmq_open_args *uap)
 }
 
 /*
- * Syscall to unlink a message queue
+ * Syscall to unlink a message queue.
  */
 int
 kmq_unlink(struct thread *td, struct kmq_unlink_args *uap)
@@ -2093,9 +2093,6 @@ getmq_write(struct thread *td, int fd, struct file **fpp,
 	return _getmq(td, fd, fget_write, fpp, ppn, pmq);
 }
 
-/*
- * Syscall
- */
 int
 kmq_setattr(struct thread *td, struct kmq_setattr_args *uap)
 {
@@ -2130,9 +2127,6 @@ kmq_setattr(struct thread *td, struct kmq_setattr_args *uap)
 	return (error);
 }
 
-/*
- * Syscall
- */
 int
 kmq_timedreceive(struct thread *td, struct kmq_timedreceive_args *uap)
 {
@@ -2151,9 +2145,6 @@ kmq_timedreceive(struct thread *td, struct kmq_timedreceive_args *uap)
 	return (error);
 }
 
-/*
- * Syscall
- */
 int
 kmq_timedsend(struct thread *td, struct kmq_timedsend_args *uap)
 {
@@ -2171,9 +2162,6 @@ kmq_timedsend(struct thread *td, struct kmq_timedsend_args *uap)
 	return (error);
 }
 
-/*
- * Syscall
- */
 int
 kmq_notify(struct thread *td, struct kmq_notify_args *uap)
 {

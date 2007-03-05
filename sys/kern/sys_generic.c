@@ -83,9 +83,6 @@ static int	dofilewrite(struct thread *, int, struct file *, struct uio *,
 		    off_t, int);
 static void	doselwakeup(struct selinfo *, int);
 
-/*
- * Read system call.
- */
 #ifndef _SYS_SYSPROTO_H_
 struct read_args {
 	int	fd;
@@ -281,9 +278,6 @@ dofileread(td, fd, fp, auio, offset, flags)
 	return (error);
 }
 
-/*
- * Write system call
- */
 #ifndef _SYS_SYSPROTO_H_
 struct write_args {
 	int	fd;
@@ -482,9 +476,6 @@ dofilewrite(td, fd, fp, auio, offset, flags)
 	return (error);
 }
 
-/*
- * Ioctl system call.
- */
 #ifndef _SYS_SYSPROTO_H_
 struct ioctl_args {
 	int	fd;
@@ -620,9 +611,6 @@ struct cv	selwait;
 u_int		nselcoll;	/* Select collisions since boot */
 SYSCTL_UINT(_kern, OID_AUTO, nselcoll, CTLFLAG_RD, &nselcoll, 0, "");
 
-/*
- * Select system call.
- */
 #ifndef _SYS_SYSPROTO_H_
 struct select_args {
 	int	nd;
@@ -849,9 +837,6 @@ selscan(td, ibits, obits, nfd)
 	return (0);
 }
 
-/*
- * Poll system call.
- */
 #ifndef _SYS_SYSPROTO_H_
 struct poll_args {
 	struct pollfd *fds;

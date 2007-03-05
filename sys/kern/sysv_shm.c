@@ -289,7 +289,6 @@ struct shmdt_args {
 	const void *shmaddr;
 };
 #endif
-
 int
 shmdt(td, uap)
 	struct thread *td;
@@ -340,7 +339,6 @@ struct shmat_args {
 	int shmflg;
 };
 #endif
-
 int
 kern_shmat(td, shmid, shmaddr, shmflg)
 	struct thread *td;
@@ -470,7 +468,6 @@ struct oshmctl_args {
 	int cmd;
 	struct oshmid_ds *ubuf;
 };
-
 static int
 oshmctl(td, uap)
 	struct thread *td;
@@ -532,7 +529,6 @@ struct shmctl_args {
 	struct shmid_ds *buf;
 };
 #endif
-
 int
 kern_shmctl(td, shmid, cmd, buf, bufsz)
 	struct thread *td;
@@ -679,7 +675,6 @@ struct shmget_args {
 	int shmflg;
 };
 #endif
-
 static int
 shmget_existing(td, uap, mode, segnum)
 	struct thread *td;

@@ -55,9 +55,9 @@ __FBSDID("$FreeBSD$");
 
 MALLOC_DEFINE(M_P31B, "p1003.1b", "Posix 1003.1B");
 
-/* The system calls return ENOSYS if an entry is called that is
- * not run-time supported.  I am also logging since some programs
- * start to use this when they shouldn't.  That will be removed if annoying.
+/* The system calls return ENOSYS if an entry is called that is not run-time
+ * supported.  I am also logging since some programs start to use this when
+ * they shouldn't.  That will be removed if annoying.
  */
 int
 syscall_not_present(struct thread *td, const char *s, struct nosys_args *uap)

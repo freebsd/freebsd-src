@@ -95,6 +95,11 @@ static int vn_access(struct vnode *vp, int user_flags, struct ucred *cred,
  */
 int async_io_version;
 
+#ifdef DEBUG
+static int syncprt = 0;
+SYSCTL_INT(_debug, OID_AUTO, syncprt, CTLFLAG_RW, &syncprt, 0, "");
+#endif
+
 /*
  * Sync each mounted filesystem.
  */
@@ -103,12 +108,6 @@ struct sync_args {
 	int     dummy;
 };
 #endif
-
-#ifdef DEBUG
-static int syncprt = 0;
-SYSCTL_INT(_debug, OID_AUTO, syncprt, CTLFLAG_RW, &syncprt, 0, "");
-#endif
-
 /* ARGSUSED */
 int
 sync(td, uap)
@@ -158,8 +157,6 @@ SYSCTL_INT(_kern_prison, OID_AUTO, quotas, CTLFLAG_RW, &prison_quotas, 0, "");
 
 /*
  * Change filesystem quotas.
- *
- * MP SAFE
  */
 #ifndef _SYS_SYSPROTO_H_
 struct quotactl_args {
@@ -931,10 +928,8 @@ change_root(vp, td)
 }
 
 /*
- * Check permissions, allocate an open file structure,
- * and call the device open routine if any.
- *
- * MP SAFE
+ * Check permissions, allocate an open file structure, and call the device
+ * open routine if any.
  */
 #ifndef _SYS_SYSPROTO_H_
 struct open_args {
@@ -1119,8 +1114,6 @@ bad:
 #ifdef COMPAT_43
 /*
  * Create a file.
- *
- * MP SAFE
  */
 #ifndef _SYS_SYSPROTO_H_
 struct ocreat_args {
@@ -3226,8 +3219,8 @@ drop:
 }
 
 /*
- * Rename files.  Source and destination must either both be directories,
- * or both not be directories.  If target is a directory, it must be empty.
+ * Rename files.  Source and destination must either both be directories, or
+ * both not be directories.  If target is a directory, it must be empty.
  */
 #ifndef _SYS_SYSPROTO_H_
 struct rename_args {
@@ -3774,6 +3767,7 @@ fail:
 	fdrop(fp, td);
 	return (error);
 }
+
 #ifndef _SYS_SYSPROTO_H_
 struct getdents_args {
 	int fd;
@@ -3800,8 +3794,6 @@ getdents(td, uap)
 
 /*
  * Set the mode mask for creation of filesystem nodes.
- *
- * MP SAFE
  */
 #ifndef _SYS_SYSPROTO_H_
 struct umask_args {
@@ -3826,8 +3818,8 @@ umask(td, uap)
 }
 
 /*
- * Void all references to file by ripping underlying filesystem
- * away from vnode.
+ * Void all references to file by ripping underlying filesystem away from
+ * vnode.
  */
 #ifndef _SYS_SYSPROTO_H_
 struct revoke_args {
@@ -3915,7 +3907,7 @@ getvnode(fdp, fd, fpp)
 }
 
 /*
- * Get (NFS) file handle
+ * Get an (NFS) file handle.
  */
 #ifndef _SYS_SYSPROTO_H_
 struct lgetfh_args {
@@ -4001,8 +3993,6 @@ getfh(td, uap)
  *
  * warning: do not remove the priv_check() call or this becomes one giant
  * security hole.
- *
- * MP SAFE
  */
 #ifndef _SYS_SYSPROTO_H_
 struct fhopen_args {
@@ -4192,8 +4182,6 @@ out:
 
 /*
  * Stat an (NFS) file handle.
- *
- * MP SAFE
  */
 #ifndef _SYS_SYSPROTO_H_
 struct fhstat_args {
@@ -4242,8 +4230,6 @@ fhstat(td, uap)
 
 /*
  * Implement fstatfs() for (NFS) file handles.
- *
- * MP SAFE
  */
 #ifndef _SYS_SYSPROTO_H_
 struct fhstatfs_args {

@@ -2540,7 +2540,6 @@ _umtx_op(struct thread *td, struct _umtx_op_args *uap)
 }
 
 #ifdef COMPAT_IA32
-
 int
 freebsd32_umtx_lock(struct thread *td, struct freebsd32_umtx_lock_args *uap)
     /* struct umtx *umtx */

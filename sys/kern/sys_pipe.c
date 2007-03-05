@@ -319,10 +319,9 @@ pipe_zone_fini(void *mem, int size)
 }
 
 /*
- * The pipe system call for the DTYPE_PIPE type of pipes.  If we fail,
- * let the zone pick up the pieces via pipeclose().
+ * The pipe system call for the DTYPE_PIPE type of pipes.  If we fail, let
+ * the zone pick up the pieces via pipeclose().
  */
-
 /* ARGSUSED */
 int
 pipe(td, uap)

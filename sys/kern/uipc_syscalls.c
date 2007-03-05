@@ -1171,7 +1171,6 @@ orecvfrom(td, uap)
 }
 #endif
 
-
 #ifdef COMPAT_OLDSOCK
 int
 orecv(td, uap)
@@ -1741,9 +1740,8 @@ sf_buf_mext(void *addr, void *args)
  *
  * Send a file specified by 'fd' and starting at 'offset' to a socket
  * specified by 's'. Send only 'nbytes' of the file or until EOF if nbytes ==
- * 0. Optionally add a header and/or trailer to the socket output.  If
+ * 0.  Optionally add a header and/or trailer to the socket output.  If
  * specified, write the total number of bytes sent into *sbytes.
- *
  */
 int
 sendfile(struct thread *td, struct sendfile_args *uap)

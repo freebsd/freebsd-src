@@ -565,7 +565,7 @@ synch_setup(dummy)
 }
 
 /*
- * General purpose yield system call
+ * General purpose yield system call.
  */
 int
 yield(struct thread *td, struct yield_args *uap)

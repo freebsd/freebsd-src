@@ -142,14 +142,15 @@ oquota(td, uap)
 	struct thread *td;
 	struct oquota_args *uap;
 {
+
 	return (ENOSYS);
 }
 #endif /* COMPAT_43 */
 
 /*
- * This is the FreeBSD-1.1 compatable uname(2) interface.  These
- * days it is done in libc as a wrapper around a bunch of sysctl's.
- * This must maintain the old 1.1 binary ABI.
+ * This is the FreeBSD-1.1 compatable uname(2) interface.  These days it is
+ * done in libc as a wrapper around a bunch of sysctl's.  This must maintain
+ * the old 1.1 binary ABI.
  */
 #if SYS_NMLN != 32
 #error "FreeBSD-1.1 uname syscall has been broken"
@@ -159,7 +160,6 @@ struct uname_args {
         struct utsname  *name;
 };
 #endif
-
 /* ARGSUSED */
 int
 uname(td, uap)
@@ -239,7 +239,6 @@ struct getdomainname_args {
         int     len;
 };
 #endif
-
 /* ARGSUSED */
 int
 getdomainname(td, uap)
@@ -264,7 +263,6 @@ struct setdomainname_args {
         int     len;
 };
 #endif
-
 /* ARGSUSED */
 int
 setdomainname(td, uap)

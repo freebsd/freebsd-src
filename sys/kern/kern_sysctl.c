@@ -1294,7 +1294,6 @@ struct sysctl_args {
 	size_t	newlen;
 };
 #endif
-
 int
 __sysctl(struct thread *td, struct sysctl_args *uap)
 {
@@ -1446,6 +1445,7 @@ static struct {
 	/* the actual string data is appended here */
 
 } bsdi_si;
+
 /*
  * this data is appended to the end of the bsdi_si structure during copyout.
  * The "char *" offsets are relative to the base of the bsdi_si struct.
@@ -1462,7 +1462,6 @@ struct getkerninfo_args {
 	int	arg;
 };
 #endif
-
 int
 ogetkerninfo(struct thread *td, struct getkerninfo_args *uap)
 {
