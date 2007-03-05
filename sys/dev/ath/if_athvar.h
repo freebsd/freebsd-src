@@ -150,7 +150,7 @@ struct ath_txq {
 #define	ATH_TXQ_LOCK_INIT(_sc, _tq) do { \
 	snprintf((_tq)->axq_name, sizeof((_tq)->axq_name), "%s_txq%u", \
 		device_get_nameunit((_sc)->sc_dev), (_tq)->axq_qnum); \
-	mtx_init(&(_tq)->axq_lock, (_tq)->axq_name, "ath_txq", MTX_DEF); \
+	mtx_init(&(_tq)->axq_lock, (_tq)->axq_name, NULL, MTX_DEF); \
 } while (0)
 #define	ATH_TXQ_LOCK_DESTROY(_tq)	mtx_destroy(&(_tq)->axq_lock)
 #define	ATH_TXQ_LOCK(_tq)		mtx_lock(&(_tq)->axq_lock)
@@ -306,7 +306,7 @@ struct ath_softc {
 
 #define	ATH_LOCK_INIT(_sc) \
 	mtx_init(&(_sc)->sc_mtx, device_get_nameunit((_sc)->sc_dev), \
-		 MTX_NETWORK_LOCK, MTX_DEF | MTX_RECURSE)
+		 NULL, MTX_DEF | MTX_RECURSE)
 #define	ATH_LOCK_DESTROY(_sc)	mtx_destroy(&(_sc)->sc_mtx)
 #define	ATH_LOCK(_sc)		mtx_lock(&(_sc)->sc_mtx)
 #define	ATH_UNLOCK(_sc)		mtx_unlock(&(_sc)->sc_mtx)
@@ -317,7 +317,7 @@ struct ath_softc {
 #define	ATH_TXBUF_LOCK_INIT(_sc) do { \
 	snprintf((_sc)->sc_txname, sizeof((_sc)->sc_txname), "%s_buf", \
 		device_get_nameunit((_sc)->sc_dev)); \
-	mtx_init(&(_sc)->sc_txbuflock, (_sc)->sc_txname, "ath_buf", MTX_DEF); \
+	mtx_init(&(_sc)->sc_txbuflock, (_sc)->sc_txname, NULL, MTX_DEF); \
 } while (0)
 #define	ATH_TXBUF_LOCK_DESTROY(_sc)	mtx_destroy(&(_sc)->sc_txbuflock)
 #define	ATH_TXBUF_LOCK(_sc)		mtx_lock(&(_sc)->sc_txbuflock)
