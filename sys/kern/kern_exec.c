@@ -221,11 +221,11 @@ __mac_execve(td, uap)
 }
 
 /*
- * XXX: kern_execve has the astonishing property of not always
- * returning to the caller.  If sufficiently bad things happen during
- * the call to do_execve(), it can end up calling exit1(); as a result,
- * callers must avoid doing anything which they might need to undo
- * (e.g., allocating memory).
+ * XXX: kern_execve has the astonishing property of not always returning to
+ * the caller.  If sufficiently bad things happen during the call to
+ * do_execve(), it can end up calling exit1(); as a result, callers must
+ * avoid doing anything which they might need to undo (e.g., allocating
+ * memory).
  */
 int
 kern_execve(td, args, mac_p)
@@ -950,8 +950,8 @@ exec_new_vmspace(imgp, sv)
 }
 
 /*
- * Copy out argument and environment strings from the old process
- *	address space into the temporary string buffer.
+ * Copy out argument and environment strings from the old process address
+ * space into the temporary string buffer.
  */
 int
 exec_copyin_args(struct image_args *args, char *fname,
@@ -1053,9 +1053,9 @@ exec_free_args(struct image_args *args)
 }
 
 /*
- * Copy strings out to the new process address space, constructing
- *	new arg and env vector tables. Return a pointer to the base
- *	so that it can be used as the initial stack pointer.
+ * Copy strings out to the new process address space, constructing new arg
+ * and env vector tables. Return a pointer to the base so that it can be used
+ * as the initial stack pointer.
  */
 register_t *
 exec_copyout_strings(imgp)

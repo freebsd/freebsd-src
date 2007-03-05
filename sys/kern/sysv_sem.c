@@ -541,7 +541,6 @@ struct __semctl_args {
 	union	semun *arg;
 };
 #endif
-
 int
 __semctl(td, uap)
 	struct thread *td;
@@ -868,7 +867,6 @@ struct semget_args {
 	int	semflg;
 };
 #endif
-
 int
 semget(td, uap)
 	struct thread *td;
@@ -981,7 +979,6 @@ struct semop_args {
 	size_t	nsops;
 };
 #endif
-
 int
 semop(td, uap)
 	struct thread *td;

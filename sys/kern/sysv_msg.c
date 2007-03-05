@@ -380,7 +380,6 @@ struct msgctl_args {
 	struct	msqid_ds *buf;
 };
 #endif
-
 int
 msgctl(td, uap)
 	struct thread *td;
@@ -553,7 +552,6 @@ struct msgget_args {
 	int	msgflg;
 };
 #endif
-
 int
 msgget(td, uap)
 	struct thread *td;
@@ -663,7 +661,6 @@ struct msgsnd_args {
 	int	msgflg;
 };
 #endif
-
 int
 kern_msgsnd(td, msqid, msgp, msgsz, msgflg, mtype)
 	struct thread *td;
@@ -1000,7 +997,6 @@ struct msgrcv_args {
 	int	msgflg;
 };
 #endif
-
 int
 kern_msgrcv(td, msqid, msgp, msgsz, msgtyp, msgflg, mtype)
 	struct thread *td;

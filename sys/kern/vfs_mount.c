@@ -371,8 +371,7 @@ next:
 }
 
 /*
- * ---------------------------------------------------------------------
- * Mount a filesystem
+ * Mount a filesystem.
  */
 int
 nmount(td, uap)
@@ -724,7 +723,6 @@ bail:
 }
 
 /*
- * ---------------------------------------------------------------------
  * Old mount API.
  */
 #ifndef _SYS_SYSPROTO_H_
@@ -1072,11 +1070,10 @@ vfs_domount(
 }
 
 /*
- * ---------------------------------------------------------------------
  * Unmount a filesystem.
  *
- * Note: unmount takes a path to the vnode mounted on as argument,
- * not special file (as before).
+ * Note: unmount takes a path to the vnode mounted on as argument, not
+ * special file (as before).
  */
 #ifndef _SYS_SYSPROTO_H_
 struct unmount_args {

@@ -263,7 +263,7 @@ getdtablesize(struct thread *td, struct getdtablesize_args *uap)
 /*
  * Duplicate a file descriptor to a particular value.
  *
- * note: keep in mind that a potential race condition exists when closing
+ * Note: keep in mind that a potential race condition exists when closing
  * descriptors from a shared descriptor table (via rfork).
  */
 #ifndef _SYS_SYSPROTO_H_
@@ -2187,8 +2187,8 @@ fdrop_locked(struct file *fp, struct thread *td)
 /*
  * Apply an advisory lock on a file descriptor.
  *
- * Just attempt to get a record lock of the requested type on
- * the entire file (l_whence = SEEK_SET, l_start = 0, l_len = 0).
+ * Just attempt to get a record lock of the requested type on the entire file
+ * (l_whence = SEEK_SET, l_start = 0, l_len = 0).
  */
 #ifndef _SYS_SYSPROTO_H_
 struct flock_args {
