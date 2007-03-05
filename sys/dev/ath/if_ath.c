@@ -414,7 +414,8 @@ ath_attach(u_int16_t devid, struct ath_softc *sc)
 		error = EIO;
 		goto bad2;
 	}
-	ath_txq_init(sc, &sc->sc_mcastq, -1);	/* NB: s/w q, qnum not used */
+	/* NB: s/w q, qnum used only by WITNESS */
+	ath_txq_init(sc, &sc->sc_mcastq, HAL_NUM_TX_QUEUES+1);
 	/* NB: insure BK queue is the lowest priority h/w queue */
 	if (!ath_tx_setup(sc, WME_AC_BK, HAL_WME_AC_BK)) {
 		if_printf(ifp, "unable to setup xmit queue for %s traffic!\n",
