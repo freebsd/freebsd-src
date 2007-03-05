@@ -229,7 +229,7 @@ _kse_single_thread(struct pthread *curthread)
 	_thread_active_threads = 1;
 
 	curthread->kse->k_kcb->kcb_kmbx.km_curthread = NULL;
-	curthread->attr.flags &= ~PTHREAD_SCOPE_SYSTEM;
+	curthread->attr.flags &= ~PTHREAD_SCOPE_PROCESS;
 	curthread->attr.flags |= PTHREAD_SCOPE_SYSTEM;
 
 	/*
