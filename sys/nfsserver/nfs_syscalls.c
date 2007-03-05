@@ -76,11 +76,10 @@ __FBSDID("$FreeBSD$");
 
 #include <security/mac/mac_framework.h>
 
-static MALLOC_DEFINE(M_NFSSVC, "nfsserver_srvsock", "Nfs server structure");
+static MALLOC_DEFINE(M_NFSSVC, "nfss_srvsock", "Nfs server structure");
 
-MALLOC_DEFINE(M_NFSRVDESC, "nfsserver_srvdesc", "NFS server socket descriptor");
-MALLOC_DEFINE(M_NFSD, "nfsserver_daemon", "Nfs server daemon structure");
-
+MALLOC_DEFINE(M_NFSRVDESC, "nfss_srvdesc", "NFS server socket descriptor");
+MALLOC_DEFINE(M_NFSD, "nfss_daemon", "Nfs server daemon structure");
 
 #define	TRUE	1
 #define	FALSE	0
