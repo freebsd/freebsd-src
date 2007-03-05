@@ -1172,7 +1172,7 @@ ieee80211_ioctl_getscanresults(struct ieee80211com *ic, struct ieee80211req *ire
 	struct scanresultsreq req;
 	int error;
 
-	if (ireq->i_len < sizeof(struct scanresultsreq))
+	if (ireq->i_len < sizeof(struct ieee80211req_scan_result))
 		return EFAULT;
 
 	error = 0;
