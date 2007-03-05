@@ -432,7 +432,7 @@ ioapic_resume(struct pic *pic)
  * Create a plain I/O APIC object.
  */
 void *
-ioapic_create(uintptr_t addr, int32_t apic_id, int intbase)
+ioapic_create(vm_paddr_t addr, int32_t apic_id, int intbase)
 {
 	struct ioapic *io;
 	struct ioapic_intsrc *intpin;
