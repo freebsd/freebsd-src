@@ -25,7 +25,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd July 17, 2006
+.Dd March 5, 2007
 .Os
 .Dt IWI 4
 .Sh NAME
@@ -37,6 +37,9 @@ place the following lines in your
 kernel configuration file:
 .Bd -ragged -offset indent
 .Cd "device iwi"
+.Cd "device iwi_bss"
+.Cd "device iwi_ibss"
+.Cd "device iwi_monitor"
 .Cd "device pci"
 .Cd "device wlan"
 .Cd "device firmware"
@@ -47,6 +50,9 @@ module at boot time, place the following lines in
 .Xr loader.conf 5 :
 .Bd -literal -offset indent
 if_iwi_load="YES"
+iwi_bss_load="YES"
+iwi_ibss_load="YES"
+iwi_monitor_load="YES"
 wlan_load="YES"
 firmware_load="YES"
 .Ed
@@ -66,11 +72,18 @@ For more information on configuring this device, see
 .Xr ifconfig 8 .
 .Pp
 This driver requires firmware to be loaded before it will work.
-You need to install the
-.Pa ports/net/iwi-firmware-kmod
-port before
-.Xr ifconfig 8
-will work.
+For the loaded firmware to work the license at
+.Pa /usr/share/doc/legal/intel_iwi/LICENSE
+must be agreed to and the following line be added to
+.Xr loader.conf 5 :
+.Pp
+.Dl "legal.intel_iwi.license_ack=1"
+.Sh FILES
+.Bl -tag -width ".Pa /usr/share/doc/legal/intel_iwi/LICENSE" -compact
+.It Pa /usr/share/doc/legal/intel_iwi/LICENSE
+.Nm
+firmware license
+.El
 .Sh EXAMPLES
 Join an existing BSS network (i.e., connect to an access point):
 .Pp
@@ -108,9 +121,10 @@ This should not happen.
 The driver failed to load the firmware image using the
 .Xr firmware 9
 subsystem.
-Verify that the
-.Pa ports/net/iwi-firmware-kmod
-port is installed correctly.
+Verify that the necessary firmware modules are loaded and the
+license agreement
+.Xr loader 8
+tunable has been set.
 .It "iwi%d: could not load boot firmware"
 An attempt to upload the boot firmware image to the onboard microcontroller
 failed.
@@ -125,17 +139,10 @@ This should not happen.
 .El
 .Sh SEE ALSO
 .Xr altq 4 ,
-.Xr an 4 ,
-.Xr ath 4 ,
 .Xr ipw 4 ,
 .Xr pci 4 ,
-.Xr wi 4 ,
 .Xr wlan 4 ,
 .Xr ifconfig 8
-.Rs
-.%T The IWI Web Page
-.%O http://damien.bergamini.free.fr/ipw/
-.Re
 .Sh AUTHORS
 The
 .Nm
