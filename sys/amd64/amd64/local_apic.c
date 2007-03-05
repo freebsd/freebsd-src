@@ -205,7 +205,7 @@ lvt_mode(struct lapic *la, u_int pin, uint32_t value)
  * Map the local APIC and setup necessary interrupt vectors.
  */
 void
-lapic_init(uintptr_t addr)
+lapic_init(vm_paddr_t addr)
 {
 
 	/* Map the local APIC and setup the spurious interrupt handler. */

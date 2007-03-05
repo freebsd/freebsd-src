@@ -2937,7 +2937,7 @@ apic_register_enumerator(struct apic_enumerator *enumerator)
 }
 
 void *
-ioapic_create(uintptr_t addr, int32_t id, int intbase)
+ioapic_create(vm_paddr_t addr, int32_t apic_id, int intbase)
 {
 	return (NULL);
 }
@@ -2995,7 +2995,7 @@ lapic_create(u_int apic_id, int boot_cpu)
 }
 
 void
-lapic_init(uintptr_t addr)
+lapic_init(vm_paddr_t addr)
 {
 }
 
