@@ -1325,7 +1325,6 @@ kern/init_main.c		standard
 kern/init_sysent.c		standard
 kern/ksched.c			optional _kposix_priority_scheduling
 kern/kern_acct.c		standard
-kern/kern_acl.c			standard
 kern/kern_alq.c			optional alq
 kern/kern_clock.c		standard
 kern/kern_condvar.c		standard
@@ -1455,6 +1454,7 @@ kern/uipc_socket.c		standard
 kern/uipc_socket2.c		standard
 kern/uipc_syscalls.c		standard
 kern/uipc_usrreq.c		standard
+kern/vfs_acl.c			standard
 kern/vfs_aio.c			optional vfs_aio
 kern/vfs_bio.c			standard
 kern/vfs_cache.c		standard
