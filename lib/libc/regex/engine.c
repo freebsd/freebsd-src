@@ -103,10 +103,11 @@ extern "C" {
 /* === engine.c === */
 static int matcher(struct re_guts *g, char *string, size_t nmatch, regmatch_t pmatch[], int eflags);
 static char *dissect(struct match *m, char *start, char *stop, sopno startst, sopno stopst);
-static char *backref(struct match *m, char *start, char *stop, sopno startst, sopno stopst, sopno lev);
+static char *backref(struct match *m, char *start, char *stop, sopno startst, sopno stopst, sopno lev, int);
 static char *fast(struct match *m, char *start, char *stop, sopno startst, sopno stopst);
 static char *slow(struct match *m, char *start, char *stop, sopno startst, sopno stopst);
 static states step(struct re_guts *g, sopno start, sopno stop, states bef, wint_t ch, states aft);
+#define MAX_RECURSION	100
 #define	BOL	(OUT-1)
 #define	EOL	(BOL-1)
 #define	BOLEOL	(BOL-2)
@@ -298,7 +299,7 @@ int eflags;
 				return(REG_ESPACE);
 			}
 			NOTE("backref dissect");
-			dp = backref(m, m->coldp, endp, gf, gl, (sopno)0);
+			dp = backref(m, m->coldp, endp, gf, gl, (sopno)0, 0);
 		}
 		if (dp != NULL)
 			break;
@@ -321,7 +322,7 @@ int eflags;
 			}
 #endif
 			NOTE("backoff dissect");
-			dp = backref(m, m->coldp, endp, gf, gl, (sopno)0);
+			dp = backref(m, m->coldp, endp, gf, gl, (sopno)0, 0);
 		}
 		assert(dp == NULL || dp == endp);
 		if (dp != NULL)		/* found a shorter one */
@@ -553,13 +554,14 @@ sopno stopst;
  ==	char *stop, sopno startst, sopno stopst, sopno lev);
  */
 static char *			/* == stop (success) or NULL (failure) */
-backref(m, start, stop, startst, stopst, lev)
+backref(m, start, stop, startst, stopst, lev, rec)
 struct match *m;
 char *start;
 char *stop;
 sopno startst;
 sopno stopst;
 sopno lev;			/* PLUS nesting level */
+int rec;
 {
 	int i;
 	sopno ss;		/* start sop of current subRE */
@@ -674,7 +676,7 @@ sopno lev;			/* PLUS nesting level */
 			return(NULL);
 		assert(m->pmatch[i].rm_so != -1);
 		len = m->pmatch[i].rm_eo - m->pmatch[i].rm_so;
-		if (len == 0)
+		if (len == 0 && rec++ > MAX_RECURSION)
 			return(NULL);
 		assert(stop - m->beginp >= len);
 		if (sp > stop - len)
@@ -684,28 +686,28 @@ sopno lev;			/* PLUS nesting level */
 			return(NULL);
 		while (m->g->strip[ss] != SOP(O_BACK, i))
 			ss++;
-		return(backref(m, sp+len, stop, ss+1, stopst, lev));
+		return(backref(m, sp+len, stop, ss+1, stopst, lev, rec));
 		break;
 	case OQUEST_:		/* to null or not */
-		dp = backref(m, sp, stop, ss+1, stopst, lev);
+		dp = backref(m, sp, stop, ss+1, stopst, lev, rec);
 		if (dp != NULL)
 			return(dp);	/* not */
-		return(backref(m, sp, stop, ss+OPND(s)+1, stopst, lev));
+		return(backref(m, sp, stop, ss+OPND(s)+1, stopst, lev, rec));
 		break;
 	case OPLUS_:
 		assert(m->lastpos != NULL);
 		assert(lev+1 <= m->g->nplus);
 		m->lastpos[lev+1] = sp;
-		return(backref(m, sp, stop, ss+1, stopst, lev+1));
+		return(backref(m, sp, stop, ss+1, stopst, lev+1, rec));
 		break;
 	case O_PLUS:
 		if (sp == m->lastpos[lev])	/* last pass matched null */
-			return(backref(m, sp, stop, ss+1, stopst, lev-1));
+			return(backref(m, sp, stop, ss+1, stopst, lev-1, rec));
 		/* try another pass */
 		m->lastpos[lev] = sp;
-		dp = backref(m, sp, stop, ss-OPND(s)+1, stopst, lev);
+		dp = backref(m, sp, stop, ss-OPND(s)+1, stopst, lev, rec);
 		if (dp == NULL)
-			return(backref(m, sp, stop, ss+1, stopst, lev-1));
+			return(backref(m, sp, stop, ss+1, stopst, lev-1, rec));
 		else
 			return(dp);
 		break;
@@ -714,7 +716,7 @@ sopno lev;			/* PLUS nesting level */
 		esub = ss + OPND(s) - 1;
 		assert(OP(m->g->strip[esub]) == OOR1);
 		for (;;) {	/* find first matching branch */
-			dp = backref(m, sp, stop, ssub, esub, lev);
+			dp = backref(m, sp, stop, ssub, esub, lev, rec);
 			if (dp != NULL)
 				return(dp);
 			/* that one missed, try next one */
@@ -735,7 +737,7 @@ sopno lev;			/* PLUS nesting level */
 		assert(0 < i && i <= m->g->nsub);
 		offsave = m->pmatch[i].rm_so;
 		m->pmatch[i].rm_so = sp - m->offp;
-		dp = backref(m, sp, stop, ss+1, stopst, lev);
+		dp = backref(m, sp, stop, ss+1, stopst, lev, rec);
 		if (dp != NULL)
 			return(dp);
 		m->pmatch[i].rm_so = offsave;
@@ -746,7 +748,7 @@ sopno lev;			/* PLUS nesting level */
 		assert(0 < i && i <= m->g->nsub);
 		offsave = m->pmatch[i].rm_eo;
 		m->pmatch[i].rm_eo = sp - m->offp;
-		dp = backref(m, sp, stop, ss+1, stopst, lev);
+		dp = backref(m, sp, stop, ss+1, stopst, lev, rec);
 		if (dp != NULL)
 			return(dp);
 		m->pmatch[i].rm_eo = offsave;
