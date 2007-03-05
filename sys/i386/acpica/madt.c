@@ -336,7 +336,7 @@ madt_setup_local(void)
 {
 
 	madt = pmap_mapbios(madt_physaddr, madt_length);
-	lapic_init((uintptr_t)madt->LocalApicAddress);
+	lapic_init(madt->LocalApicAddress);
 	printf("ACPI APIC Table: <%.*s %.*s>\n",
 	    (int)sizeof(madt->OemId), madt->OemId,
 	    (int)sizeof(madt->OemTableId), madt->OemTableId);
@@ -481,9 +481,8 @@ madt_parse_apics(APIC_HEADER *entry, void *arg __unused)
 		if (ioapics[apic->IoApicId].io_apic != NULL)
 			panic("%s: Double APIC ID %d", __func__,
 			    apic->IoApicId);
-		ioapics[apic->IoApicId].io_apic = ioapic_create(
-			(uintptr_t)apic->Address, apic->IoApicId,
-			    apic->Interrupt);
+		ioapics[apic->IoApicId].io_apic = ioapic_create(apic->Address,
+		    apic->IoApicId, apic->Interrupt);
 		ioapics[apic->IoApicId].io_vector = apic->Interrupt;
 		break;
 	default:
