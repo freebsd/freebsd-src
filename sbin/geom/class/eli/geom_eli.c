@@ -609,6 +609,10 @@ eli_init(struct gctl_req *req)
 			gctl_error(req, "Invalid sector size.");
 			return;
 		}
+		if (val > sysconf(_SC_PAGE_SIZE)) {
+			gctl_error(req, "warning: Using sectorsize bigger than "
+			    "the page size!");
+		}
 		md.md_sectorsize = val;
 	}
 
