@@ -3170,6 +3170,11 @@ rx_next:
 	if (ngood)
 		sc->sc_lastrx = tsf;
 
+	/* NB: may want to check mgtq too */
+	if ((ifp->if_drv_flags & IFF_DRV_OACTIVE) == 0 &&
+	    !IFQ_IS_EMPTY(&ifp->if_snd))
+		ath_start(ifp);
+
 	NET_UNLOCK_GIANT();		/* XXX */
 #undef PA2DESC
 }
