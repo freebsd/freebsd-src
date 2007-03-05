@@ -28,12 +28,12 @@
 .\"     @(#)shutdown.2	8.1 (Berkeley) 6/4/93
 .\" $FreeBSD$
 .\"
-.Dd February 27, 2001
+.Dd March 5, 2007
 .Dt SHUTDOWN 2
 .Os
 .Sh NAME
 .Nm shutdown
-.Nd shut down part of a full-duplex connection
+.Nd disable sends and/or receives on a socket
 .Sh LIBRARY
 .Lb libc
 .Sh SYNOPSIS
@@ -44,22 +44,72 @@
 .Sh DESCRIPTION
 The
 .Fn shutdown
-system call causes all or part of a full-duplex connection on
-the socket associated with the file descriptor
-.Fa s
-to be shut down.
+system call disables sends or receives on a socket.
 The
 .Fa how
 argument specifies the type of shutdown.
 Possible values are:
 .Bl -tag -width SHUT_RDWR
 .It Dv SHUT_RD
-further receives will be disallowed.
+Further receives will be disallowed.
 .It Dv SHUT_WR
-further sends will be disallowed.
+Further sends will be disallowed.
+This may cause actions specific to the protocol family of the socket
+.Fa s
+to happen; see
+.Sx IMPLEMENTATION NOTES .
 .It Dv SHUT_RDWR
-further sends and receives will be disallowed.
+Further sends and receives will be disallowed.
+Implies SHUT_WR.
 .El
+.Pp
+If the file descriptor
+.Fa s
+is associated with a
+.Dv SOCK_STREAM
+socket, all or part of the full-duplex connection will be shut down.
+.\"
+.Sh IMPLEMENTATION NOTES
+.Pp
+The following protocol specific actions apply to the use of
+.Dv SHUT_WR
+(and potentially also
+.Dv SHUT_RDWR ) ,
+based on the properties of the socket associated with the file descriptor
+.Fa s .
+.Bl -column ".Sy PF_INET6" ".Sy SOCK_STREAM" ".Sy IPPROTO_SCTP" \
+    -width "xxxxxxxxxxxxxxxx"
+.It Li Sy Domain Ta Sy Type Ta Sy Protocol Ta Sy Return value and action
+.It Li PF_INET Ta SOCK_DGRAM Ta IPPROTO_SCTP Ta
+Return -1.
+.Va errno
+will be set to
+.Er EOPNOTSUPP .
+.It Li PF_INET Ta SOCK_DGRAM Ta IPPROTO_UDP Ta
+Return 0.
+ICMP messages will NOT be generated.
+.It Li PF_INET Ta SOCK_STREAM Ta IPPROTO_SCTP Ta
+Return 0.
+Send queued data and tear down association.
+.It Li PF_INET Ta SOCK_STREAM Ta IPPROTO_TCP Ta
+Return 0.
+Send queued data, wait for ACK, then send FIN.
+.It Li PF_INET6 Ta SOCK_DGRAM Ta IPPROTO_SCTP Ta
+Return -1.
+.Va errno
+will be set to
+.Er EOPNOTSUPP .
+.It Li PF_INET6 Ta SOCK_DGRAM Ta IPPROTO_UDP Ta
+Return 0.
+ICMP messages will NOT be generated.
+.It Li PF_INET6 Ta SOCK_STREAM Ta IPPROTO_SCTP Ta
+Return 0.
+Send queued data and tear down association.
+.It Li PF_INET6 Ta SOCK_STREAM Ta IPPROTO_TCP Ta
+Return 0.
+Send queued data, wait for ACK, then send FIN.
+.El
+.\"
 .Sh RETURN VALUES
 .Rv -std shutdown
 .Sh ERRORS
@@ -75,8 +125,16 @@ argument is not a valid file descriptor.
 The
 .Fa how
 argument is invalid.
+.It Bq Er EOPNOTSUPP
+The socket associated with the file descriptor
+.Fa s
+does not support this operation.
 .It Bq Er ENOTCONN
-The socket is not connected.
+The
+.Da s
+argument specifies a
+.Dv SOCK_STREAM
+socket which is not connected.
 .It Bq Er ENOTSOCK
 The
 .Fa s
@@ -84,6 +142,8 @@ argument does not refer to a socket.
 .El
 .Sh SEE ALSO
 .Xr connect 2 ,
+.Xr inet 4 ,
+.Xr inet6 4 ,
 .Xr socket 2
 .Sh STANDARDS
 The
@@ -102,3 +162,15 @@ and
 .Dv SHUT_RDWR
 constants appeared in
 .St -p1003.1g-2000 .
+.Sh AUTHORS
+.An -nosplit
+This manual page was updated by
+.An Bruce M. Simpson Aq bms@FreeBSD.org .
+.Sh BUGS
+The ICMP "port unreachable" message should be generated in response to
+datagrams received on a local port to which
+.Fa s
+is bound
+after
+.Fn shutdown
+is called.
