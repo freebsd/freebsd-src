@@ -752,18 +752,7 @@ pmap_invalidate_page(pmap_t pmap, vm_offset_t va)
 	u_int cpumask;
 	u_int other_cpus;
 
-	if (smp_started) {
-		if (!(read_rflags() & PSL_I))
-			panic("%s: interrupts disabled", __func__);
-		mtx_lock_spin(&smp_ipi_mtx);
-	} else
-		critical_enter();
-	/*
-	 * We need to disable interrupt preemption but MUST NOT have
-	 * interrupts disabled here.
-	 * XXX we may need to hold schedlock to get a coherent pm_active
-	 * XXX critical sections disable interrupts again
-	 */
+	sched_pin();
 	if (pmap == kernel_pmap || pmap->pm_active == all_cpus) {
 		invlpg(va);
 		smp_invlpg(va);
@@ -775,10 +764,7 @@ pmap_invalidate_page(pmap_t pmap, vm_offset_t va)
 		if (pmap->pm_active & other_cpus)
 			smp_masked_invlpg(pmap->pm_active & other_cpus, va);
 	}
-	if (smp_started)
-		mtx_unlock_spin(&smp_ipi_mtx);
-	else
-		critical_exit();
+	sched_unpin();
 }
 
 void
@@ -788,18 +774,7 @@ pmap_invalidate_range(pmap_t pmap, vm_offset_t sva, vm_offset_t eva)
 	u_int other_cpus;
 	vm_offset_t addr;
 
-	if (smp_started) {
-		if (!(read_rflags() & PSL_I))
-			panic("%s: interrupts disabled", __func__);
-		mtx_lock_spin(&smp_ipi_mtx);
-	} else
-		critical_enter();
-	/*
-	 * We need to disable interrupt preemption but MUST NOT have
-	 * interrupts disabled here.
-	 * XXX we may need to hold schedlock to get a coherent pm_active
-	 * XXX critical sections disable interrupts again
-	 */
+	sched_pin();
 	if (pmap == kernel_pmap || pmap->pm_active == all_cpus) {
 		for (addr = sva; addr < eva; addr += PAGE_SIZE)
 			invlpg(addr);
@@ -814,10 +789,7 @@ pmap_invalidate_range(pmap_t pmap, vm_offset_t sva, vm_offset_t eva)
 			smp_masked_invlpg_range(pmap->pm_active & other_cpus,
 			    sva, eva);
 	}
-	if (smp_started)
-		mtx_unlock_spin(&smp_ipi_mtx);
-	else
-		critical_exit();
+	sched_unpin();
 }
 
 void
@@ -826,18 +798,7 @@ pmap_invalidate_all(pmap_t pmap)
 	u_int cpumask;
 	u_int other_cpus;
 
-	if (smp_started) {
-		if (!(read_rflags() & PSL_I))
-			panic("%s: interrupts disabled", __func__);
-		mtx_lock_spin(&smp_ipi_mtx);
-	} else
-		critical_enter();
-	/*
-	 * We need to disable interrupt preemption but MUST NOT have
-	 * interrupts disabled here.
-	 * XXX we may need to hold schedlock to get a coherent pm_active
-	 * XXX critical sections disable interrupts again
-	 */
+	sched_pin();
 	if (pmap == kernel_pmap || pmap->pm_active == all_cpus) {
 		invltlb();
 		smp_invltlb();
@@ -849,34 +810,17 @@ pmap_invalidate_all(pmap_t pmap)
 		if (pmap->pm_active & other_cpus)
 			smp_masked_invltlb(pmap->pm_active & other_cpus);
 	}
-	if (smp_started)
-		mtx_unlock_spin(&smp_ipi_mtx);
-	else
-		critical_exit();
+	sched_unpin();
 }
 
 void
 pmap_invalidate_cache(void)
 {
 
-	if (smp_started) {
-		if (!(read_rflags() & PSL_I))
-			panic("%s: interrupts disabled", __func__);
-		mtx_lock_spin(&smp_ipi_mtx);
-	} else
-		critical_enter();
-	/*
-	 * We need to disable interrupt preemption but MUST NOT have
-	 * interrupts disabled here.
-	 * XXX we may need to hold schedlock to get a coherent pm_active
-	 * XXX critical sections disable interrupts again
-	 */
+	sched_pin();
 	wbinvd();
 	smp_cache_flush();
-	if (smp_started)
-		mtx_unlock_spin(&smp_ipi_mtx);
-	else
-		critical_exit();
+	sched_unpin();
 }
 #else /* !SMP */
 /*
