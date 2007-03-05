@@ -1869,9 +1869,9 @@ done:
 }
 
 /*
- * aio_error is implemented in the kernel level for compatibility purposes only.
- * For a user mode async implementation, it would be best to do it in a userland
- * subroutine.
+ * aio_error is implemented in the kernel level for compatibility purposes
+ * only.  For a user mode async implementation, it would be best to do it in
+ * a userland subroutine.
  */
 int
 aio_error(struct thread *td, struct aio_error_args *uap)

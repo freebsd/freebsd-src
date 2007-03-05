@@ -518,7 +518,6 @@ struct ksem_unlink_args {
 };
 int ksem_unlink(struct thread *td, struct ksem_unlink_args *uap);
 #endif
-	
 int
 ksem_unlink(struct thread *td, struct ksem_unlink_args *uap)
 {
@@ -566,7 +565,6 @@ struct ksem_close_args {
 };
 int ksem_close(struct thread *td, struct ksem_close_args *uap);
 #endif
-
 int
 ksem_close(struct thread *td, struct ksem_close_args *uap)
 {
@@ -639,7 +637,6 @@ struct ksem_wait_args {
 };
 int ksem_wait(struct thread *td, struct ksem_wait_args *uap);
 #endif
-
 int
 ksem_wait(struct thread *td, struct ksem_wait_args *uap)
 {

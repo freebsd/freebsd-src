@@ -690,7 +690,7 @@ static int disablecwd;
 SYSCTL_INT(_debug, OID_AUTO, disablecwd, CTLFLAG_RW, &disablecwd, 0,
    "Disable the getcwd syscall");
 
-/* Implementation of the getcwd syscall */
+/* Implementation of the getcwd syscall. */
 int
 __getcwd(td, uap)
 	struct thread *td;

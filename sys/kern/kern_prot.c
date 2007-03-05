@@ -983,10 +983,9 @@ fail:
 }
 
 /*
- * setresuid(ruid, euid, suid) is like setreuid except control over the
- * saved uid is explicit.
+ * setresuid(ruid, euid, suid) is like setreuid except control over the saved
+ * uid is explicit.
  */
-
 #ifndef _SYS_SYSPROTO_H_
 struct setresuid_args {
 	uid_t	ruid;
@@ -1065,10 +1064,9 @@ fail:
 }
 
 /*
- * setresgid(rgid, egid, sgid) is like setregid except control over the
- * saved gid is explicit.
+ * setresgid(rgid, egid, sgid) is like setregid except control over the saved
+ * gid is explicit.
  */
-
 #ifndef _SYS_SYSPROTO_H_
 struct setresgid_args {
 	gid_t	rgid;

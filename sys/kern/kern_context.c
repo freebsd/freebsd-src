@@ -39,9 +39,9 @@ __FBSDID("$FreeBSD$");
 #include <sys/ucontext.h>
 
 /*
- * The first two fields of a ucontext_t are the signal mask and
- * the machine context.  The next field is uc_link; we want to
- * avoid destroying the link when copying out contexts.
+ * The first two fields of a ucontext_t are the signal mask and the machine
+ * context.  The next field is uc_link; we want to avoid destroying the link
+ * when copying out contexts.
  */
 #define	UC_COPY_SIZE	offsetof(ucontext_t, uc_link)
 

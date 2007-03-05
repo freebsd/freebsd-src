@@ -556,9 +556,6 @@ ktrcsw(out, user)
 
 /* Interface and common routines */
 
-/*
- * ktrace system call
- */
 #ifndef _SYS_SYSPROTO_H_
 struct ktrace_args {
 	char	*fname;
@@ -729,9 +726,6 @@ done:
 #endif /* KTRACE */
 }
 
-/*
- * utrace system call
- */
 /* ARGSUSED */
 int
 utrace(td, uap)

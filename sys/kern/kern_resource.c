@@ -78,7 +78,6 @@ static struct uidinfo *uilookup(uid_t uid);
 /*
  * Resource controls and accounting.
  */
-
 #ifndef _SYS_SYSPROTO_H_
 struct getpriority_args {
 	int	which;
@@ -280,7 +279,6 @@ struct rtprio_thread_args {
 	struct rtprio	*rtp;
 };
 #endif
-
 int
 rtprio_thread(struct thread *td, struct rtprio_thread_args *uap)
 {
@@ -373,7 +371,6 @@ struct rtprio_args {
 	struct rtprio	*rtp;
 };
 #endif
-
 int
 rtprio(td, uap)
 	struct thread *td;		/* curthread */
