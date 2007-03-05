@@ -69,8 +69,7 @@ char		**kenvp;
 struct mtx	kenv_lock;
 
 /*
- * No need to protect this with a mutex
- * since SYSINITS are single threaded.
+ * No need to protect this with a mutex since SYSINITS are single threaded.
  */
 int	dynamic_kenv = 0;
 

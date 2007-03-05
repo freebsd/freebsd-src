@@ -186,7 +186,6 @@ struct clock_gettime_args {
 	struct	timespec *tp;
 };
 #endif
-
 /* ARGSUSED */
 int
 clock_gettime(struct thread *td, struct clock_gettime_args *uap)
@@ -255,7 +254,6 @@ struct clock_settime_args {
 	const struct	timespec *tp;
 };
 #endif
-
 /* ARGSUSED */
 int
 clock_settime(struct thread *td, struct clock_settime_args *uap)
@@ -297,7 +295,6 @@ struct clock_getres_args {
 	struct	timespec *tp;
 };
 #endif
-
 int
 clock_getres(struct thread *td, struct clock_getres_args *uap)
 {
@@ -395,7 +392,6 @@ struct nanosleep_args {
 	struct	timespec *rmtp;
 };
 #endif
-
 /* ARGSUSED */
 int
 nanosleep(struct thread *td, struct nanosleep_args *uap)
@@ -505,25 +501,25 @@ kern_settimeofday(struct thread *td, struct timeval *tv, struct timezone *tzp)
 }
 
 /*
- * Get value of an interval timer.  The process virtual and
- * profiling virtual time timers are kept in the p_stats area, since
- * they can be swapped out.  These are kept internally in the
- * way they are specified externally: in time until they expire.
+ * Get value of an interval timer.  The process virtual and profiling virtual
+ * time timers are kept in the p_stats area, since they can be swapped out.
+ * These are kept internally in the way they are specified externally: in
+ * time until they expire.
  *
- * The real time interval timer is kept in the process table slot
- * for the process, and its value (it_value) is kept as an
- * absolute time rather than as a delta, so that it is easy to keep
- * periodic real-time signals from drifting.
+ * The real time interval timer is kept in the process table slot for the
+ * process, and its value (it_value) is kept as an absolute time rather than
+ * as a delta, so that it is easy to keep periodic real-time signals from
+ * drifting.
  *
  * Virtual time timers are processed in the hardclock() routine of
- * kern_clock.c.  The real time timer is processed by a timeout
- * routine, called from the softclock() routine.  Since a callout
- * may be delayed in real time due to interrupt processing in the system,
- * it is possible for the real time timeout routine (realitexpire, given below),
- * to be delayed in real time past when it is supposed to occur.  It
- * does not suffice, therefore, to reload the real timer .it_value from the
- * real time timers .it_interval.  Rather, we compute the next time in
- * absolute time the timer should go off.
+ * kern_clock.c.  The real time timer is processed by a timeout routine,
+ * called from the softclock() routine.  Since a callout may be delayed in
+ * real time due to interrupt processing in the system, it is possible for
+ * the real time timeout routine (realitexpire, given below), to be delayed
+ * in real time past when it is supposed to occur.  It does not suffice,
+ * therefore, to reload the real timer .it_value from the real time timers
+ * .it_interval.  Rather, we compute the next time in absolute time the timer
+ * should go off.
  */
 #ifndef _SYS_SYSPROTO_H_
 struct getitimer_args {
@@ -583,7 +579,6 @@ struct setitimer_args {
 	struct	itimerval *itv, *oitv;
 };
 #endif
-
 int
 setitimer(struct thread *td, struct setitimer_args *uap)
 {
@@ -932,7 +927,6 @@ struct ktimer_create_args {
 	int * timerid;
 };
 #endif
-
 int
 ktimer_create(struct thread *td, struct ktimer_create_args *uap)
 {
@@ -1072,7 +1066,6 @@ struct ktimer_delete_args {
 	int timerid;
 };
 #endif
-
 int
 ktimer_delete(struct thread *td, struct ktimer_delete_args *uap)
 {
@@ -1137,7 +1130,6 @@ struct ktimer_settime_args {
 	struct itimerspec * ovalue;
 };
 #endif
-
 int
 ktimer_settime(struct thread *td, struct ktimer_settime_args *uap)
 {
@@ -1179,7 +1171,6 @@ struct ktimer_gettime_args {
 	struct itimerspec * value;
 };
 #endif
-
 int
 ktimer_gettime(struct thread *td, struct ktimer_gettime_args *uap)
 {
@@ -1211,7 +1202,6 @@ struct timer_getoverrun_args {
 	int timerid;
 };
 #endif
-
 int
 ktimer_getoverrun(struct thread *td, struct ktimer_getoverrun_args *uap)
 {

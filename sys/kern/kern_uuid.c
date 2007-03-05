@@ -178,7 +178,6 @@ struct uuidgen_args {
 	int	count;
 };
 #endif
-
 int
 uuidgen(struct thread *td, struct uuidgen_args *uap)
 {

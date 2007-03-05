@@ -89,8 +89,7 @@ MALLOC_DEFINE(M_ZOMBIE, "zombie", "zombie proc status");
 void (*nlminfo_release_p)(struct proc *p);
 
 /*
- * exit --
- *	Death of process.
+ * exit -- death of process.
  */
 void
 sys_exit(struct thread *td, struct sys_exit_args *uap)
@@ -101,9 +100,9 @@ sys_exit(struct thread *td, struct sys_exit_args *uap)
 }
 
 /*
- * Exit: deallocate address space and other resources, change proc state
- * to zombie, and unlink proc from allproc and parent's lists.  Save exit
- * status and rusage for wait().  Check for child processes and orphan them.
+ * Exit: deallocate address space and other resources, change proc state to
+ * zombie, and unlink proc from allproc and parent's lists.  Save exit status
+ * and rusage for wait().  Check for child processes and orphan them.
  */
 void
 exit1(struct thread *td, int rv)

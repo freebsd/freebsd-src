@@ -249,9 +249,8 @@ ntp_gettime1(struct ntptimeval *ntvp)
 /*
  * ntp_gettime() - NTP user application interface
  *
- * See the timex.h header file for synopsis and API description. Note
- * that the TAI offset is returned in the ntvtimeval.tai structure
- * member.
+ * See the timex.h header file for synopsis and API description.  Note that
+ * the TAI offset is returned in the ntvtimeval.tai structure member.
  */
 #ifndef _SYS_SYSPROTO_H_
 struct ntp_gettime_args {
@@ -294,12 +293,13 @@ SYSCTL_INT(_kern_ntp_pll, OID_AUTO, time_monitor, CTLFLAG_RD, &time_monitor, 0, 
 SYSCTL_OPAQUE(_kern_ntp_pll, OID_AUTO, pps_freq, CTLFLAG_RD, &pps_freq, sizeof(pps_freq), "I", "");
 SYSCTL_OPAQUE(_kern_ntp_pll, OID_AUTO, time_freq, CTLFLAG_RD, &time_freq, sizeof(time_freq), "I", "");
 #endif
+
 /*
  * ntp_adjtime() - NTP daemon application interface
  *
- * See the timex.h header file for synopsis and API description. Note
- * that the timex.constant structure member has a dual purpose to set
- * the time constant and to set the TAI offset.
+ * See the timex.h header file for synopsis and API description.  Note that
+ * the timex.constant structure member has a dual purpose to set the time
+ * constant and to set the TAI offset.
  */
 #ifndef _SYS_SYSPROTO_H_
 struct ntp_adjtime_args {

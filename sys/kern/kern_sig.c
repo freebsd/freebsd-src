@@ -546,8 +546,6 @@ sigqueue_delete_stopmask_proc(struct proc *p)
  * Determine signal that should be delivered to process p, the current
  * process, 0 if none.  If there is a pending stop signal with default
  * action, the process stops in issignal().
- *
- * MP SAFE.
  */
 int
 cursig(struct thread *td)
@@ -1023,10 +1021,6 @@ kern_sigprocmask(td, how, set, oset, old)
 	return (error);
 }
 
-/*
- * sigprocmask() - MP SAFE
- */
-
 #ifndef _SYS_SYSPROTO_H_
 struct sigprocmask_args {
 	int	how;
@@ -1058,9 +1052,6 @@ sigprocmask(td, uap)
 }
 
 #ifdef COMPAT_43	/* XXX - COMPAT_FBSD3 */
-/*
- * osigprocmask() - MP SAFE
- */
 #ifndef _SYS_SYSPROTO_H_
 struct osigprocmask_args {
 	int	how;
@@ -1433,8 +1424,8 @@ osigsetmask(td, uap)
 #endif /* COMPAT_43 */
 
 /*
- * Suspend calling thread until signal, providing mask to be set
- * in the meantime. 
+ * Suspend calling thread until signal, providing mask to be set in the
+ * meantime. 
  */
 #ifndef _SYS_SYSPROTO_H_
 struct sigsuspend_args {
@@ -1754,7 +1745,6 @@ struct sigqueue_args {
 	/* union sigval */ void *value;
 };
 #endif
-
 int
 sigqueue(struct thread *td, struct sigqueue_args *uap)
 {
