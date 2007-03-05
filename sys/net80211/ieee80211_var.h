@@ -76,9 +76,9 @@
 #define	IEEE80211_RTS_DEFAULT		IEEE80211_RTS_MAX
 #define	IEEE80211_FRAG_DEFAULT		IEEE80211_FRAG_MAX
 
-#define	IEEE80211_MS_TO_TU(x)	(((x) * 1024) / 1000)
-#define	IEEE80211_TU_TO_MS(x)	(((x) * 1000) / 1024)
-#define	IEEE80211_TU_TO_TICKS(x)(((x) * hz) / 1024)
+#define	IEEE80211_MS_TO_TU(x)	(((x) * 1000) / 1024)
+#define	IEEE80211_TU_TO_MS(x)	(((x) * 1024) / 1000)
+#define	IEEE80211_TU_TO_TICKS(x)(((x) * 1024 * hz) / (1000 * 1000))
 
 struct ieee80211_aclator;
 struct sysctl_ctx_list;
