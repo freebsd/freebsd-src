@@ -124,10 +124,8 @@ __FBSDID("$FreeBSD$");
 
 #define EXT(res) ((res)->_u._ext)
 
-#ifndef USE_POLL
+#if !defined(USE_POLL) && !defined(USE_KQUEUE)
 static const int highestFD = FD_SETSIZE - 1;
-#else
-static int highestFD = 0;
 #endif
 
 /* Forward. */
@@ -304,10 +302,6 @@ res_nsend(res_state statp,
 	int kq;
 #endif
 	char abuf[NI_MAXHOST];
-
-#ifdef USE_POLL
-	highestFD = sysconf(_SC_OPEN_MAX) - 1;
-#endif
 
 	/* No name servers or res_init() failure */
 	if (statp->nscount == 0 || EXT(statp).ext == NULL) {
@@ -659,10 +653,12 @@ send_vc(res_state statp,
 			res_nclose(statp);
 
 		statp->_vcsock = _socket(nsap->sa_family, SOCK_STREAM, 0);
+#if !defined(USE_POLL) && !defined(USE_KQUEUE)
 		if (statp->_vcsock > highestFD) {
 			res_nclose(statp);
 			errno = ENOTSOCK;
 		}
+#endif
 		if (statp->_vcsock < 0) {
 			switch (errno) {
 			case EPROTONOSUPPORT:
@@ -837,10 +833,12 @@ send_dg(res_state statp,
 	if (EXT(statp).nssocks[ns] == -1) {
 		EXT(statp).nssocks[ns] = _socket(nsap->sa_family,
 		    SOCK_DGRAM, 0);
+#if !defined(USE_POLL) && !defined(USE_KQUEUE)
 		if (EXT(statp).nssocks[ns] > highestFD) {
 			res_nclose(statp);
 			errno = ENOTSOCK;
 		}
+#endif
 		if (EXT(statp).nssocks[ns] < 0) {
 			switch (errno) {
 			case EPROTONOSUPPORT:
