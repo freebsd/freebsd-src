@@ -355,6 +355,10 @@ g_eli_ctl_onetime(struct gctl_req *req, struct g_class *mp)
 			gctl_error(req, "Invalid sector size.");
 			return;
 		}
+		if (*sectorsize > PAGE_SIZE) {
+			gctl_error(req, "warning: Using sectorsize bigger than "
+			    "the page size!");
+		}
 		md.md_sectorsize = *sectorsize;
 	}
 
