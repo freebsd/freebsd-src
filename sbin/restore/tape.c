@@ -49,6 +49,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/extattr.h>
 #include <sys/acl.h>
 
+#include <ufs/ufs/extattr.h>
 #include <ufs/ufs/dinode.h>
 #include <protocols/dumprestore.h>
 
