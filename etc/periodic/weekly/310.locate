@@ -23,7 +23,7 @@ case "$weekly_locate_enable" in
 	chmod 644 $locdb || rc=3
 
 	cd /
-	echo /usr/libexec/locate.updatedb | nice -5 su -fm nobody || rc=3
+	echo /usr/libexec/locate.updatedb | nice -n 5 su -fm nobody || rc=3
 	chmod 444 $locdb || rc=3;;
 
     *)  rc=0;;
