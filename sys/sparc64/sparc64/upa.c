@@ -427,8 +427,8 @@ upa_setup_intr(device_t dev, device_t child, struct resource *ires, int flags,
 
 	UPA_WRITE(sc, imr, 0x0, intrmap & ~INTMAP_V);
 	(void)UPA_READ(sc, imr, 0x0);
-	error = bus_generic_setup_intr(dev, child, ires, flags, filt, func, arg,
-	    cookiep);
+	error = bus_generic_setup_intr(dev, child, ires, flags, filt, 
+	    func, arg, cookiep);
 	if (error != 0)
 		return (error);
 	UPA_WRITE(sc, imr, 0x0, INTMAP_ENABLE(intrmap, PCPU_GET(mid)));
