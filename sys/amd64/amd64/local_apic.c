@@ -220,7 +220,6 @@ lapic_init(vm_paddr_t addr)
 
 	/* Set BSP's per-CPU local APIC ID. */
 	PCPU_SET(apic_id, lapic_id());
-	intr_add_cpu(PCPU_GET(apic_id));
 
 	/* Local APIC timer interrupt. */
 	setidt(APIC_TIMER_INT, IDTVEC(timerint), SDT_SYSIGT, SEL_KPL, 0);
