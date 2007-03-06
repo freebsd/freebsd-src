@@ -51,6 +51,7 @@
 #include <sys/systm.h>
 #include <machine/clock.h>
 #include <machine/intr_machdep.h>
+#include <machine/smp.h>
 #ifdef DDB
 #include <ddb/ddb.h>
 #endif
@@ -395,8 +396,9 @@ DB_SHOW_COMMAND(irqs, db_show_irqs)
  * allocate CPUs round-robin.
  */
 
-static u_int cpu_apic_ids[MAXCPU];
-static int current_cpu, num_cpus;
+/* The BSP is always a valid target. */
+static cpumask_t intr_cpus = (1 << 0);
+static int current_cpu, num_cpus = 1;
 
 static void
 intr_assign_next_cpu(struct intsrc *isrc)
@@ -409,25 +411,29 @@ intr_assign_next_cpu(struct intsrc *isrc)
 	 */
 	pic = isrc->is_pic;
 	apic_id = cpu_apic_ids[current_cpu];
-	current_cpu++;
-	if (current_cpu >= num_cpus)
-		current_cpu = 0;
 	pic->pic_assign_cpu(isrc, apic_id);
+	do {
+		current_cpu++;
+		if (current_cpu >= num_cpus)
+			current_cpu = 0;
+	} while (!(intr_cpus & (1 << current_cpu)));
 }
 
 /*
- * Add a local APIC ID to our list of valid local APIC IDs that can
- * be destinations of interrupts.
+ * Add a CPU to our mask of valid CPUs that can be destinations of
+ * interrupts.
  */
 void
-intr_add_cpu(u_int apic_id)
+intr_add_cpu(u_int cpu)
 {
 
+	if (cpu >= MAXCPU)
+		panic("%s: Invalid CPU ID", __func__);
 	if (bootverbose)
-		printf("INTR: Adding local APIC %d as a target\n", apic_id);
-	if (num_cpus >= MAXCPU)
-		panic("WARNING: Local APIC IDs exhausted!");
-	cpu_apic_ids[num_cpus] = apic_id;
+		printf("INTR: Adding local APIC %d as a target\n",
+		    cpu_apic_ids[cpu]);
+
+	intr_cpus |= (1 << cpu);
 	num_cpus++;
 }
 
