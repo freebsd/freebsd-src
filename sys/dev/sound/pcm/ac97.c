@@ -538,6 +538,23 @@ ac97_fix_auxout(struct ac97_info *codec)
 static void
 ac97_fix_tone(struct ac97_info *codec)
 {
+	/*
+	 * YMF chips does not indicate tone and 3D enhancement capability
+	 * in the AC97_REG_RESET register.
+	 */
+	switch (codec->id) {
+	case 0x594d4800:	/* YMF743 */
+	case 0x594d4803:	/* YMF753 */
+		codec->caps |= AC97_CAP_TONE;
+		codec->se |= 0x04;
+		break;
+	case 0x594d4802:	/* YMF752 */
+		codec->se |= 0x04;
+		break;
+	default:
+		break;
+	}
+
 	/* Hide treble and bass if they don't exist */
 	if ((codec->caps & AC97_CAP_TONE) == 0) {
 		bzero(&codec->mix[SOUND_MIXER_BASS],
