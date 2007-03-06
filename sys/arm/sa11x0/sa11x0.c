@@ -113,8 +113,8 @@ sa1110_setup_intr(device_t dev, device_t child,
 	saved_cpsr = SetCPSR(I32_bit, I32_bit);                 
 
 	SetCPSR(I32_bit, saved_cpsr & I32_bit);
-	BUS_SETUP_INTR(device_get_parent(dev), child, ires, flags, filt, intr, arg,
-	    cookiep);
+	BUS_SETUP_INTR(device_get_parent(dev), child, ires, flags, filt, 
+	    intr, arg, cookiep);
 	return (0);
 }
 
