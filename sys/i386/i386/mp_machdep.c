@@ -209,7 +209,7 @@ struct cpu_info {
 	int	cpu_bsp:1;
 	int	cpu_disabled:1;
 } static cpu_info[MAXCPU];
-static int cpu_apic_ids[MAXCPU];
+int cpu_apic_ids[MAXCPU];
 
 /* Holds pending bitmap based IPIs per CPU */
 static volatile u_int cpu_ipi_pending[MAXCPU];
@@ -668,10 +668,11 @@ init_secondary(void)
 static void
 set_interrupt_apic_ids(void)
 {
-	u_int apic_id;
+	u_int i, apic_id;
 
-	for (apic_id = 0; apic_id < MAXCPU; apic_id++) {
-		if (!cpu_info[apic_id].cpu_present)
+	for (i = 0; i < MAXCPU; i++) {
+		apic_id = cpu_apic_ids[i];
+		if (apic_id == -1)
 			continue;
 		if (cpu_info[apic_id].cpu_bsp)
 			continue;
@@ -683,7 +684,7 @@ set_interrupt_apic_ids(void)
 		    apic_id % hyperthreading_cpus != 0)
 			continue;
 
-		intr_add_cpu(apic_id);
+		intr_add_cpu(i);
 	}
 }
 
