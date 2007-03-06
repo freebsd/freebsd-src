@@ -224,7 +224,9 @@ alq_shutdown(struct alq *alq)
 	/* Drain IO */
 	while (alq->aq_flags & (AQ_FLUSHING|AQ_ACTIVE)) {
 		alq->aq_flags |= AQ_WANTED;
-		msleep(alq, &(alq)->aq_mtx, PWAIT, "aldclose", 0);
+		ALQ_UNLOCK(alq);
+		tsleep(alq, PWAIT, "aldclose", 0);
+		ALQ_LOCK(alq);
 	}
 	ALQ_UNLOCK(alq);
 
@@ -431,7 +433,9 @@ alq_get(struct alq *alq, int waitok)
 	    (ale = alq->aq_entfree) == NULL &&
 	    (waitok & ALQ_WAITOK)) {
 		alq->aq_flags |= AQ_WANTED;
-		msleep(alq, &(alq)->aq_mtx, PWAIT, "alqget", 0);
+		ALQ_UNLOCK(alq);
+		tsleep(alq, PWAIT, "alqget", 0);
+		ALQ_LOCK(alq);
 	}
 
 	if (ale != NULL) {
