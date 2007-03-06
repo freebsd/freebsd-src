@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd February 9, 2007
+.Dd March 6, 2007
 .Dt RC.CONF 5
 .Os
 .Sh NAME
@@ -244,12 +244,11 @@ utility when the memory file system for
 .Pa /tmp
 is created.
 The default is
-.Dq Li "-S -M" ,
+.Dq Li "-S" ,
 which inhibits the use of softupdates on
 .Pa /tmp
-to waste as little space as possible
-and creates a pure memory backed disk, which will never be swapped out,
-for maximum performance and system stability at low memory conditions.
+so that file system space is freed without delay
+after file truncation or deletion.
 See
 .Xr mdmfs 8
 for other options you can use in
@@ -276,12 +275,11 @@ utility when the memory file system for
 .Pa /var
 is created.
 The default is
-.Dq Li "-S -M" ,
+.Dq Li "-S" ,
 which inhibits the use of softupdates on
 .Pa /var
-to waste as little space as possible
-and creates a pure memory backed disk, which will never be swapped out,
-for maximum performance and system stability at low memory conditions.
+so that file system space is freed without delay
+after file truncation or deletion.
 See
 .Xr mdmfs 8
 for other options you can use in
