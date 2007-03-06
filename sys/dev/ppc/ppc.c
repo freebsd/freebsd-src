@@ -1962,7 +1962,7 @@ ppc_read_ivar(device_t bus, device_t dev, int index, uintptr_t *val)
  */
 int
 ppc_setup_intr(device_t bus, device_t child, struct resource *r, int flags,
-			driver_filter_t *filt, void (*ihand)(void *), void *arg, void **cookiep)
+    driver_filter_t *filt, void (*ihand)(void *), void *arg, void **cookiep)
 {
 	int error;
 	struct ppc_data *ppc = DEVTOSOFTC(bus);
@@ -1982,9 +1982,12 @@ ppc_setup_intr(device_t bus, device_t child, struct resource *r, int flags,
 		ppc->ppc_registered = 0;
 	}
 
-	/* pass registration to the upper layer, ignore the incoming resource */
+	/* 
+	 * pass registration to the upper layer, ignore the incoming 
+	 * resource 
+	 */
 	return (BUS_SETUP_INTR(device_get_parent(bus), child,
-			       r, flags, filt, ihand, arg, cookiep));
+	    r, flags, filt, ihand, arg, cookiep));
 }
 
 /*
