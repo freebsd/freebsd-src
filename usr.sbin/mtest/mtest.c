@@ -39,7 +39,7 @@ main( argc, argv )
     printf( "multicast membership test program; " );
     printf( "enter ? for list of commands\n" );
 
-    while( fgets( line, 79, stdin ) != NULL )
+    while( fgets( line, sizeof(line) - 1, stdin ) != NULL )
       {
 	lineptr = line;
 	while( *lineptr == ' ' || *lineptr == '\t' ) ++lineptr;
