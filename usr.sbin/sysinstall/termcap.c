@@ -50,7 +50,7 @@ prompt_term(char **termp, char **termcapp)
 	    printf("5 ...................... xterm terminal emulator.\n\n");
 	    printf("Your choice: (1-5) ");
 	    fflush(stdout);
-	    fgets(str, 80, stdin);
+	    fgets(str, sizeof(str), stdin);
 	    i = str[0] - '0';
 	    if (i > 0 && i < 6) {
 		*termp = (char *)lookup[i - 1].term;
@@ -64,7 +64,7 @@ prompt_term(char **termp, char **termcapp)
     else {
 	printf("\nPlease set your TERM variable before running this program.\n");
 	printf("Defaulting to an ANSI compatible terminal - please press RETURN\n");
-	fgets(str, 80, stdin);	/* Just to make it interactive */
+	fgets(str, sizeof(str), stdin);	/* Just to make it interactive */
 	*termp = (char *)"ansi";
 	*termcapp = (char *)termcap_ansi;
     }

@@ -382,7 +382,7 @@ show_dialog(struct keymap **km_sorted, int num_keymaps)
 	fp = fopen(tmp_name, "r");
 	if (fp) {
 		char choice[64];
-		if (fgets(choice, 64, fp) != NULL) {
+		if (fgets(choice, sizeof(choice), fp) != NULL) {
 			/* Find key for desc */
 			for (i=0; i<num_keymaps; i++) {
 				if (!strcmp(choice, km_sorted[i]->desc)) {
