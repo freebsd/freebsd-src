@@ -128,9 +128,7 @@ enum intr_trigger elcr_read_trigger(u_int irq);
 void	elcr_resume(void);
 void	elcr_write_trigger(u_int irq, enum intr_trigger trigger);
 #ifdef SMP
-void	intr_add_cpu(u_int apic_id);
-#else
-#define	intr_add_cpu(apic_id)
+void	intr_add_cpu(u_int cpu);
 #endif
 int	intr_add_handler(const char *name, int vector, driver_filter_t filter,
     driver_intr_t handler, void *arg, enum intr_type flags, void **cookiep);

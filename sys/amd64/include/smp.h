@@ -34,6 +34,7 @@ extern int			mp_naps;
 extern int			boot_cpu_id;
 extern struct pcb		stoppcbs[];
 extern struct mtx		smp_tlb_mtx;
+extern int			cpu_apic_ids[];
 
 /* IPI handlers */
 inthand_t
