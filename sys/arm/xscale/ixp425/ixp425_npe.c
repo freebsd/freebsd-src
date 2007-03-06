@@ -255,8 +255,6 @@ ixpnpe_attach(device_t dev)
 
     /* XXX M_BUS */
     sc = malloc(sizeof(struct ixpnpe_softc), M_TEMP, M_WAITOK | M_ZERO);
-    if (sc == NULL)
-	panic("%s: Cannot allocate softc", device_get_name(dev));
     sc->sc_dev = dev;
     sc->sc_iot = sa->sc_iot;
     mtx_init(&sc->sc_mtx, device_get_nameunit(dev), "npe driver", MTX_DEF);
