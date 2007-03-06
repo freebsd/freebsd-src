@@ -421,7 +421,7 @@ ppbus_setup_intr(device_t bus, device_t child, struct resource *r, int flags,
 {
 	int error;
 	struct ppb_data *ppb = DEVTOSOFTC(bus);
-	struct ppb_device *ppbdev = (struct ppb_device *)device_get_ivars(child);
+	struct ppb_device *ppbdev = device_get_ivars(child);
 
 	/* a device driver must own the bus to register an interrupt */
 	if (ppb->ppb_owner != child)
