@@ -25,7 +25,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd March 5, 2007
+.Dd March 6, 2007
 .Os
 .Dt IWI 4
 .Sh NAME
@@ -37,9 +37,6 @@ place the following lines in your
 kernel configuration file:
 .Bd -ragged -offset indent
 .Cd "device iwi"
-.Cd "device iwi_bss"
-.Cd "device iwi_ibss"
-.Cd "device iwi_monitor"
 .Cd "device pci"
 .Cd "device wlan"
 .Cd "device firmware"
@@ -50,11 +47,17 @@ module at boot time, place the following lines in
 .Xr loader.conf 5 :
 .Bd -literal -offset indent
 if_iwi_load="YES"
+wlan_load="YES"
+firmware_load="YES"
+.Ed
+.Pp
+In both cases, place the following lines in
+.Xr loader.conf 5
+to load the firmware modules:
+.Bd -literal -offset indent
 iwi_bss_load="YES"
 iwi_ibss_load="YES"
 iwi_monitor_load="YES"
-wlan_load="YES"
-firmware_load="YES"
 .Ed
 .Sh DESCRIPTION
 The
