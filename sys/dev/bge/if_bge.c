@@ -1668,20 +1668,25 @@ bge_probe(device_t dev)
 			char model[64], buf[96];
 			const struct bge_revision *br;
 			const struct bge_vendor *v;
-			const char *pname;
 			uint32_t id;
 
 			id = pci_read_config(dev, BGE_PCI_MISC_CTL, 4) &
 			    BGE_PCIMISCCTL_ASICREV;
 			br = bge_lookup_rev(id);
 			v = bge_lookup_vendor(vid);
-			if (pci_get_vpd_ident(dev, &pname))
-				snprintf(model, 64, "%s %s",
-				    v->v_name,
-				    br != NULL ? br->br_name :
-					"NetXtreme Ethernet Controller");
-			else
-				snprintf(model, 64, "%s", pname);
+			{
+#if __FreeBSD_version > 700024
+				const char *pname;
+
+				if (pci_get_vpd_ident(dev, &pname) == 0)
+					snprintf(model, 64, "%s", pname);
+				else
+#endif
+					snprintf(model, 64, "%s %s",
+					    v->v_name,
+					    br != NULL ? br->br_name :
+					    "NetXtreme Ethernet Controller");
+			}
 			snprintf(buf, 96, "%s, %sASIC rev. %#04x", model,
 			    br != NULL ? "" : "unknown ", id >> 16);
 			device_set_desc_copy(dev, buf);
@@ -2104,6 +2109,7 @@ bge_dma_alloc(device_t dev)
 	return (0);
 }
 
+#if __FreeBSD_version > 700025
 /*
  * Return true if this device has more than one port.
  */
@@ -2151,6 +2157,7 @@ bge_can_use_msi(struct bge_softc *sc)
 	}
 	return (can_use_msi);
 }
+#endif
 
 static int
 bge_attach(device_t dev)
@@ -2160,7 +2167,7 @@ bge_attach(device_t dev)
 	uint32_t hwcfg = 0;
 	uint32_t mac_tmp = 0;
 	u_char eaddr[6];
-	int error = 0, msicount, rid, trys, reg;
+	int error = 0, rid, trys, reg;
 
 	sc = device_get_softc(dev);
 	sc->bge_dev = dev;
@@ -2265,22 +2272,30 @@ bge_attach(device_t dev)
 	}
 #endif
 
-	/*
-	 * Allocate the interrupt, using MSI if possible.  These devices
-	 * support 8 MSI messages, but only the first one is used in
-	 * normal operation.
-	 */
-	if (bge_can_use_msi(sc)) {
-		msicount = pci_msi_count(dev);
-		if (msicount > 1)
-			msicount = 1;
-	} else
-		msicount = 0;
-	if (msicount == 1 && pci_alloc_msi(dev, &msicount) == 0) {
-		rid = 1;
-		sc->bge_flags |= BGE_FLAG_MSI;
-	} else
-		rid = 0;
+#if __FreeBSD_version > 700025
+	{
+		int msicount;
+
+		/*
+		 * Allocate the interrupt, using MSI if possible.  These devices
+		 * support 8 MSI messages, but only the first one is used in
+		 * normal operation.
+		 */
+		if (bge_can_use_msi(sc)) {
+			msicount = pci_msi_count(dev);
+			if (msicount > 1)
+				msicount = 1;
+		} else
+			msicount = 0;
+		if (msicount == 1 && pci_alloc_msi(dev, &msicount) == 0) {
+			rid = 1;
+			sc->bge_flags |= BGE_FLAG_MSI;
+		} else
+			rid = 0;
+	}
+#else
+	rid = 0;
+#endif
 
 	sc->bge_irq = bus_alloc_resource_any(dev, SYS_RES_IRQ, &rid,
 	    RF_SHAREABLE | RF_ACTIVE);
@@ -2395,7 +2410,10 @@ bge_attach(device_t dev)
 	IFQ_SET_READY(&ifp->if_snd);
 	ifp->if_hwassist = BGE_CSUM_FEATURES;
 	ifp->if_capabilities = IFCAP_HWCSUM | IFCAP_VLAN_HWTAGGING |
-	    IFCAP_VLAN_MTU | IFCAP_VLAN_HWCSUM;
+	    IFCAP_VLAN_MTU;
+#ifdef IFCAP_VLAN_HWCSUM
+	ifp->if_capabilities |= IFCAP_VLAN_HWCSUM;
+#endif
 	ifp->if_capenable = ifp->if_capabilities;
 #ifdef DEVICE_POLLING
 	ifp->if_capabilities |= IFCAP_POLLING;
@@ -2466,7 +2484,8 @@ again:
 		    bge_ifmedia_upd, bge_ifmedia_sts)) {
 			if (trys++ < 4) {
 				device_printf(sc->bge_dev, "Try again\n");
-				bge_miibus_writereg(sc->bge_dev, 1, MII_BMCR, BMCR_RESET);
+				bge_miibus_writereg(sc->bge_dev, 1, MII_BMCR,
+				    BMCR_RESET);
 				goto again;
 			}
 
@@ -2504,8 +2523,13 @@ again:
 	/*
 	 * Hookup IRQ last.
 	 */
+#if __FreeBSD_version > 700030
 	error = bus_setup_intr(dev, sc->bge_irq, INTR_TYPE_NET | INTR_MPSAFE,
 	   NULL, bge_intr, sc, &sc->bge_intrhand);
+#else
+	error = bus_setup_intr(dev, sc->bge_irq, INTR_TYPE_NET | INTR_MPSAFE,
+	   bge_intr, sc, &sc->bge_intrhand);
+#endif
 
 	if (error) {
 		bge_detach(dev);
@@ -2567,8 +2591,10 @@ bge_release_resources(struct bge_softc *sc)
 		bus_release_resource(dev, SYS_RES_IRQ,
 		    sc->bge_flags & BGE_FLAG_MSI ? 1 : 0, sc->bge_irq);
 
+#if __FreeBSD_version > 700025
 	if (sc->bge_flags & BGE_FLAG_MSI)
 		pci_release_msi(dev);
+#endif
 
 	if (sc->bge_res != NULL)
 		bus_release_resource(dev, SYS_RES_MEMORY,
@@ -2904,8 +2930,14 @@ bge_rxeof(struct bge_softc *sc)
 		 * attach that information to the packet.
 		 */
 		if (have_tag) {
+#if __FreeBSD_version > 700022
 			m->m_pkthdr.ether_vtag = vlan_tag;
 			m->m_flags |= M_VLANTAG;
+#else
+			VLAN_INPUT_TAG_NEW(ifp, m, vlan_tag);
+			if (m == NULL)
+				continue;
+#endif
 		}
 
 		BGE_UNLOCK(sc);
@@ -3333,11 +3365,23 @@ bge_encap(struct bge_softc *sc, struct mbuf **m_head, uint32_t *txidx)
 
 	/* ... and put VLAN tag into first segment.  */
 	d = &sc->bge_ldata.bge_tx_ring[*txidx];
+#if __FreeBSD_version > 700022
 	if (m->m_flags & M_VLANTAG) {
 		d->bge_flags |= BGE_TXBDFLAG_VLAN_TAG;
 		d->bge_vlan_tag = m->m_pkthdr.ether_vtag;
 	} else
 		d->bge_vlan_tag = 0;
+#else
+	{
+		struct m_tag		*mtag;
+
+		if ((mtag = VLAN_OUTPUT_TAG(sc->bge_ifp, m)) != NULL) {
+			d->bge_flags |= BGE_TXBDFLAG_VLAN_TAG;
+			d->bge_vlan_tag = VLAN_TAG_VALUE(mtag);
+		} else
+			d->bge_vlan_tag = 0;
+	}
+#endif
 
 	/*
 	 * Insure that the map for this transmission
@@ -3420,7 +3464,11 @@ bge_start_locked(struct ifnet *ifp)
 		 * If there's a BPF listener, bounce a copy of this frame
 		 * to him.
 		 */
+#ifdef ETHER_BPF_MTAP
 		ETHER_BPF_MTAP(ifp, m_head);
+#else
+		BPF_MTAP(ifp, m_head);
+#endif
 	}
 
 	if (count == 0)
@@ -3805,7 +3853,9 @@ bge_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 				ifp->if_hwassist = BGE_CSUM_FEATURES;
 			else
 				ifp->if_hwassist = 0;
+#ifdef VLAN_CAPABILITIES
 			VLAN_CAPABILITIES(ifp);
+#endif
 		}
 		break;
 	default:
