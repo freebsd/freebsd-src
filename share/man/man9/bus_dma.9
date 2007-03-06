@@ -60,7 +60,7 @@
 .\" $FreeBSD$
 .\" $NetBSD: bus_dma.9,v 1.25 2002/10/14 13:43:16 wiz Exp $
 .\"
-.Dd August 31, 2006
+.Dd March 6, 2007
 .Dt BUS_DMA 9
 .Os
 .Sh NAME
@@ -153,7 +153,7 @@ for devices whose DMA address restrictions cannot be specified
 by a single window.
 The
 .Fa filtarg
-is client specified during tag creation to be passed to all
+argument is specified by the client during tag creation to be passed to all
 invocations of the callback.
 The
 .Fa testaddr
@@ -163,11 +163,12 @@ The filter function operates on the set of addresses from
 to
 .Ql trunc_page(testaddr) + PAGE_SIZE - 1 ,
 inclusive.
-The filter function should return zero for any mapping in this range
-that can be accommodated by the device and non-zero otherwise.
+The filter function should return zero if any mapping in this range
+can be accommodated by the device and non-zero otherwise.
 .It Vt bus_dma_segment_t
 A machine-dependent type that describes individual
 DMA segments.
+It contains the following fields:
 .Bd -literal
 	bus_addr_t	ds_addr;
 	bus_size_t	ds_len;
@@ -213,13 +214,13 @@ The
 .Fa segs
 and
 .Fa nseg
-parameters describe an array of
+arguments describe an array of
 .Vt bus_dma_segment_t
 structures that represent the mapping.
 This array is only valid within the scope of the callback function.
 The success or failure of the mapping is indicated by the
 .Fa error
-parameter.
+argument.
 More information on the use of callbacks can be found in the
 description of the individual dmamap load functions.
 .It Vt bus_dmamap_callback2_t
@@ -275,7 +276,7 @@ and prior to device access to host memory.
 Perform any synchronization required after an update of host memory by the
 device and prior to CPU access to host memory.
 .It Dv BUS_DMASYNC_POSTWRITE
-Perform any synchronization required after the device access to host memory.
+Perform any synchronization required after device access to host memory.
 .El
 .It Vt bus_dma_lock_t
 Client specified lock/mutex manipulation method.
@@ -295,14 +296,20 @@ This method is of the format:
 .Fn "lockfunc" "void *lockfunc_arg" "bus_dma_lock_op_t op"
 .El
 .Pp
+The
+.Fa lockfuncarg
+argument is specified by the client during tag creation to be passed to all
+invocations of the callback.
+The
+.Fa op
+argument specifies the lock operation to perform.
+.Pp
 Two
 .Vt lockfunc
 implementations are provided for convenience.
 .Fn busdma_lock_mutex
-performs standard mutex operations on the sleep mutex provided via the
+performs standard mutex operations on the sleep mutex provided via
 .Fa lockfuncarg .
-passed into
-.Fn bus_dma_tag_create .
 .Fn dflt_lock
 will generate a system panic if it is called.
 It is substituted into the tag when
@@ -310,7 +317,8 @@ It is substituted into the tag when
 is passed as
 .Dv NULL
 to
-.Fn bus_dma_tag_create .
+.Fn bus_dma_tag_create
+and is useful for tags that should not be used with deferred load operations.
 .It Vt bus_dma_lock_op_t
 Operations to be performed by the client-specified
 .Fn lockfunc .
@@ -691,15 +699,16 @@ that is to be made available to a device.
 To ensure that the data are visible via the device's mapping of that
 memory, the buffer must be loaded and a DMA sync operation of
 .Dv BUS_DMASYNC_PREWRITE
-must be performed.
-If later CPU modifies this buffer again, another
+must be performed after the CPU has updated the buffer and before the device
+access is initiated.
+If the CPU modifies this buffer again later, another
 .Dv BUS_DMASYNC_PREWRITE
-sync operation must be performed before an additional
-access to this memory by a device.
-Conversely, a device updates the memory that is to be read by a CPU.
+sync operation must be performed before an additional device
+access.
+Conversely, suppose a device updates memory that is to be read by a CPU.
 In this case, the buffer must be loaded, and a DMA sync operation of
 .Dv BUS_DMASYNC_PREREAD
-must be performed.
+must be performed before the device access is initiated.
 The CPU will only be able to see the results of this memory update
 once the DMA operation has completed and a
 .Dv BUS_DMASYNC_POSTREAD
@@ -711,7 +720,7 @@ appropriate synchronization operations, behavior is undefined.
 Allocates memory that is mapped into KVA at the address returned
 in
 .Fa vaddr
-that is permanently loaded into the newly created
+and that is permanently loaded into the newly created
 .Vt bus_dmamap_t
 returned via
 .Fa mapp .
@@ -754,7 +763,9 @@ where the resulting DMA map will be stored.
 .Pp
 The size of memory to be allocated is
 .Fa maxsize
-as specified in
+as specified in the call to
+.Fn bus_dma_tag_create
+for
 .Fa dmat .
 .Pp
 The current implementation of
@@ -802,10 +813,10 @@ transaction,
 .Er ENOMEM
 is returned.
 All
-routines that are not of type,
-.Vt void ,
+routines that are not of type
+.Vt void
 will return 0 on success or an error
-code, as discussed above.
+code on failure as discussed above.
 .Pp
 All
 .Vt void
@@ -879,7 +890,7 @@ called with any non-sleepable locks held:
 .El
 .Pp
 All other functions do not have a locking protocol and can thus be
-called with or without and system or driver locks held.
+called with or without any system or driver locks held.
 .Sh SEE ALSO
 .Xr devclass 9 ,
 .Xr device 9 ,
