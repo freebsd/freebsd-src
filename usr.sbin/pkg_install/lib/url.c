@@ -142,9 +142,9 @@ fileGetURL(const char *base, const char *spec, int keep_package)
 	    close(fd);
 	execl("/usr/bin/tar", "tar",
 #if defined(__FreeBSD_version) && __FreeBSD_version >= 500039
-	    Verbose ? "-xjvf" : "-xjf",
+	    Verbose ? "-xpjvf" : "-xpjf",
 #else
-	    Verbose ? "-xzvf" : "-xzf",
+	    Verbose ? "-xpzvf" : "-xpzf",
 #endif
 	    "-", (char *)0);
 	_exit(2);
