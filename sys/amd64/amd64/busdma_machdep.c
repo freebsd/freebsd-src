@@ -906,7 +906,6 @@ _bus_dmamap_sync(bus_dma_tag_t dmat, bus_dmamap_t map, bus_dmasync_op_t op)
 		 * want to add support for invalidating
 		 * the caches on broken hardware
 		 */
-		dmat->bounce_zone->total_bounced++;
 		CTR4(KTR_BUSDMA, "%s: tag %p tag flags 0x%x op 0x%x "
 		    "performing bounce", __func__, op, dmat, dmat->flags);
 
@@ -917,6 +916,7 @@ _bus_dmamap_sync(bus_dma_tag_t dmat, bus_dmamap_t map, bus_dmasync_op_t op)
 				      bpage->datacount);
 				bpage = STAILQ_NEXT(bpage, links);
 			}
+			dmat->bounce_zone->total_bounced++;
 		}
 
 		if (op & BUS_DMASYNC_POSTREAD) {
@@ -926,6 +926,7 @@ _bus_dmamap_sync(bus_dma_tag_t dmat, bus_dmamap_t map, bus_dmasync_op_t op)
 				      bpage->datacount);
 				bpage = STAILQ_NEXT(bpage, links);
 			}
+			dmat->bounce_zone->total_bounced++;
 		}
 	}
 }
