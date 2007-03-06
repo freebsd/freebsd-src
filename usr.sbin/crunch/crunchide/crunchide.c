@@ -191,7 +191,7 @@ void add_file_to_keep_list(char *filename)
 	usage();
     }
 
-    while(fgets(symbol, 1024, keepf)) {
+    while(fgets(symbol, sizeof(symbol), keepf)) {
 	len = strlen(symbol);
 	if(len && symbol[len-1] == '\n')
 	    symbol[len-1] = '\0';

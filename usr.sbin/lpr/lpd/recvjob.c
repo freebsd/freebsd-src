@@ -351,7 +351,7 @@ read_number(const char *fn)
 
 	if ((fp = fopen(fn, "r")) == NULL)
 		return (0);
-	if (fgets(lin, 80, fp) == NULL) {
+	if (fgets(lin, sizeof(lin), fp) == NULL) {
 		fclose(fp);
 		return (0);
 	}
