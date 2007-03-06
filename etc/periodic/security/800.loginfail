@@ -59,7 +59,7 @@ case "$daily_status_security_loginfail_enable" in
     [Yy][Ee][Ss])
 	echo ""
 	echo "${host} login failures:"
-	n=$(catmsgs | egrep -ia "^$yesterday.*(fail|invalid|bad|illegal)" |
+	n=$(catmsgs | egrep -ia "^$yesterday.*: .* (fail|invalid|bad|illegal)" |
 	    tee /dev/stderr | wc -l)
 	[ $n -gt 0 ] && rc=1 || rc=0;;
     *)	rc=0;;
