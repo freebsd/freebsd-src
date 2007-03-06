@@ -30,7 +30,7 @@ prompt_term(char **termp)
 
 	printf("\nPlease set your TERM variable before running this program.\n");
 	printf("Defaulting to an ANSI compatible terminal - please press RETURN\n");
-	fgets(str, 80, stdin);	/* Just to make it interactive */
+	fgets(str, sizeof(str), stdin);	/* Just to make it interactive */
 	*termp = (char *)"ansi";
 }
 
