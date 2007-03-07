@@ -1004,7 +1004,7 @@ emu_pcm_attach(device_t dev)
 	uint32_t inte, ipr;
 	uintptr_t route, r, is_emu10k1;
 
-	if ((sc = malloc(sizeof(*sc), M_DEVBUF, M_WAITOK | M_ZERO)) == NULL) {
+	if ((sc = malloc(sizeof(*sc), M_DEVBUF, M_NOWAIT | M_ZERO)) == NULL) {
 		device_printf(dev, "cannot allocate softc\n");
 		return (ENXIO);
 	}
