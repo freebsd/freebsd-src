@@ -193,7 +193,7 @@ jail_attach(struct thread *td, struct jail_attach_args *uap)
 	struct ucred *newcred, *oldcred;
 	struct prison *pr;
 	int vfslocked, error;
-	
+
 	/*
 	 * XXX: Note that there is a slight race here if two threads
 	 * in the same privileged process attempt to attach to two
@@ -328,12 +328,12 @@ prison_ip(struct ucred *cred, int flag, u_int32_t *ip)
 
 	if (!jailed(cred))
 		return (0);
-	if (flag) 
+	if (flag)
 		tmp = *ip;
 	else
 		tmp = ntohl(*ip);
 	if (tmp == INADDR_ANY) {
-		if (flag) 
+		if (flag)
 			*ip = cred->cr_prison->pr_ip;
 		else
 			*ip = htonl(cred->cr_prison->pr_ip);
@@ -708,7 +708,7 @@ retry:
 		free(sxp, M_TEMP);
 		goto retry;
 	}
-	
+
 	LIST_FOREACH(pr, &allprison, pr_list) {
 		mtx_lock(&pr->pr_mtx);
 		xp->pr_version = XPRISON_VERSION;
