@@ -44,6 +44,7 @@ METHOD int setup_intr {
 	device_t	child;
 	struct		resource *res;
 	int		flags;
+	driver_filter_t	*filter;
 	driver_intr_t	*intr;
 	void		*arg;
 	void		**cookiep;
