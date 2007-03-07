@@ -112,7 +112,7 @@ static device_t nexus_add_child(device_t, int, const char *, int);
 static int	nexus_read_ivar(device_t, device_t, int, uintptr_t *);
 static int	nexus_write_ivar(device_t, device_t, int, uintptr_t);
 static int	nexus_setup_intr(device_t, device_t, struct resource *, int,
-		    driver_intr_t *, void *, void **);
+		    driver_filter_t *, driver_intr_t *, void *, void **);
 static int	nexus_teardown_intr(device_t, device_t, struct resource *,
 		    void *);
 static struct	resource *nexus_alloc_resource(device_t, device_t, int, int *,
@@ -290,7 +290,7 @@ nexus_write_ivar(device_t dev, device_t child, int which, uintptr_t value)
 
 static int
 nexus_setup_intr(device_t dev, device_t child, struct resource *res, int flags,
-    driver_intr_t *intr, void *arg, void **cookiep)
+    driver_filter_t *filter, driver_intr_t *intr, void *arg, void **cookiep)
 {
 	struct	nexus_softc *sc;
 
@@ -299,8 +299,8 @@ nexus_setup_intr(device_t dev, device_t child, struct resource *res, int flags,
 	if (device_get_state(sc->sc_pic) != DS_ATTACHED)
 		panic("nexus_setup_intr: no pic attached\n");
 
-	return (PIC_SETUP_INTR(sc->sc_pic, child, res, flags, intr, arg,
-	    cookiep));
+	return (PIC_SETUP_INTR(sc->sc_pic, child, res, flags, filter, intr, 
+	    arg, cookiep));
 }
 
 static int
