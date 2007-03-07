@@ -115,6 +115,21 @@ typedef struct mtx ieee80211_scan_lock_t;
 	(_qlen) = ++(_ni)->ni_savedq.ifq_len; 			\
 } while (0)
 
+#ifndef IF_PREPEND_LIST
+#define _IF_PREPEND_LIST(ifq, mhead, mtail, mcount) do {	\
+	(mtail)->m_nextpkt = (ifq)->ifq_head;			\
+	if ((ifq)->ifq_tail == NULL)				\
+		(ifq)->ifq_tail = (mtail);			\
+	(ifq)->ifq_head = (mhead);				\
+	(ifq)->ifq_len += (mcount);				\
+} while (0)
+#define IF_PREPEND_LIST(ifq, mhead, mtail, mcount) do {		\
+	IF_LOCK(ifq);						\
+	_IF_PREPEND_LIST(ifq, mhead, mtail, mcount);		\
+	IF_UNLOCK(ifq);						\
+} while (0)
+#endif /* IF_PREPEND_LIST */
+
 /*
  * 802.1x MAC ACL database locking definitions.
  */

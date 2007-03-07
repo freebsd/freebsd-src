@@ -2633,7 +2633,8 @@ static void
 ieee80211_node_pwrsave(struct ieee80211_node *ni, int enable)
 {
 	struct ieee80211com *ic = ni->ni_ic;
-	struct mbuf *m;
+	struct mbuf *m, *mhead, *mtail;
+	int mcount;
 
 	if (enable) {
 		if ((ni->ni_flags & IEEE80211_NODE_PWR_MGT) == 0)
@@ -2664,23 +2665,32 @@ ieee80211_node_pwrsave(struct ieee80211_node *ni, int enable)
 	IEEE80211_DPRINTF(ic, IEEE80211_MSG_POWER,
 	    "[%s] flush ps queue, %u packets queued\n",
 	    ether_sprintf(ni->ni_macaddr), IEEE80211_NODE_SAVEQ_QLEN(ni));
+	/*
+	 * Unload the frames from the ps q but don't send them
+	 * to the driver yet.  We do this in two stages to minimize
+	 * locking but also because there's no easy way to preserve
+	 * ordering given the existing ifnet access mechanisms.
+	 * XXX could be optimized
+	 */
+	IEEE80211_NODE_SAVEQ_LOCK(ni);
+	mcount = IEEE80211_NODE_SAVEQ_QLEN(ni);
+	mhead = mtail = NULL;
 	for (;;) {
-		int qlen;
-
-		IEEE80211_NODE_SAVEQ_DEQUEUE(ni, m, qlen);
+		_IEEE80211_NODE_SAVEQ_DEQUEUE_HEAD(ni, m);
 		if (m == NULL)
 			break;
-		/* 
-		 * If this is the last packet, turn off the TIM bit.
-		 * If there are more packets, set the more packets bit
-		 * in the mbuf so ieee80211_encap will mark the 802.11
-		 * head to indicate more data frames will follow.
-		 */
-		if (qlen != 0)
-			m->m_flags |= M_MORE_DATA;
+		if (mhead == NULL) {
+			mhead = m;
+			m->m_nextpkt = NULL;
+		} else
+			mtail->m_nextpkt = m;
+		mtail = m;
+	}
+	IEEE80211_NODE_SAVEQ_UNLOCK(ni);
+	if (mhead != NULL) {
 		/* XXX need different driver interface */
 		/* XXX bypasses q max */
-		IF_ENQUEUE(&ic->ic_ifp->if_snd, m);
+		IF_PREPEND_LIST(&ic->ic_ifp->if_snd, mhead, mtail, mcount);
 	}
 	if (ic->ic_set_tim != NULL)
 		ic->ic_set_tim(ni, 0);
