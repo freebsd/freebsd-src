@@ -436,8 +436,11 @@ ieee80211_create_ibss(struct ieee80211com* ic, struct ieee80211_channel *chan)
 		ni->ni_capinfo |= IEEE80211_CAPINFO_IBSS;	/* XXX */
 		if (ic->ic_flags & IEEE80211_F_DESBSSID)
 			IEEE80211_ADDR_COPY(ni->ni_bssid, ic->ic_des_bssid);
-		else
-			ni->ni_bssid[0] |= 0x02;	/* local bit for IBSS */
+		else {
+			get_random_bytes(ni->ni_bssid, IEEE80211_ADDR_LEN);
+			/* clear group bit, add local bit */
+			ni->ni_bssid[0] = (ni->ni_bssid[0] &~ 0x01) | 0x02;
+		}
 	} else if (ic->ic_opmode == IEEE80211_M_AHDEMO) {
 		if (ic->ic_flags & IEEE80211_F_DESBSSID)
 			IEEE80211_ADDR_COPY(ni->ni_bssid, ic->ic_des_bssid);
