@@ -190,14 +190,6 @@ dflt_lock(void *arg, bus_dma_lock_op_t op)
 }
 
 /*
- * Since there is no way for a device to obtain a dma tag from its parent
- * we use this kluge to handle different the different supported bus systems.
- * The sparc64_root_dma_tag is used as parent for tags that have none, so that
- * the correct methods will be used.
- */
-bus_dma_tag_t sparc64_root_dma_tag;
-
-/*
  * Allocate a device specific dma_tag.
  */
 int
@@ -207,23 +199,25 @@ bus_dma_tag_create(bus_dma_tag_t parent, bus_size_t alignment,
     int nsegments, bus_size_t maxsegsz, int flags, bus_dma_lock_t *lockfunc,
     void *lockfuncarg, bus_dma_tag_t *dmat)
 {
-	bus_dma_tag_t impptag;
 	bus_dma_tag_t newtag;
 
 	/* Return a NULL tag on failure */
 	*dmat = NULL;
 
+	/* Enforce the usage of BUS_GET_DMA_TAG(). */
+	if (parent == NULL)
+		panic("%s: parent DMA tag NULL", __func__);
+
 	newtag = (bus_dma_tag_t)malloc(sizeof(*newtag), M_DEVBUF, M_NOWAIT);
 	if (newtag == NULL)
 		return (ENOMEM);
 
-	impptag = parent != NULL ? parent : sparc64_root_dma_tag;
 	/*
 	 * The method table pointer and the cookie need to be taken over from
-	 * the parent or the root tag.
+	 * the parent.
 	 */
-	newtag->dt_cookie = impptag->dt_cookie;
-	newtag->dt_mt = impptag->dt_mt;
+	newtag->dt_cookie = parent->dt_cookie;
+	newtag->dt_mt = parent->dt_mt;
 
 	newtag->dt_parent = parent;
 	newtag->dt_alignment = alignment;
@@ -251,18 +245,14 @@ bus_dma_tag_create(bus_dma_tag_t parent, bus_size_t alignment,
 	newtag->dt_segments = NULL;
 
 	/* Take into account any restrictions imposed by our parent tag */
-	if (parent != NULL) {
-		newtag->dt_lowaddr = ulmin(parent->dt_lowaddr,
-		    newtag->dt_lowaddr);
-		newtag->dt_highaddr = ulmax(parent->dt_highaddr,
-		    newtag->dt_highaddr);
-		if (newtag->dt_boundary == 0)
-			newtag->dt_boundary = parent->dt_boundary;
-		else if (parent->dt_boundary != 0)
-			newtag->dt_boundary = ulmin(parent->dt_boundary,
-			    newtag->dt_boundary);
-		atomic_add_int(&parent->dt_ref_count, 1);
-	}
+	newtag->dt_lowaddr = ulmin(parent->dt_lowaddr, newtag->dt_lowaddr);
+	newtag->dt_highaddr = ulmax(parent->dt_highaddr, newtag->dt_highaddr);
+	if (newtag->dt_boundary == 0)
+		newtag->dt_boundary = parent->dt_boundary;
+	else if (parent->dt_boundary != 0)
+		newtag->dt_boundary = ulmin(parent->dt_boundary,
+		    newtag->dt_boundary);
+	atomic_add_int(&parent->dt_ref_count, 1);
 
 	if (newtag->dt_boundary > 0)
 		newtag->dt_maxsegsz = ulmin(newtag->dt_maxsegsz,
@@ -696,15 +686,15 @@ struct bus_dma_methods nexus_dma_methods = {
 struct bus_dma_tag nexus_dmatag = {
 	NULL,
 	NULL,
-	8,
+	1,
 	0,
-	0,
-	0x3ffffffff,
+	~0,
+	~0,
 	NULL,		/* XXX */
 	NULL,
-	0x3ffffffff,	/* XXX */
-	0xff,		/* XXX */
-	0xffffffff,	/* XXX */
+	~0,
+	~0,
+	~0,
 	0,
 	0,
 	0,

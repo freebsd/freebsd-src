@@ -73,6 +73,7 @@
 /*-
  * Copyright (c) 1999 Eduardo Horvath
  * Copyright (c) 2002 by Thomas Moestl <tmm@FreeBSD.org>.
+ * Copyright (c) 2005 Marius Strobl <marius@FreeBSD.org>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -121,9 +122,6 @@ __FBSDID("$FreeBSD$");
 #include <machine/bus_private.h>
 #include <machine/iommureg.h>
 #include <machine/bus_common.h>
-#include <machine/intr_machdep.h>
-#include <machine/nexusvar.h>
-#include <machine/ofw_upa.h>
 #include <machine/resource.h>
 
 #include <sys/rman.h>
@@ -158,12 +156,9 @@ struct sbus_rd {
 struct sbus_softc {
 	bus_space_tag_t		sc_bustag;
 	bus_space_handle_t	sc_bushandle;
-	bus_dma_tag_t		sc_dmatag;
 	bus_dma_tag_t		sc_cdmatag;
 	bus_space_tag_t		sc_cbustag;
 	int			sc_clockfreq;	/* clock frequency (in Hz) */
-	struct upa_regs		*sc_reg;
-	int			sc_nreg;
 	int			sc_nrange;
 	struct sbus_rd		*sc_rd;
 	int			sc_burst;	/* burst transfer sizes supp. */
@@ -203,16 +198,17 @@ static bus_alloc_resource_t sbus_alloc_resource;
 static bus_release_resource_t sbus_release_resource;
 static bus_activate_resource_t sbus_activate_resource;
 static bus_deactivate_resource_t sbus_deactivate_resource;
+static bus_get_dma_tag_t sbus_get_dma_tag;
 static ofw_bus_get_devinfo_t sbus_get_devinfo;
 
 static int sbus_inlist(const char *, const char **);
 static struct sbus_devinfo * sbus_setup_dinfo(device_t, struct sbus_softc *,
     phandle_t);
 static void sbus_destroy_dinfo(struct sbus_devinfo *);
-static int sbus_intr_stub(void *);
+static driver_filter_t sbus_intr_stub;
 static bus_space_tag_t sbus_alloc_bustag(struct sbus_softc *);
-static int sbus_overtemp(void *);
-static int sbus_pwrfail(void *);
+static driver_filter_t sbus_overtemp;
+static driver_filter_t sbus_pwrfail;
 static int sbus_print_res(struct sbus_devinfo *);
 
 static device_method_t sbus_methods[] = {
@@ -235,6 +231,7 @@ static device_method_t sbus_methods[] = {
 	DEVMETHOD(bus_release_resource,	sbus_release_resource),
 	DEVMETHOD(bus_get_resource_list, sbus_get_resource_list),
 	DEVMETHOD(bus_get_resource,	bus_generic_rl_get_resource),
+	DEVMETHOD(bus_get_dma_tag,	sbus_get_dma_tag),
 
 	/* ofw_bus interface */
 	DEVMETHOD(ofw_bus_get_devinfo,	sbus_get_devinfo),
@@ -283,11 +280,11 @@ sbus_inlist(const char *name, const char **list)
 static int
 sbus_probe(device_t dev)
 {
-	char *t;
+	const char *t;
 
-	t = nexus_get_device_type(dev);
+	t = ofw_bus_get_type(dev);
 	if (((t == NULL || strcmp(t, OFW_SBUS_TYPE) != 0)) &&
-	    strcmp(nexus_get_name(dev), OFW_SBUS_NAME) != 0)
+	    strcmp(ofw_bus_get_name(dev), OFW_SBUS_NAME) != 0)
 		return (ENXIO);
 	device_set_desc(dev, "U2S UPA-SBus bridge");
 	return (0);
@@ -300,30 +297,22 @@ sbus_attach(device_t dev)
 	struct sbus_devinfo *sdi;
 	struct sbus_ranges *range;
 	struct resource *res;
+	struct resource_list *rl;
 	device_t cdev;
 	bus_addr_t phys;
 	bus_size_t size;
 	char *name;
 	phandle_t child, node;
 	u_int64_t mr;
-	int intr, clock, rid, vec, i;
+	int clock, i, intr, rid;
 
 	sc = device_get_softc(dev);
-	node = nexus_get_node(dev);
+	node = ofw_bus_get_node(dev);
 
-	if ((sc->sc_nreg = OF_getprop_alloc(node, "reg", sizeof(*sc->sc_reg),
-	    (void **)&sc->sc_reg)) == -1) {
-		panic("%s: error getting reg property", __func__);
-	}
-	if (sc->sc_nreg < 1)
-		panic("%s: bogus properties", __func__);
-	phys = UPA_REG_PHYS(&sc->sc_reg[0]);
-	size = UPA_REG_SIZE(&sc->sc_reg[0]);
 	rid = 0;
-	sc->sc_sysio_res = bus_alloc_resource(dev, SYS_RES_MEMORY, &rid, phys,
-	    phys + size - 1, size, RF_ACTIVE);
-	if (sc->sc_sysio_res == NULL ||
-	    rman_get_start(sc->sc_sysio_res) != phys)
+	sc->sc_sysio_res = bus_alloc_resource_any(dev, SYS_RES_MEMORY, &rid,
+	    RF_ACTIVE);
+	if (sc->sc_sysio_res == NULL)
 		panic("%s: cannot allocate device memory", __func__);
 	sc->sc_bustag = rman_get_bustag(sc->sc_sysio_res);
 	sc->sc_bushandle = rman_get_bushandle(sc->sc_sysio_res);
@@ -358,15 +347,17 @@ sbus_attach(device_t dev)
 	 * Preallocate all space that the SBus bridge decodes, so that nothing
 	 * else gets in the way; set up rmans etc.
 	 */
+	rl = BUS_GET_RESOURCE_LIST(device_get_parent(dev), dev);
 	for (i = 0; i < sc->sc_nrange; i++) {
 		phys = range[i].poffset | ((bus_addr_t)range[i].pspace << 32);
 		size = range[i].size;
 		sc->sc_rd[i].rd_slot = range[i].cspace;
 		sc->sc_rd[i].rd_coffset = range[i].coffset;
 		sc->sc_rd[i].rd_cend = sc->sc_rd[i].rd_coffset + size;
-		rid = 0;
-		if ((res = bus_alloc_resource(dev, SYS_RES_MEMORY, &rid, phys,
-		    phys + size - 1, size, RF_ACTIVE)) == NULL)
+		rid = resource_list_add_next(rl, SYS_RES_MEMORY, phys,
+		    phys + size - 1, size);
+		if ((res = bus_alloc_resource_any(dev, SYS_RES_MEMORY, &rid,
+		    RF_ACTIVE)) == NULL)
 			panic("%s: cannot allocate decoded range", __func__);
 		sc->sc_rd[i].rd_bushandle = rman_get_bushandle(res);
 		sc->sc_rd[i].rd_rman.rm_type = RMAN_ARRAY;
@@ -416,33 +407,31 @@ sbus_attach(device_t dev)
 	iommu_init(name, &sc->sc_is, 3, -1, 1);
 
 	/* Create the DMA tag. */
-	sc->sc_dmatag = nexus_get_dmatag(dev);
-	if (bus_dma_tag_create(sc->sc_dmatag, 8, 1, 0, 0x3ffffffff, NULL, NULL,
-	    0x3ffffffff, 0xff, 0xffffffff, 0, NULL, NULL, &sc->sc_cdmatag) != 0)
+	if (bus_dma_tag_create(bus_get_dma_tag(dev), 8, 0, IOMMU_MAXADDR, ~0,
+	    NULL, NULL, IOMMU_MAXADDR, 0xff, 0xffffffff, 0, NULL, NULL,
+	    &sc->sc_cdmatag) != 0)
 		panic("%s: bus_dma_tag_create failed", __func__);
 	/* Customize the tag. */
 	sc->sc_cdmatag->dt_cookie = &sc->sc_is;
 	sc->sc_cdmatag->dt_mt = &iommu_dma_methods;
-	/* XXX: register as root dma tag (kludge). */
-	sparc64_root_dma_tag = sc->sc_cdmatag;
 
 	/* Enable the over-temperature and power-fail interrupts. */
-	rid = 0;
+	rid = 4;
 	mr = SYSIO_READ8(sc, SBR_THERM_INT_MAP);
-	vec = INTVEC(mr);
-	sc->sc_ot_ires = bus_alloc_resource(dev, SYS_RES_IRQ, &rid, vec,
-	    vec, 1, RF_ACTIVE);
+	sc->sc_ot_ires = bus_alloc_resource_any(dev, SYS_RES_IRQ, &rid,
+	    RF_ACTIVE);
 	if (sc->sc_ot_ires == NULL ||
+	    rman_get_start(sc->sc_ot_ires) != INTVEC(mr) ||
 	    bus_setup_intr(dev, sc->sc_ot_ires, INTR_TYPE_MISC,
 	    sbus_overtemp, NULL, sc, &sc->sc_ot_ihand) != 0)
 		panic("%s: failed to set up temperature interrupt", __func__);
 	SYSIO_WRITE8(sc, SBR_THERM_INT_MAP, INTMAP_ENABLE(mr, PCPU_GET(mid)));
-	rid = 0;
+	rid = 3;
 	mr = SYSIO_READ8(sc, SBR_POWER_INT_MAP);
-	vec = INTVEC(mr);
-	sc->sc_pf_ires = bus_alloc_resource(dev, SYS_RES_IRQ, &rid, vec,
-	    vec, 1, RF_ACTIVE);
+	sc->sc_pf_ires = bus_alloc_resource_any(dev, SYS_RES_IRQ, &rid,
+	    RF_ACTIVE);
 	if (sc->sc_pf_ires == NULL ||
+	    rman_get_start(sc->sc_pf_ires) != INTVEC(mr) ||
 	    bus_setup_intr(dev, sc->sc_pf_ires, INTR_TYPE_MISC,
 	    sbus_pwrfail, NULL, sc, &sc->sc_pf_ihand) != 0)
 		panic("%s: failed to set up power fail interrupt", __func__);
@@ -902,6 +891,15 @@ sbus_release_resource(device_t bus, device_t child, int type, int rid,
 		panic("%s: resource entry is not busy", __func__);
 	rle->res = NULL;
 	return (0);
+}
+
+static bus_dma_tag_t
+sbus_get_dma_tag(device_t bus, device_t child)
+{
+	struct sbus_softc *sc;
+
+	sc = device_get_softc(bus);
+	return (sc->sc_cdmatag);
 }
 
 static const struct ofw_bus_devinfo *

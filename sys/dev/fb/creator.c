@@ -1,5 +1,6 @@
 /*-
  * Copyright (c) 2003 Jake Burkholder.
+ * Copyright (c) 2005 - 2006 Marius Strobl <marius@FreeBSD.org>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -37,13 +38,12 @@ __FBSDID("$FreeBSD$");
 #include <sys/module.h>
 #include <sys/resource.h>
 
+#include <dev/ofw/ofw_bus.h>
 #include <dev/ofw/openfirm.h>
 
 #include <machine/bus.h>
 #include <machine/bus_private.h>
-#include <machine/nexusvar.h>
 #include <machine/ofw_machdep.h>
-#include <machine/ofw_upa.h>
 #include <machine/resource.h>
 #include <machine/sc_machdep.h>
 
@@ -63,7 +63,6 @@ struct creator_softc {
 
 	struct cdev		*sc_si;
 
-	int			sc_rid[FFB_NREG];
 	struct resource		*sc_reg[FFB_NREG];
 	bus_space_tag_t		sc_bt[FFB_NREG];
 	bus_space_handle_t	sc_bh[FFB_NREG];
@@ -172,9 +171,7 @@ static devclass_t creator_devclass;
 DEFINE_CLASS_0(creator, creator_bus_driver, creator_bus_methods,
     sizeof(struct creator_softc));
 DRIVER_MODULE(creator, nexus, creator_bus_driver, creator_devclass, 0, 0);
-#if 0
 DRIVER_MODULE(creator, upa, creator_bus_driver, creator_devclass, 0, 0);
-#endif
 
 static d_open_t creator_fb_open;
 static d_close_t creator_fb_close;
@@ -880,8 +877,8 @@ creator_bus_probe(device_t dev)
 	phandle_t node;
 	int type;
 
-	name = nexus_get_name(dev);
-	node = nexus_get_node(dev);
+	name = ofw_bus_get_name(dev);
+	node = ofw_bus_get_node(dev);
 	if (strcmp(name, "SUNW,ffb") == 0) {
 		if (OF_getprop(node, "board_type", &type, sizeof(type)) == -1)
 			return (ENXIO);
@@ -906,18 +903,15 @@ static int
 creator_bus_attach(device_t dev)
 {
 	struct creator_softc *sc;
-	struct upa_regs *reg;
 	video_adapter_t *adp;
 	video_switch_t *sw;
 	phandle_t node;
-	bus_addr_t phys;
-	bus_size_t size;
 	int error;
-	int nreg;
+	int rid;
 	int unit;
 	int i;
 
-	node = nexus_get_node(dev);
+	node = ofw_bus_get_node(dev);
 	if ((sc = (struct creator_softc *)vid_get_adapter(vid_find_adapter(
 	    CREATOR_DRIVER_NAME, 0))) != NULL && sc->sc_node == node) {
 	    	device_printf(dev, "console\n");
@@ -940,20 +934,10 @@ creator_bus_attach(device_t dev)
 	 * allocate more than these two resources and just limit the
 	 * range accessible via creator_fb_mmap() accordingly.
 	 */
-	reg = nexus_get_reg(dev);
-	nreg = nexus_get_nreg(dev);
-	if (nreg <= FFB_FBC) {
-		device_printf(dev, "not enough resources\n");
-		error = ENXIO;
-		goto fail;
-	}
-	for (i = 0; i < nreg; i++) {
-		phys = UPA_REG_PHYS(reg + i);
-		size = UPA_REG_SIZE(reg + i);
-		sc->sc_rid[i] = i;
-		sc->sc_reg[i] = bus_alloc_resource(dev, SYS_RES_MEMORY,
-		    &sc->sc_rid[i], phys, phys + size - 1, size,
-		    RF_ACTIVE);
+	for (i = 0; i < FFB_NREG; i++) {
+		rid = i;
+		sc->sc_reg[i] = bus_alloc_resource_any(dev, SYS_RES_MEMORY,
+		    &rid, RF_ACTIVE);
 		if (sc->sc_reg[i] == NULL) {
 			if (i <= FFB_FBC) {
 				device_printf(dev,
@@ -1000,7 +984,7 @@ creator_bus_attach(device_t dev)
 		for (i = 0; i < devclass_get_maxunit(creator_devclass); i++)
 			if (vid_find_adapter(CREATOR_DRIVER_NAME, i) < 0)
 				break;
-		if (strcmp(nexus_get_name(dev), "SUNW,afb") == 0)
+		if (strcmp(ofw_bus_get_name(dev), "SUNW,afb") == 0)
 			sc->sc_flags |= CREATOR_AFB;
 		if ((error = sw->init(i, adp, 0)) != 0) {
 			device_printf(dev, "cannot initialize adapter\n");
@@ -1031,8 +1015,8 @@ creator_bus_attach(device_t dev)
 
  fail:
 	for (i = 0; i < FFB_NREG && sc->sc_reg[i] != NULL; i++)
-		bus_release_resource(dev, SYS_RES_MEMORY, sc->sc_rid[i],
-		    sc->sc_reg[i]);
+		bus_release_resource(dev, SYS_RES_MEMORY,
+		    rman_get_rid(sc->sc_reg[i]), sc->sc_reg[i]);
  	return (error);
 }
 

@@ -39,7 +39,6 @@
  */
 struct psycho_softc {
 	device_t			sc_dev;
-	vm_paddr_t			sc_basepaddr;
 
 	/* Interrupt Group Number for this device */
 	int				sc_ign;

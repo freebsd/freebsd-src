@@ -1,6 +1,7 @@
 /*-
  * Copyright 1998 Massachusetts Institute of Technology
  * Copyright 2001 by Thomas Moestl <tmm@FreeBSD.org>.
+ * Copyright 2006 by Marius Strobl <marius@FreeBSD.org>.
  * All rights reserved.
  *
  * Permission to use, copy, modify, and distribute this software and
@@ -37,20 +38,20 @@ __FBSDID("$FreeBSD$");
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/bus.h>
-#include <sys/cons.h>
 #include <sys/kernel.h>
 #include <sys/malloc.h>
 #include <sys/module.h>
 
+#include <dev/ofw/ofw_bus.h>
+#include <dev/ofw/ofw_bus_subr.h>
 #include <dev/ofw/openfirm.h>
 
 #include <machine/bus.h>
-#include <machine/frame.h>
+#include <machine/bus_common.h>
 #include <machine/intr_machdep.h>
-#include <machine/nexusvar.h>
-#include <machine/ofw_upa.h>
+#include <machine/ofw_nexus.h>
 #include <machine/resource.h>
-#include <machine/upa.h>
+#include <machine/ver.h>
 
 #include <sys/rman.h>
 
@@ -67,18 +68,9 @@ __FBSDID("$FreeBSD$");
  * work for all Open Firmware based machines...
  */
 
-static MALLOC_DEFINE(M_NEXUS, "nexus", "nexus device information");
-
 struct nexus_devinfo {
-	phandle_t	ndi_node;
-	/* Some common properties. */
-	char		*ndi_name;
-	char		*ndi_device_type;
-	char		*ndi_model;
-	struct		upa_regs *ndi_reg;
-	int		ndi_nreg;
-	u_int		*ndi_interrupts;
-	int		ndi_ninterrupts;
+	struct ofw_bus_devinfo	ndi_obdinfo;
+	struct resource_list	ndi_rl;
 };
 
 struct nexus_softc {
@@ -88,15 +80,23 @@ struct nexus_softc {
 
 static device_probe_t nexus_probe;
 static device_attach_t nexus_attach;
+static bus_print_child_t nexus_print_child;
 static bus_add_child_t nexus_add_child;
 static bus_probe_nomatch_t nexus_probe_nomatch;
-static bus_read_ivar_t nexus_read_ivar;
 static bus_setup_intr_t nexus_setup_intr;
 static bus_teardown_intr_t nexus_teardown_intr;
 static bus_alloc_resource_t nexus_alloc_resource;
 static bus_activate_resource_t nexus_activate_resource;
 static bus_deactivate_resource_t nexus_deactivate_resource;
 static bus_release_resource_t nexus_release_resource;
+static bus_get_resource_list_t nexus_get_resource_list;
+static bus_get_dma_tag_t nexus_get_dma_tag;
+static ofw_bus_get_devinfo_t nexus_get_devinfo;
+
+static int nexus_inlist(const char *, const char **);
+static struct nexus_devinfo * nexus_setup_dinfo(device_t, phandle_t);
+static void nexus_destroy_dinfo(struct nexus_devinfo *);
+static int nexus_print_res(struct nexus_devinfo *);
 
 static device_method_t nexus_methods[] = {
 	/* Device interface */
@@ -107,44 +107,53 @@ static device_method_t nexus_methods[] = {
 	DEVMETHOD(device_suspend,	bus_generic_suspend),
 	DEVMETHOD(device_resume,	bus_generic_resume),
 
-	/* Bus interface. */
-	DEVMETHOD(bus_add_child,	nexus_add_child),
-	DEVMETHOD(bus_print_child,	bus_generic_print_child),
+	/* Bus interface */
+	DEVMETHOD(bus_print_child,	nexus_print_child),
 	DEVMETHOD(bus_probe_nomatch,	nexus_probe_nomatch),
-	DEVMETHOD(bus_read_ivar,	nexus_read_ivar),
-	DEVMETHOD(bus_setup_intr,	nexus_setup_intr),
-	DEVMETHOD(bus_teardown_intr,	nexus_teardown_intr),
+	DEVMETHOD(bus_read_ivar,	bus_generic_read_ivar),
+	DEVMETHOD(bus_write_ivar,	bus_generic_write_ivar),
+	DEVMETHOD(bus_add_child,	nexus_add_child),
 	DEVMETHOD(bus_alloc_resource,	nexus_alloc_resource),
 	DEVMETHOD(bus_activate_resource,	nexus_activate_resource),
 	DEVMETHOD(bus_deactivate_resource,	nexus_deactivate_resource),
 	DEVMETHOD(bus_release_resource,	nexus_release_resource),
+	DEVMETHOD(bus_setup_intr,	nexus_setup_intr),
+	DEVMETHOD(bus_teardown_intr,	nexus_teardown_intr),
+	DEVMETHOD(bus_get_resource,	bus_generic_rl_get_resource),
+	DEVMETHOD(bus_get_resource_list, nexus_get_resource_list),
+	DEVMETHOD(bus_get_dma_tag,	nexus_get_dma_tag),
+
+	/* ofw_bus interface */
+	DEVMETHOD(ofw_bus_get_devinfo,	nexus_get_devinfo),
+	DEVMETHOD(ofw_bus_get_compat,	ofw_bus_gen_get_compat),
+	DEVMETHOD(ofw_bus_get_model,	ofw_bus_gen_get_model),
+	DEVMETHOD(ofw_bus_get_name,	ofw_bus_gen_get_name),
+	DEVMETHOD(ofw_bus_get_node,	ofw_bus_gen_get_node),
+	DEVMETHOD(ofw_bus_get_type,	ofw_bus_gen_get_type),
 
 	{ 0, 0 }
 };
 
-static driver_t nexus_driver = {
-	"nexus",
-	nexus_methods,
-	sizeof(struct nexus_softc),
-};
-
 static devclass_t nexus_devclass;
 
+DEFINE_CLASS_0(nexus, nexus_driver, nexus_methods, sizeof(struct nexus_softc));
 DRIVER_MODULE(nexus, root, nexus_driver, nexus_devclass, 0, 0);
 
-static char *nexus_excl_name[] = {
+static const char *nexus_excl_name[] = {
 	"aliases",
+	"associations",
 	"chosen",
 	"counter-timer",	/* No separate device; handled by psycho/sbus */
 	"memory",
 	"openprom",
 	"options",
 	"packages",
+	"rsc",
 	"virtual-memory",
 	NULL
 };
 
-static char *nexus_excl_type[] = {
+static const char *nexus_excl_type[] = {
 	"cpu",
 	NULL
 };
@@ -153,10 +162,12 @@ extern struct bus_space_tag nexus_bustag;
 extern struct bus_dma_tag nexus_dmatag;
 
 static int
-nexus_inlist(char *name, char *list[])
+nexus_inlist(const char *name, const char **list)
 {
 	int i;
 
+	if (name == NULL)
+		return (0);
 	for (i = 0; list[i] != NULL; i++)
 		if (strcmp(name, list[i]) == 0)
 			return (1);
@@ -179,26 +190,25 @@ nexus_probe(device_t dev)
 static int
 nexus_attach(device_t dev)
 {
-	phandle_t root;
-	phandle_t child;
-	device_t cdev;
-	struct nexus_devinfo *dinfo;
+	struct nexus_devinfo *ndi;
 	struct nexus_softc *sc;
-	char *name, *type;
+	device_t cdev;
+	phandle_t node;
 
-	if ((root = OF_peer(0)) == -1)
-		panic("nexus_probe: OF_peer failed.");
+	node = OF_peer(0);
+	if (node == -1)
+		panic("%s: OF_peer failed.", __func__);
 
 	sc = device_get_softc(dev);
 	sc->sc_intr_rman.rm_type = RMAN_ARRAY;
 	sc->sc_intr_rman.rm_descr = "Interrupts";
 	sc->sc_mem_rman.rm_type = RMAN_ARRAY;
-	sc->sc_mem_rman.rm_descr = "UPA Device Memory";
+	sc->sc_mem_rman.rm_descr = "Device Memory";
 	if (rman_init(&sc->sc_intr_rman) != 0 ||
 	    rman_init(&sc->sc_mem_rman) != 0 ||
 	    rman_manage_region(&sc->sc_intr_rman, 0, IV_MAX - 1) != 0 ||
-	    rman_manage_region(&sc->sc_mem_rman, UPA_MEMSTART, UPA_MEMEND) != 0)
-		panic("nexus_attach(): failed to set up rmans");
+	    rman_manage_region(&sc->sc_mem_rman, 0ULL, ~0ULL) != 0)
+		panic("%s: failed to set up rmans.", __func__);
 
 	/*
 	 * Allow devices to identify.
@@ -208,32 +218,17 @@ nexus_attach(device_t dev)
 	/*
 	 * Now walk the OFW tree and attach top-level devices.
 	 */
-	for (child = OF_child(root); child != 0; child = OF_peer(child)) {
-		if (child == -1)
-			panic("nexus_attach(): OF_child() failed.");
-		if (OF_getprop_alloc(child, "name", 1, (void **)&name) == -1)
+	for (node = OF_child(node); node > 0; node = OF_peer(node)) {
+		if ((ndi = nexus_setup_dinfo(dev, node)) == NULL)
 			continue;
-		OF_getprop_alloc(child, "device_type", 1, (void **)&type);
-		if (NEXUS_EXCLUDED(name, type)) {
-			free(name, M_OFWPROP);
-			free(type, M_OFWPROP);
+		cdev = device_add_child(dev, NULL, -1);
+		if (cdev == NULL) {
+			device_printf(dev, "<%s>: device_add_child failed\n",
+			    ndi->ndi_obdinfo.obd_name);
+			nexus_destroy_dinfo(ndi);
 			continue;
 		}
-		cdev = device_add_child(dev, NULL, -1);
-		if (cdev == NULL)
-			panic("nexus_attach(): device_add_child() failed.");
-		dinfo = malloc(sizeof(*dinfo), M_NEXUS, M_WAITOK);
-		dinfo->ndi_node = child;
-		dinfo->ndi_name = name;
-		dinfo->ndi_device_type = type;
-		OF_getprop_alloc(child, "model", 1,
-		    (void **)&dinfo->ndi_model);
-		dinfo->ndi_nreg = OF_getprop_alloc(child, "reg",
-		    sizeof(*dinfo->ndi_reg), (void **)&dinfo->ndi_reg);
-		dinfo->ndi_ninterrupts = OF_getprop_alloc(child,
-		    "interrupts", sizeof(*dinfo->ndi_interrupts),
-		    (void **)&dinfo->ndi_interrupts);
-		device_set_ivars(cdev, dinfo);
+		device_set_ivars(cdev, ndi);
 	}
 	return (bus_generic_attach(dev));
 }
@@ -242,73 +237,42 @@ static device_t
 nexus_add_child(device_t dev, int order, const char *name, int unit)
 {
 	device_t cdev;
-	struct nexus_devinfo *dinfo;
+	struct nexus_devinfo *ndi;
 
 	cdev = device_add_child_ordered(dev, order, name, unit);
 	if (cdev == NULL)
 		return (NULL);
 
-	dinfo = malloc(sizeof(*dinfo), M_NEXUS, M_NOWAIT | M_ZERO);
-	if (dinfo == NULL)
-		return (NULL);
-
-	dinfo->ndi_node = -1;
-	dinfo->ndi_name = strdup(name, M_OFWPROP);
-	device_set_ivars(cdev, dinfo);
+	ndi = malloc(sizeof(*ndi), M_DEVBUF, M_WAITOK | M_ZERO);
+	ndi->ndi_obdinfo.obd_node = -1;
+	ndi->ndi_obdinfo.obd_name = strdup(name, M_OFWPROP);
+	resource_list_init(&ndi->ndi_rl);
+	device_set_ivars(cdev, ndi);
 
 	return (cdev);
+}
+
+static int
+nexus_print_child(device_t dev, device_t child)
+{
+	int rv;
+
+	rv = bus_print_child_header(dev, child);
+	rv += nexus_print_res(device_get_ivars(child));
+	rv += bus_print_child_footer(dev, child);
+	return (rv);
 }
 
 static void
 nexus_probe_nomatch(device_t dev, device_t child)
 {
-	char *type;
+	const char *type;
 
-	if ((type = nexus_get_device_type(child)) == NULL)
-		type = "(unknown)";
-	device_printf(dev, "<%s>, type %s (no driver attached)\n",
-	    nexus_get_name(child), type);
-}
-
-static int
-nexus_read_ivar(device_t dev, device_t child, int which, uintptr_t *result)
-{
-	struct nexus_devinfo *dinfo;
-
-	if ((dinfo = device_get_ivars(child)) == 0)
-		return (ENOENT);
-	switch (which) {
-	case NEXUS_IVAR_NODE:
-		*result = dinfo->ndi_node;
-		break;
-	case NEXUS_IVAR_NAME:
-		*result = (uintptr_t)dinfo->ndi_name;
-		break;
-	case NEXUS_IVAR_DEVICE_TYPE:
-		*result = (uintptr_t)dinfo->ndi_device_type;
-		break;
-	case NEXUS_IVAR_MODEL:
-		*result = (uintptr_t)dinfo->ndi_model;
-		break;
-	case NEXUS_IVAR_REG:
-		*result = (uintptr_t)dinfo->ndi_reg;
-		break;
-	case NEXUS_IVAR_NREG:
-		*result = dinfo->ndi_nreg;
-		break;
-	case NEXUS_IVAR_INTERRUPTS:
-		*result = (uintptr_t)dinfo->ndi_interrupts;
-		break;
-	case NEXUS_IVAR_NINTERRUPTS:
-		*result = dinfo->ndi_ninterrupts;
-		break;
-	case NEXUS_IVAR_DMATAG:
-		*result = (uintptr_t)&nexus_dmatag;
-		break;
-	default:
-		return (ENOENT);
-	}
-	return 0;
+	device_printf(dev, "<%s>", ofw_bus_get_name(child));
+	nexus_print_res(device_get_ivars(child));
+	type = ofw_bus_get_type(child);
+	printf(" type %s (no driver attached)\n",
+	    type != NULL ? type : "unknown");
 }
 
 static int
@@ -318,7 +282,7 @@ nexus_setup_intr(device_t dev, device_t child, struct resource *res, int flags,
 	int error;
 
 	if (res == NULL)
-		panic("nexus_setup_intr: NULL interrupt resource!");
+		panic("%s: NULL interrupt resource!", __func__);
 
 	if ((rman_get_flags(res) & RF_SHAREABLE) == 0)
 		flags |= INTR_EXCL;
@@ -330,6 +294,11 @@ nexus_setup_intr(device_t dev, device_t child, struct resource *res, int flags,
 
 	error = inthand_add(device_get_nameunit(child), rman_get_start(res),
 	    filt, intr, arg, flags, cookiep);
+
+	/*
+	 * XXX in case of the AFB/FFB interrupt and a Psycho, Sabre or U2S
+	 * bridge enable the interrupt in the respective bridge.
+	 */
 
 	return (error);
 }
@@ -346,12 +315,31 @@ static struct resource *
 nexus_alloc_resource(device_t bus, device_t child, int type, int *rid,
     u_long start, u_long end, u_long count, u_int flags)
 {
-	struct	nexus_softc *sc = device_get_softc(bus);
-	struct	resource *rv;
-	struct	rman *rm;
-	int needactivate = flags & RF_ACTIVE;
+	struct nexus_softc *sc;
+	struct rman *rm;
+	struct resource *rv;
+	struct resource_list_entry *rle;
+	int isdefault, needactivate, passthrough;
 
-	flags &= ~RF_ACTIVE;
+	isdefault = (start == 0UL && end == ~0UL);
+	needactivate = flags & RF_ACTIVE;
+	passthrough = (device_get_parent(child) != bus);
+	sc = device_get_softc(bus);
+	rle = NULL;
+
+	if (!passthrough) {
+		rle = resource_list_find(BUS_GET_RESOURCE_LIST(bus, child),
+		    type, *rid);
+		if (rle == NULL)
+			return (NULL);
+		if (rle->res != NULL)
+			panic("%s: resource entry is busy", __func__);
+		if (isdefault) {
+			start = rle->start;
+			count = ulmax(count, rle->count);
+			end = ulmax(rle->end, start + count - 1);
+		}
+	}
 
 	switch (type) {
 	case SYS_RES_IRQ:
@@ -364,6 +352,7 @@ nexus_alloc_resource(device_t bus, device_t child, int type, int *rid,
 		return (NULL);
 	}
 
+	flags &= ~RF_ACTIVE;
 	rv = rman_reserve_resource(rm, start, end, count, flags, child);
 	if (rv == NULL)
 		return (NULL);
@@ -378,6 +367,13 @@ nexus_alloc_resource(device_t bus, device_t child, int type, int *rid,
 			rman_release_resource(rv);
 			return (NULL);
 		}
+	}
+
+	if (!passthrough) {
+		rle->res = rv;
+		rle->start = rman_get_start(rv);
+		rle->end = rman_get_end(rv);
+		rle->count = rle->end - rle->start + 1;
 	}
 
 	return (rv);
@@ -403,7 +399,7 @@ nexus_deactivate_resource(device_t bus, device_t child, int type, int rid,
 
 static int
 nexus_release_resource(device_t bus, device_t child, int type, int rid,
-		       struct resource *r)
+    struct resource *r)
 {
 	int error;
 
@@ -413,4 +409,118 @@ nexus_release_resource(device_t bus, device_t child, int type, int rid,
 			return (error);
 	}
 	return (rman_release_resource(r));
+}
+
+static struct resource_list *
+nexus_get_resource_list(device_t dev, device_t child)
+{
+	struct nexus_devinfo *ndi;
+
+	ndi = device_get_ivars(child);
+	return (&ndi->ndi_rl);
+}
+
+static bus_dma_tag_t
+nexus_get_dma_tag(device_t bus, device_t child)
+{
+
+	return (&nexus_dmatag);
+}
+
+static const struct ofw_bus_devinfo *
+nexus_get_devinfo(device_t dev, device_t child)
+{
+	struct nexus_devinfo *ndi;
+
+	ndi = device_get_ivars(child);
+	return (&ndi->ndi_obdinfo);
+}
+
+static struct nexus_devinfo *
+nexus_setup_dinfo(device_t dev, phandle_t node)
+{
+	struct nexus_devinfo *ndi;
+	struct nexus_regs *reg;
+	bus_addr_t phys;
+	bus_size_t size;
+	uint32_t ign;
+	uint32_t *intr;
+	int i;
+	int nintr;
+	int nreg;
+
+	ndi = malloc(sizeof(*ndi), M_DEVBUF, M_WAITOK | M_ZERO);
+	if (ofw_bus_gen_setup_devinfo(&ndi->ndi_obdinfo, node) != 0) {
+		free(ndi, M_DEVBUF);
+		return (NULL);
+	}
+	if (NEXUS_EXCLUDED(ndi->ndi_obdinfo.obd_name,
+	    ndi->ndi_obdinfo.obd_type)) {
+		ofw_bus_gen_destroy_devinfo(&ndi->ndi_obdinfo);
+		free(ndi, M_DEVBUF);
+		return (NULL);
+	}
+	resource_list_init(&ndi->ndi_rl);
+	nreg = OF_getprop_alloc(node, "reg", sizeof(*reg), (void **)&reg);
+	if (nreg == -1) {
+		device_printf(dev, "<%s>: incomplete\n",
+		    ndi->ndi_obdinfo.obd_name);
+		goto fail;
+	}
+	for (i = 0; i < nreg; i++) {
+		phys = NEXUS_REG_PHYS(&reg[i]);
+		size = NEXUS_REG_SIZE(&reg[i]);
+		resource_list_add(&ndi->ndi_rl, SYS_RES_MEMORY, i, phys,
+		    phys + size - 1, size);
+	}
+	free(reg, M_OFWPROP);
+
+	nintr = OF_getprop_alloc(node, "interrupts",  sizeof(*intr),
+	    (void **)&intr);
+	if (nintr > 0) {
+		if (OF_getprop(node, cpu_impl < CPU_IMPL_ULTRASPARCIII ?
+		    "upa-portid" : "portid", &ign, sizeof(ign)) <= 0) {
+			device_printf(dev, "<%s>: could not determine portid\n",
+			    ndi->ndi_obdinfo.obd_name);
+			free(intr, M_OFWPROP);
+			goto fail;
+		}
+
+		/* XXX 7-bit MID on Starfire */
+		ign = (ign << INTMAP_IGN_SHIFT) & INTMAP_IGN_MASK;
+		for (i = 0; i < nintr; i++) {
+			intr[i] |= ign;
+			resource_list_add(&ndi->ndi_rl, SYS_RES_IRQ, i, intr[i],
+			    intr[i], 1);
+		}
+		free(intr, M_OFWPROP);
+	}
+
+	return (ndi);
+
+ fail:
+	nexus_destroy_dinfo(ndi);
+	return (NULL);
+}
+
+static void
+nexus_destroy_dinfo(struct nexus_devinfo *ndi)
+{
+
+	resource_list_free(&ndi->ndi_rl);
+	ofw_bus_gen_destroy_devinfo(&ndi->ndi_obdinfo);
+	free(ndi, M_DEVBUF);
+}
+
+static int
+nexus_print_res(struct nexus_devinfo *ndi)
+{
+	int rv;
+
+	rv = 0;
+	rv += resource_list_print_type(&ndi->ndi_rl, "mem", SYS_RES_MEMORY,
+	    "%#lx");
+	rv += resource_list_print_type(&ndi->ndi_rl, "irq", SYS_RES_IRQ,
+	    "%ld");
+	return (rv);
 }

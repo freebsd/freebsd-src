@@ -40,7 +40,7 @@
 #define _MACHINE_IOMMUREG_H_
 
 /*
- * UltraSPARC IOMMU registers, common to both the sbus and PCI
+ * UltraSPARC IOMMU registers, common to both the PCI and SBus
  * controllers.
  */
 
@@ -65,7 +65,7 @@
 #define STRBUF_D		0x0000000000000002UL
 
 #define	IOMMU_BITS		34
-#define	IOMMU_MAXADDR		(1UL << IOMMU_BITS)
+#define	IOMMU_MAXADDR		((1UL << IOMMU_BITS) - 1)
 
 /*
  * control register bits
@@ -140,7 +140,7 @@
 #define	STRBUF_FLUSHSYNC_NBYTES	STRBUF_LINESZ
 
 /*
- * On sun4u each bus controller has a separate IOMMU.  The IOMMU has 
+ * On sun4u each bus controller has a separate IOMMU.  The IOMMU has
  * a TSB which must be page aligned and physically contiguous.  Mappings
  * can be of 8K IOMMU pages or 64K IOMMU pages.  We use 8K for compatibility
  * with the CPU's MMU.
@@ -168,7 +168,7 @@
 
 #define	IOTSB_BASESZ		(1024 << IOTTE_SHIFT)
 #define IOTSB_VEND		(~IO_PAGE_MASK)
-#define IOTSB_VSTART(sz)	(u_int)(IOTSB_VEND << ((sz) + 10)) 
+#define IOTSB_VSTART(sz)	(u_int)(IOTSB_VEND << ((sz) + 10))
 
 #define MAKEIOTTE(pa,w,c,s)						\
 	(((pa) & IOTTE_PAMASK) | ((w) ? IOTTE_W : 0) |			\
