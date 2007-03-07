@@ -246,9 +246,8 @@ main(int argc, char **argv)
 		ul = strtoul(unitstr, &p, 10);
 		if (ul == ULONG_MAX)
 			errx(1, "bad device unit: %s", unitstr);
-		if (*p != '\0')
-			mdsuffix = p;
 		unit = ul;
+		mdsuffix = p;	/* can be empty */
 	}
 
 	mtpoint = argv[1];
