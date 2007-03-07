@@ -1655,9 +1655,8 @@ trimthenstep6:
 	 *      RFC 1337.
 	 */
 	if (thflags & TH_RST) {
-		if ((SEQ_GEQ(th->th_seq, tp->last_ack_sent) &&
-		    SEQ_LT(th->th_seq, tp->last_ack_sent + tp->rcv_wnd)) ||
-		    (tp->rcv_wnd == 0 && tp->last_ack_sent == th->th_seq)) {
+		if (SEQ_GEQ(th->th_seq, tp->last_ack_sent - 1) &&
+		    SEQ_LEQ(th->th_seq, tp->last_ack_sent + tp->rcv_wnd)) {
 			switch (tp->t_state) {
 
 			case TCPS_SYN_RECEIVED:
@@ -1665,8 +1664,11 @@ trimthenstep6:
 				goto close;
 
 			case TCPS_ESTABLISHED:
-				if (tp->last_ack_sent != th->th_seq &&
-			 	    tcp_insecure_rst == 0) {
+				if (tcp_insecure_rst == 0 &&
+				    !(SEQ_GEQ(th->th_seq, tp->rcv_nxt - 1) &&
+				    SEQ_LEQ(th->th_seq, tp->rcv_nxt + 1)) &&
+				    !(SEQ_GEQ(th->th_seq, tp->last_ack_sent - 1) &&
+				    SEQ_LEQ(th->th_seq, tp->last_ack_sent + 1))) {
 					tcpstat.tcps_badrst++;
 					goto drop;
 				}
