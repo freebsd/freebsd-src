@@ -150,7 +150,7 @@ _rw_rlock(struct rwlock *rw, const char *file, int line)
 #ifdef SMP
 	volatile struct thread *owner;
 #endif
-	uint64_t waitstart = 0;
+	uint64_t waittime = 0;
 	int contested = 0;
 	uintptr_t x;
 
@@ -192,18 +192,22 @@ _rw_rlock(struct rwlock *rw, const char *file, int line)
 			MPASS((x & RW_LOCK_READ_WAITERS) == 0);
 			if (atomic_cmpset_acq_ptr(&rw->rw_lock, x,
 			    x + RW_ONE_READER)) {
-				lock_profile_obtain_lock_success(&rw->rw_object, contested, waitstart, file, line);
 				if (LOCK_LOG_TEST(&rw->rw_object, 0))
 					CTR4(KTR_LOCK,
 					    "%s: %p succeed %p -> %p", __func__,
 					    rw, (void *)x,
 					    (void *)(x + RW_ONE_READER));
+				if (RW_READERS(x) == 0)
+					lock_profile_obtain_lock_success(
+					    &rw->rw_object, contested, waittime,
+					    file, line);
 				break;
 			}
-			lock_profile_obtain_lock_failed(&rw->rw_object, &contested, &waitstart);
 			cpu_spinwait();
 			continue;
 		}
+		lock_profile_obtain_lock_failed(&rw->rw_object, &contested,
+		    &waittime);
 
 		/*
 		 * Okay, now it's the hard case.  Some other thread already
@@ -250,7 +254,6 @@ _rw_rlock(struct rwlock *rw, const char *file, int line)
 		 */
 		owner = (struct thread *)RW_OWNER(x);
 		if (TD_IS_RUNNING(owner)) {
-			lock_profile_obtain_lock_failed(&rw->rw_object, &contested, &waitstart);
 			turnstile_release(&rw->rw_object);
 			if (LOCK_LOG_TEST(&rw->rw_object, 0))
 				CTR3(KTR_LOCK, "%s: spinning on %p held by %p",
@@ -316,8 +319,7 @@ _rw_runlock(struct rwlock *rw, const char *file, int line)
 				break;
 			}
 			continue;
-		} else 
-			lock_profile_release_lock(&rw->rw_object);
+		}
 
 
 		/*
@@ -401,6 +403,7 @@ _rw_runlock(struct rwlock *rw, const char *file, int line)
 		turnstile_unpend(ts, TS_SHARED_LOCK);
 		break;
 	}
+	lock_profile_release_lock(&rw->rw_object);
 }
 
 /*
