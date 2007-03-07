@@ -89,7 +89,6 @@ upcall_link(struct kse_upcall *ku, struct proc *p)
 	mtx_assert(&sched_lock, MA_OWNED);
 	TAILQ_INSERT_TAIL(&p->p_upcalls, ku, ku_link);
 	ku->ku_proc = p;
-	p->p_numupcalls++;
 }
 
 void
@@ -100,7 +99,6 @@ upcall_unlink(struct kse_upcall *ku)
 	mtx_assert(&sched_lock, MA_OWNED);
 	KASSERT(ku->ku_owner == NULL, ("%s: have owner", __func__));
 	TAILQ_REMOVE(&p->p_upcalls, ku, ku_link);
-	p->p_numupcalls--;
 	upcall_stash(ku);
 }
 
@@ -110,6 +108,12 @@ upcall_remove(struct thread *td)
 
 	mtx_assert(&sched_lock, MA_OWNED);
 	if (td->td_upcall != NULL) {
+		/*
+	 	* If we are not a bound thread then decrement the count of
+	 	* possible upcall sources
+	 	*/
+		if (td->td_pflags & TDP_SA) 
+			td->td_proc->p_numupcalls--;
 		td->td_upcall->ku_owner = NULL;
 		upcall_unlink(td->td_upcall);
 		td->td_upcall = NULL;
@@ -312,7 +316,6 @@ kse_exit(struct thread *td, struct kse_exit_args *uap)
 	if ((ku = td->td_upcall) == NULL || TD_CAN_UNBIND(td))
 		return (EINVAL);
 
-	count = 0;
 
 	/*
 	 * Calculate the existing non-exiting upcalls in this process.
@@ -322,15 +325,18 @@ kse_exit(struct thread *td, struct kse_exit_args *uap)
 	 * XXX This relies on the userland knowing what to do if we return.
 	 * It may be a better choice to convert ourselves into a kse_release
 	 * ( or similar) and wait in the kernel to be needed.
+	 * XXX Where are those other threads? I suppose they are waiting in
+	 * the kernel. We should wait for them all at the user boundary after
+	 * turning into an exit.
 	 */
+	count = 0;
 	PROC_LOCK(p);
 	mtx_lock_spin(&sched_lock);
 	FOREACH_UPCALL_IN_PROC(p, ku2) {
-		if (ku2->ku_flags & KUF_EXITING)
+		if ((ku2->ku_flags & KUF_EXITING) == 0)
 			count++;
 	}
-	if ((p->p_numupcalls - count) == 1 &&
-	    (p->p_numthreads > 1)) {
+	if (count == 1 && (p->p_numthreads > 1)) {
 		mtx_unlock_spin(&sched_lock);
 		PROC_UNLOCK(p);
 		return (EDEADLK);
@@ -573,40 +579,34 @@ kse_create(struct thread *td, struct kse_create_args *uap)
 	 * have its thread mailbox already there.
 	 */
 	if ((mbx.km_flags & KMF_BOUND) || uap->newgroup) {
+		/* It's a bound thread (1:1) */
 		if (mbx.km_curthread == NULL) 
 			return (EINVAL);
 		ncpus = 1;
 		if (!(uap->newgroup || first))
 			return (EINVAL);
 	} else {
+		/* It's an upcall capable thread */
 		sa = TDP_SA;
 		PROC_LOCK(p);
 		/*
 		 * Limit it to NCPU upcall contexts per proc in any case.
+		 * numupcalls will soon be numkse or something
+		 * as it will represent the number of 
+		 * non-bound upcalls available.  (i.e. ones that can 
+		 * actually call up).
 		 */
 		if (p->p_numupcalls >= ncpus) {
 			PROC_UNLOCK(p);
 			return (EPROCLIM);
 		}
-		/*
-		 * We want to make a thread (bound or unbound).
-		 * If we are just the first call, either kind
-		 * is ok, but if not then either we must be 
-		 * already an upcallable thread to make another,
-		 * or a bound thread to make one of those.
-		 * Once again, not quite right but good enough for now.. XXXKSE
-		 * XXX bogus
-		 */
+		p->p_numupcalls++;
 		PROC_UNLOCK(p);
-		if (!first && ((td->td_pflags & TDP_SA) != sa))
-			return (EINVAL);
-		if (p->p_numupcalls == 0) {
-			sched_set_concurrency(p, ncpus);
-		}
 	}
 
 	/* 
 	 * Even bound LWPs get a mailbox and an upcall to hold it.
+	 * XXX This should change.
 	 */
 	newku = upcall_alloc();
 	newku->ku_mailbox = uap->mbx;
@@ -616,33 +616,22 @@ kse_create(struct thread *td, struct kse_create_args *uap)
 	/*
 	 * For the first call this may not have been set.
 	 * Of course nor may it actually be needed.
+	 * thread_schedule_upcall() will look for it.
 	 */
 	if (td->td_standin == NULL)
 		thread_alloc_spare(td);
-
 	PROC_LOCK(p);
 	mtx_lock_spin(&sched_lock);
-	if (sa) {
-		if( p->p_numupcalls >= ncpus) {
-			mtx_unlock_spin(&sched_lock);
-			PROC_UNLOCK(p);
-			upcall_free(newku);
-			return (EPROCLIM);
-		}
-
-		/*
-		 * If we are the first time, and a normal thread,
-		 * then transfer all the signals back to the 'process'.
-		 * SA threading will make a special thread to handle them.
-		 */
-		if (first) {
-			sigqueue_move_set(&td->td_sigqueue, &p->p_sigqueue, 
-				&td->td_sigqueue.sq_signals);
-			SIGFILLSET(td->td_sigmask);
-			SIG_CANTMASK(td->td_sigmask);
-		}
-	} else {
-		/* should subtract from process count (later) */
+	/*
+	 * If we are the first time, and a normal thread,
+	 * then transfer all the signals back to the 'process'.
+	 * SA threading will make a special thread to handle them.
+	 */
+	if (first) {
+		sigqueue_move_set(&td->td_sigqueue, &p->p_sigqueue, 
+			&td->td_sigqueue.sq_signals);
+		SIGFILLSET(td->td_sigmask);
+		SIG_CANTMASK(td->td_sigmask);
 	}
 
 	/*
@@ -664,7 +653,7 @@ kse_create(struct thread *td, struct kse_create_args *uap)
 		 * The newgroup parameter now means
 		 * "bound, non SA, system scope"
 		 * It is only used for the interrupt thread at the
-		 * moment I think
+		 * moment I think.. (or system scope threads dopey).
 		 * We'll rename it later.
 		 */
 		newtd = thread_schedule_upcall(td, newku);
@@ -698,10 +687,11 @@ kse_create(struct thread *td, struct kse_create_args *uap)
 	 * In the same manner, if the UTS has a current user thread, 
 	 * then it is also running on this LWP so set it as well.
 	 * The library could do that of course.. but why not..
+	 * XXX I'm not sure this can ever happen but ...
+	 * XXX does the UTS ever set this in the mailbox before calling this?
 	 */
 	if (mbx.km_curthread)
 		suword32(&mbx.km_curthread->tm_lwp, newtd->td_tid);
-
 	
 	if (sa) {
 		newtd->td_pflags |= TDP_SA;
