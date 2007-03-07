@@ -228,6 +228,7 @@ void	ieee80211_beacon_miss(struct ieee80211com *);
 void	ieee80211_print_essid(const u_int8_t *, int);
 void	ieee80211_dump_pkt(const u_int8_t *, int, int, int);
 
+extern 	const char *ieee80211_opmode_name[];
 extern	const char *ieee80211_state_name[IEEE80211_S_MAX];
 extern	const char *ieee80211_wme_acnames[];
 

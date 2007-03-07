@@ -69,6 +69,16 @@ const char *ieee80211_ctl_subtype_name[] = {
 	"reserved#8",	"reserved#9",	"ps_poll",	"rts",
 	"cts",		"ack",		"cf_end",	"cf_end_ack"
 };
+const char *ieee80211_opmode_name[IEEE80211_OPMODE_MAX] = {
+	"IBSS",		/* IEEE80211_M_IBSS */
+	"STA",		/* IEEE80211_M_STA */
+	"#2",
+	"AHDEMO",	/* IEEE80211_M_AHDEMO */
+	"#4", "#5",
+	"HOSTAP",	/* IEEE80211_M_HOSTAP */
+	"#7",
+	"MONITOR"	/* IEEE80211_M_MONITOR */
+};
 const char *ieee80211_state_name[IEEE80211_S_MAX] = {
 	"INIT",		/* IEEE80211_S_INIT */
 	"SCAN",		/* IEEE80211_S_SCAN */
