@@ -68,6 +68,7 @@
       operation or usability.  An up-to-date version of this document
       should always be consulted before installing this version of
       &os;.</para>
+
   </abstract>
 
   <sect1>
@@ -102,6 +103,21 @@
       url="http://security.FreeBSD.org/"></ulink> or <ulink
       url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/"></ulink>.</para>
 
+    <note>
+      <para>&os; &release.prev;, as well as the &os; &release.branch;
+	  branch from which it comes, have reached
+	  <quote>End of Life</quote>
+	  status and are no longer supported as of 1 February 2007.
+	  Specifically, the Security Officer Team will no longer be
+	  issuing advisories against &os; &release.branch;.  In
+	  addition, the Ports Manager Team will no longer perform
+	  package builds for &release.branch, and building ports
+	  from source on &release.branch is no longer supported.</para>
+
+      <para>Additional information on this topic can be found in
+	<ulink url="http://lists.freebsd.org/pipermail/freebsd-stable/2007-February/032766.html">a posting</ulink>
+	to the &a.stable;.</para>
+    </note>
   </sect1>
 
   <sect1>
