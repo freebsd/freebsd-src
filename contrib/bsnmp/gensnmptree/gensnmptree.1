@@ -2,6 +2,9 @@
 .\" Copyright (c) 2001-2005
 .\"	Fraunhofer Institute for Open Communication Systems (FhG Fokus).
 .\"	All rights reserved.
+.\" Copyright (c) 2006
+.\"	Hartmut Brandt
+.\"	All rights reserved.
 .\"
 .\" Author: Harti Brandt <harti@freebsd.org>
 .\" 
@@ -26,9 +29,9 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.\" $Begemot: bsnmp/gensnmptree/gensnmptree.1,v 1.7 2006/02/27 09:52:08 brandt_h Exp $
+.\" $Begemot: gensnmptree.1 383 2006-05-30 07:40:49Z brandt_h $
 .\"
-.Dd February 27, 2006
+.Dd May 26, 2006
 .Dt GENSNMPTREE 1
 .Os
 .Sh NAME
@@ -36,7 +39,9 @@
 .Nd "generate C and header files from a MIB description file"
 .Sh SYNOPSIS
 .Nm
-.Op Fl helt
+.Op Fl dEehlt
+.Op Fl I Ar directory
+.Op Fl i Ar infile
 .Op Fl p Ar prefix
 .Op Ar name Ar ...
 .Sh DESCRIPTION
@@ -49,9 +54,12 @@ The first form is used only for maintaining the
 daemon or for module writers.
 The second form may be used by SNMP client program writers.
 .Pp
-If the
-.Fl e
-option is not used
+If none of the options
+.Fl e ,
+.Fl E
+or
+.FL t
+are used
 .Nm
 reads a MIB description from its standard input and creates two files: a
 C-file
@@ -61,12 +69,20 @@ containing a table used by
 during PDU processing
 and a header file
 .Ar prefix Ns tree.h
-containing appropriate declarations of the callback functions used in this table
-and the table itself.
+containing appropriate declarations of the callback functions used in this
+table, the table itself and definitions for all enums.
 .Pp
-If the
-.Fl e
-option is specified
+The following options are available:
+.Bl -tag -width ".Fl E"
+.It Fl d
+Switch on debugging.
+.It Fl E
+Extract enumerations and bit constructs.
+In this mode the tool emits
+a header file that contains for each type given on the command line a
+C-enum definition and a preprocessor define that may be used to map
+values to strings.
+.It Fl e
 .Nm
 expects MIB variable names (only the last component) on its command line.
 It reads a MIB specification from standard input and for each MIB variable
@@ -83,13 +99,13 @@ is the length of the OID.
 .It Va OID_ Ns Ar name
 is the last component of the OID.
 .El
-.Pp
-The options are as follows:
-.Bl -tag -width ".Fl d Ar argument"
 .It Fl h
 Print a short help page.
-.It Fl e
-Enter extract mode.
+.It Fl I Ar directory
+Add the named directory to the include path just before the standard include
+directories.
+.It Fl i Ar infile
+Read from the named file instead of standard input.
 .It Fl l
 Generate local preprocessor includes.
 This is used for bootstrapping
@@ -103,26 +119,44 @@ Prefix the file names and the table name with
 .Sh MIBS
 The syntax of the MIB description file can formally be specified as follows:
 .Bd -unfilled -offset indent
-file := tree | tree file
+ file := top | top file
 
-tree := head elements ')'
+ top := tree | typedef | include
 
-entry := head ':' index STRING elements ')'
+ tree := head elements ')'
 
-leaf := head TYPE STRING ACCESS ')'
+ entry := head ':' index STRING elements ')'
 
-column := head TYPE ACCESS ')'
+ leaf := head type STRING ACCESS ')'
 
-head := '(' INT STRING
+ column := head type ACCESS ')'
 
-elements := EMPTY | elements element
+ type := BASETYPE | BASETYPE '|' subtype | enum | bits
 
-element := tree | leaf
+ subtype := STRING
 
-index := TYPE | index TYPE
+ enum := ENUM '(' value ')'
+
+ bits := BITS '(' value ')'
+
+ value := INT STRING | INT STRING value
+
+ head := '(' INT STRING
+
+ elements := EMPTY | elements element
+
+ element := tree | leaf | column
+
+ index := type | index type
+
+ typedef := 'typedef' STRING type
+
+ include := 'include' filespec
+
+ filespec := '"' STRING '"' | '<' STRING '>'
 .Ed
 .Pp
-.Ar TYPE
+.Ar BASETYPE
 specifies a SNMP data type and may be one of
 .Bl -bullet -offset indent -compact
 .It
@@ -163,10 +197,25 @@ SET
 is a decimal integer and
 .Ar STRING
 is any string starting with a letter or underscore and consisting of
-letters, digits and underscores, that is not one of the keywords.
+letters, digits, underscores and minuses, that is not one of the keywords.
+.Pp
+The
+.Ar typedef
+directive associates a type with a single name.
+.Pp
+The
+.Ar include
+directive is replaced by the contents of the named file.
 .Sh EXAMPLES
 The following MIB description describes the system group:
 .Bd -literal -offset indent
+include "tc.def"
+
+typedef AdminStatus ENUM (
+	1 up
+	2 down
+)
+
 (1 internet
   (2 mgmt
     (1 mibII

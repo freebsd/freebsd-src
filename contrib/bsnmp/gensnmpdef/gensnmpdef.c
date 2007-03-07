@@ -1,5 +1,5 @@
 /* 
- * Copyright (C) 2004
+ * Copyright (C) 2004-2006
  * 	Hartmut Brandt.
  * 	All rights reserved.
  * 
@@ -26,8 +26,10 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Begemot: bsnmp/gensnmpdef/gensnmpdef.c,v 1.3 2004/08/06 08:46:45 brandt Exp $
+ * $Begemot: gensnmpdef.c 383 2006-05-30 07:40:49Z brandt_h $
  */
+#include <sys/queue.h>
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -38,15 +40,27 @@
 #include <smi.h>
 
 static const char usgtxt[] =
-"Usage: gensnmpdef [-h] [-c <cut>] MIB [MIB ...]\n"
+"Usage: gensnmpdef [-hEe] [-c <cut>] MIB [MIB ...]\n"
 "Options:\n"
 "  -c	specify the number of initial sub-oids to cut from the oids\n"
+"  -E	extract named enum types. Print a typedef for all enums defined\n"
+"	in syntax clauses of normal objects. Suppress normal output.\n"
+"  -e	extract unnamed enum types. Print a typedef for all enums defined\n"
+"	as textual conventions. Suppress normal output.\n"
 "  -h	print this help\n"
 "MIBs are searched according to the libsmi(3) search rules and can\n"
 "be specified either by path or module name\n";
 
 static SmiNode *last_node;
 static u_int cut = 3;
+
+struct tdef {
+	char *name;
+	SLIST_ENTRY(tdef) link;
+};
+
+static SLIST_HEAD(, tdef) tdefs = SLIST_HEAD_INITIALIZER(tdef);
+static int do_typedef = 0;
 
 static void print_node(SmiNode *n, u_int level);
 
@@ -135,7 +149,7 @@ static const char *const type_names[] = {
 	[SMI_BASETYPE_FLOAT32] =	"FLOAT32",
 	[SMI_BASETYPE_FLOAT64] =	"FLOAT64",
 	[SMI_BASETYPE_FLOAT128] =	"FLOAT128",
-	[SMI_BASETYPE_ENUM] =	"INTEGER",
+	[SMI_BASETYPE_ENUM] =	"ENUM",
 	[SMI_BASETYPE_BITS] =	"BITS",
 };
 
@@ -150,6 +164,18 @@ static const char *const type_map[] = {
 	"IpAddress",	"IPADDRESS",
 	NULL
 };
+
+static void
+print_enum(SmiType *t)
+{
+	SmiNamedNumber *nnum;
+
+	printf(" (");
+	for (nnum = smiGetFirstNamedNumber(t); nnum != NULL;
+	    nnum = smiGetNextNamedNumber(nnum))
+		printf(" %ld %s", nnum->value.value.integer32, nnum->name);
+	printf(" )");
+}
 
 static void
 print_type(SmiNode *n)
@@ -168,6 +194,14 @@ print_type(SmiNode *n)
 			}
 	}
 	printf("%s", type_names[type->basetype]);
+
+	if (type->basetype == SMI_BASETYPE_ENUM ||
+	    type->basetype == SMI_BASETYPE_BITS)
+		print_enum(type);
+
+	else if (type->basetype == SMI_BASETYPE_OCTETSTRING &&
+	    type->name != NULL)
+		printf(" | %s", type->name);
 }
 
 static void
@@ -359,6 +393,111 @@ print_node(SmiNode *n, u_int level)
 	printf(")\n");
 }
 
+static void
+save_typdef(char *name)
+{
+	struct tdef *t;
+	t = malloc(sizeof(struct tdef));
+
+	if (t == NULL)
+		err(1, NULL);
+
+	memset(t, 0 , sizeof(struct tdef));
+	t->name = name;
+	SLIST_INSERT_HEAD(&tdefs, t, link);
+}
+
+static void
+tdefs_cleanup(void)
+{
+	struct tdef *t;
+
+	while ((t = SLIST_FIRST(&tdefs)) != NULL) {
+		SLIST_REMOVE_HEAD(&tdefs, link);
+		free(t);
+	}
+}
+
+static void
+print_enum_typedef(SmiType *t)
+{
+	SmiNamedNumber *nnum;
+	
+	for (nnum = smiGetFirstNamedNumber(t); nnum != NULL;
+	    nnum = smiGetNextNamedNumber(nnum)) {
+		printf("\t%ld %s\n" , nnum->value.value.integer32, nnum->name);
+	}
+}
+
+static void
+print_stype(SmiNode *n)
+{
+	SmiType *type;
+	struct tdef *t = NULL;
+	
+	type = smiGetNodeType(n);
+	assert(type != NULL);
+	
+	if (type->basetype == SMI_BASETYPE_ENUM) {
+		if (do_typedef == 'e' && type->name != NULL) {
+			SLIST_FOREACH(t, &tdefs, link) {
+				if (strcmp(t->name, type->name) == 0)
+					return;
+			}
+			save_typdef(type->name);
+			printf("typedef %s ENUM (\n", type->name);
+		} else if (do_typedef == 'E' && type->name == NULL)
+			printf("typedef %sType ENUM (\n", n->name);
+		else
+			return;
+		
+		print_enum_typedef(type);
+		printf(")\n\n");
+
+	} else if (type->basetype == SMI_BASETYPE_BITS) {
+		if (do_typedef == 'e' && type->name != NULL) {
+			SLIST_FOREACH(t, &tdefs, link) {
+				if (strcmp(t->name, type->name) == 0)
+					return;
+			}
+			save_typdef(type->name);
+			printf("typedef %s BITS (\n", type->name);
+		} else if (do_typedef == 'E' && type->name == NULL)
+			printf("typedef %sType BITS (\n", n->name);
+		else
+			return;
+
+		print_enum_typedef(type);
+		printf(")\n\n");
+	}
+}
+
+static void
+print_typdefs(SmiNode *n)
+{
+	SmiNode *p;
+	
+	p = n;
+	n = smiGetFirstChildNode(n);
+	while (n != NULL) {
+		switch (n->nodekind) {
+		  case SMI_NODEKIND_SCALAR:
+		  case SMI_NODEKIND_COLUMN:
+			print_stype(n);
+			break;
+		  case SMI_NODEKIND_COMPLIANCE:
+	  	  case SMI_NODEKIND_GROUP:
+			save_node(n);
+			return;
+		  default:
+			break;
+		}
+		n = smiGetNextChildNode(n);
+	}
+
+	save_node(p);
+}
+
 int
 main(int argc, char *argv[])
 {
@@ -373,7 +512,7 @@ main(int argc, char *argv[])
 
 	smiInit(NULL);
 
-	while ((opt = getopt(argc, argv, "c:h")) != -1)
+	while ((opt = getopt(argc, argv, "c:Eeh")) != -1)
 		switch (opt) {
 
 		  case 'c':
@@ -386,6 +525,14 @@ main(int argc, char *argv[])
 			if (u < 0 || u > 5)
 				err(1, "%s: out of range", optarg);
 			cut = (u_int)u;
+			break;
+
+		  case 'E':
+			do_typedef = 'E';
+			break;
+
+		  case 'e':
+			do_typedef = 'e';
 			break;
 
 		  case 'h':
@@ -414,9 +561,12 @@ main(int argc, char *argv[])
 	for (opt = 0; opt < argc; opt++) {
 		n = smiGetFirstNode(mods[opt], SMI_NODEKIND_ANY);
 		for (;;) {
-			level = open_node(n, level, &last);
-			print_it(n, level);
-			last = n;
+			if (do_typedef == 0) {
+				level = open_node(n, level, &last);
+				print_it(n, level);
+				last = n;
+			} else
+				print_typdefs(n);
 
 			if (last_node == NULL ||
 			    (n = smiGetNextNode(last_node, SMI_NODEKIND_ANY))
@@ -424,6 +574,10 @@ main(int argc, char *argv[])
 				break;
 		}
 	}
-	level = close_node(last->oidlen - 1, level - 1);
+	if (last != NULL && do_typedef == 0)
+		level = close_node(last->oidlen - 1, level - 1);
+	else if (do_typedef != 0)
+		tdefs_cleanup();
+
 	return (0);
 }
