@@ -61,6 +61,7 @@ enum ieee80211_opmode {
 	IEEE80211_M_HOSTAP	= 6,	/* Software Access Point */
 	IEEE80211_M_MONITOR	= 8	/* Monitor mode */
 };
+#define	IEEE80211_OPMODE_MAX	(IEEE80211_M_MONITOR+1)
 
 /*
  * 802.11g protection mode.
