@@ -73,11 +73,4 @@ struct bus_dmamap {
 int sparc64_dma_alloc_map(bus_dma_tag_t dmat, bus_dmamap_t *mapp);
 void sparc64_dma_free_map(bus_dma_tag_t dmat, bus_dmamap_t map);
 
-/*
- * XXX: This is a kluge. It would be better to handle dma tags in a hierarchical
- * way, and have a BUS_GET_DMA_TAG(); however, since this is not currently the
- * case, save a root tag in the relevant bus attach function and use that.
- */
-extern bus_dma_tag_t sparc64_root_dma_tag;
-
 #endif /* !_MACHINE_BUS_PRIVATE_H_ */

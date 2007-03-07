@@ -96,12 +96,13 @@
  *	from: NetBSD: sbus.c,v 1.13 1999/05/23 07:24:02 mrg Exp
  *	from: @(#)sbus.c	8.1 (Berkeley) 6/11/93
  *	from: NetBSD: iommu.c,v 1.42 2001/08/06 22:02:58 eeh Exp
- *
- * $FreeBSD$
  */
 
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
+
 /*
- * UltraSPARC IOMMU support; used by both the sbus and pci code.
+ * UltraSPARC IOMMU support; used by both the PCI and SBus code.
  * Currently, the IOTSBs are synchronized, because determining the bus the map
  * is to be loaded for is not possible with the current busdma code.
  * The code is structured so that the IOMMUs can be easily divorced when that
@@ -328,7 +329,7 @@ iommu_map_remq(struct iommu_state *is, bus_dmamap_t map)
 }
 
 /*
- * initialise the UltraSPARC IOMMU (SBus or PCI):
+ * initialise the UltraSPARC IOMMU (PCI or SBus):
  *	- allocate and setup the iotsb.
  *	- enable the IOMMU
  *	- initialise the streaming buffers (if they exist)
@@ -347,7 +348,7 @@ iommu_init(char *name, struct iommu_state *is, int tsbsize, u_int32_t iovabase,
 	/*
 	 * Setup the iommu.
 	 *
-	 * The sun4u iommu is part of the SBUS or PCI controller so we
+	 * The sun4u iommu is part of the PCI or SBus controller so we
 	 * will deal with it here..
 	 *
 	 * The IOMMU address space always ends at 0xffffe000, but the starting
@@ -379,7 +380,7 @@ iommu_init(char *name, struct iommu_state *is, int tsbsize, u_int32_t iovabase,
 		    rman_manage_region(&iommu_dvma_rman,
 		    (is->is_dvmabase >> IO_PAGE_SHIFT) + resvpg,
 		    (end >> IO_PAGE_SHIFT) - 1) != 0)
-			panic("iommu_init: can't initialize dvma rman");
+			panic("%s: could not initialize DVMA rman", __func__);
 		/*
 		 * Allocate memory for I/O page tables.  They need to be
 		 * physically contiguous.
@@ -387,7 +388,7 @@ iommu_init(char *name, struct iommu_state *is, int tsbsize, u_int32_t iovabase,
 		iommu_tsb = contigmalloc(size, M_DEVBUF, M_NOWAIT, 0, ~0UL,
 		    PAGE_SIZE, 0);
 		if (iommu_tsb == 0)
-			panic("iommu_init: contigmalloc failed");
+			panic("%s: contigmalloc failed", __func__);
 		iommu_ptsb = pmap_kextract((vm_offset_t)iommu_tsb);
 		bzero(iommu_tsb, size);
 	} else {
@@ -398,8 +399,8 @@ iommu_init(char *name, struct iommu_state *is, int tsbsize, u_int32_t iovabase,
 		first = STAILQ_FIRST(&iommu_insts);
 		if (is->is_tsbsize != first->is_tsbsize ||
 		    is->is_dvmabase != first->is_dvmabase) {
-			panic("iommu_init: secondary IOMMU state does not "
-			    "match primary");
+			panic("%s: secondary IOMMU state does not "
+			    "match primary", __func__);
 		}
 	}
 	STAILQ_INSERT_TAIL(&iommu_insts, is, is_link);
@@ -464,7 +465,7 @@ iommu_enter(struct iommu_state *is, vm_offset_t va, vm_paddr_t pa,
 
 	KASSERT(va >= is->is_dvmabase,
 	    ("iommu_enter: va %#lx not in DVMA space", va));
-	KASSERT(pa < IOMMU_MAXADDR,
+	KASSERT(pa <= IOMMU_MAXADDR,
 	    ("iommu_enter: XXX: physical address too large (%#lx)", pa));
 
 	tte = MAKEIOTTE(pa, !(flags & BUS_DMA_NOWRITE),
@@ -579,7 +580,7 @@ iommu_strbuf_flush_sync(struct iommu_state *is)
 		microuptime(&cur);
 
 	if (!*is->is_flushva[0] || !*is->is_flushva[1]) {
-		panic("iommu_strbuf_flush_done: flush timeout %ld, %ld at %#lx",
+		panic("%s: flush timeout %ld, %ld at %#lx", __func__,
 		    *is->is_flushva[0], *is->is_flushva[1], is->is_flushpa[0]);
 	}
 
@@ -628,7 +629,7 @@ iommu_dvma_valloc(bus_dma_tag_t t, struct iommu_state *is, bus_dmamap_t map,
 	align = (t->dt_alignment + IO_PAGE_MASK) >> IO_PAGE_SHIFT;
 	sgsize = round_io_page(size) >> IO_PAGE_SHIFT;
 	if (t->dt_boundary > 0 && t->dt_boundary < IO_PAGE_SIZE)
-		panic("iommu_dvmamap_load: illegal boundary specified");
+		panic("%s: illegal boundary specified", __func__);
 	res = rman_reserve_resource_bound(&iommu_dvma_rman, 0L,
 	    t->dt_lowaddr >> IO_PAGE_SHIFT, sgsize,
 	    t->dt_boundary >> IO_PAGE_SHIFT,
@@ -849,7 +850,7 @@ iommu_dvmamap_create(bus_dma_tag_t dt, int flags, bus_dmamap_t *mapp)
 	 * Clamp preallocation to IOMMU_MAX_PRE. In some situations we can
 	 * handle more; that case is handled by reallocating at map load time.
 	 */
-	totsz = ulmin(IOMMU_SIZE_ROUNDUP(dt->dt_maxsize), IOMMU_MAX_PRE); 
+	totsz = ulmin(IOMMU_SIZE_ROUNDUP(dt->dt_maxsize), IOMMU_MAX_PRE);
 	error = iommu_dvma_valloc(dt, is, *mapp, totsz);
 	if (error != 0)
 		return (0);
@@ -886,7 +887,7 @@ iommu_dvmamap_destroy(bus_dma_tag_t dt, bus_dmamap_t map)
 }
 
 /*
- * IOMMU DVMA operations, common to SBUS and PCI.
+ * IOMMU DVMA operations, common to PCI and SBus.
  */
 static int
 iommu_dvmamap_load_buffer(bus_dma_tag_t dt, struct iommu_state *is,
@@ -987,7 +988,7 @@ iommu_dvmamap_load(bus_dma_tag_t dt, bus_dmamap_t map, void *buf,
 
 	if ((map->dm_flags & DMF_LOADED) != 0) {
 #ifdef DIAGNOSTIC
-		printf("iommu_dvmamap_load: map still in use\n");
+		printf("%s: map still in use\n", __func__);
 #endif
 		bus_dmamap_unload(dt, map);
 	}
@@ -1031,7 +1032,7 @@ iommu_dvmamap_load_mbuf(bus_dma_tag_t dt, bus_dmamap_t map, struct mbuf *m0,
 
 	if ((map->dm_flags & DMF_LOADED) != 0) {
 #ifdef DIAGNOSTIC
-		printf("iommu_dvmamap_load_mbuf: map still in use\n");
+		printf("%s: map still in use\n", __func__);
 #endif
 		bus_dmamap_unload(dt, map);
 	}
@@ -1080,7 +1081,7 @@ iommu_dvmamap_load_mbuf_sg(bus_dma_tag_t dt, bus_dmamap_t map, struct mbuf *m0,
 	*nsegs = -1;
 	if ((map->dm_flags & DMF_LOADED) != 0) {
 #ifdef DIAGNOSTIC
-		printf("iommu_dvmamap_load_mbuf: map still in use\n");
+		printf("%s: map still in use\n", __func__);
 #endif
 		bus_dmamap_unload(dt, map);
 	}
@@ -1125,7 +1126,7 @@ iommu_dvmamap_load_uio(bus_dma_tag_t dt, bus_dmamap_t map, struct uio *uio,
 
 	if ((map->dm_flags & DMF_LOADED) != 0) {
 #ifdef DIAGNOSTIC
-		printf("iommu_dvmamap_load_uio: map still in use\n");
+		printf("%s: map still in use\n", __func__);
 #endif
 		bus_dmamap_unload(dt, map);
 	}
@@ -1153,7 +1154,7 @@ iommu_dvmamap_load_uio(bus_dma_tag_t dt, bus_dmamap_t map, struct uio *uio,
 			continue;
 
 		error = iommu_dvmamap_load_buffer(dt, is, map,
-		    iov[i].iov_base, minlen, td, flags, dt->dt_segments, 
+		    iov[i].iov_base, minlen, td, flags, dt->dt_segments,
 		    &nsegs, first);
 		first = 0;
 
@@ -1205,7 +1206,7 @@ iommu_dvmamap_sync(bus_dma_tag_t dt, bus_dmamap_t map, bus_dmasync_op_t op)
 		membar(Sync);
 	if (IOMMU_HAS_SB(is) &&
 	    ((op & BUS_DMASYNC_POSTREAD) != 0 ||
-	     (op & BUS_DMASYNC_PREWRITE) != 0)) {
+	    (op & BUS_DMASYNC_PREWRITE) != 0)) {
 		IS_LOCK(is);
 		SLIST_FOREACH(r, &map->dm_reslist, dr_link) {
 			va = (vm_offset_t)BDR_START(r);
@@ -1242,7 +1243,7 @@ iommu_diag(struct iommu_state *is, vm_offset_t va)
 	IS_LOCK_ASSERT(is);
 	IOMMU_WRITE8(is, is_dva, 0, trunc_io_page(va));
 	membar(StoreStore | StoreLoad);
-	printf("iommu_diag: tte entry %#lx", IOMMU_GET_TTE(is, va));
+	printf("%s: tte entry %#lx", __func__, IOMMU_GET_TTE(is, va));
 	if (is->is_dtcmp != 0) {
 		printf(", tag compare register is %#lx\n",
 		    IOMMU_READ8(is, is_dtcmp, 0));
@@ -1251,8 +1252,8 @@ iommu_diag(struct iommu_state *is, vm_offset_t va)
 	for (i = 0; i < 16; i++) {
 		tag = IOMMU_READ8(is, is_dtag, i * 8);
 		data = IOMMU_READ8(is, is_ddram, i * 8);
-		printf("iommu_diag: tag %d: %#lx, vpn %#lx, err %lx; "
-		    "data %#lx, pa %#lx, v %d, c %d\n", i,
+		printf("%s: tag %d: %#lx, vpn %#lx, err %lx; "
+		    "data %#lx, pa %#lx, v %d, c %d\n", __func__, i,
 		    tag, (tag & IOMMU_DTAG_VPNMASK) << IOMMU_DTAG_VPNSHIFT,
 		    (tag & IOMMU_DTAG_ERRMASK) >> IOMMU_DTAG_ERRSHIFT, data,
 		    (data & IOMMU_DDATA_PGMASK) << IOMMU_DDATA_PGSHIFT,

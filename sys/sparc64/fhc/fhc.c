@@ -1,5 +1,6 @@
 /*-
  * Copyright (c) 2003 Jake Burkholder.
+ * Copyright (c) 2005 Marius Strobl <marius@FreeBSD.org>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -32,6 +33,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/bus.h>
 #include <sys/kernel.h>
 #include <sys/malloc.h>
+#include <sys/module.h>
 #include <sys/pcpu.h>
 
 #include <dev/led/led.h>
@@ -46,7 +48,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/rman.h>
 
 #include <sparc64/fhc/fhcreg.h>
-#include <sparc64/fhc/fhcvar.h>
 #include <sparc64/sbus/ofw_sbus.h>
 
 struct fhc_clr {
@@ -62,18 +63,87 @@ struct fhc_devinfo {
 	struct resource_list	fdi_rl;
 };
 
-static int fhc_intr_stub(void *);
+struct fhc_softc {
+	struct resource *	sc_memres[FHC_NREG];
+	bus_space_handle_t	sc_bh[FHC_NREG];
+	bus_space_tag_t		sc_bt[FHC_NREG];
+	int			sc_nrange;
+	struct sbus_ranges	*sc_ranges;
+	uint32_t		sc_board;
+	int			sc_ign;
+	struct cdev		*sc_led_dev;
+	int			sc_flags;
+#define	FHC_CENTRAL		(1 << 0)
+};
+
+static device_probe_t fhc_probe;
+static device_attach_t fhc_attach;
+static bus_print_child_t fhc_print_child;
+static bus_probe_nomatch_t fhc_probe_nomatch;
+static bus_setup_intr_t fhc_setup_intr;
+static bus_teardown_intr_t fhc_teardown_intr;
+static bus_alloc_resource_t fhc_alloc_resource;
+static bus_get_resource_list_t fhc_get_resource_list;
+static ofw_bus_get_devinfo_t fhc_get_devinfo;
+
+static driver_filter_t fhc_intr_stub;
 static void fhc_led_func(void *, int);
 static int fhc_print_res(struct fhc_devinfo *);
 
-int
+static device_method_t fhc_methods[] = {
+	/* Device interface */
+	DEVMETHOD(device_probe,		fhc_probe),
+	DEVMETHOD(device_attach,	fhc_attach),
+	DEVMETHOD(device_shutdown,	bus_generic_shutdown),
+	DEVMETHOD(device_suspend,	bus_generic_suspend),
+	DEVMETHOD(device_resume,	bus_generic_resume),
+
+	/* Bus interface */
+	DEVMETHOD(bus_print_child,	fhc_print_child),
+	DEVMETHOD(bus_probe_nomatch,	fhc_probe_nomatch),
+	DEVMETHOD(bus_setup_intr,	fhc_setup_intr),
+	DEVMETHOD(bus_teardown_intr,	fhc_teardown_intr),
+	DEVMETHOD(bus_alloc_resource,	fhc_alloc_resource),
+	DEVMETHOD(bus_release_resource,	bus_generic_rl_release_resource),
+	DEVMETHOD(bus_activate_resource, bus_generic_activate_resource),
+	DEVMETHOD(bus_deactivate_resource, bus_generic_deactivate_resource),
+	DEVMETHOD(bus_get_resource_list, fhc_get_resource_list),
+	DEVMETHOD(bus_get_resource,	bus_generic_rl_get_resource),
+
+	/* ofw_bus interface */
+	DEVMETHOD(ofw_bus_get_devinfo,	fhc_get_devinfo),
+	DEVMETHOD(ofw_bus_get_compat,	ofw_bus_gen_get_compat),
+	DEVMETHOD(ofw_bus_get_model,	ofw_bus_gen_get_model),
+	DEVMETHOD(ofw_bus_get_name,	ofw_bus_gen_get_name),
+	DEVMETHOD(ofw_bus_get_node,	ofw_bus_gen_get_node),
+	DEVMETHOD(ofw_bus_get_type,	ofw_bus_gen_get_type),
+
+	{ NULL, NULL }
+};
+
+static driver_t fhc_driver = {
+	"fhc",
+	fhc_methods,
+	sizeof(struct fhc_softc),
+};
+
+static devclass_t fhc_devclass;
+
+DRIVER_MODULE(fhc, central, fhc_driver, fhc_devclass, 0, 0);
+DRIVER_MODULE(fhc, nexus, fhc_driver, fhc_devclass, 0, 0);
+
+static int
 fhc_probe(device_t dev)
 {
 
-	return (0);
+	if (strcmp(ofw_bus_get_name(dev), "fhc") == 0) {
+		device_set_desc(dev, "fhc");
+		return (0);
+	}
+	return (ENXIO);
 }
 
-int
+static int
 fhc_attach(device_t dev)
 {
 	char ledname[sizeof("boardXX")];
@@ -83,16 +153,48 @@ fhc_attach(device_t dev)
 	phandle_t child;
 	phandle_t node;
 	device_t cdev;
+	uint32_t board;
 	uint32_t ctrl;
 	uint32_t *intr;
 	uint32_t iv;
 	char *name;
+	int error;
+	int i;
 	int nintr;
 	int nreg;
-	int i;
+	int rid;
 
 	sc = device_get_softc(dev);
-	node = sc->sc_node;
+	node = ofw_bus_get_node(dev);
+
+	if (strcmp(device_get_name(device_get_parent(dev)), "central") == 0)
+		sc->sc_flags |= FHC_CENTRAL;
+
+	for (i = 0; i < FHC_NREG; i++) {
+		rid = i;
+		sc->sc_memres[i] = bus_alloc_resource_any(dev, SYS_RES_MEMORY,
+		    &rid, RF_ACTIVE);
+		if (sc->sc_memres[i] == NULL) {
+			device_printf(dev, "cannot allocate resource %d\n", i);
+			error = ENXIO;
+			goto fail_memres;
+		}
+		sc->sc_bt[i] = rman_get_bustag(sc->sc_memres[i]);
+		sc->sc_bh[i] = rman_get_bushandle(sc->sc_memres[i]);
+	}
+
+	if ((sc->sc_flags & FHC_CENTRAL) != 0) {
+		board = bus_space_read_4(sc->sc_bt[FHC_INTERNAL],
+		    sc->sc_bh[FHC_INTERNAL], FHC_BSR);
+		sc->sc_board = ((board >> 16) & 0x1) | ((board >> 12) & 0xe);
+	} else {
+		if (OF_getprop(node, "board#", &sc->sc_board,
+		    sizeof(sc->sc_board)) == -1) {
+			device_printf(dev, "cannot get board number\n");
+			error = ENXIO;
+			goto fail_memres;
+		}
+	}
 
 	device_printf(dev, "board %d, ", sc->sc_board);
 	if (OF_getprop_alloc(node, "board-model", 1, (void **)&name) != -1) {
@@ -125,8 +227,9 @@ fhc_attach(device_t dev)
 	sc->sc_nrange = OF_getprop_alloc(node, "ranges",
 	    sizeof(*sc->sc_ranges), (void **)&sc->sc_ranges);
 	if (sc->sc_nrange == -1) {
-		device_printf(dev, "can't get ranges\n");
-		return (ENXIO);
+		device_printf(dev, "cannot get ranges\n");
+		error = ENXIO;
+		goto fail_memres;
 	}
 
 	if ((sc->sc_flags & FHC_CENTRAL) == 0) {
@@ -179,9 +282,16 @@ fhc_attach(device_t dev)
 	}
 
 	return (bus_generic_attach(dev));
+
+ fail_memres:
+	for (i = 0; i < FHC_NREG; i++)
+		if (sc->sc_memres[i] != NULL)
+			bus_release_resource(dev, SYS_RES_MEMORY,
+			    rman_get_rid(sc->sc_memres[i]), sc->sc_memres[i]);
+ 	return (error);
 }
 
-int
+static int
 fhc_print_child(device_t dev, device_t child)
 {
 	int rv;
@@ -192,7 +302,7 @@ fhc_print_child(device_t dev, device_t child)
 	return (rv);
 }
 
-void
+static void
 fhc_probe_nomatch(device_t dev, device_t child)
 {
 	const char *type;
@@ -204,7 +314,7 @@ fhc_probe_nomatch(device_t dev, device_t child)
 	    type != NULL ? type : "unknown");
 }
 
-int
+static int
 fhc_setup_intr(device_t bus, device_t child, struct resource *r, int flags,
     driver_filter_t *filt, driver_intr_t *func, void *arg, void **cookiep)
 {
@@ -269,7 +379,7 @@ fhc_setup_intr(device_t bus, device_t child, struct resource *r, int flags,
 	return (error);
 }
 
-int
+static int
 fhc_teardown_intr(device_t bus, device_t child, struct resource *r,
     void *cookie)
 {
@@ -295,7 +405,7 @@ fhc_intr_stub(void *arg)
 	return (FILTER_HANDLED);
 }
 
-struct resource *
+static struct resource *
 fhc_alloc_resource(device_t bus, device_t child, int type, int *rid,
     u_long start, u_long end, u_long count, u_int flags)
 {
@@ -354,7 +464,7 @@ fhc_alloc_resource(device_t bus, device_t child, int type, int *rid,
 	return (res);
 }
 
-struct resource_list *
+static struct resource_list *
 fhc_get_resource_list(device_t bus, device_t child)
 {
 	struct fhc_devinfo *fdi;
@@ -363,7 +473,7 @@ fhc_get_resource_list(device_t bus, device_t child)
 	return (&fdi->fdi_rl);
 }
 
-const struct ofw_bus_devinfo *
+static const struct ofw_bus_devinfo *
 fhc_get_devinfo(device_t bus, device_t child)
 {
 	struct fhc_devinfo *fdi;
