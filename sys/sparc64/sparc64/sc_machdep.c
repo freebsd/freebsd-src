@@ -36,10 +36,9 @@ __FBSDID("$FreeBSD$");
 #include <sys/limits.h>
 #include <sys/module.h>
 
-#include <dev/ofw/openfirm.h>
+#include <dev/ofw/ofw_bus.h>
 
 #include <machine/bus.h>
-#include <machine/nexusvar.h>
 
 #include <dev/syscons/syscons.h>
 
@@ -88,7 +87,7 @@ sc_probe(device_t dev)
 	int unit;
 
 	unit = device_get_unit(dev);
-	if (strcmp(nexus_get_name(dev), SC_DRIVER_NAME) != 0 ||
+	if (strcmp(ofw_bus_get_name(dev), SC_DRIVER_NAME) != 0 ||
 	    unit >= SC_MD_MAX)
 		return (ENXIO);
 

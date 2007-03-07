@@ -39,8 +39,6 @@ __FBSDID("$FreeBSD$");
 #include <dev/ofw/openfirm.h>
 
 #include <machine/bus.h>
-#include <machine/nexusvar.h>
-#include <machine/ofw_upa.h>
 #include <machine/resource.h>
 
 #include <sys/rman.h>
@@ -68,14 +66,14 @@ static ofw_bus_get_devinfo_t central_get_devinfo;
 static int central_print_res(struct central_devinfo *);
 
 static device_method_t central_methods[] = {
-	/* Device interface. */
+	/* Device interface */
 	DEVMETHOD(device_probe,		central_probe),
 	DEVMETHOD(device_attach,	central_attach),
 	DEVMETHOD(device_shutdown,	bus_generic_shutdown),
 	DEVMETHOD(device_suspend,	bus_generic_suspend),
 	DEVMETHOD(device_resume,	bus_generic_resume),
 
-	/* Bus interface. */
+	/* Bus interface */
 	DEVMETHOD(bus_print_child,	central_print_child),
 	DEVMETHOD(bus_probe_nomatch,	central_probe_nomatch),
 	DEVMETHOD(bus_setup_intr,	bus_generic_setup_intr),
@@ -112,7 +110,7 @@ static int
 central_probe(device_t dev)
 {
 
-	if (strcmp(nexus_get_name(dev), "central") == 0) {
+	if (strcmp(ofw_bus_get_name(dev), "central") == 0) {
 		device_set_desc(dev, "central");
 		return (0);
 	}
@@ -132,7 +130,7 @@ central_attach(device_t dev)
 	int i;
 
 	sc = device_get_softc(dev);
-	node = nexus_get_node(dev);
+	node = ofw_bus_get_node(dev);
 
 	sc->sc_nrange = OF_getprop_alloc(node, "ranges",
 	    sizeof(*sc->sc_ranges), (void **)&sc->sc_ranges);

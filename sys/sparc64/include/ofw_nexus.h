@@ -31,24 +31,24 @@
  * $FreeBSD$
  */
 
-#ifndef _MACHINE_OFW_UPA_H_
-#define _MACHINE_OFW_UPA_H_
+#ifndef _MACHINE_OFW_NEXUS_H_
+#define	_MACHINE_OFW_NEXUS_H_
 
 /*
- * These are the regs and ranges property the psycho uses. They should be
- * applicable to all UPA devices. XXX: verify this.
+ * These are the regs used for devices on the nexus. They apply to all of
+ * Fireplane/Safari, JBus and UPA.
  */
 
-struct upa_regs {
-	u_int32_t	phys_hi;
-	u_int32_t	phys_lo;
-	u_int32_t	size_hi;
-	u_int32_t	size_lo;
+struct nexus_regs {
+	uint32_t	phys_hi;
+	uint32_t	phys_lo;
+	uint32_t	size_hi;
+	uint32_t	size_lo;
 };
 
-#define	UPA_REG_PHYS(r) \
-	(((u_int64_t)(r)->phys_hi << 32) | (u_int64_t)(r)->phys_lo)
-#define	UPA_REG_SIZE(r) \
-	(((u_int64_t)(r)->size_hi << 32) | (u_int64_t)(r)->size_lo)
+#define	NEXUS_REG_PHYS(r) \
+	(((uint64_t)(r)->phys_hi << 32) | (uint64_t)(r)->phys_lo)
+#define	NEXUS_REG_SIZE(r) \
+	(((uint64_t)(r)->size_hi << 32) | (uint64_t)(r)->size_lo)
 
-#endif /* !_MACHINE_OFW_UPA_H_ */
+#endif /* !_MACHINE_OFW_NEXUS_H_ */
