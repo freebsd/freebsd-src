@@ -159,10 +159,12 @@ void	_mtx_assert(struct mtx *m, int what, const char *file, int line);
 	int contested = 0;						\
 	uint64_t waittime = 0;						\
 	if (!_obtain_lock((mp), _tid)) {				\
-		lock_profile_obtain_lock_failed(&(mp)->mtx_object, &contested, &waittime); \
+		lock_profile_obtain_lock_failed(&(mp)->mtx_object,	\
+		    &contested, &waittime);				\
 		_mtx_lock_sleep((mp), _tid, (opts), (file), (line));	\
 	}								\
-	lock_profile_obtain_lock_success(&(mp)->mtx_object, contested, waittime, file, line); \
+	lock_profile_obtain_lock_success(&(mp)->mtx_object, contested,	\
+	    waittime, (file), (line));					\
 } while (0)
 #endif
 
@@ -184,11 +186,13 @@ void	_mtx_assert(struct mtx *m, int what, const char *file, int line);
 		if ((mp)->mtx_lock == _tid)				\
 			(mp)->mtx_recurse++;				\
 		else {							\
-			lock_profile_obtain_lock_failed(&(mp)->mtx_object, &contested, &waittime); \
+			lock_profile_obtain_lock_failed(&(mp)->mtx_object, \
+			    &contested, &waittime);			\
 			_mtx_lock_spin((mp), _tid, (opts), (file), (line)); \
 		}							\
 	}								\
-	lock_profile_obtain_lock_success(&(mp)->mtx_object, contested, waittime, file, line); \
+	lock_profile_obtain_lock_success(&(mp)->mtx_object, contested,	\
+	    waittime, (file), (line));					\
 } while (0)
 #else /* SMP */
 #define _get_spin_lock(mp, tid, opts, file, line) do {			\

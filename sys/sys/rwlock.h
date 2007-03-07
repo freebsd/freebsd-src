@@ -101,10 +101,12 @@
         uint64_t waitstart = 0;                                         \
 						                        \
 	if (!_rw_write_lock((rw), _tid)) {				\
-		lock_profile_obtain_lock_failed(&(rw)->rw_object, &contested, &waitstart); \
+		lock_profile_obtain_lock_failed(&(rw)->rw_object,	\
+		    &contested, &waitstart);				\
 		_rw_wlock_hard((rw), _tid, (file), (line));		\
 	}                                                               \
-	lock_profile_obtain_lock_success(&rw->rw_object, contested, waitstart, file, line); \
+	lock_profile_obtain_lock_success(&(rw)->rw_object, contested,	\
+	    waitstart, (file), (line));					\
 } while (0)
 
 /* Release a write lock. */
