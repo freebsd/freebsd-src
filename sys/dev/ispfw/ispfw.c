@@ -41,6 +41,7 @@ __FBSDID("$FreeBSD$");
 #include <dev/ispfw/asm_2200.h>
 #include <dev/ispfw/asm_2300.h>
 #include <dev/ispfw/asm_2322.h>
+#include <dev/ispfw/asm_2400.h>
 #if	_MACHINE_ARCH == sparc64
 #include <dev/ispfw/asm_1000.h>
 #endif
@@ -60,6 +61,8 @@ __FBSDID("$FreeBSD$");
 #define	PCI_PRODUCT_QLOGIC_ISP6312	0x6312
 #define	PCI_PRODUCT_QLOGIC_ISP2322	0x2322
 #define	PCI_PRODUCT_QLOGIC_ISP6322	0x6322
+#define	PCI_PRODUCT_QLOGIC_ISP2422	0x2422
+#define	PCI_PRODUCT_QLOGIC_ISP2432	0x2432
 #if	_MACHINE_ARCH == sparc64
 #define	SBUS_PRODUCT_QLOGIC_ISP1000	0x1000
 #endif
@@ -138,6 +141,10 @@ isp_get_firmware(int version, int tgtmode, int devid, const u_int16_t **ptrp)
 		case PCI_PRODUCT_QLOGIC_ISP2322:
 		case PCI_PRODUCT_QLOGIC_ISP6322:
 			rp = isp_2322_risc_code;
+			break;
+		case PCI_PRODUCT_QLOGIC_ISP2422:
+		case PCI_PRODUCT_QLOGIC_ISP2432:
+			rp = (const u_int16_t *) isp_2400_risc_code;
 			break;
 #if	_MACHINE_ARCH == sparc64
 		case SBUS_PRODUCT_QLOGIC_ISP1000:
