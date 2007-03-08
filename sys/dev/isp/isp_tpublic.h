@@ -53,6 +53,8 @@ typedef enum {
  */
 typedef enum {
     QIN_HBA_REG=99,     /* the argument is a pointer to a hba_register_t */
+    QIN_GETINFO,        /* the argument is a pointer to a info_t */
+    QIN_SETINFO,        /* the argument is a pointer to a info_t */
     QIN_ENABLE,         /* the argument is a pointer to a enadis_t */
     QIN_DISABLE,        /* the argument is a pointer to a enadis_t */
     QIN_TMD_CONT,       /* the argument is a pointer to a tmd_cmd_t */
@@ -71,15 +73,41 @@ typedef enum {
  * in, and the external module to call back with a QIN_HBA_REG that
  * passes back the corresponding information.
  */
-#define    QR_VERSION    10
+#define    QR_VERSION    15
 typedef struct {
+    /* NB: tags from here to r_version must never change */
     void *                  r_identity;
     void                    (*r_action)(qact_e, void *);
     char                    r_name[8];
     int                     r_inst;
     int                     r_version;
-    enum { R_FC, R_SCSI }   r_type;
+    uint32_t                r_locator;
+    uint32_t                r_nchannels;
+    enum { R_FC, R_SPI }    r_type;
+    void *                  r_private;
 } hba_register_t;
+
+/*
+ * An information structure that is used to get or set per-channel
+ * transport layer parameters.
+ */
+typedef struct {
+    void *                  i_identity;
+    enum { I_FC, I_SPI }    i_type;
+    int                     i_channel;
+    int                     i_error;
+    union {
+        struct {
+            uint64_t    wwnn_nvram;
+            uint64_t    wwpn_nvram;
+            uint64_t    wwnn;
+            uint64_t    wwpn;
+        } fc;
+        struct {
+            int         iid;
+        } spi;
+    }                       i_id;
+} info_t;
 
 /*
  * Notify structure
@@ -104,8 +132,10 @@ typedef struct tmd_notify {
     uint64_t    nt_iid;         /* inititator id */
     uint64_t    nt_tgt;         /* target id */
     uint16_t    nt_lun;         /* logical unit */
-    uint16_t    nt_padding;     /* padding */
-    uint32_t    nt_tagval;      /* tag value */
+    uint16_t                : 15,
+                nt_need_ack : 1;    /* this notify needs an ACK */
+    uint64_t    nt_tagval;      /* tag value */
+    uint32_t    nt_channel;     /* channel id */
     tmd_ncode_t nt_ncode;       /* action */
     void *      nt_lreserved;
     void *      nt_hreserved;
@@ -113,7 +143,7 @@ typedef struct tmd_notify {
 #define LUN_ANY     0xffff
 #define TGT_ANY     ((uint64_t) -1)
 #define INI_ANY     ((uint64_t) -1)
-#define TAG_ANY     0
+#define TAG_ANY     ((uint64_t) 0)
 #define MATCH_TMD(tmd, iid, lun, tag)                   \
     (                                                   \
         (tmd) &&                                        \
@@ -251,7 +281,7 @@ typedef struct {
 #define    TMD_SENSELEN     18
 #endif
 #ifndef    QCDS
-#define    QCDS             8
+#define    QCDS             (sizeof (void *))
 #endif
 
 typedef struct tmd_cmd {
@@ -260,16 +290,16 @@ typedef struct tmd_cmd {
     void *              cd_data;    /* 'pointer' to data */
     uint64_t            cd_iid;     /* initiator ID */
     uint64_t            cd_tgt;     /* target id */
-    uint64_t            cd_lun;     /* logical unit */
-    uint32_t            cd_tagval;  /* tag value */
+    uint8_t             cd_lun[8];  /* logical unit */
+    uint64_t            cd_tagval;  /* tag value */
+    uint32_t            cd_channel; /* channel index */
     uint32_t            cd_lflags;  /* flags lower level sets */
     uint32_t            cd_hflags;  /* flags higher level sets */
     uint32_t            cd_totlen;  /* total data load */
     uint32_t            cd_resid;   /* total data residual */
     uint32_t            cd_xfrlen;  /* current data load */
     int32_t             cd_error;   /* current error */
-    uint8_t     cd_tagtype      : 4,
-                cd_port         : 4;    /* port number on HBA */
+    uint8_t             cd_tagtype; /* tag type */
     uint8_t             cd_scsi_status;
     uint8_t             cd_sense[TMD_SENSELEN];
     uint8_t             cd_cdb[TMD_CDBLEN];
@@ -279,7 +309,7 @@ typedef struct tmd_cmd {
         uint32_t        longs[QCDS / sizeof (uint32_t)];
         uint16_t        shorts[QCDS / sizeof (uint16_t)];
         uint8_t         bytes[QCDS];
-    } cd_lreserved[3], cd_hreserved[3];
+    } cd_lreserved[4], cd_hreserved[4];
 } tmd_cmd_t;
 
 /* defined tags */
@@ -292,6 +322,21 @@ typedef struct tmd_cmd {
 #ifndef    TMD_SIZE
 #define    TMD_SIZE     (sizeof (tmd_cmd_t))
 #endif
+
+#define L0LUN_TO_FLATLUN(lptr)              ((((lptr)[0] & 0x3f) << 8) | ((lptr)[1]))
+#define FLATLUN_TO_L0LUN(lptr, lun)                 \
+    (lptr)[1] = lun;                                \
+    if (sizeof (lun) == 1) {                        \
+        (lptr)[0] = 0;                              \
+    } else {                                        \
+        int nl = (lun);                             \
+        if (nl < 256) {                             \
+            (lptr)[0] = 0;                          \
+        } else {                                    \
+            (lptr)[0] = 0x40 | ((nl >> 8) & 0x3f);  \
+        }                                           \
+    }                                               \
+    memset(&(lptr)[2], 0, 6)
 
 /*
  * Note that NODISC (obviously) doesn't apply to non-SPI transport.
