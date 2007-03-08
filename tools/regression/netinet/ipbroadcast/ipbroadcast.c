@@ -36,6 +36,8 @@ __FBSDID("$FreeBSD$");
 #include <sys/ioctl.h>
 #include <sys/socket.h>
 
+#include <net/if.h>
+#include <net/if_dl.h>
 #include <netinet/in.h>
 #include <arpa/inet.h>
 
@@ -54,10 +56,17 @@ __FBSDID("$FreeBSD$");
 #include <netdb.h>
 #include <libgen.h>
 
+#ifndef IP_SENDIF
+#define IP_SENDIF	24		/* XXX */
+#endif
+
 #define DEFAULT_PORT		6698
 #define DEFAULT_PAYLOAD_SIZE	24
 #define DEFAULT_TTL		1
-#define MY_CMSG_SIZE	CMSG_SPACE(sizeof(struct in_addr))
+
+#define MY_CMSG_SIZE				\
+	CMSG_SPACE(sizeof(struct in_addr)) +	\
+	CMSG_SPACE(sizeof(struct sockaddr_dl))
 
 static char *progname = NULL;
 
@@ -66,8 +75,8 @@ usage(void)
 {
 
 	fprintf(stderr,
-"usage: %s [-1] [-b] [-B] [-d] [-l len] [-p port] [-r] [-s srcaddr] [-t ttl]\n"
-"    <dest>\n",
+"usage: %s [-1] [-b] [-B] [-d] [-i iface] [-l len] [-p port] [-r]\n"
+"    [-s srcaddr] [-t ttl] <dest>\n",
 	    progname);
 	fprintf(stderr, "IPv4 broadcast test program. Sends a %d byte UDP "
 	        "datagram to <dest>:<port>.\n", DEFAULT_PAYLOAD_SIZE);
@@ -75,12 +84,13 @@ usage(void)
 	fprintf(stderr, "-b: bind socket to INADDR_ANY:<sport>\n");
 	fprintf(stderr, "-B: Set SO_BROADCAST\n");
 	fprintf(stderr, "-d: Set SO_DONTROUTE\n");
-#if 0
-	fprintf(stderr, "-r: Fill datagram with random bytes\n");
-#endif
+	fprintf(stderr, "-i: Set IP_SENDIF <iface>\n");
 	fprintf(stderr, "-l: Set payload size to <len>\n");
 	fprintf(stderr, "-p: Set source and destination port (default: %d)\n",
 	    DEFAULT_PORT);
+#if 0
+	fprintf(stderr, "-r: Fill datagram with random bytes\n");
+#endif
 	fprintf(stderr, "-s: Set IP_SENDSRCADDR to <srcaddr>\n");
 	fprintf(stderr, "-t: Set IP_TTL to <ttl>\n");
 
@@ -95,9 +105,11 @@ main(int argc, char *argv[])
 	struct iovec		 iov[1];
 	struct msghdr		 msg;
 	struct sockaddr_in	 dsin;
+	struct sockaddr_dl	*sdl;
 	struct cmsghdr		*cmsgp;
 	struct in_addr		 dstaddr;
 	struct in_addr		*srcaddrp;
+	char			*ifname;
 	char			*srcaddr_s;
 	int			 ch;
 	int			 dobind;
@@ -120,6 +132,7 @@ main(int argc, char *argv[])
 	doonesbcast = 0;
 	dorandom = 0;
 
+	ifname = NULL;
 	dstaddr.s_addr = INADDR_ANY;
 	srcaddr_s = NULL;
 	portno = DEFAULT_PORT;
@@ -129,7 +142,7 @@ main(int argc, char *argv[])
 	buflen = DEFAULT_PAYLOAD_SIZE;
 
 	progname = basename(argv[0]);
-	while ((ch = getopt(argc, argv, "1bBdl:p:rs:t:")) != -1) {
+	while ((ch = getopt(argc, argv, "1bBdi:l:p:rs:t:")) != -1) {
 		switch (ch) {
 		case '1':
 			doonesbcast = 1;
@@ -142,6 +155,9 @@ main(int argc, char *argv[])
 			break;
 		case 'd':
 			dontroute = 1;
+			break;
+		case 'i':
+			ifname = optarg;
 			break;
 		case 'l':
 			buflen = atoi(optarg);
@@ -169,6 +185,9 @@ main(int argc, char *argv[])
 	if (argc != 1)
 		usage();
 	if (argv[0] == NULL || inet_aton(argv[0], &dstaddr) == 0)
+		usage();
+	/* IP_SENDSRCADDR and IP_SENDIF are mutually exclusive just now. */
+	if (srcaddr_s != NULL && ifname != NULL)
 		usage();
 	s = socket(PF_INET, SOCK_DGRAM, IPPROTO_UDP);
 	if (s == -1) {
@@ -257,10 +276,14 @@ main(int argc, char *argv[])
 	msg.msg_iov = iov;
 	msg.msg_iovlen = 1;
 
+	/* Assume we fill out a control msg; macros need to see buf ptr */
+	msg.msg_control = cmsgbuf;
+	msg.msg_controllen = 0;
+	memset(cmsgbuf, 0, MY_CMSG_SIZE);
+
+	/* IP_SENDSRCADDR and IP_SENDIF are mutually exclusive just now. */
 	if (srcaddr_s != NULL) {
-		memset(cmsgbuf, 0, MY_CMSG_SIZE);
-		msg.msg_control = cmsgbuf;
-		msg.msg_controllen = sizeof(cmsgbuf);
+		msg.msg_controllen += CMSG_SPACE(sizeof(struct in_addr));
 		cmsgp = CMSG_FIRSTHDR(&msg);
 		cmsgp->cmsg_len = CMSG_LEN(sizeof(struct in_addr));
 		cmsgp->cmsg_level = IPPROTO_IP;
@@ -268,6 +291,41 @@ main(int argc, char *argv[])
 		srcaddrp = (struct in_addr *)CMSG_DATA(cmsgp);
 		srcaddrp->s_addr = inet_addr(srcaddr_s);
 	}
+
+	if (ifname != NULL) {
+#ifdef IP_SENDIF
+		msg.msg_controllen += CMSG_SPACE(sizeof(struct sockaddr_dl));
+		cmsgp = CMSG_FIRSTHDR(&msg);
+		cmsgp->cmsg_len = CMSG_LEN(sizeof(struct sockaddr_dl));
+		cmsgp->cmsg_level = IPPROTO_IP;
+		cmsgp->cmsg_type = IP_SENDIF;
+
+#ifdef DIAGNOSTIC
+		fprintf(stderr, "DEBUG: cmsgp->cmsg_len is %d\n",
+		    cmsgp->cmsg_len);
+#endif
+
+		sdl = (struct sockaddr_dl *)CMSG_DATA(cmsgp);
+		memset(sdl, 0, sizeof(struct sockaddr_dl));
+		sdl->sdl_family = AF_LINK;
+		sdl->sdl_len = sizeof(struct sockaddr_dl);
+		sdl->sdl_index = if_nametoindex(ifname);
+
+#ifdef DIAGNOSTIC
+		fprintf(stderr, "DEBUG: sdl->sdl_family is %d\n",
+		    sdl->sdl_family);
+		fprintf(stderr, "DEBUG: sdl->sdl_len is %d\n",
+		    sdl->sdl_len);
+		fprintf(stderr, "DEBUG: sdl->sdl_index is %d\n",
+		    sdl->sdl_index);
+#endif
+#else
+		fprintf(stderr, "WARNING: IP_SENDIF not supported, ignored.\n");
+#endif
+	}
+
+	if (msg.msg_controllen == 0)
+		msg.msg_control = NULL;
 
 	nbytes = sendmsg(s, &msg, (dontroute ? MSG_DONTROUTE : 0));
 	if (nbytes == -1) {
