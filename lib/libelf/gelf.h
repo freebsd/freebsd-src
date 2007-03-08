@@ -56,6 +56,22 @@ typedef Elf64_Move	GElf_Move;	/* Move entries */
 typedef Elf64_Syminfo	GElf_Syminfo;	/* Symbol information */
 #endif
 
+#define	GELF_M_INFO			ELF64_M_INFO
+#define	GELF_M_SIZE			ELF64_M_SIZE
+#define	GELF_M_SYM			ELF64_M_SYM
+
+#define	GELF_R_INFO			ELF64_R_INFO
+#define	GELF_R_SYM			ELF64_R_SYM
+#define	GELF_R_TYPE			ELF64_R_TYPE
+#define	GELF_R_TYPE_DATA		ELF64_R_TYPE_DATA
+#define	GELF_R_TYPE_ID			ELF64_R_TYPE_ID
+#define	GELF_R_TYPE_INFO		ELF64_R_TYPE_INFO
+
+#define	GELF_ST_BIND			ELF64_ST_BIND
+#define	GELF_ST_INFO			ELF64_ST_INFO
+#define	GELF_ST_TYPE			ELF64_ST_TYPE
+#define	GELF_ST_VISIBILITY		ELF64_ST_VISIBILITY
+
 __BEGIN_DECLS
 long		gelf_checksum(Elf *_elf);
 size_t		gelf_fsize(Elf *_elf, Elf_Type _type, size_t _count,
