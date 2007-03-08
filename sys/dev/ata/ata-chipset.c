@@ -503,62 +503,48 @@ ata_ahci_status(device_t dev)
 {
     struct ata_pci_controller *ctlr = device_get_softc(device_get_parent(dev));
     struct ata_channel *ch = device_get_softc(dev);
-    struct ata_connect_task *tp;
-    u_int32_t action, istatus, sstatus, error, issued;
+    u_int32_t action = ATA_INL(ctlr->r_res2, ATA_AHCI_IS);
     int offset = ch->unit << 7;
     int tag = 0;
 
-    action = ATA_INL(ctlr->r_res2, ATA_AHCI_IS);
     if (action & (1 << ch->unit)) {
-	istatus = ATA_INL(ctlr->r_res2, ATA_AHCI_P_IS + offset);
-	issued = ATA_INL(ctlr->r_res2, ATA_AHCI_P_CI + offset);
-	sstatus = ATA_INL(ctlr->r_res2, ATA_AHCI_P_SSTS + offset);
-	error = ATA_INL(ctlr->r_res2, ATA_AHCI_P_SERR + offset);
+	u_int32_t istatus = ATA_INL(ctlr->r_res2, ATA_AHCI_P_IS + offset);
+	u_int32_t status = ATA_IDX_INL(ch, ATA_SSTATUS);
+	u_int32_t error = ATA_IDX_INL(ch, ATA_SERROR);
 
 	/* clear interrupt(s) */
-	ATA_OUTL(ctlr->r_res2, ATA_AHCI_IS, action);
+	ATA_OUTL(ctlr->r_res2, ATA_AHCI_IS, action & (1 << ch->unit));
 	ATA_OUTL(ctlr->r_res2, ATA_AHCI_P_IS + offset, istatus);
-	ATA_OUTL(ctlr->r_res2, ATA_AHCI_P_SERR + offset, error);
+	ATA_IDX_OUTL(ch, ATA_SERROR, error);
 
-	/* do we have cold connect surprise */
-	if (istatus & ATA_AHCI_P_IX_CPD) {
-	    printf("ata_ahci_status status=%08x sstatus=%08x error=%08x\n",
-		   istatus, sstatus, error);
-	}
+	if (error) {
+	    struct ata_connect_task *tp;
 
-	/* check for and handle connect events */
-	if ((istatus & ATA_AHCI_P_IX_PC) &&
-	    (tp = (struct ata_connect_task *)
-		  malloc(sizeof(struct ata_connect_task),
-			 M_ATA, M_NOWAIT | M_ZERO))) {
+	    /* if we have a connection event deal with it */
+	    if ((error & ATA_SE_PHY_CHANGED) &&
+		(tp = (struct ata_connect_task *)
+		      malloc(sizeof(struct ata_connect_task),
+			     M_ATA, M_NOWAIT | M_ZERO))) {
 
-	    if (bootverbose)
-		device_printf(ch->dev, "CONNECT requested\n");
-	    tp->action = ATA_C_ATTACH;
-	    tp->dev = ch->dev;
-	    TASK_INIT(&tp->task, 0, ata_sata_phy_event, tp);
-	    taskqueue_enqueue(taskqueue_thread, &tp->task);
-	}
-
-	/* check for and handle disconnect events */
-	else if ((istatus & ATA_AHCI_P_IX_PRC) && 
-	    !((sstatus & ATA_SS_CONWELL_MASK) == ATA_SS_CONWELL_GEN1 ||
-	      (sstatus & ATA_SS_CONWELL_MASK) == ATA_SS_CONWELL_GEN2) &&
-	    (tp = (struct ata_connect_task *)
-		  malloc(sizeof(struct ata_connect_task),
-		       M_ATA, M_NOWAIT | M_ZERO))) {
-
-	    if (bootverbose)
-		device_printf(ch->dev, "DISCONNECT requested\n");
-	    tp->action = ATA_C_DETACH;
-	    tp->dev = ch->dev;
-	    TASK_INIT(&tp->task, 0, ata_sata_phy_event, tp);
-	    taskqueue_enqueue(taskqueue_thread, &tp->task);
+		if (((status & ATA_SS_CONWELL_MASK) == ATA_SS_CONWELL_GEN1) ||
+		    ((status & ATA_SS_CONWELL_MASK) == ATA_SS_CONWELL_GEN2)) {
+		    if (bootverbose)
+			device_printf(ch->dev, "CONNECT requested\n");
+		    tp->action = ATA_C_ATTACH;
+		}
+		else {
+		    if (bootverbose)
+			device_printf(ch->dev, "DISCONNECT requested\n");
+		    tp->action = ATA_C_DETACH;
+		}
+		tp->dev = ch->dev;
+		TASK_INIT(&tp->task, 0, ata_sata_phy_event, tp);
+		taskqueue_enqueue(taskqueue_thread, &tp->task);
+	    }
 	}
 
 	/* do we have any device action ? */
-	if (!(issued & (1 << tag)))
-	    return 1;
+	return (!(ATA_INL(ctlr->r_res2, ATA_AHCI_P_CI + offset) & (1 << tag)));
     }
     return 0;
 }
