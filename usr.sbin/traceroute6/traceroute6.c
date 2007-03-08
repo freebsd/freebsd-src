@@ -373,6 +373,7 @@ main(argc, argv)
 	u_long probe, hops, lport;
 	struct hostent *hp;
 	size_t size;
+	uid_t uid;
 
 	/*
 	 * Receive ICMP
@@ -383,8 +384,11 @@ main(argc, argv)
 	}
 
 	/* revoke privs */
-	seteuid(getuid());
-	setuid(getuid());
+	uid = getuid();
+	if (setresuid(uid, uid, uid) == -1) {
+		perror("setresuid");
+		exit(1);
+	}
 
 	size = sizeof(i);
 	(void) sysctl(mib, sizeof(mib)/sizeof(mib[0]), &i, &size, NULL, 0);
