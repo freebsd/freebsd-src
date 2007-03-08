@@ -74,19 +74,20 @@ static void
 usage(void)
 {
 
-	fprintf(stderr,
-"usage: %s [-1] [-b] [-B] [-d] [-i iface] [-l len] [-p port] [-r]\n"
-"    [-s srcaddr] [-t ttl] <dest>\n",
-	    progname);
 	fprintf(stderr, "IPv4 broadcast test program. Sends a %d byte UDP "
-	        "datagram to <dest>:<port>.\n", DEFAULT_PAYLOAD_SIZE);
+	        "datagram to <dest>:<port>.\n\n", DEFAULT_PAYLOAD_SIZE);
+	fprintf(stderr,
+"usage: %s [-1] [-A laddr] [-b] [-B] [-d] [-i iface] [-l len]\n"
+"                   [-p port] [-r] [-s srcaddr] [-t ttl] <dest>\n",
+	    progname);
 	fprintf(stderr, "-1: Set IP_ONESBCAST\n");
-	fprintf(stderr, "-b: bind socket to INADDR_ANY:<sport>\n");
+	fprintf(stderr, "-A: specify laddr (default: INADDR_ANY)\n");
+	fprintf(stderr, "-b: bind socket to <laddr>:<lport>\n");
 	fprintf(stderr, "-B: Set SO_BROADCAST\n");
 	fprintf(stderr, "-d: Set SO_DONTROUTE\n");
-	fprintf(stderr, "-i: Set IP_SENDIF <iface>\n");
+	fprintf(stderr, "-i: Set IP_SENDIF <iface> (if supported)\n");
 	fprintf(stderr, "-l: Set payload size to <len>\n");
-	fprintf(stderr, "-p: Set source and destination port (default: %d)\n",
+	fprintf(stderr, "-p: Set local and remote port (default: %d)\n",
 	    DEFAULT_PORT);
 #if 0
 	fprintf(stderr, "-r: Fill datagram with random bytes\n");
@@ -105,11 +106,13 @@ main(int argc, char *argv[])
 	struct iovec		 iov[1];
 	struct msghdr		 msg;
 	struct sockaddr_in	 dsin;
+	struct sockaddr_in	 laddr;
 	struct sockaddr_dl	*sdl;
 	struct cmsghdr		*cmsgp;
 	struct in_addr		 dstaddr;
 	struct in_addr		*srcaddrp;
 	char			*ifname;
+	char			*laddr_s;
 	char			*srcaddr_s;
 	int			 ch;
 	int			 dobind;
@@ -134,6 +137,7 @@ main(int argc, char *argv[])
 
 	ifname = NULL;
 	dstaddr.s_addr = INADDR_ANY;
+	laddr_s = NULL;
 	srcaddr_s = NULL;
 	portno = DEFAULT_PORT;
 	ttl = DEFAULT_TTL;
@@ -142,10 +146,13 @@ main(int argc, char *argv[])
 	buflen = DEFAULT_PAYLOAD_SIZE;
 
 	progname = basename(argv[0]);
-	while ((ch = getopt(argc, argv, "1bBdi:l:p:rs:t:")) != -1) {
+	while ((ch = getopt(argc, argv, "1A:bBdi:l:p:rs:t:")) != -1) {
 		switch (ch) {
 		case '1':
 			doonesbcast = 1;
+			break;
+		case 'A':
+			laddr_s = optarg;
 			break;
 		case 'b':
 			dobind = 1;
@@ -241,12 +248,15 @@ main(int argc, char *argv[])
 	}
 
 	if (dobind) {
-		memset(&dsin, 0, sizeof(struct sockaddr_in));
-		dsin.sin_family = AF_INET;
-		dsin.sin_len = sizeof(struct sockaddr_in);
-		dsin.sin_addr.s_addr = INADDR_ANY;
-		dsin.sin_port = htons(portno);
-		ret = bind(s, (struct sockaddr *)&dsin, sizeof(dsin));
+		memset(&laddr, 0, sizeof(struct sockaddr_in));
+		laddr.sin_family = AF_INET;
+		laddr.sin_len = sizeof(struct sockaddr_in);
+		if (laddr_s != NULL) {
+			laddr.sin_addr.s_addr = inet_addr(laddr_s);
+		} else
+			laddr.sin_addr.s_addr = INADDR_ANY;
+		laddr.sin_port = htons(portno);
+		ret = bind(s, (struct sockaddr *)&laddr, sizeof(laddr));
 		if (ret == -1) {
 			perror("bind");
 			close(s);
