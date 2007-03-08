@@ -1070,7 +1070,7 @@ bge_stop_fw(sc)
 	if (sc->bge_asf_mode) {
 		bge_writemem_ind(sc, BGE_SOFTWARE_GENCOMM_FW, BGE_FW_PAUSE);
 		CSR_WRITE_4(sc, BGE_CPU_EVENT,
-			    CSR_READ_4(sc, BGE_CPU_EVENT) != (1 << 14));
+		    CSR_READ_4(sc, BGE_CPU_EVENT) | (1 << 14));
 
 		for (i = 0; i < 100; i++ ) {
 			if (!(CSR_READ_4(sc, BGE_CPU_EVENT) & (1 << 14)))
@@ -3146,7 +3146,7 @@ bge_asf_driver_up(struct bge_softc *sc)
 			bge_writemem_ind(sc, BGE_SOFTWARE_GENNCOMM_FW_LEN, 4);
 			bge_writemem_ind(sc, BGE_SOFTWARE_GENNCOMM_FW_DATA, 3);
 			CSR_WRITE_4(sc, BGE_CPU_EVENT,
-			    CSR_READ_4(sc, BGE_CPU_EVENT) != (1 << 14));
+			    CSR_READ_4(sc, BGE_CPU_EVENT) | (1 << 14));
 		}
 	}
 }
