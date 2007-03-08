@@ -29,7 +29,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd February 6, 2006
+.Dd February 28, 2007
 .Dt ISP 4
 .Os
 .Sh NAME
@@ -69,19 +69,24 @@ and utilizes Class 3 and Class 2 connections (Qlogic 2100 is Class
 3 only, minor patches to the Qlogic 2200 to force Class 2 mode).
 Support is available for Public and Private loops, and for
 point-to-point connections (Qlogic 2200 only).
-The newer 2-Gigabit cards (2300, 2312) are also supported.
+The newer 2-Gigabit cards (2300, 2312, 2322) and 4-Gigabit (2422, 2432)
+are also supported.
 Command tagging is
 supported for all (in fact,
 .Tn FibreChannel
 requires tagging).
-Fabric support is enabled by default (but may
-be contingent upon the correct firmware being loaded).
+Fabric support is enabled by default for other than 2100 cards.
+Fabric
+support for 2100 cards has been so problematic and these cards are so
+old now that it is just not worth your time to try it.
 .Sh FIRMWARE
 Firmware is available if the
 .Xr ispfw 4
 module is loaded during bootstrap (q.v.).
 .Pp
-It is very strongly recommended that you use the firmware available
+It is
+.Ar strongly
+recommended that you use the firmware available
 from
 .Xr ispfw 4
 as it is the most likely to have been tested with this driver.
@@ -125,9 +130,13 @@ Qlogic 2312 Optical Fibre Channel PCI cards.
 .It Qlogic 234X
 Qlogic 234X Optical Fibre Channel PCI cards (2312 chipset, single and dual attach).
 .It Qlogic 2322
-Qlogic 2322 Optical Fibre Channel PCI cards.
+Qlogic 2322 Optical Fibre Channel PCIe cards.
 .It Qlogic 200
 Dell Branded version of the QLogic 2312 Fibre Channel PCI cards.
+.It Qlogic 2422
+Qlogic 2422 Optical Fibre Channel PCI cards (4 Gigabit)
+.It Qlogic 2432
+Qlogic 2432 Optical Fibre Channel PCIe cards (4 Gigabit)
 .El
 .Sh CONFIGURATION OPTIONS
 .Pp
@@ -141,40 +150,37 @@ The following options are switchable by setting values in
 .Pa /boot/device.hints .
 .Pp
 They are:
-.Pp
 .Bl -tag -width indent
 .It Va hint.isp.0.disable
 A hint value to disable driver in kernel.
 .It Va hint.isp.0.fwload_disable
 A hint value to disable loading of firmware
-.Cd ispfw(4) .
+.Xr ispfw 4 .
 .It Va hint.isp.0.prefer_memmap
-A hint value to use PCI Memory space instead of I/O space
+A hint value to use PCI memory space instead of I/O space
 access for.
 .It Va hint.isp.0.prefer_iomap
 A hint value to use PCI I/O space instead of Memory space
 access for.
 .It Va hint.isp.0.ignore_nvram
-A hint value to ignore board NVRAM settings for. Otherwise
-use NVRAM settings.
+A hint value to ignore board NVRAM settings for.
+Otherwise use NVRAM settings.
 .It Va hint.isp.0.fullduplex
 A hint value to set full duplex mode.
 .It Va hint.isp.0.topology
-A hint value to select topology of connection. Supported
-values are:
+A hint value to select topology of connection.
+Supported values are:
 .Pp
-.Cd lport
-(Prefer loopback and fallback to point to point).
-.Pp
-.Cd nport
-(Prefer point to point and fallback to loopback).
-.Pp
-.Cd lport-only
-(Loopback only).
-.Pp
-.Cd nport-only
-(Point to point only).
-.Pp
+.Bl -tag -width ".Li lport-only" -compact
+.It Li lport
+Prefer loopback and fallback to point to point.
+.It Li nport
+Prefer point to point and fallback to loopback.
+.It Li lport-only
+Loopback only.
+.It Li nport-only
+Point to point only.
+.El
 .It Va hint.isp.0.portwwn
 This should be the full 64 bit World Wide Port Name you would like
 to use, overriding the value in NVRAM for the card.
@@ -182,12 +188,36 @@ to use, overriding the value in NVRAM for the card.
 This should be the full 64 bit World Wide Node Name you would like
 to use, overriding the value in NVRAM for the card.
 .It Va hint.isp.0.iid
-A hint to override or set the Initiator ID (principally for SPI SCSI).
+A hint to override or set the Initiator ID or Loop ID.
+For Fibre Channel
+cards in Local Loop topologies it is
+.Ar strongly
+recommended that you set this value to non-zero.
 .It Va hint.isp.0.role
 A hint to define default role for isp instance (target, initiator, both).
 .It Va hint.isp.0.debug
-A hint value for a driver debug level (values from 0 through 7).
-Default is 0.
+A hint value for a driver debug level (see the file
+.Pa /usr/src/sys/dev/isp/ispvar.h
+for the values.
+.El
+.Sh SYSCTL OPTIONS
+.Pp
+.Bl -tag -width indent
+.It Va dev.isp.N.loop_down_limit
+This value says how long to wait in seconds after loop has gone down before
+giving up and expiring all of the devices that were visible.
+The default is 300 seconds (5 minutes).
+A seperate (nonadjustable) timeout is used when
+booting to not stop booting on lack of FC connectivity.
+.It Va dev.isp.N.gone_device_time
+This value says how long to wait for devices to reappear if they (temporarily)
+disappear due to loop or fabric events.
+While this timeout is running, I/O
+to those devices will simply be held.
+.It Va dev.isp.N.wwnn
+This is the readonly World Wide Node Name value for this port.
+.It Va dev.isp.N.wwpn
+This is the readonly World Wide Port Name value for this port.
 .El
 .Sh SEE ALSO
 .Xr da 4 ,
@@ -198,28 +228,13 @@ Default is 0.
 .Sh AUTHORS
 The
 .Nm
-driver was written by Matthew Jacob for NASA/Ames Research Center.
+driver was written by Matthew Jacob originally for NetBSD at
+NASA/Ames Research Center.
 .Sh BUGS
 The driver currently ignores some NVRAM settings.
 .Pp
-The driver currently does not do error recovery for timed out commands
-very gracefully.
-.Pp
-Target mode support is not completely debugged yet.
+Target mode support is not completely reliable yet.
 It works reasonably
 well for Fibre Channel, somewhat well for Qlogic 1040 cards, but
 does not yet work for the other cards (due to last minute unannounced
 changes in firmware interfaces).
-.Pp
-Sometimes, when booting, the driver gets stuck waiting for the
-Fibre Channel f/w to tell it that the loop port database is ready,
-or waiting for a good loop to be seen (this does not yet support
-booting without being connected to a fibre channel device).
-To
-unwedge the system, unplug and replug the fibre channel connection,
-or otherwise cause a LIP (Loop Initialization Primitive sequence)-
-this will kick the f/w into getting unstuck.
-.Pp
-QLogic 2322 support is limited to platforms where the BIOS can
-enable firmware as there is no code yet to do the 3 stage loading
-for 2322 firmware.
