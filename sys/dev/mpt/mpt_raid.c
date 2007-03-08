@@ -792,7 +792,6 @@ mpt_map_physdisk(struct mpt_softc *mpt, union ccb *ccb, u_int *tgt)
 	mpt_disk = mpt->raid_disks + ccb->ccb_h.target_id;
 	if (ccb->ccb_h.target_id < mpt->raid_max_disks
 	 && (mpt_disk->flags & MPT_RDF_ACTIVE) != 0) {
-
 		*tgt = mpt_disk->config_page.PhysDiskID;
 		return (0);
 	}
@@ -808,6 +807,9 @@ mpt_is_raid_volume(struct mpt_softc *mpt, int tgt)
 	CONFIG_PAGE_IOC_2_RAID_VOL *ioc_vol;
 	CONFIG_PAGE_IOC_2_RAID_VOL *ioc_last_vol;
 
+	if (mpt->ioc_page2 == NULL || mpt->ioc_page2->MaxPhysDisks == 0) {
+		return (0);
+	}
 	ioc_vol = mpt->ioc_page2->RaidVolume;
 	ioc_last_vol = ioc_vol + mpt->ioc_page2->NumActiveVolumes;
 	for (;ioc_vol != ioc_last_vol; ioc_vol++) {
@@ -1106,20 +1108,66 @@ mpt_announce_vol(struct mpt_softc *mpt, struct mpt_raid_volume *mpt_vol)
 	for (i = 0; i < vol_pg->NumPhysDisks; i++){
 		struct mpt_raid_disk *mpt_disk;
 		CONFIG_PAGE_RAID_PHYS_DISK_0 *disk_pg;
+		int pt_bus = cam_sim_bus(mpt->phydisk_sim);
+		U8 f, s;
 
-		mpt_disk = mpt->raid_disks 
-			 + vol_pg->PhysDisk[i].PhysDiskNum;
+		mpt_disk = mpt->raid_disks + vol_pg->PhysDisk[i].PhysDiskNum;
 		disk_pg = &mpt_disk->config_page;
 		mpt_prtc(mpt, "      ");
-		mpt_prtc(mpt, "(%s:%d:%d): ", device_get_nameunit(mpt->dev),
-			 disk_pg->PhysDiskBus, disk_pg->PhysDiskID);
-		if (vol_pg->VolumeType == MPI_RAID_VOL_TYPE_IM)
-			mpt_prtc(mpt, "%s\n",
-				 mpt_disk->member_number == 0
-			       ? "Primary" : "Secondary");
-		else
-			mpt_prtc(mpt, "Stripe Position %d\n",
+		mpt_prtc(mpt, "(%s:%d:%d:0): ", device_get_nameunit(mpt->dev),
+			 pt_bus, disk_pg->PhysDiskID);
+		if (vol_pg->VolumeType == MPI_RAID_VOL_TYPE_IM) {
+			mpt_prtc(mpt, "%s", mpt_disk->member_number == 0?
+			    "Primary" : "Secondary");
+		} else {
+			mpt_prtc(mpt, "Stripe Position %d",
 				 mpt_disk->member_number);
+		}
+		f = disk_pg->PhysDiskStatus.Flags;
+		s = disk_pg->PhysDiskStatus.State;
+		if (f & MPI_PHYSDISK0_STATUS_FLAG_OUT_OF_SYNC) {
+			mpt_prtc(mpt, " Out of Sync");
+		}
+		if (f & MPI_PHYSDISK0_STATUS_FLAG_QUIESCED) {
+			mpt_prtc(mpt, " Quiesced");
+		}
+		if (f & MPI_PHYSDISK0_STATUS_FLAG_INACTIVE_VOLUME) {
+			mpt_prtc(mpt, " Inactive");
+		}
+		if (f & MPI_PHYSDISK0_STATUS_FLAG_OPTIMAL_PREVIOUS) {
+			mpt_prtc(mpt, " Was Optimal");
+		}
+		if (f & MPI_PHYSDISK0_STATUS_FLAG_NOT_OPTIMAL_PREVIOUS) {
+			mpt_prtc(mpt, " Was Non-Optimal");
+		}
+		switch (s) {
+		case MPI_PHYSDISK0_STATUS_ONLINE:
+			mpt_prtc(mpt, " Online");
+			break;
+		case MPI_PHYSDISK0_STATUS_MISSING:
+			mpt_prtc(mpt, " Missing");
+			break;
+		case MPI_PHYSDISK0_STATUS_NOT_COMPATIBLE:
+			mpt_prtc(mpt, " Incompatible");
+			break;
+		case MPI_PHYSDISK0_STATUS_FAILED:
+			mpt_prtc(mpt, " Failed");
+			break;
+		case MPI_PHYSDISK0_STATUS_INITIALIZING:
+			mpt_prtc(mpt, " Initializing");
+			break;
+		case MPI_PHYSDISK0_STATUS_OFFLINE_REQUESTED:
+			mpt_prtc(mpt, " Requested Offline");
+			break;
+		case MPI_PHYSDISK0_STATUS_FAILED_REQUESTED:
+			mpt_prtc(mpt, " Requested Failed");
+			break;
+		case MPI_PHYSDISK0_STATUS_OTHER_OFFLINE:
+		default:
+			mpt_prtc(mpt, " Offline Other (%x)", s);
+			break;
+		}
+		mpt_prtc(mpt, "\n");
 	}
 }
 
@@ -1127,15 +1175,16 @@ static void
 mpt_announce_disk(struct mpt_softc *mpt, struct mpt_raid_disk *mpt_disk)
 {
 	CONFIG_PAGE_RAID_PHYS_DISK_0 *disk_pg;
+	int rd_bus = cam_sim_bus(mpt->sim);
+	int pt_bus = cam_sim_bus(mpt->phydisk_sim);
 	u_int i;
 
 	disk_pg = &mpt_disk->config_page;
 	mpt_disk_prt(mpt, mpt_disk,
-		     "Physical (%s:%d:%d), Pass-thru (%s:%d:%d)\n",
-		     device_get_nameunit(mpt->dev), disk_pg->PhysDiskBus, 
+		     "Physical (%s:%d:%d:0), Pass-thru (%s:%d:%d:0)\n",
+		     device_get_nameunit(mpt->dev), rd_bus,
 		     disk_pg->PhysDiskID, device_get_nameunit(mpt->dev),
-		     /*bus*/1, mpt_disk - mpt->raid_disks);
-
+		     pt_bus, mpt_disk - mpt->raid_disks);
 	if (disk_pg->PhysDiskSettings.HotSparePool == 0)
 		return;
 	mpt_disk_prt(mpt, mpt_disk, "Member of Hot Spare Pool%s",
@@ -1180,7 +1229,7 @@ mpt_refresh_raid_disk(struct mpt_softc *mpt, struct mpt_raid_disk *mpt_disk,
 
 static void
 mpt_refresh_raid_vol(struct mpt_softc *mpt, struct mpt_raid_volume *mpt_vol,
-		     CONFIG_PAGE_IOC_2_RAID_VOL *ioc_vol)
+    CONFIG_PAGE_IOC_2_RAID_VOL *ioc_vol)
 {
 	CONFIG_PAGE_RAID_VOL_0 *vol_pg;
 	struct mpt_raid_action_result *ar;
@@ -1190,55 +1239,55 @@ mpt_refresh_raid_vol(struct mpt_softc *mpt, struct mpt_raid_volume *mpt_vol,
 
 	vol_pg = mpt_vol->config_page;
 	mpt_vol->flags &= ~MPT_RVF_UP2DATE;
-	rv = mpt_read_cfg_header(mpt, MPI_CONFIG_PAGETYPE_RAID_VOLUME,
-				 /*PageNumber*/0, ioc_vol->VolumePageNumber,
-				 &vol_pg->Header, /*sleep_ok*/TRUE,
-				 /*timeout_ms*/5000);
+
+	rv = mpt_read_cfg_header(mpt, MPI_CONFIG_PAGETYPE_RAID_VOLUME, 0,
+	    ioc_vol->VolumePageNumber, &vol_pg->Header, TRUE, 5000);
 	if (rv != 0) {
-		mpt_vol_prt(mpt, mpt_vol, "mpt_refresh_raid_vol: "
-			    "Failed to read RAID Vol Hdr(%d)\n",
-			    ioc_vol->VolumePageNumber);
+		mpt_vol_prt(mpt, mpt_vol,
+		    "mpt_refresh_raid_vol: Failed to read RAID Vol Hdr(%d)\n",
+		    ioc_vol->VolumePageNumber);
 		return;
 	}
+
 	rv = mpt_read_cur_cfg_page(mpt, ioc_vol->VolumePageNumber,
-				   &vol_pg->Header, mpt->raid_page0_len,
-				   /*sleep_ok*/TRUE, /*timeout_ms*/5000);
+	    &vol_pg->Header, mpt->raid_page0_len, TRUE, 5000);
 	if (rv != 0) {
-		mpt_vol_prt(mpt, mpt_vol, "mpt_refresh_raid_vol: "
-			    "Failed to read RAID Vol Page(%d)\n",
-			    ioc_vol->VolumePageNumber);
+		mpt_vol_prt(mpt, mpt_vol,
+		    "mpt_refresh_raid_vol: Failed to read RAID Vol Page(%d)\n",
+		    ioc_vol->VolumePageNumber);
 		return;
 	}
+	mpt2host_config_page_raid_vol_0(vol_pg);
+
 	mpt_vol->flags |= MPT_RVF_ACTIVE;
 
 	/* Update disk entry array data. */
 	for (i = 0; i < vol_pg->NumPhysDisks; i++) {
 		struct mpt_raid_disk *mpt_disk;
-
 		mpt_disk = mpt->raid_disks + vol_pg->PhysDisk[i].PhysDiskNum;
 		mpt_disk->volume = mpt_vol;
 		mpt_disk->member_number = vol_pg->PhysDisk[i].PhysDiskMap;
-		if (vol_pg->VolumeType == MPI_RAID_VOL_TYPE_IM)
+		if (vol_pg->VolumeType == MPI_RAID_VOL_TYPE_IM) {
 			mpt_disk->member_number--;
+		}
 	}
 
 	if ((vol_pg->VolumeStatus.Flags
 	   & MPI_RAIDVOL0_STATUS_FLAG_RESYNC_IN_PROGRESS) == 0)
 		return;
 
-	req = mpt_get_request(mpt, /*sleep_ok*/TRUE);
+	req = mpt_get_request(mpt, TRUE);
 	if (req == NULL) {
 		mpt_vol_prt(mpt, mpt_vol,
-			    "mpt_refresh_raid_vol: Get request failed!\n");
+		    "mpt_refresh_raid_vol: Get request failed!\n");
 		return;
 	}
-	rv = mpt_issue_raid_req(mpt, mpt_vol, /*disk*/NULL, req,
-				MPI_RAID_ACTION_INDICATOR_STRUCT,
-				/*ActionWord*/0, /*addr*/0, /*len*/0,
-				/*write*/FALSE, /*wait*/TRUE);
+	rv = mpt_issue_raid_req(mpt, mpt_vol, NULL, req,
+	    MPI_RAID_ACTION_INDICATOR_STRUCT, 0, 0, 0, FALSE, TRUE);
 	if (rv == ETIMEDOUT) {
-		mpt_vol_prt(mpt, mpt_vol, "mpt_refresh_raid_vol: "
-			    "Progress indicator fetch timedout!\n");
+		mpt_vol_prt(mpt, mpt_vol,
+		    "mpt_refresh_raid_vol: Progress Indicator fetch timeout\n");
+		mpt_free_request(mpt, req);
 		return;
 	}
 
@@ -1249,9 +1298,10 @@ mpt_refresh_raid_vol(struct mpt_softc *mpt, struct mpt_raid_volume *mpt_vol,
 		memcpy(&mpt_vol->sync_progress,
 		       &ar->action_data.indicator_struct,
 		       sizeof(mpt_vol->sync_progress));
+		mpt2host_mpi_raid_vol_indicator(&mpt_vol->sync_progress);
 	} else {
-		mpt_vol_prt(mpt, mpt_vol, "mpt_refresh_raid_vol: "
-			    "Progress indicator fetch failed!\n");
+		mpt_vol_prt(mpt, mpt_vol,
+		    "mpt_refresh_raid_vol: Progress indicator fetch failed!\n");
 	}
 	mpt_free_request(mpt, req);
 }
@@ -1364,8 +1414,9 @@ mpt_refresh_raid_data(struct mpt_softc *mpt)
 
 		mpt_vol = &mpt->raid_volumes[i];
 
-		if ((mpt_vol->flags & MPT_RVF_ACTIVE) == 0)
+		if ((mpt_vol->flags & MPT_RVF_ACTIVE) == 0) {
 			continue;
+		}
 
 		vol_pg = mpt_vol->config_page;
 		if ((mpt_vol->flags & (MPT_RVF_REFERENCED|MPT_RVF_ANNOUNCED))
@@ -1376,7 +1427,6 @@ mpt_refresh_raid_data(struct mpt_softc *mpt)
 		}
 
 		if ((mpt_vol->flags & MPT_RVF_ANNOUNCED) == 0) {
-
 			mpt_announce_vol(mpt, mpt_vol);
 			mpt_vol->flags |= MPT_RVF_ANNOUNCED;
 		}
@@ -1390,11 +1440,12 @@ mpt_refresh_raid_data(struct mpt_softc *mpt)
 
 		mpt_vol->flags |= MPT_RVF_UP2DATE;
 		mpt_vol_prt(mpt, mpt_vol, "%s - %s\n",
-			    mpt_vol_type(mpt_vol), mpt_vol_state(mpt_vol));
+		    mpt_vol_type(mpt_vol), mpt_vol_state(mpt_vol));
 		mpt_verify_mwce(mpt, mpt_vol);
 
-		if (vol_pg->VolumeStatus.Flags == 0)
+		if (vol_pg->VolumeStatus.Flags == 0) {
 			continue;
+		}
 
 		mpt_vol_prt(mpt, mpt_vol, "Status (");
 		for (m = 1; m <= 0x80; m <<= 1) {
@@ -1423,8 +1474,8 @@ mpt_refresh_raid_data(struct mpt_softc *mpt)
 
 		mpt_verify_resync_rate(mpt, mpt_vol);
 
-		left = u64toh(mpt_vol->sync_progress.BlocksRemaining);
-		total = u64toh(mpt_vol->sync_progress.TotalBlocks);
+		left = MPT_U64_2_SCALAR(mpt_vol->sync_progress.BlocksRemaining);
+		total = MPT_U64_2_SCALAR(mpt_vol->sync_progress.TotalBlocks);
 		if (vol_pg->ResyncRate != 0) {
 
 			prio = ((u_int)vol_pg->ResyncRate * 100000) / 0xFF;
@@ -1595,16 +1646,19 @@ mpt_raid_set_vol_queue_depth(struct mpt_softc *mpt, u_int vol_queue_depth)
 
 		mpt->raid_rescan = 0;
 
+		MPTLOCK_2_CAMLOCK(mpt);
 		error = xpt_create_path(&path, xpt_periph,
 					cam_sim_path(mpt->sim),
 					mpt_vol->config_page->VolumeID,
 					/*lun*/0);
 		if (error != CAM_REQ_CMP) {
+			CAMLOCK_2_MPTLOCK(mpt);
 			mpt_vol_prt(mpt, mpt_vol, "Unable to allocate path!\n");
 			continue;
 		}
 		mpt_adjust_queue_depth(mpt, mpt_vol, path);
 		xpt_free_path(path);
+		CAMLOCK_2_MPTLOCK(mpt);
 	}
 	MPT_UNLOCK(mpt);
 	return (0);

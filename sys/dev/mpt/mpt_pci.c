@@ -105,6 +105,13 @@ __FBSDID("$FreeBSD$");
 #include <dev/mpt/mpt_cam.h>
 #include <dev/mpt/mpt_raid.h>
 
+#if __FreeBSD_version < 700000
+#define	pci_msix_count(x)	0
+#define	pci_msi_count(x)	0
+#define	pci_alloc_msi(x, y)	1
+#define	pci_alloc_msix(x, y)	1
+#define	pci_release_msi(x)	do { ; } while (0)
+#endif
 
 #ifndef	PCI_VENDOR_LSI
 #define	PCI_VENDOR_LSI			0x1000
@@ -327,6 +334,7 @@ mpt_set_options(struct mpt_softc *mpt)
 		}
 		mpt->do_cfg_role = 1;
 	}
+	mpt->msi_enable = 0;
 }
 #else
 static void
@@ -350,6 +358,13 @@ mpt_set_options(struct mpt_softc *mpt)
 	    tval <= 3) {
 		mpt->cfg_role = tval;
 		mpt->do_cfg_role = 1;
+	}
+
+	tval = 0;
+	mpt->msi_enable = 0;
+	if (resource_int_value(device_get_name(mpt->dev),
+	    device_get_unit(mpt->dev), "msi_enable", &tval) == 0 && tval == 1) {
+		mpt->msi_enable = 1;
 	}
 }
 #endif
@@ -513,6 +528,28 @@ mpt_pci_attach(device_t dev)
 
 	/* Get a handle to the interrupt */
 	iqd = 0;
+	if (mpt->msi_enable) {
+		/*
+		 * First try to alloc an MSI-X message.  If that
+		 * fails, then try to alloc an MSI message instead.
+		 */
+		if (pci_msix_count(dev) == 1) {
+			mpt->pci_msi_count = 1;
+			if (pci_alloc_msix(dev, &mpt->pci_msi_count) == 0) {
+				iqd = 1;
+			} else {
+				mpt->pci_msi_count = 0;
+			}
+		}
+		if (iqd == 0 && pci_msi_count(dev) == 1) {
+			mpt->pci_msi_count = 1;
+			if (pci_alloc_msi(dev, &mpt->pci_msi_count) == 0) {
+				iqd = 1;
+			} else {
+				mpt->pci_msi_count = 0;
+			}
+		}
+	}
 	mpt->pci_irq = bus_alloc_resource_any(dev, SYS_RES_IRQ, &iqd,
 	    RF_ACTIVE | RF_SHAREABLE);
 	if (mpt->pci_irq == NULL) {
@@ -526,7 +563,7 @@ mpt_pci_attach(device_t dev)
 	mpt_disable_ints(mpt);
 
 	/* Register the interrupt handler */
-	if (bus_setup_intr(dev, mpt->pci_irq, MPT_IFLAGS, mpt_pci_intr,
+	if (mpt_setup_intr(dev, mpt->pci_irq, MPT_IFLAGS, NULL, mpt_pci_intr,
 	    mpt, &mpt->ih)) {
 		device_printf(dev, "could not setup interrupt\n");
 		goto bad;
@@ -609,10 +646,16 @@ mpt_free_bus_resources(struct mpt_softc *mpt)
 	}
 
 	if (mpt->pci_irq) {
-		bus_release_resource(mpt->dev, SYS_RES_IRQ, 0, mpt->pci_irq);
+		bus_release_resource(mpt->dev, SYS_RES_IRQ,
+		    mpt->pci_msi_count ? 1 : 0, mpt->pci_irq);
 		mpt->pci_irq = 0;
 	}
 
+	if (mpt->pci_msi_count) {
+		pci_release_msi(mpt->dev);
+		mpt->pci_msi_count = 0;
+	}
+		
 	if (mpt->pci_pio_reg) {
 		bus_release_resource(mpt->dev, SYS_RES_IOPORT, mpt->pci_pio_rid,
 			mpt->pci_pio_reg);
@@ -709,8 +752,8 @@ mpt_dma_mem_alloc(struct mpt_softc *mpt)
 	 * Align at byte boundaries,
 	 * Limit to 32-bit addressing for request/reply queues.
 	 */
-	if (mpt_dma_tag_create(mpt, /*parent*/NULL, /*alignment*/1,
-	    /*boundary*/0, /*lowaddr*/BUS_SPACE_MAXADDR,
+	if (mpt_dma_tag_create(mpt, /*parent*/bus_get_dma_tag(mpt->dev),
+	    /*alignment*/1, /*boundary*/0, /*lowaddr*/BUS_SPACE_MAXADDR,
 	    /*highaddr*/BUS_SPACE_MAXADDR, /*filter*/NULL, /*filterarg*/NULL,
 	    /*maxsize*/BUS_SPACE_MAXSIZE_32BIT,
 	    /*nsegments*/BUS_SPACE_MAXSIZE_32BIT,
