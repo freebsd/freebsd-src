@@ -747,7 +747,7 @@ udp_output(struct inpcb *inp, struct mbuf *m, struct sockaddr *addr,
 		return (EMSGSIZE);
 	}
 
-	src.sin_addr.s_addr = INADDR_ANY;
+	src.sin_family = 0;
 	if (control != NULL) {
 		/*
 		 * XXX: Currently, we assume all the optional information is
@@ -797,7 +797,7 @@ udp_output(struct inpcb *inp, struct mbuf *m, struct sockaddr *addr,
 		return (error);
 	}
 
-	if (src.sin_addr.s_addr != INADDR_ANY || addr != NULL) {
+	if (src.sin_family == AF_INET || addr != NULL) {
 		INP_INFO_WLOCK(&udbinfo);
 		unlock_udbinfo = 1;
 	} else
@@ -808,10 +808,17 @@ udp_output(struct inpcb *inp, struct mbuf *m, struct sockaddr *addr,
 	mac_create_mbuf_from_inpcb(inp, m);
 #endif
 
+	/*
+	 * If the IP_SENDSRCADDR control message was specified, override the
+	 * source address for this datagram. Its use is invalidated if the
+	 * address thus specified is incomplete or clobbers other inpcbs.
+	 */
 	laddr = inp->inp_laddr;
 	lport = inp->inp_lport;
-	if (src.sin_addr.s_addr != INADDR_ANY) {
-		if (lport == 0) {
+	if (src.sin_family == AF_INET) {
+		if ((lport == 0) ||
+		    (laddr.s_addr == INADDR_ANY &&
+		     src.sin_addr.s_addr == INADDR_ANY)) {
 			error = EINVAL;
 			goto release;
 		}
