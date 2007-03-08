@@ -491,6 +491,7 @@ struct ata_channel {
 #define         ATA_ATA_SLAVE           0x02
 #define         ATA_ATAPI_MASTER        0x04
 #define         ATA_ATAPI_SLAVE         0x08
+#define         ATA_PORTMULTIPLIER      0x10
 
     struct mtx                  state_mtx;      /* state lock */
     int                         state;          /* ATA channel state */
