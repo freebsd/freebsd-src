@@ -428,7 +428,7 @@ mi_switch(int flags, struct thread *newtd)
 	CTR4(KTR_PROC, "mi_switch: old thread %ld (kse %p, pid %ld, %s)",
 	    td->td_tid, td->td_sched, p->p_pid, p->p_comm);
 #if (KTR_COMPILE & KTR_SCHED) != 0
-	if (td == PCPU_GET(idlethread))
+	if (TD_IS_IDLETHREAD(td))
 		CTR3(KTR_SCHED, "mi_switch: %p(%s) prio %d idle",
 		    td, td->td_proc->p_comm, td->td_priority);
 	else if (newtd != NULL)

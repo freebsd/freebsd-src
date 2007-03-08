@@ -749,7 +749,7 @@ breada(struct vnode * vp, daddr_t * rablkno, int * rabsize,
 		rabp = getblk(vp, *rablkno, *rabsize, 0, 0, 0);
 
 		if ((rabp->b_flags & B_CACHE) == 0) {
-			if (curthread != PCPU_GET(idlethread))
+			if (!TD_IS_IDLETHREAD(curthread))
 				curthread->td_proc->p_stats->p_ru.ru_inblock++;
 			rabp->b_flags |= B_ASYNC;
 			rabp->b_flags &= ~B_INVAL;
@@ -784,7 +784,7 @@ breadn(struct vnode * vp, daddr_t blkno, int size,
 
 	/* if not found in cache, do some I/O */
 	if ((bp->b_flags & B_CACHE) == 0) {
-		if (curthread != PCPU_GET(idlethread))
+		if (!TD_IS_IDLETHREAD(curthread))
 			curthread->td_proc->p_stats->p_ru.ru_inblock++;
 		bp->b_iocmd = BIO_READ;
 		bp->b_flags &= ~B_INVAL;
@@ -863,7 +863,7 @@ bufwrite(struct buf *bp)
 	bp->b_runningbufspace = bp->b_bufsize;
 	atomic_add_int(&runningbufspace, bp->b_runningbufspace);
 
-	if (curthread != PCPU_GET(idlethread))
+	if (!TD_IS_IDLETHREAD(curthread))
 		curthread->td_proc->p_stats->p_ru.ru_oublock++;
 	if (oldflags & B_ASYNC)
 		BUF_KERNPROC(bp);
@@ -2445,7 +2445,7 @@ loop:
 	 * XXX remove if 0 sections (clean this up after its proven)
          */
 	if (numfreebuffers == 0) {
-		if (curthread == PCPU_GET(idlethread))
+		if (TD_IS_IDLETHREAD(curthread))
 			return NULL;
 		mtx_lock(&nblock);
 		needsbuffer |= VFS_BIO_NEED_ANY;

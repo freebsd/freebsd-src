@@ -983,7 +983,7 @@ sched_switch(struct thread *td, struct thread *newtd, int flags)
 	td->td_flags &= ~TDF_NEEDRESCHED;
 	td->td_owepreempt = 0;
 
-	if (td == PCPU_GET(idlethread)) {
+	if (TD_IS_IDLETHREAD(td)) {
 		TD_SET_CAN_RUN(td);
 	} else {
 		sched_update_runtime(ts, now);
@@ -1230,7 +1230,7 @@ sched_tick(void)
 		/*
 		 * Processes of equal idle priority are run round-robin.
 		 */
-		if (td != PCPU_GET(idlethread) && --ts->ts_slice <= 0) {
+		if (!TD_IS_IDLETHREAD(td) && --ts->ts_slice <= 0) {
 			ts->ts_slice = def_timeslice;
 			td->td_flags |= TDF_NEEDRESCHED;
 		}
