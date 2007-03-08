@@ -205,10 +205,24 @@ again:
 		dst->sin_addr = ip->ip_dst;
 	}
 	/*
-	 * If routing to interface only,
-	 * short circuit routing lookup.
+	 * If routing to interface only, short circuit routing lookup.
+	 * The use of an all-ones broadcast address implies this; an
+	 * interface is specified by the broadcast address of an interface,
+	 * or the destination address of a ptp interface.
 	 */
-	if (flags & IP_ROUTETOIF) {
+	if (flags & IP_SENDONES) {
+		if ((ia = ifatoia(ifa_ifwithbroadaddr(sintosa(dst)))) == NULL &&
+		    (ia = ifatoia(ifa_ifwithdstaddr(sintosa(dst)))) == NULL) {
+			ipstat.ips_noroute++;
+			error = ENETUNREACH;
+			goto bad;
+		}
+		ip->ip_dst.s_addr = INADDR_BROADCAST;
+		dst->sin_addr = ip->ip_dst;
+		ifp = ia->ia_ifp;
+		ip->ip_ttl = 1;
+		isbroadcast = 1;
+	} else if (flags & IP_ROUTETOIF) {
 		if ((ia = ifatoia(ifa_ifwithdstaddr(sintosa(dst)))) == NULL &&
 		    (ia = ifatoia(ifa_ifwithnet(sintosa(dst)))) == NULL) {
 			ipstat.ips_noroute++;
@@ -218,17 +232,6 @@ again:
 		ifp = ia->ia_ifp;
 		ip->ip_ttl = 1;
 		isbroadcast = in_broadcast(dst->sin_addr, ifp);
-	} else if (flags & IP_SENDONES) {
-		if ((ia = ifatoia(ifa_ifwithbroadaddr(sintosa(dst)))) == NULL) {
-			ipstat.ips_noroute++;
-			error = ENETUNREACH;
-			goto bad;
-		}
-		ifp = ia->ia_ifp;
-		ip->ip_dst.s_addr = INADDR_BROADCAST;
-		dst->sin_addr = ip->ip_dst;
-		ip->ip_ttl = 1;
-		isbroadcast = 1;
 	} else if (IN_MULTICAST(ntohl(ip->ip_dst.s_addr)) &&
 	    imo != NULL && imo->imo_multicast_ifp != NULL) {
 		/*
