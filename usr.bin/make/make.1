@@ -1465,6 +1465,51 @@ Several flags can be specified on a single
 .Ic .WARN
 target by seperating them with blanks.
 .El
+.Sh REMAKING MAKEFILES
+After reading Makefile and all the files that are included using
+.Ic .include
+or
+.Ic .sinclude
+directives (source Makefiles)
+.Nm
+considers each source Makefile as a target and tries to rebuild it.
+Both explicit and implicit rules are checked and all source Makefiles
+are updated if necessary. If any of the source Makefiles were rebuilt,
+.Nm
+restarts from clean state.
+.Pp
+To prevent infinite loops the following source Makefile targets are ignored:
+.Bl -bullet
+.It
+.Ic ::
+targets that have no prerequisites but have commands
+.It
+.Ic !
+targets
+.It
+targets that have
+.Ic .PHONY
+or
+.Ic .EXEC
+attributes
+.It
+targets without prerequisites and without commands
+.El
+.Pp
+When remaking a source Makefile options
+.Ic -t
+(touch target),
+.Ic -q
+(query mode), and
+.Ic -n
+(no exec) do not take effect, unless source Makefile is specified
+explicitly as a target in
+.Nm
+command line.
+.Pp
+Additionally, system makefiles and
+.Ic .depend
+are not considered as a Makefiles that can be rebuilt.
 .Sh ENVIRONMENT
 The
 .Nm

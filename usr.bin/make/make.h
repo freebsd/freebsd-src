@@ -68,5 +68,6 @@ void Make_DoAllVar(struct GNode *);
 Boolean Make_Run(struct Lst *);
 void Main_ParseArgLine(char *, int);
 int Main_ParseWarn(const char *, int);
+void Main_AddSourceMakefile(const char *);
 
 #endif /* make_h_a91074b9 */

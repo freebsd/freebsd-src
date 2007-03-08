@@ -1070,6 +1070,7 @@ ParseDoDependency(char *line)
 			Path_Clear(Lst_Datum(ln));
 			break;
 		  case Posix:
+			is_posix = TRUE;
 			Var_Set("%POSIX", "1003.2", VAR_GLOBAL);
 			break;
 		  default:
@@ -2059,7 +2060,7 @@ ParseFinishLine(void)
 }
 
 /**
- * parse_include
+ * xparse_include
  *	Parse an .include directive and push the file onto the input stack.
  *	The input is the line minus the .include. A file spec is a string
  *	enclosed in <> or "". The former is looked for only in sysIncPath.
@@ -2184,9 +2185,12 @@ xparse_include(char *file, int sinclude)
 		*cp = endc;
 		if (!sinclude)
 			Parse_Error(PARSE_FATAL, "Could not find %s", file);
+		else
+			Main_AddSourceMakefile(file);
 		free(file);
 		return;
 	}
+	Main_AddSourceMakefile(fullname);
 	free(file);
 
 	/*
