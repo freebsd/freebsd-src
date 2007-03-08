@@ -1032,7 +1032,7 @@ archive_entry_acl_next(struct archive_entry *entry, int want_type, int *type,
 		entry->acl_p = entry->acl_p->next;
 	if (entry->acl_p == NULL) {
 		entry->acl_state = 0;
-		return (ARCHIVE_WARN);
+		return (ARCHIVE_EOF); /* End of ACL entries. */
 	}
 	*type = entry->acl_p->type;
 	*permset = entry->acl_p->permset;
