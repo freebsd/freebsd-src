@@ -201,7 +201,7 @@ forward_roundrobin(void)
 		td = pc->pc_curthread;
 		id = pc->pc_cpumask;
 		if (id != me && (id & stopped_cpus) == 0 &&
-		    td != pc->pc_idlethread) {
+		    !TD_IS_IDLETHREAD(td)) {
 			td->td_flags |= TDF_NEEDRESCHED;
 			map |= id;
 		}

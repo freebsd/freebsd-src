@@ -398,6 +398,12 @@ struct thread {
 #define	TD_CAN_RUN(td)		((td)->td_state == TDS_CAN_RUN)
 #define	TD_IS_INHIBITED(td)	((td)->td_state == TDS_INHIBITED)
 #define	TD_ON_UPILOCK(td)	((td)->td_flags & TDF_UPIBLOCKED)
+#if 0
+#define TD_IS_IDLETHREAD(td)	((td) == pcpu(idlethread))
+#else
+#define TD_IS_IDLETHREAD(td)	((td)->td_flags & TDF_IDLETD)
+#endif
+
 
 #define	TD_SET_INHIB(td, inhib) do {			\
 	(td)->td_state = TDS_INHIBITED;			\

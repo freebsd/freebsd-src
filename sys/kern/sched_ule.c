@@ -1436,7 +1436,7 @@ sched_switch(struct thread *td, struct thread *newtd, int flags)
 	 * If the thread has been assigned it may be in the process of switching
 	 * to the new cpu.  This is the case in sched_bind().
 	 */
-	if (td == PCPU_GET(idlethread)) {
+	if (TD_IS_IDLETHREAD(td)) {
 		TD_SET_CAN_RUN(td);
 	} else {
 		tdq_load_rem(tdq, ts);

@@ -450,7 +450,7 @@ statclock(int usermode)
 #endif
 			td->td_pticks++;
 			td->td_sticks++;
-			if (td != PCPU_GET(idlethread))
+			if (!TD_IS_IDLETHREAD(td))
 				cp_time[CP_SYS]++;
 			else
 				cp_time[CP_IDLE]++;
