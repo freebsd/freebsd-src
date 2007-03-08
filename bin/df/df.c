@@ -93,7 +93,7 @@ imax(int a, int b)
 	return (a > b ? a : b);
 }
 
-static int	aflag = 0, cflag, hflag, iflag, kflag, nflag;
+static int	aflag = 0, cflag, hflag, iflag, kflag, lflag = 0, nflag;
 static struct	ufs_args mdev;
 
 int
@@ -159,6 +159,7 @@ main(int argc, char *argv[])
 			if (vfslist != NULL)
 				errx(1, "-l and -t are mutually exclusive.");
 			vfslist = makevfslist(makenetvfslist());
+			lflag = 1;
 			break;
 		case 'm':
 			putenv("BLOCKSIZE=1m");
@@ -168,6 +169,8 @@ main(int argc, char *argv[])
 			nflag = 1;
 			break;
 		case 't':
+			if (lflag)
+				errx(1, "-l and -t are mutually exclusive.");
 			if (vfslist != NULL)
 				errx(1, "only one -t option may be specified");
 			fstype = optarg;
