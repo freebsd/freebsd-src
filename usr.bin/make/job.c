@@ -3070,7 +3070,7 @@ Compat_RunCommand(char *cmd, GNode *gn)
 
 /*-
  *-----------------------------------------------------------------------
- * CompatMake --
+ * Compat_Make --
  *	Make a target, given the parent, to abort if necessary.
  *
  * Side Effects:
@@ -3078,8 +3078,8 @@ Compat_RunCommand(char *cmd, GNode *gn)
  *
  *-----------------------------------------------------------------------
  */
-static int
-CompatMake(GNode *gn, GNode *pgn)
+int
+Compat_Make(GNode *gn, GNode *pgn)
 {
 	LstNode	*ln;
 
@@ -3099,7 +3099,7 @@ CompatMake(GNode *gn, GNode *pgn)
 		gn->made = BEINGMADE;
 		Suff_FindDeps(gn);
 		LST_FOREACH(ln, &gn->children)
-			CompatMake(Lst_Datum(ln), gn);
+			Compat_Make(Lst_Datum(ln), gn);
 		if (!gn->make) {
 			gn->made = ABORTED;
 			pgn->make = FALSE;
@@ -3289,6 +3289,27 @@ CompatMake(GNode *gn, GNode *pgn)
 }
 
 /*-
+ * Install signal handlers for Compat_Run
+ */
+void
+Compat_InstallSignalHandlers(void)
+{
+
+	if (signal(SIGINT, SIG_IGN) != SIG_IGN) {
+		signal(SIGINT, CompatCatchSig);
+	}
+	if (signal(SIGTERM, SIG_IGN) != SIG_IGN) {
+		signal(SIGTERM, CompatCatchSig);
+	}
+	if (signal(SIGHUP, SIG_IGN) != SIG_IGN) {
+		signal(SIGHUP, CompatCatchSig);
+	}
+	if (signal(SIGQUIT, SIG_IGN) != SIG_IGN) {
+		signal(SIGQUIT, CompatCatchSig);
+	}
+}
+
+/*-
  *-----------------------------------------------------------------------
  * Compat_Run --
  *	Start making again, given a list of target nodes.
@@ -3308,19 +3329,7 @@ Compat_Run(Lst *targs)
 	int	error_cnt;		/* Number of targets not remade due to errors */
 	LstNode	*ln;
 
-	if (signal(SIGINT, SIG_IGN) != SIG_IGN) {
-		signal(SIGINT, CompatCatchSig);
-	}
-	if (signal(SIGTERM, SIG_IGN) != SIG_IGN) {
-		signal(SIGTERM, CompatCatchSig);
-	}
-	if (signal(SIGHUP, SIG_IGN) != SIG_IGN) {
-		signal(SIGHUP, CompatCatchSig);
-	}
-	if (signal(SIGQUIT, SIG_IGN) != SIG_IGN) {
-		signal(SIGQUIT, CompatCatchSig);
-	}
-
+	Compat_InstallSignalHandlers();
 	ENDNode = Targ_FindNode(".END", TARG_CREATE);
 	/*
 	 * If the user has defined a .BEGIN target, execute the commands
@@ -3341,8 +3350,8 @@ Compat_Run(Lst *targs)
 	}
 
 	/*
-	 * For each entry in the list of targets to create, call CompatMake on
-	 * it to create the thing. CompatMake will leave the 'made' field of gn
+	 * For each entry in the list of targets to create, call Compat_Make on
+	 * it to create the thing. Compat_Make will leave the 'made' field of gn
 	 * in one of several states:
 	 *	UPTODATE  gn was already up-to-date
 	 *	MADE	  gn was recreated successfully
@@ -3353,7 +3362,7 @@ Compat_Run(Lst *targs)
 	error_cnt = 0;
 	while (!Lst_IsEmpty(targs)) {
 		gn = Lst_DeQueue(targs);
-		CompatMake(gn, gn);
+		Compat_Make(gn, gn);
 
 		if (gn->made == UPTODATE) {
 			printf("`%s' is up to date.\n", gn->name);

@@ -80,6 +80,7 @@ __FBSDID("$FreeBSD$");
 #include "config.h"
 #include "dir.h"
 #include "globals.h"
+#include "GNode.h"
 #include "job.h"
 #include "make.h"
 #include "parse.h"
@@ -100,6 +101,9 @@ extern char **environ;	/* XXX what header declares this variable? */
 /* ordered list of makefiles to read */
 static Lst makefiles = Lst_Initializer(makefiles);
 
+/* ordered list of source makefiles */
+static Lst source_makefiles = Lst_Initializer(source_makefiles);
+
 /* list of variables to print */
 static Lst variables = Lst_Initializer(variables);
 
@@ -108,6 +112,8 @@ static Boolean	noBuiltins;	/* -r flag */
 static Boolean	forceJobs;	/* -j argument given */
 static char	*curdir;	/* startup directory */
 static char	*objdir;	/* where we chdir'ed to */
+static char	**save_argv;	/* saved argv */
+static char	*save_makeflags;/* saved MAKEFLAGS */
 
 /* (-E) vars to override from env */
 Lst envFirstVars = Lst_Initializer(envFirstVars);
@@ -116,6 +122,7 @@ Lst envFirstVars = Lst_Initializer(envFirstVars);
 Lst create = Lst_Initializer(create);
 
 Boolean		allPrecious;	/* .PRECIOUS given on line by itself */
+Boolean		is_posix;	/* .POSIX target seen */
 Boolean		beSilent;	/* -s flag */
 Boolean		beVerbose;	/* -v flag */
 Boolean		compatMake;	/* -B argument */
@@ -316,6 +323,31 @@ found:
 }
 
 /**
+ * Open and parse the given makefile.
+ * If open is successful add it to the list of makefiles.
+ *
+ * Results:
+ *	TRUE if ok. FALSE if couldn't open file.
+ */
+static Boolean
+TryReadMakefile(const char p[])
+{
+	char *data;
+	LstNode *last = Lst_Last(&source_makefiles);
+
+	if (!ReadMakefile(p))
+		return (FALSE);
+
+	data = estrdup(p);
+	if (last == NULL) {
+		LstNode *first = Lst_First(&source_makefiles);
+		Lst_Insert(&source_makefiles, first, data);
+	} else
+		Lst_Append(&source_makefiles, last, estrdup(p));
+	return (TRUE);
+}
+
+/**
  * MainParseArgs
  *	Parse a given argument vector. Called from main() and from
  *	Main_ParseArgLine() when the .MAKEFLAGS target is used.
@@ -502,7 +534,7 @@ rearg:
 			if (Main_ParseWarn(optarg, 1) != -1)
 				MFLAGS_append("-x", optarg);
 			break;
-				
+
 		default:
 		case '?':
 			usage();
@@ -523,10 +555,12 @@ rearg:
 	for (; *argv != NULL; ++argv, --argc) {
 		if (Parse_IsVar(*argv)) {
 			char *ptr = MAKEFLAGS_quote(*argv);
+			char *v = estrdup(*argv);
 
 			Var_Append(".MAKEFLAGS", ptr, VAR_GLOBAL);
-			Parse_DoVar(*argv, VAR_CMD);
+			Parse_DoVar(v, VAR_CMD);
 			free(ptr);
+			free(v);
 
 		} else if ((*argv)[0] == '-') {
 			if ((*argv)[1] == '\0') {
@@ -640,6 +674,149 @@ check_make_level(void)
 }
 
 /**
+ * Main_AddSourceMakefile
+ *	Add a file to the list of source makefiles
+ */
+void
+Main_AddSourceMakefile(const char *name)
+{
+
+	Lst_AtEnd(&source_makefiles, estrdup(name));
+}
+
+/**
+ * Remake_Makefiles
+ *	Remake all the makefiles
+ */
+static void
+Remake_Makefiles(void)
+{
+	LstNode *ln;
+	int error_cnt = 0;
+	int remade_cnt = 0;
+
+	Compat_InstallSignalHandlers();
+
+	LST_FOREACH(ln, &source_makefiles) {
+		LstNode *ln2;
+		struct GNode *gn;
+		const char *name = Lst_Datum(ln);
+		Boolean saveTouchFlag = touchFlag;
+		Boolean saveQueryFlag = queryFlag;
+		Boolean saveNoExecute = noExecute;
+
+		/*
+		 * Create node
+		 */
+		gn = Targ_FindNode(name, TARG_CREATE);
+		DEBUGF(MAKE, ("Checking %s...", gn->name));
+		Suff_FindDeps(gn);
+
+		/*
+		 * ! dependencies as well as
+		 * dependencies with .FORCE, .EXEC and .PHONY attributes
+		 * are skipped to prevent infinite loops
+		 */
+		if (gn->type & (OP_FORCE | OP_EXEC | OP_PHONY)) {
+			DEBUGF(MAKE, ("skipping (force, exec or phony).\n",
+			    gn->name));
+			continue;
+		}
+
+		/*
+		 * Skip :: targets that have commands and no children
+		 * because such targets are always out-of-date
+		 */
+		if ((gn->type & OP_DOUBLEDEP) &&
+		    !Lst_IsEmpty(&gn->commands) &&
+		    Lst_IsEmpty(&gn->children)) {
+			DEBUGF(MAKE, ("skipping (doubledep, no sources "
+			    "and has commands).\n"));
+			continue;
+		}
+
+		/*
+		 * Skip targets without sources and without commands
+		 */
+		if (Lst_IsEmpty(&gn->commands) &&
+		    Lst_IsEmpty(&gn->children)) {
+			DEBUGF(MAKE,
+			    ("skipping (no sources and no commands).\n"));
+			continue;
+		}
+
+		DEBUGF(MAKE, ("\n"));
+
+		/*
+		 * -t, -q and -n has no effect unless the makefile is
+		 * specified as one of the targets explicitly in the
+		 * command line
+		 */
+		LST_FOREACH(ln2, &create) {
+			if (!strcmp(gn->name, Lst_Datum(ln2))) {
+				/* found as a target */
+				break;
+			}
+		}
+		if (ln2 == NULL) {
+			touchFlag = FALSE;
+			queryFlag = FALSE;
+			noExecute = FALSE;
+		}
+
+		/*
+		 * Check and remake the makefile
+		 */
+		Compat_Make(gn, gn);
+
+		/*
+		 * Restore -t, -q and -n behaviour
+		 */
+		touchFlag = saveTouchFlag;
+		queryFlag = saveQueryFlag;
+		noExecute = saveNoExecute;
+
+		/*
+		 * Compat_Make will leave the 'made' field of gn
+		 * in one of the following states:
+		 *	UPTODATE  gn was already up-to-date
+		 *	MADE	  gn was recreated successfully
+		 *	ERROR	  An error occurred while gn was being created
+		 *	ABORTED	  gn was not remade because one of its inferiors
+		 *		  could not be made due to errors.
+		 */
+		if (gn->made == MADE)
+			remade_cnt++;
+		else if (gn->made == ERROR)
+			error_cnt++;
+		else if (gn->made == ABORTED) {
+			printf("`%s' not remade because of errors.\n",
+			    gn->name);
+			error_cnt++;
+		}
+	}
+
+	if (error_cnt > 0)
+		Fatal("Failed to remake Makefiles.");
+	if (remade_cnt > 0) {
+		DEBUGF(MAKE, ("Restarting `%s'.\n", save_argv[0]));
+
+		/*
+		 * Some of makefiles were remade -- restart from clean state
+		 */
+		if (save_makeflags != NULL)
+			setenv("MAKEFLAGS", save_makeflags, 1);
+		else
+			unsetenv("MAKEFLAGS");
+		chdir(curdir);
+		if (execvp(save_argv[0], save_argv) < 0) {
+			Fatal("Can't restart `%s': %s.",
+			    save_argv[0], strerror(errno));
+		}
+	}
+}
+
+/**
  * main
  *	The main function, for obvious reasons. Initializes variables
  *	and a few modules, then parses the arguments give it in the
@@ -670,6 +847,11 @@ main(int argc, char **argv)
 	char obpath[MAXPATHLEN];
 	char cdpath[MAXPATHLEN];
 	char *cp = NULL, *start;
+
+	save_argv = argv;
+	save_makeflags = getenv("MAKEFLAGS");
+	if (save_makeflags != NULL)
+		save_makeflags = estrdup(save_makeflags);
 
 	/*
 	 * Initialize file global variables.
@@ -958,14 +1140,14 @@ main(int argc, char **argv)
 		LstNode *ln;
 
 		LST_FOREACH(ln, &makefiles) {
-			if (!ReadMakefile(Lst_Datum(ln)))
+			if (!TryReadMakefile(Lst_Datum(ln)))
 				break;
 		}
 		if (ln != NULL)
 			Fatal("make: cannot open %s.", (char *)Lst_Datum(ln));
-	} else if (!ReadMakefile("BSDmakefile"))
-	    if (!ReadMakefile("makefile"))
-		ReadMakefile("Makefile");
+	} else if (!TryReadMakefile("BSDmakefile"))
+	    if (!TryReadMakefile("makefile"))
+		TryReadMakefile("Makefile");
 
 	ReadMakefile(".depend");
 
@@ -1034,6 +1216,13 @@ main(int argc, char **argv)
 		 */
 		Lst targs = Lst_Initializer(targs);
 
+		if (!is_posix) {
+			/*
+			 * Check if any of the makefiles are out-of-date.
+			 */
+			Remake_Makefiles();
+		}
+
 		if (Lst_IsEmpty(&create))
 			Parse_MainName(&targs);
 		else
@@ -1072,6 +1261,7 @@ main(int argc, char **argv)
 
 	Lst_Destroy(&variables, free);
 	Lst_Destroy(&makefiles, free);
+	Lst_Destroy(&source_makefiles, free);
 	Lst_Destroy(&create, free);
 
 	/* print the graph now it's been processed if the user requested it */
