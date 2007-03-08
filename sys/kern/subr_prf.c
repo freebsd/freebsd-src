@@ -133,7 +133,7 @@ uprintf(const char *fmt, ...)
 	struct putchar_arg pca;
 	int retval;
 
-	if (td == NULL || td == PCPU_GET(idlethread))
+	if (td == NULL || TD_IS_IDLETHREAD(td))
 		return (0);
 
 	mtx_lock(&Giant);
