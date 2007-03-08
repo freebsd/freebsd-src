@@ -453,7 +453,13 @@ radius_Process(struct radius *r, int got)
 #ifndef NOINET6
       case RAD_FRAMED_IPV6_PREFIX:
 	free(r->ipv6prefix);
-        r->ipv6prefix = rad_cvt_ipv6prefix(data, len);
+	if ((r->ipv6prefix = rad_cvt_ipv6prefix(data, len)) == NULL) {
+	  log_Printf(LogERROR, "rad_cvt_ipv6prefix: %s\n",
+		     "Malformed attribute in response");
+	  auth_Failure(r->cx.auth);
+	  rad_close(r->cx.rad);
+	  return;
+	}
 	inet_ntop(AF_INET6, &r->ipv6prefix[2], ipv6addr, sizeof(ipv6addr));
 	log_Printf(log_IsKept(LogRADIUS) ? LogRADIUS : LogPHASE,
 		   " IPv6 %s/%d\n", ipv6addr, r->ipv6prefix[1]);
