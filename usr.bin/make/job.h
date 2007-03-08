@@ -72,6 +72,8 @@ void Proc_Init(void);
 
 struct Buffer *Cmd_Exec(const char *, const char **);
 
+int Compat_Make(struct GNode *gn, struct GNode *pgn);
+void Compat_InstallSignalHandlers(void);
 void Compat_Run(struct Lst *);
 
 #endif /* job_h_4678dfd1 */
