@@ -921,6 +921,7 @@ MLINKS+=rwlock.9 rw_assert.9 \
 	rwlock.9 rw_destroy.9 \
 	rwlock.9 rw_downgrade.9 \
 	rwlock.9 rw_init.9 \
+	rwlock.9 rw_initialized.9 \
 	rwlock.9 rw_rlock.9 \
 	rwlock.9 rw_runlock.9 \
 	rwlock.9 RW_SYSINIT.9 \
