@@ -86,7 +86,7 @@ static struct m3_card_type {
 	{ 0, 0, 0, 0, NULL }
 };
 
-#define M3_BUFSIZE_MIN	1024
+#define M3_BUFSIZE_MIN	4096
 #define M3_BUFSIZE_MAX	65536
 #define M3_BUFSIZE_DEFAULT 4096
 #define M3_PCHANS 4 /* create /dev/dsp0.[0-N] to use more than one */
@@ -105,6 +105,8 @@ struct sc_pchinfo {
 	u_int32_t	dac_data;
 	u_int32_t	dac_idx;
 	u_int32_t	active;
+	u_int32_t	ptr;
+	u_int32_t	prevptr;
 };
 
 struct sc_rchinfo {
@@ -117,6 +119,8 @@ struct sc_rchinfo {
 	u_int32_t	adc_data;
 	u_int32_t	adc_idx;
 	u_int32_t	active;
+	u_int32_t	ptr;
+	u_int32_t	prevptr;
 };
 
 struct sc_info {
@@ -162,7 +166,8 @@ static int m3_pchan_setspeed(kobj_t, void *, u_int32_t);
 static int m3_pchan_setblocksize(kobj_t, void *, u_int32_t);
 static int m3_pchan_trigger(kobj_t, void *, int);
 static int m3_pchan_trigger_locked(kobj_t, void *, int);
-static int m3_pchan_getptr(kobj_t, void *);
+static u_int32_t m3_pchan_getptr_internal(struct sc_pchinfo *);
+static u_int32_t m3_pchan_getptr(kobj_t, void *);
 static struct pcmchan_caps *m3_pchan_getcaps(kobj_t, void *);
 
 /* record channel interface */
@@ -173,8 +178,11 @@ static int m3_rchan_setspeed(kobj_t, void *, u_int32_t);
 static int m3_rchan_setblocksize(kobj_t, void *, u_int32_t);
 static int m3_rchan_trigger(kobj_t, void *, int);
 static int m3_rchan_trigger_locked(kobj_t, void *, int);
-static int m3_rchan_getptr(kobj_t, void *);
+static u_int32_t m3_rchan_getptr_internal(struct sc_rchinfo *);
+static u_int32_t m3_rchan_getptr(kobj_t, void *);
 static struct pcmchan_caps *m3_rchan_getcaps(kobj_t, void *);
+
+static int m3_chan_active(struct sc_info *);
 
 /* talk to the codec - called from ac97.c */
 static int	 m3_initcd(kobj_t, void *);
@@ -555,7 +563,7 @@ m3_pchan_setblocksize(kobj_t kobj, void *chdata, u_int32_t blocksize)
 	M3_DEBUG(CHANGE, ("m3_pchan_setblocksize(dac=%d, blocksize=%d)\n",
 			  ch->dac_idx, blocksize));
 
-	return blocksize;
+	return (sndbuf_getblksz(ch->buffer));
 }
 
 static int
@@ -568,6 +576,22 @@ m3_pchan_trigger(kobj_t kobj, void *chdata, int go)
 	M3_LOCK(sc);
 	ret = m3_pchan_trigger_locked(kobj, chdata, go);
 	M3_UNLOCK(sc);
+
+	return (ret);
+}
+
+static int
+m3_chan_active(struct sc_info *sc)
+{
+	int i, ret;
+
+	ret = 0;
+
+	for (i = 0; i < sc->pch_cnt; i++)
+		ret += sc->pch[i].active;
+
+	for (i = 0; i < sc->rch_cnt; i++)
+		ret += sc->rch[i].active;
 
 	return (ret);
 }
@@ -595,13 +619,17 @@ m3_pchan_trigger_locked(kobj_t kobj, void *chdata, int go)
 			return 0;
 		}
 		ch->active = 1;
+		ch->ptr = 0;
+		ch->prevptr = 0;
 		sc->pch_active_cnt++;
 
 		/*[[inc_timer_users]]*/
-                m3_wr_assp_data(sc, KDATA_TIMER_COUNT_RELOAD, 240);
-                m3_wr_assp_data(sc, KDATA_TIMER_COUNT_CURRENT, 240);
-                data = m3_rd_2(sc, HOST_INT_CTRL);
-                m3_wr_2(sc, HOST_INT_CTRL, data | CLKRUN_GEN_ENABLE);
+		if (m3_chan_active(sc) == 1) {
+	                m3_wr_assp_data(sc, KDATA_TIMER_COUNT_RELOAD, 240);
+        	        m3_wr_assp_data(sc, KDATA_TIMER_COUNT_CURRENT, 240);
+	                data = m3_rd_2(sc, HOST_INT_CTRL);
+        	        m3_wr_2(sc, HOST_INT_CTRL, data | CLKRUN_GEN_ENABLE);
+		}
 
                 m3_wr_assp_data(sc, ch->dac_data + CDATA_INSTANCE_READY, 1);
                 m3_wr_assp_data(sc, KDATA_MIXER_TASK_NUMBER,
@@ -618,10 +646,12 @@ m3_pchan_trigger_locked(kobj_t kobj, void *chdata, int go)
 
 		/* XXX should the channel be drained? */
 		/*[[dec_timer_users]]*/
-                m3_wr_assp_data(sc, KDATA_TIMER_COUNT_RELOAD, 0);
-                m3_wr_assp_data(sc, KDATA_TIMER_COUNT_CURRENT, 0);
-                data = m3_rd_2(sc, HOST_INT_CTRL);
-                m3_wr_2(sc, HOST_INT_CTRL, data & ~CLKRUN_GEN_ENABLE);
+		if (m3_chan_active(sc) == 0) {
+	                m3_wr_assp_data(sc, KDATA_TIMER_COUNT_RELOAD, 0);
+        	        m3_wr_assp_data(sc, KDATA_TIMER_COUNT_CURRENT, 0);
+                	data = m3_rd_2(sc, HOST_INT_CTRL);
+	                m3_wr_2(sc, HOST_INT_CTRL, data & ~CLKRUN_GEN_ENABLE);
+		}
 
                 m3_wr_assp_data(sc, ch->dac_data + CDATA_INSTANCE_READY, 0);
                 m3_wr_assp_data(sc, KDATA_MIXER_TASK_NUMBER,
@@ -638,14 +668,12 @@ m3_pchan_trigger_locked(kobj_t kobj, void *chdata, int go)
 	return 0;
 }
 
-static int
-m3_pchan_getptr(kobj_t kobj, void *chdata)
+static u_int32_t
+m3_pchan_getptr_internal(struct sc_pchinfo *ch)
 {
-	struct sc_pchinfo *ch = chdata;
 	struct sc_info *sc = ch->parent;
 	u_int32_t hi, lo, bus_base, bus_crnt;
 
-	M3_LOCK(sc);
 	bus_base = sndbuf_getbufaddr(ch->buffer);
 	hi = m3_rd_assp_data(sc, ch->dac_data + CDATA_HOST_SRC_CURRENTH);
         lo = m3_rd_assp_data(sc, ch->dac_data + CDATA_HOST_SRC_CURRENTL);
@@ -653,9 +681,22 @@ m3_pchan_getptr(kobj_t kobj, void *chdata)
 
 	M3_DEBUG(CALL, ("m3_pchan_getptr(dac=%d) result=%d\n",
 			ch->dac_idx, bus_crnt - bus_base));
-	M3_UNLOCK(sc);
 
 	return (bus_crnt - bus_base); /* current byte offset of channel */
+}
+
+static u_int32_t
+m3_pchan_getptr(kobj_t kobj, void *chdata)
+{
+	struct sc_pchinfo *ch = chdata;
+	struct sc_info *sc = ch->parent;
+	u_int32_t ptr;
+
+	M3_LOCK(sc);
+	ptr = ch->ptr;
+	M3_UNLOCK(sc);
+
+	return (ptr);
 }
 
 static struct pcmchan_caps *
@@ -865,7 +906,7 @@ m3_rchan_setblocksize(kobj_t kobj, void *chdata, u_int32_t blocksize)
 	M3_DEBUG(CHANGE, ("m3_rchan_setblocksize(adc=%d, blocksize=%d)\n",
 			  ch->adc_idx, blocksize));
 
-	return blocksize;
+	return (sndbuf_getblksz(ch->buffer));
 }
 
 static int
@@ -905,12 +946,16 @@ m3_rchan_trigger_locked(kobj_t kobj, void *chdata, int go)
 			return 0;
 		}
 		ch->active = 1;
+		ch->ptr = 0;
+		ch->prevptr = 0;
 
 		/*[[inc_timer_users]]*/
-                m3_wr_assp_data(sc, KDATA_TIMER_COUNT_RELOAD, 240);
-                m3_wr_assp_data(sc, KDATA_TIMER_COUNT_CURRENT, 240);
-                data = m3_rd_2(sc, HOST_INT_CTRL);
-                m3_wr_2(sc, HOST_INT_CTRL, data | CLKRUN_GEN_ENABLE);
+		if (m3_chan_active(sc) == 1) {
+	                m3_wr_assp_data(sc, KDATA_TIMER_COUNT_RELOAD, 240);
+        	        m3_wr_assp_data(sc, KDATA_TIMER_COUNT_CURRENT, 240);
+                	data = m3_rd_2(sc, HOST_INT_CTRL);
+	                m3_wr_2(sc, HOST_INT_CTRL, data | CLKRUN_GEN_ENABLE);
+		}
 
                 m3_wr_assp_data(sc, KDATA_ADC1_REQUEST, 1);
                 m3_wr_assp_data(sc, ch->adc_data + CDATA_INSTANCE_READY, 1);
@@ -924,10 +969,12 @@ m3_rchan_trigger_locked(kobj_t kobj, void *chdata, int go)
 		ch->active = 0;
 
 		/*[[dec_timer_users]]*/
-                m3_wr_assp_data(sc, KDATA_TIMER_COUNT_RELOAD, 0);
-                m3_wr_assp_data(sc, KDATA_TIMER_COUNT_CURRENT, 0);
-                data = m3_rd_2(sc, HOST_INT_CTRL);
-                m3_wr_2(sc, HOST_INT_CTRL, data & ~CLKRUN_GEN_ENABLE);
+		if (m3_chan_active(sc) == 0) {
+	                m3_wr_assp_data(sc, KDATA_TIMER_COUNT_RELOAD, 0);
+        	        m3_wr_assp_data(sc, KDATA_TIMER_COUNT_CURRENT, 0);
+                	data = m3_rd_2(sc, HOST_INT_CTRL);
+	                m3_wr_2(sc, HOST_INT_CTRL, data & ~CLKRUN_GEN_ENABLE);
+		}
 
                 m3_wr_assp_data(sc, ch->adc_data + CDATA_INSTANCE_READY, 0);
                 m3_wr_assp_data(sc, KDATA_ADC1_REQUEST, 0);
@@ -943,14 +990,12 @@ m3_rchan_trigger_locked(kobj_t kobj, void *chdata, int go)
 	return 0;
 }
 
-static int
-m3_rchan_getptr(kobj_t kobj, void *chdata)
+static u_int32_t
+m3_rchan_getptr_internal(struct sc_rchinfo *ch)
 {
-	struct sc_rchinfo *ch = chdata;
 	struct sc_info *sc = ch->parent;
 	u_int32_t hi, lo, bus_base, bus_crnt;
 
-	M3_LOCK(sc);
 	bus_base = sndbuf_getbufaddr(ch->buffer);
 	hi = m3_rd_assp_data(sc, ch->adc_data + CDATA_HOST_SRC_CURRENTH);
         lo = m3_rd_assp_data(sc, ch->adc_data + CDATA_HOST_SRC_CURRENTL);
@@ -958,9 +1003,22 @@ m3_rchan_getptr(kobj_t kobj, void *chdata)
 
 	M3_DEBUG(CALL, ("m3_rchan_getptr(adc=%d) result=%d\n",
 			ch->adc_idx, bus_crnt - bus_base));
-	M3_UNLOCK(sc);
 
 	return (bus_crnt - bus_base); /* current byte offset of channel */
+}
+
+static u_int32_t
+m3_rchan_getptr(kobj_t kobj, void *chdata)
+{
+	struct sc_rchinfo *ch = chdata;
+	struct sc_info *sc = ch->parent;
+	u_int32_t ptr;
+
+	M3_LOCK(sc);
+	ptr = ch->ptr;
+	M3_UNLOCK(sc);
+
+	return (ptr);
 }
 
 static struct pcmchan_caps *
@@ -980,7 +1038,9 @@ static void
 m3_intr(void *p)
 {
 	struct sc_info *sc = (struct sc_info *)p;
-	u_int32_t status, ctl, i;
+	struct sc_pchinfo *pch;
+	struct sc_rchinfo *rch;
+	u_int32_t status, ctl, i, delta;
 
 	M3_DEBUG(INTR, ("m3_intr\n"));
 
@@ -1024,25 +1084,44 @@ m3_intr(void *p)
 				m3_wr_1(sc, ASSP_HOST_INT_STATUS,
 					DSP2HOST_REQ_TIMER);
 				/*[[ess_update_ptr]]*/
+				goto m3_handle_channel_intr;
 			}
 		}
 	}
 
+	goto m3_handle_channel_intr_out;
+
+m3_handle_channel_intr:
 	for (i=0 ; i<sc->pch_cnt ; i++) {
-		if (sc->pch[i].active) {
+		pch = &sc->pch[i];
+		if (pch->active) {
+			pch->ptr = m3_pchan_getptr_internal(pch);
+			delta = pch->bufsize + pch->ptr - pch->prevptr;
+			delta %= pch->bufsize;
+			if (delta < sndbuf_getblksz(pch->buffer))
+				continue;
+			pch->prevptr = pch->ptr;
 			M3_UNLOCK(sc);
-			chn_intr(sc->pch[i].channel);
+			chn_intr(pch->channel);
 			M3_LOCK(sc);
 		}
 	}
 	for (i=0 ; i<sc->rch_cnt ; i++) {
-		if (sc->rch[i].active) {
+		rch = &sc->rch[i];
+		if (rch->active) {
+			rch->ptr = m3_rchan_getptr_internal(rch);
+			delta = rch->bufsize + rch->ptr - rch->prevptr;
+			delta %= rch->bufsize;
+			if (delta < sndbuf_getblksz(rch->buffer))
+				continue;
+			rch->prevptr = rch->ptr;
 			M3_UNLOCK(sc);
-			chn_intr(sc->rch[i].channel);
+			chn_intr(rch->channel);
 			M3_LOCK(sc);
 		}
 	}
 
+m3_handle_channel_intr_out:
 	M3_UNLOCK(sc);
 }
 
@@ -1173,10 +1252,10 @@ m3_pci_attach(device_t dev)
 {
 	struct sc_info *sc;
 	struct ac97_info *codec = NULL;
-	u_int32_t data, i;
+	u_int32_t data;
 	char status[SND_STATUSLEN];
 	struct m3_card_type *card;
-	int len;
+	int i, len, dacn, adcn;
 
 	M3_DEBUG(CALL, ("m3_pci_attach\n"));
 
@@ -1202,6 +1281,19 @@ m3_pci_attach(device_t dev)
 			break;
 		}
 	}
+
+	if (resource_int_value(device_get_name(dev), device_get_unit(dev),
+	    "dac", &i) == 0) {
+	    	if (i < 1)
+			dacn = 1;
+		else if (i > M3_PCHANS)
+			dacn = M3_PCHANS;
+		else
+			dacn = i;
+	} else
+		dacn = M3_PCHANS;
+
+	adcn = M3_RCHANS;
 
 	data = pci_read_config(dev, PCIR_COMMAND, 2);
 	data |= (PCIM_CMD_PORTEN | PCIM_CMD_MEMEN | PCIM_CMD_BUSMASTEREN);
@@ -1236,7 +1328,7 @@ m3_pci_attach(device_t dev)
 		goto bad;
 	}
 
-	sc->bufsz = pcm_getbuffersize(dev, M3_BUFSIZE_MAX, M3_BUFSIZE_DEFAULT,
+	sc->bufsz = pcm_getbuffersize(dev, M3_BUFSIZE_MIN, M3_BUFSIZE_DEFAULT,
 	    M3_BUFSIZE_MAX);
 
 	if (bus_dma_tag_create(
@@ -1279,17 +1371,17 @@ m3_pci_attach(device_t dev)
 
 	m3_enable_ints(sc);
 
-	if (pcm_register(dev, sc, M3_PCHANS, M3_RCHANS)) {
+	if (pcm_register(dev, sc, dacn, adcn)) {
 		device_printf(dev, "pcm_register error\n");
 		goto bad;
 	}
-	for (i=0 ; i<M3_PCHANS ; i++) {
+	for (i=0 ; i<dacn ; i++) {
 		if (pcm_addchan(dev, PCMDIR_PLAY, &m3_pch_class, sc)) {
 			device_printf(dev, "pcm_addchan (play) error\n");
 			goto bad;
 		}
 	}
-	for (i=0 ; i<M3_RCHANS ; i++) {
+	for (i=0 ; i<adcn ; i++) {
 		if (pcm_addchan(dev, PCMDIR_REC, &m3_rch_class, sc)) {
 			device_printf(dev, "pcm_addchan (rec) error\n");
 			goto bad;
