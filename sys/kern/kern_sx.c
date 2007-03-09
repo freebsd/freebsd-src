@@ -54,6 +54,8 @@ __FBSDID("$FreeBSD$");
 
 static void	db_show_sx(struct lock_object *lock);
 #endif
+static void	lock_sx(struct lock_object *lock, int how);
+static int	unlock_sx(struct lock_object *lock);
 
 struct lock_class lock_class_sx = {
 	.lc_name = "sx",
@@ -61,11 +63,41 @@ struct lock_class lock_class_sx = {
 #ifdef DDB
 	.lc_ddb_show = db_show_sx,
 #endif
+	.lc_lock = lock_sx,
+	.lc_unlock = unlock_sx,
 };
 
 #ifndef INVARIANTS
 #define	_sx_assert(sx, what, file, line)
 #endif
+
+void
+lock_sx(struct lock_object *lock, int how)
+{
+	struct sx *sx;
+
+	sx = (struct sx *)lock;
+	if (how)
+		sx_xlock(sx);
+	else
+		sx_slock(sx);
+}
+
+int
+unlock_sx(struct lock_object *lock)
+{
+	struct sx *sx;
+
+	sx = (struct sx *)lock;
+	sx_assert(sx, SX_LOCKED | LA_NOTRECURSED);
+	if (sx_xlocked(sx)) {
+		sx_xunlock(sx);
+		return (1);
+	} else {
+		sx_sunlock(sx);
+		return (0);
+	}
+}
 
 void
 sx_sysinit(void *arg)
@@ -348,6 +380,7 @@ _sx_assert(struct sx *sx, int what, const char *file, int line)
 		return;
 	switch (what) {
 	case SX_LOCKED:
+	case SX_LOCKED | LA_NOTRECURSED:
 	case SX_SLOCKED:
 #ifdef WITNESS
 		witness_assert(&sx->sx_object, what, file, line);

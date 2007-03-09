@@ -52,6 +52,8 @@ __FBSDID("$FreeBSD$");
 
 static void	db_show_rwlock(struct lock_object *lock);
 #endif
+static void	lock_rw(struct lock_object *lock, int how);
+static int	unlock_rw(struct lock_object *lock);
 
 struct lock_class lock_class_rw = {
 	.lc_name = "rw",
@@ -59,6 +61,8 @@ struct lock_class lock_class_rw = {
 #ifdef DDB
 	.lc_ddb_show = db_show_rwlock,
 #endif
+	.lc_lock = lock_rw,
+	.lc_unlock = unlock_rw,
 };
 
 /*
@@ -79,6 +83,34 @@ struct lock_class lock_class_rw = {
 #ifndef INVARIANTS
 #define	_rw_assert(rw, what, file, line)
 #endif
+
+void
+lock_rw(struct lock_object *lock, int how)
+{
+	struct rwlock *rw;
+
+	rw = (struct rwlock *)lock;
+	if (how)
+		rw_wlock(rw);
+	else
+		rw_rlock(rw);
+}
+
+int
+unlock_rw(struct lock_object *lock)
+{
+	struct rwlock *rw;
+
+	rw = (struct rwlock *)lock;
+	rw_assert(rw, RA_LOCKED | LA_NOTRECURSED);
+	if (rw->rw_lock & RW_LOCK_READ) {
+		rw_runlock(rw);
+		return (0);
+	} else {
+		rw_wunlock(rw);
+		return (1);
+	}
+}
 
 void
 rw_init(struct rwlock *rw, const char *name)
@@ -758,6 +790,7 @@ _rw_assert(struct rwlock *rw, int what, const char *file, int line)
 		return;
 	switch (what) {
 	case RA_LOCKED:
+	case RA_LOCKED | LA_NOTRECURSED:
 	case RA_RLOCKED:
 #ifdef WITNESS
 		witness_assert(&rw->rw_object, what, file, line);

@@ -64,21 +64,37 @@ __FBSDID("$FreeBSD$");
 #include <ddb/ddb.h>
 static void	db_show_lockmgr(struct lock_object *lock);
 #endif
-
+static void	lock_lockmgr(struct lock_object *lock, int how);
+static int	unlock_lockmgr(struct lock_object *lock);
 
 struct lock_class lock_class_lockmgr = {
 	.lc_name = "lockmgr",
 	.lc_flags = LC_SLEEPLOCK | LC_SLEEPABLE | LC_RECURSABLE | LC_UPGRADABLE,
 #ifdef DDB
-	.lc_ddb_show = db_show_lockmgr
+	.lc_ddb_show = db_show_lockmgr,
 #endif
+	.lc_lock = lock_lockmgr,
+	.lc_unlock = unlock_lockmgr,
 };
-
 
 /*
  * Locking primitives implementation.
  * Locks provide shared/exclusive sychronization.
  */
+
+void
+lock_lockmgr(struct lock_object *lock, int how)
+{
+
+	panic("lockmgr locks do not support sleep interlocking");
+}
+
+int
+unlock_lockmgr(struct lock_object *lock)
+{
+
+	panic("lockmgr locks do not support sleep interlocking");
+}
 
 #define	COUNT(td, x)	if ((td)) (td)->td_locks += (x)
 #define LK_ALL (LK_HAVE_EXCL | LK_WANT_EXCL | LK_WANT_UPGRADE | \

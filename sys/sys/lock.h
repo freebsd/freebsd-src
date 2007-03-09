@@ -45,12 +45,21 @@ struct thread;
  * an error to perform any type of context switch while holding a spin lock.
  * Also, for an individual lock to be recursable, its class must allow
  * recursion and the lock itself must explicitly allow recursion.
+ *
+ * The 'lc_ddb_show' function pointer is used to dump class-specific
+ * data for the 'show lock' DDB command.  The 'lc_lock' and
+ * 'lc_unlock' function pointers are used in sleep(9) and cv_wait(9)
+ * to lock and unlock locks while blocking on a sleep queue.  The
+ * return value of 'lc_unlock' will be passed to 'lc_lock' on resume
+ * to allow communication of state between the two routines.
  */
 
 struct lock_class {
 	const	char *lc_name;
 	u_int	lc_flags;
 	void	(*lc_ddb_show)(struct lock_object *lock);
+	void	(*lc_lock)(struct lock_object *lock, int how);
+	int	(*lc_unlock)(struct lock_object *lock);
 };
 
 #define	LC_SLEEPLOCK	0x00000001	/* Sleep lock. */
