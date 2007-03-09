@@ -636,7 +636,7 @@
 	<title>Network Interface Support</title>
 
 	<para>The &man.ath.4; driver has been updated to
-	  HAL version 0.9.17.2.  &merged;</para>
+	  HAL version 0.9.20.3.  &merged;</para>
 
 	<para>[&arch.amd64;, &arch.i386;, &arch.pc98;, &arch.sparc64;]
 	  The &man.ath.4;, &man.ath.hal.4;, and
@@ -777,6 +777,10 @@
 	  interfaces.  More information can be found in
 	  &man.ifconfig.8;.</para>
 
+	<para>The 802.11 protocol stack now has support for 900 MHz
+	  cards, as well as quarter- and half-channel support
+	  for 802.11a. &merged;</para>
+
       </sect4>
     </sect3>
 
@@ -831,7 +835,7 @@
         &merged;</para>
 
       <para>The &man.if.bridge.4; driver now supports RSTP, the Rapid
-	Spanning Tree Protocol (802.1w).</para>
+	Spanning Tree Protocol (802.1w). &merged;</para>
 
       <para>A hard-coded limit on the number of IPv4 multicast group
         memberships (formerly 20) has been removed.</para>
@@ -887,11 +891,17 @@ pipe tablearg ip from table(1) to any</programlisting>
 
       <para>The &man.natm.4;, Native Mode ATM protocol layer is now MPSAFE.</para>
 
+      <para>A new &man.ng.deflate.4; NetGraph node type has been
+	added.  It implements Deflate PPP compression. &merged;</para>
+
       <para>The &man.ng.ether.4; Netgraph node no longer overwrites
         the MAC address of outgoing frames by default. &merged;</para>
 
       <para>The &man.ng.iface.4; Netgraph node now supports &man.altq.4;.
 	&merged;</para>
+
+      <para>A new &man.ng.pred1.4; NetGraph node type has been added
+	to implement Predictor-1 PPP compression. &merged;</para>
 
       <para>The &man.ng.tag.4; Netgraph node has been added to
         support the manipulation of mbuf tags attached to data in the
@@ -1667,6 +1677,10 @@ geli_da1s3a_keyfile0_name="/boot/keys/da1s3a.key"</programlisting>
     <para>The <function>wcsdup()</function> function has been
       implemented.  This function is popular in Microsoft and GNU
       systems.</para>
+
+    <para>The &man.wpa.passphrase.8; utility has been added.  It
+      generates a 256-bit pre-shared WPA key from an ASCII
+      passphrase. &merged;</para>
 
     <para>The compiler toolchain is now capable of generating
       executables for systems using the ARM processor. &merged;</para>
