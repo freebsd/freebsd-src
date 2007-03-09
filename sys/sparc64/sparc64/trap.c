@@ -584,6 +584,9 @@ syscall(struct trapframe *tf)
 	if (KTRPOINT(td, KTR_SYSCALL))
 		ktrsyscall(code, narg, argp);
 #endif
+
+	td->td_syscalls++;
+
 	if (error == 0) {
 		td->td_retval[0] = 0;
 		td->td_retval[1] = 0;
