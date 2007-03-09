@@ -178,9 +178,9 @@ and
 will fail if:
 .Bl -tag -width Er
 .It Bq Er EINTR
-A signal was caught and the system call should be restarted.
-.It Bq Er ERESTART
 A signal was caught and the system call should be interrupted.
+.It Bq Er ERESTART
+A signal was caught and the system call should be restarted.
 .El
 .Pp
 .Fn cv_timedwait
