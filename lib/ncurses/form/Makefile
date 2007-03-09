@@ -4,7 +4,7 @@
 
 SRCDIR=	${NCURSES_DIR}/form
 
-LIB=	form
+LIB=	form${LIB_SUFFIX}
 
 .PATH: ${SRCDIR}
 SRCS=	\
@@ -54,8 +54,8 @@ CLEANFILES=	ncurses_def.h
 CFLAGS+=	-I${SRCDIR}
 CFLAGS+=	-I${NCURSES_DIR}/menu
 
-DPADD=	${LIBNCURSES}
-LDADD=	-lncurses
+DPADD=	${LIBNCURSES${LIB_SUFFIX:U}}
+LDADD=	-lncurses${LIB_SUFFIX}
 
 INCS=	form.h
 

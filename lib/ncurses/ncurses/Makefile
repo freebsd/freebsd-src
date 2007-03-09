@@ -6,7 +6,7 @@ SHLIBDIR?=	/lib
 
 .include "${.CURDIR}/../config.mk"
 
-LIB=		ncurses
+LIB=		ncurses${LIB_SUFFIX}
 SHLIB_MAJOR=	6
 
 NO_LINT=
@@ -16,8 +16,13 @@ NCURSES_MINOR!=	egrep 'NCURSES_MINOR[ 	]*=' ${NCURSES_DIR}/dist.mk | sed -e 's%^
 NCURSES_PATCH!=	egrep 'NCURSES_PATCH[ 	]*=' ${NCURSES_DIR}/dist.mk | sed -e 's%^[^0-9]*%%'
 
 # From autoconf (!)
+.if defined(ENABLE_WIDEC)
+NCURSES_CH_T=		cchar_t
+NEED_WCHAR_H=		1
+.else
 NCURSES_CH_T=		chtype
 NEED_WCHAR_H=		0
+.endif
 NCURSES_CONST=		const
 NCURSES_EXT_COLORS=	0
 NCURSES_EXT_FUNCS=	1
@@ -211,6 +216,30 @@ SRCS+=	\
 	lib_vidattr.c \
 	tty_update.c
 
+.if defined(ENABLE_WIDEC)
+.PATH: ${NCURSES_DIR}/ncurses/widechar
+SRCS+=	\
+	charable.c \
+	lib_add_wch.c \
+	lib_box_set.c \
+	lib_cchar.c \
+	lib_erasewchar.c \
+	lib_get_wch.c \
+	lib_get_wstr.c \
+	lib_hline_set.c \
+	lib_in_wch.c \
+	lib_in_wchnstr.c \
+	lib_ins_wch.c \
+	lib_inwstr.c \
+	lib_pecho_wchar.c \
+	lib_slk_wset.c \
+	lib_unget_wch.c \
+	lib_vid_attr.c \
+	lib_vline_set.c \
+	lib_wacs.c \
+	lib_wunctrl.c
+.endif
+
 .PATH: ${NCURSES_DIR}/ncurses/trace
 SRCS+=	\
 	lib_trace.c \
@@ -249,23 +278,23 @@ INCS=		${HEADERS} ${SRCHDRS}
 INCSLINKS=	curses.h ${INCLUDEDIR}/ncurses.h
 
 .if !defined(NO_INSTALLLIB)
-SYMLINKS+=	libncurses.a ${LIBDIR}/libcurses.a
-SYMLINKS+=	libncurses.a ${LIBDIR}/libtermcap.a
-SYMLINKS+=	libncurses.a ${LIBDIR}/libtermlib.a
-SYMLINKS+=	libncurses.a ${LIBDIR}/libtinfo.a
+SYMLINKS+=	libncurses${LIB_SUFFIX}.a ${LIBDIR}/libcurses${LIB_SUFFIX}.a
+SYMLINKS+=	libncurses${LIB_SUFFIX}.a ${LIBDIR}/libtermcap${LIB_SUFFIX}.a
+SYMLINKS+=	libncurses${LIB_SUFFIX}.a ${LIBDIR}/libtermlib${LIB_SUFFIX}.a
+SYMLINKS+=	libncurses${LIB_SUFFIX}.a ${LIBDIR}/libtinfo${LIB_SUFFIX}.a
 .endif
 .if !defined(NO_PIC)
 # no need for major at all, it's an ld-time redirection only
-SYMLINKS+=	libncurses.so ${LIBDIR}/libcurses.so
-SYMLINKS+=	libncurses.so ${LIBDIR}/libtermcap.so
-SYMLINKS+=	libncurses.so ${LIBDIR}/libtermlib.so
-SYMLINKS+=	libncurses.so ${LIBDIR}/libtinfo.so
+SYMLINKS+=	libncurses${LIB_SUFFIX}.so ${LIBDIR}/libcurses${LIB_SUFFIX}.so
+SYMLINKS+=	libncurses${LIB_SUFFIX}.so ${LIBDIR}/libtermcap${LIB_SUFFIX}.so
+SYMLINKS+=	libncurses${LIB_SUFFIX}.so ${LIBDIR}/libtermlib${LIB_SUFFIX}.so
+SYMLINKS+=	libncurses${LIB_SUFFIX}.so ${LIBDIR}/libtinfo${LIB_SUFFIX}.so
 .endif
 .if ${MK_PROFILE} != "no"
-SYMLINKS+=	libncurses_p.a ${LIBDIR}/libcurses_p.a
-SYMLINKS+=	libncurses_p.a ${LIBDIR}/libtermcap_p.a
-SYMLINKS+=	libncurses_p.a ${LIBDIR}/libtermlib_p.a
-SYMLINKS+=	libncurses_p.a ${LIBDIR}/libtinfo_p.a
+SYMLINKS+=	libncurses${LIB_SUFFIX}_p.a ${LIBDIR}/libcurses${LIB_SUFFIX}_p.a
+SYMLINKS+=	libncurses${LIB_SUFFIX}_p.a ${LIBDIR}/libtermcap${LIB_SUFFIX}_p.a
+SYMLINKS+=	libncurses${LIB_SUFFIX}_p.a ${LIBDIR}/libtermlib${LIB_SUFFIX}_p.a
+SYMLINKS+=	libncurses${LIB_SUFFIX}_p.a ${LIBDIR}/libtinfo${LIB_SUFFIX}_p.a
 .endif
 
 DOCSDIR=	${SHAREDIR}/doc/ncurses
@@ -332,6 +361,9 @@ curses.h: curses.head MKkey_defs.sh Caps
 	cat curses.head > $@.new
 	AWK=${AWK} _POSIX2_VERSION=199209 sh ${NCURSES_DIR}/include/MKkey_defs.sh \
 	    ${NCURSES_DIR}/include/Caps >> $@.new
+.if defined(ENABLE_WIDEC)
+	cat ${NCURSES_DIR}/include/curses.wide >> $@.new
+.endif
 	cat ${NCURSES_DIR}/include/curses.tail >> $@.new
 	mv -f $@.new $@
 
@@ -470,6 +502,21 @@ MAN=	\
 	ncurses.3 \
 	resizeterm.3 \
 	wresize.3
+
+.if defined(ENABLE_WIDEC)
+MAN+=	\
+	curs_add_wch.3 \
+	curs_add_wchstr.3 \
+	curs_addwstr.3 \
+	curs_get_wch.3 \
+	curs_get_wstr.3 \
+	curs_in_wch.3 \
+	curs_in_wchstr.3 \
+	curs_ins_wch.3 \
+	curs_ins_wstr.3 \
+	curs_printw.3 \
+	curs_scanw.3
+.endif
 
 CLEANFILES+=	${MAN:M*.3}
 
@@ -794,6 +841,89 @@ MLINKS=	ncurses.3 curses.3 \
 	legacy_coding.3 use_legacy_coding.3 \
 	resizeterm.3 is_term_resized.3 \
 	resizeterm.3 resize_term.3
+
+.if defined(ENABLE_WIDEC)
+MLINKS+=curs_add_wch.3 add_wch.3 \
+	curs_add_wch.3 echo_wchar.3 \
+	curs_add_wch.3 mvadd_wch.3 \
+	curs_add_wch.3 mvwadd_wch.3 \
+	curs_add_wch.3 wadd_wch.3 \
+	curs_add_wch.3 wecho_wchar.3 \
+	curs_add_wchstr.3 add_wchnstr.3 \
+	curs_add_wchstr.3 add_wchstr.3 \
+	curs_add_wchstr.3 mvadd_wchnstr.3 \
+	curs_add_wchstr.3 mvadd_wchstr.3 \
+	curs_add_wchstr.3 mvwadd_wchnstr.3 \
+	curs_add_wchstr.3 mvwadd_wchstr.3 \
+	curs_add_wchstr.3 wadd_wchnstr.3 \
+	curs_add_wchstr.3 wadd_wchstr.3 \
+	curs_addwstr.3 addnwstr.3 \
+	curs_addwstr.3 addwstr.3 \
+	curs_addwstr.3 mvaddnwstr.3 \
+	curs_addwstr.3 mvaddwstr.3 \
+	curs_addwstr.3 mvwaddnwstr.3 \
+	curs_addwstr.3 mvwaddwstr.3 \
+	curs_addwstr.3 waddnwstr.3 \
+	curs_addwstr.3 waddwstr.3 \
+	curs_get_wch.3 get_wch.3 \
+	curs_get_wch.3 mvget_wch.3 \
+	curs_get_wch.3 mvwget_wch.3 \
+	curs_get_wch.3 unget_wch.3 \
+	curs_get_wch.3 wget_wch.3 \
+	curs_get_wstr.3 get_wstr.3 \
+	curs_get_wstr.3 getn_wstr.3 \
+	curs_get_wstr.3 mvget_wstr.3 \
+	curs_get_wstr.3 mvgetn_wstr.3 \
+	curs_get_wstr.3 mvwget_wstr.3 \
+	curs_get_wstr.3 mvwgetn_wstr.3 \
+	curs_get_wstr.3 wget_wstr.3 \
+	curs_get_wstr.3 wgetn_wstr.3 \
+	curs_in_wch.3 in_wch.3 \
+	curs_in_wch.3 mvin_wch.3 \
+	curs_in_wch.3 mvwin_wch.3 \
+	curs_in_wch.3 win_wch.3 \
+	curs_in_wchstr.3 in_wchnstr.3 \
+	curs_in_wchstr.3 in_wchstr.3 \
+	curs_in_wchstr.3 mvin_wchnstr.3 \
+	curs_in_wchstr.3 mvin_wchstr.3 \
+	curs_in_wchstr.3 mvwin_wchnstr.3 \
+	curs_in_wchstr.3 mvwin_wchstr.3 \
+	curs_in_wchstr.3 win_wchnstr.3 \
+	curs_in_wchstr.3 win_wchstr.3 \
+	curs_ins_wch.3 ins_wch.3 \
+	curs_ins_wch.3 mvins_wch.3 \
+	curs_ins_wch.3 mvwins_wch.3 \
+	curs_ins_wch.3 wins_wch.3 \
+	curs_ins_wstr.3 ins_nwstr.3 \
+	curs_ins_wstr.3 ins_wstr.3 \
+	curs_ins_wstr.3 mvins_nwstr.3 \
+	curs_ins_wstr.3 mvins_wstr.3 \
+	curs_ins_wstr.3 mvwins_nwstr.3 \
+	curs_ins_wstr.3 mvwins_wstr.3 \
+	curs_ins_wstr.3 wins_nwstr.3 \
+	curs_ins_wstr.3 wins_wstr.3 \
+	curs_inwstr.3 innwstr.3 \
+	curs_inwstr.3 inwstr.3 \
+	curs_inwstr.3 mvinnwstr.3 \
+	curs_inwstr.3 mvinwstr.3 \
+	curs_inwstr.3 mvwinnwstr.3 \
+	curs_inwstr.3 mvwinwstr.3 \
+	curs_inwstr.3 winnwstr.3 \
+	curs_inwstr.3 winwstr.3 \
+	curs_printw.3 mvprintw.3 \
+	curs_printw.3 mvwprintw.3 \
+	curs_printw.3 printw.3 \
+	curs_printw.3 vw_printw.3 \
+	curs_printw.3 vwprintw.3 \
+	curs_printw.3 wprintw.3 \
+	curs_scanw.3 mvscanw.3 \
+	curs_scanw.3 mvwscanw.3 \
+	curs_scanw.3 scanw.3 \
+	curs_scanw.3 vw_scanw.3 \
+	curs_scanw.3 vwscanw.3 \
+	curs_scanw.3 wscanw.3
+.endif
+
 
 .include <bsd.lib.mk>
 

@@ -85,6 +85,7 @@ LIBMP?=		${DESTDIR}${LIBDIR}/libmp.a
 LIBNCP?=	${DESTDIR}${LIBDIR}/libncp.a
 .endif
 LIBNCURSES?=	${DESTDIR}${LIBDIR}/libncurses.a
+LIBNCURSESW?=	${DESTDIR}${LIBDIR}/libncursesw.a
 LIBNETGRAPH?=	${DESTDIR}${LIBDIR}/libnetgraph.a
 LIBNGATM?=	${DESTDIR}${LIBDIR}/libngatm.a
 LIBOBJC?=	${DESTDIR}${LIBDIR}/libobjc.a
