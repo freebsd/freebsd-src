@@ -54,10 +54,10 @@ static void	db_show_rwlock(struct lock_object *lock);
 #endif
 
 struct lock_class lock_class_rw = {
-	"rw",
-	LC_SLEEPLOCK | LC_RECURSABLE | LC_UPGRADABLE,
+	.lc_name = "rw",
+	.lc_flags = LC_SLEEPLOCK | LC_RECURSABLE | LC_UPGRADABLE,
 #ifdef DDB
-	db_show_rwlock
+	.lc_ddb_show = db_show_rwlock,
 #endif
 };
 

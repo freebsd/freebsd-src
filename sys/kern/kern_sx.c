@@ -56,10 +56,10 @@ static void	db_show_sx(struct lock_object *lock);
 #endif
 
 struct lock_class lock_class_sx = {
-	"sx",
-	LC_SLEEPLOCK | LC_SLEEPABLE | LC_RECURSABLE | LC_UPGRADABLE,
+	.lc_name = "sx",
+	.lc_flags = LC_SLEEPLOCK | LC_SLEEPABLE | LC_RECURSABLE | LC_UPGRADABLE,
 #ifdef DDB
-	db_show_sx
+	.lc_ddb_show = db_show_sx,
 #endif
 };
 
