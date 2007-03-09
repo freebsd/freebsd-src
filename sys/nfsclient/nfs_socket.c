@@ -1412,7 +1412,7 @@ nfs_timer(void *arg)
 		}
 		if (rep->r_rtt >= 0) {
 			rep->r_rtt++;
-			if (nmp->nm_flag & NFSMNT_DUMBTIMR)
+			if ((nmp->nm_flag & NFSMNT_DUMBTIMR) || (nmp->nm_sotype == SOCK_STREAM))
 				timeo = nmp->nm_timeo;
 			else
 				timeo = nfs_estimate_rto(nmp, rep->r_procnum);

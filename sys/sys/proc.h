@@ -307,6 +307,7 @@ struct thread {
 	struct mdthread td_md;		/* (k) Any machine-dependent fields. */
 	struct td_sched	*td_sched;	/* (*) Scheduler-specific data. */
 	struct kaudit_record	*td_ar;	/* (k) Active audit record, if any. */
+	int		td_syscalls;	/* per-thread syscall count (used by NFS :)) */
 };
 
 /*
