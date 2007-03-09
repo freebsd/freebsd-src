@@ -1,6 +1,6 @@
-# This Makefile is shared by libncurses, libform, libmenu, libpanel.
-#
 # $FreeBSD$
+
+# This Makefile is shared by libncurses, libform, libmenu, libpanel.
 
 NCURSES_DIR=	${.CURDIR}/../../../contrib/ncurses
 
