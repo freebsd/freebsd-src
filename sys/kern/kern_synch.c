@@ -112,21 +112,22 @@ sleepinit(void)
  * call should be restarted if possible, and EINTR is returned if the system
  * call should be interrupted by the signal (return EINTR).
  *
- * The mutex argument is unlocked before the caller is suspended, and
- * re-locked before msleep returns.  If priority includes the PDROP
- * flag the mutex is not re-locked before returning.
+ * The lock argument is unlocked before the caller is suspended, and
+ * re-locked before _sleep() returns.  If priority includes the PDROP
+ * flag the lock is not re-locked before returning.
  */
 int
-msleep(ident, mtx, priority, wmesg, timo)
+_sleep(ident, lock, priority, wmesg, timo)
 	void *ident;
-	struct mtx *mtx;
+	struct lock_object *lock;
 	int priority, timo;
 	const char *wmesg;
 {
 	struct thread *td;
 	struct proc *p;
-	int catch, rval, flags, pri;
-	WITNESS_SAVE_DECL(mtx);
+	struct lock_class *class;
+	int catch, flags, lock_state, pri, rval;
+	WITNESS_SAVE_DECL(lock_witness);
 
 	td = curthread;
 	p = td->td_proc;
@@ -134,12 +135,16 @@ msleep(ident, mtx, priority, wmesg, timo)
 	if (KTRPOINT(td, KTR_CSW))
 		ktrcsw(1, 0);
 #endif
-	WITNESS_WARN(WARN_GIANTOK | WARN_SLEEPOK, mtx == NULL ? NULL :
-	    &mtx->mtx_object, "Sleeping on \"%s\"", wmesg);
-	KASSERT(timo != 0 || mtx_owned(&Giant) || mtx != NULL ||
-	    ident == &lbolt, ("sleeping without a mutex"));
+	WITNESS_WARN(WARN_GIANTOK | WARN_SLEEPOK, lock,
+	    "Sleeping on \"%s\"", wmesg);
+	KASSERT(timo != 0 || mtx_owned(&Giant) || lock != NULL ||
+	    ident == &lbolt, ("sleeping without a lock"));
 	KASSERT(p != NULL, ("msleep1"));
 	KASSERT(ident != NULL && TD_IS_RUNNING(td), ("msleep"));
+	if (lock != NULL)
+		class = LOCK_CLASS(lock);
+	else
+		class = NULL;
 
 	if (cold) {
 		/*
@@ -150,8 +155,8 @@ msleep(ident, mtx, priority, wmesg, timo)
 		 * splx(s);" to give interrupts a chance, but there is
 		 * no way to give interrupts a chance now.
 		 */
-		if (mtx != NULL && priority & PDROP)
-			mtx_unlock(mtx);
+		if (lock != NULL && priority & PDROP)
+			class->lc_unlock(lock);
 		return (0);
 	}
 	catch = priority & PCATCH;
@@ -168,20 +173,21 @@ msleep(ident, mtx, priority, wmesg, timo)
 	if (ident == &pause_wchan)
 		flags = SLEEPQ_PAUSE;
 	else
-		flags = SLEEPQ_MSLEEP;
+		flags = SLEEPQ_SLEEP;
 	if (catch)
 		flags |= SLEEPQ_INTERRUPTIBLE;
 
 	sleepq_lock(ident);
-	CTR5(KTR_PROC, "msleep: thread %ld (pid %ld, %s) on %s (%p)",
+	CTR5(KTR_PROC, "sleep: thread %ld (pid %ld, %s) on %s (%p)",
 	    td->td_tid, p->p_pid, p->p_comm, wmesg, ident);
 
 	DROP_GIANT();
-	if (mtx != NULL) {
-		mtx_assert(mtx, MA_OWNED | MA_NOTRECURSED);
-		WITNESS_SAVE(&mtx->mtx_object, mtx);
-		mtx_unlock(mtx);
-	}
+	if (lock != NULL) {
+		WITNESS_SAVE(lock, lock_witness);
+		lock_state = class->lc_unlock(lock);
+	} else
+		/* GCC needs to follow the Yellow Brick Road */
+		lock_state = -1;
 
 	/*
 	 * We put ourselves on the sleep queue and start our timeout
@@ -192,8 +198,7 @@ msleep(ident, mtx, priority, wmesg, timo)
 	 * stopped, then td will no longer be on a sleep queue upon
 	 * return from cursig().
 	 */
-	sleepq_add(ident, ident == &lbolt ? NULL : &mtx->mtx_object, wmesg,
-	    flags, 0);
+	sleepq_add(ident, ident == &lbolt ? NULL : lock, wmesg, flags, 0);
 	if (timo)
 		sleepq_set_timeout(ident, timo);
 
@@ -222,9 +227,9 @@ msleep(ident, mtx, priority, wmesg, timo)
 		ktrcsw(0, 0);
 #endif
 	PICKUP_GIANT();
-	if (mtx != NULL && !(priority & PDROP)) {
-		mtx_lock(mtx);
-		WITNESS_RESTORE(&mtx->mtx_object, mtx);
+	if (lock != NULL && !(priority & PDROP)) {
+		class->lc_lock(lock, lock_state);
+		WITNESS_RESTORE(lock, lock_witness);
 	}
 	return (rval);
 }
@@ -271,7 +276,7 @@ msleep_spin(ident, mtx, wmesg, timo)
 	/*
 	 * We put ourselves on the sleep queue and start our timeout.
 	 */
-	sleepq_add(ident, &mtx->mtx_object, wmesg, SLEEPQ_MSLEEP, 0);
+	sleepq_add(ident, &mtx->mtx_object, wmesg, SLEEPQ_SLEEP, 0);
 	if (timo)
 		sleepq_set_timeout(ident, timo);
 
@@ -336,7 +341,7 @@ wakeup(ident)
 {
 
 	sleepq_lock(ident);
-	sleepq_broadcast(ident, SLEEPQ_MSLEEP, -1, 0);
+	sleepq_broadcast(ident, SLEEPQ_SLEEP, -1, 0);
 }
 
 /*
@@ -350,7 +355,7 @@ wakeup_one(ident)
 {
 
 	sleepq_lock(ident);
-	sleepq_signal(ident, SLEEPQ_MSLEEP, -1, 0);
+	sleepq_signal(ident, SLEEPQ_SLEEP, -1, 0);
 }
 
 /*

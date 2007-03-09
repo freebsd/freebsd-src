@@ -94,6 +94,8 @@ struct sx_args {
 	else								\
 		sx_sunlock(sx);						\
 } while (0)
+#define	sx_sleep(chan, sx, pri, wmesg, timo)				\
+	_sleep((chan), &(sx)->sx_object, (pri), (wmesg), (timo))
 
 #if defined(INVARIANTS) || defined(INVARIANT_SUPPORT)
 #define	SX_LOCKED		LA_LOCKED
