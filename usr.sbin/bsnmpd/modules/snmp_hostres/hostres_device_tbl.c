@@ -480,6 +480,7 @@ devd_socket_callback(int fd, void *arg __unused)
 		case '+':
 		case '-':
 		case '?':
+		case '!':
 			refresh_device_tbl(1);
 			return;
 		default:
