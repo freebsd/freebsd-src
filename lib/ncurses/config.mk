@@ -4,7 +4,14 @@
 
 NCURSES_DIR=	${.CURDIR}/../../../contrib/ncurses
 
+.if defined(ENABLE_WIDEC)
+LIB_SUFFIX=	w
+CFLAGS+=	-D_XOPEN_SOURCE_EXTENDED -DENABLE_WIDEC
+NCURSES_CFG_H=	${.CURDIR}/../ncurses/ncurses_cfg.h
+.else
+LIB_SUFFIX=
 NCURSES_CFG_H=	${.CURDIR}/ncurses_cfg.h
+.endif
 
 CFLAGS+=	-I.
 .if exists(${.OBJDIR}/../ncurses${LIB_SUFFIX})

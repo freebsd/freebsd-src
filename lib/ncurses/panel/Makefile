@@ -4,7 +4,7 @@
 
 SRCDIR=	${NCURSES_DIR}/panel
 
-LIB=	panel
+LIB=	panel${LIB_SUFFIX}
 
 .PATH: ${SRCDIR}
 SRCS=	\
@@ -29,8 +29,8 @@ CLEANFILES=	ncurses_def.h
 
 CFLAGS+=	-I${SRCDIR}
 
-DPADD=	${LIBNCURSES}
-LDADD=	-lncurses
+DPADD=	${LIBNCURSES${LIB_SUFFIX:U}}
+LDADD=	-lncurses${LIB_SUFFIX}
 
 INCS=	panel.h
 
