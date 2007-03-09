@@ -66,7 +66,7 @@ ipx_status(int s __unused, const struct ifaddrs *ifa)
 	printf("\tipx %s ", ipx_ntoa(sipx->sipx_addr));
 
 	if (ifa->ifa_flags & IFF_POINTOPOINT) {
-		sipx = (struct sockaddr_ipx *)ifa->ifa_broadaddr;
+		sipx = (struct sockaddr_ipx *)ifa->ifa_dstaddr;
 		if (sipx == NULL) {
 			memset(&null_sipx, 0, sizeof(null_sipx));
 			sipx = &null_sipx;
