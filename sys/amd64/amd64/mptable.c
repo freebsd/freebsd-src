@@ -316,18 +316,20 @@ mptable_probe_cpus(void)
 static int
 mptable_setup_local(void)
 {
+	vm_paddr_t addr;
 
 	/* Is this a pre-defined config? */
 	printf("MPTable: <");
 	if (mpfps->config_type != 0) {
-		lapic_init(DEFAULT_APIC_BASE);
+		addr = DEFAULT_APIC_BASE;
 		printf("Default Configuration %d", mpfps->config_type);
 	} else {
-		lapic_init(mpct->apic_address);
+		addr = mpct->apic_address;
 		printf("%.*s %.*s", (int)sizeof(mpct->oem_id), mpct->oem_id,
 		    (int)sizeof(mpct->product_id), mpct->product_id);
 	}
 	printf(">\n");
+	lapic_init(addr);
 	return (0);
 }
 
