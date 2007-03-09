@@ -32,11 +32,14 @@
 .Nm rw_init ,
 .Nm rw_rlock ,
 .Nm rw_wlock ,
-.Nm rw_assert ,
 .Nm rw_runlock ,
 .Nm rw_wunlock ,
-.Nm rw_initialized ,
+.Nm rw_try_upgrade ,
+.Nm rw_downgrade ,
 .Nm rw_destroy ,
+.Nm rw_initialized ,
+.Nm rw_wowned ,
+.Nm rw_assert ,
 .Nm RW_SYSINIT
 .Nd kernel reader/writer lock
 .Sh SYNOPSIS
@@ -57,10 +60,10 @@
 .Fn rw_try_upgrade "struct rwlock *rw"
 .Ft void
 .Fn rw_downgrade "struct rwlock *rw"
-.Ft int
-.Fn rw_initialized "struct rwlock *rw"
 .Ft void
 .Fn rw_destroy "struct rwlock *rw"
+.Ft int
+.Fn rw_initialized "struct rwlock *rw"
 .Ft int
 .Fn rw_wowned "struct rwlock *rw"
 .Pp
@@ -223,14 +226,14 @@ If
 .Dv WITNESS
 is not included in the kernel,
 then it is impossible to assert that the current thread does or does not
-hold a shared lock.
+hold a read lock.
 In the
 .Pf non- Dv WITNESS
 case, the
 .Dv RA_LOCKED
 and
 .Dv RA_RLOCKED
-assertions merely check that some thread holds a shared lock.
+assertions merely check that some thread holds a read lock.
 .Pp
 Reader/writer is a bit of an awkward name.
 An
