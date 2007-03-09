@@ -178,9 +178,9 @@ and
 will fail if:
 .Bl -tag -width Er
 .It Bq Er EINTR
-A masked signal was caught and the system call should be restarted.
+A signal was caught and the system call should be restarted.
 .It Bq Er ERESTART
-A masked signal was caught and the system call should be interrupted.
+A signal was caught and the system call should be interrupted.
 .El
 .Pp
 .Fn cv_timedwait
