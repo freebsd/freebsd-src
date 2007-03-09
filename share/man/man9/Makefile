@@ -505,6 +505,7 @@ MLINKS+=condvar.9 cv_broadcast.9 \
 	condvar.9 cv_timedwait_sig.9 \
 	condvar.9 cv_wait.9 \
 	condvar.9 cv_wait_sig.9 \
+	condvar.9 cv_wait_unlock.9 \
 	condvar.9 cv_wmesg.9
 MLINKS+=config_intrhook.9 config_intrhook_disestablish.9 \
 	config_intrhook.9 config_intrhook_establish.9
