@@ -67,10 +67,10 @@ static void	db_show_lockmgr(struct lock_object *lock);
 
 
 struct lock_class lock_class_lockmgr = {
-	"lockmgr",
-	LC_SLEEPLOCK | LC_SLEEPABLE | LC_RECURSABLE | LC_UPGRADABLE,
+	.lc_name = "lockmgr",
+	.lc_flags = LC_SLEEPLOCK | LC_SLEEPABLE | LC_RECURSABLE | LC_UPGRADABLE,
 #ifdef DDB
-	db_show_lockmgr
+	.lc_ddb_show = db_show_lockmgr
 #endif
 };
 
