@@ -723,9 +723,7 @@ retry:
 
 	error = SYSCTL_OUT(req, sxp, sizeof(*sxp) * count);
 	free(sxp, M_TEMP);
-	if (error)
-		return (error);
-	return (0);
+	return (error);
 }
 
 SYSCTL_OID(_security_jail, OID_AUTO, list, CTLTYPE_STRUCT | CTLFLAG_RD,
