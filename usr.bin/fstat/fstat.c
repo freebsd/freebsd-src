@@ -164,7 +164,7 @@ main(int argc, char **argv)
 	int arg, ch, what;
 
 	arg = 0;
-	what = KERN_PROC_ALL;
+	what = KERN_PROC_PROC;
 	nlistf = memf = NULL;
 	while ((ch = getopt(argc, argv, "fmnp:u:vN:M:")) != -1)
 		switch((char)ch) {
