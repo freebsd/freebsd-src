@@ -44,22 +44,22 @@ The
 utility removes the specified message queues, semaphores and shared memory
 segments.
 These System V IPC objects can be specified by their
-creation id or any associated key.
+creation ID or any associated key.
 .Pp
 The following options are used to specify which IPC objects will be removed.
 Any number and combination of these options can be used:
 .Bl -tag -width indent
 .It Fl q Ar msqid
-Remove the message queue associated with the id
+Remove the message queue associated with the ID
 .Ar msqid
 from the system.
 .It Fl m Ar shmid
-Mark the shared memory segment associated with id
+Mark the shared memory segment associated with ID
 .Ar shmid
 for removal.
 This marked segment will be destroyed after the last detach.
 .It Fl s Ar semid
-Remove the semaphore set associated with id
+Remove the semaphore set associated with ID
 .Ar semid
 from the system.
 .It Fl Q Ar msgkey
