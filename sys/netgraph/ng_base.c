@@ -192,7 +192,7 @@ static ng_ID_t	ng_decodeidname(const char *name);
 static int	ngb_mod_event(module_t mod, int event, void *data);
 static void	ng_worklist_remove(node_p node);
 static void	ngintr(void);
-static int	ng_apply_item(node_p node, item_p item, int rw);
+static void	ng_apply_item(node_p node, item_p item, int rw);
 static void	ng_flush_input_queue(struct ng_queue * ngq);
 static void	ng_setisr(node_p node);
 static node_p	ng_ID2noderef(ng_ID_t ID);
@@ -2101,6 +2101,80 @@ restart:
 	return (NULL);
 }
 
+#if 0
+static __inline item_p
+ng_upgrade_write(struct ng_queue *ngq, item_p item)
+{
+	KASSERT(ngq != &ng_deadnode.nd_input_queue,
+	    ("%s: working on deadnode", __func__));
+
+	NGI_SET_WRITER(item);
+
+	mtx_lock_spin(&(ngq->q_mtx));
+
+	/*
+	 * There will never be no readers as we are there ourselves.
+	 * Set the WRITER_ACTIVE flags ASAP to block out fast track readers.
+	 * The caller we are running from will call ng_leave_read()
+	 * soon, so we must account for that. We must leave again with the
+	 * READER lock. If we find other readers, then
+	 * queue the request for later. However "later" may be rignt now
+	 * if there are no readers. We don't really care if there are queued
+	 * items as we will bypass them anyhow.
+	 */
+	atomic_add_long(&ngq->q_flags, WRITER_ACTIVE - READER_INCREMENT);
+	if (ngq->q_flags & (NGQ_WMASK & ~OP_PENDING) == WRITER_ACTIVE) {
+		mtx_unlock_spin(&(ngq->q_mtx));
+		
+		/* It's just us, act on the item. */
+		/* will NOT drop writer lock when done */
+		ng_apply_item(node, item, 0);
+
+		/*
+		 * Having acted on the item, atomically 
+		 * down grade back to READER and finish up
+	 	 */
+		atomic_add_long(&ngq->q_flags,
+		    READER_INCREMENT - WRITER_ACTIVE);
+
+		/* Our caller will call ng_leave_read() */
+		return;
+	}
+	/*
+	 * It's not just us active, so queue us AT THE HEAD.
+	 * "Why?" I hear you ask.
+	 * Put us at the head of the queue as we've already been
+	 * through it once. If there is nothing else waiting,
+	 * set the correct flags.
+	 */
+	if ((item->el_next = ngq->queue) == NULL) {
+		/*
+		 * Set up the "last" pointer.
+		 * We are the only (and thus last) item
+		 */
+		ngq->last = &(item->el_next);
+
+		/* We've gone from, 0 to 1 item in the queue */
+		atomic_add_long(&ngq->q_flags, OP_PENDING);
+
+		CTR3(KTR_NET, "%20s: node [%x] (%p) set OP_PENDING", __func__,
+		    ngq->q_node->nd_ID, ngq->q_node);
+	};
+	ngq->queue = item;
+	CTR5(KTR_NET, "%20s: node [%x] (%p) requeued item %p as WRITER",
+	    __func__, ngq->q_node->nd_ID, ngq->q_node, item );
+
+	/* Reverse what we did above. That downgrades us back to reader */
+	atomic_add_long(&ngq->q_flags, READER_INCREMENT - WRITER_ACTIVE);
+	if (NEXT_QUEUED_ITEM_CAN_PROCEED(ngq))
+		ng_setisr(ngq->q_node);
+	mtx_unlock_spin(&(ngq->q_mtx));
+
+	return;
+}
+
+#endif
+
 static __inline void
 ng_leave_read(struct ng_queue *ngq)
 {
@@ -2298,7 +2372,8 @@ ng_snd_item(item_p item, int flags)
 
 	NGI_GET_NODE(item, node); /* zaps stored node */
 
-	error = ng_apply_item(node, item, rw); /* drops r/w lock when done */
+	/* Don't report any errors. act as if it had been queued */
+	ng_apply_item(node, item, rw); /* drops r/w lock when done */
 
 	/*
 	 * If the node goes away when we remove the reference,
@@ -2322,11 +2397,10 @@ ng_snd_item(item_p item, int flags)
  * It should contain all the information needed
  * to run it on the appropriate node/hook.
  */
-static int
+static void
 ng_apply_item(node_p node, item_p item, int rw)
 {
 	hook_p  hook;
-	int	error = 0;
 	ng_rcvdata_t *rcvdata;
 	ng_rcvmsg_t *rcvmsg;
 	ng_apply_t *apply = NULL;
@@ -2356,7 +2430,6 @@ ng_apply_item(node_p node, item_p item, int rw)
 		if ((hook == NULL)
 		|| NG_HOOK_NOT_VALID(hook)
 		|| NG_NODE_NOT_VALID(node) ) {
-			error = EIO;
 			NG_FREE_ITEM(item);
 			break;
 		}
@@ -2370,7 +2443,7 @@ ng_apply_item(node_p node, item_p item, int rw)
 			NG_FREE_ITEM(item);
 			break;
 		}
-		error = (*rcvdata)(hook, item);
+		(*rcvdata)(hook, item);
 		break;
 	case NGQF_MESG:
 		if (hook) {
@@ -2390,7 +2463,6 @@ ng_apply_item(node_p node, item_p item, int rw)
 		 */
 		if (NG_NODE_NOT_VALID(node)) {
 			TRAP_ERROR();
-			error = EINVAL;
 			NG_FREE_ITEM(item);
 		} else {
 			/*
@@ -2412,7 +2484,7 @@ ng_apply_item(node_p node, item_p item, int rw)
 			 */
 			if ((msg->header.typecookie == NGM_GENERIC_COOKIE)
 			&& ((msg->header.flags & NGF_RESP) == 0)) {
-				error = ng_generic_msg(node, item, hook);
+				ng_generic_msg(node, item, hook);
 				break;
 			}
 			/*
@@ -2422,11 +2494,10 @@ ng_apply_item(node_p node, item_p item, int rw)
 			if (((!hook) || (!(rcvmsg = hook->hk_rcvmsg)))
 			&& (!(rcvmsg = node->nd_type->rcvmsg))) {
 				TRAP_ERROR();
-				error = 0;
 				NG_FREE_ITEM(item);
 				break;
 			}
-			error = (*rcvmsg)(node, item, hook);
+			(*rcvmsg)(node, item, hook);
 		}
 		break;
 	case NGQF_FN:
@@ -2440,7 +2511,6 @@ ng_apply_item(node_p node, item_p item, int rw)
 		if ((NG_NODE_NOT_VALID(node))
 		&& (NGI_FN(item) != &ng_rmnode)) {
 			TRAP_ERROR();
-			error = EINVAL;
 			NG_FREE_ITEM(item);
 			break;
 		}
@@ -2460,15 +2530,16 @@ ng_apply_item(node_p node, item_p item, int rw)
 
  	if (rw == NGQRW_R) {
 		ng_leave_read(&node->nd_input_queue);
-	} else {
+	} else if (rw == NGQRW_W) {
 		ng_leave_write(&node->nd_input_queue);
-	}
+	} /* else do nothing */
+
 
 	/* Apply callback. */
 	if (apply != NULL)
 		(*apply)(context, error);
 
-	return (error);
+	return;
 }
 
 /***********************************************************************
