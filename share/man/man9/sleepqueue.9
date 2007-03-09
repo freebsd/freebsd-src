@@ -173,7 +173,7 @@ The
 parameter is a bitmask consisting of the type of sleep queue being slept on
 and zero or more optional flags.
 .Pp
-There are currently two types of sleep queues:
+There are currently three types of sleep queues:
 .Pp
 .Bl -tag -width ".Dv SLEEPQ_CONDVAR" -compact
 .It Dv SLEEPQ_CONDVAR
@@ -184,6 +184,9 @@ A sleep queue used to implement
 .Xr wakeup 9
 and
 .Xr wakeup_one 9 .
+.It Dv SLEEPQ_PAUSE
+A sleep queue used to implement
+.Xr pause 9 .
 .El
 .Pp
 There is currently only one optional flag:
