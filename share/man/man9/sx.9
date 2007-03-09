@@ -42,6 +42,7 @@
 .Nm sx_unlock ,
 .Nm sx_try_upgrade ,
 .Nm sx_downgrade ,
+.Nm sx_sleep ,
 .Nm sx_xlocked ,
 .Nm sx_assert ,
 .Nm SX_SYSINIT
@@ -72,6 +73,8 @@
 .Fn sx_try_upgrade "struct sx *sx"
 .Ft void
 .Fn sx_downgrade "struct sx *sx"
+.Ft int
+.Fn sx_sleep "void *chan" "struct sx *sx" "int priority" "const char *wmesg" "int timo"
 .Ft int
 .Fn sx_xlocked "struct sx *sx"
 .Pp
@@ -134,6 +137,13 @@ will return 0 if the shared lock cannot be upgraded to an exclusive lock
 immediately; otherwise the exclusive lock will be acquired and a non-zero value
 will be returned.
 .Pp
+A thread can atomically release a shared/exclusive lock while waiting for an
+event by calling
+.Fn sx_sleep .
+For more details on the parameters to this function,
+see
+.Xr sleep 9 .
+.Pp
 When compiled with
 .Cd "options INVARIANTS"
 and
@@ -169,7 +179,7 @@ by the first argument.
 .El
 .Pp
 .Fn sx_xlocked
-will return non-zero if the current process holds the exclusive lock;
+will return non-zero if the current thread holds the exclusive lock;
 otherwise, it will return zero.
 .Pp
 For ease of programming,

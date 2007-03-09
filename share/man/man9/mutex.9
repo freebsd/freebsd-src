@@ -45,6 +45,7 @@
 .Nm mtx_unlock_spin ,
 .Nm mtx_unlock_flags ,
 .Nm mtx_unlock_spin_flags ,
+.Nm mtx_sleep ,
 .Nm mtx_initialized ,
 .Nm mtx_owned ,
 .Nm mtx_recursed ,
@@ -79,6 +80,8 @@
 .Fn mtx_unlock_flags "struct mtx *mutex" "int flags"
 .Ft void
 .Fn mtx_unlock_spin_flags "struct mtx *mutex" "int flags"
+.Ft int
+.Fn mtx_sleep "void *chan" "struct mtx *mtx" "int priority" "const char *wmesg" "int timo"
 .Ft int
 .Fn mtx_initialized "struct mtx *mutex"
 .Ft int
@@ -305,6 +308,15 @@ or have another thread blocked on the mutex
 when it is destroyed.
 .Pp
 The
+.Fn mtx_sleep
+function is used to atomically release
+.Fa mtx
+while waiting for an event.
+For more details on the parameters to this function,
+see
+.Xr sleep 9 .
+.Pp
+The
 .Fn mtx_initialized
 function returns non-zero if
 .Fa mutex
@@ -498,11 +510,11 @@ No locks are needed when calling these functions.
 .Sh SEE ALSO
 .Xr condvar 9 ,
 .Xr LOCK_PROFILING 9 ,
-.Xr msleep 9 ,
 .Xr mtx_pool 9 ,
 .Xr panic 9 ,
 .Xr rwlock 9 ,
 .Xr sema 9 ,
+.Xr sleep 9 ,
 .Xr sx 9
 .Sh HISTORY
 These
