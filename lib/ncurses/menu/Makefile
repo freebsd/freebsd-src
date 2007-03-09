@@ -4,7 +4,7 @@
 
 SRCDIR=	${NCURSES_DIR}/menu
 
-LIB=	menu
+LIB=	menu${LIB_SUFFIX}
 
 .PATH: ${SRCDIR}
 SRCS=	\
@@ -40,8 +40,8 @@ CLEANFILES=	ncurses_def.h
 
 CFLAGS+=	-I${SRCDIR}
 
-DPADD=	${LIBNCURSES}
-LDADD=	-lncurses
+DPADD=	${LIBNCURSES${LIB_SUFFIX:U}}
+LDADD=	-lncurses${LIB_SUFFIX}
 
 INCS=	menu.h eti.h
 
