@@ -46,6 +46,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/mbuf.h>
 #include <sys/mount.h>
 #include <sys/mutex.h>
+#include <sys/refcount.h>
 #include <sys/socket.h>
 #include <sys/systm.h>
 #include <sys/vnode.h>
@@ -115,7 +116,7 @@ vfs_hang_addrlist(mp, nep, argp)
 		np->netc_anon.cr_ngroups = argp->ex_anon.cr_ngroups;
 		bcopy(argp->ex_anon.cr_groups, np->netc_anon.cr_groups,
 		    sizeof(np->netc_anon.cr_groups));
-		np->netc_anon.cr_ref = 1;
+		refcount_init(&np->netc_anon.cr_ref, 1);
 		MNT_ILOCK(mp);
 		mp->mnt_flag |= MNT_DEFEXPORTED;
 		MNT_IUNLOCK(mp);
@@ -176,7 +177,7 @@ vfs_hang_addrlist(mp, nep, argp)
 	np->netc_anon.cr_ngroups = argp->ex_anon.cr_ngroups;
 	bcopy(argp->ex_anon.cr_groups, np->netc_anon.cr_groups,
 	    sizeof(np->netc_anon.cr_groups));
-	np->netc_anon.cr_ref = 1;
+	refcount_init(&np->netc_anon.cr_ref, 1);
 	return (0);
 out:
 	free(np, M_NETADDR);
