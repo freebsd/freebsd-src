@@ -1079,6 +1079,11 @@ pipe tablearg ip from table(1) to any</programlisting>
 	are deprecated and have been removed.
 	&merged;</para>
 
+      <para>A new GEOM_MULTIPATH class has been added to support
+	multiple access paths to disk devices.  The &man.gmultipath.8;
+	utility has been added to control the behavior of disk devices
+	using this feature.</para>
+
       <para>A new GEOM class <literal>GEOM_ZERO</literal> has been added.
 	It creates a very huge provider (41PB) <filename>/dev/gzero</filename>
 	and is mainly useful for performance testing.
@@ -1167,11 +1172,27 @@ geli_da1s3a_keyfile0_name="/boot/keys/da1s3a.key"</programlisting>
 
       <para>Initial (read-only) support for SGI's XFS filesystem has been
 	added.</para>
+
+      <para>The unionfs file system has been re-implemented.  This
+	version solves many crashing and locking issues compared to
+	the previous implementation.  It also adds
+	new <quote>transparent</quote> and <quote>masquerade</quote>
+	modes for automatically creating files in the upper file system
+	layer of unions.  More information can be found in the
+	&man.mount.unionfs.8; manual page.  &merged;</para>
+
     </sect3>
   </sect2>
 
   <sect2 id="userland">
     <title>Userland Changes</title>
+
+    <para>The addr2ascii() and ascii2addr() library calls, originally
+      introduced by the INRIA IPv6 implementation, have been removed
+      from <filename>libc</filename>.  They have no consumers in the
+      &os; base system.  In a related change, support
+      for <literal>AF_LINK</literal> addresses has been added to
+      &man.getnameinfo.3;.</para>
 
     <para>Padding of <varname>ai_addrlen</varname>
       in <varname>struct addrinfo</varname> has been removed,
@@ -1241,6 +1262,9 @@ geli_da1s3a_keyfile0_name="/boot/keys/da1s3a.key"</programlisting>
     <para>The &man.du.1; program now supports a <option>-n</option>
       flag, which causes it to ignore files and directories with
       the <literal>nodump</literal> flag set. &merged;</para>
+
+    <para>The &man.dump.8; and &man.restore.8; programs now attempt to
+      save and restore extended attribute information on files.</para>
 
     <para>The &man.fsdb.8; utility now supports changing the birth
       time of files on UFS2 file systems using the new 
@@ -1486,6 +1510,9 @@ geli_da1s3a_keyfile0_name="/boot/keys/da1s3a.key"</programlisting>
       installed statically instead of being generated on every
       reboot.</para>
 
+    <para>The objformat(1) utility and getobjformat(3) library (the
+      last remnants of a.out object file support) have been removed.</para>
+
     <para>The &man.periodic.8; daily script now supports
       display of the status of &man.gmirror.8;, &man.graid3.8;,
       &man.gstripe.8;, and &man.gconcat.8; devices.
@@ -1617,6 +1644,9 @@ geli_da1s3a_keyfile0_name="/boot/keys/da1s3a.key"</programlisting>
     <para>The usbd(8) utility has been removed.
       The &man.devd.8; utility and its configuration
       file now support functionality which is equivalent to it.</para>
+
+    <para>The vnconfig(8) utility, which was long ago replaced by
+      &man.mdconfig.8;, has been removed.</para>
 
     <para>The &man.xargs.1; utility now supports a <option>-r</option>
       flag which makes the command execution when the standard input
@@ -1796,7 +1826,8 @@ mdconfig_md1="-t vnode -f /var/foo.img"</programlisting>
       0.9.7e to 0.9.8d.</para>
 
     <para><application>ncurses</application> has been updated from
-      5.2-20010512 to 5.6-20061217.</para>
+      5.2-20010512 to 5.6-20061217.  ncurses now also has wide
+      character support.</para>
 
     <para><application>hostapd</application>
       has been updated from version 0.3.9 to version 0.4.8.
