@@ -39,11 +39,11 @@
 .Nm sx_try_xlock ,
 .Nm sx_sunlock ,
 .Nm sx_xunlock ,
+.Nm sx_unlock ,
 .Nm sx_try_upgrade ,
 .Nm sx_downgrade ,
-.Nm sx_assert ,
-.Nm sx_unlock ,
 .Nm sx_xlocked ,
+.Nm sx_assert ,
 .Nm SX_SYSINIT
 .Nd kernel shared/exclusive lock
 .Sh SYNOPSIS
@@ -66,22 +66,21 @@
 .Fn sx_sunlock "struct sx *sx"
 .Ft void
 .Fn sx_xunlock "struct sx *sx"
+.Ft void
+.Fn sx_unlock "struct sx *sx"
 .Ft int
 .Fn sx_try_upgrade "struct sx *sx"
 .Ft void
 .Fn sx_downgrade "struct sx *sx"
-.Ft void
-.Fn sx_assert "struct sx *sx" "int what"
 .Ft int
 .Fn sx_xlocked "struct sx *sx"
-.\"
-.Ss Nm Ss utility macros
-.Fn sx_unlock "struct sx *sx"
-.Fn SX_SYSINIT "name" "struct sx *sx" "const char *description"
-.\"
-.Ss Kernel options
+.Pp
 .Cd "options INVARIANTS"
 .Cd "options INVARIANT_SUPPORT"
+.Ft void
+.Fn sx_assert "struct sx *sx" "int what"
+.In sys/kernel.h
+.Fn SX_SYSINIT "name" "struct sx *sx" "const char *description"
 .Sh DESCRIPTION
 Shared/exclusive locks are used to protect data that are read far more often
 than they are written.

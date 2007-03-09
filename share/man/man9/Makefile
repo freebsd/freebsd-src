@@ -1058,6 +1058,7 @@ MLINKS+=sx.9 sx_assert.9 \
 	sx.9 sx_try_slock.9 \
 	sx.9 sx_try_upgrade.9 \
 	sx.9 sx_try_xlock.9 \
+	sx.9 sx_unlock.9 \
 	sx.9 sx_xlock.9 \
 	sx.9 sx_xlocked.9 \
 	sx.9 sx_xunlock.9
