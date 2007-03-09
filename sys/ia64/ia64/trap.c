@@ -1044,6 +1044,8 @@ syscall(struct trapframe *tf)
 		}
 	}
 
+	td->td_syscalls++;
+
 	/*
 	 * Check for misbehavior.
 	 */
