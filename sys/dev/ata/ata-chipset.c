@@ -55,8 +55,9 @@ __FBSDID("$FreeBSD$");
 static int ata_generic_chipinit(device_t dev);
 static void ata_generic_intr(void *data);
 static void ata_generic_setmode(device_t dev, int mode);
-static int ata_sata_phy_reset(device_t dev);
+static void ata_sata_phy_check_events(device_t dev);
 static void ata_sata_phy_event(void *context, int dummy);
+static int ata_sata_phy_reset(device_t dev);
 static int ata_sata_connect(struct ata_channel *ch);
 static void ata_sata_setmode(device_t dev, int mode);
 static int ata_request2fis_h2d(struct ata_request *request, u_int8_t *fis);
@@ -230,6 +231,44 @@ ata_generic_setmode(device_t dev, int mode)
 /*
  * SATA support functions
  */
+static void
+ata_sata_phy_check_events(device_t dev)
+{
+    struct ata_channel *ch = device_get_softc(dev);
+    u_int32_t error = ATA_IDX_INL(ch, ATA_SERROR);
+
+    /* clear error bits/interrupt */
+    ATA_IDX_OUTL(ch, ATA_SERROR, error);
+
+    /* do we have any events flagged ? */
+    if (error) {
+	struct ata_connect_task *tp;
+	u_int32_t status = ATA_IDX_INL(ch, ATA_SSTATUS);
+
+	/* if we have a connection event deal with it */
+	if ((error & ATA_SE_PHY_CHANGED) &&
+	    (tp = (struct ata_connect_task *)
+		  malloc(sizeof(struct ata_connect_task),
+			 M_ATA, M_NOWAIT | M_ZERO))) {
+
+	    if (((status & ATA_SS_CONWELL_MASK) == ATA_SS_CONWELL_GEN1) ||
+		((status & ATA_SS_CONWELL_MASK) == ATA_SS_CONWELL_GEN2)) {
+		if (bootverbose)
+		    device_printf(ch->dev, "CONNECT requested\n");
+		tp->action = ATA_C_ATTACH;
+	    }
+	    else {
+		if (bootverbose)
+		    device_printf(ch->dev, "DISCONNECT requested\n");
+		tp->action = ATA_C_DETACH;
+	    }
+	    tp->dev = ch->dev;
+	    TASK_INIT(&tp->task, 0, ata_sata_phy_event, tp);
+	    taskqueue_enqueue(taskqueue_thread, &tp->task);
+	}
+    }
+}
+
 static void
 ata_sata_phy_event(void *context, int dummy)
 {
@@ -509,39 +548,13 @@ ata_ahci_status(device_t dev)
 
     if (action & (1 << ch->unit)) {
 	u_int32_t istatus = ATA_INL(ctlr->r_res2, ATA_AHCI_P_IS + offset);
-	u_int32_t status = ATA_IDX_INL(ch, ATA_SSTATUS);
-	u_int32_t error = ATA_IDX_INL(ch, ATA_SERROR);
 
 	/* clear interrupt(s) */
 	ATA_OUTL(ctlr->r_res2, ATA_AHCI_IS, action & (1 << ch->unit));
 	ATA_OUTL(ctlr->r_res2, ATA_AHCI_P_IS + offset, istatus);
-	ATA_IDX_OUTL(ch, ATA_SERROR, error);
 
-	if (error) {
-	    struct ata_connect_task *tp;
-
-	    /* if we have a connection event deal with it */
-	    if ((error & ATA_SE_PHY_CHANGED) &&
-		(tp = (struct ata_connect_task *)
-		      malloc(sizeof(struct ata_connect_task),
-			     M_ATA, M_NOWAIT | M_ZERO))) {
-
-		if (((status & ATA_SS_CONWELL_MASK) == ATA_SS_CONWELL_GEN1) ||
-		    ((status & ATA_SS_CONWELL_MASK) == ATA_SS_CONWELL_GEN2)) {
-		    if (bootverbose)
-			device_printf(ch->dev, "CONNECT requested\n");
-		    tp->action = ATA_C_ATTACH;
-		}
-		else {
-		    if (bootverbose)
-			device_printf(ch->dev, "DISCONNECT requested\n");
-		    tp->action = ATA_C_DETACH;
-		}
-		tp->dev = ch->dev;
-		TASK_INIT(&tp->task, 0, ata_sata_phy_event, tp);
-		taskqueue_enqueue(taskqueue_thread, &tp->task);
-	    }
-	}
+	/* do we have any PHY events ? */
+	ata_sata_phy_check_events(dev);
 
 	/* do we have any device action ? */
 	return (!(ATA_INL(ctlr->r_res2, ATA_AHCI_P_CI + offset) & (1 << tag)));
@@ -1949,37 +1962,8 @@ ata_intel_31244_allocate(device_t dev)
 static int
 ata_intel_31244_status(device_t dev)
 {
-    struct ata_channel *ch = device_get_softc(dev);
-    u_int32_t status = ATA_IDX_INL(ch, ATA_SSTATUS);
-    u_int32_t error = ATA_IDX_INL(ch, ATA_SERROR);
-    struct ata_connect_task *tp;
-
-    /* check for PHY related interrupts on SATA capable HW */
-    if (error) {
-	/* clear error bits/interrupt */
-	ATA_IDX_OUTL(ch, ATA_SERROR, error);
-
-	/* if we have a connection event deal with it */
-	if ((error & ATA_SE_PHY_CHANGED) &&
-	    (tp = (struct ata_connect_task *)
-		  malloc(sizeof(struct ata_connect_task),
-			 M_ATA, M_NOWAIT | M_ZERO))) {
-
-	    if ((status & ATA_SS_CONWELL_MASK) == ATA_SS_CONWELL_GEN1) {
-		if (bootverbose)
-		    device_printf(ch->dev, "CONNECT requested\n");
-		tp->action = ATA_C_ATTACH;
-	    }
-	    else {
-		if (bootverbose)
-		    device_printf(ch->dev, "DISCONNECT requested\n");
-		tp->action = ATA_C_DETACH;
-	    }
-	    tp->dev = ch->dev;
-	    TASK_INIT(&tp->task, 0, ata_sata_phy_event, tp);
-	    taskqueue_enqueue(taskqueue_thread, &tp->task);
-	}
-    }
+    /* do we have any PHY events ? */
+    ata_sata_phy_check_events(dev);
 
     /* any drive action to take care of ? */
     return ata_pci_status(dev);
@@ -2519,45 +2503,13 @@ ata_marvell_edma_status(device_t dev)
     u_int32_t cause = ATA_INL(ctlr->r_res1, 0x01d60);
     int shift = (ch->unit << 1) + (ch->unit > 3);
 
-    /* do we have any errors flagged ? */
     if (cause & (1 << shift)) {
-	struct ata_connect_task *tp;
-	u_int32_t error = 
-	    ATA_INL(ctlr->r_res1, 0x02008 + ATA_MV_EDMA_BASE(ch));
 
-	/* check for and handle disconnect events */
-	if ((error & 0x00000008) &&
-	    (tp = (struct ata_connect_task *)
-		  malloc(sizeof(struct ata_connect_task),
-			 M_ATA, M_NOWAIT | M_ZERO))) {
-
-	    if (bootverbose)
-		device_printf(ch->dev, "DISCONNECT requested\n");
-	    tp->action = ATA_C_DETACH;
-	    tp->dev = ch->dev;
-	    TASK_INIT(&tp->task, 0, ata_sata_phy_event, tp);
-	    taskqueue_enqueue(taskqueue_thread, &tp->task);
-	}
-
-	/* check for and handle connect events */
-	if ((error & 0x00000010) &&
-	    (tp = (struct ata_connect_task *)
-		  malloc(sizeof(struct ata_connect_task),
-			 M_ATA, M_NOWAIT | M_ZERO))) {
-
-	    if (bootverbose)
-		device_printf(ch->dev, "CONNECT requested\n");
-	    tp->action = ATA_C_ATTACH;
-	    tp->dev = ch->dev;
-	    TASK_INIT(&tp->task, 0, ata_sata_phy_event, tp);
-	    taskqueue_enqueue(taskqueue_thread, &tp->task);
-	}
-
-	/* clear SATA error register */
-	ATA_IDX_OUTL(ch, ATA_SERROR, ATA_IDX_INL(ch, ATA_SERROR));
-
-	/* clear any outstanding error interrupts */
+	/* clear interrupt(s) */
 	ATA_OUTL(ctlr->r_res1, 0x02008 + ATA_MV_EDMA_BASE(ch), 0x0);
+
+	/* do we have any PHY events ? */
+	ata_sata_phy_check_events(dev);
     }
 
     /* do we have any device action ? */
@@ -3021,51 +2973,23 @@ ata_nvidia_status(device_t dev)
     struct ata_pci_controller *ctlr = device_get_softc(device_get_parent(dev));
     struct ata_channel *ch = device_get_softc(dev);
     int offset = ctlr->chip->cfg2 & NV4 ? 0x0440 : 0x0010;
-    struct ata_connect_task *tp;
     int shift = ch->unit << (ctlr->chip->cfg2 & NVQ ? 4 : 2);
-    u_int32_t status;
-
-    /* get and clear interrupt status */
-    if (ctlr->chip->cfg2 & NVQ) {
-	status = ATA_INL(ctlr->r_res2, offset);
-	ATA_OUTL(ctlr->r_res2, offset, (0x0f << shift) | 0x00f000f0);
-    }
-    else {
-	status = ATA_INB(ctlr->r_res2, offset);
-	ATA_OUTB(ctlr->r_res2, offset, (0x0f << shift));
-    }
-
-    /* check for and handle connect events */
-    if (((status & (0x0c << shift)) == (0x04 << shift)) &&
-	(tp = (struct ata_connect_task *)
-	      malloc(sizeof(struct ata_connect_task),
-		     M_ATA, M_NOWAIT | M_ZERO))) {
-
-	if (bootverbose)
-	    device_printf(ch->dev, "CONNECT requested\n");
-	tp->action = ATA_C_ATTACH;
-	tp->dev = ch->dev;
-	TASK_INIT(&tp->task, 0, ata_sata_phy_event, tp);
-	taskqueue_enqueue(taskqueue_thread, &tp->task);
-    }
-
-    /* check for and handle disconnect events */
-    if ((status & (0x08 << shift)) &&
-	!((status & (0x04 << shift) && ATA_IDX_INL(ch, ATA_SSTATUS))) &&
-	(tp = (struct ata_connect_task *)
-	      malloc(sizeof(struct ata_connect_task),
-		   M_ATA, M_NOWAIT | M_ZERO))) {
-
-	if (bootverbose)
-	    device_printf(ch->dev, "DISCONNECT requested\n");
-	tp->action = ATA_C_DETACH;
-	tp->dev = ch->dev;
-	TASK_INIT(&tp->task, 0, ata_sata_phy_event, tp);
-	taskqueue_enqueue(taskqueue_thread, &tp->task);
-    }
+    u_int32_t istatus = ATA_INL(ctlr->r_res2, offset);
 
     /* do we have any device action ? */
-    return (status & (0x01 << shift));
+    if (istatus & (0x0f << shift)) {
+
+	/* clear interrupt(s) */
+	ATA_OUTB(ctlr->r_res2, offset,
+		 (0x0f << shift) | (ctlr->chip->cfg2 & NVQ ? 0x00f000f0 : 0));
+
+	/* do we have any PHY events ? */
+	ata_sata_phy_check_events(dev);
+
+	/* do we have any device action ? */
+	return (istatus & (0x01 << shift));
+    }
+    return 0;
 }
 
 static void
@@ -4267,7 +4191,8 @@ ata_sii_chipinit(device_t dev)
     if (ata_setup_interrupt(dev))
 	return ENXIO;
 
-    if (ctlr->chip->cfg1 == SIIMEMIO) {
+    switch (ctlr->chip->cfg1) {
+    case SIIMEMIO:
 	ctlr->r_type2 = SYS_RES_MEMORY;
 	ctlr->r_rid2 = PCIR_BAR(5);
 	if (!(ctlr->r_res2 = bus_alloc_resource_any(dev, ctlr->r_type2,
@@ -4289,12 +4214,12 @@ ata_sii_chipinit(device_t dev)
 	    ctlr->channels = 4;
 	}
 
-	/* enable PCI interrupt as BIOS might not */
-	pci_write_config(dev, 0x8a, (pci_read_config(dev, 0x8a, 1) & 0x3f), 1);
-
 	/* dont block interrupts from any channel */
 	pci_write_config(dev, 0x48,
 			 (pci_read_config(dev, 0x48, 4) & ~0x03c00000), 4);
+
+	/* enable PCI interrupt as BIOS might not */
+	pci_write_config(dev, 0x8a, (pci_read_config(dev, 0x8a, 1) & 0x3f), 1);
 
 	ctlr->allocate = ata_sii_allocate;
 	if (ctlr->chip->max_dma >= ATA_SA150) {
@@ -4303,8 +4228,9 @@ ata_sii_chipinit(device_t dev)
 	}
 	else
 	    ctlr->setmode = ata_sii_setmode;
-    }
-    else {
+	break;
+    
+    default:
 	if ((pci_read_config(dev, 0x51, 1) & 0x08) != 0x08) {
 	    device_printf(dev, "HW has secondary channel disabled\n");
 	    ctlr->channels = 1;
@@ -4315,6 +4241,7 @@ ata_sii_chipinit(device_t dev)
 
 	ctlr->allocate = ata_cmd_allocate;
 	ctlr->setmode = ata_cmd_setmode;
+	break;
     }
     return 0;
 }
@@ -4428,8 +4355,6 @@ ata_sii_allocate(device_t dev)
     ch->r_io[ATA_BMSTAT_PORT].offset = 0x02 + (unit01 << 3) + (unit10 << 8);
     ch->r_io[ATA_BMDTP_PORT].res = ctlr->r_res2;
     ch->r_io[ATA_BMDTP_PORT].offset = 0x04 + (unit01 << 3) + (unit10 << 8);
-    ch->r_io[ATA_BMDEVSPEC_0].res = ctlr->r_res2;
-    ch->r_io[ATA_BMDEVSPEC_0].offset = 0xa1 + (unit01 << 6) + (unit10 << 8);
 
     if (ctlr->chip->max_dma >= ATA_SA150) {
 	ch->r_io[ATA_SSTATUS].res = ctlr->r_res2;
@@ -4460,69 +4385,28 @@ ata_sii_status(device_t dev)
 {
     struct ata_pci_controller *ctlr = device_get_softc(device_get_parent(dev));
     struct ata_channel *ch = device_get_softc(dev);
+    int offset0 = ((ch->unit & 1) << 3) + ((ch->unit & 2) << 8);
+    int offset1 = ((ch->unit & 1) << 6) + ((ch->unit & 2) << 8);
 
     /* check for PHY related interrupts on SATA capable HW */
-    if (ctlr->chip->max_dma >= ATA_SA150) {
-	u_int32_t status = ATA_IDX_INL(ch, ATA_SSTATUS);
-	u_int32_t error = ATA_IDX_INL(ch, ATA_SERROR);
-	struct ata_connect_task *tp;
-
-	if (error) {
-	    /* clear error bits/interrupt */
-	    ATA_IDX_OUTL(ch, ATA_SERROR, error);
-
-	    /* if we have a connection event deal with it */
-	    if ((error & ATA_SE_PHY_CHANGED) &&
-		(tp = (struct ata_connect_task *)
-		      malloc(sizeof(struct ata_connect_task),
-			     M_ATA, M_NOWAIT | M_ZERO))) {
-
-		if ((status & ATA_SS_CONWELL_MASK) == ATA_SS_CONWELL_GEN1) {
-		    if (bootverbose)
-			device_printf(ch->dev, "CONNECT requested\n");
-		    tp->action = ATA_C_ATTACH;
-		}
-		else {
-		    if (bootverbose)
-			device_printf(ch->dev, "DISCONNECT requested\n");
-		    tp->action = ATA_C_DETACH;
-		}
-		tp->dev = ch->dev;
-		TASK_INIT(&tp->task, 0, ata_sata_phy_event, tp);
-		taskqueue_enqueue(taskqueue_thread, &tp->task);
-	    }
-	}
+    if (ctlr->chip->max_dma >= ATA_SA150 &&
+	(ATA_INL(ctlr->r_res2, 0x10 + offset0) & 0x00000010)) {
+	
+	/* do we have any PHY events ? */
+	ata_sata_phy_check_events(dev);
     }
 
-    /* any drive action to take care of ? */
-    if (ATA_IDX_INB(ch, ATA_BMDEVSPEC_0) & 0x08)
+    if (ATA_INL(ctlr->r_res2, 0xa0 + offset1) & 0x00000800)
 	return ata_pci_status(dev);
-    else 
+    else
 	return 0;
 }
 
 static void
 ata_sii_reset(device_t dev)
 {
-    struct ata_pci_controller *ctlr = device_get_softc(device_get_parent(dev));
-    struct ata_channel *ch = device_get_softc(dev);
-    int offset = ((ch->unit & 1) << 7) + ((ch->unit & 2) << 8);
-
-    /* disable PHY state change interrupt */
-    ATA_OUTL(ctlr->r_res2, 0x148 + offset, ~(1 << 16));
-
-    /* reset controller part for this channel */
-    ATA_OUTL(ctlr->r_res2, 0x48,
-	     ATA_INL(ctlr->r_res2, 0x48) | (0xc0 >> ch->unit));
-    DELAY(1000);
-    ATA_OUTL(ctlr->r_res2, 0x48,
-	     ATA_INL(ctlr->r_res2, 0x48) & ~(0xc0 >> ch->unit));
-
     if (ata_sata_phy_reset(dev))
 	ata_generic_reset(dev);
-
-    /* enable PHY state change interrupt */
-    ATA_OUTL(ctlr->r_res2, 0x148 + offset, (1 << 16));
 }
 
 static void
