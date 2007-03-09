@@ -216,7 +216,7 @@
 
     <para>A bug in the smbfs file system, which could allow an
       attacker to escape out of &man.chroot.2 environments on an smbfs
-      mounted filesystem, has been fixed.  For more details, see
+      mounted file system, has been fixed.  For more details, see
       security advisory
       <ulink url="http://security.FreeBSD.org/advisories/FreeBSD-SA-06:16.smbfs.asc">FreeBSD-SA-06:16.smbfs</ulink>. &merged;</para>
 
@@ -461,7 +461,7 @@
 	for the pc98 platform. &merged;</para>
 
       <para>[&arch.i386;] A bug in the i386 boot loader, which could
-	cause filesystem corruption if
+	cause file system corruption if
 	a <filename>nextboot.conf</filename> file was used and landed
 	after cylinder 1023, has been fixed. &merged;</para>
 
@@ -1161,16 +1161,16 @@ geli_da1s3a_keyfile0_name="/boot/keys/da1s3a.key"</programlisting>
       <title>File Systems</title>
 
       <para>[&arch.amd64;, &arch.i386;, &arch.pc98;] The &man.linsysfs.5;
-	pseudo-filesystem driver has been added.
+	pseudo-file system driver has been added.
 	It provides a subset of the
-	Linux <filename>sys</filename> filesystem, and is required for
+	Linux <filename>sys</filename> file system, and is required for
 	the correct operation of some Linux binaries (such as the LSI
 	MegaRAID SAS utility). &merged;</para>
 
       <para>A part of the FreeBSD NFS subsystem (the interface with
 	the protocol stack and callouts, the NFS client side) is now MPSAFE.</para>
 
-      <para>Initial (read-only) support for SGI's XFS filesystem has been
+      <para>Initial (read-only) support for SGI's XFS file system has been
 	added.</para>
 
       <para>The unionfs file system has been re-implemented.  This
@@ -1596,7 +1596,7 @@ geli_da1s3a_keyfile0_name="/boot/keys/da1s3a.key"</programlisting>
       built-in command. &merged;</para>
 
     <para>The &man.snapinfo.8; utility, which shows snapshot locations
-      on UFS filesystems, has been added.  &merged;</para>
+      on UFS file systems, has been added.  &merged;</para>
 
     <para>The &man.sockstat.1; utility, which shows connected and
       listening network sockets, now supports a new <option>-P</option>
