@@ -35,6 +35,7 @@
 .Nm cv_destroy ,
 .Nm cv_wait ,
 .Nm cv_wait_sig ,
+.Nm cv_wait_unlock ,
 .Nm cv_timedwait ,
 .Nm cv_timedwait_sig ,
 .Nm cv_signal ,
@@ -54,6 +55,8 @@
 .Fn cv_wait "struct cv *cvp" "struct mtx *mp"
 .Ft int
 .Fn cv_wait_sig "struct cv *cvp" "struct mtx *mp"
+.Ft void
+.Fn cv_wait_unlock "struct cv *cvp" "struct mtx *mp"
 .Ft int
 .Fn cv_timedwait "struct cv *cvp" "struct mtx *mp" "int timo"
 .Ft int
@@ -84,6 +87,7 @@ Condition variables are destroyed with
 Threads wait on condition variables by calling
 .Fn cv_wait ,
 .Fn cv_wait_sig ,
+.Fn cv_wait_unlock ,
 .Fn cv_timedwait ,
 or
 .Fn cv_timedwait_sig .
@@ -110,13 +114,17 @@ A thread must hold
 before calling
 .Fn cv_wait ,
 .Fn cv_wait_sig ,
+.Fn cv_wait_unlock ,
 .Fn cv_timedwait ,
 or
 .Fn cv_timedwait_sig .
 When a thread waits on a condition,
 .Fa mp
-is atomically released before the thread is blocked, then atomically reacquired
+is atomically released before the thread is blocked, then reacquired
 before the function call returns.
+The
+.Fn cv_wait_unlock
+function does not reacquire the lock before returning.
 All waiters must pass the same
 .Fa mp
 in conjunction with
@@ -125,6 +133,7 @@ in conjunction with
 When
 .Fn cv_wait ,
 .Fn cv_wait_sig ,
+.Fn cv_wait_unlock ,
 .Fn cv_timedwait ,
 and
 .Fn cv_timedwait_sig
