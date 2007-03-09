@@ -318,6 +318,11 @@ static int	bridge_ip6_checkbasic(struct mbuf **mp);
 static int	bridge_fragment(struct ifnet *, struct mbuf *,
 		    struct ether_header *, int, struct llc *);
 
+static struct bstp_cb_ops bridge_ops = {
+	.bcb_state = bridge_state_change,
+	.bcb_rtage = bridge_rtable_expire
+};
+
 SYSCTL_DECL(_net_link);
 SYSCTL_NODE(_net_link, IFT_BRIDGE, bridge, CTLFLAG_RW, 0, "Bridge");
 
@@ -583,7 +588,7 @@ bridge_clone_create(struct if_clone *ifc, int unit, caddr_t params)
 		mtx_unlock(&bridge_list_mtx);
 	}
 
-	bstp_attach(&sc->sc_stp, bridge_state_change, bridge_rtable_expire);
+	bstp_attach(&sc->sc_stp, &bridge_ops);
 	ether_ifattach(ifp, eaddr);
 	/* Now undo some of the damage... */
 	ifp->if_baudrate = 0;
