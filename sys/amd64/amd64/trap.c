@@ -813,6 +813,8 @@ syscall(struct trapframe *frame)
 	CTR4(KTR_SYSC, "syscall enter thread %p pid %d proc %s code %d", td,
 	    td->td_proc->p_pid, td->td_proc->p_comm, code);
 
+	td->td_syscalls++;
+
 	if (error == 0) {
 		td->td_retval[0] = 0;
 		td->td_retval[1] = frame->tf_rdx;

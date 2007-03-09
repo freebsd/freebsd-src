@@ -414,6 +414,8 @@ syscall(struct trapframe *frame)
 		ktrsyscall(code, narg, (register_t *)params);
 #endif
 
+	td->td_syscalls++;
+
 	if (error == 0) {
 		td->td_retval[0] = 0;
 		td->td_retval[1] = frame->fixreg[FIRSTARG + 1];

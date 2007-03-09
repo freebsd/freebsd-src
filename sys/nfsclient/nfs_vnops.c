@@ -432,6 +432,8 @@ nfs_access(struct vop_access_args *ap)
 	}
 }
 
+int nfs_otw_getattr_avoid = 0;
+
 /*
  * nfs open vnode op
  * Check to see if the type is ok
@@ -471,7 +473,14 @@ nfs_open(struct vop_open_args *ap)
 		np->n_mtime = vattr.va_mtime;
 		mtx_unlock(&np->n_mtx);
 	} else {
-		np->n_attrstamp = 0;
+		struct thread *td = curthread;
+
+		if (np->n_ac_ts_syscalls != td->td_syscalls ||
+		    np->n_ac_ts_tid != td->td_tid || 
+		    td->td_proc == NULL ||
+		    np->n_ac_ts_pid != td->td_proc->p_pid) {
+			np->n_attrstamp = 0;
+		}
 		mtx_unlock(&np->n_mtx);						
 		error = VOP_GETATTR(vp, &vattr, ap->a_cred, ap->a_td);
 		if (error)
