@@ -151,7 +151,12 @@
       <sect4 id="net-if">
 	<title>Network Interface Support</title>
 
-	<para></para>
+	<para>The &man.ath.4; driver has been updated to
+	  HAL version 0.9.20.3.</para>
+
+	<para>The 802.11 protocol stack now has support for 900 MHz
+	  cards, as well as quarter- and half-channel support
+	  for 802.11a.</para>
 
       </sect4>
     </sect3>
@@ -159,7 +164,17 @@
     <sect3 id="net-proto">
       <title>Network Protocols</title>
 
-      <para></para>
+      <para>The &man.if.bridge.4; driver now supports RSTP, the Rapid
+	Spanning Tree Protocol (802.1w).</para>
+
+      <para>A new &man.ng.deflate.4; NetGraph node type has been
+	added.  It implements Deflate PPP compression.</para>
+
+      <para>A new &man.ng.pred1.4; NetGraph node type has been added
+	to implement Predictor-1 PPP compression.</para>
+
+      <para>A bug which prevented &os; &release.prev; from running
+	IPv6 correctly over &man.gif.4; tunnels has been fixed.</para>
 
     </sect3>
 
@@ -173,7 +188,13 @@
     <sect3 id="fs">
       <title>File Systems</title>
 
-      <para></para>
+      <para>The unionfs file system has been re-implemented.  This
+	version solves many crashing and locking issues compared to
+	the previous implementation.  It also adds
+	new <quote>transparent</quote> and <quote>masquerade</quote>
+	modes for automatically creating files in the upper file system
+	layer of unions.  More information can be found in the
+	&man.mount.unionfs.8; manual page.</para>
 
     </sect3>
 
@@ -182,7 +203,9 @@
   <sect2 id="userland">
     <title>Userland Changes</title>
 
-    <para></para>
+    <para>The &man.wpa.passphrase.8; utility has been added.  It
+      generates a 256-bit pre-shared WPA key from an ASCII
+      passphrase.</para>
 
   </sect2>
 
