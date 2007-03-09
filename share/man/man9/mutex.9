@@ -34,6 +34,7 @@
 .Sh NAME
 .Nm mutex ,
 .Nm mtx_init ,
+.Nm mtx_destroy ,
 .Nm mtx_lock ,
 .Nm mtx_lock_spin ,
 .Nm mtx_lock_flags ,
@@ -44,7 +45,6 @@
 .Nm mtx_unlock_spin ,
 .Nm mtx_unlock_flags ,
 .Nm mtx_unlock_spin_flags ,
-.Nm mtx_destroy ,
 .Nm mtx_initialized ,
 .Nm mtx_owned ,
 .Nm mtx_recursed ,
@@ -57,6 +57,8 @@
 .In sys/mutex.h
 .Ft void
 .Fn mtx_init "struct mtx *mutex" "const char *name" "const char *type" "int opts"
+.Ft void
+.Fn mtx_destroy "struct mtx *mutex"
 .Ft void
 .Fn mtx_lock "struct mtx *mutex"
 .Ft void
@@ -77,8 +79,6 @@
 .Fn mtx_unlock_flags "struct mtx *mutex" "int flags"
 .Ft void
 .Fn mtx_unlock_spin_flags "struct mtx *mutex" "int flags"
-.Ft void
-.Fn mtx_destroy "struct mtx *mutex"
 .Ft int
 .Fn mtx_initialized "struct mtx *mutex"
 .Ft int

@@ -30,13 +30,13 @@
 .Sh NAME
 .Nm rwlock ,
 .Nm rw_init ,
+.Nm rw_destroy ,
 .Nm rw_rlock ,
 .Nm rw_wlock ,
 .Nm rw_runlock ,
 .Nm rw_wunlock ,
 .Nm rw_try_upgrade ,
 .Nm rw_downgrade ,
-.Nm rw_destroy ,
 .Nm rw_initialized ,
 .Nm rw_wowned ,
 .Nm rw_assert ,
@@ -49,6 +49,8 @@
 .Ft void
 .Fn rw_init "struct rwlock *rw" "const char *name"
 .Ft void
+.Fn rw_destroy "struct rwlock *rw"
+.Ft void
 .Fn rw_rlock "struct rwlock *rw"
 .Ft void
 .Fn rw_wlock "struct rwlock *rw"
@@ -60,8 +62,6 @@
 .Fn rw_try_upgrade "struct rwlock *rw"
 .Ft void
 .Fn rw_downgrade "struct rwlock *rw"
-.Ft void
-.Fn rw_destroy "struct rwlock *rw"
 .Ft int
 .Fn rw_initialized "struct rwlock *rw"
 .Ft int
