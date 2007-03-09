@@ -37,6 +37,7 @@
 .Nm rw_wunlock ,
 .Nm rw_try_upgrade ,
 .Nm rw_downgrade ,
+.Nm rw_sleep ,
 .Nm rw_initialized ,
 .Nm rw_wowned ,
 .Nm rw_assert ,
@@ -62,6 +63,8 @@
 .Fn rw_try_upgrade "struct rwlock *rw"
 .Ft void
 .Fn rw_downgrade "struct rwlock *rw"
+.Ft int
+.Fn rw_sleep "void *chan" "struct rwlock *rw" "int priority" "const char *wmesg" "int timo"
 .Ft int
 .Fn rw_initialized "struct rwlock *rw"
 .Ft int
@@ -162,6 +165,13 @@ and the current thread will still hold a shared lock.
 Convert an exclusive lock into a single shared lock.
 The current thread must hold an exclusive lock of
 .Fa rw .
+.It Fn rw_sleep "void *chan" "struct rwlock *rw" "int priority" "const char *wmesg" "int timo"
+Atomically release
+.Fa rw
+while waiting for an event.
+For more details on the parameters to this function,
+see
+.Xr sleep 9 .
 .It Fn rw_initialized "struct rwlock *rw"
 This function returns non-zero if
 .Fa rw

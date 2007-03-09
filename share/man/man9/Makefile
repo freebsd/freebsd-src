@@ -835,6 +835,7 @@ MLINKS+=mutex.9 mtx_assert.9 \
 	mutex.9 mtx_lock_spin_flags.9 \
 	mutex.9 mtx_owned.9 \
 	mutex.9 mtx_recursed.9 \
+	mutex.9 mtx_sleep.9 \
 	mutex.9 MTX_SYSINIT.9 \
 	mutex.9 mtx_trylock.9 \
 	mutex.9 mtx_trylock_flags.9 \
@@ -925,6 +926,7 @@ MLINKS+=rwlock.9 rw_assert.9 \
 	rwlock.9 rw_initialized.9 \
 	rwlock.9 rw_rlock.9 \
 	rwlock.9 rw_runlock.9 \
+	rwlock.9 rw_sleep.9 \
 	rwlock.9 RW_SYSINIT.9 \
 	rwlock.9 rw_try_upgrade.9 \
 	rwlock.9 rw_wlock.9 \
@@ -1059,6 +1061,7 @@ MLINKS+=sx.9 sx_assert.9 \
 	sx.9 sx_try_slock.9 \
 	sx.9 sx_try_upgrade.9 \
 	sx.9 sx_try_xlock.9 \
+	sx.9 sx_sleep.9 \
 	sx.9 sx_unlock.9 \
 	sx.9 sx_xlock.9 \
 	sx.9 sx_xlocked.9 \
