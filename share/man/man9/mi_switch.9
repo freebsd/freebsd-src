@@ -65,13 +65,13 @@ The various major uses of
 can be enumerated as follows:
 .Bl -enum -offset indent
 .It
-From within
-.Xr sleep 9 ,
-.Xr tsleep 9
-and
-.Xr msleep 9
+From within a function such as
+.Xr cv_wait 9 ,
+.Xr mtx_lock ,
+or
+.Xr tsleep 9 
 when the current thread
-voluntarily relinquishes the CPU to wait for some resource to become
+voluntarily relinquishes the CPU to wait for some resource or lock to become
 available.
 .It
 After handling a trap
@@ -157,6 +157,7 @@ all of these functions must be called with the
 .Va sched_lock
 mutex held.
 .Sh SEE ALSO
+.Xr cv_wait 9 ,
 .Xr issignal 9 ,
 .Xr mutex 9 ,
 .Xr runqueue 9 ,

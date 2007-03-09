@@ -64,7 +64,7 @@
 .Sh DESCRIPTION
 Mutex pools are designed to be used as short term leaf mutexes;
 i.e., the last mutex one might acquire before calling
-.Xr msleep 9 .
+.Xr mtx_sleep 9 .
 They operate using a shared pool of mutexes.
 A mutex may be chosen from the pool based on a supplied pointer,
 which may or may not point to anything valid,
@@ -110,7 +110,7 @@ mutexes to interlock destructor operations.
 No initialization or destruction overhead.
 .It
 Can be used with
-.Xr msleep 9 .
+.Xr mtx_sleep 9 .
 .El
 .Pp
 And the following disadvantages:
@@ -177,7 +177,6 @@ on each mutex in the specified pool,
 deallocates the memory associated with the pool,
 and assigns NULL to the pool pointer.
 .Sh SEE ALSO
-.Xr msleep 9 ,
 .Xr mutex 9
 .Sh HISTORY
 These routines first appeared in

@@ -82,7 +82,7 @@ struct thread;
 #ifdef _KERNEL
 
 #define	SLEEPQ_TYPE		0x0ff		/* Mask of sleep queue types. */
-#define	SLEEPQ_MSLEEP		0x00		/* Used by msleep/wakeup. */
+#define	SLEEPQ_SLEEP		0x00		/* Used by sleep/wakeup. */
 #define	SLEEPQ_CONDVAR		0x01		/* Used for a cv. */
 #define	SLEEPQ_PAUSE		0x02		/* Used by pause. */
 #define	SLEEPQ_INTERRUPTIBLE	0x100		/* Sleep is interruptible. */

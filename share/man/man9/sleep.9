@@ -68,6 +68,12 @@ external event, it is put to sleep by
 .Fn msleep_spin ,
 or
 .Fn pause .
+Threads may also wait using one of the locking primitive sleep routines
+.Xr mtx_sleep 9 ,
+.Xr rw_sleep 9 ,
+or
+.Xr sx_sleep 9 .
+.Pp
 The parameter
 .Fa chan
 is an arbitrary address that uniquely identifies the event on which
@@ -80,66 +86,19 @@ often called from inside an interrupt routine, to indicate that the
 resource the thread was blocking on is available now.
 .Pp
 The parameter
-.Fa wmesg
-is a string describing the sleep condition for tools like
-.Xr ps 1 .
-Due to the limited space of those programs to display arbitrary strings,
-this message should not be longer than 6 characters.
-.Pp
-The
-.Fn msleep
-function is the general sleep call.
-It suspends the current thread until a wakeup is
-performed on the specified identifier.
-The
-.Fa mtx
-parameter is a mutex which will be released before sleeping and reacquired
-before
-.Fn msleep
-returns.
-If
 .Fa priority
-includes the
-.Dv PDROP
-flag, the
-.Fa mtx
-parameter will not be reacquired before returning.
-The mutex is used to ensure that a condition can be checked atomically,
-and that the current thread can be suspended without missing a
-change to the condition, or an associated wakeup.
-If
-.Fa priority
-is not 0,
+specifies a new priority for the thread as well as some optional flags.
+If the new priority is not 0,
 then the thread will be made
 runnable with the specified
 .Fa priority
 when it resumes.
-If
-.Fa timo
-is not 0,
-then the thread will sleep for at most
-.Fa timo No / Va hz
-seconds.
-If the
-.Va Giant
-lock is not held and
-.Fa mtx
-is
-.Dv NULL ,
-then
-.Fa timo
-must be non-zero.
 If
 .Fa priority
 includes the
 .Dv PCATCH
 flag, signals are checked before and after sleeping, otherwise signals are
 not checked.
-The
-.Fn msleep
-function returns 0 if awakened,
-.Er EWOULDBLOCK
-if the timeout expires.
 If
 .Dv PCATCH
 is set and a signal needs to be delivered,
@@ -151,33 +110,86 @@ is returned if the system call should be interrupted by the signal
 (return
 .Er EINTR ) .
 .Pp
-The
-.Fn tsleep
-function is a variation on
-.Fn msleep .
-It is identical to invoking
-.Fn msleep
-with a
-.Dv NULL
-.Fa mtx
+The parameter
+.Fa wmesg
+is a string describing the sleep condition for tools like
+.Xr ps 1 .
+Due to the limited space of those programs to display arbitrary strings,
+this message should not be longer than 6 characters.
+.Pp
+The parameter
+.Fa timo
+specifies a timeout for the sleep.
+If
+.Fa timo
+is not 0,
+then the thread will sleep for at most
+.Fa timo No / Va hz
+seconds.
+If the timeout expires,
+then the sleep function will return
+.Er EWOULDBLOCK .
+.Pp
+Several of the sleep functions including
+.Fn msleep ,
+.Fn msleep_spin ,
+and the locking primitive sleep routines specify an additional lock
 parameter.
+The lock will be released before sleeping and reacquired
+before the sleep routine returns.
+If
+.Fa priority
+includes the
+.Dv PDROP
+flag, then
+the lock will not be reacquired before returning.
+The lock is used to ensure that a condition can be checked atomically,
+and that the current thread can be suspended without missing a
+change to the condition, or an associated wakeup.
+In addition, all of the sleep routines will fully drop the
+.Va Giant
+mutex
+(even if recursed)
+while the thread is suspended and will reacquire the
+.Va Giant
+mutex before the function returns.
+.Pp
+To avoid lost wakeups,
+either a lock should be used to protect against races,
+or a timeout should be specified to place an upper bound on the delay due
+to a lost wakeup.
+As a result,
+the
+.Fn tsleep
+function should only be invoked with a timeout of 0 when the
+.Va Giant
+mutex is held.
+.Pp
+The
+.Fn msleep
+function requires that
+.Fa mtx
+reference a default, i.e. non-spin, mutex.
+It's use is deprecated in favor of
+.Xr mtx_sleep 9
+which provides identical behavior.
 .Pp
 The
 .Fn msleep_spin
-function is another variation on
-.Fn msleep .
-This function accepts a spin mutex rather than a default mutex for its
+function requires that
 .Fa mtx
-parameter.
-It is also more limited in that it does not accept a
+reference a spin mutex.
+The
+.Fn msleep_spin
+function does not accept a
 .Fa priority
-parameter.
-Thus, it will not change the priority of a sleeping thread,
-and it does not support the
+parameter and thus does not support changing the current thread's priority,
+the
 .Dv PDROP
-and
+flag,
+or catching signals via the
 .Dv PCATCH
-flags.
+flag.
 .Pp
 The
 .Fn pause
@@ -221,11 +233,42 @@ pay particular attention to ensure that no other threads wait on the
 same
 .Fa chan .
 .Sh RETURN VALUES
-See above.
+If the thread is awakened by a call to
+.Fn wakeup
+or
+.Fn wakeup_one ,
+the
+.Fn msleep ,
+.Fn msleep_spin ,
+.Fn tsleep ,
+and locking primitive sleep functions return 0.
+Otherwise, a non-zero error code is returned.
+.Sh ERRORS
+.Fn msleep ,
+.Fn msleep_spin ,
+.Fn tsleep ,
+and the locking primitive sleep functions will fail if:
+.Bl -tag -width Er
+.It Bq Er EINTR
+The
+.Dv PCATCH
+flag was specified, a signal was caught, and the system call should be
+interrupted.
+.It Bq Er ERESTART
+The
+.Dv PCATCH
+flag was specified, a signal was caught, and the system call should be
+restarted.
+.It Bq Er EWOULDBLOCK
+A non-zero timeout was specified and the timeout expired.
+.El
 .Sh SEE ALSO
 .Xr ps 1 ,
 .Xr malloc 9 ,
-.Xr mi_switch 9
+.Xr mi_switch 9 ,
+.Xr mtx_sleep 9 ,
+.Xr rw_sleep 9 ,
+.Xr sx_sleep 9
 .Sh HISTORY
 The functions
 .Fn sleep

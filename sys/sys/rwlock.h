@@ -163,6 +163,8 @@ void	_rw_assert(struct rwlock *rw, int what, const char *file, int line);
 #define	rw_runlock(rw)		_rw_runlock((rw), LOCK_FILE, LOCK_LINE)
 #define	rw_try_upgrade(rw)	_rw_try_upgrade((rw), LOCK_FILE, LOCK_LINE)
 #define	rw_downgrade(rw)	_rw_downgrade((rw), LOCK_FILE, LOCK_LINE)
+#define	rw_sleep(chan, rw, pri, wmesg, timo)				\
+	_sleep((chan), &(rw)->rw_object, (pri), (wmesg), (timo))
 
 #define	rw_initialized(rw)	lock_initalized(&(rw)->rw_object)
 

@@ -116,6 +116,7 @@ extern char **kenvp;
  * General function declarations.
  */
 
+struct lock_object;
 struct malloc_type;
 struct mtx;
 struct proc;
@@ -307,11 +308,15 @@ static __inline void		splx(intrmask_t ipl __unused)	{ return; }
  * Common `proc' functions are declared here so that proc.h can be included
  * less often.
  */
-int	msleep(void *chan, struct mtx *mtx, int pri, const char *wmesg,
-	    int timo);
-int	msleep_spin(void *chan, struct mtx *mtx, const char *wmesg, int timo);
+int	_sleep(void *chan, struct lock_object *lock, int pri, const char *wmesg,
+	    int timo) __nonnull(1);
+#define	msleep(chan, mtx, pri, wmesg, timo)				\
+	_sleep((chan), &(mtx)->mtx_object, (pri), (wmesg), (timo))
+int	msleep_spin(void *chan, struct mtx *mtx, const char *wmesg, int timo)
+	    __nonnull(1);
 int	pause(const char *wmesg, int timo);
-#define	tsleep(chan, pri, wmesg, timo)	msleep(chan, NULL, pri, wmesg, timo)
+#define	tsleep(chan, pri, wmesg, timo)					\
+	_sleep((chan), NULL, (pri), (wmesg), (timo))
 void	wakeup(void *chan) __nonnull(1);
 void	wakeup_one(void *chan) __nonnull(1);
 
