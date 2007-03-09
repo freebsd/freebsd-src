@@ -48,7 +48,7 @@ static void usage(void);
 int
 main(int argc, char *argv[])
 {
-	struct pidfh *pfh;
+	struct pidfh *pfh = NULL;
 	int ch, nochdir, noclose, errcode;
 	const char *pidfile, *user, *group;
 	pid_t otherpid;
