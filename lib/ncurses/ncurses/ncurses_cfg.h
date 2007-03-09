@@ -142,7 +142,6 @@
 #define HAVE_WORKING_POLL 1
 #define HAVE_WRESIZE 1
 #define MIXEDCASE_FILENAMES 1
-#define MIXEDCASE_FILENAMES 1
 #define NCURSES_EXT_FUNCS 1
 #define NCURSES_NO_PADDING 1
 #define NCURSES_PATHSEP ':'
@@ -164,6 +163,18 @@
 #define USE_STDIO_VSCAN 1
 #define USE_SYSMOUSE 1
 #define USE_TERMCAP 1
+#ifdef ENABLE_WIDEC
+#define USE_WIDEC_SUPPORT 1
+#define HAVE_PUTWC 1
+#define HAVE_BTOWC 1
+#define HAVE_WCTOB 1
+#define HAVE_MBTOWC 1
+#define HAVE_WCTOMB 1
+#define HAVE_MBLEN 1
+#define HAVE_MBRLEN 1
+#define HAVE_MBRTOWC 1
+#define NEED_WCHAR_H 1 
+#endif
 
 #include <ncurses_def.h>
 
