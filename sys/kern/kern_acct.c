@@ -562,9 +562,8 @@ acct_thread(void *dummy)
 		 * to exit.
 		 */
 		if (!(acct_state & ACCT_EXITREQ)) {
-			sx_xunlock(&acct_sx);
-			tsleep(&acct_state, pri, "-", acctchkfreq * hz);
-			sx_xlock(&acct_sx);
+			sx_sleep(&acct_state, &acct_sx, 0, "-",
+			    acctchkfreq * hz);
 		}
 	}
 
