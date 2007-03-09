@@ -281,6 +281,8 @@ struct ata_connect_task {
 #define ATA_SII3512             0x35121095
 #define ATA_SII3112             0x31121095
 #define ATA_SII3112_1           0x02401095
+#define ATA_SII3124		0x31241095
+#define ATA_SII3132		0x31321095
 #define ATA_SII0680             0x06801095
 #define ATA_CMD646              0x06461095
 #define ATA_CMD648              0x06481095
@@ -393,6 +395,7 @@ struct ata_connect_task {
 #define SWKSMIO         3
 
 #define SIIMEMIO        1
+#define SIIPRBIO        2
 #define SIIINTR         0x01
 #define SIISETCLK       0x02
 #define SIIBUG          0x04
