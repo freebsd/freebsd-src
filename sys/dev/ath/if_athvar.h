@@ -485,6 +485,10 @@ void	ath_intr(void *);
 	(ath_hal_getcapability(_ah, HAL_CAP_DIVERSITY, 1, NULL) == HAL_OK)
 #define	ath_hal_setdiversity(_ah, _v) \
 	ath_hal_setcapability(_ah, HAL_CAP_DIVERSITY, 1, _v, NULL)
+#define	ath_hal_getantennaswitch(_ah) \
+	((*(_ah)->ah_getAntennaSwitch)((_ah)))
+#define	ath_hal_setantennaswitch(_ah, _v) \
+	((*(_ah)->ah_setAntennaSwitch)((_ah), (_v)))
 #define	ath_hal_getdiag(_ah, _pv) \
 	(ath_hal_getcapability(_ah, HAL_CAP_DIAG, 0, _pv) == HAL_OK)
 #define	ath_hal_setdiag(_ah, _v) \
