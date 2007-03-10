@@ -264,6 +264,11 @@ _find_processes()
 		read _interp < $_procname	# read interpreter name
 		_interp=${_interp#\#!}		# strip #!
 		set -- $_interp
+		case $1 in
+		*/bin/env)
+			shift			# drop env to get real name
+			;;
+		esac
 		if [ $_interpreter != $1 ]; then
 			warn "\$command_interpreter $_interpreter != $1"
 		fi
