@@ -31,6 +31,7 @@
 # BEFORE:  netif
 
 . /etc/rc.subr
+. /etc/network.subr
 
 name="hostname"
 start_cmd="hostname_start"
@@ -58,8 +59,21 @@ hostname_start()
 		fi
 	fi
 
-	/bin/hostname ${hostname}
-	echo "Setting hostname: `hostname`."
+	# Have we got a hostname yet?
+	#
+	if [ -z "${hostname}" ]; then
+		# Null hostname is probably OK if DHCP is in use.
+		#
+		if [ -z "`list_net_interfaces dhcp`" ]; then
+			warn "\$hostname is not set -- see ${rcvar_manpage}."
+		fi
+		return
+	fi
+
+	# All right, it is safe to invoke hostname(1) now.
+	#
+	echo "Setting hostname: ${hostname}."
+	/bin/hostname "${hostname}"
 }
 
 load_rc_config $name
