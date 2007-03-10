@@ -1080,8 +1080,6 @@ list_stations(int s)
 static void
 print_chaninfo(const struct ieee80211_channel *c)
 {
-#define	IEEE80211_IS_CHAN_PASSIVE(_c) \
-	(((_c)->ic_flags & IEEE80211_CHAN_PASSIVE))
 	char buf[14];
 
 	buf[0] = '\0';
@@ -1109,7 +1107,6 @@ print_chaninfo(const struct ieee80211_channel *c)
 	printf("Channel %3u : %u%c Mhz%-14.14s",
 		ieee80211_mhz2ieee(c->ic_freq, c->ic_flags), c->ic_freq,
 		IEEE80211_IS_CHAN_PASSIVE(c) ? '*' : ' ', buf);
-#undef IEEE80211_IS_CHAN_PASSIVE
 }
 
 static void
