@@ -134,7 +134,7 @@ static const char * const pxa2x0_steppings[16] = {
 };
 
 static const char * const ixp425_steppings[16] = {
-	"step 0",	"rev 1",	"rev 2",	"rev 3",
+	"step 0 (A0)",	"rev 1 (ARMv5TE)", "rev 2",	"rev 3",
 	"rev 4",	"rev 5",	"rev 6",	"rev 7",
 	"rev 8",	"rev 9",	"rev 10",	"rev 11",
 	"rev 12",	"rev 13",	"rev 14",	"rev 15",
