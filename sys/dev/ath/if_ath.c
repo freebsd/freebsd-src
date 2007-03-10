@@ -5340,6 +5340,29 @@ ath_sysctl_softled(SYSCTL_HANDLER_ARGS)
 }
 
 static int
+ath_sysctl_txantenna(SYSCTL_HANDLER_ARGS)
+{
+	struct ath_softc *sc = arg1;
+	u_int txantenna = ath_hal_getantennaswitch(sc->sc_ah);
+	int error;
+
+	error = sysctl_handle_int(oidp, &txantenna, 0, req);
+	if (!error && req->newptr) {
+		/* XXX assumes 2 antenna ports */
+		if (txantenna < HAL_ANT_VARIABLE || txantenna > HAL_ANT_FIXED_B)
+			return EINVAL;
+		ath_hal_setantennaswitch(sc->sc_ah, txantenna);
+		/*
+		 * NB: with the switch locked this isn't meaningful,
+		 *     but set it anyway so things like radiotap get
+		 *     consistent info in their data.
+		 */
+		sc->sc_txantenna = txantenna;
+	}
+	return error;
+}
+
+static int
 ath_sysctl_rxantenna(SYSCTL_HANDLER_ARGS)
 {
 	struct ath_softc *sc = arg1;
@@ -5559,9 +5582,9 @@ ath_sysctlattach(struct ath_softc *sc)
 	SYSCTL_ADD_INT(ctx, SYSCTL_CHILDREN(tree), OID_AUTO,
 		"ledidle", CTLFLAG_RW, &sc->sc_ledidle, 0,
 		"idle time for inactivity LED (ticks)");
-	SYSCTL_ADD_INT(ctx, SYSCTL_CHILDREN(tree), OID_AUTO,
-		"txantenna", CTLFLAG_RW, &sc->sc_txantenna, 0,
-		"tx antenna (0=auto)");
+	SYSCTL_ADD_PROC(ctx, SYSCTL_CHILDREN(tree), OID_AUTO,
+		"txantenna", CTLTYPE_INT | CTLFLAG_RW, sc, 0,
+		ath_sysctl_txantenna, "I", "antenna switch");
 	SYSCTL_ADD_PROC(ctx, SYSCTL_CHILDREN(tree), OID_AUTO,
 		"rxantenna", CTLTYPE_INT | CTLFLAG_RW, sc, 0,
 		ath_sysctl_rxantenna, "I", "default/rx antenna");
