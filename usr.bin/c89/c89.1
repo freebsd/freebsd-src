@@ -24,7 +24,7 @@
 .\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 .\"
 .\" $FreeBSD$
-.\" "
+.\"
 .Dd September 17, 1997
 .Os
 .Dt C89 1
@@ -56,8 +56,7 @@ object files that are produced.
 Define name as if by a C-language
 .Ic #define
 directive.
-If
-no
+If no
 .Dq = Ns Ar value
 is given, a value of 1 will be used.
 Note that in order to request a
@@ -94,15 +93,18 @@ absolute pathnames to look in the directory named by the
 .Ar directory
 pathname before looking in the usual places.
 Thus, headers whose
-names are enclosed in double-quotes ("") will be searched for first
+names are enclosed in double-quotes
+.Pq Qq
+will be searched for first
 in the directory of the file with the
 .Ic #include
 line, then in
 directories named in
 .Fl I
 options, and last in the usual places.
-For
-headers whose names are enclosed in angle brackets (<>), the header
+For headers whose names are enclosed in angle brackets
+.Pq Aq ,
+the header
 will be searched for only in directories named in
 .Fl I
 options and then in the usual places.
@@ -147,14 +149,12 @@ option may be specified more than once.
 An operand is either in the form of a pathname or the form
 .Fl l
 library.
-At least one operand of the pathname form needs to be
-specified.
+At least one operand of the pathname form needs to be specified.
 Supported operands are of the form:
-.Bl -tag -offset indent -width "-l library"
+.Bl -tag -offset indent -width ".Fl l Ar library"
 .It Ar file Ns Pa .c
 A C-language source file to be compiled and optionally linked.
-The
-operand must be of this form if the
+The operand must be of this form if the
 .Fl c
 option is used.
 .It Ar file Ns Pa .a
@@ -175,9 +175,10 @@ operand is significant.
 .El
 .Sh SEE ALSO
 .Xr ar 1 ,
+.Xr c99 1 ,
 .Xr cc 1
 .Sh STANDARDS
 The
 .Nm
-command is believed to comply with
+utility is believed to comply with
 .St -p1003.2 .
