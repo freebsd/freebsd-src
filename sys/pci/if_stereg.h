@@ -37,7 +37,8 @@
  * ST201 chip.
  */
 #define ST_VENDORID		0x13F0
-#define ST_DEVICEID_ST201	0x0201
+#define ST_DEVICEID_ST201_1	0x0200
+#define ST_DEVICEID_ST201_2	0x0201
 
 /*
  * D-Link PCI device/vendor ID for the DL10050[AB] chip
