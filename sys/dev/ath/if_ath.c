@@ -364,6 +364,7 @@ ath_attach(u_int16_t devid, struct ath_softc *sc)
 	ath_rate_setup(sc, IEEE80211_MODE_TURBO_G);
 	ath_rate_setup(sc, IEEE80211_MODE_HALF);
 	ath_rate_setup(sc, IEEE80211_MODE_QUARTER);
+
 	/* NB: setup here so ath_rate_update is happy */
 	ath_setcurmode(sc, IEEE80211_MODE_11A);
 
