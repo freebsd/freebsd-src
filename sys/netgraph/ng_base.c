@@ -2401,6 +2401,7 @@ static void
 ng_apply_item(node_p node, item_p item, int rw)
 {
 	hook_p  hook;
+	int	error = 0;
 	ng_rcvdata_t *rcvdata;
 	ng_rcvmsg_t *rcvmsg;
 	ng_apply_t *apply = NULL;
@@ -2430,6 +2431,7 @@ ng_apply_item(node_p node, item_p item, int rw)
 		if ((hook == NULL)
 		|| NG_HOOK_NOT_VALID(hook)
 		|| NG_NODE_NOT_VALID(node) ) {
+			error = EIO;
 			NG_FREE_ITEM(item);
 			break;
 		}
@@ -2443,7 +2445,7 @@ ng_apply_item(node_p node, item_p item, int rw)
 			NG_FREE_ITEM(item);
 			break;
 		}
-		(*rcvdata)(hook, item);
+		error = (*rcvdata)(hook, item);
 		break;
 	case NGQF_MESG:
 		if (hook) {
@@ -2463,6 +2465,7 @@ ng_apply_item(node_p node, item_p item, int rw)
 		 */
 		if (NG_NODE_NOT_VALID(node)) {
 			TRAP_ERROR();
+			error = EINVAL;
 			NG_FREE_ITEM(item);
 		} else {
 			/*
@@ -2484,7 +2487,7 @@ ng_apply_item(node_p node, item_p item, int rw)
 			 */
 			if ((msg->header.typecookie == NGM_GENERIC_COOKIE)
 			&& ((msg->header.flags & NGF_RESP) == 0)) {
-				ng_generic_msg(node, item, hook);
+				error = ng_generic_msg(node, item, hook);
 				break;
 			}
 			/*
@@ -2494,10 +2497,11 @@ ng_apply_item(node_p node, item_p item, int rw)
 			if (((!hook) || (!(rcvmsg = hook->hk_rcvmsg)))
 			&& (!(rcvmsg = node->nd_type->rcvmsg))) {
 				TRAP_ERROR();
+				error = 0;
 				NG_FREE_ITEM(item);
 				break;
 			}
-			(*rcvmsg)(node, item, hook);
+			error = (*rcvmsg)(node, item, hook);
 		}
 		break;
 	case NGQF_FN:
@@ -2511,6 +2515,7 @@ ng_apply_item(node_p node, item_p item, int rw)
 		if ((NG_NODE_NOT_VALID(node))
 		&& (NGI_FN(item) != &ng_rmnode)) {
 			TRAP_ERROR();
+			error = EINVAL;
 			NG_FREE_ITEM(item);
 			break;
 		}
@@ -2530,10 +2535,9 @@ ng_apply_item(node_p node, item_p item, int rw)
 
  	if (rw == NGQRW_R) {
 		ng_leave_read(&node->nd_input_queue);
-	} else if (rw == NGQRW_W) {
+	} else {
 		ng_leave_write(&node->nd_input_queue);
-	} /* else do nothing */
-
+	}
 
 	/* Apply callback. */
 	if (apply != NULL)
