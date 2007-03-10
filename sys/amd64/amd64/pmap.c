@@ -168,7 +168,6 @@ __FBSDID("$FreeBSD$");
 
 struct pmap kernel_pmap_store;
 
-static vm_paddr_t avail_start;	/* PA of first available physical page */
 vm_offset_t virtual_avail;	/* VA of first avail page (after kernel bss) */
 vm_offset_t virtual_end;	/* VA of last avail page (end of kernel AS) */
 
@@ -396,38 +395,38 @@ vtopde(vm_offset_t va)
 }
 
 static u_int64_t
-allocpages(int n)
+allocpages(vm_paddr_t *firstaddr, int n)
 {
 	u_int64_t ret;
 
-	ret = avail_start;
+	ret = *firstaddr;
 	bzero((void *)ret, n * PAGE_SIZE);
-	avail_start += n * PAGE_SIZE;
+	*firstaddr += n * PAGE_SIZE;
 	return (ret);
 }
 
 static void
-create_pagetables(void)
+create_pagetables(vm_paddr_t *firstaddr)
 {
 	int i;
 
 	/* Allocate pages */
-	KPTphys = allocpages(NKPT);
-	KPML4phys = allocpages(1);
-	KPDPphys = allocpages(NKPML4E);
-	KPDphys = allocpages(NKPDPE);
+	KPTphys = allocpages(firstaddr, NKPT);
+	KPML4phys = allocpages(firstaddr, 1);
+	KPDPphys = allocpages(firstaddr, NKPML4E);
+	KPDphys = allocpages(firstaddr, NKPDPE);
 
 	ndmpdp = (ptoa(Maxmem) + NBPDP - 1) >> PDPSHIFT;
 	if (ndmpdp < 4)		/* Minimum 4GB of dirmap */
 		ndmpdp = 4;
-	DMPDPphys = allocpages(NDMPML4E);
-	DMPDphys = allocpages(ndmpdp);
+	DMPDPphys = allocpages(firstaddr, NDMPML4E);
+	DMPDphys = allocpages(firstaddr, ndmpdp);
 	dmaplimit = (vm_paddr_t)ndmpdp << PDPSHIFT;
 
 	/* Fill in the underlying page table pages */
 	/* Read-only from zero to physfree */
 	/* XXX not fully used, underneath 2M pages */
-	for (i = 0; (i << PAGE_SHIFT) < avail_start; i++) {
+	for (i = 0; (i << PAGE_SHIFT) < *firstaddr; i++) {
 		((pt_entry_t *)KPTphys)[i] = i << PAGE_SHIFT;
 		((pt_entry_t *)KPTphys)[i] |= PG_RW | PG_V | PG_G;
 	}
@@ -440,7 +439,7 @@ create_pagetables(void)
 
 	/* Map from zero to end of allocations under 2M pages */
 	/* This replaces some of the KPTphys entries above */
-	for (i = 0; (i << PDRSHIFT) < avail_start; i++) {
+	for (i = 0; (i << PDRSHIFT) < *firstaddr; i++) {
 		((pd_entry_t *)KPDphys)[i] = i << PDRSHIFT;
 		((pd_entry_t *)KPDphys)[i] |= PG_RW | PG_V | PG_PS | PG_G;
 	}
@@ -493,15 +492,12 @@ pmap_bootstrap(vm_paddr_t *firstaddr)
 	vm_offset_t va;
 	pt_entry_t *pte, *unused;
 
-	avail_start = *firstaddr;
-
 	/*
 	 * Create an initial set of page tables to run the kernel in.
 	 */
-	create_pagetables();
-	*firstaddr = avail_start;
+	create_pagetables(firstaddr);
 
-	virtual_avail = (vm_offset_t) KERNBASE + avail_start;
+	virtual_avail = (vm_offset_t) KERNBASE + *firstaddr;
 	virtual_avail = pmap_kmem_choose(virtual_avail);
 
 	virtual_end = VM_MAX_KERNEL_ADDRESS;
