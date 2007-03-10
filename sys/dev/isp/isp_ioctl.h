@@ -1,6 +1,5 @@
 /* $FreeBSD$ */
 /*-
- *
  * Copyright (c) 1997-2006 by Matthew Jacob
  * All rights reserved.
  *
@@ -25,6 +24,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  */
+
 /*
  * ioctl definitions for Qlogic FC/SCSI HBA driver
  */
