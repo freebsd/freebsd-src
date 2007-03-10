@@ -54,6 +54,13 @@ geom/geom_bsd.c			standard
 geom/geom_bsd_enc.c		standard
 geom/geom_mbr.c			standard
 geom/geom_mbr_enc.c		standard
+hal.o				optional	ath_hal		\
+	compile-with		"ATH_HAL_CPU=`echo ${CONF_CFLAGS}|sed 's/.*-mcpu=\([a-zA-Z0-9]*\).*/\1/'`; ATH_ENDIAN=`if (echo ${CC}|grep mbig-endian>/dev/null); then echo be; else echo le; fi;`; uudecode < $S/contrib/dev/ath/public/$$ATH_HAL_CPU-$$ATH_ENDIAN-elf.hal.o.uu" \
+	no-implicit-rule
+opt_ah.h			optional	ath_hal		\
+	compile-with		"ATH_HAL_CPU=`echo ${CONF_CFLAGS}|sed 's/.*-mcpu=\([a-zA-Z0-9]*\).*/\1/'`; ATH_ENDIAN=`if (echo ${CC}|grep mbig-endian>/dev/null); then echo be; else echo le; fi;`; rm -f opt_ah.h; cp $S/contrib/dev/ath/public/$$ATH_HAL_CPU-$$ATH_ENDIAN-elf.opt_ah.h opt_ah.h" \
+	no-obj no-implicit-rule before-depend			\
+	clean		"opt_ah.h"
 libkern/arm/divsi3.S		standard
 libkern/arm/ffs.S		standard
 libkern/arm/muldi3.c		standard
