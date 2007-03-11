@@ -29,7 +29,7 @@
 # we can read archives we write and those written by gtar
 # and cpio.
 
-echo "Basic archiving/copy tests"
+echo "Basic archiving/copy interoperability tests"
 # Basic configuration
 . `dirname $0`/config.sh
 
@@ -292,65 +292,65 @@ mkdir -p 1abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqr
 cd ..
 
 # Basic test of archiving/dearchiving
-echo "  tar -c | tar -x"
+echo "  bsdtar -c | bsdtar -x"
 mkdir copy-default
 (cd original && ${BSDTAR} -cf - .) | (cd copy-default; ${BSDTAR} -xf -)
 diff -r original copy-default || echo XXX FAILED XXX
 
 # Exercise gzip compression (test compressed output with gunzip -t
-echo "  tar -cz | gunzip -t"
+echo "  bsdtar -cz | gunzip -t"
 (cd original && ${BSDTAR} -czf - .) | gunzip -tq
 
 # Ensure our compression works with gunzip program
-echo "  tar -cz | gunzip | tar -x"
+echo "  bsdtar -cz | gunzip | bsdtar -x"
 mkdir copy-gzip2
 (cd original && ${BSDTAR} -czf - .) | gunzip -q | (cd copy-gzip2; ${BSDTAR} -xf -)
 diff -r original copy-gzip2 || echo XXX FAILED XXX
 
 # Ensure our decompression works with gzip program
-echo "  tar -c | gzip | tar -x"
+echo "  bsdtar -c | gzip | bsdtar -x"
 mkdir copy-gunzip
 (cd original && ${BSDTAR} -cf - .) | gzip | (cd copy-gunzip; ${BSDTAR} -xf -)
 diff -r original copy-gunzip || echo XXX FAILED XXX
 
 # Ensure our gzip compression/decompression work with each other
-echo "  tar -cz | tar -x"
+echo "  bsdtar -cz | bsdtar -x"
 mkdir copy-gzip-gunzip
 (cd original && ${BSDTAR} -czf - .) | (cd copy-gzip-gunzip; ${BSDTAR} -xf -)
 diff -r original copy-gzip-gunzip || echo XXX FAILED XXX
 
 # Ensure our decompression works with bzip2 program
-echo "  tar -c | bzip2 | tar -x"
+echo "  bsdtar -c | bzip2 | bsdtar -x"
 mkdir copy-bunzip
 (cd original && ${BSDTAR} -cf - .) | bzip2 | (cd copy-bunzip; ${BSDTAR} -xf -)
 diff -r original copy-bunzip || echo XXX FAILED XXX
 
 # Ensure our compression works with bunzip2 program
-echo "  tar -cy | bunzip2 | tar -x"
+echo "  bsdtar -cy | bunzip2 | bsdtar -x"
 mkdir copy-bzip2
 (cd original && ${BSDTAR} -cyf - .) | bunzip2 -q | (cd copy-bzip2; ${BSDTAR} -xf -)
 diff -r original copy-bzip2 || echo XXX FAILED XXX
 
 # Ensure our bzip2 compression/decompression work with each other
-echo "  tar -cy | tar -x"
+echo "  bsdtar -cy | bsdtar -x"
 mkdir copy-bzip2-bunzip2
 (cd original && ${BSDTAR} -cyf - .) | (cd copy-bzip2-bunzip2; ${BSDTAR} -xf -)
 diff -r original copy-bzip2-bunzip2 || echo XXX FAILED XXX
 
 # Filtering exercises different areas of the library.
-echo "  Basic filter test: 'tar->tar'"
+echo "  Convert tar archive to a tar archive"
 mkdir filter-tar-tar
 (cd original && ${BSDTAR} -cf - .) | ${BSDTAR} -cf - @- | (cd filter-tar-tar; ${BSDTAR} -xf -)
 diff -r original filter-tar-tar || echo XXX FAILED XXX
 
 # Filtering as format conversion
-echo "  Basic filter test: 'tar->cpio'"
+echo "  Convert tar archive to cpio archive"
 mkdir filter-tar-cpio
 (cd original && ${BSDTAR} -cf - .) | ${BSDTAR} -cf - --format=cpio @- | (cd filter-tar-cpio; ${BSDTAR} -xf -)
 diff -r original filter-tar-cpio || echo XXX FAILED XXX
 
 # Test basic --include selection logic
-echo "  Filter selection"
+echo "  Convert tar to cpio with selection"
 mkdir filter-tar-selected
 (cd original && ${BSDTAR} -cf - .) | ${BSDTAR} -cf - --format=cpio --include=./f3 @- | (cd filter-tar-selected; ${BSDTAR} -xf -)
 diff -r original/f3 filter-tar-selected/f3 || echo XXX FAILED XXX
@@ -358,7 +358,7 @@ diff -r original/f3 filter-tar-selected/f3 || echo XXX FAILED XXX
 (cd filter-tar-selected ; ls | grep -v f3 | grep .) && echo XXX FAILED XXX
 
 # Test --include with wildcards
-echo "  Wildcard filter selection"
+echo "  Convert tar to cpio selecting with wildcards"
 mkdir filter-tar-selected2
 (cd original && ${BSDTAR} -cf - .) | ${BSDTAR} -cf - --format=cpio --include='./f*' @- | (cd filter-tar-selected2; ${BSDTAR} -xf -)
 for f in f1 f2 f3 f4 f5 f6 f7 f8 f9; do
@@ -368,19 +368,19 @@ done
 (cd filter-tar-selected2 ; ls | grep -v 'f[0-9]' | grep .) && echo XXX FAILED XXX
 
 # Check read/write of basic odc cpio format
-echo "  tar -c --format=cpio | tar -x"
+echo "  bsdtar -c --format=cpio | bsdtar -x"
 mkdir copy-cpio
 (cd original && ${BSDTAR} -cf - --format cpio .) | (cd copy-cpio; ${BSDTAR} -xf -)
 diff -r original copy-cpio || echo XXX FAILED XXX
 
 # Ensure we can read gtar archives
-echo "  gtar -c | tar -x"
+echo "  gtar -c | bsdtar -x"
 mkdir copy-gtar
 (cd original && ${GTAR} -cf - .) | (cd copy-gtar; ${BSDTAR} -xf -)
 diff -r original copy-gtar || echo XXX FAILED XXX
 
 # Ensure we can read svr4crc cpio archives
-echo "  cpio -H crc | bsdtar"
+echo "  cpio -H crc | bsdtar -x"
 mkdir copy-svr4crc
 (cd original && find . | ${CPIO} -o -H crc 2>/dev/null) | (cd copy-svr4crc; ${BSDTAR} -xf -)
 diff -r original copy-svr4crc || echo XXX FAILED XXX
@@ -392,14 +392,14 @@ mkdir copy-shar
 diff -r --exclude=sparse original copy-shar || echo XXX FAILED XXX
 
 # Check that -u (update) picks up no new files
-echo "  -u doesn't pick up unchanged files"
+echo "  bsdtar -u doesn't pick up unchanged files"
 (cd original && ${BSDTAR} -cf ../test-u.tar -b 1 .)
 cp test-u.tar test-u1.tar
 (cd original && ${BSDTAR} -uf ../test-u1.tar .)
 diff test-u.tar test-u1.tar || echo XXX FAILED XXX
 
 # Check that -u (update) does pick up actual changed files
-echo "  -u does pick up changed files"
+echo "  bsdtar -u does pick up changed files"
 (cd original && echo hello >>f0)
 cp test-u.tar test-u2.tar
 (cd original && ${BSDTAR} -uf ../test-u2.tar .)
