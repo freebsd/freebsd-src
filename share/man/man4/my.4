@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd July 16, 2005
+.Dd March 11, 2007
 .Dt MY 4
 .Os
 .Sh NAME
@@ -32,10 +32,9 @@
 .Nd "Myson Technology Ethernet PCI driver"
 .Sh SYNOPSIS
 To compile this driver into the kernel,
-place the following lines in your
+place the following line in your
 kernel configuration file:
 .Bd -ragged -offset indent
-.Cd "device miibus"
 .Cd "device my"
 .Ed
 .Pp
@@ -70,7 +69,6 @@ Myson MTD89X PCI Gigabit Ethernet chip
 .Sh SEE ALSO
 .Xr altq 4 ,
 .Xr de 4 ,
-.Xr miibus 4 ,
 .Xr netintro 4 ,
 .Xr pci 4 ,
 .Xr ifconfig 8
