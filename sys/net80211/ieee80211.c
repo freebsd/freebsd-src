@@ -144,7 +144,7 @@ static void
 ieee80211_chan_init(struct ieee80211com *ic)
 {
 #define	DEFAULTRATES(m, def) do { \
-	if ((ic->ic_modecaps & (1<<m)) && ic->ic_sup_rates[m].rs_nrates == 0) \
+	if (isset(ic->ic_modecaps, m) && ic->ic_sup_rates[m].rs_nrates == 0) \
 		ic->ic_sup_rates[m] = def; \
 } while (0)
 	struct ifnet *ifp = ic->ic_ifp;
@@ -152,7 +152,7 @@ ieee80211_chan_init(struct ieee80211com *ic)
 	int i;
 
 	memset(ic->ic_chan_avail, 0, sizeof(ic->ic_chan_avail));
-	ic->ic_modecaps = 1<<IEEE80211_MODE_AUTO;
+	setbit(ic->ic_modecaps, IEEE80211_MODE_AUTO);
 	for (i = 0; i <= IEEE80211_CHAN_MAX; i++) {
 		c = &ic->ic_channels[i];
 		if (c->ic_flags) {
@@ -171,17 +171,17 @@ ieee80211_chan_init(struct ieee80211com *ic)
 			 * Identify mode capabilities.
 			 */
 			if (IEEE80211_IS_CHAN_A(c))
-				ic->ic_modecaps |= 1<<IEEE80211_MODE_11A;
+				setbit(ic->ic_modecaps, IEEE80211_MODE_11A);
 			if (IEEE80211_IS_CHAN_B(c))
-				ic->ic_modecaps |= 1<<IEEE80211_MODE_11B;
+				setbit(ic->ic_modecaps, IEEE80211_MODE_11B);
 			if (IEEE80211_IS_CHAN_ANYG(c))
-				ic->ic_modecaps |= 1<<IEEE80211_MODE_11G;
+				setbit(ic->ic_modecaps, IEEE80211_MODE_11G);
 			if (IEEE80211_IS_CHAN_FHSS(c))
-				ic->ic_modecaps |= 1<<IEEE80211_MODE_FH;
+				setbit(ic->ic_modecaps, IEEE80211_MODE_FH);
 			if (IEEE80211_IS_CHAN_T(c))
-				ic->ic_modecaps |= 1<<IEEE80211_MODE_TURBO_A;
+				setbit(ic->ic_modecaps, IEEE80211_MODE_TURBO_A);
 			if (IEEE80211_IS_CHAN_108G(c))
-				ic->ic_modecaps |= 1<<IEEE80211_MODE_TURBO_G;
+				setbit(ic->ic_modecaps, IEEE80211_MODE_TURBO_G);
 			if (ic->ic_curchan == NULL) {
 				/* arbitrarily pick the first channel */
 				ic->ic_curchan = &ic->ic_channels[i];
@@ -447,7 +447,7 @@ ieee80211_media_init(struct ieee80211com *ic,
 			IFM_IEEE80211_11A | IFM_IEEE80211_TURBO,
 			IFM_IEEE80211_11G | IFM_IEEE80211_TURBO,
 		};
-		if ((ic->ic_modecaps & (1<<mode)) == 0)
+		if (isclr(ic->ic_modecaps, mode))
 			continue;
 		mopt = mopts[mode];
 		ADD(ic, IFM_AUTO, mopt);	/* e.g. 11a auto */
@@ -537,7 +537,7 @@ ieee80211_announce(struct ieee80211com *ic)
 	struct ieee80211_rateset *rs;
 
 	for (mode = IEEE80211_MODE_11A; mode < IEEE80211_MODE_MAX; mode++) {
-		if ((ic->ic_modecaps & (1<<mode)) == 0)
+		if (isclr(ic->ic_modecaps, mode))
 			continue;
 		if_printf(ifp, "%s rates: ", ieee80211_phymode_name[mode]);
 		rs = &ic->ic_sup_rates[mode];
@@ -650,7 +650,7 @@ ieee80211_media_change(struct ifnet *ifp)
 	/*
 	 * Validate requested mode is available.
 	 */
-	if ((ic->ic_modecaps & (1<<newphymode)) == 0)
+	if (isclr(ic->ic_modecaps, newphymode))
 		return EINVAL;
 
 	/*
@@ -673,7 +673,7 @@ ieee80211_media_change(struct ifnet *ifp)
 			 */
 			for (j = IEEE80211_MODE_11A;
 			     j < IEEE80211_MODE_MAX; j++) {
-				if ((ic->ic_modecaps & (1<<j)) == 0)
+				if (isclr(ic->ic_modecaps, j))
 					continue;
 				i = findrate(ic, j, newrate);
 				if (i != -1) {
@@ -714,7 +714,7 @@ ieee80211_media_change(struct ifnet *ifp)
 	if (newopmode == IEEE80211_M_HOSTAP &&
 	    newphymode == IEEE80211_MODE_AUTO) {
 		for (j = IEEE80211_MODE_11A; j < IEEE80211_MODE_MAX; j++)
-			if (ic->ic_modecaps & (1<<j)) {
+			if (isset(ic->ic_modecaps, j)) {
 				newphymode = j;
 				break;
 			}
@@ -894,7 +894,7 @@ ieee80211_setmode(struct ieee80211com *ic, enum ieee80211_phymode mode)
 	int i;
 
 	/* validate new mode */
-	if ((ic->ic_modecaps & (1<<mode)) == 0) {
+	if (isclr(ic->ic_modecaps, mode)) {
 		IEEE80211_DPRINTF(ic, IEEE80211_MSG_ANY,
 			"%s: mode %u not supported (caps 0x%x)\n",
 			__func__, mode, ic->ic_modecaps);

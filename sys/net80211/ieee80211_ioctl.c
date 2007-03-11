@@ -595,7 +595,7 @@ ieee80211_cfgset(struct ieee80211com *ic, u_long cmd, caddr_t data)
 			 */
 			for (j = IEEE80211_MODE_11A;
 			     j < IEEE80211_MODE_MAX; j++) {
-				if ((ic->ic_modecaps & (1<<j)) == 0)
+				if (isclr(ic->ic_modecaps, j))
 					continue;
 				i = findrate(ic, j, rate);
 				if (i != -1) {
