@@ -26,14 +26,26 @@
 #include "bsdtar_platform.h"
 __FBSDID("$FreeBSD$");
 
+#ifdef HAVE_SYS_STAT_H
 #include <sys/stat.h>
+#endif
+#ifdef HAVE_SYS_TYPES_H
 #include <sys/types.h>  /* Linux doesn't define mode_t, etc. in sys/stat.h. */
+#endif
 #include <ctype.h>
+#ifdef HAVE_ERRNO_H
 #include <errno.h>
+#endif
+#ifdef HAVE_STDARG_H
 #include <stdarg.h>
+#endif
 #include <stdio.h>
+#ifdef HAVE_STDLIB_H
 #include <stdlib.h>
+#endif
+#ifdef HAVE_STRING_H
 #include <string.h>
+#endif
 
 #include "bsdtar.h"
 
@@ -382,6 +394,8 @@ do_chdir(struct bsdtar *bsdtar)
 /*
  * Handle --strip-components and any future path-rewriting options.
  * Returns non-zero if the pathname should not be extracted.
+ *
+ * TODO: Support pax-style regex path rewrites.
  */
 int
 edit_pathname(struct bsdtar *bsdtar, struct archive_entry *entry)
@@ -405,10 +419,6 @@ edit_pathname(struct bsdtar *bsdtar, struct archive_entry *entry)
 			}
 		}
 	}
-
-	/* Strip redundant "./" from start of filename. */
-	if (name[0] == '.' && name[1] == '/' && name[2] != '\0')
-		name += 2;
 
 	/* Strip redundant leading '/' characters. */
 	while (name[0] == '/' && name[1] == '/')
@@ -435,4 +445,20 @@ edit_pathname(struct bsdtar *bsdtar, struct archive_entry *entry)
 		free(q);
 	}
 	return (0);
+}
+
+/*
+ * Like strcmp(), but try to be a little more aware of the fact that
+ * we're comparing two paths.
+ *
+ * TODO: Make this better, so that "./a//b/./c" == "a/b/c"
+ */
+int
+pathcmp(const char *a, const char *b)
+{
+	if (a[0] == '.' && a[1] == '/' && a[2] != '\0')
+		a += 2;
+	if (b[0] == '.' && b[1] == '/' && b[2] != '\0')
+		b += 2;
+	return (strcmp(a, b));
 }
