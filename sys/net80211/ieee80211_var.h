@@ -117,7 +117,7 @@ struct ieee80211com {
 	u_int32_t		ic_flags;	/* state flags */
 	u_int32_t		ic_flags_ext;	/* extended state flags */
 	u_int32_t		ic_caps;	/* capabilities */
-	u_int16_t		ic_modecaps;	/* set of mode capabilities */
+	u_int8_t		ic_modecaps[2];	/* set of mode capabilities */
 	u_int16_t		ic_curmode;	/* current mode */
 	enum ieee80211_phytype	ic_phytype;	/* XXX wrong for multi-mode */
 	enum ieee80211_opmode	ic_opmode;	/* operation mode */

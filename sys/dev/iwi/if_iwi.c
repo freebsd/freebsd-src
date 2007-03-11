@@ -2707,8 +2707,6 @@ set_scan_type(struct iwi_scan_ext *scan, int ix, int scan_type)
 static int
 iwi_scan(struct iwi_softc *sc)
 {
-#define	IEEE80211_MODE_5GHZ	(1<<IEEE80211_MODE_11A)
-#define	IEEE80211_MODE_2GHZ	((1<<IEEE80211_MODE_11B)|1<<IEEE80211_MODE_11G)
 	struct ieee80211com *ic = &sc->sc_ic;
 	const struct ieee80211_channel *c;
 	struct iwi_scan_ext scan;
@@ -2743,7 +2741,7 @@ iwi_scan(struct iwi_softc *sc)
 		scan_type = IWI_SCAN_TYPE_BROADCAST;
 
 	ix = 0;
-	if (ic->ic_modecaps & IEEE80211_MODE_5GHZ) {
+	if (isset(ic->ic_modecaps, IEEE80211_MODE_11A)) {
 		start = ix;
 		for (i = 0; i <= IEEE80211_CHAN_MAX; i++) {
 			c = &ic->ic_channels[i];
@@ -2767,7 +2765,7 @@ iwi_scan(struct iwi_softc *sc)
 			ix++;
 		}
 	}
-	if (ic->ic_modecaps & IEEE80211_MODE_2GHZ) {
+	if (isset(ic->ic_modecaps, IEEE80211_MODE_11B)) {
 		start = ix;
 		for (i = 0; i <= IEEE80211_CHAN_MAX; i++) {
 			c = &ic->ic_channels[i];
@@ -2795,8 +2793,6 @@ iwi_scan(struct iwi_softc *sc)
 	sc->sc_ifp->if_timer = 1;
 	sc->flags |= IWI_FLAG_SCANNING;
 	return iwi_cmd(sc, IWI_CMD_SCAN_EXT, &scan, sizeof scan);
-#undef IEEE80211_MODE_5GHZ
-#undef IEEE80211_MODE_2GHZ
 }
 
 static void
