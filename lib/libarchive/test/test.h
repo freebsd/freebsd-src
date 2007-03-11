@@ -32,6 +32,8 @@
  * simplify the very repetitive test-*.c test programs.
  */
 
+#define _FILE_OFFSET_BITS 64
+
 #include <archive.h>
 #include <archive_entry.h>
 #include <fcntl.h>
@@ -54,6 +56,12 @@
 #error Oops: No config.h and no pre-built configuration in test.h.
 #endif
 
+/* No non-FreeBSD platform will have __FBSDID, so just define it here. */
+#ifdef __FreeBSD__
+#include <sys/cdefs.h>  /* For __FBSDID */
+#else
+#define	__FBSDID(a)     /* null */
+#endif
 
 /*
  * "list.h" is simply created by "grep DEFINE_TEST"; it has
