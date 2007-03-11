@@ -44,6 +44,7 @@
 .Op Fl r Ar resolution
 .Op Fl S Ar baudrate
 .Op Fl VH Op Fl U Ar distance
+.Op Fl A Ar exp Ns Op , Ns Ar offset
 .Op Fl a Ar X Ns Op , Ns Ar Y
 .Op Fl C Ar threshold
 .Op Fl m Ar N=M
@@ -213,12 +214,55 @@ mode is activated.
 The default
 .Ar distance
 is 3 pixels.
+.It Fl A Ar exp Ns Op , Ns Ar offset
+Apply exponential (dynamic) acceleration to mouse movements:
+the faster you move the mouse, the more it will be accelerated.
+That means that small mouse movements are not accelerated,
+so they are still very accurate, while a faster movement will
+drive the pointer quickly across the screen.
+.Pp
+The
+.Ar exp
+value specifies the exponent, which is basically
+the amount of acceleration.  Useful values are in the
+range 1.1 to 2.0, but it depends on your mouse hardware
+and your personal preference.  A value of 1.0 means no
+exponential acceleration.  A value of 2.0 means squared
+acceleration (i.e. if you move the mouse twice as fast,
+the pointer will move four times as fast on the screen).
+Values beyond 2.0 are possible but not recommended.
+A good value to start is probably 1.5.
+.Pp
+The optional
+.Ar offset
+value specifies the distance at which the acceleration
+begins.  The default is 1.0, which means that the
+acceleration is applied to movements larger than one unit.
+If you specify a larger value, it takes more speed for
+the acceleration to kick in, i.e. the speed range for
+small and accurate movements is wider.
+Usually the default should be sufficient, but if you're
+not satisfied with the behaviour, try a value of 2.0.
+.Pp
+Note that the
+.Fl A
+option interacts badly with the X server's own acceleration,
+which doesn't work very well anyway.  Therefore it is
+recommended to switch it off if necessary:
+.Dq xset m 1 .
 .It Fl a Ar X Ns Op , Ns Ar Y
 Accelerate or decelerate the mouse input.
 This is a linear acceleration only.
 Values less than 1.0 slow down movement, values greater than 1.0 speed it
 up.
 Specifying only one value sets the acceleration for both axes.
+.Pp
+You can use the
+.Fl a
+and
+.Fl A
+options at the same time to have the combined effect
+of linear and exponential acceleration.
 .It Fl c
 Some mice report middle button down events
 as if the left and right buttons are being pressed.
@@ -758,6 +802,7 @@ option to assign the physical right button to the logical middle button:
 .Sh SEE ALSO
 .Xr kill 1 ,
 .Xr vidcontrol 1 ,
+.Xr xset 1 ,
 .Xr keyboard 4 ,
 .Xr mse 4 ,
 .Xr psm 4 ,
