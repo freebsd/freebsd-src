@@ -1,4 +1,4 @@
-$ $Id: set20,v 1.4 2002/03/08 17:46:50 christos Exp $
+$ $tcsh: set20,v 1.5 2006/03/02 18:46:47 christos Exp $
 $ tc.bind.c
 $set 20 
 1 Неверное имя клавиши `%S'\n

@@ -1,4 +1,4 @@
-$ $Id: set19,v 1.3 1996/04/26 20:31:58 christos Exp $
+$ $tcsh: set19,v 1.3 1996/04/26 20:31:58 christos Exp $
 $ tc.alloc.c
 $set 19 
 1 n-bajtów=%d: Brak pamiêci\n

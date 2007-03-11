@@ -1,4 +1,4 @@
-/* $Header: /src/pub/tcsh/gethost.c,v 1.10 2005/01/05 16:06:13 christos Exp $ */
+/* $Header: /p/tcsh/cvsroot/tcsh/gethost.c,v 1.12 2006/03/02 18:46:44 christos Exp $ */
 /*
  * gethost.c: Create version file from prototype
  */
@@ -32,7 +32,7 @@
  */
 #include "sh.h"
 
-RCSID("$Id: gethost.c,v 1.10 2005/01/05 16:06:13 christos Exp $")
+RCSID("$tcsh: gethost.c,v 1.12 2006/03/02 18:46:44 christos Exp $")
 
 #ifdef SCO
 # define perror __perror
@@ -89,17 +89,16 @@ static const char *keyword[] =
 #define S_CODE		2
 #define S_KEYWORD	3
 
-static int findtoken __P((char *));
-static char *gettoken __P((char **, char  *));
+static int findtoken (char *);
+static char *gettoken (char **, char  *);
 
-int main __P((int, char *[]));
+int main (int, char *[]);
 
 /* findtoken():
  *	Return the token number of the given token
  */
 static int
-findtoken(ptr)
-    char *ptr;
+findtoken(char *ptr)
 {
     int i;
 
@@ -118,9 +117,7 @@ findtoken(ptr)
  *	Get : delimited token and remove leading/trailing blanks/newlines
  */
 static char *
-gettoken(pptr, token)
-    char **pptr;
-    char  *token;
+gettoken(char **pptr, char *token)
 {
     char *ptr = *pptr;
     char *tok = token;
@@ -147,9 +144,7 @@ gettoken(pptr, token)
 	
 
 int
-main(argc, argv)
-    int argc;
-    char *argv[];
+main(int argc, char *argv[])
 {
     char line[INBUFSIZE];
     char *pname;

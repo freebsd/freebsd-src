@@ -1,4 +1,4 @@
-/* $Header: /src/pub/tcsh/config_f.h,v 3.32 2005/03/04 13:46:04 christos Exp $ */
+/* $Header: /p/tcsh/cvsroot/tcsh/config_f.h,v 3.40 2006/08/28 14:53:04 mitr Exp $ */
 /*
  * config_f.h -- configure various defines for tcsh
  *
@@ -50,17 +50,9 @@
  * WIDE_STRINGS	Represent strings using wide characters
  *		Allows proper function in multibyte encodings like UTF-8
  */
-#if defined (SHORT_STRINGS) && SIZEOF_WCHAR_T >= 4 && !defined (WINNT_NATIVE) && !defined(_OSD_POSIX)
+#if defined (SHORT_STRINGS) && defined (NLS) && SIZEOF_WCHAR_T >= 4 && defined (HAVE_MBRTOWC) && !defined (WINNT_NATIVE) && !defined(_OSD_POSIX)
 # define WIDE_STRINGS
 #endif
-
-/*
- * NLS:		Use Native Language System
- *		Routines like setlocale() are needed
- *		if you don't have <locale.h>, you don't want
- *		to define this.
- */
-#define NLS
 
 /*
  * NLS_CATALOGS:Use Native Language System catalogs for
@@ -69,7 +61,9 @@
  *		if you don't have <nl_types.h>, you don't want
  *		to define this.
  */
-#undef NLS_CATALOGS
+#if defined (NLS) && defined (HAVE_CATGETS)
+# define NLS_CATALOGS
+#endif
 
 /*
  * LOGINFIRST   Source ~/.login before ~/.cshrc
@@ -149,7 +143,7 @@
  *		This can be much slower and no memory statistics will be
  *		provided.
  */
-#if defined(__MACHTEN__) || defined(PURIFY) || defined(MALLOC_TRACE) || defined(_OSD_POSIX) || defined(__MVS__)
+#if defined(__MACHTEN__) || defined(PURIFY) || defined(MALLOC_TRACE) || defined(_OSD_POSIX) || defined(__MVS__) || defined (__linux__)
 # define SYSMALLOC
 #else
 # undef SYSMALLOC

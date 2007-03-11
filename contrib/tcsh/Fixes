@@ -1,3 +1,102 @@
+ 74. V6.15.00 - 20070303
+ 73. fix extension eating windows code (christos)
+ 72. fix loop in %R history expansion (christos)
+ 71. sched +X source file disables interrupts (Mike Sullivan)
+ 70. One off copying macro buffers (Jean-Luc Leger)
+ 69. Avoid infinite loops in :ga modifiers when the LHS is a substring of the
+     RHS.
+ 68. Automatically disable WIDE_STRINGS with --disable-nls (Miloslav Trmac)
+ 67. V6.14.07 - 20060825
+ 66. rename set to setv to avoid clashes (christos)
+ 65. Eliminate sighold/sigrelse (christos)
+ 64. Compilation cleanups. (Martin Kraemer)
+ 63. Don't rebuild needlessly when generated files are unchanged
+     (Martin Kraemer)
+ 62. Fix confusion between Char and eChar (Martin Kraemer)
+ 61. V6.14.06 - 20060824
+ 60. set PROGRAM_ENVIRONMENT for OSD_POSIX (Martin Kraemer)
+ 59. EBCDIC patch (Martin Kraemer)
+ 58. Remove globbing support in history rearches (Ryan Barrett)
+ 57. Highlighting patch (Ryan Barrett)
+ 56. Mark-Cursor exchange emacs editing fix (Martin Kraemer)
+ 55. V6.14.05 - 20060304
+ 54. don't limit termcap strings to 1K (Alan Ferrency)
+ 53. protect against null path.
+ 52. Be more conservative in wide_read PR#29
+ 51. remove HAVE_STRCOLL; not needed anymore (Miloslav Trmac)
+ 50. remove imake support and make nls configurable by configure
+     (Miloslav Trmac)
+ 49. V6.14.04 - 20060214
+ 48. Fixes build failure with !SHORT_STRINGS (Miloslav Trmac)
+ 47. Fixes constness warnings with !SHORT_STRINGS: short2str is "strip()",
+     which modifies its argument.  Rather than verify this is safe in all
+     callers, I have added caching_strip() to mirror the behavior of other
+     modes. (Miloslav Trmac)
+ 46. Fixes some constness warnings with SHORT_STRINGS;  this is orthogonal
+     to both build errors with SHORT_STRINGS in 6.14.03, and
+     short_strings.patch. (Miloslav Trmac)
+ 45. config-catalogs.patch: Autodetect catalog support (#14). (Miloslav Trmac)
+ 44. auth.patch: Handle false positives in getauthid() detection,
+     IIRC on FreeBSD. (Miloslav Trmac)
+ 43. crypt.patch: Autodetect whether <crypt.h> is available. (Miloslav Trmac)
+ 42. sigint.patch: Block SIGINT while waiting on children.
+     This is necessary, but I'll still have to look on the older
+     releases to find out why it was not necessary before
+     ("before" = 6.13 on Linux). (Miloslav Trmac)
+ 41. config-package.patch: Readd package version to configure.in,
+     the testsuite uses it.
+     (TODO: a better integration with package.h) (Miloslav Trmac)
+ 40. item_len.patch: Truncate item.len when truncating the string,
+     just to be sure. (Miloslav Trmac)
+ 39. va_list.patch: Add missing va_end(). (Miloslav Trmac)
+ 38. Use va_copy in xvasprintf(); emulate va_copy as suggested in
+     Autoconf manual if it is not available. (Miloslav Trmac)
+ 37. declarations.patch: Replace some #ifdef nests by autodetecting
+     whether the guarded declaration is necessary.
+     I'm only guessing this is the intent of the #ifdefs, though.
+     Declare environ unconditionally, it is a bit hard to detect
+     and the declaration is correct for Linux, anyway. (Miloslav Trmac)
+ 36. warning.patch: Fix a const warning.
+ 35. More color-ls variables (Jean-Luc Leger)
+ 34. V6.14.03 - 20060212
+ 33. Signal related changes (Miloslav Trmac)
+ 32. Misc cast cleanups and code clarification (Miloslav Trmac)
+ 31. Use dynamically allocated buffers everywhere (Miloslav Trmac)
+ 30. Fix reading of invalid byte sequences (Miloslav Trmac)
+ 29. read should only increment count when it succeeds (Miloslav Trmac)
+ 28. testsuiteadditions (Miloslav Trmac)
+ 27. -n fixes (Miloslav Trmac)
+ 26. signness warnings (Miloslav Trmac)
+ 25. Prevent infinite recursion in catclose (Gerhard Niklasch)
+ 24. Add Dragonfly (Joerg Sonnenberger)
+ 23. Check for wcwidth returning a negative number (TOMITA Yoshinori)
+ 22. recognize "li" and "co" in echotc (Martin Kraemer) [PR/7]
+ 21. Don't use T_Cols for wrapping purposes; use TermH consistently
+     (Martin Kraemer) [PR/8]
+ 20. Don't display duplicate utmp records (Miloslav Trmac) [PR/17]
+ 19. Clarify hashing and -f sections of man page (Volker Quetschke) [PR/20]
+ 18. Dave Yearke: configure did not recognize solaris 10 [PR/18]
+ 17. CYGWIN: Don't lowercase commands and allow foo.exe on command line.
+     (Corinna Vinschen) [PR/19]
+ 16. CYGWIN: cd /foo && cd .. ends up erroneously in // for systems that
+     HAVE_SLASHSLASH [PR/21]
+ 15. %j was broken (Peter Kruse)
+ 14. Extend // handling in pathnames from being apollo specific to also
+     cygwin (Corinna Vinschen)
+ 13. Fix uppercase/lowercase transformations (Jean-Luc Leger)
+ 12. Fix symlink expansion (revert from 6.10.00) (Jean-Luc Leger and Christos)
+ 11. Fix literal sequence in prompt (Miloslav Trmac)
+ 10. V6.14.02 - 20050412
+  9. Prototype fixes (Miloslav Trmac and Jean-Luc Leger)
+  8. V6.14.01 - 20050411
+  7. Make =- refer to $owd (H.Merijn Brand)
+  6. Use prototypes (almost) everywhere (Miloslav Trmac) (issue #5)
+  5. Fix doc path in Cygwin installation (Corinna Vinschen)
+  4. Fix column size calculation (Martin Kraemer)
+  3. Implement newline-and-hold and newline-and-down-history (Per Hedeland)
+  2. Messages fixes for the ja (Japanese) locale (NAKAMURA Takeshi) (issue #4)
+  1. Enable charset conversion in nls (Miloslav Trmac) (issue #3)
+
  76. V6.14.00 - 20050325
  75. Additional messages for the ja (Japanese) locale (NAKAMURA Takeshi)
  74. V6.13.10 - 20050321
