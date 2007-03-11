@@ -1,4 +1,4 @@
-/* $Header: /src/pub/tcsh/tc.decls.h,v 3.57 2005/01/18 20:24:51 christos Exp $ */
+/* $Header: /p/tcsh/cvsroot/tcsh/tc.decls.h,v 3.63 2006/02/14 14:07:36 christos Exp $ */
 /*
  * tc.decls.h: Function declarations from all the tcsh modules
  */
@@ -33,84 +33,86 @@
 #ifndef _h_tc_decls
 #define _h_tc_decls
 
+struct blk_buf;
+struct strbuf;
+struct Strbuf;
+
 /*
  * tc.alloc.c
  */
 #ifndef SYSMALLOC
 #ifndef WINNT_NATIVE
-extern	void		  free		__P((ptr_t));
-extern	memalign_t	  malloc	__P((size_t));
-extern	memalign_t	  realloc	__P((ptr_t, size_t));
-extern	memalign_t	  calloc	__P((size_t, size_t));
+#ifndef __linux__
+extern	void		  free		(ptr_t);
+extern	memalign_t	  malloc	(size_t);
+extern	memalign_t	  realloc	(ptr_t, size_t);
+extern	memalign_t	  calloc	(size_t, size_t);
+#endif
 #endif /* !WINNT_NATIVE */
 #else /* SYSMALLOC */
-extern	void		  sfree		__P((ptr_t));
-extern	memalign_t	  smalloc	__P((size_t));
-extern	memalign_t	  srealloc	__P((ptr_t, size_t));
-extern	memalign_t	  scalloc	__P((size_t, size_t));
+extern	void		  sfree		(ptr_t);
+extern	memalign_t	  smalloc	(size_t);
+extern	memalign_t	  srealloc	(ptr_t, size_t);
+extern	memalign_t	  scalloc	(size_t, size_t);
 #endif /* SYSMALLOC */
-extern	void		  showall	__P((Char **, struct command *));
+extern	void		  showall	(Char **, struct command *);
 
 /*
  * tc.bind.c
  */
-extern	void		  dobindkey	__P((Char **, struct command *));
-#ifdef OBSOLETE
-extern	void		  dobind	__P((Char **, struct command *));
-#endif /* OBSOLETE */
+extern	void		  dobindkey	(Char **, struct command *);
 
 /*
  * tc.defs.c:
  */
-extern	void		  getmachine	__P((void));
+extern	void		  getmachine	(void);
 
 
 /*
  * tc.disc.c
  */
-extern	int		  setdisc	__P((int));
-extern	int		  resetdisc	__P((int));
+extern	int		  setdisc	(int);
+extern	int		  resetdisc	(int);
 
 /*
  * tc.func.c
  */
-extern	Char		 *expand_lex	__P((Char *, size_t, struct wordent *, 
-					     int, int));
-extern	Char		 *sprlex	__P((Char *, size_t, struct wordent *));
-extern	Char		 *Itoa		__P((int, Char *, int, int));
-extern	void		  dolist	__P((Char **, struct command *));
-extern	void		  dotermname	__P((Char **, struct command *));
-extern	void		  dotelltc	__P((Char **, struct command *));
-extern	void		  doechotc	__P((Char **, struct command *));
-extern	void		  dosettc	__P((Char **, struct command *));
-extern	int		  cmd_expand	__P((Char *, Char *));
-extern	void		  dowhich	__P((Char **, struct command *));
-extern	struct process	 *find_stop_ed	__P((void));
-extern	void		  fg_proc_entry	__P((struct process *));
-extern	RETSIGTYPE	  alrmcatch	__P((int));
-extern	void		  precmd	__P((void));
-extern	void		  postcmd	__P((void));
-extern	void		  cwd_cmd	__P((void));
-extern	void		  beep_cmd	__P((void));
-extern	void		  period_cmd	__P((void));
-extern	void		  job_cmd	__P((Char *));
-extern	void		  aliasrun	__P((int, Char *, Char *));
-extern	void		  setalarm	__P((int));
-extern	void		  rmstar	__P((struct wordent *));
-extern	void		  continue_jobs	__P((struct wordent *));
-extern	Char		 *gettilde	__P((Char *));
-extern	Char		 *getusername	__P((Char **));
+extern	Char		 *expand_lex    (const struct wordent *, int, int);
+extern	Char		 *sprlex	(const struct wordent *);
+extern	Char		 *Itoa		(int, size_t, Char);
+extern	void		  dolist	(Char **, struct command *);
+extern	void		  dotermname	(Char **, struct command *);
+extern	void		  dotelltc	(Char **, struct command *);
+extern	void		  doechotc	(Char **, struct command *);
+extern	void		  dosettc	(Char **, struct command *);
+extern	int		  cmd_expand	(Char *, Char **);
+extern	void		  dowhich	(Char **, struct command *);
+extern	struct process	 *find_stop_ed	(void);
+extern	void		  fg_proc_entry	(struct process *);
+extern	void		  alrmcatch	(void);
+extern	void		  precmd	(void);
+extern	void		  postcmd	(void);
+extern	void		  cwd_cmd	(void);
+extern	void		  beep_cmd	(void);
+extern	void		  period_cmd	(void);
+extern	void		  job_cmd	(Char *);
+extern	void		  aliasrun	(int, Char *, Char *);
+extern	void		  setalarm	(int);
+extern	void		  rmstar	(struct wordent *);
+extern	void		  continue_jobs	(struct wordent *);
+extern	Char		 *gettilde	(const Char *);
+extern	Char		 *getusername	(Char **);
 #ifdef OBSOLETE
-extern	void		  doaliases	__P((Char **, struct command *));
+extern	void		  doaliases	(Char **, struct command *);
 #endif /* OBSOLETE */
-extern	void		  shlvl		__P((int));
-extern	int		  fixio		__P((int, int));
-extern	int		  collate	__P((const Char *, const Char *));
+extern	void		  shlvl		(int);
+extern	int		  fixio		(int, int);
+extern	int		  collate	(const Char *, const Char *);
 #ifdef HASHBANG
-extern	int		  hashbang	__P((int, Char ***));
+extern	int		  hashbang	(int, Char ***);
 #endif /* HASHBANG */
 #ifdef REMOTEHOST
-extern	void		  remotehost	__P((void));
+extern	void		  remotehost	(void);
 #endif /* REMOTEHOST */
 
 
@@ -118,48 +120,48 @@ extern	void		  remotehost	__P((void));
  * tc.os.c
  */
 #ifdef MACH
-extern	void		  dosetpath	__P((Char **, struct command *));
+extern	void		  dosetpath	(Char **, struct command *);
 #endif /* MACH */
 
 #ifdef TCF
-extern	void		  dogetxvers	__P((Char **, struct command *));
-extern	void		  dosetxvers	__P((Char **, struct command *));
-extern	void		  dogetspath	__P((Char **, struct command *));
-extern	void		  dosetspath	__P((Char **, struct command *));
-extern	char		 *sitename	__P((pid_t));
-extern	void		  domigrate	__P((Char **, struct command *));
+extern	void		  dogetxvers	(Char **, struct command *);
+extern	void		  dosetxvers	(Char **, struct command *);
+extern	void		  dogetspath	(Char **, struct command *);
+extern	void		  dosetspath	(Char **, struct command *);
+extern	char		 *sitename	(pid_t);
+extern	void		  domigrate	(Char **, struct command *);
 #endif /* TCF */
 
 #ifdef WARP
-extern	void 		  dowarp	__P((Char **, struct command *));
+extern	void 		  dowarp	(Char **, struct command *);
 #endif /* WARP */
 
 #if defined(_CRAY) && !defined(_CRAYMPP)
-extern	void 		  dodmmode	__P((Char **, struct command *));
+extern	void 		  dodmmode	(Char **, struct command *);
 #endif /* _CRAY && !_CRAYMPP */
 
 #if defined(masscomp) || defined(hcx)
-extern	void		  douniverse	__P((Char **, struct command *));
+extern	void		  douniverse	(Char **, struct command *);
 #endif /* masscomp */
 
 #if defined(_OSD_POSIX) /* BS2000 */
-extern	void		  dobs2cmd	__P((Char **, struct command *));
+extern	void		  dobs2cmd	(Char **, struct command *);
 #endif /* _OSD_POSIX */
 
 #if defined(hcx)
-extern	void		  doatt		__P((Char **, struct command *));
-extern	void		  doucb		__P((Char **, struct command *));
+extern	void		  doatt		(Char **, struct command *);
+extern	void		  doucb		(Char **, struct command *);
 #endif /* hcx */
 
 #ifdef _SEQUENT_
-extern	void	 	  pr_stat_sub	__P((struct process_stats *, 
-					     struct process_stats *, 
-					     struct process_stats *));
+extern	void	 	  pr_stat_sub	(struct process_stats *, 
+					 struct process_stats *, 
+					 struct process_stats *);
 #endif /* _SEQUENT_ */
 
 #ifdef NEEDtcgetpgrp
-extern	int	 	  xtcgetpgrp	__P((int));
-extern	int		  xtcsetpgrp	__P((int, int));
+extern	pid_t	 	  xtcgetpgrp	(int);
+extern	int		  xtcsetpgrp	(int, int);
 # undef tcgetpgrp
 # define tcgetpgrp(a) 	  xtcgetpgrp(a)
 # undef tcsetpgrp
@@ -167,181 +169,168 @@ extern	int		  xtcsetpgrp	__P((int, int));
 #endif /* NEEDtcgetpgrp */
 
 #ifdef YPBUGS
-extern	void	 	  fix_yp_bugs	__P((void));
+extern	void	 	  fix_yp_bugs	(void);
 #endif /* YPBUGS */
 #ifdef STRCOLLBUG
-extern	void	 	  fix_strcoll_bug	__P((void));
+extern	void	 	  fix_strcoll_bug	(void);
 #endif /* STRCOLLBUG */
 
-extern	void	 	  osinit	__P((void));
+extern	void	 	  osinit	(void);
 
 #ifndef HAVE_MEMMOVE
-extern ptr_t 		 xmemmove	__P((ptr_t, const ptr_t, size_t));
+extern void 		*xmemmove	(void *, const void *, size_t);
 # define memmove(a, b, c) xmemmove(a, b, c)
 #endif /* !HAVE_MEMMOVE */
 
 #ifndef HAVE_MEMSET
-extern ptr_t 		 xmemset	__P((ptr_t, int, size_t));
+extern void 		*xmemset	(void *, int, size_t);
 # define memset(a, b, c) xmemset(a, b, c)
 #endif /* !HAVE_MEMSET */
 
 
 #ifndef HAVE_GETCWD
-extern	char		 *xgetcwd	__P((char *, size_t));
+extern	char		 *xgetcwd	(char *, size_t);
 # undef getcwd
 # define getcwd(a, b) xgetcwd(a, b)
 #endif /* !HAVE_GETCWD */
 
 #ifndef HAVE_GETHOSTNAME
-extern	int	 	  xgethostname	__P((char *, int));
+extern	int	 	  xgethostname	(char *, int);
 # undef gethostname
 # define gethostname(a, b) xgethostname(a, b)
 #endif /* !HAVE_GETHOSTNAME */
 
 #ifndef HAVE_NICE
-extern	int	 	  xnice	__P((int));
+extern	int	 	  xnice	(int);
 # undef nice
 # define nice(a)	  xnice(a)
 #endif /* !HAVE_NICE */
 
 #ifndef HAVE_STRERROR
-extern	char	 	 *xstrerror	__P((int));
+extern	char	 	 *xstrerror	(int);
 # undef strerror
 # define strerror(a) 	  xstrerror(a)
 #endif /* !HAVE_STRERROR */
 
 #ifdef apollo
-extern	void		  doinlib	__P((Char **, struct command *));
-extern	void		  dover		__P((Char **, struct command *));
-extern	void		  dorootnode	__P((Char **, struct command *));
-extern	int		  getv		__P((Char *));
+extern	void		  doinlib	(Char **, struct command *);
+extern	void		  dover		(Char **, struct command *);
+extern	void		  dorootnode	(Char **, struct command *);
+extern	int		  getv		(Char *);
 #endif /* apollo */
 
 
 /*
  * tc.printf.h
  */
-extern	pret_t		  xprintf	__P((const char *, ...));
-extern	pret_t		  xsnprintf	__P((char *, size_t, const char *, ...));
-extern	pret_t		  xvprintf	__P((const char *, va_list));
-extern	pret_t		  xvsnprintf	__P((char *, size_t, const char *,
-					     va_list));
+#ifndef __GNUC__
+#define __attribute__(a)
+#endif
+extern	pret_t		  xprintf	(const char *, ...)
+    __attribute__((__format__(__printf__, 1, 2)));
+extern	pret_t		  xsnprintf	(char *, size_t, const char *, ...)
+    __attribute__((__format__(__printf__, 3, 4)));
+extern	char		 *xasprintf	(const char *, ...)
+    __attribute__((__format__(__printf__, 1, 2)));
+extern	pret_t		  xvprintf	(const char *, va_list)
+    __attribute__((__format__(__printf__, 1, 0)));
+extern	pret_t		  xvsnprintf	(char *, size_t, const char *, va_list)
+    __attribute__((__format__(__printf__, 3, 0)));
+extern	char		 *xvasprintf	(const char *, va_list)
+    __attribute__((__format__(__printf__, 1, 0)));
 
 /*
  * tc.prompt.c
  */
-extern	void		  dateinit	__P((void));
-extern	void		  printprompt	__P((int, const char *));
-extern  Char 		 *expdollar	__P((Char **, const Char **, size_t *,
-					     int));
-extern	void		  tprintf	__P((int, Char *, const Char *, size_t, 
-					     const char *, time_t, ptr_t));
+extern	void		  dateinit	(void);
+extern	void		  printprompt	(int, const char *);
+extern  int 		  expdollar	(struct Strbuf *, const Char **, Char);
+extern	Char		 *tprintf	(int, const Char *, const char *,
+					 time_t, ptr_t);
 
 /*
  * tc.sched.c
  */
-extern	time_t		  sched_next	__P((void));
-extern	void		  dosched	__P((Char **, struct command *));
-extern	void		  sched_run	__P((int));
-
-/*
- * tc.sig.c
- */
-#ifndef BSDSIGS
-# ifdef UNRELSIGS
-#  ifdef COHERENT
-extern	RETSIGTYPE	(*xsignal	__P((int, RETSIGTYPE (*)(int)))) ();
-#   define signal(x,y)	  xsignal(x,y)
-#  endif /* COHERENT */
-extern	RETSIGTYPE	(*xsigset	__P((int, RETSIGTYPE (*)(int)))) ();
-#  define sigset(x,y)	  xsigset(x,y)
-extern	void		  xsigrelse	__P((int));
-#  define sigrelse(x)	  xsigrelse(x)
-extern	void		  xsighold	__P((int));
-#  define sighold(x)	  xsighold(x)
-extern	void		  xsigignore	__P((int));
-#  define sigignore(x)	  xsigignore(x)
-extern	void 		  xsigpause	__P((int));
-#  define sigpause(x)	  xsigpause(x)
-extern	pid_t 		  ourwait	__P((int *));
-# endif /* UNRELSIGS */
-# ifdef SXA
-extern	void 		  sigpause	__P((int));
-# endif /* SXA */
-#endif /* !BSDSIGS */
-
-#ifdef NEEDsignal
-extern	RETSIGTYPE	(*xsignal	__P((int, RETSIGTYPE (*)(int)))) ();
-# define signal(a, b)	  xsignal(a, b)
-#endif /* NEEDsignal */
-#if defined(_SEQUENT_) || ((SYSVREL > 3 || defined(_DGUX_SOURCE)) && defined(POSIXSIGS)) || ((defined(_AIX) || defined(__CYGWIN__)) && defined(POSIXSIGS)) || defined(WINNT_NATIVE)
-extern	sigmask_t	  sigsetmask	__P((sigmask_t));
-# if !defined(DGUX) || (defined(DGUX) && defined(__ix86))
-extern	sigmask_t	  sigblock	__P((sigmask_t));
-# endif /* !DGUX */
-extern	void		  bsd_sigpause	__P((sigmask_t));
-extern  RETSIGTYPE        (*bsd_signal    __P((int, RETSIGTYPE (*)(int)))) __P((int));
-#endif /* _SEQUENT_ */
-#ifdef SIGSYNCH
-extern	RETSIGTYPE	  synch_handler	__P((int));
-#endif /* SIGSYNCH */
-
+extern	time_t		  sched_next	(void);
+extern	void		  dosched	(Char **, struct command *);
+extern	void		  sched_run	(void);
 
 /*
  * tc.str.c:
  */
 #ifdef WIDE_STRINGS
-extern	size_t		  one_mbtowc	__P((wchar_t *, const char *, size_t));
-extern	size_t		  one_wctomb	__P((char *, wchar_t));
+extern	size_t		  one_mbtowc	(wchar_t *, const char *, size_t);
+extern	size_t		  one_wctomb	(char *, wchar_t);
+extern  int		  rt_mbtowc	(wchar_t *, const char *, size_t);
 #else
 #define one_mbtowc(PWC, S, N) \
 	((void)(N), *(PWC) = (unsigned char)*(S), (size_t)1)
 #define one_wctomb(S, WCHAR) (*(S) = (WCHAR), (size_t)1)
 #endif
 #ifdef SHORT_STRINGS
-extern  int		  rt_mbtowc	__P((wchar_t *, const char *, size_t));
-extern	Char		 *s_strchr	__P((const Char *, int));
-extern	Char		 *s_strrchr	__P((const Char *, int));
-extern	Char		 *s_strcat	__P((Char *, const Char *));
+extern	Char		 *s_strchr	(const Char *, int);
+extern	Char		 *s_strrchr	(const Char *, int);
+extern	Char		 *s_strcat	(Char *, const Char *);
 # ifdef NOTUSED
-extern	Char		 *s_strncat	__P((Char *, const Char *, size_t));
+extern	Char		 *s_strncat	(Char *, const Char *, size_t);
 # endif /* NOTUSED */
-extern	Char		 *s_strcpy	__P((Char *, const Char *));
-extern	Char		 *s_strncpy	__P((Char *, const Char *, size_t));
-extern	Char		 *s_strspl	__P((const Char *, const Char *));
-extern	size_t		  s_strlen	__P((const Char *));
-extern	int		  s_strcmp	__P((const Char *, const Char *));
-extern	int		  s_strncmp	__P((const Char *, const Char *, 
-					     size_t));
-extern	int		  s_strcasecmp	__P((const Char *, const Char *));
-extern	Char		 *s_strsave	__P((const Char *));
-extern	Char		 *s_strend	__P((const Char *));
-extern	Char		 *s_strstr	__P((const Char *, const Char *));
-extern	Char		 *str2short	__P((const char *));
-extern	Char		**blk2short	__P((char **));
-extern	char		 *short2str	__P((const Char *));
-extern	char		**short2blk	__P((Char **));
-#endif /* SHORT_STRINGS */
-extern	char		 *short2qstr	__P((const Char *));
+extern	Char		 *s_strcpy	(Char *, const Char *);
+extern	Char		 *s_strncpy	(Char *, const Char *, size_t);
+extern	Char		 *s_strspl	(const Char *, const Char *);
+extern	size_t		  s_strlen	(const Char *);
+extern	int		  s_strcmp	(const Char *, const Char *);
+extern	int		  s_strncmp	(const Char *, const Char *, size_t);
+extern	int		  s_strcasecmp	(const Char *, const Char *);
+extern	Char		 *s_strnsave	(const Char *, size_t);
+extern	Char		 *s_strsave	(const Char *);
+extern	Char		 *s_strend	(const Char *);
+extern	Char		 *s_strstr	(const Char *, const Char *);
+extern	Char		 *str2short	(const char *);
+extern	Char		**blk2short	(char **);
+extern	char		 *short2str	(const Char *);
+extern	char		**short2blk	(Char **);
+#else /* !SHORT_STRINGS */
+extern	char		 *caching_strip	(const char *);
+#endif
+extern	char		 *short2qstr	(const Char *);
+
+extern	void		  bb_append	(struct blk_buf *, Char *);
+extern	void		  bb_cleanup	(void *);
+extern	Char		**bb_finish	(struct blk_buf *);
+
+extern	void		  strbuf_terminate(struct strbuf *);
+extern  void		  strbuf_append1(struct strbuf *, char);
+extern  void		  strbuf_appendn(struct strbuf *, const char *,
+					 size_t);
+extern  void		  strbuf_append (struct strbuf *, const char *);
+extern  char		 *strbuf_finish (struct strbuf *);
+extern	void		  strbuf_cleanup(void *);
+extern	void		  Strbuf_terminate(struct Strbuf *);
+extern  void		  Strbuf_append1(struct Strbuf *, Char);
+extern  void		  Strbuf_appendn(struct Strbuf *, const Char *,
+					 size_t);
+extern  void		  Strbuf_append (struct Strbuf *, const Char *);
+extern  Char		 *Strbuf_finish (struct Strbuf *);
+extern	void		  Strbuf_cleanup(void *);
 
 
 /*
  * tc.vers.c:
  */
-extern	void		  fix_version	__P((void));
+extern	void		  fix_version	(void);
 
 /*
  * tc.who.c
  */
 #if defined (HAVE_UTMP_H) || defined (HAVE_UTMPX_H) || defined (WINNT_NATIVE)
-extern	void		  initwatch	__P((void));
-extern	void		  resetwatch	__P((void));
-extern	void		  watch_login	__P((int));
-extern	const char 	 *who_info	__P((ptr_t, int, char *, size_t));
-extern	void		  dolog		__P((Char **, struct command *));
+extern	void		  initwatch	(void);
+extern	void		  resetwatch	(void);
+extern	void		  watch_login	(int);
+extern	char	 	 *who_info	(ptr_t, int);
+extern	void		  dolog		(Char **, struct command *);
 # ifdef HAVE_STRUCT_UTMP_UT_HOST
-extern	char		 *utmphost	__P((void));
-extern	size_t		  utmphostsize	__P((void));
+extern	char		 *utmphost	(void);
+extern	size_t		  utmphostsize	(void);
 # endif /* HAVE_STRUCT_UTMP_UT_HOST */
 #else
 # define HAVENOUTMP

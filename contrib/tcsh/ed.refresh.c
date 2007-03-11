@@ -1,4 +1,4 @@
-/* $Header: /src/pub/tcsh/ed.refresh.c,v 3.39 2005/02/15 21:09:02 christos Exp $ */
+/* $Header: /p/tcsh/cvsroot/tcsh/ed.refresh.c,v 3.46 2006/08/23 15:03:14 christos Exp $ */
 /*
  * ed.refresh.c: Lower level screen refreshing functions
  */
@@ -32,7 +32,7 @@
  */
 #include "sh.h"
 
-RCSID("$Id: ed.refresh.c,v 3.39 2005/02/15 21:09:02 christos Exp $")
+RCSID("$tcsh: ed.refresh.c,v 3.46 2006/08/23 15:03:14 christos Exp $")
 
 #include "ed.h"
 /* #define DEBUG_UPDATE */
@@ -45,37 +45,35 @@ Char   *litptr;
 static int vcursor_h, vcursor_v;
 static int rprompt_h, rprompt_v;
 
-static	int	MakeLiteral		__P((Char *, int, Char));
-static	int	Draw 			__P((Char *, int));
-static	void	Vdraw 			__P((Char, int));
-static	void	RefreshPromptpart	__P((Char *));
-static	void	update_line 		__P((Char *, Char *, int));
-static	void	str_insert		__P((Char *, int, int, Char *, int));
-static	void	str_delete		__P((Char *, int, int, int));
-static	void	str_cp			__P((Char *, Char *, int));
+static	int	MakeLiteral		(Char *, int, Char);
+static	int	Draw 			(Char *, int);
+static	void	Vdraw 			(Char, int);
+static	void	RefreshPromptpart	(Char *);
+static	void	update_line 		(Char *, Char *, int);
+static	void	str_insert		(Char *, int, int, Char *, int);
+static	void	str_delete		(Char *, int, int, int);
+static	void	str_cp			(Char *, Char *, int);
 #ifndef WINNT_NATIVE
 static
 #else
 extern
 #endif
-	void    PutPlusOne      __P((Char, int));
-static	void	cpy_pad_spaces		__P((Char *, Char *, int));
+	void    PutPlusOne      (Char, int);
+static	void	cpy_pad_spaces		(Char *, Char *, int);
 #if defined(DEBUG_UPDATE) || defined(DEBUG_REFRESH) || defined(DEBUG_LITERAL)
-static	void	dprintf			__P((char *, ...));
+static	void	dprintf			(char *, ...);
 #ifdef DEBUG_UPDATE
-static	void	dprintstr		__P((char *, const Char *, const Char *));
+static	void	dprintstr		(char *, const Char *, const Char *);
 
 static void
-dprintstr(str, f, t)
-char *str;
-const Char *f, *t;
+dprintstr(char *str, const Char *f, const Char *t)
 {
     dprintf("%s:\"", str);
     while (f < t) {
-	if (*f & ~ASCII)
+	if (ASC(*f) & ~ASCII)
 	  dprintf("[%x]", *f++);
 	else
-	  dprintf("%c", *f++ & ASCII);
+	  dprintf("%c", CTL_ESC(ASCII & ASC(*f++)));
     }
     dprintf("\"\r\n");
 }
@@ -87,12 +85,7 @@ const Char *f, *t;
  *	debugging cause you'll mangle up the file descriptors!
  */
 static void
-#ifdef PROTOTYPES
 dprintf(char *fmt, ...)
-#else
-dprintf(va_list)
-    va_dcl
-#endif /* __STDC__ */
 {
     static int fd = -1;
     char *dtty;
@@ -100,16 +93,10 @@ dprintf(va_list)
     if ((dtty = getenv("DEBUGTTY"))) {
 	int o;
 	va_list va;
-#ifdef PROTOTYPES
 	va_start(va, fmt);
-#else
-	char *fmt;
-	va_start(va);
-	fmt = va_arg(va, char *);
-#endif /* __STDC__ */
 
 	if (fd == -1)
-	    fd = open(dtty, O_RDWR);
+	    fd = xopen(dtty, O_RDWR);
 	o = SHOUT;
 	flush();
 	SHOUT = fd;
@@ -123,10 +110,7 @@ dprintf(va_list)
 
 static int litlen = 0, litalloc = 0;
 
-static int MakeLiteral(str, len, addlit)
-    Char *str;
-    int len;
-    Char addlit;
+static int MakeLiteral(Char *str, int len, Char addlit)
 {
     int i, addlitlen = 0;
     Char *addlitptr = 0;
@@ -152,10 +136,7 @@ static int MakeLiteral(str, len, addlit)
 	int add = 256;
 	while (len + addlitlen + 1 + (LIT_FACTOR - 1) > add)
 	    add *= 2;
-	if (litptr)
-	    newlitptr = (Char *)xrealloc(litptr, (litalloc + add) * sizeof(Char));
-	else
-	    newlitptr = (Char *)xmalloc((litalloc + add) * sizeof(Char));
+	newlitptr = xrealloc(litptr, (litalloc + add) * sizeof(Char));
 	if (!newlitptr)
 	    return '?';
 	litptr = newlitptr;
@@ -179,16 +160,13 @@ static int MakeLiteral(str, len, addlit)
 }
 
 static int
-Draw(cp, nocomb)	/* draw char at cp, expand tabs, ctl chars */
-    Char *cp;
-    int nocomb;
+Draw(Char *cp, int nocomb)	/* draw char at cp, expand tabs, ctl chars */
 {
-    int l, w, i, lv, lh;
-    Char ch, attr;
-    NLSChar c;
+    int w, i, lv, lh;
+    Char c, attr;
 
     attr = *cp & ~CHAR;
-    l = NLSFrom(cp, NLSZEROT, &c);
+    c = *cp & CHAR;
     w = NLSClassify(c, nocomb);
     switch (w) {
 	case NLSCLASS_NL:
@@ -215,11 +193,10 @@ Draw(cp, nocomb)	/* draw char at cp, expand tabs, ctl chars */
 	    }
 	    break;
 	case NLSCLASS_ILLEGAL:
-	    ch = *cp & CHAR;
 	    Vdraw('\\' | attr, 1);
-	    Vdraw((((ch >> 6) & 7) + '0') | attr, 1);
-	    Vdraw((((ch >> 3) & 7) + '0') | attr, 1);
-	    Vdraw(((ch & 7) + '0') | attr, 1);
+	    Vdraw((((c >> 6) & 7) + '0') | attr, 1);
+	    Vdraw((((c >> 3) & 7) + '0') | attr, 1);
+	    Vdraw(((c & 7) + '0') | attr, 1);
 	    break;
 	case NLSCLASS_ILLEGAL2:
 	case NLSCLASS_ILLEGAL3:
@@ -245,32 +222,23 @@ Draw(cp, nocomb)	/* draw char at cp, expand tabs, ctl chars */
 		    break;
 	    }
 	    if (lv < 0) {
-		int l2 = l;
-		for (; l2-- > 0; cp++) {
-		    ch = *cp & CHAR;
-		    Vdraw('\\' | attr, 1);
-		    Vdraw((((ch >> 6) & 7) + '0') | attr, 1);
-		    Vdraw((((ch >> 3) & 7) + '0') | attr, 1);
-		    Vdraw(((ch & 7) + '0') | attr, 1);
-		}
-		return l;
+		Vdraw('\\' | attr, 1);
+		Vdraw((((c >> 6) & 7) + '0') | attr, 1);
+		Vdraw((((c >> 3) & 7) + '0') | attr, 1);
+		Vdraw(((c & 7) + '0') | attr, 1);
+		break;
 	    }
-	    Vdisplay[lv][lh] = MakeLiteral(cp, l, Vdisplay[lv][lh]);
+	    Vdisplay[lv][lh] = MakeLiteral(cp, 1, Vdisplay[lv][lh]);
 	    break;
 	default:
-	    if (l > 1)
-		Vdraw(MakeLiteral(cp, l, 0), w);
-	    else
-		Vdraw(*cp, w);
+	    Vdraw(*cp, w);
 	    break;
     }
-    return l;
+    return 1;
 }
 
 static void
-Vdraw(c, width)			/* draw char c onto V lines */
-    Char c;
-    int width;
+Vdraw(Char c, int width)	/* draw char c onto V lines */
 {
 #ifdef DEBUG_REFRESH
 # ifdef SHORT_STRINGS
@@ -284,7 +252,7 @@ Vdraw(c, width)			/* draw char c onto V lines */
        that "span line breaks". */
     while (vcursor_h + width > TermH)
 	Vdraw(' ', 1);
-    Vdisplay[vcursor_v][vcursor_h] = (Char) c;
+    Vdisplay[vcursor_v][vcursor_h] = c;
     if (width)
 	vcursor_h++;		/* advance to next place */
     while (--width > 0)
@@ -308,23 +276,22 @@ Vdraw(c, width)			/* draw char c onto V lines */
  *	draws a prompt element, expanding literals (we know it's ASCIZ)
  */
 static void
-RefreshPromptpart(buf)
-    Char *buf;
+RefreshPromptpart(Char *buf)
 {
     Char *cp;
-    NLSChar c;
-    int l, w;
+    int w;
 
+    if (buf == NULL)
+	return;
     for (cp = buf; *cp; ) {
 	if (*cp & LITERAL) {
 	    Char *litstart = cp;
 	    while (*cp & LITERAL)
 		cp++;
 	    if (*cp) {
-		l = NLSFrom(cp, NLSZEROT, &c);
-		w = NLSWidth(c);
-		Vdraw(MakeLiteral(litstart, cp + l - litstart, 0), w);
-		cp += l;
+		w = NLSWidth(*cp & CHAR);
+		Vdraw(MakeLiteral(litstart, cp + 1 - litstart, 0), w);
+		cp++;
 	    }
 	    else {
 		/*
@@ -352,7 +319,7 @@ static
 int OldvcV = 0;
 
 void
-Refresh()
+Refresh(void)
 {
     int cur_line;
     Char *cp;
@@ -361,7 +328,7 @@ Refresh()
     Char    oldgetting;
 
 #ifdef DEBUG_REFRESH
-    dprintf("PromptBuf = :%s:\r\n", short2str(PromptBuf));
+    dprintf("Prompt = :%s:\r\n", short2str(Prompt));
     dprintf("InputBuf = :%s:\r\n", short2str(InputBuf));
 #endif /* DEBUG_REFRESH */
     oldgetting = GettingInput;
@@ -370,14 +337,14 @@ Refresh()
     /* reset the Vdraw cursor, temporarily draw rprompt to calculate its size */
     vcursor_h = 0;
     vcursor_v = 0;
-    RefreshPromptpart(RPromptBuf);
+    RefreshPromptpart(RPrompt);
     rprompt_h = vcursor_h;
     rprompt_v = vcursor_v;
 
     /* reset the Vdraw cursor, draw prompt */
     vcursor_h = 0;
     vcursor_v = 0;
-    RefreshPromptpart(PromptBuf);
+    RefreshPromptpart(Prompt);
     cur_h = -1;			/* set flag in case I'm not set */
 
     /* draw the current input buffer */
@@ -404,7 +371,7 @@ Refresh()
 			 */
 	while (--rhdiff > 0)		/* pad out with spaces */
 	    Vdraw(' ', 1);
-	RefreshPromptpart(RPromptBuf);
+	RefreshPromptpart(RPrompt);
     }
     else {
 	rprompt_h = 0;			/* flag "not using rprompt" */
@@ -463,7 +430,7 @@ Refresh()
 }
 
 #ifdef notdef
-GotoBottom()
+GotoBottom(void)
 {				/* used to go to last used screen line */
     MoveToLine(OldvcV);
 }
@@ -471,7 +438,7 @@ GotoBottom()
 #endif 
 
 void
-PastBottom()
+PastBottom(void)
 {				/* used to go to last used screen line */
     MoveToLine(OldvcV);
     (void) putraw('\r');
@@ -484,11 +451,7 @@ PastBottom()
 /* insert num characters of s into d (in front of the character) at dat,
    maximum length of d is dlen */
 static void
-str_insert(d, dat, dlen, s, num)
-    Char *d;
-    int dat, dlen;
-    Char *s;
-    int num;
+str_insert(Char *d, int dat, int dlen, Char *s, int num)
 {
     Char *a, *b;
 
@@ -530,9 +493,7 @@ str_insert(d, dat, dlen, s, num)
 
 /* delete num characters d at dat, maximum length of d is dlen */
 static void
-str_delete(d, dat, dlen, num)
-    Char *d;
-    int dat, dlen, num;
+str_delete(Char *d, int dat, int dlen, int num)
 {
     Char *a, *b;
 
@@ -563,9 +524,7 @@ str_delete(d, dat, dlen, num)
 }
 
 static void
-str_cp(a, b, n)
-    Char *a, *b;
-    int n;
+str_cp(Char *a, Char *b, int n)
 {
     while (n-- && *b)
 	*a++ = *b++;
@@ -597,9 +556,7 @@ new:	eddie> Oh, my little buggy says to me, as lurgid as
 #define MIN_END_KEEP	4
 
 static void			/* could be changed to make it smarter */
-update_line(old, new, cur_line)
-    Char *old, *new;
-    int     cur_line;
+update_line(Char *old, Char *new, int cur_line)
 {
     Char *o, *n, *p, c;
     Char  *ofd, *ols, *oe, *nfd, *nls, *ne;
@@ -617,28 +574,31 @@ update_line(old, new, cur_line)
     /*
      * Find the end of both old and new
      */
-    while (*o)
-	o++;
+    o = Strend(o);
+
     /* 
      * Remove any trailing blanks off of the end, being careful not to
      * back up past the beginning.
      */
+    if (!(adrof(STRhighlight) && MarkIsSet)) {
     while (ofd < o) {
 	if (o[-1] != ' ')
 	    break;
 	o--;
     }
+    }
     oe = o;
     *oe = (Char) 0;
-  
-    while (*n)
-	n++;
+
+    n = Strend(n);
 
     /* remove blanks from end of new */
+    if (!(adrof(STRhighlight) && MarkIsSet)) {
     while (nfd < n) {
 	if (n[-1] != ' ')
 	    break;
 	n--;
+    }
     }
     ne = n;
     *ne = (Char) 0;
@@ -1133,9 +1093,7 @@ update_line(old, new, cur_line)
 
 
 static void
-cpy_pad_spaces(dst, src, width)
-    Char *dst, *src;
-    int width;
+cpy_pad_spaces(Char *dst, Char *src, int width)
 {
     int i;
 
@@ -1153,25 +1111,23 @@ cpy_pad_spaces(dst, src, width)
 }
 
 void
-RefCursor()
+RefCursor(void)
 {				/* only move to new cursor pos */
     Char *cp;
-    NLSChar c;
-    int l, w, h, th, v;
+    int w, h, th, v;
 
     /* first we must find where the cursor is... */
     h = 0;
     v = 0;
     th = TermH;			/* optimize for speed */
 
-    for (cp = PromptBuf; *cp; ) {	/* do prompt */
+    for (cp = Prompt; cp != NULL && *cp; ) {	/* do prompt */
 	if (*cp & LITERAL) {
 	    cp++;
 	    continue;
 	}
-	l = NLSFrom(cp, NLSZEROT, &c);
-	w = NLSClassify(c, cp == PromptBuf);
-	cp += l;
+	w = NLSClassify(*cp & CHAR, cp == Prompt);
+	cp++;
 	switch(w) {
 	    case NLSCLASS_NL:
 		h = 0;
@@ -1202,9 +1158,8 @@ RefCursor()
     }
 
     for (cp = InputBuf; cp < Cursor;) {	/* do input buffer to Cursor */
-	l = NLSFrom(cp, Cursor - cp, &c);
-	w = NLSClassify(c, cp == InputBuf);
-	cp += l;
+	w = NLSClassify(*cp & CHAR, cp == InputBuf);
+	cp++;
 	switch(w) {
 	    case NLSCLASS_NL:
 		h = 0;
@@ -1237,14 +1192,17 @@ RefCursor()
     /* now go there */
     MoveToLine(v);
     MoveToChar(h);
+    if (adrof(STRhighlight) && MarkIsSet) {
+	ClearLines();
+	ClearDisp();
+	Refresh();
+    }
     flush();
 }
 
 #ifndef WINTT_NATIVE
 static void
-PutPlusOne(c, width)
-    Char   c;
-    int    width;
+PutPlusOne(Char c, int width)
 {
     while (width > 1 && CursorH + width > TermH)
 	PutPlusOne(' ', 1);
@@ -1280,9 +1238,8 @@ void
 RefPlusOne(int l)
 {				/* we added just one char, handle it fast.
 				 * assumes that screen cursor == real cursor */
-    Char *cp;
+    Char *cp, c;
     int w;
-    NLSChar c;
 
     if (Cursor != LastChar) {
 	Refresh();		/* too hard to handle */
@@ -1293,7 +1250,7 @@ RefPlusOne(int l)
 	return;
     }
     cp = Cursor - l;
-    NLSFrom(cp, (size_t)l, &c);
+    c = *cp & CHAR;
     w = NLSClassify(c, cp == InputBuf);
     switch(w) {
 	case NLSCLASS_CTRL:
@@ -1316,10 +1273,14 @@ RefPlusOne(int l)
 	    PutPlusOne((c & 7) + '0', 1);
 	    break;
 	case 1:
+	    if (adrof(STRhighlight) && MarkIsSet)
+		StartHighlight();
 	    if (l > 1)
 		PutPlusOne(MakeLiteral(cp, l, 0), 1);
 	    else
 		PutPlusOne(*cp, 1);
+	    if (adrof(STRhighlight) && MarkIsSet)
+		StopHighlight();
 	    break;
 	default:
 	    Refresh();		/* too hard to handle */
@@ -1331,7 +1292,7 @@ RefPlusOne(int l)
 /* clear the screen buffers so that new new prompt starts fresh. */
 
 void
-ClearDisp()
+ClearDisp(void)
 {
     int i;
 
@@ -1344,7 +1305,7 @@ ClearDisp()
 }
 
 void
-ClearLines()
+ClearLines(void)
 {				/* Make sure all lines are *really* blank */
     int i;
 

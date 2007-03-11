@@ -1,5 +1,5 @@
 : # -*- perl -*-
-# $Id: tcsh.man2html,v 1.13 2005/03/25 17:36:08 kim Exp $
+# $tcsh: tcsh.man2html,v 1.14 2006/03/02 18:46:45 christos Exp $
 
 # tcsh.man2html, Dave Schweisguth <dcs@proton.chem.yale.edu>
 #

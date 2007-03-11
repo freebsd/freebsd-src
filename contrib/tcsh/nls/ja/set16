@@ -1,4 +1,4 @@
-$ $Id: set16,v 1.2 1998/09/09 10:30:26 christos Exp $
+$ $tcsh: set16,v 1.3 2006/03/02 18:46:47 christos Exp $
 $ sh.lex.c
 $set 16 
 1 tty pgrp を %d から %dに再設定します\n
