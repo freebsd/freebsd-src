@@ -2083,6 +2083,7 @@ mpt_cam_event(struct mpt_softc *mpt, request_t *req,
 		break;
 
 	case MPI_EVENT_RESCAN:
+#if __FreeBSD_version >= 600000
 	{
 		union ccb *ccb;
 		uint32_t pathid;
@@ -2121,6 +2122,10 @@ mpt_cam_event(struct mpt_softc *mpt, request_t *req,
 		CAMLOCK_2_MPTLOCK(mpt);
 		break;
 	}
+#else
+		mpt_prt(mpt, "Rescan Port: %d\n", (data0 >> 8) & 0xff);
+		break;
+#endif
 	case MPI_EVENT_LINK_STATUS_CHANGE:
 		mpt_prt(mpt, "Port %d: LinkState: %s\n",
 		    (data1 >> 8) & 0xff,
