@@ -57,6 +57,12 @@ struct pmap;
 #define PCPUP	((struct pcpu *) powerpc_get_pcpup())
 
 #define	PCPU_GET(member)	(PCPUP->pc_ ## member)
+
+/*
+ * XXX The implementation of this operation should be made atomic
+ * with respect to preemption.
+ */
+#define	PCPU_LAZY_INC(member)	(++PCPUP->pc_ ## member)
 #define	PCPU_PTR(member)	(&PCPUP->pc_ ## member)
 #define	PCPU_SET(member,value)	(PCPUP->pc_ ## member = (value))
 

@@ -52,6 +52,12 @@ extern struct pcpu *pcpup;
 extern struct pcpu __pcpu;
 
 #define	PCPU_GET(member)	(__pcpu.pc_ ## member)
+
+/*
+ * XXX The implementation of this operation should be made atomic
+ * with respect to preemption.
+ */
+#define	PCPU_LAZY_INC(member)	(++__pcpu.pc_ ## member)
 #define	PCPU_PTR(member)	(&__pcpu.pc_ ## member)
 #define	PCPU_SET(member,value)	(__pcpu.pc_ ## member = (value))
 
