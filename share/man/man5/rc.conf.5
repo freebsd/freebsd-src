@@ -1384,6 +1384,15 @@ The amount of time in seconds to sleep before starting a background
 It defaults to sixty seconds to allow large applications such as
 the X server to start before disk I/O bandwidth is monopolized by
 .Xr fsck 8 .
+If set to a negative number, the background file system check will be
+delayed indefinitely to allow the administrator to run it at a more
+convenient time.
+For example it may be run from cron by adding a line like
+.Pp
+.Dl 0 4 * * * root /etc/rc.d/bgfsck forcestart
+.Pp
+to
+.Pa /etc/crontab .
 .It Va netfs_types
 .Pq Vt str
 List of file system types that are network-based.
