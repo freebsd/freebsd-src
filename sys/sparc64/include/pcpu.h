@@ -66,6 +66,12 @@ register struct pcb *curpcb __asm__(__XSTRING(PCB_REG));
 register struct pcpu *pcpup __asm__(__XSTRING(PCPU_REG));
 
 #define	PCPU_GET(member)	(pcpup->pc_ ## member)
+
+/*
+ * XXX The implementation of this operation should be made atomic
+ * with respect to preemption.
+ */
+#define	PCPU_LAZY_INC(member)	(++pcpup->pc_ ## member)
 #define	PCPU_PTR(member)	(&pcpup->pc_ ## member)
 #define	PCPU_SET(member,value)	(pcpup->pc_ ## member = (value))
 
