@@ -1,4 +1,4 @@
-/* $Header: /src/pub/tcsh/sh.print.c,v 3.28 2005/03/03 17:19:35 kim Exp $ */
+/* $Header: /p/tcsh/cvsroot/tcsh/sh.print.c,v 3.33 2006/08/23 15:03:14 christos Exp $ */
 /*
  * sh.print.c: Primitive Output routines.
  */
@@ -32,7 +32,7 @@
  */
 #include "sh.h"
 
-RCSID("$Id: sh.print.c,v 3.28 2005/03/03 17:19:35 kim Exp $")
+RCSID("$tcsh: sh.print.c,v 3.33 2006/08/23 15:03:14 christos Exp $")
 
 #include "ed.h"
 
@@ -40,7 +40,7 @@ extern int Tty_eight_bit;
 
 int     lbuffed = 1;		/* true if line buffered */
 
-static	void	p2dig	__P((unsigned int));
+static	void	p2dig	(unsigned int);
 
 /*
  * C Shell
@@ -48,8 +48,7 @@ static	void	p2dig	__P((unsigned int));
 
 #if defined(BSDLIMIT) || defined(RLIMIT_CPU)
 void
-psecs(l)
-    unsigned long    l;
+psecs(unsigned long l)
 {
     int i;
 
@@ -70,15 +69,14 @@ minsec:
 
 #endif
 
-void
-pcsecs(l)			/* PWP: print mm:ss.dd, l is in sec*100 */
+void			/* PWP: print mm:ss.dd, l is in sec*100 */
 #ifdef BSDTIMES
-    unsigned long    l;
+pcsecs(unsigned long l)
 #else /* BSDTIMES */
 # ifndef POSIX
-    time_t  l;
+pcsecs(time_t l)
 # else /* POSIX */
-    clock_t l;
+pcsecs(clock_t l)
 # endif /* POSIX */
 #endif /* BSDTIMES */
 {
@@ -102,8 +100,7 @@ minsec:
 }
 
 static void 
-p2dig(i)
-    unsigned int i;
+p2dig(unsigned i)
 {
 
     xprintf("%u%u", i / 10, i % 10);
@@ -113,6 +110,16 @@ char    linbuf[2048];		/* was 128 */
 char   *linp = linbuf;
 int    output_raw = 0;		/* PWP */
 int    xlate_cr   = 0;		/* HE */
+
+/* For cleanup_push() */
+void
+output_raw_restore(void *xorig)
+{
+    int *orig;
+
+    orig = xorig;
+    output_raw = *orig;
+}
 
 #ifdef WIDE_STRINGS
 void
@@ -139,37 +146,29 @@ xputwchar(Char c)
 #endif
 
 void
-xputchar(c)
-    int c;
+xputchar(int c)
 {
-    int     atr = 0;
+    int     atr;
 
-    atr |= c & ATTRIBUTES & TRIM;
+    atr = c & ATTRIBUTES & TRIM;
     c &= CHAR | QUOTE;
     if (!output_raw && (c & QUOTE) == 0) {
-	if (iscntrl(c) && (c < 0x80 || MB_CUR_MAX == 1)) {
+	if (iscntrl(c) && (ASC(c) < 0x80 || MB_CUR_MAX == 1)) {
+	    if (c != '\t' && c != '\n'
 #ifdef COLORCAT
-	    if (c != '\t' && c != '\n' && !(adrof(STRcolorcat) && c=='\033') && (xlate_cr || c != '\r'))
-#else
-	    if (c != '\t' && c != '\n' && (xlate_cr || c != '\r'))
+	        && !(adrof(STRcolorcat) && c == CTL_ESC('\033'))
 #endif
+		&& (xlate_cr || c != '\r'))
 	    {
 		xputchar('^' | atr);
-#ifdef IS_ASCII
-		if (c == 0177)
-		    c = '?';
-		else
-		    c |= 0100;
-#else
 		if (c == CTL_ESC('\177'))
 		    c = '?';
 		else
-		    c =_toebcdic[_toascii[c]|0100];
-#endif
-
+		    /* Note: for IS_ASCII, this compiles to: c = c | 0100 */
+		    c = CTL_ESC(ASC(c)|0100);
 	    }
 	}
-	else if (!isprint(c) && (c < 0x80 || MB_CUR_MAX == 1)) {
+	else if (!isprint(c) && (ASC(c) < 0x80 || MB_CUR_MAX == 1)) {
 	    xputchar('\\' | atr);
 	    xputchar((((c >> 6) & 7) + '0') | atr);
 	    xputchar((((c >> 3) & 7) + '0') | atr);
@@ -189,8 +188,7 @@ xputchar(c)
 }
 
 int
-putraw(c)
-    int c;
+putraw(int c)
 {
     if (haderr ? (didfds ? is2atty : isdiagatty) :
 	(didfds ? is1atty : isoutatty)) {
@@ -205,8 +203,7 @@ putraw(c)
 }
 
 int
-putpure(c)
-    int c;
+putpure(int c)
 {
     c &= CHAR;
 
@@ -217,17 +214,16 @@ putpure(c)
 }
 
 void
-drainoline()
+drainoline(void)
 {
     linp = linbuf;
 }
 
 void
-flush()
+flush(void)
 {
     int unit;
     static int interrupted = 0;
-    size_t sz;
 
     /* int lmode; */
 
@@ -237,7 +233,7 @@ flush()
 	return;
     if (interrupted) {
 	interrupted = 0;
-	linp = linbuf;		/* avoid resursion as stderror calls flush */
+	linp = linbuf;		/* avoid recursion as stderror calls flush */
 	stderror(ERR_SILENT);
     }
     interrupted = 1;
@@ -251,12 +247,11 @@ flush()
 	lmode & LFLUSHO) {
 	lmode = LFLUSHO;
 	(void) ioctl(unit, TIOCLBIC, (ioclt_t) & lmode);
-	(void) write(unit, "\n", 1);
+	(void) xwrite(unit, "\n", 1);
     }
 #endif
 #endif
-    sz = (size_t) (linp - linbuf);
-    if (write(unit, linbuf, sz) == -1)
+    if (xwrite(unit, linbuf, linp - linbuf) == -1)
 	switch (errno) {
 #ifdef EIO
 	/* We lost our tty */

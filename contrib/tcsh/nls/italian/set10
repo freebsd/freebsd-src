@@ -1,4 +1,4 @@
-$ $Id: set10,v 1.1 1998/09/03 22:03:14 christos Exp $
+$ $tcsh: set10,v 1.2 2006/03/02 18:46:47 christos Exp $
 $ ma.setp.c
 $set 10 
 1 setpath: comando '%s' non valido.\n
