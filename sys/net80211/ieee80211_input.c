@@ -1773,6 +1773,21 @@ ieee80211_deliver_l2uf(struct ieee80211_node *ni)
 	ieee80211_deliver_data(ic, ni, m);
 }
 
+static void
+capinfomismatch(struct ieee80211_node *ni, const struct ieee80211_frame *wh,
+	int reassoc, int resp, const char *tag, int capinfo)
+{
+	struct ieee80211com *ic = ni->ni_ic;
+
+	IEEE80211_DPRINTF(ic, IEEE80211_MSG_ANY,
+	    "[%s] deny %s request, %s mismatch 0x%x\n",
+	    ether_sprintf(wh->i_addr2),
+	    reassoc ? "reassoc" : "assoc", tag, capinfo);
+	IEEE80211_SEND_MGMT(ic, ni, resp, IEEE80211_STATUS_CAPINFO);
+	ieee80211_node_leave(ic, ni);
+	ic->ic_stats.is_rx_assoc_capmismatch++;
+}
+
 void
 ieee80211_recv_mgmt(struct ieee80211com *ic, struct mbuf *m0,
 	struct ieee80211_node *ni,
@@ -2346,14 +2361,18 @@ ieee80211_recv_mgmt(struct ieee80211com *ic, struct mbuf *m0,
 		}
 		/* NB: 802.11 spec says to ignore station's privacy bit */
 		if ((capinfo & IEEE80211_CAPINFO_ESS) == 0) {
-			IEEE80211_DPRINTF(ic, IEEE80211_MSG_ANY,
-			    "[%s] deny %s request, capability mismatch 0x%x\n",
-			    ether_sprintf(wh->i_addr2),
-			    reassoc ? "reassoc" : "assoc", capinfo);
-			IEEE80211_SEND_MGMT(ic, ni, resp,
-				IEEE80211_STATUS_CAPINFO);
-			ieee80211_node_leave(ic, ni);
-			ic->ic_stats.is_rx_assoc_capmismatch++;
+			capinfomismatch(ni, wh, reassoc, resp,
+			    "capability", capinfo);
+			return;
+		}
+		/*
+		 * Disallow re-associate w/ invalid slot time setting.
+		 */
+		if (ni->ni_associd != 0 &&
+		    ic->ic_curmode == IEEE80211_MODE_11G &&
+		    ((ni->ni_capinfo ^ capinfo) & IEEE80211_CAPINFO_SHORT_SLOTTIME)) {
+			capinfomismatch(ni, wh, reassoc, resp,
+			    "slot time", capinfo);
 			return;
 		}
 		rate = ieee80211_setup_rates(ni, rates, xrates,
