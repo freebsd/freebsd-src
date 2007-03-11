@@ -828,7 +828,7 @@ ieee80211_setup_rates(struct ieee80211_node *ni,
 		memcpy(rs->rs_rates + rs->rs_nrates, xrates+2, nxrates);
 		rs->rs_nrates += nxrates;
 	}
-	return ieee80211_fix_rate(ni, flags);
+	return ieee80211_fix_rate(ni, rs, flags);
 }
 
 static void

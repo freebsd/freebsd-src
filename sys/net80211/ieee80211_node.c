@@ -513,7 +513,7 @@ ieee80211_match_bss(struct ieee80211com *ic, struct ieee80211_node *ni)
 		if (ni->ni_capinfo & IEEE80211_CAPINFO_PRIVACY)
 			fail |= 0x04;
 	}
-	rate = ieee80211_fix_rate(ni,
+	rate = ieee80211_fix_rate(ni, &ni->ni_rates,
 	     IEEE80211_F_JOIN | IEEE80211_F_DONEGO | IEEE80211_F_DOFRATE);
 	if (rate & IEEE80211_RATE_BASIC)
 		fail |= 0x08;
@@ -825,7 +825,8 @@ ieee80211_sta_join(struct ieee80211com *ic, struct ieee80211_node *selbs)
 	 * Delete unusable rates; we've already checked
 	 * that the negotiated rate set is acceptable.
 	 */
-	ieee80211_fix_rate(ic->ic_bss, IEEE80211_F_DODEL | IEEE80211_F_JOIN);
+	ieee80211_fix_rate(ic->ic_bss, &ic->ic_bss->ni_rates,
+		IEEE80211_F_DODEL | IEEE80211_F_JOIN);
 
 	/*
 	 * Set the erp state (mostly the slot time) to deal with
