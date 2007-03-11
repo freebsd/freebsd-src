@@ -30,7 +30,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)term.h	8.1 (Berkeley) 6/4/93
- *	$NetBSD: term.h,v 1.16 2005/03/15 00:10:40 christos Exp $
+ *	$NetBSD: term.h,v 1.17 2006/03/06 21:11:56 christos Exp $
  * $FreeBSD$
  */
 
@@ -102,6 +102,7 @@ protected int	term_set(EditLine *, const char *);
 protected int	term_settc(EditLine *, int, const char **);
 protected int	term_telltc(EditLine *, int, const char **);
 protected int	term_echotc(EditLine *, int, const char **);
+protected void	term_writec(EditLine *, int);
 protected int	term__putc(int);
 protected void	term__flush(void);
 
