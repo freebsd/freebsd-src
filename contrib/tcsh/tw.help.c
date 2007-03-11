@@ -1,4 +1,4 @@
-/* $Header: /src/pub/tcsh/tw.help.c,v 3.21 2005/01/18 20:24:51 christos Exp $ */
+/* $Header: /p/tcsh/cvsroot/tcsh/tw.help.c,v 3.27 2006/08/24 20:56:31 christos Exp $ */
 /* tw.help.c: actually look up and print documentation on a file.
  *	      Look down the path for an appropriate file, then print it.
  *	      Note that the printing is NOT PAGED.  This is because the
@@ -35,72 +35,77 @@
  */
 #include "sh.h"
 
-RCSID("$Id: tw.help.c,v 3.21 2005/01/18 20:24:51 christos Exp $")
+RCSID("$tcsh: tw.help.c,v 3.27 2006/08/24 20:56:31 christos Exp $")
 
 #include "tw.h"
 #include "tc.h"
 
 
 static int f = -1;
-static	RETSIGTYPE	 cleanf		__P((int));
-static	Char    	*skipslist	__P((Char *));
-static	void		 nextslist 	__P((Char *, Char *));
+static	void		 cleanf		(int);
+static	Char    	*skipslist	(Char *);
+static	void		 nextslist 	(const Char *, Char *);
 
-static const char *h_ext[] = {
+static const char *const h_ext[] = {
     ".help", ".1", ".8", ".6", "", NULL
 };
 
 void
-do_help(command)
-    Char   *command;
+do_help(const Char *command)
 {
-    Char    name[FILSIZ + 1];
-    Char   *cmd_p, *ep;
-    const char  **sp;
-
-    signalfun_t orig_intr;
-    Char    curdir[MAXPATHLEN];	/* Current directory being looked at */
-    Char *hpath;	/* The environment parameter */
-    Char    full[MAXPATHLEN];
-    char    buf[512];		/* full path name and buffer for read */
-    int     len;		/* length of read buffer */
-    Char   *thpath;
-
+    Char   *name, *cmd_p;
 
     /* trim off the whitespace at the beginning */
-    for (cmd_p = command; *cmd_p == ' ' || *cmd_p == '\t'; cmd_p++)
-	continue;
-		
+    while (*command == ' ' || *command == '\t')
+        command++;
+
     /* copy the string to a safe place */
-    copyn(name, cmd_p, FILSIZ + 1);
+    name = Strsave(command);
+    cleanup_push(name, xfree);
 
     /* trim off the whitespace that may be at the end */
-    for (cmd_p = name; 
+    for (cmd_p = name;
 	 *cmd_p != ' ' && *cmd_p != '\t' && *cmd_p != '\0'; cmd_p++)
 	continue;
     *cmd_p = '\0';
 
     /* if nothing left, return */
-    if (*name == '\0')
+    if (*name == '\0') {
+	cleanup_until(name);
 	return;
+    }
 
     if (adrof1(STRhelpcommand, &aliases)) {	/* if we have an alias */
 	jmp_buf_t osetexit;
+	size_t omark;
 
 	getexit(osetexit);	/* make sure to come back here */
+	omark = cleanup_push_mark();
 	if (setexit() == 0)
 	    aliasrun(2, STRhelpcommand, name);	/* then use it. */
+	cleanup_pop_mark(omark);
 	resexit(osetexit);	/* and finish up */
     }
     else {			/* else cat something to them */
+	Char *thpath, *hpath;	/* The environment parameter */
+	Char *curdir;	        /* Current directory being looked at */
+	struct Strbuf full = Strbuf_INIT;
+
 	/* got is, now "cat" the file based on the path $HPATH */
 
 	hpath = str2short(getenv(SEARCHLIST));
 	if (hpath == NULL)
 	    hpath = str2short(DEFAULTLIST);
 	thpath = hpath = Strsave(hpath);
+	cleanup_push(thpath, xfree);
+	curdir = xmalloc((Strlen(thpath) + 1) * sizeof (*curdir));
+	cleanup_push(curdir, xfree);
+	cleanup_push(&full, Strbuf_cleanup);
 
 	for (;;) {
+	    const char *const *sp;
+	    size_t ep;
+
 	    if (!*hpath) {
 		xprintf(CGETS(29, 1, "No help file for %S\n"), name);
 		break;
@@ -113,48 +118,55 @@ do_help(command)
 	     * /bar/foo.1, /bar/foo.8, then finally /bar/foo.6.  This is so
 	     * that you don't spit a binary at the tty when $HPATH == $PATH.
 	     */
-	    copyn(full, curdir, (int) (sizeof(full) / sizeof(Char)));
-	    catn(full, STRslash, (int) (sizeof(full) / sizeof(Char)));
-	    catn(full, name, (int) (sizeof(full) / sizeof(Char)));
-	    ep = &full[Strlen(full)];
+	    full.len = 0;
+	    Strbuf_append(&full, curdir);
+	    Strbuf_append(&full, STRslash);
+	    Strbuf_append(&full, name);
+	    ep = full.len;
 	    for (sp = h_ext; *sp; sp++) {
-		*ep = '\0';
-		catn(full, str2short(*sp), (int) (sizeof(full) / sizeof(Char)));
-		if ((f = open(short2str(full), O_RDONLY|O_LARGEFILE)) != -1)
+		full.len = ep;
+		Strbuf_append(&full, str2short(*sp));
+		Strbuf_terminate(&full);
+		if ((f = xopen(short2str(full.s), O_RDONLY|O_LARGEFILE)) != -1)
 		    break;
 	    }
 	    if (f != -1) {
+	        unsigned char buf[512];
+		sigset_t oset, set;
+		struct sigaction osa, sa;
+		ssize_t len;
+
 		/* so cat it to the terminal */
-		orig_intr = (signalfun_t) sigset(SIGINT, cleanf);
-		while (f != -1 && (len = read(f, (char *) buf, 512)) > 0)
-		    (void) write(SHOUT, (char *) buf, (size_t) len);
+		cleanup_push(&f, open_cleanup);
+		sa.sa_handler = cleanf;
+		sigemptyset(&sa.sa_mask);
+		sa.sa_flags = 0;
+		(void)sigaction(SIGINT, &sa, &osa);
+		cleanup_push(&osa, sigint_cleanup);
+		(void)sigprocmask(SIG_UNBLOCK, &set, &oset);
+		cleanup_push(&oset, sigprocmask_cleanup);
+		while ((len = xread(f, buf, sizeof(buf))) > 0)
+		    (void) xwrite(SHOUT, buf, len);
+		cleanup_until(&f);
 #ifdef convex
 		/* print error in case file is migrated */
 		if (len == -1)
 		    stderror(ERR_SYSTEM, progname, strerror(errno));
 #endif /* convex */
-		(void) sigset(SIGINT, orig_intr);
-		if (f != -1)
-		    (void) close(f);
 		break;
 	    }
 	}
-	xfree((ptr_t) thpath);
     }
+    cleanup_until(name);
 }
 
-static RETSIGTYPE
+static void
 /*ARGSUSED*/
-cleanf(snum)
-int snum;
+cleanf(int snum)
 {
     USE(snum);
-#ifdef UNRELSIGS
-    if (snum)
-	(void) sigset(SIGINT, cleanf);
-#endif /* UNRELSIGS */
     if (f != -1)
-	(void) close(f);
+	xclose(f);
     f = -1;
 }
 
@@ -169,9 +181,7 @@ int snum;
  */
 
 static void
-nextslist(sl, np)
-    Char *sl;
-    Char *np;
+nextslist(const Char *sl, Char *np)
 {
     if (!*sl)
 	*np = '\000';
@@ -191,8 +201,7 @@ nextslist(sl, np)
  */
 
 static Char *
-skipslist(sl)
-    Char *sl;
+skipslist(Char *sl)
 {
     while (*sl && *sl++ != ':')
 	continue;

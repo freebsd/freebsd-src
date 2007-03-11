@@ -1,4 +1,4 @@
-/* $Header: /src/pub/tcsh/ed.defns.c,v 3.42 2005/03/03 16:49:15 kim Exp $ */
+/* $Header: /p/tcsh/cvsroot/tcsh/ed.defns.c,v 3.46 2006/03/02 18:46:44 christos Exp $ */
 /*
  * ed.defns.c: Editor function definitions and initialization
  */
@@ -32,11 +32,11 @@
  */
 #include "sh.h"
 
-RCSID("$Id: ed.defns.c,v 3.42 2005/03/03 16:49:15 kim Exp $")
+RCSID("$tcsh: ed.defns.c,v 3.46 2006/03/02 18:46:44 christos Exp $")
 
 #include "ed.h"
 
-static	void		ed_InitMetaBindings 	__P((void));
+static	void		ed_InitMetaBindings 	(void);
 
 PFCmd   CcFuncTbl[] = {		/* table of available commands */
     e_unassigned,
@@ -279,8 +279,12 @@ PFCmd   CcFuncTbl[] = {		/* table of available commands */
 #define		F_PAGE_DOWN	118
     e_yank_pop,
 #define		F_YANK_POP	119
+    e_newline_hold,
+#define		F_NEWLINE_HOLD	120
+    e_newline_down_hist,
+#define		F_NEWLINE_DOWN_HIST	121
     0				/* DUMMY VALUE */
-#define		F_NUM_FNS	120
+#define		F_NUM_FNS	122
 
 };
 
@@ -493,7 +497,7 @@ KEYCMD  CcEmacsMap[] = {
     F_UNASSIGNED,		/* M-> */
     F_WHICH,			/* M-? */
     F_UNASSIGNED,		/* M-@ */
-    F_UNASSIGNED,		/* M-A */
+    F_NEWLINE_HOLD,		/* M-A */
     F_WORDBACK,			/* M-B */
     F_CASECAPITAL,		/* M-C */
     F_DELWORDNEXT,		/* M-D */
@@ -525,7 +529,7 @@ KEYCMD  CcEmacsMap[] = {
     F_UNASSIGNED,		/* M-^ */
     F_LAST_ITEM,		/* M-_ */
     F_UNASSIGNED,		/* M-` */
-    F_UNASSIGNED,		/* M-a */
+    F_NEWLINE_HOLD,		/* M-a */
     F_WORDBACK,			/* M-b */
     F_CASECAPITAL,		/* M-c */
     F_DELWORDNEXT,		/* M-d */
@@ -1120,7 +1124,7 @@ KEYCMD  CcViCmdMap[] = {
 
 
 void
-editinit()
+editinit(void)
 {
     struct KeyFuncs *f;
 
@@ -1128,7 +1132,7 @@ editinit()
     int i;
 
     for (i = 0; i < F_NUM_FUNCNAMES; i++)
-	xfree((ptr_t) FuncNames[i].desc);
+	xfree((ptr_t)(intptr_t)FuncNames[i].desc);
 #endif
 
     f = FuncNames;
@@ -1406,6 +1410,16 @@ editinit()
     f->name = "newline";
     f->func = F_NEWLINE;
     f->desc = CSAVS(3, 52, "Execute command");
+
+    f++;
+    f->name = "newline-and-hold";
+    f->func = F_NEWLINE_HOLD;
+    f->desc = CSAVS(3, 122, "Execute command and keep current line");
+
+    f++;
+    f->name = "newline-and-down-history";
+    f->func = F_NEWLINE_DOWN_HIST;
+    f->desc = CSAVS(3, 123, "Execute command and move to next history line");
 
     f++;
     f->name = "normalize-path";
@@ -1785,7 +1799,7 @@ editinit()
 
 #ifdef DEBUG_EDIT
 void
-CheckMaps()
+CheckMaps(void)
 {		/* check the size of the key maps */
     int     c1 = (NT_NUM_KEYS * sizeof(KEYCMD));
 
@@ -1817,7 +1831,7 @@ int    NLSMapsAreInited = 0;
 int    NoNLSRebind;
 
 void
-ed_InitNLSMaps()
+ed_InitNLSMaps(void)
 {
     int i;
 
@@ -1834,7 +1848,7 @@ ed_InitNLSMaps()
 }
 
 static void
-ed_InitMetaBindings()
+ed_InitMetaBindings(void)
 {
     Char    buf[3];
     int     i;
@@ -1870,7 +1884,7 @@ ed_InitMetaBindings()
 }
 
 void
-ed_InitVIMaps()
+ed_InitVIMaps(void)
 {
     int i;
 
@@ -1887,7 +1901,7 @@ ed_InitVIMaps()
 }
 
 void
-ed_InitEmacsMaps()
+ed_InitEmacsMaps(void)
 {
     int     i;
     Char    buf[3];
@@ -1930,7 +1944,7 @@ ed_InitEmacsMaps()
 }
 
 void
-ed_InitMaps()
+ed_InitMaps(void)
 {
     if (MapsAreInited)
 	return;

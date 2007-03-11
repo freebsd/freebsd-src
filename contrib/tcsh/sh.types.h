@@ -1,4 +1,4 @@
-/* $Header: /src/pub/tcsh/sh.types.h,v 3.42 2005/03/03 19:57:07 kim Exp $ */
+/* $Header: /p/tcsh/cvsroot/tcsh/sh.types.h,v 3.43 2006/01/12 19:55:38 christos Exp $ */
 /* sh.types.h: Do the necessary typedefs for each system.
  *             Up till now I avoided making this into a separate file
  *	       But I just wanted to eliminate the whole mess from sh.h
@@ -46,10 +46,6 @@
  *** LynxOS 2.1
  ***/
 #ifdef Lynx
-# ifndef _SIGMASK_T
-#  define _SIGMASK_T
-    typedef long sigmask_t;
-# endif /* _SIGMASK_T */
 # ifndef _PID_T
 #  define _PID_T
 # endif /* _PID_T */
@@ -69,11 +65,6 @@
  *** Suns running sunos3.x - sunos4.1.x
  ***/
 #if (defined(sun) || defined(__sun__)) && SYSVREL == 0
-/* This used to be long, but lint dissagrees... */
-# ifndef _SIGMASK_T
-#  define _SIGMASK_T
-    typedef int sigmask_t;
-# endif /* _SIGMASK_T */
 # ifndef _PTR_T
 #  define _PTR_T 
 #   ifdef __GNUC__
@@ -113,11 +104,6 @@
     typedef long pid_t;
 # endif /* _PID_T */
 
-# ifndef _SIGMASK_T
-#  define _SIGMASK_T
-    typedef long sigmask_t;
-# endif /* _SIGMASK_T */
-  
 # ifndef _SPEED_T
    /* I thought POSIX was supposed to protect all typedefs! */
 #  define _SPEED_T
@@ -126,8 +112,6 @@
 # if HPUXVERSION < 1100	/* XXX: Not true for 11.0 */
 extern uid_t getuid(), geteuid();
 extern gid_t getgid(), getegid();
-extern sigmask_t sigblock();
-extern sigmask_t sigsetmask();
 extern pid_t getpid();
 extern pid_t fork();
 extern void perror();
@@ -139,15 +123,13 @@ extern unsigned int alarm();
 extern unsigned int sleep();
 # endif /* HPUXVERSION < 1100 */
 # if HPUXVERSION < 800	/* XXX: Not true for 8.0 */
-extern void sigpause();
-extern sigmask_t sigspace();
 extern char *sbrk();
 # endif /* HPUXVERSION < 800 */
 #endif /* __hpux */
 
-#if (defined(_MINIX) && !defined(_MINIX_VMD)) || defined(__EMX__) || defined(COHERENT)
+#if (defined(_MINIX) && !defined(_MINIX_VMD)) || defined(__EMX__)
 typedef char * caddr_t;
-#endif /* (_MINIX && !_MINIX_VMD) || __EMX__ || COHERENT */
+#endif /* (_MINIX && !_MINIX_VMD) || __EMX__ */
 
 /***
  *** hp9000s500 running hpux-5.2
@@ -406,11 +388,6 @@ typedef char * caddr_t;
 # define _PTR_T 
     typedef void * ptr_t;
 #endif /* _PTR_T */
-
-#ifndef _SIGMASK_T
-# define _SIGMASK_T
-    typedef int sigmask_t;
-#endif /* _SIGMASK_T */
 
 #ifndef _IOCTL_T
 # define _IOCTL_T

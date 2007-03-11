@@ -1,4 +1,4 @@
-$ $Id: set17,v 1.2 2003/02/08 20:03:26 christos Exp $
+$ $tcsh: set17,v 1.3 2006/03/02 18:46:45 christos Exp $
 $ sh.proc.c
 $set 17 
 1 BUG: ootan taustatöö järel!\n
