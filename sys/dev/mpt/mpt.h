@@ -230,6 +230,9 @@ int mpt_modevent(module_t, int, void *);
 #define bus_dmamap_sync_range(dma_tag, dmamap, offset, len, op)	\
 	bus_dmamap_sync(dma_tag, dmamap, op)
 
+#if __FreeBSD_version < 600000
+#define	bus_get_dma_tag(x)	NULL
+#endif
 #if __FreeBSD_version >= 501102
 #define mpt_dma_tag_create(mpt, parent_tag, alignment, boundary,	\
 			   lowaddr, highaddr, filter, filterarg,	\

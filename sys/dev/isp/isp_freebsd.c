@@ -2127,10 +2127,7 @@ isp_watchdog(void *arg)
 }
 
 
-#if __FreeBSD_version >= 500000  
-/*
- * Support functions for Found/Lost
- */
+#if __FreeBSD_version >= 600000  
 static void
 isp_make_here(ispsoftc_t *isp, int tgt)
 {
