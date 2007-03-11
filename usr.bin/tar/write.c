@@ -26,27 +26,57 @@
 #include "bsdtar_platform.h"
 __FBSDID("$FreeBSD$");
 
-#include <sys/stat.h>
+#ifdef HAVE_SYS_TYPES_H
 #include <sys/types.h>
-#ifdef HAVE_POSIX_ACL
+#endif
+#ifdef HAVE_SYS_ACL_H
 #include <sys/acl.h>
+#endif
+#ifdef HAVE_SYS_IOCTL_H
+#include <sys/ioctl.h>
+#endif
+#ifdef HAVE_SYS_STAT_H
+#include <sys/stat.h>
 #endif
 #ifdef HAVE_ATTR_XATTR_H
 #include <attr/xattr.h>
 #endif
+#ifdef HAVE_ERRNO_H
 #include <errno.h>
-#include <fcntl.h>
-#include <fnmatch.h>
-#include <grp.h>
-#include <limits.h>
-#include <pwd.h>
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
-#include <unistd.h>
-#ifdef __linux
+#endif
+#ifdef HAVE_EXT2FS_EXT2_FS_H
 #include <ext2fs/ext2_fs.h>
-#include <sys/ioctl.h>
+#endif
+#ifdef HAVE_FCNTL_H
+#include <fcntl.h>
+#endif
+#ifdef HAVE_FNMATCH_H
+#include <fnmatch.h>
+#endif
+#ifdef HAVE_GRP_H
+#include <grp.h>
+#endif
+#ifdef HAVE_LIMITS_H
+#include <limits.h>
+#endif
+#ifdef HAVE_LINUX_FS_H
+#include <linux/fs.h>	/* for Linux file flags */
+#endif
+#ifdef HAVE_LINUX_EXT2_FS_H
+#include <linux/ext2_fs.h>	/* for Linux file flags */
+#endif
+#ifdef HAVE_PWD_H
+#include <pwd.h>
+#endif
+#include <stdio.h>
+#ifdef HAVE_STDLIB_H
+#include <stdlib.h>
+#endif
+#ifdef HAVE_STRING_H
+#include <string.h>
+#endif
+#ifdef HAVE_UNISTD_H
+#include <unistd.h>
 #endif
 
 #include "bsdtar.h"
@@ -820,7 +850,7 @@ write_entry(struct bsdtar *bsdtar, struct archive *a, const struct stat *st,
 	 * to inform us that the archive body won't get stored.  In
 	 * that case, just skip the write.
 	 */
-	if (fd >= 0 && archive_entry_size(entry) > 0)
+	if (e >= ARCHIVE_WARN && fd >= 0 && archive_entry_size(entry) > 0)
 		if (write_file_data(bsdtar, a, fd))
 			exit(1);
 
@@ -1395,7 +1425,7 @@ new_enough(struct bsdtar *bsdtar, const char *path, const struct stat *st)
 	if (bsdtar->archive_dir != NULL &&
 	    bsdtar->archive_dir->head != NULL) {
 		for (p = bsdtar->archive_dir->head; p != NULL; p = p->next) {
-			if (strcmp(path, p->name)==0)
+			if (pathcmp(path, p->name)==0)
 				return (p->mtime_sec < st->st_mtime ||
 				    (p->mtime_sec == st->st_mtime &&
 					p->mtime_nsec
@@ -1417,9 +1447,6 @@ add_dir_list(struct bsdtar *bsdtar, const char *path,
     time_t mtime_sec, int mtime_nsec)
 {
 	struct archive_dir_entry	*p;
-
-	if (path[0] == '.' && path[1] == '/' && path[2] != '\0')
-		path += 2;
 
 	/*
 	 * Search entire list to see if this file has appeared before.
