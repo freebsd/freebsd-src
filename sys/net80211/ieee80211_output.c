@@ -128,8 +128,8 @@ ieee80211_send_setup(struct ieee80211com *ic,
 	*(u_int16_t *)&wh->i_dur[0] = 0;
 	/* NB: use non-QoS tid */
 	*(u_int16_t *)&wh->i_seq[0] =
-	    htole16(ni->ni_txseqs[0] << IEEE80211_SEQ_SEQ_SHIFT);
-	ni->ni_txseqs[0]++;
+	    htole16(ni->ni_txseqs[IEEE80211_NONQOS_TID] << IEEE80211_SEQ_SEQ_SHIFT);
+	ni->ni_txseqs[IEEE80211_NONQOS_TID]++;
 #undef WH4
 }
 
@@ -740,8 +740,8 @@ ieee80211_encap(struct ieee80211com *ic, struct mbuf *m,
 		ni->ni_txseqs[tid]++;
 	} else {
 		*(u_int16_t *)wh->i_seq =
-		    htole16(ni->ni_txseqs[0] << IEEE80211_SEQ_SEQ_SHIFT);
-		ni->ni_txseqs[0]++;
+		    htole16(ni->ni_txseqs[IEEE80211_NONQOS_TID] << IEEE80211_SEQ_SEQ_SHIFT);
+		ni->ni_txseqs[IEEE80211_NONQOS_TID]++;
 	}
 	if (key != NULL) {
 		/*

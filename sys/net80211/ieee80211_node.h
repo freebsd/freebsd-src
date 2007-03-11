@@ -107,6 +107,7 @@ struct ieee80211_node {
 	u_int32_t		*ni_challenge;	/* shared-key challenge */
 	u_int8_t		*ni_wpa_ie;	/* captured WPA/RSN ie */
 	u_int8_t		*ni_wme_ie;	/* captured WME ie */
+#define	IEEE80211_NONQOS_TID	16		/* index for non-QoS sta */
 	u_int16_t		ni_txseqs[17];	/* tx seq per-tid */
 	u_int16_t		ni_rxseqs[17];	/* rx seq previous per-tid*/
 	u_int32_t		ni_rxfragstamp;	/* time stamp of last rx frag */
