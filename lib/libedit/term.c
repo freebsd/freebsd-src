@@ -29,7 +29,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$NetBSD: term.c,v 1.41 2005/08/08 14:05:37 christos Exp $
+ *	$NetBSD: term.c,v 1.45 2006/03/18 19:23:14 christos Exp $
  */
 
 #if !defined(lint) && !defined(SCCSID)
@@ -386,7 +386,8 @@ term_alloc(EditLine *el, const struct termcapstr *t, const char *cap)
          * New string is shorter; no need to allocate space
          */
 	if (clen <= tlen) {
-		(void) strcpy(*str, cap);	/* XXX strcpy is safe */
+		if (*str)
+			(void) strcpy(*str, cap);	/* XXX strcpy is safe */
 		return;
 	}
 	/*
@@ -460,8 +461,12 @@ term_alloc_display(EditLine *el)
 		return (-1);
 	for (i = 0; i < c->v; i++) {
 		b[i] = (char *) el_malloc((size_t) (sizeof(char) * (c->h + 1)));
-		if (b[i] == NULL)
+		if (b[i] == NULL) {
+			while (--i >= 0)
+				el_free((ptr_t) b[i]);
+			el_free((ptr_t) b);
 			return (-1);
+		}
 	}
 	b[c->v] = NULL;
 	el->el_display = b;
@@ -471,8 +476,12 @@ term_alloc_display(EditLine *el)
 		return (-1);
 	for (i = 0; i < c->v; i++) {
 		b[i] = (char *) el_malloc((size_t) (sizeof(char) * (c->h + 1)));
-		if (b[i] == NULL)
+		if (b[i] == NULL) {
+			while (--i >= 0)
+				el_free((ptr_t) b[i]);
+			el_free((ptr_t) b);
 			return (-1);
+		}
 	}
 	b[c->v] = NULL;
 	el->el_vdisplay = b;
@@ -1244,6 +1253,19 @@ term__flush(void)
 	(void) fflush(term_outfile);
 }
 
+/* term_writec():
+ *	Write the given character out, in a human readable form
+ */
+protected void
+term_writec(EditLine *el, int c)
+{
+	char buf[8];
+	int cnt = key__decode_char(buf, sizeof(buf), 0, c);
+	buf[cnt] = '\0';
+	term_overwrite(el, buf, cnt);
+	term__flush();
+}
+
 
 /* term_telltc():
  *	Print the current termcap characteristics
@@ -1271,11 +1293,17 @@ term_telltc(EditLine *el, int argc __unused,
 		(void) fprintf(el->el_outfile, "\tIt %s magic margins\n",
 		    EL_HAS_MAGIC_MARGINS ? "has" : "does not have");
 
-	for (t = tstr, ts = el->el_term.t_str; t->name != NULL; t++, ts++)
+	for (t = tstr, ts = el->el_term.t_str; t->name != NULL; t++, ts++) {
+		const char *ub;
+		if (*ts && **ts) {
+		    (void) key__decode_str(*ts, upbuf, sizeof(upbuf), "");
+		    ub = upbuf;
+		} else {
+		    ub = "(empty)";
+		}
 		(void) fprintf(el->el_outfile, "\t%25s (%s) == %s\n",
-		    t->long_name,
-		    t->name, *ts && **ts ?
-		    key__decode_str(*ts, upbuf, "") : "(empty)");
+		    t->long_name, t->name, ub);
+	}
 	(void) fputc('\n', el->el_outfile);
 	return (0);
 }
