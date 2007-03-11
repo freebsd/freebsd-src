@@ -687,7 +687,7 @@ ndis_attach(dev)
 		ic->ic_opmode = IEEE80211_M_STA;
 		ic->ic_caps = IEEE80211_C_IBSS;
 		ic->ic_state = IEEE80211_S_ASSOC;
-		ic->ic_modecaps = (1<<IEEE80211_MODE_AUTO);
+		setbit(ic->ic_modecaps, IEEE80211_MODE_AUTO);
 		len = 0;
 		r = ndis_get_info(sc, OID_802_11_NETWORK_TYPES_SUPPORTED,
 		    NULL, &len);
@@ -705,13 +705,13 @@ ndis_attach(dev)
 			switch (ntl->ntl_type[i]) {
 			case NDIS_80211_NETTYPE_11FH:
 			case NDIS_80211_NETTYPE_11DS:
-				ic->ic_modecaps |= (1<<IEEE80211_MODE_11B);
+				setbit(ic->ic_modecaps, IEEE80211_MODE_11B);
 				break;
 			case NDIS_80211_NETTYPE_11OFDM5:
-				ic->ic_modecaps |= (1<<IEEE80211_MODE_11A);
+				setbit(ic->ic_modecaps, IEEE80211_MODE_11A);
 				break;
 			case NDIS_80211_NETTYPE_11OFDM24:
-				ic->ic_modecaps |= (1<<IEEE80211_MODE_11G);
+				setbit(ic->ic_modecaps, IEEE80211_MODE_11G);
 				break;
 			default:
 				break;
@@ -750,11 +750,11 @@ nonettypes:
 	ic->ic_sup_rates[x].rs_nrates++
 
 		ic->ic_curmode = IEEE80211_MODE_AUTO;
-		if (ic->ic_modecaps & (1<<IEEE80211_MODE_11A))
+		if (isset(ic->ic_modecaps, IEEE80211_MODE_11A))
 			ic->ic_sup_rates[IEEE80211_MODE_11A].rs_nrates = 0;
-		if (ic->ic_modecaps & (1<<IEEE80211_MODE_11B))
+		if (isset(ic->ic_modecaps, IEEE80211_MODE_11B))
 			ic->ic_sup_rates[IEEE80211_MODE_11B].rs_nrates = 0;
-		if (ic->ic_modecaps & (1<<IEEE80211_MODE_11G))
+		if (isset(ic->ic_modecaps, IEEE80211_MODE_11G))
 			ic->ic_sup_rates[IEEE80211_MODE_11G].rs_nrates = 0;
 		for (i = 0; i < len; i++) {
 			switch (rates[i] & IEEE80211_RATE_VAL) {
@@ -763,11 +763,10 @@ nonettypes:
 			case 11:
 			case 10:
 			case 22:
-				if (!(ic->ic_modecaps &
-				    (1<<IEEE80211_MODE_11B))) {
+				if (isclr(ic->ic_modecaps, IEEE80211_MODE_11B)) {
 					/* Lazy-init 802.11b. */
-					ic->ic_modecaps |=
-					    (1<<IEEE80211_MODE_11B);
+					setbit(ic->ic_modecaps,
+					    IEEE80211_MODE_11B);
 					ic->ic_sup_rates[IEEE80211_MODE_11B].
 					    rs_nrates = 0;
 				}
@@ -775,11 +774,11 @@ nonettypes:
 				INCRATE(IEEE80211_MODE_11B);
 				break;
 			default:
-				if (ic->ic_modecaps & (1<<IEEE80211_MODE_11A)) {
+				if (isset(ic->ic_modecaps, IEEE80211_MODE_11A)) {
 					SETRATE(IEEE80211_MODE_11A, rates[i]);
 					INCRATE(IEEE80211_MODE_11A);
 				}
-				if (ic->ic_modecaps & (1<<IEEE80211_MODE_11G)) {
+				if (isset(ic->ic_modecaps, IEEE80211_MODE_11G)) {
 					SETRATE(IEEE80211_MODE_11G, rates[i]);
 					INCRATE(IEEE80211_MODE_11G);
 				}
@@ -794,7 +793,7 @@ nonettypes:
 		 * just cheat here.  Just how in the heck do
 		 * we detect turbo modes, though?
 		 */
-		if (ic->ic_modecaps & (1<<IEEE80211_MODE_11B)) {
+		if (isset(ic->ic_modecaps, IEEE80211_MODE_11B)) {
 			TESTSETRATE(IEEE80211_MODE_11B,
 			    IEEE80211_RATE_BASIC|2);
 			TESTSETRATE(IEEE80211_MODE_11B,
@@ -804,13 +803,13 @@ nonettypes:
 			TESTSETRATE(IEEE80211_MODE_11B,
 			    IEEE80211_RATE_BASIC|22);
 		}
-		if (ic->ic_modecaps & (1<<IEEE80211_MODE_11G)) {
+		if (isset(ic->ic_modecaps, IEEE80211_MODE_11G)) {
 			TESTSETRATE(IEEE80211_MODE_11G, 47);
 			TESTSETRATE(IEEE80211_MODE_11G, 72);
 			TESTSETRATE(IEEE80211_MODE_11G, 96);
 			TESTSETRATE(IEEE80211_MODE_11G, 108);
 		}
-		if (ic->ic_modecaps & (1<<IEEE80211_MODE_11A)) {
+		if (isset(ic->ic_modecaps, IEEE80211_MODE_11A)) {
 			TESTSETRATE(IEEE80211_MODE_11A, 47);
 			TESTSETRATE(IEEE80211_MODE_11A, 72);
 			TESTSETRATE(IEEE80211_MODE_11A, 96);
@@ -2629,7 +2628,7 @@ ndis_getstate_80211(sc)
 		device_printf (sc->ndis_dev, "get link speed failed: %d\n",
 		    rval);
 
-	if (ic->ic_modecaps & (1<<IEEE80211_MODE_11B)) {
+	if (isset(ic->ic_modecaps, IEEE80211_MODE_11B)) {
 		ic->ic_bss->ni_rates = ic->ic_sup_rates[IEEE80211_MODE_11B];
 		for (i = 0; i < ic->ic_bss->ni_rates.rs_nrates; i++) {
 			if ((ic->ic_bss->ni_rates.rs_rates[i] &
@@ -2639,7 +2638,7 @@ ndis_getstate_80211(sc)
 	}
 
 	if (i == ic->ic_bss->ni_rates.rs_nrates &&
-	    ic->ic_modecaps & (1<<IEEE80211_MODE_11G)) {
+	    isset(ic->ic_modecaps, IEEE80211_MODE_11G)) {
 		ic->ic_bss->ni_rates = ic->ic_sup_rates[IEEE80211_MODE_11G];
 		for (i = 0; i < ic->ic_bss->ni_rates.rs_nrates; i++) {
 			if ((ic->ic_bss->ni_rates.rs_rates[i] &
