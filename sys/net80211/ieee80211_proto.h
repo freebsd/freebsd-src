@@ -181,7 +181,8 @@ const struct ieee80211_aclator *ieee80211_aclator_get(const char *name);
 #define	IEEE80211_F_DONEGO	0x00000004	/* calc negotiated rate */
 #define	IEEE80211_F_DODEL	0x00000008	/* delete ignore rate */
 #define	IEEE80211_F_JOIN	0x00000010	/* sta joining our bss */
-int	ieee80211_fix_rate(struct ieee80211_node *, int);
+int	ieee80211_fix_rate(struct ieee80211_node *,
+		struct ieee80211_rateset *, int);
 
 /*
  * WME/WMM support.
