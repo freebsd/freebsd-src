@@ -1988,9 +1988,9 @@ ieee80211_dump_node(struct ieee80211_node_table *nt, struct ieee80211_node *ni)
 	printf("\tassocid 0x%x txpower %u vlan %u\n",
 		ni->ni_associd, ni->ni_txpower, ni->ni_vlan);
 	printf("\ttxseq %u rxseq %u fragno %u rxfragstamp %u\n",
-		ni->ni_txseqs[0],
-		ni->ni_rxseqs[0] >> IEEE80211_SEQ_SEQ_SHIFT,
-		ni->ni_rxseqs[0] & IEEE80211_SEQ_FRAG_MASK,
+		ni->ni_txseqs[IEEE80211_NONQOS_TID],
+		ni->ni_rxseqs[IEEE80211_NONQOS_TID] >> IEEE80211_SEQ_SEQ_SHIFT,
+		ni->ni_rxseqs[IEEE80211_NONQOS_TID] & IEEE80211_SEQ_FRAG_MASK,
 		ni->ni_rxfragstamp);
 	printf("\trstamp %u rssi %u intval %u capinfo 0x%x\n",
 		ni->ni_rstamp, ni->ni_rssi, ni->ni_intval, ni->ni_capinfo);
