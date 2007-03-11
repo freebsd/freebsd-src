@@ -306,7 +306,7 @@ _archive_write_header(struct archive *_a, struct archive_entry *entry)
 	    archive_entry_ino(entry) == a->skip_file_ino) {
 		archive_set_error(&a->archive, 0,
 		    "Can't add archive to itself");
-		return (ARCHIVE_WARN);
+		return (ARCHIVE_FAILED);
 	}
 
 	/* Format and write header. */
