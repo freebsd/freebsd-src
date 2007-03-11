@@ -25,7 +25,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd November 3, 2006
+.Dd February 15, 2007
 .Dt MDMFS 8
 .Os
 .Sh NAME
@@ -36,11 +36,12 @@
 driver
 .Sh SYNOPSIS
 .Nm
-.Op Fl DLlMNSUX
+.Op Fl DLlMNPSUX
 .Op Fl a Ar maxcontig
 .Op Fl b Ar block-size
-.Op Fl c Ar cylinders
-.Op Fl d Ar rotdelay
+.Op Fl c Ar blocks-per-cylinder-group
+.Op Fl d Ar max-extent-size 
+.Op Fl E Ar path-mdconfig
 .Op Fl e Ar maxbpg
 .Op Fl F Ar file
 .Op Fl f Ar frag-size
@@ -68,10 +69,15 @@ utility configures an
 .Xr md 4
 disk using
 .Xr mdconfig 8 ,
-puts a UFS file system on it using
+puts a UFS file system on it (unless
+.Fl P
+was specified) using
 .Xr newfs 8 ,
 and mounts it using
 .Xr mount 8 .
+It can handle 
+.Xr geom_uzip 4 
+compressed disk images, as long as the kernel supports this GEOM class.
 All the command line options are passed to the appropriate program
 at the appropriate stage in order to achieve the desired effect.
 .Pp
@@ -111,19 +117,24 @@ out before forcing a rotational delay
 option).
 .It Fl b Ar block-size
 The block size of the file system, in bytes.
-.It Fl c Ar cylinders
-The number of cylinders per cylinder group in the file system.
+.It Fl c Ar blocks-per-cylinder-group
+The number of blocks per cylinder group in the file system.
 .It Fl D
 If not using auto-unit,
 do not run
 .Xr mdconfig 8
 to try to detach the unit before attaching it.
-.It Fl d Ar rotdelay
-Specify the minimum time in milliseconds required to initiate another
-disk transfer on the same cylinder.
-Modern disks with read/write-behind achieve higher performance without
-this feature,
-so it is best to leave it at 0 milliseconds.
+.It Fl d Ar max-extent-size
+The file system may choose to store large files using extents.
+This parameter specifies the largest extent size that may be
+used.  It is presently limited to its default value which is 16
+times the file system blocksize.
+.It Fl E Ar path-mdconfig
+Use
+.Ar path-mdconfig
+as a location of the
+.Xr mdconfig 8
+utility.
 .It Fl e Ar maxbpg
 Indicate the maximum number of blocks any single file can allocate
 out of a cylinder group before it is forced to begin allocating
@@ -172,6 +183,13 @@ Specify the mount options with which to mount the file system.
 See
 .Xr mount 8
 for more information.
+.It Fl P
+Preserve the existing file system;
+do not run
+.Xr newfs 8 .
+This only makes sense if
+.Fl F
+is specified to create a vnode-backed disk.
 .It Fl p Ar permissions
 Set the file (directory) permissions of the mount point
 .Ar mount-point
@@ -292,6 +310,23 @@ do not use soft-updates on it and mount it
 .Cm async :
 .Pp
 .Dl "mdmfs -M -S -o async -s 16m md1 /tmp"
+.Pp
+Create and mount a 
+.Xr geom_uzip 4
+based compressed disk image:
+.Pp
+.Dl "mdmfs -P -F foo.uzip -oro md.uzip /tmp/"
+.Pp
+Mount the same image, specifying the
+.Pa /dev/md1
+device:
+.Pp
+.Dl "mdmfs -P -F foo.uzip -oro md1.uzip /tmp/"
+.Pp
+Configure a vnode-backed file system and mount its first partition,
+using automatic device numbering:
+.Pp
+.Dl "mdmfs -P -F foo.img mds1a /tmp/"
 .Sh COMPATIBILITY
 The
 .Nm
