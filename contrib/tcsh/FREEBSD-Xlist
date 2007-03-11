@@ -5,4 +5,5 @@ $FreeBSD$
 */config/bsd
 */config/bsdreno
 */config/[c-z]*
+*/tests
 */win32
