@@ -29,7 +29,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$NetBSD: vi.c,v 1.24 2005/08/10 12:46:24 christos Exp $
+ *	$NetBSD: vi.c,v 1.25 2006/03/06 21:11:56 christos Exp $
  */
 
 #if !defined(lint) && !defined(SCCSID)
@@ -595,13 +595,12 @@ vi_delete_prev_char(EditLine *el, int c __unused)
  */
 protected el_action_t
 /*ARGSUSED*/
-vi_list_or_eof(EditLine *el, int c __unused)
+vi_list_or_eof(EditLine *el, int c)
 {
 
 	if (el->el_line.cursor == el->el_line.lastchar) {
 		if (el->el_line.cursor == el->el_line.buffer) {
-			term_overwrite(el, STReof, 4);	/* then do a EOF */
-			term__flush();
+			term_writec(el, c);	/* then do a EOF */
 			return (CC_EOF);
 		} else {
 			/*
