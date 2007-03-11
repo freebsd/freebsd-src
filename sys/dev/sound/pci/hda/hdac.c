@@ -1784,6 +1784,12 @@ hdac_widget_pin_getconfig(struct hdac_widget *w)
 			config |= (HDA_CONFIG_DEFAULTCONF_DEVICE_MIC_IN |
 			    HDA_CONFIG_DEFAULTCONF_CONNECTIVITY_FIXED);
 			break;
+		case 21:
+			config &= ~(HDA_CONFIG_DEFAULTCONF_DEVICE_MASK |
+			    HDA_CONFIG_DEFAULTCONF_CONNECTIVITY_MASK);
+			config |= (HDA_CONFIG_DEFAULTCONF_DEVICE_CD |
+			    HDA_CONFIG_DEFAULTCONF_CONNECTIVITY_FIXED);
+			break;
 		default:
 			break;
 		}
