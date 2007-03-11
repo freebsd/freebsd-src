@@ -88,21 +88,6 @@ extern struct cpuhead cpuhead;
 #endif
 
 /*
- * MI PCPU support functions
- *
- * PCPU_LAZY_INC() -	Lazily increment a per-cpu stats counter, without
- *			guarenteeing atomicity or even necessarily consistency.
- *
- *			XXX we need to create MD primitives to support
- *			this to guarentee at least some level of consistency,
- *			i.e., to prevent us from totally corrupting the 
- *			counters due to preemption in a multi-instruction
- *			increment sequence for architectures that do not
- *			support single-instruction memory increments.
- */
-#define PCPU_LAZY_INC(var)	(++*PCPU_PTR(var))
-
-/*
  * Machine dependent callouts.  cpu_pcpu_init() is responsible for
  * initializing machine dependent fields of struct pcpu, and
  * db_show_mdpcpu() is responsible for handling machine dependent
