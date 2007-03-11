@@ -344,14 +344,14 @@ findrix(const struct ieee80211_rateset *rs, int r)
 }
 
 int
-ieee80211_fix_rate(struct ieee80211_node *ni, int flags)
+ieee80211_fix_rate(struct ieee80211_node *ni,
+	struct ieee80211_rateset *nrs, int flags)
 {
 #define	RV(v)	((v) & IEEE80211_RATE_VAL)
 	struct ieee80211com *ic = ni->ni_ic;
 	int i, j, rix, error;
 	int okrate, badrate, fixedrate;
 	const struct ieee80211_rateset *srs;
-	struct ieee80211_rateset *nrs;
 	u_int8_t r;
 
 	/*
@@ -364,7 +364,6 @@ ieee80211_fix_rate(struct ieee80211_node *ni, int flags)
 	error = 0;
 	okrate = badrate = fixedrate = 0;
 	srs = ieee80211_get_suprates(ic, ni->ni_chan);
-	nrs = &ni->ni_rates;
 	for (i = 0; i < nrs->rs_nrates; ) {
 		if (flags & IEEE80211_F_DOSORT) {
 			/*
