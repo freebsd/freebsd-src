@@ -47,6 +47,7 @@
 #define	HAVE_ACL_GET_PERM 0
 #define	HAVE_ACL_GET_PERM_NP 1
 #define	HAVE_ACL_PERMSET_T 1
+#define	HAVE_ACL_USER 1
 #endif
 #define	HAVE_BZLIB_H 1
 #define	HAVE_CHFLAGS 1
