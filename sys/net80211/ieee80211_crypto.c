@@ -90,7 +90,7 @@ null_key_delete(struct ieee80211com *ic, const struct ieee80211_key *k)
 }
 static 	int
 null_key_set(struct ieee80211com *ic, const struct ieee80211_key *k,
-	     const u_int8_t mac[IEEE80211_ADDR_LEN])
+	const u_int8_t mac[IEEE80211_ADDR_LEN])
 {
 	return 1;
 }
