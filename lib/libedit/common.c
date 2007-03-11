@@ -29,7 +29,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$NetBSD: common.c,v 1.18 2005/08/08 14:05:37 christos Exp $
+ *	$NetBSD: common.c,v 1.19 2006/03/06 21:11:56 christos Exp $
  */
 
 #if !defined(lint) && !defined(SCCSID)
@@ -135,7 +135,7 @@ ed_delete_prev_word(EditLine *el, int c __unused)
  */
 protected el_action_t
 /*ARGSUSED*/
-ed_delete_next_char(EditLine *el, int c __unused)
+ed_delete_next_char(EditLine *el, int c)
 {
 #ifdef notdef			/* XXX */
 #define	EL	el->el_line
@@ -152,9 +152,8 @@ ed_delete_next_char(EditLine *el, int c __unused)
 #ifdef KSHVI
 				return (CC_ERROR);
 #else
-				term_overwrite(el, STReof, 4);
-					/* then do an EOF */
-				term__flush();
+				/* then do an EOF */
+				term_writechar(el, c);
 				return (CC_EOF);
 #endif
 			} else {
