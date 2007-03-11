@@ -48,6 +48,7 @@ __FBSDID("$FreeBSD$");
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <ctype.h>
 #include <unistd.h>
 
 typedef enum { false, true } bool;
@@ -66,7 +67,9 @@ static	bool loudsubs;		/* Suppress output from helper programs? */
 static	bool norun;		/* Actually run the helper programs? */
 static	int unit;      		/* The unit we're working with. */
 static	const char *mdname;	/* Name of memory disk device (e.g., "md"). */
+static	const char *mdsuffix;	/* Suffix of memory disk device (e.g., ".uzip"). */
 static	size_t mdnamelen;	/* Length of mdname. */
+static	const char *path_mdconfig =_PATH_MDCONFIG;
 
 static void	 argappend(char **, const char *, ...) __printflike(2, 3);
 static void	 debugprintf(const char *, ...) __printflike(1, 2);
@@ -88,7 +91,7 @@ main(int argc, char **argv)
 	    *mount_arg;
 	enum md_types mdtype;		/* The type of our memory disk. */
 	bool have_mdtype;
-	bool detach, softdep, autounit;
+	bool detach, softdep, autounit, newfs;
 	char *mtpoint, *unitstr;
 	char *p;
 	int ch;
@@ -100,6 +103,7 @@ main(int argc, char **argv)
 	detach = true;
 	softdep = true;
 	autounit = false;
+	newfs = true;
 	have_mdtype = false;
 	mdtype = MD_SWAP;
 	mdname = MD_NAME;
@@ -123,7 +127,7 @@ main(int argc, char **argv)
 	}
 
 	while ((ch = getopt(argc, argv,
-	    "a:b:Cc:Dd:e:F:f:hi:LlMm:Nn:O:o:p:Ss:t:Uv:w:X")) != -1)
+	    "a:b:Cc:Dd:E:e:F:f:hi:LlMm:Nn:O:o:Pp:Ss:t:Uv:w:X")) != -1)
 		switch (ch) {
 		case 'a':
 			argappend(&newfs_arg, "-a %s", optarg);
@@ -142,6 +146,9 @@ main(int argc, char **argv)
 			break;
 		case 'd':
 			argappend(&newfs_arg, "-d %s", optarg);
+			break;
+		case 'E':
+			path_mdconfig = optarg;
 			break;
 		case 'e':
 			argappend(&newfs_arg, "-e %s", optarg);
@@ -189,6 +196,9 @@ main(int argc, char **argv)
 		case 'o':
 			argappend(&mount_arg, "-o %s", optarg);
 			break;
+		case 'P':
+			newfs = false;
+			break;
 		case 'p':
 			if ((set = setmode(optarg)) == NULL)
 				usage();
@@ -228,14 +238,16 @@ main(int argc, char **argv)
 		unitstr += 5;
 	if (strncmp(unitstr, mdname, mdnamelen) == 0)
 		unitstr += mdnamelen;
-	if (*unitstr == '\0') {
+	if (!isdigit(*unitstr)) {
 		autounit = true;
 		unit = -1;
+		mdsuffix = unitstr;
 	} else {
 		ul = strtoul(unitstr, &p, 10);
-		if (ul == ULONG_MAX || *p != '\0')
+		if (ul == ULONG_MAX)
 			errx(1, "bad device unit: %s", unitstr);
 		unit = ul;
+		mdsuffix = p;	/* can be empty */
 	}
 
 	mtpoint = argv[1];
@@ -243,6 +255,8 @@ main(int argc, char **argv)
 		mdtype = MD_SWAP;
 	if (softdep)
 		argappend(&newfs_arg, "-U");
+	if (mdtype != MD_VNODE && !newfs)
+		errx(1, "-P requires a vnode-backed disk");
 
 	/* Do the work. */
 	if (detach && !autounit)
@@ -251,7 +265,8 @@ main(int argc, char **argv)
 		do_mdconfig_attach_au(mdconfig_arg, mdtype);
 	else
 		do_mdconfig_attach(mdconfig_arg, mdtype);
-	do_newfs(newfs_arg);
+	if (newfs)
+		do_newfs(newfs_arg);
 	do_mount(mount_arg, mtpoint);
 	do_mtptsetup(mtpoint, &mi);
 
@@ -326,7 +341,7 @@ do_mdconfig_attach(const char *args, const enum md_types mdtype)
 	default:
 		abort();
 	}
-	rv = run(NULL, "%s -a %s%s -u %s%d", _PATH_MDCONFIG, ta, args,
+	rv = run(NULL, "%s -a %s%s -u %s%d", path_mdconfig, ta, args,
 	    mdname, unit);
 	if (rv)
 		errx(1, "mdconfig (attach) exited with error code %d", rv);
@@ -360,13 +375,13 @@ do_mdconfig_attach_au(const char *args, const enum md_types mdtype)
 	default:
 		abort();
 	}
-	rv = run(&fd, "%s -a %s%s", _PATH_MDCONFIG, ta, args);
+	rv = run(&fd, "%s -a %s%s", path_mdconfig, ta, args);
 	if (rv)
 		errx(1, "mdconfig (attach) exited with error code %d", rv);
 
 	/* Receive the unit number. */
 	if (norun) {	/* Since we didn't run, we can't read.  Fake it. */
-		unit = -1;
+		unit = 0;
 		return;
 	}
 	sfd = fdopen(fd, "r");
@@ -399,7 +414,7 @@ do_mdconfig_detach(void)
 {
 	int rv;
 
-	rv = run(NULL, "%s -d -u %s%d", _PATH_MDCONFIG, mdname, unit);
+	rv = run(NULL, "%s -d -u %s%d", path_mdconfig, mdname, unit);
 	if (rv && debug)	/* This is allowed to fail. */
 		warnx("mdconfig (detach) exited with error code %d (ignored)",
 		      rv);
@@ -413,8 +428,8 @@ do_mount(const char *args, const char *mtpoint)
 {
 	int rv;
 
-	rv = run(NULL, "%s%s /dev/%s%d %s", _PATH_MOUNT, args,
-	    mdname, unit, mtpoint);
+	rv = run(NULL, "%s%s /dev/%s%d%s %s", _PATH_MOUNT, args,
+	    mdname, unit, mdsuffix, mtpoint);
 	if (rv)
 		errx(1, "mount exited with error code %d", rv);
 }
@@ -640,10 +655,11 @@ usage(void)
 {
 
 	fprintf(stderr,
-"usage: %s [-DLlMNSUX] [-a maxcontig] [-b block-size] [-c cylinders]\n"
-"\t[-d rotdelay] [-e maxbpg] [-F file] [-f frag-size] [-i bytes]\n"
-"\t[-m percent-free] [-n rotational-positions] [-O optimization]\n"
-"\t[-o mount-options] [-p permissions] [-s size] [-v version]\n"
-"\t[-w user:group] md-device mount-point\n", getprogname());
+"usage: %s [-DLlMNPSUX] [-a maxcontig] [-b block-size]\n"
+"\t[-c blocks-per-cylinder-group][-d max-extent-size] [-E path-mdconfig]\n"
+"\t[-e maxbpg] [-F file] [-f frag-size] [-i bytes] [-m percent-free]\n"
+"\t[-n rotational-positions] [-O optimization] [-o mount-options]\n"
+"\t[-p permissions] [-s size] [-v version] [-w user:group]\n"
+"\tmd-device mount-point\n", getprogname());
 	exit(1);
 }
