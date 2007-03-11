@@ -62,6 +62,7 @@ void			xpt_free_path(struct cam_path *path);
 int			xpt_path_comp(struct cam_path *path1,
 				      struct cam_path *path2);
 void			xpt_print_path(struct cam_path *path);
+void			xpt_print(struct cam_path *path, const char *fmt, ...);
 path_id_t		xpt_path_path_id(struct cam_path *path);
 target_id_t		xpt_path_target_id(struct cam_path *path);
 lun_id_t		xpt_path_lun_id(struct cam_path *path);

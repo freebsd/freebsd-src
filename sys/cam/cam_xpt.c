@@ -60,6 +60,7 @@
 #include <cam/scsi/scsi_all.h>
 #include <cam/scsi/scsi_message.h>
 #include <cam/scsi/scsi_pass.h>
+#include <machine/stdarg.h>	/* for xpt_print below */
 #include "opt_cam.h"
 
 /* Datastructures internal to the xpt layer */
@@ -4002,6 +4003,16 @@ xpt_print_path(struct cam_path *path)
 		else
 			printf("X): ");
 	}
+}
+
+void
+xpt_print(struct cam_path *path, const char *fmt, ...)
+{
+	va_list ap;
+	xpt_print_path(path);
+	va_start(ap, fmt);
+	vprintf(fmt, ap);
+	va_end(ap);
 }
 
 path_id_t
