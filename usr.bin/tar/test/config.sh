@@ -30,29 +30,42 @@ THISDIR=`cd \`dirname $0\`;/bin/pwd`
 if [ -z "$TESTDIR" ]; then
     TESTDIR=/tmp/bsdtar-`echo $0 | sed -e 's|.*/||' -e 's|\.sh||' -e 's/[^a-z0-9_-]/_/g'`
 fi
-# Use bsdtar we just built by default
+
+# Find bsdtar
+# The first three paths here are the usual locations of a bsdtar
+# that has just been built.  The remaining paths might find a bsdtar
+# installed on the local system somewhere.
 if [ -z "$BSDTAR" ]; then
-    BSDTAR=$THISDIR/../../bsdtar
+    for T in "$THISDIR/../bsdtar" "$THISDIR/../../bsdtar" 		\
+	"/usr/obj`dirname $THISDIR`/bsdtar" "/usr/local/bin/bsdtar"	\
+	"/usr/bin/bsdtar" "/usr/bin/tar" "bsdtar" "tar"
+      do
+      if ( /bin/sh -c "$T --version" | grep "bsdtar" ) >/dev/null 2>&1; then
+	  BSDTAR="$T"
+	  break
+      fi
+    done
 fi
-# Try 'gtar', then 'tar', then '/usr/local/bin/gtar' to find GNU tar
+
+# Find GNU tar
 if [ -z "$GTAR" ]; then
-    if ( /bin/sh -c 'gtar --version' | grep 'GNU tar' ) > /dev/null 2>&1; then
-	GTAR=gtar
-    fi
+    for T in gtar gnutar tar /usr/local/bin/gtar* /usr/local/bin/gnutar* /usr/bin/gtar* /usr/bin/gnutar*
+    do
+	if ( /bin/sh -c "$T --version" | grep "GNU tar" ) >/dev/null 2>&1; then
+	    GTAR="$T"
+	    break
+	fi
+    done
 fi
-if [ -z "$GTAR" ]; then
-    if ( /bin/sh -c 'tar --version' | grep 'GNU tar' ) > /dev/null 2>&1; then
-	GTAR=tar
-    fi
-fi
-if [ -z "$GTAR" ]; then
-    if ( /bin/sh -c '/usr/local/bin/gtar --version' | grep 'GNU tar' ) > /dev/null 2>&1; then
-	GTAR=/usr/local/bin/gtar
-    fi
-fi
+
+# Find CPIO
 if [ -z "$CPIO" ]; then
     CPIO=cpio
 fi
+
+echo BSDTAR=$BSDTAR '('`$BSDTAR --version`')'
+echo GTAR=$GTAR '('`$GTAR --version | head -n 1`')'
+echo CPIO=$CPIO '('`$CPIO --version`')'
 
 # Remove and recreate the directory we'll use for these tests
 rm -rf $TESTDIR
