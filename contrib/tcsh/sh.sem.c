@@ -1,4 +1,4 @@
-/* $Header: /src/pub/tcsh/sh.sem.c,v 3.69 2005/01/18 20:24:51 christos Exp $ */
+/* $Header: /p/tcsh/cvsroot/tcsh/sh.sem.c,v 3.78 2006/10/14 17:23:39 christos Exp $ */
 /*
  * sh.sem.c: I/O redirections and job forking. A touchy issue!
  *	     Most stuff with builtins is incorrect
@@ -33,7 +33,7 @@
  */
 #include "sh.h"
 
-RCSID("$Id: sh.sem.c,v 3.69 2005/01/18 20:24:51 christos Exp $")
+RCSID("$tcsh: sh.sem.c,v 3.78 2006/10/14 17:23:39 christos Exp $")
 
 #include "tc.h"
 #include "tw.h"
@@ -56,11 +56,11 @@ RCSID("$Id: sh.sem.c,v 3.69 2005/01/18 20:24:51 christos Exp $")
 #endif /* __sparc__ || sparc */
 
 #ifdef VFORK
-static	RETSIGTYPE	vffree	__P((int));
+static	void		vffree		(int);
 #endif 
-static	Char		*splicepipe	__P((struct command *, Char *));
-static	void		 doio		__P((struct command *, int *, int *));
-static	void		 chkclob	__P((char *));
+static	Char		*splicepipe	(struct command *, Char *);
+static	void		 doio		(struct command *, int *, int *);
+static	void		 chkclob	(const char *);
 
 /*
  * C shell
@@ -84,19 +84,15 @@ static	void		 chkclob	__P((char *));
 
 /*VARARGS 1*/
 void
-execute(t, wanttty, pipein, pipeout, do_glob)
-    struct command *t;
-    int     wanttty;
-    int *pipein, *pipeout;
-    int do_glob;
+execute(struct command *t, volatile int wanttty, int *pipein, int *pipeout,
+    int do_glob)
 {
     int    forked = 0;
-    struct biltins *bifunc;
-    int     pid = 0;
+    const struct biltins * volatile bifunc;
+    pid_t pid = 0;
     int     pv[2];
-#ifdef BSDSIGS
-    static sigmask_t csigmask;
-#endif /* BSDSIGS */
+    sigset_t set;
+    static sigset_t csigset;
 #ifdef VFORK
     static int onosigchld = 0;
 #endif /* VFORK */
@@ -131,47 +127,56 @@ execute(t, wanttty, pipein, pipeout, do_glob)
      */
     if (implicit_cd && (intty || intact) && t->t_dcom && t->t_dcom[0] &&
 	 t->t_dcom[0][0] && (blklen(t->t_dcom) == 1) && !noexec) {
-	Char sCName[MAXPATHLEN];
-	Char *pCN;
+	Char *sCName;
 	struct stat stbuf;
 	char *pathname;
 
-	dollar(sCName, t->t_dcom[0]);
-	pCN = sCName;
-	if (pCN[0] == '~') {
-	    Char sCPath[MAXPATHLEN];
-	    Char *pCP = sCPath;
+	sCName = dollar(t->t_dcom[0]);
+	if (sCName != NULL && sCName[0] == '~') {
+	    struct Strbuf buf = Strbuf_INIT;
+	    const Char *name_end;
 
-	    ++pCN;
-	    while (*pCN && *pCN != '/')
-		*pCP++ = *pCN++;
-	    *pCP = 0;
-	    if (sCPath[0])
-		gethdir(sCPath);
-	    else
-		(void) Strcpy(sCPath, varval(STRhome));
-	    catn(sCPath, pCN, MAXPATHLEN);
-	    (void) Strcpy(sCName, sCPath);
+	    for (name_end = sCName + 1; *name_end != '\0' && *name_end != '/';
+		 name_end++)
+		continue;
+	    if (name_end != sCName + 1) {
+		Char *name, *home;
+
+		name = Strnsave(sCName + 1, name_end - (sCName + 1));
+		home = gethdir(name);
+		if (home != NULL) {
+		    Strbuf_append(&buf, home);
+		    xfree(home);
+		} else
+		    Strbuf_append(&buf, name);
+		xfree(name);
+	    } else
+		Strbuf_append(&buf, varval(STRhome));
+	    Strbuf_append(&buf, name_end);
+	    xfree(sCName);
+	    sCName = Strbuf_finish(&buf);
 	}
-    
+
 	pathname = short2str(sCName);
+	xfree(sCName);
 	/* if this is a dir, tack a "cd" on as the first arg */
-	if ((stat(pathname, &stbuf) != -1 && S_ISDIR(stbuf.st_mode))
+	if (pathname != NULL &&
+	    ((stat(pathname, &stbuf) != -1 && S_ISDIR(stbuf.st_mode))
 #ifdef WINNT_NATIVE
-	    || (pathname[0] && pathname[1] == ':' && pathname[2] == '\0')
+	     || (pathname[0] && pathname[1] == ':' && pathname[2] == '\0')
 #endif /* WINNT_NATIVE */
-	) {
+	     )) {
 	    Char *vCD[2];
 	    Char **ot_dcom = t->t_dcom;
 	
 	    vCD[0] = Strsave(STRcd);
 	    vCD[1] = NULL;
 	    t->t_dcom = blkspl(vCD, ot_dcom);
+	    xfree(ot_dcom);
 	    if (implicit_cd > 1) {
 		blkpr(t->t_dcom);
 		xputchar( '\n' );
 	    }
-	    xfree((ptr_t) ot_dcom);
 	}
     }
 
@@ -185,7 +190,8 @@ execute(t, wanttty, pipein, pipeout, do_glob)
 
     case NODE_COMMAND:
 	if ((t->t_dcom[0][0] & (QUOTE | TRIM)) == QUOTE)
-	    (void) Strcpy(t->t_dcom[0], t->t_dcom[0] + 1);
+	    memmove(t->t_dcom[0], t->t_dcom[0] + 1,
+		    (Strlen(t->t_dcom[0] + 1) + 1) * sizeof (*t->t_dcom[0]));
 	if ((t->t_dflg & F_REPEAT) == 0)
 	    Dfix(t);		/* $ " ' \ */
 	if (t->t_dcom[0] == 0) {
@@ -206,13 +212,13 @@ execute(t, wanttty, pipein, pipeout, do_glob)
 	 * If noexec then this is all we do.
 	 */
 	if (t->t_dflg & F_READ) {
-	    (void) close(0);
+	    xclose(0);
 	    heredoc(t->t_dlef);
 	    if (noexec)
-		(void) close(0);
+		xclose(0);
 	}
 
-	set(STRstatus, Strsave(STR0), VAR_READWRITE);
+	setcopy(STRstatus, STR0, VAR_READWRITE);
 
 	/*
 	 * This mess is the necessary kludge to handle the prefix builtins:
@@ -287,10 +293,12 @@ execute(t, wanttty, pipein, pipeout, do_glob)
 	     * Check if we have a builtin function and remember which one.
 	     */
 	    bifunc = isbfunc(t);
- 	    if (noexec && bifunc) {
+ 	    if (noexec) {
 		/*
 		 * Continue for builtins that are part of the scripting language
 		 */
+		if (bifunc == NULL)
+		    break;
 		if (bifunc->bfunct != (bfunc_t)dobreak	&&
 		    bifunc->bfunct != (bfunc_t)docontin	&&
 		    bifunc->bfunct != (bfunc_t)doelse	&&
@@ -320,8 +328,10 @@ execute(t, wanttty, pipein, pipeout, do_glob)
 	 */
 	if (t->t_dtyp == NODE_COMMAND && !bifunc && !noexec && intty) {
 	    Char *cmd = unparse(t);
+
+	    cleanup_push(cmd, xfree);
 	    job_cmd(cmd);
-	    xfree(cmd);
+	    cleanup_until(cmd);
 	}
 	   
 	/*
@@ -366,22 +376,16 @@ execute(t, wanttty, pipein, pipeout, do_glob)
 		 * not die before we can set the process group
 		 */
 		if (wanttty >= 0 && !nosigchld) {
-#ifdef BSDSIGS
-		    csigmask = sigblock(sigmask(SIGCHLD));
-#else /* !BSDSIGS */
-		    (void) sighold(SIGCHLD);
-#endif /* BSDSIGS */
+		    sigemptyset(&set);
+		    sigaddset(&set, SIGCHLD);
+		    (void)sigprocmask(SIG_BLOCK, &set, &csigset);
 
 		    nosigchld = 1;
 		}
 
 		pid = pfork(t, wanttty);
 		if (pid == 0 && nosigchld) {
-#ifdef BSDSIGS
-		    (void) sigsetmask(csigmask);
-#else /* !BSDSIGS */
-		    (void) sigrelse(SIGCHLD);
-#endif /* BSDSIGS */
+		    sigprocmask(SIG_SETMASK, &csigset, NULL);
 		    nosigchld = 0;
 		}
 		else if (pid != 0 && (t->t_dflg & F_AMPERSAND))
@@ -393,13 +397,10 @@ execute(t, wanttty, pipein, pipeout, do_glob)
 		int     ochild, osetintr, ohaderr, odidfds;
 		int     oSHIN, oSHOUT, oSHDIAG, oOLDSTD, otpgrp;
 		int     oisoutatty, oisdiagatty;
-
+		sigset_t oset, ocsigset;
 # ifndef CLOSE_ON_EXEC
 		int     odidcch;
 # endif  /* !CLOSE_ON_EXEC */
-# ifdef BSDSIGS
-		sigmask_t omask, ocsigmask;
-# endif /* BSDSIGS */
 
 		/*
 		 * Prepare for the vfork by saving everything that the child
@@ -415,24 +416,20 @@ execute(t, wanttty, pipein, pipeout, do_glob)
 		 * Gilbrech - 11/22/87)
 		 */
 # ifdef SAVESIGVEC
-		sigvec_t savesv[NSIGSAVED];
-		sigmask_t savesm;
+		struct sigaction savesv[NSIGSAVED];
+		sigset_t savesm;
 
 # endif /* SAVESIGVEC */
 		if (wanttty >= 0 && !nosigchld && !noexec) {
-# ifdef BSDSIGS
-		    csigmask = sigblock(sigmask(SIGCHLD));
-# else /* !BSDSIGS */
-		    (void) sighold(SIGCHLD);
-# endif  /* BSDSIGS */
+		    sigemptyset(&set);
+		    sigaddset(&set, SIGCHLD);
+		    (void)sigprocmask(SIG_BLOCK, &set, &csigset);
 		    nosigchld = 1;
 		}
-# ifdef BSDSIGS
-		omask = sigblock(sigmask(SIGCHLD)|sigmask(SIGINT));
-# else /* !BSDSIGS */
-		(void) sighold(SIGCHLD);
-		(void) sighold(SIGINT);
-# endif  /* BSDSIGS */
+		sigemptyset(&set);
+		sigaddset(&set, SIGCHLD);
+		sigaddset(&set, SIGINT);
+		(void)sigprocmask(SIG_BLOCK, &set, &oset);
 		ochild = child;
 		osetintr = setintr;
 		ohaderr = haderr;
@@ -447,15 +444,13 @@ execute(t, wanttty, pipein, pipeout, do_glob)
 		otpgrp = tpgrp;
 		oisoutatty = isoutatty;
 		oisdiagatty = isdiagatty;
-# ifdef BSDSIGS
-		ocsigmask = csigmask;
-# endif /* BSDSIGS */
+		ocsigset = csigset;
 		onosigchld = nosigchld;
 		Vsav = Vdp = 0;
 		Vexpath = 0;
 		Vt = 0;
 # ifdef SAVESIGVEC
-		savesm = savesigvec(savesv);
+		savesigvec(savesv, savesm);
 # endif /* SAVESIGVEC */
 		if (use_fork)
 		    pid = fork();
@@ -463,15 +458,10 @@ execute(t, wanttty, pipein, pipeout, do_glob)
 		    pid = vfork();
 
 		if (pid < 0) {
-# ifdef BSDSIGS
-#  ifdef SAVESIGVEC
+# ifdef SAVESIGVEC
 		    restoresigvec(savesv, savesm);
-#  endif /* SAVESIGVEC */
-		    (void) sigsetmask(omask);
-# else /* !BSDSIGS */
-		    (void) sigrelse(SIGCHLD);
-		    (void) sigrelse(SIGINT);
-# endif  /* BSDSIGS */
+# endif /* SAVESIGVEC */
+		    sigprocmask(SIG_SETMASK, &oset, NULL);
 		    stderror(ERR_NOPROC);
 		}
 		forked++;
@@ -493,38 +483,27 @@ execute(t, wanttty, pipein, pipeout, do_glob)
 		    tpgrp = otpgrp;
 		    isoutatty = oisoutatty;
 		    isdiagatty = oisdiagatty;
-# ifdef BSDSIGS
-		    csigmask = ocsigmask;
-# endif /* BSDSIGS */
+		    csigset = ocsigset;
 		    nosigchld = onosigchld;
 
-		    xfree((ptr_t) Vsav);
+		    xfree(Vsav);
 		    Vsav = 0;
-		    xfree((ptr_t) Vdp);
+		    xfree(Vdp);
 		    Vdp = 0;
-		    xfree((ptr_t) Vexpath);
+		    xfree(Vexpath);
 		    Vexpath = 0;
-		    blkfree((Char **) Vt);
+		    blk_cleanup(Vt);
 		    Vt = 0;
 		    /* this is from pfork() */
 		    palloc(pid, t);
-# ifdef BSDSIGS
-		    (void) sigsetmask(omask);
-# else /* !BSDSIGS */
-		    (void) sigrelse(SIGCHLD);
-		    (void) sigrelse(SIGINT);
-# endif  /* BSDSIGS */
+		    sigprocmask(SIG_SETMASK, &oset, NULL);
 		}
 		else {		/* child */
 		    /* this is from pfork() */
-		    int     pgrp;
+		    pid_t pgrp;
 		    int    ignint = 0;
 		    if (nosigchld) {
-# ifdef BSDSIGS
-			(void) sigsetmask(csigmask);
-# else /* !BSDSIGS */
-			(void) sigrelse(SIGCHLD);
-# endif /* BSDSIGS */
+			sigprocmask(SIG_SETMASK, &csigset, NULL);
 			nosigchld = 0;
 		    }
 
@@ -548,7 +527,7 @@ execute(t, wanttty, pipein, pipeout, do_glob)
 			    (void) signal(SIGQUIT, SIG_IGN);
 			}
 			else {
-			    (void) signal(SIGINT,  vffree);
+			    (void) signal(SIGINT, vffree);
 			    (void) signal(SIGQUIT, SIG_DFL);
 			}
 # ifdef BSDJOBS
@@ -559,7 +538,7 @@ execute(t, wanttty, pipein, pipeout, do_glob)
 			}
 # endif /* BSDJOBS */
 
-			(void) signal(SIGTERM, parterm);
+			sigaction(SIGTERM, &parterm, NULL);
 		    }
 		    else if (tpgrp == -1 &&
 			     (t->t_dflg & F_NOINTERRUPT)) {
@@ -603,26 +582,22 @@ execute(t, wanttty, pipein, pipeout, do_glob)
 	     */
 #ifdef BACKPIPE
 	    if (didfds == 0 && t->t_dflg & F_PIPEOUT) {
-		(void) close(pipeout[0]);
-		(void) close(pipeout[1]);
+		xclose(pipeout[0]);
+		xclose(pipeout[1]);
 	    }
 	    if ((t->t_dflg & F_PIPEIN) != 0)
 		break;
 #else /* !BACKPIPE */
 	    if (didfds == 0 && t->t_dflg & F_PIPEIN) {
-		(void) close(pipein[0]);
-		(void) close(pipein[1]);
+		xclose(pipein[0]);
+		xclose(pipein[1]);
 	    }
 	    if ((t->t_dflg & F_PIPEOUT) != 0)
 		break;
 #endif /* BACKPIPE */
 
 	    if (nosigchld) {
-#ifdef BSDSIGS
-		(void) sigsetmask(csigmask);
-#else /* !BSDSIGS */
-		(void) sigrelse(SIGCHLD);
-#endif /* BSDSIGS */
+		sigprocmask(SIG_SETMASK, &csigset, NULL);
 		nosigchld = 0;
 	    }
 	    if ((t->t_dflg & F_AMPERSAND) == 0)
@@ -633,13 +608,13 @@ execute(t, wanttty, pipein, pipeout, do_glob)
 	doio(t, pipein, pipeout);
 #ifdef BACKPIPE
 	if (t->t_dflg & F_PIPEIN) {
-	    (void) close(pipein[0]);
-	    (void) close(pipein[1]);
+	    xclose(pipein[0]);
+	    xclose(pipein[1]);
 	}
 #else /* !BACKPIPE */
 	if (t->t_dflg & F_PIPEOUT) {
-	    (void) close(pipeout[0]);
-	    (void) close(pipeout[1]);
+	    xclose(pipeout[0]);
+	    xclose(pipeout[1]);
 	}
 #endif /* BACKPIPE */
 	/*
@@ -671,7 +646,7 @@ execute(t, wanttty, pipein, pipeout, do_glob)
 	isoutatty = isatty(SHOUT);
 	(void)close_on_exec(SHDIAG = dcopy(2, FSHDIAG), 1);
 	isdiagatty = isatty(SHDIAG);
-	(void) close(SHIN);
+	xclose(SHIN);
 	SHIN = -1;
 #ifndef CLOSE_ON_EXEC
 	didcch = 0;
@@ -754,23 +729,11 @@ execute(t, wanttty, pipein, pipeout, do_glob)
 }
 
 #ifdef VFORK
-static RETSIGTYPE
+static void
 /*ARGSUSED*/
-vffree(snum)
-int snum;
+vffree(int snum)
 {
-    Char **v;
-
     USE(snum);
-    if ((v = gargv) != 0) {
-	gargv = 0;
-	xfree((ptr_t) v);
-    }
-
-    if ((v = pargv) != 0) {
-	pargv = 0;
-	xfree((ptr_t) v);
-    }
 
     _exit(1);
 }
@@ -792,43 +755,42 @@ int snum;
  * code is present and the user can choose it by setting noambiguous
  */
 static Char *
-splicepipe(t, cp)
-    struct command *t;
-    Char *cp;	/* word after < or > */
+splicepipe(struct command *t, Char *cp)
 {
     Char *blk[2];
 
     if (adrof(STRnoambiguous)) {
 	Char **pv;
+	int gflag;
 
 	blk[0] = Dfix1(cp); /* expand $ */
 	blk[1] = NULL;
 
-	gflag = 0, tglob(blk);
+	gflag = tglob(blk);
 	if (gflag) {
-	    pv = globall(blk);
+	    pv = globall(blk, gflag);
 	    if (pv == NULL) {
 		setname(short2str(blk[0]));
-		xfree((ptr_t) blk[0]);
+		xfree(blk[0]);
 		stderror(ERR_NAME | ERR_NOMATCH);
 	    }
-	    gargv = NULL;
 	    if (pv[1] != NULL) { /* we need to fix the command vector */
 		Char **av = blkspl(t->t_dcom, &pv[1]);
-		xfree((ptr_t) t->t_dcom);
+		xfree(t->t_dcom);
 		t->t_dcom = av;
 	    }
-	    xfree((ptr_t) blk[0]);
+	    xfree(blk[0]);
 	    blk[0] = pv[0];
-	    xfree((ptr_t) pv);
+	    xfree(pv);
 	}
     }
     else {
-	Char buf[BUFSIZE];
+	Char *buf;
 
-	(void) Strcpy(buf, blk[1] = Dfix1(cp));
-	xfree((ptr_t) blk[1]);
+	buf = Dfix1(cp);
+	cleanup_push(buf, xfree);
 	blk[0] = globone(buf, G_ERROR);
+	cleanup_until(buf);
     }
     return(blk[0]);
 }
@@ -838,9 +800,7 @@ splicepipe(t, cp)
  * We may or maynot be forked here.
  */
 static void
-doio(t, pipein, pipeout)
-    struct command *t;
-    int    *pipein, *pipeout;
+doio(struct command *t, int *pipein, int *pipeout)
 {
     int fd;
     Char *cp;
@@ -850,7 +810,7 @@ doio(t, pipein, pipeout)
 	return;
     if ((flags & F_READ) == 0) {/* F_READ already done */
 	if (t->t_dlef) {
-	    char    tmp[MAXPATHLEN+1];
+	    char *tmp;
 
 	    /*
 	     * so < /dev/std{in,out,err} work
@@ -859,11 +819,12 @@ doio(t, pipein, pipeout)
 	    (void) dcopy(SHOUT, 1);
 	    (void) dcopy(SHDIAG, 2);
 	    cp = splicepipe(t, t->t_dlef);
-	    (void) strncpy(tmp, short2str(cp), MAXPATHLEN);
-	    tmp[MAXPATHLEN] = '\0';
-	    xfree((ptr_t) cp);
-	    if ((fd = open(tmp, O_RDONLY|O_LARGEFILE)) < 0)
+	    tmp = strsave(short2str(cp));
+	    xfree(cp);
+	    cleanup_push(tmp, xfree);
+	    if ((fd = xopen(tmp, O_RDONLY|O_LARGEFILE)) < 0)
 		stderror(ERR_SYSTEM, tmp, strerror(errno));
+	    cleanup_until(tmp);
 	    /* allow input files larger than 2Gb  */
 #ifndef WINNT_NATIVE
 	    (void) fcntl(fd, F_SETFL, fcntl(fd, F_GETFL) | O_LARGEFILE);
@@ -871,17 +832,17 @@ doio(t, pipein, pipeout)
 	    (void) dmove(fd, 0);
 	}
 	else if (flags & F_PIPEIN) {
-	    (void) close(0);
+	    xclose(0);
 	    (void) dup(pipein[0]);
-	    (void) close(pipein[0]);
-	    (void) close(pipein[1]);
+	    xclose(pipein[0]);
+	    xclose(pipein[1]);
 	}
 	else if ((flags & F_NOINTERRUPT) && tpgrp == -1) {
-	    (void) close(0);
-	    (void) open(_PATH_DEVNULL, O_RDONLY|O_LARGEFILE);
+	    xclose(0);
+	    (void) xopen(_PATH_DEVNULL, O_RDONLY|O_LARGEFILE);
 	}
 	else {
-	    (void) close(0);
+	    xclose(0);
 	    (void) dup(OLDSTD);
 #if defined(CLOSE_ON_EXEC) && defined(CLEX_DUPS)
 	    /*
@@ -895,12 +856,12 @@ doio(t, pipein, pipeout)
 	}
     }
     if (t->t_drit) {
-	char    tmp[MAXPATHLEN+1];
+	char *tmp;
 
 	cp = splicepipe(t, t->t_drit);
-	(void) strncpy(tmp, short2str(cp), MAXPATHLEN);
-	tmp[MAXPATHLEN] = '\0';
-	xfree((ptr_t) cp);
+	tmp = strsave(short2str(cp));
+	xfree(cp);
+	cleanup_push(tmp, xfree);
 	/*
 	 * so > /dev/std{out,err} work
 	 */
@@ -908,9 +869,9 @@ doio(t, pipein, pipeout)
 	(void) dcopy(SHDIAG, 2);
 	if ((flags & F_APPEND) != 0) {
 #ifdef O_APPEND
-	    fd = open(tmp, O_WRONLY|O_APPEND|O_LARGEFILE);
+	    fd = xopen(tmp, O_WRONLY|O_APPEND|O_LARGEFILE);
 #else /* !O_APPEND */
-	    fd = open(tmp, O_WRONLY|O_LARGEFILE);
+	    fd = xopen(tmp, O_WRONLY|O_LARGEFILE);
 	    (void) lseek(fd, (off_t) 0, L_XTND);
 #endif /* O_APPEND */
 	}
@@ -922,23 +883,24 @@ doio(t, pipein, pipeout)
 		    stderror(ERR_SYSTEM, tmp, strerror(errno));
 		chkclob(tmp);
 	    }
-	    if ((fd = creat(tmp, 0666)) < 0)
+	    if ((fd = xcreat(tmp, 0666)) < 0)
 		stderror(ERR_SYSTEM, tmp, strerror(errno));
 	    /* allow input files larger than 2Gb  */
 #ifndef WINNT_NATIVE
 	    (void) fcntl(fd, F_SETFL, fcntl(fd, F_GETFL) | O_LARGEFILE);
 #endif /*!WINNT_NATIVE*/
 	}
+	cleanup_until(tmp);
 	(void) dmove(fd, 1);
 	is1atty = isatty(1);
     }
     else if (flags & F_PIPEOUT) {
-	(void) close(1);
+	xclose(1);
 	(void) dup(pipeout[1]);
 	is1atty = 0;
     }
     else {
-	(void) close(1);
+	xclose(1);
 	(void) dup(SHOUT);
 	is1atty = isoutatty;
 # if defined(CLOSE_ON_EXEC) && defined(CLEX_DUPS)
@@ -946,7 +908,7 @@ doio(t, pipein, pipeout)
 # endif /* CLOSE_ON_EXEC && CLEX_DUPS */
     }
 
-    (void) close(2);
+    xclose(2);
     if (flags & F_STDERR) {
 	(void) dup(1);
 	is2atty = is1atty;
@@ -962,8 +924,7 @@ doio(t, pipein, pipeout)
 }
 
 void
-mypipe(pv)
-    int *pv;
+mypipe(int *pv)
 {
 
     if (pipe(pv) < 0)
@@ -972,13 +933,16 @@ mypipe(pv)
     (void)close_on_exec(pv[1] = dmove(pv[1], -1), 1);
     if (pv[0] >= 0 && pv[1] >= 0)
 	return;
+    if (pv[0] >= 0)
+	xclose(pv[0]);
+    if (pv[1] >= 0)
+	xclose(pv[1]);
 oops:
     stderror(ERR_PIPE);
 }
 
 static void
-chkclob(cp)
-    char *cp;
+chkclob(const char *cp)
 {
     struct stat stb;
 

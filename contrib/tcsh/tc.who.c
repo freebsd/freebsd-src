@@ -1,4 +1,4 @@
-/* $Header: /src/pub/tcsh/tc.who.c,v 3.44 2005/03/03 23:44:45 kim Exp $ */
+/* $Header: /p/tcsh/cvsroot/tcsh/tc.who.c,v 3.51 2006/03/03 22:08:45 amold Exp $ */
 /*
  * tc.who.c: Watch logins and logouts...
  */
@@ -32,7 +32,7 @@
  */
 #include "sh.h"
 
-RCSID("$Id: tc.who.c,v 3.44 2005/03/03 23:44:45 kim Exp $")
+RCSID("$tcsh: tc.who.c,v 3.51 2006/03/03 22:08:45 amold Exp $")
 
 #include "tc.h"
 
@@ -135,9 +135,9 @@ static struct who whohead, whotail;
 static time_t watch_period = 0;
 static time_t stlast = 0;
 #ifdef WHODEBUG
-static	void	debugwholist	__P((struct who *, struct who *));
+static	void	debugwholist	(struct who *, struct who *);
 #endif
-static	void	print_who	__P((struct who *));
+static	void	print_who	(struct who *);
 
 
 #define ONLINE		01
@@ -145,6 +145,7 @@ static	void	print_who	__P((struct who *));
 #define CHANGED		04
 #define STMASK		07
 #define ANNOUNCE	010
+#define CLEARED		020
 
 /*
  * Karl Kleinpaste, 26 Jan 1984.
@@ -153,7 +154,7 @@ static	void	print_who	__P((struct who *));
  * when doing pointer-chase searches.
  */
 void
-initwatch()
+initwatch(void)
 {
     whohead.who_next = &whotail;
     whotail.who_prev = &whohead;
@@ -164,7 +165,7 @@ initwatch()
 }
 
 void
-resetwatch()
+resetwatch(void)
 {
     watch_period = 0;
     stlast = 0;
@@ -175,8 +176,7 @@ resetwatch()
  * Watch /etc/utmp for login/logout changes.
  */
 void
-watch_login(force)
-    int force;
+watch_login(int force)
 {
     int     comp = -1, alldone;
     int	    firsttime = stlast == 1;
@@ -185,9 +185,6 @@ watch_login(force)
 #else
     int utmpfd;
 #endif
-#ifdef BSDSIGS
-    sigmask_t omask;
-#endif				/* BSDSIGS */
     struct utmp utmp;
     struct who *wp, *wpnew;
     struct varent *v;
@@ -206,19 +203,12 @@ watch_login(force)
 #endif /* WINNT_NATIVE */
 
     /* stop SIGINT, lest our login list get trashed. */
-#ifdef BSDSIGS
-    omask = sigblock(sigmask(SIGINT));
-#else
-    (void) sighold(SIGINT);
-#endif
+    pintr_disabled++;
+    cleanup_push(&pintr_disabled, disabled_cleanup);
 
     v = adrof(STRwatch);
     if ((v == NULL || v->vec == NULL) && !force) {
-#ifdef BSDSIGS
-	(void) sigsetmask(omask);
-#else
-	(void) sigrelse(SIGINT);
-#endif
+	cleanup_until(&pintr_disabled);
 	return;			/* no names to watch */
     }
     if (!force) {
@@ -236,7 +226,7 @@ watch_login(force)
 	 * before we are due -amol 6/5/97
 	 */
 	if (!ncbs_posted) {
-	    unsigned long tdiff = t - watch_period;
+	    time_t tdiff = t - watch_period;
 	    if (!watch_period || ((tdiff  > 0) && (tdiff > (interval - 90)))) {
 		start_ncbs(vp);
  		ncbs_posted = 1;
@@ -244,11 +234,7 @@ watch_login(force)
 	}
 #endif /* WINNT_NATIVE */
     if (t - watch_period < interval) {
-#ifdef BSDSIGS
-	(void) sigsetmask(omask);
-#else
-	(void) sigrelse(SIGINT);
-#endif
+	cleanup_until(&pintr_disabled);
 	return;			/* not long enough yet... */
     }
     watch_period = t;
@@ -265,47 +251,34 @@ watch_login(force)
 	    xprintf(CGETS(26, 1,
 			  "cannot stat %s.  Please \"unset watch\".\n"),
 		    TCSH_PATH_UTMP);
-# ifdef BSDSIGS
-	(void) sigsetmask(omask);
-# else
-	(void) sigrelse(SIGINT);
-# endif
+	cleanup_until(&pintr_disabled);
 	return;
     }
     if (stlast == sta.st_mtime) {
-# ifdef BSDSIGS
-	(void) sigsetmask(omask);
-# else
-	(void) sigrelse(SIGINT);
-# endif
+	cleanup_until(&pintr_disabled);
 	return;
     }
     stlast = sta.st_mtime;
 #ifdef HAVE_GETUTENT
     setutent();
 #else
-    if ((utmpfd = open(TCSH_PATH_UTMP, O_RDONLY|O_LARGEFILE)) < 0) {
+    if ((utmpfd = xopen(TCSH_PATH_UTMP, O_RDONLY|O_LARGEFILE)) < 0) {
 	if (!force)
 	    xprintf(CGETS(26, 2,
 			  "%s cannot be opened.  Please \"unset watch\".\n"),
 		    TCSH_PATH_UTMP);
-# ifdef BSDSIGS
-	(void) sigsetmask(omask);
-# else
-	(void) sigrelse(SIGINT);
-# endif
+	cleanup_until(&pintr_disabled);
 	return;
     }
+    cleanup_push(&utmpfd, open_cleanup);
 #endif
 
     /*
      * xterm clears the entire utmp entry - mark everyone on the status list
      * OFFLINE or we won't notice X "logouts"
      */
-    for (wp = whohead.who_next; wp->who_next != NULL; wp = wp->who_next) {
-	wp->who_status = OFFLINE;
-	wp->who_time = 0;
-    }
+    for (wp = whohead.who_next; wp->who_next != NULL; wp = wp->who_next)
+	wp->who_status = OFFLINE | CLEARED;
 
     /*
      * Read in the utmp file, sort the entries, and update existing entries or
@@ -315,7 +288,7 @@ watch_login(force)
     while ((uptr = getutent()) != NULL) {
         memcpy(&utmp, uptr, sizeof (utmp));
 #else
-    while (read(utmpfd, (char *) &utmp, sizeof utmp) == sizeof utmp) {
+    while (xread(utmpfd, &utmp, sizeof utmp) == sizeof utmp) {
 #endif
 
 # ifdef DEAD_PROCESS
@@ -340,6 +313,8 @@ watch_login(force)
 	    wp = wp->who_next;/* find that tty! */
 
 	if (wp->who_next && comp == 0) {	/* found the tty... */
+	    if (utmp.ut_time < wp->who_time)
+	        continue;
 # ifdef DEAD_PROCESS
 	    if (utmp.ut_type == DEAD_PROCESS) {
 		wp->who_time = utmp.ut_time;
@@ -354,7 +329,7 @@ watch_login(force)
 	    else if (strncmp(utmp.ut_name, wp->who_name, UTNAMLEN) == 0) {
 		/* someone is logged in */ 
 		wp->who_time = utmp.ut_time;
-		wp->who_status = 0;	/* same guy */
+		wp->who_status = ONLINE | ANNOUNCE;	/* same guy */
 	    }
 	    else {
 		(void) strncpy(wp->who_new, utmp.ut_name, UTNAMLEN);
@@ -377,7 +352,7 @@ watch_login(force)
 	    }
 	}
 	else {		/* new tty in utmp */
-	    wpnew = (struct who *) xcalloc(1, sizeof *wpnew);
+	    wpnew = xcalloc(1, sizeof *wpnew);
 	    (void) strncpy(wpnew->who_tty, utmp.ut_line, UTLINLEN);
 # ifdef HAVE_STRUCT_UTMP_UT_HOST
 #  ifdef _SEQUENT_
@@ -415,15 +390,17 @@ watch_login(force)
 #ifdef HAVE_GETUTENT
     endutent();
 #else
-    (void) close(utmpfd);
+    cleanup_until(&utmpfd);
 #endif
 # if defined(HAVE_STRUCT_UTMP_UT_HOST) && defined(_SEQUENT_)
     endutent();
 # endif
 #endif /* !WINNT_NATIVE */
 
-    if (force || vp == NULL)
+    if (force || vp == NULL) {
+	cleanup_until(&pintr_disabled);
 	return;
+    }
 
     /*
      * The state of all logins is now known, so we can search the user's list
@@ -447,8 +424,10 @@ watch_login(force)
 	    /* already printed or not right one to print */
 
 
-	    if (wp->who_time == 0)/* utmp entry was cleared */
+	    if (wp->who_status & CLEARED) {/* utmp entry was cleared */
 		wp->who_time = watch_period;
+		wp->who_status &= ~CLEARED;
+	    }
 
 	    if ((wp->who_status & OFFLINE) &&
 		(wp->who_name[0] != '\0')) {
@@ -474,17 +453,12 @@ watch_login(force)
 	    }
 	}
     }
-#ifdef BSDSIGS
-    (void) sigsetmask(omask);
-#else
-    (void) sigrelse(SIGINT);
-#endif
+    cleanup_until(&pintr_disabled);
 }
 
 #ifdef WHODEBUG
 static void
-debugwholist(new, wp)
-    struct who *new, *wp;
+debugwholist(struct who *new, struct who *wp)
 {
     struct who *a;
 
@@ -518,8 +492,7 @@ debugwholist(new, wp)
 
 
 static void
-print_who(wp)
-    struct who *wp;
+print_who(struct who *wp)
 {
 #ifdef HAVE_STRUCT_UTMP_UT_HOST
     Char   *cp = str2short(CGETS(26, 7, "%n has %a %l from %m."));
@@ -527,28 +500,27 @@ print_who(wp)
     Char   *cp = str2short(CGETS(26, 8, "%n has %a %l."));
 #endif /* HAVE_STRUCT_UTMP_UT_HOST */
     struct varent *vp = adrof(STRwho);
-    Char buf[BUFSIZE];
+    Char *str;
 
     if (vp && vp->vec && vp->vec[0])
 	cp = vp->vec[0];
 
-    tprintf(FMT_WHO, buf, cp, BUFSIZE, NULL, wp->who_time, (ptr_t) wp);
-    for (cp = buf; *cp;)
+    str = tprintf(FMT_WHO, cp, NULL, wp->who_time, wp);
+    cleanup_push(str, xfree);
+    for (cp = str; *cp;)
 	xputwchar(*cp++);
+    cleanup_until(str);
     xputchar('\n');
 } /* end print_who */
 
 
-const char *
-who_info(ptr, c, wbuf, wbufsiz)
-    ptr_t ptr;
-    int c;
-    char *wbuf;
-    size_t wbufsiz;
+char *
+who_info(ptr_t ptr, int c)
 {
-    struct who *wp = (struct who *) ptr;
+    struct who *wp = ptr;
+    char *wbuf;
 #ifdef HAVE_STRUCT_UTMP_UT_HOST
-    char *wb = wbuf;
+    char *wb;
     int flg;
     char *pb;
 #endif /* HAVE_STRUCT_UTMP_UT_HOST */
@@ -558,9 +530,9 @@ who_info(ptr, c, wbuf, wbufsiz)
 	switch (wp->who_status & STMASK) {
 	case ONLINE:
 	case CHANGED:
-	    return wp->who_new;
+	    return strsave(wp->who_new);
 	case OFFLINE:
-	    return wp->who_name;
+	    return strsave(wp->who_name);
 	default:
 	    break;
 	}
@@ -569,13 +541,11 @@ who_info(ptr, c, wbuf, wbufsiz)
     case 'a':
 	switch (wp->who_status & STMASK) {
 	case ONLINE:
-	    return CGETS(26, 9, "logged on");
+	    return strsave(CGETS(26, 9, "logged on"));
 	case OFFLINE:
-	    return CGETS(26, 10, "logged off");
+	    return strsave(CGETS(26, 10, "logged off"));
 	case CHANGED:
-	    xsnprintf(wbuf, wbufsiz, CGETS(26, 11, "replaced %s on"),
-		      wp->who_name);
-	    return wbuf;
+	    return xasprintf(CGETS(26, 11, "replaced %s on"), wp->who_name);
 	default:
 	    break;
 	}
@@ -584,12 +554,14 @@ who_info(ptr, c, wbuf, wbufsiz)
 #ifdef HAVE_STRUCT_UTMP_UT_HOST
     case 'm':
 	if (wp->who_host[0] == '\0')
-	    return CGETS(26, 12, "local");
+	    return strsave(CGETS(26, 12, "local"));
 	else {
+	    pb = wp->who_host;
+	    wbuf = xmalloc(strlen(pb) + 1);
+	    wb = wbuf;
 	    /* the ':' stuff is for <host>:<display>.<screen> */
-	    for (pb = wp->who_host,
-		flg = isdigit((unsigned char)*pb) ? '\0' : '.';
-		*pb != '\0' && (*pb != flg || ((pb = strchr(pb, ':')) != 0));
+	    for (flg = isdigit((unsigned char)*pb) ? '\0' : '.';
+		 *pb != '\0' && (*pb != flg || ((pb = strchr(pb, ':')) != 0));
 		 pb++) {
 		if (*pb == ':')
 		    flg = '\0';
@@ -602,9 +574,12 @@ who_info(ptr, c, wbuf, wbufsiz)
 
     case 'M':
 	if (wp->who_host[0] == '\0')
-	    return CGETS(26, 12, "local");
+	    return strsave(CGETS(26, 12, "local"));
 	else {
-	    for (pb = wp->who_host; *pb != '\0'; pb++)
+	    pb = wp->who_host;
+	    wbuf = xmalloc(strlen(pb) + 1);
+	    wb = wbuf;
+	    for (; *pb != '\0'; pb++)
 		*wb++ = isupper((unsigned char)*pb) ?
 		    tolower((unsigned char)*pb) : *pb;
 	    *wb = '\0';
@@ -613,9 +588,10 @@ who_info(ptr, c, wbuf, wbufsiz)
 #endif /* HAVE_STRUCT_UTMP_UT_HOST */
 
     case 'l':
-	return wp->who_tty;
+	return strsave(wp->who_tty);
 
     default:
+	wbuf = xmalloc(3);
 	wbuf[0] = '%';
 	wbuf[1] = (char) c;
 	wbuf[2] = '\0';
@@ -626,9 +602,7 @@ who_info(ptr, c, wbuf, wbufsiz)
 
 void
 /*ARGSUSED*/
-dolog(v, c)
-Char **v;
-struct command *c;
+dolog(Char **v, struct command *c)
 {
     struct who *wp;
     struct varent *vp;
@@ -648,13 +622,13 @@ struct command *c;
 
 # ifdef HAVE_STRUCT_UTMP_UT_HOST
 size_t
-utmphostsize()
+utmphostsize(void)
 {
     return UTHOSTLEN;
 }
 
 char *
-utmphost()
+utmphost(void)
 {
     char *tty = short2str(varval(STRtty));
     struct who *wp;
@@ -706,7 +680,7 @@ void add_to_who_list(name, mach_nm)
 	}
     }
     else {
-	wpnew = (struct who *) xcalloc(1, sizeof *wpnew);
+	wpnew = xcalloc(1, sizeof *wpnew);
 	(void) strncpy(wpnew->who_tty, mach_nm, UTLINLEN);
 	wpnew->who_time = 0;
 	if (*name == '\0')
