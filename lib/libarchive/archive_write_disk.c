@@ -58,6 +58,9 @@ __FBSDID("$FreeBSD$");
 #ifdef HAVE_GRP_H
 #include <grp.h>
 #endif
+#ifdef HAVE_LINUX_FS_H
+#include <linux/fs.h>	/* for Linux file flags */
+#endif
 #ifdef HAVE_LINUX_EXT2_FS_H
 #include <linux/ext2_fs.h>	/* for Linux file flags */
 #endif
@@ -697,7 +700,7 @@ restore_entry(struct archive_write_disk *a)
 		    a->st.st_dev == a->skip_file_dev &&
 		    a->st.st_ino == a->skip_file_ino) {
 			archive_set_error(&a->archive, 0, "Refusing to overwrite archive");
-			return (ARCHIVE_WARN);
+			return (ARCHIVE_FAILED);
 		}
 
 		if (!S_ISDIR(a->st.st_mode)) {

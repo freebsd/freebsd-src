@@ -29,52 +29,14 @@ __FBSDID("$FreeBSD$");
 #ifdef HAVE_SYS_TYPES_H
 #include <sys/types.h>
 #endif
-#ifdef HAVE_SYS_ACL_H
-#include <sys/acl.h>
-#endif
-#ifdef HAVE_ATTR_XATTR_H
-#include <attr/xattr.h>
-#endif
-#ifdef HAVE_SYS_IOCTL_H
-#include <sys/ioctl.h>
-#endif
-#ifdef HAVE_SYS_STAT_H
-#include <sys/stat.h>
-#endif
-#ifdef HAVE_SYS_TIME_H
-#include <sys/time.h>
-#endif
-
-#ifdef HAVE_EXT2FS_EXT2_FS_H
-#include <ext2fs/ext2_fs.h>	/* for Linux file flags */
-#endif
 #ifdef HAVE_ERRNO_H
 #include <errno.h>
 #endif
-#ifdef HAVE_FCNTL_H
-#include <fcntl.h>
-#endif
-#ifdef HAVE_GRP_H
-#include <grp.h>
-#endif
-#ifdef HAVE_LINUX_EXT2_FS_H
-#include <linux/ext2_fs.h>	/* for Linux file flags */
-#endif
-#ifdef HAVE_LIMITS_H
-#include <limits.h>
-#endif
-#ifdef HAVE_PWD_H
-#include <pwd.h>
-#endif
-#include <stdio.h>
 #ifdef HAVE_STDLIB_H
 #include <stdlib.h>
 #endif
 #ifdef HAVE_STRING_H
 #include <string.h>
-#endif
-#ifdef HAVE_UNISTD_H
-#include <unistd.h>
 #endif
 
 #include "archive.h"
