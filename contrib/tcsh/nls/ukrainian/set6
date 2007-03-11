@@ -1,4 +1,4 @@
-$ $Id: set6,v 1.2 2002/07/01 20:50:22 christos Exp $
+$ $tcsh: set6,v 1.3 2006/03/02 18:46:48 christos Exp $
 $ ed.inputl.c
 $set 6
 1 ERROR: illegal command from key 0%o\r\n

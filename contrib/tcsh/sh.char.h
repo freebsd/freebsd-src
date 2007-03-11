@@ -1,4 +1,4 @@
-/* $Header: /src/pub/tcsh/sh.char.h,v 3.26 2005/03/03 16:49:15 kim Exp $ */
+/* $Header: /p/tcsh/cvsroot/tcsh/sh.char.h,v 3.32 2006/09/26 16:44:37 christos Exp $ */
 /*
  * sh.char.h: Table for spotting special characters quickly
  * 	      Makes for very obscure but efficient coding.
@@ -37,7 +37,7 @@
 # include <appkit/NXCType.h>
 #else
 # include <ctype.h>
-# ifdef SHORT_STRINGS
+# ifdef WIDE_STRINGS
 #  ifdef HAVE_WCTYPE_H
 #   include <wctype.h>
 #  else
@@ -90,8 +90,8 @@ extern tcshuc _cmap_lower[], _cmap_upper[];
 #define _PUN	0x8000		/* punctuation */
 
 #ifdef IS_ASCII
-# define ASC(ch) ch
-# define CTL_ESC(ch) ch
+# define ASC(ch) (ch)
+# define CTL_ESC(ch) (ch)
 #else
 # ifdef _OSD_POSIX
 /* "BS2000 OSD" is a POSIX on a main frame using a EBCDIC char set */
@@ -103,30 +103,33 @@ extern tcshuc _cmap_lower[], _cmap_upper[];
   extern unsigned short _toebcdic[256];
 
 /* mainly for comparisons if (ASC(ch)=='\177')... */
-#  define ASC(ch)     _toascii[(tcshuc)ch]
+#  define ASC(ch)     _toascii[(tcshuc)(ch)]
 
 /* Literal escapes ('\010') must be mapped to EBCDIC,
  * for C-Escapes   ('\b'), the compiler already does it.
  */
-#  define CTL_ESC(ch) _toebcdic[(tcshuc)ch]
+#  define CTL_ESC(ch) _toebcdic[(tcshuc)(ch)]
 #endif /*IS_ASCII*/
 
 #ifdef WIDE_STRINGS
 # define cmap(c, bits)	\
-	(((c) & QUOTE) || (c) >= 0x0080 ? 0 : (_cmap[(tcshuc)ASC(c)] & (bits)))
+	(((c) < 0) ? 0 : \
+	((c) & QUOTE) || (c) >= 0x0080 ? 0 : (_cmap[(tcshuc)ASC(c)] & (bits)))
 #elif defined(SHORT_STRINGS) && defined(KANJI)
 #  define cmap(c, bits)	\
-	((((c) & QUOTE) || ((ASC(c) & 0x80) && adrof(STRnokanji))) ? \
+	(((c) < 0) ? 0 : \
+	(((c) & QUOTE) || ((ASC(c) & 0x80) && adrof(STRnokanji))) ? \
 	0 : (_cmap[(tcshuc)ASC(c)] & (bits)))
 #else /* SHORT_STRINGS && KANJI */
 # define cmap(c, bits)	\
-	(((c) & QUOTE) ? 0 : (_cmap[(tcshuc)ASC(c)] & (bits)))
+	(((c) < 0) ? 0 : \
+	((c) & QUOTE) ? 0 : (_cmap[(tcshuc)ASC(c)] & (bits)))
 #endif /* SHORT_STRINGS && KANJI */
 
-#define isglob(c)	cmap(c, _GLOB)
-#define isspc(c)	cmap(c, _SP)
-#define ismeta(c)	cmap(c, _META)
-#define iscmdmeta(c)	cmap(c, _CMD)
+#define isglob(c)	cmap((c), _GLOB)
+#define isspc(c)	cmap((c), _SP)
+#define ismeta(c)	cmap((c), _META)
+#define iscmdmeta(c)	cmap((c), _CMD)
 #ifdef WIDE_STRINGS
 #define letter(c)	(((c) & QUOTE) ? 0 :  \
 			 (iswalpha((tcshuc) (c)) || (c) == '_'))
@@ -242,35 +245,27 @@ extern tcshuc _cmap_lower[], _cmap_upper[];
 #  endif /* WINNT_NATIVE */
 # endif /* !NeXT */
 #else /* !NLS */
-# define Isspace(c)	cmap(c, _SP|_NL)
-# define Isdigit(c)	cmap(c, _DIG)
-# define Isalpha(c)	(cmap(c,_LET) && !(((c) & META) && AsciiOnly))
-# define Islower(c)	(cmap(c,_DOW) && !(((c) & META) && AsciiOnly))
-# define Isupper(c)	(cmap(c, _UP) && !(((c) & META) && AsciiOnly))
+# define Isspace(c)	cmap((c), _SP|_NL)
+# define Isdigit(c)	cmap((c), _DIG)
+# define Isalpha(c)	(cmap((c),_LET) && !(((c) & META) && AsciiOnly))
+# define Islower(c)	(cmap((c),_DOW) && !(((c) & META) && AsciiOnly))
+# define Isupper(c)	(cmap((c), _UP) && !(((c) & META) && AsciiOnly))
 # define Tolower(c)	(_cmap_lower[ASC(c)])
 # define Toupper(c)	(_cmap_upper[ASC(c)])
-# define Isxdigit(c)	cmap(c, _XD)
-# define Isalnum(c)	(cmap(c, _DIG|_LET) && !(((Char)(c) & META) && AsciiOnly))
+# define Isxdigit(c)	cmap((c), _XD)
+# define Isalnum(c)	(cmap((c), _DIG|_LET) && !(((Char)(c) & META) && AsciiOnly))
 #if defined(DSPMBYTE)
-# define IscntrlM(c)	(cmap(c,_CTR) && !(((c) & META) && AsciiOnly))
+# define IscntrlM(c)	(cmap((c),_CTR) && !(((c) & META) && AsciiOnly))
 # define Iscntrl(c)	( (IscntrlM(c)) && !(_enable_mbdisp&&(IsmbyteU((c)))) )
-# define IsprintM(c)	(!cmap(c,_CTR) && !(((c) & META) && AsciiOnly))
+# define IsprintM(c)	(!cmap((c),_CTR) && !(((c) & META) && AsciiOnly))
 # define Isprint(c)	( (IsprintM(c)) || (_enable_mbdisp&&(IsmbyteU((c)))) )
 #else
-# define Iscntrl(c)	(cmap(c,_CTR) && !(((c) & META) && AsciiOnly))
-# define Isprint(c)	(!cmap(c,_CTR) && !(((c) & META) && AsciiOnly))
+# define Iscntrl(c)	(cmap((c),_CTR) && !(((c) & META) && AsciiOnly))
+# define Isprint(c)	(!cmap((c),_CTR) && !(((c) & META) && AsciiOnly))
 #endif /* !defined(DSPMBYTE) */
-# define Ispunct(c)	(cmap(c,_PUN) && !(((c) & META) && AsciiOnly))
+# define Ispunct(c)	(cmap((c),_PUN) && !(((c) & META) && AsciiOnly))
 
 #endif /* !NLS */
-
-#if defined (SHORT_STRINGS) && defined (NLS)
-# define Iswcntrl(c) 	(((c) & QUOTE) ? 0 : iswcntrl(c))
-# define Iswprint(c) 	(((c) & QUOTE) ? 0 : iswprint(c))
-#else
-# define Iswcntrl(c) 	Iscntrl(c)
-# define Iswprint(c) 	Isprint(c)
-#endif
 
 #if defined(DSPMBYTE)
 # define Ismbyte1(c)	((_mbmap[(c) & 0377] & _MB1) ? 1 : 0)

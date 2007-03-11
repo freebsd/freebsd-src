@@ -1,4 +1,4 @@
-$ $Id: set20,v 1.2 1995/03/19 18:07:15 christos Exp $
+$ $tcsh: set20,v 1.2 1995/03/19 18:07:15 christos Exp $
 $ tc.bind.c
 $set 20 
 1 Invalid key name `%S'\n

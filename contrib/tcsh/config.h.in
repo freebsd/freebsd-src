@@ -10,9 +10,27 @@
 /* Define to 1 if you have the <auth.h> header file. */
 #undef HAVE_AUTH_H
 
+/* Define to 1 if you have the `catgets' function. */
+#undef HAVE_CATGETS
+
+/* Define to 1 if you have the <crypt.h> header file. */
+#undef HAVE_CRYPT_H
+
+/* Define to 1 if you have the declaration of `crypt', and to 0 if you don't.
+   */
+#undef HAVE_DECL_CRYPT
+
+/* Define to 1 if you have the declaration of `environ', and to 0 if you
+   don't. */
+#undef HAVE_DECL_ENVIRON
+
 /* Define to 1 if you have the declaration of `gethostname', and to 0 if you
    don't. */
 #undef HAVE_DECL_GETHOSTNAME
+
+/* Define to 1 if you have the declaration of `getpgrp', and to 0 if you
+   don't. */
+#undef HAVE_DECL_GETPGRP
 
 /* Define to 1 if you have the <dirent.h> header file, and it defines `DIR'.
    */
@@ -20,6 +38,9 @@
 
 /* Define to 1 if you have the `dup2' function. */
 #undef HAVE_DUP2
+
+/* Define to 1 if you have the `getauthid' function. */
+#undef HAVE_GETAUTHID
 
 /* Define to 1 if you have the `getcwd' function. */
 #undef HAVE_GETCWD
@@ -33,7 +54,7 @@
 /* Define to 1 if you have the `getutent' function. */
 #undef HAVE_GETUTENT
 
-/* Define to 1 if you have the iconv () interface */
+/* Define if you have the iconv() function. */
 #undef HAVE_ICONV
 
 /* Define to 1 if you have the <inttypes.h> header file. */
@@ -41,6 +62,9 @@
 
 /* Define to 1 if the system has the type `long long'. */
 #undef HAVE_LONG_LONG
+
+/* Define to 1 if mbrtowc and mbstate_t are properly declared. */
+#undef HAVE_MBRTOWC
 
 /* Define to 1 if you have the `memmove' function. */
 #undef HAVE_MEMMOVE
@@ -77,6 +101,10 @@
 
 /* Define to 1 if you have the <stdlib.h> header file. */
 #undef HAVE_STDLIB_H
+
+/* Define to 1 if you have the `strcoll' function and it is properly defined.
+   */
+#undef HAVE_STRCOLL
 
 /* Define to 1 if you have the `strerror' function. */
 #undef HAVE_STRERROR
@@ -143,6 +171,12 @@
 /* Define to 1 if you have the `wcwidth' function. */
 #undef HAVE_WCWIDTH
 
+/* Define as const if the declaration of iconv() needs const. */
+#undef ICONV_CONST
+
+/* Support NLS. */
+#undef NLS
+
 /* Define to the address where bug reports for this package should be sent. */
 #undef PACKAGE_BUGREPORT
 
@@ -158,12 +192,6 @@
 /* Define to the version of this package. */
 #undef PACKAGE_VERSION
 
-/* Define to 1 if the C compiler supports function prototypes. */
-#undef PROTOTYPES
-
-/* Define as the return type of signal handlers (`int' or `void'). */
-#undef RETSIGTYPE
-
 /* Define to 1 if the `setpgrp' function takes no argument. */
 #undef SETPGRP_VOID
 
@@ -175,9 +203,6 @@
 
 /* Define to 1 if you have the ANSI C header files. */
 #undef STDC_HEADERS
-
-/* Define like PROTOTYPES; this can be used by system headers. */
-#undef __PROTOTYPES
 
 /* Define to empty if `const' does not conform to ANSI C. */
 #undef const
@@ -193,6 +218,9 @@
 
 /* Define to `int' if neither <sys/types.h> nor <sys/socket.h> define. */
 #undef socklen_t
+
+/* Define to `int' not defined in <sys/types.h>. */
+#undef ssize_t
 
 /* Define to `int' if <sys/types.h> doesn't define. */
 #undef uid_t

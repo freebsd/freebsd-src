@@ -1,4 +1,4 @@
-$ $Id: set7,v 1.1 2005/03/23 01:25:47 kim Exp $
+$ $tcsh: set7,v 1.2 2006/03/02 18:46:47 christos Exp $
 $ ed.screen.c
 $set 7
 1 \n\tTcsh の推測では、あなたの端末は\n

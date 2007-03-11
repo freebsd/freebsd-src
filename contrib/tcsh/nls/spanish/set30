@@ -1,4 +1,4 @@
-$ $Id: set30,v 1.1 1998/04/08 18:00:09 christos Exp $
+$ $tcsh: set30,v 1.2 2006/03/02 18:46:48 christos Exp $
 $ tw.parse.c
 $set 30 
 1 comienzo_de_comando %d\n
