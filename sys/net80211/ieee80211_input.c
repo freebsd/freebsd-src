@@ -73,38 +73,8 @@ doprint(struct ieee80211com *ic, int subtype)
 	return 1;
 }
 
-/*
- * Emit a debug message about discarding a frame or information
- * element.  One format is for extracting the mac address from
- * the frame header; the other is for when a header is not
- * available or otherwise appropriate.
- */
-#define	IEEE80211_DISCARD(_ic, _m, _wh, _type, _fmt, ...) do {		\
-	if ((_ic)->ic_debug & (_m))					\
-		ieee80211_discard_frame(_ic, _wh, _type, _fmt, __VA_ARGS__);\
-} while (0)
-#define	IEEE80211_DISCARD_IE(_ic, _m, _wh, _type, _fmt, ...) do {	\
-	if ((_ic)->ic_debug & (_m))					\
-		ieee80211_discard_ie(_ic, _wh, _type, _fmt, __VA_ARGS__);\
-} while (0)
-#define	IEEE80211_DISCARD_MAC(_ic, _m, _mac, _type, _fmt, ...) do {	\
-	if ((_ic)->ic_debug & (_m))					\
-		ieee80211_discard_mac(_ic, _mac, _type, _fmt, __VA_ARGS__);\
-} while (0)
-
 static const u_int8_t *ieee80211_getbssid(struct ieee80211com *,
 	const struct ieee80211_frame *);
-static void ieee80211_discard_frame(struct ieee80211com *,
-	const struct ieee80211_frame *, const char *type, const char *fmt, ...);
-static void ieee80211_discard_ie(struct ieee80211com *,
-	const struct ieee80211_frame *, const char *type, const char *fmt, ...);
-static void ieee80211_discard_mac(struct ieee80211com *,
-	const u_int8_t mac[IEEE80211_ADDR_LEN], const char *type,
-	const char *fmt, ...);
-#else
-#define	IEEE80211_DISCARD(_ic, _m, _wh, _type, _fmt, ...)
-#define	IEEE80211_DISCARD_IE(_ic, _m, _wh, _type, _fmt, ...)
-#define	IEEE80211_DISCARD_MAC(_ic, _m, _mac, _type, _fmt, ...)
 #endif /* IEEE80211_DEBUG */
 
 static struct mbuf *ieee80211_defrag(struct ieee80211com *,
@@ -2867,7 +2837,7 @@ ieee80211_note_mac(struct ieee80211com *ic,
 	if_printf(ic->ic_ifp, "[%s] %s\n", ether_sprintf(mac), buf);
 }
 
-static void
+void
 ieee80211_discard_frame(struct ieee80211com *ic,
 	const struct ieee80211_frame *wh,
 	const char *type, const char *fmt, ...)
@@ -2886,7 +2856,7 @@ ieee80211_discard_frame(struct ieee80211com *ic,
 	printf("\n");
 }
 
-static void
+void
 ieee80211_discard_ie(struct ieee80211com *ic,
 	const struct ieee80211_frame *wh,
 	const char *type, const char *fmt, ...)
@@ -2905,7 +2875,7 @@ ieee80211_discard_ie(struct ieee80211com *ic,
 	printf("\n");
 }
 
-static void
+void
 ieee80211_discard_mac(struct ieee80211com *ic,
 	const u_int8_t mac[IEEE80211_ADDR_LEN],
 	const char *type, const char *fmt, ...)
