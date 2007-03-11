@@ -169,6 +169,9 @@ struct ieee80211_cipher {
 };
 extern	const struct ieee80211_cipher ieee80211_cipher_none;
 
+#define	IEEE80211_KEY_UNDEFINED(k) \
+	((k)->wk_cipher == &ieee80211_cipher_none)
+
 void	ieee80211_crypto_register(const struct ieee80211_cipher *);
 void	ieee80211_crypto_unregister(const struct ieee80211_cipher *);
 int	ieee80211_crypto_available(u_int cipher);
