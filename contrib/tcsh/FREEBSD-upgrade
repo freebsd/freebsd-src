@@ -5,9 +5,9 @@ Christos Zoulas `tcsh'
 
 The stripped down version was created using FREEBSD-Xlist during extraction:
 
-	tar -X FREEBSD-Xlist -xzf tcsh-6.12.00.tar.gz
+	tar -X FREEBSD-Xlist -xzf tcsh-6.15.00.tar.gz
 
 Imported by:
 
-	cvs import -m "Import of tcsh-6.12.00" \
-		src/contrib/tcsh ZOULAS tcsh_6_12
+	cvs import -m "Import of tcsh-6.15.00" \
+		src/contrib/tcsh ZOULAS tcsh_6_15
