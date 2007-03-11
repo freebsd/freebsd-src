@@ -277,7 +277,8 @@ ng_eiface_start(struct ifnet *ifp)
 
 	ifp->if_drv_flags |= IFF_DRV_OACTIVE;
 
-	ng_send_fn(priv->node, NULL, &ng_eiface_start2, ifp, 0);
+	if (ng_send_fn(priv->node, NULL, &ng_eiface_start2, ifp, 0) != 0)
+		ifp->if_drv_flags &= ~IFF_DRV_OACTIVE;
 }
 
 #ifdef DEBUG
