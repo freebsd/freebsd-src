@@ -573,7 +573,6 @@ ieee80211_mbuf_adjust(struct ieee80211com *ic, int hdrsize,
 #undef TO_BE_RECLAIMED
 }
 
-#define	KEY_UNDEFINED(k)	((k).wk_cipher == &ieee80211_cipher_none)
 /*
  * Return the transmit key to use in sending a unicast frame.
  * If a unicast key is set we use that.  When no unicast key is set
@@ -582,9 +581,9 @@ ieee80211_mbuf_adjust(struct ieee80211com *ic, int hdrsize,
 static __inline struct ieee80211_key *
 ieee80211_crypto_getucastkey(struct ieee80211com *ic, struct ieee80211_node *ni)
 {
-	if (KEY_UNDEFINED(ni->ni_ucastkey)) {
+	if (IEEE80211_KEY_UNDEFINED(&ni->ni_ucastkey)) {
 		if (ic->ic_def_txkey == IEEE80211_KEYIX_NONE ||
-		    KEY_UNDEFINED(ic->ic_nw_keys[ic->ic_def_txkey]))
+		    IEEE80211_KEY_UNDEFINED(&ic->ic_nw_keys[ic->ic_def_txkey]))
 			return NULL;
 		return &ic->ic_nw_keys[ic->ic_def_txkey];
 	} else {
@@ -601,7 +600,7 @@ static __inline struct ieee80211_key *
 ieee80211_crypto_getmcastkey(struct ieee80211com *ic, struct ieee80211_node *ni)
 {
 	if (ic->ic_def_txkey == IEEE80211_KEYIX_NONE ||
-	    KEY_UNDEFINED(ic->ic_nw_keys[ic->ic_def_txkey]))
+	    IEEE80211_KEY_UNDEFINED(&ic->ic_nw_keys[ic->ic_def_txkey]))
 		return NULL;
 	return &ic->ic_nw_keys[ic->ic_def_txkey];
 }
@@ -752,7 +751,8 @@ ieee80211_encap(struct ieee80211com *ic, struct mbuf *m,
 		if (eh.ether_type != htons(ETHERTYPE_PAE) ||
 		    ((ic->ic_flags & IEEE80211_F_WPA) &&
 		     (ic->ic_opmode == IEEE80211_M_STA ?
-		      !KEY_UNDEFINED(*key) : !KEY_UNDEFINED(ni->ni_ucastkey)))) {
+		      !IEEE80211_KEY_UNDEFINED(key) :
+		      !IEEE80211_KEY_UNDEFINED(&ni->ni_ucastkey)))) {
 			wh->i_fc[1] |= IEEE80211_FC1_WEP;
 			/* XXX do fragmentation */
 			if (!ieee80211_crypto_enmic(ic, key, m, 0)) {
