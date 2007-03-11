@@ -92,6 +92,8 @@ struct archive_entry;
 #define	ARCHIVE_OK	  0	/* Operation was successful. */
 #define	ARCHIVE_RETRY	(-10)	/* Retry might succeed. */
 #define	ARCHIVE_WARN	(-20)	/* Partial success. */
+/* For example, if write_header "fails", then you can't push data. */
+#define	ARCHIVE_FAILED	(-25)	/* Current operation cannot complete. */
 #define	ARCHIVE_FATAL	(-30)	/* No more operations are possible. */
 
 /*
