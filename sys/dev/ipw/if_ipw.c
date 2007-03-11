@@ -173,12 +173,6 @@ static devclass_t ipw_devclass;
 
 DRIVER_MODULE(ipw, pci, ipw_driver, ipw_devclass, 0, 0);
 
-/*
- * Supported rates for 802.11b mode (in 500Kbps unit).
- */
-static const struct ieee80211_rateset ipw_rateset_11b =
-	{ 4, { 2, 4, 11, 22 } };
-
 static int
 ipw_probe(device_t dev)
 {
@@ -292,9 +286,6 @@ ipw_attach(device_t dev)
 	val = ipw_read_prom_word(sc, IPW_EEPROM_MAC + 2);
 	ic->ic_myaddr[4] = val >> 8;
 	ic->ic_myaddr[5] = val & 0xff;
-
-	/* set supported .11b rates */
-	ic->ic_sup_rates[IEEE80211_MODE_11B] = ipw_rateset_11b;
 
 	/* set supported .11b channels */
 	for (i = 1; i < 14; i++) {
