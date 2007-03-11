@@ -29,7 +29,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$NetBSD: map.c,v 1.23 2006/03/06 21:11:56 christos Exp $
+ *	$NetBSD: map.c,v 1.24 2006/04/09 01:36:51 christos Exp $
  */
 
 #if !defined(lint) && !defined(SCCSID)
@@ -1381,7 +1381,7 @@ map_bind(EditLine *el, int argc, const char **argv)
 		break;
 
 	default:
-		EL_ABORT((el->el_errfile, "Bad XK_ type\n", ntype));
+		EL_ABORT((el->el_errfile, "Bad XK_ type %d\n", ntype));
 		break;
 	}
 	return (0);
