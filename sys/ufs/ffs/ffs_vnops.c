@@ -1349,6 +1349,9 @@ struct vop_closeextattr_args {
 	if (ap->a_vp->v_type == VCHR)
 		return (EOPNOTSUPP);
 
+	if (ap->a_commit && (ap->a_vp->v_mount->mnt_flag & MNT_RDONLY))
+		return (EROFS);
+
 	return (ffs_close_ea(ap->a_vp, ap->a_commit, ap->a_cred, ap->a_td));
 }
 
@@ -1382,6 +1385,9 @@ vop_deleteextattr {
 
 	if (strlen(ap->a_name) == 0)
 		return (EINVAL);
+
+	if (ap->a_vp->v_mount->mnt_flag & MNT_RDONLY)
+		return (EROFS);
 
 	error = extattr_check_cred(ap->a_vp, ap->a_attrnamespace,
 	    ap->a_cred, ap->a_td, IWRITE);
@@ -1603,6 +1609,9 @@ vop_setextattr {
 	/* XXX Now unsupported API to delete EAs using NULL uio. */
 	if (ap->a_uio == NULL)
 		return (EOPNOTSUPP);
+
+	if (ap->a_vp->v_mount->mnt_flag & MNT_RDONLY)
+		return (EROFS);
 
 	error = extattr_check_cred(ap->a_vp, ap->a_attrnamespace,
 	    ap->a_cred, ap->a_td, IWRITE);
