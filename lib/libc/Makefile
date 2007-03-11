@@ -66,6 +66,9 @@ CFLAGS+= -DHESIOD
 .if defined(NO_FP_LIBC)
 CFLAGS+= -DNO_FLOATING_POINT
 .endif
+.if defined(_FREEFALL_CONFIG)
+CFLAGS+=-D_FREEFALL_CONFIG
+.endif
 
 # If there are no machine dependent sources, append all the
 # machine-independent sources:
