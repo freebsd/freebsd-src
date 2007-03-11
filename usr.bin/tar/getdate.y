@@ -8,6 +8,7 @@
  * (eliminate some state variables and post-processing).  Among other
  * things, these changes eliminated two shift/reduce conflicts.  (Went
  * from 10 to 8.)
+ * All of Tim Kientzle's changes to this file are public domain.
  */
 
 /*
