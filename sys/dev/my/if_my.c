@@ -64,11 +64,6 @@ __FBSDID("$FreeBSD$");
 #include <dev/pci/pcireg.h>
 #include <dev/pci/pcivar.h>
 
-#include <dev/mii/mii.h>
-#include <dev/mii/miivar.h>
-
-#include "miibus_if.h"
-
 /*
  * #define MY_USEIOSPACE
  */
