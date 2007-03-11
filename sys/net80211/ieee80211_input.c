@@ -1252,7 +1252,8 @@ bad:
 		IEEE80211_DISCARD(ic, IEEE80211_MSG_ELEMID,		\
 		    wh, ieee80211_mgt_subtype_name[subtype >>		\
 			IEEE80211_FC0_SUBTYPE_SHIFT],			\
-		    "%s", "ie too short");				\
+		    "ie too short, got %d, expected %d",		\
+		    (_len), (_minlen));					\
 		ic->ic_stats.is_rx_elem_toosmall++;			\
 		return;							\
 	}								\
