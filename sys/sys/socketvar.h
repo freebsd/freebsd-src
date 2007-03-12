@@ -488,7 +488,7 @@ int	sbwait(struct sockbuf *sb);
 int	sb_lock(struct sockbuf *sb);
 int	soabort(struct socket *so);
 int	soaccept(struct socket *so, struct sockaddr **nam);
-struct	socket *soalloc(int mflags);
+struct	socket *soalloc(void);
 int	socheckuid(struct socket *so, uid_t uid);
 int	sobind(struct socket *so, struct sockaddr *nam, struct thread *td);
 void	socantrcvmore(struct socket *so);

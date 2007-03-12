@@ -148,15 +148,15 @@ MTX_SYSINIT(so_global_mtx, &so_global_mtx, "so_glabel", MTX_DEF);
  * soalloc() returns a socket with a ref count of 0.
  */
 struct socket *
-soalloc(int mflags)
+soalloc(void)
 {
 	struct socket *so;
 
-	so = uma_zalloc(socket_zone, mflags | M_ZERO);
+	so = uma_zalloc(socket_zone, M_NOWAIT | M_ZERO);
 	if (so == NULL)
 		return (NULL);
 #ifdef MAC
-	if (mac_init_socket(so, mflags) != 0) {
+	if (mac_init_socket(so, M_NOWAIT) != 0) {
 		uma_zfree(socket_zone, so);
 		return (NULL);
 	}
@@ -206,7 +206,7 @@ socreate(dom, aso, type, proto, cred, td)
 
 	if (prp->pr_type != type)
 		return (EPROTOTYPE);
-	so = soalloc(M_WAITOK);
+	so = soalloc();
 	if (so == NULL)
 		return (ENOBUFS);
 
