@@ -67,9 +67,9 @@ SECTIONS=	1 1aout 2 3 4 5 6 7 8 9
 
 # Backwards compatibility.
 .if !defined(MAN)
-.for sect in ${SECTIONS}
-.if defined(MAN${sect}) && !empty(MAN${sect})
-MAN+=	${MAN${sect}}
+.for __sect in ${SECTIONS}
+.if defined(MAN${__sect}) && !empty(MAN${__sect})
+MAN+=	${MAN${__sect}}
 .endif
 .endfor
 .endif
@@ -93,16 +93,16 @@ ZEXT=
 .if defined(MAN) && !empty(MAN)
 CLEANFILES+=	${MAN:T:S/$/${FILTEXTENSION}/g}
 CLEANFILES+=	${MAN:T:S/$/${CATEXT}${FILTEXTENSION}/g}
-.for page in ${MAN}
-.for target in ${page:T:S/$/${FILTEXTENSION}/g}
-_manpages: ${target}
-${target}: ${page}
+.for __page in ${MAN}
+.for __target in ${__page:T:S/$/${FILTEXTENSION}/g}
+_manpages: ${__target}
+${__target}: ${__page}
 	${MANFILTER} < ${.ALLSRC} > ${.TARGET}
 .endfor
 .if defined(MANBUILDCAT) && !empty(MANBUILDCAT)
-.for target in ${page:T:S/$/${CATEXT}${FILTEXTENSION}/g}
-_manpages: ${target}
-${target}: ${page}
+.for __target in ${__page:T:S/$/${CATEXT}${FILTEXTENSION}/g}
+_manpages: ${__target}
+${__target}: ${__page}
 	${MANFILTER} < ${.ALLSRC} | ${MROFF_CMD} > ${.TARGET}
 .endfor
 .endif
@@ -112,10 +112,10 @@ ${target}: ${page}
 .if defined(MAN) && !empty(MAN)
 CLEANFILES+=	${MAN:T:S/$/${CATEXT}/g}
 .if defined(MANBUILDCAT) && !empty(MANBUILDCAT)
-.for page in ${MAN}
-.for target in ${page:T:S/$/${CATEXT}/g}
-_manpages: ${target}
-${target}: ${page}
+.for __page in ${MAN}
+.for __target in ${__page:T:S/$/${CATEXT}/g}
+_manpages: ${__target}
+${__target}: ${__page}
 	${MROFF_CMD} ${.ALLSRC} > ${.TARGET}
 .endfor
 .endfor
@@ -132,10 +132,10 @@ ZEXT=		${MCOMPRESS_EXT}
 .if defined(MAN) && !empty(MAN)
 CLEANFILES+=	${MAN:T:S/$/${MCOMPRESS_EXT}/g}
 CLEANFILES+=	${MAN:T:S/$/${CATEXT}${MCOMPRESS_EXT}/g}
-.for page in ${MAN}
-.for target in ${page:T:S/$/${MCOMPRESS_EXT}/}
-_manpages: ${target}
-${target}: ${page}
+.for __page in ${MAN}
+.for __target in ${__page:T:S/$/${MCOMPRESS_EXT}/}
+_manpages: ${__target}
+${__target}: ${__page}
 .if defined(MANFILTER)
 	${MANFILTER} < ${.ALLSRC} | ${MCOMPRESS_CMD} > ${.TARGET}
 .else
@@ -143,9 +143,9 @@ ${target}: ${page}
 .endif
 .endfor
 .if defined(MANBUILDCAT) && !empty(MANBUILDCAT)
-.for target in ${page:T:S/$/${CATEXT}${MCOMPRESS_EXT}/}
-_manpages: ${target}
-${target}: ${page}
+.for __target in ${__page:T:S/$/${CATEXT}${MCOMPRESS_EXT}/}
+_manpages: ${__target}
+${__target}: ${__page}
 .if defined(MANFILTER)
 	${MANFILTER} < ${.ALLSRC} | ${MROFF_CMD} | ${MCOMPRESS_CMD} > ${.TARGET}
 .else
@@ -164,12 +164,12 @@ _maninstall:
 _maninstall: ${MAN}
 .if defined(NO_MANCOMPRESS)
 .if defined(MANFILTER)
-.for page in ${MAN}
-	${MINSTALL} ${page:T:S/$/${FILTEXTENSION}/g} \
-		${DESTDIR}${MANDIR}${page:E}${MANSUBDIR}/${page}
+.for __page in ${MAN}
+	${MINSTALL} ${__page:T:S/$/${FILTEXTENSION}/g} \
+		${DESTDIR}${MANDIR}${__page:E}${MANSUBDIR}/${__page}
 .if defined(MANBUILDCAT) && !empty(MANBUILDCAT)
-	${MINSTALL} ${page:T:S/$/${CATEXT}${FILTEXTENSION}/g} \
-		${DESTDIR}${CATDIR}${page:E}${MANSUBDIR}/${page}
+	${MINSTALL} ${__page:T:S/$/${CATEXT}${FILTEXTENSION}/g} \
+		${DESTDIR}${CATDIR}${__page:E}${MANSUBDIR}/${__page}
 .endif
 .endfor
 .else
@@ -185,19 +185,19 @@ _maninstall: ${MAN}
 		${MINSTALL} $${page} $${d}; \
 	done
 .if defined(MANBUILDCAT) && !empty(MANBUILDCAT)
-.for page in ${MAN}
-	${MINSTALL} ${page:T:S/$/${CATEXT}/} \
-		${DESTDIR}${CATDIR}${page:E}${MANSUBDIR}/${page:T}
+.for __page in ${MAN}
+	${MINSTALL} ${__page:T:S/$/${CATEXT}/} \
+		${DESTDIR}${CATDIR}${__page:E}${MANSUBDIR}/${__page:T}
 .endfor
 .endif
 .endif
 .else
-.for page in ${MAN}
-	${MINSTALL} ${page:T:S/$/${MCOMPRESS_EXT}/g} \
-		${DESTDIR}${MANDIR}${page:E}${MANSUBDIR}
+.for __page in ${MAN}
+	${MINSTALL} ${__page:T:S/$/${MCOMPRESS_EXT}/g} \
+		${DESTDIR}${MANDIR}${__page:E}${MANSUBDIR}
 .if defined(MANBUILDCAT) && !empty(MANBUILDCAT)
-	${MINSTALL} ${page:T:S/$/${CATEXT}${MCOMPRESS_EXT}/g} \
-		${DESTDIR}${CATDIR}${page:E}${MANSUBDIR}/${page:T:S/$/${MCOMPRESS_EXT}/}
+	${MINSTALL} ${__page:T:S/$/${CATEXT}${MCOMPRESS_EXT}/g} \
+		${DESTDIR}${CATDIR}${__page:E}${MANSUBDIR}/${__page:T:S/$/${MCOMPRESS_EXT}/}
 .endif
 .endfor
 .endif
@@ -238,9 +238,9 @@ _maninstall: ${MAN}
 
 manlint:
 .if defined(MAN) && !empty(MAN)
-.for page in ${MAN}
-manlint: ${page}lint
-${page}lint: ${page}
+.for __page in ${MAN}
+manlint: ${__page}lint
+${__page}lint: ${__page}
 .if defined(MANFILTER)
 	${MANFILTER} < ${.ALLSRC} | ${MROFF_CMD} -ww -z
 .else
