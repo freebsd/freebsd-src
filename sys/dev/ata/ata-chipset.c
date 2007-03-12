@@ -4657,8 +4657,12 @@ ata_siiprb_end_transaction(struct ata_request *request)
 	request->error = prb->fis[3];
 
     /* update progress */
-    if (!(request->status & ATA_S_ERROR) && !(request->flags & ATA_R_TIMEOUT))
-	request->donecount = prb->transfer_count;
+    if (!(request->status & ATA_S_ERROR) && !(request->flags & ATA_R_TIMEOUT)) {
+	if (request->flags & ATA_R_READ)
+	    request->donecount = prb->transfer_count;
+	else
+	    request->donecount = request->bytecount;
+    }
 
     /* any controller errors flagged ? */
     if ((error = ATA_INL(ctlr->r_res2, 0x1024 + offset))) {
