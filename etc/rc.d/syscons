@@ -210,7 +210,7 @@ syscons_start()
 		;;
 	*)
 		echo -n ' screensaver'
-		for i in `kldstat | awk '$5 ~ "^splash_.*$" { print $5 }'`; do
+		for i in `kldstat | awk '$5 ~ "_saver\.ko$" { print $5 }'`; do
 			kldunload ${i}
 		done
 		load_kld -e _saver ${saver}_saver
