@@ -36,10 +36,14 @@ __FBSDID("$FreeBSD$");
 #include <sys/systm.h>
 #include <sys/bus.h>
 #include <sys/kernel.h>
-#include <sys/malloc.h>
 #include <sys/lock.h>
+#include <sys/malloc.h>
+#include <sys/module.h>
 #include <sys/mutex.h>
 #include <sys/sysctl.h>
+
+#include <dev/pci/pcireg.h>
+#include <dev/pci/pcivar.h>
 
 #include <vm/vm.h>
 #include <vm/pmap.h>
@@ -723,3 +727,46 @@ ioapic_register(void *cookie)
 		if (pin->io_irq < NUM_IO_INTS)
 			intr_register_source(&pin->io_intsrc);
 }
+
+/* A simple new-bus driver to consume PCI I/O APIC devices. */
+static int
+ioapic_pci_probe(device_t dev)
+{
+
+	if (pci_get_class(dev) == PCIC_BASEPERIPH &&
+	    pci_get_subclass(dev) == PCIS_BASEPERIPH_PIC) {
+		switch (pci_get_progif(dev)) {
+		case PCIP_BASEPERIPH_PIC_IO_APIC:
+			device_set_desc(dev, "IO APIC");
+			break;
+		case PCIP_BASEPERIPH_PIC_IOX_APIC:
+			device_set_desc(dev, "IO(x) APIC");
+			break;
+		default:
+			return (ENXIO);
+		}
+		device_quiet(dev);
+		return (-10000);
+	}
+	return (ENXIO);
+}
+
+static int
+ioapic_pci_attach(device_t dev)
+{
+
+	return (0);
+}
+
+static device_method_t ioapic_pci_methods[] = {
+	/* Device interface */
+	DEVMETHOD(device_probe,		ioapic_pci_probe),
+	DEVMETHOD(device_attach,	ioapic_pci_attach),
+
+	{ 0, 0 }
+};
+
+DEFINE_CLASS_0(ioapic, ioapic_pci_driver, ioapic_pci_methods, 0);
+
+static devclass_t ioapic_devclass;
+DRIVER_MODULE(ioapic, pci, ioapic_pci_driver, ioapic_devclass, 0, 0);
