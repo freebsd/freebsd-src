@@ -862,7 +862,7 @@ db_show_rwlock(struct lock_object *lock)
 		db_printf("writers\n");
 		break;
 	case RW_LOCK_READ_WAITERS | RW_LOCK_WRITE_WAITERS:
-		db_printf("readers and waiters\n");
+		db_printf("readers and writers\n");
 		break;
 	default:
 		db_printf("none\n");
