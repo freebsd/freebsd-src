@@ -2000,10 +2000,14 @@ isp_fibre_init_2400(ispsoftc_t *isp)
 			    icbp->icb_atioqlen);
 			return;
 		}
-		icbp->icb_atioqaddr[RQRSP_ADDR0015] = DMA_WD0(isp->isp_atioq_dma);
-		icbp->icb_atioqaddr[RQRSP_ADDR1631] = DMA_WD1(isp->isp_atioq_dma);
-		icbp->icb_atioqaddr[RQRSP_ADDR3247] = DMA_WD2(isp->isp_atioq_dma);
-		icbp->icb_atioqaddr[RQRSP_ADDR4863] = DMA_WD3(isp->isp_atioq_dma);
+		icbp->icb_atioqaddr[RQRSP_ADDR0015] =
+		    DMA_WD0(isp->isp_atioq_dma);
+		icbp->icb_atioqaddr[RQRSP_ADDR1631] =
+		    DMA_WD1(isp->isp_atioq_dma);
+		icbp->icb_atioqaddr[RQRSP_ADDR3247] =
+		    DMA_WD2(isp->isp_atioq_dma);
+		icbp->icb_atioqaddr[RQRSP_ADDR4863] =
+		    DMA_WD3(isp->isp_atioq_dma);
 		isp_prt(isp, ISP_LOGDEBUG0,
 		    "isp_fibre_init_2400: atioq %04x%04x%04x%04x",
 		    DMA_WD3(isp->isp_atioq_dma), DMA_WD2(isp->isp_atioq_dma),
@@ -4803,7 +4807,7 @@ again:
 				isp_prt(isp, ISP_LOGERR, notresp,
 				    etype, oop, optr, nlooked);
 				isp_print_bytes(isp,
-				    "Reqeonse Queue Entry", QENTRY_LEN, sp);
+				    "Request Queue Entry", QENTRY_LEN, sp);
 				MEMZERO(hp, QENTRY_LEN);	/* PERF */
 				continue;
 			}
@@ -7502,7 +7506,7 @@ isp_rd_2400_nvram(ispsoftc_t *isp, uint32_t addr, uint32_t *rp)
 {
 	int loops = 0;
 	const uint32_t base = 0x7ffe0000;
-	uint32_t tmp;
+	uint32_t tmp = 0;
 
 	ISP_WRITE(isp, BIU2400_FLASH_ADDR, base | addr);
 	for (loops = 0; loops < 5000; loops++) {

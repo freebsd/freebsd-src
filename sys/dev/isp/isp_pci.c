@@ -435,7 +435,6 @@ isp_pci_probe(device_t dev)
 static void
 isp_get_generic_options(device_t dev, ispsoftc_t *isp)
 {
-	uint64_t wwn;
 	int bitmap, unit;
 
 	unit = device_get_unit(dev);
@@ -508,6 +507,9 @@ isp_get_pci_options(device_t dev, int *m1, int *m2)
 static void
 isp_get_specific_options(device_t dev, ispsoftc_t *isp)
 {
+	uint64_t wwn;
+	int bitmap;
+	int unit = device_get_unit(dev);
 
 	callout_handle_init(&isp->isp_osinfo.ldt);
 	callout_handle_init(&isp->isp_osinfo.gdt);
