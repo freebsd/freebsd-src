@@ -593,7 +593,8 @@ uipc_detach(struct socket *so)
 	if (freeunp) {
 		UNP_PCB_LOCK_DESTROY(unp);
 		uma_zfree(unp_zone, unp);
-	}
+	} else
+		UNP_PCB_UNLOCK(unp);
 	if (vp) {
 		int vfslocked;
 
