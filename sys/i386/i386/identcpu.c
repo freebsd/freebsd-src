@@ -832,7 +832,7 @@ via_common:
 				"\006<b5>"
 				"\007<b6>"
 				"\010<b7>"
-				"\011<b8>"
+				"\011Prefetch"	/* 3DNow! Prefetch/PrefetchW */
 				"\012<b9>"
 				"\013<b10>"
 				"\014<b11>"
