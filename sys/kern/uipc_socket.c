@@ -863,20 +863,11 @@ sosend_copyin(struct uio *uio, struct mbuf **retmp, int atomic, long *space,
 		if (resid >= MINCLSIZE) {
 #ifdef ZERO_COPY_SOCKETS
 			if (top == NULL) {
-				MGETHDR(m, M_TRYWAIT, MT_DATA);
-				if (m == NULL) {
-					error = ENOBUFS;
-					goto out;
-				}
+				m = m_gethdr(M_WAITOK, MT_DATA);
 				m->m_pkthdr.len = 0;
 				m->m_pkthdr.rcvif = NULL;
-			} else {
-				MGET(m, M_TRYWAIT, MT_DATA);
-				if (m == NULL) {
-					error = ENOBUFS;
-					goto out;
-				}
-			}
+			} else
+				m = m_get(M_WAITOK, MT_DATA);
 			if (so_zero_copy_send &&
 			    resid>=PAGE_SIZE &&
 			    *space>=PAGE_SIZE &&
@@ -887,14 +878,8 @@ sosend_copyin(struct uio *uio, struct mbuf **retmp, int atomic, long *space,
 				len = cow_send;
 			}
 			if (!cow_send) {
-				MCLGET(m, M_TRYWAIT);
-				if ((m->m_flags & M_EXT) == 0) {
-					m_free(m);
-					m = NULL;
-				} else {
-					len = min(min(MCLBYTES, resid),
-					    *space);
-				}
+				m_clget(m, M_WAITOK);
+				len = min(min(MCLBYTES, resid), *space);
 			}
 #else /* ZERO_COPY_SOCKETS */
 			if (top == NULL) {
