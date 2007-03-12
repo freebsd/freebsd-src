@@ -120,7 +120,6 @@ main(int argc, char **argv)
 		mode = O_RDONLY | O_NONBLOCK;
 	else
 		mode = O_RDWR;
-mode = O_RDONLY | O_NONBLOCK;
 
 	if((fd = open(argv[0], mode)) < 0)
 		err(EX_UNAVAILABLE, "open(%s)", argv[0]);
