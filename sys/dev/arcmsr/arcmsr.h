@@ -37,7 +37,7 @@
 **************************************************************************
 * $FreeBSD$
 */
-#define ARCMSR_DRIVER_VERSION                        "Driver Version 1.20.00.13 2006-8-18"
+#define ARCMSR_DRIVER_VERSION                        "Driver Version 1.20.00.14 2007-2-05"
 #define ARCMSR_SCSI_INITIATOR_ID                                              255
 #define ARCMSR_DEV_SECTOR_SIZE                                                512
 #define ARCMSR_MAX_XFER_SECTORS                                              4096
@@ -51,6 +51,7 @@
 #define ARCMSR_MAX_QBUFFER                                                   4096 /* ioctl QBUFFER */
 #define ARCMSR_MAX_SG_ENTRIES                                                  38 /* max 38*/
 #define ARCMSR_MAX_ADAPTER                                                      4
+#define ARCMSR_RELEASE_SIMQ_LEVEL                                             230
 /*
 *********************************************************************
 */
@@ -509,6 +510,7 @@ struct AdapterControlBlock {
 #define ACB_F_BUS_RESET                 0x0080
 #define ACB_F_IOP_INITED                0x0100                               /* iop init */
 #define ACB_F_MAPFREESRB_FAILD		0x0200                               /* arcmsr_map_freesrb faild */
+#define ACB_F_CAM_DEV_QFRZN             0x0400
 
 	struct CommandControlBlock *			psrb_pool[ARCMSR_MAX_FREESRB_NUM];     /* serial srb pointer array */
 	struct CommandControlBlock *			srbworkingQ[ARCMSR_MAX_FREESRB_NUM];   /* working srb pointer array */

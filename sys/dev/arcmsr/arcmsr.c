@@ -52,6 +52,9 @@
 **                                                       with scsi pass-through command
 **                                                       add new device id of sas raid adapters 
 **                                                       code fit for SPARC64 & PPC 
+**     1.20.00.14   02/05/2007         Erich Chen        bug fix for incorrect ccb_h.status report
+**                                                       and cause g_vfs_done() read write error
+
 ******************************************************************************************
 * $FreeBSD$
 */
@@ -417,7 +420,12 @@ static void arcmsr_srb_complete(struct CommandControlBlock *srb, int stand_flag)
 	}
 	ARCMSR_LOCK_ACQUIRE(&acb->workingQ_done_lock);
 	if(stand_flag==1) {
-	    atomic_subtract_int(&acb->srboutstandingcount, 1);
+		atomic_subtract_int(&acb->srboutstandingcount, 1);
+		if((acb->acb_flags & ACB_F_CAM_DEV_QFRZN) && (
+		acb->srboutstandingcount < ARCMSR_RELEASE_SIMQ_LEVEL)) {
+			acb->acb_flags &= ~ACB_F_CAM_DEV_QFRZN;
+			pccb->ccb_h.status |= CAM_RELEASE_SIMQ;
+		}
 	}
 	srb->startdone=ARCMSR_SRB_DONE;
 	srb->srb_flags=0;
@@ -1302,7 +1310,9 @@ static void arcmsr_executesrb(void *arg, bus_dma_segment_t *dm_segs, int nseg, i
 	}
 	pccb->ccb_h.status |= CAM_SIM_QUEUED;
 	if(acb->srboutstandingcount >= ARCMSR_MAX_OUTSTANDING_CMD) {
-		pccb->ccb_h.status |= CAM_SCSI_BUSY;
+		pccb->ccb_h.status &= ~CAM_STATUS_MASK;
+		pccb->ccb_h.status |= (CAM_REQUEUE_REQ|CAM_DEV_QFRZN);
+		acb->acb_flags |= ACB_F_CAM_DEV_QFRZN;
 		arcmsr_srb_complete(srb, 0);
 		return;
 	}
