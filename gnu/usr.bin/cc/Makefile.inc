@@ -16,7 +16,7 @@ MD_FILE=	../cc_tools/arm-diked.md
 .else
 MD_FILE=	${GCCDIR}/config/${GCC_CPU}/${GCC_CPU}.md
 .endif
-target=		${TARGET_ARCH}-undermydesk-freebsd
+GCC_TARGET=	${TARGET_ARCH}-undermydesk-freebsd
 
 CFLAGS+=	-DIN_GCC -DHAVE_CONFIG_H
 CFLAGS+=	-DPREFIX=\"${TOOLS_PREFIX}/usr\"

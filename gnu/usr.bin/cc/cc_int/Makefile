@@ -78,7 +78,7 @@ insn-$F.c: ${.OBJDIR}/../cc_tools/gen$F
 .endfor
 
 CFLAGS+=	-DHAVE_CONFIG_H
-CFLAGS+=	-DTARGET_NAME=\"${target}\" -DIN_GCC
+CFLAGS+=	-DTARGET_NAME=\"${GCC_TARGET}\"
 
 .if ${TARGET_ARCH} == "arm" && defined(TARGET_BIG_ENDIAN)
 CFLAGS += -DTARGET_ENDIAN_DEFAULT=ARM_FLAG_BIG_END
@@ -88,6 +88,6 @@ CFLAGS += -DTARGET_ENDIAN_DEFAULT=ARM_FLAG_BIG_END
 # pollute compiler command line for all other files.
 c-pch.o: c-pch.c
 	${CC} ${CFLAGS} -DHOST_MACHINE=\"${host}\" \
-		 -DTARGET_MACHINE=\"${target}\" -c ${.IMPSRC}
+		 -DTARGET_MACHINE=\"${GCC_TARGET}\" -c ${.IMPSRC}
 
 .include <bsd.lib.mk>
