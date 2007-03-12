@@ -195,6 +195,8 @@ static driver_t arcmsr_driver={
 
 static devclass_t arcmsr_devclass;
 DRIVER_MODULE(arcmsr, pci, arcmsr_driver, arcmsr_devclass, 0, 0);
+MODULE_DEPEND(arcmsr, pci, 1, 1, 1);
+MODULE_DEPEND(arcmsr, cam, 1, 1, 1);
 #ifndef BUS_DMA_COHERENT		
 	#define	BUS_DMA_COHERENT	0x04	/* hint: map memory in a coherent way */
 #endif
