@@ -349,6 +349,17 @@ default:							\
 #define	ISP_NODEWWN(isp)	FCPARAM(isp)->isp_wwnn_nvram
 #define	ISP_PORTWWN(isp)	FCPARAM(isp)->isp_wwpn_nvram
 
+
+#if __FreeBSD_version < 500000  
+#if _BYTE_ORDER == _LITTLE_ENDIAN
+#define	bswap16		htobe16
+#define	bswap32		htobe32
+#else
+#define	bswap16		htole16
+#define	bswap32		htole32
+#endif
+#endif
+
 #if	BYTE_ORDER == BIG_ENDIAN
 #ifdef	ISP_SBUS_SUPPORTED
 #define	ISP_IOXPUT_8(isp, s, d)		*(d) = s

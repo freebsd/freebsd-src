@@ -39,6 +39,8 @@ __FBSDID("$FreeBSD$");
 #include <dev/isp/isp_ioctl.h>
 #if	__FreeBSD_version >= 500000
 #include <sys/sysctl.h>
+#else
+#include <sys/devicestat.h>
 #endif
 #include <cam/cam_periph.h>
 #include <cam/cam_xpt_periph.h>
@@ -2127,10 +2129,7 @@ isp_watchdog(void *arg)
 }
 
 
-#if __FreeBSD_version >= 500000  
-/*
- * Support functions for Found/Lost
- */
+#if __FreeBSD_version >= 600000  
 static void
 isp_make_here(ispsoftc_t *isp, int tgt)
 {
