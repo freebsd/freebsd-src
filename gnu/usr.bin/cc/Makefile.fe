@@ -2,14 +2,14 @@
 
 #	Front-end-only bits
 
-version!=	sed -n /version_string/p ${GCCDIR}/version.c | sed -e 's/.*\"\([^ \"]*\)[ \"].*/\1/'
+GCC_VERSION!=	sed -n /version_string/p ${GCCDIR}/version.c | sed -e 's/.*\"\([^ \"]*\)[ \"].*/\1/'
 
 #
 # These were previously defined in gcc.c.  Just copy previous values from
 # there. We ifdef most of them out for FREEBSD_NATIVE builds anyway.
 # gcc.c won't compile without them though.
 DRIVER_DEFINES = \
-	-DDEFAULT_TARGET_VERSION=\"$(version)\" \
-	-DDEFAULT_TARGET_MACHINE=\"$(target)\" \
+	-DDEFAULT_TARGET_VERSION=\"$(GCC_VERSION)\" \
+	-DDEFAULT_TARGET_MACHINE=\"$(GCC_TARGET)\" \
 
 CFLAGS+= ${DRIVER_DEFINES}
