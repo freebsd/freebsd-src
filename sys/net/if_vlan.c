@@ -537,6 +537,15 @@ vlan_modevent(module_t mod, int type, void *data)
 		vlan_link_state_p = vlan_link_state;
 		vlan_trunk_cap_p = vlan_trunk_capabilities;
 		if_clone_attach(&vlan_cloner);
+		if (bootverbose)
+			printf("vlan: initialized, using "
+#ifdef VLAN_ARRAY
+			       "full-size arrays"
+#else
+			       "hash tables with chaining"
+#endif
+			
+			       "\n");
 		break;
 	case MOD_UNLOAD:
 		if_clone_detach(&vlan_cloner);
@@ -545,6 +554,8 @@ vlan_modevent(module_t mod, int type, void *data)
 		vlan_link_state_p = NULL;
 		vlan_trunk_cap_p = NULL;
 		VLAN_LOCK_DESTROY();
+		if (bootverbose)
+			printf("vlan: unloaded\n");
 		break;
 	default:
 		return (EOPNOTSUPP);
