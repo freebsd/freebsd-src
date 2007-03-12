@@ -155,6 +155,15 @@ typedef int (*pfs_getextattr_t)(PFS_GETEXTATTR_ARGS);
 typedef int (*pfs_close_t)(PFS_CLOSE_ARGS);
 
 /*
+ * Destroy callback
+ */
+#define PFS_DESTROY_ARGS \
+	struct pfs_node *pn
+#define PFS_DESTROY_PROTO(name) \
+	int name(PFS_DESTROY_ARGS);
+typedef int (*pfs_destroy_t)(PFS_DESTROY_ARGS);
+
+/*
  * pfs_info: describes a pseudofs instance
  */
 struct pfs_info {
@@ -186,6 +195,7 @@ struct pfs_node {
 	pfs_attr_t		 pn_attr;
 	pfs_vis_t		 pn_vis;
 	pfs_getextattr_t	 pn_getextattr;
+	pfs_destroy_t		 pn_destroy;
 	void			*pn_data;
 	int			 pn_flags;
 
@@ -215,13 +225,16 @@ int		 pfs_uninit	(struct pfs_info *pi, struct vfsconf *vfc);
  * Directory structure construction and manipulation
  */
 struct pfs_node	*pfs_create_dir	(struct pfs_node *parent, const char *name,
-				 pfs_attr_t attr, pfs_vis_t vis, int flags);
+				 pfs_attr_t attr, pfs_vis_t vis, 
+				 pfs_destroy_t destroy, int flags);
 struct pfs_node	*pfs_create_file(struct pfs_node *parent, const char *name,
 				 pfs_fill_t fill, pfs_attr_t attr,
-				 pfs_vis_t vis, int flags);
+				 pfs_vis_t vis, pfs_destroy_t destroy,
+				 int flags);
 struct pfs_node	*pfs_create_link(struct pfs_node *parent, const char *name,
 				 pfs_fill_t fill, pfs_attr_t attr,
-				 pfs_vis_t vis, int flags);
+				 pfs_vis_t vis, pfs_destroy_t destroy,
+				 int flags);
 struct pfs_node	*pfs_find_node	(struct pfs_node *parent, const char *name);
 int		 pfs_disable	(struct pfs_node *pn);
 int		 pfs_enable	(struct pfs_node *pn);
