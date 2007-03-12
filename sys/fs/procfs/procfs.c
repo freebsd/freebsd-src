@@ -160,39 +160,39 @@ procfs_init(PFS_INIT_ARGS)
 	root = pi->pi_root;
 
 	pfs_create_link(root, "curproc", procfs_docurproc,
-	    NULL, NULL, 0);
+	    NULL, NULL, NULL, 0);
 
 	dir = pfs_create_dir(root, "pid",
-	    procfs_attr, NULL, PFS_PROCDEP);
+	    procfs_attr, NULL, NULL, PFS_PROCDEP);
 	pfs_create_file(dir, "cmdline", procfs_doproccmdline,
-	    NULL, NULL, PFS_RD);
+	    NULL, NULL, NULL, PFS_RD);
 	pfs_create_file(dir, "ctl", procfs_doprocctl,
-	    procfs_attr, NULL, PFS_WR);
+	    procfs_attr, NULL, NULL, PFS_WR);
 	pfs_create_file(dir, "dbregs", procfs_doprocdbregs,
-	    procfs_attr, procfs_candebug, PFS_RDWR|PFS_RAW);
+	    procfs_attr, procfs_candebug, NULL, PFS_RDWR|PFS_RAW);
 	pfs_create_file(dir, "etype", procfs_doproctype,
-	    NULL, NULL, PFS_RD);
+	    NULL, NULL, NULL, PFS_RD);
 	pfs_create_file(dir, "fpregs", procfs_doprocfpregs,
-	    procfs_attr, procfs_candebug, PFS_RDWR|PFS_RAW);
+	    procfs_attr, procfs_candebug, NULL, PFS_RDWR|PFS_RAW);
 	pfs_create_file(dir, "map", procfs_doprocmap,
-	    NULL, procfs_notsystem, PFS_RD);
+	    NULL, procfs_notsystem, NULL, PFS_RD);
 	node = pfs_create_file(dir, "mem", procfs_doprocmem,
-	    procfs_attr, procfs_candebug, PFS_RDWR|PFS_RAW);
+	    procfs_attr, procfs_candebug, NULL, PFS_RDWR|PFS_RAW);
 	node->pn_ioctl = procfs_ioctl;
 	node->pn_close = procfs_close;
 	pfs_create_file(dir, "note", procfs_doprocnote,
-	    procfs_attr, procfs_candebug, PFS_WR);
+	    procfs_attr, procfs_candebug, NULL, PFS_WR);
 	pfs_create_file(dir, "notepg", procfs_doprocnote,
-	    procfs_attr, procfs_candebug, PFS_WR);
+	    procfs_attr, procfs_candebug, NULL, PFS_WR);
 	pfs_create_file(dir, "regs", procfs_doprocregs,
-	    procfs_attr, procfs_candebug, PFS_RDWR|PFS_RAW);
+	    procfs_attr, procfs_candebug, NULL, PFS_RDWR|PFS_RAW);
 	pfs_create_file(dir, "rlimit", procfs_doprocrlimit,
-	    NULL, NULL, PFS_RD);
+	    NULL, NULL, NULL, PFS_RD);
 	pfs_create_file(dir, "status", procfs_doprocstatus,
-	    NULL, NULL, PFS_RD);
+	    NULL, NULL, NULL, PFS_RD);
 
 	pfs_create_link(dir, "file", procfs_doprocfile,
-	    NULL, procfs_notsystem, 0);
+	    NULL, procfs_notsystem, NULL, 0);
 
 	return (0);
 }

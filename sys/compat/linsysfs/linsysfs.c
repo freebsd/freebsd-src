@@ -175,7 +175,7 @@ linsysfs_run_bus(device_t dev, struct pfs_node *dir, struct pfs_node *scsi, char
 				strcat(new_path, "/");
 				strcat(new_path, device);
 				dir = pfs_create_dir(dir, device,
-				    NULL, NULL, 0);
+				    NULL, NULL, NULL, 0);
 
 				if (dinfo->cfg.baseclass == PCIC_STORAGE) {
 					/* DJA only make this if needed */
@@ -183,7 +183,7 @@ linsysfs_run_bus(device_t dev, struct pfs_node *dir, struct pfs_node *scsi, char
 					strcat(new_path, "/");
 					strcat(new_path, host);
 					sub_dir = pfs_create_dir(dir,
-					    host, NULL, NULL, 0);
+					    host, NULL, NULL, NULL, 0);
 					scsi_host = malloc(sizeof(
 					    struct scsi_host_queue),
 					    M_DEVBUF, M_NOWAIT);
@@ -196,13 +196,13 @@ linsysfs_run_bus(device_t dev, struct pfs_node *dir, struct pfs_node *scsi, char
 					scsi_host->name = "unknown";
 
 					sub_dir = pfs_create_dir(scsi, host,
-					    NULL, NULL, 0);
+					    NULL, NULL, NULL, 0);
 					pfs_create_link(sub_dir, "device",
 					    &linsysfs_link_scsi_host,
-					    NULL, NULL, 0);
+					    NULL, NULL, NULL, 0);
 					pfs_create_file(sub_dir, "proc_name",
 					    &linsysfs_scsiname,
-					    NULL, NULL, PFS_RD);
+					    NULL, NULL, NULL, PFS_RD);
 					scsi_host->name
 					    = linux_driver_get_name_dev(dev);
 					TAILQ_INSERT_TAIL(&scsi_host_q,
@@ -243,14 +243,14 @@ linsysfs_init(PFS_INIT_ARGS)
 	root = pi->pi_root;
 
 	/* /sys/class/... */
-	scsi = pfs_create_dir(root, "class", NULL, NULL, 0);
-	scsi = pfs_create_dir(scsi, "scsi_host", NULL, NULL, 0);
+	scsi = pfs_create_dir(root, "class", NULL, NULL, NULL, 0);
+	scsi = pfs_create_dir(scsi, "scsi_host", NULL, NULL, NULL, 0);
 
 	/* /sys/device */
-	dir = pfs_create_dir(root, "devices", NULL, NULL, 0);
+	dir = pfs_create_dir(root, "devices", NULL, NULL, NULL, 0);
 
 	/* /sys/device/pci0000:00 */
-	pci = pfs_create_dir(dir, "pci0000:00", NULL, NULL, 0);
+	pci = pfs_create_dir(dir, "pci0000:00", NULL, NULL, NULL, 0);
 
 	devclass = devclass_find("root");
 	if (devclass == NULL) {

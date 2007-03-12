@@ -122,7 +122,8 @@ _pfs_fixup_dir(struct pfs_node *parent)
  */
 struct pfs_node	*
 pfs_create_dir(struct pfs_node *parent, const char *name,
-	       pfs_attr_t attr, pfs_vis_t vis, int flags)
+	       pfs_attr_t attr, pfs_vis_t vis, pfs_destroy_t destroy,
+	       int flags)
 {
 	struct pfs_node *dir;
 
@@ -135,6 +136,7 @@ pfs_create_dir(struct pfs_node *parent, const char *name,
 	dir->pn_type = (flags & PFS_PROCDEP) ? pfstype_procdir : pfstype_dir;
 	dir->pn_attr = attr;
 	dir->pn_vis = vis;
+	dir->pn_destroy = destroy;
 	dir->pn_flags = flags;
 
 	if (_pfs_add_node(parent, dir) != 0) {
@@ -155,7 +157,8 @@ pfs_create_dir(struct pfs_node *parent, const char *name,
  */
 struct pfs_node	*
 pfs_create_file(struct pfs_node *parent, const char *name, pfs_fill_t fill,
-		pfs_attr_t attr, pfs_vis_t vis, int flags)
+		pfs_attr_t attr, pfs_vis_t vis, pfs_destroy_t destroy,
+		int flags)
 {
 	struct pfs_node *node;
 
@@ -169,6 +172,7 @@ pfs_create_file(struct pfs_node *parent, const char *name, pfs_fill_t fill,
 	node->pn_func = fill;
 	node->pn_attr = attr;
 	node->pn_vis = vis;
+	node->pn_destroy = destroy;
 	node->pn_flags = flags;
 
 	if (_pfs_add_node(parent, node) != 0) {
@@ -184,11 +188,12 @@ pfs_create_file(struct pfs_node *parent, const char *name, pfs_fill_t fill,
  */
 struct pfs_node	*
 pfs_create_link(struct pfs_node *parent, const char *name, pfs_fill_t fill,
-		pfs_attr_t attr, pfs_vis_t vis, int flags)
+		pfs_attr_t attr, pfs_vis_t vis, pfs_destroy_t destroy, 
+		int flags)
 {
 	struct pfs_node *node;
 
-	node = pfs_create_file(parent, name, fill, attr, vis, flags);
+	node = pfs_create_file(parent, name, fill, attr, vis, destroy, flags);
 	if (node == NULL)
 		return (NULL);
 	node->pn_type = pfstype_symlink;
@@ -249,6 +254,10 @@ pfs_destroy(struct pfs_node *node)
 		mtx_unlock(&node->pn_info->pi_mutex);
 	}
 
+	/* callback to free any private resources */
+	if(node->pn_destroy != NULL)
+		(node->pn_destroy)(node);
+	
 	/* revoke vnodes and release memory */
 	pfs_disable(node);
 	FREE(node, M_PFSNODES);
