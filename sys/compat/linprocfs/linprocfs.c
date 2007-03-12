@@ -1172,83 +1172,83 @@ linprocfs_init(PFS_INIT_ARGS)
 
 	/* /proc/... */
 	pfs_create_file(root, "cmdline", &linprocfs_docmdline,
-	    NULL, NULL, PFS_RD);
+	    NULL, NULL, NULL, PFS_RD);
 	pfs_create_file(root, "cpuinfo", &linprocfs_docpuinfo,
-	    NULL, NULL, PFS_RD);
+	    NULL, NULL, NULL, PFS_RD);
 	pfs_create_file(root, "devices", &linprocfs_dodevices,
-	    NULL, NULL, PFS_RD);
+	    NULL, NULL, NULL, PFS_RD);
 	pfs_create_file(root, "loadavg", &linprocfs_doloadavg,
-	    NULL, NULL, PFS_RD);
+	    NULL, NULL, NULL, PFS_RD);
 	pfs_create_file(root, "meminfo", &linprocfs_domeminfo,
-	    NULL, NULL, PFS_RD);
+	    NULL, NULL, NULL, PFS_RD);
 #if 0
 	pfs_create_file(root, "modules", &linprocfs_domodules,
-	    NULL, NULL, PFS_RD);
+	    NULL, NULL, NULL, PFS_RD);
 #endif
 	pfs_create_file(root, "mounts", &linprocfs_domtab,
-	    NULL, NULL, PFS_RD);
+	    NULL, NULL, NULL, PFS_RD);
 	pfs_create_file(root, "mtab", &linprocfs_domtab,
-	    NULL, NULL, PFS_RD);
+	    NULL, NULL, NULL, PFS_RD);
 	pfs_create_link(root, "self", &procfs_docurproc,
-	    NULL, NULL, 0);
+	    NULL, NULL, NULL, 0);
 	pfs_create_file(root, "stat", &linprocfs_dostat,
-	    NULL, NULL, PFS_RD);
+	    NULL, NULL, NULL, PFS_RD);
 	pfs_create_file(root, "uptime", &linprocfs_douptime,
-	    NULL, NULL, PFS_RD);
+	    NULL, NULL, NULL, PFS_RD);
 	pfs_create_file(root, "version", &linprocfs_doversion,
-	    NULL, NULL, PFS_RD);
+	    NULL, NULL, NULL, PFS_RD);
 
 	/* /proc/net/... */
-	dir = pfs_create_dir(root, "net", NULL, NULL, 0);
+	dir = pfs_create_dir(root, "net", NULL, NULL, NULL, 0);
 	pfs_create_file(dir, "dev", &linprocfs_donetdev,
-	    NULL, NULL, PFS_RD);
+	    NULL, NULL, NULL, PFS_RD);
 
 	/* /proc/<pid>/... */
-	dir = pfs_create_dir(root, "pid", NULL, NULL, PFS_PROCDEP);
+	dir = pfs_create_dir(root, "pid", NULL, NULL, NULL, PFS_PROCDEP);
 	pfs_create_file(dir, "cmdline", &linprocfs_doproccmdline,
-	    NULL, NULL, PFS_RD);
+	    NULL, NULL, NULL, PFS_RD);
 	pfs_create_link(dir, "cwd", &linprocfs_doproccwd,
-	    NULL, NULL, 0);
+	    NULL, NULL, NULL, 0);
 	pfs_create_file(dir, "environ", &linprocfs_doprocenviron,
-	    NULL, NULL, PFS_RD);
+	    NULL, NULL, NULL, PFS_RD);
 	pfs_create_link(dir, "exe", &procfs_doprocfile,
-	    NULL, &procfs_notsystem, 0);
+	    NULL, &procfs_notsystem, NULL, 0);
 	pfs_create_file(dir, "maps", &linprocfs_doprocmaps,
-	    NULL, NULL, PFS_RD);
+	    NULL, NULL, NULL, PFS_RD);
 	pfs_create_file(dir, "mem", &procfs_doprocmem,
-	    &procfs_attr, &procfs_candebug, PFS_RDWR|PFS_RAW);
+	    &procfs_attr, &procfs_candebug, NULL, PFS_RDWR|PFS_RAW);
 	pfs_create_link(dir, "root", &linprocfs_doprocroot,
-	    NULL, NULL, 0);
+	    NULL, NULL, NULL, 0);
 	pfs_create_file(dir, "stat", &linprocfs_doprocstat,
-	    NULL, NULL, PFS_RD);
+	    NULL, NULL, NULL, PFS_RD);
 	pfs_create_file(dir, "statm", &linprocfs_doprocstatm,
-	    NULL, NULL, PFS_RD);
+	    NULL, NULL, NULL, PFS_RD);
 	pfs_create_file(dir, "status", &linprocfs_doprocstatus,
-	    NULL, NULL, PFS_RD);
+	    NULL, NULL, NULL, PFS_RD);
 
 	/* /proc/scsi/... */
-	dir = pfs_create_dir(root, "scsi", NULL, NULL, 0);
+	dir = pfs_create_dir(root, "scsi", NULL, NULL, NULL, 0);
 	pfs_create_file(dir, "device_info", &linprocfs_doscsidevinfo,
-	    NULL, NULL, PFS_RD);
+	    NULL, NULL, NULL, PFS_RD);
 	pfs_create_file(dir, "scsi", &linprocfs_doscsiscsi,
-	    NULL, NULL, PFS_RD);
+	    NULL, NULL, NULL, PFS_RD);
 
 	/* /proc/sys/... */
-	dir = pfs_create_dir(root, "sys", NULL, NULL, 0);
+	dir = pfs_create_dir(root, "sys", NULL, NULL, NULL, 0);
 	/* /proc/sys/kernel/... */
-	dir = pfs_create_dir(dir, "kernel", NULL, NULL, 0);
+	dir = pfs_create_dir(dir, "kernel", NULL, NULL, NULL, 0);
 	pfs_create_file(dir, "osrelease", &linprocfs_doosrelease,
-	    NULL, NULL, PFS_RD);
+	    NULL, NULL, NULL, PFS_RD);
 	pfs_create_file(dir, "ostype", &linprocfs_doostype,
-	    NULL, NULL, PFS_RD);
+	    NULL, NULL, NULL, PFS_RD);
 	pfs_create_file(dir, "version", &linprocfs_doosbuild,
-	    NULL, NULL, PFS_RD);
+	    NULL, NULL, NULL, PFS_RD);
 	pfs_create_file(dir, "msgmni", &linprocfs_domsgmni,
-	    NULL, NULL, PFS_RD);
+	    NULL, NULL, NULL, PFS_RD);
 	pfs_create_file(dir, "pid_max", &linprocfs_dopid_max,
-	    NULL, NULL, PFS_RD);
+	    NULL, NULL, NULL, PFS_RD);
 	pfs_create_file(dir, "sem", &linprocfs_dosem,
-	    NULL, NULL, PFS_RD);
+	    NULL, NULL, NULL, PFS_RD);
 
 	return (0);
 }
