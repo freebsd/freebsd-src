@@ -228,9 +228,6 @@ main(int argc, char *argv[])
 		ifname = *argv;
 		argc--, argv++;
 
-		/* check and maybe load support for this interface */
-		ifmaybeload(ifname);
-
 		ifindex = if_nametoindex(ifname);
 		if (ifindex == 0) {
 			/*
@@ -244,6 +241,7 @@ main(int argc, char *argv[])
 				if (iflen >= sizeof(name))
 					errx(1, "%s: cloning name too long",
 					    ifname);
+				ifmaybeload(ifname);
 				ifconfig(argc, argv, NULL);
 				exit(0);
 			}
