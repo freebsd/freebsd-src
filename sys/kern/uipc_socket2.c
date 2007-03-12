@@ -228,7 +228,7 @@ sonewconn(head, connstatus)
 	if (over)
 #endif
 		return (NULL);
-	so = soalloc(M_NOWAIT);
+	so = soalloc();
 	if (so == NULL)
 		return (NULL);
 	if ((head->so_options & SO_ACCEPTFILTER) != 0)
