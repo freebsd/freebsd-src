@@ -92,9 +92,7 @@ struct ifvlantrunk {
 	uint16_t	hwidth;
 #endif
 	int		refcnt;
-	LIST_ENTRY(ifvlantrunk) trunk_entry;
 };
-static LIST_HEAD(, ifvlantrunk) trunk_list;
 
 struct vlan_mc_entry {
 	struct ether_addr		mc_addr;
@@ -115,7 +113,9 @@ struct	ifvlan {
 		uint16_t ifvm_tag;	/* tag to apply on packets leaving if */
 	}	ifv_mib;
 	SLIST_HEAD(, vlan_mc_entry) vlan_mc_listhead;
+#ifndef VLAN_ARRAY
 	LIST_ENTRY(ifvlan) ifv_list;
+#endif
 };
 #define	ifv_proto	ifv_mib.ifvm_proto
 #define	ifv_tag		ifv_mib.ifvm_tag
@@ -341,8 +341,7 @@ vlan_growhash(struct ifvlantrunk *trunk, int howmuch)
 	for (j = 0; j < n2; j++)
 		LIST_INIT(&hash2[j]);
 	for (i = 0; i < n; i++)
-		while (!LIST_EMPTY(&trunk->hash[i])) {
-			ifv = LIST_FIRST(&trunk->hash[i]);
+		while ((ifv = LIST_FIRST(&trunk->hash[i])) != NULL) {
 			LIST_REMOVE(ifv, ifv_list);
 			j = HASH(ifv->ifv_tag, n2 - 1);
 			LIST_INSERT_HEAD(&hash2[j], ifv, ifv_list);
@@ -394,7 +393,6 @@ trunk_destroy(struct ifvlantrunk *trunk)
 	vlan_freehash(trunk);
 #endif
 	trunk->parent->if_vlantrunk = NULL;
-	LIST_REMOVE(trunk, trunk_entry);
 	TRUNK_UNLOCK(trunk);
 	TRUNK_LOCK_DESTROY(trunk);
 	free(trunk, M_VLAN);
@@ -417,7 +415,7 @@ vlan_setmulti(struct ifnet *ifp)
 	struct ifnet		*ifp_p;
 	struct ifmultiaddr	*ifma, *rifma = NULL;
 	struct ifvlan		*sc;
-	struct vlan_mc_entry	*mc = NULL;
+	struct vlan_mc_entry	*mc;
 	struct sockaddr_dl	sdl;
 	int			error;
 
@@ -435,8 +433,7 @@ vlan_setmulti(struct ifnet *ifp)
 	sdl.sdl_alen = ETHER_ADDR_LEN;
 
 	/* First, remove any existing filter entries. */
-	while (SLIST_FIRST(&sc->vlan_mc_listhead) != NULL) {
-		mc = SLIST_FIRST(&sc->vlan_mc_listhead);
+	while ((mc = SLIST_FIRST(&sc->vlan_mc_listhead)) != NULL) {
 		bcopy((char *)&mc->mc_addr, LLADDR(&sdl), ETHER_ADDR_LEN);
 		error = if_delmulti(ifp_p, (struct sockaddr *)&sdl);
 		if (error)
@@ -535,7 +532,6 @@ vlan_modevent(module_t mod, int type, void *data)
 		    vlan_ifdetach, NULL, EVENTHANDLER_PRI_ANY);
 		if (ifdetach_tag == NULL)
 			return (ENOMEM);
-		LIST_INIT(&trunk_list);
 		VLAN_LOCK_INIT();
 		vlan_input_p = vlan_input;
 		vlan_link_state_p = vlan_link_state;
@@ -543,21 +539,13 @@ vlan_modevent(module_t mod, int type, void *data)
 		if_clone_attach(&vlan_cloner);
 		break;
 	case MOD_UNLOAD:
-	    {
-		struct ifvlantrunk *trunk, *trunk1;
-
 		if_clone_detach(&vlan_cloner);
 		EVENTHANDLER_DEREGISTER(ifnet_departure_event, ifdetach_tag);
 		vlan_input_p = NULL;
 		vlan_link_state_p = NULL;
 		vlan_trunk_cap_p = NULL;
-		VLAN_LOCK();
-		LIST_FOREACH_SAFE(trunk, &trunk_list, trunk_entry, trunk1)
-			trunk_destroy(trunk);
-		VLAN_UNLOCK();
 		VLAN_LOCK_DESTROY();
 		break;
-	    }
 	default:
 		return (EOPNOTSUPP);
 	}
@@ -1011,7 +999,6 @@ vlan_config(struct ifvlan *ifv, struct ifnet *p, uint16_t tag)
 			goto exists;
 		}
 		TRUNK_LOCK_INIT(trunk);
-		LIST_INSERT_HEAD(&trunk_list, trunk, trunk_entry);
 		TRUNK_LOCK(trunk);
 		p->if_vlantrunk = trunk;
 		trunk->parent = p;
@@ -1142,8 +1129,7 @@ vlan_unconfig_locked(struct ifnet *ifp)
 		sdl.sdl_type = IFT_ETHER;
 		sdl.sdl_alen = ETHER_ADDR_LEN;
 
-		while(SLIST_FIRST(&ifv->vlan_mc_listhead) != NULL) {
-			mc = SLIST_FIRST(&ifv->vlan_mc_listhead);
+		while ((mc = SLIST_FIRST(&ifv->vlan_mc_listhead)) != NULL) {
 			bcopy((char *)&mc->mc_addr, LLADDR(&sdl),
 			    ETHER_ADDR_LEN);
 			error = if_delmulti(p, (struct sockaddr *)&sdl);
