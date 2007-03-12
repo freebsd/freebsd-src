@@ -382,6 +382,7 @@ static int bge_sysctl_reg_read(SYSCTL_HANDLER_ARGS);
 static int bge_sysctl_mem_read(SYSCTL_HANDLER_ARGS);
 #endif
 static void bge_add_sysctls(struct bge_softc *);
+static int bge_sysctl_stats(SYSCTL_HANDLER_ARGS);
 
 static device_method_t bge_methods[] = {
 	/* Device interface */
@@ -4177,11 +4178,17 @@ bge_link_upd(struct bge_softc *sc)
 	    BGE_MACSTAT_LINK_CHANGED);
 }
 
+#define BGE_SYSCTL_STAT(sc, ctx, desc, parent, node, oid) \
+	SYSCTL_ADD_PROC(ctx, parent, OID_AUTO, oid, CTLTYPE_QUAD|CTLFLAG_RD, \
+	    sc, offsetof(struct bge_stats, node), bge_sysctl_stats, "IU", \
+	    desc)
+
 static void
 bge_add_sysctls(struct bge_softc *sc)
 {
 	struct sysctl_ctx_list *ctx;
-	struct sysctl_oid_list *children;
+	struct sysctl_oid_list *children, *schildren;
+	struct sysctl_oid *tree;
 
 	ctx = device_get_sysctl_ctx(sc->bge_dev);
 	children = SYSCTL_CHILDREN(device_get_sysctl_tree(sc->bge_dev));
@@ -4199,16 +4206,146 @@ bge_add_sysctls(struct bge_softc *sc)
 	    CTLTYPE_INT | CTLFLAG_RW, sc, 0, bge_sysctl_mem_read, "I",
 	    "Memory Read");
 
-	SYSCTL_ADD_ULONG(ctx, children, OID_AUTO, "stat_IfHcInOctets",
-	    CTLFLAG_RD,
-	    &sc->bge_ldata.bge_stats->rxstats.ifHCInOctets.bge_addr_lo,
-	    "Bytes received");
-
-	SYSCTL_ADD_ULONG(ctx, children, OID_AUTO, "stat_IfHcOutOctets",
-	    CTLFLAG_RD,
-	    &sc->bge_ldata.bge_stats->txstats.ifHCOutOctets.bge_addr_lo,
-	    "Bytes received");
 #endif
+
+	tree = SYSCTL_ADD_NODE(ctx, children, OID_AUTO, "stats", CTLFLAG_RD,
+	    NULL, "BGE Statistics");
+	schildren = children = SYSCTL_CHILDREN(tree);
+	BGE_SYSCTL_STAT(sc, ctx, "Frames Dropped Due To Filters",
+	    children, COSFramesDroppedDueToFilters,
+	    "FramesDroppedDueToFilters");
+	BGE_SYSCTL_STAT(sc, ctx, "NIC DMA Write Queue Full",
+	    children, nicDmaWriteQueueFull, "DmaWriteQueueFull");
+	BGE_SYSCTL_STAT(sc, ctx, "NIC DMA Write High Priority Queue Full",
+	    children, nicDmaWriteHighPriQueueFull, "DmaWriteHighPriQueueFull");
+	BGE_SYSCTL_STAT(sc, ctx, "NIC No More RX Buffer Descriptors",
+	    children, nicNoMoreRxBDs, "NoMoreRxBDs");
+	BGE_SYSCTL_STAT(sc, ctx, "Interface Discarded Frames",
+	    children, ifInDiscards, "Discards");
+	BGE_SYSCTL_STAT(sc, ctx, "Interface Errors",
+	    children, ifInErrors, "Errors");
+	BGE_SYSCTL_STAT(sc, ctx, "NIC Recv Threshold Hit",
+	    children, nicRecvThresholdHit, "RecvThresholdHit");
+	BGE_SYSCTL_STAT(sc, ctx, "NIC DMA Read Queue Full",
+	    children, nicDmaReadQueueFull, "DmaReadQueueFull");
+	BGE_SYSCTL_STAT(sc, ctx, "NIC DMA Read High Priority Queue Full",
+	    children, nicDmaReadHighPriQueueFull, "DmaReadHighPriQueueFull");
+	BGE_SYSCTL_STAT(sc, ctx, "NIC Send Data Complete Queue Full",
+	    children, nicSendDataCompQueueFull, "SendDataCompQueueFull");
+	BGE_SYSCTL_STAT(sc, ctx, "NIC Ring Set Send Producer Index",
+	    children, nicRingSetSendProdIndex, "RingSetSendProdIndex");
+	BGE_SYSCTL_STAT(sc, ctx, "NIC Ring Status Update",
+	    children, nicRingStatusUpdate, "RingStatusUpdate");
+	BGE_SYSCTL_STAT(sc, ctx, "NIC Interrupts",
+	    children, nicInterrupts, "Interrupts");
+	BGE_SYSCTL_STAT(sc, ctx, "NIC Avoided Interrupts",
+	    children, nicAvoidedInterrupts, "AvoidedInterrupts");
+	BGE_SYSCTL_STAT(sc, ctx, "NIC Send Threshold Hit",
+	    children, nicSendThresholdHit, "SendThresholdHit");
+
+	tree = SYSCTL_ADD_NODE(ctx, schildren, OID_AUTO, "rx", CTLFLAG_RD,
+	    NULL, "BGE RX Statistics");
+	children = SYSCTL_CHILDREN(tree);
+	BGE_SYSCTL_STAT(sc, ctx, "Inbound Octets",
+	    children, rxstats.ifHCInOctets, "Octets");
+	BGE_SYSCTL_STAT(sc, ctx, "Fragments",
+	    children, rxstats.etherStatsFragments, "Fragments");
+	BGE_SYSCTL_STAT(sc, ctx, "Inbound Unicast Packets",
+	    children, rxstats.ifHCInUcastPkts, "UcastPkts");
+	BGE_SYSCTL_STAT(sc, ctx, "Inbound Multicast Packets",
+	    children, rxstats.ifHCInMulticastPkts, "MulticastPkts");
+	BGE_SYSCTL_STAT(sc, ctx, "FCS Errors",
+	    children, rxstats.dot3StatsFCSErrors, "FCSErrors");
+	BGE_SYSCTL_STAT(sc, ctx, "Alignment Errors",
+	    children, rxstats.dot3StatsAlignmentErrors, "AlignmentErrors");
+	BGE_SYSCTL_STAT(sc, ctx, "XON Pause Frames Received",
+	    children, rxstats.xonPauseFramesReceived, "xonPauseFramesReceived");
+	BGE_SYSCTL_STAT(sc, ctx, "XOFF Pause Frames Received",
+	    children, rxstats.xoffPauseFramesReceived,
+	    "xoffPauseFramesReceived");
+	BGE_SYSCTL_STAT(sc, ctx, "MAC Control Frames Received",
+	    children, rxstats.macControlFramesReceived,
+	    "ControlFramesReceived");
+	BGE_SYSCTL_STAT(sc, ctx, "XOFF State Entered",
+	    children, rxstats.xoffStateEntered, "xoffStateEntered");
+	BGE_SYSCTL_STAT(sc, ctx, "Frames Too Long",
+	    children, rxstats.dot3StatsFramesTooLong, "FramesTooLong");
+	BGE_SYSCTL_STAT(sc, ctx, "Jabbers",
+	    children, rxstats.etherStatsJabbers, "Jabbers");
+	BGE_SYSCTL_STAT(sc, ctx, "Undersized Packets",
+	    children, rxstats.etherStatsUndersizePkts, "UndersizePkts");
+	BGE_SYSCTL_STAT(sc, ctx, "Inbound Range Length Errors",
+	    children, rxstats.inRangeLengthError, "RangeLengthError");
+	BGE_SYSCTL_STAT(sc, ctx, "Outbound Range Length Errors",
+	    children, rxstats.outRangeLengthError, "RangeLengthError");
+
+	tree = SYSCTL_ADD_NODE(ctx, schildren, OID_AUTO, "tx", CTLFLAG_RD,
+	    NULL, "BGE TX Statistics");
+	children = SYSCTL_CHILDREN(tree);
+	BGE_SYSCTL_STAT(sc, ctx, "Outbound Octets",
+	    children, txstats.ifHCOutOctets, "Octets");
+	BGE_SYSCTL_STAT(sc, ctx, "TX Collisions",
+	    children, txstats.etherStatsCollisions, "Collisions");
+	BGE_SYSCTL_STAT(sc, ctx, "XON Sent",
+	    children, txstats.outXonSent, "XonSent");
+	BGE_SYSCTL_STAT(sc, ctx, "XOFF Sent",
+	    children, txstats.outXoffSent, "XoffSent");
+	BGE_SYSCTL_STAT(sc, ctx, "Flow Control Done",
+	    children, txstats.flowControlDone, "flowControlDone");
+	BGE_SYSCTL_STAT(sc, ctx, "Internal MAC TX errors",
+	    children, txstats.dot3StatsInternalMacTransmitErrors,
+	    "InternalMacTransmitErrors");
+	BGE_SYSCTL_STAT(sc, ctx, "Single Collision Frames",
+	    children, txstats.dot3StatsSingleCollisionFrames,
+	    "SingleCollisionFrames");
+	BGE_SYSCTL_STAT(sc, ctx, "Multiple Collision Frames",
+	    children, txstats.dot3StatsMultipleCollisionFrames,
+	    "MultipleCollisionFrames");
+	BGE_SYSCTL_STAT(sc, ctx, "Deferred Transmissions", 
+	    children, txstats.dot3StatsDeferredTransmissions,
+	    "DeferredTransmissions");
+	BGE_SYSCTL_STAT(sc, ctx, "Excessive Collisions",
+	    children, txstats.dot3StatsExcessiveCollisions,
+	    "ExcessiveCollisions");
+	BGE_SYSCTL_STAT(sc, ctx, "Late Collisions",
+	    children, txstats.dot3StatsExcessiveCollisions,
+	    "ExcessiveCollisions");
+	BGE_SYSCTL_STAT(sc, ctx, "Outbound Unicast Packets", 
+	    children, txstats.ifHCOutUcastPkts, "UcastPkts");
+	BGE_SYSCTL_STAT(sc, ctx, "Outbound Multicast Packets",
+	    children, txstats.ifHCOutMulticastPkts, "MulticastPkts");
+	BGE_SYSCTL_STAT(sc, ctx, "Outbound Broadcast Packets",
+	    children, txstats.ifHCOutBroadcastPkts, "BroadcastPkts");
+	BGE_SYSCTL_STAT(sc, ctx, "Carrier Sense Errors",
+	    children, txstats.dot3StatsCarrierSenseErrors,
+	    "CarrierSenseErrors");
+	BGE_SYSCTL_STAT(sc, ctx, "Outbound Discards",
+	    children, txstats.ifOutDiscards, "Discards");
+	BGE_SYSCTL_STAT(sc, ctx, "Outbound Errors",
+	    children, txstats.ifOutErrors, "Errors");
+
+}
+
+static int
+bge_sysctl_stats(SYSCTL_HANDLER_ARGS)
+{
+	struct bge_softc *sc;
+	uint64_t result;
+	int base, offset;
+
+	sc = (struct bge_softc *)arg1;
+	offset = arg2;
+	if (BGE_IS_5705_PLUS(sc))
+		base = BGE_MAC_STATS;
+	else
+		base = BGE_MEMWIN_START + BGE_STATS_BLOCK;
+
+	result = ((uint64_t)(CSR_READ_4(sc, base + offset +
+	    offsetof(bge_hostaddr, bge_addr_hi))) << 32) |
+	    CSR_READ_4(sc, base + offset + offsetof(bge_hostaddr,
+	    bge_addr_lo));
+
+	return (sysctl_handle_int(oidp, &result, sizeof(result), req));
 }
 
 #ifdef BGE_REGISTER_DEBUG
