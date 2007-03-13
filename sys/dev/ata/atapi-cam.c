@@ -275,15 +275,17 @@ atapi_cam_reinit(device_t dev) {
 
 static void
 reinit_bus(struct atapi_xpt_softc *scp, enum reinit_reason reason) {
-    struct ata_device *atadev;
+    struct ata_device *old_atadev[2], *atadev;
     device_t *children;
-    int nchildren, i;
+    int nchildren, i, dev_changed;
 
     if (device_get_children(scp->parent, &children, &nchildren) != 0) {
 	return;
     }
 
     mtx_lock(&scp->state_lock);
+    old_atadev[0] = scp->atadev[0];
+    old_atadev[1] = scp->atadev[1];
     scp->atadev[0] = NULL;
     scp->atadev[1] = NULL;
 
@@ -299,6 +301,8 @@ reinit_bus(struct atapi_xpt_softc *scp, enum reinit_reason reason) {
 		scp->atadev[1] = atadev;
 	}
     }
+    dev_changed = (old_atadev[0] != scp->atadev[0])
+	       || (old_atadev[1] != scp->atadev[1]);
     mtx_unlock(&scp->state_lock);
     free(children, M_TEMP);
 
@@ -307,6 +311,10 @@ reinit_bus(struct atapi_xpt_softc *scp, enum reinit_reason reason) {
 	    break;
 	case RESET:
 	    xpt_async(AC_BUS_RESET, scp->path, NULL);
+
+	    if (!dev_changed)
+		break;
+
 	    /*FALLTHROUGH*/
 	case ATTACH:
 	    cam_rescan(scp->sim);
