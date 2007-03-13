@@ -9,10 +9,6 @@
 .\" 2. Redistributions in binary form must reproduce the above copyright
 .\"    notice, this list of conditions and the following disclaimer in the
 .\"    documentation and/or other materials provided with the distribution.
-.\" 3. All advertising materials mentioning features or use of this software
-.\"    must display the following acknowledgement:
-.\"	This product includes software developed by the University of
-.\"	California, Berkeley and its contributors.
 .\" 4. Neither the name of the University nor the names of its contributors
 .\"    may be used to endorse or promote products derived from this software
 .\"    without specific prior written permission.
@@ -32,7 +28,7 @@
 .\"     @(#)getsockopt.2	8.4 (Berkeley) 5/2/95
 .\" $FreeBSD$
 .\"
-.Dd January 11, 2007
+.Dd March 8, 2007
 .Dt GETSOCKOPT 2
 .Os
 .Sh NAME
@@ -169,6 +165,7 @@ controls generation of
 for the socket
 .It Dv SO_TIMESTAMP Ta "enables reception of a timestamp with datagrams"
 .It Dv SO_BINTIME Ta "enables reception of a timestamp with datagrams"
+.It Dv SO_ACCEPTCONN Ta "get listening status of the socket (get only)"
 .It Dv SO_TYPE Ta "get the type of the socket (get only)"
 .It Dv SO_ERROR Ta "get and clear error on the socket (get only)"
 .El
@@ -412,11 +409,17 @@ and for
 .Ed
 .Pp
 Finally,
+.Dv SO_ACCEPTCONN ,
 .Dv SO_TYPE
 and
 .Dv SO_ERROR
 are options used only with
 .Fn getsockopt .
+.Dv SO_ACCEPTCONN
+returns whether the socket is currently accepting connections,
+that is, whether or not the
+.Xr listen 2
+system call was invoked on the socket.
 .Dv SO_TYPE
 returns the type of the socket, such as
 .Dv SOCK_STREAM ;
@@ -457,6 +460,7 @@ on a non-listening socket was attempted.
 .El
 .Sh SEE ALSO
 .Xr ioctl 2 ,
+.Xr listen 2 ,
 .Xr recvmsg 2 ,
 .Xr socket 2 ,
 .Xr getprotoent 3 ,
