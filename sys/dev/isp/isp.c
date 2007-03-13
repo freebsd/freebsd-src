@@ -4621,6 +4621,7 @@ again:
 			ISP_WRITE(isp, isp->isp_atiooutrp, optr);
 		}
 		isp->isp_rspbsy = 0;
+		optr = isp->isp_residx;
 	}
 #endif
 
