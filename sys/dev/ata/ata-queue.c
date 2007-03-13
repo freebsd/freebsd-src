@@ -388,7 +388,7 @@ ata_completed(void *context, int dummy)
 	    request->donecount = 0;
 	    request->transfersize = sizeof(struct atapi_sense);
 	    request->timeout = 5;
-	    request->flags &= (ATA_R_ATAPI | ATA_R_QUIET);
+	    request->flags &= (ATA_R_ATAPI | ATA_R_QUIET | ATA_R_DEBUG);
 	    request->flags |= (ATA_R_READ | ATA_R_AT_HEAD | ATA_R_REQUEUE);
 	    ATA_DEBUG_RQ(request, "autoissue request sense");
 	    ata_queue_request(request);
