@@ -4179,7 +4179,7 @@ bge_link_upd(struct bge_softc *sc)
 }
 
 #define BGE_SYSCTL_STAT(sc, ctx, desc, parent, node, oid) \
-	SYSCTL_ADD_PROC(ctx, parent, OID_AUTO, oid, CTLTYPE_QUAD|CTLFLAG_RD, \
+	SYSCTL_ADD_PROC(ctx, parent, OID_AUTO, oid, CTLTYPE_UINT|CTLFLAG_RD, \
 	    sc, offsetof(struct bge_stats, node), bge_sysctl_stats, "IU", \
 	    desc)
 
@@ -4220,10 +4220,10 @@ bge_add_sysctls(struct bge_softc *sc)
 	    children, nicDmaWriteHighPriQueueFull, "DmaWriteHighPriQueueFull");
 	BGE_SYSCTL_STAT(sc, ctx, "NIC No More RX Buffer Descriptors",
 	    children, nicNoMoreRxBDs, "NoMoreRxBDs");
-	BGE_SYSCTL_STAT(sc, ctx, "Interface Discarded Frames",
-	    children, ifInDiscards, "Discards");
-	BGE_SYSCTL_STAT(sc, ctx, "Interface Errors",
-	    children, ifInErrors, "Errors");
+	BGE_SYSCTL_STAT(sc, ctx, "Discarded Input Frames",
+	    children, ifInDiscards, "InputDiscards");
+	BGE_SYSCTL_STAT(sc, ctx, "Input Errors",
+	    children, ifInErrors, "InputErrors");
 	BGE_SYSCTL_STAT(sc, ctx, "NIC Recv Threshold Hit",
 	    children, nicRecvThresholdHit, "RecvThresholdHit");
 	BGE_SYSCTL_STAT(sc, ctx, "NIC DMA Read Queue Full",
@@ -4275,9 +4275,9 @@ bge_add_sysctls(struct bge_softc *sc)
 	BGE_SYSCTL_STAT(sc, ctx, "Undersized Packets",
 	    children, rxstats.etherStatsUndersizePkts, "UndersizePkts");
 	BGE_SYSCTL_STAT(sc, ctx, "Inbound Range Length Errors",
-	    children, rxstats.inRangeLengthError, "RangeLengthError");
+	    children, rxstats.inRangeLengthError, "inRangeLengthError");
 	BGE_SYSCTL_STAT(sc, ctx, "Outbound Range Length Errors",
-	    children, rxstats.outRangeLengthError, "RangeLengthError");
+	    children, rxstats.outRangeLengthError, "outRangeLengthError");
 
 	tree = SYSCTL_ADD_NODE(ctx, schildren, OID_AUTO, "tx", CTLFLAG_RD,
 	    NULL, "BGE TX Statistics");
@@ -4308,8 +4308,8 @@ bge_add_sysctls(struct bge_softc *sc)
 	    children, txstats.dot3StatsExcessiveCollisions,
 	    "ExcessiveCollisions");
 	BGE_SYSCTL_STAT(sc, ctx, "Late Collisions",
-	    children, txstats.dot3StatsExcessiveCollisions,
-	    "ExcessiveCollisions");
+	    children, txstats.dot3StatsLateCollisions,
+	    "LateCollisions");
 	BGE_SYSCTL_STAT(sc, ctx, "Outbound Unicast Packets", 
 	    children, txstats.ifHCOutUcastPkts, "UcastPkts");
 	BGE_SYSCTL_STAT(sc, ctx, "Outbound Multicast Packets",
@@ -4323,14 +4323,13 @@ bge_add_sysctls(struct bge_softc *sc)
 	    children, txstats.ifOutDiscards, "Discards");
 	BGE_SYSCTL_STAT(sc, ctx, "Outbound Errors",
 	    children, txstats.ifOutErrors, "Errors");
-
 }
 
 static int
 bge_sysctl_stats(SYSCTL_HANDLER_ARGS)
 {
 	struct bge_softc *sc;
-	uint64_t result;
+	uint32_t result;
 	int base, offset;
 
 	sc = (struct bge_softc *)arg1;
@@ -4339,12 +4338,8 @@ bge_sysctl_stats(SYSCTL_HANDLER_ARGS)
 		base = BGE_MAC_STATS;
 	else
 		base = BGE_MEMWIN_START + BGE_STATS_BLOCK;
-
-	result = ((uint64_t)(CSR_READ_4(sc, base + offset +
-	    offsetof(bge_hostaddr, bge_addr_hi))) << 32) |
-	    CSR_READ_4(sc, base + offset + offsetof(bge_hostaddr,
+	result = CSR_READ_4(sc, base + offset + offsetof(bge_hostaddr,
 	    bge_addr_lo));
-
 	return (sysctl_handle_int(oidp, &result, sizeof(result), req));
 }
 
