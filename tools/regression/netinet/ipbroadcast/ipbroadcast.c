@@ -60,6 +60,10 @@ __FBSDID("$FreeBSD$");
 #define IP_SENDIF	24		/* XXX */
 #endif
 
+#ifndef IPPROTO_ZEROHOP
+#define IPPROTO_ZEROHOP	114		/* any 0-hop protocol */
+#endif
+
 #define DEFAULT_PORT		6698
 #define DEFAULT_PAYLOAD_SIZE	24
 #define DEFAULT_TTL		1
@@ -78,7 +82,7 @@ usage(void)
 	        "datagram to <dest>:<port>.\n\n", DEFAULT_PAYLOAD_SIZE);
 	fprintf(stderr,
 "usage: %s [-1] [-A laddr] [-b] [-B] [-d] [-i iface] [-l len]\n"
-"                   [-p port] [-r] [-s srcaddr] [-t ttl] <dest>\n",
+"                   [-p port] [-R] [-s srcaddr] [-t ttl] <dest>\n",
 	    progname);
 	fprintf(stderr, "-1: Set IP_ONESBCAST\n");
 	fprintf(stderr, "-A: specify laddr (default: INADDR_ANY)\n");
@@ -89,6 +93,7 @@ usage(void)
 	fprintf(stderr, "-l: Set payload size to <len>\n");
 	fprintf(stderr, "-p: Set local and remote port (default: %d)\n",
 	    DEFAULT_PORT);
+	fprintf(stderr, "-R: Use raw IP (protocol %d)\n", IPPROTO_ZEROHOP);
 #if 0
 	fprintf(stderr, "-r: Fill datagram with random bytes\n");
 #endif
@@ -120,6 +125,7 @@ main(int argc, char *argv[])
 	int			 dontroute;
 	int			 doonesbcast;
 	int			 dorandom;
+	int			 dorawip;
 	size_t			 buflen;
 	ssize_t			 nbytes;
 	int			 portno;
@@ -134,6 +140,7 @@ main(int argc, char *argv[])
 	dontroute = 0;
 	doonesbcast = 0;
 	dorandom = 0;
+	dorawip = 0;
 
 	ifname = NULL;
 	dstaddr.s_addr = INADDR_ANY;
@@ -146,7 +153,7 @@ main(int argc, char *argv[])
 	buflen = DEFAULT_PAYLOAD_SIZE;
 
 	progname = basename(argv[0]);
-	while ((ch = getopt(argc, argv, "1A:bBdi:l:p:rs:t:")) != -1) {
+	while ((ch = getopt(argc, argv, "1A:bBdi:l:p:Rrs:t:")) != -1) {
 		switch (ch) {
 		case '1':
 			doonesbcast = 1;
@@ -172,6 +179,9 @@ main(int argc, char *argv[])
 		case 'p':
 			portno = atoi(optarg);
 			break;
+		case 'R':
+			dorawip = 1;
+			break;
 		case 'r':
 			dorandom = 1;
 			break;
@@ -196,7 +206,13 @@ main(int argc, char *argv[])
 	/* IP_SENDSRCADDR and IP_SENDIF are mutually exclusive just now. */
 	if (srcaddr_s != NULL && ifname != NULL)
 		usage();
-	s = socket(PF_INET, SOCK_DGRAM, IPPROTO_UDP);
+	if (dorawip) {
+		if (geteuid() != 0)
+			fprintf(stderr, "WARNING: not running as root.\n");
+		s = socket(PF_INET, SOCK_RAW, IPPROTO_ZEROHOP);
+	} else {
+		s = socket(PF_INET, SOCK_DGRAM, IPPROTO_UDP);
+	}
 	if (s == -1) {
 		perror("socket");
 		exit(EXIT_FAILURE);
