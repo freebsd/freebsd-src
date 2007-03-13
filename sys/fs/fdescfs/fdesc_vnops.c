@@ -151,6 +151,13 @@ loop:
 	fd->fd_type = ftype;
 	fd->fd_fd = -1;
 	fd->fd_ix = ix;
+	/* XXX: vnode should be locked here */
+	error = insmntque(*vpp, mp); /* XXX: Too early for mpsafe fs */
+	if (error != 0) {
+		free(fd, M_TEMP);
+		*vpp = NULLVP;
+		goto out;
+	}
 	LIST_INSERT_HEAD(fc, fd, fd_hash);
 
 out:

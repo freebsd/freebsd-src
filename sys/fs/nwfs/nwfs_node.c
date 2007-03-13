@@ -174,6 +174,12 @@ rescan:
 		FREE(np, M_NWNODE);
 		return (error);
 	}
+	error = insmntque(vp, mp);	/* XXX: Too early for mpsafe fs */
+	if (error != 0) {
+		FREE(np, M_NWNODE);
+		*vpp = NULL;
+		return (error);
+	}
 	vp->v_data = np;
 	np->n_vnode = vp;
 	np->n_mount = nmp;

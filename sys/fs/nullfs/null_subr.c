@@ -185,6 +185,18 @@ null_hashins(mp, xp)
 	return (NULLVP);
 }
 
+static void
+null_insmntque_dtr(struct vnode *vp, void *xp)
+{
+	vp->v_data = NULL;
+	vp->v_vnlock = &vp->v_lock;
+	FREE(xp, M_NULLFSNODE);
+	vp->v_op = &dead_vnodeops;
+	(void) vn_lock(vp, LK_EXCLUSIVE | LK_RETRY, curthread);
+	vgone(vp);
+	vput(vp);
+}
+
 /*
  * Make a new or get existing nullfs node.
  * Vp is the alias vnode, lowervp is the lower vnode.
@@ -239,6 +251,9 @@ null_nodeget(mp, lowervp, vpp)
 	vp->v_vnlock = lowervp->v_vnlock;
 	if (vp->v_vnlock == NULL)
 		panic("null_nodeget: Passed a NULL vnlock.\n");
+	error = insmntque1(vp, mp, null_insmntque_dtr, xp);
+	if (error != 0)
+		return (error);
 	/*
 	 * Atomically insert our new node into the hash or vget existing 
 	 * if someone else has beaten us to it.

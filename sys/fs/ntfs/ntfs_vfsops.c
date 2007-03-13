@@ -706,6 +706,13 @@ ntfs_vgetex(
 		ntfs_ntput(ip);
 		return (error);
 	}
+	/* XXX: Too early for mpsafe fs, lacks vnode lock */
+	error = insmntque(vp, ntmp->ntm_mountp);
+	if (error) {
+		ntfs_frele(fp);
+		ntfs_ntput(ip);
+		return (error);
+	}
 	dprintf(("ntfs_vget: vnode: %p for ntnode: %d\n", vp,ino));
 
 	fp->f_vp = vp;

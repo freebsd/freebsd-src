@@ -954,8 +954,10 @@ ext2_vget(mp, ino, flags, vpp)
 	struct cdev *dev;
 	int i, error;
 	int used_blocks;
+	struct thread *td;
 
-	error = vfs_hash_get(mp, ino, flags, curthread, vpp, NULL, NULL);
+	td = curthread;
+	error = vfs_hash_get(mp, ino, flags, td, vpp, NULL, NULL);
 	if (error || *vpp != NULL)
 		return (error);
 
@@ -982,7 +984,14 @@ ext2_vget(mp, ino, flags, vpp)
 	ip->i_e2fs = fs = ump->um_e2fs;
 	ip->i_number = ino;
 
-	error = vfs_hash_insert(vp, ino, flags, curthread, vpp, NULL, NULL);
+	lockmgr(vp->v_vnlock, LK_EXCLUSIVE, NULL, td);
+	error = insmntque(vp, mp);
+	if (error != 0) {
+		free(ip, M_EXT2NODE);
+		*vpp = NULL;
+		return (error);
+	}
+	error = vfs_hash_insert(vp, ino, flags, td, vpp, NULL, NULL);
 	if (error || *vpp != NULL)
 		return (error);
 

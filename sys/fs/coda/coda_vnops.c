@@ -1797,6 +1797,9 @@ make_coda_node(CodaFid *fid, struct mount *vfsp, short type)
 	if (err) {                                                
 	    panic("coda: getnewvnode returned error %d\n", err);   
 	}                                                         
+	err = insmntque1(vp, vfsp, NULL, NULL);	/* XXX: Too early for mpsafe fs */
+	if (err != 0)
+		panic("coda: insmntque failed: error %d", err);
 	vp->v_data = cp;                                          
 	vp->v_type = type;                                      
 	cp->c_vnode = vp;                                         
