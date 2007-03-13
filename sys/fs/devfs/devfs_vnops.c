@@ -154,6 +154,20 @@ devfs_allocv_drop_refs(int drop_dm_lock, struct devfs_mount *dmp,
 	return (not_found);
 }
 
+static void
+devfs_insmntque_dtr(struct vnode *vp, void *arg)
+{
+	struct devfs_dirent *de;
+
+	de = (struct devfs_dirent *)arg;
+	mtx_lock(&devfs_de_interlock);
+	vp->v_data = NULL;
+	de->de_vnode = NULL;
+	mtx_unlock(&devfs_de_interlock);
+	vgone(vp);
+	vput(vp);
+}
+
 /*
  * devfs_allocv shall be entered with dmp->dm_lock held, and it drops
  * it on return.
@@ -230,13 +244,16 @@ devfs_allocv(struct devfs_dirent *de, struct mount *mp, struct vnode **vpp, stru
 	} else {
 		vp->v_type = VBAD;
 	}
+	vn_lock(vp, LK_EXCLUSIVE | LK_RETRY, td);
 	mtx_lock(&devfs_de_interlock);
 	vp->v_data = de;
 	de->de_vnode = vp;
 	mtx_unlock(&devfs_de_interlock);
-	sx_xunlock(&dmp->dm_lock);
-	vn_lock(vp, LK_EXCLUSIVE | LK_RETRY, td);
-	sx_xlock(&dmp->dm_lock);
+	error = insmntque1(vp, mp, devfs_insmntque_dtr, de);
+	if (error != 0) {
+		(void) devfs_allocv_drop_refs(1, dmp, de);
+		return (error);
+	}
 	if (devfs_allocv_drop_refs(0, dmp, de)) {
 		vput(vp);
 		return (ENOENT);

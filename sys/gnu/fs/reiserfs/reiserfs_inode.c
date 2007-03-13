@@ -815,6 +815,14 @@ reiserfs_iget(
 	lockmgr(vp->v_vnlock, LK_EXCLUSIVE, (struct mtx *)0, td);
 #endif
 
+	lockmgr(vp->v_vnlock, LK_EXCLUSIVE, NULL, td);
+	error = insmntque(vp, mp);
+	if (error != 0) {
+		free(ip, M_REISERFSNODE);
+		*vpp = NULL;
+		reiserfs_log(LOG_DEBUG, "insmntque FAILED\n");
+		return (error);
+	}
 	error = vfs_hash_insert(vp, key->on_disk_key.k_objectid, flags,
 	    td, vpp, NULL, NULL);
 	if (error || *vpp != NULL)

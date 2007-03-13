@@ -154,6 +154,11 @@ portal_lookup(ap)
 
 	*vpp = fvp;
 	vn_lock(fvp, LK_EXCLUSIVE | LK_RETRY, td);
+	error = insmntque(fvp, dvp->v_mount);
+	if (error != 0) {
+		*vpp = NULLVP;
+		return (error);
+	}
 	return (0);
 
 bad:;

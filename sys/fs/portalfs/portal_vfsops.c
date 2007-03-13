@@ -136,6 +136,13 @@ portal_mount(struct mount *mp, struct thread *td)
 		return (error);
 	}
 
+	error = insmntque(rvp, mp);	/* XXX: Too early for mpsafe fs */
+	if (error != 0) {
+		FREE(fmp, M_PORTALFSMNT);
+		FREE(pn, M_TEMP);
+		fdrop(fp, td);
+		return (error);
+	}
 	rvp->v_data = pn;
 	rvp->v_type = VDIR;
 	rvp->v_vflag |= VV_ROOT;
