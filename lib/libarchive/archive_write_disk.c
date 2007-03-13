@@ -659,14 +659,20 @@ restore_entry(struct archive_write_disk *a)
 {
 	int ret = ARCHIVE_OK, en;
 
-	if (a->flags & ARCHIVE_EXTRACT_UNLINK)
-		if (unlink(a->name) != 0 && errno != ENOENT) {
-			/* If the file doesn't exist, that's okay. */
-			/* Anything else is a problem. */
+	if (a->flags & ARCHIVE_EXTRACT_UNLINK && !S_ISDIR(a->mode)) {
+		if (unlink(a->name) == 0) {
+			/* We removed it, we're done. */
+		} else if (errno == ENOENT) {
+			/* File didn't exist, that's just as good. */
+		} else if (rmdir(a->name) == 0) {
+			/* It was a dir, but now it's gone. */
+		} else {
+			/* We tried, but couldn't get rid of it. */
 			archive_set_error(&a->archive, errno,
 			    "Could not unlink");
 			return(ARCHIVE_WARN);
 		}
+	}
 
 	/* Try creating it first; if this fails, we'll try to recover. */
 	en = create_filesystem_object(a);
