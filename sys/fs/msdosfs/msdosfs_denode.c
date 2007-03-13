@@ -107,6 +107,7 @@ deget(pmp, dirclust, diroffset, depp)
 	struct denode *ldep;
 	struct vnode *nvp, *xvp;
 	struct buf *bp;
+	struct thread *td;
 
 #ifdef MSDOSFS_DEBUG
 	printf("deget(pmp %p, dirclust %lu, diroffset %lx, depp %p)\n",
@@ -172,7 +173,15 @@ deget(pmp, dirclust, diroffset, depp)
 	ldep->de_inode = inode;
 	fc_purge(ldep, 0);	/* init the fat cache for this denode */
 
-	error = vfs_hash_insert(nvp, inode, LK_EXCLUSIVE, curthread, &xvp,
+	td = curthread;
+	lockmgr(nvp->v_vnlock, LK_EXCLUSIVE, NULL, td);
+	error = insmntque(nvp, mntp);
+	if (error != 0) {
+		FREE(ldep, M_MSDOSFSNODE);
+		*depp = NULL;
+		return (error);
+	}
+	error = vfs_hash_insert(nvp, inode, LK_EXCLUSIVE, td, &xvp,
 	    de_vncmpf, &inode);
 	if (error) {
 		*depp = NULL;

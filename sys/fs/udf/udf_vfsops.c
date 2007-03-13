@@ -613,7 +613,13 @@ udf_vget(struct mount *mp, ino_t ino, int flags, struct vnode **vpp)
 	unode->udfmp = udfmp;
 	vp->v_data = unode;
 
-	error = vfs_hash_insert(vp, ino, flags, curthread, vpp, NULL, NULL);
+	lockmgr(vp->v_vnlock, LK_EXCLUSIVE, NULL, td);
+	error = insmntque(vp, mp);
+	if (error != 0) {
+		uma_zfree(udf_zone_node, unode);
+		return (error);
+	}
+	error = vfs_hash_insert(vp, ino, flags, td, vpp, NULL, NULL);
 	if (error || *vpp != NULL)
 		return (error);
 

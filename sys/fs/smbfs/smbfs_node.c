@@ -242,6 +242,11 @@ loop:
 		FREE(np, M_SMBNODE);
 		return error;
 	}
+	error = insmntque(vp, mp);	/* XXX: Too early for mpsafe fs */
+	if (error != 0) {
+		FREE(np, M_SMBNODE);
+		return (error);
+	}
 	vp->v_type = fap->fa_attr & SMB_FA_DIR ? VDIR : VREG;
 	bzero(np, sizeof(*np));
 	vp->v_data = np;

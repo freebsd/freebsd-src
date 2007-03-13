@@ -717,6 +717,12 @@ mqfs_allocv(struct mount *mp, struct vnode **vpp, struct mqfs_node *pn)
 	error = getnewvnode("mqueue", mp, &mqfs_vnodeops, vpp);
 	if (error)
 		return (error);
+	vn_lock(*vpp, LK_EXCLUSIVE | LK_RETRY, curthread);
+	error = insmntque(*vpp, mp);
+	if (error != 0) {
+		*vpp = NULLVP;
+		return (error);
+	}
 	vd = uma_zalloc(mvdata_zone, M_WAITOK);
 	(*vpp)->v_data = vd;
 	vd->mv_vnode = *vpp;
@@ -744,7 +750,6 @@ mqfs_allocv(struct mount *mp, struct vnode **vpp, struct mqfs_node *pn)
 	default:
 		panic("%s has unexpected type: %d", pn->mn_name, pn->mn_type);
 	}
-	vn_lock(*vpp, LK_RETRY | LK_EXCLUSIVE, curthread);
 	return (0);
 }
 

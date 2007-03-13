@@ -445,6 +445,7 @@ hpfs_vget(
 	struct hpfsnode *hp;
 	struct buf *bp;
 	int error;
+	struct thread *td;
 
 	dprintf(("hpfs_vget(0x%x): ",ino));
 
@@ -471,7 +472,7 @@ hpfs_vget(
 	MALLOC(hp, struct hpfsnode *, sizeof(struct hpfsnode), 
 		M_HPFSNO, M_WAITOK);
 
-	error = getnewvnode("hpfs", hpmp->hpm_mp, &hpfs_vnodeops, &vp);
+	error = getnewvnode("hpfs", mp, &hpfs_vnodeops, &vp);
 	if (error) {
 		printf("hpfs_vget: can't get new vnode\n");
 		FREE(hp, M_HPFSNO);
@@ -498,7 +499,14 @@ hpfs_vget(
 	hp->h_mode = hpmp->hpm_mode;
 	hp->h_devvp = hpmp->hpm_devvp;
 
-	error = vfs_hash_insert(vp, ino, flags, curthread, vpp, NULL, NULL);
+	td = curthread;
+	lockmgr(vp->v_vnlock, LK_EXCLUSIVE, NULL, td);
+	error = insmntque(vp, mp);
+	if (error != 0) {
+		free(hp, M_HPFSNO);
+		return (error);
+	}
+	error = vfs_hash_insert(vp, ino, flags, td, vpp, NULL, NULL);
 	if (error || *vpp != NULL)
 		return (error);
 

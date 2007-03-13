@@ -90,7 +90,6 @@ __FBSDID("$FreeBSD$");
 static MALLOC_DEFINE(M_NETADDR, "subr_export_host", "Export host address structure");
 
 static void	delmntque(struct vnode *vp);
-static void	insmntque(struct vnode *vp, struct mount *mp);
 static int	flushbuflist(struct bufv *bufv, int flags, struct bufobj *bo,
 		    int slpflag, int slptimeo);
 static void	syncer_shutdown(void *arg, int howto);
@@ -943,7 +942,6 @@ alloc:
 		printf("NULL mp in getnewvnode()\n");
 #endif
 	if (mp != NULL) {
-		insmntque(vp, mp);
 		bo->bo_bsize = mp->mnt_stat.f_iosize;
 		if ((mp->mnt_kern_flag & MNTK_NOKNOTE) != 0)
 			vp->v_vflag |= VV_NOKNOTE;
@@ -975,22 +973,56 @@ delmntque(struct vnode *vp)
 	MNT_IUNLOCK(mp);
 }
 
+static void
+insmntque_stddtr(struct vnode *vp, void *dtr_arg)
+{
+	struct thread *td;
+
+	td = curthread; /* XXX ? */
+	vp->v_data = NULL;
+	vp->v_op = &dead_vnodeops;
+	/* XXX non mp-safe fs may still call insmntque with vnode
+	   unlocked */
+	if (!VOP_ISLOCKED(vp, td))
+		vn_lock(vp, LK_EXCLUSIVE | LK_RETRY, td);
+	vgone(vp);
+	vput(vp);
+}
+
 /*
  * Insert into list of vnodes for the new mount point, if available.
  */
-static void
-insmntque(struct vnode *vp, struct mount *mp)
+int
+insmntque1(struct vnode *vp, struct mount *mp,
+	void (*dtr)(struct vnode *, void *), void *dtr_arg)
 {
 
-	vp->v_mount = mp;
+	KASSERT(vp->v_mount == NULL,
+		("insmntque: vnode already on per mount vnode list"));
 	VNASSERT(mp != NULL, vp, ("Don't call insmntque(foo, NULL)"));
 	MNT_ILOCK(mp);
+	if ((mp->mnt_kern_flag & MNTK_UNMOUNT) != 0 &&
+	    mp->mnt_nvnodelistsize == 0) {
+		MNT_IUNLOCK(mp);
+		if (dtr != NULL)
+			dtr(vp, dtr_arg);
+		return (EBUSY);
+	}
+	vp->v_mount = mp;
 	MNT_REF(mp);
 	TAILQ_INSERT_TAIL(&mp->mnt_nvnodelist, vp, v_nmntvnodes);
 	VNASSERT(mp->mnt_nvnodelistsize >= 0, vp,
 		("neg mount point vnode list size"));
 	mp->mnt_nvnodelistsize++;
 	MNT_IUNLOCK(mp);
+	return (0);
+}
+
+int
+insmntque(struct vnode *vp, struct mount *mp)
+{
+
+	return (insmntque1(vp, mp, insmntque_stddtr, NULL));
 }
 
 /*
@@ -3015,6 +3047,9 @@ vfs_allocate_syncvnode(struct mount *mp)
 		return (error);
 	}
 	vp->v_type = VNON;
+	error = insmntque(vp, mp);
+	if (error != 0)
+		panic("vfs_allocate_syncvnode: insmntque failed");
 	/*
 	 * Place the vnode onto the syncer worklist. We attempt to
 	 * scatter them about on the list so that they will go off
