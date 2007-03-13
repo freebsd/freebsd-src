@@ -335,8 +335,6 @@ struct isp_pcisoftc {
 	ispsoftc_t			pci_isp;
 	device_t			pci_dev;
 	struct resource *		pci_reg;
-	bus_space_tag_t			pci_st;
-	bus_space_handle_t		pci_sh;
 	void *				ih;
 	int16_t				pci_poff[_NREG_BLKS];
 	bus_dma_tag_t			dmat;
@@ -887,8 +885,8 @@ isp_pci_attach(device_t dev)
 	}
 	pcs->pci_dev = dev;
 	pcs->pci_reg = regs;
-	pcs->pci_st = rman_get_bustag(regs);
-	pcs->pci_sh = rman_get_bushandle(regs);
+	isp->isp_bus_tag = rman_get_bustag(regs);
+	isp->isp_bus_handle = rman_get_bushandle(regs);
 
 	pcs->pci_poff[BIU_BLOCK >> _BLK_REG_SHFT] = BIU_REGS_OFF;
 	pcs->pci_poff[MBOX_BLOCK >> _BLK_REG_SHFT] = PCI_MBOX_REGS_OFF;
@@ -1133,9 +1131,10 @@ isp_pci_attach(device_t dev)
 	 * Make sure the Cache Line Size register is set sensibly.
 	 */
 	data = pci_read_config(dev, PCIR_CACHELNSZ, 1);
-	if (data != linesz) {
-		data = PCI_DFLT_LNSZ;
-		isp_prt(isp, ISP_LOGCONFIG, "set PCI line size to %d", data);
+	if (data == 0 || (linesz != PCI_DFLT_LNSZ && data != linesz)) {
+		isp_prt(isp, ISP_LOGCONFIG, "set PCI line size to %d from %d",
+		    linesz, data);
+		data = linesz;
 		pci_write_config(dev, PCIR_CACHELNSZ, data, 1);
 	}
 
@@ -1295,26 +1294,25 @@ isp_pci_intr(void *arg)
 	(((struct isp_pcisoftc *)a)->pci_poff[((x) & _BLK_REG_MASK) >> \
 	_BLK_REG_SHFT] + ((x) & 0xfff))
 
-#define	BXR2(pcs, off)		\
-	bus_space_read_2(pcs->pci_st, pcs->pci_sh, off)
-#define	BXW2(pcs, off, v)	\
-	bus_space_write_2(pcs->pci_st, pcs->pci_sh, off, v)
-#define	BXR4(pcs, off)		\
-	bus_space_read_4(pcs->pci_st, pcs->pci_sh, off)
-#define	BXW4(pcs, off, v)	\
-	bus_space_write_4(pcs->pci_st, pcs->pci_sh, off, v)
+#define	BXR2(isp, off)		\
+	bus_space_read_2(isp->isp_bus_tag, isp->isp_bus_handle, off)
+#define	BXW2(isp, off, v)	\
+	bus_space_write_2(isp->isp_bus_tag, isp->isp_bus_handle, off, v)
+#define	BXR4(isp, off)		\
+	bus_space_read_4(isp->isp_bus_tag, isp->isp_bus_handle, off)
+#define	BXW4(isp, off, v)	\
+	bus_space_write_4(isp->isp_bus_tag, isp->isp_bus_handle, off, v)
 
 
 static __inline int
 isp_pci_rd_debounced(ispsoftc_t *isp, int off, uint16_t *rp)
 {
-	struct isp_pcisoftc *pcs = (struct isp_pcisoftc *) isp;
 	uint32_t val0, val1;
 	int i = 0;
 
 	do {
-		val0 = BXR2(pcs, IspVirt2Off(isp, off));
-		val1 = BXR2(pcs, IspVirt2Off(isp, off));
+		val0 = BXR2(isp, IspVirt2Off(isp, off));
+		val1 = BXR2(isp, IspVirt2Off(isp, off));
 	} while (val0 != val1 && ++i < 1000);
 	if (val0 != val1) {
 		return (1);
@@ -1327,7 +1325,6 @@ static int
 isp_pci_rd_isr(ispsoftc_t *isp, uint32_t *isrp,
     uint16_t *semap, uint16_t *mbp)
 {
-	struct isp_pcisoftc *pcs = (struct isp_pcisoftc *) isp;
 	uint16_t isr, sema;
 
 	if (IS_2100(isp)) {
@@ -1338,8 +1335,8 @@ isp_pci_rd_isr(ispsoftc_t *isp, uint32_t *isrp,
 		    return (0);
 		}
 	} else {
-		isr = BXR2(pcs, IspVirt2Off(isp, BIU_ISR));
-		sema = BXR2(pcs, IspVirt2Off(isp, BIU_SEMA));
+		isr = BXR2(isp, IspVirt2Off(isp, BIU_ISR));
+		sema = BXR2(isp, IspVirt2Off(isp, BIU_SEMA));
 	}
 	isp_prt(isp, ISP_LOGDEBUG3, "ISR 0x%x SEMA 0x%x", isr, sema);
 	isr &= INT_PENDING_MASK(isp);
@@ -1354,7 +1351,7 @@ isp_pci_rd_isr(ispsoftc_t *isp, uint32_t *isrp,
 				return (0);
 			}
 		} else {
-			*mbp = BXR2(pcs, IspVirt2Off(isp, OUTMAILBOX0));
+			*mbp = BXR2(isp, IspVirt2Off(isp, OUTMAILBOX0));
 		}
 	}
 	return (1);
@@ -1364,15 +1361,14 @@ static int
 isp_pci_rd_isr_2300(ispsoftc_t *isp, uint32_t *isrp,
     uint16_t *semap, uint16_t *mbox0p)
 {
-	struct isp_pcisoftc *pcs = (struct isp_pcisoftc *) isp;
 	uint32_t hccr;
 	uint32_t r2hisr;
 
-	if (!(BXR2(pcs, IspVirt2Off(isp, BIU_ISR) & BIU2100_ISR_RISC_INT))) {
+	if (!(BXR2(isp, IspVirt2Off(isp, BIU_ISR) & BIU2100_ISR_RISC_INT))) {
 		*isrp = 0;
 		return (0);
 	}
-	r2hisr = BXR4(pcs, IspVirt2Off(pcs, BIU_R2HSTSLO));
+	r2hisr = BXR4(isp, IspVirt2Off(isp, BIU_R2HSTSLO));
 	isp_prt(isp, ISP_LOGDEBUG3, "RISC2HOST ISR 0x%x", r2hisr);
 	if ((r2hisr & BIU_R2HST_INTR) == 0) {
 		*isrp = 0;
@@ -1428,10 +1424,9 @@ static int
 isp_pci_rd_isr_2400(ispsoftc_t *isp, uint32_t *isrp,
     uint16_t *semap, uint16_t *mbox0p)
 {
-	struct isp_pcisoftc *pcs = (struct isp_pcisoftc *) isp;
 	uint32_t r2hisr;
 
-	r2hisr = BXR4(pcs, IspVirt2Off(pcs, BIU2400_R2HSTSLO));
+	r2hisr = BXR4(isp, IspVirt2Off(isp, BIU2400_R2HSTSLO));
 	isp_prt(isp, ISP_LOGDEBUG3, "RISC2HOST ISR 0x%x", r2hisr);
 	if ((r2hisr & BIU2400_R2HST_INTR) == 0) {
 		*isrp = 0;
@@ -1464,21 +1459,22 @@ isp_pci_rd_isr_2400(ispsoftc_t *isp, uint32_t *isrp,
 static uint32_t
 isp_pci_rd_reg(ispsoftc_t *isp, int regoff)
 {
-	uint32_t rv;
-	struct isp_pcisoftc *pcs = (struct isp_pcisoftc *) isp;
+	uint16_t rv;
 	int oldconf = 0;
 
 	if ((regoff & _BLK_REG_MASK) == SXP_BLOCK) {
 		/*
 		 * We will assume that someone has paused the RISC processor.
 		 */
-		oldconf = BXR2(pcs, IspVirt2Off(isp, BIU_CONF1));
-		BXW2(pcs, IspVirt2Off(isp, BIU_CONF1),
+		oldconf = BXR2(isp, IspVirt2Off(isp, BIU_CONF1));
+		BXW2(isp, IspVirt2Off(isp, BIU_CONF1),
 		    oldconf | BIU_PCI_CONF1_SXP);
+		MEMORYBARRIER(isp, SYNC_REG, IspVirt2Off(isp, BIU_CONF1), 2);
 	}
-	rv = BXR2(pcs, IspVirt2Off(isp, regoff));
+	rv = BXR2(isp, IspVirt2Off(isp, regoff));
 	if ((regoff & _BLK_REG_MASK) == SXP_BLOCK) {
-		BXW2(pcs, IspVirt2Off(isp, BIU_CONF1), oldconf);
+		BXW2(isp, IspVirt2Off(isp, BIU_CONF1), oldconf);
+		MEMORYBARRIER(isp, SYNC_REG, IspVirt2Off(isp, BIU_CONF1), 2);
 	}
 	return (rv);
 }
@@ -1486,38 +1482,30 @@ isp_pci_rd_reg(ispsoftc_t *isp, int regoff)
 static void
 isp_pci_wr_reg(ispsoftc_t *isp, int regoff, uint32_t val)
 {
-	struct isp_pcisoftc *pcs = (struct isp_pcisoftc *) isp;
 	int oldconf = 0;
-	volatile int junk;
 
 	if ((regoff & _BLK_REG_MASK) == SXP_BLOCK) {
 		/*
 		 * We will assume that someone has paused the RISC processor.
 		 */
-		oldconf = BXR2(pcs, IspVirt2Off(isp, BIU_CONF1));
-		BXW2(pcs, IspVirt2Off(isp, BIU_CONF1),
+		oldconf = BXR2(isp, IspVirt2Off(isp, BIU_CONF1));
+		BXW2(isp, IspVirt2Off(isp, BIU_CONF1),
 		    oldconf | BIU_PCI_CONF1_SXP);
-		if (IS_2100(isp)) {
-			junk = BXR2(pcs, IspVirt2Off(isp, BIU_CONF1));
-		}
+		MEMORYBARRIER(isp, SYNC_REG, IspVirt2Off(isp, BIU_CONF1), 2);
 	}
-	BXW2(pcs, IspVirt2Off(isp, regoff), val);
-	if (IS_2100(isp)) {
-		junk = BXR2(pcs, IspVirt2Off(isp, regoff));
-	}
+	BXW2(isp, IspVirt2Off(isp, regoff), val);
+	MEMORYBARRIER(isp, SYNC_REG, IspVirt2Off(isp, regoff), 2);
 	if ((regoff & _BLK_REG_MASK) == SXP_BLOCK) {
-		BXW2(pcs, IspVirt2Off(isp, BIU_CONF1), oldconf);
-		if (IS_2100(isp)) {
-			junk = BXR2(pcs, IspVirt2Off(isp, BIU_CONF1));
-		}
+		BXW2(isp, IspVirt2Off(isp, BIU_CONF1), oldconf);
+		MEMORYBARRIER(isp, SYNC_REG, IspVirt2Off(isp, BIU_CONF1), 2);
 	}
+
 }
 
 static uint32_t
 isp_pci_rd_reg_1080(ispsoftc_t *isp, int regoff)
 {
 	uint32_t rv, oc = 0;
-	struct isp_pcisoftc *pcs = (struct isp_pcisoftc *) isp;
 
 	if ((regoff & _BLK_REG_MASK) == SXP_BLOCK ||
 	    (regoff & _BLK_REG_MASK) == (SXP_BLOCK|SXP_BANK1_SELECT)) {
@@ -1525,21 +1513,24 @@ isp_pci_rd_reg_1080(ispsoftc_t *isp, int regoff)
 		/*
 		 * We will assume that someone has paused the RISC processor.
 		 */
-		oc = BXR2(pcs, IspVirt2Off(isp, BIU_CONF1));
+		oc = BXR2(isp, IspVirt2Off(isp, BIU_CONF1));
 		tc = oc & ~BIU_PCI1080_CONF1_DMA;
 		if (regoff & SXP_BANK1_SELECT)
 			tc |= BIU_PCI1080_CONF1_SXP1;
 		else
 			tc |= BIU_PCI1080_CONF1_SXP0;
-		BXW2(pcs, IspVirt2Off(isp, BIU_CONF1), tc);
+		BXW2(isp, IspVirt2Off(isp, BIU_CONF1), tc);
+		MEMORYBARRIER(isp, SYNC_REG, IspVirt2Off(isp, BIU_CONF1), 2);
 	} else if ((regoff & _BLK_REG_MASK) == DMA_BLOCK) {
-		oc = BXR2(pcs, IspVirt2Off(isp, BIU_CONF1));
-		BXW2(pcs, IspVirt2Off(isp, BIU_CONF1), 
+		oc = BXR2(isp, IspVirt2Off(isp, BIU_CONF1));
+		BXW2(isp, IspVirt2Off(isp, BIU_CONF1), 
 		    oc | BIU_PCI1080_CONF1_DMA);
+		MEMORYBARRIER(isp, SYNC_REG, IspVirt2Off(isp, BIU_CONF1), 2);
 	}
-	rv = BXR2(pcs, IspVirt2Off(isp, regoff));
+	rv = BXR2(isp, IspVirt2Off(isp, regoff));
 	if (oc) {
-		BXW2(pcs, IspVirt2Off(isp, BIU_CONF1), oc);
+		BXW2(isp, IspVirt2Off(isp, BIU_CONF1), oc);
+		MEMORYBARRIER(isp, SYNC_REG, IspVirt2Off(isp, BIU_CONF1), 2);
 	}
 	return (rv);
 }
@@ -1547,9 +1538,7 @@ isp_pci_rd_reg_1080(ispsoftc_t *isp, int regoff)
 static void
 isp_pci_wr_reg_1080(ispsoftc_t *isp, int regoff, uint32_t val)
 {
-	struct isp_pcisoftc *pcs = (struct isp_pcisoftc *) isp;
 	int oc = 0;
-	volatile int junk;
 
 	if ((regoff & _BLK_REG_MASK) == SXP_BLOCK ||
 	    (regoff & _BLK_REG_MASK) == (SXP_BLOCK|SXP_BANK1_SELECT)) {
@@ -1557,32 +1546,31 @@ isp_pci_wr_reg_1080(ispsoftc_t *isp, int regoff, uint32_t val)
 		/*
 		 * We will assume that someone has paused the RISC processor.
 		 */
-		oc = BXR2(pcs, IspVirt2Off(isp, BIU_CONF1));
+		oc = BXR2(isp, IspVirt2Off(isp, BIU_CONF1));
 		tc = oc & ~BIU_PCI1080_CONF1_DMA;
 		if (regoff & SXP_BANK1_SELECT)
 			tc |= BIU_PCI1080_CONF1_SXP1;
 		else
 			tc |= BIU_PCI1080_CONF1_SXP0;
-		BXW2(pcs, IspVirt2Off(isp, BIU_CONF1), tc);
-		junk = BXR2(pcs, IspVirt2Off(isp, BIU_CONF1));
+		BXW2(isp, IspVirt2Off(isp, BIU_CONF1), tc);
+		MEMORYBARRIER(isp, SYNC_REG, IspVirt2Off(isp, BIU_CONF1), 2);
 	} else if ((regoff & _BLK_REG_MASK) == DMA_BLOCK) {
-		oc = BXR2(pcs, IspVirt2Off(isp, BIU_CONF1));
-		BXW2(pcs, IspVirt2Off(isp, BIU_CONF1), 
+		oc = BXR2(isp, IspVirt2Off(isp, BIU_CONF1));
+		BXW2(isp, IspVirt2Off(isp, BIU_CONF1), 
 		    oc | BIU_PCI1080_CONF1_DMA);
-		junk = BXR2(pcs, IspVirt2Off(isp, BIU_CONF1));
+		MEMORYBARRIER(isp, SYNC_REG, IspVirt2Off(isp, BIU_CONF1), 2);
 	}
-	BXW2(pcs, IspVirt2Off(isp, regoff), val);
-	junk = BXR2(pcs, IspVirt2Off(isp, regoff));
+	BXW2(isp, IspVirt2Off(isp, regoff), val);
+	MEMORYBARRIER(isp, SYNC_REG, IspVirt2Off(isp, regoff), 2);
 	if (oc) {
-		BXW2(pcs, IspVirt2Off(isp, BIU_CONF1), oc);
-		junk = BXR2(pcs, IspVirt2Off(isp, BIU_CONF1));
+		BXW2(isp, IspVirt2Off(isp, BIU_CONF1), oc);
+		MEMORYBARRIER(isp, SYNC_REG, IspVirt2Off(isp, BIU_CONF1), 2);
 	}
 }
 
 static uint32_t
 isp_pci_rd_reg_2400(ispsoftc_t *isp, int regoff)
 {
-	struct isp_pcisoftc *pcs = (struct isp_pcisoftc *) isp;
 	uint32_t rv;
 	int block = regoff & _BLK_REG_MASK;
 
@@ -1590,7 +1578,7 @@ isp_pci_rd_reg_2400(ispsoftc_t *isp, int regoff)
 	case BIU_BLOCK:
 		break;
 	case MBOX_BLOCK:
-		return (BXR2(pcs, IspVirt2Off(pcs, regoff)));
+		return (BXR2(isp, IspVirt2Off(isp, regoff)));
 	case SXP_BLOCK:
 		isp_prt(isp, ISP_LOGWARN, "SXP_BLOCK read at 0x%x", regoff);
 		return (0xffffffff);
@@ -1624,13 +1612,13 @@ isp_pci_rd_reg_2400(ispsoftc_t *isp, int regoff)
 	case BIU2400_GPIOD:
 	case BIU2400_GPIOE:
 	case BIU2400_HSEMA:
-		rv = BXR4(pcs, IspVirt2Off(pcs, regoff));
+		rv = BXR4(isp, IspVirt2Off(isp, regoff));
 		break;
 	case BIU2400_R2HSTSLO:
-		rv = BXR4(pcs, IspVirt2Off(pcs, regoff));
+		rv = BXR4(isp, IspVirt2Off(isp, regoff));
 		break;
 	case BIU2400_R2HSTSHI:
-		rv = BXR4(pcs, IspVirt2Off(pcs, regoff)) >> 16;
+		rv = BXR4(isp, IspVirt2Off(isp, regoff)) >> 16;
 		break;
 	default:
 		isp_prt(isp, ISP_LOGERR,
@@ -1644,16 +1632,14 @@ isp_pci_rd_reg_2400(ispsoftc_t *isp, int regoff)
 static void
 isp_pci_wr_reg_2400(ispsoftc_t *isp, int regoff, uint32_t val)
 {
-	struct isp_pcisoftc *pcs = (struct isp_pcisoftc *) isp;
 	int block = regoff & _BLK_REG_MASK;
-	volatile int junk;
 
 	switch (block) {
 	case BIU_BLOCK:
 		break;
 	case MBOX_BLOCK:
-		BXW2(pcs, IspVirt2Off(pcs, regoff), val);
-		junk = BXR2(pcs, IspVirt2Off(pcs, regoff));
+		BXW2(isp, IspVirt2Off(isp, regoff), val);
+		MEMORYBARRIER(isp, SYNC_REG, IspVirt2Off(isp, regoff), 2);
 		return;
 	case SXP_BLOCK:
 		isp_prt(isp, ISP_LOGWARN, "SXP_BLOCK write at 0x%x", regoff);
@@ -1688,8 +1674,8 @@ isp_pci_wr_reg_2400(ispsoftc_t *isp, int regoff, uint32_t val)
 	case BIU2400_GPIOD:
 	case BIU2400_GPIOE:
 	case BIU2400_HSEMA:
-		BXW4(pcs, IspVirt2Off(pcs, regoff), val);
-		junk = BXR4(pcs, IspVirt2Off(pcs, regoff));
+		BXW4(isp, IspVirt2Off(isp, regoff), val);
+		MEMORYBARRIER(isp, SYNC_REG, IspVirt2Off(isp, regoff), 4);
 		break;
 	default:
 		isp_prt(isp, ISP_LOGERR,

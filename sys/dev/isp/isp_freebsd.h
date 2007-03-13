@@ -140,6 +140,8 @@ typedef struct tstate {
 
 struct isposinfo {
 	struct ispsoftc *	next;
+	bus_space_tag_t		bus_tag;
+	bus_space_handle_t	bus_handle;
 	uint64_t		default_port_wwn;
 	uint64_t		default_node_wwn;
 	uint32_t		default_id;
@@ -194,6 +196,8 @@ struct isposinfo {
 };
 
 #define	isp_lock	isp_osinfo.lock
+#define	isp_bus_tag	isp_osinfo.bus_tag
+#define	isp_bus_handle	isp_osinfo.bus_handle
 
 /*
  * Locking macros...
@@ -250,6 +254,11 @@ case SYNC_SFORCPU:						\
 case SYNC_RESULT:						\
 	bus_dmamap_sync(isp->isp_cdmat, isp->isp_cdmap,		\
 	   BUS_DMASYNC_POSTREAD | BUS_DMASYNC_POSTWRITE);	\
+	break;							\
+case SYNC_REG:							\
+	bus_space_barrier(isp->isp_bus_tag,			\
+	    isp->isp_bus_handle, offset, size, 			\
+	    BUS_SPACE_BARRIER_READ);				\
 	break;							\
 default:							\
 	break;							\
