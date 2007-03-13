@@ -166,6 +166,17 @@ nfs_nget(struct mount *mntp, nfsfh_t *fhp, int fhsize, struct nfsnode **npp, int
 		np->n_fhp = &np->n_fh;
 	bcopy((caddr_t)fhp, (caddr_t)np->n_fhp, fhsize);
 	np->n_fhsize = fhsize;
+	lockmgr(vp->v_vnlock, LK_EXCLUSIVE, NULL, td);
+	error = insmntque(vp, mntp);
+	if (error != 0) {
+		*npp = NULL;
+		if (np->n_fhsize > NFS_SMALLFH) {
+			FREE((caddr_t)np->n_fhp, M_NFSBIGFH);
+		}
+		mtx_destroy(&np->n_mtx);
+		uma_zfree(nfsnode_zone, np);
+		return (error);
+	}
 	error = vfs_hash_insert(vp, hash, flags, 
 	    td, &nvp, nfs_vncmpf, &ncmp);
 	if (error)

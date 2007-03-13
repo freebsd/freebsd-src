@@ -214,6 +214,12 @@ umap_node_alloc(mp, lowervp, vpp)
 		return (error);
 	}
 	vp = *vpp;
+	error = insmntque(vp, mp);	/* XXX: Too early for mpsafe fs */
+	if (error != 0) {
+		FREE(xp, M_TEMP);
+		*vpp = NULLVP;
+		return (error);
+	}
 
 	vp->v_type = lowervp->v_type;
 	xp->umap_vnode = vp;

@@ -663,8 +663,10 @@ cd9660_vget_internal(mp, ino, flags, vpp, relocated, isodir)
 	struct vnode *vp;
 	struct cdev *dev;
 	int error;
+	struct thread *td;
 
-	error = vfs_hash_get(mp, ino, flags, curthread, vpp, NULL, NULL);
+	td = curthread;
+	error = vfs_hash_get(mp, ino, flags, td, vpp, NULL, NULL);
 	if (error || *vpp != NULL)
 		return (error);
 
@@ -682,7 +684,14 @@ cd9660_vget_internal(mp, ino, flags, vpp, relocated, isodir)
 	ip->i_vnode = vp;
 	ip->i_number = ino;
 
-	error = vfs_hash_insert(vp, ino, flags, curthread, vpp, NULL, NULL);
+	lockmgr(vp->v_vnlock, LK_EXCLUSIVE, NULL, td);
+	error = insmntque(vp, mp);
+	if (error != 0) {
+		free(ip, M_ISOFSNODE);
+		*vpp = NULLVP;
+		return (error);
+	}
+	error = vfs_hash_insert(vp, ino, flags, td, vpp, NULL, NULL);
 	if (error || *vpp != NULL)
 		return (error);
 

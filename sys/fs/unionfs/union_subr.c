@@ -243,6 +243,11 @@ unionfs_nodeget(struct mount *mp, struct vnode *uppervp,
 		FREE(unp, M_UNIONFSNODE);
 		return (error);
 	}
+	error = insmntque(vp, mp);	/* XXX: Too early for mpsafe fs */
+	if (error != 0) {
+		FREE(unp, M_UNIONFSNODE);
+		return (error);
+	}
 	if (dvp != NULLVP)
 		vref(dvp);
 	if (uppervp != NULLVP)
