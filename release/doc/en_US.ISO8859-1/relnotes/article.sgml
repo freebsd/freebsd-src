@@ -203,7 +203,7 @@
       For more details see security advisory <ulink
       url="http://security.FreeBSD.org/advisories/FreeBSD-SA-06:13.sendmail.asc">FreeBSD-SA-06:13.sendmail</ulink>. &merged;</para>
 
-    <para>[&arch.amd64;, &arch.i386] An information disclosure issue found in the
+    <para>[&arch.amd64;, &arch.i386;] An information disclosure issue found in the
       &os; kernel running on 7th- and 8th-generation AMD processors
       has been fixed.  For more details see security advisory <ulink
        url="http://security.FreeBSD.org/advisories/FreeBSD-SA-06:14.fpu.asc">FreeBSD-SA-06:14.fpu</ulink>. &merged;</para>
@@ -514,6 +514,10 @@
       <para>[&arch.i386, &arch.pc98;] The &man.ce.4; driver,
 	which supports Cronyx Tau-PCI/32 adapters, has been added.
 	&merged;</para>
+
+      <para>The &man.cxgb.4; driver has been added.  It provides support for
+	10 Gigabit Ethernet adapters based on the Chelsio T3 and T3B chipsets.
+	</para>
 
       <para>The <literal>est</literal> &man.cpufreq.4; driver now supports
         frequency control for the VIA C7-M family of processors.</para> 
@@ -1021,8 +1025,8 @@ pipe tablearg ip from table(1) to any</programlisting>
 	disabled on a per-interface basis with
 	the <literal>tso</literal> and <literal>-tso</literal> flags
 	to &man.ifconfig.8;.  Network interfaces and drivers
-	supporting TSO currently include &man.em.4; and
-	&man.mxge.4;.</para>
+	supporting TSO currently include &man.em.4;,
+	&man.mxge.4; and &man.cxgb.4;.</para>
 
       <para>&os; now supports auto-sizing of TCP socket buffers.  This
 	allows the socket buffer sizes to adapt dynamically to network
