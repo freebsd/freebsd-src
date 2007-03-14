@@ -104,22 +104,19 @@ struct t3_mbuf_hdr {
 #define wmb()   __asm volatile("sfence" ::: "memory")
 #define smp_mb() mb()
 
-#define USE_PREFETCH
-#ifdef USE_PREFETCH
-#define L1_CACHE_BYTES 64
+#define L1_CACHE_BYTES 32
 static __inline
 void prefetch(void *x) 
 { 
         __asm volatile("prefetcht0 %0" :: "m" (*(unsigned long *)x));
 } 
-#else
-#define prefetch(x)
-#endif
+
 #else /* !i386 && !amd64 */
 #define mb()
 #define rmb()
 #define wmb()
 #define smp_mb()
+#define prefetch(x)
 #endif
 #define DBG_RX          (1 << 0)
 static const int debug_flags = DBG_RX;
