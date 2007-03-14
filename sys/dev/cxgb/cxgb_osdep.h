@@ -43,6 +43,7 @@ $FreeBSD$
 #include <dev/mii/mii.h>
 
 #include <dev/cxgb/common/cxgb_version.h>
+#include <dev/cxgb/cxgb_config.h>
 
 #ifndef _CXGB_OSDEP_H_
 #define _CXGB_OSDEP_H_
@@ -102,6 +103,19 @@ struct t3_mbuf_hdr {
 #define rmb()   __asm volatile("lfence":::"memory")
 #define wmb()   __asm volatile("sfence" ::: "memory")
 #define smp_mb() mb()
+
+#define USE_PREFETCH
+#ifdef USE_PREFETCH
+#define L1_CACHE_BYTES 64
+static __inline
+void prefetch(void *x) 
+{ 
+        __asm volatile("prefetcht0 %0" :: "m" (*(unsigned long *)x));
+} 
+#else
+#define prefetch(x)
+#endif
+
 #endif
 #define DBG_RX          (1 << 0)
 static const int debug_flags = DBG_RX;
