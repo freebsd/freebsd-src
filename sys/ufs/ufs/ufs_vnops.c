@@ -321,10 +321,6 @@ ufs_access(ap)
 		case VREG:
 			if (vp->v_mount->mnt_flag & MNT_RDONLY)
 				return (EROFS);
-#ifdef QUOTA
-			if ((error = getinoquota(ip)) != 0)
-				return (error);
-#endif
 			break;
 		default:
 			break;
