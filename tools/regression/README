@@ -62,6 +62,12 @@ which is the same as their path relative to src/, for example the uuencode(1)
 utility resides in src/usr.bin/uuencode so its regression test resides in
 src/tools/regression/usr.bin/uuencode.
 
+To execute individual regression tests for binaries that you are
+developing, add their directory in the path before running the tests.
+Example:
+cd /usr/src/tools/regression/usr.bin
+(PATH=/home/user/src/experimental/jot:$PATH ; make SUBDIR=jot)
+
 Please make a subdir per other regression test, and add a brief description to
 this file.
 
