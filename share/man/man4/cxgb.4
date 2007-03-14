@@ -31,22 +31,22 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd Mar 7, 2007
+.Dd March 14, 2007
 .Dt CXGB 4
 .Os
 .Sh NAME
 .Nm cxgb
 .Nd "Chelsio T3 10 Gigabit Ethernet adapter driver"
 .Sh SYNOPSIS
-.\"To compile this driver into the kernel,
-.\"place the following lines in your
-.\"kernel configuration file:
-.\".Bd -ragged -offset indent
-.\".Cd "device firmware"
-.\".Cd "device cxgb"
+To compile this driver into the kernel,
+place the following lines in your
+kernel configuration file:
+.Bd -ragged -offset indent
+.Cd "device firmware"
+.Cd "device cxgb"
 .Ed
 .Pp
-to load the driver as a
+To load the driver as a
 module at boot time, place the following lines in
 .Xr loader.conf 5 :
 .Bd -literal -offset indent
@@ -124,9 +124,10 @@ The
 device driver first appeared in
 .Fx 7.0 .
 .Sh AUTHORS
+.An -nosplit
 The
 .Nm
 driver was written by
-.An Kip Macy Aq kmacyFreeBSD.org 
-.An with substantial support from Scott Long Aq scottl@FreeBSD.org
-
+.An Kip Macy Aq kmacyFreeBSD.org
+with substantial support from
+.An Scott Long Aq scottl@FreeBSD.org
