@@ -411,7 +411,7 @@ void t3_update_qset_coalesce(struct sge_qset *qs, const struct qset_params *p);
 /*
  * XXX figure out how we can return this to being private to sge
  */
-#define desc_reclaimable(q) (q->processed - q->cleaned - TX_MAX_DESC)
+#define desc_reclaimable(q) ((q)->processed - (q)->cleaned - TX_MAX_DESC)
 
 #define container_of(p, stype, field) ((stype *)(((uint8_t *)(p)) - offsetof(stype, field))) 
 
