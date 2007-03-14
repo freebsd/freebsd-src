@@ -32,9 +32,12 @@ __FBSDID("$FreeBSD$");
 
 /*
  * Compact Flash Support for the Avila Gateworks XScale boards.
- * There are 1 or 2 optional CF slots operated in "True IDE" mode.
- * Registers are on the Expansion Bus connected to CS1.  Interrupts
- * are tied to GPIO pin 12.  No DMA, just PIO.
+ * The CF slot is operated in "True IDE" mode. Registers are on
+ * the Expansion Bus connected to CS1 and CS2. Interrupts are
+ * tied to GPIO pin 12.  No DMA, just PIO.
+ *
+ * The ADI Pronghorn Metro is very similar. It use CS3 and CS4 and
+ * GPIO pin 0 for interrupts.
  *
  * See also http://www.intel.com/design/network/applnots/302456.htm.
  */
@@ -64,17 +67,24 @@ __FBSDID("$FreeBSD$");
 #include <dev/ata/ata-all.h>
 #include <ata_if.h>
 
-#define	AVILA_IDE_GPIN	12		/* GPIO pin # */
-#define	AVILA_IDE_IRQ	IXP425_INT_GPIO_12
-#define	AVILA_IDE_CTRL	0x1e		/* control register */
+#define	AVILA_IDE_GPIN		12		/* GPIO pin # */
+#define	AVILA_IDE_IRQ		IXP425_INT_GPIO_12
+#define	AVILA_IDE_CTRL		0x06		/* control register */
+
+#define	PRONGHORN_IDE_GPIN	0	/* GPIO pin # */
+#define	PRONGHORN_IDE_IRQ	IXP425_INT_GPIO_0
+#define	PRONGHORN_IDE_CNTRL	0x06	/* control register */
 
 struct ata_avila_softc {
 	device_t		sc_dev;
 	bus_space_tag_t		sc_iot;
 	bus_space_handle_t	sc_exp_ioh;	/* Exp Bus config registers */
-	bus_space_handle_t	sc_ioh;		/* CS1 data registers */
+	bus_space_handle_t	sc_ioh;		/* CS1/3 data registers */
+	bus_space_handle_t	sc_alt_ioh;	/* CS2/4 data registers */
 	struct bus_space	sc_expbus_tag;
 	struct resource		sc_ata;		/* hand-crafted for ATA */
+	struct resource		sc_alt_ata;	/* hand-crafted for ATA */
+	u_int32_t		sc_16bit_off;	/* EXP_TIMING_CSx_OFFSET */
 	int			sc_rid;		/* rid for IRQ */
 	struct resource		*sc_irq;	/* IRQ resource */
 	void			*sc_ih;		/* interrupt handler */
@@ -94,8 +104,14 @@ static	void ata_bs_wm_2_s(void *, bus_space_handle_t, bus_size_t,
 static int
 ata_avila_probe(device_t dev)
 {
+	struct ixp425_softc *sa = device_get_softc(device_get_parent(dev));
+
 	/* XXX any way to check? */
-	device_set_desc_copy(dev, "Gateworks Avila IDE/CF Controller");
+	if (EXP_BUS_READ_4(sa, EXP_TIMING_CS2_OFFSET) != 0)
+		device_set_desc_copy(dev, "Gateworks Avila IDE/CF Controller");
+	else
+		device_set_desc_copy(dev,
+		    "ADI Pronghorn Metro IDE/CF Controller");
 	return 0;
 }
 
@@ -104,14 +120,43 @@ ata_avila_attach(device_t dev)
 {
 	struct ata_avila_softc *sc = device_get_softc(dev);
 	struct ixp425_softc *sa = device_get_softc(device_get_parent(dev));
+	u_int32_t alt_t_off, board_type, ide_gpin, ide_irq;
 
+	board_type = 0;
 	sc->sc_dev = dev;
 	/* NB: borrow from parent */
 	sc->sc_iot = sa->sc_iot;
 	sc->sc_exp_ioh = sa->sc_exp_ioh;
-	if (bus_space_map(sc->sc_iot,
-	    IXP425_EXP_BUS_CS1_HWBASE, IXP425_EXP_BUS_CS1_SIZE, 0, &sc->sc_ioh))
-		panic("%s: unable to map Expansion Bus CS1 window", __func__);
+	if (EXP_BUS_READ_4(sc, EXP_TIMING_CS2_OFFSET) != 0)
+		board_type = 1;		/* Avila board */
+
+	if (board_type == 1) {
+		if (bus_space_map(sc->sc_iot, IXP425_EXP_BUS_CS1_HWBASE,
+		    IXP425_EXP_BUS_CS1_SIZE, 0, &sc->sc_ioh))
+			panic("%s: unable to map Expansion Bus CS1 window",
+			    __func__);
+		if (bus_space_map(sc->sc_iot, IXP425_EXP_BUS_CS2_HWBASE,
+		    IXP425_EXP_BUS_CS2_SIZE, 0, &sc->sc_alt_ioh))
+			panic("%s: unable to map Expansion Bus CS2 window",
+			    __func__);
+		ide_gpin = AVILA_IDE_GPIN;
+		ide_irq = AVILA_IDE_IRQ;
+		sc->sc_16bit_off = EXP_TIMING_CS1_OFFSET;
+		alt_t_off = EXP_TIMING_CS2_OFFSET;
+	} else {
+		if (bus_space_map(sc->sc_iot, IXP425_EXP_BUS_CS3_HWBASE,
+		    IXP425_EXP_BUS_CS3_SIZE, 0, &sc->sc_ioh))
+			panic("%s: unable to map Expansion Bus CS3 window",
+			    __func__);
+		if (bus_space_map(sc->sc_iot, IXP425_EXP_BUS_CS4_HWBASE,
+		    IXP425_EXP_BUS_CS4_SIZE, 0, &sc->sc_alt_ioh))
+			panic("%s: unable to map Expansion Bus CS4 window",
+			    __func__);
+		ide_gpin = PRONGHORN_IDE_GPIN;
+		ide_irq = PRONGHORN_IDE_IRQ;
+		sc->sc_16bit_off = EXP_TIMING_CS3_OFFSET;
+		alt_t_off = EXP_TIMING_CS4_OFFSET;
+	}
 
 	/*
 	 * Craft special resource for ATA bus space ops
@@ -137,27 +182,34 @@ ata_avila_attach(device_t dev)
 
 	rman_set_bustag(&sc->sc_ata, &sc->sc_expbus_tag);
 	rman_set_bushandle(&sc->sc_ata, sc->sc_ioh);
+	rman_set_bustag(&sc->sc_alt_ata, &sc->sc_expbus_tag);
+	rman_set_bushandle(&sc->sc_alt_ata, sc->sc_alt_ioh);
 
 	GPIO_CONF_WRITE_4(sa, IXP425_GPIO_GPOER, 
-	    GPIO_CONF_READ_4(sa, IXP425_GPIO_GPOER) | (1<<AVILA_IDE_GPIN));
-	/* interrupt is active low */
-	GPIO_CONF_WRITE_4(sa, GPIO_TYPE_REG(AVILA_IDE_GPIN),
-	    GPIO_CONF_READ_4(sa, GPIO_TYPE_REG(AVILA_IDE_GPIN) |
-	    GPIO_TYPE(AVILA_IDE_GPIN, GPIO_TYPE_ACT_LOW)));
+	    GPIO_CONF_READ_4(sa, IXP425_GPIO_GPOER) | (1<<ide_gpin));
+	/* interrupt is active high */
+	GPIO_CONF_WRITE_4(sa, GPIO_TYPE_REG(ide_gpin),
+	    (GPIO_CONF_READ_4(sa, GPIO_TYPE_REG(ide_gpin)) &
+	    ~GPIO_TYPE(ide_gpin, GPIO_TYPE_MASK)) |
+	    GPIO_TYPE(ide_gpin, GPIO_TYPE_ACT_HIGH));
 
 	/* clear ISR */
-	GPIO_CONF_WRITE_4(sa, IXP425_GPIO_GPISR, (1<<AVILA_IDE_GPIN));
+	GPIO_CONF_WRITE_4(sa, IXP425_GPIO_GPISR, (1<<ide_gpin));
 
-	/* configure CS1 window, leaving timing unchanged */
-	EXP_BUS_WRITE_4(sc, EXP_TIMING_CS1_OFFSET,
-	    EXP_BUS_READ_4(sc, EXP_TIMING_CS1_OFFSET) |
+	/* configure CS1/3 window, leaving timing unchanged */
+	EXP_BUS_WRITE_4(sc, sc->sc_16bit_off,
+	    EXP_BUS_READ_4(sc, sc->sc_16bit_off) |
+	        EXP_BYTE_EN | EXP_WR_EN | EXP_BYTE_RD16 | EXP_CS_EN);
+	/* configure CS2/4 window, leaving timing unchanged */
+	EXP_BUS_WRITE_4(sc, alt_t_off,
+	    EXP_BUS_READ_4(sc, alt_t_off) |
 	        EXP_BYTE_EN | EXP_WR_EN | EXP_BYTE_RD16 | EXP_CS_EN);
 
 	/* setup interrupt */
 	sc->sc_irq = bus_alloc_resource(dev, SYS_RES_IRQ, &sc->sc_rid,
-	    AVILA_IDE_IRQ, AVILA_IDE_IRQ, 1, RF_ACTIVE);
+	    ide_irq, ide_irq, 1, RF_ACTIVE);
 	if (!sc->sc_irq)
-		panic("Unable to allocate irq %u.\n", AVILA_IDE_IRQ);
+		panic("Unable to allocate irq %u.\n", ide_irq);
 	bus_setup_intr(dev, sc->sc_irq,
 	    INTR_TYPE_BIO | INTR_MPSAFE | INTR_ENTROPY,
 	    NULL, ata_avila_intr, sc, &sc->sc_ih);
@@ -261,8 +313,8 @@ ata_avila_teardown_intr(device_t dev, device_t child, struct resource *irq,
 static void __inline
 enable_16(struct ata_avila_softc *sc)
 {
-	EXP_BUS_WRITE_4(sc, EXP_TIMING_CS1_OFFSET,
-	    EXP_BUS_READ_4(sc, EXP_TIMING_CS1_OFFSET) &~ EXP_BYTE_EN);
+	EXP_BUS_WRITE_4(sc, sc->sc_16bit_off,
+	    EXP_BUS_READ_4(sc, sc->sc_16bit_off) &~ EXP_BYTE_EN);
 	DELAY(100);		/* XXX? */
 }
 
@@ -270,8 +322,8 @@ static void __inline
 disable_16(struct ata_avila_softc *sc)
 {
 	DELAY(100);		/* XXX? */
-	EXP_BUS_WRITE_4(sc, EXP_TIMING_CS1_OFFSET,
-	    EXP_BUS_READ_4(sc, EXP_TIMING_CS1_OFFSET) | EXP_BYTE_EN);
+	EXP_BUS_WRITE_4(sc, sc->sc_16bit_off,
+	    EXP_BUS_READ_4(sc, sc->sc_16bit_off) | EXP_BYTE_EN);
 }
 
 uint8_t
@@ -439,10 +491,11 @@ avila_channel_attach(device_t dev)
 	/* NB: should be used only for ATAPI devices */
 	ch->r_io[ATA_IREASON].offset = ATA_COUNT;
 	ch->r_io[ATA_STATUS].offset = ATA_COMMAND;
-	/* alias this; required by ata_generic_status */
-	ch->r_io[ATA_ALTSTAT].offset = ch->r_io[ATA_STATUS].offset;
 
-	/* NB: the control register is special */
+	/* NB: the control and alt status registers are special */
+	ch->r_io[ATA_ALTSTAT].res = &sc->sc_alt_ata;
+	ch->r_io[ATA_ALTSTAT].offset = AVILA_IDE_CTRL;
+	ch->r_io[ATA_CONTROL].res = &sc->sc_alt_ata;
 	ch->r_io[ATA_CONTROL].offset = AVILA_IDE_CTRL;
 
 	/* NB: by convention this points at the base of registers */
@@ -450,88 +503,6 @@ avila_channel_attach(device_t dev)
 
 	ata_generic_hw(dev);
 	return ata_attach(dev);
-}
-
-/* XXX override ata_generic_reset to handle non-standard status */
-static void
-avila_channel_reset(device_t dev)
-{
-	struct ata_channel *ch = device_get_softc(dev);
-	u_int8_t ostat0 = 0, stat0 = 0;
-	u_int8_t err = 0, lsb = 0, msb = 0;
-	int mask = 0, timeout;
-
-	/* do we have any signs of ATA/ATAPI HW being present ? */
-	ATA_IDX_OUTB(ch, ATA_DRIVE, ATA_D_IBM | ATA_D_LBA | ATA_MASTER);
-	DELAY(10);
-	ostat0 = ATA_IDX_INB(ch, ATA_STATUS);
-	if ((ostat0 & 0xf8) != 0xf8 && ostat0 != 0xa5) {
-		stat0 = ATA_S_BUSY;
-		mask |= 0x01;
-	}
-
-	if (bootverbose)
-		device_printf(dev, "%s: reset tp1 mask=%02x ostat0=%02x\n",
-		    __func__, mask, ostat0);
-
-	/* if nothing showed up there is no need to get any further */
-	/* XXX SOS is that too strong?, we just might loose devices here */
-	ch->devices = 0;
-	if (!mask)
-		return;
-
-	/* reset (both) devices on this channel */
-	ATA_IDX_OUTB(ch, ATA_DRIVE, ATA_D_IBM | ATA_D_LBA | ATA_MASTER);
-	DELAY(10);
-	ATA_IDX_OUTB(ch, ATA_CONTROL, ATA_A_IDS | ATA_A_RESET);
-	ata_udelay(10000); 
-	ATA_IDX_OUTB(ch, ATA_CONTROL, ATA_A_IDS);
-	ata_udelay(100000);
-	ATA_IDX_INB(ch, ATA_ERROR);
-
-	/* wait for BUSY to go inactive */
-	for (timeout = 0; timeout < 310; timeout++) {
-		if ((mask & 0x01) && (stat0 & ATA_S_BUSY)) {
-			ATA_IDX_OUTB(ch, ATA_DRIVE, ATA_D_IBM | ATA_MASTER);
-			DELAY(10);
-			err = ATA_IDX_INB(ch, ATA_ERROR);
-			lsb = ATA_IDX_INB(ch, ATA_CYL_LSB);
-			msb = ATA_IDX_INB(ch, ATA_CYL_MSB);
-			stat0 = ATA_IDX_INB(ch, ATA_STATUS);
-			if (bootverbose)
-				device_printf(dev,
-				    "%s: stat0=0x%02x err=0x%02x lsb=0x%02x "
-				    "msb=0x%02x\n", __func__,
-				    stat0, err, lsb, msb);
-			if (stat0 == err && lsb == err && msb == err &&
-			    timeout > (stat0 & ATA_S_BUSY ? 100 : 10))
-				mask &= ~0x01;
-			if (!(stat0 & ATA_S_BUSY)) {
-				if ((err & 0x7f) == ATA_E_ILI || err == 0) {
-					if (lsb == ATAPI_MAGIC_LSB &&
-					    msb == ATAPI_MAGIC_MSB) {
-						ch->devices |= ATA_ATAPI_MASTER;
-					} else if (stat0 & ATA_S_READY) {
-						ch->devices |= ATA_ATA_MASTER;
-					}
-				} else if ((stat0 & 0x0f) &&
-				    err == lsb && err == msb) {
-					stat0 |= ATA_S_BUSY;
-				}
-			}
-		}
-		if (mask == 0x00)       /* nothing to wait for */
-			break;
-		/* wait for master */
-		if (!(stat0 & ATA_S_BUSY) || (stat0 == 0xff && timeout > 10))
-			break;
-		ata_udelay(100000);
-	}
-
-	if (bootverbose)
-		device_printf(dev, "%s: reset tp2 stat0=%02x devices=0x%b\n",
-		    __func__, stat0, ch->devices,
-		    "\20\4ATAPI_SLAVE\3ATAPI_MASTER\2ATA_SLAVE\1ATA_MASTER");
 }
 
 static device_method_t avila_channel_methods[] = {
@@ -542,8 +513,6 @@ static device_method_t avila_channel_methods[] = {
 	DEVMETHOD(device_shutdown,  bus_generic_shutdown),
 	DEVMETHOD(device_suspend,   ata_suspend),
 	DEVMETHOD(device_resume,    ata_resume),
-
-	DEVMETHOD(ata_reset,	    avila_channel_reset),
 
 	{ 0, 0 }
 };
