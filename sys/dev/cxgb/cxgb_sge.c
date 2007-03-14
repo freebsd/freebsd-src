@@ -68,13 +68,7 @@ __FBSDID("$FreeBSD$");
 
 #define USE_GTS 0
 
-
 #define SGE_RX_SM_BUF_SIZE	1536
-#if 1
-#define SGE_RX_COPY_THRES	384
-#else
-#define SGE_RX_COPY_THRES	MHLEN
-#endif
 #define SGE_RX_DROP_THRES	16
 
 /*
@@ -170,22 +164,6 @@ static uint8_t flit_desc_map[] = {
 
 static int lro_default = 0;
 int cxgb_debug = 0;
-
-/*
- * XXX move to arch header
- */
-
-#define USE_PREFETCH
-#ifdef USE_PREFETCH
-#define L1_CACHE_BYTES 64
-static __inline
-void prefetch(void *x) 
-{ 
-        __asm volatile("prefetcht0 %0" :: "m" (*(unsigned long *)x));
-} 
-#else
-#define prefetch(x)
-#endif
 
 static void t3_free_qset(adapter_t *sc, struct sge_qset *q);
 static void sge_timer_cb(void *arg);
@@ -554,38 +532,6 @@ __refill_fl(adapter_t *adap, struct sge_fl *fl)
 {
 	refill_fl(adap, fl, min(16U, fl->size - fl->credits));
 }
-
-#ifdef RECYCLE
-static void
-recycle_rx_buf(adapter_t *adap, struct sge_fl *q, unsigned int idx)
-{
-	struct rx_desc *from = &q->desc[idx];
-	struct rx_desc *to   = &q->desc[q->pidx];
-
-	if (to == from)
-		return;
-	memcpy(&q->sdesc[q->pidx], &q->sdesc[idx], sizeof (struct rx_sw_desc));
-	/*
-	 * mark as unused and unmapped
-	 */
-	q->sdesc[idx].flags = 0;
-	q->sdesc[idx].m = NULL;
-	    
-	to->addr_lo = from->addr_lo;        // already big endian
-	to->addr_hi = from->addr_hi;        // likewise
-
-	wmb();
-	to->len_gen = htobe32(V_FLD_GEN1(q->gen));
-	to->gen2 = htobe32(V_FLD_GEN2(q->gen));
-	q->credits++;
-
-	if (++q->pidx == q->size) {
-		q->pidx = 0;
-		q->gen ^= 1;
-	}
-	t3_write_reg(adap, A_SG_KDOORBELL, V_EGRCNTX(q->cntxt_id));
-}
-#endif
 
 static void
 alloc_ring_cb(void *arg, bus_dma_segment_t *segs, int nsegs, int error)
@@ -1806,38 +1752,10 @@ get_packet(adapter_t *adap, unsigned int drop_thres, struct sge_qset *qs,
 	
 	fl->credits--;
 	bus_dmamap_sync(adap->rx_jumbo_dmat, sd->map, BUS_DMASYNC_POSTREAD);
-#ifdef RECYCLE
-	if (len < SGE_RX_COPY_THRES) {
-		if (len > MHLEN) {
-			m = m_getcl(M_DONTWAIT, MT_DATA, M_PKTHDR);
-		} else
-			m = m_gethdr(M_DONTWAIT, MT_DATA);
-
-		if (__predict_true(m != NULL)) {
-			memcpy(m->m_data, (char *)sd->m->m_data, len);
-			DPRINTF("copied len=%d\n", len);
-			m->m_len = len;
-			
-		} else if (!drop_thres)
-			goto use_orig_buf;
-	recycle:
-		recycle_rx_buf(adap, fl, fl->cidx);
-		goto done;
-	}
-
-	if (__predict_false((fl->credits < drop_thres) && !mh->mh_head))
-		goto recycle;
-
-	DPRINTF("using original buf\n");
-
-use_orig_buf:
-#endif	
 	bus_dmamap_unload(adap->rx_jumbo_dmat, sd->map);
 	m = sd->m;
 	m->m_len = len;
-#ifdef RECYCLE	
-done:
-#endif	
+
 	switch(sopeop) {
 	case RSPQ_SOP_EOP:
 		DBG(DBG_RX, ("get_packet: SOP-EOP m %p\n", m));
@@ -1901,13 +1819,16 @@ handle_rsp_cntrl_info(struct sge_qset *qs, uint32_t flags)
 	if (flags & F_RSPD_TXQ0_GTS)
 		clear_bit(TXQ_RUNNING, &qs->txq[TXQ_ETH].flags);
 #endif
-
 	credits = G_RSPD_TXQ0_CR(flags);
-	if (credits)
+	if (credits) {
 		qs->txq[TXQ_ETH].processed += credits;
-
+		if (desc_reclaimable(&qs->txq[TXQ_ETH]) > TX_START_MAX_DESC)
+			taskqueue_enqueue(qs->port->adapter->tq,
+			    &qs->port->adapter->timer_reclaim_task);
+	}
+	
 	credits = G_RSPD_TXQ2_CR(flags);
-	if (credits)
+	if (credits) 
 		qs->txq[TXQ_CTRL].processed += credits;
 
 # if USE_GTS
