@@ -48,12 +48,10 @@ main()
 	REGRESS=regress.multitest.out
 	DICT=/usr/share/dict/words
 
-	#test_error | more
-
 	awk 'END { for (i = 1; i < 15; i++) print "l1_" i}' </dev/null >lines1
 	awk 'END { for (i = 1; i < 10; i++) print "l2_" i}' </dev/null >lines2
 
-	echo "1..90"
+	echo "1..121"
 
 	exec 4>&1 5>&2
 	tests
@@ -76,6 +74,7 @@ tests()
 	test_pattern
 	test_print
 	test_subst
+	test_error
 	# Handle the result of the last test
 	result
 }
@@ -87,6 +86,10 @@ result()
 		TODO='TODO '
 	else
 		TODO=''
+	fi
+	if ! [ -r $REGRESS/${MARK}_${TESTNAME} ] ; then
+		echo "Seeding $REGRESS/${MARK}_${TESTNAME} with current result" 1>&2
+		cp current.out $REGRESS/${MARK}_${TESTNAME}
 	fi
 	if diff -c $REGRESS/${MARK}_${TESTNAME} current.out ; then
 		echo "ok $MARK $TESTNAME # $TODO$COMMENT"
@@ -432,42 +435,38 @@ u2/g' lines1
 
 test_error()
 {
-	exec 0>&3 4>&1 5>&2
-	exec 0</dev/null
-	exec 2>&1
-	set -x
-	$TEST -x && exit 1
-	$TEST -f && exit 1
-	$TEST -e && exit 1
-	$TEST -f /dev/dds && exit 1
-	$TEST p /dev/dds && exit 1
-	$TEST -f /bin/sh && exit 1
-	$TEST '{' && exit 1
-	$TEST '{' && exit 1
-	$TEST '/hello/' && exit 1
-	$TEST '1,/hello/' && exit 1
-	$TEST -e '-5p' && exit 1
-	$TEST '/jj' && exit 1
-	$TEST 'a hello' && exit 1
-	$TEST 'a \ hello' && exit 1
-	$TEST 'b foo' && exit 1
-	$TEST 'd hello' && exit 1
-	$TEST 's/aa' && exit 1
-	$TEST 's/aa/' && exit 1
-	$TEST 's/a/b' && exit 1
-	$TEST 's/a/b/c/d' && exit 1
-	$TEST 's/a/b/ 1 2' && exit 1
-	$TEST 's/a/b/ 1 g' && exit 1
-	$TEST 's/a/b/w' && exit 1
-	$TEST 'y/aa' && exit 1
-	$TEST 'y/aa/b/' && exit 1
-	$TEST 'y/aa/' && exit 1
-	$TEST 'y/a/b' && exit 1
-	$TEST 'y/a/b/c/d' && exit 1
-	$TEST '!' && exit 1
-	$TEST supercalifrangolisticexprialidociussupercalifrangolisticexcius
-	set +x
-	exec 0>&3 1>&4 2>&5
+	COMMENT='Error cases'
+	mark '9.1' ; $SED -x 2>/dev/null ; echo $?
+	mark '9.2' ; $SED -f 2>/dev/null ; echo $?
+	mark '9.3' ; $SED -e 2>/dev/null ; echo $?
+	mark '9.4' ; $SED -f /dev/xyzzyxyzy 2>/dev/null ; echo $?
+	mark '9.5' ; $SED p /dev/xyzzyxyzy 2>/dev/null ; echo $?
+	mark '9.6' ; $SED -f /bin/sh 2>/dev/null ; echo $?
+	mark '9.7' ; $SED '{' 2>/dev/null ; echo $?
+	mark '9.8' ; $SED '{' 2>/dev/null ; echo $?
+	mark '9.9' ; $SED '/hello/' 2>/dev/null ; echo $?
+	mark '9.10' ; $SED '1,/hello/' 2>/dev/null ; echo $?
+	mark '9.11' ; $SED -e '-5p' 2>/dev/null ; echo $?
+	mark '9.12' ; $SED '/jj' 2>/dev/null ; echo $?
+	mark '9.13' ; $SED 'a hello' 2>/dev/null ; echo $?
+	mark '9.14' ; $SED 'a \ hello' 2>/dev/null ; echo $?
+	mark '9.15' ; $SED 'b foo' 2>/dev/null ; echo $?
+	mark '9.16' ; $SED 'd hello' 2>/dev/null ; echo $?
+	mark '9.17' ; $SED 's/aa' 2>/dev/null ; echo $?
+	mark '9.18' ; $SED 's/aa/' 2>/dev/null ; echo $?
+	mark '9.19' ; $SED 's/a/b' 2>/dev/null ; echo $?
+	mark '9.20' ; $SED 's/a/b/c/d' 2>/dev/null ; echo $?
+	mark '9.21' ; $SED 's/a/b/ 1 2' 2>/dev/null ; echo $?
+	mark '9.22' ; $SED 's/a/b/ 1 g' 2>/dev/null ; echo $?
+	mark '9.23' ; $SED 's/a/b/w' 2>/dev/null ; echo $?
+	mark '9.24' ; $SED 'y/aa' 2>/dev/null ; echo $?
+	mark '9.25' ; $SED 'y/aa/b/' 2>/dev/null ; echo $?
+	mark '9.26' ; $SED 'y/aa/' 2>/dev/null ; echo $?
+	mark '9.27' ; $SED 'y/a/b' 2>/dev/null ; echo $?
+	mark '9.28' ; $SED 'y/a/b/c/d' 2>/dev/null ; echo $?
+	mark '9.29' ; $SED '!' 2>/dev/null ; echo $?
+	mark '9.30' ; $SED supercalifrangolisticexprialidociussupercalifrangolisticexcius 2>/dev/null ; echo $?
+	mark '9.31' ; $SED '' /dev/null 2>/dev/null ; echo $?
 }
 
 main
