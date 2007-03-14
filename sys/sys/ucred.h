@@ -36,8 +36,8 @@
 /*
  * Credentials.
  *
- * Please do not inspect cr_uid directly to determine superuserness.
- * Only the suser() or suser_cred() function should be used for this.
+ * Please do not inspect cr_uid directly to determine superuserness.  The
+ * priv(9) interface should be used to check for privilege.
  */
 #if defined(_KERNEL) || defined(_WANT_UCRED)
 struct ucred {
