@@ -61,6 +61,7 @@ SUBDIR=	${_3dfx} \
 	${_cs} \
 	${_ctau} \
 	cue \
+	cxgb \
 	${_cx} \
 	dc \
 	dcons \
