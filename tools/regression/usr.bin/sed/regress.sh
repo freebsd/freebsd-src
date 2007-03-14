@@ -2,7 +2,7 @@
 
 REGRESSION_START($1)
 
-echo '1..10'
+echo '1..11'
 
 REGRESSION_TEST(`G', `sed G < regress.in')
 REGRESSION_TEST(`P', `sed P < regress.in')
@@ -14,5 +14,6 @@ REGRESSION_TEST(`s3', `echo foo | sed s/,*/,/3')
 REGRESSION_TEST(`s4', `echo foo | sed s/,*/,/4')
 REGRESSION_TEST(`s5', `echo foo | sed s/,*/,/5')
 REGRESSION_TEST(`hanoi', `echo ":abcd: : :" | sed -f hanoi.sed')
+REGRESSION_TEST(`math', `echo "4+7*3+2^7/3" | sed -f math.sed')
 
 REGRESSION_END()
