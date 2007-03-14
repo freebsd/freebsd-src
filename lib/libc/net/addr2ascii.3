@@ -29,7 +29,7 @@
 .\"	$ANA: addr2ascii.3,v 1.1 1996/06/13 18:41:46 wollman Exp $
 .\" $FreeBSD$
 .\"
-.Dd June 13, 1996
+.Dd March 14, 2007
 .Dt ADDR2ASCII 3
 .Os
 .Sh NAME
@@ -45,6 +45,20 @@
 .Ft int
 .Fn ascii2addr "int af" "const char *ascii" "void *result"
 .Sh DESCRIPTION
+.Bf Em
+These functions have been deprecated in
+.Fx
+and should not be used by new code;
+.Ef
+the functions
+.Fn getnameinfo ,
+.Fn inet_ntop ,
+.Fn inet_pton ,
+.Fn link_aton ,
+and
+.Fn link_ntoa
+should be used instead.
+.Pp
 The routines
 .Fn addr2ascii
 and
@@ -194,7 +208,12 @@ was improperly formatted for address family
 .Fa af .
 .El
 .Sh SEE ALSO
+.Xr getnameinfo 3 ,
 .Xr inet 3 ,
+.Xr inet_ntop 3 ,
+.Xr inet_pton 3 ,
+.Xr link_aton 3 ,
+.Xr link_ntoa 3
 .Xr linkaddr 3 ,
 .Xr inet 4
 .Sh HISTORY
