@@ -46,6 +46,8 @@ usage(const char *progname)
 
 	fprintf(stderr, "usage: %s [-d] [-t] [-h] [-v] [-f dsdt_input] "
 			"[-o dsdt_output]\n", progname);
+	fprintf(stderr, "To send ASL:\n\t%s -dt | gzip -c9 > foo.asl.gz\n",
+	    progname);
 	exit(1);
 }
 
