@@ -115,7 +115,11 @@ void prefetch(void *x)
 #else
 #define prefetch(x)
 #endif
-
+#else /* !i386 && !amd64 */
+#define mb()
+#define rmb()
+#define wmb()
+#define smp_mb()
 #endif
 #define DBG_RX          (1 << 0)
 static const int debug_flags = DBG_RX;
