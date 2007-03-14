@@ -239,8 +239,8 @@ one of the synchronisation primatives discussed here:
 .Xc
 .It Ic SPIN mutex  Ta \&ok Ta \&no Ta \&no Ta \&no Ta \&no-3
 .It Ic Sleep mutex Ta \&ok Ta \&ok-1 Ta \&no Ta \&ok Ta \&no-3
-.It Ic sx_lock     Ta \&ok Ta \&no Ta \&?? Ta \&no Ta \&ok-4
-.It Ic rw_lock     Ta \&ok Ta \&no Ta \&no Ta \&ok-2 Ta \&no-3
+.It Ic sx_lock     Ta \&ok Ta \&no Ta \&ok-2 Ta \&no Ta \&ok-4
+.It Ic rw_lock     Ta \&ok Ta \&ok Ta \&no Ta \&ok-2 Ta \&no-3
 .El
 .Pp
 .Em *1
@@ -253,12 +253,12 @@ readers can recurse tough writers can not. lock order is important.
 There are calls atomically release this primative when going to sleep
 and reacquire it on wakeup (e.g. 
 .Fn mtx_sleep ,
-.Fn rw-sleep
+.Fn rw_sleep
 and 
 .Fn msleep_spin).
 .Pp
 .Em *4
-One can also use 
+Though one can sleep holding an sx lock, one can also use 
 .Fn sx_sleep
 which atomically release this primative when going to sleep and reacquire it on wakeup.
 .Pp
