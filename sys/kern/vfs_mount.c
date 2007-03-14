@@ -201,7 +201,7 @@ void
 vfs_deleteopt(struct vfsoptlist *opts, const char *name)
 {
 	struct vfsopt *opt, *temp;
-  
+
 	TAILQ_FOREACH_SAFE(opt, opts, link, temp)  {
 		if (strcmp(opt->name, name) == 0)
 			vfs_freeopt(opts, opt);
@@ -600,7 +600,7 @@ vfs_donmount(struct thread *td, int fsflags, struct uio *fsoptions)
 	if (error)
 		return (error);
 
-	if (vfs_getopt(optlist, "errmsg", (void **)&errmsg, &errmsg_len) == 0) 
+	if (vfs_getopt(optlist, "errmsg", (void **)&errmsg, &errmsg_len) == 0)
 		errmsg_pos = vfs_getopt_pos(optlist, "errmsg");
 
 	/*
@@ -630,7 +630,7 @@ vfs_donmount(struct thread *td, int fsflags, struct uio *fsoptions)
 	 * before we call vfs_domount(), since vfs_domount() has special
 	 * logic based on MNT_UPDATE.  This is very important
 	 * when we want to update the root filesystem.
-	 */ 
+	 */
 	TAILQ_FOREACH(opt, optlist, link) {
 		if (strcmp(opt->name, "update") == 0)
 			fsflags |= MNT_UPDATE;
@@ -714,7 +714,7 @@ bail:
 			copyout(errmsg,
 			    fsoptions->uio_iov[2 * errmsg_pos + 1].iov_base,
 			    fsoptions->uio_iov[2 * errmsg_pos + 1].iov_len);
-		} 
+		}
 	}
 
 	if (error != 0)
@@ -834,7 +834,6 @@ vfs_domount(
 		error = priv_check(td, PRIV_VFS_MOUNT_SUIDDIR);
 		if (error)
 			return (error);
-
 	}
 	/*
 	 * Silently enforce MNT_NOSUID and MNT_USER for unprivileged users.
@@ -1307,7 +1306,7 @@ dounmount(mp, flags, td)
  */
 
 struct root_hold_token {
-	const char 			*who;
+	const char			*who;
 	LIST_ENTRY(root_hold_token)	list;
 };
 
@@ -1403,7 +1402,7 @@ devfs_first(void)
 
 	vfsp = vfs_byname("devfs");
 	KASSERT(vfsp != NULL, ("Could not find devfs by name"));
-	if (vfsp == NULL) 
+	if (vfsp == NULL)
 		return;
 
 	mp = vfs_mount_alloc(NULLVP, vfsp, "/dev", td);
@@ -1488,7 +1487,7 @@ devfs_fixup(struct thread *td)
 }
 
 /*
- * Report errors during filesystem mounting. 
+ * Report errors during filesystem mounting.
  */
 void
 vfs_mount_error(struct mount *mp, const char *fmt, ...)
@@ -1709,7 +1708,6 @@ vfs_filteropt(struct vfsoptlist *opts, const char **legal)
 {
 	struct vfsopt *opt;
 	const char **t, *p;
-	
 
 	TAILQ_FOREACH(opt, opts, link) {
 		p = opt->name;
@@ -1882,9 +1880,9 @@ __mnt_vnode_next(struct vnode **mvp, struct mount *mp)
 
 	KASSERT((*mvp)->v_mount == mp, ("marker vnode mount list mismatch"));
 	vp = TAILQ_NEXT(*mvp, v_nmntvnodes);
-	while (vp != NULL && vp->v_type == VMARKER) 
+	while (vp != NULL && vp->v_type == VMARKER)
 		vp = TAILQ_NEXT(vp, v_nmntvnodes);
-	
+
 	/* Check if we are done */
 	if (vp == NULL) {
 		__mnt_vnode_markerfree(mvp, mp);
@@ -1903,9 +1901,9 @@ __mnt_vnode_first(struct vnode **mvp, struct mount *mp)
 	mtx_assert(MNT_MTX(mp), MA_OWNED);
 
 	vp = TAILQ_FIRST(&mp->mnt_nvnodelist);
-	while (vp != NULL && vp->v_type == VMARKER) 
+	while (vp != NULL && vp->v_type == VMARKER)
 		vp = TAILQ_NEXT(vp, v_nmntvnodes);
-	
+
 	/* Check if we are done */
 	if (vp == NULL) {
 		*mvp = NULL;
@@ -1920,9 +1918,9 @@ __mnt_vnode_first(struct vnode **mvp, struct mount *mp)
 	(*mvp)->v_type = VMARKER;
 
 	vp = TAILQ_FIRST(&mp->mnt_nvnodelist);
-	while (vp != NULL && vp->v_type == VMARKER) 
+	while (vp != NULL && vp->v_type == VMARKER)
 		vp = TAILQ_NEXT(vp, v_nmntvnodes);
-	
+
 	/* Check if we are done */
 	if (vp == NULL) {
 		MNT_IUNLOCK(mp);
@@ -1947,7 +1945,7 @@ __mnt_vnode_markerfree(struct vnode **mvp, struct mount *mp)
 
 	if (*mvp == NULL)
 		return;
-	
+
 	mtx_assert(MNT_MTX(mp), MA_OWNED);
 
 	KASSERT((*mvp)->v_mount == mp, ("marker vnode mount list mismatch"));
