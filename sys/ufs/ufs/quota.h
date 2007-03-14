@@ -113,15 +113,18 @@ struct dqblk {
  * filesystem. There is one allocated for each quota that exists on any
  * filesystem for the current user or group. A cache is kept of recently
  * used entries.
+ * (h) protected by dqhlock
  */
 struct dquot {
-	LIST_ENTRY(dquot) dq_hash;	/* hash list */
-	TAILQ_ENTRY(dquot) dq_freelist;	/* free list */
+	LIST_ENTRY(dquot) dq_hash;	/* (h) hash list */
+	TAILQ_ENTRY(dquot) dq_freelist;	/* (h) free list */
+	struct mtx dq_lock;		/* lock for concurrency */
 	u_int16_t dq_flags;		/* flags, see below */
 	u_int16_t dq_type;		/* quota type of this dquot */
-	u_int32_t dq_cnt;		/* count of active references */
+	u_int32_t dq_cnt;		/* (h) count of active references */
 	u_int32_t dq_id;		/* identifier this applies to */
-	struct	ufsmount *dq_ump;	/* filesystem that this is taken from */
+	struct	ufsmount *dq_ump;	/* (h) filesystem that this is
+					   taken from */
 	struct	dqblk dq_dqb;		/* actual usage & quotas */
 };
 /*
@@ -166,6 +169,23 @@ struct dquot {
 #else
 #define	DQREF(dq)	(dq)->dq_cnt++
 #endif
+
+#define	DQI_LOCK(dq)	mtx_lock(&(dq)->dq_lock)
+#define	DQI_UNLOCK(dq)	mtx_unlock(&(dq)->dq_lock)
+
+#define	DQI_WAIT(dq, prio, msg) do {		\
+	while ((dq)->dq_flags & DQ_LOCK) {	\
+		(dq)->dq_flags |= DQ_WANT;	\
+		(void) msleep((dq),		\
+		    &(dq)->dq_lock, (prio), (msg), 0); \
+	}					\
+} while (0)
+
+#define	DQI_WAKEUP(dq) do {			\
+	if ((dq)->dq_flags & DQ_WANT)		\
+		wakeup((dq));			\
+	(dq)->dq_flags &= ~(DQ_WANT|DQ_LOCK);	\
+} while (0)
 
 struct inode;
 struct mount;
