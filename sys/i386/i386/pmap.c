@@ -422,6 +422,13 @@ pmap_bootstrap(vm_paddr_t firstaddr, vm_paddr_t loadaddr)
 
 	/* Turn on PG_G on kernel page(s) */
 	pmap_set_pg();
+
+	/*
+	 * Create an identity mapping (virt == phys) for the low 1 MB
+	 * physical memory region that is used by the ACPI wakeup code.
+	 * This mapping must not have PG_G set. 
+	 */
+	kernel_pmap->pm_pdir[0] = PG_PS | PG_RW | PG_V;
 }
 
 /*
