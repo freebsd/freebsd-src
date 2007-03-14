@@ -210,6 +210,8 @@
 
     &hwlist.cue;
 
+    &hwlist.cxgb;
+
     &hwlist.dc;
 
     &hwlist.de;
