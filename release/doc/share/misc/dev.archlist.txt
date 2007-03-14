@@ -63,6 +63,7 @@ ct	pc98
 ctau	i386
 cue	i386,pc98,ia64,amd64,powerpc
 cx	i386
+cxgb	i386,amd64
 de	i386,pc98,ia64,amd64
 dpt	i386,ia64,amd64
 ed	i386,pc98
