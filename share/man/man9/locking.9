@@ -1,0 +1,280 @@
+.\" Copyright (c) 2007 Julian Elischer  (julian -  freebsd org )
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd March 14, 2007
+.Dt LOCKING 9
+.Os
+.Sh NAME
+.Nm locking ,
+.Nd kernel synchronization primitives
+.Sh SYNOPSIS
+All sorts of stuff to go here.
+.Pp
+.Sh DESCRIPTION
+The 
+.Em FreeBSD
+kernel is written to run across multiple CPUs and as such requires
+several different sychronization primatives to allow the developers 
+to safely access and manipulate the many data types required.
+.Pp
+These include:
+.Bl -enum
+.It
+Spin Mutexes
+.It
+Sleep Mutexes
+.It
+pool Mutexes
+.It
+Shared-Exclusive locks
+.It
+Reader-Writer locks
+.It
+Turnstyles
+.It
+Semaphores
+.It
+Condition variables
+.It
+Sleep/wakeup
+.It
+Giant
+.It
+Lockmanager locks
+.El
+.Pp
+The primnatives interact and have a number of rules regarding how
+they can and can not be combined. Ther eare too many for the average humanmind and they
+keep changing. (if you disagree, please write replacement text)  :-)
+.Pp
+Some of these primatives may be used at the low (interrupt) level and some may not.
+.Pp
+There are strict ordering requirements and for some of the types this
+is checked using the 
+.Xr witness 4
+code.
+.Pp
+.Ss SPIN Mutexes
+Mutexes are the basic primative.
+You either hold it or you don't.
+If you don't own it then you just spin, waiting for the holder (on another CPU)
+to release it. Hopefully they are doing something fast. You can not do anythign that 
+deschedules the thread while you are holding a SPIN mutex.
+.Ss Sleep Mutexes
+Basically sleep (regular) mutexes will deschedule the thread if
+the mutex can not be acquired. As in spin mutexes, you either get it or you don't.
+You may call the
+.Xr sleep 9
+call
+.Fn msleep
+or the new 
+.Fn mtx_sleep
+variant. These will atomically drop the mutex and reacquire it
+as part of waking up.
+.Ss Pool Mutexes
+A variant of SLEEP mutexes where the allocation of the mutex is handled more by the system.
+.Ss Sx_locks
+Shared/exclusive locks are used to protect data that are read far more often
+than they are written.
+Mutexes are inherently more efficient than shared/exclusive locks, so
+shared/exclusive locks should be used prudently.
+A thread may hold a shared or exclusive lock on an
+.Em sx_lock
+lock while sleeping.
+As a result, an
+.Em sx_lockm
+lock may not be acquired while holding a mutex.
+Otherwise, if one thread slept while holding an
+.Em sx_lockm
+lock while another thread blocked on the same
+.Em sx_lockm
+lock after acquiring a mutex, then the second thread would effectively
+end up sleeping while holding a mutex, which is not allowed.
+.Ss Rw_locks
+Reader/writer locks allow shared access to protected data by multiple threads,
+or exclusive access by a single thread.
+The threads with shared access are known as
+.Em readers
+since they only read the protected data.
+A thread with exclusive access is known as a
+.Em writer
+since it can modify protected data.
+.Pp
+Although reader/writer locks look very similar to
+.Xr sx 9
+locks, their usage pattern is different.
+Reader/writer locks can be treated as mutexes (see
+.Xr mutex 9 )
+with shared/exclusive semantics.
+Unlike
+.Xr sx 9 ,
+an
+.Em rw_lock
+can be locked while holding a non-spin mutex, and an
+.Em rw_lock
+cannot be held while sleeping.
+The
+.Em rw_lock
+locks have priority propagation like mutexes, but priority
+can be propagated only to an exclusive holder.
+This limitation comes from the fact that shared owners
+are anonymous.
+Another important property is that shared holders of
+.Em rw_lock
+can recurse,
+but exclusive locks are not allowed to recurse.
+.Ss Turnstyless
+Turnstiles are used to hold a queue of threads blocked on
+non-sleepable locks.  Sleepable locks use condition variables to
+implement their queues.  Turnstiles differ from a sleep queue in that
+turnstile queue's are assigned to a lock held by an owning thread.  Thus,
+when one thread is enqueued onto a turnstile, it can lend its priority
+to the owning thread.
+.Ss Semaphores
+.Ss Condition variables
+Condition variables are used in conjunction with mutexes to wait for conditions
+to occur.
+A thread must hold the mutex before calling the
+.Fn cv_wait* ,
+functions.
+When a thread waits on a condition, the mutex
+is atomically released before the thread is blocked, then reacquired
+before the function call returns.
+.Ss Giant
+Giant is a special instance of a sleep lock.
+it has several special characteristics.
+.Ss Sleep/wakeup
+The functions
+.Fn tsleep ,
+.Fn msleep ,
+.Fn msleep_spin ,
+.Fn pause ,
+.Fn wakeup ,
+and
+.Fn wakeup_one
+handle event-based thread blocking.
+If a thread must wait for an
+external event, it is put to sleep by
+.Fn tsleep ,
+.Fn msleep ,
+.Fn msleep_spin ,
+or
+.Fn pause .
+Threads may also wait using one of the locking primitive sleep routines
+.Xr mtx_sleep 9 ,
+.Xr rw_sleep 9 ,
+or
+.Xr sx_sleep 9 .
+.Pp
+The parameter
+.Fa chan
+is an arbitrary address that uniquely identifies the event on which
+the thread is being put to sleep.
+All threads sleeping on a single
+.Fa chan
+are woken up later by
+.Fn wakeup ,
+often called from inside an interrupt routine, to indicate that the
+resource the thread was blocking on is available now.
+.Pp
+Several of the sleep functions including
+.Fn msleep ,
+.Fn msleep_spin ,
+and the locking primitive sleep routines specify an additional lock
+parameter.
+The lock will be released before sleeping and reacquired
+before the sleep routine returns.
+If
+.Fa priority
+includes the
+.Dv PDROP
+flag, then
+the lock will not be reacquired before returning.
+The lock is used to ensure that a condition can be checked atomically,
+and that the current thread can be suspended without missing a
+change to the condition, or an associated wakeup.
+In addition, all of the sleep routines will fully drop the
+.Va Giant
+mutex
+(even if recursed)
+while the thread is suspended and will reacquire the
+.Va Giant
+mutex before the function returns.
+.Pp
+.Ss lockmanager locks
+Largly deprecated. See the 
+.Xr lock 9
+page for more information.
+I don't know what the downsides are but I'm sure someone will fill in this part.
+.Sh Interaction tables.
+The following table shows what you can and can not do if you hold
+one of the synchronisation primatives discussed here:
+(someone who knows what they are talking about should write this table)
+.Bl -column ".Ic xxxxxxxxxxxxxxxxxxxx" ".Xr XXXXXXXXX" ".Xr XXXXXXX" ".Xr XXXXXXX" ".Xr XXXXXXX" ".Xr XXXXX" -offset indent
+.It Xo
+.Em "You have:  You want:" Ta Spin_mtx Ta Slp_mtx Ta sx_lock Ta rw_lock Ta sleep
+.Xc
+.It Ic SPIN mutex  Ta \&ok Ta \&no Ta \&no Ta \&no Ta \&no-3
+.It Ic Sleep mutex Ta \&ok Ta \&ok-1 Ta \&no Ta \&ok Ta \&no-3
+.It Ic sx_lock     Ta \&ok Ta \&no Ta \&?? Ta \&no Ta \&ok-4
+.It Ic rw_lock     Ta \&ok Ta \&no Ta \&no Ta \&ok-2 Ta \&no-3
+.El
+.Pp
+.Em *1
+Recursion is defined per lock. lock order is important.
+.Pp
+.Em *2
+readers can recurse tough writers can not. lock order is important.
+.Pp
+.Em *3
+There are calls atomically release this primative when going to sleep
+and reacquire it on wakeup (e.g. 
+.Fn mtx_sleep ,
+.Fn rw-sleep
+and 
+.Fn msleep_spin).
+.Pp
+.Em *4
+One can also use 
+.Fn sx_sleep
+which atomically release this primative when going to sleep and reacquire it on wakeup.
+.Pp
+.Sh SEE ALSO
+.Xr condvar 9 ,
+.Xr lock 9
+.Xr mtx_pool 9 ,
+.Xr rwlock 9 ,
+.Xr sema 9 ,
+.Xr sleep 9 ,
+.Xr sx 9
+.Xr LOCK_PROFILING 9 ,
+.Xr WITNESS 9 ,
+.Sh HISTORY
+These
+functions appeared in
+.Bsx 4.1 
+through
+.Fx 7.0 
