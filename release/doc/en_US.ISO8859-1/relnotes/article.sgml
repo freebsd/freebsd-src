@@ -511,13 +511,9 @@
       <para>The &man.cardbus.4; driver now supports
 	<filename>/dev/cardbus<replaceable>%d</replaceable>.cis</filename>.</para>
 
-      <para>[&arch.i386, &arch.pc98;] The &man.ce.4; driver,
+      <para>[&arch.i386;, &arch.pc98;] The &man.ce.4; driver,
 	which supports Cronyx Tau-PCI/32 adapters, has been added.
 	&merged;</para>
-
-      <para>The &man.cxgb.4; driver has been added.  It provides support for
-	10 Gigabit Ethernet adapters based on the Chelsio T3 and T3B chipsets.
-	</para>
 
       <para>The <literal>est</literal> &man.cpufreq.4; driver now supports
         frequency control for the VIA C7-M family of processors.</para> 
@@ -644,6 +640,10 @@
 
 	<para>The &man.snd.ich.4; driver is now MPSAFE.  &merged;</para>
 
+	<para>The &man.snd.hda.4; driver has been added.  It supports
+	  devices that conform to revision 1.0 of the  Intel High Definition
+	  Audio specification.</para>
+
 	<para>The &man.snd.solo.4; driver is now MPSAFE.  &merged;</para>
 
 	<para>The &man.snd.via8233.4; driver is now MPSAFE.  &merged;</para>
@@ -684,6 +684,10 @@
 	  &merged;</para>
 
 	<para>The &man.cm.4; driver is now MPSAFE.</para>
+
+	<para>The &man.cxgb.4; driver has been added.  It provides support for
+	  10 Gigabit Ethernet adapters based on the Chelsio T3 and T3B chipsets.
+	  </para>
 
 	<para>The &man.dc.4; driver is now MPSAFE. &merged;</para>
 
@@ -790,6 +794,8 @@
 	  so that other drivers such as drm(4),
 	  &man.acpi.video.4;, and &man.agp.4; can attach to
 	  it thus allowing multiple drivers for the same device.</para>
+
+	<para>The &man.vge.4; driver now supports &man.altq.4;.  &merged;</para>
 
 	<para>The &man.wi.4; driver is now buildable as
 	  a kernel module.</para>
@@ -2067,7 +2073,7 @@ mdconfig_md1="-t vnode -f /var/foo.img"</programlisting>
     <para>The supported version of
       the <application>GNOME</application> desktop environment
       (<filename role="package">x11/gnome2</filename>) has been
-      updated from 2.10.2 to 2.16.1.  As a part of this update, the
+      updated from 2.10.2 to 2.16.3.  As a part of this update, the
       default prefix for <application>GNOME</application> (and some
       related programs) has moved from
       <filename>/usr/X11R6</filename>
@@ -2076,7 +2082,7 @@ mdconfig_md1="-t vnode -f /var/foo.img"</programlisting>
     <para>The supported version of
       the <application>KDE</application> desktop environment
       (<filename role="package">x11/kde3</filename>) has been
-      updated from 3.4.2 to 3.5.4. &merged;</para>
+      updated from 3.4.2 to 3.5.6. &merged;</para>
 
     <para>[&arch.amd64;, &arch.i386;] The supported Linux emulation now uses the
       libraries in the
