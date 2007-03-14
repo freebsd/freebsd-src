@@ -1103,8 +1103,6 @@ ffs_flushfiles(mp, flags, td)
 		if (error)
 			return (error);
 		for (i = 0; i < MAXQUOTAS; i++) {
-			if (ump->um_quotas[i] == NULLVP)
-				continue;
 			quotaoff(td, mp, i);
 		}
 		/*
