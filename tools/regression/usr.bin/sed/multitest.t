@@ -423,8 +423,8 @@ test_print()
 	cat tmpdir/*
 	rm -rf tmpdir
 	mark '7.8'
-	if [ $BSD -eq 1 ] ; then
-		echo BSD sed cannot pass 7.8
+	if [ $GNU -eq 1 ] ; then
+		echo GNU sed cannot pass 7.8
 	else
 		echo line1 > lines3
 		echo "" >> lines3
@@ -451,9 +451,6 @@ test_subst()
 u1\
 u2/g' lines1
 	mark '8.10'
-	if [ $BSD -eq 1 -o $GNU -eq 1 ] ; then
-		echo 'BSD/GNU sed do not understand digit flags on s commands'
-	fi
 	$SED -e 's/./X/4' lines1
 	rm -f lines4
 	mark '8.11' ; $SED -e 's/1/X/w lines4' lines1
@@ -462,8 +459,8 @@ u2/g' lines1
 	mark '8.12' ; $SED -e 's/[123]/X/g' lines1
 	mark '8.13' ; $SED -e 'y/0123456789/9876543210/' lines1
 	mark '8.14' ; 
-	if [ $BSD -eq 1 -o $GNU -eq 1 -o $SUN -eq 1 ] ; then
-		echo BSD/GNU/SUN sed fail this test
+	if [ $SUN -eq 1 ] ; then
+		echo SUN sed fails this test
 	else
 		$SED -e 'y10\123456789198765432\101' lines1
 	fi
