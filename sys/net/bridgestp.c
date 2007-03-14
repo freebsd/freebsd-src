@@ -2069,6 +2069,7 @@ bstp_modevent(module_t mod, int type, void *data)
 		bstp_linkstate_p = bstp_linkstate;
 		break;
 	case MOD_UNLOAD:
+		bstp_linkstate_p = NULL;
 		mtx_destroy(&bstp_list_mtx);
 		break;
 	default:

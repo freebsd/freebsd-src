@@ -459,7 +459,6 @@ bridge_modevent(module_t mod, int type, void *data)
 		bridge_input_p = bridge_input;
 		bridge_output_p = bridge_output;
 		bridge_dn_p = bridge_dummynet;
-		bstp_linkstate_p = bstp_linkstate;
 		bridge_detach_cookie = EVENTHANDLER_REGISTER(
 		    ifnet_departure_event, bridge_ifdetach, NULL,
 		    EVENTHANDLER_PRI_ANY);
@@ -472,7 +471,6 @@ bridge_modevent(module_t mod, int type, void *data)
 		bridge_input_p = NULL;
 		bridge_output_p = NULL;
 		bridge_dn_p = NULL;
-		bstp_linkstate_p = NULL;
 		mtx_destroy(&bridge_list_mtx);
 		break;
 	default:
