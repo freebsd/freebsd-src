@@ -41,9 +41,11 @@
 
 main()
 {
-	BASE=/usr/bin/sed
+	#BASE=/usr/bin/sed
+	BASE=/usr/ports/textproc/gsed/work/sed-4.1.5/sed/sed
 	BASELOG=sed.out
-	TEST=`cd ..; make whereobj`/sed
+	#TEST=`cd ..; make whereobj`/sed
+	TEST=/home/dds/src/fbsd-head/sed/sed
 	TESTLOG=nsed.out
 	DICT=/usr/share/dict/words
 
@@ -55,12 +57,12 @@ main()
 	exec 4>&1 5>&2
 
 	# Set these flags to get messages about known problems
-	BSD=1
-	GNU=0
+	BSD=0
+	GNU=1
 	SUN=0
 	tests $BASE $BASELOG
 
-	BSD=0
+	BSD=1
 	GNU=0
 	SUN=0
 	tests $TEST $TESTLOG
@@ -169,8 +171,8 @@ test_args()
 		$SED -f script1 -f script2 lines1
 	fi
 	mark '1.15'
-	if [ $GNU -eq 1 -o $SUN -eq 1 ] ; then
-		echo GNU and SunOS sed fail this following older POSIX draft
+	if [ $SUN -eq 1 ] ; then
+		echo SunOS sed fails this following older POSIX draft
 	else
 		$SED -e 's/^/e1_/p' -f script1 lines1
 	fi
@@ -206,14 +208,7 @@ hello' /dev/null
 	mark '2.8' ; $SED -n -e '0p' lines1
 	mark '2.9' ; $SED -n '/l1_7/p' lines1
 	mark '2.10' ; $SED -n ' /l1_7/ p' lines1
-	mark '2.11'
-	if [ $BSD -eq 1 ] ; then
-		echo BSD sed fails this test
-	fi
-	if [ $GNU -eq 1 ] ; then
-		echo GNU sed fails this
-	fi
-	$SED -n '\_l1\_7_p' lines1
+	mark '2.11' ; $SED -n '\_l1\_7_p' lines1
 	mark '2.12' ; $SED -n '1,4p' lines1
 	mark '2.13' ; $SED -n '1,$p' lines1 lines2
 	mark '2.14' ; $SED -n '1,/l2_9/p' lines1 lines2
@@ -221,16 +216,8 @@ hello' /dev/null
 	mark '2.16' ; $SED -n '/4/,20p' lines1 lines2
 	mark '2.17' ; $SED -n '/4/,/10/p' lines1 lines2
 	mark '2.18' ; $SED -n '/l2_3/,/l1_8/p' lines1 lines2
-	mark '2.19'
-	if [ $GNU -eq 1 ] ; then
-		echo GNU sed fails this
-	fi
-	$SED -n '12,3p' lines1 lines2
-	mark '2.20'
-	if [ $GNU -eq 1 ] ; then
-		echo GNU sed fails this
-	fi
-	$SED -n '/l1_7/,3p' lines1 lines2
+	mark '2.19' ; $SED -n '12,3p' lines1 lines2
+	mark '2.20' ; $SED -n '/l1_7/,3p' lines1 lines2
 }
 
 test_group()
@@ -278,9 +265,6 @@ appended
 s/^/after_a/p
 ' lines1 lines2
 	mark '4.3'
-	if [ $GNU -eq 1 ] ; then
-		echo GNU sed fails this
-	fi
 	$SED -n -e '
 s/^/^/p
 /l1_/a\
@@ -328,9 +312,6 @@ b label3
 :end
 ' lines1
 	mark '5.2'
-	if [ $BSD -eq 1 ] ; then
-		echo BSD sed fails this test
-	fi
 	$SED -n -e '
 s/l1_/l2_/
 t ok
@@ -360,9 +341,6 @@ s/^/ERROR/
 ' lines1
 # Check that reading a line clears the substitution done flag
 	mark '5.5'
-	if [ $BSD -eq 1 ] ; then
-		echo BSD sed fails this test
-	fi
 	$SED -n -e '
 t l2
 1,8s/^/^/p
@@ -438,19 +416,15 @@ test_print()
 	mark '7.5' ; $SED -e '5r /dev/dds' lines1
 	mark '7.6' ; $SED -e '6r /dev/null' lines1
 	mark '7.7'
-	if [ $BSD -eq 1 -o $GNU -eq 1 -o $SUN -eq 1 ] ; then
-		echo BSD, GNU and SunOS cannot pass this one
-	else
-		sed '200q' $DICT | sed 's$.*$s/^/&/w tmpdir/&$' >script1
-		rm -rf tmpdir
-		mkdir tmpdir
-		$SED -f script1 lines1
-		cat tmpdir/*
-		rm -rf tmpdir
-	fi
+	sed '200q' $DICT | sed 's$.*$s/^/&/w tmpdir/&$' >script1
+	rm -rf tmpdir
+	mkdir tmpdir
+	$SED -f script1 lines1
+	cat tmpdir/*
+	rm -rf tmpdir
 	mark '7.8'
 	if [ $BSD -eq 1 ] ; then
-		echo BSD sed cannot pass 7.7
+		echo BSD sed cannot pass 7.8
 	else
 		echo line1 > lines3
 		echo "" >> lines3
