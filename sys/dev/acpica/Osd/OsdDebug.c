@@ -78,9 +78,11 @@ AcpiOsSignal(UINT32 Function, void *Info)
     switch (Function) {
     case ACPI_SIGNAL_FATAL:
 	fatal = (ACPI_SIGNAL_FATAL_INFO *)Info;
-	printf("ACPI fatal signal, type 0x%x  code 0x%x  argument 0x%x",
+	printf("ACPI fatal signal, type 0x%x code 0x%x argument 0x%x",
 	      fatal->Type, fatal->Code, fatal->Argument);
+#ifdef ACPI_DEBUG
 	kdb_enter("AcpiOsSignal");
+#endif
 	break;
 
     case ACPI_SIGNAL_BREAKPOINT:
