@@ -117,6 +117,7 @@ void prefetch(void *x)
 #define wmb()
 #define smp_mb()
 #define prefetch(x)
+#define L1_CACHE_BYTES 32
 #endif
 #define DBG_RX          (1 << 0)
 static const int debug_flags = DBG_RX;
