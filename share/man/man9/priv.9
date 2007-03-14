@@ -84,7 +84,7 @@ When adding a new privilege, be certain to also determine whether it should
 be listed in
 .Fn prison_priv_check ,
 which includes a complete list of privileges granted to the root user in
-.Xr jail 2.
+.Xr jail 2 .
 .Pp
 Certain catch-all privileges exist, such as
 .Dv PRIV_DRIVER ,
@@ -105,8 +105,8 @@ call if privilege is not granted rather than changing the semantics of the
 call but returning success.
 For example, the behavior exhibited by
 .Xr stat 2 ,
-in which the generation field is optionally zero'd out when insufficient
-privilege is not present is highly undesirable, as it results in frequent
+in which the generation field is optionally zero'd out when there is
+insufficient privilege is highly undesirable, as it results in frequent
 privilege checks, and the caller is unable to tell if an access control
 failure occurred.
 .Sh SEE ALSO
