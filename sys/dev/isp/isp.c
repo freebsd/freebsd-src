@@ -3995,8 +3995,7 @@ int
 isp_start(XS_T *xs)
 {
 	ispsoftc_t *isp;
-	uint32_t nxti, optr, handle, isr;
-	uint16_t sema, mbox;
+	uint32_t nxti, optr, handle;
 	uint8_t local[QENTRY_LEN];
 	ispreq_t *reqp, *qep;
 	void *cdbp;
@@ -4261,11 +4260,6 @@ isp_start(XS_T *xs)
 	    (long) XS_XFRLEN(xs));
 	ISP_ADD_REQUEST(isp, nxti);
 	isp->isp_nactive++;
-	if (IS_23XX(isp) || IS_24XX(isp)) {
-		if (ISP_READ_ISR(isp, &isr, &sema, &mbox)) {
-			isp_intr(isp, isr, sema, mbox);
-		}
-	}
 	return (CMD_QUEUED);
 }
 
