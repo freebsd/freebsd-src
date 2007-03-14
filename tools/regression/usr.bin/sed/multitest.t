@@ -49,7 +49,7 @@ main()
 	TESTLOG=nsed.out
 	DICT=/usr/share/dict/words
 
-	test_error | more
+	#test_error | more
 
 	awk 'END { for (i = 1; i < 15; i++) print "l1_" i}' </dev/null >lines1
 	awk 'END { for (i = 1; i < 10; i++) print "l2_" i}' </dev/null >lines2
@@ -205,7 +205,7 @@ hello' /dev/null
 	mark '2.6' ; $SED -n -e '$p' lines1 /dev/null lines2
 	# Should not print anything
 	mark '2.7' ; $SED -n -e '20p' lines1
-	mark '2.8' ; $SED -n -e '0p' lines1
+	mark '2.8' ; $SED -n -e '/NOTFOUND/p' lines1
 	mark '2.9' ; $SED -n '/l1_7/p' lines1
 	mark '2.10' ; $SED -n ' /l1_7/ p' lines1
 	mark '2.11' ; $SED -n '\_l1\_7_p' lines1
