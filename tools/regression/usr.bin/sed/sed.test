@@ -104,72 +104,33 @@ test_args()
 	mark '1.1'
 	echo Testing argument parsing
 	echo First type
-	if [ $SUN -eq 1 ] ; then
-		echo SunOS sed prints only with -n
-	else
-		$SED 's/^/e1_/p' lines1
-	fi
+	$SED 's/^/e1_/p' lines1
 	mark '1.2' ; $SED -n 's/^/e1_/p' lines1
 	mark '1.3'
-	if [ $SUN -eq 1 ] ; then
-		echo SunOS sed prints only with -n
-	else
-		$SED 's/^/e1_/p' <lines1
-	fi
+	$SED 's/^/e1_/p' <lines1
 	mark '1.4' ; $SED -n 's/^/e1_/p' <lines1
 	echo Second type
 	mark '1.4.1'
-	if [ $SUN -eq 1 ] ; then
-		echo SunOS sed fails this
-	fi
 	$SED -e '' <lines1
 	echo 's/^/s1_/p' >script1
 	echo 's/^/s2_/p' >script2
 	mark '1.5'
-	if [ $SUN -eq 1 ] ; then
-		echo SunOS sed prints only with -n
-	else
-		$SED -f script1 lines1
-	fi
+	$SED -f script1 lines1
 	mark '1.6'
-	if [ $SUN -eq 1 ] ; then
-		echo SunOS sed prints only with -n
-	else
-		$SED -f script1 <lines1
-	fi
+	$SED -f script1 <lines1
 	mark '1.7'
-	if [ $SUN -eq 1 ] ; then
-		echo SunOS sed prints only with -n
-	else
-		$SED -e 's/^/e1_/p' lines1
-	fi
+	$SED -e 's/^/e1_/p' lines1
 	mark '1.8'
-	if [ $SUN -eq 1 ] ; then
-		echo SunOS sed prints only with -n
-	else
-		$SED -e 's/^/e1_/p' <lines1
-	fi
+	$SED -e 's/^/e1_/p' <lines1
 	mark '1.9' ; $SED -n -f script1 lines1
 	mark '1.10' ; $SED -n -f script1 <lines1
 	mark '1.11' ; $SED -n -e 's/^/e1_/p' lines1
 	mark '1.12'
-	if [ $SUN -eq 1 ] ; then
-		echo SunOS sed prints only with -n
-	else
-		$SED -n -e 's/^/e1_/p' <lines1
-	fi
+	$SED -n -e 's/^/e1_/p' <lines1
 	mark '1.13'
-	if [ $SUN -eq 1 ] ; then
-		echo SunOS sed prints only with -n
-	else
-		$SED -e 's/^/e1_/p' -e 's/^/e2_/p' lines1
-	fi
+	$SED -e 's/^/e1_/p' -e 's/^/e2_/p' lines1
 	mark '1.14'
-	if [ $SUN -eq 1 ] ; then
-		echo SunOS sed prints only with -n
-	else
-		$SED -f script1 -f script2 lines1
-	fi
+	$SED -f script1 -f script2 lines1
 	mark '1.15'
 	if [ $SUN -eq 1 ] ; then
 		echo SunOS sed fails this following older POSIX draft
@@ -177,11 +138,7 @@ test_args()
 		$SED -e 's/^/e1_/p' -f script1 lines1
 	fi
 	mark '1.16'
-	if [ $SUN -eq 1 ] ; then
-		echo SunOS sed prints only with -n
-	else
-		$SED -e 's/^/e1_/p' lines1 lines1
-	fi
+	$SED -e 's/^/e1_/p' lines1 lines1
 	# POSIX D11.2:11251
 	mark '1.17' ; $SED p <lines1 lines1
 cat >script1 <<EOF
@@ -285,10 +242,10 @@ hello
 hello
 ' lines1
 # SunOS and GNU sed behave differently.   We follow POSIX
-#	mark '4.7' ; $SED -n -e '
-#8,3c\
-#hello
-#' lines1
+	mark '4.7' ; $SED -n -e '
+8,3c\
+hello
+' lines1
 	mark '4.8' ; $SED d <lines1
 }
 
@@ -319,15 +276,15 @@ b
 :ok
 s/^/tested /p
 ' lines1 lines2
-# SunOS sed behaves differently here.  Clarification needed.
-#	mark '5.3' ; $SED -n -e '
-#5,8b inside
-#1,5 {
-#	s/^/^/p
-#	:inside
-#	s/$/$/p
-#}
-#' lines1
+# SunOS and GNU sed behave differently here.  Clarification needed.
+	mark '5.3' ; $SED -n -e '
+5,8b inside
+1,5 {
+	s/^/^/p
+	:inside
+	s/$/$/p
+}
+' lines1
 # Check that t clears the substitution done flag
 	mark '5.4' ; $SED -n -e '
 1,8s/^/^/
@@ -376,15 +333,12 @@ p
 4d
 p
 ' lines1
-# SunOS sed refused to print here
-#	mark '6.3' ; $SED -e '
-#N
-#N
-#N
-#D
-#P
-#4p
-#' lines1
+	mark '6.3'
+	if [ $GNU -eq 1 ] ; then
+		echo GNU sed cannot pass 6.3
+	else
+		$SED -e 'N;N;N;D' lines1
+	fi
 	mark '6.4' ; $SED -e '
 2h
 3H
@@ -423,8 +377,8 @@ test_print()
 	cat tmpdir/*
 	rm -rf tmpdir
 	mark '7.8'
-	if [ $GNU -eq 1 ] ; then
-		echo GNU sed cannot pass 7.8
+	if [ $BSD -eq 1 ] ; then
+		echo BSD sed cannot pass 7.8
 	else
 		echo line1 > lines3
 		echo "" >> lines3
@@ -438,10 +392,13 @@ test_subst()
 	echo Testing substitution commands
 	mark '8.1' ; $SED -e 's/./X/g' lines1
 	mark '8.2' ; $SED -e 's,.,X,g' lines1
-# GNU and SunOS sed thinks we are escaping . as wildcard, not as separator
-#	mark '8.3' ; $SED -e 's.\..X.g' lines1
-# POSIX does not say that this should work
-#	mark '8.4' ; $SED -e 's/[/]/Q/' lines1
+# SunOS sed thinks we are escaping . as wildcard, not as separator
+	mark '8.3'
+	if [ $SUN -eq 1 ] ; then
+		echo SUN sed fails test 8.3
+	else
+		$SED -e 's.\..X.g' lines1
+	fi
 	mark '8.4' ; $SED -e 's/[\/]/Q/' lines1
 	mark '8.5' ; $SED -e 's_\__X_' lines1
 	mark '8.6' ; $SED -e 's/./(&)/g' lines1
@@ -459,11 +416,7 @@ u2/g' lines1
 	mark '8.12' ; $SED -e 's/[123]/X/g' lines1
 	mark '8.13' ; $SED -e 'y/0123456789/9876543210/' lines1
 	mark '8.14' ; 
-	if [ $SUN -eq 1 ] ; then
-		echo SUN sed fails this test
-	else
-		$SED -e 'y10\123456789198765432\101' lines1
-	fi
+	$SED -e 'y10\123456789198765432\101' lines1
 	mark '8.15' ; $SED -e '1N;2y/\n/X/' lines1
 	mark '8.16'
 	echo 'eeefff' | $SED -e '
@@ -482,6 +435,9 @@ u2/g' lines1
 		x 
 		/f/bx
 	'
+	# POSIX does not say that this should work,
+	# but it does for GNU, BSD, and SunOS
+	mark '8.17' ; $SED -e 's/[/]/Q/' lines1
 }
 
 test_error()
