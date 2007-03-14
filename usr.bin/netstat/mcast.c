@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2004 Bruce M Simpson <bms@spc.org>
+ * Copyright (c) 2007 Bruce M. Simpson <bms@FreeBSD.org>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -29,7 +29,8 @@
 __FBSDID("$FreeBSD$");
 
 /*
- * Print the system's current multicast group memberships.
+ * Print the running system's current multicast group memberships.
+ * As this relies on getifmaddrs(), it may not be used with a core file.
  */
 
 #include <sys/types.h>
@@ -54,6 +55,7 @@ __FBSDID("$FreeBSD$");
 #include <stddef.h>
 #include <stdarg.h>
 #include <stdlib.h>
+#include <stdint.h>
 #include <stdio.h>
 #include <string.h>
 
@@ -68,24 +70,42 @@ union sockunion {
 };
 typedef union sockunion sockunion_t;
 
-#define MYIFNAME_SIZE 128
+void ifmalist_dump_af(const struct ifmaddrs * const ifmap, int const af);
 
 void
-ifmalist_dump(void)
+ifmalist_dump_af(const struct ifmaddrs * const ifmap, int const af)
 {
-	struct ifmaddrs *ifmap, *ifma;
+	const struct ifmaddrs *ifma;
 	sockunion_t *psa;
-	char myifname[MYIFNAME_SIZE];
+	char myifname[IFNAMSIZ];
+#ifdef INET6
 	char addrbuf[INET6_ADDRSTRLEN];
+#endif
 	char *pcolon;
-	void *addr;
-	char *pifname, *plladdr, *pgroup;
+	char *pafname, *pifname, *plladdr, *pgroup;
+#ifdef INET6
+	void *in6addr;
+#endif
 
-	if (getifmaddrs(&ifmap))
-		err(EX_OSERR, "getifmaddrs");
+	switch (af) {
+	case AF_INET:
+		pafname = "IPv4";
+		break;
+#ifdef INET6
+	case AF_INET6:
+		pafname = "IPv6";
+		break;
+#endif
+	case AF_LINK:
+		pafname = "Link-layer";
+		break;
+	default:
+		return;		/* XXX */
+	}
 
-	fputs("IPv4/IPv6 Multicast Group Memberships\n", stdout);
-	fprintf(stdout, "%-20s\t%-16s\t%s\n", "Group", "Gateway", "Netif");
+	fprintf(stdout, "%s Multicast Group Memberships\n", pafname);
+	fprintf(stdout, "%-20s\t%-16s\t%s\n", "Group", "Link-layer Address",
+	    "Netif");
 
 	for (ifma = ifmap; ifma; ifma = ifma->ifma_next) {
 
@@ -94,15 +114,34 @@ ifmalist_dump(void)
 
 		/* Group address */
 		psa = (sockunion_t *)ifma->ifma_addr;
+		if (psa->sa.sa_family != af)
+			continue;
+
 		switch (psa->sa.sa_family) {
 		case AF_INET:
 			pgroup = inet_ntoa(psa->sin.sin_addr);
 			break;
+#ifdef INET6
 		case AF_INET6:
-			addr = &psa->sin6.sin6_addr;
-			inet_ntop(psa->sa.sa_family, addr, addrbuf,
+			in6addr = &psa->sin6.sin6_addr;
+			inet_ntop(psa->sa.sa_family, in6addr, addrbuf,
 			    sizeof(addrbuf));
 			pgroup = addrbuf;
+			break;
+#endif
+		case AF_LINK:
+			if ((psa->sdl.sdl_alen == ETHER_ADDR_LEN) ||
+			    (psa->sdl.sdl_type == IFT_ETHER)) {
+				pgroup =
+ether_ntoa((struct ether_addr *)&psa->sdl.sdl_data);
+#ifdef notyet
+			} else {
+				pgroup = addr2ascii(AF_LINK,
+				    &psa->sdl,
+				    sizeof(struct sockaddr_dl),
+				    addrbuf);
+#endif
+			}
 			break;
 		default:
 			continue;	/* XXX */
@@ -111,38 +150,60 @@ ifmalist_dump(void)
 		/* Link-layer mapping, if any */
 		psa = (sockunion_t *)ifma->ifma_lladdr;
 		if (psa != NULL) {
-			switch (psa->sa.sa_family) {
-			case AF_INET:
-				plladdr = inet_ntoa(psa->sin.sin_addr);
-				break;
-			case AF_LINK:
-				if (psa->sdl.sdl_type == IFT_ETHER)
-					plladdr = ether_ntoa((struct ether_addr *)&psa->sdl.sdl_data);
-				else
-					plladdr = link_ntoa(&psa->sdl);
-				break;
+			if (psa->sa.sa_family == AF_LINK) {
+				if ((psa->sdl.sdl_alen == ETHER_ADDR_LEN) ||
+				    (psa->sdl.sdl_type == IFT_ETHER)) {
+					/* IEEE 802 */
+					plladdr =
+ether_ntoa((struct ether_addr *)&psa->sdl.sdl_data);
+#ifdef notyet
+				} else {
+					/* something more exotic */
+					plladdr = addr2ascii(AF_LINK,
+					    &psa->sdl,
+					    sizeof(struct sockaddr_dl),
+					    addrbuf);
+#endif
+				}
+			} else {
+				/* not a link-layer address */
+				plladdr = "<invalid>";
 			}
-		} else
+		} else {
 			plladdr = "<none>";
+		}
 
 		/* Interface upon which the membership exists */
 		psa = (sockunion_t *)ifma->ifma_name;
-		switch (psa->sa.sa_family) {
-		case AF_LINK:
-			strlcpy(myifname, link_ntoa(&psa->sdl),
-			    MYIFNAME_SIZE);
+		if (psa != NULL && psa->sa.sa_family == AF_LINK) {
+			strlcpy(myifname, link_ntoa(&psa->sdl), IFNAMSIZ);
 			pcolon = strchr(myifname, ':');
 			if (pcolon)
 				*pcolon = '\0';
 			pifname = myifname;
-			break;
-		default:
+		} else {
 			pifname = "";
-			break;
 		}
 
 		fprintf(stdout, "%-20s\t%-16s\t%s\n", pgroup, plladdr, pifname);
 	}
+}
+
+void
+ifmalist_dump(void)
+{
+	struct ifmaddrs *ifmap;
+
+	if (getifmaddrs(&ifmap))
+		err(EX_OSERR, "getifmaddrs");
+
+	ifmalist_dump_af(ifmap, AF_LINK);
+	fputs("\n", stdout);
+	ifmalist_dump_af(ifmap, AF_INET);
+#ifdef INET6
+	fputs("\n", stdout);
+	ifmalist_dump_af(ifmap, AF_INET6);
+#endif
 
 	freeifmaddrs(ifmap);
 }
