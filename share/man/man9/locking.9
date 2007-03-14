@@ -229,7 +229,8 @@ Largly deprecated. See the
 .Xr lock 9
 page for more information.
 I don't know what the downsides are but I'm sure someone will fill in this part.
-.Sh Interaction tables.
+.Sh Usage tables.
+.Ss Interaction table.
 The following table shows what you can and can not do if you hold
 one of the synchronisation primatives discussed here:
 (someone who knows what they are talking about should write this table)
@@ -261,7 +262,17 @@ and
 Though one can sleep holding an sx lock, one can also use 
 .Fn sx_sleep
 which atomically release this primative when going to sleep and reacquire it on wakeup.
-.Pp
+.Ss Context mode table.
+The next table shows what can be used in differnt contexts. at this time this is a 
+rather easy to remember table.
+.Bl -column ".Ic Xxxxxxxxxxxxxxxxxxxx" ".Xr XXXXXXXXX" ".Xr XXXXXXX" ".Xr XXXXXXX" ".Xr XXXXXXX" ".Xr XXXXX" -offset indent
+.It Xo
+.Em "Context:" Ta Spin_mtx Ta Slp_mtx Ta sx_lock Ta rw_lock Ta sleep
+.Xc
+.It interrupt:  Ta \&ok Ta \&no Ta \&no Ta \&no Ta \&no
+.It idle:  Ta \&ok Ta \&no Ta \&no Ta \&no Ta \&no
+.El
+.Xc
 .Sh SEE ALSO
 .Xr condvar 9 ,
 .Xr lock 9
