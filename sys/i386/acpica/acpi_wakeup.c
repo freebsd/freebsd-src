@@ -192,11 +192,9 @@ acpi_sleep_machdep(struct acpi_softc *sc, int state)
 {
 	ACPI_STATUS		status;
 	struct pmap		*pm;
-	vm_page_t		page;
 	int			ret;
 	uint32_t		cr3;
 	u_long			ef;
-	struct proc		*p;
 
 	ret = 0;
 	if (sc->acpi_wakeaddr == 0)
@@ -206,20 +204,18 @@ acpi_sleep_machdep(struct acpi_softc *sc, int state)
 
 	ef = read_eflags();
 
-	/* Create Identity Mapping */
-	if ((p = curproc) == NULL)
-		p = &proc0;
-	pm = vmspace_pmap(p->p_vmspace);
+	/*
+	 * Temporarily switch to the kernel pmap because it provides an
+	 * identity mapping (setup at boot) for the low physical memory
+	 * region containing the wakeup code.
+	 */
+	pm = kernel_pmap;
 	cr3 = rcr3();
 #ifdef PAE
 	load_cr3(vtophys(pm->pm_pdpt));
 #else
 	load_cr3(vtophys(pm->pm_pdir));
 #endif
-
-	page = PHYS_TO_VM_PAGE(sc->acpi_wakephys);
-	pmap_enter(pm, sc->acpi_wakephys, page,
-		   VM_PROT_READ | VM_PROT_WRITE | VM_PROT_EXECUTE, 1);
 
 	ret_addr = 0;
 	ACPI_DISABLE_IRQS();
@@ -283,7 +279,6 @@ acpi_sleep_machdep(struct acpi_softc *sc, int state)
 	}
 
 out:
-	pmap_remove(pm, sc->acpi_wakephys, sc->acpi_wakephys + PAGE_SIZE);
 	load_cr3(cr3);
 	write_eflags(ef);
 
