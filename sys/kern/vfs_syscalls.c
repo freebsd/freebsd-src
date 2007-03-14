@@ -176,7 +176,7 @@ quotactl(td, uap)
 		caddr_t arg;
 	} */ *uap;
 {
-	struct mount *mp, *vmp;
+	struct mount *mp;
 	int vfslocked;
 	int error;
 	struct nameidata nd;
@@ -191,14 +191,15 @@ quotactl(td, uap)
 		return (error);
 	vfslocked = NDHASGIANT(&nd);
 	NDFREE(&nd, NDF_ONLY_PNBUF);
-	error = vn_start_write(nd.ni_vp, &vmp, V_WAIT | PCATCH);
 	mp = nd.ni_vp->v_mount;
+	if ((error = vfs_busy(mp, 0, NULL, td))) {
+		vrele(nd.ni_vp);
+		VFS_UNLOCK_GIANT(vfslocked);
+		return (error);
+	}
 	vrele(nd.ni_vp);
-	if (error)
-		goto out;
 	error = VFS_QUOTACTL(mp, uap->cmd, uap->uid, uap->arg, td);
-	vn_finished_write(vmp);
-out:
+	vfs_unbusy(mp, td);
 	VFS_UNLOCK_GIANT(vfslocked);
 	return (error);
 }
