@@ -815,9 +815,7 @@ vfs_domount(
 	if (strlen(fstype) >= MFSNAMELEN || strlen(fspath) >= MNAMELEN)
 		return (ENAMETOOLONG);
 
-	if (jailed(td->td_ucred))
-		return (EPERM);
-	if (usermount == 0) {
+	if (jailed(td->td_ucred) || usermount == 0) {
 		if ((error = priv_check(td, PRIV_VFS_MOUNT)) != 0)
 			return (error);
 	}
