@@ -35,18 +35,17 @@
 
 # sed Regression Tests
 #
-# The following files are created:
-# lines[1-4], script1, script2
-# Two directories *.out contain the test results
+# The directory regress.test.out contains the expected test results
+#
+# These are the regression tests created during the development of the
+# BSD sed.  The reference file naming scheme used in this script can't
+# handle gracefully the insertion of new tests between existing ones.
+# Therefore, either use the new m4-based regress.t framework, or add
+# tests after the last existing test.
 
 main()
 {
-	#BASE=/usr/bin/sed
-	BASE=/usr/ports/textproc/gsed/work/sed-4.1.5/sed/sed
-	BASELOG=sed.out
-	#TEST=`cd ..; make whereobj`/sed
-	TEST=/home/dds/src/fbsd-head/sed/sed
-	TESTLOG=nsed.out
+	REGRESS=regress.multitest.out
 	DICT=/usr/share/dict/words
 
 	#test_error | more
@@ -54,62 +53,68 @@ main()
 	awk 'END { for (i = 1; i < 15; i++) print "l1_" i}' </dev/null >lines1
 	awk 'END { for (i = 1; i < 10; i++) print "l2_" i}' </dev/null >lines2
 
+	echo "1..90"
+
 	exec 4>&1 5>&2
-
-	# Set these flags to get messages about known problems
-	BSD=0
-	GNU=1
-	SUN=0
-	tests $BASE $BASELOG
-
-	BSD=1
-	GNU=0
-	SUN=0
-	tests $TEST $TESTLOG
+	tests
 	exec 1>&4 2>&5
-	diff -c $BASELOG $TESTLOG | more
+
+	# Remove temporary files
+	rm -f current.out lines[1-4] script[1-2]
 }
 
 tests()
 {
-	SED=$1
-	DIR=$2
-	rm -rf $DIR
-	mkdir $DIR
-	MARK=100
+	SED=sed
+	MARK=0
 
 	test_args
 	test_addr
-	echo Testing commands
 	test_group
 	test_acid
 	test_branch
 	test_pattern
 	test_print
 	test_subst
+	# Handle the result of the last test
+	result
 }
 
+# Display a test's result
+result()
+{
+	if [ "$TODO" = '1' ] ; then
+		TODO='TODO '
+	else
+		TODO=''
+	fi
+	if diff -c $REGRESS/${MARK}_${TESTNAME} current.out ; then
+		echo "ok $MARK $TESTNAME # $TODO$COMMENT"
+	else
+		echo "not ok $MARK $TESTNAME # $TODO$COMMENT"
+	fi 1>&4 2>&5
+}
+
+# Mark the beginning of each test
 mark()
 {
+	[ $MARK -gt 0 ] && result
 	MARK=`expr $MARK + 1`
+	TESTNAME=$1
 	exec 1>&4 2>&5
-	exec >"$DIR/${MARK}_$1"
-	echo "Test $1:$MARK"
-	# Uncomment this line to match tests with sed error messages
-	echo "Test $1:$MARK" >&5
+	exec >"current.out"
 }
 
 test_args()
 {
+	COMMENT='Argument parsing - first type'
 	mark '1.1'
-	echo Testing argument parsing
-	echo First type
 	$SED 's/^/e1_/p' lines1
 	mark '1.2' ; $SED -n 's/^/e1_/p' lines1
 	mark '1.3'
 	$SED 's/^/e1_/p' <lines1
 	mark '1.4' ; $SED -n 's/^/e1_/p' <lines1
-	echo Second type
+	COMMENT='Argument parsing - second type'
 	mark '1.4.1'
 	$SED -e '' <lines1
 	echo 's/^/s1_/p' >script1
@@ -132,11 +137,7 @@ test_args()
 	mark '1.14'
 	$SED -f script1 -f script2 lines1
 	mark '1.15'
-	if [ $SUN -eq 1 ] ; then
-		echo SunOS sed fails this following older POSIX draft
-	else
-		$SED -e 's/^/e1_/p' -f script1 lines1
-	fi
+	$SED -e 's/^/e1_/p' -f script1 lines1
 	mark '1.16'
 	$SED -e 's/^/e1_/p' lines1 lines1
 	# POSIX D11.2:11251
@@ -152,7 +153,7 @@ EOF
 
 test_addr()
 {
-	echo Testing address ranges
+	COMMENT='Address ranges'
 	mark '2.1' ; $SED -n -e '4p' lines1
 	mark '2.2' ; $SED -n -e '20p' lines1 lines2
 	mark '2.3' ; $SED -n -e '$p' lines1
@@ -179,7 +180,7 @@ hello' /dev/null
 
 test_group()
 {
-	echo Brace and other grouping
+	COMMENT='Brace and other grouping'
 	mark '3.1' ; $SED -e '
 4,12 {
 	s/^/^/
@@ -207,7 +208,7 @@ test_group()
 
 test_acid()
 {
-	echo Testing a c d and i commands
+	COMMENT='Commands a c d and i'
 	mark '4.1' ; $SED -n -e '
 s/^/before_i/p
 20i\
@@ -251,7 +252,7 @@ hello
 
 test_branch()
 {
-	echo Testing labels and branching
+	COMMENT='Labels and branching'
 	mark '5.1' ; $SED -n -e '
 b label4
 :label3
@@ -322,7 +323,7 @@ tb' lines1
 
 test_pattern()
 {
-echo Pattern space commands
+COMMENT='Pattern space commands'
 # Check that the pattern space is deleted
 	mark '6.1' ; $SED -n -e '
 c\
@@ -334,11 +335,7 @@ p
 p
 ' lines1
 	mark '6.3'
-	if [ $GNU -eq 1 ] ; then
-		echo GNU sed cannot pass 6.3
-	else
-		$SED -e 'N;N;N;D' lines1
-	fi
+	$SED -e 'N;N;N;D' lines1
 	mark '6.4' ; $SED -e '
 2h
 3H
@@ -355,7 +352,7 @@ p
 
 test_print()
 {
-	echo Testing print and file routines
+	COMMENT='Print and file routines'
 	awk 'END {for (i = 1; i < 256; i++) printf("%c", i);print "\n"}' \
 		</dev/null >lines3
 	# GNU and SunOS sed behave differently here
@@ -364,7 +361,7 @@ test_print()
 	mark '7.2' ; $SED -e '/l2_/=' lines1 lines2
 	rm -f lines4
 	mark '7.3' ; $SED -e '3,12w lines4' lines1
-	echo w results
+	COMMENT='w results'
 	cat lines4
 	mark '7.4' ; $SED -e '4r lines2' lines1
 	mark '7.5' ; $SED -e '5r /dev/dds' lines1
@@ -377,28 +374,21 @@ test_print()
 	cat tmpdir/*
 	rm -rf tmpdir
 	mark '7.8'
-	if [ $BSD -eq 1 ] ; then
-		echo BSD sed cannot pass 7.8
-	else
-		echo line1 > lines3
-		echo "" >> lines3
-		$SED -n -e '$p' lines3 /dev/null
-	fi
+	echo line1 > lines3
+	echo "" >> lines3
+	TODO=1
+	$SED -n -e '$p' lines3 /dev/null
 		
 }
 
 test_subst()
 {
-	echo Testing substitution commands
+	COMMENT='Substitution commands'
 	mark '8.1' ; $SED -e 's/./X/g' lines1
 	mark '8.2' ; $SED -e 's,.,X,g' lines1
 # SunOS sed thinks we are escaping . as wildcard, not as separator
 	mark '8.3'
-	if [ $SUN -eq 1 ] ; then
-		echo SUN sed fails test 8.3
-	else
-		$SED -e 's.\..X.g' lines1
-	fi
+	$SED -e 's.\..X.g' lines1
 	mark '8.4' ; $SED -e 's/[\/]/Q/' lines1
 	mark '8.5' ; $SED -e 's_\__X_' lines1
 	mark '8.6' ; $SED -e 's/./(&)/g' lines1
@@ -411,7 +401,7 @@ u2/g' lines1
 	$SED -e 's/./X/4' lines1
 	rm -f lines4
 	mark '8.11' ; $SED -e 's/1/X/w lines4' lines1
-	echo s wfile results
+	COMMENT='s wfile results'
 	cat lines4
 	mark '8.12' ; $SED -e 's/[123]/X/g' lines1
 	mark '8.13' ; $SED -e 'y/0123456789/9876543210/' lines1
