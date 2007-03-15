@@ -1654,7 +1654,7 @@ es_pci_attach(device_t dev)
 		device_printf(dev, "cannot allocate softc\n");
 		return (ENXIO);
 	}
-	es->lock = snd_mtxcreate(device_get_nameunit(dev), "sound softc");
+	es->lock = snd_mtxcreate(device_get_nameunit(dev), "snd_es137x softc");
 	es->dev = dev;
 	es->escfg = 0;
 	mapped = 0;

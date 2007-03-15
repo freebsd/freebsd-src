@@ -1986,7 +1986,7 @@ emu_pci_attach(device_t dev)
 		return ENXIO;
 	}
 
-	sc->lock = snd_mtxcreate(device_get_nameunit(dev), "sound softc");
+	sc->lock = snd_mtxcreate(device_get_nameunit(dev), "snd_emu10k1 softc");
 	sc->dev = dev;
 	sc->type = pci_get_devid(dev);
 	sc->rev = pci_get_revid(dev);

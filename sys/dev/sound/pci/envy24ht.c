@@ -2390,7 +2390,6 @@ envy24ht_pci_attach(device_t dev)
 	u_int32_t		data;
 	struct sc_info 		*sc;
 	char 			status[SND_STATUSLEN];
-	char			name[ENVY24HT_NAMELEN];
 	int			err = 0;
 	int			i;
 
@@ -2404,8 +2403,8 @@ envy24ht_pci_attach(device_t dev)
 	}
 
 	bzero(sc, sizeof(*sc));
-	snprintf(name, ENVY24HT_NAMELEN, "%s:envy24ht", device_get_nameunit(dev));
-	sc->lock = snd_mtxcreate(name, name);
+	sc->lock = snd_mtxcreate(device_get_nameunit(dev),
+	    "snd_envy24ht softc");
 	sc->dev = dev;
 
 	/* initialize PCI interface */

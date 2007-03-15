@@ -1267,12 +1267,7 @@ m3_pci_attach(device_t dev)
 	sc->dev = dev;
 	sc->type = pci_get_devid(dev);
 	sc->sc_lock = snd_mtxcreate(device_get_nameunit(dev),
-	    "sound softc");
-	if (sc->sc_lock == NULL) {
-		device_printf(dev, "cannot create mutex\n");
-		free(sc, M_DEVBUF);
-		return (ENXIO);
-	}
+	    "snd_maestro3 softc");
 	for (card = m3_card_types ; card->pci_id ; card++) {
 		if (sc->type == card->pci_id) {
 			sc->which = card->which;
