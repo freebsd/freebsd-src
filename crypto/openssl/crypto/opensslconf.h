@@ -19,6 +19,9 @@
 #ifndef OPENSSL_NO_RC5
 # define OPENSSL_NO_RC5
 #endif
+#ifndef OPENSSL_NO_RFC3779
+# define OPENSSL_NO_RFC3779
+#endif
 
 #endif /* OPENSSL_DOING_MAKEDEPEND */
 #ifndef OPENSSL_NO_DYNAMIC_ENGINE
@@ -44,6 +47,9 @@
 # endif
 # if defined(OPENSSL_NO_RC5) && !defined(NO_RC5)
 #  define NO_RC5
+# endif
+# if defined(OPENSSL_NO_RFC3779) && !defined(NO_RFC3779)
+#  define NO_RFC3779
 # endif
 #endif
 
