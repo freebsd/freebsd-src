@@ -897,7 +897,7 @@ ess_alloc_resources(struct ess_info *sc, device_t dev)
 		RF_ACTIVE | RF_SHAREABLE);
 
 #if ESS18XX_MPSAFE == 1
-	sc->lock = snd_mtxcreate(device_get_nameunit(dev), "sound softc");
+	sc->lock = snd_mtxcreate(device_get_nameunit(dev), "snd_solo softc");
 
 	return (sc->irq && sc->io && sc->sb && sc->vc &&
 				sc->mpu && sc->gp && sc->lock)? 0 : ENXIO;

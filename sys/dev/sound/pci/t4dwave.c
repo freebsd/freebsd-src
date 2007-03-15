@@ -821,7 +821,7 @@ tr_pci_attach(device_t dev)
 
 	tr->type = pci_get_devid(dev);
 	tr->rev = pci_get_revid(dev);
-	tr->lock = snd_mtxcreate(device_get_nameunit(dev), "sound softc");
+	tr->lock = snd_mtxcreate(device_get_nameunit(dev), "snd_t4dwave softc");
 
 	data = pci_read_config(dev, PCIR_COMMAND, 2);
 	data |= (PCIM_CMD_PORTEN|PCIM_CMD_MEMEN|PCIM_CMD_BUSMASTEREN);

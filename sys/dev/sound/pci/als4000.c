@@ -803,7 +803,7 @@ als_pci_attach(device_t dev)
 		return ENXIO;
 	}
 
-	sc->lock = snd_mtxcreate(device_get_nameunit(dev), "sound softc");
+	sc->lock = snd_mtxcreate(device_get_nameunit(dev), "snd_als4000 softc");
 	sc->dev = dev;
 
 	data = pci_read_config(dev, PCIR_COMMAND, 2);
