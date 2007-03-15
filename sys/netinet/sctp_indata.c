@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2001-2006, Cisco Systems, Inc. All rights reserved.
+ * Copyright (c) 2001-2007, Cisco Systems, Inc. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -35,6 +35,7 @@ __FBSDID("$FreeBSD$");
 
 #include <netinet/sctp_os.h>
 #include <netinet/sctp_var.h>
+#include <netinet/sctp_sysctl.h>
 #include <netinet/sctp_pcb.h>
 #include <netinet/sctp_header.h>
 #include <netinet/sctputil.h>
@@ -45,11 +46,6 @@ __FBSDID("$FreeBSD$");
 #include <netinet/sctp_timer.h>
 
 
-#ifdef SCTP_DEBUG
-extern uint32_t sctp_debug_on;
-
-#endif
-
 /*
  * NOTES: On the outbound side of things I need to check the sack timer to
  * see if I should generate a sack into the chunk queue (if I have data to
@@ -59,8 +55,6 @@ extern uint32_t sctp_debug_on;
  * This will cause sctp_service_queues() to get called on the top entry in
  * the list.
  */
-
-extern int sctp_strict_sacks;
 
 __inline void
 sctp_set_rwnd(struct sctp_tcb *stcb, struct sctp_association *asoc)
@@ -1438,7 +1432,6 @@ sctp_does_tsn_belong_to_reasm(struct sctp_association *asoc,
 }
 
 
-extern unsigned int sctp_max_chunks_on_queue;
 static int
 sctp_process_a_data_chunk(struct sctp_tcb *stcb, struct sctp_association *asoc,
     struct mbuf **m, int offset, struct sctp_data_chunk *ch, int chk_length,
@@ -1505,15 +1498,7 @@ sctp_process_a_data_chunk(struct sctp_tcb *stcb, struct sctp_association *asoc,
 			asoc->dup_tsns[asoc->numduptsns] = tsn;
 			asoc->numduptsns++;
 		}
-		if (!SCTP_OS_TIMER_PENDING(&asoc->dack_timer.timer)) {
-			/*
-			 * By starting the timer we assure that we WILL sack
-			 * at the end of the packet when sctp_sack_check
-			 * gets called.
-			 */
-			sctp_timer_start(SCTP_TIMER_TYPE_RECV, stcb->sctp_ep,
-			    stcb, NULL);
-		}
+		asoc->send_sack = 1;
 		return (0);
 	}
 	/*
@@ -2382,19 +2367,18 @@ sctp_sack_check(struct sctp_tcb *stcb, int ok_to_sack, int was_a_gap, int *abort
 			 */
 			stcb->asoc.cmt_dac_pkts_rcvd++;
 
-			if ((stcb->asoc.first_ack_sent == 0) ||	/* First time we send a
-								 * sack */
+			if ((stcb->asoc.send_sack == 1) ||	/* We need to send a
+								 * SACK */
 			    ((was_a_gap) && (is_a_gap == 0)) ||	/* was a gap, but no
 								 * longer is one */
 			    (stcb->asoc.numduptsns) ||	/* we have dup's */
 			    (is_a_gap) ||	/* is still a gap */
-			    (stcb->asoc.delayed_ack == 0) ||
-			    (SCTP_OS_TIMER_PENDING(&stcb->asoc.dack_timer.timer))	/* timer was up . second
-											 * packet */
+			    (stcb->asoc.delayed_ack == 0) ||	/* Delayed sack disabled */
+			    (stcb->asoc.data_pkts_seen >= stcb->asoc.sack_freq)	/* hit limit of pkts */
 			    ) {
 
 				if ((sctp_cmt_on_off) && (sctp_cmt_use_dac) &&
-				    (stcb->asoc.first_ack_sent == 1) &&
+				    (stcb->asoc.send_sack == 0) &&
 				    (stcb->asoc.numduptsns == 0) &&
 				    (stcb->asoc.delayed_ack) &&
 				    (!SCTP_OS_TIMER_PENDING(&stcb->asoc.dack_timer.timer))) {
@@ -2420,13 +2404,14 @@ sctp_sack_check(struct sctp_tcb *stcb, int ok_to_sack, int was_a_gap, int *abort
 					 * first packet OR there are gaps or
 					 * duplicates.
 					 */
-					stcb->asoc.first_ack_sent = 1;
 					SCTP_OS_TIMER_STOP(&stcb->asoc.dack_timer.timer);
 					sctp_send_sack(stcb);
 				}
 			} else {
-				sctp_timer_start(SCTP_TIMER_TYPE_RECV,
-				    stcb->sctp_ep, stcb, NULL);
+				if (!SCTP_OS_TIMER_PENDING(&stcb->asoc.dack_timer.timer)) {
+					sctp_timer_start(SCTP_TIMER_TYPE_RECV,
+					    stcb->sctp_ep, stcb, NULL);
+				}
 			}
 		}
 	}
@@ -2487,8 +2472,6 @@ doit_again:
 		}
 	}
 }
-
-extern int sctp_strict_data_order;
 
 int
 sctp_process_data(struct mbuf **mm, int iphlen, int *offset, int length,
@@ -2573,6 +2556,7 @@ sctp_process_data(struct mbuf **mm, int iphlen, int *offset, int length,
 	 */
 	*high_tsn = asoc->cumulative_tsn;
 	break_flag = 0;
+	asoc->data_pkts_seen++;
 	while (stop_proc == 0) {
 		/* validate chunk length */
 		chk_length = ntohs(ch->ch.chunk_length);
@@ -2753,26 +2737,21 @@ sctp_process_data(struct mbuf **mm, int iphlen, int *offset, int length,
 		sctp_service_queues(stcb, asoc);
 
 	if (SCTP_GET_STATE(asoc) == SCTP_STATE_SHUTDOWN_SENT) {
-		/*
-		 * Assure that we ack right away by making sure that a d-ack
-		 * timer is running. So the sack_check will send a sack.
-		 */
-		sctp_timer_start(SCTP_TIMER_TYPE_RECV, stcb->sctp_ep, stcb,
-		    net);
+		/* Assure that we ack right away */
+		stcb->asoc.send_sack = 1;
 	}
 	/* Start a sack timer or QUEUE a SACK for sending */
 	if ((stcb->asoc.cumulative_tsn == stcb->asoc.highest_tsn_inside_map) &&
-	    (stcb->asoc.first_ack_sent)) {
-		/* Everything is in order */
-		if (stcb->asoc.mapping_array[0] == 0xff) {
-			/* need to do the slide */
-			sctp_sack_check(stcb, 1, was_a_gap, &abort_flag);
-		} else {
+	    (stcb->asoc.mapping_array[0] != 0xff)) {
+		if ((stcb->asoc.data_pkts_seen >= stcb->asoc.sack_freq) ||
+		    (stcb->asoc.delayed_ack == 0) ||
+		    (stcb->asoc.send_sack == 1)) {
 			if (SCTP_OS_TIMER_PENDING(&stcb->asoc.dack_timer.timer)) {
-				stcb->asoc.first_ack_sent = 1;
 				SCTP_OS_TIMER_STOP(&stcb->asoc.dack_timer.timer);
-				sctp_send_sack(stcb);
-			} else {
+			}
+			sctp_send_sack(stcb);
+		} else {
+			if (!SCTP_OS_TIMER_PENDING(&stcb->asoc.dack_timer.timer)) {
 				sctp_timer_start(SCTP_TIMER_TYPE_RECV,
 				    stcb->sctp_ep, stcb, NULL);
 			}
@@ -3016,6 +2995,7 @@ sctp_handle_segments(struct sctp_tcb *stcb, struct sctp_association *asoc,
 								tp1->whoTo->flight_size -= tp1->book_size;
 							else
 								tp1->whoTo->flight_size = 0;
+
 							if (asoc->total_flight >= tp1->book_size) {
 								asoc->total_flight -= tp1->book_size;
 								if (asoc->total_flight_count > 0)
@@ -3069,6 +3049,11 @@ sctp_handle_segments(struct sctp_tcb *stcb, struct sctp_association *asoc,
 						(*ecn_seg_sums) &= SCTP_SACK_NONCE_SUM;
 
 						tp1->sent = SCTP_DATAGRAM_MARKED;
+						if (tp1->rec.data.chunk_was_revoked) {
+							/* deflate the cwnd */
+							tp1->whoTo->cwnd -= tp1->book_size;
+							tp1->rec.data.chunk_was_revoked = 0;
+						}
 					}
 					break;
 				}	/* if (tp1->TSN_seq == j) */
@@ -3108,43 +3093,30 @@ sctp_check_for_revoked(struct sctp_association *asoc, uint32_t cumack,
 			 */
 			if (tp1->sent == SCTP_DATAGRAM_ACKED) {
 				/* it has been revoked */
+				tp1->sent = SCTP_DATAGRAM_SENT;
+				tp1->rec.data.chunk_was_revoked = 1;
+				/*
+				 * We must add this stuff back in to assure
+				 * timers and such get started.
+				 */
+				tp1->whoTo->flight_size += tp1->book_size;
+				/*
+				 * We inflate the cwnd to compensate for our
+				 * artificial inflation of the flight_size.
+				 */
+				tp1->whoTo->cwnd += tp1->book_size;
+				asoc->total_flight_count++;
+				asoc->total_flight += tp1->book_size;
 
-				if (sctp_cmt_on_off) {
-					/*
-					 * If CMT is ON, leave "sent" at
-					 * ACKED. CMT causes reordering of
-					 * data and acks (received on
-					 * different interfaces) can be
-					 * persistently reordered. Acking
-					 * followed by apparent revoking and
-					 * re-acking causes unexpected weird
-					 * behavior. So, at this time, CMT
-					 * does not respect renegs. Renegs
-					 * cannot be recovered. I will fix
-					 * this once I am sure that things
-					 * are working right again with CMT.
-					 */
-				} else {
-					tp1->sent = SCTP_DATAGRAM_SENT;
-					tp1->rec.data.chunk_was_revoked = 1;
-					/*
-					 * We must add this stuff back in to
-					 * assure timers and such get
-					 * started.
-					 */
-					tp1->whoTo->flight_size += tp1->book_size;
-					asoc->total_flight_count++;
-					asoc->total_flight += tp1->book_size;
-					tot_revoked++;
+				tot_revoked++;
 #ifdef SCTP_SACK_LOGGING
-					sctp_log_sack(asoc->last_acked_seq,
-					    cumack,
-					    tp1->rec.data.TSN_seq,
-					    0,
-					    0,
-					    SCTP_LOG_TSN_REVOKED);
+				sctp_log_sack(asoc->last_acked_seq,
+				    cumack,
+				    tp1->rec.data.TSN_seq,
+				    0,
+				    0,
+				    SCTP_LOG_TSN_REVOKED);
 #endif
-				}
 			} else if (tp1->sent == SCTP_DATAGRAM_MARKED) {
 				/* it has been re-acked in this SACK */
 				tp1->sent = SCTP_DATAGRAM_ACKED;
@@ -3172,8 +3144,6 @@ sctp_check_for_revoked(struct sctp_association *asoc, uint32_t cumack,
 		asoc->nonce_sum_check = 0;
 	}
 }
-
-extern int sctp_peer_chunk_oh;
 
 static void
 sctp_strike_gap_ack_chunks(struct sctp_tcb *stcb, struct sctp_association *asoc,
@@ -3301,9 +3271,11 @@ sctp_strike_gap_ack_chunks(struct sctp_tcb *stcb, struct sctp_association *asoc,
 		 * the tsn... otherwise we CAN strike the TSN.
 		 */
 		/*
-		 * @@@ JRI: Check for CMT
+		 * @@@ JRI: Check for CMT if (accum_moved &&
+		 * asoc->fast_retran_loss_recovery && (sctp_cmt_on_off ==
+		 * 0)) {
 		 */
-		if (accum_moved && asoc->fast_retran_loss_recovery && (sctp_cmt_on_off == 0)) {
+		if (accum_moved && asoc->fast_retran_loss_recovery) {
 			/*
 			 * Strike the TSN if in fast-recovery and cum-ack
 			 * moved.
@@ -3400,8 +3372,8 @@ sctp_strike_gap_ack_chunks(struct sctp_tcb *stcb, struct sctp_association *asoc,
 				}
 			}
 			/*
-			 * @@@ JRI: TODO: remove code for HTNA algo. CMT's
-			 * SFR algo covers HTNA.
+			 * JRI: TODO: remove code for HTNA algo. CMT's SFR
+			 * algo covers HTNA.
 			 */
 		} else if (compare_with_wrap(tp1->rec.data.TSN_seq,
 		    biggest_tsn_newly_acked, MAX_TSN)) {
@@ -3462,7 +3434,6 @@ sctp_strike_gap_ack_chunks(struct sctp_tcb *stcb, struct sctp_association *asoc,
 				 * CMT: Using RTX_SSTHRESH policy for CMT.
 				 * If CMT is being used, then pick dest with
 				 * largest ssthresh for any retransmission.
-				 * (iyengar@cis.udel.edu, 2005/08/12)
 				 */
 				tp1->no_fr_allowed = 1;
 				alt = tp1->whoTo;
@@ -3863,9 +3834,6 @@ sctp_hs_cwnd_decrease(struct sctp_tcb *stcb, struct sctp_nets *net)
 
 #endif
 
-extern int sctp_early_fr;
-extern int sctp_L2_abc_variable;
-
 
 static __inline void
 sctp_cwnd_update(struct sctp_tcb *stcb,
@@ -3878,7 +3846,8 @@ sctp_cwnd_update(struct sctp_tcb *stcb,
 	/* update cwnd and Early FR   */
 	/******************************/
 	TAILQ_FOREACH(net, &asoc->nets, sctp_next) {
-#ifdef JANA_CODE_WHY_THIS
+
+#ifdef JANA_CMT_FAST_RECOVERY
 		/*
 		 * CMT fast recovery code. Need to debug.
 		 */
@@ -3952,22 +3921,26 @@ sctp_cwnd_update(struct sctp_tcb *stcb,
 				}
 			}
 		}
-#ifdef JANA_CODE_WHY_THIS
+#ifdef JANA_CMT_FAST_RECOVERY
 		/*
-		 * Cannot skip for CMT. Need to come back and check these
-		 * variables for CMT. CMT fast recovery code. Need to debug.
+		 * CMT fast recovery code
 		 */
-		if (sctp_cmt_on_off == 1 &&
-		    net->fast_retran_loss_recovery &&
-		    net->will_exit_fast_recovery == 0)
+		/*
+		 * if (sctp_cmt_on_off == 1 &&
+		 * net->fast_retran_loss_recovery &&
+		 * net->will_exit_fast_recovery == 0) { // @@@ Do something
+		 * }	   else if (sctp_cmt_on_off == 0 &&
+		 * asoc->fast_retran_loss_recovery && will_exit == 0) {
+		 */
 #endif
-			if (sctp_cmt_on_off == 0 && asoc->fast_retran_loss_recovery && will_exit == 0) {
-				/*
-				 * If we are in loss recovery we skip any
-				 * cwnd update
-				 */
-				goto skip_cwnd_update;
-			}
+
+		if (asoc->fast_retran_loss_recovery && will_exit == 0) {
+			/*
+			 * If we are in loss recovery we skip any cwnd
+			 * update
+			 */
+			goto skip_cwnd_update;
+		}
 		/*
 		 * CMT: CUC algorithm. Update cwnd if pseudo-cumack has
 		 * moved.
@@ -4172,6 +4145,7 @@ sctp_express_handle_sack(struct sctp_tcb *stcb, uint32_t cumack,
 					} else {
 						tp1->whoTo->flight_size = 0;
 					}
+
 					if (asoc->total_flight >= tp1->book_size) {
 						asoc->total_flight -= tp1->book_size;
 						if (asoc->total_flight_count > 0)
@@ -4205,6 +4179,11 @@ sctp_express_handle_sack(struct sctp_tcb *stcb, uint32_t cumack,
 				}
 				if (tp1->sent == SCTP_DATAGRAM_RESEND) {
 					sctp_ucount_decr(asoc->sent_queue_retran_cnt);
+				}
+				if (tp1->rec.data.chunk_was_revoked) {
+					/* deflate the cwnd */
+					tp1->whoTo->cwnd -= tp1->book_size;
+					tp1->rec.data.chunk_was_revoked = 0;
 				}
 				tp1->sent = SCTP_DATAGRAM_ACKED;
 			}
@@ -4657,7 +4636,8 @@ sctp_handle_sack(struct sctp_sack_chunk *ch, struct sctp_tcb *stcb,
 		net->net_ack2 = 0;
 
 		/*
-		 * CMT: Reset CUC algo variable before SACK processing
+		 * CMT: Reset CUC and Fast recovery algo variables before
+		 * SACK processing
 		 */
 		net->new_pseudo_cumack = 0;
 		net->will_exit_fast_recovery = 0;
@@ -4774,6 +4754,11 @@ sctp_handle_sack(struct sctp_sack_chunk *ch, struct sctp_tcb *stcb,
 					sctp_audit_log(0xB3,
 					    (asoc->sent_queue_retran_cnt & 0x000000ff));
 #endif
+				}
+				if (tp1->rec.data.chunk_was_revoked) {
+					/* deflate the cwnd */
+					tp1->whoTo->cwnd -= tp1->book_size;
+					tp1->rec.data.chunk_was_revoked = 0;
 				}
 				tp1->sent = SCTP_DATAGRAM_ACKED;
 			}
@@ -4919,7 +4904,7 @@ done_with_it:
 #endif
 	}
 
-	if ((sctp_cmt_on_off == 0) && asoc->fast_retran_loss_recovery && accum_moved) {
+	if (asoc->fast_retran_loss_recovery && accum_moved) {
 		if (compare_with_wrap(asoc->last_acked_seq,
 		    asoc->fast_recovery_tsn, MAX_TSN) ||
 		    asoc->last_acked_seq == asoc->fast_recovery_tsn) {
@@ -4951,6 +4936,14 @@ done_with_it:
 					tp1->sent = SCTP_DATAGRAM_SENT;
 					tp1->rec.data.chunk_was_revoked = 1;
 					tp1->whoTo->flight_size += tp1->book_size;
+					/*
+					 * To ensure that this increase in
+					 * flightsize, which is artificial,
+					 * does not throttle the sender, we
+					 * also increase the cwnd
+					 * artificially.
+					 */
+					tp1->whoTo->cwnd += tp1->book_size;
 					asoc->total_flight_count++;
 					asoc->total_flight += tp1->book_size;
 					cnt_revoked++;
@@ -5139,10 +5132,12 @@ done_with_it:
 	}
 	/*
 	 * CMT fast recovery code. Need to debug. ((sctp_cmt_on_off == 1) &&
-	 * (net->fast_retran_loss_recovery == 0)))
+	 * (net->fast_retran_loss_recovery == 0))) if
+	 * ((asoc->fast_retran_loss_recovery == 0) || (sctp_cmt_on_off ==
+	 * 1)) {
 	 */
 	TAILQ_FOREACH(net, &asoc->nets, sctp_next) {
-		if ((asoc->fast_retran_loss_recovery == 0) || (sctp_cmt_on_off == 1)) {
+		if (asoc->fast_retran_loss_recovery == 0) {
 			/* out of a RFC2582 Fast recovery window? */
 			if (net->net_ack > 0) {
 				/*
@@ -5287,6 +5282,9 @@ done_with_it:
 		/* end satellite t3 loss recovery */
 		asoc->sat_t3_loss_recovery = 0;
 	}
+	/*
+	 * CMT Fast recovery
+	 */
 	TAILQ_FOREACH(net, &asoc->nets, sctp_next) {
 		if (net->will_exit_fast_recovery) {
 			/* Ok, we must exit fast recovery */

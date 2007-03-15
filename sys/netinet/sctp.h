@@ -157,7 +157,44 @@ struct sctp_paramhdr {
 #define SCTP_PCB_STATUS			0x00001105
 #define SCTP_GET_NONCE_VALUES           0x00001106
 
+/* Special hook for dynamically setting primary for all assoc's,
+ * this is a write only option that requires root privledge.
+ */
+#define SCTP_SET_DYNAMIC_PRIMARY        0x00002001
 
+/* VRF (virtual router feature) and multi-VRF support
+ * options. VRF's provide splits within a router
+ * that give the views of multiple routers. A
+ * standard host, without VRF support, is just
+ * a single VRF. If VRF's are supported then
+ * the transport must be VRF aware. This means
+ * that every socket call coming in must be directed
+ * within the endpoint to one of the VRF's it belongs
+ * to. The endpoint, before binding, may select
+ * the "default" VRF it is in by using a set socket
+ * option with SCTP_VRF_ID. This will also
+ * get propegated to the default VRF. Once the
+ * endpoint binds an address then it CANNOT add
+ * additional VRF's to become a Multi-VRF endpoint.
+ *
+ * Before BINDING additional VRF's can be added with
+ * the SCTP_ADD_VRF_ID call or deleted with
+ * SCTP_DEL_VRF_ID.
+ *
+ * Associations are ALWAYS contained inside a single
+ * VRF. They cannot reside in two (or more) VRF's. Incoming
+ * packets, assuming the router is VRF aware, can always
+ * tell us what VRF they arrived on. A host not supporting
+ * any VRF's will find that the packets always arrived on the
+ * single VRF that the host has.
+ *
+ */
+
+#define SCTP_VRF_ID			0x00003001
+#define SCTP_ADD_VRF_ID			0x00003002
+#define SCTP_GET_VRF_IDS		0x00003003
+#define SCTP_GET_ASOC_VRF               0x00003004
+#define SCTP_DEL_VRF_ID                 0x00003005
 /*
  * hidden implementation specific options these are NOT user visible (should
  * move out of sctp.h)

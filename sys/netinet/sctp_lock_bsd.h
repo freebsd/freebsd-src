@@ -106,9 +106,8 @@ extern int sctp_logoff_stuff;
 } while (0)
 
 
-
 #define SCTP_IPI_ADDR_INIT() \
-        mtx_init(&sctppcbinfo.ipi_addr_mtx, "sctp-addr-wq", "sctp_addr_wq", MTX_DEF)
+        mtx_init(&sctppcbinfo.ipi_addr_mtx, "sctp-addr", "sctp_addr", MTX_DEF)
 
 #define SCTP_IPI_ADDR_DESTROY() \
 	mtx_destroy(&sctppcbinfo.ipi_addr_mtx)
@@ -118,6 +117,24 @@ extern int sctp_logoff_stuff;
 } while (0)
 
 #define SCTP_IPI_ADDR_UNLOCK()		mtx_unlock(&sctppcbinfo.ipi_addr_mtx)
+
+
+
+#define SCTP_IPI_ITERATOR_WQ_INIT() \
+        mtx_init(&sctppcbinfo.ipi_iterator_wq_mtx, "sctp-it-wq", "sctp_it_wq", MTX_DEF)
+
+#define SCTP_IPI_ITERATOR_WQ_DESTROY() \
+	mtx_destroy(&sctppcbinfo.ipi_iterator_wq_mtx)
+
+#define SCTP_IPI_ITERATOR_WQ_LOCK()	do { 					\
+             mtx_lock(&sctppcbinfo.ipi_iterator_wq_mtx);                \
+} while (0)
+
+#define SCTP_IPI_ITERATOR_WQ_UNLOCK()		mtx_unlock(&sctppcbinfo.ipi_iterator_wq_mtx)
+
+
+
+
 
 #define SCTP_INP_INFO_RUNLOCK()		mtx_unlock(&sctppcbinfo.ipi_ep_mtx)
 #define SCTP_INP_INFO_WUNLOCK()		mtx_unlock(&sctppcbinfo.ipi_ep_mtx)
@@ -190,36 +207,9 @@ extern int sctp_logoff_stuff;
 
 #define SCTP_TCB_SEND_UNLOCK(_tcb) mtx_unlock(&(_tcb)->tcb_send_mtx)
 
-#ifdef INVARIANTS
-
-#define SCTP_INP_INCR_REF(_inp) { int x; \
-                                  atomic_add_int(&((_inp)->refcount), 1); \
-                                  x = atomic_fetchadd_int(&sctp_logoff_stuff, 1); \
-                                  if(x == 30000) \
-                                      sctp_logoff_stuff = x = 0; \
-                                  sctp_logoff[x].inp = _inp; \
-                                  sctp_logoff[x].ticks = ticks; \
-                                  sctp_logoff[x].lineno = __LINE__; \
-                                  sctp_logoff[x].updown = 1; \
-}
-
-#define SCTP_INP_DECR_REF(_inp) { int x; \
-                                  if (atomic_fetchadd_int(&((_inp)->refcount), -1) == 0 ) panic("refcount goes negative"); \
-                                  x = atomic_fetchadd_int(&sctp_logoff_stuff, 1); \
-                                  if(x == 30000) \
-                                      sctp_logoff_stuff = x = 0; \
-                                  sctp_logoff[x].inp = _inp; \
-                                  sctp_logoff[x].ticks = ticks; \
-                                  sctp_logoff[x].lineno = __LINE__; \
-                                  sctp_logoff[x].updown = 0; \
-}
-
-#else
-
 #define SCTP_INP_INCR_REF(_inp) atomic_add_int(&((_inp)->refcount), 1)
 #define SCTP_INP_DECR_REF(_inp) atomic_add_int(&((_inp)->refcount), -1)
 
-#endif
 
 #ifdef SCTP_LOCK_LOGGING
 #define SCTP_ASOC_CREATE_LOCK(_inp) \

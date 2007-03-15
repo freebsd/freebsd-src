@@ -62,4 +62,11 @@ __FBSDID("$FreeBSD$");
 
 
 
+/* All os's must implement this address gatherer. If
+ * no VRF's exist, then vrf 0 is the only one and all
+ * addresses and ifn's live here.
+ */
+#define SCTP_DEFAULT_VRF 0
+void sctp_init_vrf_list(int vrfid);
+
 #endif

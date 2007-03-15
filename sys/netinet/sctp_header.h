@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2001-2006, Cisco Systems, Inc. All rights reserved.
+ * Copyright (c) 2001-2007, Cisco Systems, Inc. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -49,9 +49,12 @@ struct sctp_ipv4addr_param {
 	uint32_t addr;		/* IPV4 address */
 };
 
+#define SCTP_V6_ADDR_BYTES 16
+
+
 struct sctp_ipv6addr_param {
 	struct sctp_paramhdr ph;/* type=SCTP_IPV6_PARAM_TYPE, len=20 */
-	uint8_t addr[16];	/* IPV6 address */
+	uint8_t addr[SCTP_V6_ADDR_BYTES];	/* IPV6 address */
 };
 
 /* Cookie Preservative */
@@ -60,16 +63,19 @@ struct sctp_cookie_perserve_param {
 	uint32_t time;		/* time in ms to extend cookie */
 };
 
+#define SCTP_ARRAY_MIN_LEN 1
+
 /* Host Name Address */
 struct sctp_host_name_param {
 	struct sctp_paramhdr ph;/* type=SCTP_HOSTNAME_ADDRESS */
-	char name[1];		/* host name */
+	char name[SCTP_ARRAY_MIN_LEN];	/* host name */
 };
 
 /* supported address type */
 struct sctp_supported_addr_param {
 	struct sctp_paramhdr ph;/* type=SCTP_SUPPORTED_ADDRTYPE */
-	uint16_t addr_type[1];	/* array of supported address types */
+	uint16_t addr_type[SCTP_ARRAY_MIN_LEN];	/* array of supported address
+						 * types */
 };
 
 /* ECN parameter */
@@ -157,18 +163,20 @@ struct sctp_init {
 	/* optional param's follow */
 };
 
+#define SCTP_IDENTIFICATION_SIZE 16
+#define SCTP_ADDRESS_SIZE 4
 /* state cookie header */
 struct sctp_state_cookie {	/* this is our definition... */
-	uint8_t identification[16];	/* id of who we are */
+	uint8_t identification[SCTP_IDENTIFICATION_SIZE];	/* id of who we are */
 	uint32_t cookie_life;	/* life I will award this cookie */
 	uint32_t tie_tag_my_vtag;	/* my tag in old association */
 	uint32_t tie_tag_peer_vtag;	/* peers tag in old association */
 	uint32_t peers_vtag;	/* peers tag in INIT (for quick ref) */
 	uint32_t my_vtag;	/* my tag in INIT-ACK (for quick ref) */
 	struct timeval time_entered;	/* the time I built cookie */
-	uint32_t address[4];	/* 4 ints/128 bits */
+	uint32_t address[SCTP_ADDRESS_SIZE];	/* 4 ints/128 bits */
 	uint32_t addr_type;	/* address type */
-	uint32_t laddress[4];	/* my local from address */
+	uint32_t laddress[SCTP_ADDRESS_SIZE];	/* my local from address */
 	uint32_t laddr_type;	/* my local from address type */
 	uint32_t scope_id;	/* v6 scope id for link-locals */
 	uint16_t peerport;	/* port address of the peer in the INIT */
@@ -519,7 +527,7 @@ struct sctp_auth_invalid_hmac {
  * feel is worth it for now.
  */
 #ifndef SCTP_MAX_OVERHEAD
-#ifdef AF_INET6
+#ifdef INET6
 #define SCTP_MAX_OVERHEAD (sizeof(struct sctp_data_chunk) + \
 			   sizeof(struct sctphdr) + \
 			   sizeof(struct sctp_ecne_chunk) + \
@@ -549,7 +557,7 @@ struct sctp_auth_invalid_hmac {
 #define SCTP_MIN_OVERHEAD (sizeof(struct ip) + \
 			   sizeof(struct sctphdr))
 
-#endif				/* AF_INET6 */
+#endif				/* INET6 */
 #endif				/* !SCTP_MAX_OVERHEAD */
 
 #define SCTP_MED_V4_OVERHEAD (sizeof(struct sctp_data_chunk) + \

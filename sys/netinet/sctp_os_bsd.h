@@ -51,6 +51,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/sysctl.h>
 #include <sys/resourcevar.h>
 #include <sys/uio.h>
+#include <sys/kthread.h>
 #include <sys/priv.h>
 #include <sys/random.h>
 #include <sys/limits.h>
@@ -109,6 +110,23 @@ __FBSDID("$FreeBSD$");
 #define SCTP_LIST_EMPTY(list)	LIST_EMPTY(list)
 
 /*
+ * Local address and interface list handling
+ */
+#define SCTP_MAX_VRF_ID 0
+#define SCTP_SIZE_OF_VRF_HASH 3
+#define SCTP_IFNAMSIZ IFNAMSIZ
+#define SCTP_DEFAULT_VRFID 0
+
+#define SCTP_IFN_IS_IFT_LOOP(ifn) ((ifn)->ifn_type == IFT_LOOP)
+
+/*
+ * Access to IFN's to help with src-addr-selection
+ */
+/* This could return VOID if the index works but for BSD we provide both. */
+#define SCTP_GET_IFN_VOID_FROM_ROUTE(ro) (void *)ro->ro_rt->rt_ifp
+#define SCTP_GET_IF_INDEX_FROM_ROUTE(ro) ro->ro_rt->rt_ifp->if_index
+
+/*
  * general memory allocation
  */
 #define SCTP_MALLOC(var, type, size, name) \
@@ -124,6 +142,8 @@ __FBSDID("$FreeBSD$");
     } while (0)
 
 #define SCTP_FREE_SONAME(var)	FREE(var, M_SONAME)
+
+#define SCTP_PROCESS_STRUCT struct proc *
 
 /*
  * zone allocation functions
@@ -168,7 +188,6 @@ typedef struct callout sctp_os_timer_t;
 /*
  * Functions
  */
-
 /* Mbuf manipulation and access macros  */
 #define SCTP_BUF_LEN(m) (m->m_len)
 #define SCTP_BUF_NEXT(m) (m->m_next)
@@ -224,7 +243,12 @@ typedef struct callout sctp_os_timer_t;
 
 /* is the endpoint v6only? */
 #define SCTP_IPV6_V6ONLY(inp)	(((struct inpcb *)inp)->inp_flags & IN6P_IPV6_V6ONLY)
-
+/* is the socket non-blocking? */
+#define SCTP_SO_IS_NBIO(so)	((so)->so_state & SS_NBIO)
+#define SCTP_SET_SO_NBIO(so)	((so)->so_state |= SS_NBIO)
+#define SCTP_CLEAR_SO_NBIO(so)	((so)->so_state &= ~SS_NBIO)
+/* get the socket type */
+#define SCTP_SO_TYPE(so)	((so)->so_type)
 
 /*
  * SCTP AUTH

@@ -98,17 +98,10 @@ typedef struct sctp_authinfo {
 }             sctp_authinfo_t;
 
 
-/*
- * global variables
- */
-extern uint32_t sctp_asconf_auth_nochk;	/* sysctl to disable ASCONF auth chk */
-extern uint32_t sctp_auth_disable;	/* sysctl for temp feature interop */
-extern uint32_t sctp_auth_random_len;	/* sysctl */
 
 /*
  * Macros
  */
-
 #define sctp_auth_is_required_chunk(chunk, list) ((list == NULL) ? (0) : (list->chunks[chunk] != 0))
 
 /*

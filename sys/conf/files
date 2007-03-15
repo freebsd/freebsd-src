@@ -1786,6 +1786,7 @@ netinet/sctp_asconf.c		optional inet inet6 sctp
 netinet/sctp_peeloff.c		optional inet inet6 sctp
 netinet/sctp_crc32.c		optional inet inet6 sctp
 netinet/sctp_auth.c		optional inet inet6 sctp
+netinet/sctp_sysctl.c		optional inet inet6 sctp
 netinet/tcp_debug.c		optional tcpdebug
 netinet/tcp_hostcache.c		optional inet
 netinet/tcp_input.c		optional inet
