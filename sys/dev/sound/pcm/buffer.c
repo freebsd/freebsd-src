@@ -196,25 +196,8 @@ sndbuf_remalloc(struct snd_dbuf *b, unsigned int blkcnt, unsigned int blksz)
 
 	chn_unlock(b->channel);
 	buf = malloc(bufsize, M_DEVBUF, M_WAITOK);
-	if (buf == NULL) {
-		ret = ENOMEM;
-		goto out;
-	}
-
 	tmpbuf = malloc(bufsize, M_DEVBUF, M_WAITOK);
-   	if (tmpbuf == NULL) {
-		free(buf, M_DEVBUF);
-		ret = ENOMEM;
-		goto out;
-	}
-
 	shadbuf = malloc(bufsize, M_DEVBUF, M_WAITOK);
-	if (shadbuf == NULL) {
-		free(buf, M_DEVBUF);
-		free(tmpbuf, M_DEVBUF);
-		ret = ENOMEM;
-		goto out;
-	}
 
 	chn_lock(b->channel);
 
@@ -241,7 +224,7 @@ sndbuf_remalloc(struct snd_dbuf *b, unsigned int blkcnt, unsigned int blksz)
 		free(f3, M_DEVBUF);
 
 	ret = 0;
-out:
+
 	chn_lock(b->channel);
 	return ret;
 }

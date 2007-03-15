@@ -137,7 +137,7 @@ fkchan_setup(device_t dev)
     	struct snddev_info *d = device_get_softc(dev);
 	struct pcm_channel *c;
 
-	c = malloc(sizeof(*c), M_DEVBUF, M_WAITOK);
+	c = malloc(sizeof(*c), M_DEVBUF, M_WAITOK | M_ZERO);
 	c->methods = kobj_create(&fkchan_class, M_DEVBUF, M_WAITOK);
 	c->parentsnddev = d;
 	/*
