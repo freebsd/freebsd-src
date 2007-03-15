@@ -851,7 +851,7 @@ ich_pci_attach(device_t dev)
 		return (ENXIO);
 	}
 
-	sc->ich_lock = snd_mtxcreate(device_get_nameunit(dev), "sound softc");
+	sc->ich_lock = snd_mtxcreate(device_get_nameunit(dev), "snd_ich softc");
 	sc->dev = dev;
 
 	vendor = sc->vendor = pci_get_vendor(dev);

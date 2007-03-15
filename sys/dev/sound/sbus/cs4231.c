@@ -375,12 +375,7 @@ cs4231_attach_common(struct cs4231_softc *sc)
 	int i;
 
 	sc->sc_lock = snd_mtxcreate(device_get_nameunit(sc->sc_dev),
-	    "sound softc");
-	if (sc->sc_lock == NULL) {
-		device_printf(sc->sc_dev, "cannot create mutex\n");
-		free(sc, M_DEVBUF);
-		return (ENXIO);
-	}
+	    "snd_cs4231 softc");
 
 	for (i = 0; i < sc->sc_nmres; i++) {
 		sc->sc_rid[i] = i;

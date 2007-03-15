@@ -1781,7 +1781,7 @@ agg_attach(device_t dev)
 	ess->dev = dev;
 
 #ifdef USING_MUTEX
-	mtx_init(&ess->lock, device_get_desc(dev), "hardware status lock",
+	mtx_init(&ess->lock, device_get_desc(dev), "snd_maestro softc",
 		 MTX_DEF | MTX_RECURSE);
 	if (!mtx_initialized(&ess->lock)) {
 		device_printf(dev, "failed to create a mutex.\n");

@@ -481,7 +481,8 @@ via_attach(device_t dev)
 		device_printf(dev, "cannot allocate softc\n");
 		return ENXIO;
 	}
-	via->lock = snd_mtxcreate(device_get_nameunit(dev), "sound softc");
+	via->lock = snd_mtxcreate(device_get_nameunit(dev),
+	    "snd_via82c686 softc");
 
 	/* Get resources */
 	data = pci_read_config(dev, PCIR_COMMAND, 2);
