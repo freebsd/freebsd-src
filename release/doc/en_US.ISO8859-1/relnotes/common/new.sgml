@@ -154,6 +154,12 @@
 	<para>The &man.ath.4; driver has been updated to
 	  HAL version 0.9.20.3.</para>
 
+	<para>The &man.cxgb.4; driver has been added.  It provides support for
+	  10 Gigabit Ethernet adapters based on the Chelsio T3 and T3B chipsets.
+	  </para>
+
+	<para>The &man.vge.4; driver now supports &man.altq.4;.</para>
+
 	<para>The 802.11 protocol stack now has support for 900 MHz
 	  cards, as well as quarter- and half-channel support
 	  for 802.11a.</para>
