@@ -80,7 +80,7 @@
 
 #include "mixer_if.h"
 
-#define HDA_DRV_TEST_REV	"20070225_0040"
+#define HDA_DRV_TEST_REV	"20070316_0041"
 #define HDA_WIDGET_PARSER_REV	1
 
 SND_DECLARE_FILE("$FreeBSD$");
@@ -1140,6 +1140,7 @@ hdac_dma_cb(void *callback_arg, bus_dma_segment_t *segs, int nseg, int error)
 static void
 hdac_dma_nocache(void *ptr)
 {
+#if 0
 #if defined(__i386__) || defined(__amd64__)
 	pt_entry_t *pte;
 	vm_offset_t va;
@@ -1150,6 +1151,7 @@ hdac_dma_nocache(void *ptr)
 		*pte |= PG_N;
 		invltlb();
 	}
+#endif
 #endif
 }
 
