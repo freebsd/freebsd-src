@@ -43,8 +43,6 @@ static int	buffCount;
 static char	*argv[MAX_COMMAND_PARAMS];
 
 #define FLASH_OFFSET (0 * FLASH_PAGE_SIZE)
-#define FPGA_OFFSET  (15 * FLASH_PAGE_SIZE)
-#define FPGA_LEN     (212608)
 #define KERNEL_OFFSET (220 * FLASH_PAGE_SIZE)
 #define KERNEL_LEN (6 * 1024 * FLASH_PAGE_SIZE)
 static const char *backspaceString = "\010 \010";
@@ -61,40 +59,9 @@ static const command_entry_t	CommandTable[] = {
 	{COMMAND_LOAD_SPI_KERNEL, "k"},
 	{COMMAND_REPLACE_KERNEL_VIA_XMODEM, "K"},
 	{COMMAND_REPLACE_FLASH_VIA_XMODEM, "I"},
-	{COMMAND_REPLACE_FPGA_VIA_XMODEM, "F"},
 	{COMMAND_REPLACE_ID_EEPROM, "E"},
 	{COMMAND_FINAL_FLAG, 0}
 };
-
-#ifdef TSC_FPGA
-#include "fpga.h"
-
-const struct fpga main_fpga = 
-{
-    AT91C_BASE_PIOB, AT91C_PIO_PB0,
-    AT91C_BASE_PIOC, AT91C_PIO_PC11,
-    AT91C_BASE_PIOB, AT91C_PIO_PB2,
-    AT91C_BASE_PIOC, AT91C_PIO_PC12
-};
-
-void
-fpga_load(void)
-{
-	int len, off, i, offset;
-	char *addr = (char *)SDRAM_BASE + (1 << 20); /* Load to base + 1MB */
-
-	len = FPGA_LEN;
-	offset = FPGA_OFFSET;
-	for (i = 0; i < len; i+= FLASH_PAGE_SIZE) {
-		off = i + offset;
-		SPI_ReadFlash(off, addr + i, FLASH_PAGE_SIZE);
-	}
-	fpga_init(&main_fpga);
-	fpga_clear(&main_fpga);
-	fpga_write_bytes(&main_fpga, addr, len);
-	fpga_done(&main_fpga);
-}
-#endif
 
 /*
  * .KB_C_FN_DEFINITION_START
@@ -309,10 +276,6 @@ ParseCommand(char *buffer)
 	case COMMAND_REPLACE_KERNEL_VIA_XMODEM:
 		printf("Updating KERNEL image\n");
 		UpdateFlash(KERNEL_OFFSET);
-		break;
-	case COMMAND_REPLACE_FPGA_VIA_XMODEM:
-		printf("Updating FPGA image\n");
-		UpdateFlash(FPGA_OFFSET);
 		break;
 	case COMMAND_REPLACE_FLASH_VIA_XMODEM: 
 		printf("Updating FLASH image\n");
