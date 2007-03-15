@@ -8,6 +8,10 @@ Items affecting the ports and packages system can be found in
 /usr/ports/UPDATING.  Please read that file before running
 portupgrade.
 
+20070315:	p3	FreeBSD-EN-07:05.freebsd-update
+	Fix problems in FreeBSD Update concerning the updating of SMP
+	kernels.
+
 20070228:	p2	FreeBSD-EN-07:02.net FreeBSD-EN-07:03.rc.d_jail
 	Fix behavior of IPv6 over point-to-point gif(4) interfaces.
 	[EN-07:02]
