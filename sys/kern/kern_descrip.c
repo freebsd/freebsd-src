@@ -2296,14 +2296,12 @@ dupfdopen(struct thread *td, struct filedesc *fdp, int indx, int dfd, int mode, 
 		fhold_locked(wfp);
 		FILE_UNLOCK(wfp);
 		FILEDESC_UNLOCK(fdp);
-		if (fp != NULL) {
+		if (fp != NULL)
 			/*
 			 * We now own the reference to fp that the ofiles[]
 			 * array used to own.  Release it.
 			 */
-			FILE_LOCK(fp);
-			fdrop_locked(fp, td);
-		}
+			fdrop(fp, td);
 		return (0);
 
 	case ENXIO:
@@ -2318,18 +2316,14 @@ dupfdopen(struct thread *td, struct filedesc *fdp, int indx, int dfd, int mode, 
 		fdunused(fdp, dfd);
 		if (fp == NULL)
 			fdused(fdp, indx);
-		if (fp != NULL)
-			FILE_LOCK(fp);
+		FILEDESC_UNLOCK(fdp);
 
 		/*
 		 * We now own the reference to fp that the ofiles[] array
 		 * used to own.  Release it.
 		 */
 		if (fp != NULL)
-			fdrop_locked(fp, td);
-
-		FILEDESC_UNLOCK(fdp);
-
+			fdrop(fp, td);
 		return (0);
 
 	default:
