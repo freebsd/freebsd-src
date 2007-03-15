@@ -1718,6 +1718,8 @@ hdac_widget_pin_getconfig(struct hdac_widget *w)
 			config &= ~HDA_CONFIG_DEFAULTCONF_DEVICE_MASK;
 			config |= HDA_CONFIG_DEFAULTCONF_DEVICE_HP_OUT;
 			break;
+		default:
+			break;
 		}
 	} else if (id == HDA_CODEC_ALC880 &&
 	    (sc->pci_subvendor == CLEVO_D900T_SUBVENDOR ||
@@ -2828,6 +2830,8 @@ hdac_channel_trigger(kobj_t obj, void *data, int go)
 	case PCMTRIG_ABORT:
 		hdac_channel_stop(sc, ch);
 		break;
+	default:
+		break;
 	}
 	hdac_unlock(sc);
 
@@ -3230,12 +3234,6 @@ hdac_attach(device_t dev)
 	}
 
 	sc->lock = snd_mtxcreate(device_get_nameunit(dev), HDAC_MTX_NAME);
-	if (sc->lock == NULL) {
-		device_printf(dev, "mutex creation failed\n");
-		free(sc, M_DEVBUF);
-		return (ENOMEM);
-	}
-
 	sc->dev = dev;
 	sc->pci_subvendor = (uint32_t)pci_get_subdevice(sc->dev) << 16;
 	sc->pci_subvendor |= (uint32_t)pci_get_subvendor(sc->dev) & 0x0000ffff;
