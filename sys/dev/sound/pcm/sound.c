@@ -67,8 +67,6 @@ snd_mtxcreate(const char *desc, const char *type)
 	struct mtx *m;
 
 	m = malloc(sizeof(*m), M_DEVBUF, M_WAITOK | M_ZERO);
-	if (m == NULL)
-		return NULL;
 	mtx_init(m, desc, type, MTX_DEF);
 	return m;
 #else
