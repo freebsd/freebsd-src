@@ -614,7 +614,6 @@ write_hierarchy(struct bsdtar *bsdtar, struct archive *a, const char *path)
 		if (lst == NULL) {
 			/* Couldn't lstat(); must not exist. */
 			bsdtar_warnc(bsdtar, errno, "%s: Cannot stat", name);
-			bsdtar->return_value = 1;
 			continue;
 		}
 		if (S_ISLNK(lst->st_mode))
