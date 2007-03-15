@@ -310,7 +310,6 @@ vlan_remhash(struct ifvlantrunk *trunk, struct ifvlan *ifv)
 static void
 vlan_growhash(struct ifvlantrunk *trunk, int howmuch)
 {
-
 	struct ifvlan *ifv;
 	struct ifvlanhead *hash2;
 	int hwidth2, i, j, n, n2;
@@ -350,6 +349,10 @@ vlan_growhash(struct ifvlantrunk *trunk, int howmuch)
 	trunk->hash = hash2;
 	trunk->hwidth = hwidth2;
 	trunk->hmask = n2 - 1;
+
+	if (bootverbose)
+		if_printf(trunk->parent,
+		    "VLAN hash table resized from %d to %d buckets\n", n, n2);
 }
 
 static __inline struct ifvlan *
