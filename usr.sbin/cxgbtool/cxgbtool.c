@@ -64,8 +64,8 @@ __FBSDID("$FreeBSD$");
 #define PROTO_SRAM_SIZE (PROTO_SRAM_LINE_NIBBLES * PROTO_SRAM_LINES / 2)
 #define PROTO_SRAM_EEPROM_ADDR 4096
 
-#include <cxgb3_ioctl.h>
-#include <common/cxgb3_regs.h>
+#include <cxgb_ioctl.h>
+#include <common/cxgb_regs.h>
 #include "version.h"
 
 struct reg_info { 
