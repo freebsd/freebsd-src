@@ -67,25 +67,28 @@ void Camellia_cbc_encrypt(const unsigned char *in, unsigned char *out,
 
 	unsigned long n;
 	unsigned long len = length;
-	unsigned char tmp[CAMELLIA_BLOCK_SIZE];
 	const unsigned char *iv = ivec;
-	uint32_t t32[UNITSIZE];
+	union {	u32 t32[CAMELLIA_BLOCK_SIZE/sizeof(u32)];
+		u8  t8 [CAMELLIA_BLOCK_SIZE]; } tmp;
+	const union { long one; char little; } camellia_endian = {1};
 
 
 	assert(in && out && key && ivec);
 	assert((CAMELLIA_ENCRYPT == enc)||(CAMELLIA_DECRYPT == enc));
 
-	if(((size_t)in) % ALIGN == 0
-		&& ((size_t)out) % ALIGN == 0
-		&& ((size_t)ivec) % ALIGN == 0)
+	if(((size_t)in|(size_t)out|(size_t)ivec) % sizeof(u32) == 0)
 		{
 		if (CAMELLIA_ENCRYPT == enc)
 			{
 			while (len >= CAMELLIA_BLOCK_SIZE)
 				{
-				XOR4WORD2((uint32_t *)out,
-					(uint32_t *)in, (uint32_t *)iv);
-				key->enc(key->rd_key, (uint32_t *)out);
+				XOR4WORD2((u32 *)out,
+					(u32 *)in, (u32 *)iv);
+				if (camellia_endian.little)
+					SWAP4WORD((u32 *)out);
+				key->enc(key->rd_key, (u32 *)out);
+				if (camellia_endian.little)
+					SWAP4WORD((u32 *)out);
 				iv = out;
 				len -= CAMELLIA_BLOCK_SIZE;
 				in += CAMELLIA_BLOCK_SIZE;
@@ -97,7 +100,11 @@ void Camellia_cbc_encrypt(const unsigned char *in, unsigned char *out,
 					out[n] = in[n] ^ iv[n];
 				for(n=len; n < CAMELLIA_BLOCK_SIZE; ++n)
 					out[n] = iv[n];
-				key->enc(key->rd_key, (uint32_t *)out);
+				if (camellia_endian.little)
+					SWAP4WORD((u32 *)out);
+				key->enc(key->rd_key, (u32 *)out);
+				if (camellia_endian.little)
+					SWAP4WORD((u32 *)out);
 				iv = out;
 				}
 			memcpy(ivec,iv,CAMELLIA_BLOCK_SIZE);
@@ -107,8 +114,12 @@ void Camellia_cbc_encrypt(const unsigned char *in, unsigned char *out,
 			while (len >= CAMELLIA_BLOCK_SIZE)
 				{
 				memcpy(out,in,CAMELLIA_BLOCK_SIZE);
-				key->dec(key->rd_key,(uint32_t *)out);
-				XOR4WORD((uint32_t *)out, (uint32_t *)iv);
+				if (camellia_endian.little)
+					SWAP4WORD((u32 *)out);
+				key->dec(key->rd_key,(u32 *)out);
+				if (camellia_endian.little)
+					SWAP4WORD((u32 *)out);
+				XOR4WORD((u32 *)out, (u32 *)iv);
 				iv = in;
 				len -= CAMELLIA_BLOCK_SIZE;
 				in  += CAMELLIA_BLOCK_SIZE;
@@ -116,10 +127,14 @@ void Camellia_cbc_encrypt(const unsigned char *in, unsigned char *out,
 				}
 			if (len)
 				{
-				memcpy(tmp, in, CAMELLIA_BLOCK_SIZE);
-				key->dec(key->rd_key, (uint32_t *)tmp);
+				memcpy(tmp.t8, in, CAMELLIA_BLOCK_SIZE);
+				if (camellia_endian.little)
+					SWAP4WORD(tmp.t32);
+				key->dec(key->rd_key, tmp.t32);
+				if (camellia_endian.little)
+					SWAP4WORD(tmp.t32);
 				for(n=0; n < len; ++n)
-					out[n] = tmp[n] ^ iv[n];
+					out[n] = tmp.t8[n] ^ iv[n];
 				iv = in;
 				}
 			memcpy(ivec,iv,CAMELLIA_BLOCK_SIZE);
@@ -128,23 +143,31 @@ void Camellia_cbc_encrypt(const unsigned char *in, unsigned char *out,
 			{
 			while (len >= CAMELLIA_BLOCK_SIZE)
 				{
-				memcpy(tmp, in, CAMELLIA_BLOCK_SIZE);
-				key->dec(key->rd_key, (uint32_t *)out);
-				XOR4WORD((uint32_t *)out, (uint32_t *)ivec);
-				memcpy(ivec, tmp, CAMELLIA_BLOCK_SIZE);
+				memcpy(tmp.t8, in, CAMELLIA_BLOCK_SIZE);
+				if (camellia_endian.little)
+					SWAP4WORD((u32 *)out);
+				key->dec(key->rd_key, (u32 *)out);
+				if (camellia_endian.little)
+					SWAP4WORD((u32 *)out);
+				XOR4WORD((u32 *)out, (u32 *)ivec);
+				memcpy(ivec, tmp.t8, CAMELLIA_BLOCK_SIZE);
 				len -= CAMELLIA_BLOCK_SIZE;
 				in += CAMELLIA_BLOCK_SIZE;
 				out += CAMELLIA_BLOCK_SIZE;
 				}
 			if (len)
 				{
-				memcpy(tmp, in, CAMELLIA_BLOCK_SIZE);
-				key->dec(key->rd_key,(uint32_t *)out);
+				memcpy(tmp.t8, in, CAMELLIA_BLOCK_SIZE);
+				if (camellia_endian.little)
+					SWAP4WORD((u32 *)out);
+				key->dec(key->rd_key,(u32 *)out);
+				if (camellia_endian.little)
+					SWAP4WORD((u32 *)out);
 				for(n=0; n < len; ++n)
 					out[n] ^= ivec[n];
 				for(n=len; n < CAMELLIA_BLOCK_SIZE; ++n)
-					out[n] = tmp[n];
-				memcpy(ivec, tmp, CAMELLIA_BLOCK_SIZE);
+					out[n] = tmp.t8[n];
+				memcpy(ivec, tmp.t8, CAMELLIA_BLOCK_SIZE);
 				}
 			}
 		}
@@ -155,10 +178,13 @@ void Camellia_cbc_encrypt(const unsigned char *in, unsigned char *out,
 			while (len >= CAMELLIA_BLOCK_SIZE)
 				{
 				for(n=0; n < CAMELLIA_BLOCK_SIZE; ++n)
-					out[n] = in[n] ^ iv[n];
-				memcpy(t32, out, CAMELLIA_BLOCK_SIZE);
-				key->enc(key->rd_key, t32);
-				memcpy(out, t32, CAMELLIA_BLOCK_SIZE);
+					tmp.t8[n] = in[n] ^ iv[n];
+				if (camellia_endian.little)
+					SWAP4WORD(tmp.t32);
+				key->enc(key->rd_key, tmp.t32);
+				if (camellia_endian.little)
+					SWAP4WORD(tmp.t32);
+				memcpy(out, tmp.t8, CAMELLIA_BLOCK_SIZE);
 				iv = out;
 				len -= CAMELLIA_BLOCK_SIZE;
 				in += CAMELLIA_BLOCK_SIZE;
@@ -167,10 +193,15 @@ void Camellia_cbc_encrypt(const unsigned char *in, unsigned char *out,
 			if (len)
 				{
 				for(n=0; n < len; ++n)
-					out[n] = in[n] ^ iv[n];
+					tmp.t8[n] = in[n] ^ iv[n];
 				for(n=len; n < CAMELLIA_BLOCK_SIZE; ++n)
-					out[n] = iv[n];
-				key->enc(key->rd_key, (uint32_t *)out);
+					tmp.t8[n] = iv[n];
+				if (camellia_endian.little)
+					SWAP4WORD(tmp.t32);
+				key->enc(key->rd_key, tmp.t32);
+				if (camellia_endian.little)
+					SWAP4WORD(tmp.t32);
+				memcpy(out, tmp.t8, CAMELLIA_BLOCK_SIZE);
 				iv = out;
 				}
 			memcpy(ivec,iv,CAMELLIA_BLOCK_SIZE);
@@ -179,11 +210,14 @@ void Camellia_cbc_encrypt(const unsigned char *in, unsigned char *out,
 			{
 			while (len >= CAMELLIA_BLOCK_SIZE)
 				{
-				memcpy(t32,in,CAMELLIA_BLOCK_SIZE);
-				key->dec(key->rd_key,t32);
-				memcpy(out,t32,CAMELLIA_BLOCK_SIZE);
+				memcpy(tmp.t8,in,CAMELLIA_BLOCK_SIZE);
+				if (camellia_endian.little)
+					SWAP4WORD(tmp.t32);
+				key->dec(key->rd_key,tmp.t32);
+				if (camellia_endian.little)
+					SWAP4WORD(tmp.t32);
 				for(n=0; n < CAMELLIA_BLOCK_SIZE; ++n)
-					out[n] ^= iv[n];
+					out[n] = tmp.t8[n] ^ iv[n];
 				iv = in;
 				len -= CAMELLIA_BLOCK_SIZE;
 				in  += CAMELLIA_BLOCK_SIZE;
@@ -191,12 +225,14 @@ void Camellia_cbc_encrypt(const unsigned char *in, unsigned char *out,
 				}
 			if (len)
 				{
-				memcpy(tmp, in, CAMELLIA_BLOCK_SIZE);
-				memcpy(t32, in, CAMELLIA_BLOCK_SIZE);
-				key->dec(key->rd_key, t32);
-				memcpy(out, t32, CAMELLIA_BLOCK_SIZE);
+				memcpy(tmp.t8, in, CAMELLIA_BLOCK_SIZE);
+				if (camellia_endian.little)
+					SWAP4WORD(tmp.t32);
+				key->dec(key->rd_key, tmp.t32);
+				if (camellia_endian.little)
+					SWAP4WORD(tmp.t32);
 				for(n=0; n < len; ++n)
-					out[n] = tmp[n] ^ iv[n];
+					out[n] = tmp.t8[n] ^ iv[n];
 				iv = in;
 				}
 			memcpy(ivec,iv,CAMELLIA_BLOCK_SIZE);
@@ -205,30 +241,33 @@ void Camellia_cbc_encrypt(const unsigned char *in, unsigned char *out,
 			{
 			while (len >= CAMELLIA_BLOCK_SIZE)
 				{
-				memcpy(tmp, in, CAMELLIA_BLOCK_SIZE);
-				memcpy(t32, in, CAMELLIA_BLOCK_SIZE);
-				key->dec(key->rd_key, t32);
-				memcpy(out, t32, CAMELLIA_BLOCK_SIZE);
+				memcpy(tmp.t8, in, CAMELLIA_BLOCK_SIZE);
+				if (camellia_endian.little)
+					SWAP4WORD(tmp.t32);
+				key->dec(key->rd_key, tmp.t32);
+				if (camellia_endian.little)
+					SWAP4WORD(tmp.t32);
 				for(n=0; n < CAMELLIA_BLOCK_SIZE; ++n)
-					out[n] ^= ivec[n];
-				memcpy(ivec, tmp, CAMELLIA_BLOCK_SIZE);
+					tmp.t8[n] ^= ivec[n];
+				memcpy(ivec, in, CAMELLIA_BLOCK_SIZE);
+				memcpy(out, tmp.t8, CAMELLIA_BLOCK_SIZE);
 				len -= CAMELLIA_BLOCK_SIZE;
 				in += CAMELLIA_BLOCK_SIZE;
 				out += CAMELLIA_BLOCK_SIZE;
 				}
 			if (len)
 				{
-				memcpy(tmp, in, CAMELLIA_BLOCK_SIZE);
-				memcpy(t32, in, CAMELLIA_BLOCK_SIZE);
-				key->dec(key->rd_key,t32);
-				memcpy(out, t32, CAMELLIA_BLOCK_SIZE);
+				memcpy(tmp.t8, in, CAMELLIA_BLOCK_SIZE);
+				if (camellia_endian.little)
+					SWAP4WORD(tmp.t32);
+				key->dec(key->rd_key,tmp.t32);
+				if (camellia_endian.little)
+					SWAP4WORD(tmp.t32);
 				for(n=0; n < len; ++n)
-					out[n] ^= ivec[n];
-				for(n=len; n < CAMELLIA_BLOCK_SIZE; ++n)
-					out[n] = tmp[n];
-				memcpy(ivec, tmp, CAMELLIA_BLOCK_SIZE);
+					tmp.t8[n] ^= ivec[n];
+				memcpy(ivec, in, CAMELLIA_BLOCK_SIZE);
+				memcpy(out,tmp.t8,len);
 				}
 			}
 		}
 }
-
