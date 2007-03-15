@@ -1123,7 +1123,8 @@ via_attach(device_t dev)
 		device_printf(dev, "cannot allocate softc\n");
 		return (ENXIO);
 	}
-	via->lock = snd_mtxcreate(device_get_nameunit(dev), "sound softc");
+	via->lock = snd_mtxcreate(device_get_nameunit(dev),
+	    "snd_via8233 softc");
 
 	callout_init(&via->poll_timer, CALLOUT_MPSAFE);
 	via->poll_ticks = 1;

@@ -1016,7 +1016,7 @@ emu_pcm_attach(device_t dev)
 		return (ENXIO);
 	}
 
-	sc->lock = snd_mtxcreate(device_get_nameunit(dev), "sound softc");
+	sc->lock = snd_mtxcreate(device_get_nameunit(dev), "snd_emu10kx softc");
 	sc->dev = dev;
 
 	r = BUS_READ_IVAR(device_get_parent(dev), dev, EMU_VAR_ISEMU10K1, &is_emu10k1);

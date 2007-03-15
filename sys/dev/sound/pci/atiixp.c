@@ -1134,7 +1134,7 @@ atiixp_pci_attach(device_t dev)
 		return (ENXIO);
 	}
 
-	sc->lock = snd_mtxcreate(device_get_nameunit(dev), "sound softc");
+	sc->lock = snd_mtxcreate(device_get_nameunit(dev), "snd_atiixp softc");
 	sc->dev = dev;
 
 	callout_init(&sc->poll_timer, CALLOUT_MPSAFE);
