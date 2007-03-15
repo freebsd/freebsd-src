@@ -1020,12 +1020,15 @@ syncache_add(struct in_conninfo *inc, struct tcpopt *to, struct tcphdr *th,
 			 * with auto sizing.  This allows us to scale the
 			 * receive buffer over a wide range while not losing
 			 * any efficiency or fine granularity.
+			 *
+			 * RFC1323: The Window field in a SYN (i.e., a <SYN>
+			 * or <SYN,ACK>) segment itself is never scaled.
 			 */
 			while (wscale < TCP_MAX_WINSHIFT &&
 			    (0x1 << wscale) < tcp_minmss)
 				wscale++;
 			sc->sc_requested_r_scale = wscale;
-			sc->sc_requested_s_scale = to->to_requested_s_scale;
+			sc->sc_requested_s_scale = to->to_wscale;
 			sc->sc_flags |= SCF_WINSCALE;
 		}
 	}
@@ -1097,8 +1100,8 @@ syncache_respond(struct syncache *sc, struct mbuf *m)
 	struct ip *ip = NULL;
 	struct tcphdr *th;
 	int optlen, error;
-	u_int16_t tlen, hlen, mssopt;
-	u_int8_t *optp;
+	u_int16_t hlen, tlen, mssopt;
+	struct tcpopt to;
 #ifdef INET6
 	struct ip6_hdr *ip6 = NULL;
 #endif
@@ -1108,33 +1111,16 @@ syncache_respond(struct syncache *sc, struct mbuf *m)
 	       (sc->sc_inc.inc_isipv6) ? sizeof(struct ip6_hdr) :
 #endif
 		sizeof(struct ip);
+	tlen = hlen + sizeof(struct tcphdr);
 
 	/* Determine MSS we advertize to other end of connection. */
 	mssopt = tcp_mssopt(&sc->sc_inc);
 	if (sc->sc_peer_mss)
 		mssopt = max( min(sc->sc_peer_mss, mssopt), tcp_minmss);
 
-	/* Compute the size of the TCP options. */
-	if (sc->sc_flags & SCF_NOOPT) {
-		optlen = 0;
-	} else {
-		optlen = TCPOLEN_MAXSEG +
-		    ((sc->sc_flags & SCF_WINSCALE) ? 4 : 0) +
-		    ((sc->sc_flags & SCF_TIMESTAMP) ? TCPOLEN_TSTAMP_APPA : 0);
-#ifdef TCP_SIGNATURE
-		if (sc->sc_flags & SCF_SIGNATURE)
-			optlen += TCPOLEN_SIGNATURE;
-#endif
-		if (sc->sc_flags & SCF_SACK)
-			optlen += TCPOLEN_SACK_PERMITTED;
-		optlen = roundup2(optlen, 4);
-	}
-	tlen = hlen + sizeof(struct tcphdr) + optlen;
-
-	/*
-	 * XXX: Assume that the entire packet will fit in a header mbuf.
-	 */
-	KASSERT(max_linkhdr + tlen <= MHLEN, ("syncache: mbuf too small"));
+	/* XXX: Assume that the entire packet will fit in a header mbuf. */
+	KASSERT(max_linkhdr + tlen + MAX_TCPOPTLEN <= MHLEN,
+	    ("syncache: mbuf too small"));
 
 	/* Create the IP+TCP header from scratch. */
 	if (m)
@@ -1197,70 +1183,52 @@ syncache_respond(struct syncache *sc, struct mbuf *m)
 
 	th->th_seq = htonl(sc->sc_iss);
 	th->th_ack = htonl(sc->sc_irs + 1);
-	th->th_off = (sizeof(struct tcphdr) + optlen) >> 2;
+	th->th_off = sizeof(struct tcphdr) >> 2;
 	th->th_x2 = 0;
 	th->th_flags = TH_SYN|TH_ACK;
 	th->th_win = htons(sc->sc_wnd);
 	th->th_urp = 0;
 
 	/* Tack on the TCP options. */
-	if (optlen != 0) {
-		optp = (u_int8_t *)(th + 1);
-		*optp++ = TCPOPT_MAXSEG;
-		*optp++ = TCPOLEN_MAXSEG;
-		*optp++ = (mssopt >> 8) & 0xff;
-		*optp++ = mssopt & 0xff;
+	if ((sc->sc_flags & SCF_NOOPT) == 0) {
+		to.to_flags = 0;
 
+		to.to_mss = mssopt;
+		to.to_flags = TOF_MSS;
 		if (sc->sc_flags & SCF_WINSCALE) {
-			*((u_int32_t *)optp) = htonl(TCPOPT_NOP << 24 |
-			    TCPOPT_WINDOW << 16 | TCPOLEN_WINDOW << 8 |
-			    sc->sc_requested_r_scale);
-			optp += 4;
+			to.to_wscale = sc->sc_requested_r_scale;
+			to.to_flags |= TOF_SCALE;
 		}
-
 		if (sc->sc_flags & SCF_TIMESTAMP) {
-			u_int32_t *lp = (u_int32_t *)(optp);
-
-			/* Form timestamp option per appendix A of RFC 1323. */
-			*lp++ = htonl(TCPOPT_TSTAMP_HDR);
-			if (sc->sc_ts)
-				*lp++ = htonl(sc->sc_ts);
-			else
-				*lp++ = htonl(ticks);
-			*lp   = htonl(sc->sc_tsreflect);
-			optp += TCPOLEN_TSTAMP_APPA;
+			/* Virgin timestamp or TCP cookie enhanced one. */
+			to.to_tsval = sc->sc_ts ? sc->sc_ts : ticks;
+			to.to_tsecr = sc->sc_tsreflect;
+			to.to_flags |= TOF_TS;
 		}
+		if (sc->sc_flags & SCF_SACK)
+			to.to_flags |= TOF_SACKPERM;
+#ifdef TCP_SIGNATURE
+		if (sc->sc_flags & SCF_SIGNATURE)
+			to.to_flags |= TOF_SIGNATURE;
+#endif
+		optlen = tcp_addoptions(&to, (u_char *)(th + 1));
 
 #ifdef TCP_SIGNATURE
-		/*
-		 * Handle TCP-MD5 passive opener response.
-		 */
-		if (sc->sc_flags & SCF_SIGNATURE) {
-			u_int8_t *bp = optp;
-			int i;
+		tcp_signature_compute(m, sizeof(struct ip), 0, optlen,
+		    to.to_signature, IPSEC_DIR_OUTBOUND);
+#endif
 
-			*bp++ = TCPOPT_SIGNATURE;
-			*bp++ = TCPOLEN_SIGNATURE;
-			for (i = 0; i < TCP_SIGLEN; i++)
-				*bp++ = 0;
-			tcp_signature_compute(m, sizeof(struct ip), 0, optlen,
-			    optp + 2, IPSEC_DIR_OUTBOUND);
-			optp += TCPOLEN_SIGNATURE;
-		}
-#endif /* TCP_SIGNATURE */
-
-		if (sc->sc_flags & SCF_SACK) {
-			*optp++ = TCPOPT_SACK_PERMITTED;
-			*optp++ = TCPOLEN_SACK_PERMITTED;
-		}
-
-		{
-			/* Pad TCP options to a 4 byte boundary */
-			int padlen = optlen - (optp - (u_int8_t *)(th + 1));
-			while (padlen-- > 0)
-				*optp++ = TCPOPT_EOL;
-		}
-	}
+		/* Adjust headers by option size. */
+		th->th_off = (sizeof(struct tcphdr) + optlen) >> 2;
+		m->m_len += optlen;
+		m->m_pkthdr.len += optlen;
+#ifdef INET6
+		if (sc->sc_inc.inc_isipv6)
+			ip6->ip6_plen = htons(ntohs(ip6->ip6_plen) + optlen);
+#endif
+			ip->ip_len += optlen;
+	} else
+		optlen = 0;
 
 #ifdef INET6
 	if (sc->sc_inc.inc_isipv6) {
@@ -1272,7 +1240,7 @@ syncache_respond(struct syncache *sc, struct mbuf *m)
 #endif
 	{
 		th->th_sum = in_pseudo(ip->ip_src.s_addr, ip->ip_dst.s_addr,
-		    htons(tlen - hlen + IPPROTO_TCP));
+		    htons(tlen + optlen - hlen + IPPROTO_TCP));
 		m->m_pkthdr.csum_flags = CSUM_TCP;
 		m->m_pkthdr.csum_data = offsetof(struct tcphdr, th_sum);
 		error = ip_output(m, sc->sc_ipopts, NULL, 0, NULL, NULL);

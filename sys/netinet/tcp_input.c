@@ -1146,7 +1146,7 @@ after_listen:
 		if ((to.to_flags & TOF_SCALE) &&
 		    (tp->t_flags & TF_REQ_SCALE)) {
 			tp->t_flags |= TF_RCVD_SCALE;
-			tp->snd_scale = to.to_requested_s_scale;
+			tp->snd_scale = to.to_wscale;
 			tp->snd_wnd = th->th_win << tp->snd_scale;
 			tiwin = tp->snd_wnd;
 		}
@@ -2745,7 +2745,7 @@ tcp_dooptions(to, cp, cnt, flags)
 			if (!(flags & TO_SYN))
 				continue;
 			to->to_flags |= TOF_SCALE;
-			to->to_requested_s_scale = min(cp[2], TCP_MAX_WINSHIFT);
+			to->to_wscale = min(cp[2], TCP_MAX_WINSHIFT);
 			break;
 		case TCPOPT_TIMESTAMP:
 			if (optlen != TCPOLEN_TIMESTAMP)

@@ -229,22 +229,27 @@ struct tcpcb {
  * Structure to hold TCP options that are only used during segment
  * processing (in tcp_input), but not held in the tcpcb.
  * It's basically used to reduce the number of parameters
- * to tcp_dooptions.
+ * to tcp_dooptions and tcp_addoptions.
+ * The binary order of the to_flags is relevant for packing of the
+ * options in tcp_addoptions.
  */
 struct tcpopt {
 	u_long		to_flags;	/* which options are present */
-#define	TOF_TS		0x0001		/* timestamp */
-#define	TOF_MSS		0x0010		/* maximum segment size */
-#define	TOF_SCALE	0x0020		/* window scaling */
+#define	TOF_MSS		0x0001		/* maximum segment size */
+#define	TOF_SCALE	0x0002		/* window scaling */
+#define	TOF_SACKPERM	0x0004		/* SACK permitted */
+#define	TOF_TS		0x0010		/* timestamp */
 #define	TOF_SIGNATURE	0x0040		/* signature option present */
 #define	TOF_SIGLEN	0x0080		/* signature length valid (RFC2385) */
 #define	TOF_SACK	0x0100		/* Peer sent SACK option */
-	u_int32_t	to_tsval;
-	u_int32_t	to_tsecr;
-	u_int16_t	to_mss;
-	u_int8_t	to_requested_s_scale;
+#define	TOF_MAXOPT	0x0200
+	u_int32_t	to_tsval;	/* our new timestamp */
+	u_int32_t	to_tsecr;	/* reflected timestamp */
+	u_int16_t	to_mss;		/* maximum segment size */
+	u_int8_t	to_wscale;	/* window scaling */
 	u_int8_t	to_nsacks;	/* number of SACK blocks */
 	u_char		*to_sacks;	/* pointer to the first SACK blocks */
+	u_char		*to_signature;	/* pointer to the MD5 signature */
 };
 
 /*
@@ -497,6 +502,7 @@ extern	int ss_fltsz_local;
 
 extern	int tcp_do_sack;	/* SACK enabled/disabled */
 
+int	 tcp_addoptions(struct tcpopt *, u_char *);
 struct tcpcb *
 	 tcp_close(struct tcpcb *);
 void	 tcp_discardcb(struct tcpcb *);

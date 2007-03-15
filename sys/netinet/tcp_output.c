@@ -142,10 +142,10 @@ tcp_output(struct tcpcb *tp)
 	u_char opt[TCP_MAXOLEN];
 	unsigned ipoptlen, optlen, hdrlen;
 	int idle, sendalot;
-	int i, sack_rxmit;
-	int sack_bytes_rxmt;
+	int sack_rxmit, sack_bytes_rxmt;
 	struct sackhole *p;
 	int tso = 0;
+	struct tcpopt to;
 #if 0
 	int maxburst = TCP_MAXBURST;
 #endif
@@ -626,156 +626,66 @@ send:
 	else
 #endif
 	hdrlen = sizeof (struct tcpiphdr);
-	if (flags & TH_SYN) {
-		tp->snd_nxt = tp->iss;
-		if ((tp->t_flags & TF_NOOPT) == 0) {
-			u_short mss;
-
-			opt[0] = TCPOPT_MAXSEG;
-			opt[1] = TCPOLEN_MAXSEG;
-			mss = htons((u_short) tcp_mssopt(&tp->t_inpcb->inp_inc));
-			(void)memcpy(opt + 2, &mss, sizeof(mss));
-			optlen = TCPOLEN_MAXSEG;
-
-			if ((tp->t_flags & TF_REQ_SCALE) &&
-			    ((flags & TH_ACK) == 0 ||
-			    (tp->t_flags & TF_RCVD_SCALE))) {
-				*((u_int32_t *)(opt + optlen)) = htonl(
-					TCPOPT_NOP << 24 |
-					TCPOPT_WINDOW << 16 |
-					TCPOLEN_WINDOW << 8 |
-					tp->request_r_scale);
-				optlen += 4;
-			}
-		}
-	}
 
 	/*
-	 * Send a timestamp and echo-reply if this is a SYN and our side
-	 * wants to use timestamps (TF_REQ_TSTMP is set) or both our side
-	 * and our peer have sent timestamps in our SYN's.
+	 * Compute options for segment.
+	 * We only have to care about SYN and established connection
+	 * segments.  Options for SYN-ACK segments are handled in TCP
+	 * syncache.
 	 */
-	if ((tp->t_flags & (TF_REQ_TSTMP|TF_NOOPT)) == TF_REQ_TSTMP &&
-	    (flags & TH_RST) == 0 &&
-	    ((flags & TH_ACK) == 0 ||
-	     (tp->t_flags & TF_RCVD_TSTMP))) {
-		u_int32_t *lp = (u_int32_t *)(opt + optlen);
-
-		/* Form timestamp option as shown in appendix A of RFC 1323. */
-		*lp++ = htonl(TCPOPT_TSTAMP_HDR);
-		*lp++ = htonl(ticks + tp->ts_offset);
-		*lp   = htonl(tp->ts_recent);
-		optlen += TCPOLEN_TSTAMP_APPA;
-	}
-
-	/* Set receive buffer autosizing timestamp. */
-	if (tp->rfbuf_ts == 0 && (so->so_rcv.sb_flags & SB_AUTOSIZE))
-		tp->rfbuf_ts = ticks;
-
+	if ((tp->t_flags & TF_NOOPT) == 0) {
+		to.to_flags = 0;
+		/* Maximum segment size. */
+		if (flags & TH_SYN) {
+			tp->snd_nxt = tp->iss;
+			to.to_mss = tcp_mssopt(&tp->t_inpcb->inp_inc);
+			to.to_flags |= TOF_MSS;
+		}
+		/* Window scaling. */
+		if ((flags & TH_SYN) && (tp->t_flags & TF_REQ_SCALE)) {
+			to.to_wscale = tp->request_r_scale;
+			to.to_flags |= TOF_SCALE;
+		}
+		/* Timestamps. */
+		if ((tp->t_flags & TF_RCVD_TSTMP) ||
+		    ((flags & TH_SYN) && (tp->t_flags & TF_REQ_TSTMP))) {
+			to.to_tsval = ticks + tp->ts_offset;
+			to.to_tsecr = tp->ts_recent;
+			to.to_flags |= TOF_TS;
+			/* Set receive buffer autosizing timestamp. */
+			if (tp->rfbuf_ts == 0 &&
+			    (so->so_rcv.sb_flags & SB_AUTOSIZE))
+				tp->rfbuf_ts = ticks;
+		}
+		/* Selective ACK's. */
+		if (tp->sack_enable) {
+			if (flags & TH_SYN)
+				to.to_flags |= TOF_SACKPERM;
+			else if (TCPS_HAVEESTABLISHED(tp->t_state) &&
+			    (tp->t_flags & TF_SACK_PERMIT) &&
+			    tp->rcv_numsacks > 0) {
+				to.to_flags |= TOF_SACK;
+				to.to_nsacks = tp->rcv_numsacks;
+				to.to_sacks = (u_char *)tp->sackblks;
+			}
+		}
 #ifdef TCP_SIGNATURE
+		/* TCP-MD5 (RFC2385). */
 #ifdef INET6
-	if (!isipv6)
-#endif
-	if (tp->t_flags & TF_SIGNATURE) {
-		int i;
-		u_char *bp;
-
-		/* Initialize TCP-MD5 option (RFC2385) */
-		bp = (u_char *)opt + optlen;
-		*bp++ = TCPOPT_SIGNATURE;
-		*bp++ = TCPOLEN_SIGNATURE;
-		sigoff = optlen + 2;
-		for (i = 0; i < TCP_SIGLEN; i++)
-			*bp++ = 0;
-		optlen += TCPOLEN_SIGNATURE;
-	}
+		if (!isipv6 && (tp->t_flags & TF_SIGNATURE))
+#else
+		if (tp->t_flags & TF_SIGNATURE)
+#endif /* INET6 */
+			to.to_flags |= TOF_SIGNATURE;
 #endif /* TCP_SIGNATURE */
 
-	if (tp->sack_enable && ((tp->t_flags & TF_NOOPT) == 0)) {
-		/* 
-		 * Tack on the SACK permitted option *last*.
-		 * And do padding of options after tacking this on.
-		 * This is because of MSS, TS, WinScale and Signatures are
-		 * all present, we have just 2 bytes left for the SACK
-		 * permitted option, which is just enough.
-		 */
-		/*
-		 * If this is the first SYN of connection (not a SYN
-		 * ACK), include SACK permitted option.  If this is a
-		 * SYN ACK, include SACK permitted option if peer has
-		 * already done so. This is only for active connect,
-		 * since the syncache takes care of the passive connect.
-		 */
-		if ((flags & TH_SYN) &&
-		    (!(flags & TH_ACK) || (tp->t_flags & TF_SACK_PERMIT))) {
-			u_char *bp;
-			bp = (u_char *)opt + optlen;
+		/* Processing the options. */
+		hdrlen += optlen = tcp_addoptions(&to, (u_char *)&opt);
 
-			*bp++ = TCPOPT_SACK_PERMITTED;
-			*bp++ = TCPOLEN_SACK_PERMITTED;
-			optlen += TCPOLEN_SACK_PERMITTED;
-		}
-
-		/*
-		 * Send SACKs if necessary.  This should be the last
-		 * option processed.  Only as many SACKs are sent as
-		 * are permitted by the maximum options size.
-		 *
-		 * In general, SACK blocks consume 8*n+2 bytes.
-		 * So a full size SACK blocks option is 34 bytes
-		 * (to generate 4 SACK blocks).  At a minimum,
-		 * we need 10 bytes (to generate 1 SACK block).
-		 * If TCP Timestamps (12 bytes) and TCP Signatures
-		 * (18 bytes) are both present, we'll just have
-		 * 10 bytes for SACK options 40 - (12 + 18).
-		 */
-		if (TCPS_HAVEESTABLISHED(tp->t_state) &&
-		    (tp->t_flags & TF_SACK_PERMIT) && tp->rcv_numsacks > 0 &&
-		    MAX_TCPOPTLEN - optlen - 2 >= TCPOLEN_SACK) {
-			int nsack, sackoptlen, padlen;
-			u_char *bp = (u_char *)opt + optlen;
-			u_int32_t *lp;
-
-			nsack = (MAX_TCPOPTLEN - optlen - 2) / TCPOLEN_SACK;
-			nsack = min(nsack, tp->rcv_numsacks);
-			sackoptlen = (2 + nsack * TCPOLEN_SACK);
-
-			/*
-			 * First we need to pad options so that the
-			 * SACK blocks can start at a 4-byte boundary
-			 * (sack option and length are at a 2 byte offset).
-			 */
-			padlen = (MAX_TCPOPTLEN - optlen - sackoptlen) % 4;
-			optlen += padlen;
-			while (padlen-- > 0)
-				*bp++ = TCPOPT_NOP;
-
-			tcpstat.tcps_sack_send_blocks++;
-			*bp++ = TCPOPT_SACK;
-			*bp++ = sackoptlen;
-			lp = (u_int32_t *)bp;
-			for (i = 0; i < nsack; i++) {
-				struct sackblk sack = tp->sackblks[i];
-				*lp++ = htonl(sack.start);
-				*lp++ = htonl(sack.end);
-			}
-			optlen += sackoptlen;
-		}
+#ifdef TCP_SIGNATURE
+		sigoff = to.to_signature - (u_char *)&to;
+#endif /* TCP_SIGNATURE */
 	}
-
-	/* Pad TCP options to a 4 byte boundary */
-	if (optlen < MAX_TCPOPTLEN && (optlen % sizeof(u_int32_t))) {
-		int pad = sizeof(u_int32_t) - (optlen % sizeof(u_int32_t));
-		u_char *bp = (u_char *)opt + optlen;
-
-		optlen += pad;
-		while (pad) {
-			*bp++ = TCPOPT_EOL;
-			pad--;
-		}
-	}
-
-	hdrlen += optlen;
 
 #ifdef INET6
 	if (isipv6)
@@ -876,11 +786,11 @@ send:
 		m->m_data += max_linkhdr;
 		m->m_len = hdrlen;
 		if (len <= MHLEN - hdrlen - max_linkhdr) {
-			m_copydata(so->so_snd.sb_mb, off, (int) len,
+			m_copydata(so->so_snd.sb_mb, off, (int)len,
 			    mtod(m, caddr_t) + hdrlen);
 			m->m_len += len;
 		} else {
-			m->m_next = m_copy(so->so_snd.sb_mb, off, (int) len);
+			m->m_next = m_copy(so->so_snd.sb_mb, off, (int)len);
 			if (m->m_next == 0) {
 				SOCKBUF_UNLOCK(&so->so_snd);
 				(void) m_free(m);
@@ -983,6 +893,9 @@ send:
 	/*
 	 * Calculate receive window.  Don't shrink window,
 	 * but avoid silly window syndrome.
+	 *
+	 * XXX: RFC1323:  The Window field in a SYN (i.e., a <SYN> or
+	 * <SYN,ACK>) segment itself is never scaled.
 	 */
 	if (recwin < (long)(so->so_rcv.sb_hiwat / 4) &&
 	    recwin < (long)tp->t_maxseg)
@@ -1319,4 +1232,144 @@ tcp_setpersist(tp)
 	callout_reset(tp->tt_persist, tt, tcp_timer_persist, tp);
 	if (tp->t_rxtshift < TCP_MAXRXTSHIFT)
 		tp->t_rxtshift++;
+}
+
+/*
+ * Insert TCP options according to the supplied parameters to the place
+ * optp in a consistent way.  Can handle unaligned destinations.
+ *
+ * The order of the option processing is crucial for optimal packing and
+ * alignment for the scarce option space.
+ *
+ * The optimal order for a SYN/SYN-ACK segment is:
+ *   MSS (4) + NOP (1) + Window scale (3) + SACK permitted (2) +
+ *   Timestamp (10) + Signature (18) = 38 bytes out of a maximum of 40.
+ *
+ * The SACK options should be last.  SACK blocks consume 8*n+2 bytes.
+ * So a full size SACK blocks option is 34 bytes (with 4 SACK blocks).
+ * At minimum we need 10 bytes (to generate 1 SACK block).  If both
+ * TCP Timestamps (12 bytes) and TCP Signatures (18 bytes) are present,
+ * we only have 10 bytes for SACK options (40 - (12 + 18)).
+ */
+int
+tcp_addoptions(struct tcpopt *to, u_char *optp)
+{
+	u_int mask, optlen = 0;
+
+	for (mask = 1; mask < TOF_MAXOPT; mask <<= 1) {
+		if ((to->to_flags & mask) != mask)
+			continue;
+		switch (to->to_flags & mask) {
+		case TOF_MSS:
+			while (optlen % 4) {
+				optlen += TCPOLEN_NOP;
+				*optp++ = TCPOPT_NOP;
+			}
+			optlen += TCPOLEN_MAXSEG;
+			*optp++ = TCPOPT_MAXSEG;
+			*optp++ = TCPOLEN_MAXSEG;
+			to->to_mss = htons(to->to_mss);
+			bcopy((u_char *)&to->to_mss, optp, sizeof(to->to_mss));
+			optp += sizeof(to->to_mss);
+			break;
+		case TOF_SCALE:
+			while (!optlen || optlen % 2 != 1) {
+				optlen += TCPOLEN_NOP;
+				*optp++ = TCPOPT_NOP;
+			}
+			optlen += TCPOLEN_WINDOW;
+			*optp++ = TCPOPT_WINDOW;
+			*optp++ = TCPOLEN_WINDOW;
+			*optp++ = to->to_wscale;
+			break;
+		case TOF_SACKPERM:
+			while (optlen % 2) {
+				optlen += TCPOLEN_NOP;
+				*optp++ = TCPOPT_NOP;
+			}
+			optlen += TCPOLEN_SACK_PERMITTED;
+			*optp++ = TCPOPT_SACK_PERMITTED;
+			*optp++ = TCPOLEN_SACK_PERMITTED;
+			break;
+		case TOF_TS:
+			while (!optlen || optlen % 4 != 2) {
+				optlen += TCPOLEN_NOP;
+				*optp++ = TCPOPT_NOP;
+			}
+			optlen += TCPOLEN_TIMESTAMP;
+			*optp++ = TCPOPT_TIMESTAMP;
+			*optp++ = TCPOLEN_TIMESTAMP;
+			to->to_tsval = htonl(to->to_tsval);
+			to->to_tsecr = htonl(to->to_tsecr);
+			bcopy((u_char *)&to->to_tsval, optp, sizeof(to->to_tsval));
+			optp += sizeof(to->to_tsval);
+			bcopy((u_char *)&to->to_tsecr, optp, sizeof(to->to_tsecr));
+			optp += sizeof(to->to_tsecr);
+			break;
+		case TOF_SIGNATURE:
+			{
+			int siglen = TCPOLEN_SIGNATURE - 2;
+
+			while (!optlen || optlen % 4 != 2) {
+				optlen += TCPOLEN_NOP;
+				*optp++ = TCPOPT_NOP;
+			}
+			if (MAX_TCPOPTLEN - optlen < TCPOLEN_SIGNATURE)
+				continue;
+			optlen += TCPOLEN_SIGNATURE;
+			*optp++ = TCPOPT_SIGNATURE;
+			*optp++ = TCPOLEN_SIGNATURE;
+			to->to_signature = optp;
+			while (siglen--)
+				 *optp++ = 0;
+			break;
+			}
+		case TOF_SACK:
+			{
+			int sackblks = 0;
+			struct sackblk *sack = (struct sackblk *)to->to_sacks;
+			tcp_seq sack_seq;
+
+			while (!optlen || optlen % 4 != 2) {
+				optlen += TCPOLEN_NOP;
+				*optp++ = TCPOPT_NOP;
+			}
+			if (MAX_TCPOPTLEN - optlen < 2 + TCPOLEN_SACK)
+				continue;
+			optlen += TCPOLEN_SACKHDR;
+			*optp++ = TCPOPT_SACK;
+			sackblks = min(to->to_nsacks,
+					(MAX_TCPOPTLEN - optlen) / TCPOLEN_SACK);
+			*optp++ = TCPOLEN_SACKHDR + sackblks * TCPOLEN_SACK;
+			while (sackblks--) {
+				sack_seq = htonl(sack->start);
+				bcopy((u_char *)&sack_seq, optp, sizeof(sack_seq));
+				optp += sizeof(sack_seq);
+				sack_seq = htonl(sack->end);
+				bcopy((u_char *)&sack_seq, optp, sizeof(sack_seq));
+				optp += sizeof(sack_seq);
+				optlen += TCPOLEN_SACK;
+				sack++;
+			}
+			tcpstat.tcps_sack_send_blocks++;
+			break;
+			}
+		default:
+			panic("%s: unknown TCP option type", __func__);
+			break;
+		}
+	}
+
+	/* Terminate and pad TCP options to a 4 byte boundary. */
+	if (optlen % 4) {
+		optlen += TCPOLEN_EOL;
+		*optp++ = TCPOPT_EOL;
+	}
+	while (optlen % 4) {
+		optlen += TCPOLEN_NOP;
+		*optp++ = TCPOPT_NOP;
+	}
+
+	KASSERT(optlen <= MAX_TCPOPTLEN, ("%s: TCP options too long", __func__));
+	return (optlen);
 }
