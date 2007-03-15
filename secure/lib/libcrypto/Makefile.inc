@@ -34,7 +34,7 @@ man-update:
 	@(sec=${manpage:E}; \
 	pod=${manpage:R}.pod; \
 	cp ${LCRYPTO_DOC}/${_docs}/$$pod .; \
-	pod2man --section=$$sec --release="0.9.8d" --center="OpenSSL" \
+	pod2man --section=$$sec --release="0.9.8e" --center="OpenSSL" \
 	  $$pod > ${.CURDIR}/man/${manpage}; \
 	rm -f $$pod; \
 	${ECHO} ${manpage})
