@@ -218,6 +218,8 @@
     (&man.cs.4; driver)
     </para>
 
+    &hwlist.cxgb;
+
     &hwlist.dc;
 
     &hwlist.de;
