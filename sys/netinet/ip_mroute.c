@@ -1350,7 +1350,7 @@ X_ip_mforward(struct ip *ip, struct ifnet *ifp, struct mbuf *m,
      * Don't forward a packet with time-to-live of zero or one,
      * or a packet destined to a local-only group.
      */
-    if (ip->ip_ttl <= 1 || ntohl(ip->ip_dst.s_addr) <= INADDR_MAX_LOCAL_GROUP) {
+    if (ip->ip_ttl <= 1 || IN_LOCAL_GROUP(ntohl(ip->ip_dst.s_addr))) {
 	MFC_UNLOCK();
 	VIF_UNLOCK();
 	return 0;
