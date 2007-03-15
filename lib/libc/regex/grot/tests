@@ -165,6 +165,30 @@ a\(\(b\)*\2\)*d		b	abbbd	abbbd
 \(a\)\1bc*d	b	aabcccd	aabcccd
 \(a\)\1bc*[ce]d	b	aabcccd	aabcccd
 ^\(a\)\1b\(c\)*cd$	b	aabcccd	aabcccd
+\(b*\)\(a*\1\)*	b	ab	a
+\([^_]*\)\(_*\1\)*	b	foo_foo_bar_bar_bar_baz	foo_foo	foo,_foo
+\([^_]*\)\(_*\1\)*	b	bar_bar_bar_baz	bar_bar_bar	bar,_bar
+\([^_]*\)\(_*\1\)*	b	foo_bar_baz	foo	foo
+\(.*\)\1	b	""	""
+\(.*\)\1	b	a	""
+\(.*\)\1	b	aa	aa
+\(.*\)\1	b	aaa	aa
+\(.*\)\1	b	aaaa	aaaa
+\([^_]*\)\1	b	""	""
+\([^_]*\)\1	b	a	""
+\([^_]*\)\1	b	aa	aa
+\([^_]*\)\1	b	aaa	aa
+\([^_]*\)\1	b	aaaa	aaaa
+foo\(.*\)bar\1	b	foolbarl	foolbarl	l
+foo\(.*\)bar\1	b	foobar	foobar	""
+\(\(.\)b\)*\1	b	aba
+\(\(.\)b\)*\1	b	abba
+\(\(.\)b\)*\1	b	abbba
+\(\(.\)b\)*\1	b	abbbba	bbbb	bb,b
+\(\(.\)b\)*\1	b	abbbbba	abbbbb	bb,b
+\(\(.\)b\)*\1	b	abbbbbba	abbbbb	bb,b
+\(\(.\)b\)*\1	b	abbbbbbbbbbbbbba	abbbbbbbbbbbbb	bb,b
+\(\(.\)b\)*\1	b	abbbbbbbbbbbbbbba	abbbbbbbbbbbbbbb	bb,b
 
 # ordinary repetitions
 ab*c		&	abc	abc
