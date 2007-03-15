@@ -1861,6 +1861,7 @@ device		vx		# 3Com 3c590, 3c595 (``Vortex'')
 
 # PCI Gigabit & FDDI NICs.
 device		bge
+device		cxgb		# Chelsio T3 10 Gigabit Ethernet
 device		lge
 device		nge
 device		sk
