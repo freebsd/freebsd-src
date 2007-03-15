@@ -5653,6 +5653,7 @@ static cam_status
 proberegister(struct cam_periph *periph, void *arg)
 {
 	union ccb *request_ccb;	/* CCB representing the probe request */
+	cam_status status;
 	probe_softc *softc;
 
 	request_ccb = (union ccb *)arg;
@@ -5679,7 +5680,12 @@ proberegister(struct cam_periph *periph, void *arg)
 			  periph_links.tqe);
 	softc->flags = 0;
 	periph->softc = softc;
-	cam_periph_acquire(periph);
+	status = cam_periph_acquire(periph);
+	if (status != CAM_REQ_CMP) {
+		return (status);
+	}
+
+
 	/*
 	 * Ensure we've waited at least a bus settle
 	 * delay before attempting to probe the device.
