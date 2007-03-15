@@ -34,6 +34,7 @@ SUBDIR=	ac \
 	cron \
 	crunch \
 	ctm \
+	cxgbtool \
 	daemon \
 	dconschat \
 	devinfo \
