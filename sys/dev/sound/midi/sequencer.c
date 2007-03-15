@@ -546,7 +546,7 @@ seq_addunit(void)
 
 	scp->flags = 0;
 
-	mtx_init(&scp->seq_lock, "seqflq", 0, 0);
+	mtx_init(&scp->seq_lock, "seqflq", NULL, 0);
 	cv_init(&scp->state_cv, "seqstate");
 	cv_init(&scp->empty_cv, "seqempty");
 	cv_init(&scp->reset_cv, "seqtimer");
@@ -692,7 +692,7 @@ seq_modevent(module_t mod, int type, void *data)
 
 	switch (type) {
 	case MOD_LOAD:
-		mtx_init(&seqinfo_mtx, "seqmod", 0, 0);
+		mtx_init(&seqinfo_mtx, "seqmod", NULL, 0);
 		retval = seq_addunit();
 		break;
 
