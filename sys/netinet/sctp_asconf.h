@@ -55,19 +55,21 @@ sctp_handle_asconf_ack(struct mbuf *, int,
 
 extern uint32_t
 sctp_addr_mgmt_ep_sa(struct sctp_inpcb *, struct sockaddr *,
-    uint16_t);
+    uint32_t, uint32_t);
 
-extern void sctp_add_ip_address(struct ifaddr *);
 
-extern void sctp_delete_ip_address(struct ifaddr *);
+int sctp_iterator_ep(struct sctp_inpcb *inp, void *ptr, uint32_t val);
+void sctp_iterator_stcb(struct sctp_inpcb *inp, struct sctp_tcb *stcb, void *ptr, uint32_t type);
+int sctp_iterator_ep_end(struct sctp_inpcb *inp, void *ptr, uint32_t val);
+void sctp_iterator_end(void *ptr, uint32_t val);
 
-extern void sctp_addr_change(struct ifaddr *ifa, int cmd);
 
 extern int32_t
 sctp_set_primary_ip_address_sa(struct sctp_tcb *,
     struct sockaddr *);
 
-extern void sctp_set_primary_ip_address(struct ifaddr *);
+extern void
+     sctp_set_primary_ip_address(struct sctp_ifa *ifa);
 
 extern void
 sctp_check_address_list(struct sctp_tcb *, struct mbuf *, int, int,

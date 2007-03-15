@@ -35,6 +35,7 @@ __FBSDID("$FreeBSD$");
 
 #include <netinet/sctp_os.h>
 #include <netinet/sctp_var.h>
+#include <netinet/sctp_sysctl.h>
 #include <netinet/sctp_pcb.h>
 #include <netinet/sctp_header.h>
 #include <netinet/sctputil.h>
@@ -45,15 +46,6 @@ __FBSDID("$FreeBSD$");
 #include <netinet/sctp_asconf.h>
 
 
-#ifdef SCTP_DEBUG
-extern uint32_t sctp_debug_on;
-
-#endif
-
-
-
-struct sctp_foo_stuff sctp_logoff[30000];
-int sctp_logoff_stuff = 0;
 
 
 static void
@@ -476,6 +468,22 @@ sctp_handle_heartbeat_ack(struct sctp_heartbeat_chunk *cp,
 		 * confirm the destination.
 		 */
 		r_net->dest_state &= ~SCTP_ADDR_UNCONFIRMED;
+		if (r_net->dest_state & SCTP_ADDR_REQ_PRIMARY) {
+			stcb->asoc.primary_destination = r_net;
+			r_net->dest_state &= ~SCTP_ADDR_WAS_PRIMARY;
+			r_net->dest_state &= ~SCTP_ADDR_REQ_PRIMARY;
+			r_net = TAILQ_FIRST(&stcb->asoc.nets);
+			if (r_net != stcb->asoc.primary_destination) {
+				/*
+				 * first one on the list is NOT the primary
+				 * sctp_cmpaddr() is much more efficent if
+				 * the primary is the first on the list,
+				 * make it so.
+				 */
+				TAILQ_REMOVE(&stcb->asoc.nets, stcb->asoc.primary_destination, sctp_next);
+				TAILQ_INSERT_HEAD(&stcb->asoc.nets, stcb->asoc.primary_destination, sctp_next);
+			}
+		}
 		sctp_ulp_notify(SCTP_NOTIFY_INTERFACE_CONFIRMED,
 		    stcb, 0, (void *)r_net);
 	}
@@ -1528,12 +1536,15 @@ sctp_process_cookie_new(struct mbuf *m, int iphlen, int offset,
 	struct sockaddr_in *sin;
 	struct sockaddr_in6 *sin6;
 	struct sctp_association *asoc;
+	uint32_t vrf;
 	int chk_length;
 	int init_offset, initack_offset, initack_limit;
 	int retval;
 	int error = 0;
 	uint32_t old_tag;
 	uint8_t auth_chunk_buf[SCTP_PARAM_BUFFER_SIZE];
+
+	vrf = SCTP_DEFAULT_VRFID;
 
 	/*
 	 * find and validate the INIT chunk in the cookie (peer's info) the
@@ -1596,7 +1607,7 @@ sctp_process_cookie_new(struct mbuf *m, int iphlen, int offset,
 	 * and popluate
 	 */
 	stcb = sctp_aloc_assoc(inp, init_src, 0, &error,
-	    ntohl(initack_cp->init.initiate_tag));
+	    ntohl(initack_cp->init.initiate_tag), vrf);
 	if (stcb == NULL) {
 		struct mbuf *op_err;
 
@@ -3498,9 +3509,6 @@ sctp_handle_packet_dropped(struct sctp_pktdrop_chunk *cp,
 	}
 }
 
-extern int sctp_strict_init;
-extern int sctp_abort_if_one_2_one_hits_limit;
-
 /*
  * handles all control chunks in a packet inputs: - m: mbuf chain, assumed to
  * still contain IP/SCTP header - stcb: is the tcb found for this packet -
@@ -4662,11 +4670,6 @@ trigger_send:
 	return (0);
 }
 
-extern int sctp_no_csum_on_loopback;
-
-
-int sctp_buf_index = 0;
-uint8_t sctp_list_of_chunks[30000];
 
 
 void
@@ -4799,16 +4802,6 @@ sctp_skip_csum_4:
 	if (mlen < (ip->ip_len - iphlen)) {
 		SCTP_STAT_INCR(sctps_hdrops);
 		goto bad;
-	} {
-		/* TEMP log the first chunk */
-		int x;
-
-		x = atomic_fetchadd_int(&sctp_buf_index, 1);
-		if (x >= 30000) {
-			sctp_buf_index = 1;
-			x = 0;;
-		}
-		sctp_list_of_chunks[x] = ch->chunk_type;
 	}
 	/*
 	 * Locate pcb and tcb for datagram sctp_findassociation_addr() wants

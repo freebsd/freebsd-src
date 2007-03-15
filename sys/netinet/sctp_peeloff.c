@@ -174,7 +174,7 @@ sctp_get_peeloff(struct socket *head, sctp_assoc_t assoc_id, int *error)
 		    SCTP_FROM_SCTP_PEELOFF + SCTP_LOC_1);
 	}
 	/* Turn off any non-blocking semantic. */
-	newso->so_state &= ~SS_NBIO;
+	SCTP_CLEAR_SO_NBIO(newso);
 	newso->so_state |= SS_ISCONNECTED;
 	/* We remove it right away */
 #ifdef SCTP_LOCK_LOGGING

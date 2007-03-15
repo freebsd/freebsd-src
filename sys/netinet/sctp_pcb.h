@@ -44,12 +44,16 @@ LIST_HEAD(sctppcbhead, sctp_inpcb);
 LIST_HEAD(sctpasochead, sctp_tcb);
 LIST_HEAD(sctpladdr, sctp_laddr);
 LIST_HEAD(sctpvtaghead, sctp_tagblock);
+LIST_HEAD(sctp_vrflist, sctp_vrf);
+LIST_HEAD(sctp_ifnlist, sctp_ifn);
+LIST_HEAD(sctp_ifalist, sctp_ifa);
 TAILQ_HEAD(sctp_readhead, sctp_queued_to_read);
 TAILQ_HEAD(sctp_streamhead, sctp_stream_queue_pending);
 
 #include <netinet/sctp_structs.h>
 #include <netinet/sctp_uio.h>
 #include <netinet/sctp_auth.h>
+#include <netinet/sctp_bsd_addr.h>
 
 /*
  * PCB flags (in sctp_flags bitmask)
@@ -106,10 +110,60 @@ TAILQ_HEAD(sctp_streamhead, sctp_stream_queue_pending);
 #define SCTP_PCBHASH_ALLADDR(port, mask) (port & mask)
 #define SCTP_PCBHASH_ASOC(tag, mask) (tag & mask)
 
+struct sctp_vrf {
+	LIST_ENTRY(sctp_vrf) next_vrf;
+	struct sctp_ifnlist ifnlist;
+	uint32_t vrf_id;
+	uint32_t total_ifa_count;
+};
+
+struct sctp_ifn {
+	struct sctp_ifalist ifalist;
+	struct sctp_vrf *vrf;
+	         LIST_ENTRY(sctp_ifn) next_ifn;
+	void *ifn_p;		/* never access without appropriate lock */
+	uint32_t ifn_type;
+	uint32_t ifn_index;	/* shorthand way to look at ifn for reference */
+	uint32_t refcount;	/* number of reference held should be >=
+				 * ifa_count */
+	uint32_t ifa_count;	/* IFA's we hold (in our list - ifalist) */
+	char ifn_name[SCTP_IFNAMSIZ];
+};
+
+/* SCTP local IFA flags */
+#define SCTP_ADDR_VALID         0x00000001	/* its up and active */
+#define SCTP_BEING_DELETED      0x00000002	/* being deleted, when
+						 * refcount = 0. Note that it
+						 * is pulled from the ifn list
+						 * and ifa_p is nulled right
+						 * away but it cannot be freed
+						 * until the last *net
+						 * pointing to it is deleted. */
+#define SCTP_ADDR_DEFER_USE     0x00000004	/* Hold off using this one */
+#define SCTP_ADDR_IFA_UNUSEABLE 0x00000008
+
+struct sctp_ifa {
+	LIST_ENTRY(sctp_ifa) next_ifa;
+	struct sctp_ifn *ifn_p;	/* back pointer to parent ifn */
+	void *ifa;		/* pointer to ifa, needed for flag update for
+				 * that we MUST lock appropriate locks. This
+				 * is for V6. */
+	union sctp_sockstore address;
+	uint32_t refcount;	/* number of folks refering to this */
+	uint32_t flags;
+	uint32_t localifa_flags;
+	uint8_t src_is_loop;
+	uint8_t src_is_priv;
+	uint8_t src_is_glob;
+	uint8_t resv;
+};
+
 struct sctp_laddr {
 	LIST_ENTRY(sctp_laddr) sctp_nxt_addr;	/* next in list */
-	struct ifaddr *ifa;
-	int action;		/* Only used in delayed asconf stuff */
+	struct sctp_ifa *ifa;
+	uint32_t action;	/* Used during asconf and adding if no-zero
+				 * src-addr selection will not consider this
+				 * address. */
 };
 
 struct sctp_block_entry {
@@ -125,7 +179,6 @@ struct sctp_tagblock {
 	LIST_ENTRY(sctp_tagblock) sctp_nxt_tagblock;
 	struct sctp_timewait vtag_block[SCTP_NUMBER_IN_VTAG_BLOCK];
 };
-
 
 struct sctp_epinfo {
 	struct sctpasochead *sctp_asochash;
@@ -153,6 +206,9 @@ struct sctp_epinfo {
 	u_long hashtcpmark;
 	uint32_t hashtblsize;
 
+	struct sctp_vrflist *sctp_vrfhash;
+	u_long hashvrfmark;
+
 	struct sctppcbhead listhead;
 	struct sctpladdr addr_wq;
 
@@ -169,8 +225,8 @@ struct sctp_epinfo {
 
 	struct mtx ipi_ep_mtx;
 	struct mtx it_mtx;
+	struct mtx ipi_iterator_wq_mtx;
 	struct mtx ipi_addr_mtx;
-	struct mtx timer_mtx;
 	uint32_t ipi_count_ep;
 
 	/* assoc/tcb zone info */
@@ -197,11 +253,14 @@ struct sctp_epinfo {
 
 	struct sctpvtaghead vtag_timewait[SCTP_STACK_VTAG_HASH_SIZE];
 
+	/* address work queue handling */
+#if defined(SCTP_USE_THREAD_BASED_ITERATOR)
+	uint32_t iterator_running;
+	SCTP_PROCESS_STRUCT thread_proc;
+#endif
 	struct sctp_timer addr_wq_timer;
 
 };
-
-extern struct sctpstat sctpstat;
 
 /*
  * Here we have all the relevant information for each SCTP entity created. We
@@ -218,9 +277,9 @@ struct sctp_pcb {
 	unsigned int sctp_minrto;
 	unsigned int sctp_maxrto;
 	unsigned int initial_rto;
-
 	int initial_init_rto_max;
 
+	unsigned int sctp_sack_freq;
 	uint32_t sctp_sws_sender;
 	uint32_t sctp_sws_receiver;
 
@@ -294,11 +353,15 @@ struct sctp_inpcb {
 	              LIST_ENTRY(sctp_inpcb) sctp_hash;
 	/* count of local addresses bound, 0 if bound all */
 	int laddr_count;
-	/* list of addrs in use by the EP */
+
+	/* list of addrs in use by the EP, NULL if bound-all */
 	struct sctpladdr sctp_addr_list;
-	/* used for source address selection rotation */
+	/*
+	 * used for source address selection rotation when we are subset
+	 * bound
+	 */
 	struct sctp_laddr *next_addr_touse;
-	struct ifnet *next_ifn_touse;
+
 	/* back pointer to our socket */
 	struct socket *sctp_socket;
 	uint32_t sctp_flags;	/* INP state flag set */
@@ -329,6 +392,7 @@ struct sctp_inpcb {
 	struct mtx inp_create_mtx;
 	struct mtx inp_rdata_mtx;
 	int32_t refcount;
+	uint32_t def_vrf_id;
 	uint32_t total_sends;
 	uint32_t total_recvs;
 	uint32_t last_abort_code;
@@ -371,15 +435,36 @@ struct sctp_tcb {
 #if defined(_KERNEL)
 
 extern struct sctp_epinfo sctppcbinfo;
-extern int sctp_auto_asconf;
 
 int SCTP6_ARE_ADDR_EQUAL(struct in6_addr *a, struct in6_addr *b);
 
 void sctp_fill_pcbinfo(struct sctp_pcbinfo *);
 
+struct sctp_ifn *
+         sctp_find_ifn(struct sctp_vrf *vrf, void *ifn, uint32_t ifn_index);
+
+struct sctp_vrf *sctp_allocate_vrf(int vrfid);
+
+struct sctp_vrf *sctp_find_vrf(uint32_t vrfid);
+
+struct sctp_ifa *
+sctp_add_addr_to_vrf(uint32_t vrfid,
+    void *ifn, uint32_t ifn_index, uint32_t ifn_type,
+    const char *if_name,
+    void *ifa, struct sockaddr *addr, uint32_t ifa_flags);
+
+void sctp_free_ifa(struct sctp_ifa *sctp_ifap);
+
+struct sctp_ifa *
+sctp_del_addr_from_vrf(uint32_t vrfid, struct sockaddr *addr,
+    uint32_t ifn_index);
+
+
+
+
 struct sctp_nets *sctp_findnet(struct sctp_tcb *, struct sockaddr *);
 
-struct sctp_inpcb *sctp_pcb_findep(struct sockaddr *, int, int);
+struct sctp_inpcb *sctp_pcb_findep(struct sockaddr *, int, int, uint32_t);
 
 int sctp_inpcb_bind(struct socket *, struct sockaddr *, struct thread *);
 
@@ -391,7 +476,7 @@ sctp_findassociation_addr(struct mbuf *, int, int,
 
 struct sctp_tcb *
 sctp_findassociation_addr_sa(struct sockaddr *,
-    struct sockaddr *, struct sctp_inpcb **, struct sctp_nets **, int);
+    struct sockaddr *, struct sctp_inpcb **, struct sctp_nets **, int, uint32_t);
 
 void
 sctp_move_pcb_and_assoc(struct sctp_inpcb *, struct sctp_inpcb *,
@@ -418,28 +503,29 @@ sctp_findassociation_ep_asconf(struct mbuf *, int, int,
 
 int sctp_inpcb_alloc(struct socket *);
 
-int sctp_is_address_on_local_host(struct sockaddr *addr);
+int sctp_is_address_on_local_host(struct sockaddr *addr, uint32_t vrf_id);
 
 void sctp_inpcb_free(struct sctp_inpcb *, int, int);
 
 struct sctp_tcb *
 sctp_aloc_assoc(struct sctp_inpcb *, struct sockaddr *,
-    int, int *, uint32_t);
+    int, int *, uint32_t, uint32_t);
 
 int sctp_free_assoc(struct sctp_inpcb *, struct sctp_tcb *, int, int);
 
 void
      sctp_add_vtag_to_timewait(struct sctp_inpcb *, uint32_t, uint32_t);
 
-int sctp_add_local_addr_ep(struct sctp_inpcb *, struct ifaddr *);
+int sctp_add_local_addr_ep(struct sctp_inpcb *, struct sctp_ifa *, uint32_t);
 
-int sctp_insert_laddr(struct sctpladdr *, struct ifaddr *);
+int sctp_insert_laddr(struct sctpladdr *, struct sctp_ifa *, uint32_t);
 
 void sctp_remove_laddr(struct sctp_laddr *);
 
-int sctp_del_local_addr_ep(struct sctp_inpcb *, struct ifaddr *);
+int sctp_del_local_addr_ep(struct sctp_inpcb *, struct sctp_ifa *);
 
-int sctp_del_local_addr_ep_sa(struct sctp_inpcb *, struct sockaddr *);
+void sctp_set_initial_cc_param(struct sctp_tcb *, struct sctp_nets *net);
+
 
 int sctp_add_remote_addr(struct sctp_tcb *, struct sockaddr *, int, int);
 
@@ -449,11 +535,9 @@ int sctp_del_remote_addr(struct sctp_tcb *, struct sockaddr *);
 
 void sctp_pcb_init(void);
 
-int sctp_add_local_addr_assoc(struct sctp_tcb *, struct ifaddr *);
+int sctp_add_local_addr_assoc(struct sctp_tcb *, struct sctp_ifa *, int);
 
-int sctp_del_local_addr_assoc(struct sctp_tcb *, struct ifaddr *);
-
-int sctp_del_local_addr_assoc_sa(struct sctp_tcb *, struct sockaddr *);
+int sctp_del_local_addr_assoc(struct sctp_tcb *, struct sctp_ifa *);
 
 int
 sctp_load_addresses_from_init(struct sctp_tcb *, struct mbuf *, int, int,
@@ -474,8 +558,15 @@ int sctp_destination_is_reachable(struct sctp_tcb *, struct sockaddr *);
  * indicates run on ONLY assoc's of the specified endpoint.
  */
 int
-sctp_initiate_iterator(inp_func inpf, asoc_func af, uint32_t, uint32_t,
-    uint32_t, void *, uint32_t, end_func ef, struct sctp_inpcb *, uint8_t co_off);
+sctp_initiate_iterator(inp_func inpf,
+    asoc_func af,
+    inp_func inpe,
+    uint32_t, uint32_t,
+    uint32_t, void *,
+    uint32_t,
+    end_func ef,
+    struct sctp_inpcb *,
+    uint8_t co_off);
 
 
 #endif				/* _KERNEL */

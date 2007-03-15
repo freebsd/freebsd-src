@@ -40,6 +40,7 @@ __FBSDID("$FreeBSD$");
 #include <netinet6/sctp6_var.h>
 #endif
 #include <netinet/sctp_var.h>
+#include <netinet/sctp_sysctl.h>
 #include <netinet/sctp_timer.h>
 #include <netinet/sctputil.h>
 #include <netinet/sctp_output.h>
@@ -51,13 +52,6 @@ __FBSDID("$FreeBSD$");
 #include <netinet/sctp_uio.h>
 
 
-#ifdef SCTP_DEBUG
-extern uint32_t sctp_debug_on;
-
-#endif				/* SCTP_DEBUG */
-
-
-extern unsigned int sctp_early_fr_msec;
 
 void
 sctp_early_fr_timer(struct sctp_inpcb *inp,
@@ -224,6 +218,7 @@ sctp_threshold_management(struct sctp_inpcb *inp, struct sctp_tcb *stcb,
 			if (net->dest_state & SCTP_ADDR_REACHABLE) {
 				net->dest_state &= ~SCTP_ADDR_REACHABLE;
 				net->dest_state |= SCTP_ADDR_NOT_REACHABLE;
+				net->dest_state &= ~SCTP_ADDR_REQ_PRIMARY;
 				if (net == stcb->asoc.primary_destination) {
 					net->dest_state |= SCTP_ADDR_WAS_PRIMARY;
 				}
@@ -368,6 +363,10 @@ sctp_find_alternate_net(struct sctp_tcb *stcb,
 			if (sin6->sin6_family == AF_INET6) {
 				(void)sa6_recoverscope(sin6);
 			}
+			if (alt->ro._s_addr) {
+				sctp_free_ifa(alt->ro._s_addr);
+				alt->ro._s_addr = NULL;
+			}
 			alt->src_addr_selected = 0;
 		}
 		if (
@@ -440,8 +439,6 @@ sctp_backoff_on_timeout(struct sctp_tcb *stcb,
 		net->partial_bytes_acked = 0;
 	}
 }
-
-extern int sctp_peer_chunk_oh;
 
 static int
 sctp_mark_all_for_resend(struct sctp_tcb *stcb,
@@ -635,6 +632,11 @@ sctp_mark_all_for_resend(struct sctp_tcb *stcb,
 			}
 			if (stcb->asoc.total_flight_count > 0)
 				stcb->asoc.total_flight_count--;
+			if (chk->rec.data.chunk_was_revoked) {
+				/* deflate the cwnd */
+				chk->whoTo->cwnd -= chk->book_size;
+				chk->rec.data.chunk_was_revoked = 0;
+			}
 			chk->sent = SCTP_DATAGRAM_RESEND;
 			SCTP_STAT_INCR(sctps_markedretrans);
 			net->marked_retrans++;
@@ -934,6 +936,10 @@ sctp_t3rxt_timer(struct sctp_inpcb *inp,
 			    (struct sockaddr *)NULL,
 			    alt) == 0) {
 				net->dest_state |= SCTP_ADDR_WAS_PRIMARY;
+				if (net->ro._s_addr) {
+					sctp_free_ifa(net->ro._s_addr);
+					net->ro._s_addr = NULL;
+				}
 				net->src_addr_selected = 0;
 			}
 		}
@@ -1387,6 +1393,15 @@ sctp_heartbeat_timer(struct sctp_inpcb *inp, struct sctp_tcb *stcb,
 {
 	if (net) {
 		if (net->hb_responded == 0) {
+			if (net->ro._s_addr) {
+				/*
+				 * Invalidate the src address if we did not
+				 * get a response last time.
+				 */
+				sctp_free_ifa(net->ro._s_addr);
+				net->ro._s_addr = NULL;
+				net->src_addr_selected = 0;
+			}
 			sctp_backoff_on_timeout(stcb, net, 1, 0);
 		}
 		/* Zero PBA, if it needs it */
@@ -1415,10 +1430,18 @@ sctp_heartbeat_timer(struct sctp_inpcb *inp, struct sctp_tcb *stcb,
 			if ((net->dest_state & SCTP_ADDR_UNCONFIRMED) &&
 			    (net->dest_state & SCTP_ADDR_REACHABLE)) {
 				cnt_sent++;
+				if (net->hb_responded == 0) {
+					/* Did we respond last time? */
+					if (net->ro._s_addr) {
+						sctp_free_ifa(net->ro._s_addr);
+						net->ro._s_addr = NULL;
+						net->src_addr_selected = 0;
+					}
+				}
 				if (sctp_send_hb(stcb, 1, net) == 0) {
 					break;
 				}
-				if (cnt_sent >= stcb->asoc.max_burst)
+				if (cnt_sent >= sctp_hb_maxburst)
 					break;
 			}
 		}
@@ -1598,6 +1621,7 @@ void
 sctp_iterator_timer(struct sctp_iterator *it)
 {
 	int iteration_count = 0;
+	int inp_skip = 0;
 
 	/*
 	 * only one iterator can run at a time. This is the only way we can
@@ -1610,7 +1634,7 @@ sctp_iterator_timer(struct sctp_iterator *it)
 done_with_iterator:
 		SCTP_ITERATOR_UNLOCK();
 		SCTP_INP_INFO_WLOCK();
-		LIST_REMOVE(it, sctp_nxt_itr);
+		TAILQ_REMOVE(&sctppcbinfo.iteratorhead, it, sctp_nxt_itr);
 		/* stopping the callout is not needed, in theory */
 		SCTP_INP_INFO_WUNLOCK();
 		SCTP_OS_TIMER_STOP(&it->tmr.timer);
@@ -1650,14 +1674,24 @@ select_a_new_ep:
 	SCTP_INP_WUNLOCK(it->inp);
 	SCTP_INP_RLOCK(it->inp);
 	/* now go through each assoc which is in the desired state */
+	if (it->done_current_ep == 0) {
+		if (it->function_inp != NULL)
+			inp_skip = (*it->function_inp) (it->inp, it->pointer, it->val);
+		it->done_current_ep = 1;
+	}
 	if (it->stcb == NULL) {
 		/* run the per instance function */
-		if (it->function_inp != NULL)
-			(*it->function_inp) (it->inp, it->pointer, it->val);
-
 		it->stcb = LIST_FIRST(&it->inp->sctp_asoc_list);
 	}
 	SCTP_INP_RUNLOCK(it->inp);
+	if ((inp_skip) || it->stcb == NULL) {
+		if (it->function_inp_end != NULL) {
+			inp_skip = (*it->function_inp_end) (it->inp,
+			    it->pointer,
+			    it->val);
+		}
+		goto no_stcb;
+	}
 	if ((it->stcb) &&
 	    (it->stcb->asoc.stcb_starting_point_for_iterator == it)) {
 		it->stcb->asoc.stcb_starting_point_for_iterator = NULL;
@@ -1695,8 +1729,17 @@ select_a_new_ep:
 		SCTP_TCB_UNLOCK(it->stcb);
 next_assoc:
 		it->stcb = LIST_NEXT(it->stcb, sctp_tcblist);
+		if (it->stcb == NULL) {
+			if (it->function_inp_end != NULL) {
+				inp_skip = (*it->function_inp_end) (it->inp,
+				    it->pointer,
+				    it->val);
+			}
+		}
 	}
+no_stcb:
 	/* done with all assocs on this endpoint, move on to next endpoint */
+	it->done_current_ep = 0;
 	SCTP_INP_WLOCK(it->inp);
 	it->inp->inp_starting_point_for_iterator = NULL;
 	SCTP_INP_WUNLOCK(it->inp);
