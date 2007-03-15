@@ -64,7 +64,7 @@
  * Library error conditions, mostly from the underlying data sources.  On
  * failure, functions typically return (-1) or (NULL); on success, (0) or a
  * valid data pointer.  The error from the last operation is stored in
- * struct memory_type, and accessed via memstat_get_error(mtp).
+ * struct memory_type_list, and accessed via memstat_get_error(list).
  */
 #define	MEMSTAT_ERROR_UNDEFINED		0	/* Initialization value. */
 #define	MEMSTAT_ERROR_NOMEMORY		1	/* Out of memory. */
