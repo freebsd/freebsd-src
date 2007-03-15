@@ -4,8 +4,8 @@ the FreeBSD base system.  It is not expected to be complete but just to
 contain some hints for imports.  Note that this doesn't actually deal
 with getting OpenSSL to compile...
 
-setenv OSSLVER 0.9.8b
-# OSSLTAG format: v0_9_8b
+setenv OSSLVER 0.9.8e
+# OSSLTAG format: v0_9_8e
 setenv OSSLTAG v`echo ${OSSLVER} | tr . _`
 fetch  http://www.openssl.org/source/openssl-${OSSLVER}.tar.gz \
 	http://www.openssl.org/source/openssl-${OSSLVER}.tar.gz.asc
@@ -25,6 +25,7 @@ cvs ci -m "Resolve conflicts after import of OpenSSL ${OSSLVER}."
 
 cd ../../secure
 # Do something so it actually compiles...
+# Update version number in lib/libcrypto/Makefile.inc
 cd lib/libcrypto
 make man-makefile-update && make man-update
 cd ../libssl
