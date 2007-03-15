@@ -318,8 +318,6 @@ vchan_init(kobj_t obj, void *devinfo, struct snd_dbuf *b, struct pcm_channel *c,
 
 	KASSERT(dir == PCMDIR_PLAY, ("vchan_init: bad direction"));
 	ch = malloc(sizeof(*ch), M_DEVBUF, M_WAITOK | M_ZERO);
-	if (!ch)
-		return NULL;
 	ch->parent = parent;
 	ch->channel = c;
 	ch->fmt = AFMT_U8;
@@ -675,10 +673,6 @@ vchan_create(struct pcm_channel *parent)
 	CHN_UNLOCK(parent);
 
 	pce = malloc(sizeof(*pce), M_DEVBUF, M_WAITOK | M_ZERO);
-	if (!pce) {
-		CHN_LOCK(parent);
-		return ENOMEM;
-	}
 
 	/* create a new playback channel */
 	child = pcm_chn_create(d, parent, &vchan_class, PCMDIR_VIRTUAL, parent);
