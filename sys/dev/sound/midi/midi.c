@@ -324,8 +324,8 @@ midi_init(kobj_class_t cls, int unit, int channel, void *cookie)
 	if (!inqsize && !outqsize)
 		goto err1;
 
-	mtx_init(&m->lock, "raw midi", 0, 0);
-	mtx_init(&m->qlock, "q raw midi", 0, 0);
+	mtx_init(&m->lock, "raw midi", NULL, 0);
+	mtx_init(&m->qlock, "q raw midi", NULL, 0);
 
 	mtx_lock(&m->lock);
 	mtx_lock(&m->qlock);
@@ -1393,7 +1393,7 @@ midi_destroy(struct snd_midi *m, int midiuninit)
 static int
 midi_load()
 {
-	mtx_init(&midistat_lock, "midistat lock", 0, 0);
+	mtx_init(&midistat_lock, "midistat lock", NULL, 0);
 	TAILQ_INIT(&midi_devs);		/* Initialize the queue. */
 
 	midistat_dev = make_dev(&midistat_cdevsw,
