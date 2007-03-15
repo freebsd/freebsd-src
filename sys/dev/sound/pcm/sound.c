@@ -447,15 +447,7 @@ pcm_chn_create(struct snddev_info *d, struct pcm_channel *parent, kobj_class_t c
 	}
 
 	ch = malloc(sizeof(*ch), M_DEVBUF, M_WAITOK | M_ZERO);
-	if (!ch)
-		return NULL;
-
 	ch->methods = kobj_create(cls, M_DEVBUF, M_WAITOK);
-	if (!ch->methods) {
-		free(ch, M_DEVBUF);
-
-		return NULL;
-	}
 
 	snd_mtxlock(d->lock);
 	ch->num = 0;
@@ -561,9 +553,6 @@ pcm_chn_add(struct snddev_info *d, struct pcm_channel *ch)
 	 */
 
 	sce = malloc(sizeof(*sce), M_DEVBUF, M_WAITOK | M_ZERO);
-	if (!sce) {
-		return ENOMEM;
-	}
 
 	snd_mtxlock(d->lock);
 	sce->channel = ch;
