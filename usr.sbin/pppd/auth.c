@@ -1615,7 +1615,7 @@ auth_script(script)
     struct passwd *pw;
     char struid[32];
     char *user_name;
-    char *argv[8];
+    char *argv[7];
 
     if ((pw = getpwuid(getuid())) != NULL && pw->pw_name != NULL)
 	user_name = pw->pw_name;
