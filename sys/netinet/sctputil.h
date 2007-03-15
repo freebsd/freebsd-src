@@ -56,13 +56,20 @@ void sctp_m_freem(struct mbuf *m);
 /*
  * Function prototypes
  */
-struct ifaddr *sctp_find_ifa_by_addr(struct sockaddr *sa);
+struct sctp_ifa *
+         sctp_find_ifa_in_ep(struct sctp_inpcb *inp, struct sockaddr *addr, int hold_lock);
+struct sctp_ifa *
+sctp_find_ifa_in_ifn(struct sctp_ifn *sctp_ifnp, struct sockaddr *addr,
+    int holds_lock);
+
+struct sctp_ifa *
+         sctp_find_ifa_by_addr(struct sockaddr *addr, uint32_t vrf_id, int holds_lock);
 
 uint32_t sctp_select_initial_TSN(struct sctp_pcb *);
 
 uint32_t sctp_select_a_tag(struct sctp_inpcb *);
 
-int sctp_init_asoc(struct sctp_inpcb *, struct sctp_association *, int, uint32_t);
+int sctp_init_asoc(struct sctp_inpcb *, struct sctp_association *, int, uint32_t, uint32_t);
 
 void sctp_fill_random_store(struct sctp_pcb *);
 
@@ -73,6 +80,9 @@ sctp_timer_start(int, struct sctp_inpcb *, struct sctp_tcb *,
 int
 sctp_timer_stop(int, struct sctp_inpcb *, struct sctp_tcb *,
     struct sctp_nets *, uint32_t);
+
+int
+    sctp_dynamic_set_primary(struct sockaddr *sa, uint32_t vrf_id);
 
 uint32_t sctp_calculate_sum(struct mbuf *, int32_t *, uint32_t);
 
@@ -95,6 +105,8 @@ sctp_append_to_readq(struct sctp_inpcb *inp,
     int new_cumack,
     struct sockbuf *sb);
 
+
+void sctp_iterator_worker(void);
 
 int find_next_best_mtu(int);
 
@@ -288,7 +300,7 @@ void sctp_log_block(uint8_t, struct socket *, struct sctp_association *, int);
 void sctp_log_rwnd(uint8_t, uint32_t, uint32_t, uint32_t);
 void sctp_log_mbcnt(uint8_t, uint32_t, uint32_t, uint32_t, uint32_t);
 void sctp_log_rwnd_set(uint8_t, uint32_t, uint32_t, uint32_t, uint32_t);
-int sctp_fill_stat_log(struct mbuf *);
+int sctp_fill_stat_log(void *, size_t *);
 void sctp_log_fr(uint32_t, uint32_t, uint32_t, int);
 void sctp_log_sack(uint32_t, uint32_t, uint32_t, uint16_t, uint16_t, int);
 void sctp_log_map(uint32_t, uint32_t, uint32_t, int);

@@ -36,6 +36,7 @@ __FBSDID("$FreeBSD$");
 #include <netinet/sctp_pcb.h>
 #include <netinet/sctp_header.h>
 #include <netinet/sctp_var.h>
+#include <netinet/sctp_sysctl.h>
 #include <netinet/sctp_output.h>
 #include <netinet/sctp_input.h>
 #include <netinet/sctp_bsd_addr.h>
@@ -50,16 +51,9 @@ __FBSDID("$FreeBSD$");
 
 
 
-#ifdef SCTP_DEBUG
-extern uint32_t sctp_debug_on;
-
-#endif				/* SCTP_DEBUG */
-
 extern struct protosw inetsw[];
 
 
-
-extern int sctp_no_csum_on_loopback;
 
 int
 sctp6_input(mp, offp, proto)
@@ -339,7 +333,10 @@ sctp6_ctlinput(cmd, pktdst, d)
 {
 	struct sctphdr sh;
 	struct ip6ctlparam *ip6cp = NULL;
+	uint32_t vrf_id;
 	int cm;
+
+	vrf_id = SCTP_DEFAULT_VRFID;
 
 	if (pktdst->sa_family != AF_INET6 ||
 	    pktdst->sa_len != sizeof(struct sockaddr_in6))
@@ -386,7 +383,7 @@ sctp6_ctlinput(cmd, pktdst, d)
 		final.sin6_port = sh.dest_port;
 		stcb = sctp_findassociation_addr_sa((struct sockaddr *)ip6cp->ip6c_src,
 		    (struct sockaddr *)&final,
-		    &inp, &net, 1);
+		    &inp, &net, 1, vrf_id);
 		/* inp's ref-count increased && stcb locked */
 		if (stcb != NULL && inp && (inp->sctp_socket != NULL)) {
 			if (cmd == PRC_MSGSIZE) {
@@ -437,6 +434,9 @@ sctp6_getcred(SYSCTL_HANDLER_ARGS)
 	struct sctp_nets *net;
 	struct sctp_tcb *stcb;
 	int error;
+	uint32_t vrf_id;
+
+	vrf_id = SCTP_DEFAULT_VRFID;
 
 	/*
 	 * XXXRW: Other instances of getcred use SUSER_ALLOWJAIL, as socket
@@ -458,7 +458,7 @@ sctp6_getcred(SYSCTL_HANDLER_ARGS)
 
 	stcb = sctp_findassociation_addr_sa(sin6tosa(&addrs[0]),
 	    sin6tosa(&addrs[1]),
-	    &inp, &net, 1);
+	    &inp, &net, 1, vrf_id);
 	if (stcb == NULL || inp == NULL || inp->sctp_socket == NULL) {
 		if ((inp != NULL) && (stcb == NULL)) {
 			/* reduce ref-count */
@@ -703,6 +703,7 @@ sctp_must_try_again:
 
 }
 
+/* This could be made common with sctp_detach() since they are identical */
 
 static int
 sctp6_disconnect(struct socket *so)
@@ -942,6 +943,7 @@ connected_type:
 static int
 sctp6_connect(struct socket *so, struct sockaddr *addr, struct thread *p)
 {
+	uint32_t vrf_id;
 	int error = 0;
 	struct sctp_inpcb *inp;
 	struct in6pcb *inp6;
@@ -959,6 +961,7 @@ sctp6_connect(struct socket *so, struct sockaddr *addr, struct thread *p)
 		return (ECONNRESET);	/* I made the same as TCP since we are
 					 * not setup? */
 	}
+	vrf_id = SCTP_DEFAULT_VRFID;
 	SCTP_ASOC_CREATE_LOCK(inp);
 	SCTP_INP_RLOCK(inp);
 	if ((inp->sctp_flags & SCTP_PCB_FLAGS_UNBOUND) ==
@@ -1039,7 +1042,7 @@ sctp6_connect(struct socket *so, struct sockaddr *addr, struct thread *p)
 		return (EALREADY);
 	}
 	/* We are GOOD to go */
-	stcb = sctp_aloc_assoc(inp, addr, 1, &error, 0);
+	stcb = sctp_aloc_assoc(inp, addr, 1, &error, 0, vrf_id);
 	SCTP_ASOC_CREATE_UNLOCK(inp);
 	if (stcb == NULL) {
 		/* Gak! no memory */
@@ -1065,11 +1068,11 @@ static int
 sctp6_getaddr(struct socket *so, struct sockaddr **addr)
 {
 	struct sockaddr_in6 *sin6;
-
 	struct sctp_inpcb *inp;
+	uint32_t vrf_id;
+	struct sctp_ifa *sctp_ifa;
 
 	int error;
-
 
 	/*
 	 * Do the malloc first in case it blocks.
@@ -1114,9 +1117,12 @@ sctp6_getaddr(struct socket *so, struct sockaddr **addr)
 				/* punt */
 				goto notConn6;
 			}
-			sin6->sin6_addr = sctp_ipv6_source_address_selection(
-			    inp, stcb, (struct route *)&net->ro, net, 0);
+			vrf_id = SCTP_DEFAULT_VRFID;
 
+			sctp_ifa = sctp_source_address_selection(inp, stcb, (struct route *)&net->ro, net, 0, vrf_id);
+			if (sctp_ifa) {
+				sin6->sin6_addr = sctp_ifa->address.sin6.sin6_addr;
+			}
 		} else {
 			/* For the bound all case you get back 0 */
 	notConn6:
@@ -1128,10 +1134,10 @@ sctp6_getaddr(struct socket *so, struct sockaddr **addr)
 		int fnd = 0;
 
 		LIST_FOREACH(laddr, &inp->sctp_addr_list, sctp_nxt_addr) {
-			if (laddr->ifa->ifa_addr->sa_family == AF_INET6) {
+			if (laddr->ifa->address.sa.sa_family == AF_INET6) {
 				struct sockaddr_in6 *sin_a;
 
-				sin_a = (struct sockaddr_in6 *)laddr->ifa->ifa_addr;
+				sin_a = (struct sockaddr_in6 *)&laddr->ifa->address.sin6;
 				sin6->sin6_addr = sin_a->sin6_addr;
 				fnd = 1;
 				break;
@@ -1157,7 +1163,6 @@ static int
 sctp6_peeraddr(struct socket *so, struct sockaddr **addr)
 {
 	struct sockaddr_in6 *sin6 = (struct sockaddr_in6 *)*addr;
-
 	int fnd;
 	struct sockaddr_in6 *sin_a6;
 	struct sctp_inpcb *inp;
@@ -1165,7 +1170,6 @@ sctp6_peeraddr(struct socket *so, struct sockaddr **addr)
 	struct sctp_nets *net;
 
 	int error;
-
 
 	/*
 	 * Do the malloc first in case it blocks.
@@ -1220,7 +1224,6 @@ static int
 sctp6_in6getaddr(struct socket *so, struct sockaddr **nam)
 {
 	struct sockaddr *addr;
-
 	struct in6pcb *inp6 = sotoin6pcb(so);
 	int error;
 
@@ -1252,7 +1255,6 @@ static int
 sctp6_getpeeraddr(struct socket *so, struct sockaddr **nam)
 {
 	struct sockaddr *addr = *nam;
-
 	struct in6pcb *inp6 = sotoin6pcb(so);
 	int error;
 

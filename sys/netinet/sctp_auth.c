@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2001-2006, Cisco Systems, Inc. All rights reserved.
+ * Copyright (c) 2001-2007, Cisco Systems, Inc. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -36,14 +36,13 @@ __FBSDID("$FreeBSD$");
 #include <netinet/sctp_header.h>
 #include <netinet/sctp_pcb.h>
 #include <netinet/sctp_var.h>
+#include <netinet/sctp_sysctl.h>
 #include <netinet/sctputil.h>
 #include <netinet/sctp_indata.h>
 #include <netinet/sctp_output.h>
 #include <netinet/sctp_auth.h>
 
 #ifdef SCTP_DEBUG
-extern uint32_t sctp_debug_on;
-
 #define SCTP_AUTH_DEBUG		(sctp_debug_on & SCTP_DEBUG_AUTH1)
 #define SCTP_AUTH_DEBUG2	(sctp_debug_on & SCTP_DEBUG_AUTH2)
 #endif				/* SCTP_DEBUG */
@@ -1935,7 +1934,7 @@ sctp_initialize_auth_params(struct sctp_inpcb *inp, struct sctp_tcb *stcb)
 {
 	uint16_t chunks_len = 0;
 	uint16_t hmacs_len = 0;
-	uint16_t random_len = sctp_auth_random_len;
+	uint16_t random_len = SCTP_AUTH_RANDOM_SIZE_DEFAULT;
 	sctp_key_t *new_key;
 	uint16_t keylen;
 

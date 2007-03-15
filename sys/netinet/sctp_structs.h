@@ -96,7 +96,7 @@ TAILQ_HEAD(sctp_resethead, sctp_stream_reset_list);
 
 /*
  * Users of the iterator need to malloc a iterator with a call to
- * sctp_initiate_iterator(inp_func, assoc_func, pcb_flags, pcb_features,
+ * sctp_initiate_iterator(inp_func, assoc_func, inp_func,  pcb_flags, pcb_features,
  *     asoc_state, void-ptr-arg, uint32-arg, end_func, inp);
  *
  * Use the following two defines if you don't care what pcb flags are on the EP
@@ -114,16 +114,17 @@ TAILQ_HEAD(sctp_resethead, sctp_stream_reset_list);
 
 typedef void (*asoc_func) (struct sctp_inpcb *, struct sctp_tcb *, void *ptr,
          uint32_t val);
-typedef void (*inp_func) (struct sctp_inpcb *, void *ptr, uint32_t val);
+typedef int (*inp_func) (struct sctp_inpcb *, void *ptr, uint32_t val);
 typedef void (*end_func) (void *ptr, uint32_t val);
 
 struct sctp_iterator {
-	LIST_ENTRY(sctp_iterator) sctp_nxt_itr;
+	TAILQ_ENTRY(sctp_iterator) sctp_nxt_itr;
 	struct sctp_timer tmr;
 	struct sctp_inpcb *inp;	/* current endpoint */
 	struct sctp_tcb *stcb;	/* current* assoc */
 	asoc_func function_assoc;	/* per assoc function */
 	inp_func function_inp;	/* per endpoint function */
+	inp_func function_inp_end;	/* end INP function */
 	end_func function_atend;/* iterator completion function */
 	void *pointer;		/* pointer for apply func to use */
 	uint32_t val;		/* value for apply func to use */
@@ -132,13 +133,14 @@ struct sctp_iterator {
 	uint32_t asoc_state;	/* assoc state being checked */
 	uint32_t iterator_flags;
 	uint8_t no_chunk_output;
+	uint8_t done_current_ep;
 };
 
 /* iterator_flags values */
 #define SCTP_ITERATOR_DO_ALL_INP	0x00000001
 #define SCTP_ITERATOR_DO_SINGLE_INP	0x00000002
 
-LIST_HEAD(sctpiterators, sctp_iterator);
+TAILQ_HEAD(sctpiterators, sctp_iterator);
 
 struct sctp_copy_all {
 	struct sctp_inpcb *inp;	/* ep */
@@ -148,6 +150,12 @@ struct sctp_copy_all {
 	int cnt_sent;
 	int cnt_failed;
 };
+
+struct sctp_asconf_iterator {
+	struct sctpladdr list_of_work;
+	int cnt;
+};
+
 
 struct sctp_nets {
 	TAILQ_ENTRY(sctp_nets) sctp_next;	/* next link */
@@ -165,7 +173,7 @@ struct sctp_nets {
 	struct sctp_route {
 		struct rtentry *ro_rt;
 		union sctp_sockstore _l_addr;	/* remote peer addr */
-		union sctp_sockstore _s_addr;	/* our selected src addr */
+		struct sctp_ifa *_s_addr;	/* our selected src addr */
 	}          ro;
 	/* mtu discovered so far */
 	uint32_t mtu;
@@ -435,7 +443,7 @@ TAILQ_HEAD(sctp_asconf_addrhead, sctp_asconf_addr);
 struct sctp_asconf_addr {
 	TAILQ_ENTRY(sctp_asconf_addr) next;
 	struct sctp_asconf_addr_param ap;
-	struct ifaddr *ifa;	/* save the ifa for add/del ip */
+	struct sctp_ifa *ifa;	/* save the ifa for add/del ip */
 	uint8_t sent;		/* has this been sent yet? */
 };
 
@@ -483,7 +491,8 @@ struct sctp_association {
 	struct sctp_timer delayed_event_timer;	/* timer for delayed events */
 
 	/* list of local addresses when add/del in progress */
-	struct sctpladdr sctp_local_addr_list;
+	struct sctpladdr sctp_restricted_addrs;
+
 	struct sctpnetlisthead nets;
 
 	/* Free chunk list */
@@ -572,6 +581,8 @@ struct sctp_association {
 
 	/* queue of chunks waiting to be sent into the local stack */
 	struct sctp_readhead pending_reply_queue;
+
+	uint32_t vrf_id;
 
 	uint32_t cookie_preserve_req;
 	/* ASCONF next seq I am sending out, inits at init-tsn */
@@ -739,6 +750,9 @@ struct sctp_association {
 	unsigned int cookie_life;
 	/* time to delay acks for */
 	unsigned int delayed_ack;
+	unsigned int old_delayed_ack;
+	unsigned int sack_freq;
+	unsigned int data_pkts_seen;
 
 	unsigned int numduptsns;
 	int dup_tsns[SCTP_MAX_DUP_TSNS];
@@ -813,10 +827,10 @@ struct sctp_association {
 	uint8_t stream_locked;
 	uint8_t authenticated;	/* packet authenticated ok */
 	/*
-	 * This flag indicates that we need to send the first SACK. If in
-	 * place it says we have NOT yet sent a SACK and need to.
+	 * This flag indicates that a SACK need to be sent. Initially this
+	 * is 1 to send the first sACK immediately.
 	 */
-	uint8_t first_ack_sent;
+	uint8_t send_sack;
 
 	/* max burst after fast retransmit completes */
 	uint8_t max_burst;

@@ -164,13 +164,14 @@ sctp_getaddrlen(sa_family_t family)
 }
 
 int
-sctp_connectx(int sd, const struct sockaddr *addrs, int addrcnt)
+sctp_connectx(int sd, const struct sockaddr *addrs, int addrcnt, sctp_assoc_t * id)
 {
 	char buf[SCTP_STACK_BUF_SIZE];
 	int i, ret, cnt, *aa;
 	char *cpto;
 	const struct sockaddr *at;
 	size_t len = sizeof(int);
+	sctp_assoc_t *p_id;
 
 	at = addrs;
 	cnt = 0;
@@ -211,7 +212,11 @@ sctp_connectx(int sd, const struct sockaddr *addrs, int addrcnt)
 	aa = (int *)buf;
 	*aa = cnt;
 	ret = setsockopt(sd, IPPROTO_SCTP, SCTP_CONNECT_X, (void *)buf,
-	    (socklen_t) len);
+	    (socklen_t)len);
+	if ((ret == 0) && id) {
+		p_id = (sctp_assoc_t *) buf;
+		*id = *p_id;
+	}
 	return (ret);
 }
 
@@ -300,7 +305,7 @@ sctp_getpaddrs(int sd, sctp_assoc_t id, struct sockaddr **raddrs)
 	asoc = id;
 	siz = sizeof(sctp_assoc_t);
 	if (getsockopt(sd, IPPROTO_SCTP, SCTP_GET_REMOTE_ADDR_SIZE,
-	    &asoc,  &siz) != 0) {
+	    &asoc, &siz) != 0) {
 		errno = ENOMEM;
 		return (-1);
 	}
@@ -316,7 +321,7 @@ sctp_getpaddrs(int sd, sctp_assoc_t id, struct sockaddr **raddrs)
 	addrs->sget_assoc_id = id;
 	/* Now lets get the array of addresses */
 	if (getsockopt(sd, IPPROTO_SCTP, SCTP_GET_PEER_ADDRESSES,
-	    addrs,  &siz) != 0) {
+	    addrs, &siz) != 0) {
 		free(addrs);
 		errno = ENOMEM;
 		return (-1);
@@ -333,7 +338,7 @@ sctp_getpaddrs(int sd, sctp_assoc_t id, struct sockaddr **raddrs)
 	return (cnt);
 }
 
-void 
+void
 sctp_freepaddrs(struct sockaddr *addrs)
 {
 	/* Take away the hidden association id */
@@ -398,7 +403,7 @@ sctp_getladdrs(int sd, sctp_assoc_t id, struct sockaddr **raddrs)
 	return (cnt);
 }
 
-void 
+void
 sctp_freeladdrs(struct sockaddr *addrs)
 {
 	/* Take away the hidden association id */

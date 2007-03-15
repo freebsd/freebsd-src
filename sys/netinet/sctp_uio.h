@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2001-2006, Cisco Systems, Inc. All rights reserved.
+ * Copyright (c) 2001-2007, Cisco Systems, Inc. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -34,8 +34,6 @@ __FBSDID("$FreeBSD$");
 
 #ifndef __sctp_uio_h__
 #define __sctp_uio_h__
-
-
 
 
 #if ! defined(_KERNEL)
@@ -409,7 +407,6 @@ struct sctp_paddrparams {
 	uint32_t spp_hbinterval;
 	uint16_t spp_pathmaxrxt;
 	uint32_t spp_pathmtu;
-	uint32_t spp_sackdelay;
 	uint32_t spp_flags;
 	uint32_t spp_ipv6_flowlabel;
 	uint8_t spp_ipv4_tos;
@@ -451,6 +448,8 @@ struct sctp_assocparams {
 	uint32_t sasoc_peer_rwnd;
 	uint32_t sasoc_local_rwnd;
 	uint32_t sasoc_cookie_life;
+	uint32_t sasoc_sack_delay;
+	uint32_t sasoc_sack_freq;
 };
 
 struct sctp_setprim {
@@ -890,10 +889,10 @@ struct sctpstat {
 #define SCTP_STAT_DECR_GAUGE32(_x) SCTP_STAT_DECR(_x)
 
 union sctp_sockstore {
-#ifdef AF_INET
+#if defined(INET) || !defined(_KERNEL)
 	struct sockaddr_in sin;
 #endif
-#ifdef AF_INET6
+#if defined(INET6) || !defined(_KERNEL)
 	struct sockaddr_in6 sin6;
 #endif
 	struct sockaddr sa;
@@ -993,13 +992,12 @@ sctp_sorecvmsg(struct socket *so,
 /*
  * API system calls
  */
-
 #if !(defined(_KERNEL))
 
 __BEGIN_DECLS
 int sctp_peeloff __P((int, sctp_assoc_t));
 int sctp_bindx __P((int, struct sockaddr *, int, int));
-int sctp_connectx __P((int, const struct sockaddr *, int));
+int sctp_connectx __P((int, const struct sockaddr *, int, sctp_assoc_t *));
 int sctp_getaddrlen __P((sa_family_t));
 int sctp_getpaddrs __P((int, sctp_assoc_t, struct sockaddr **));
 void sctp_freepaddrs __P((struct sockaddr *));
