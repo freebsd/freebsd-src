@@ -1915,6 +1915,11 @@ sbp_attach(device_t dev)
 	struct fw_xfer *xfer;
 	int i, s, error;
 
+	if (DFLTPHYS > SBP_MAXPHYS)
+		device_printf(dev, "Warning, DFLTPHYS(%dKB) is larger than "
+			"SBP_MAXPHYS(%dKB).\n", DFLTPHYS / 1024,
+			SBP_MAXPHYS / 1024);
+
 SBP_DEBUG(0)
 	printf("sbp_attach (cold=%d)\n", cold);
 END_DEBUG
