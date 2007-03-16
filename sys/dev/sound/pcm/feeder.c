@@ -37,8 +37,40 @@ MALLOC_DEFINE(M_FEEDER, "feeder", "pcm feeder");
 
 int feeder_buffersize = FEEDBUFSZ;
 TUNABLE_INT("hw.snd.feeder_buffersize", &feeder_buffersize);
+
+#ifdef SND_DEBUG
+static int
+sysctl_hw_snd_feeder_buffersize(SYSCTL_HANDLER_ARGS)
+{
+	int i, err, val;
+
+	val = feeder_buffersize;
+	err = sysctl_handle_int(oidp, &val, sizeof(val), req);
+
+	if (err != 0 || req->newptr == NULL)
+		return err;
+
+	if (val < FEEDBUFSZ_MIN || val > FEEDBUFSZ_MAX)
+		return EINVAL;
+
+	i = 0;
+	while (val >> i)
+		i++;
+	i = 1 << i;
+	if (i > val && (i >> 1) > 0 && (i >> 1) >= ((val * 3) >> 2))
+		i >>= 1;
+
+	feeder_buffersize = i;
+
+	return err;
+}
+SYSCTL_PROC(_hw_snd, OID_AUTO, feeder_buffersize, CTLTYPE_INT | CTLFLAG_RW,
+	0, sizeof(int), sysctl_hw_snd_feeder_buffersize, "I",
+	"feeder buffer size");
+#else
 SYSCTL_INT(_hw_snd, OID_AUTO, feeder_buffersize, CTLFLAG_RD,
 	&feeder_buffersize, FEEDBUFSZ, "feeder buffer size");
+#endif
 
 struct feedertab_entry {
 	SLIST_ENTRY(feedertab_entry) link;
@@ -824,10 +856,9 @@ feed_root(struct pcm_feeder *feeder, struct pcm_channel *ch, u_int8_t *buffer, u
 			    offset, count, l, ch->feedcount);
 
 		if (ch->feedcount == 1) {
-			if (offset > 0)
-				memset(buffer,
-				    sndbuf_zerodata(sndbuf_getfmt(src)),
-				    offset);
+			memset(buffer,
+			    sndbuf_zerodata(sndbuf_getfmt(src)),
+			    offset);
 			if (l > 0)
 				sndbuf_dispose(src, buffer + offset, l);
 			else
@@ -835,34 +866,32 @@ feed_root(struct pcm_feeder *feeder, struct pcm_channel *ch, u_int8_t *buffer, u
 		} else {
 			if (l > 0)
 				sndbuf_dispose(src, buffer, l);
-			if (offset > 0) {
 #if 1
+			memset(buffer + l,
+			    sndbuf_zerodata(sndbuf_getfmt(src)),
+			    offset);
+			if (!(ch->flags & CHN_F_CLOSING))
+				ch->xruns++;
+#else
+			if (l < 1 || (ch->flags & CHN_F_CLOSING)) {
 				memset(buffer + l,
 				    sndbuf_zerodata(sndbuf_getfmt(src)),
 				    offset);
 				if (!(ch->flags & CHN_F_CLOSING))
 					ch->xruns++;
-#else
-				if (l < 1 || (ch->flags & CHN_F_CLOSING)) {
-					memset(buffer + l,
-					    sndbuf_zerodata(sndbuf_getfmt(src)),
-					    offset);
-					if (!(ch->flags & CHN_F_CLOSING))
-						ch->xruns++;
-				} else {
-					int cp, tgt;
+			} else {
+				int cp, tgt;
 
-					tgt = l;
-					while (offset > 0) {
-						cp = min(l, offset);
-						memcpy(buffer + tgt, buffer, cp);
-						offset -= cp;
-						tgt += cp;
-					}
-					ch->xruns++;
+				tgt = l;
+				while (offset > 0) {
+					cp = min(l, offset);
+					memcpy(buffer + tgt, buffer, cp);
+					offset -= cp;
+					tgt += cp;
 				}
-#endif
+				ch->xruns++;
 			}
+#endif
 		}
 	} else if (l > 0)
 		sndbuf_dispose(src, buffer, l);
