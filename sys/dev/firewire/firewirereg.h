@@ -110,9 +110,7 @@ struct firewire_comm{
 	u_int irm;
 	u_int max_node;
 	u_int max_hop;
-	u_int max_asyretry;
 #define FWPHYASYST (1 << 0)
-	u_int retry_count;
 	uint32_t ongobus:10,
 		  ongonode:6,
 		  ongoaddr:16;
