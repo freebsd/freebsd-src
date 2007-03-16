@@ -81,12 +81,19 @@ main(int argc, char **argv)
 		usage();
 
 	if (!all) {
-		path = *argv;
+		char resolved[PATH_MAX];
 
-		if (strrchr(path, '/') == NULL ||	/* is absolute path */
-		    (stat(path, &st) == -1) || 		/* is it stat'able */
-		    !(st.st_mode & S_IFDIR))  		/* is it a directory */
+		path = *argv;
+		/*
+		 * mount(8) use realpath(3) before mounting file system,
+		 * so let's do the same with the given path.
+		 */
+		if (realpath(path, resolved) == NULL ||	/* can create full path */
+		    stat(resolved, &st) == -1 ||	/* is it stat'able */
+		    !S_ISDIR(st.st_mode)) {		/* is it a directory */
 			usage();
+		}
+		path = resolved;
 	}
 
 	fscount = getmntinfo(&mntbuf, MNT_WAIT);
