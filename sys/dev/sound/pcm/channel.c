@@ -39,12 +39,19 @@ SND_DECLARE_FILE("$FreeBSD$");
 #define	DMA_ALIGN_MASK		(~(DMA_ALIGN_THRESHOLD - 1))
 #endif
 
-#define CANCHANGE(c) (!(c->flags & CHN_F_TRIGGERED))
+#define CHN_STARTED(c)		((c)->flags & CHN_F_TRIGGERED)
+#define CHN_STOPPED(c)		(!CHN_STARTED(c))
+#define CHN_DIRSTR(c)		(((c)->direction == PCMDIR_PLAY) ? \
+				"PCMDIR_PLAY" : "PCMDIR_REC")
 
 #define BUF_PARENT(c, b)	\
 	(((c) != NULL && (c)->parentchannel != NULL && \
 	(c)->parentchannel->bufhard != NULL) ? \
 	(c)->parentchannel->bufhard : (b))
+
+#define CHN_TIMEOUT	5
+#define CHN_TIMEOUT_MIN	1
+#define CHN_TIMEOUT_MAX	10
 
 /*
 #define DEB(x) x
@@ -95,6 +102,40 @@ sysctl_hw_snd_latency_profile(SYSCTL_HANDLER_ARGS)
 SYSCTL_PROC(_hw_snd, OID_AUTO, latency_profile, CTLTYPE_INT | CTLFLAG_RW,
 	0, sizeof(int), sysctl_hw_snd_latency_profile, "I",
 	"buffering latency profile (0=aggresive 1=safe)");
+
+static int chn_timeout = CHN_TIMEOUT;
+
+#ifdef SND_DEBUG
+static int
+sysctl_hw_snd_timeout(SYSCTL_HANDLER_ARGS)
+{
+	int err, val;
+
+	val = chn_timeout;
+	err = sysctl_handle_int(oidp, &val, sizeof(val), req);
+	if (val < CHN_TIMEOUT_MIN || val > CHN_TIMEOUT_MAX)
+		err = EINVAL;
+	else
+		chn_timeout = val;
+
+	return err;
+}
+SYSCTL_PROC(_hw_snd, OID_AUTO, timeout, CTLTYPE_INT | CTLFLAG_RW,
+	0, sizeof(int), sysctl_hw_snd_timeout, "I",
+	"interrupt timeout (1 - 10)");
+#endif
+
+static int chn_usefrags = 0;
+TUNABLE_INT("hw.snd.usefrags", &chn_usefrags);
+static int chn_syncdelay = -1;
+TUNABLE_INT("hw.snd.syncdelay", &chn_syncdelay);
+#ifdef SND_DEBUG
+SYSCTL_INT(_hw_snd, OID_AUTO, usefrags, CTLFLAG_RW,
+	&chn_usefrags, 1, "prefer setfragments() over setblocksize()");
+SYSCTL_INT(_hw_snd, OID_AUTO, syncdelay, CTLFLAG_RW,
+	&chn_syncdelay, 1,
+	"append (0-1000) millisecond trailing buffer delay on each sync");
+#endif
 
 /**
  * @brief Channel sync group lock
@@ -193,6 +234,7 @@ chn_wakeup(struct pcm_channel *c)
 	if (SLIST_EMPTY(&c->children)) {
 		if (SEL_WAITING(sndbuf_getsel(bs)) && chn_polltrigger(c))
 			selwakeuppri(sndbuf_getsel(bs), PRIBIO);
+		wakeup_one(bs);
 	} else {
 		SLIST_FOREACH(pce, &c->children, link) {
 			CHN_LOCK(pce->channel);
@@ -200,8 +242,6 @@ chn_wakeup(struct pcm_channel *c)
 			CHN_UNLOCK(pce->channel);
 		}
 	}
-
-	wakeup_one(bs);
 }
 
 static int
@@ -247,22 +287,21 @@ chn_dmaupdate(struct pcm_channel *c)
 	);
 
 	if (c->direction == PCMDIR_PLAY) {
-		amt = MIN(delta, sndbuf_getready(b));
+		amt = min(delta, sndbuf_getready(b));
 		amt -= amt % sndbuf_getbps(b);
 		if (amt > 0)
 			sndbuf_dispose(b, NULL, amt);
 	} else {
-		amt = MIN(delta, sndbuf_getfree(b));
+		amt = min(delta, sndbuf_getfree(b));
 		amt -= amt % sndbuf_getbps(b);
 		if (amt > 0)
 		       sndbuf_acquire(b, NULL, amt);
 	}
-	if (snd_verbose > 2 && (c->flags & CHN_F_TRIGGERED) && delta == 0) {
-		device_printf(c->dev, "WARNING: PCMDIR_%s DMA completion "
+	if (snd_verbose > 3 && CHN_STARTED(c) && delta == 0) {
+		device_printf(c->dev, "WARNING: %s DMA completion "
 			"too fast/slow ! hwptr=%u, old=%u "
 			"delta=%u amt=%u ready=%u free=%u\n",
-			(c->direction == PCMDIR_PLAY) ? "PLAY" : "REC",
-			hwptr, old, delta, amt,
+			CHN_DIRSTR(c), hwptr, old, delta, amt,
 			sndbuf_getready(b), sndbuf_getfree(b));
 	}
 
@@ -277,7 +316,7 @@ chn_wrupdate(struct pcm_channel *c)
 	CHN_LOCKASSERT(c);
 	KASSERT(c->direction == PCMDIR_PLAY, ("chn_wrupdate on bad channel"));
 
-	if ((c->flags & (CHN_F_MAPPED | CHN_F_VIRTUAL)) || !(c->flags & CHN_F_TRIGGERED))
+	if ((c->flags & (CHN_F_MAPPED | CHN_F_VIRTUAL)) || CHN_STOPPED(c))
 		return;
 	chn_dmaupdate(c);
 	ret = chn_wrfeed(c);
@@ -321,8 +360,11 @@ chn_wrfeed(struct pcm_channel *c)
 	if (sndbuf_getfree(b) > 0)
 		c->xruns++;
 
+#if 0
 	if (ret == 0 && sndbuf_getfree(b) < amt)
 		chn_wakeup(c);
+#endif
+	chn_wakeup(c);
 
 	return ret;
 }
@@ -353,75 +395,58 @@ chn_wrintr(struct pcm_channel *c)
 int
 chn_write(struct pcm_channel *c, struct uio *buf)
 {
-	int ret, count, sz;
 	struct snd_dbuf *bs = c->bufsoft;
 	void *off;
-	int t, x, togo, p;
+	int ret, timeout, sz, t, p;
 
 	CHN_LOCKASSERT(c);
 
 	ret = 0;
-	count = hz;
+	timeout = chn_timeout * hz;
 
-	while (!ret && (buf->uio_resid > 0) && (count > 0)) {
-		sz = sndbuf_getfree(bs);
-		if (sz == 0) {
-			if (c->flags & CHN_F_NBIO)
-				ret = EWOULDBLOCK;
-			else if (c->flags & CHN_F_NOTRIGGER) {
-				/**
-				 * @todo Evaluate whether EAGAIN is truly desirable.
-				 * 	 4Front drivers behave like this, but I'm
-				 * 	 not sure if it at all violates the "write
-				 * 	 should be allowed to block" model.
-				 *
-				 * 	 The idea is that, while set with CHN_F_NOTRIGGER,
-				 * 	 a channel isn't playing, *but* without this we
-				 * 	 end up with "interrupt timeout / channel dead".
-				 */
-				ret = EAGAIN;
-			} else {
-	   			ret = chn_sleep(c, "pcmwr", c->timeout);
-				if (ret == EWOULDBLOCK) {
-					count -= c->timeout;
-					ret = 0;
-				} else if (ret == ERESTART || ret == EINTR) {
-					c->flags |= CHN_F_ABORTING;
-					return ret;
-				} else if (ret == 0)
-					count = hz;
-			}
-		} else {
-			sz = MIN(sz, buf->uio_resid);
-			KASSERT(sz > 0, ("confusion in chn_write"));
-			/* printf("sz: %d\n", sz); */
-
+	while (ret == 0 && buf->uio_resid > 0) {
+		sz = min(buf->uio_resid, sndbuf_getfree(bs));
+		if (sz > 0) {
 			/*
 			 * The following assumes that the free space in
 			 * the buffer can never be less around the
 			 * unlock-uiomove-lock sequence.
 			 */
-			togo = sz;
-			while (ret == 0 && togo > 0) {
+			while (ret == 0 && sz > 0) {
 				p = sndbuf_getfreeptr(bs);
-				t = MIN(togo, sndbuf_getsize(bs) - p);
+				t = min(sz, sndbuf_getsize(bs) - p);
 				off = sndbuf_getbufofs(bs, p);
 				CHN_UNLOCK(c);
 				ret = uiomove(off, t, buf);
 				CHN_LOCK(c);
-				togo -= t;
-				x = sndbuf_acquire(bs, NULL, t);
+				sz -= t;
+				sndbuf_acquire(bs, NULL, t);
 			}
 			ret = 0;
-			if (!(c->flags & CHN_F_TRIGGERED))
+			if (CHN_STOPPED(c))
 				chn_start(c, 0);
+		} else if (c->flags & (CHN_F_NBIO | CHN_F_NOTRIGGER)) {
+			/**
+			 * @todo Evaluate whether EAGAIN is truly desirable.
+			 * 	 4Front drivers behave like this, but I'm
+			 * 	 not sure if it at all violates the "write
+			 * 	 should be allowed to block" model.
+			 *
+			 * 	 The idea is that, while set with CHN_F_NOTRIGGER,
+			 * 	 a channel isn't playing, *but* without this we
+			 * 	 end up with "interrupt timeout / channel dead".
+			 */
+			ret = EAGAIN;
+		} else {
+   			ret = chn_sleep(c, "pcmwr", timeout);
+			if (ret == EAGAIN) {
+				ret = EINVAL;
+				c->flags |= CHN_F_DEAD;
+				printf("%s: play interrupt timeout, "
+				    "channel dead\n", c->name);
+			} else if (ret == ERESTART || ret == EINTR)
+				c->flags |= CHN_F_ABORTING;
 		}
-	}
-	/* printf("ret: %d left: %d\n", ret, buf->uio_resid); */
-
-	if (count <= 0) {
-		c->flags |= CHN_F_DEAD;
-		printf("%s: play interrupt timeout, channel dead\n", c->name);
 	}
 
 	return ret;
@@ -490,7 +515,7 @@ chn_rdupdate(struct pcm_channel *c)
 	CHN_LOCKASSERT(c);
 	KASSERT(c->direction == PCMDIR_REC, ("chn_rdupdate on bad channel"));
 
-	if ((c->flags & CHN_F_MAPPED) || !(c->flags & CHN_F_TRIGGERED))
+	if ((c->flags & CHN_F_MAPPED) || CHN_STOPPED(c))
 		return;
 	chn_trigger(c, PCMTRIG_EMLDMARD);
 	chn_dmaupdate(c);
@@ -525,58 +550,49 @@ chn_rdintr(struct pcm_channel *c)
 int
 chn_read(struct pcm_channel *c, struct uio *buf)
 {
-	int ret, sz, count;
 	struct snd_dbuf *bs = c->bufsoft;
 	void *off;
-	int t, x, togo, p;
+	int ret, timeout, sz, t, p;
 
 	CHN_LOCKASSERT(c);
-	if (!(c->flags & CHN_F_TRIGGERED))
+
+	if (CHN_STOPPED(c))
 		chn_start(c, 0);
 
 	ret = 0;
-	count = hz;
-	while (!ret && (buf->uio_resid > 0) && (count > 0)) {
-		sz = MIN(buf->uio_resid, sndbuf_getready(bs));
+	timeout = chn_timeout * hz;
 
+	while (ret == 0 && buf->uio_resid > 0) {
+		sz = min(buf->uio_resid, sndbuf_getready(bs));
 		if (sz > 0) {
 			/*
 			 * The following assumes that the free space in
 			 * the buffer can never be less around the
 			 * unlock-uiomove-lock sequence.
 			 */
-			togo = sz;
-			while (ret == 0 && togo > 0) {
+			while (ret == 0 && sz > 0) {
 				p = sndbuf_getreadyptr(bs);
-				t = MIN(togo, sndbuf_getsize(bs) - p);
+				t = min(sz, sndbuf_getsize(bs) - p);
 				off = sndbuf_getbufofs(bs, p);
 				CHN_UNLOCK(c);
 				ret = uiomove(off, t, buf);
 				CHN_LOCK(c);
-				togo -= t;
-				x = sndbuf_dispose(bs, NULL, t);
+				sz -= t;
+				sndbuf_dispose(bs, NULL, t);
 			}
 			ret = 0;
-		} else {
-			if (c->flags & CHN_F_NBIO)
-				ret = EWOULDBLOCK;
-			else {
-	   			ret = chn_sleep(c, "pcmrd", c->timeout);
-				if (ret == EWOULDBLOCK) {
-					count -= c->timeout;
-					ret = 0;
-				} else if (ret == ERESTART || ret == EINTR) {
-					c->flags |= CHN_F_ABORTING;
-					return ret;
-				} else
-					count = hz;
-			}
+		} else if (c->flags & (CHN_F_NBIO | CHN_F_NOTRIGGER))
+			ret = EAGAIN;
+		else {
+   			ret = chn_sleep(c, "pcmrd", timeout);
+			if (ret == EAGAIN) {
+				ret = EINVAL;
+				c->flags |= CHN_F_DEAD;
+				printf("%s: record interrupt timeout, "
+				    "channel dead\n", c->name);
+			} else if (ret == ERESTART || ret == EINTR)
+				c->flags |= CHN_F_ABORTING;
 		}
-	}
-
-	if (count <= 0) {
-		c->flags |= CHN_F_DEAD;
-		printf("%s: record interrupt timeout, channel dead\n", c->name);
 	}
 
 	return ret;
@@ -603,7 +619,7 @@ chn_start(struct pcm_channel *c, int force)
 
 	CHN_LOCKASSERT(c);
 	/* if we're running, or if we're prevented from triggering, bail */
-	if ((c->flags & CHN_F_TRIGGERED) || ((c->flags & CHN_F_NOTRIGGER) && !force))
+	if (CHN_STARTED(c) || ((c->flags & CHN_F_NOTRIGGER) && !force))
 		return EINVAL;
 
 	if (force) {
@@ -612,20 +628,22 @@ chn_start(struct pcm_channel *c, int force)
 	} else {
 		if (c->direction == PCMDIR_REC) {
 			i = sndbuf_getfree(bs);
-			j = sndbuf_getready(b);
+			j = (i > 0) ? 1 : sndbuf_getready(b);
 		} else {
-			struct snd_dbuf *pb;
+			if (sndbuf_getfree(bs) == 0) {
+				i = 1;
+				j = 0;
+			} else {
+				struct snd_dbuf *pb;
 
-			i = sndbuf_getready(bs);
-
-			pb = BUF_PARENT(c, b);
-			j = min(sndbuf_xbytes(sndbuf_getsize(pb), pb, bs),
-			    sndbuf_getsize(bs));
+				pb = BUF_PARENT(c, b);
+				i = sndbuf_xbytes(sndbuf_getready(bs), bs, pb);
+				j = sndbuf_getbps(pb);
+			}
 		}
 		if (snd_verbose > 3 && SLIST_EMPTY(&c->children))
-			printf("%s: PCMDIR_%s (%s) threshold i=%d j=%d\n",
-			    __func__,
-			    (c->direction == PCMDIR_PLAY) ? "PLAY" : "REC",
+			printf("%s: %s (%s) threshold i=%d j=%d\n",
+			    __func__, CHN_DIRSTR(c),
 			    (c->flags & CHN_F_VIRTUAL) ? "virtual" : "hardware",
 			    i, j);
 	}
@@ -637,17 +655,20 @@ chn_start(struct pcm_channel *c, int force)
 		c->interrupts = 0;
 		c->xruns = 0;
 		if (c->direction == PCMDIR_PLAY && c->parentchannel == NULL) {
-			chn_wrfeed(c);
+			sndbuf_fillsilence(b);
 			if (snd_verbose > 3)
 				printf("%s: %s starting! (%s) (ready=%d "
-				    "force=%d i=%d j=%d intrtimeout=%u)\n",
+				    "force=%d i=%d j=%d intrtimeout=%u "
+				    "latency=%dms)\n",
 				    __func__,
 				    (c->flags & CHN_F_HAS_VCHAN) ?
 				    "VCHAN" : "HW",
 				    (c->flags & CHN_F_CLOSING) ? "closing" :
 				    "running",
 				    sndbuf_getready(b),
-				    force, i, j, c->timeout);
+				    force, i, j, c->timeout,
+				    (sndbuf_getsize(b) * 1000) /
+				    (sndbuf_getbps(b) * sndbuf_getspd(b)));
 		}
 	    	chn_trigger(c, PCMTRIG_START);
 		return 0;
@@ -677,20 +698,22 @@ chn_sync(struct pcm_channel *c, int threshold)
 {
 	int ret, count, hcount, minflush, resid, residp;
     	struct snd_dbuf *b, *bs;
+	int syncdelay, blksz;
 
 	CHN_LOCKASSERT(c);
 
-	if (c->flags & (CHN_F_DEAD | CHN_F_ABORTING))
+	bs = c->bufsoft;
+
+	if ((c->flags & (CHN_F_DEAD | CHN_F_ABORTING)) ||
+	    (threshold < 1 && sndbuf_getready(bs) < 1))
 		return 0;
 
 	if (c->direction != PCMDIR_PLAY)
 		return EINVAL;
 
-	bs = c->bufsoft;
-
 	/* if we haven't yet started and nothing is buffered, else start*/
-	if (!(c->flags & CHN_F_TRIGGERED)) {
-		if (sndbuf_getready(bs) > 0) {
+	if (CHN_STOPPED(c)) {
+		if (threshold > 0 || sndbuf_getready(bs) > 0) {
 			ret = chn_start(c, 1);
 			if (ret)
 				return ret;
@@ -700,8 +723,22 @@ chn_sync(struct pcm_channel *c, int threshold)
 
 	b = BUF_PARENT(c, c->bufhard);
 
-	threshold += sndbuf_getready(b);
-	minflush = sndbuf_xbytes(threshold, b, bs);
+	minflush = threshold + sndbuf_xbytes(sndbuf_getready(b), b, bs);
+
+	syncdelay = chn_syncdelay;
+
+	if (syncdelay < 0 && (threshold > 0 || sndbuf_getready(bs) > 0))
+		minflush += sndbuf_xbytes(sndbuf_getsize(b), b, bs);
+
+	/*
+	 * Append (0-1000) millisecond trailing buffer (if needed)
+	 * for slower / high latency hardwares (notably USB audio)
+	 * to avoid audible truncation.
+	 */
+	if (syncdelay > 0)
+		minflush += (sndbuf_getbps(bs) * sndbuf_getspd(bs) *
+		    ((syncdelay > 1000) ? 1000 : syncdelay)) / 1000;
+
 	minflush -= minflush % sndbuf_getbps(bs);
 
 	if (minflush > 0) {
@@ -713,17 +750,32 @@ chn_sync(struct pcm_channel *c, int threshold)
 
 	resid = sndbuf_getready(bs);
 	residp = resid;
-	count = sndbuf_xbytes(minflush + resid, bs, b) / sndbuf_getblksz(b);
+	blksz = sndbuf_getblksz(b);
+	if (blksz < 1) {
+		printf("%s: WARNING: blksz < 1 ! maxsize=%d [%d/%d/%d]\n",
+		    __func__, sndbuf_getmaxsize(b), sndbuf_getsize(b),
+		    sndbuf_getblksz(b), sndbuf_getblkcnt(b));
+		if (sndbuf_getblkcnt(b) > 0)
+			blksz = sndbuf_getsize(b) / sndbuf_getblkcnt(b);
+		if (blksz < 1)
+			blksz = 1;
+	}
+	count = sndbuf_xbytes(minflush + resid, bs, b) / blksz;
 	hcount = count;
 	ret = 0;
 
-	while (count > 0 && resid > 0) {
+	if (snd_verbose > 3)
+		printf("%s: [begin] timeout=%d count=%d "
+		    "minflush=%d resid=%d\n", __func__, c->timeout, count,
+		    minflush, resid);
+
+	while (count > 0 && (resid > 0 || minflush > 0)) {
 		ret = chn_sleep(c, "pcmsyn", c->timeout);
     		if (ret == ERESTART || ret == EINTR) {
 			c->flags |= CHN_F_ABORTING;
 			break;
 		}
-		if (ret == 0 || ret == EWOULDBLOCK) {
+		if (ret == 0 || ret == EAGAIN) {
 			resid = sndbuf_getready(bs);
 			if (resid == residp) {
 				--count;
@@ -771,7 +823,7 @@ chn_poll(struct pcm_channel *c, int ev, struct thread *td)
 	int ret;
 
 	CHN_LOCKASSERT(c);
-    	if (!(c->flags & CHN_F_MAPPED) && !(c->flags & CHN_F_TRIGGERED))
+    	if (!(c->flags & (CHN_F_MAPPED | CHN_F_TRIGGERED)))
 		chn_start(c, 1);
 	ret = 0;
 	if (chn_polltrigger(c) && chn_pollreset(c))
@@ -795,7 +847,7 @@ chn_abort(struct pcm_channel *c)
     	struct snd_dbuf *bs = c->bufsoft;
 
 	CHN_LOCKASSERT(c);
-	if (!(c->flags & CHN_F_TRIGGERED))
+	if (CHN_STOPPED(c))
 		return 0;
 	c->flags |= CHN_F_ABORTING;
 
@@ -805,7 +857,7 @@ chn_abort(struct pcm_channel *c)
 	sndbuf_setrun(b, 0);
 	if (!(c->flags & CHN_F_VIRTUAL))
 		chn_dmaupdate(c);
-    	missing = sndbuf_getready(bs) + sndbuf_getready(b);
+    	missing = sndbuf_getready(bs);
 
 	c->flags &= ~CHN_F_ABORTING;
 	return missing;
@@ -1130,7 +1182,7 @@ chn_kill(struct pcm_channel *c)
     	struct snd_dbuf *b = c->bufhard;
     	struct snd_dbuf *bs = c->bufsoft;
 
-	if (c->flags & CHN_F_TRIGGERED)
+	if (CHN_STARTED(c))
 		chn_trigger(c, PCMTRIG_ABORT);
 	while (chn_removefeeder(c) == 0);
 	if (CHANNEL_FREE(c->methods, c->devinfo))
@@ -1190,6 +1242,28 @@ round_pow2(u_int32_t v)
 	ret = 1 << (ret - 1);
 	while (ret < v)
 		ret <<= 1;
+	return ret;
+}
+
+static u_int32_t
+round_blksz(u_int32_t v, int round)
+{
+	u_int32_t ret, tmp;
+
+	if (round < 1)
+		round = 1;
+
+	ret = min(round_pow2(v), CHN_2NDBUFMAXSIZE >> 1);
+
+	if (ret > v && (ret >> 1) > 0 && (ret >> 1) >= ((v * 3) >> 2))
+		ret >>= 1;
+
+	tmp = ret - (ret % round);
+	while (tmp < 16 || tmp < round) {
+		ret <<= 1;
+		tmp = ret - (ret % round);
+	}
+
 	return ret;
 }
 
@@ -1285,19 +1359,18 @@ static int
 chn_calclatency(int dir, int latency, int bps, u_int32_t datarate,
 				u_int32_t max, int *rblksz, int *rblkcnt)
 {
-	u_int32_t bufsz;
-	int blksz, blkcnt;
-	static int pblkcnts[CHN_LATENCY_PROFILE_MAX+1][CHN_LATENCY_MAX+1] =
+	static int pblkcnts[CHN_LATENCY_PROFILE_MAX + 1][CHN_LATENCY_MAX + 1] =
 	    CHN_LATENCY_PBLKCNT_REF;
-	static int  pbufszs[CHN_LATENCY_PROFILE_MAX+1][CHN_LATENCY_MAX+1] =
+	static int  pbufszs[CHN_LATENCY_PROFILE_MAX + 1][CHN_LATENCY_MAX + 1] =
 	    CHN_LATENCY_PBUFSZ_REF;
-	static int rblkcnts[CHN_LATENCY_PROFILE_MAX+1][CHN_LATENCY_MAX+1] =
+	static int rblkcnts[CHN_LATENCY_PROFILE_MAX + 1][CHN_LATENCY_MAX + 1] =
 	    CHN_LATENCY_RBLKCNT_REF;
-	static int  rbufszs[CHN_LATENCY_PROFILE_MAX+1][CHN_LATENCY_MAX+1] =
+	static int  rbufszs[CHN_LATENCY_PROFILE_MAX + 1][CHN_LATENCY_MAX + 1] =
 	    CHN_LATENCY_RBUFSZ_REF;
+	u_int32_t bufsz;
+	int lprofile, blksz, blkcnt;
 
-	if (CHN_LATENCY_MIN != 0 || CHN_LATENCY_MAX != 10 ||
-	    latency < CHN_LATENCY_MIN || latency > CHN_LATENCY_MAX ||
+	if (latency < CHN_LATENCY_MIN || latency > CHN_LATENCY_MAX ||
 	    bps < 1 || datarate < 1 ||
 	    !(dir == PCMDIR_PLAY || dir == PCMDIR_REC)) {
 		if (rblksz != NULL)
@@ -1310,24 +1383,22 @@ chn_calclatency(int dir, int latency, int bps, u_int32_t datarate,
 		return CHN_2NDBUFMAXSIZE;
 	}
 
+	lprofile = chn_latency_profile;
+
 	if (dir == PCMDIR_PLAY) {
-		blkcnt = pblkcnts[chn_latency_profile][latency];
-		bufsz = pbufszs[chn_latency_profile][latency];
+		blkcnt = pblkcnts[lprofile][latency];
+		bufsz = pbufszs[lprofile][latency];
 	} else {
-		blkcnt = rblkcnts[chn_latency_profile][latency];
-		bufsz = rbufszs[chn_latency_profile][latency];
+		blkcnt = rblkcnts[lprofile][latency];
+		bufsz = rbufszs[lprofile][latency];
 	}
-	bufsz = snd_xbytes(1 << bufsz, CHN_LATENCY_DATA_REF, datarate);
+
+	bufsz = round_pow2(snd_xbytes(1 << bufsz, CHN_LATENCY_DATA_REF,
+	    datarate));
 	if (bufsz > max)
 		bufsz = max;
-	if (bufsz < 32)
-		bufsz = 32;
-	blksz = bufsz >> blkcnt;
-	blksz -= blksz % bps;
-	while (blksz < 16 || blksz < bps)
-		blksz += bps;
-	while ((blksz << blkcnt) > bufsz && blkcnt > 1)
-		blkcnt--;
+	blksz = round_blksz(bufsz >> blkcnt, bps);
+
 	if (rblksz != NULL)
 		*rblksz = blksz;
 	if (rblkcnt != NULL)
@@ -1336,22 +1407,17 @@ chn_calclatency(int dir, int latency, int bps, u_int32_t datarate,
 	return blksz << blkcnt;
 }
 
-/*
- * Note that there is no strict requirement to align blksz to the
- * nearest ^2, except for hardware CHANNEL_SETBLOCKSIZE. If the application
- * trying to act smarter and requesting for specific blksz/blkcnt, so be it.
- */
 static int
 chn_resizebuf(struct pcm_channel *c, int latency,
 					int blkcnt, int blksz)
 {
 	struct snd_dbuf *b, *bs, *pb;
-	int sblksz, sblkcnt, hblksz, limit = 1;
+	int sblksz, sblkcnt, hblksz, hblkcnt, limit = 1;
 	int ret;
 
 	CHN_LOCKASSERT(c);
 
-	if (!CANCHANGE(c) || (c->flags & CHN_F_MAPPED) ||
+	if ((c->flags & (CHN_F_MAPPED | CHN_F_TRIGGERED)) ||
 	    !(c->direction == PCMDIR_PLAY || c->direction == PCMDIR_REC))
 		return EINVAL;
 
@@ -1399,14 +1465,8 @@ chn_resizebuf(struct pcm_channel *c, int latency,
 		 * defeat the purpose of having custom control. The least
 		 * we can do is round it to the nearest ^2 and align it.
 		 */
-		sblksz = round_pow2(blksz);
-		sblksz -= sblksz % sndbuf_getbps(bs);
-		sblkcnt = blkcnt;
-		while (sblksz < 16 || sblksz < sndbuf_getbps(bs))
-			sblksz += sndbuf_getbps(bs);
-		if (snd_verbose > 3 && !(blksz == 0 || blkcnt == -1))
-			printf("%s: requested blksz=%d blkcnt=%d -> %d/%d\n",
-			    __func__, blksz, blkcnt, sblksz, sblkcnt);
+		sblksz = round_blksz(blksz, sndbuf_getbps(bs));
+		sblkcnt = round_pow2(blkcnt);
 		limit = 0;
 	}
 
@@ -1419,39 +1479,48 @@ chn_resizebuf(struct pcm_channel *c, int latency,
 		    sndbuf_xbytes(sndbuf_getsize(pb), pb, bs) : 0;
 		c->timeout = c->parentchannel->timeout;
 	} else {
+		hblkcnt = 2;
 		if (c->flags & CHN_F_HAS_SIZE) {
-			hblksz = sndbuf_xbytes(sblksz, bs, b);
-			if (snd_verbose > 3)
-				printf("%s: sblksz=%d -> hblksz=%d\n",
-				    __func__, sblksz, hblksz);
+			hblksz = round_blksz(sndbuf_xbytes(sblksz, bs, b),
+			    sndbuf_getbps(b));
+			hblkcnt = round_pow2(sndbuf_getblkcnt(bs));
 		} else
 			chn_calclatency(c->direction, latency,
 			    sndbuf_getbps(b),
 			    sndbuf_getbps(b) * sndbuf_getspd(b),
-			    CHN_2NDBUFMAXSIZE, &hblksz, NULL);
+			    CHN_2NDBUFMAXSIZE, &hblksz, &hblkcnt);
 
-		hblksz = round_pow2(hblksz);
 		if ((hblksz << 1) > sndbuf_getmaxsize(b))
-			hblksz = sndbuf_getmaxsize(b) >> 1;
+			hblksz = round_blksz(sndbuf_getmaxsize(b) >> 1,
+			    sndbuf_getbps(b));
+
+		while ((hblksz * hblkcnt) > sndbuf_getmaxsize(b)) {
+			if (hblkcnt < 4)
+				hblksz >>= 1;
+			else
+				hblkcnt >>= 1;
+		}
+
 		hblksz -= hblksz % sndbuf_getbps(b);
-		while (hblksz < 16 || hblksz < sndbuf_getbps(b))
-			hblksz += sndbuf_getbps(b);
 
 #if 0
 		hblksz = sndbuf_getmaxsize(b) >> 1;
+		hblksz -= hblksz % sndbuf_getbps(b);
+		hblkcnt = 2;
 #endif
+
 		CHN_UNLOCK(c);
-		sndbuf_setblksz(b, CHANNEL_SETBLOCKSIZE(c->methods,
-		    c->devinfo, hblksz));
+		if (chn_usefrags == 0 ||
+		    CHANNEL_SETFRAGMENTS(c->methods, c->devinfo,
+		    hblksz, hblkcnt) < 1)
+			sndbuf_setblksz(b, CHANNEL_SETBLOCKSIZE(c->methods,
+			    c->devinfo, hblksz));
 		CHN_LOCK(c);
 
 		if (!SLIST_EMPTY(&c->children)) {
-			/*
-			 * Virtual channels underneath. Set the biggest
-			 * possible value for their mixing space.
-			 */
-			sblksz = CHN_2NDBUFMAXSIZE >> 1;
-			sblksz -= sblksz % sndbuf_getbps(bs);
+			sblksz = round_blksz(
+			    sndbuf_xbytes(sndbuf_getsize(b) >> 1, b, bs),
+			    sndbuf_getbps(bs));
 			sblkcnt = 2;
 			limit = 0;
 		} else if (limit != 0)
@@ -1460,24 +1529,34 @@ chn_resizebuf(struct pcm_channel *c, int latency,
 		/*
 		 * Interrupt timeout
 		 */
-		c->timeout = ((u_int64_t)hz * sndbuf_getblksz(b)) /
+		c->timeout = ((u_int64_t)hz * sndbuf_getsize(b)) /
 		    ((u_int64_t)sndbuf_getspd(b) * sndbuf_getbps(b));
 		if (c->timeout < 1)
 			c->timeout = 1;
-		c->timeout <<= 1;
 	}
 
 	if (limit > CHN_2NDBUFMAXSIZE)
 		limit = CHN_2NDBUFMAXSIZE;
 
-	hblksz = sblksz;
-	while ((sblksz * sblkcnt) < limit) {
-		sblksz += hblksz;
-		if ((sblksz * sblkcnt) > CHN_2NDBUFMAXSIZE) {
-			sblksz -= hblksz;
+#if 0
+	while (limit > 0 && (sblksz * sblkcnt) > limit) {
+		if (sblkcnt < 4)
 			break;
-		}
+		sblkcnt >>= 1;
 	}
+#endif
+
+	while ((sblksz * sblkcnt) < limit)
+		sblkcnt <<= 1;
+
+	while ((sblksz * sblkcnt) > CHN_2NDBUFMAXSIZE) {
+		if (sblkcnt < 4)
+			sblksz >>= 1;
+		else
+			sblkcnt >>= 1;
+	}
+
+	sblksz -= sblksz % sndbuf_getbps(bs);
 
 	if (sndbuf_getblkcnt(bs) != sblkcnt || sndbuf_getblksz(bs) != sblksz ||
 	    sndbuf_getsize(bs) != (sblkcnt * sblksz)) {
@@ -1497,9 +1576,9 @@ chn_resizebuf(struct pcm_channel *c, int latency,
 	chn_resetbuf(c);
 
 	if (snd_verbose > 3)
-		printf("%s: PCMDIR_%s (%s) timeout=%u "
+		printf("%s: %s (%s) timeout=%u "
 		    "b[%d/%d/%d] bs[%d/%d/%d] limit=%d\n",
-		    __func__, (c->direction == PCMDIR_REC) ? "REC" : "PLAY",
+		    __func__, CHN_DIRSTR(c),
 		    (c->flags & CHN_F_VIRTUAL) ? "virtual" : "hardware",
 		    c->timeout,
 		    sndbuf_getsize(b), sndbuf_getblksz(b),
@@ -1540,7 +1619,7 @@ chn_tryspeed(struct pcm_channel *c, int speed)
 	DEB(printf("want speed %d, ", speed));
 	if (speed <= 0)
 		return EINVAL;
-	if (CANCHANGE(c)) {
+	if (CHN_STOPPED(c)) {
 		r = 0;
 		c->speed = speed;
 		sndbuf_setspd(bs, speed);
@@ -1622,7 +1701,7 @@ chn_tryformat(struct pcm_channel *c, u_int32_t fmt)
 	int r;
 
 	CHN_LOCKASSERT(c);
-	if (CANCHANGE(c)) {
+	if (CHN_STOPPED(c)) {
 		DEB(printf("want format %d\n", fmt));
 		c->format = fmt;
 		r = chn_buildfeeder(c);
@@ -1702,7 +1781,7 @@ chn_getptr(struct pcm_channel *c)
 	int hwptr;
 
 	CHN_LOCKASSERT(c);
-	hwptr = (c->flags & CHN_F_TRIGGERED)? CHANNEL_GETPTR(c->methods, c->devinfo) : 0;
+	hwptr = (CHN_STARTED(c)) ? CHANNEL_GETPTR(c->methods, c->devinfo) : 0;
 	return (hwptr - (hwptr % sndbuf_getbps(c->bufhard)));
 }
 
@@ -1744,7 +1823,8 @@ chn_buildfeeder(struct pcm_channel *c)
 	char fmtstr[AFMTSTR_MAXSZ];
 
 	CHN_LOCKASSERT(c);
-	while (chn_removefeeder(c) == 0);
+	while (chn_removefeeder(c) == 0)
+		;
 	KASSERT((c->feeder == NULL), ("feeder chain not empty"));
 
 	c->align = sndbuf_getalign(c->bufsoft);
@@ -1786,10 +1866,16 @@ chn_buildfeeder(struct pcm_channel *c)
 	}
 	c->feederflags &= ~(1 << FEEDER_VOLUME);
 	if (c->direction == PCMDIR_PLAY &&
-			!(c->flags & CHN_F_VIRTUAL) &&
-			c->parentsnddev && (c->parentsnddev->flags & SD_F_SOFTPCMVOL) &&
-			c->parentsnddev->mixer_dev)
+	    !(c->flags & CHN_F_VIRTUAL) && c->parentsnddev &&
+	    (c->parentsnddev->flags & SD_F_SOFTPCMVOL) &&
+	    c->parentsnddev->mixer_dev)
 		c->feederflags |= 1 << FEEDER_VOLUME;
+	if (!(c->flags & CHN_F_VIRTUAL) && c->parentsnddev &&
+	    ((c->direction == PCMDIR_PLAY &&
+	    (c->parentsnddev->flags & SD_F_PSWAPLR)) ||
+	    (c->direction == PCMDIR_REC &&
+	    (c->parentsnddev->flags & SD_F_RSWAPLR))))
+		c->feederflags |= 1 << FEEDER_SWAPLR;
 	flags = c->feederflags;
 	fmtlist = chn_getcaps(c)->fmtlist;
 
@@ -1830,20 +1916,22 @@ chn_buildfeeder(struct pcm_channel *c)
 					    c->feeder->desc->out & AFMT_STEREO)
 					desc.in |= AFMT_STEREO;
 				desc.out = desc.in;
-				fc = feeder_getclass(&desc);
-				if (fc != NULL && fc->desc != NULL)
-					desc.flags = fc->desc->flags;
-			} else {
-				fc = feeder_getclass(&desc);
-				if (fc != NULL && fc->desc != NULL)
-					desc = *fc->desc;
+			} else if (type == FEEDER_SWAPLR) {
+				desc.in = c->feeder->desc->out;
+				desc.in |= AFMT_STEREO;
+				desc.out = desc.in;
 			}
+
+			fc = feeder_getclass(&desc);
 			DEB(printf("got %p\n", fc));
 			if (fc == NULL) {
 				DEB(printf("can't find required feeder type %d\n", type));
 
 				return EOPNOTSUPP;
 			}
+
+			if (desc.in == 0 || desc.out == 0)
+				desc = *fc->desc;
 
  			DEB(printf("build fmtchain from 0x%08x to 0x%08x: ", c->feeder->desc->out, fc->desc->in));
 			tmp[0] = desc.in;
@@ -1932,7 +2020,7 @@ chn_notify(struct pcm_channel *c, u_int32_t flags)
 		return ENODEV;
 	}
 
-	run = (c->flags & CHN_F_TRIGGERED)? 1 : 0;
+	run = (CHN_STARTED(c)) ? 1 : 0;
 	/*
 	 * if the hwchan is running, we can't change its rate, format or
 	 * blocksize
@@ -1974,9 +2062,10 @@ chn_notify(struct pcm_channel *c, u_int32_t flags)
 		SLIST_FOREACH(pce, &c->children, link) {
 			child = pce->channel;
 			CHN_LOCK(child);
-			if (child->flags & CHN_F_TRIGGERED)
-				nrun = 1;
+			nrun = CHN_STARTED(child);
 			CHN_UNLOCK(child);
+			if (nrun)
+				break;
 		}
 		if (nrun && !run)
 			chn_start(c, 1);

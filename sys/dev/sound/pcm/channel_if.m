@@ -83,6 +83,12 @@ CODE {
 		return 0;
 	}
 
+	static int
+	channel_nosetfragments(kobj_t obj, void *data, u_int32_t blocksize, u_int32_t blockcount)
+	{
+		return 0;
+	}
+
 };
 
 METHOD void* init {
@@ -131,6 +137,13 @@ METHOD u_int32_t setblocksize {
 	void *data;
 	u_int32_t blocksize;
 };
+
+METHOD int setfragments {
+	kobj_t obj;
+	void *data;
+	u_int32_t blocksize;
+	u_int32_t blockcount;
+} DEFAULT channel_nosetfragments;
 
 METHOD int trigger {
 	kobj_t obj;
