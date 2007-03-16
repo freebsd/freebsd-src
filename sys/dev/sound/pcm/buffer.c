@@ -596,7 +596,7 @@ sndbuf_acquire(struct snd_dbuf *b, u_int8_t *from, unsigned int count)
 	b->total += count;
 	if (from != NULL) {
 		while (count > 0) {
-			l = MIN(count, sndbuf_getsize(b) - sndbuf_getfreeptr(b));
+			l = min(count, sndbuf_getsize(b) - sndbuf_getfreeptr(b));
 			bcopy(from, sndbuf_getbufofs(b, sndbuf_getfreeptr(b)), l);
 			from += l;
 			b->rl += l;
@@ -632,7 +632,7 @@ sndbuf_dispose(struct snd_dbuf *b, u_int8_t *to, unsigned int count)
 	KASSERT((b->rl >= 0) && (b->rl <= b->bufsize), ("%s: b->rl invalid %d", __func__, b->rl));
 	if (to != NULL) {
 		while (count > 0) {
-			l = MIN(count, sndbuf_getsize(b) - sndbuf_getreadyptr(b));
+			l = min(count, sndbuf_getsize(b) - sndbuf_getreadyptr(b));
 			bcopy(sndbuf_getbufofs(b, sndbuf_getreadyptr(b)), to, l);
 			to += l;
 			b->rl -= l;
