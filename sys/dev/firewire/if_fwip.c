@@ -380,7 +380,6 @@ found:
 				break;
 			xfer->send.spd = tx_speed;
 			xfer->fc = fwip->fd.fc;
-			xfer->retry_req = fw_asybusy;
 			xfer->sc = (caddr_t)fwip;
 			xfer->act.hand = fwip_output_callback;
 			STAILQ_INSERT_TAIL(&fwip->xferlist, xfer, link);

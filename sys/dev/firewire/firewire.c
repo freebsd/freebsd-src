@@ -257,7 +257,6 @@ fw_asyreq(struct firewire_comm *fc, int sub, struct fw_xfer *xfer)
 	xfer->resp = 0;
 	xfer->fc = fc;
 	xfer->q = xferq;
-	xfer->retry_req = fw_asybusy;
 
 	fw_asystart(xfer);
 	return err;
@@ -293,13 +292,6 @@ fw_asystart(struct fw_xfer *xfer)
 {
 	struct firewire_comm *fc = xfer->fc;
 	int s;
-	if(xfer->retry++ >= fc->max_asyretry){
-		device_printf(fc->bdev, "max_asyretry exceeded\n");
-		xfer->resp = EBUSY;
-		xfer->state = FWXF_BUSY;
-		xfer->act.hand(xfer);
-		return;
-	}
 #if 0 /* XXX allow bus explore packets only after bus rest */
 	if (fc->status < FWBUSEXPLORE) {
 		xfer->resp = EAGAIN;
@@ -416,7 +408,6 @@ firewire_attach(device_t dev)
 
 	CALLOUT_INIT(&sc->fc->timeout_callout);
 	CALLOUT_INIT(&sc->fc->bmr_callout);
-	CALLOUT_INIT(&sc->fc->retry_probe_callout);
 	CALLOUT_INIT(&sc->fc->busprobe_callout);
 
 	callout_reset(&sc->fc->timeout_callout, hz,
@@ -487,7 +478,6 @@ firewire_detach(device_t dev)
 
 	callout_stop(&sc->fc->timeout_callout);
 	callout_stop(&sc->fc->bmr_callout);
-	callout_stop(&sc->fc->retry_probe_callout);
 	callout_stop(&sc->fc->busprobe_callout);
 
 	/* XXX xfree_free and untimeout on all xfers */
@@ -709,8 +699,6 @@ void fw_init(struct firewire_comm *fc)
 	struct fw_xfer *xfer;
 	struct fw_bind *fwb;
 #endif
-
-	fc->max_asyretry = FW_MAXASYRTY;
 
 	fc->arq->queued = 0;
 	fc->ars->queued = 0;
@@ -1055,7 +1043,6 @@ fw_xfer_unload(struct fw_xfer* xfer)
 	}
 	xfer->state = FWXF_INIT;
 	xfer->resp = 0;
-	xfer->retry = 0;
 }
 /*
  * To free IEEE1394 XFER structure. 
@@ -1113,7 +1100,6 @@ fw_phy_config(struct firewire_comm *fc, int root_node, int gap_count)
 	if (xfer == NULL)
 		return;
 	xfer->fc = fc;
-	xfer->retry_req = fw_asybusy;
 	xfer->act.hand = fw_asy_callback_free;
 
 	fp = &xfer->send.hdr;
@@ -1277,7 +1263,6 @@ fw_bus_probe(struct firewire_comm *fc)
 
 	s = splfw();
 	fc->status = FWBUSEXPLORE;
-	fc->retry_count = 0;
 
 	/* Invalidate all devices, just after bus reset. */
 	STAILQ_FOREACH(fwdev, &fc->devices, link)
@@ -1508,12 +1493,8 @@ fw_bus_explore_callback(struct fw_xfer *xfer)
 
 	if(xfer->resp != 0){
 		device_printf(fc->bdev,
-		    "bus_explore node=%d addr=0x%x resp=%d retry=%d\n",
-		    fc->ongonode, fc->ongoaddr, xfer->resp, xfer->retry);
-		if (xfer->retry < fc->max_asyretry) {
-			fw_asystart(xfer);
-			return;
-		}
+		    "bus_explore node=%d addr=0x%x resp=%d\n",
+		    fc->ongonode, fc->ongoaddr, xfer->resp);
 		goto errnode;
 	}
 
@@ -1694,14 +1675,6 @@ fw_attach_dev(struct firewire_comm *fc)
 	}
 	free(devlistp, M_TEMP);
 
-	if (fc->retry_count > 0) {
-		device_printf(fc->bdev, "bus_explore failed for %d nodes\n",
-		    fc->retry_count);
-#if 0
-		callout_reset(&fc->retry_probe_callout, hz*2,
-					(void *)fc->ibr, (void *)fc);
-#endif
-	}
 	return;
 }
 
@@ -2171,7 +2144,6 @@ fw_vmaccess(struct fw_xfer *xfer){
 	sfp->mode.hdr.dst = rfp->mode.hdr.src;
 	xfer->dst = ntohs(rfp->mode.hdr.src);
 	xfer->act.hand = fw_xfer_free;
-	xfer->retry_req = fw_asybusy;
 
 	sfp->mode.hdr.tlrt = rfp->mode.hdr.tlrt;
 	sfp->mode.hdr.pri = 0;
