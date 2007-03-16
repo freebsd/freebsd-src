@@ -51,3 +51,6 @@ u_int32_t uaudio_query_mix_info(device_t dev);
 u_int32_t uaudio_query_recsrc_info(device_t dev);
 unsigned uaudio_query_formats(device_t dev, int dir, unsigned maxfmt, struct pcmchan_caps *fmt);
 void	uaudio_sndstat_register(device_t dev);
+int uaudio_get_vendor(device_t dev);
+int uaudio_get_product(device_t dev);
+int uaudio_get_release(device_t dev);
