@@ -31,48 +31,37 @@
 
 SND_DECLARE_FILE("$FreeBSD$");
 
-MALLOC_DEFINE(M_VOLUMEFEEDER, "volumefeed", "pcm volume feeder");
-
-#define FVOL_TRACE(x...) /* device_printf(c->dev, x) */
-#define FVOL_TEST(x, y...) /* if (x) FVOL_TRACE(y) */
-
-#define FVOL_RESOLUTION		6 /* 6bit volume resolution */
-#define FVOL_CLAMP(val)		(((val) << FVOL_RESOLUTION) / 100)
+#define FVOL_OSS_SCALE		100
+#define FVOL_RESOLUTION		PCM_FXSHIFT
+#define FVOL_CLAMP(val)		(((val) << FVOL_RESOLUTION) / FVOL_OSS_SCALE)
 #define FVOL_LEFT(val)		FVOL_CLAMP((val) & 0x7f)
 #define FVOL_RIGHT(val)		FVOL_LEFT((val) >> 8)
-#define FVOL_MAX		(1 << FVOL_RESOLUTION)
+#define FVOL_MAX		(1U << FVOL_RESOLUTION)
 #define FVOL_CALC(sval, vval)	(((sval) * (vval)) >> FVOL_RESOLUTION)
 
-struct feed_volume_info;
-
-typedef uint32_t (*feed_volume_filter)(struct feed_volume_info *,
-						uint8_t *, int *, uint32_t);
-
-struct feed_volume_info {
-	uint32_t bps, channels;
-	feed_volume_filter filter;
-};
+typedef uint32_t (*feed_volume_filter)(uint8_t *, uint32_t *, uint32_t);
 
 #define FEEDER_VOLUME_FILTER(FMTBIT, VOL_INTCAST, SIGN, SIGNS, ENDIAN, ENDIANS)	\
 static uint32_t									\
-feed_volume_filter_##SIGNS##FMTBIT##ENDIANS(struct feed_volume_info *info,	\
-					uint8_t *b, int *vol, uint32_t count)	\
+feed_volume_filter_##SIGNS##FMTBIT##ENDIANS(uint8_t *b, uint32_t *vol,		\
+							uint32_t count)		\
 {										\
-	uint32_t bps;								\
 	int32_t j;								\
 	int i;									\
 										\
-	bps = info->bps;							\
 	i = count;								\
 	b += i;									\
-	while (i > 0) {								\
-		b -= bps;							\
-		i -= bps;							\
+										\
+	do {									\
+		b -= PCM_##FMTBIT##_BPS;					\
+		i -= PCM_##FMTBIT##_BPS;					\
 		j = PCM_READ_##SIGN##FMTBIT##_##ENDIAN(b);			\
-		j = FVOL_CALC((VOL_INTCAST)j, vol[(i / bps) & 1]);		\
+		j = FVOL_CALC((VOL_INTCAST)j,					\
+		    vol[(i / PCM_##FMTBIT##_BPS) & 1]);				\
 		PCM_WRITE_##SIGN##FMTBIT##_##ENDIAN(b, j);			\
-	}									\
-	return count;								\
+	} while (i != 0);							\
+										\
+	return (count);								\
 }
 
 FEEDER_VOLUME_FILTER(8, int32_t, S, s, NE, ne)
@@ -82,7 +71,6 @@ FEEDER_VOLUME_FILTER(32, intpcm_t, S, s, LE, le)
 FEEDER_VOLUME_FILTER(16, int32_t, S, s, BE, be)
 FEEDER_VOLUME_FILTER(24, int32_t, S, s, BE, be)
 FEEDER_VOLUME_FILTER(32, intpcm_t, S, s, BE, be)
-/* unsigned */
 FEEDER_VOLUME_FILTER(8, int32_t, U, u, NE, ne)
 FEEDER_VOLUME_FILTER(16, int32_t, U, u, LE, le)
 FEEDER_VOLUME_FILTER(24, int32_t, U, u, LE, le)
@@ -91,109 +79,84 @@ FEEDER_VOLUME_FILTER(16, int32_t, U, u, BE, be)
 FEEDER_VOLUME_FILTER(24, int32_t, U, u, BE, be)
 FEEDER_VOLUME_FILTER(32, intpcm_t, U, u, BE, be)
 
-static int
-feed_volume_setup(struct pcm_feeder *f)
-{
-	struct feed_volume_info *info = f->data;
-	static const struct {
-		uint32_t format;	/* pcm / audio format */
-		uint32_t bps;		/* bytes-per-sample, regardless of
-					   total channels */
-		feed_volume_filter filter;
-	} voltbl[] = {
-		{ AFMT_S8, PCM_8_BPS, feed_volume_filter_s8ne },
-		{ AFMT_S16_LE, PCM_16_BPS, feed_volume_filter_s16le },
-		{ AFMT_S24_LE, PCM_24_BPS, feed_volume_filter_s24le },
-		{ AFMT_S32_LE, PCM_32_BPS, feed_volume_filter_s32le },
-		{ AFMT_S16_BE, PCM_16_BPS, feed_volume_filter_s16be },
-		{ AFMT_S24_BE, PCM_24_BPS, feed_volume_filter_s24be },
-		{ AFMT_S32_BE, PCM_32_BPS, feed_volume_filter_s32be },
-		/* unsigned */
-		{ AFMT_U8, PCM_8_BPS, feed_volume_filter_u8ne },
-		{ AFMT_U16_LE, PCM_16_BPS, feed_volume_filter_u16le },
-		{ AFMT_U24_LE, PCM_24_BPS, feed_volume_filter_u24le },
-		{ AFMT_U32_LE, PCM_32_BPS, feed_volume_filter_u32le },
-		{ AFMT_U16_BE, PCM_16_BPS, feed_volume_filter_u16be },
-		{ AFMT_U24_BE, PCM_24_BPS, feed_volume_filter_u24be },
-		{ AFMT_U32_BE, PCM_32_BPS, feed_volume_filter_u32be },
-		{ 0, 0, NULL },
-	};
-	uint32_t i;
+struct feed_volume_info {
+	uint32_t format;
+	int bps;
+	feed_volume_filter filter;
+};
 
-	for (i = 0; i < sizeof(voltbl) / sizeof(*voltbl); i++) {
-		if (voltbl[i].format == 0)
-			return -1;
-		if ((f->desc->out & ~AFMT_STEREO) == voltbl[i].format) {
-			info->bps = voltbl[i].bps;
-			info->filter = voltbl[i].filter;
-			break;
-		}
-	}
+static struct feed_volume_info feed_volume_tbl[] = {
+	{ AFMT_S8,     PCM_8_BPS,  feed_volume_filter_s8ne  },
+	{ AFMT_S16_LE, PCM_16_BPS, feed_volume_filter_s16le },
+	{ AFMT_S24_LE, PCM_24_BPS, feed_volume_filter_s24le },
+	{ AFMT_S32_LE, PCM_32_BPS, feed_volume_filter_s32le },
+	{ AFMT_S16_BE, PCM_16_BPS, feed_volume_filter_s16be },
+	{ AFMT_S24_BE, PCM_24_BPS, feed_volume_filter_s24be },
+	{ AFMT_S32_BE, PCM_32_BPS, feed_volume_filter_s32be },
+	{ AFMT_U8,     PCM_8_BPS,  feed_volume_filter_u8ne  },
+	{ AFMT_U16_LE, PCM_16_BPS, feed_volume_filter_u16le },
+	{ AFMT_U24_LE, PCM_24_BPS, feed_volume_filter_u24le },
+	{ AFMT_U32_LE, PCM_32_BPS, feed_volume_filter_u32le },
+	{ AFMT_U16_BE, PCM_16_BPS, feed_volume_filter_u16be },
+	{ AFMT_U24_BE, PCM_24_BPS, feed_volume_filter_u24be },
+	{ AFMT_U32_BE, PCM_32_BPS, feed_volume_filter_u32be },
+};
 
-	/* For now, this is mandatory! */
-	info->channels = 2;
-
-	return 0;
-}
+#define FVOL_DATA(i, c)		((intptr_t)((((i) & 0x1f) << 4) | ((c) & 0xf)))
+#define FVOL_INFOIDX(m)		(((m) >> 4) & 0x1f)
+#define FVOL_CHANNELS(m)	((m) & 0xf)
 
 static int
 feed_volume_init(struct pcm_feeder *f)
 {
-	struct feed_volume_info *info;
+	int i, channels;
 
 	if (f->desc->in != f->desc->out)
-		return EINVAL;
+		return (EINVAL);
 
-	/* Mandatory */
+	/* For now, this is mandatory! */
 	if (!(f->desc->out & AFMT_STEREO))
-		return EINVAL;
+		return (EINVAL);
 
-	info = malloc(sizeof(*info), M_VOLUMEFEEDER, M_NOWAIT | M_ZERO);
-	if (info == NULL)
-		return ENOMEM;
-	f->data = info;
-	return feed_volume_setup(f);
-}
+	channels = 2;
 
-static int
-feed_volume_free(struct pcm_feeder *f)
-{
-	struct feed_volume_info *info = f->data;
+	for (i = 0; i < sizeof(feed_volume_tbl) / sizeof(feed_volume_tbl[0]);
+	    i++) {
+		if ((f->desc->out & ~AFMT_STEREO) ==
+		    feed_volume_tbl[i].format) {
+			f->data = (void *)FVOL_DATA(i, channels);
+			return (0);
+		}
+	}
 
-	if (info)
-		free(info, M_VOLUMEFEEDER);
-	f->data = NULL;
-	return 0;
+	return (-1);
 }
 
 static int
 feed_volume(struct pcm_feeder *f, struct pcm_channel *c, uint8_t *b,
 						uint32_t count, void *source)
 {
-	struct feed_volume_info *info = f->data;
-	uint32_t k, smpsz;
-	int vol[2];
+	struct feed_volume_info *info;
+	uint32_t vol[2];
+	int k, smpsz;
 
 	vol[0] = FVOL_LEFT(c->volume);
 	vol[1] = FVOL_RIGHT(c->volume);
 
 	if (vol[0] == FVOL_MAX && vol[1] == FVOL_MAX)
-		return FEEDER_FEED(f->source, c, b, count, source);
+		return (FEEDER_FEED(f->source, c, b, count, source));
 
-	smpsz = info->bps * info->channels;
+	info = &feed_volume_tbl[FVOL_INFOIDX((intptr_t)f->data)];
+	smpsz = info->bps * FVOL_CHANNELS((intptr_t)f->data);
 	if (count < smpsz)
-		return 0;
-	count -= count % smpsz;
-	k = FEEDER_FEED(f->source, c, b, count, source);
-	if (k < smpsz) {
-		FVOL_TRACE("%s: Not enough data (Got: %u bytes)\n",
-				__func__, k);
-		return 0;
-	}
-	FVOL_TEST(k % smpsz, "%s: Bytes not %dbit (stereo) aligned.\n",
-			__func__, info->bps << 3);
+		return (0);
+
+	k = FEEDER_FEED(f->source, c, b, count - (count % smpsz), source);
+	if (k < smpsz)
+		return (0);
+
 	k -= k % smpsz;
-	return info->filter(info, b, vol, k);
+	return (info->filter(b, vol, k));
 }
 
 static struct pcm_feederdesc feeder_volume_desc[] = {
@@ -204,7 +167,6 @@ static struct pcm_feederdesc feeder_volume_desc[] = {
 	{FEEDER_VOLUME, AFMT_S16_BE | AFMT_STEREO, AFMT_S16_BE | AFMT_STEREO, 0},
 	{FEEDER_VOLUME, AFMT_S24_BE | AFMT_STEREO, AFMT_S24_BE | AFMT_STEREO, 0},
 	{FEEDER_VOLUME, AFMT_S32_BE | AFMT_STEREO, AFMT_S32_BE | AFMT_STEREO, 0},
-	/* unsigned */
 	{FEEDER_VOLUME, AFMT_U8 | AFMT_STEREO, AFMT_U8 | AFMT_STEREO, 0},
 	{FEEDER_VOLUME, AFMT_U16_LE | AFMT_STEREO, AFMT_U16_LE | AFMT_STEREO, 0},
 	{FEEDER_VOLUME, AFMT_U24_LE | AFMT_STEREO, AFMT_U24_LE | AFMT_STEREO, 0},
@@ -216,7 +178,6 @@ static struct pcm_feederdesc feeder_volume_desc[] = {
 };
 static kobj_method_t feeder_volume_methods[] = {
 	KOBJMETHOD(feeder_init,		feed_volume_init),
-	KOBJMETHOD(feeder_free,		feed_volume_free),
 	KOBJMETHOD(feeder_feed,		feed_volume),
 	{0, 0}
 };
