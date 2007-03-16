@@ -87,24 +87,53 @@ ufs_disk_fillout_blank(struct uufsd *disk, const char *name)
 {
 	struct stat st;
 	struct fstab *fs;
+	struct statfs sfs;
 	const char *oname;
 	char dev[MAXPATHLEN];
-	int fd;
+	int fd, ret;
 
 	ERROR(disk, NULL);
 
 	oname = name;
-	fs = getfsfile(name);
-	if (fs != NULL)
-		name = fs->fs_spec;
-again:	if (stat(name, &st) < 0) {
+again:	if ((ret = stat(name, &st)) < 0) {
 		if (*name != '/') {
-			if (*name == 'r')
-				name++;
 			snprintf(dev, sizeof(dev), "%s%s", _PATH_DEV, name);
 			name = dev;
 			goto again;
 		}
+		/*
+		 * The given object doesn't exist, but don't panic just yet -
+		 * it may be still mount point listed in /etc/fstab, but without
+		 * existing corresponding directory.
+		 */
+		name = oname;
+	}
+	if (ret >= 0 && S_ISCHR(st.st_mode)) {
+		/* This is what we need, do nothing. */
+		;
+	} else if ((fs = getfsfile(name)) != NULL) {
+		/*
+		 * The given mount point is listed in /etc/fstab.
+		 * It is possible that someone unmounted file system by hand
+		 * and different file system is mounted on this mount point,
+		 * but we still prefer /etc/fstab entry, because on the other
+		 * hand, there could be /etc/fstab entry for this mount
+		 * point, but file system is not mounted yet (eg. noauto) and
+		 * statfs(2) will point us at different file system.
+		 */
+		name = fs->fs_spec;
+	} else if (ret >= 0 && S_ISDIR(st.st_mode)) {
+		/*
+		 * The mount point is not listed in /etc/fstab, so it may be
+		 * file system mounted by hand.
+		 */
+		if (statfs(name, &sfs) < 0) {
+			ERROR(disk, "could not find special device");
+			return (-1);
+		}
+		strlcpy(dev, sfs.f_mntfromname, sizeof(dev));
+		name = dev;
+	} else {
 		ERROR(disk, "could not find special device");
 		return (-1);
 	}
