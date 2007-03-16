@@ -119,17 +119,17 @@ typedef struct acl_t_struct *acl_t;
 extern uma_zone_t	acl_zone;
 
 /*
- * POSIX.1e ACLs are capable of expressing the read, write, and execute
- * bits of the POSIX mode field.  We provide two masks: one that defines
- * the bits the ACL will replace in the mode, and the other that defines
- * the bits that must be preseved when an ACL is updating a mode.
+ * POSIX.1e ACLs are capable of expressing the read, write, and execute bits
+ * of the POSIX mode field.  We provide two masks: one that defines the bits
+ * the ACL will replace in the mode, and the other that defines the bits that
+ * must be preseved when an ACL is updating a mode.
  */
 #define	ACL_OVERRIDE_MASK	(S_IRWXU | S_IRWXG | S_IRWXO)
 #define	ACL_PRESERVE_MASK	(~ACL_OVERRIDE_MASK)
 
 /*
- * File system independent code to move back and forth between POSIX mode
- * and POSIX.1e ACL representations.
+ * File system independent code to move back and forth between POSIX mode and
+ * POSIX.1e ACL representations.
  */
 acl_perm_t		acl_posix1e_mode_to_perm(acl_tag_t tag, mode_t mode);
 struct acl_entry	acl_posix1e_mode_to_entry(acl_tag_t tag, uid_t uid,
@@ -150,8 +150,8 @@ int			acl_posix1e_check(struct acl *acl);
 #else /* !_KERNEL */
 
 /*
- * Syscall interface -- use the library calls instead as the syscalls
- * have strict acl entry ordering requirements.
+ * Syscall interface -- use the library calls instead as the syscalls have
+ * strict acl entry ordering requirements.
  */
 __BEGIN_DECLS
 int	__acl_aclcheck_fd(int _filedes, acl_type_t _type, struct acl *_aclp);
@@ -171,10 +171,10 @@ int	__acl_set_link(const char *_path, acl_type_t _type, struct acl *_aclp);
 __END_DECLS
 
 /*
- * Supported POSIX.1e ACL manipulation and assignment/retrieval API
- * _np calls are local extensions that reflect an environment capable of
- * opening file descriptors of directories, and allowing additional
- * ACL type for different filesystems (i.e., AFS).
+ * Supported POSIX.1e ACL manipulation and assignment/retrieval API _np calls
+ * are local extensions that reflect an environment capable of opening file
+ * descriptors of directories, and allowing additional ACL type for different
+ * filesystems (i.e., AFS).
  */
 __BEGIN_DECLS
 int	acl_add_perm(acl_permset_t _permset_d, acl_perm_t _perm);
