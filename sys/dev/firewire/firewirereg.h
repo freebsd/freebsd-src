@@ -152,7 +152,6 @@ struct firewire_comm{
 	struct callout busprobe_callout;
 	struct callout bmr_callout;
 	struct callout timeout_callout;
-	struct callout retry_probe_callout;
 	uint32_t (*cyctimer) (struct  firewire_comm *);
 	void (*ibr) (struct firewire_comm *);
 	uint32_t (*set_bmr) (struct firewire_comm *, uint32_t);
@@ -252,9 +251,7 @@ struct fw_xfer{
 #define FWXF_BUSY 8
 #define FWXF_RCVD 10
 	uint8_t state;
-	uint8_t retry;
 	uint8_t tl;
-	void (*retry_req) (struct fw_xfer *);
 	union{
 		void (*hand) (struct fw_xfer *);
 	} act;

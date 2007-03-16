@@ -1595,7 +1595,6 @@ done:
 	sfp = &xfer->send.hdr;
 	xfer->send.spd = 2; /* XXX */
 	xfer->act.hand = sbp_targ_resp_callback;
-	xfer->retry_req = fw_asybusy;
 	sfp->mode.wres.dst = fp->mode.wreqb.src;
 	sfp->mode.wres.tlrt = fp->mode.wreqb.tlrt;
 	sfp->mode.wres.tcode = FWTCODE_WRES;

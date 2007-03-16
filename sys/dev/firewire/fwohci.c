@@ -1125,12 +1125,8 @@ fwohci_txd(struct fwohci_softc *sc, struct fwohci_dbch *dbch)
 				if (err == EBUSY && fc->status != FWBUSRESET) {
 					xfer->state = FWXF_BUSY;
 					xfer->resp = err;
-					if (xfer->retry_req != NULL)
-						xfer->retry_req(xfer);
-					else {
-						xfer->recv.pay_len = 0;
-						fw_xfer_done(xfer);
-					}
+					xfer->recv.pay_len = 0;
+					fw_xfer_done(xfer);
 				} else if (stat != FWOHCIEV_ACKPEND) {
 					if (stat != FWOHCIEV_ACKCOMPL)
 						xfer->state = FWXF_SENTERR;
