@@ -42,7 +42,7 @@
 void	find_inum(char *path);
 void	usage(void);
 int	compare_function(const char *, const struct stat *, int, struct FTW *);
-int	find_snapshot(char *path);
+int	find_snapshot(struct statfs *sfs);
 
 int verbose;
 int cont_search;
@@ -92,29 +92,26 @@ main(int argc, char **argv)
 	fscount = getmntinfo(&mntbuf, MNT_WAIT);
 	for (n = 0; n < fscount; n++) {
 		if (!strncmp(mntbuf[n].f_fstypename, "ufs", 3)) {
-			if (all)
-				path = mntbuf[n].f_mntonname;
-			else if (strcmp(path, mntbuf[n].f_mntonname))
-				continue;
-
-			find_snapshot(path);
-			done++;
+			if (all || strcmp(path, mntbuf[n].f_mntonname) == 0) {
+				find_snapshot(&mntbuf[n]);
+				done++;
+			}
 		}
 	}
 
-	if (!done)
+	if (done == 0)
 		usage();
 
 	return (0);
 }
 
 int
-find_snapshot(char *path)
+find_snapshot(struct statfs *sfs)
 {
 	struct uufsd disk;
 	int j, snapcount = 0;
 
-	if (ufs_disk_fillout(&disk, path) == -1)
+	if (ufs_disk_fillout(&disk, sfs->f_mntfromname) == -1)
 		perror("ufs_disk_fillout");
 
 	if (verbose)
@@ -123,7 +120,7 @@ find_snapshot(char *path)
 	for (j = 0; j < FSMAXSNAP; j++) {
 		if (disk.d_fs.fs_snapinum[j]) {
 			inode = disk.d_fs.fs_snapinum[j];
-			find_inum(path);
+			find_inum(sfs->f_mntonname);
 			snapcount++;
 		}
 	}
