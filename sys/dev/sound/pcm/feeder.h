@@ -74,13 +74,14 @@ static struct feeder_class feeder ## _class = { \
 }; \
 SYSINIT(feeder, SI_SUB_DRIVERS, SI_ORDER_ANY, feeder_register, &feeder ## _class);
 
-#define FEEDER_ROOT	1
-#define FEEDER_FMT 	2
-#define FEEDER_MIXER	3
-#define FEEDER_RATE 	4
-#define FEEDER_FILTER 	5
-#define FEEDER_VOLUME 	6
-#define FEEDER_LAST	FEEDER_VOLUME
+#define FEEDER_ROOT	0
+#define FEEDER_FMT 	1
+#define FEEDER_MIXER	2
+#define FEEDER_RATE 	3
+#define FEEDER_FILTER 	4
+#define FEEDER_VOLUME 	5
+#define FEEDER_SWAPLR 	6
+#define FEEDER_LAST	32
 
 #define FEEDRATE_SRC	1
 #define FEEDRATE_DST	2

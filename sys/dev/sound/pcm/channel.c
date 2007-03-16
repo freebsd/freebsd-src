@@ -1795,7 +1795,7 @@ chn_buildfeeder(struct pcm_channel *c)
 
 	DEB(printf("feederflags %x\n", flags));
 
-	for (type = FEEDER_RATE; type <= FEEDER_LAST; type++) {
+	for (type = FEEDER_RATE; type < FEEDER_LAST; type++) {
 		if (flags & (1 << type)) {
 			desc.type = type;
 			desc.in = 0;
