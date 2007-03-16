@@ -1,7 +1,7 @@
-# $NetBSD: rc.subr,v 1.66 2006/04/01 10:05:50 he Exp $
+# $NetBSD: rc.subr,v 1.67 2006/10/07 11:25:15 elad Exp $
 # $FreeBSD$
 #
-# Copyright (c) 1997-2002 The NetBSD Foundation, Inc.
+# Copyright (c) 1997-2004 The NetBSD Foundation, Inc.
 # All rights reserved.
 #
 # This code is derived from software contributed to The NetBSD Foundation
@@ -261,7 +261,8 @@ _find_processes()
 
 	_pref=
 	if [ $_interpreter != "." ]; then	# an interpreted script
-		read _interp < $_procname	# read interpreter name
+						# read interpreter name
+		read _interp < ${_chroot}${_chroot:+"/"}$_procname
 		_interp=${_interp#\#!}		# strip #!
 		set -- $_interp
 		case $1 in
@@ -618,7 +619,7 @@ run_rc_command()
 				return 1
 			fi
 
-			if [ ! -x ${_chroot}${command} ]; then
+			if [ ! -x ${_chroot}${_chroot:+"/"}${command} ]; then
 				warn "run_rc_command: cannot run $command"
 				return 1
 			fi
