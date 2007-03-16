@@ -797,6 +797,7 @@ atiixp_chip_post_init(void *arg)
 
 	subdev = (pci_get_subdevice(sc->dev) << 16) | pci_get_subvendor(sc->dev);
 	switch (subdev) {
+	case 0x11831043:	/* ASUS A6R */
 	case 0x2043161f:	/* Maxselect x710s - http://maxselect.ru/ */
 		ac97_setflags(sc->codec, ac97_getflags(sc->codec) | AC97_F_EAPD_INV);
 		break;
