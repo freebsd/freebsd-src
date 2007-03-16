@@ -1612,7 +1612,6 @@ nextaddr:
 	fw_bus_explore(fc);
 	return;
 errnode:
-	fc->retry_count++;
 	if (fc->ongodev != NULL) {
 		fc->ongodev->status = FWDEVINVAL;
 		/* Invalidate ROM */
