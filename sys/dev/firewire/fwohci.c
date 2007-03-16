@@ -1877,6 +1877,19 @@ busresetout:
 #endif
 		fwohci_arcv(sc, &sc->arrq, count);
 	}
+	if (stat & OHCI_INT_CYC_LOST) {
+		if (sc->cycle_lost >= 0)
+			sc->cycle_lost ++;
+		if (sc->cycle_lost > 10) {
+			sc->cycle_lost = -1;
+#if 0
+			OWRITE(sc, OHCI_LNKCTLCLR, OHCI_CNTL_CYCTIMER);
+#endif
+			OWRITE(sc, FWOHCI_INTMASKCLR,  OHCI_INT_CYC_LOST);
+			device_printf(fc->dev, "too many cycle lost, "
+			 "no cycle master presents?\n");
+		}
+	}
 	if(stat & OHCI_INT_PHY_SID){
 		uint32_t *buf, node_id;
 		int plen;
@@ -1907,6 +1920,10 @@ busresetout:
 			printf("Bus reset failure\n");
 			goto sidout;
 		}
+
+		/* cycle timer */
+		sc->cycle_lost = 0;
+		OWRITE(sc, FWOHCI_INTMASK,  OHCI_INT_CYC_LOST);
 		if (node_id & OHCI_NODE_ROOT) {
 			printf("CYCLEMASTER mode\n");
 			OWRITE(sc, OHCI_LNKCTL,
@@ -1916,6 +1933,7 @@ busresetout:
 			OWRITE(sc, OHCI_LNKCTLCLR, OHCI_CNTL_CYCMTR);
 			OWRITE(sc, OHCI_LNKCTL, OHCI_CNTL_CYCTIMER);
 		}
+
 		fc->nodeid = node_id & 0x3f;
 
 		if (plen & OHCI_SID_ERR) {
