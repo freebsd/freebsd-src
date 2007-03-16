@@ -61,7 +61,7 @@ struct sndstat_entry {
 };
 
 #ifdef	USING_MUTEX
-static struct sx sndstat_lock;
+static struct mtx sndstat_lock;
 #endif
 static struct sbuf sndstat_sbuf;
 static struct cdev *sndstat_dev = 0;
@@ -71,6 +71,11 @@ static int sndstat_maxunit = -1;
 static int sndstat_files = 0;
 
 static SLIST_HEAD(, sndstat_entry) sndstat_devlist = SLIST_HEAD_INITIALIZER(none);
+
+#ifdef SND_DEBUG
+SYSCTL_INT(_hw_snd, OID_AUTO, sndstat_isopen, CTLFLAG_RW,
+	&sndstat_isopen, 1, "sndstat emergency exit");
+#endif
 
 int snd_verbose = 1;
 #ifdef	USING_MUTEX
@@ -89,12 +94,12 @@ sysctl_hw_sndverbose(SYSCTL_HANDLER_ARGS)
 	verbose = snd_verbose;
 	error = sysctl_handle_int(oidp, &verbose, sizeof(verbose), req);
 	if (error == 0 && req->newptr != NULL) {
-		sx_xlock(&sndstat_lock);
+		mtx_lock(&sndstat_lock);
 		if (verbose < 0 || verbose > 4)
 			error = EINVAL;
 		else
 			snd_verbose = verbose;
-		sx_xunlock(&sndstat_lock);
+		mtx_unlock(&sndstat_lock);
 	}
 	return error;
 }
@@ -106,14 +111,14 @@ sndstat_open(struct cdev *i_dev, int flags, int mode, struct thread *td)
 {
 	int error;
 
-	sx_xlock(&sndstat_lock);
+	mtx_lock(&sndstat_lock);
 	if (sndstat_isopen) {
-		sx_xunlock(&sndstat_lock);
+		mtx_unlock(&sndstat_lock);
 		return EBUSY;
 	}
 	sndstat_isopen = 1;
-	sx_xunlock(&sndstat_lock);
-	if (sbuf_new(&sndstat_sbuf, NULL, 4096, 0) == NULL) {
+	mtx_unlock(&sndstat_lock);
+	if (sbuf_new(&sndstat_sbuf, NULL, 4096, SBUF_AUTOEXTEND) == NULL) {
 		error = ENXIO;
 		goto out;
 	}
@@ -121,9 +126,9 @@ sndstat_open(struct cdev *i_dev, int flags, int mode, struct thread *td)
 	error = (sndstat_prepare(&sndstat_sbuf) > 0) ? 0 : ENOMEM;
 out:
 	if (error) {
-		sx_xlock(&sndstat_lock);
+		mtx_lock(&sndstat_lock);
 		sndstat_isopen = 0;
-		sx_xunlock(&sndstat_lock);
+		mtx_unlock(&sndstat_lock);
 	}
 	return (error);
 }
@@ -131,15 +136,19 @@ out:
 static int
 sndstat_close(struct cdev *i_dev, int flags, int mode, struct thread *td)
 {
-	sx_xlock(&sndstat_lock);
+	mtx_lock(&sndstat_lock);
 	if (!sndstat_isopen) {
-		sx_xunlock(&sndstat_lock);
+		mtx_unlock(&sndstat_lock);
 		return EBADF;
 	}
-	sbuf_delete(&sndstat_sbuf);
-	sndstat_isopen = 0;
 
-	sx_xunlock(&sndstat_lock);
+	mtx_unlock(&sndstat_lock);
+	sbuf_delete(&sndstat_sbuf);
+
+	mtx_lock(&sndstat_lock);
+	sndstat_isopen = 0;
+	mtx_unlock(&sndstat_lock);
+
 	return 0;
 }
 
@@ -148,16 +157,17 @@ sndstat_read(struct cdev *i_dev, struct uio *buf, int flag)
 {
 	int l, err;
 
-	sx_xlock(&sndstat_lock);
+	mtx_lock(&sndstat_lock);
 	if (!sndstat_isopen) {
-		sx_xunlock(&sndstat_lock);
+		mtx_unlock(&sndstat_lock);
 		return EBADF;
 	}
+	mtx_unlock(&sndstat_lock);
+
     	l = min(buf->uio_resid, sbuf_len(&sndstat_sbuf) - sndstat_bufptr);
 	err = (l > 0)? uiomove(sbuf_data(&sndstat_sbuf) + sndstat_bufptr, l, buf) : 0;
 	sndstat_bufptr += l;
 
-	sx_xunlock(&sndstat_lock);
 	return err;
 }
 
@@ -179,26 +189,26 @@ sndstat_find(int type, int unit)
 int
 sndstat_acquire(void)
 {
-	sx_xlock(&sndstat_lock);
+	mtx_lock(&sndstat_lock);
 	if (sndstat_isopen) {
-		sx_xunlock(&sndstat_lock);
+		mtx_unlock(&sndstat_lock);
 		return EBUSY;
 	}
 	sndstat_isopen = 1;
-	sx_xunlock(&sndstat_lock);
+	mtx_unlock(&sndstat_lock);
 	return 0;
 }
 
 int
 sndstat_release(void)
 {
-	sx_xlock(&sndstat_lock);
+	mtx_lock(&sndstat_lock);
 	if (!sndstat_isopen) {
-		sx_xunlock(&sndstat_lock);
+		mtx_unlock(&sndstat_lock);
 		return EBADF;
 	}
 	sndstat_isopen = 0;
-	sx_xunlock(&sndstat_lock);
+	mtx_unlock(&sndstat_lock);
 	return 0;
 }
 
@@ -232,12 +242,12 @@ sndstat_register(device_t dev, char *str, sndstat_handler handler)
 	ent->unit = unit;
 	ent->handler = handler;
 
-	sx_xlock(&sndstat_lock);
+	mtx_lock(&sndstat_lock);
 	SLIST_INSERT_HEAD(&sndstat_devlist, ent, link);
 	if (type == SS_TYPE_MODULE)
 		sndstat_files++;
 	sndstat_maxunit = (unit > sndstat_maxunit)? unit : sndstat_maxunit;
-	sx_xunlock(&sndstat_lock);
+	mtx_unlock(&sndstat_lock);
 
 	return 0;
 }
@@ -253,17 +263,17 @@ sndstat_unregister(device_t dev)
 {
 	struct sndstat_entry *ent;
 
-	sx_xlock(&sndstat_lock);
+	mtx_lock(&sndstat_lock);
 	SLIST_FOREACH(ent, &sndstat_devlist, link) {
 		if (ent->dev == dev) {
 			SLIST_REMOVE(&sndstat_devlist, ent, sndstat_entry, link);
-			sx_xunlock(&sndstat_lock);
+			mtx_unlock(&sndstat_lock);
 			free(ent, M_DEVBUF);
 
 			return 0;
 		}
 	}
-	sx_xunlock(&sndstat_lock);
+	mtx_unlock(&sndstat_lock);
 
 	return ENXIO;
 }
@@ -273,18 +283,18 @@ sndstat_unregisterfile(char *str)
 {
 	struct sndstat_entry *ent;
 
-	sx_xlock(&sndstat_lock);
+	mtx_lock(&sndstat_lock);
 	SLIST_FOREACH(ent, &sndstat_devlist, link) {
 		if (ent->dev == NULL && ent->str == str) {
 			SLIST_REMOVE(&sndstat_devlist, ent, sndstat_entry, link);
 			sndstat_files--;
-			sx_xunlock(&sndstat_lock);
+			mtx_unlock(&sndstat_lock);
 			free(ent, M_DEVBUF);
 
 			return 0;
 		}
 	}
-	sx_xunlock(&sndstat_lock);
+	mtx_unlock(&sndstat_lock);
 
 	return ENXIO;
 }
@@ -339,7 +349,7 @@ sndstat_prepare(struct sbuf *s)
 static int
 sndstat_init(void)
 {
-	sx_init(&sndstat_lock, "sndstat");
+	mtx_init(&sndstat_lock, "sndstat", "sndstat lock", MTX_DEF);
 	sndstat_dev = make_dev(&sndstat_cdevsw, SND_DEV_STATUS, UID_ROOT, GID_WHEEL, 0444, "sndstat");
 
 	return (sndstat_dev != 0)? 0 : ENXIO;
@@ -348,18 +358,20 @@ sndstat_init(void)
 static int
 sndstat_uninit(void)
 {
-	sx_xlock(&sndstat_lock);
+	mtx_lock(&sndstat_lock);
 	if (sndstat_isopen) {
-		sx_xunlock(&sndstat_lock);
+		mtx_unlock(&sndstat_lock);
 		return EBUSY;
 	}
+
+	sndstat_isopen = 1;
+	mtx_unlock(&sndstat_lock);
 
 	if (sndstat_dev)
 		destroy_dev(sndstat_dev);
 	sndstat_dev = 0;
 
-	sx_xunlock(&sndstat_lock);
-	sx_destroy(&sndstat_lock);
+	mtx_destroy(&sndstat_lock);
 	return 0;
 }
 
