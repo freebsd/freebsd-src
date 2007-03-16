@@ -1458,7 +1458,7 @@ sbp_targ_resp_callback(struct fw_xfer *xfer)
 	sc = (struct sbp_targ_softc *)xfer->sc;
 	fw_xfer_unload(xfer);
 	xfer->recv.pay_len = SBP_TARG_RECV_LEN;
-	xfer->act.hand = sbp_targ_recv;
+	xfer->hand = sbp_targ_recv;
 	s = splfw();
 	STAILQ_INSERT_TAIL(&sc->fwb.xferlist, xfer, link);
 	splx(s);
@@ -1594,7 +1594,7 @@ done:
 		printf("%s: rtcode = %d\n", __func__, rtcode);
 	sfp = &xfer->send.hdr;
 	xfer->send.spd = 2; /* XXX */
-	xfer->act.hand = sbp_targ_resp_callback;
+	xfer->hand = sbp_targ_resp_callback;
 	sfp->mode.wres.dst = fp->mode.wreqb.src;
 	sfp->mode.wres.tlrt = fp->mode.wreqb.tlrt;
 	sfp->mode.wres.tcode = FWTCODE_WRES;
@@ -1652,7 +1652,7 @@ sbp_targ_attach(device_t dev)
 		xfer = fw_xfer_alloc_buf(M_SBP_TARG,
 			/* send */ 0,
 			/* recv */ SBP_TARG_RECV_LEN);
-		xfer->act.hand = sbp_targ_recv;
+		xfer->hand = sbp_targ_recv;
 		xfer->fc = sc->fd.fc;
 		xfer->sc = (caddr_t)sc;
 		STAILQ_INSERT_TAIL(&sc->fwb.xferlist, xfer, link);

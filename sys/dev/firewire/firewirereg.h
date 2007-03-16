@@ -250,9 +250,7 @@ struct fw_xfer{
 #define FWXF_RCVD 10
 	uint8_t state;
 	uint8_t tl;
-	union{
-		void (*hand) (struct fw_xfer *);
-	} act;
+	void (*hand) (struct fw_xfer *);
 	struct {
 		struct fw_pkt hdr;
 		uint32_t *payload;
