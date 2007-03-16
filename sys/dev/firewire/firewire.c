@@ -204,8 +204,8 @@ fw_asyreq(struct firewire_comm *fc, int sub, struct fw_xfer *xfer)
 	struct tcode_info *info;
 
 	if(xfer == NULL) return EINVAL;
-	if(xfer->act.hand == NULL){
-		printf("act.hand == NULL\n");
+	if(xfer->hand == NULL){
+		printf("hand == NULL\n");
 		return EINVAL;
 	}
 	fp = &xfer->send.hdr;
@@ -296,8 +296,8 @@ fw_asystart(struct fw_xfer *xfer)
 	if (fc->status < FWBUSEXPLORE) {
 		xfer->resp = EAGAIN;
 		xfer->state = FWXF_BUSY;
-		if (xfer->act.hand != NULL)
-			xfer->act.hand(xfer);
+		if (xfer->hand != NULL)
+			xfer->hand(xfer);
 		return;
 	}
 #endif
@@ -802,7 +802,7 @@ void fw_init(struct firewire_comm *fc)
 		fw_xfer_free(xfer);
 		return;
 	}
-	xfer->act.hand = fw_vmaccess;
+	xfer->hand = fw_vmaccess;
 	xfer->fc = fc;
 	xfer->sc = NULL;
 
@@ -1005,15 +1005,15 @@ fw_xfer_alloc_buf(struct malloc_type *type, int send_len, int recv_len)
 void
 fw_xfer_done(struct fw_xfer *xfer)
 {
-	if (xfer->act.hand == NULL) {
-		printf("act.hand == NULL\n");
+	if (xfer->hand == NULL) {
+		printf("hand == NULL\n");
 		return;
 	}
 
 	if (xfer->fc == NULL)
 		panic("fw_xfer_done: why xfer->fc is NULL?");
 
-	xfer->act.hand(xfer);
+	xfer->hand(xfer);
 }
 
 void
@@ -1100,7 +1100,7 @@ fw_phy_config(struct firewire_comm *fc, int root_node, int gap_count)
 	if (xfer == NULL)
 		return;
 	xfer->fc = fc;
-	xfer->act.hand = fw_asy_callback_free;
+	xfer->hand = fw_asy_callback_free;
 
 	fp = &xfer->send.hdr;
 	fp->mode.ld[1] = 0;
@@ -1407,7 +1407,7 @@ dorequest:
 	fp->mode.rreqq.src = 0;
 	fp->mode.rreqq.dst = FWLOCALBUS | fc->ongonode;
 	fp->mode.rreqq.dest_lo = addr;
-	xfer->act.hand = fw_bus_explore_callback;
+	xfer->hand = fw_bus_explore_callback;
 
 	if (firewire_debug)
 		printf("node%d: explore addr=0x%x\n",
@@ -1457,7 +1457,7 @@ asyreqq(struct firewire_comm *fc, uint8_t spd, uint8_t tl, uint8_t rt,
 	fp->mode.rreqq.src = 0;
 	fp->mode.rreqq.dst = addr_hi >> 16;
 	fp->mode.rreqq.dest_lo = addr_lo;
-	xfer->act.hand = hand;
+	xfer->hand = hand;
 
 	err = fw_asyreq(fc, -1, xfer);
 	if(err){
@@ -1897,9 +1897,9 @@ fw_rcv(struct fw_rcv_buf *rb)
 			resfp->mode.rresb.extcode = 0;
 			resfp->mode.rresb.len = 0;
 /*
-			rb->xfer->act.hand = fw_asy_callback;
+			rb->xfer->hand = fw_asy_callback;
 */
-			rb->xfer->act.hand = fw_xfer_free;
+			rb->xfer->hand = fw_xfer_free;
 			if(fw_asyreq(rb->fc, -1, rb->xfer)){
 				fw_xfer_free(rb->xfer);
 				return;
@@ -1919,7 +1919,7 @@ fw_rcv(struct fw_rcv_buf *rb)
 			}
 			STAILQ_REMOVE_HEAD(&bind->xferlist, link);
 			fw_rcv_copy(rb);
-			rb->xfer->act.hand(rb->xfer);
+			rb->xfer->hand(rb->xfer);
 			return;
 			break;
 		case FWACT_CH:
@@ -2067,7 +2067,7 @@ fw_try_bmr(void *arg)
 	fp->mode.lreq.dest_lo = 0xf0000000 | BUS_MGR_ID;
 	xfer->send.payload[0] = htonl(0x3f);
 	xfer->send.payload[1] = htonl(fc->nodeid);
-	xfer->act.hand = fw_try_bmr_callback;
+	xfer->hand = fw_try_bmr_callback;
 
 	err = fw_asyreq(fc, -1, xfer);
 	if(err){
@@ -2142,7 +2142,7 @@ fw_vmaccess(struct fw_xfer *xfer){
 	}
 	sfp->mode.hdr.dst = rfp->mode.hdr.src;
 	xfer->dst = ntohs(rfp->mode.hdr.src);
-	xfer->act.hand = fw_xfer_free;
+	xfer->hand = fw_xfer_free;
 
 	sfp->mode.hdr.tlrt = rfp->mode.hdr.tlrt;
 	sfp->mode.hdr.pri = 0;

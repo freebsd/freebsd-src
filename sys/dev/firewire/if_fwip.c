@@ -365,7 +365,7 @@ found:
 			m = m_getcl(M_TRYWAIT, MT_DATA, M_PKTHDR);
 			xfer->recv.payload = mtod(m, uint32_t *);
 			xfer->recv.pay_len = MCLBYTES;
-			xfer->act.hand = fwip_unicast_input;
+			xfer->hand = fwip_unicast_input;
 			xfer->fc = fc;
 			xfer->sc = (caddr_t)fwip;
 			xfer->mbuf = m;
@@ -381,7 +381,7 @@ found:
 			xfer->send.spd = tx_speed;
 			xfer->fc = fwip->fd.fc;
 			xfer->sc = (caddr_t)fwip;
-			xfer->act.hand = fwip_output_callback;
+			xfer->hand = fwip_output_callback;
 			STAILQ_INSERT_TAIL(&fwip->xferlist, xfer, link);
 		}
 	} else

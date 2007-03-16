@@ -579,7 +579,7 @@ fw_ioctl (struct cdev *dev, u_long cmd, caddr_t data, int flag, fw_proc *td)
 			bcopy((char *)fp + tinfo->hdr_len,
 			    (void *)xfer->send.payload, pay_len);
 		xfer->send.spd = asyreq->req.sped;
-		xfer->act.hand = fw_asy_callback;
+		xfer->hand = fw_asy_callback;
 
 		if ((err = fw_asyreq(sc->fc, -1, xfer)) != 0)
 			goto out;

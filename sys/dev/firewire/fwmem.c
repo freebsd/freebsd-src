@@ -114,7 +114,7 @@ fwmem_xfer_req(
 		xfer->send.spd = fwdev->speed;
 	else
 		xfer->send.spd = min(spd, fwdev->speed);
-	xfer->act.hand = hand;
+	xfer->hand = hand;
 	xfer->sc = sc;
 	xfer->send.pay_len = slen;
 	xfer->recv.pay_len = rlen;
