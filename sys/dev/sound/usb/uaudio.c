@@ -251,6 +251,9 @@ struct uaudio_softc {
 #if defined(__FreeBSD__)
 	struct sbuf	uaudio_sndstat;
 	int		uaudio_sndstat_flag;
+	int		sc_vendor;
+	int		sc_product;
+	int		sc_release;
 #endif
 };
 
@@ -532,6 +535,9 @@ USB_ATTACH(uaudio)
 #endif
 
 	sc->sc_udev = uaa->device;
+	sc->sc_vendor = uaa->vendor;
+	sc->sc_product = uaa->product;
+	sc->sc_release = uaa->release;
 
 	cdesc = usbd_get_config_descriptor(sc->sc_udev);
 	if (cdesc == NULL) {
@@ -659,6 +665,10 @@ uaudio_detach(device_t self, int flags)
 
 USB_DETACH(uaudio)
 {
+	struct sndcard_func *func;
+	device_t *devlist = NULL;
+	int err, i, devcount;
+
 	USB_DETACH_START(uaudio, sc);
 
 	sbuf_delete(&(sc->uaudio_sndstat));
@@ -671,8 +681,24 @@ USB_DETACH(uaudio)
 	usbd_delay_ms(sc->sc_udev, UAUDIO_NCHANBUFS * UAUDIO_NFRAMES);
 #endif
 
-	/* do nothing ? */
-	return bus_generic_detach(sc->sc_dev);
+	err = bus_generic_detach(sc->sc_dev);
+
+	if (err == 0) {
+		device_get_children(sc->sc_dev, &devlist, &devcount);
+		for (i = 0; devlist != NULL && i < devcount; i++) {
+			func = device_get_ivars(devlist[i]);
+			if (func != NULL && func->func == SCF_PCM &&
+			    func->varinfo == NULL) {
+				device_set_ivars(devlist[i], NULL);
+				free(func, M_DEVBUF);
+				device_delete_child(sc->sc_dev, devlist[i]);
+			}
+		}
+		if (devlist != NULL)
+			free(devlist, M_TEMP);
+	}
+
+	return err;
 }
 #endif
 
@@ -3011,6 +3037,9 @@ uaudio_chan_open(struct uaudio_softc *sc, struct chan *ch)
 {
 	struct as_info *as;
 	int endpt;
+#if defined(__FreeBSD__)
+	int locked;
+#endif
 	usbd_status err;
 
 #if defined(__FreeBSD__)
@@ -3023,8 +3052,17 @@ uaudio_chan_open(struct uaudio_softc *sc, struct chan *ch)
 	DPRINTF(("uaudio_chan_open: endpt=0x%02x, speed=%d, alt=%d\n",
 		 endpt, ch->sample_rate, as->alt));
 
+#if defined(__FreeBSD__)
+	locked = (ch->pcm_ch != NULL && mtx_owned(ch->pcm_ch->lock)) ? 1 : 0;
+	if (locked)
+		CHN_UNLOCK(ch->pcm_ch);
+#endif
 	/* Set alternate interface corresponding to the mode. */
 	err = usbd_set_interface(as->ifaceh, as->alt);
+#if defined(__FreeBSD__)
+	if (locked)
+		CHN_LOCK(ch->pcm_ch);
+#endif
 	if (err)
 		return err;
 
@@ -3059,14 +3097,20 @@ static void
 uaudio_chan_close(struct uaudio_softc *sc, struct chan *ch)
 {
 	struct as_info *as;
-
 #if defined(__FreeBSD__)
+	int locked;
+
 	if (sc->sc_dying)
 		return ;
 #endif
 
 	as = &sc->sc_alts[ch->altidx];
 	as->sc_busy = 0;
+#if defined(__FreeBSD__)
+	locked = (ch->pcm_ch != NULL && mtx_owned(ch->pcm_ch->lock)) ? 1 : 0;
+	if (locked)
+		CHN_UNLOCK(ch->pcm_ch);
+#endif
 	if (sc->sc_nullalt >= 0) {
 		DPRINTF(("uaudio_chan_close: set null alt=%d\n",
 			 sc->sc_nullalt));
@@ -3080,6 +3124,10 @@ uaudio_chan_close(struct uaudio_softc *sc, struct chan *ch)
 		usbd_abort_pipe(ch->sync_pipe);
 		usbd_close_pipe(ch->sync_pipe);
 	}
+#if defined(__FreeBSD__)
+	if (locked)
+		CHN_LOCK(ch->pcm_ch);
+#endif
 }
 
 static usbd_status
@@ -4534,7 +4582,40 @@ uaudio_sndstat_register(device_t dev)
 	struct snddev_info *d = device_get_softc(dev);
 	sndstat_register(dev, d->status, uaudio_sndstat_prepare_pcm);
 }
-	
+
+int
+uaudio_get_vendor(device_t dev)
+{
+	struct uaudio_softc *sc = device_get_softc(dev);
+
+	if (sc == NULL)
+		return 0;
+
+	return sc->sc_vendor;
+}
+
+int
+uaudio_get_product(device_t dev)
+{
+	struct uaudio_softc *sc = device_get_softc(dev);
+
+	if (sc == NULL)
+		return 0;
+
+	return sc->sc_product;
+}
+
+int
+uaudio_get_release(device_t dev)
+{
+	struct uaudio_softc *sc = device_get_softc(dev);
+
+	if (sc == NULL)
+		return 0;
+
+	return sc->sc_release;
+}
+
 static int
 audio_attach_mi(device_t dev)
 {
@@ -4543,10 +4624,9 @@ audio_attach_mi(device_t dev)
 
 	/* Attach the children. */
 	/* PCM Audio */
-	func = malloc(sizeof(struct sndcard_func), M_DEVBUF, M_NOWAIT);
+	func = malloc(sizeof(struct sndcard_func), M_DEVBUF, M_NOWAIT | M_ZERO);
 	if (func == NULL)
 		return (ENOMEM);
-	bzero(func, sizeof(*func));
 	func->func = SCF_PCM;
 	child = device_add_child(dev, "pcm", -1);
 	device_set_ivars(child, func);

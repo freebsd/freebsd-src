@@ -54,9 +54,19 @@ struct ua_info {
 	u_int32_t ua_recfmt[FORMAT_NUM*2+1]; /* FORMAT_NUM format * (stereo or mono) + endptr */
 	struct pcmchan_caps ua_playcaps;
 	struct pcmchan_caps ua_reccaps;
+	int vendor, product, release;
 };
 
 #define UAUDIO_DEFAULT_BUFSZ		16*1024
+
+static const struct {
+	int vendor;
+	int product;
+	int release;
+	uint32_t dflags;
+} ua_quirks[] = {
+	{ 0x1130, 0xf211, 0x0101, SD_F_PSWAPLR },
+};
 
 /************************************************************/
 static void *
@@ -144,26 +154,47 @@ ua_chan_setspeed(kobj_t obj, void *data, u_int32_t speed)
 }
 
 static int
-ua_chan_setblocksize(kobj_t obj, void *data, u_int32_t blocksize)
+ua_chan_setfragments(kobj_t obj, void *data, u_int32_t blksz, u_int32_t blkcnt)
 {
 	device_t pa_dev;
 	struct ua_chinfo *ch = data;
 	struct ua_info *ua = ch->parent;
-	u_int32_t blkcnt;
 
-	RANGE(blocksize, 128, ua->bufsz / 2);
-	blkcnt = ua->bufsz / blocksize;
+	RANGE(blksz, 128, sndbuf_getmaxsize(ch->buffer) / 2);
+	RANGE(blkcnt, 2, 512);
 
-	if ((sndbuf_getblksz(ch->buffer) != blocksize ||
+	while ((blksz * blkcnt) > sndbuf_getmaxsize(ch->buffer)) {
+		if ((blkcnt >> 1) >= 2)
+			blkcnt >>= 1;
+		else if ((blksz >> 1) >= 128)
+			blksz >>= 1;
+		else
+			break;
+	}
+
+	if ((sndbuf_getblksz(ch->buffer) != blksz ||
 	    sndbuf_getblkcnt(ch->buffer) != blkcnt) &&
-	    sndbuf_resize(ch->buffer, blkcnt, blocksize) != 0)
+	    sndbuf_resize(ch->buffer, blkcnt, blksz) != 0)
 		device_printf(ua->sc_dev, "%s: failed blksz=%u blkcnt=%u\n",
-		    __func__, blocksize, blkcnt);
+		    __func__, blksz, blkcnt);
 
 	ch->blksz = sndbuf_getblksz(ch->buffer);
 
 	pa_dev = device_get_parent(ua->sc_dev);
+	uaudio_chan_set_param_pcm_dma_buff(pa_dev, ch->buf,
+	    ch->buf + sndbuf_getsize(ch->buffer), ch->channel, ch->dir);
 	uaudio_chan_set_param_blocksize(pa_dev, ch->blksz, ch->dir);
+
+	return 1;
+}
+
+static int
+ua_chan_setblocksize(kobj_t obj, void *data, u_int32_t blksz)
+{
+	struct ua_chinfo *ch = data;
+
+	ua_chan_setfragments(obj, data, blksz,
+	    sndbuf_getmaxsize(ch->buffer) / blksz);
 
 	return ch->blksz;
 }
@@ -228,6 +259,7 @@ static kobj_method_t ua_chan_methods[] = {
 	KOBJMETHOD(channel_setformat,		ua_chan_setformat),
 	KOBJMETHOD(channel_setspeed,		ua_chan_setspeed),
 	KOBJMETHOD(channel_setblocksize,	ua_chan_setblocksize),
+	KOBJMETHOD(channel_setfragments,	ua_chan_setfragments),
 	KOBJMETHOD(channel_trigger,		ua_chan_trigger),
 	KOBJMETHOD(channel_getptr,		ua_chan_getptr),
 	KOBJMETHOD(channel_getcaps,		ua_chan_getcaps),
@@ -327,6 +359,8 @@ static int
 ua_attach(device_t dev)
 {
 	struct ua_info *ua;
+	struct sndcard_func *func;
+	struct snddev_info *d;
 	char status[SND_STATUSLEN];
 	device_t pa_dev;
 	u_int32_t nplay, nrec;
@@ -338,7 +372,21 @@ ua_attach(device_t dev)
 
 	ua->sc_dev = dev;
 
+	/* Mark for existence */
+	func = device_get_ivars(dev);
+	if (func != NULL)
+		func->varinfo = (void *)ua;
+
 	pa_dev = device_get_parent(dev);
+	ua->vendor = uaudio_get_vendor(pa_dev);
+	ua->product = uaudio_get_product(pa_dev);
+	ua->release = uaudio_get_release(pa_dev);
+
+	if (bootverbose)
+		device_printf(dev,
+		    "USB Audio: "
+		    "vendor=0x%04x, product=0x%04x, release=0x%04x\n",
+		    ua->vendor, ua->product, ua->release);
 
 	ua->bufsz = pcm_getbuffersize(dev, 4096, UAUDIO_DEFAULT_BUFSZ, 65536);
 	if (bootverbose)
@@ -359,6 +407,15 @@ ua_attach(device_t dev)
 		nplay = 1;
 	if (nrec > 1)
 		nrec = 1;
+
+	d = device_get_softc(dev);
+	for (i = 0; d != NULL &&
+	    i < (sizeof(ua_quirks) / sizeof(ua_quirks[0])); i++) {
+		if (ua->vendor == ua_quirks[i].vendor &&
+		    ua->product == ua_quirks[i].product &&
+		    ua->release == ua_quirks[i].release)
+			d->flags |= ua_quirks[i].dflags;
+	}
 
 #ifndef NO_RECORDING
 	if (pcm_register(dev, ua, nplay, nrec)) {
@@ -390,8 +447,9 @@ bad:	free(ua, M_DEVBUF);
 static int
 ua_detach(device_t dev)
 {
-	int r;
 	struct ua_info *sc;
+	struct sndcard_func *func;
+	int r;
 
 	r = pcm_unregister(dev);
 	if (r)
@@ -399,6 +457,11 @@ ua_detach(device_t dev)
 
 	sc = pcm_getdevinfo(dev);
 	free(sc, M_DEVBUF);
+
+	/* Mark for deletion */
+	func = device_get_ivars(dev);
+	if (func != NULL)
+		func->varinfo = NULL;
 
 	return 0;
 }
