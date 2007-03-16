@@ -1068,7 +1068,7 @@ fwohci_txd(struct fwohci_softc *sc, struct fwohci_dbch *dbch)
 			BUS_DMASYNC_POSTWRITE);
 		bus_dmamap_unload(dbch->dmat, tr->dma_map);
 #if 1
-		if (firewire_debug)
+		if (firewire_debug > 1)
 			dump_db(sc, ch);
 #endif
 		if(status & OHCI_CNTL_DMA_DEAD) {
@@ -1558,7 +1558,7 @@ fwohci_itxbuf_enable(struct firewire_comm *fc, int dmach)
 	first = STAILQ_FIRST(&it->stdma);
 	OWRITE(sc, OHCI_ITCMD(dmach),
 		((struct fwohcidb_tr *)(first->start))->bus_addr | dbch->ndesc);
-	if (firewire_debug) {
+	if (firewire_debug > 1) {
 		printf("fwohci_itxbuf_enable: kick 0x%08x\n", stat);
 #if 1
 		dump_dma(sc, ITX_CH + dmach);
@@ -1584,7 +1584,7 @@ fwohci_itxbuf_enable(struct firewire_comm *fc, int dmach)
 #else
 		OWRITE(sc, OHCI_ITCTL(dmach), OHCI_CNTL_DMA_RUN);
 #endif
-		if (firewire_debug) {
+		if (firewire_debug > 1) {
 			printf("cycle_match: 0x%04x->0x%04x\n",
 						cycle_now, cycle_match);
 			dump_dma(sc, ITX_CH + dmach);
