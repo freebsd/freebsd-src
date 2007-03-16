@@ -65,6 +65,8 @@ SND_DECLARE_FILE("$FreeBSD$");
 #define VIA_SEGS_MIN		2
 #define VIA_SEGS_MAX		64
 #define VIA_SEGS_DEFAULT	2
+#define VIA_BLK_MIN		32
+#define VIA_BLK_ALIGN		(~(VIA_BLK_MIN - 1))
 
 #define	VIA_DEFAULT_BUFSZ	0x1000
 
@@ -92,6 +94,8 @@ struct via_chinfo {
 };
 
 struct via_info {
+	device_t dev;
+
 	bus_space_tag_t st;
 	bus_space_handle_t sh;
 	bus_dma_tag_t parent_dmat;
@@ -312,7 +316,7 @@ via_waitready_codec(struct via_info *via)
 			return (0);
 		DELAY(1);
 	}
-	printf("via: codec busy\n");
+	device_printf(via->dev, "%s: codec busy\n", __func__);
 	return (1);
 }
 
@@ -327,7 +331,7 @@ via_waitvalid_codec(struct via_info *via)
 			return (0);
 		DELAY(1);
 	}
-	printf("via: codec invalid\n");
+	device_printf(via->dev, "%s: codec invalid\n", __func__);
 	return (1);
 }
 
@@ -556,20 +560,51 @@ via8233msgd_getcaps(kobj_t obj, void *data)
 /* Common functions */
 
 static int
+via8233chan_setfragments(kobj_t obj, void *data,
+					uint32_t blksz, uint32_t blkcnt)
+{
+	struct via_chinfo *ch = data;
+	struct via_info *via = ch->parent;
+
+	blksz &= VIA_BLK_ALIGN;
+
+	if (blksz > (sndbuf_getmaxsize(ch->buffer) / VIA_SEGS_MIN))
+		blksz = sndbuf_getmaxsize(ch->buffer) / VIA_SEGS_MIN;
+	if (blksz < VIA_BLK_MIN)
+		blksz = VIA_BLK_MIN;
+	if (blkcnt > VIA_SEGS_MAX)
+		blkcnt = VIA_SEGS_MAX;
+	if (blkcnt < VIA_SEGS_MIN)
+		blkcnt = VIA_SEGS_MIN;
+
+	while ((blksz * blkcnt) > sndbuf_getmaxsize(ch->buffer)) {
+		if ((blkcnt >> 1) >= VIA_SEGS_MIN)
+			blkcnt >>= 1;
+		else if ((blksz >> 1) >= VIA_BLK_MIN)
+			blksz >>= 1;
+		else
+			break;
+	}
+
+	if ((sndbuf_getblksz(ch->buffer) != blksz ||
+	    sndbuf_getblkcnt(ch->buffer) != blkcnt) &&
+	    sndbuf_resize(ch->buffer, blkcnt, blksz) != 0)
+		device_printf(via->dev, "%s: failed blksz=%u blkcnt=%u\n",
+		    __func__, blksz, blkcnt);
+
+	ch->blksz = sndbuf_getblksz(ch->buffer);
+	ch->blkcnt = sndbuf_getblkcnt(ch->buffer);
+
+	return (1);
+}
+
+static int
 via8233chan_setblocksize(kobj_t obj, void *data, uint32_t blksz)
 {
 	struct via_chinfo *ch = data;
+	struct via_info *via = ch->parent;
 
-	if ((blksz * ch->blkcnt) > sndbuf_getmaxsize(ch->buffer))
-		blksz = sndbuf_getmaxsize(ch->buffer) / ch->blkcnt;
-
-	if ((sndbuf_getblksz(ch->buffer) != blksz ||
-	    sndbuf_getblkcnt(ch->buffer) != ch->blkcnt) &&
-	    sndbuf_resize(ch->buffer, ch->blkcnt, blksz) != 0)
-		printf("via: %s: failed blksz=%u blkcnt=%u\n",
-		    __func__, blksz, ch->blkcnt);
-
-	ch->blksz = sndbuf_getblksz(ch->buffer);
+	via8233chan_setfragments(obj, data, blksz, via->blkcnt);
 
 	return (ch->blksz);
 }
@@ -613,8 +648,8 @@ via8233chan_reset(struct via_info *via, struct via_chinfo *ch)
 static void
 via8233chan_sgdinit(struct via_info *via, struct via_chinfo *ch, int chnum)
 {
-	ch->sgd_table = &via->sgd_table[chnum * via->blkcnt];
-	ch->sgd_addr = via->sgd_addr + chnum * via->blkcnt *
+	ch->sgd_table = &via->sgd_table[chnum * VIA_SEGS_MAX];
+	ch->sgd_addr = via->sgd_addr + chnum * VIA_SEGS_MAX *
 	    sizeof(struct via_dma_op);
 }
 
@@ -716,10 +751,10 @@ via8233chan_mute(struct via_info *via, struct via_chinfo *ch, int muted)
 		via_wr(via, ch->rbase + VIA8233_RP_DXS_RVOL, muted, 1);
 		r = via_rd(via, ch->rbase + VIA8233_RP_DXS_LVOL, 1) &
 		    VIA8233_DXS_MUTE;
-		if (r != muted) {
-			printf("via: failed to set dxs volume "
-			       "(dxs base 0x%02x).\n", ch->rbase);
-		}
+		if (r != muted)
+			device_printf(via->dev,
+			    "%s: failed to set dxs volume "
+			    "(dxs base 0x%02x).\n", __func__, ch->rbase);
 	}
 }
 
@@ -922,6 +957,7 @@ static kobj_method_t via8233wr_methods[] = {
 	KOBJMETHOD(channel_setspeed,		via8233wr_setspeed),
 	KOBJMETHOD(channel_getcaps,		via8233wr_getcaps),
 	KOBJMETHOD(channel_setblocksize,	via8233chan_setblocksize),
+	KOBJMETHOD(channel_setfragments,	via8233chan_setfragments),
 	KOBJMETHOD(channel_trigger,		via8233chan_trigger),
 	KOBJMETHOD(channel_getptr,		via8233chan_getptr),
 	{ 0, 0 }
@@ -934,6 +970,7 @@ static kobj_method_t via8233dxs_methods[] = {
 	KOBJMETHOD(channel_setspeed,		via8233dxs_setspeed),
 	KOBJMETHOD(channel_getcaps,		via8233dxs_getcaps),
 	KOBJMETHOD(channel_setblocksize,	via8233chan_setblocksize),
+	KOBJMETHOD(channel_setfragments,	via8233chan_setfragments),
 	KOBJMETHOD(channel_trigger,		via8233chan_trigger),
 	KOBJMETHOD(channel_getptr,		via8233chan_getptr),
 	{ 0, 0 }
@@ -946,6 +983,7 @@ static kobj_method_t via8233msgd_methods[] = {
 	KOBJMETHOD(channel_setspeed,		via8233msgd_setspeed),
 	KOBJMETHOD(channel_getcaps,		via8233msgd_getcaps),
 	KOBJMETHOD(channel_setblocksize,	via8233chan_setblocksize),
+	KOBJMETHOD(channel_setfragments,	via8233chan_setfragments),
 	KOBJMETHOD(channel_trigger,		via8233chan_trigger),
 	KOBJMETHOD(channel_getptr,		via8233chan_getptr),
 	{ 0, 0 }
@@ -1125,6 +1163,7 @@ via_attach(device_t dev)
 	}
 	via->lock = snd_mtxcreate(device_get_nameunit(dev),
 	    "snd_via8233 softc");
+	via->dev = dev;
 
 	callout_init(&via->poll_timer, CALLOUT_MPSAFE);
 	via->poll_ticks = 1;
@@ -1161,6 +1200,9 @@ via_attach(device_t dev)
 	via->bufsz = pcm_getbuffersize(dev, 4096, VIA_DEFAULT_BUFSZ, 65536);
 	if (resource_int_value(device_get_name(dev),
 	    device_get_unit(dev), "blocksize", &i) == 0 && i > 0) {
+		i &= VIA_BLK_ALIGN;
+		if (i < VIA_BLK_MIN)
+			i = VIA_BLK_MIN;
 		via->blkcnt = via->bufsz / i;
 		i = 0;
 		while (via->blkcnt >> i)
@@ -1235,7 +1277,7 @@ via_attach(device_t dev)
 	else
 		via->dxs_src = 0;
 
-	nsegs = (via_dxs_chnum + via_sgd_chnum + NWRCHANS) * via->blkcnt;
+	nsegs = (via_dxs_chnum + via_sgd_chnum + NWRCHANS) * VIA_SEGS_MAX;
 
 	/* DMA tag for buffers */
 	if (bus_dma_tag_create(/*parent*/bus_get_dma_tag(dev), /*alignment*/2,

@@ -65,11 +65,14 @@
 
 SND_DECLARE_FILE("$FreeBSD$");
 
-#define ATI_IXP_DMA_RETRY_MAX		100
+#define ATI_IXP_DMA_RETRY_MAX	100
 
-#define ATI_IXP_BUFSZ_MIN		4096
-#define ATI_IXP_BUFSZ_MAX		65536
-#define ATI_IXP_BUFSZ_DEFAULT		16384
+#define ATI_IXP_BUFSZ_MIN	4096
+#define ATI_IXP_BUFSZ_MAX	65536
+#define ATI_IXP_BUFSZ_DEFAULT	16384
+
+#define ATI_IXP_BLK_MIN		32
+#define ATI_IXP_BLK_ALIGN	(~(ATI_IXP_BLK_MIN - 1))
 
 struct atiixp_dma_op {
 	volatile uint32_t addr;
@@ -180,6 +183,7 @@ static void  *atiixp_chan_init(kobj_t, void *, struct snd_dbuf *,
 						struct pcm_channel *, int);
 static int    atiixp_chan_setformat(kobj_t, void *, uint32_t);
 static int    atiixp_chan_setspeed(kobj_t, void *, uint32_t);
+static int    atiixp_chan_setfragments(kobj_t, void *, uint32_t, uint32_t);
 static int    atiixp_chan_setblocksize(kobj_t, void *, uint32_t);
 static void   atiixp_buildsgdt(struct atiixp_chinfo *);
 static int    atiixp_chan_trigger(kobj_t, void *, int);
@@ -460,8 +464,8 @@ atiixp_chan_init(kobj_t obj, void *devinfo, struct snd_dbuf *b,
 
 	atiixp_lock(sc);
 	num = sc->registered_channels++;
-	ch->sgd_table = &sc->sgd_table[num * ch->blkcnt];
-	ch->sgd_addr = sc->sgd_addr + (num * ch->blkcnt *
+	ch->sgd_table = &sc->sgd_table[num * ATI_IXP_DMA_CHSEGS_MAX];
+	ch->sgd_addr = sc->sgd_addr + (num * ATI_IXP_DMA_CHSEGS_MAX *
 	    sizeof(struct atiixp_dma_op));
 	atiixp_disable_dma(ch);
 	atiixp_unlock(sc);
@@ -514,21 +518,51 @@ atiixp_chan_setspeed(kobj_t obj, void *data, uint32_t spd)
 }
 
 static int
+atiixp_chan_setfragments(kobj_t obj, void *data,
+					uint32_t blksz, uint32_t blkcnt)
+{
+	struct atiixp_chinfo *ch = data;
+	struct atiixp_info *sc = ch->parent;
+
+	blksz &= ATI_IXP_BLK_ALIGN;
+
+	if (blksz > (sndbuf_getmaxsize(ch->buffer) / ATI_IXP_DMA_CHSEGS_MIN))
+		blksz = sndbuf_getmaxsize(ch->buffer) / ATI_IXP_DMA_CHSEGS_MIN;
+	if (blksz < ATI_IXP_BLK_MIN)
+		blksz = ATI_IXP_BLK_MIN;
+	if (blkcnt > ATI_IXP_DMA_CHSEGS_MAX)
+		blkcnt = ATI_IXP_DMA_CHSEGS_MAX;
+	if (blkcnt < ATI_IXP_DMA_CHSEGS_MIN)
+		blkcnt = ATI_IXP_DMA_CHSEGS_MIN;
+
+	while ((blksz * blkcnt) > sndbuf_getmaxsize(ch->buffer)) {
+		if ((blkcnt >> 1) >= ATI_IXP_DMA_CHSEGS_MIN)
+			blkcnt >>= 1;
+		else if ((blksz >> 1) >= ATI_IXP_BLK_MIN)
+			blksz >>= 1;
+		else
+			break;
+	}
+
+	if ((sndbuf_getblksz(ch->buffer) != blksz ||
+	    sndbuf_getblkcnt(ch->buffer) != blkcnt) &&
+	    sndbuf_resize(ch->buffer, blkcnt, blksz) != 0)
+		device_printf(sc->dev, "%s: failed blksz=%u blkcnt=%u\n",
+		    __func__, blksz, blkcnt);
+
+	ch->blksz = sndbuf_getblksz(ch->buffer);
+	ch->blkcnt = sndbuf_getblkcnt(ch->buffer);
+
+	return (1);
+}
+
+static int
 atiixp_chan_setblocksize(kobj_t obj, void *data, uint32_t blksz)
 {
 	struct atiixp_chinfo *ch = data;
 	struct atiixp_info *sc = ch->parent;
 
-	if ((blksz * ch->blkcnt) > sndbuf_getmaxsize(ch->buffer))
-		blksz = sndbuf_getmaxsize(ch->buffer) / ch->blkcnt;
-
-	if ((sndbuf_getblksz(ch->buffer) != blksz ||
-	    sndbuf_getblkcnt(ch->buffer) != ch->blkcnt) &&
-	    sndbuf_resize(ch->buffer, ch->blkcnt, blksz) != 0)
-		device_printf(sc->dev, "%s: failed blksz=%u blkcnt=%u\n",
-		    __func__, blksz, ch->blkcnt);
-
-	ch->blksz = sndbuf_getblksz(ch->buffer);
+	atiixp_chan_setfragments(obj, data, blksz, sc->blkcnt);
 
 	return (ch->blksz);
 }
@@ -807,6 +841,7 @@ static kobj_method_t atiixp_chan_methods[] = {
 	KOBJMETHOD(channel_setformat,		atiixp_chan_setformat),
 	KOBJMETHOD(channel_setspeed,		atiixp_chan_setspeed),
 	KOBJMETHOD(channel_setblocksize,	atiixp_chan_setblocksize),
+	KOBJMETHOD(channel_setfragments,	atiixp_chan_setfragments),
 	KOBJMETHOD(channel_trigger,		atiixp_chan_trigger),
 	KOBJMETHOD(channel_getptr,		atiixp_chan_getptr),
 	KOBJMETHOD(channel_getcaps,		atiixp_chan_getcaps),
@@ -1179,6 +1214,9 @@ atiixp_pci_attach(device_t dev)
 	 */
 	if (resource_int_value(device_get_name(dev),
 	    device_get_unit(dev), "blocksize", &i) == 0 && i > 0) {
+		i &= ATI_IXP_BLK_ALIGN;
+		if (i < ATI_IXP_BLK_MIN)
+			i = ATI_IXP_BLK_MIN;
 		sc->blkcnt = sc->bufsz / i;
 		i = 0;
 		while (sc->blkcnt >> i)
@@ -1212,7 +1250,7 @@ atiixp_pci_attach(device_t dev)
 		/*lowaddr*/BUS_SPACE_MAXADDR_32BIT,
 		/*highaddr*/BUS_SPACE_MAXADDR,
 		/*filter*/NULL, /*filterarg*/NULL,
-		/*maxsize*/sc->blkcnt * ATI_IXP_NCHANS *
+		/*maxsize*/ATI_IXP_DMA_CHSEGS_MAX * ATI_IXP_NCHANS *
 		sizeof(struct atiixp_dma_op),
 		/*nsegments*/1, /*maxsegz*/0x3ffff,
 		/*flags*/0, /*lockfunc*/NULL,
@@ -1226,8 +1264,8 @@ atiixp_pci_attach(device_t dev)
 		goto bad;
 
 	if (bus_dmamap_load(sc->sgd_dmat, sc->sgd_dmamap, sc->sgd_table,
-	    sc->blkcnt * ATI_IXP_NCHANS * sizeof(struct atiixp_dma_op),
-	    atiixp_dma_cb, sc, 0))
+	    ATI_IXP_DMA_CHSEGS_MAX * ATI_IXP_NCHANS *
+	    sizeof(struct atiixp_dma_op), atiixp_dma_cb, sc, 0))
 		goto bad;
 
 
