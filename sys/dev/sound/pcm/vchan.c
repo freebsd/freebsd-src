@@ -43,15 +43,7 @@ MALLOC_DEFINE(M_VCHANFEEDER, "vchanfeed", "pcm vchan feeder");
 #define VCHAN_DEFAULT_AFMT	(AFMT_S16_LE | AFMT_STEREO)
 #define VCHAN_DEFAULT_STRFMT	"s16le"
 
-struct feed_vchan_info;
-
-typedef uint32_t (*feed_vchan_mixer)(struct feed_vchan_info *,
-				uint8_t *, uint8_t *, uint32_t);
-
-struct feed_vchan_info {
-	uint32_t bps, channels, zero_sample;
-	feed_vchan_mixer mix;
-};
+typedef uint32_t (*feed_vchan_mixer)(uint8_t *, uint8_t *, uint32_t);
 
 struct vchinfo {
 	uint32_t spd, fmt, fmts[2], blksz, bps, run;
@@ -107,28 +99,28 @@ static const struct {
 
 #define FEEDER_VCHAN_MIX(FMTBIT, VCHAN_INTCAST, SIGN, SIGNS, ENDIAN, ENDIANS)	\
 static uint32_t									\
-feed_vchan_mix_##SIGNS##FMTBIT##ENDIANS(struct feed_vchan_info *info,		\
-				uint8_t *to, uint8_t *tmp, uint32_t count)	\
+feed_vchan_mix_##SIGNS##FMTBIT##ENDIANS(uint8_t *to, uint8_t *tmp,		\
+							uint32_t count)		\
 {										\
-	uint32_t bps;								\
 	int32_t x, y;								\
 	VCHAN_INTCAST z;							\
 	int i;									\
 										\
-	bps = info->bps;							\
 	i = count;								\
 	tmp += i;								\
 	to += i;								\
-	while (i > 0) {								\
-		tmp -= bps;							\
-		to -= bps;							\
-		i -= bps;							\
+										\
+	do {									\
+		tmp -= PCM_##FMTBIT##_BPS;					\
+		to -= PCM_##FMTBIT##_BPS;					\
+		i -= PCM_##FMTBIT##_BPS;					\
 		x = PCM_READ_##SIGN##FMTBIT##_##ENDIAN(tmp);			\
 		y = PCM_READ_##SIGN##FMTBIT##_##ENDIAN(to);			\
 		z = (VCHAN_INTCAST)x + y;					\
 		x = PCM_CLAMP_##SIGN##FMTBIT(z);				\
 		VCHAN_PCM_WRITE_##SIGN##FMTBIT##_##ENDIAN(to, x);		\
-	}									\
+	} while (i != 0);							\
+										\
 	return count;								\
 }
 
@@ -139,7 +131,6 @@ FEEDER_VCHAN_MIX(32, intpcm_t, S, s, LE, le)
 FEEDER_VCHAN_MIX(16, int32_t, S, s, BE, be)
 FEEDER_VCHAN_MIX(24, int32_t, S, s, BE, be)
 FEEDER_VCHAN_MIX(32, intpcm_t, S, s, BE, be)
-/*  unsigned */
 FEEDER_VCHAN_MIX(8, int32_t, U, u, NE, ne)
 FEEDER_VCHAN_MIX(16, int32_t, U, u, LE, le)
 FEEDER_VCHAN_MIX(24, int32_t, U, u, LE, le)
@@ -148,93 +139,72 @@ FEEDER_VCHAN_MIX(16, int32_t, U, u, BE, be)
 FEEDER_VCHAN_MIX(24, int32_t, U, u, BE, be)
 FEEDER_VCHAN_MIX(32, intpcm_t, U, u, BE, be)
 
-static int
-feed_vchan_setup(struct pcm_feeder *f)
-{
-	struct feed_vchan_info *info = f->data;
-	static const struct {
-		uint32_t format;	/* pcm / audio format */
-		uint32_t bps;		/* bytes-per-sample, regardless of
-					   total channels */
-		feed_vchan_mixer mix;
-	} vchan_mix_tbl[] = {
-		{ AFMT_S8, PCM_8_BPS, feed_vchan_mix_s8ne },
-		{ AFMT_S16_LE, PCM_16_BPS, feed_vchan_mix_s16le },
-		{ AFMT_S24_LE, PCM_24_BPS, feed_vchan_mix_s24le },
-		{ AFMT_S32_LE, PCM_32_BPS, feed_vchan_mix_s32le },
-		{ AFMT_S16_BE, PCM_16_BPS, feed_vchan_mix_s16be },
-		{ AFMT_S24_BE, PCM_24_BPS, feed_vchan_mix_s24be },
-		{ AFMT_S32_BE, PCM_32_BPS, feed_vchan_mix_s32be },
-		/* unsigned */
-		{ AFMT_U8, PCM_8_BPS, feed_vchan_mix_u8ne },
-		{ AFMT_U16_LE, PCM_16_BPS, feed_vchan_mix_u16le },
-		{ AFMT_U24_LE, PCM_24_BPS, feed_vchan_mix_u24le },
-		{ AFMT_U32_LE, PCM_32_BPS, feed_vchan_mix_u32le },
-		{ AFMT_U16_BE, PCM_16_BPS, feed_vchan_mix_u16be },
-		{ AFMT_U24_BE, PCM_24_BPS, feed_vchan_mix_u24be },
-		{ AFMT_U32_BE, PCM_32_BPS, feed_vchan_mix_u32be },
-		{ 0, 0, NULL },
-	};
-	uint32_t i;
+struct feed_vchan_info {
+	uint32_t format;
+	int bps;
+	feed_vchan_mixer mix;
+};
 
-	for (i = 0; i < sizeof(vchan_mix_tbl) / sizeof(*vchan_mix_tbl); i++) {
-		if (vchan_mix_tbl[i].format == 0)
-			return -1;
-		if ((f->desc->out & ~AFMT_STEREO) == vchan_mix_tbl[i].format) {
-			info->bps = vchan_mix_tbl[i].bps;
-			info->mix = vchan_mix_tbl[i].mix;
-			break;
-		}
-	}
+static struct feed_vchan_info feed_vchan_info_tbl[] = {
+	{ AFMT_S8,     PCM_8_BPS,  feed_vchan_mix_s8ne },
+	{ AFMT_S16_LE, PCM_16_BPS, feed_vchan_mix_s16le },
+	{ AFMT_S24_LE, PCM_24_BPS, feed_vchan_mix_s24le },
+	{ AFMT_S32_LE, PCM_32_BPS, feed_vchan_mix_s32le },
+	{ AFMT_S16_BE, PCM_16_BPS, feed_vchan_mix_s16be },
+	{ AFMT_S24_BE, PCM_24_BPS, feed_vchan_mix_s24be },
+	{ AFMT_S32_BE, PCM_32_BPS, feed_vchan_mix_s32be },
+	{ AFMT_U8,     PCM_8_BPS,  feed_vchan_mix_u8ne  },
+	{ AFMT_U16_LE, PCM_16_BPS, feed_vchan_mix_u16le },
+	{ AFMT_U24_LE, PCM_24_BPS, feed_vchan_mix_u24le },
+	{ AFMT_U32_LE, PCM_32_BPS, feed_vchan_mix_u32le },
+	{ AFMT_U16_BE, PCM_16_BPS, feed_vchan_mix_u16be },
+	{ AFMT_U24_BE, PCM_24_BPS, feed_vchan_mix_u24be },
+	{ AFMT_U32_BE, PCM_32_BPS, feed_vchan_mix_u32be },
+};
 
-	info->channels = (f->desc->out & AFMT_STEREO) ? 2 : 1;
-	info->zero_sample = (f->desc->out & AFMT_SIGNED) ? 0x00 : 0x80;
-
-	return 0;
-}
+#define FVCHAN_DATA(i, c)	((intptr_t)((((i) & 0x1f) << 4) | ((c) & 0xf)))
+#define FVCHAN_INFOIDX(m)	(((m) >> 4) & 0x1f)
+#define FVCHAN_CHANNELS(m)	((m) & 0xf)
 
 static int
 feed_vchan_init(struct pcm_feeder *f)
 {
-	struct feed_vchan_info *info;
+	int i, channels;
 
 	if (f->desc->out != f->desc->in)
 		return EINVAL;
 
-	info = malloc(sizeof(*info), M_VCHANFEEDER, M_NOWAIT | M_ZERO);
-	if (info == NULL)
-		return ENOMEM;
-	f->data = info;
-	return feed_vchan_setup(f);
-}
+	channels = (f->desc->out & AFMT_STEREO) ? 2 : 1;
 
-static int
-feed_vchan_free(struct pcm_feeder *f)
-{
-	struct feed_vchan_info *info = f->data;
+	for (i = 0; i < sizeof(feed_vchan_info_tbl) /
+	    sizeof(feed_vchan_info_tbl[0]); i++) {
+		if ((f->desc->out & ~AFMT_STEREO) ==
+		    feed_vchan_info_tbl[i].format) {
+		    	f->data = (void *)FVCHAN_DATA(i, channels);
+			return 0;
+		}
+	}
 
-	if (info)
-		free(info, M_VCHANFEEDER);
-	f->data = NULL;
-	return 0;
+	return -1;
 }
 
 static int
 feed_vchan(struct pcm_feeder *f, struct pcm_channel *c, uint8_t *b,
 						uint32_t count, void *source)
 {
-	struct feed_vchan_info *info = f->data;
+	struct feed_vchan_info *info;
 	struct snd_dbuf *src = source;
 	struct pcmchan_children *cce;
 	struct pcm_channel *ch;
-	uint32_t cnt, rcnt = 0, sz;
+	uint32_t cnt, mcnt, rcnt, sz;
 	uint8_t *tmp;
 
 	sz = sndbuf_getsize(src);
 	if (sz < count)
 		count = sz;
 
-	sz = info->bps * info->channels;
+	info = &feed_vchan_info_tbl[FVCHAN_INFOIDX((intptr_t)f->data)];
+	sz = info->bps * FVCHAN_CHANNELS((intptr_t)f->data);
 	count -= count % sz;
 	if (count < sz)
 		return 0;
@@ -242,22 +212,39 @@ feed_vchan(struct pcm_feeder *f, struct pcm_channel *c, uint8_t *b,
 	/*
 	 * we are going to use our source as a temporary buffer since it's
 	 * got no other purpose.  we obtain our data by traversing the channel
-	 * list of children and calling vchan_mix_* to mix count bytes from each
-	 * into our destination buffer, b
+	 * list of children and calling vchan_mix_* to mix count bytes from
+	 * each into our destination buffer, b
 	 */
 	tmp = sndbuf_getbuf(src);
-	memset(b, info->zero_sample, count);
+	rcnt = 0;
+	mcnt = 0;
+
 	SLIST_FOREACH(cce, &c->children, link) {
 		ch = cce->channel;
 		CHN_LOCK(ch);
-		if (ch->flags & CHN_F_TRIGGERED) {
-			if (ch->flags & CHN_F_MAPPED)
-				sndbuf_acquire(ch->bufsoft, NULL, sndbuf_getfree(ch->bufsoft));
-			cnt = FEEDER_FEED(ch->feeder, ch, tmp, count, ch->bufsoft);
+		if (!(ch->flags & CHN_F_TRIGGERED)) {
+			CHN_UNLOCK(ch);
+			continue;
+		}
+		if (ch->flags & CHN_F_MAPPED)
+			sndbuf_acquire(ch->bufsoft, NULL,
+			    sndbuf_getfree(ch->bufsoft));
+		if (rcnt == 0)
+			rcnt = FEEDER_FEED(ch->feeder, ch, b, count,
+			ch->bufsoft);
+		else {
+			cnt = FEEDER_FEED(ch->feeder, ch, tmp, count,
+			    ch->bufsoft);
 			cnt -= cnt % sz;
-			cnt = info->mix(info, b, tmp, cnt);
-			if (cnt > rcnt)
-				rcnt = cnt;
+			if (cnt != 0) {
+				if (mcnt++ == 0 && rcnt < count)
+					memset(b + rcnt,
+					    sndbuf_zerodata(f->desc->out),
+					    count - rcnt);
+				cnt = info->mix(b, tmp, cnt);
+				if (cnt > rcnt)
+					rcnt = cnt;
+			}
 		}
 		CHN_UNLOCK(ch);
 	}
@@ -283,7 +270,6 @@ static struct pcm_feederdesc feeder_vchan_desc[] = {
 	{FEEDER_MIXER, AFMT_S16_BE | AFMT_STEREO, AFMT_S16_BE | AFMT_STEREO, 0},
 	{FEEDER_MIXER, AFMT_S24_BE | AFMT_STEREO, AFMT_S24_BE | AFMT_STEREO, 0},
 	{FEEDER_MIXER, AFMT_S32_BE | AFMT_STEREO, AFMT_S32_BE | AFMT_STEREO, 0},
-	/* unsigned */
 	{FEEDER_MIXER, AFMT_U8, AFMT_U8, 0},
 	{FEEDER_MIXER, AFMT_U16_LE, AFMT_U16_LE, 0},
 	{FEEDER_MIXER, AFMT_U24_LE, AFMT_U24_LE, 0},
@@ -302,7 +288,6 @@ static struct pcm_feederdesc feeder_vchan_desc[] = {
 };
 static kobj_method_t feeder_vchan_methods[] = {
 	KOBJMETHOD(feeder_init,		feed_vchan_init),
-	KOBJMETHOD(feeder_free,		feed_vchan_free),
 	KOBJMETHOD(feeder_feed,		feed_vchan),
 	{0, 0}
 };
