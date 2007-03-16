@@ -80,7 +80,7 @@
 
 #include "mixer_if.h"
 
-#define HDA_DRV_TEST_REV	"20070316_0041"
+#define HDA_DRV_TEST_REV	"20070317_0042"
 #define HDA_WIDGET_PARSER_REV	1
 
 SND_DECLARE_FILE("$FreeBSD$");
@@ -201,6 +201,7 @@ SND_DECLARE_FILE("$FreeBSD$");
 #define ASUS_P1AH2_SUBVENDOR	HDA_MODEL_CONSTRUCT(ASUS, 0x81cb)
 #define ASUS_A7M_SUBVENDOR	HDA_MODEL_CONSTRUCT(ASUS, 0x1323)
 #define ASUS_A7T_SUBVENDOR	HDA_MODEL_CONSTRUCT(ASUS, 0x13c2)
+#define ASUS_W6F_SUBVENDOR	HDA_MODEL_CONSTRUCT(ASUS, 0x1263)
 #define ASUS_ALL_SUBVENDOR	HDA_MODEL_CONSTRUCT(ASUS, 0xffff)
 
 /* IBM / Lenovo */
@@ -300,6 +301,9 @@ static const struct {
 #define HDA_BDL_MIN	2
 #define HDA_BDL_MAX	256
 #define HDA_BDL_DEFAULT	HDA_BDL_MIN
+
+#define HDA_BLK_MIN	128
+#define HDA_BLK_ALIGN	(~(HDA_BLK_MIN - 1))
 
 #define HDA_BUFSZ_MIN		4096
 #define HDA_BUFSZ_MAX		65536
@@ -2764,25 +2768,51 @@ hdac_stream_setup(struct hdac_chan *ch)
 }
 
 static int
+hdac_channel_setfragments(kobj_t obj, void *data,
+					uint32_t blksz, uint32_t blkcnt)
+{
+	struct hdac_chan *ch = data;
+	struct hdac_softc *sc = ch->devinfo->codec->sc;
+
+	blksz &= HDA_BLK_ALIGN;
+
+	if (blksz > (sndbuf_getmaxsize(ch->b) / HDA_BDL_MIN))
+		blksz = sndbuf_getmaxsize(ch->b) / HDA_BDL_MIN;
+	if (blksz < HDA_BLK_MIN)
+		blksz = HDA_BLK_MIN;
+	if (blkcnt > HDA_BDL_MAX)
+		blkcnt = HDA_BDL_MAX;
+	if (blkcnt < HDA_BDL_MIN)
+		blkcnt = HDA_BDL_MIN;
+
+	while ((blksz * blkcnt) > sndbuf_getmaxsize(ch->b)) {
+		if ((blkcnt >> 1) >= HDA_BDL_MIN)
+			blkcnt >>= 1;
+		else if ((blksz >> 1) >= HDA_BLK_MIN)
+			blksz >>= 1;
+		else
+			break;
+	}
+
+	if ((sndbuf_getblksz(ch->b) != blksz ||
+	    sndbuf_getblkcnt(ch->b) != blkcnt) &&
+	    sndbuf_resize(ch->b, blkcnt, blksz) != 0)
+		device_printf(sc->dev, "%s: failed blksz=%u blkcnt=%u\n",
+		    __func__, blksz, blkcnt);
+
+	ch->blksz = sndbuf_getblksz(ch->b);
+	ch->blkcnt = sndbuf_getblkcnt(ch->b);
+
+	return (1);
+}
+
+static int
 hdac_channel_setblocksize(kobj_t obj, void *data, uint32_t blksz)
 {
 	struct hdac_chan *ch = data;
 	struct hdac_softc *sc = ch->devinfo->codec->sc;
 
-	blksz &= ~0x7f;
-	if (blksz < 0x80)
-		blksz = 0x80;
-
-	if ((blksz * ch->blkcnt) > sndbuf_getmaxsize(ch->b))
-		blksz = sndbuf_getmaxsize(ch->b) / ch->blkcnt;
-
-	if ((sndbuf_getblksz(ch->b) != blksz ||
-	    sndbuf_getblkcnt(ch->b) != ch->blkcnt) &&
-	    sndbuf_resize(ch->b, ch->blkcnt, blksz) != 0)
-		device_printf(sc->dev, "%s: failed blksz=%u blkcnt=%u\n",
-		    __func__, blksz, ch->blkcnt);
-
-	ch->blksz = sndbuf_getblksz(ch->b);
+	hdac_channel_setfragments(obj, data, blksz, sc->chan_blkcnt);
 
 	return (ch->blksz);
 }
@@ -2857,7 +2887,7 @@ hdac_channel_getptr(kobj_t obj, void *data)
 	 * Round to available space and force 128 bytes aligment.
 	 */
 	ptr %= ch->blksz * ch->blkcnt;
-	ptr &= ~0x7f;
+	ptr &= HDA_BLK_ALIGN;
 
 	return (ptr);
 }
@@ -2873,6 +2903,7 @@ static kobj_method_t hdac_channel_methods[] = {
 	KOBJMETHOD(channel_setformat,		hdac_channel_setformat),
 	KOBJMETHOD(channel_setspeed,		hdac_channel_setspeed),
 	KOBJMETHOD(channel_setblocksize,	hdac_channel_setblocksize),
+	KOBJMETHOD(channel_setfragments,	hdac_channel_setfragments),
 	KOBJMETHOD(channel_trigger,		hdac_channel_trigger),
 	KOBJMETHOD(channel_getptr,		hdac_channel_getptr),
 	KOBJMETHOD(channel_getcaps,		hdac_channel_getcaps),
@@ -3259,9 +3290,9 @@ hdac_attach(device_t dev)
 
 	if (resource_int_value(device_get_name(sc->dev),
 	    device_get_unit(sc->dev), "blocksize", &i) == 0 && i > 0) {
-		i &= ~0x7f;
-		if (i < 0x80)
-			i = 0x80;
+		i &= HDA_BLK_ALIGN;
+		if (i < HDA_BLK_MIN)
+			i = HDA_BLK_MIN;
 		sc->chan_blkcnt = sc->chan_size / i;
 		i = 0;
 		while (sc->chan_blkcnt >> i)

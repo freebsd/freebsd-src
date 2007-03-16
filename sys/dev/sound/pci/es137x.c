@@ -93,6 +93,11 @@ SND_DECLARE_FILE("$FreeBSD$");
 #define ES_ADC		2
 #define ES_NCHANS	3
 
+#define ES_DMA_SEGS_MIN	2
+#define ES_DMA_SEGS_MAX	256
+#define ES_BLK_MIN	64
+#define ES_BLK_ALIGN	(~(ES_BLK_MIN - 1))
+
 #define ES1370_DAC1_MINSPEED	5512
 #define ES1370_DAC1_MAXSPEED	44100
 
@@ -594,26 +599,51 @@ eschan1371_setspeed(kobj_t obj, void *data, uint32_t speed)
 }
 
 static int
+eschan_setfragments(kobj_t obj, void *data, uint32_t blksz, uint32_t blkcnt)
+{
+  	struct es_chinfo *ch = data;
+  	struct es_info *es = ch->parent;
+
+	blksz &= ES_BLK_ALIGN;
+
+	if (blksz > (sndbuf_getmaxsize(ch->buffer) / ES_DMA_SEGS_MIN))
+		blksz = sndbuf_getmaxsize(ch->buffer) / ES_DMA_SEGS_MIN;
+	if (blksz < ES_BLK_MIN)
+		blksz = ES_BLK_MIN;
+	if (blkcnt > ES_DMA_SEGS_MAX)
+		blkcnt = ES_DMA_SEGS_MAX;
+	if (blkcnt < ES_DMA_SEGS_MIN)
+		blkcnt = ES_DMA_SEGS_MIN;
+
+	while ((blksz * blkcnt) > sndbuf_getmaxsize(ch->buffer)) {
+		if ((blkcnt >> 1) >= ES_DMA_SEGS_MIN)
+			blkcnt >>= 1;
+		else if ((blksz >> 1) >= ES_BLK_MIN)
+			blksz >>= 1;
+		else
+			break;
+	}
+
+	if ((sndbuf_getblksz(ch->buffer) != blksz ||
+	    sndbuf_getblkcnt(ch->buffer) != blkcnt) &&
+	    sndbuf_resize(ch->buffer, blkcnt, blksz) != 0)
+		device_printf(es->dev, "%s: failed blksz=%u blkcnt=%u\n",
+		    __func__, blksz, blkcnt);
+
+	ch->bufsz = sndbuf_getsize(ch->buffer);
+	ch->blksz = sndbuf_getblksz(ch->buffer);
+	ch->blkcnt = sndbuf_getblkcnt(ch->buffer);
+
+	return (1);
+}
+
+static int
 eschan_setblocksize(kobj_t obj, void *data, uint32_t blksz)
 {
   	struct es_chinfo *ch = data;
   	struct es_info *es = ch->parent;
 
-	blksz &= ~0x3f;
-	if (blksz < 0x40)
-		blksz = 0x40;
-
-	if ((blksz * ch->blkcnt) > sndbuf_getmaxsize(ch->buffer))
-		blksz = sndbuf_getmaxsize(ch->buffer) / ch->blkcnt;
-
-	if ((sndbuf_getblksz(ch->buffer) != blksz ||
-	    sndbuf_getblkcnt(ch->buffer) != ch->blkcnt) &&
-	    sndbuf_resize(ch->buffer, ch->blkcnt, blksz) != 0)
-		device_printf(es->dev, "%s: failed blksz=%u blkcnt=%u\n",
-		    __func__, blksz, ch->blkcnt);
-
-	ch->bufsz = sndbuf_getsize(ch->buffer);
-	ch->blksz = sndbuf_getblksz(ch->buffer);
+	eschan_setfragments(obj, data, blksz, es->blkcnt);
 
 	return (ch->blksz);
 }
@@ -813,7 +843,7 @@ eschan_getptr(kobj_t obj, void *data)
 	}
 	ES_UNLOCK(es);
 
-	cnt &= ~0x3f;
+	cnt &= ES_BLK_ALIGN;
 
 	return (cnt);
 }
@@ -831,6 +861,7 @@ static kobj_method_t eschan1370_methods[] = {
 	KOBJMETHOD(channel_setformat,		eschan_setformat),
 	KOBJMETHOD(channel_setspeed,		eschan1370_setspeed),
 	KOBJMETHOD(channel_setblocksize,	eschan_setblocksize),
+	KOBJMETHOD(channel_setfragments,	eschan_setfragments),
 	KOBJMETHOD(channel_trigger,		eschan_trigger),
 	KOBJMETHOD(channel_getptr,		eschan_getptr),
 	KOBJMETHOD(channel_getcaps,		eschan_getcaps),
@@ -843,6 +874,7 @@ static kobj_method_t eschan1371_methods[] = {
 	KOBJMETHOD(channel_setformat,		eschan_setformat),
 	KOBJMETHOD(channel_setspeed,		eschan1371_setspeed),
 	KOBJMETHOD(channel_setblocksize,	eschan_setblocksize),
+	KOBJMETHOD(channel_setfragments,	eschan_setfragments),
 	KOBJMETHOD(channel_trigger,		eschan_trigger),
 	KOBJMETHOD(channel_getptr,		eschan_getptr),
 	KOBJMETHOD(channel_getcaps,		eschan_getcaps),
@@ -1049,9 +1081,10 @@ es1371_wrcd(kobj_t obj, void *s, int addr, uint32_t data)
 	uint32_t t, x, orig;
 	struct es_info *es = (struct es_info*)s;
 
-	for (t = 0; t < 0x1000; t++)
+	for (t = 0; t < 0x1000; t++) {
 	  	if (!es_rd(es, ES1371_REG_CODEC & CODEC_WIP, 4))
 			break;
+	}
 	/* save the current state for later */
  	x = orig = es_rd(es, ES1371_REG_SMPRATE, 4);
 	/* enable SRC state data in SRC mux */
@@ -1571,10 +1604,10 @@ es_init_sysctls(device_t dev)
 	revid = pci_get_revid(dev);
 	es = pcm_getdevinfo(dev);
 	if ((devid == ES1371_PCI_ID && revid == ES1371REV_ES1373_8) ||
-		    (devid == ES1371_PCI_ID && revid == ES1371REV_CT5880_A) ||
-		    (devid == CT5880_PCI_ID && revid == CT5880REV_CT5880_C) ||
-		    (devid == CT5880_PCI_ID && revid == CT5880REV_CT5880_D) ||
-		    (devid == CT5880_PCI_ID && revid == CT5880REV_CT5880_E)) {
+	    (devid == ES1371_PCI_ID && revid == ES1371REV_CT5880_A) ||
+	    (devid == CT5880_PCI_ID && revid == CT5880REV_CT5880_C) ||
+	    (devid == CT5880_PCI_ID && revid == CT5880REV_CT5880_D) ||
+	    (devid == CT5880_PCI_ID && revid == CT5880REV_CT5880_E)) {
 		/* XXX: an user should be able to set this with a control tool,
 		   if not done before 7.0-RELEASE, this needs to be converted
 		   to a device specific sysctl "dev.pcm.X.yyy" via
@@ -1699,18 +1732,18 @@ es_pci_attach(device_t dev)
 	es->bufsz = pcm_getbuffersize(dev, 4096, ES_DEFAULT_BUFSZ, 65536);
 	if (resource_int_value(device_get_name(dev),
 	    device_get_unit(dev), "blocksize", &i) == 0 && i > 0) {
-		i &= ~0x3f;
-		if (i < 0x40)
-			i = 0x40;
+		i &= ES_BLK_ALIGN;
+		if (i < ES_BLK_MIN)
+			i = ES_BLK_MIN;
 		es->blkcnt = es->bufsz / i;
 		i = 0;
 		while (es->blkcnt >> i)
 			i++;
 		es->blkcnt = 1 << (i - 1);
-		if (es->blkcnt < 2)
-			es->blkcnt = 2;
-		else if (es->blkcnt > 256)
-			es->blkcnt = 256;
+		if (es->blkcnt < ES_DMA_SEGS_MIN)
+			es->blkcnt = ES_DMA_SEGS_MIN;
+		else if (es->blkcnt > ES_DMA_SEGS_MAX)
+			es->blkcnt = ES_DMA_SEGS_MAX;
 
 	} else
 		es->blkcnt = 2;
