@@ -47,9 +47,9 @@
 #define	EXTATTR_NAMESPACE_SYSTEM_STRING	"system"
 
 /*
- * The following macro is designed to initialize an array that maps
- * extended-attribute namespace values to their names, e.g.,
- * char *extattr_namespace_names[] = EXTATTR_NAMESPACE_NAMES;
+ * The following macro is designed to initialize an array that maps extended
+ * attribute namespace values to their names, e.g., char
+ * *extattr_namespace_names[] = EXTATTR_NAMESPACE_NAMES;
  */
 #define EXTATTR_NAMESPACE_NAMES { \
 	EXTATTR_NAMESPACE_EMPTY_STRING, \
