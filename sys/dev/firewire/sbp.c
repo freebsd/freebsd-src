@@ -1320,7 +1320,6 @@ sbp_write_cmd(struct sbp_dev *sdev, int tcode, int offset)
 		xfer->recv.pay_len = 0;
 		xfer->send.spd = min(sdev->target->fwdev->speed, max_speed);
 		xfer->fc = sdev->target->sbp->fd.fc;
-		xfer->retry_req = fw_asybusy;
 	}
 
 	if (tcode == FWTCODE_WREQB)
@@ -1878,7 +1877,6 @@ done0:
 	xfer->dst = sfp->mode.wres.dst;
 	xfer->spd = min(sdev->target->fwdev->speed, max_speed);
 	xfer->act.hand = sbp_loginres_callback;
-	xfer->retry_req = fw_asybusy;
 
 	sfp->mode.wres.tlrt = rfp->mode.wreqb.tlrt;
 	sfp->mode.wres.tcode = FWTCODE_WRES;

@@ -115,7 +115,6 @@ fwmem_xfer_req(
 	else
 		xfer->send.spd = min(spd, fwdev->speed);
 	xfer->act.hand = hand;
-	xfer->retry_req = fw_asybusy;
 	xfer->sc = sc;
 	xfer->send.pay_len = slen;
 	xfer->recv.pay_len = rlen;
