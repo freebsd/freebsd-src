@@ -90,11 +90,12 @@ MALLOC_DEFINE(M_RATEFEEDER, "ratefeed", "pcm rate feeder");
 #define RATE_FACTOR_MIN		1
 #define RATE_FACTOR_MAX		PCM_S24_MAX
 #define RATE_FACTOR_SAFE(val)	(!((val) < RATE_FACTOR_MIN || \
-						(val) > RATE_FACTOR_MAX))
+				(val) > RATE_FACTOR_MAX))
 
 struct feed_rate_info;
 
-typedef uint32_t (*feed_rate_converter)(struct feed_rate_info *, uint8_t *, uint32_t);
+typedef uint32_t (*feed_rate_converter)(struct feed_rate_info *,
+							uint8_t *, uint32_t);
 
 struct feed_rate_info {
 	uint32_t src, dst;	/* rounded source / destination rates */
@@ -106,7 +107,9 @@ struct feed_rate_info {
 	uint32_t bufsz_init;	/* allocated buffer size */
 	uint32_t channels;	/* total channels */
 	uint32_t bps;		/* bytes-per-sample */
+#ifdef FEEDRATE_STRAY
 	uint32_t stray;		/* stray bytes */
+#endif
 	uint8_t  *buffer;
 	feed_rate_converter convert;
 };
@@ -126,11 +129,13 @@ sysctl_hw_snd_feeder_rate_min(SYSCTL_HANDLER_ARGS)
 
 	val = feeder_rate_min;
 	err = sysctl_handle_int(oidp, &val, sizeof(val), req);
+	if (err != 0 || req->newptr == NULL)
+		return (err);
 	if (RATE_FACTOR_SAFE(val) && val < feeder_rate_max)
 		feeder_rate_min = val;
 	else
 		err = EINVAL;
-	return err;
+	return (err);
 }
 SYSCTL_PROC(_hw_snd, OID_AUTO, feeder_rate_min, CTLTYPE_INT | CTLFLAG_RW,
 	0, sizeof(int), sysctl_hw_snd_feeder_rate_min, "I",
@@ -143,11 +148,13 @@ sysctl_hw_snd_feeder_rate_max(SYSCTL_HANDLER_ARGS)
 
 	val = feeder_rate_max;
 	err = sysctl_handle_int(oidp, &val, sizeof(val), req);
+	if (err != 0 || req->newptr == NULL)
+		return (err);
 	if (RATE_FACTOR_SAFE(val) && val > feeder_rate_min)
 		feeder_rate_max = val;
 	else
 		err = EINVAL;
-	return err;
+	return (err);
 }
 SYSCTL_PROC(_hw_snd, OID_AUTO, feeder_rate_max, CTLTYPE_INT | CTLFLAG_RW,
 	0, sizeof(int), sysctl_hw_snd_feeder_rate_max, "I",
@@ -160,11 +167,13 @@ sysctl_hw_snd_feeder_rate_round(SYSCTL_HANDLER_ARGS)
 
 	val = feeder_rate_round;
 	err = sysctl_handle_int(oidp, &val, sizeof(val), req);
+	if (err != 0 || req->newptr == NULL)
+		return (err);
 	if (val < FEEDRATE_ROUNDHZ_MIN || val > FEEDRATE_ROUNDHZ_MAX)
 		err = EINVAL;
 	else
 		feeder_rate_round = val - (val % FEEDRATE_ROUNDHZ);
-	return err;
+	return (err);
 }
 SYSCTL_PROC(_hw_snd, OID_AUTO, feeder_rate_round, CTLTYPE_INT | CTLFLAG_RW,
 	0, sizeof(int), sysctl_hw_snd_feeder_rate_round, "I",
@@ -175,7 +184,7 @@ static uint32_t									\
 feed_convert_##SIGNS##FMTBIT##ENDIANS(struct feed_rate_info *info,		\
 						uint8_t *dst, uint32_t max)	\
 {										\
-	uint32_t ret, smpsz, bps, ch, pos, bpos, gx, gy, alpha, distance;	\
+	uint32_t ret, smpsz, ch, pos, bpos, gx, gy, alpha, d1, d2;		\
 	int32_t x, y;								\
 	int i;									\
 	uint8_t *src, *sx, *sy;							\
@@ -188,8 +197,7 @@ feed_convert_##SIGNS##FMTBIT##ENDIANS(struct feed_rate_info *info,		\
 	bpos = info->bpos;							\
 	src = info->buffer + pos;						\
 	ch = info->channels;							\
-	bps = info->bps;							\
-	smpsz = bps * ch;							\
+	smpsz = PCM_##FMTBIT##_BPS * ch;					\
 	for (;;) {								\
 		if (alpha < gx) {						\
 			alpha += gy;						\
@@ -199,29 +207,29 @@ feed_convert_##SIGNS##FMTBIT##ENDIANS(struct feed_rate_info *info,		\
 			src += smpsz;						\
 		} else {							\
 			alpha -= gx;						\
-			distance = (alpha << PCM_FXSHIFT) / gy;			\
+			d1 = (alpha << PCM_FXSHIFT) / gy;			\
+			d2 = (1U << PCM_FXSHIFT) - d1;				\
 			sx = src - smpsz;					\
 			sy = src;						\
 			i = ch;							\
 			do {							\
 				x = PCM_READ_##SIGN##FMTBIT##_##ENDIAN(sx);	\
 				y = PCM_READ_##SIGN##FMTBIT##_##ENDIAN(sy);	\
-				x = (((RATE_INTCAST)x * distance) +		\
-				    ((RATE_INTCAST)y * ((1 << PCM_FXSHIFT) -	\
-				    distance))) >> PCM_FXSHIFT;			\
+				x = (((RATE_INTCAST)x * d1) +			\
+				    ((RATE_INTCAST)y * d2)) >> PCM_FXSHIFT;	\
 				PCM_WRITE_##SIGN##FMTBIT##_##ENDIAN(dst, x);	\
-				dst += bps;					\
-				sx += bps;					\
-				sy += bps;					\
-				ret += bps;					\
-			} while (--i);						\
+				dst += PCM_##FMTBIT##_BPS;			\
+				sx += PCM_##FMTBIT##_BPS;			\
+				sy += PCM_##FMTBIT##_BPS;			\
+				ret += PCM_##FMTBIT##_BPS;			\
+			} while (--i != 0);					\
 			if (ret == max)						\
 				break;						\
 		}								\
 	}									\
 	info->alpha = alpha;							\
 	info->pos = pos;							\
-	return ret;								\
+	return (ret);								\
 }
 
 FEEDER_RATE_CONVERT(8, int32_t, S, s, NE, ne)
@@ -231,7 +239,6 @@ FEEDER_RATE_CONVERT(32, intpcm_t, S, s, LE, le)
 FEEDER_RATE_CONVERT(16, int32_t, S, s, BE, be)
 FEEDER_RATE_CONVERT(24, int32_t, S, s, BE, be)
 FEEDER_RATE_CONVERT(32, intpcm_t, S, s, BE, be)
-/* unsigned */
 FEEDER_RATE_CONVERT(8, int32_t, U, u, NE, ne)
 FEEDER_RATE_CONVERT(16, int32_t, U, u, LE, le)
 FEEDER_RATE_CONVERT(24, int32_t, U, u, LE, le)
@@ -258,19 +265,21 @@ static void
 feed_rate_reset(struct feed_rate_info *info)
 {
 	info->src = info->rsrc - (info->rsrc %
-		((feeder_rate_round > 0) ? feeder_rate_round : 1));
+	    ((feeder_rate_round > 0) ? feeder_rate_round : 1));
 	info->dst = info->rdst - (info->rdst %
-		((feeder_rate_round > 0) ? feeder_rate_round : 1));
+	    ((feeder_rate_round > 0) ? feeder_rate_round : 1));
 	info->gx = 1;
 	info->gy = 1;
 	info->alpha = 0;
-	info->channels = 2;
-	info->bps = 2;
+	info->channels = 1;
+	info->bps = PCM_8_BPS;
 	info->convert = NULL;
 	info->bufsz = info->bufsz_init;
-	info->pos = 4;
-	info->bpos = 8;
+	info->pos = 1;
+	info->bpos = 2;
+#ifdef FEEDRATE_STRAY
 	info->stray = 0;
+#endif
 }
 
 static int
@@ -283,15 +292,14 @@ feed_rate_setup(struct pcm_feeder *f)
 					   total channels */
 		feed_rate_converter convert;
 	} convtbl[] = {
-		{ AFMT_S8, PCM_8_BPS, feed_convert_s8ne },
+		{ AFMT_S8,     PCM_8_BPS,  feed_convert_s8ne  },
 		{ AFMT_S16_LE, PCM_16_BPS, feed_convert_s16le },
 		{ AFMT_S24_LE, PCM_24_BPS, feed_convert_s24le },
 		{ AFMT_S32_LE, PCM_32_BPS, feed_convert_s32le },
 		{ AFMT_S16_BE, PCM_16_BPS, feed_convert_s16be },
 		{ AFMT_S24_BE, PCM_24_BPS, feed_convert_s24be },
 		{ AFMT_S32_BE, PCM_32_BPS, feed_convert_s32be },
-		/* unsigned */
-		{ AFMT_U8, PCM_8_BPS, feed_convert_u8ne },
+		{ AFMT_U8,     PCM_8_BPS,  feed_convert_u8ne  },
 		{ AFMT_U16_LE, PCM_16_BPS, feed_convert_u16le },
 		{ AFMT_U24_LE, PCM_24_BPS, feed_convert_u24le },
 		{ AFMT_U32_LE, PCM_32_BPS, feed_convert_u32le },
@@ -305,15 +313,14 @@ feed_rate_setup(struct pcm_feeder *f)
 	feed_rate_reset(info);
 
 	if (info->src != info->dst)
-		feed_speed_ratio(info->src, info->dst,
-					&info->gx, &info->gy);
+		feed_speed_ratio(info->src, info->dst, &info->gx, &info->gy);
 
 	if (!(RATE_FACTOR_SAFE(info->gx) && RATE_FACTOR_SAFE(info->gy)))
-		return -1;
+		return (-1);
 
 	for (i = 0; i < sizeof(convtbl) / sizeof(*convtbl); i++) {
 		if (convtbl[i].format == 0)
-			return -1;
+			return (-1);
 		if ((f->desc->out & ~AFMT_STEREO) == convtbl[i].format) {
 			info->bps = convtbl[i].bps;
 			info->convert = convtbl[i].convert;
@@ -335,13 +342,12 @@ feed_rate_setup(struct pcm_feeder *f)
 	memset(info->buffer, sndbuf_zerodata(f->desc->out), info->bpos);
 
 	RATE_TRACE("%s: %u (%u) -> %u (%u) [%u/%u] , "
-			"format=0x%08x, channels=%u, bufsz=%u\n",
-			__func__, info->src, info->rsrc, info->dst, info->rdst,
-			info->gx, info->gy,
-			f->desc->out, info->channels,
-			info->bufsz - info->pos);
+	    "format=0x%08x, channels=%u, bufsz=%u\n",
+	    __func__, info->src, info->rsrc, info->dst, info->rdst,
+	    info->gx, info->gy, f->desc->out, info->channels,
+	    info->bufsz - info->pos);
 
-	return 0;
+	return (0);
 }
 
 static int
@@ -350,7 +356,7 @@ feed_rate_set(struct pcm_feeder *f, int what, int32_t value)
 	struct feed_rate_info *info = f->data;
 
 	if (value < feeder_rate_min || value > feeder_rate_max)
-		return -1;
+		return (-1);
 
 	switch (what) {
 	case FEEDRATE_SRC:
@@ -360,9 +366,9 @@ feed_rate_set(struct pcm_feeder *f, int what, int32_t value)
 		info->rdst = value;
 		break;
 	default:
-		return -1;
+		return (-1);
 	}
-	return feed_rate_setup(f);
+	return (feed_rate_setup(f));
 }
 
 static int
@@ -372,13 +378,13 @@ feed_rate_get(struct pcm_feeder *f, int what)
 
 	switch (what) {
 	case FEEDRATE_SRC:
-		return info->rsrc;
+		return (info->rsrc);
 	case FEEDRATE_DST:
-		return info->rdst;
+		return (info->rdst);
 	default:
-		return -1;
+		return (-1);
 	}
-	return -1;
+	return (-1);
 }
 
 static int
@@ -387,25 +393,25 @@ feed_rate_init(struct pcm_feeder *f)
 	struct feed_rate_info *info;
 
 	if (f->desc->out != f->desc->in)
-		return EINVAL;
+		return (EINVAL);
 
 	info = malloc(sizeof(*info), M_RATEFEEDER, M_NOWAIT | M_ZERO);
 	if (info == NULL)
-		return ENOMEM;
+		return (ENOMEM);
 	/*
 	 * bufsz = sample from last cycle + conversion space
 	 */
 	info->bufsz_init = 8 + feeder_buffersize;
 	info->buffer = malloc(sizeof(*info->buffer) * info->bufsz_init,
-					M_RATEFEEDER, M_NOWAIT | M_ZERO);
+	    M_RATEFEEDER, M_NOWAIT | M_ZERO);
 	if (info->buffer == NULL) {
 		free(info, M_RATEFEEDER);
-		return ENOMEM;
+		return (ENOMEM);
 	}
 	info->rsrc = DSP_DEFAULT_SPEED;
 	info->rdst = DSP_DEFAULT_SPEED;
 	f->data = info;
-	return feed_rate_setup(f);
+	return (feed_rate_setup(f));
 }
 
 static int
@@ -413,13 +419,13 @@ feed_rate_free(struct pcm_feeder *f)
 {
 	struct feed_rate_info *info = f->data;
 
-	if (info) {
-		if (info->buffer)
+	if (info != NULL) {
+		if (info->buffer != NULL)
 			free(info->buffer, M_RATEFEEDER);
 		free(info, M_RATEFEEDER);
 	}
 	f->data = NULL;
-	return 0;
+	return (0);
 }
 
 static int
@@ -431,7 +437,7 @@ feed_rate(struct pcm_feeder *f, struct pcm_channel *c, uint8_t *b,
 	int32_t fetch, slot;
 
 	if (info->convert == NULL)
-		return FEEDER_FEED(f->source, c, b, count, source);
+		return (FEEDER_FEED(f->source, c, b, count, source));
 
 	/*
 	 * This loop has been optimized to generalize both up / down
@@ -449,99 +455,124 @@ feed_rate(struct pcm_feeder *f, struct pcm_channel *c, uint8_t *b,
 	 */
 	smpsz = info->bps * info->channels;
 	RATE_TEST(count >= smpsz && (count % smpsz) == 0,
-		("%s: Count size not sample integral (%d)\n", __func__, count));
+	    ("%s: Count size not sample integral (%d)\n", __func__, count));
 	if (count < smpsz)
-		return 0;
+		return (0);
 	count -= count % smpsz;
 	/*
 	 * This slot count formula will stay here for the next million years
 	 * to come. This is the key of our circular buffering precision.
 	 */
-	slot = (((info->gx * (count / smpsz)) + info->gy - info->alpha - 1) / info->gy) * smpsz;
-	RATE_TEST((slot % smpsz) == 0, ("%s: Slot count not sample integral (%d)\n",
-						__func__, slot));
-	RATE_TEST(info->stray == 0, ("%s: [1] Stray bytes: %u\n",
-		__func__,info->stray));
+	slot = (((info->gx * (count / smpsz)) + info->gy - info->alpha - 1) /
+	    info->gy) * smpsz;
+	RATE_TEST((slot % smpsz) == 0,
+	    ("%s: Slot count not sample integral (%d)\n", __func__, slot));
+#ifdef FEEDRATE_STRAY
+	RATE_TEST(info->stray == 0, ("%s: [1] Stray bytes: %u\n", __func__,
+	    info->stray));
+#endif
 	if (info->pos != smpsz && info->bpos - info->pos == smpsz &&
-			info->bpos + slot > info->bufsz) {
+	    info->bpos + slot > info->bufsz) {
 		/*
 		 * Copy last unit sample and its previous to
 		 * beginning of buffer.
 		 */
 		bcopy(info->buffer + info->pos - smpsz, info->buffer,
-			sizeof(*info->buffer) * (smpsz << 1));
+		    sizeof(*info->buffer) * (smpsz << 1));
 		info->pos = smpsz;
 		info->bpos = smpsz << 1;
 	}
-	RATE_ASSERT(slot >= 0, ("%s: Negative Slot: %d\n",
-			__func__, slot));
+	RATE_ASSERT(slot >= 0, ("%s: Negative Slot: %d\n", __func__, slot));
 	i = 0;
 	for (;;) {
 		for (;;) {
 			fetch = info->bufsz - info->bpos;
+#ifdef FEEDRATE_STRAY
 			fetch -= info->stray;
+#endif
 			RATE_ASSERT(fetch >= 0,
-				("%s: [1] Buffer overrun: %d > %d\n",
-					__func__, info->bpos, info->bufsz));
+			    ("%s: [1] Buffer overrun: %d > %d\n", __func__,
+			    info->bpos, info->bufsz));
 			if (slot < fetch)
 				fetch = slot;
-			if (fetch > 0) {
-				RATE_ASSERT((int32_t)(info->bpos - info->stray) >= 0 &&
-					(info->bpos  - info->stray) < info->bufsz,
-					("%s: DANGER - BUFFER OVERRUN! bufsz=%d, pos=%d\n", __func__,
-					info->bufsz, info->bpos - info->stray));
-				fetch = FEEDER_FEED(f->source, c,
-						info->buffer + info->bpos - info->stray,
-						fetch, source);
-				info->stray = 0;
-				if (fetch == 0)
-					break;
-				RATE_TEST((fetch % smpsz) == 0,
-					("%s: Fetch size not sample integral (%d)\n",
-					__func__, fetch));
-				info->stray += fetch % smpsz;
-				RATE_TEST(info->stray == 0,
-					("%s: Stray bytes detected (%d)\n",
-					__func__, info->stray));
-				fetch -= fetch % smpsz;
-				info->bpos += fetch;
-				slot -= fetch;
-				RATE_ASSERT(slot >= 0,
-					("%s: Negative Slot: %d\n", __func__,
-						slot));
-				if (slot == 0)
-					break;
-				if (info->bpos == info->bufsz)
-					break;
-			} else
+#ifdef FEEDRATE_STRAY
+			if (fetch < 1)
+#else
+			if (fetch < smpsz)
+#endif
+				break;
+			RATE_ASSERT((int)(info->bpos
+#ifdef FEEDRATE_STRAY
+			    - info->stray
+#endif
+			    ) >= 0 &&
+			    (info->bpos  - info->stray) < info->bufsz,
+			    ("%s: DANGER - BUFFER OVERRUN! bufsz=%d, pos=%d\n",
+			    __func__, info->bufsz, info->bpos
+#ifdef FEEDRATE_STRAY
+			    - info->stray
+#endif
+			    ));
+			fetch = FEEDER_FEED(f->source, c,
+			    info->buffer + info->bpos
+#ifdef FEEDRATE_STRAY
+			    - info->stray
+#endif
+			    , fetch, source);
+#ifdef FEEDRATE_STRAY
+			info->stray = 0;
+			if (fetch == 0)
+#else
+			if (fetch < smpsz)
+#endif
+				break;
+			RATE_TEST((fetch % smpsz) == 0,
+			    ("%s: Fetch size not sample integral (%d)\n",
+			    __func__, fetch));
+#ifdef FEEDRATE_STRAY
+			info->stray += fetch % smpsz;
+			RATE_TEST(info->stray == 0,
+			    ("%s: Stray bytes detected (%d)\n", __func__,
+			    info->stray));
+#endif
+			fetch -= fetch % smpsz;
+			info->bpos += fetch;
+			slot -= fetch;
+			RATE_ASSERT(slot >= 0, ("%s: Negative Slot: %d\n",
+			    __func__, slot));
+			if (slot == 0 || info->bpos == info->bufsz)
 				break;
 		}
 		if (info->pos == info->bpos) {
 			RATE_TEST(info->pos == smpsz,
-				("%s: EOF while in progress\n", __func__));
+			    ("%s: EOF while in progress\n", __func__));
 			break;
 		}
 		RATE_ASSERT(info->pos <= info->bpos,
-			("%s: [2] Buffer overrun: %d > %d\n", __func__,
-			info->pos, info->bpos));
+		    ("%s: [2] Buffer overrun: %d > %d\n", __func__, info->pos,
+		    info->bpos));
 		RATE_ASSERT(info->pos < info->bpos,
-			("%s: Zero buffer!\n", __func__));
+		    ("%s: Zero buffer!\n", __func__));
 		RATE_ASSERT(((info->bpos - info->pos) % smpsz) == 0,
-			("%s: Buffer not sample integral (%d)\n",
-			__func__, info->bpos - info->pos));
+		    ("%s: Buffer not sample integral (%d)\n", __func__,
+		    info->bpos - info->pos));
 		i += info->convert(info, b + i, count - i);
 		RATE_ASSERT(info->pos <= info->bpos,
-				("%s: [3] Buffer overrun: %d > %d\n",
-					__func__, info->pos, info->bpos));
+		    ("%s: [3] Buffer overrun: %d > %d\n", __func__, info->pos,
+		    info->bpos));
 		if (info->pos == info->bpos) {
 			/*
 			 * End of buffer cycle. Copy last unit sample
 			 * to beginning of buffer so next cycle can
 			 * interpolate using it.
 			 */
-			RATE_TEST(info->stray == 0, ("%s: [2] Stray bytes: %u\n", __func__, info->stray));
+#ifdef FEEDRATE_STRAY
+			RATE_TEST(info->stray == 0,
+			    ("%s: [2] Stray bytes: %u\n", __func__,
+			    info->stray));
+#endif
 			bcopy(info->buffer + info->pos - smpsz, info->buffer,
-				sizeof(*info->buffer) * smpsz);
+			    sizeof(*info->buffer) * smpsz);
 			info->bpos = smpsz;
 			info->pos = smpsz;
 		}
@@ -549,16 +580,18 @@ feed_rate(struct pcm_feeder *f, struct pcm_channel *c, uint8_t *b,
 			break;
 	}
 
-	RATE_TEST((slot == 0 && count == i) ||
-		    (slot > 0 && count > i &&
-		    info->pos == info->bpos && info->pos == smpsz),
-		("%s: Inconsistent slot/count! "
-		"Count Expect: %u , Got: %u, Slot Left: %d\n",
-		__func__, count, i, slot));
+	RATE_TEST((slot == 0 && count == i) || (slot > 0 && count > i &&
+	    info->pos == info->bpos && info->pos == smpsz),
+	    ("%s: Inconsistent slot/count! "
+	    "Count Expect: %u , Got: %u, Slot Left: %d\n", __func__, count, i,
+	    slot));
 
-	RATE_TEST(info->stray == 0, ("%s: [3] Stray bytes: %u\n", __func__, info->stray));
+#ifdef FEEDRATE_STRAY
+	RATE_TEST(info->stray == 0, ("%s: [3] Stray bytes: %u\n", __func__,
+	    info->stray));
+#endif
 
-	return i;
+	return (i);
 }
 
 static struct pcm_feederdesc feeder_rate_desc[] = {
@@ -576,7 +609,6 @@ static struct pcm_feederdesc feeder_rate_desc[] = {
 	{FEEDER_RATE, AFMT_S16_BE | AFMT_STEREO, AFMT_S16_BE | AFMT_STEREO, 0},
 	{FEEDER_RATE, AFMT_S24_BE | AFMT_STEREO, AFMT_S24_BE | AFMT_STEREO, 0},
 	{FEEDER_RATE, AFMT_S32_BE | AFMT_STEREO, AFMT_S32_BE | AFMT_STEREO, 0},
-	/* unsigned */
 	{FEEDER_RATE, AFMT_U8, AFMT_U8, 0},
 	{FEEDER_RATE, AFMT_U16_LE, AFMT_U16_LE, 0},
 	{FEEDER_RATE, AFMT_U24_LE, AFMT_U24_LE, 0},
