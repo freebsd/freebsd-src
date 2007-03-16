@@ -2056,7 +2056,7 @@ dsp_oss_syncstart(int sg_id)
 					break;
 
 				needlocks = 1;
-				ret = 0; /* Assumes ret == EWOULDBLOCK... */
+				ret = 0; /* Assumes ret == EAGAIN... */
 			}
 		}
 	} while (needlocks && ret == 0);
