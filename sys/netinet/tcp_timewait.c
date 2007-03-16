@@ -150,12 +150,6 @@ SYSCTL_INT(_net_inet_tcp, OID_AUTO, minmssoverload, CTLFLAG_RW,
     &tcp_minmssoverload , 0, "Number of TCP Segments per Second allowed to"
     "be under the MINMSS Size");
 
-#if 0
-static int	tcp_rttdflt = TCPTV_SRTTDFLT / PR_SLOWHZ;
-SYSCTL_INT(_net_inet_tcp, TCPCTL_RTTDFLT, rttdflt, CTLFLAG_RW,
-    &tcp_rttdflt , 0, "Default maximum TCP Round Trip Time");
-#endif
-
 int	tcp_do_rfc1323 = 1;
 SYSCTL_INT(_net_inet_tcp, TCPCTL_DO_RFC1323, rfc1323, CTLFLAG_RW,
     &tcp_do_rfc1323 , 0, "Enable rfc1323 (high performance TCP) extensions");
