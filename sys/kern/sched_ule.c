@@ -1220,10 +1220,14 @@ sched_interact_score(struct thread *td)
 		div = max(1, td->td_sched->skg_runtime / SCHED_INTERACT_HALF);
 		return (SCHED_INTERACT_HALF +
 		    (SCHED_INTERACT_HALF - (td->td_sched->skg_slptime / div)));
-	} if (td->td_sched->skg_slptime > td->td_sched->skg_runtime) {
+	}
+	if (td->td_sched->skg_slptime > td->td_sched->skg_runtime) {
 		div = max(1, td->td_sched->skg_slptime / SCHED_INTERACT_HALF);
 		return (td->td_sched->skg_runtime / div);
 	}
+	/* runtime == slptime */
+	if (td->td_sched->skg_runtime)
+		return (SCHED_INTERACT_HALF);
 
 	/*
 	 * This can happen if slptime and runtime are 0.
