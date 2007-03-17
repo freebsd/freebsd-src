@@ -284,11 +284,13 @@ no_scsi_unit:
 	ret
 
 	.data
-	.global	partnum, parttable, defpartflag, defpartnum, npartition
-partnum:	.space	32		# Index of parttable
-parttable:	.space	1024		# Copy of valid partition table
+	.global	defpartflag, defpartnum, npartition
 defpartflag:	.byte	0
 defpartnum:	.byte	0
 npartition:	.word	0		# number of partitions
+
 	.bss
-iplbuf:		.space	0x400
+	.global	partnum, parttable
+iplbuf:		.space	0x400		# Read buffer for IPL
+partnum:	.space	32		# Index of parttable
+parttable:	.space	1024		# Copy of valid partition table
