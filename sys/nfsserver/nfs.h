@@ -358,11 +358,8 @@ int	nfsrv_commit(struct nfsrv_descript *nfsd, struct nfssvc_sock *slp,
 	    struct thread *td, struct mbuf **mrq);
 int	nfsrv_create(struct nfsrv_descript *nfsd, struct nfssvc_sock *slp,
 	    struct thread *td, struct mbuf **mrq);
-int	nfsrv_fhtovp(fhandle_t *, int, struct vnode **, struct ucred *,
+int	nfsrv_fhtovp(fhandle_t *, int, struct vnode **, int *, struct ucred *,
 	    struct nfssvc_sock *, struct sockaddr *, int *, int);
-int	nfsrv_fhtovp_locked(fhandle_t *, int, struct vnode **,
-	    struct ucred *, struct nfssvc_sock *, struct sockaddr *, int *,
-	    int);
 int	nfsrv_setpublicfs(struct mount *, struct netexport *,
 	    struct export_args *);
 int	nfs_ispublicfh(fhandle_t *);

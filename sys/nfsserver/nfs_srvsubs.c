@@ -621,10 +621,11 @@ nfs_namei(struct nameidata *ndp, fhandle_t *fhp, int len,
 	int error, rdonly, linklen;
 	struct componentname *cnp = &ndp->ni_cnd;
 	int lockleaf = (cnp->cn_flags & LOCKLEAF) != 0;
+	int dvfslocked;
+	int vfslocked;
 
-	NFSD_LOCK_ASSERT();
-	NFSD_UNLOCK();
-
+	vfslocked = 0;
+	dvfslocked = 0;
 	*retdirp = NULL;
 	cnp->cn_flags |= NOMACCHECK;
 	cnp->cn_pnbuf = uma_zalloc(namei_zone, M_WAITOK);
@@ -642,14 +643,14 @@ nfs_namei(struct nameidata *ndp, fhandle_t *fhp, int len,
 			md = md->m_next;
 			if (md == NULL) {
 				error = EBADRPC;
-				goto out_nogiant;
+				goto out;
 			}
 			fromcp = mtod(md, caddr_t);
 			rem = md->m_len;
 		}
 		if (*fromcp == '\0' || (!pubflag && *fromcp == '/')) {
 			error = EACCES;
-			goto out_nogiant;
+			goto out;
 		}
 		*tocp++ = *fromcp++;
 		rem--;
@@ -662,20 +663,17 @@ nfs_namei(struct nameidata *ndp, fhandle_t *fhp, int len,
 		if (rem >= len)
 			*dposp += len;
 		else if ((error = nfs_adv(mdp, dposp, len, rem)) != 0)
-			goto out_nogiant;
+			goto out;
 	}
 
 	/*
 	 * Extract and set starting directory.
-	 *
-	 * XXXRW: For now, acquire Giant unconditionally to avoid tracking it
-	 * on multiple vnodes.
 	 */
-	error = nfsrv_fhtovp(fhp, FALSE, &dp, ndp->ni_cnd.cn_cred, slp,
-	    nam, &rdonly, pubflag);
-	mtx_lock(&Giant);	/* VFS */
+	error = nfsrv_fhtovp(fhp, FALSE, &dp, &dvfslocked,
+	    ndp->ni_cnd.cn_cred, slp, nam, &rdonly, pubflag);
 	if (error)
 		goto out;
+	vfslocked = VFS_LOCK_GIANT(dp->v_mount);
 	if (dp->v_type != VDIR) {
 		vrele(dp);
 		error = ENOTDIR;
@@ -753,8 +751,14 @@ nfs_namei(struct nameidata *ndp, fhandle_t *fhp, int len,
 	if (pubflag) {
 		ndp->ni_rootdir = rootvnode;
 		ndp->ni_loopcnt = 0;
-		if (cnp->cn_pnbuf[0] == '/')
+		if (cnp->cn_pnbuf[0] == '/') {
+			int tvfslocked;
+
+			tvfslocked = VFS_LOCK_GIANT(rootvnode->v_mount);
+			VFS_UNLOCK_GIANT(vfslocked);
 			dp = rootvnode;
+			vfslocked = tvfslocked;
+		}
 	} else {
 		cnp->cn_flags |= NOCROSSMOUNT;
 	}
@@ -779,7 +783,11 @@ nfs_namei(struct nameidata *ndp, fhandle_t *fhp, int len,
 		 * In either case ni_startdir will be dereferenced and NULLed
 		 * out.
 		 */
+		if (vfslocked)
+			ndp->ni_cnd.cn_flags |= GIANTHELD;
 		error = lookup(ndp);
+		vfslocked = (ndp->ni_cnd.cn_flags & GIANTHELD) != 0;
+		ndp->ni_cnd.cn_flags &= ~GIANTHELD;
 		if (error)
 			break;
 
@@ -888,18 +896,27 @@ nfs_namei(struct nameidata *ndp, fhandle_t *fhp, int len,
 	 * cleanup state trivially.
 	 */
 out:
-	mtx_unlock(&Giant);	/* VFS */
-out_nogiant:
 	if (error) {
 		uma_zfree(namei_zone, cnp->cn_pnbuf);
 		ndp->ni_vp = NULL;
 		ndp->ni_dvp = NULL;
 		ndp->ni_startdir = NULL;
 		cnp->cn_flags &= ~HASBUF;
+		VFS_UNLOCK_GIANT(vfslocked);
+		vfslocked = 0;
 	} else if ((ndp->ni_cnd.cn_flags & (WANTPARENT|LOCKPARENT)) == 0) {
 		ndp->ni_dvp = NULL;
 	}
-	NFSD_LOCK();
+	/*
+	 * This differs from normal namei() in that even on failure we may
+	 * return with Giant held due to the dirp return.  Make sure we only
+	 * have not recursed however.  The calling code only expects to drop
+	 * one acquire.
+	 */
+	if (vfslocked || dvfslocked)
+		ndp->ni_cnd.cn_flags |= GIANTHELD;
+	if (vfslocked && dvfslocked)
+		VFS_UNLOCK_GIANT(vfslocked);
 	return (error);
 }
 
@@ -913,8 +930,6 @@ nfsm_adj(struct mbuf *mp, int len, int nul)
 	struct mbuf *m;
 	int count, i;
 	char *cp;
-
-	NFSD_LOCK_DONTCARE();
 
 	/*
 	 * Trim from tail.  Scan the mbuf chain,
@@ -1064,13 +1079,9 @@ nfsm_srvfattr(struct nfsrv_descript *nfsd, struct vattr *vap,
  *	- get vp and export rights by calling VFS_FHTOVP()
  *	- if cred->cr_uid == 0 or MNT_EXPORTANON set it to credanon
  *	- if not lockflag unlock it with VOP_UNLOCK()
- *
- * As this routine may acquire Giant and may sleep, it can't be called with
- * nfsd_mtx.  Caller should invoke nfsrv_fhtovp_locked() if the lock is held
- * so that it can be automatically dropped and re-acquired.
  */
 int
-nfsrv_fhtovp(fhandle_t *fhp, int lockflag, struct vnode **vpp,
+nfsrv_fhtovp(fhandle_t *fhp, int lockflag, struct vnode **vpp, int *vfslockedp,
     struct ucred *cred, struct nfssvc_sock *slp, struct sockaddr *nam,
     int *rdonlyp, int pubflag)
 {
@@ -1079,13 +1090,12 @@ nfsrv_fhtovp(fhandle_t *fhp, int lockflag, struct vnode **vpp,
 	int i;
 	struct ucred *credanon;
 	int error, exflags;
-	int vfslocked;
 #ifdef MNT_EXNORESPORT		/* XXX needs mountd and /etc/exports help yet */
 	struct sockaddr_int *saddr;
 #endif
+	int vfslocked;
 
-	NFSD_UNLOCK_ASSERT();
-
+	*vfslockedp = 0;
 	*vpp = NULL;
 
 	if (nfs_ispublicfh(fhp)) {
@@ -1135,28 +1145,13 @@ nfsrv_fhtovp(fhandle_t *fhp, int lockflag, struct vnode **vpp,
 		VOP_UNLOCK(*vpp, 0, td);
 out:
 	vfs_rel(mp);
-	VFS_UNLOCK_GIANT(vfslocked);
+	if (error) {
+		VFS_UNLOCK_GIANT(vfslocked);
+	} else
+		*vfslockedp = vfslocked;
 	return (error);
 }
 
-/*
- * Version of nfsrv_fhtovp() that can be called holding nfsd_mtx: it will
- * drop and re-acquire the lock for the caller.
- */
-int
-nfsrv_fhtovp_locked(fhandle_t *fhp, int lockflag, struct vnode **vpp,
-    struct ucred *cred, struct nfssvc_sock *slp, struct sockaddr *nam,
-    int *rdonlyp, int pubflag)
-{
-	int error;
-
-	NFSD_LOCK_ASSERT();
-	NFSD_UNLOCK();
-	error = nfsrv_fhtovp(fhp, lockflag, vpp, cred, slp, nam, rdonlyp,
-	    pubflag);
-	NFSD_LOCK();
-	return (error);
-}
 
 /*
  * WebNFS: check if a filehandle is a public filehandle. For v3, this
@@ -1229,7 +1224,6 @@ nfsrv_errmap(struct nfsrv_descript *nd, int err)
 	const short *defaulterrp, *errp;
 	int e;
 
-	NFSD_LOCK_DONTCARE();
 
 	if (nd->nd_flag & ND_NFSV3) {
 	    if (nd->nd_procnum <= NFSPROC_COMMIT) {
@@ -1263,8 +1257,6 @@ nfsrvw_sort(gid_t *list, int num)
 	int i, j;
 	gid_t v;
 
-	NFSD_LOCK_DONTCARE();
-
 	/* Insertion sort. */
 	for (i = 1; i < num; i++) {
 		v = list[i];
@@ -1283,8 +1275,6 @@ nfsrv_setcred(struct ucred *incred, struct ucred *outcred)
 {
 	int i;
 
-	NFSD_LOCK_DONTCARE();
-
 	bzero((caddr_t)outcred, sizeof (struct ucred));
 	refcount_init(&outcred->cr_ref, 1);
 	outcred->cr_uid = incred->cr_uid;
@@ -1302,8 +1292,6 @@ void
 nfsm_srvfhtom_xx(fhandle_t *f, int v3, struct mbuf **mb, caddr_t *bpos)
 {
 	u_int32_t *tl;
-
-	NFSD_LOCK_DONTCARE();
 
 	if (v3) {
 		tl = nfsm_build_xx(NFSX_UNSIGNED + NFSX_V3FH, mb, bpos);
@@ -1330,8 +1318,6 @@ int
 nfsm_srvstrsiz_xx(int *s, int m, struct mbuf **md, caddr_t *dpos)
 {
 	u_int32_t *tl;
-
-	NFSD_LOCK_DONTCARE();
 
 	tl = nfsm_dissect_xx_nonblock(NFSX_UNSIGNED, md, dpos);
 	if (tl == NULL)
@@ -1365,8 +1351,6 @@ nfsm_srvnamesiz0_xx(int *s, int m, struct mbuf **md, caddr_t *dpos)
 {
 	u_int32_t *tl;
 
-	NFSD_LOCK_DONTCARE();
-
 	tl = nfsm_dissect_xx_nonblock(NFSX_UNSIGNED, md, dpos);
 	if (tl == NULL)
 		return EBADRPC;
@@ -1380,26 +1364,17 @@ nfsm_srvnamesiz0_xx(int *s, int m, struct mbuf **md, caddr_t *dpos)
 
 void
 nfsm_clget_xx(u_int32_t **tl, struct mbuf *mb, struct mbuf **mp,
-    char **bp, char **be, caddr_t bpos, int droplock)
+    char **bp, char **be, caddr_t bpos)
 {
 	struct mbuf *nmp;
 
-	NFSD_LOCK_DONTCARE();
-
-	if (droplock)
-		NFSD_LOCK_ASSERT();
-	else
-		NFSD_UNLOCK_ASSERT();
+	NFSD_UNLOCK_ASSERT();
 
 	if (*bp >= *be) {
 		if (*mp == mb)
 			(*mp)->m_len += *bp - bpos;
-		if (droplock)
-			NFSD_UNLOCK();
 		MGET(nmp, M_TRYWAIT, MT_DATA);
 		MCLGET(nmp, M_TRYWAIT);
-		if (droplock)
-			NFSD_LOCK();
 		nmp->m_len = NFSMSIZ(nmp);
 		(*mp)->m_next = nmp;
 		*mp = nmp;
@@ -1415,8 +1390,6 @@ nfsm_srvmtofh_xx(fhandle_t *f, struct nfsrv_descript *nfsd, struct mbuf **md,
 {
 	u_int32_t *tl;
 	int fhlen;
-
-	NFSD_LOCK_DONTCARE();
 
 	if (nfsd->nd_flag & ND_NFSV3) {
 		tl = nfsm_dissect_xx_nonblock(NFSX_UNSIGNED, md, dpos);
@@ -1444,8 +1417,6 @@ nfsm_srvsattr_xx(struct vattr *a, struct mbuf **md, caddr_t *dpos)
 {
 	u_int32_t *tl;
 	int toclient = 0;
-
-	NFSD_LOCK_DONTCARE();
 
 	tl = nfsm_dissect_xx_nonblock(NFSX_UNSIGNED, md, dpos);
 	if (tl == NULL)
