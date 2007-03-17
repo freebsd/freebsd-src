@@ -155,7 +155,7 @@ static void		 test_for_append(struct bsdtar *);
 static void		 write_archive(struct archive *, struct bsdtar *);
 static void		 write_entry(struct bsdtar *, struct archive *,
 			     const struct stat *, const char *pathname,
-			     unsigned pathlen, const char *accpath);
+			     const char *accpath);
 static int		 write_file_data(struct bsdtar *, struct archive *,
 			     int fd);
 static void		 write_hierarchy(struct bsdtar *, struct archive *,
@@ -718,7 +718,6 @@ write_hierarchy(struct bsdtar *bsdtar, struct archive *a, const char *path)
 		 * pathname editing and newness testing.
 		 */
 		write_entry(bsdtar, a, lst, name,
-		    tree_current_pathlen(tree),
 		    tree_current_access_path(tree));
 	}
 	tree_close(tree);
@@ -729,7 +728,7 @@ write_hierarchy(struct bsdtar *bsdtar, struct archive *a, const char *path)
  */
 static void
 write_entry(struct bsdtar *bsdtar, struct archive *a, const struct stat *st,
-    const char *pathname, unsigned pathlen, const char *accpath)
+    const char *pathname, const char *accpath)
 {
 	struct archive_entry	*entry;
 	int			 e;
@@ -739,8 +738,6 @@ write_entry(struct bsdtar *bsdtar, struct archive *a, const struct stat *st,
 	unsigned long		 stflags;
 #endif
 	static char		 linkbuffer[PATH_MAX+1];
-
-	(void)pathlen; /* UNUSED */
 
 	fd = -1;
 	entry = archive_entry_new();
