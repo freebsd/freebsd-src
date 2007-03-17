@@ -1881,7 +1881,7 @@ physmap_done:
 		physmap[physmap_idx + 1] = ptoa((vm_paddr_t)Maxmem);
 
 	/* call pmap initialization to make new kernel address space */
-	pmap_bootstrap(first, 0);
+	pmap_bootstrap(first);
 
 	/*
 	 * Size up each available chunk of physical memory.

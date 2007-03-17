@@ -320,7 +320,7 @@ pmap_kmem_choose(vm_offset_t addr)
  *	(physical) address starting relative to 0]
  */
 void
-pmap_bootstrap(vm_paddr_t firstaddr, vm_paddr_t loadaddr)
+pmap_bootstrap(vm_paddr_t firstaddr)
 {
 	vm_offset_t va;
 	pt_entry_t *pte, *unused;
