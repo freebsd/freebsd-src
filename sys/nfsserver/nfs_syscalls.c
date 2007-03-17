@@ -467,6 +467,7 @@ nfssvc_nfsd(struct thread *td)
 			    procrastinate = nfsrvw_procrastinate_v3;
 			else
 			    procrastinate = nfsrvw_procrastinate;
+			NFSD_UNLOCK();
 			if (writes_todo || (!(nd->nd_flag & ND_NFSV3) &&
 			    nd->nd_procnum == NFSPROC_WRITE &&
 			    procrastinate > 0 && !notstarted))
@@ -475,6 +476,7 @@ nfssvc_nfsd(struct thread *td)
 			else
 			    error = (*(nfsrv3_procs[nd->nd_procnum]))(nd,
 				slp, nfsd->nfsd_td, &mreq);
+			NFSD_LOCK();
 			if (mreq == NULL)
 				break;
 			if (error != 0 && error != NFSERR_RETVOID) {
