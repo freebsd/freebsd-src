@@ -339,23 +339,31 @@ csa_detach(device_t dev)
 {
 	csa_res *resp;
 	sc_p scp;
+	struct sndcard_func *func;
 	int err;
 
 	scp = device_get_softc(dev);
 	resp = &scp->res;
 
-	err = 0;
-	if (scp->midi != NULL)
+	if (scp->midi != NULL) {
+		func = device_get_ivars(scp->midi);
 		err = device_delete_child(dev, scp->midi);
-	if (err)
-		return err;
-	scp->midi = NULL;
+		if (err != 0)
+			return err;
+		if (func != NULL)
+			free(func, M_DEVBUF);
+		scp->midi = NULL;
+	}
 
-	if (scp->pcm != NULL)
+	if (scp->pcm != NULL) {
+		func = device_get_ivars(scp->pcm);
 		err = device_delete_child(dev, scp->pcm);
-	if (err)
-		return err;
-	scp->pcm = NULL;
+		if (err != 0)
+			return err;
+		if (func != NULL)
+			free(func, M_DEVBUF);
+		scp->pcm = NULL;
+	}
 
 	bus_teardown_intr(dev, resp->irq, scp->ih);
 	bus_release_resource(dev, SYS_RES_IRQ, resp->irq_rid, resp->irq);
