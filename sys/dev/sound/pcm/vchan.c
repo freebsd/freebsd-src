@@ -226,7 +226,7 @@ feed_vchan(struct pcm_feeder *f, struct pcm_channel *c, uint8_t *b,
 			CHN_UNLOCK(ch);
 			continue;
 		}
-		if (ch->flags & CHN_F_MAPPED)
+		if ((ch->flags & CHN_F_MAPPED) && !(ch->flags & CHN_F_CLOSING))
 			sndbuf_acquire(ch->bufsoft, NULL,
 			    sndbuf_getfree(ch->bufsoft));
 		if (rcnt == 0)
