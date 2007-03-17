@@ -388,7 +388,7 @@ tdq_runq_add(struct tdq *tdq, struct td_sched *ts, int flags)
 			 */
 			if (tdq->tdq_ridx != tdq->tdq_idx &&
 			    pri == tdq->tdq_ridx)
-				pri = (pri - 1) % RQ_NQS;
+				pri = (unsigned char)(pri - 1) % RQ_NQS;
 		} else
 			pri = tdq->tdq_ridx;
 		runq_add_pri(ts->ts_runq, ts, pri, flags);
