@@ -60,7 +60,7 @@ normalmode:
 	jmp	exit			# No hard drives
 
 drives_found:
-	# Setup sector size depended parameters
+	# Setup sector size dependent parameters
 	movw	%si, %cx		# %cx = number of devices
 setup_loop:
 	movw	%cx, %di
@@ -254,16 +254,9 @@ showunit:
 	ret
 
 	.data
-	.global	curdevice, daua, secsize, defflagoff, defpartoff
-	.global	maxpart, partoff, ndevice
+	.global	curdevice, ndevice
 ndevice:	.word	0		# number of device
 curdevice:	.word	0		# current device
-daua:		.space	12		# DA/DU list
-secsize:	.space	12 * 2		# Sector soize
-defflagoff:	.space	12 * 2
-defpartoff:	.space	12 * 2
-maxpart:	.space	12 * 2
-partoff:	.space	12 * 2
 
 	.global	ishireso
 ishireso:	.byte	0
@@ -288,3 +281,13 @@ msg_usage9:	.asciz	"LEGEND"
 msg_usage10:	.asciz	">>: selected device/slice"
 msg_usage11:	.asciz	"*: default slice to boot"
 msg_usage12:	.asciz	"!: unbootable slice"
+
+	.bss
+	.global	daua, secsize, defflagoff, defpartoff
+	.global	maxpart, partoff
+daua:		.space	12		# DA/DU list
+secsize:	.space	12 * 2		# Sector soize
+defflagoff:	.space	12 * 2
+defpartoff:	.space	12 * 2
+maxpart:	.space	12 * 2
+partoff:	.space	12 * 2

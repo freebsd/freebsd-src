@@ -60,7 +60,7 @@ boot:
 	movw	parttable(%si), %ax
 	movw	%ax, b_cylinder
 
-	# Step 2: Calculate egment address of bootstrap routine
+	# Step 2: Calculate the segment address of the bootstrap routine
 	movw	$0x1d00, %ax
 	movw	b_secsize, %cx
 	shrw	%cx
