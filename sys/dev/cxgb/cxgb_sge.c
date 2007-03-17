@@ -168,8 +168,6 @@ int cxgb_debug = 0;
 static void t3_free_qset(adapter_t *sc, struct sge_qset *q);
 static void sge_timer_cb(void *arg);
 static void sge_timer_reclaim(void *arg, int ncount);
-static __inline void refill_rspq(adapter_t *sc, const struct sge_rspq *q,
-    u_int credits);
 static int free_tx_desc(adapter_t *sc, struct sge_txq *q, int n, struct mbuf **m_vec);
 
 /**
@@ -637,6 +635,24 @@ t3_sge_deinit_sw(adapter_t *sc)
 	callout_drain(&sc->sge_timer_ch);
 	taskqueue_drain(sc->tq, &sc->timer_reclaim_task);
 	taskqueue_drain(sc->tq, &sc->slow_intr_task);
+}
+
+/**
+ *	refill_rspq - replenish an SGE response queue
+ *	@adapter: the adapter
+ *	@q: the response queue to replenish
+ *	@credits: how many new responses to make available
+ *
+ *	Replenishes a response queue by making the supplied number of responses
+ *	available to HW.
+ */
+static __inline void
+refill_rspq(adapter_t *sc, const struct sge_rspq *q, u_int credits)
+{
+
+	/* mbufs are allocated on demand when a rspq entry is processed. */
+	t3_write_reg(sc, A_SG_RSPQ_CREDIT_RETURN,
+		     V_RSPQ(q->cntxt_id) | V_CREDITS(credits));
 }
 
 
@@ -1561,24 +1577,6 @@ t3_sge_start(adapter_t *sc)
 	t3_set_reg_field(sc, A_SG_CONTROL, F_GLOBALENABLE, F_GLOBALENABLE);
 }
 
-
-/**
- *	refill_rspq - replenish an SGE response queue
- *	@adapter: the adapter
- *	@q: the response queue to replenish
- *	@credits: how many new responses to make available
- *
- *	Replenishes a response queue by making the supplied number of responses
- *	available to HW.
- */
-static __inline void
-refill_rspq(adapter_t *sc, const struct sge_rspq *q, u_int credits)
-{
-
-	/* mbufs are allocated on demand when a rspq entry is processed. */
-	t3_write_reg(sc, A_SG_RSPQ_CREDIT_RETURN,
-		     V_RSPQ(q->cntxt_id) | V_CREDITS(credits));
-}
 
 /**
  *	free_tx_desc - reclaims Tx descriptors and their buffers
