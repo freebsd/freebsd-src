@@ -1225,8 +1225,11 @@ syncache_respond(struct syncache *sc, struct mbuf *m)
 #ifdef INET6
 		if (sc->sc_inc.inc_isipv6)
 			ip6->ip6_plen = htons(ntohs(ip6->ip6_plen) + optlen);
+		else
 #endif
+		{
 			ip->ip_len += optlen;
+		}
 	} else
 		optlen = 0;
 
