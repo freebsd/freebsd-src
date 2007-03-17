@@ -1227,16 +1227,15 @@ syncache_respond(struct syncache *sc, struct mbuf *m)
 			ip6->ip6_plen = htons(ntohs(ip6->ip6_plen) + optlen);
 		else
 #endif
-		{
 			ip->ip_len += optlen;
-		}
 	} else
 		optlen = 0;
 
 #ifdef INET6
 	if (sc->sc_inc.inc_isipv6) {
 		th->th_sum = 0;
-		th->th_sum = in6_cksum(m, IPPROTO_TCP, hlen, tlen - hlen);
+		th->th_sum = in6_cksum(m, IPPROTO_TCP, hlen,
+				       tlen + optlen - hlen);
 		ip6->ip6_hlim = in6_selecthlim(NULL, NULL);
 		error = ip6_output(m, NULL, NULL, 0, NULL, NULL, NULL);
 	} else
