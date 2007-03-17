@@ -343,7 +343,7 @@ chn_wrfeed(struct pcm_channel *c)
 	})
 #endif
 
-	if (c->flags & CHN_F_MAPPED)
+	if ((c->flags & CHN_F_MAPPED) && !(c->flags & CHN_F_CLOSING))
 		sndbuf_acquire(bs, NULL, sndbuf_getfree(bs));
 
 	amt = sndbuf_getfree(b);
@@ -696,9 +696,9 @@ chn_resetbuf(struct pcm_channel *c)
 int
 chn_sync(struct pcm_channel *c, int threshold)
 {
-	int ret, count, hcount, minflush, resid, residp;
     	struct snd_dbuf *b, *bs;
-	int syncdelay, blksz;
+	int ret, count, hcount, minflush, resid, residp, syncdelay, blksz;
+	u_int32_t cflag;
 
 	CHN_LOCKASSERT(c);
 
@@ -769,6 +769,8 @@ chn_sync(struct pcm_channel *c, int threshold)
 		    "minflush=%d resid=%d\n", __func__, c->timeout, count,
 		    minflush, resid);
 
+	cflag = c->flags & CHN_F_CLOSING;
+	c->flags |= CHN_F_CLOSING;
 	while (count > 0 && (resid > 0 || minflush > 0)) {
 		ret = chn_sleep(c, "pcmsyn", c->timeout);
     		if (ret == ERESTART || ret == EINTR) {
@@ -805,6 +807,8 @@ chn_sync(struct pcm_channel *c, int threshold)
 			residp = resid;
 		}
 	}
+	c->flags &= ~CHN_F_CLOSING;
+	c->flags |= cflag;
 
 	if (snd_verbose > 3)
 		printf("%s: timeout=%d count=%d hcount=%d resid=%d residp=%d "
