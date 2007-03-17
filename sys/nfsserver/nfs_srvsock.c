@@ -145,13 +145,9 @@ nfs_rephead(int siz, struct nfsrv_descript *nd, int err,
 	caddr_t bpos;
 	struct mbuf *mb;
 
-	/* XXXRW: not 100% clear the lock is needed here. */
-	NFSD_LOCK_ASSERT();
-
 	nd->nd_repstat = err;
 	if (err && (nd->nd_flag & ND_NFSV3) == 0)	/* XXX recheck */
 		siz = 0;
-	NFSD_UNLOCK();
 	MGETHDR(mreq, M_TRYWAIT, MT_DATA);
 	mb = mreq;
 	/*
@@ -164,7 +160,6 @@ nfs_rephead(int siz, struct nfsrv_descript *nd, int err,
 		MCLGET(mreq, M_TRYWAIT);
 	} else
 		mreq->m_data += min(max_hdr, M_TRAILINGSPACE(mreq));
-	NFSD_LOCK();
 	tl = mtod(mreq, u_int32_t *);
 	bpos = ((caddr_t)tl) + mreq->m_len;
 	*tl++ = txdr_unsigned(nd->nd_retxid);
@@ -246,18 +241,13 @@ nfs_realign(struct mbuf **pm, int hsiz)	/* XXX COMMON */
 	struct mbuf *n = NULL;
 	int off = 0;
 
-	/* XXXRW: may not need lock? */
-	NFSD_LOCK_ASSERT();
-
 	++nfs_realign_test;
 	while ((m = *pm) != NULL) {
 		if ((m->m_len & 0x3) || (mtod(m, intptr_t) & 0x3)) {
-			NFSD_UNLOCK();
 			MGET(n, M_TRYWAIT, MT_DATA);
 			if (m->m_len >= MINCLSIZE) {
 				MCLGET(n, M_TRYWAIT);
 			}
-			NFSD_LOCK();
 			n->m_len = 0;
 			break;
 		}

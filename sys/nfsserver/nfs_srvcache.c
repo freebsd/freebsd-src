@@ -218,9 +218,11 @@ loop:
 				ret = RC_DROPIT;
 			} else if (rp->rc_flag & RC_REPSTATUS) {
 				nfsrvstats.srvcache_nonidemdonehits++;
+				NFSD_UNLOCK();
 				*repp = nfs_rephead(0, nd, rp->rc_status,
 				    &mb, &bpos);
 				ret = RC_REPLY;
+				NFSD_LOCK();
 			} else if (rp->rc_flag & RC_REPMBUF) {
 				nfsrvstats.srvcache_nonidemdonehits++;
 				NFSD_UNLOCK();
