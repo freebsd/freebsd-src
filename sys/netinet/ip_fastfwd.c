@@ -500,7 +500,8 @@ passout:
 	 * Check if route is dampned (when ARP is unable to resolve)
 	 */
 	if ((ro.ro_rt->rt_flags & RTF_REJECT) &&
-	    ro.ro_rt->rt_rmx.rmx_expire >= time_uptime) {
+	    (ro.ro_rt->rt_rmx.rmx_expire == 0 ||
+	    time_uptime < ro.ro_rt->rt_rmx.rmx_expire)) {
 		icmp_error(m, ICMP_UNREACH, ICMP_UNREACH_HOST, 0, 0);
 		goto consumed;
 	}
