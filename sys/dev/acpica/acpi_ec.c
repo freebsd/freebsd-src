@@ -303,9 +303,9 @@ ACPI_SERIAL_DECL(ec, "ACPI embedded controller");
 SYSCTL_DECL(_debug_acpi);
 SYSCTL_NODE(_debug_acpi, OID_AUTO, ec, CTLFLAG_RD, NULL, "EC debugging");
 
-static int	ec_burst_mode = TRUE;
+static int	ec_burst_mode;
 TUNABLE_INT("debug.acpi.ec.burst", &ec_burst_mode);
-SYSCTL_INT(_debug_acpi_ec, OID_AUTO, burst, CTLFLAG_RW, &ec_burst_mode, TRUE,
+SYSCTL_INT(_debug_acpi_ec, OID_AUTO, burst, CTLFLAG_RW, &ec_burst_mode, 0,
     "Enable use of burst mode (faster for nearly all systems)");
 static int	ec_poll_time = EC_POLL_TIME;
 TUNABLE_INT("debug.acpi.ec.poll_time", &ec_poll_time);
