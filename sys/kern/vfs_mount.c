@@ -1091,9 +1091,7 @@ unmount(td, uap)
 	char *pathbuf;
 	int error, id0, id1;
 
-	if (jailed(td->td_ucred))
-		return (EPERM);
-	if (usermount == 0) {
+	if (jailed(td->td_ucred) || usermount == 0) {
 		error = priv_check(td, PRIV_VFS_UNMOUNT);
 		if (error)
 			return (error);
