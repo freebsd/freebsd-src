@@ -37,7 +37,7 @@ All sorts of stuff to go here.
 The 
 .Em FreeBSD
 kernel is written to run across multiple CPUs and as such requires
-several different sychronization primatives to allow the developers 
+several different synchronization primitives to allow the developers 
 to safely access and manipulate the many data types required.
 .Pp
 These include:
@@ -53,7 +53,7 @@ Shared-Exclusive locks
 .It
 Reader-Writer locks
 .It
-Turnstyles
+Turnstiles
 .It
 Semaphores
 .It
@@ -67,10 +67,12 @@ Lockmanager locks
 .El
 .Pp
 The primitives interact and have a number of rules regarding how
-they can and can not be combined. There are too many for the average human mind and they
-keep changing. (if you disagree, please write replacement text)  :-)
+they can and can not be combined. There are too many for the average
+human mind and they keep changing.
+(if you disagree, please write replacement text)  :-)
 .Pp
-Some of these primitives may be used at the low (interrupt) level and some may not.
+Some of these primitives may be used at the low (interrupt) level and
+some may not.
 .Pp
 There are strict ordering requirements and for some of the types this
 is checked using the 
@@ -80,12 +82,15 @@ code.
 .Ss SPIN Mutexes
 Mutexes are the basic primitive.
 You either hold it or you don't.
-If you don't own it then you just spin, waiting for the holder (on another CPU)
-to release it. Hopefully they are doing something fast. You can not do anything that 
-deschedules the thread while you are holding a SPIN mutex.
+If you don't own it then you just spin, waiting for the holder (on
+another CPU) to release it.
+Hopefully they are doing something fast.
+You can not do anything that deschedules the thread while you
+are holding a SPIN mutex.
 .Ss Sleep Mutexes
-Basically sleep (regular) mutexes will deschedule the thread if
-the mutex can not be acquired. As in spin mutexes, you either get it or you don't.
+Basically sleep (regular) mutexes will deschedule the thread if the
+mutex can not be acquired.
+As in spin mutexes, you either get it or you don't.
 You may call the
 .Xr sleep 9
 call
@@ -95,7 +100,8 @@ or the new
 variant. These will atomically drop the mutex and reacquire it
 as part of waking up.
 .Ss Pool Mutexes
-A variant of SLEEP mutexes where the allocation of the mutex is handled more by the system.
+A variant of SLEEP mutexes where the allocation of the mutex is handled
+more by the system.
 .Ss Sx_locks
 Shared/exclusive locks are used to protect data that are read far more often
 than they are written.
@@ -148,15 +154,16 @@ can recurse,
 but exclusive locks are not allowed to recurse.
 .Ss Turnstiles
 Turnstiles are used to hold a queue of threads blocked on
-non-sleepable locks.  Sleepable locks use condition variables to
-implement their queues.  Turnstiles differ from a sleep queue in that
-turnstile queue's are assigned to a lock held by an owning thread.  Thus,
-when one thread is enqueued onto a turnstile, it can lend its priority
-to the owning thread.
+non-sleepable locks.
+Sleepable locks use condition variables to implement their queues.
+Turnstiles differ from a sleep queue in that turnstile queue's
+are assigned to a lock held by an owning thread.
+Thus, when one thread is enqueued onto a turnstile, it can lend its
+priority to the owning thread.
 .Ss Semaphores
 .Ss Condition variables
-Condition variables are used in conjunction with mutexes to wait for conditions
-to occur.
+Condition variables are used in conjunction with mutexes to wait for
+conditions to occur.
 A thread must hold the mutex before calling the
 .Fn cv_wait* ,
 functions.
@@ -176,8 +183,7 @@ The functions
 and
 .Fn wakeup_one
 handle event-based thread blocking.
-If a thread must wait for an
-external event, it is put to sleep by
+If a thread must wait for an external event, it is put to sleep by
 .Fn tsleep ,
 .Fn msleep ,
 .Fn msleep_spin ,
@@ -211,8 +217,7 @@ If
 .Fa priority
 includes the
 .Dv PDROP
-flag, then
-the lock will not be reacquired before returning.
+flag, then the lock will not be reacquired before returning.
 The lock is used to ensure that a condition can be checked atomically,
 and that the current thread can be suspended without missing a
 change to the condition, or an associated wakeup.
@@ -232,7 +237,7 @@ I don't know what the downsides are but I'm sure someone will fill in this part.
 .Sh Usage tables.
 .Ss Interaction table.
 The following table shows what you can and can not do if you hold
-one of the synchronisation primatives discussed here:
+one of the synchronisation primitives discussed here:
 (someone who knows what they are talking about should write this table)
 .Bl -column ".Ic xxxxxxxxxxxxxxxxxxxx" ".Xr XXXXXXXXX" ".Xr XXXXXXX" ".Xr XXXXXXX" ".Xr XXXXXXX" ".Xr XXXXX" -offset indent
 .It Xo
@@ -245,13 +250,13 @@ one of the synchronisation primatives discussed here:
 .El
 .Pp
 .Em *1
-Recursion is defined per lock. lock order is important.
+Recursion is defined per lock. Lock order is important.
 .Pp
 .Em *2
-readers can recurse though writers can not. lock order is important.
+readers can recurse though writers can not. Lock order is important.
 .Pp
 .Em *3
-There are calls atomically release this primative when going to sleep
+There are calls atomically release this primitive when going to sleep
 and reacquire it on wakeup (e.g. 
 .Fn mtx_sleep ,
 .Fn rw_sleep
@@ -261,10 +266,11 @@ and
 .Em *4
 Though one can sleep holding an sx lock, one can also use 
 .Fn sx_sleep
-which atomically release this primative when going to sleep and reacquire it on wakeup.
+which atomically release this primitive when going to sleep and
+reacquire it on wakeup.
 .Ss Context mode table.
-The next table shows what can be used in different contexts. At this time this is a 
-rather easy to remember table.
+The next table shows what can be used in different contexts.
+At this time this is a rather easy to remember table.
 .Bl -column ".Ic Xxxxxxxxxxxxxxxxxxxx" ".Xr XXXXXXXXX" ".Xr XXXXXXX" ".Xr XXXXXXX" ".Xr XXXXXXX" ".Xr XXXXX" -offset indent
 .It Xo
 .Em "Context:" Ta Spin_mtx Ta Slp_mtx Ta sx_lock Ta rw_lock Ta sleep
