@@ -25,7 +25,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd February 25, 2007
+.Dd March 18, 2007
 .Dt MULTICAST 4
 .Os
 .\"
@@ -61,13 +61,14 @@ With multicast routing, the overhead is reduced to one copy
 .Pp
 All multicast-capable routers must run a common multicast routing
 protocol.
-The Distance Vector Multicast Routing Protocol (DVMRP)
-was the first developed multicast routing protocol.
-Later, other protocols such as Multicast Extensions to OSPF (MOSPF),
-Core Based Trees (CBT),
+It is recommended that either
 Protocol Independent Multicast - Sparse Mode (PIM-SM),
-and Protocol Independent Multicast - Dense Mode (PIM-DM)
-were developed as well.
+or Protocol Independent Multicast - Dense Mode (PIM-DM)
+are used, as these are now the generally accepted protocols
+in the Internet community.
+The
+.Sx HISTORY
+section discusses previous multicast routing protocols.
 .Pp
 To start multicast routing,
 the user must enable multicast forwarding in the kernel
@@ -961,6 +962,18 @@ after the previous upcall.
 .Xr ip6 4 ,
 .Xr pim 4
 .\"
+.Sh HISTORY
+The Distance Vector Multicast Routing Protocol (DVMRP)
+was the first developed multicast routing protocol.
+Later, other protocols such as Multicast Extensions to OSPF (MOSPF)
+and Core Based Trees (CBT), were developed as well.
+Routers at autonomous system boundaries may now exchange multicast
+routes with peers via the Border Gateway Protocol (BGP).
+Many other routing protocols are able to redistribute multicast routes
+for use with
+.Dv PIM-SM
+and
+.Dv PIM-DM .
 .Sh AUTHORS
 .An -nosplit
 The original multicast code was written by
