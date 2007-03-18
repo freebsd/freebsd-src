@@ -203,6 +203,13 @@
       been corrected on HEAD, RELENG_6, and RELENG_6_2, and is
       documented in FreeBSD Errata Notice
       <ulink url="http://security.FreeBSD.org/advisories/FreeBSD-EN-07:03.rc.d_jail.asc">EN-07:03.rc.d_jail</ulink>.</para>
+
+    <para>[20070318] The &man.freebsd-update.8; client included in &os;
+      &release.bugfix; does not properly update SMP kernels.  This
+      bug has been fixed on HEAD, RELENG_6, and RELENG_6_2, as
+      described in FreeBSD Errata Notice
+      <ulink url="http://security.FreeBSD.org/advisories/FreeBSD-EN-07:05.freebsd-update.asc">EN-07:05.freebsd-update</ulink>.</para>
+
   </sect1>
 
 </article>
