@@ -32,7 +32,7 @@
 .\"     @(#)ip.4	8.2 (Berkeley) 11/30/93
 .\" $FreeBSD$
 .\"
-.Dd May 14, 2006
+.Dd March 18, 2007
 .Dt IP 4
 .Os
 .Sh NAME
@@ -199,6 +199,7 @@ control message from
 .Xr recvmsg 2
 can be used directly as a control message for
 .Xr sendmsg 2 .
+.\"
 .Pp
 If the
 .Dv IP_ONESBCAST
@@ -262,6 +263,7 @@ cmsg_len = sizeof(u_char)
 cmsg_level = IPPROTO_IP
 cmsg_type = IP_RECVTTL
 .Ed
+.\"
 .Pp
 If the
 .Dv IP_RECVIF
@@ -480,6 +482,8 @@ or the
 .Tn IP
 address of a particular multicast-capable interface if
 the host is multihomed.
+.\" TODO: Remove this piece when the RFC 3678 API is implemented and
+.\" the RFC 1724 hack is removed.
 Since
 .Fx 4.4 ,
 if the
@@ -488,13 +492,22 @@ member is within the network range
 .Li 0.0.0.0/8 ,
 it is treated as an interface index in the system interface MIB,
 as per the RIP Version 2 MIB Extension (RFC-1724).
+.\" TODO: Update this piece when IPv4 source-address selection is implemented.
 .Pp
-Membership is associated with a single interface;
-programs running on multihomed hosts may need to
-join the same group on more than one interface.
 Up to
 .Dv IP_MAX_MEMBERSHIPS
 memberships may be added on a single socket.
+Membership is associated with a single interface;
+programs running on multihomed hosts may need to
+join the same group on more than one interface.
+.Pp
+The IGMP protocol uses the primary IP address of the interface
+as its identifier for group membership.
+If multiple IP aliases are configured on the same interface,
+they will be ignored.
+This shortcoming was addressed in IPv6; MLDv2 requires
+that the unique link-local address for an interface is
+used to identify an MLDv2 listener.
 .Pp
 To drop a membership, use:
 .Bd -literal
@@ -652,7 +665,8 @@ field was not equal to the length of the datagram written to the socket.
 .Xr byteorder 3 ,
 .Xr icmp 4 ,
 .Xr inet 4 ,
-.Xr intro 4
+.Xr intro 4 ,
+.Xr multicast 4
 .Sh HISTORY
 The
 .Nm
