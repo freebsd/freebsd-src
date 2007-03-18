@@ -229,18 +229,22 @@ feed_vchan(struct pcm_feeder *f, struct pcm_channel *c, uint8_t *b,
 		if ((ch->flags & CHN_F_MAPPED) && !(ch->flags & CHN_F_CLOSING))
 			sndbuf_acquire(ch->bufsoft, NULL,
 			    sndbuf_getfree(ch->bufsoft));
-		if (rcnt == 0)
+		if (rcnt == 0) {
 			rcnt = FEEDER_FEED(ch->feeder, ch, b, count,
-			ch->bufsoft);
-		else {
+			    ch->bufsoft);
+			rcnt -= rcnt % sz;
+			mcnt = count - rcnt;
+		} else {
 			cnt = FEEDER_FEED(ch->feeder, ch, tmp, count,
 			    ch->bufsoft);
 			cnt -= cnt % sz;
 			if (cnt != 0) {
-				if (mcnt++ == 0 && rcnt < count)
+				if (mcnt != 0) {
 					memset(b + rcnt,
 					    sndbuf_zerodata(f->desc->out),
-					    count - rcnt);
+					    mcnt);
+					mcnt = 0;
+				}
 				cnt = info->mix(b, tmp, cnt);
 				if (cnt > rcnt)
 					rcnt = cnt;
