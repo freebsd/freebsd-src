@@ -1729,7 +1729,7 @@ getmemsize(int first)
 	}
 
 	/* call pmap initialization to make new kernel address space */
-	pmap_bootstrap(first, 0);
+	pmap_bootstrap(first);
 
 	/*
 	 * Size up each available chunk of physical memory.
