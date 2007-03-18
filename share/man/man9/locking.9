@@ -66,11 +66,11 @@ Giant
 Lockmanager locks
 .El
 .Pp
-The primnatives interact and have a number of rules regarding how
-they can and can not be combined. Ther eare too many for the average humanmind and they
+The primitives interact and have a number of rules regarding how
+they can and can not be combined. There are too many for the average human mind and they
 keep changing. (if you disagree, please write replacement text)  :-)
 .Pp
-Some of these primatives may be used at the low (interrupt) level and some may not.
+Some of these primitives may be used at the low (interrupt) level and some may not.
 .Pp
 There are strict ordering requirements and for some of the types this
 is checked using the 
@@ -78,10 +78,10 @@ is checked using the
 code.
 .Pp
 .Ss SPIN Mutexes
-Mutexes are the basic primative.
+Mutexes are the basic primitive.
 You either hold it or you don't.
 If you don't own it then you just spin, waiting for the holder (on another CPU)
-to release it. Hopefully they are doing something fast. You can not do anythign that 
+to release it. Hopefully they are doing something fast. You can not do anything that 
 deschedules the thread while you are holding a SPIN mutex.
 .Ss Sleep Mutexes
 Basically sleep (regular) mutexes will deschedule the thread if
@@ -105,12 +105,12 @@ A thread may hold a shared or exclusive lock on an
 .Em sx_lock
 lock while sleeping.
 As a result, an
-.Em sx_lockm
+.Em sx_lock
 lock may not be acquired while holding a mutex.
 Otherwise, if one thread slept while holding an
-.Em sx_lockm
+.Em sx_lock
 lock while another thread blocked on the same
-.Em sx_lockm
+.Em sx_lock
 lock after acquiring a mutex, then the second thread would effectively
 end up sleeping while holding a mutex, which is not allowed.
 .Ss Rw_locks
@@ -146,7 +146,7 @@ Another important property is that shared holders of
 .Em rw_lock
 can recurse,
 but exclusive locks are not allowed to recurse.
-.Ss Turnstyless
+.Ss Turnstiles
 Turnstiles are used to hold a queue of threads blocked on
 non-sleepable locks.  Sleepable locks use condition variables to
 implement their queues.  Turnstiles differ from a sleep queue in that
@@ -248,7 +248,7 @@ one of the synchronisation primatives discussed here:
 Recursion is defined per lock. lock order is important.
 .Pp
 .Em *2
-readers can recurse tough writers can not. lock order is important.
+readers can recurse though writers can not. lock order is important.
 .Pp
 .Em *3
 There are calls atomically release this primative when going to sleep
@@ -263,7 +263,7 @@ Though one can sleep holding an sx lock, one can also use
 .Fn sx_sleep
 which atomically release this primative when going to sleep and reacquire it on wakeup.
 .Ss Context mode table.
-The next table shows what can be used in differnt contexts. at this time this is a 
+The next table shows what can be used in different contexts. At this time this is a 
 rather easy to remember table.
 .Bl -column ".Ic Xxxxxxxxxxxxxxxxxxxx" ".Xr XXXXXXXXX" ".Xr XXXXXXX" ".Xr XXXXXXX" ".Xr XXXXXXX" ".Xr XXXXX" -offset indent
 .It Xo
