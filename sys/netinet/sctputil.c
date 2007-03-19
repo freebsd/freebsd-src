@@ -4271,26 +4271,68 @@ sctp_find_ifa_in_ifn(struct sctp_ifn *sctp_ifnp, struct sockaddr *addr,
 	return (NULL);
 }
 
+uint32_t
+sctp_get_ifa_hash_val(struct sockaddr *addr)
+{
+
+	if (addr->sa_family == AF_INET) {
+		struct sockaddr_in *sin;
+
+		sin = (struct sockaddr_in *)addr;
+		return (sin->sin_addr.s_addr ^ (sin->sin_addr.s_addr >> 16));
+	} else if (addr->sa_family == AF_INET6) {
+		struct sockaddr_in6 *sin6;
+		uint32_t hash_of_addr;
+
+		sin6 = (struct sockaddr_in6 *)addr;
+		hash_of_addr = (sin6->sin6_addr.s6_addr32[0] +
+		    sin6->sin6_addr.s6_addr32[1] +
+		    sin6->sin6_addr.s6_addr32[2] +
+		    sin6->sin6_addr.s6_addr32[3]);
+		hash_of_addr = (hash_of_addr ^ (hash_of_addr >> 16));
+		return (hash_of_addr);
+	}
+	return (0);
+}
+
 struct sctp_ifa *
 sctp_find_ifa_by_addr(struct sockaddr *addr, uint32_t vrf_id, int holds_lock)
 {
 	struct sctp_ifa *sctp_ifap;
-	struct sctp_ifn *sctp_ifnp = NULL;
 	struct sctp_vrf *vrf;
+	struct sctp_ifalist *hash_head;
+	uint32_t hash_of_addr;
 
 	vrf = sctp_find_vrf(vrf_id);
 	if (vrf == NULL)
 		return (NULL);
 
+	hash_of_addr = sctp_get_ifa_hash_val(addr);
 	if (holds_lock == 0)
 		SCTP_IPI_ADDR_LOCK();
 
-	LIST_FOREACH(sctp_ifnp, &vrf->ifnlist, next_ifn) {
-		sctp_ifap = sctp_find_ifa_in_ifn(sctp_ifnp, addr, 1);
-		if (sctp_ifap) {
-			if (holds_lock == 0)
-				SCTP_IPI_ADDR_UNLOCK();
-			return (sctp_ifap);
+	hash_head = &vrf->vrf_addr_hash[(hash_of_addr & vrf->vrf_hashmark)];
+	LIST_FOREACH(sctp_ifap, hash_head, next_bucket) {
+		if (addr->sa_family != sctp_ifap->address.sa.sa_family)
+			continue;
+		if (addr->sa_family == AF_INET) {
+			if (((struct sockaddr_in *)addr)->sin_addr.s_addr ==
+			    sctp_ifap->address.sin.sin_addr.s_addr) {
+				/* found him. */
+				if (holds_lock == 0)
+					SCTP_IPI_ADDR_UNLOCK();
+				return (sctp_ifap);
+				break;
+			}
+		} else if (addr->sa_family == AF_INET6) {
+			if (SCTP6_ARE_ADDR_EQUAL(&((struct sockaddr_in6 *)addr)->sin6_addr,
+			    &sctp_ifap->address.sin6.sin6_addr)) {
+				/* found him. */
+				if (holds_lock == 0)
+					SCTP_IPI_ADDR_UNLOCK();
+				return (sctp_ifap);
+				break;
+			}
 		}
 	}
 	if (holds_lock == 0)
