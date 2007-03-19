@@ -852,6 +852,8 @@ sbdrop_internal(struct sockbuf *sb, int len)
 			m->m_len -= len;
 			m->m_data += len;
 			sb->sb_cc -= len;
+			if (sb->sb_sndptroff != 0)
+				sb->sb_sndptroff -= len;
 			if (m->m_type != MT_DATA && m->m_type != MT_OOBDATA)
 				sb->sb_ctl -= len;
 			break;
@@ -901,6 +903,45 @@ sbdrop(struct sockbuf *sb, int len)
 	SOCKBUF_LOCK(sb);
 	sbdrop_locked(sb, len);
 	SOCKBUF_UNLOCK(sb);
+}
+
+
+/*
+ * Maintain a pointer and offset pair into the socket buffer mbuf chain to
+ * avoid traversal of the entire socket buffer for larger offsets.
+ */
+struct mbuf *
+sbsndptr(struct sockbuf *sb, u_int off, u_int len, u_int *moff)
+{
+	struct mbuf *m, *ret;
+
+	KASSERT(sb->sb_mb != NULL, ("%s: sb_mb is NULL", __func__));
+	KASSERT(off + len <= sb->sb_cc, ("%s: beyond sb", __func__));
+	KASSERT(sb->sb_sndptroff <= sb->sb_cc, ("%s: sndptroff broken", __func__));
+
+	/*
+	 * Is off below stored offset? Happens on retransmits.
+	 * Just return, we can't help here.
+	 */
+	if (sb->sb_sndptroff > off) {
+		*moff = off;
+		return (sb->sb_mb);
+	}
+
+	/* Return closest mbuf in chain for current offset. */
+	*moff = off - sb->sb_sndptroff;
+	m = ret = sb->sb_sndptr ? sb->sb_sndptr : sb->sb_mb;
+
+	/* Advance by len to be as close as possible for the next transmit. */
+	for (off = off - sb->sb_sndptroff + len - 1;
+	     off > 0 && off >= m->m_len;
+	     m = m->m_next) {
+		sb->sb_sndptroff += m->m_len;
+		off -= m->m_len;
+	}
+	sb->sb_sndptr = m;
+
+	return (ret);
 }
 
 /*
