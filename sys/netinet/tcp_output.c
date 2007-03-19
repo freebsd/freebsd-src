@@ -744,6 +744,9 @@ send:
 	 * the template for sends on this connection.
 	 */
 	if (len) {
+		struct mbuf *mb;
+		u_int moff;
+
 		if ((tp->t_flags & TF_FORCEDATA) && len == 1)
 			tcpstat.tcps_sndprobe++;
 		else if (SEQ_LT(tp->snd_nxt, tp->snd_max)) {
@@ -785,13 +788,20 @@ send:
 #endif
 		m->m_data += max_linkhdr;
 		m->m_len = hdrlen;
+
+		/*
+		 * Start the m_copy functions from the closest mbuf
+		 * to the offset in the socket buffer chain.
+		 */
+		mb = sbsndptr(&so->so_snd, off, len, &moff);
+
 		if (len <= MHLEN - hdrlen - max_linkhdr) {
-			m_copydata(so->so_snd.sb_mb, off, (int)len,
+			m_copydata(mb, moff, (int)len,
 			    mtod(m, caddr_t) + hdrlen);
 			m->m_len += len;
 		} else {
-			m->m_next = m_copy(so->so_snd.sb_mb, off, (int)len);
-			if (m->m_next == 0) {
+			m->m_next = m_copy(mb, moff, (int)len);
+			if (m->m_next == NULL) {
 				SOCKBUF_UNLOCK(&so->so_snd);
 				(void) m_free(m);
 				error = ENOBUFS;

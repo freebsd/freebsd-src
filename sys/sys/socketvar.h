@@ -103,6 +103,8 @@ struct socket {
 		struct	mbuf *sb_mbtail; /* (c/d) the last mbuf in the chain */
 		struct	mbuf *sb_lastrecord;	/* (c/d) first mbuf of last
 						 * record in socket buffer */
+		struct	mbuf *sb_sndptr; /* (c/d) pointer into mbuf chain */
+		u_int	sb_sndptroff;	/* (c/d) byte offset of ptr into chain */
 		u_int	sb_cc;		/* (c/d) actual chars in buffer */
 		u_int	sb_hiwat;	/* (c/d) max actual char count */
 		u_int	sb_mbcnt;	/* (c/d) chars of mbufs used */
@@ -321,6 +323,12 @@ struct xsocket {
 	(sb)->sb_mbcnt -= MSIZE; \
 	if ((m)->m_flags & M_EXT) \
 		(sb)->sb_mbcnt -= (m)->m_ext.ext_size; \
+	if ((sb)->sb_sndptr == (m)) { \
+		(sb)->sb_sndptr = NULL; \
+		(sb)->sb_sndptroff = 0; \
+	} \
+	if ((sb)->sb_sndptroff != 0) \
+		(sb)->sb_sndptroff -= (m)->m_len; \
 }
 
 /*
@@ -491,6 +499,8 @@ int	sbreserve(struct sockbuf *sb, u_long cc, struct socket *so,
 	    struct thread *td);
 int	sbreserve_locked(struct sockbuf *sb, u_long cc, struct socket *so,
 	    struct thread *td);
+struct mbuf *
+	sbsndptr(struct sockbuf *sb, u_int off, u_int len, u_int *moff);
 void	sbtoxsockbuf(struct sockbuf *sb, struct xsockbuf *xsb);
 int	sbwait(struct sockbuf *sb);
 int	sb_lock(struct sockbuf *sb);
