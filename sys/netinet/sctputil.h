@@ -56,6 +56,9 @@ void sctp_m_freem(struct mbuf *m);
 /*
  * Function prototypes
  */
+uint32_t
+sctp_get_ifa_hash_val(struct sockaddr *addr);
+
 struct sctp_ifa *
          sctp_find_ifa_in_ep(struct sctp_inpcb *inp, struct sockaddr *addr, int hold_lock);
 struct sctp_ifa *

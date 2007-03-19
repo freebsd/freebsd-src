@@ -155,6 +155,16 @@ sctp_allocate_vrf(int vrfid)
 	vrf->vrf_id = vrfid;
 	LIST_INIT(&vrf->ifnlist);
 	vrf->total_ifa_count = 0;
+	/* Init the HASH of addresses */
+	vrf->vrf_addr_hash = SCTP_HASH_INIT(SCTP_VRF_HASH_SIZE,
+	    &vrf->vrf_hashmark);
+	if (vrf->vrf_addr_hash == NULL) {
+		/* No memory */
+#ifdef INVARIANTS
+		panic("No memory for VRF:%d", vrfid);
+#endif
+		return (NULL);
+	}
 	/* Add it to the hash table */
 	bucket = &sctppcbinfo.sctp_vrfhash[(vrfid & sctppcbinfo.hashvrfmark)];
 	LIST_INSERT_HEAD(bucket, vrf, next_vrf);
@@ -217,6 +227,8 @@ sctp_add_addr_to_vrf(uint32_t vrfid, void *ifn, uint32_t ifn_index,
 	struct sctp_vrf *vrf;
 	struct sctp_ifn *sctp_ifnp = NULL;
 	struct sctp_ifa *sctp_ifap = NULL;
+	struct sctp_ifalist *hash_head;
+	uint32_t hash_of_addr;
 
 	/* How granular do we need the locks to be here? */
 	SCTP_IPI_ADDR_LOCK();
@@ -325,11 +337,15 @@ sctp_add_addr_to_vrf(uint32_t vrfid, void *ifn, uint32_t ifn_index,
 			sctp_ifap->src_is_priv = 1;
 		}
 	}
+	hash_of_addr = sctp_get_ifa_hash_val(&sctp_ifap->address.sa);
+
 	if ((sctp_ifap->src_is_priv == 0) &&
 	    (sctp_ifap->src_is_loop == 0)) {
 		sctp_ifap->src_is_glob = 1;
 	}
 	SCTP_IPI_ADDR_LOCK();
+	hash_head = &vrf->vrf_addr_hash[(hash_of_addr & vrf->vrf_hashmark)];
+	LIST_INSERT_HEAD(hash_head, sctp_ifap, next_bucket);
 	sctp_ifap->refcount = 1;
 	LIST_INSERT_HEAD(&sctp_ifnp->ifalist, sctp_ifap, next_ifa);
 	sctp_ifnp->ifa_count++;
@@ -365,6 +381,7 @@ sctp_del_addr_from_vrf(uint32_t vrfid, struct sockaddr *addr,
 		sctp_ifap->localifa_flags |= SCTP_BEING_DELETED;
 		sctp_ifnp->ifa_count--;
 		vrf->total_ifa_count--;
+		LIST_REMOVE(sctp_ifap, next_bucket);
 		LIST_REMOVE(sctp_ifap, next_ifa);
 		atomic_add_int(&sctp_ifnp->refcount, -1);
 	} else {
