@@ -150,7 +150,8 @@ static struct cdevsw	tap_cdevsw = {
  */
 static struct mtx		tapmtx;
 static int			tapdebug = 0;        /* debug flag   */
-static int			tapuopen = 0;        /* allow user open() */	     
+static int			tapuopen = 0;        /* allow user open() */
+static int			tapuponopen = 0;    /* IFF_UP on open() */
 static int			tapdclone = 1;	/* enable devfs cloning */
 static SLIST_HEAD(, tap_softc)	taphead;             /* first device */
 static struct clonedevs 	*tapclones;
@@ -164,6 +165,8 @@ SYSCTL_NODE(_net_link, OID_AUTO, tap, CTLFLAG_RW, 0,
     "Ethernet tunnel software network interface");
 SYSCTL_INT(_net_link_tap, OID_AUTO, user_open, CTLFLAG_RW, &tapuopen, 0,
 	"Allow user to open /dev/tap (based on node permissions)");
+SYSCTL_INT(_net_link_tap, OID_AUTO, up_on_open, CTLFLAG_RW, &tapuponopen, 0,
+	"Bring interface up when /dev/tap is opened");
 SYSCTL_INT(_net_link_tap, OID_AUTO, devfs_cloning, CTLFLAG_RW, &tapdclone, 0,
 	"Enably legacy devfs interface creation");
 SYSCTL_INT(_net_link_tap, OID_AUTO, debug, CTLFLAG_RW, &tapdebug, 0, "");
@@ -502,6 +505,8 @@ tapopen(struct cdev *dev, int flag, int mode, struct thread *td)
 	s = splimp();
 	ifp->if_drv_flags |= IFF_DRV_RUNNING;
 	ifp->if_drv_flags &= ~IFF_DRV_OACTIVE;
+	if (tapuponopen)
+		ifp->if_flags |= IFF_UP;
 	splx(s);
 
 	TAPDEBUG("%s is open. minor = %#x\n", ifp->if_xname, minor(dev));
