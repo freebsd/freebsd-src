@@ -2224,7 +2224,7 @@ softdep_setup_freeblocks(ip, length, flags)
 		}
 		/*
 		 * If the file was removed, then the space being freed was
-		 * accounted for then (see softdep_filereleased()). If the
+		 * accounted for then (see softdep_releasefile()). If the
 		 * file is merely being truncated, then we account for it now.
 		 */
 		if ((ip->i_flag & IN_SPACECOUNTED) == 0) {
@@ -2742,7 +2742,7 @@ handle_workitem_freeblocks(freeblks, flags)
 			if ((bn = freeblks->fb_iblks[level]) == 0)
 				continue;
 			if ((error = indir_trunc(freeblks, fsbtodb(fs, bn),
-			    level, baselbns[level], &blocksreleased)) == 0)
+			    level, baselbns[level], &blocksreleased)) != 0)
 				allerror = error;
 			ffs_blkfree(ump, fs, freeblks->fb_devvp, bn,
 			    fs->fs_bsize, freeblks->fb_previousinum);
@@ -3509,9 +3509,9 @@ softdep_releasefile(ip)
 	int extblocks;
 
 	if (ip->i_effnlink > 0)
-		panic("softdep_filerelease: file still referenced");
+		panic("softdep_releasefile: file still referenced");
 	/*
-	 * We may be called several times as the real reference count
+	 * We may be called several times as the on-disk link count
 	 * drops to zero. We only want to account for the space once.
 	 */
 	if (ip->i_flag & IN_SPACECOUNTED)
