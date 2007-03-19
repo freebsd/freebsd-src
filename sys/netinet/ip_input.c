@@ -98,18 +98,18 @@ SYSCTL_INT(_net_inet_ip, IPCTL_DEFTTL, ttl, CTLFLAG_RW,
 
 static int	ip_keepfaith = 0;
 SYSCTL_INT(_net_inet_ip, IPCTL_KEEPFAITH, keepfaith, CTLFLAG_RW,
-	&ip_keepfaith,	0,
-	"Enable packet capture for FAITH IPv4->IPv6 translater daemon");
+    &ip_keepfaith,	0,
+    "Enable packet capture for FAITH IPv4->IPv6 translater daemon");
 
 static int	ip_sendsourcequench = 0;
 SYSCTL_INT(_net_inet_ip, OID_AUTO, sendsourcequench, CTLFLAG_RW,
-	&ip_sendsourcequench, 0,
-	"Enable the transmission of source quench packets");
+    &ip_sendsourcequench, 0,
+    "Enable the transmission of source quench packets");
 
 int	ip_do_randomid = 0;
 SYSCTL_INT(_net_inet_ip, OID_AUTO, random_id, CTLFLAG_RW,
-	&ip_do_randomid, 0,
-	"Assign random ip_id values");
+    &ip_do_randomid, 0,
+    "Assign random ip_id values");
 
 /*
  * XXX - Setting ip_checkinterface mostly implements the receive side of
@@ -143,7 +143,8 @@ u_long 	in_ifaddrhmask;				/* mask for hash table */
 SYSCTL_INT(_net_inet_ip, IPCTL_INTRQMAXLEN, intr_queue_maxlen, CTLFLAG_RW,
     &ipintrq.ifq_maxlen, 0, "Maximum size of the IP input queue");
 SYSCTL_INT(_net_inet_ip, IPCTL_INTRQDROPS, intr_queue_drops, CTLFLAG_RD,
-    &ipintrq.ifq_drops, 0, "Number of packets dropped from the IP input queue");
+    &ipintrq.ifq_drops, 0,
+    "Number of packets dropped from the IP input queue");
 
 struct ipstat ipstat;
 SYSCTL_STRUCT(_net_inet_ip, IPCTL_STATS, stats, CTLFLAG_RW,
@@ -172,13 +173,13 @@ static void	ipq_zone_change(void *);
 
 static int	maxnipq;	/* Administrative limit on # reass queues. */
 static int	nipq = 0;	/* Total # of reass queues */
-SYSCTL_INT(_net_inet_ip, OID_AUTO, fragpackets, CTLFLAG_RD, &nipq, 0,
-	"Current number of IPv4 fragment reassembly queue entries");
+SYSCTL_INT(_net_inet_ip, OID_AUTO, fragpackets, CTLFLAG_RD,
+    &nipq, 0, "Current number of IPv4 fragment reassembly queue entries");
 
 static int	maxfragsperpacket;
 SYSCTL_INT(_net_inet_ip, OID_AUTO, maxfragsperpacket, CTLFLAG_RW,
-	&maxfragsperpacket, 0,
-	"Maximum number of IPv4 fragments allowed per packet");
+    &maxfragsperpacket, 0,
+    "Maximum number of IPv4 fragments allowed per packet");
 
 struct callout	ipport_tick_callout;
 
@@ -190,7 +191,7 @@ SYSCTL_INT(_net_inet_ip, IPCTL_DEFMTU, mtu, CTLFLAG_RW,
 #ifdef IPSTEALTH
 int	ipstealth = 0;
 SYSCTL_INT(_net_inet_ip, OID_AUTO, stealth, CTLFLAG_RW,
-    &ipstealth, 0, "");
+    &ipstealth, 0, "IP stealth mode, no TTL decrementation on forwarding");
 #endif
 
 /*

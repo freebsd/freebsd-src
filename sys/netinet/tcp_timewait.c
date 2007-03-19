@@ -117,13 +117,13 @@
 
 int	tcp_mssdflt = TCP_MSS;
 SYSCTL_INT(_net_inet_tcp, TCPCTL_MSSDFLT, mssdflt, CTLFLAG_RW,
-    &tcp_mssdflt , 0, "Default TCP Maximum Segment Size");
+    &tcp_mssdflt, 0, "Default TCP Maximum Segment Size");
 
 #ifdef INET6
 int	tcp_v6mssdflt = TCP6_MSS;
 SYSCTL_INT(_net_inet_tcp, TCPCTL_V6MSSDFLT, v6mssdflt,
-	CTLFLAG_RW, &tcp_v6mssdflt , 0,
-	"Default TCP Maximum Segment Size for IPv6");
+    CTLFLAG_RW, &tcp_v6mssdflt , 0,
+    "Default TCP Maximum Segment Size for IPv6");
 #endif
 
 /*
@@ -147,26 +147,28 @@ SYSCTL_INT(_net_inet_tcp, OID_AUTO, minmss, CTLFLAG_RW,
  */
 int     tcp_minmssoverload = TCP_MINMSSOVERLOAD;
 SYSCTL_INT(_net_inet_tcp, OID_AUTO, minmssoverload, CTLFLAG_RW,
-    &tcp_minmssoverload , 0, "Number of TCP Segments per Second allowed to"
-    "be under the MINMSS Size");
+    &tcp_minmssoverload , 0,
+    "Number of TCP Segments per Second allowed to be under the MINMSS Size");
 
 int	tcp_do_rfc1323 = 1;
 SYSCTL_INT(_net_inet_tcp, TCPCTL_DO_RFC1323, rfc1323, CTLFLAG_RW,
-    &tcp_do_rfc1323 , 0, "Enable rfc1323 (high performance TCP) extensions");
+    &tcp_do_rfc1323, 0, "Enable rfc1323 (high performance TCP) extensions");
 
 static int	tcp_tcbhashsize = 0;
 SYSCTL_INT(_net_inet_tcp, OID_AUTO, tcbhashsize, CTLFLAG_RDTUN,
-     &tcp_tcbhashsize, 0, "Size of TCP control-block hashtable");
+    &tcp_tcbhashsize, 0, "Size of TCP control-block hashtable");
 
 static int	do_tcpdrain = 1;
-SYSCTL_INT(_net_inet_tcp, OID_AUTO, do_tcpdrain, CTLFLAG_RW, &do_tcpdrain, 0,
-     "Enable tcp_drain routine for extra help when low on mbufs");
+SYSCTL_INT(_net_inet_tcp, OID_AUTO, do_tcpdrain, CTLFLAG_RW,
+    &do_tcpdrain, 0,
+    "Enable tcp_drain routine for extra help when low on mbufs");
 
 SYSCTL_INT(_net_inet_tcp, OID_AUTO, pcbcount, CTLFLAG_RD,
     &tcbinfo.ipi_count, 0, "Number of active PCBs");
 
 static int	icmp_may_rst = 1;
-SYSCTL_INT(_net_inet_tcp, OID_AUTO, icmp_may_rst, CTLFLAG_RW, &icmp_may_rst, 0,
+SYSCTL_INT(_net_inet_tcp, OID_AUTO, icmp_may_rst, CTLFLAG_RW,
+    &icmp_may_rst, 0,
     "Certain ICMP unreachable messages may abort connections in SYN_SENT");
 
 static int	tcp_isn_reseed_interval = 0;
@@ -216,8 +218,8 @@ SYSCTL_PROC(_net_inet_tcp, OID_AUTO, maxtcptw, CTLTYPE_INT|CTLFLAG_RW,
 
 static int	nolocaltimewait = 0;
 SYSCTL_INT(_net_inet_tcp, OID_AUTO, nolocaltimewait, CTLFLAG_RW,
-    &nolocaltimewait, 0, "Do not create compressed TCP TIME_WAIT entries"
-			 "for local connections");
+    &nolocaltimewait, 0,
+    "Do not create compressed TCP TIME_WAIT entries for local connections");
 
 /*
  * TCP bandwidth limiting sysctls.  Note that the default lower bound of
