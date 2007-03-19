@@ -91,6 +91,7 @@
  * because of CAM_SCSI2_MAXLUN in cam_xpt.c
  */
 #define SBP_NUM_LUNS 64
+#define SBP_MAXPHYS  MIN(MAXPHYS, (512*1024) /* 512KB */)
 #define SBP_DMA_SIZE PAGE_SIZE
 #define SBP_LOGIN_SIZE sizeof(struct sbp_login_res)
 #define SBP_QUEUE_LEN ((SBP_DMA_SIZE - SBP_LOGIN_SIZE) / sizeof(struct sbp_ocb))
@@ -161,9 +162,9 @@ TUNABLE_INT("hw.firewire.sbp.tags", &sbp_tags);
 
 #define SBP_SEG_MAX rounddown(0xffff, PAGE_SIZE)
 #ifdef __sparc64__ /* iommu */
-#define SBP_IND_MAX howmany(MAXPHYS, SBP_SEG_MAX)
+#define SBP_IND_MAX howmany(SBP_MAXPHYS, SBP_SEG_MAX)
 #else
-#define SBP_IND_MAX howmany(MAXPHYS, PAGE_SIZE)
+#define SBP_IND_MAX howmany(SBP_MAXPHYS, PAGE_SIZE)
 #endif
 struct sbp_ocb {
 	STAILQ_ENTRY(sbp_ocb)	ocb;
@@ -1913,6 +1914,11 @@ sbp_attach(device_t dev)
 	struct cam_devq *devq;
 	struct fw_xfer *xfer;
 	int i, s, error;
+
+	if (DFLTPHYS > SBP_MAXPHYS)
+		device_printf(dev, "Warning, DFLTPHYS(%dKB) is larger than "
+			"SBP_MAXPHYS(%dKB).\n", DFLTPHYS / 1024,
+			SBP_MAXPHYS / 1024);
 
 SBP_DEBUG(0)
 	printf("sbp_attach (cold=%d)\n", cold);
