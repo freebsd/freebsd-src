@@ -103,8 +103,8 @@ SYSCTL_INT(_net_inet_tcp, OID_AUTO, local_slowstart_flightsize, CTLFLAG_RW,
 	&ss_fltsz_local, 1, "Slow start flight size for local networks");
 
 int     tcp_do_newreno = 1;
-SYSCTL_INT(_net_inet_tcp, OID_AUTO, newreno, CTLFLAG_RW, &tcp_do_newreno,
-	0, "Enable NewReno Algorithms");
+SYSCTL_INT(_net_inet_tcp, OID_AUTO, newreno, CTLFLAG_RW,
+	&tcp_do_newreno, 0, "Enable NewReno Algorithms");
 
 int	tcp_do_tso = 1;
 SYSCTL_INT(_net_inet_tcp, OID_AUTO, tso, CTLFLAG_RW,
