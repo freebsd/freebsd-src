@@ -122,6 +122,9 @@ static	int ether_resolvemulti(struct ifnet *, struct sockaddr **,
 /* XXX: should be in an arp support file, not here */
 MALLOC_DEFINE(M_ARPCOM, "arpcom", "802.* interface internals");
 
+#define	ETHER_IS_BROADCAST(addr) \
+	(bcmp(etherbroadcastaddr, (addr), ETHER_ADDR_LEN) == 0)
+
 #define senderr(e) do { error = (e); goto bad;} while (0)
 
 #if defined(INET) || defined(INET6)
@@ -504,6 +507,17 @@ ether_input(struct ifnet *ifp, struct mbuf *m)
 	struct ether_header *eh;
 	u_short etype;
 
+	if ((ifp->if_flags & IFF_UP) == 0) {
+		m_freem(m);
+		return;
+	}
+#ifdef DIAGNOSTIC
+	if ((ifp->if_drv_flags & IFF_DRV_RUNNING) == 0) {
+		if_printf(ifp, "discard frame at !IFF_DRV_RUNNING\n");
+		m_freem(m);
+		return;
+	}
+#endif
 	/*
 	 * Do consistency checks to verify assumptions
 	 * made by code past this point.
@@ -549,6 +563,14 @@ ether_input(struct ifnet *ifp, struct mbuf *m)
 	}
 #endif
 
+	if (ETHER_IS_MULTICAST(eh->ether_dhost)) {
+		if (ETHER_IS_BROADCAST(eh->ether_dhost))
+			m->m_flags |= M_BCAST;
+		else
+			m->m_flags |= M_MCAST;
+		ifp->if_imcasts++;
+	}
+
 #ifdef MAC
 	/*
 	 * Tag the mbuf with an appropriate MAC label before any other
@@ -558,12 +580,15 @@ ether_input(struct ifnet *ifp, struct mbuf *m)
 #endif
 
 	/*
-	 * Give bpf a chance at the packet.  Process any 802.1Q tags
-	 * that may have been attached to the mbuf.
+	 * Give bpf a chance at the packet.
 	 */
 	ETHER_BPF_MTAP(ifp, m);
 
-	/* If the CRC is still on the packet, trim it off. */
+	/*
+	 * If the CRC is still on the packet, trim it off. We do this once
+	 * and once only in case we are re-entered. Nothing else on the
+	 * Ethernet receive path expects to see the FCS.
+	 */
 	if (m->m_flags & M_HASFCS) {
 		m_adj(m, -ETHER_CRC_LEN);
 		m->m_flags &= ~M_HASFCS;
@@ -571,42 +596,93 @@ ether_input(struct ifnet *ifp, struct mbuf *m)
 
 	ifp->if_ibytes += m->m_pkthdr.len;
 
+	/* Allow monitor mode to claim this frame, after stats are updated. */
 	if (ifp->if_flags & IFF_MONITOR) {
-		/*
-		 * Interface marked for monitoring; discard packet.
-		 */
 		m_freem(m);
 		return;
 	}
 
-	/* Handle ng_ether(4) processing, if any */
+	/*
+	 * If the hardware did not process an 802.1Q tag, do this now,
+	 * to allow 802.1P priority frames to be passed to the main input
+	 * path correctly.
+	 * TODO: Deal with Q-in-Q frames, but not arbitrary nesting levels.
+	 */
+	if ((m->m_flags & M_VLANTAG) == 0 && etype == ETHERTYPE_VLAN) {
+		struct ether_vlan_header *evl;
+
+		if (m->m_len < sizeof(*evl) &&
+		    (m = m_pullup(m, sizeof(*evl))) == NULL) {
+			if_printf(ifp, "cannot pullup VLAN header\n");
+			ifp->if_ierrors++;
+			m_freem(m);
+			return;
+		}
+
+		evl = mtod(m, struct ether_vlan_header *);
+		m->m_pkthdr.ether_vtag = ntohs(evl->evl_tag);
+		m->m_flags |= M_VLANTAG;
+
+		bcopy((char *)evl, (char *)evl + ETHER_VLAN_ENCAP_LEN,
+		    ETHER_HDR_LEN - ETHER_TYPE_LEN);
+		m_adj(m, ETHER_VLAN_ENCAP_LEN);
+	}
+
+	/* Allow ng_ether(4) to claim this frame. */
 	if (IFP2AC(ifp)->ac_netgraph != NULL) {
 		KASSERT(ng_ether_input_p != NULL,
-		    ("ng_ether_input_p is NULL"));
+		    ("%s: ng_ether_input_p is NULL", __func__));
+		m->m_flags &= ~M_PROMISC;
 		(*ng_ether_input_p)(ifp, &m);
 		if (m == NULL)
 			return;
 	}
 
 	/*
-	 * Tap the packet off here for a bridge.  bridge_input()
-	 * will return NULL if it has consumed the packet, otherwise
-	 * it gets processed as normal.  Note that bridge_input()
-	 * will always return the original packet if we need to
-	 * process it locally.
-	 * 
-	 * XXX: When changing the below block, please also look
-	 * at the src/sys/netgraph/ng_ether.c:ng_ether_rcv_upper()
+	 * Allow if_bridge(4) to claim this frame.
+	 * The BRIDGE_INPUT() macro will update ifp if the bridge changed it
+	 * and the frame should be delivered locally.
 	 */
-	if (ifp->if_bridge) {
+	if (ifp->if_bridge != NULL) {
+		m->m_flags &= ~M_PROMISC;
 		BRIDGE_INPUT(ifp, m);
 		if (m == NULL)
 			return;
 	}
 
+#ifdef DEV_CARP
+	/*
+	 * Clear M_PROMISC on frame so that carp(4) will see it when the
+	 * mbuf flows up to Layer 3.
+	 * FreeBSD's implementation of carp(4) uses the inprotosw
+	 * to dispatch IPPROTO_CARP. carp(4) also allocates its own
+	 * Ethernet addresses of the form 00:00:5e:00:01:xx, which
+	 * is outside the scope of the M_PROMISC test below.
+	 * TODO: Maintain a hash table of ethernet addresses other than
+	 * ether_dhost which may be active on this ifp.
+	 */
+	if (ifp->if_carp && carp_forus(ifp->if_carp, eh->ether_dhost)) {
+		m->m_flags &= ~M_PROMISC;
+	} else
+#endif
+	{
+		/*
+		 * If the frame was received promiscuously, set the
+		 * M_PROMISC flag on the mbuf chain. The frame may need to
+		 * be seen by the rest of the Ethernet input path in case of
+		 * re-entry (e.g. bridge, vlan, netgraph) but should not be
+		 * seen by upper protocol layers.
+		 */
+		if (!ETHER_IS_MULTICAST(eh->ether_dhost) &&
+		    (ifp->if_flags & IFF_PROMISC) != 0 &&
+		    !bcmp(IF_LLADDR(ifp), eh->ether_dhost, ETHER_ADDR_LEN))
+			m->m_flags |= M_PROMISC;
+	}
+
 	/* First chunk of an mbuf contains good entropy */
 	if (harvest.ethernet)
 		random_harvest(m, 16, 3, 0, RANDOM_NET);
+
 	ether_demux(ifp, m);
 }
 
@@ -622,137 +698,66 @@ ether_demux(struct ifnet *ifp, struct mbuf *m)
 #if defined(NETATALK)
 	struct llc *l;
 #endif
+
+	KASSERT(ifp != NULL, ("%s: NULL interface pointer", __func__));
+
 #if defined(INET) || defined(INET6)
-	struct ip_fw *rule = ip_dn_claim_rule(m);
+	/*
+	 * Allow dummynet and/or ipfw to claim the frame.
+	 * Do not do this for PROMISC frames in case we are re-entered.
+	 */
+	if (IPFW_LOADED && ether_ipfw != 0 && !(m->m_flags & M_PROMISC)) {
+		struct ip_fw *rule = ip_dn_claim_rule(m);
+
+		if (ether_ipfw_chk(&m, NULL, &rule, 0) == 0) {
+			if (m)
+				m_freem(m);	/* dropped; free mbuf chain */
+			return;			/* consumed */
+		}
+	}
 #endif
-
-	KASSERT(ifp != NULL, ("ether_demux: NULL interface pointer"));
-
 	eh = mtod(m, struct ether_header *);
 	ether_type = ntohs(eh->ether_type);
 
-#if defined(INET) || defined(INET6)
-	if (rule)	/* packet was already bridged */
-		goto post_stats;
-#endif
-
-	if (!(ifp->if_bridge) &&
-	    !((ether_type == ETHERTYPE_VLAN || m->m_flags & M_VLANTAG) &&
-	    ifp->if_vlantrunk != NULL)) {
-#ifdef DEV_CARP
-		/*
-		 * XXX: Okay, we need to call carp_forus() and - if it is for
-		 * us jump over code that does the normal check
-		 * "IF_LLADDR(ifp) == ether_dhost". The check sequence is a bit
-		 * different from OpenBSD, so we jump over as few code as
-		 * possible, to catch _all_ sanity checks. This needs
-		 * evaluation, to see if the carp ether_dhost values break any
-		 * of these checks!
-		 */
-		if (ifp->if_carp && carp_forus(ifp->if_carp, eh->ether_dhost))
-			goto pre_stats;
-#endif
-		/*
-		 * Discard packet if upper layers shouldn't see it because it
-		 * was unicast to a different Ethernet address. If the driver
-		 * is working properly, then this situation can only happen
-		 * when the interface is in promiscuous mode.
-		 *
-		 * If VLANs are active, and this packet has a VLAN tag, do
-		 * not drop it here but pass it on to the VLAN layer, to
-		 * give them a chance to consider it as well (e. g. in case
-		 * bridging is only active on a VLAN).  They will drop it if
-		 * it's undesired.
-		 */
-		if ((ifp->if_flags & IFF_PROMISC) != 0
-		    && !ETHER_IS_MULTICAST(eh->ether_dhost)
-		    && bcmp(eh->ether_dhost,
-		      IF_LLADDR(ifp), ETHER_ADDR_LEN) != 0
-		    && (ifp->if_flags & IFF_PPROMISC) == 0) {
-			    m_freem(m);
-			    return;
-		}
-	}
-
-#ifdef DEV_CARP
-pre_stats:
-#endif
-	/* Discard packet if interface is not up */
-	if ((ifp->if_flags & IFF_UP) == 0) {
-		m_freem(m);
-		return;
-	}
-	if (ETHER_IS_MULTICAST(eh->ether_dhost)) {
-		if (bcmp(etherbroadcastaddr, eh->ether_dhost,
-		    sizeof(etherbroadcastaddr)) == 0)
-			m->m_flags |= M_BCAST;
-		else
-			m->m_flags |= M_MCAST;
-	}
-	if (m->m_flags & (M_BCAST|M_MCAST))
-		ifp->if_imcasts++;
-
-#if defined(INET) || defined(INET6)
-post_stats:
-	if (IPFW_LOADED && ether_ipfw != 0) {
-		if (ether_ipfw_chk(&m, NULL, &rule, 0) == 0) {
-			if (m)
-				m_freem(m);
-			return;
-		}
-	}
-#endif
-
 	/*
-	 * Check to see if the device performed the VLAN decapsulation and
-	 * provided us with the tag.
+	 * If this frame has a VLAN tag other than 0, call vlan_input()
+	 * if its module is loaded. Otherwise, drop.
 	 */
-	if (m->m_flags & M_VLANTAG) {
-		/*
-		 * If no VLANs are configured, drop.
-		 */
+	if ((m->m_flags & M_VLANTAG) &&
+	    EVL_VLANOFTAG(m->m_pkthdr.ether_vtag) != 0) {
 		if (ifp->if_vlantrunk == NULL) {
 			ifp->if_noproto++;
 			m_freem(m);
 			return;
 		}
-		/*
-		 * vlan_input() will either recursively call ether_input()
-		 * or drop the packet.
-		 */
-		KASSERT(vlan_input_p != NULL,("ether_input: VLAN not loaded!"));
+		KASSERT(vlan_input_p != NULL,("%s: VLAN not loaded!",
+		    __func__));
+		/* Clear before possibly re-entering ether_input(). */
+		m->m_flags &= ~M_PROMISC;
 		(*vlan_input_p)(ifp, m);
 		return;
 	}
 
 	/*
-	 * Handle protocols that expect to have the Ethernet header
-	 * (and possibly FCS) intact.
+	 * Pass promiscuously received frames to the upper layer if the user
+	 * requested this by setting IFF_PPROMISC. Otherwise, drop them.
 	 */
-	switch (ether_type) {
-	case ETHERTYPE_VLAN:
-		if (ifp->if_vlantrunk != NULL) {
-			KASSERT(vlan_input_p,("ether_input: VLAN not loaded!"));
-			(*vlan_input_p)(ifp, m);
-		} else {
-			ifp->if_noproto++;
-			m_freem(m);
-		}
+	if ((ifp->if_flags & IFF_PPROMISC) == 0 && (m->m_flags & M_PROMISC)) {
+		m_freem(m);
 		return;
 	}
 
-	/* Strip off Ethernet header. */
+	/*
+	 * Reset layer specific mbuf flags to avoid confusing upper layers.
+	 * Strip off Ethernet header.
+	 */
+	m->m_flags &= ~M_VLANTAG;
+	m->m_flags &= ~(M_PROTOFLAGS);
 	m_adj(m, ETHER_HDR_LEN);
 
-	/* If the CRC is still on the packet, trim it off. */
-	if (m->m_flags & M_HASFCS) {
-		m_adj(m, -ETHER_CRC_LEN);
-		m->m_flags &= ~M_HASFCS;
-	}
-
-	/* Reset layer specific mbuf flags to avoid confusing upper layers. */
-	m->m_flags &= ~(M_PROTOFLAGS);
-
+	/*
+	 * Dispatch frame to upper layer.
+	 */
 	switch (ether_type) {
 #ifdef INET
 	case ETHERTYPE_IP:
