@@ -36,13 +36,13 @@ __FBSDID("$FreeBSD$");
 #include <err.h>
 #include <errno.h>
 #include <pwd.h>
-#include <grp.h>
 #include <libutil.h>
+#include <login_cap.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
 
-static void restrict_process(const char *, const char *);
+static void restrict_process(const char *);
 static void usage(void);
 
 int
@@ -50,12 +50,12 @@ main(int argc, char *argv[])
 {
 	struct pidfh *pfh = NULL;
 	int ch, nochdir, noclose, errcode;
-	const char *pidfile, *user, *group;
+	const char *pidfile, *user;
 	pid_t otherpid;
 
 	nochdir = noclose = 1;
-	pidfile = user = group = NULL;
-	while ((ch = getopt(argc, argv, "-cfg:p:u:")) != -1) {
+	pidfile = user = NULL;
+	while ((ch = getopt(argc, argv, "-cf:p:u:")) != -1) {
 		switch (ch) {
 		case 'c':
 			nochdir = 0;
@@ -63,14 +63,11 @@ main(int argc, char *argv[])
 		case 'f':
 			noclose = 0;
 			break;
-		case 'u':
-			user = optarg;
-			break;
-		case 'g':
-			group = optarg;
-			break;
 		case 'p':
 			pidfile = optarg;
+			break;
+		case 'u':
+			user = optarg;
 			break;
 		default:
 			usage();
@@ -82,12 +79,8 @@ main(int argc, char *argv[])
 	if (argc == 0)
 		usage();
 
-	if (user || group) {
-		if (getuid() != 0)
-			errx(1, "only root user is allowed to chroot "
-			    "and change UID/GID");
-		restrict_process(user, group);
-	}
+	if (user != NULL)
+		restrict_process(user);
 
 	/*
 	 * Try to open the pidfile before calling daemon(3),
@@ -126,34 +119,23 @@ main(int argc, char *argv[])
 }
 
 static void
-restrict_process(const char *user, const char *group)
+restrict_process(const char *user)
 {
-	struct group *gr = NULL;
 	struct passwd *pw = NULL;
-	errno = 0;
 
-	if (group != NULL) {
-		if (initgroups(user, gr->gr_gid) == -1)
-			errx(1, "User not in group list");
-		if ((gr = getgrnam(group)) == NULL)
-			errx(1, "Group %s does not exist", group);
-		if (setgid(gr->gr_gid) == -1)
-			err(1, "%s", group);
-	}
+	pw = getpwnam(user);
+	if (pw == NULL)
+		errx(1, "unknown user: %s", user);
 
-	if (user != NULL) {
-		if ((pw = getpwnam(user)) == NULL)
-			errx(1, "User %s does not exist", user);
-		if (setuid(pw->pw_uid) == -1)
-			err(1, "%s", user);
-	}
+	if (setusercontext(NULL, pw, pw->pw_uid, LOGIN_SETALL) != 0)
+		errx(1, "failed to set user environment");
 }
 
 static void
 usage(void)
 {
 	(void)fprintf(stderr,
-	    "usage: daemon [-cf] [-g group] [-p pidfile] [-u user] command "
+	    "usage: daemon [-cf] [-p pidfile] [-u user] command "
 		"arguments ...\n");
 	exit(1);
 }
