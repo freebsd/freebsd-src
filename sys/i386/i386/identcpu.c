@@ -745,7 +745,7 @@ via_common:
 				"\004MON"	/* MONITOR/MWAIT Instructions */
 				"\005DS_CPL"	/* CPL Qualified Debug Store */
 				"\006VMX"	/* Virtual Machine Extensions */
-				"\007<b6>"
+				"\007SMX"	/* LaGrange Technology */
 				"\010EST"	/* Enhanced SpeedStep */
 				"\011TM2"	/* Thermal Monitor 2 */
 				"\012SSSE3"	/* SSSE3 */
@@ -757,7 +757,7 @@ via_common:
 				"\020<b15>"
 				"\021<b16>"
 				"\022<b17>"
-				"\023<b18>"
+				"\023DCA"	/* Direct Cache Access */
 				"\024<b19>"
 				"\025<b20>"
 				"\026<b21>"
