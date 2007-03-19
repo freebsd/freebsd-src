@@ -1,4 +1,4 @@
-.\"	$KAME: ifmcstat.8,v 1.3 2000/10/15 11:43:57 itojun Exp $
+.\"	$KAME: ifmcstat.8,v 1.6 2002/10/31 04:23:43 suz Exp $
 .\"
 .\" Copyright (C) 1995, 1996, 1997, 1998, and 1999 WIDE Project.
 .\" All rights reserved.
@@ -29,7 +29,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd May 21, 1998
+.Dd March 19, 2007
 .Dt IFMCSTAT 8
 .Os
 .Sh NAME
@@ -37,22 +37,36 @@
 .Nd dump multicast group management statistics per interface
 .Sh SYNOPSIS
 .Nm
+.Op Fl i Ar interface
+.Op Fl f Ar address-family
+.Op Fl k Ar kernel
+.Nm
+.Op Ar kernel
+.\"
 .Sh DESCRIPTION
 The
 .Nm
-utility dumps multicast group information from the kernel.
-It is similar but not identical to the output from
-.Nm netstat Fl ina .
+command dumps multicast group information from the kernel.
 .Pp
-There are no command line options.
+The following options are supported:
+.Bl -tag -width Fl
+.It Fl i Ar interface
+specifies the interface to be displayed.
 .Pp
-Only root can use
-.Nm .
-.Sh SEE ALSO
-.Xr netstat 1
-.Rs
-.%A G. Malkin
-.%A R. Minnear
-.%R IPng for IPv6
-.%N RFC2080
-.Re
+.It Fl f Ar address-family
+specifies the address-family to be displayed; currently only
+.Ar inet
+and
+.Ar inet6
+are supported.
+.It Fl k Ar kernel
+extracts the name list from the specified kernel instead of the
+default, which is the kernel image the system has booted from.
+.It Nm Ar kernel
+This is the same as specifying
+.Nm
+.Fl k Ar kernel .
+This usage is deprecated; it is supported only for backwards compatibility.
+.Sh BUGS
+.Nm
+needs superuser privilege.
