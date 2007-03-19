@@ -181,6 +181,7 @@ struct pfsync_softc {
 	int			 sc_maxupdates;	/* number of updates/state */
 #ifdef __FreeBSD__
 	LIST_ENTRY(pfsync_softc) sc_next;
+	eventhandler_tag	 sc_detachtag;
 #endif
 };
 #endif

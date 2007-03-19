@@ -170,6 +170,9 @@ void	pfsync_timeout(void *);
 void	pfsync_send_bus(struct pfsync_softc *, u_int8_t);
 void	pfsync_bulk_update(void *);
 void	pfsync_bulkfail(void *);
+#ifdef __FreeBSD__
+static void	pfsync_ifdetach(void *, struct ifnet *);
+#endif
 
 int	pfsync_sync_ok;
 #ifndef __FreeBSD__
@@ -191,6 +194,9 @@ pfsync_clone_destroy(struct ifnet *ifp)
         struct pfsync_softc *sc;
 
 	sc = ifp->if_softc;
+#ifdef __FreeBSD__
+	EVENTHANDLER_DEREGISTER(ifnet_departure_event, sc->sc_detachtag);
+#endif
 	callout_stop(&sc->sc_tmo);
 	callout_stop(&sc->sc_bulk_tmo);
 	callout_stop(&sc->sc_bulkfail_tmo);
@@ -224,6 +230,16 @@ pfsync_clone_create(struct if_clone *ifc, int unit)
 		free(sc, M_PFSYNC);
 		return (ENOSPC);
 	}
+
+#ifdef __FreeBSD__
+	sc->sc_detachtag = EVENTHANDLER_REGISTER(ifnet_departure_event,
+	    pfsync_ifdetach, sc, EVENTHANDLER_PRI_ANY);
+	if (sc->sc_detachtag == NULL) {
+		if_free(ifp);
+		free(sc, M_PFSYNC);
+		return (ENOSPC);
+	}
+#endif
 
 	pfsync_sync_ok = 1;
 	sc->sc_mbuf = NULL;
@@ -1870,6 +1886,33 @@ pfsync_sendout(sc)
 
 #ifdef __FreeBSD__
 static void
+pfsync_ifdetach(void *arg, struct ifnet *ifp)
+{
+	struct pfsync_softc *sc = (struct pfsync_softc *)arg;
+	struct ip_moptions *imo;
+
+	if (sc == NULL || sc->sc_sync_ifp != ifp)
+		return;		/* not for us; unlocked read */
+
+	PF_LOCK();
+
+	/* Deal with a member interface going away from under us. */
+	sc->sc_sync_ifp = NULL;
+	if (sc->sc_mbuf_net != NULL) {
+		m_freem(sc->sc_mbuf_net);
+		sc->sc_mbuf_net = NULL;
+		sc->sc_statep_net.s = NULL;
+	}
+	imo = &sc->sc_imo;
+	if (imo->imo_num_memberships > 0) {
+		in_delmulti(imo->imo_membership[--imo->imo_num_memberships]);
+		imo->imo_multicast_ifp = NULL;
+	}
+
+	PF_UNLOCK();
+}
+
+static void
 pfsync_senddef(void *arg)
 {
 	struct pfsync_softc *sc = (struct pfsync_softc *)arg;
@@ -1879,6 +1922,12 @@ pfsync_senddef(void *arg)
 		IF_DEQUEUE(&sc->sc_ifq, m);
 		if (m == NULL)
 			break;
+		/* Deal with a member interface going away from under us. */
+		if (sc->sc_sync_ifp == NULL) {
+			pfsyncstats.pfsyncs_oerrors++;
+			m_freem(m);
+			continue;
+		}
 		if (ip_output(m, NULL, NULL, IP_RAWOUTPUT, &sc->sc_imo, NULL))
 			pfsyncstats.pfsyncs_oerrors++;
 	}
