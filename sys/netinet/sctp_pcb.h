@@ -112,9 +112,11 @@ TAILQ_HEAD(sctp_streamhead, sctp_stream_queue_pending);
 
 struct sctp_vrf {
 	LIST_ENTRY(sctp_vrf) next_vrf;
+	struct sctp_ifalist *vrf_addr_hash;
 	struct sctp_ifnlist ifnlist;
 	uint32_t vrf_id;
 	uint32_t total_ifa_count;
+	u_long vrf_hashmark;
 };
 
 struct sctp_ifn {
@@ -144,6 +146,7 @@ struct sctp_ifn {
 
 struct sctp_ifa {
 	LIST_ENTRY(sctp_ifa) next_ifa;
+	LIST_ENTRY(sctp_ifa) next_bucket;
 	struct sctp_ifn *ifn_p;	/* back pointer to parent ifn */
 	void *ifa;		/* pointer to ifa, needed for flag update for
 				 * that we MUST lock appropriate locks. This
