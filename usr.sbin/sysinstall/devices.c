@@ -110,7 +110,7 @@ static struct _devname {
     NETWORK("de",	"DEC DE435 PCI NIC or other DC21040-AA based card"),
     NETWORK("fxp",	"Intel EtherExpress Pro/100B PCI Fast Ethernet card"),
     NETWORK("ed",	"Novell NE1000/2000; 3C503; NE2000-compatible PCMCIA"),
-    NETWORK("ep",	"3Com 3C509 ethernet card/3C589 PCMCIA"),
+    NETWORK("ep",	"3Com 3C509 Ethernet card/3C589 PCMCIA"),
     NETWORK("em",	"Intel(R) PRO/1000 Ethernet card"),
     NETWORK("ex",	"Intel EtherExpress Pro/10 Ethernet card"),
     NETWORK("fe",	"Fujitsu MB86960A/MB86965A Ethernet card"),
