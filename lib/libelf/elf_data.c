@@ -203,9 +203,9 @@ elf_rawdata(Elf_Scn *s, Elf_Data *d)
 		sh_size   = (uint64_t) s->s_shdr.s_shdr32.sh_size;
 		sh_align  = (uint64_t) s->s_shdr.s_shdr32.sh_addralign;
 	} else {
-		sh_offset = s->s_shdr.s_shdr32.sh_offset;
-		sh_size   = s->s_shdr.s_shdr32.sh_size;
-		sh_align  = s->s_shdr.s_shdr32.sh_addralign;
+		sh_offset = s->s_shdr.s_shdr64.sh_offset;
+		sh_size   = s->s_shdr.s_shdr64.sh_size;
+		sh_align  = s->s_shdr.s_shdr64.sh_addralign;
 	}
 
 	if ((d = _libelf_allocate_data(s)) == NULL)
