@@ -311,7 +311,7 @@ brgphy_service(struct mii_softc *sc, struct mii_data *mii, int cmd)
 		 * Check to see if we have link.  If we do, we don't
 		 * need to restart the autonegotiation process.
 		 */
-		if (PHY_READ(sc, BRGPHY_MII_BMSR) & BRGPHY_BMSR_LINK) {
+		if (PHY_READ(sc, BRGPHY_MII_AUXSTS) & BRGPHY_AUXSTS_LINK) {
 			sc->mii_ticks = 0;	/* Reset autoneg timer. */
 			break;
 		}
@@ -416,32 +416,30 @@ static void
 brgphy_status(struct mii_softc *sc)
 {
 	struct mii_data *mii = sc->mii_pdata;
-	struct ifmedia_entry *ife = mii->mii_media.ifm_cur;
-	int bmcr, bmsr;
+	int aux, bmcr, bmsr;
 
 	mii->mii_media_status = IFM_AVALID;
 	mii->mii_media_active = IFM_ETHER;
 
+	aux = PHY_READ(sc, BRGPHY_MII_AUXSTS);
 	bmcr = PHY_READ(sc, BRGPHY_MII_BMCR);
 	bmsr = PHY_READ(sc, BRGPHY_MII_BMSR);
 
-	if (bmsr & BRGPHY_BMSR_LINK)
+	if (aux & BRGPHY_AUXSTS_LINK)
 		mii->mii_media_status |= IFM_ACTIVE;
 
 	if (bmcr & BRGPHY_BMCR_LOOP)
 		mii->mii_media_active |= IFM_LOOP;
 
-	if (bmcr & BRGPHY_BMCR_AUTOEN) {
-		if ((bmsr & BRGPHY_BMSR_ACOMP) == 0) {
-			/* Erg, still trying, I guess... */
-			mii->mii_media_active |= IFM_NONE;
-			return;
-		}
+	if ((bmcr & BRGPHY_BMCR_AUTOEN) &&
+	    (bmsr & BRGPHY_BMSR_ACOMP) == 0) {
+		/* Erg, still trying, I guess... */
+		mii->mii_media_active |= IFM_NONE;
+		return;
 	}
 
-	if (bmsr & BRGPHY_BMSR_LINK) {
-		switch (PHY_READ(sc, BRGPHY_MII_AUXSTS) &
-		    BRGPHY_AUXSTS_AN_RES) {
+	if (aux & BRGPHY_AUXSTS_LINK) {
+		switch (aux & BRGPHY_AUXSTS_AN_RES) {
 		case BRGPHY_RES_1000FD:
 			mii->mii_media_active |= IFM_1000_T | IFM_FDX;
 			break;
@@ -468,7 +466,7 @@ brgphy_status(struct mii_softc *sc)
 			break;
 		}
 	} else
-		mii->mii_media_active = ife->ifm_media;
+		mii->mii_media_active |= IFM_NONE;
 }
 
 static int
