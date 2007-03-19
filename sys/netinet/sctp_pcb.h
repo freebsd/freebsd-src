@@ -568,6 +568,5 @@ sctp_initiate_iterator(inp_func inpf,
     struct sctp_inpcb *,
     uint8_t co_off);
 
-
 #endif				/* _KERNEL */
 #endif				/* !__sctp_pcb_h__ */

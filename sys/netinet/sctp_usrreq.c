@@ -37,6 +37,9 @@ __FBSDID("$FreeBSD$");
 #include <netinet/sctp_pcb.h>
 #include <netinet/sctp_header.h>
 #include <netinet/sctp_var.h>
+#if defined(INET6)
+#include <netinet6/sctp6_var.h>
+#endif
 #include <netinet/sctp_sysctl.h>
 #include <netinet/sctp_output.h>
 #include <netinet/sctp_bsd_addr.h>
@@ -96,27 +99,9 @@ sctp_pcbinfo_cleanup(void)
 		SCTP_HASH_FREE(sctppcbinfo.sctp_restarthash, sctppcbinfo.hashrestartmark);
 }
 
-#ifdef INET6
-void
-ip_2_ip6_hdr(struct ip6_hdr *ip6, struct ip *ip)
-{
-	bzero(ip6, sizeof(*ip6));
-
-	ip6->ip6_vfc = IPV6_VERSION;
-	ip6->ip6_plen = ip->ip_len;
-	ip6->ip6_nxt = ip->ip_p;
-	ip6->ip6_hlim = ip->ip_ttl;
-	ip6->ip6_src.s6_addr32[2] = ip6->ip6_dst.s6_addr32[2] =
-	    IPV6_ADDR_INT32_SMP;
-	ip6->ip6_src.s6_addr32[3] = ip->ip_src.s_addr;
-	ip6->ip6_dst.s6_addr32[3] = ip->ip_dst.s_addr;
-}
-
-#endif				/* INET6 */
-
 
 static void
-sctp_pathmtu_adustment(struct sctp_inpcb *inp,
+sctp_pathmtu_adjustment(struct sctp_inpcb *inp,
     struct sctp_tcb *stcb,
     struct sctp_nets *net,
     uint16_t nxtsz)
@@ -219,7 +204,7 @@ sctp_notify_mbuf(struct sctp_inpcb *inp,
 	}
 	/* now what about the ep? */
 	if (stcb->asoc.smallest_mtu > nxtsz) {
-		sctp_pathmtu_adustment(inp, stcb, net, nxtsz);
+		sctp_pathmtu_adjustment(inp, stcb, net, nxtsz);
 	}
 	if (tmr_stopped)
 		sctp_timer_start(SCTP_TIMER_TYPE_PATHMTURAISE, inp, stcb, net);
@@ -230,7 +215,7 @@ sctp_notify_mbuf(struct sctp_inpcb *inp,
 
 void
 sctp_notify(struct sctp_inpcb *inp,
-    int errno,
+    int error,
     struct sctphdr *sh,
     struct sockaddr *to,
     struct sctp_tcb *stcb,
@@ -247,11 +232,11 @@ sctp_notify(struct sctp_inpcb *inp,
 	}
 	/* FIX ME FIX ME PROTOPT i.e. no SCTP should ALWAYS be an ABORT */
 
-	if ((errno == EHOSTUNREACH) ||	/* Host is not reachable */
-	    (errno == EHOSTDOWN) ||	/* Host is down */
-	    (errno == ECONNREFUSED) ||	/* Host refused the connection, (not
+	if ((error == EHOSTUNREACH) ||	/* Host is not reachable */
+	    (error == EHOSTDOWN) ||	/* Host is down */
+	    (error == ECONNREFUSED) ||	/* Host refused the connection, (not
 					 * an abort?) */
-	    (errno == ENOPROTOOPT)	/* SCTP is not present on host */
+	    (error == ENOPROTOOPT)	/* SCTP is not present on host */
 	    ) {
 		/*
 		 * Hmm reachablity problems we must examine closely. If its
@@ -259,7 +244,7 @@ sctp_notify(struct sctp_inpcb *inp,
 		 * NO protocol at the other end named SCTP. well we consider
 		 * it a OOTB abort.
 		 */
-		if ((errno == EHOSTUNREACH) || (errno == EHOSTDOWN)) {
+		if ((error == EHOSTUNREACH) || (error == EHOSTDOWN)) {
 			if (net->dest_state & SCTP_ADDR_REACHABLE) {
 				/* Ok that destination is NOT reachable */
 				printf("ICMP (thresh %d/%d) takes interface %p down\n",
@@ -300,7 +285,7 @@ sctp_notify(struct sctp_inpcb *inp,
 			sctp_log_lock(inp, stcb, SCTP_LOG_LOCK_SOCK);
 #endif
 			SOCK_LOCK(inp->sctp_socket);
-			inp->sctp_socket->so_error = errno;
+			inp->sctp_socket->so_error = error;
 			sctp_sowwakeup(inp, inp->sctp_socket);
 			SOCK_UNLOCK(inp->sctp_socket);
 		}
@@ -465,23 +450,16 @@ sctp_must_try_again:
 #endif
 		sctp_inpcb_free(inp, 1, 0);
 		SOCK_LOCK(so);
-		so->so_snd.sb_cc = 0;
-		so->so_snd.sb_mb = NULL;
-		so->so_snd.sb_mbcnt = 0;
-
+		SCTP_SB_CLEAR(so->so_snd);
 		/*
 		 * same for the rcv ones, they are only here for the
 		 * accounting/select.
 		 */
-		so->so_rcv.sb_cc = 0;
-		so->so_rcv.sb_mb = NULL;
-		so->so_rcv.sb_mbcnt = 0;
-		/*
-		 * Now null out the reference, we are completely detached.
-		 */
+		SCTP_SB_CLEAR(so->so_rcv);
+
+		/* Now null out the reference, we are completely detached. */
 		so->so_pcb = NULL;
 		SOCK_UNLOCK(so);
-
 	} else {
 		flags = inp->sctp_flags;
 		if ((flags & SCTP_PCB_FLAGS_SOCKET_GONE) == 0) {
@@ -506,7 +484,7 @@ sctp_attach(struct socket *so, int proto, struct thread *p)
 	if (inp != 0) {
 		return EINVAL;
 	}
-	error = soreserve(so, sctp_sendspace, sctp_recvspace);
+	error = SCTP_SORESERVE(so, sctp_sendspace, sctp_recvspace);
 	if (error) {
 		return error;
 	}
@@ -600,20 +578,14 @@ sctp_must_try_again:
 		 * the SCTP association.
 		 */
 		SOCK_LOCK(so);
-		so->so_snd.sb_cc = 0;
-		so->so_snd.sb_mb = NULL;
-		so->so_snd.sb_mbcnt = 0;
-
+		SCTP_SB_CLEAR(so->so_snd);
 		/*
 		 * same for the rcv ones, they are only here for the
 		 * accounting/select.
 		 */
-		so->so_rcv.sb_cc = 0;
-		so->so_rcv.sb_mb = NULL;
-		so->so_rcv.sb_mbcnt = 0;
-		/*
-		 * Now null out the reference, we are completely detached.
-		 */
+		SCTP_SB_CLEAR(so->so_rcv);
+
+		/* Now null out the reference, we are completely detached. */
 		so->so_pcb = NULL;
 		SOCK_UNLOCK(so);
 	} else {
@@ -1349,7 +1321,9 @@ sctp_do_connect_x(struct socket *so, struct sctp_inpcb *inp, void *optval,
 		SCTP_INP_WUNLOCK(inp);
 	}
 
-	vrf_id = SCTP_DEFAULT_VRFID;
+	/* FIX ME: do we want to pass in a vrf on the connect call? */
+	vrf_id = inp->def_vrf_id;
+
 	/* We are GOOD to go */
 	stcb = sctp_aloc_assoc(inp, sa, 1, &error, 0, vrf_id);
 	if (stcb == NULL) {
@@ -3066,7 +3040,7 @@ sctp_setopt(struct socket *so, int optname, void *optval, size_t optsize,
 						if (paddrp->spp_pathmtu > SCTP_DEFAULT_MINSEGMENT) {
 							net->mtu = paddrp->spp_pathmtu;
 							if (net->mtu < stcb->asoc.smallest_mtu)
-								sctp_pathmtu_adustment(inp, stcb, net, net->mtu);
+								sctp_pathmtu_adjustment(inp, stcb, net, net->mtu);
 						}
 					}
 					if (paddrp->spp_flags & SPP_PMTUD_ENABLE) {
@@ -3338,6 +3312,7 @@ sctp_setopt(struct socket *so, int optname, void *optval, size_t optsize,
 			}
 			/* Is the VRF one we have */
 			addr_touse = addrs->addr;
+#if defined(INET6)
 			if (addrs->addr->sa_family == AF_INET6) {
 				struct sockaddr_in6 *sin6;
 
@@ -3347,6 +3322,7 @@ sctp_setopt(struct socket *so, int optname, void *optval, size_t optsize,
 					addr_touse = (struct sockaddr *)&sin;
 				}
 			}
+#endif
 			if (inp->sctp_flags & SCTP_PCB_FLAGS_UNBOUND) {
 				if (p == NULL) {
 					/* Can't get proc for Net/Open BSD */
@@ -3410,6 +3386,7 @@ sctp_setopt(struct socket *so, int optname, void *optval, size_t optsize,
 				break;
 			}
 			addr_touse = addrs->addr;
+#if defined(INET6)
 			if (addrs->addr->sa_family == AF_INET6) {
 				struct sockaddr_in6 *sin6;
 
@@ -3419,6 +3396,7 @@ sctp_setopt(struct socket *so, int optname, void *optval, size_t optsize,
 					addr_touse = (struct sockaddr *)&sin;
 				}
 			}
+#endif
 			/*
 			 * No lock required mgmt_ep_sa does its own locking.
 			 * If the FIX: below is ever changed we may need to
@@ -3760,6 +3738,7 @@ sctp_ingetaddr(struct socket *so, struct sockaddr **addr)
 	struct sockaddr_in *sin;
 	uint32_t vrf_id;
 	struct sctp_inpcb *inp;
+	struct sctp_ifa *sctp_ifa;
 
 	/*
 	 * Do the malloc first in case it blocks.
@@ -3773,8 +3752,6 @@ sctp_ingetaddr(struct socket *so, struct sockaddr **addr)
 		return ECONNRESET;
 	}
 	SCTP_INP_RLOCK(inp);
-	struct sctp_ifa *sctp_ifa;
-
 	sin->sin_port = inp->sctp_lport;
 	if (inp->sctp_flags & SCTP_PCB_FLAGS_BOUNDALL) {
 		if (inp->sctp_flags & SCTP_PCB_FLAGS_CONNECTED) {

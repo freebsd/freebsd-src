@@ -4072,6 +4072,13 @@ sctp_express_handle_sack(struct sctp_tcb *stcb, uint32_t cumack,
 		net->prev_cwnd = net->cwnd;
 		net->net_ack = 0;
 		net->net_ack2 = 0;
+
+		/*
+		 * CMT: Reset CUC and Fast recovery algo variables before
+		 * SACK processing
+		 */
+		net->new_pseudo_cumack = 0;
+		net->will_exit_fast_recovery = 0;
 	}
 	if (sctp_strict_sacks) {
 		uint32_t send_s;
@@ -4173,6 +4180,22 @@ sctp_express_handle_sack(struct sctp_tcb *stcb, uint32_t cumack,
 							tp1->do_rtt = 0;
 						}
 					}
+					/*
+					 * CMT: CUCv2 algorithm. From the
+					 * cumack'd TSNs, for each TSN being
+					 * acked for the first time, set the
+					 * following variables for the
+					 * corresp destination.
+					 * new_pseudo_cumack will trigger a
+					 * cwnd update.
+					 * find_(rtx_)pseudo_cumack will
+					 * trigger search for the next
+					 * expected (rtx-)pseudo-cumack.
+					 */
+					tp1->whoTo->new_pseudo_cumack = 1;
+					tp1->whoTo->find_pseudo_cumack = 1;
+					tp1->whoTo->find_rtx_pseudo_cumack = 1;
+
 #ifdef SCTP_CWND_LOGGING
 					sctp_log_cwnd(stcb, tp1->whoTo, tp1->rec.data.TSN_seq, SCTP_CWND_LOG_FROM_SACK);
 #endif
