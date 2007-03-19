@@ -26,7 +26,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd March 9, 2007
+.Dd March 19, 2007
 .Dt DAEMON 8
 .Os
 .Sh NAME
@@ -35,16 +35,15 @@
 .Sh SYNOPSIS
 .Nm
 .Op Fl cf
-.Op Fl u Ar user
-.Op Fl g Ar group
 .Op Fl p Ar pidfile
+.Op Fl u Ar user
 .Ar command arguments ...
 .Sh DESCRIPTION
 The
 .Nm
 utility detaches itself from the controlling terminal and
 executes the program specified by its arguments.
-Privileges may be lowered to specified user and/or group.
+Privileges may be lowered to the specified user.
 .Pp
 The options are as follows:
 .Bl -tag -width indent
@@ -54,19 +53,17 @@ Change the current working directory to the root
 .It Fl f
 Redirect standard input, standard output and standard error to
 .Pa /dev/null .
-.It Fl g Ar group
-Drop privileges to specified group.
 .It Fl p Ar file
 Write the ID of the created process into the
 .Ar file
-using
-.It Fl u Ar user
-Drop privileges to specified user.
+using the
 .Xr pidfile 3
 functionality.
 Note, that the file will be created shortly before the process is
 actually executed, and will remain after the process exits (although
 it will be removed if the execution fails).
+.It Fl u Ar user
+Run the program with the rights of user specified, requires privilege.
 .El
 .Sh EXIT STATUS
 The
