@@ -2187,20 +2187,42 @@ sctp_is_ifa_addr_prefered(struct sctp_ifa *ifa,
 	if ((dest_is_priv == 0) && (dest_is_loop == 0)) {
 		dest_is_global = 1;
 	}
+#ifdef SCTP_DEBUG
+	if (sctp_debug_on & SCTP_DEBUG_OUTPUT2) {
+		printf("Is destination prefered:");
+		sctp_print_address(&ifa->address.sa);
+	}
+#endif
+
 	/* Ok the address may be ok */
 	if (fam == AF_INET6) {
 		/* ok to use deprecated addresses? */
 		if (ifa->localifa_flags & SCTP_ADDR_IFA_UNUSEABLE) {
+#ifdef SCTP_DEBUG
+			if (sctp_debug_on & SCTP_DEBUG_OUTPUT3) {
+				printf("NO:1\n");
+			}
+#endif
 			return (NULL);
 		}
 		if (ifa->src_is_priv) {
 			if (dest_is_loop) {
+#ifdef SCTP_DEBUG
+				if (sctp_debug_on & SCTP_DEBUG_OUTPUT3) {
+					printf("NO:2\n");
+				}
+#endif
 				return (NULL);
 			}
 		}
 		if (ifa->src_is_glob) {
 
 			if (dest_is_loop) {
+#ifdef SCTP_DEBUG
+				if (sctp_debug_on & SCTP_DEBUG_OUTPUT3) {
+					printf("NO:3\n");
+				}
+#endif
 				return (NULL);
 			}
 		}
@@ -2210,18 +2232,54 @@ sctp_is_ifa_addr_prefered(struct sctp_ifa *ifa,
 	 * theory be done slicker (it used to be), but this is
 	 * straightforward and easier to validate :-)
 	 */
+#ifdef SCTP_DEBUG
+	if (sctp_debug_on & SCTP_DEBUG_OUTPUT3) {
+		printf("src_loop:%d src_priv:%d src_glob:%d\n",
+		    ifa->src_is_loop, ifa->src_is_priv,
+		    ifa->src_is_glob);
+		printf("dest_loop:%d dest_priv:%d dest_glob:%d\n",
+		    dest_is_loop, dest_is_priv,
+		    dest_is_global);
+	}
+#endif
+
 	if ((ifa->src_is_loop) && (dest_is_priv)) {
+#ifdef SCTP_DEBUG
+		if (sctp_debug_on & SCTP_DEBUG_OUTPUT3) {
+			printf("NO:4\n");
+		}
+#endif
 		return (NULL);
 	}
 	if ((ifa->src_is_glob) && (dest_is_priv)) {
+#ifdef SCTP_DEBUG
+		if (sctp_debug_on & SCTP_DEBUG_OUTPUT3) {
+			printf("NO:5\n");
+		}
+#endif
 		return (NULL);
 	}
 	if ((ifa->src_is_loop) && (dest_is_global)) {
+#ifdef SCTP_DEBUG
+		if (sctp_debug_on & SCTP_DEBUG_OUTPUT3) {
+			printf("NO:6\n");
+		}
+#endif
 		return (NULL);
 	}
 	if ((ifa->src_is_priv) && (dest_is_global)) {
+#ifdef SCTP_DEBUG
+		if (sctp_debug_on & SCTP_DEBUG_OUTPUT3) {
+			printf("NO:7\n");
+		}
+#endif
 		return (NULL);
 	}
+#ifdef SCTP_DEBUG
+	if (sctp_debug_on & SCTP_DEBUG_OUTPUT3) {
+		printf("YES\n");
+	}
+#endif
 	/* its a prefered address */
 	return (ifa);
 }
@@ -2708,7 +2766,7 @@ sctp_choose_boundall(struct sctp_inpcb *inp,
 	    dest_is_loop,
 	    dest_is_priv, fam);
 #ifdef SCTP_DEBUG
-	if (sctp_debug_on & SCTP_DEBUG_OUTPUT1) {
+	if (sctp_debug_on & SCTP_DEBUG_OUTPUT2) {
 		printf("Found %d prefered source addresses\n", num_prefered);
 	}
 #endif
@@ -2732,7 +2790,7 @@ sctp_choose_boundall(struct sctp_inpcb *inp,
 	 * nth) and 0 is the first one, 1 is the second one etc...
 	 */
 #ifdef SCTP_DEBUG
-	if (sctp_debug_on & SCTP_DEBUG_OUTPUT1) {
+	if (sctp_debug_on & SCTP_DEBUG_OUTPUT2) {
 		printf("cur_addr_num:%d\n", cur_addr_num);
 	}
 #endif
@@ -2753,6 +2811,11 @@ sctp_choose_boundall(struct sctp_inpcb *inp,
 	 * prefered fall through to plan_c.
 	 */
 bound_all_plan_b:
+#ifdef SCTP_DEBUG
+	if (sctp_debug_on & SCTP_DEBUG_OUTPUT2) {
+		printf("Plan B?\n");
+	}
+#endif
 	LIST_FOREACH(sctp_ifn, &vrf->ifnlist, next_ifn) {
 		if (dest_is_loop == 0 && SCTP_IFN_IS_IFT_LOOP(sctp_ifn)) {
 			/* wrong base scope */
@@ -2764,7 +2827,7 @@ bound_all_plan_b:
 		num_prefered = sctp_count_num_prefered_boundall(sctp_ifn, stcb, non_asoc_addr_ok,
 		    dest_is_loop, dest_is_priv, fam);
 #ifdef SCTP_DEBUG
-		if (sctp_debug_on & SCTP_DEBUG_OUTPUT1) {
+		if (sctp_debug_on & SCTP_DEBUG_OUTPUT2) {
 			printf("Found ifn:%p %d prefered source addresses\n", ifn, num_prefered);
 		}
 #endif
@@ -2818,10 +2881,7 @@ bound_all_plan_b:
 	 */
 #ifdef SCTP_DEBUG
 	if (sctp_debug_on & SCTP_DEBUG_OUTPUT2) {
-		if (net) {
-			printf("Plan C no prefered for Dest:");
-			sctp_print_address(&net->ro._l_addr.sa);
-		}
+		printf("Plan C no prefered for Dest, acceptable for?\n");
 	}
 #endif
 
@@ -2850,6 +2910,11 @@ bound_all_plan_b:
 	 * out and see if we can find an acceptable address somewhere
 	 * amongst all interfaces.
 	 */
+#ifdef SCTP_DEBUG
+	if (sctp_debug_on & SCTP_DEBUG_OUTPUT2) {
+		printf("Plan C fails plan D?\n");
+	}
+#endif
 	LIST_FOREACH(sctp_ifn, &vrf->ifnlist, next_ifn) {
 		if (dest_is_loop == 0 && SCTP_IFN_IS_IFT_LOOP(sctp_ifn)) {
 			/* wrong base scope */
@@ -2999,6 +3064,12 @@ sctp_source_address_selection(struct sctp_inpcb *inp,
 			dest_is_priv = 1;
 		}
 	}
+#ifdef SCTP_DEBUG
+	if (sctp_debug_on & SCTP_DEBUG_OUTPUT2) {
+		printf("Select source for:");
+		sctp_print_address((struct sockaddr *)to);
+	}
+#endif
 	if (inp->sctp_flags & SCTP_PCB_FLAGS_BOUNDALL) {
 		/*
 		 * When bound to all if the address list is set it is a
@@ -10329,7 +10400,7 @@ sctp_copy_it_in(struct sctp_tcb *stcb,
     struct sctp_nets *net,
     int max_send_len,
     int user_marks_eor,
-    int *errno,
+    int *error,
     int non_blocking)
 {
 	/*
@@ -10342,14 +10413,12 @@ sctp_copy_it_in(struct sctp_tcb *stcb,
 	struct sctp_stream_queue_pending *sp = NULL;
 	int resv_in_first;
 
-	*errno = 0;
-	/*
-	 * Unless E_EOR mode is on, we must make a send FIT in one call.
-	 */
+	*error = 0;
+	/* Unless E_EOR mode is on, we must make a send FIT in one call. */
 	if (((user_marks_eor == 0) && non_blocking) &&
 	    (uio->uio_resid > stcb->sctp_socket->so_snd.sb_hiwat)) {
 		/* It will NEVER fit */
-		*errno = EMSGSIZE;
+		*error = EMSGSIZE;
 		goto out_now;
 	}
 	/* Now can we send this? */
@@ -10358,12 +10427,12 @@ sctp_copy_it_in(struct sctp_tcb *stcb,
 	    (SCTP_GET_STATE(asoc) == SCTP_STATE_SHUTDOWN_RECEIVED) ||
 	    (asoc->state & SCTP_STATE_SHUTDOWN_PENDING)) {
 		/* got data while shutting down */
-		*errno = ECONNRESET;
+		*error = ECONNRESET;
 		goto out_now;
 	}
 	sp = SCTP_ZONE_GET(sctppcbinfo.ipi_zone_strmoq, struct sctp_stream_queue_pending);
 	if (sp == NULL) {
-		*errno = ENOMEM;
+		*error = ENOMEM;
 		goto out_now;
 	}
 	SCTP_INCR_STRMOQ_COUNT();
@@ -10389,8 +10458,8 @@ sctp_copy_it_in(struct sctp_tcb *stcb,
 	sp->some_taken = 0;
 	resv_in_first = sizeof(struct sctp_data_chunk);
 	sp->data = sp->tail_mbuf = NULL;
-	*errno = sctp_copy_one(sp, uio, resv_in_first);
-	if (*errno) {
+	*error = sctp_copy_one(sp, uio, resv_in_first);
+	if (*error) {
 		sctp_free_a_strmoq(stcb, sp);
 		sp->data = NULL;
 		sp->net = NULL;
