@@ -76,8 +76,8 @@ SYSCTL_PROC(_net_inet_tcp, TCPCTL_KEEPINTVL, keepintvl, CTLTYPE_INT|CTLFLAG_RW,
     &tcp_keepintvl, 0, sysctl_msec_to_ticks, "I", "");
 
 int	tcp_delacktime;
-SYSCTL_PROC(_net_inet_tcp, TCPCTL_DELACKTIME, delacktime,
-    CTLTYPE_INT|CTLFLAG_RW, &tcp_delacktime, 0, sysctl_msec_to_ticks, "I",
+SYSCTL_PROC(_net_inet_tcp, TCPCTL_DELACKTIME, delacktime, CTLTYPE_INT|CTLFLAG_RW,
+    &tcp_delacktime, 0, sysctl_msec_to_ticks, "I",
     "Time before a delayed ACK is sent");
 
 int	tcp_msl;
@@ -86,11 +86,13 @@ SYSCTL_PROC(_net_inet_tcp, OID_AUTO, msl, CTLTYPE_INT|CTLFLAG_RW,
 
 int	tcp_rexmit_min;
 SYSCTL_PROC(_net_inet_tcp, OID_AUTO, rexmit_min, CTLTYPE_INT|CTLFLAG_RW,
-    &tcp_rexmit_min, 0, sysctl_msec_to_ticks, "I", "Minimum Retransmission Timeout");
+    &tcp_rexmit_min, 0, sysctl_msec_to_ticks, "I",
+    "Minimum Retransmission Timeout");
 
 int	tcp_rexmit_slop;
 SYSCTL_PROC(_net_inet_tcp, OID_AUTO, rexmit_slop, CTLTYPE_INT|CTLFLAG_RW,
-    &tcp_rexmit_slop, 0, sysctl_msec_to_ticks, "I", "Retransmission Timer Slop");
+    &tcp_rexmit_slop, 0, sysctl_msec_to_ticks, "I",
+    "Retransmission Timer Slop");
 
 static int	always_keepalive = 1;
 SYSCTL_INT(_net_inet_tcp, OID_AUTO, always_keepalive, CTLFLAG_RW,
@@ -98,11 +100,12 @@ SYSCTL_INT(_net_inet_tcp, OID_AUTO, always_keepalive, CTLFLAG_RW,
 
 int    tcp_fast_finwait2_recycle = 0;
 SYSCTL_INT(_net_inet_tcp, OID_AUTO, fast_finwait2_recycle, CTLFLAG_RW, 
-	   &tcp_fast_finwait2_recycle, 0, "Recycle closed FIN_WAIT_2 connections faster");
+    &tcp_fast_finwait2_recycle, 0,
+    "Recycle closed FIN_WAIT_2 connections faster");
 
 int    tcp_finwait2_timeout;
 SYSCTL_PROC(_net_inet_tcp, OID_AUTO, finwait2_timeout, CTLTYPE_INT|CTLFLAG_RW,
-	    &tcp_finwait2_timeout, 0, sysctl_msec_to_ticks, "I", "");
+    &tcp_finwait2_timeout, 0, sysctl_msec_to_ticks, "I", "FIN-WAIT2 timeout");
 
 
 static int	tcp_keepcnt = TCPTV_KEEPCNT;
