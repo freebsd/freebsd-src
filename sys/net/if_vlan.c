@@ -632,7 +632,7 @@ vlan_clone_create(struct if_clone *ifc, char *name, size_t len, caddr_t params)
 	struct ifnet *ifp;
 	struct ifnet *p;
 	struct vlanreq vlr;
-	static const u_char eaddr[6];	/* 00:00:00:00:00:00 */
+	static const u_char eaddr[ETHER_ADDR_LEN];	/* 00:00:00:00:00:00 */
 
 	/*
 	 * There are 3 (ugh) ways to specify the cloned device:
