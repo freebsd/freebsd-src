@@ -423,6 +423,8 @@ fwohci_probe_phy(struct fwohci_softc *sc, device_t dev)
  *    It is not actually available port on your PC .
  */
 	OWRITE(sc, OHCI_HCCCTL, OHCI_HCC_LPS);
+	DELAY(500);
+
 	reg = fwphy_rddata(sc, FW_PHY_SPD_REG);
 
 	if((reg >> 5) != 7 ){
