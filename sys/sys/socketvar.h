@@ -128,8 +128,8 @@ struct socket {
 #define	SB_ASYNC	0x10		/* ASYNC I/O, need signals */
 #define	SB_UPCALL	0x20		/* someone wants an upcall */
 #define	SB_NOINTR	0x40		/* operations not interruptible */
-#define SB_AIO		0x80		/* AIO operations queued */
-#define SB_KNOTE	0x100		/* kernel note attached */
+#define	SB_AIO		0x80		/* AIO operations queued */
+#define	SB_KNOTE	0x100		/* kernel note attached */
 #define	SB_AUTOSIZE	0x800		/* automatically size socket buffer */
 
 	void	(*so_upcall)(struct socket *, void *, int);
