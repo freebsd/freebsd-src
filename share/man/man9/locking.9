@@ -28,7 +28,7 @@
 .Dt LOCKING 9
 .Os
 .Sh NAME
-.Nm locking ,
+.Nm locking
 .Nd kernel synchronization primitives
 .Sh SYNOPSIS
 All sorts of stuff to go here.
@@ -230,7 +230,7 @@ while the thread is suspended and will reacquire the
 mutex before the function returns.
 .Pp
 .Ss lockmanager locks
-Largly deprecated. See the 
+Largely deprecated. See the 
 .Xr lock 9
 page for more information.
 I don't know what the downsides are but I'm sure someone will fill in this part.
@@ -278,7 +278,6 @@ At this time this is a rather easy to remember table.
 .It interrupt:  Ta \&ok Ta \&no Ta \&no Ta \&no Ta \&no
 .It idle:  Ta \&ok Ta \&no Ta \&no Ta \&no Ta \&no
 .El
-.Xc
 .Sh SEE ALSO
 .Xr condvar 9 ,
 .Xr lock 9
