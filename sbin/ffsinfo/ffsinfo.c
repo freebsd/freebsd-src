@@ -138,43 +138,39 @@ main(int argc, char **argv)
 
 	DBG_ENTER;
 
-	cfg_lv=0xff;
-	cfg_in=-2;
-	cfg_cg=-2;
-	out_file=NULL;
+	cfg_lv = 0xff;
+	cfg_in = -2;
+	cfg_cg = -2;
+	out_file = NULL;
 
-	while ((ch=getopt(argc, argv, "g:i:l:o:")) != -1) {
-		switch(ch) {
+	while ((ch = getopt(argc, argv, "g:i:l:o:")) != -1) {
+		switch (ch) {
 		case 'g':
-			cfg_cg=strtol(optarg, NULL, 0);
-			if(errno == EINVAL||errno == ERANGE)
+			cfg_cg = strtol(optarg, NULL, 0);
+			if (errno == EINVAL || errno == ERANGE)
 				err(1, "%s", optarg);
-			if(cfg_cg < -1) {
+			if (cfg_cg < -1)
 				usage();
-			}
 			break;
 		case 'i':
-			cfg_in=strtol(optarg, NULL, 0);
-			if(errno == EINVAL||errno == ERANGE)
+			cfg_in = strtol(optarg, NULL, 0);
+			if (errno == EINVAL || errno == ERANGE)
 				err(1, "%s", optarg);
-			if(cfg_in < 0) {
+			if (cfg_in < 0)
 				usage();
-			}
 			break; 
 		case 'l':
-			cfg_lv=strtol(optarg, NULL, 0);
-			if(errno == EINVAL||errno == ERANGE)
+			cfg_lv = strtol(optarg, NULL, 0);
+			if (errno == EINVAL||errno == ERANGE)
 				err(1, "%s", optarg);
-			if(cfg_lv < 0x1||cfg_lv > 0x3ff) {
+			if (cfg_lv < 0x1 || cfg_lv > 0x3ff)
 				usage();
-			}
 			break;
 		case 'o':
 			free(out_file);
-			out_file=strdup(optarg);
-			if(out_file == NULL) {
+			out_file = strdup(optarg);
+			if (out_file == NULL)
 				errx(1, "strdup failed");
-			}
 			break;
 		case '?':
 			/* FALLTHROUGH */
@@ -185,19 +181,18 @@ main(int argc, char **argv)
 	argc -= optind;
 	argv += optind;
 
-	if(argc != 1) {
+	if (argc != 1)
 		usage();
-	}
-	device=*argv;
+	device = *argv;
 	if (out_file == NULL)
 		errx(1, "out_file not specified");
 	
 	/*
 	 * Now we try to guess the (raw)device name.
 	 */
-	if (0 == strrchr(device, '/') && (stat(device, &st) == -1)) {
-		/*
-		 * No path prefix was given, so try in that order:
+	if (0 == strrchr(device, '/') && stat(device, &st) == -1) {
+		/*-
+		 * No path prefix was given, so try in this order:
 		 *     /dev/r%s
 		 *     /dev/%s
 		 *     /dev/vinum/r%s
@@ -206,24 +201,20 @@ main(int argc, char **argv)
 		 * FreeBSD now doesn't distinguish between raw and  block
 		 * devices any longer, but it should still work this way.
 		 */
-		len=strlen(device)+strlen(_PATH_DEV)+2+strlen("vinum/");
-		special=(char *)malloc(len);
-		if(special == NULL) {
+		len = strlen(device) + strlen(_PATH_DEV) + 2 + strlen("vinum/");
+		special = (char *)malloc(len);
+		if (special == NULL)
 			errx(1, "malloc failed");
-		}
 		snprintf(special, len, "%sr%s", _PATH_DEV, device);
 		if (stat(special, &st) == -1) {
 			snprintf(special, len, "%s%s", _PATH_DEV, device);
 			if (stat(special, &st) == -1) {
 				snprintf(special, len, "%svinum/r%s",
 				    _PATH_DEV, device);
-				if (stat(special, &st) == -1) {
-					/*
-					 * For now this is the 'last resort'.
-					 */
+				if (stat(special, &st) == -1)
+					/* For now this is the 'last resort' */
 					snprintf(special, len, "%svinum/%s",
 					    _PATH_DEV, device);
-				}
 			}
 		}
 		device = special;
@@ -232,55 +223,44 @@ main(int argc, char **argv)
 	if (ufs_disk_fillout(&disk, device) == -1)
 		err(1, "ufs_disk_fillout(%s) failed: %s", device, disk.d_error);
 
-	DBG_OPEN(out_file); /* already here we need a superblock */
+	DBG_OPEN(out_file);	/* already here we need a superblock */
 
-	if(cfg_lv & 0x001) {
-		DBG_DUMP_FS(&sblock,
-		    "primary sblock");
-	}
+	if (cfg_lv & 0x001)
+		DBG_DUMP_FS(&sblock, "primary sblock");
 
-	/*
-	 * Determine here what cylinder groups to dump.
-	 */
-	if(cfg_cg==-2) {
-		cg_start=0;
-		cg_stop=sblock.fs_ncg;
-	} else if (cfg_cg==-1) {
-		cg_start=sblock.fs_ncg-1;
-		cg_stop=sblock.fs_ncg;
-	} else if (cfg_cg<sblock.fs_ncg) {
-		cg_start=cfg_cg;
-		cg_stop=cfg_cg+1;
+	/* Determine here what cylinder groups to dump */
+	if (cfg_cg==-2) {
+		cg_start = 0;
+		cg_stop = sblock.fs_ncg;
+	} else if (cfg_cg == -1) {
+		cg_start = sblock.fs_ncg - 1;
+		cg_stop = sblock.fs_ncg;
+	} else if (cfg_cg < sblock.fs_ncg) {
+		cg_start = cfg_cg;
+		cg_stop = cfg_cg + 1;
 	} else {
-		cg_start=sblock.fs_ncg;
-		cg_stop=sblock.fs_ncg;
+		cg_start = sblock.fs_ncg;
+		cg_stop = sblock.fs_ncg;
 	}
 
 	if (cfg_lv & 0x004) {
 		fscs = (struct csum *)calloc((size_t)1,
 		    (size_t)sblock.fs_cssize);
-		if(fscs == NULL) {
+		if (fscs == NULL)
 			errx(1, "calloc failed");
-		}
 
-		/*
-		 * Get the cylinder summary into the memory ...
-		 */
+		/* get the cylinder summary into the memory ... */
 		for (i = 0; i < sblock.fs_cssize; i += sblock.fs_bsize) {
-			if (bread(&disk, 
-				fsbtodb(&sblock, sblock.fs_csaddr + numfrags(&sblock, i)), 
-				(void *)(((char *)fscs)+i), 
-				(size_t)(sblock.fs_cssize-i < sblock.fs_bsize 
-					? sblock.fs_cssize - i 
-					: sblock.fs_bsize)) == -1) {
+			if (bread(&disk, fsbtodb(&sblock,
+			    sblock.fs_csaddr + numfrags(&sblock, i)), 
+			    (void *)(((char *)fscs)+i), 
+			    (size_t)(sblock.fs_cssize-i < sblock.fs_bsize ?
+			    sblock.fs_cssize - i : sblock.fs_bsize)) == -1)
 				err(1, "bread: %s", disk.d_error);
-			}
 		}
 
-		dbg_csp=fscs;
-		/*
-		 * ... and dump it.
-		 */
+		dbg_csp = fscs;
+		/* ... and dump it */
 		for(dbg_csc=0; dbg_csc<sblock.fs_ncg; dbg_csc++) {
 			snprintf(dbg_line, sizeof(dbg_line),
 			    "%d. csum in fscs", dbg_csc);
@@ -290,51 +270,36 @@ main(int argc, char **argv)
 		}
 	}
 
-	/*
-	 * For each requested cylinder group ...
-	 */
-	for(cylno=cg_start; cylno<cg_stop; cylno++) {
+	/* for each requested cylinder group ... */
+	for (cylno = cg_start; cylno < cg_stop; cylno++) {
 		snprintf(dbg_line, sizeof(dbg_line), "cgr %d", cylno);
-		if(cfg_lv & 0x002) {
-			/*
-			 * ... dump the superblock copies ...
-			 */
-			if (bread(&disk, fsbtodb(&sblock, cgsblock(&sblock, cylno)), 
-				(void *)&osblock, SBLOCKSIZE) == -1) {
+		if (cfg_lv & 0x002) {
+			/* dump the superblock copies */
+			if (bread(&disk, fsbtodb(&sblock,
+			    cgsblock(&sblock, cylno)), 
+			    (void *)&osblock, SBLOCKSIZE) == -1)
 				err(1, "bread: %s", disk.d_error);
-			}
-			DBG_DUMP_FS(&osblock,
-			    dbg_line);
+			DBG_DUMP_FS(&osblock, dbg_line);
 		}
+
 		/*
-		 * ... read the cylinder group and dump whatever was requested.
+		 * Read the cylinder group and dump whatever was
+		 * requested.
 		 */
-		if (bread(&disk, fsbtodb(&sblock, cgtod(&sblock, cylno)), 
-			(void *)&acg, (size_t)sblock.fs_cgsize) == -1) {
+		if (bread(&disk, fsbtodb(&sblock,
+		    cgtod(&sblock, cylno)), (void *)&acg,
+		    (size_t)sblock.fs_cgsize) == -1)
 			err(1, "bread: %s", disk.d_error);
-		}
-		if(cfg_lv & 0x008) {
-			DBG_DUMP_CG(&sblock,
-			    dbg_line,
-			    &acg);
-		}
-		if(cfg_lv & 0x010) {
-			DBG_DUMP_INMAP(&sblock,
-			    dbg_line,
-			    &acg);
-		}
-		if(cfg_lv & 0x020) {
-			DBG_DUMP_FRMAP(&sblock,
-			    dbg_line,
-			    &acg);
-		}
-		if(cfg_lv & 0x040) {
-			DBG_DUMP_CLMAP(&sblock,
-			    dbg_line,
-			    &acg);
-			DBG_DUMP_CLSUM(&sblock,
-			    dbg_line,
-			    &acg);
+
+		if (cfg_lv & 0x008)
+			DBG_DUMP_CG(&sblock, dbg_line, &acg);
+		if (cfg_lv & 0x010)
+			DBG_DUMP_INMAP(&sblock, dbg_line, &acg);
+		if (cfg_lv & 0x020)
+			DBG_DUMP_FRMAP(&sblock, dbg_line, &acg);
+		if (cfg_lv & 0x040) {
+			DBG_DUMP_CLMAP(&sblock, dbg_line, &acg);
+			DBG_DUMP_CLSUM(&sblock, dbg_line, &acg);
 		}
 #ifdef NOT_CURRENTLY
 		/*
@@ -342,28 +307,24 @@ main(int argc, char **argv)
 		 * is currently disabled, and what needs to be done to
 		 * re-enable it.
 		 */
-		if(disk.d_ufs == 1 && cfg_lv & 0x080) {
-			DBG_DUMP_SPTBL(&sblock,
-			    dbg_line,
-			    &acg);
-		}
+		if (disk.d_ufs == 1 && cfg_lv & 0x080)
+			DBG_DUMP_SPTBL(&sblock, dbg_line, &acg);
 #endif
 	}
-	/*
-	 * Dump the requested inode(s).
-	 */
-	if(cfg_in != -2) {
+
+	/* Dump the requested inode(s) */
+	if (cfg_in != -2)
 		DUMP_WHOLE_INODE((ino_t)cfg_in, cfg_lv);
-	} else {
-		for(in=cg_start*sblock.fs_ipg; in<(ino_t)cg_stop*sblock.fs_ipg; 
-		    in++) {
+	else {
+		for (in = cg_start * sblock.fs_ipg;
+		    in < (ino_t)cg_stop * sblock.fs_ipg; 
+		    in++)
 			DUMP_WHOLE_INODE(in, cfg_lv);
-		}
 	}
 
 	DBG_CLOSE;
-
 	DBG_LEAVE;
+
 	return 0;
 }
 
