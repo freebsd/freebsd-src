@@ -5085,10 +5085,13 @@ hdac_release_resources(struct hdac_softc *sc)
 		hdac_dma_free(&sc->play.bdl_dma);
 	if (sc->rec.blkcnt > 0)
 		hdac_dma_free(&sc->rec.bdl_dma);
+	if (sc->chan_dmat != NULL) {
+		bus_dma_tag_destroy(sc->chan_dmat);
+		sc->chan_dmat = NULL;
+	}
 	hdac_irq_free(sc);
 	hdac_mem_free(sc);
 	free(sc, M_DEVBUF);
-
 }
 
 /* This function surely going to make its way into upper level someday. */
