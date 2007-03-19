@@ -41,7 +41,6 @@
  * and ask it to send them.
  */
 
-#include "opt_inet.h"
 #include "opt_vlan.h"
 
 #include <sys/param.h>
@@ -65,11 +64,6 @@
 #include <net/if_dl.h>
 #include <net/if_types.h>
 #include <net/if_vlan_var.h>
-
-#ifdef INET
-#include <netinet/in.h>
-#include <netinet/if_ether.h>
-#endif
 
 #define VLANNAME	"vlan"
 #define	VLAN_DEF_HWIDTH	4
