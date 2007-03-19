@@ -29,10 +29,48 @@
  * SUCH DAMAGE.
  */
 
-#ifdef __FreeBSD__
+/* TODO: use -M, -N for kernel/namelist. */
+/* TODO: use sysctl. */
+
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
+
+#include <sys/types.h>
+#include <sys/param.h>
+#include <sys/socket.h>
+#include <sys/queue.h>
+
+#include <net/if.h>
+#include <net/if_var.h>
+#include <net/if_types.h>
+#include <net/if_dl.h>
+#include <net/route.h>
+
+#include <netinet/in.h>
+#include <netinet/in_var.h>
+#include <netinet/in_systm.h>
+#include <netinet/ip.h>
+#include <netinet/igmp.h>
+#ifdef HAVE_IGMPV3
+# include <netinet/in_msf.h>
 #endif
+#define KERNEL
+# include <netinet/if_ether.h>
+#undef KERNEL
+#define _KERNEL
+# include <sys/sysctl.h>
+# include <netinet/igmp_var.h>
+#undef _KERNEL
+
+#ifdef INET6
+# ifdef HAVE_MLDV2
+#  include <netinet6/in6_msf.h>
+# endif
+#include <netinet/icmp6.h>
+#define _KERNEL
+# include <netinet6/mld6_var.h>
+#undef _KERNEL
+#endif /* INET6 */
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -42,58 +80,7 @@ __FBSDID("$FreeBSD$");
 #include <string.h>
 #include <limits.h>
 #include <unistd.h>
-
-#include <sys/types.h>
-#include <sys/param.h>
-#include <sys/socket.h>
-#include <sys/queue.h>
-
-#include <net/if.h>
-#ifdef __FreeBSD__
-# include <net/if_var.h>
-#endif
-#include <net/if_types.h>
-#include <net/if_dl.h>
-#include <net/route.h>
-#include <netinet/in.h>
-#include <netinet/in_systm.h>
-#include <netinet/ip.h>
-#include <netinet/igmp.h>
-#ifdef HAVE_IGMPV3
-#include <netinet/in_msf.h>
-#endif
-#ifdef HAVE_MLDV2
-#include <net/route.h>
-#include <netinet6/in6_msf.h>
-#endif
-#ifndef __NetBSD__
-# ifdef	__FreeBSD__
-#  define	KERNEL
-# endif
-# include <netinet/if_ether.h>
-# ifdef	__FreeBSD__
-#  undef	KERNEL
-# endif
-#else
-# include <net/if_ether.h>
-#endif
-#include <netinet/in_var.h>
-#include <netinet/icmp6.h>
-#define _KERNEL
-/* defined _KERNEL only to define IGMP_v?_ROUTER and MLD_V?_ROUTER */
-#ifdef __FreeBSD__
-#include <sys/sysctl.h>
-#endif
-#include <netinet/igmp_var.h>
-#include <netinet6/mld6_var.h>
-#ifdef __FreeBSD__
-#define IGMP_v1_ROUTER IGMP_V1_ROUTER
-#define IGMP_v2_ROUTER IGMP_V2_ROUTER
-#define IGMP_v3_ROUTER IGMP_V3_ROUTER
-#endif
-#undef _KERNEL
 #include <arpa/inet.h>
-
 #include <netdb.h>
 
 kvm_t	*kvmd;
@@ -103,10 +90,6 @@ int af = AF_UNSPEC;
 struct	nlist nl[] = {
 #define	N_IFNET	0
 	{ "_ifnet" },
-#ifndef __FreeBSD__
-#define N_IN6_MK 1
-	{ "_in6_mk" },
-#endif
 	{ "" },
 };
 
@@ -114,12 +97,11 @@ const char *inet6_n2a __P((struct in6_addr *));
 int main __P((int, char **));
 char *ifname __P((struct ifnet *));
 void kread __P((u_long, void *, int));
-#ifndef __FreeBSD__
-void acmc __P((struct ether_multi *));
-#endif
+#ifdef INET6
 void if6_addrlist __P((struct ifaddr *));
 void in6_multilist __P((struct in6_multi *));
 struct in6_multi * in6_multientry __P((struct in6_multi *));
+#endif
 void if_addrlist(struct ifaddr *);
 void in_multilist(struct in_multi *);
 struct in_multi * in_multientry(struct in_multi *);
@@ -132,14 +114,6 @@ void in6_addr_slistentry(struct in6_addr_slist *ias, char *heading);
 
 #define	KREAD(addr, buf, type) \
 	kread((u_long)addr, (void *)buf, sizeof(type))
-
-#ifdef N_IN6_MK
-struct multi6_kludge {
-	LIST_ENTRY(multi6_kludge) mk_entry;
-	struct ifnet *mk_ifp;
-	struct in6_multihead mk_head;
-};
-#endif
 
 const char *inet6_n2a(p)
 	struct in6_addr *p;
@@ -176,14 +150,6 @@ int main(argc, argv)
 	char	buf[_POSIX2_LINE_MAX], ifname[IFNAMSIZ];
 	int c;
 	struct	ifnet	*ifp, *nifp, ifnet;
-#ifndef __FreeBSD__
-#ifndef __NetBSD__
-	struct	arpcom	arpcom;
-#else
-	struct ethercom ec;
-	struct sockaddr_dl sdl;
-#endif
-#endif
 	const char *kernel = NULL;
 
 	/* "ifmcstat [kernel]" format is supported for backward compatiblity */
@@ -235,47 +201,15 @@ int main(argc, argv)
 	KREAD(nl[N_IFNET].n_value, &ifp, struct ifnet *);
 	while (ifp) {
 		KREAD(ifp, &ifnet, struct ifnet);
-#if defined(__NetBSD__) || defined(__OpenBSD__)
-		nifp = ifnet.if_list.tqe_next;
-#else
 		nifp = ifnet.if_link.tqe_next;
-#endif
 		if (ifindex && ifindex != ifnet.if_index)
 			goto next;
 	
 		printf("%s:\n", if_indextoname(ifnet.if_index, ifname));
-#if defined(__NetBSD__) || defined(__OpenBSD__)
-		if_addrlist(ifnet.if_addrlist.tqh_first);
-		if6_addrlist(ifnet.if_addrlist.tqh_first);
-#else
 		if_addrlist(TAILQ_FIRST(&ifnet.if_addrhead));
+#ifdef INET6
 		if6_addrlist(TAILQ_FIRST(&ifnet.if_addrhead));
 #endif
-
-#ifdef __NetBSD__
-		KREAD(ifnet.if_sadl, &sdl, struct sockaddr_dl);
-		if (sdl.sdl_type == IFT_ETHER) {
-			printf("\tenaddr %s",
-			       ether_ntoa((struct ether_addr *)LLADDR(&sdl)));
-			KREAD(ifp, &ec, struct ethercom);
-			printf(" multicnt %d", ec.ec_multicnt);
-			acmc(ec.ec_multiaddrs.lh_first);
-			printf("\n");
-		}
-#elif defined(__FreeBSD__)
-		/* not supported */
-#else /* __OpenBSD__ */
-		if (ifnet.if_type == IFT_ETHER) {
-			KREAD(ifp, &arpcom, struct arpcom);
-			printf("\tenaddr %s",
-			    ether_ntoa((struct ether_addr *)arpcom.ac_enaddr));
-			KREAD(ifp, &arpcom, struct arpcom);
-			printf(" multicnt %d", arpcom.ac_multicnt);
-			acmc(arpcom.ac_multiaddrs.lh_first);
-			printf("\n");
-		}
-#endif
-
 next:
 		ifp = nifp;
 	}
@@ -306,27 +240,7 @@ void kread(addr, buf, len)
 	}
 }
 
-#ifndef __FreeBSD__
-void acmc(am)
-	struct ether_multi *am;
-{
-	struct ether_multi em;
-
-	while (am) {
-		KREAD(am, &em, struct ether_multi);
-		
-		printf("\n\t\t");
-		printf("%s -- ", ether_ntoa((struct ether_addr *)em.enm_addrlo));
-		printf("%s ", ether_ntoa((struct ether_addr *)&em.enm_addrhi));
-		printf("%d", em.enm_refcount);
-#if !defined(__NetBSD__) && !defined(__OpenBSD__)
-		am = em.enm_next;
-#else
-		am = em.enm_list.le_next;
-#endif
-	}
-}
-#endif
+#ifdef INET6
 
 void
 if6_addrlist(ifap)
@@ -335,9 +249,6 @@ if6_addrlist(ifap)
 	struct ifaddr ifa;
 	struct sockaddr sa;
 	struct in6_ifaddr if6a;
-#ifndef __FreeBSD__
-	struct in6_multi *mc = 0;
-#endif
 	struct ifaddr *ifap0;
 
 	if (af && af != AF_INET6)
@@ -352,17 +263,9 @@ if6_addrlist(ifap)
 			goto nextifap;
 		KREAD(ifap, &if6a, struct in6_ifaddr);
 		printf("\tinet6 %s\n", inet6_n2a(&if6a.ia_addr.sin6_addr));
-#ifndef __FreeBSD__
-		mc = mc ? mc : if6a.ia6_multiaddrs.lh_first;
-#endif
 	nextifap:
-#if defined(__NetBSD__) || defined(__OpenBSD__)
-		ifap = ifa.ifa_list.tqe_next;
-#else
 		ifap = ifa.ifa_link.tqe_next;
-#endif
 	}
-#ifdef __FreeBSD__
 	if (ifap0) {
 		struct ifnet ifnet;
 		struct ifmultiaddr ifm, *ifmp = 0;
@@ -391,37 +294,6 @@ if6_addrlist(ifap)
 			ifmp = TAILQ_NEXT(&ifm, ifma_link);
 		}
 	}
-#else
-	if (mc)
-		in6_multilist(mc);
-#endif
-#ifdef N_IN6_MK
-	if (nl[N_IN6_MK].n_value != 0) {
-		LIST_HEAD(in6_mktype, multi6_kludge) in6_mk;
-		struct multi6_kludge *mkp, mk;
-		char *nam;
-
-		KREAD(nl[N_IN6_MK].n_value, &in6_mk, struct in6_mktype);
-		KREAD(ifap0, &ifa, struct ifaddr);
-
-		nam = strdup(ifname(ifa.ifa_ifp));
-		if (!nam) {
-			fprintf(stderr, "ifmcstat: not enough core\n");
-			exit(1);
-		}
-
-		for (mkp = in6_mk.lh_first; mkp; mkp = mk.mk_entry.le_next) {
-			KREAD(mkp, &mk, struct multi6_kludge);
-			if (strcmp(nam, ifname(mk.mk_ifp)) == 0 &&
-			    mk.mk_head.lh_first) {
-				printf("\t(on kludge entry for %s)\n", nam);
-				in6_multilist(mk.mk_head.lh_first);
-			}
-		}
-
-		free(nam);
-	}
-#endif
 }
 
 struct in6_multi *
@@ -519,6 +391,8 @@ in6_multilist(mc)
 		mc = in6_multientry(mc);
 }
 
+#endif /* INET6 */
+
 void
 if_addrlist(ifap)
 	struct ifaddr *ifap;
@@ -526,9 +400,6 @@ if_addrlist(ifap)
 	struct ifaddr ifa;
 	struct sockaddr sa;
 	struct in_ifaddr ia;
-#ifndef __FreeBSD__
-	struct in_multi *mc = 0;
-#endif
 	struct ifaddr *ifap0;
 
 	if (af && af != AF_INET)
@@ -543,17 +414,9 @@ if_addrlist(ifap)
 			goto nextifap;
 		KREAD(ifap, &ia, struct in_ifaddr);
 		printf("\tinet %s\n", inet_ntoa(ia.ia_addr.sin_addr));
-#ifndef __FreeBSD__
-		mc = mc ? mc : ia.ia_multiaddrs.lh_first;
-#endif
 	nextifap:
-#if defined(__NetBSD__) || defined(__OpenBSD__)
-		ifap = ifa.ifa_list.tqe_next;
-#else
 		ifap = ifa.ifa_link.tqe_next;
-#endif
 	}
-#ifdef __FreeBSD__
 	if (ifap0) {
 		struct ifnet ifnet;
 		struct ifmultiaddr ifm, *ifmp = 0;
@@ -582,10 +445,6 @@ if_addrlist(ifap)
 			ifmp = TAILQ_NEXT(&ifm, ifma_link);
 		}
 	}
-#else /* !FreeBSD */
-	if (mc)
-		in_multilist(mc);
-#endif
 }
 
 void
@@ -613,14 +472,14 @@ in_multientry(mc)
 		KREAD(multi.inm_rti, &rti, struct router_info);
 		printf("\t\t\t");
 		switch (rti.rti_type) {
-		case IGMP_v1_ROUTER:
+		case IGMP_V1_ROUTER:
 			printf("igmpv1");
 			break;
-		case IGMP_v2_ROUTER:
+		case IGMP_V2_ROUTER:
 			printf("igmpv2");
 			break;
 #ifdef HAVE_IGMPV3
-		case IGMP_v3_ROUTER:
+		case IGMP_V3_ROUTER:
 			printf("igmpv3");
 			break;
 #endif
@@ -654,11 +513,7 @@ in_multientry(mc)
 #endif
 	}
 
-#ifdef __FreeBSD__
 	return (NULL);
-#else
-	return (multi.inm_list.le_next);
-#endif
 }
 
 #ifdef HAVE_IGMPV3
