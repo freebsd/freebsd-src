@@ -14,6 +14,8 @@
 # The file is partitioned: OLD_FILES first, then OLD_LIBS and OLD_DIRS last.
 #
 
+# 20070303: libarchive 2.0
+OLD_LIBS+=usr/lib/libarchive.so.3
 # 20070301: remove addr2ascii and ascii2addr
 OLD_FILES+=usr/share/man/man3/addr2ascii.3.gz
 # 20070225: vm_page_unmanage() removed
