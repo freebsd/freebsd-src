@@ -140,7 +140,7 @@ in_canforward(in)
 	register u_long i = ntohl(in.s_addr);
 	register u_long net;
 
-	if (IN_EXPERIMENTAL(i) || IN_MULTICAST(i))
+	if (IN_EXPERIMENTAL(i) || IN_MULTICAST(i) || IN_LINKLOCAL(i))
 		return (0);
 	if (IN_CLASSA(i)) {
 		net = i & IN_CLASSA_NET;

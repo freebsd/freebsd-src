@@ -583,6 +583,12 @@ passin:
 #endif
 		}
 	}
+	/* RFC 3927 2.7: Do not forward datagrams for 169.254.0.0/16. */
+	if (IN_LINKLOCAL(ntohl(ip->ip_dst.s_addr))) {
+		ipstat.ips_cantforward++;
+		m_freem(m);
+		return;
+	}
 	if (IN_MULTICAST(ntohl(ip->ip_dst.s_addr))) {
 		struct in_multi *inm;
 		if (ip_mrouter) {
