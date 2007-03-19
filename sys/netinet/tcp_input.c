@@ -111,7 +111,7 @@ SYSCTL_INT(_net_inet_tcp, OID_AUTO, log_in_vain, CTLFLAG_RW,
 
 static int blackhole = 0;
 SYSCTL_INT(_net_inet_tcp, OID_AUTO, blackhole, CTLFLAG_RW,
-	&blackhole, 0, "Do not send RST when dropping refused connections");
+    &blackhole, 0, "Do not send RST when dropping refused connections");
 
 int tcp_delack_enabled = 1;
 SYSCTL_INT(_net_inet_tcp, OID_AUTO, delayed_ack, CTLFLAG_RW,
@@ -136,42 +136,43 @@ SYSCTL_INT(_net_inet_tcp, OID_AUTO, rfc3390, CTLFLAG_RW,
 static int tcp_insecure_rst = 0;
 SYSCTL_INT(_net_inet_tcp, OID_AUTO, insecure_rst, CTLFLAG_RW,
     &tcp_insecure_rst, 0,
-    "Follow the old (insecure) criteria for accepting RST packets.");
+    "Follow the old (insecure) criteria for accepting RST packets");
 
 SYSCTL_NODE(_net_inet_tcp, OID_AUTO, reass, CTLFLAG_RW, 0,
-	    "TCP Segment Reassembly Queue");
+    "TCP Segment Reassembly Queue");
 
 static int tcp_reass_maxseg = 0;
 SYSCTL_INT(_net_inet_tcp_reass, OID_AUTO, maxsegments, CTLFLAG_RDTUN,
-	   &tcp_reass_maxseg, 0,
-	   "Global maximum number of TCP Segments in Reassembly Queue");
+    &tcp_reass_maxseg, 0,
+    "Global maximum number of TCP Segments in Reassembly Queue");
 
 int tcp_reass_qsize = 0;
 SYSCTL_INT(_net_inet_tcp_reass, OID_AUTO, cursegments, CTLFLAG_RD,
-	   &tcp_reass_qsize, 0,
-	   "Global number of TCP Segments currently in Reassembly Queue");
+    &tcp_reass_qsize, 0,
+    "Global number of TCP Segments currently in Reassembly Queue");
 
 static int tcp_reass_maxqlen = 48;
 SYSCTL_INT(_net_inet_tcp_reass, OID_AUTO, maxqlen, CTLFLAG_RW,
-	   &tcp_reass_maxqlen, 0,
-	   "Maximum number of TCP Segments per individual Reassembly Queue");
+    &tcp_reass_maxqlen, 0,
+    "Maximum number of TCP Segments per individual Reassembly Queue");
 
 static int tcp_reass_overflows = 0;
 SYSCTL_INT(_net_inet_tcp_reass, OID_AUTO, overflows, CTLFLAG_RD,
-	   &tcp_reass_overflows, 0,
-	   "Global number of TCP Segment Reassembly Queue Overflows");
+    &tcp_reass_overflows, 0,
+    "Global number of TCP Segment Reassembly Queue Overflows");
 
 int	tcp_do_autorcvbuf = 1;
 SYSCTL_INT(_net_inet_tcp, OID_AUTO, recvbuf_auto, CTLFLAG_RW,
-	   &tcp_do_autorcvbuf, 0, "Enable automatic receive buffer sizing");
+    &tcp_do_autorcvbuf, 0, "Enable automatic receive buffer sizing");
 
 int	tcp_autorcvbuf_inc = 16*1024;
 SYSCTL_INT(_net_inet_tcp, OID_AUTO, recvbuf_inc, CTLFLAG_RW,
-	   &tcp_autorcvbuf_inc, 0, "Incrementor step size of automatic receive buffer");
+    &tcp_autorcvbuf_inc, 0,
+    "Incrementor step size of automatic receive buffer");
 
 int	tcp_autorcvbuf_max = 256*1024;
 SYSCTL_INT(_net_inet_tcp, OID_AUTO, recvbuf_max, CTLFLAG_RW,
-	   &tcp_autorcvbuf_max, 0, "Max size of automatic receive buffer");
+    &tcp_autorcvbuf_max, 0, "Max size of automatic receive buffer");
 
 struct inpcbhead tcb;
 #define	tcb6	tcb  /* for KAME src sync over BSD*'s */
