@@ -2053,7 +2053,7 @@ bridge_input(struct ifnet *ifp, struct mbuf *m)
 
 	bridge_span(sc, m);
 
-	if (ETHER_IS_MULTICAST(eh->ether_dhost)) {
+	if (m->m_flags & (M_BCAST|M_MCAST)) {
 		/* Tap off 802.1D packets; they do not get forwarded. */
 		if (memcmp(eh->ether_dhost, bstp_etheraddr,
 		    ETHER_ADDR_LEN) == 0) {
@@ -2069,12 +2069,6 @@ bridge_input(struct ifnet *ifp, struct mbuf *m)
 			BRIDGE_UNLOCK(sc);
 			return (m);
 		}
-
-		if (bcmp(etherbroadcastaddr, eh->ether_dhost,
-		    sizeof(etherbroadcastaddr)) == 0)
-			m->m_flags |= M_BCAST;
-		else
-			m->m_flags |= M_MCAST;
 
 		/*
 		 * Make a deep copy of the packet and enqueue the copy
