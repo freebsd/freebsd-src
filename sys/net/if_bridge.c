@@ -437,9 +437,6 @@ const struct bridge_control bridge_control_table[] = {
 const int bridge_control_table_size =
     sizeof(bridge_control_table) / sizeof(bridge_control_table[0]);
 
-static const u_char etherbroadcastaddr[ETHER_ADDR_LEN] =
-			{ 0xff, 0xff, 0xff, 0xff, 0xff, 0xff };
-
 LIST_HEAD(, bridge_softc) bridge_list;
 
 IFC_SIMPLE_DECLARE(bridge, 0);
