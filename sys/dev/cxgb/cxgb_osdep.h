@@ -139,7 +139,11 @@ static const int debug_flags = DBG_RX;
 #define CH_WARN(adap, fmt, ...)	device_printf(adap->dev, fmt, ##__VA_ARGS__)
 #define CH_ALERT(adap, fmt, ...) device_printf(adap->dev, fmt, ##__VA_ARGS__)
 
+#if __FreeBSD_version < 700000
+#define t3_os_sleep(x) DELAY((x) * 3000)
+#else
 #define t3_os_sleep(x) DELAY((x) * 1000)
+#endif
 
 /* Standard PHY definitions */
 #define BMCR_LOOPBACK		BMCR_LOOP
