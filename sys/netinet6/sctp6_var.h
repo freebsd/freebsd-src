@@ -41,11 +41,11 @@ int sctp6_ctloutput __P((struct socket *, struct sockopt *));
 
 
 int sctp6_input __P((struct mbuf **, int *, int));
-
 int sctp6_output 
 __P((struct sctp_inpcb *, struct mbuf *, struct sockaddr *,
     struct mbuf *, struct proc *));
 	void sctp6_ctlinput __P((int, struct sockaddr *, void *));
+
 
 #endif				/* _KERNEL */
 #endif

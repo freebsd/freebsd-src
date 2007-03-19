@@ -517,20 +517,13 @@ sctp_must_try_again:
 #endif
 		sctp_inpcb_free(inp, 1, 0);
 		SOCK_LOCK(so);
-		so->so_snd.sb_cc = 0;
-		so->so_snd.sb_mb = NULL;
-		so->so_snd.sb_mbcnt = 0;
-
+		SCTP_SB_CLEAR(so->so_snd);
 		/*
 		 * same for the rcv ones, they are only here for the
 		 * accounting/select.
 		 */
-		so->so_rcv.sb_cc = 0;
-		so->so_rcv.sb_mb = NULL;
-		so->so_rcv.sb_mbcnt = 0;
-		/*
-		 * Now null out the reference, we are completely detached.
-		 */
+		SCTP_SB_CLEAR(so->so_rcv);
+		/* Now null out the reference, we are completely detached. */
 		so->so_pcb = NULL;
 		SOCK_UNLOCK(so);
 	} else {
@@ -554,7 +547,7 @@ sctp6_attach(struct socket *so, int proto, struct thread *p)
 		return EINVAL;
 
 	if (so->so_snd.sb_hiwat == 0 || so->so_rcv.sb_hiwat == 0) {
-		error = soreserve(so, sctp_sendspace, sctp_recvspace);
+		error = SCTP_SORESERVE(so, sctp_sendspace, sctp_recvspace);
 		if (error)
 			return error;
 	}
@@ -677,20 +670,13 @@ sctp_must_try_again:
 		 * the SCTP association.
 		 */
 		SOCK_LOCK(so);
-		so->so_snd.sb_cc = 0;
-		so->so_snd.sb_mb = NULL;
-		so->so_snd.sb_mbcnt = 0;
-
+		SCTP_SB_CLEAR(so->so_snd);
 		/*
 		 * same for the rcv ones, they are only here for the
 		 * accounting/select.
 		 */
-		so->so_rcv.sb_cc = 0;
-		so->so_rcv.sb_mb = NULL;
-		so->so_rcv.sb_mbcnt = 0;
-		/*
-		 * Now null out the reference, we are completely detached.
-		 */
+		SCTP_SB_CLEAR(so->so_rcv);
+		/* Now null out the reference, we are completely detached. */
 		so->so_pcb = NULL;
 		SOCK_UNLOCK(so);
 	} else {

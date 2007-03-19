@@ -252,11 +252,6 @@ __P((struct sctp_inpcb *, int, struct sctphdr *,
     struct sockaddr *, struct sctp_tcb *,
     struct sctp_nets *));
 
-#if defined(INET6)
-	void ip_2_ip6_hdr __P((struct ip6_hdr *, struct ip *));
-
-#endif
-
 	int sctp_bindx(struct socket *, int, struct sockaddr_storage *,
         int, int, struct proc *);
 
