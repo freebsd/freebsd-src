@@ -28,7 +28,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd June 10, 2005
+.Dd March 14, 2007
 .Os
 .Dt IFNET 9
 .Sh NAME
@@ -103,19 +103,9 @@
 .Ft void
 .Fn \*(lp*if_start\*(rp "struct ifnet *ifp"
 .Ft int
-.Fn \*(lp*if_done\*(rp "struct ifnet *ifp"
-.Ft int
 .Fn \*(lp*if_ioctl\*(rp "struct ifnet *ifp" "int cmd" "caddr_t data"
 .Ft void
 .Fn \*(lp*if_watchdog\*(rp "struct ifnet *ifp"
-.Ft int
-.Fn \*(lp*if_poll_recv\*(rp "struct ifnet *ifp" "int *quotap"
-.Ft int
-.Fn \*(lp*if_poll_xmit\*(rp "struct ifnet *ifp" "int *quotap"
-.Ft void
-.Fn \*(lp*if_poll_inttrn\*(rp "struct ifnet *ifp"
-.Ft void
-.Fn \*(lp*if_poll_slowinput\*(rp "struct ifnet *ifp" "struct mbuf *m"
 .Ft void
 .Fn \*(lp*if_init\*(rp "void *if_softc"
 .Ft int
@@ -1024,7 +1014,7 @@ this address structure is saved in the global array
 .Va ifnet_addrs . )
 The
 .Fa ifp
-must have been allocted by
+must have been allocated by
 .Fn if_alloc .
 .It Fn if_detach
 Shut down and unlink the specified
