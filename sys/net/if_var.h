@@ -670,6 +670,8 @@ void	if_delmulti_ifma(struct ifmultiaddr *);
 void	if_detach(struct ifnet *);
 void	if_purgeaddrs(struct ifnet *);
 void	if_down(struct ifnet *);
+struct ifmultiaddr *
+	if_findmulti(struct ifnet *, struct sockaddr *);
 void	if_free(struct ifnet *);
 void	if_free_type(struct ifnet *, u_char);
 void	if_initname(struct ifnet *, const char *, int);
