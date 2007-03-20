@@ -64,6 +64,7 @@ static int	in_scrubprefix(struct in_ifaddr *);
 static void	in_socktrim(struct sockaddr_in *);
 static int	in_ifinit(struct ifnet *,
 	    struct in_ifaddr *, struct sockaddr_in *, int);
+static void	in_purgemaddrs(struct ifnet *);
 
 static int subnetsarelocal = 0;
 SYSCTL_INT(_net_inet_ip, OID_AUTO, subnets_are_local, CTLFLAG_RW,
@@ -976,120 +977,159 @@ in_broadcast(in, ifp)
 	return (0);
 #undef ia
 }
+
 /*
  * Add an address to the list of IP multicast addresses for a given interface.
  */
 struct in_multi *
-in_addmulti(ap, ifp)
-	register struct in_addr *ap;
-	register struct ifnet *ifp;
+in_addmulti(struct in_addr *ap, struct ifnet *ifp)
 {
-	register struct in_multi *inm;
-	int error;
-	struct sockaddr_in sin;
-	struct ifmultiaddr *ifma;
+	struct in_multi *inm;
+
+	inm = NULL;
 
 	IFF_LOCKGIANT(ifp);
 	IN_MULTI_LOCK();
-	/*
-	 * Call generic routine to add membership or increment
-	 * refcount.  It wants addresses in the form of a sockaddr,
-	 * so we build one here (being careful to zero the unused bytes).
-	 */
-	bzero(&sin, sizeof sin);
-	sin.sin_family = AF_INET;
-	sin.sin_len = sizeof sin;
-	sin.sin_addr = *ap;
-	error = if_addmulti(ifp, (struct sockaddr *)&sin, &ifma);
-	if (error) {
-		IN_MULTI_UNLOCK();
-		IFF_UNLOCKGIANT(ifp);
-		return 0;
-	}
 
-	/*
-	 * If ifma->ifma_protospec is null, then if_addmulti() created
-	 * a new record.  Otherwise, we are done.
-	 */
-	if (ifma->ifma_protospec != NULL) {
-		IN_MULTI_UNLOCK();
-		IFF_UNLOCKGIANT(ifp);
-		return ifma->ifma_protospec;
-	}
+	IN_LOOKUP_MULTI(*ap, ifp, inm);
+	if (inm != NULL) {
+		/*
+		 * If we already joined this group, just bump the
+		 * refcount and return it.
+		 */
+		KASSERT(inm->inm_refcount >= 1,
+		    ("%s: bad refcount %d", __func__, inm->inm_refcount));
+		++inm->inm_refcount;
+	} else do {
+		struct sockaddr_in sin;
+		struct ifmultiaddr *ifma;
+		struct in_multi *ninm;
+		int error;
 
-	inm = (struct in_multi *)malloc(sizeof(*inm), M_IPMADDR,
-	    M_NOWAIT | M_ZERO);
-	if (inm == NULL) {
-		IN_MULTI_UNLOCK();
-		IFF_UNLOCKGIANT(ifp);
-		return (NULL);
-	}
+		bzero(&sin, sizeof sin);
+		sin.sin_family = AF_INET;
+		sin.sin_len = sizeof(struct sockaddr_in);
+		sin.sin_addr = *ap;
 
-	inm->inm_addr = *ap;
-	inm->inm_ifp = ifp;
-	inm->inm_ifma = ifma;
-	ifma->ifma_protospec = inm;
-	LIST_INSERT_HEAD(&in_multihead, inm, inm_link);
+		/*
+		 * Check if a link-layer group is already associated
+		 * with this network-layer group on the given ifnet.
+		 * If so, bump the refcount on the existing network-layer
+		 * group association and return it.
+		 */
+		error = if_addmulti(ifp, (struct sockaddr *)&sin, &ifma);
+		if (error)
+			break;
+		if (ifma->ifma_protospec != NULL) {
+			inm = (struct in_multi *)ifma->ifma_protospec;
+#ifdef INVARIANTS
+			if (inm->inm_ifma != ifma || inm->inm_ifp != ifp ||
+			    inm->inm_addr.s_addr != ap->s_addr)
+				panic("%s: ifma is inconsistent", __func__);
+#endif
+			++inm->inm_refcount;
+			break;
+		}
 
-	/*
-	 * Let IGMP know that we have joined a new IP multicast group.
-	 */
-	igmp_joingroup(inm);
+		/*
+		 * A new membership is needed; construct it and
+		 * perform the IGMP join.
+		 */
+		ninm = malloc(sizeof(*ninm), M_IPMADDR, M_NOWAIT | M_ZERO);
+		if (ninm == NULL) {
+			if_delmulti_ifma(ifma);
+			break;
+		}
+		ninm->inm_addr = *ap;
+		ninm->inm_ifp = ifp;
+		ninm->inm_ifma = ifma;
+		ninm->inm_refcount = 1;
+		ifma->ifma_protospec = ninm;
+		LIST_INSERT_HEAD(&in_multihead, ninm, inm_link);
+
+		igmp_joingroup(ninm);
+
+		inm = ninm;
+	} while (0);
+
 	IN_MULTI_UNLOCK();
 	IFF_UNLOCKGIANT(ifp);
+
 	return (inm);
 }
 
 /*
  * Delete a multicast address record.
+ * It is OK to call this routine if the underlying ifnet went away.
+ *
+ * XXX: To deal with the ifp going away, we cheat; the link-layer code in net
+ * will set ifma_ifp to NULL when the associated ifnet instance is detached
+ * from the system.
+ * The only reason we need to violate layers and check ifma_ifp here at all
+ * is because certain hardware drivers still require Giant to be held,
+ * and it must always be taken before other locks.
  */
 void
-in_delmulti(inm)
-	register struct in_multi *inm;
+in_delmulti(struct in_multi *inm)
 {
 	struct ifnet *ifp;
 
-	ifp = inm->inm_ifp;
-	IFF_LOCKGIANT(ifp);
+	KASSERT(inm->inm_ifma != NULL, ("%s: no ifma", __func__));
+	ifp = inm->inm_ifma->ifma_ifp;
+
+	if (ifp != NULL) {
+		/*
+		 * Sanity check that netinet's notion of ifp is the
+		 * same as net's.
+		 */
+		KASSERT(inm->inm_ifp == ifp, ("%s: bad ifp", __func__));
+		IFF_LOCKGIANT(ifp);
+	}
+
 	IN_MULTI_LOCK();
 	in_delmulti_locked(inm);
 	IN_MULTI_UNLOCK();
-	IFF_UNLOCKGIANT(ifp);
-}
 
-void
-in_delmulti_locked(inm)
-	register struct in_multi *inm;
-{
-	struct ifmultiaddr *ifma;
-	struct in_multi my_inm;
-
-	ifma = inm->inm_ifma;
-	my_inm.inm_ifp = NULL ; /* don't send the leave msg */
-	if (ifma->ifma_refcount == 1) {
-		/*
-		 * No remaining claims to this record; let IGMP know that
-		 * we are leaving the multicast group.
-		 * But do it after the if_delmulti() which might reset
-		 * the interface and nuke the packet.
-		 */
-		my_inm = *inm ;
-		ifma->ifma_protospec = NULL;
-		LIST_REMOVE(inm, inm_link);
-		free(inm, M_IPMADDR);
-	}
-	/* XXX - should be separate API for when we have an ifma? */
-	if_delmulti(ifma->ifma_ifp, ifma->ifma_addr);
-	if (my_inm.inm_ifp != NULL)
-		igmp_leavegroup(&my_inm);
+	if (ifp != NULL)
+		IFF_UNLOCKGIANT(ifp);
 }
 
 /*
- * Delete all multicast address records associated with the ifp.
+ * Delete a multicast address record, with locks held.
+ *
+ * It is OK to call this routine if the ifp went away.
+ * Assumes that caller holds the IN_MULTI lock, and that
+ * Giant was taken before other locks if required by the hardware.
  */
 void
-in_delmulti_ifp(ifp)
-	register struct ifnet *ifp;
+in_delmulti_locked(struct in_multi *inm)
+{
+	struct ifmultiaddr *ifma;
+
+	IN_MULTI_LOCK_ASSERT();
+	KASSERT(inm->inm_refcount >= 1, ("%s: freeing freed inm", __func__));
+
+	if (--inm->inm_refcount == 0) {
+		igmp_leavegroup(inm);
+
+		ifma = inm->inm_ifma;
+		KASSERT(ifma->ifma_protospec == inm,
+		    ("%s: ifma_protospec != inm", __func__));
+		ifma->ifma_protospec = NULL;
+
+		LIST_REMOVE(inm, inm_link);
+		free(inm, M_IPMADDR);
+
+		if_delmulti_ifma(ifma);
+	}
+}
+
+/*
+ * Delete all IPv4 multicast address records, and associated link-layer
+ * multicast address records, associated with ifp.
+ */
+static void
+in_purgemaddrs(struct ifnet *ifp)
 {
 	struct in_multi *inm;
 	struct in_multi *oinm;
@@ -1114,5 +1154,5 @@ in_ifdetach(ifp)
 
 	in_pcbpurgeif0(&ripcbinfo, ifp);
 	in_pcbpurgeif0(&udbinfo, ifp);
-	in_delmulti_ifp(ifp);
+	in_purgemaddrs(ifp);
 }
