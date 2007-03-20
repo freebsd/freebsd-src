@@ -99,9 +99,18 @@ void	(*ng_ether_link_state_p)(struct ifnet *ifp, int state);
 
 struct mbuf *(*tbr_dequeue_ptr)(struct ifaltq *, int) = NULL;
 
+/*
+ * XXX: Style; these should be sorted alphabetically, and unprototyped
+ * static functions should be prototyped. Currently they are sorted by
+ * declaration order.
+ */
 static void	if_attachdomain(void *);
 static void	if_attachdomain1(struct ifnet *);
+static void	if_purgemaddrs(struct ifnet *);
 static int	ifconf(u_long, caddr_t);
+static struct ifmultiaddr *
+		if_findmulti(struct ifnet *, struct sockaddr *);
+static void	if_freemulti(struct ifmultiaddr *);
 static void	if_grow(void);
 static void	if_init(void *);
 static void	if_check(void *);
@@ -113,6 +122,7 @@ static void	if_unroute(struct ifnet *, int flag, int fam);
 static void	link_rtrequest(int, struct rtentry *, struct rt_addrinfo *);
 static int	if_rtdel(struct radix_node *, void *);
 static int	ifhwioctl(u_long, struct ifnet *, caddr_t, struct thread *);
+static int	if_delmulti_locked(struct ifnet *, struct ifmultiaddr *, int);
 static void	if_start_deferred(void *context, int pending);
 static void	do_link_state_change(void *, int);
 static int	if_getgroup(struct ifgroupreq *, struct ifnet *);
@@ -577,7 +587,7 @@ if_attachdomain1(struct ifnet *ifp)
 }
 
 /*
- * Remove any network addresses from an interface.
+ * Remove any unicast or broadcast network addresses from an interface.
  */
 
 void
@@ -612,6 +622,21 @@ if_purgeaddrs(struct ifnet *ifp)
 		TAILQ_REMOVE(&ifp->if_addrhead, ifa, ifa_link);
 		IFAFREE(ifa);
 	}
+}
+
+/*
+ * Remove any multicast network addresses from an interface.
+ */
+static void
+if_purgemaddrs(struct ifnet *ifp)
+{
+	struct ifmultiaddr *ifma;
+	struct ifmultiaddr *next;
+
+	IF_ADDR_LOCK(ifp);
+	TAILQ_FOREACH_SAFE(ifma, &ifp->if_multiaddrs, ifma_link, next)
+		if_delmulti_locked(ifp, ifma, 1);
+	IF_ADDR_UNLOCK(ifp);
 }
 
 /*
@@ -675,6 +700,8 @@ if_detach(struct ifnet *ifp)
 	 */
 	in6_ifdetach(ifp);
 #endif
+	if_purgemaddrs(ifp);
+
 	/*
 	 * Remove link ifaddr pointer and maybe decrement if_index.
 	 * Clean up all addresses.
@@ -1686,7 +1713,21 @@ ifhwioctl(u_long cmd, struct ifnet *ifp, caddr_t data, struct thread *td)
 
 		if (cmd == SIOCADDMULTI) {
 			struct ifmultiaddr *ifma;
-			error = if_addmulti(ifp, &ifr->ifr_addr, &ifma);
+
+			/*
+			 * Userland is only permitted to join groups once
+			 * via the if_addmulti() KPI, because it cannot hold
+			 * struct ifmultiaddr * between calls. It may also
+			 * lose a race while we check if the membership
+			 * already exists.
+			 */
+			IF_ADDR_LOCK(ifp);
+			ifma = if_findmulti(ifp, &ifr->ifr_addr);
+			IF_ADDR_UNLOCK(ifp);
+			if (ifma != NULL)
+				error = EADDRINUSE;
+			else
+				error = if_addmulti(ifp, &ifr->ifr_addr, &ifma);
 		} else {
 			error = if_delmulti(ifp, &ifr->ifr_addr);
 		}
@@ -2207,7 +2248,7 @@ static void
 if_freemulti(struct ifmultiaddr *ifma)
 {
 
-	KASSERT(ifma->ifma_refcount == 1, ("if_freemulti: refcount %d",
+	KASSERT(ifma->ifma_refcount == 0, ("if_freemulti: refcount %d",
 	    ifma->ifma_refcount));
 	KASSERT(ifma->ifma_protospec == NULL,
 	    ("if_freemulti: protospec not NULL"));
@@ -2293,6 +2334,7 @@ if_addmulti(struct ifnet *ifp, struct sockaddr *sa,
 		if (ll_ifma == NULL) {
 			ll_ifma = if_allocmulti(ifp, llsa, NULL, M_NOWAIT);
 			if (ll_ifma == NULL) {
+				--ifma->ifma_refcount;
 				if_freemulti(ifma);
 				error = ENOMEM;
 				goto free_llsa_out;
@@ -2301,6 +2343,7 @@ if_addmulti(struct ifnet *ifp, struct sockaddr *sa,
 			    ifma_link);
 		} else
 			ll_ifma->ifma_refcount++;
+		ifma->ifma_llifma = ll_ifma;
 	}
 
 	/*
@@ -2316,8 +2359,6 @@ if_addmulti(struct ifnet *ifp, struct sockaddr *sa,
 	/*
 	 * Must generate the message while holding the lock so that 'ifma'
 	 * pointer is still valid.
-	 *
-	 * XXXRW: How come we don't announce ll_ifma?
 	 */
 	rt_newmaddrmsg(RTM_NEWMADDR, ifma);
 	IF_ADDR_UNLOCK(ifp);
@@ -2347,61 +2388,176 @@ unlock_out:
 }
 
 /*
- * Remove a reference to a multicast address on this interface.  Yell
- * if the request does not match an existing membership.
+ * Delete a multicast group membership by network-layer group address.
+ *
+ * Returns ENOENT if the entry could not be found. If ifp no longer
+ * exists, results are undefined. This entry point should only be used
+ * from subsystems which do appropriate locking to hold ifp for the
+ * duration of the call.
+ * Network-layer protocol domains must use if_delmulti_ifma().
  */
 int
 if_delmulti(struct ifnet *ifp, struct sockaddr *sa)
 {
-	struct ifmultiaddr *ifma, *ll_ifma;
+	struct ifmultiaddr *ifma;
+	int lastref;
+#ifdef INVARIANTS
+	struct ifnet *oifp;
+
+	IFNET_RLOCK();
+	TAILQ_FOREACH(oifp, &ifnet, if_link)
+		if (ifp == oifp)
+			break;
+	if (ifp != oifp)
+		ifp = NULL;
+	IFNET_RUNLOCK();
+
+	KASSERT(ifp != NULL, ("%s: ifnet went away", __func__));
+#endif
+	if (ifp == NULL)
+		return (ENOENT);
 
 	IF_ADDR_LOCK(ifp);
+	lastref = 0;
 	ifma = if_findmulti(ifp, sa);
-	if (ifma == NULL) {
-		IF_ADDR_UNLOCK(ifp);
-		return ENOENT;
-	}
-
-	if (ifma->ifma_refcount > 1) {
-		ifma->ifma_refcount--;
-		IF_ADDR_UNLOCK(ifp);
-		return 0;
-	}
-
-	sa = ifma->ifma_lladdr;
-	if (sa != NULL)
-		ll_ifma = if_findmulti(ifp, sa);
-	else
-		ll_ifma = NULL;
-
-	/*
-	 * XXXRW: How come we don't announce ll_ifma?
-	 */
-	rt_newmaddrmsg(RTM_DELMADDR, ifma);
-
-	TAILQ_REMOVE(&ifp->if_multiaddrs, ifma, ifma_link);
-	if_freemulti(ifma);
-
-	if (ll_ifma != NULL) {
-		if (ll_ifma->ifma_refcount == 1) {
-			TAILQ_REMOVE(&ifp->if_multiaddrs, ll_ifma, ifma_link);
-			if_freemulti(ll_ifma);
-		} else
-			ll_ifma->ifma_refcount--;
-	}
+	if (ifma != NULL)
+		lastref = if_delmulti_locked(ifp, ifma, 0);
 	IF_ADDR_UNLOCK(ifp);
 
-	/*
-	 * Make sure the interface driver is notified
-	 * in the case of a link layer mcast group being left.
-	 */
-	if (ifp->if_ioctl) {
+	if (ifma == NULL)
+		return (ENOENT);
+
+	if (lastref && ifp->if_ioctl != NULL) {
 		IFF_LOCKGIANT(ifp);
-		(void) (*ifp->if_ioctl)(ifp, SIOCDELMULTI, 0);
+		(void)(*ifp->if_ioctl)(ifp, SIOCDELMULTI, 0);
 		IFF_UNLOCKGIANT(ifp);
 	}
 
-	return 0;
+	return (0);
+}
+
+/*
+ * Delete a multicast group membership by group membership pointer.
+ * Network-layer protocol domains must use this routine.
+ *
+ * It is safe to call this routine if the ifp disappeared. Callers should
+ * hold IFF_LOCKGIANT() to avoid a LOR in case the hardware needs to be
+ * reconfigured.
+ */
+void
+if_delmulti_ifma(struct ifmultiaddr *ifma)
+{
+	struct ifnet *ifp;
+	int lastref;
+
+	ifp = ifma->ifma_ifp;
+#ifdef DIAGNOSTIC
+	if (ifp == NULL) {
+		printf("%s: ifma_ifp seems to be detached\n", __func__);
+	} else {
+		struct ifnet *oifp;
+
+		IFNET_RLOCK();
+		TAILQ_FOREACH(oifp, &ifnet, if_link)
+			if (ifp == oifp)
+				break;
+		if (ifp != oifp) {
+			printf("%s: ifnet %p disappeared\n", __func__, ifp);
+			ifp = NULL;
+		}
+		IFNET_RUNLOCK();
+	}
+#endif
+	/*
+	 * If and only if the ifnet instance exists: Acquire the address lock.
+	 */
+	if (ifp != NULL)
+		IF_ADDR_LOCK(ifp);
+
+	lastref = if_delmulti_locked(ifp, ifma, 0);
+
+	if (ifp != NULL) {
+		/*
+		 * If and only if the ifnet instance exists:
+		 *  Release the address lock.
+		 *  If the group was left: update the hardware hash filter.
+		 */
+		IF_ADDR_UNLOCK(ifp);
+		if (lastref && ifp->if_ioctl != NULL) {
+			IFF_LOCKGIANT(ifp);
+			(void)(*ifp->if_ioctl)(ifp, SIOCDELMULTI, 0);
+			IFF_UNLOCKGIANT(ifp);
+		}
+	}
+}
+
+/*
+ * Perform deletion of network-layer and/or link-layer multicast address.
+ *
+ * Return 0 if the reference count was decremented.
+ * Return 1 if the final reference was released, indicating that the
+ * hardware hash filter should be reprogrammed.
+ */
+static int
+if_delmulti_locked(struct ifnet *ifp, struct ifmultiaddr *ifma, int detaching)
+{
+	struct ifmultiaddr *ll_ifma;
+
+	if (ifp != NULL && ifma->ifma_ifp != NULL) {
+		KASSERT(ifma->ifma_ifp == ifp,
+		    ("%s: inconsistent ifp %p", __func__, ifp));
+		IF_ADDR_LOCK_ASSERT(ifp);
+	}
+
+	ifp = ifma->ifma_ifp;
+
+	/*
+	 * If the ifnet is detaching, null out references to ifnet,
+	 * so that upper protocol layers will notice, and not attempt
+	 * to obtain locks for an ifnet which no longer exists.
+	 * It is OK to call rt_newmaddrmsg() with a NULL ifp.
+	 */
+	if (detaching) {
+#ifdef DIAGNOSTIC
+		printf("%s: detaching ifnet instance %p\n", __func__, ifp);
+#endif
+		ifma->ifma_ifp = NULL;
+	}
+
+	if (--ifma->ifma_refcount > 0)
+		return 0;
+
+	rt_newmaddrmsg(RTM_DELMADDR, ifma);
+
+	/*
+	 * If this ifma is a network-layer ifma, a link-layer ifma may
+	 * have been associated with it. Release it first if so.
+	 */
+	ll_ifma = ifma->ifma_llifma;
+	if (ll_ifma != NULL) {
+		KASSERT(ifma->ifma_lladdr != NULL,
+		    ("%s: llifma w/o lladdr", __func__));
+		if (detaching)
+			ll_ifma->ifma_ifp = NULL;	/* XXX */
+		if (--ll_ifma->ifma_refcount == 0) {
+			if (ifp != NULL) {
+				TAILQ_REMOVE(&ifp->if_multiaddrs, ll_ifma,
+				    ifma_link);
+			}
+			if_freemulti(ll_ifma);
+		}
+	}
+
+	if (ifp != NULL)
+		TAILQ_REMOVE(&ifp->if_multiaddrs, ifma, ifma_link);
+
+	if_freemulti(ifma);
+
+	/*
+	 * The last reference to this instance of struct ifmultiaddr
+	 * was released; the hardware should be notified of this change.
+	 */
+	return 1;
 }
 
 /*
