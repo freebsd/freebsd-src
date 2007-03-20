@@ -93,7 +93,7 @@ __FBSDID("$FreeBSD$");
 static int cxgb_setup_msix(adapter_t *, int);
 static void cxgb_init(void *);
 static void cxgb_init_locked(struct port_info *);
-static void cxgb_stop(struct port_info *);
+static void cxgb_stop_locked(struct port_info *);
 static void cxgb_set_rxmode(struct port_info *);
 static int cxgb_ioctl(struct ifnet *, unsigned long, caddr_t);
 static void cxgb_start(struct ifnet *);
@@ -1131,14 +1131,16 @@ cxgb_set_rxmode(struct port_info *p)
 }
 
 static void
-cxgb_stop(struct port_info *p)
+cxgb_stop_locked(struct port_info *p)
 {
 	struct ifnet *ifp;
 
-	callout_drain(&p->adapter->cxgb_tick_ch);
+	mtx_assert(&p->lock, MA_OWNED);
+	mtx_assert(&p->adapter->lock, MA_NOTOWNED);
+		
+	callout_stop(&p->adapter->cxgb_tick_ch);
 	ifp = p->ifp;
 
-	PORT_LOCK(p);
 	ADAPTER_LOCK(p->adapter);
 	ifp->if_drv_flags &= ~(IFF_DRV_RUNNING | IFF_DRV_OACTIVE);
 	p->adapter->open_device_map &= ~(1 << p->port);
@@ -1147,7 +1149,6 @@ cxgb_stop(struct port_info *p)
 	ADAPTER_UNLOCK(p->adapter);
 	t3_port_intr_disable(p->adapter, p->port);
 	t3_mac_disable(&p->mac, MAC_DIRECTION_TX | MAC_DIRECTION_RX);
-	PORT_UNLOCK(p);
 	
 }
 
@@ -1196,7 +1197,7 @@ cxgb_ioctl(struct ifnet *ifp, unsigned long command, caddr_t data)
 				cxgb_init_locked(p);
 		} else {
 			if (ifp->if_drv_flags & IFF_DRV_RUNNING) {
-				cxgb_stop(p);
+				cxgb_stop_locked(p);
 			}
 		}
 		p->if_flags = ifp->if_flags;
