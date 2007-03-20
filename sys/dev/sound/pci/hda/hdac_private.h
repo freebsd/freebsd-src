@@ -123,6 +123,7 @@ struct hdac_dma {
 	bus_dma_tag_t	dma_tag;
 	bus_dmamap_t	dma_map;
 	bus_addr_t	dma_paddr;
+	bus_size_t	dma_size;
 	caddr_t		dma_vaddr;
 };
 
