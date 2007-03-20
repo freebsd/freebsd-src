@@ -1024,8 +1024,8 @@ sctp_init_asoc(struct sctp_inpcb *m, struct sctp_association *asoc,
 		asoc->ipv6_addr_legal = 0;
 	}
 
-	asoc->my_rwnd = max(m->sctp_socket->so_rcv.sb_hiwat, SCTP_MINIMAL_RWND);
-	asoc->peers_rwnd = m->sctp_socket->so_rcv.sb_hiwat;
+	asoc->my_rwnd = max(SCTP_SB_LIMIT_RCV(m->sctp_socket), SCTP_MINIMAL_RWND);
+	asoc->peers_rwnd = SCTP_SB_LIMIT_RCV(m->sctp_socket);
 
 	asoc->smallest_mtu = m->sctp_frag_point;
 	asoc->minrto = m->sctp_ep.sctp_minrto;
@@ -4354,7 +4354,10 @@ sctp_user_rcvd(struct sctp_tcb *stcb, int *freed_so_far, int hold_rlock,
 
 	atomic_add_int(&stcb->asoc.refcnt, 1);
 
-	if (stcb->asoc.state & SCTP_STATE_ABOUT_TO_BE_FREED) {
+	if (stcb->asoc.state & (SCTP_STATE_ABOUT_TO_BE_FREED |
+	    SCTP_STATE_SHUTDOWN_RECEIVED |
+	    SCTP_STATE_SHUTDOWN_ACK_SENT)
+	    ) {
 		/* Pre-check If we are freeing no update */
 		goto no_lock;
 	}
@@ -4504,7 +4507,7 @@ sctp_sorecvmsg(struct socket *so,
 	if (inp == NULL) {
 		return (EFAULT);
 	}
-	rwnd_req = (so->so_rcv.sb_hiwat >> SCTP_RWND_HIWAT_SHIFT);
+	rwnd_req = (SCTP_SB_LIMIT_RCV(so) >> SCTP_RWND_HIWAT_SHIFT);
 	/* Must be at least a MTU's worth */
 	if (rwnd_req < SCTP_MIN_RWND)
 		rwnd_req = SCTP_MIN_RWND;
