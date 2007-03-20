@@ -501,7 +501,7 @@ ng_ether_rcvmsg(node_p node, item_p item, hook_p lasthook)
 		case NGM_ETHER_ADD_MULTI:
 		    {
 			struct sockaddr_dl sa_dl;
-			struct ifmultiaddr *ifm;
+			struct ifmultiaddr *ifma;
 
 			if (msg->header.arglen != ETHER_ADDR_LEN) {
 				error = EINVAL;
@@ -513,8 +513,23 @@ ng_ether_rcvmsg(node_p node, item_p item, hook_p lasthook)
 			sa_dl.sdl_alen = ETHER_ADDR_LEN;
 			bcopy((void *)msg->data, LLADDR(&sa_dl),
 			    ETHER_ADDR_LEN);
-			error = if_addmulti(priv->ifp,
-			    (struct sockaddr *)&sa_dl, &ifm);
+			/*
+			 * Netgraph is only permitted to join groups once
+			 * via the if_addmulti() KPI, because it cannot hold
+			 * struct ifmultiaddr * between calls. It may also
+			 * lose a race while we check if the membership
+			 * already exists.
+			 */
+			IF_ADDR_LOCK(priv->ifp);
+			ifma = if_findmulti(priv->ifp,
+			    (struct sockaddr *)&sa_dl);
+			IF_ADDR_UNLOCK(priv->ifp);
+			if (ifma != NULL) {
+				error = EADDRINUSE;
+			} else {
+				error = if_addmulti(priv->ifp,
+				    (struct sockaddr *)&sa_dl, &ifma);
+			}
 			break;
 		    }
 		case NGM_ETHER_DEL_MULTI:

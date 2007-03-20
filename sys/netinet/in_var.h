@@ -165,6 +165,7 @@ struct in_multi {
 	u_int	inm_timer;		/* IGMP membership report timer */
 	u_int	inm_state;		/*  state of the membership */
 	struct	router_info *inm_rti;	/* router info*/
+	u_int	inm_refcount;		/* reference count */
 };
 
 #ifdef _KERNEL
@@ -248,7 +249,6 @@ struct	route;
 struct	in_multi *in_addmulti(struct in_addr *, struct ifnet *);
 void	in_delmulti(struct in_multi *);
 void	in_delmulti_locked(struct in_multi *);
-void	in_delmulti_ifp(struct ifnet *ifp);
 int	in_control(struct socket *, u_long, caddr_t, struct ifnet *,
 	    struct thread *);
 void	in_rtqdrain(void);

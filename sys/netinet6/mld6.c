@@ -550,101 +550,112 @@ in6_addmulti(maddr6, ifp, errorp, delay)
 	int *errorp, delay;
 {
 	struct in6_multi *in6m;
-	struct ifmultiaddr *ifma;
-	struct sockaddr_in6 sa6;
-	int	s = splnet();
 
 	*errorp = 0;
+	in6m = NULL;
 
-	/*
-	 * Call generic routine to add membership or increment
-	 * refcount.  It wants addresses in the form of a sockaddr,
-	 * so we build one here (being careful to zero the unused bytes).
-	 */
-	bzero(&sa6, sizeof(sa6));
-	sa6.sin6_family = AF_INET6;
-	sa6.sin6_len = sizeof(struct sockaddr_in6);
-	sa6.sin6_addr = *maddr6;
-	*errorp = if_addmulti(ifp, (struct sockaddr *)&sa6, &ifma);
-	if (*errorp) {
-		splx(s);
-		return 0;
-	}
+	IFF_LOCKGIANT(ifp);
+	/*IN6_MULTI_LOCK();*/
 
-	/*
-	 * If ifma->ifma_protospec is null, then if_addmulti() created
-	 * a new record.  Otherwise, we are done.
-	 */
-	if (ifma->ifma_protospec != NULL) {
-		splx(s);
-		return ifma->ifma_protospec;
-	}
+	IN6_LOOKUP_MULTI(*maddr6, ifp, in6m);
+	if (in6m != NULL) {
+		/*
+		 * If we already joined this group, just bump the
+		 * refcount and return it.
+		 */
+		KASSERT(in6m->in6m_refcount >= 1,
+		    ("%s: bad refcount %d", __func__, in6m->in6m_refcount));
+		++in6m->in6m_refcount;
+	} else do {
+		struct in6_multi *nin6m;
+		struct ifmultiaddr *ifma;
+		struct sockaddr_in6 sa6;
 
-	/* XXX - if_addmulti uses M_WAITOK.  Can this really be called
-	   at interrupt time?  If so, need to fix if_addmulti. XXX */
-	in6m = (struct in6_multi *)malloc(sizeof(*in6m), M_IP6MADDR, M_NOWAIT);
-	if (in6m == NULL) {
-		splx(s);
-		return (NULL);
-	}
+		bzero(&sa6, sizeof(sa6));
+		sa6.sin6_family = AF_INET6;
+		sa6.sin6_len = sizeof(struct sockaddr_in6);
+		sa6.sin6_addr = *maddr6;
 
-	bzero(in6m, sizeof *in6m);
-	in6m->in6m_addr = *maddr6;
-	in6m->in6m_ifp = ifp;
-	in6m->in6m_refcount = 1;
-	in6m->in6m_ifma = ifma;
-	ifma->ifma_protospec = in6m;
-	in6m->in6m_timer_ch = malloc(sizeof(*in6m->in6m_timer_ch), M_IP6MADDR,
-	    M_NOWAIT);
-	if (in6m->in6m_timer_ch == NULL) {
-		free(in6m, M_IP6MADDR);
-		splx(s);
-		return (NULL);
-	}
-	LIST_INSERT_HEAD(&in6_multihead, in6m, in6m_entry);
+		*errorp = if_addmulti(ifp, (struct sockaddr *)&sa6, &ifma);
+		if (*errorp)
+			break;
 
-	callout_init(in6m->in6m_timer_ch, 0);
-	in6m->in6m_timer = delay;
-	if (in6m->in6m_timer > 0) {
-		in6m->in6m_state = MLD_REPORTPENDING;
-		mld_starttimer(in6m);
+		/*
+		 * If ifma->ifma_protospec is null, then if_addmulti() created
+		 * a new record.  Otherwise, bump refcount, and we are done.
+		 */
+		if (ifma->ifma_protospec != NULL) {
+			in6m = ifma->ifma_protospec;
+			++in6m->in6m_refcount;
+			break;
+		}
 
-		splx(s);
-		return (in6m);
-	}
+		nin6m = malloc(sizeof(*nin6m), M_IP6MADDR, M_NOWAIT | M_ZERO);
+		if (nin6m == NULL) {
+			if_delmulti_ifma(ifma);
+			break;
+		}
 
-	/*
-	 * Let MLD6 know that we have joined a new IPv6 multicast
-	 * group.
-	 */
-	mld6_start_listening(in6m);
-	splx(s);
+		nin6m->in6m_addr = *maddr6;
+		nin6m->in6m_ifp = ifp;
+		nin6m->in6m_refcount = 1;
+		nin6m->in6m_ifma = ifma;
+		ifma->ifma_protospec = nin6m;
+
+		nin6m->in6m_timer_ch = malloc(sizeof(*nin6m->in6m_timer_ch),
+		    M_IP6MADDR, M_NOWAIT);
+		if (nin6m->in6m_timer_ch == NULL) {
+			free(nin6m, M_IP6MADDR);
+			if_delmulti_ifma(ifma);
+			break;
+		}
+
+		LIST_INSERT_HEAD(&in6_multihead, nin6m, in6m_entry);
+
+		callout_init(nin6m->in6m_timer_ch, 0);
+		nin6m->in6m_timer = delay;
+		if (nin6m->in6m_timer > 0) {
+			nin6m->in6m_state = MLD_REPORTPENDING;
+			mld_starttimer(nin6m);
+		}
+
+		mld6_start_listening(nin6m);
+
+		in6m = nin6m;
+
+	} while (0);
+
+	/*IN6_MULTI_UNLOCK();*/
+	IFF_UNLOCKGIANT(ifp);
+
 	return (in6m);
 }
 
 /*
  * Delete a multicast address record.
+ *
+ * TODO: Locking, as per netinet.
  */
 void
-in6_delmulti(in6m)
-	struct in6_multi *in6m;
+in6_delmulti(struct in6_multi *in6m)
 {
-	struct ifmultiaddr *ifma = in6m->in6m_ifma;
-	int	s = splnet();
+	struct ifmultiaddr *ifma;
 
-	if (ifma->ifma_refcount == 1) {
-		/*
-		 * No remaining claims to this record; let MLD6 know
-		 * that we are leaving the multicast group.
-		 */
+	KASSERT(in6m->in6m_refcount >= 1, ("%s: freeing freed in6m", __func__));
+
+	if (--in6m->in6m_refcount == 0) {
 		mld_stoptimer(in6m);
 		mld6_stop_listening(in6m);
+
+		ifma = in6m->in6m_ifma;
+		KASSERT(ifma->ifma_protospec == in6m,
+		    ("%s: ifma_protospec != in6m", __func__));
 		ifma->ifma_protospec = NULL;
+
 		LIST_REMOVE(in6m, in6m_entry);
 		free(in6m->in6m_timer_ch, M_IP6MADDR);
 		free(in6m, M_IP6MADDR);
+
+		if_delmulti_ifma(ifma);
 	}
-	/* XXX - should be separate API for when we have an ifma? */
-	if_delmulti(ifma->ifma_ifp, ifma->ifma_addr);
-	splx(s);
 }
