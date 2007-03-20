@@ -29,7 +29,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd March 19, 2007
+.Dd March 20, 2007
 .Dt IFMCSTAT 8
 .Os
 .Sh NAME
@@ -39,7 +39,8 @@
 .Nm
 .Op Fl i Ar interface
 .Op Fl f Ar address-family
-.Op Fl k Ar kernel
+.Op Fl M Ar core
+.Op Fl N Ar system
 .Nm
 .Op Ar kernel
 .\"
@@ -59,13 +60,17 @@ specifies the address-family to be displayed; currently only
 and
 .Ar inet6
 are supported.
-.It Fl k Ar kernel
+.It Fl M Ar core
+extracts values associated with the name list from the specified core,
+instead of the default
+.Pa /dev/kmem .
+.It Fl N Ar system
 extracts the name list from the specified kernel instead of the
 default, which is the kernel image the system has booted from.
-.It Nm Ar kernel
+.It Nm Ar system
 This is the same as specifying
 .Nm
-.Fl k Ar kernel .
+.Fl N Ar system .
 This usage is deprecated; it is supported only for backwards compatibility.
 .Sh BUGS
 .Nm
