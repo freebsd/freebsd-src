@@ -524,7 +524,6 @@ sctp_mark_all_for_resend(struct sctp_tcb *stcb,
 	 */
 	orig_rwnd = stcb->asoc.peers_rwnd;
 	orig_flight = net->flight_size;
-	net->rto_pending = 0;
 	net->fast_retran_ip = 0;
 	/* Now on to each chunk */
 	num_mk = cnt_mk = 0;
