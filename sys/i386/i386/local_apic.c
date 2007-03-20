@@ -148,6 +148,7 @@ static u_int32_t lapic_timer_divisors[] = {
 };
 
 volatile lapic_t *lapic;
+vm_paddr_t lapic_paddr;
 static u_long lapic_timer_divisor, lapic_timer_period, lapic_timer_hz;
 
 static void	lapic_enable(void);
@@ -212,6 +213,7 @@ lapic_init(vm_paddr_t addr)
 	KASSERT(trunc_page(addr) == addr,
 	    ("local APIC not aligned on a page boundary"));
 	lapic = pmap_mapdev(addr, sizeof(lapic_t));
+	lapic_paddr = addr;
 	setidt(APIC_SPURIOUS_INT, IDTVEC(spuriousint), SDT_SYS386IGT, SEL_KPL,
 	    GSEL(GCODE_SEL, SEL_KPL));
 

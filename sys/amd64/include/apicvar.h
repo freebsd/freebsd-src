@@ -174,6 +174,8 @@ inthand_t
 	IDTVEC(apic_isr4), IDTVEC(apic_isr5), IDTVEC(apic_isr6),
 	IDTVEC(apic_isr7), IDTVEC(spuriousint), IDTVEC(timerint);
 
+extern vm_paddr_t lapic_paddr;
+
 u_int	apic_alloc_vector(u_int irq);
 u_int	apic_alloc_vectors(u_int *irqs, u_int count, u_int align);
 void	apic_enable_vector(u_int vector);
