@@ -71,7 +71,6 @@ struct port_info {
 	struct cphy	phy;
 	struct cmac	mac;
 	struct link_config link_config;
-	int		activity;
 	struct ifmedia	media;	
 	struct mtx	lock;
 	

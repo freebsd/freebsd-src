@@ -141,6 +141,8 @@ static const int debug_flags = DBG_RX;
 
 #define t3_os_sleep(x) DELAY((x) * 1000)
 
+#define max_t(type, a, b) (type)max((a), (b))
+
 /* Standard PHY definitions */
 #define BMCR_LOOPBACK		BMCR_LOOP
 #define BMCR_ISOLATE		BMCR_ISO
