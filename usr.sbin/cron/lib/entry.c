@@ -351,14 +351,16 @@ load_entry(file, error_func, pw, envp)
 			goto eof;
 		}
 	}
-	prev_env = e->envp;
-	sprintf(envstr, "HOME=%s", pw->pw_dir);
-	e->envp = env_set(e->envp, envstr);
-	if (e->envp == NULL) {
-		warn("env_set(%s)", envstr);
-		env_free(prev_env);
-		ecode = e_mem;
-		goto eof;
+	if (!env_get("HOME", e->envp)) {
+		prev_env = e->envp;
+		sprintf(envstr, "HOME=%s", pw->pw_dir);
+		e->envp = env_set(e->envp, envstr);
+		if (e->envp == NULL) {
+			warn("env_set(%s)", envstr);
+			env_free(prev_env);
+			ecode = e_mem;
+			goto eof;
+		}
 	}
 	if (!env_get("PATH", e->envp)) {
 		prev_env = e->envp;
