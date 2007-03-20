@@ -613,7 +613,9 @@ ether_input(struct ifnet *ifp, struct mbuf *m)
 
 		if (m->m_len < sizeof(*evl) &&
 		    (m = m_pullup(m, sizeof(*evl))) == NULL) {
+#ifdef DIAGNOSTIC
 			if_printf(ifp, "cannot pullup VLAN header\n");
+#endif
 			ifp->if_ierrors++;
 			m_freem(m);
 			return;
