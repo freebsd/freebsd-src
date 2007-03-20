@@ -80,7 +80,22 @@
 
 #include "mixer_if.h"
 
-#define HDA_DRV_TEST_REV	"20070317_0042"
+/*
+ * XXX PAT superhero, until we have true support for BUS_DMA_NOCACHE.
+ *     Blindly assume that pmap_change_attr() exist if PAT_UNCACHEABLE
+ *     is defined. If not, fetch it from our cute little-pmap.
+ */
+#if defined(__i386__) || defined(__amd64__)
+#include <machine/specialreg.h>
+#ifndef PAT_UNCACHEABLE
+#include <dev/sound/pci/hda/lpmap.c>
+#endif
+#endif
+
+#define HDAC_DMA_UNCACHEABLE	0
+#define HDAC_DMA_WRITEBACK	1
+
+#define HDA_DRV_TEST_REV	"20070320_0043"
 #define HDA_WIDGET_PARSER_REV	1
 
 SND_DECLARE_FILE("$FreeBSD$");
@@ -1143,20 +1158,19 @@ hdac_dma_cb(void *callback_arg, bus_dma_segment_t *segs, int nseg, int error)
 }
 
 static void
-hdac_dma_nocache(void *ptr)
+hdac_dma_attr(vm_offset_t va, vm_size_t size, int mode)
 {
-#if 0
 #if defined(__i386__) || defined(__amd64__)
-	pt_entry_t *pte;
-	vm_offset_t va;
-
-	va = (vm_offset_t)ptr;
-	pte = vtopte(va);
-	if (pte)  {
-		*pte |= PG_N;
-		invltlb();
+	switch (mode) {
+	case HDAC_DMA_UNCACHEABLE:
+		pmap_change_attr(va, size, PAT_UNCACHEABLE);
+		break;
+	case HDAC_DMA_WRITEBACK:
+		pmap_change_attr(va, size, PAT_WRITE_BACK);
+		break;
+	default:
+		break;
 	}
-#endif
 #endif
 }
 
@@ -1203,7 +1217,7 @@ hdac_dma_alloc(struct hdac_softc *sc, struct hdac_dma *dma, bus_size_t size)
 	 * Allocate DMA memory
 	 */
 	result = bus_dmamem_alloc(dma->dma_tag, (void **)&dma->dma_vaddr,
-	    BUS_DMA_NOWAIT | BUS_DMA_COHERENT, &dma->dma_map);
+	    BUS_DMA_NOWAIT | BUS_DMA_ZERO, &dma->dma_map);
 	if (result != 0) {
 		device_printf(sc->dev, "%s: bus_dmamem_alloc failed (%x)\n",
 		    __func__, result);
@@ -1221,8 +1235,8 @@ hdac_dma_alloc(struct hdac_softc *sc, struct hdac_dma *dma, bus_size_t size)
 		    __func__, result);
 		goto fail;
 	}
-	bzero((void *)dma->dma_vaddr, size);
-	hdac_dma_nocache(dma->dma_vaddr);
+	hdac_dma_attr((vm_offset_t)dma->dma_vaddr, size, HDAC_DMA_UNCACHEABLE);
+	dma->dma_size = size;
 
 	return (0);
 fail:
@@ -1247,6 +1261,8 @@ hdac_dma_free(struct hdac_dma *dma)
 		/* Flush caches */
 		bus_dmamap_sync(dma->dma_tag, dma->dma_map,
 		    BUS_DMASYNC_POSTREAD | BUS_DMASYNC_POSTWRITE);
+		hdac_dma_attr((vm_offset_t)dma->dma_vaddr, dma->dma_size,
+		    HDAC_DMA_WRITEBACK);
 		bus_dmamap_unload(dma->dma_tag, dma->dma_map);
 		bus_dmamem_free(dma->dma_tag, dma->dma_vaddr, dma->dma_map);
 		bus_dma_tag_destroy(dma->dma_tag);
@@ -2412,7 +2428,6 @@ hdac_bdl_alloc(struct hdac_chan *ch)
 		device_printf(sc->dev, "can't alloc bdl\n");
 		return (rc);
 	}
-	hdac_dma_nocache(ch->bdl_dma.dma_vaddr);
 
 	return (0);
 }
@@ -2635,6 +2650,17 @@ hdac_probe(device_t dev)
 	return (result);
 }
 
+static int
+hdac_channel_free(kobj_t obj, void *data)
+{
+	struct hdac_chan *ch = data;
+
+	hdac_dma_attr((vm_offset_t)ch->b->buf, sndbuf_getmaxsize(ch->b),
+	    HDAC_DMA_WRITEBACK);
+
+	return (1);
+}
+
 static void *
 hdac_channel_init(kobj_t obj, void *data, struct snd_dbuf *b,
 					struct pcm_channel *c, int dir)
@@ -2677,7 +2703,8 @@ hdac_channel_init(kobj_t obj, void *data, struct snd_dbuf *b,
 	if (sndbuf_alloc(ch->b, sc->chan_dmat, sc->chan_size) != 0)
 		return (NULL);
 
-	hdac_dma_nocache(ch->b->buf);
+	hdac_dma_attr((vm_offset_t)ch->b->buf, sndbuf_getmaxsize(ch->b),
+	    HDAC_DMA_UNCACHEABLE);
 
 	return (ch);
 }
@@ -2900,6 +2927,7 @@ hdac_channel_getcaps(kobj_t obj, void *data)
 
 static kobj_method_t hdac_channel_methods[] = {
 	KOBJMETHOD(channel_init,		hdac_channel_init),
+	KOBJMETHOD(channel_free,		hdac_channel_free),
 	KOBJMETHOD(channel_setformat,		hdac_channel_setformat),
 	KOBJMETHOD(channel_setspeed,		hdac_channel_setspeed),
 	KOBJMETHOD(channel_setblocksize,	hdac_channel_setblocksize),
