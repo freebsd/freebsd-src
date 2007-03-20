@@ -683,8 +683,9 @@ show_var(int *oid, int nlen)
 		if (func) {
 			if (!nflag)
 				printf("%s%s", name, sep);
+			i = (*func)(len, p);
 			free(oval);
-			return ((*func)(len, p));
+			return (i);
 		}
 		/* FALLTHROUGH */
 	default:
