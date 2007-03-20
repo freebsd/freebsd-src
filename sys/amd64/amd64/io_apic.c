@@ -52,6 +52,7 @@ __FBSDID("$FreeBSD$");
 #include <machine/frame.h>
 #include <machine/intr_machdep.h>
 #include <machine/apicvar.h>
+#include <machine/resource.h>
 #include <machine/segments.h>
 
 #define IOAPIC_ISA_INTS		16
@@ -100,6 +101,7 @@ struct ioapic {
 	u_int io_intbase:8;		/* System Interrupt base */
 	u_int io_numintr:8;
 	volatile ioapic_t *io_addr;	/* XXX: should use bus_space */
+	vm_paddr_t io_paddr;
 	STAILQ_ENTRY(ioapic) io_next;
 	struct ioapic_intsrc io_pins[0];
 };
@@ -479,6 +481,7 @@ ioapic_create(vm_paddr_t addr, int32_t apic_id, int intbase)
 	next_ioapic_base = intbase + numintr;
 	io->io_numintr = numintr;
 	io->io_addr = apic;
+	io->io_paddr = addr;
 
 	/*
 	 * Initialize pins.  Start off with interrupts disabled.  Default
@@ -774,3 +777,73 @@ DEFINE_CLASS_0(ioapic, ioapic_pci_driver, ioapic_pci_methods, 0);
 
 static devclass_t ioapic_devclass;
 DRIVER_MODULE(ioapic, pci, ioapic_pci_driver, ioapic_devclass, 0, 0);
+
+/*
+ * A new-bus driver to consume the memory resources associated with
+ * the APICs in the system.  On some systems ACPI or PnPBIOS system
+ * resource devices may already claim these resources.  To keep from
+ * breaking those devices, we attach ourself to the nexus device after
+ * legacy0 and acpi0 and ignore any allocation failures.
+ */
+static void
+apic_identify(driver_t *driver, device_t parent)
+{
+
+	/*
+	 * Add at order 12.  acpi0 is probed at order 10 and legacy0
+	 * is probed at order 11.
+	 */
+	if (lapic_paddr != 0)
+		BUS_ADD_CHILD(parent, 12, "apic", 0);
+}
+
+static int
+apic_probe(device_t dev)
+{
+
+	device_set_desc(dev, "APIC resources");
+	device_quiet(dev);
+	return (0);
+}
+
+static void
+apic_add_resource(device_t dev, int rid, vm_paddr_t base, size_t length)
+{
+	int error;
+
+	error = bus_set_resource(dev, SYS_RES_MEMORY, rid, base, length);
+	if (error)
+		panic("apic_add_resource: resource %d failed set with %d", rid,
+		    error);
+	bus_alloc_resource_any(dev, SYS_RES_MEMORY, &rid, 0);
+}
+
+static int
+apic_attach(device_t dev)
+{
+	struct ioapic *io;
+	int i;
+
+	/* Reserve the local APIC. */
+	apic_add_resource(dev, 0, lapic_paddr, sizeof(lapic_t));
+	i = 1;
+	STAILQ_FOREACH(io, &ioapic_list, io_next) {
+		apic_add_resource(dev, i, io->io_paddr, IOAPIC_MEM_REGION);
+		i++;
+	}
+	return (0);
+}
+
+static device_method_t apic_methods[] = {
+	/* Device interface */
+	DEVMETHOD(device_identify,	apic_identify),
+	DEVMETHOD(device_probe,		apic_probe),
+	DEVMETHOD(device_attach,	apic_attach),
+
+	{ 0, 0 }
+};
+
+DEFINE_CLASS_0(apic, apic_driver, apic_methods, 0);
+
+static devclass_t apic_devclass;
+DRIVER_MODULE(apic, nexus, apic_driver, apic_devclass, 0, 0);
