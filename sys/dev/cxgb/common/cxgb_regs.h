@@ -4163,8 +4163,8 @@ $FreeBSD$
 #define V_TX_MOD_WEIGHT(x) ((x) << S_TX_MOD_WEIGHT)
 #define G_TX_MOD_WEIGHT(x) (((x) >> S_TX_MOD_WEIGHT) & M_TX_MOD_WEIGHT)
 
-#define S_TX_MOD_TIMER_MODE    9
-#define M_TX_MOD_TIMER_MODE    0x7f
+#define S_TX_MOD_TIMER_MODE    8
+#define M_TX_MOD_TIMER_MODE    0xff
 #define V_TX_MOD_TIMER_MODE(x) ((x) << S_TX_MOD_TIMER_MODE)
 #define G_TX_MOD_TIMER_MODE(x) (((x) >> S_TX_MOD_TIMER_MODE) & M_TX_MOD_TIMER_MODE)
 

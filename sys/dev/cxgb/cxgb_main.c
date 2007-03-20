@@ -104,7 +104,6 @@ static int setup_sge_qsets(adapter_t *);
 static void cxgb_async_intr(void *);
 static void cxgb_ext_intr_handler(void *, int);
 static void cxgb_tick(void *);
-static void check_link_status(adapter_t *sc);
 static void setup_rss(adapter_t *sc);
 
 /* Attachment glue for the PCI controller end of the device.  Each port of
@@ -278,7 +277,8 @@ cxgb_fw_download(adapter_t *sc, device_t dev)
 #endif	
 	int status;
 	
-	snprintf(&buf[0], sizeof(buf), "t3fw%d%d", CHELSIO_FW_MAJOR, CHELSIO_FW_MINOR);
+	snprintf(&buf[0], sizeof(buf), "t3fw%d%d", FW_VERSION_MAJOR,
+	    FW_VERSION_MINOR);
 	
 	fw = firmware_get(buf);
 
@@ -395,7 +395,7 @@ cxgb_controller_attach(device_t dev)
 
 	
 	/* Create a periodic callout for checking adapter status */
-	callout_init_mtx(&sc->cxgb_tick_ch, &sc->lock, 0);
+	callout_init_mtx(&sc->cxgb_tick_ch, &sc->lock, CALLOUT_RETURNUNLOCKED);
 	
 	ai = cxgb_get_adapter_info(dev);
 	if (t3_prep_adapter(sc, ai, 1) < 0) {
@@ -407,7 +407,7 @@ cxgb_controller_attach(device_t dev)
 		 * Warn user that a firmware update will be attempted in init.
 		 */
 		device_printf(dev, "firmware needs to be updated to version %d.%d\n",
-		    CHELSIO_FW_MAJOR, CHELSIO_FW_MINOR);
+		    FW_VERSION_MAJOR, FW_VERSION_MINOR);
 		sc->flags &= ~FW_UPTODATE;
 	} else {
 		sc->flags |= FW_UPTODATE;
@@ -1090,7 +1090,7 @@ cxgb_init_locked(struct port_info *p)
 	ifp = p->ifp;
 	if ((sc->flags & FW_UPTODATE) == 0) {
 		device_printf(sc->dev, "updating firmware to version %d.%d\n",
-		    CHELSIO_FW_MAJOR, CHELSIO_FW_MINOR);
+		    FW_VERSION_MAJOR, FW_VERSION_MINOR);
 		if ((error = cxgb_fw_download(sc, sc->dev)) != 0) {
 			device_printf(sc->dev, "firmware download failed err: %d"
 			    "interface will be unavailable\n", error);
@@ -1393,19 +1393,6 @@ cxgb_ext_intr_handler(void *arg, int count)
 }
 
 static void
-cxgb_tick(void *arg)
-{
-	adapter_t *sc = (adapter_t *)arg;
-	const struct adapter_params *p = &sc->params;
-
-	if (p->linkpoll_period)
-		check_link_status(sc);
-
-	callout_reset(&sc->cxgb_tick_ch, sc->params.stats_update_period * hz,
-	    cxgb_tick, sc);
-}
-
-static void
 check_link_status(adapter_t *sc)
 {
 	int i;
@@ -1416,6 +1403,61 @@ check_link_status(adapter_t *sc)
 		if (!(p->port_type->caps & SUPPORTED_IRQ))
 			t3_link_changed(sc, i);
 	}
+}
+
+static void
+check_t3b2_mac(struct adapter *adapter)
+{
+	int i;
+
+	for_each_port(adapter, i) {
+		struct port_info *p = &adapter->port[i];
+		struct ifnet *ifp = p->ifp;
+		int status;
+
+		if ((ifp->if_drv_flags & IFF_DRV_RUNNING) == 0) 
+			continue;
+		
+		status = 0;
+		PORT_LOCK(p);
+		if ((ifp->if_drv_flags & IFF_DRV_RUNNING)) 
+			status = t3b2_mac_watchdog_task(&p->mac);
+		if (status == 1)
+			p->mac.stats.num_toggled++;
+		else if (status == 2) {
+			struct cmac *mac = &p->mac;
+
+			t3_mac_set_mtu(mac, ifp->if_mtu);
+			t3_mac_set_address(mac, 0, p->hw_addr);
+			cxgb_set_rxmode(p);
+			t3_link_start(&p->phy, mac, &p->link_config);
+			t3_mac_enable(mac, MAC_DIRECTION_RX | MAC_DIRECTION_TX);
+			t3_port_intr_enable(adapter, p->port);
+			p->mac.stats.num_resets++;
+		}
+		PORT_UNLOCK(p);
+	}
+}
+
+static void
+cxgb_tick(void *arg)
+{
+	adapter_t *sc = (adapter_t *)arg;
+	const struct adapter_params *p = &sc->params;
+
+	if (p->linkpoll_period)
+		check_link_status(sc);
+	callout_reset(&sc->cxgb_tick_ch, sc->params.stats_update_period * hz,
+	    cxgb_tick, sc);
+
+	/*
+	 * adapter lock can currently only be acquire after the
+	 * port lock
+	 */
+	ADAPTER_UNLOCK(sc);
+	if (p->rev == T3_REV_B2)
+		check_t3b2_mac(sc);
+
 }
 
 static int
