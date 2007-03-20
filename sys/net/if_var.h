@@ -600,8 +600,6 @@ struct ifprefix {
 /*
  * Multicast address structure.  This is analogous to the ifaddr
  * structure except that it keeps track of multicast addresses.
- * Also, the reference count here is a count of requests for this
- * address, not a count of pointers to this structure.
  */
 struct ifmultiaddr {
 	TAILQ_ENTRY(ifmultiaddr) ifma_link; /* queue macro glue */
@@ -610,6 +608,7 @@ struct ifmultiaddr {
 	struct	ifnet *ifma_ifp;	/* back-pointer to interface */
 	u_int	ifma_refcount;		/* reference count */
 	void	*ifma_protospec;	/* protocol-specific state, if any */
+	struct	ifmultiaddr *ifma_llifma; /* pointer to ifma for ifma_lladdr */
 };
 
 #ifdef _KERNEL
@@ -667,6 +666,7 @@ int	if_allmulti(struct ifnet *, int);
 struct	ifnet* if_alloc(u_char);
 void	if_attach(struct ifnet *);
 int	if_delmulti(struct ifnet *, struct sockaddr *);
+void	if_delmulti_ifma(struct ifmultiaddr *);
 void	if_detach(struct ifnet *);
 void	if_purgeaddrs(struct ifnet *);
 void	if_down(struct ifnet *);
